@@ -8,6 +8,7 @@ import (
 	common "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	_ "github.com/NilFoundation/nil/core/db"
+	_ "github.com/NilFoundation/nil/core/ssz"
 	dt "github.com/NilFoundation/nil/core/types"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
@@ -24,7 +25,7 @@ func genBlock(updatedAccount string, prevBlock *dt.Block) *dt.Block {
 	}
 
 	toHash := common.FilterFieldsByTag(&block, "hashable")
-	block.Hash = poseidon.Sum(common.MustSerializeBinaryPersistent(toHash))
+	block.Hash = common.CastToHash(poseidon.Sum(common.MustSerializeBinaryPersistent(toHash)))
 	return &block
 }
 

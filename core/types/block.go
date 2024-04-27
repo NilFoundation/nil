@@ -2,14 +2,35 @@ package types
 
 import (
 	common "github.com/NilFoundation/nil/common"
-	mpt "github.com/keybase/go-merkle-tree"
+	ssz "github.com/NilFoundation/nil/core/ssz"
 )
 
 type Block struct {
-	Hash               mpt.Hash `storable:""`
-	Id                 uint64   `hashable:"" storable:""`
-	PrevBlock          mpt.Hash `hashable:"" storable:""`
-	SmartContractsRoot mpt.Hash `hashable:"" storable:""`
+	Hash               common.Hash `storable:""`
+	Id                 uint64      `hashable:"" storable:""`
+	PrevBlock          common.Hash `hashable:"" storable:""`
+	SmartContractsRoot common.Hash `hashable:"" storable:""`
 
 	SmartContracts *common.TreeWrapper
+}
+
+func (b *Block) EncodeSSZ(dst []byte) ([]byte, error) {
+	return ssz.MarshalSSZ(
+		dst,
+		b.Hash[:],
+		ssz.Uint64SSZ(b.Id),
+		b.PrevBlock[:],
+		b.SmartContractsRoot[:],
+	)
+}
+
+func (b *Block) DecodeSSZ(buf []byte, version int) error {
+	return ssz.UnmarshalSSZ(
+		buf,
+		0,
+		b.Hash[:],
+		&b.Id,
+		b.PrevBlock[:],
+		b.SmartContractsRoot[:],
+	)
 }
