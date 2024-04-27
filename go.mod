@@ -6,6 +6,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.6.0
 	github.com/iden3/go-iden3-crypto v0.0.16
 	github.com/keybase/go-merkle-tree v0.0.0-20231220184832-f941b050db23
+	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/rs/zerolog v1.32.0
 )
 

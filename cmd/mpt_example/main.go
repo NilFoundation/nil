@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"sync"
 
-	dt "github.com/NilFoundation/nil/core/types"
-	"github.com/NilFoundation/nil/core/db"
 	common "github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/db"
+	_ "github.com/NilFoundation/nil/core/db"
+	dt "github.com/NilFoundation/nil/core/types"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
