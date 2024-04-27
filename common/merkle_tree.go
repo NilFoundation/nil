@@ -1,9 +1,9 @@
-package merkle_tree
+package common
 
 import (
 	"context"
 
-	"github.com/NilFoundation/nil/internal/pkg/db"
+	"github.com/NilFoundation/nil/core/db"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	mpt "github.com/keybase/go-merkle-tree"
 )

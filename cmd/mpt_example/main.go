@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	dt "github.com/NilFoundation/nil/internal/pkg/datatypes"
-	"github.com/NilFoundation/nil/internal/pkg/db"
-	mtree "github.com/NilFoundation/nil/internal/pkg/merkle_tree"
-	"github.com/NilFoundation/nil/internal/pkg/utils"
+	dt "github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/core/db"
+	common "github.com/NilFoundation/nil/common"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
@@ -19,12 +18,12 @@ func genBlock(updatedAccount string, prevBlock *dt.Block) *dt.Block {
 		SmartContracts: prevBlock.SmartContracts,
 	}
 	// write some info to contract state
-	if err := mtree.UpdateTree(block.SmartContracts.Tree, updatedAccount, fmt.Sprintf("%d", block.Id)); err != nil {
+	if err := common.UpdateTree(block.SmartContracts.Tree, updatedAccount, fmt.Sprintf("%d", block.Id)); err != nil {
 		panic("in a toy cluster merkle tree upd should always succeed :)")
 	}
 
-	toHash := utils.FilterFieldsByTag(&block, "hashable")
-	block.Hash = poseidon.Sum(utils.MustSerializeBinaryPersistent(toHash))
+	toHash := common.FilterFieldsByTag(&block, "hashable")
+	block.Hash = poseidon.Sum(common.MustSerializeBinaryPersistent(toHash))
 	return &block
 }
 
@@ -35,10 +34,10 @@ func runShardChain(
 ) {
 	defer wg.Done()
 
-	logger := utils.NewLogger(fmt.Sprintf("shard-%d", shardId), false /* noColor */)
+	logger := common.NewLogger(fmt.Sprintf("shard-%d", shardId), false /* noColor */)
 	logger.Info().Msg("running shardchain")
 
-	tree := mtree.GetMerkleTree(fmt.Sprintf("shard-%d-smart-contracts", shardId), dbClient)
+	tree := common.GetMerkleTree(fmt.Sprintf("shard-%d-smart-contracts", shardId), dbClient)
 	genesisBlock := &dt.Block{SmartContracts: tree}
 
 	genBlock("contract-addr", genesisBlock)

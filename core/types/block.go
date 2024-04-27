@@ -1,7 +1,7 @@
-package datatypes
+package types
 
 import (
-	mtree "github.com/NilFoundation/nil/internal/pkg/merkle_tree"
+	common "github.com/NilFoundation/nil/common"
 	mpt "github.com/keybase/go-merkle-tree"
 )
 
@@ -11,5 +11,5 @@ type Block struct {
 	PrevBlock          mpt.Hash `hashable:"" storable:""`
 	SmartContractsRoot mpt.Hash `hashable:"" storable:""`
 
-	SmartContracts *mtree.TreeWrapper
+	SmartContracts *common.TreeWrapper
 }
