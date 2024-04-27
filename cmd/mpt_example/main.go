@@ -20,14 +20,16 @@ func genBlock(updatedAccount string, prevBlock *dt.Block) *dt.Block {
 	}
 
 	block := dt.Block{
-		Id:             prevBlock.Id + 1,
-		PrevBlock:      pb_hash,
-		SmartContracts: prevBlock.SmartContracts,
+		Id:                 prevBlock.Id + 1,
+		PrevBlock:          pb_hash,
+		SmartContractsRoot: prevBlock.SmartContractsRoot,
 	}
 	// write some info to contract state
-	if err := common.UpdateTree(block.SmartContracts.Tree, updatedAccount, fmt.Sprintf("%d", block.Id)); err != nil {
-		panic("in a toy cluster merkle tree upd should always succeed :)")
-	}
+	/*
+		if err := common.UpdateTree(block.SmartContracts.Tree, updatedAccount, fmt.Sprintf("%d", block.Id)); err != nil {
+			panic("in a toy cluster merkle tree upd should always succeed :)")
+		}
+	*/
 
 	return &block
 }
@@ -42,12 +44,12 @@ func runShardChain(
 	logger := common.NewLogger(fmt.Sprintf("shard-%d", shardId), false /* noColor */)
 	logger.Info().Msg("running shardchain")
 
-	tree := common.GetMerkleTree(fmt.Sprintf("shard-%d-smart-contracts", shardId), dbClient)
-	genesisBlock := &dt.Block{SmartContracts: tree}
+	//tree := common.GetMerkleTree(fmt.Sprintf("shard-%d-smart-contracts", shardId), dbClient)
+	genesisBlock := &dt.Block{SmartContractsRoot: common.Hash{0}}
 
 	genBlock("contract-addr", genesisBlock)
 
-	logger.Debug().Msgf("now merkle tree of contracts state is : %+v", tree.Engine)
+	//logger.Debug().Msgf("now merkle tree of contracts state is : %+v", tree.Engine)
 }
 
 func main() {

@@ -1,9 +1,8 @@
-package common
+package db
 
 import (
 	"context"
 
-	"github.com/NilFoundation/nil/core/db"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	mpt "github.com/keybase/go-merkle-tree"
 )
@@ -32,7 +31,7 @@ func UpdateTree(tree *mpt.Tree, key, value string) error {
 	return tree.Upsert(context.TODO(), kv, nil)
 }
 
-func GetMerkleTree(table string, client *db.DBClient) *TreeWrapper {
+func GetMerkleTree(table string, client *DBClient) *TreeWrapper {
 	cfg := mpt.NewConfig(poseidonHasher{}, mpt.ChildIndex(4), mpt.ChildIndex(1), valueFactory{})
 	eng := client.GetEngine(table)
 	return &TreeWrapper{mpt.NewTree(eng, cfg), eng}
