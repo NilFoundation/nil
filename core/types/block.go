@@ -6,7 +6,6 @@ import (
 )
 
 type Block struct {
-	Hash               common.Hash `storable:""`
 	Id                 uint64      `hashable:"" storable:""`
 	PrevBlock          common.Hash `hashable:"" storable:""`
 	SmartContractsRoot common.Hash `hashable:"" storable:""`
@@ -17,7 +16,6 @@ type Block struct {
 func (b *Block) EncodeSSZ(dst []byte) ([]byte, error) {
 	return ssz.MarshalSSZ(
 		dst,
-		b.Hash[:],
 		ssz.Uint64SSZ(b.Id),
 		b.PrevBlock[:],
 		b.SmartContractsRoot[:],
@@ -28,9 +26,11 @@ func (b *Block) DecodeSSZ(buf []byte, version int) error {
 	return ssz.UnmarshalSSZ(
 		buf,
 		0,
-		b.Hash[:],
 		&b.Id,
 		b.PrevBlock[:],
 		b.SmartContractsRoot[:],
 	)
+}
+func (b *Block) EncodingSizeSSZ() int {
+	return common.Bytes64Size + common.HashSize + common.HashSize
 }

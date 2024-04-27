@@ -3,20 +3,25 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"sync"
 
 	common "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	_ "github.com/NilFoundation/nil/core/db"
-	_ "github.com/NilFoundation/nil/core/ssz"
+	ssz "github.com/NilFoundation/nil/core/ssz"
 	dt "github.com/NilFoundation/nil/core/types"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 func genBlock(updatedAccount string, prevBlock *dt.Block) *dt.Block {
+	pb_hash, err := ssz.SSZHash(prevBlock)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	block := dt.Block{
 		Id:             prevBlock.Id + 1,
-		PrevBlock:      prevBlock.Hash,
+		PrevBlock:      pb_hash,
 		SmartContracts: prevBlock.SmartContracts,
 	}
 	// write some info to contract state
@@ -24,8 +29,6 @@ func genBlock(updatedAccount string, prevBlock *dt.Block) *dt.Block {
 		panic("in a toy cluster merkle tree upd should always succeed :)")
 	}
 
-	toHash := common.FilterFieldsByTag(&block, "hashable")
-	block.Hash = common.CastToHash(poseidon.Sum(common.MustSerializeBinaryPersistent(toHash)))
 	return &block
 }
 

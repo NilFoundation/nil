@@ -3,6 +3,7 @@ package ssz
 import (
 	"encoding/binary"
 	common "github.com/NilFoundation/nil/common"
+	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 var (
@@ -202,4 +203,13 @@ func EncodeDynamicList[T Marshaler](buf []byte, objs []T) (dst []byte, err error
 		}
 	}
 	return
+}
+
+func SSZHash(obj Marshaler) (common.Hash, error) {
+	encoded, err := obj.EncodeSSZ(nil)
+	if err != nil {
+		return common.Hash{0}, err
+	}
+
+	return common.CastToHash(poseidon.Sum(encoded)), nil
 }
