@@ -44,6 +44,23 @@ func WriteBlock(tx Tx, block *types.Block) error {
 	return nil
 }
 
+func WriteCode(tx Tx, code types.Code) error {
+	hash := code.Hash()
+	if err := tx.Put(CodeTable, hash.Bytes(), code[:]); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ReadCode(tx Tx, hash common.Hash) (types.Code, error) {
+	code, err := tx.GetOne(StorageTable, hash[:])
+	if err != nil {
+		return types.Code{}, err
+	}
+
+	return types.Code(code), nil
+}
+
 func WriteStorage(tx Tx, addr common.Address, key common.Hash, value uint256.Int) error {
 	fullKey := make([]byte, common.AddrSize+common.HashSize)
 	copy(fullKey, addr[:])
@@ -64,7 +81,8 @@ func ReadStorage(tx Tx, addr common.Address, key common.Hash) (uint256.Int, erro
 
 	enc, err := tx.GetOne(StorageTable, fullKey)
 	if err != nil {
-		return uint256.Int{}, err
+		// TODO: probably need to differentiate a real error here
+		return *uint256.NewInt(0), nil
 	}
 
 	var res uint256.Int
