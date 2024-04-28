@@ -3,28 +3,34 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"sync"
 
-	dt "github.com/NilFoundation/nil/internal/pkg/datatypes"
-	"github.com/NilFoundation/nil/internal/pkg/db"
-	mtree "github.com/NilFoundation/nil/internal/pkg/merkle_tree"
-	"github.com/NilFoundation/nil/internal/pkg/utils"
-	"github.com/iden3/go-iden3-crypto/poseidon"
+	common "github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/db"
+	_ "github.com/NilFoundation/nil/core/db"
+	ssz "github.com/NilFoundation/nil/core/ssz"
+	dt "github.com/NilFoundation/nil/core/types"
 )
 
 func genBlock(updatedAccount string, prevBlock *dt.Block) *dt.Block {
-	block := dt.Block{
-		Id:             prevBlock.Id + 1,
-		PrevBlock:      prevBlock.Hash,
-		SmartContracts: prevBlock.SmartContracts,
-	}
-	// write some info to contract state
-	if err := mtree.UpdateTree(block.SmartContracts.Tree, updatedAccount, fmt.Sprintf("%d", block.Id)); err != nil {
-		panic("in a toy cluster merkle tree upd should always succeed :)")
+	pb_hash, err := ssz.SSZHash(prevBlock)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	toHash := utils.FilterFieldsByTag(&block, "hashable")
-	block.Hash = poseidon.Sum(utils.MustSerializeBinaryPersistent(toHash))
+	block := dt.Block{
+		Id:                 prevBlock.Id + 1,
+		PrevBlock:          pb_hash,
+		SmartContractsRoot: prevBlock.SmartContractsRoot,
+	}
+	// write some info to contract state
+	/*
+		if err := common.UpdateTree(block.SmartContracts.Tree, updatedAccount, fmt.Sprintf("%d", block.Id)); err != nil {
+			panic("in a toy cluster merkle tree upd should always succeed :)")
+		}
+	*/
+
 	return &block
 }
 
@@ -35,15 +41,15 @@ func runShardChain(
 ) {
 	defer wg.Done()
 
-	logger := utils.NewLogger(fmt.Sprintf("shard-%d", shardId), false /* noColor */)
+	logger := common.NewLogger(fmt.Sprintf("shard-%d", shardId), false /* noColor */)
 	logger.Info().Msg("running shardchain")
 
-	tree := mtree.GetMerkleTree(fmt.Sprintf("shard-%d-smart-contracts", shardId), dbClient)
-	genesisBlock := &dt.Block{SmartContracts: tree}
+	//tree := common.GetMerkleTree(fmt.Sprintf("shard-%d-smart-contracts", shardId), dbClient)
+	genesisBlock := &dt.Block{SmartContractsRoot: common.Hash{0}}
 
 	genBlock("contract-addr", genesisBlock)
 
-	logger.Debug().Msgf("now merkle tree of contracts state is : %+v", tree.Engine)
+	//logger.Debug().Msgf("now merkle tree of contracts state is : %+v", tree.Engine)
 }
 
 func main() {

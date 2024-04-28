@@ -32,6 +32,7 @@
             go
             gotools
             go-tools
+            gopls
           ];
 
           shellHook = ''
@@ -41,11 +42,8 @@
 
             export GOENV="$GO_CFG_DIR/config/env"
 
-            go env -w GOPRIVATE="github.com/NilFoundation"
             go env -w GOCACHE="$GO_CFG_DIR/cache"
             go env -w GOMODCACHE="$GO_CFG_DIR/pkg/mod"
-
-            go mod tidy
           '';
         };
 
