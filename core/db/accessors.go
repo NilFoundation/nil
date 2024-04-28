@@ -1,9 +1,12 @@
 package db
 
 import (
-	common "github.com/NilFoundation/nil/common"
-	types "github.com/NilFoundation/nil/core/types"
 	"log"
+
+	common "github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/db"
+	types "github.com/NilFoundation/nil/core/types"
+	"github.com/holiman/uint256"
 )
 
 func ReadBlockSSZ(tx Tx, hash common.Hash) []byte {
@@ -40,4 +43,17 @@ func WriteBlock(tx Tx, block *types.Block) error {
 		return err
 	}
 	return nil
+}
+
+func WriteStorage(tx Tx, addr common.Address, key common.Hash, value uint256.Int) error {
+	fullKey := make([]byte, common.AddrSize+common.HashSize)
+	copy(fullKey, addr[:])
+	copy(fullKey[common.HashSize:], key[:])
+
+	v := value.Bytes()
+	if len(v) == 0 {
+		return tx.Delete(db.StorageTrieTable, fullKey)
+	}
+
+	return tx.Put(db.StorageTrieTable, fullKey, v)
 }
