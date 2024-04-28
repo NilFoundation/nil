@@ -52,8 +52,24 @@ func WriteStorage(tx Tx, addr common.Address, key common.Hash, value uint256.Int
 
 	v := value.Bytes()
 	if len(v) == 0 {
-		return tx.Delete(db.StorageTrieTable, fullKey)
+		return tx.Delete(db.StorageTable, fullKey)
 	}
 
-	return tx.Put(db.StorageTrieTable, fullKey, v)
+	return tx.Put(db.StorageTable, fullKey, v)
+}
+
+func ReadStorage(tx Tx, addr common.Address, key common.Hash) (uint256.Int, error) {
+	fullKey := make([]byte, common.AddrSize+common.HashSize)
+	copy(fullKey, addr[:])
+	copy(fullKey[common.HashSize:], key[:])
+
+	enc, err := tx.GetOne(db.StorageTable, fullKey)
+	if err != nil {
+		return uint256.Int{}, err
+	}
+
+	var res uint256.Int
+	res.SetBytes(enc)
+
+	return res, nil
 }

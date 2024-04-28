@@ -6,4 +6,7 @@ const CodeTable = "Code"
 const ContractCodeTable = "ContractCode"
 
 const ContractTrieTable = "ContractTrie"
-const StorageTrieTable = "StorageTrieTable"
+const StorageTrieTable = "StorageTrie"
+
+const ContractTable = "ContractTrie"
+const StorageTable = "StorageTrie"
