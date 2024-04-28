@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-func ReadBlockSSZ(tx Tx, hash common.Hash, number uint64) []byte {
+func ReadBlockSSZ(tx Tx, hash common.Hash) []byte {
 	data, err := tx.GetOne(BlockTable, hash.Bytes())
 	if err != nil {
 		log.Fatal("ReadHeaderRLP failed", "err", err)
@@ -14,8 +14,8 @@ func ReadBlockSSZ(tx Tx, hash common.Hash, number uint64) []byte {
 	return data
 }
 
-func ReadBlock(tx Tx, hash common.Hash, number uint64) *types.Block {
-	data := ReadBlockSSZ(tx, hash, number)
+func ReadBlock(tx Tx, hash common.Hash) *types.Block {
+	data := ReadBlockSSZ(tx, hash)
 	if len(data) == 0 {
 		return nil
 	}
@@ -31,7 +31,6 @@ func ReadBlock(tx Tx, hash common.Hash, number uint64) *types.Block {
 func WriteBlock(tx Tx, block *types.Block) error {
 	hash := block.Hash()
 
-	// Write the encoded header
 	data, err := block.EncodeSSZ(nil)
 
 	if err != nil {

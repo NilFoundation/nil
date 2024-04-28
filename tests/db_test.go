@@ -3,7 +3,10 @@ package tests
 import (
 	"bytes"
 	"context"
+	common "github.com/NilFoundation/nil/common"
 	db "github.com/NilFoundation/nil/core/db"
+	types "github.com/NilFoundation/nil/core/types"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -109,4 +112,29 @@ func TestTransaction(t *testing.T) {
 	}
 
 	tx.Commit()
+}
+
+func TestBlock(t *testing.T) {
+	d := db.NewSqlite(t.TempDir() + "/foo.db")
+	defer d.Close()
+
+	ctx := context.Background()
+
+	tx, err := d.BeginTx(ctx)
+	require.NoError(t, err)
+
+	block := types.Block{
+		Id:                 1,
+		PrevBlock:          common.Hash{0x01},
+		SmartContractsRoot: common.Hash{0x02},
+	}
+
+	err = db.WriteBlock(tx, &block)
+	require.NoError(t, err)
+
+	block2 := db.ReadBlock(tx, block.Hash())
+
+	require.Equal(t, block2.Id, block.Id)
+	require.Equal(t, block2.PrevBlock, block.PrevBlock)
+	require.Equal(t, block2.SmartContractsRoot, block.SmartContractsRoot)
 }
