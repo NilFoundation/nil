@@ -3,6 +3,7 @@ package ssz
 import (
 	"encoding/binary"
 	common "github.com/NilFoundation/nil/common"
+	"github.com/holiman/uint256"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
@@ -37,6 +38,12 @@ func MarshalUint64SSZ(buf []byte, x uint64) {
 func Uint64SSZ(x uint64) []byte {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, x)
+	return b
+}
+
+func Uint256SSZ(x uint256.Int) []byte {
+	b := make([]byte, 32)
+	x.WriteToSlice(b)
 	return b
 }
 
