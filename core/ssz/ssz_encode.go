@@ -5,20 +5,6 @@ import (
 	"fmt"
 )
 
-type Sized interface {
-	Static() bool
-}
-
-type ObjectSSZ interface {
-	EncodableSSZ
-	Marshaler
-}
-
-type SizedObjectSSZ interface {
-	ObjectSSZ
-	Sized
-}
-
 func MarshalSSZ(buf []byte, schema ...any) (dst []byte, err error) {
 	defer func() {
 		if err2 := recover(); err2 != nil {

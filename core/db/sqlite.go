@@ -3,9 +3,10 @@ package db
 import (
 	"context"
 	"database/sql"
-	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"sync/atomic"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type SqliteDB struct {
@@ -128,12 +129,12 @@ func NewSqlite(path string) DB {
 		log.Fatal(err)
 	}
 
-	create_table := "CREATE TABLE IF NOT EXISTS kv (tbl TEXT NOT NULL, key BLOB NOT NULL, value BLOB NOT NULL, PRIMARY KEY (tbl, key))"
+	createTable := "CREATE TABLE IF NOT EXISTS kv (tbl TEXT NOT NULL, key BLOB NOT NULL, value BLOB NOT NULL, PRIMARY KEY (tbl, key))"
 	tx, err := db.Begin()
 	if err != nil {
 		log.Fatal(err)
 	}
-	stmt, err := tx.Prepare(create_table)
+	stmt, err := tx.Prepare(createTable)
 	if err != nil {
 		log.Fatal(err)
 	}

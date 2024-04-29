@@ -1,8 +1,6 @@
 package types
 
 import (
-	"log"
-
 	common "github.com/NilFoundation/nil/common"
 	ssz "github.com/NilFoundation/nil/core/ssz"
 )
@@ -10,8 +8,12 @@ import (
 type Block struct {
 	Id                 uint64      `json:"Id"`
 	PrevBlock          common.Hash `json:"PrevBlock"`
-	SmartContractsRoot common.Hash `json:"smartContractsRoot"`
+	SmartContractsRoot common.Hash `json:"SmartContractsRoot"`
 }
+
+// interfaces
+var _ ssz.SSZEncodable = new(Block)
+var _ common.Hashable = new(SmartContract)
 
 func (b *Block) EncodeSSZ(dst []byte) ([]byte, error) {
 	return ssz.MarshalSSZ(
@@ -39,7 +41,7 @@ func (b *Block) EncodingSizeSSZ() int {
 func (b *Block) Hash() common.Hash {
 	h, err := ssz.SSZHash(b)
 	if err != nil {
-		log.Fatal(err)
+		common.DefaultLogger.Fatal().Msg(err.Error())
 	}
 	return h
 }

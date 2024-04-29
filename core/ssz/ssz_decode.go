@@ -6,7 +6,7 @@ import (
 	"reflect"
 )
 
-func UnmarshalSSZ(buf []byte, version int, schema ...interface{}) (err error) {
+func UnmarshalSSZ(buf []byte, version int, schema ...any) (err error) {
 	position := 0
 	offsets := []int{}
 	dynamicObjs := []SizedObjectSSZ{}
