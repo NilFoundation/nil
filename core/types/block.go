@@ -6,9 +6,9 @@ import (
 )
 
 type Block struct {
-	Id                 uint64      `json:"Id"`
-	PrevBlock          common.Hash `json:"PrevBlock"`
-	SmartContractsRoot common.Hash `json:"SmartContractsRoot"`
+	Id                 uint64
+	PrevBlock          common.Hash
+	SmartContractsRoot common.Hash
 }
 
 // interfaces
