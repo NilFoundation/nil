@@ -148,7 +148,7 @@ func (tx *SqliteTx) Put(table string, key []byte, value []byte) error {
 func (tx *SqliteTx) Get(table string, key []byte) (val []byte, err error) {
 	stmt, err := tx.tx.Prepare("select (value) from kv where tbl = ? and key = ?")
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	defer stmt.Close()
 
