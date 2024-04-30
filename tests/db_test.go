@@ -3,15 +3,45 @@ package tests
 import (
 	"bytes"
 	"context"
+	"testing"
+
 	common "github.com/NilFoundation/nil/common"
 	db "github.com/NilFoundation/nil/core/db"
 	types "github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
-func TestTransaction(t *testing.T) {
-	db := db.NewSqlite(t.TempDir() + "/foo.db")
+func ValidateTables[T db.DB](t *testing.T, db T) {
+	defer db.Close()
+
+	err := db.Set("tbl-1", []byte("foo"), []byte("bar"))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	has, err := db.Exists("tbl-1", []byte("foo"))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if has == false {
+		t.Fatal("Key 'foo' should be present in tbl-1")
+	}
+
+	has, err = db.Exists("tbl-2", []byte("foo"))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if has == true {
+		t.Fatal("Key 'foo' should not be present in tbl-2")
+	}
+}
+
+func ValidateTransaction[T db.DB](t *testing.T, db T) {
 	defer db.Close()
 
 	ctx := context.Background()
@@ -47,7 +77,7 @@ func TestTransaction(t *testing.T) {
 		t.Fatal("Values not equal: ", val)
 	}
 
-	has, err := tx.Has("tbl", []byte("foo"))
+	has, err := tx.Exists("tbl", []byte("foo"))
 
 	if err != nil {
 		t.Fatal(err)
@@ -59,7 +89,7 @@ func TestTransaction(t *testing.T) {
 
 	// Testing that parallel transactions don't see changes made by the first one
 
-	has, err = tx2.Has("tbl", []byte("foo"))
+	has, err = tx2.Exists("tbl", []byte("foo"))
 
 	if err != nil {
 		t.Fatal(err)
@@ -85,7 +115,7 @@ func TestTransaction(t *testing.T) {
 	}
 	defer tx.Rollback()
 
-	has, err = tx.Has("tbl", []byte("foo"))
+	has, err = tx.Exists("tbl", []byte("foo"))
 
 	if err != nil {
 		t.Fatal(err)
@@ -101,7 +131,7 @@ func TestTransaction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	has, err = tx.Has("tbl", []byte("foo"))
+	has, err = tx.Exists("tbl", []byte("foo"))
 
 	if err != nil {
 		t.Fatal(err)
@@ -114,8 +144,7 @@ func TestTransaction(t *testing.T) {
 	tx.Commit()
 }
 
-func TestBlock(t *testing.T) {
-	d := db.NewSqlite(t.TempDir() + "/foo.db")
+func ValidateBlock[T db.DB](t *testing.T, d T) {
 	defer d.Close()
 
 	ctx := context.Background()
@@ -137,4 +166,28 @@ func TestBlock(t *testing.T) {
 	require.Equal(t, block2.Id, block.Id)
 	require.Equal(t, block2.PrevBlock, block.PrevBlock)
 	require.Equal(t, block2.SmartContractsRoot, block.SmartContractsRoot)
+}
+
+func TestTablesBadger(t *testing.T) {
+	ValidateTables(t, db.NewBadgerDb(t.TempDir()))
+}
+
+func TestTransactionBadger(t *testing.T) {
+	ValidateTransaction(t, db.NewBadgerDb(t.TempDir()))
+}
+
+func TestBlockBadger(t *testing.T) {
+	ValidateBlock(t, db.NewBadgerDb(t.TempDir()))
+}
+
+func TestTablesSqlite(t *testing.T) {
+	ValidateTables(t, db.NewSqlite(t.TempDir()+"/foo.db"))
+}
+
+func TestTransactionSqlite(t *testing.T) {
+	ValidateTransaction(t, db.NewSqlite(t.TempDir()+"/foo.db"))
+}
+
+func TestBlockSqlite(t *testing.T) {
+	ValidateBlock(t, db.NewSqlite(t.TempDir()+"/foo.db"))
 }

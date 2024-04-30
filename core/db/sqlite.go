@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sync/atomic"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -33,6 +34,80 @@ func (db *SqliteDB) BeginTx(ctx context.Context) (Tx, error) {
 	}
 
 	return &SqliteTx{tx: tx}, nil
+}
+
+func (db *SqliteDB) View(fn func(txn Tx) error) error {
+	if db.closed.Load() {
+		return sql.ErrConnDone
+	}
+	ctx := context.Background()
+	tx, err := db.BeginTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	return fn(tx)
+}
+
+func (db *SqliteDB) Update(fn func(txn Tx) error) error {
+	if db.closed.Load() {
+		return sql.ErrConnDone
+	}
+	ctx := context.Background()
+	tx, err := db.BeginTx(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	if err := fn(tx); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (db *SqliteDB) Exists(table string, key []byte) (bool, error) {
+	var exists bool
+	err := db.View(
+		func(tx Tx) error {
+			if val, err := tx.Exists(table, key); err != nil {
+				return err
+			} else {
+				exists = val
+			}
+			return nil
+		})
+	return exists, err
+}
+
+func (db *SqliteDB) Get(table string, key []byte) ([]byte, error) {
+	var value []byte
+	return value, db.View(
+		func(tx Tx) error {
+			item, err := tx.GetOne(table, key)
+			if err != nil {
+				return fmt.Errorf("getting value: %w", err)
+			}
+			value = item
+			return nil
+		})
+}
+
+func (db *SqliteDB) Set(table string, key, value []byte) error {
+	return db.Update(
+		func(txn Tx) error {
+			return txn.Put(table, key, value)
+		})
+}
+
+func (db *SqliteDB) Delete(table string, key []byte) error {
+	return db.Update(
+		func(txn Tx) error {
+			return txn.Delete(table, key)
+		})
 }
 
 func (tx *SqliteTx) Commit() error {
@@ -96,7 +171,7 @@ func (tx *SqliteTx) GetOne(table string, key []byte) (val []byte, err error) {
 	return value, nil
 }
 
-func (tx *SqliteTx) Has(table string, key []byte) (bool, error) {
+func (tx *SqliteTx) Exists(table string, key []byte) (bool, error) {
 	_, err := tx.GetOne(table, key)
 	if err != nil {
 		if err != sql.ErrNoRows {
