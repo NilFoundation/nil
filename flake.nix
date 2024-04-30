@@ -20,7 +20,7 @@
             name = "nil";
             src = ./.;
             # to obtain run `nix build` with vendorHash = "";
-            vendorHash = "sha256-18IO9MqR+g3ySJcakJEpxUnW6bqHllCFDjGynRv/E60=";
+            vendorHash = "sha256-Fk4WcwVRGXxBiQqQmXfRPrHIAgqJNp7OHHVriQLh89E=";
 
             doCheck = true;
           };

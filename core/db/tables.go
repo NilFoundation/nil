@@ -1,12 +1,14 @@
 package db
 
-const BlockTable = "Blocks"
+const (
+	BlockTable = "Blocks"
 
-const CodeTable = "Code"
-const ContractCodeTable = "ContractCode"
+	CodeTable         = "Code"
+	ContractCodeTable = "ContractCode"
 
-const ContractTrieTable = "ContractTrie"
-const StorageTrieTable = "StorageTrie"
+	ContractTrieTable = "ContractTrie"
+	StorageTrieTable  = "StorageTrie"
 
-const ContractTable = "ContractTrie"
-const StorageTable = "StorageTrie"
+	ContractTable = "Contract"
+	StorageTable  = "Storage"
+)
