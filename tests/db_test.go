@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func ValidateTables[T db.DB](t *testing.T, db T) {
+func ValidateTables(t *testing.T, db db.DB) {
 	defer db.Close()
 
 	err := db.Set("tbl-1", []byte("foo"), []byte("bar"))
@@ -41,7 +41,7 @@ func ValidateTables[T db.DB](t *testing.T, db T) {
 	}
 }
 
-func ValidateTransaction[T db.DB](t *testing.T, db T) {
+func ValidateTransaction(t *testing.T, db db.DB) {
 	defer db.Close()
 
 	ctx := context.Background()
@@ -144,7 +144,7 @@ func ValidateTransaction[T db.DB](t *testing.T, db T) {
 	tx.Commit()
 }
 
-func ValidateBlock[T db.DB](t *testing.T, d T) {
+func ValidateBlock(t *testing.T, d db.DB) {
 	defer d.Close()
 
 	ctx := context.Background()
