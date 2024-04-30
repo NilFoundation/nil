@@ -6,15 +6,15 @@ import (
 
 type Tx interface {
 	Exists(table string, key []byte) (bool, error)
-	GetOne(table string, key []byte) (val []byte, err error)
+	Get(table string, key []byte) (val []byte, err error)
 	Put(table string, k, v []byte) error
 	Delete(table string, k []byte) error
 	Commit() error
-	Rollback()
+	Rollback() error
 }
 
 type DB interface {
-	BeginTx(ctx context.Context) (Tx, error)
+	CreateTx(ctx context.Context) (Tx, error)
 	Exists(table string, key []byte) (bool, error)
 	Get(table string, key []byte) ([]byte, error)
 	Set(table string, key, value []byte) error

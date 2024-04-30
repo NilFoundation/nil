@@ -9,7 +9,7 @@ import (
 var logger = common.NewLogger("DB", false /* noColor */)
 
 func readBlockRaw(tx Tx, hash common.Hash) []byte {
-	data, err := tx.GetOne(BlockTable, hash.Bytes())
+	data, err := tx.Get(BlockTable, hash.Bytes())
 	if err != nil {
 		logger.Fatal().Msgf("ReadHeaderRLP failed. err: %s", err.Error())
 	}
@@ -53,7 +53,7 @@ func WriteCode(tx Tx, code types.Code) error {
 }
 
 func ReadCode(tx Tx, hash common.Hash) (types.Code, error) {
-	code, err := tx.GetOne(StorageTable, hash[:])
+	code, err := tx.Get(StorageTable, hash[:])
 	if err != nil {
 		return types.Code{}, err
 	}
@@ -79,7 +79,7 @@ func ReadStorage(tx Tx, addr common.Address, key common.Hash) (uint256.Int, erro
 	copy(fullKey, addr[:])
 	copy(fullKey[common.HashSize:], key[:])
 
-	enc, err := tx.GetOne(StorageTable, fullKey)
+	enc, err := tx.Get(StorageTable, fullKey)
 	if err != nil {
 		// TODO: probably need to differentiate a real error here
 		return *uint256.NewInt(0), nil

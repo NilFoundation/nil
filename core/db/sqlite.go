@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"sync/atomic"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -27,7 +26,7 @@ func (db *SqliteDB) Close() {
 	db.Close()
 }
 
-func (db *SqliteDB) BeginTx(ctx context.Context) (Tx, error) {
+func (db *SqliteDB) CreateTx(ctx context.Context) (Tx, error) {
 	tx, err := db.db.Begin()
 	if err != nil {
 		return nil, err
@@ -41,7 +40,7 @@ func (db *SqliteDB) View(fn func(txn Tx) error) error {
 		return sql.ErrConnDone
 	}
 	ctx := context.Background()
-	tx, err := db.BeginTx(ctx)
+	tx, err := db.CreateTx(ctx)
 	if err != nil {
 		return err
 	}
@@ -55,14 +54,13 @@ func (db *SqliteDB) Update(fn func(txn Tx) error) error {
 		return sql.ErrConnDone
 	}
 	ctx := context.Background()
-	tx, err := db.BeginTx(ctx)
+	tx, err := db.CreateTx(ctx)
 	if err != nil {
 		return err
 	}
 
-	defer tx.Rollback()
-
 	if err := fn(tx); err != nil {
+		tx.Rollback()
 		return err
 	}
 
@@ -87,9 +85,9 @@ func (db *SqliteDB) Get(table string, key []byte) ([]byte, error) {
 	var value []byte
 	return value, db.View(
 		func(tx Tx) error {
-			item, err := tx.GetOne(table, key)
+			item, err := tx.Get(table, key)
 			if err != nil {
-				return fmt.Errorf("getting value: %w", err)
+				return err
 			}
 			value = item
 			return nil
@@ -126,18 +124,14 @@ func (tx *SqliteTx) Commit() error {
 	return nil
 }
 
-func (tx *SqliteTx) Rollback() {
+func (tx *SqliteTx) Rollback() error {
 	if tx.tx == nil {
-		return
+		return sql.ErrTxDone
 	}
 	defer func() {
 		tx.tx = nil
 	}()
-
-	err := tx.tx.Rollback()
-	if err != nil {
-		logger.Fatal().Msg(err.Error())
-	}
+	return tx.tx.Rollback()
 }
 
 func (tx *SqliteTx) Put(table string, key []byte, value []byte) error {
@@ -148,16 +142,13 @@ func (tx *SqliteTx) Put(table string, key []byte, value []byte) error {
 	defer stmt.Close()
 
 	_, err = stmt.Exec(table, key, value)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
-func (tx *SqliteTx) GetOne(table string, key []byte) (val []byte, err error) {
+func (tx *SqliteTx) Get(table string, key []byte) (val []byte, err error) {
 	stmt, err := tx.tx.Prepare("select (value) from kv where tbl = ? and key = ?")
 	if err != nil {
-		logger.Fatal().Msg(err.Error())
+		return nil, nil
 	}
 	defer stmt.Close()
 
@@ -172,14 +163,11 @@ func (tx *SqliteTx) GetOne(table string, key []byte) (val []byte, err error) {
 }
 
 func (tx *SqliteTx) Exists(table string, key []byte) (bool, error) {
-	_, err := tx.GetOne(table, key)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return false, err
-		}
+	_, err := tx.Get(table, key)
+	if err == sql.ErrNoRows {
 		return false, nil
 	}
-	return true, nil
+	return err == nil, err
 }
 
 func (tx *SqliteTx) Delete(table string, key []byte) error {
@@ -190,38 +178,34 @@ func (tx *SqliteTx) Delete(table string, key []byte) error {
 	defer stmt.Close()
 
 	_, err = stmt.Exec(table, key)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
-func NewSqlite(path string) DB {
+func NewSqlite(path string) (*SqliteDB, error) {
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
-		logger.Fatal().Msg(err.Error())
+		return nil, err
 	}
 
 	createTable := "CREATE TABLE IF NOT EXISTS kv (tbl TEXT NOT NULL, key BLOB NOT NULL, value BLOB NOT NULL, PRIMARY KEY (tbl, key))"
 	tx, err := db.Begin()
 	if err != nil {
-		logger.Fatal().Msg(err.Error())
+		return nil, err
 	}
 	stmt, err := tx.Prepare(createTable)
 	if err != nil {
-		logger.Fatal().Msg(err.Error())
+		return nil, err
 	}
 	defer stmt.Close()
 	_, err = stmt.Exec()
 	if err != nil {
-		logger.Fatal().Msg(err.Error())
+		return nil, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		logger.Fatal().Msg(err.Error())
+		return nil, err
 	}
 
-	return &SqliteDB{path: path, db: db}
+	return &SqliteDB{path: path, db: db}, nil
 }
