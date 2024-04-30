@@ -4,7 +4,6 @@ import (
 	common "github.com/NilFoundation/nil/common"
 	ssz "github.com/NilFoundation/nil/core/ssz"
 	"github.com/holiman/uint256"
-	"log"
 )
 
 type SmartContract struct {
@@ -14,6 +13,10 @@ type SmartContract struct {
 	StorageRoot common.Hash
 	CodeHash    common.Hash
 }
+
+// interfaces
+var _ ssz.SSZEncodable = new(SmartContract)
+var _ common.Hashable = new(SmartContract)
 
 func (s *SmartContract) EncodeSSZ(dst []byte) ([]byte, error) {
 	return ssz.MarshalSSZ(
@@ -53,7 +56,7 @@ func (s *SmartContract) EncodingSizeSSZ() int {
 func (s *SmartContract) Hash() common.Hash {
 	h, err := ssz.SSZHash(s)
 	if err != nil {
-		log.Fatal(err)
+		common.DefaultLogger.Fatal().Msg(err.Error())
 	}
 	return h
 }

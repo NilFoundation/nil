@@ -11,6 +11,10 @@ import (
 
 type Hash [HashSize]byte
 
+type Hashable interface {
+	Hash() Hash
+}
+
 // BytesToHash sets b to hash.
 // If b is larger than len(h), b will be cropped from the left.
 func BytesToHash(b []byte) Hash {

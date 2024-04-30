@@ -19,6 +19,9 @@ test:
 	@cd ./cmd/$* && $(GOBUILD) -o $(GOBIN)/$*
 	@echo "Run \"$(GOBIN)/$*\" to launch $*."
 
+%.runcmd: %.cmd
+	@$(GOBIN)/$*
+
 COMMANDS += mpt_example
 
 $(COMMANDS): %: %.cmd

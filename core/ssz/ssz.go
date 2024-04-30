@@ -2,6 +2,7 @@ package ssz
 
 import (
 	"encoding/binary"
+
 	common "github.com/NilFoundation/nil/common"
 	"github.com/holiman/uint256"
 	"github.com/iden3/go-iden3-crypto/poseidon"
@@ -11,25 +12,6 @@ var (
 	BaseExtraDataSSZOffsetHeader = 536
 	BaseExtraDataSSZOffsetBlock  = 508
 )
-
-type HashableSSZ interface {
-	HashSSZ() ([32]byte, error)
-}
-
-type EncodableSSZ interface {
-	Marshaler
-	Unmarshaler
-}
-
-type Marshaler interface {
-	EncodeSSZ([]byte) ([]byte, error)
-	EncodingSizeSSZ() int
-}
-
-type Unmarshaler interface {
-	DecodeSSZ(buf []byte, version int) error
-	common.Clonable
-}
 
 func MarshalUint64SSZ(buf []byte, x uint64) {
 	binary.LittleEndian.PutUint64(buf, x)
@@ -74,7 +56,7 @@ func UnmarshalUint64SSZ(x []byte) uint64 {
 	return binary.LittleEndian.Uint64(x)
 }
 
-func DecodeDynamicList[T Unmarshaler](bytes []byte, start, end uint32, max uint64, version int) ([]T, error) {
+func DecodeDynamicList[T SSZDecodable](bytes []byte, start, end uint32, max uint64, version int) ([]T, error) {
 	if start > end || len(bytes) < int(end) {
 		return nil, ErrBadOffset
 	}
@@ -110,7 +92,7 @@ func DecodeDynamicList[T Unmarshaler](bytes []byte, start, end uint32, max uint6
 	return objs, nil
 }
 
-func DecodeStaticList[T Unmarshaler](bytes []byte, start, end, bytesPerElement uint32, max uint64, version int) ([]T, error) {
+func DecodeStaticList[T SSZDecodable](bytes []byte, start, end, bytesPerElement uint32, max uint64, version int) ([]T, error) {
 	if start > end || len(bytes) < int(end) {
 		return nil, ErrBadOffset
 	}
@@ -195,7 +177,7 @@ func DecodeString(bytes []byte, start, end, max uint64) ([]byte, error) {
 	return buf, nil
 }
 
-func EncodeDynamicList[T Marshaler](buf []byte, objs []T) (dst []byte, err error) {
+func EncodeDynamicList[T SSZEncodable](buf []byte, objs []T) (dst []byte, err error) {
 	dst = buf
 	// Attestation
 	subOffset := len(objs) * 4
@@ -212,7 +194,7 @@ func EncodeDynamicList[T Marshaler](buf []byte, objs []T) (dst []byte, err error
 	return
 }
 
-func SSZHash(obj Marshaler) (common.Hash, error) {
+func SSZHash(obj SSZEncodable) (common.Hash, error) {
 	encoded, err := obj.EncodeSSZ(nil)
 	if err != nil {
 		return common.Hash{0}, err
