@@ -1,23 +1,23 @@
 package db
 
 import (
-	"log"
-
 	common "github.com/NilFoundation/nil/common"
 	types "github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
 )
 
-func ReadBlockSSZ(tx Tx, hash common.Hash) []byte {
+var logger = common.NewLogger("DB", false /* noColor */)
+
+func readBlockRaw(tx Tx, hash common.Hash) []byte {
 	data, err := tx.GetOne(BlockTable, hash.Bytes())
 	if err != nil {
-		log.Fatal("ReadHeaderRLP failed", "err", err)
+		logger.Fatal().Msgf("ReadHeaderRLP failed. err: %s", err.Error())
 	}
 	return data
 }
 
 func ReadBlock(tx Tx, hash common.Hash) *types.Block {
-	data := ReadBlockSSZ(tx, hash)
+	data := readBlockRaw(tx, hash)
 	if len(data) == 0 {
 		return nil
 	}
@@ -25,7 +25,7 @@ func ReadBlock(tx Tx, hash common.Hash) *types.Block {
 	err := header.DecodeSSZ(data, 0)
 
 	if err != nil {
-		log.Fatal("Invalid block header RLP", "hash", hash, "err", err)
+		logger.Fatal().Msgf("Invalid block header RLP. hash: %v, err: %v", hash, err)
 	}
 	return header
 }
