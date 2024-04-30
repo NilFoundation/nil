@@ -31,6 +31,7 @@ all: $(COMMANDS)
 
 lint:
 	go mod tidy
+	golangci-lint run
 
 clean:
 	go clean -cache

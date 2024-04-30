@@ -56,13 +56,13 @@ func ValidateTransaction(t *suite.Suite, db db.DB) {
 	tx, err := db.CreateTx(ctx)
 
 	t.NoError(err)
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	tx2, err := db.CreateTx(ctx)
 
 	t.NoError(err)
 
-	defer tx2.Rollback()
+	defer func() { _ = tx2.Rollback() }()
 
 	t.NoError(tx.Put("tbl", []byte("foo"), []byte("bar")))
 
@@ -82,7 +82,8 @@ func ValidateTransaction(t *suite.Suite, db db.DB) {
 	t.NoError(err)
 	t.False(has, "Key 'foo' should not be present")
 
-	tx2.Rollback()
+	err = tx2.Rollback()
+	t.NoError(err)
 
 	err = tx.Commit()
 	t.NoError(err)
@@ -92,7 +93,7 @@ func ValidateTransaction(t *suite.Suite, db db.DB) {
 	tx, err = db.CreateTx(ctx)
 
 	t.NoError(err)
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	has, err = tx.Exists("tbl", []byte("foo"))
 

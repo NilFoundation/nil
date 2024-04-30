@@ -44,7 +44,7 @@ func (db *SqliteDB) View(fn func(txn Tx) error) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	return fn(tx)
 }
@@ -60,7 +60,7 @@ func (db *SqliteDB) Update(fn func(txn Tx) error) error {
 	}
 
 	if err := fn(tx); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return err
 	}
 
