@@ -1,0 +1,24 @@
+name: Cluster CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ensure_cluster_builds_linux:
+    runs-on: ["self-hosted", "aws_autoscaling"]
+    environment: prod
+    name: Linux CI
+    steps:
+      - name: checkout local actions
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: build
+        run: nix build -L
