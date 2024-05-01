@@ -5,11 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"reflect"
-)
-
-var (
-	addressT = reflect.TypeOf(Address{})
 )
 
 // Address represents the 20 byte address of an Ethereum account.
@@ -41,7 +36,7 @@ func HexToAddress(s string) Address {
 // IsHexAddress verifies whether a string can represent a valid hex-encoded
 // Ethereum address or not.
 func IsHexAddress(s string) bool {
-	if (len(s) >= 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
+	if len(s) >= 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X') {
 		s = s[2:]
 	}
 	_, err := hex.DecodeString(s)

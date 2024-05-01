@@ -20,7 +20,7 @@
             name = "nil";
             src = ./.;
             # to obtain run `nix build` with vendorHash = "";
-            vendorHash = "sha256-Fk4WcwVRGXxBiQqQmXfRPrHIAgqJNp7OHHVriQLh89E=";
+            vendorHash = "sha256-kixYgZ2mpbnk1cfuo3ooa0zeXAOzWh8zXHS90Yu1vWA=";
 
             doCheck = true;
           };
@@ -32,6 +32,7 @@
             gotools
             go-tools
             gopls
+            golangci-lint
           ];
 
           shellHook = ''

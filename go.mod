@@ -3,7 +3,6 @@ module github.com/NilFoundation/nil
 go 1.21
 
 require (
-	github.com/dgraph-io/badger v1.6.2
 	github.com/fxamacker/cbor/v2 v2.6.0
 	github.com/holiman/uint256 v1.2.4
 	github.com/iden3/go-iden3-crypto v0.0.16
@@ -22,13 +21,12 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/flatbuffers v24.3.25+incompatible // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
+	github.com/kr/pretty v0.2.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 )
 
 require (
-	github.com/AndreasBriese/bbloom v0.0.0-20190825152654-46b345b51c96 // indirect
-	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
