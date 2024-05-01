@@ -34,7 +34,6 @@ require (
 	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/json-iterator/go v1.1.12
 	github.com/keybase/go-codec v0.0.0-20180928230036-164397562123 // indirect
