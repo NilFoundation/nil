@@ -138,10 +138,8 @@ func DialContext(ctx context.Context, rawurl string, logger *zerolog.Logger) (*C
 		return nil, err
 	}
 	switch u.Scheme {
-	case "http", "https":
+	case "http":
 		return DialHTTP(rawurl, logger)
-	case "stdio":
-		return DialStdIO(ctx, logger)
 	default:
 		return nil, fmt.Errorf("no known transport for URL scheme %q", u.Scheme)
 	}
