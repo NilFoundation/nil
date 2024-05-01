@@ -17,11 +17,12 @@ func TestSsz(t *testing.T) {
 		SmartContractsRoot: common.Hash{0x02},
 	}
 
-	encoded, err := block.EncodeSSZ(nil)
+	encoded := new([]byte)
+	err := block.EncodeSSZ(encoded)
 	require.NoError(t, err)
 
 	block2 := types.Block{}
-	err = block2.DecodeSSZ(encoded, 0)
+	err = block2.DecodeSSZ(*encoded, 0)
 	require.NoError(t, err)
 
 	require.Equal(t, block2.Id, block.Id)

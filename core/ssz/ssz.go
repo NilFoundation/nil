@@ -186,7 +186,7 @@ func EncodeDynamicList[T SSZEncodable](buf []byte, objs []T) (dst []byte, err er
 		subOffset += attestation.EncodingSizeSSZ()
 	}
 	for _, obj := range objs {
-		dst, err = obj.EncodeSSZ(dst)
+		err = obj.EncodeSSZ(&dst)
 		if err != nil {
 			return
 		}
@@ -195,10 +195,11 @@ func EncodeDynamicList[T SSZEncodable](buf []byte, objs []T) (dst []byte, err er
 }
 
 func SSZHash(obj SSZEncodable) (common.Hash, error) {
-	encoded, err := obj.EncodeSSZ(nil)
+	encoded := new([]byte)
+	err := obj.EncodeSSZ(encoded)
 	if err != nil {
 		return common.Hash{0}, err
 	}
 
-	return common.CastToHash(poseidon.Sum(encoded)), nil
+	return common.CastToHash(poseidon.Sum(*encoded)), nil
 }

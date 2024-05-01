@@ -8,8 +8,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var DefaultLogger = NewLogger("-", false /* noColor */)
-
 // defaults to INFO
 func SetLogSeverityFromEnv() {
 	if lvl, err := zerolog.ParseLevel(os.Getenv("LOG_LEVEL")); err != nil {

@@ -33,12 +33,12 @@ func ReadBlock(tx Tx, hash common.Hash) *types.Block {
 func WriteBlock(tx Tx, block *types.Block) error {
 	hash := block.Hash()
 
-	data, err := block.EncodeSSZ(nil)
-
-	if err != nil {
+	encoded := new([]byte)
+	if err := block.EncodeSSZ(encoded); err != nil {
 		return err
 	}
-	if err := tx.Put(BlockTable, hash.Bytes(), data); err != nil {
+
+	if err := tx.Put(BlockTable, hash.Bytes(), *encoded); err != nil {
 		return err
 	}
 	return nil

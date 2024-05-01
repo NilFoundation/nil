@@ -4,6 +4,7 @@ import (
 	common "github.com/NilFoundation/nil/common"
 	ssz "github.com/NilFoundation/nil/core/ssz"
 	"github.com/holiman/uint256"
+	"github.com/rs/zerolog/log"
 )
 
 type SmartContract struct {
@@ -15,10 +16,11 @@ type SmartContract struct {
 }
 
 // interfaces
-var _ ssz.SSZEncodable = new(SmartContract)
 var _ common.Hashable = new(SmartContract)
+var _ ssz.SSZEncodable = new(SmartContract)
+var _ ssz.SSZDecodable = new(SmartContract)
 
-func (s *SmartContract) EncodeSSZ(dst []byte) ([]byte, error) {
+func (s *SmartContract) EncodeSSZ(dst *[]byte) error {
 	return ssz.MarshalSSZ(
 		dst,
 		s.Address[:],
@@ -27,6 +29,15 @@ func (s *SmartContract) EncodeSSZ(dst []byte) ([]byte, error) {
 		s.StorageRoot[:],
 		s.CodeHash[:],
 	)
+}
+
+func (s *SmartContract) EncodingSizeSSZ() int {
+	return common.Bytes64Size + common.HashSize + common.HashSize
+}
+
+func (s *SmartContract) Clone() common.Clonable {
+	clonned := *s
+	return &clonned
 }
 
 func (s *SmartContract) DecodeSSZ(buf []byte, version int) error {
@@ -49,14 +60,10 @@ func (s *SmartContract) DecodeSSZ(buf []byte, version int) error {
 	return nil
 }
 
-func (s *SmartContract) EncodingSizeSSZ() int {
-	return common.Bytes64Size + common.HashSize + common.HashSize
-}
-
 func (s *SmartContract) Hash() common.Hash {
 	h, err := ssz.SSZHash(s)
 	if err != nil {
-		common.DefaultLogger.Fatal().Msg(err.Error())
+		log.Fatal().Msg(err.Error())
 	}
 	return h
 }

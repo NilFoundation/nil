@@ -3,13 +3,13 @@ package ssz
 import common "github.com/NilFoundation/nil/common"
 
 type SSZEncodable interface {
-	EncodeSSZ([]byte) ([]byte, error)
+	EncodeSSZ(dst *[]byte) error
 	EncodingSizeSSZ() int
 }
 
 type SSZDecodable interface {
-	DecodeSSZ(buf []byte, version int) error
 	common.Clonable
+	DecodeSSZ(buf []byte, version int) error
 }
 
 type Sized interface {
