@@ -46,7 +46,11 @@ func NewAccountState(Tx db.Tx, account_hash common.Hash) (*AccountState, error) 
 
 func NewExecutionState(Tx db.Tx, block_hash common.Hash) (*ExecutionState, error) {
 	block := db.ReadBlock(Tx, block_hash)
-	root := db.GetMerkleTree(Tx, block.SmartContractsRoot)
+
+	root := db.GetMerkleTree(Tx, common.Hash{})
+	if block != nil {
+		root = db.GetMerkleTree(Tx, block.SmartContractsRoot)
+	}
 
 	return &ExecutionState{Tx: Tx, ContractRoot: root, PrevBlock: block_hash}, nil
 }
