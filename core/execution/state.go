@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"errors"
 	"github.com/NilFoundation/nil/common"
 	db "github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
@@ -36,7 +37,11 @@ func NewAccountState(Tx db.Tx, account_hash common.Hash) (*AccountState, error) 
 		return nil, err
 	}
 
-	return &AccountState{Tx: Tx, StorageRoot: root, CodeHash: account.CodeHash, Code: code}, nil
+	if code == nil {
+		return nil, errors.New("Cannot retrieve code")
+	}
+
+	return &AccountState{Tx: Tx, StorageRoot: root, CodeHash: account.CodeHash, Code: *code}, nil
 }
 
 func NewExecutionState(Tx db.Tx, block_hash common.Hash) (*ExecutionState, error) {
@@ -130,6 +135,31 @@ func (es *ExecutionState) WriteStorage(addr common.Hash, key common.Hash, val ui
 	}
 
 	acc.WriteStorage(key, val)
+	return nil
+}
+
+func (es *ExecutionState) CreateContract(addr common.Hash, code types.Code) error {
+	acc, err := es.GetAccount(addr)
+
+	if err != nil {
+		return err
+	}
+
+	if acc != nil {
+		return errors.New("Contract already exists")
+	}
+
+	root := db.GetMerkleTree(es.Tx, common.Hash{})
+
+	new_acc := AccountState{
+		Tx:          es.Tx,
+		StorageRoot: root,
+		CodeHash:    code.Hash(),
+		Code:        code,
+	}
+
+	es.Accounts[addr] = &new_acc
+
 	return nil
 }
 

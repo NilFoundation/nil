@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"testing"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
@@ -24,6 +25,16 @@ func (suite *SuiteExecutionState) TestExecState() {
 	tx, err := suite.db.CreateTx(context.TODO())
 	suite.Require().NoError(err)
 
-	_, err = execution.NewExecutionState(tx, common.Hash{})
+	es, err := execution.NewExecutionState(tx, common.Hash{})
 	suite.Require().NoError(err)
+
+	addr := common.HexToAddress(
+		"9405832983856CB0CF6CD570F071122F1BEA2F20").Hash()
+	es.CreateContract(addr, []byte("asdf"))
+
+	es.Commit()
+}
+
+func TestSuiteExecutionState(t *testing.T) {
+	suite.Run(t, new(SuiteExecutionState))
 }

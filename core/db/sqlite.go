@@ -81,8 +81,8 @@ func (db *SqliteDB) Exists(table string, key []byte) (bool, error) {
 	return exists, err
 }
 
-func (db *SqliteDB) Get(table string, key []byte) ([]byte, error) {
-	var value []byte
+func (db *SqliteDB) Get(table string, key []byte) (*[]byte, error) {
+	var value *[]byte
 	return value, db.View(
 		func(tx Tx) error {
 			item, err := tx.Get(table, key)
@@ -145,7 +145,7 @@ func (tx *SqliteTx) Put(table string, key []byte, value []byte) error {
 	return err
 }
 
-func (tx *SqliteTx) Get(table string, key []byte) (val []byte, err error) {
+func (tx *SqliteTx) Get(table string, key []byte) (val *[]byte, err error) {
 	stmt, err := tx.tx.Prepare("select (value) from kv where tbl = ? and key = ?")
 	if err != nil {
 		return nil, err
@@ -156,18 +156,21 @@ func (tx *SqliteTx) Get(table string, key []byte) (val []byte, err error) {
 	err = stmt.QueryRow(table, key).Scan(&value)
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 
-	return value, nil
+	return &value, nil
 }
 
 func (tx *SqliteTx) Exists(table string, key []byte) (bool, error) {
-	_, err := tx.Get(table, key)
-	if err == sql.ErrNoRows {
-		return false, nil
+	res, err := tx.Get(table, key)
+	if err != nil {
+		return false, err
 	}
-	return err == nil, err
+	return res != nil, nil
 }
 
 func (tx *SqliteTx) Delete(table string, key []byte) error {

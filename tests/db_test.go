@@ -69,7 +69,7 @@ func ValidateTransaction(t *suite.Suite, db db.DB) {
 	val, err := tx.Get("tbl", []byte("foo"))
 
 	t.NoError(err)
-	t.Equal(val, []byte("bar"))
+	t.Equal(*val, []byte("bar"))
 
 	has, err := tx.Exists("tbl", []byte("foo"))
 
@@ -145,7 +145,7 @@ func ValidateDbOperations(t *suite.Suite, d db.DB) {
 	val, err := d.Get("tbl", []byte("foo"))
 
 	t.NoError(err)
-	t.Equal(val, []byte("bar"))
+	t.Equal(*val, []byte("bar"))
 
 	has, err := d.Exists("tbl", []byte("foo"))
 

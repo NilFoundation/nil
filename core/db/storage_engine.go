@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 
 	"github.com/NilFoundation/nil/common"
 	mpt "github.com/keybase/go-merkle-tree"
@@ -21,7 +22,15 @@ func (c *tableClient) CommitRoot(_ context.Context, prev mpt.Hash, curr mpt.Hash
 }
 
 func (c *tableClient) LookupNode(_ context.Context, h mpt.Hash) (b []byte, err error) {
-	return c.tx.Get(MptTable, h[:])
+	node, err := c.tx.Get(MptTable, h[:])
+	if err != nil {
+		return []byte{}, err
+	}
+	if node == nil {
+		return []byte{}, errors.New("Node lookup failed")
+	}
+
+	return *node, nil
 }
 
 func (c *tableClient) LookupRoot(_ context.Context) (mpt.Hash, error) {
