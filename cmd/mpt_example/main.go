@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"log"
 
 	"sync"
 
@@ -16,10 +17,13 @@ func main() {
 	flag.Parse()
 
 	// each shard will interact with DB via this client
-	dbClient := db.NewDBClient()
+	db, err := db.NewSqlite("test.db")
+	if err != nil {
+		log.Fatal(err)
+	}
 	shards := make([]*shardchain.ShardChain, 0)
 	for i := 0; i < *nshards; i++ {
-		shards = append(shards, shardchain.NewShardChain(i, dbClient))
+		shards = append(shards, shardchain.NewShardChain(i, db))
 	}
 
 	numClusterTicks := 2
