@@ -11,4 +11,6 @@ const (
 
 	ContractTable = "Contract"
 	StorageTable  = "Storage"
+
+	MptTable = "MPT"
 )

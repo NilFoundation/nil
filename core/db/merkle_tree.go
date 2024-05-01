@@ -3,14 +3,10 @@ package db
 import (
 	"context"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	mpt "github.com/keybase/go-merkle-tree"
 )
-
-type TreeWrapper struct {
-	Tree   *mpt.Tree
-	Engine mpt.StorageEngine
-}
 
 type valueFactory struct{}
 
@@ -31,8 +27,32 @@ func UpdateTree(tree *mpt.Tree, key, value string) error {
 	return tree.Upsert(context.TODO(), kv, nil)
 }
 
-func GetMerkleTree(table string, client *DBClient) *TreeWrapper {
+type MerkleTree struct {
+	tree *mpt.Tree
+	eng  mpt.StorageEngine
+}
+
+func (tree *MerkleTree) Root() (common.Hash, error) {
+	hash, err := tree.eng.LookupRoot(context.TODO())
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	return common.Hash(hash[:]), nil
+}
+
+func (tree *MerkleTree) Find(key common.Hash) (interface{}, error) {
+	val, _, err := tree.tree.Find(context.TODO(), mpt.Hash(key[:]))
+
+	return val, err
+}
+
+func (tree *MerkleTree) Upsert(key common.Hash, value interface{}) error {
+	return tree.tree.Upsert(context.TODO(), mpt.KeyValuePair{Key: mpt.Hash(key[:]), Value: value}, nil)
+}
+
+func GetMerkleTree(tx Tx, root common.Hash) *MerkleTree {
 	cfg := mpt.NewConfig(poseidonHasher{}, mpt.ChildIndex(4), mpt.ChildIndex(1), valueFactory{})
-	eng := client.GetEngine(table)
-	return &TreeWrapper{mpt.NewTree(eng, cfg), eng}
+	eng := GetEngine(tx, root)
+	return &MerkleTree{tree: mpt.NewTree(eng, cfg), eng: eng}
 }

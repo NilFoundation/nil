@@ -44,6 +44,42 @@ func WriteBlock(tx Tx, block *types.Block) error {
 	return nil
 }
 
+func readContractRaw(tx Tx, hash common.Hash) []byte {
+	data, err := tx.Get(ContractTable, hash.Bytes())
+	if err != nil {
+		logger.Fatal().Msgf("readAccountRaw failed. err: %s", err.Error())
+	}
+	return data
+}
+
+func ReadContract(tx Tx, hash common.Hash) *types.SmartContract {
+	data := readContractRaw(tx, hash)
+	if len(data) == 0 {
+		return nil
+	}
+	contract := new(types.SmartContract)
+	err := contract.DecodeSSZ(data, 0)
+
+	if err != nil {
+		logger.Fatal().Msgf("Invalid contract encoding. hash: %v, err: %v", hash, err)
+	}
+	return contract
+}
+
+func WriteContract(tx Tx, contract *types.SmartContract) error {
+	hash := contract.Hash()
+
+	data, err := contract.EncodeSSZ(nil)
+
+	if err != nil {
+		return err
+	}
+	if err := tx.Put(ContractTable, hash.Bytes(), data); err != nil {
+		return err
+	}
+	return nil
+}
+
 func WriteCode(tx Tx, code types.Code) error {
 	hash := code.Hash()
 	if err := tx.Put(CodeTable, hash.Bytes(), code[:]); err != nil {
