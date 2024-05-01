@@ -13,8 +13,6 @@ import (
 	"net/url"
 	"sync"
 	"time"
-
-	"github.com/rs/zerolog"
 )
 
 const (
@@ -60,35 +58,6 @@ func (hc *httpConn) Close() {
 
 func (hc *httpConn) closed() <-chan interface{} {
 	return hc.closeCh
-}
-
-// DialHTTPWithClient creates a new RPC client that connects to an RPC server over HTTP
-// using the provided HTTP Client.
-func DialHTTPWithClient(endpoint string, client *http.Client, logger *zerolog.Logger) (*Client, error) {
-	// Sanity check URL so we don't end up with a client that will fail every request.
-	_, err := url.Parse(endpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	initctx := context.Background()
-	headers := make(http.Header, 2)
-	headers.Set("accept", contentType)
-	headers.Set("content-type", contentType)
-	return newClient(initctx, func(context.Context) (ServerCodec, error) {
-		hc := &httpConn{
-			client:  client,
-			headers: headers,
-			url:     endpoint,
-			closeCh: make(chan interface{}),
-		}
-		return hc, nil
-	}, logger)
-}
-
-// DialHTTP creates a new RPC client that connects to an RPC server over HTTP.
-func DialHTTP(endpoint string, logger *zerolog.Logger) (*Client, error) {
-	return DialHTTPWithClient(endpoint, new(http.Client), logger)
 }
 
 func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) error {

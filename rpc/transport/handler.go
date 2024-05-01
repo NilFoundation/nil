@@ -23,18 +23,6 @@ import (
 //
 //	h.handleMsg(message)
 //	h.handleBatch(message)
-//
-// Outgoing calls use the requestOp struct. Register the request before sending it
-// on the connection:
-//
-//	op := &requestOp{ids: ...}
-//	h.addRequestOp(op)
-//
-// Now send the request, then wait for the reply to be delivered through handleMsg:
-//
-//	if err := op.wait(...); err != nil {
-//	    h.removeRequestOp(op) // timeout, etc.
-//	}
 type handler struct {
 	reg        *serviceRegistry
 	respWait   map[string]*requestOp // active client requests
@@ -206,20 +194,6 @@ func (h *handler) close(err error, inflightReq *requestOp) {
 	h.cancelAllRequests(err, inflightReq)
 	h.callWG.Wait()
 	h.cancelRoot()
-}
-
-// addRequestOp registers a request operation.
-func (h *handler) addRequestOp(op *requestOp) {
-	for _, id := range op.ids {
-		h.respWait[string(id)] = op
-	}
-}
-
-// removeRequestOps stops waiting for the given request IDs.
-func (h *handler) removeRequestOp(op *requestOp) {
-	for _, id := range op.ids {
-		delete(h.respWait, string(id))
-	}
 }
 
 // cancelAllRequests unblocks and removes pending requests.

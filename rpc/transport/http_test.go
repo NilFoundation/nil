@@ -1,13 +1,54 @@
 package transport
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/rs/zerolog"
 )
+
+// largeRespService generates arbitrary-size JSON responses.
+type largeRespService struct {
+	length int
+}
+
+func (x largeRespService) LargeResp() string {
+	return strings.Repeat("x", x.length)
+}
+
+// dialHTTPWithClient creates a new RPC client that connects to an RPC server over HTTP
+// using the provided HTTP Client.
+func dialHTTPWithClient(endpoint string, client *http.Client, logger *zerolog.Logger) (*Client, error) {
+	// Sanity check URL so we don't end up with a client that will fail every request.
+	_, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	initctx := context.Background()
+	headers := make(http.Header, 2)
+	headers.Set("accept", contentType)
+	headers.Set("content-type", contentType)
+	return newClient(initctx, func(context.Context) (ServerCodec, error) {
+		hc := &httpConn{
+			client:  client,
+			headers: headers,
+			url:     endpoint,
+			closeCh: make(chan interface{}),
+		}
+		return hc, nil
+	}, logger)
+}
+
+// dialHTTP creates a new RPC client that connects to an RPC server over HTTP.
+func dialHTTP(endpoint string, logger *zerolog.Logger) (*Client, error) {
+	return dialHTTPWithClient(endpoint, new(http.Client), logger)
+}
 
 func confirmStatusCode(t *testing.T, got, want int) {
 	t.Helper()
@@ -99,7 +140,7 @@ func TestHTTPRespBodyUnlimited(t *testing.T) {
 	ts := httptest.NewServer(s)
 	defer ts.Close()
 
-	c, err := DialHTTP(ts.URL, logger)
+	c, err := dialHTTP(ts.URL, logger)
 	if err != nil {
 		t.Fatal(err)
 	}

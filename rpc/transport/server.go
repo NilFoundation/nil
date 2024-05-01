@@ -70,7 +70,7 @@ func (s *Server) ServeCodec(codec ServerCodec) {
 	s.codecs.Add(codec)
 	defer s.codecs.Remove(codec)
 
-	c := initClient(codec, &s.services, s.logger)
+	c := initClient(codec, s.logger)
 	<-codec.closed()
 	c.Close()
 }

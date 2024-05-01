@@ -19,8 +19,6 @@ type HttpCfg struct {
 	AuthRpcVirtualHost []string
 	HttpCompression    bool
 
-	AuthRpcPort int
-
 	API                 []string
 	RpcBatchConcurrency uint
 
