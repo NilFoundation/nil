@@ -21,7 +21,7 @@ const (
 
 var null = json.RawMessage("null")
 
-// A value of this type can a JSON-RPC request, notification, successful response or
+// A value of this type can a JSON-RPC request, successful response or
 // error response. Which one it is depends on the fields.
 type jsonrpcMessage struct {
 	Version string          `json:"jsonrpc,omitempty"`
@@ -30,10 +30,6 @@ type jsonrpcMessage struct {
 	Params  json.RawMessage `json:"params,omitempty"`
 	Error   *jsonError      `json:"error,omitempty"`
 	Result  json.RawMessage `json:"result,omitempty"`
-}
-
-func (msg *jsonrpcMessage) isNotification() bool {
-	return msg.ID == nil && msg.Method != ""
 }
 
 func (msg *jsonrpcMessage) isCall() bool {

@@ -42,13 +42,6 @@ func StartRpcServerWithJwtAuthentication(ctx context.Context, cfg *httpcfg.HttpC
 func startRegularRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []transport.API, logger *zerolog.Logger) error {
 	// register apis and create handler stack
 	srv := transport.NewServer(cfg.RpcBatchConcurrency, cfg.TraceRequests, cfg.DebugSingleRequest, logger, cfg.RPCSlowLogThreshold)
-
-	allowListForRPC, err := parseAllowListForRPC(cfg.RpcAllowListFilePath)
-	if err != nil {
-		return err
-	}
-	srv.SetAllowList(allowListForRPC)
-
 	srv.SetBatchLimit(cfg.BatchLimit)
 
 	defer srv.Stop()
@@ -79,25 +72,23 @@ func startRegularRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []t
 		return err
 	}
 
-	if cfg.HttpServerEnabled {
-		httpEndpoint := fmt.Sprintf("tcp://%s:%d", cfg.HttpListenAddress, cfg.HttpPort)
-		if cfg.HttpURL != "" {
-			httpEndpoint = cfg.HttpURL
-		}
-		listener, httpAddr, err := transport.StartHTTPEndpoint(httpEndpoint, &transport.HttpEndpointConfig{
-			Timeouts: cfg.HTTPTimeouts,
-		}, apiHandler)
-		if err != nil {
-			return fmt.Errorf("could not start RPC api: %w", err)
-		}
-		event = event.Str("http.url", httpAddr.String())
-		defer func() {
-			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_ = listener.Shutdown(shutdownCtx)
-			logger.Info().Str("url", httpAddr.String()).Msg("HTTP endpoint closed")
-		}()
+	httpEndpoint := fmt.Sprintf("tcp://%s:%d", cfg.HttpListenAddress, cfg.HttpPort)
+	if cfg.HttpURL != "" {
+		httpEndpoint = cfg.HttpURL
 	}
+	listener, httpAddr, err := transport.StartHTTPEndpoint(httpEndpoint, &transport.HttpEndpointConfig{
+		Timeouts: cfg.HTTPTimeouts,
+	}, apiHandler)
+	if err != nil {
+		return fmt.Errorf("could not start RPC api: %w", err)
+	}
+	event = event.Str("http.url", httpAddr.String())
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = listener.Shutdown(shutdownCtx)
+		logger.Info().Str("url", httpAddr.String()).Msg("HTTP endpoint closed")
+	}()
 
 	event.Msg("JsonRpc endpoint opened")
 	<-ctx.Done()

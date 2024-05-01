@@ -3,7 +3,6 @@ package transport
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -121,48 +120,10 @@ func createAndStartServer(t *testing.T, conf *httpConfig) *httpServer {
 
 	logger := common.NewLogger("Test server", false)
 	srv := newHTTPServer(logger, rpccfg.DefaultHTTPTimeouts)
-	assert.NoError(t, srv.enableRPC(nil, *conf, nil))
+	assert.NoError(t, srv.enableRPC(nil, *conf))
 	assert.NoError(t, srv.setListenAddr("localhost", 0))
 	assert.NoError(t, srv.start())
 	return srv
-}
-
-func createAndStartServerWithAllowList(t *testing.T, conf httpConfig) *httpServer {
-	t.Helper()
-
-	logger := common.NewLogger("Test server", false)
-	srv := newHTTPServer(logger, rpccfg.DefaultHTTPTimeouts)
-
-	allowList := AllowList(map[string]struct{}{"net_version": {}}) //don't allow RPC modules
-
-	assert.NoError(t, srv.enableRPC(nil, conf, allowList))
-	assert.NoError(t, srv.setListenAddr("localhost", 0))
-	assert.NoError(t, srv.start())
-	return srv
-}
-
-func TestAllowList(t *testing.T) {
-	srv := createAndStartServerWithAllowList(t, httpConfig{})
-	defer srv.stop()
-
-	assert.False(t, testCustomRequest(t, srv, "rpc_modules"))
-}
-
-func testCustomRequest(t *testing.T, srv *httpServer, method string) bool {
-	body := bytes.NewReader([]byte(fmt.Sprintf(`{"jsonrpc":"2.0","id":1,"method":"%s"}`, method)))
-	req, _ := http.NewRequest("POST", "http://"+srv.listenAddr(), body)
-	req.Header.Set("content-type", "application/json")
-
-	client := http.DefaultClient
-	resp, err := client.Do(req)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-	respBody, err := io.ReadAll(resp.Body)
-	assert.NoError(t, err)
-
-	return !strings.Contains(string(respBody), "error")
 }
 
 // rpcRequest performs a JSON-RPC request to the given URL.
@@ -200,7 +161,7 @@ func rpcRequest(t *testing.T, url string, extraHeaders ...string) *http.Response
 }
 
 // enableRPC turns on JSON-RPC over HTTP on the server.
-func (h *httpServer) enableRPC(apis []API, config httpConfig, allowList AllowList) error {
+func (h *httpServer) enableRPC(apis []API, config httpConfig) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -210,8 +171,7 @@ func (h *httpServer) enableRPC(apis []API, config httpConfig, allowList AllowLis
 
 	// Create RPC server and handler.
 	srv := NewServer(50, false /* traceRequests */, false /* traceSingleRequest */, h.logger, 0)
-	srv.SetAllowList(allowList)
-	if err := RegisterApisFromWhitelist(apis, config.Modules, srv, h.logger); err != nil {
+	if err := RegisterApisFromWhitelist(apis, config.Modules, srv, false, h.logger); err != nil {
 		return err
 	}
 	h.httpConfig = config

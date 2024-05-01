@@ -35,12 +35,8 @@ func NewBaseApi(evmCallTimeout time.Duration) *BaseAPI {
 type APIImpl struct {
 	*BaseAPI
 
-	db                          db.DB
-	GasCap                      uint64
-	ReturnDataLimit             int
-	AllowUnprotectedTxs         bool
-	MaxGetProofRewindBlockCount int
-	logger                      *zerolog.Logger
+	db     db.DB
+	logger *zerolog.Logger
 }
 
 // NewEthAPI returns APIImpl instance

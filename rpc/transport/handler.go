@@ -44,9 +44,6 @@ type handler struct {
 	conn       jsonWriter            // where responses will be sent
 	logger     *zerolog.Logger
 
-	allowList     AllowList // a list of explicitly allowed methods, if empty -- everything is allowed
-	forbiddenList ForbiddenList
-
 	maxBatchConcurrency uint
 	traceRequests       bool
 
@@ -90,19 +87,16 @@ func HandleError(err error, stream *jsoniter.Stream) {
 	}
 }
 
-func newHandler(connCtx context.Context, conn jsonWriter, reg *serviceRegistry, allowList AllowList, maxBatchConcurrency uint, traceRequests bool, logger *zerolog.Logger, rpcSlowLogThreshold time.Duration) *handler {
+func newHandler(connCtx context.Context, conn jsonWriter, reg *serviceRegistry, maxBatchConcurrency uint, traceRequests bool, logger *zerolog.Logger, rpcSlowLogThreshold time.Duration) *handler {
 	rootCtx, cancelRoot := context.WithCancel(connCtx)
-	forbiddenList := newForbiddenList()
 
 	h := &handler{
-		reg:           reg,
-		conn:          conn,
-		respWait:      make(map[string]*requestOp),
-		rootCtx:       rootCtx,
-		cancelRoot:    cancelRoot,
-		logger:        logger,
-		allowList:     allowList,
-		forbiddenList: forbiddenList,
+		reg:        reg,
+		conn:       conn,
+		respWait:   make(map[string]*requestOp),
+		rootCtx:    rootCtx,
+		cancelRoot: cancelRoot,
+		logger:     logger,
 
 		maxBatchConcurrency: maxBatchConcurrency,
 		traceRequests:       traceRequests,
@@ -288,14 +282,6 @@ func (h *handler) handleResponse(msg *jsonrpcMessage) {
 func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage, stream *jsoniter.Stream) *jsonrpcMessage {
 	start := time.Now()
 	switch {
-	case msg.isNotification():
-		h.handleCall(ctx, msg, stream)
-		if h.traceRequests {
-			h.logger.Info().Str("t", time.Since(start).String()).Str("method", msg.Method).Str("params", string(msg.Params)).Msg("[rpc] served")
-		} else {
-			h.logger.Trace().Str("t", time.Since(start).String()).Str("method", msg.Method).Str("params", string(msg.Params)).Msg("[rpc] served")
-		}
-		return nil
 	case msg.isCall():
 		var doSlowLog bool
 		if h.slowLogThreshold > 0 {
@@ -347,22 +333,9 @@ func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage, stream *json
 	}
 }
 
-func (h *handler) isMethodAllowedByGranularControl(method string) bool {
-	_, isForbidden := h.forbiddenList[method]
-	if len(h.allowList) == 0 {
-		return !isForbidden
-	}
-
-	_, ok := h.allowList[method]
-	return ok
-}
-
 // handleCall processes method calls.
 func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage, stream *jsoniter.Stream) *jsonrpcMessage {
-	var callb *callback
-	if h.isMethodAllowedByGranularControl(msg.Method) {
-		callb = h.reg.callback(msg.Method)
-	}
+	callb := h.reg.callback(msg.Method)
 	if callb == nil {
 		return msg.errorResponse(&methodNotFoundError{method: msg.Method})
 	}

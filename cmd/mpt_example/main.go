@@ -23,7 +23,6 @@ func startRpcServer(ctx context.Context, db db.DB) {
 
 	httpConfig := httpcfg.HttpCfg{
 		Enabled:           true,
-		HttpServerEnabled: true,
 		HttpURL:           "tcp://127.0.0.1:8529",
 		HttpListenAddress: "127.0.0.1",
 		HttpPort:          8529,

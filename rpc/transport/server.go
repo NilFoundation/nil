@@ -15,10 +15,9 @@ const MetadataApi = "rpc"
 
 // Server is an RPC server.
 type Server struct {
-	services        serviceRegistry
-	methodAllowList AllowList
-	run             int32
-	codecs          mapset.Set // mapset.Set[ServerCodec] requires go 1.20
+	services serviceRegistry
+	run      int32
+	codecs   mapset.Set // mapset.Set[ServerCodec] requires go 1.20
 
 	batchConcurrency    uint
 	traceRequests       bool // Whether to print requests at INFO level
@@ -40,11 +39,6 @@ func NewServer(batchConcurrency uint, traceRequests, debugSingleRequest bool, lo
 		logger.Fatal().Msg(err.Error())
 	}
 	return server
-}
-
-// SetAllowList sets the allow list for methods that are handled by this server
-func (s *Server) SetAllowList(allowList AllowList) {
-	s.methodAllowList = allowList
 }
 
 // SetBatchLimit sets limit of number of requests in a batch
@@ -89,7 +83,7 @@ func (s *Server) serveSingleRequest(ctx context.Context, codec ServerCodec) {
 		return
 	}
 
-	h := newHandler(ctx, codec, &s.services, s.methodAllowList, s.batchConcurrency, s.traceRequests, s.logger, s.rpcSlowLogThreshold)
+	h := newHandler(ctx, codec, &s.services, s.batchConcurrency, s.traceRequests, s.logger, s.rpcSlowLogThreshold)
 	defer h.close(io.EOF, nil)
 
 	reqs, batch, err := codec.ReadBatch()
