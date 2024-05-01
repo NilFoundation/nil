@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"sort"
@@ -13,7 +12,7 @@ import (
 	"sync/atomic"
 
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
-	"github.com/rs/cors"
+	"github.com/gorilla/handlers"
 	"github.com/rs/zerolog"
 )
 
@@ -219,13 +218,12 @@ func newCorsHandler(srv http.Handler, allowedOrigins []string) http.Handler {
 	if len(allowedOrigins) == 0 {
 		return srv
 	}
-	c := cors.New(cors.Options{
-		AllowedOrigins: allowedOrigins,
-		AllowedMethods: []string{http.MethodPost, http.MethodGet},
-		AllowedHeaders: []string{"*"},
-		MaxAge:         600,
-	})
-	return c.Handler(srv)
+
+	return handlers.CORS(
+		handlers.AllowedOrigins(allowedOrigins),
+		handlers.AllowedMethods([]string{http.MethodPost, http.MethodGet}),
+		handlers.MaxAge(600),
+	)(srv)
 }
 
 // virtualHostHandler is a handler which validates the Host-header of incoming requests.
@@ -279,44 +277,8 @@ func (h *virtualHostHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "invalid host specified", http.StatusForbidden)
 }
 
-var gzPool = sync.Pool{
-	New: func() interface{} {
-		w := gzip.NewWriter(io.Discard)
-		return w
-	},
-}
-
-type gzipResponseWriter struct {
-	io.Writer
-	http.ResponseWriter
-}
-
-func (w *gzipResponseWriter) WriteHeader(status int) {
-	w.Header().Del("Content-Length")
-	w.ResponseWriter.WriteHeader(status)
-}
-
-func (w *gzipResponseWriter) Write(b []byte) (int, error) {
-	return w.Writer.Write(b)
-}
-
 func newGzipHandler(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		w.Header().Set("Content-Encoding", "gzip")
-
-		gz := gzPool.Get().(*gzip.Writer)
-		defer gzPool.Put(gz)
-
-		gz.Reset(w)
-		defer gz.Close()
-
-		next.ServeHTTP(&gzipResponseWriter{ResponseWriter: w, Writer: gz}, r)
-	})
+	return handlers.CompressHandlerLevel(next, gzip.DefaultCompression)
 }
 
 // RegisterApisFromWhitelist checks the given modules' availability, generates a whitelist based on the allowed modules,

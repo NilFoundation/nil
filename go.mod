@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	github.com/fxamacker/cbor/v2 v2.6.0
+	github.com/gorilla/handlers v1.5.2
 	github.com/holiman/uint256 v1.2.4
 	github.com/iden3/go-iden3-crypto v0.0.16
 	github.com/keybase/go-merkle-tree v0.0.0-20231220184832-f941b050db23
@@ -15,6 +16,7 @@ require (
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v1.2.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
@@ -42,7 +44,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/rs/cors v1.11.0
 	github.com/x448/float16 v0.8.4 // indirect
 	golang.org/x/net v0.24.0
 	golang.org/x/sys v0.19.0 // indirect
