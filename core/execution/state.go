@@ -2,8 +2,10 @@ package execution
 
 import (
 	"errors"
+
 	"github.com/NilFoundation/nil/common"
 	db "github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/ssz"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
 )
@@ -41,7 +43,13 @@ func NewAccountState(Tx db.Tx, account_hash common.Hash) (*AccountState, error) 
 		return nil, errors.New("Cannot retrieve code")
 	}
 
-	return &AccountState{Tx: Tx, StorageRoot: root, CodeHash: account.CodeHash, Code: *code}, nil
+	return &AccountState{
+		Tx:          Tx,
+		StorageRoot: root,
+		CodeHash:    account.CodeHash,
+		Code:        *code,
+		State:       map[common.Hash]uint256.Int{},
+	}, nil
 }
 
 func NewExecutionState(Tx db.Tx, block_hash common.Hash) (*ExecutionState, error) {
@@ -52,7 +60,12 @@ func NewExecutionState(Tx db.Tx, block_hash common.Hash) (*ExecutionState, error
 		root = db.GetMerkleTree(Tx, block.SmartContractsRoot)
 	}
 
-	return &ExecutionState{Tx: Tx, ContractRoot: root, PrevBlock: block_hash}, nil
+	return &ExecutionState{
+		Tx:           Tx,
+		ContractRoot: root,
+		PrevBlock:    block_hash,
+		Accounts:     map[common.Hash]*AccountState{},
+	}, nil
 }
 
 func (es *ExecutionState) GetAccount(addr common.Hash) (*AccountState, error) {
@@ -66,7 +79,11 @@ func (es *ExecutionState) GetAccount(addr common.Hash) (*AccountState, error) {
 		return nil, err
 	}
 
-	return NewAccountState(es.Tx, acc_hash.(common.Hash))
+	if acc_hash == nil {
+		return nil, nil
+	}
+
+	return NewAccountState(es.Tx, common.Hash(acc_hash))
 }
 
 func (as *AccountState) ReadStorage(key common.Hash) (uint256.Int, error) {
@@ -81,11 +98,10 @@ func (as *AccountState) ReadStorage(key common.Hash) (uint256.Int, error) {
 		return *uint256.NewInt(0), err
 	}
 
-	val = raw_val.(uint256.Int)
+	new_val := ssz.UnmarshalUint256SSZ(raw_val)
+	as.State[key] = new_val
 
-	as.State[key] = val
-
-	return val, nil
+	return new_val, nil
 }
 
 func (as *AccountState) WriteStorage(key common.Hash, val uint256.Int) {
@@ -94,7 +110,7 @@ func (as *AccountState) WriteStorage(key common.Hash, val uint256.Int) {
 
 func (as *AccountState) Commit() (common.Hash, error) {
 	for k, v := range as.State {
-		err := as.StorageRoot.Upsert(k, v)
+		err := as.StorageRoot.Upsert(k, ssz.Uint256SSZ(v))
 		if err != nil {
 			return common.Hash{}, err
 		}
@@ -115,6 +131,12 @@ func (as *AccountState) Commit() (common.Hash, error) {
 	acc_hash := acc.Hash()
 
 	err = db.WriteContract(as.Tx, &acc)
+
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	err = db.WriteCode(as.Tx, as.Code)
 
 	if err != nil {
 		return common.Hash{}, err
@@ -160,6 +182,7 @@ func (es *ExecutionState) CreateContract(addr common.Hash, code types.Code) erro
 		StorageRoot: root,
 		CodeHash:    code.Hash(),
 		Code:        code,
+		State:       map[common.Hash]uint256.Int{},
 	}
 
 	es.Accounts[addr] = &new_acc
@@ -173,7 +196,7 @@ func (es *ExecutionState) Commit() (common.Hash, error) {
 		if err != nil {
 			return common.Hash{}, err
 		}
-		err = es.ContractRoot.Upsert(k, v)
+		err = es.ContractRoot.Upsert(k, v[:])
 		if err != nil {
 			return common.Hash{}, err
 		}

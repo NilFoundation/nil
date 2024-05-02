@@ -89,9 +89,13 @@ func WriteCode(tx Tx, code types.Code) error {
 }
 
 func ReadCode(tx Tx, hash common.Hash) (*types.Code, error) {
-	code, err := tx.Get(StorageTable, hash[:])
+	code, err := tx.Get(CodeTable, hash[:])
 	if err != nil {
 		return nil, err
+	}
+
+	if code == nil {
+		return nil, nil
 	}
 
 	res := types.Code(*code)

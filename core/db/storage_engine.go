@@ -11,10 +11,11 @@ import (
 type tableClient struct {
 	root  mpt.Hash
 	tx    Tx
-	table string
 }
 
 var _ mpt.StorageEngine = (*tableClient)(nil)
+
+var NodeLookupFailed = errors.New("Node lookup failed")
 
 func (c *tableClient) CommitRoot(_ context.Context, prev mpt.Hash, curr mpt.Hash, txinfo mpt.TxInfo) error {
 	c.root = curr
@@ -27,7 +28,7 @@ func (c *tableClient) LookupNode(_ context.Context, h mpt.Hash) (b []byte, err e
 		return []byte{}, err
 	}
 	if node == nil {
-		return []byte{}, errors.New("Node lookup failed")
+		return []byte{}, NodeLookupFailed
 	}
 
 	return *node, nil
@@ -42,5 +43,11 @@ func (c *tableClient) StoreNode(_ context.Context, key mpt.Hash, b []byte) error
 }
 
 func GetEngine(tx Tx, root common.Hash) mpt.StorageEngine {
-	return &tableClient{tx: tx, root: mpt.Hash(root[:])}
+	mpt_hash := mpt.Hash(root[:])
+	empty_hash := common.Hash{}
+	if root == empty_hash {
+		mpt_hash = nil
+	}
+
+	return &tableClient{tx: tx, root: mpt_hash}
 }

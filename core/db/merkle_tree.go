@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/iden3/go-iden3-crypto/poseidon"
@@ -12,7 +13,7 @@ type valueFactory struct{}
 
 func (valueFactory) Construct() interface{} {
 	return struct {
-		Value string
+		Value []byte
 	}{}
 }
 
@@ -41,14 +42,27 @@ func (tree *MerkleTree) Root() (common.Hash, error) {
 	return common.Hash(hash[:]), nil
 }
 
-func (tree *MerkleTree) Find(key common.Hash) (interface{}, error) {
+func (tree *MerkleTree) Find(key common.Hash) ([]byte, error) {
 	val, _, err := tree.tree.Find(context.TODO(), mpt.Hash(key[:]))
 
-	return val, err
+	if err == NodeLookupFailed {
+		return nil, nil
+	}
+	if val == nil {
+		return nil, nil
+	}
+
+	val_full, ok := val.(struct {Value []byte})
+
+	if !ok {
+		return nil, fmt.Errorf("Failed to decode tree node %s", val)
+	}
+
+	return val_full.Value, nil
 }
 
-func (tree *MerkleTree) Upsert(key common.Hash, value interface{}) error {
-	return tree.tree.Upsert(context.TODO(), mpt.KeyValuePair{Key: mpt.Hash(key[:]), Value: value}, nil)
+func (tree *MerkleTree) Upsert(key common.Hash, value []byte) error {
+	return tree.tree.Upsert(context.TODO(), mpt.KeyValuePair{Key: key[:], Value: struct {Value []byte } {Value: value}}, nil)
 }
 
 func GetMerkleTree(tx Tx, root common.Hash) *MerkleTree {

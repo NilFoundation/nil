@@ -1,7 +1,7 @@
 package types
 
 import (
-	common "github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common"
 	ssz "github.com/NilFoundation/nil/core/ssz"
 	"github.com/holiman/uint256"
 	"github.com/rs/zerolog/log"
@@ -42,14 +42,15 @@ func (s *SmartContract) Clone() common.Clonable {
 
 func (s *SmartContract) DecodeSSZ(buf []byte, version int) error {
 	balanceBytes := make([]byte, 32)
+	var initialized byte
 	err := ssz.UnmarshalSSZ(
 		buf,
 		0,
-		&s.Address,
-		&s.Initialised,
-		&balanceBytes,
-		&s.StorageRoot,
-		&s.CodeHash,
+		s.Address[:],
+		&initialized,
+		balanceBytes,
+		s.StorageRoot[:],
+		s.CodeHash[:],
 	)
 
 	if err != nil {
@@ -57,6 +58,7 @@ func (s *SmartContract) DecodeSSZ(buf []byte, version int) error {
 	}
 
 	s.Balance.SetBytes(balanceBytes)
+	s.Initialised = initialized == 1
 	return nil
 }
 
