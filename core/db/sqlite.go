@@ -16,6 +16,7 @@ type SqliteDB struct {
 
 type SqliteTx struct {
 	tx *sql.Tx
+	ctx context.Context
 }
 
 func (db *SqliteDB) Close() {
@@ -32,7 +33,7 @@ func (db *SqliteDB) CreateTx(ctx context.Context) (Tx, error) {
 		return nil, err
 	}
 
-	return &SqliteTx{tx: tx}, nil
+	return &SqliteTx{tx: tx, ctx: ctx}, nil
 }
 
 func (db *SqliteDB) View(fn func(txn Tx) error) error {
@@ -141,7 +142,7 @@ func (tx *SqliteTx) Put(table string, key []byte, value []byte) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(table, key, value)
+	_, err = stmt.ExecContext(tx.ctx, table, key, value)
 	return err
 }
 
@@ -153,7 +154,7 @@ func (tx *SqliteTx) Get(table string, key []byte) (val *[]byte, err error) {
 	defer stmt.Close()
 
 	var value []byte
-	err = stmt.QueryRow(table, key).Scan(&value)
+	err = stmt.QueryRowContext(tx.ctx, table, key).Scan(&value)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -180,7 +181,7 @@ func (tx *SqliteTx) Delete(table string, key []byte) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(table, key)
+	_, err = stmt.ExecContext(tx.ctx, table, key)
 	return err
 }
 
