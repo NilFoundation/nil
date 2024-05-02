@@ -19,16 +19,13 @@ type HttpCfg struct {
 	AuthRpcVirtualHost []string
 	HttpCompression    bool
 
-	API                 []string
-	RpcBatchConcurrency uint
+	API []string
 
 	TraceRequests      bool // Print requests to logs at INFO level
 	DebugSingleRequest bool // Print single-request-related debugging info to logs at INFO level
 	HTTPTimeouts       rpccfg.HTTPTimeouts
 	AuthRpcTimeouts    rpccfg.HTTPTimeouts
 	EvmCallTimeout     time.Duration
-
-	BatchLimit int // Maximum number of requests in a batch
 
 	RPCSlowLogThreshold time.Duration
 }

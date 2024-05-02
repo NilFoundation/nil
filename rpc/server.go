@@ -20,8 +20,7 @@ func StartRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []transpor
 
 func startRegularRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []transport.API, logger *zerolog.Logger) error {
 	// register apis and create handler stack
-	srv := transport.NewServer(cfg.RpcBatchConcurrency, cfg.TraceRequests, cfg.DebugSingleRequest, logger, cfg.RPCSlowLogThreshold)
-	srv.SetBatchLimit(cfg.BatchLimit)
+	srv := transport.NewServer(cfg.TraceRequests, cfg.DebugSingleRequest, logger, cfg.RPCSlowLogThreshold)
 
 	defer srv.Stop()
 

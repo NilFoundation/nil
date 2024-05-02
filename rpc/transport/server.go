@@ -2,7 +2,6 @@ package transport
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"sync/atomic"
 	"time"
@@ -19,17 +18,15 @@ type Server struct {
 	run      int32
 	codecs   mapset.Set // mapset.Set[ServerCodec] requires go 1.20
 
-	batchConcurrency    uint
 	traceRequests       bool // Whether to print requests at INFO level
 	debugSingleRequest  bool // Whether to print requests at INFO level
-	batchLimit          int  // Maximum number of requests in a batch
 	logger              *zerolog.Logger
 	rpcSlowLogThreshold time.Duration
 }
 
 // NewServer creates a new server instance with no registered handlers.
-func NewServer(batchConcurrency uint, traceRequests, debugSingleRequest bool, logger *zerolog.Logger, rpcSlowLogThreshold time.Duration) *Server {
-	server := &Server{services: serviceRegistry{logger: logger}, codecs: mapset.NewSet(), run: 1, batchConcurrency: batchConcurrency,
+func NewServer(traceRequests, debugSingleRequest bool, logger *zerolog.Logger, rpcSlowLogThreshold time.Duration) *Server {
+	server := &Server{services: serviceRegistry{logger: logger}, codecs: mapset.NewSet(), run: 1,
 		traceRequests: traceRequests, debugSingleRequest: debugSingleRequest, logger: logger, rpcSlowLogThreshold: rpcSlowLogThreshold}
 	// Register the default service providing meta information about the RPC service such
 	// as the services and methods it offers.
@@ -39,11 +36,6 @@ func NewServer(batchConcurrency uint, traceRequests, debugSingleRequest bool, lo
 		logger.Fatal().Msg(err.Error())
 	}
 	return server
-}
-
-// SetBatchLimit sets limit of number of requests in a batch
-func (s *Server) SetBatchLimit(limit int) {
-	s.batchLimit = limit
 }
 
 // RegisterName creates a service for the given receiver type under the given name. When no
@@ -83,25 +75,17 @@ func (s *Server) serveSingleRequest(ctx context.Context, codec ServerCodec) {
 		return
 	}
 
-	h := newHandler(ctx, codec, &s.services, s.batchConcurrency, s.traceRequests, s.logger, s.rpcSlowLogThreshold)
+	h := newHandler(ctx, codec, &s.services, s.traceRequests, s.logger, s.rpcSlowLogThreshold)
 	defer h.close(io.EOF, nil)
 
-	reqs, batch, err := codec.ReadBatch()
+	req, err := codec.Read()
 	if err != nil {
 		if err != io.EOF {
 			_ = codec.WriteJSON(ctx, errorMessage(&invalidMessageError{"parse error"}))
 		}
 		return
 	}
-	if batch {
-		if s.batchLimit > 0 && len(reqs) > s.batchLimit {
-			_ = codec.WriteJSON(ctx, errorMessage(fmt.Errorf("batch limit %d exceeded (can increase by --rpc.batch.limit). Requested batch of size: %d", s.batchLimit, len(reqs))))
-		} else {
-			h.handleBatch(reqs)
-		}
-	} else {
-		h.handleMsg(reqs[0])
-	}
+	h.handleMsg(req)
 }
 
 // Stop stops reading new requests, waits for stopPendingRequestTimeout to allow pending

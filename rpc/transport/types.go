@@ -38,7 +38,7 @@ type DataError interface {
 // a RPC session. Implementations must be go-routine safe since the codec can be called in
 // multiple go-routines concurrently.
 type ServerCodec interface {
-	ReadBatch() (msgs []*jsonrpcMessage, isBatch bool, err error)
+	Read() (msgs *jsonrpcMessage, err error)
 	Close()
 	jsonWriter
 }

@@ -1,7 +1,6 @@
 package transport
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"reflect"
@@ -22,7 +21,6 @@ import (
 // The entry points for incoming messages are:
 //
 //	h.handleMsg(message)
-//	h.handleBatch(message)
 type handler struct {
 	reg        *serviceRegistry
 	respWait   map[string]*requestOp // active client requests
@@ -32,8 +30,7 @@ type handler struct {
 	conn       jsonWriter            // where responses will be sent
 	logger     *zerolog.Logger
 
-	maxBatchConcurrency uint
-	traceRequests       bool
+	traceRequests bool
 
 	//slow requests
 	slowLogThreshold time.Duration
@@ -75,7 +72,7 @@ func HandleError(err error, stream *jsoniter.Stream) {
 	}
 }
 
-func newHandler(connCtx context.Context, conn jsonWriter, reg *serviceRegistry, maxBatchConcurrency uint, traceRequests bool, logger *zerolog.Logger, rpcSlowLogThreshold time.Duration) *handler {
+func newHandler(connCtx context.Context, conn jsonWriter, reg *serviceRegistry, traceRequests bool, logger *zerolog.Logger, rpcSlowLogThreshold time.Duration) *handler {
 	rootCtx, cancelRoot := context.WithCancel(connCtx)
 
 	h := &handler{
@@ -86,8 +83,7 @@ func newHandler(connCtx context.Context, conn jsonWriter, reg *serviceRegistry, 
 		cancelRoot: cancelRoot,
 		logger:     logger,
 
-		maxBatchConcurrency: maxBatchConcurrency,
-		traceRequests:       traceRequests,
+		traceRequests: traceRequests,
 
 		slowLogThreshold: rpcSlowLogThreshold,
 		slowLogBlacklist: rpccfg.SlowLogBlackList,
@@ -103,73 +99,6 @@ func (h *handler) isRpcMethodNeedsCheck(method string) bool {
 		}
 	}
 	return true
-}
-
-// handleBatch executes all messages in a batch and returns the responses.
-func (h *handler) handleBatch(msgs []*jsonrpcMessage) {
-	// Emit error response for empty batches:
-	if len(msgs) == 0 {
-		h.startCallProc(func(cp *callProc) {
-			_ = h.conn.WriteJSON(cp.ctx, errorMessage(&invalidRequestError{"empty batch"}))
-		})
-		return
-	}
-
-	// Handle non-call messages first:
-	calls := make([]*jsonrpcMessage, 0, len(msgs))
-	for _, msg := range msgs {
-		if handled := h.handleImmediate(msg); !handled {
-			calls = append(calls, msg)
-		}
-	}
-	if len(calls) == 0 {
-		return
-	}
-	// Process calls on a goroutine because they may block indefinitely:
-	h.startCallProc(func(cp *callProc) {
-		// All goroutines will place results right to this array. Because requests order must match reply orders.
-		answersWithNils := make([]interface{}, len(msgs))
-		// Bounded parallelism pattern explanation https://blog.golang.org/pipelines#TOC_9.
-		boundedConcurrency := make(chan struct{}, h.maxBatchConcurrency)
-		defer close(boundedConcurrency)
-		wg := sync.WaitGroup{}
-		wg.Add(len(msgs))
-		for i := range calls {
-			boundedConcurrency <- struct{}{}
-			go func(i int) {
-				defer func() {
-					wg.Done()
-					<-boundedConcurrency
-				}()
-
-				select {
-				case <-cp.ctx.Done():
-					return
-				default:
-				}
-
-				buf := bytes.NewBuffer(nil)
-				stream := jsoniter.NewStream(jsoniter.ConfigDefault, buf, 4096)
-				if res := h.handleCallMsg(cp, calls[i], stream); res != nil {
-					answersWithNils[i] = res
-				}
-				_ = stream.Flush()
-				if buf.Len() > 0 && answersWithNils[i] == nil {
-					answersWithNils[i] = json.RawMessage(buf.Bytes())
-				}
-			}(i)
-		}
-		wg.Wait()
-		answers := make([]interface{}, 0, len(msgs))
-		for _, answer := range answersWithNils {
-			if answer != nil {
-				answers = append(answers, answer)
-			}
-		}
-		if len(answers) > 0 {
-			_ = h.conn.WriteJSON(cp.ctx, answers)
-		}
-	})
 }
 
 // handleMsg handles a single message.

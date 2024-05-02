@@ -170,7 +170,7 @@ func (h *httpServer) enableRPC(apis []API, config httpConfig) error {
 	}
 
 	// Create RPC server and handler.
-	srv := NewServer(50, false /* traceRequests */, false /* traceSingleRequest */, h.logger, 0)
+	srv := NewServer(false /* traceRequests */, false /* traceSingleRequest */, h.logger, 0)
 	if err := RegisterApisFromWhitelist(apis, config.Modules, srv, h.logger); err != nil {
 		return err
 	}
