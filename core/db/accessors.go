@@ -69,7 +69,8 @@ func ReadContract(tx Tx, hash common.Hash) *types.SmartContract {
 func WriteContract(tx Tx, contract *types.SmartContract) error {
 	hash := contract.Hash()
 
-	data, err := contract.EncodeSSZ(nil)
+	var data []byte
+	err := contract.EncodeSSZ(&data)
 
 	if err != nil {
 		return err

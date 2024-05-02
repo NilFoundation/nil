@@ -40,7 +40,7 @@ func MarshalSSZ(dst *[]byte, schema ...any) (err error) {
 			*dst = append(*dst, obj...)
 			currentOffset += len(obj)
 		case byte:
-			dst = append(dst, obj)
+			*dst = append(*dst, obj)
 			currentOffset += 1
 		case SizedObjectSSZ:
 			// If the element implements the SizedObjectSSZ interface
