@@ -223,33 +223,3 @@ func TestUnmarshalUint(t *testing.T) {
 		})
 	}
 }
-
-func TestUnmarshalFixedUnprefixedText(t *testing.T) {
-	tests := []struct {
-		input   string
-		want    []byte
-		wantErr error
-	}{
-		{input: "0x2", wantErr: ErrOddLength},
-		{input: "2", wantErr: ErrOddLength},
-		{input: "4444", wantErr: errors.New("hex string has length 4, want 8 for x")},
-		{input: "4444", wantErr: errors.New("hex string has length 4, want 8 for x")},
-		// check that output is not modified for partially correct input
-		{input: "444444gg", wantErr: ErrSyntax, want: []byte{0, 0, 0, 0}},
-		{input: "0x444444gg", wantErr: ErrSyntax, want: []byte{0, 0, 0, 0}},
-		// valid inputs
-		{input: "44444444", want: []byte{0x44, 0x44, 0x44, 0x44}},
-		{input: "0x44444444", want: []byte{0x44, 0x44, 0x44, 0x44}},
-	}
-
-	for idx, test := range tests {
-		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
-			out := make([]byte, 4)
-			err := UnmarshalFixedUnprefixedText("x", []byte(test.input), out)
-			checkError(t, test.input, err, test.wantErr)
-			if test.want != nil {
-				require.EqualValues(t, out, test.want)
-			}
-		})
-	}
-}

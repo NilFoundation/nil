@@ -31,7 +31,6 @@ func NewServer(traceRequests, debugSingleRequest bool, logger *zerolog.Logger, r
 	// Register the default service providing meta information about the RPC service such
 	// as the services and methods it offers.
 	rpcService := &RPCService{server: server}
-	_ = server.RegisterName(MetadataApi, rpcService)
 	if err := server.RegisterName(MetadataApi, rpcService); err != nil {
 		logger.Fatal().Msg(err.Error())
 	}

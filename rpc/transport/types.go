@@ -9,9 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/NilFoundation/nil/common/hexutil"
-
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
 )
 
 // API describes the set of methods offered over the RPC interface
@@ -349,10 +348,6 @@ func HashBlockReference(hash common.Hash, canonical ...bool) BlockReference {
 		BlockHash:        &hash,
 		RequireCanonical: canonical[0],
 	}
-}
-
-func (ts Timestamp) TurnIntoUint64() uint64 {
-	return uint64(ts)
 }
 
 func (ts *Timestamp) UnmarshalJSON(data []byte) error {

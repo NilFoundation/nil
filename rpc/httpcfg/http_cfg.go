@@ -24,7 +24,6 @@ type HttpCfg struct {
 	TraceRequests      bool // Print requests to logs at INFO level
 	DebugSingleRequest bool // Print single-request-related debugging info to logs at INFO level
 	HTTPTimeouts       rpccfg.HTTPTimeouts
-	AuthRpcTimeouts    rpccfg.HTTPTimeouts
 	EvmCallTimeout     time.Duration
 
 	RPCSlowLogThreshold time.Duration

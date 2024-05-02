@@ -117,7 +117,12 @@ func (h *httpServer) start() error {
 		return nil
 	}
 	// Log http endpoint.
-	h.logger.Info().Str("endpoint", listener.Addr().String()).Str("prefix", h.httpConfig.prefix).Str("cors", strings.Join(h.httpConfig.CorsAllowedOrigins, ",")).Str("vhosts", strings.Join(h.httpConfig.Vhosts, ",")).Msg("HTTP server started")
+	h.logger.Info().
+		Str("endpoint", listener.Addr().String()).
+		Str("prefix", h.httpConfig.prefix).
+		Str("cors", strings.Join(h.httpConfig.CorsAllowedOrigins, ",")).
+		Str("vhosts", strings.Join(h.httpConfig.Vhosts, ",")).
+		Msg("HTTP server started")
 
 	// Log all handlers mounted on server.
 	paths := make([]string, len(h.handlerNames))
