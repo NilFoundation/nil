@@ -21,6 +21,7 @@
             src = ./.;
             # to obtain run `nix build` with vendorHash = "";
             vendorHash = "sha256-BmAr1ZYWPsz416d5Zoxq0BpfhOkuF0V+i38TwjNQlAI=";
+            hardeningDisable = [ "all" ];
 
             doCheck = true;
           };
@@ -33,7 +34,10 @@
             go-tools
             gopls
             golangci-lint
+            delve
           ];
+
+          hardeningDisable = [ "all" ];
 
           shellHook = ''
             export GO_CFG_DIR=$HOME/.nix/go/$(go env GOVERSION)
