@@ -24,7 +24,7 @@ func (s *Shard) EncodeSSZ(dst *[]byte) error {
 }
 
 func (s *Shard) EncodingSizeSSZ() int {
-	return 8 + common.HashSize
+	return common.Uint64Size + common.HashSize
 }
 
 func (s *Shard) Clone() common.Clonable {

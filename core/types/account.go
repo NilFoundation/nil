@@ -32,7 +32,7 @@ func (s *SmartContract) EncodeSSZ(dst *[]byte) error {
 }
 
 func (s *SmartContract) EncodingSizeSSZ() int {
-	return common.AddrSize + 1 + 32 + common.HashSize + common.HashSize
+	return common.AddrSize + common.BoolSize + common.Bits256Size + common.HashSize + common.HashSize
 }
 
 func (s *SmartContract) Clone() common.Clonable {
@@ -41,15 +41,15 @@ func (s *SmartContract) Clone() common.Clonable {
 }
 
 func (s *SmartContract) DecodeSSZ(buf []byte, version int) error {
-	balanceBytes := make([]byte, 32)
+	balanceBytes := make([]byte, common.Bits256Size)
 	err := ssz.UnmarshalSSZ(
 		buf,
 		0,
-		&s.Address,
+		s.Address[:],
 		&s.Initialised,
 		balanceBytes,
-		&s.StorageRoot,
-		&s.CodeHash,
+		s.StorageRoot[:],
+		s.CodeHash[:],
 	)
 
 	if err != nil {

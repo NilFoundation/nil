@@ -34,7 +34,7 @@ func (s *Message) EncodeSSZ(dst *[]byte) error {
 }
 
 func (s *Message) EncodingSizeSSZ() int {
-	return s.ShardInfo.EncodingSizeSSZ() + common.AddrSize + common.AddrSize + 32 + s.Data.EncodingSizeSSZ() + common.HashSize // 256 + s.Data.EncodingSizeSSZ() +
+	return s.ShardInfo.EncodingSizeSSZ() + common.AddrSize + common.AddrSize + common.Bits256Size + s.Data.EncodingSizeSSZ() + common.HashSize
 }
 
 func (s *Message) Clone() common.Clonable {
@@ -43,7 +43,7 @@ func (s *Message) Clone() common.Clonable {
 }
 
 func (s *Message) DecodeSSZ(buf []byte, version int) error {
-	value := make([]byte, 32)
+	value := make([]byte, common.Bits256Size)
 	err := ssz.UnmarshalSSZ(
 		buf,
 		0,
