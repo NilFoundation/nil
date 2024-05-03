@@ -29,7 +29,7 @@ func (b *Block) EncodeSSZ(dst []byte) ([]byte, error) {
 }
 
 func (b *Block) EncodingSizeSSZ() int {
-	return 8 + common.HashSize + common.HashSize + common.HashSize
+	return common.Uint64Size + common.HashSize + common.HashSize + common.HashSize
 }
 
 func (b *Block) Clone() common.Clonable {
