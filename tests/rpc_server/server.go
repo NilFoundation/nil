@@ -19,7 +19,7 @@ import (
 func startRpcServer(ctx context.Context, nshards int, dbpath string) {
 	logger := common.NewLogger("RPC", false)
 
-	db, err := db.NewSqlite(dbpath)
+	db, err := db.NewBadgerDb(dbpath)
 	if err != nil {
 		log.Fatal().Msg(err.Error())
 	}
