@@ -56,6 +56,12 @@ func UnmarshalUint64SSZ(x []byte) uint64 {
 	return binary.LittleEndian.Uint64(x)
 }
 
+func UnmarshalUint256SSZ(s []byte) uint256.Int {
+	var res uint256.Int
+	res.SetBytes(s)
+	return res
+}
+
 func DecodeDynamicList[T SSZDecodable](bytes []byte, start, end uint32, max uint64, version int) ([]T, error) {
 	if start > end || len(bytes) < int(end) {
 		return nil, ErrBadOffset
@@ -186,7 +192,7 @@ func EncodeDynamicList[T SSZEncodable](buf []byte, objs []T) (dst []byte, err er
 		subOffset += attestation.EncodingSizeSSZ()
 	}
 	for _, obj := range objs {
-		err = obj.EncodeSSZ(&dst)
+		dst, err = obj.EncodeSSZ(dst)
 		if err != nil {
 			return
 		}
@@ -195,11 +201,10 @@ func EncodeDynamicList[T SSZEncodable](buf []byte, objs []T) (dst []byte, err er
 }
 
 func SSZHash(obj SSZEncodable) (common.Hash, error) {
-	encoded := new([]byte)
-	err := obj.EncodeSSZ(encoded)
+	encoded, err := obj.EncodeSSZ(nil)
 	if err != nil {
 		return common.Hash{0}, err
 	}
 
-	return common.CastToHash(poseidon.Sum(*encoded)), nil
+	return common.CastToHash(poseidon.Sum(encoded)), nil
 }

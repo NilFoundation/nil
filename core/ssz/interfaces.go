@@ -3,7 +3,7 @@ package ssz
 import common "github.com/NilFoundation/nil/common"
 
 type SSZEncodable interface {
-	EncodeSSZ(dst *[]byte) error
+	EncodeSSZ(dst []byte) ([]byte, error)
 	EncodingSizeSSZ() int
 }
 

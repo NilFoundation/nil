@@ -1,0 +1,8 @@
+linters:
+  enable:
+    - testifylint
+    - zerologlint
+
+linters-settings:
+  testifylint:
+    enable-all: true

@@ -16,6 +16,7 @@ type SqliteDB struct {
 
 type SqliteTx struct {
 	tx *sql.Tx
+	ctx context.Context
 }
 
 func (db *SqliteDB) Close() {
@@ -32,7 +33,7 @@ func (db *SqliteDB) CreateTx(ctx context.Context) (Tx, error) {
 		return nil, err
 	}
 
-	return &SqliteTx{tx: tx}, nil
+	return &SqliteTx{tx: tx, ctx: ctx}, nil
 }
 
 func (db *SqliteDB) View(fn func(txn Tx) error) error {
@@ -81,8 +82,8 @@ func (db *SqliteDB) Exists(table string, key []byte) (bool, error) {
 	return exists, err
 }
 
-func (db *SqliteDB) Get(table string, key []byte) ([]byte, error) {
-	var value []byte
+func (db *SqliteDB) Get(table string, key []byte) (*[]byte, error) {
+	var value *[]byte
 	return value, db.View(
 		func(tx Tx) error {
 			item, err := tx.Get(table, key)
@@ -141,11 +142,11 @@ func (tx *SqliteTx) Put(table string, key []byte, value []byte) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(table, key, value)
+	_, err = stmt.ExecContext(tx.ctx, table, key, value)
 	return err
 }
 
-func (tx *SqliteTx) Get(table string, key []byte) (val []byte, err error) {
+func (tx *SqliteTx) Get(table string, key []byte) (val *[]byte, err error) {
 	stmt, err := tx.tx.Prepare("select (value) from kv where tbl = ? and key = ?")
 	if err != nil {
 		return nil, err
@@ -153,21 +154,24 @@ func (tx *SqliteTx) Get(table string, key []byte) (val []byte, err error) {
 	defer stmt.Close()
 
 	var value []byte
-	err = stmt.QueryRow(table, key).Scan(&value)
+	err = stmt.QueryRowContext(tx.ctx, table, key).Scan(&value)
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 
-	return value, nil
+	return &value, nil
 }
 
 func (tx *SqliteTx) Exists(table string, key []byte) (bool, error) {
-	_, err := tx.Get(table, key)
-	if err == sql.ErrNoRows {
-		return false, nil
+	res, err := tx.Get(table, key)
+	if err != nil {
+		return false, err
 	}
-	return err == nil, err
+	return res != nil, nil
 }
 
 func (tx *SqliteTx) Delete(table string, key []byte) error {
@@ -177,7 +181,7 @@ func (tx *SqliteTx) Delete(table string, key []byte) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(table, key)
+	_, err = stmt.ExecContext(tx.ctx, table, key)
 	return err
 }
 

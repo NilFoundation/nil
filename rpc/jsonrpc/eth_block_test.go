@@ -20,7 +20,7 @@ func TestGetBlockByNumber(t *testing.T) {
 	defer db.Close()
 	api := NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), db, common.NewLogger("Test", false))
 	_, err = api.GetBlockByNumber(context.Background(), transport.LatestBlockNumber, false)
-	assert.Equal(t, err.Error(), "not implemented")
+	assert.Equal(t, "not implemented", err.Error())
 }
 
 func TestGetBlockTransactionCountByHash(t *testing.T) {
@@ -36,7 +36,7 @@ func TestGetBlockTransactionCountByHash(t *testing.T) {
 
 	api := NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), db, common.NewLogger("Test", false))
 	_, err = api.GetBlockTransactionCountByHash(ctx, blockHash)
-	assert.Equal(t, err.Error(), "not implemented")
+	assert.Equal(t, "not implemented", err.Error())
 }
 
 func TestGetBlockTransactionCountByNumber(t *testing.T) {
@@ -50,5 +50,5 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 
 	api := NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), db, common.NewLogger("Test", false))
 	_, err = api.GetBlockTransactionCountByNumber(ctx, transport.LatestBlockNumber)
-	assert.Equal(t, err.Error(), "not implemented")
+	assert.Equal(t, "not implemented", err.Error())
 }

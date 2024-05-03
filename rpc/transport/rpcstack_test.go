@@ -38,11 +38,11 @@ func TestVhosts(t *testing.T) {
 
 	resp := rpcRequest(t, url, "host", "test")
 	defer resp.Body.Close()
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	resp2 := rpcRequest(t, url, "host", "bad")
 	defer resp2.Body.Close()
-	assert.Equal(t, resp2.StatusCode, http.StatusForbidden)
+	assert.Equal(t, http.StatusForbidden, resp2.StatusCode)
 }
 
 // TestVhostsAny makes sure vhosts any is properly handled on the http server.
@@ -53,11 +53,11 @@ func TestVhostsAny(t *testing.T) {
 
 	resp := rpcRequest(t, url, "host", "test")
 	defer resp.Body.Close()
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	resp2 := rpcRequest(t, url, "host", "bad")
 	defer resp2.Body.Close()
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func Test_checkPath(t *testing.T) {

@@ -35,16 +35,16 @@ func (suite *SuiteSqliteDb) SetupTest() {
 func ValidateTables(t *suite.Suite, db db.DB) {
 	defer db.Close()
 
-	t.NoError(db.Set("tbl-1", []byte("foo"), []byte("bar")))
+	t.Require().NoError(db.Set("tbl-1", []byte("foo"), []byte("bar")))
 
 	has, err := db.Exists("tbl-1", []byte("foo"))
 
-	t.NoError(err)
+	t.Require().NoError(err)
 	t.True(has, "Key 'foo' should be present in tbl-1")
 
 	has, err = db.Exists("tbl-2", []byte("foo"))
 
-	t.NoError(err)
+	t.Require().NoError(err)
 	t.False(has, "Key 'foo' should be present in tbl-2")
 }
 
@@ -55,62 +55,62 @@ func ValidateTransaction(t *suite.Suite, db db.DB) {
 
 	tx, err := db.CreateTx(ctx)
 
-	t.NoError(err)
+	t.Require().NoError(err)
 	defer func() { _ = tx.Rollback() }()
 
 	tx2, err := db.CreateTx(ctx)
 
-	t.NoError(err)
+	t.Require().NoError(err)
 
 	defer func() { _ = tx2.Rollback() }()
 
-	t.NoError(tx.Put("tbl", []byte("foo"), []byte("bar")))
+	t.Require().NoError(tx.Put("tbl", []byte("foo"), []byte("bar")))
 
 	val, err := tx.Get("tbl", []byte("foo"))
 
-	t.NoError(err)
-	t.Equal(val, []byte("bar"))
+	t.Require().NoError(err)
+	t.Equal(*val, []byte("bar"))
 
 	has, err := tx.Exists("tbl", []byte("foo"))
 
-	t.NoError(err)
+	t.Require().NoError(err)
 	t.True(has, "Key 'foo' should be present")
 	// Testing that parallel transactions don't see changes made by the first one
 
 	has, err = tx2.Exists("tbl", []byte("foo"))
 
-	t.NoError(err)
+	t.Require().NoError(err)
 	t.False(has, "Key 'foo' should not be present")
 
 	err = tx2.Rollback()
-	t.NoError(err)
+	t.Require().NoError(err)
 
 	err = tx.Commit()
-	t.NoError(err)
+	t.Require().NoError(err)
 
 	// Testing deletion of rows
 
 	tx, err = db.CreateTx(ctx)
 
-	t.NoError(err)
+	t.Require().NoError(err)
 	defer func() { _ = tx.Rollback() }()
 
 	has, err = tx.Exists("tbl", []byte("foo"))
 
-	t.NoError(err)
+	t.Require().NoError(err)
 	t.True(has, "Key 'foo' should be present")
 
 	err = tx.Delete("tbl", []byte("foo"))
 
-	t.NoError(err)
+	t.Require().NoError(err)
 
 	has, err = tx.Exists("tbl", []byte("foo"))
 
-	t.NoError(err)
+	t.Require().NoError(err)
 	t.False(has, "Key 'foo' should not be present")
 
 	err = tx.Commit()
-	t.NoError(err)
+	t.Require().NoError(err)
 }
 
 func ValidateBlock(t *suite.Suite, d db.DB) {
@@ -119,7 +119,7 @@ func ValidateBlock(t *suite.Suite, d db.DB) {
 	ctx := context.Background()
 
 	tx, err := d.CreateTx(ctx)
-	t.NoError(err)
+	t.Require().NoError(err)
 
 	block := types.Block{
 		Id:                 1,
@@ -128,7 +128,7 @@ func ValidateBlock(t *suite.Suite, d db.DB) {
 	}
 
 	err = db.WriteBlock(tx, &block)
-	t.NoError(err)
+	t.Require().NoError(err)
 
 	block2 := db.ReadBlock(tx, block.Hash())
 
@@ -140,23 +140,23 @@ func ValidateBlock(t *suite.Suite, d db.DB) {
 func ValidateDbOperations(t *suite.Suite, d db.DB) {
 	defer d.Close()
 
-	t.NoError(d.Set("tbl", []byte("foo"), []byte("bar")))
+	t.Require().NoError(d.Set("tbl", []byte("foo"), []byte("bar")))
 
 	val, err := d.Get("tbl", []byte("foo"))
 
-	t.NoError(err)
-	t.Equal(val, []byte("bar"))
+	t.Require().NoError(err)
+	t.Equal(*val, []byte("bar"))
 
 	has, err := d.Exists("tbl", []byte("foo"))
 
-	t.NoError(err)
+	t.Require().NoError(err)
 	t.True(has, "Key 'foo' should be present")
 
-	t.NoError(d.Delete("tbl", []byte("foo")))
+	t.Require().NoError(d.Delete("tbl", []byte("foo")))
 
 	has, err = d.Exists("tbl", []byte("foo"))
 
-	t.NoError(err)
+	t.Require().NoError(err)
 	t.False(has, "Key 'foo' should not be present")
 }
 

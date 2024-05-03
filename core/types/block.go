@@ -18,13 +18,7 @@ var _ common.Hashable = new(Block)
 var _ ssz.SSZEncodable = new(Block)
 var _ ssz.SSZDecodable = new(Block)
 
-func (b *Block) Encode() ([]byte, error) {
-	buf := new([]byte)
-	err := b.EncodeSSZ(buf)
-	return *buf, err
-}
-
-func (b *Block) EncodeSSZ(dst *[]byte) error {
+func (b *Block) EncodeSSZ(dst []byte) ([]byte, error) {
 	return ssz.MarshalSSZ(
 		dst,
 		ssz.Uint64SSZ(b.Id),

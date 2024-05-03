@@ -6,7 +6,7 @@ import (
 
 type Tx interface {
 	Exists(table string, key []byte) (bool, error)
-	Get(table string, key []byte) (val []byte, err error)
+	Get(table string, key []byte) (val *[]byte, err error)
 	Put(table string, k, v []byte) error
 	Delete(table string, k []byte) error
 	Commit() error
@@ -16,7 +16,7 @@ type Tx interface {
 type DB interface {
 	CreateTx(ctx context.Context) (Tx, error)
 	Exists(table string, key []byte) (bool, error)
-	Get(table string, key []byte) ([]byte, error)
+	Get(table string, key []byte) (*[]byte, error)
 	Set(table string, key, value []byte) error
 	Delete(table string, key []byte) error
 	Close()

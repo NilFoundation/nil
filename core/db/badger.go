@@ -52,19 +52,20 @@ func (k *BadgerDB) Exists(table string, key []byte) (bool, error) {
 	return exists, err
 }
 
-func (k *BadgerDB) Get(table string, key []byte) ([]byte, error) {
-	var value []byte
+func (k *BadgerDB) Get(table string, key []byte) (*[]byte, error) {
+	var value *[]byte
 	err := k.db.View(
 		func(tx *badger.Txn) error {
 			item, err := tx.Get(makeKey(table, key))
 			if err != nil {
 				return err
 			}
-			value, err = item.ValueCopy(nil)
+			val, err := item.ValueCopy(nil)
 			if err != nil {
 				return err
 			}
-			value = append([]byte{}, value...)
+			val = append([]byte{}, val...)
+			value = &val
 			return nil
 		})
 	return value, err
@@ -102,14 +103,15 @@ func (tx *BadgerTx) Put(table string, key []byte, value []byte) error {
 	return tx.tx.Set(makeKey(table, key), value)
 }
 
-func (tx *BadgerTx) Get(table string, key []byte) (val []byte, err error) {
-	var res []byte
+func (tx *BadgerTx) Get(table string, key []byte) (val *[]byte, err error) {
+	var res *[]byte
 	item, err := tx.tx.Get(makeKey(table, key))
 	if err != nil {
 		return res, err
 	}
 	err = item.Value(func(val []byte) error {
-		res = append([]byte{}, val...)
+		val = append([]byte{}, val...)
+		res = &val
 		return nil
 	})
 	return res, err

@@ -9,8 +9,8 @@ import (
 )
 
 type ShardChain struct {
-	Id       int
-	dbClient *db.DBClient
+	Id int
+	db db.DB
 }
 
 func (c *ShardChain) Collate(wg *sync.WaitGroup) {
@@ -19,18 +19,18 @@ func (c *ShardChain) Collate(wg *sync.WaitGroup) {
 	logger := common.NewLogger(fmt.Sprintf("shard-%d", c.Id), false /* noColor */)
 	logger.Info().Msg("running shardchain")
 
-	tree := db.GetMerkleTree(fmt.Sprintf("shard-%d-smart-contracts", c.Id), c.dbClient)
+	//tree := db.GetMerkleTree(fmt.Sprintf("shard-%d-smart-contracts", c.Id), c.dbClient)
 	// genesisBlock := &types.Block{SmartContracts: tree}
 
 	// nextBlk := genBlock(c.dbClient, genesisBlock, "contract-addr-to-update")
 	// genBlock(c.dbClient, nextBlk, "contract-addr-to-update")
 
-	logger.Debug().Msgf("now merkle tree of contracts state is : %+v", tree.Engine)
+	//logger.Debug().Msgf("now merkle tree of contracts state is : %+v", tree.Engine)
 }
 
 func NewShardChain(
 	shardId int,
-	dbClient *db.DBClient,
+	db db.DB,
 ) *ShardChain {
-	return &ShardChain{shardId, dbClient}
+	return &ShardChain{shardId, db}
 }
