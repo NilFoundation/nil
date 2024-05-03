@@ -21,7 +21,7 @@ var _ common.Hashable = new(Message)
 var _ ssz.SSZEncodable = new(Message)
 var _ ssz.SSZDecodable = new(Message)
 
-func (s *Message) EncodeSSZ(dst *[]byte) error {
+func (s *Message) EncodeSSZ(dst []byte) ([]byte, error) {
 	return ssz.MarshalSSZ(
 		dst,
 		&s.ShardInfo,

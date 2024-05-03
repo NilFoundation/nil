@@ -39,7 +39,7 @@ func TestSsz(t *testing.T) {
 }
 
 func TestSszTransaction(t *testing.T) {
-	block := types.Message{
+	message := types.Message{
 		ShardInfo: types.Shard{Id: 0, GenesisBlock: common.Hash{0x01}},
 		From:      common.Address{},
 		To:        common.Address{},
@@ -48,22 +48,21 @@ func TestSszTransaction(t *testing.T) {
 		Signature: common.Hash{0x02},
 	}
 
-	encoded := new([]byte)
-	err := block.EncodeSSZ(encoded)
+	encoded, err := message.EncodeSSZ(nil)
 	require.NoError(t, err)
 
-	block2 := types.Message{}
-	err = block2.DecodeSSZ(*encoded, 0)
+	message2 := types.Message{}
+	err = message2.DecodeSSZ(encoded, 0)
 	require.NoError(t, err)
 
-	require.Equal(t, block2.ShardInfo, block.ShardInfo)
-	require.Equal(t, block2.From, block.From)
-	require.Equal(t, block2.To, block.To)
-	require.Equal(t, block2.Value, block.Value)
-	require.Equal(t, block2.Data, block.Data)
-	require.Equal(t, block2.Signature, block.Signature)
+	require.Equal(t, message2.ShardInfo, message.ShardInfo)
+	require.Equal(t, message2.From, message.From)
+	require.Equal(t, message2.To, message.To)
+	require.Equal(t, message2.Value, message.Value)
+	require.Equal(t, message2.Data, message.Data)
+	require.Equal(t, message2.Signature, message.Signature)
 
-	h, err := ssz.SSZHash(&block2)
+	h, err := ssz.SSZHash(&message2)
 	require.NoError(t, err)
 
 	h2, err := hex.DecodeString("25d61cdf3ba63fcc5f96505be3c2e5b3f5dcdfc6527216c9172f8b5def08bff1")

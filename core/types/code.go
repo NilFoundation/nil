@@ -9,6 +9,7 @@ import (
 type Code []byte
 
 var _ ssz.SizedObjectSSZ = new(Code)
+var _ common.Hashable = new(Code)
 
 func (c Code) String() string {
 	return string(c)
@@ -28,9 +29,8 @@ func (s *Code) DecodeSSZ(buf []byte, version int) error {
 	return nil
 }
 
-func (s *Code) EncodeSSZ(dst *[]byte) error {
-	*dst = append(*dst, *s...)
-	return nil
+func (s *Code) EncodeSSZ(dst []byte) ([]byte, error) {
+	return append(dst, *s...), nil
 }
 
 func (c *Code) Hash() common.Hash {

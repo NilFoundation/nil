@@ -15,7 +15,7 @@ type Shard struct {
 var _ ssz.SizedObjectSSZ = new(Shard)
 var _ common.Hashable = new(Shard)
 
-func (s *Shard) EncodeSSZ(dst *[]byte) error {
+func (s *Shard) EncodeSSZ(dst []byte) ([]byte, error) {
 	return ssz.MarshalSSZ(
 		dst,
 		ssz.Uint64SSZ(s.Id),
