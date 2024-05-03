@@ -6,7 +6,12 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
+
+func SetupGlobalLogger() {
+	log.Logger = *NewLogger("global", false /* noColor */)
+}
 
 // defaults to INFO
 func SetLogSeverityFromEnv() {

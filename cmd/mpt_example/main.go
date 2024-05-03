@@ -49,6 +49,8 @@ func startRpcServer(ctx context.Context, db db.DB) {
 }
 
 func main() {
+	common.SetupGlobalLogger()
+
 	// parse args
 	nshards := flag.Int("nshards", 5, "number of shardchains")
 

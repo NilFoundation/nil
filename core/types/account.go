@@ -20,7 +20,7 @@ var _ common.Hashable = new(SmartContract)
 var _ ssz.SSZEncodable = new(SmartContract)
 var _ ssz.SSZDecodable = new(SmartContract)
 
-func (s *SmartContract) EncodeSSZ(dst *[]byte) error {
+func (s *SmartContract) EncodeSSZ(dst []byte) ([]byte, error) {
 	return ssz.MarshalSSZ(
 		dst,
 		s.Address[:],

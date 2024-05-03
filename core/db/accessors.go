@@ -33,12 +33,12 @@ func ReadBlock(tx Tx, hash common.Hash) *types.Block {
 func WriteBlock(tx Tx, block *types.Block) error {
 	hash := block.Hash()
 
-	encoded := new([]byte)
-	if err := block.EncodeSSZ(encoded); err != nil {
+	data, err := block.EncodeSSZ(nil)
+	if err != nil {
 		return err
 	}
 
-	if err := tx.Put(BlockTable, hash.Bytes(), *encoded); err != nil {
+	if err := tx.Put(BlockTable, hash.Bytes(), data); err != nil {
 		return err
 	}
 	return nil
@@ -69,8 +69,7 @@ func ReadContract(tx Tx, hash common.Hash) *types.SmartContract {
 func WriteContract(tx Tx, contract *types.SmartContract) error {
 	hash := contract.Hash()
 
-	var data []byte
-	err := contract.EncodeSSZ(&data)
+	data, err := contract.EncodeSSZ(nil)
 
 	if err != nil {
 		return err
