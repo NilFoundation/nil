@@ -214,14 +214,15 @@ func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage, stream *json
 				Str("err", resp.Error.Message).
 				Msg("[rpc] served")
 		}
-		var event *zerolog.Event
+
+		var lvl zerolog.Level
 		if h.traceRequests {
-			event = h.logger.Info()
+			lvl = zerolog.InfoLevel
 		} else {
-			event = h.logger.Trace()
+			lvl = zerolog.TraceLevel
 		}
 
-		event.
+		h.logger.WithLevel(lvl).
 			Str("t", time.Since(start).String()).
 			Str("method", msg.Method).
 			Str("reqid", idForLog(msg.ID).String()).
