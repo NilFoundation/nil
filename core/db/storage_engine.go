@@ -2,21 +2,20 @@ package db
 
 import (
 	"context"
-	"encoding/hex"
+	"errors"
 
+	"github.com/NilFoundation/nil/common"
 	mpt "github.com/keybase/go-merkle-tree"
 )
 
-type DBClient struct {
-	engines map[string]mpt.StorageEngine
-}
-
 type tableClient struct {
-	root   mpt.Hash
-	leaves map[string][]byte
+	root  mpt.Hash
+	tx    Tx
 }
 
 var _ mpt.StorageEngine = (*tableClient)(nil)
+
+var NodeLookupFailed = errors.New("Node lookup failed")
 
 func (c *tableClient) CommitRoot(_ context.Context, prev mpt.Hash, curr mpt.Hash, txinfo mpt.TxInfo) error {
 	c.root = curr
@@ -24,7 +23,15 @@ func (c *tableClient) CommitRoot(_ context.Context, prev mpt.Hash, curr mpt.Hash
 }
 
 func (c *tableClient) LookupNode(_ context.Context, h mpt.Hash) (b []byte, err error) {
-	return c.leaves[hex.EncodeToString(h)], nil
+	node, err := c.tx.Get(MptTable, h[:])
+	if err != nil {
+		return []byte{}, err
+	}
+	if node == nil {
+		return []byte{}, NodeLookupFailed
+	}
+
+	return *node, nil
 }
 
 func (c *tableClient) LookupRoot(_ context.Context) (mpt.Hash, error) {
@@ -32,23 +39,15 @@ func (c *tableClient) LookupRoot(_ context.Context) (mpt.Hash, error) {
 }
 
 func (c *tableClient) StoreNode(_ context.Context, key mpt.Hash, b []byte) error {
-	c.leaves[hex.EncodeToString(key)] = b
-	return nil
+	return c.tx.Put(MptTable, key[:], b)
 }
 
-func newDBTableStorageEngine(table string, client *DBClient) mpt.StorageEngine {
-	client.engines[table] = &tableClient{leaves: make(map[string][]byte)}
-	return client.engines[table]
-}
-
-func NewDBClient() *DBClient {
-	return &DBClient{engines: make(map[string]mpt.StorageEngine)}
-}
-
-func (c *DBClient) GetEngine(table string) mpt.StorageEngine {
-	if e, ok := c.engines[table]; !ok {
-		return newDBTableStorageEngine(table, c)
-	} else {
-		return e
+func GetEngine(tx Tx, root common.Hash) mpt.StorageEngine {
+	mpt_hash := mpt.Hash(root[:])
+	empty_hash := common.Hash{}
+	if root == empty_hash {
+		mpt_hash = nil
 	}
+
+	return &tableClient{tx: tx, root: mpt_hash}
 }

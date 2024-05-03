@@ -56,6 +56,12 @@ func UnmarshalUint64SSZ(x []byte) uint64 {
 	return binary.LittleEndian.Uint64(x)
 }
 
+func UnmarshalUint256SSZ(s []byte) uint256.Int {
+	var res uint256.Int
+	res.SetBytes(s)
+	return res
+}
+
 func DecodeDynamicList[T SSZDecodable](bytes []byte, start, end uint32, max uint64, version int) ([]T, error) {
 	if start > end || len(bytes) < int(end) {
 		return nil, ErrBadOffset

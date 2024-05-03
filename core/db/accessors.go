@@ -8,7 +8,7 @@ import (
 
 var logger = common.NewLogger("DB", false /* noColor */)
 
-func readBlockRaw(tx Tx, hash common.Hash) []byte {
+func readBlockRaw(tx Tx, hash common.Hash) *[]byte {
 	data, err := tx.Get(BlockTable, hash.Bytes())
 	if err != nil {
 		logger.Fatal().Msgf("ReadHeaderRLP failed. err: %s", err.Error())
@@ -18,11 +18,11 @@ func readBlockRaw(tx Tx, hash common.Hash) []byte {
 
 func ReadBlock(tx Tx, hash common.Hash) *types.Block {
 	data := readBlockRaw(tx, hash)
-	if len(data) == 0 {
+	if data == nil {
 		return nil
 	}
 	header := new(types.Block)
-	err := header.DecodeSSZ(data, 0)
+	err := header.DecodeSSZ(*data, 0)
 
 	if err != nil {
 		logger.Fatal().Msgf("Invalid block header RLP. hash: %v, err: %v", hash, err)
@@ -44,6 +44,43 @@ func WriteBlock(tx Tx, block *types.Block) error {
 	return nil
 }
 
+func readContractRaw(tx Tx, hash common.Hash) *[]byte {
+	data, err := tx.Get(ContractTable, hash.Bytes())
+	if err != nil {
+		logger.Fatal().Msgf("readAccountRaw failed. err: %s", err.Error())
+	}
+	return data
+}
+
+func ReadContract(tx Tx, hash common.Hash) *types.SmartContract {
+	data := readContractRaw(tx, hash)
+	if data == nil {
+		return nil
+	}
+	contract := new(types.SmartContract)
+	err := contract.DecodeSSZ(*data, 0)
+
+	if err != nil {
+		logger.Fatal().Msgf("Invalid contract encoding. hash: %v, err: %v", hash, err)
+	}
+	return contract
+}
+
+func WriteContract(tx Tx, contract *types.SmartContract) error {
+	hash := contract.Hash()
+
+	var data []byte
+	err := contract.EncodeSSZ(&data)
+
+	if err != nil {
+		return err
+	}
+	if err := tx.Put(ContractTable, hash.Bytes(), data); err != nil {
+		return err
+	}
+	return nil
+}
+
 func WriteCode(tx Tx, code types.Code) error {
 	hash := code.Hash()
 	if err := tx.Put(CodeTable, hash.Bytes(), code[:]); err != nil {
@@ -52,13 +89,18 @@ func WriteCode(tx Tx, code types.Code) error {
 	return nil
 }
 
-func ReadCode(tx Tx, hash common.Hash) (types.Code, error) {
-	code, err := tx.Get(StorageTable, hash[:])
+func ReadCode(tx Tx, hash common.Hash) (*types.Code, error) {
+	code, err := tx.Get(CodeTable, hash[:])
 	if err != nil {
-		return types.Code{}, err
+		return nil, err
 	}
 
-	return types.Code(code), nil
+	if code == nil {
+		return nil, nil
+	}
+
+	res := types.Code(*code)
+	return &res, nil
 }
 
 func WriteStorage(tx Tx, addr common.Address, key common.Hash, value uint256.Int) error {
@@ -74,19 +116,19 @@ func WriteStorage(tx Tx, addr common.Address, key common.Hash, value uint256.Int
 	return tx.Put(StorageTable, fullKey, v)
 }
 
-func ReadStorage(tx Tx, addr common.Address, key common.Hash) (uint256.Int, error) {
+func ReadStorage(tx Tx, addr common.Address, key common.Hash) (*uint256.Int, error) {
 	fullKey := make([]byte, common.AddrSize+common.HashSize)
 	copy(fullKey, addr[:])
 	copy(fullKey[common.HashSize:], key[:])
 
 	enc, err := tx.Get(StorageTable, fullKey)
-	if err != nil {
-		// TODO: probably need to differentiate a real error here
-		return *uint256.NewInt(0), nil
+
+	if enc == nil {
+		return nil, err
 	}
 
 	var res uint256.Int
-	res.SetBytes(enc)
+	res.SetBytes(*enc)
 
-	return res, nil
+	return &res, nil
 }
