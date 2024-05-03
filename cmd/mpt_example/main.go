@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"os"
 
 	"sync"
@@ -65,7 +64,7 @@ func main() {
 	// each shard will interact with DB via this client
 	db, err := db.NewSqlite("test.db")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Msg(err.Error())
 	}
 	shards := make([]*shardchain.ShardChain, 0)
 	for i := 0; i < *nshards; i++ {
