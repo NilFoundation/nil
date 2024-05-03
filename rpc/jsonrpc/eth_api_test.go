@@ -23,5 +23,5 @@ func TestGetTransactionReceipt(t *testing.T) {
 	// Call GetBlockByNumber for transaction which is not in the database
 
 	_, err = api.GetBlockByNumber(context.Background(), transport.LatestBlockNumber, false)
-	assert.Equal(t, err.Error(), "not implemented")
+	assert.Equal(t, "not implemented", err.Error())
 }
