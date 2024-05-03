@@ -94,9 +94,8 @@ func (tx *BadgerTx) Commit() error {
 	return tx.tx.Commit()
 }
 
-func (tx *BadgerTx) Rollback() error {
+func (tx *BadgerTx) Rollback() {
 	tx.tx.Discard()
-	return nil
 }
 
 func (tx *BadgerTx) Put(table string, key []byte, value []byte) error {
@@ -106,6 +105,9 @@ func (tx *BadgerTx) Put(table string, key []byte, value []byte) error {
 func (tx *BadgerTx) Get(table string, key []byte) (val *[]byte, err error) {
 	var res *[]byte
 	item, err := tx.tx.Get(makeKey(table, key))
+	if err == badger.ErrKeyNotFound {
+		return nil, nil
+	}
 	if err != nil {
 		return res, err
 	}

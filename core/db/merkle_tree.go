@@ -39,6 +39,10 @@ func (tree *MerkleTree) Root() (common.Hash, error) {
 		return common.Hash{}, err
 	}
 
+	if hash == nil {
+		return common.Hash{}, nil
+	}
+
 	return common.Hash(hash[:]), nil
 }
 

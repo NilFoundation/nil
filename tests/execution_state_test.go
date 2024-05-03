@@ -18,7 +18,7 @@ type SuiteExecutionState struct {
 
 func (suite *SuiteExecutionState) SetupTest() {
 	var err error
-	suite.db, err = db.NewSqlite(suite.Suite.T().TempDir() + "test.db")
+	suite.db, err = db.NewBadgerDb(suite.Suite.T().TempDir() + "test.db")
 	suite.Require().NoError(err)
 }
 
@@ -37,7 +37,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	storage_key := common.BytesToHash([]byte("storage-key"))
 
-	err = es.WriteStorage(addr, storage_key, *uint256.NewInt(123456))
+	err = es.SetState(addr, storage_key, *uint256.NewInt(123456))
 	suite.Require().NoError(err)
 
 	block_hash, err := es.Commit()
@@ -46,7 +46,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	es, err = execution.NewExecutionState(tx, block_hash)
 	suite.Require().NoError(err)
 
-	storage_val, err := es.ReadStorage(addr, storage_key)
+	storage_val, err := es.GetState(addr, storage_key)
 	suite.Require().NoError(err)
 
 	suite.Equal(storage_val, *uint256.NewInt(123456))

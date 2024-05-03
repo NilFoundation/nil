@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"os"
 
 	"sync"
 
@@ -59,7 +58,7 @@ func main() {
 	ctx := context.Background()
 
 	// each shard will interact with DB via this client
-	db, err := db.NewSqlite(os.TempDir() + "/test.db")
+	db, err := db.NewBadgerDb("test.db")
 	if err != nil {
 		log.Fatal().Msg(err.Error())
 	}

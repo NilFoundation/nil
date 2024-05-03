@@ -13,4 +13,6 @@ const (
 	StorageTable  = "Storage"
 
 	MptTable = "MPT"
+
+	LastBlockTable = "LastBlock"
 )
