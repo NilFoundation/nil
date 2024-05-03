@@ -21,13 +21,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v5
-        with:
-          version: v1.57
+        run: nix develop -c golangci-lint run
 
       - name: build
         run: nix build -L
