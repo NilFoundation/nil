@@ -7,6 +7,8 @@ import (
 	"math/big"
 	"math/rand"
 	"reflect"
+
+	"github.com/NilFoundation/nil/common/hexutil"
 )
 
 type Hash [HashSize]byte
@@ -88,6 +90,10 @@ func (h Hash) Format(s fmt.State, c rune) {
 	}
 }
 
+func (h *Hash) UnmarshalText(input []byte) error {
+	return hexutil.UnmarshalFixedText("Hash", input, h[:])
+}
+
 // SetBytes sets the hash to the value of b.
 // If b is larger than len(h), b will be cropped from the left.
 func (h *Hash) SetBytes(b []byte) {
@@ -106,3 +112,7 @@ func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
 	}
 	return reflect.ValueOf(h)
 }
+
+// HexToHash sets byte representation of s to hash.
+// If b is larger than len(h), b will be cropped from the left.
+func HexToHash(s string) Hash { return BytesToHash(hexutil.FromHex(s)) }
