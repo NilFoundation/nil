@@ -6,11 +6,18 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/vm"
 )
 
+type Transaction struct {
+	//address  common.Address
+	calldata []byte
+}
+
 type ShardChain struct {
-	Id int
-	db db.DB
+	Id   int
+	db   db.DB
+	pool []Transaction
 }
 
 func (c *ShardChain) Collate(wg *sync.WaitGroup) {
@@ -25,12 +32,17 @@ func (c *ShardChain) Collate(wg *sync.WaitGroup) {
 	// nextBlk := genBlock(c.dbClient, genesisBlock, "contract-addr-to-update")
 	// genBlock(c.dbClient, nextBlk, "contract-addr-to-update")
 
-	//logger.Debug().Msgf("now merkle tree of contracts state is : %+v", tree.Engine)
+	evm := vm.NewEVMInterpreter(nil)
+	for _, tx := range c.pool {
+		if _, err := evm.Run(&vm.Contract{}, tx.calldata, false); err != nil {
+			logger.Error().Msg("transaction failed")
+		}
+	}
 }
 
 func NewShardChain(
 	shardId int,
 	db db.DB,
 ) *ShardChain {
-	return &ShardChain{shardId, db}
+	return &ShardChain{shardId, db, nil}
 }
