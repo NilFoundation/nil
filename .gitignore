@@ -1,3 +1,4 @@
 build
 *.test
 tests/__debug*
+.idea
