@@ -8,6 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+
 type SqliteDB struct {
 	closed atomic.Bool
 	path   string
@@ -45,7 +46,7 @@ func (db *SqliteDB) View(fn func(txn Tx) error) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = tx.Rollback() }()
+	defer tx.Rollback()
 
 	return fn(tx)
 }
@@ -61,7 +62,7 @@ func (db *SqliteDB) Update(fn func(txn Tx) error) error {
 	}
 
 	if err := fn(tx); err != nil {
-		_ = tx.Rollback()
+		tx.Rollback()
 		return err
 	}
 
@@ -125,14 +126,17 @@ func (tx *SqliteTx) Commit() error {
 	return nil
 }
 
-func (tx *SqliteTx) Rollback() error {
+func (tx *SqliteTx) Rollback() {
 	if tx.tx == nil {
-		return sql.ErrTxDone
+		return
 	}
 	defer func() {
 		tx.tx = nil
 	}()
-	return tx.tx.Rollback()
+	err := tx.tx.Rollback()
+	if err != nil {
+		logger.Fatal().Msgf("Can't roll back transaction. err: %s", err)
+	}
 }
 
 func (tx *SqliteTx) Put(table string, key []byte, value []byte) error {

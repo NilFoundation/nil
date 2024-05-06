@@ -205,6 +205,5 @@ func SSZHash(obj SSZEncodable) (common.Hash, error) {
 	if err != nil {
 		return common.Hash{0}, err
 	}
-
-	return common.CastToHash(poseidon.Sum(encoded)), nil
+	return common.BytesToHash(poseidon.Sum(encoded)), nil
 }

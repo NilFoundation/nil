@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"os"
 
 	"sync"
 
@@ -59,7 +58,7 @@ func main() {
 	ctx := context.Background()
 
 	// each shard will interact with DB via this client
-	db, err := db.NewSqlite(os.TempDir() + "/test.db")
+	db, err := db.NewBadgerDb("test.db")
 	if err != nil {
 		log.Fatal().Msg(err.Error())
 	}
@@ -74,7 +73,7 @@ func main() {
 
 		for i := 0; i < *nshards; i++ {
 			wg.Add(1)
-			go shards[i].Collate(&wg)
+			go shards[i].Collate(ctx, &wg)
 		}
 
 		wg.Wait()

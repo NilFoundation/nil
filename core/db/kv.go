@@ -10,7 +10,9 @@ type Tx interface {
 	Put(table string, k, v []byte) error
 	Delete(table string, k []byte) error
 	Commit() error
-	Rollback() error
+	// Rollback can't really fail, because it's not clear how to proceed.
+	// It's better to just panic in this case and restart.
+	Rollback()
 }
 
 type DB interface {

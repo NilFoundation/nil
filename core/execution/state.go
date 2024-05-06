@@ -86,7 +86,7 @@ func (es *ExecutionState) GetAccount(addr common.Hash) (*AccountState, error) {
 	return NewAccountState(es.Tx, common.Hash(acc_hash))
 }
 
-func (as *AccountState) ReadStorage(key common.Hash) (uint256.Int, error) {
+func (as *AccountState) GetState(key common.Hash) (uint256.Int, error) {
 	val, ok := as.State[key]
 	if ok {
 		return val, nil
@@ -104,7 +104,11 @@ func (as *AccountState) ReadStorage(key common.Hash) (uint256.Int, error) {
 	return new_val, nil
 }
 
-func (as *AccountState) WriteStorage(key common.Hash, val uint256.Int) {
+func (as *AccountState) SetBalance(balance uint256.Int) {
+	as.Balance = balance
+}
+
+func (as *AccountState) SetState(key common.Hash, val uint256.Int) {
 	as.State[key] = val
 }
 
@@ -145,22 +149,32 @@ func (as *AccountState) Commit() (common.Hash, error) {
 	return acc_hash, nil
 }
 
-func (es *ExecutionState) ReadStorage(addr common.Hash, key common.Hash) (uint256.Int, error) {
+func (es *ExecutionState) GetState(addr common.Hash, key common.Hash) (uint256.Int, error) {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
 		return *uint256.NewInt(0), err
 	}
 
-	return acc.ReadStorage(key)
+	return acc.GetState(key)
 }
 
-func (es *ExecutionState) WriteStorage(addr common.Hash, key common.Hash, val uint256.Int) error {
+func (es *ExecutionState) SetState(addr common.Hash, key common.Hash, val uint256.Int) error {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
 		return err
 	}
 
-	acc.WriteStorage(key, val)
+	acc.SetState(key, val)
+	return nil
+}
+
+func (es *ExecutionState) SetBalance(addr common.Hash, balance uint256.Int) error {
+	acc, err := es.GetAccount(addr)
+	if err != nil {
+		return err
+	}
+
+	acc.SetBalance(balance)
 	return nil
 }
 
@@ -188,6 +202,12 @@ func (es *ExecutionState) CreateContract(addr common.Hash, code types.Code) erro
 	es.Accounts[addr] = &new_acc
 
 	return nil
+}
+
+func (es *ExecutionState) ContractExists(addr common.Hash) (bool, error) {
+	acc, err := es.GetAccount(addr)
+
+	return acc != nil, err
 }
 
 func (es *ExecutionState) Commit() (common.Hash, error) {

@@ -17,11 +17,13 @@ type Hashable interface {
 	Hash() Hash
 }
 
+var EmptyHash = Hash{}
+
 // BytesToHash sets b to hash.
 // If b is larger than len(h), b will be cropped from the left.
 func BytesToHash(b []byte) Hash {
 	var h Hash
-	h.SetBytes(b)
+	copy(h[HashSize-len(b):], b)
 	return h
 }
 
