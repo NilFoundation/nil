@@ -29,7 +29,7 @@ type ShardChain struct {
 	logger *zerolog.Logger
 }
 
-func (c *ShardChain) TestTransaction() (common.Hash, error) {
+func (c *ShardChain) testTransaction() (common.Hash, error) {
 	tx, err := c.db.CreateTx(context.TODO())
 	if err != nil {
 		return common.EmptyHash, err
@@ -115,7 +115,7 @@ func (c *ShardChain) Collate(wg *sync.WaitGroup) {
 
 	c.logger.Info().Msg("running shardchain")
 
-	block_hash, err := c.TestTransaction()
+	block_hash, err := c.testTransaction()
 	if err != nil {
 		log.Fatal(err)
 	}
