@@ -20,14 +20,20 @@ func makeKey(table string, key []byte) []byte {
 }
 
 func NewBadgerDb(pathToDb string) (*BadgerDB, error) {
-	opts := badger.DefaultOptions(pathToDb)
+	opts := badger.DefaultOptions(pathToDb).WithLogger(nil)
+	return newBadgerDb(&opts)
+}
 
-	opts.Logger = nil
-	badgerInstance, err := badger.Open(opts)
+func NewBadgerDbInMemory() (*BadgerDB, error) {
+	opts := badger.DefaultOptions("").WithInMemory(true).WithLogger(nil)
+	return newBadgerDb(&opts)
+}
+
+func newBadgerDb(opts *badger.Options) (*BadgerDB, error) {
+	badgerInstance, err := badger.Open(*opts)
 	if err != nil {
 		return nil, err
 	}
-
 	return &BadgerDB{db: badgerInstance}, nil
 }
 

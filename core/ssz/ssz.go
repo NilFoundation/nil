@@ -13,6 +13,32 @@ var (
 	BaseExtraDataSSZOffsetBlock  = 508
 )
 
+type Vector []byte
+
+var _ SizedObjectSSZ = (*Vector)(nil)
+
+func (d *Vector) DecodeSSZ(buf []byte, version int) error {
+	*d = make([]byte, len(buf))
+	copy(*d, buf)
+	return nil
+}
+
+func (d *Vector) EncodeSSZ(buf []byte) ([]byte, error) {
+	return append(buf, *d...), nil
+}
+
+func (d *Vector) EncodingSizeSSZ() int {
+	return 0
+}
+
+func (d *Vector) Static() bool {
+	return false
+}
+
+func (d *Vector) Clone() common.Clonable {
+	return d
+}
+
 func MarshalUint64SSZ(buf []byte, x uint64) {
 	binary.LittleEndian.PutUint64(buf, x)
 }
