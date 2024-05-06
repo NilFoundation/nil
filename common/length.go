@@ -1,6 +1,12 @@
 package common
 
 const (
+	BoolSize = 1
+	// expected length of bool
+	Uint64Size = 8
+	// expected length of uint64
+	Bits256Size = 32
+	// expected length of uint256
 	PeerIDSize = 64
 	// Hash is the expected length of the hash (in bytes)
 	HashSize = 32

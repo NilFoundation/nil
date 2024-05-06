@@ -11,12 +11,21 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
-	"github.com/rs/zerolog"
+	"github.com/NilFoundation/nil/core/vm"
+  "github.com/rs/zerolog"
 )
+
+type Transaction struct {
+	//address  common.Address
+	calldata []byte
+}
 
 type ShardChain struct {
 	Id int
 	db db.DB
+
+	pool []Transaction
+
 	logger *zerolog.Logger
 }
 
@@ -117,6 +126,13 @@ func (c *ShardChain) Collate(wg *sync.WaitGroup) {
 	// genBlock(c.dbClient, nextBlk, "contract-addr-to-update")
 
 	c.logger.Debug().Msgf("new block : %+v", block_hash)
+
+	evm := vm.NewEVMInterpreter(nil)
+	for _, tx := range c.pool {
+		if _, err := evm.Run(&vm.Contract{}, tx.calldata, false); err != nil {
+			logger.Error().Msg("transaction failed")
+		}
+	}
 }
 
 func NewShardChain(
@@ -124,5 +140,5 @@ func NewShardChain(
 	db db.DB,
 ) *ShardChain {
 	logger := common.NewLogger(fmt.Sprintf("shard-%d", shardId), false /* noColor */)
-	return &ShardChain{shardId, db, logger}
+	return &ShardChain{shardId, db, nil, logger}
 }
