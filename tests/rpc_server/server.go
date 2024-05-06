@@ -36,7 +36,7 @@ func startRpcServer(ctx context.Context, nshards int, dbpath string) {
 
 		for i := 0; i < nshards; i++ {
 			wg.Add(1)
-			go shards[i].Collate(&wg)
+			go shards[i].Collate(ctx, &wg)
 		}
 
 		wg.Wait()
