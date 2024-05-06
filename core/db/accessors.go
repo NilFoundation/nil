@@ -2,80 +2,62 @@ package db
 
 import (
 	common "github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/ssz"
 	types "github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
 )
 
-func readBlockRaw(tx Tx, hash common.Hash) *[]byte {
-	data, err := tx.Get(BlockTable, hash.Bytes())
+func readDecodable[
+	S any,
+	T interface {
+		~*S
+		ssz.SSZDecodable
+	},
+](tx Tx, table string, hash common.Hash) *S {
+	data, err := tx.Get(table, hash.Bytes())
 	if err != nil {
-		logger.Fatal().Msgf("ReadHeaderRLP failed. err: %s", err.Error())
+		logger.Fatal().Msgf("Read from table %s failed. err: %s", table, err.Error())
 	}
-	return data
+	if data == nil {
+		return nil
+	}
+	decoded := new(S)
+	if err := T(decoded).DecodeSSZ(*data, 0); err != nil {
+		logger.Fatal().Msgf("Invalid RLP while reading from %s. hash: %v, err: %v", table, hash, err)
+	}
+	return decoded
+}
+
+func writeEncodable[
+	T interface {
+		ssz.SSZEncodable
+		common.Hashable
+	},
+](tx Tx, table string, obj T) error {
+	hash := obj.Hash()
+
+	data, err := obj.EncodeSSZ(nil)
+	if err != nil {
+		return err
+	}
+
+	return tx.Put(table, hash.Bytes(), data)
 }
 
 func ReadBlock(tx Tx, hash common.Hash) *types.Block {
-	data := readBlockRaw(tx, hash)
-	if data == nil {
-		return nil
-	}
-	header := new(types.Block)
-	err := header.DecodeSSZ(*data, 0)
-
-	if err != nil {
-		logger.Fatal().Msgf("Invalid block header RLP. hash: %v, err: %v", hash, err)
-	}
-	return header
+	return readDecodable[types.Block, *types.Block](tx, BlockTable, hash)
 }
 
 func WriteBlock(tx Tx, block *types.Block) error {
-	hash := block.Hash()
-
-	data, err := block.EncodeSSZ(nil)
-	if err != nil {
-		return err
-	}
-
-	if err := tx.Put(BlockTable, hash.Bytes(), data); err != nil {
-		return err
-	}
-	return nil
-}
-
-func readContractRaw(tx Tx, hash common.Hash) *[]byte {
-	data, err := tx.Get(ContractTable, hash.Bytes())
-	if err != nil {
-		logger.Fatal().Msgf("readAccountRaw failed. err: %s", err.Error())
-	}
-	return data
+	return writeEncodable(tx, BlockTable, block)
 }
 
 func ReadContract(tx Tx, hash common.Hash) *types.SmartContract {
-	data := readContractRaw(tx, hash)
-	if data == nil {
-		return nil
-	}
-	contract := new(types.SmartContract)
-	err := contract.DecodeSSZ(*data, 0)
-
-	if err != nil {
-		logger.Fatal().Msgf("Invalid contract encoding. hash: %v, err: %v", hash, err)
-	}
-	return contract
+	return readDecodable[types.SmartContract, *types.SmartContract](tx, ContractTable, hash)
 }
 
 func WriteContract(tx Tx, contract *types.SmartContract) error {
-	hash := contract.Hash()
-
-	data, err := contract.EncodeSSZ(nil)
-
-	if err != nil {
-		return err
-	}
-	if err := tx.Put(ContractTable, hash.Bytes(), data); err != nil {
-		return err
-	}
-	return nil
+	return writeEncodable(tx, ContractTable, contract)
 }
 
 func WriteCode(tx Tx, code types.Code) error {
