@@ -6,8 +6,6 @@ import (
 	"github.com/holiman/uint256"
 )
 
-var logger = common.NewLogger("DB", false /* noColor */)
-
 func readBlockRaw(tx Tx, hash common.Hash) *[]byte {
 	data, err := tx.Get(BlockTable, hash.Bytes())
 	if err != nil {

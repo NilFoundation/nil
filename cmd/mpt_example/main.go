@@ -73,7 +73,7 @@ func main() {
 
 		for i := 0; i < *nshards; i++ {
 			wg.Add(1)
-			go shards[i].Collate(&wg)
+			go shards[i].Collate(ctx, &wg)
 		}
 
 		wg.Wait()

@@ -3,11 +3,11 @@ package db
 import (
 	"context"
 	"database/sql"
-	"log"
 	"sync/atomic"
 
 	_ "github.com/mattn/go-sqlite3"
 )
+
 
 type SqliteDB struct {
 	closed atomic.Bool
@@ -135,7 +135,7 @@ func (tx *SqliteTx) Rollback() {
 	}()
 	err := tx.tx.Rollback()
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal().Msgf("Can't roll back transaction. err: %s", err)
 	}
 }
 

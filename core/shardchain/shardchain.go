@@ -29,8 +29,8 @@ type ShardChain struct {
 	logger *zerolog.Logger
 }
 
-func (c *ShardChain) testTransaction() (common.Hash, error) {
-	tx, err := c.db.CreateTx(context.TODO())
+func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
+	tx, err := c.db.CreateTx(ctx)
 	if err != nil {
 		return common.EmptyHash, err
 	}
@@ -64,7 +64,7 @@ func (c *ShardChain) testTransaction() (common.Hash, error) {
 
 	if !contractExists {
 		c.logger.Debug().Msgf("Create new contract %s", addr)
-		code := []byte("asdf")
+		code := []byte("Real code should eventually be here. Now it's just a stub.")
 
 		err = es.CreateContract(addr, code)
 
@@ -95,35 +95,26 @@ func (c *ShardChain) testTransaction() (common.Hash, error) {
 		return common.EmptyHash, err
 	}
 
-	err = tx.Put(db.LastBlockTable, []byte(strconv.Itoa(c.Id)), block_hash[:])
-
-	if err != nil {
+	if err = tx.Put(db.LastBlockTable, []byte(strconv.Itoa(c.Id)), block_hash[:]); err != nil {
 		return common.EmptyHash, err
 	}
 
-	err = tx.Commit()
-
-	if err != nil {
+	if err = tx.Commit(); err != nil {
 		return common.EmptyHash, err
 	}
 
 	return block_hash, nil
 }
 
-func (c *ShardChain) Collate(wg *sync.WaitGroup) {
+func (c *ShardChain) Collate(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	c.logger.Info().Msg("running shardchain")
 
-	block_hash, err := c.testTransaction()
+	block_hash, err := c.testTransaction(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	//tree := db.GetMerkleTree(fmt.Sprintf("shard-%d-smart-contracts", c.Id), c.dbClient)
-	// genesisBlock := &types.Block{SmartContracts: tree}
-
-	// nextBlk := genBlock(c.dbClient, genesisBlock, "contract-addr-to-update")
-	// genBlock(c.dbClient, nextBlk, "contract-addr-to-update")
 
 	c.logger.Debug().Msgf("new block : %+v", block_hash)
 
