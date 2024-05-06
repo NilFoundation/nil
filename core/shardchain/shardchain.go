@@ -56,13 +56,13 @@ func (c *ShardChain) testTransaction() (common.Hash, error) {
 
 	addr := common.BytesToHash([]byte("contract-" + strconv.Itoa(c.Id)))
 
-	contract_exists, err := es.ContractExists(addr)
+	contractExists, err := es.ContractExists(addr)
 
 	if err != nil {
 		return common.EmptyHash, err
 	}
 
-	if !contract_exists {
+	if !contractExists {
 		c.logger.Debug().Msgf("Create new contract %s", addr)
 		code := []byte("asdf")
 
