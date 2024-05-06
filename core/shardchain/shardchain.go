@@ -12,7 +12,7 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/vm"
-  "github.com/rs/zerolog"
+	"github.com/rs/zerolog"
 )
 
 type Transaction struct {
@@ -62,7 +62,7 @@ func (c *ShardChain) TestTransaction() (common.Hash, error) {
 		return common.EmptyHash, err
 	}
 
-	if (!contract_exists) {
+	if !contract_exists {
 		c.logger.Debug().Msgf("Create new contract %s", addr)
 		code := []byte("asdf")
 
@@ -130,7 +130,7 @@ func (c *ShardChain) Collate(wg *sync.WaitGroup) {
 	evm := vm.NewEVMInterpreter(nil)
 	for _, tx := range c.pool {
 		if _, err := evm.Run(&vm.Contract{}, tx.calldata, false); err != nil {
-			logger.Error().Msg("transaction failed")
+			c.logger.Error().Msg("transaction failed")
 		}
 	}
 }
