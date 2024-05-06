@@ -10,6 +10,7 @@ type Block struct {
 	Id                 uint64
 	PrevBlock          common.Hash
 	SmartContractsRoot common.Hash
+	TransactionsRoot   common.Hash
 }
 
 // interfaces
@@ -23,11 +24,12 @@ func (b *Block) EncodeSSZ(dst []byte) ([]byte, error) {
 		ssz.Uint64SSZ(b.Id),
 		b.PrevBlock[:],
 		b.SmartContractsRoot[:],
+		b.TransactionsRoot[:],
 	)
 }
 
 func (b *Block) EncodingSizeSSZ() int {
-	return common.Bytes64Size + common.HashSize + common.HashSize
+	return common.Uint64Size + common.HashSize + common.HashSize + common.HashSize
 }
 
 func (b *Block) Clone() common.Clonable {
@@ -42,6 +44,7 @@ func (b *Block) DecodeSSZ(buf []byte, version int) error {
 		&b.Id,
 		b.PrevBlock[:],
 		b.SmartContractsRoot[:],
+		b.TransactionsRoot[:],
 	)
 }
 
@@ -51,4 +54,8 @@ func (b *Block) Hash() common.Hash {
 		log.Fatal().Msg(err.Error())
 	}
 	return h
+}
+
+func (s *Block) Static() bool {
+	return true
 }
