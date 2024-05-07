@@ -19,10 +19,10 @@ package vm
 import (
 	"errors"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/core/tracing"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/math"
+	"github.com/NilFoundation/nil/core/tracing"
+	"github.com/NilFoundation/nil/params"
 )
 
 func makeGasSStoreFunc(clearingRefund uint64) gasFunc {

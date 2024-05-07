@@ -19,11 +19,10 @@ package vm
 import (
 	"math"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/tracing"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/tracing"
+	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/params"
 	"github.com/holiman/uint256"
 )
 
@@ -234,19 +233,18 @@ func opKeccak256(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) (
 	offset, size := scope.Stack.pop(), scope.Stack.peek()
 	data := scope.Memory.GetPtr(int64(offset.Uint64()), int64(size.Uint64()))
 
-	if interpreter.hasher == nil {
-		interpreter.hasher = crypto.NewKeccakState()
-	} else {
-		interpreter.hasher.Reset()
-	}
-	interpreter.hasher.Write(data)
-	interpreter.hasher.Read(interpreter.hasherBuf[:])
+	// compute checksum
+	sha := common.GetLegacyKeccak256()
+	//nolint:errcheck
+	sha.Write(data)
+	hash := sha.Sum(nil)
+	common.ReturnLegacyKeccak256(sha)
 
-	evm := interpreter.evm
+	/* evm := interpreter.evm
 	if evm.Config.EnablePreimageRecording {
 		evm.StateDB.AddPreimage(interpreter.hasherBuf, data)
-	}
-	size.SetBytes(interpreter.hasherBuf[:])
+	} */
+	size.SetBytes(hash)
 	return nil, nil
 }
 
@@ -580,9 +578,8 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]b
 		input        = scope.Memory.GetCopy(int64(offset.Uint64()), int64(size.Uint64()))
 		gas          = scope.Contract.Gas
 	)
-	if interpreter.evm.chainRules.IsEIP150 {
-		gas -= gas / 64
-	}
+	gas -= gas / 64 // EIP-150
+
 	// reuse size int for stackvalue
 	stackvalue := size
 
@@ -593,7 +590,7 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]b
 	// homestead we must check for CodeStoreOutOfGasError (homestead only
 	// rule) and treat as an error, if the ruleset is frontier we must
 	// ignore this error and pretend the operation was successful.
-	if interpreter.evm.chainRules.IsHomestead && suberr == ErrCodeStoreOutOfGas {
+	if true /* IsHomestead */ && suberr == ErrCodeStoreOutOfGas {
 		stackvalue.Clear()
 	} else if suberr != nil && suberr != ErrCodeStoreOutOfGas {
 		stackvalue.Clear()

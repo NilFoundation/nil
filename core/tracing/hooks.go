@@ -19,9 +19,9 @@ package tracing
 import (
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/params"
 	"github.com/holiman/uint256"
 )
 
@@ -61,10 +61,10 @@ type VMContext struct {
 // BlockEvent is emitted upon tracing an incoming block.
 // It contains the block as well as consensus related information.
 type BlockEvent struct {
-	Block     *types.Block
-	TD        *big.Int
-	Finalized *types.Header
-	Safe      *types.Header
+	Block *types.Block
+	TD    *big.Int
+	// Finalized *types.Header
+	// Safe      *types.Header
 }
 
 type (
@@ -75,10 +75,10 @@ type (
 	// TxStartHook is called before the execution of a transaction starts.
 	// Call simulations don't come with a valid signature. `from` field
 	// to be used for address of the caller.
-	TxStartHook = func(vm *VMContext, tx *types.Transaction, from common.Address)
+	//TxStartHook = func(vm *VMContext, tx *types.Transaction, from common.Address)
 
 	// TxEndHook is called after the execution of a transaction ends.
-	TxEndHook = func(receipt *types.Receipt, err error)
+	//TxEndHook = func(receipt *types.Receipt, err error)
 
 	// EnterHook is invoked when the processing of a message starts.
 	//
@@ -131,7 +131,7 @@ type (
 	SkippedBlockHook = func(event BlockEvent)
 
 	// GenesisBlockHook is called when the genesis block is being processed.
-	GenesisBlockHook = func(genesis *types.Block, alloc types.GenesisAlloc)
+	//GenesisBlockHook = func(genesis *types.Block, alloc types.GenesisAlloc)
 
 	// OnSystemCallStartHook is called when a system call is about to be executed. Today,
 	// this hook is invoked when the EIP-4788 system call is about to be executed to set the
@@ -171,20 +171,20 @@ type (
 
 type Hooks struct {
 	// VM events
-	OnTxStart   TxStartHook
-	OnTxEnd     TxEndHook
+	// OnTxStart   TxStartHook
+	// OnTxEnd     TxEndHook
 	OnEnter     EnterHook
 	OnExit      ExitHook
 	OnOpcode    OpcodeHook
 	OnFault     FaultHook
 	OnGasChange GasChangeHook
 	// Chain events
-	OnBlockchainInit  BlockchainInitHook
-	OnClose           CloseHook
-	OnBlockStart      BlockStartHook
-	OnBlockEnd        BlockEndHook
-	OnSkippedBlock    SkippedBlockHook
-	OnGenesisBlock    GenesisBlockHook
+	OnBlockchainInit BlockchainInitHook
+	OnClose          CloseHook
+	OnBlockStart     BlockStartHook
+	OnBlockEnd       BlockEndHook
+	OnSkippedBlock   SkippedBlockHook
+	//OnGenesisBlock    GenesisBlockHook
 	OnSystemCallStart OnSystemCallStartHook
 	OnSystemCallEnd   OnSystemCallEndHook
 	// State events

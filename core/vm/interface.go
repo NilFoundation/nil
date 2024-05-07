@@ -4,20 +4,22 @@ import (
 	"math/big"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
 )
 
 type StateDB interface {
-	CreateAccount(common.Address)
-	CreateContract(common.Address)
+	/*
+		CreateAccount(common.Address)
+		CreateContract(common.Address) */
 
-	SubBalance(common.Address, *uint256.Int)
-	AddBalance(common.Address, *uint256.Int)
+	SubBalance(common.Address, *uint256.Int, tracing.BalanceChangeReason)
+	AddBalance(common.Address, *uint256.Int, tracing.BalanceChangeReason)
 	GetBalance(common.Address) *uint256.Int
 
-	GetNonce(common.Address) uint64
-	SetNonce(common.Address, uint64)
+	/*	GetNonce(common.Address) uint64
+		SetNonce(common.Address, uint64) */
 
 	GetCodeHash(common.Address) common.Hash
 	GetCode(common.Address) []byte
@@ -56,13 +58,15 @@ type StateDB interface {
 	// AddSlotToAccessList adds the given (address,slot) to the access list. This operation is safe to perform
 	// even if the feature/fork is not active yet
 	AddSlotToAccessList(addr common.Address, slot common.Hash)
-	Prepare(sender, coinbase common.Address, dest *common.Address, precompiles []common.Address)
 
-	RevertToSnapshot(int)
-	Snapshot() int
+	/*	Prepare(sender, coinbase common.Address, dest *common.Address, precompiles []common.Address)
 
+		RevertToSnapshot(int)
+		Snapshot() int
+
+		AddPreimage(common.Hash, []byte)
+	*/
 	AddLog(*types.Log)
-	AddPreimage(common.Hash, []byte)
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM
