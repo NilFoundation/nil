@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/params"
 	"github.com/holiman/uint256"
+	"github.com/rs/zerolog/log"
 )
 
 type (
@@ -260,14 +261,17 @@ func NewStateDB(state *execution.ExecutionState) StateDB {
 }
 
 func (f *Facade) GetState(addr common.Address, key common.Hash) common.Hash {
+
 	val, err := f.state.GetState(addr, key)
 	if err != nil {
 		panic(err)
 	}
+	log.Debug().Msgf("get state of contract %s at %v: %v", addr, key, val)
 	return val.Bytes32()
 }
 
 func (f *Facade) SetState(addr common.Address, key common.Hash, val common.Hash) {
+	log.Debug().Msgf("set state of contract %s at %v: %v", addr, key, val)
 	err := f.state.SetState(addr, key, *uint256.MustFromBig(val.Big()))
 	if err != nil {
 		panic(err)

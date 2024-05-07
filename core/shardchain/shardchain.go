@@ -96,6 +96,9 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 			c.logger.Error().Msg("transaction failed")
 			return common.EmptyHash, err
 		}
+
+		number := evm.StateDB.GetState(addr, common.Hash{})
+		c.logger.Debug().Msgf("Contract storage is now %v", number)
 	}
 
 	blockHash, err := es.Commit()
