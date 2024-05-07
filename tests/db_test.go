@@ -35,7 +35,7 @@ func (suite *SuiteSqliteDb) SetupTest() {
 func ValidateTables(t *suite.Suite, db db.DB) {
 	defer db.Close()
 
-	t.Require().NoError(db.Set("tbl-1", []byte("foo"), []byte("bar")))
+	t.Require().NoError(db.Put("tbl-1", []byte("foo"), []byte("bar")))
 
 	has, err := db.Exists("tbl-1", []byte("foo"))
 
@@ -140,7 +140,7 @@ func ValidateBlock(t *suite.Suite, d db.DB) {
 func ValidateDbOperations(t *suite.Suite, d db.DB) {
 	defer d.Close()
 
-	t.Require().NoError(d.Set("tbl", []byte("foo"), []byte("bar")))
+	t.Require().NoError(d.Put("tbl", []byte("foo"), []byte("bar")))
 
 	val, err := d.Get("tbl", []byte("foo"))
 

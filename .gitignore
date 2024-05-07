@@ -2,3 +2,4 @@ build
 *.test
 tests/__debug*
 .idea
+test.db

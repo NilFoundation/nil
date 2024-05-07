@@ -207,7 +207,7 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	var input string
-	if err := json.Unmarshal(data, &input); err != nil {
+	if err = json.Unmarshal(data, &input); err != nil {
 		return err
 	}
 	switch input {
@@ -233,9 +233,8 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 		return nil
 	default:
 		if len(input) == 66 {
-			hash := common.Hash{}
-			err := hash.UnmarshalText([]byte(input))
-			if err != nil {
+			hash := common.EmptyHash
+			if err = hash.UnmarshalText([]byte(input)); err != nil {
 				return err
 			}
 			bnh.BlockHash = &hash
@@ -245,7 +244,7 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 				return err
 			}
 			if blckNum > math.MaxInt64 {
-				return fmt.Errorf("blocknumber too high")
+				return fmt.Errorf("block number too high")
 			}
 			bn := BlockNumber(blckNum)
 			bnh.BlockNumber = &bn
@@ -265,7 +264,7 @@ func (bnh *BlockNumberOrHash) Hash() (common.Hash, bool) {
 	if bnh.BlockHash != nil {
 		return *bnh.BlockHash, true
 	}
-	return common.Hash{}, false
+	return common.EmptyHash, false
 }
 
 type BlockReference BlockNumberOrHash

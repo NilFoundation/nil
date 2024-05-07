@@ -8,7 +8,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-
 type SqliteDB struct {
 	closed atomic.Bool
 	path   string
@@ -16,7 +15,7 @@ type SqliteDB struct {
 }
 
 type SqliteTx struct {
-	tx *sql.Tx
+	tx  *sql.Tx
 	ctx context.Context
 }
 
@@ -96,7 +95,7 @@ func (db *SqliteDB) Get(table string, key []byte) (*[]byte, error) {
 		})
 }
 
-func (db *SqliteDB) Set(table string, key, value []byte) error {
+func (db *SqliteDB) Put(table string, key, value []byte) error {
 	return db.Update(
 		func(txn Tx) error {
 			return txn.Put(table, key, value)
@@ -158,9 +157,7 @@ func (tx *SqliteTx) Get(table string, key []byte) (val *[]byte, err error) {
 	defer stmt.Close()
 
 	var value []byte
-	err = stmt.QueryRowContext(tx.ctx, table, key).Scan(&value)
-
-	if err != nil {
+	if err = stmt.QueryRowContext(tx.ctx, table, key).Scan(&value); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -200,18 +197,18 @@ func NewSqlite(path string) (*SqliteDB, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	stmt, err := tx.Prepare(createTable)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec()
-	if err != nil {
+
+	if _, err = stmt.Exec(); err != nil {
 		return nil, err
 	}
 
-	err = tx.Commit()
-	if err != nil {
+	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
 

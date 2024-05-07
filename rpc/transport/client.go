@@ -98,8 +98,7 @@ func (c *Client) CallContext(ctx context.Context, result interface{}, method str
 	}
 	op := &requestOp{ids: []json.RawMessage{msg.ID}, resp: make(chan *jsonrpcMessage, 1)}
 
-	err = c.sendHTTP(ctx, op, msg)
-	if err != nil {
+	if err = c.sendHTTP(ctx, op, msg); err != nil {
 		return err
 	}
 

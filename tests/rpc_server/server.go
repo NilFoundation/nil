@@ -21,7 +21,7 @@ func startRpcServer(ctx context.Context, nshards int, dbpath string) {
 
 	db, err := db.NewBadgerDb(dbpath)
 	if err != nil {
-		log.Fatal().Msg(err.Error())
+		log.Fatal().Msgf("Failed to open db: %s", err.Error())
 	}
 
 	// each shard will interact with DB via this client
@@ -64,6 +64,6 @@ func startRpcServer(ctx context.Context, nshards int, dbpath string) {
 		}}
 
 	if err := rpc.StartRpcServer(ctx, &httpConfig, apiList, logger); err != nil {
-		logger.Fatal().Msg(err.Error())
+		logger.Fatal().Msgf("RPC server stopped: %s", err.Error())
 	}
 }

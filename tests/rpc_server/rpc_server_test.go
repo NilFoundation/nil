@@ -51,8 +51,7 @@ func makeRequest(data *Request) (*Response, error) {
 	}
 
 	var response Response
-	err = json.Unmarshal(body, &response)
-	if err != nil {
+	if err = json.Unmarshal(body, &response); err != nil {
 		return nil, err
 	}
 	return &response, nil

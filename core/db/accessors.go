@@ -1,6 +1,8 @@
 package db
 
 import (
+	"errors"
+
 	common "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/ssz"
 	types "github.com/NilFoundation/nil/core/types"
@@ -15,6 +17,9 @@ func readDecodable[
 	},
 ](tx Tx, table string, hash common.Hash) *S {
 	data, err := tx.Get(table, hash.Bytes())
+	if errors.Is(err, ErrKeyNotFound) {
+		return nil
+	}
 	if err != nil {
 		logger.Fatal().Msgf("Read from table %s failed. err: %s", table, err.Error())
 	}

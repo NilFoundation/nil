@@ -77,7 +77,7 @@ func (k *BadgerDB) Get(table string, key []byte) (*[]byte, error) {
 	return value, err
 }
 
-func (k *BadgerDB) Set(table string, key, value []byte) error {
+func (k *BadgerDB) Put(table string, key, value []byte) error {
 	return k.db.Update(
 		func(txn *badger.Txn) error {
 			return txn.Set(makeKey(table, key), value)
@@ -111,8 +111,8 @@ func (tx *BadgerTx) Put(table string, key []byte, value []byte) error {
 func (tx *BadgerTx) Get(table string, key []byte) (val *[]byte, err error) {
 	var res *[]byte
 	item, err := tx.tx.Get(makeKey(table, key))
-	if err == badger.ErrKeyNotFound {
-		return nil, nil
+	if errors.Is(err, badger.ErrKeyNotFound) {
+		return nil, ErrKeyNotFound
 	}
 	if err != nil {
 		return res, err
@@ -127,7 +127,7 @@ func (tx *BadgerTx) Get(table string, key []byte) (val *[]byte, err error) {
 
 func (tx *BadgerTx) Exists(table string, key []byte) (bool, error) {
 	_, err := tx.tx.Get(makeKey(table, key))
-	if err == badger.ErrKeyNotFound {
+	if errors.Is(err, badger.ErrKeyNotFound) {
 		return false, nil
 	}
 	return err == nil, err

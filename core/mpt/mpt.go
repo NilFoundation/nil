@@ -1,50 +1,44 @@
 package mpt
 
 import (
-	"fmt"
+	"errors"
+
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
-type DeleteAction int
+type deleteAction int
 
 const (
-	daUnknown DeleteAction = iota
+	daUnknown deleteAction = iota
 	daDeleted
 	daUpdated
 	daUselessBranch
 )
 
-const TableName = "mpt"
-
-var EmptyHash = common.BytesToHash(poseidon.Sum([]byte{0}))
+// keys above this len are hashed before putting into tree
+const maxRawKeyLen = 32
 
 type MerklePatriciaTrie struct {
-	db   db.DB
-	root Reference
-}
-
-func NewMerklePatriciaTrie(db db.DB) *MerklePatriciaTrie {
-	return &MerklePatriciaTrie{db, nil}
-}
-
-func NewMerklePatriciaTrieWithRoot(db db.DB, root common.Hash) *MerklePatriciaTrie {
-	return &MerklePatriciaTrie{db, root.Bytes()}
+	db    db.DBAccessor
+	table string
+	root  Reference
 }
 
 func (m *MerklePatriciaTrie) RootHash() common.Hash {
 	if !m.root.IsValid() {
-		return EmptyHash
+		return common.EmptyHash
 	}
 	return common.BytesToHash(m.root)
 }
 
 func (m *MerklePatriciaTrie) Get(key []byte) (ret []byte, err error) {
 	if m.root == nil {
-		return nil, fmt.Errorf("key error")
+		// TODO: use error from MPT pkg?
+		return nil, db.ErrKeyNotFound
 	}
-	if len(key) > 32 {
+	if len(key) > maxRawKeyLen {
 		key = poseidon.Sum(key)
 	}
 	path := newPath(key, 0)
@@ -58,7 +52,7 @@ func (m *MerklePatriciaTrie) Get(key []byte) (ret []byte, err error) {
 }
 
 func (m *MerklePatriciaTrie) Set(key []byte, value []byte) error {
-	if len(key) > 32 {
+	if len(key) > maxRawKeyLen {
 		key = poseidon.Sum(key)
 	}
 
@@ -76,7 +70,7 @@ func (m *MerklePatriciaTrie) Delete(key []byte) error {
 	if !m.root.IsValid() {
 		return nil
 	}
-	if len(key) > 32 {
+	if len(key) > maxRawKeyLen {
 		key = poseidon.Sum(key)
 	}
 	path := newPath(key, 0)
@@ -95,31 +89,45 @@ func (m *MerklePatriciaTrie) Delete(key []byte) error {
 	case daUselessBranch:
 		m.root = info.ref
 	default:
-		return fmt.Errorf("invalid action")
+		return ErrInvalidAction
 	}
 	return nil
 }
 
-type Info struct {
+////////////////////////////////////////////////////////////////////////////////
+
+// tree name should be unique across all trees in the DB
+func NewMerklePatriciaTrie(db db.DBAccessor, name string) *MerklePatriciaTrie {
+	return &MerklePatriciaTrie{db, name, nil}
+}
+
+func NewMerklePatriciaTrieWithRoot(db db.DBAccessor, name string, root common.Hash) *MerklePatriciaTrie {
+	return &MerklePatriciaTrie{db, name, root.Bytes()}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type deletionInfo struct {
 	path Path
 	ref  Reference
 }
 
-var NoInfo = Info{Path{}, nil}
+var noInfo = deletionInfo{Path{}, nil}
 
-func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (DeleteAction, Info, error) {
+func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction, deletionInfo, error) {
 	node, err := m.getNode(nodeRef)
 	if err != nil {
-		return daUnknown, NoInfo, err
+		return daUnknown, noInfo, err
 	}
 
 	switch node := node.(type) {
 	case *LeafNode:
 		// If it's leaf node, then it's either node we need or incorrect key provided.
 		if path.Equal(node.Path()) {
-			return daDeleted, NoInfo, nil
+			return daDeleted, noInfo, nil
 		}
-		return daUnknown, NoInfo, fmt.Errorf("key error")
+		// TODO: use error from MPT pkg?
+		return daUnknown, noInfo, db.ErrKeyNotFound
 
 	case *ExtensionNode:
 		// Extension node can't be removed directly, it passes delete request to the next node.
@@ -129,30 +137,31 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (DeleteAction
 		// 3. Next node was useless branch. Then we have to update our node depending on the next node type.
 
 		if !path.StartsWith(node.Path()) {
-			return daUnknown, NoInfo, fmt.Errorf("key error")
+			// TODO: use error from MPT pkg?
+			return daUnknown, noInfo, db.ErrKeyNotFound
 		}
 		action, info, err := m.delete(node.NextRef, path.Consume(node.Path().Size()))
 		if err != nil {
-			return daUnknown, NoInfo, err
+			return daUnknown, noInfo, err
 		}
 
 		switch action {
 		case daDeleted:
 			// Next node was deleted. This node should be deleted also.
-			return action, NoInfo, nil
+			return action, noInfo, nil
 		case daUpdated:
 			// Next node was updated. Update this node too.
 			newRef, err := m.storeNode(newExtensionNode(node.Path(), info.ref))
 			if err != nil {
-				return daUnknown, NoInfo, err
+				return daUnknown, noInfo, err
 			}
-			return action, Info{Path{}, newRef}, nil
+			return action, deletionInfo{Path{}, newRef}, nil
 
 		case daUselessBranch:
 			// Next node was useless branch.
 			child, err := m.getNode(info.ref)
 			if err != nil {
-				return daUnknown, NoInfo, err
+				return daUnknown, noInfo, err
 			}
 
 			var newNode Node = nil
@@ -179,12 +188,12 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (DeleteAction
 
 			newReference, err := m.storeNode(newNode)
 			if err != nil {
-				return daUnknown, NoInfo, err
+				return daUnknown, noInfo, err
 			}
 
-			return daUpdated, Info{Path{}, newReference}, nil
+			return daUpdated, deletionInfo{Path{}, newReference}, nil
 		default:
-			return daUnknown, NoInfo, fmt.Errorf("invalid action")
+			return daUnknown, noInfo, ErrInvalidAction
 		}
 
 	case *BranchNode:
@@ -203,13 +212,14 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (DeleteAction
 		// and return `USELESS_BRANCH` action.
 		// Otherwise our branch isn't useless and was updated.
 
-		var action DeleteAction
-		var info Info
+		var action deleteAction
+		var info deletionInfo
 		var idx int
 
 		// Decide if we need to remove value of this node or go deeper.
 		if path.Empty() && len(node.value) == 0 {
-			return daUnknown, NoInfo, fmt.Errorf("key error")
+			// TODO: use error from MPT pkg?
+			return daUnknown, noInfo, db.ErrKeyNotFound
 		} else if path.Empty() && len(node.value) != 0 {
 			node.value = []byte{}
 			action = daDeleted
@@ -218,12 +228,13 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (DeleteAction
 			idx = path.At(0)
 
 			if len(node.Branches[idx]) == 0 {
-				return daUnknown, NoInfo, fmt.Errorf("key error")
+				// TODO: use error from MPT pkg?
+				return daUnknown, noInfo, db.ErrKeyNotFound
 			}
 
 			action, info, err = m.delete(node.Branches[idx], path.Consume(1))
 			if err != nil {
-				return daUnknown, NoInfo, err
+				return daUnknown, noInfo, err
 			}
 			node.Branches[idx] = []byte{}
 		}
@@ -239,15 +250,15 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (DeleteAction
 
 			if validBranches == 0 && len(node.Data()) == 0 {
 				// Branch node is empty, just delete it.
-				return daDeleted, NoInfo, nil
+				return daDeleted, noInfo, nil
 			} else if validBranches == 0 && len(node.Data()) != 0 {
 				// No branches, just value.
 				path = newPath([]byte{}, 0)
 				reference, err := m.storeNode(newLeafNode(path, node.Data()))
 				if err != nil {
-					return daUnknown, NoInfo, err
+					return daUnknown, noInfo, err
 				}
-				return daUselessBranch, Info{*path, reference}, nil
+				return daUselessBranch, deletionInfo{*path, reference}, nil
 			} else if validBranches == 1 && len(node.Data()) == 0 {
 				// No value and one branch
 				return m.buildNewNodeFromLastBranch(&node.Branches)
@@ -256,10 +267,10 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (DeleteAction
 				// It isn't useless, so action is `UPDATED`.
 				reference, err := m.storeNode(node)
 				if err != nil {
-					return daUnknown, NoInfo, err
+					return daUnknown, noInfo, err
 				}
 
-				return daUpdated, Info{Path{}, reference}, nil
+				return daUpdated, deletionInfo{Path{}, reference}, nil
 			}
 
 		case daUpdated:
@@ -267,28 +278,28 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (DeleteAction
 			node.Branches[idx] = info.ref
 			reference, err := m.storeNode(node)
 			if err != nil {
-				return daUnknown, NoInfo, err
+				return daUnknown, noInfo, err
 			}
 
-			return daUpdated, Info{Path{}, reference}, nil
+			return daUpdated, deletionInfo{Path{}, reference}, nil
 
 		case daUselessBranch:
 			// Just update reference.
 			node.Branches[idx] = info.ref
 			reference, err := m.storeNode(node)
 			if err != nil {
-				return daUnknown, NoInfo, err
+				return daUnknown, noInfo, err
 			}
 
-			return daUpdated, Info{Path{}, reference}, nil
+			return daUpdated, deletionInfo{Path{}, reference}, nil
 		default:
-			return daUpdated, NoInfo, fmt.Errorf("invalid action")
+			return daUpdated, noInfo, ErrInvalidAction
 		}
 	}
 	panic("Unreachable")
 }
 
-func (m *MerklePatriciaTrie) buildNewNodeFromLastBranch(branches *[BranchesNum]Reference) (DeleteAction, Info, error) {
+func (m *MerklePatriciaTrie) buildNewNodeFromLastBranch(branches *[BranchesNum]Reference) (deleteAction, deletionInfo, error) {
 	// Combines nibble of the only branch left with underlying node and creates new node.
 
 	// Find the index of the only stored branch.
@@ -304,7 +315,7 @@ func (m *MerklePatriciaTrie) buildNewNodeFromLastBranch(branches *[BranchesNum]R
 	prefixNibble := newPath([]byte{byte(idx)}, 1)
 	child, err := m.getNode(branches[idx])
 	if err != nil {
-		return daUnknown, NoInfo, err
+		return daUnknown, noInfo, err
 	}
 
 	var path Path
@@ -325,10 +336,10 @@ func (m *MerklePatriciaTrie) buildNewNodeFromLastBranch(branches *[BranchesNum]R
 	}
 	reference, err := m.storeNode(node)
 	if err != nil {
-		return daUnknown, NoInfo, err
+		return daUnknown, noInfo, err
 	}
 
-	return daUselessBranch, Info{path, reference}, nil
+	return daUselessBranch, deletionInfo{path, reference}, nil
 }
 
 func (m *MerklePatriciaTrie) get(nodeRef Reference, path Path) (Node, error) {
@@ -363,7 +374,8 @@ func (m *MerklePatriciaTrie) get(nodeRef Reference, path Path) (Node, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("not found")
+	// TODO: use error from MPT pkg?
+	return nil, db.ErrKeyNotFound
 }
 
 func (m *MerklePatriciaTrie) set(nodeRef Reference, path Path, value []byte) (Reference, error) {
@@ -372,6 +384,10 @@ func (m *MerklePatriciaTrie) set(nodeRef Reference, path Path, value []byte) (Re
 	}
 
 	node, err := m.getNode(nodeRef)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		node = newLeafNode(&path, []byte{})
+		err = nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -484,20 +500,20 @@ func (m *MerklePatriciaTrie) set(nodeRef Reference, path Path, value []byte) (Re
 }
 
 // Creates a branch node with up to two leaves and maybe value. Returns a reference to created node.
-func (m *MerklePatriciaTrie) createBranchNode(path_a *Path, value_a []byte, path_b *Path, value_b []byte) (Reference, error) {
-	if path_a.Size() == 0 && path_b.Size() == 0 {
-		return nil, fmt.Errorf("incorrect paths")
+func (m *MerklePatriciaTrie) createBranchNode(lhsPath *Path, lhsVal []byte, rhsPath *Path, rhsVal []byte) (Reference, error) {
+	if lhsPath.Size() == 0 && rhsPath.Size() == 0 {
+		return nil, ErrInvalidAction
 	}
 
 	branches := [BranchesNum]Reference{}
 	var branchValue []byte = nil
-	if path_a.Size() == 0 {
-		branchValue = value_a
-	} else if path_b.Size() == 0 {
-		branchValue = value_b
+	if lhsPath.Size() == 0 {
+		branchValue = lhsVal
+	} else if rhsPath.Size() == 0 {
+		branchValue = rhsVal
 	}
-	m.createBranchLeaf(path_a, value_a, &branches)
-	m.createBranchLeaf(path_b, value_b, &branches)
+	m.createBranchLeaf(lhsPath, lhsVal, &branches)
+	m.createBranchLeaf(rhsPath, rhsVal, &branches)
 
 	return m.storeNode(newBranchNode(&branches, branchValue))
 }
@@ -546,7 +562,7 @@ func (m *MerklePatriciaTrie) storeNode(node Node) (Reference, error) {
 	if len(key) != 32 {
 		key = common.BytesToHash(poseidon.Sum(data)).Bytes()
 	}
-	if err := m.db.Set(TableName, key, data); err != nil {
+	if err := m.db.Put(m.table, key, data); err != nil {
 		return nil, err
 	}
 	return key, nil
@@ -556,9 +572,10 @@ func (m *MerklePatriciaTrie) getNode(ref Reference) (Node, error) {
 	if len(ref) < 32 {
 		return DecodeNode(ref)
 	}
-	data, err := m.db.Get(TableName, ref)
+	data, err := m.db.Get(m.table, ref)
 	if err != nil {
 		return nil, err
 	}
+	// TODO: consider data == nil
 	return DecodeNode(*data)
 }

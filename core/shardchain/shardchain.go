@@ -1,8 +1,8 @@
 package shardchain
 
 import (
+	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"sync"
 
@@ -36,19 +36,19 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 	}
 	defer tx.Rollback()
 
-	last_block_hash_bytes, err := tx.Get(db.LastBlockTable, []byte(strconv.Itoa(c.Id)))
+	lastBlockHashBytes, err := tx.Get(db.LastBlockTable, []byte(strconv.Itoa(c.Id)))
 
-	if err != nil {
-		return common.EmptyHash, err
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		return common.EmptyHash, fmt.Errorf("failed getting last block: %w", err)
 	}
 
-	last_block_hash := common.Hash{}
+	lastBlockHash := common.EmptyHash
 	// No previous blocks yet
-	if last_block_hash_bytes != nil {
-		last_block_hash = common.Hash(*last_block_hash_bytes)
+	if lastBlockHashBytes != nil {
+		lastBlockHash = common.Hash(*lastBlockHashBytes)
 	}
 
-	es, err := execution.NewExecutionState(tx, last_block_hash)
+	es, err := execution.NewExecutionState(tx, lastBlockHash)
 
 	if err != nil {
 		return common.EmptyHash, err
@@ -66,36 +66,32 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 		c.logger.Debug().Msgf("Create new contract %s", addr)
 		code := []byte("Real code should eventually be here. Now it's just a stub.")
 
-		err = es.CreateContract(addr, code)
-
-		if err != nil {
+		if err = es.CreateContract(addr, code); err != nil {
 			return common.EmptyHash, err
 		}
 	} else {
 		c.logger.Debug().Msgf("Update storage of contract %s", addr)
-		storage_key := common.BytesToHash([]byte("storage-key"))
-		val, err := es.GetState(addr, storage_key)
+		storageKey := common.BytesToHash([]byte("storage-key"))
+		val, err := es.GetState(addr, storageKey)
 
-		if err != nil {
+		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 			return common.EmptyHash, err
 		}
 
 		val.AddUint64(&val, 1)
 
-		err = es.SetState(addr, storage_key, val)
-
-		if err != nil {
+		if err = es.SetState(addr, storageKey, val); err != nil {
 			return common.EmptyHash, err
 		}
 	}
 
-	block_hash, err := es.Commit()
+	blockHash, err := es.Commit()
 
 	if err != nil {
 		return common.EmptyHash, err
 	}
 
-	if err = tx.Put(db.LastBlockTable, []byte(strconv.Itoa(c.Id)), block_hash[:]); err != nil {
+	if err = tx.Put(db.LastBlockTable, []byte(strconv.Itoa(c.Id)), blockHash[:]); err != nil {
 		return common.EmptyHash, err
 	}
 
@@ -103,7 +99,7 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 		return common.EmptyHash, err
 	}
 
-	return block_hash, nil
+	return blockHash, nil
 }
 
 func (c *ShardChain) Collate(ctx context.Context, wg *sync.WaitGroup) {
@@ -111,12 +107,12 @@ func (c *ShardChain) Collate(ctx context.Context, wg *sync.WaitGroup) {
 
 	c.logger.Info().Msg("running shardchain")
 
-	block_hash, err := c.testTransaction(ctx)
+	blockHash, err := c.testTransaction(ctx)
 	if err != nil {
-		log.Fatal(err)
+		c.logger.Fatal().Msgf("collation failed: %s", err.Error())
 	}
 
-	c.logger.Debug().Msgf("new block : %+v", block_hash)
+	c.logger.Debug().Msgf("new block : %+v", blockHash)
 
 	evm := vm.NewEVMInterpreter(nil)
 	for _, tx := range c.pool {

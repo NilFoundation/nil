@@ -2,10 +2,12 @@ package mpt
 
 import (
 	"encoding/binary"
-	"github.com/NilFoundation/nil/core/db"
-	"github.com/stretchr/testify/require"
 	"math/rand"
 	"testing"
+
+	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/db"
+	"github.com/stretchr/testify/require"
 )
 
 func getValue(value interface{}, err error) interface{} {
@@ -20,7 +22,7 @@ func CreateMerklePatriciaTrie() *MerklePatriciaTrie {
 	if err != nil {
 		panic("Failed to create BadgerDb")
 	}
-	trie := NewMerklePatriciaTrie(d)
+	trie := NewMerklePatriciaTrie(d, "mpt")
 	return trie
 }
 
@@ -124,7 +126,7 @@ func TestDeleteLots(t *testing.T) {
 	trie := CreateMerklePatriciaTrie()
 	const size = 100
 
-	require.Equal(t, trie.RootHash(), EmptyHash)
+	require.Equal(t, trie.RootHash(), common.EmptyHash)
 
 	var keys [size][]byte
 	var values [size][]byte
@@ -137,13 +139,13 @@ func TestDeleteLots(t *testing.T) {
 		require.NoError(t, trie.Set(key, values[i]))
 	}
 
-	require.NotEqual(t, trie.RootHash(), EmptyHash)
+	require.NotEqual(t, trie.RootHash(), common.EmptyHash)
 
 	for i := range keys {
 		require.NoError(t, trie.Delete(keys[i]))
 	}
 
-	require.Equal(t, trie.RootHash(), EmptyHash)
+	require.Equal(t, trie.RootHash(), common.EmptyHash)
 }
 
 func TestTrieFromOldRoot(t *testing.T) {
@@ -158,7 +160,7 @@ func TestTrieFromOldRoot(t *testing.T) {
 	require.NoError(t, trie.Set([]byte("do"), []byte("not_a_verb")))
 
 	// Old
-	trie2 := NewMerklePatriciaTrieWithRoot(trie.db, rootHash)
+	trie2 := NewMerklePatriciaTrieWithRoot(trie.db, "mpt", rootHash)
 	require.Equal(t, getValue(trie2.Get([]byte("do"))), []byte("verb"))
 	require.Equal(t, getValue(trie2.Get([]byte("dog"))), []byte("puppy"))
 

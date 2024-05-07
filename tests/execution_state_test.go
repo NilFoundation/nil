@@ -26,7 +26,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	tx, err := suite.db.CreateTx(context.TODO())
 	suite.Require().NoError(err)
 
-	es, err := execution.NewExecutionState(tx, common.Hash{})
+	es, err := execution.NewExecutionState(tx, common.EmptyHash)
 	suite.Require().NoError(err)
 
 	addr := common.HexToAddress(
@@ -35,21 +35,21 @@ func (suite *SuiteExecutionState) TestExecState() {
 	err = es.CreateContract(addr, []byte("asdf"))
 	suite.Require().NoError(err)
 
-	storage_key := common.BytesToHash([]byte("storage-key"))
+	storageKey := common.BytesToHash([]byte("storage-key"))
 
-	err = es.SetState(addr, storage_key, *uint256.NewInt(123456))
+	err = es.SetState(addr, storageKey, *uint256.NewInt(123456))
 	suite.Require().NoError(err)
 
-	block_hash, err := es.Commit()
+	blockHash, err := es.Commit()
 	suite.Require().NoError(err)
 
-	es, err = execution.NewExecutionState(tx, block_hash)
+	es, err = execution.NewExecutionState(tx, blockHash)
 	suite.Require().NoError(err)
 
-	storage_val, err := es.GetState(addr, storage_key)
+	storageVal, err := es.GetState(addr, storageKey)
 	suite.Require().NoError(err)
 
-	suite.Equal(storage_val, *uint256.NewInt(123456))
+	suite.Equal(storageVal, *uint256.NewInt(123456))
 }
 
 func TestSuiteExecutionState(t *testing.T) {

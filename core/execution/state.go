@@ -5,46 +5,50 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	db "github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/ssz"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
 )
+
+var logger = common.NewLogger("execution", false /* noColor */)
 
 type AccountState struct {
 	Tx          db.Tx
 	Balance     uint256.Int
 	Code        types.Code
 	CodeHash    common.Hash
-	StorageRoot *db.MerkleTree
+	StorageRoot *mpt.MerklePatriciaTrie
 
 	State map[common.Hash]uint256.Int
 }
 
 type ExecutionState struct {
 	Tx           db.Tx
-	ContractRoot *db.MerkleTree
+	ContractRoot *mpt.MerklePatriciaTrie
 	PrevBlock    common.Hash
 
 	Accounts map[common.Hash]*AccountState
 }
 
-func NewAccountState(Tx db.Tx, account_hash common.Hash) (*AccountState, error) {
-	account := db.ReadContract(Tx, account_hash)
+func NewAccountState(tx db.Tx, accountHash common.Hash) (*AccountState, error) {
+	account := db.ReadContract(tx, accountHash)
 
-	root := db.GetMerkleTree(Tx, account.StorageRoot)
+	// TODO: store storage of each contract in separate table
+	root := mpt.NewMerklePatriciaTrieWithRoot(tx, db.StorageTrieTable, account.StorageRoot)
 
-	code, err := db.ReadCode(Tx, account.CodeHash)
+	code, err := db.ReadCode(tx, account.CodeHash)
 
 	if err != nil {
 		return nil, err
 	}
 
 	if code == nil {
-		return nil, errors.New("Cannot retrieve code")
+		return nil, errors.New("cannot retrieve code")
 	}
 
 	return &AccountState{
-		Tx:          Tx,
+		Tx:          tx,
 		StorageRoot: root,
 		CodeHash:    account.CodeHash,
 		Code:        *code,
@@ -52,18 +56,20 @@ func NewAccountState(Tx db.Tx, account_hash common.Hash) (*AccountState, error) 
 	}, nil
 }
 
-func NewExecutionState(Tx db.Tx, block_hash common.Hash) (*ExecutionState, error) {
-	block := db.ReadBlock(Tx, block_hash)
+func NewExecutionState(tx db.Tx, blockHash common.Hash) (*ExecutionState, error) {
+	block := db.ReadBlock(tx, blockHash)
 
-	root := db.GetMerkleTree(Tx, common.Hash{})
+	var root *mpt.MerklePatriciaTrie
 	if block != nil {
-		root = db.GetMerkleTree(Tx, block.SmartContractsRoot)
+		root = mpt.NewMerklePatriciaTrieWithRoot(tx, db.ContractTrieTable, block.SmartContractsRoot)
+	} else {
+		root = mpt.NewMerklePatriciaTrie(tx, db.ContractTrieTable)
 	}
 
 	return &ExecutionState{
-		Tx:           Tx,
+		Tx:           tx,
 		ContractRoot: root,
-		PrevBlock:    block_hash,
+		PrevBlock:    blockHash,
 		Accounts:     map[common.Hash]*AccountState{},
 	}, nil
 }
@@ -74,16 +80,16 @@ func (es *ExecutionState) GetAccount(addr common.Hash) (*AccountState, error) {
 		return acc, nil
 	}
 
-	acc_hash, err := es.ContractRoot.Find(addr)
-	if err != nil {
+	accHash, err := es.ContractRoot.Get(addr[:])
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, err
 	}
 
-	if acc_hash == nil {
+	if accHash == nil {
 		return nil, nil
 	}
 
-	return NewAccountState(es.Tx, common.Hash(acc_hash))
+	return NewAccountState(es.Tx, common.Hash(accHash))
 }
 
 func (as *AccountState) GetState(key common.Hash) (uint256.Int, error) {
@@ -92,16 +98,15 @@ func (as *AccountState) GetState(key common.Hash) (uint256.Int, error) {
 		return val, nil
 	}
 
-	raw_val, err := as.StorageRoot.Find(key)
-
+	rawVal, err := as.StorageRoot.Get(key[:])
 	if err != nil {
-		return *uint256.NewInt(0), err
+		return uint256.Int{}, err
 	}
 
-	new_val := ssz.UnmarshalUint256SSZ(raw_val)
-	as.State[key] = new_val
+	newVal := ssz.UnmarshalUint256SSZ(rawVal)
+	as.State[key] = newVal
 
-	return new_val, nil
+	return newVal, nil
 }
 
 func (as *AccountState) SetBalance(balance uint256.Int) {
@@ -114,45 +119,38 @@ func (as *AccountState) SetState(key common.Hash, val uint256.Int) {
 
 func (as *AccountState) Commit() (common.Hash, error) {
 	for k, v := range as.State {
-		err := as.StorageRoot.Upsert(k, ssz.Uint256SSZ(v))
+		err := as.StorageRoot.Set(k[:], ssz.Uint256SSZ(v))
 		if err != nil {
-			return common.Hash{}, err
+			return common.EmptyHash, err
 		}
-	}
-
-	storageRoot, err := as.StorageRoot.Root()
-
-	if err != nil {
-		return common.Hash{}, err
 	}
 
 	acc := types.SmartContract{
 		Balance:     as.Balance,
-		StorageRoot: storageRoot,
+		StorageRoot: as.StorageRoot.RootHash(),
 		CodeHash:    as.CodeHash,
 	}
 
-	acc_hash := acc.Hash()
+	accHash := acc.Hash()
 
-	err = db.WriteContract(as.Tx, &acc)
-
-	if err != nil {
-		return common.Hash{}, err
+	if err := db.WriteContract(as.Tx, &acc); err != nil {
+		return common.EmptyHash, err
 	}
 
-	err = db.WriteCode(as.Tx, as.Code)
-
-	if err != nil {
-		return common.Hash{}, err
+	if err := db.WriteCode(as.Tx, as.Code); err != nil {
+		return common.EmptyHash, err
 	}
 
-	return acc_hash, nil
+	return accHash, nil
 }
 
 func (es *ExecutionState) GetState(addr common.Hash, key common.Hash) (uint256.Int, error) {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
-		return *uint256.NewInt(0), err
+		return uint256.Int{}, err
+	}
+	if acc == nil {
+		return uint256.Int{}, nil
 	}
 
 	return acc.GetState(key)
@@ -161,6 +159,7 @@ func (es *ExecutionState) GetState(addr common.Hash, key common.Hash) (uint256.I
 func (es *ExecutionState) SetState(addr common.Hash, key common.Hash, val uint256.Int) error {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
+		logger.Error().Msgf("failed to find contract while setting state")
 		return err
 	}
 
@@ -186,20 +185,19 @@ func (es *ExecutionState) CreateContract(addr common.Hash, code types.Code) erro
 	}
 
 	if acc != nil {
-		return errors.New("Contract already exists")
+		return errors.New("contract already exists")
 	}
 
-	root := db.GetMerkleTree(es.Tx, common.Hash{})
+	// TODO: store storage of each contract in separate table
+	root := mpt.NewMerklePatriciaTrie(es.Tx, db.StorageTrieTable)
 
-	new_acc := AccountState{
+	es.Accounts[addr] = &AccountState{
 		Tx:          es.Tx,
 		StorageRoot: root,
 		CodeHash:    code.Hash(),
 		Code:        code,
 		State:       map[common.Hash]uint256.Int{},
 	}
-
-	es.Accounts[addr] = &new_acc
 
 	return nil
 }
@@ -214,32 +212,26 @@ func (es *ExecutionState) Commit() (common.Hash, error) {
 	for k, acc := range es.Accounts {
 		v, err := acc.Commit()
 		if err != nil {
-			return common.Hash{}, err
+			return common.EmptyHash, err
 		}
-		err = es.ContractRoot.Upsert(k, v[:])
-		if err != nil {
-			return common.Hash{}, err
+
+		if err = es.ContractRoot.Set(k[:], v[:]); err != nil {
+			return common.EmptyHash, err
 		}
-	}
-
-	contractRoot, err := es.ContractRoot.Root()
-
-	if err != nil {
-		return common.Hash{}, err
 	}
 
 	block := types.Block{
 		Id:                 0,
 		PrevBlock:          es.PrevBlock,
-		SmartContractsRoot: contractRoot,
+		SmartContractsRoot: es.ContractRoot.RootHash(),
 	}
 
-	block_hash := block.Hash()
+	blockHash := block.Hash()
 
-	err = db.WriteBlock(es.Tx, &block)
+	err := db.WriteBlock(es.Tx, &block)
 	if err != nil {
-		return common.Hash{}, err
+		return common.EmptyHash, err
 	}
 
-	return block_hash, nil
+	return blockHash, nil
 }

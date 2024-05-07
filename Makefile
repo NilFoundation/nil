@@ -11,7 +11,7 @@ GOTEST = GOPRIVATE="$(GOPRIVATE)" GODEBUG=cgocheck=0 $(GO) test $(GO_FLAGS) ./..
 default: all
 
 test:
-	$(GOTEST)
+	$(GOTEST) $(CMDARGS)
 
 %.cmd:
 	@# Note: $* is replaced by the command name
@@ -20,7 +20,7 @@ test:
 	@echo "Run \"$(GOBIN)/$*\" to launch $*."
 
 %.runcmd: %.cmd
-	@$(GOBIN)/$*
+	@$(GOBIN)/$* $(CMDARGS)
 
 COMMANDS += mpt_example
 
