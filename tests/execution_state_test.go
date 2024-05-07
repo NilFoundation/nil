@@ -29,8 +29,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	es, err := execution.NewExecutionState(tx, common.EmptyHash)
 	suite.Require().NoError(err)
 
-	addr := common.HexToAddress(
-		"9405832983856CB0CF6CD570F071122F1BEA2F20").Hash()
+	addr := common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
 
 	err = es.CreateContract(addr, []byte("asdf"))
 	suite.Require().NoError(err)

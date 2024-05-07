@@ -28,7 +28,7 @@ type ExecutionState struct {
 	ContractRoot *mpt.MerklePatriciaTrie
 	PrevBlock    common.Hash
 
-	Accounts map[common.Hash]*AccountState
+	Accounts map[common.Address]*AccountState
 }
 
 func NewAccountState(tx db.Tx, accountHash common.Hash) (*AccountState, error) {
@@ -70,17 +70,18 @@ func NewExecutionState(tx db.Tx, blockHash common.Hash) (*ExecutionState, error)
 		Tx:           tx,
 		ContractRoot: root,
 		PrevBlock:    blockHash,
-		Accounts:     map[common.Hash]*AccountState{},
+		Accounts:     map[common.Address]*AccountState{},
 	}, nil
 }
 
-func (es *ExecutionState) GetAccount(addr common.Hash) (*AccountState, error) {
+func (es *ExecutionState) GetAccount(addr common.Address) (*AccountState, error) {
 	acc, ok := es.Accounts[addr]
 	if ok {
 		return acc, nil
 	}
 
-	accHash, err := es.ContractRoot.Get(addr[:])
+	addrHash := addr.Hash()
+	accHash, err := es.ContractRoot.Get(addrHash[:])
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, err
 	}
@@ -144,7 +145,7 @@ func (as *AccountState) Commit() (common.Hash, error) {
 	return accHash, nil
 }
 
-func (es *ExecutionState) GetState(addr common.Hash, key common.Hash) (uint256.Int, error) {
+func (es *ExecutionState) GetState(addr common.Address, key common.Hash) (uint256.Int, error) {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
 		return uint256.Int{}, err
@@ -156,7 +157,7 @@ func (es *ExecutionState) GetState(addr common.Hash, key common.Hash) (uint256.I
 	return acc.GetState(key)
 }
 
-func (es *ExecutionState) SetState(addr common.Hash, key common.Hash, val uint256.Int) error {
+func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val uint256.Int) error {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
 		logger.Error().Msgf("failed to find contract while setting state")
@@ -167,7 +168,7 @@ func (es *ExecutionState) SetState(addr common.Hash, key common.Hash, val uint25
 	return nil
 }
 
-func (es *ExecutionState) SetBalance(addr common.Hash, balance uint256.Int) error {
+func (es *ExecutionState) SetBalance(addr common.Address, balance uint256.Int) error {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
 		return err
@@ -177,7 +178,7 @@ func (es *ExecutionState) SetBalance(addr common.Hash, balance uint256.Int) erro
 	return nil
 }
 
-func (es *ExecutionState) CreateContract(addr common.Hash, code types.Code) error {
+func (es *ExecutionState) CreateContract(addr common.Address, code types.Code) error {
 	acc, err := es.GetAccount(addr)
 
 	if err != nil {
@@ -202,7 +203,7 @@ func (es *ExecutionState) CreateContract(addr common.Hash, code types.Code) erro
 	return nil
 }
 
-func (es *ExecutionState) ContractExists(addr common.Hash) (bool, error) {
+func (es *ExecutionState) ContractExists(addr common.Address) (bool, error) {
 	acc, err := es.GetAccount(addr)
 
 	return acc != nil, err
@@ -215,7 +216,8 @@ func (es *ExecutionState) Commit() (common.Hash, error) {
 			return common.EmptyHash, err
 		}
 
-		if err = es.ContractRoot.Set(k[:], v[:]); err != nil {
+		kHash := k.Hash()
+		if err = es.ContractRoot.Set(kHash[:], v[:]); err != nil {
 			return common.EmptyHash, err
 		}
 	}

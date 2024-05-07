@@ -54,7 +54,7 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 		return common.EmptyHash, err
 	}
 
-	addr := common.BytesToHash([]byte("contract-" + strconv.Itoa(c.Id)))
+	addr := common.BytesToAddress([]byte("contract-" + strconv.Itoa(c.Id)))
 
 	contractExists, err := es.ContractExists(addr)
 
