@@ -78,9 +78,7 @@ type EVM struct {
 	// virtual machine configuration options used to initialise the
 	// evm.
 	Config Config
-	// global (to this context) ethereum virtual machine
-	// used throughout the execution of the tx.
-	interpreter *EVMInterpreter
+
 	// abort is used to abort the EVM calling operations
 	abort atomic.Bool
 	// callGasTemp holds the gas available for the current call. This is needed because the

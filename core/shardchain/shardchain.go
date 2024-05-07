@@ -19,7 +19,7 @@ import (
 
 type Transaction struct {
 	//address  common.Address
-	calldata []byte
+	//calldata []byte
 }
 
 type ShardChain struct {

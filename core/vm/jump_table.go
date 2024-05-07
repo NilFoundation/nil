@@ -45,18 +45,7 @@ type operation struct {
 }
 
 var (
-	frontierInstructionSet         = newFrontierInstructionSet()
-	homesteadInstructionSet        = newHomesteadInstructionSet()
-	tangerineWhistleInstructionSet = newTangerineWhistleInstructionSet()
-	spuriousDragonInstructionSet   = newSpuriousDragonInstructionSet()
-	byzantiumInstructionSet        = newByzantiumInstructionSet()
-	constantinopleInstructionSet   = newConstantinopleInstructionSet()
-	istanbulInstructionSet         = newIstanbulInstructionSet()
-	berlinInstructionSet           = newBerlinInstructionSet()
-	londonInstructionSet           = newLondonInstructionSet()
-	mergeInstructionSet            = newMergeInstructionSet()
-	shanghaiInstructionSet         = newShanghaiInstructionSet()
-	cancunInstructionSet           = newCancunInstructionSet()
+	cancunInstructionSet = newCancunInstructionSet()
 )
 
 // JumpTable contains the EVM opcodes supported at a given fork.
@@ -1062,15 +1051,4 @@ func newFrontierInstructionSet() JumpTable {
 	}
 
 	return validate(tbl)
-}
-
-func copyJumpTable(source *JumpTable) *JumpTable {
-	dest := *source
-	for i, op := range source {
-		if op != nil {
-			opCopy := *op
-			dest[i] = &opCopy
-		}
-	}
-	return &dest
 }
