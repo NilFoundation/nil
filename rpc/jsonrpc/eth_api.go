@@ -15,8 +15,8 @@ import (
 // EthAPI is a collection of functions that are exposed in the
 type EthAPI interface {
 	// Block related
-	GetBlockByNumber(ctx context.Context, number transport.BlockNumber, fullTx bool) (map[string]interface{}, error)
-	GetBlockByHash(ctx context.Context, hash transport.BlockNumberOrHash, fullTx bool) (map[string]interface{}, error)
+	GetBlockByNumber(ctx context.Context, number transport.BlockNumber, fullTx bool) (map[string]any, error)
+	GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (map[string]any, error)
 	GetBlockTransactionCountByNumber(ctx context.Context, blockNr transport.BlockNumber) (*hexutil.Uint, error)
 	GetBlockTransactionCountByHash(ctx context.Context, blockHash common.Hash) (*hexutil.Uint, error)
 }

@@ -13,17 +13,17 @@ import (
 )
 
 type Request struct {
-	Jsonrpc string        `json:"jsonrpc"`
-	Method  string        `json:"method"`
-	Params  []interface{} `json:"params"`
-	Id      int           `json:"id"`
+	Jsonrpc string `json:"jsonrpc"`
+	Method  string `json:"method"`
+	Params  []any  `json:"params"`
+	Id      int    `json:"id"`
 }
 
 type Response struct {
-	Jsonrpc string                 `json:"jsonrpc"`
-	Result  map[string]interface{} `json:"result,omitempty"`
-	Error   map[string]interface{} `json:"error,omitempty"`
-	Id      int                    `json:"id"`
+	Jsonrpc string         `json:"jsonrpc"`
+	Result  map[string]any `json:"result,omitempty"`
+	Error   map[string]any `json:"error,omitempty"`
+	Id      int            `json:"id"`
 }
 
 type SuiteRpc struct {
@@ -71,7 +71,7 @@ func (suite *SuiteRpc) TestRpcBasic() {
 	request := Request{
 		Jsonrpc: "2.0",
 		Method:  "eth_getBlockByNumber",
-		Params:  []interface{}{"0x1b4", false},
+		Params:  []any{"0x1b4", false},
 		Id:      1,
 	}
 
@@ -80,32 +80,54 @@ func (suite *SuiteRpc) TestRpcBasic() {
 	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
 	suite.Equal("not implemented", resp.Error["message"])
 
-	request.Method = "eth_getBlockByHash"
-	resp, err = makeRequest(&request)
-	suite.Require().NoError(err)
-	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
-	suite.Equal("not implemented", resp.Error["message"])
-
 	request.Method = "eth_getBlockTransactionCountByNumber"
-	request.Params = []interface{}{"0x1b4"}
+	request.Params = []any{"0x1b4"}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
 	suite.Equal("not implemented", resp.Error["message"])
 
 	request.Method = "eth_getBlockTransactionCountByHash"
-	request.Params = []interface{}{"0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef"}
+	request.Params = []any{"0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef"}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
 	suite.Equal("not implemented", resp.Error["message"])
+
+	request.Method = "eth_getBlockByNumber"
+	request.Params = []any{123, false}
+	resp, err = makeRequest(&request)
+	suite.Require().NoError(err)
+	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
+	suite.Equal("not implemented", resp.Error["message"])
+
+	request.Method = "eth_getBlockByHash"
+	request.Params = []any{"0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef", false}
+	resp, err = makeRequest(&request)
+	suite.Require().NoError(err)
+	suite.Require().Nil(resp.Error["code"])
+	suite.Require().Nil(resp.Result)
+
+	request.Method = "eth_getBlockByNumber"
+	request.Params = []any{"latest", false}
+	latest_resp, err := makeRequest(&request)
+	suite.Require().NoError(err)
+	suite.Require().Nil(latest_resp.Error["code"])
+	suite.Require().NotNil(latest_resp.Result["hash"])
+
+	request.Method = "eth_getBlockByHash"
+	request.Params = []any{latest_resp.Result["hash"].(string), false}
+	resp, err = makeRequest(&request)
+	suite.Require().NoError(err)
+	suite.Require().Nil(resp.Error["code"])
+	suite.Require().Equal(latest_resp.Result, resp.Result)
 }
 
 func (suite *SuiteRpc) TestRpcApiModules() {
 	request := Request{
 		Jsonrpc: "2.0",
 		Method:  "rpc_modules",
-		Params:  []interface{}{},
+		Params:  []any{},
 		Id:      1,
 	}
 
@@ -119,7 +141,7 @@ func (suite *SuiteRpc) TestRpcError() {
 	request := Request{
 		Jsonrpc: "2.0",
 		Method:  "eth_doesntExists",
-		Params:  []interface{}{},
+		Params:  []any{},
 		Id:      1,
 	}
 
@@ -131,7 +153,7 @@ func (suite *SuiteRpc) TestRpcError() {
 	request = Request{
 		Jsonrpc: "2.0",
 		Method:  "eth_getBlockByNumber",
-		Params:  []interface{}{},
+		Params:  []any{},
 		Id:      1,
 	}
 
@@ -139,6 +161,20 @@ func (suite *SuiteRpc) TestRpcError() {
 	suite.Require().NoError(err)
 	suite.InEpsilon(float64(-32602), resp.Error["code"], 0)
 	suite.Equal("missing value for required argument 0", resp.Error["message"])
+
+	request.Method = "eth_getBlockByHash"
+	request.Params = []any{"0x1b4", false}
+	resp, err = makeRequest(&request)
+	suite.Require().NoError(err)
+	suite.InEpsilon(float64(-32000), resp.Error["code"], 0.5)
+	suite.Equal("invalid argument 0: hex string of odd length", resp.Error["message"])
+
+	request.Method = "eth_getBlockByHash"
+	request.Params = []any{"latest"}
+	resp, err = makeRequest(&request)
+	suite.Require().NoError(err)
+	suite.InEpsilon(float64(-32000), resp.Error["code"], 0.5)
+	suite.Equal("invalid argument 0: hex string without 0x prefix", resp.Error["message"])
 }
 
 func TestSuiteRpc(t *testing.T) {

@@ -3,20 +3,50 @@ package jsonrpc
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/rpc/transport"
 )
 
 // GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
-func (api *APIImpl) GetBlockByNumber(ctx context.Context, number transport.BlockNumber, fullTx bool) (map[string]interface{}, error) {
+func (api *APIImpl) GetBlockByNumber(ctx context.Context, number transport.BlockNumber, fullTx bool) (map[string]any, error) {
+	if number == transport.LatestBlockNumber {
+		hash, err := api.db.Get(db.LastBlockTable, []byte(strconv.Itoa(0)))
+		if err != nil {
+			return nil, err
+		}
+
+		return api.GetBlockByHash(ctx, common.CastToHash(*hash), fullTx)
+	}
 	return nil, fmt.Errorf("not implemented")
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
-func (api *APIImpl) GetBlockByHash(ctx context.Context, numberOrHash transport.BlockNumberOrHash, fullTx bool) (map[string]interface{}, error) {
-	return nil, fmt.Errorf("not implemented")
+func (api *APIImpl) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (map[string]any, error) {
+	tx, err := api.db.CreateTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transaction: %w", err)
+	}
+
+	defer tx.Rollback()
+
+	block := db.ReadBlock(tx, hash)
+	if block == nil {
+		return nil, nil
+	}
+
+	var number hexutil.Big
+	number.ToInt().SetUint64(block.Id)
+	result := map[string]any{
+		"number":     number,
+		"hash":       block.Hash(),
+		"parentHash": block.PrevBlock,
+	}
+
+	return result, nil
 }
 
 // GetBlockTransactionCountByNumber implements eth_getBlockTransactionCountByNumber. Returns the number of transactions in a block given the block's block number.
