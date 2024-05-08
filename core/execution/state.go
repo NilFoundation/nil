@@ -28,11 +28,14 @@ type AccountState struct {
 type ExecutionState struct {
 	tx               db.Tx
 	ContractRoot     *mpt.MerklePatriciaTrie
+	MessageRoot      *mpt.MerklePatriciaTrie
 	PrevBlock        common.Hash
 	MasterChain      common.Hash
 	ShardId          int
 	ChildChainBlocks map[uint64]common.Hash
-	Accounts         map[common.Address]*AccountState
+
+	Accounts map[common.Address]*AccountState
+	Messages map[common.Hash]*types.Message
 }
 
 func NewAccountState(tx db.Tx, shardId int, data []byte) (*AccountState, error) {
@@ -68,20 +71,24 @@ func NewAccountState(tx db.Tx, shardId int, data []byte) (*AccountState, error) 
 func NewExecutionState(tx db.Tx, shardId int, blockHash common.Hash) (*ExecutionState, error) {
 	block := db.ReadBlock(tx, blockHash)
 
-	var root *mpt.MerklePatriciaTrie
+	var contractRoot, messageRoot *mpt.MerklePatriciaTrie
 	if block != nil {
-		root = mpt.NewMerklePatriciaTrieWithRoot(tx, db.TableName(db.ContractTrieTable, shardId), block.SmartContractsRoot)
+		contractRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, db.ContractTrieTable, block.SmartContractsRoot)
+		messageRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, db.MessageTrieTable, block.MessagesRoot)
 	} else {
-		root = mpt.NewMerklePatriciaTrie(tx, db.TableName(db.ContractTrieTable, shardId))
+		contractRoot = mpt.NewMerklePatriciaTrie(tx, db.ContractTrieTable)
+		messageRoot = mpt.NewMerklePatriciaTrie(tx, db.MessageTrieTable)
 	}
 
 	return &ExecutionState{
 		tx:               tx,
-		ContractRoot:     root,
+		ContractRoot:     contractRoot,
+		MessageRoot:      messageRoot,
 		PrevBlock:        blockHash,
 		ShardId:          shardId,
 		ChildChainBlocks: map[uint64]common.Hash{},
 		Accounts:         map[common.Address]*AccountState{},
+		Messages:         map[common.Hash]*types.Message{},
 	}, nil
 }
 
@@ -252,6 +259,20 @@ func (es *ExecutionState) ContractExists(addr common.Address) (bool, error) {
 	return acc != nil, err
 }
 
+func (es *ExecutionState) AddMessage(message types.Message) {
+	es.Messages[message.Hash()] = &message
+}
+
+func (es *ExecutionState) GetMessage(id common.Hash) (types.Message, error) {
+	var msg types.Message
+	rawMsg, err := es.MessageRoot.Get(id[:])
+	if err != nil {
+		return msg, err
+	}
+	err = msg.DecodeSSZ(rawMsg, 0)
+	return msg, err
+}
+
 func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 	for k, acc := range es.Accounts {
 		v, err := acc.Commit()
@@ -275,6 +296,16 @@ func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 			}
 		}
 		treeShardsRootHash = treeShards.RootHash()
+	}
+
+	for k, m := range es.Messages {
+		v, err := m.EncodeSSZ(nil)
+		if err != nil {
+			return common.EmptyHash, err
+		}
+		if err = es.MessageRoot.Set(k[:], v); err != nil {
+			return common.EmptyHash, err
+		}
 	}
 
 	block := types.Block{
