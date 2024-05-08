@@ -32,7 +32,7 @@ func TestGetBlockByNumber(t *testing.T) {
 		Id:                 0,
 		PrevBlock:          common.EmptyHash,
 		SmartContractsRoot: common.EmptyHash,
-		TransactionsRoot:   common.EmptyHash,
+		MessagesRoot:       common.EmptyHash,
 	}
 	blockHash := block.Hash()
 
@@ -68,7 +68,7 @@ func TestGetBlockByHash(t *testing.T) {
 		Id:                 0,
 		PrevBlock:          common.EmptyHash,
 		SmartContractsRoot: common.EmptyHash,
-		TransactionsRoot:   common.EmptyHash,
+		MessagesRoot:       common.EmptyHash,
 	}
 	blockHash := block.Hash()
 
