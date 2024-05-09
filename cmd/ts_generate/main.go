@@ -24,6 +24,14 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to open file")
 	}
-	rpc.ExportTypescriptTypes(openFile)
+	typescriptContent, err := rpc.ExportTypescriptTypes()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to export typescript types")
+	}
+	_, err = openFile.Write(typescriptContent)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("Failed to write to file %s", absPath)
+	}
+
 	log.Info().Msgf("Export Typescript Types to %s", absPath)
 }
