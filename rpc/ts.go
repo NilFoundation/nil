@@ -45,12 +45,11 @@ func ExportTypescriptTypes() ([]byte, error) {
 	ts = append(ts, tsAdd...)
 
 	output := bytes.Buffer{}
-	out := &output
 
-	err = bel.Render(ts, bel.GenerateOutputTo(out))
+	err = bel.Render(ts, bel.GenerateOutputTo(&output))
 	if err != nil {
 		return nil, err
 	}
 
-	return out.Bytes(), nil
+	return output.Bytes(), nil
 }
