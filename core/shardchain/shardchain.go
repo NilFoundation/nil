@@ -9,15 +9,17 @@ import (
 	"context"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/vm"
+	"github.com/holiman/uint256"
 	"github.com/rs/zerolog"
 )
 
 type Transaction struct {
 	//address  common.Address
-	calldata []byte
+	//calldata []byte
 }
 
 type ShardChain struct {
@@ -54,35 +56,49 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 		return common.EmptyHash, err
 	}
 
-	addr := common.BytesToHash([]byte("contract-" + strconv.Itoa(c.Id)))
+	addr := common.BytesToAddress([]byte("contract-" + strconv.Itoa(c.Id)))
 
-	contractExists, err := es.ContractExists(addr)
+	accountState, err := es.GetAccount(addr)
 
 	if err != nil {
 		return common.EmptyHash, err
 	}
 
-	if !contractExists {
+	value := uint256.Int{}
+	gas := uint64(1000000)
+	contract := vm.NewContract((vm.AccountRef)(addr), (vm.AccountRef)(addr), &value, gas)
+
+	evm := vm.EVM{
+		StateDB: vm.NewStateDB(es),
+	}
+	interpreter := vm.NewEVMInterpreter(&evm)
+
+	if accountState == nil {
 		c.logger.Debug().Msgf("Create new contract %s", addr)
-		code := []byte("Real code should eventually be here. Now it's just a stub.")
+
+		// constructor for a simple counter contract
+		contract.Code = hexutil.FromHex("6009600c60003960096000f3600054600101600055")
+		code, err := interpreter.Run(contract, nil, false)
+		if err != nil {
+			c.logger.Error().Msg("transaction failed")
+			return common.EmptyHash, err
+		}
 
 		if err = es.CreateContract(addr, code); err != nil {
 			return common.EmptyHash, err
 		}
 	} else {
+		contract.Code = accountState.Code
 		c.logger.Debug().Msgf("Update storage of contract %s", addr)
-		storageKey := common.BytesToHash([]byte("storage-key"))
-		val, err := es.GetState(addr, storageKey)
 
-		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		_, err := interpreter.Run(contract, nil, false)
+		if err != nil {
+			c.logger.Error().Msg("transaction failed")
 			return common.EmptyHash, err
 		}
 
-		val.AddUint64(&val, 1)
-
-		if err = es.SetState(addr, storageKey, val); err != nil {
-			return common.EmptyHash, err
-		}
+		number := evm.StateDB.GetState(addr, common.Hash{})
+		c.logger.Debug().Msgf("Contract storage is now %v", number)
 	}
 
 	blockHash, err := es.Commit()
@@ -114,12 +130,6 @@ func (c *ShardChain) Collate(ctx context.Context, wg *sync.WaitGroup) {
 
 	c.logger.Debug().Msgf("new block : %+v", blockHash)
 
-	evm := vm.NewEVMInterpreter(nil)
-	for _, tx := range c.pool {
-		if _, err := evm.Run(&vm.Contract{}, tx.calldata, false); err != nil {
-			c.logger.Error().Msg("transaction failed")
-		}
-	}
 }
 
 func NewShardChain(
