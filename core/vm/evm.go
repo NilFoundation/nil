@@ -221,11 +221,6 @@ func (f *Facade) HasSelfDestructed(common.Address) bool {
 	panic("unimplemented")
 }
 
-// SelfDestruct implements StateDB.
-func (f *Facade) SelfDestruct(common.Address) {
-	panic("unimplemented")
-}
-
 // Selfdestruct6780 implements StateDB.
 func (f *Facade) Selfdestruct6780(common.Address) {
 	panic("unimplemented")
