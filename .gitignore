@@ -3,3 +3,4 @@ build
 tests/__debug*
 .idea
 test.db
+models_bel.ts
