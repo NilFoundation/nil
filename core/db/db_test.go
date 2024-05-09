@@ -159,34 +159,34 @@ func ValidateDbOperations(t *suite.Suite, d DB) {
 	t.False(has, "Key 'foo' should not be present")
 }
 
-func TwoParallelTwoTransaction(t *suite.Suite, db db.DB) {
-	defer db.Close()
+func (suite *SuiteBadgerDb) TestTwoParallelTwoTransaction() {
+	defer suite.db.Close()
 
 	ctx := context.Background()
 
-	tx, err := db.CreateRwTx(ctx)
+	tx, err := suite.db.CreateRwTx(ctx)
 
-	t.Require().NoError(err)
+	suite.Suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	t.Require().NoError(tx.Put("tbl", []byte("foo1"), []byte("bar1")))
-	t.Require().NoError(tx.Put("tbl", []byte("foo2"), []byte("bar2")))
+	suite.Suite.Require().NoError(tx.Put("tbl", []byte("foo1"), []byte("bar1")))
+	suite.Suite.Require().NoError(tx.Put("tbl", []byte("foo2"), []byte("bar2")))
 
-	t.Require().NoError(tx.Commit())
+	suite.Suite.Require().NoError(tx.Commit())
 
-	tx1, err := db.CreateRoTx(ctx)
+	tx1, err := suite.db.CreateRoTx(ctx)
 
-	t.Require().NoError(err)
+	suite.Suite.Require().NoError(err)
 
-	tx2, err := db.CreateRwTx(ctx)
-	t.Require().NoError(err)
+	tx2, err := suite.db.CreateRwTx(ctx)
+	suite.Suite.Require().NoError(err)
 
 	_, err = tx1.Get("tbl", []byte("foo2"))
-	t.Require().NoError(err)
+	suite.Suite.Require().NoError(err)
 
-	t.Require().NoError(tx2.Put("tbl", []byte("foo2"), []byte("bar22")))
-	t.Require().NoError(tx2.Commit())
-	t.Require().NoError(tx1.Commit())
+	suite.Suite.Require().NoError(tx2.Put("tbl", []byte("foo2"), []byte("bar22")))
+	suite.Suite.Require().NoError(tx2.Commit())
+	suite.Suite.Require().NoError(tx1.Commit())
 }
 
 func (suite *SuiteBadgerDb) TestValidateTables() {
@@ -200,10 +200,6 @@ func (suite *SuiteBadgerDb) TesValidateBlock() {
 }
 func (suite *SuiteBadgerDb) TestValidateDbOperations() {
 	ValidateDbOperations(&suite.Suite, suite.db)
-}
-
-func (suite *SuiteBadgerDb) TestTwoParallelReadTx() {
-	TwoParallelTwoTransaction(&suite.Suite, suite.db)
 }
 
 func TestSuiteBadgerDb(t *testing.T) {

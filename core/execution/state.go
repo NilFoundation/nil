@@ -2,7 +2,6 @@ package execution
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 
 	"github.com/NilFoundation/nil/common"
@@ -27,12 +26,13 @@ type AccountState struct {
 }
 
 type ExecutionState struct {
-	Tx           db.Tx
-	ContractRoot *mpt.MerklePatriciaTrie
-	PrevBlock    common.Hash
-	ShardId      int
-
-	Accounts map[common.Address]*AccountState
+	tx                db.Tx
+	ContractRoot      *mpt.MerklePatriciaTrie
+	PrevBlock         common.Hash
+	MasterChain       common.Hash
+	ShardId           int
+	ChildChainsBlocks map[uint64]common.Hash
+	Accounts          map[common.Address]*AccountState
 }
 
 func NewAccountState(tx db.Tx, shardId int, data []byte) (*AccountState, error) {
@@ -76,12 +76,12 @@ func NewExecutionState(tx db.Tx, shardId int, blockHash common.Hash) (*Execution
 	}
 
 	return &ExecutionState{
-		RoTx:         roTx,
-		RwTx:         rwTx,
-		ContractRoot: root,
-		PrevBlock:    blockHash,
-		ShardId:      shardId,
-		Accounts:     map[common.Address]*AccountState{},
+		tx:                tx,
+		ContractRoot:      root,
+		PrevBlock:         blockHash,
+		ShardId:           shardId,
+		ChildChainsBlocks: map[uint64]common.Hash{},
+		Accounts:          map[common.Address]*AccountState{},
 	}, nil
 }
 
@@ -102,7 +102,7 @@ func (es *ExecutionState) GetAccount(addr common.Address) (*AccountState, error)
 		return nil, nil
 	}
 
-	acc, err = NewAccountState(es.Tx, es.ShardId, data)
+	acc, err = NewAccountState(es.tx, es.ShardId, data)
 	if err != nil {
 		return nil, err
 	}
@@ -212,34 +212,12 @@ func (es *ExecutionState) SetBalance(addr common.Address, balance uint256.Int) e
 	return nil
 }
 
-func (es *ExecutionState) SetMasterchainHash() error {
-	masterchainBlockRaw, err := es.RoTx.Get(db.LastBlockTable, []byte(strconv.Itoa(0)))
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		return fmt.Errorf("failed getting last masterchain block %w", err)
-	}
-	if masterchainBlockRaw != nil {
-		es.MasterChain = common.Hash(*masterchainBlockRaw)
-	}
-	return nil
+func (es *ExecutionState) SetMasterchainHash(masterChainHash common.Hash) {
+	es.MasterChain = masterChainHash
 }
 
-func (es *ExecutionState) SetShardHash(nshards int, prevChildBlocksRootHash common.Hash) error {
-	treeShards := mpt.NewMerklePatriciaTrieWithRoot(es.RwTx, db.ShardsBlocksTrieTable, prevChildBlocksRootHash)
-	for i := 1; i < nshards; i++ {
-		lastBlockRaw, err := es.RoTx.Get(db.LastBlockTable, []byte(strconv.Itoa(i)))
-		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-			return fmt.Errorf("failed getting last block %w for shard %d", err, i)
-		}
-		lastBlockHash := common.EmptyHash
-		if lastBlockRaw != nil {
-			lastBlockHash = common.Hash(*lastBlockRaw)
-		}
-		if err := treeShards.Set([]byte(strconv.Itoa(i)), []byte(lastBlockHash.String())); err != nil {
-			return err
-		}
-	}
-	es.ChildBlocksRootHash = treeShards.RootHash()
-	return nil
+func (es *ExecutionState) SetShardHash(shardId uint64, hash common.Hash) {
+	es.ChildChainsBlocks[shardId] = hash
 }
 
 func (es *ExecutionState) CreateContract(addr common.Address, code types.Code) error {
@@ -254,10 +232,10 @@ func (es *ExecutionState) CreateContract(addr common.Address, code types.Code) e
 	}
 
 	// TODO: store storage of each contract in separate table
-	root := mpt.NewMerklePatriciaTrie(es.Tx, db.TableName(db.StorageTrieTable, es.ShardId))
+	root := mpt.NewMerklePatriciaTrie(es.tx, db.TableName(db.StorageTrieTable, es.ShardId))
 
 	es.Accounts[addr] = &AccountState{
-		Tx:          es.RwTx,
+		Tx:          es.tx,
 		StorageRoot: root,
 		CodeHash:    code.Hash(),
 		Code:        code,
@@ -274,7 +252,7 @@ func (es *ExecutionState) ContractExists(addr common.Address) (bool, error) {
 	return acc != nil, err
 }
 
-func (es *ExecutionState) Commit(isMasterchain bool, nshards int) (common.Hash, error) {
+func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 	for k, acc := range es.Accounts {
 		v, err := acc.Commit()
 		if err != nil {
@@ -287,36 +265,29 @@ func (es *ExecutionState) Commit(isMasterchain bool, nshards int) (common.Hash, 
 		}
 	}
 
-	if isMasterchain {
-		prevChildRootHash := common.EmptyHash
-		if es.PrevBlock != common.EmptyHash {
-			prevChildRootHash = db.ReadBlock(es.RwTx, es.PrevBlock).ChildBlocksRootHash
+	treeShardsRootHash := common.EmptyHash
+	if len(es.ChildChainsBlocks) > 0 {
+		treeShards := mpt.NewMerklePatriciaTrie(es.tx, db.ShardsBlocksTrieTable+strconv.FormatUint(blockId, 10))
+		for k, hash := range es.ChildChainsBlocks {
+			key := []byte(strconv.FormatUint(k, 10)) // Convert k to []byte
+			if err := treeShards.Set(key, []byte(hash.String())); err != nil {
+				return common.EmptyHash, err
+			}
 		}
-		if err := es.SetShardHash(nshards, prevChildRootHash); err != nil {
-			return common.EmptyHash, err
-		}
-	} else {
-		if err := es.SetMasterchainHash(); err != nil {
-			return common.EmptyHash, err
-		}
-	}
-
-	blockId := uint64(0)
-	if es.PrevBlock != common.EmptyHash {
-		blockId = db.ReadBlock(es.RwTx, es.PrevBlock).Id + 1
+		treeShardsRootHash = treeShards.RootHash()
 	}
 
 	block := types.Block{
 		Id:                  blockId,
 		PrevBlock:           es.PrevBlock,
 		SmartContractsRoot:  es.ContractRoot.RootHash(),
-		ChildBlocksRootHash: es.ChildBlocksRootHash,
+		ChildBlocksRootHash: treeShardsRootHash,
 		MasterChainHash:     es.MasterChain,
 	}
 
 	blockHash := block.Hash()
 
-	err := db.WriteBlock(es.RwTx, &block)
+	err := db.WriteBlock(es.tx, &block)
 	if err != nil {
 		return common.EmptyHash, err
 	}
