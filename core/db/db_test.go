@@ -52,12 +52,12 @@ func ValidateTransaction(t *suite.Suite, db DB) {
 
 	ctx := context.Background()
 
-	tx, err := db.CreateTx(ctx)
+	tx, err := db.CreateRwTx(ctx)
 
 	t.Require().NoError(err)
 	defer tx.Rollback()
 
-	tx2, err := db.CreateTx(ctx)
+	tx2, err := db.CreateRwTx(ctx)
 
 	t.Require().NoError(err)
 
@@ -89,7 +89,7 @@ func ValidateTransaction(t *suite.Suite, db DB) {
 
 	// Testing deletion of rows
 
-	tx, err = db.CreateTx(ctx)
+	tx, err = db.CreateRwTx(ctx)
 
 	t.Require().NoError(err)
 	defer tx.Rollback()
@@ -117,7 +117,7 @@ func ValidateBlock(t *suite.Suite, d DB) {
 
 	ctx := context.Background()
 
-	tx, err := d.CreateTx(ctx)
+	tx, err := d.CreateRwTx(ctx)
 	t.Require().NoError(err)
 
 	block := types.Block{
@@ -159,6 +159,36 @@ func ValidateDbOperations(t *suite.Suite, d DB) {
 	t.False(has, "Key 'foo' should not be present")
 }
 
+func TwoParallelTwoTransaction(t *suite.Suite, db db.DB) {
+	defer db.Close()
+
+	ctx := context.Background()
+
+	tx, err := db.CreateRwTx(ctx)
+
+	t.Require().NoError(err)
+	defer tx.Rollback()
+
+	t.Require().NoError(tx.Put("tbl", []byte("foo1"), []byte("bar1")))
+	t.Require().NoError(tx.Put("tbl", []byte("foo2"), []byte("bar2")))
+
+	t.Require().NoError(tx.Commit())
+
+	tx1, err := db.CreateRoTx(ctx)
+
+	t.Require().NoError(err)
+
+	tx2, err := db.CreateRwTx(ctx)
+	t.Require().NoError(err)
+
+	_, err = tx1.Get("tbl", []byte("foo2"))
+	t.Require().NoError(err)
+
+	t.Require().NoError(tx2.Put("tbl", []byte("foo2"), []byte("bar22")))
+	t.Require().NoError(tx2.Commit())
+	t.Require().NoError(tx1.Commit())
+}
+
 func (suite *SuiteBadgerDb) TestValidateTables() {
 	ValidateTables(&suite.Suite, suite.db)
 }
@@ -170,6 +200,10 @@ func (suite *SuiteBadgerDb) TesValidateBlock() {
 }
 func (suite *SuiteBadgerDb) TestValidateDbOperations() {
 	ValidateDbOperations(&suite.Suite, suite.db)
+}
+
+func (suite *SuiteBadgerDb) TestTwoParallelReadTx() {
+	TwoParallelTwoTransaction(&suite.Suite, suite.db)
 }
 
 func TestSuiteBadgerDb(t *testing.T) {

@@ -91,7 +91,12 @@ func (k *BadgerDB) Delete(table string, key []byte) error {
 		})
 }
 
-func (k *BadgerDB) CreateTx(ctx context.Context) (Tx, error) {
+func (k *BadgerDB) CreateRoTx(ctx context.Context) (Tx, error) {
+	txn := k.db.NewTransaction(false)
+	return &BadgerTx{tx: txn}, nil
+}
+
+func (k *BadgerDB) CreateRwTx(ctx context.Context) (Tx, error) {
 	txn := k.db.NewTransaction(true)
 	return &BadgerTx{tx: txn}, nil
 }

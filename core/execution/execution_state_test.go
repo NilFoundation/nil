@@ -39,7 +39,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	err = es.SetState(addr, storageKey, common.IntToHash(123456))
 	suite.Require().NoError(err)
 
-	blockHash, err := es.Commit()
+	blockHash, err := es.Commit(false, 1)
 	suite.Require().NoError(err)
 
 	es, err = NewExecutionState(tx, 0, blockHash)

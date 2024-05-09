@@ -2,6 +2,8 @@ package execution
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
 
 	"github.com/NilFoundation/nil/common"
 	db "github.com/NilFoundation/nil/core/db"
@@ -74,7 +76,8 @@ func NewExecutionState(tx db.Tx, shardId int, blockHash common.Hash) (*Execution
 	}
 
 	return &ExecutionState{
-		Tx:           tx,
+		RoTx:         roTx,
+		RwTx:         rwTx,
 		ContractRoot: root,
 		PrevBlock:    blockHash,
 		ShardId:      shardId,
@@ -209,6 +212,36 @@ func (es *ExecutionState) SetBalance(addr common.Address, balance uint256.Int) e
 	return nil
 }
 
+func (es *ExecutionState) SetMasterchainHash() error {
+	masterchainBlockRaw, err := es.RoTx.Get(db.LastBlockTable, []byte(strconv.Itoa(0)))
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		return fmt.Errorf("failed getting last masterchain block %w", err)
+	}
+	if masterchainBlockRaw != nil {
+		es.MasterChain = common.Hash(*masterchainBlockRaw)
+	}
+	return nil
+}
+
+func (es *ExecutionState) SetShardHash(nshards int, prevChildBlocksRootHash common.Hash) error {
+	treeShards := mpt.NewMerklePatriciaTrieWithRoot(es.RwTx, db.ShardsBlocksTrieTable, prevChildBlocksRootHash)
+	for i := 1; i < nshards; i++ {
+		lastBlockRaw, err := es.RoTx.Get(db.LastBlockTable, []byte(strconv.Itoa(i)))
+		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+			return fmt.Errorf("failed getting last block %w for shard %d", err, i)
+		}
+		lastBlockHash := common.EmptyHash
+		if lastBlockRaw != nil {
+			lastBlockHash = common.Hash(*lastBlockRaw)
+		}
+		if err := treeShards.Set([]byte(strconv.Itoa(i)), []byte(lastBlockHash.String())); err != nil {
+			return err
+		}
+	}
+	es.ChildBlocksRootHash = treeShards.RootHash()
+	return nil
+}
+
 func (es *ExecutionState) CreateContract(addr common.Address, code types.Code) error {
 	acc, err := es.GetAccount(addr)
 
@@ -224,7 +257,7 @@ func (es *ExecutionState) CreateContract(addr common.Address, code types.Code) e
 	root := mpt.NewMerklePatriciaTrie(es.Tx, db.TableName(db.StorageTrieTable, es.ShardId))
 
 	es.Accounts[addr] = &AccountState{
-		Tx:          es.Tx,
+		Tx:          es.RwTx,
 		StorageRoot: root,
 		CodeHash:    code.Hash(),
 		Code:        code,
@@ -241,7 +274,7 @@ func (es *ExecutionState) ContractExists(addr common.Address) (bool, error) {
 	return acc != nil, err
 }
 
-func (es *ExecutionState) Commit() (common.Hash, error) {
+func (es *ExecutionState) Commit(isMasterchain bool, nshards int) (common.Hash, error) {
 	for k, acc := range es.Accounts {
 		v, err := acc.Commit()
 		if err != nil {
@@ -254,15 +287,36 @@ func (es *ExecutionState) Commit() (common.Hash, error) {
 		}
 	}
 
+	if isMasterchain {
+		prevChildRootHash := common.EmptyHash
+		if es.PrevBlock != common.EmptyHash {
+			prevChildRootHash = db.ReadBlock(es.RwTx, es.PrevBlock).ChildBlocksRootHash
+		}
+		if err := es.SetShardHash(nshards, prevChildRootHash); err != nil {
+			return common.EmptyHash, err
+		}
+	} else {
+		if err := es.SetMasterchainHash(); err != nil {
+			return common.EmptyHash, err
+		}
+	}
+
+	blockId := uint64(0)
+	if es.PrevBlock != common.EmptyHash {
+		blockId = db.ReadBlock(es.RwTx, es.PrevBlock).Id + 1
+	}
+
 	block := types.Block{
-		Id:                 0,
-		PrevBlock:          es.PrevBlock,
-		SmartContractsRoot: es.ContractRoot.RootHash(),
+		Id:                  blockId,
+		PrevBlock:           es.PrevBlock,
+		SmartContractsRoot:  es.ContractRoot.RootHash(),
+		ChildBlocksRootHash: es.ChildBlocksRootHash,
+		MasterChainHash:     es.MasterChain,
 	}
 
 	blockHash := block.Hash()
 
-	err := db.WriteBlock(es.Tx, &block)
+	err := db.WriteBlock(es.RwTx, &block)
 	if err != nil {
 		return common.EmptyHash, err
 	}

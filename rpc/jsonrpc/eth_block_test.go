@@ -39,7 +39,7 @@ func TestGetBlockByNumber(t *testing.T) {
 	err = database.Put(db.LastBlockTable, []byte(strconv.Itoa(0)), blockHash.Bytes())
 	require.NoError(t, err)
 
-	tx, err := database.CreateTx(ctx)
+	tx, err := database.CreateRwTx(ctx)
 	defer tx.Rollback()
 	require.NoError(t, err)
 
@@ -75,7 +75,7 @@ func TestGetBlockByHash(t *testing.T) {
 	err = database.Put(db.LastBlockTable, []byte(strconv.Itoa(0)), blockHash.Bytes())
 	require.NoError(t, err)
 
-	tx, err := database.CreateTx(ctx)
+	tx, err := database.CreateRwTx(ctx)
 	defer tx.Rollback()
 	require.NoError(t, err)
 
