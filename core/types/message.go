@@ -8,12 +8,12 @@ import (
 )
 
 type Message struct {
-	ShardInfo Shard
-	From      common.Address
-	To        common.Address
-	Value     uint256.Int
-	Data      Code
-	Signature common.Hash
+	ShardInfo Shard          `json:"shard,omitempty"`
+	From      common.Address `json:"from,omitempty"`
+	To        common.Address `json:"to,omitempty"`
+	Value     uint256.Int    `json:"value,omitempty"`
+	Data      Code           `json:"data,omitempty"`
+	Signature common.Hash    `json:"signature,omitempty"`
 }
 
 // interfaces
