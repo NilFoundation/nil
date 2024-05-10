@@ -1,4 +1,4 @@
-package tests
+package execution
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
-	"github.com/NilFoundation/nil/core/execution"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
@@ -26,7 +25,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	tx, err := suite.db.CreateTx(context.TODO())
 	suite.Require().NoError(err)
 
-	es, err := execution.NewExecutionState(tx, common.EmptyHash)
+	es, err := NewExecutionState(tx, common.EmptyHash)
 	suite.Require().NoError(err)
 
 	addr := common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
@@ -42,7 +41,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	blockHash, err := es.Commit()
 	suite.Require().NoError(err)
 
-	es, err = execution.NewExecutionState(tx, blockHash)
+	es, err = NewExecutionState(tx, blockHash)
 	suite.Require().NoError(err)
 
 	storageVal, err := es.GetState(addr, storageKey)

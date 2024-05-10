@@ -1,38 +1,37 @@
-package tests
+package db
 
 import (
 	"context"
 	"testing"
 
 	common "github.com/NilFoundation/nil/common"
-	db "github.com/NilFoundation/nil/core/db"
 	types "github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/suite"
 )
 
 type SuiteBadgerDb struct {
 	suite.Suite
-	db db.DB
+	db DB
 }
 
 type SuiteSqliteDb struct {
 	suite.Suite
-	db db.DB
+	db DB
 }
 
 func (suite *SuiteBadgerDb) SetupTest() {
 	var err error
-	suite.db, err = db.NewBadgerDb(suite.Suite.T().TempDir())
+	suite.db, err = NewBadgerDb(suite.Suite.T().TempDir())
 	suite.Require().NoError(err)
 }
 
 func (suite *SuiteSqliteDb) SetupTest() {
 	var err error
-	suite.db, err = db.NewSqlite(suite.Suite.T().TempDir() + "foo.bar")
+	suite.db, err = NewSqlite(suite.Suite.T().TempDir() + "foo.bar")
 	suite.Require().NoError(err)
 }
 
-func ValidateTables(t *suite.Suite, db db.DB) {
+func ValidateTables(t *suite.Suite, db DB) {
 	defer db.Close()
 
 	t.Require().NoError(db.Put("tbl-1", []byte("foo"), []byte("bar")))
@@ -48,7 +47,7 @@ func ValidateTables(t *suite.Suite, db db.DB) {
 	t.False(has, "Key 'foo' should be present in tbl-2")
 }
 
-func ValidateTransaction(t *suite.Suite, db db.DB) {
+func ValidateTransaction(t *suite.Suite, db DB) {
 	defer db.Close()
 
 	ctx := context.Background()
@@ -113,7 +112,7 @@ func ValidateTransaction(t *suite.Suite, db db.DB) {
 	t.Require().NoError(err)
 }
 
-func ValidateBlock(t *suite.Suite, d db.DB) {
+func ValidateBlock(t *suite.Suite, d DB) {
 	defer d.Close()
 
 	ctx := context.Background()
@@ -127,17 +126,17 @@ func ValidateBlock(t *suite.Suite, d db.DB) {
 		SmartContractsRoot: common.Hash{0x02},
 	}
 
-	err = db.WriteBlock(tx, &block)
+	err = WriteBlock(tx, &block)
 	t.Require().NoError(err)
 
-	block2 := db.ReadBlock(tx, block.Hash())
+	block2 := ReadBlock(tx, block.Hash())
 
 	t.Equal(block2.Id, block.Id)
 	t.Equal(block2.PrevBlock, block.PrevBlock)
 	t.Equal(block2.SmartContractsRoot, block.SmartContractsRoot)
 }
 
-func ValidateDbOperations(t *suite.Suite, d db.DB) {
+func ValidateDbOperations(t *suite.Suite, d DB) {
 	defer d.Close()
 
 	t.Require().NoError(d.Put("tbl", []byte("foo"), []byte("bar")))

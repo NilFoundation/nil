@@ -1,17 +1,15 @@
-package tests
+package rpc
 
 import (
 	"bytes"
 	"testing"
-
-	"github.com/NilFoundation/nil/rpc"
 )
 
 func TestTypescriptGeneration(t *testing.T) {
 
 	// create buffer to write to test
 
-	s, err := rpc.ExportTypescriptTypes()
+	s, err := ExportTypescriptTypes()
 
 	if err != nil {
 		t.Errorf("Failed to export typescript types")
