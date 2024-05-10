@@ -145,19 +145,23 @@ func (as *AccountState) Commit() (common.Hash, error) {
 	return accHash, nil
 }
 
-func (es *ExecutionState) GetState(addr common.Address, key common.Hash) (uint256.Int, error) {
+func (es *ExecutionState) GetState(addr common.Address, key common.Hash) common.Hash {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
-		return uint256.Int{}, err
+		return common.EmptyHash
 	}
 	if acc == nil {
-		return uint256.Int{}, nil
+		return common.EmptyHash
 	}
 
-	return acc.GetState(key)
+	value, err := acc.GetState(key)
+	if err != nil {
+		return common.EmptyHash
+	}
+	return value.Bytes32()
 }
 
-func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val uint256.Int) error {
+func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val common.Hash) error {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
 		return err
@@ -167,7 +171,7 @@ func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val uin
 		return db.ErrKeyNotFound
 	}
 
-	acc.SetState(key, val)
+	acc.SetState(key, *val.Uint256())
 	return nil
 }
 

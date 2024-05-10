@@ -5,7 +5,6 @@ import (
 	"sync/atomic"
 
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
@@ -255,20 +254,14 @@ func NewStateDB(state *execution.ExecutionState) StateDB {
 }
 
 func (f *Facade) GetState(addr common.Address, key common.Hash) common.Hash {
-	val, err := f.state.GetState(addr, key)
+	val := f.state.GetState(addr, key)
 	log.Debug().Msgf("get state of contract %s at %v: %v", addr, key, val)
-	if err == db.ErrKeyNotFound {
-		return common.EmptyHash
-	}
-	if err != nil {
-		panic(err)
-	}
-	return val.Bytes32()
+	return val
 }
 
 func (f *Facade) SetState(addr common.Address, key common.Hash, val common.Hash) {
 	log.Debug().Msgf("set state of contract %s at %v: %v", addr, key, val)
-	err := f.state.SetState(addr, key, *uint256.MustFromBig(val.Big()))
+	err := f.state.SetState(addr, key, val)
 	if err != nil {
 		panic(err)
 	}

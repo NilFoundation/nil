@@ -6,7 +6,6 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -35,7 +34,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	storageKey := common.BytesToHash([]byte("storage-key"))
 
-	err = es.SetState(addr, storageKey, *uint256.NewInt(123456))
+	err = es.SetState(addr, storageKey, common.IntToHash(123456))
 	suite.Require().NoError(err)
 
 	blockHash, err := es.Commit()
@@ -44,10 +43,9 @@ func (suite *SuiteExecutionState) TestExecState() {
 	es, err = NewExecutionState(tx, blockHash)
 	suite.Require().NoError(err)
 
-	storageVal, err := es.GetState(addr, storageKey)
-	suite.Require().NoError(err)
+	storageVal := es.GetState(addr, storageKey)
 
-	suite.Equal(storageVal, *uint256.NewInt(123456))
+	suite.Equal(storageVal, common.IntToHash(123456))
 }
 
 func TestSuiteExecutionState(t *testing.T) {

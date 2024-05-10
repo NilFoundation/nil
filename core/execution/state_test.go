@@ -6,7 +6,6 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,11 +19,10 @@ func TestStorage(t *testing.T) {
 
 	account := common.HexToAddress("deadbeef")
 	key := common.EmptyHash
-	value := *uint256.MustFromHex("0x42")
+	value := common.IntToHash(42)
 
-	num, err := state.GetState(account, key)
-	require.NoError(t, err)
-	require.Equal(t, num, uint256.Int{})
+	num := state.GetState(account, key)
+	require.Equal(t, num, common.EmptyHash)
 
 	exists, err := state.ContractExists(account)
 	require.NoError(t, err)
@@ -43,7 +41,7 @@ func TestStorage(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, exists)
 
-	num, err = state.GetState(account, key)
+	num = state.GetState(account, key)
 	require.NoError(t, err)
 	require.Equal(t, num, value)
 }
