@@ -1,10 +1,11 @@
-package ssz
+package tests
 
 import (
 	"encoding/hex"
 	"testing"
 
 	common "github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/ssz"
 	types "github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
@@ -28,7 +29,7 @@ func TestSsz(t *testing.T) {
 	require.Equal(t, block2.PrevBlock, block.PrevBlock)
 	require.Equal(t, block2.SmartContractsRoot, block.SmartContractsRoot)
 
-	h, err := SSZHash(&block2)
+	h, err := ssz.SSZHash(&block2)
 	require.NoError(t, err)
 
 	h2, err := hex.DecodeString("105d380db7f5773ffd3d99f86ef08ddd354be37962457bfdc968e739b0bea4e4")
@@ -61,7 +62,7 @@ func TestSszTransaction(t *testing.T) {
 	require.Equal(t, message2.Data, message.Data)
 	require.Equal(t, message2.Signature, message.Signature)
 
-	h, err := SSZHash(&message2)
+	h, err := ssz.SSZHash(&message2)
 	require.NoError(t, err)
 
 	h2, err := hex.DecodeString("25d61cdf3ba63fcc5f96505be3c2e5b3f5dcdfc6527216c9172f8b5def08bff1")
