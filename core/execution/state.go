@@ -175,6 +175,14 @@ func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val com
 	return nil
 }
 
+func (es *ExecutionState) GetBalance(addr common.Address) uint256.Int {
+	acc, err := es.GetAccount(addr)
+	if err != nil || acc == nil {
+		return uint256.Int{}
+	}
+	return acc.Balance
+}
+
 func (es *ExecutionState) SetBalance(addr common.Address, balance uint256.Int) error {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
