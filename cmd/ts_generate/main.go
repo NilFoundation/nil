@@ -1,18 +1,27 @@
 package main
 
 import (
-	"flag"
 	"os"
 	"path/filepath"
 
 	"github.com/NilFoundation/nil/rpc"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/cobra"
 )
 
 func main() {
+	rootCmd := &cobra.Command{
+		Use:   "ts_generate [output file]",
+		Short: "Generate typescript types for RPC API",
+	}
+
 	// read argument
-	path := flag.String("path", "models_bel.ts", "path to write typescript types")
-	flag.Parse()
+	path := rootCmd.Flags().StringP("output", "o", "rpc.ts", "Output file path")
+	cmdErr := rootCmd.Execute()
+
+	if cmdErr != nil {
+		return
+	}
 
 	// get the absolute path
 	absPath, err := filepath.Abs(*path)

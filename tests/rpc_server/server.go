@@ -44,12 +44,19 @@ func startRpcServer(ctx context.Context, nShards int, dbpath string) {
 	}
 
 	ethImpl := jsonrpc.NewEthAPI(base, badger, pool, logger)
+	debugImpl := jsonrpc.NewDebugAPI(base, badger, logger)
 
 	apiList := []transport.API{
 		{
 			Namespace: "eth",
 			Public:    true,
 			Service:   jsonrpc.EthAPI(ethImpl),
+			Version:   "1.0",
+		},
+		{
+			Namespace: "debug",
+			Public:    true,
+			Service:   jsonrpc.DebugAPI(debugImpl),
 			Version:   "1.0",
 		},
 	}

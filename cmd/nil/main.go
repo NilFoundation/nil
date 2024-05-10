@@ -36,12 +36,19 @@ func startRpcServer(ctx context.Context, db db.DB, pool msgpool.Pool) error {
 	base := jsonrpc.NewBaseApi(rpccfg.DefaultEvmCallTimeout)
 
 	ethImpl := jsonrpc.NewEthAPI(base, db, pool, logger)
+	debugImpl := jsonrpc.NewDebugAPI(base, db, logger)
 
 	apiList := []transport.API{
 		{
 			Namespace: "eth",
 			Public:    true,
 			Service:   jsonrpc.EthAPI(ethImpl),
+			Version:   "1.0",
+		},
+		{
+			Namespace: "debug",
+			Public:    true,
+			Service:   jsonrpc.DebugAPI(debugImpl),
 			Version:   "1.0",
 		},
 	}

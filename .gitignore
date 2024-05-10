@@ -5,3 +5,5 @@ tests/__debug*
 test.db
 models_bel.ts
 result
+clickhouse
+exporter.yaml

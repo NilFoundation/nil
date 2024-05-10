@@ -200,6 +200,27 @@ func (suite *SuiteRpc) TestRpcError() {
 	suite.Equal("invalid argument 1: hex string without 0x prefix", resp.Error["message"])
 }
 
+func (suite *SuiteRpc) TestRpcDebugModules() {
+	request := Request{
+		Jsonrpc: "2.0",
+		Method:  "debug_getBlockByNumber",
+		Params:  []any{types.MasterShardId, "latest"},
+	}
+
+	resp, err := makeRequest(&request)
+	suite.Require().NoError(err)
+
+	suite.Require().Contains(resp.Result, "number")
+	suite.Require().Contains(resp.Result, "hash")
+	suite.Require().Contains(resp.Result, "content")
+
+	sliceContent := resp.Result["content"].(string)
+	// check if the string starts with 0x prefix
+	suite.Require().Equal("0x", string(sliceContent[:2]))
+	// print resp to see the result
+	suite.T().Logf("resp: %v", resp)
+}
+
 func TestSuiteRpc(t *testing.T) {
 	suite.Run(t, new(SuiteRpc))
 }
