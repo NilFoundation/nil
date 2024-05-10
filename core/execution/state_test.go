@@ -31,6 +31,12 @@ func TestStorage(t *testing.T) {
 	require.False(t, exists)
 
 	err = state.SetState(account, key, value)
+	require.Error(t, err)
+
+	err = state.CreateContract(account, make([]byte, 1))
+	require.NoError(t, err)
+
+	err = state.SetState(account, key, value)
 	require.NoError(t, err)
 
 	exists, err = state.ContractExists(account)
