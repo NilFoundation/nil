@@ -21,7 +21,7 @@ func (suite *SuiteExecutionState) SetupTest() {
 }
 
 func (suite *SuiteExecutionState) TestExecState() {
-	tx, err := suite.db.CreateTx(context.TODO())
+	tx, err := suite.db.CreateTx(context.Background())
 	suite.Require().NoError(err)
 
 	es, err := NewExecutionState(tx, common.EmptyHash)

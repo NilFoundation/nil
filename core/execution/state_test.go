@@ -13,7 +13,7 @@ import (
 func newState(t *testing.T) *ExecutionState {
 	database, err := db.NewBadgerDbInMemory()
 	require.NoError(t, err)
-	tx, err := database.CreateTx(context.TODO())
+	tx, err := database.CreateTx(context.Background())
 	require.NoError(t, err)
 	state, err := NewExecutionState(tx, common.EmptyHash)
 	require.NoError(t, err)
