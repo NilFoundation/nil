@@ -38,7 +38,6 @@ type StateDB interface {
 	GetTransientState(addr common.Address, key common.Hash) common.Hash
 	SetTransientState(addr common.Address, key, value common.Hash)
 
-	SelfDestruct(common.Address)
 	HasSelfDestructed(common.Address) bool
 
 	Selfdestruct6780(common.Address)
