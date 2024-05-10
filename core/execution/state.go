@@ -160,8 +160,11 @@ func (es *ExecutionState) GetState(addr common.Address, key common.Hash) (uint25
 func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val uint256.Int) error {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
-		logger.Error().Msgf("failed to find contract while setting state")
 		return err
+	}
+	if acc == nil {
+		logger.Error().Msgf("failed to find contract while setting state")
+		return db.ErrKeyNotFound
 	}
 
 	acc.SetState(key, val)
