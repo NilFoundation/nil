@@ -109,27 +109,20 @@ func (c *ShardChain) testTransaction(ctx context.Context, nshards int) (common.H
 		c.logger.Debug().Msgf("Contract storage is now %v", number)
 	}
 
-	if c.isMasterchain() {
-		for i := 1; i < nshards; i++ {
-			lastBlockRaw, err := roTx.Get(db.LastBlockTable, []byte(strconv.Itoa(i)))
-			if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-				return common.EmptyHash, fmt.Errorf("failed getting last block %w for shard %d", err, i)
-			}
-			lastBlockHash := common.EmptyHash
-			if lastBlockRaw != nil {
-				lastBlockHash = common.Hash(*lastBlockRaw)
-			}
-			es.SetShardHash(uint64(i), lastBlockHash)
-		}
-	} else {
-		masterchainBlockRaw, err := roTx.Get(db.LastBlockTable, []byte(strconv.Itoa(0)))
+	for i := 0; i < nshards; i++ {
+		lastBlockRaw, err := roTx.Get(db.LastBlockTable, []byte(strconv.Itoa(i)))
 		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-			return common.EmptyHash, fmt.Errorf("failed getting last masterchain block %w", err)
+			return common.EmptyHash, fmt.Errorf("failed getting last block %w for shard %d", err, i)
 		}
-		if masterchainBlockRaw != nil {
-			es.SetMasterchainHash(common.Hash(*masterchainBlockRaw))
+		lastBlockHash := common.EmptyHash
+		if lastBlockRaw != nil {
+			lastBlockHash = common.Hash(*lastBlockRaw)
 		}
-
+		if c.isMasterchain() {
+			es.SetShardHash(uint64(i), lastBlockHash)
+		} else {
+			es.SetMasterchainHash(lastBlockHash)
+		}
 	}
 
 	blockId := uint64(0)

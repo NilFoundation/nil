@@ -37,12 +37,10 @@ func ValidateTables(t *suite.Suite, db DB) {
 	t.Require().NoError(db.Put("tbl-1", []byte("foo"), []byte("bar")))
 
 	has, err := db.Exists("tbl-1", []byte("foo"))
-
 	t.Require().NoError(err)
 	t.True(has, "Key 'foo' should be present in tbl-1")
 
 	has, err = db.Exists("tbl-2", []byte("foo"))
-
 	t.Require().NoError(err)
 	t.False(has, "Key 'foo' should be present in tbl-2")
 }
@@ -51,33 +49,26 @@ func ValidateTransaction(t *suite.Suite, db DB) {
 	defer db.Close()
 
 	ctx := context.Background()
-
 	tx, err := db.CreateRwTx(ctx)
-
 	t.Require().NoError(err)
 	defer tx.Rollback()
 
 	tx2, err := db.CreateRwTx(ctx)
-
 	t.Require().NoError(err)
-
 	defer tx2.Rollback()
 
 	t.Require().NoError(tx.Put("tbl", []byte("foo"), []byte("bar")))
 
 	val, err := tx.Get("tbl", []byte("foo"))
-
 	t.Require().NoError(err)
 	t.Equal(*val, []byte("bar"))
 
 	has, err := tx.Exists("tbl", []byte("foo"))
-
 	t.Require().NoError(err)
 	t.True(has, "Key 'foo' should be present")
 	// Testing that parallel transactions don't see changes made by the first one
 
 	has, err = tx2.Exists("tbl", []byte("foo"))
-
 	t.Require().NoError(err)
 	t.False(has, "Key 'foo' should not be present")
 
@@ -90,7 +81,6 @@ func ValidateTransaction(t *suite.Suite, db DB) {
 	// Testing deletion of rows
 
 	tx, err = db.CreateRwTx(ctx)
-
 	t.Require().NoError(err)
 	defer tx.Rollback()
 
@@ -100,11 +90,9 @@ func ValidateTransaction(t *suite.Suite, db DB) {
 	t.True(has, "Key 'foo' should be present")
 
 	err = tx.Delete("tbl", []byte("foo"))
-
 	t.Require().NoError(err)
 
 	has, err = tx.Exists("tbl", []byte("foo"))
-
 	t.Require().NoError(err)
 	t.False(has, "Key 'foo' should not be present")
 
@@ -142,40 +130,33 @@ func ValidateDbOperations(t *suite.Suite, d DB) {
 	t.Require().NoError(d.Put("tbl", []byte("foo"), []byte("bar")))
 
 	val, err := d.Get("tbl", []byte("foo"))
-
 	t.Require().NoError(err)
 	t.Equal(*val, []byte("bar"))
 
 	has, err := d.Exists("tbl", []byte("foo"))
-
 	t.Require().NoError(err)
 	t.True(has, "Key 'foo' should be present")
 
 	t.Require().NoError(d.Delete("tbl", []byte("foo")))
 
 	has, err = d.Exists("tbl", []byte("foo"))
-
 	t.Require().NoError(err)
 	t.False(has, "Key 'foo' should not be present")
 }
 
-func (suite *SuiteBadgerDb) TestTwoParallelTwoTransaction() {
+func (suite *SuiteBadgerDb) TestTwoParallelTransaction() {
 	defer suite.db.Close()
 
 	ctx := context.Background()
-
 	tx, err := suite.db.CreateRwTx(ctx)
-
 	suite.Suite.Require().NoError(err)
 	defer tx.Rollback()
 
 	suite.Suite.Require().NoError(tx.Put("tbl", []byte("foo1"), []byte("bar1")))
 	suite.Suite.Require().NoError(tx.Put("tbl", []byte("foo2"), []byte("bar2")))
-
 	suite.Suite.Require().NoError(tx.Commit())
 
 	tx1, err := suite.db.CreateRoTx(ctx)
-
 	suite.Suite.Require().NoError(err)
 
 	tx2, err := suite.db.CreateRwTx(ctx)

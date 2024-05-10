@@ -26,13 +26,13 @@ type AccountState struct {
 }
 
 type ExecutionState struct {
-	tx                db.Tx
-	ContractRoot      *mpt.MerklePatriciaTrie
-	PrevBlock         common.Hash
-	MasterChain       common.Hash
-	ShardId           int
-	ChildChainsBlocks map[uint64]common.Hash
-	Accounts          map[common.Address]*AccountState
+	tx               db.Tx
+	ContractRoot     *mpt.MerklePatriciaTrie
+	PrevBlock        common.Hash
+	MasterChain      common.Hash
+	ShardId          int
+	ChildChainBlocks map[uint64]common.Hash
+	Accounts         map[common.Address]*AccountState
 }
 
 func NewAccountState(tx db.Tx, shardId int, data []byte) (*AccountState, error) {
@@ -76,12 +76,12 @@ func NewExecutionState(tx db.Tx, shardId int, blockHash common.Hash) (*Execution
 	}
 
 	return &ExecutionState{
-		tx:                tx,
-		ContractRoot:      root,
-		PrevBlock:         blockHash,
-		ShardId:           shardId,
-		ChildChainsBlocks: map[uint64]common.Hash{},
-		Accounts:          map[common.Address]*AccountState{},
+		tx:               tx,
+		ContractRoot:     root,
+		PrevBlock:        blockHash,
+		ShardId:          shardId,
+		ChildChainBlocks: map[uint64]common.Hash{},
+		Accounts:         map[common.Address]*AccountState{},
 	}, nil
 }
 
@@ -217,7 +217,7 @@ func (es *ExecutionState) SetMasterchainHash(masterChainHash common.Hash) {
 }
 
 func (es *ExecutionState) SetShardHash(shardId uint64, hash common.Hash) {
-	es.ChildChainsBlocks[shardId] = hash
+	es.ChildChainBlocks[shardId] = hash
 }
 
 func (es *ExecutionState) CreateContract(addr common.Address, code types.Code) error {
@@ -266,11 +266,11 @@ func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 	}
 
 	treeShardsRootHash := common.EmptyHash
-	if len(es.ChildChainsBlocks) > 0 {
-		treeShards := mpt.NewMerklePatriciaTrie(es.tx, db.ShardsBlocksTrieTable+strconv.FormatUint(blockId, 10))
-		for k, hash := range es.ChildChainsBlocks {
-			key := []byte(strconv.FormatUint(k, 10)) // Convert k to []byte
-			if err := treeShards.Set(key, []byte(hash.String())); err != nil {
+	if len(es.ChildChainBlocks) > 0 {
+		treeShards := mpt.NewMerklePatriciaTrie(es.tx, db.ShardBlocksTrieTable+strconv.FormatUint(blockId, 10))
+		for k, hash := range es.ChildChainBlocks {
+			key := strconv.AppendUint(nil, k, 10)
+			if err := treeShards.Set(key, hash.Bytes()); err != nil {
 				return common.EmptyHash, err
 			}
 		}
