@@ -90,7 +90,12 @@ func (es *ExecutionState) GetAccount(addr common.Address) (*AccountState, error)
 		return nil, nil
 	}
 
-	return NewAccountState(es.Tx, common.Hash(accHash))
+	acc, err = NewAccountState(es.Tx, common.Hash(accHash))
+	if err != nil {
+		return nil, err
+	}
+	es.Accounts[addr] = acc
+	return acc, nil
 }
 
 func (as *AccountState) GetState(key common.Hash) (uint256.Int, error) {
