@@ -34,6 +34,9 @@ func (s *Code) EncodeSSZ(dst []byte) ([]byte, error) {
 }
 
 func (c *Code) Hash() common.Hash {
+	if len(*c) == 0 {
+		return common.EmptyHash
+	}
 	return common.CastToHash(poseidon.Sum((*c)[:]))
 }
 
