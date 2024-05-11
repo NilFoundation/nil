@@ -19,9 +19,9 @@ func (c Code) EncodingSizeSSZ() int {
 	return len(c)
 }
 
-func (s *Code) Clone() common.Clonable {
-	clonned := *s
-	return &clonned
+func (s Code) Clone() common.Clonable {
+	cloned := s
+	return &cloned
 }
 
 func (s *Code) DecodeSSZ(buf []byte, version int) error {
@@ -29,17 +29,17 @@ func (s *Code) DecodeSSZ(buf []byte, version int) error {
 	return nil
 }
 
-func (s *Code) EncodeSSZ(dst []byte) ([]byte, error) {
-	return append(dst, *s...), nil
+func (s Code) EncodeSSZ(dst []byte) ([]byte, error) {
+	return append(dst, s...), nil
 }
 
-func (c *Code) Hash() common.Hash {
-	if len(*c) == 0 {
+func (c Code) Hash() common.Hash {
+	if len(c) == 0 {
 		return common.EmptyHash
 	}
-	return common.CastToHash(poseidon.Sum((*c)[:]))
+	return common.CastToHash(poseidon.Sum(c[:]))
 }
 
-func (s *Code) Static() bool {
+func (s Code) Static() bool {
 	return false
 }
