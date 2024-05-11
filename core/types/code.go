@@ -1,6 +1,8 @@
 package types
 
 import (
+	"slices"
+
 	"github.com/NilFoundation/nil/common"
 	ssz "github.com/NilFoundation/nil/core/ssz"
 	"github.com/iden3/go-iden3-crypto/poseidon"
@@ -20,7 +22,7 @@ func (c Code) EncodingSizeSSZ() int {
 }
 
 func (s Code) Clone() common.Clonable {
-	cloned := s
+	cloned := slices.Clone(s)
 	return &cloned
 }
 
