@@ -6,7 +6,6 @@ import (
 	common "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/ssz"
 	types "github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 )
 
 func readDecodable[
@@ -15,8 +14,8 @@ func readDecodable[
 		~*S
 		ssz.SSZDecodable
 	},
-](tx Tx, table string, hash common.Hash) *S {
-	data, err := tx.Get(table, hash.Bytes())
+](tx Tx, table string, shardId int, hash common.Hash) *S {
+	data, err := tx.Get(TableName(table, shardId), hash.Bytes())
 	if errors.Is(err, ErrKeyNotFound) {
 		return nil
 	}
@@ -38,7 +37,7 @@ func writeEncodable[
 		ssz.SSZEncodable
 		common.Hashable
 	},
-](tx Tx, table string, obj T) error {
+](tx Tx, table string, shardId int, obj T) error {
 	hash := obj.Hash()
 
 	data, err := obj.EncodeSSZ(nil)
@@ -46,35 +45,41 @@ func writeEncodable[
 		return err
 	}
 
-	return tx.Put(table, hash.Bytes(), data)
+	return tx.Put(TableName(table, shardId), hash.Bytes(), data)
 }
 
+/*
+TODO: eventually, ReadBlock and WriteBlock should accept the shardId
+parameter. Currently, howerver, the RPC doesn't contain shardId parameters
+for fetching shard by hash, and it would take time to do the shardId resolution
+correctly for that case.
+*/
 func ReadBlock(tx Tx, hash common.Hash) *types.Block {
-	return readDecodable[types.Block, *types.Block](tx, BlockTable, hash)
+	return readDecodable[types.Block, *types.Block](tx, BlockTable, 0, hash)
 }
 
 func WriteBlock(tx Tx, block *types.Block) error {
-	return writeEncodable(tx, BlockTable, block)
+	return writeEncodable(tx, BlockTable, 0, block)
 }
 
-func ReadContract(tx Tx, hash common.Hash) *types.SmartContract {
-	return readDecodable[types.SmartContract, *types.SmartContract](tx, ContractTable, hash)
+func ReadContract(tx Tx, shardId int, hash common.Hash) *types.SmartContract {
+	return readDecodable[types.SmartContract, *types.SmartContract](tx, ContractTable, shardId, hash)
 }
 
-func WriteContract(tx Tx, contract *types.SmartContract) error {
-	return writeEncodable(tx, ContractTable, contract)
+func WriteContract(tx Tx, shardId int, contract *types.SmartContract) error {
+	return writeEncodable(tx, ContractTable, shardId, contract)
 }
 
-func WriteCode(tx Tx, code types.Code) error {
+func WriteCode(tx Tx, shardId int, code types.Code) error {
 	hash := code.Hash()
-	if err := tx.Put(CodeTable, hash.Bytes(), code[:]); err != nil {
+	if err := tx.Put(TableName(CodeTable, shardId), hash.Bytes(), code[:]); err != nil {
 		return err
 	}
 	return nil
 }
 
-func ReadCode(tx Tx, hash common.Hash) (*types.Code, error) {
-	code, err := tx.Get(CodeTable, hash[:])
+func ReadCode(tx Tx, shardId int, hash common.Hash) (*types.Code, error) {
+	code, err := tx.Get(TableName(CodeTable, shardId), hash[:])
 	if err != nil {
 		return nil, err
 	}
@@ -84,35 +89,5 @@ func ReadCode(tx Tx, hash common.Hash) (*types.Code, error) {
 	}
 
 	res := types.Code(*code)
-	return &res, nil
-}
-
-func WriteStorage(tx Tx, addr common.Address, key common.Hash, value uint256.Int) error {
-	fullKey := make([]byte, common.AddrSize+common.HashSize)
-	copy(fullKey, addr[:])
-	copy(fullKey[common.HashSize:], key[:])
-
-	v := value.Bytes()
-	if len(v) == 0 {
-		return tx.Delete(StorageTable, fullKey)
-	}
-
-	return tx.Put(StorageTable, fullKey, v)
-}
-
-func ReadStorage(tx Tx, addr common.Address, key common.Hash) (*uint256.Int, error) {
-	fullKey := make([]byte, common.AddrSize+common.HashSize)
-	copy(fullKey, addr[:])
-	copy(fullKey[common.HashSize:], key[:])
-
-	enc, err := tx.Get(StorageTable, fullKey)
-
-	if enc == nil {
-		return nil, err
-	}
-
-	var res uint256.Int
-	res.SetBytes(*enc)
-
 	return &res, nil
 }

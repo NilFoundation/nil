@@ -1,5 +1,7 @@
 package db
 
+import "fmt"
+
 const (
 	BlockTable = "Blocks"
 
@@ -16,3 +18,7 @@ const (
 
 	LastBlockTable = "LastBlock"
 )
+
+func TableName(tableName string, shardId int) string {
+	return fmt.Sprintf("%s:%d:", tableName, shardId)
+}

@@ -50,7 +50,7 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 		lastBlockHash = common.Hash(*lastBlockHashBytes)
 	}
 
-	es, err := execution.NewExecutionState(tx, lastBlockHash)
+	es, err := execution.NewExecutionState(tx, c.Id, lastBlockHash)
 
 	if err != nil {
 		return common.EmptyHash, err
