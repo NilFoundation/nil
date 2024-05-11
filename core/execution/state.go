@@ -100,6 +100,9 @@ func (as *AccountState) GetState(key common.Hash) (uint256.Int, error) {
 	}
 
 	rawVal, err := as.StorageRoot.Get(key[:])
+	if err == db.ErrKeyNotFound {
+		return uint256.Int{}, nil
+	}
 	if err != nil {
 		return uint256.Int{}, err
 	}
@@ -148,7 +151,7 @@ func (as *AccountState) Commit() (common.Hash, error) {
 func (es *ExecutionState) GetState(addr common.Address, key common.Hash) common.Hash {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
-		return common.EmptyHash
+		panic(err)
 	}
 	if acc == nil {
 		return common.EmptyHash
@@ -156,7 +159,7 @@ func (es *ExecutionState) GetState(addr common.Address, key common.Hash) common.
 
 	value, err := acc.GetState(key)
 	if err != nil {
-		return common.EmptyHash
+		panic(err)
 	}
 	return value.Bytes32()
 }
