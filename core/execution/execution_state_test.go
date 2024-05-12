@@ -25,7 +25,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	tx, err := suite.db.CreateTx(context.TODO())
 	suite.Require().NoError(err)
 
-	es, err := NewExecutionState(tx, common.EmptyHash)
+	es, err := NewExecutionState(tx, 0, common.EmptyHash)
 	suite.Require().NoError(err)
 
 	addr := common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
@@ -41,7 +41,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	blockHash, err := es.Commit()
 	suite.Require().NoError(err)
 
-	es, err = NewExecutionState(tx, blockHash)
+	es, err = NewExecutionState(tx, 0, blockHash)
 	suite.Require().NoError(err)
 
 	storageVal, err := es.GetState(addr, storageKey)
