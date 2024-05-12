@@ -19,6 +19,7 @@ type AccountState struct {
 	Code        types.Code
 	CodeHash    common.Hash
 	StorageRoot *mpt.MerklePatriciaTrie
+	ShardId     int
 
 	State map[common.Hash]uint256.Int
 }
@@ -27,17 +28,22 @@ type ExecutionState struct {
 	Tx           db.Tx
 	ContractRoot *mpt.MerklePatriciaTrie
 	PrevBlock    common.Hash
+	ShardId      int
 
 	Accounts map[common.Address]*AccountState
 }
 
-func NewAccountState(tx db.Tx, accountHash common.Hash) (*AccountState, error) {
-	account := db.ReadContract(tx, accountHash)
+func NewAccountState(tx db.Tx, shardId int, data []byte) (*AccountState, error) {
+	account := new(types.SmartContract)
+
+	if err := account.DecodeSSZ(data, 0); err != nil {
+		logger.Fatal().Msg("Invalid SSZ while decoding account")
+	}
 
 	// TODO: store storage of each contract in separate table
-	root := mpt.NewMerklePatriciaTrieWithRoot(tx, db.StorageTrieTable, account.StorageRoot)
+	root := mpt.NewMerklePatriciaTrieWithRoot(tx, db.TableName(db.StorageTrieTable, shardId), account.StorageRoot)
 
-	code, err := db.ReadCode(tx, account.CodeHash)
+	code, err := db.ReadCode(tx, shardId, account.CodeHash)
 
 	if err != nil {
 		return nil, err
@@ -52,24 +58,26 @@ func NewAccountState(tx db.Tx, accountHash common.Hash) (*AccountState, error) {
 		StorageRoot: root,
 		CodeHash:    account.CodeHash,
 		Code:        *code,
+		ShardId:     shardId,
 		State:       map[common.Hash]uint256.Int{},
 	}, nil
 }
 
-func NewExecutionState(tx db.Tx, blockHash common.Hash) (*ExecutionState, error) {
+func NewExecutionState(tx db.Tx, shardId int, blockHash common.Hash) (*ExecutionState, error) {
 	block := db.ReadBlock(tx, blockHash)
 
 	var root *mpt.MerklePatriciaTrie
 	if block != nil {
-		root = mpt.NewMerklePatriciaTrieWithRoot(tx, db.ContractTrieTable, block.SmartContractsRoot)
+		root = mpt.NewMerklePatriciaTrieWithRoot(tx, db.TableName(db.ContractTrieTable, shardId), block.SmartContractsRoot)
 	} else {
-		root = mpt.NewMerklePatriciaTrie(tx, db.ContractTrieTable)
+		root = mpt.NewMerklePatriciaTrie(tx, db.TableName(db.ContractTrieTable, shardId))
 	}
 
 	return &ExecutionState{
 		Tx:           tx,
 		ContractRoot: root,
 		PrevBlock:    blockHash,
+		ShardId:      shardId,
 		Accounts:     map[common.Address]*AccountState{},
 	}, nil
 }
@@ -81,16 +89,22 @@ func (es *ExecutionState) GetAccount(addr common.Address) (*AccountState, error)
 	}
 
 	addrHash := addr.Hash()
-	accHash, err := es.ContractRoot.Get(addrHash[:])
+
+	data, err := es.ContractRoot.Get(addrHash[:])
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, err
 	}
 
-	if accHash == nil {
+	if data == nil {
 		return nil, nil
 	}
 
-	return NewAccountState(es.Tx, common.Hash(accHash))
+	acc, err = NewAccountState(es.Tx, es.ShardId, data)
+	if err != nil {
+		return nil, err
+	}
+	es.Accounts[addr] = acc
+	return acc, nil
 }
 
 func (as *AccountState) GetState(key common.Hash) (uint256.Int, error) {
@@ -121,11 +135,11 @@ func (as *AccountState) SetState(key common.Hash, val uint256.Int) {
 	as.State[key] = val
 }
 
-func (as *AccountState) Commit() (common.Hash, error) {
+func (as *AccountState) Commit() ([]byte, error) {
 	for k, v := range as.State {
 		err := as.StorageRoot.Set(k[:], ssz.Uint256SSZ(v))
 		if err != nil {
-			return common.EmptyHash, err
+			return nil, err
 		}
 	}
 
@@ -135,17 +149,16 @@ func (as *AccountState) Commit() (common.Hash, error) {
 		CodeHash:    as.CodeHash,
 	}
 
-	accHash := acc.Hash()
-
-	if err := db.WriteContract(as.Tx, &acc); err != nil {
-		return common.EmptyHash, err
+	data, err := acc.EncodeSSZ(nil)
+	if err != nil {
+		return nil, err
 	}
 
-	if err := db.WriteCode(as.Tx, as.Code); err != nil {
-		return common.EmptyHash, err
+	if err := db.WriteCode(as.Tx, as.ShardId, as.Code); err != nil {
+		return nil, err
 	}
 
-	return accHash, nil
+	return data, nil
 }
 
 func (es *ExecutionState) GetState(addr common.Address, key common.Hash) common.Hash {
@@ -208,13 +221,14 @@ func (es *ExecutionState) CreateContract(addr common.Address, code types.Code) e
 	}
 
 	// TODO: store storage of each contract in separate table
-	root := mpt.NewMerklePatriciaTrie(es.Tx, db.StorageTrieTable)
+	root := mpt.NewMerklePatriciaTrie(es.Tx, db.TableName(db.StorageTrieTable, es.ShardId))
 
 	es.Accounts[addr] = &AccountState{
 		Tx:          es.Tx,
 		StorageRoot: root,
 		CodeHash:    code.Hash(),
 		Code:        code,
+		ShardId:     es.ShardId,
 		State:       map[common.Hash]uint256.Int{},
 	}
 

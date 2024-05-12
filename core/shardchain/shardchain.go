@@ -50,7 +50,7 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 		lastBlockHash = common.Hash(*lastBlockHashBytes)
 	}
 
-	es, err := execution.NewExecutionState(tx, lastBlockHash)
+	es, err := execution.NewExecutionState(tx, c.Id, lastBlockHash)
 
 	if err != nil {
 		return common.EmptyHash, err
@@ -97,7 +97,7 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 			return common.EmptyHash, err
 		}
 
-		number := evm.StateDB.GetState(addr, common.Hash{})
+		number := evm.StateDB.GetState(addr, common.EmptyHash)
 		c.logger.Debug().Msgf("Contract storage is now %v", number)
 	}
 

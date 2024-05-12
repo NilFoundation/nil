@@ -1,6 +1,8 @@
 package types
 
 import (
+	"slices"
+
 	"github.com/NilFoundation/nil/common"
 	ssz "github.com/NilFoundation/nil/core/ssz"
 	"github.com/iden3/go-iden3-crypto/poseidon"
@@ -19,9 +21,9 @@ func (c Code) EncodingSizeSSZ() int {
 	return len(c)
 }
 
-func (s *Code) Clone() common.Clonable {
-	clonned := *s
-	return &clonned
+func (s Code) Clone() common.Clonable {
+	cloned := slices.Clone(s)
+	return &cloned
 }
 
 func (s *Code) DecodeSSZ(buf []byte, version int) error {
@@ -29,14 +31,17 @@ func (s *Code) DecodeSSZ(buf []byte, version int) error {
 	return nil
 }
 
-func (s *Code) EncodeSSZ(dst []byte) ([]byte, error) {
-	return append(dst, *s...), nil
+func (s Code) EncodeSSZ(dst []byte) ([]byte, error) {
+	return append(dst, s...), nil
 }
 
-func (c *Code) Hash() common.Hash {
-	return common.CastToHash(poseidon.Sum((*c)[:]))
+func (c Code) Hash() common.Hash {
+	if len(c) == 0 {
+		return common.EmptyHash
+	}
+	return common.CastToHash(poseidon.Sum(c[:]))
 }
 
-func (s *Code) Static() bool {
+func (s Code) Static() bool {
 	return false
 }

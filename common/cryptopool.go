@@ -1,9 +1,9 @@
 package common
 
 import (
+	"golang.org/x/crypto/sha3"
 	"hash"
 	"sync"
-	"golang.org/x/crypto/sha3"
 )
 
 var cryptoPool = sync.Pool{
