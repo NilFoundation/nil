@@ -114,6 +114,9 @@ func (as *AccountState) GetState(key common.Hash) (uint256.Int, error) {
 	}
 
 	rawVal, err := as.StorageRoot.Get(key[:])
+	if err == db.ErrKeyNotFound {
+		return uint256.Int{}, nil
+	}
 	if err != nil {
 		return uint256.Int{}, err
 	}
@@ -158,27 +161,42 @@ func (as *AccountState) Commit() ([]byte, error) {
 	return data, nil
 }
 
-func (es *ExecutionState) GetState(addr common.Address, key common.Hash) (uint256.Int, error) {
+func (es *ExecutionState) GetState(addr common.Address, key common.Hash) common.Hash {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
-		return uint256.Int{}, err
+		panic(err)
 	}
 	if acc == nil {
-		return uint256.Int{}, nil
+		return common.EmptyHash
 	}
 
-	return acc.GetState(key)
+	value, err := acc.GetState(key)
+	if err != nil {
+		panic(err)
+	}
+	return value.Bytes32()
 }
 
-func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val uint256.Int) error {
+func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val common.Hash) error {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
-		logger.Error().Msgf("failed to find contract while setting state")
 		return err
 	}
+	if acc == nil {
+		logger.Error().Msgf("failed to find contract while setting state")
+		return db.ErrKeyNotFound
+	}
 
-	acc.SetState(key, val)
+	acc.SetState(key, *val.Uint256())
 	return nil
+}
+
+func (es *ExecutionState) GetBalance(addr common.Address) uint256.Int {
+	acc, err := es.GetAccount(addr)
+	if err != nil || acc == nil {
+		return uint256.Int{}
+	}
+	return acc.Balance
 }
 
 func (es *ExecutionState) SetBalance(addr common.Address, balance uint256.Int) error {

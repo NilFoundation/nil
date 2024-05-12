@@ -9,6 +9,7 @@ import (
 	"reflect"
 
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/holiman/uint256"
 )
 
 type Hash [HashSize]byte
@@ -23,7 +24,7 @@ var EmptyHash = Hash{}
 // If b is larger than len(h), b will be cropped from the left.
 func BytesToHash(b []byte) Hash {
 	var h Hash
-	copy(h[HashSize-len(b):], b)
+	h.SetBytes(b)
 	return h
 }
 
@@ -37,11 +38,22 @@ func CastToHash(b []byte) Hash { return *(*Hash)(b) }
 // If b is larger than len(h), b will be cropped from the left.
 func BigToHash(b *big.Int) Hash { return BytesToHash(b.Bytes()) }
 
+func IntToHash(i int) Hash {
+	b := big.NewInt(int64(i))
+	return BigToHash(b)
+}
+
 // Bytes gets the byte representation of the underlying hash.
 func (h Hash) Bytes() []byte { return h[:] }
 
 // Big converts a hash to a big integer.
 func (h Hash) Big() *big.Int { return new(big.Int).SetBytes(h[:]) }
+
+func (h Hash) Uint256() *uint256.Int {
+	u := uint256.NewInt(0)
+	u.SetBytes(h.Bytes())
+	return u
+}
 
 // TerminalString implements log.TerminalStringer, formatting a string for console
 // output during logging.
