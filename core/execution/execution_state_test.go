@@ -59,7 +59,7 @@ func newState(t *testing.T) *ExecutionState {
 	require.NoError(t, err)
 	tx, err := database.CreateTx(context.Background())
 	require.NoError(t, err)
-	state, err := NewExecutionState(tx, common.EmptyHash)
+	state, err := NewExecutionState(tx, 0, common.EmptyHash)
 	require.NoError(t, err)
 	return state
 }
