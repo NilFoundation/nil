@@ -35,6 +35,18 @@ func (c *ShardChain) isMasterchain() bool {
 	return c.Id == 0
 }
 
+func (c *ShardChain) getHashLastBlock(roTx db.Tx, shardId uint64) (common.Hash, error) {
+	lastBlockRaw, err := roTx.Get(db.LastBlockTable, []byte(strconv.FormatUint(shardId, 10)))
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		return common.EmptyHash, fmt.Errorf("failed getting last block %w for shard %d", err, shardId)
+	}
+	lastBlockHash := common.EmptyHash
+	if lastBlockRaw != nil {
+		lastBlockHash = common.Hash(*lastBlockRaw)
+	}
+	return lastBlockHash, nil
+}
+
 func (c *ShardChain) testTransaction(ctx context.Context, nshards int) (common.Hash, error) {
 	rwTx, err := c.db.CreateRwTx(ctx)
 	if err != nil {
@@ -109,20 +121,20 @@ func (c *ShardChain) testTransaction(ctx context.Context, nshards int) (common.H
 		c.logger.Debug().Msgf("Contract storage is now %v", number)
 	}
 
-	for i := 0; i < nshards; i++ {
-		lastBlockRaw, err := roTx.Get(db.LastBlockTable, []byte(strconv.Itoa(i)))
-		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-			return common.EmptyHash, fmt.Errorf("failed getting last block %w for shard %d", err, i)
-		}
-		lastBlockHash := common.EmptyHash
-		if lastBlockRaw != nil {
-			lastBlockHash = common.Hash(*lastBlockRaw)
-		}
-		if c.isMasterchain() {
+	if c.isMasterchain() {
+		for i := 1; i < nshards; i++ {
+			lastBlockHash, err := c.getHashLastBlock(roTx, uint64(i))
+			if err != nil {
+				return common.EmptyHash, err
+			}
 			es.SetShardHash(uint64(i), lastBlockHash)
-		} else {
-			es.SetMasterchainHash(lastBlockHash)
 		}
+	} else {
+		lastBlockHash, err := c.getHashLastBlock(roTx, uint64(0))
+		if err != nil {
+			return common.EmptyHash, err
+		}
+		es.SetMasterchainHash(lastBlockHash)
 	}
 
 	blockId := uint64(0)
