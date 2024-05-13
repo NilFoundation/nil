@@ -7,10 +7,12 @@ import (
 )
 
 type Block struct {
-	Id                 uint64
-	PrevBlock          common.Hash
-	SmartContractsRoot common.Hash
-	TransactionsRoot   common.Hash
+	Id                  uint64
+	PrevBlock           common.Hash
+	SmartContractsRoot  common.Hash
+	TransactionsRoot    common.Hash
+	ChildBlocksRootHash common.Hash
+	MasterChainHash     common.Hash
 }
 
 // interfaces
@@ -25,11 +27,13 @@ func (b *Block) EncodeSSZ(dst []byte) ([]byte, error) {
 		b.PrevBlock[:],
 		b.SmartContractsRoot[:],
 		b.TransactionsRoot[:],
+		b.ChildBlocksRootHash[:],
+		b.MasterChainHash[:],
 	)
 }
 
 func (b *Block) EncodingSizeSSZ() int {
-	return common.Uint64Size + common.HashSize + common.HashSize + common.HashSize
+	return common.Uint64Size + 5*common.HashSize
 }
 
 func (b *Block) Clone() common.Clonable {
@@ -45,6 +49,8 @@ func (b *Block) DecodeSSZ(buf []byte, version int) error {
 		b.PrevBlock[:],
 		b.SmartContractsRoot[:],
 		b.TransactionsRoot[:],
+		b.ChildBlocksRootHash[:],
+		b.MasterChainHash[:],
 	)
 }
 

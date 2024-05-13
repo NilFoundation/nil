@@ -27,8 +27,17 @@ func (db *SqliteDB) Close() {
 	db.Close()
 }
 
-func (db *SqliteDB) CreateTx(ctx context.Context) (Tx, error) {
+func (db *SqliteDB) CreateRwTx(ctx context.Context) (Tx, error) {
 	tx, err := db.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	return &SqliteTx{tx: tx, ctx: ctx}, nil
+}
+
+func (db *SqliteDB) CreateRoTx(ctx context.Context) (Tx, error) {
+	tx, err := db.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +50,7 @@ func (db *SqliteDB) View(fn func(txn Tx) error) error {
 		return sql.ErrConnDone
 	}
 	ctx := context.Background()
-	tx, err := db.CreateTx(ctx)
+	tx, err := db.CreateRoTx(ctx)
 	if err != nil {
 		return err
 	}
@@ -55,7 +64,7 @@ func (db *SqliteDB) Update(fn func(txn Tx) error) error {
 		return sql.ErrConnDone
 	}
 	ctx := context.Background()
-	tx, err := db.CreateTx(ctx)
+	tx, err := db.CreateRwTx(ctx)
 	if err != nil {
 		return err
 	}

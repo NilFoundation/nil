@@ -2,6 +2,7 @@ package execution
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/NilFoundation/nil/common"
 	db "github.com/NilFoundation/nil/core/db"
@@ -25,12 +26,13 @@ type AccountState struct {
 }
 
 type ExecutionState struct {
-	Tx           db.Tx
-	ContractRoot *mpt.MerklePatriciaTrie
-	PrevBlock    common.Hash
-	ShardId      int
-
-	Accounts map[common.Address]*AccountState
+	tx               db.Tx
+	ContractRoot     *mpt.MerklePatriciaTrie
+	PrevBlock        common.Hash
+	MasterChain      common.Hash
+	ShardId          int
+	ChildChainBlocks map[uint64]common.Hash
+	Accounts         map[common.Address]*AccountState
 }
 
 func NewAccountState(tx db.Tx, shardId int, data []byte) (*AccountState, error) {
@@ -74,11 +76,12 @@ func NewExecutionState(tx db.Tx, shardId int, blockHash common.Hash) (*Execution
 	}
 
 	return &ExecutionState{
-		Tx:           tx,
-		ContractRoot: root,
-		PrevBlock:    blockHash,
-		ShardId:      shardId,
-		Accounts:     map[common.Address]*AccountState{},
+		tx:               tx,
+		ContractRoot:     root,
+		PrevBlock:        blockHash,
+		ShardId:          shardId,
+		ChildChainBlocks: map[uint64]common.Hash{},
+		Accounts:         map[common.Address]*AccountState{},
 	}, nil
 }
 
@@ -99,7 +102,7 @@ func (es *ExecutionState) GetAccount(addr common.Address) (*AccountState, error)
 		return nil, nil
 	}
 
-	acc, err = NewAccountState(es.Tx, es.ShardId, data)
+	acc, err = NewAccountState(es.tx, es.ShardId, data)
 	if err != nil {
 		return nil, err
 	}
@@ -209,6 +212,14 @@ func (es *ExecutionState) SetBalance(addr common.Address, balance uint256.Int) e
 	return nil
 }
 
+func (es *ExecutionState) SetMasterchainHash(masterChainHash common.Hash) {
+	es.MasterChain = masterChainHash
+}
+
+func (es *ExecutionState) SetShardHash(shardId uint64, hash common.Hash) {
+	es.ChildChainBlocks[shardId] = hash
+}
+
 func (es *ExecutionState) CreateContract(addr common.Address, code types.Code) error {
 	acc, err := es.GetAccount(addr)
 
@@ -221,10 +232,10 @@ func (es *ExecutionState) CreateContract(addr common.Address, code types.Code) e
 	}
 
 	// TODO: store storage of each contract in separate table
-	root := mpt.NewMerklePatriciaTrie(es.Tx, db.TableName(db.StorageTrieTable, es.ShardId))
+	root := mpt.NewMerklePatriciaTrie(es.tx, db.TableName(db.StorageTrieTable, es.ShardId))
 
 	es.Accounts[addr] = &AccountState{
-		Tx:          es.Tx,
+		Tx:          es.tx,
 		StorageRoot: root,
 		CodeHash:    code.Hash(),
 		Code:        code,
@@ -241,7 +252,7 @@ func (es *ExecutionState) ContractExists(addr common.Address) (bool, error) {
 	return acc != nil, err
 }
 
-func (es *ExecutionState) Commit() (common.Hash, error) {
+func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 	for k, acc := range es.Accounts {
 		v, err := acc.Commit()
 		if err != nil {
@@ -254,15 +265,29 @@ func (es *ExecutionState) Commit() (common.Hash, error) {
 		}
 	}
 
+	treeShardsRootHash := common.EmptyHash
+	if len(es.ChildChainBlocks) > 0 {
+		treeShards := mpt.NewMerklePatriciaTrie(es.tx, db.ShardBlocksTrieTable+strconv.FormatUint(blockId, 10))
+		for k, hash := range es.ChildChainBlocks {
+			key := strconv.AppendUint(nil, k, 10)
+			if err := treeShards.Set(key, hash.Bytes()); err != nil {
+				return common.EmptyHash, err
+			}
+		}
+		treeShardsRootHash = treeShards.RootHash()
+	}
+
 	block := types.Block{
-		Id:                 0,
-		PrevBlock:          es.PrevBlock,
-		SmartContractsRoot: es.ContractRoot.RootHash(),
+		Id:                  blockId,
+		PrevBlock:           es.PrevBlock,
+		SmartContractsRoot:  es.ContractRoot.RootHash(),
+		ChildBlocksRootHash: treeShardsRootHash,
+		MasterChainHash:     es.MasterChain,
 	}
 
 	blockHash := block.Hash()
 
-	err := db.WriteBlock(es.Tx, &block)
+	err := db.WriteBlock(es.tx, &block)
 	if err != nil {
 		return common.EmptyHash, err
 	}

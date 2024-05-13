@@ -23,6 +23,7 @@ type Tx interface {
 type DB interface {
 	DBAccessor
 
-	CreateTx(ctx context.Context) (Tx, error)
+	CreateRwTx(ctx context.Context) (Tx, error)
+	CreateRoTx(ctx context.Context) (Tx, error)
 	Close()
 }

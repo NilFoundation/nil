@@ -31,14 +31,34 @@ type ShardChain struct {
 	logger *zerolog.Logger
 }
 
-func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
-	tx, err := c.db.CreateTx(ctx)
+func (c *ShardChain) isMasterchain() bool {
+	return c.Id == 0
+}
+
+func (c *ShardChain) getHashLastBlock(roTx db.Tx, shardId uint64) (common.Hash, error) {
+	lastBlockRaw, err := roTx.Get(db.LastBlockTable, []byte(strconv.FormatUint(shardId, 10)))
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		return common.EmptyHash, fmt.Errorf("failed getting last block %w for shard %d", err, shardId)
+	}
+	lastBlockHash := common.EmptyHash
+	if lastBlockRaw != nil {
+		lastBlockHash = common.Hash(*lastBlockRaw)
+	}
+	return lastBlockHash, nil
+}
+
+func (c *ShardChain) testTransaction(ctx context.Context, nshards int) (common.Hash, error) {
+	rwTx, err := c.db.CreateRwTx(ctx)
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	defer tx.Rollback()
+	defer rwTx.Rollback()
+	roTx, err := c.db.CreateRoTx(ctx)
+	if err != nil {
+		return common.EmptyHash, err
+	}
 
-	lastBlockHashBytes, err := tx.Get(db.LastBlockTable, []byte(strconv.Itoa(c.Id)))
+	lastBlockHashBytes, err := rwTx.Get(db.LastBlockTable, []byte(strconv.Itoa(c.Id)))
 
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return common.EmptyHash, fmt.Errorf("failed getting last block: %w", err)
@@ -50,7 +70,7 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 		lastBlockHash = common.Hash(*lastBlockHashBytes)
 	}
 
-	es, err := execution.NewExecutionState(tx, c.Id, lastBlockHash)
+	es, err := execution.NewExecutionState(rwTx, c.Id, lastBlockHash)
 
 	if err != nil {
 		return common.EmptyHash, err
@@ -101,29 +121,50 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 		c.logger.Debug().Msgf("Contract storage is now %v", number)
 	}
 
-	blockHash, err := es.Commit()
+	if c.isMasterchain() {
+		for i := 1; i < nshards; i++ {
+			lastBlockHash, err := c.getHashLastBlock(roTx, uint64(i))
+			if err != nil {
+				return common.EmptyHash, err
+			}
+			es.SetShardHash(uint64(i), lastBlockHash)
+		}
+	} else {
+		lastBlockHash, err := c.getHashLastBlock(roTx, uint64(0))
+		if err != nil {
+			return common.EmptyHash, err
+		}
+		es.SetMasterchainHash(lastBlockHash)
+	}
+
+	blockId := uint64(0)
+	if es.PrevBlock != common.EmptyHash {
+		blockId = db.ReadBlock(rwTx, es.PrevBlock).Id + 1
+	}
+
+	blockHash, err := es.Commit(blockId)
 
 	if err != nil {
 		return common.EmptyHash, err
 	}
 
-	if err = tx.Put(db.LastBlockTable, []byte(strconv.Itoa(c.Id)), blockHash[:]); err != nil {
+	if err = rwTx.Put(db.LastBlockTable, []byte(strconv.Itoa(c.Id)), blockHash[:]); err != nil {
 		return common.EmptyHash, err
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err = rwTx.Commit(); err != nil {
 		return common.EmptyHash, err
 	}
 
 	return blockHash, nil
 }
 
-func (c *ShardChain) Collate(ctx context.Context, wg *sync.WaitGroup) {
+func (c *ShardChain) Collate(ctx context.Context, nshards int, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	c.logger.Info().Msg("running shardchain")
 
-	blockHash, err := c.testTransaction(ctx)
+	blockHash, err := c.testTransaction(ctx, nshards)
 	if err != nil {
 		c.logger.Fatal().Msgf("collation failed: %s", err.Error())
 	}

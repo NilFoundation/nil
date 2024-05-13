@@ -26,7 +26,7 @@ func (api *APIImpl) GetBlockByNumber(ctx context.Context, number transport.Block
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
 func (api *APIImpl) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (map[string]any, error) {
-	tx, err := api.db.CreateTx(ctx)
+	tx, err := api.db.CreateRwTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}

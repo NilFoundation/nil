@@ -23,7 +23,7 @@ func (suite *SuiteExecutionState) SetupTest() {
 }
 
 func (suite *SuiteExecutionState) TestExecState() {
-	tx, err := suite.db.CreateTx(context.Background())
+	tx, err := suite.db.CreateRwTx(context.Background())
 	suite.Require().NoError(err)
 
 	es, err := NewExecutionState(tx, 0, common.EmptyHash)
@@ -39,7 +39,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	err = es.SetState(addr, storageKey, common.IntToHash(123456))
 	suite.Require().NoError(err)
 
-	blockHash, err := es.Commit()
+	blockHash, err := es.Commit(0)
 	suite.Require().NoError(err)
 
 	es, err = NewExecutionState(tx, 0, blockHash)
@@ -57,7 +57,7 @@ func TestSuiteExecutionState(t *testing.T) {
 func newState(t *testing.T) *ExecutionState {
 	database, err := db.NewBadgerDbInMemory()
 	require.NoError(t, err)
-	tx, err := database.CreateTx(context.Background())
+	tx, err := database.CreateRwTx(context.Background())
 	require.NoError(t, err)
 	state, err := NewExecutionState(tx, 0, common.EmptyHash)
 	require.NoError(t, err)

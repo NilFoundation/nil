@@ -8,8 +8,9 @@ const (
 	CodeTable         = "Code"
 	ContractCodeTable = "ContractCode"
 
-	ContractTrieTable = "ContractTrie"
-	StorageTrieTable  = "StorageTrie"
+	ContractTrieTable    = "ContractTrie"
+	StorageTrieTable     = "StorageTrie"
+	ShardBlocksTrieTable = "ShardBlocksTrie"
 
 	ContractTable = "Contract"
 	StorageTable  = "Storage"
