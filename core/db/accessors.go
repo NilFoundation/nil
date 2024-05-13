@@ -92,6 +92,7 @@ func ReadCode(tx Tx, shardId int, hash common.Hash) (*types.Code, error) {
 	return &res, nil
 }
 
+// TODO: Use hash -> (blockNumber, txIndex) mapping and message trie instead of duplicating messages.
 func ReadMessage(tx Tx, shardId int, hash common.Hash) *types.Message {
 	return readDecodable[types.Message, *types.Message](tx, MessageTable, shardId, hash)
 }
