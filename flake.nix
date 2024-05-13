@@ -15,16 +15,49 @@
         };
 
       in rec {
-        packages = {
-          default = pkgs.buildGoModule {
+        packages = rec {
+          nil = pkgs.pkgsStatic.buildGoModule rec {
             name = "nil";
+            pname = "nil";
+            revCount = self.revCount or self.dirtyRevCount or 1;
+            version = "0.1.0-${toString revCount}";
+
             src = ./.;
             # to obtain run `nix build` with vendorHash = "";
             vendorHash = "sha256-E13re7wpo9WP9SRcQakLYZrGq9mCak2vuAXTmu9M6jg=";
             hardeningDisable = [ "all" ];
+            ldflags = [
+              "-linkmode external"
+            ];
 
             doCheck = true;
           };
+
+          default = nil;
+        };
+
+        bundlers = rec {
+          deb = pkg: pkgs.stdenv.mkDerivation {
+            name = "deb-package-${pkg.pname}";
+            buildInputs = [
+              pkgs.fpm
+            ];
+
+            unpackPhase = "true";
+            buildPhase = ''
+              export HOME=$PWD
+              mkdir -p ./usr
+              cp -r ${pkg}/bin ./usr/
+              chmod -R u+rw,g+r,o+r ./usr
+              chmod -R u+rwx,g+rx,o+rx ./usr/bin
+              ${pkgs.fpm}/bin/fpm -s dir -t deb --name ${pkg.pname} -v ${pkg.version} --deb-use-file-permissions usr
+            '';
+            installPhase = ''
+              mkdir -p $out
+              cp -r *.deb $out
+            '';
+          };
+          default = deb;
         };
 
         devShells.default = pkgs.mkShell {
