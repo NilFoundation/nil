@@ -11,7 +11,7 @@ import (
 
 // GetMessageByHash implements eth_getTransactioByHash. Returns the message structure
 func (api *APIImpl) GetMessageByHash(ctx context.Context, hash common.Hash) (*types.Message, error) {
-	tx, err := api.db.CreateTx(ctx)
+	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}

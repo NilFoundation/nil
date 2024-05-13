@@ -21,7 +21,7 @@ func TestGetMessageByHash(t *testing.T) {
 
 	api := NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), database, common.NewLogger("Test", false))
 
-	tx, err := database.CreateTx(ctx)
+	tx, err := database.CreateRwTx(ctx)
 	defer tx.Rollback()
 	require.NoError(t, err)
 
