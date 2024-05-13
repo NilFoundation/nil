@@ -22,7 +22,7 @@ test:
 %.runcmd: %.cmd
 	@$(GOBIN)/$* $(CMDARGS)
 
-COMMANDS += mpt_example
+COMMANDS += nil
 
 $(COMMANDS): %: %.cmd
 
