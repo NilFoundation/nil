@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -15,18 +16,20 @@ import (
 func (api *APIImpl) GetBlockByNumber(ctx context.Context, number transport.BlockNumber, fullTx bool) (map[string]any, error) {
 	if number == transport.LatestBlockNumber {
 		hash, err := api.db.Get(db.LastBlockTable, []byte(strconv.Itoa(0)))
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return nil, nil
+		}
 		if err != nil {
 			return nil, err
 		}
-
 		return api.GetBlockByHash(ctx, common.CastToHash(*hash), fullTx)
 	}
-	return nil, fmt.Errorf("not implemented")
+	return nil, errNotImplemented
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
 func (api *APIImpl) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (map[string]any, error) {
-	tx, err := api.db.CreateRwTx(ctx)
+	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}
@@ -51,10 +54,10 @@ func (api *APIImpl) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx
 
 // GetBlockTransactionCountByNumber implements eth_getBlockTransactionCountByNumber. Returns the number of transactions in a block given the block's block number.
 func (api *APIImpl) GetBlockTransactionCountByNumber(ctx context.Context, blockNr transport.BlockNumber) (*hexutil.Uint, error) {
-	return nil, fmt.Errorf("not implemented")
+	return nil, errNotImplemented
 }
 
 // GetBlockTransactionCountByHash implements eth_getBlockTransactionCountByHash. Returns the number of transactions in a block given the block's block hash.
 func (api *APIImpl) GetBlockTransactionCountByHash(ctx context.Context, blockHash common.Hash) (*hexutil.Uint, error) {
-	return nil, fmt.Errorf("not implemented")
+	return nil, errNotImplemented
 }

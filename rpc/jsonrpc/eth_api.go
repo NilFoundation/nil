@@ -23,6 +23,11 @@ type EthAPI interface {
 
 	// Message related
 	GetMessageByHash(ctx context.Context, hash common.Hash) (*types.Message, error)
+
+	// Account related
+	GetBalance(ctx context.Context, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error)
+	GetTransactionCount(ctx context.Context, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Uint64, error)
+	GetCode(ctx context.Context, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error)
 }
 
 type BaseAPI struct {
