@@ -15,6 +15,7 @@ const (
 
 	ContractTable = "Contract"
 	StorageTable  = "Storage"
+	MessageTable  = "Message"
 
 	MptTable = "MPT"
 

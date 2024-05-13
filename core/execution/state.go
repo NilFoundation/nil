@@ -35,7 +35,7 @@ type ExecutionState struct {
 	ChildChainBlocks map[uint64]common.Hash
 
 	Accounts map[common.Address]*AccountState
-	Messages map[common.Hash]*types.Message
+	Messages []*types.Message
 }
 
 func NewAccountState(tx db.Tx, shardId int, data []byte) (*AccountState, error) {
@@ -88,7 +88,7 @@ func NewExecutionState(tx db.Tx, shardId int, blockHash common.Hash) (*Execution
 		ShardId:          shardId,
 		ChildChainBlocks: map[uint64]common.Hash{},
 		Accounts:         map[common.Address]*AccountState{},
-		Messages:         map[common.Hash]*types.Message{},
+		Messages:         []*types.Message{},
 	}, nil
 }
 
@@ -259,18 +259,9 @@ func (es *ExecutionState) ContractExists(addr common.Address) (bool, error) {
 	return acc != nil, err
 }
 
-func (es *ExecutionState) AddMessage(message types.Message) {
-	es.Messages[message.Hash()] = &message
-}
-
-func (es *ExecutionState) GetMessage(id common.Hash) (types.Message, error) {
-	var msg types.Message
-	rawMsg, err := es.MessageRoot.Get(id[:])
-	if err != nil {
-		return msg, err
-	}
-	err = msg.DecodeSSZ(rawMsg, 0)
-	return msg, err
+func (es *ExecutionState) AddMessage(message *types.Message) {
+	message.Index = uint64(len(es.Messages))
+	es.Messages = append(es.Messages, message)
 }
 
 func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
@@ -298,12 +289,20 @@ func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 		treeShardsRootHash = treeShards.RootHash()
 	}
 
-	for k, m := range es.Messages {
+	for _, m := range es.Messages {
 		v, err := m.EncodeSSZ(nil)
 		if err != nil {
 			return common.EmptyHash, err
 		}
-		if err = es.MessageRoot.Set(k[:], v); err != nil {
+		messageId := types.MessageId{BlockId: blockId, MessageIndex: m.Index}
+		k, err := messageId.EncodeSSZ(nil)
+		if err != nil {
+			return common.EmptyHash, err
+		}
+		if err := es.MessageRoot.Set(k, v); err != nil {
+			return common.EmptyHash, err
+		}
+		if err := db.WriteMessage(es.tx, es.ShardId, m); err != nil {
 			return common.EmptyHash, err
 		}
 	}

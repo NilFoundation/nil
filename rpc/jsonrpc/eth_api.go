@@ -22,8 +22,7 @@ type EthAPI interface {
 	GetBlockTransactionCountByHash(ctx context.Context, blockHash common.Hash) (*hexutil.Uint, error)
 
 	// Message related
-	SendMesage(ctx context.Context, message types.Message) (*hexutil.Uint, error)
-	GetMessageByHash(ctx context.Context, hash common.Hash) (types.Message, error)
+	GetMessageByHash(ctx context.Context, hash common.Hash) (*types.Message, error)
 }
 
 type BaseAPI struct {
