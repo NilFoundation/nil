@@ -37,3 +37,12 @@ Type:
 ```
 make test
 ```
+
+
+## Packaging
+
+To create a platform-agnostic deb package:
+
+```
+nix bundle --bundler . .#nil
+```
