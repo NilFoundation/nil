@@ -121,6 +121,13 @@ func (suite *SuiteRpc) TestRpcBasic() {
 	suite.Require().NoError(err)
 	suite.Require().Nil(resp.Error["code"])
 	suite.Require().Equal(latest_resp.Result, resp.Result)
+
+	request.Method = "eth_getMessageByHash"
+	request.Params = []any{"0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef"}
+	resp, err = makeRequest(&request)
+	suite.Require().NoError(err)
+	suite.Require().Nil(resp.Error["code"])
+	suite.Require().Nil(resp.Result)
 }
 
 func (suite *SuiteRpc) TestRpcApiModules() {
