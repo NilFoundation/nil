@@ -3,10 +3,9 @@ package main
 import (
 	"context"
 	"flag"
-
-	"sync"
-
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/concurrent"
+	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/shardchain"
 	"github.com/NilFoundation/nil/rpc"
@@ -15,12 +14,13 @@ import (
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	"github.com/rs/zerolog/log"
+	"syscall"
 )
 
-func startRpcServer(ctx context.Context, db db.DB) {
+func startRpcServer(ctx context.Context, db db.DB) error {
 	logger := common.NewLogger("RPC", false)
 
-	httpConfig := httpcfg.HttpCfg{
+	httpConfig := &httpcfg.HttpCfg{
 		Enabled:           true,
 		HttpURL:           "tcp://127.0.0.1:8529",
 		HttpListenAddress: "127.0.0.1",
@@ -42,42 +42,48 @@ func startRpcServer(ctx context.Context, db db.DB) {
 			Version:   "1.0",
 		}}
 
-	if err := rpc.StartRpcServer(ctx, &httpConfig, apiList, logger); err != nil {
-		logger.Error().Msg(err.Error())
-	}
+	return rpc.StartRpcServer(ctx, httpConfig, apiList, logger)
 }
 
 func main() {
 	common.SetupGlobalLogger()
 
 	// parse args
-	nshards := flag.Int("nshards", 5, "number of shardchains")
+	nShards := flag.Int("nshards", 5, "number of shardchains")
 
 	flag.Parse()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// each shard will interact with DB via this client
-	db, err := db.NewBadgerDb("test.db")
+	badger, err := db.NewBadgerDb("test.db")
 	if err != nil {
 		log.Fatal().Msg(err.Error())
 	}
-	shards := make([]*shardchain.ShardChain, 0)
-	for i := 0; i < *nshards; i++ {
-		shards = append(shards, shardchain.NewShardChain(i, db))
+
+	log.Info().Msg("Starting services...")
+
+	if err := concurrent.Run(ctx,
+		func(ctx context.Context) error {
+			concurrent.OnSignal(ctx, cancel, syscall.SIGTERM, syscall.SIGINT)
+			return nil
+		},
+		func(ctx context.Context) error {
+			shards := make([]*shardchain.ShardChain, *nShards)
+			for i := 0; i < *nShards; i++ {
+				shards[i] = shardchain.NewShardChain(i, badger, *nShards)
+			}
+
+			collator := collate.NewCollator(shards)
+			return collator.Run(ctx)
+		},
+		func(ctx context.Context) error {
+			return startRpcServer(ctx, badger)
+		},
+	); err != nil {
+		log.Fatal().Err(err).Msg("App encountered an error and will be terminated.")
 	}
 
-	numClusterTicks := 2
-	for t := 0; t < numClusterTicks; t++ {
-		var wg sync.WaitGroup
-
-		for i := 0; i < *nshards; i++ {
-			wg.Add(1)
-			go shards[i].Collate(ctx, *nshards, &wg)
-		}
-
-		wg.Wait()
-	}
-
-	startRpcServer(ctx, db)
+	log.Warn().Msg("App is terminated.")
 }

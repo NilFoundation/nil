@@ -59,7 +59,7 @@ func makeRequest(data *Request) (*Response, error) {
 
 func (suite *SuiteRpc) SetupSuite() {
 	suite.context, suite.cancel = context.WithCancel(context.Background())
-	go startRpcServer(suite.context, 1, suite.T().TempDir()+"/test.db")
+	go startRpcServer(suite.context, 2, suite.T().TempDir()+"/test.db")
 	time.Sleep(time.Second) // To be sure that server is started
 }
 
