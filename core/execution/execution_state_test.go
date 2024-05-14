@@ -77,7 +77,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 		}
 		var m types.Message
 		suite.Require().NoError(m.DecodeSSZ(mRaw, 0))
-		suite.Equal(m.Data, types.Code{uint8(messageIndex)})
+		suite.Equal(types.Code{byte(messageIndex)}, m.Data)
 		messageIndex += 1
 	}
 	suite.Equal(numMessages, uint8(messageIndex))
