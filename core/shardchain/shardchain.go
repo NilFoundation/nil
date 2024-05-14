@@ -1,13 +1,9 @@
 package shardchain
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"strconv"
-	"sync"
-
-	"context"
-
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
@@ -15,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/core/vm"
 	"github.com/holiman/uint256"
 	"github.com/rs/zerolog"
+	"strconv"
 )
 
 type Transaction struct {
@@ -26,9 +23,12 @@ type ShardChain struct {
 	Id int
 	db db.DB
 
+	// todo: can be probably moved out (and the Transaction type removed completely since we have Message type now)
 	pool []Transaction
 
 	logger *zerolog.Logger
+
+	NShards int // todo: used for test transaction only, remove in the future
 }
 
 func (c *ShardChain) isMasterchain() bool {
@@ -47,7 +47,7 @@ func (c *ShardChain) getHashLastBlock(roTx db.Tx, shardId uint64) (common.Hash, 
 	return lastBlockHash, nil
 }
 
-func (c *ShardChain) testTransaction(ctx context.Context, nshards int) (common.Hash, error) {
+func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 	rwTx, err := c.db.CreateRwTx(ctx)
 	if err != nil {
 		return common.EmptyHash, err
@@ -122,7 +122,7 @@ func (c *ShardChain) testTransaction(ctx context.Context, nshards int) (common.H
 	}
 
 	if c.isMasterchain() {
-		for i := 1; i < nshards; i++ {
+		for i := 1; i < c.NShards; i++ {
 			lastBlockHash, err := c.getHashLastBlock(roTx, uint64(i))
 			if err != nil {
 				return common.EmptyHash, err
@@ -159,24 +159,23 @@ func (c *ShardChain) testTransaction(ctx context.Context, nshards int) (common.H
 	return blockHash, nil
 }
 
-func (c *ShardChain) Collate(ctx context.Context, nshards int, wg *sync.WaitGroup) {
-	defer wg.Done()
-
+func (c *ShardChain) Collate(ctx context.Context) error {
 	c.logger.Info().Msg("running shardchain")
 
-	blockHash, err := c.testTransaction(ctx, nshards)
+	blockHash, err := c.testTransaction(ctx)
 	if err != nil {
-		c.logger.Fatal().Msgf("collation failed: %s", err.Error())
+		return err
 	}
 
 	c.logger.Debug().Msgf("new block : %+v", blockHash)
-
+	return nil
 }
 
 func NewShardChain(
 	shardId int,
 	db db.DB,
+	nShards int,
 ) *ShardChain {
 	logger := common.NewLogger(fmt.Sprintf("shard-%d", shardId), false /* noColor */)
-	return &ShardChain{shardId, db, nil, logger}
+	return &ShardChain{shardId, db, nil, logger, nShards}
 }

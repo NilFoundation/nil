@@ -2,10 +2,9 @@ package rpctest
 
 import (
 	"context"
-
-	"sync"
-
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/concurrent"
+	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/shardchain"
 	"github.com/NilFoundation/nil/rpc"
@@ -16,33 +15,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func startRpcServer(ctx context.Context, nshards int, dbpath string) {
+func startRpcServer(ctx context.Context, nShards int, dbpath string) {
+	common.SetupGlobalLogger()
 	logger := common.NewLogger("RPC", false)
 
-	db, err := db.NewBadgerDb(dbpath)
+	badger, err := db.NewBadgerDb(dbpath)
 	if err != nil {
 		log.Fatal().Msgf("Failed to open db: %s", err.Error())
 	}
 
-	// each shard will interact with DB via this client
-	shards := make([]*shardchain.ShardChain, 0)
-	for i := 0; i < nshards; i++ {
-		shards = append(shards, shardchain.NewShardChain(i, db))
-	}
-
-	numClusterTicks := 2
-	for t := 0; t < numClusterTicks; t++ {
-		var wg sync.WaitGroup
-
-		for i := 0; i < nshards; i++ {
-			wg.Add(1)
-			go shards[i].Collate(ctx, nshards, &wg)
-		}
-
-		wg.Wait()
-	}
-
-	httpConfig := httpcfg.HttpCfg{
+	httpConfig := &httpcfg.HttpCfg{
 		Enabled:           true,
 		HttpListenAddress: "127.0.0.1",
 		HttpPort:          8529,
@@ -53,7 +35,7 @@ func startRpcServer(ctx context.Context, nshards int, dbpath string) {
 
 	base := jsonrpc.NewBaseApi(rpccfg.DefaultEvmCallTimeout)
 
-	ethImpl := jsonrpc.NewEthAPI(base, db, logger)
+	ethImpl := jsonrpc.NewEthAPI(base, badger, logger)
 
 	apiList := []transport.API{
 		{
@@ -63,7 +45,20 @@ func startRpcServer(ctx context.Context, nshards int, dbpath string) {
 			Version:   "1.0",
 		}}
 
-	if err := rpc.StartRpcServer(ctx, &httpConfig, apiList, logger); err != nil {
-		logger.Fatal().Msgf("RPC server stopped: %s", err.Error())
+	if err := concurrent.Run(ctx,
+		func(ctx context.Context) error {
+			shards := make([]*shardchain.ShardChain, nShards)
+			for i := 0; i < nShards; i++ {
+				shards[i] = shardchain.NewShardChain(i, badger, nShards)
+			}
+
+			collator := collate.NewCollator(shards)
+			return collator.Run(ctx)
+		},
+		func(ctx context.Context) error {
+			return rpc.StartRpcServer(ctx, httpConfig, apiList, logger)
+		},
+	); err != nil {
+		log.Fatal().Err(err).Msg("RPC server stopped.")
 	}
 }
