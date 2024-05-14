@@ -294,8 +294,7 @@ func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 		if err != nil {
 			return common.EmptyHash, err
 		}
-		messageId := types.MessageId{BlockId: blockId, MessageIndex: m.Index}
-		k, err := messageId.EncodeSSZ(nil)
+		k, err := ssz.MarshalSSZ(nil, m.Index)
 		if err != nil {
 			return common.EmptyHash, err
 		}
