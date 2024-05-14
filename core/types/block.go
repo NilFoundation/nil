@@ -10,7 +10,7 @@ type Block struct {
 	Id                  uint64
 	PrevBlock           common.Hash
 	SmartContractsRoot  common.Hash
-	TransactionsRoot    common.Hash
+	MessagesRoot        common.Hash
 	ChildBlocksRootHash common.Hash
 	MasterChainHash     common.Hash
 }
@@ -26,7 +26,7 @@ func (b *Block) EncodeSSZ(dst []byte) ([]byte, error) {
 		ssz.Uint64SSZ(b.Id),
 		b.PrevBlock[:],
 		b.SmartContractsRoot[:],
-		b.TransactionsRoot[:],
+		b.MessagesRoot[:],
 		b.ChildBlocksRootHash[:],
 		b.MasterChainHash[:],
 	)
@@ -48,7 +48,7 @@ func (b *Block) DecodeSSZ(buf []byte, version int) error {
 		&b.Id,
 		b.PrevBlock[:],
 		b.SmartContractsRoot[:],
-		b.TransactionsRoot[:],
+		b.MessagesRoot[:],
 		b.ChildBlocksRootHash[:],
 		b.MasterChainHash[:],
 	)

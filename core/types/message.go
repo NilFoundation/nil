@@ -8,18 +8,28 @@ import (
 )
 
 type Message struct {
-	ShardInfo Shard
-	From      common.Address
-	To        common.Address
-	Value     uint256.Int
-	Data      Code
-	Signature common.Hash
+	Index     uint64         `json:"index,omitempty"`
+	ShardInfo Shard          `json:"shard,omitempty"`
+	From      common.Address `json:"from,omitempty"`
+	To        common.Address `json:"to,omitempty"`
+	Value     uint256.Int    `json:"value,omitempty"`
+	Data      Code           `json:"data,omitempty"`
+	Signature common.Hash    `json:"signature,omitempty"`
+}
+
+type MessageId struct {
+	BlockId      uint64
+	MessageIndex uint64
 }
 
 // interfaces
 var _ common.Hashable = new(Message)
 var _ ssz.SSZEncodable = new(Message)
 var _ ssz.SSZDecodable = new(Message)
+
+var _ common.Hashable = new(MessageId)
+var _ ssz.SSZEncodable = new(MessageId)
+var _ ssz.SSZDecodable = new(MessageId)
 
 func (s *Message) EncodeSSZ(dst []byte) ([]byte, error) {
 	return ssz.MarshalSSZ(
@@ -34,7 +44,7 @@ func (s *Message) EncodeSSZ(dst []byte) ([]byte, error) {
 }
 
 func (s *Message) EncodingSizeSSZ() int {
-	return s.ShardInfo.EncodingSizeSSZ() + common.AddrSize + common.AddrSize + common.Bits256Size + s.Data.EncodingSizeSSZ() + common.HashSize
+	return common.Uint64Size + s.ShardInfo.EncodingSizeSSZ() + common.AddrSize + common.AddrSize + common.Bits256Size + s.Data.EncodingSizeSSZ() + common.HashSize
 }
 
 func (s *Message) Clone() common.Clonable {
@@ -74,4 +84,46 @@ func (s *Message) Hash() common.Hash {
 
 func (s *Message) Static() bool {
 	return false
+}
+
+func (s *MessageId) Clone() common.Clonable {
+	clonned := *s
+	return &clonned
+}
+
+func (s *MessageId) EncodingSizeSSZ() int {
+	return common.Uint64Size * 2
+}
+
+func (s *MessageId) EncodeSSZ(dst []byte) ([]byte, error) {
+	return ssz.MarshalSSZ(
+		dst,
+		&s.BlockId,
+		&s.MessageIndex,
+	)
+}
+
+func (s *MessageId) DecodeSSZ(buf []byte, version int) error {
+	return ssz.UnmarshalSSZ(
+		buf,
+		0,
+		&s.BlockId,
+		&s.MessageIndex,
+	)
+}
+
+func (s *MessageId) Hash() common.Hash {
+	h, err := ssz.SSZHash(s)
+	if err != nil {
+		log.Fatal().Msg(err.Error())
+	}
+	return h
+}
+
+func DecodeMessage(raw []byte) (*Message, error) {
+	var msg Message
+	if err := msg.DecodeSSZ(raw, 0); err != nil {
+		return nil, err
+	}
+	return &msg, nil
 }

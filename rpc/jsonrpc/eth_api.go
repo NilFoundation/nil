@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/types"
 )
 
 // EthAPI is a collection of functions that are exposed in the
@@ -19,6 +20,9 @@ type EthAPI interface {
 	GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (map[string]any, error)
 	GetBlockTransactionCountByNumber(ctx context.Context, blockNr transport.BlockNumber) (*hexutil.Uint, error)
 	GetBlockTransactionCountByHash(ctx context.Context, blockHash common.Hash) (*hexutil.Uint, error)
+
+	// Message related
+	GetMessageByHash(ctx context.Context, hash common.Hash) (*types.Message, error)
 }
 
 type BaseAPI struct {

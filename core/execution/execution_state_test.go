@@ -6,6 +6,7 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -39,6 +40,9 @@ func (suite *SuiteExecutionState) TestExecState() {
 	err = es.SetState(addr, storageKey, common.IntToHash(123456))
 	suite.Require().NoError(err)
 
+	msg := types.Message{ShardInfo: types.Shard{Id: 10}, Data: []byte("data")}
+	es.AddMessage(&msg)
+
 	blockHash, err := es.Commit(0)
 	suite.Require().NoError(err)
 
@@ -48,6 +52,9 @@ func (suite *SuiteExecutionState) TestExecState() {
 	storageVal := es.GetState(addr, storageKey)
 
 	suite.Equal(storageVal, common.IntToHash(123456))
+
+	storageMsg := db.ReadMessage(tx, es.ShardId, msg.Hash())
+	suite.Equal(*storageMsg, msg)
 }
 
 func TestSuiteExecutionState(t *testing.T) {

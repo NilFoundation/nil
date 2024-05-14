@@ -42,5 +42,5 @@ const DefaultOverlayReplayBlockTimeout = 10 * time.Second
 
 var SlowLogBlackList = []string{
 	"eth_getBlock", "eth_getBlockByNumber", "eth_getBlockByHash", "eth_blockNumber",
-	"eth_call",
+	"eth_call", "eth_getMessageByHash",
 }

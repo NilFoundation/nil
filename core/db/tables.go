@@ -11,9 +11,11 @@ const (
 	ContractTrieTable    = "ContractTrie"
 	StorageTrieTable     = "StorageTrie"
 	ShardBlocksTrieTable = "ShardBlocksTrie"
+	MessageTrieTable     = "MessageTrie"
 
 	ContractTable = "Contract"
 	StorageTable  = "Storage"
+	MessageTable  = "Message"
 
 	MptTable = "MPT"
 
