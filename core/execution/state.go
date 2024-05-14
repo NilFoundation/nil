@@ -310,6 +310,7 @@ func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 		Id:                  blockId,
 		PrevBlock:           es.PrevBlock,
 		SmartContractsRoot:  es.ContractRoot.RootHash(),
+		MessagesRoot:        es.MessageRoot.RootHash(),
 		ChildBlocksRootHash: treeShardsRootHash,
 		MasterChainHash:     es.MasterChain,
 	}
