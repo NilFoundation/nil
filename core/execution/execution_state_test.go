@@ -2,10 +2,13 @@ package execution
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/mpt"
+	"github.com/NilFoundation/nil/core/ssz"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
@@ -40,8 +43,12 @@ func (suite *SuiteExecutionState) TestExecState() {
 	err = es.SetState(addr, storageKey, common.IntToHash(123456))
 	suite.Require().NoError(err)
 
-	msg := types.Message{ShardInfo: types.Shard{Id: 10}, Data: []byte("data")}
-	es.AddMessage(&msg)
+	const numMessages uint8 = 10
+
+	for i := range numMessages {
+		msg := types.Message{ShardInfo: types.Shard{Id: 10}, Data: []byte{i}}
+		es.AddMessage(&msg)
+	}
 
 	blockHash, err := es.Commit(0)
 	suite.Require().NoError(err)
@@ -53,8 +60,27 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	suite.Equal(storageVal, common.IntToHash(123456))
 
-	storageMsg := db.ReadMessage(tx, es.ShardId, msg.Hash())
-	suite.Equal(*storageMsg, msg)
+	block := db.ReadBlock(tx, blockHash)
+	suite.Require().NotNil(block)
+
+	messagesRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, db.MessageTrieTable, block.MessagesRoot)
+	var messageIndex uint64 = 0
+
+	for {
+		k, err := ssz.MarshalSSZ(nil, messageIndex)
+		suite.Require().NoError(err)
+
+		mRaw, err := messagesRoot.Get(k)
+
+		if errors.Is(err, db.ErrKeyNotFound) {
+			break
+		}
+		var m types.Message
+		suite.Require().NoError(m.DecodeSSZ(mRaw, 0))
+		suite.Equal(m.Data, types.Code{uint8(messageIndex)})
+		messageIndex += 1
+	}
+	suite.Equal(numMessages, uint8(messageIndex))
 }
 
 func TestSuiteExecutionState(t *testing.T) {
