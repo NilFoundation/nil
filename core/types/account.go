@@ -13,6 +13,7 @@ type SmartContract struct {
 	Balance     uint256.Int
 	StorageRoot common.Hash
 	CodeHash    common.Hash
+	Seqno       uint64
 }
 
 // interfaces
@@ -28,11 +29,17 @@ func (s *SmartContract) EncodeSSZ(dst []byte) ([]byte, error) {
 		ssz.Uint256SSZ(s.Balance),
 		s.StorageRoot[:],
 		s.CodeHash[:],
+		s.Seqno,
 	)
 }
 
 func (s *SmartContract) EncodingSizeSSZ() int {
-	return common.AddrSize + common.BoolSize + common.Bits256Size + common.HashSize + common.HashSize
+	return common.AddrSize +
+		common.BoolSize +
+		common.Bits256Size +
+		common.HashSize +
+		common.HashSize +
+		common.Uint64Size
 }
 
 func (s *SmartContract) Clone() common.Clonable {
@@ -51,6 +58,7 @@ func (s *SmartContract) DecodeSSZ(buf []byte, version int) error {
 		balanceBytes,
 		s.StorageRoot[:],
 		s.CodeHash[:],
+		&s.Seqno,
 	)
 
 	if err != nil {

@@ -7,113 +7,80 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
-	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestGetBlockByNumber(t *testing.T) {
-	ctx := context.Background()
-
-	database, err := db.NewBadgerDbInMemory()
-	require.NoError(t, err)
-	defer database.Close()
-
-	api := NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), database, common.NewLogger("Test", false))
-	_, err = api.GetBlockByNumber(context.Background(), transport.EarliestBlockNumber, false)
-	require.EqualError(t, err, "not implemented")
-
-	_, err = api.GetBlockByNumber(context.Background(), transport.LatestBlockNumber, false)
-	require.EqualError(t, err, "Key not found")
-
-	block := types.Block{
-		Id:                 0,
-		PrevBlock:          common.EmptyHash,
-		SmartContractsRoot: common.EmptyHash,
-		MessagesRoot:       common.EmptyHash,
-	}
-	blockHash := block.Hash()
-
-	err = database.Put(db.LastBlockTable, []byte(strconv.Itoa(0)), blockHash.Bytes())
-	require.NoError(t, err)
-
-	tx, err := database.CreateRwTx(ctx)
-	defer tx.Rollback()
-	require.NoError(t, err)
-
-	err = db.WriteBlock(tx, &block)
-	require.NoError(t, err)
-
-	err = tx.Commit()
-	require.NoError(t, err)
-
-	data, err := api.GetBlockByNumber(context.Background(), transport.LatestBlockNumber, false)
-	require.NoError(t, err)
-	assert.Equal(t, common.EmptyHash, data["parentHash"])
-	assert.Equal(t, blockHash, data["hash"])
+type SuiteEthBlock struct {
+	suite.Suite
+	db        db.DB
+	api       *APIImpl
+	blockHash common.Hash
 }
 
-func TestGetBlockByHash(t *testing.T) {
+func (suite *SuiteEthBlock) SetupSuite() {
+	shardId := 0
 	ctx := context.Background()
 
-	database, err := db.NewBadgerDbInMemory()
-	require.NoError(t, err)
-	defer database.Close()
+	var err error
+	suite.db, err = db.NewBadgerDbInMemory()
+	suite.Require().NoError(err)
 
-	api := NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), database, common.NewLogger("Test", false))
+	tx, err := suite.db.CreateRwTx(ctx)
+	suite.Require().NoError(err)
 
-	block := types.Block{
-		Id:                 0,
-		PrevBlock:          common.EmptyHash,
-		SmartContractsRoot: common.EmptyHash,
-		MessagesRoot:       common.EmptyHash,
-	}
-	blockHash := block.Hash()
+	es, err := execution.NewExecutionState(tx, shardId, common.EmptyHash)
+	suite.Require().NoError(err)
 
-	err = database.Put(db.LastBlockTable, []byte(strconv.Itoa(0)), blockHash.Bytes())
-	require.NoError(t, err)
+	blockHash, err := es.Commit(0)
+	suite.Require().NoError(err)
+	suite.blockHash = blockHash
 
-	tx, err := database.CreateRwTx(ctx)
-	defer tx.Rollback()
-	require.NoError(t, err)
-
-	err = db.WriteBlock(tx, &block)
-	require.NoError(t, err)
+	err = tx.Put(db.LastBlockTable, []byte(strconv.Itoa(shardId)), blockHash.Bytes())
+	suite.Require().NoError(err)
 
 	err = tx.Commit()
-	require.NoError(t, err)
+	suite.Require().NoError(err)
 
-	data, err := api.GetBlockByHash(context.Background(), blockHash, false)
-	require.NoError(t, err)
-	assert.IsType(t, map[string]any{}, data)
-	assert.Equal(t, common.EmptyHash, data["parentHash"])
-	assert.Equal(t, blockHash, data["hash"])
+	suite.api = NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, common.NewLogger("Test", false))
 }
 
-func TestGetBlockTransactionCountByHash(t *testing.T) {
-	ctx := context.Background()
+func (suite *SuiteEthBlock) TearDownSuite() {
+	suite.db.Close()
+}
 
+func (suite *SuiteEthBlock) TestGetBlockByNumber() {
+	_, err := suite.api.GetBlockByNumber(context.Background(), transport.EarliestBlockNumber, false)
+	suite.Require().EqualError(err, "not implemented")
+
+	data, err := suite.api.GetBlockByNumber(context.Background(), transport.LatestBlockNumber, false)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(data)
+	suite.Equal(common.EmptyHash, data["parentHash"])
+	suite.Equal(suite.blockHash, data["hash"])
+}
+
+func (suite *SuiteEthBlock) TestGetBlockByHash() {
+	data, err := suite.api.GetBlockByHash(context.Background(), suite.blockHash, false)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(data)
+	suite.Equal(common.EmptyHash, data["parentHash"])
+	suite.Equal(suite.blockHash, data["hash"])
+}
+
+func (suite *SuiteEthBlock) TestGetBlockTransactionCountByHash() {
 	blockHash := common.HexToHash("0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")
-
-	db, err := db.NewBadgerDbInMemory()
-	require.NoError(t, err)
-	defer db.Close()
-
-	api := NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), db, common.NewLogger("Test", false))
-	_, err = api.GetBlockTransactionCountByHash(ctx, blockHash)
-	require.EqualError(t, err, "not implemented")
+	_, err := suite.api.GetBlockTransactionCountByHash(context.TODO(), blockHash)
+	suite.Require().EqualError(err, "not implemented")
 }
 
-func TestGetBlockTransactionCountByNumber(t *testing.T) {
-	ctx := context.Background()
+func (suite *SuiteEthBlock) TestGetBlockTransactionCountByNumber() {
+	_, err := suite.api.GetBlockTransactionCountByNumber(context.TODO(), transport.LatestBlockNumber)
+	suite.Require().EqualError(err, "not implemented")
+}
 
-	db, err := db.NewBadgerDbInMemory()
-	require.NoError(t, err)
-	defer db.Close()
-
-	api := NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), db, common.NewLogger("Test", false))
-	_, err = api.GetBlockTransactionCountByNumber(ctx, transport.LatestBlockNumber)
-	require.EqualError(t, err, "not implemented")
+func TestSuiteEthBlock(t *testing.T) {
+	suite.Run(t, new(SuiteEthBlock))
 }

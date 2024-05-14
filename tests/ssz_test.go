@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSsz(t *testing.T) {
+func TestSszBlock(t *testing.T) {
 	block := types.Block{
 		Id:                 1,
 		PrevBlock:          common.Hash{0x01},
@@ -38,13 +38,14 @@ func TestSsz(t *testing.T) {
 	require.Equal(t, h, common.BytesToHash(h2))
 }
 
-func TestSszTransaction(t *testing.T) {
+func TestSszMessage(t *testing.T) {
 	message := types.Message{
 		ShardInfo: types.Shard{Id: 0, GenesisBlock: common.Hash{0x01}},
 		From:      common.Address{},
 		To:        common.Address{},
 		Value:     uint256.Int{1234},
 		Data:      types.Code{0x00000001},
+		Seqno:     567,
 		Signature: common.Hash{0x02},
 	}
 
@@ -60,13 +61,47 @@ func TestSszTransaction(t *testing.T) {
 	require.Equal(t, message2.To, message.To)
 	require.Equal(t, message2.Value, message.Value)
 	require.Equal(t, message2.Data, message.Data)
+	require.Equal(t, message2.Seqno, message.Seqno)
 	require.Equal(t, message2.Signature, message.Signature)
 
 	h, err := ssz.SSZHash(&message2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("25d61cdf3ba63fcc5f96505be3c2e5b3f5dcdfc6527216c9172f8b5def08bff1")
+	h2, err := hex.DecodeString("1d9bc16f1a5599431cd0f220075da6c9bdf014831b67a98a963b9ba6dad98e07")
 	require.NoError(t, err)
 
-	require.Equal(t, h, common.BytesToHash(h2))
+	require.Equal(t, common.BytesToHash(h2), h)
+}
+
+func TestSszSmc(t *testing.T) {
+	smc := types.SmartContract{
+		Address:     common.HexToAddress("1d9bc16f1a559"),
+		Initialised: true,
+		Balance:     uint256.Int{1234},
+		StorageRoot: common.Hash{0x01},
+		CodeHash:    common.Hash{0x02},
+		Seqno:       567,
+	}
+
+	encoded, err := smc.EncodeSSZ(nil)
+	require.NoError(t, err)
+
+	smc2 := types.SmartContract{}
+	err = smc2.DecodeSSZ(encoded, 0)
+	require.NoError(t, err)
+
+	require.Equal(t, smc.Address, smc2.Address)
+	require.Equal(t, smc.Initialised, smc2.Initialised)
+	require.Equal(t, smc.Balance, smc2.Balance)
+	require.Equal(t, smc.StorageRoot, smc2.StorageRoot)
+	require.Equal(t, smc.CodeHash, smc2.CodeHash)
+	require.Equal(t, smc.Seqno, smc2.Seqno)
+
+	h, err := ssz.SSZHash(&smc2)
+	require.NoError(t, err)
+
+	h2, err := hex.DecodeString("0cf51f891102ed820b9b125bee2d7fd3e844be505f2c9d705bd999607f7cdb07")
+	require.NoError(t, err)
+
+	require.Equal(t, common.BytesToHash(h2), h)
 }

@@ -14,6 +14,7 @@ type Message struct {
 	To        common.Address `json:"to,omitempty"`
 	Value     uint256.Int    `json:"value,omitempty"`
 	Data      Code           `json:"data,omitempty"`
+	Seqno     uint64         `json:"seqno,omitempty"`
 	Signature common.Hash    `json:"signature,omitempty"`
 }
 
@@ -39,6 +40,7 @@ func (s *Message) EncodeSSZ(dst []byte) ([]byte, error) {
 		s.To[:],
 		ssz.Uint256SSZ(s.Value),
 		&s.Data,
+		s.Seqno,
 		s.Signature[:],
 	)
 }
@@ -62,6 +64,7 @@ func (s *Message) DecodeSSZ(buf []byte, version int) error {
 		s.To[:],
 		value,
 		&s.Data,
+		&s.Seqno,
 		s.Signature[:],
 	)
 
