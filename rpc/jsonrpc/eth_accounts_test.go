@@ -3,7 +3,6 @@ package jsonrpc
 import (
 	"context"
 	"math/big"
-	"strconv"
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
@@ -26,7 +25,7 @@ type SuiteEthAccounts struct {
 }
 
 func (suite *SuiteEthAccounts) SetupSuite() {
-	shardId := 0
+	shardId := types.MasterShardId
 	ctx := context.Background()
 
 	var err error
@@ -52,7 +51,7 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	suite.Require().NoError(err)
 	suite.blockHash = blockHash
 
-	err = tx.Put(db.LastBlockTable, []byte(strconv.Itoa(shardId)), blockHash.Bytes())
+	err = tx.Put(db.LastBlockTable, shardId.Bytes(), blockHash.Bytes())
 	suite.Require().NoError(err)
 
 	err = tx.Commit()

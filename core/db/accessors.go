@@ -14,7 +14,7 @@ func readDecodable[
 		~*S
 		ssz.SSZDecodable
 	},
-](tx Tx, table string, shardId int, hash common.Hash) *S {
+](tx Tx, table string, shardId types.ShardId, hash common.Hash) *S {
 	data, err := tx.Get(tableName(table, shardId), hash.Bytes())
 	if errors.Is(err, ErrKeyNotFound) {
 		return nil
@@ -37,7 +37,7 @@ func writeEncodable[
 		ssz.SSZEncodable
 		common.Hashable
 	},
-](tx Tx, table string, shardId int, obj T) error {
+](tx Tx, table string, shardId types.ShardId, obj T) error {
 	hash := obj.Hash()
 
 	data, err := obj.EncodeSSZ(nil)
@@ -62,15 +62,15 @@ func WriteBlock(tx Tx, block *types.Block) error {
 	return writeEncodable(tx, blockTable, 0, block)
 }
 
-func ReadContract(tx Tx, shardId int, hash common.Hash) *types.SmartContract {
+func ReadContract(tx Tx, shardId types.ShardId, hash common.Hash) *types.SmartContract {
 	return readDecodable[types.SmartContract, *types.SmartContract](tx, contractTable, shardId, hash)
 }
 
-func WriteContract(tx Tx, shardId int, contract *types.SmartContract) error {
+func WriteContract(tx Tx, shardId types.ShardId, contract *types.SmartContract) error {
 	return writeEncodable(tx, contractTable, shardId, contract)
 }
 
-func WriteCode(tx Tx, shardId int, code types.Code) error {
+func WriteCode(tx Tx, shardId types.ShardId, code types.Code) error {
 	hash := code.Hash()
 	if err := tx.Put(tableName(codeTable, shardId), hash.Bytes(), code[:]); err != nil {
 		return err
@@ -78,7 +78,7 @@ func WriteCode(tx Tx, shardId int, code types.Code) error {
 	return nil
 }
 
-func ReadCode(tx Tx, shardId int, hash common.Hash) (*types.Code, error) {
+func ReadCode(tx Tx, shardId types.ShardId, hash common.Hash) (*types.Code, error) {
 	code, err := tx.Get(tableName(codeTable, shardId), hash[:])
 	if err != nil {
 		return nil, err
@@ -93,10 +93,10 @@ func ReadCode(tx Tx, shardId int, hash common.Hash) (*types.Code, error) {
 }
 
 // TODO: Use hash -> (blockNumber, txIndex) mapping and message trie instead of duplicating messages.
-func ReadMessage(tx Tx, shardId int, hash common.Hash) *types.Message {
+func ReadMessage(tx Tx, shardId types.ShardId, hash common.Hash) *types.Message {
 	return readDecodable[types.Message, *types.Message](tx, messageTable, shardId, hash)
 }
 
-func WriteMessage(tx Tx, shardId int, message *types.Message) error {
+func WriteMessage(tx Tx, shardId types.ShardId, message *types.Message) error {
 	return writeEncodable(tx, messageTable, shardId, message)
 }

@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"github.com/NilFoundation/nil/core/types"
 	"strconv"
 )
 
@@ -21,19 +22,19 @@ const (
 	LastBlockTable = "LastBlock"
 )
 
-func tableName(tableName string, shardId int) string {
+func tableName(tableName string, shardId types.ShardId) string {
 	return fmt.Sprintf("%s:%d:", tableName, shardId)
 }
 
-func ContractTrieTableName(shardId int) string {
+func ContractTrieTableName(shardId types.ShardId) string {
 	return tableName(contractTrieTable, shardId)
 }
 
-func MessageTrieTableName(shardId int) string {
+func MessageTrieTableName(shardId types.ShardId) string {
 	return tableName(messageTrieTable, shardId)
 }
 
-func StorageTrieTableName(shardId int) string {
+func StorageTrieTableName(shardId types.ShardId) string {
 	return tableName(storageTrieTable, shardId)
 }
 

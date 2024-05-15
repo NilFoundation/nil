@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/shardchain"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc"
 	"github.com/NilFoundation/nil/rpc/httpcfg"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
@@ -72,7 +73,7 @@ func main() {
 		func(ctx context.Context) error {
 			shards := make([]*shardchain.ShardChain, *nShards)
 			for i := 0; i < *nShards; i++ {
-				shards[i] = shardchain.NewShardChain(i, badger, *nShards)
+				shards[i] = shardchain.NewShardChain(types.ShardId(i), badger, *nShards)
 			}
 
 			collator := collate.NewCollator(shards)

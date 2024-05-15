@@ -40,7 +40,7 @@ func TestSszBlock(t *testing.T) {
 
 func TestSszMessage(t *testing.T) {
 	message := types.Message{
-		ShardInfo: types.Shard{Id: 0, GenesisBlock: common.Hash{0x01}},
+		ShardId:   types.MasterShardId,
 		From:      common.Address{},
 		To:        common.Address{},
 		Value:     uint256.Int{1234},
@@ -56,7 +56,7 @@ func TestSszMessage(t *testing.T) {
 	err = message2.DecodeSSZ(encoded, 0)
 	require.NoError(t, err)
 
-	require.Equal(t, message2.ShardInfo, message.ShardInfo)
+	require.Equal(t, message2.ShardId, message.ShardId)
 	require.Equal(t, message2.From, message.From)
 	require.Equal(t, message2.To, message.To)
 	require.Equal(t, message2.Value, message.Value)
@@ -67,7 +67,7 @@ func TestSszMessage(t *testing.T) {
 	h, err := ssz.SSZHash(&message2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("1d9bc16f1a5599431cd0f220075da6c9bdf014831b67a98a963b9ba6dad98e07")
+	h2, err := hex.DecodeString("01f2d94083023c1841663be841508caadc6484ffdebd149b049a9e247e3d10a0")
 	require.NoError(t, err)
 
 	require.Equal(t, common.BytesToHash(h2), h)

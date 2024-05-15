@@ -25,7 +25,7 @@ func TestGetMessageByHash(t *testing.T) {
 	defer tx.Rollback()
 	require.NoError(t, err)
 
-	message := types.Message{ShardInfo: types.Shard{Id: 0}, Data: []byte("data")}
+	message := types.Message{ShardId: types.MasterShardId, Data: []byte("data")}
 
 	err = db.WriteMessage(tx, 0, &message)
 	require.NoError(t, err)

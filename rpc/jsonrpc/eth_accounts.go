@@ -3,24 +3,22 @@ package jsonrpc
 import (
 	"context"
 	"fmt"
-	"math/big"
-	"strconv"
-
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
+	"math/big"
 )
 
 func (api *APIImpl) getSmartContract(tx db.Tx, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*types.SmartContract, error) {
-	shardId := 0
+	shardId := types.MasterShardId
 
 	blockHash := common.EmptyHash
 	if blockNrOrHash.BlockNumber != nil {
 		if *blockNrOrHash.BlockNumber == transport.LatestBlockNumber {
-			hashRaw, err := tx.Get(db.LastBlockTable, []byte(strconv.Itoa(shardId)))
+			hashRaw, err := tx.Get(db.LastBlockTable, shardId.Bytes())
 			if err != nil {
 				return nil, err
 			}

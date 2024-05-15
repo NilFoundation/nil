@@ -9,7 +9,7 @@ import (
 
 type Message struct {
 	Index     uint64         `json:"index,omitempty"`
-	ShardInfo Shard          `json:"shard,omitempty"`
+	ShardId   ShardId        `json:"shard,omitempty"`
 	From      common.Address `json:"from,omitempty"`
 	To        common.Address `json:"to,omitempty"`
 	Value     uint256.Int    `json:"value,omitempty"`
@@ -35,7 +35,7 @@ var _ ssz.SSZDecodable = new(MessageId)
 func (s *Message) EncodeSSZ(dst []byte) ([]byte, error) {
 	return ssz.MarshalSSZ(
 		dst,
-		&s.ShardInfo,
+		&s.ShardId,
 		s.From[:],
 		s.To[:],
 		ssz.Uint256SSZ(s.Value),
@@ -46,7 +46,7 @@ func (s *Message) EncodeSSZ(dst []byte) ([]byte, error) {
 }
 
 func (s *Message) EncodingSizeSSZ() int {
-	return common.Uint64Size + s.ShardInfo.EncodingSizeSSZ() + common.AddrSize + common.AddrSize + common.Bits256Size + s.Data.EncodingSizeSSZ() + common.HashSize
+	return common.Uint64Size + s.ShardId.EncodingSizeSSZ() + common.AddrSize + common.AddrSize + common.Bits256Size + s.Data.EncodingSizeSSZ() + common.HashSize
 }
 
 func (s *Message) Clone() common.Clonable {
@@ -59,7 +59,7 @@ func (s *Message) DecodeSSZ(buf []byte, version int) error {
 	err := ssz.UnmarshalSSZ(
 		buf,
 		0,
-		&s.ShardInfo,
+		&s.ShardId,
 		s.From[:],
 		s.To[:],
 		value,

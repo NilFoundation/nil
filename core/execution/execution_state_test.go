@@ -45,7 +45,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	const numMessages uint8 = 10
 
 	for i := range numMessages {
-		msg := types.Message{ShardInfo: types.Shard{Id: 10}, Data: []byte{i}}
+		msg := types.Message{ShardId: types.ShardId(10), Data: []byte{i}}
 		es.AddMessage(&msg)
 	}
 

@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
-
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
 	"github.com/holiman/uint256"
 	"github.com/rs/zerolog"
@@ -21,7 +20,7 @@ type Transaction struct {
 }
 
 type ShardChain struct {
-	Id int
+	Id types.ShardId
 	db db.DB
 
 	// todo: can be probably moved out (and the Transaction type removed completely since we have Message type now)
@@ -33,11 +32,11 @@ type ShardChain struct {
 }
 
 func (c *ShardChain) isMasterchain() bool {
-	return c.Id == 0
+	return c.Id == types.MasterShardId
 }
 
-func (c *ShardChain) getHashLastBlock(roTx db.Tx, shardId uint64) (common.Hash, error) {
-	lastBlockRaw, err := roTx.Get(db.LastBlockTable, []byte(strconv.FormatUint(shardId, 10)))
+func (c *ShardChain) getHashLastBlock(roTx db.Tx, shardId types.ShardId) (common.Hash, error) {
+	lastBlockRaw, err := roTx.Get(db.LastBlockTable, shardId.Bytes())
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return common.EmptyHash, fmt.Errorf("failed getting last block %w for shard %d", err, shardId)
 	}
@@ -59,7 +58,7 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 		return common.EmptyHash, err
 	}
 
-	lastBlockHashBytes, err := rwTx.Get(db.LastBlockTable, []byte(strconv.Itoa(c.Id)))
+	lastBlockHashBytes, err := rwTx.Get(db.LastBlockTable, c.Id.Bytes())
 
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return common.EmptyHash, fmt.Errorf("failed getting last block: %w", err)
@@ -77,7 +76,7 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 		return common.EmptyHash, err
 	}
 
-	addr := common.BytesToAddress([]byte("contract-" + strconv.Itoa(c.Id)))
+	addr := common.BytesToAddress([]byte("contract-" + c.Id.String()))
 
 	accountState := es.GetAccount(addr)
 
@@ -120,14 +119,14 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 
 	if c.isMasterchain() {
 		for i := 1; i < c.NShards; i++ {
-			lastBlockHash, err := c.getHashLastBlock(roTx, uint64(i))
+			lastBlockHash, err := c.getHashLastBlock(roTx, types.ShardId(i))
 			if err != nil {
 				return common.EmptyHash, err
 			}
 			es.SetShardHash(uint64(i), lastBlockHash)
 		}
 	} else {
-		lastBlockHash, err := c.getHashLastBlock(roTx, uint64(0))
+		lastBlockHash, err := c.getHashLastBlock(roTx, types.MasterShardId)
 		if err != nil {
 			return common.EmptyHash, err
 		}
@@ -145,7 +144,7 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 		return common.EmptyHash, err
 	}
 
-	if err = rwTx.Put(db.LastBlockTable, []byte(strconv.Itoa(c.Id)), blockHash[:]); err != nil {
+	if err = rwTx.Put(db.LastBlockTable, c.Id.Bytes(), blockHash[:]); err != nil {
 		return common.EmptyHash, err
 	}
 
@@ -169,7 +168,7 @@ func (c *ShardChain) Collate(ctx context.Context) error {
 }
 
 func NewShardChain(
-	shardId int,
+	shardId types.ShardId,
 	db db.DB,
 	nShards int,
 ) *ShardChain {

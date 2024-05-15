@@ -23,7 +23,7 @@ type AccountState struct {
 	CodeHash    common.Hash
 	Seqno       uint64
 	StorageRoot *mpt.MerklePatriciaTrie
-	ShardId     int
+	ShardId     types.ShardId
 
 	State map[common.Hash]uint256.Int
 }
@@ -34,7 +34,7 @@ type ExecutionState struct {
 	MessageRoot      *mpt.MerklePatriciaTrie
 	PrevBlock        common.Hash
 	MasterChain      common.Hash
-	ShardId          int
+	ShardId          types.ShardId
 	ChildChainBlocks map[uint64]common.Hash
 
 	Accounts map[common.Address]*AccountState
@@ -45,7 +45,7 @@ func (s *AccountState) empty() bool {
 	return s.Seqno == 0 && s.Balance.IsZero() && len(s.Code) == 0
 }
 
-func NewAccountState(tx db.Tx, shardId int, data []byte) (*AccountState, error) {
+func NewAccountState(tx db.Tx, shardId types.ShardId, data []byte) (*AccountState, error) {
 	account := new(types.SmartContract)
 
 	if err := account.DecodeSSZ(data, 0); err != nil {
@@ -76,7 +76,7 @@ func NewAccountState(tx db.Tx, shardId int, data []byte) (*AccountState, error) 
 	}, nil
 }
 
-func NewExecutionState(tx db.Tx, shardId int, blockHash common.Hash) (*ExecutionState, error) {
+func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash) (*ExecutionState, error) {
 	block := db.ReadBlock(tx, blockHash)
 
 	var contractRoot, messageRoot *mpt.MerklePatriciaTrie
