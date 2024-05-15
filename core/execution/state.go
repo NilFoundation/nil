@@ -53,7 +53,7 @@ func NewAccountState(tx db.Tx, shardId int, data []byte) (*AccountState, error) 
 	}
 
 	// TODO: store storage of each contract in separate table
-	root := mpt.NewMerklePatriciaTrieWithRoot(tx, db.TableName(db.StorageTrieTable, shardId), account.StorageRoot)
+	root := mpt.NewMerklePatriciaTrieWithRoot(tx, db.StorageTrieTableName(shardId), account.StorageRoot)
 
 	code, err := db.ReadCode(tx, shardId, account.CodeHash)
 
@@ -80,8 +80,8 @@ func NewExecutionState(tx db.Tx, shardId int, blockHash common.Hash) (*Execution
 	block := db.ReadBlock(tx, blockHash)
 
 	var contractRoot, messageRoot *mpt.MerklePatriciaTrie
-	contractTrieTable := db.TableName(db.ContractTrieTable, shardId)
-	messageTrieTable := db.TableName(db.MessageTrieTable, shardId)
+	contractTrieTable := db.ContractTrieTableName(shardId)
+	messageTrieTable := db.MessageTrieTableName(shardId)
 	if block != nil {
 		contractRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, contractTrieTable, block.SmartContractsRoot)
 		messageRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, messageTrieTable, block.MessagesRoot)
@@ -368,7 +368,7 @@ func (es *ExecutionState) CreateContract(addr common.Address, code types.Code) e
 	}
 
 	// TODO: store storage of each contract in separate table
-	root := mpt.NewMerklePatriciaTrie(es.tx, db.TableName(db.StorageTrieTable, es.ShardId))
+	root := mpt.NewMerklePatriciaTrie(es.tx, db.StorageTrieTableName(es.ShardId))
 
 	es.Accounts[addr] = &AccountState{
 		Tx:          es.tx,
@@ -407,7 +407,7 @@ func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 
 	treeShardsRootHash := common.EmptyHash
 	if len(es.ChildChainBlocks) > 0 {
-		treeShards := mpt.NewMerklePatriciaTrie(es.tx, db.ShardBlocksTrieTable+strconv.FormatUint(blockId, 10))
+		treeShards := mpt.NewMerklePatriciaTrie(es.tx, db.ShardBlocksTrieTableName(blockId))
 		for k, hash := range es.ChildChainBlocks {
 			key := strconv.AppendUint(nil, k, 10)
 			if err := treeShards.Set(key, hash.Bytes()); err != nil {

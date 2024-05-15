@@ -15,7 +15,7 @@ func readDecodable[
 		ssz.SSZDecodable
 	},
 ](tx Tx, table string, shardId int, hash common.Hash) *S {
-	data, err := tx.Get(TableName(table, shardId), hash.Bytes())
+	data, err := tx.Get(tableName(table, shardId), hash.Bytes())
 	if errors.Is(err, ErrKeyNotFound) {
 		return nil
 	}
@@ -45,41 +45,41 @@ func writeEncodable[
 		return err
 	}
 
-	return tx.Put(TableName(table, shardId), hash.Bytes(), data)
+	return tx.Put(tableName(table, shardId), hash.Bytes(), data)
 }
 
 /*
 TODO: eventually, ReadBlock and WriteBlock should accept the shardId
-parameter. Currently, howerver, the RPC doesn't contain shardId parameters
+parameter. Currently, however, the RPC doesn't contain shardId parameters
 for fetching shard by hash, and it would take time to do the shardId resolution
 correctly for that case.
 */
 func ReadBlock(tx Tx, hash common.Hash) *types.Block {
-	return readDecodable[types.Block, *types.Block](tx, BlockTable, 0, hash)
+	return readDecodable[types.Block, *types.Block](tx, blockTable, 0, hash)
 }
 
 func WriteBlock(tx Tx, block *types.Block) error {
-	return writeEncodable(tx, BlockTable, 0, block)
+	return writeEncodable(tx, blockTable, 0, block)
 }
 
 func ReadContract(tx Tx, shardId int, hash common.Hash) *types.SmartContract {
-	return readDecodable[types.SmartContract, *types.SmartContract](tx, ContractTable, shardId, hash)
+	return readDecodable[types.SmartContract, *types.SmartContract](tx, contractTable, shardId, hash)
 }
 
 func WriteContract(tx Tx, shardId int, contract *types.SmartContract) error {
-	return writeEncodable(tx, ContractTable, shardId, contract)
+	return writeEncodable(tx, contractTable, shardId, contract)
 }
 
 func WriteCode(tx Tx, shardId int, code types.Code) error {
 	hash := code.Hash()
-	if err := tx.Put(TableName(CodeTable, shardId), hash.Bytes(), code[:]); err != nil {
+	if err := tx.Put(tableName(codeTable, shardId), hash.Bytes(), code[:]); err != nil {
 		return err
 	}
 	return nil
 }
 
 func ReadCode(tx Tx, shardId int, hash common.Hash) (*types.Code, error) {
-	code, err := tx.Get(TableName(CodeTable, shardId), hash[:])
+	code, err := tx.Get(tableName(codeTable, shardId), hash[:])
 	if err != nil {
 		return nil, err
 	}
@@ -94,9 +94,9 @@ func ReadCode(tx Tx, shardId int, hash common.Hash) (*types.Code, error) {
 
 // TODO: Use hash -> (blockNumber, txIndex) mapping and message trie instead of duplicating messages.
 func ReadMessage(tx Tx, shardId int, hash common.Hash) *types.Message {
-	return readDecodable[types.Message, *types.Message](tx, MessageTable, shardId, hash)
+	return readDecodable[types.Message, *types.Message](tx, messageTable, shardId, hash)
 }
 
 func WriteMessage(tx Tx, shardId int, message *types.Message) error {
-	return writeEncodable(tx, MessageTable, shardId, message)
+	return writeEncodable(tx, messageTable, shardId, message)
 }

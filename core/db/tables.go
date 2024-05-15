@@ -1,27 +1,42 @@
 package db
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 const (
-	BlockTable = "Blocks"
+	blockTable = "Blocks"
 
-	CodeTable         = "Code"
-	ContractCodeTable = "ContractCode"
+	codeTable = "Code"
 
-	ContractTrieTable    = "ContractTrie"
-	StorageTrieTable     = "StorageTrie"
-	ShardBlocksTrieTable = "ShardBlocksTrie"
-	MessageTrieTable     = "MessageTrie"
+	contractTrieTable    = "ContractTrie"
+	storageTrieTable     = "StorageTrie"
+	shardBlocksTrieTable = "ShardBlocksTrie"
+	messageTrieTable     = "MessageTrie"
 
-	ContractTable = "Contract"
-	StorageTable  = "Storage"
-	MessageTable  = "Message"
-
-	MptTable = "MPT"
+	contractTable = "Contract"
+	messageTable  = "Message"
 
 	LastBlockTable = "LastBlock"
 )
 
-func TableName(tableName string, shardId int) string {
+func tableName(tableName string, shardId int) string {
 	return fmt.Sprintf("%s:%d:", tableName, shardId)
+}
+
+func ContractTrieTableName(shardId int) string {
+	return tableName(contractTrieTable, shardId)
+}
+
+func MessageTrieTableName(shardId int) string {
+	return tableName(messageTrieTable, shardId)
+}
+
+func StorageTrieTableName(shardId int) string {
+	return tableName(storageTrieTable, shardId)
+}
+
+func ShardBlocksTrieTableName(blockId uint64) string {
+	return shardBlocksTrieTable + strconv.FormatUint(blockId, 10)
 }
