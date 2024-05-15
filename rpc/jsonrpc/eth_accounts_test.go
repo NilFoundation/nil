@@ -9,7 +9,7 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
-	"github.com/NilFoundation/nil/core/mpt"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
@@ -19,66 +19,46 @@ import (
 
 type SuiteEthAccounts struct {
 	suite.Suite
-	db    db.DB
-	api   *APIImpl
-	smc   types.SmartContract
-	block types.Block
+	db        db.DB
+	api       *APIImpl
+	smcAddr   common.Address
+	blockHash common.Hash
 }
 
 func (suite *SuiteEthAccounts) SetupSuite() {
 	shardId := 0
+	ctx := context.Background()
+
 	var err error
 	suite.db, err = db.NewBadgerDbInMemory()
 	suite.Require().NoError(err)
 
-	suite.api = NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, common.NewLogger("Test", false))
-
-	ctx := context.Background()
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Require().NoError(err)
-	defer tx.Rollback()
 
-	code := types.Code("some code")
-
-	suite.smc = types.SmartContract{
-		Address:     common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20"),
-		Initialised: true,
-		Balance:     uint256.Int{1234},
-		StorageRoot: common.Hash{0x01},
-		CodeHash:    code.Hash(),
-		Seqno:       567,
-	}
-	suite.Require().NotEqual(common.Address{}, suite.smc.Address)
-
-	data, err := suite.smc.EncodeSSZ(nil)
+	es, err := execution.NewExecutionState(tx, shardId, common.EmptyHash)
 	suite.Require().NoError(err)
 
-	root := mpt.NewMerklePatriciaTrie(tx, db.TableName(db.ContractTrieTable, shardId))
-	err = root.Set(suite.smc.Address.Hash().Bytes(), data)
+	suite.smcAddr = common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
+	suite.Require().NotEqual(common.Address{}, suite.smcAddr)
+
+	err = es.CreateContract(suite.smcAddr, types.Code("some code"))
 	suite.Require().NoError(err)
 
-	suite.block = types.Block{
-		Id:                 0,
-		PrevBlock:          common.EmptyHash,
-		SmartContractsRoot: root.RootHash(),
-		MessagesRoot:       common.EmptyHash,
-	}
-	blockHash := suite.block.Hash()
+	es.SetBalance(suite.smcAddr, *uint256.NewInt(1234))
+	es.SetSeqno(suite.smcAddr, 567)
 
-	err = db.WriteContract(tx, shardId, &suite.smc)
+	blockHash, err := es.Commit(0)
 	suite.Require().NoError(err)
-
-	err = db.WriteCode(tx, shardId, code)
-	suite.Require().NoError(err)
+	suite.blockHash = blockHash
 
 	err = tx.Put(db.LastBlockTable, []byte(strconv.Itoa(shardId)), blockHash.Bytes())
 	suite.Require().NoError(err)
 
-	err = db.WriteBlock(tx, &suite.block)
-	suite.Require().NoError(err)
-
 	err = tx.Commit()
 	suite.Require().NoError(err)
+
+	suite.api = NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, common.NewLogger("Test", false))
 }
 
 func (suite *SuiteEthAccounts) TearDownSuite() {
@@ -87,15 +67,14 @@ func (suite *SuiteEthAccounts) TearDownSuite() {
 
 func (suite *SuiteEthAccounts) TestGetBalance() {
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	res, err := suite.api.GetBalance(context.Background(), suite.smc.Address, blockNum)
+	res, err := suite.api.GetBalance(context.Background(), suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
-	suite.Equal((*hexutil.Big)(suite.smc.Balance.ToBig()), res)
+	suite.Equal((*hexutil.Big)(big.NewInt(1234)), res)
 
-	hash := suite.block.Hash()
-	blockHash := transport.BlockNumberOrHash{BlockHash: &hash}
-	res, err = suite.api.GetBalance(context.Background(), suite.smc.Address, blockHash)
+	blockHash := transport.BlockNumberOrHash{BlockHash: &suite.blockHash}
+	res, err = suite.api.GetBalance(context.Background(), suite.smcAddr, blockHash)
 	suite.Require().NoError(err)
-	suite.Equal((*hexutil.Big)(suite.smc.Balance.ToBig()), res)
+	suite.Equal((*hexutil.Big)(big.NewInt(1234)), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 	res, err = suite.api.GetBalance(context.Background(), common.HexToAddress("deadbeef"), blockNum)
@@ -103,19 +82,18 @@ func (suite *SuiteEthAccounts) TestGetBalance() {
 	suite.Equal((*hexutil.Big)(big.NewInt(0)), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.EarliestBlock.BlockNumber}
-	_, err = suite.api.GetBalance(context.TODO(), suite.smc.Address, blockNum)
+	_, err = suite.api.GetBalance(context.TODO(), suite.smcAddr, blockNum)
 	suite.Require().EqualError(err, "not implemented")
 }
 
 func (suite *SuiteEthAccounts) TestGetCode() {
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	res, err := suite.api.GetCode(context.Background(), suite.smc.Address, blockNum)
+	res, err := suite.api.GetCode(context.Background(), suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Bytes("some code"), res)
 
-	hash := suite.block.Hash()
-	blockHash := transport.BlockNumberOrHash{BlockHash: &hash}
-	res, err = suite.api.GetCode(context.Background(), suite.smc.Address, blockHash)
+	blockHash := transport.BlockNumberOrHash{BlockHash: &suite.blockHash}
+	res, err = suite.api.GetCode(context.Background(), suite.smcAddr, blockHash)
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Bytes("some code"), res)
 
@@ -125,21 +103,20 @@ func (suite *SuiteEthAccounts) TestGetCode() {
 	suite.Equal(hexutil.Bytes(""), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.EarliestBlock.BlockNumber}
-	_, err = suite.api.GetCode(context.TODO(), suite.smc.Address, blockNum)
+	_, err = suite.api.GetCode(context.TODO(), suite.smcAddr, blockNum)
 	suite.Require().EqualError(err, "not implemented")
 }
 
 func (suite *SuiteEthAccounts) TestGetSeqno() {
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	res, err := suite.api.GetTransactionCount(context.Background(), suite.smc.Address, blockNum)
+	res, err := suite.api.GetTransactionCount(context.Background(), suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
-	suite.Equal((*hexutil.Uint64)(&suite.smc.Seqno), res)
+	suite.Equal(hexutil.Uint64(567), *res)
 
-	hash := suite.block.Hash()
-	blockHash := transport.BlockNumberOrHash{BlockHash: &hash}
-	res, err = suite.api.GetTransactionCount(context.Background(), suite.smc.Address, blockHash)
+	blockHash := transport.BlockNumberOrHash{BlockHash: &suite.blockHash}
+	res, err = suite.api.GetTransactionCount(context.Background(), suite.smcAddr, blockHash)
 	suite.Require().NoError(err)
-	suite.Equal((*hexutil.Uint64)(&suite.smc.Seqno), res)
+	suite.Equal(hexutil.Uint64(567), *res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 	res, err = suite.api.GetTransactionCount(context.Background(), common.HexToAddress("deadbeef"), blockNum)
@@ -147,7 +124,7 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 	suite.Equal(hexutil.Uint64(0), *res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.EarliestBlock.BlockNumber}
-	_, err = suite.api.GetTransactionCount(context.TODO(), suite.smc.Address, blockNum)
+	_, err = suite.api.GetTransactionCount(context.TODO(), suite.smcAddr, blockNum)
 	suite.Require().EqualError(err, "not implemented")
 }
 
