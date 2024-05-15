@@ -45,6 +45,21 @@ func ValidateTables(t *suite.Suite, db DB) {
 	t.False(has, "Key 'foo' should be present in tbl-2")
 }
 
+func ValidateTablesName(t *suite.Suite, db DB) {
+	defer db.Close()
+
+	t.Require().NoError(db.Put("tbl", []byte("HelloWorld"), []byte("bar1")))
+	t.Require().NoError(db.Put("tblHello", []byte("World"), []byte("bar2")))
+
+	val1, err := db.Get("tbl", []byte("HelloWorld"))
+	t.Require().NoError(err)
+	t.Equal(*val1, []byte("bar1"))
+
+	val2, err := db.Get("tblHello", []byte("World"))
+	t.Require().NoError(err)
+	t.Equal(*val2, []byte("bar2"))
+}
+
 func ValidateTransaction(t *suite.Suite, db DB) {
 	defer db.Close()
 
@@ -179,6 +194,9 @@ func (suite *SuiteBadgerDb) TestTwoParallelTransaction() {
 func (suite *SuiteBadgerDb) TestValidateTables() {
 	ValidateTables(&suite.Suite, suite.db)
 }
+func (suite *SuiteBadgerDb) TestValidateTablesName() {
+	ValidateTablesName(&suite.Suite, suite.db)
+}
 func (suite *SuiteBadgerDb) TestValidateTransaction() {
 	ValidateTransaction(&suite.Suite, suite.db)
 }
@@ -195,6 +213,9 @@ func TestSuiteBadgerDb(t *testing.T) {
 
 func (suite *SuiteSqliteDb) TestValidateTables() {
 	ValidateTables(&suite.Suite, suite.db)
+}
+func (suite *SuiteSqliteDb) TestValidateTablesName() {
+	ValidateTablesName(&suite.Suite, suite.db)
 }
 func (suite *SuiteSqliteDb) TestValidateTransaction() {
 	ValidateTransaction(&suite.Suite, suite.db)
