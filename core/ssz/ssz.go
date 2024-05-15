@@ -49,6 +49,12 @@ func Uint64SSZ(x uint64) []byte {
 	return b
 }
 
+func Uint32SSZ(x uint32) []byte {
+	b := make([]byte, 4)
+	binary.LittleEndian.PutUint32(b, x)
+	return b
+}
+
 func Uint256SSZ(x uint256.Int) []byte {
 	b := make([]byte, 32)
 	x.WriteToSlice(b)

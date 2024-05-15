@@ -13,6 +13,8 @@ type Block struct {
 	MessagesRoot        common.Hash
 	ChildBlocksRootHash common.Hash
 	MasterChainHash     common.Hash
+	ReceiptsRoot        common.Hash
+	LogsBloom           Bloom
 }
 
 // interfaces

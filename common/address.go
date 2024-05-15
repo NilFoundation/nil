@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"github.com/NilFoundation/nil/common/hexutil"
 	"math/big"
 )
 
@@ -25,6 +26,9 @@ func BigToAddress(b *big.Int) Address { return BytesToAddress(b.Bytes()) }
 // HexToAddress returns Address with byte values of s.
 // If s is larger than len(h), s will be cropped from the left.
 func HexToAddress(s string) Address {
+	if hexutil.Has0xPrefix(s) {
+		s = s[2:]
+	}
 	b, err := hex.DecodeString(s)
 	if err != nil {
 		return Address{}

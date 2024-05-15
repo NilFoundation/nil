@@ -823,23 +823,18 @@ func makeLog(size int) executionFunc {
 		if interpreter.readOnly {
 			return nil, ErrWriteProtection
 		}
-		topics := make([]common.Hash, size)
+		topics := make([]*types.Topic, size)
 		stack := scope.Stack
 		mStart, mSize := stack.pop(), stack.pop()
 		for i := 0; i < size; i++ {
 			addr := stack.pop()
-			topics[i] = addr.Bytes32()
+			bytes := addr.Bytes32()
+			topics[i] = (*types.Topic)(&bytes)
 		}
 
 		d := scope.Memory.GetCopy(int64(mStart.Uint64()), int64(mSize.Uint64()))
-		interpreter.evm.StateDB.AddLog(&types.Log{
-			Address: scope.Contract.Address(),
-			Topics:  topics,
-			Data:    d,
-			// This is a non-consensus field, but assigned here because
-			// core/state doesn't know the current block number.
-			BlockNumber: interpreter.evm.Context.BlockNumber.Uint64(),
-		})
+		log := types.NewLog(scope.Contract.Address(), d, interpreter.evm.Context.BlockNumber.Uint64(), topics)
+		interpreter.evm.StateDB.AddLog(log)
 
 		return nil, nil
 	}

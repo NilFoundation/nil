@@ -19,7 +19,7 @@ func MarshalSSZ(buf []byte, schema ...any) (dst []byte, err error) {
 	offsetsStarts := []int{}
 
 	// Iterate over each element in the schema
-	for i, element := range schema {
+	for _, element := range schema {
 		switch obj := element.(type) {
 		case uint64:
 			// If the element is a uint64, encode it using SSZ and append it to the dst
@@ -29,13 +29,30 @@ func MarshalSSZ(buf []byte, schema ...any) (dst []byte, err error) {
 			// If the element is a pointer to uint64, dereference it, encode it using SSZ, and append it to the dst
 			dst = append(dst, Uint64SSZ(*obj)...)
 			currentOffset += 8
+		case uint32:
+			dst = append(dst, Uint32SSZ(obj)...)
+			currentOffset += 4
+		case *uint32:
+			dst = append(dst, Uint32SSZ(*obj)...)
+			currentOffset += 4
 		case []byte:
 			// If the element is a byte slice, append it to the dst
 			dst = append(dst, obj...)
 			currentOffset += len(obj)
+		case bool:
+			var val byte
+			if obj {
+				val = 1
+			} else {
+				val = 0
+			}
+			dst = append(dst, val)
+			currentOffset += 1
 		case byte:
 			dst = append(dst, obj)
 			currentOffset += 1
+		case []SizedObjectSSZ:
+
 		case SizedObjectSSZ:
 			// If the element implements the SizedObjectSSZ interface
 			startSize := len(dst)
@@ -53,7 +70,7 @@ func MarshalSSZ(buf []byte, schema ...any) (dst []byte, err error) {
 			currentOffset += len(dst) - startSize
 		default:
 			// If the element does not match any supported types, panic with an error message
-			panic(fmt.Sprintf("u must suffer from dementia, pls read the doc of this method (aka. comments), bad schema component %d", i))
+			panic(fmt.Sprintf("bad schema component %T", obj))
 		}
 	}
 

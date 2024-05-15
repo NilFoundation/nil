@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+
+	"github.com/iden3/go-iden3-crypto/poseidon"
 	"math/big"
 	"math/rand"
 	"reflect"
@@ -26,6 +28,11 @@ func BytesToHash(b []byte) Hash {
 	var h Hash
 	h.SetBytes(b)
 	return h
+}
+
+// PoseidonHash returns 32-bytes poseidon hash of b bytes.
+func PoseidonHash(b []byte) Hash {
+	return BytesToHash(poseidon.Sum(b))
 }
 
 // CastToHash - sets b to hash

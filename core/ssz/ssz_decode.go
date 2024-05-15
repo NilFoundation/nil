@@ -21,6 +21,12 @@ func UnmarshalSSZ(buf []byte, version int, schema ...any) (err error) {
 			// If the element is a pointer to uint64, decode it from the buf using little-endian encoding
 			*obj = binary.LittleEndian.Uint64(buf[position:])
 			position += 8
+		case *uint32:
+			if len(buf) < position+4 {
+				return ErrLowBufferSize
+			}
+			*obj = binary.LittleEndian.Uint32(buf[position:])
+			position += 4
 		case []byte:
 			if len(buf) < position+len(obj) {
 				return ErrLowBufferSize
@@ -33,6 +39,16 @@ func UnmarshalSSZ(buf []byte, version int, schema ...any) (err error) {
 				return ErrLowBufferSize
 			}
 			*obj = buf[position]
+			position += 1
+		case *bool:
+			if len(buf) < position+1 {
+				return ErrLowBufferSize
+			}
+			if buf[position] != 0 {
+				*obj = true
+			} else {
+				*obj = false
+			}
 			position += 1
 		case SizedObjectSSZ:
 			// If the element implements the SizedObjectSSZ interface
@@ -57,7 +73,7 @@ func UnmarshalSSZ(buf []byte, version int, schema ...any) (err error) {
 		default:
 			// If the element does not match any supported types, throw panic, will be caught by anti-panic condom
 			// and we will have the trace.
-			panic(fmt.Errorf("RTFM, bad schema component %d", i))
+			panic(fmt.Errorf("Bad schema component %T", obj))
 		}
 	}
 
