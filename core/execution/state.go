@@ -2,6 +2,7 @@ package execution
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/NilFoundation/nil/common"
@@ -95,7 +96,7 @@ func (es *ExecutionState) GetAccount(addr common.Address) *AccountState {
 
 	data, err := es.ContractRoot.Get(addrHash[:])
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		panic(err)
+		panic(fmt.Sprintf("failed to fetch account %v: %v", addrHash, err))
 	}
 
 	if data == nil {
@@ -104,7 +105,7 @@ func (es *ExecutionState) GetAccount(addr common.Address) *AccountState {
 
 	acc, err = NewAccountState(es.tx, es.ShardId, data)
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("failed to create account on shard %v: %v", es.ShardId, err))
 	}
 	es.Accounts[addr] = acc
 	return acc
