@@ -9,6 +9,7 @@ import (
 	db "github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/ssz"
+	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
 )
@@ -38,6 +39,10 @@ type ExecutionState struct {
 
 	Accounts map[common.Address]*AccountState
 	Messages []*types.Message
+}
+
+func (s *AccountState) empty() bool {
+	return s.Seqno == 0 && s.Balance.IsZero() && len(s.Code) == 0
 }
 
 func NewAccountState(tx db.Tx, shardId int, data []byte) (*AccountState, error) {
@@ -122,6 +127,112 @@ func (es *ExecutionState) GetAccount(addr common.Address) *AccountState {
 	return acc
 }
 
+func (es *ExecutionState) AddAddressToAccessList(addr common.Address) {
+}
+
+func (es *ExecutionState) AddBalance(addr common.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) {
+	acc := es.getOrNewAccount(addr)
+	acc.Balance.Add(&acc.Balance, amount)
+}
+
+func (es *ExecutionState) AddLog(*types.Log) {
+	panic("unimplemented")
+}
+
+func (es *ExecutionState) AddRefund(uint64) {
+	panic("unimplemented")
+}
+
+func (es *ExecutionState) AddSlotToAccessList(addr common.Address, slot common.Hash) {
+}
+
+func (es *ExecutionState) AddressInAccessList(addr common.Address) bool {
+	return true // FIXME
+}
+
+func (es *ExecutionState) Empty(addr common.Address) bool {
+	acc := es.GetAccount(addr)
+	return acc == nil || acc.empty()
+}
+
+func (es *ExecutionState) Exist(addr common.Address) bool {
+	acc := es.GetAccount(addr)
+	return acc != nil
+}
+
+func (es *ExecutionState) GetCode(addr common.Address) []byte {
+	acc := es.GetAccount(addr)
+	if acc != nil {
+		return acc.Code
+	}
+	return nil
+}
+
+func (es *ExecutionState) GetCodeHash(addr common.Address) common.Hash {
+	acc := es.GetAccount(addr)
+	if acc != nil {
+		return acc.CodeHash
+	}
+	return common.EmptyHash
+}
+
+func (es *ExecutionState) GetCodeSize(addr common.Address) int {
+	acc := es.GetAccount(addr)
+	if acc != nil {
+		return len(acc.Code)
+	}
+	return 0
+}
+
+func (es *ExecutionState) GetCommittedState(common.Address, common.Hash) common.Hash {
+	return common.EmptyHash
+}
+
+func (es *ExecutionState) GetRefund() uint64 {
+	panic("unimplemented")
+}
+
+func (es *ExecutionState) GetStorageRoot(addr common.Address) common.Hash {
+	acc := es.GetAccount(addr)
+	if acc != nil {
+		return acc.StorageRoot.RootHash()
+	}
+	return common.EmptyHash
+}
+
+func (es *ExecutionState) GetTransientState(addr common.Address, key common.Hash) common.Hash {
+	panic("unimplemented")
+}
+
+func (es *ExecutionState) HasSelfDestructed(common.Address) bool {
+	panic("unimplemented")
+}
+
+func (es *ExecutionState) Selfdestruct6780(common.Address) {
+	panic("unimplemented")
+}
+
+func (es *ExecutionState) SetCode(addr common.Address, code []byte) {
+	acc := es.GetAccount(addr)
+	acc.Code = code
+}
+
+func (es *ExecutionState) SetTransientState(addr common.Address, key common.Hash, value common.Hash) {
+	panic("unimplemented")
+}
+
+func (es *ExecutionState) SlotInAccessList(addr common.Address, slot common.Hash) (addressOk bool, slotOk bool) {
+	return true, true // FIXME
+}
+
+func (es *ExecutionState) SubBalance(common.Address, *uint256.Int, tracing.BalanceChangeReason) {
+	panic("unimplemented")
+}
+
+func (es *ExecutionState) SubRefund(uint64) {
+	panic("unimplemented")
+}
+
 func (as *AccountState) GetState(key common.Hash) (uint256.Int, error) {
 	val, ok := as.State[key]
 	if ok {
@@ -194,23 +305,21 @@ func (es *ExecutionState) GetState(addr common.Address, key common.Hash) common.
 	return value.Bytes32()
 }
 
-func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val common.Hash) error {
+func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val common.Hash) {
 	acc := es.GetAccount(addr)
 	if acc == nil {
-		logger.Error().Msgf("failed to find contract while setting state")
-		return db.ErrKeyNotFound
+		panic(fmt.Sprintf("failed to find contract %v", addr))
 	}
 
 	acc.SetState(key, *val.Uint256())
-	return nil
 }
 
-func (es *ExecutionState) GetBalance(addr common.Address) uint256.Int {
+func (es *ExecutionState) GetBalance(addr common.Address) *uint256.Int {
 	acc := es.GetAccount(addr)
 	if acc == nil {
-		return uint256.Int{}
+		return uint256.NewInt(0)
 	}
-	return acc.Balance
+	return &acc.Balance
 }
 
 func (es *ExecutionState) GetSeqno(addr common.Address) uint64 {

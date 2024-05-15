@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
+
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
@@ -11,7 +13,6 @@ import (
 	"github.com/NilFoundation/nil/core/vm"
 	"github.com/holiman/uint256"
 	"github.com/rs/zerolog"
-	"strconv"
 )
 
 type Transaction struct {
@@ -85,7 +86,7 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 	contract := vm.NewContract((vm.AccountRef)(addr), (vm.AccountRef)(addr), &value, gas)
 
 	evm := vm.EVM{
-		StateDB: vm.NewStateDB(es),
+		StateDB: es,
 	}
 	interpreter := vm.NewEVMInterpreter(&evm)
 
