@@ -76,11 +76,10 @@ func CreateBloom(receipts Receipts) Bloom {
 	buf := make([]byte, 6)
 	var bin Bloom
 	for _, receipt := range receipts {
-		for i := 0; i < receipt.Logs.Len(); i++ {
-			log := receipt.Logs.Get(i)
+		for _, log := range receipt.Logs {
 			bin.add(log.Address.Bytes(), buf)
-			for i := 0; i < log.Topics.Len(); i++ {
-				bin.add(log.Topics.Get(i)[:], buf)
+			for _, topic := range log.Topics {
+				bin.add(topic[:], buf)
 			}
 		}
 	}
@@ -93,8 +92,8 @@ func LogsBloom(logs []*Log) []byte {
 	var bin Bloom
 	for _, log := range logs {
 		bin.add(log.Address.Bytes(), buf)
-		for i := 0; i < log.Topics.Len(); i++ {
-			bin.add(log.Topics.Get(i)[:], buf)
+		for i := 0; i < len(log.Topics); i++ {
+			bin.add(log.Topics[i][:], buf)
 		}
 	}
 	return bin[:]
