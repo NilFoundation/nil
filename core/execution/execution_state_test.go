@@ -40,8 +40,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	storageKey := common.BytesToHash([]byte("storage-key"))
 
-	err = es.SetState(addr, storageKey, common.IntToHash(123456))
-	suite.Require().NoError(err)
+	es.SetState(addr, storageKey, common.IntToHash(123456))
 
 	const numMessages uint8 = 10
 
@@ -114,8 +113,7 @@ func TestStorage(t *testing.T) {
 
 	require.True(t, state.ContractExists(account))
 
-	err = state.SetState(account, key, value)
-	require.NoError(t, err)
+	state.SetState(account, key, value)
 
 	num = state.GetState(account, key)
 	require.Equal(t, num, value)
@@ -127,5 +125,5 @@ func TestBalance(t *testing.T) {
 
 	state.SetBalance(account, *uint256.NewInt(100500))
 
-	require.Equal(t, state.GetBalance(account), *uint256.NewInt(100500))
+	require.Equal(t, *state.GetBalance(account), *uint256.NewInt(100500))
 }
