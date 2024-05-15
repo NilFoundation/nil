@@ -20,6 +20,7 @@ type AccountState struct {
 	Balance     uint256.Int
 	Code        types.Code
 	CodeHash    common.Hash
+	Seqno       uint64
 	StorageRoot *mpt.MerklePatriciaTrie
 	ShardId     int
 
@@ -65,6 +66,7 @@ func NewAccountState(tx db.Tx, shardId int, data []byte) (*AccountState, error) 
 		CodeHash:    account.CodeHash,
 		Code:        *code,
 		ShardId:     shardId,
+		Seqno:       account.Seqno,
 		State:       map[common.Hash]uint256.Int{},
 	}, nil
 }
@@ -73,12 +75,14 @@ func NewExecutionState(tx db.Tx, shardId int, blockHash common.Hash) (*Execution
 	block := db.ReadBlock(tx, blockHash)
 
 	var contractRoot, messageRoot *mpt.MerklePatriciaTrie
+	contractTrieTable := db.TableName(db.ContractTrieTable, shardId)
+	messageTrieTable := db.TableName(db.MessageTrieTable, shardId)
 	if block != nil {
-		contractRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, db.ContractTrieTable, block.SmartContractsRoot)
-		messageRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, db.MessageTrieTable, block.MessagesRoot)
+		contractRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, contractTrieTable, block.SmartContractsRoot)
+		messageRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, messageTrieTable, block.MessagesRoot)
 	} else {
-		contractRoot = mpt.NewMerklePatriciaTrie(tx, db.ContractTrieTable)
-		messageRoot = mpt.NewMerklePatriciaTrie(tx, db.MessageTrieTable)
+		contractRoot = mpt.NewMerklePatriciaTrie(tx, contractTrieTable)
+		messageRoot = mpt.NewMerklePatriciaTrie(tx, messageTrieTable)
 	}
 
 	return &ExecutionState{
@@ -142,6 +146,10 @@ func (as *AccountState) SetBalance(balance uint256.Int) {
 	as.Balance = balance
 }
 
+func (as *AccountState) SetSeqno(seqno uint64) {
+	as.Seqno = seqno
+}
+
 func (as *AccountState) SetState(key common.Hash, val uint256.Int) {
 	as.State[key] = val
 }
@@ -158,6 +166,7 @@ func (as *AccountState) Commit() ([]byte, error) {
 		Balance:     as.Balance,
 		StorageRoot: as.StorageRoot.RootHash(),
 		CodeHash:    as.CodeHash,
+		Seqno:       as.Seqno,
 	}
 
 	data, err := acc.EncodeSSZ(nil)
@@ -204,6 +213,14 @@ func (es *ExecutionState) GetBalance(addr common.Address) uint256.Int {
 	return acc.Balance
 }
 
+func (es *ExecutionState) GetSeqno(addr common.Address) uint64 {
+	acc := es.GetAccount(addr)
+	if acc == nil {
+		return 0
+	}
+	return acc.Seqno
+}
+
 func (s *ExecutionState) getOrNewAccount(addr common.Address) *AccountState {
 	acc := s.GetAccount(addr)
 	if acc != nil {
@@ -219,6 +236,11 @@ func (s *ExecutionState) getOrNewAccount(addr common.Address) *AccountState {
 func (es *ExecutionState) SetBalance(addr common.Address, balance uint256.Int) {
 	acc := es.getOrNewAccount(addr)
 	acc.SetBalance(balance)
+}
+
+func (es *ExecutionState) SetSeqno(addr common.Address, seqno uint64) {
+	acc := es.getOrNewAccount(addr)
+	acc.SetSeqno(seqno)
 }
 
 func (es *ExecutionState) SetMasterchainHash(masterChainHash common.Hash) {
