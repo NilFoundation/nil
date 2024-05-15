@@ -63,6 +63,9 @@ func ValidateTransaction(t *suite.Suite, db DB) {
 	t.Require().NoError(err)
 	t.Equal(*val, []byte("bar"))
 
+	_, err = tx.Get("tbl", []byte("bar"))
+	t.Require().ErrorIs(err, ErrKeyNotFound)
+
 	has, err := tx.Exists("tbl", []byte("foo"))
 	t.Require().NoError(err)
 	t.True(has, "Key 'foo' should be present")
@@ -132,6 +135,9 @@ func ValidateDbOperations(t *suite.Suite, d DB) {
 	val, err := d.Get("tbl", []byte("foo"))
 	t.Require().NoError(err)
 	t.Equal(*val, []byte("bar"))
+
+	_, err = d.Get("tbl", []byte("bar"))
+	t.Require().ErrorIs(err, ErrKeyNotFound)
 
 	has, err := d.Exists("tbl", []byte("foo"))
 	t.Require().NoError(err)

@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"sync/atomic"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -167,8 +168,8 @@ func (tx *SqliteTx) Get(table string, key []byte) (val *[]byte, err error) {
 
 	var value []byte
 	if err = stmt.QueryRowContext(tx.ctx, table, key).Scan(&value); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrKeyNotFound
 		}
 		return nil, err
 	}
@@ -177,11 +178,14 @@ func (tx *SqliteTx) Get(table string, key []byte) (val *[]byte, err error) {
 }
 
 func (tx *SqliteTx) Exists(table string, key []byte) (bool, error) {
-	res, err := tx.Get(table, key)
+	_, err := tx.Get(table, key)
 	if err != nil {
+		if errors.Is(err, ErrKeyNotFound) {
+			return false, nil
+		}
 		return false, err
 	}
-	return res != nil, nil
+	return true, nil
 }
 
 func (tx *SqliteTx) Delete(table string, key []byte) error {
