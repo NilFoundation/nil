@@ -63,7 +63,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	block := db.ReadBlock(tx, blockHash)
 	suite.Require().NotNil(block)
 
-	messageTrieTable := db.TableName(db.MessageTrieTable, 0)
+	messageTrieTable := db.MessageTrieTableName(0)
 	messagesRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, messageTrieTable, block.MessagesRoot)
 	var messageIndex uint64 = 0
 
