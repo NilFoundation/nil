@@ -2,6 +2,7 @@ package execution
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/NilFoundation/nil/common"
@@ -92,29 +93,29 @@ func NewExecutionState(tx db.Tx, shardId int, blockHash common.Hash) (*Execution
 	}, nil
 }
 
-func (es *ExecutionState) GetAccount(addr common.Address) (*AccountState, error) {
+func (es *ExecutionState) GetAccount(addr common.Address) *AccountState {
 	acc, ok := es.Accounts[addr]
 	if ok {
-		return acc, nil
+		return acc
 	}
 
 	addrHash := addr.Hash()
 
 	data, err := es.ContractRoot.Get(addrHash[:])
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		return nil, err
+		panic(fmt.Sprintf("failed to fetch account %v: %v", addrHash, err))
 	}
 
 	if data == nil {
-		return nil, nil
+		return nil
 	}
 
 	acc, err = NewAccountState(es.tx, es.ShardId, data)
 	if err != nil {
-		return nil, err
+		panic(fmt.Sprintf("failed to create account on shard %v: %v", es.ShardId, err))
 	}
 	es.Accounts[addr] = acc
-	return acc, nil
+	return acc
 }
 
 func (as *AccountState) GetState(key common.Hash) (uint256.Int, error) {
@@ -172,10 +173,7 @@ func (as *AccountState) Commit() ([]byte, error) {
 }
 
 func (es *ExecutionState) GetState(addr common.Address, key common.Hash) common.Hash {
-	acc, err := es.GetAccount(addr)
-	if err != nil {
-		panic(err)
-	}
+	acc := es.GetAccount(addr)
 	if acc == nil {
 		return common.EmptyHash
 	}
@@ -188,10 +186,7 @@ func (es *ExecutionState) GetState(addr common.Address, key common.Hash) common.
 }
 
 func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val common.Hash) error {
-	acc, err := es.GetAccount(addr)
-	if err != nil {
-		return err
-	}
+	acc := es.GetAccount(addr)
 	if acc == nil {
 		logger.Error().Msgf("failed to find contract while setting state")
 		return db.ErrKeyNotFound
@@ -202,21 +197,28 @@ func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val com
 }
 
 func (es *ExecutionState) GetBalance(addr common.Address) uint256.Int {
-	acc, err := es.GetAccount(addr)
-	if err != nil || acc == nil {
+	acc := es.GetAccount(addr)
+	if acc == nil {
 		return uint256.Int{}
 	}
 	return acc.Balance
 }
 
-func (es *ExecutionState) SetBalance(addr common.Address, balance uint256.Int) error {
-	acc, err := es.GetAccount(addr)
-	if err != nil {
-		return err
+func (s *ExecutionState) getOrNewAccount(addr common.Address) *AccountState {
+	acc := s.GetAccount(addr)
+	if acc != nil {
+		return acc
 	}
+	err := s.CreateContract(addr, nil)
+	if err != nil {
+		panic(err)
+	}
+	return s.GetAccount(addr)
+}
 
+func (es *ExecutionState) SetBalance(addr common.Address, balance uint256.Int) {
+	acc := es.getOrNewAccount(addr)
 	acc.SetBalance(balance)
-	return nil
 }
 
 func (es *ExecutionState) SetMasterchainHash(masterChainHash common.Hash) {
@@ -228,11 +230,7 @@ func (es *ExecutionState) SetShardHash(shardId uint64, hash common.Hash) {
 }
 
 func (es *ExecutionState) CreateContract(addr common.Address, code types.Code) error {
-	acc, err := es.GetAccount(addr)
-
-	if err != nil {
-		return err
-	}
+	acc := es.GetAccount(addr)
 
 	if acc != nil {
 		return errors.New("contract already exists")
@@ -253,10 +251,9 @@ func (es *ExecutionState) CreateContract(addr common.Address, code types.Code) e
 	return nil
 }
 
-func (es *ExecutionState) ContractExists(addr common.Address) (bool, error) {
-	acc, err := es.GetAccount(addr)
-
-	return acc != nil, err
+func (es *ExecutionState) ContractExists(addr common.Address) bool {
+	acc := es.GetAccount(addr)
+	return acc != nil
 }
 
 func (es *ExecutionState) AddMessage(message *types.Message) {

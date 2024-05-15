@@ -106,25 +106,17 @@ func TestStorage(t *testing.T) {
 	num := state.GetState(account, key)
 	require.Equal(t, num, common.EmptyHash)
 
-	exists, err := state.ContractExists(account)
-	require.NoError(t, err)
-	require.False(t, exists)
+	require.False(t, state.ContractExists(account))
 
-	err = state.SetState(account, key, value)
-	require.Error(t, err)
-
-	err = state.CreateContract(account, make([]byte, 1))
+	err := state.CreateContract(account, nil)
 	require.NoError(t, err)
+
+	require.True(t, state.ContractExists(account))
 
 	err = state.SetState(account, key, value)
 	require.NoError(t, err)
-
-	exists, err = state.ContractExists(account)
-	require.NoError(t, err)
-	require.True(t, exists)
 
 	num = state.GetState(account, key)
-	require.NoError(t, err)
 	require.Equal(t, num, value)
 }
 
@@ -132,12 +124,7 @@ func TestBalance(t *testing.T) {
 	state := newState(t)
 	account := common.HexToAddress("deadbeef")
 
-	// FIXME: CreateContract should not be necessary here
-	err := state.CreateContract(account, make([]byte, 1))
-	require.NoError(t, err)
-
-	err = state.SetBalance(account, *uint256.NewInt(100500))
-	require.NoError(t, err)
+	state.SetBalance(account, *uint256.NewInt(100500))
 
 	require.Equal(t, state.GetBalance(account), *uint256.NewInt(100500))
 }

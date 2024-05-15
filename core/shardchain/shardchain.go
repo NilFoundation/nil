@@ -78,11 +78,7 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 
 	addr := common.BytesToAddress([]byte("contract-" + strconv.Itoa(c.Id)))
 
-	accountState, err := es.GetAccount(addr)
-
-	if err != nil {
-		return common.EmptyHash, err
-	}
+	accountState := es.GetAccount(addr)
 
 	value := uint256.Int{}
 	gas := uint64(1000000)
