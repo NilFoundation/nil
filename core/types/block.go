@@ -11,9 +11,9 @@ type Block struct {
 	PrevBlock           common.Hash
 	SmartContractsRoot  common.Hash
 	MessagesRoot        common.Hash
+	ReceiptsRoot        common.Hash
 	ChildBlocksRootHash common.Hash
 	MasterChainHash     common.Hash
-	ReceiptsRoot        common.Hash
 	LogsBloom           Bloom
 }
 
@@ -29,6 +29,7 @@ func (b *Block) EncodeSSZ(dst []byte) ([]byte, error) {
 		b.PrevBlock[:],
 		b.SmartContractsRoot[:],
 		b.MessagesRoot[:],
+		b.ReceiptsRoot[:],
 		b.ChildBlocksRootHash[:],
 		b.MasterChainHash[:],
 	)
@@ -51,6 +52,7 @@ func (b *Block) DecodeSSZ(buf []byte, version int) error {
 		b.PrevBlock[:],
 		b.SmartContractsRoot[:],
 		b.MessagesRoot[:],
+		b.ReceiptsRoot[:],
 		b.ChildBlocksRootHash[:],
 		b.MasterChainHash[:],
 	)

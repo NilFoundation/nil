@@ -2,8 +2,9 @@ package db
 
 import (
 	"fmt"
-	"github.com/NilFoundation/nil/core/types"
 	"strconv"
+
+	"github.com/NilFoundation/nil/core/types"
 )
 
 const (
@@ -15,6 +16,7 @@ const (
 	storageTrieTable     = "StorageTrie"
 	shardBlocksTrieTable = "ShardBlocksTrie"
 	messageTrieTable     = "MessageTrie"
+	receiptTrieTable     = "ReceiptTrie"
 
 	contractTable = "Contract"
 	messageTable  = "Message"
@@ -32,6 +34,10 @@ func ContractTrieTableName(shardId types.ShardId) string {
 
 func MessageTrieTableName(shardId types.ShardId) string {
 	return tableName(messageTrieTable, shardId)
+}
+
+func ReceiptTrieTableName(shardId types.ShardId) string {
+	return tableName(receiptTrieTable, shardId)
 }
 
 func StorageTrieTableName(shardId types.ShardId) string {

@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -32,6 +33,7 @@ type ExecutionState struct {
 	tx               db.Tx
 	ContractRoot     *mpt.MerklePatriciaTrie
 	MessageRoot      *mpt.MerklePatriciaTrie
+	ReceiptRoot      *mpt.MerklePatriciaTrie
 	PrevBlock        common.Hash
 	MasterChain      common.Hash
 	ShardId          types.ShardId
@@ -39,6 +41,7 @@ type ExecutionState struct {
 
 	Accounts map[common.Address]*AccountState
 	Messages []*types.Message
+	Receipts []*types.Receipt
 }
 
 func (s *AccountState) empty() bool {
@@ -79,26 +82,31 @@ func NewAccountState(tx db.Tx, shardId types.ShardId, data []byte) (*AccountStat
 func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash) (*ExecutionState, error) {
 	block := db.ReadBlock(tx, blockHash)
 
-	var contractRoot, messageRoot *mpt.MerklePatriciaTrie
+	var contractRoot, messageRoot, receiptRoot *mpt.MerklePatriciaTrie
 	contractTrieTable := db.ContractTrieTableName(shardId)
 	messageTrieTable := db.MessageTrieTableName(shardId)
+	receiptTrieTable := db.ReceiptTrieTableName(shardId)
 	if block != nil {
 		contractRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, contractTrieTable, block.SmartContractsRoot)
 		messageRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, messageTrieTable, block.MessagesRoot)
+		receiptRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, receiptTrieTable, block.ReceiptsRoot)
 	} else {
 		contractRoot = mpt.NewMerklePatriciaTrie(tx, contractTrieTable)
 		messageRoot = mpt.NewMerklePatriciaTrie(tx, messageTrieTable)
+		receiptRoot = mpt.NewMerklePatriciaTrie(tx, receiptTrieTable)
 	}
 
 	return &ExecutionState{
 		tx:               tx,
 		ContractRoot:     contractRoot,
 		MessageRoot:      messageRoot,
+		ReceiptRoot:      receiptRoot,
 		PrevBlock:        blockHash,
 		ShardId:          shardId,
 		ChildChainBlocks: map[uint64]common.Hash{},
 		Accounts:         map[common.Address]*AccountState{},
 		Messages:         []*types.Message{},
+		Receipts:         []*types.Receipt{},
 	}, nil
 }
 
@@ -387,9 +395,36 @@ func (es *ExecutionState) ContractExists(addr common.Address) bool {
 	return acc != nil
 }
 
+// CreateAddress creates an ethereum address given the bytes and the nonce
+func CreateAddress(b common.Address, nonce uint64) common.Address {
+	data, err := ssz.MarshalSSZ(nil, b[:], nonce)
+	if err != nil {
+		logger.Fatal().Err(err).Msgf("MarshalSSZ failed on: %v, %v", b, nonce)
+	}
+	return common.BytesToAddress(data)
+}
+
 func (es *ExecutionState) AddMessage(message *types.Message) {
 	message.Index = uint64(len(es.Messages))
 	es.Messages = append(es.Messages, message)
+
+	// Deploy message
+	if bytes.Equal(message.To[:], common.EmptyAddress[:]) {
+		addr := CreateAddress(message.From, message.Seqno)
+
+		var r types.Receipt
+		r.Success = true
+		r.ContractAddress = addr
+		r.MsgHash = message.Hash()
+		r.MsgIndex = message.Index
+
+		// TODO: gasUsed
+		if err := es.CreateContract(addr, message.Data); err != nil {
+			logger.Fatal().Err(err).Msgf("Failed to create contract")
+		}
+
+		es.Receipts = append(es.Receipts, &r)
+	}
 }
 
 func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
@@ -434,11 +469,27 @@ func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 		}
 	}
 
+	for _, r := range es.Receipts {
+		r.BlockNumber = blockId
+		v, err := r.MarshalSSZ()
+		if err != nil {
+			return common.EmptyHash, err
+		}
+		k, err := ssz.MarshalSSZ(nil, r.MsgIndex)
+		if err != nil {
+			return common.EmptyHash, err
+		}
+		if err := es.ReceiptRoot.Set(k, v); err != nil {
+			return common.EmptyHash, err
+		}
+	}
+
 	block := types.Block{
 		Id:                  blockId,
 		PrevBlock:           es.PrevBlock,
 		SmartContractsRoot:  es.ContractRoot.RootHash(),
 		MessagesRoot:        es.MessageRoot.RootHash(),
+		ReceiptsRoot:        es.ReceiptRoot.RootHash(),
 		ChildBlocksRootHash: treeShardsRootHash,
 		MasterChainHash:     es.MasterChain,
 	}
