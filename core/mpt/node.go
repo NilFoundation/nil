@@ -2,6 +2,7 @@ package mpt
 
 import (
 	"fmt"
+
 	"github.com/NilFoundation/nil/core/ssz"
 )
 
@@ -66,7 +67,7 @@ func (n *NodeBase) Path() *Path {
 }
 
 func (n *BranchNode) Path() *Path {
-	panic("Branch node does not have a path")
+	return nil
 }
 
 func (n *NodeBase) Data() []byte {

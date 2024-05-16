@@ -63,6 +63,24 @@ func TestInsertGetMany(t *testing.T) {
 	require.Equal(t, getValue(trie.Get([]byte("horse"))), []byte("stallion"))
 }
 
+func TestIterate(t *testing.T) {
+	trie := CreateMerklePatriciaTrie()
+	keys := [][]byte{[]byte("do"), []byte("dog"), []byte("doge"), []byte("horse")}
+	values := [][]byte{[]byte("verb"), []byte("puppy"), []byte("coin"), []byte("stallion")}
+
+	for i := range len(keys) {
+		require.NoError(t, trie.Set(keys[i], values[i]))
+	}
+
+	i := 0
+	for kv := range trie.Iterate() {
+		require.Equal(t, kv.key, keys[i])
+		require.Equal(t, kv.value, values[i])
+		i += 1
+	}
+	require.Len(t, keys, i)
+}
+
 func TestInsertGetLots(t *testing.T) {
 	trie := CreateMerklePatriciaTrie()
 	const size = 100
