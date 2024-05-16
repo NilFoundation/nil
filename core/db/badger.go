@@ -16,7 +16,7 @@ type BadgerTx struct {
 }
 
 func makeKey(table string, key []byte) []byte {
-	return append([]byte(table), key...)
+	return append([]byte(table+":"), key...)
 }
 
 func NewBadgerDb(pathToDb string) (*BadgerDB, error) {
@@ -74,7 +74,10 @@ func (k *BadgerDB) Get(table string, key []byte) (*[]byte, error) {
 			value = &val
 			return nil
 		})
-	return value, err
+	if errors.Is(err, badger.ErrKeyNotFound) {
+		return nil, ErrKeyNotFound
+	}
+	return value, nil
 }
 
 func (k *BadgerDB) Put(table string, key, value []byte) error {

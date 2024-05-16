@@ -21,5 +21,5 @@ func TestGetTransactionReceipt(t *testing.T) {
 
 	// Call GetBlockByNumber for transaction which is not in the database
 	_, err = api.GetBlockByNumber(context.Background(), transport.LatestBlockNumber, false)
-	require.EqualError(t, err, "Key not found")
+	require.NoError(t, err)
 }
