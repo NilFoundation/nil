@@ -12,7 +12,7 @@ import (
 // Address represents the 20 byte address of an Ethereum account.
 type Address [AddrSize]byte
 
-var EmptyAddress = Address{}
+const EmptyAddress = Address{}
 
 // BytesToAddress returns Address with value b.
 // If b is larger than len(h), b will be cropped from the left.
