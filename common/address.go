@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"github.com/NilFoundation/nil/common/hexutil"
 	"math/big"
+
+	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/core/ssz"
+	"github.com/rs/zerolog/log"
 )
 
 // Address represents the 20 byte address of an Ethereum account.
@@ -138,4 +141,13 @@ func (a Address) MarshalText() ([]byte, error) {
 	copy(result, "0x")
 	hex.Encode(result[2:], b)
 	return result, nil
+}
+
+// CreateAddress creates an ethereum address given the bytes and the nonce
+func CreateAddress(b Address, nonce uint64) Address {
+	data, err := ssz.MarshalSSZ(nil, b, nonce)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("MarshalSSZ failed on: %v, %v: %v", b, nonce)
+	}
+	return BytesToAddress(data)
 }
