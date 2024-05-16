@@ -471,7 +471,7 @@ func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 
 	for _, r := range es.Receipts {
 		r.BlockNumber = blockId
-		v, err := r.EncodeSSZ(nil)
+		v, err := r.MarshalSSZ()
 		if err != nil {
 			return common.EmptyHash, err
 		}

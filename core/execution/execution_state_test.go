@@ -46,7 +46,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	from := common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
 	for i := range numMessages {
-		msg := types.Message{ShardId: types.ShardId(10), Data: []byte{i}, From: from}
+		msg := types.Message{ShardId: types.ShardId(10), Data: []byte{i}, From: from, Seqno: uint64(i)}
 		es.AddMessage(&msg)
 	}
 
@@ -89,8 +89,8 @@ func (suite *SuiteExecutionState) TestExecState() {
 		suite.Require().NoError(m.DecodeSSZ(mRaw, 0))
 		suite.Equal(types.Code{byte(messageIndex)}, m.Data)
 
-		r := types.NewReceipt(true, 0)
-		suite.Require().NoError(r.DecodeSSZ(rRaw, 0))
+		var r types.Receipt
+		suite.Require().NoError(r.UnmarshalSSZ(rRaw))
 		suite.Equal(messageIndex, r.MsgIndex)
 		suite.NotZero(len(r.ContractAddress))
 
