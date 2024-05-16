@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -394,8 +395,13 @@ func (es *ExecutionState) ContractExists(addr common.Address) bool {
 	return acc != nil
 }
 
-func (es *ExecutionState) DeployContract(message *types.Message) {
-
+// CreateAddress creates an ethereum address given the bytes and the nonce
+func CreateAddress(b common.Address, nonce uint64) common.Address {
+	data, err := ssz.MarshalSSZ(nil, b[:], nonce)
+	if err != nil {
+		logger.Fatal().Err(err).Msgf("MarshalSSZ failed on: %v, %v", b, nonce)
+	}
+	return common.BytesToAddress(data)
 }
 
 func (es *ExecutionState) AddMessage(message *types.Message) {
@@ -403,14 +409,14 @@ func (es *ExecutionState) AddMessage(message *types.Message) {
 	es.Messages = append(es.Messages, message)
 
 	// Deploy message
-	if len(message.To) == 0 {
-		addr := common.CreateAddress(message.From, message.Seqno)
+	if bytes.Equal(message.To[:], common.EmptyAddress[:]) {
+		addr := CreateAddress(message.From, message.Seqno)
 
 		var r types.Receipt
 		r.Success = true
 		r.ContractAddress = addr
-		r.TxHash = message.Hash()
-		r.TxIndex = message.Index
+		r.MsgHash = message.Hash()
+		r.MsgIndex = message.Index
 
 		// TODO: gasUsed
 		es.CreateContract(addr, message.Data)

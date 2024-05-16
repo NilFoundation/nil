@@ -44,8 +44,9 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	const numMessages uint8 = 10
 
+	from := common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
 	for i := range numMessages {
-		msg := types.Message{ShardId: types.ShardId(10), Data: []byte{i}}
+		msg := types.Message{ShardId: types.ShardId(10), Data: []byte{i}, From: from}
 		es.AddMessage(&msg)
 	}
 
@@ -63,7 +64,9 @@ func (suite *SuiteExecutionState) TestExecState() {
 	suite.Require().NotNil(block)
 
 	messageTrieTable := db.MessageTrieTableName(0)
+	receiptTrieTable := db.ReceiptTrieTableName(0)
 	messagesRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, messageTrieTable, block.MessagesRoot)
+	receiptsRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, receiptTrieTable, block.ReceiptsRoot)
 	var messageIndex uint64 = 0
 
 	for {
@@ -71,13 +74,26 @@ func (suite *SuiteExecutionState) TestExecState() {
 		suite.Require().NoError(err)
 
 		mRaw, err := messagesRoot.Get(k)
-
 		if errors.Is(err, db.ErrKeyNotFound) {
 			break
+		} else if err != nil {
+			logger.Fatal().Err(err).Msgf("Failed to get message %v from trie", messageIndex)
 		}
+
+		rRaw, err := receiptsRoot.Get(k)
+		if err != nil {
+			logger.Fatal().Err(err).Msgf("Failed to get receipt %v from trie", messageIndex)
+		}
+
 		var m types.Message
 		suite.Require().NoError(m.DecodeSSZ(mRaw, 0))
 		suite.Equal(types.Code{byte(messageIndex)}, m.Data)
+
+		r := types.NewReceipt(true, 0)
+		suite.Require().NoError(r.DecodeSSZ(rRaw, 0))
+		suite.Equal(messageIndex, r.MsgIndex)
+		suite.NotZero(len(r.ContractAddress))
+
 		messageIndex += 1
 	}
 	suite.Equal(numMessages, uint8(messageIndex))

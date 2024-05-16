@@ -12,12 +12,12 @@ type Receipt struct {
 	Bloom   Bloom  `json:"bloom"`
 	Logs    []*Log `json:"logs" ssz-max:"1000"`
 
-	TxHash          common.Hash    `json:"transactionHash"`
+	MsgHash         common.Hash    `json:"messageHash"`
 	ContractAddress common.Address `json:"contractAddress"`
 
 	BlockHash   common.Hash `json:"blockHash,omitempty"`
 	BlockNumber uint64      `json:"blockNumber,omitempty"`
-	TxIndex     uint64      `json:"transactionIndex"`
+	MsgIndex    uint64      `json:"messageIndex"`
 }
 
 func (r *Receipt) AddLog(log *Log) {
