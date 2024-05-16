@@ -419,7 +419,9 @@ func (es *ExecutionState) AddMessage(message *types.Message) {
 		r.MsgIndex = message.Index
 
 		// TODO: gasUsed
-		es.CreateContract(addr, message.Data)
+		if err := es.CreateContract(addr, message.Data); err != nil {
+			logger.Fatal().Err(err).Msgf("Failed to create contract")
+		}
 
 		es.Receipts = append(es.Receipts, &r)
 	}
