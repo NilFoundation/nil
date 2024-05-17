@@ -26,8 +26,10 @@ type Server struct {
 
 // NewServer creates a new server instance with no registered handlers.
 func NewServer(traceRequests, debugSingleRequest bool, logger *zerolog.Logger, rpcSlowLogThreshold time.Duration) *Server {
-	server := &Server{services: serviceRegistry{logger: logger}, codecs: mapset.NewSet(), run: 1,
-		traceRequests: traceRequests, debugSingleRequest: debugSingleRequest, logger: logger, rpcSlowLogThreshold: rpcSlowLogThreshold}
+	server := &Server{
+		services: serviceRegistry{logger: logger}, codecs: mapset.NewSet(), run: 1,
+		traceRequests: traceRequests, debugSingleRequest: debugSingleRequest, logger: logger, rpcSlowLogThreshold: rpcSlowLogThreshold,
+	}
 	// Register the default service providing meta information about the RPC service such
 	// as the services and methods it offers.
 	rpcService := &RPCService{server: server}

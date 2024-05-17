@@ -17,9 +17,11 @@ type SmartContract struct {
 }
 
 // interfaces
-var _ common.Hashable = new(SmartContract)
-var _ fastssz.Marshaler = new(Block)
-var _ fastssz.Unmarshaler = new(Block)
+var (
+	_ common.Hashable     = new(SmartContract)
+	_ fastssz.Marshaler   = new(Block)
+	_ fastssz.Unmarshaler = new(Block)
+)
 
 func (s *SmartContract) Hash() common.Hash {
 	h, err := ssz.FastSSZHash(s)

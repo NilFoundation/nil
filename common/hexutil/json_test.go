@@ -219,7 +219,6 @@ func TestUnmarshalUint(t *testing.T) {
 			if test.want != nil {
 				require.EqualValues(t, test.want, v)
 			}
-
 		})
 	}
 }

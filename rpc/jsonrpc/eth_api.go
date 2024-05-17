@@ -6,11 +6,10 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
-	"github.com/NilFoundation/nil/rpc/transport"
-	"github.com/rs/zerolog"
-
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/rpc/transport"
+	"github.com/rs/zerolog"
 )
 
 // EthAPI is a collection of functions that are exposed in the

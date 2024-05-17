@@ -12,7 +12,6 @@ import (
 )
 
 func TestHandlerDoesNotDoubleWriteNull(t *testing.T) {
-
 	tests := map[string]struct {
 		params   []byte
 		expected string
@@ -79,5 +78,4 @@ func TestHandlerDoesNotDoubleWriteNull(t *testing.T) {
 			assert.Equal(t, testParams.expected, output, "expected output should match")
 		})
 	}
-
 }

@@ -2,9 +2,10 @@ package concurrent
 
 import (
 	"context"
-	"github.com/rs/zerolog/log"
 	"sync"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type Func = func(context.Context) error

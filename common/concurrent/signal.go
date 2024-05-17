@@ -2,9 +2,10 @@ package concurrent
 
 import (
 	"context"
-	"github.com/rs/zerolog/log"
 	"os"
 	"os/signal"
+
+	"github.com/rs/zerolog/log"
 )
 
 // OnSignal calls the provided function when one of the expected signals is received and returns.

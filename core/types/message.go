@@ -19,9 +19,11 @@ type Message struct {
 }
 
 // interfaces
-var _ common.Hashable = new(Message)
-var _ fastssz.Marshaler = new(Message)
-var _ fastssz.Unmarshaler = new(Message)
+var (
+	_ common.Hashable     = new(Message)
+	_ fastssz.Marshaler   = new(Message)
+	_ fastssz.Unmarshaler = new(Message)
+)
 
 func (m *Message) Hash() common.Hash {
 	h, err := ssz.FastSSZHash(m)

@@ -75,10 +75,10 @@ type (
 	// TxStartHook is called before the execution of a transaction starts.
 	// Call simulations don't come with a valid signature. `from` field
 	// to be used for address of the caller.
-	//TxStartHook = func(vm *VMContext, tx *types.Transaction, from common.Address)
+	// TxStartHook = func(vm *VMContext, tx *types.Transaction, from common.Address)
 
 	// TxEndHook is called after the execution of a transaction ends.
-	//TxEndHook = func(receipt *types.Receipt, err error)
+	// TxEndHook = func(receipt *types.Receipt, err error)
 
 	// EnterHook is invoked when the processing of a message starts.
 	//
@@ -131,7 +131,7 @@ type (
 	SkippedBlockHook = func(event BlockEvent)
 
 	// GenesisBlockHook is called when the genesis block is being processed.
-	//GenesisBlockHook = func(genesis *types.Block, alloc types.GenesisAlloc)
+	// GenesisBlockHook = func(genesis *types.Block, alloc types.GenesisAlloc)
 
 	// OnSystemCallStartHook is called when a system call is about to be executed. Today,
 	// this hook is invoked when the EIP-4788 system call is about to be executed to set the
@@ -184,7 +184,7 @@ type Hooks struct {
 	OnBlockStart     BlockStartHook
 	OnBlockEnd       BlockEndHook
 	OnSkippedBlock   SkippedBlockHook
-	//OnGenesisBlock    GenesisBlockHook
+	// OnGenesisBlock    GenesisBlockHook
 	OnSystemCallStart OnSystemCallStartHook
 	OnSystemCallEnd   OnSystemCallEndHook
 	// State events

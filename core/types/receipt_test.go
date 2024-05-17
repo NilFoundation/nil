@@ -2,9 +2,10 @@ package types
 
 import (
 	"encoding/hex"
+	"testing"
+
 	"github.com/NilFoundation/nil/common"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestReceiptEncoding(t *testing.T) {

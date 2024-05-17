@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"flag"
+	"syscall"
+
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/concurrent"
 	"github.com/NilFoundation/nil/core/collate"
@@ -15,7 +17,6 @@ import (
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	"github.com/rs/zerolog/log"
-	"syscall"
 )
 
 func startRpcServer(ctx context.Context, db db.DB) error {
@@ -41,7 +42,8 @@ func startRpcServer(ctx context.Context, db db.DB) error {
 			Public:    true,
 			Service:   jsonrpc.EthAPI(ethImpl),
 			Version:   "1.0",
-		}}
+		},
+	}
 
 	return rpc.StartRpcServer(ctx, httpConfig, apiList, logger)
 }

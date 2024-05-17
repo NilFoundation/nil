@@ -2,10 +2,11 @@ package collate
 
 import (
 	"context"
+	"time"
+
 	"github.com/NilFoundation/nil/common/concurrent"
 	"github.com/NilFoundation/nil/core/shardchain"
 	"github.com/rs/zerolog/log"
-	"time"
 )
 
 const (

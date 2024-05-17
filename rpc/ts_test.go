@@ -6,11 +6,9 @@ import (
 )
 
 func TestTypescriptGeneration(t *testing.T) {
-
 	// create buffer to write to test
 
 	s, err := ExportTypescriptTypes()
-
 	if err != nil {
 		t.Errorf("Failed to export typescript types")
 	}
@@ -24,5 +22,4 @@ func TestTypescriptGeneration(t *testing.T) {
 	if !bytes.Contains(s, []byte("interface EthAPI")) {
 		t.Errorf("Expected buffer to contain interface EthAPI")
 	}
-
 }

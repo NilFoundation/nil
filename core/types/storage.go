@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+
 	common "github.com/NilFoundation/nil/common"
 	"github.com/holiman/uint256"
 )

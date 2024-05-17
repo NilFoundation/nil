@@ -7,9 +7,8 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/rpc/transport"
-	"github.com/stretchr/testify/require"
-
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetTransactionReceipt(t *testing.T) {

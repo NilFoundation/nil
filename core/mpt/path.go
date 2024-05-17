@@ -63,7 +63,7 @@ func (path *Path) At(idx int) int {
 	idx += path.offset
 	nibbleIdx := idx % 2
 
-	var b = int(path.data[idx/2])
+	b := int(path.data[idx/2])
 
 	if nibbleIdx == 0 {
 		return b >> 4

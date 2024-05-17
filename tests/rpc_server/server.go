@@ -2,6 +2,7 @@ package rpctest
 
 import (
 	"context"
+
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/concurrent"
 	"github.com/NilFoundation/nil/core/collate"
@@ -44,7 +45,8 @@ func startRpcServer(ctx context.Context, nShards int, dbpath string) {
 			Public:    true,
 			Service:   jsonrpc.EthAPI(ethImpl),
 			Version:   "1.0",
-		}}
+		},
+	}
 
 	if err := concurrent.Run(ctx,
 		func(ctx context.Context) error {

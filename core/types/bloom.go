@@ -3,8 +3,9 @@ package types
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/NilFoundation/nil/common"
 	"math/big"
+
+	"github.com/NilFoundation/nil/common"
 )
 
 type bytesBacked interface {

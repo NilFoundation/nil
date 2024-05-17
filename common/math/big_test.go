@@ -245,6 +245,7 @@ func TestBigEndianByteAt(t *testing.T) {
 		}
 	}
 }
+
 func TestLittleEndianByteAt(t *testing.T) {
 	tests := []struct {
 		x   string

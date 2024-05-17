@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
@@ -15,8 +16,8 @@ import (
 )
 
 type Transaction struct {
-	//address  common.Address
-	//calldata []byte
+	// address  common.Address
+	// calldata []byte
 }
 
 type ShardChain struct {
@@ -71,7 +72,6 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 	}
 
 	es, err := execution.NewExecutionState(rwTx, c.Id, lastBlockHash)
-
 	if err != nil {
 		return common.EmptyHash, err
 	}
@@ -139,7 +139,6 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 	}
 
 	blockHash, err := es.Commit(blockId)
-
 	if err != nil {
 		return common.EmptyHash, err
 	}

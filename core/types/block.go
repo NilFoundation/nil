@@ -19,9 +19,11 @@ type Block struct {
 }
 
 // interfaces
-var _ common.Hashable = new(Block)
-var _ fastssz.Marshaler = new(Block)
-var _ fastssz.Unmarshaler = new(Block)
+var (
+	_ common.Hashable     = new(Block)
+	_ fastssz.Marshaler   = new(Block)
+	_ fastssz.Unmarshaler = new(Block)
+)
 
 func (b *Block) Hash() common.Hash {
 	h, err := ssz.FastSSZHash(b)
