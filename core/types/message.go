@@ -72,7 +72,9 @@ func (s *Message) DecodeSSZ(buf []byte, version int) error {
 		return err
 	}
 
-	s.Value.SetBytes(value)
+	if err := s.Value.UnmarshalSSZ(value); err != nil {
+		return err
+	}
 
 	return nil
 }

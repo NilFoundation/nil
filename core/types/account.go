@@ -65,7 +65,9 @@ func (s *SmartContract) DecodeSSZ(buf []byte, version int) error {
 		return err
 	}
 
-	s.Balance.SetBytes(balanceBytes)
+	if err := s.Balance.UnmarshalSSZ(balanceBytes); err != nil {
+		return err
+	}
 	s.Initialised = initialized == 1
 	return nil
 }
