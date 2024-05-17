@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc/transport"
+	"github.com/holiman/uint256"
 	"github.com/rs/zerolog"
 )
 
@@ -31,6 +32,14 @@ type EthAPI interface {
 
 	// Sending related
 	SendRawTransaction(ctx context.Context, encodedTx hexutil.Bytes) (common.Hash, error)
+
+	// Logs related
+	NewFilter(_ context.Context, fromBlock *uint256.Int, toBlock *uint256.Int, address *common.Address, topics [][]common.Hash) (string, error)
+	NewPendingTransactionFilter(_ context.Context) (string, error)
+	NewBlockFilter(_ context.Context) (string, error)
+	UninstallFilter(_ context.Context, id string) (isDeleted bool, err error)
+	GetFilterChanges(_ context.Context, index string) ([]any, error)
+	GetFilterLogs(_ context.Context, index string) ([]*types.Log, error)
 }
 
 type BaseAPI struct {
@@ -49,6 +58,7 @@ type APIImpl struct {
 
 	db      db.DB
 	msgPool msgpool.Pool
+	logs    *LogsAggregator
 	logger  *zerolog.Logger
 }
 
@@ -58,6 +68,7 @@ func NewEthAPI(base *BaseAPI, db db.DB, pool msgpool.Pool, logger *zerolog.Logge
 		BaseAPI: base,
 		db:      db,
 		msgPool: pool,
+		logs:    NewLogsAggregator(db),
 		logger:  logger,
 	}
 }

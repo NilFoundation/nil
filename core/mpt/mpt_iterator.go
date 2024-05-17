@@ -1,8 +1,8 @@
 package mpt
 
 type MptIteratorKey struct {
-	key   []byte
-	value []byte
+	Key   []byte
+	Value []byte
 }
 
 // TODO: Fix leaked coroutine
@@ -22,7 +22,7 @@ func (m *MerklePatriciaTrie) Iterate() chan MptIteratorKey {
 			}
 			data := node.Data()
 			if len(data) > 0 {
-				out <- MptIteratorKey{key: path.data, value: data}
+				out <- MptIteratorKey{Key: path.data, Value: data}
 			}
 			switch node := node.(type) {
 			case *BranchNode:

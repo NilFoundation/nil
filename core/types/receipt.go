@@ -23,3 +23,7 @@ type Receipt struct {
 func (r *Receipt) AddLog(log *Log) {
 	r.Logs = append(r.Logs, log)
 }
+
+func (r *Receipt) LogsNum() int {
+	return len(r.Logs)
+}

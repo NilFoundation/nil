@@ -39,6 +39,9 @@ type ExecutionState struct {
 	ShardId          types.ShardId
 	ChildChainBlocks map[uint64]common.Hash
 
+	MessageHash common.Hash
+	Logs        map[common.Hash][]*types.Log
+
 	Accounts map[common.Address]*AccountState
 	Messages []*types.Message
 	Receipts []*types.Receipt
@@ -142,8 +145,8 @@ func (es *ExecutionState) AddBalance(addr common.Address, amount *uint256.Int, r
 	acc.Balance.Add(&acc.Balance, amount)
 }
 
-func (es *ExecutionState) AddLog(*types.Log) {
-	panic("unimplemented")
+func (es *ExecutionState) AddLog(log *types.Log) {
+	es.Logs[es.MessageHash] = append(es.Logs[es.MessageHash], log)
 }
 
 func (es *ExecutionState) AddRefund(uint64) {
