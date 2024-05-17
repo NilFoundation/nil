@@ -14,14 +14,18 @@ import (
 )
 
 func TestGetTransactionReceipt(t *testing.T) {
-	db, err := db.NewBadgerDbInMemory()
+	t.Parallel()
+
+	ctx := context.Background()
+
+	badger, err := db.NewBadgerDbInMemory()
 	require.NoError(t, err)
-	defer db.Close()
+	defer badger.Close()
 
 	pool := msgpool.New(msgpool.DefaultConfig)
 	require.NotNil(t, pool)
 
-	api := NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), db, pool, common.NewLogger("Test", false))
+	api := NewEthAPI(ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), badger, pool, common.NewLogger("Test", false))
 
 	// Call GetBlockByNumber for transaction which is not in the database
 	_, err = api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.LatestBlockNumber, false)

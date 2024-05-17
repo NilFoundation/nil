@@ -35,7 +35,7 @@ func (cfg *Cfg) fetchBlockData(ctx context.Context, requestBody request) (*types
 		return nil, err
 	}
 	endpoint := cfg.pickAPIEndpoint()
-	requestWithCtx, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewBuffer(requestBytesBody))
+	requestWithCtx, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBuffer(requestBytesBody))
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,8 @@ func (cfg *Cfg) fetchBlockData(ctx context.Context, requestBody request) (*types
 		return nil, errors.New("block not found")
 	}
 
-	hexBody := bodyResponse.Result["content"].(string)
+	hexBody, ok := bodyResponse.Result["content"].(string)
+	common.Require(ok)
 
 	hexBytes := hexutil.FromHex(hexBody)
 

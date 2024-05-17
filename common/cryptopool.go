@@ -14,7 +14,8 @@ var cryptoPool = sync.Pool{
 }
 
 func GetLegacyKeccak256() hash.Hash {
-	h := cryptoPool.Get().(hash.Hash)
+	h, ok := cryptoPool.Get().(hash.Hash)
+	Require(ok)
 	h.Reset()
 	return h
 }

@@ -13,6 +13,8 @@ import (
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/NilFoundation/nil/common"
 )
 
 const (
@@ -63,15 +65,19 @@ func (hc *httpConn) closed() <-chan interface{} {
 }
 
 func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) error {
-	hc := c.writeConn.(*httpConn)
+	hc, ok := c.writeConn.(*httpConn)
+	common.Require(ok)
+
 	respBody, err := hc.doRequest(ctx, msg)
 	if err != nil {
 		return err
 	}
+
 	var respmsg jsonrpcMessage
 	if err := json.Unmarshal(respBody, &respmsg); err != nil {
 		return err
 	}
+
 	op.resp <- &respmsg
 	return nil
 }
@@ -81,7 +87,7 @@ func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) ([]byte, err
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequestWithContext(ctx, "POST", hc.url, io.NopCloser(bytes.NewReader(body)))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, hc.url, io.NopCloser(bytes.NewReader(body)))
 	if err != nil {
 		return nil, err
 	}
@@ -127,25 +133,25 @@ func newHTTPServerConn(r *http.Request, w http.ResponseWriter) ServerCodec {
 	if r.Method == http.MethodGet && r.ContentLength == 0 {
 		// default id 1
 		id := `1`
-		id_up := r.URL.Query().Get("id")
-		if id_up != "" {
-			id = id_up
+		idUp := r.URL.Query().Get("id")
+		if idUp != "" {
+			id = idUp
 		}
-		method_up := r.URL.Query().Get("method")
+		methodUp := r.URL.Query().Get("method")
 		params, _ := url.QueryUnescape(r.URL.Query().Get("params"))
 		param := []byte(params)
 		if pb, err := base64.URLEncoding.DecodeString(params); err == nil {
 			param = pb
 		}
 		buf := new(bytes.Buffer)
-		_ = json.NewEncoder(buf).Encode(jsonrpcMessage{
+		common.Check(json.NewEncoder(buf).Encode(jsonrpcMessage{
 			ID:     json.RawMessage(id),
-			Method: method_up,
+			Method: methodUp,
 			Params: param,
-		})
+		}))
 		conn.Reader = buf
 	} else {
-		// it's a post request or whatever, so just process it like normal
+		// It's a POST request or whatever, so process it like normal.
 		conn.Reader = io.LimitReader(r.Body, maxRequestContentLength)
 	}
 	return NewCodec(conn)
@@ -187,7 +193,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx = context.WithValue(ctx, originCtxKey{}, origin)
 	}
 
-	w.Header().Set("content-type", contentType)
+	w.Header().Set("Content-Type", contentType)
 	codec := newHTTPServerConn(r, w)
 	defer codec.Close()
 	s.serveSingleRequest(ctx, codec)
@@ -208,7 +214,7 @@ func validateRequest(r *http.Request) (int, error) {
 		return 0, nil
 	}
 	// Check content-type
-	if mt, _, err := mime.ParseMediaType(r.Header.Get("content-type")); err == nil {
+	if mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err == nil {
 		for _, accepted := range acceptedContentTypes {
 			if accepted == mt {
 				return 0, nil

@@ -9,6 +9,7 @@ import (
 
 func TestBloom(t *testing.T) {
 	t.Parallel()
+
 	positive := []string{
 		"testtest",
 		"test",
@@ -40,10 +41,11 @@ func TestBloom(t *testing.T) {
 // TestBloomExtensively does some more thorough tests
 func TestBloomExtensively(t *testing.T) {
 	t.Parallel()
+
 	exp := common.HexToHash("09f96160f0da75ea63ed9ff270f994de890e0dce6e6fb532dcc332ab3b90ddbd")
 	var b Bloom
 	// Add 100 "random" things
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		data := fmt.Sprintf("xxxxxxxxxx data %d yyyyyyyyyyyyyy", i)
 		b.Add([]byte(data))
 	}

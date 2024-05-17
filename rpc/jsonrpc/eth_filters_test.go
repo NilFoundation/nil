@@ -33,7 +33,7 @@ func (s *SuiteEthFilters) SetupTest() {
 	pool := msgpool.New(msgpool.DefaultConfig)
 	s.Require().NotNil(pool)
 
-	s.api = NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), s.db, pool, common.NewLogger("Test", false))
+	s.api = NewEthAPI(s.ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), s.db, pool, common.NewLogger("Test", false))
 }
 
 func (s *SuiteEthFilters) TearDownTest() {
@@ -141,5 +141,7 @@ func (s *SuiteEthFilters) TestMain() {
 }
 
 func TestEthFilters(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, new(SuiteEthFilters))
 }

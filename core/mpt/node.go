@@ -88,11 +88,11 @@ func (n *LeafNode) SetData(data []byte) error {
 	return nil
 }
 
-func (n *ExtensionNode) SetData(data []byte) error {
+func (n *ExtensionNode) SetData([]byte) error {
 	panic("SetData is illegal for ExtensionNode")
 }
 
-func (n *BranchNode) SetData(data []byte) error {
+func (n *BranchNode) SetData([]byte) error {
 	panic("SetData is illegal for BranchNode")
 }
 
@@ -126,23 +126,23 @@ func DecodeNode(data []byte) (Node, error) {
 
 	switch nodeKind {
 	case SszLeafNode:
-		node := LeafNode{}
+		node := &LeafNode{}
 		if err := node.UnmarshalSSZ(data); err != nil {
 			panic("SSZ unmarshal failed")
 		}
-		return &node, nil
+		return node, nil
 	case SszExtensionNode:
-		node := ExtensionNode{}
+		node := &ExtensionNode{}
 		if err := node.UnmarshalSSZ(data); err != nil {
 			panic("SSZ unmarshal failed")
 		}
-		return &node, nil
+		return node, nil
 	case SszBranchNode:
-		node := BranchNode{}
+		node := &BranchNode{}
 		if err := node.UnmarshalSSZ(data); err != nil {
 			panic("SSZ unmarshal failed")
 		}
-		return &node, nil
+		return node, nil
 	default:
 		return nil, fmt.Errorf("unknown node kind %d", nodeKind)
 	}

@@ -90,6 +90,8 @@ func (m *MerklePatriciaTrie) Delete(key []byte) error {
 		m.root = info.ref
 	case daUselessBranch:
 		m.root = info.ref
+	case daUnknown:
+		fallthrough
 	default:
 		return ErrInvalidAction
 	}
@@ -124,7 +126,7 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction
 
 	switch node := node.(type) {
 	case *LeafNode:
-		// If it's leaf node, then it's either node we need or incorrect key provided.
+		// If it's a leaf node, then it's either node we need or incorrect key provided.
 		if path.Equal(node.Path()) {
 			return daDeleted, noInfo, nil
 		}
@@ -133,10 +135,10 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction
 
 	case *ExtensionNode:
 		// Extension node can't be removed directly, it passes delete request to the next node.
-		// After that several options are possible:
-		// 1. Next node was deleted. Then this node should be deleted too.
-		// 2. Next node was updated. Then we should update stored reference.
-		// 3. Next node was useless branch. Then we have to update our node depending on the next node type.
+		// After that, several options are possible:
+		// 1. The next node was deleted. Then this node should be deleted too.
+		// 2. The next node was updated. Then we should update stored reference.
+		// 3. The next node was a useless branch. Then we have to update our node depending on the next node type.
 
 		if !path.StartsWith(node.Path()) {
 			// TODO: use error from MPT pkg?
@@ -149,10 +151,10 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction
 
 		switch action {
 		case daDeleted:
-			// Next node was deleted. This node should be deleted also.
+			// The next node was deleted. This node should be deleted also.
 			return action, noInfo, nil
 		case daUpdated:
-			// Next node was updated. Update this node too.
+			// The next node was updated. Update this node too.
 			newRef, err := m.storeNode(newExtensionNode(node.Path(), info.ref))
 			if err != nil {
 				return daUnknown, noInfo, err
@@ -166,21 +168,21 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction
 				return daUnknown, noInfo, err
 			}
 
-			var newNode Node = nil
+			var newNode Node
 			switch child := child.(type) {
 			case *LeafNode:
-				// If next node is the leaf, our node is unnecessary.
+				// If the next node is the leaf, our node is unnecessary.
 				// Concat our path with leaf path and return reference to the leaf.
 				path = node.Path().Combine(child.Path())
 				newNode = newLeafNode(path, child.Data())
 
 			case *ExtensionNode:
-				// If next node is the extension, merge this and next node into one.
+				// If the next node is the extension, merge this and next node into one.
 				path = node.Path().Combine(child.Path())
 				newNode = newExtensionNode(path, child.NextRef)
 
 			case *BranchNode:
-				// If next node is the branch, concatenate paths and update stored reference.
+				// If the next node is the branch, concatenate paths and update stored reference.
 				path = node.Path().Combine(&info.path)
 				newNode = newExtensionNode(path, info.ref)
 
@@ -194,38 +196,41 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction
 			}
 
 			return daUpdated, deletionInfo{Path{}, newReference}, nil
+		case daUnknown:
+			fallthrough
 		default:
 			return daUnknown, noInfo, ErrInvalidAction
 		}
 
 	case *BranchNode:
-		// For branch node things are quite complicated.
-		// If rest of the key is empty and there is stored value, just clear value field.
-		// Otherwise call _delete for the appropriate branch.
-		// At this step we will have delete action and (possibly) index of the branch we're working with.
+		// For branch node, things are quite complicated.
+		// If the rest of the key is empty and there is stored value, just clear value field.
+		// Otherwise, call _delete for the appropriate branch.
+		// At this step, we will have delete action and (possibly) index of the branch we're working with.
 		//
-		// Then, if next node was updated or was useless branch, just update reference.
+		// Then, if the next node was updated or was useless branch, just update reference.
 		// If `_DeleteAction` is `DELETED` then either the next node or value of this node was removed.
-		// We have to check if there is at least 2 branches or 1 branch and value still persist in this node.
+		// We have to check if there are at least 2 branches or 1 branch and value still persist in this node.
 		// If there are no branches and no value left, delete this node completely.
 		// If there is a value but no branches, create leaf node with value and empty path
 		// and return `USELESS_BRANCH` action.
 		// If there is an only branch and no value, merge nibble of this branch and path of the underlying node
 		// and return `USELESS_BRANCH` action.
-		// Otherwise our branch isn't useless and was updated.
+		// Otherwise, our branch isn't useless and was updated.
 
 		var action deleteAction
 		var info deletionInfo
 		var idx int
 
-		// Decide if we need to remove value of this node or go deeper.
-		if path.Empty() && len(node.Value) == 0 {
+		// Decide if we need to remove the value of this node or go deeper.
+		switch {
+		case path.Empty() && len(node.Value) == 0:
 			// TODO: use error from MPT pkg?
 			return daUnknown, noInfo, db.ErrKeyNotFound
-		} else if path.Empty() && len(node.Value) != 0 {
+		case path.Empty() && len(node.Value) != 0:
 			node.Value = []byte{}
 			action = daDeleted
-		} else {
+		default:
 			// Store idx of the branch we're working with.
 			idx = path.At(0)
 
@@ -250,28 +255,23 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction
 				}
 			}
 
-			if validBranches == 0 && len(node.Data()) == 0 {
-				// Branch node is empty, just delete it.
+			switch {
+			case validBranches == 0 && len(node.Data()) == 0:
 				return daDeleted, noInfo, nil
-			} else if validBranches == 0 && len(node.Data()) != 0 {
-				// No branches, just value.
+			case validBranches == 0 && len(node.Data()) != 0:
 				path = newPath([]byte{}, 0)
 				reference, err := m.storeNode(newLeafNode(path, node.Data()))
 				if err != nil {
 					return daUnknown, noInfo, err
 				}
 				return daUselessBranch, deletionInfo{*path, reference}, nil
-			} else if validBranches == 1 && len(node.Data()) == 0 {
-				// No value and one branch
+			case validBranches == 1 && len(node.Data()) == 0:
 				return m.buildNewNodeFromLastBranch(&node.Branches)
-			} else {
-				// Branch has value and 1+ branches or no value and 2+ branches.
-				// It isn't useless, so action is `UPDATED`.
+			default:
 				reference, err := m.storeNode(node)
 				if err != nil {
 					return daUnknown, noInfo, err
 				}
-
 				return daUpdated, deletionInfo{Path{}, reference}, nil
 			}
 
@@ -294,10 +294,13 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction
 			}
 
 			return daUpdated, deletionInfo{Path{}, reference}, nil
+		case daUnknown:
+			fallthrough
 		default:
 			return daUpdated, noInfo, ErrInvalidAction
 		}
 	}
+
 	panic("Unreachable")
 }
 
@@ -323,8 +326,8 @@ func (m *MerklePatriciaTrie) buildNewNodeFromLastBranch(branches *[BranchesNum]R
 	var path Path
 	var node Node
 	// Build new node.
-	// If next node is leaf or extension, merge it.
-	// If next node is branch, create an extension node with one nibble in path.
+	// If the next node is leaf or extension, merge it.
+	// If the next node is a branch, create an extension node with one nibble in path.
 	switch child := child.(type) {
 	case *LeafNode:
 		path = *prefixNibble.Combine(child.Path())
@@ -350,7 +353,7 @@ func (m *MerklePatriciaTrie) get(nodeRef Reference, path Path) (Node, error) {
 		return nil, err
 	}
 
-	// If path is empty, our travel is over. Main `get` method will check if this node has a value.
+	// If the path is empty, our travel is over. Main `get` method will check if this node has a value.
 	if path.Size() == 0 {
 		return node, nil
 	}
@@ -396,12 +399,12 @@ func (m *MerklePatriciaTrie) set(nodeRef Reference, path Path, value []byte) (Re
 
 	switch node := node.(type) {
 	case *LeafNode:
-		// If we're updating the leaf there are 2 possible ways:
-		// 1. path is equals to the rest of the key. Then we should just update value of this leaf.
+		// If we're updating the leaf, there are 2 possible ways:
+		// 1. the path is equal to the rest of the key. Then we should just update the value of this leaf.
 		// 2. path differs. Then we should split this node into several nodes.
 
 		if node.Path().Equal(&path) {
-			// Path is the same. Just change the value.
+			// The path is the same. Just change the value.
 			if err := node.SetData(value); err != nil {
 				return nil, err
 			}
@@ -431,7 +434,7 @@ func (m *MerklePatriciaTrie) set(nodeRef Reference, path Path, value []byte) (Re
 		return branchReference, nil
 
 	case *ExtensionNode:
-		// If we're updating an extenstion there are 2 possible ways:
+		// If we're updating an extension, there are 2 possible ways:
 		// 1. Key starts with the extension node's path. Then we just go ahead and all the work will be done there.
 		// 2. Key doesn't start with extension node's path. Then we have to split extension node.
 
@@ -456,12 +459,12 @@ func (m *MerklePatriciaTrie) set(nodeRef Reference, path Path, value []byte) (Re
 		// Create an empty branch node. It may have or have not the value depending on the length
 		// of the rest of the key.
 		branches := [BranchesNum]Reference{}
-		branchValue := []byte{}
+		var branchValue []byte
 		if path.Size() == 0 {
 			branchValue = value
 		}
 
-		// If needed, create leaf branch for the value we're inserting.
+		// If needed, create a leaf branch for the value we're inserting.
 		m.createBranchLeaf(&path, value, &branches)
 		// If needed, create an extension node for the rest of the extension's path.
 		m.createBranchExtension(node.Path(), node.NextRef, &branches)
@@ -479,9 +482,9 @@ func (m *MerklePatriciaTrie) set(nodeRef Reference, path Path, value []byte) (Re
 		return branchReference, nil
 
 	case *BranchNode:
-		// For branch node things are easy.
-		// 1. If key is empty, just store value in this node.
-		// 2. If key isn't empty, just call `_update` with appropiate branch reference.
+		// For branch node, things are easy.
+		// 1. If the key is empty, store the value in this node.
+		// 2. If the key isn't empty, call `_update` with the appropriate branch reference.
 
 		if path.Size() == 0 {
 			return m.storeNode(newBranchNode(&node.Branches, value))

@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"strconv"
 	"sync"
@@ -41,34 +42,35 @@ type callProc struct {
 }
 
 func HandleError(err error, stream *jsoniter.Stream) {
-	if err != nil {
-		stream.WriteObjectField("error")
-		stream.WriteObjectStart()
-		stream.WriteObjectField("code")
-		ec, ok := err.(Error)
-		if ok {
-			stream.WriteInt(ec.ErrorCode())
-		} else {
-			stream.WriteInt(defaultErrorCode)
-		}
-		stream.WriteMore()
-		stream.WriteObjectField("message")
-		stream.WriteString(err.Error())
-		de, ok := err.(DataError)
-		if ok {
-			stream.WriteMore()
-			stream.WriteObjectField("data")
-			data, derr := json.Marshal(de.ErrorData())
-			if derr == nil {
-				if _, err := stream.Write(data); err != nil {
-					stream.WriteNil()
-				}
-			} else {
-				stream.WriteString(derr.Error())
-			}
-		}
-		stream.WriteObjectEnd()
+	if err == nil {
+		return
 	}
+
+	stream.WriteObjectField("error")
+	stream.WriteObjectStart()
+	stream.WriteObjectField("code")
+	if ec := Error(nil); errors.As(err, &ec) {
+		stream.WriteInt(ec.ErrorCode())
+	} else {
+		stream.WriteInt(defaultErrorCode)
+	}
+	stream.WriteMore()
+	stream.WriteObjectField("message")
+	stream.WriteString(err.Error())
+
+	if de := DataError(nil); errors.As(err, &de) {
+		stream.WriteMore()
+		stream.WriteObjectField("data")
+		data, derr := json.Marshal(de.ErrorData())
+		if derr == nil {
+			if _, err := stream.Write(data); err != nil {
+				stream.WriteNil()
+			}
+		} else {
+			stream.WriteString(derr.Error())
+		}
+	}
+	stream.WriteObjectEnd()
 }
 
 func newHandler(connCtx context.Context, conn jsonWriter, reg *serviceRegistry, traceRequests bool, logger *zerolog.Logger, rpcSlowLogThreshold time.Duration) *handler {
@@ -276,7 +278,7 @@ func (h *handler) runMethod(ctx context.Context, msg *jsonrpcMessage, callb *cal
 		HandleError(err, stream)
 	}
 	stream.WriteObjectEnd()
-	stream.Flush()
+	_ = stream.Flush()
 	return nil
 }
 

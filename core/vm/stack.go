@@ -19,6 +19,7 @@ package vm
 import (
 	"sync"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/holiman/uint256"
 )
 
@@ -29,14 +30,16 @@ var stackPool = sync.Pool{
 }
 
 // Stack is an object for basic stack operations. Items popped to the stack are
-// expected to be changed and modified. stack does not take care of adding newly
-// initialised objects.
+// expected to be changed and modified. Stack does not take care of adding newly
+// initialized objects.
 type Stack struct {
 	data []uint256.Int
 }
 
-func newstack() *Stack {
-	return stackPool.Get().(*Stack)
+func newStack() *Stack {
+	res, ok := stackPool.Get().(*Stack)
+	common.Require(ok)
+	return res
 }
 
 func returnStack(s *Stack) {

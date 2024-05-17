@@ -40,7 +40,7 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	suite.Require().NoError(err)
 
 	suite.smcAddr = common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
-	suite.Require().NotEqual(common.Address{}, suite.smcAddr)
+	suite.Require().NotEmpty(suite.smcAddr)
 
 	err = es.CreateContract(suite.smcAddr, types.Code("some code"))
 	suite.Require().NoError(err)
@@ -61,7 +61,7 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	pool := msgpool.New(msgpool.DefaultConfig)
 	suite.Require().NotNil(pool)
 
-	suite.api = NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, pool, common.NewLogger("Test", false))
+	suite.api = NewEthAPI(ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, pool, common.NewLogger("Test", false))
 }
 
 func (suite *SuiteEthAccounts) TearDownSuite() {
@@ -69,77 +69,77 @@ func (suite *SuiteEthAccounts) TearDownSuite() {
 }
 
 func (suite *SuiteEthAccounts) TestGetBalance() {
+	ctx := context.Background()
 	shardId := types.MasterShardId
 
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	res, err := suite.api.GetBalance(context.Background(), shardId, suite.smcAddr, blockNum)
+	res, err := suite.api.GetBalance(ctx, shardId, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
 	suite.Equal((*hexutil.Big)(big.NewInt(1234)), res)
 
 	blockHash := transport.BlockNumberOrHash{BlockHash: &suite.blockHash}
-	res, err = suite.api.GetBalance(context.Background(), shardId, suite.smcAddr, blockHash)
+	res, err = suite.api.GetBalance(ctx, shardId, suite.smcAddr, blockHash)
 	suite.Require().NoError(err)
 	suite.Equal((*hexutil.Big)(big.NewInt(1234)), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	res, err = suite.api.GetBalance(context.Background(), shardId, common.HexToAddress("deadbeef"), blockNum)
-	suite.Require().NoError(err)
-	suite.Equal((*hexutil.Big)(big.NewInt(0)), res)
+	_, err = suite.api.GetBalance(ctx, shardId, common.HexToAddress("deadbeef"), blockNum)
+	suite.Require().EqualError(err, "key not found in db")
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.EarliestBlock.BlockNumber}
-	_, err = suite.api.GetBalance(context.TODO(), shardId, suite.smcAddr, blockNum)
+	_, err = suite.api.GetBalance(ctx, shardId, suite.smcAddr, blockNum)
 	suite.Require().EqualError(err, "not implemented")
 }
 
 func (suite *SuiteEthAccounts) TestGetCode() {
+	ctx := context.Background()
 	shardId := types.MasterShardId
 
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	res, err := suite.api.GetCode(context.Background(), shardId, suite.smcAddr, blockNum)
+	res, err := suite.api.GetCode(ctx, shardId, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Bytes("some code"), res)
 
 	blockHash := transport.BlockNumberOrHash{BlockHash: &suite.blockHash}
-	res, err = suite.api.GetCode(context.Background(), shardId, suite.smcAddr, blockHash)
+	res, err = suite.api.GetCode(ctx, shardId, suite.smcAddr, blockHash)
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Bytes("some code"), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	res, err = suite.api.GetCode(context.Background(), shardId, common.HexToAddress("deadbeef"), blockNum)
-	suite.Require().NoError(err)
-	suite.Equal(hexutil.Bytes(""), res)
+	_, err = suite.api.GetCode(ctx, shardId, common.HexToAddress("deadbeef"), blockNum)
+	suite.Require().EqualError(err, "key not found in db")
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.EarliestBlock.BlockNumber}
-	_, err = suite.api.GetCode(context.TODO(), shardId, suite.smcAddr, blockNum)
+	_, err = suite.api.GetCode(ctx, shardId, suite.smcAddr, blockNum)
 	suite.Require().EqualError(err, "not implemented")
 }
 
 func (suite *SuiteEthAccounts) TestGetSeqno() {
+	ctx := context.Background()
 	shardId := types.MasterShardId
 
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	res, err := suite.api.GetTransactionCount(context.Background(), shardId, suite.smcAddr, blockNum)
+	res, err := suite.api.GetTransactionCount(ctx, shardId, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Uint64(567), *res)
 
 	blockHash := transport.BlockNumberOrHash{BlockHash: &suite.blockHash}
-	res, err = suite.api.GetTransactionCount(context.Background(), shardId, suite.smcAddr, blockHash)
+	res, err = suite.api.GetTransactionCount(ctx, shardId, suite.smcAddr, blockHash)
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Uint64(567), *res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	res, err = suite.api.GetTransactionCount(context.Background(), shardId, common.HexToAddress("deadbeef"), blockNum)
-	suite.Require().NoError(err)
-	suite.Equal(hexutil.Uint64(0), *res)
+	_, err = suite.api.GetTransactionCount(ctx, shardId, common.HexToAddress("deadbeef"), blockNum)
+	suite.Require().EqualError(err, "key not found in db")
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.EarliestBlock.BlockNumber}
-	_, err = suite.api.GetTransactionCount(context.TODO(), shardId, suite.smcAddr, blockNum)
+	_, err = suite.api.GetTransactionCount(ctx, shardId, suite.smcAddr, blockNum)
 	suite.Require().EqualError(err, "not implemented")
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.PendingBlock.BlockNumber}
-	_, err = suite.api.GetTransactionCount(context.Background(), shardId, suite.smcAddr, blockNum)
+	res, err = suite.api.GetTransactionCount(ctx, shardId, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
-	suite.Equal(hexutil.Uint64(0), *res)
+	suite.Equal(hexutil.Uint64(567), *res)
 
 	msg := types.Message{
 		From:  suite.smcAddr,
@@ -148,16 +148,18 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 	data, err := msg.MarshalSSZ()
 	suite.Require().NoError(err)
 
-	hash, err := suite.api.SendRawTransaction(context.Background(), hexutil.Bytes(data))
+	hash, err := suite.api.SendRawTransaction(ctx, data)
 	suite.Require().NoError(err)
 	suite.NotEqual(common.EmptyHash, hash)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.PendingBlock.BlockNumber}
-	res, err = suite.api.GetTransactionCount(context.Background(), shardId, suite.smcAddr, blockNum)
+	res, err = suite.api.GetTransactionCount(ctx, shardId, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Uint64(1), *res)
 }
 
 func TestSuiteEthAccounts(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, new(SuiteEthAccounts))
 }

@@ -6,6 +6,8 @@ import (
 )
 
 func TestTypescriptGeneration(t *testing.T) {
+	t.Parallel()
+
 	// create buffer to write to test
 
 	s, err := ExportTypescriptTypes()

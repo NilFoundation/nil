@@ -3,6 +3,8 @@ package rpc
 import (
 	"context"
 	"fmt"
+	"net"
+	"strconv"
 	"time"
 
 	"github.com/NilFoundation/nil/rpc/httpcfg"
@@ -46,7 +48,7 @@ func startRegularRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []t
 	event := logger.Info()
 	httpHandler := transport.NewHTTPHandlerStack(srv, cfg.HttpCORSDomain, cfg.HttpVirtualHost, cfg.HttpCompression)
 
-	httpEndpoint := fmt.Sprintf("tcp://%s:%d", cfg.HttpListenAddress, cfg.HttpPort)
+	httpEndpoint := "tcp://" + net.JoinHostPort(cfg.HttpListenAddress, strconv.Itoa(cfg.HttpPort))
 	if cfg.HttpURL != "" {
 		httpEndpoint = cfg.HttpURL
 	}
@@ -57,7 +59,7 @@ func startRegularRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []t
 		return fmt.Errorf("could not start RPC api: %w", err)
 	}
 	event = event.Str("http.url", httpAddr.String())
-	defer func() {
+	defer func() { //nolint:contextcheck
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = listener.Shutdown(shutdownCtx)

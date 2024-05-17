@@ -60,7 +60,7 @@ func StartHTTPEndpoint(urlEndpoint string, cfg *HttpEndpointConfig, handler http
 }
 
 func isIgnoredHttpServerError(serveErr error) bool {
-	return (errors.Is(serveErr, context.Canceled) || errors.Is(serveErr, ErrStopped) || errors.Is(serveErr, http.ErrServerClosed))
+	return errors.Is(serveErr, context.Canceled) || errors.Is(serveErr, ErrStopped) || errors.Is(serveErr, http.ErrServerClosed)
 }
 
 // checkModuleAvailability checks that all names given in modules are actually

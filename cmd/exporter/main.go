@@ -62,7 +62,7 @@ You could config it via config file or flags or environment variables.`,
 				if err := cmd.Help(); err != nil {
 					log.Fatal().Err(err).Msg("Failed to print help")
 				}
-				fmt.Printf("Required parameters are absent: %v\n%s", absentParams, string(buffer.String()))
+				fmt.Printf("Required parameters are absent: %v\n%s", absentParams, buffer.String())
 				os.Exit(1)
 			}
 		},

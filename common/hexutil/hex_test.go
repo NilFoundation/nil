@@ -2,6 +2,9 @@ package hexutil
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var encodeBytesTests = []marshalTest{
@@ -11,10 +14,11 @@ var encodeBytesTests = []marshalTest{
 }
 
 func TestEncode(t *testing.T) {
+	t.Parallel()
+
 	for _, test := range encodeBytesTests {
-		enc := Encode(test.input.([]byte))
-		if enc != test.want {
-			t.Errorf("input %x: wrong encoding %s", test.input, enc)
-		}
+		in, ok := test.input.([]byte)
+		require.True(t, ok)
+		assert.Equal(t, test.want, Encode(in))
 	}
 }

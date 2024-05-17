@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
 	"syscall"
 
 	"github.com/NilFoundation/nil/common"
@@ -35,7 +36,7 @@ func startRpcServer(ctx context.Context, db db.DB, pool msgpool.Pool) error {
 
 	base := jsonrpc.NewBaseApi(rpccfg.DefaultEvmCallTimeout)
 
-	ethImpl := jsonrpc.NewEthAPI(base, db, pool, logger)
+	ethImpl := jsonrpc.NewEthAPI(ctx, base, db, pool, logger)
 	debugImpl := jsonrpc.NewDebugAPI(base, db, logger)
 
 	apiList := []transport.API{
@@ -56,7 +57,7 @@ func startRpcServer(ctx context.Context, db db.DB, pool msgpool.Pool) error {
 	return rpc.StartRpcServer(ctx, httpConfig, apiList, logger)
 }
 
-func main() {
+func run() int {
 	common.SetupGlobalLogger()
 
 	// parse args
@@ -70,12 +71,14 @@ func main() {
 	// each shard will interact with DB via this client
 	badger, err := db.NewBadgerDb("test.db")
 	if err != nil {
-		log.Fatal().Msg(err.Error())
+		log.Error().Err(err).Msg("Error opening badger db")
+		return -1
 	}
 
 	msgPool := msgpool.New(msgpool.DefaultConfig)
 	if msgPool == nil {
-		log.Fatal().Msg("Failed to create message pool")
+		log.Error().Msg("Failed to create message pool")
+		return -1
 	}
 
 	log.Info().Msg("Starting services...")
@@ -87,7 +90,7 @@ func main() {
 		},
 		func(ctx context.Context) error {
 			shards := make([]*shardchain.ShardChain, *nShards)
-			for i := 0; i < *nShards; i++ {
+			for i := range *nShards {
 				shards[i] = shardchain.NewShardChain(types.ShardId(i), badger, *nShards)
 			}
 
@@ -98,8 +101,14 @@ func main() {
 			return startRpcServer(ctx, badger, msgPool)
 		},
 	); err != nil {
-		log.Fatal().Err(err).Msg("App encountered an error and will be terminated.")
+		log.Error().Err(err).Msg("App encountered an error and will be terminated.")
+		return 1
 	}
 
 	log.Warn().Msg("App is terminated.")
+	return 0
+}
+
+func main() {
+	os.Exit(run())
 }

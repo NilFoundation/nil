@@ -1,7 +1,7 @@
 package types
 
 import (
-	common "github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common"
 	fastssz "github.com/ferranbt/fastssz"
 	"github.com/rs/zerolog/log"
 )

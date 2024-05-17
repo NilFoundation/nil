@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"errors"
 	"io"
 	"sync/atomic"
 	"time"
@@ -41,7 +42,7 @@ func NewServer(traceRequests, debugSingleRequest bool, logger *zerolog.Logger, r
 
 // RegisterName creates a service for the given receiver type under the given name. When no
 // methods on the given receiver match the criteria to be a RPC method an error is returned.
-// Otherwise a new service is created and added to the service collection this server provides to clients.
+// Otherwise, a new service is created and added to the service collection this server provides to clients.
 func (s *Server) RegisterName(name string, receiver interface{}) error {
 	return s.services.registerName(name, receiver)
 }
@@ -54,12 +55,12 @@ func (s *Server) RegisterName(name string, receiver interface{}) error {
 func (s *Server) ServeCodec(codec ServerCodec) {
 	defer codec.Close()
 
-	// Don't serve if server is stopped.
+	// Don't serve if the server is stopped.
 	if atomic.LoadInt32(&s.run) == 0 {
 		return
 	}
 
-	// Add the codec to the set so it can be closed by Stop.
+	// Add the codec to the set, so it can be closed by Stop.
 	s.codecs.Add(codec)
 	defer s.codecs.Remove(codec)
 
@@ -71,7 +72,7 @@ func (s *Server) ServeCodec(codec ServerCodec) {
 // serveSingleRequest reads and processes a single RPC request from the given codec. This
 // is used to serve HTTP connections.
 func (s *Server) serveSingleRequest(ctx context.Context, codec ServerCodec) {
-	// Don't serve if server is stopped.
+	// Don't serve if the server is stopped.
 	if atomic.LoadInt32(&s.run) == 0 {
 		return
 	}
@@ -81,7 +82,7 @@ func (s *Server) serveSingleRequest(ctx context.Context, codec ServerCodec) {
 
 	req, err := codec.Read()
 	if err != nil {
-		if err != io.EOF {
+		if !errors.Is(err, io.EOF) {
 			_ = codec.WriteJSON(ctx, errorMessage(&invalidMessageError{"parse error"}))
 		}
 		return
@@ -90,19 +91,21 @@ func (s *Server) serveSingleRequest(ctx context.Context, codec ServerCodec) {
 }
 
 // Stop stops reading new requests, waits for stopPendingRequestTimeout to allow pending
-// requests to finish, then closes all codecs which will cancel pending requests.
+// requests to finish, then closes all codecs that will cancel pending requests.
 func (s *Server) Stop() {
 	if atomic.CompareAndSwapInt32(&s.run, 1, 0) {
 		s.logger.Info().Msg("RPC server shutting down")
 		s.codecs.Each(func(c interface{}) bool {
-			c.(ServerCodec).Close()
+			if codec, ok := c.(ServerCodec); ok {
+				codec.Close()
+			}
 			return true
 		})
 	}
 }
 
-// RPCService gives meta information about the server.
-// e.g. gives information about the loaded modules.
+// RPCService gives meta-information about the server.
+// e.g., gives information about the loaded modules.
 type RPCService struct {
 	server *Server
 }

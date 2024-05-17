@@ -251,7 +251,7 @@ func (as *AccountState) GetState(key common.Hash) (uint256.Int, error) {
 	}
 
 	rawVal, err := as.StorageRoot.Get(key[:])
-	if err == db.ErrKeyNotFound {
+	if errors.Is(err, db.ErrKeyNotFound) {
 		return uint256.Int{}, nil
 	}
 	if err != nil {
@@ -347,16 +347,16 @@ func (es *ExecutionState) GetSeqno(addr common.Address) uint64 {
 	return acc.Seqno
 }
 
-func (s *ExecutionState) getOrNewAccount(addr common.Address) *AccountState {
-	acc := s.GetAccount(addr)
+func (es *ExecutionState) getOrNewAccount(addr common.Address) *AccountState {
+	acc := es.GetAccount(addr)
 	if acc != nil {
 		return acc
 	}
-	err := s.CreateContract(addr, nil)
+	err := es.CreateContract(addr, nil)
 	if err != nil {
 		panic(err)
 	}
-	return s.GetAccount(addr)
+	return es.GetAccount(addr)
 }
 
 func (es *ExecutionState) SetBalance(addr common.Address, balance uint256.Int) {
@@ -404,7 +404,7 @@ func (es *ExecutionState) ContractExists(addr common.Address) bool {
 	return acc != nil
 }
 
-// CreateAddress creates an ethereum address given the bytes and the nonce
+// CreateAddress creates an ethereum address given the bytes and the nonce.
 func CreateAddress(b common.Address, nonce uint64) common.Address {
 	data := []byte{}
 	copy(data, b.Bytes())
@@ -443,7 +443,7 @@ func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 		}
 
 		kHash := k.Hash()
-		if err = es.ContractRoot.Set(kHash[:], v[:]); err != nil {
+		if err = es.ContractRoot.Set(kHash[:], v); err != nil {
 			return common.EmptyHash, err
 		}
 	}

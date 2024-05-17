@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/common"
@@ -14,7 +15,7 @@ type Config struct {
 	Tracer                  *tracing.Hooks
 	NoBaseFee               bool  // Forces the EIP-1559 baseFee to 0 (needed for 0 price calls)
 	EnablePreimageRecording bool  // Enables recording of SHA3/keccak preimages
-	ExtraEips               []int // Additional EIPS that are to be enabled
+	ExtraEips               []int // Additional EIPs that are to be enabled
 }
 
 // ScopeContext contains the things that are per-call, such as stack and memory,
@@ -107,7 +108,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	var (
 		op          OpCode        // current opcode
 		mem         = NewMemory() // bound memory
-		stack       = newstack()  // local stack
+		stack       = newStack()  // local stack
 		callContext = &ScopeContext{
 			Memory:   mem,
 			Stack:    stack,
@@ -149,7 +150,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	}
 	// The Interpreter main run loop (contextual). This loop runs until either an
 	// explicit STOP, RETURN or SELFDESTRUCT is executed, an error occurred during
-	// the execution of one of the operations or until the done flag is set by the
+	// the execution of one of the operations, or until the done flag is set by the
 	// parent context.
 	for {
 		if debug {
@@ -163,58 +164,28 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		cost = operation.constantGas // For tracing
 		// Validate stack
 		if sLen := stack.len(); sLen < operation.minStack {
-			return nil, &ErrStackUnderflow{stackLen: sLen, required: operation.minStack}
+			return nil, &StackUnderflowError{stackLen: sLen, required: operation.minStack}
 		} else if sLen > operation.maxStack {
-			return nil, &ErrStackOverflow{stackLen: sLen, limit: operation.maxStack}
+			return nil, &StackOverflowError{stackLen: sLen, limit: operation.maxStack}
 		}
 		if !contract.UseGas(cost, in.evm.Config.Tracer, tracing.GasChangeIgnored) {
 			return nil, ErrOutOfGas
 		}
 
+		// All ops with a dynamic memory usage also have a dynamic gas cost.
+		var memorySize uint64
 		if operation.dynamicGas != nil {
-			// All ops with a dynamic memory usage also has a dynamic gas cost.
-			var memorySize uint64
-			// calculate the new memory size and expand the memory to fit
-			// the operation
-			// Memory check needs to be done prior to evaluating the dynamic gas portion,
-			// to detect calculation overflows
-			if operation.memorySize != nil {
-				memSize, overflow := operation.memorySize(stack)
-				if overflow {
-					return nil, ErrGasUintOverflow
-				}
-				// memory is expanded in words of 32 bytes. Gas
-				// is also calculated in words.
-				if memorySize, overflow = math.SafeMul(toWordSize(memSize), 32); overflow {
-					return nil, ErrGasUintOverflow
-				}
-			}
-			// Consume the gas and return an error if not enough gas is available.
-			// cost is explicitly set so that the capture state defer method can get the proper cost
-			var dynamicCost uint64
-			dynamicCost, err = operation.dynamicGas(in.evm, contract, stack, mem, memorySize)
-			cost += dynamicCost // for tracing
+			memSize, dynamicCost, err := calcDynamicCosts(contract, operation, stack, in, mem)
 			if err != nil {
-				return nil, fmt.Errorf("%w: %v", ErrOutOfGas, err)
-			}
-			if !contract.UseGas(dynamicCost, in.evm.Config.Tracer, tracing.GasChangeIgnored) {
-				return nil, ErrOutOfGas
+				return nil, err
 			}
 
-			// Do tracing before memory expansion
-			if debug {
-				if in.evm.Config.Tracer.OnGasChange != nil {
-					in.evm.Config.Tracer.OnGasChange(gasCopy, gasCopy-cost, tracing.GasChangeCallOpCode)
-				}
-				if in.evm.Config.Tracer.OnOpcode != nil {
-					in.evm.Config.Tracer.OnOpcode(pc, byte(op), gasCopy, cost, callContext, in.returnData, in.evm.depth, VMErrorFromErr(err))
-					logged = true
-				}
-			}
-			if memorySize > 0 {
-				mem.Resize(memorySize)
-			}
-		} else if debug {
+			memorySize = memSize
+			cost += dynamicCost
+		}
+
+		// Do tracing before memory expansion
+		if debug {
 			if in.evm.Config.Tracer.OnGasChange != nil {
 				in.evm.Config.Tracer.OnGasChange(gasCopy, gasCopy-cost, tracing.GasChangeCallOpCode)
 			}
@@ -222,6 +193,10 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 				in.evm.Config.Tracer.OnOpcode(pc, byte(op), gasCopy, cost, callContext, in.returnData, in.evm.depth, VMErrorFromErr(err))
 				logged = true
 			}
+		}
+
+		if memorySize > 0 {
+			mem.Resize(memorySize)
 		}
 
 		// execute the operation
@@ -232,9 +207,38 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		pc++
 	}
 
-	if err == errStopToken {
+	if errors.Is(err, errStopToken) {
 		err = nil // clear stop token error
 	}
 
 	return res, err
+}
+
+func calcDynamicCosts(contract *Contract, operation *operation, stack *Stack, in *EVMInterpreter, mem *Memory) (uint64, uint64, error) {
+	// Calculate the new memory size and expand the memory to fit the operation.
+	// Memory check needs to be done prior to evaluating the dynamic gas portion
+	// to detect calculation overflows.
+	var memorySize uint64
+	if operation.memorySize != nil {
+		memSize, overflow := operation.memorySize(stack)
+		if overflow {
+			return 0, 0, ErrGasUintOverflow
+		}
+		// memory is expanded in words of 32 bytes. Gas
+		// is also calculated in words.
+		if memorySize, overflow = math.SafeMul(toWordSize(memSize), 32); overflow {
+			return 0, 0, ErrGasUintOverflow
+		}
+	}
+
+	// Consume the gas and return an error if not enough gas is available.
+	// Cost is explicitly set so that the capture state defer method can get the proper cost.
+	dynamicCost, err := operation.dynamicGas(in.evm, contract, stack, mem, memorySize)
+	if err != nil {
+		return 0, 0, fmt.Errorf("%w: %w", ErrOutOfGas, err)
+	}
+	if !contract.UseGas(dynamicCost, in.evm.Config.Tracer, tracing.GasChangeIgnored) {
+		return 0, 0, ErrOutOfGas
+	}
+	return memorySize, dynamicCost, nil
 }

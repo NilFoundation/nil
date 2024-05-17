@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"errors"
 	"math"
 
 	"github.com/NilFoundation/nil/common"
@@ -212,7 +213,7 @@ func opSHR(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte
 
 // opSAR implements Arithmetic Shift Right
 // The SAR instruction (arithmetic shift right) pops 2 values from the stack, first arg1 and then arg2,
-// and pushes on the stack arg2 shifted to the right by arg1 number of bits with sign extension.
+// and pushes on the stack arg2 shifted to the right by arg1 number of bits with a sign extension.
 func opSAR(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	shift, value := scope.Stack.pop(), scope.Stack.peek()
 	if shift.GtUint64(256) {
@@ -235,7 +236,6 @@ func opKeccak256(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) (
 
 	// compute checksum
 	sha := common.GetLegacyKeccak256()
-	//nolint:errcheck
 	sha.Write(data)
 	hash := sha.Sum(nil)
 	common.ReturnLegacyKeccak256(sha)
@@ -587,25 +587,26 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]b
 
 	res, addr, returnGas, suberr := interpreter.evm.Create(scope.Contract, input, gas, &value)
 	// Push item on the stack based on the returned error. If the ruleset is
-	// homestead we must check for CodeStoreOutOfGasError (homestead only
+	//  homestead, we must check for CodeStoreOutOfGasError (homestead-only
 	// rule) and treat as an error, if the ruleset is frontier we must
 	// ignore this error and pretend the operation was successful.
-	if true /* IsHomestead */ && suberr == ErrCodeStoreOutOfGas {
-		stackvalue.Clear()
-	} else if suberr != nil && suberr != ErrCodeStoreOutOfGas {
+	if suberr != nil {
 		stackvalue.Clear()
 	} else {
 		stackvalue.SetBytes(addr.Bytes())
 	}
+
 	scope.Stack.push(&stackvalue)
 
 	scope.Contract.RefundGas(returnGas, interpreter.evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 
-	if suberr == ErrExecutionReverted {
+	if errors.Is(suberr, ErrExecutionReverted) {
 		interpreter.returnData = res // set REVERT data to return data buffer
 		return res, nil
 	}
+
 	interpreter.returnData = nil // clear dirty return data buffer
+
 	return nil, nil
 }
 
@@ -637,7 +638,7 @@ func opCreate2(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]
 
 	scope.Contract.RefundGas(returnGas, interpreter.evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 
-	if suberr == ErrExecutionReverted {
+	if errors.Is(suberr, ErrExecutionReverted) {
 		interpreter.returnData = res // set REVERT data to return data buffer
 		return res, nil
 	}
@@ -671,7 +672,7 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byt
 		temp.SetOne()
 	}
 	stack.push(&temp)
-	if err == nil || err == ErrExecutionReverted {
+	if err == nil || errors.Is(err, ErrExecutionReverted) {
 		scope.Memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 
@@ -704,7 +705,7 @@ func opCallCode(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([
 		temp.SetOne()
 	}
 	stack.push(&temp)
-	if err == nil || err == ErrExecutionReverted {
+	if err == nil || errors.Is(err, ErrExecutionReverted) {
 		scope.Memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 
@@ -733,7 +734,7 @@ func opDelegateCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext
 		temp.SetOne()
 	}
 	stack.push(&temp)
-	if err == nil || err == ErrExecutionReverted {
+	if err == nil || errors.Is(err, ErrExecutionReverted) {
 		scope.Memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 
@@ -744,32 +745,7 @@ func opDelegateCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext
 }
 
 func opStaticCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
-	// Pop gas. The actual gas is in interpreter.evm.callGasTemp.
-	stack := scope.Stack
-	// We use it as a temporary value
-	temp := stack.pop() //nolint:staticcheck
-	gas := interpreter.evm.callGasTemp
-	// Pop other call parameters.
-	addr, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop() //nolint:staticcheck
-	toAddr := common.Address(addr.Bytes20())
-	// Get arguments from the memory.
-	args := scope.Memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
-
-	ret, returnGas, err := interpreter.evm.StaticCall(scope.Contract, toAddr, args, gas)
-	if err != nil {
-		temp.Clear()
-	} else {
-		temp.SetOne()
-	}
-	stack.push(&temp)
-	if err == nil || err == ErrExecutionReverted {
-		scope.Memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
-	}
-
-	scope.Contract.RefundGas(returnGas, interpreter.evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
-
-	interpreter.returnData = ret
-	return ret, nil
+	return opDelegateCall(pc, interpreter, scope)
 }
 
 func opReturn(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
@@ -788,7 +764,7 @@ func opRevert(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]b
 }
 
 func opUndefined(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
-	return nil, &ErrInvalidOpCode{opcode: OpCode(scope.Contract.Code[*pc])}
+	return nil, &InvalidOpCodeError{opcode: OpCode(scope.Contract.Code[*pc])}
 }
 
 func opStop(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
@@ -826,7 +802,7 @@ func makeLog(size int) executionFunc {
 		topics := make([]common.Hash, size)
 		stack := scope.Stack
 		mStart, mSize := stack.pop(), stack.pop()
-		for i := 0; i < size; i++ {
+		for i := range size {
 			addr := stack.pop()
 			bytes := addr.Bytes32()
 			topics[i] = common.Hash(bytes)

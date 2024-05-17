@@ -3,7 +3,7 @@ package transport
 import (
 	"bytes"
 	"context"
-	"fmt"
+	"errors"
 	"reflect"
 	"testing"
 
@@ -12,6 +12,8 @@ import (
 )
 
 func TestHandlerDoesNotDoubleWriteNull(t *testing.T) {
+	t.Parallel()
+
 	tests := map[string]struct {
 		params   []byte
 		expected string
@@ -32,6 +34,8 @@ func TestHandlerDoesNotDoubleWriteNull(t *testing.T) {
 
 	for name, testParams := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			msg := jsonrpcMessage{
 				Version: "2.0",
 				ID:      []byte{49},
@@ -44,10 +48,10 @@ func TestHandlerDoesNotDoubleWriteNull(t *testing.T) {
 			dummyFunc := func(id int, stream *jsoniter.Stream) error {
 				if id == 1 {
 					stream.WriteNil()
-					return fmt.Errorf("id 1")
+					return errors.New("id 1")
 				}
 				if id == 2 {
-					return fmt.Errorf("id 2")
+					return errors.New("id 2")
 				}
 				stream.WriteEmptyObject()
 				return nil

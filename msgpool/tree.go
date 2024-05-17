@@ -1,4 +1,3 @@
-// nolint: unused
 package msgpool
 
 import (
@@ -11,7 +10,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// BySenderAndSeqno - designed to perform most expensive operation in MsgPool:
+// BySenderAndSeqno - designed to perform the most expensive operation in MsgPool:
 // "recalculate all ephemeral fields of all transactions" by algo
 //   - for all senders - iterate over all transactions in seqno growing order
 //
@@ -55,7 +54,7 @@ func (b *BySenderAndSeqno) seqno(from common.Address) (seqno uint64, ok bool) {
 	return seqno, ok
 }
 
-func (b *BySenderAndSeqno) ascendAll(f func(*types.Message) bool) {
+func (b *BySenderAndSeqno) ascendAll(f func(*types.Message) bool) { //nolint:unused
 	b.tree.Ascend(func(mt *types.Message) bool {
 		return f(mt)
 	})
@@ -73,7 +72,7 @@ func (b *BySenderAndSeqno) ascend(from common.Address, f func(*types.Message) bo
 	})
 }
 
-func (b *BySenderAndSeqno) descend(from common.Address, f func(*types.Message) bool) {
+func (b *BySenderAndSeqno) descend(from common.Address, f func(*types.Message) bool) { //nolint:unused
 	s := b.search
 	s.From = from
 	s.Seqno = math.MaxUint64
@@ -85,11 +84,11 @@ func (b *BySenderAndSeqno) descend(from common.Address, f func(*types.Message) b
 	})
 }
 
-func (b *BySenderAndSeqno) count(from common.Address) int {
+func (b *BySenderAndSeqno) count(from common.Address) int { //nolint:unused
 	return b.fromMsgCount[from]
 }
 
-func (b *BySenderAndSeqno) hasTxs(from common.Address) bool {
+func (b *BySenderAndSeqno) hasTxs(from common.Address) bool { //nolint:unused
 	has := false
 	b.ascend(from, func(*types.Message) bool {
 		has = true
@@ -108,7 +107,7 @@ func (b *BySenderAndSeqno) get(from common.Address, seqno uint64) *types.Message
 	return nil
 }
 
-func (b *BySenderAndSeqno) has(mt *types.Message) bool {
+func (b *BySenderAndSeqno) has(mt *types.Message) bool { //nolint:unused
 	return b.tree.Has(mt)
 }
 

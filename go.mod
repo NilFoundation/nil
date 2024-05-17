@@ -4,7 +4,6 @@ go 1.22
 
 require (
 	github.com/ferranbt/fastssz v0.1.4-0.20240422063434-a4db75388da1
-	github.com/fxamacker/cbor/v2 v2.6.0
 	github.com/google/btree v1.1.2
 	github.com/gorilla/handlers v1.5.2
 	github.com/holiman/uint256 v1.2.4
@@ -81,7 +80,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/x448/float16 v0.8.4 // indirect
 	golang.org/x/net v0.24.0
 	golang.org/x/sys v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect

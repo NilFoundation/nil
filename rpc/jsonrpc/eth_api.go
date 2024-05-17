@@ -63,12 +63,12 @@ type APIImpl struct {
 }
 
 // NewEthAPI returns APIImpl instance
-func NewEthAPI(base *BaseAPI, db db.DB, pool msgpool.Pool, logger *zerolog.Logger) *APIImpl {
+func NewEthAPI(ctx context.Context, base *BaseAPI, db db.DB, pool msgpool.Pool, logger *zerolog.Logger) *APIImpl {
 	return &APIImpl{
 		BaseAPI: base,
 		db:      db,
 		msgPool: pool,
-		logs:    NewLogsAggregator(db),
+		logs:    NewLogsAggregator(ctx, db),
 		logger:  logger,
 	}
 }

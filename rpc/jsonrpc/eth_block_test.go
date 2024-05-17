@@ -48,7 +48,7 @@ func (suite *SuiteEthBlock) SetupSuite() {
 	pool := msgpool.New(msgpool.DefaultConfig)
 	suite.Require().NotNil(pool)
 
-	suite.api = NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, pool, common.NewLogger("Test", false))
+	suite.api = NewEthAPI(ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, pool, common.NewLogger("Test", false))
 }
 
 func (suite *SuiteEthBlock) TearDownSuite() {
@@ -76,15 +76,17 @@ func (suite *SuiteEthBlock) TestGetBlockByHash() {
 
 func (suite *SuiteEthBlock) TestGetBlockTransactionCountByHash() {
 	blockHash := common.HexToHash("0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")
-	_, err := suite.api.GetBlockTransactionCountByHash(context.TODO(), types.MasterShardId, blockHash)
+	_, err := suite.api.GetBlockTransactionCountByHash(context.Background(), types.MasterShardId, blockHash)
 	suite.Require().EqualError(err, "not implemented")
 }
 
 func (suite *SuiteEthBlock) TestGetBlockTransactionCountByNumber() {
-	_, err := suite.api.GetBlockTransactionCountByNumber(context.TODO(), types.MasterShardId, transport.LatestBlockNumber)
+	_, err := suite.api.GetBlockTransactionCountByNumber(context.Background(), types.MasterShardId, transport.LatestBlockNumber)
 	suite.Require().EqualError(err, "not implemented")
 }
 
 func TestSuiteEthBlock(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, new(SuiteEthBlock))
 }

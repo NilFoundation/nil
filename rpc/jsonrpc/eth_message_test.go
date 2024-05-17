@@ -14,6 +14,8 @@ import (
 )
 
 func TestGetMessageByHash(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	database, err := db.NewBadgerDbInMemory()
@@ -23,7 +25,7 @@ func TestGetMessageByHash(t *testing.T) {
 	pool := msgpool.New(msgpool.DefaultConfig)
 	require.NotNil(t, pool)
 
-	api := NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), database, pool, common.NewLogger("Test", false))
+	api := NewEthAPI(ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), database, pool, common.NewLogger("Test", false))
 
 	tx, err := database.CreateRwTx(ctx)
 	defer tx.Rollback()

@@ -19,6 +19,7 @@ package vm
 import (
 	"fmt"
 	"sort"
+	"strconv"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/params"
@@ -56,9 +57,9 @@ func ValidEip(eipNum int) bool {
 }
 
 func ActivateableEips() []string {
-	var nums []string
+	nums := make([]string, 0, len(activators))
 	for k := range activators {
-		nums = append(nums, fmt.Sprintf("%d", k))
+		nums = append(nums, strconv.Itoa(k))
 	}
 	sort.Strings(nums)
 	return nums

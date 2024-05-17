@@ -16,9 +16,9 @@ type LogsAggregator struct {
 	logsMap *SyncMap[filters.SubscriptionID, []*types.Log]
 }
 
-func NewLogsAggregator(db db.DB) *LogsAggregator {
+func NewLogsAggregator(ctx context.Context, db db.DB) *LogsAggregator {
 	return &LogsAggregator{
-		filters: filters.NewFiltersManager(context.Background(), db, false),
+		filters: filters.NewFiltersManager(ctx, db, false),
 		logsMap: NewSyncMap[filters.SubscriptionID, []*types.Log](), // make(map[filters.SubscriptionID][]*types.Log),
 	}
 }

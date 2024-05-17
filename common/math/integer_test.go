@@ -29,6 +29,8 @@ const (
 )
 
 func TestOverflow(t *testing.T) {
+	t.Parallel()
+
 	for i, test := range []struct {
 		x        uint64
 		y        uint64
@@ -66,6 +68,8 @@ func TestOverflow(t *testing.T) {
 }
 
 func TestHexOrDecimal64(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		input string
 		num   uint64
@@ -101,12 +105,16 @@ func TestHexOrDecimal64(t *testing.T) {
 }
 
 func TestMustParseUint64(t *testing.T) {
+	t.Parallel()
+
 	if v := MustParseUint64("12345"); v != 12345 {
 		t.Errorf(`MustParseUint64("12345") = %d, want 12345`, v)
 	}
 }
 
 func TestMustParseUint64Panic(t *testing.T) {
+	t.Parallel()
+
 	defer func() {
 		if recover() == nil {
 			t.Error("MustParseBig should've panicked")

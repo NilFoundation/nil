@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	"github.com/gorilla/handlers"
@@ -93,7 +94,7 @@ func (h *httpServer) start() error {
 	}
 
 	// Initialize the server.
-	h.server = &http.Server{Handler: h} // nolint
+	h.server = &http.Server{Handler: h, ReadHeaderTimeout: 10 * time.Second}
 	if h.timeouts != (rpccfg.HTTPTimeouts{}) {
 		CheckTimeouts(&h.timeouts)
 		h.server.ReadTimeout = h.timeouts.ReadTimeout
@@ -105,12 +106,14 @@ func (h *httpServer) start() error {
 	listener, err := net.Listen("tcp", h.endpoint)
 	if err != nil {
 		// If the server fails to start, we need to clear out the RPC
-		// configuration so they can be configured another time.
+		// configuration, so they can be configured another time.
 		h.disableRPC()
 		return err
 	}
 	h.listener = listener
-	go h.server.Serve(listener) // nolint:errcheck
+	go func() {
+		_ = h.server.Serve(listener)
+	}()
 
 	// if server is websocket only, return after logging
 	if !h.rpcAllowed() {
@@ -145,8 +148,8 @@ func (h *httpServer) start() error {
 
 func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// if http-rpc is enabled, try to serve request
-	rpc := h.httpHandler.Load().(*rpcHandler)
-	if rpc != nil {
+	rpc, ok := h.httpHandler.Load().(*rpcHandler)
+	if ok && rpc != nil {
 		if checkPath(r, h.httpConfig.prefix) {
 			rpc.ServeHTTP(w, r)
 			return
@@ -178,13 +181,13 @@ func (h *httpServer) doStop() {
 	}
 
 	// Shut down the server.
-	httpHandler := h.httpHandler.Load().(*rpcHandler)
-	if httpHandler != nil {
+	httpHandler, ok := h.httpHandler.Load().(*rpcHandler)
+	if ok && httpHandler != nil {
 		h.httpHandler.Store((*rpcHandler)(nil))
 		httpHandler.server.Stop()
 	}
-	h.server.Shutdown(context.Background()) //nolint:errcheck
-	h.listener.Close()
+	_ = h.server.Shutdown(context.Background())
+	_ = h.listener.Close()
 	h.logger.Info().Str("endpoint", h.listener.Addr().String()).Msg("HTTP server stopped")
 
 	// Clear out everything to allow re-configuring it later.
@@ -194,8 +197,8 @@ func (h *httpServer) doStop() {
 
 // disableRPC stops the HTTP RPC handler. This is internal, the caller must hold h.mu.
 func (h *httpServer) disableRPC() bool {
-	handler := h.httpHandler.Load().(*rpcHandler)
-	if handler != nil {
+	handler, ok := h.httpHandler.Load().(*rpcHandler)
+	if ok && handler != nil {
 		h.httpHandler.Store((*rpcHandler)(nil))
 		handler.server.Stop()
 	}
@@ -204,7 +207,8 @@ func (h *httpServer) disableRPC() bool {
 
 // rpcAllowed returns true when JSON-RPC over HTTP is enabled.
 func (h *httpServer) rpcAllowed() bool {
-	return h.httpHandler.Load().(*rpcHandler) != nil
+	handler, ok := h.httpHandler.Load().(*rpcHandler)
+	return ok && handler != nil
 }
 
 // NewHTTPHandlerStack returns wrapped http-related handlers
@@ -219,7 +223,7 @@ func NewHTTPHandlerStack(srv http.Handler, cors []string, vhosts []string, compr
 }
 
 func newCorsHandler(srv http.Handler, allowedOrigins []string) http.Handler {
-	// disable CORS support if user has not specified a custom CORS configuration
+	// disable CORS support if a user has not specified a custom CORS configuration
 	if len(allowedOrigins) == 0 {
 		return srv
 	}
@@ -264,8 +268,8 @@ func (h *virtualHostHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// It's an IP address, we can serve that
 		h.next.ServeHTTP(w, r)
 		return
-
 	}
+
 	// Not an IP address, but a hostname. Need to validate
 	if _, exist := h.vhosts["*"]; exist {
 		h.next.ServeHTTP(w, r)

@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -64,6 +65,13 @@ const (
 	PendingBlockNumber        = BlockNumber(-2)
 	LatestBlockNumber         = BlockNumber(-1)
 	EarliestBlockNumber       = BlockNumber(0)
+
+	Earliest       = "earliest"
+	Latest         = "latest"
+	Pending        = "pending"
+	Safe           = "safe"
+	Finalized      = "finalized"
+	LatestExecuted = "latestExecuted"
 )
 
 var (
@@ -88,22 +96,22 @@ func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
 	}
 
 	switch input {
-	case "earliest":
+	case Earliest:
 		*bn = EarliestBlockNumber
 		return nil
-	case "latest":
+	case Latest:
 		*bn = LatestBlockNumber
 		return nil
-	case "pending":
+	case Pending:
 		*bn = PendingBlockNumber
 		return nil
-	case "safe":
+	case Safe:
 		*bn = SafeBlockNumber
 		return nil
-	case "finalized":
+	case Finalized:
 		*bn = FinalizedBlockNumber
 		return nil
-	case "latestExecuted":
+	case LatestExecuted:
 		*bn = LatestExecutedBlockNumber
 		return nil
 	case "null":
@@ -120,7 +128,7 @@ func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
 		}
 	}
 	if blckNum > math.MaxInt64 {
-		return fmt.Errorf("block number larger than int64")
+		return errors.New("block number larger than int64")
 	}
 	*bn = BlockNumber(blckNum)
 	return nil
@@ -156,17 +164,17 @@ func (bn BlockNumber) AsBlockReference() BlockReference {
 func (bn BlockNumber) string(base int) string {
 	switch bn {
 	case EarliestBlockNumber:
-		return "earliest"
+		return Earliest
 	case LatestBlockNumber:
-		return "latest"
+		return Latest
 	case PendingBlockNumber:
-		return "pending"
+		return Pending
 	case SafeBlockNumber:
-		return "safe"
+		return Safe
 	case FinalizedBlockNumber:
-		return "finalized"
+		return Finalized
 	case LatestExecutedBlockNumber:
-		return "latestExecuted"
+		return LatestExecuted
 	}
 
 	if base == 16 {
@@ -188,10 +196,10 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 	err := json.Unmarshal(data, &e)
 	if err == nil {
 		if e.BlockNumber != nil && e.BlockHash != nil {
-			return fmt.Errorf("cannot specify both BlockHash and BlockNumber, choose one or the other")
+			return errors.New("cannot specify both BlockHash and BlockNumber, choose one or the other")
 		}
 		if e.BlockNumber == nil && e.BlockHash == nil {
-			return fmt.Errorf("at least one of BlockNumber or BlockHash is needed if a dictionary is provided")
+			return errors.New("at least one of BlockNumber or BlockHash is needed if a dictionary is provided")
 		}
 		bnh.BlockNumber = e.BlockNumber
 		bnh.BlockHash = e.BlockHash
@@ -202,7 +210,7 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 	blckNum, err := strconv.ParseUint(string(data), 10, 64)
 	if err == nil {
 		if blckNum > math.MaxInt64 {
-			return fmt.Errorf("blocknumber too high")
+			return errors.New("block number too high")
 		}
 		bn := BlockNumber(blckNum)
 		bnh.BlockNumber = &bn
@@ -213,23 +221,23 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	switch input {
-	case "earliest":
+	case Earliest:
 		bn := EarliestBlockNumber
 		bnh.BlockNumber = &bn
 		return nil
-	case "latest":
+	case Latest:
 		bn := LatestBlockNumber
 		bnh.BlockNumber = &bn
 		return nil
-	case "pending":
+	case Pending:
 		bn := PendingBlockNumber
 		bnh.BlockNumber = &bn
 		return nil
-	case "safe":
+	case Safe:
 		bn := SafeBlockNumber
 		bnh.BlockNumber = &bn
 		return nil
-	case "finalized":
+	case Finalized:
 		bn := FinalizedBlockNumber
 		bnh.BlockNumber = &bn
 		return nil
@@ -246,7 +254,7 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 				return err
 			}
 			if blckNum > math.MaxInt64 {
-				return fmt.Errorf("block number too high")
+				return errors.New("block number too high")
 			}
 			bn := BlockNumber(blckNum)
 			bnh.BlockNumber = &bn

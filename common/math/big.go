@@ -78,8 +78,8 @@ func (i *HexOrDecimal256) MarshalText() ([]byte, error) {
 	return []byte(fmt.Sprintf("%#x", (*big.Int)(i))), nil
 }
 
-// Decimal256 unmarshals big.Int as a decimal string. When unmarshalling,
-// it however accepts either "0x"-prefixed (hex encoded) or non-prefixed (decimal)
+// Decimal256 unmarshals big.Int as a decimal string.
+// When unmarshalling, it, however, accepts either "0x"-prefixed (hex encoded) or non-prefixed (decimal).
 type Decimal256 big.Int
 
 // NewDecimal256 creates a new Decimal256
@@ -154,7 +154,7 @@ func BigMax(x, y *big.Int) *big.Int {
 	return x
 }
 
-// BigMin returns the smaller of x or y.
+// BigMin returns the smallest of x or y.
 func BigMin(x, y *big.Int) *big.Int {
 	if x.Cmp(y) > 0 {
 		return y
@@ -164,7 +164,7 @@ func BigMin(x, y *big.Int) *big.Int {
 
 // FirstBitSet returns the index of the first 1 bit in v, counting from LSB.
 func FirstBitSet(v *big.Int) int {
-	for i := 0; i < v.BitLen(); i++ {
+	for i := range v.BitLen() {
 		if v.Bit(i) > 0 {
 			return i
 		}
@@ -212,7 +212,7 @@ func Byte(bigint *big.Int, padlength, n int) byte {
 }
 
 // ReadBits encodes the absolute value of bigint as big-endian bytes. Callers must ensure
-// that buf has enough space. If buf is too short the result will be incomplete.
+// that buf has enough space. If buf is too short, the result will be incomplete.
 func ReadBits(bigint *big.Int, buf []byte) {
 	i := len(buf)
 	for _, d := range bigint.Bits() {
@@ -224,7 +224,7 @@ func ReadBits(bigint *big.Int, buf []byte) {
 	}
 }
 
-// U256 encodes x as a 256 bit two's complement number. This operation is destructive.
+// U256 encodes x as a 256-bit two's complement number. This operation is destructive.
 func U256(x *big.Int) *big.Int {
 	return x.And(x, tt256m1)
 }
@@ -250,7 +250,7 @@ func S256(x *big.Int) *big.Int {
 }
 
 // Exp implements exponentiation by squaring.
-// Exp returns a newly-allocated big integer and does not change
+// Exp returns a newly allocated big integer and does not change
 // base or exponent. The result is truncated to 256 bits.
 //
 // Courtesy @karalabe and @chfast
@@ -259,7 +259,7 @@ func Exp(base, exponent *big.Int) *big.Int {
 	result := big.NewInt(1)
 
 	for _, word := range exponent.Bits() {
-		for i := 0; i < wordBits; i++ {
+		for range wordBits {
 			if word&1 == 1 {
 				U256(result.Mul(result, copyBase))
 			}
