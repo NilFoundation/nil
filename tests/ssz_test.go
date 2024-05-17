@@ -18,18 +18,18 @@ func TestSszBlock(t *testing.T) {
 		SmartContractsRoot: common.Hash{0x02},
 	}
 
-	encoded, err := block.EncodeSSZ(nil)
+	encoded, err := block.MarshalSSZ()
 	require.NoError(t, err)
 
 	block2 := types.Block{}
-	err = block2.DecodeSSZ(encoded, 0)
+	err = block2.UnmarshalSSZ(encoded)
 	require.NoError(t, err)
 
 	require.Equal(t, block2.Id, block.Id)
 	require.Equal(t, block2.PrevBlock, block.PrevBlock)
 	require.Equal(t, block2.SmartContractsRoot, block.SmartContractsRoot)
 
-	h, err := ssz.SSZHash(&block2)
+	h, err := ssz.FastSSZHash(&block2)
 	require.NoError(t, err)
 
 	h2, err := hex.DecodeString("105d380db7f5773ffd3d99f86ef08ddd354be37962457bfdc968e739b0bea4e4")
@@ -67,7 +67,7 @@ func TestSszMessage(t *testing.T) {
 	h, err := ssz.SSZHash(&message2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("01f2d94083023c1841663be841508caadc6484ffdebd149b049a9e247e3d10a0")
+	h2, err := hex.DecodeString("0219b023e05f696ef3f97591529c4d0e5b02b8dbfb2a7ed4f13949091e78c176")
 	require.NoError(t, err)
 
 	require.Equal(t, common.BytesToHash(h2), h)
@@ -100,7 +100,7 @@ func TestSszSmc(t *testing.T) {
 	h, err := ssz.SSZHash(&smc2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("0cf51f891102ed820b9b125bee2d7fd3e844be505f2c9d705bd999607f7cdb07")
+	h2, err := hex.DecodeString("1d153492db725f651b7c3ef0caf9aaa01bc4820ed2e1b9e0cb30636325f0d818")
 	require.NoError(t, err)
 
 	require.Equal(t, common.BytesToHash(h2), h)

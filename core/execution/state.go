@@ -255,7 +255,10 @@ func (as *AccountState) GetState(key common.Hash) (uint256.Int, error) {
 		return uint256.Int{}, err
 	}
 
-	newVal := ssz.UnmarshalUint256SSZ(rawVal)
+	var newVal uint256.Int
+	if err := newVal.UnmarshalSSZ(rawVal); err != nil {
+		return uint256.Int{}, err
+	}
 	as.State[key] = newVal
 
 	return newVal, nil

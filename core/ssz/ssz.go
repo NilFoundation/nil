@@ -3,7 +3,10 @@ package ssz
 import (
 	"encoding/binary"
 
+	"github.com/rs/zerolog/log"
+
 	common "github.com/NilFoundation/nil/common"
+	fastssz "github.com/ferranbt/fastssz"
 	"github.com/holiman/uint256"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
@@ -58,7 +61,13 @@ func Uint32SSZ(x uint32) []byte {
 func Uint256SSZ(x uint256.Int) []byte {
 	b := make([]byte, 32)
 	x.WriteToSlice(b)
-	return b
+
+	res, err := x.MarshalSSZ()
+	if err != nil {
+		log.Fatal().Msgf("Failed to marshal uint256.Int: %v", err)
+	}
+
+	return res
 }
 
 func BoolSSZ(b bool) byte {
@@ -86,12 +95,6 @@ func DecodeOffset(x []byte) uint32 {
 
 func UnmarshalUint64SSZ(x []byte) uint64 {
 	return binary.LittleEndian.Uint64(x)
-}
-
-func UnmarshalUint256SSZ(s []byte) uint256.Int {
-	var res uint256.Int
-	res.SetBytes(s)
-	return res
 }
 
 func DecodeDynamicList[T SSZDecodable](bytes []byte, start, end uint32, max uint64, version int) ([]T, error) {
@@ -234,6 +237,14 @@ func EncodeDynamicList[T SSZEncodable](buf []byte, objs []T) (dst []byte, err er
 
 func SSZHash(obj SSZEncodable) (common.Hash, error) {
 	encoded, err := obj.EncodeSSZ(nil)
+	if err != nil {
+		return common.Hash{0}, err
+	}
+	return common.BytesToHash(poseidon.Sum(encoded)), nil
+}
+
+func FastSSZHash(obj fastssz.Marshaler) (common.Hash, error) {
+	encoded, err := obj.MarshalSSZ()
 	if err != nil {
 		return common.Hash{0}, err
 	}
