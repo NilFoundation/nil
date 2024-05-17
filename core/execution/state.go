@@ -51,7 +51,7 @@ func (s *AccountState) empty() bool {
 func NewAccountState(tx db.Tx, shardId types.ShardId, data []byte) (*AccountState, error) {
 	account := new(types.SmartContract)
 
-	if err := account.DecodeSSZ(data, 0); err != nil {
+	if err := account.UnmarshalSSZ(data); err != nil {
 		logger.Fatal().Msg("Invalid SSZ while decoding account")
 	}
 
@@ -285,13 +285,13 @@ func (as *AccountState) Commit() ([]byte, error) {
 	}
 
 	acc := types.SmartContract{
-		Balance:     as.Balance,
+		Balance:     types.Uint256{Int: as.Balance},
 		StorageRoot: as.StorageRoot.RootHash(),
 		CodeHash:    as.CodeHash,
 		Seqno:       as.Seqno,
 	}
 
-	data, err := acc.EncodeSSZ(nil)
+	data, err := acc.MarshalSSZ()
 	if err != nil {
 		return nil, err
 	}
@@ -456,7 +456,7 @@ func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 	}
 
 	for _, m := range es.Messages {
-		v, err := m.EncodeSSZ(nil)
+		v, err := m.MarshalSSZ()
 		if err != nil {
 			return common.EmptyHash, err
 		}

@@ -4,52 +4,11 @@ import (
 	"errors"
 
 	common "github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/core/ssz"
 	types "github.com/NilFoundation/nil/core/types"
 	fastssz "github.com/ferranbt/fastssz"
 )
 
 func readDecodable[
-	S any,
-	T interface {
-		~*S
-		ssz.SSZDecodable
-	},
-](tx Tx, table string, shardId types.ShardId, hash common.Hash) *S {
-	data, err := tx.Get(tableName(table, shardId), hash.Bytes())
-	if errors.Is(err, ErrKeyNotFound) {
-		return nil
-	}
-	if err != nil {
-		logger.Fatal().Msgf("Read from table %s failed. err: %s", table, err.Error())
-	}
-	if data == nil {
-		return nil
-	}
-	decoded := new(S)
-	if err := T(decoded).DecodeSSZ(*data, 0); err != nil {
-		logger.Fatal().Msgf("Invalid SSZ while reading from %s. hash: %v, err: %v", table, hash, err)
-	}
-	return decoded
-}
-
-func writeEncodable[
-	T interface {
-		ssz.SSZEncodable
-		common.Hashable
-	},
-](tx Tx, table string, shardId types.ShardId, obj T) error {
-	hash := obj.Hash()
-
-	data, err := obj.EncodeSSZ(nil)
-	if err != nil {
-		return err
-	}
-
-	return tx.Put(tableName(table, shardId), hash.Bytes(), data)
-}
-
-func readFastSSZDecodable[
 	S any,
 	T interface {
 		~*S
@@ -73,7 +32,7 @@ func readFastSSZDecodable[
 	return decoded
 }
 
-func writeFastSSZEncodable[
+func writeEncodable[
 	T interface {
 		fastssz.Marshaler
 		common.Hashable
@@ -96,11 +55,11 @@ for fetching shard by hash, and it would take time to do the shardId resolution
 correctly for that case.
 */
 func ReadBlock(tx Tx, hash common.Hash) *types.Block {
-	return readFastSSZDecodable[types.Block, *types.Block](tx, blockTable, 0, hash)
+	return readDecodable[types.Block, *types.Block](tx, blockTable, 0, hash)
 }
 
 func WriteBlock(tx Tx, block *types.Block) error {
-	return writeFastSSZEncodable(tx, blockTable, 0, block)
+	return writeEncodable(tx, blockTable, 0, block)
 }
 
 func ReadContract(tx Tx, shardId types.ShardId, hash common.Hash) *types.SmartContract {

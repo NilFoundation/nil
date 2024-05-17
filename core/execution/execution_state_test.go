@@ -86,7 +86,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 		}
 
 		var m types.Message
-		suite.Require().NoError(m.DecodeSSZ(mRaw, 0))
+		suite.Require().NoError(m.UnmarshalSSZ(mRaw))
 		suite.Equal(types.Code{byte(messageIndex)}, m.Data)
 
 		var r types.Receipt

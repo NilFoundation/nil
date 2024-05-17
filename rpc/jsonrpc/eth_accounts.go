@@ -3,13 +3,14 @@ package jsonrpc
 import (
 	"context"
 	"fmt"
+	"math/big"
+
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
-	"math/big"
 )
 
 func (api *APIImpl) getSmartContract(tx db.Tx, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*types.SmartContract, error) {
@@ -42,7 +43,7 @@ func (api *APIImpl) getSmartContract(tx db.Tx, address common.Address, blockNrOr
 	}
 
 	contract := new(types.SmartContract)
-	if err := contract.DecodeSSZ(contractRaw, 0); err != nil {
+	if err := contract.UnmarshalSSZ(contractRaw); err != nil {
 		return nil, nil
 	}
 

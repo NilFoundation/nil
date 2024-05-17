@@ -2,7 +2,8 @@ package types
 
 import (
 	common "github.com/NilFoundation/nil/common"
-	ssz "github.com/NilFoundation/nil/core/ssz"
+	"github.com/NilFoundation/nil/core/ssz"
+	fastssz "github.com/ferranbt/fastssz"
 	"github.com/rs/zerolog/log"
 )
 
@@ -19,11 +20,13 @@ type Block struct {
 
 // interfaces
 var _ common.Hashable = new(Block)
+var _ fastssz.Marshaler = new(Block)
+var _ fastssz.Unmarshaler = new(Block)
 
 func (b *Block) Hash() common.Hash {
 	h, err := ssz.FastSSZHash(b)
 	if err != nil {
-		log.Fatal().Msg(err.Error())
+		log.Fatal().Err(err).Msg("Can't get block hash")
 	}
 	return h
 }
