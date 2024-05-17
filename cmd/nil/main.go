@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/shardchain"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc"
 	"github.com/NilFoundation/nil/rpc/httpcfg"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
@@ -19,7 +20,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func startRpcServer(ctx context.Context, db db.DB) error {
+func startRpcServer(ctx context.Context, db db.DB, pool msgpool.Pool) error {
 	logger := common.NewLogger("RPC", false)
 
 	httpConfig := &httpcfg.HttpCfg{
@@ -34,7 +35,7 @@ func startRpcServer(ctx context.Context, db db.DB) error {
 
 	base := jsonrpc.NewBaseApi(rpccfg.DefaultEvmCallTimeout)
 
-	ethImpl := jsonrpc.NewEthAPI(base, db, logger)
+	ethImpl := jsonrpc.NewEthAPI(base, db, pool, logger)
 
 	apiList := []transport.API{
 		{
@@ -65,6 +66,11 @@ func main() {
 		log.Fatal().Msg(err.Error())
 	}
 
+	msgPool := msgpool.New(msgpool.DefaultConfig)
+	if msgPool == nil {
+		log.Fatal().Msg("Failed to create message pool")
+	}
+
 	log.Info().Msg("Starting services...")
 
 	if err := concurrent.Run(ctx,
@@ -82,7 +88,7 @@ func main() {
 			return collator.Run(ctx)
 		},
 		func(ctx context.Context) error {
-			return startRpcServer(ctx, badger)
+			return startRpcServer(ctx, badger, msgPool)
 		},
 	); err != nil {
 		log.Fatal().Err(err).Msg("App encountered an error and will be terminated.")

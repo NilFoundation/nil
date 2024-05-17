@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/shardchain"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc"
 	"github.com/NilFoundation/nil/rpc/httpcfg"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
@@ -37,7 +38,12 @@ func startRpcServer(ctx context.Context, nShards int, dbpath string) {
 
 	base := jsonrpc.NewBaseApi(rpccfg.DefaultEvmCallTimeout)
 
-	ethImpl := jsonrpc.NewEthAPI(base, badger, logger)
+	pool := msgpool.New(msgpool.DefaultConfig)
+	if pool == nil {
+		log.Fatal().Msgf("Failed to create message pool")
+	}
+
+	ethImpl := jsonrpc.NewEthAPI(base, badger, pool, logger)
 
 	apiList := []transport.API{
 		{
