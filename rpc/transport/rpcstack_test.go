@@ -11,7 +11,6 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
-
 	"github.com/stretchr/testify/assert"
 )
 

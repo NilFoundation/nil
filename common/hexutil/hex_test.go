@@ -4,13 +4,11 @@ import (
 	"testing"
 )
 
-var (
-	encodeBytesTests = []marshalTest{
-		{[]byte{}, "0x"},
-		{[]byte{0}, "0x00"},
-		{[]byte{0, 0, 1, 2}, "0x00000102"},
-	}
-)
+var encodeBytesTests = []marshalTest{
+	{[]byte{}, "0x"},
+	{[]byte{0}, "0x00"},
+	{[]byte{0, 0, 1, 2}, "0x00000102"},
+}
 
 func TestEncode(t *testing.T) {
 	for _, test := range encodeBytesTests {

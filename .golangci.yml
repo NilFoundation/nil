@@ -1,5 +1,9 @@
 linters:
   enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
     - testifylint
     - zerologlint
 

@@ -20,11 +20,13 @@ const (
 	contentType             = "application/json"
 )
 
-type remoteCtxKey struct{}
-type schemeCtxKey struct{}
-type localCtxKey struct{}
-type userAgentCtxKey struct{}
-type originCtxKey struct{}
+type (
+	remoteCtxKey    struct{}
+	schemeCtxKey    struct{}
+	localCtxKey     struct{}
+	userAgentCtxKey struct{}
+	originCtxKey    struct{}
+)
 
 // https://www.jsonrpc.org/historical/json-rpc-over-http.html#id13
 var acceptedContentTypes = []string{contentType, "application/json-rpc", "application/jsonrequest"}

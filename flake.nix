@@ -67,6 +67,8 @@
             go-tools
             gopls
             golangci-lint
+            gofumpt
+            gci
             delve
           ];
 

@@ -31,8 +31,9 @@ all: $(COMMANDS)
 
 lint:
 	go mod tidy
+	gofumpt -l -w .
+	gci write .
 	golangci-lint run
-	go fmt ./...
 
 clean:
 	go clean -cache

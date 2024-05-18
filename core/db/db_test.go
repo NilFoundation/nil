@@ -194,15 +194,19 @@ func (suite *SuiteBadgerDb) TestTwoParallelTransaction() {
 func (suite *SuiteBadgerDb) TestValidateTables() {
 	ValidateTables(&suite.Suite, suite.db)
 }
+
 func (suite *SuiteBadgerDb) TestValidateTablesName() {
 	ValidateTablesName(&suite.Suite, suite.db)
 }
+
 func (suite *SuiteBadgerDb) TestValidateTransaction() {
 	ValidateTransaction(&suite.Suite, suite.db)
 }
+
 func (suite *SuiteBadgerDb) TesValidateBlock() {
 	ValidateBlock(&suite.Suite, suite.db)
 }
+
 func (suite *SuiteBadgerDb) TestValidateDbOperations() {
 	ValidateDbOperations(&suite.Suite, suite.db)
 }
@@ -214,15 +218,19 @@ func TestSuiteBadgerDb(t *testing.T) {
 func (suite *SuiteSqliteDb) TestValidateTables() {
 	ValidateTables(&suite.Suite, suite.db)
 }
+
 func (suite *SuiteSqliteDb) TestValidateTablesName() {
 	ValidateTablesName(&suite.Suite, suite.db)
 }
+
 func (suite *SuiteSqliteDb) TestValidateTransaction() {
 	ValidateTransaction(&suite.Suite, suite.db)
 }
+
 func (suite *SuiteSqliteDb) TestValidateBlock() {
 	ValidateBlock(&suite.Suite, suite.db)
 }
+
 func (suite *SuiteSqliteDb) TestValidateDbOperations() {
 	ValidateDbOperations(&suite.Suite, suite.db)
 }

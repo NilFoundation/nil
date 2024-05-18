@@ -52,8 +52,10 @@ type jsonWriter interface {
 	remoteAddr() string
 }
 
-type BlockNumber int64
-type Timestamp uint64
+type (
+	BlockNumber int64
+	Timestamp   uint64
+)
 
 const (
 	LatestExecutedBlockNumber = BlockNumber(-5)
@@ -358,15 +360,12 @@ func (ts *Timestamp) UnmarshalJSON(data []byte) error {
 	// parse string to uint64
 	timestamp, err := strconv.ParseUint(input, 10, 64)
 	if err != nil {
-
 		// try hex number
 		if timestamp, err = hexutil.DecodeUint64(input); err != nil {
 			return err
 		}
-
 	}
 
 	*ts = Timestamp(timestamp)
 	return nil
-
 }

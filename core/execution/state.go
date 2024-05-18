@@ -59,7 +59,6 @@ func NewAccountState(tx db.Tx, shardId types.ShardId, data []byte) (*AccountStat
 	root := mpt.NewMerklePatriciaTrieWithRoot(tx, db.StorageTrieTableName(shardId), account.StorageRoot)
 
 	code, err := db.ReadCode(tx, shardId, account.CodeHash)
-
 	if err != nil {
 		return nil, err
 	}

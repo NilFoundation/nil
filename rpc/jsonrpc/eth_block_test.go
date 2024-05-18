@@ -2,12 +2,12 @@ package jsonrpc
 
 import (
 	"context"
-	"github.com/NilFoundation/nil/core/types"
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	"github.com/stretchr/testify/suite"

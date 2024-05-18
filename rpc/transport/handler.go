@@ -8,10 +8,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
-
-	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 )
 
 // handler handles JSON-RPC messages. There is one handler per connection. Note that
@@ -32,7 +31,7 @@ type handler struct {
 
 	traceRequests bool
 
-	//slow requests
+	// slow requests
 	slowLogThreshold time.Duration
 	slowLogBlacklist []string
 }

@@ -6,9 +6,11 @@ import (
 )
 
 // interfaces
-var _ ssz.Marshaler = (*Uint256)(nil)
-var _ ssz.Unmarshaler = (*Uint256)(nil)
-var _ ssz.HashRoot = (*Uint256)(nil)
+var (
+	_ ssz.Marshaler   = (*Uint256)(nil)
+	_ ssz.Unmarshaler = (*Uint256)(nil)
+	_ ssz.HashRoot    = (*Uint256)(nil)
+)
 
 type Uint256 struct{ uint256.Int }
 

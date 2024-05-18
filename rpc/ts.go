@@ -37,7 +37,6 @@ func ExportTypescriptTypes() ([]byte, error) {
 	}
 
 	tsAdd, err := bel.Extract((*jsonrpc.EthAPI)(nil))
-
 	if err != nil {
 		return nil, err
 	}

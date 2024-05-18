@@ -3,12 +3,11 @@ package ssz
 import (
 	"encoding/binary"
 
-	"github.com/rs/zerolog/log"
-
 	common "github.com/NilFoundation/nil/common"
 	fastssz "github.com/ferranbt/fastssz"
 	"github.com/holiman/uint256"
 	"github.com/iden3/go-iden3-crypto/poseidon"
+	"github.com/rs/zerolog/log"
 )
 
 var (

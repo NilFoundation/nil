@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-
-	"github.com/iden3/go-iden3-crypto/poseidon"
 	"math/big"
 	"math/rand"
 	"reflect"
 
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/holiman/uint256"
+	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 type Hash [HashSize]byte
