@@ -14,13 +14,13 @@ func readDecodable[
 		~*S
 		fastssz.Unmarshaler
 	},
-](tx Tx, table string, shardId types.ShardId, hash common.Hash) *S {
-	data, err := tx.Get(tableName(table, shardId), hash.Bytes())
+](tx Tx, table ShardedTableName, shardId types.ShardId, hash common.Hash) *S {
+	data, err := tx.GetFromShard(shardId, table, hash.Bytes())
 	if errors.Is(err, ErrKeyNotFound) {
 		return nil
 	}
 	if err != nil {
-		logger.Fatal().Msgf("Read from table %s failed. err: %s", table, err.Error())
+		logger.Fatal().Msgf("Read from table %s [%s] failed. err: %s", table, shardId, err.Error())
 	}
 	if data == nil {
 		return nil
@@ -37,7 +37,7 @@ func writeEncodable[
 		fastssz.Marshaler
 		common.Hashable
 	},
-](tx Tx, table string, shardId types.ShardId, obj T) error {
+](tx Tx, tableName ShardedTableName, shardId types.ShardId, obj T) error {
 	hash := obj.Hash()
 
 	data, err := obj.MarshalSSZ()
@@ -45,21 +45,15 @@ func writeEncodable[
 		return err
 	}
 
-	return tx.Put(tableName(table, shardId), hash.Bytes(), data)
+	return tx.PutToShard(shardId, tableName, hash.Bytes(), data)
 }
 
-/*
-TODO: eventually, ReadBlock and WriteBlock should accept the shardId
-parameter. Currently, however, the RPC doesn't contain shardId parameters
-for fetching shard by hash, and it would take time to do the shardId resolution
-correctly for that case.
-*/
-func ReadBlock(tx Tx, hash common.Hash) *types.Block {
-	return readDecodable[types.Block, *types.Block](tx, blockTable, 0, hash)
+func ReadBlock(tx Tx, shardId types.ShardId, hash common.Hash) *types.Block {
+	return readDecodable[types.Block, *types.Block](tx, blockTable, shardId, hash)
 }
 
-func WriteBlock(tx Tx, block *types.Block) error {
-	return writeEncodable(tx, blockTable, 0, block)
+func WriteBlock(tx Tx, shardId types.ShardId, block *types.Block) error {
+	return writeEncodable(tx, blockTable, shardId, block)
 }
 
 func ReadContract(tx Tx, shardId types.ShardId, hash common.Hash) *types.SmartContract {
@@ -72,14 +66,14 @@ func WriteContract(tx Tx, shardId types.ShardId, contract *types.SmartContract) 
 
 func WriteCode(tx Tx, shardId types.ShardId, code types.Code) error {
 	hash := code.Hash()
-	if err := tx.Put(tableName(codeTable, shardId), hash.Bytes(), code[:]); err != nil {
+	if err := tx.PutToShard(shardId, codeTable, hash.Bytes(), code[:]); err != nil {
 		return err
 	}
 	return nil
 }
 
 func ReadCode(tx Tx, shardId types.ShardId, hash common.Hash) (*types.Code, error) {
-	code, err := tx.Get(tableName(codeTable, shardId), hash[:])
+	code, err := tx.GetFromShard(shardId, codeTable, hash[:])
 	if err != nil {
 		return nil, err
 	}

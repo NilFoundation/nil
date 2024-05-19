@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/NilFoundation/nil/core/types"
 	"strconv"
 
 	"github.com/NilFoundation/nil/common"
@@ -36,7 +37,9 @@ func (api *APIImpl) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx
 
 	defer tx.Rollback()
 
-	block := db.ReadBlock(tx, hash)
+	// FIXME: shardId
+	shardId := types.MasterShardId
+	block := db.ReadBlock(tx, shardId, hash)
 	if block == nil {
 		return nil, nil
 	}

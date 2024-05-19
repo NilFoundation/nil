@@ -2,13 +2,20 @@ package db
 
 import (
 	"context"
+
+	"github.com/NilFoundation/nil/core/types"
 )
 
 type DBAccessor interface {
-	Exists(table string, key []byte) (bool, error)
-	Get(table string, key []byte) (*[]byte, error)
-	Put(table string, key, value []byte) error
-	Delete(table string, key []byte) error
+	Exists(tableName TableName, key []byte) (bool, error)
+	Get(tableName TableName, key []byte) (*[]byte, error)
+	Put(tableName TableName, key, value []byte) error
+	Delete(tableName TableName, key []byte) error
+
+	ExistsInShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (bool, error)
+	GetFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (*[]byte, error)
+	PutToShard(shardId types.ShardId, tableName ShardedTableName, key, value []byte) error
+	DeleteFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) error
 }
 
 type Tx interface {

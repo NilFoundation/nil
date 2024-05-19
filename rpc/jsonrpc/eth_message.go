@@ -19,5 +19,6 @@ func (api *APIImpl) GetMessageByHash(ctx context.Context, hash common.Hash) (*ty
 	defer tx.Rollback()
 
 	// TODO: shardId
-	return db.ReadMessage(tx, 0, hash), nil
+	shardId := types.MasterShardId
+	return db.ReadMessage(tx, shardId, hash), nil
 }

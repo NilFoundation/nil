@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -143,7 +142,7 @@ func (m *FiltersManager) processBlockHash(lastHash *common.Hash) error {
 	if err != nil {
 		return fmt.Errorf("failed to create transaction: %w", err)
 	}
-	block := db.ReadBlock(tx, *lastHash)
+	block := db.ReadBlock(tx, m.shardId, *lastHash)
 	if block == nil {
 		return errors.New("Can not read last block")
 	}
@@ -155,7 +154,7 @@ func (m *FiltersManager) processBlockHash(lastHash *common.Hash) error {
 
 	var receipts types.Receipts
 
-	mptReceipts := mpt.NewMerklePatriciaTrieWithRoot(m.db, db.ReceiptTrieTableName(m.shardId), block.ReceiptsRoot)
+	mptReceipts := mpt.NewMerklePatriciaTrieWithRoot(m.db, m.shardId, db.ReceiptTrieTable, block.ReceiptsRoot)
 	for kv := range mptReceipts.Iterate() {
 		receipt := types.Receipt{}
 		if err := receipt.UnmarshalSSZ(kv.Value); err != nil {
@@ -208,7 +207,7 @@ func (m *FiltersManager) OnNewBlock(block *types.Block) {
 }
 
 func (m *FiltersManager) getLastBlockHash() (common.Hash, error) {
-	lastBlockRaw, err := m.db.Get(db.LastBlockTable, []byte(strconv.Itoa(int(m.shardId))))
+	lastBlockRaw, err := m.db.Get(db.LastBlockTable, m.shardId.Bytes())
 	if err == nil && lastBlockRaw != nil {
 		return common.Hash(*lastBlockRaw), nil
 	}

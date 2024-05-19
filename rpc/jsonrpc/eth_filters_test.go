@@ -2,7 +2,6 @@ package jsonrpc
 
 import (
 	"context"
-	"strconv"
 	"testing"
 	"time"
 
@@ -101,7 +100,7 @@ func (s *SuiteEthFilters) TestMain() {
 			Data:    []byte{0xaa, 0xaa},
 		},
 	}
-	receiptsMpt := mpt.NewMerklePatriciaTrie(s.db, db.ReceiptTrieTableName(s.shardId))
+	receiptsMpt := mpt.NewMerklePatriciaTrie(s.db, s.shardId, db.ReceiptTrieTable)
 
 	receipt := &types.Receipt{ContractAddress: address1, Logs: logsInput}
 	receiptEncoded, err := receipt.MarshalSSZ()
@@ -121,8 +120,8 @@ func (s *SuiteEthFilters) TestMain() {
 		ReceiptsRoot: receiptsMpt.RootHash(),
 	}
 
-	s.Require().NoError(db.WriteBlock(tx, &block))
-	s.Require().NoError(tx.Put(db.LastBlockTable, []byte(strconv.Itoa(0)), block.Hash().Bytes()))
+	s.Require().NoError(db.WriteBlock(tx, s.shardId, &block))
+	s.Require().NoError(tx.Put(db.LastBlockTable, types.MasterShardId.Bytes(), block.Hash().Bytes()))
 	s.Require().NoError(tx.Commit())
 
 	// Wait a bit so the filters detect new block

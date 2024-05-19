@@ -31,12 +31,12 @@ func (api *APIImpl) getSmartContract(tx db.Tx, address common.Address, blockNrOr
 		blockHash = *blockNrOrHash.BlockHash
 	}
 
-	block := db.ReadBlock(tx, blockHash)
+	block := db.ReadBlock(tx, shardId, blockHash)
 	if block == nil {
 		return nil, nil
 	}
 
-	root := mpt.NewMerklePatriciaTrieWithRoot(tx, db.ContractTrieTableName(shardId), block.SmartContractsRoot)
+	root := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.ContractTrieTable, block.SmartContractsRoot)
 	contractRaw, err := root.Get(address.Hash().Bytes())
 	if contractRaw == nil || err != nil {
 		return nil, nil
@@ -100,6 +100,7 @@ func (api *APIImpl) GetTransactionCount(ctx context.Context, address common.Addr
 
 // GetCode implements eth_getCode. Returns the byte code at a given address (if it's a smart contract).
 func (api *APIImpl) GetCode(ctx context.Context, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error) {
+
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open tx to find account: %w", err)
@@ -114,7 +115,9 @@ func (api *APIImpl) GetCode(ctx context.Context, address common.Address, blockNr
 		return hexutil.Bytes(""), nil
 	}
 
-	code, err := db.ReadCode(tx, 0, acc.CodeHash)
+	// TODO: shardId
+	shardId := types.MasterShardId
+	code, err := db.ReadCode(tx, shardId, acc.CodeHash)
 	if code == nil || err != nil {
 		return hexutil.Bytes(""), nil
 	}

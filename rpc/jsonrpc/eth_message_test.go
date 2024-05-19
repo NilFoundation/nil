@@ -31,7 +31,7 @@ func TestGetMessageByHash(t *testing.T) {
 
 	message := types.Message{ShardId: types.MasterShardId, Data: []byte("data")}
 
-	err = db.WriteMessage(tx, 0, &message)
+	err = db.WriteMessage(tx, types.MasterShardId, &message)
 	require.NoError(t, err)
 
 	err = tx.Commit()

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"sync/atomic"
 
+	"github.com/NilFoundation/nil/core/types"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -15,10 +16,16 @@ type SqliteDB struct {
 	db     *sql.DB
 }
 
+// interfaces
+var _ DB = new(SqliteDB)
+
 type SqliteTx struct {
 	tx  *sql.Tx
 	ctx context.Context
 }
+
+// interfaces
+var _ Tx = new(SqliteTx)
 
 func (db *SqliteDB) Close() {
 	if ok := db.closed.CompareAndSwap(false, true); !ok {
@@ -78,11 +85,11 @@ func (db *SqliteDB) Update(fn func(txn Tx) error) error {
 	return tx.Commit()
 }
 
-func (db *SqliteDB) Exists(table string, key []byte) (bool, error) {
+func (db *SqliteDB) Exists(tableName TableName, key []byte) (bool, error) {
 	var exists bool
 	err := db.View(
 		func(tx Tx) error {
-			if val, err := tx.Exists(table, key); err != nil {
+			if val, err := tx.Exists(tableName, key); err != nil {
 				return err
 			} else {
 				exists = val
@@ -92,11 +99,11 @@ func (db *SqliteDB) Exists(table string, key []byte) (bool, error) {
 	return exists, err
 }
 
-func (db *SqliteDB) Get(table string, key []byte) (*[]byte, error) {
+func (db *SqliteDB) Get(tableName TableName, key []byte) (*[]byte, error) {
 	var value *[]byte
 	return value, db.View(
 		func(tx Tx) error {
-			item, err := tx.Get(table, key)
+			item, err := tx.Get(tableName, key)
 			if err != nil {
 				return err
 			}
@@ -105,18 +112,34 @@ func (db *SqliteDB) Get(table string, key []byte) (*[]byte, error) {
 		})
 }
 
-func (db *SqliteDB) Put(table string, key, value []byte) error {
+func (db *SqliteDB) Put(tableName TableName, key, value []byte) error {
 	return db.Update(
 		func(txn Tx) error {
-			return txn.Put(table, key, value)
+			return txn.Put(tableName, key, value)
 		})
 }
 
-func (db *SqliteDB) Delete(table string, key []byte) error {
+func (db *SqliteDB) Delete(tableName TableName, key []byte) error {
 	return db.Update(
 		func(txn Tx) error {
-			return txn.Delete(table, key)
+			return txn.Delete(tableName, key)
 		})
+}
+
+func (db *SqliteDB) ExistsInShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (bool, error) {
+	return db.Exists(shardTableName(tableName, shardId), key)
+}
+
+func (db *SqliteDB) GetFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (*[]byte, error) {
+	return db.Get(shardTableName(tableName, shardId), key)
+}
+
+func (db *SqliteDB) PutToShard(shardId types.ShardId, tableName ShardedTableName, key, value []byte) error {
+	return db.Put(shardTableName(tableName, shardId), key, value)
+}
+
+func (db *SqliteDB) DeleteFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) error {
+	return db.Delete(shardTableName(tableName, shardId), key)
 }
 
 func (tx *SqliteTx) Commit() error {
@@ -148,18 +171,18 @@ func (tx *SqliteTx) Rollback() {
 	}
 }
 
-func (tx *SqliteTx) Put(table string, key []byte, value []byte) error {
+func (tx *SqliteTx) Put(tableName TableName, key, value []byte) error {
 	stmt, err := tx.tx.Prepare("insert into kv values(?, ?, ?)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.ExecContext(tx.ctx, table, key, value)
+	_, err = stmt.ExecContext(tx.ctx, tableName, key, value)
 	return err
 }
 
-func (tx *SqliteTx) Get(table string, key []byte) (val *[]byte, err error) {
+func (tx *SqliteTx) Get(tableName TableName, key []byte) (val *[]byte, err error) {
 	stmt, err := tx.tx.Prepare("select (value) from kv where tbl = ? and key = ?")
 	if err != nil {
 		return nil, err
@@ -167,7 +190,7 @@ func (tx *SqliteTx) Get(table string, key []byte) (val *[]byte, err error) {
 	defer stmt.Close()
 
 	var value []byte
-	if err = stmt.QueryRowContext(tx.ctx, table, key).Scan(&value); err != nil {
+	if err = stmt.QueryRowContext(tx.ctx, tableName, key).Scan(&value); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrKeyNotFound
 		}
@@ -177,8 +200,8 @@ func (tx *SqliteTx) Get(table string, key []byte) (val *[]byte, err error) {
 	return &value, nil
 }
 
-func (tx *SqliteTx) Exists(table string, key []byte) (bool, error) {
-	_, err := tx.Get(table, key)
+func (tx *SqliteTx) Exists(tableName TableName, key []byte) (bool, error) {
+	_, err := tx.Get(tableName, key)
 	if err != nil {
 		if errors.Is(err, ErrKeyNotFound) {
 			return false, nil
@@ -188,15 +211,31 @@ func (tx *SqliteTx) Exists(table string, key []byte) (bool, error) {
 	return true, nil
 }
 
-func (tx *SqliteTx) Delete(table string, key []byte) error {
+func (tx *SqliteTx) Delete(tableName TableName, key []byte) error {
 	stmt, err := tx.tx.Prepare("delete from kv where tbl = ? and key = ?")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.ExecContext(tx.ctx, table, key)
+	_, err = stmt.ExecContext(tx.ctx, tableName, key)
 	return err
+}
+
+func (tx *SqliteTx) ExistsInShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (bool, error) {
+	return tx.Exists(shardTableName(tableName, shardId), key)
+}
+
+func (tx *SqliteTx) GetFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (*[]byte, error) {
+	return tx.Get(shardTableName(tableName, shardId), key)
+}
+
+func (tx *SqliteTx) PutToShard(shardId types.ShardId, tableName ShardedTableName, key, value []byte) error {
+	return tx.Put(shardTableName(tableName, shardId), key, value)
+}
+
+func (tx *SqliteTx) DeleteFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) error {
+	return tx.Delete(shardTableName(tableName, shardId), key)
 }
 
 func NewSqlite(path string) (*SqliteDB, error) {
