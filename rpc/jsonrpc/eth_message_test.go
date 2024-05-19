@@ -37,7 +37,7 @@ func TestGetMessageByHash(t *testing.T) {
 	err = tx.Commit()
 	require.NoError(t, err)
 
-	data, err := api.GetMessageByHash(context.Background(), message.Hash())
+	data, err := api.GetMessageByHash(context.Background(), types.MasterShardId, message.Hash())
 	require.NoError(t, err)
 	assert.Equal(t, message, *data)
 }

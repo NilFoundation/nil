@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -71,7 +72,7 @@ func (suite *SuiteRpc) TestRpcBasic() {
 	request := Request{
 		Jsonrpc: "2.0",
 		Method:  "eth_getBlockByNumber",
-		Params:  []any{"0x1b4", false},
+		Params:  []any{types.MasterShardId, "0x1b4", false},
 		Id:      1,
 	}
 
@@ -81,49 +82,49 @@ func (suite *SuiteRpc) TestRpcBasic() {
 	suite.Equal("not implemented", resp.Error["message"])
 
 	request.Method = "eth_getBlockTransactionCountByNumber"
-	request.Params = []any{"0x1b4"}
+	request.Params = []any{types.MasterShardId, "0x1b4"}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
 	suite.Equal("not implemented", resp.Error["message"])
 
 	request.Method = "eth_getBlockTransactionCountByHash"
-	request.Params = []any{"0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef"}
+	request.Params = []any{types.MasterShardId, "0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef"}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
 	suite.Equal("not implemented", resp.Error["message"])
 
 	request.Method = "eth_getBlockByNumber"
-	request.Params = []any{123, false}
+	request.Params = []any{types.MasterShardId, 123, false}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
 	suite.Equal("not implemented", resp.Error["message"])
 
 	request.Method = "eth_getBlockByHash"
-	request.Params = []any{"0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef", false}
+	request.Params = []any{types.MasterShardId, "0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef", false}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.Require().Nil(resp.Error["code"])
 	suite.Require().Nil(resp.Result)
 
 	request.Method = "eth_getBlockByNumber"
-	request.Params = []any{"latest", false}
+	request.Params = []any{types.MasterShardId, "latest", false}
 	latest_resp, err := makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.Require().Nil(latest_resp.Error["code"])
 	suite.Require().NotNil(latest_resp.Result["hash"])
 
 	request.Method = "eth_getBlockByHash"
-	request.Params = []any{latest_resp.Result["hash"].(string), false}
+	request.Params = []any{types.MasterShardId, latest_resp.Result["hash"].(string), false}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.Require().Nil(resp.Error["code"])
 	suite.Require().Equal(latest_resp.Result, resp.Result)
 
 	request.Method = "eth_getMessageByHash"
-	request.Params = []any{"0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef"}
+	request.Params = []any{types.MasterShardId, "0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef"}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.Require().Nil(resp.Error["code"])
@@ -160,28 +161,28 @@ func (suite *SuiteRpc) TestRpcError() {
 	request = Request{
 		Jsonrpc: "2.0",
 		Method:  "eth_getBlockByNumber",
-		Params:  []any{},
+		Params:  []any{types.MasterShardId},
 		Id:      1,
 	}
 
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.InEpsilon(float64(-32602), resp.Error["code"], 0)
-	suite.Equal("missing value for required argument 0", resp.Error["message"])
+	suite.Equal("missing value for required argument 1", resp.Error["message"])
 
 	request.Method = "eth_getBlockByHash"
-	request.Params = []any{"0x1b4", false}
+	request.Params = []any{types.MasterShardId, "0x1b4", false}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.InEpsilon(float64(-32000), resp.Error["code"], 0.5)
-	suite.Equal("invalid argument 0: hex string of odd length", resp.Error["message"])
+	suite.Equal("invalid argument 1: hex string of odd length", resp.Error["message"])
 
 	request.Method = "eth_getBlockByHash"
-	request.Params = []any{"latest"}
+	request.Params = []any{types.MasterShardId, "latest"}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.InEpsilon(float64(-32000), resp.Error["code"], 0.5)
-	suite.Equal("invalid argument 0: hex string without 0x prefix", resp.Error["message"])
+	suite.Equal("invalid argument 1: hex string without 0x prefix", resp.Error["message"])
 }
 
 func TestSuiteRpc(t *testing.T) {

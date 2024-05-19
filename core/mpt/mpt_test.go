@@ -2,12 +2,12 @@ package mpt
 
 import (
 	"encoding/binary"
-	"github.com/NilFoundation/nil/core/types"
 	"math/rand"
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/require"
 )
 

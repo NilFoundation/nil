@@ -13,9 +13,7 @@ import (
 	"github.com/NilFoundation/nil/rpc/transport"
 )
 
-func (api *APIImpl) getSmartContract(tx db.Tx, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*types.SmartContract, error) {
-	shardId := types.MasterShardId
-
+func (api *APIImpl) getSmartContract(tx db.Tx, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*types.SmartContract, error) {
 	blockHash := common.EmptyHash
 	if blockNrOrHash.BlockNumber != nil {
 		if *blockNrOrHash.BlockNumber == transport.LatestBlockNumber {
@@ -51,14 +49,14 @@ func (api *APIImpl) getSmartContract(tx db.Tx, address common.Address, blockNrOr
 }
 
 // GetBalance implements eth_getBalance. Returns the balance of an account for a given address.
-func (api *APIImpl) GetBalance(ctx context.Context, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error) {
+func (api *APIImpl) GetBalance(ctx context.Context, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open tx to find account: %w", err)
 	}
 	defer tx.Rollback()
 
-	acc, err := api.getSmartContract(tx, address, blockNrOrHash)
+	acc, err := api.getSmartContract(tx, shardId, address, blockNrOrHash)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +68,7 @@ func (api *APIImpl) GetBalance(ctx context.Context, address common.Address, bloc
 }
 
 // GetTransactionCount implements eth_getTransactionCount. Returns the number of transactions sent from an address (the nonce / seqno).
-func (api *APIImpl) GetTransactionCount(ctx context.Context, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Uint64, error) {
+func (api *APIImpl) GetTransactionCount(ctx context.Context, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Uint64, error) {
 	if blockNrOrHash.BlockNumber != nil && *blockNrOrHash.BlockNumber == transport.PendingBlockNumber {
 		nonce, inPool := api.msgPool.SeqnoFromAddress(address)
 		if inPool {
@@ -80,7 +78,6 @@ func (api *APIImpl) GetTransactionCount(ctx context.Context, address common.Addr
 		// Fallback to latest block if no message in pool
 		blockNrOrHash.BlockNumber = transport.LatestBlock.BlockNumber
 	}
-
 	zeroNonce := hexutil.Uint64(0)
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
@@ -88,7 +85,7 @@ func (api *APIImpl) GetTransactionCount(ctx context.Context, address common.Addr
 	}
 	defer tx.Rollback()
 
-	acc, err := api.getSmartContract(tx, address, blockNrOrHash)
+	acc, err := api.getSmartContract(tx, shardId, address, blockNrOrHash)
 	if err != nil {
 		return nil, err
 	}
@@ -99,15 +96,14 @@ func (api *APIImpl) GetTransactionCount(ctx context.Context, address common.Addr
 }
 
 // GetCode implements eth_getCode. Returns the byte code at a given address (if it's a smart contract).
-func (api *APIImpl) GetCode(ctx context.Context, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error) {
-
+func (api *APIImpl) GetCode(ctx context.Context, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open tx to find account: %w", err)
 	}
 	defer tx.Rollback()
 
-	acc, err := api.getSmartContract(tx, address, blockNrOrHash)
+	acc, err := api.getSmartContract(tx, shardId, address, blockNrOrHash)
 	if err != nil {
 		return nil, err
 	}
@@ -115,8 +111,6 @@ func (api *APIImpl) GetCode(ctx context.Context, address common.Address, blockNr
 		return hexutil.Bytes(""), nil
 	}
 
-	// TODO: shardId
-	shardId := types.MasterShardId
 	code, err := db.ReadCode(tx, shardId, acc.CodeHash)
 	if code == nil || err != nil {
 		return hexutil.Bytes(""), nil

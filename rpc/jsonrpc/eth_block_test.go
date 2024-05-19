@@ -56,10 +56,10 @@ func (suite *SuiteEthBlock) TearDownSuite() {
 }
 
 func (suite *SuiteEthBlock) TestGetBlockByNumber() {
-	_, err := suite.api.GetBlockByNumber(context.Background(), transport.EarliestBlockNumber, false)
+	_, err := suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.EarliestBlockNumber, false)
 	suite.Require().EqualError(err, "not implemented")
 
-	data, err := suite.api.GetBlockByNumber(context.Background(), transport.LatestBlockNumber, false)
+	data, err := suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.LatestBlockNumber, false)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
 	suite.Equal(common.EmptyHash, data["parentHash"])
@@ -67,7 +67,7 @@ func (suite *SuiteEthBlock) TestGetBlockByNumber() {
 }
 
 func (suite *SuiteEthBlock) TestGetBlockByHash() {
-	data, err := suite.api.GetBlockByHash(context.Background(), suite.blockHash, false)
+	data, err := suite.api.GetBlockByHash(context.Background(), types.MasterShardId, suite.blockHash, false)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
 	suite.Equal(common.EmptyHash, data["parentHash"])
@@ -76,12 +76,12 @@ func (suite *SuiteEthBlock) TestGetBlockByHash() {
 
 func (suite *SuiteEthBlock) TestGetBlockTransactionCountByHash() {
 	blockHash := common.HexToHash("0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")
-	_, err := suite.api.GetBlockTransactionCountByHash(context.TODO(), blockHash)
+	_, err := suite.api.GetBlockTransactionCountByHash(context.TODO(), types.MasterShardId, blockHash)
 	suite.Require().EqualError(err, "not implemented")
 }
 
 func (suite *SuiteEthBlock) TestGetBlockTransactionCountByNumber() {
-	_, err := suite.api.GetBlockTransactionCountByNumber(context.TODO(), transport.LatestBlockNumber)
+	_, err := suite.api.GetBlockTransactionCountByNumber(context.TODO(), types.MasterShardId, transport.LatestBlockNumber)
 	suite.Require().EqualError(err, "not implemented")
 }
 
