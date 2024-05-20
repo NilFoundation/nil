@@ -217,11 +217,11 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction
 		var idx int
 
 		// Decide if we need to remove value of this node or go deeper.
-		if path.Empty() && len(node.value) == 0 {
+		if path.Empty() && len(node.Value) == 0 {
 			// TODO: use error from MPT pkg?
 			return daUnknown, noInfo, db.ErrKeyNotFound
-		} else if path.Empty() && len(node.value) != 0 {
-			node.value = []byte{}
+		} else if path.Empty() && len(node.Value) != 0 {
+			node.Value = []byte{}
 			action = daDeleted
 		} else {
 			// Store idx of the branch we're working with.

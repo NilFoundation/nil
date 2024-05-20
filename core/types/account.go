@@ -2,7 +2,6 @@ package types
 
 import (
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/core/ssz"
 	fastssz "github.com/ferranbt/fastssz"
 	"github.com/rs/zerolog/log"
 )
@@ -24,7 +23,7 @@ var (
 )
 
 func (s *SmartContract) Hash() common.Hash {
-	h, err := ssz.FastSSZHash(s)
+	h, err := common.PoseidonSSZ(s)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't get smart contract hash")
 	}

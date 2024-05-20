@@ -3,10 +3,10 @@ package mpt
 import (
 	"fmt"
 
-	"github.com/NilFoundation/nil/core/ssz"
+	ssz "github.com/ferranbt/fastssz"
 )
 
-type SszNodeKind = uint64
+type SszNodeKind = uint8
 
 const (
 	SszLeafNode SszNodeKind = iota
@@ -16,7 +16,7 @@ const (
 
 const BranchesNum = 16
 
-type Reference ssz.Vector
+type Reference []byte
 
 func (r *Reference) IsValid() bool {
 	return len(*r) != 0
@@ -30,27 +30,27 @@ type Node interface {
 }
 
 type NodeBase struct {
-	path Path
+	NodePath Path
 }
 
 type LeafNode struct {
 	NodeBase
-	data []byte
+	LeafData []byte `ssz-max:"1000"`
 }
 
 type ExtensionNode struct {
 	NodeBase
-	NextRef Reference
+	NextRef Reference `ssz-max:"1000"`
 }
 
 type BranchNode struct {
-	Branches [BranchesNum]Reference
-	value    []byte
+	Branches [BranchesNum]Reference `ssz-max:"16,1000"`
+	Value    []byte                 `ssz-max:"1000"`
 }
 
 func newLeafNode(path *Path, data []byte) *LeafNode {
 	node := &LeafNode{NodeBase{*path}, data}
-	node.path.IsLeaf = true
+	node.NodePath.IsLeaf = true
 	return node
 }
 
@@ -63,7 +63,7 @@ func newBranchNode(refs *[BranchesNum]Reference, value []byte) *BranchNode {
 }
 
 func (n *NodeBase) Path() *Path {
-	return &n.path
+	return &n.NodePath
 }
 
 func (n *BranchNode) Path() *Path {
@@ -75,16 +75,16 @@ func (n *NodeBase) Data() []byte {
 }
 
 func (n *LeafNode) Data() []byte {
-	return n.data
+	return n.LeafData
 }
 
 func (n *BranchNode) Data() []byte {
-	return n.value
+	return n.Value
 }
 
 func (n *LeafNode) SetData(data []byte) error {
-	n.data = make([]byte, len(data))
-	copy(n.data, data)
+	n.LeafData = make([]byte, len(data))
+	copy(n.LeafData, data)
 	return nil
 }
 
@@ -96,61 +96,50 @@ func (n *BranchNode) SetData(data []byte) error {
 	panic("SetData is illegal for BranchNode")
 }
 
-func (n *LeafNode) Encode() ([]byte, error) {
+func encode[
+	S any,
+	T interface {
+		~*S
+		ssz.Marshaler
+	},
+](n T, kind SszNodeKind) ([]byte, error) {
 	buf := make([]byte, 0)
-	return ssz.MarshalSSZ(buf, SszLeafNode, ssz.SizedObjectSSZ(&n.path), (*ssz.Vector)(&n.data))
+	buf = ssz.MarshalUint8(buf, kind)
+	return n.MarshalSSZTo(buf)
+}
+
+func (n *LeafNode) Encode() ([]byte, error) {
+	return encode(n, SszLeafNode)
 }
 
 func (n *ExtensionNode) Encode() ([]byte, error) {
-	buf := make([]byte, 0)
-	return ssz.MarshalSSZ(buf, SszExtensionNode, ssz.SizedObjectSSZ(&n.path), (*ssz.Vector)(&n.NextRef))
+	return encode(n, SszExtensionNode)
 }
 
 func (n *BranchNode) Encode() ([]byte, error) {
-	buf := make([]byte, 0)
-	return ssz.MarshalSSZ(buf, SszBranchNode,
-		(*ssz.Vector)(&n.Branches[0]), (*ssz.Vector)(&n.Branches[1]),
-		(*ssz.Vector)(&n.Branches[2]), (*ssz.Vector)(&n.Branches[3]),
-		(*ssz.Vector)(&n.Branches[4]), (*ssz.Vector)(&n.Branches[5]),
-		(*ssz.Vector)(&n.Branches[6]), (*ssz.Vector)(&n.Branches[7]),
-		(*ssz.Vector)(&n.Branches[8]), (*ssz.Vector)(&n.Branches[9]),
-		(*ssz.Vector)(&n.Branches[10]), (*ssz.Vector)(&n.Branches[11]),
-		(*ssz.Vector)(&n.Branches[12]), (*ssz.Vector)(&n.Branches[13]),
-		(*ssz.Vector)(&n.Branches[14]), (*ssz.Vector)(&n.Branches[15]),
-		(*ssz.Vector)(&n.value))
+	return encode(n, SszBranchNode)
 }
 
 func DecodeNode(data []byte) (Node, error) {
-	var nodeKind SszNodeKind
-	if err := ssz.UnmarshalSSZ(data, 0, &nodeKind); err != nil {
-		panic("SSZ unmarshal failed")
-	}
+	var nodeKind SszNodeKind = ssz.UnmarshallUint8(data)
+	data = data[1:]
 
 	switch nodeKind {
 	case SszLeafNode:
 		node := LeafNode{}
-		if err := ssz.UnmarshalSSZ(data, 0, &nodeKind, &node.path, (*ssz.Vector)(&node.data)); err != nil {
+		if err := node.UnmarshalSSZ(data); err != nil {
 			panic("SSZ unmarshal failed")
 		}
 		return &node, nil
 	case SszExtensionNode:
 		node := ExtensionNode{}
-		if err := ssz.UnmarshalSSZ(data, 0, &nodeKind, &node.path, (*ssz.Vector)(&node.NextRef)); err != nil {
+		if err := node.UnmarshalSSZ(data); err != nil {
 			panic("SSZ unmarshal failed")
 		}
 		return &node, nil
 	case SszBranchNode:
 		node := BranchNode{}
-		if err := ssz.UnmarshalSSZ(data, 0, &nodeKind,
-			(*ssz.Vector)(&node.Branches[0]), (*ssz.Vector)(&node.Branches[1]),
-			(*ssz.Vector)(&node.Branches[2]), (*ssz.Vector)(&node.Branches[3]),
-			(*ssz.Vector)(&node.Branches[4]), (*ssz.Vector)(&node.Branches[5]),
-			(*ssz.Vector)(&node.Branches[6]), (*ssz.Vector)(&node.Branches[7]),
-			(*ssz.Vector)(&node.Branches[8]), (*ssz.Vector)(&node.Branches[9]),
-			(*ssz.Vector)(&node.Branches[10]), (*ssz.Vector)(&node.Branches[11]),
-			(*ssz.Vector)(&node.Branches[12]), (*ssz.Vector)(&node.Branches[13]),
-			(*ssz.Vector)(&node.Branches[14]), (*ssz.Vector)(&node.Branches[15]),
-			(*ssz.Vector)(&node.value)); err != nil {
+		if err := node.UnmarshalSSZ(data); err != nil {
 			panic("SSZ unmarshal failed")
 		}
 		return &node, nil

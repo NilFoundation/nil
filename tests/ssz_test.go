@@ -7,7 +7,6 @@ import (
 
 	common "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
-	"github.com/NilFoundation/nil/core/ssz"
 	types "github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
@@ -31,10 +30,10 @@ func TestSszBlock(t *testing.T) {
 	require.Equal(t, block2.PrevBlock, block.PrevBlock)
 	require.Equal(t, block2.SmartContractsRoot, block.SmartContractsRoot)
 
-	h, err := ssz.FastSSZHash(&block2)
+	h, err := common.PoseidonSSZ(&block2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("105d380db7f5773ffd3d99f86ef08ddd354be37962457bfdc968e739b0bea4e4")
+	h2, err := hex.DecodeString("120ee5e0b428ae24356669bbb7f17140327b606a9aa9fada28b302c1f7607c95")
 	require.NoError(t, err)
 
 	require.Equal(t, common.BytesToHash(h2), common.BytesToHash(h[:]))
@@ -66,10 +65,10 @@ func TestSszMessage(t *testing.T) {
 	require.Equal(t, message2.Seqno, message.Seqno)
 	require.Equal(t, message2.Signature, message.Signature)
 
-	h, err := ssz.FastSSZHash(&message2)
+	h, err := common.PoseidonSSZ(&message2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("1148811fb608d5eb2152e1d4a512774e5cc7f183a29364105fbf1f096ea87638")
+	h2, err := hex.DecodeString("29541f866fd199214fbd9dd8a1ccf832ed7148bda6de3d8b62287d0277395656")
 	require.NoError(t, err)
 
 	require.Equal(t, common.BytesToHash(h2), common.BytesToHash(h[:]))
@@ -99,10 +98,10 @@ func TestSszSmc(t *testing.T) {
 	require.Equal(t, smc.CodeHash, smc2.CodeHash)
 	require.Equal(t, smc.Seqno, smc2.Seqno)
 
-	h, err := ssz.FastSSZHash(&smc2)
+	h, err := common.PoseidonSSZ(&smc2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("2195e83912b0deb346497f7f827c3fb8dd118c70f900859e10c9b3b02dcf77b1")
+	h2, err := hex.DecodeString("18d90789309b7dd7a9a892e88099cb62cb57dd3b87469703eff6de8695788ec7")
 	require.NoError(t, err)
 
 	require.Equal(t, common.BytesToHash(h2), common.BytesToHash(h[:]))

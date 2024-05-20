@@ -9,9 +9,9 @@ import (
 	"github.com/NilFoundation/nil/common"
 	db "github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
-	"github.com/NilFoundation/nil/core/ssz"
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
+	ssz "github.com/ferranbt/fastssz"
 	"github.com/holiman/uint256"
 )
 
@@ -277,8 +277,11 @@ func (as *AccountState) SetState(key common.Hash, val uint256.Int) {
 
 func (as *AccountState) Commit() ([]byte, error) {
 	for k, v := range as.State {
-		err := as.StorageRoot.Set(k[:], ssz.Uint256SSZ(v))
+		vv, err := v.MarshalSSZ()
 		if err != nil {
+			return nil, err
+		}
+		if err := as.StorageRoot.Set(k[:], vv); err != nil {
 			return nil, err
 		}
 	}
@@ -399,10 +402,9 @@ func (es *ExecutionState) ContractExists(addr common.Address) bool {
 
 // CreateAddress creates an ethereum address given the bytes and the nonce
 func CreateAddress(b common.Address, nonce uint64) common.Address {
-	data, err := ssz.MarshalSSZ(nil, b[:], nonce)
-	if err != nil {
-		logger.Fatal().Err(err).Msgf("MarshalSSZ failed on: %v, %v", b, nonce)
-	}
+	data := []byte{}
+	copy(data, b.Bytes())
+	data = ssz.MarshalUint64(data, nonce)
 	return common.BytesToAddress(data)
 }
 
@@ -459,10 +461,7 @@ func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 		if err != nil {
 			return common.EmptyHash, err
 		}
-		k, err := ssz.MarshalSSZ(nil, m.Index)
-		if err != nil {
-			return common.EmptyHash, err
-		}
+		k := ssz.MarshalUint64(nil, m.Index)
 		if err := es.MessageRoot.Set(k, v); err != nil {
 			return common.EmptyHash, err
 		}
@@ -477,10 +476,7 @@ func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 		if err != nil {
 			return common.EmptyHash, err
 		}
-		k, err := ssz.MarshalSSZ(nil, r.MsgIndex)
-		if err != nil {
-			return common.EmptyHash, err
-		}
+		k := ssz.MarshalUint64(nil, r.MsgIndex)
 		if err := es.ReceiptRoot.Set(k, v); err != nil {
 			return common.EmptyHash, err
 		}

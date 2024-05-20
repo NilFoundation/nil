@@ -2,7 +2,6 @@ package types
 
 import (
 	common "github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/core/ssz"
 	fastssz "github.com/ferranbt/fastssz"
 	"github.com/rs/zerolog/log"
 )
@@ -26,7 +25,7 @@ var (
 )
 
 func (b *Block) Hash() common.Hash {
-	h, err := ssz.FastSSZHash(b)
+	h, err := common.PoseidonSSZ(b)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't get block hash")
 	}

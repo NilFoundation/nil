@@ -1,8 +1,7 @@
 package mpt
 
 import (
-	common "github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/core/ssz"
+	ssz "github.com/ferranbt/fastssz"
 )
 
 const (
@@ -16,7 +15,11 @@ type Path struct {
 	IsLeaf bool
 }
 
-var _ ssz.SizedObjectSSZ = (*Path)(nil)
+var (
+	_ ssz.Marshaler   = new(Path)
+	_ ssz.Unmarshaler = new(Path)
+	_ ssz.HashRoot    = new(Path)
+)
 
 type PathAccessor interface {
 	At(idx int) int
@@ -164,30 +167,48 @@ func (path *Path) Combine(other *Path) *Path {
 	return createNew(&c, c.Size())
 }
 
-func (path *Path) EncodeSSZ(buf []byte) ([]byte, error) {
-	return append(buf, path.Encode()...), nil
+// MarshalSSZ ssz marshals the Path object
+func (p *Path) MarshalSSZ() ([]byte, error) {
+	return ssz.MarshalSSZ(p)
 }
 
-func (path *Path) EncodingSizeSSZ() int {
-	return 0
+// MarshalSSZTo ssz marshals the Path object to a target array
+func (p *Path) MarshalSSZTo(buf []byte) ([]byte, error) {
+	return append(buf, p.Encode()...), nil
 }
 
-func (path *Path) DecodeSSZ(buf []byte, version int) error {
+// UnmarshalSSZ ssz unmarshals the Path object
+func (p *Path) UnmarshalSSZ(buf []byte) error {
 	isOddLen := (buf[0] & OddFlag) == OddFlag
 	if isOddLen {
-		path.offset = 1
+		p.offset = 1
 	} else {
-		path.offset = 2
+		p.offset = 2
 	}
-	path.data = make([]byte, len(buf))
-	copy(path.data, buf)
+	p.data = make([]byte, len(buf))
+	copy(p.data, buf)
 	return nil
 }
 
-func (path *Path) Static() bool {
-	return false
+// SizeSSZ returns the ssz encoded size in bytes for the Path object
+func (p *Path) SizeSSZ() int {
+	return 1 + p.Size()/2
 }
 
-func (path *Path) Clone() common.Clonable {
-	return path
+// HashTreeRoot ssz hashes the Path object
+func (p *Path) HashTreeRoot() ([32]byte, error) {
+	return ssz.HashWithDefaultHasher(p)
+}
+
+// HashTreeRootWith ssz hashes the Path object with a hasher
+func (p *Path) HashTreeRootWith(hh ssz.HashWalker) (err error) {
+	indx := hh.Index()
+	hh.AppendBytes32(p.Encode())
+	hh.Merkleize(indx)
+	return
+}
+
+// GetTree ssz hashes the Path object
+func (p *Path) GetTree() (*ssz.Node, error) {
+	return ssz.ProofTree(p)
 }

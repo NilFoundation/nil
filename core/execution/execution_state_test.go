@@ -8,8 +8,8 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
-	"github.com/NilFoundation/nil/core/ssz"
 	"github.com/NilFoundation/nil/core/types"
+	ssz "github.com/ferranbt/fastssz"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -70,7 +70,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	var messageIndex uint64 = 0
 
 	for {
-		k, err := ssz.MarshalSSZ(nil, messageIndex)
+		k := ssz.MarshalUint64(nil, messageIndex)
 		suite.Require().NoError(err)
 
 		mRaw, err := messagesRoot.Get(k)
