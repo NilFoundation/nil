@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	"github.com/holiman/uint256"
@@ -57,7 +58,10 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	err = tx.Commit()
 	suite.Require().NoError(err)
 
-	suite.api = NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, common.NewLogger("Test", false))
+	pool := msgpool.New(msgpool.DefaultConfig)
+	suite.Require().NotNil(pool)
+
+	suite.api = NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, pool, common.NewLogger("Test", false))
 }
 
 func (suite *SuiteEthAccounts) TearDownSuite() {
@@ -125,6 +129,27 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.EarliestBlock.BlockNumber}
 	_, err = suite.api.GetTransactionCount(context.TODO(), suite.smcAddr, blockNum)
 	suite.Require().EqualError(err, "not implemented")
+
+	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.PendingBlock.BlockNumber}
+	_, err = suite.api.GetTransactionCount(context.Background(), suite.smcAddr, blockNum)
+	suite.Require().NoError(err)
+	suite.Equal(hexutil.Uint64(0), *res)
+
+	msg := types.Message{
+		From:  suite.smcAddr,
+		Seqno: 0,
+	}
+	data, err := msg.MarshalSSZ()
+	suite.Require().NoError(err)
+
+	hash, err := suite.api.SendRawTransaction(context.Background(), hexutil.Bytes(data))
+	suite.Require().NoError(err)
+	suite.NotEqual(common.EmptyHash, hash)
+
+	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.PendingBlock.BlockNumber}
+	res, err = suite.api.GetTransactionCount(context.Background(), suite.smcAddr, blockNum)
+	suite.Require().NoError(err)
+	suite.Equal(hexutil.Uint64(1), *res)
 }
 
 func TestSuiteEthAccounts(t *testing.T) {

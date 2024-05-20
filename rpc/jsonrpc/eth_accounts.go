@@ -69,8 +69,18 @@ func (api *APIImpl) GetBalance(ctx context.Context, address common.Address, bloc
 	return (*hexutil.Big)(acc.Balance.ToBig()), nil
 }
 
-// GetTransactionCount implements eth_getTransactionCount. Returns the number of transactions sent from an address (the nonce).
+// GetTransactionCount implements eth_getTransactionCount. Returns the number of transactions sent from an address (the nonce / seqno).
 func (api *APIImpl) GetTransactionCount(ctx context.Context, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Uint64, error) {
+	if blockNrOrHash.BlockNumber != nil && *blockNrOrHash.BlockNumber == transport.PendingBlockNumber {
+		nonce, inPool := api.msgPool.SeqnoFromAddress(address)
+		if inPool {
+			nonce++
+			return (*hexutil.Uint64)(&nonce), nil
+		}
+		// Fallback to latest block if no message in pool
+		blockNrOrHash.BlockNumber = transport.LatestBlock.BlockNumber
+	}
+
 	zeroNonce := hexutil.Uint64(0)
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {

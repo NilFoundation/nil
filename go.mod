@@ -5,6 +5,7 @@ go 1.22
 require (
 	github.com/ferranbt/fastssz v0.1.4-0.20240422063434-a4db75388da1
 	github.com/fxamacker/cbor/v2 v2.6.0
+	github.com/google/btree v1.1.2
 	github.com/gorilla/handlers v1.5.2
 	github.com/holiman/uint256 v1.2.4
 	github.com/iden3/go-iden3-crypto v0.0.16

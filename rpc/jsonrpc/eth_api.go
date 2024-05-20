@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/rs/zerolog"
 )
@@ -27,6 +28,9 @@ type EthAPI interface {
 	GetBalance(ctx context.Context, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error)
 	GetTransactionCount(ctx context.Context, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Uint64, error)
 	GetCode(ctx context.Context, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error)
+
+	// Sending related
+	SendRawTransaction(ctx context.Context, encodedTx hexutil.Bytes) (common.Hash, error)
 }
 
 type BaseAPI struct {
@@ -43,15 +47,17 @@ func NewBaseApi(evmCallTimeout time.Duration) *BaseAPI {
 type APIImpl struct {
 	*BaseAPI
 
-	db     db.DB
-	logger *zerolog.Logger
+	db      db.DB
+	msgPool msgpool.Pool
+	logger  *zerolog.Logger
 }
 
 // NewEthAPI returns APIImpl instance
-func NewEthAPI(base *BaseAPI, db db.DB, logger *zerolog.Logger) *APIImpl {
+func NewEthAPI(base *BaseAPI, db db.DB, pool msgpool.Pool, logger *zerolog.Logger) *APIImpl {
 	return &APIImpl{
 		BaseAPI: base,
 		db:      db,
+		msgPool: pool,
 		logger:  logger,
 	}
 }

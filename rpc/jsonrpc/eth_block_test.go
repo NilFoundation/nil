@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	"github.com/stretchr/testify/suite"
@@ -44,7 +45,10 @@ func (suite *SuiteEthBlock) SetupSuite() {
 	err = tx.Commit()
 	suite.Require().NoError(err)
 
-	suite.api = NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, common.NewLogger("Test", false))
+	pool := msgpool.New(msgpool.DefaultConfig)
+	suite.Require().NotNil(pool)
+
+	suite.api = NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, pool, common.NewLogger("Test", false))
 }
 
 func (suite *SuiteEthBlock) TearDownSuite() {
