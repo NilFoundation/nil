@@ -25,16 +25,22 @@ func (suite *SuiteBadgerDb) SetupTest() {
 	suite.Require().NoError(err)
 }
 
+func (suite *SuiteBadgerDb) TearDownTest() {
+	suite.db.Close()
+}
+
 func (suite *SuiteSqliteDb) SetupTest() {
 	var err error
 	suite.db, err = NewSqlite(suite.Suite.T().TempDir() + "foo.bar")
 	suite.Require().NoError(err)
 }
 
-func ValidateTables(t *suite.Suite, db DB) {
-	defer db.Close()
+func (suite *SuiteSqliteDb) TearDownTest() {
+	suite.db.Close()
+}
 
-	t.Require().NoError(db.Put("tbl-1", []byte("foo"), []byte("bar")))
+func ValidateTables(t *suite.Suite, db DB) {
+	defer t.Require().NoError(db.Put("tbl-1", []byte("foo"), []byte("bar")))
 
 	has, err := db.Exists("tbl-1", []byte("foo"))
 	t.Require().NoError(err)
@@ -46,8 +52,6 @@ func ValidateTables(t *suite.Suite, db DB) {
 }
 
 func ValidateTablesName(t *suite.Suite, db DB) {
-	defer db.Close()
-
 	t.Require().NoError(db.Put("tbl", []byte("HelloWorld"), []byte("bar1")))
 	t.Require().NoError(db.Put("tblHello", []byte("World"), []byte("bar2")))
 
@@ -61,8 +65,6 @@ func ValidateTablesName(t *suite.Suite, db DB) {
 }
 
 func ValidateTransaction(t *suite.Suite, db DB) {
-	defer db.Close()
-
 	ctx := context.Background()
 	tx, err := db.CreateRwTx(ctx)
 	t.Require().NoError(err)
@@ -119,8 +121,6 @@ func ValidateTransaction(t *suite.Suite, db DB) {
 }
 
 func ValidateBlock(t *suite.Suite, d DB) {
-	defer d.Close()
-
 	ctx := context.Background()
 
 	tx, err := d.CreateRwTx(ctx)
@@ -143,8 +143,6 @@ func ValidateBlock(t *suite.Suite, d DB) {
 }
 
 func ValidateDbOperations(t *suite.Suite, d DB) {
-	defer d.Close()
-
 	t.Require().NoError(d.Put("tbl", []byte("foo"), []byte("bar")))
 
 	val, err := d.Get("tbl", []byte("foo"))
@@ -166,8 +164,6 @@ func ValidateDbOperations(t *suite.Suite, d DB) {
 }
 
 func (suite *SuiteBadgerDb) TestTwoParallelTransaction() {
-	defer suite.db.Close()
-
 	ctx := context.Background()
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Suite.Require().NoError(err)
@@ -209,6 +205,175 @@ func (suite *SuiteBadgerDb) TesValidateBlock() {
 
 func (suite *SuiteBadgerDb) TestValidateDbOperations() {
 	ValidateDbOperations(&suite.Suite, suite.db)
+}
+
+func (suite *SuiteBadgerDb) fillData(tbl string) {
+	suite.T().Helper()
+
+	t := TableName(tbl)
+	tg := TableName(tbl + "garbage")
+	// Insert some dupsorted records
+	suite.Require().NoError(suite.db.Put(t, []byte("key0"), []byte("value0.1")))
+	suite.Require().NoError(suite.db.Put(t, []byte("key1"), []byte("value1.1")))
+	suite.Require().NoError(suite.db.Put(t, []byte("key3"), []byte("value3.1")))
+	suite.Require().NoError(suite.db.Put(t, []byte("key4"), []byte("value4.1")))
+	suite.Require().NoError(suite.db.Put(tg, []byte("key0"), []byte("value0.3")))
+	suite.Require().NoError(suite.db.Put(tg, []byte("key2"), []byte("value1.3")))
+	suite.Require().NoError(suite.db.Put(tg, []byte("key3"), []byte("value2.3")))
+	suite.Require().NoError(suite.db.Put(tg, []byte("key4"), []byte("value4.3")))
+}
+
+func (suite *SuiteBadgerDb) TestRange() {
+	db := suite.db
+	ctx := context.Background()
+
+	suite.Run("simple", func() {
+		tx, _ := db.CreateRwTx(ctx)
+		defer tx.Rollback()
+		_ = tx.Put("first", []byte{1}, []byte{1})
+		_ = tx.Put("first", []byte{3}, []byte{1})
+		_ = tx.Put("first", []byte{4}, []byte{1})
+		_ = tx.Put("second", []byte{2}, []byte{8})
+		_ = tx.Put("second", []byte{3}, []byte{9})
+
+		keys1 := make([][]byte, 0, 3)
+		value1 := make([][]byte, 0, 3)
+		keys2 := make([][]byte, 0, 3)
+		value2 := make([][]byte, 0, 3)
+
+		it, _ := tx.Range("first", nil, nil)
+		for it.HasNext() {
+			k, v, err := it.Next()
+			suite.Require().NoError(err)
+			keys1 = append(keys1, k)
+			value1 = append(value1, v)
+		}
+		it.Close()
+
+		it2, _ := tx.Range("second", nil, nil)
+		for it2.HasNext() {
+			k, v, err := it2.Next()
+			suite.Require().NoError(err)
+			keys2 = append(keys2, k)
+			value2 = append(value2, v)
+		}
+		it2.Close()
+
+		suite.Equal([][]byte{{1}, {3}, {4}}, keys1)
+		suite.Equal([][]byte{{1}, {1}, {1}}, value1)
+		suite.Equal([][]byte{{2}, {3}}, keys2)
+		suite.Equal([][]byte{{8}, {9}}, value2)
+
+		suite.Require().NoError(tx.Commit())
+	})
+	suite.Run("empty", func() {
+		tx, _ := db.CreateRwTx(ctx)
+		defer tx.Rollback()
+
+		keys := make([][]byte, 0, 3)
+		value := make([][]byte, 0, 3)
+
+		it, _ := tx.Range("empty", nil, nil)
+		for it.HasNext() {
+			k, v, err := it.Next()
+			suite.Require().NoError(err)
+			keys = append(keys, k)
+			value = append(value, v)
+		}
+		it.Close()
+
+		suite.Equal([][]byte{}, keys)
+		suite.Equal([][]byte{}, value)
+
+		suite.Require().NoError(tx.Commit())
+	})
+	suite.Run("from-to", func() {
+		suite.fillData("from-to")
+
+		tx, _ := db.CreateRoTx(ctx)
+		defer tx.Rollback()
+
+		it, err := tx.Range("from-to", []byte("key1"), []byte("key3"))
+		suite.Require().NoError(err)
+
+		suite.True(it.HasNext())
+		k, v, err := it.Next()
+		suite.Require().NoError(err)
+		suite.Equal("key1", string(k))
+		suite.Equal("value1.1", string(v))
+
+		suite.True(it.HasNext())
+		k, v, err = it.Next()
+		suite.Require().NoError(err)
+		suite.Equal("key3", string(k))
+		suite.Equal("value3.1", string(v))
+
+		suite.False(it.HasNext())
+		suite.False(it.HasNext())
+
+		it.Close()
+		suite.Require().NoError(tx.Commit())
+	})
+	suite.Run("from-inf", func() {
+		suite.fillData("from-inf")
+
+		tx, _ := db.CreateRoTx(ctx)
+		defer tx.Rollback()
+
+		it, err := tx.Range("from-inf", []byte("key1"), nil)
+		suite.Require().NoError(err)
+
+		suite.True(it.HasNext())
+		k, v, err := it.Next()
+		suite.Require().NoError(err)
+		suite.Equal("key1", string(k))
+		suite.Equal("value1.1", string(v))
+
+		suite.True(it.HasNext())
+		k, v, err = it.Next()
+		suite.Require().NoError(err)
+		suite.Equal("key3", string(k))
+		suite.Equal("value3.1", string(v))
+
+		suite.True(it.HasNext())
+		k, v, err = it.Next()
+		suite.Require().NoError(err)
+		suite.Equal("key4", string(k))
+		suite.Equal("value4.1", string(v))
+
+		suite.False(it.HasNext())
+		suite.False(it.HasNext())
+
+		it.Close()
+		suite.Require().NoError(tx.Commit())
+	})
+	suite.Run("inf-to", func() {
+		suite.fillData("inf-to")
+
+		tx, _ := db.CreateRoTx(ctx)
+		defer tx.Rollback()
+
+		it, err := tx.Range("inf-to", nil, []byte("key1"))
+		suite.Require().NoError(err)
+
+		suite.True(it.HasNext())
+		k, v, err := it.Next()
+		suite.Require().NoError(err)
+		suite.Equal("key0", string(k))
+		suite.Equal("value0.1", string(v))
+
+		suite.True(it.HasNext())
+		k, v, err = it.Next()
+		suite.Require().NoError(err)
+		suite.Equal("key1", string(k))
+		suite.Equal("value1.1", string(v))
+
+		suite.False(it.HasNext())
+		suite.False(it.HasNext())
+
+		it.Close()
+		suite.Require().NoError(tx.Commit())
+	})
 }
 
 func TestSuiteBadgerDb(t *testing.T) {
