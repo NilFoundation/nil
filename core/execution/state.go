@@ -274,8 +274,41 @@ func (es *ExecutionState) HasSelfDestructed(common.Address) bool {
 	panic("unimplemented")
 }
 
-func (es *ExecutionState) Selfdestruct6780(common.Address) {
-	panic("unimplemented")
+// SelfDestruct marks the given account as selfdestructed.
+// This clears the account balance.
+//
+// The account's state object is still available until the state is committed,
+// GetAccount will return a non-nil account after SelfDestruct.
+func (s *ExecutionState) selfDestruct(stateObject *AccountState) {
+	var (
+		prev = new(uint256.Int).Set(&stateObject.Balance)
+		n    = new(uint256.Int)
+	)
+	s.journal.append(selfDestructChange{
+		account:     &stateObject.address,
+		prev:        stateObject.selfDestructed,
+		prevbalance: prev,
+	})
+	stateObject.selfDestructed = true
+	stateObject.Balance = *n
+}
+
+func (s *ExecutionState) Selfdestruct6780(addr common.Address) {
+	stateObject := s.GetAccount(addr)
+	if stateObject == nil {
+		return
+	}
+	if stateObject.newContract {
+		s.selfDestruct(stateObject)
+	}
+}
+
+func (s *ExecutionState) HasSelfDestructed(addr common.Address) bool {
+	stateObject := s.GetAccount(addr)
+	if stateObject != nil {
+		return stateObject.selfDestructed
+	}
+	return false
 }
 
 func (es *ExecutionState) SetCode(addr common.Address, code []byte) {
