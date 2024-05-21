@@ -56,20 +56,22 @@ type (
 )
 
 type FiltersManager struct {
-	ctx      context.Context
-	db       db.DB
-	shardId  types.ShardId
-	filters  map[SubscriptionID]*Filter
-	mutex    sync.RWMutex
-	lastHash common.Hash
+	ctx       context.Context
+	db        db.DB
+	shardId   types.ShardId
+	filters   map[SubscriptionID]*Filter
+	blockSubs map[SubscriptionID]chan<- *types.Block
+	mutex     sync.RWMutex
+	lastHash  common.Hash
 }
 
 func NewFiltersManager(ctx context.Context, db db.DB, noPolling bool) *FiltersManager {
 	f := &FiltersManager{
-		ctx:      ctx,
-		db:       db,
-		filters:  make(map[SubscriptionID]*Filter),
-		lastHash: common.EmptyHash,
+		ctx:       ctx,
+		db:        db,
+		filters:   make(map[SubscriptionID]*Filter),
+		blockSubs: make(map[SubscriptionID]chan<- *types.Block),
+		lastHash:  common.EmptyHash,
 	}
 
 	if !noPolling {
@@ -99,13 +101,33 @@ func (m *FiltersManager) RemoveFilter(id SubscriptionID) bool {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	filter, ok := m.filters[id]
-	if ok {
+	filter, exist := m.filters[id]
+	if exist {
 		close(filter.output)
 		delete(m.filters, id)
-		return true
 	}
-	return false
+	return exist
+}
+
+func (m *FiltersManager) AddBlocksListener() (SubscriptionID, <-chan *types.Block) {
+	id := generateSubscriptionID()
+	ch := make(chan *types.Block, 100)
+
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.blockSubs[id] = ch
+	return id, ch
+}
+
+func (m *FiltersManager) RemoveBlocksListener(id SubscriptionID) bool {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	_, exist := m.blockSubs[id]
+	if exist {
+		close(m.blockSubs[id])
+		delete(m.blockSubs, id)
+	}
+	return exist
 }
 
 // PollBlocks polls the blockchain for new committed blocks, if found - parse it's receipts and send logs to the matched
@@ -128,28 +150,38 @@ func (m *FiltersManager) PollBlocks(delay time.Duration) {
 		}
 
 		if m.lastHash != lastHash {
-			if err := m.processBlockHash(&lastHash); err != nil {
-				logger.Warn().Msgf("processBlock failed: %s", err)
-				continue
+			m.mutex.Lock()
+			for currHash := lastHash; m.lastHash != currHash; {
+				block, err := m.processBlockHash(&currHash)
+				if err != nil {
+					logger.Warn().Msgf("processBlockHash failed: %s", err)
+					continue
+				}
+				for _, ch := range m.blockSubs {
+					// Don't send if channel is full. Probably subscriber just disconnected, and it shouldn't block us.
+					if len(ch) < cap(ch) {
+						ch <- block
+					}
+				}
+				currHash = block.PrevBlock
+				if currHash == common.EmptyHash {
+					break
+				}
 			}
 			m.lastHash = lastHash
+			m.mutex.Unlock()
 		}
 	}
 }
 
-func (m *FiltersManager) processBlockHash(lastHash *common.Hash) error {
+func (m *FiltersManager) processBlockHash(lastHash *common.Hash) (*types.Block, error) {
 	tx, err := m.db.CreateRoTx(m.ctx)
 	if err != nil {
-		return fmt.Errorf("failed to create transaction: %w", err)
+		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}
 	block := db.ReadBlock(tx, m.shardId, *lastHash)
 	if block == nil {
-		return errors.New("Can not read last block")
-	}
-
-	// TODO: We should process missing blocks by unwinding blocks chain.
-	if block.PrevBlock != m.lastHash {
-		logger.Warn().Msgf("block prev hash does not match last block hash")
+		return nil, errors.New("Can not read last block")
 	}
 
 	var receipts types.Receipts
@@ -158,12 +190,12 @@ func (m *FiltersManager) processBlockHash(lastHash *common.Hash) error {
 	for kv := range mptReceipts.Iterate() {
 		receipt := types.Receipt{}
 		if err := receipt.UnmarshalSSZ(kv.Value); err != nil {
-			return err
+			return nil, err
 		}
 		receipts = append(receipts, &receipt)
 	}
 
-	return m.process(block, receipts)
+	return block, m.process(block, receipts)
 }
 
 //nolint:unparam

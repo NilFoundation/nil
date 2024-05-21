@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -41,7 +42,7 @@ func (s *SuiteEthFilters) TearDownTest() {
 	s.db.Close()
 }
 
-func (s *SuiteEthFilters) TestMain() {
+func (s *SuiteEthFilters) TestLogs() {
 	tx, err := s.db.CreateRwTx(s.ctx)
 	s.Require().NoError(err)
 	address1 := common.HexToAddress("0x1111111111")
@@ -138,6 +139,122 @@ func (s *SuiteEthFilters) TestMain() {
 	s.Require().Len(logs, 2)
 	s.Require().Equal(logsInput[0], logs[0])
 	s.Require().Equal(logsInput2[0], logs[1])
+}
+
+func (s *SuiteEthFilters) TestBlocks() {
+	tx, err := s.db.CreateRwTx(s.ctx)
+	s.Require().NoError(err)
+	shardId := types.ShardId(0)
+
+	id1, err := s.api.NewBlockFilter(s.ctx)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(id1)
+
+	// No blocks should be
+	blocks, err := s.api.GetFilterChanges(s.ctx, id1)
+	s.Require().NoError(err)
+	s.Require().Empty(blocks)
+
+	block1 := types.Block{Id: 1}
+
+	// Add one block
+	s.Require().NoError(db.WriteBlock(tx, shardId, &block1))
+	s.Require().NoError(tx.Put(db.LastBlockTable, []byte(strconv.Itoa(0)), block1.Hash().Bytes()))
+	s.Require().NoError(tx.Commit())
+
+	// Wait some time, so filters manager processes new blocks
+	time.Sleep(200 * time.Millisecond)
+
+	// id1 filter should see 1 block
+	blocks, err = s.api.GetFilterChanges(s.ctx, id1)
+	s.Require().NoError(err)
+	s.Require().Len(blocks, 1)
+	s.Require().IsType(&types.Block{}, blocks[0])
+	block, ok := blocks[0].(*types.Block)
+	s.Require().True(ok)
+	s.Require().Equal(block.Id, block1.Id)
+
+	// Add block filter id2
+	id2, err := s.api.NewBlockFilter(s.ctx)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(id2)
+
+	tx, err = s.db.CreateRwTx(s.ctx)
+	s.Require().NoError(err)
+
+	// Add new three blocks
+	block2 := types.Block{Id: 2, PrevBlock: block1.Hash()}
+	block3 := types.Block{Id: 3, PrevBlock: block2.Hash()}
+	block4 := types.Block{Id: 4, PrevBlock: block3.Hash()}
+	s.Require().NoError(db.WriteBlock(tx, shardId, &block2))
+	s.Require().NoError(db.WriteBlock(tx, shardId, &block3))
+	s.Require().NoError(db.WriteBlock(tx, shardId, &block4))
+	s.Require().NoError(tx.Put(db.LastBlockTable, []byte(strconv.Itoa(0)), block4.Hash().Bytes()))
+	s.Require().NoError(tx.Commit())
+
+	// Wait some time, so filters manager processes new blocks
+	time.Sleep(200 * time.Millisecond)
+
+	// Both filters should see these blocks
+	for _, id := range []string{id1, id2} {
+		blocks, err = s.api.GetFilterChanges(s.ctx, id)
+		s.Require().NoError(err)
+		s.Require().Len(blocks, 3)
+		block, ok = blocks[0].(*types.Block)
+		s.Require().True(ok)
+		s.Require().Equal(block.Id, block4.Id)
+		block, ok = blocks[1].(*types.Block)
+		s.Require().True(ok)
+		s.Require().Equal(block.Id, block3.Id)
+		block, ok = blocks[2].(*types.Block)
+		s.Require().True(ok)
+		s.Require().Equal(block.Id, block2.Id)
+	}
+
+	// Uninstall id1 block filter
+	deleted, err := s.api.UninstallFilter(s.ctx, id1)
+	s.Require().True(deleted)
+	s.Require().NoError(err)
+
+	// Uninstall second time should return error
+	deleted, err = s.api.UninstallFilter(s.ctx, id1)
+	s.Require().False(deleted)
+	s.Require().NoError(err)
+
+	tx, err = s.db.CreateRwTx(s.ctx)
+	s.Require().NoError(err)
+
+	// Add another two blocks
+	block5 := types.Block{Id: 5, PrevBlock: block4.Hash()}
+	block6 := types.Block{Id: 6, PrevBlock: block5.Hash()}
+	s.Require().NoError(db.WriteBlock(tx, shardId, &block5))
+	s.Require().NoError(db.WriteBlock(tx, shardId, &block6))
+	s.Require().NoError(tx.Put(db.LastBlockTable, []byte(strconv.Itoa(0)), block6.Hash().Bytes()))
+	s.Require().NoError(tx.Commit())
+
+	// Wait some time, so filters manager processes new blocks
+	time.Sleep(200 * time.Millisecond)
+
+	// id1 is deleted, expect error
+	blocks, err = s.api.GetFilterChanges(s.ctx, id1)
+	s.Require().Error(err)
+	s.Require().Empty(blocks)
+
+	// Expect two blocks for id2
+	blocks, err = s.api.GetFilterChanges(s.ctx, id2)
+	s.Require().NoError(err)
+	s.Require().Len(blocks, 2)
+	block, ok = blocks[0].(*types.Block)
+	s.Require().True(ok)
+	s.Require().Equal(block.Id, block6.Id)
+	block, ok = blocks[1].(*types.Block)
+	s.Require().True(ok)
+	s.Require().Equal(block.Id, block5.Id)
+
+	// Uninstall second filter
+	deleted, err = s.api.UninstallFilter(s.ctx, id2)
+	s.Require().True(deleted)
+	s.Require().NoError(err)
 }
 
 func TestEthFilters(t *testing.T) {
