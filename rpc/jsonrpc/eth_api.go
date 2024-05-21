@@ -9,8 +9,8 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
+	"github.com/NilFoundation/nil/rpc/filters"
 	"github.com/NilFoundation/nil/rpc/transport"
-	"github.com/holiman/uint256"
 	"github.com/rs/zerolog"
 )
 
@@ -34,7 +34,7 @@ type EthAPI interface {
 	SendRawTransaction(ctx context.Context, encodedTx hexutil.Bytes) (common.Hash, error)
 
 	// Logs related
-	NewFilter(_ context.Context, fromBlock *uint256.Int, toBlock *uint256.Int, address *common.Address, topics [][]common.Hash) (string, error)
+	NewFilter(_ context.Context, query filters.FilterQuery) (string, error)
 	NewPendingTransactionFilter(_ context.Context) (string, error)
 	NewBlockFilter(_ context.Context) (string, error)
 	UninstallFilter(_ context.Context, id string) (isDeleted bool, err error)

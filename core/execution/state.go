@@ -109,6 +109,7 @@ func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash) (
 		Accounts:         map[common.Address]*AccountState{},
 		Messages:         []*types.Message{},
 		Receipts:         []*types.Receipt{},
+		Logs:             map[common.Hash][]*types.Log{},
 	}, nil
 }
 

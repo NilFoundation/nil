@@ -89,6 +89,8 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 	}
 	interpreter := vm.NewEVMInterpreter(&evm)
 
+	initialGas := contract.Gas
+
 	if accountState == nil {
 		c.logger.Debug().Msgf("Create new contract %s", addr)
 
@@ -137,6 +139,16 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 	if es.PrevBlock != common.EmptyHash {
 		blockId = db.ReadBlock(rwTx, es.PrevBlock).Id + 1
 	}
+
+	// Create receipt for the executed message
+	receipt := types.Receipt{
+		Success:         true,
+		GasUsed:         uint32(initialGas - contract.Gas),
+		Logs:            es.Logs[es.MessageHash],
+		ContractAddress: addr,
+	}
+	receipt.Bloom = types.CreateBloom(types.Receipts{&receipt})
+	es.Receipts = append(es.Receipts, &receipt)
 
 	blockHash, err := es.Commit(blockId)
 	if err != nil {

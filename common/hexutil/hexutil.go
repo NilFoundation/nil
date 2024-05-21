@@ -7,6 +7,21 @@ import (
 	"strconv"
 )
 
+// Decode decodes a hex string with 0x prefix.
+func Decode(input string) ([]byte, error) {
+	if len(input) == 0 {
+		return nil, ErrEmptyString
+	}
+	if !has0xPrefix(input) {
+		return nil, ErrMissingPrefix
+	}
+	b, err := hex.DecodeString(input[2:])
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return b, nil
+}
+
 // DecodeUint64 decodes a hex string with 0x prefix as a quantity.
 func DecodeUint64(input string) (uint64, error) {
 	raw, err := checkNumber(input)

@@ -5,7 +5,10 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,9 +16,11 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/holiman/uint256"
 )
 
@@ -28,9 +33,10 @@ type Filter struct {
 
 // FilterQuery contains options for contract log filtering.
 type FilterQuery struct {
-	FromBlock *uint256.Int    // beginning of the queried range, nil means genesis block
-	ToBlock   *uint256.Int    // end of the range, nil means latest block
-	Address   *common.Address // restricts matches to events created by specific contracts
+	BlockHash *common.Hash     // used by eth_getLogs, return logs only from block with this hash
+	FromBlock *uint256.Int     // beginning of the queried range, nil means genesis block
+	ToBlock   *uint256.Int     // end of the range, nil means latest block
+	Addresses []common.Address // restricts matches to events created by specific contracts
 
 	// The Topic list restricts matches to particular event topics. Each event has a list
 	// of topics. Topics matches a prefix of that list. An empty element slice matches any
@@ -139,7 +145,7 @@ func (m *FiltersManager) processBlockHash(lastHash *common.Hash) error {
 	}
 	block := db.ReadBlock(tx, *lastHash)
 	if block == nil {
-		return fmt.Errorf("Can not read last block")
+		return errors.New("Can not read last block")
 	}
 
 	// TODO: We should process missing blocks by unwinding blocks chain.
@@ -164,7 +170,7 @@ func (m *FiltersManager) processBlockHash(lastHash *common.Hash) error {
 func (m *FiltersManager) process(block *types.Block, receipts types.Receipts) error {
 	for _, filter := range m.filters {
 		for _, receipt := range receipts {
-			if filter.query.Address != nil && *filter.query.Address != receipt.ContractAddress {
+			if len(filter.query.Addresses) != 0 && !slices.Contains(filter.query.Addresses, receipt.ContractAddress) {
 				continue
 			}
 			for _, log := range receipt.Logs {
@@ -228,4 +234,122 @@ func generateSubscriptionID() SubscriptionID {
 		return ""
 	}
 	return SubscriptionID(sb.String())
+}
+
+func (args *FilterQuery) UnmarshalJSON(data []byte) error {
+	type input struct {
+		BlockHash *common.Hash           `json:"blockHash"`
+		FromBlock *transport.BlockNumber `json:"fromBlock"`
+		ToBlock   *transport.BlockNumber `json:"toBlock"`
+		Addresses interface{}            `json:"address"`
+		Topics    []interface{}          `json:"topics"`
+	}
+
+	var raw input
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	if raw.BlockHash != nil {
+		if raw.FromBlock != nil || raw.ToBlock != nil {
+			// BlockHash is mutually exclusive with FromBlock/ToBlock criteria
+			return errors.New("cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other")
+		}
+		args.BlockHash = raw.BlockHash
+	} else {
+		if raw.FromBlock != nil {
+			args.FromBlock = uint256.NewInt(raw.FromBlock.Uint64())
+		}
+
+		if raw.ToBlock != nil {
+			args.ToBlock = uint256.NewInt(raw.ToBlock.Uint64())
+		}
+	}
+
+	args.Addresses = []common.Address{}
+
+	if raw.Addresses != nil {
+		// raw.Address can contain a single address or an array of addresses
+		switch rawAddr := raw.Addresses.(type) {
+		case []interface{}:
+			for i, addr := range rawAddr {
+				if strAddr, ok := addr.(string); ok {
+					addr, err := decodeAddress(strAddr)
+					if err != nil {
+						return fmt.Errorf("invalid address at index %d: %w", i, err)
+					}
+					args.Addresses = append(args.Addresses, addr)
+				} else {
+					return fmt.Errorf("non-string address at index %d", i)
+				}
+			}
+		case string:
+			addr, err := decodeAddress(rawAddr)
+			if err != nil {
+				return fmt.Errorf("invalid address: %w", err)
+			}
+			args.Addresses = []common.Address{addr}
+		default:
+			return errors.New("invalid addresses in query")
+		}
+	}
+
+	// topics is an array consisting of strings and/or arrays of strings.
+	// JSON null values are converted to common.Hash{} and ignored by the filter manager.
+	if len(raw.Topics) > 0 {
+		args.Topics = make([][]common.Hash, len(raw.Topics))
+		for i, t := range raw.Topics {
+			switch topic := t.(type) {
+			case nil:
+				// ignore topic when matching logs
+
+			case string:
+				// match specific topic
+				top, err := decodeTopic(topic)
+				if err != nil {
+					return err
+				}
+				args.Topics[i] = []common.Hash{top}
+
+			case []interface{}:
+				// or case e.g. [null, "topic0", "topic1"]
+				for _, rawTopic := range topic {
+					if rawTopic == nil {
+						// null component, match all
+						args.Topics[i] = nil
+						break
+					}
+					if topic, ok := rawTopic.(string); ok {
+						parsed, err := decodeTopic(topic)
+						if err != nil {
+							return err
+						}
+						args.Topics[i] = append(args.Topics[i], parsed)
+					} else {
+						return errors.New("invalid topic(s)")
+					}
+				}
+			default:
+				return errors.New("invalid topic(s)")
+			}
+		}
+	}
+
+	return nil
+}
+
+func decodeAddress(s string) (common.Address, error) {
+	b, err := hexutil.Decode(s)
+	if err == nil && len(b) != common.AddrSize {
+		err = fmt.Errorf("hex has invalid length %d after decoding; expected %d for address", len(b), common.AddrSize)
+	}
+	return common.BytesToAddress(b), err
+}
+
+func decodeTopic(s string) (common.Hash, error) {
+	b, err := hexutil.Decode(s)
+	if err == nil && len(b) != common.HashSize {
+		err = fmt.Errorf("hex has invalid length %d after decoding; expected %d for topic", len(b), common.HashSize)
+	}
+	return common.BytesToHash(b), err
 }

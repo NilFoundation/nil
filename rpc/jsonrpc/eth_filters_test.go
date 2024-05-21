@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
+	"github.com/NilFoundation/nil/rpc/filters"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	"github.com/stretchr/testify/suite"
 )
@@ -48,12 +49,26 @@ func (s *SuiteEthFilters) TestMain() {
 	address2 := common.HexToAddress("0x2222222222")
 
 	topics := [][]common.Hash{{}, {}, {{3}}}
-	id1, err := s.api.NewFilter(s.ctx, nil, nil, &address1, topics)
+	query1 := filters.FilterQuery{
+		BlockHash: nil,
+		FromBlock: nil,
+		ToBlock:   nil,
+		Addresses: []common.Address{address1},
+		Topics:    topics,
+	}
+	id1, err := s.api.NewFilter(s.ctx, query1)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(id1)
 
 	topics2 := [][]common.Hash{{}, {{2}}}
-	id2, err := s.api.NewFilter(s.ctx, nil, nil, nil, topics2)
+	query2 := filters.FilterQuery{
+		BlockHash: nil,
+		FromBlock: nil,
+		ToBlock:   nil,
+		Addresses: []common.Address{},
+		Topics:    topics2,
+	}
+	id2, err := s.api.NewFilter(s.ctx, query2)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(id2)
 
