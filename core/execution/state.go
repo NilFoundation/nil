@@ -100,10 +100,6 @@ func NewAccountState(es *ExecutionState, addr common.Address, tx db.Tx, shardId 
 		return nil, err
 	}
 
-	if code == nil {
-		return nil, errors.New("cannot retrieve code")
-	}
-
 	return &AccountState{
 		db:      es,
 		address: addr,
@@ -111,7 +107,7 @@ func NewAccountState(es *ExecutionState, addr common.Address, tx db.Tx, shardId 
 		Tx:          tx,
 		StorageRoot: root,
 		CodeHash:    account.CodeHash,
-		Code:        *code,
+		Code:        code,
 		ShardId:     shardId,
 		Seqno:       account.Seqno,
 		State:       make(Storage),
