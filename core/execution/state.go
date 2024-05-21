@@ -61,6 +61,9 @@ type ExecutionState struct {
 	Messages []*types.Message
 	Receipts []*types.Receipt
 
+	// The refund counter, also used by state transitioning.
+	refund uint64
+
 	// Journal of state modifications. This is the backbone of
 	// Snapshot and RevertToSnapshot.
 	journal        *journal
@@ -178,11 +181,19 @@ func (es *ExecutionState) AddBalance(addr common.Address, amount *uint256.Int, r
 }
 
 func (es *ExecutionState) AddLog(log *types.Log) {
+	es.journal.append(addLogChange{txhash: es.MessageHash})
 	es.Logs[es.MessageHash] = append(es.Logs[es.MessageHash], log)
 }
 
-func (es *ExecutionState) AddRefund(uint64) {
-	panic("unimplemented")
+// AddRefund adds gas to the refund counter
+func (s *ExecutionState) AddRefund(gas uint64) {
+	s.journal.append(refundChange{prev: s.refund})
+	s.refund += gas
+}
+
+// GetRefund returns the current value of the refund counter.
+func (s *ExecutionState) GetRefund() uint64 {
+	return s.refund
 }
 
 func (es *ExecutionState) AddSlotToAccessList(addr common.Address, slot common.Hash) {
@@ -252,10 +263,6 @@ func (s *ExecutionState) RevertToSnapshot(revid int) {
 	// Replay the journal to undo changes and remove invalidated snapshots
 	s.journal.revert(s, snapshot)
 	s.validRevisions = s.validRevisions[:idx]
-}
-
-func (es *ExecutionState) GetRefund() uint64 {
-	panic("unimplemented")
 }
 
 func (es *ExecutionState) GetStorageRoot(addr common.Address) common.Hash {

@@ -127,3 +127,16 @@ func (ch codeChange) revert(s *ExecutionState) {
 func (ch storageChange) revert(s *ExecutionState) {
 	s.GetAccount(*ch.account).setState(ch.key, ch.prevvalue)
 }
+
+func (ch refundChange) revert(s *ExecutionState) {
+	s.refund = ch.prev
+}
+
+func (ch addLogChange) revert(s *ExecutionState) {
+	logs := s.Logs[ch.txhash]
+	if len(logs) == 1 {
+		delete(s.Logs, ch.txhash)
+	} else {
+		s.Logs[ch.txhash] = logs[:len(logs)-1]
+	}
+}
