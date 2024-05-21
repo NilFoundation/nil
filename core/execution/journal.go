@@ -140,3 +140,7 @@ func (ch addLogChange) revert(s *ExecutionState) {
 		s.Logs[ch.txhash] = logs[:len(logs)-1]
 	}
 }
+
+func (ch transientStorageChange) revert(s *ExecutionState) {
+	s.setTransientState(*ch.account, ch.key, ch.prevalue)
+}

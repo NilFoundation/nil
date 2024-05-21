@@ -18,6 +18,8 @@ import (
 
 var logger = common.NewLogger("execution", false /* noColor */)
 
+type Storage map[common.Hash]common.Hash
+
 type AccountState struct {
 	db      *ExecutionState
 	address common.Address // address of ethereum account
@@ -30,7 +32,7 @@ type AccountState struct {
 	StorageRoot *mpt.MerklePatriciaTrie
 	ShardId     types.ShardId
 
-	State map[common.Hash]common.Hash
+	State Storage
 
 	// Flag whether the account was marked as self-destructed. The self-destructed
 	// account is still accessible in the scope of same transaction.
@@ -60,6 +62,9 @@ type ExecutionState struct {
 	Accounts map[common.Address]*AccountState
 	Messages []*types.Message
 	Receipts []*types.Receipt
+
+	// Transient storage
+	transientStorage transientStorage
 
 	// The refund counter, also used by state transitioning.
 	refund uint64
@@ -109,7 +114,7 @@ func NewAccountState(es *ExecutionState, addr common.Address, tx db.Tx, shardId 
 		Code:        *code,
 		ShardId:     shardId,
 		Seqno:       account.Seqno,
-		State:       map[common.Hash]common.Hash{},
+		State:       make(Storage),
 	}, nil
 }
 
@@ -143,7 +148,8 @@ func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash) (
 		Receipts:         []*types.Receipt{},
 		Logs:             map[common.Hash][]*types.Log{},
 
-		journal: newJournal(),
+		journal:          newJournal(),
+		transientStorage: newTransientStorage(),
 	}, nil
 }
 
@@ -273,12 +279,31 @@ func (es *ExecutionState) GetStorageRoot(addr common.Address) common.Hash {
 	return common.EmptyHash
 }
 
-func (es *ExecutionState) GetTransientState(addr common.Address, key common.Hash) common.Hash {
-	panic("unimplemented")
+// SetTransientState sets transient storage for a given account. It
+// adds the change to the journal so that it can be rolled back
+// to its previous value if there is a revert.
+func (s *ExecutionState) SetTransientState(addr common.Address, key, value common.Hash) {
+	prev := s.GetTransientState(addr, key)
+	if prev == value {
+		return
+	}
+	s.journal.append(transientStorageChange{
+		account:  &addr,
+		key:      key,
+		prevalue: prev,
+	})
+	s.setTransientState(addr, key, value)
 }
 
-func (es *ExecutionState) HasSelfDestructed(common.Address) bool {
-	panic("unimplemented")
+// setTransientState is a lower level setter for transient storage. It
+// is called during a revert to prevent modifications to the journal.
+func (s *ExecutionState) setTransientState(addr common.Address, key, value common.Hash) {
+	s.transientStorage.Set(addr, key, value)
+}
+
+// GetTransientState gets transient storage for a given account.
+func (s *ExecutionState) GetTransientState(addr common.Address, key common.Hash) common.Hash {
+	return s.transientStorage.Get(addr, key)
 }
 
 // SelfDestruct marks the given account as selfdestructed.
@@ -321,10 +346,6 @@ func (s *ExecutionState) HasSelfDestructed(addr common.Address) bool {
 func (es *ExecutionState) SetCode(addr common.Address, code []byte) {
 	acc := es.GetAccount(addr)
 	acc.Code = code
-}
-
-func (es *ExecutionState) SetTransientState(addr common.Address, key common.Hash, value common.Hash) {
-	panic("unimplemented")
 }
 
 func (es *ExecutionState) SlotInAccessList(addr common.Address, slot common.Hash) (addressOk bool, slotOk bool) {
