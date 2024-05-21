@@ -157,7 +157,7 @@ func (tx *BadgerRoTx) Rollback() {
 }
 
 func (tx *BadgerRoTx) Put(tableName TableName, key, value []byte) error {
-	return ErrNotImplemented
+	panic("read-only transaction")
 }
 
 func (tx *BadgerRwTx) Put(tableName TableName, key, value []byte) error {
@@ -190,7 +190,7 @@ func (tx *BadgerRoTx) Exists(tableName TableName, key []byte) (bool, error) {
 }
 
 func (tx *BadgerRoTx) Delete(tableName TableName, key []byte) error {
-	return ErrNotImplemented
+	panic("read-only transaction")
 }
 
 func (tx *BadgerRwTx) Delete(tableName TableName, key []byte) error {
@@ -223,7 +223,7 @@ func (tx *BadgerRoTx) GetFromShard(shardId types.ShardId, tableName ShardedTable
 }
 
 func (tx *BadgerRoTx) PutToShard(shardId types.ShardId, tableName ShardedTableName, key, value []byte) error {
-	return ErrNotImplemented
+	panic("read-only transaction")
 }
 
 func (tx *BadgerRwTx) PutToShard(shardId types.ShardId, tableName ShardedTableName, key, value []byte) error {
@@ -235,7 +235,7 @@ func (tx *BadgerRoTx) DeleteFromShard(shardId types.ShardId, tableName ShardedTa
 }
 
 func (tx *BadgerRwTx) DeleteFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) error {
-	return ErrNotImplemented
+	panic("read-only transaction")
 }
 
 func (tx *BadgerRoTx) RangeByShard(shardId types.ShardId, tableName ShardedTableName, from []byte, to []byte) (Iter, error) {
