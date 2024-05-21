@@ -161,10 +161,25 @@ func (suite *SuiteRpc) TestRpcError() {
 	request = Request{
 		Jsonrpc: "2.0",
 		Method:  "eth_getBlockByNumber",
-		Params:  []any{types.MasterShardId},
+		Params:  []any{},
 		Id:      1,
 	}
+	resp, err = makeRequest(&request)
+	suite.Require().NoError(err)
+	suite.InEpsilon(float64(-32602), resp.Error["code"], 0)
+	suite.Equal("missing value for required argument 0", resp.Error["message"])
 
+	request.Method = "eth_getBlockByNumber"
+	request.Params = []any{1 << 40}
+	resp, err = makeRequest(&request)
+	suite.Require().NoError(err)
+	suite.InEpsilon(float64(-32602), resp.Error["code"], 0)
+	suite.Equal(
+		"invalid argument 0: json: cannot unmarshal number 1099511627776 into Go value of type uint32",
+		resp.Error["message"])
+
+	request.Method = "eth_getBlockByNumber"
+	request.Params = []any{types.MasterShardId}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.InEpsilon(float64(-32602), resp.Error["code"], 0)
