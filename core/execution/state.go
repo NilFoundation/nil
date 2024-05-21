@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 
 	"github.com/NilFoundation/nil/common"
@@ -18,6 +19,9 @@ import (
 var logger = common.NewLogger("execution", false /* noColor */)
 
 type AccountState struct {
+	db      *ExecutionState
+	address common.Address // address of ethereum account
+
 	Tx          db.Tx
 	Balance     uint256.Int
 	Code        types.Code
@@ -26,7 +30,18 @@ type AccountState struct {
 	StorageRoot *mpt.MerklePatriciaTrie
 	ShardId     types.ShardId
 
-	State map[common.Hash]uint256.Int
+	State map[common.Hash]common.Hash
+
+	// Flag whether the account was marked as self-destructed. The self-destructed
+	// account is still accessible in the scope of same transaction.
+	selfDestructed bool
+
+	// This is an EIP-6780 flag indicating whether the object is eligible for
+	// self-destruct according to EIP-6780. The flag could be set either when
+	// the contract is just created within the current transaction, or when the
+	// object was previously existent and is being deployed as a contract within
+	// the current transaction.
+	newContract bool
 }
 
 type ExecutionState struct {
@@ -45,13 +60,24 @@ type ExecutionState struct {
 	Accounts map[common.Address]*AccountState
 	Messages []*types.Message
 	Receipts []*types.Receipt
+
+	// Journal of state modifications. This is the backbone of
+	// Snapshot and RevertToSnapshot.
+	journal        *journal
+	validRevisions []revision
+	nextRevisionId int
+}
+
+type revision struct {
+	id           int
+	journalIndex int
 }
 
 func (s *AccountState) empty() bool {
 	return s.Seqno == 0 && s.Balance.IsZero() && len(s.Code) == 0
 }
 
-func NewAccountState(tx db.Tx, shardId types.ShardId, data []byte) (*AccountState, error) {
+func NewAccountState(es *ExecutionState, addr common.Address, tx db.Tx, shardId types.ShardId, data []byte) (*AccountState, error) {
 	account := new(types.SmartContract)
 
 	if err := account.UnmarshalSSZ(data); err != nil {
@@ -71,13 +97,16 @@ func NewAccountState(tx db.Tx, shardId types.ShardId, data []byte) (*AccountStat
 	}
 
 	return &AccountState{
+		db:      es,
+		address: addr,
+
 		Tx:          tx,
 		StorageRoot: root,
 		CodeHash:    account.CodeHash,
 		Code:        *code,
 		ShardId:     shardId,
 		Seqno:       account.Seqno,
-		State:       map[common.Hash]uint256.Int{},
+		State:       map[common.Hash]common.Hash{},
 	}, nil
 }
 
@@ -110,6 +139,8 @@ func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash) (
 		Messages:         []*types.Message{},
 		Receipts:         []*types.Receipt{},
 		Logs:             map[common.Hash][]*types.Log{},
+
+		journal: newJournal(),
 	}, nil
 }
 
@@ -130,7 +161,7 @@ func (es *ExecutionState) GetAccount(addr common.Address) *AccountState {
 		return nil
 	}
 
-	acc, err = NewAccountState(es.tx, es.ShardId, data)
+	acc, err = NewAccountState(es, addr, es.tx, es.ShardId, data)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create account on shard %v: %v", es.ShardId, err))
 	}
@@ -199,6 +230,30 @@ func (es *ExecutionState) GetCommittedState(common.Address, common.Hash) common.
 	return common.EmptyHash
 }
 
+// Snapshot returns an identifier for the current revision of the state.
+func (s *ExecutionState) Snapshot() int {
+	id := s.nextRevisionId
+	s.nextRevisionId++
+	s.validRevisions = append(s.validRevisions, revision{id, s.journal.length()})
+	return id
+}
+
+// RevertToSnapshot reverts all state changes made since the given revision.
+func (s *ExecutionState) RevertToSnapshot(revid int) {
+	// Find the snapshot in the stack of valid snapshots.
+	idx := sort.Search(len(s.validRevisions), func(i int) bool {
+		return s.validRevisions[i].id >= revid
+	})
+	if idx == len(s.validRevisions) || s.validRevisions[idx].id != revid {
+		panic(fmt.Errorf("revision id %v cannot be reverted", revid))
+	}
+	snapshot := s.validRevisions[idx].journalIndex
+
+	// Replay the journal to undo changes and remove invalidated snapshots
+	s.journal.revert(s, snapshot)
+	s.validRevisions = s.validRevisions[:idx]
+}
+
 func (es *ExecutionState) GetRefund() uint64 {
 	panic("unimplemented")
 }
@@ -244,44 +299,97 @@ func (es *ExecutionState) SubRefund(uint64) {
 	panic("unimplemented")
 }
 
-func (as *AccountState) GetState(key common.Hash) (uint256.Int, error) {
+func (as *AccountState) GetState(key common.Hash) common.Hash {
 	val, ok := as.State[key]
 	if ok {
-		return val, nil
+		return val
 	}
 
-	rawVal, err := as.StorageRoot.Get(key[:])
+	newVal := as.GetCommittedState(key)
+	as.State[key] = newVal
+
+	return newVal
+}
+
+func (s *AccountState) SetBalance(amount uint256.Int) {
+	s.db.journal.append(balanceChange{
+		account: &s.address,
+		prev:    new(uint256.Int).Set(&s.Balance),
+	})
+	s.setBalance(&amount)
+}
+
+func (s *AccountState) setBalance(amount *uint256.Int) {
+	s.Balance = *amount
+}
+
+func (as *AccountState) SetSeqno(seqno uint64) {
+	as.db.journal.append(seqnoChange{
+		account: &as.address,
+		prev:    as.Seqno,
+	})
+	as.setSeqno(seqno)
+}
+
+func (as *AccountState) setSeqno(seqno uint64) {
+	as.Seqno = seqno
+}
+
+func (s *AccountState) SetCode(codeHash common.Hash, code []byte) {
+	prevcode := s.Code
+	s.db.journal.append(codeChange{
+		account:  &s.address,
+		prevhash: s.CodeHash[:],
+		prevcode: prevcode,
+	})
+	s.setCode(codeHash, code)
+}
+
+func (s *AccountState) setCode(codeHash common.Hash, code []byte) {
+	s.Code = code
+	s.CodeHash = common.Hash(codeHash[:])
+}
+
+func (s *AccountState) SetState(key common.Hash, value common.Hash) {
+	// If the new value is the same as old, don't set. Otherwise, track only the
+	// dirty changes, supporting reverting all of it back to no change.
+	prev := s.GetState(key)
+	if prev == value {
+		return
+	}
+	// New value is different, update and journal the change
+	s.db.journal.append(storageChange{
+		account:   &s.address,
+		key:       key,
+		prevvalue: prev,
+	})
+	s.setState(key, value)
+}
+
+func (s *AccountState) setState(key common.Hash, value common.Hash) {
+	s.State[key] = value
+}
+
+// GetCommittedState retrieves a value from the committed account storage trie.
+func (s *AccountState) GetCommittedState(key common.Hash) common.Hash {
+	rawVal, err := s.StorageRoot.Get(key[:])
 	if errors.Is(err, db.ErrKeyNotFound) {
-		return uint256.Int{}, nil
+		return common.EmptyHash
 	}
 	if err != nil {
-		return uint256.Int{}, err
+		panic(fmt.Sprintf("unexpected error fetching storage: %v", err))
 	}
 
 	var newVal uint256.Int
 	if err := newVal.UnmarshalSSZ(rawVal); err != nil {
-		return uint256.Int{}, err
+		panic("failed to unmarshal storage cell")
 	}
-	as.State[key] = newVal
-
-	return newVal, nil
-}
-
-func (as *AccountState) SetBalance(balance uint256.Int) {
-	as.Balance = balance
-}
-
-func (as *AccountState) SetSeqno(seqno uint64) {
-	as.Seqno = seqno
-}
-
-func (as *AccountState) SetState(key common.Hash, val uint256.Int) {
-	as.State[key] = val
+	return newVal.Bytes32()
 }
 
 func (as *AccountState) Commit() ([]byte, error) {
 	for k, v := range as.State {
-		vv, err := v.MarshalSSZ()
+		vv, err := v.Uint256().MarshalSSZ()
 		if err != nil {
 			return nil, err
 		}
@@ -315,11 +423,7 @@ func (es *ExecutionState) GetState(addr common.Address, key common.Hash) common.
 		return common.EmptyHash
 	}
 
-	value, err := acc.GetState(key)
-	if err != nil {
-		panic(err)
-	}
-	return value.Bytes32()
+	return acc.GetState(key)
 }
 
 func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val common.Hash) {
@@ -328,7 +432,7 @@ func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val com
 		panic(fmt.Sprintf("failed to find contract %v", addr))
 	}
 
-	acc.SetState(key, *val.Uint256())
+	acc.SetState(key, val)
 }
 
 func (es *ExecutionState) GetBalance(addr common.Address) *uint256.Int {
@@ -352,7 +456,7 @@ func (es *ExecutionState) getOrNewAccount(addr common.Address) *AccountState {
 	if acc != nil {
 		return acc
 	}
-	err := es.CreateContract(addr, nil)
+	err := es.CreateAccount(addr, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -377,26 +481,44 @@ func (es *ExecutionState) SetShardHash(shardId uint64, hash common.Hash) {
 	es.ChildChainBlocks[shardId] = hash
 }
 
-func (es *ExecutionState) CreateContract(addr common.Address, code types.Code) error {
+func (es *ExecutionState) CreateAccount(addr common.Address, code types.Code) error {
 	acc := es.GetAccount(addr)
 
 	if acc != nil {
 		return errors.New("contract already exists")
 	}
 
+	es.journal.append(createObjectChange{account: &addr})
+
 	// TODO: store storage of each contract in separate table
 	root := mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.StorageTrieTable)
 
 	es.Accounts[addr] = &AccountState{
+		db:      es,
+		address: addr,
+
 		Tx:          es.tx,
 		StorageRoot: root,
 		CodeHash:    code.Hash(),
 		Code:        code,
 		ShardId:     es.ShardId,
-		State:       map[common.Hash]uint256.Int{},
+		State:       map[common.Hash]common.Hash{},
 	}
 
 	return nil
+}
+
+// CreateContract is used whenever a contract is created. This may be preceded
+// by CreateAccount, but that is not required if it already existed in the
+// state due to funds sent beforehand.
+// This operation sets the 'newContract'-flag, which is required in order to
+// correctly handle EIP-6780 'delete-in-same-transaction' logic.
+func (s *ExecutionState) CreateContract(addr common.Address) {
+	obj := s.GetAccount(addr)
+	if !obj.newContract {
+		obj.newContract = true
+		s.journal.append(createContractChange{account: addr})
+	}
 }
 
 func (es *ExecutionState) ContractExists(addr common.Address) bool {
@@ -427,7 +549,7 @@ func (es *ExecutionState) AddMessage(message *types.Message) {
 		r.MsgIndex = message.Index
 
 		// TODO: gasUsed
-		if err := es.CreateContract(addr, message.Data); err != nil {
+		if err := es.CreateAccount(addr, message.Data); err != nil {
 			logger.Fatal().Err(err).Msgf("Failed to create contract")
 		}
 

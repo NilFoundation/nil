@@ -94,7 +94,7 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 			return common.EmptyHash, err
 		}
 
-		if err = es.CreateContract(addr, code); err != nil {
+		if err = es.CreateAccount(addr, code); err != nil {
 			return common.EmptyHash, err
 		}
 	} else {
