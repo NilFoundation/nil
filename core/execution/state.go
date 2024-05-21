@@ -185,9 +185,38 @@ func (es *ExecutionState) setAccountObject(acc *AccountState) {
 func (es *ExecutionState) AddAddressToAccessList(addr common.Address) {
 }
 
-func (es *ExecutionState) AddBalance(addr common.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) {
-	acc := es.getOrNewAccount(addr)
-	acc.Balance.Add(&acc.Balance, amount)
+// AddBalance adds amount to the account associated with addr.
+func (s *ExecutionState) AddBalance(addr common.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) {
+	stateObject := s.getOrNewAccount(addr)
+	if stateObject != nil {
+		stateObject.AddBalance(amount, reason)
+	}
+}
+
+// SubBalance subtracts amount from the account associated with addr.
+func (s *ExecutionState) SubBalance(addr common.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) {
+	stateObject := s.getOrNewAccount(addr)
+	if stateObject != nil {
+		stateObject.SubBalance(amount, reason)
+	}
+}
+
+// AddBalance adds amount to s's balance.
+// It is used to add funds to the destination account of a transfer.
+func (s *AccountState) AddBalance(amount *uint256.Int, reason tracing.BalanceChangeReason) {
+	if amount.IsZero() {
+		return
+	}
+	s.SetBalance(*new(uint256.Int).Add(&s.Balance, amount))
+}
+
+// SubBalance removes amount from s's balance.
+// It is used to remove funds from the origin account of a transfer.
+func (s *AccountState) SubBalance(amount *uint256.Int, reason tracing.BalanceChangeReason) {
+	if amount.IsZero() {
+		return
+	}
+	s.SetBalance(*new(uint256.Int).Sub(&s.Balance, amount))
 }
 
 func (es *ExecutionState) AddLog(log *types.Log) {
@@ -356,12 +385,14 @@ func (es *ExecutionState) SlotInAccessList(addr common.Address, slot common.Hash
 	return true, true // FIXME
 }
 
-func (es *ExecutionState) SubBalance(common.Address, *uint256.Int, tracing.BalanceChangeReason) {
-	panic("unimplemented")
-}
-
-func (es *ExecutionState) SubRefund(uint64) {
-	panic("unimplemented")
+// SubRefund removes gas from the refund counter.
+// This method will panic if the refund counter goes below zero
+func (s *ExecutionState) SubRefund(gas uint64) {
+	s.journal.append(refundChange{prev: s.refund})
+	if gas > s.refund {
+		panic(fmt.Sprintf("Refund counter below zero (gas: %d > refund: %d)", gas, s.refund))
+	}
+	s.refund -= gas
 }
 
 func (as *AccountState) GetState(key common.Hash) common.Hash {
