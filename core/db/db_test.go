@@ -132,10 +132,10 @@ func ValidateBlock(t *suite.Suite, d DB) {
 		SmartContractsRoot: common.Hash{0x02},
 	}
 
-	err = WriteBlock(tx, &block)
+	err = WriteBlock(tx, types.MasterShardId, &block)
 	t.Require().NoError(err)
 
-	block2 := ReadBlock(tx, block.Hash())
+	block2 := ReadBlock(tx, types.MasterShardId, block.Hash())
 
 	t.Equal(block2.Id, block.Id)
 	t.Equal(block2.PrevBlock, block.PrevBlock)

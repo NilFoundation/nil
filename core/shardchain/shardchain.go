@@ -137,7 +137,7 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 
 	blockId := uint64(0)
 	if es.PrevBlock != common.EmptyHash {
-		blockId = db.ReadBlock(rwTx, es.PrevBlock).Id + 1
+		blockId = db.ReadBlock(rwTx, c.Id, es.PrevBlock).Id + 1
 	}
 
 	// Create receipt for the executed message

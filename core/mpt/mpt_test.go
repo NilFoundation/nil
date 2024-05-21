@@ -7,6 +7,7 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +23,7 @@ func CreateMerklePatriciaTrie() *MerklePatriciaTrie {
 	if err != nil {
 		panic("Failed to create BadgerDb")
 	}
-	trie := NewMerklePatriciaTrie(d, "mpt")
+	trie := NewMerklePatriciaTrie(d, types.MasterShardId, "mpt")
 	return trie
 }
 
@@ -178,7 +179,7 @@ func TestTrieFromOldRoot(t *testing.T) {
 	require.NoError(t, trie.Set([]byte("do"), []byte("not_a_verb")))
 
 	// Old
-	trie2 := NewMerklePatriciaTrieWithRoot(trie.db, "mpt", rootHash)
+	trie2 := NewMerklePatriciaTrieWithRoot(trie.db, types.MasterShardId, "mpt", rootHash)
 	require.Equal(t, getValue(trie2.Get([]byte("do"))), []byte("verb"))
 	require.Equal(t, getValue(trie2.Get([]byte("dog"))), []byte("puppy"))
 

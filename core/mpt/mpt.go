@@ -5,6 +5,7 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
@@ -21,9 +22,10 @@ const (
 const maxRawKeyLen = 32
 
 type MerklePatriciaTrie struct {
-	db    db.DBAccessor
-	table string
-	root  Reference
+	db      db.DBAccessor
+	shardId types.ShardId
+	table   db.ShardedTableName
+	root    Reference
 }
 
 func (m *MerklePatriciaTrie) RootHash() common.Hash {
@@ -97,12 +99,12 @@ func (m *MerklePatriciaTrie) Delete(key []byte) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 // tree name should be unique across all trees in the DB
-func NewMerklePatriciaTrie(db db.DBAccessor, name string) *MerklePatriciaTrie {
-	return &MerklePatriciaTrie{db, name, nil}
+func NewMerklePatriciaTrie(db db.DBAccessor, shardId types.ShardId, name db.ShardedTableName) *MerklePatriciaTrie {
+	return &MerklePatriciaTrie{db, shardId, name, nil}
 }
 
-func NewMerklePatriciaTrieWithRoot(db db.DBAccessor, name string, root common.Hash) *MerklePatriciaTrie {
-	return &MerklePatriciaTrie{db, name, root.Bytes()}
+func NewMerklePatriciaTrieWithRoot(db db.DBAccessor, shardid types.ShardId, name db.ShardedTableName, root common.Hash) *MerklePatriciaTrie {
+	return &MerklePatriciaTrie{db, shardid, name, root.Bytes()}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -562,7 +564,7 @@ func (m *MerklePatriciaTrie) storeNode(node Node) (Reference, error) {
 	if len(key) != 32 {
 		key = common.BytesToHash(poseidon.Sum(data)).Bytes()
 	}
-	if err := m.db.Put(m.table, key, data); err != nil {
+	if err := m.db.PutToShard(m.shardId, m.table, key, data); err != nil {
 		return nil, err
 	}
 	return key, nil
@@ -572,7 +574,7 @@ func (m *MerklePatriciaTrie) getNode(ref Reference) (Node, error) {
 	if len(ref) < 32 {
 		return DecodeNode(ref)
 	}
-	data, err := m.db.Get(m.table, ref)
+	data, err := m.db.GetFromShard(m.shardId, m.table, ref)
 	if err != nil {
 		return nil, err
 	}

@@ -31,13 +31,13 @@ func TestGetMessageByHash(t *testing.T) {
 
 	message := types.Message{ShardId: types.MasterShardId, Data: []byte("data")}
 
-	err = db.WriteMessage(tx, 0, &message)
+	err = db.WriteMessage(tx, types.MasterShardId, &message)
 	require.NoError(t, err)
 
 	err = tx.Commit()
 	require.NoError(t, err)
 
-	data, err := api.GetMessageByHash(context.Background(), message.Hash())
+	data, err := api.GetMessageByHash(context.Background(), types.MasterShardId, message.Hash())
 	require.NoError(t, err)
 	assert.Equal(t, message, *data)
 }

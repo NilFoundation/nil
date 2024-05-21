@@ -2,48 +2,35 @@ package db
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/NilFoundation/nil/core/types"
 )
 
+type TableName string
+
+type ShardedTableName string
+
 const (
-	blockTable = "Blocks"
+	blockTable = ShardedTableName("Blocks")
 
-	codeTable = "Code"
+	codeTable = ShardedTableName("Code")
 
-	contractTrieTable    = "ContractTrie"
-	storageTrieTable     = "StorageTrie"
-	shardBlocksTrieTable = "ShardBlocksTrie"
-	messageTrieTable     = "MessageTrie"
-	receiptTrieTable     = "ReceiptTrie"
+	ContractTrieTable    = ShardedTableName("ContractTrie")
+	StorageTrieTable     = ShardedTableName("StorageTrie")
+	shardBlocksTrieTable = ShardedTableName("ShardBlocksTrie")
+	MessageTrieTable     = ShardedTableName("MessageTrie")
+	ReceiptTrieTable     = ShardedTableName("ReceiptTrie")
 
-	contractTable = "Contract"
-	messageTable  = "Message"
+	contractTable = ShardedTableName("Contract")
+	messageTable  = ShardedTableName("Message")
 
-	LastBlockTable = "LastBlock"
+	LastBlockTable = TableName("LastBlock")
 )
 
-func tableName(tableName string, shardId types.ShardId) string {
-	return fmt.Sprintf("%s:%d:", tableName, shardId)
+func shardTableName(tableName ShardedTableName, shardId types.ShardId) TableName {
+	return TableName(fmt.Sprintf("%s:%s", tableName, shardId))
 }
 
-func ContractTrieTableName(shardId types.ShardId) string {
-	return tableName(contractTrieTable, shardId)
-}
-
-func MessageTrieTableName(shardId types.ShardId) string {
-	return tableName(messageTrieTable, shardId)
-}
-
-func ReceiptTrieTableName(shardId types.ShardId) string {
-	return tableName(receiptTrieTable, shardId)
-}
-
-func StorageTrieTableName(shardId types.ShardId) string {
-	return tableName(storageTrieTable, shardId)
-}
-
-func ShardBlocksTrieTableName(blockId uint64) string {
-	return shardBlocksTrieTable + strconv.FormatUint(blockId, 10)
+func ShardBlocksTrieTableName(blockId uint64) ShardedTableName {
+	return ShardedTableName(fmt.Sprintf("%s%d", shardBlocksTrieTable, blockId))
 }

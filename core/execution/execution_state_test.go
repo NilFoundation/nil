@@ -60,13 +60,13 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	suite.Equal(storageVal, common.IntToHash(123456))
 
-	block := db.ReadBlock(tx, blockHash)
+	block := db.ReadBlock(tx, es.ShardId, blockHash)
 	suite.Require().NotNil(block)
 
-	messageTrieTable := db.MessageTrieTableName(0)
-	receiptTrieTable := db.ReceiptTrieTableName(0)
-	messagesRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, messageTrieTable, block.MessagesRoot)
-	receiptsRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, receiptTrieTable, block.ReceiptsRoot)
+	messageTrieTable := db.MessageTrieTable
+	receiptTrieTable := db.ReceiptTrieTable
+	messagesRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, messageTrieTable, block.MessagesRoot)
+	receiptsRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, receiptTrieTable, block.ReceiptsRoot)
 	var messageIndex uint64 = 0
 
 	for {
