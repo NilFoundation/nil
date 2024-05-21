@@ -151,3 +151,67 @@ func TestBalance(t *testing.T) {
 
 	require.Equal(t, *state.GetBalance(account), *uint256.NewInt(100500))
 }
+
+func TestSnapshot(t *testing.T) {
+	t.Parallel()
+	stateobjaddr := common.BytesToAddress([]byte("aa"))
+	var storageaddr common.Hash
+	data1 := common.BytesToHash([]byte{42})
+	data2 := common.BytesToHash([]byte{43})
+	s := newState(t)
+
+	// snapshot the genesis state
+	genesis := s.Snapshot()
+
+	// set initial state object value
+	s.SetState(stateobjaddr, storageaddr, data1)
+	snapshot := s.Snapshot()
+
+	// set a new state object value, revert it and ensure correct content
+	s.SetState(stateobjaddr, storageaddr, data2)
+	s.RevertToSnapshot(snapshot)
+
+	if v := s.GetState(stateobjaddr, storageaddr); v != data1 {
+		t.Errorf("wrong storage value %v, want %v", v, data1)
+	}
+	if v := s.GetCommittedState(stateobjaddr, storageaddr); v != (common.Hash{}) {
+		t.Errorf("wrong committed storage value %v, want %v", v, common.Hash{})
+	}
+
+	// revert up to the genesis state and ensure correct content
+	s.RevertToSnapshot(genesis)
+	if v := s.GetState(stateobjaddr, storageaddr); v != (common.Hash{}) {
+		t.Errorf("wrong storage value %v, want %v", v, common.Hash{})
+	}
+	if v := s.GetCommittedState(stateobjaddr, storageaddr); v != (common.Hash{}) {
+		t.Errorf("wrong committed storage value %v, want %v", v, common.Hash{})
+	}
+}
+
+func TestSnapshotEmpty(t *testing.T) {
+	t.Parallel()
+	s := newState(t)
+	s.RevertToSnapshot(s.Snapshot())
+}
+
+func TestCreateObjectRevert(t *testing.T) {
+	t.Parallel()
+	state := newState(t)
+	addr := common.BytesToAddress([]byte("so0"))
+	snap := state.Snapshot()
+
+	err := state.CreateAccount(addr, []byte{'c', 'o', 'd', 'e'})
+	require.NoError(t, err)
+
+	so0 := state.GetAccount(addr)
+	so0.SetBalance(*uint256.NewInt(42))
+	so0.SetSeqno(43)
+	code := types.Code([]byte{'c', 'a', 'f', 'e'})
+	so0.SetCode(code.Hash(), code)
+	state.setAccountObject(so0)
+
+	state.RevertToSnapshot(snap)
+	if state.Exist(addr) {
+		t.Error("Unexpected account after revert")
+	}
+}

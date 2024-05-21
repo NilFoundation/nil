@@ -178,6 +178,10 @@ func (es *ExecutionState) GetAccount(addr common.Address) *AccountState {
 	return acc
 }
 
+func (es *ExecutionState) setAccountObject(acc *AccountState) {
+	es.Accounts[acc.address] = acc
+}
+
 func (es *ExecutionState) AddAddressToAccessList(addr common.Address) {
 }
 
@@ -488,11 +492,7 @@ func (es *ExecutionState) GetState(addr common.Address, key common.Hash) common.
 }
 
 func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val common.Hash) {
-	acc := es.GetAccount(addr)
-	if acc == nil {
-		panic(fmt.Sprintf("failed to find contract %v", addr))
-	}
-
+	acc := es.getOrNewAccount(addr)
 	acc.SetState(key, val)
 }
 
