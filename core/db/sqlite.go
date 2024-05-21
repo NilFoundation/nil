@@ -23,8 +23,9 @@ type SqliteTx struct {
 
 // interfaces
 var (
-	_ Tx = new(SqliteTx)
-	_ DB = new(SqliteDB)
+	_ RwTx = new(SqliteTx)
+	_ RoTx = new(SqliteTx)
+	_ DB   = new(SqliteDB)
 )
 
 func (db *SqliteDB) Close() {
@@ -35,7 +36,7 @@ func (db *SqliteDB) Close() {
 	db.Close()
 }
 
-func (db *SqliteDB) CreateRwTx(ctx context.Context) (Tx, error) {
+func (db *SqliteDB) CreateRwTx(ctx context.Context) (RwTx, error) {
 	tx, err := db.db.Begin()
 	if err != nil {
 		return nil, err
@@ -44,7 +45,7 @@ func (db *SqliteDB) CreateRwTx(ctx context.Context) (Tx, error) {
 	return &SqliteTx{tx: tx, ctx: ctx}, nil
 }
 
-func (db *SqliteDB) CreateRoTx(ctx context.Context) (Tx, error) {
+func (db *SqliteDB) CreateRoTx(ctx context.Context) (RoTx, error) {
 	tx, err := db.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, err
@@ -53,7 +54,7 @@ func (db *SqliteDB) CreateRoTx(ctx context.Context) (Tx, error) {
 	return &SqliteTx{tx: tx, ctx: ctx}, nil
 }
 
-func (db *SqliteDB) View(fn func(txn Tx) error) error {
+func (db *SqliteDB) View(fn func(txn RoTx) error) error {
 	if db.closed.Load() {
 		return sql.ErrConnDone
 	}
@@ -67,7 +68,7 @@ func (db *SqliteDB) View(fn func(txn Tx) error) error {
 	return fn(tx)
 }
 
-func (db *SqliteDB) Update(fn func(txn Tx) error) error {
+func (db *SqliteDB) Update(fn func(txn RwTx) error) error {
 	if db.closed.Load() {
 		return sql.ErrConnDone
 	}
@@ -88,7 +89,7 @@ func (db *SqliteDB) Update(fn func(txn Tx) error) error {
 func (db *SqliteDB) Exists(tableName TableName, key []byte) (bool, error) {
 	var exists bool
 	err := db.View(
-		func(tx Tx) error {
+		func(tx RoTx) error {
 			if val, err := tx.Exists(tableName, key); err != nil {
 				return err
 			} else {
@@ -102,7 +103,7 @@ func (db *SqliteDB) Exists(tableName TableName, key []byte) (bool, error) {
 func (db *SqliteDB) Get(tableName TableName, key []byte) (*[]byte, error) {
 	var value *[]byte
 	return value, db.View(
-		func(tx Tx) error {
+		func(tx RoTx) error {
 			item, err := tx.Get(tableName, key)
 			if err != nil {
 				return err
@@ -114,14 +115,14 @@ func (db *SqliteDB) Get(tableName TableName, key []byte) (*[]byte, error) {
 
 func (db *SqliteDB) Put(tableName TableName, key, value []byte) error {
 	return db.Update(
-		func(txn Tx) error {
+		func(txn RwTx) error {
 			return txn.Put(tableName, key, value)
 		})
 }
 
 func (db *SqliteDB) Delete(tableName TableName, key []byte) error {
 	return db.Update(
-		func(txn Tx) error {
+		func(txn RwTx) error {
 			return txn.Delete(tableName, key)
 		})
 }
