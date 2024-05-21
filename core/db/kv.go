@@ -40,7 +40,7 @@ type RoTx interface {
 }
 
 type RwTx interface {
-	RoTx
+	Tx
 }
 
 type DB interface {
