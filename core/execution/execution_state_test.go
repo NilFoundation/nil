@@ -35,7 +35,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	addr := common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
 
-	err = es.CreateAccount(addr, []byte("asdf"))
+	err = es.CreateAccount(addr)
 	suite.Require().NoError(err)
 
 	storageKey := common.BytesToHash([]byte("storage-key"))
@@ -130,7 +130,7 @@ func TestStorage(t *testing.T) {
 
 	require.False(t, state.ContractExists(account))
 
-	err := state.CreateAccount(account, nil)
+	err := state.CreateAccount(account)
 	require.NoError(t, err)
 
 	require.True(t, state.ContractExists(account))
@@ -200,7 +200,7 @@ func TestCreateObjectRevert(t *testing.T) {
 	addr := common.BytesToAddress([]byte("so0"))
 	snap := state.Snapshot()
 
-	err := state.CreateAccount(addr, []byte{'c', 'o', 'd', 'e'})
+	err := state.CreateAccount(addr)
 	require.NoError(t, err)
 
 	so0 := state.GetAccount(addr)

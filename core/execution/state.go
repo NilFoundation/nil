@@ -349,7 +349,7 @@ func (s *ExecutionState) HasSelfDestructed(addr common.Address) bool {
 
 func (es *ExecutionState) SetCode(addr common.Address, code []byte) {
 	acc := es.GetAccount(addr)
-	acc.Code = code
+	acc.SetCode(types.Code(code).Hash(), code)
 }
 
 func (es *ExecutionState) SlotInAccessList(addr common.Address, slot common.Hash) (addressOk bool, slotOk bool) {
@@ -517,7 +517,7 @@ func (es *ExecutionState) getOrNewAccount(addr common.Address) *AccountState {
 	if acc != nil {
 		return acc
 	}
-	err := es.CreateAccount(addr, nil)
+	err := es.CreateAccount(addr)
 	if err != nil {
 		panic(err)
 	}
@@ -542,11 +542,11 @@ func (es *ExecutionState) SetShardHash(shardId uint64, hash common.Hash) {
 	es.ChildChainBlocks[shardId] = hash
 }
 
-func (es *ExecutionState) CreateAccount(addr common.Address, code types.Code) error {
+func (es *ExecutionState) CreateAccount(addr common.Address) error {
 	acc := es.GetAccount(addr)
 
 	if acc != nil {
-		return errors.New("contract already exists")
+		return errors.New("account already exists")
 	}
 
 	es.journal.append(createObjectChange{account: &addr})
@@ -560,8 +560,8 @@ func (es *ExecutionState) CreateAccount(addr common.Address, code types.Code) er
 
 		Tx:          es.tx,
 		StorageRoot: root,
-		CodeHash:    code.Hash(),
-		Code:        code,
+		CodeHash:    common.EmptyHash,
+		Code:        nil,
 		ShardId:     es.ShardId,
 		State:       map[common.Hash]common.Hash{},
 	}
@@ -610,9 +610,10 @@ func (es *ExecutionState) AddMessage(message *types.Message) {
 		r.MsgIndex = message.Index
 
 		// TODO: gasUsed
-		if err := es.CreateAccount(addr, message.Data); err != nil {
-			logger.Fatal().Err(err).Msgf("Failed to create contract")
+		if err := es.CreateAccount(addr); err != nil {
+			logger.Fatal().Err(err).Msgf("Failed to create account")
 		}
+		es.SetCode(addr, message.Data)
 
 		es.Receipts = append(es.Receipts, &r)
 	}

@@ -94,9 +94,10 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 			return common.EmptyHash, err
 		}
 
-		if err = es.CreateAccount(addr, code); err != nil {
+		if err = es.CreateAccount(addr); err != nil {
 			return common.EmptyHash, err
 		}
+		es.SetCode(addr, code)
 	} else {
 		contract.Code = accountState.Code
 		c.logger.Debug().Msgf("Update storage of contract %s", addr)
