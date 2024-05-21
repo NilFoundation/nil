@@ -16,16 +16,16 @@ type SqliteDB struct {
 	db     *sql.DB
 }
 
-// interfaces
-var _ DB = new(SqliteDB)
-
 type SqliteTx struct {
 	tx  *sql.Tx
 	ctx context.Context
 }
 
 // interfaces
-var _ Tx = new(SqliteTx)
+var (
+	_ Tx = new(SqliteTx)
+	_ DB = new(SqliteDB)
+)
 
 func (db *SqliteDB) Close() {
 	if ok := db.closed.CompareAndSwap(false, true); !ok {
@@ -126,6 +126,10 @@ func (db *SqliteDB) Delete(tableName TableName, key []byte) error {
 		})
 }
 
+func (k *SqliteDB) Range(table TableName, from []byte, to []byte) (Iter, error) {
+	return nil, ErrNotImplemented
+}
+
 func (db *SqliteDB) ExistsInShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (bool, error) {
 	return db.Exists(shardTableName(tableName, shardId), key)
 }
@@ -140,6 +144,10 @@ func (db *SqliteDB) PutToShard(shardId types.ShardId, tableName ShardedTableName
 
 func (db *SqliteDB) DeleteFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) error {
 	return db.Delete(shardTableName(tableName, shardId), key)
+}
+
+func (db *SqliteDB) RangeByShard(shardId types.ShardId, tableName ShardedTableName, from []byte, to []byte) (Iter, error) {
+	return db.Range(shardTableName(tableName, shardId), from, to)
 }
 
 func (tx *SqliteTx) Commit() error {
@@ -222,6 +230,10 @@ func (tx *SqliteTx) Delete(tableName TableName, key []byte) error {
 	return err
 }
 
+func (tx *SqliteTx) Range(table TableName, from []byte, to []byte) (Iter, error) {
+	return nil, ErrNotImplemented
+}
+
 func (tx *SqliteTx) ExistsInShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (bool, error) {
 	return tx.Exists(shardTableName(tableName, shardId), key)
 }
@@ -236,6 +248,10 @@ func (tx *SqliteTx) PutToShard(shardId types.ShardId, tableName ShardedTableName
 
 func (tx *SqliteTx) DeleteFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) error {
 	return tx.Delete(shardTableName(tableName, shardId), key)
+}
+
+func (tx *SqliteTx) RangeByShard(shardId types.ShardId, tableName ShardedTableName, from []byte, to []byte) (Iter, error) {
+	return tx.Range(shardTableName(tableName, shardId), from, to)
 }
 
 func NewSqlite(path string) (*SqliteDB, error) {

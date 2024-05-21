@@ -11,11 +11,19 @@ type DBAccessor interface {
 	Get(tableName TableName, key []byte) (*[]byte, error)
 	Put(tableName TableName, key, value []byte) error
 	Delete(tableName TableName, key []byte) error
+	Range(tableName TableName, from []byte, to []byte) (Iter, error)
 
 	ExistsInShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (bool, error)
 	GetFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (*[]byte, error)
 	PutToShard(shardId types.ShardId, tableName ShardedTableName, key, value []byte) error
 	DeleteFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) error
+	RangeByShard(shardId types.ShardId, tableName ShardedTableName, from []byte, to []byte) (Iter, error)
+}
+
+type Iter interface {
+	HasNext() bool
+	Next() ([]byte, []byte, error)
+	Close()
 }
 
 type Tx interface {

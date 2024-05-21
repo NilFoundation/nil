@@ -1,6 +1,7 @@
 package db
 
 import (
+	"bytes"
 	"context"
 	"errors"
 
@@ -12,15 +13,22 @@ type BadgerDB struct {
 	db *badger.DB
 }
 
-// interfaces
-var _ DB = new(BadgerDB)
-
 type BadgerTx struct {
 	tx *badger.Txn
 }
 
+type BadgerIter struct {
+	iter        *badger.Iterator
+	tablePrefix []byte
+	toPrefix    []byte
+}
+
 // interfaces
-var _ Tx = new(BadgerTx)
+var (
+	_ Tx   = new(BadgerTx)
+	_ DB   = new(BadgerDB)
+	_ Iter = new(BadgerIter)
+)
 
 func makeKey(table TableName, key []byte) []byte {
 	return append([]byte(table+":"), key...)
@@ -101,6 +109,10 @@ func (k *BadgerDB) Delete(tableName TableName, key []byte) error {
 		})
 }
 
+func (k *BadgerDB) Range(table TableName, from []byte, to []byte) (Iter, error) {
+	return nil, ErrNotImplemented
+}
+
 func (k *BadgerDB) CreateRoTx(ctx context.Context) (Tx, error) {
 	txn := k.db.NewTransaction(false)
 	return &BadgerTx{tx: txn}, nil
@@ -125,6 +137,10 @@ func (db *BadgerDB) PutToShard(shardId types.ShardId, tableName ShardedTableName
 
 func (db *BadgerDB) DeleteFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) error {
 	return db.Delete(shardTableName(tableName, shardId), key)
+}
+
+func (db *BadgerDB) RangeByShard(shardId types.ShardId, tableName ShardedTableName, from []byte, to []byte) (Iter, error) {
+	return db.Range(shardTableName(tableName, shardId), from, to)
 }
 
 func (tx *BadgerTx) Commit() error {
@@ -168,6 +184,23 @@ func (tx *BadgerTx) Delete(tableName TableName, key []byte) error {
 	return tx.tx.Delete(makeKey(tableName, key))
 }
 
+func (tx *BadgerTx) Range(tableName TableName, from []byte, to []byte) (Iter, error) {
+	var iter BadgerIter
+	iter.iter = tx.tx.NewIterator(badger.DefaultIteratorOptions)
+	if iter.iter == nil {
+		return nil, ErrIteratorCreate
+	}
+
+	prefix := makeKey(tableName, from)
+	iter.iter.Seek(prefix)
+	iter.tablePrefix = []byte(tableName + ":")
+	if to != nil {
+		iter.toPrefix = makeKey(tableName, to)
+	}
+
+	return &iter, nil
+}
+
 func (tx *BadgerTx) ExistsInShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (bool, error) {
 	return tx.Exists(shardTableName(tableName, shardId), key)
 }
@@ -182,4 +215,38 @@ func (tx *BadgerTx) PutToShard(shardId types.ShardId, tableName ShardedTableName
 
 func (tx *BadgerTx) DeleteFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) error {
 	return tx.Delete(shardTableName(tableName, shardId), key)
+}
+
+func (tx *BadgerTx) RangeByShard(shardId types.ShardId, tableName ShardedTableName, from []byte, to []byte) (Iter, error) {
+	return tx.Range(shardTableName(tableName, shardId), from, to)
+}
+
+func (it *BadgerIter) HasNext() bool {
+	if !it.iter.ValidForPrefix(it.tablePrefix) {
+		return false
+	}
+
+	if it.toPrefix == nil {
+		return true
+	}
+
+	if k := it.iter.Item().Key(); bytes.Compare(k, it.toPrefix) > 0 {
+		return false
+	}
+	return true
+}
+
+func (it *BadgerIter) Next() ([]byte, []byte, error) {
+	item := it.iter.Item()
+	it.iter.Next()
+	key := item.KeyCopy(nil)
+	value, err := item.ValueCopy(nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return key[len(it.tablePrefix):], value, nil
+}
+
+func (it *BadgerIter) Close() {
+	it.iter.Close()
 }
