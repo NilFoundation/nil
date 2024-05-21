@@ -285,10 +285,6 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 		return common.EmptyHash, err
 	}
 
-	if err = rwTx.Put(db.LastBlockTable, c.Id.Bytes(), blockHash[:]); err != nil {
-		return common.EmptyHash, err
-	}
-
 	if err = rwTx.Commit(); err != nil {
 		return common.EmptyHash, err
 	}

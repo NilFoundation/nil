@@ -53,9 +53,6 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	suite.Require().NoError(err)
 	suite.blockHash = blockHash
 
-	err = tx.Put(db.LastBlockTable, shardId.Bytes(), blockHash.Bytes())
-	suite.Require().NoError(err)
-
 	err = tx.Commit()
 	suite.Require().NoError(err)
 

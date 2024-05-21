@@ -41,9 +41,6 @@ func (suite *SuiteEthBlock) SetupSuite() {
 		blockHash, err := es.Commit(i)
 		suite.Require().NoError(err)
 		suite.lastBlockHash = blockHash
-
-		err = tx.Put(db.LastBlockTable, shardId.Bytes(), blockHash.Bytes())
-		suite.Require().NoError(err)
 	}
 
 	err = tx.Commit()
