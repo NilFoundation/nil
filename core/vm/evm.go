@@ -1,10 +1,12 @@
 package vm
 
 import (
+	"errors"
 	"math/big"
 	"sync/atomic"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/params"
 	"github.com/holiman/uint256"
 )
@@ -18,6 +20,12 @@ type (
 	// and is used by the BLOCKHASH EVM op code.
 	GetHashFunc func(uint64) common.Hash
 )
+
+func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
+	precompiles := PrecompiledContractsPrague
+	p, ok := precompiles[addr]
+	return p, ok
+}
 
 // BlockContext provides the EVM with auxiliary information. Once provided
 // it shouldn't be modified.
@@ -75,6 +83,9 @@ type EVM struct {
 	// evm.
 	Config Config
 
+	// global (to this context) ethereum virtual machine
+	// used throughout the execution of the tx.
+	interpreter *EVMInterpreter
 	// abort is used to abort the EVM calling operations
 	abort atomic.Bool
 	// callGasTemp holds the gas available for the current call. This is needed because the
@@ -83,12 +94,81 @@ type EVM struct {
 	callGasTemp uint64
 }
 
+// NewEVM returns a new EVM. The returned EVM is not thread safe and should
+// only ever be used *once*.
+func NewEVM(statedb StateDB) *EVM {
+	evm := &EVM{
+		StateDB: statedb,
+	}
+	evm.interpreter = NewEVMInterpreter(evm)
+	return evm
+}
+
+// Interpreter returns the current interpreter
+func (evm *EVM) Interpreter() *EVMInterpreter {
+	return evm.interpreter
+}
+
 // Call executes the contract associated with the addr with the given input as
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
 func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas uint64, value *uint256.Int) (ret []byte, leftOverGas uint64, err error) {
-	panic("CALL not implemented")
+	// Fail if we're trying to execute above the call depth limit
+	if evm.depth > int(params.CallCreateDepth) {
+		return nil, gas, ErrDepth
+	}
+	// Fail if we're trying to transfer more than the available balance
+	if !value.IsZero() && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
+		return nil, gas, ErrInsufficientBalance
+	}
+	snapshot := evm.StateDB.Snapshot()
+	p, isPrecompile := evm.precompile(addr)
+
+	if !evm.StateDB.Exist(addr) {
+		if !isPrecompile && value.IsZero() {
+			// Calling a non-existing account, don't do anything.
+			return nil, gas, nil
+		}
+		evm.StateDB.CreateAccount(addr)
+	}
+	evm.Context.Transfer(evm.StateDB, caller.Address(), addr, value)
+
+	if isPrecompile {
+		ret, gas, err = RunPrecompiledContract(p, input, gas, evm.Config.Tracer)
+	} else {
+		// Initialise a new contract and set the code that is to be used by the EVM.
+		// The contract is a scoped environment for this execution context only.
+		code := evm.StateDB.GetCode(addr)
+		if len(code) == 0 {
+			ret, err = nil, nil // gas is unchanged
+		} else {
+			addrCopy := addr
+			// If the account has no code, we can abort here
+			// The depth-check is already done, and precompiles handled above
+			contract := NewContract(caller, AccountRef(addrCopy), value, gas)
+			contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), code)
+			ret, err = evm.interpreter.Run(contract, input, false)
+			gas = contract.Gas
+		}
+	}
+	// When an error was returned by the EVM or when setting the creation code
+	// above we revert to the snapshot and consume any gas remaining. Additionally,
+	// when we're in homestead this also counts for code storage gas errors.
+	if err != nil {
+		evm.StateDB.RevertToSnapshot(snapshot)
+		if !errors.Is(err, ErrExecutionReverted) {
+			if evm.Config.Tracer != nil && evm.Config.Tracer.OnGasChange != nil {
+				evm.Config.Tracer.OnGasChange(gas, 0, tracing.GasChangeCallFailedExecution)
+			}
+
+			gas = 0
+		}
+		// TODO: consider clearing up unused snapshots:
+		// } else {
+		//	evm.StateDB.DiscardSnapshot(snapshot)
+	}
+	return ret, gas, err
 }
 
 // CallCode executes the contract associated with the addr with the given input

@@ -543,10 +543,7 @@ func (es *ExecutionState) getOrNewAccount(addr common.Address) *AccountState {
 	if acc != nil {
 		return acc
 	}
-	err := es.CreateAccount(addr)
-	if err != nil {
-		panic(err)
-	}
+	es.CreateAccount(addr)
 	return es.GetAccount(addr)
 }
 
@@ -568,11 +565,11 @@ func (es *ExecutionState) SetShardHash(shardId uint64, hash common.Hash) {
 	es.ChildChainBlocks[shardId] = hash
 }
 
-func (es *ExecutionState) CreateAccount(addr common.Address) error {
+func (es *ExecutionState) CreateAccount(addr common.Address) {
 	acc := es.GetAccount(addr)
 
 	if acc != nil {
-		return errors.New("account already exists")
+		panic("account already exists")
 	}
 
 	es.journal.append(createObjectChange{account: &addr})
@@ -591,8 +588,6 @@ func (es *ExecutionState) CreateAccount(addr common.Address) error {
 		ShardId:     es.ShardId,
 		State:       map[common.Hash]common.Hash{},
 	}
-
-	return nil
 }
 
 // CreateContract is used whenever a contract is created. This may be preceded
@@ -637,9 +632,8 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, code types
 	r.MsgIndex = index
 
 	// TODO: gasUsed
-	if err := es.CreateAccount(addr); err != nil {
-		return err
-	}
+	es.CreateAccount(addr)
+	es.CreateContract(addr)
 	es.SetCode(addr, code)
 
 	es.Receipts = append(es.Receipts, &r)

@@ -10,16 +10,15 @@ import (
 )
 
 type StateDB interface {
-	/*
-		CreateAccount(common.Address)
-		CreateContract(common.Address) */
+	CreateAccount(common.Address)
+	CreateContract(common.Address)
 
 	SubBalance(common.Address, *uint256.Int, tracing.BalanceChangeReason)
 	AddBalance(common.Address, *uint256.Int, tracing.BalanceChangeReason)
 	GetBalance(common.Address) *uint256.Int
 
-	/*	GetNonce(common.Address) uint64
-		SetNonce(common.Address, uint64) */
+	GetSeqno(common.Address) uint64
+	SetSeqno(common.Address, uint64)
 
 	GetCodeHash(common.Address) common.Hash
 	GetCode(common.Address) []byte

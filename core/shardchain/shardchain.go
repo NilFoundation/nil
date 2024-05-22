@@ -215,10 +215,8 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 	gas := uint64(1000000)
 	contract := vm.NewContract((vm.AccountRef)(addr), (vm.AccountRef)(addr), &value, gas)
 
-	evm := vm.EVM{
-		StateDB: es,
-	}
-	interpreter := vm.NewEVMInterpreter(&evm)
+	evm := vm.NewEVM(es)
+	interpreter := evm.Interpreter()
 
 	initialGas := contract.Gas
 
@@ -233,9 +231,8 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 			return common.EmptyHash, err
 		}
 
-		if err = es.CreateAccount(addr); err != nil {
-			return common.EmptyHash, err
-		}
+		es.CreateAccount(addr)
+		es.CreateContract(addr)
 		es.SetCode(addr, code)
 	} else {
 		contract.Code = accountState.Code
