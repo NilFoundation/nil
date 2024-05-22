@@ -156,7 +156,7 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 		es.SetMasterchainHash(lastBlockHash)
 	}
 
-	blockId := uint64(0)
+	blockId := types.BlockNumber(0)
 	if es.PrevBlock != common.EmptyHash {
 		blockId = db.ReadBlock(rwTx, c.Id, es.PrevBlock).Id + 1
 	}
@@ -265,7 +265,7 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 		es.SetMasterchainHash(lastBlockHash)
 	}
 
-	blockId := uint64(0)
+	blockId := types.BlockNumber(0)
 	if es.PrevBlock != common.EmptyHash {
 		blockId = db.ReadBlock(rwTx, c.Id, es.PrevBlock).Id + 1
 	}

@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
-
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
@@ -22,7 +20,7 @@ func (api *APIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId,
 
 	defer tx.Rollback()
 
-	var requestedBlockNumber uint64
+	var requestedBlockNumber types.BlockNumber
 	switch number {
 	case transport.LatestExecutedBlockNumber:
 		fallthrough
@@ -44,10 +42,10 @@ func (api *APIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId,
 	case transport.EarliestBlockNumber:
 		fallthrough
 	default:
-		requestedBlockNumber = uint64(number)
+		requestedBlockNumber = number.BlockNumber()
 	}
 
-	blockHash, err := tx.GetFromShard(shardId, db.BlockHashByNumberIndex, []byte(strconv.FormatUint(requestedBlockNumber, 10)))
+	blockHash, err := tx.GetFromShard(shardId, db.BlockHashByNumberIndex, requestedBlockNumber.Bytes())
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return nil, nil
 	}
@@ -100,7 +98,7 @@ func (api *APIImpl) getLastBlock(tx db.Tx, shardId types.ShardId) (*types.Block,
 
 func toMap(block *types.Block) map[string]any {
 	var number hexutil.Big
-	number.ToInt().SetUint64(block.Id)
+	number.ToInt().SetUint64(block.Id.Uint64())
 	return map[string]any{
 		"number":     number,
 		"hash":       block.Hash(),

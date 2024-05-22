@@ -16,7 +16,7 @@ type Receipt struct {
 	ContractAddress common.Address `json:"contractAddress"`
 
 	BlockHash   common.Hash `json:"blockHash,omitempty"`
-	BlockNumber uint64      `json:"blockNumber,omitempty"`
+	BlockNumber BlockNumber `json:"blockNumber,omitempty"`
 	MsgIndex    uint64      `json:"messageIndex"`
 }
 

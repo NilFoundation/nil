@@ -12,6 +12,7 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/core/types"
 )
 
 // API describes the set of methods offered over the RPC interface
@@ -151,6 +152,13 @@ func (bn BlockNumber) Int64() int64 {
 
 func (bn BlockNumber) Uint64() uint64 {
 	return uint64(bn)
+}
+
+func (bn BlockNumber) BlockNumber() types.BlockNumber {
+	if bn < 0 {
+		panic(fmt.Sprintf("A special value of BlockNumber is used as a real value: %d", bn))
+	}
+	return types.BlockNumber(bn.Uint64())
 }
 
 func (bn BlockNumber) String() string {

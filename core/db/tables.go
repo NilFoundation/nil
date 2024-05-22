@@ -35,6 +35,6 @@ func shardTableName(tableName ShardedTableName, shardId types.ShardId) TableName
 	return TableName(fmt.Sprintf("%s:%s", tableName, shardId))
 }
 
-func ShardBlocksTrieTableName(blockId uint64) ShardedTableName {
+func ShardBlocksTrieTableName(blockId types.BlockNumber) ShardedTableName {
 	return ShardedTableName(fmt.Sprintf("%s%d", shardBlocksTrieTable, blockId))
 }

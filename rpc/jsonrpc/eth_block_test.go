@@ -34,7 +34,7 @@ func (suite *SuiteEthBlock) SetupSuite() {
 	suite.Require().NoError(err)
 
 	suite.lastBlockHash = common.EmptyHash
-	for i := range uint64(2) {
+	for i := range types.BlockNumber(2) {
 		es, err := execution.NewExecutionState(tx, shardId, suite.lastBlockHash)
 		suite.Require().NoError(err)
 

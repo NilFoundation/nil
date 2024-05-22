@@ -39,7 +39,7 @@ func (r *Receipt) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 	dst = append(dst, r.BlockHash[:]...)
 
 	// Field (7) 'BlockNumber'
-	dst = ssz.MarshalUint64(dst, r.BlockNumber)
+	dst = ssz.MarshalUint64(dst, r.BlockNumber.Uint64())
 
 	// Field (8) 'MsgIndex'
 	dst = ssz.MarshalUint64(dst, r.MsgIndex)
@@ -104,7 +104,7 @@ func (r *Receipt) UnmarshalSSZ(buf []byte) error {
 	copy(r.BlockHash[:], buf[317:349])
 
 	// Field (7) 'BlockNumber'
-	r.BlockNumber = ssz.UnmarshallUint64(buf[349:357])
+	r.BlockNumber = BlockNumber(ssz.UnmarshallUint64(buf[349:357]))
 
 	// Field (8) 'MsgIndex'
 	r.MsgIndex = ssz.UnmarshallUint64(buf[357:365])
@@ -190,7 +190,7 @@ func (r *Receipt) HashTreeRootWith(hh ssz.HashWalker) (err error) {
 	hh.PutBytes(r.BlockHash[:])
 
 	// Field (7) 'BlockNumber'
-	hh.PutUint64(r.BlockNumber)
+	hh.PutUint64(r.BlockNumber.Uint64())
 
 	// Field (8) 'MsgIndex'
 	hh.PutUint64(r.MsgIndex)

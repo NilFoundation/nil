@@ -2,7 +2,6 @@ package exporter
 
 import (
 	"context"
-	"strconv"
 	"testing"
 	"time"
 
@@ -27,7 +26,7 @@ func TestFetchBlock(t *testing.T) {
 	database, err := db.NewBadgerDb(t.TempDir())
 	require.NoError(t, err, "Failed to create database")
 
-	var id uint64 = 0
+	var id types.BlockNumber = 0
 
 	block := types.Block{
 		Id:                 id,
@@ -37,7 +36,7 @@ func TestFetchBlock(t *testing.T) {
 	}
 	blockHash := block.Hash()
 
-	err = database.Put(db.LastBlockTable, []byte(strconv.FormatUint(id, 10)), blockHash.Bytes())
+	err = database.Put(db.LastBlockTable, id.Bytes(), blockHash.Bytes())
 	require.NoError(t, err)
 
 	tx, err := database.CreateRwTx(ctx)

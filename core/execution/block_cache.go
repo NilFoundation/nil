@@ -13,7 +13,7 @@ func getHashFn(es *ExecutionState, ref *types.Block) func(n uint64) common.Hash 
 	var cache []common.Hash
 	lastBlockId := uint64(0)
 	if ref != nil {
-		lastBlockId = ref.Id
+		lastBlockId = ref.Id.Uint64()
 	}
 
 	return func(n uint64) common.Hash {
@@ -26,7 +26,7 @@ func getHashFn(es *ExecutionState, ref *types.Block) func(n uint64) common.Hash 
 		if len(cache) == 0 {
 			cache = append(cache, ref.PrevBlock)
 		}
-		if idx := ref.Id - n - 1; idx < uint64(len(cache)) {
+		if idx := ref.Id.Uint64() - n - 1; idx < uint64(len(cache)) {
 			return cache[idx]
 		}
 		// No luck in the cache, but we can start iterating from the last element we already know
@@ -39,7 +39,7 @@ func getHashFn(es *ExecutionState, ref *types.Block) func(n uint64) common.Hash 
 			}
 			cache = append(cache, header.PrevBlock)
 			lastKnownHash = header.PrevBlock
-			lastKnownNumber := header.Id - 1
+			lastKnownNumber := header.Id.Uint64() - 1
 			if n == lastKnownNumber {
 				return lastKnownHash
 			}

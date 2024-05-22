@@ -17,7 +17,7 @@ func (b *Block) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 	dst = buf
 
 	// Field (0) 'Id'
-	dst = ssz.MarshalUint64(dst, b.Id)
+	dst = ssz.MarshalUint64(dst, b.Id.Uint64())
 
 	// Field (1) 'PrevBlock'
 	dst = append(dst, b.PrevBlock[:]...)
@@ -52,7 +52,7 @@ func (b *Block) UnmarshalSSZ(buf []byte) error {
 	}
 
 	// Field (0) 'Id'
-	b.Id = ssz.UnmarshallUint64(buf[0:8])
+	b.Id = BlockNumber(ssz.UnmarshallUint64(buf[0:8]))
 
 	// Field (1) 'PrevBlock'
 	copy(b.PrevBlock[:], buf[8:40])
@@ -94,7 +94,7 @@ func (b *Block) HashTreeRootWith(hh ssz.HashWalker) (err error) {
 	indx := hh.Index()
 
 	// Field (0) 'Id'
-	hh.PutUint64(b.Id)
+	hh.PutUint64(b.Id.Uint64())
 
 	// Field (1) 'PrevBlock'
 	hh.PutBytes(b.PrevBlock[:])

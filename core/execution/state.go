@@ -119,7 +119,7 @@ func NewEVMBlockContext(es *ExecutionState, lastBlockHash common.Hash) vm.BlockC
 	header := db.ReadBlock(es.tx, es.ShardId, lastBlockHash)
 	lastBlockId := uint64(0)
 	if header != nil {
-		lastBlockId = header.Id
+		lastBlockId = header.Id.Uint64()
 	}
 	return vm.BlockContext{
 		GetHash:     getHashFn(es, header),
@@ -658,7 +658,7 @@ func (es *ExecutionState) AddReceipt(receipt *types.Receipt) {
 	es.Receipts = append(es.Receipts, receipt)
 }
 
-func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
+func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error) {
 	for k, acc := range es.Accounts {
 		v, err := acc.Commit()
 		if err != nil {
@@ -733,11 +733,11 @@ func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 	return blockHash, nil
 }
 
-func (es *ExecutionState) Postprocess(block *types.Block, blockHash common.Hash, blockId uint64) error {
+func (es *ExecutionState) Postprocess(block *types.Block, blockHash common.Hash, blockId types.BlockNumber) error {
 	if err := es.tx.Put(db.LastBlockTable, es.ShardId.Bytes(), blockHash[:]); err != nil {
 		return err
 	}
-	if err := es.tx.PutToShard(es.ShardId, db.BlockHashByNumberIndex, []byte(strconv.FormatUint(blockId, 10)), blockHash.Bytes()); err != nil {
+	if err := es.tx.PutToShard(es.ShardId, db.BlockHashByNumberIndex, blockId.Bytes(), blockHash.Bytes()); err != nil {
 		return err
 	}
 
