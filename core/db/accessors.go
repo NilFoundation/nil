@@ -48,6 +48,48 @@ func writeEncodable[
 	return tx.PutToShard(shardId, tableName, hash.Bytes(), data)
 }
 
+func ReadCurrentVersion() *types.VersionInfo {
+	x1 := new(types.SmartContract).Hash()
+	x2 := new(types.Block).Hash()
+	x3 := new(types.Message).Hash()
+	x1b := append(append(x1.Bytes(), x2.Bytes()...), x3.Bytes()...)
+	return &types.VersionInfo{Version: common.PoseidonHash(x1b)}
+}
+
+func ReadDbVersion(tx Tx) (*types.VersionInfo, error) {
+	rawVersionInfo, err := tx.Get(DatabaseInfoTable, []byte("VersionInfo"))
+	if err != nil {
+		return nil, err
+	}
+	res := types.VersionInfo{}
+	err = res.UnmarshalSSZ(*rawVersionInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func WriteDbVersion(version *types.VersionInfo, tx Tx) error {
+	rawVersionInfo, err := version.MarshalSSZ()
+	if err != nil {
+		return err
+	}
+	err = tx.Put(DatabaseInfoTable, []byte("VersionInfo"), rawVersionInfo)
+	return err
+}
+
+func CompareVersion(tx Tx) (bool, error) {
+	v1, err := ReadDbVersion(tx)
+	if errors.Is(err, ErrKeyNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	v2 := ReadCurrentVersion()
+	return v1.Version == v2.Version, nil
+}
+
 func ReadBlock(tx Tx, shardId types.ShardId, hash common.Hash) *types.Block {
 	return readDecodable[types.Block, *types.Block](tx, blockTable, shardId, hash)
 }

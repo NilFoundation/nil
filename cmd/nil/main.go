@@ -74,6 +74,27 @@ func run() int {
 		log.Error().Err(err).Msg("Error opening badger db")
 		return -1
 	}
+	tx, err := badger.CreateRwTx(ctx)
+	if err != nil {
+		log.Fatal().Msg(err.Error())
+	}
+	defer tx.Rollback()
+	goodVersion, err := db.CompareVersion(tx)
+	if err != nil {
+		log.Fatal().Msg(err.Error())
+	}
+	if !goodVersion {
+		log.Info().Msg("Clear database with old schema")
+		badger.DropAll()
+		err := db.WriteDbVersion(db.ReadCurrentVersion(), tx)
+		if err != nil {
+			log.Fatal().Msg(err.Error())
+		}
+		err = tx.Commit()
+		if err != nil {
+			log.Fatal().Msg(err.Error())
+		}
+	}
 
 	msgPool := msgpool.New(msgpool.DefaultConfig)
 	if msgPool == nil {
