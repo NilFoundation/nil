@@ -41,7 +41,7 @@ func (suite *SuiteSendTransaction) SetupSuite() {
 	suite.smcAddr = common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
 	suite.Require().NotEqual(common.Address{}, suite.smcAddr)
 
-	err = es.CreateContract(suite.smcAddr, types.Code("some code"))
+	err = es.CreateAccount(suite.smcAddr)
 	suite.Require().NoError(err)
 
 	es.SetBalance(suite.smcAddr, *uint256.NewInt(1234))

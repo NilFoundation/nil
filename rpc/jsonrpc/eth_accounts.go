@@ -112,5 +112,5 @@ func (api *APIImpl) GetCode(ctx context.Context, shardId types.ShardId, address 
 	if code == nil || err != nil {
 		return nil, err
 	}
-	return hexutil.Bytes(*code), nil
+	return hexutil.Bytes(code), nil
 }

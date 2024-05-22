@@ -58,13 +58,11 @@ type StateDB interface {
 	// even if the feature/fork is not active yet
 	AddSlotToAccessList(addr common.Address, slot common.Hash)
 
-	/*	Prepare(sender, coinbase common.Address, dest *common.Address, precompiles []common.Address)
+	// Prepare(sender, coinbase common.Address, dest *common.Address, precompiles []common.Address)
 
-		RevertToSnapshot(int)
-		Snapshot() int
+	RevertToSnapshot(int)
+	Snapshot() int
 
-		AddPreimage(common.Hash, []byte)
-	*/
 	AddLog(*types.Log)
 }
 

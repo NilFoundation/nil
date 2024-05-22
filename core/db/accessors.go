@@ -72,8 +72,11 @@ func WriteCode(tx Tx, shardId types.ShardId, code types.Code) error {
 	return nil
 }
 
-func ReadCode(tx Tx, shardId types.ShardId, hash common.Hash) (*types.Code, error) {
+func ReadCode(tx Tx, shardId types.ShardId, hash common.Hash) (types.Code, error) {
 	code, err := tx.GetFromShard(shardId, codeTable, hash[:])
+	if errors.Is(err, ErrKeyNotFound) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +86,7 @@ func ReadCode(tx Tx, shardId types.ShardId, hash common.Hash) (*types.Code, erro
 	}
 
 	res := types.Code(*code)
-	return &res, nil
+	return res, nil
 }
 
 // TODO: Use hash -> (blockNumber, txIndex) mapping and message trie instead of duplicating messages.
