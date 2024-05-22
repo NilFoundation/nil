@@ -35,10 +35,18 @@ type Tx interface {
 	Rollback()
 }
 
+type RoTx interface {
+	Tx
+}
+
+type RwTx interface {
+	Tx
+}
+
 type DB interface {
 	DBAccessor
 
-	CreateRwTx(ctx context.Context) (Tx, error)
-	CreateRoTx(ctx context.Context) (Tx, error)
+	CreateRwTx(ctx context.Context) (RwTx, error)
+	CreateRoTx(ctx context.Context) (RoTx, error)
 	Close()
 }
