@@ -24,9 +24,9 @@ const (
 	contractTable = ShardedTableName("Contract")
 	messageTable  = ShardedTableName("Message")
 
-	LastBlockTable         = TableName("LastBlock")
-
-	BlockHashByNumberIndex = ShardedTableName("BlockHashByNumber")
+	LastBlockTable                        = TableName("LastBlock")
+	BlockHashByNumberIndex                = ShardedTableName("BlockHashByNumber")
+	MessageHashByBlockIdAndMessageIdIndex = ShardedTableName("MessageHashByBlockIdAndMessageId")
 
 	SchemeVersionTable = TableName("SchemeVersion")
 )

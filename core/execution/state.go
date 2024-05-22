@@ -726,20 +726,5 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		return common.EmptyHash, err
 	}
 
-	if err = es.Postprocess(&block, blockHash, blockId); err != nil {
-		return common.EmptyHash, err
-	}
-
 	return blockHash, nil
-}
-
-func (es *ExecutionState) Postprocess(block *types.Block, blockHash common.Hash, blockId types.BlockNumber) error {
-	if err := es.tx.Put(db.LastBlockTable, es.ShardId.Bytes(), blockHash[:]); err != nil {
-		return err
-	}
-	if err := es.tx.PutToShard(es.ShardId, db.BlockHashByNumberIndex, blockId.Bytes(), blockHash.Bytes()); err != nil {
-		return err
-	}
-
-	return nil
 }

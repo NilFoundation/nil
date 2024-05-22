@@ -6,7 +6,6 @@ import (
 	"github.com/NilFoundation/nil/common"
 	fastssz "github.com/ferranbt/fastssz"
 	"github.com/rs/zerolog/log"
-	"strconv"
 )
 
 type BlockNumber uint64

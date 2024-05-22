@@ -166,11 +166,10 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 		return nil, err
 	}
 
-	if err = rwTx.Put(db.LastBlockTable, c.Id.Bytes(), blockHash[:]); err != nil {
+	block, err := execution.PostprocessBlock(rwTx, c.Id, blockHash)
+	if err != nil {
 		return nil, err
 	}
-
-	block := db.ReadBlock(rwTx, c.Id, blockHash)
 
 	if err = rwTx.Commit(); err != nil {
 		return nil, err
@@ -282,6 +281,10 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 
 	blockHash, err := es.Commit(blockId)
 	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	if _, err := execution.PostprocessBlock(rwTx, c.Id, blockHash); err != nil {
 		return common.EmptyHash, err
 	}
 
