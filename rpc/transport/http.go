@@ -143,12 +143,15 @@ func newHTTPServerConn(r *http.Request, w http.ResponseWriter) ServerCodec {
 		if pb, err := base64.URLEncoding.DecodeString(params); err == nil {
 			param = pb
 		}
+
 		buf := new(bytes.Buffer)
-		common.Check(json.NewEncoder(buf).Encode(jsonrpcMessage{
+		err := json.NewEncoder(buf).Encode(jsonrpcMessage{
 			ID:     json.RawMessage(id),
 			Method: methodUp,
 			Params: param,
-		}))
+		})
+		common.FatalIf(err, nil, "Messages encode failed")
+
 		conn.Reader = buf
 	} else {
 		// It's a POST request or whatever, so process it like normal.

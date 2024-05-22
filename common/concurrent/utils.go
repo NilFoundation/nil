@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rs/zerolog/log"
+	"github.com/NilFoundation/nil/common"
 )
 
 type Func = func(context.Context) error
@@ -30,10 +30,9 @@ func RunWithTimeout(ctx context.Context, timeout time.Duration, fs ...Func) erro
 		go func(fn Func) {
 			defer wg.Done()
 
-			if err := fn(ctx); err != nil {
-				// todo: decide on what to do with other goroutines
-				log.Fatal().Err(err).Msg("Goroutine failed")
-			}
+			err := fn(ctx)
+			// todo: decide on what to do with other goroutines
+			common.FatalIf(err, nil, "Goroutine failed")
 		}(f) // to avoid loop-variable reuse in goroutines
 	}
 

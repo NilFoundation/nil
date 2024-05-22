@@ -20,16 +20,15 @@ func readDecodable[
 	if errors.Is(err, ErrKeyNotFound) {
 		return nil
 	}
-	if err != nil {
-		logger.Fatal().Msgf("Read from table %s [%s] failed. err: %s", table, shardId, err.Error())
-	}
+	common.FatalIf(err, nil, "Read from table %s [%s] failed.", table, shardId)
 	if data == nil {
 		return nil
 	}
+
 	decoded := new(S)
-	if err := T(decoded).UnmarshalSSZ(*data); err != nil {
-		logger.Fatal().Msgf("Invalid SSZ while reading from %s. hash: %v, err: %v", table, hash, err)
-	}
+	err = T(decoded).UnmarshalSSZ(*data)
+	common.FatalIf(err, nil, "Invalid SSZ while reading from %s. hash: %v", table, hash)
+
 	return decoded
 }
 

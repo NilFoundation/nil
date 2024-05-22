@@ -92,14 +92,11 @@ func (suite *SuiteExecutionState) TestExecState() {
 		mRaw, err := messagesRoot.Get(k)
 		if errors.Is(err, db.ErrKeyNotFound) {
 			break
-		} else if err != nil {
-			logger.Fatal().Err(err).Msgf("Failed to get message %v from trie", messageIndex)
 		}
+		suite.Require().NoError(err)
 
 		rRaw, err := receiptsRoot.Get(k)
-		if err != nil {
-			logger.Fatal().Err(err).Msgf("Failed to get receipt %v from trie", messageIndex)
-		}
+		suite.Require().NoError(err)
 
 		var m types.Message
 		suite.Require().NoError(m.UnmarshalSSZ(mRaw))

@@ -1,5 +1,12 @@
 package common
 
+import (
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+)
+
+// Require panics on false.
+// Can be used in the code in the places where you want to ensure some result without much error handling.
 func Require(flag bool) {
 	if !flag {
 		// Maybe collect stack trace and optionally add a message from the caller.
@@ -7,8 +14,19 @@ func Require(flag bool) {
 	}
 }
 
-func Check(err error) {
-	if err != nil {
-		panic(err)
+// FatalIf logs the error with the provided logger and message and panics.
+// It is no-op if the error is nil.
+// It uses the default logger if logger is nil.
+func FatalIf(err error, logger *zerolog.Logger, format string, args ...interface{}) {
+	if err == nil {
+		return
 	}
+
+	if logger != nil {
+		logger.Err(err).Msgf(format, args...)
+	} else {
+		log.Err(err).Msgf(format, args...)
+	}
+
+	panic(err)
 }

@@ -3,7 +3,6 @@ package types
 import (
 	"github.com/NilFoundation/nil/common"
 	fastssz "github.com/ferranbt/fastssz"
-	"github.com/rs/zerolog/log"
 )
 
 type SmartContract struct {
@@ -25,8 +24,7 @@ var (
 
 func (s *SmartContract) Hash() common.Hash {
 	h, err := common.PoseidonSSZ(s)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Can't get smart contract hash")
-	}
+	common.FatalIf(err, nil, "Can't get smart contract hash")
+
 	return h
 }

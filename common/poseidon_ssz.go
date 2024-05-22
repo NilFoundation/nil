@@ -5,10 +5,9 @@ import (
 
 	ssz "github.com/ferranbt/fastssz"
 	"github.com/iden3/go-iden3-crypto/poseidon"
-	"github.com/rs/zerolog/log"
 )
 
-// HasherPool may be used for pooling Hashers for similarly typed SSZs.
+// HasherPool may be used for pooling Hasher`s for similarly typed SSZs.
 type HasherPool struct {
 	pool sync.Pool
 }
@@ -18,9 +17,8 @@ func (hh *HasherPool) Get() *ssz.Hasher {
 	h := hh.pool.Get()
 	if h == nil {
 		hash, err := poseidon.New(16)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Can't create poseidon hasher")
-		}
+		FatalIf(err, nil, "Can't create poseidon hasher")
+
 		return ssz.NewHasherWithHash(hash)
 	}
 
