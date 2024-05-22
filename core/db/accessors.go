@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"reflect"
 
 	common "github.com/NilFoundation/nil/common"
 	types "github.com/NilFoundation/nil/core/types"
@@ -48,16 +49,8 @@ func writeEncodable[
 	return tx.PutToShard(shardId, tableName, hash.Bytes(), data)
 }
 
-func ReadCurrentVersion() *types.VersionInfo {
-	x1 := new(types.SmartContract).Hash()
-	x2 := new(types.Block).Hash()
-	x3 := new(types.Message).Hash()
-	x1b := append(append(x1.Bytes(), x2.Bytes()...), x3.Bytes()...)
-	return &types.VersionInfo{Version: common.PoseidonHash(x1b)}
-}
-
-func ReadDbVersion(tx Tx) (*types.VersionInfo, error) {
-	rawVersionInfo, err := tx.Get(DatabaseInfoTable, []byte("VersionInfo"))
+func ReadVersionInfo(tx Tx) (*types.VersionInfo, error) {
+	rawVersionInfo, err := tx.Get(DatabaseInfoTable, []byte(types.VersionInfoKey))
 	if err != nil {
 		return nil, err
 	}
@@ -69,25 +62,24 @@ func ReadDbVersion(tx Tx) (*types.VersionInfo, error) {
 	return &res, nil
 }
 
-func WriteDbVersion(version *types.VersionInfo, tx Tx) error {
+func WriteVersionInfo(tx Tx, version *types.VersionInfo) error {
 	rawVersionInfo, err := version.MarshalSSZ()
 	if err != nil {
 		return err
 	}
-	err = tx.Put(DatabaseInfoTable, []byte("VersionInfo"), rawVersionInfo)
+	err = tx.Put(DatabaseInfoTable, []byte(types.VersionInfoKey), rawVersionInfo)
 	return err
 }
 
-func CompareVersion(tx Tx) (bool, error) {
-	v1, err := ReadDbVersion(tx)
+func IsVersionOutdated(tx Tx) (bool, error) {
+	dbVersion, err := ReadVersionInfo(tx)
 	if errors.Is(err, ErrKeyNotFound) {
 		return false, nil
 	}
 	if err != nil {
 		return false, err
 	}
-	v2 := ReadCurrentVersion()
-	return v1.Version == v2.Version, nil
+	return !reflect.DeepEqual(dbVersion, types.NewVersionInfo()), nil
 }
 
 func ReadBlock(tx Tx, shardId types.ShardId, hash common.Hash) *types.Block {

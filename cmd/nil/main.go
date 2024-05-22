@@ -69,6 +69,7 @@ func run() int {
 	defer cancel()
 
 	// each shard will interact with DB via this client
+	log.Info().Msg("Checking scheme format")
 	badger, err := db.NewBadgerDb("test.db")
 	if err != nil {
 		log.Error().Err(err).Msg("Error opening badger db")
@@ -79,19 +80,19 @@ func run() int {
 		log.Fatal().Msg(err.Error())
 	}
 	defer tx.Rollback()
-	goodVersion, err := db.CompareVersion(tx)
+	isVersionOutdated, err := db.IsVersionOutdated(tx)
 	if err != nil {
 		log.Fatal().Msg(err.Error())
 	}
-	if !goodVersion {
-		log.Info().Msg("Clear database with old schema")
-		badger.DropAll()
-		err := db.WriteDbVersion(db.ReadCurrentVersion(), tx)
-		if err != nil {
+	if isVersionOutdated {
+		log.Info().Msg("Clear database from old schema")
+		if err := badger.DropAll(); err != nil {
 			log.Fatal().Msg(err.Error())
 		}
-		err = tx.Commit()
-		if err != nil {
+		if err := db.WriteVersionInfo(tx, types.NewVersionInfo()); err != nil {
+			log.Fatal().Msg(err.Error())
+		}
+		if err := tx.Commit(); err != nil {
 			log.Fatal().Msg(err.Error())
 		}
 	}

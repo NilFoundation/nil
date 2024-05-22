@@ -17,10 +17,22 @@ var (
 	_ fastssz.Unmarshaler = new(VersionInfo)
 )
 
+var SchemesInsideDb = []common.Hash{new(SmartContract).Hash(), new(Block).Hash(), new(Message).Hash()}
+
+const VersionInfoKey = "VersionInfo"
+
 func (m *VersionInfo) Hash() common.Hash {
 	h, err := common.PoseidonSSZ(m)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't get version hash")
 	}
 	return h
+}
+
+func NewVersionInfo() *VersionInfo {
+	var res []byte
+	for _, hash := range SchemesInsideDb {
+		res = append(res, hash.Bytes()...)
+	}
+	return &VersionInfo{Version: common.PoseidonHash(res)}
 }
