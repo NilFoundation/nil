@@ -1,6 +1,7 @@
 package shardchain
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -15,6 +16,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
+type BlockGenerator interface {
+	GenerateBlock(ctx context.Context, msgs []*types.Message) (*types.Block, error)
+}
+
 type ShardChain struct {
 	Id types.ShardId
 	db db.DB
@@ -23,6 +28,8 @@ type ShardChain struct {
 
 	nShards int
 }
+
+var _ BlockGenerator = new(ShardChain)
 
 func (c *ShardChain) isMasterchain() bool {
 	return c.Id == types.MasterShardId
@@ -38,6 +45,138 @@ func (c *ShardChain) getHashLastBlock(roTx db.Tx, shardId types.ShardId) (common
 		lastBlockHash = common.Hash(*lastBlockRaw)
 	}
 	return lastBlockHash, nil
+}
+
+func (c *ShardChain) HandleDeployMessage(message *types.Message, interpreter *vm.EVMInterpreter, es *execution.ExecutionState) error {
+	addr := execution.CreateAddress(message.From, message.Seqno)
+	c.logger.Debug().Msgf("Create new contract %s", addr)
+
+	gas := uint64(1000000)
+	contract := vm.NewContract((vm.AccountRef)(addr), (vm.AccountRef)(addr), &message.Value.Int, gas)
+	contract.Code = message.Data
+
+	code, err := interpreter.Run(contract, nil, false)
+	if err != nil {
+		c.logger.Error().Msg("message failed")
+		return err
+	}
+	if err := es.HandleDeployMessage(message, code); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *ShardChain) HandleExecutionMessage(message *types.Message, interpreter *vm.EVMInterpreter, es *execution.ExecutionState) error {
+	addr := message.To
+	c.logger.Debug().Msgf("Call contract %s", addr)
+
+	gas := uint64(1000000)
+	contract := vm.NewContract((vm.AccountRef)(addr), (vm.AccountRef)(addr), &message.Value.Int, gas)
+
+	accountState := es.GetAccount(addr)
+	contract.Code = accountState.Code
+
+	_, err := interpreter.Run(contract, nil, false)
+	if err != nil {
+		c.logger.Error().Msg("message failed")
+		return err
+	}
+	r := types.Receipt{
+		Success:         true,
+		GasUsed:         uint32(gas - contract.Gas),
+		Logs:            es.Logs[es.MessageHash],
+		MsgHash:         es.MessageHash,
+		MsgIndex:        message.Index,
+		ContractAddress: addr,
+	}
+	es.AddReceipt(&r)
+	return nil
+}
+
+func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (*types.Block, error) {
+	rwTx, err := c.db.CreateRwTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer rwTx.Rollback()
+	roTx, err := c.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	lastBlockHashBytes, err := rwTx.Get(db.LastBlockTable, c.Id.Bytes())
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		return nil, fmt.Errorf("failed getting last block: %w", err)
+	}
+
+	lastBlockHash := common.EmptyHash
+	// No previous blocks yet
+	if lastBlockHashBytes != nil {
+		lastBlockHash = common.Hash(*lastBlockHashBytes)
+	}
+
+	es, err := execution.NewExecutionState(rwTx, c.Id, lastBlockHash)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, message := range msgs {
+		es.AddMessage(message)
+
+		evm := vm.EVM{
+			StateDB: es,
+		}
+		interpreter := vm.NewEVMInterpreter(&evm)
+
+		// Deploy message
+		if bytes.Equal(message.To[:], common.EmptyAddress[:]) {
+			if err := c.HandleDeployMessage(message, interpreter, es); err != nil {
+				return nil, err
+			}
+		} else {
+			if err := c.HandleExecutionMessage(message, interpreter, es); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if c.isMasterchain() {
+		for i := 1; i < c.nShards; i++ {
+			lastBlockHash, err := c.getHashLastBlock(roTx, types.ShardId(i))
+			if err != nil {
+				return nil, err
+			}
+			es.SetShardHash(uint64(i), lastBlockHash)
+		}
+	} else {
+		lastBlockHash, err := c.getHashLastBlock(roTx, types.MasterShardId)
+		if err != nil {
+			return nil, err
+		}
+		es.SetMasterchainHash(lastBlockHash)
+	}
+
+	blockId := uint64(0)
+	if es.PrevBlock != common.EmptyHash {
+		blockId = db.ReadBlock(rwTx, c.Id, es.PrevBlock).Id + 1
+	}
+
+	blockHash, err := es.Commit(blockId)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = rwTx.Put(db.LastBlockTable, c.Id.Bytes(), blockHash[:]); err != nil {
+		return nil, err
+	}
+
+	block := db.ReadBlock(rwTx, c.Id, blockHash)
+
+	if err = rwTx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return block, nil
 }
 
 func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {

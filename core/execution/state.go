@@ -1,7 +1,6 @@
 package execution
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"sort"
@@ -616,7 +615,7 @@ func (es *ExecutionState) ContractExists(addr common.Address) bool {
 
 // CreateAddress creates an ethereum address given the bytes and the nonce.
 func CreateAddress(b common.Address, nonce uint64) common.Address {
-	data := []byte{}
+	data := make([]byte, len(b))
 	copy(data, b.Bytes())
 	data = ssz.MarshalUint64(data, nonce)
 	return common.BytesToAddress(data)
@@ -625,25 +624,29 @@ func CreateAddress(b common.Address, nonce uint64) common.Address {
 func (es *ExecutionState) AddMessage(message *types.Message) {
 	message.Index = uint64(len(es.Messages))
 	es.Messages = append(es.Messages, message)
+}
 
-	// Deploy message
-	if bytes.Equal(message.To[:], common.EmptyAddress[:]) {
-		addr := CreateAddress(message.From, message.Seqno)
+func (es *ExecutionState) HandleDeployMessage(message *types.Message, code types.Code) error {
+	addr := CreateAddress(message.From, message.Seqno)
 
-		var r types.Receipt
-		r.Success = true
-		r.ContractAddress = addr
-		r.MsgHash = message.Hash()
-		r.MsgIndex = message.Index
+	var r types.Receipt
+	r.Success = true
+	r.ContractAddress = addr
+	r.MsgHash = message.Hash()
+	r.MsgIndex = message.Index
 
-		// TODO: gasUsed
-		if err := es.CreateAccount(addr); err != nil {
-			logger.Fatal().Err(err).Msgf("Failed to create account")
-		}
-		es.SetCode(addr, message.Data)
-
-		es.Receipts = append(es.Receipts, &r)
+	// TODO: gasUsed
+	if err := es.CreateAccount(addr); err != nil {
+		return err
 	}
+	es.SetCode(addr, code)
+
+	es.Receipts = append(es.Receipts, &r)
+	return nil
+}
+
+func (es *ExecutionState) AddReceipt(receipt *types.Receipt) {
+	es.Receipts = append(es.Receipts, receipt)
 }
 
 func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {

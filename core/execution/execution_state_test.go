@@ -48,6 +48,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	for i := range numMessages {
 		msg := types.Message{ShardId: types.ShardId(10), Data: []byte{i}, From: from, Seqno: uint64(i)}
 		es.AddMessage(&msg)
+		suite.Require().NoError(es.HandleDeployMessage(&msg, msg.Data))
 	}
 
 	blockHash, err := es.Commit(0)
