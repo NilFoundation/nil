@@ -13,7 +13,7 @@ func ExportTypescriptTypes() ([]byte, error) {
 	ethAPIType := reflect.TypeOf((*jsonrpc.EthAPI)(nil)).Elem()
 	ts := make([]bel.TypescriptType, 0)
 
-	for i := 0; i < ethAPIType.NumMethod(); i++ {
+	for i := range ethAPIType.NumMethod() {
 		method := ethAPIType.Method(i)
 		for j := 1; j < method.Type.NumIn(); j++ {
 			paramType := method.Type.In(j)
@@ -33,7 +33,6 @@ func ExportTypescriptTypes() ([]byte, error) {
 			}
 			ts = append(ts, tsAdd...)
 		}
-
 	}
 
 	tsAdd, err := bel.Extract((*jsonrpc.EthAPI)(nil))

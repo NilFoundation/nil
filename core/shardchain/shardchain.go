@@ -15,21 +15,13 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type Transaction struct {
-	// address  common.Address
-	// calldata []byte
-}
-
 type ShardChain struct {
 	Id types.ShardId
 	db db.DB
 
-	// todo: can be probably moved out (and the Transaction type removed completely since we have Message type now)
-	pool []Transaction
-
 	logger *zerolog.Logger
 
-	NShards int // todo: used for test transaction only, remove in the future
+	nShards int
 }
 
 func (c *ShardChain) isMasterchain() bool {
@@ -120,8 +112,8 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 	}
 
 	if c.isMasterchain() {
-		for i := 1; i < c.NShards; i++ {
-			lastBlockHash, err := c.getHashLastBlock(roTx, types.ShardId(i))
+		for i := range c.nShards - 1 {
+			lastBlockHash, err := c.getHashLastBlock(roTx, types.ShardId(i+1))
 			if err != nil {
 				return common.EmptyHash, err
 			}
@@ -184,5 +176,5 @@ func NewShardChain(
 	nShards int,
 ) *ShardChain {
 	logger := common.NewLogger(fmt.Sprintf("shard-%d", shardId), false /* noColor */)
-	return &ShardChain{shardId, db, nil, logger, nShards}
+	return &ShardChain{shardId, db, logger, nShards}
 }

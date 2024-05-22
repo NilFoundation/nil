@@ -237,7 +237,7 @@ func newHomesteadInstructionSet() JumpTable {
 
 // newFrontierInstructionSet returns the frontier instructions
 // that can be executed during the frontier phase.
-func newFrontierInstructionSet() JumpTable {
+func newFrontierInstructionSet() JumpTable { //nolint:maintidx
 	tbl := JumpTable{
 		STOP: {
 			execute:     opStop,

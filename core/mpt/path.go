@@ -41,11 +41,13 @@ func (path *Path) Equal(other *Path) bool {
 	if other.Size() != path.Size() {
 		return false
 	}
-	for i := 0; i < path.Size(); i++ {
+
+	for i := range path.Size() {
 		if path.At(i) != other.At(i) {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -54,11 +56,12 @@ func (path *Path) StartsWith(other *Path) bool {
 		return false
 	}
 
-	for i := 0; i < other.Size(); i++ {
+	for i := range other.Size() {
 		if path.At(i) != other.At(i) {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -70,9 +73,9 @@ func (path *Path) At(idx int) int {
 
 	if nibbleIdx == 0 {
 		return b >> 4
-	} else {
-		return b & 0x0F
 	}
+
+	return b & 0x0F
 }
 
 func (path *Path) Consume(amount int) *Path {
@@ -109,7 +112,7 @@ func createNew[T PathAccessor](path T, length int) *Path {
 func (path *Path) CommonPrefix(other *Path) *Path {
 	leastLen := min(path.Size(), other.Size())
 	commonLen := 0
-	for i := 0; i < leastLen; i++ {
+	for i := range leastLen {
 		if path.At(i) != other.At(i) {
 			break
 		}

@@ -73,7 +73,7 @@ func NewFiltersManager(ctx context.Context, db db.DB, noPolling bool) *FiltersMa
 	}
 
 	if !noPolling {
-		go f.PollBlocks(200)
+		go f.PollBlocks(200 * time.Millisecond)
 	}
 
 	return f
@@ -117,7 +117,7 @@ func (m *FiltersManager) PollBlocks(delay time.Duration) {
 			return
 		default:
 		}
-		time.Sleep(delay * time.Millisecond)
+		time.Sleep(delay)
 
 		lastHash, err := m.getLastBlockHash()
 		if err != nil {
@@ -166,6 +166,7 @@ func (m *FiltersManager) processBlockHash(lastHash *common.Hash) error {
 	return m.process(block, receipts)
 }
 
+//nolint:unparam
 func (m *FiltersManager) process(block *types.Block, receipts types.Receipts) error {
 	for _, filter := range m.filters {
 		for _, receipt := range receipts {
@@ -222,7 +223,7 @@ func generateSubscriptionID() SubscriptionID {
 	hex := hex.NewEncoder(sb)
 	binary.LittleEndian.PutUint64(id[:], atomic.AddUint64(&globalSubscriptionId, 1))
 	// Try 4 times to generate an id
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		_, err := rand.Read(id[8:])
 		if err == nil {
 			break

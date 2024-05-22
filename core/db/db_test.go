@@ -377,6 +377,8 @@ func (suite *SuiteBadgerDb) TestRange() {
 }
 
 func TestSuiteBadgerDb(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, new(SuiteBadgerDb))
 }
 
@@ -401,5 +403,7 @@ func (suite *SuiteSqliteDb) TestValidateDbOperations() {
 }
 
 func TestSuiteSqliteDb(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, new(SuiteSqliteDb))
 }

@@ -1,8 +1,8 @@
 package hexutil
 
 import (
-	"fmt"
 	"math/big"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -64,26 +64,40 @@ var (
 )
 
 func TestEncodeBig(t *testing.T) {
+	t.Parallel()
+
 	for idx, test := range encodeBigTests {
-		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
-			enc := EncodeBig(test.input.(*big.Int))
-			require.EqualValues(t, test.want, enc)
+		t.Run(strconv.Itoa(idx), func(t *testing.T) {
+			t.Parallel()
+
+			in, ok := test.input.(*big.Int)
+			require.True(t, ok)
+			require.EqualValues(t, test.want, EncodeBig(in))
 		})
 	}
 }
 
 func TestEncodeUint64(t *testing.T) {
+	t.Parallel()
+
 	for idx, test := range encodeUint64Tests {
-		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
-			enc := EncodeUint64(test.input.(uint64))
-			require.EqualValues(t, test.want, enc)
+		t.Run(strconv.Itoa(idx), func(t *testing.T) {
+			t.Parallel()
+
+			in, ok := test.input.(uint64)
+			require.True(t, ok)
+			require.EqualValues(t, test.want, EncodeUint64(in))
 		})
 	}
 }
 
 func TestDecodeUint64(t *testing.T) {
+	t.Parallel()
+
 	for idx, test := range decodeUint64Tests {
-		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
+		t.Run(strconv.Itoa(idx), func(t *testing.T) {
+			t.Parallel()
+
 			dec, err := DecodeUint64(test.input)
 			checkError(t, test.input, err, test.wantErr)
 			if test.want != nil {

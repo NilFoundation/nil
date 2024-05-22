@@ -13,7 +13,7 @@ type Func = func(context.Context) error
 // RunWithTimeout calls each given function in a separate goroutine and waits for them to finish.
 // It logs a fatal message if an error occurred.
 // If timeout is positive, it is added to the context. Otherwise, it is ignored.
-// Note that RunWithTimeout does not forcefully terminate the goroutines,
+// Note that RunWithTimeout does not forcefully terminate the goroutines;
 // your functions should be able to handle context cancellation.
 func RunWithTimeout(ctx context.Context, timeout time.Duration, fs ...Func) error {
 	var wg sync.WaitGroup

@@ -26,6 +26,8 @@ import (
 )
 
 func TestHexOrDecimal256(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		input string
 		num   *big.Int
@@ -62,6 +64,8 @@ func TestHexOrDecimal256(t *testing.T) {
 }
 
 func TestMustParseBig256(t *testing.T) {
+	t.Parallel()
+
 	defer func() {
 		if recover() == nil {
 			t.Error("MustParseBig should've panicked")
@@ -71,6 +75,8 @@ func TestMustParseBig256(t *testing.T) {
 }
 
 func TestBigMax(t *testing.T) {
+	t.Parallel()
+
 	a := big.NewInt(10)
 	b := big.NewInt(5)
 
@@ -86,6 +92,8 @@ func TestBigMax(t *testing.T) {
 }
 
 func TestBigMin(t *testing.T) {
+	t.Parallel()
+
 	a := big.NewInt(10)
 	b := big.NewInt(5)
 
@@ -101,6 +109,8 @@ func TestBigMin(t *testing.T) {
 }
 
 func TestFirstBigSet(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		num *big.Int
 		ix  int
@@ -118,6 +128,8 @@ func TestFirstBigSet(t *testing.T) {
 }
 
 func TestPaddedBigBytes(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		num    *big.Int
 		n      int
@@ -178,11 +190,13 @@ func BenchmarkByteAtOld(b *testing.B) {
 }
 
 func TestReadBits(t *testing.T) {
+	t.Parallel()
+
 	check := func(input string) {
 		want, _ := hex.DecodeString(input)
-		int, _ := new(big.Int).SetString(input, 16)
+		bigInt, _ := new(big.Int).SetString(input, 16)
 		buf := make([]byte, len(want))
-		ReadBits(int, buf)
+		ReadBits(bigInt, buf)
 		if !bytes.Equal(buf, want) {
 			t.Errorf("have: %x\nwant: %x", buf, want)
 		}
@@ -193,6 +207,8 @@ func TestReadBits(t *testing.T) {
 }
 
 func TestU256(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct{ x, y *big.Int }{
 		{x: big.NewInt(0), y: big.NewInt(0)},
 		{x: big.NewInt(1), y: big.NewInt(1)},
@@ -212,6 +228,8 @@ func TestU256(t *testing.T) {
 }
 
 func TestU256Bytes(t *testing.T) {
+	t.Parallel()
+
 	ubytes := make([]byte, 32)
 	ubytes[31] = 1
 
@@ -222,6 +240,8 @@ func TestU256Bytes(t *testing.T) {
 }
 
 func TestBigEndianByteAt(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		x   string
 		y   int
@@ -247,6 +267,8 @@ func TestBigEndianByteAt(t *testing.T) {
 }
 
 func TestLittleEndianByteAt(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		x   string
 		y   int
@@ -280,6 +302,8 @@ func TestLittleEndianByteAt(t *testing.T) {
 }
 
 func TestS256(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct{ x, y *big.Int }{
 		{x: big.NewInt(0), y: big.NewInt(0)},
 		{x: big.NewInt(1), y: big.NewInt(1)},
@@ -309,6 +333,8 @@ func TestS256(t *testing.T) {
 }
 
 func TestExp(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct{ base, exponent, result *big.Int }{
 		{base: big.NewInt(0), exponent: big.NewInt(0), result: big.NewInt(1)},
 		{base: big.NewInt(1), exponent: big.NewInt(0), result: big.NewInt(1)},

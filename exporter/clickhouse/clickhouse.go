@@ -112,7 +112,7 @@ func exportBlocksToClickhouse(ctx context.Context, blocks []*types.Block, conn d
 		return err
 	}
 
-	batch, err := conn.PrepareBatch(ctx, fmt.Sprintf("INSERT INTO %s", tableName))
+	batch, err := conn.PrepareBatch(ctx, "INSERT INTO "+tableName)
 	if err != nil {
 		return err
 	}
@@ -191,13 +191,8 @@ func fetchBlockFromPoint(ctx context.Context, conn driver.Conn, queryPart string
 		return nil, err
 	}
 
-	bytes := make([]byte, len(binary))
-	for i, b := range binary {
-		bytes[i] = byte(b)
-	}
-
 	var block types.Block
-	if err = block.UnmarshalSSZ(bytes); err != nil {
+	if err = block.UnmarshalSSZ(binary); err != nil {
 		return nil, err
 	}
 

@@ -90,7 +90,8 @@ func codeBitmapInternal(code, bits bitvec) bitvec {
 				pc += 8
 			}
 		}
-		switch numbits {
+
+		switch numbits { //nolint:exhaustive
 		case 1:
 			bits.set1(pc)
 			pc += 1

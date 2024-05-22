@@ -38,6 +38,21 @@ Type:
 make test
 ```
 
+## Linting
+
+```
+make lint
+```
+
+Linters are configured in `.golangci.yml`. Docs: https://golangci-lint.run/usage/linters.
+
+How to integrate linters with your IDE:
+
+https://github.com/mvdan/gofumpt?tab=readme-ov-file#installation
+
+https://golangci-lint.run/welcome/integrations/
+
+https://github.com/luw2007/gci?tab=readme-ov-file#installation
 
 ## Packaging
 

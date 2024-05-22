@@ -24,7 +24,7 @@ func (x largeRespService) LargeResp() string {
 // dialHTTPWithClient creates a new RPC client that connects to an RPC server over HTTP
 // using the provided HTTP Client.
 func dialHTTPWithClient(endpoint string, client *http.Client, logger *zerolog.Logger) (*Client, error) {
-	// Sanity check URL so we don't end up with a client that will fail every request.
+	// Sanity check URL, so we don't end up with a client that will fail every request.
 	_, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, err
@@ -32,8 +32,8 @@ func dialHTTPWithClient(endpoint string, client *http.Client, logger *zerolog.Lo
 
 	initctx := context.Background()
 	headers := make(http.Header, 2)
-	headers.Set("accept", contentType)
-	headers.Set("content-type", contentType)
+	headers.Set("Accept", contentType)
+	headers.Set("Content-Type", contentType)
 	return newClient(initctx, func(context.Context) (ServerCodec, error) {
 		hc := &httpConn{
 			client:  client,
@@ -81,24 +81,34 @@ func confirmRequestValidationCode(t *testing.T, method, contentType, body string
 }
 
 func TestHTTPErrorResponseWithDelete(t *testing.T) {
+	t.Parallel()
+
 	confirmRequestValidationCode(t, http.MethodDelete, contentType, "", http.StatusMethodNotAllowed)
 }
 
 func TestHTTPErrorResponseWithPut(t *testing.T) {
+	t.Parallel()
+
 	confirmRequestValidationCode(t, http.MethodPut, contentType, "", http.StatusMethodNotAllowed)
 }
 
 func TestHTTPErrorResponseWithMaxContentLength(t *testing.T) {
+	t.Parallel()
+
 	body := make([]rune, maxRequestContentLength+1)
 	confirmRequestValidationCode(t,
 		http.MethodPost, contentType, string(body), http.StatusRequestEntityTooLarge)
 }
 
 func TestHTTPErrorResponseWithEmptyContentType(t *testing.T) {
+	t.Parallel()
+
 	confirmRequestValidationCode(t, http.MethodPost, "", "", http.StatusUnsupportedMediaType)
 }
 
 func TestHTTPErrorResponseWithValidRequest(t *testing.T) {
+	t.Parallel()
+
 	confirmRequestValidationCode(t, http.MethodPost, contentType, "", 0)
 }
 
@@ -124,11 +134,15 @@ func confirmHTTPRequestYieldsStatusCode(t *testing.T, method, contentType, body 
 }
 
 func TestHTTPResponseWithEmptyGet(t *testing.T) {
+	t.Parallel()
+
 	confirmHTTPRequestYieldsStatusCode(t, http.MethodGet, "", "", http.StatusOK)
 }
 
 // This checks that maxRequestContentLength is not applied to the response of a request.
 func TestHTTPRespBodyUnlimited(t *testing.T) {
+	t.Parallel()
+
 	logger := common.NewLogger("Test server", false)
 	const respLength = maxRequestContentLength * 3
 

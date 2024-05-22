@@ -9,6 +9,7 @@ import (
 	"sync"
 	"unicode"
 
+	"github.com/NilFoundation/nil/common"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
 )
@@ -31,7 +32,7 @@ type service struct {
 	callbacks map[string]*callback // registered handlers
 }
 
-// callback is a method callback which was registered in the server
+// callback is a method callback that was registered in the server
 type callback struct {
 	fn         reflect.Value  // the function
 	rcvr       reflect.Value  // receiver object of method, set if fn is method
@@ -88,10 +89,10 @@ func (r *serviceRegistry) callback(method string) *callback {
 func suitableCallbacks(receiver reflect.Value, logger *zerolog.Logger) map[string]*callback {
 	typ := receiver.Type()
 	callbacks := make(map[string]*callback)
-	for m := 0; m < typ.NumMethod(); m++ {
+	for m := range typ.NumMethod() {
 		method := typ.Method(m)
 		if method.PkgPath != "" {
-			continue // method not exported
+			continue // method isn't exported
 		}
 		name := formatName(method.Name)
 		cb := newCallback(receiver, method.Func, name, logger)
@@ -114,7 +115,7 @@ func newCallback(receiver, fn reflect.Value, name string, logger *zerolog.Logger
 	// Verify return types. The function must return at most one error
 	// and/or one other non-error value.
 	outs := make([]reflect.Type, fntype.NumOut())
-	for i := 0; i < fntype.NumOut(); i++ {
+	for i := range fntype.NumOut() {
 		outs[i] = fntype.Out(i)
 	}
 	if len(outs) > 2 {
@@ -194,7 +195,8 @@ func (c *callback) call(ctx context.Context, method string, args []reflect.Value
 	}
 	if c.errPos >= 0 && !results[c.errPos].IsNil() {
 		// Method has returned non-nil error value.
-		err := results[c.errPos].Interface().(error)
+		err, ok := results[c.errPos].Interface().(error)
+		common.Require(ok)
 		return reflect.Value{}, err
 	}
 	return results[0].Interface(), nil

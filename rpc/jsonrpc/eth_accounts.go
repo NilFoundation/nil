@@ -15,17 +15,17 @@ import (
 
 func (api *APIImpl) getSmartContract(tx db.Tx, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*types.SmartContract, error) {
 	blockHash := common.EmptyHash
-	if blockNrOrHash.BlockNumber != nil {
-		if *blockNrOrHash.BlockNumber == transport.LatestBlockNumber {
-			hashRaw, err := tx.Get(db.LastBlockTable, shardId.Bytes())
-			if err != nil {
-				return nil, err
-			}
-			blockHash = common.BytesToHash(*hashRaw)
-		} else {
-			return nil, errNotImplemented
+	switch {
+	case blockNrOrHash.BlockNumber != nil && *blockNrOrHash.BlockNumber == transport.LatestBlockNumber:
+		hashRaw, err := tx.Get(db.LastBlockTable, shardId.Bytes())
+		if err != nil {
+			return nil, err
 		}
-	} else if blockNrOrHash.BlockHash != nil {
+
+		blockHash = common.BytesToHash(*hashRaw)
+	case blockNrOrHash.BlockNumber != nil:
+		return nil, errNotImplemented
+	case blockNrOrHash.BlockHash != nil:
 		blockHash = *blockNrOrHash.BlockHash
 	}
 
@@ -37,12 +37,12 @@ func (api *APIImpl) getSmartContract(tx db.Tx, shardId types.ShardId, address co
 	root := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.ContractTrieTable, block.SmartContractsRoot)
 	contractRaw, err := root.Get(address.Hash().Bytes())
 	if contractRaw == nil || err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	contract := new(types.SmartContract)
 	if err := contract.UnmarshalSSZ(contractRaw); err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	return contract, nil
@@ -104,16 +104,13 @@ func (api *APIImpl) GetCode(ctx context.Context, shardId types.ShardId, address 
 	defer tx.Rollback()
 
 	acc, err := api.getSmartContract(tx, shardId, address, blockNrOrHash)
-	if err != nil {
+	if acc == nil || err != nil {
 		return nil, err
-	}
-	if acc == nil {
-		return hexutil.Bytes(""), nil
 	}
 
 	code, err := db.ReadCode(tx, shardId, acc.CodeHash)
 	if code == nil || err != nil {
-		return hexutil.Bytes(""), nil
+		return nil, err
 	}
 	return hexutil.Bytes(*code), nil
 }

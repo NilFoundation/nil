@@ -14,6 +14,8 @@ import (
 )
 
 func TestDebugGetBlock(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	database, err := db.NewBadgerDbInMemory()

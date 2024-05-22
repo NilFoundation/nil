@@ -28,6 +28,8 @@ func CreateMerklePatriciaTrie() *MerklePatriciaTrie {
 }
 
 func TestInsertGetOneShort(t *testing.T) {
+	t.Parallel()
+
 	trie := CreateMerklePatriciaTrie()
 
 	key := []byte("key")
@@ -42,6 +44,8 @@ func TestInsertGetOneShort(t *testing.T) {
 }
 
 func TestInsertGetOneLong(t *testing.T) {
+	t.Parallel()
+
 	trie := CreateMerklePatriciaTrie()
 
 	key := []byte("key_0000000000000000000000000000000000000000000000000000000000000000")
@@ -51,6 +55,8 @@ func TestInsertGetOneLong(t *testing.T) {
 }
 
 func TestInsertGetMany(t *testing.T) {
+	t.Parallel()
+
 	trie := CreateMerklePatriciaTrie()
 
 	require.NoError(t, trie.Set([]byte("do"), []byte("verb")))
@@ -65,6 +71,8 @@ func TestInsertGetMany(t *testing.T) {
 }
 
 func TestIterate(t *testing.T) {
+	t.Parallel()
+
 	trie := CreateMerklePatriciaTrie()
 	keys := [][]byte{[]byte("do"), []byte("dog"), []byte("doge"), []byte("horse")}
 	values := [][]byte{[]byte("verb"), []byte("puppy"), []byte("coin"), []byte("stallion")}
@@ -83,13 +91,15 @@ func TestIterate(t *testing.T) {
 }
 
 func TestInsertGetLots(t *testing.T) {
+	t.Parallel()
+
 	trie := CreateMerklePatriciaTrie()
 	const size = 100
 
 	var keys [size][]byte
 	var values [size][]byte
-	for i := 0; i < size; i++ {
-		n := rand.Uint64()
+	for i := range size {
+		n := rand.Uint64() //nolint:gosec
 		keys[i] = binary.LittleEndian.AppendUint64(keys[i], n)
 		values[i] = binary.LittleEndian.AppendUint32(values[i], uint32(i))
 	}
@@ -104,6 +114,8 @@ func TestInsertGetLots(t *testing.T) {
 }
 
 func TestDeleteOne(t *testing.T) {
+	t.Parallel()
+
 	trie := CreateMerklePatriciaTrie()
 
 	require.NoError(t, trie.Set([]byte("key"), []byte("value")))
@@ -115,6 +127,8 @@ func TestDeleteOne(t *testing.T) {
 }
 
 func TestDeleteMany(t *testing.T) {
+	t.Parallel()
+
 	trie := CreateMerklePatriciaTrie()
 
 	require.NoError(t, trie.Set([]byte("do"), []byte("verb")))
@@ -142,6 +156,8 @@ func TestDeleteMany(t *testing.T) {
 }
 
 func TestDeleteLots(t *testing.T) {
+	t.Parallel()
+
 	trie := CreateMerklePatriciaTrie()
 	const size = 100
 
@@ -149,8 +165,8 @@ func TestDeleteLots(t *testing.T) {
 
 	var keys [size][]byte
 	var values [size][]byte
-	for i := 0; i < size; i++ {
-		keys[i] = binary.LittleEndian.AppendUint64(keys[i], rand.Uint64())
+	for i := range size {
+		keys[i] = binary.LittleEndian.AppendUint64(keys[i], rand.Uint64()) //nolint:gosec
 		values[i] = binary.LittleEndian.AppendUint32(values[i], uint32(i))
 	}
 
@@ -168,6 +184,8 @@ func TestDeleteLots(t *testing.T) {
 }
 
 func TestTrieFromOldRoot(t *testing.T) {
+	t.Parallel()
+
 	trie := CreateMerklePatriciaTrie()
 
 	require.NoError(t, trie.Set([]byte("do"), []byte("verb")))

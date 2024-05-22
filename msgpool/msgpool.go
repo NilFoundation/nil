@@ -9,7 +9,6 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 	"github.com/rs/zerolog"
 )
 
@@ -40,7 +39,7 @@ type MsgPool struct {
 	logger *zerolog.Logger
 }
 
-func New(cfg Config) Pool {
+func New(cfg Config) *MsgPool {
 	lock := &sync.Mutex{}
 
 	return &MsgPool{
@@ -101,7 +100,7 @@ func (p *MsgPool) validateMsg(msg *types.Message) (DiscardReason, bool) {
 	return NotSet, true
 }
 
-func (p *MsgPool) idHashKnownLocked(tx db.Tx, hash common.Hash) (bool, error) {
+func (p *MsgPool) idHashKnownLocked(_ db.Tx, hash common.Hash) (bool, error) {
 	if _, ok := p.byHash[string(hash.Bytes())]; ok {
 		return true, nil
 	}
@@ -130,7 +129,7 @@ func (p *MsgPool) Get(tx db.Tx, hash common.Hash) (*types.Message, error) {
 	return p.getLocked(tx, hash)
 }
 
-func (p *MsgPool) getLocked(tx db.Tx, hash common.Hash) (*types.Message, error) {
+func (p *MsgPool) getLocked(_ db.Tx, hash common.Hash) (*types.Message, error) {
 	msg, ok := p.byHash[string(hash.Bytes())]
 	if ok {
 		return msg, nil
@@ -139,11 +138,11 @@ func (p *MsgPool) getLocked(tx db.Tx, hash common.Hash) (*types.Message, error) 
 }
 
 func (p *MsgPool) addLocked(msg *types.Message) DiscardReason {
-	// Insert to pending pool, if pool doesn't have txn with same Nonce and bigger Tip
+	// Insert to pending pool, if pool doesn't have txn with the same Nonce and bigger Tip
 	found := p.all.get(msg.From, msg.Seqno)
 	if found != nil {
-		// Disard Message with lower fee (TODO: do we need it?)
-		if found.Value.Cmp((*uint256.Int)(&msg.Value.Int)) >= 0 {
+		// Discard Message with lower fee (TODO: do we need it?)
+		if found.Value.Cmp(&msg.Value.Int) >= 0 {
 			// TODO: Currently this condition can't be true because "Value" affects hash
 			if bytes.Equal(found.Hash().Bytes(), msg.Hash().Bytes()) {
 				return NotSet
@@ -211,7 +210,7 @@ func (p *MsgPool) OnNewBlock(ctx context.Context, block *types.Block, committed 
 // modify state_balance and state_seqno, potentially remove some elements (if message with some seqno is
 // included into a block), and finally, walk over the message records and update queue depending on
 // the actual presence of seqno gaps and what the balance is.
-func (p *MsgPool) removeCommitted(bySeqno *BySenderAndSeqno, msgs []*types.Message) error {
+func (p *MsgPool) removeCommitted(bySeqno *BySenderAndSeqno, msgs []*types.Message) error { //nolint:unparam
 	seqnosToRemove := map[common.Address]uint64{}
 	for _, msg := range msgs {
 		seqno, ok := seqnosToRemove[msg.From]

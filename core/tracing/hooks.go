@@ -74,7 +74,7 @@ type (
 
 	// TxStartHook is called before the execution of a transaction starts.
 	// Call simulations don't come with a valid signature. `from` field
-	// to be used for address of the caller.
+	// to be used for the address of the caller.
 	// TxStartHook = func(vm *VMContext, tx *types.Transaction, from common.Address)
 
 	// TxEndHook is called after the execution of a transaction ends.
@@ -106,7 +106,7 @@ type (
 	FaultHook = func(pc uint64, op byte, gas, cost uint64, scope OpContext, depth int, err error)
 
 	// GasChangeHook is invoked when the gas changes.
-	GasChangeHook = func(old, new uint64, reason GasChangeReason)
+	GasChangeHook = func(old, neu uint64, reason GasChangeReason)
 
 	/*
 		- Chain events -
@@ -133,11 +133,11 @@ type (
 	// GenesisBlockHook is called when the genesis block is being processed.
 	// GenesisBlockHook = func(genesis *types.Block, alloc types.GenesisAlloc)
 
-	// OnSystemCallStartHook is called when a system call is about to be executed. Today,
+	// OnSystemCallStartHook is called when a system call is about to be executed. Today
 	// this hook is invoked when the EIP-4788 system call is about to be executed to set the
 	// beacon block root.
 	//
-	// After this hook, the EVM call tracing will happened as usual so you will receive a `OnEnter/OnExit`
+	// After this hook, the EVM call tracing will happen as usual, so you will receive a `OnEnter/OnExit`
 	// as well as state hooks between this hook and the `OnSystemCallEndHook`.
 	//
 	// Note that system call happens outside normal transaction execution, so the `OnTxStart/OnTxEnd` hooks
@@ -154,16 +154,16 @@ type (
 	*/
 
 	// BalanceChangeHook is called when the balance of an account changes.
-	BalanceChangeHook = func(addr common.Address, prev, new *big.Int, reason BalanceChangeReason)
+	BalanceChangeHook = func(addr common.Address, prev, next *big.Int, reason BalanceChangeReason)
 
 	// NonceChangeHook is called when the nonce of an account changes.
-	NonceChangeHook = func(addr common.Address, prev, new uint64)
+	NonceChangeHook = func(addr common.Address, prev, next uint64)
 
 	// CodeChangeHook is called when the code of an account changes.
 	CodeChangeHook = func(addr common.Address, prevCodeHash common.Hash, prevCode []byte, codeHash common.Hash, code []byte)
 
 	// StorageChangeHook is called when the storage of an account changes.
-	StorageChangeHook = func(addr common.Address, slot common.Hash, prev, new common.Hash)
+	StorageChangeHook = func(addr common.Address, slot common.Hash, prev, next common.Hash)
 
 	// LogHook is called when a log is emitted.
 	LogHook = func(log *types.Log)

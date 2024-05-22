@@ -11,6 +11,8 @@ type TestBlock struct {
 }
 
 func TestReflectSchemeToClickhouse(t *testing.T) {
+	t.Parallel()
+
 	fields, err := ReflectSchemeToClickhouse(&TestBlock{})
 	require.NoError(t, err)
 	require.Contains(t, fields, "Id UInt64")

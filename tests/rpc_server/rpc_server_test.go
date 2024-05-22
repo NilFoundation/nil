@@ -13,6 +13,11 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const (
+	getBlockByHash   = "eth_getBlockByHash"
+	getBlockByNumber = "eth_getBlockByNumber"
+)
+
 type Request struct {
 	Jsonrpc string `json:"jsonrpc"`
 	Method  string `json:"method"`
@@ -71,7 +76,7 @@ func (suite *SuiteRpc) TearDownSuite() {
 func (suite *SuiteRpc) TestRpcBasic() {
 	request := Request{
 		Jsonrpc: "2.0",
-		Method:  "eth_getBlockByNumber",
+		Method:  getBlockByNumber,
 		Params:  []any{types.MasterShardId, "0x1b4", false},
 		Id:      1,
 	}
@@ -95,33 +100,35 @@ func (suite *SuiteRpc) TestRpcBasic() {
 	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
 	suite.Equal("not implemented", resp.Error["message"])
 
-	request.Method = "eth_getBlockByNumber"
+	request.Method = getBlockByNumber
 	request.Params = []any{types.MasterShardId, 123, false}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
 	suite.Equal("not implemented", resp.Error["message"])
 
-	request.Method = "eth_getBlockByHash"
+	request.Method = getBlockByHash
 	request.Params = []any{types.MasterShardId, "0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef", false}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.Require().Nil(resp.Error["code"])
 	suite.Require().Nil(resp.Result)
 
-	request.Method = "eth_getBlockByNumber"
+	request.Method = getBlockByNumber
 	request.Params = []any{types.MasterShardId, "latest", false}
-	latest_resp, err := makeRequest(&request)
+	latestResp, err := makeRequest(&request)
 	suite.Require().NoError(err)
-	suite.Require().Nil(latest_resp.Error["code"])
-	suite.Require().NotNil(latest_resp.Result["hash"])
+	suite.Require().Nil(latestResp.Error["code"])
+	suite.Require().NotNil(latestResp.Result["hash"])
 
-	request.Method = "eth_getBlockByHash"
-	request.Params = []any{types.MasterShardId, latest_resp.Result["hash"].(string), false}
+	request.Method = getBlockByHash
+	hash, ok := latestResp.Result["hash"].(string)
+	suite.Require().True(ok)
+	request.Params = []any{types.MasterShardId, hash, false}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.Require().Nil(resp.Error["code"])
-	suite.Require().Equal(latest_resp.Result, resp.Result)
+	suite.Require().Equal(latestResp.Result, resp.Result)
 
 	request.Method = "eth_getMessageByHash"
 	request.Params = []any{types.MasterShardId, "0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef"}
@@ -160,7 +167,7 @@ func (suite *SuiteRpc) TestRpcError() {
 
 	request = Request{
 		Jsonrpc: "2.0",
-		Method:  "eth_getBlockByNumber",
+		Method:  getBlockByNumber,
 		Params:  []any{},
 		Id:      1,
 	}
@@ -169,7 +176,7 @@ func (suite *SuiteRpc) TestRpcError() {
 	suite.InEpsilon(float64(-32602), resp.Error["code"], 0)
 	suite.Equal("missing value for required argument 0", resp.Error["message"])
 
-	request.Method = "eth_getBlockByNumber"
+	request.Method = getBlockByNumber
 	request.Params = []any{1 << 40}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
@@ -178,21 +185,21 @@ func (suite *SuiteRpc) TestRpcError() {
 		"invalid argument 0: json: cannot unmarshal number 1099511627776 into Go value of type uint32",
 		resp.Error["message"])
 
-	request.Method = "eth_getBlockByNumber"
+	request.Method = getBlockByNumber
 	request.Params = []any{types.MasterShardId}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.InEpsilon(float64(-32602), resp.Error["code"], 0)
 	suite.Equal("missing value for required argument 1", resp.Error["message"])
 
-	request.Method = "eth_getBlockByHash"
+	request.Method = getBlockByHash
 	request.Params = []any{types.MasterShardId, "0x1b4", false}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.InEpsilon(float64(-32000), resp.Error["code"], 0.5)
 	suite.Equal("invalid argument 1: hex string of odd length", resp.Error["message"])
 
-	request.Method = "eth_getBlockByHash"
+	request.Method = getBlockByHash
 	request.Params = []any{types.MasterShardId, "latest"}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
@@ -214,13 +221,16 @@ func (suite *SuiteRpc) TestRpcDebugModules() {
 	suite.Require().Contains(resp.Result, "hash")
 	suite.Require().Contains(resp.Result, "content")
 
-	sliceContent := resp.Result["content"].(string)
+	sliceContent, ok := resp.Result["content"].(string)
+	suite.Require().True(ok)
 	// check if the string starts with 0x prefix
-	suite.Require().Equal("0x", string(sliceContent[:2]))
+	suite.Require().Equal("0x", sliceContent[:2])
 	// print resp to see the result
 	suite.T().Logf("resp: %v", resp)
 }
 
 func TestSuiteRpc(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, new(SuiteRpc))
 }

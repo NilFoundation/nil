@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type SuiteMsgpool struct {
+type SuiteMsgPool struct {
 	suite.Suite
 	db   db.DB
-	pool Pool
+	pool *MsgPool
 }
 
 func newMessage(from common.Address, seqno uint64, fee uint64) types.Message {
@@ -31,7 +31,7 @@ func newMessage(from common.Address, seqno uint64, fee uint64) types.Message {
 	}
 }
 
-func (suite *SuiteMsgpool) BeforeTest(suiteName, testName string) {
+func (suite *SuiteMsgPool) BeforeTest(suiteName, testName string) {
 	var err error
 	suite.db, err = db.NewBadgerDbInMemory()
 	suite.Require().NoError(err)
@@ -41,11 +41,11 @@ func (suite *SuiteMsgpool) BeforeTest(suiteName, testName string) {
 	suite.Equal(0, suite.pool.MessageCount())
 }
 
-func (suite *SuiteMsgpool) AfterTest(suiteName, testName string) {
+func (suite *SuiteMsgPool) AfterTest(suiteName, testName string) {
 	suite.db.Close()
 }
 
-func (suite *SuiteMsgpool) TestAdd() {
+func (suite *SuiteMsgPool) TestAdd() {
 	suite.Equal(0, suite.pool.MessageCount())
 
 	ctx := context.Background()
@@ -84,21 +84,21 @@ func (suite *SuiteMsgpool) TestAdd() {
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 	suite.Equal(1, suite.pool.MessageCount())
 
-	// Add message with higer seqno from the same sender
+	// Add a message with higher seqno from the same sender
 	msg4 := newMessage(address, 1, 124)
 	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg4}, tx)
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 	suite.Equal(2, suite.pool.MessageCount())
 
-	// Add message with lower seqno from the same sender - SeqnoTooLow
+	// Add a message with lower seqno from the same sender - SeqnoTooLow
 	msg5 := newMessage(address, 0, 124)
 	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg5}, tx)
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{SeqnoTooLow}, reasons)
 	suite.Equal(2, suite.pool.MessageCount())
 
-	// Add message with higer seqno from new sender
+	// Add a message with higher seqno from new sender
 	msg6 := newMessage(common.HexToAddress("deadbeef2"), 1, 124)
 	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg6}, tx)
 	suite.Require().NoError(err)
@@ -109,13 +109,13 @@ func (suite *SuiteMsgpool) TestAdd() {
 	suite.Require().NoError(err)
 }
 
-func (suite *SuiteMsgpool) TestAddOverflow() {
+func (suite *SuiteMsgPool) TestAddOverflow() {
 	ctx := context.Background()
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	suite.pool.(*MsgPool).cfg.Size = 1
+	suite.pool.cfg.Size = 1
 
 	address := common.HexToAddress("deadbeef")
 	suite.Require().NotEqual(common.Address{}, address)
@@ -134,11 +134,11 @@ func (suite *SuiteMsgpool) TestAddOverflow() {
 	suite.Require().NoError(err)
 }
 
-func (suite *SuiteMsgpool) TestStarted() {
+func (suite *SuiteMsgPool) TestStarted() {
 	suite.True(suite.pool.Started())
 }
 
-func (suite *SuiteMsgpool) TestIdHashKnownGet() {
+func (suite *SuiteMsgPool) TestIdHashKnownGet() {
 	ctx := context.Background()
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Require().NoError(err)
@@ -173,7 +173,7 @@ func (suite *SuiteMsgpool) TestIdHashKnownGet() {
 	suite.Require().NoError(err)
 }
 
-func (suite *SuiteMsgpool) TestSeqnoFromAddress() {
+func (suite *SuiteMsgPool) TestSeqnoFromAddress() {
 	ctx := context.Background()
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Require().NoError(err)
@@ -210,7 +210,7 @@ func (suite *SuiteMsgpool) TestSeqnoFromAddress() {
 	suite.Require().NoError(err)
 }
 
-func (suite *SuiteMsgpool) TestPeek() {
+func (suite *SuiteMsgPool) TestPeek() {
 	ctx := context.Background()
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Require().NoError(err)
@@ -248,7 +248,7 @@ func (suite *SuiteMsgpool) TestPeek() {
 	suite.Equal(4, suite.pool.MessageCount())
 }
 
-func (suite *SuiteMsgpool) TestOnNewBlock() {
+func (suite *SuiteMsgPool) TestOnNewBlock() {
 	ctx := context.Background()
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Require().NoError(err)
@@ -293,15 +293,15 @@ func (suite *SuiteMsgpool) TestOnNewBlock() {
 	time.Sleep(100 * time.Millisecond)
 
 	// After commit Peek should return only one message
-	var messges []*types.Message
+	var messages []*types.Message
 	select {
-	case messges = <-ch:
+	case messages = <-ch:
 	default:
 		suite.Fail("Channel expected to have messages for block 1")
 	}
 
-	suite.Require().Len(messges, 1)
-	suite.Require().Equal([]*types.Message{&msg2_2}, messges)
+	suite.Require().Len(messages, 1)
+	suite.Require().Equal([]*types.Message{&msg2_2}, messages)
 	suite.Equal(1, suite.pool.MessageCount())
 
 	err = tx.Commit()
@@ -309,5 +309,7 @@ func (suite *SuiteMsgpool) TestOnNewBlock() {
 }
 
 func TestSuiteMsgpool(t *testing.T) {
-	suite.Run(t, new(SuiteMsgpool))
+	t.Parallel()
+
+	suite.Run(t, new(SuiteMsgPool))
 }

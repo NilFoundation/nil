@@ -3,8 +3,8 @@ package hexutil
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math/big"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -71,13 +71,19 @@ var unmarshalBigTests = []unmarshalTest{
 }
 
 func TestUnmarshalBig(t *testing.T) {
+	t.Parallel()
+
 	for idx, test := range unmarshalBigTests {
-		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
+		t.Run(strconv.Itoa(idx), func(t *testing.T) {
+			t.Parallel()
+
 			var v Big
 			err := json.Unmarshal([]byte(test.input), &v)
 			checkError(t, test.input, err, test.wantErr)
 			if test.want != nil {
-				require.EqualValues(t, test.want.(*big.Int).Bytes(), v.ToInt().Bytes())
+				expected, ok := test.want.(*big.Int)
+				require.True(t, ok)
+				require.Zero(t, expected.Cmp(v.ToInt()))
 			}
 		})
 	}
@@ -94,9 +100,14 @@ func BenchmarkUnmarshalBig(b *testing.B) {
 }
 
 func TestMarshalBig(t *testing.T) {
+	t.Parallel()
+
 	for idx, test := range encodeBigTests {
-		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
-			in := test.input.(*big.Int)
+		t.Run(strconv.Itoa(idx), func(t *testing.T) {
+			t.Parallel()
+
+			in, ok := test.input.(*big.Int)
+			require.True(t, ok)
 			out, err := json.Marshal((*Big)(in))
 			require.NoError(t, err)
 			want := `"` + test.want + `"`
@@ -130,8 +141,12 @@ var unmarshalUint64Tests = []unmarshalTest{
 }
 
 func TestUnmarshalUint64(t *testing.T) {
+	t.Parallel()
+
 	for idx, test := range unmarshalUint64Tests {
-		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
+		t.Run(strconv.Itoa(idx), func(t *testing.T) {
+			t.Parallel()
+
 			var v Uint64
 			err := json.Unmarshal([]byte(test.input), &v)
 			checkError(t, test.input, err, test.wantErr)
@@ -151,9 +166,14 @@ func BenchmarkUnmarshalUint64(b *testing.B) {
 }
 
 func TestMarshalUint64(t *testing.T) {
+	t.Parallel()
+
 	for idx, test := range encodeUint64Tests {
-		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
-			in := test.input.(uint64)
+		t.Run(strconv.Itoa(idx), func(t *testing.T) {
+			t.Parallel()
+
+			in, ok := test.input.(uint64)
+			require.True(t, ok)
 			out, err := json.Marshal(Uint64(in))
 			require.NoError(t, err)
 			want := `"` + test.want + `"`
@@ -164,9 +184,14 @@ func TestMarshalUint64(t *testing.T) {
 }
 
 func TestMarshalUint(t *testing.T) {
+	t.Parallel()
+
 	for idx, test := range encodeUintTests {
-		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
-			in := test.input.(uint)
+		t.Run(strconv.Itoa(idx), func(t *testing.T) {
+			t.Parallel()
+
+			in, ok := test.input.(uint)
+			require.True(t, ok)
 			out, err := json.Marshal(Uint(in))
 			require.NoError(t, err)
 			want := `"` + test.want + `"`
@@ -207,8 +232,12 @@ var unmarshalUintTests = []unmarshalTest{
 }
 
 func TestUnmarshalUint(t *testing.T) {
+	t.Parallel()
+
 	for idx, test := range unmarshalUintTests {
-		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
+		t.Run(strconv.Itoa(idx), func(t *testing.T) {
+			t.Parallel()
+
 			var v Uint
 			err := json.Unmarshal([]byte(test.input), &v)
 			if uintBits == 32 && test.wantErr32bit != nil {

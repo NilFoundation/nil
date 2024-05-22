@@ -2,7 +2,7 @@ package transport
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -16,36 +16,42 @@ import (
 
 // TestCorsHandler makes sure CORS are properly handled on the http server.
 func TestCorsHandler(t *testing.T) {
+	t.Parallel()
+
 	srv := createAndStartServer(t, &httpConfig{CorsAllowedOrigins: []string{"test", "test.com"}})
 	defer srv.stop()
-	url := "http://" + srv.listenAddr()
+	u := "http://" + srv.listenAddr()
 
-	resp := rpcRequest(t, url, "origin", "test.com")
+	resp := rpcRequest(t, u, "origin", "test.com")
 	defer resp.Body.Close()
 	assert.Equal(t, "test.com", resp.Header.Get("Access-Control-Allow-Origin"))
 
-	resp2 := rpcRequest(t, url, "origin", "bad")
+	resp2 := rpcRequest(t, u, "origin", "bad")
 	defer resp2.Body.Close()
 	assert.Equal(t, "", resp2.Header.Get("Access-Control-Allow-Origin"))
 }
 
 // TestVhosts makes sure vhosts is properly handled on the http server.
 func TestVhosts(t *testing.T) {
+	t.Parallel()
+
 	srv := createAndStartServer(t, &httpConfig{Vhosts: []string{"test"}})
 	defer srv.stop()
-	url := "http://" + srv.listenAddr()
+	u := "http://" + srv.listenAddr()
 
-	resp := rpcRequest(t, url, "host", "test")
+	resp := rpcRequest(t, u, "host", "test")
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	resp2 := rpcRequest(t, url, "host", "bad")
+	resp2 := rpcRequest(t, u, "host", "bad")
 	defer resp2.Body.Close()
 	assert.Equal(t, http.StatusForbidden, resp2.StatusCode)
 }
 
 // TestVhostsAny makes sure vhosts any is properly handled on the http server.
 func TestVhostsAny(t *testing.T) {
+	t.Parallel()
+
 	srv := createAndStartServer(t, &httpConfig{Vhosts: []string{"any"}})
 	defer srv.stop()
 	url := "http://" + srv.listenAddr()
@@ -60,6 +66,8 @@ func TestVhostsAny(t *testing.T) {
 }
 
 func Test_checkPath(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		req      *http.Request
 		prefix   string
@@ -109,6 +117,8 @@ func Test_checkPath(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
+
 			assert.Equal(t, tt.expected, checkPath(tt.req, tt.prefix)) //nolint:scopelint
 		})
 	}
@@ -131,11 +141,11 @@ func rpcRequest(t *testing.T, url string, extraHeaders ...string) *http.Response
 
 	// Create the request.
 	body := bytes.NewReader([]byte(`{"jsonrpc":"2.0","id":1,"method":"rpc_modules","params":[]}`))
-	req, err := http.NewRequest("POST", url, body)
+	req, err := http.NewRequest(http.MethodPost, url, body)
 	if err != nil {
 		t.Fatal("could not create http request:", err)
 	}
-	req.Header.Set("content-type", "application/json")
+	req.Header.Set("Content-Type", "application/json")
 
 	// Apply extra headers.
 	if len(extraHeaders)%2 != 0 {
@@ -165,7 +175,7 @@ func (h *httpServer) enableRPC(apis []API, config httpConfig) error {
 	defer h.mu.Unlock()
 
 	if h.rpcAllowed() {
-		return fmt.Errorf("JSON-RPC over HTTP is already enabled")
+		return errors.New("JSON-RPC over HTTP is already enabled")
 	}
 
 	// Create RPC server and handler.

@@ -2,6 +2,7 @@ package hexutil
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -104,22 +105,23 @@ func decodeNibble(in byte) uint64 {
 	}
 }
 
-// ignore these errors to keep compatiblity with go ethereum
-// nolint:errorlint
+// ignore these errors to keep compatibility with go ethereum
 func mapError(err error) error {
-	if err, ok := err.(*strconv.NumError); ok {
-		switch err.Err {
-		case strconv.ErrRange:
+	if e := (*strconv.NumError)(nil); errors.As(err, &e) {
+		switch {
+		case errors.Is(e.Err, strconv.ErrRange):
 			return ErrUint64Range
-		case strconv.ErrSyntax:
+		case errors.Is(e.Err, strconv.ErrSyntax):
 			return ErrSyntax
 		}
 	}
-	if _, ok := err.(hex.InvalidByteError); ok {
+
+	switch {
+	case errors.Is(err, hex.InvalidByteError(0)):
 		return ErrSyntax
-	}
-	if err == hex.ErrLength {
+	case errors.Is(err, hex.ErrLength):
 		return ErrOddLength
 	}
+
 	return err
 }

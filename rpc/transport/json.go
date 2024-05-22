@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/NilFoundation/nil/common"
 )
 
 const (
@@ -45,7 +47,8 @@ func (msg *jsonrpcMessage) hasValidID() bool {
 }
 
 func (msg *jsonrpcMessage) String() string {
-	b, _ := json.Marshal(msg)
+	b, err := json.Marshal(msg)
+	common.Check(err)
 	return string(b)
 }
 
@@ -69,13 +72,11 @@ func errorMessage(err error) *jsonrpcMessage {
 		Code:    defaultErrorCode,
 		Message: err.Error(),
 	}}
-	ec, ok := err.(Error)
-	if ok {
-		msg.Error.Code = ec.ErrorCode()
+	if e := Error(nil); errors.As(err, &e) {
+		msg.Error.Code = e.ErrorCode()
 	}
-	de, ok := err.(DataError)
-	if ok {
-		msg.Error.Data = de.ErrorData()
+	if e := DataError(nil); errors.As(err, &e) {
+		msg.Error.Data = e.ErrorData()
 	}
 	return msg
 }
@@ -187,7 +188,7 @@ func (c *jsonCodec) WriteJSON(ctx context.Context, v interface{}) error {
 func (c *jsonCodec) Close() {
 	c.closer.Do(func() {
 		close(c.closeCh)
-		c.conn.Close()
+		_ = c.conn.Close()
 	})
 }
 

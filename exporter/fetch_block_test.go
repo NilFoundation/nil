@@ -18,6 +18,8 @@ import (
 )
 
 func TestFetchBlock(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	logger := common.NewLogger("RPC", false)

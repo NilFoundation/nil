@@ -8,6 +8,8 @@ import (
 )
 
 func TestAt(t *testing.T) {
+	t.Parallel()
+
 	data := [2]byte{0x12, 0x34}
 	nibbles := newPath(data[:], 0)
 	require.Equal(t, 1, nibbles.At(0))
@@ -17,6 +19,8 @@ func TestAt(t *testing.T) {
 }
 
 func TestAtWithOffset(t *testing.T) {
+	t.Parallel()
+
 	data := [2]byte{0x12, 0x34}
 	nibbles := newPath(data[:], 1)
 	require.Equal(t, 2, nibbles.At(0))
@@ -26,48 +30,54 @@ func TestAtWithOffset(t *testing.T) {
 }
 
 func TestEncode(t *testing.T) {
-	nibbles := newPath(([]byte{0x12, 0x34})[:], 0)
-	require.Equal(t, nibbles.Encode(), ([]byte{0x00, 0x12, 0x34})[:])
-	nibbles.IsLeaf = true
-	require.Equal(t, nibbles.Encode(), ([]byte{0x20, 0x12, 0x34})[:])
+	t.Parallel()
 
-	nibbles = newPath(([]byte{0x12, 0x34})[:], 1)
-	require.Equal(t, nibbles.Encode(), ([]byte{0x12, 0x34})[:])
+	nibbles := newPath([]byte{0x12, 0x34}, 0)
+	require.Equal(t, []byte{0x00, 0x12, 0x34}, nibbles.Encode())
 	nibbles.IsLeaf = true
-	require.Equal(t, nibbles.Encode(), ([]byte{0x32, 0x34})[:])
+	require.Equal(t, []byte{0x20, 0x12, 0x34}, nibbles.Encode())
+
+	nibbles = newPath([]byte{0x12, 0x34}, 1)
+	require.Equal(t, []byte{0x12, 0x34}, nibbles.Encode())
+	nibbles.IsLeaf = true
+	require.Equal(t, []byte{0x32, 0x34}, nibbles.Encode())
 }
 
 func TestCommonPrefix(t *testing.T) {
-	nibblesA := newPath(([]byte{0x12, 0x34})[:], 0)
-	nibblesB := newPath(([]byte{0x12, 0x56})[:], 0)
+	t.Parallel()
+
+	nibblesA := newPath([]byte{0x12, 0x34}, 0)
+	nibblesB := newPath([]byte{0x12, 0x56}, 0)
 	common := nibblesA.CommonPrefix(nibblesB)
-	require.True(t, common.Equal(newPath(([]byte{0x12})[:], 0)))
+	require.True(t, common.Equal(newPath([]byte{0x12}, 0)))
 
-	nibblesA = newPath(([]byte{0x12, 0x34})[:], 0)
-	nibblesB = newPath(([]byte{0x12, 0x36})[:], 0)
+	nibblesA = newPath([]byte{0x12, 0x34}, 0)
+	nibblesB = newPath([]byte{0x12, 0x36}, 0)
 	common = nibblesA.CommonPrefix(nibblesB)
-	require.True(t, common.Equal(newPath(([]byte{0x01, 0x23})[:], 1)))
+	require.True(t, common.Equal(newPath([]byte{0x01, 0x23}, 1)))
 
-	nibblesA = newPath(([]byte{0x12, 0x34})[:], 1)
-	nibblesB = newPath(([]byte{0x12, 0x56})[:], 1)
+	nibblesA = newPath([]byte{0x12, 0x34}, 1)
+	nibblesB = newPath([]byte{0x12, 0x56}, 1)
 	common = nibblesA.CommonPrefix(nibblesB)
-	require.True(t, common.Equal(newPath(([]byte{0x12})[:], 1)))
+	require.True(t, common.Equal(newPath([]byte{0x12}, 1)))
 
-	nibblesA = newPath(([]byte{0x52, 0x34})[:], 0)
-	nibblesB = newPath(([]byte{0x02, 0x56})[:], 0)
+	nibblesA = newPath([]byte{0x52, 0x34}, 0)
+	nibblesB = newPath([]byte{0x02, 0x56}, 0)
 	common = nibblesA.CommonPrefix(nibblesB)
-	require.True(t, common.Equal(newPath(([]byte{})[:], 0)))
+	require.True(t, common.Equal(newPath([]byte{}, 0)))
 }
 
 func TestCombine(t *testing.T) {
-	nibblesA := newPath(([]byte{0x12, 0x34})[:], 0)
-	nibblesB := newPath(([]byte{0x56, 0x78})[:], 0)
-	common := nibblesA.Combine(nibblesB)
-	require.True(t, common.Equal(newPath(([]byte{0x12, 0x34, 0x56, 0x78})[:], 0)))
+	t.Parallel()
 
-	nibblesA = newPath(([]byte{0x12, 0x34})[:], 1)
-	nibblesB = newPath(([]byte{0x56, 0x78})[:], 3)
+	nibblesA := newPath([]byte{0x12, 0x34}, 0)
+	nibblesB := newPath([]byte{0x56, 0x78}, 0)
+	common := nibblesA.Combine(nibblesB)
+	require.True(t, common.Equal(newPath([]byte{0x12, 0x34, 0x56, 0x78}, 0)))
+
+	nibblesA = newPath([]byte{0x12, 0x34}, 1)
+	nibblesB = newPath([]byte{0x56, 0x78}, 3)
 	common = nibblesA.Combine(nibblesB)
-	toCompare := newPath(([]byte{0x23, 0x48})[:], 0)
+	toCompare := newPath([]byte{0x23, 0x48}, 0)
 	require.True(t, common.Equal(toCompare))
 }

@@ -60,7 +60,7 @@ func (suite *SuiteSendTransaction) SetupSuite() {
 	pool := msgpool.New(msgpool.DefaultConfig)
 	suite.Require().NotNil(pool)
 
-	suite.api = NewEthAPI(NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, pool, common.NewLogger("Test", false))
+	suite.api = NewEthAPI(ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, pool, common.NewLogger("Test", false))
 }
 
 func (suite *SuiteSendTransaction) TearDownSuite() {
@@ -73,5 +73,7 @@ func (suite *SuiteEthAccounts) TestInvalidMessage() {
 }
 
 func TestSuiteSendTransaction(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, new(SuiteSendTransaction))
 }

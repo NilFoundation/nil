@@ -93,7 +93,7 @@ func LogsBloom(logs []*Log) []byte {
 	var bin Bloom
 	for _, log := range logs {
 		bin.add(log.Address.Bytes(), buf)
-		for i := 0; i < len(log.Topics); i++ {
+		for i := range len(log.Topics) {
 			bin.add(log.Topics[i][:], buf)
 		}
 	}
@@ -122,7 +122,7 @@ func bloomValues(data []byte, hashbuf []byte) (uint, byte, uint, byte, uint, byt
 	return i1, v1, i2, v2, i3, v3
 }
 
-// BloomLookup is a convenience-method to check presence int he bloom filter
+// BloomLookup is a convenience-method to check presence in the bloom filter
 func BloomLookup(bin Bloom, topic bytesBacked) bool {
 	return bin.Test(topic.Bytes())
 }

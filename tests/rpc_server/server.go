@@ -43,7 +43,7 @@ func startRpcServer(ctx context.Context, nShards int, dbpath string) {
 		log.Fatal().Msgf("Failed to create message pool")
 	}
 
-	ethImpl := jsonrpc.NewEthAPI(base, badger, pool, logger)
+	ethImpl := jsonrpc.NewEthAPI(ctx, base, badger, pool, logger)
 	debugImpl := jsonrpc.NewDebugAPI(base, badger, logger)
 
 	apiList := []transport.API{
@@ -64,7 +64,7 @@ func startRpcServer(ctx context.Context, nShards int, dbpath string) {
 	if err := concurrent.Run(ctx,
 		func(ctx context.Context) error {
 			shards := make([]*shardchain.ShardChain, nShards)
-			for i := 0; i < nShards; i++ {
+			for i := range nShards {
 				shards[i] = shardchain.NewShardChain(types.ShardId(i), badger, nShards)
 			}
 

@@ -100,10 +100,14 @@ func (suite *SuiteExecutionState) TestExecState() {
 }
 
 func TestSuiteExecutionState(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, new(SuiteExecutionState))
 }
 
 func newState(t *testing.T) *ExecutionState {
+	t.Helper()
+
 	database, err := db.NewBadgerDbInMemory()
 	require.NoError(t, err)
 	tx, err := database.CreateRwTx(context.Background())
@@ -114,6 +118,8 @@ func newState(t *testing.T) *ExecutionState {
 }
 
 func TestStorage(t *testing.T) {
+	t.Parallel()
+
 	state := newState(t)
 	account := common.HexToAddress("deadbeef")
 	key := common.EmptyHash
@@ -136,6 +142,8 @@ func TestStorage(t *testing.T) {
 }
 
 func TestBalance(t *testing.T) {
+	t.Parallel()
+
 	state := newState(t)
 	account := common.HexToAddress("deadbeef")
 

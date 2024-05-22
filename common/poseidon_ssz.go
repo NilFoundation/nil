@@ -23,7 +23,10 @@ func (hh *HasherPool) Get() *ssz.Hasher {
 		}
 		return ssz.NewHasherWithHash(hash)
 	}
-	return h.(*ssz.Hasher)
+
+	res, ok := h.(*ssz.Hasher)
+	Require(ok)
+	return res
 }
 
 // Put releases the Hasher to the pool.

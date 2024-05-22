@@ -6,8 +6,7 @@ import (
 )
 
 func mapTypeToClickhouseType(t reflect.Type) string {
-	// Map Go type to Clickhouse type
-	switch t.Kind() {
+	switch t.Kind() { //nolint:exhaustive
 	case reflect.Uint64:
 		return "UInt64"
 	case reflect.Uint32:
@@ -27,25 +26,21 @@ func mapTypeToClickhouseType(t reflect.Type) string {
 	case reflect.String:
 		return "String"
 	case reflect.Array:
-		// return FixedString of length of array uint8
 		if t.Elem().Kind() == reflect.Uint8 {
 			return fmt.Sprintf("FixedString(%d)", t.Len())
 		} else {
-			// return Array
 			return fmt.Sprintf("Array(%s)", mapTypeToClickhouseType(t.Elem()))
 		}
 	default:
-		return "String"
+		panic(fmt.Sprintf("unknown type %v", t))
 	}
 }
 
 func ReflectSchemeToClickhouse(f any) ([]string, error) {
-	// reflect types.Block
-
 	fields := make([]string, 0)
 	t := reflect.TypeOf(f).Elem()
 
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		field := t.Field(i)
 
 		fields = append(fields, field.Name+" "+mapTypeToClickhouseType(field.Type))
