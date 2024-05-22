@@ -12,10 +12,6 @@ import (
 )
 
 type (
-	// CanTransferFunc is the signature of a transfer guard function
-	CanTransferFunc func(StateDB, common.Address, *uint256.Int) bool
-	// TransferFunc is the signature of a transfer function
-	TransferFunc func(StateDB, common.Address, common.Address, *uint256.Int)
 	// GetHashFunc returns the n'th block hash in the blockchain
 	// and is used by the BLOCKHASH EVM op code.
 	GetHashFunc func(uint64) common.Hash
@@ -30,11 +26,6 @@ func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
 // BlockContext provides the EVM with auxiliary information. Once provided
 // it shouldn't be modified.
 type BlockContext struct {
-	// CanTransfer returns whether the account contains
-	// sufficient ether to transfer the value
-	CanTransfer CanTransferFunc
-	// Transfer transfers ether from one account to the other
-	Transfer TransferFunc
 	// GetHash returns the hash corresponding to n
 	GetHash GetHashFunc
 
@@ -119,7 +110,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
-	if !value.IsZero() && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
+	if !value.IsZero() && !canTransfer(evm.StateDB, caller.Address(), value) {
 		return nil, gas, ErrInsufficientBalance
 	}
 	snapshot := evm.StateDB.Snapshot()
@@ -132,7 +123,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}
 		evm.StateDB.CreateAccount(addr)
 	}
-	evm.Context.Transfer(evm.StateDB, caller.Address(), addr, value)
+	transfer(evm.StateDB, caller.Address(), addr, value)
 
 	if isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas, evm.Config.Tracer)
@@ -210,4 +201,16 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *uint2
 // instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
 func (evm *EVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *uint256.Int, salt *uint256.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	panic("CREATE2 not implemented")
+}
+
+// canTransfer checks whether there are enough funds in the address' account to make a transfer.
+// This does not take the necessary gas in to account to make the transfer valid.
+func canTransfer(db StateDB, addr common.Address, amount *uint256.Int) bool {
+	return db.GetBalance(addr).Cmp(amount) >= 0
+}
+
+// transfer subtracts amount from sender and adds amount to recipient using the given Db
+func transfer(db StateDB, sender, recipient common.Address, amount *uint256.Int) {
+	db.SubBalance(sender, amount, tracing.BalanceChangeTransfer)
+	db.AddBalance(recipient, amount, tracing.BalanceChangeTransfer)
 }
