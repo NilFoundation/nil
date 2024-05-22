@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 // Address represents the 20 byte address of an Ethereum account.
@@ -70,10 +71,7 @@ func (a *Address) checksumHex() []byte {
 	buf := a.hex()
 
 	// compute checksum
-	sha := GetLegacyKeccak256()
-	sha.Write(buf[2:])
-	hash := sha.Sum(nil)
-	ReturnLegacyKeccak256(sha)
+	hash := poseidon.Sum(buf[2:])
 
 	for i := 2; i < len(buf); i++ {
 		hashByte := hash[(i-2)/2]

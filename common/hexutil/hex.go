@@ -2,6 +2,25 @@ package hexutil
 
 import "encoding/hex"
 
+func MustDecodeHex(in string) []byte {
+	in = strip0x(in)
+	if len(in)%2 == 1 {
+		in = "0" + in
+	}
+	payload, err := hex.DecodeString(in)
+	if err != nil {
+		panic(err)
+	}
+	return payload
+}
+
+func strip0x(str string) string {
+	if Has0xPrefix(str) {
+		return str[2:]
+	}
+	return str
+}
+
 // Encode encodes b as a hex string with 0x prefix.
 func Encode(b []byte) string {
 	enc := make([]byte, len(b)*2+2)
@@ -11,9 +30,7 @@ func Encode(b []byte) string {
 }
 
 func FromHex(s string) []byte {
-	if Has0xPrefix(s) {
-		s = s[2:]
-	}
+	s = strip0x(s)
 	if len(s)%2 == 1 {
 		s = "0" + s
 	}

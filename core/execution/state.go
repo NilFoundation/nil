@@ -621,19 +621,20 @@ func CreateAddress(b common.Address, nonce uint64) common.Address {
 	return common.BytesToAddress(data)
 }
 
-func (es *ExecutionState) AddMessage(message *types.Message) {
-	message.Index = uint64(len(es.Messages))
+func (es *ExecutionState) AddMessage(message *types.Message) uint64 {
+	index := uint64(len(es.Messages))
 	es.Messages = append(es.Messages, message)
+	return index
 }
 
-func (es *ExecutionState) HandleDeployMessage(message *types.Message, code types.Code) error {
+func (es *ExecutionState) HandleDeployMessage(message *types.Message, code types.Code, index uint64) error {
 	addr := CreateAddress(message.From, message.Seqno)
 
 	var r types.Receipt
 	r.Success = true
 	r.ContractAddress = addr
 	r.MsgHash = message.Hash()
-	r.MsgIndex = message.Index
+	r.MsgIndex = index
 
 	// TODO: gasUsed
 	if err := es.CreateAccount(addr); err != nil {
@@ -674,12 +675,12 @@ func (es *ExecutionState) Commit(blockId uint64) (common.Hash, error) {
 		treeShardsRootHash = treeShards.RootHash()
 	}
 
-	for _, m := range es.Messages {
+	for i, m := range es.Messages {
 		v, err := m.MarshalSSZ()
 		if err != nil {
 			return common.EmptyHash, err
 		}
-		k := ssz.MarshalUint64(nil, m.Index)
+		k := ssz.MarshalUint64(nil, uint64(i))
 		if err := es.MessageRoot.Set(k, v); err != nil {
 			return common.EmptyHash, err
 		}

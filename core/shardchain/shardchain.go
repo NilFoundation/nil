@@ -47,7 +47,7 @@ func (c *ShardChain) getHashLastBlock(roTx db.Tx, shardId types.ShardId) (common
 	return lastBlockHash, nil
 }
 
-func (c *ShardChain) HandleDeployMessage(message *types.Message, interpreter *vm.EVMInterpreter, es *execution.ExecutionState) error {
+func (c *ShardChain) HandleDeployMessage(message *types.Message, index uint64, interpreter *vm.EVMInterpreter, es *execution.ExecutionState) error {
 	addr := execution.CreateAddress(message.From, message.Seqno)
 	c.logger.Debug().Msgf("Create new contract %s", addr)
 
@@ -60,13 +60,13 @@ func (c *ShardChain) HandleDeployMessage(message *types.Message, interpreter *vm
 		c.logger.Error().Msg("message failed")
 		return err
 	}
-	if err := es.HandleDeployMessage(message, code); err != nil {
+	if err := es.HandleDeployMessage(message, code, index); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *ShardChain) HandleExecutionMessage(message *types.Message, interpreter *vm.EVMInterpreter, es *execution.ExecutionState) error {
+func (c *ShardChain) HandleExecutionMessage(message *types.Message, index uint64, interpreter *vm.EVMInterpreter, es *execution.ExecutionState) error {
 	addr := message.To
 	c.logger.Debug().Msgf("Call contract %s", addr)
 
@@ -86,7 +86,7 @@ func (c *ShardChain) HandleExecutionMessage(message *types.Message, interpreter 
 		GasUsed:         uint32(gas - contract.Gas),
 		Logs:            es.Logs[es.MessageHash],
 		MsgHash:         es.MessageHash,
-		MsgIndex:        message.Index,
+		MsgIndex:        index,
 		ContractAddress: addr,
 	}
 	es.AddReceipt(&r)
@@ -121,7 +121,7 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 	}
 
 	for _, message := range msgs {
-		es.AddMessage(message)
+		index := es.AddMessage(message)
 
 		evm := vm.EVM{
 			StateDB: es,
@@ -130,11 +130,11 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 
 		// Deploy message
 		if bytes.Equal(message.To[:], common.EmptyAddress[:]) {
-			if err := c.HandleDeployMessage(message, interpreter, es); err != nil {
+			if err := c.HandleDeployMessage(message, index, interpreter, es); err != nil {
 				return nil, err
 			}
 		} else {
-			if err := c.HandleExecutionMessage(message, interpreter, es); err != nil {
+			if err := c.HandleExecutionMessage(message, index, interpreter, es); err != nil {
 				return nil, err
 			}
 		}

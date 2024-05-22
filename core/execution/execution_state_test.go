@@ -46,9 +46,9 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	from := common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
 	for i := range numMessages {
-		msg := types.Message{ShardId: types.ShardId(10), Data: []byte{i}, From: from, Seqno: uint64(i)}
-		es.AddMessage(&msg)
-		suite.Require().NoError(es.HandleDeployMessage(&msg, msg.Data))
+		msg := types.Message{Data: []byte{i}, From: from, Seqno: uint64(i)}
+		index := es.AddMessage(&msg)
+		suite.Require().NoError(es.HandleDeployMessage(&msg, msg.Data, index))
 	}
 
 	blockHash, err := es.Commit(0)
@@ -61,7 +61,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	suite.Equal(storageVal, common.IntToHash(123456))
 
-	block := db.ReadBlock(tx, es.ShardId, blockHash)
+	block := db.ReadBlock(tx, types.MasterShardId, blockHash)
 	suite.Require().NotNil(block)
 
 	messageTrieTable := db.MessageTrieTable

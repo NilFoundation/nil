@@ -7,6 +7,7 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
@@ -146,6 +147,17 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 		From:  suite.smcAddr,
 		Seqno: 0,
 	}
+
+	key, err := crypto.GenerateKey()
+	suite.Require().NoError(err)
+
+	digest, err := msg.SigningHash()
+	suite.Require().NoError(err)
+
+	sig, err := crypto.Sign(digest.Bytes(), key)
+	suite.Require().NoError(err)
+	msg.Signature = common.Signature(sig)
+
 	data, err := msg.MarshalSSZ()
 	suite.Require().NoError(err)
 

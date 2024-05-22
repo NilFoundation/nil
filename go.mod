@@ -19,6 +19,7 @@ require github.com/spf13/cobra v1.8.0
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.24.0
+	github.com/btcsuite/btcd/btcec/v2 v2.3.3
 	github.com/spf13/viper v1.18.2
 )
 
@@ -26,6 +27,7 @@ require (
 	github.com/ClickHouse/ch-go v0.61.5 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-faster/city v1.0.1 // indirect

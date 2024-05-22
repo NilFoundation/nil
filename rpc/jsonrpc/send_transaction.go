@@ -2,10 +2,12 @@ package jsonrpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
 )
@@ -15,6 +17,10 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Byte
 	var msg types.Message
 	if err := msg.UnmarshalSSZ([]byte(encoded)); err != nil {
 		return common.Hash{}, fmt.Errorf("failed to decode message: %w", err)
+	}
+
+	if !crypto.TransactionSignatureIsValidBytes(msg.Signature[:]) {
+		return common.Hash{}, errors.New("invalid signature")
 	}
 
 	tx, err := api.db.CreateRwTx(ctx)
