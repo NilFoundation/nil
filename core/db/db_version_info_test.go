@@ -2,10 +2,11 @@ package db
 
 import (
 	"context"
+	"testing"
+
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type SuiteVersionInfo struct {
@@ -33,7 +34,7 @@ func (suite *SuiteVersionInfo) TestVersionInfoEmpty() {
 	defer tx.Rollback()
 
 	_, err = ReadVersionInfo(tx)
-	suite.Require().Error(err, ErrKeyNotFound)
+	suite.Require().ErrorIs(err, ErrKeyNotFound)
 }
 
 func (suite *SuiteVersionInfo) TestVersionInfoStore() {
@@ -74,6 +75,6 @@ func (suite *SuiteVersionInfo) TestVersionInfoOutdated() {
 	suite.Require().True(IsVersionOutdated(tx))
 }
 
-func TestSuitVersionInfo(t *testing.T) {
+func TestSuitVersionInfo(t *testing.T) { //nolint:paralleltest
 	suite.Run(t, new(SuiteVersionInfo))
 }

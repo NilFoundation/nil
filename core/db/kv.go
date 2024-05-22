@@ -46,8 +46,8 @@ type RwTx interface {
 type DB interface {
 	DBAccessor
 
-	CreateRwTx(ctx context.Context) (Tx, error)
-	CreateRoTx(ctx context.Context) (Tx, error)
+	CreateRwTx(ctx context.Context) (RwTx, error)
+	CreateRoTx(ctx context.Context) (RoTx, error)
 	DropAll() error
 	Close()
 }

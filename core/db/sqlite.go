@@ -40,7 +40,7 @@ func (db *SqliteDB) DropAll() error {
 	panic("not implemented")
 }
 
-func (db *SqliteDB) CreateRwTx(ctx context.Context) (Tx, error) {
+func (db *SqliteDB) CreateRwTx(ctx context.Context) (RwTx, error) {
 	tx, err := db.db.Begin()
 	if err != nil {
 		return nil, err

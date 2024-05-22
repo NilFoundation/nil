@@ -77,23 +77,28 @@ func run() int {
 	}
 	tx, err := badger.CreateRwTx(ctx)
 	if err != nil {
-		log.Fatal().Msg(err.Error())
+		log.Error().Msg(err.Error())
+		return -1
 	}
 	defer tx.Rollback()
 	isVersionOutdated, err := db.IsVersionOutdated(tx)
 	if err != nil {
-		log.Fatal().Msg(err.Error())
+		log.Error().Msg(err.Error())
+		return -1
 	}
 	if isVersionOutdated {
 		log.Info().Msg("Clear database from old schema")
 		if err := badger.DropAll(); err != nil {
-			log.Fatal().Msg(err.Error())
+			log.Error().Msg(err.Error())
+			return -1
 		}
 		if err := db.WriteVersionInfo(tx, types.NewVersionInfo()); err != nil {
-			log.Fatal().Msg(err.Error())
+			log.Error().Msg(err.Error())
+			return -1
 		}
 		if err := tx.Commit(); err != nil {
-			log.Fatal().Msg(err.Error())
+			log.Error().Msg(err.Error())
+			return -1
 		}
 	}
 
