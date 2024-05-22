@@ -72,6 +72,16 @@ func (suite *SuiteEthAccounts) TestInvalidMessage() {
 	suite.Require().ErrorIs(err, ssz.ErrSize)
 }
 
+func (suite *SuiteEthAccounts) TestInvalidSignature() {
+	msg := types.Message{}
+
+	data, err := msg.MarshalSSZ()
+	suite.Require().NoError(err)
+
+	_, err = suite.api.SendRawTransaction(context.Background(), data)
+	suite.Require().EqualError(err, "invalid signature")
+}
+
 func TestSuiteSendTransaction(t *testing.T) {
 	t.Parallel()
 

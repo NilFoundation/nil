@@ -20,14 +20,12 @@ type SuiteMsgPool struct {
 
 func newMessage(from common.Address, seqno uint64, fee uint64) types.Message {
 	return types.Message{
-		Index:     0,
-		ShardId:   types.ShardId(0),
 		From:      from,
 		To:        common.Address{},
 		Value:     types.Uint256{Int: *uint256.NewInt(fee)},
 		Data:      types.Code(""),
 		Seqno:     seqno,
-		Signature: common.EmptyHash,
+		Signature: common.EmptySignature,
 	}
 }
 
