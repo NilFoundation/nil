@@ -104,24 +104,15 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 		return nil, err
 	}
 
-	lastBlockHashBytes, err := rwTx.Get(db.LastBlockTable, c.Id.Bytes())
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		return nil, fmt.Errorf("failed getting last block: %w", err)
-	}
-
-	lastBlockHash := common.EmptyHash
-	// No previous blocks yet
-	if lastBlockHashBytes != nil {
-		lastBlockHash = common.Hash(*lastBlockHashBytes)
-	}
-
-	es, err := execution.NewExecutionState(rwTx, c.Id, lastBlockHash)
+	es, err := execution.NewExecutionStateForShard(rwTx, c.Id)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, message := range msgs {
+		msgHash := message.Hash()
 		index := es.AddMessage(message)
+		es.MessageHash = msgHash
 
 		evm := vm.EVM{
 			StateDB: es,

@@ -162,6 +162,30 @@ func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash) (
 	}, nil
 }
 
+func NewExecutionStateForShard(tx db.Tx, shardId types.ShardId) (*ExecutionState, error) {
+	lastBlockHashBytes, err := tx.Get(db.LastBlockTable, shardId.Bytes())
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		return nil, fmt.Errorf("failed getting last block: %w", err)
+	}
+
+	lastBlockHash := common.EmptyHash
+	// No previous blocks yet
+	if lastBlockHashBytes != nil {
+		lastBlockHash = common.Hash(*lastBlockHashBytes)
+	}
+
+	return NewExecutionState(tx, shardId, lastBlockHash)
+}
+
+func (es *ExecutionState) GetReceipt(index uint64) (*types.Receipt, error) {
+	var r types.Receipt
+	buf, err := es.ReceiptRoot.Get(ssz.MarshalUint64(nil, index))
+	if err != nil {
+		return nil, err
+	}
+	return &r, r.UnmarshalSSZ(buf)
+}
+
 func (es *ExecutionState) GetAccount(addr common.Address) *AccountState {
 	acc, ok := es.Accounts[addr]
 	if ok {
@@ -705,6 +729,9 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		}
 		k := ssz.MarshalUint64(nil, r.MsgIndex)
 		if err := es.ReceiptRoot.Set(k, v); err != nil {
+			return common.EmptyHash, err
+		}
+		if err := db.WriteReceipt(es.tx, es.ShardId, r, r.MsgHash); err != nil {
 			return common.EmptyHash, err
 		}
 	}

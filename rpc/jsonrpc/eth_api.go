@@ -25,6 +25,9 @@ type EthAPI interface {
 	// Message related
 	GetMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Message, error)
 
+	// Receipt related (see ./eth_receipt.go)
+	GetMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Receipt, error)
+
 	// Account related
 	GetBalance(ctx context.Context, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error)
 	GetTransactionCount(ctx context.Context, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Uint64, error)

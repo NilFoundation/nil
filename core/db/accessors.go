@@ -33,20 +33,26 @@ func readDecodable[
 	return decoded
 }
 
+func writeRawKeyEncodable[
+	T interface {
+		fastssz.Marshaler
+	},
+](tx Tx, tableName ShardedTableName, shardId types.ShardId, key []byte, value T) error {
+	data, err := value.MarshalSSZ()
+	if err != nil {
+		return err
+	}
+
+	return tx.PutToShard(shardId, tableName, key, data)
+}
+
 func writeEncodable[
 	T interface {
 		fastssz.Marshaler
 		common.Hashable
 	},
 ](tx Tx, tableName ShardedTableName, shardId types.ShardId, obj T) error {
-	hash := obj.Hash()
-
-	data, err := obj.MarshalSSZ()
-	if err != nil {
-		return err
-	}
-
-	return tx.PutToShard(shardId, tableName, hash.Bytes(), data)
+	return writeRawKeyEncodable(tx, tableName, shardId, obj.Hash().Bytes(), obj)
 }
 
 func ReadVersionInfo(tx Tx) (*types.VersionInfo, error) {
@@ -130,4 +136,12 @@ func ReadMessage(tx Tx, shardId types.ShardId, hash common.Hash) *types.Message 
 
 func WriteMessage(tx Tx, shardId types.ShardId, message *types.Message) error {
 	return writeEncodable(tx, messageTable, shardId, message)
+}
+
+func ReadReceipt(tx Tx, shardId types.ShardId, msgHash common.Hash) *types.Receipt {
+	return readDecodable[types.Receipt, *types.Receipt](tx, receiptTable, shardId, msgHash)
+}
+
+func WriteReceipt(tx Tx, shardId types.ShardId, receipt *types.Receipt, msgHash common.Hash) error {
+	return writeRawKeyEncodable(tx, receiptTable, shardId, msgHash.Bytes(), receipt)
 }

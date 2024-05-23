@@ -23,6 +23,7 @@ const (
 
 	contractTable = ShardedTableName("Contract")
 	messageTable  = ShardedTableName("Message")
+	receiptTable  = ShardedTableName("Receipt")
 
 	LastBlockTable                        = TableName("LastBlock")
 	BlockHashByNumberIndex                = ShardedTableName("BlockHashByNumber")
