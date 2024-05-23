@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"sync/atomic"
+	"time"
 
 	"github.com/NilFoundation/nil/core/types"
 	_ "github.com/mattn/go-sqlite3"
@@ -34,6 +35,10 @@ func (db *SqliteDB) Close() {
 	}
 
 	db.Close()
+}
+
+func (db *SqliteDB) LogGC(ctx context.Context, discardRation float64, gcFrequency time.Duration) error {
+	panic("not implemented")
 }
 
 func (db *SqliteDB) DropAll() error {

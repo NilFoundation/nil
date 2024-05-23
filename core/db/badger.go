@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/rs/zerolog/log"
+	"strconv"
+	"time"
 
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/dgraph-io/badger/v4"
@@ -150,6 +153,32 @@ func (db *BadgerDB) DeleteFromShard(shardId types.ShardId, tableName ShardedTabl
 
 func (db *BadgerDB) RangeByShard(shardId types.ShardId, tableName ShardedTableName, from []byte, to []byte) (Iter, error) {
 	return db.Range(shardTableName(tableName, shardId), from, to)
+}
+
+func (db *BadgerDB) LogGC(ctx context.Context, discardRation float64, gcFrequency time.Duration) error {
+	log.Info().Msg("Starting badger log garbage collection...")
+	ticker := time.NewTicker(gcFrequency)
+	for {
+		select {
+		case <-ticker.C:
+			log.Debug().Msg("Execute badger LogGC")
+			var err error
+			i := -1
+			for ; err == nil; err = db.db.RunValueLogGC(discardRation) {
+				i++
+			}
+			if !errors.Is(badger.ErrNoRewrite, err) {
+				log.Error().Err(err).Msg("Error during badger LogGC")
+				return err
+			}
+			if i > 0 {
+				log.Fatal().Err(err).Msg(strconv.Itoa(i))
+			}
+		case <-ctx.Done():
+			log.Info().Msg("Stopping badger log garbage collection...")
+			return nil
+		}
+	}
 }
 
 func (tx *BadgerRoTx) Commit() error {
