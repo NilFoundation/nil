@@ -71,7 +71,7 @@ func (suite *SuiteRpc) SetupSuite() {
 	badger, err := db.NewBadgerDb(suite.T().TempDir() + "/test.db")
 	suite.Require().NoError(err)
 
-	go nilservice.Run(suite.context, 2, badger)
+	go nilservice.Run(suite.context, 2, badger, 0.5, time.Hour)
 	time.Sleep(time.Second) // To be sure that server is started
 }
 

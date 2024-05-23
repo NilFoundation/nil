@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/rs/zerolog/log"
-	"strconv"
 	"time"
 
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/dgraph-io/badger/v4"
+	"github.com/rs/zerolog/log"
 )
 
 type BadgerDB struct {
@@ -163,16 +162,11 @@ func (db *BadgerDB) LogGC(ctx context.Context, discardRation float64, gcFrequenc
 		case <-ticker.C:
 			log.Debug().Msg("Execute badger LogGC")
 			var err error
-			i := -1
 			for ; err == nil; err = db.db.RunValueLogGC(discardRation) {
-				i++
 			}
 			if !errors.Is(badger.ErrNoRewrite, err) {
 				log.Error().Err(err).Msg("Error during badger LogGC")
 				return err
-			}
-			if i > 0 {
-				log.Fatal().Err(err).Msg(strconv.Itoa(i))
 			}
 		case <-ctx.Done():
 			log.Info().Msg("Stopping badger log garbage collection...")

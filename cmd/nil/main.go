@@ -5,12 +5,12 @@ import (
 	"errors"
 	"flag"
 	"os"
+	"time"
 
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/rs/zerolog/log"
-	"time"
 )
 
 func main() {
