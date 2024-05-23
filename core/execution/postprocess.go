@@ -2,7 +2,6 @@ package execution
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
@@ -38,7 +37,7 @@ func (pp *blockPostprocessor) Postprocess() error {
 	for _, postpocessor := range []func() error{
 		pp.fillLastBlockTable,
 		pp.fillBlockHashByNumberIndex,
-		pp.fillMessageHashByBlockIdAndMessageIdIndex,
+		pp.fillBlockHashAndMessageIndexByMessageHash,
 	} {
 		if err := postpocessor(); err != nil {
 			return err
@@ -61,7 +60,7 @@ func (pp *blockPostprocessor) fillBlockHashByNumberIndex() error {
 	return nil
 }
 
-func (pp *blockPostprocessor) fillMessageHashByBlockIdAndMessageIdIndex() error {
+func (pp *blockPostprocessor) fillBlockHashAndMessageIndexByMessageHash() error {
 	mptMessages := mpt.NewMerklePatriciaTrieWithRoot(pp.tx, pp.shardId, db.MessageTrieTable, pp.block.MessagesRoot)
 	for kv := range mptMessages.Iterate() {
 		messageIndex := ssz.UnmarshallUint64(kv.Key)
@@ -72,19 +71,15 @@ func (pp *blockPostprocessor) fillMessageHashByBlockIdAndMessageIdIndex() error 
 		}
 		messageHash := message.Hash()
 
-		key := BlockIdAndMessageId{pp.block.Id, messageIndex}.AsTableKey()
-		if err := pp.tx.PutToShard(pp.shardId, db.MessageHashByBlockIdAndMessageIdIndex, key, messageHash.Bytes()); err != nil {
+		blockHashAndMessageIndex := db.BlockHashAndMessageIndex{BlockHash: pp.blockHash, MessageIndex: messageIndex}
+		value, err := blockHashAndMessageIndex.MarshalSSZ()
+		if err != nil {
+			return err
+		}
+
+		if err := pp.tx.PutToShard(pp.shardId, db.BlockHashAndMessageIndexByMessageHash, messageHash.Bytes(), value); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-type BlockIdAndMessageId struct {
-	blockId   types.BlockNumber
-	messageId uint64 // TODO: make MessageId strong typed
-}
-
-func (bm BlockIdAndMessageId) AsTableKey() []byte {
-	return strconv.AppendUint(append(bm.blockId.Bytes(), ':'), bm.messageId, 10)
 }

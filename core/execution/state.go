@@ -726,9 +726,6 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		if err := es.MessageRoot.Set(k, v); err != nil {
 			return common.EmptyHash, err
 		}
-		if err := db.WriteMessage(es.tx, es.ShardId, m); err != nil {
-			return common.EmptyHash, err
-		}
 	}
 
 	for _, r := range es.Receipts {
