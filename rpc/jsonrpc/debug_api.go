@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/common"
@@ -33,16 +34,30 @@ func NewDebugAPI(base *BaseAPI, db db.DB, logger *zerolog.Logger) *DebugAPIImpl 
 
 // GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
 func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber) (map[string]any, error) {
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transaction: %w", err)
+	}
+
+	defer tx.Rollback()
+
 	if number == transport.LatestBlockNumber {
-		hash, err := api.db.Get(db.LastBlockTable, shardId.Bytes())
+		hash, err := tx.Get(db.LastBlockTable, shardId.Bytes())
 		if err != nil {
 			return nil, err
 		}
 
-		return api.GetBlockByHash(ctx, shardId, common.CastToHash(*hash))
+		return api.getBlockByHash(tx, shardId, common.CastToHash(*hash))
 	}
 
-	return nil, errNotImplemented
+	blockHash, err := tx.GetFromShard(shardId, db.BlockHashByNumberIndex, number.BlockNumber().Bytes())
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return api.getBlockByHash(tx, shardId, common.CastToHash(*blockHash))
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
@@ -54,6 +69,10 @@ func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.Shard
 
 	defer tx.Rollback()
 
+	return api.getBlockByHash(tx, shardId, hash)
+}
+
+func (api *DebugAPIImpl) getBlockByHash(tx db.Tx, shardId types.ShardId, hash common.Hash) (map[string]any, error) {
 	block := db.ReadBlock(tx, shardId, hash)
 	if block == nil {
 		return nil, nil

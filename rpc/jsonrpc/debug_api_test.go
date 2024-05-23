@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/stretchr/testify/require"
@@ -39,6 +40,9 @@ func TestDebugGetBlock(t *testing.T) {
 	err = db.WriteBlock(tx, types.MasterShardId, &block)
 	require.NoError(t, err)
 
+	_, err = execution.PostprocessBlock(tx, types.MasterShardId, block.Hash())
+	require.NoError(t, err)
+
 	err = tx.Commit()
 	require.NoError(t, err)
 
@@ -46,7 +50,10 @@ func TestDebugGetBlock(t *testing.T) {
 
 	api := NewDebugAPI(base, database, nil)
 
+	// When: Get latest block
 	res, err := api.GetBlockByNumber(ctx, types.MasterShardId, transport.LatestBlockNumber)
+
+	// Then:
 	require.NoError(t, err)
 
 	// contains res
@@ -64,4 +71,35 @@ func TestDebugGetBlock(t *testing.T) {
 
 	// content contains hash
 	require.Equal(t, content, hexutil.Encode(hexBytes))
+
+	// When: Get existing block
+	res, err = api.GetBlockByNumber(ctx, types.MasterShardId, transport.BlockNumber(block.Id))
+
+	// Then:
+	require.NoError(t, err)
+
+	// contains res
+	require.NotNil(t, res)
+
+	require.Contains(t, res, "content")
+	content, ok = res["content"]
+
+	// content is a map
+	require.True(t, ok)
+	require.NotNil(t, content)
+
+	hexBytes, err = block.MarshalSSZ()
+	require.NoError(t, err)
+
+	// content contains hash
+	require.Equal(t, content, hexutil.Encode(hexBytes))
+
+	// When: Get nonexistent block
+	res, err = api.GetBlockByNumber(ctx, types.MasterShardId, transport.BlockNumber(block.Id+1))
+
+	// Then:
+	require.NoError(t, err)
+
+	// contains res
+	require.Nil(t, res)
 }
