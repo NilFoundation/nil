@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/NilFoundation/nil/cmd/nil/nilservice"
+	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/suite"
 )
@@ -65,7 +67,11 @@ func makeRequest(data *Request) (*Response, error) {
 
 func (suite *SuiteRpc) SetupSuite() {
 	suite.context, suite.cancel = context.WithCancel(context.Background())
-	go startRpcServer(suite.context, 2, suite.T().TempDir()+"/test.db")
+
+	badger, err := db.NewBadgerDb(suite.T().TempDir() + "/test.db")
+	suite.Require().NoError(err)
+
+	go nilservice.Run(suite.context, 2, badger)
 	time.Sleep(time.Second) // To be sure that server is started
 }
 
