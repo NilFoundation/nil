@@ -62,15 +62,19 @@ func run() int {
 
 	// parse args
 	nShards := flag.Int("nshards", 5, "number of shardchains")
-
+	allowDropDb := flag.Bool("allow-db-clear", false, "allow to clear database in case of outdated version")
+	dbPath := flag.String("db-path", "test.db", "path to database")
+	dbExist := false
 	flag.Parse()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	if _, err := os.Open(*dbPath); !os.IsNotExist(err) {
+		dbExist = true
+	}
 	// each shard will interact with DB via this client
-	log.Info().Msg("Checking scheme format")
-	badger, err := db.NewBadgerDb("test.db")
+	badger, err := db.NewBadgerDb(*dbPath)
 	if err != nil {
 		log.Error().Err(err).Msg("Error opening badger db")
 		return -1
@@ -81,17 +85,24 @@ func run() int {
 		return -1
 	}
 	defer tx.Rollback()
+	log.Info().Msg("Checking scheme format...")
 	isVersionOutdated, err := db.IsVersionOutdated(tx)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return -1
 	}
 	if isVersionOutdated {
-		log.Info().Msg("Clear database from old schema")
+		if !*allowDropDb {
+			log.Error().Msg("Database schema is outdated. Use -allow-db-clear to clear database or clear it manually")
+			return -1
+		}
+		log.Info().Msg("Clear database from old data...")
 		if err := badger.DropAll(); err != nil {
 			log.Error().Msg(err.Error())
 			return -1
 		}
+	}
+	if !dbExist || isVersionOutdated {
 		if err := db.WriteVersionInfo(tx, types.NewVersionInfo()); err != nil {
 			log.Error().Msg(err.Error())
 			return -1

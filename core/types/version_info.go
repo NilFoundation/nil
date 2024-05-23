@@ -3,7 +3,6 @@ package types
 import (
 	"github.com/NilFoundation/nil/common"
 	fastssz "github.com/ferranbt/fastssz"
-	"github.com/rs/zerolog/log"
 )
 
 type VersionInfo struct {
@@ -12,22 +11,13 @@ type VersionInfo struct {
 
 // interfaces
 var (
-	_ common.Hashable     = new(VersionInfo)
 	_ fastssz.Marshaler   = new(VersionInfo)
 	_ fastssz.Unmarshaler = new(VersionInfo)
 )
 
 var SchemesInsideDb = []common.Hash{new(SmartContract).Hash(), new(Block).Hash(), new(Message).Hash()}
 
-const VersionInfoKey = "VersionInfo"
-
-func (m *VersionInfo) Hash() common.Hash {
-	h, err := common.PoseidonSSZ(m)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Can't get version hash")
-	}
-	return h
-}
+const SchemeVersionInfoKey = "SchemeVersionInfo"
 
 func NewVersionInfo() *VersionInfo {
 	var res []byte

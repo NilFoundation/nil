@@ -26,7 +26,7 @@ const (
 
 	LastBlockTable = TableName("LastBlock")
 
-	DatabaseInfoTable = TableName("DatabaseInfo")
+	SchemeVersionTable = TableName("SchemeVersion")
 )
 
 func shardTableName(tableName ShardedTableName, shardId types.ShardId) TableName {

@@ -50,7 +50,7 @@ func writeEncodable[
 }
 
 func ReadVersionInfo(tx Tx) (*types.VersionInfo, error) {
-	rawVersionInfo, err := tx.Get(DatabaseInfoTable, []byte(types.VersionInfoKey))
+	rawVersionInfo, err := tx.Get(SchemeVersionTable, []byte(types.SchemeVersionInfoKey))
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func WriteVersionInfo(tx Tx, version *types.VersionInfo) error {
 	if err != nil {
 		return err
 	}
-	err = tx.Put(DatabaseInfoTable, []byte(types.VersionInfoKey), rawVersionInfo)
+	err = tx.Put(SchemeVersionTable, []byte(types.SchemeVersionInfoKey), rawVersionInfo)
 	return err
 }
 
