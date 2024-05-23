@@ -30,7 +30,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	tx, err := suite.db.CreateRwTx(context.Background())
 	suite.Require().NoError(err)
 
-	es, err := NewExecutionState(tx, 0, common.EmptyHash)
+	es, err := NewExecutionState(tx, 0, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
 	addr := common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
@@ -53,7 +53,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	blockHash, err := es.Commit(0)
 	suite.Require().NoError(err)
 
-	es, err = NewExecutionState(tx, 0, blockHash)
+	es, err = NewExecutionState(tx, 0, blockHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
 	storageVal := es.GetState(addr, storageKey)
@@ -103,7 +103,7 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 	tx, err := suite.db.CreateRwTx(context.Background())
 	suite.Require().NoError(err)
 
-	es, err := NewExecutionState(tx, types.MasterShardId, common.EmptyHash)
+	es, err := NewExecutionState(tx, types.MasterShardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
 	msg1 := types.Message{Data: []byte{1}, Seqno: uint64(1)}
@@ -113,7 +113,7 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 	blockHash1, err := es.Commit(0)
 	suite.Require().NoError(err)
 
-	es, err = NewExecutionState(tx, types.MasterShardId, blockHash1)
+	es, err = NewExecutionState(tx, types.MasterShardId, blockHash1, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
 	es.AddMessage(&msg2)
@@ -151,7 +151,7 @@ func newState(t *testing.T) *ExecutionState {
 	require.NoError(t, err)
 	tx, err := database.CreateRwTx(context.Background())
 	require.NoError(t, err)
-	state, err := NewExecutionState(tx, 0, common.EmptyHash)
+	state, err := NewExecutionState(tx, 0, common.EmptyHash, common.NewTestTimer(0))
 	require.NoError(t, err)
 	return state
 }

@@ -43,6 +43,9 @@ type EthAPI interface {
 	UninstallFilter(_ context.Context, id string) (isDeleted bool, err error)
 	GetFilterChanges(_ context.Context, index string) ([]any, error)
 	GetFilterLogs(_ context.Context, index string) ([]*types.Log, error)
+
+	// Shards related
+	GetShardIdList(ctx context.Context) ([]types.ShardId, error)
 }
 
 type BaseAPI struct {

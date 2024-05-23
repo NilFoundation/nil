@@ -49,22 +49,24 @@ func (d *ClickhouseDriver) SetupScheme(ctx context.Context) error {
 	return setupSchemeForClickhouse(ctx, d.conn)
 }
 
-func (d *ClickhouseDriver) ExportBlock(ctx context.Context, block *types.Block) error {
-	return exportBlocksToClickhouse(ctx, []*types.Block{block}, d.conn)
+func (d *ClickhouseDriver) ExportBlock(ctx context.Context, shardId types.ShardId, block *types.Block) error {
+	return exportBlocksToClickhouse(ctx, shardId, []*types.Block{block}, d.conn)
 }
 
-func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocks []*types.Block) error {
-	return exportBlocksToClickhouse(ctx, blocks, d.conn)
+func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, shardId types.ShardId, blocks []*types.Block) error {
+	return exportBlocksToClickhouse(ctx, shardId, blocks, d.conn)
 }
 
-func (d *ClickhouseDriver) FetchLatestBlock(ctx context.Context) (*types.Block, error) {
+func (d *ClickhouseDriver) FetchLatestBlock(ctx context.Context, shardId types.ShardId) (*types.Block, error) {
 	queryPart := "max(Id)"
-	return fetchBlockFromPoint(ctx, d.conn, queryPart)
+	condition := fmt.Sprintf("WHERE shard_id = %d", shardId)
+	return fetchBlockFromPoint(ctx, d.conn, queryPart, condition)
 }
 
-func (d *ClickhouseDriver) FetchEarlierPoint(ctx context.Context) (*types.Block, error) {
+func (d *ClickhouseDriver) FetchEarlierPoint(ctx context.Context, shardId types.ShardId) (*types.Block, error) {
 	queryPart := "min(Id)"
-	return fetchBlockFromPoint(ctx, d.conn, queryPart)
+	condition := fmt.Sprintf("WHERE shard_id = %d", shardId)
+	return fetchBlockFromPoint(ctx, d.conn, queryPart, condition)
 }
 
 func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
@@ -85,6 +87,7 @@ func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
 		CREATE TABLE IF NOT EXISTS %s (
 		    binary Array(UInt8),
 		    hash FixedString(32),
+		    shard_id UInt32,
 			%s
 		) ENGINE = MergeTree()
 		PRIMARY KEY (hash)
@@ -100,11 +103,12 @@ func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
 // extend types.Block with binary field
 type BlockWithBinary struct {
 	types.Block
-	Binary []byte `ch:"binary"`
-	Hash   []byte `ch:"hash"`
+	Binary  []byte        `ch:"binary"`
+	Hash    []byte        `ch:"hash"`
+	ShardId types.ShardId `ch:"shard_id"`
 }
 
-func exportBlocksToClickhouse(ctx context.Context, blocks []*types.Block, conn driver.Conn) error {
+func exportBlocksToClickhouse(ctx context.Context, shardId types.ShardId, blocks []*types.Block, conn driver.Conn) error {
 	// Export block to Clickhouse
 
 	tableName, err := getTableNameForType(&types.Block{})
@@ -123,9 +127,10 @@ func exportBlocksToClickhouse(ctx context.Context, blocks []*types.Block, conn d
 			return blockErr
 		}
 		binaryBlockExtended := &BlockWithBinary{
-			Block:  *block,
-			Binary: binary,
-			Hash:   block.Hash().Bytes(),
+			Block:   *block,
+			Binary:  binary,
+			ShardId: shardId,
+			Hash:    block.Hash().Bytes(),
 		}
 		blockErr = batch.AppendStruct(binaryBlockExtended)
 		if blockErr != nil {
@@ -154,14 +159,14 @@ func getTableNameForType(someType any) (string, error) {
 	return fmt.Sprintf("%s_%s", baseTableName, hexutil.Encode(schemeHash)), nil
 }
 
-func fetchBlockFromPoint(ctx context.Context, conn driver.Conn, queryPart string) (*types.Block, error) {
+func fetchBlockFromPoint(ctx context.Context, conn driver.Conn, queryPart string, condition string) (*types.Block, error) {
 	tableName, err := getTableNameForType(&types.Block{})
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch last point from Clickhouse
-	query := fmt.Sprintf("SELECT %s as point FROM %s", queryPart, tableName)
+	query := fmt.Sprintf("SELECT %s as point FROM %s %s", queryPart, tableName, condition)
 
 	log.Info().Msgf("Query: %s", query)
 

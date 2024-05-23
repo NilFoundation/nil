@@ -35,7 +35,7 @@ func TestGenerateBlock(t *testing.T) {
 	tx, err := db.CreateRoTx(context.Background())
 	require.NoError(t, err)
 
-	es, err := execution.NewExecutionStateForShard(tx, shardId)
+	es, err := execution.NewExecutionStateForShard(tx, shardId, common.NewTestTimer(0))
 	require.NoError(t, err)
 
 	r, err := es.GetReceipt(0)
