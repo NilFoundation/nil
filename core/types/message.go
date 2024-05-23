@@ -75,7 +75,7 @@ func (m *Message) Sign(key *ecdsa.PrivateKey) error {
 	return nil
 }
 
-func (m *Message) ValidateSignature() (bool, error) {
+func (m *Message) ValidateSignature(pubBytes []byte) (bool, error) {
 	if len(m.Signature) != 65 {
 		return false, nil
 	}
@@ -85,12 +85,5 @@ func (m *Message) ValidateSignature() (bool, error) {
 		return false, err
 	}
 
-	pub, err := crypto.SigToPub(hash.Bytes(), m.Signature[:])
-	if err != nil {
-		// invalid signature can be provided by user
-		return false, nil //nolint:nilerr
-	}
-
-	pubBytes := crypto.CompressPubkey(pub)
 	return crypto.VerifySignature(pubBytes, hash.Bytes(), m.Signature[:64]), nil
 }

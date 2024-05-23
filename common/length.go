@@ -12,6 +12,8 @@ const (
 	HashSize = 32
 	// SignatureSize indicates the byte length required to carry a signature with recovery id.
 	SignatureSize = 65 // 64 bytes ECDSA signature + 1 byte recovery id
+	// PublicKeySize is the expected length of the PublicKey (in bytes)
+	PublicKeySize = 33
 	// expected length of Bytes96 (signature)
 	Bytes96Size = 96
 	// expected length of Bytes48 (bls public key and such)

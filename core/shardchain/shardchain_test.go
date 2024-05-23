@@ -74,21 +74,23 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 
 	addrFrom := common.HexToAddress("0000832983856CB0CF6CD570F071122F1BEA2F20")
 	es.CreateAccount(addrFrom)
+	es.Accounts[addrFrom].PublicKey = crypto.CompressPubkey(&key.PublicKey)
 
 	addrTo := common.HexToAddress("1111832983856CB0CF6CD570F071122F1BEA2F20")
 	es.CreateAccount(addrTo)
 
 	msg := types.Message{
-		From:  common.EmptyAddress,
-		To:    addrTo,
-		Seqno: 0,
+		From:      common.EmptyAddress,
+		To:        addrTo,
+		Seqno:     0,
+		Signature: common.EmptySignature,
 	}
 
 	// "From" doesn't exist
 	ok, err := shard.validateMessage(es, &msg, 0)
 	s.Require().NoError(err)
 	s.False(ok)
-	s.Len(es.Receipts, 1)
+	s.Require().Len(es.Receipts, 1)
 	s.False(es.Receipts[0].Success)
 
 	// Invalid signature
@@ -96,7 +98,7 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 	ok, err = shard.validateMessage(es, &msg, 1)
 	s.Require().NoError(err)
 	s.False(ok)
-	s.Len(es.Receipts, 2)
+	s.Require().Len(es.Receipts, 2)
 	s.False(es.Receipts[1].Success)
 
 	// Signed message - OK
@@ -111,7 +113,7 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 	ok, err = shard.validateMessage(es, &msg, 3)
 	s.Require().NoError(err)
 	s.False(ok)
-	s.Len(es.Receipts, 3)
+	s.Require().Len(es.Receipts, 3)
 	s.False(es.Receipts[2].Success)
 }
 

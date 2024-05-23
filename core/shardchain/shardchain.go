@@ -110,15 +110,17 @@ func (c *ShardChain) validateMessage(es *execution.ExecutionState, message *type
 		return false, nil
 	}
 
-	ok, err := message.ValidateSignature()
-	if err != nil {
-		return false, err
-	}
-	if !ok {
-		r.Logs = es.Logs[es.MessageHash]
-		es.AddReceipt(r)
-		c.logger.Debug().Stringer("address", addr).Msg("Invalid signature")
-		return false, nil
+	if len(accountState.PublicKey) != 0 {
+		ok, err := message.ValidateSignature(accountState.PublicKey)
+		if err != nil {
+			return false, err
+		}
+		if !ok {
+			r.Logs = es.Logs[es.MessageHash]
+			es.AddReceipt(r)
+			c.logger.Debug().Stringer("address", addr).Msg("Invalid signature")
+			return false, nil
+		}
 	}
 
 	if accountState.Seqno != message.Seqno {

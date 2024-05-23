@@ -49,7 +49,16 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	from := common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
 	for i := range numMessages {
-		msg := types.Message{Data: []byte{i}, From: from, Seqno: uint64(i)}
+		deploy := types.DeployMessage{
+			ShardId: 0,
+			Seqno:   uint64(i),
+			Data:    []byte("data"),
+			Code:    []byte("code"),
+		}
+		data, err := deploy.MarshalSSZ()
+		suite.Require().NoError(err)
+
+		msg := types.Message{Data: data, From: from, Seqno: uint64(i)}
 		index := es.AddMessage(&msg)
 		suite.Require().NoError(es.HandleDeployMessage(&msg, msg.Data, index))
 	}
@@ -91,7 +100,16 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 		var m types.Message
 		suite.Require().NoError(m.UnmarshalSSZ(mRaw))
-		suite.Equal(types.Code{byte(messageIndex)}, m.Data)
+
+		deploy := types.DeployMessage{
+			ShardId: 0,
+			Seqno:   messageIndex,
+			Data:    []byte("data"),
+			Code:    []byte("code"),
+		}
+		data, err := deploy.MarshalSSZ()
+		suite.Require().NoError(err)
+		suite.Equal(types.Code(data), m.Data)
 
 		var r types.Receipt
 		suite.Require().NoError(r.UnmarshalSSZ(rRaw))
