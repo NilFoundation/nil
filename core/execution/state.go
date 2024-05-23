@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/core/vm"
 	ssz "github.com/ferranbt/fastssz"
 	"github.com/holiman/uint256"
 )
@@ -111,6 +112,19 @@ func NewAccountState(es *ExecutionState, addr common.Address, tx db.Tx, shardId 
 		Seqno:       account.Seqno,
 		State:       make(Storage),
 	}, nil
+}
+
+// NewEVMBlockContext creates a new context for use in the EVM.
+func NewEVMBlockContext(es *ExecutionState, lastBlockHash common.Hash) vm.BlockContext {
+	header := db.ReadBlock(es.tx, es.ShardId, lastBlockHash)
+	lastBlockId := uint64(0)
+	if header != nil {
+		lastBlockId = header.Id
+	}
+	return vm.BlockContext{
+		GetHash:     getHashFn(es, header),
+		BlockNumber: lastBlockId,
+	}
 }
 
 func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash) (*ExecutionState, error) {
@@ -543,10 +557,7 @@ func (es *ExecutionState) getOrNewAccount(addr common.Address) *AccountState {
 	if acc != nil {
 		return acc
 	}
-	err := es.CreateAccount(addr)
-	if err != nil {
-		panic(err)
-	}
+	es.CreateAccount(addr)
 	return es.GetAccount(addr)
 }
 
@@ -568,11 +579,11 @@ func (es *ExecutionState) SetShardHash(shardId uint64, hash common.Hash) {
 	es.ChildChainBlocks[shardId] = hash
 }
 
-func (es *ExecutionState) CreateAccount(addr common.Address) error {
+func (es *ExecutionState) CreateAccount(addr common.Address) {
 	acc := es.GetAccount(addr)
 
 	if acc != nil {
-		return errors.New("account already exists")
+		panic("account already exists")
 	}
 
 	es.journal.append(createObjectChange{account: &addr})
@@ -591,8 +602,6 @@ func (es *ExecutionState) CreateAccount(addr common.Address) error {
 		ShardId:     es.ShardId,
 		State:       map[common.Hash]common.Hash{},
 	}
-
-	return nil
 }
 
 // CreateContract is used whenever a contract is created. This may be preceded
@@ -637,9 +646,8 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, code types
 	r.MsgIndex = index
 
 	// TODO: gasUsed
-	if err := es.CreateAccount(addr); err != nil {
-		return err
-	}
+	es.CreateAccount(addr)
+	es.CreateContract(addr)
 	es.SetCode(addr, code)
 
 	es.Receipts = append(es.Receipts, &r)

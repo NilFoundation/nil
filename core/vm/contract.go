@@ -161,3 +161,11 @@ func (c *Contract) Address() common.Address {
 func (c *Contract) Value() *uint256.Int {
 	return c.value
 }
+
+// SetCallCode sets the code of the contract and address of the backing data
+// object
+func (c *Contract) SetCallCode(addr *common.Address, hash common.Hash, code []byte) {
+	c.Code = code
+	c.CodeHash = hash
+	c.CodeAddr = addr
+}
