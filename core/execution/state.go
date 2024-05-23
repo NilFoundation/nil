@@ -177,13 +177,22 @@ func NewExecutionStateForShard(tx db.Tx, shardId types.ShardId) (*ExecutionState
 	return NewExecutionState(tx, shardId, lastBlockHash)
 }
 
-func (es *ExecutionState) GetReceipt(index uint64) (*types.Receipt, error) {
+func (es *ExecutionState) GetReceipt(msgIndex uint64) (*types.Receipt, error) {
 	var r types.Receipt
-	buf, err := es.ReceiptRoot.Get(ssz.MarshalUint64(nil, index))
+	buf, err := es.ReceiptRoot.Get(ssz.MarshalUint64(nil, msgIndex))
 	if err != nil {
 		return nil, err
 	}
 	return &r, r.UnmarshalSSZ(buf)
+}
+
+func (es *ExecutionState) GetMessage(index uint64) (*types.Message, error) {
+	var m types.Message
+	buf, err := es.MessageRoot.Get(ssz.MarshalUint64(nil, index))
+	if err != nil {
+		return nil, err
+	}
+	return &m, m.UnmarshalSSZ(buf)
 }
 
 func (es *ExecutionState) GetAccount(addr common.Address) *AccountState {

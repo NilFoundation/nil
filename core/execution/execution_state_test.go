@@ -99,6 +99,45 @@ func (suite *SuiteExecutionState) TestExecState() {
 	suite.Equal(numMessages, uint8(messageIndex))
 }
 
+func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
+	tx, err := suite.db.CreateRwTx(context.Background())
+	suite.Require().NoError(err)
+
+	es, err := NewExecutionState(tx, types.MasterShardId, common.EmptyHash)
+	suite.Require().NoError(err)
+
+	msg1 := types.Message{Data: []byte{1}, Seqno: uint64(1)}
+	msg2 := types.Message{Data: []byte{2}, Seqno: uint64(2)}
+
+	es.AddMessage(&msg1)
+	blockHash1, err := es.Commit(0)
+	suite.Require().NoError(err)
+
+	es, err = NewExecutionState(tx, types.MasterShardId, blockHash1)
+	suite.Require().NoError(err)
+
+	es.AddMessage(&msg2)
+	blockHash2, err := es.Commit(1)
+	suite.Require().NoError(err)
+
+	check := func(blockHash common.Hash, msg *types.Message) {
+		block := db.ReadBlock(tx, types.MasterShardId, blockHash)
+		suite.Require().NotNil(block)
+
+		messagesRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, db.MessageTrieTable, block.MessagesRoot)
+		var msgRead types.Message
+
+		msgRaw, err := messagesRoot.Get(ssz.MarshalUint64(nil, 0))
+		suite.Require().NoError(err)
+		suite.Require().NoError(msgRead.UnmarshalSSZ(msgRaw))
+
+		suite.Equal(*msg, msgRead)
+	}
+
+	check(blockHash1, &msg1)
+	check(blockHash2, &msg2)
+}
+
 func TestSuiteExecutionState(t *testing.T) {
 	t.Parallel()
 
