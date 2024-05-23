@@ -92,6 +92,49 @@ func (c *ShardChain) HandleExecutionMessage(message *types.Message, index uint64
 	return nil
 }
 
+func (c *ShardChain) validateMessage(es *execution.ExecutionState, message *types.Message, index uint64) (bool, error) {
+	addr := message.From
+	accountState := es.GetAccount(addr)
+
+	r := &types.Receipt{
+		Success:         false,
+		GasUsed:         0,
+		MsgHash:         es.MessageHash,
+		MsgIndex:        index,
+		ContractAddress: addr,
+	}
+	if accountState == nil {
+		r.Logs = es.Logs[es.MessageHash]
+		es.AddReceipt(r)
+		c.logger.Debug().Stringer("address", addr).Msg("Invalid address")
+		return false, nil
+	}
+
+	ok, err := message.ValidateSignature()
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		r.Logs = es.Logs[es.MessageHash]
+		es.AddReceipt(r)
+		c.logger.Debug().Stringer("address", addr).Msg("Invalid signature")
+		return false, nil
+	}
+
+	if accountState.Seqno != message.Seqno {
+		r.Logs = es.Logs[es.MessageHash]
+		es.AddReceipt(r)
+		c.logger.Debug().
+			Stringer("address", addr).
+			Uint64("account.seqno", accountState.Seqno).
+			Uint64("message.seqno", message.Seqno).
+			Msg("Seqno gap")
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (*types.Block, error) {
 	rwTx, err := c.db.CreateRwTx(ctx)
 	if err != nil {
@@ -112,6 +155,14 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 		msgHash := message.Hash()
 		index := es.AddMessage(message)
 		es.MessageHash = msgHash
+
+		ok, err := c.validateMessage(es, message, index)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			continue
+		}
 
 		evm := vm.EVM{
 			StateDB: es,

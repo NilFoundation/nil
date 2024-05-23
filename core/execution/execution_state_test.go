@@ -26,6 +26,10 @@ func (suite *SuiteExecutionState) SetupTest() {
 	suite.Require().NoError(err)
 }
 
+func (s *SuiteExecutionState) TearDownTest() {
+	s.db.Close()
+}
+
 func (suite *SuiteExecutionState) TestExecState() {
 	tx, err := suite.db.CreateRwTx(context.Background())
 	suite.Require().NoError(err)
