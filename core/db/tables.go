@@ -25,6 +25,8 @@ const (
 	messageTable  = ShardedTableName("Message")
 
 	LastBlockTable = TableName("LastBlock")
+
+	SchemeVersionTable = TableName("SchemeVersion")
 )
 
 func shardTableName(tableName ShardedTableName, shardId types.ShardId) TableName {

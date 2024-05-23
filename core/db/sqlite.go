@@ -36,6 +36,10 @@ func (db *SqliteDB) Close() {
 	db.Close()
 }
 
+func (db *SqliteDB) DropAll() error {
+	panic("not implemented")
+}
+
 func (db *SqliteDB) CreateRwTx(ctx context.Context) (RwTx, error) {
 	tx, err := db.db.Begin()
 	if err != nil {

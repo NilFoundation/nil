@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"reflect"
 
 	common "github.com/NilFoundation/nil/common"
 	types "github.com/NilFoundation/nil/core/types"
@@ -46,6 +47,39 @@ func writeEncodable[
 	}
 
 	return tx.PutToShard(shardId, tableName, hash.Bytes(), data)
+}
+
+func ReadVersionInfo(tx Tx) (*types.VersionInfo, error) {
+	rawVersionInfo, err := tx.Get(SchemeVersionTable, []byte(types.SchemeVersionInfoKey))
+	if err != nil {
+		return nil, err
+	}
+	res := types.VersionInfo{}
+	err = res.UnmarshalSSZ(*rawVersionInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func WriteVersionInfo(tx Tx, version *types.VersionInfo) error {
+	rawVersionInfo, err := version.MarshalSSZ()
+	if err != nil {
+		return err
+	}
+	err = tx.Put(SchemeVersionTable, []byte(types.SchemeVersionInfoKey), rawVersionInfo)
+	return err
+}
+
+func IsVersionOutdated(tx Tx) (bool, error) {
+	dbVersion, err := ReadVersionInfo(tx)
+	if errors.Is(err, ErrKeyNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return !reflect.DeepEqual(dbVersion, types.NewVersionInfo()), nil
 }
 
 func ReadBlock(tx Tx, shardId types.ShardId, hash common.Hash) *types.Block {

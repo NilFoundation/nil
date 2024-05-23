@@ -48,5 +48,6 @@ type DB interface {
 
 	CreateRwTx(ctx context.Context) (RwTx, error)
 	CreateRoTx(ctx context.Context) (RoTx, error)
+	DropAll() error
 	Close()
 }

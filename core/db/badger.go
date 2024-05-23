@@ -61,6 +61,10 @@ func (k *BadgerDB) Close() {
 	k.db.Close()
 }
 
+func (k *BadgerDB) DropAll() error {
+	return k.db.DropAll()
+}
+
 func (k *BadgerDB) Exists(tableName TableName, key []byte) (bool, error) {
 	var exists bool
 	err := k.db.View(
