@@ -68,7 +68,7 @@ func startTopFetcher(ctx context.Context, cfg *Cfg) {
 				continue
 			}
 
-			var firstPoint uint64 = 0
+			var firstPoint types.BlockNumber = 0
 			if lastProcessedBlock != nil {
 				firstPoint = lastProcessedBlock.Id + 1
 			}

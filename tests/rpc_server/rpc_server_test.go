@@ -83,8 +83,8 @@ func (suite *SuiteRpc) TestRpcBasic() {
 
 	resp, err := makeRequest(&request)
 	suite.Require().NoError(err)
-	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
-	suite.Equal("not implemented", resp.Error["message"])
+	suite.Require().Nil(resp.Error["code"])
+	suite.Require().Nil(resp.Result)
 
 	request.Method = "eth_getBlockTransactionCountByNumber"
 	request.Params = []any{types.MasterShardId, "0x1b4"}
@@ -100,19 +100,19 @@ func (suite *SuiteRpc) TestRpcBasic() {
 	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
 	suite.Equal("not implemented", resp.Error["message"])
 
-	request.Method = getBlockByNumber
-	request.Params = []any{types.MasterShardId, 123, false}
-	resp, err = makeRequest(&request)
-	suite.Require().NoError(err)
-	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
-	suite.Equal("not implemented", resp.Error["message"])
-
 	request.Method = getBlockByHash
 	request.Params = []any{types.MasterShardId, "0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef", false}
 	resp, err = makeRequest(&request)
 	suite.Require().NoError(err)
 	suite.Require().Nil(resp.Error["code"])
 	suite.Require().Nil(resp.Result)
+
+	request.Method = getBlockByNumber
+	request.Params = []any{types.MasterShardId, "earliest", false}
+	resp, err = makeRequest(&request)
+	suite.Require().NoError(err)
+	suite.Require().Nil(resp.Error)
+	suite.Require().NotNil(resp.Result)
 
 	request.Method = getBlockByNumber
 	request.Params = []any{types.MasterShardId, "latest", false}

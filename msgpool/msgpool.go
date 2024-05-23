@@ -189,7 +189,7 @@ func (p *MsgPool) OnNewBlock(ctx context.Context, block *types.Block, committed 
 	p.lock.Lock()
 	defer func() {
 		if err == nil {
-			p.lastSeenBlock.Store(block.Id)
+			p.lastSeenBlock.Store(block.Id.Uint64())
 			p.lastSeenCond.Broadcast()
 		}
 

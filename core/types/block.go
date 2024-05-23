@@ -1,13 +1,24 @@
 package types
 
 import (
+	"strconv"
+
 	"github.com/NilFoundation/nil/common"
 	fastssz "github.com/ferranbt/fastssz"
 	"github.com/rs/zerolog/log"
 )
 
+type BlockNumber uint64
+
+func (bn BlockNumber) Uint64() uint64 {
+	return uint64(bn)
+}
+
+func (bn BlockNumber) String() string { return strconv.FormatUint(bn.Uint64(), 10) }
+func (bn BlockNumber) Bytes() []byte  { return []byte(bn.String()) }
+
 type Block struct {
-	Id                  uint64
+	Id                  BlockNumber
 	PrevBlock           common.Hash
 	SmartContractsRoot  common.Hash
 	MessagesRoot        common.Hash
