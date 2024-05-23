@@ -215,7 +215,8 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 	gas := uint64(1000000)
 	contract := vm.NewContract((vm.AccountRef)(addr), (vm.AccountRef)(addr), &value, gas)
 
-	evm := vm.NewEVM(es)
+	context := execution.NewEVMBlockContext(es, lastBlockHash)
+	evm := vm.NewEVM(context, es)
 	interpreter := evm.Interpreter()
 
 	initialGas := contract.Gas

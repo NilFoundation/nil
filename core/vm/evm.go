@@ -32,7 +32,7 @@ type BlockContext struct {
 	// Block information
 	Coinbase    common.Address // Provides information for COINBASE
 	GasLimit    uint64         // Provides information for GASLIMIT
-	BlockNumber *big.Int       // Provides information for NUMBER
+	BlockNumber uint64         // Provides information for NUMBER
 	Time        uint64         // Provides information for TIME
 	Difficulty  *big.Int       // Provides information for DIFFICULTY
 	BaseFee     *big.Int       // Provides information for BASEFEE (0 if vm runs with NoBaseFee flag and 0 gas price)
@@ -87,8 +87,9 @@ type EVM struct {
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
 // only ever be used *once*.
-func NewEVM(statedb StateDB) *EVM {
+func NewEVM(blockContext BlockContext, statedb StateDB) *EVM {
 	evm := &EVM{
+		Context: blockContext,
 		StateDB: statedb,
 	}
 	evm.interpreter = NewEVMInterpreter(evm)

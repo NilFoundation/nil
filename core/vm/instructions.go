@@ -433,7 +433,7 @@ func opBlockhash(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) (
 		return nil, nil
 	}
 	var upper, lower uint64
-	upper = interpreter.evm.Context.BlockNumber.Uint64()
+	upper = interpreter.evm.Context.BlockNumber
 	if upper < 257 {
 		lower = 0
 	} else {
@@ -458,7 +458,7 @@ func opTimestamp(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) (
 }
 
 func opNumber(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
-	v, _ := uint256.FromBig(interpreter.evm.Context.BlockNumber)
+	v := uint256.NewInt(interpreter.evm.Context.BlockNumber)
 	scope.Stack.push(v)
 	return nil, nil
 }
@@ -809,7 +809,7 @@ func makeLog(size int) executionFunc {
 		}
 
 		d := scope.Memory.GetCopy(int64(mStart.Uint64()), int64(mSize.Uint64()))
-		log := types.NewLog(scope.Contract.Address(), d, interpreter.evm.Context.BlockNumber.Uint64(), topics)
+		log := types.NewLog(scope.Contract.Address(), d, interpreter.evm.Context.BlockNumber, topics)
 		interpreter.evm.StateDB.AddLog(log)
 
 		return nil, nil
