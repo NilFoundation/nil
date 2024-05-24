@@ -1,3 +1,3 @@
-package common
+package features
 
 var EnableSignatureCheck = true

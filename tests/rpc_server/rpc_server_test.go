@@ -15,6 +15,7 @@ import (
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/features"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -151,7 +152,7 @@ func (suite *SuiteRpc) TestRpcBasic() {
 }
 
 func (suite *SuiteRpc) TestRpcContract() {
-	common.EnableSignatureCheck = false
+	features.EnableSignatureCheck = false
 	var m types.Message
 	m.From = common.GenerateRandomAddress(uint32(types.MasterShardId))
 	dm := types.DeployMessage{ShardId: uint32(types.MasterShardId), Data: hexutil.FromHex("6009600c60003960096000f3600054600101600055")}

@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
+	"github.com/NilFoundation/nil/features"
 	"github.com/rs/zerolog"
 )
 
@@ -77,7 +78,7 @@ func (c *ShardChain) HandleExecutionMessage(message *types.Message, index uint64
 }
 
 func (c *ShardChain) validateMessage(es *execution.ExecutionState, message *types.Message, index uint64) (bool, error) {
-	if !common.EnableSignatureCheck {
+	if !features.EnableSignatureCheck {
 		return true, nil
 	}
 	addr := message.From

@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/features"
 	"github.com/NilFoundation/nil/msgpool"
 )
 
@@ -19,7 +20,7 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Byte
 		return common.Hash{}, fmt.Errorf("failed to decode message: %w", err)
 	}
 
-	if common.EnableSignatureCheck && !crypto.TransactionSignatureIsValidBytes(msg.Signature[:]) {
+	if features.EnableSignatureCheck && !crypto.TransactionSignatureIsValidBytes(msg.Signature[:]) {
 		return common.Hash{}, errors.New("invalid signature")
 	}
 
