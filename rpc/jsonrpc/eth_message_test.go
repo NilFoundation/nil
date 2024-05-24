@@ -6,6 +6,7 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
@@ -33,7 +34,8 @@ func TestGetMessageByHash(t *testing.T) {
 
 	message := types.Message{Data: []byte("data")}
 
-	err = db.WriteMessage(tx, types.MasterShardId, &message)
+	blockHash := writeTestBlock(t, tx, types.MasterShardId, types.BlockNumber(0), []*types.Message{&message}, []*types.Receipt{})
+	_, err = execution.PostprocessBlock(tx, types.MasterShardId, blockHash)
 	require.NoError(t, err)
 
 	err = tx.Commit()

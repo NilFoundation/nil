@@ -6,6 +6,7 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
@@ -35,10 +36,13 @@ func (suite *SuiteEthReceipt) SetupSuite() {
 	defer tx.Rollback()
 	suite.Require().NoError(err)
 
-	msgHash := common.EmptyHash
-	suite.receipt = types.Receipt{MsgIndex: 100500, MsgHash: msgHash, Logs: []*types.Log{}}
+	message := types.Message{Data: []byte{}}
+	msgHash := message.Hash()
+	suite.receipt = types.Receipt{MsgIndex: 0, MsgHash: msgHash, Logs: []*types.Log{}}
 
-	suite.Require().NoError(db.WriteReceipt(tx, types.MasterShardId, &suite.receipt, msgHash))
+	blockHash := writeTestBlock(suite.T(), tx, types.MasterShardId, types.BlockNumber(0), []*types.Message{&message}, []*types.Receipt{&suite.receipt})
+	_, err = execution.PostprocessBlock(tx, types.MasterShardId, blockHash)
+	suite.Require().NoError(err)
 
 	err = tx.Commit()
 	suite.Require().NoError(err)
@@ -51,6 +55,7 @@ func (suite *SuiteEthReceipt) TearDownSuite() {
 func (suite *SuiteEthReceipt) TestGetMessageReceipt() {
 	data, err := suite.api.GetMessageReceipt(context.Background(), types.MasterShardId, suite.receipt.MsgHash)
 	suite.Require().NoError(err)
+	suite.Require().NotNil(data)
 	suite.Equal(suite.receipt, *data)
 }
 

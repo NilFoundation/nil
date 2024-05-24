@@ -726,9 +726,6 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		if err := es.MessageRoot.Set(k, v); err != nil {
 			return common.EmptyHash, err
 		}
-		if err := db.WriteMessage(es.tx, es.ShardId, m); err != nil {
-			return common.EmptyHash, err
-		}
 	}
 
 	for _, r := range es.Receipts {
@@ -739,9 +736,6 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		}
 		k := ssz.MarshalUint64(nil, r.MsgIndex)
 		if err := es.ReceiptRoot.Set(k, v); err != nil {
-			return common.EmptyHash, err
-		}
-		if err := db.WriteReceipt(es.tx, es.ShardId, r, r.MsgHash); err != nil {
 			return common.EmptyHash, err
 		}
 	}

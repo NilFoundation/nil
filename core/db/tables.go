@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
 )
 
@@ -22,12 +23,10 @@ const (
 	ReceiptTrieTable     = ShardedTableName("ReceiptTrie")
 
 	contractTable = ShardedTableName("Contract")
-	messageTable  = ShardedTableName("Message")
-	receiptTable  = ShardedTableName("Receipt")
 
 	LastBlockTable                        = TableName("LastBlock")
 	BlockHashByNumberIndex                = ShardedTableName("BlockHashByNumber")
-	MessageHashByBlockIdAndMessageIdIndex = ShardedTableName("MessageHashByBlockIdAndMessageId")
+	BlockHashAndMessageIndexByMessageHash = ShardedTableName("BlockHashAndMessageIndexByMessageHash")
 
 	SchemeVersionTable = TableName("SchemeVersion")
 )
@@ -38,4 +37,9 @@ func shardTableName(tableName ShardedTableName, shardId types.ShardId) TableName
 
 func ShardBlocksTrieTableName(blockId types.BlockNumber) ShardedTableName {
 	return ShardedTableName(fmt.Sprintf("%s%d", shardBlocksTrieTable, blockId))
+}
+
+type BlockHashAndMessageIndex struct {
+	BlockHash    common.Hash
+	MessageIndex uint64 // TODO: make MessageIndex strong typed
 }
