@@ -7,12 +7,10 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
-	"github.com/holiman/uint256"
 	"github.com/rs/zerolog"
 )
 
@@ -168,136 +166,6 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 	}
 
 	return block, nil
-}
-
-func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
-	rwTx, err := c.db.CreateRwTx(ctx)
-	if err != nil {
-		return common.EmptyHash, err
-	}
-	defer rwTx.Rollback()
-	roTx, err := c.db.CreateRoTx(ctx)
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	lastBlockHashBytes, err := rwTx.Get(db.LastBlockTable, c.Id.Bytes())
-
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		return common.EmptyHash, fmt.Errorf("failed getting last block: %w", err)
-	}
-
-	lastBlockHash := common.EmptyHash
-	// No previous blocks yet
-	if lastBlockHashBytes != nil {
-		lastBlockHash = common.Hash(*lastBlockHashBytes)
-	}
-
-	es, err := execution.NewExecutionState(rwTx, c.Id, lastBlockHash, common.NewTestTimer(0))
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	addr := common.BytesToAddress([]byte("contract-" + c.Id.String()))
-
-	accountState := es.GetAccount(addr)
-
-	value := uint256.Int{}
-	gas := uint64(1000000)
-	contract := vm.NewContract((vm.AccountRef)(addr), (vm.AccountRef)(addr), &value, gas)
-
-	context := execution.NewEVMBlockContext(es, lastBlockHash)
-	evm := vm.NewEVM(context, es)
-	interpreter := evm.Interpreter()
-
-	initialGas := contract.Gas
-
-	if accountState == nil {
-		c.logger.Debug().Msgf("Create new contract %s", addr)
-
-		// constructor for a simple counter contract
-		contract.Code = hexutil.FromHex("6009600c60003960096000f3600054600101600055")
-		code, err := interpreter.Run(contract, nil, false)
-		if err != nil {
-			c.logger.Error().Msg("transaction failed")
-			return common.EmptyHash, err
-		}
-
-		es.CreateAccount(addr)
-		es.CreateContract(addr)
-		es.SetCode(addr, code)
-	} else {
-		contract.Code = accountState.Code
-		c.logger.Debug().Msgf("Update storage of contract %s", addr)
-
-		_, err := interpreter.Run(contract, nil, false)
-		if err != nil {
-			c.logger.Error().Msg("transaction failed")
-			return common.EmptyHash, err
-		}
-
-		number := evm.StateDB.GetState(addr, common.EmptyHash)
-		c.logger.Debug().Msgf("Contract storage is now %v", number)
-	}
-
-	if c.isMasterchain() {
-		// go range from 1 to nShardId
-		for i := 1; i < c.nShards; i++ {
-			lastBlockHash, err := c.getHashLastBlock(roTx, types.ShardId(i))
-			if err != nil {
-				return common.EmptyHash, err
-			}
-			es.SetShardHash(types.ShardId(i), lastBlockHash)
-		}
-	} else {
-		lastBlockHash, err := c.getHashLastBlock(roTx, types.MasterShardId)
-		if err != nil {
-			return common.EmptyHash, err
-		}
-		es.SetMasterchainHash(lastBlockHash)
-	}
-
-	blockId := types.BlockNumber(0)
-	if es.PrevBlock != common.EmptyHash {
-		blockId = db.ReadBlock(rwTx, c.Id, es.PrevBlock).Id + 1
-	}
-
-	// Create receipt for the executed message
-	receipt := types.Receipt{
-		Success:         true,
-		GasUsed:         uint32(initialGas - contract.Gas),
-		Logs:            es.Logs[es.MessageHash],
-		ContractAddress: addr,
-	}
-	receipt.Bloom = types.CreateBloom(types.Receipts{&receipt})
-	es.Receipts = append(es.Receipts, &receipt)
-
-	blockHash, err := es.Commit(blockId)
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	if _, err := execution.PostprocessBlock(rwTx, c.Id, blockHash); err != nil {
-		return common.EmptyHash, err
-	}
-
-	if err = rwTx.Commit(); err != nil {
-		return common.EmptyHash, err
-	}
-
-	return blockHash, nil
-}
-
-func (c *ShardChain) Collate(ctx context.Context) error {
-	c.logger.Info().Msg("running shardchain")
-
-	blockHash, err := c.testTransaction(ctx)
-	if err != nil {
-		return err
-	}
-
-	c.logger.Debug().Msgf("new block : %+v", blockHash)
-	return nil
 }
 
 func NewShardChain(
