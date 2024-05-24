@@ -4,55 +4,35 @@ import (
 	"context"
 	"time"
 
-	"github.com/NilFoundation/nil/common/concurrent"
 	"github.com/NilFoundation/nil/core/shardchain"
 	"github.com/NilFoundation/nil/msgpool"
 	"github.com/rs/zerolog/log"
 )
 
 const (
-	defaultPeriod  = time.Second
+	defaultPeriod  = 2 * time.Second
 	defaultTimeout = time.Second
 
 	nMessagesForBlock = 10
 )
 
 type Collator struct {
-	shards []*shardchain.ShardChain
-	pools  []msgpool.Pool
+	shard *shardchain.ShardChain
+	pool  msgpool.Pool
 }
 
-func NewCollator(shards []*shardchain.ShardChain, pools []msgpool.Pool) *Collator {
+func NewCollator(shard *shardchain.ShardChain, pool msgpool.Pool) *Collator {
 	return &Collator{
-		shards: shards,
-		pools:  pools,
+		shard: shard,
+		pool:  pool,
 	}
 }
 
 func (c *Collator) Run(ctx context.Context) error {
-	log.Info().Msg("Starting collation...")
-
-	funcs := make([]concurrent.Func, len(c.shards))
-	for i := range c.shards {
-		shard, pool := c.shards[i], c.pools[i] // we must not capture loop-variables in the func
-		funcs[i] = func(ctx context.Context) error {
-			// todo: remember last block (the pool removes delivered messages, but we shouldn't rely on it)
-			msgs, err := pool.Peek(ctx, nMessagesForBlock, 0)
-			if err != nil {
-				return err
-			}
-
-			block, err := shard.GenerateBlock(ctx, msgs)
-			if err != nil {
-				return err
-			}
-
-			return pool.OnNewBlock(ctx, block, msgs, nil)
-		}
-	}
+	log.Info().Msgf("Starting collation on shard %s...", c.shard.Id)
 
 	// Run shard collations once immediately, then run by timer.
-	if err := concurrent.RunWithTimeout(ctx, defaultTimeout, funcs...); err != nil {
+	if err := c.doCollate(ctx); err != nil {
 		return err
 	}
 
@@ -60,12 +40,29 @@ func (c *Collator) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ticker.C:
-			if err := concurrent.RunWithTimeout(ctx, defaultTimeout, funcs...); err != nil {
+			if err := c.doCollate(ctx); err != nil {
 				return err
 			}
 		case <-ctx.Done():
-			log.Info().Msg("Stopping collation...")
+			log.Info().Msgf("Stopping collation on shard %s...", c.shard.Id)
 			return nil
 		}
 	}
+}
+
+func (c *Collator) doCollate(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
+	defer cancel()
+
+	msgs, err := c.pool.Peek(ctx, nMessagesForBlock, 0)
+	if err != nil {
+		return err
+	}
+
+	block, err := c.shard.GenerateBlock(ctx, msgs)
+	if err != nil {
+		return err
+	}
+
+	return c.pool.OnNewBlock(ctx, block, msgs, nil)
 }

@@ -60,31 +60,32 @@ func Run(ctx context.Context, nShards int, database db.DB) int {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	msgPools := make([]msgpool.Pool, nShards)
-	for i := range nShards {
-		msgPools[i] = msgpool.New(msgpool.DefaultConfig)
-	}
-
-	log.Info().Msg("Starting services...")
-
-	if err := concurrent.Run(ctx,
+	funcs := []concurrent.Func{
 		func(ctx context.Context) error {
 			concurrent.OnSignal(ctx, cancel, syscall.SIGTERM, syscall.SIGINT)
 			return nil
 		},
-		func(ctx context.Context) error {
-			shards := make([]*shardchain.ShardChain, nShards)
-			for i := range nShards {
-				shards[i] = shardchain.NewShardChain(types.ShardId(i), database, nShards)
-			}
+	}
 
-			collator := collate.NewCollator(shards, msgPools)
+	msgPools := make([]msgpool.Pool, nShards)
+	for i := range nShards {
+		msgPool := msgpool.New(msgpool.DefaultConfig)
+		shard := shardchain.NewShardChain(types.ShardId(i), database, nShards)
+		collator := collate.NewCollator(shard, msgPool)
+		funcs = append(funcs, func(ctx context.Context) error {
 			return collator.Run(ctx)
-		},
-		func(ctx context.Context) error {
-			return startRpcServer(ctx, database, msgPools[0])
-		},
-	); err != nil {
+		})
+
+		msgPools[i] = msgPool
+	}
+
+	funcs = append(funcs, func(ctx context.Context) error {
+		return startRpcServer(ctx, database, msgPools[0])
+	})
+
+	log.Info().Msg("Starting services...")
+
+	if err := concurrent.Run(ctx, funcs...); err != nil {
 		log.Error().Err(err).Msg("App encountered an error and will be terminated.")
 		return 1
 	}
