@@ -30,7 +30,8 @@ type SuiteFetchBlock struct {
 func startRpcServer(tempDir string, ctx context.Context, nShards int32) {
 	logger := common.NewLogger("RPC", false)
 
-	database, err := db.NewBadgerDb(tempDir)
+	dbOpts := db.BadgerDBOptions{Path: tempDir, DiscardRatio: 0.5, GcFrequency: time.Hour, AllowDrop: false}
+	database, err := db.NewBadgerDb(dbOpts.Path)
 	if err != nil {
 		log.Fatal().Msgf("Failed to open db: %s", err.Error())
 	}
@@ -65,7 +66,7 @@ func startRpcServer(tempDir string, ctx context.Context, nShards int32) {
 	go func() {
 		if err := concurrent.Run(ctx,
 			func(ctx context.Context) error {
-				nilservice.Run(ctx, int(nShards), database)
+				nilservice.Run(ctx, int(nShards), database, dbOpts)
 				return nil
 			},
 			func(ctx context.Context) error {
