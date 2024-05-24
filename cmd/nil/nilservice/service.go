@@ -3,7 +3,6 @@ package nilservice
 import (
 	"context"
 	"syscall"
-	"time"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/concurrent"
@@ -55,7 +54,7 @@ func startRpcServer(ctx context.Context, db db.DB, pool msgpool.Pool) error {
 	return rpc.StartRpcServer(ctx, httpConfig, apiList, logger)
 }
 
-func Run(ctx context.Context, nShards int, database db.DB, dbDiscardRation float64, dbGcFrequency time.Duration) int {
+func Run(ctx context.Context, nShards int, database db.DB, dbOpts db.BadgerDBOptions) int {
 	common.SetupGlobalLogger()
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -85,7 +84,7 @@ func Run(ctx context.Context, nShards int, database db.DB, dbDiscardRation float
 	})
 
 	funcs = append(funcs, func(ctx context.Context) error {
-		return database.LogGC(ctx, dbDiscardRation, dbGcFrequency)
+		return database.LogGC(ctx, dbOpts.DiscardRatio, dbOpts.GcFrequency)
 	})
 
 	log.Info().Msg("Starting services...")

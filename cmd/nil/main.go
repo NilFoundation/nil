@@ -18,18 +18,19 @@ func main() {
 	nShards := flag.Int("nshards", 5, "number of shardchains")
 	allowDropDb := flag.Bool("allow-db-clear", false, "allow to clear database in case of outdated version")
 	dbPath := flag.String("db-path", "test.db", "path to database")
-	dbDiscardRation := flag.Float64("db-discard-ratio", 0.5, "discard ratio for badger GC")
+	dbDiscardRatio := flag.Float64("db-discard-ratio", 0.5, "discard ratio for badger GC")
 	dbGcFrequency := flag.Duration("db-gc-interval", time.Hour, "frequency for badger GC")
 
 	flag.Parse()
 
-	database, err := openDb(*dbPath, *allowDropDb)
+	dbOpts := db.BadgerDBOptions{Path: *dbPath, DiscardRatio: *dbDiscardRatio, GcFrequency: *dbGcFrequency, AllowDrop: *allowDropDb}
+	database, err := openDb(dbOpts.Path, dbOpts.AllowDrop)
 	if err != nil {
 		log.Error().Err(err).Msg("Error opening db")
 		os.Exit(-1)
 	}
 
-	os.Exit(nilservice.Run(context.Background(), *nShards, database, *dbDiscardRation, *dbGcFrequency))
+	os.Exit(nilservice.Run(context.Background(), *nShards, database, dbOpts))
 }
 
 func openDb(dbPath string, allowDrop bool) (db.DB, error) {

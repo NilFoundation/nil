@@ -15,6 +15,13 @@ type BadgerDB struct {
 	db *badger.DB
 }
 
+type BadgerDBOptions struct {
+	Path         string
+	DiscardRatio float64
+	GcFrequency  time.Duration
+	AllowDrop    bool
+}
+
 type BadgerRoTx struct {
 	tx *badger.Txn
 }
