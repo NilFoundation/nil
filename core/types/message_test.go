@@ -33,17 +33,15 @@ func TestMessageSign(t *testing.T) {
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
-	signature, err := crypto.Sign(h.Bytes(), key)
+	err = msg.Sign(key)
 	require.NoError(t, err)
-	assert.Len(t, signature, common.SignatureSize)
-	assert.True(t, crypto.TransactionSignatureIsValidBytes(signature))
+	assert.Len(t, msg.Signature, common.SignatureSize)
+	assert.True(t, crypto.TransactionSignatureIsValidBytes(msg.Signature[:]))
 
-	msg.Signature = common.Signature(signature)
-
-	pub, err := crypto.SigToPub(h.Bytes(), signature)
+	pub, err := crypto.SigToPub(h.Bytes(), msg.Signature[:])
 	require.NoError(t, err)
 	assert.Equal(t, key.PublicKey, *pub)
 
 	pubBytes := crypto.CompressPubkey(pub)
-	assert.True(t, crypto.VerifySignature(pubBytes, h.Bytes(), signature[:64]))
+	assert.True(t, crypto.VerifySignature(pubBytes, h.Bytes(), msg.Signature[:64]))
 }

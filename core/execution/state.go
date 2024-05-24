@@ -28,8 +28,8 @@ type AccountState struct {
 	Code        types.Code
 	CodeHash    common.Hash
 	Seqno       uint64
+	PublicKey   []byte
 	StorageRoot *mpt.MerklePatriciaTrie
-	ShardId     types.ShardId
 
 	State Storage
 
@@ -85,8 +85,9 @@ func (s *AccountState) empty() bool {
 	return s.Seqno == 0 && s.Balance.IsZero() && len(s.Code) == 0
 }
 
-func NewAccountState(es *ExecutionState, addr common.Address, tx db.Tx, shardId types.ShardId, data []byte) (*AccountState, error) {
+func NewAccountState(es *ExecutionState, addr common.Address, tx db.Tx, data []byte) (*AccountState, error) {
 	account := new(types.SmartContract)
+	shardId := types.ShardId(addr.ShardId())
 
 	if err := account.UnmarshalSSZ(data); err != nil {
 		logger.Fatal().Msg("Invalid SSZ while decoding account")
@@ -108,8 +109,8 @@ func NewAccountState(es *ExecutionState, addr common.Address, tx db.Tx, shardId 
 		StorageRoot: root,
 		CodeHash:    account.CodeHash,
 		Code:        code,
-		ShardId:     shardId,
 		Seqno:       account.Seqno,
+		PublicKey:   account.PublicKey,
 		State:       make(Storage),
 	}, nil
 }
@@ -213,7 +214,7 @@ func (es *ExecutionState) GetAccount(addr common.Address) *AccountState {
 		return nil
 	}
 
-	acc, err = NewAccountState(es, addr, es.tx, es.ShardId, data)
+	acc, err = NewAccountState(es, addr, es.tx, data)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create account on shard %v: %v", es.ShardId, err))
 	}
@@ -424,6 +425,13 @@ func (es *ExecutionState) SetCode(addr common.Address, code []byte) {
 	acc.SetCode(types.Code(code).Hash(), code)
 }
 
+func (es *ExecutionState) SetInitState(addr common.Address, message *types.DeployMessage) {
+	acc := es.GetAccount(addr)
+	acc.setCode(message.Code.Hash(), message.Code)
+	acc.setSeqno(message.Seqno)
+	acc.setPublicKey(message.PublicKey)
+}
+
 func (es *ExecutionState) SlotInAccessList(addr common.Address, slot common.Hash) (addressOk bool, slotOk bool) {
 	return true, true // FIXME
 }
@@ -472,6 +480,10 @@ func (as *AccountState) SetSeqno(seqno uint64) {
 
 func (as *AccountState) setSeqno(seqno uint64) {
 	as.Seqno = seqno
+}
+
+func (as *AccountState) setPublicKey(publicKey []byte) {
+	as.PublicKey = publicKey
 }
 
 func (s *AccountState) SetCode(codeHash common.Hash, code []byte) {
@@ -538,10 +550,12 @@ func (as *AccountState) Commit() ([]byte, error) {
 	}
 
 	acc := types.SmartContract{
+		Address:     as.address,
 		Balance:     types.Uint256{Int: as.Balance},
 		StorageRoot: as.StorageRoot.RootHash(),
 		CodeHash:    as.CodeHash,
 		Seqno:       as.Seqno,
+		PublicKey:   as.PublicKey,
 	}
 
 	data, err := acc.MarshalSSZ()
@@ -549,7 +563,8 @@ func (as *AccountState) Commit() ([]byte, error) {
 		return nil, err
 	}
 
-	if err := db.WriteCode(as.Tx, as.ShardId, as.Code); err != nil {
+	shardId := types.ShardId(as.address.ShardId())
+	if err := db.WriteCode(as.Tx, shardId, as.Code); err != nil {
 		return nil, err
 	}
 
@@ -633,7 +648,6 @@ func (es *ExecutionState) CreateAccount(addr common.Address) {
 		StorageRoot: root,
 		CodeHash:    common.EmptyHash,
 		Code:        nil,
-		ShardId:     es.ShardId,
 		State:       map[common.Hash]common.Hash{},
 	}
 }
@@ -656,35 +670,40 @@ func (es *ExecutionState) ContractExists(addr common.Address) bool {
 	return acc != nil
 }
 
-// CreateAddress creates an ethereum address given the bytes and the nonce.
-func CreateAddress(b common.Address, nonce uint64) common.Address {
-	data := make([]byte, len(b))
-	copy(data, b.Bytes())
-	data = ssz.MarshalUint64(data, nonce)
-	return common.BytesToAddress(data)
-}
-
 func (es *ExecutionState) AddMessage(message *types.Message) uint64 {
 	index := uint64(len(es.Messages))
 	es.Messages = append(es.Messages, message)
 	return index
 }
 
-func (es *ExecutionState) HandleDeployMessage(message *types.Message, code types.Code, index uint64) error {
-	addr := CreateAddress(message.From, message.Seqno)
+func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint64) error {
+	deployMsg, err := types.NewDeployMessage(message.Data)
+	if err != nil {
+		return err
+	}
 
-	var r types.Receipt
-	r.Success = true
-	r.ContractAddress = addr
-	r.MsgHash = message.Hash()
-	r.MsgIndex = index
+	var addr common.Address
+	if len(deployMsg.PublicKey) == 0 {
+		addr = common.CreateAddress(deployMsg.ShardId, message.From, message.Seqno)
+	} else {
+		addr = common.PubkeyBytesToAddress(deployMsg.ShardId, deployMsg.PublicKey)
+	}
+
+	r := &types.Receipt{
+		Success:         true,
+		ContractAddress: addr,
+		MsgHash:         message.Hash(),
+		MsgIndex:        index,
+	}
 
 	// TODO: gasUsed
 	es.CreateAccount(addr)
 	es.CreateContract(addr)
-	es.SetCode(addr, code)
+	es.SetInitState(addr, deployMsg)
 
-	es.Receipts = append(es.Receipts, &r)
+	es.Receipts = append(es.Receipts, r)
+
+	logger.Debug().Stringer("address", addr).Msg("Created new contract")
 	return nil
 }
 

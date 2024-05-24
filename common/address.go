@@ -2,11 +2,15 @@ package common
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/NilFoundation/nil/common/hexutil"
+	ssz "github.com/ferranbt/fastssz"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
@@ -60,6 +64,14 @@ func (a Address) Hash() Hash { return BytesToHash(a[:]) }
 // Hex returns an EIP55-compliant hex string representation of the address.
 func (a Address) Hex() string {
 	return string(a.checksumHex())
+}
+
+func (a Address) Equal(b Address) bool {
+	return bytes.Equal(a.Bytes(), b.Bytes())
+}
+
+func (a Address) IsEmpty() bool {
+	return a.Equal(EmptyAddress)
 }
 
 // String implements fmt.Stringer.
@@ -138,4 +150,50 @@ func (a Address) MarshalText() ([]byte, error) {
 	copy(result, "0x")
 	hex.Encode(result[2:], b)
 	return result, nil
+}
+
+func appendShardId(bytes []byte, shardId uint32) []byte {
+	if shardId > math.MaxUint16 {
+		panic("invalid shardId value")
+	}
+	binary.BigEndian.PutUint16(bytes, uint16(shardId))
+	return bytes
+}
+
+func (a Address) ShardId() uint32 {
+	num := binary.BigEndian.Uint16(a[:2])
+	return uint32(num)
+}
+
+func PubkeyBytesToAddress(shardId uint32, pubBytes []byte) Address {
+	bytes := make([]byte, 2, AddrSize)
+	bytes = appendShardId(bytes, shardId)
+	bytes = append(bytes, PoseidonHash(pubBytes).Bytes()[14:]...)
+	return BytesToAddress(bytes)
+}
+
+// CreateAddress creates an address given the bytes and the nonce.
+func CreateAddress(shardId uint32, b Address, nonce uint64) Address {
+	bytes := make([]byte, 2, AddrSize)
+	bytes = appendShardId(bytes, shardId)
+
+	buf := make([]byte, len(b)+8)
+	copy(buf, b.Bytes())
+	buf = ssz.MarshalUint64(buf, nonce)
+
+	bytes = append(bytes, PoseidonHash(buf).Bytes()[14:]...)
+	return BytesToAddress(bytes)
+}
+
+func GenerateRandomAddress(shardId uint32) Address {
+	b := make([]byte, 18)
+	_, err := rand.Read(b)
+	if err != nil {
+		panic(err)
+	}
+
+	bytes := make([]byte, 2, AddrSize)
+	bytes = appendShardId(bytes, shardId)
+	bytes = append(bytes, b...)
+	return BytesToAddress(bytes)
 }

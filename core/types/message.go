@@ -1,7 +1,10 @@
 package types
 
 import (
+	"crypto/ecdsa"
+
 	common "github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/crypto"
 	ssz "github.com/ferranbt/fastssz"
 	"github.com/rs/zerolog/log"
 )
@@ -54,4 +57,33 @@ func (m *Message) SigningHash() (common.Hash, error) {
 	}
 
 	return common.PoseidonSSZ(&messageDigest)
+}
+
+func (m *Message) Sign(key *ecdsa.PrivateKey) error {
+	hash, err := m.SigningHash()
+	if err != nil {
+		return err
+	}
+
+	sig, err := crypto.Sign(hash.Bytes(), key)
+	if err != nil {
+		return err
+	}
+
+	m.Signature = common.Signature(sig)
+
+	return nil
+}
+
+func (m *Message) ValidateSignature(pubBytes []byte) (bool, error) {
+	if len(m.Signature) != 65 {
+		return false, nil
+	}
+
+	hash, err := m.SigningHash()
+	if err != nil {
+		return false, err
+	}
+
+	return crypto.VerifySignature(pubBytes, hash.Bytes(), m.Signature[:64]), nil
 }

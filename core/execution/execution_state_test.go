@@ -26,14 +26,19 @@ func (suite *SuiteExecutionState) SetupTest() {
 	suite.Require().NoError(err)
 }
 
+func (s *SuiteExecutionState) TearDownTest() {
+	s.db.Close()
+}
+
 func (suite *SuiteExecutionState) TestExecState() {
 	tx, err := suite.db.CreateRwTx(context.Background())
 	suite.Require().NoError(err)
 
-	es, err := NewExecutionState(tx, 0, common.EmptyHash, common.NewTestTimer(0))
+	shardId := types.ShardId(5)
+	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
-	addr := common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
+	addr := common.GenerateRandomAddress(uint32(shardId))
 
 	es.CreateAccount(addr)
 
@@ -45,22 +50,31 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	from := common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
 	for i := range numMessages {
-		msg := types.Message{Data: []byte{i}, From: from, Seqno: uint64(i)}
+		deploy := types.DeployMessage{
+			ShardId: uint32(shardId),
+			Seqno:   uint64(i),
+			Data:    []byte("data"),
+			Code:    []byte("code"),
+		}
+		data, err := deploy.MarshalSSZ()
+		suite.Require().NoError(err)
+
+		msg := types.Message{Data: data, From: from, Seqno: uint64(i)}
 		index := es.AddMessage(&msg)
-		suite.Require().NoError(es.HandleDeployMessage(&msg, msg.Data, index))
+		suite.Require().NoError(es.HandleDeployMessage(&msg, index))
 	}
 
 	blockHash, err := es.Commit(0)
 	suite.Require().NoError(err)
 
-	es, err = NewExecutionState(tx, 0, blockHash, common.NewTestTimer(0))
+	es, err = NewExecutionState(tx, shardId, blockHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
 	storageVal := es.GetState(addr, storageKey)
 
 	suite.Equal(storageVal, common.IntToHash(123456))
 
-	block := db.ReadBlock(tx, types.MasterShardId, blockHash)
+	block := db.ReadBlock(tx, shardId, blockHash)
 	suite.Require().NotNil(block)
 
 	messageTrieTable := db.MessageTrieTable
@@ -87,7 +101,16 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 		var m types.Message
 		suite.Require().NoError(m.UnmarshalSSZ(mRaw))
-		suite.Equal(types.Code{byte(messageIndex)}, m.Data)
+
+		deploy := types.DeployMessage{
+			ShardId: uint32(shardId),
+			Seqno:   messageIndex,
+			Data:    []byte("data"),
+			Code:    []byte("code"),
+		}
+		data, err := deploy.MarshalSSZ()
+		suite.Require().NoError(err)
+		suite.Equal(types.Code(data), m.Data)
 
 		var r types.Receipt
 		suite.Require().NoError(r.UnmarshalSSZ(rRaw))

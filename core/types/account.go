@@ -13,6 +13,7 @@ type SmartContract struct {
 	StorageRoot common.Hash
 	CodeHash    common.Hash
 	Seqno       uint64
+	PublicKey   []byte `ssz-max:"33"`
 }
 
 // interfaces

@@ -40,7 +40,7 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	es, err := execution.NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
-	suite.smcAddr = common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
+	suite.smcAddr = common.GenerateRandomAddress(uint32(shardId))
 	suite.Require().NotEmpty(suite.smcAddr)
 
 	es.CreateAccount(suite.smcAddr)
