@@ -3,9 +3,9 @@ package exporter
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
-	"github.com/NilFoundation/nil/common/concurrent"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/rs/zerolog/log"
@@ -27,19 +27,29 @@ func StartExporter(ctx context.Context, cfg Cfg) error {
 		return err
 	}
 
-	if err = concurrent.Run(
-		ctx,
-		func(ctx context.Context) error {
-			startTopFetcher(ctx, &cfg)
-			return nil
-		},
-	); err != nil {
+	shards, err := cfg.FetchShards(ctx)
+	if err != nil {
 		return err
 	}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		wg.Done()
+		startTopFetcher(ctx, &cfg, types.MasterShardId)
+	}()
+
+	for _, shard := range shards {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			startTopFetcher(ctx, &cfg, shard)
+		}()
+	}
+	wg.Wait()
 	return nil
 }
 
-func startTopFetcher(ctx context.Context, cfg *Cfg) {
+func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 	log.Info().Msg("Starting top fetcher...")
 	for {
 		select {
@@ -47,7 +57,7 @@ func startTopFetcher(ctx context.Context, cfg *Cfg) {
 			return
 		default:
 			log.Info().Msg("Fetching blocks...")
-			lastProcessedBlock, err := cfg.ExporterDriver.FetchLatestBlock(ctx)
+			lastProcessedBlock, err := cfg.ExporterDriver.FetchLatestBlock(ctx, shardId)
 			if err != nil {
 				cfg.ErrorChan <- err
 				log.Err(err).Msg("Failed to fetch last processed block")
@@ -55,7 +65,7 @@ func startTopFetcher(ctx context.Context, cfg *Cfg) {
 				continue
 			}
 
-			topBlock, err := cfg.FetchLastBlock(ctx, types.MasterShardId)
+			topBlock, err := cfg.FetchLastBlock(ctx, shardId)
 			if err != nil {
 				cfg.ErrorChan <- err
 				log.Err(err).Msg("Failed to fetch last block from blockchain")
@@ -76,13 +86,13 @@ func startTopFetcher(ctx context.Context, cfg *Cfg) {
 			curBlock := topBlock
 
 			for curBlock != nil && curBlock.Id >= firstPoint {
-				if err := cfg.ExporterDriver.ExportBlocks(ctx, []*types.Block{curBlock}); err != nil {
+				if err := cfg.ExporterDriver.ExportBlocks(ctx, shardId, []*types.Block{curBlock}); err != nil {
 					cfg.ErrorChan <- err
 					log.Err(err).Msg("Failed to export block")
 					time.Sleep(1 * time.Second)
 					continue
 				}
-				curBlock, err = cfg.FetchBlockByHash(ctx, types.MasterShardId, curBlock.PrevBlock)
+				curBlock, err = cfg.FetchBlockByHash(ctx, shardId, curBlock.PrevBlock)
 				if err != nil {
 					cfg.ErrorChan <- err
 					log.Err(err).Msg("Failed to fetch block")

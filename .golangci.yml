@@ -66,3 +66,7 @@ linters:
 linters-settings:
   testifylint:
     enable-all: true
+
+issues:
+  exclude-dirs:
+    - clickhouse

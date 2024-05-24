@@ -28,6 +28,9 @@ $(COMMANDS): %: %.cmd
 
 all: $(COMMANDS)
 
+ssz:
+	@echo "Generating SSZ code"
+	pushd core/types && go generate && popd
 
 lint:
 	go mod tidy

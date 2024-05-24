@@ -26,6 +26,7 @@ type Block struct {
 	ChildBlocksRootHash common.Hash
 	MasterChainHash     common.Hash
 	LogsBloom           Bloom
+	Timestamp           uint64
 }
 
 // interfaces

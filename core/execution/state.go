@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 
 	"github.com/NilFoundation/nil/common"
 	db "github.com/NilFoundation/nil/core/db"
@@ -48,13 +47,14 @@ type AccountState struct {
 
 type ExecutionState struct {
 	tx               db.Tx
+	Timer            common.Timer
 	ContractRoot     *mpt.MerklePatriciaTrie
 	MessageRoot      *mpt.MerklePatriciaTrie
 	ReceiptRoot      *mpt.MerklePatriciaTrie
 	PrevBlock        common.Hash
 	MasterChain      common.Hash
 	ShardId          types.ShardId
-	ChildChainBlocks map[uint64]common.Hash
+	ChildChainBlocks map[types.ShardId]common.Hash
 
 	MessageHash common.Hash
 	Logs        map[common.Hash][]*types.Log
@@ -127,7 +127,7 @@ func NewEVMBlockContext(es *ExecutionState, lastBlockHash common.Hash) vm.BlockC
 	}
 }
 
-func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash) (*ExecutionState, error) {
+func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash, timer common.Timer) (*ExecutionState, error) {
 	block := db.ReadBlock(tx, shardId, blockHash)
 
 	var contractRoot, messageRoot, receiptRoot *mpt.MerklePatriciaTrie
@@ -146,12 +146,13 @@ func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash) (
 
 	return &ExecutionState{
 		tx:               tx,
+		Timer:            timer,
 		ContractRoot:     contractRoot,
 		MessageRoot:      messageRoot,
 		ReceiptRoot:      receiptRoot,
 		PrevBlock:        blockHash,
 		ShardId:          shardId,
-		ChildChainBlocks: map[uint64]common.Hash{},
+		ChildChainBlocks: map[types.ShardId]common.Hash{},
 		Accounts:         map[common.Address]*AccountState{},
 		Messages:         []*types.Message{},
 		Receipts:         []*types.Receipt{},
@@ -162,7 +163,7 @@ func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash) (
 	}, nil
 }
 
-func NewExecutionStateForShard(tx db.Tx, shardId types.ShardId) (*ExecutionState, error) {
+func NewExecutionStateForShard(tx db.Tx, shardId types.ShardId, timer common.Timer) (*ExecutionState, error) {
 	lastBlockHashBytes, err := tx.Get(db.LastBlockTable, shardId.Bytes())
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, fmt.Errorf("failed getting last block: %w", err)
@@ -174,7 +175,7 @@ func NewExecutionStateForShard(tx db.Tx, shardId types.ShardId) (*ExecutionState
 		lastBlockHash = common.Hash(*lastBlockHashBytes)
 	}
 
-	return NewExecutionState(tx, shardId, lastBlockHash)
+	return NewExecutionState(tx, shardId, lastBlockHash, timer)
 }
 
 func (es *ExecutionState) GetReceipt(msgIndex uint64) (*types.Receipt, error) {
@@ -608,7 +609,7 @@ func (es *ExecutionState) SetMasterchainHash(masterChainHash common.Hash) {
 	es.MasterChain = masterChainHash
 }
 
-func (es *ExecutionState) SetShardHash(shardId uint64, hash common.Hash) {
+func (es *ExecutionState) SetShardHash(shardId types.ShardId, hash common.Hash) {
 	es.ChildChainBlocks[shardId] = hash
 }
 
@@ -708,7 +709,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 	if len(es.ChildChainBlocks) > 0 {
 		treeShards := mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.ShardBlocksTrieTableName(blockId))
 		for k, hash := range es.ChildChainBlocks {
-			key := strconv.AppendUint(nil, k, 10)
+			key := k.Bytes()
 			if err := treeShards.Set(key, hash.Bytes()); err != nil {
 				return common.EmptyHash, err
 			}
@@ -753,6 +754,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		ReceiptsRoot:        es.ReceiptRoot.RootHash(),
 		ChildBlocksRootHash: treeShardsRootHash,
 		MasterChainHash:     es.MasterChain,
+		Timestamp:           es.Timer.Now(),
 	}
 
 	blockHash := block.Hash()

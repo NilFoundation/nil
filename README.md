@@ -38,6 +38,14 @@ Type:
 make test
 ```
 
+## Generate SSZ serialization code
+
+To generate SSZ serialization code, type:
+
+```
+make ssz
+```
+
 ## Linting
 
 ```

@@ -25,6 +25,7 @@ type ShardChain struct {
 	db db.DB
 
 	logger *zerolog.Logger
+	timer  common.Timer
 
 	nShards int
 }
@@ -104,7 +105,7 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 		return nil, err
 	}
 
-	es, err := execution.NewExecutionStateForShard(rwTx, c.Id)
+	es, err := execution.NewExecutionStateForShard(rwTx, c.Id, c.timer)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +138,7 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 			if err != nil {
 				return nil, err
 			}
-			es.SetShardHash(uint64(i), lastBlockHash)
+			es.SetShardHash(types.ShardId(i), lastBlockHash)
 		}
 	} else {
 		lastBlockHash, err := c.getHashLastBlock(roTx, types.MasterShardId)
@@ -192,7 +193,7 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 		lastBlockHash = common.Hash(*lastBlockHashBytes)
 	}
 
-	es, err := execution.NewExecutionState(rwTx, c.Id, lastBlockHash)
+	es, err := execution.NewExecutionState(rwTx, c.Id, lastBlockHash, common.NewTestTimer(0))
 	if err != nil {
 		return common.EmptyHash, err
 	}
@@ -240,12 +241,13 @@ func (c *ShardChain) testTransaction(ctx context.Context) (common.Hash, error) {
 	}
 
 	if c.isMasterchain() {
-		for i := range c.nShards - 1 {
-			lastBlockHash, err := c.getHashLastBlock(roTx, types.ShardId(i+1))
+		// go range from 1 to nShardId
+		for i := 1; i < c.nShards; i++ {
+			lastBlockHash, err := c.getHashLastBlock(roTx, types.ShardId(i))
 			if err != nil {
 				return common.EmptyHash, err
 			}
-			es.SetShardHash(uint64(i), lastBlockHash)
+			es.SetShardHash(types.ShardId(i), lastBlockHash)
 		}
 	} else {
 		lastBlockHash, err := c.getHashLastBlock(roTx, types.MasterShardId)
@@ -304,5 +306,6 @@ func NewShardChain(
 	nShards int,
 ) *ShardChain {
 	logger := common.NewLogger(fmt.Sprintf("shard-%d", shardId), false /* noColor */)
-	return &ShardChain{shardId, db, logger, nShards}
+	timer := common.NewTimer()
+	return &ShardChain{Id: shardId, db: db, logger: logger, timer: timer, nShards: nShards}
 }

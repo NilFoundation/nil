@@ -5,49 +5,35 @@ import (
 	"testing"
 	"time"
 
+	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/concurrent"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc"
 	"github.com/NilFoundation/nil/rpc/httpcfg"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
-	"github.com/stretchr/testify/require"
+	"github.com/rs/zerolog/log"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestFetchBlock(t *testing.T) {
-	t.Parallel()
+type SuiteFetchBlock struct {
+	suite.Suite
+	nShards int32
+	context context.Context
+	cancel  context.CancelFunc
+}
 
-	ctx := context.Background()
-
+func startRpcServer(tempDir string, ctx context.Context, nShards int32) {
 	logger := common.NewLogger("RPC", false)
 
-	database, err := db.NewBadgerDb(t.TempDir())
-	require.NoError(t, err, "Failed to create database")
-
-	var id types.BlockNumber = 0
-
-	block := types.Block{
-		Id:                 id,
-		PrevBlock:          common.EmptyHash,
-		SmartContractsRoot: common.EmptyHash,
-		MessagesRoot:       common.EmptyHash,
+	database, err := db.NewBadgerDb(tempDir)
+	if err != nil {
+		log.Fatal().Msgf("Failed to open db: %s", err.Error())
 	}
-	blockHash := block.Hash()
-
-	err = database.Put(db.LastBlockTable, id.Bytes(), blockHash.Bytes())
-	require.NoError(t, err)
-
-	tx, err := database.CreateRwTx(ctx)
-	defer tx.Rollback()
-	require.NoError(t, err)
-
-	err = db.WriteBlock(tx, types.MasterShardId, &block)
-	require.NoError(t, err)
-
-	err = tx.Commit()
-	require.NoError(t, err)
 
 	httpCfg := httpcfg.HttpCfg{
 		Enabled:           true,
@@ -57,40 +43,88 @@ func TestFetchBlock(t *testing.T) {
 		TraceRequests:     true,
 		HTTPTimeouts:      rpccfg.DefaultHTTPTimeouts,
 	}
+
+	baseAPi := jsonrpc.NewBaseApi(0)
+	pool := msgpool.New(msgpool.DefaultConfig)
+	ethAPI := jsonrpc.NewEthAPI(ctx, baseAPi, database, pool, logger)
+	debugAPI := jsonrpc.NewDebugAPI(baseAPi, database, logger)
 	apiList := []transport.API{
+		{
+			Namespace: "eth",
+			Public:    true,
+			Service:   ethAPI,
+			Version:   "1.0",
+		},
 		{
 			Namespace: "debug",
 			Public:    true,
-			Service:   jsonrpc.DebugAPI(jsonrpc.NewDebugAPI(jsonrpc.NewBaseApi(0), database, logger)),
+			Service:   debugAPI,
 			Version:   "1.0",
 		},
 	}
 	go func() {
-		_ = rpc.StartRpcServer(ctx, &httpCfg, apiList, logger)
+		if err := concurrent.Run(ctx,
+			func(ctx context.Context) error {
+				nilservice.Run(ctx, int(nShards), database)
+				return nil
+			},
+			func(ctx context.Context) error {
+				return rpc.StartRpcServer(ctx, &httpCfg, apiList, logger)
+			},
+		); err != nil {
+			log.Fatal().Err(err).Msg("RPC server stopped.")
+		}
 	}()
+}
 
-	time.Sleep(1 * time.Second)
-
+func (suite *SuiteFetchBlock) TestFetchBlock() {
 	cfg := Cfg{
 		APIEndpoints: []string{"http://127.0.0.1:8345"},
 	}
 
-	fetchedBlock, err := cfg.FetchLastBlock(ctx, types.MasterShardId)
-	require.NoError(t, err, "Failed to fetch block")
+	fetchedBlock, err := cfg.FetchLastBlock(suite.context, types.MasterShardId)
+	suite.Require().NoError(err, "Failed to fetch last block")
 
-	require.NotNil(t, fetchedBlock, "Fetched block is nil")
+	suite.Require().NotNil(fetchedBlock, "Fetched block is nil")
 
-	require.Equal(t, block.Id, fetchedBlock.Id)
-	require.Equal(t, block.PrevBlock, fetchedBlock.PrevBlock)
-	require.Equal(t, block.SmartContractsRoot, fetchedBlock.SmartContractsRoot)
-	require.Equal(t, block.MessagesRoot, fetchedBlock.MessagesRoot)
+	hashBlock, err := cfg.FetchBlockByHash(suite.context, types.MasterShardId, fetchedBlock.Hash())
+	suite.Require().NoError(err, "Failed to fetch block by hash")
+	suite.Require().NotNil(hashBlock, "Fetched block by hash is nil")
 
-	hashBlock, err := cfg.FetchBlockByHash(ctx, types.MasterShardId, block.Hash())
-	require.NoError(t, err, "Failed to fetch block by hash")
-	require.NotNil(t, hashBlock, "Fetched block by hash is nil")
+	suite.Require().Equal(fetchedBlock.Id, hashBlock.Id)
+	suite.Require().Equal(fetchedBlock.PrevBlock, hashBlock.PrevBlock)
+	suite.Require().Equal(fetchedBlock.SmartContractsRoot, hashBlock.SmartContractsRoot)
+	suite.Require().Equal(fetchedBlock.MessagesRoot, hashBlock.MessagesRoot)
+}
 
-	require.Equal(t, block.Id, hashBlock.Id)
-	require.Equal(t, block.PrevBlock, hashBlock.PrevBlock)
-	require.Equal(t, block.SmartContractsRoot, hashBlock.SmartContractsRoot)
-	require.Equal(t, block.MessagesRoot, hashBlock.MessagesRoot)
+func (suite *SuiteFetchBlock) TestFetchShardIdList() {
+	cfg := Cfg{
+		APIEndpoints: []string{"http://127.0.0.1:8345"},
+	}
+
+	shardIds, err := cfg.FetchShards(suite.context)
+	suite.Require().NoError(err, "Failed to fetch shard ids")
+
+	// log the shard ids
+	for _, shardId := range shardIds {
+		log.Info().Msgf("Shard id: %d", shardId)
+	}
+	suite.Require().Len(shardIds, int(suite.nShards-1), "Shard ids length is not equal to expected")
+}
+
+func TestSuiteFetchBlock(t *testing.T) {
+	t.Parallel()
+
+	suite.Run(t, new(SuiteFetchBlock))
+}
+
+func (suite *SuiteFetchBlock) SetupSuite() {
+	suite.context, suite.cancel = context.WithCancel(context.Background())
+	suite.nShards = 4
+	go startRpcServer(suite.T().TempDir(), suite.context, suite.nShards)
+	time.Sleep(time.Second) // To be sure that server is started
+}
+
+func (suite *SuiteFetchBlock) TearDownSuite() {
+	suite.cancel()
 }

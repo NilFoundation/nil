@@ -35,7 +35,7 @@ func (suite *SuiteSendTransaction) SetupSuite() {
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Require().NoError(err)
 
-	es, err := execution.NewExecutionState(tx, shardId, common.EmptyHash)
+	es, err := execution.NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
 	suite.smcAddr = common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
