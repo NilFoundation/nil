@@ -145,11 +145,11 @@ func (a *Address) SetBytes(b []byte) {
 
 // MarshalText returns the hex representation of a.
 func (a Address) MarshalText() ([]byte, error) {
-	b := a[:]
-	result := make([]byte, len(b)*2+2)
-	copy(result, "0x")
-	hex.Encode(result[2:], b)
-	return result, nil
+	return hexutil.Bytes(a.Bytes()).MarshalText()
+}
+
+func (a *Address) UnmarshalText(input []byte) error {
+	return hexutil.UnmarshalFixedText("Address", input, a[:])
 }
 
 func appendShardId(bytes []byte, shardId uint32) []byte {

@@ -55,7 +55,6 @@ func (s *SuiteShardchainState) TestGenerateBlock() {
 	s.Require().NoError(err)
 	s.Equal(uint64(0), r.MsgIndex)
 	s.Equal(m.Hash(), r.MsgHash)
-	s.Require().NoError(err)
 }
 
 func (s *SuiteShardchainState) TestValidateMessage() {

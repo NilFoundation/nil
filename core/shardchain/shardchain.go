@@ -59,7 +59,7 @@ func (c *ShardChain) HandleExecutionMessage(message *types.Message, index uint64
 	accountState := es.GetAccount(addr)
 	contract.Code = accountState.Code
 
-	_, err := interpreter.Run(contract, nil, false)
+	_, err := interpreter.Run(contract, message.Data, false)
 	if err != nil {
 		c.logger.Error().Msg("message failed")
 		return err
@@ -77,6 +77,9 @@ func (c *ShardChain) HandleExecutionMessage(message *types.Message, index uint64
 }
 
 func (c *ShardChain) validateMessage(es *execution.ExecutionState, message *types.Message, index uint64) (bool, error) {
+	if !common.EnableSignatureCheck {
+		return true, nil
+	}
 	addr := message.From
 	accountState := es.GetAccount(addr)
 

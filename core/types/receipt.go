@@ -10,7 +10,7 @@ type Receipt struct {
 	Success bool   `json:"success"`
 	GasUsed uint32 `json:"gasUsed"`
 	Bloom   Bloom  `json:"bloom"`
-	Logs    []*Log `json:"logs"    ssz-max:"1000"`
+	Logs    []*Log `json:"logs" ssz-max:"1000"`
 
 	MsgHash         common.Hash    `json:"messageHash"`
 	ContractAddress common.Address `json:"contractAddress"`

@@ -32,8 +32,5 @@ func (api *APIImpl) GetMessageReceipt(ctx context.Context, shardId types.ShardId
 	}
 
 	var receipt types.Receipt
-	if err := receipt.UnmarshalSSZ(receiptBytes); err != nil {
-		return nil, err
-	}
-	return &receipt, nil
+	return &receipt, receipt.UnmarshalSSZ(receiptBytes)
 }

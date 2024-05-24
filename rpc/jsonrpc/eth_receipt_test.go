@@ -56,6 +56,7 @@ func (suite *SuiteEthReceipt) TestGetMessageReceipt() {
 	data, err := suite.api.GetMessageReceipt(context.Background(), types.MasterShardId, suite.receipt.MsgHash)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
+
 	suite.Equal(suite.receipt, *data)
 }
 

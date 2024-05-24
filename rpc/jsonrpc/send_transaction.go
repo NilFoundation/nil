@@ -19,7 +19,7 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Byte
 		return common.Hash{}, fmt.Errorf("failed to decode message: %w", err)
 	}
 
-	if !crypto.TransactionSignatureIsValidBytes(msg.Signature[:]) {
+	if common.EnableSignatureCheck && !crypto.TransactionSignatureIsValidBytes(msg.Signature[:]) {
 		return common.Hash{}, errors.New("invalid signature")
 	}
 

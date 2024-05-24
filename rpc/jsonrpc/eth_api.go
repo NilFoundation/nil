@@ -34,7 +34,7 @@ type EthAPI interface {
 	GetCode(ctx context.Context, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error)
 
 	// Sending related
-	SendRawTransaction(ctx context.Context, encodedTx hexutil.Bytes) (common.Hash, error)
+	SendRawTransaction(ctx context.Context, encoded hexutil.Bytes) (common.Hash, error)
 
 	// Logs related
 	NewFilter(_ context.Context, query filters.FilterQuery) (string, error)
