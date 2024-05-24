@@ -1,4 +1,3 @@
-//nolint:dupl
 package jsonrpc
 
 import (
@@ -21,26 +20,13 @@ func (api *APIImpl) GetMessageReceipt(ctx context.Context, shardId types.ShardId
 
 	defer tx.Rollback()
 
-	value, err := tx.GetFromShard(shardId, db.BlockHashAndMessageIndexByMessageHash, hash.Bytes())
+	block, messageIndex, err := getBlockAndMessageIndexByMessageHash(tx, shardId, hash)
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return nil, nil
 	}
-	if err != nil {
-		return nil, err
-	}
-
-	var blockHashAndMessageIndex db.BlockHashAndMessageIndex
-	if err := blockHashAndMessageIndex.UnmarshalSSZ(*value); err != nil {
-		return nil, err
-	}
-
-	block := db.ReadBlock(tx, shardId, blockHashAndMessageIndex.BlockHash)
-	if block == nil {
-		return nil, errors.New("Block not found")
-	}
 
 	mptReceipts := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot)
-	receiptBytes, err := mptReceipts.Get(fastssz.MarshalUint64(nil, blockHashAndMessageIndex.MessageIndex))
+	receiptBytes, err := mptReceipts.Get(fastssz.MarshalUint64(nil, messageIndex))
 	if err != nil {
 		return nil, err
 	}

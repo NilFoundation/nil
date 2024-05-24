@@ -1,4 +1,3 @@
-//nolint:dupl
 package jsonrpc
 
 import (
@@ -22,26 +21,13 @@ func (api *APIImpl) GetMessageByHash(ctx context.Context, shardId types.ShardId,
 
 	defer tx.Rollback()
 
-	value, err := tx.GetFromShard(shardId, db.BlockHashAndMessageIndexByMessageHash, hash.Bytes())
+	block, messageIndex, err := getBlockAndMessageIndexByMessageHash(tx, shardId, hash)
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return nil, nil
 	}
-	if err != nil {
-		return nil, err
-	}
-
-	var blockHashAndMessageIndex db.BlockHashAndMessageIndex
-	if err := blockHashAndMessageIndex.UnmarshalSSZ(*value); err != nil {
-		return nil, err
-	}
-
-	block := db.ReadBlock(tx, shardId, blockHashAndMessageIndex.BlockHash)
-	if block == nil {
-		return nil, errors.New("Block not found")
-	}
 
 	mptMessages := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.MessageTrieTable, block.MessagesRoot)
-	messageBytes, err := mptMessages.Get(fastssz.MarshalUint64(nil, blockHashAndMessageIndex.MessageIndex))
+	messageBytes, err := mptMessages.Get(fastssz.MarshalUint64(nil, messageIndex))
 	if err != nil {
 		return nil, err
 	}
@@ -51,4 +37,22 @@ func (api *APIImpl) GetMessageByHash(ctx context.Context, shardId types.ShardId,
 		return nil, err
 	}
 	return &message, nil
+}
+
+func getBlockAndMessageIndexByMessageHash(tx db.Tx, shardId types.ShardId, hash common.Hash) (*types.Block, uint64, error) {
+	value, err := tx.GetFromShard(shardId, db.BlockHashAndMessageIndexByMessageHash, hash.Bytes())
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var blockHashAndMessageIndex db.BlockHashAndMessageIndex
+	if err := blockHashAndMessageIndex.UnmarshalSSZ(*value); err != nil {
+		return nil, 0, err
+	}
+
+	block := db.ReadBlock(tx, shardId, blockHashAndMessageIndex.BlockHash)
+	if block == nil {
+		return nil, 0, errors.New("Block not found")
+	}
+	return block, blockHashAndMessageIndex.MessageIndex, nil
 }
