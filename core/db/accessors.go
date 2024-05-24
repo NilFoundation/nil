@@ -128,11 +128,3 @@ func ReadCode(tx Tx, shardId types.ShardId, hash common.Hash) (types.Code, error
 	res := types.Code(*code)
 	return res, nil
 }
-
-func ReadReceipt(tx Tx, shardId types.ShardId, msgHash common.Hash) *types.Receipt {
-	return readDecodable[types.Receipt, *types.Receipt](tx, receiptTable, shardId, msgHash)
-}
-
-func WriteReceipt(tx Tx, shardId types.ShardId, receipt *types.Receipt, msgHash common.Hash) error {
-	return writeRawKeyEncodable(tx, receiptTable, shardId, msgHash.Bytes(), receipt)
-}

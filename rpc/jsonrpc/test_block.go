@@ -18,7 +18,7 @@ func writeTestBlock(t *testing.T, tx db.Tx, shardId types.ShardId, blockNumber t
 		PrevBlock:           common.EmptyHash,
 		SmartContractsRoot:  common.EmptyHash,
 		MessagesRoot:        writeMessages(t, tx, shardId, messages).RootHash(),
-		ReceiptsRoot:        common.EmptyHash,
+		ReceiptsRoot:        writeReceipts(t, tx, shardId, receipts).RootHash(),
 		ChildBlocksRootHash: common.EmptyHash,
 		MasterChainHash:     common.EmptyHash,
 	}
@@ -35,4 +35,15 @@ func writeMessages(t *testing.T, tx db.Tx, shardId types.ShardId, messages []*ty
 		require.NoError(t, messageRoot.Set(ssz.MarshalUint64(nil, uint64(i)), messageBytes))
 	}
 	return messageRoot
+}
+
+func writeReceipts(t *testing.T, tx db.Tx, shardId types.ShardId, receipts []*types.Receipt) *mpt.MerklePatriciaTrie {
+	t.Helper()
+	receiptRoot := mpt.NewMerklePatriciaTrie(tx, shardId, db.ReceiptTrieTable)
+	for _, receipt := range receipts {
+		receiptBytes, err := receipt.MarshalSSZ()
+		require.NoError(t, err)
+		require.NoError(t, receiptRoot.Set(ssz.MarshalUint64(nil, receipt.MsgIndex), receiptBytes))
+	}
+	return receiptRoot
 }
