@@ -40,7 +40,7 @@ func (s *SuiteShardchainState) TestGenerateBlock() {
 	_, err := shard.GenerateBlock(context.Background(), []*types.Message{&m})
 	s.Require().NoError(err)
 
-	m.To = execution.CreateAddress(m.From, m.Seqno)
+	m.To = common.CreateAddress(uint32(shardId), m.From, m.Seqno)
 
 	_, err = shard.GenerateBlock(context.Background(), []*types.Message{&m})
 	s.Require().NoError(err)

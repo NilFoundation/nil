@@ -1,7 +1,6 @@
 package shardchain
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -46,23 +45,8 @@ func (c *ShardChain) getHashLastBlock(roTx db.Tx, shardId types.ShardId) (common
 	return lastBlockHash, nil
 }
 
-func (c *ShardChain) HandleDeployMessage(message *types.Message, index uint64, interpreter *vm.EVMInterpreter, es *execution.ExecutionState) error {
-	addr := execution.CreateAddress(message.From, message.Seqno)
-	c.logger.Debug().Msgf("Create new contract %s", addr)
-
-	gas := uint64(1000000)
-	contract := vm.NewContract((vm.AccountRef)(addr), (vm.AccountRef)(addr), &message.Value.Int, gas)
-	contract.Code = message.Data
-
-	code, err := interpreter.Run(contract, nil, false)
-	if err != nil {
-		c.logger.Error().Msg("message failed")
-		return err
-	}
-	if err := es.HandleDeployMessage(message, code, index); err != nil {
-		return err
-	}
-	return nil
+func (c *ShardChain) HandleDeployMessage(message *types.Message, index uint64, es *execution.ExecutionState) error {
+	return es.HandleDeployMessage(message, index)
 }
 
 func (c *ShardChain) HandleExecutionMessage(message *types.Message, index uint64, interpreter *vm.EVMInterpreter, es *execution.ExecutionState) error {
@@ -172,8 +156,8 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 		interpreter := vm.NewEVMInterpreter(&evm)
 
 		// Deploy message
-		if bytes.Equal(message.To[:], common.EmptyAddress[:]) {
-			if err := c.HandleDeployMessage(message, index, interpreter, es); err != nil {
+		if message.To.IsEmpty() {
+			if err := c.HandleDeployMessage(message, index, es); err != nil {
 				return nil, err
 			}
 		} else {

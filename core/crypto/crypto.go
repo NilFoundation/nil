@@ -12,7 +12,6 @@ import (
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/math"
 	"github.com/holiman/uint256"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 // DigestLength sets the signature digest exact length
@@ -148,8 +147,4 @@ func ValidateSignatureValues(v byte, r, s *uint256.Int, homestead bool) bool {
 	}
 	// Frontier: allow s to be in full N range
 	return r.Lt(secp256k1N) && s.Lt(secp256k1N) && (v == 0 || v == 1)
-}
-
-func PubkeyBytesToAddress(_ uint32, pubBytes []byte) []byte {
-	return poseidon.Sum(pubBytes)[12:]
 }
