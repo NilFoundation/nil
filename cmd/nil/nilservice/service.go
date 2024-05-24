@@ -54,7 +54,7 @@ func startRpcServer(ctx context.Context, db db.DB, pool msgpool.Pool) error {
 	return rpc.StartRpcServer(ctx, httpConfig, apiList, logger)
 }
 
-func Run(ctx context.Context, nShards int, database db.DB) int {
+func Run(ctx context.Context, nShards int, database db.DB, dbOpts db.BadgerDBOptions) int {
 	common.SetupGlobalLogger()
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -81,6 +81,10 @@ func Run(ctx context.Context, nShards int, database db.DB) int {
 
 	funcs = append(funcs, func(ctx context.Context) error {
 		return startRpcServer(ctx, database, msgPools[0])
+	})
+
+	funcs = append(funcs, func(ctx context.Context) error {
+		return database.LogGC(ctx, dbOpts.DiscardRatio, dbOpts.GcFrequency)
 	})
 
 	log.Info().Msg("Starting services...")

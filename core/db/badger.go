@@ -4,13 +4,22 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"time"
 
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/dgraph-io/badger/v4"
+	"github.com/rs/zerolog/log"
 )
 
 type BadgerDB struct {
 	db *badger.DB
+}
+
+type BadgerDBOptions struct {
+	Path         string
+	DiscardRatio float64
+	GcFrequency  time.Duration
+	AllowDrop    bool
 }
 
 type BadgerRoTx struct {
@@ -150,6 +159,27 @@ func (db *BadgerDB) DeleteFromShard(shardId types.ShardId, tableName ShardedTabl
 
 func (db *BadgerDB) RangeByShard(shardId types.ShardId, tableName ShardedTableName, from []byte, to []byte) (Iter, error) {
 	return db.Range(shardTableName(tableName, shardId), from, to)
+}
+
+func (db *BadgerDB) LogGC(ctx context.Context, discardRation float64, gcFrequency time.Duration) error {
+	log.Info().Msg("Starting badger log garbage collection...")
+	ticker := time.NewTicker(gcFrequency)
+	for {
+		select {
+		case <-ticker.C:
+			log.Debug().Msg("Execute badger LogGC")
+			var err error
+			for ; err == nil; err = db.db.RunValueLogGC(discardRation) {
+			}
+			if !errors.Is(badger.ErrNoRewrite, err) {
+				log.Error().Err(err).Msg("Error during badger LogGC")
+				return err
+			}
+		case <-ctx.Done():
+			log.Info().Msg("Stopping badger log garbage collection...")
+			return nil
+		}
+	}
 }
 
 func (tx *BadgerRoTx) Commit() error {

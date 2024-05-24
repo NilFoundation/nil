@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/NilFoundation/nil/core/types"
 )
@@ -49,5 +50,6 @@ type DB interface {
 	CreateRwTx(ctx context.Context) (RwTx, error)
 	CreateRoTx(ctx context.Context) (RoTx, error)
 	DropAll() error
+	LogGC(ctx context.Context, discardRation float64, gcFrequency time.Duration) error
 	Close()
 }

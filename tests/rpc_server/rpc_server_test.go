@@ -68,10 +68,11 @@ func makeRequest(data *Request) (*Response, error) {
 func (suite *SuiteRpc) SetupSuite() {
 	suite.context, suite.cancel = context.WithCancel(context.Background())
 
-	badger, err := db.NewBadgerDb(suite.T().TempDir() + "/test.db")
+	dbOpts := db.BadgerDBOptions{Path: suite.T().TempDir() + "/test.db", DiscardRatio: 0.5, GcFrequency: time.Hour, AllowDrop: false}
+	badger, err := db.NewBadgerDb(dbOpts.Path)
 	suite.Require().NoError(err)
 
-	go nilservice.Run(suite.context, 2, badger)
+	go nilservice.Run(suite.context, 2, badger, dbOpts)
 	time.Sleep(time.Second) // To be sure that server is started
 }
 
