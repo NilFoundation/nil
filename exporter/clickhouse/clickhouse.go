@@ -2,23 +2,41 @@ package clickhouse
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
-	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/iden3/go-iden3-crypto/keccak256"
-	"github.com/rs/zerolog/log"
+	"github.com/NilFoundation/nil/exporter"
 )
 
 type ClickhouseDriver struct {
-	conn driver.Conn
+	conn       driver.Conn
+	insertConn driver.Conn
 }
 
-func NewClickhouseDriver(ctx context.Context, endpoint, login, password, database string) (*ClickhouseDriver, error) {
+// I saw this trick. dunno should I use it here too
+var (
+	_ exporter.ExportDriver = &ClickhouseDriver{}
+)
+
+var tableSchemeCache = make(map[string][]string)
+
+func init() {
+	intiSchemeCache()
+}
+
+func intiSchemeCache() {
+	scheme, err := ReflectSchemeToClickhouse(&types.Block{})
+	if err != nil {
+		panic(err)
+	}
+	tableSchemeCache["blocks"] = scheme
+}
+
+func NewClickhouseDriver(_ context.Context, endpoint, login, password, database string) (*ClickhouseDriver, error) {
 	// Create connection to Clickhouse
 	conn, err := clickhouse.Open(&clickhouse.Options{
 		Auth: clickhouse.Auth{
@@ -32,16 +50,20 @@ func NewClickhouseDriver(ctx context.Context, endpoint, login, password, databas
 		return nil, err
 	}
 
-	rows, err := conn.Query(ctx, `SELECT 1`)
+	insertConn, err := clickhouse.Open(&clickhouse.Options{
+		Auth: clickhouse.Auth{
+			Username: login,
+			Password: password,
+			Database: database,
+		},
+		Addr: []string{endpoint},
+	})
 	if err != nil {
 		return nil, err
 	}
-	log.Info().Msg("Clickhouse connection established")
-	defer func(rows driver.Rows) {
-		_ = rows.Close()
-	}(rows)
 	return &ClickhouseDriver{
-		conn: conn,
+		conn:       conn,
+		insertConn: insertConn,
 	}, nil
 }
 
@@ -49,52 +71,86 @@ func (d *ClickhouseDriver) SetupScheme(ctx context.Context) error {
 	return setupSchemeForClickhouse(ctx, d.conn)
 }
 
-func (d *ClickhouseDriver) ExportBlock(ctx context.Context, shardId types.ShardId, block *types.Block) error {
-	return exportBlocksToClickhouse(ctx, shardId, []*types.Block{block}, d.conn)
+func rowToBlock(rows driver.Rows) (*types.Block, error) {
+	var binary []uint8
+	if err := rows.Scan(&binary); err != nil {
+		return nil, err
+	}
+	var block types.Block
+	if err := block.UnmarshalSSZ(binary); err != nil {
+		return nil, err
+	}
+	return &block, nil
 }
 
-func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, shardId types.ShardId, blocks []*types.Block) error {
-	return exportBlocksToClickhouse(ctx, shardId, blocks, d.conn)
+func (d *ClickhouseDriver) FetchLatestProcessedBlock(ctx context.Context, shardId types.ShardId) (*types.Block, bool, error) {
+	rows, err := d.conn.Query(ctx, `SELECT blocks.binary
+from blocks
+where shard_id = $1
+order by blocks.Id desc
+limit 1`, shardId)
+	defer func(rows driver.Rows) {
+		_ = rows.Close()
+	}(rows)
+	if err != nil {
+		return nil, false, err
+	}
+	if !rows.Next() {
+		return nil, false, nil
+	}
+	block, err := rowToBlock(rows)
+	if err != nil {
+		return nil, false, err
+	}
+	return block, true, nil
 }
 
-func (d *ClickhouseDriver) FetchLatestBlock(ctx context.Context, shardId types.ShardId) (*types.Block, error) {
-	queryPart := "max(Id)"
-	condition := fmt.Sprintf("WHERE shard_id = %d", shardId)
-	return fetchBlockFromPoint(ctx, d.conn, queryPart, condition)
-}
+func (d *ClickhouseDriver) FetchEarliestAbsentBlock(ctx context.Context, shardId types.ShardId) (types.BlockNumber, bool, error) {
+	// join in clickhouse return default value on outer join
+	rows, err := d.conn.Query(ctx, `SELECT a.Id + 1
+from blocks as a
+         left outer join blocks as b on a.Id + 1 = b.Id and a.shard_id = b.shard_id
+where a.shard_id = $1 and a.Id > b.Id
+order by a.Id asc
+`, shardId)
+	defer func(rows driver.Rows) {
+		_ = rows.Close()
+	}(rows)
+	if err != nil {
+		return 0, false, err
+	}
+	if !rows.Next() {
+		return 0, false, nil
+	}
+	var blockNumber uint64
+	if err = rows.Scan(&blockNumber); err != nil {
+		return 0, false, err
+	}
 
-func (d *ClickhouseDriver) FetchEarlierPoint(ctx context.Context, shardId types.ShardId) (*types.Block, error) {
-	queryPart := "min(Id)"
-	condition := fmt.Sprintf("WHERE shard_id = %d", shardId)
-	return fetchBlockFromPoint(ctx, d.conn, queryPart, condition)
+	return types.BlockNumber(blockNumber), true, nil
 }
 
 func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
 	// Create table for blocks
-	fields, err := ReflectSchemeToClickhouse(&types.Block{})
-	if err != nil {
-		return err
+	fields, ok := tableSchemeCache["blocks"]
+	if !ok {
+		return errors.New("scheme for blocks not found")
 	}
 
 	scheme := strings.Join(fields, ",\n")
 
-	tableName, err := getTableNameForType(&types.Block{})
-	if err != nil {
-		return err
-	}
-
-	err = conn.Exec(ctx, fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS %s (
+	err := conn.Exec(ctx, fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS blocks (
 		    binary Array(UInt8),
 		    hash FixedString(32),
 		    shard_id UInt32,
 			%s
-		) ENGINE = MergeTree()
-		PRIMARY KEY (hash)
-	`, tableName, scheme))
+		) ENGINE = ReplacingMergeTree()
+		PRIMARY KEY (shard_id, hash)
+		order by (shard_id, hash)
+	`, scheme))
 	if err != nil {
-		log.Err(err).Msg("Failed to create table")
-		return err
+		return fmt.Errorf("failed to create table blocks: %w", err)
 	}
 
 	return nil
@@ -108,29 +164,22 @@ type BlockWithBinary struct {
 	ShardId types.ShardId `ch:"shard_id"`
 }
 
-func exportBlocksToClickhouse(ctx context.Context, shardId types.ShardId, blocks []*types.Block, conn driver.Conn) error {
-	// Export block to Clickhouse
-
-	tableName, err := getTableNameForType(&types.Block{})
+func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, msgs []*exporter.BlockMsg) error {
+	batch, err := d.insertConn.PrepareBatch(ctx, "INSERT INTO blocks")
 	if err != nil {
 		return err
 	}
 
-	batch, err := conn.PrepareBatch(ctx, "INSERT INTO "+tableName)
-	if err != nil {
-		return err
-	}
-
-	for _, block := range blocks {
-		binary, blockErr := block.MarshalSSZ()
+	for _, block := range msgs {
+		binary, blockErr := block.Block.MarshalSSZ()
 		if blockErr != nil {
 			return blockErr
 		}
 		binaryBlockExtended := &BlockWithBinary{
-			Block:   *block,
+			Block:   *block.Block,
 			Binary:  binary,
-			ShardId: shardId,
-			Hash:    block.Hash().Bytes(),
+			ShardId: block.Shard,
+			Hash:    block.Block.Hash().Bytes(),
 		}
 		blockErr = batch.AppendStruct(binaryBlockExtended)
 		if blockErr != nil {
@@ -146,60 +195,37 @@ func exportBlocksToClickhouse(ctx context.Context, shardId types.ShardId, blocks
 	return nil
 }
 
-func getTableNameForType(someType any) (string, error) {
-	fields, err := ReflectSchemeToClickhouse(someType)
+func (d *ClickhouseDriver) FetchBlock(ctx context.Context, id types.ShardId, number types.BlockNumber) (*types.Block, bool, error) {
+	rows, err := d.conn.Query(ctx, "SELECT binary FROM blocks WHERE shard_id = $1 AND Id = $2", id, number)
 	if err != nil {
-		return "", err
+		return nil, false, err
 	}
-
-	baseTableName := strings.ToLower(reflect.TypeOf(someType).Elem().Name())
-
-	schemeHash := keccak256.Hash([]byte(strings.Join(fields, ",\n")))
-
-	return fmt.Sprintf("%s_%s", baseTableName, hexutil.Encode(schemeHash)), nil
+	if !rows.Next() {
+		return nil, false, nil
+	}
+	block, err := rowToBlock(rows)
+	if err != nil {
+		return nil, false, err
+	}
+	return block, true, nil
 }
 
-func fetchBlockFromPoint(ctx context.Context, conn driver.Conn, queryPart string, condition string) (*types.Block, error) {
-	tableName, err := getTableNameForType(&types.Block{})
-	if err != nil {
-		return nil, err
-	}
-
-	// Fetch last point from Clickhouse
-	query := fmt.Sprintf("SELECT %s as point FROM %s %s", queryPart, tableName, condition)
-
-	log.Info().Msgf("Query: %s", query)
-
-	rows, err := conn.Query(ctx, query)
-	if err != nil {
-		return nil, err
-	}
+func (d *ClickhouseDriver) FetchNextPresentBlock(ctx context.Context, shardId types.ShardId, number types.BlockNumber) (types.BlockNumber, bool, error) {
+	rows, err := d.conn.Query(ctx, `SELECT blocks.Id
+from blocks 
+where shard_id = $1 and Id > $2 order by Id asc`, shardId, number)
 	defer func(rows driver.Rows) {
 		_ = rows.Close()
 	}(rows)
-
+	if err != nil {
+		return 0, false, err
+	}
 	if !rows.Next() {
-		return nil, nil
+		return 0, false, nil
 	}
-	var point uint64
-	if err = rows.Scan(&point); err != nil {
-		log.Info().Msg("Failed to scan point from Clickhouse")
-		return nil, err
+	var blockNumber uint64
+	if err := rows.Scan(&blockNumber); err != nil {
+		return 0, false, err
 	}
-
-	var binary []uint8
-	if err = conn.QueryRow(ctx, fmt.Sprintf("SELECT binary FROM %s WHERE Id = %d", tableName, point)).Scan(&binary); err != nil {
-		if point == 0 {
-			// because 0 it's empty table
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	var block types.Block
-	if err = block.UnmarshalSSZ(binary); err != nil {
-		return nil, err
-	}
-
-	return &block, nil
+	return types.BlockNumber(blockNumber), true, nil
 }
