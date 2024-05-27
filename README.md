@@ -161,7 +161,7 @@ In the current implementation, a transaction passes the following stages.
 
 1. The transaction is submitted by an account
 
-The RPC exposes the `SendRawTransaction()` method that calls the `CreateRwTx()` function of the DB and adds the transaction to the mempool
+The RPC exposes the `SendRawTransaction()` method that calls the `CreateRwTx()` function of the DB and adds the transaction to the mempool.
 
 2. The transaction is sent to the mempool of the shard where it originated
 
@@ -173,7 +173,7 @@ The collator periodically calls the `GenerateBlock()` method of the shardchain o
 
 4. The shard executes the transaction
 
-The shardchain records the transaction in the database and updates the execution state of the shard.
+The shardchain records the block with the transaction in the DB and updates the execution state of the shard.
 
 ## The DB
 
@@ -224,27 +224,23 @@ The current RPC is loosely modeled after the Ethereum RPC. The RPC exposes the f
 
 ## Linting
 
-The project uses `golangci-lint`, a linter runner for Go. Run the following command to download and build linters:
+The project uses `golangci-lint`, a linter runner for Go. 
+
+All linters are downloaded and built as part of the `nix develop` command. Run linters with:
 
 ```bash
 make lint
 ```
 
-Then, run the below command to run all linters:
+`.golangci.yml` contains the configuration for `golangci-lint`, including the full list of all linters used in the project. [**Visit the official docs for `golangci-lint`**](https://golangci-lint.run/usage/linters). 
 
-```bash
-golangci-lint run
-```
+Additional guides on integrating linters with IDEs:
 
-`.golangci.yml` contains the configuration for `golangci-lint`. [**Visit the official docs**](https://golangci-lint.run/usage/linters).
+* **https://github.com/mvdan/gofumpt?tab=readme-ov-file#installation**
 
-Additional guides on integrating linters with IDEs
+* **https://golangci-lint.run/welcome/integrations/**
 
-* https://github.com/mvdan/gofumpt?tab=readme-ov-file#installation
-
-* https://golangci-lint.run/welcome/integrations/
-
-* https://github.com/luw2007/gci?tab=readme-ov-file#installation
+* **https://github.com/luw2007/gci?tab=readme-ov-file#installation**
 
 ## Packaging
 
