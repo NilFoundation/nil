@@ -92,6 +92,17 @@ func ReadBlock(tx Tx, shardId types.ShardId, hash common.Hash) *types.Block {
 	return readDecodable[types.Block, *types.Block](tx, blockTable, shardId, hash)
 }
 
+func ReadLastBlockHash(tx Tx, shardId types.ShardId) (common.Hash, error) {
+	h, err := tx.Get(LastBlockTable, shardId.Bytes())
+	if errors.Is(err, ErrKeyNotFound) {
+		return common.EmptyHash, nil
+	}
+	if err != nil {
+		return common.EmptyHash, err
+	}
+	return common.BytesToHash(*h), nil
+}
+
 func WriteBlock(tx Tx, shardId types.ShardId, block *types.Block) error {
 	return writeEncodable(tx, blockTable, shardId, block)
 }

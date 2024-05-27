@@ -87,14 +87,14 @@ func (api *APIImpl) GetBlockTransactionCountByHash(ctx context.Context, shardId 
 }
 
 func (api *APIImpl) getLastBlock(tx db.Tx, shardId types.ShardId) (*types.Block, error) {
-	lastBlockHash, err := tx.Get(db.LastBlockTable, shardId.Bytes())
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil
-	}
+	lastBlockHash, err := db.ReadLastBlockHash(tx, shardId)
 	if err != nil {
 		return nil, err
 	}
-	return db.ReadBlock(tx, shardId, common.CastToHash(*lastBlockHash)), nil
+	if lastBlockHash == common.EmptyHash {
+		return nil, nil
+	}
+	return db.ReadBlock(tx, shardId, lastBlockHash), nil
 }
 
 func toMap(block *types.Block) map[string]any {

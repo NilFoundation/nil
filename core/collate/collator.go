@@ -32,8 +32,8 @@ func (c *Collator) Run(ctx context.Context) error {
 	log.Info().Msgf("Starting collation on shard %s...", c.shard.Id)
 
 	// Run shard collations once immediately, then run by timer.
-	if err := c.doCollate(ctx); err != nil {
-		return err
+	if err := c.genZerostateIfRequired(ctx); err != nil {
+		log.Fatal().Err(err).Msg("Failed to generate zerostate")
 	}
 
 	ticker := time.NewTicker(defaultPeriod)
@@ -48,6 +48,10 @@ func (c *Collator) Run(ctx context.Context) error {
 			return nil
 		}
 	}
+}
+
+func (c *Collator) genZerostateIfRequired(ctx context.Context) error {
+	return c.shard.GenerateZerostate(ctx)
 }
 
 func (c *Collator) doCollate(ctx context.Context) error {
