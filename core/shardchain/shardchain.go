@@ -131,10 +131,12 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 		return nil, err
 	}
 	defer rwTx.Rollback()
+
 	roTx, err := c.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
+	defer roTx.Rollback()
 
 	es, err := execution.NewExecutionStateForShard(rwTx, c.Id, c.timer)
 	if err != nil {
