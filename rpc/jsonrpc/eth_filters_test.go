@@ -137,8 +137,8 @@ func (s *SuiteEthFilters) TestLogs() {
 	logs, err = s.api.GetFilterChanges(s.ctx, id2)
 	s.Require().NoError(err)
 	s.Require().Len(logs, 2)
-	s.Require().Equal(logsInput[0], logs[0])
-	s.Require().Equal(logsInput2[0], logs[1])
+	s.Require().Equal(logsInput[0], logs[1])
+	s.Require().Equal(logsInput2[0], logs[0])
 }
 
 func (s *SuiteEthFilters) TestBlocks() {

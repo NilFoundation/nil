@@ -50,6 +50,7 @@ type ExecutionState struct {
 	Timer            common.Timer
 	ContractRoot     *mpt.MerklePatriciaTrie
 	MessageRoot      *mpt.MerklePatriciaTrie
+	OutMessagesTrie  *mpt.MerklePatriciaTrie
 	ReceiptRoot      *mpt.MerklePatriciaTrie
 	PrevBlock        common.Hash
 	MasterChain      common.Hash
@@ -61,6 +62,10 @@ type ExecutionState struct {
 
 	Accounts map[common.Address]*AccountState
 	Messages []*types.Message
+
+	// OutMessages holds outbound messages for every transaction in the executed block, where key is hash of Message that sends the message
+	OutMessages map[common.Hash][]*types.Message
+
 	Receipts []*types.Receipt
 
 	// Transient storage
@@ -131,17 +136,19 @@ func NewEVMBlockContext(es *ExecutionState, lastBlockHash common.Hash) vm.BlockC
 func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash, timer common.Timer) (*ExecutionState, error) {
 	block := db.ReadBlock(tx, shardId, blockHash)
 
-	var contractRoot, messageRoot, receiptRoot *mpt.MerklePatriciaTrie
+	var contractRoot, messageRoot, outMessagesTrie, receiptRoot *mpt.MerklePatriciaTrie
 	contractTrieTable := db.ContractTrieTable
 	messageTrieTable := db.MessageTrieTable
 	receiptTrieTable := db.ReceiptTrieTable
 	if block != nil {
 		contractRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, contractTrieTable, block.SmartContractsRoot)
 		messageRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, messageTrieTable, block.MessagesRoot)
+		outMessagesTrie = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, messageTrieTable, block.OutMessagesRoot)
 		receiptRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, receiptTrieTable, block.ReceiptsRoot)
 	} else {
 		contractRoot = mpt.NewMerklePatriciaTrie(tx, shardId, contractTrieTable)
 		messageRoot = mpt.NewMerklePatriciaTrie(tx, shardId, messageTrieTable)
+		outMessagesTrie = mpt.NewMerklePatriciaTrie(tx, shardId, messageTrieTable)
 		receiptRoot = mpt.NewMerklePatriciaTrie(tx, shardId, receiptTrieTable)
 	}
 
@@ -150,6 +157,7 @@ func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash, t
 		Timer:            timer,
 		ContractRoot:     contractRoot,
 		MessageRoot:      messageRoot,
+		OutMessagesTrie:  outMessagesTrie,
 		ReceiptRoot:      receiptRoot,
 		PrevBlock:        blockHash,
 		ShardId:          shardId,
@@ -747,8 +755,27 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		}
 	}
 
-	for _, r := range es.Receipts {
+	var msgIndex uint32 = 0
+	for _, messages := range es.OutMessages {
+		for _, m := range messages {
+			v, err := m.MarshalSSZ()
+			if err != nil {
+				return common.EmptyHash, err
+			}
+			k := ssz.MarshalUint32(nil, msgIndex)
+			if err := es.OutMessagesTrie.Set(k, v); err != nil {
+				return common.EmptyHash, err
+			}
+			msgIndex += 1
+		}
+	}
+
+	msgStart := 0
+	for i, r := range es.Receipts {
+		msgHash := es.Messages[i].Hash()
 		r.BlockNumber = blockId
+		r.OutMsgIndex = uint32(msgStart)
+
 		v, err := r.MarshalSSZ()
 		if err != nil {
 			return common.EmptyHash, err
@@ -757,6 +784,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		if err := es.ReceiptRoot.Set(k, v); err != nil {
 			return common.EmptyHash, err
 		}
+		msgStart += len(es.OutMessages[msgHash])
 	}
 
 	block := types.Block{
@@ -764,6 +792,8 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		PrevBlock:           es.PrevBlock,
 		SmartContractsRoot:  es.ContractRoot.RootHash(),
 		MessagesRoot:        es.MessageRoot.RootHash(),
+		OutMessagesRoot:     es.OutMessagesTrie.RootHash(),
+		OutMessagesNum:      msgIndex,
 		ReceiptsRoot:        es.ReceiptRoot.RootHash(),
 		ChildBlocksRootHash: treeShardsRootHash,
 		MasterChainHash:     es.MasterChain,

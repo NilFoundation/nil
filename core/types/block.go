@@ -18,10 +18,16 @@ func (bn BlockNumber) String() string { return strconv.FormatUint(bn.Uint64(), 1
 func (bn BlockNumber) Bytes() []byte  { return []byte(bn.String()) }
 
 type Block struct {
-	Id                  BlockNumber
-	PrevBlock           common.Hash
-	SmartContractsRoot  common.Hash
-	MessagesRoot        common.Hash
+	Id                 BlockNumber
+	PrevBlock          common.Hash
+	SmartContractsRoot common.Hash
+	MessagesRoot       common.Hash
+	// OutMessagesRoot stores all outbound messages produced by transactions of this block. The key of the tree is a
+	// sequential index of the message, value is a Message struct.
+	// It can be considered as an array, where each segment is referred by corresponding receipt.
+	OutMessagesRoot common.Hash
+	// We cache size of out messages, otherwise we should iterate all the tree to get its size
+	OutMessagesNum      uint32
 	ReceiptsRoot        common.Hash
 	ChildBlocksRootHash common.Hash
 	MasterChainHash     common.Hash
