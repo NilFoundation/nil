@@ -8,8 +8,10 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
+	ssz "github.com/ferranbt/fastssz"
 )
 
 // GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
@@ -57,7 +59,7 @@ func (api *APIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId,
 	if block == nil {
 		return nil, nil
 	}
-	return toMap(block), nil
+	return toMap(tx, shardId, block)
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
@@ -73,7 +75,7 @@ func (api *APIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, h
 	if block == nil {
 		return nil, nil
 	}
-	return toMap(block), nil
+	return toMap(tx, shardId, block)
 }
 
 // GetBlockTransactionCountByNumber implements eth_getBlockTransactionCountByNumber. Returns the number of transactions in a block given the block's block number.
@@ -97,12 +99,56 @@ func (api *APIImpl) getLastBlock(tx db.Tx, shardId types.ShardId) (*types.Block,
 	return db.ReadBlock(tx, shardId, lastBlockHash), nil
 }
 
-func toMap(block *types.Block) map[string]any {
+func collectBlockEntities[
+	T interface {
+		~*S
+		ssz.Unmarshaler
+	},
+	S any,
+](tx db.Tx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash) ([]S, error) {
+	root := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, tableName, rootHash)
+
+	entities := make([]S, 0, 1024)
+	var index uint64
+	for {
+		k := ssz.MarshalUint64(nil, index)
+
+		mRaw, err := root.Get(k)
+		if errors.Is(err, db.ErrKeyNotFound) {
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("failed to get from %v with index %v from trie: %w", tableName, index, err)
+		}
+		var m S
+		if err := T(&m).UnmarshalSSZ(mRaw); err != nil {
+			return nil, fmt.Errorf("failed to decode object from %v with index %v: %w", tableName, index, err)
+		}
+		entities = append(entities, m)
+		index += 1
+	}
+	return entities, nil
+}
+
+func toMap(tx db.Tx, shardId types.ShardId, block *types.Block) (map[string]any, error) {
 	var number hexutil.Big
 	number.ToInt().SetUint64(block.Id.Uint64())
+
+	messages, err := collectBlockEntities[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot)
+	if err != nil {
+		return nil, err
+	}
+
+	receipts, err := collectBlockEntities[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot)
+	if err != nil {
+		return nil, err
+	}
+
 	return map[string]any{
 		"number":     number,
 		"hash":       block.Hash(),
+		"shardId":    shardId,
 		"parentHash": block.PrevBlock,
-	}
+		"messages":   messages,
+		"receipts":   receipts,
+	}, nil
 }
