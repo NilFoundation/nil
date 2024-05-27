@@ -2,20 +2,26 @@ package shardchain
 
 import (
 	"context"
-	"errors"
+	"crypto/ecdsa"
+	"encoding/hex"
 	"fmt"
+	"math/big"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
 	"github.com/NilFoundation/nil/features"
+	"github.com/holiman/uint256"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 type BlockGenerator interface {
 	GenerateBlock(ctx context.Context, msgs []*types.Message) (*types.Block, error)
+	GenerateZerostate(ctx context.Context) error
 }
 
 type ShardChain struct {
@@ -30,20 +36,33 @@ type ShardChain struct {
 
 var _ BlockGenerator = new(ShardChain)
 
-func (c *ShardChain) isMasterchain() bool {
-	return c.Id == types.MasterShardId
+var MainPrivateKey *ecdsa.PrivateKey
+
+func init() {
+	// All this info should be provided via zerostate / config / etc
+	// but for now it's hardcoded for simplicity.
+	pubkeyHex := "02eb7216201e65f0a41bc655ada025ad943b79d38aca4d671cbd9875b9604f1ac1"
+	pubkey, err := hex.DecodeString(pubkeyHex)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to prepare main key (decode hex)")
+	}
+
+	key, err := crypto.DecompressPubkey(pubkey)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to prepare main key (unmarshal)")
+	}
+
+	keyD := new(big.Int)
+	keyD.SetString("29471664811761943693235393363502564971627872515497410365595228231506458150155", 10)
+	MainPrivateKey = &ecdsa.PrivateKey{PublicKey: *key, D: keyD}
+
+	if !key.Equal(MainPrivateKey.Public()) {
+		log.Fatal().Msg("Consistency check on key recover failed")
+	}
 }
 
-func (c *ShardChain) getHashLastBlock(roTx db.Tx, shardId types.ShardId) (common.Hash, error) {
-	lastBlockRaw, err := roTx.Get(db.LastBlockTable, shardId.Bytes())
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		return common.EmptyHash, fmt.Errorf("failed getting last block %w for shard %d", err, shardId)
-	}
-	lastBlockHash := common.EmptyHash
-	if lastBlockRaw != nil {
-		lastBlockHash = common.Hash(*lastBlockRaw)
-	}
-	return lastBlockHash, nil
+func (c *ShardChain) isMasterchain() bool {
+	return c.Id == types.MasterShardId
 }
 
 func (c *ShardChain) HandleDeployMessage(message *types.Message, index uint64, es *execution.ExecutionState) error {
@@ -125,6 +144,94 @@ func (c *ShardChain) validateMessage(es *execution.ExecutionState, message *type
 	return true, nil
 }
 
+func (c *ShardChain) setLastBlockHashes(tx db.RoTx, es *execution.ExecutionState) error {
+	if c.isMasterchain() {
+		for i := 1; i < c.nShards; i++ {
+			shardId := types.ShardId(i)
+			lastBlockHash, err := db.ReadLastBlockHash(tx, shardId)
+			if err != nil {
+				return err
+			}
+			es.SetShardHash(shardId, lastBlockHash)
+		}
+	} else {
+		lastBlockHash, err := db.ReadLastBlockHash(tx, types.MasterShardId)
+		if err != nil {
+			return err
+		}
+		es.SetMasterchainHash(lastBlockHash)
+	}
+	return nil
+}
+
+func (c *ShardChain) GenerateZerostate(ctx context.Context) error {
+	roTx, err := c.db.CreateRoTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer roTx.Rollback()
+
+	lastBlockHash, err := db.ReadLastBlockHash(roTx, c.Id)
+	if err != nil {
+		c.logger.Fatal().Err(err).Msg("Failed to get the latest block")
+	}
+
+	if lastBlockHash != common.EmptyHash {
+		return nil
+	}
+
+	rwTx, err := c.db.CreateRwTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer rwTx.Rollback()
+
+	es, err := execution.NewExecutionStateForShard(rwTx, c.Id, c.timer)
+	if err != nil {
+		return err
+	}
+
+	mainDeployMsg := &types.DeployMessage{
+		ShardId:   uint32(c.Id),
+		Seqno:     0,
+		PublicKey: crypto.CompressPubkey(&MainPrivateKey.PublicKey),
+	}
+
+	pub := crypto.CompressPubkey(&MainPrivateKey.PublicKey)
+	addr := common.PubkeyBytesToAddress(uint32(c.Id), pub)
+	es.CreateAccount(addr)
+	es.CreateContract(addr)
+	es.SetInitState(addr, mainDeployMsg)
+
+	mainBalance, err := uint256.FromDecimal("1000000000000")
+	if err != nil {
+		return err
+	}
+
+	es.SetBalance(addr, *mainBalance)
+
+	if err := c.setLastBlockHashes(roTx, es); err != nil {
+		return err
+	}
+
+	blockId := types.BlockNumber(0)
+	blockHash, err := es.Commit(blockId)
+	if err != nil {
+		return err
+	}
+
+	_, err = execution.PostprocessBlock(rwTx, c.Id, blockHash)
+	if err != nil {
+		return err
+	}
+
+	if err = rwTx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (*types.Block, error) {
 	rwTx, err := c.db.CreateRwTx(ctx)
 	if err != nil {
@@ -173,20 +280,8 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 		}
 	}
 
-	if c.isMasterchain() {
-		for i := 1; i < c.nShards; i++ {
-			lastBlockHash, err := c.getHashLastBlock(roTx, types.ShardId(i))
-			if err != nil {
-				return nil, err
-			}
-			es.SetShardHash(types.ShardId(i), lastBlockHash)
-		}
-	} else {
-		lastBlockHash, err := c.getHashLastBlock(roTx, types.MasterShardId)
-		if err != nil {
-			return nil, err
-		}
-		es.SetMasterchainHash(lastBlockHash)
+	if err := c.setLastBlockHashes(roTx, es); err != nil {
+		return nil, err
 	}
 
 	blockId := types.BlockNumber(0)

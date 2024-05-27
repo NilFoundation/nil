@@ -13,9 +13,10 @@ import (
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/shardchain"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/NilFoundation/nil/features"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -152,26 +153,33 @@ func (suite *SuiteRpc) TestRpcBasic() {
 }
 
 func (suite *SuiteRpc) TestRpcContract() {
-	features.EnableSignatureCheck = false
-	var m types.Message
-	m.From = common.GenerateRandomAddress(uint32(types.MasterShardId))
-	dm := types.DeployMessage{ShardId: uint32(types.MasterShardId), Data: hexutil.FromHex("6009600c60003960096000f3600054600101600055")}
+	dm := &types.DeployMessage{
+		ShardId: uint32(types.MasterShardId),
+		Data:    hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
+	}
 	data, err := dm.MarshalSSZ()
 	suite.Require().NoError(err)
-	m.Data = data
+
+	pub := crypto.CompressPubkey(&shardchain.MainPrivateKey.PublicKey)
+	m := &types.Message{
+		Seqno: 0,
+		Data:  data,
+		From:  common.PubkeyBytesToAddress(uint32(types.MasterShardId), pub),
+	}
+	suite.Require().NoError(m.Sign(shardchain.MainPrivateKey))
 
 	msgHash := m.Hash()
 	mData, err := m.MarshalSSZ()
 	suite.Require().NoError(err)
 
-	request := Request{
+	request := &Request{
 		Jsonrpc: "2.0",
 		Method:  sendRawTransaction,
 		Params:  []any{"0x" + hex.EncodeToString(mData)},
 		Id:      1,
 	}
 
-	resp, err := makeRequest[common.Hash](&request)
+	resp, err := makeRequest[common.Hash](request)
 	suite.Require().NoError(err)
 	suite.Require().Nil(resp.Error["code"])
 	suite.Equal(m.Hash(), resp.Result)
@@ -182,7 +190,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 
 	var respReceipt *Response[*types.Receipt]
 	for {
-		respReceipt, err = makeRequest[*types.Receipt](&request)
+		respReceipt, err = makeRequest[*types.Receipt](request)
 		suite.Require().NoError(err)
 		suite.Require().Nil(resp.Error["code"])
 
