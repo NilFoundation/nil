@@ -1,12 +1,8 @@
 package rpctest
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
-	"encoding/json"
-	"io"
-	"net/http"
 	"testing"
 	"time"
 
@@ -19,57 +15,10 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-const (
-	getBlockByHash      = "eth_getBlockByHash"
-	getBlockByNumber    = "eth_getBlockByNumber"
-	sendRawTransaction  = "eth_sendRawTransaction"
-	getInMessageByHash  = "eth_getInMessageByHash"
-	getInMessageReceipt = "eth_getInMessageReceipt"
-)
-
-type Request struct {
-	Jsonrpc string `json:"jsonrpc"`
-	Method  string `json:"method"`
-	Params  []any  `json:"params"`
-	Id      int    `json:"id"`
-}
-
-type Response[R any] struct {
-	Jsonrpc string         `json:"jsonrpc"`
-	Result  R              `json:"result,omitempty"`
-	Error   map[string]any `json:"error,omitempty"`
-	Id      int            `json:"id"`
-}
-
 type SuiteRpc struct {
 	suite.Suite
 	context context.Context
 	cancel  context.CancelFunc
-}
-
-func makeRequest[R any](data *Request) (*Response[R], error) {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := http.Post("http://127.0.0.1:8529", "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response Response[R]
-	if err = json.Unmarshal(body, &response); err != nil {
-		return nil, err
-	}
-	return &response, nil
 }
 
 func (suite *SuiteRpc) SetupSuite() {
@@ -154,6 +103,12 @@ func (suite *SuiteRpc) TestRpcBasic() {
 }
 
 func (suite *SuiteRpc) TestRpcContract() {
+	pub := crypto.CompressPubkey(&shardchain.MainPrivateKey.PublicKey)
+	from := common.PubkeyBytesToAddress(uint32(types.MasterShardId), pub)
+
+	seqno1, err := transactionCount(types.MasterShardId, from, "latest")
+	suite.Require().NoError(err)
+
 	dm := &types.DeployMessage{
 		ShardId: uint32(types.MasterShardId),
 		Code:    HardcodedContract,
@@ -161,11 +116,10 @@ func (suite *SuiteRpc) TestRpcContract() {
 	data, err := dm.MarshalSSZ()
 	suite.Require().NoError(err)
 
-	pub := crypto.CompressPubkey(&shardchain.MainPrivateKey.PublicKey)
 	m := &types.Message{
-		Seqno: 0,
+		Seqno: seqno1,
 		Data:  data,
-		From:  common.PubkeyBytesToAddress(uint32(types.MasterShardId), pub),
+		From:  from,
 	}
 	suite.Require().NoError(m.Sign(shardchain.MainPrivateKey))
 
@@ -186,6 +140,12 @@ func (suite *SuiteRpc) TestRpcContract() {
 	suite.Require().Nil(resp.Error["code"])
 	suite.Equal(m.Hash(), resp.Result)
 
+	suite.Eventually(func() bool {
+		seqno, err := transactionCount(types.MasterShardId, from, "latest")
+		suite.Require().NoError(err)
+		return seqno == seqno1+1
+	}, 6*time.Second, 200*time.Millisecond)
+
 	addr := common.CreateAddress(uint32(types.MasterShardId), m.From, m.Seqno)
 	request.Method = getInMessageReceipt
 	request.Params = []any{types.MasterShardId, msgHash}
@@ -202,9 +162,12 @@ func (suite *SuiteRpc) TestRpcContract() {
 	suite.Equal(addr, respReceipt.Result.ContractAddress)
 
 	// now call (= send message to) created contract. as a result it should also create new contract
+	seqno, err := transactionCount(types.MasterShardId, from, "latest")
+	suite.Require().NoError(err)
 	m = &types.Message{
-		From: common.PubkeyBytesToAddress(uint32(types.MasterShardId), pub),
-		To:   addr,
+		Seqno: seqno,
+		From:  from,
+		To:    addr,
 	}
 	suite.Require().NoError(m.Sign(shardchain.MainPrivateKey))
 	mData, err = m.MarshalSSZ()
