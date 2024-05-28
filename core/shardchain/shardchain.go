@@ -265,6 +265,9 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 			continue
 		}
 
+		accountState := es.GetAccount(message.From)
+		accountState.SetSeqno(accountState.Seqno + 1)
+
 		evm := vm.EVM{
 			StateDB: es,
 		}
