@@ -123,8 +123,8 @@ func NewAccountState(es *ExecutionState, addr common.Address, tx db.Tx, data []b
 }
 
 // NewEVMBlockContext creates a new context for use in the EVM.
-func NewEVMBlockContext(es *ExecutionState, lastBlockHash common.Hash) vm.BlockContext {
-	header := db.ReadBlock(es.tx, es.ShardId, lastBlockHash)
+func NewEVMBlockContext(es *ExecutionState) vm.BlockContext {
+	header := db.ReadBlock(es.tx, es.ShardId, es.PrevBlock)
 	lastBlockId := uint64(0)
 	if header != nil {
 		lastBlockId = header.Id.Uint64()

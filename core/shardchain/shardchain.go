@@ -251,6 +251,7 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 	if err != nil {
 		return nil, err
 	}
+	blockContext := execution.NewEVMBlockContext(es)
 
 	for _, message := range msgs {
 		msgHash := message.Hash()
@@ -268,10 +269,8 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 		accountState := es.GetAccount(message.From)
 		accountState.SetSeqno(accountState.Seqno + 1)
 
-		evm := vm.EVM{
-			StateDB: es,
-		}
-		interpreter := vm.NewEVMInterpreter(&evm)
+		evm := vm.NewEVM(blockContext, es)
+		interpreter := evm.Interpreter()
 
 		// Deploy message
 		if message.To.IsEmpty() {
