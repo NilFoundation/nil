@@ -56,7 +56,7 @@ var m types.Message
 m.From = common.GenerateRandomAddress(uint32(types.MasterShardId))
 dm := types.DeployMessage{
     ShardId: uint32(types.MasterShardId), 
-    Data: hexutil.FromHex("{contractBytecode}")
+    Code: hexutil.FromHex("{contractBytecode}")
     }
 data, err := dm.MarshalSSZ()
 suite.Require().NoError(err)
