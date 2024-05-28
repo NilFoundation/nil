@@ -90,21 +90,13 @@ request.Params = []any{types.MasterShardId, msgHash}
 
 var respReceipt *Response[*types.Receipt]
 suite.Eventually(func() bool {
-		respReceipt, err := makeRequest[*types.Receipt](&request)
-		if err != nil {
-			return false
-		}
-		if respReceipt == nil {
-			return false
-		}
-		if respReceipt.Error != nil && respReceipt.Error["code"] != nil {
-			return false
-		}
+		respReceipt, err = makeRequest[*types.Receipt](&request)
+		suite.Require().NoError(err)
+		suite.Require().Nil(resp.Error["code"])
 		return respReceipt.Result != nil
 	}, 
-    10*time.Second, 
-    200*time.Millisecond
-)
+    5*time.Second, 
+    200*time.Millisecond)
 ```
 
 ### Calling a deployed smart contract
