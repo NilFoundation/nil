@@ -20,8 +20,10 @@ import (
 )
 
 type BlockGenerator interface {
-	GenerateBlock(ctx context.Context, msgs []*types.Message) (*types.Block, error)
-	GenerateZerostate(ctx context.Context) error
+	GenerateZeroState(ctx context.Context, es *execution.ExecutionState) error
+	CreateRoTx(ctx context.Context) (db.RoTx, error)
+	CreateRwTx(ctx context.Context) (db.RwTx, error)
+	HandleMessages(ctx context.Context, es *execution.ExecutionState, msgs []*types.Message) error
 }
 
 type ShardChain struct {
@@ -30,8 +32,6 @@ type ShardChain struct {
 
 	logger *zerolog.Logger
 	timer  common.Timer
-
-	nShards int
 }
 
 var _ BlockGenerator = new(ShardChain)
@@ -59,10 +59,6 @@ func init() {
 	if !key.Equal(MainPrivateKey.Public()) {
 		log.Fatal().Msg("Consistency check on key recover failed")
 	}
-}
-
-func (c *ShardChain) isMasterchain() bool {
-	return c.Id == types.MasterShardId
 }
 
 func (c *ShardChain) validateMessage(es *execution.ExecutionState, message *types.Message, index uint64) (bool, error) {
@@ -113,53 +109,7 @@ func (c *ShardChain) validateMessage(es *execution.ExecutionState, message *type
 	return true, nil
 }
 
-func (c *ShardChain) setLastBlockHashes(tx db.RoTx, es *execution.ExecutionState) error {
-	if c.isMasterchain() {
-		for i := 1; i < c.nShards; i++ {
-			shardId := types.ShardId(i)
-			lastBlockHash, err := db.ReadLastBlockHash(tx, shardId)
-			if err != nil {
-				return err
-			}
-			es.SetShardHash(shardId, lastBlockHash)
-		}
-	} else {
-		lastBlockHash, err := db.ReadLastBlockHash(tx, types.MasterShardId)
-		if err != nil {
-			return err
-		}
-		es.SetMasterchainHash(lastBlockHash)
-	}
-	return nil
-}
-
-func (c *ShardChain) GenerateZerostate(ctx context.Context) error {
-	roTx, err := c.db.CreateRoTx(ctx)
-	if err != nil {
-		return err
-	}
-	defer roTx.Rollback()
-
-	lastBlockHash, err := db.ReadLastBlockHash(roTx, c.Id)
-	if err != nil {
-		c.logger.Fatal().Err(err).Msg("Failed to get the latest block")
-	}
-
-	if lastBlockHash != common.EmptyHash {
-		return nil
-	}
-
-	rwTx, err := c.db.CreateRwTx(ctx)
-	if err != nil {
-		return err
-	}
-	defer rwTx.Rollback()
-
-	es, err := execution.NewExecutionStateForShard(rwTx, c.Id, c.timer)
-	if err != nil {
-		return err
-	}
-
+func (c *ShardChain) GenerateZeroState(ctx context.Context, es *execution.ExecutionState) error {
 	mainDeployMsg := &types.DeployMessage{
 		ShardId:   uint32(c.Id),
 		Seqno:     0,
@@ -179,47 +129,19 @@ func (c *ShardChain) GenerateZerostate(ctx context.Context) error {
 
 	es.SetBalance(addr, *mainBalance)
 
-	if err := c.setLastBlockHashes(roTx, es); err != nil {
-		return err
-	}
-
-	blockId := types.BlockNumber(0)
-	blockHash, err := es.Commit(blockId)
-	if err != nil {
-		return err
-	}
-
-	_, err = execution.PostprocessBlock(rwTx, c.Id, blockHash)
-	if err != nil {
-		return err
-	}
-
-	if err = rwTx.Commit(); err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (*types.Block, error) {
-	rwTx, err := c.db.CreateRwTx(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer rwTx.Rollback()
+func (c *ShardChain) CreateRoTx(ctx context.Context) (db.RoTx, error) {
+	return c.db.CreateRoTx(ctx)
+}
 
-	roTx, err := c.db.CreateRoTx(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer roTx.Rollback()
+func (c *ShardChain) CreateRwTx(ctx context.Context) (db.RwTx, error) {
+	return c.db.CreateRwTx(ctx)
+}
 
-	es, err := execution.NewExecutionStateForShard(rwTx, c.Id, c.timer)
-	if err != nil {
-		return nil, err
-	}
+func (c *ShardChain) HandleMessages(ctx context.Context, es *execution.ExecutionState, msgs []*types.Message) error {
 	blockContext := execution.NewEVMBlockContext(es)
-
 	for _, message := range msgs {
 		msgHash := message.Hash()
 		index := es.AddInMessage(message)
@@ -227,7 +149,7 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 
 		ok, err := c.validateMessage(es, message, index)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if !ok {
 			continue
@@ -239,47 +161,23 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 		// Deploy message
 		if message.To.IsEmpty() {
 			if err := es.HandleDeployMessage(message, index); err != nil {
-				return nil, err
+				return err
 			}
 		} else {
 			if err := es.HandleExecutionMessage(message, index, interpreter); err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
 
-	if err := c.setLastBlockHashes(roTx, es); err != nil {
-		return nil, err
-	}
-
-	blockId := types.BlockNumber(0)
-	if es.PrevBlock != common.EmptyHash {
-		blockId = db.ReadBlock(rwTx, c.Id, es.PrevBlock).Id + 1
-	}
-
-	blockHash, err := es.Commit(blockId)
-	if err != nil {
-		return nil, err
-	}
-
-	block, err := execution.PostprocessBlock(rwTx, c.Id, blockHash)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = rwTx.Commit(); err != nil {
-		return nil, err
-	}
-
-	return block, nil
+	return nil
 }
 
 func NewShardChain(
 	shardId types.ShardId,
 	db db.DB,
-	nShards int,
 ) *ShardChain {
 	logger := common.NewLogger(fmt.Sprintf("shard-%d", shardId))
 	timer := common.NewTimer()
-	return &ShardChain{Id: shardId, db: db, logger: logger, timer: timer, nShards: nShards}
+	return &ShardChain{Id: shardId, db: db, logger: logger, timer: timer}
 }

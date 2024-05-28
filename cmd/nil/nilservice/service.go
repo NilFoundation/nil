@@ -70,8 +70,8 @@ func Run(ctx context.Context, nShards int, database db.DB, dbOpts db.BadgerDBOpt
 	msgPools := make([]msgpool.Pool, nShards)
 	for i := range nShards {
 		msgPool := msgpool.New(msgpool.DefaultConfig)
-		shard := shardchain.NewShardChain(types.ShardId(i), database, nShards)
-		collator := collate.NewCollator(shard, msgPool)
+		shard := shardchain.NewShardChain(types.ShardId(i), database)
+		collator := collate.NewScheduler(shard, msgPool, types.ShardId(i), nShards)
 		funcs = append(funcs, func(ctx context.Context) error {
 			return collator.Run(ctx)
 		})

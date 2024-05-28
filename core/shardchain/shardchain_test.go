@@ -29,36 +29,39 @@ func (s *SuiteShardchainState) TearDownTest() {
 }
 
 func (s *SuiteShardchainState) TestGenerateBlock() {
+	ctx := context.Background()
 	shardId := types.ShardId(1)
-	shard := NewShardChain(shardId, s.db, 2)
+	shard := NewShardChain(shardId, s.db)
 	s.Require().NotNil(shard)
 
-	var m types.Message
-	m.From = common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
-	m.Data = hexutil.FromHex("6009600c60003960096000f3600054600101600055")
+	rwTx, err := shard.CreateRwTx(ctx)
+	s.Require().NoError(err)
+	defer rwTx.Rollback()
 
-	_, err := shard.GenerateBlock(context.Background(), []*types.Message{&m})
+	es, err := execution.NewExecutionStateForShard(rwTx, shardId, common.NewTimer())
 	s.Require().NoError(err)
 
-	m.To = common.CreateAddress(uint32(shardId), m.From, m.Seqno)
+	m1 := types.Message{
+		From: common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20"),
+		Data: hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
+	}
+	m2 := m1
+	m2.To = common.CreateAddress(uint32(shardId), m2.From, m2.Seqno)
 
-	_, err = shard.GenerateBlock(context.Background(), []*types.Message{&m})
+	err = shard.HandleMessages(ctx, es, []*types.Message{&m1, &m2})
 	s.Require().NoError(err)
 
-	tx, err := s.db.CreateRoTx(context.Background())
-	s.Require().NoError(err)
-
-	es, err := execution.NewExecutionStateForShard(tx, shardId, common.NewTestTimer(0))
-	s.Require().NoError(err)
-
-	r, err := es.GetReceipt(0)
-	s.Require().NoError(err)
+	r := es.Receipts[0]
 	s.Equal(uint64(0), r.MsgIndex)
-	s.Equal(m.Hash(), r.MsgHash)
+	s.Equal(m1.Hash(), r.MsgHash)
+
+	r = es.Receipts[1]
+	s.Equal(uint64(1), r.MsgIndex)
+	s.Equal(m2.Hash(), r.MsgHash)
 }
 
 func (s *SuiteShardchainState) TestValidateMessage() {
-	shard := NewShardChain(types.MasterShardId, s.db, 2)
+	shard := NewShardChain(types.MasterShardId, s.db)
 	s.Require().NotNil(shard)
 
 	tx, err := s.db.CreateRwTx(context.Background())

@@ -4,9 +4,12 @@ import (
 	"context"
 	"time"
 
+	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/shardchain"
-	"github.com/NilFoundation/nil/msgpool"
-	"github.com/rs/zerolog/log"
+	"github.com/NilFoundation/nil/core/types"
+	"github.com/rs/zerolog"
 )
 
 const (
@@ -16,57 +19,129 @@ const (
 	nMessagesForBlock = 10
 )
 
-type Collator struct {
-	shard *shardchain.ShardChain
-	pool  msgpool.Pool
+type collator struct {
+	shard shardchain.BlockGenerator
+	pool  MsgPool
+
+	id      types.ShardId
+	nShards int
+
+	logger *zerolog.Logger
+	timer  common.Timer
 }
 
-func NewCollator(shard *shardchain.ShardChain, pool msgpool.Pool) *Collator {
-	return &Collator{
-		shard: shard,
-		pool:  pool,
+func newCollator(shard shardchain.BlockGenerator, pool MsgPool, id types.ShardId, nShards int, logger *zerolog.Logger) *collator {
+	return &collator{
+		shard:   shard,
+		pool:    pool,
+		id:      id,
+		nShards: nShards,
+		logger:  logger,
+		timer:   common.NewTimer(),
 	}
 }
 
-func (c *Collator) Run(ctx context.Context) error {
-	log.Info().Msgf("Starting collation on shard %s...", c.shard.Id)
+func (c *collator) GenerateBlock(ctx context.Context) error {
+	roTx, err := c.shard.CreateRoTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer roTx.Rollback()
 
-	// Run shard collations once immediately, then run by timer.
-	if err := c.genZerostateIfRequired(ctx); err != nil {
-		log.Fatal().Err(err).Msg("Failed to generate zerostate")
+	rwTx, err := c.shard.CreateRwTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer rwTx.Rollback()
+
+	es, err := execution.NewExecutionStateForShard(rwTx, c.id, c.timer)
+	if err != nil {
+		return err
 	}
 
-	ticker := time.NewTicker(defaultPeriod)
-	for {
-		select {
-		case <-ticker.C:
-			if err := c.doCollate(ctx); err != nil {
-				return err
-			}
-		case <-ctx.Done():
-			log.Info().Msgf("Stopping collation on shard %s...", c.shard.Id)
-			return nil
+	lastBlockHash, err := db.ReadLastBlockHash(roTx, c.id)
+	if err != nil {
+		return err
+	}
+
+	var msgs []*types.Message
+	if lastBlockHash == common.EmptyHash {
+		c.logger.Trace().Msgf("Generating zero-state on shard %s...", c.id)
+
+		if err := c.shard.GenerateZeroState(ctx, es); err != nil {
+			return err
+		}
+	} else {
+		c.logger.Trace().Msgf("Collating on shard %s...", c.id)
+
+		// todo: store last block id
+		// todo: collect messages from neighbors first
+		msgs, err = c.pool.Peek(ctx, nMessagesForBlock, 0)
+		if err != nil {
+			return err
+		}
+
+		if err := c.shard.HandleMessages(ctx, es, msgs); err != nil {
+			return err
 		}
 	}
-}
 
-func (c *Collator) genZerostateIfRequired(ctx context.Context) error {
-	return c.shard.GenerateZerostate(ctx)
-}
-
-func (c *Collator) doCollate(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
-	defer cancel()
-
-	msgs, err := c.pool.Peek(ctx, nMessagesForBlock, 0)
+	block, err := c.finalize(es, rwTx, roTx)
 	if err != nil {
 		return err
 	}
 
-	block, err := c.shard.GenerateBlock(ctx, msgs)
-	if err != nil {
+	// todo: pool should not take too much responsibility, collator must check messages for duplicates
+	if err := c.pool.OnNewBlock(ctx, block, msgs, nil); err != nil {
 		return err
 	}
 
-	return c.pool.OnNewBlock(ctx, block, msgs, nil)
+	return nil
+}
+
+func (c *collator) finalize(es *execution.ExecutionState, rwTx db.RwTx, roTx db.RoTx) (*types.Block, error) {
+	if err := c.setLastBlockHashes(roTx, es); err != nil {
+		return nil, err
+	}
+
+	blockId := types.BlockNumber(0)
+	if es.PrevBlock != common.EmptyHash {
+		blockId = db.ReadBlock(rwTx, c.id, es.PrevBlock).Id + 1
+	}
+
+	blockHash, err := es.Commit(blockId)
+	if err != nil {
+		return nil, err
+	}
+
+	block, err := execution.PostprocessBlock(rwTx, c.id, blockHash)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := rwTx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return block, err
+}
+
+func (c *collator) setLastBlockHashes(tx db.RoTx, es *execution.ExecutionState) error {
+	if c.id == types.MasterShardId {
+		for i := 1; i < c.nShards; i++ {
+			shardId := types.ShardId(i)
+			lastBlockHash, err := db.ReadLastBlockHash(tx, shardId)
+			if err != nil {
+				return err
+			}
+			es.SetShardHash(shardId, lastBlockHash)
+		}
+	} else {
+		lastBlockHash, err := db.ReadLastBlockHash(tx, types.MasterShardId)
+		if err != nil {
+			return err
+		}
+		es.SetMasterchainHash(lastBlockHash)
+	}
+	return nil
 }
