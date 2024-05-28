@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	fastssz "github.com/ferranbt/fastssz"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
-	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
-	fastssz "github.com/ferranbt/fastssz"
 )
 
 func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Receipt, error) {
@@ -25,12 +24,6 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 		return nil, nil
 	}
 
-	mptReceipts := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot)
-	receiptBytes, err := mptReceipts.Get(fastssz.MarshalUint64(nil, messageIndex))
-	if err != nil {
-		return nil, err
-	}
-
-	var receipt types.Receipt
-	return &receipt, receipt.UnmarshalSSZ(receiptBytes)
+	// TODO: make MessageIndex strong typed and use MarshalSSZ
+	return getBlockEntity[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot, fastssz.MarshalUint64(nil, messageIndex))
 }

@@ -26,17 +26,8 @@ func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardI
 		return nil, nil
 	}
 
-	mptMessages := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.MessageTrieTable, block.InMessagesRoot)
-	messageBytes, err := mptMessages.Get(fastssz.MarshalUint64(nil, messageIndex))
-	if err != nil {
-		return nil, err
-	}
-
-	var message types.Message
-	if err := message.UnmarshalSSZ(messageBytes); err != nil {
-		return nil, err
-	}
-	return &message, nil
+	// TODO: make MessageIndex strong typed and use MarshalSSZ
+	return getBlockEntity[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot, fastssz.MarshalUint64(nil, messageIndex))
 }
 
 func getBlockAndMessageIndexByMessageHash(tx db.Tx, shardId types.ShardId, hash common.Hash) (*types.Block, uint64, error) {
@@ -55,4 +46,21 @@ func getBlockAndMessageIndexByMessageHash(tx db.Tx, shardId types.ShardId, hash 
 		return nil, 0, errors.New("Block not found")
 	}
 	return block, blockHashAndMessageIndex.MessageIndex, nil
+}
+
+func getBlockEntity[
+	T interface {
+		~*S
+		fastssz.Unmarshaler
+	},
+	S any,
+](tx db.Tx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash, entityKey []byte) (*S, error) {
+	root := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, tableName, rootHash)
+	entityBytes, err := root.Get(entityKey)
+	if err != nil {
+		return nil, err
+	}
+
+	var entity S
+	return &entity, T(&entity).UnmarshalSSZ(entityBytes)
 }
