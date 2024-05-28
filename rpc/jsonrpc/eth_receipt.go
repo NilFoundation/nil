@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	fastssz "github.com/ferranbt/fastssz"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
+	fastssz "github.com/ferranbt/fastssz"
 )
 
 func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Receipt, error) {
