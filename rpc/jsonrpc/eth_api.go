@@ -23,10 +23,10 @@ type EthAPI interface {
 	GetBlockTransactionCountByHash(ctx context.Context, shardId types.ShardId, blockHash common.Hash) (*hexutil.Uint, error)
 
 	// Message related
-	GetMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Message, error)
+	GetInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Message, error)
 
 	// Receipt related (see ./eth_receipt.go)
-	GetMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Receipt, error)
+	GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Receipt, error)
 
 	// Account related
 	GetBalance(ctx context.Context, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error)

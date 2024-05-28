@@ -28,7 +28,7 @@ type SuiteFetchBlock struct {
 }
 
 func startRpcServer(tempDir string, ctx context.Context, nShards int32) {
-	logger := common.NewLogger("RPC", false)
+	logger := common.NewLogger("RPC")
 
 	dbOpts := db.BadgerDBOptions{Path: tempDir, DiscardRatio: 0.5, GcFrequency: time.Hour, AllowDrop: false}
 	database, err := db.NewBadgerDb(dbOpts.Path)
@@ -95,7 +95,7 @@ func (suite *SuiteFetchBlock) TestFetchBlock() {
 	suite.Require().Equal(fetchedBlock.Id, hashBlock.Id)
 	suite.Require().Equal(fetchedBlock.PrevBlock, hashBlock.PrevBlock)
 	suite.Require().Equal(fetchedBlock.SmartContractsRoot, hashBlock.SmartContractsRoot)
-	suite.Require().Equal(fetchedBlock.MessagesRoot, hashBlock.MessagesRoot)
+	suite.Require().Equal(fetchedBlock.InMessagesRoot, hashBlock.InMessagesRoot)
 }
 
 func (suite *SuiteFetchBlock) TestFetchShardIdList() {

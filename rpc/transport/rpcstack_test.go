@@ -127,7 +127,7 @@ func Test_checkPath(t *testing.T) {
 func createAndStartServer(t *testing.T, conf *httpConfig) *httpServer {
 	t.Helper()
 
-	logger := common.NewLogger("Test server", false)
+	logger := common.NewLogger("Test server")
 	srv := newHTTPServer(logger, rpccfg.DefaultHTTPTimeouts)
 	assert.NoError(t, srv.enableRPC(nil, *conf))
 	assert.NoError(t, srv.setListenAddr("localhost", 0))

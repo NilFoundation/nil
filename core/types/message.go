@@ -9,6 +9,13 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type MessageKind int
+
+const (
+	InMessageKind MessageKind = iota
+	OutMessageKind
+)
+
 type Message struct {
 	Seqno     uint64           `json:"seqno,omitempty"`
 	GasPrice  Uint256          `json:"gasPrice,omitempty"`

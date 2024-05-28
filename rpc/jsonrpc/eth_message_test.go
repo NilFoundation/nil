@@ -26,7 +26,7 @@ func TestGetMessageByHash(t *testing.T) {
 	pool := msgpool.New(msgpool.DefaultConfig)
 	require.NotNil(t, pool)
 
-	api := NewEthAPI(ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), database, pool, common.NewLogger("Test", false))
+	api := NewEthAPI(ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), database, pool, common.NewLogger("Test"))
 
 	tx, err := database.CreateRwTx(ctx)
 	defer tx.Rollback()
@@ -41,7 +41,7 @@ func TestGetMessageByHash(t *testing.T) {
 	err = tx.Commit()
 	require.NoError(t, err)
 
-	data, err := api.GetMessageByHash(context.Background(), types.MasterShardId, message.Hash())
+	data, err := api.GetInMessageByHash(context.Background(), types.MasterShardId, message.Hash())
 	require.NoError(t, err)
 	assert.Equal(t, message, *data)
 }

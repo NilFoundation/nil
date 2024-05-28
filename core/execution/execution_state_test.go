@@ -60,7 +60,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 		suite.Require().NoError(err)
 
 		msg := types.Message{Data: data, From: from, Seqno: uint64(i)}
-		index := es.AddMessage(&msg)
+		index := es.AddInMessage(&msg)
 		suite.Require().NoError(es.HandleDeployMessage(&msg, index))
 	}
 
@@ -79,7 +79,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	messageTrieTable := db.MessageTrieTable
 	receiptTrieTable := db.ReceiptTrieTable
-	messagesRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, messageTrieTable, block.MessagesRoot)
+	messagesRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, messageTrieTable, block.InMessagesRoot)
 	receiptsRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, receiptTrieTable, block.ReceiptsRoot)
 	var messageIndex uint64 = 0
 
@@ -132,14 +132,14 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 	msg1 := types.Message{Data: []byte{1}, Seqno: uint64(1)}
 	msg2 := types.Message{Data: []byte{2}, Seqno: uint64(2)}
 
-	es.AddMessage(&msg1)
+	es.AddInMessage(&msg1)
 	blockHash1, err := es.Commit(0)
 	suite.Require().NoError(err)
 
 	es, err = NewExecutionState(tx, types.MasterShardId, blockHash1, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
-	es.AddMessage(&msg2)
+	es.AddInMessage(&msg2)
 	blockHash2, err := es.Commit(1)
 	suite.Require().NoError(err)
 
@@ -147,7 +147,7 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 		block := db.ReadBlock(tx, types.MasterShardId, blockHash)
 		suite.Require().NotNil(block)
 
-		messagesRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, db.MessageTrieTable, block.MessagesRoot)
+		messagesRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, db.MessageTrieTable, block.InMessagesRoot)
 		var msgRead types.Message
 
 		msgRaw, err := messagesRoot.Get(ssz.MarshalUint64(nil, 0))

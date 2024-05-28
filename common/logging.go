@@ -7,10 +7,11 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/term"
 )
 
 func SetupGlobalLogger() {
-	log.Logger = *NewLogger("global", false /* noColor */)
+	log.Logger = *NewLogger("global")
 }
 
 // defaults to INFO
@@ -25,10 +26,6 @@ func SetLogSeverityFromEnv() {
 func makeBold(str any, disabled bool) string {
 	const colorBold = 1
 
-	if os.Getenv("NO_COLOR") != "" {
-		disabled = true
-	}
-
 	if disabled {
 		return fmt.Sprintf("%s", str)
 	}
@@ -41,8 +38,15 @@ func makeComponentFormatter(noColor bool) zerolog.Formatter {
 	}
 }
 
-func NewLogger(component string, noColor bool) *zerolog.Logger {
+func NewLogger(component string) *zerolog.Logger {
 	const componentFieldName = "component"
+	noColor := false
+
+	if os.Getenv("NO_COLOR") != "" {
+		noColor = true
+	} else if !term.IsTerminal(int(os.Stdout.Fd())) {
+		noColor = true
+	}
 
 	logger := zerolog.New(zerolog.ConsoleWriter{
 		Out:        os.Stderr,

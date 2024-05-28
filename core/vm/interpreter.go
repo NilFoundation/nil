@@ -162,11 +162,12 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		op = contract.GetOp(pc)
 		operation := in.table[op]
 		cost = operation.constantGas // For tracing
+
 		// Validate stack
 		if sLen := stack.len(); sLen < operation.minStack {
-			return nil, &StackUnderflowError{stackLen: sLen, required: operation.minStack}
+			return nil, &StackUnderflowError{stackLen: sLen, required: operation.minStack, op: op}
 		} else if sLen > operation.maxStack {
-			return nil, &StackOverflowError{stackLen: sLen, limit: operation.maxStack}
+			return nil, &StackOverflowError{stackLen: sLen, limit: operation.maxStack, op: op}
 		}
 		if !contract.UseGas(cost, in.evm.Config.Tracer, tracing.GasChangeIgnored) {
 			return nil, ErrOutOfGas

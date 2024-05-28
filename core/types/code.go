@@ -4,7 +4,6 @@ import (
 	"slices"
 
 	"github.com/NilFoundation/nil/common"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 type Code []byte
@@ -24,7 +23,7 @@ func (c Code) Hash() common.Hash {
 	if len(c) == 0 {
 		return common.EmptyHash
 	}
-	return common.CastToHash(poseidon.Sum(c[:]))
+	return common.PoseidonHash(c[:])
 }
 
 func (s Code) Static() bool {

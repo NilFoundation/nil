@@ -23,7 +23,7 @@ import (
 	"github.com/holiman/uint256"
 )
 
-var logger = common.NewLogger("filters", false)
+var logger = common.NewLogger("filters")
 
 type Filter struct {
 	query  *FilterQuery

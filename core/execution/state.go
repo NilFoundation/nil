@@ -15,7 +15,7 @@ import (
 	"github.com/holiman/uint256"
 )
 
-var logger = common.NewLogger("execution", false /* noColor */)
+var logger = common.NewLogger("execution")
 
 type Storage map[common.Hash]common.Hash
 
@@ -49,19 +49,19 @@ type ExecutionState struct {
 	tx               db.Tx
 	Timer            common.Timer
 	ContractRoot     *mpt.MerklePatriciaTrie
-	MessageRoot      *mpt.MerklePatriciaTrie
-	OutMessagesTrie  *mpt.MerklePatriciaTrie
+	InMessageRoot    *mpt.MerklePatriciaTrie
+	OutMessageRoot   *mpt.MerklePatriciaTrie
 	ReceiptRoot      *mpt.MerklePatriciaTrie
 	PrevBlock        common.Hash
 	MasterChain      common.Hash
 	ShardId          types.ShardId
 	ChildChainBlocks map[types.ShardId]common.Hash
 
-	MessageHash common.Hash
-	Logs        map[common.Hash][]*types.Log
+	InMessageHash common.Hash
+	Logs          map[common.Hash][]*types.Log
 
-	Accounts map[common.Address]*AccountState
-	Messages []*types.Message
+	Accounts   map[common.Address]*AccountState
+	InMessages []*types.Message
 
 	// OutMessages holds outbound messages for every transaction in the executed block, where key is hash of Message that sends the message
 	OutMessages map[common.Hash][]*types.Message
@@ -85,6 +85,8 @@ type revision struct {
 	id           int
 	journalIndex int
 }
+
+var _ vm.StateDB = new(ExecutionState)
 
 func (s *AccountState) empty() bool {
 	return s.Seqno == 0 && s.Balance.IsZero() && len(s.Code) == 0
@@ -142,7 +144,7 @@ func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash, t
 	receiptTrieTable := db.ReceiptTrieTable
 	if block != nil {
 		contractRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, contractTrieTable, block.SmartContractsRoot)
-		messageRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, messageTrieTable, block.MessagesRoot)
+		messageRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, messageTrieTable, block.InMessagesRoot)
 		outMessagesTrie = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, messageTrieTable, block.OutMessagesRoot)
 		receiptRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, receiptTrieTable, block.ReceiptsRoot)
 	} else {
@@ -156,15 +158,14 @@ func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash, t
 		tx:               tx,
 		Timer:            timer,
 		ContractRoot:     contractRoot,
-		MessageRoot:      messageRoot,
-		OutMessagesTrie:  outMessagesTrie,
+		InMessageRoot:    messageRoot,
+		OutMessageRoot:   outMessagesTrie,
 		ReceiptRoot:      receiptRoot,
 		PrevBlock:        blockHash,
 		ShardId:          shardId,
 		ChildChainBlocks: map[types.ShardId]common.Hash{},
 		Accounts:         map[common.Address]*AccountState{},
-		Messages:         []*types.Message{},
-		Receipts:         []*types.Receipt{},
+		OutMessages:      map[common.Hash][]*types.Message{},
 		Logs:             map[common.Hash][]*types.Log{},
 
 		journal:          newJournal(),
@@ -194,15 +195,6 @@ func (es *ExecutionState) GetReceipt(msgIndex uint64) (*types.Receipt, error) {
 		return nil, err
 	}
 	return &r, r.UnmarshalSSZ(buf)
-}
-
-func (es *ExecutionState) GetMessage(index uint64) (*types.Message, error) {
-	var m types.Message
-	buf, err := es.MessageRoot.Get(ssz.MarshalUint64(nil, index))
-	if err != nil {
-		return nil, err
-	}
-	return &m, m.UnmarshalSSZ(buf)
 }
 
 func (es *ExecutionState) GetAccount(addr common.Address) *AccountState {
@@ -272,8 +264,8 @@ func (s *AccountState) SubBalance(amount *uint256.Int, reason tracing.BalanceCha
 }
 
 func (es *ExecutionState) AddLog(log *types.Log) {
-	es.journal.append(addLogChange{txhash: es.MessageHash})
-	es.Logs[es.MessageHash] = append(es.Logs[es.MessageHash], log)
+	es.journal.append(addLogChange{txhash: es.InMessageHash})
+	es.Logs[es.InMessageHash] = append(es.Logs[es.InMessageHash], log)
 }
 
 // AddRefund adds gas to the refund counter
@@ -678,10 +670,14 @@ func (es *ExecutionState) ContractExists(addr common.Address) bool {
 	return acc != nil
 }
 
-func (es *ExecutionState) AddMessage(message *types.Message) uint64 {
-	index := uint64(len(es.Messages))
-	es.Messages = append(es.Messages, message)
+func (es *ExecutionState) AddInMessage(message *types.Message) uint64 {
+	index := uint64(len(es.InMessages))
+	es.InMessages = append(es.InMessages, message)
 	return index
+}
+
+func (es *ExecutionState) AddOutMessage(txId common.Hash, msg *types.Message) {
+	es.OutMessages[txId] = append(es.OutMessages[txId], msg)
 }
 
 func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint64) error {
@@ -744,13 +740,13 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		treeShardsRootHash = treeShards.RootHash()
 	}
 
-	for i, m := range es.Messages {
+	for i, m := range es.InMessages {
 		v, err := m.MarshalSSZ()
 		if err != nil {
 			return common.EmptyHash, err
 		}
 		k := ssz.MarshalUint64(nil, uint64(i))
-		if err := es.MessageRoot.Set(k, v); err != nil {
+		if err := es.InMessageRoot.Set(k, v); err != nil {
 			return common.EmptyHash, err
 		}
 	}
@@ -763,7 +759,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 				return common.EmptyHash, err
 			}
 			k := ssz.MarshalUint32(nil, msgIndex)
-			if err := es.OutMessagesTrie.Set(k, v); err != nil {
+			if err := es.OutMessageRoot.Set(k, v); err != nil {
 				return common.EmptyHash, err
 			}
 			msgIndex += 1
@@ -772,7 +768,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 
 	msgStart := 0
 	for i, r := range es.Receipts {
-		msgHash := es.Messages[i].Hash()
+		msgHash := es.InMessages[i].Hash()
 		r.BlockNumber = blockId
 		r.OutMsgIndex = uint32(msgStart)
 
@@ -791,8 +787,8 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		Id:                  blockId,
 		PrevBlock:           es.PrevBlock,
 		SmartContractsRoot:  es.ContractRoot.RootHash(),
-		MessagesRoot:        es.MessageRoot.RootHash(),
-		OutMessagesRoot:     es.OutMessagesTrie.RootHash(),
+		InMessagesRoot:      es.InMessageRoot.RootHash(),
+		OutMessagesRoot:     es.OutMessageRoot.RootHash(),
 		OutMessagesNum:      msgIndex,
 		ReceiptsRoot:        es.ReceiptRoot.RootHash(),
 		ChildBlocksRootHash: treeShardsRootHash,

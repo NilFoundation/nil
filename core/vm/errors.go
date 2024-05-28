@@ -49,10 +49,11 @@ var (
 type StackUnderflowError struct {
 	stackLen int
 	required int
+	op       OpCode
 }
 
 func (e *StackUnderflowError) Error() string {
-	return fmt.Sprintf("stack underflow (%d <=> %d)", e.stackLen, e.required)
+	return fmt.Sprintf("stack underflow (%d <=> %d) [%s]", e.stackLen, e.required, e.op)
 }
 
 // StackOverflowError wraps an evm error when the items on the stack exceeds
@@ -60,10 +61,11 @@ func (e *StackUnderflowError) Error() string {
 type StackOverflowError struct {
 	stackLen int
 	limit    int
+	op       OpCode
 }
 
 func (e *StackOverflowError) Error() string {
-	return fmt.Sprintf("stack limit reached %d (%d)", e.stackLen, e.limit)
+	return fmt.Sprintf("stack limit reached %d (%d) [%s]", e.stackLen, e.limit, e.op)
 }
 
 // InvalidOpCodeError wraps an evm error when an invalid opcode is encountered.

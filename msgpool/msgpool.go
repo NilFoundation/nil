@@ -52,7 +52,7 @@ func New(cfg Config) *MsgPool {
 		byHash: map[string]*types.Message{},
 		all:    NewBySenderAndSeqno(),
 		queue:  NewMessageQueue(),
-		logger: common.NewLogger("msgpool", false),
+		logger: common.NewLogger("msgpool"),
 	}
 }
 

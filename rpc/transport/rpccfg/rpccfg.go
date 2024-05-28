@@ -44,5 +44,5 @@ const (
 
 var SlowLogBlackList = []string{
 	"eth_getBlock", "eth_getBlockByNumber", "eth_getBlockByHash", "eth_blockNumber",
-	"eth_call", "eth_getMessageByHash",
+	"eth_call", "eth_getInMessageByHash",
 }

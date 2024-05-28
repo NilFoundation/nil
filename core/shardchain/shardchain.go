@@ -73,22 +73,24 @@ func (c *ShardChain) HandleExecutionMessage(message *types.Message, index uint64
 	addr := message.To
 	c.logger.Debug().Msgf("Call contract %s", addr)
 
+	// TODO: use gas from message
 	gas := uint64(1000000)
 	contract := vm.NewContract((vm.AccountRef)(addr), (vm.AccountRef)(addr), &message.Value.Int, gas)
 
 	accountState := es.GetAccount(addr)
 	contract.Code = accountState.Code
 
+	// TODO: not ignore result here
 	_, err := interpreter.Run(contract, message.Data, false)
 	if err != nil {
-		c.logger.Error().Msg("message failed")
+		c.logger.Error().Msg("execution message failed")
 		return err
 	}
 	r := types.Receipt{
 		Success:         true,
 		GasUsed:         uint32(gas - contract.Gas),
-		Logs:            es.Logs[es.MessageHash],
-		MsgHash:         es.MessageHash,
+		Logs:            es.Logs[es.InMessageHash],
+		MsgHash:         es.InMessageHash,
 		MsgIndex:        index,
 		ContractAddress: addr,
 	}
@@ -106,12 +108,12 @@ func (c *ShardChain) validateMessage(es *execution.ExecutionState, message *type
 	r := &types.Receipt{
 		Success:         false,
 		GasUsed:         0,
-		MsgHash:         es.MessageHash,
+		MsgHash:         es.InMessageHash,
 		MsgIndex:        index,
 		ContractAddress: addr,
 	}
 	if accountState == nil {
-		r.Logs = es.Logs[es.MessageHash]
+		r.Logs = es.Logs[es.InMessageHash]
 		es.AddReceipt(r)
 		c.logger.Debug().Stringer("address", addr).Msg("Invalid address")
 		return false, nil
@@ -123,7 +125,7 @@ func (c *ShardChain) validateMessage(es *execution.ExecutionState, message *type
 			return false, err
 		}
 		if !ok {
-			r.Logs = es.Logs[es.MessageHash]
+			r.Logs = es.Logs[es.InMessageHash]
 			es.AddReceipt(r)
 			c.logger.Debug().Stringer("address", addr).Msg("Invalid signature")
 			return false, nil
@@ -131,7 +133,7 @@ func (c *ShardChain) validateMessage(es *execution.ExecutionState, message *type
 	}
 
 	if accountState.Seqno != message.Seqno {
-		r.Logs = es.Logs[es.MessageHash]
+		r.Logs = es.Logs[es.InMessageHash]
 		es.AddReceipt(r)
 		c.logger.Debug().
 			Stringer("address", addr).
@@ -252,8 +254,8 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 
 	for _, message := range msgs {
 		msgHash := message.Hash()
-		index := es.AddMessage(message)
-		es.MessageHash = msgHash
+		index := es.AddInMessage(message)
+		es.InMessageHash = msgHash
 
 		ok, err := c.validateMessage(es, message, index)
 		if err != nil {
@@ -311,7 +313,7 @@ func NewShardChain(
 	db db.DB,
 	nShards int,
 ) *ShardChain {
-	logger := common.NewLogger(fmt.Sprintf("shard-%d", shardId), false /* noColor */)
+	logger := common.NewLogger(fmt.Sprintf("shard-%d", shardId))
 	timer := common.NewTimer()
 	return &ShardChain{Id: shardId, db: db, logger: logger, timer: timer, nShards: nShards}
 }

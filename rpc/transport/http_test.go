@@ -143,7 +143,7 @@ func TestHTTPResponseWithEmptyGet(t *testing.T) {
 func TestHTTPRespBodyUnlimited(t *testing.T) {
 	t.Parallel()
 
-	logger := common.NewLogger("Test server", false)
+	logger := common.NewLogger("Test server")
 	const respLength = maxRequestContentLength * 3
 
 	s := NewServer(false /* traceRequests */, false /* debugSingleRequests */, logger, 100)

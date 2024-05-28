@@ -12,7 +12,6 @@ import (
 
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/shardchain"
@@ -21,10 +20,11 @@ import (
 )
 
 const (
-	getBlockByHash     = "eth_getBlockByHash"
-	getBlockByNumber   = "eth_getBlockByNumber"
-	sendRawTransaction = "eth_sendRawTransaction"
-	getMessageReceipt  = "eth_getMessageReceipt"
+	getBlockByHash      = "eth_getBlockByHash"
+	getBlockByNumber    = "eth_getBlockByNumber"
+	sendRawTransaction  = "eth_sendRawTransaction"
+	getInMessageByHash  = "eth_getInMessageByHash"
+	getInMessageReceipt = "eth_getInMessageReceipt"
 )
 
 type Request struct {
@@ -88,6 +88,7 @@ func (suite *SuiteRpc) TearDownSuite() {
 }
 
 func (suite *SuiteRpc) TestRpcBasic() {
+	const someRandomMissingBlock = "0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef"
 	request := Request{
 		Jsonrpc: "2.0",
 		Method:  getBlockByNumber,
@@ -108,14 +109,14 @@ func (suite *SuiteRpc) TestRpcBasic() {
 	suite.Equal("not implemented", resp.Error["message"])
 
 	request.Method = "eth_getBlockTransactionCountByHash"
-	request.Params = []any{types.MasterShardId, "0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef"}
+	request.Params = []any{types.MasterShardId, someRandomMissingBlock}
 	resp, err = makeRequest[any](&request)
 	suite.Require().NoError(err)
 	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
 	suite.Equal("not implemented", resp.Error["message"])
 
 	request.Method = getBlockByHash
-	request.Params = []any{types.MasterShardId, "0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef", false}
+	request.Params = []any{types.MasterShardId, someRandomMissingBlock, false}
 	resp, err = makeRequest[any](&request)
 	suite.Require().NoError(err)
 	suite.Require().Nil(resp.Error["code"])
@@ -144,8 +145,8 @@ func (suite *SuiteRpc) TestRpcBasic() {
 	suite.Require().Nil(resp.Error["code"])
 	suite.Require().Equal(latestResp.Result, resp.Result)
 
-	request.Method = "eth_getMessageByHash"
-	request.Params = []any{types.MasterShardId, "0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef"}
+	request.Method = getInMessageByHash
+	request.Params = []any{types.MasterShardId, someRandomMissingBlock}
 	resp, err = makeRequest[any](&request)
 	suite.Require().NoError(err)
 	suite.Require().Nil(resp.Error["code"])
@@ -155,7 +156,7 @@ func (suite *SuiteRpc) TestRpcBasic() {
 func (suite *SuiteRpc) TestRpcContract() {
 	dm := &types.DeployMessage{
 		ShardId: uint32(types.MasterShardId),
-		Data:    hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
+		Code:    HardcodedContract,
 	}
 	data, err := dm.MarshalSSZ()
 	suite.Require().NoError(err)
@@ -179,13 +180,14 @@ func (suite *SuiteRpc) TestRpcContract() {
 		Id:      1,
 	}
 
+	// create contract
 	resp, err := makeRequest[common.Hash](request)
 	suite.Require().NoError(err)
 	suite.Require().Nil(resp.Error["code"])
 	suite.Equal(m.Hash(), resp.Result)
 
 	addr := common.CreateAddress(uint32(types.MasterShardId), m.From, m.Seqno)
-	request.Method = getMessageReceipt
+	request.Method = getInMessageReceipt
 	request.Params = []any{types.MasterShardId, msgHash}
 
 	var respReceipt *Response[*types.Receipt]
@@ -202,6 +204,27 @@ func (suite *SuiteRpc) TestRpcContract() {
 	suite.Equal(uint64(0), respReceipt.Result.MsgIndex)
 	suite.Equal(m.Hash(), respReceipt.Result.MsgHash)
 	suite.Equal(addr, respReceipt.Result.ContractAddress)
+
+	// now call (= send message to) created contract. as a result it should also create new contract
+	m = &types.Message{
+		From: common.PubkeyBytesToAddress(uint32(types.MasterShardId), pub),
+		To:   addr,
+	}
+	suite.Require().NoError(m.Sign(shardchain.MainPrivateKey))
+	mData, err = m.MarshalSSZ()
+	suite.Require().NoError(err)
+
+	request.Method = sendRawTransaction
+	request.Params = []any{"0x" + hex.EncodeToString(mData)}
+
+	resp, err = makeRequest[common.Hash](request)
+	suite.Require().NoError(err)
+	suite.Require().Nil(resp.Error["code"])
+	suite.Equal(m.Hash(), resp.Result)
+	time.Sleep(2 * time.Second)
+
+	// TODO: finish this test (after extending rpc and improving execution msg handling)
+	// now it's only possible to see in logs that `SendCall precompiled was called` =)
 }
 
 func (suite *SuiteRpc) TestRpcApiModules() {

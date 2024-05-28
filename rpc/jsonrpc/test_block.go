@@ -17,7 +17,7 @@ func writeTestBlock(t *testing.T, tx db.Tx, shardId types.ShardId, blockNumber t
 		Id:                  blockNumber,
 		PrevBlock:           common.EmptyHash,
 		SmartContractsRoot:  common.EmptyHash,
-		MessagesRoot:        writeMessages(t, tx, shardId, messages).RootHash(),
+		InMessagesRoot:      writeMessages(t, tx, shardId, messages).RootHash(),
 		ReceiptsRoot:        writeReceipts(t, tx, shardId, receipts).RootHash(),
 		ChildBlocksRootHash: common.EmptyHash,
 		MasterChainHash:     common.EmptyHash,

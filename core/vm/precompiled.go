@@ -24,15 +24,17 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/math"
 	"github.com/NilFoundation/nil/core/tracing"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/params"
+	"github.com/rs/zerolog/log"
 )
 
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
 // requires a deterministic gas count based on the input size of the Run method of the
 // contract.
 type PrecompiledContract interface {
-	RequiredGas(input []byte) uint64  // RequiredPrice calculates the contract gas use
-	Run(input []byte) ([]byte, error) // Run runs the precompiled contract
+	RequiredGas(input []byte) uint64                 // RequiredPrice calculates the contract gas use
+	Run(state StateDB, input []byte) ([]byte, error) // Run runs the precompiled contract
 }
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -41,6 +43,7 @@ var PrecompiledContractsPrague = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{0x02}): &sha256hash{},
 	common.BytesToAddress([]byte{0x04}): &dataCopy{},
 	common.BytesToAddress([]byte{0x05}): &bigModExp{eip2565: true},
+	common.BytesToAddress([]byte{0x06}): &sendMessagePrecompiledContract{},
 }
 
 var PrecompiledContractsBLS = PrecompiledContractsPrague
@@ -63,7 +66,7 @@ func ActivePrecompiles() []common.Address {
 // - the returned bytes,
 // - the _remaining_ gas,
 // - any error that occurred
-func RunPrecompiledContract(p PrecompiledContract, input []byte, suppliedGas uint64, logger *tracing.Hooks) (ret []byte, remainingGas uint64, err error) {
+func RunPrecompiledContract(p PrecompiledContract, state StateDB, input []byte, suppliedGas uint64, logger *tracing.Hooks) (ret []byte, remainingGas uint64, err error) {
 	gasCost := p.RequiredGas(input)
 	if suppliedGas < gasCost {
 		return nil, 0, ErrOutOfGas
@@ -72,7 +75,7 @@ func RunPrecompiledContract(p PrecompiledContract, input []byte, suppliedGas uin
 		logger.OnGasChange(suppliedGas, suppliedGas-gasCost, tracing.GasChangeCallPrecompiledContract)
 	}
 	suppliedGas -= gasCost
-	output, err := p.Run(input)
+	output, err := p.Run(state, input)
 	return output, suppliedGas, err
 }
 
@@ -87,7 +90,7 @@ func (c *sha256hash) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.Sha256PerWordGas + params.Sha256BaseGas
 }
 
-func (c *sha256hash) Run(input []byte) ([]byte, error) {
+func (c *sha256hash) Run(_ StateDB, input []byte) ([]byte, error) {
 	h := sha256.Sum256(input)
 	return h[:], nil
 }
@@ -103,7 +106,7 @@ func (c *dataCopy) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.IdentityPerWordGas + params.IdentityBaseGas
 }
 
-func (c *dataCopy) Run(in []byte) ([]byte, error) {
+func (c *dataCopy) Run(_ StateDB, in []byte) ([]byte, error) {
 	return slices.Clone(in), nil
 }
 
@@ -228,7 +231,7 @@ func (c *bigModExp) RequiredGas(input []byte) uint64 {
 	return gas.Uint64()
 }
 
-func (c *bigModExp) Run(input []byte) ([]byte, error) {
+func (c *bigModExp) Run(_ StateDB, input []byte) ([]byte, error) {
 	var (
 		baseLen = new(big.Int).SetBytes(getData(input, 0, 32)).Uint64()
 		expLen  = new(big.Int).SetBytes(getData(input, 32, 32)).Uint64()
@@ -261,4 +264,21 @@ func (c *bigModExp) Run(input []byte) ([]byte, error) {
 		v = base.Exp(base, exp, mod).Bytes()
 	}
 	return common.LeftPadBytes(v, int(modLen)), nil
+}
+
+type sendMessagePrecompiledContract struct{}
+
+func (c *sendMessagePrecompiledContract) RequiredGas([]byte) uint64 {
+	// TODO: change cost
+	return 0
+}
+
+func (c *sendMessagePrecompiledContract) Run(state StateDB, input []byte) ([]byte, error) {
+	msg := new(types.Message)
+	if err := msg.UnmarshalSSZ(input); err != nil {
+		panic(err)
+	}
+	// TODO: implement async call logic here (e.g. return new msg index?)
+	log.Debug().Msgf("SendMessage precompiled called with %+v", msg)
+	return nil, nil
 }

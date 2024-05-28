@@ -21,7 +21,7 @@ type Block struct {
 	Id                 BlockNumber
 	PrevBlock          common.Hash
 	SmartContractsRoot common.Hash
-	MessagesRoot       common.Hash
+	InMessagesRoot     common.Hash
 	// OutMessagesRoot stores all outbound messages produced by transactions of this block. The key of the tree is a
 	// sequential index of the message, value is a Message struct.
 	// It can be considered as an array, where each segment is referred by corresponding receipt.

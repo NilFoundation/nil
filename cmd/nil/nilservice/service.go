@@ -20,7 +20,7 @@ import (
 )
 
 func startRpcServer(ctx context.Context, db db.DB, pool msgpool.Pool) error {
-	logger := common.NewLogger("RPC", false)
+	logger := common.NewLogger("RPC")
 
 	httpConfig := &httpcfg.HttpCfg{
 		Enabled:           true,

@@ -30,7 +30,7 @@ func (suite *SuiteEthReceipt) SetupSuite() {
 	pool := msgpool.New(msgpool.DefaultConfig)
 	suite.Require().NotNil(pool)
 
-	suite.api = NewEthAPI(ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, pool, common.NewLogger("Test", false))
+	suite.api = NewEthAPI(ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, pool, common.NewLogger("Test"))
 
 	tx, err := suite.db.CreateRwTx(ctx)
 	defer tx.Rollback()
@@ -53,7 +53,7 @@ func (suite *SuiteEthReceipt) TearDownSuite() {
 }
 
 func (suite *SuiteEthReceipt) TestGetMessageReceipt() {
-	data, err := suite.api.GetMessageReceipt(context.Background(), types.MasterShardId, suite.receipt.MsgHash)
+	data, err := suite.api.GetInMessageReceipt(context.Background(), types.MasterShardId, suite.receipt.MsgHash)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
 

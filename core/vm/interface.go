@@ -63,6 +63,12 @@ type StateDB interface {
 	Snapshot() int
 
 	AddLog(*types.Log)
+
+	// returns new message index
+	AddInMessage(*types.Message) uint64
+
+	// add out message for particular transaction
+	AddOutMessage(common.Hash, *types.Message)
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

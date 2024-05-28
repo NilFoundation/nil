@@ -12,8 +12,8 @@ import (
 	fastssz "github.com/ferranbt/fastssz"
 )
 
-// GetMessageByHash implements eth_getTransactioByHash. Returns the message structure
-func (api *APIImpl) GetMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Message, error) {
+// GetInMessageByHash implements eth_getTransactioByHash. Returns the message structure
+func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Message, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
@@ -26,7 +26,7 @@ func (api *APIImpl) GetMessageByHash(ctx context.Context, shardId types.ShardId,
 		return nil, nil
 	}
 
-	mptMessages := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.MessageTrieTable, block.MessagesRoot)
+	mptMessages := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.MessageTrieTable, block.InMessagesRoot)
 	messageBytes, err := mptMessages.Get(fastssz.MarshalUint64(nil, messageIndex))
 	if err != nil {
 		return nil, err

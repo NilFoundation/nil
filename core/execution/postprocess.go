@@ -61,7 +61,8 @@ func (pp *blockPostprocessor) fillBlockHashByNumberIndex() error {
 }
 
 func (pp *blockPostprocessor) fillBlockHashAndMessageIndexByMessageHash() error {
-	mptMessages := mpt.NewMerklePatriciaTrieWithRoot(pp.tx, pp.shardId, db.MessageTrieTable, pp.block.MessagesRoot)
+	// TODO: fix for out messages
+	mptMessages := mpt.NewMerklePatriciaTrieWithRoot(pp.tx, pp.shardId, db.MessageTrieTable, pp.block.InMessagesRoot)
 	for kv := range mptMessages.Iterate() {
 		messageIndex := ssz.UnmarshallUint64(kv.Key)
 

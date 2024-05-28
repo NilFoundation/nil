@@ -21,6 +21,7 @@ require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.24.0
 	github.com/btcsuite/btcd/btcec/v2 v2.3.3
 	github.com/spf13/viper v1.18.2
+	golang.org/x/term v0.19.0
 )
 
 require (
