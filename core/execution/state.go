@@ -711,6 +711,35 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint
 	return nil
 }
 
+func (es *ExecutionState) HandleExecutionMessage(message *types.Message, index uint64, interpreter *vm.EVMInterpreter) error {
+	addr := message.To
+	logger.Debug().Msgf("Call contract %s", addr)
+
+	// TODO: use gas from message
+	gas := uint64(1000000)
+	contract := vm.NewContract((vm.AccountRef)(addr), (vm.AccountRef)(addr), &message.Value.Int, gas)
+
+	accountState := es.GetAccount(addr)
+	contract.Code = accountState.Code
+
+	// TODO: not ignore result here
+	_, err := interpreter.Run(contract, message.Data, false)
+	if err != nil {
+		logger.Error().Err(err).Msg("execution message failed")
+		return err
+	}
+	r := types.Receipt{
+		Success:         true,
+		GasUsed:         uint32(gas - contract.Gas),
+		Logs:            es.Logs[es.InMessageHash],
+		MsgHash:         es.InMessageHash,
+		MsgIndex:        index,
+		ContractAddress: addr,
+	}
+	es.AddReceipt(&r)
+	return nil
+}
+
 func (es *ExecutionState) AddReceipt(receipt *types.Receipt) {
 	es.Receipts = append(es.Receipts, receipt)
 }
