@@ -191,16 +191,12 @@ func (suite *SuiteRpc) TestRpcContract() {
 	request.Params = []any{types.MasterShardId, msgHash}
 
 	var respReceipt *Response[*types.Receipt]
-	for {
+	suite.Eventually(func() bool {
 		respReceipt, err = makeRequest[*types.Receipt](request)
 		suite.Require().NoError(err)
 		suite.Require().Nil(resp.Error["code"])
-
-		if respReceipt.Result != nil {
-			break
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
+		return respReceipt.Result != nil
+	}, 2*time.Second, 200*time.Millisecond)
 	suite.Equal(uint64(0), respReceipt.Result.MsgIndex)
 	suite.Equal(m.Hash(), respReceipt.Result.MsgHash)
 	suite.Equal(addr, respReceipt.Result.ContractAddress)
