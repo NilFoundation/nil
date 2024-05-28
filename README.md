@@ -61,6 +61,7 @@ dm := types.DeployMessage{
 data, err := dm.MarshalSSZ()
 suite.Require().NoError(err)
 m.Data = data
+mData, err := m.MarshallSSZ()
 ```
 
 Send the deployment message:
