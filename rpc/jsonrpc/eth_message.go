@@ -26,11 +26,10 @@ func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardI
 		return nil, nil
 	}
 
-	// TODO: make MessageIndex strong typed and use MarshalSSZ
-	return getBlockEntity[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot, fastssz.MarshalUint64(nil, messageIndex))
+	return getBlockEntity[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot, messageIndex.Bytes())
 }
 
-func getBlockAndMessageIndexByMessageHash(tx db.Tx, shardId types.ShardId, hash common.Hash) (*types.Block, uint64, error) {
+func getBlockAndMessageIndexByMessageHash(tx db.Tx, shardId types.ShardId, hash common.Hash) (*types.Block, types.MessageIndex, error) {
 	value, err := tx.GetFromShard(shardId, db.BlockHashAndMessageIndexByMessageHash, hash.Bytes())
 	if err != nil {
 		return nil, 0, err

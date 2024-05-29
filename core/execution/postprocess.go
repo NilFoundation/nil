@@ -7,7 +7,6 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
-	ssz "github.com/ferranbt/fastssz"
 )
 
 func PostprocessBlock(tx db.RwTx, shardId types.ShardId, blockHash common.Hash) (*types.Block, error) {
@@ -64,7 +63,7 @@ func (pp *blockPostprocessor) fillBlockHashAndMessageIndexByMessageHash() error 
 	// TODO: fix for out messages
 	mptMessages := mpt.NewMerklePatriciaTrieWithRoot(pp.tx, pp.shardId, db.MessageTrieTable, pp.block.InMessagesRoot)
 	for kv := range mptMessages.Iterate() {
-		messageIndex := ssz.UnmarshallUint64(kv.Key)
+		messageIndex := types.BytesToMessageIndex(kv.Key)
 
 		var message types.Message
 		if err := message.UnmarshalSSZ(kv.Value); err != nil {
