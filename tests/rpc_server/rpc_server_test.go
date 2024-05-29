@@ -50,19 +50,19 @@ func (suite *SuiteRpc) TestRpcBasic() {
 	suite.Require().Nil(resp.Error["code"])
 	suite.Require().Nil(resp.Result)
 
-	request.Method = "eth_getBlockTransactionCountByNumber"
-	request.Params = []any{types.MasterShardId, "0x1b4"}
+	request.Method = getBlockTransactionCountByNumber
+	request.Params = []any{types.MasterShardId, "earliest"}
 	resp, err = makeRequest[any](&request)
 	suite.Require().NoError(err)
-	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
-	suite.Equal("not implemented", resp.Error["message"])
+	suite.Require().Nil(resp.Error)
+	suite.Equal("0x0", resp.Result)
 
-	request.Method = "eth_getBlockTransactionCountByHash"
+	request.Method = getBlockTransactionCountByHash
 	request.Params = []any{types.MasterShardId, someRandomMissingBlock}
 	resp, err = makeRequest[any](&request)
 	suite.Require().NoError(err)
-	suite.InEpsilon(float64(-32000), resp.Error["code"], 0)
-	suite.Equal("not implemented", resp.Error["message"])
+	suite.Require().Nil(resp.Error)
+	suite.Equal("0x0", resp.Result)
 
 	request.Method = getBlockByHash
 	request.Params = []any{types.MasterShardId, someRandomMissingBlock, false}

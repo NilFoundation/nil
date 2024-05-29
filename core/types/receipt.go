@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/NilFoundation/nil/common"
+	"github.com/rs/zerolog/log"
 )
 
 type Receipts []*Receipt
@@ -27,4 +28,12 @@ func (r *Receipt) AddLog(log *Log) {
 
 func (r *Receipt) LogsNum() int {
 	return len(r.Logs)
+}
+
+func (r *Receipt) Hash() common.Hash {
+	h, err := common.PoseidonSSZ(r)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Can't get receipt hash")
+	}
+	return h
 }

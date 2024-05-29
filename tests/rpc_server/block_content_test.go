@@ -49,7 +49,7 @@ func (suite *SuiteRpc) TestRpcBlockContent() {
 	request = &Request{
 		Jsonrpc: "2.0",
 		Method:  getBlockByNumber,
-		Params:  []any{types.MasterShardId, "latest", false},
+		Params:  []any{types.MasterShardId, "latest", true},
 		Id:      1,
 	}
 
