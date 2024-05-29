@@ -233,9 +233,6 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 			continue
 		}
 
-		accountState := es.GetAccount(message.From)
-		accountState.SetSeqno(accountState.Seqno + 1)
-
 		evm := vm.NewEVM(blockContext, es)
 		interpreter := evm.Interpreter()
 
