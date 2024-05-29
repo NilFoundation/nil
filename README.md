@@ -198,7 +198,7 @@ The current RPC is loosely modeled after the Ethereum RPC. The RPC exposes the f
 
 ### Receipts
 
-* `GetMessageReceipt()`
+* `GetInMessageReceipt()`
 
 ### Accounts
 
