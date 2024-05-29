@@ -693,22 +693,24 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint
 		addr = common.PubkeyBytesToAddress(deployMsg.ShardId, deployMsg.PublicKey)
 	}
 
+	gas := uint64(100000)
+
+	blockContext := NewEVMBlockContext(es)
+	evm := vm.NewEVM(blockContext, es)
+	_, addr, leftOverGas, err := evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code, gas, &message.Value.Int)
+
 	r := &types.Receipt{
-		Success:         true,
+		Success:         err == nil,
 		ContractAddress: addr,
 		MsgHash:         message.Hash(),
 		MsgIndex:        index,
+		GasUsed:         uint32(gas - leftOverGas),
 	}
-
-	// TODO: gasUsed
-	es.CreateAccount(addr)
-	es.CreateContract(addr)
-	es.SetInitState(addr, deployMsg)
 
 	es.Receipts = append(es.Receipts, r)
 
 	logger.Debug().Stringer("address", addr).Msg("Created new contract")
-	return nil
+	return err
 }
 
 func (es *ExecutionState) HandleExecutionMessage(message *types.Message, index uint64, interpreter *vm.EVMInterpreter) error {
