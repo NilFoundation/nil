@@ -20,22 +20,16 @@ func init() {
 	// but for now it's hardcoded for simplicity.
 	pubkeyHex := "02eb7216201e65f0a41bc655ada025ad943b79d38aca4d671cbd9875b9604f1ac1"
 	pubkey, err := hex.DecodeString(pubkeyHex)
-	if err != nil {
-		sharedLogger.Fatal().Err(err).Msg("Failed to prepare main key (decode hex)")
-	}
+	common.FatalIf(err, sharedLogger, "Failed to prepare main key (decode hex)")
 
 	key, err := crypto.DecompressPubkey(pubkey)
-	if err != nil {
-		sharedLogger.Fatal().Err(err).Msg("Failed to prepare main key (unmarshal)")
-	}
+	common.FatalIf(err, sharedLogger, "Failed to prepare main key (unmarshal)")
 
 	keyD := new(big.Int)
 	keyD.SetString("29471664811761943693235393363502564971627872515497410365595228231506458150155", 10)
 	MainPrivateKey = &ecdsa.PrivateKey{PublicKey: *key, D: keyD}
 
-	if !key.Equal(MainPrivateKey.Public()) {
-		sharedLogger.Fatal().Msg("Consistency check on key recover failed")
-	}
+	common.Require(key.Equal(MainPrivateKey.Public()))
 }
 
 func GenerateZeroState(ctx context.Context, es *execution.ExecutionState) error {

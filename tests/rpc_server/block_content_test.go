@@ -40,7 +40,7 @@ func (suite *SuiteRpc) TestRpcBlockContent() {
 		Id:      1,
 	}
 
-	resp, err := makeRequest[common.Hash](request)
+	resp, err := makeRequest[common.Hash](suite.port, request)
 	suite.Require().NoError(err)
 	suite.Require().Nil(resp.Error["code"])
 	suite.Equal(m.Hash(), resp.Result)
@@ -54,7 +54,7 @@ func (suite *SuiteRpc) TestRpcBlockContent() {
 	}
 
 	suite.Eventually(func() bool {
-		latestResp, err := makeRequest[map[string]any](request)
+		latestResp, err := makeRequest[map[string]any](suite.port, request)
 		suite.Require().NoError(err)
 		msgs, ok := latestResp.Result["messages"].([]any)
 		if !ok {
@@ -63,7 +63,7 @@ func (suite *SuiteRpc) TestRpcBlockContent() {
 		return len(msgs) == 1
 	}, 6*time.Second, 100*time.Millisecond)
 
-	latestResp, err := makeRequest[map[string]any](request)
+	latestResp, err := makeRequest[map[string]any](suite.port, request)
 	suite.Require().NoError(err)
 	suite.Require().Nil(latestResp.Error["code"])
 	suite.Require().NotNil(latestResp.Result["hash"])

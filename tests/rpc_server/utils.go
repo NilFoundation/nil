@@ -36,13 +36,13 @@ const (
 	getBlockTransactionCountByHash   = "eth_getBlockTransactionCountByHash"
 )
 
-func makeRequest[R any](data *Request) (*Response[R], error) {
+func makeRequest[R any](port int, data *Request) (*Response[R], error) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := http.Post("http://127.0.0.1:8529", "application/json", bytes.NewBuffer(jsonData))
+	resp, err := http.Post("http://127.0.0.1:"+strconv.Itoa(port), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func makeRequest[R any](data *Request) (*Response[R], error) {
 	return &response, nil
 }
 
-func transactionCount(shardId types.ShardId, addr common.Address, blk string) (uint64, error) {
+func transactionCount(port int, shardId types.ShardId, addr common.Address, blk string) (uint64, error) {
 	request := &Request{
 		Jsonrpc: "2.0",
 		Method:  getTransactionCount,
@@ -69,7 +69,7 @@ func transactionCount(shardId types.ShardId, addr common.Address, blk string) (u
 		Id:      1,
 	}
 
-	resp, err := makeRequest[string](request)
+	resp, err := makeRequest[string](port, request)
 	if err != nil {
 		return 0, err
 	}
