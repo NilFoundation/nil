@@ -2,9 +2,11 @@ package jsonrpc
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
@@ -37,6 +39,14 @@ func (suite *SuiteEthBlock) SetupSuite() {
 	for i := range types.BlockNumber(2) {
 		es, err := execution.NewExecutionState(tx, shardId, suite.lastBlockHash, common.NewTestTimer(0))
 		suite.Require().NoError(err)
+
+		for j := range int(i) {
+			m := &types.Message{Data: types.Code(strconv.Itoa(j))}
+			es.AddInMessage(m)
+
+			r := &types.Receipt{MsgHash: m.Hash()}
+			es.AddReceipt(r)
+		}
 
 		blockHash, err := es.Commit(i)
 		suite.Require().NoError(err)
@@ -90,7 +100,7 @@ func (suite *SuiteEthBlock) TestGetBlockByNumber() {
 	suite.Require().NotNil(data["parentHash"])
 	suite.Equal(suite.lastBlockHash, data["hash"])
 
-	data, err = suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.BlockNumber(2), false)
+	data, err = suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.BlockNumber(100500), false)
 	suite.Require().NoError(err)
 	suite.Require().Nil(data)
 }
@@ -104,13 +114,73 @@ func (suite *SuiteEthBlock) TestGetBlockByHash() {
 
 func (suite *SuiteEthBlock) TestGetBlockTransactionCountByHash() {
 	blockHash := common.HexToHash("0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")
-	_, err := suite.api.GetBlockTransactionCountByHash(context.Background(), types.MasterShardId, blockHash)
-	suite.Require().EqualError(err, "not implemented")
+	res, err := suite.api.GetBlockTransactionCountByHash(context.Background(), types.MasterShardId, blockHash)
+	suite.Require().NoError(err)
+	suite.Require().Equal(hexutil.Uint(0), *res)
+
+	res, err = suite.api.GetBlockTransactionCountByHash(context.Background(), types.MasterShardId, suite.lastBlockHash)
+	suite.Require().NoError(err)
+	suite.Require().Equal(hexutil.Uint(1), *res)
+}
+
+func (suite *SuiteEthBlock) TestGetBlockContent() {
+	resNoFullTx, err := suite.api.GetBlockByHash(context.Background(), types.MasterShardId, suite.lastBlockHash, false)
+	suite.Require().NoError(err)
+	suite.Len(resNoFullTx["messages"], 1)
+
+	resFullTx, err := suite.api.GetBlockByHash(context.Background(), types.MasterShardId, suite.lastBlockHash, true)
+	suite.Require().NoError(err)
+	suite.Len(resFullTx["messages"], 1)
+
+	msgKeys := []string{
+		"success",
+		"index",
+		"seqno",
+		"gasUsed",
+		"gasPrice",
+		"gasLimit",
+		"from",
+		"to",
+		"value",
+		"data",
+		"signature",
+		"hash",
+	}
+
+	for i := range 1 {
+		msgs, ok := resFullTx["messages"].([]any)
+		suite.Require().True(ok)
+
+		msg, ok := msgs[i].(map[string]any)
+		suite.Require().True(ok)
+
+		for _, key := range msgKeys {
+			_, hasKey := msg[key]
+			suite.Require().True(hasKey)
+		}
+
+		msgsHash, ok := resNoFullTx["messages"].([]any)
+		suite.Require().True(ok)
+
+		msgHash, ok := msgsHash[i].(common.Hash)
+		suite.Require().True(ok)
+
+		suite.Equal(msgHash, msg["hash"])
+	}
 }
 
 func (suite *SuiteEthBlock) TestGetBlockTransactionCountByNumber() {
-	_, err := suite.api.GetBlockTransactionCountByNumber(context.Background(), types.MasterShardId, transport.LatestBlockNumber)
-	suite.Require().EqualError(err, "not implemented")
+	res, err := suite.api.GetBlockTransactionCountByNumber(context.Background(), types.MasterShardId, 0)
+	suite.Require().NoError(err)
+	suite.Require().Equal(hexutil.Uint(0), *res)
+
+	res, err = suite.api.GetBlockTransactionCountByNumber(context.Background(), types.MasterShardId, transport.LatestBlockNumber)
+	suite.Require().NoError(err)
+	suite.Require().Equal(hexutil.Uint(1), *res)
+
+	res, err = suite.api.GetBlockTransactionCountByNumber(context.Background(), types.MasterShardId, 100500)
+	suite.Require().NoError(err)
+	suite.Require().Equal(hexutil.Uint(0), *res)
 }
 
 func TestSuiteEthBlock(t *testing.T) {

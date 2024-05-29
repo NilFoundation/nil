@@ -26,12 +26,14 @@ type Response[R any] struct {
 }
 
 const (
-	getBlockByHash      = "eth_getBlockByHash"
-	getBlockByNumber    = "eth_getBlockByNumber"
-	sendRawTransaction  = "eth_sendRawTransaction"
-	getInMessageByHash  = "eth_getInMessageByHash"
-	getInMessageReceipt = "eth_getInMessageReceipt"
-	getTransactionCount = "eth_getTransactionCount"
+	getBlockByHash                   = "eth_getBlockByHash"
+	getBlockByNumber                 = "eth_getBlockByNumber"
+	sendRawTransaction               = "eth_sendRawTransaction"
+	getInMessageByHash               = "eth_getInMessageByHash"
+	getInMessageReceipt              = "eth_getInMessageReceipt"
+	getTransactionCount              = "eth_getTransactionCount"
+	getBlockTransactionCountByNumber = "eth_getBlockTransactionCountByNumber"
+	getBlockTransactionCountByHash   = "eth_getBlockTransactionCountByHash"
 )
 
 func makeRequest[R any](data *Request) (*Response[R], error) {

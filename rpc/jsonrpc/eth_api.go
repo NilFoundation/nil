@@ -20,8 +20,8 @@ type EthAPI interface {
 	// Block related
 	GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, fullTx bool) (map[string]any, error)
 	GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, fullTx bool) (map[string]any, error)
-	GetBlockTransactionCountByNumber(ctx context.Context, shardId types.ShardId, blockNr transport.BlockNumber) (*hexutil.Uint, error)
-	GetBlockTransactionCountByHash(ctx context.Context, shardId types.ShardId, blockHash common.Hash) (*hexutil.Uint, error)
+	GetBlockTransactionCountByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber) (*hexutil.Uint, error)
+	GetBlockTransactionCountByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*hexutil.Uint, error)
 
 	// Message related
 	GetInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Message, error)
