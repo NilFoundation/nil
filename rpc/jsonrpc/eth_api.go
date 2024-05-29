@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc/filters"
 	"github.com/NilFoundation/nil/rpc/transport"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/rs/zerolog"
 )
 
@@ -62,19 +63,46 @@ func NewBaseApi(evmCallTimeout time.Duration) *BaseAPI {
 type APIImpl struct {
 	*BaseAPI
 
-	db      db.DB
-	msgPool msgpool.Pool
-	logs    *LogsAggregator
-	logger  *zerolog.Logger
+	db          db.DB
+	msgPool     msgpool.Pool
+	logs        *LogsAggregator
+	logger      *zerolog.Logger
+	blocksLRU   *lru.Cache[common.Hash, *types.Block]
+	messagesLRU *lru.Cache[common.Hash, []*types.Message]
+	receiptsLRU *lru.Cache[common.Hash, []*types.Receipt]
 }
 
 // NewEthAPI returns APIImpl instance
 func NewEthAPI(ctx context.Context, base *BaseAPI, db db.DB, pool msgpool.Pool, logger *zerolog.Logger) *APIImpl {
+	const (
+		blocksLRUSize   = 128 // ~32Mb
+		messagesLRUSize = 32
+		receiptsLRUSize = 32
+	)
+
+	blocksLRU, err := lru.New[common.Hash, *types.Block](blocksLRUSize)
+	if err != nil {
+		panic(err)
+	}
+
+	messagesLRU, err := lru.New[common.Hash, []*types.Message](messagesLRUSize)
+	if err != nil {
+		panic(err)
+	}
+
+	receiptsLRU, err := lru.New[common.Hash, []*types.Receipt](receiptsLRUSize)
+	if err != nil {
+		panic(err)
+	}
+
 	return &APIImpl{
-		BaseAPI: base,
-		db:      db,
-		msgPool: pool,
-		logs:    NewLogsAggregator(ctx, db),
-		logger:  logger,
+		BaseAPI:     base,
+		db:          db,
+		msgPool:     pool,
+		logs:        NewLogsAggregator(ctx, db),
+		logger:      logger,
+		blocksLRU:   blocksLRU,
+		messagesLRU: messagesLRU,
+		receiptsLRU: receiptsLRU,
 	}
 }

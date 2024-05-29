@@ -16,6 +16,22 @@ const (
 	OutMessageKind
 )
 
+type MessageIndex uint64
+
+func (mi MessageIndex) Bytes() []byte {
+	return ssz.MarshalUint64(nil, uint64(mi))
+}
+
+func (mi *MessageIndex) SetBytes(b []byte) {
+	*mi = MessageIndex(ssz.UnmarshallUint64(b))
+}
+
+func BytesToMessageIndex(b []byte) MessageIndex {
+	var mi MessageIndex
+	mi.SetBytes(b)
+	return mi
+}
+
 type Message struct {
 	Seqno     uint64           `json:"seqno,omitempty"`
 	GasPrice  Uint256          `json:"gasPrice,omitempty"`

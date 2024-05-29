@@ -745,8 +745,8 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		if err != nil {
 			return common.EmptyHash, err
 		}
-		k := ssz.MarshalUint64(nil, uint64(i))
-		if err := es.InMessageRoot.Set(k, v); err != nil {
+		k := types.MessageIndex(i)
+		if err := es.InMessageRoot.Set(k.Bytes(), v); err != nil {
 			return common.EmptyHash, err
 		}
 	}
