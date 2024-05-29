@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
@@ -53,8 +54,9 @@ func (suite *SuiteExecutionState) TestExecState() {
 		deploy := types.DeployMessage{
 			ShardId: uint32(shardId),
 			Seqno:   uint64(i),
-			Data:    []byte("data"),
-			Code:    []byte("code"),
+
+			// constructor that generates the code "01020304"
+			Code: hexutil.FromHex("6004600c60003960046000f301020304"),
 		}
 		data, err := deploy.MarshalSSZ()
 		suite.Require().NoError(err)
@@ -105,8 +107,8 @@ func (suite *SuiteExecutionState) TestExecState() {
 		deploy := types.DeployMessage{
 			ShardId: uint32(shardId),
 			Seqno:   messageIndex,
-			Data:    []byte("data"),
-			Code:    []byte("code"),
+			// constructor that generates the code "01020304"
+			Code: hexutil.FromHex("6004600c60003960046000f301020304"),
 		}
 		data, err := deploy.MarshalSSZ()
 		suite.Require().NoError(err)
