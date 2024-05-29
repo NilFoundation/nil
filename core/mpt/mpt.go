@@ -6,6 +6,7 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
+	fastssz "github.com/ferranbt/fastssz"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
@@ -107,6 +108,22 @@ func NewMerklePatriciaTrie(db db.DBAccessor, shardId types.ShardId, name db.Shar
 
 func NewMerklePatriciaTrieWithRoot(db db.DBAccessor, shardid types.ShardId, name db.ShardedTableName, root common.Hash) *MerklePatriciaTrie {
 	return &MerklePatriciaTrie{db, shardid, name, root.Bytes()}
+}
+
+func GetEntity[
+	T interface {
+		~*S
+		fastssz.Unmarshaler
+	},
+	S any,
+](root *MerklePatriciaTrie, entityKey []byte) (*S, error) {
+	entityBytes, err := root.Get(entityKey)
+	if err != nil {
+		return nil, err
+	}
+
+	var entity S
+	return &entity, T(&entity).UnmarshalSSZ(entityBytes)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

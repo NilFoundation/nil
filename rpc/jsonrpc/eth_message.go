@@ -56,11 +56,5 @@ func getBlockEntity[
 	S any,
 ](tx db.Tx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash, entityKey []byte) (*S, error) {
 	root := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, tableName, rootHash)
-	entityBytes, err := root.Get(entityKey)
-	if err != nil {
-		return nil, err
-	}
-
-	var entity S
-	return &entity, T(&entity).UnmarshalSSZ(entityBytes)
+	return mpt.GetEntity[T](root, entityKey)
 }

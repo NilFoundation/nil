@@ -151,17 +151,13 @@ func collectBlockEntities[
 	for {
 		k := ssz.MarshalUint64(nil, index)
 
-		mRaw, err := root.Get(k)
+		entity, err := mpt.GetEntity[T](root, k)
 		if errors.Is(err, db.ErrKeyNotFound) {
 			break
 		} else if err != nil {
 			return nil, fmt.Errorf("failed to get from %v with index %v from trie: %w", tableName, index, err)
 		}
-		var m S
-		if err := T(&m).UnmarshalSSZ(mRaw); err != nil {
-			return nil, fmt.Errorf("failed to decode object from %v with index %v: %w", tableName, index, err)
-		}
-		entities = append(entities, &m)
+		entities = append(entities, entity)
 		index += 1
 	}
 	return entities, nil
