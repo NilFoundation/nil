@@ -31,6 +31,7 @@
             ];
 
             doCheck = true;
+            checkFlags = ["-race"];
           };
 
           default = nil;
