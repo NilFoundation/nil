@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -184,9 +185,7 @@ func (tx *SqliteTx) Rollback() {
 		tx.tx = nil
 	}()
 	err := tx.tx.Rollback()
-	if err != nil {
-		logger.Fatal().Msgf("Can't roll back transaction. err: %s", err)
-	}
+	common.FatalIf(err, logger, "Can't roll back transaction")
 }
 
 func (tx *SqliteTx) Put(tableName TableName, key, value []byte) error {

@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/NilFoundation/nil/common"
 	mapset "github.com/deckarep/golang-set"
 	"github.com/rs/zerolog"
 )
@@ -31,12 +32,12 @@ func NewServer(traceRequests, debugSingleRequest bool, logger *zerolog.Logger, r
 		services: serviceRegistry{logger: logger}, codecs: mapset.NewSet(), run: 1,
 		traceRequests: traceRequests, debugSingleRequest: debugSingleRequest, logger: logger, rpcSlowLogThreshold: rpcSlowLogThreshold,
 	}
-	// Register the default service providing meta information about the RPC service such
+	// Register the default service providing meta-information about the RPC service such
 	// as the services and methods it offers.
 	rpcService := &RPCService{server: server}
-	if err := server.RegisterName(MetadataApi, rpcService); err != nil {
-		logger.Fatal().Msg(err.Error())
-	}
+	err := server.RegisterName(MetadataApi, rpcService)
+	common.FatalIf(err, logger, "failed to register RPC service name")
+
 	return server
 }
 

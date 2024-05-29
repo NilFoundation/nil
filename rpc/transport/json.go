@@ -48,7 +48,8 @@ func (msg *jsonrpcMessage) hasValidID() bool {
 
 func (msg *jsonrpcMessage) String() string {
 	b, err := json.Marshal(msg)
-	common.Check(err)
+	common.FatalIf(err, nil, "Failed to marshal jsonrpc message")
+
 	return string(b)
 }
 

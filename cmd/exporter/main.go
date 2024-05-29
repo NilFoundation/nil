@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/exporter"
 	"github.com/NilFoundation/nil/exporter/clickhouse"
 	"github.com/rs/zerolog/log"
@@ -25,23 +26,22 @@ func initConfig() {
 	} else {
 		// Find home directory.
 		home, err := os.Getwd()
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to get working directory")
-		}
+		common.FatalIf(err, nil, "Failed to get working directory")
 
-		// Search config in home directory with name "exporter.cobra" (without extension).
+		// Search config in home directory with the name "exporter.cobra" (without an extension).
 		viper.AddConfigPath(home)
 		viper.SetConfigName("exporter")
 	}
 
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatal().Err(err).Msg("Can't read config")
-	}
+	err := viper.ReadInConfig()
+	common.FatalIf(err, nil, "Can't read config")
 
 	viper.AutomaticEnv()
 }
 
 func main() {
+	logger := common.NewLogger("exporter")
+
 	cobra.OnInitialize(initConfig)
 	rootCmd := &cobra.Command{
 		Use:   "exporter [-c config.yaml] [flags]",
@@ -59,9 +59,9 @@ You could config it via config file or flags or environment variables.`,
 			if len(absentParams) > 0 {
 				var buffer bytes.Buffer
 				cmd.SetOut(&buffer)
-				if err := cmd.Help(); err != nil {
-					log.Fatal().Err(err).Msg("Failed to print help")
-				}
+				err := cmd.Help()
+				common.FatalIf(err, logger, "Failed to print help")
+
 				fmt.Printf("Required parameters are absent: %v\n%s", absentParams, buffer.String())
 				os.Exit(1)
 			}
@@ -76,13 +76,12 @@ You could config it via config file or flags or environment variables.`,
 	rootCmd.Flags().StringP("clickhouse-database", "d", "", "Clickhouse database")
 	rootCmd.Flags().BoolP("only-scheme-init", "s", false, "Only scheme initialization")
 
-	if err := viper.BindPFlags(rootCmd.Flags()); err != nil {
-		log.Fatal().Err(err).Msg("Failed to bind flags")
-	}
+	err := viper.BindPFlags(rootCmd.Flags())
+	common.FatalIf(err, logger, "Failed to bind flags")
 
-	if err := rootCmd.Execute(); err != nil {
-		return
-	}
+	err = rootCmd.Execute()
+	common.FatalIf(err, logger, "Failed to execute command")
+
 	clickhousePassword := viper.GetString("clickhouse-password")
 	clickhouseEndpoint := viper.GetString("clickhouse-endpoint")
 	clickhouseLogin := viper.GetString("clickhouse-login")
@@ -94,13 +93,12 @@ You could config it via config file or flags or environment variables.`,
 
 	if onlySchemeInit {
 		clickhouseExporter, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to create Clickhouse driver")
-		}
-		if err = clickhouseExporter.SetupScheme(ctx); err != nil {
-			log.Fatal().Err(err).Msg("Failed to initialize Clickhouse scheme")
-		}
-		log.Info().Msg("Scheme initialized")
+		common.FatalIf(err, logger, "Failed to create Clickhouse driver")
+
+		err = clickhouseExporter.SetupScheme(ctx)
+		common.FatalIf(err, logger, "Failed to initialize Clickhouse scheme")
+
+		logger.Info().Msg("Scheme initialized")
 		return
 	}
 
@@ -129,13 +127,12 @@ You could config it via config file or flags or environment variables.`,
 			case <-ctx.Done():
 				return
 			case errMsg := <-cfg.ErrorChan:
-				log.Error().Err(errMsg).Msg("Error occurred")
+				logger.Error().Err(errMsg).Msg("Error occurred")
 			}
 		}
 	}()
 
-	if err := exporter.StartExporter(ctx, &cfg); err != nil {
-		log.Fatal().Err(err).Msg("Failed to start exporter")
-	}
-	log.Info().Msg("Exporter stopped")
+	err = exporter.StartExporter(ctx, &cfg)
+	common.FatalIf(err, logger, "Failed to start exporter")
+	logger.Info().Msg("Exporter stopped")
 }

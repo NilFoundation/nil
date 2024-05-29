@@ -21,7 +21,7 @@ type Storage map[common.Hash]common.Hash
 
 type AccountState struct {
 	db      *ExecutionState
-	address common.Address // address of ethereum account
+	address common.Address // address of the ethereum account
 
 	Tx          db.Tx
 	Balance     uint256.Int
@@ -38,7 +38,7 @@ type AccountState struct {
 	selfDestructed bool
 
 	// This is an EIP-6780 flag indicating whether the object is eligible for
-	// self-destruct according to EIP-6780. The flag could be set either when
+	// self-destruct, according to EIP-6780. The flag could be set either when
 	// the contract is just created within the current transaction, or when the
 	// object was previously existent and is being deployed as a contract within
 	// the current transaction.
@@ -96,9 +96,8 @@ func NewAccountState(es *ExecutionState, addr common.Address, tx db.Tx, data []b
 	account := new(types.SmartContract)
 	shardId := types.ShardId(addr.ShardId())
 
-	if err := account.UnmarshalSSZ(data); err != nil {
-		logger.Fatal().Msg("Invalid SSZ while decoding account")
-	}
+	err := account.UnmarshalSSZ(data)
+	common.FatalIf(err, logger, "Invalid SSZ while decoding account")
 
 	// TODO: store storage of each contract in separate table
 	root := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.StorageTrieTable, account.StorageRoot)
