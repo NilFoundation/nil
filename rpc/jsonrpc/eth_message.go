@@ -14,6 +14,10 @@ import (
 
 // GetInMessageByHash implements eth_getTransactioByHash. Returns the message structure
 func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Message, error) {
+	if err := api.checkShard(shardId); err != nil {
+		return nil, err
+	}
+
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)

@@ -19,7 +19,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func startRpcServer(ctx context.Context, db db.DB, pool msgpool.Pool) error {
+func startRpcServer(ctx context.Context, db db.DB, pools []msgpool.Pool) error {
 	logger := common.NewLogger("RPC")
 
 	httpConfig := &httpcfg.HttpCfg{
@@ -33,7 +33,7 @@ func startRpcServer(ctx context.Context, db db.DB, pool msgpool.Pool) error {
 
 	base := jsonrpc.NewBaseApi(rpccfg.DefaultEvmCallTimeout)
 
-	ethImpl := jsonrpc.NewEthAPI(ctx, base, db, pool, logger)
+	ethImpl := jsonrpc.NewEthAPI(ctx, base, db, pools, logger)
 	debugImpl := jsonrpc.NewDebugAPI(base, db, logger)
 
 	apiList := []transport.API{
@@ -80,7 +80,7 @@ func Run(ctx context.Context, nShards int, database db.DB, dbOpts db.BadgerDBOpt
 	}
 
 	funcs = append(funcs, func(ctx context.Context) error {
-		return startRpcServer(ctx, database, msgPools[0])
+		return startRpcServer(ctx, database, msgPools)
 	})
 
 	funcs = append(funcs, func(ctx context.Context) error {

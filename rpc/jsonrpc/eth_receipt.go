@@ -11,6 +11,10 @@ import (
 )
 
 func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Receipt, error) {
+	if err := api.checkShard(shardId); err != nil {
+		return nil, err
+	}
+
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)

@@ -63,7 +63,8 @@ func (suite *SuiteEthBlock) SetupSuite() {
 	pool := msgpool.New(msgpool.DefaultConfig)
 	suite.Require().NotNil(pool)
 
-	suite.api = NewEthAPI(ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, pool, common.NewLogger("Test"))
+	suite.api = NewEthAPI(ctx,
+		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool}, common.NewLogger("Test"))
 }
 
 func (suite *SuiteEthBlock) TearDownSuite() {
@@ -201,7 +202,8 @@ func TestGetBlockByNumberOnEmptyBase(t *testing.T) {
 
 	ctx := context.Background()
 	shardId := types.MasterShardId
-	api := NewEthAPI(ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), db, pool, common.NewLogger("Test"))
+	api := NewEthAPI(ctx,
+		NewBaseApi(rpccfg.DefaultEvmCallTimeout), db, []msgpool.Pool{pool}, common.NewLogger("Test"))
 
 	data, err := api.GetBlockByNumber(ctx, shardId, transport.EarliestBlockNumber, false)
 	require.NoError(t, err)

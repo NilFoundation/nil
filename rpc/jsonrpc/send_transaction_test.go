@@ -56,7 +56,7 @@ func (suite *SuiteSendTransaction) SetupSuite() {
 	pool := msgpool.New(msgpool.DefaultConfig)
 	suite.Require().NotNil(pool)
 
-	suite.api = NewEthAPI(ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, pool, common.NewLogger("Test"))
+	suite.api = NewEthAPI(ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool}, common.NewLogger("Test"))
 }
 
 func (suite *SuiteSendTransaction) TearDownSuite() {
@@ -69,13 +69,27 @@ func (suite *SuiteEthAccounts) TestInvalidMessage() {
 }
 
 func (suite *SuiteEthAccounts) TestInvalidSignature() {
-	msg := types.Message{}
+	msg := types.Message{
+		From: common.GenerateRandomAddress(0),
+	}
 
 	data, err := msg.MarshalSSZ()
 	suite.Require().NoError(err)
 
 	_, err = suite.api.SendRawTransaction(context.Background(), data)
 	suite.Require().EqualError(err, "invalid signature")
+}
+
+func (suite *SuiteEthAccounts) TestInvalidShard() {
+	msg := types.Message{
+		From: common.GenerateRandomAddress(1234),
+	}
+
+	data, err := msg.MarshalSSZ()
+	suite.Require().NoError(err)
+
+	_, err = suite.api.SendRawTransaction(context.Background(), data)
+	suite.Require().EqualError(err, "shard 1234 doesn't exist")
 }
 
 func TestSuiteSendTransaction(t *testing.T) {

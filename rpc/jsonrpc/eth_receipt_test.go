@@ -30,7 +30,8 @@ func (suite *SuiteEthReceipt) SetupSuite() {
 	pool := msgpool.New(msgpool.DefaultConfig)
 	suite.Require().NotNil(pool)
 
-	suite.api = NewEthAPI(ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, pool, common.NewLogger("Test"))
+	suite.api = NewEthAPI(ctx,
+		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool}, common.NewLogger("Test"))
 
 	tx, err := suite.db.CreateRwTx(ctx)
 	defer tx.Rollback()
