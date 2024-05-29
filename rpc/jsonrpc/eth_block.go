@@ -49,6 +49,10 @@ func (api *APIImpl) getBlockHashByNumber(tx db.RoTx, shardId types.ShardId, numb
 
 // GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
 func (api *APIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, fullTx bool) (map[string]any, error) {
+	if err := api.checkShard(shardId); err != nil {
+		return nil, err
+	}
+
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
@@ -70,6 +74,10 @@ func (api *APIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId,
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
 func (api *APIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, fullTx bool) (map[string]any, error) {
+	if err := api.checkShard(shardId); err != nil {
+		return nil, err
+	}
+
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
@@ -85,6 +93,10 @@ func (api *APIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, h
 
 // GetBlockTransactionCountByNumber implements eth_getBlockTransactionCountByNumber. Returns the number of transactions in a block given the block's block number.
 func (api *APIImpl) GetBlockTransactionCountByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber) (*hexutil.Uint, error) {
+	if err := api.checkShard(shardId); err != nil {
+		return nil, err
+	}
+
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
@@ -110,6 +122,10 @@ func (api *APIImpl) getBlockTransactionCountByHash(tx db.RoTx, shardId types.Sha
 
 // GetBlockTransactionCountByHash implements eth_getBlockTransactionCountByHash. Returns the number of transactions in a block given the block's block hash.
 func (api *APIImpl) GetBlockTransactionCountByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*hexutil.Uint, error) {
+	if err := api.checkShard(shardId); err != nil {
+		return nil, err
+	}
+
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)

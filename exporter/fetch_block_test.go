@@ -47,7 +47,7 @@ func startRpcServer(tempDir string, ctx context.Context, nShards int32) {
 
 	baseAPi := jsonrpc.NewBaseApi(0)
 	pool := msgpool.New(msgpool.DefaultConfig)
-	ethAPI := jsonrpc.NewEthAPI(ctx, baseAPi, database, pool, logger)
+	ethAPI := jsonrpc.NewEthAPI(ctx, baseAPi, database, []msgpool.Pool{pool}, logger)
 	debugAPI := jsonrpc.NewDebugAPI(baseAPi, database, logger)
 	apiList := []transport.API{
 		{

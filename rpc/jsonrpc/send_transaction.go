@@ -20,6 +20,11 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Byte
 		return common.Hash{}, fmt.Errorf("failed to decode message: %w", err)
 	}
 
+	shardId := msg.From.ShardId()
+	if err := api.checkShard(types.ShardId(shardId)); err != nil {
+		return common.Hash{}, err
+	}
+
 	if features.EnableSignatureCheck && !crypto.TransactionSignatureIsValidBytes(msg.Signature[:]) {
 		return common.Hash{}, errors.New("invalid signature")
 	}
@@ -29,7 +34,7 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Byte
 		return common.Hash{}, err
 	}
 
-	reason, err := api.msgPool.Add(ctx, []*types.Message{&msg}, tx)
+	reason, err := api.msgPools[shardId].Add(ctx, []*types.Message{&msg}, tx)
 	if err != nil {
 		return common.Hash{}, err
 	}

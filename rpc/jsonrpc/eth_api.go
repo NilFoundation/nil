@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/NilFoundation/nil/common"
@@ -64,7 +65,7 @@ type APIImpl struct {
 	*BaseAPI
 
 	db          db.DB
-	msgPool     msgpool.Pool
+	msgPools    []msgpool.Pool
 	logs        *LogsAggregator
 	logger      *zerolog.Logger
 	blocksLRU   *lru.Cache[common.Hash, *types.Block]
@@ -73,7 +74,7 @@ type APIImpl struct {
 }
 
 // NewEthAPI returns APIImpl instance
-func NewEthAPI(ctx context.Context, base *BaseAPI, db db.DB, pool msgpool.Pool, logger *zerolog.Logger) *APIImpl {
+func NewEthAPI(ctx context.Context, base *BaseAPI, db db.DB, pools []msgpool.Pool, logger *zerolog.Logger) *APIImpl {
 	const (
 		blocksLRUSize   = 128 // ~32Mb
 		messagesLRUSize = 32
@@ -98,11 +99,18 @@ func NewEthAPI(ctx context.Context, base *BaseAPI, db db.DB, pool msgpool.Pool, 
 	return &APIImpl{
 		BaseAPI:     base,
 		db:          db,
-		msgPool:     pool,
+		msgPools:    pools,
 		logs:        NewLogsAggregator(ctx, db),
 		logger:      logger,
 		blocksLRU:   blocksLRU,
 		messagesLRU: messagesLRU,
 		receiptsLRU: receiptsLRU,
 	}
+}
+
+func (api *APIImpl) checkShard(shardId types.ShardId) error {
+	if int(shardId) >= len(api.msgPools) {
+		return fmt.Errorf("shard %v doesn't exist", shardId)
+	}
+	return nil
 }
