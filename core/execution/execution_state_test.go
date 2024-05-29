@@ -50,6 +50,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	const numMessages uint8 = 10
 
 	from := common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
+	blockContext := NewEVMBlockContext(es)
 	for i := range numMessages {
 		deploy := types.DeployMessage{
 			ShardId: uint32(shardId),
@@ -63,7 +64,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 		msg := types.Message{Data: data, From: from, Seqno: uint64(i)}
 		index := es.AddInMessage(&msg)
-		suite.Require().NoError(es.HandleDeployMessage(&msg, index))
+		suite.Require().NoError(es.HandleDeployMessage(&msg, index, &blockContext))
 	}
 
 	blockHash, err := es.Commit(0)
