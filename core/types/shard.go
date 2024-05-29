@@ -10,6 +10,10 @@ type ShardId uint32
 
 const MasterShardId = ShardId(0)
 
+func IsMasterShard(shardId ShardId) bool {
+	return shardId == MasterShardId
+}
+
 func (s ShardId) MarshalJSON() ([]byte, error) {
 	return json.Marshal(uint32(s))
 }
