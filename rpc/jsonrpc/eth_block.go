@@ -194,6 +194,29 @@ func collectBlockEntities[
 	return entities, nil
 }
 
+func messageToMap(index int, message *types.Message, receipt *types.Receipt) map[string]any {
+	hash := message.Hash()
+
+	if receipt == nil || hash != receipt.MsgHash {
+		panic("Msg and receipt are not compatible")
+	}
+
+	return map[string]any{
+		"success":   receipt.Success,
+		"index":     index,
+		"seqno":     message.Seqno,
+		"gasUsed":   receipt.GasUsed,
+		"gasPrice":  message.GasPrice,
+		"gasLimit":  message.GasLimit,
+		"from":      message.From,
+		"to":        message.To,
+		"value":     message.Value,
+		"data":      message.Data,
+		"signature": message.Signature,
+		"hash":      hash,
+	}
+}
+
 func toMap(shardId types.ShardId, block *types.Block, messages []*types.Message, receipts []*types.Receipt, fullTx bool) (
 	map[string]any, error,
 ) {
@@ -205,29 +228,23 @@ func toMap(shardId types.ShardId, block *types.Block, messages []*types.Message,
 	number.ToInt().SetUint64(block.Id.Uint64())
 
 	messagesRes := make([]any, len(messages))
-	receiptsRes := make([]any, len(receipts))
 	if fullTx {
 		for i, m := range messages {
-			messagesRes[i] = m
-		}
-		for i, r := range receipts {
-			receiptsRes[i] = r
+			messagesRes[i] = messageToMap(i, m, receipts[i])
 		}
 	} else {
 		for i, m := range messages {
 			messagesRes[i] = m.Hash()
 		}
-		for i, r := range receipts {
-			receiptsRes[i] = r.Hash()
-		}
 	}
 
 	return map[string]any{
-		"number":     number,
-		"hash":       block.Hash(),
-		"shardId":    shardId,
-		"parentHash": block.PrevBlock,
-		"messages":   messagesRes,
-		"receipts":   receiptsRes,
+		"number":         number,
+		"hash":           block.Hash(),
+		"inMessagesRoot": block.InMessagesRoot,
+		"receiptsRoot":   block.ReceiptsRoot,
+		"shardId":        shardId,
+		"parentHash":     block.PrevBlock,
+		"messages":       messagesRes,
 	}, nil
 }

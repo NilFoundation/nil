@@ -127,19 +127,37 @@ func (suite *SuiteEthBlock) TestGetBlockContent() {
 	resNoFullTx, err := suite.api.GetBlockByHash(context.Background(), types.MasterShardId, suite.lastBlockHash, false)
 	suite.Require().NoError(err)
 	suite.Len(resNoFullTx["messages"], 1)
-	suite.Len(resNoFullTx["receipts"], 1)
 
 	resFullTx, err := suite.api.GetBlockByHash(context.Background(), types.MasterShardId, suite.lastBlockHash, true)
 	suite.Require().NoError(err)
 	suite.Len(resFullTx["messages"], 1)
-	suite.Len(resFullTx["receipts"], 1)
+
+	msgKeys := []string{
+		"success",
+		"index",
+		"seqno",
+		"gasUsed",
+		"gasPrice",
+		"gasLimit",
+		"from",
+		"to",
+		"value",
+		"data",
+		"signature",
+		"hash",
+	}
 
 	for i := range 1 {
 		msgs, ok := resFullTx["messages"].([]any)
 		suite.Require().True(ok)
 
-		msg, ok := msgs[i].(*types.Message)
+		msg, ok := msgs[i].(map[string]any)
 		suite.Require().True(ok)
+
+		for _, key := range msgKeys {
+			_, hasKey := msg[key]
+			suite.Require().True(hasKey)
+		}
 
 		msgsHash, ok := resNoFullTx["messages"].([]any)
 		suite.Require().True(ok)
@@ -147,7 +165,7 @@ func (suite *SuiteEthBlock) TestGetBlockContent() {
 		msgHash, ok := msgsHash[i].(common.Hash)
 		suite.Require().True(ok)
 
-		suite.Equal(msgHash, msg.Hash())
+		suite.Equal(msgHash, msg["hash"])
 	}
 }
 

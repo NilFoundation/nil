@@ -69,17 +69,10 @@ func (suite *SuiteRpc) TestRpcBlockContent() {
 	suite.Require().NotNil(latestResp.Result["hash"])
 
 	suite.Require().Len(latestResp.Result["messages"], 1)
-	suite.Require().Len(latestResp.Result["receipts"], 1)
 
 	msgs, ok := latestResp.Result["messages"].([]any)
 	suite.Require().True(ok)
 	msg, ok := msgs[0].(map[string]any)
 	suite.Require().True(ok)
 	suite.Require().Equal(msg["signature"], m.Signature.Hex())
-
-	rcpts, ok := latestResp.Result["receipts"].([]any)
-	suite.Require().True(ok)
-	rcpt, ok := rcpts[0].(map[string]any)
-	suite.Require().True(ok)
-	suite.Require().Equal(rcpt["messageHash"], m.Hash().Hex())
 }
