@@ -65,39 +65,6 @@ func (c *ShardChain) isMasterchain() bool {
 	return c.Id == types.MasterShardId
 }
 
-func (c *ShardChain) HandleDeployMessage(message *types.Message, index uint64, es *execution.ExecutionState) error {
-	return es.HandleDeployMessage(message, index)
-}
-
-func (c *ShardChain) HandleExecutionMessage(message *types.Message, index uint64, interpreter *vm.EVMInterpreter, es *execution.ExecutionState) error {
-	addr := message.To
-	c.logger.Debug().Msgf("Call contract %s", addr)
-
-	// TODO: use gas from message
-	gas := uint64(1000000)
-	contract := vm.NewContract((vm.AccountRef)(addr), (vm.AccountRef)(addr), &message.Value.Int, gas)
-
-	accountState := es.GetAccount(addr)
-	contract.Code = accountState.Code
-
-	// TODO: not ignore result here
-	_, err := interpreter.Run(contract, message.Data, false)
-	if err != nil {
-		c.logger.Error().Msg("execution message failed")
-		return err
-	}
-	r := types.Receipt{
-		Success:         true,
-		GasUsed:         uint32(gas - contract.Gas),
-		Logs:            es.Logs[es.InMessageHash],
-		MsgHash:         es.InMessageHash,
-		MsgIndex:        index,
-		ContractAddress: addr,
-	}
-	es.AddReceipt(&r)
-	return nil
-}
-
 func (c *ShardChain) validateMessage(es *execution.ExecutionState, message *types.Message, index uint64) (bool, error) {
 	if !features.EnableSignatureCheck {
 		return true, nil
@@ -251,6 +218,7 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 	if err != nil {
 		return nil, err
 	}
+	blockContext := execution.NewEVMBlockContext(es)
 
 	for _, message := range msgs {
 		msgHash := message.Hash()
@@ -265,21 +233,16 @@ func (c *ShardChain) GenerateBlock(ctx context.Context, msgs []*types.Message) (
 			continue
 		}
 
-		accountState := es.GetAccount(message.From)
-		accountState.SetSeqno(accountState.Seqno + 1)
-
-		evm := vm.EVM{
-			StateDB: es,
-		}
-		interpreter := vm.NewEVMInterpreter(&evm)
+		evm := vm.NewEVM(blockContext, es)
+		interpreter := evm.Interpreter()
 
 		// Deploy message
 		if message.To.IsEmpty() {
-			if err := c.HandleDeployMessage(message, index, es); err != nil {
+			if err := es.HandleDeployMessage(message, index); err != nil {
 				return nil, err
 			}
 		} else {
-			if err := c.HandleExecutionMessage(message, index, interpreter, es); err != nil {
+			if err := es.HandleExecutionMessage(message, index, interpreter); err != nil {
 				return nil, err
 			}
 		}

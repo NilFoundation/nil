@@ -123,8 +123,8 @@ func NewAccountState(es *ExecutionState, addr common.Address, tx db.Tx, data []b
 }
 
 // NewEVMBlockContext creates a new context for use in the EVM.
-func NewEVMBlockContext(es *ExecutionState, lastBlockHash common.Hash) vm.BlockContext {
-	header := db.ReadBlock(es.tx, es.ShardId, lastBlockHash)
+func NewEVMBlockContext(es *ExecutionState) vm.BlockContext {
+	header := db.ReadBlock(es.tx, es.ShardId, es.PrevBlock)
 	lastBlockId := uint64(0)
 	if header != nil {
 		lastBlockId = header.Id.Uint64()
@@ -693,21 +693,52 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint
 		addr = common.PubkeyBytesToAddress(deployMsg.ShardId, deployMsg.PublicKey)
 	}
 
+	gas := uint64(100000)
+
+	blockContext := NewEVMBlockContext(es)
+	evm := vm.NewEVM(blockContext, es)
+	_, addr, leftOverGas, err := evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code, gas, &message.Value.Int)
+
 	r := &types.Receipt{
-		Success:         true,
+		Success:         err == nil,
 		ContractAddress: addr,
 		MsgHash:         message.Hash(),
 		MsgIndex:        index,
+		GasUsed:         uint32(gas - leftOverGas),
 	}
-
-	// TODO: gasUsed
-	es.CreateAccount(addr)
-	es.CreateContract(addr)
-	es.SetInitState(addr, deployMsg)
 
 	es.Receipts = append(es.Receipts, r)
 
 	logger.Debug().Stringer("address", addr).Msg("Created new contract")
+	return err
+}
+
+func (es *ExecutionState) HandleExecutionMessage(message *types.Message, index uint64, interpreter *vm.EVMInterpreter) error {
+	addr := message.To
+	logger.Debug().Msgf("Call contract %s", addr)
+
+	// TODO: use gas from message
+	gas := uint64(1000000)
+	contract := vm.NewContract((vm.AccountRef)(addr), (vm.AccountRef)(addr), &message.Value.Int, gas)
+
+	accountState := es.GetAccount(addr)
+	contract.Code = accountState.Code
+
+	// TODO: not ignore result here
+	_, err := interpreter.Run(contract, message.Data, false)
+	if err != nil {
+		logger.Error().Err(err).Msg("execution message failed")
+		return err
+	}
+	r := types.Receipt{
+		Success:         true,
+		GasUsed:         uint32(gas - contract.Gas),
+		Logs:            es.Logs[es.InMessageHash],
+		MsgHash:         es.InMessageHash,
+		MsgIndex:        index,
+		ContractAddress: addr,
+	}
+	es.AddReceipt(&r)
 	return nil
 }
 

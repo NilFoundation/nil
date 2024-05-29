@@ -7,6 +7,7 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/tracing"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/params"
 	"github.com/holiman/uint256"
 )
@@ -191,9 +192,103 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	panic("STATICCALL not implemented")
 }
 
+// create creates a new contract using code as deployment code.
+func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, value *uint256.Int, address common.Address) (ret []byte, createAddress common.Address, leftOverGas uint64, err error) {
+	// Depth check execution. Fail if we're trying to execute above the
+	// limit.
+	if evm.depth > int(params.CallCreateDepth) {
+		return nil, common.Address{}, gas, ErrDepth
+	}
+	if !canTransfer(evm.StateDB, caller.Address(), value) {
+		return nil, common.Address{}, gas, ErrInsufficientBalance
+	}
+	if caller.Address() != common.EmptyAddress {
+		// bump caller's nonce
+		nonce := evm.StateDB.GetSeqno(caller.Address())
+		if nonce+1 < nonce {
+			return nil, common.Address{}, gas, ErrNonceUintOverflow
+		}
+		evm.StateDB.SetSeqno(caller.Address(), nonce+1)
+	}
+
+	// Ensure there's no existing contract already at the designated address.
+	// Account is regarded as existent if any of these three conditions is met:
+	// - the nonce is non-zero
+	// - the code is non-empty
+	// - the storage is non-empty
+	contractHash := evm.StateDB.GetCodeHash(address)
+	storageRoot := evm.StateDB.GetStorageRoot(address)
+	if evm.StateDB.GetSeqno(address) != 0 ||
+		(contractHash != common.EmptyHash) || // non-empty code
+		(storageRoot != common.EmptyHash) { // non-empty storage
+		if evm.Config.Tracer != nil && evm.Config.Tracer.OnGasChange != nil {
+			evm.Config.Tracer.OnGasChange(gas, 0, tracing.GasChangeCallFailedExecution)
+		}
+		return nil, common.Address{}, 0, ErrContractAddressCollision
+	}
+	// Create a new account on the state only if the object was not present.
+	// It might be possible the contract code is deployed to a pre-existent
+	// account with non-zero balance.
+	snapshot := evm.StateDB.Snapshot()
+	if !evm.StateDB.Exist(address) {
+		evm.StateDB.CreateAccount(address)
+	}
+	// CreateContract means that regardless of whether the account previously existed
+	// in the state trie or not, it _now_ becomes created as a _contract_ account.
+	// This is performed _prior_ to executing the initcode,  since the initcode
+	// acts inside that account.
+	evm.StateDB.CreateContract(address)
+
+	evm.StateDB.SetSeqno(address, 1)
+	transfer(evm.StateDB, caller.Address(), address, value)
+
+	// Initialise a new contract and set the code that is to be used by the EVM.
+	// The contract is a scoped environment for this execution context only.
+	contract := NewContract(caller, AccountRef(address), value, gas)
+	contract.SetCallCode(&address, codeAndHash.Hash(), codeAndHash)
+	contract.IsDeployment = true
+
+	if err == nil {
+		ret, err = evm.interpreter.Run(contract, nil, false)
+	}
+
+	// Check whether the max code size has been exceeded (EIP-158)
+	if err == nil && len(ret) > params.MaxCodeSize {
+		err = ErrMaxCodeSizeExceeded
+	}
+
+	// Reject code starting with 0xEF (EIP-3541)
+	if err == nil && len(ret) >= 1 && ret[0] == 0xEF {
+		err = ErrInvalidCode
+	}
+
+	if err == nil {
+		// TODO: calculate gas required to store the code
+		evm.StateDB.SetCode(address, ret)
+	}
+
+	// When an error was returned by the EVM or when setting the creation code
+	// above we revert to the snapshot and consume any gas remaining. Additionally,
+	// this also counts for code storage gas errors.
+	if err != nil {
+		evm.StateDB.RevertToSnapshot(snapshot)
+		if !errors.Is(err, ErrExecutionReverted) {
+			contract.UseGas(contract.Gas, evm.Config.Tracer, tracing.GasChangeCallFailedExecution)
+		}
+	}
+
+	return ret, address, contract.Gas, err
+}
+
+// Deploy deploys a new contract from a deployment message
+func (evm *EVM) Deploy(addr common.Address, caller ContractRef, code []byte, gas uint64, value *uint256.Int) (ret []byte, deployAddr common.Address, leftOverGas uint64, err error) {
+	return evm.create(caller, code, gas, value, addr)
+}
+
 // Create creates a new contract using code as deployment code.
 func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *uint256.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
-	panic("CREATE not implemented")
+	contractAddr = common.CreateAddress(evm.Origin.ShardId(), caller.Address(), evm.StateDB.GetSeqno(caller.Address()))
+	return evm.create(caller, types.Code(code), gas, value, contractAddr)
 }
 
 // Create2 creates a new contract using code as deployment code.
