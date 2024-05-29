@@ -19,6 +19,8 @@ const (
 	nMessagesForBlock = 10
 )
 
+var sharedLogger = common.NewLogger("collator")
+
 type collator struct {
 	shard shardchain.BlockGenerator
 	pool  MsgPool
@@ -68,7 +70,7 @@ func (c *collator) GenerateBlock(ctx context.Context) error {
 	if lastBlockHash == common.EmptyHash {
 		c.logger.Trace().Msgf("Generating zero-state on shard %s...", c.id)
 
-		if err := c.shard.GenerateZeroState(ctx, es); err != nil {
+		if err := shardchain.GenerateZeroState(ctx, es); err != nil {
 			return err
 		}
 	} else {
@@ -81,7 +83,7 @@ func (c *collator) GenerateBlock(ctx context.Context) error {
 			return err
 		}
 
-		if err := c.shard.HandleMessages(ctx, es, msgs); err != nil {
+		if err := shardchain.HandleMessages(ctx, es, msgs); err != nil {
 			return err
 		}
 	}
@@ -127,7 +129,7 @@ func (c *collator) finalize(es *execution.ExecutionState, rwTx db.RwTx, roTx db.
 }
 
 func (c *collator) setLastBlockHashes(tx db.RoTx, es *execution.ExecutionState) error {
-	if c.id == types.MasterShardId {
+	if types.IsMasterShard(c.id) {
 		for i := 1; i < c.nShards; i++ {
 			shardId := types.ShardId(i)
 			lastBlockHash, err := db.ReadLastBlockHash(tx, shardId)

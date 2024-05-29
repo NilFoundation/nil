@@ -9,7 +9,6 @@ import (
 	"github.com/NilFoundation/nil/core/shardchain"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 type MsgPool interface {
@@ -33,12 +32,12 @@ func NewScheduler(shard *shardchain.ShardChain, pool MsgPool, id types.ShardId, 
 		pool:    pool,
 		id:      id,
 		nShards: nShards,
-		logger:  common.NewLogger("collator"),
+		logger:  common.NewLogger("collator-" + id.String()),
 	}
 }
 
 func (s *Scheduler) Run(ctx context.Context) error {
-	log.Info().Msgf("Starting collation on shard %s...", s.shard.Id)
+	sharedLogger.Info().Msgf("Starting collation on shard %s...", s.shard.Id)
 
 	// Run shard collations once immediately, then run by timer.
 	if err := s.doCollate(ctx); err != nil {
@@ -54,7 +53,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 				return err
 			}
 		case <-ctx.Done():
-			log.Info().Msgf("Stopping collation on shard %s...", s.shard.Id)
+			sharedLogger.Info().Msgf("Stopping collation on shard %s...", s.shard.Id)
 			return nil
 		}
 	}

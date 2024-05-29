@@ -48,7 +48,7 @@ func (s *SuiteShardchainState) TestGenerateBlock() {
 	m2 := m1
 	m2.To = common.CreateAddress(uint32(shardId), m2.From, m2.Seqno)
 
-	err = shard.HandleMessages(ctx, es, []*types.Message{&m1, &m2})
+	err = HandleMessages(ctx, es, []*types.Message{&m1, &m2})
 	s.Require().NoError(err)
 
 	r := es.Receipts[0]
@@ -61,9 +61,6 @@ func (s *SuiteShardchainState) TestGenerateBlock() {
 }
 
 func (s *SuiteShardchainState) TestValidateMessage() {
-	shard := NewShardChain(types.MasterShardId, s.db)
-	s.Require().NotNil(shard)
-
 	tx, err := s.db.CreateRwTx(context.Background())
 	s.Require().NoError(err)
 
@@ -89,7 +86,7 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 	}
 
 	// "From" doesn't exist
-	ok, err := shard.validateMessage(es, &msg, 0)
+	ok, err := validateMessage(es, &msg, 0)
 	s.Require().NoError(err)
 	s.False(ok)
 	s.Require().Len(es.Receipts, 1)
@@ -97,7 +94,7 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 
 	// Invalid signature
 	msg.From = addrFrom
-	ok, err = shard.validateMessage(es, &msg, 1)
+	ok, err = validateMessage(es, &msg, 1)
 	s.Require().NoError(err)
 	s.False(ok)
 	s.Require().Len(es.Receipts, 2)
@@ -105,14 +102,14 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 
 	// Signed message - OK
 	s.Require().NoError(msg.Sign(key))
-	ok, err = shard.validateMessage(es, &msg, 2)
+	ok, err = validateMessage(es, &msg, 2)
 	s.Require().NoError(err)
 	s.True(ok)
 	s.Len(es.Receipts, 2)
 
 	// Gap in seqno
 	msg.Seqno = 100
-	ok, err = shard.validateMessage(es, &msg, 3)
+	ok, err = validateMessage(es, &msg, 3)
 	s.Require().NoError(err)
 	s.False(ok)
 	s.Require().Len(es.Receipts, 3)
