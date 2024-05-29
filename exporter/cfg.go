@@ -2,20 +2,24 @@ package exporter
 
 import (
 	"net/http"
-
-	"github.com/NilFoundation/nil/core/types"
+	"sync/atomic"
 )
 
 type Cfg struct {
 	APIEndpoints   []string
 	ExporterDriver ExportDriver
 	httpClient     http.Client
-	BlocksChan     chan []*types.Block
+	BlocksChan     chan *BlockMsg
 	ErrorChan      chan error
 	used           bool
-	FetchersCount  uint64
+	exportRound    atomic.Uint32
 }
 
 func (cfg *Cfg) pickAPIEndpoint() string {
 	return cfg.APIEndpoints[0]
+}
+
+func (cfg *Cfg) incrementRound() {
+	cfg.exportRound.CompareAndSwap(100000, 0)
+	cfg.exportRound.Add(1)
 }

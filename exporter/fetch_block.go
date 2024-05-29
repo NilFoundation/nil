@@ -36,7 +36,6 @@ type blockShardIdsResponse struct {
 
 func (cfg *Cfg) fetchBlockData(ctx context.Context, requestBody request) (*types.Block, error) {
 	requestBytesBody, err := json.Marshal(requestBody)
-	log.Info().Msgf("Request body: %s", requestBytesBody)
 	if err != nil {
 		return nil, err
 	}
@@ -58,8 +57,6 @@ func (cfg *Cfg) fetchBlockData(ctx context.Context, requestBody request) (*types
 	if err != nil {
 		return nil, err
 	}
-
-	log.Info().Msgf("Response body: %s", body)
 
 	var bodyResponse blockResponse
 

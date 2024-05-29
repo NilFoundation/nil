@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
-	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/exporter"
 	"github.com/NilFoundation/nil/exporter/clickhouse"
 	"github.com/rs/zerolog/log"
@@ -74,7 +74,6 @@ You could config it via config file or flags or environment variables.`,
 	rootCmd.Flags().StringP("clickhouse-login", "l", "", "Clickhouse login")
 	rootCmd.Flags().StringP("clickhouse-password", "p", "", "Clickhouse password")
 	rootCmd.Flags().StringP("clickhouse-database", "d", "", "Clickhouse database")
-	rootCmd.Flags().Uint64P("fetch", "f", 1, "Number of fetchers")
 	rootCmd.Flags().BoolP("only-scheme-init", "s", false, "Only scheme initialization")
 
 	if err := viper.BindPFlags(rootCmd.Flags()); err != nil {
@@ -89,17 +88,15 @@ You could config it via config file or flags or environment variables.`,
 	clickhouseLogin := viper.GetString("clickhouse-login")
 	clickhouseDatabase := viper.GetString("clickhouse-database")
 	apiEndpoint := viper.GetString("api-endpoint")
-	fetchCount := viper.GetUint64("fetch")
 	onlySchemeInit := viper.GetBool("only-scheme-init")
 
 	ctx := context.Background()
 
-	clickhouseExporter, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create Clickhouse driver")
-	}
-
 	if onlySchemeInit {
+		clickhouseExporter, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to create Clickhouse driver")
+		}
 		if err = clickhouseExporter.SetupScheme(ctx); err != nil {
 			log.Fatal().Err(err).Msg("Failed to initialize Clickhouse scheme")
 		}
@@ -107,11 +104,22 @@ You could config it via config file or flags or environment variables.`,
 		return
 	}
 
+	var clickhouseExporter *clickhouse.ClickhouseDriver
+	for {
+		clickhouseDriver, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create Clickhouse driver")
+			time.Sleep(3 * time.Second)
+			continue
+		}
+		clickhouseExporter = clickhouseDriver
+		break
+	}
+
 	cfg := exporter.Cfg{
 		APIEndpoints:   []string{apiEndpoint},
 		ExporterDriver: clickhouseExporter,
-		FetchersCount:  fetchCount,
-		BlocksChan:     make(chan []*types.Block, 2),
+		BlocksChan:     make(chan *exporter.BlockMsg, 100),
 		ErrorChan:      make(chan error),
 	}
 
@@ -121,12 +129,12 @@ You could config it via config file or flags or environment variables.`,
 			case <-ctx.Done():
 				return
 			case errMsg := <-cfg.ErrorChan:
-				log.Err(errMsg).Msg("Error occurred")
+				log.Error().Err(errMsg).Msg("Error occurred")
 			}
 		}
 	}()
 
-	if err = exporter.StartExporter(ctx, cfg); err != nil {
+	if err := exporter.StartExporter(ctx, &cfg); err != nil {
 		log.Fatal().Err(err).Msg("Failed to start exporter")
 	}
 	log.Info().Msg("Exporter stopped")
