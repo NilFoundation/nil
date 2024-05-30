@@ -210,29 +210,6 @@ func collectBlockEntities[
 	return entities, nil
 }
 
-func messageToMap(index int, message *types.Message, receipt *types.Receipt) map[string]any {
-	hash := message.Hash()
-
-	if receipt == nil || hash != receipt.MsgHash {
-		panic("Msg and receipt are not compatible")
-	}
-
-	return map[string]any{
-		"success":   receipt.Success,
-		"index":     index,
-		"seqno":     message.Seqno,
-		"gasUsed":   receipt.GasUsed,
-		"gasPrice":  message.GasPrice,
-		"gasLimit":  message.GasLimit,
-		"from":      message.From,
-		"to":        message.To,
-		"value":     message.Value,
-		"data":      message.Data,
-		"signature": message.Signature,
-		"hash":      hash,
-	}
-}
-
 func toMap(shardId types.ShardId, block *types.Block, messages []*types.Message, receipts []*types.Receipt, fullTx bool) (
 	map[string]any, error,
 ) {
@@ -246,7 +223,7 @@ func toMap(shardId types.ShardId, block *types.Block, messages []*types.Message,
 	messagesRes := make([]any, len(messages))
 	if fullTx {
 		for i, m := range messages {
-			messagesRes[i] = messageToMap(i, m, receipts[i])
+			messagesRes[i] = NewRPCInMessage(m, receipts[i], i, block)
 		}
 	} else {
 		for i, m := range messages {

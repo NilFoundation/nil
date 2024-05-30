@@ -13,8 +13,57 @@ import (
 	"github.com/NilFoundation/nil/rpc/filters"
 	"github.com/NilFoundation/nil/rpc/transport"
 	lru "github.com/hashicorp/golang-lru/v2"
+	"github.com/holiman/uint256"
 	"github.com/rs/zerolog"
 )
+
+type RPCInMessage struct {
+	Success     bool              `json:"success"`
+	BlockHash   *common.Hash      `json:"blockHash"`
+	BlockNumber types.BlockNumber `json:"blockNumber"`
+	From        common.Address    `json:"from"`
+	GasUsed     hexutil.Uint64    `json:"gasUsed"`
+	GasPrice    types.Uint256     `json:"gasPrice,omitempty"`
+	GasLimit    types.Uint256     `json:"gasLimit,omitempty"`
+	Hash        common.Hash       `json:"hash"`
+	Seqno       hexutil.Uint64    `json:"seqno"`
+	To          *common.Address   `json:"to"`
+	Index       *hexutil.Uint64   `json:"index"`
+	Value       types.Uint256     `json:"value"`
+	ChainID     types.Uint256     `json:"chainId,omitempty"`
+	Signature   common.Signature  `json:"signature"`
+}
+
+func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index int, block *types.Block) *RPCInMessage {
+	hash := message.Hash()
+	if receipt == nil || hash != receipt.MsgHash {
+		panic("Msg and receipt are not compatible")
+	}
+
+	blockHash := block.Hash()
+	chainId := types.Uint256{Int: *uint256.NewInt(0)}
+	gasUsed := hexutil.Uint64(receipt.GasUsed)
+	msgIndex := hexutil.Uint64(index)
+	seqno := hexutil.Uint64(message.Seqno)
+	result := &RPCInMessage{
+		Success:     receipt.Success,
+		BlockHash:   &blockHash,
+		BlockNumber: block.Id,
+		From:        message.From,
+		GasUsed:     gasUsed,
+		GasPrice:    message.GasPrice,
+		GasLimit:    message.GasLimit,
+		Hash:        hash,
+		Seqno:       seqno,
+		To:          &message.To,
+		Index:       &msgIndex,
+		Value:       message.Value,
+		ChainID:     chainId,
+		Signature:   message.Signature,
+	}
+
+	return result
+}
 
 // EthAPI is a collection of functions that are exposed in the
 type EthAPI interface {
@@ -26,6 +75,12 @@ type EthAPI interface {
 
 	// Message related
 	GetInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Message, error)
+
+	GetInMessageByBlockHashAndIndex(ctx context.Context, hash common.Hash, index hexutil.Uint64) (*RPCInMessage, error)
+	GetInMessageByBlockNumberAndIndex(ctx context.Context, number transport.BlockNumber, txIndex hexutil.Uint) (*RPCInMessage, error)
+	GetRawInMessageByBlockNumberAndIndex(ctx context.Context, number transport.BlockNumber, index hexutil.Uint) (hexutil.Bytes, error)
+	GetRawInMessageByBlockHashAndIndex(ctx context.Context, hash common.Hash, index hexutil.Uint) (hexutil.Bytes, error)
+	GetRawInMessageByHash(ctx context.Context, hash common.Hash) (hexutil.Bytes, error)
 
 	// Receipt related (see ./eth_receipt.go)
 	GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Receipt, error)

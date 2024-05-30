@@ -6,9 +6,11 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/rpc/transport"
 	fastssz "github.com/ferranbt/fastssz"
 )
 
@@ -31,6 +33,26 @@ func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardI
 	}
 
 	return getBlockEntity[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot, messageIndex.Bytes())
+}
+
+func (api *APIImpl) GetInMessageByBlockHashAndIndex(ctx context.Context, hash common.Hash, index hexutil.Uint64) (*RPCInMessage, error) {
+	return nil, nil
+}
+
+func (api *APIImpl) GetInMessageByBlockNumberAndIndex(ctx context.Context, number transport.BlockNumber, txIndex hexutil.Uint) (*RPCInMessage, error) {
+	return nil, nil
+}
+
+func (api *APIImpl) GetRawInMessageByBlockNumberAndIndex(ctx context.Context, number transport.BlockNumber, index hexutil.Uint) (hexutil.Bytes, error) {
+	return nil, nil
+}
+
+func (api *APIImpl) GetRawInMessageByBlockHashAndIndex(ctx context.Context, hash common.Hash, index hexutil.Uint) (hexutil.Bytes, error) {
+	return nil, nil
+}
+
+func (api *APIImpl) GetRawInMessageByHash(ctx context.Context, hash common.Hash) (hexutil.Bytes, error) {
+	return nil, nil
 }
 
 func getBlockAndMessageIndexByMessageHash(tx db.Tx, shardId types.ShardId, hash common.Hash) (*types.Block, types.MessageIndex, error) {
