@@ -5,7 +5,6 @@ import (
 
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/NilFoundation/nil/core/vm"
 	"github.com/NilFoundation/nil/features"
 )
 
@@ -24,16 +23,13 @@ func HandleMessages(ctx context.Context, es *execution.ExecutionState, msgs []*t
 			continue
 		}
 
-		evm := vm.NewEVM(blockContext, es)
-		interpreter := evm.Interpreter()
-
 		// Deploy message
 		if message.To.IsEmpty() {
-			if err := es.HandleDeployMessage(message, index); err != nil {
+			if err := es.HandleDeployMessage(message, index, &blockContext); err != nil {
 				return err
 			}
 		} else {
-			if err := es.HandleExecutionMessage(message, index, interpreter); err != nil {
+			if err := es.HandleExecutionMessage(message, index, &blockContext); err != nil {
 				return err
 			}
 		}

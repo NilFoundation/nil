@@ -679,7 +679,7 @@ func (es *ExecutionState) AddOutMessage(txId common.Hash, msg *types.Message) {
 	es.OutMessages[txId] = append(es.OutMessages[txId], msg)
 }
 
-func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint64) error {
+func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint64, blockContext *vm.BlockContext) error {
 	deployMsg, err := types.NewDeployMessage(message.Data)
 	if err != nil {
 		return err
@@ -694,8 +694,7 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint
 
 	gas := uint64(100000)
 
-	blockContext := NewEVMBlockContext(es)
-	evm := vm.NewEVM(blockContext, es)
+	evm := vm.NewEVM(*blockContext, es)
 	_, addr, leftOverGas, err := evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code, gas, &message.Value.Int)
 
 	r := &types.Receipt{
@@ -709,36 +708,32 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint
 	es.Receipts = append(es.Receipts, r)
 
 	logger.Debug().Stringer("address", addr).Msg("Created new contract")
-	return err
+	return nil
 }
 
-func (es *ExecutionState) HandleExecutionMessage(message *types.Message, index uint64, interpreter *vm.EVMInterpreter) error {
+func (es *ExecutionState) HandleExecutionMessage(message *types.Message, index uint64, blockContext *vm.BlockContext) error {
 	addr := message.To
 	logger.Debug().Msgf("Call contract %s", addr)
 
 	// TODO: use gas from message
 	gas := uint64(1000000)
-	contract := vm.NewContract((vm.AccountRef)(addr), (vm.AccountRef)(addr), &message.Value.Int, gas)
 
-	accountState := es.GetAccount(addr)
-	contract.Code = accountState.Code
+	evm := vm.NewEVM(*blockContext, es)
 
-	// TODO: not ignore result here
-	_, err := interpreter.Run(contract, message.Data, false)
+	_, leftOverGas, err := evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas, &message.Value.Int)
 	if err != nil {
 		logger.Error().Err(err).Msg("execution message failed")
-		return err
 	}
 	r := types.Receipt{
-		Success:         true,
-		GasUsed:         uint32(gas - contract.Gas),
+		Success:         (err == nil),
+		GasUsed:         uint32(gas - leftOverGas),
 		Logs:            es.Logs[es.InMessageHash],
 		MsgHash:         es.InMessageHash,
 		MsgIndex:        index,
 		ContractAddress: addr,
 	}
 	es.AddReceipt(&r)
-	return nil
+	return err
 }
 
 func (es *ExecutionState) AddReceipt(receipt *types.Receipt) {
