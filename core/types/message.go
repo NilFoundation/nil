@@ -32,15 +32,15 @@ func BytesToMessageIndex(b []byte) MessageIndex {
 }
 
 type Message struct {
-	Internal  bool             `json:"internal"`
-	Seqno     uint64           `json:"seqno,omitempty"`
-	GasPrice  Uint256          `json:"gasPrice,omitempty" ssz-size:"32"`
-	GasLimit  Uint256          `json:"gasLimit,omitempty" ssz-size:"32"`
-	From      Address          `json:"from,omitempty"`
-	To        Address          `json:"to,omitempty"`
-	Value     Uint256          `json:"value,omitempty" ssz-size:"32"`
-	Data      Code             `json:"data,omitempty" ssz-max:"24576"`
-	Signature common.Signature `json:"signature,omitempty"`
+	Internal  bool             `json:"internal" ch:"internal"`
+	Seqno     uint64           `json:"seqno,omitempty" ch:"seqno"`
+	GasPrice  Uint256          `json:"gasPrice,omitempty" ch:"gas_price" ssz-size:"32"`
+	GasLimit  Uint256          `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
+	From      Address          `json:"from,omitempty" ch:"from"`
+	To        Address          `json:"to,omitempty" ch:"to"`
+	Value     Uint256          `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Data      Code             `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	Signature common.Signature `json:"signature,omitempty" ch:"signature"`
 }
 
 type messageDigest struct {
