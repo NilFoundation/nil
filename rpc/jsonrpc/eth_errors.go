@@ -2,4 +2,7 @@ package jsonrpc
 
 import "errors"
 
-var errNotImplemented = errors.New("not implemented")
+var (
+	errNotImplemented = errors.New("not implemented")
+	errNotFound       = errors.New("not found")
+)

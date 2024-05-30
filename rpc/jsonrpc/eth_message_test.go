@@ -34,8 +34,10 @@ func TestGetMessageByHash(t *testing.T) {
 	require.NoError(t, err)
 
 	message := types.Message{Data: []byte("data")}
+	receipt := types.Receipt{MsgHash: message.Hash()}
 
-	blockHash := writeTestBlock(t, tx, types.MasterShardId, types.BlockNumber(0), []*types.Message{&message}, []*types.Receipt{})
+	blockHash := writeTestBlock(
+		t, tx, types.MasterShardId, types.BlockNumber(0), []*types.Message{&message}, []*types.Receipt{&receipt})
 	_, err = execution.PostprocessBlock(tx, types.MasterShardId, blockHash)
 	require.NoError(t, err)
 
@@ -44,5 +46,5 @@ func TestGetMessageByHash(t *testing.T) {
 
 	data, err := api.GetInMessageByHash(context.Background(), types.MasterShardId, message.Hash())
 	require.NoError(t, err)
-	assert.Equal(t, message, *data)
+	assert.Equal(t, message.Hash(), data.Hash)
 }

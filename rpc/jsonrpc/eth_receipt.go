@@ -22,10 +22,10 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 
 	defer tx.Rollback()
 
-	block, messageIndex, err := getBlockAndMessageIndexByMessageHash(tx, shardId, hash)
+	block, indexes, err := getBlockAndMessageIndexByMessageHash(tx, shardId, hash)
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return nil, nil
 	}
 
-	return getBlockEntity[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot, messageIndex.Bytes())
+	return getBlockEntity[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot, indexes.MessageIndex.Bytes())
 }

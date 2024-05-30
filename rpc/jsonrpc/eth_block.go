@@ -223,7 +223,7 @@ func toMap(shardId types.ShardId, block *types.Block, messages []*types.Message,
 	messagesRes := make([]any, len(messages))
 	if fullTx {
 		for i, m := range messages {
-			messagesRes[i] = NewRPCInMessage(m, receipts[i], i, block)
+			messagesRes[i] = NewRPCInMessage(m, receipts[i], types.MessageIndex(i), block)
 		}
 	} else {
 		for i, m := range messages {

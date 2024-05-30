@@ -34,7 +34,7 @@ type RPCInMessage struct {
 	Signature   common.Signature  `json:"signature"`
 }
 
-func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index int, block *types.Block) *RPCInMessage {
+func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types.MessageIndex, block *types.Block) *RPCInMessage {
 	hash := message.Hash()
 	if receipt == nil || hash != receipt.MsgHash {
 		panic("Msg and receipt are not compatible")
@@ -74,8 +74,7 @@ type EthAPI interface {
 	GetBlockTransactionCountByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*hexutil.Uint, error)
 
 	// Message related
-	GetInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Message, error)
-
+	GetInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*RPCInMessage, error)
 	GetInMessageByBlockHashAndIndex(ctx context.Context, hash common.Hash, index hexutil.Uint64) (*RPCInMessage, error)
 	GetInMessageByBlockNumberAndIndex(ctx context.Context, number transport.BlockNumber, txIndex hexutil.Uint) (*RPCInMessage, error)
 	GetRawInMessageByBlockNumberAndIndex(ctx context.Context, number transport.BlockNumber, index hexutil.Uint) (hexutil.Bytes, error)
