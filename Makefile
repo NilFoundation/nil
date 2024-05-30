@@ -30,7 +30,9 @@ all: $(COMMANDS)
 
 ssz:
 	@echo "Generating SSZ code"
+	pushd core/db && go generate && popd
 	pushd core/types && go generate && popd
+	pushd core/mpt && go generate && popd
 
 lint:
 	go mod tidy
