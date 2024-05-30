@@ -717,7 +717,7 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint
 	return nil
 }
 
-func (es *ExecutionState) HandleExecutionMessage(message *types.Message, index uint64, blockContext *vm.BlockContext) error {
+func (es *ExecutionState) HandleExecutionMessage(message *types.Message, index uint64, blockContext *vm.BlockContext) ([]byte, error) {
 	addr := message.To
 	logger.Debug().Msgf("Call contract %s", addr)
 
@@ -726,11 +726,10 @@ func (es *ExecutionState) HandleExecutionMessage(message *types.Message, index u
 
 	evm := vm.NewEVM(*blockContext, es)
 
-	_, leftOverGas, err := evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas, &message.Value.Int)
+	ret, leftOverGas, err := evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas, &message.Value.Int)
 	if err != nil {
 		logger.Error().Err(err).Msg("execution message failed")
 	}
-	// TODO: add receipt in case of failure?
 	r := types.Receipt{
 		Success:         (err == nil),
 		GasUsed:         uint32(gas - leftOverGas),
@@ -740,7 +739,7 @@ func (es *ExecutionState) HandleExecutionMessage(message *types.Message, index u
 		ContractAddress: addr,
 	}
 	es.AddReceipt(&r)
-	return err
+	return ret, nil
 }
 
 func (es *ExecutionState) AddReceipt(receipt *types.Receipt) {
