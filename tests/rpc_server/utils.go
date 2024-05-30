@@ -18,6 +18,15 @@ type Request struct {
 	Id      int    `json:"id"`
 }
 
+func NewRequest(method string, params ...any) *Request {
+	return &Request{
+		Jsonrpc: "2.0",
+		Method:  method,
+		Params:  params,
+		Id:      1,
+	}
+}
+
 type Response[R any] struct {
 	Jsonrpc string         `json:"jsonrpc"`
 	Result  R              `json:"result,omitempty"`
@@ -62,13 +71,7 @@ func makeRequest[R any](port int, data *Request) (*Response[R], error) {
 }
 
 func transactionCount(port int, shardId types.ShardId, addr common.Address, blk string) (uint64, error) {
-	request := &Request{
-		Jsonrpc: "2.0",
-		Method:  getTransactionCount,
-		Params:  []any{shardId, addr.Hex(), blk},
-		Id:      1,
-	}
-
+	request := NewRequest(getTransactionCount, shardId, addr.Hex(), blk)
 	resp, err := makeRequest[string](port, request)
 	if err != nil {
 		return 0, err
