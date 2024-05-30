@@ -19,13 +19,13 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func startRpcServer(ctx context.Context, db db.DB, pools []msgpool.Pool) error {
+func startRpcServer(ctx context.Context, cfg *Config, db db.DB, pools []msgpool.Pool) error {
 	logger := common.NewLogger("RPC")
 
 	httpConfig := &httpcfg.HttpCfg{
 		Enabled:           true,
 		HttpListenAddress: "127.0.0.1",
-		HttpPort:          8529,
+		HttpPort:          cfg.HttpPort,
 		HttpCompression:   true,
 		TraceRequests:     true,
 		HTTPTimeouts:      rpccfg.DefaultHTTPTimeouts,
@@ -54,7 +54,14 @@ func startRpcServer(ctx context.Context, db db.DB, pools []msgpool.Pool) error {
 	return rpc.StartRpcServer(ctx, httpConfig, apiList, logger)
 }
 
-func Run(ctx context.Context, nShards int, database db.DB, dbOpts db.BadgerDBOptions) int {
+// Run starts message pools and collators for given shards, creates a single RPC server for all shards.
+// It waits until one of the events:
+//   - all goroutines finish successfully,
+//   - a goroutine returns an error,
+//   - SIGTERM or SIGINT is caught.
+//
+// It returns a value suitable for os.Exit().
+func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent.Func) int {
 	common.SetupGlobalLogger()
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -67,11 +74,11 @@ func Run(ctx context.Context, nShards int, database db.DB, dbOpts db.BadgerDBOpt
 		},
 	}
 
-	msgPools := make([]msgpool.Pool, nShards)
-	for i := range nShards {
+	msgPools := make([]msgpool.Pool, cfg.NShards)
+	for i := range cfg.NShards {
 		msgPool := msgpool.New(msgpool.DefaultConfig)
 		shard := shardchain.NewShardChain(types.ShardId(i), database)
-		collator := collate.NewScheduler(shard, msgPool, types.ShardId(i), nShards)
+		collator := collate.NewScheduler(shard, msgPool, types.ShardId(i), cfg.NShards)
 		funcs = append(funcs, func(ctx context.Context) error {
 			return collator.Run(ctx)
 		})
@@ -80,12 +87,10 @@ func Run(ctx context.Context, nShards int, database db.DB, dbOpts db.BadgerDBOpt
 	}
 
 	funcs = append(funcs, func(ctx context.Context) error {
-		return startRpcServer(ctx, database, msgPools)
+		return startRpcServer(ctx, cfg, database, msgPools)
 	})
 
-	funcs = append(funcs, func(ctx context.Context) error {
-		return database.LogGC(ctx, dbOpts.DiscardRatio, dbOpts.GcFrequency)
-	})
+	funcs = append(funcs, workers...)
 
 	log.Info().Msg("Starting services...")
 

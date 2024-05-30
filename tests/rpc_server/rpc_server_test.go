@@ -19,6 +19,7 @@ import (
 
 type SuiteRpc struct {
 	suite.Suite
+	port    int
 	context context.Context
 	cancel  context.CancelFunc
 }
@@ -26,11 +27,15 @@ type SuiteRpc struct {
 func (suite *SuiteRpc) SetupSuite() {
 	suite.context, suite.cancel = context.WithCancel(context.Background())
 
-	dbOpts := db.BadgerDBOptions{Path: suite.T().TempDir() + "/test.db", DiscardRatio: 0.5, GcFrequency: time.Hour, AllowDrop: false}
-	badger, err := db.NewBadgerDb(dbOpts.Path)
+	badger, err := db.NewBadgerDbInMemory()
 	suite.Require().NoError(err)
 
-	go nilservice.Run(suite.context, 2, badger, dbOpts)
+	suite.port = 8531
+	cfg := &nilservice.Config{
+		NShards:  2,
+		HttpPort: suite.port,
+	}
+	go nilservice.Run(suite.context, cfg, badger)
 	time.Sleep(time.Second) // To be sure that server is started
 }
 
@@ -38,20 +43,26 @@ func (suite *SuiteRpc) TearDownSuite() {
 	suite.cancel()
 }
 
+func (suite *SuiteRpc) makeGenericRequest(method string, params ...any) map[string]any {
+	suite.T().Helper()
+
+	request := NewRequest(method, params...)
+	resp, err := makeRequest[map[string]any](suite.port, request)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(resp)
+	suite.Require().Nil(resp.Error)
+	return resp.Result
+}
+
 func (suite *SuiteRpc) waitForReceipt(addr common.Address, msg *types.Message) {
 	suite.T().Helper()
 
-	request := &Request{
-		Jsonrpc: "2.0",
-		Method:  getInMessageReceipt,
-		Params:  []any{types.MasterShardId, msg.Hash()},
-		Id:      1,
-	}
+	request := NewRequest(getInMessageReceipt, types.MasterShardId, msg.Hash())
 
 	var respReceipt *Response[*types.Receipt]
 	var err error
 	suite.Require().Eventually(func() bool {
-		respReceipt, err = makeRequest[*types.Receipt](request)
+		respReceipt, err = makeRequest[*types.Receipt](suite.port, request)
 		suite.Require().NoError(err)
 		suite.Require().Nil(respReceipt.Error["code"])
 		return respReceipt.Result != nil
@@ -65,78 +76,52 @@ func (suite *SuiteRpc) waitForReceipt(addr common.Address, msg *types.Message) {
 
 func (suite *SuiteRpc) TestRpcBasic() {
 	const someRandomMissingBlock = "0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef"
-	request := Request{
-		Jsonrpc: "2.0",
-		Method:  getBlockByNumber,
-		Params:  []any{types.MasterShardId, "0x1b4", false},
-		Id:      1,
+
+	makeReq := func(method string, params ...any) any {
+		request := NewRequest(method, params...)
+		resp, err := makeRequest[any](suite.port, request)
+		suite.Require().NoError(err)
+		suite.Require().NotNil(resp)
+		suite.Require().Nil(resp.Error)
+		return resp.Result
 	}
 
-	resp, err := makeRequest[any](&request)
-	suite.Require().NoError(err)
-	suite.Require().Nil(resp.Error["code"])
-	suite.Require().Nil(resp.Result)
+	res := makeReq(getBlockByNumber, types.MasterShardId, "0x1b4", false)
+	suite.Require().Nil(res)
 
-	request.Method = getBlockTransactionCountByNumber
-	request.Params = []any{types.MasterShardId, "earliest"}
-	resp, err = makeRequest[any](&request)
-	suite.Require().NoError(err)
-	suite.Require().Nil(resp.Error)
-	suite.Equal("0x0", resp.Result)
+	res = makeReq(getBlockTransactionCountByNumber, types.MasterShardId, "earliest")
+	suite.Equal("0x0", res)
 
-	request.Method = getBlockTransactionCountByHash
-	request.Params = []any{types.MasterShardId, someRandomMissingBlock}
-	resp, err = makeRequest[any](&request)
-	suite.Require().NoError(err)
-	suite.Require().Nil(resp.Error)
-	suite.Equal("0x0", resp.Result)
+	res = makeReq(getBlockTransactionCountByHash, types.MasterShardId, someRandomMissingBlock)
+	suite.Equal("0x0", res)
 
-	request.Method = getBlockByHash
-	request.Params = []any{types.MasterShardId, someRandomMissingBlock, false}
-	resp, err = makeRequest[any](&request)
-	suite.Require().NoError(err)
-	suite.Require().Nil(resp.Error["code"])
-	suite.Require().Nil(resp.Result)
+	res = makeReq(getBlockByHash, types.MasterShardId, someRandomMissingBlock, false)
+	suite.Require().Nil(res)
 
-	request.Method = getBlockByNumber
-	request.Params = []any{types.MasterShardId, "earliest", false}
-	resp, err = makeRequest[any](&request)
-	suite.Require().NoError(err)
-	suite.Require().Nil(resp.Error)
-	suite.Require().NotNil(resp.Result)
+	res = makeReq(getBlockByNumber, types.MasterShardId, "earliest", false)
+	suite.Require().NotNil(res)
 
-	request.Method = getBlockByNumber
-	request.Params = []any{types.MasterShardId, "latest", false}
-	latestResp, err := makeRequest[map[string]any](&request)
-	suite.Require().NoError(err)
-	suite.Require().Nil(latestResp.Error["code"])
-	suite.Require().NotNil(latestResp.Result["hash"])
-
-	request.Method = getBlockByHash
-	hash, ok := latestResp.Result["hash"].(string)
+	latestRes := suite.makeGenericRequest(getBlockByNumber, types.MasterShardId, "latest", false)
+	suite.Require().NotNil(latestRes["hash"])
+	hash, ok := latestRes["hash"].(string)
 	suite.Require().True(ok)
-	request.Params = []any{types.MasterShardId, hash, false}
-	resp, err = makeRequest[any](&request)
-	suite.Require().NoError(err)
-	suite.Require().Nil(resp.Error["code"])
-	suite.Require().Equal(latestResp.Result, resp.Result)
 
-	request.Method = getInMessageByHash
-	request.Params = []any{types.MasterShardId, someRandomMissingBlock}
-	resp, err = makeRequest[any](&request)
-	suite.Require().NoError(err)
-	suite.Require().Nil(resp.Error["code"])
-	suite.Require().Nil(resp.Result)
+	res = makeReq(getBlockByHash, types.MasterShardId, hash, false)
+	suite.Require().Equal(latestRes, res)
+
+	res = makeReq(getInMessageByHash, types.MasterShardId, someRandomMissingBlock)
+	suite.Require().Nil(res)
 }
 
 func (suite *SuiteRpc) TestRpcContract() {
 	pub := crypto.CompressPubkey(&shardchain.MainPrivateKey.PublicKey)
 	from := common.PubkeyBytesToAddress(uint32(types.MasterShardId), pub)
 
-	seqno1, err := transactionCount(types.MasterShardId, from, "latest")
+	seqno1, err := transactionCount(suite.port, types.MasterShardId, from, "latest")
 	suite.Require().NoError(err)
 
-	contracts, _ := solc.CompileSource("./contracts/increment.sol")
+	contracts, err := solc.CompileSource("./contracts/increment.sol")
+	suite.Require().NoError(err)
 	contractCode := hexutil.FromHex(contracts["Incrementer"].Code)
 
 	dm := &types.DeployMessage{
@@ -156,21 +141,16 @@ func (suite *SuiteRpc) TestRpcContract() {
 	mData, err := m.MarshalSSZ()
 	suite.Require().NoError(err)
 
-	request := &Request{
-		Jsonrpc: "2.0",
-		Method:  sendRawTransaction,
-		Params:  []any{"0x" + hex.EncodeToString(mData)},
-		Id:      1,
-	}
+	request := NewRequest(sendRawTransaction, "0x"+hex.EncodeToString(mData))
 
 	// create contract
-	resp, err := makeRequest[common.Hash](request)
+	resp, err := makeRequest[common.Hash](suite.port, request)
 	suite.Require().NoError(err)
 	suite.Require().Nil(resp.Error["code"])
 	suite.Equal(m.Hash(), resp.Result)
 
 	suite.Eventually(func() bool {
-		seqno, err := transactionCount(types.MasterShardId, from, "latest")
+		seqno, err := transactionCount(suite.port, types.MasterShardId, from, "latest")
 		suite.Require().NoError(err)
 		return seqno == seqno1+1
 	}, 6*time.Second, 200*time.Millisecond)
@@ -179,8 +159,8 @@ func (suite *SuiteRpc) TestRpcContract() {
 
 	suite.waitForReceipt(addr, m)
 
-	// now call (= send message to) created contract. as a result it should also create new contract
-	seqno, err := transactionCount(types.MasterShardId, from, "latest")
+	// now call (= send a message to) created contract. as a result, it should also create a new contract
+	seqno, err := transactionCount(suite.port, types.MasterShardId, from, "latest")
 	suite.Require().NoError(err)
 
 	abi := solc.ExtractABI(contracts["Incrementer"])
@@ -196,10 +176,8 @@ func (suite *SuiteRpc) TestRpcContract() {
 	mData, err = m.MarshalSSZ()
 	suite.Require().NoError(err)
 
-	request.Method = sendRawTransaction
-	request.Params = []any{"0x" + hex.EncodeToString(mData)}
-
-	resp, err = makeRequest[common.Hash](request)
+	request = NewRequest(sendRawTransaction, "0x"+hex.EncodeToString(mData))
+	resp, err = makeRequest[common.Hash](suite.port, request)
 	suite.Require().NoError(err)
 	suite.Require().Nil(resp.Error["code"])
 	suite.Equal(m.Hash(), resp.Result)
@@ -208,94 +186,53 @@ func (suite *SuiteRpc) TestRpcContract() {
 }
 
 func (suite *SuiteRpc) TestRpcApiModules() {
-	request := Request{
-		Jsonrpc: "2.0",
-		Method:  "rpc_modules",
-		Params:  []any{},
-		Id:      1,
-	}
-
-	resp, err := makeRequest[map[string]any](&request)
-	suite.Require().NoError(err)
-	suite.Equal("1.0", resp.Result["eth"])
-	suite.Equal("1.0", resp.Result["rpc"])
+	res := suite.makeGenericRequest("rpc_modules")
+	suite.Equal("1.0", res["eth"])
+	suite.Equal("1.0", res["rpc"])
 }
 
 func (suite *SuiteRpc) TestRpcError() {
-	request := Request{
-		Jsonrpc: "2.0",
-		Method:  "eth_doesntExists",
-		Params:  []any{},
-		Id:      1,
+	check := func(code int, msg, method string, params ...any) {
+		request := NewRequest(method, params...)
+		resp, err := makeRequest[any](suite.port, request)
+		suite.Require().NoError(err)
+		suite.Require().NotNil(resp.Error)
+		suite.InEpsilon(float64(code), resp.Error["code"], 0.1)
+		suite.Equal(msg, resp.Error["message"])
 	}
 
-	resp, err := makeRequest[any](&request)
-	suite.Require().NoError(err)
-	suite.InEpsilon(float64(-32601), resp.Error["code"], 0)
-	suite.Equal("the method eth_doesntExists does not exist/is not available", resp.Error["message"])
+	check(-32601, "the method eth_doesntExists does not exist/is not available",
+		"eth_doesntExists")
 
-	request = Request{
-		Jsonrpc: "2.0",
-		Method:  getBlockByNumber,
-		Params:  []any{},
-		Id:      1,
-	}
-	resp, err = makeRequest[any](&request)
-	suite.Require().NoError(err)
-	suite.InEpsilon(float64(-32602), resp.Error["code"], 0)
-	suite.Equal("missing value for required argument 0", resp.Error["message"])
+	check(-32602, "missing value for required argument 0",
+		getBlockByNumber)
 
-	request.Method = getBlockByNumber
-	request.Params = []any{1 << 40}
-	resp, err = makeRequest[any](&request)
-	suite.Require().NoError(err)
-	suite.InEpsilon(float64(-32602), resp.Error["code"], 0)
-	suite.Equal(
-		"invalid argument 0: json: cannot unmarshal number 1099511627776 into Go value of type uint32",
-		resp.Error["message"])
+	check(-32602, "invalid argument 0: json: cannot unmarshal number 1099511627776 into Go value of type uint32",
+		getBlockByNumber, 1<<40)
 
-	request.Method = getBlockByNumber
-	request.Params = []any{types.MasterShardId}
-	resp, err = makeRequest[any](&request)
-	suite.Require().NoError(err)
-	suite.InEpsilon(float64(-32602), resp.Error["code"], 0)
-	suite.Equal("missing value for required argument 1", resp.Error["message"])
+	check(-32602, "missing value for required argument 1",
+		getBlockByNumber, types.MasterShardId)
 
-	request.Method = getBlockByHash
-	request.Params = []any{types.MasterShardId, "0x1b4", false}
-	resp, err = makeRequest[any](&request)
-	suite.Require().NoError(err)
-	suite.InEpsilon(float64(-32000), resp.Error["code"], 0.5)
-	suite.Equal("invalid argument 1: hex string of odd length", resp.Error["message"])
+	check(-32000, "invalid argument 1: hex string of odd length",
+		getBlockByHash, types.MasterShardId, "0x1b4", false)
 
-	request.Method = getBlockByHash
-	request.Params = []any{types.MasterShardId, "latest"}
-	resp, err = makeRequest[any](&request)
-	suite.Require().NoError(err)
-	suite.InEpsilon(float64(-32000), resp.Error["code"], 0.5)
-	suite.Equal("invalid argument 1: hex string without 0x prefix", resp.Error["message"])
+	check(-32000, "invalid argument 1: hex string without 0x prefix",
+		getBlockByHash, types.MasterShardId, "latest")
 }
 
 func (suite *SuiteRpc) TestRpcDebugModules() {
-	request := Request{
-		Jsonrpc: "2.0",
-		Method:  "debug_getBlockByNumber",
-		Params:  []any{types.MasterShardId, "latest"},
-	}
+	res := suite.makeGenericRequest("debug_getBlockByNumber", types.MasterShardId, "latest")
 
-	resp, err := makeRequest[map[string]any](&request)
-	suite.Require().NoError(err)
+	suite.Require().Contains(res, "number")
+	suite.Require().Contains(res, "hash")
+	suite.Require().Contains(res, "content")
 
-	suite.Require().Contains(resp.Result, "number")
-	suite.Require().Contains(resp.Result, "hash")
-	suite.Require().Contains(resp.Result, "content")
-
-	sliceContent, ok := resp.Result["content"].(string)
+	sliceContent, ok := res["content"].(string)
 	suite.Require().True(ok)
 	// check if the string starts with 0x prefix
 	suite.Require().Equal("0x", sliceContent[:2])
 	// print resp to see the result
-	suite.T().Logf("resp: %v", resp)
+	suite.T().Logf("resp: %v", res)
 }
 
 func TestSuiteRpc(t *testing.T) {

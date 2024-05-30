@@ -3,41 +3,53 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"os"
 	"time"
 
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
+	"github.com/spf13/cobra"
 )
 
 func main() {
-	// parse args
-	nShards := flag.Int("nshards", 5, "number of shardchains")
-	allowDropDb := flag.Bool("allow-db-clear", false, "allow to clear database in case of outdated version")
-	dbPath := flag.String("db-path", "test.db", "path to database")
-	dbDiscardRatio := flag.Float64("db-discard-ratio", 0.5, "discard ratio for badger GC")
-	dbGcFrequency := flag.Duration("db-gc-interval", time.Hour, "frequency for badger GC")
+	logger := common.NewLogger("nil")
 
-	flag.Parse()
-
-	dbOpts := db.BadgerDBOptions{Path: *dbPath, DiscardRatio: *dbDiscardRatio, GcFrequency: *dbGcFrequency, AllowDrop: *allowDropDb}
-	database, err := openDb(dbOpts.Path, dbOpts.AllowDrop)
-	if err != nil {
-		log.Error().Err(err).Msg("Error opening db")
-		os.Exit(-1)
+	rootCmd := &cobra.Command{
+		Use:   "nil",
+		Short: "Run nil cluster",
 	}
 
-	os.Exit(nilservice.Run(context.Background(), *nShards, database, dbOpts))
+	nShards := rootCmd.Flags().Int("nshards", 5, "number of shardchains")
+	port := rootCmd.Flags().Int("port", 8529, "http port for rpc server")
+	allowDropDb := rootCmd.Flags().Bool("allow-db-clear", false, "allow to clear database in case of outdated version")
+	dbPath := rootCmd.Flags().String("db-path", "test.db", "path to database")
+	dbDiscardRatio := rootCmd.Flags().Float64("db-discard-ratio", 0.5, "discard ratio for badger GC")
+	dbGcFrequency := rootCmd.Flags().Duration("db-gc-interval", time.Hour, "frequency for badger GC")
+
+	common.FatalIf(rootCmd.Execute(), logger, "Error parsing flags.")
+
+	dbOpts := db.BadgerDBOptions{Path: *dbPath, DiscardRatio: *dbDiscardRatio, GcFrequency: *dbGcFrequency, AllowDrop: *allowDropDb}
+	database, err := openDb(dbOpts.Path, dbOpts.AllowDrop, logger)
+	common.FatalIf(err, logger, "Error opening db.")
+
+	cfg := &nilservice.Config{
+		NShards:  *nShards,
+		HttpPort: *port,
+	}
+	os.Exit(nilservice.Run(context.Background(), cfg, database,
+		func(ctx context.Context) error {
+			return database.LogGC(ctx, dbOpts.DiscardRatio, dbOpts.GcFrequency)
+		}))
 }
 
-func openDb(dbPath string, allowDrop bool) (db.DB, error) {
+func openDb(dbPath string, allowDrop bool, logger *zerolog.Logger) (db.DB, error) {
 	dbExists := true
 	if _, err := os.Open(dbPath); err != nil {
 		if !os.IsNotExist(err) {
-			log.Error().Err(err).Msg("Error opening db path")
+			logger.Error().Err(err).Msg("Error opening db path")
 			return nil, err
 		}
 		dbExists = false
@@ -55,7 +67,7 @@ func openDb(dbPath string, allowDrop bool) (db.DB, error) {
 	}
 	defer tx.Rollback()
 
-	log.Info().Msg("Checking scheme format...")
+	logger.Info().Msg("Checking scheme format...")
 	isVersionOutdated, err := db.IsVersionOutdated(tx)
 	if err != nil {
 		return nil, err
@@ -66,7 +78,7 @@ func openDb(dbPath string, allowDrop bool) (db.DB, error) {
 			return nil, errors.New("database schema is outdated; use -allow-db-clear to clear database or clear it manually")
 		}
 
-		log.Info().Msg("Clearing database from old data...")
+		logger.Info().Msg("Clearing database from old data...")
 		if err := badger.DropAll(); err != nil {
 			return nil, err
 		}
