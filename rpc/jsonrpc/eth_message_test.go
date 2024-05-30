@@ -47,4 +47,10 @@ func TestGetMessageByHash(t *testing.T) {
 	data, err := api.GetInMessageByHash(context.Background(), types.MasterShardId, message.Hash())
 	require.NoError(t, err)
 	assert.Equal(t, message.Hash(), data.Hash)
+
+	rawData, err := api.GetRawInMessageByHash(context.Background(), types.MasterShardId, message.Hash())
+	require.NoError(t, err)
+	expectedRaw, err := message.MarshalSSZ()
+	require.NoError(t, err)
+	assert.Equal(t, expectedRaw, []byte(rawData))
 }

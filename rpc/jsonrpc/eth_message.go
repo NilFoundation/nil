@@ -43,24 +43,55 @@ func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardI
 	return NewRPCInMessage(msg, receipt, indexes.MessageIndex, block), nil
 }
 
-func (api *APIImpl) GetInMessageByBlockHashAndIndex(ctx context.Context, hash common.Hash, index hexutil.Uint64) (*RPCInMessage, error) {
+func (api *APIImpl) GetInMessageByBlockHashAndIndex(ctx context.Context, shardId types.ShardId, hash common.Hash, index hexutil.Uint64) (*RPCInMessage, error) {
+	if err := api.checkShard(shardId); err != nil {
+		return nil, err
+	}
+
 	return nil, nil
 }
 
-func (api *APIImpl) GetInMessageByBlockNumberAndIndex(ctx context.Context, number transport.BlockNumber, txIndex hexutil.Uint) (*RPCInMessage, error) {
+func (api *APIImpl) GetInMessageByBlockNumberAndIndex(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, txIndex hexutil.Uint) (*RPCInMessage, error) {
+	if err := api.checkShard(shardId); err != nil {
+		return nil, err
+	}
+
 	return nil, nil
 }
 
-func (api *APIImpl) GetRawInMessageByBlockNumberAndIndex(ctx context.Context, number transport.BlockNumber, index hexutil.Uint) (hexutil.Bytes, error) {
+func (api *APIImpl) GetRawInMessageByBlockNumberAndIndex(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, index hexutil.Uint) (hexutil.Bytes, error) {
+	if err := api.checkShard(shardId); err != nil {
+		return nil, err
+	}
+
 	return nil, nil
 }
 
-func (api *APIImpl) GetRawInMessageByBlockHashAndIndex(ctx context.Context, hash common.Hash, index hexutil.Uint) (hexutil.Bytes, error) {
+func (api *APIImpl) GetRawInMessageByBlockHashAndIndex(ctx context.Context, shardId types.ShardId, hash common.Hash, index hexutil.Uint) (hexutil.Bytes, error) {
+	if err := api.checkShard(shardId); err != nil {
+		return nil, err
+	}
+
 	return nil, nil
 }
 
-func (api *APIImpl) GetRawInMessageByHash(ctx context.Context, hash common.Hash) (hexutil.Bytes, error) {
-	return nil, nil
+func (api *APIImpl) GetRawInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (hexutil.Bytes, error) {
+	if err := api.checkShard(shardId); err != nil {
+		return nil, err
+	}
+
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transaction: %w", err)
+	}
+
+	defer tx.Rollback()
+
+	block, indexes, err := getBlockAndMessageIndexByMessageHash(tx, shardId, hash)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return nil, nil
+	}
+	return getRawBlockEntity(tx, shardId, db.MessageTrieTable, block.InMessagesRoot, indexes.MessageIndex.Bytes())
 }
 
 func getBlockAndMessageIndexByMessageHash(tx db.Tx, shardId types.ShardId, hash common.Hash) (*types.Block, db.BlockHashAndMessageIndex, error) {
@@ -79,6 +110,16 @@ func getBlockAndMessageIndexByMessageHash(tx db.Tx, shardId types.ShardId, hash 
 		return nil, db.BlockHashAndMessageIndex{}, errNotFound
 	}
 	return block, blockHashAndMessageIndex, nil
+}
+
+func getRawBlockEntity(
+	tx db.Tx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash, entityKey []byte) ([]byte, error) {
+	root := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, tableName, rootHash)
+	entityBytes, err := root.Get(entityKey)
+	if err != nil {
+		return nil, err
+	}
+	return entityBytes, nil
 }
 
 func getBlockEntity[
