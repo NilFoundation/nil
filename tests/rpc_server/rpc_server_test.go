@@ -8,10 +8,12 @@ import (
 
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/shardchain"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -34,6 +36,31 @@ func (suite *SuiteRpc) SetupSuite() {
 
 func (suite *SuiteRpc) TearDownSuite() {
 	suite.cancel()
+}
+
+func (suite *SuiteRpc) waitForReceipt(addr common.Address, msg *types.Message) {
+	suite.T().Helper()
+
+	request := &Request{
+		Jsonrpc: "2.0",
+		Method:  getInMessageReceipt,
+		Params:  []any{types.MasterShardId, msg.Hash()},
+		Id:      1,
+	}
+
+	var respReceipt *Response[*types.Receipt]
+	var err error
+	suite.Require().Eventually(func() bool {
+		respReceipt, err = makeRequest[*types.Receipt](request)
+		suite.Require().NoError(err)
+		suite.Require().Nil(respReceipt.Error["code"])
+		return respReceipt.Result != nil
+	}, 6*time.Second, 200*time.Millisecond)
+
+	suite.True(respReceipt.Result.Success)
+	suite.Equal(uint64(0), respReceipt.Result.MsgIndex) // now in all test cases it's first msg in block
+	suite.Equal(msg.Hash(), respReceipt.Result.MsgHash)
+	suite.Equal(addr, respReceipt.Result.ContractAddress)
 }
 
 func (suite *SuiteRpc) TestRpcBasic() {
@@ -109,9 +136,12 @@ func (suite *SuiteRpc) TestRpcContract() {
 	seqno1, err := transactionCount(types.MasterShardId, from, "latest")
 	suite.Require().NoError(err)
 
+	contracts, _ := solc.CompileSource("./contracts/increment.sol")
+	contractCode := hexutil.FromHex(contracts["Incrementer"].Code)
+
 	dm := &types.DeployMessage{
 		ShardId: uint32(types.MasterShardId),
-		Code:    HardcodedContract,
+		Code:    contractCode,
 	}
 	data, err := dm.MarshalSSZ()
 	suite.Require().NoError(err)
@@ -123,7 +153,6 @@ func (suite *SuiteRpc) TestRpcContract() {
 	}
 	suite.Require().NoError(m.Sign(shardchain.MainPrivateKey))
 
-	msgHash := m.Hash()
 	mData, err := m.MarshalSSZ()
 	suite.Require().NoError(err)
 
@@ -147,27 +176,21 @@ func (suite *SuiteRpc) TestRpcContract() {
 	}, 6*time.Second, 200*time.Millisecond)
 
 	addr := common.CreateAddress(uint32(types.MasterShardId), m.From, m.Seqno)
-	request.Method = getInMessageReceipt
-	request.Params = []any{types.MasterShardId, msgHash}
 
-	var respReceipt *Response[*types.Receipt]
-	suite.Require().Eventually(func() bool {
-		respReceipt, err = makeRequest[*types.Receipt](request)
-		suite.Require().NoError(err)
-		suite.Require().Nil(resp.Error["code"])
-		return respReceipt.Result != nil
-	}, 6*time.Second, 200*time.Millisecond)
-	suite.Equal(uint64(0), respReceipt.Result.MsgIndex)
-	suite.Equal(m.Hash(), respReceipt.Result.MsgHash)
-	suite.Equal(addr, respReceipt.Result.ContractAddress)
+	suite.waitForReceipt(addr, m)
 
 	// now call (= send message to) created contract. as a result it should also create new contract
 	seqno, err := transactionCount(types.MasterShardId, from, "latest")
+	suite.Require().NoError(err)
+
+	abi := solc.ExtractABI(contracts["Incrementer"])
+	calldata, err := abi.Pack("increment_and_send_msg")
 	suite.Require().NoError(err)
 	m = &types.Message{
 		Seqno: seqno,
 		From:  from,
 		To:    addr,
+		Data:  calldata,
 	}
 	suite.Require().NoError(m.Sign(shardchain.MainPrivateKey))
 	mData, err = m.MarshalSSZ()
@@ -180,10 +203,8 @@ func (suite *SuiteRpc) TestRpcContract() {
 	suite.Require().NoError(err)
 	suite.Require().Nil(resp.Error["code"])
 	suite.Equal(m.Hash(), resp.Result)
-	time.Sleep(2 * time.Second)
 
-	// TODO: finish this test (after extending rpc and improving execution msg handling)
-	// now it's only possible to see in logs that `SendCall precompiled was called` =)
+	suite.waitForReceipt(addr, m)
 }
 
 func (suite *SuiteRpc) TestRpcApiModules() {

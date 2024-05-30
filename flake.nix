@@ -24,10 +24,14 @@
 
             src = ./.;
             # to obtain run `nix build` with vendorHash = "";
-            vendorHash = "sha256-uLrNMw/ISIxVInKTfsWEc1Wnl8ej7gwgA5egsPgdya8=";
+            vendorHash = "sha256-SqHXPZZEC5nj3V3kjSVd9DV1VAVgO6rBk52nSU6fQZg=";
             hardeningDisable = [ "all" ];
             ldflags = [
               "-linkmode external"
+            ];
+
+            nativeBuildInputs = [
+              pkgs.solc
             ];
 
             doCheck = true;
@@ -71,6 +75,7 @@
             gofumpt
             gci
             delve
+            solc
           ];
 
           hardeningDisable = [ "all" ];

@@ -43,3 +43,7 @@ lint:
 clean:
 	go clean -cache
 	rm -fr build/*
+
+solc:
+	$(eval ARGS ?= --help)
+	@GOPRIVATE="$(GOPRIVATE)" $(GO) run $(GO_FLAGS) tools/solc/bin/main.go $(ARGS)

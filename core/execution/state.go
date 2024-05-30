@@ -707,7 +707,13 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint
 
 	es.Receipts = append(es.Receipts, r)
 
-	logger.Debug().Stringer("address", addr).Msg("Created new contract")
+	event := logger.Debug().Stringer("address", addr)
+	if err != nil {
+		event.Err(err).Msg("Contract deployment failed")
+	} else {
+		event.Msg("Created new contract")
+	}
+
 	return nil
 }
 
@@ -724,6 +730,7 @@ func (es *ExecutionState) HandleExecutionMessage(message *types.Message, index u
 	if err != nil {
 		logger.Error().Err(err).Msg("execution message failed")
 	}
+	// TODO: add receipt in case of failure?
 	r := types.Receipt{
 		Success:         (err == nil),
 		GasUsed:         uint32(gas - leftOverGas),
