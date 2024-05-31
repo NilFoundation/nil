@@ -53,11 +53,11 @@ Create a deployment message:
 
 ```golang
 var m types.Message
-m.From = common.GenerateRandomAddress(uint32(types.MasterShardId))
+m.From = types.GenerateRandomAddress(types.MasterShardId)
 dm := types.DeployMessage{
-    ShardId: uint32(types.MasterShardId), 
+    ShardId: types.MasterShardId,
     Code: hexutil.FromHex("{contractBytecode}")
-    }
+}
 data, err := dm.MarshalSSZ()
 suite.Require().NoError(err)
 m.Data = data
@@ -80,7 +80,7 @@ resp, err := makeRequest[common.Hash](&request)
 Create the address:
 
 ```golang
-addr := common.CreateAddress(uint32(types.MasterShardId), m.From, m.Seqno)
+addr := types.CreateAddress(types.MasterShardId, m.From, m.Seqno)
 ```
 
 Send repeated requests for receipts:
@@ -95,8 +95,8 @@ suite.Eventually(func() bool {
 		suite.Require().NoError(err)
 		suite.Require().Nil(resp.Error["code"])
 		return respReceipt.Result != nil
-	}, 
-    5*time.Second, 
+	},
+    5*time.Second,
     200*time.Millisecond)
 ```
 
@@ -106,7 +106,7 @@ Extract the contract bytecode:
 
 ```golang
 codeHex = hexutil.Encode(contractBytecode)
-m.From = common.HexToAddress(codeHex)
+m.From = types.HexToAddress(codeHex)
 ```
 
 Create a contract call message:
@@ -222,7 +222,7 @@ The current RPC is loosely modeled after the Ethereum RPC. The RPC exposes the f
 
 ## Linting
 
-The project uses `golangci-lint`, a linter runner for Go. 
+The project uses `golangci-lint`, a linter runner for Go.
 
 All linters are downloaded and built as part of the `nix develop` command. Run linters with:
 
@@ -230,7 +230,7 @@ All linters are downloaded and built as part of the `nix develop` command. Run l
 make lint
 ```
 
-`.golangci.yml` contains the configuration for `golangci-lint`, including the full list of all linters used in the project. [**Visit the official docs for `golangci-lint`**](https://golangci-lint.run/usage/linters). 
+`.golangci.yml` contains the configuration for `golangci-lint`, including the full list of all linters used in the project. [**Visit the official docs for `golangci-lint`**](https://golangci-lint.run/usage/linters).
 
 Additional guides on integrating linters with IDEs:
 
