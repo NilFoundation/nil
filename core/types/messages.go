@@ -7,7 +7,7 @@ import (
 )
 
 type DeployMessage struct {
-	ShardId   uint32
+	ShardId   ShardId
 	Seqno     uint64
 	PublicKey []byte `ssz-max:"33"`
 	Data      Code   `ssz-max:"24576"`

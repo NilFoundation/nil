@@ -125,7 +125,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 	contractCode := hexutil.FromHex(contracts["Incrementer"].Code)
 
 	dm := &types.DeployMessage{
-		ShardId: uint32(types.MasterShardId),
+		ShardId: types.MasterShardId,
 		Code:    contractCode,
 	}
 	data, err := dm.MarshalSSZ()

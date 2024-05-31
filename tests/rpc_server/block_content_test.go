@@ -16,7 +16,7 @@ func (suite *SuiteRpc) TestRpcBlockContent() {
 	suite.Require().NoError(err)
 
 	dm := types.DeployMessage{
-		ShardId: uint32(types.MasterShardId),
+		ShardId: types.MasterShardId,
 		Data:    hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
 	}
 
