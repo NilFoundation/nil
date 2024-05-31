@@ -54,7 +54,7 @@ func (suite *SuiteRpc) makeGenericRequest(method string, params ...any) map[stri
 	return resp.Result
 }
 
-func (suite *SuiteRpc) waitForReceipt(addr common.Address, msg *types.Message) {
+func (suite *SuiteRpc) waitForReceipt(addr types.Address, msg *types.Message) {
 	suite.T().Helper()
 
 	request := NewRequest(getInMessageReceipt, types.MasterShardId, msg.Hash())
@@ -115,7 +115,7 @@ func (suite *SuiteRpc) TestRpcBasic() {
 
 func (suite *SuiteRpc) TestRpcContract() {
 	pub := crypto.CompressPubkey(&shardchain.MainPrivateKey.PublicKey)
-	from := common.PubkeyBytesToAddress(uint32(types.MasterShardId), pub)
+	from := types.PubkeyBytesToAddress(uint32(types.MasterShardId), pub)
 
 	seqno1, err := transactionCount(suite.port, types.MasterShardId, from, "latest")
 	suite.Require().NoError(err)
@@ -155,7 +155,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 		return seqno == seqno1+1
 	}, 6*time.Second, 200*time.Millisecond)
 
-	addr := common.CreateAddress(uint32(types.MasterShardId), m.From, m.Seqno)
+	addr := types.CreateAddress(uint32(types.MasterShardId), m.From, m.Seqno)
 
 	suite.waitForReceipt(addr, m)
 

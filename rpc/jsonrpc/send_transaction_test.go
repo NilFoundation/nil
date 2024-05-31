@@ -20,7 +20,7 @@ type SuiteSendTransaction struct {
 	suite.Suite
 	db        db.DB
 	api       *APIImpl
-	smcAddr   common.Address
+	smcAddr   types.Address
 	blockHash common.Hash
 }
 
@@ -38,8 +38,8 @@ func (suite *SuiteSendTransaction) SetupSuite() {
 	es, err := execution.NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
-	suite.smcAddr = common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
-	suite.Require().NotEqual(common.Address{}, suite.smcAddr)
+	suite.smcAddr = types.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
+	suite.Require().NotEqual(types.Address{}, suite.smcAddr)
 
 	es.CreateAccount(suite.smcAddr)
 
@@ -70,7 +70,7 @@ func (suite *SuiteEthAccounts) TestInvalidMessage() {
 
 func (suite *SuiteEthAccounts) TestInvalidSignature() {
 	msg := types.Message{
-		From: common.GenerateRandomAddress(0),
+		From: types.GenerateRandomAddress(0),
 	}
 
 	data, err := msg.MarshalSSZ()
@@ -82,7 +82,7 @@ func (suite *SuiteEthAccounts) TestInvalidSignature() {
 
 func (suite *SuiteEthAccounts) TestInvalidShard() {
 	msg := types.Message{
-		From: common.GenerateRandomAddress(1234),
+		From: types.GenerateRandomAddress(1234),
 	}
 
 	data, err := msg.MarshalSSZ()

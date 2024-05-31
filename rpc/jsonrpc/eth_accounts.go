@@ -13,7 +13,7 @@ import (
 	"github.com/NilFoundation/nil/rpc/transport"
 )
 
-func (api *APIImpl) getSmartContract(tx db.Tx, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*types.SmartContract, error) {
+func (api *APIImpl) getSmartContract(tx db.Tx, shardId types.ShardId, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*types.SmartContract, error) {
 	blockHash := common.EmptyHash
 	switch {
 	case blockNrOrHash.BlockNumber != nil && *blockNrOrHash.BlockNumber == transport.LatestBlockNumber:
@@ -49,7 +49,7 @@ func (api *APIImpl) getSmartContract(tx db.Tx, shardId types.ShardId, address co
 }
 
 // GetBalance implements eth_getBalance. Returns the balance of an account for a given address.
-func (api *APIImpl) GetBalance(ctx context.Context, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error) {
+func (api *APIImpl) GetBalance(ctx context.Context, shardId types.ShardId, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error) {
 	if err := api.checkShard(shardId); err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (api *APIImpl) GetBalance(ctx context.Context, shardId types.ShardId, addre
 }
 
 // GetTransactionCount implements eth_getTransactionCount. Returns the number of transactions sent from an address (the nonce / seqno).
-func (api *APIImpl) GetTransactionCount(ctx context.Context, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Uint64, error) {
+func (api *APIImpl) GetTransactionCount(ctx context.Context, shardId types.ShardId, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Uint64, error) {
 	if err := api.checkShard(shardId); err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (api *APIImpl) GetTransactionCount(ctx context.Context, shardId types.Shard
 }
 
 // GetCode implements eth_getCode. Returns the byte code at a given address (if it's a smart contract).
-func (api *APIImpl) GetCode(ctx context.Context, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error) {
+func (api *APIImpl) GetCode(ctx context.Context, shardId types.ShardId, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error) {
 	if err := api.checkShard(shardId); err != nil {
 		return nil, err
 	}

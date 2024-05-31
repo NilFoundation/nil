@@ -18,7 +18,7 @@ type (
 	GetHashFunc func(uint64) common.Hash
 )
 
-func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
+func (evm *EVM) precompile(addr types.Address) (PrecompiledContract, bool) {
 	precompiles := PrecompiledContractsPrague
 	p, ok := precompiles[addr]
 	return p, ok
@@ -31,24 +31,24 @@ type BlockContext struct {
 	GetHash GetHashFunc
 
 	// Block information
-	Coinbase    common.Address // Provides information for COINBASE
-	GasLimit    uint64         // Provides information for GASLIMIT
-	BlockNumber uint64         // Provides information for NUMBER
-	Time        uint64         // Provides information for TIME
-	Difficulty  *big.Int       // Provides information for DIFFICULTY
-	BaseFee     *big.Int       // Provides information for BASEFEE (0 if vm runs with NoBaseFee flag and 0 gas price)
-	BlobBaseFee *big.Int       // Provides information for BLOBBASEFEE (0 if vm runs with NoBaseFee flag and 0 blob gas price)
-	Random      *common.Hash   // Provides information for PREVRANDAO
+	Coinbase    types.Address // Provides information for COINBASE
+	GasLimit    uint64        // Provides information for GASLIMIT
+	BlockNumber uint64        // Provides information for NUMBER
+	Time        uint64        // Provides information for TIME
+	Difficulty  *big.Int      // Provides information for DIFFICULTY
+	BaseFee     *big.Int      // Provides information for BASEFEE (0 if vm runs with NoBaseFee flag and 0 gas price)
+	BlobBaseFee *big.Int      // Provides information for BLOBBASEFEE (0 if vm runs with NoBaseFee flag and 0 blob gas price)
+	Random      *common.Hash  // Provides information for PREVRANDAO
 }
 
 // TxContext provides the EVM with information about a transaction.
 // All fields can change between transactions.
 type TxContext struct {
 	// Message information
-	Origin     common.Address // Provides information for ORIGIN
-	GasPrice   *big.Int       // Provides information for GASPRICE (and is used to zero the basefee if NoBaseFee is set)
-	BlobHashes []common.Hash  // Provides information for BLOBHASH
-	BlobFeeCap *big.Int       // Is used to zero the blobbasefee if NoBaseFee is set
+	Origin     types.Address // Provides information for ORIGIN
+	GasPrice   *big.Int      // Provides information for GASPRICE (and is used to zero the basefee if NoBaseFee is set)
+	BlobHashes []common.Hash // Provides information for BLOBHASH
+	BlobFeeCap *big.Int      // Is used to zero the blobbasefee if NoBaseFee is set
 }
 
 // EVM is the Ethereum Virtual Machine base object and provides
@@ -106,7 +106,7 @@ func (evm *EVM) Interpreter() *EVMInterpreter {
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
-func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas uint64, value *uint256.Int) (ret []byte, leftOverGas uint64, err error) {
+func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas uint64, value *uint256.Int) (ret []byte, leftOverGas uint64, err error) {
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
@@ -171,7 +171,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 //
 // CallCode differs from Call in the sense that it executes the given address'
 // code with the caller as context.
-func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, gas uint64, value *uint256.Int) (ret []byte, leftOverGas uint64, err error) {
+func (evm *EVM) CallCode(caller ContractRef, addr types.Address, input []byte, gas uint64, value *uint256.Int) (ret []byte, leftOverGas uint64, err error) {
 	panic("CALLCODE not implemented")
 }
 
@@ -180,7 +180,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 //
 // DelegateCall differs from CallCode in the sense that it executes the given address'
 // code with the caller as context and the caller is set to the caller of the caller.
-func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
+func (evm *EVM) DelegateCall(caller ContractRef, addr types.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
 	panic("DELEGATECALL not implemented")
 }
 
@@ -188,25 +188,25 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 // as parameters while disallowing any modifications to the state during the call.
 // Opcodes that attempt to perform such modifications will result in exceptions
 // instead of performing the modifications.
-func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
+func (evm *EVM) StaticCall(caller ContractRef, addr types.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
 	panic("STATICCALL not implemented")
 }
 
 // create creates a new contract using code as deployment code.
-func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, value *uint256.Int, address common.Address) (ret []byte, createAddress common.Address, leftOverGas uint64, err error) {
+func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, value *uint256.Int, address types.Address) (ret []byte, createAddress types.Address, leftOverGas uint64, err error) {
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
 	if evm.depth > int(params.CallCreateDepth) {
-		return nil, common.Address{}, gas, ErrDepth
+		return nil, types.Address{}, gas, ErrDepth
 	}
 	if !canTransfer(evm.StateDB, caller.Address(), value) {
-		return nil, common.Address{}, gas, ErrInsufficientBalance
+		return nil, types.Address{}, gas, ErrInsufficientBalance
 	}
-	if caller.Address() != common.EmptyAddress {
+	if caller.Address() != types.EmptyAddress {
 		// bump caller's nonce
 		nonce := evm.StateDB.GetSeqno(caller.Address())
 		if nonce+1 < nonce {
-			return nil, common.Address{}, gas, ErrNonceUintOverflow
+			return nil, types.Address{}, gas, ErrNonceUintOverflow
 		}
 		evm.StateDB.SetSeqno(caller.Address(), nonce+1)
 	}
@@ -224,7 +224,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, v
 		if evm.Config.Tracer != nil && evm.Config.Tracer.OnGasChange != nil {
 			evm.Config.Tracer.OnGasChange(gas, 0, tracing.GasChangeCallFailedExecution)
 		}
-		return nil, common.Address{}, 0, ErrContractAddressCollision
+		return nil, types.Address{}, 0, ErrContractAddressCollision
 	}
 	// Create a new account on the state only if the object was not present.
 	// It might be possible the contract code is deployed to a pre-existent
@@ -281,13 +281,13 @@ func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, v
 }
 
 // Deploy deploys a new contract from a deployment message
-func (evm *EVM) Deploy(addr common.Address, caller ContractRef, code []byte, gas uint64, value *uint256.Int) (ret []byte, deployAddr common.Address, leftOverGas uint64, err error) {
+func (evm *EVM) Deploy(addr types.Address, caller ContractRef, code []byte, gas uint64, value *uint256.Int) (ret []byte, deployAddr types.Address, leftOverGas uint64, err error) {
 	return evm.create(caller, code, gas, value, addr)
 }
 
 // Create creates a new contract using code as deployment code.
-func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *uint256.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
-	contractAddr = common.CreateAddress(evm.Origin.ShardId(), caller.Address(), evm.StateDB.GetSeqno(caller.Address()))
+func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *uint256.Int) (ret []byte, contractAddr types.Address, leftOverGas uint64, err error) {
+	contractAddr = types.CreateAddress(evm.Origin.ShardId(), caller.Address(), evm.StateDB.GetSeqno(caller.Address()))
 	return evm.create(caller, types.Code(code), gas, value, contractAddr)
 }
 
@@ -295,18 +295,18 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *uint2
 //
 // The different between Create2 with Create is Create2 uses keccak256(0xff ++ msg.sender ++ salt ++ keccak256(init_code))[12:]
 // instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
-func (evm *EVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *uint256.Int, salt *uint256.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+func (evm *EVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *uint256.Int, salt *uint256.Int) (ret []byte, contractAddr types.Address, leftOverGas uint64, err error) {
 	panic("CREATE2 not implemented")
 }
 
 // canTransfer checks whether there are enough funds in the address' account to make a transfer.
 // This does not take the necessary gas in to account to make the transfer valid.
-func canTransfer(db StateDB, addr common.Address, amount *uint256.Int) bool {
+func canTransfer(db StateDB, addr types.Address, amount *uint256.Int) bool {
 	return db.GetBalance(addr).Cmp(amount) >= 0
 }
 
 // transfer subtracts amount from sender and adds amount to recipient using the given Db
-func transfer(db StateDB, sender, recipient common.Address, amount *uint256.Int) {
+func transfer(db StateDB, sender, recipient types.Address, amount *uint256.Int) {
 	db.SubBalance(sender, amount, tracing.BalanceChangeTransfer)
 	db.AddBalance(recipient, amount, tracing.BalanceChangeTransfer)
 }

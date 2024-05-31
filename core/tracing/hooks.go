@@ -30,25 +30,25 @@ import (
 type OpContext interface {
 	MemoryData() []byte
 	StackData() []uint256.Int
-	Caller() common.Address
-	Address() common.Address
+	Caller() types.Address
+	Address() types.Address
 	CallValue() *uint256.Int
 	CallInput() []byte
 }
 
 // StateDB gives tracers access to the whole state.
 type StateDB interface {
-	GetBalance(common.Address) *uint256.Int
-	GetNonce(common.Address) uint64
-	GetCode(common.Address) []byte
-	GetState(common.Address, common.Hash) common.Hash
-	Exist(common.Address) bool
+	GetBalance(types.Address) *uint256.Int
+	GetNonce(types.Address) uint64
+	GetCode(types.Address) []byte
+	GetState(types.Address, common.Hash) common.Hash
+	Exist(types.Address) bool
 	GetRefund() uint64
 }
 
 // VMContext provides the context for the EVM execution.
 type VMContext struct {
-	Coinbase    common.Address
+	Coinbase    types.Address
 	BlockNumber *big.Int
 	Time        uint64
 	Random      *common.Hash
@@ -85,7 +85,7 @@ type (
 	// Take note that EnterHook, when in the context of a live tracer, can be invoked
 	// outside of the `OnTxStart` and `OnTxEnd` hooks when dealing with system calls,
 	// see [OnSystemCallStartHook] and [OnSystemCallEndHook] for more information.
-	EnterHook = func(depth int, typ byte, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int)
+	EnterHook = func(depth int, typ byte, from types.Address, to types.Address, input []byte, gas uint64, value *big.Int)
 
 	// ExitHook is invoked when the processing of a message ends.
 	// `revert` is true when there was an error during the execution.
@@ -154,16 +154,16 @@ type (
 	*/
 
 	// BalanceChangeHook is called when the balance of an account changes.
-	BalanceChangeHook = func(addr common.Address, prev, next *big.Int, reason BalanceChangeReason)
+	BalanceChangeHook = func(addr types.Address, prev, next *big.Int, reason BalanceChangeReason)
 
 	// NonceChangeHook is called when the nonce of an account changes.
-	NonceChangeHook = func(addr common.Address, prev, next uint64)
+	NonceChangeHook = func(addr types.Address, prev, next uint64)
 
 	// CodeChangeHook is called when the code of an account changes.
-	CodeChangeHook = func(addr common.Address, prevCodeHash common.Hash, prevCode []byte, codeHash common.Hash, code []byte)
+	CodeChangeHook = func(addr types.Address, prevCodeHash common.Hash, prevCode []byte, codeHash common.Hash, code []byte)
 
 	// StorageChangeHook is called when the storage of an account changes.
-	StorageChangeHook = func(addr common.Address, slot common.Hash, prev, next common.Hash)
+	StorageChangeHook = func(addr types.Address, slot common.Hash, prev, next common.Hash)
 
 	// LogHook is called when a log is emitted.
 	LogHook = func(log *types.Log)

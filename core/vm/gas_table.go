@@ -22,6 +22,7 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/math"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/params"
 )
 
@@ -356,7 +357,7 @@ func gasCall(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize
 	var (
 		gas            uint64
 		transfersValue = !stack.Back(2).IsZero()
-		address        = common.Address(stack.Back(1).Bytes20())
+		address        = types.Address(stack.Back(1).Bytes20())
 	)
 	if true /* IsEIP158 */ {
 		if transfersValue && evm.StateDB.Empty(address) {

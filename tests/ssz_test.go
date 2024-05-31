@@ -45,8 +45,8 @@ func TestSszMessage(t *testing.T) {
 	t.Parallel()
 
 	message := types.Message{
-		From:      common.Address{},
-		To:        common.Address{},
+		From:      types.Address{},
+		To:        types.Address{},
 		Value:     types.Uint256{Int: uint256.Int{1234}},
 		Data:      types.Code{0x00000001},
 		Seqno:     567,
@@ -80,7 +80,7 @@ func TestSszSmc(t *testing.T) {
 	t.Parallel()
 
 	smc := types.SmartContract{
-		Address:     common.HexToAddress("1d9bc16f1a559"),
+		Address:     types.HexToAddress("1d9bc16f1a559"),
 		Initialised: true,
 		Balance:     types.Uint256{Int: uint256.Int{1234}},
 		StorageRoot: common.Hash{0x01},

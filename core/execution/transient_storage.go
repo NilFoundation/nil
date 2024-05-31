@@ -18,10 +18,11 @@ package execution
 
 import (
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/types"
 )
 
 // transientStorage is a representation of EIP-1153 "Transient Storage".
-type transientStorage map[common.Address]Storage
+type transientStorage map[types.Address]Storage
 
 // newTransientStorage creates a new instance of a transientStorage.
 func newTransientStorage() transientStorage {
@@ -29,7 +30,7 @@ func newTransientStorage() transientStorage {
 }
 
 // Set sets the transient-storage `value` for `key` at the given `addr`.
-func (t transientStorage) Set(addr common.Address, key, value common.Hash) {
+func (t transientStorage) Set(addr types.Address, key, value common.Hash) {
 	if value == (common.Hash{}) { // this is a 'delete'
 		if _, ok := t[addr]; ok {
 			delete(t[addr], key)
@@ -46,7 +47,7 @@ func (t transientStorage) Set(addr common.Address, key, value common.Hash) {
 }
 
 // Get gets the transient storage for `key` at the given `addr`.
-func (t transientStorage) Get(addr common.Address, key common.Hash) common.Hash {
+func (t transientStorage) Get(addr types.Address, key common.Hash) common.Hash {
 	val, ok := t[addr]
 	if !ok {
 		return common.Hash{}

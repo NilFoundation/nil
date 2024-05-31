@@ -22,7 +22,7 @@ type SuiteEthAccounts struct {
 	suite.Suite
 	db        db.DB
 	api       *APIImpl
-	smcAddr   common.Address
+	smcAddr   types.Address
 	blockHash common.Hash
 }
 
@@ -40,7 +40,7 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	es, err := execution.NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
-	suite.smcAddr = common.GenerateRandomAddress(uint32(shardId))
+	suite.smcAddr = types.GenerateRandomAddress(uint32(shardId))
 	suite.Require().NotEmpty(suite.smcAddr)
 
 	es.CreateAccount(suite.smcAddr)
@@ -86,7 +86,7 @@ func (suite *SuiteEthAccounts) TestGetBalance() {
 	suite.Equal((*hexutil.Big)(big.NewInt(1234)), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	_, err = suite.api.GetBalance(ctx, shardId, common.HexToAddress("deadbeef"), blockNum)
+	_, err = suite.api.GetBalance(ctx, shardId, types.HexToAddress("deadbeef"), blockNum)
 	suite.Require().EqualError(err, "key not found in db")
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.EarliestBlock.BlockNumber}
@@ -109,7 +109,7 @@ func (suite *SuiteEthAccounts) TestGetCode() {
 	suite.Equal(hexutil.Bytes("some code"), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	_, err = suite.api.GetCode(ctx, shardId, common.HexToAddress("deadbeef"), blockNum)
+	_, err = suite.api.GetCode(ctx, shardId, types.HexToAddress("deadbeef"), blockNum)
 	suite.Require().EqualError(err, "key not found in db")
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.EarliestBlock.BlockNumber}
@@ -132,7 +132,7 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 	suite.Equal(hexutil.Uint64(567), *res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	_, err = suite.api.GetTransactionCount(ctx, shardId, common.HexToAddress("deadbeef"), blockNum)
+	_, err = suite.api.GetTransactionCount(ctx, shardId, types.HexToAddress("deadbeef"), blockNum)
 	suite.Require().EqualError(err, "key not found in db")
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.EarliestBlock.BlockNumber}

@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func deployContract(contract *compiler.Contract, state *ExecutionState, blockContext *vm.BlockContext, seqno int) (common.Address, error) {
+func deployContract(contract *compiler.Contract, state *ExecutionState, blockContext *vm.BlockContext, seqno int) (types.Address, error) {
 	contractCode := hexutil.FromHex(contract.Code)
 	dm := &types.DeployMessage{
 		ShardId: state.ShardId,
@@ -24,7 +24,7 @@ func deployContract(contract *compiler.Contract, state *ExecutionState, blockCon
 		Data:  data,
 		Seqno: uint64(seqno),
 	}
-	addr := common.CreateAddress(uint32(state.ShardId), message.From, message.Seqno)
+	addr := types.CreateAddress(uint32(state.ShardId), message.From, message.Seqno)
 
 	return addr, state.HandleDeployMessage(message, 0, blockContext)
 }

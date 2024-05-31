@@ -32,10 +32,10 @@ type Filter struct {
 
 // FilterQuery contains options for contract log filtering.
 type FilterQuery struct {
-	BlockHash *common.Hash     // used by eth_getLogs, return logs only from block with this hash
-	FromBlock *uint256.Int     // beginning of the queried range, nil means genesis block
-	ToBlock   *uint256.Int     // end of the range, nil means latest block
-	Addresses []common.Address // restricts matches to events created by specific contracts
+	BlockHash *common.Hash    // used by eth_getLogs, return logs only from block with this hash
+	FromBlock *uint256.Int    // beginning of the queried range, nil means genesis block
+	ToBlock   *uint256.Int    // end of the range, nil means latest block
+	Addresses []types.Address // restricts matches to events created by specific contracts
 
 	// The Topic list restricts matches to particular event topics. Each event has a list
 	// of topics. Topics matches a prefix of that list. An empty element slice matches any
@@ -298,7 +298,7 @@ func (args *FilterQuery) UnmarshalJSON(data []byte) error {
 		}
 	}
 
-	args.Addresses = []common.Address{}
+	args.Addresses = []types.Address{}
 
 	if raw.Addresses != nil {
 		// raw.Address can contain a single address or an array of addresses
@@ -320,7 +320,7 @@ func (args *FilterQuery) UnmarshalJSON(data []byte) error {
 			if err != nil {
 				return fmt.Errorf("invalid address: %w", err)
 			}
-			args.Addresses = []common.Address{addr}
+			args.Addresses = []types.Address{addr}
 		default:
 			return errors.New("invalid addresses in query")
 		}
@@ -370,12 +370,12 @@ func (args *FilterQuery) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func decodeAddress(s string) (common.Address, error) {
+func decodeAddress(s string) (types.Address, error) {
 	b, err := hexutil.Decode(s)
 	if err == nil && len(b) != common.AddrSize {
 		err = fmt.Errorf("hex has invalid length %d after decoding; expected %d for address", len(b), common.AddrSize)
 	}
-	return common.BytesToAddress(b), err
+	return types.BytesToAddress(b), err
 }
 
 func decodeTopic(s string) (common.Hash, error) {

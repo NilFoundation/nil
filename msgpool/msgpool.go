@@ -20,7 +20,7 @@ type Pool interface {
 	Started() bool
 
 	Peek(ctx context.Context, n int, onTopOf uint64) ([]*types.Message, error)
-	SeqnoFromAddress(addr common.Address) (seqno uint64, inPool bool)
+	SeqnoFromAddress(addr types.Address) (seqno uint64, inPool bool)
 	MessageCount() int
 	Get(tx db.Tx, hash common.Hash) (*types.Message, error)
 }
@@ -117,7 +117,7 @@ func (p *MsgPool) Started() bool {
 	return p.started
 }
 
-func (p *MsgPool) SeqnoFromAddress(addr common.Address) (seqno uint64, inPool bool) {
+func (p *MsgPool) SeqnoFromAddress(addr types.Address) (seqno uint64, inPool bool) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	return p.all.seqno(addr)
@@ -211,7 +211,7 @@ func (p *MsgPool) OnNewBlock(ctx context.Context, block *types.Block, committed 
 // included into a block), and finally, walk over the message records and update queue depending on
 // the actual presence of seqno gaps and what the balance is.
 func (p *MsgPool) removeCommitted(bySeqno *BySenderAndSeqno, msgs []*types.Message) error { //nolint:unparam
-	seqnosToRemove := map[common.Address]uint64{}
+	seqnosToRemove := map[types.Address]uint64{}
 	for _, msg := range msgs {
 		seqno, ok := seqnosToRemove[msg.From]
 		if !ok || msg.Seqno > seqno {

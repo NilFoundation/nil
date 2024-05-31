@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/math"
 	"github.com/NilFoundation/nil/core/tracing"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
 )
 
@@ -45,12 +45,12 @@ func (ctx *ScopeContext) StackData() []uint256.Int {
 }
 
 // Caller returns the current caller.
-func (ctx *ScopeContext) Caller() common.Address {
+func (ctx *ScopeContext) Caller() types.Address {
 	return ctx.Contract.Caller()
 }
 
 // Address returns the address where this scope of execution is taking place.
-func (ctx *ScopeContext) Address() common.Address {
+func (ctx *ScopeContext) Address() types.Address {
 	return ctx.Contract.Address()
 }
 
