@@ -40,6 +40,7 @@ type Message struct {
 	Value     Uint256          `json:"value,omitempty" ssz-size:"32"`
 	Data      Code             `json:"data,omitempty" ssz-max:"24576"`
 	Signature common.Signature `json:"signature,omitempty"`
+	Internal  bool             `json:"internal"`
 }
 
 type messageDigest struct {
@@ -50,6 +51,7 @@ type messageDigest struct {
 	To       Address
 	Value    Uint256 `ssz-size:"32"`
 	Data     Code    `ssz-max:"24576"`
+	Internal bool
 }
 
 // interfaces
@@ -75,6 +77,7 @@ func (m *Message) SigningHash() (common.Hash, error) {
 		To:       m.To,
 		Value:    m.Value,
 		Data:     m.Data,
+		Internal: m.Internal,
 	}
 
 	return common.PoseidonSSZ(&messageDigest)

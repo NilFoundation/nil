@@ -39,14 +39,7 @@ func (api *APIImpl) getBlockHashByNumber(
 		requestedBlockNumber = number.BlockNumber()
 	}
 
-	blockHash, err := tx.GetFromShard(shardId, db.BlockHashByNumberIndex, requestedBlockNumber.Bytes())
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return common.EmptyHash, nil
-	}
-	if err != nil {
-		return common.EmptyHash, err
-	}
-	return common.BytesToHash(*blockHash), nil
+	return db.ReadBlockHashByNumber(tx, shardId, requestedBlockNumber)
 }
 
 func (api *APIImpl) getBlockByNumberOrHash(

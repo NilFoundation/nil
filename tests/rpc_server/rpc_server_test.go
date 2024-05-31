@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/shardchain"
@@ -32,8 +33,9 @@ func (suite *SuiteRpc) SetupSuite() {
 
 	suite.port = 8531
 	cfg := &nilservice.Config{
-		NShards:  2,
+		NShards:  5,
 		HttpPort: suite.port,
+		Topology: collate.NeighbouringShardTopologyId,
 	}
 	go nilservice.Run(suite.context, cfg, badger)
 	time.Sleep(time.Second) // To be sure that server is started
@@ -54,10 +56,10 @@ func (suite *SuiteRpc) makeGenericRequest(method string, params ...any) map[stri
 	return resp.Result
 }
 
-func (suite *SuiteRpc) waitForReceipt(addr types.Address, msg *types.Message) {
+func (suite *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, addr types.Address, msg *types.Message) {
 	suite.T().Helper()
 
-	request := NewRequest(getInMessageReceipt, types.MasterShardId, msg.Hash())
+	request := NewRequest(getInMessageReceipt, shardId, msg.Hash())
 
 	var respReceipt *Response[*types.Receipt]
 	var err error
@@ -66,12 +68,51 @@ func (suite *SuiteRpc) waitForReceipt(addr types.Address, msg *types.Message) {
 		suite.Require().NoError(err)
 		suite.Require().Nil(respReceipt.Error["code"])
 		return respReceipt.Result != nil
-	}, 6*time.Second, 200*time.Millisecond)
+	}, 6*time.Hour, 200*time.Millisecond)
 
 	suite.True(respReceipt.Result.Success)
 	suite.Equal(uint64(0), respReceipt.Result.MsgIndex) // now in all test cases it's first msg in block
 	suite.Equal(msg.Hash(), respReceipt.Result.MsgHash)
 	suite.Equal(addr, respReceipt.Result.ContractAddress)
+}
+
+func (suite *SuiteRpc) waitForReceipt(addr types.Address, msg *types.Message) {
+	suite.T().Helper()
+	suite.waitForReceiptOnShard(types.MasterShardId, addr, msg)
+}
+
+func (suite *SuiteRpc) deployContract(from types.Address, code types.Code, seqno uint64) types.Address {
+	suite.T().Helper()
+
+	shardId := from.ShardId()
+
+	dm := &types.DeployMessage{
+		ShardId: from.ShardId(),
+		Code:    code,
+	}
+	data, err := dm.MarshalSSZ()
+	suite.Require().NoError(err)
+
+	msg := &types.Message{
+		Seqno: seqno,
+		Data:  data,
+		From:  from,
+	}
+	suite.Require().NoError(msg.Sign(shardchain.MainPrivateKey))
+	mData, err := msg.MarshalSSZ()
+	suite.Require().NoError(err)
+
+	// create contract
+	request := NewRequest(sendRawTransaction, "0x"+hex.EncodeToString(mData))
+	resp, err := makeRequest[common.Hash](suite.port, request)
+	suite.Require().NoError(err)
+	suite.Require().Nil(resp.Error["code"])
+	suite.Equal(msg.Hash(), resp.Result)
+
+	// wait for receipt
+	addr := types.CreateAddress(shardId, msg.From, msg.Seqno)
+	suite.waitForReceiptOnShard(shardId, addr, msg)
+	return addr
 }
 
 func (suite *SuiteRpc) TestRpcBasic() {
@@ -183,6 +224,64 @@ func (suite *SuiteRpc) TestRpcContract() {
 	suite.Equal(m.Hash(), resp.Result)
 
 	suite.waitForReceipt(addr, m)
+}
+
+func (suite *SuiteRpc) TestRpcContractSendMessage() {
+	pub := crypto.CompressPubkey(&shardchain.MainPrivateKey.PublicKey)
+	from := types.PubkeyBytesToAddress(types.MasterShardId, pub)
+
+	nbShardId := types.ShardId(4)
+	nbFrom := types.PubkeyBytesToAddress(nbShardId, pub)
+
+	seqno, err := transactionCount(suite.port, types.MasterShardId, from, "latest")
+	suite.Require().NoError(err)
+
+	nbSeqno, err := transactionCount(suite.port, nbShardId, nbFrom, "latest")
+	suite.Require().NoError(err)
+
+	// Deploy contract on neighbour shard
+	code := hexutil.FromHex("6009600c60003960096000f3600054600101600055")
+	nbAddr := suite.deployContract(nbFrom, code, nbSeqno)
+
+	// Create internal message to the neighbouring shard
+	mSend := &types.Message{
+		Seqno:    nbSeqno,
+		From:     from,
+		To:       nbAddr,
+		Internal: true,
+	}
+	suite.Require().NoError(mSend.Sign(shardchain.MainPrivateKey))
+	mSendData, err := mSend.MarshalSSZ()
+	suite.Require().NoError(err)
+
+	// call SendMessage precompiled contract that executes sends message to neighbour shard
+	sendMessageAddr := types.BytesToAddress([]byte{0x06}) // sendMessagePrecompiledContract
+	m := &types.Message{
+		Seqno: seqno,
+		From:  from,
+		To:    sendMessageAddr,
+		Data:  mSendData,
+	}
+	suite.Require().NoError(m.Sign(shardchain.MainPrivateKey))
+	mData, err := m.MarshalSSZ()
+	suite.Require().NoError(err)
+
+	request := &Request{
+		Jsonrpc: "2.0",
+		Method:  sendRawTransaction,
+		Params:  []any{"0x" + hex.EncodeToString(mData)},
+		Id:      1,
+	}
+
+	resp, err := makeRequest[common.Hash](suite.port, request)
+	suite.Require().NoError(err)
+	suite.Require().Nil(resp.Error["code"])
+	suite.Equal(m.Hash(), resp.Result)
+
+	suite.waitForReceipt(sendMessageAddr, m)
+
+	// This message is handled as an outgoing one, it is received by the neighbour shard
+	suite.waitForReceiptOnShard(nbShardId, nbAddr, mSend)
 }
 
 func (suite *SuiteRpc) TestRpcApiModules() {

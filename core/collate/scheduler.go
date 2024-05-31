@@ -20,19 +20,21 @@ type Scheduler struct {
 	shard *shardchain.ShardChain
 	pool  MsgPool
 
-	id      types.ShardId
-	nShards int
+	id       types.ShardId
+	nShards  int
+	topology ShardTopology
 
 	logger *zerolog.Logger
 }
 
-func NewScheduler(shard *shardchain.ShardChain, pool MsgPool, id types.ShardId, nShards int) *Scheduler {
+func NewScheduler(shard *shardchain.ShardChain, pool MsgPool, id types.ShardId, nShards int, topology ShardTopology) *Scheduler {
 	return &Scheduler{
-		shard:   shard,
-		pool:    pool,
-		id:      id,
-		nShards: nShards,
-		logger:  common.NewLogger("collator-" + id.String()),
+		shard:    shard,
+		pool:     pool,
+		id:       id,
+		nShards:  nShards,
+		topology: topology,
+		logger:   common.NewLogger("collator-" + id.String()),
 	}
 }
 
@@ -63,6 +65,6 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
 
-	collator := newCollator(s.shard, s.pool, s.id, s.nShards, s.logger)
+	collator := newCollator(s.shard, s.pool, s.id, s.nShards, s.logger, s.topology)
 	return collator.GenerateBlock(ctx)
 }

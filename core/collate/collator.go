@@ -7,8 +7,10 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
+	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/shardchain"
 	"github.com/NilFoundation/nil/core/types"
+	ssz "github.com/ferranbt/fastssz"
 	"github.com/rs/zerolog"
 )
 
@@ -30,16 +32,25 @@ type collator struct {
 
 	logger *zerolog.Logger
 	timer  common.Timer
+
+	nbId          []types.ShardId
+	nbBlockNumber types.BlockNumberList
+	topology      ShardTopology
 }
 
-func newCollator(shard shardchain.BlockGenerator, pool MsgPool, id types.ShardId, nShards int, logger *zerolog.Logger) *collator {
+func newCollator(shard shardchain.BlockGenerator, pool MsgPool, id types.ShardId, nShards int, logger *zerolog.Logger, topology ShardTopology) *collator {
+	nbId := topology.GetNeighbours(id, nShards)
+	nbBlockNumber := types.BlockNumberList{List: make([]uint64, len(nbId))}
 	return &collator{
-		shard:   shard,
-		pool:    pool,
-		id:      id,
-		nShards: nShards,
-		logger:  logger,
-		timer:   common.NewTimer(),
+		shard:         shard,
+		pool:          pool,
+		id:            id,
+		nShards:       nShards,
+		logger:        logger,
+		timer:         common.NewTimer(),
+		nbId:          nbId,
+		nbBlockNumber: nbBlockNumber,
+		topology:      topology,
 	}
 }
 
@@ -77,14 +88,21 @@ func (c *collator) GenerateBlock(ctx context.Context) error {
 		c.logger.Trace().Msgf("Collating on shard %s...", c.id)
 
 		// todo: store last block id
-		// todo: collect messages from neighbors first
+		inmsgs, outmsgs, err := c.collectFromNeighbours(roTx)
+		if err != nil {
+			return err
+		}
 		msgs, err = c.pool.Peek(ctx, nMessagesForBlock, 0)
 		if err != nil {
 			return err
 		}
+		inmsgs = append(inmsgs, msgs...)
 
-		if err := shardchain.HandleMessages(ctx, es, msgs); err != nil {
+		if err := shardchain.HandleMessages(ctx, es, inmsgs); err != nil {
 			return err
+		}
+		for _, msg := range outmsgs {
+			es.AddOutMessage(msg.inMsgHash, msg.msg)
 		}
 	}
 
@@ -103,6 +121,10 @@ func (c *collator) GenerateBlock(ctx context.Context) error {
 
 func (c *collator) finalize(es *execution.ExecutionState, rwTx db.RwTx, roTx db.RoTx) (*types.Block, error) {
 	if err := c.setLastBlockHashes(roTx, es); err != nil {
+		return nil, err
+	}
+
+	if err := c.setLastBlockNumbers(rwTx); err != nil {
 		return nil, err
 	}
 
@@ -146,4 +168,58 @@ func (c *collator) setLastBlockHashes(tx db.RoTx, es *execution.ExecutionState) 
 		es.SetMasterchainHash(lastBlockHash)
 	}
 	return nil
+}
+
+func (c *collator) setLastBlockNumbers(tx db.RoTx) error {
+	value, err := c.nbBlockNumber.MarshalSSZ()
+	if err != nil {
+		return err
+	}
+	return tx.Put(db.NeighbourBlockNumber, c.id.Bytes(), value)
+}
+
+type OutMessage struct {
+	inMsgHash common.Hash
+	msg       *types.Message
+}
+
+func (c *collator) collectFromNeighbours(roTx db.RoTx) (inmsgs []*types.Message, outmsgs []*OutMessage, err error) {
+	c.nbBlockNumber, err = db.ReadNbBlockNumbers(roTx, c.id, len(c.nbId))
+
+	process := func(id types.ShardId, blockNumber *uint64) {
+		for {
+			var block *types.Block
+			block, err = db.ReadBlockByNumber(roTx, id, types.BlockNumber(*blockNumber))
+			if block == nil || err != nil {
+				break
+			}
+			outMsgTrie := mpt.NewMerklePatriciaTrieWithRoot(roTx, id, db.MessageTrieTable, block.OutMessagesRoot)
+			for msgIndex := range block.OutMessagesNum {
+				var msgRaw []byte
+				msgRaw, err = outMsgTrie.Get(ssz.MarshalUint32(nil, msgIndex))
+				if err != nil {
+					return
+				}
+				msg := new(types.Message)
+				if err = msg.UnmarshalSSZ(msgRaw); err != nil {
+					return
+				}
+				msgShardId := msg.To.ShardId()
+				if msgShardId == c.id {
+					inmsgs = append(inmsgs, msg)
+				} else if c.topology.ShouldPropagateMsg(id, c.id, msgShardId) {
+					// TODO: add inMsgHash support (do we even need it?)
+					outmsgs = append(outmsgs, &OutMessage{inMsgHash: common.EmptyHash, msg: msg})
+				}
+			}
+			*blockNumber += 1
+		}
+	}
+	for i, id := range c.nbId {
+		process(id, &c.nbBlockNumber.List[i])
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return inmsgs, outmsgs, err
 }

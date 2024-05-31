@@ -78,7 +78,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent
 	for i := range cfg.NShards {
 		msgPool := msgpool.New(msgpool.DefaultConfig)
 		shard := shardchain.NewShardChain(types.ShardId(i), database)
-		collator := collate.NewScheduler(shard, msgPool, types.ShardId(i), cfg.NShards)
+		collator := collate.NewScheduler(shard, msgPool, types.ShardId(i), cfg.NShards, collate.GetShardTopologyById(cfg.Topology))
 		funcs = append(funcs, func(ctx context.Context) error {
 			return collator.Run(ctx)
 		})

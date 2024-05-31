@@ -835,3 +835,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 
 	return blockHash, nil
 }
+
+func (es *ExecutionState) GetInMessageHash() common.Hash {
+	return es.InMessageHash
+}

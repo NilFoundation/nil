@@ -69,6 +69,9 @@ type StateDB interface {
 
 	// add out message for particular transaction
 	AddOutMessage(common.Hash, *types.Message)
+
+	// Get current message hash
+	GetInMessageHash() common.Hash
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

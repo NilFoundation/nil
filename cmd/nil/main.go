@@ -8,6 +8,7 @@ import (
 
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/rs/zerolog"
@@ -38,6 +39,7 @@ func main() {
 	cfg := &nilservice.Config{
 		NShards:  *nShards,
 		HttpPort: *port,
+		Topology: collate.TrivialShardTopologyId,
 	}
 	os.Exit(nilservice.Run(context.Background(), cfg, database,
 		func(ctx context.Context) error {

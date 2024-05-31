@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
+	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/rs/zerolog/log"
@@ -69,6 +70,7 @@ func (suite *SuiteFetchBlock) SetupSuite() {
 	cfg := &nilservice.Config{
 		NShards:  suite.nShards,
 		HttpPort: port,
+		Topology: collate.TrivialShardTopologyId,
 	}
 	go nilservice.Run(suite.context, cfg, database)
 

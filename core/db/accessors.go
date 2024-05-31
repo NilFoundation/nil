@@ -91,6 +91,23 @@ func ReadBlock(tx Tx, shardId types.ShardId, hash common.Hash) *types.Block {
 	return readDecodable[types.Block, *types.Block](tx, blockTable, shardId, hash)
 }
 
+func ReadNbBlockNumbers(tx Tx, shardId types.ShardId, nbCount int) (bn types.BlockNumberList, err error) {
+	buf, err := tx.Get(NeighbourBlockNumber, shardId.Bytes())
+	if errors.Is(err, ErrKeyNotFound) {
+		bn.List = make([]uint64, nbCount)
+		return bn, nil
+	}
+	if err != nil {
+		return
+	}
+
+	if err = bn.UnmarshalSSZ(*buf); err != nil {
+		return
+	}
+	common.Require(nbCount == len(bn.List))
+	return
+}
+
 func ReadLastBlockHash(tx Tx, shardId types.ShardId) (common.Hash, error) {
 	h, err := tx.Get(LastBlockTable, shardId.Bytes())
 	if errors.Is(err, ErrKeyNotFound) {
@@ -137,4 +154,26 @@ func ReadCode(tx Tx, shardId types.ShardId, hash common.Hash) (types.Code, error
 
 	res := types.Code(*code)
 	return res, nil
+}
+
+func ReadBlockHashByNumber(tx Tx, shardId types.ShardId, blockNumber types.BlockNumber) (common.Hash, error) {
+	blockHash, err := tx.GetFromShard(shardId, BlockHashByNumberIndex, blockNumber.Bytes())
+	if errors.Is(err, ErrKeyNotFound) {
+		return common.EmptyHash, nil
+	}
+	if err != nil {
+		return common.EmptyHash, err
+	}
+	return common.BytesToHash(*blockHash), nil
+}
+
+func ReadBlockByNumber(tx Tx, shardId types.ShardId, blockNumber types.BlockNumber) (*types.Block, error) {
+	blockHash, err := ReadBlockHashByNumber(tx, shardId, blockNumber)
+	if err != nil {
+		return nil, err
+	}
+	if blockHash == common.EmptyHash {
+		return nil, nil
+	}
+	return ReadBlock(tx, shardId, blockHash), nil
 }

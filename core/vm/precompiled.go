@@ -18,6 +18,7 @@ package vm
 
 import (
 	"crypto/sha256"
+	"errors"
 	"math/big"
 	"slices"
 
@@ -276,9 +277,12 @@ func (c *sendMessagePrecompiledContract) RequiredGas([]byte) uint64 {
 func (c *sendMessagePrecompiledContract) Run(state StateDB, input []byte) ([]byte, error) {
 	msg := new(types.Message)
 	if err := msg.UnmarshalSSZ(input); err != nil {
-		panic(err)
+		return nil, err
 	}
-	// TODO: implement async call logic here (e.g. return new msg index?)
-	log.Debug().Msgf("SendMessage precompiled called with %+v", msg)
+	if !msg.Internal {
+		return nil, errors.New("Expected internal message")
+	}
+	log.Debug().Msgf("SendMessage precompiled called with %+v hash %v", msg, msg.Hash())
+	state.AddOutMessage(state.GetInMessageHash(), msg)
 	return nil, nil
 }

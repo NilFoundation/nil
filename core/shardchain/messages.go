@@ -42,6 +42,10 @@ func validateMessage(es *execution.ExecutionState, message *types.Message, index
 	if !features.EnableSignatureCheck {
 		return true, nil
 	}
+	// TODO: Add internal message validation logic
+	if message.Internal {
+		return true, nil
+	}
 	addr := message.From
 	accountState := es.GetAccount(addr)
 

@@ -69,7 +69,7 @@ func makeRequest[R any](port int, data *Request) (*Response[R], error) {
 	return &response, nil
 }
 
-func transactionCount(port int, shardId types.ShardId, addr types.Address, blk string) (uint64, error) {
+func transactionCount(port int, shardId types.ShardId, addr types.Address, blk string) (uint64, error) { //nolint:unparam
 	request := NewRequest(getTransactionCount, shardId, addr.Hex(), blk)
 	resp, err := makeRequest[string](port, request)
 	if err != nil {

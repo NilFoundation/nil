@@ -25,6 +25,8 @@ const (
 	contractTable = ShardedTableName("Contract")
 
 	LastBlockTable                        = TableName("LastBlock")
+	LeftBlockNumber                       = TableName("LeftBlockNumber")
+	NeighbourBlockNumber                  = TableName("NeighbourBlockNumber")
 	BlockHashByNumberIndex                = ShardedTableName("BlockHashByNumber")
 	BlockHashAndMessageIndexByMessageHash = ShardedTableName("BlockHashAndMessageIndexByMessageHash")
 

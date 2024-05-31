@@ -53,7 +53,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	}
 	pool := &MockMsgPool{Msgs: []*types.Message{m}}
 
-	c := newCollator(shard, pool, shardId, 2, common.NewLogger("collator"))
+	c := newCollator(shard, pool, shardId, 2, common.NewLogger("collator"), new(TrivialShardTopology))
 
 	s.Run("zero-state", func() {
 		err := c.GenerateBlock(ctx)
