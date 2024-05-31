@@ -8,7 +8,7 @@ import (
 type SmartContract struct {
 	Address     common.Address
 	Initialised bool
-	Balance     Uint256
+	Balance     Uint256 `ssz-size:"32"`
 	StorageRoot common.Hash
 	CodeHash    common.Hash
 	Seqno       uint64

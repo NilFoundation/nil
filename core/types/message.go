@@ -33,23 +33,23 @@ func BytesToMessageIndex(b []byte) MessageIndex {
 
 type Message struct {
 	Seqno     uint64           `json:"seqno,omitempty"`
-	GasPrice  Uint256          `json:"gasPrice,omitempty"`
-	GasLimit  Uint256          `json:"gasLimit,omitempty"`
+	GasPrice  Uint256          `json:"gasPrice,omitempty" ssz-size:"32"`
+	GasLimit  Uint256          `json:"gasLimit,omitempty" ssz-size:"32"`
 	From      common.Address   `json:"from,omitempty"`
 	To        common.Address   `json:"to,omitempty"`
-	Value     Uint256          `json:"value,omitempty"`
+	Value     Uint256          `json:"value,omitempty" ssz-size:"32"`
 	Data      Code             `json:"data,omitempty" ssz-max:"24576"`
 	Signature common.Signature `json:"signature,omitempty"`
 }
 
 type messageDigest struct {
 	Seqno    uint64
-	GasPrice Uint256
-	GasLimit Uint256
+	GasPrice Uint256 `ssz-size:"32"`
+	GasLimit Uint256 `ssz-size:"32"`
 	From     common.Address
 	To       common.Address
-	Value    Uint256
-	Data     Code `ssz-max:"24576"`
+	Value    Uint256 `ssz-size:"32"`
+	Data     Code    `ssz-max:"24576"`
 }
 
 // interfaces
