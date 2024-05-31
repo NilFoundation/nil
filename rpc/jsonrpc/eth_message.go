@@ -31,6 +31,9 @@ func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardI
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return nil, nil
 	}
+	if err != nil {
+		return nil, err
+	}
 
 	msg, err := getBlockEntity[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot, indexes.MessageIndex.Bytes())
 	if err != nil {
@@ -43,7 +46,9 @@ func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardI
 	return NewRPCInMessage(msg, receipt, indexes.MessageIndex, block), nil
 }
 
-func (api *APIImpl) GetInMessageByBlockHashAndIndex(ctx context.Context, shardId types.ShardId, hash common.Hash, index hexutil.Uint64) (*RPCInMessage, error) {
+func (api *APIImpl) getInMessageByBlockNumberOrHashAndIndex(ctx context.Context, shardId types.ShardId,
+	hashOrNum transport.BlockNumberOrHash, index hexutil.Uint64,
+) (*RPCInMessage, error) {
 	if err := api.checkShard(shardId); err != nil {
 		return nil, err
 	}
@@ -54,39 +59,34 @@ func (api *APIImpl) GetInMessageByBlockHashAndIndex(ctx context.Context, shardId
 	}
 	defer tx.Rollback()
 
-	block, msg, receipt, err := api.getInMessageByBlockHashAndIndex(tx, shardId, hash, types.MessageIndex(index))
-	if err != nil || block == nil || msg == nil || receipt == nil {
+	block, err := api.getBlockByNumberOrHashTx(tx, shardId, hashOrNum)
+	if err != nil || block == nil {
+		return nil, err
+	}
+
+	msg, receipt, err := api.getInMessageByBlockHashAndIndex(tx, shardId, block, types.MessageIndex(index))
+	if err != nil || msg == nil || receipt == nil {
 		return nil, err
 	}
 
 	return NewRPCInMessage(msg, receipt, types.MessageIndex(index), block), nil
 }
 
-func (api *APIImpl) GetInMessageByBlockNumberAndIndex(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, index hexutil.Uint) (*RPCInMessage, error) {
-	if err := api.checkShard(shardId); err != nil {
-		return nil, err
-	}
-
-	tx, err := api.db.CreateRoTx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	hash, err := api.getBlockHashByNumber(tx, shardId, number)
-	if err != nil {
-		return nil, err
-	}
-
-	block, msg, receipt, err := api.getInMessageByBlockHashAndIndex(tx, shardId, hash, types.MessageIndex(index))
-	if err != nil || block == nil || msg == nil || receipt == nil {
-		return nil, err
-	}
-
-	return NewRPCInMessage(msg, receipt, types.MessageIndex(index), block), nil
+func (api *APIImpl) GetInMessageByBlockHashAndIndex(
+	ctx context.Context, shardId types.ShardId, hash common.Hash, index hexutil.Uint64,
+) (*RPCInMessage, error) {
+	return api.getInMessageByBlockNumberOrHashAndIndex(ctx, shardId, transport.BlockNumberOrHash{BlockHash: &hash}, index)
 }
 
-func (api *APIImpl) GetRawInMessageByBlockNumberAndIndex(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, index hexutil.Uint) (hexutil.Bytes, error) {
+func (api *APIImpl) GetInMessageByBlockNumberAndIndex(
+	ctx context.Context, shardId types.ShardId, number transport.BlockNumber, index hexutil.Uint64,
+) (*RPCInMessage, error) {
+	return api.getInMessageByBlockNumberOrHashAndIndex(ctx, shardId, transport.BlockNumberOrHash{BlockNumber: &number}, index)
+}
+
+func (api *APIImpl) getRawInMessageByBlockNumberOrHashAndIndex(ctx context.Context, shardId types.ShardId,
+	hashOrNum transport.BlockNumberOrHash, index hexutil.Uint64,
+) (hexutil.Bytes, error) {
 	if err := api.checkShard(shardId); err != nil {
 		return nil, err
 	}
@@ -97,28 +97,25 @@ func (api *APIImpl) GetRawInMessageByBlockNumberAndIndex(ctx context.Context, sh
 	}
 	defer tx.Rollback()
 
-	hash, err := api.getBlockHashByNumber(tx, shardId, number)
-	if err != nil {
+	block, err := api.getBlockByNumberOrHashTx(tx, shardId, hashOrNum)
+	if err != nil || block == nil {
 		return nil, err
 	}
 
-	_, msgRaw, _, err := api.getRawInMessageByBlockHashAndIndex(tx, shardId, hash, types.MessageIndex(index))
+	msgRaw, _, err := api.getRawInMessageByBlockHashAndIndex(tx, shardId, block, types.MessageIndex(index))
 	return msgRaw, err
 }
 
-func (api *APIImpl) GetRawInMessageByBlockHashAndIndex(ctx context.Context, shardId types.ShardId, hash common.Hash, index hexutil.Uint) (hexutil.Bytes, error) {
-	if err := api.checkShard(shardId); err != nil {
-		return nil, err
-	}
+func (api *APIImpl) GetRawInMessageByBlockNumberAndIndex(
+	ctx context.Context, shardId types.ShardId, number transport.BlockNumber, index hexutil.Uint64,
+) (hexutil.Bytes, error) {
+	return api.getRawInMessageByBlockNumberOrHashAndIndex(ctx, shardId, transport.BlockNumberOrHash{BlockNumber: &number}, index)
+}
 
-	tx, err := api.db.CreateRoTx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	_, msgRaw, _, err := api.getRawInMessageByBlockHashAndIndex(tx, shardId, hash, types.MessageIndex(index))
-	return msgRaw, err
+func (api *APIImpl) GetRawInMessageByBlockHashAndIndex(
+	ctx context.Context, shardId types.ShardId, hash common.Hash, index hexutil.Uint64,
+) (hexutil.Bytes, error) {
+	return api.getRawInMessageByBlockNumberOrHashAndIndex(ctx, shardId, transport.BlockNumberOrHash{BlockHash: &hash}, index)
 }
 
 func (api *APIImpl) GetRawInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (hexutil.Bytes, error) {
@@ -181,47 +178,42 @@ func getBlockEntity[
 }
 
 func (api *APIImpl) getRawInMessageByBlockHashAndIndex(
-	tx db.RoTx, shardId types.ShardId, blockHash common.Hash, msgIndex types.MessageIndex,
-) (*types.Block, []byte, []byte, error) {
-	block := api.getBlockByHash(tx, shardId, blockHash)
-	if block == nil {
-		return nil, nil, nil, nil
-	}
-
+	tx db.RoTx, shardId types.ShardId, block *types.Block, msgIndex types.MessageIndex,
+) ([]byte, []byte, error) {
 	rawMsg, err := getRawBlockEntity(tx, shardId, db.MessageTrieTable, block.InMessagesRoot, msgIndex.Bytes())
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	rawReceipt, err := getRawBlockEntity(tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot, msgIndex.Bytes())
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
-	return block, rawMsg, rawReceipt, nil
+	return rawMsg, rawReceipt, nil
 }
 
 func (api *APIImpl) getInMessageByBlockHashAndIndex(
-	tx db.RoTx, shardId types.ShardId, blockHash common.Hash, msgIndex types.MessageIndex,
-) (*types.Block, *types.Message, *types.Receipt, error) {
-	block, msgRaw, receiptRaw, err := api.getRawInMessageByBlockHashAndIndex(tx, shardId, blockHash, msgIndex)
+	tx db.RoTx, shardId types.ShardId, block *types.Block, msgIndex types.MessageIndex,
+) (*types.Message, *types.Receipt, error) {
+	msgRaw, receiptRaw, err := api.getRawInMessageByBlockHashAndIndex(tx, shardId, block, msgIndex)
 	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil, nil, nil
+		return nil, nil, nil
 	}
 
-	if err != nil || block == nil || msgRaw == nil || receiptRaw == nil {
-		return nil, nil, nil, err
+	if err != nil || msgRaw == nil || receiptRaw == nil {
+		return nil, nil, err
 	}
 
 	m := new(types.Message)
 	if err := m.UnmarshalSSZ(msgRaw); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	r := new(types.Receipt)
 	if err := r.UnmarshalSSZ(receiptRaw); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
-	return block, m, r, nil
+	return m, r, nil
 }
