@@ -9,9 +9,12 @@ contract Incrementer {
         //     From:  common.BytesToAddress([]byte("from-address")),
         //     To:    common.BytesToAddress([]byte("to-address")),
         // }).MarshalSSZ()
-        bytes32[2] memory input = [
-            bytes32(hex'7b0000000000000081000000a1000000000000000000000066726f6d2d616464'),
-            bytes32(hex'7265737300000000000000000000746f2d61646472657373c1000000e1000000')
+        bytes32[5] memory input = [
+            bytes32(hex'7b00000000000000000000000000000000000000000000000000000000000000'),
+            bytes32(hex'0000000000000000000000000000000000000000000000000000000000000000'),
+            bytes32(hex'0000000000000000000000000000000066726f6d2d6164647265737300000000'),
+            bytes32(hex'000000000000746f2d6164647265737300000000000000000000000000000000'),
+            bytes32(hex'00000000000000000000000000000000d5000000000000000000000000000000')
         ];
 
         uint[1] memory output;
@@ -24,7 +27,7 @@ contract Incrementer {
                 /* contract address = */ 0x06,
                 /* value = */            0,
                 /* input mem start = */  input,
-                /* input mem size = */   225,
+                /* input mem size = */   213,
                 /* output mem start */   output,
                 /* output mem size */    0)) {
                 revert(0, 0)
