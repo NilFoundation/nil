@@ -3,12 +3,13 @@ package vm
 import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/tracing"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
 )
 
 // ContractRef is a reference to the contract's backing object
 type ContractRef interface {
-	Address() common.Address
+	Address() types.Address
 }
 
 // AccountRef implements ContractRef.
@@ -18,10 +19,10 @@ type ContractRef interface {
 // proves difficult because of the cached jump destinations which
 // are fetched from the parent contract (i.e. the caller), which
 // is a ContractRef.
-type AccountRef common.Address
+type AccountRef types.Address
 
 // Address casts AccountRef to an Address
-func (ar AccountRef) Address() common.Address { return (common.Address)(ar) }
+func (ar AccountRef) Address() types.Address { return (types.Address)(ar) }
 
 // Contract represents an ethereum contract in the state database. It contains
 // the contract code, calling arguments. Contract implements ContractRef
@@ -29,7 +30,7 @@ type Contract struct {
 	// CallerAddress is the result of the caller which initialised this
 	// contract. However when the "call method" is delegated this value
 	// needs to be initialised to that of the caller's caller.
-	CallerAddress common.Address
+	CallerAddress types.Address
 	caller        ContractRef
 	self          ContractRef
 
@@ -38,7 +39,7 @@ type Contract struct {
 
 	Code     []byte
 	CodeHash common.Hash
-	CodeAddr *common.Address
+	CodeAddr *types.Address
 	Input    []byte
 
 	// is the execution frame represented by this object a contract deployment
@@ -128,7 +129,7 @@ func (c *Contract) GetOp(n uint64) OpCode {
 //
 // Caller will recursively call caller when the contract is a delegate
 // call, including that of caller's caller.
-func (c *Contract) Caller() common.Address {
+func (c *Contract) Caller() types.Address {
 	return c.CallerAddress
 }
 
@@ -156,7 +157,7 @@ func (c *Contract) RefundGas(gas uint64, logger *tracing.Hooks, reason tracing.G
 }
 
 // Address returns the contracts address
-func (c *Contract) Address() common.Address {
+func (c *Contract) Address() types.Address {
 	return c.self.Address()
 }
 
@@ -167,7 +168,7 @@ func (c *Contract) Value() *uint256.Int {
 
 // SetCallCode sets the code of the contract and address of the backing data
 // object
-func (c *Contract) SetCallCode(addr *common.Address, hash common.Hash, code []byte) {
+func (c *Contract) SetCallCode(addr *types.Address, hash common.Hash, code []byte) {
 	c.Code = code
 	c.CodeHash = hash
 	c.CodeAddr = addr

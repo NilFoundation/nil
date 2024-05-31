@@ -13,8 +13,8 @@ import (
 func TestMessageSign(t *testing.T) {
 	t.Parallel()
 
-	from := common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
-	to := common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F21")
+	from := HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
+	to := HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F21")
 
 	msg := Message{
 		Seqno:    0,

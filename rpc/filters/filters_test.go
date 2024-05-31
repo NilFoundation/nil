@@ -36,7 +36,7 @@ func (s *SuiteFilters) TestMatcherOneReceipt() {
 
 	var receipts []*types.Receipt
 
-	address1 := common.HexToAddress("0x111111111")
+	address1 := types.HexToAddress("0x111111111")
 	logs := []*types.Log{
 		{
 			Address: address1,
@@ -58,7 +58,7 @@ func (s *SuiteFilters) TestMatcherOneReceipt() {
 	receipts = append(receipts, &types.Receipt{ContractAddress: address1, Logs: logs})
 
 	// All logs with Address == address1
-	id, f := filters.NewFilter(&FilterQuery{Addresses: []common.Address{address1}})
+	id, f := filters.NewFilter(&FilterQuery{Addresses: []types.Address{address1}})
 	s.NotEmpty(id)
 	s.NotNil(f)
 
@@ -70,7 +70,7 @@ func (s *SuiteFilters) TestMatcherOneReceipt() {
 	filters.RemoveFilter(id)
 
 	// Only logs with [1, 2] topics
-	id, f = filters.NewFilter(&FilterQuery{Addresses: []common.Address{address1}, Topics: [][]common.Hash{{{0x01}}, {{0x02}}}})
+	id, f = filters.NewFilter(&FilterQuery{Addresses: []types.Address{address1}, Topics: [][]common.Hash{{{0x01}}, {{0x02}}}})
 	s.NotEmpty(id)
 	s.NotNil(f)
 	s.Require().NoError(filters.process(&block, receipts))
@@ -79,7 +79,7 @@ func (s *SuiteFilters) TestMatcherOneReceipt() {
 	filters.RemoveFilter(id)
 
 	// Only logs with [any, 2] topics
-	id, f = filters.NewFilter(&FilterQuery{Addresses: []common.Address{address1}, Topics: [][]common.Hash{{}, {{0x02}}}})
+	id, f = filters.NewFilter(&FilterQuery{Addresses: []types.Address{address1}, Topics: [][]common.Hash{{}, {{0x02}}}})
 	s.NotEmpty(id)
 	s.NotNil(f)
 
@@ -98,8 +98,8 @@ func (s *SuiteFilters) TestMatcherTwoReceipts() {
 
 	var receipts []*types.Receipt
 
-	address1 := common.HexToAddress("0x1111111111")
-	address2 := common.HexToAddress("0x2222222222")
+	address1 := types.HexToAddress("0x1111111111")
+	address2 := types.HexToAddress("0x2222222222")
 
 	logs1 := []*types.Log{
 		{
@@ -155,7 +155,7 @@ func (s *SuiteFilters) TestMatcherTwoReceipts() {
 	filters.RemoveFilter(id)
 
 	// All logs of address1
-	id, f = filters.NewFilter(&FilterQuery{Addresses: []common.Address{address1}})
+	id, f = filters.NewFilter(&FilterQuery{Addresses: []types.Address{address1}})
 	s.NotEmpty(id)
 	s.NotNil(f)
 
@@ -168,7 +168,7 @@ func (s *SuiteFilters) TestMatcherTwoReceipts() {
 	filters.RemoveFilter(id)
 
 	// All logs of address2
-	id, f = filters.NewFilter(&FilterQuery{Addresses: []common.Address{address2}})
+	id, f = filters.NewFilter(&FilterQuery{Addresses: []types.Address{address2}})
 	s.NotEmpty(id)
 	s.NotNil(f)
 
@@ -180,7 +180,7 @@ func (s *SuiteFilters) TestMatcherTwoReceipts() {
 
 	// address1: nil, nil, 3
 	id, f = filters.NewFilter(&FilterQuery{
-		Addresses: []common.Address{address1},
+		Addresses: []types.Address{address1},
 		Topics:    [][]common.Hash{{}, {}, {{0x03}}},
 	})
 	s.NotEmpty(id)
@@ -216,7 +216,7 @@ func (s *SuiteFilters) TestMatcherTwoReceipts() {
 
 	// address1: 3
 	id, f = filters.NewFilter(&FilterQuery{
-		Addresses: []common.Address{address1},
+		Addresses: []types.Address{address1},
 		Topics:    [][]common.Hash{{{0x03}}},
 	})
 	s.NotEmpty(id)

@@ -39,16 +39,16 @@ type PrecompiledContract interface {
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
 // contracts used in the Prague release.
-var PrecompiledContractsPrague = map[common.Address]PrecompiledContract{
-	common.BytesToAddress([]byte{0x02}): &sha256hash{},
-	common.BytesToAddress([]byte{0x04}): &dataCopy{},
-	common.BytesToAddress([]byte{0x05}): &bigModExp{eip2565: true},
-	common.BytesToAddress([]byte{0x06}): &sendMessagePrecompiledContract{},
+var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
+	types.BytesToAddress([]byte{0x02}): &sha256hash{},
+	types.BytesToAddress([]byte{0x04}): &dataCopy{},
+	types.BytesToAddress([]byte{0x05}): &bigModExp{eip2565: true},
+	types.BytesToAddress([]byte{0x06}): &sendMessagePrecompiledContract{},
 }
 
 var PrecompiledContractsBLS = PrecompiledContractsPrague
 
-var PrecompiledAddressesPrague []common.Address
+var PrecompiledAddressesPrague []types.Address
 
 func init() {
 	for k := range PrecompiledContractsPrague {
@@ -57,7 +57,7 @@ func init() {
 }
 
 // ActivePrecompiles returns the precompiles enabled with the current configuration.
-func ActivePrecompiles() []common.Address {
+func ActivePrecompiles() []types.Address {
 	return PrecompiledAddressesPrague
 }
 

@@ -1,4 +1,4 @@
-package common
+package types
 
 import (
 	"bytes"
@@ -9,13 +9,14 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	ssz "github.com/ferranbt/fastssz"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 // Address represents the 20 byte address of an Ethereum account.
-type Address [AddrSize]byte
+type Address [common.AddrSize]byte
 
 var EmptyAddress = Address{}
 
@@ -59,7 +60,7 @@ func IsHexAddress(s string) bool {
 func (a Address) Bytes() []byte { return a[:] }
 
 // Hash converts an address to a hash by left-padding it with zeros.
-func (a Address) Hash() Hash { return BytesToHash(a[:]) }
+func (a Address) Hash() common.Hash { return common.BytesToHash(a[:]) }
 
 // Hex returns an EIP55-compliant hex string representation of the address.
 func (a Address) Hex() string {
@@ -138,9 +139,9 @@ func (a Address) Format(s fmt.State, c rune) {
 // If b is larger than len(a), b will be cropped from the left.
 func (a *Address) SetBytes(b []byte) {
 	if len(b) > len(a) {
-		b = b[len(b)-AddrSize:]
+		b = b[len(b)-common.AddrSize:]
 	}
-	copy(a[AddrSize-len(b):], b)
+	copy(a[common.AddrSize-len(b):], b)
 }
 
 // MarshalText returns the hex representation of a.
@@ -166,22 +167,22 @@ func (a Address) ShardId() uint32 {
 }
 
 func PubkeyBytesToAddress(shardId uint32, pubBytes []byte) Address {
-	bytes := make([]byte, 2, AddrSize)
+	bytes := make([]byte, 2, common.AddrSize)
 	bytes = appendShardId(bytes, shardId)
-	bytes = append(bytes, PoseidonHash(pubBytes).Bytes()[14:]...)
+	bytes = append(bytes, common.PoseidonHash(pubBytes).Bytes()[14:]...)
 	return BytesToAddress(bytes)
 }
 
 // CreateAddress creates an address given the bytes and the nonce.
 func CreateAddress(shardId uint32, b Address, nonce uint64) Address {
-	bytes := make([]byte, 2, AddrSize)
+	bytes := make([]byte, 2, common.AddrSize)
 	bytes = appendShardId(bytes, shardId)
 
 	buf := make([]byte, len(b)+8)
 	copy(buf, b.Bytes())
 	buf = ssz.MarshalUint64(buf, nonce)
 
-	bytes = append(bytes, PoseidonHash(buf).Bytes()[14:]...)
+	bytes = append(bytes, common.PoseidonHash(buf).Bytes()[14:]...)
 	return BytesToAddress(bytes)
 }
 
@@ -192,7 +193,7 @@ func GenerateRandomAddress(shardId uint32) Address {
 		panic(err)
 	}
 
-	bytes := make([]byte, 2, AddrSize)
+	bytes := make([]byte, 2, common.AddrSize)
 	bytes = appendShardId(bytes, shardId)
 	bytes = append(bytes, b...)
 	return BytesToAddress(bytes)

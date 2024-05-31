@@ -21,7 +21,7 @@ type Storage map[common.Hash]common.Hash
 
 type AccountState struct {
 	db      *ExecutionState
-	address common.Address // address of the ethereum account
+	address types.Address // address of the ethereum account
 
 	Tx          db.Tx
 	Balance     uint256.Int
@@ -60,7 +60,7 @@ type ExecutionState struct {
 	InMessageHash common.Hash
 	Logs          map[common.Hash][]*types.Log
 
-	Accounts   map[common.Address]*AccountState
+	Accounts   map[types.Address]*AccountState
 	InMessages []*types.Message
 
 	// OutMessages holds outbound messages for every transaction in the executed block, where key is hash of Message that sends the message
@@ -92,7 +92,7 @@ func (s *AccountState) empty() bool {
 	return s.Seqno == 0 && s.Balance.IsZero() && len(s.Code) == 0
 }
 
-func NewAccountState(es *ExecutionState, addr common.Address, tx db.Tx, data []byte) (*AccountState, error) {
+func NewAccountState(es *ExecutionState, addr types.Address, tx db.Tx, data []byte) (*AccountState, error) {
 	account := new(types.SmartContract)
 	shardId := types.ShardId(addr.ShardId())
 
@@ -163,7 +163,7 @@ func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash, t
 		PrevBlock:        blockHash,
 		ShardId:          shardId,
 		ChildChainBlocks: map[types.ShardId]common.Hash{},
-		Accounts:         map[common.Address]*AccountState{},
+		Accounts:         map[types.Address]*AccountState{},
 		OutMessages:      map[common.Hash][]*types.Message{},
 		Logs:             map[common.Hash][]*types.Log{},
 
@@ -196,7 +196,7 @@ func (es *ExecutionState) GetReceipt(msgIndex uint64) (*types.Receipt, error) {
 	return &r, r.UnmarshalSSZ(buf)
 }
 
-func (es *ExecutionState) GetAccount(addr common.Address) *AccountState {
+func (es *ExecutionState) GetAccount(addr types.Address) *AccountState {
 	acc, ok := es.Accounts[addr]
 	if ok {
 		return acc
@@ -225,11 +225,11 @@ func (es *ExecutionState) setAccountObject(acc *AccountState) {
 	es.Accounts[acc.address] = acc
 }
 
-func (es *ExecutionState) AddAddressToAccessList(addr common.Address) {
+func (es *ExecutionState) AddAddressToAccessList(addr types.Address) {
 }
 
 // AddBalance adds amount to the account associated with addr.
-func (s *ExecutionState) AddBalance(addr common.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) {
+func (s *ExecutionState) AddBalance(addr types.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) {
 	stateObject := s.getOrNewAccount(addr)
 	if stateObject != nil {
 		stateObject.AddBalance(amount, reason)
@@ -237,7 +237,7 @@ func (s *ExecutionState) AddBalance(addr common.Address, amount *uint256.Int, re
 }
 
 // SubBalance subtracts amount from the account associated with addr.
-func (s *ExecutionState) SubBalance(addr common.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) {
+func (s *ExecutionState) SubBalance(addr types.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) {
 	stateObject := s.getOrNewAccount(addr)
 	if stateObject != nil {
 		stateObject.SubBalance(amount, reason)
@@ -278,24 +278,24 @@ func (s *ExecutionState) GetRefund() uint64 {
 	return s.refund
 }
 
-func (es *ExecutionState) AddSlotToAccessList(addr common.Address, slot common.Hash) {
+func (es *ExecutionState) AddSlotToAccessList(addr types.Address, slot common.Hash) {
 }
 
-func (es *ExecutionState) AddressInAccessList(addr common.Address) bool {
+func (es *ExecutionState) AddressInAccessList(addr types.Address) bool {
 	return true // FIXME
 }
 
-func (es *ExecutionState) Empty(addr common.Address) bool {
+func (es *ExecutionState) Empty(addr types.Address) bool {
 	acc := es.GetAccount(addr)
 	return acc == nil || acc.empty()
 }
 
-func (es *ExecutionState) Exist(addr common.Address) bool {
+func (es *ExecutionState) Exist(addr types.Address) bool {
 	acc := es.GetAccount(addr)
 	return acc != nil
 }
 
-func (es *ExecutionState) GetCode(addr common.Address) []byte {
+func (es *ExecutionState) GetCode(addr types.Address) []byte {
 	acc := es.GetAccount(addr)
 	if acc != nil {
 		return acc.Code
@@ -303,7 +303,7 @@ func (es *ExecutionState) GetCode(addr common.Address) []byte {
 	return nil
 }
 
-func (es *ExecutionState) GetCodeHash(addr common.Address) common.Hash {
+func (es *ExecutionState) GetCodeHash(addr types.Address) common.Hash {
 	acc := es.GetAccount(addr)
 	if acc != nil {
 		return acc.CodeHash
@@ -311,7 +311,7 @@ func (es *ExecutionState) GetCodeHash(addr common.Address) common.Hash {
 	return common.EmptyHash
 }
 
-func (es *ExecutionState) GetCodeSize(addr common.Address) int {
+func (es *ExecutionState) GetCodeSize(addr types.Address) int {
 	acc := es.GetAccount(addr)
 	if acc != nil {
 		return len(acc.Code)
@@ -319,7 +319,7 @@ func (es *ExecutionState) GetCodeSize(addr common.Address) int {
 	return 0
 }
 
-func (es *ExecutionState) GetCommittedState(common.Address, common.Hash) common.Hash {
+func (es *ExecutionState) GetCommittedState(types.Address, common.Hash) common.Hash {
 	return common.EmptyHash
 }
 
@@ -347,7 +347,7 @@ func (s *ExecutionState) RevertToSnapshot(revid int) {
 	s.validRevisions = s.validRevisions[:idx]
 }
 
-func (es *ExecutionState) GetStorageRoot(addr common.Address) common.Hash {
+func (es *ExecutionState) GetStorageRoot(addr types.Address) common.Hash {
 	acc := es.GetAccount(addr)
 	if acc != nil {
 		return acc.StorageRoot.RootHash()
@@ -358,7 +358,7 @@ func (es *ExecutionState) GetStorageRoot(addr common.Address) common.Hash {
 // SetTransientState sets transient storage for a given account. It
 // adds the change to the journal so that it can be rolled back
 // to its previous value if there is a revert.
-func (s *ExecutionState) SetTransientState(addr common.Address, key, value common.Hash) {
+func (s *ExecutionState) SetTransientState(addr types.Address, key, value common.Hash) {
 	prev := s.GetTransientState(addr, key)
 	if prev == value {
 		return
@@ -373,12 +373,12 @@ func (s *ExecutionState) SetTransientState(addr common.Address, key, value commo
 
 // setTransientState is a lower level setter for transient storage. It
 // is called during a revert to prevent modifications to the journal.
-func (s *ExecutionState) setTransientState(addr common.Address, key, value common.Hash) {
+func (s *ExecutionState) setTransientState(addr types.Address, key, value common.Hash) {
 	s.transientStorage.Set(addr, key, value)
 }
 
 // GetTransientState gets transient storage for a given account.
-func (s *ExecutionState) GetTransientState(addr common.Address, key common.Hash) common.Hash {
+func (s *ExecutionState) GetTransientState(addr types.Address, key common.Hash) common.Hash {
 	return s.transientStorage.Get(addr, key)
 }
 
@@ -401,7 +401,7 @@ func (s *ExecutionState) selfDestruct(stateObject *AccountState) {
 	stateObject.Balance = *n
 }
 
-func (s *ExecutionState) Selfdestruct6780(addr common.Address) {
+func (s *ExecutionState) Selfdestruct6780(addr types.Address) {
 	stateObject := s.GetAccount(addr)
 	if stateObject == nil {
 		return
@@ -411,7 +411,7 @@ func (s *ExecutionState) Selfdestruct6780(addr common.Address) {
 	}
 }
 
-func (s *ExecutionState) HasSelfDestructed(addr common.Address) bool {
+func (s *ExecutionState) HasSelfDestructed(addr types.Address) bool {
 	stateObject := s.GetAccount(addr)
 	if stateObject != nil {
 		return stateObject.selfDestructed
@@ -419,19 +419,19 @@ func (s *ExecutionState) HasSelfDestructed(addr common.Address) bool {
 	return false
 }
 
-func (es *ExecutionState) SetCode(addr common.Address, code []byte) {
+func (es *ExecutionState) SetCode(addr types.Address, code []byte) {
 	acc := es.GetAccount(addr)
 	acc.SetCode(types.Code(code).Hash(), code)
 }
 
-func (es *ExecutionState) SetInitState(addr common.Address, message *types.DeployMessage) {
+func (es *ExecutionState) SetInitState(addr types.Address, message *types.DeployMessage) {
 	acc := es.GetAccount(addr)
 	acc.setCode(message.Code.Hash(), message.Code)
 	acc.setSeqno(message.Seqno)
 	acc.setPublicKey(message.PublicKey)
 }
 
-func (es *ExecutionState) SlotInAccessList(addr common.Address, slot common.Hash) (addressOk bool, slotOk bool) {
+func (es *ExecutionState) SlotInAccessList(addr types.Address, slot common.Hash) (addressOk bool, slotOk bool) {
 	return true, true // FIXME
 }
 
@@ -570,7 +570,7 @@ func (as *AccountState) Commit() ([]byte, error) {
 	return data, nil
 }
 
-func (es *ExecutionState) GetState(addr common.Address, key common.Hash) common.Hash {
+func (es *ExecutionState) GetState(addr types.Address, key common.Hash) common.Hash {
 	acc := es.GetAccount(addr)
 	if acc == nil {
 		return common.EmptyHash
@@ -579,12 +579,12 @@ func (es *ExecutionState) GetState(addr common.Address, key common.Hash) common.
 	return acc.GetState(key)
 }
 
-func (es *ExecutionState) SetState(addr common.Address, key common.Hash, val common.Hash) {
+func (es *ExecutionState) SetState(addr types.Address, key common.Hash, val common.Hash) {
 	acc := es.getOrNewAccount(addr)
 	acc.SetState(key, val)
 }
 
-func (es *ExecutionState) GetBalance(addr common.Address) *uint256.Int {
+func (es *ExecutionState) GetBalance(addr types.Address) *uint256.Int {
 	acc := es.GetAccount(addr)
 	if acc == nil {
 		return uint256.NewInt(0)
@@ -592,7 +592,7 @@ func (es *ExecutionState) GetBalance(addr common.Address) *uint256.Int {
 	return &acc.Balance
 }
 
-func (es *ExecutionState) GetSeqno(addr common.Address) uint64 {
+func (es *ExecutionState) GetSeqno(addr types.Address) uint64 {
 	acc := es.GetAccount(addr)
 	if acc == nil {
 		return 0
@@ -600,7 +600,7 @@ func (es *ExecutionState) GetSeqno(addr common.Address) uint64 {
 	return acc.Seqno
 }
 
-func (es *ExecutionState) getOrNewAccount(addr common.Address) *AccountState {
+func (es *ExecutionState) getOrNewAccount(addr types.Address) *AccountState {
 	acc := es.GetAccount(addr)
 	if acc != nil {
 		return acc
@@ -609,12 +609,12 @@ func (es *ExecutionState) getOrNewAccount(addr common.Address) *AccountState {
 	return es.GetAccount(addr)
 }
 
-func (es *ExecutionState) SetBalance(addr common.Address, balance uint256.Int) {
+func (es *ExecutionState) SetBalance(addr types.Address, balance uint256.Int) {
 	acc := es.getOrNewAccount(addr)
 	acc.SetBalance(balance)
 }
 
-func (es *ExecutionState) SetSeqno(addr common.Address, seqno uint64) {
+func (es *ExecutionState) SetSeqno(addr types.Address, seqno uint64) {
 	acc := es.getOrNewAccount(addr)
 	acc.SetSeqno(seqno)
 }
@@ -627,7 +627,7 @@ func (es *ExecutionState) SetShardHash(shardId types.ShardId, hash common.Hash) 
 	es.ChildChainBlocks[shardId] = hash
 }
 
-func (es *ExecutionState) CreateAccount(addr common.Address) {
+func (es *ExecutionState) CreateAccount(addr types.Address) {
 	acc := es.GetAccount(addr)
 
 	if acc != nil {
@@ -656,7 +656,7 @@ func (es *ExecutionState) CreateAccount(addr common.Address) {
 // state due to funds sent beforehand.
 // This operation sets the 'newContract'-flag, which is required in order to
 // correctly handle EIP-6780 'delete-in-same-transaction' logic.
-func (s *ExecutionState) CreateContract(addr common.Address) {
+func (s *ExecutionState) CreateContract(addr types.Address) {
 	obj := s.GetAccount(addr)
 	if !obj.newContract {
 		obj.newContract = true
@@ -664,7 +664,7 @@ func (s *ExecutionState) CreateContract(addr common.Address) {
 	}
 }
 
-func (es *ExecutionState) ContractExists(addr common.Address) bool {
+func (es *ExecutionState) ContractExists(addr types.Address) bool {
 	acc := es.GetAccount(addr)
 	return acc != nil
 }
@@ -685,11 +685,11 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint
 		return err
 	}
 
-	var addr common.Address
+	var addr types.Address
 	if len(deployMsg.PublicKey) == 0 {
-		addr = common.CreateAddress(uint32(deployMsg.ShardId), message.From, message.Seqno)
+		addr = types.CreateAddress(uint32(deployMsg.ShardId), message.From, message.Seqno)
 	} else {
-		addr = common.PubkeyBytesToAddress(uint32(deployMsg.ShardId), deployMsg.PublicKey)
+		addr = types.PubkeyBytesToAddress(uint32(deployMsg.ShardId), deployMsg.PublicKey)
 	}
 
 	gas := uint64(100000)

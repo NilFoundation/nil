@@ -46,15 +46,15 @@ func (s *SuiteEthFilters) TearDownTest() {
 func (s *SuiteEthFilters) TestLogs() {
 	tx, err := s.db.CreateRwTx(s.ctx)
 	s.Require().NoError(err)
-	address1 := common.HexToAddress("0x1111111111")
-	address2 := common.HexToAddress("0x2222222222")
+	address1 := types.HexToAddress("0x1111111111")
+	address2 := types.HexToAddress("0x2222222222")
 
 	topics := [][]common.Hash{{}, {}, {{3}}}
 	query1 := filters.FilterQuery{
 		BlockHash: nil,
 		FromBlock: nil,
 		ToBlock:   nil,
-		Addresses: []common.Address{address1},
+		Addresses: []types.Address{address1},
 		Topics:    topics,
 	}
 	id1, err := s.api.NewFilter(s.ctx, query1)
@@ -66,7 +66,7 @@ func (s *SuiteEthFilters) TestLogs() {
 		BlockHash: nil,
 		FromBlock: nil,
 		ToBlock:   nil,
-		Addresses: []common.Address{},
+		Addresses: []types.Address{},
 		Topics:    topics2,
 	}
 	id2, err := s.api.NewFilter(s.ctx, query2)

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"math"
 
-	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/google/btree"
 	"github.com/rs/zerolog"
@@ -20,7 +19,7 @@ import (
 type BySenderAndSeqno struct {
 	tree         *btree.BTreeG[*types.Message]
 	search       *types.Message
-	fromMsgCount map[common.Address]int // count of sender's msgs in the pool - may differ from seqno
+	fromMsgCount map[types.Address]int // count of sender's msgs in the pool - may differ from seqno
 }
 
 func sortBySeqnoLess(a, b *types.Message) bool {
@@ -35,11 +34,11 @@ func NewBySenderAndSeqno() *BySenderAndSeqno {
 	return &BySenderAndSeqno{
 		tree:         btree.NewG(32, sortBySeqnoLess),
 		search:       &types.Message{},
-		fromMsgCount: map[common.Address]int{},
+		fromMsgCount: map[types.Address]int{},
 	}
 }
 
-func (b *BySenderAndSeqno) seqno(from common.Address) (seqno uint64, ok bool) {
+func (b *BySenderAndSeqno) seqno(from types.Address) (seqno uint64, ok bool) {
 	s := b.search
 	s.From = from
 	s.Seqno = math.MaxUint64
@@ -60,7 +59,7 @@ func (b *BySenderAndSeqno) ascendAll(f func(*types.Message) bool) { //nolint:unu
 	})
 }
 
-func (b *BySenderAndSeqno) ascend(from common.Address, f func(*types.Message) bool) {
+func (b *BySenderAndSeqno) ascend(from types.Address, f func(*types.Message) bool) {
 	s := b.search
 	s.From = from
 	s.Seqno = 0
@@ -72,7 +71,7 @@ func (b *BySenderAndSeqno) ascend(from common.Address, f func(*types.Message) bo
 	})
 }
 
-func (b *BySenderAndSeqno) descend(from common.Address, f func(*types.Message) bool) { //nolint:unused
+func (b *BySenderAndSeqno) descend(from types.Address, f func(*types.Message) bool) { //nolint:unused
 	s := b.search
 	s.From = from
 	s.Seqno = math.MaxUint64
@@ -84,11 +83,11 @@ func (b *BySenderAndSeqno) descend(from common.Address, f func(*types.Message) b
 	})
 }
 
-func (b *BySenderAndSeqno) count(from common.Address) int { //nolint:unused
+func (b *BySenderAndSeqno) count(from types.Address) int { //nolint:unused
 	return b.fromMsgCount[from]
 }
 
-func (b *BySenderAndSeqno) hasTxs(from common.Address) bool { //nolint:unused
+func (b *BySenderAndSeqno) hasTxs(from types.Address) bool { //nolint:unused
 	has := false
 	b.ascend(from, func(*types.Message) bool {
 		has = true
@@ -97,7 +96,7 @@ func (b *BySenderAndSeqno) hasTxs(from common.Address) bool { //nolint:unused
 	return has
 }
 
-func (b *BySenderAndSeqno) get(from common.Address, seqno uint64) *types.Message {
+func (b *BySenderAndSeqno) get(from types.Address, seqno uint64) *types.Message {
 	s := b.search
 	s.From = from
 	s.Seqno = seqno

@@ -39,7 +39,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
-	addr := common.GenerateRandomAddress(uint32(shardId))
+	addr := types.GenerateRandomAddress(uint32(shardId))
 
 	es.CreateAccount(addr)
 
@@ -49,7 +49,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	const numMessages uint8 = 10
 
-	from := common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
+	from := types.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
 	blockContext := NewEVMBlockContext(es)
 	for i := range numMessages {
 		deploy := types.DeployMessage{
@@ -183,7 +183,7 @@ func TestStorage(t *testing.T) {
 	t.Parallel()
 
 	state := newState(t)
-	account := common.HexToAddress("deadbeef")
+	account := types.HexToAddress("deadbeef")
 	key := common.EmptyHash
 	value := common.IntToHash(42)
 
@@ -206,7 +206,7 @@ func TestBalance(t *testing.T) {
 	t.Parallel()
 
 	state := newState(t)
-	account := common.HexToAddress("deadbeef")
+	account := types.HexToAddress("deadbeef")
 
 	state.SetBalance(account, *uint256.NewInt(100500))
 
@@ -215,7 +215,7 @@ func TestBalance(t *testing.T) {
 
 func TestSnapshot(t *testing.T) {
 	t.Parallel()
-	stateobjaddr := common.BytesToAddress([]byte("aa"))
+	stateobjaddr := types.BytesToAddress([]byte("aa"))
 	var storageaddr common.Hash
 	data1 := common.BytesToHash([]byte{42})
 	data2 := common.BytesToHash([]byte{43})
@@ -258,7 +258,7 @@ func TestSnapshotEmpty(t *testing.T) {
 func TestCreateObjectRevert(t *testing.T) {
 	t.Parallel()
 	state := newState(t)
-	addr := common.BytesToAddress([]byte("so0"))
+	addr := types.BytesToAddress([]byte("so0"))
 	snap := state.Snapshot()
 
 	state.CreateAccount(addr)

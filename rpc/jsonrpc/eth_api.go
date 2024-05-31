@@ -85,9 +85,9 @@ type EthAPI interface {
 	GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Receipt, error)
 
 	// Account related
-	GetBalance(ctx context.Context, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error)
-	GetTransactionCount(ctx context.Context, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Uint64, error)
-	GetCode(ctx context.Context, shardId types.ShardId, address common.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error)
+	GetBalance(ctx context.Context, shardId types.ShardId, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error)
+	GetTransactionCount(ctx context.Context, shardId types.ShardId, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Uint64, error)
+	GetCode(ctx context.Context, shardId types.ShardId, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error)
 
 	// Sending related
 	SendRawTransaction(ctx context.Context, encoded hexutil.Bytes) (common.Hash, error)

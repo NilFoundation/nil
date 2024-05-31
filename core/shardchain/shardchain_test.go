@@ -42,11 +42,11 @@ func (s *SuiteShardchainState) TestGenerateBlock() {
 	s.Require().NoError(err)
 
 	m1 := types.Message{
-		From: common.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20"),
+		From: types.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20"),
 		Data: hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
 	}
 	m2 := m1
-	m2.To = common.CreateAddress(uint32(shardId), m2.From, m2.Seqno)
+	m2.To = types.CreateAddress(uint32(shardId), m2.From, m2.Seqno)
 
 	err = HandleMessages(ctx, es, []*types.Message{&m1, &m2})
 	s.Require().NoError(err)
@@ -71,15 +71,15 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 	key, err := crypto.GenerateKey()
 	s.Require().NoError(err)
 
-	addrFrom := common.HexToAddress("0000832983856CB0CF6CD570F071122F1BEA2F20")
+	addrFrom := types.HexToAddress("0000832983856CB0CF6CD570F071122F1BEA2F20")
 	es.CreateAccount(addrFrom)
 	es.Accounts[addrFrom].PublicKey = crypto.CompressPubkey(&key.PublicKey)
 
-	addrTo := common.HexToAddress("1111832983856CB0CF6CD570F071122F1BEA2F20")
+	addrTo := types.HexToAddress("1111832983856CB0CF6CD570F071122F1BEA2F20")
 	es.CreateAccount(addrTo)
 
 	msg := types.Message{
-		From:      common.EmptyAddress,
+		From:      types.EmptyAddress,
 		To:        addrTo,
 		Seqno:     0,
 		Signature: common.EmptySignature,

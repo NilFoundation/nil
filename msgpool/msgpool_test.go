@@ -18,10 +18,10 @@ type SuiteMsgPool struct {
 	pool *MsgPool
 }
 
-func newMessage(from common.Address, seqno uint64, fee uint64) types.Message {
+func newMessage(from types.Address, seqno uint64, fee uint64) types.Message {
 	return types.Message{
 		From:      from,
-		To:        common.Address{},
+		To:        types.Address{},
 		Value:     types.Uint256{Int: *uint256.NewInt(fee)},
 		Data:      types.Code(""),
 		Seqno:     seqno,
@@ -51,8 +51,8 @@ func (suite *SuiteMsgPool) TestAdd() {
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	address := common.HexToAddress("deadbeef")
-	suite.Require().NotEqual(common.Address{}, address)
+	address := types.HexToAddress("deadbeef")
+	suite.Require().NotEqual(types.Address{}, address)
 
 	msg1 := newMessage(address, 0, 123)
 
@@ -97,7 +97,7 @@ func (suite *SuiteMsgPool) TestAdd() {
 	suite.Equal(2, suite.pool.MessageCount())
 
 	// Add a message with higher seqno from new sender
-	msg6 := newMessage(common.HexToAddress("deadbeef2"), 1, 124)
+	msg6 := newMessage(types.HexToAddress("deadbeef2"), 1, 124)
 	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg6}, tx)
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
@@ -115,8 +115,8 @@ func (suite *SuiteMsgPool) TestAddOverflow() {
 
 	suite.pool.cfg.Size = 1
 
-	address := common.HexToAddress("deadbeef")
-	suite.Require().NotEqual(common.Address{}, address)
+	address := types.HexToAddress("deadbeef")
+	suite.Require().NotEqual(types.Address{}, address)
 
 	msg1 := newMessage(address, 0, 123)
 	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg1}, tx)
@@ -142,8 +142,8 @@ func (suite *SuiteMsgPool) TestIdHashKnownGet() {
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	address := common.HexToAddress("deadbeef01")
-	suite.Require().NotEqual(common.Address{}, address)
+	address := types.HexToAddress("deadbeef01")
+	suite.Require().NotEqual(types.Address{}, address)
 
 	msg := newMessage(address, 0, 123)
 	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg}, tx)
@@ -177,8 +177,8 @@ func (suite *SuiteMsgPool) TestSeqnoFromAddress() {
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	address := common.HexToAddress("deadbeef02")
-	suite.Require().NotEqual(common.Address{}, address)
+	address := types.HexToAddress("deadbeef02")
+	suite.Require().NotEqual(types.Address{}, address)
 
 	_, inPool := suite.pool.SeqnoFromAddress(address)
 	suite.Require().False(inPool)
@@ -201,7 +201,7 @@ func (suite *SuiteMsgPool) TestSeqnoFromAddress() {
 	suite.Require().True(inPool)
 	suite.Require().Equal(uint64(1), seqno)
 
-	_, inPool = suite.pool.SeqnoFromAddress(common.BytesToAddress([]byte("abcd")))
+	_, inPool = suite.pool.SeqnoFromAddress(types.BytesToAddress([]byte("abcd")))
 	suite.Require().False(inPool)
 
 	err = tx.Commit()
@@ -214,8 +214,8 @@ func (suite *SuiteMsgPool) TestPeek() {
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	address1 := common.HexToAddress("deadbeef01")
-	address2 := common.HexToAddress("deadbeef02")
+	address1 := types.HexToAddress("deadbeef01")
+	address2 := types.HexToAddress("deadbeef02")
 
 	msg1_1 := newMessage(address1, 0, 123)
 	msg1_2 := newMessage(address1, 1, 123)
@@ -252,8 +252,8 @@ func (suite *SuiteMsgPool) TestOnNewBlock() {
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	address1 := common.HexToAddress("deadbeef01")
-	address2 := common.HexToAddress("deadbeef02")
+	address1 := types.HexToAddress("deadbeef01")
+	address2 := types.HexToAddress("deadbeef02")
 
 	msg1_1 := newMessage(address1, 0, 123)
 	msg1_2 := newMessage(address1, 1, 123)

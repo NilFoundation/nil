@@ -8,7 +8,7 @@ type Logs []*Log
 
 type Log struct {
 	// Address of the contract that generated the event
-	Address common.Address `json:"address"`
+	Address Address `json:"address"`
 	// List of topics provided by the contract
 	Topics []common.Hash `json:"topics" ssz-max:"1000"`
 	// Supplied by the contract, usually ABI-encoded
@@ -20,7 +20,7 @@ type Log struct {
 	BlockNumber uint64 `json:"blockNumber"`
 }
 
-func NewLog(address common.Address, data []byte, blockNumber uint64, topics []common.Hash) *Log {
+func NewLog(address Address, data []byte, blockNumber uint64, topics []common.Hash) *Log {
 	return &Log{
 		Address:     address,
 		Topics:      topics,

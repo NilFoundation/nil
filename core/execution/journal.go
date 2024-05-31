@@ -2,6 +2,7 @@ package execution
 
 import (
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
 )
 
@@ -46,38 +47,38 @@ func (j *journal) length() int {
 type (
 	// Changes to the account trie.
 	createObjectChange struct {
-		account *common.Address
+		account *types.Address
 	}
 
 	// createContractChange represents an account becoming a contract-account.
 	// This event happens prior to executing initcode. The journal-event simply
 	// manages the created-flag, in order to allow same-tx destruction.
 	createContractChange struct {
-		account common.Address
+		account types.Address
 	}
 
 	selfDestructChange struct {
-		account     *common.Address
+		account     *types.Address
 		prev        bool // whether account had already self-destructed
 		prevbalance *uint256.Int
 	}
 
 	// Changes to individual accounts.
 	balanceChange struct {
-		account *common.Address
+		account *types.Address
 		prev    *uint256.Int
 	}
 	seqnoChange struct {
-		account *common.Address
+		account *types.Address
 		prev    uint64
 	}
 	storageChange struct {
-		account   *common.Address
+		account   *types.Address
 		key       common.Hash
 		prevvalue common.Hash
 	}
 	codeChange struct {
-		account            *common.Address
+		account            *types.Address
 		prevcode, prevhash []byte
 	}
 
@@ -91,7 +92,7 @@ type (
 
 	// Changes to transient storage
 	transientStorageChange struct {
-		account       *common.Address
+		account       *types.Address
 		key, prevalue common.Hash
 	}
 )

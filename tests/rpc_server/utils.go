@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
 )
 
@@ -70,7 +69,7 @@ func makeRequest[R any](port int, data *Request) (*Response[R], error) {
 	return &response, nil
 }
 
-func transactionCount(port int, shardId types.ShardId, addr common.Address, blk string) (uint64, error) {
+func transactionCount(port int, shardId types.ShardId, addr types.Address, blk string) (uint64, error) {
 	request := NewRequest(getTransactionCount, shardId, addr.Hex(), blk)
 	resp, err := makeRequest[string](port, request)
 	if err != nil {

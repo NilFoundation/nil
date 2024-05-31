@@ -6,7 +6,7 @@ import (
 )
 
 type SmartContract struct {
-	Address     common.Address
+	Address     Address
 	Initialised bool
 	Balance     Uint256 `ssz-size:"32"`
 	StorageRoot common.Hash
