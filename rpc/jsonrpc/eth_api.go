@@ -21,13 +21,13 @@ type RPCInMessage struct {
 	Success     bool              `json:"success"`
 	BlockHash   *common.Hash      `json:"blockHash"`
 	BlockNumber types.BlockNumber `json:"blockNumber"`
-	From        common.Address    `json:"from"`
+	From        types.Address     `json:"from"`
 	GasUsed     hexutil.Uint64    `json:"gasUsed"`
 	GasPrice    types.Uint256     `json:"gasPrice,omitempty"`
 	GasLimit    types.Uint256     `json:"gasLimit,omitempty"`
 	Hash        common.Hash       `json:"hash"`
 	Seqno       hexutil.Uint64    `json:"seqno"`
-	To          *common.Address   `json:"to"`
+	To          *types.Address    `json:"to"`
 	Index       *hexutil.Uint64   `json:"index"`
 	Value       types.Uint256     `json:"value"`
 	ChainID     types.Uint256     `json:"chainId,omitempty"`
