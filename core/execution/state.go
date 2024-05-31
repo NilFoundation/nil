@@ -687,9 +687,9 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint
 
 	var addr common.Address
 	if len(deployMsg.PublicKey) == 0 {
-		addr = common.CreateAddress(deployMsg.ShardId, message.From, message.Seqno)
+		addr = common.CreateAddress(uint32(deployMsg.ShardId), message.From, message.Seqno)
 	} else {
-		addr = common.PubkeyBytesToAddress(deployMsg.ShardId, deployMsg.PublicKey)
+		addr = common.PubkeyBytesToAddress(uint32(deployMsg.ShardId), deployMsg.PublicKey)
 	}
 
 	gas := uint64(100000)

@@ -33,15 +33,14 @@ func init() {
 }
 
 func GenerateZeroState(ctx context.Context, es *execution.ExecutionState) error {
-	shardId := uint32(es.ShardId)
 	mainDeployMsg := &types.DeployMessage{
-		ShardId:   shardId,
+		ShardId:   es.ShardId,
 		Seqno:     0,
 		PublicKey: crypto.CompressPubkey(&MainPrivateKey.PublicKey),
 	}
 
 	pub := crypto.CompressPubkey(&MainPrivateKey.PublicKey)
-	addr := common.PubkeyBytesToAddress(shardId, pub)
+	addr := common.PubkeyBytesToAddress(uint32(es.ShardId), pub)
 	es.CreateAccount(addr)
 	es.CreateContract(addr)
 	es.SetInitState(addr, mainDeployMsg)

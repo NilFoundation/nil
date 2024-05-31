@@ -53,7 +53,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	blockContext := NewEVMBlockContext(es)
 	for i := range numMessages {
 		deploy := types.DeployMessage{
-			ShardId: uint32(shardId),
+			ShardId: shardId,
 			Seqno:   uint64(i),
 
 			// constructor that generates the code "01020304"
@@ -103,7 +103,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 		suite.Require().NoError(m.UnmarshalSSZ(mRaw))
 
 		deploy := types.DeployMessage{
-			ShardId: uint32(shardId),
+			ShardId: shardId,
 			Seqno:   messageIndex,
 			// constructor that generates the code "01020304"
 			Code: hexutil.FromHex("6004600c60003960046000f301020304"),

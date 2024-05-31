@@ -16,7 +16,7 @@ import (
 func deployContract(contract *compiler.Contract, state *ExecutionState, blockContext *vm.BlockContext, seqno int) (common.Address, error) {
 	contractCode := hexutil.FromHex(contract.Code)
 	dm := &types.DeployMessage{
-		ShardId: uint32(state.ShardId),
+		ShardId: state.ShardId,
 		Code:    contractCode,
 	}
 	data, _ := dm.MarshalSSZ()
