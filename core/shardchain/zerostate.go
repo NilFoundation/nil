@@ -40,7 +40,7 @@ func GenerateZeroState(ctx context.Context, es *execution.ExecutionState) error 
 	}
 
 	pub := crypto.CompressPubkey(&MainPrivateKey.PublicKey)
-	addr := types.PubkeyBytesToAddress(uint32(es.ShardId), pub)
+	addr := types.PubkeyBytesToAddress(es.ShardId, pub)
 	es.CreateAccount(addr)
 	es.CreateContract(addr)
 	es.SetInitState(addr, mainDeployMsg)

@@ -94,7 +94,7 @@ func (s *AccountState) empty() bool {
 
 func NewAccountState(es *ExecutionState, addr types.Address, tx db.Tx, data []byte) (*AccountState, error) {
 	account := new(types.SmartContract)
-	shardId := types.ShardId(addr.ShardId())
+	shardId := addr.ShardId()
 
 	err := account.UnmarshalSSZ(data)
 	common.FatalIf(err, logger, "Invalid SSZ while decoding account")
@@ -562,8 +562,7 @@ func (as *AccountState) Commit() ([]byte, error) {
 		return nil, err
 	}
 
-	shardId := types.ShardId(as.address.ShardId())
-	if err := db.WriteCode(as.Tx, shardId, as.Code); err != nil {
+	if err := db.WriteCode(as.Tx, as.address.ShardId(), as.Code); err != nil {
 		return nil, err
 	}
 
@@ -687,9 +686,9 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint
 
 	var addr types.Address
 	if len(deployMsg.PublicKey) == 0 {
-		addr = types.CreateAddress(uint32(deployMsg.ShardId), message.From, message.Seqno)
+		addr = types.CreateAddress(deployMsg.ShardId, message.From, message.Seqno)
 	} else {
-		addr = types.PubkeyBytesToAddress(uint32(deployMsg.ShardId), deployMsg.PublicKey)
+		addr = types.PubkeyBytesToAddress(deployMsg.ShardId, deployMsg.PublicKey)
 	}
 
 	gas := uint64(100000)

@@ -46,7 +46,7 @@ func (s *SuiteShardchainState) TestGenerateBlock() {
 		Data: hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
 	}
 	m2 := m1
-	m2.To = types.CreateAddress(uint32(shardId), m2.From, m2.Seqno)
+	m2.To = types.CreateAddress(shardId, m2.From, m2.Seqno)
 
 	err = HandleMessages(ctx, es, []*types.Message{&m1, &m2})
 	s.Require().NoError(err)

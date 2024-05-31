@@ -11,7 +11,7 @@ import (
 func TestPubKeyAddressShardId(t *testing.T) {
 	t.Parallel()
 
-	shardId := uint32(7)
+	shardId := ShardId(7)
 	pubkey, err := hex.DecodeString("0255d1e56a49f7115b913cbd23cd68c5f471375e74a53eabeb9ca81c64a464d19f")
 	require.NoError(t, err)
 
@@ -22,8 +22,8 @@ func TestPubKeyAddressShardId(t *testing.T) {
 func TestCreateAddressShardId(t *testing.T) {
 	t.Parallel()
 
-	shardId1 := uint32(2)
-	shardId2 := uint32(65000)
+	shardId1 := ShardId(2)
+	shardId2 := ShardId(65000)
 
 	addr1 := HexToAddress("0000832983856CB0CF6CD570F071122F1BEA2F20")
 	addr2 := HexToAddress("1111832983856CB0CF6CD570F071122F1BEA2F20")
@@ -38,8 +38,8 @@ func TestCreateAddressShardId(t *testing.T) {
 func TestCreateRandomAddressShardId(t *testing.T) {
 	t.Parallel()
 
-	shardId1 := uint32(2)
-	shardId2 := uint32(65000)
+	shardId1 := ShardId(2)
+	shardId2 := ShardId(65000)
 
 	addr1 := GenerateRandomAddress(shardId1)
 	addr2 := GenerateRandomAddress(shardId2)
