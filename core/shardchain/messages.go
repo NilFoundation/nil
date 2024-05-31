@@ -29,7 +29,7 @@ func HandleMessages(ctx context.Context, es *execution.ExecutionState, msgs []*t
 				return err
 			}
 		} else {
-			if err := es.HandleExecutionMessage(message, index, &blockContext); err != nil {
+			if _, err := es.HandleExecutionMessage(message, index, &blockContext); err != nil {
 				return err
 			}
 		}
