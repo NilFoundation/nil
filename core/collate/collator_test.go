@@ -68,7 +68,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	})
 
 	s.Run("call-message", func() {
-		m.To = types.CreateAddress(uint32(shardId), m.From, m.Seqno)
+		m.To = types.CreateAddress(shardId, m.From, m.Seqno)
 
 		err := c.GenerateBlock(ctx)
 		s.Require().NoError(err)

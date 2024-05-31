@@ -21,7 +21,7 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Byte
 	}
 
 	shardId := msg.From.ShardId()
-	if err := api.checkShard(types.ShardId(shardId)); err != nil {
+	if err := api.checkShard(shardId); err != nil {
 		return common.Hash{}, err
 	}
 

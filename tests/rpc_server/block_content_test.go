@@ -24,7 +24,7 @@ func (suite *SuiteRpc) TestRpcBlockContent() {
 	suite.Require().NoError(err)
 
 	m := types.Message{
-		From: types.GenerateRandomAddress(uint32(types.MasterShardId)),
+		From: types.GenerateRandomAddress(types.MasterShardId),
 		Data: data,
 	}
 

@@ -24,7 +24,7 @@ func deployContract(contract *compiler.Contract, state *ExecutionState, blockCon
 		Data:  data,
 		Seqno: uint64(seqno),
 	}
-	addr := types.CreateAddress(uint32(state.ShardId), message.From, message.Seqno)
+	addr := types.CreateAddress(state.ShardId, message.From, message.Seqno)
 
 	return addr, state.HandleDeployMessage(message, 0, blockContext)
 }

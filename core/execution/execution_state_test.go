@@ -39,7 +39,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
-	addr := types.GenerateRandomAddress(uint32(shardId))
+	addr := types.GenerateRandomAddress(shardId)
 
 	es.CreateAccount(addr)
 
