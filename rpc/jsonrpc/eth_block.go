@@ -14,7 +14,9 @@ import (
 	ssz "github.com/ferranbt/fastssz"
 )
 
-func (api *APIImpl) getBlockHashByNumber(tx db.RoTx, shardId types.ShardId, number transport.BlockNumber) (common.Hash, error) {
+func (api *APIImpl) getBlockHashByNumber(
+	tx db.RoTx, shardId types.ShardId, number transport.BlockNumber,
+) (common.Hash, error) {
 	var requestedBlockNumber types.BlockNumber
 	switch number {
 	case transport.LatestExecutedBlockNumber:
@@ -47,71 +49,35 @@ func (api *APIImpl) getBlockHashByNumber(tx db.RoTx, shardId types.ShardId, numb
 	return common.BytesToHash(*blockHash), nil
 }
 
-// GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
-func (api *APIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, fullTx bool) (map[string]any, error) {
-	if err := api.checkShard(shardId); err != nil {
-		return nil, err
-	}
-
-	tx, err := api.db.CreateRoTx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	blockHash, err := api.getBlockHashByNumber(tx, shardId, number)
-	if err != nil || blockHash == common.EmptyHash {
-		return nil, err
-	}
-
-	block, messages, receipts, err := api.getBlockWithCollectedEntitiesByHash(tx, shardId, blockHash)
-	if err != nil {
+func (api *APIImpl) getBlockByNumberOrHash(
+	ctx context.Context, shardId types.ShardId, numOrHash transport.BlockNumberOrHash, fullTx bool,
+) (map[string]any, error) {
+	block, messages, receipts, err := api.getBlockWithCollectedEntitiesByNumberOrHash(ctx, shardId, numOrHash)
+	if err != nil || block == nil || messages == nil || receipts == nil {
 		return nil, err
 	}
 
 	return toMap(shardId, block, messages, receipts, fullTx)
+}
+
+// GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
+func (api *APIImpl) GetBlockByNumber(
+	ctx context.Context, shardId types.ShardId, number transport.BlockNumber, fullTx bool,
+) (map[string]any, error) {
+	return api.getBlockByNumberOrHash(ctx, shardId, transport.BlockNumberOrHash{BlockNumber: &number}, fullTx)
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
-func (api *APIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, fullTx bool) (map[string]any, error) {
-	if err := api.checkShard(shardId); err != nil {
-		return nil, err
-	}
-
-	tx, err := api.db.CreateRoTx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	block, messages, receipts, err := api.getBlockWithCollectedEntitiesByHash(tx, shardId, hash)
-	if err != nil {
-		return nil, err
-	}
-	return toMap(shardId, block, messages, receipts, fullTx)
+func (api *APIImpl) GetBlockByHash(
+	ctx context.Context, shardId types.ShardId, hash common.Hash, fullTx bool,
+) (map[string]any, error) {
+	return api.getBlockByNumberOrHash(ctx, shardId, transport.BlockNumberOrHash{BlockHash: &hash}, fullTx)
 }
 
-// GetBlockTransactionCountByNumber implements eth_getBlockTransactionCountByNumber. Returns the number of transactions in a block given the block's block number.
-func (api *APIImpl) GetBlockTransactionCountByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber) (*hexutil.Uint, error) {
-	if err := api.checkShard(shardId); err != nil {
-		return nil, err
-	}
-
-	tx, err := api.db.CreateRoTx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	hash, err := api.getBlockHashByNumber(tx, shardId, number)
-	if err != nil {
-		return nil, err
-	}
-	return api.getBlockTransactionCountByHash(tx, shardId, hash)
-}
-
-func (api *APIImpl) getBlockTransactionCountByHash(tx db.RoTx, shardId types.ShardId, hash common.Hash) (*hexutil.Uint, error) {
-	_, messages, _, err := api.getBlockWithCollectedEntitiesByHash(tx, shardId, hash)
+func (api *APIImpl) getBlockTransactionCountByNumberOrHash(
+	ctx context.Context, shardId types.ShardId, numOrHash transport.BlockNumberOrHash,
+) (*hexutil.Uint, error) {
+	_, messages, _, err := api.getBlockWithCollectedEntitiesByNumberOrHash(ctx, shardId, numOrHash)
 	if err != nil {
 		return nil, err
 	}
@@ -120,18 +86,18 @@ func (api *APIImpl) getBlockTransactionCountByHash(tx db.RoTx, shardId types.Sha
 	return &msgLen, nil
 }
 
-// GetBlockTransactionCountByHash implements eth_getBlockTransactionCountByHash. Returns the number of transactions in a block given the block's block hash.
-func (api *APIImpl) GetBlockTransactionCountByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*hexutil.Uint, error) {
-	if err := api.checkShard(shardId); err != nil {
-		return nil, err
-	}
+// GetBlockTransactionCountByNumber implements eth_getBlockTransactionCountByNumber. Returns the number of transactions in a block given the block's block number.
+func (api *APIImpl) GetBlockTransactionCountByNumber(
+	ctx context.Context, shardId types.ShardId, number transport.BlockNumber,
+) (*hexutil.Uint, error) {
+	return api.getBlockTransactionCountByNumberOrHash(ctx, shardId, transport.BlockNumberOrHash{BlockNumber: &number})
+}
 
-	tx, err := api.db.CreateRoTx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create transaction: %w", err)
-	}
-	defer tx.Rollback()
-	return api.getBlockTransactionCountByHash(tx, shardId, hash)
+// GetBlockTransactionCountByHash implements eth_getBlockTransactionCountByHash. Returns the number of transactions in a block given the block's block hash.
+func (api *APIImpl) GetBlockTransactionCountByHash(
+	ctx context.Context, shardId types.ShardId, hash common.Hash,
+) (*hexutil.Uint, error) {
+	return api.getBlockTransactionCountByNumberOrHash(ctx, shardId, transport.BlockNumberOrHash{BlockHash: &hash})
 }
 
 func (api *APIImpl) getBlockByHash(tx db.Tx, shardId types.ShardId, hash common.Hash) *types.Block {
@@ -147,19 +113,31 @@ func (api *APIImpl) getBlockByHash(tx db.Tx, shardId types.ShardId, hash common.
 	return block
 }
 
-func (api *APIImpl) getBlockWithCollectedEntitiesByHash(tx db.Tx, shardId types.ShardId, hash common.Hash) (
-	block *types.Block, messages []*types.Message, receipts []*types.Receipt, err error,
+func (api *APIImpl) getBlockWithCollectedEntitiesByNumberOrHash(
+	ctx context.Context, shardId types.ShardId, numOrHash transport.BlockNumberOrHash) (
+	*types.Block, []*types.Message, []*types.Receipt, error,
 ) {
-	block = api.getBlockByHash(tx, shardId, hash)
-	if block == nil {
-		return
+	if err := api.checkShard(shardId); err != nil {
+		return nil, nil, nil, err
 	}
 
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to create transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	block, err := api.getBlockByNumberOrHashTx(tx, shardId, numOrHash)
+	if err != nil || block == nil {
+		return nil, nil, nil, err
+	}
+
+	hash := block.Hash()
 	messages, messagesCached := api.messagesLRU.Get(hash)
 	if !messagesCached {
 		messages, err = collectBlockEntities[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot)
 		if err != nil {
-			return
+			return nil, nil, nil, err
 		}
 		api.messagesLRU.Add(hash, messages)
 	}
@@ -168,12 +146,12 @@ func (api *APIImpl) getBlockWithCollectedEntitiesByHash(tx db.Tx, shardId types.
 	if !receiptsCached {
 		receipts, err = collectBlockEntities[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot)
 		if err != nil {
-			return
+			return nil, nil, nil, err
 		}
 		api.receiptsLRU.Add(hash, receipts)
 	}
 
-	return
+	return block, messages, receipts, nil
 }
 
 func (api *APIImpl) getLastBlock(tx db.Tx, shardId types.ShardId) (*types.Block, error) {
@@ -210,30 +188,24 @@ func collectBlockEntities[
 	return entities, nil
 }
 
-func messageToMap(index int, message *types.Message, receipt *types.Receipt) map[string]any {
-	hash := message.Hash()
-
-	if receipt == nil || hash != receipt.MsgHash {
-		panic("Msg and receipt are not compatible")
+func (api *APIImpl) getBlockByNumberOrHashTx(
+	tx db.RoTx, shardId types.ShardId, hashOrNum transport.BlockNumberOrHash,
+) (*types.Block, error) {
+	var hash common.Hash
+	var err error
+	if hashOrNum.BlockHash != nil {
+		hash = *hashOrNum.BlockHash
+	} else {
+		hash, err = api.getBlockHashByNumber(tx, shardId, *hashOrNum.BlockNumber)
+		if err != nil {
+			return nil, err
+		}
 	}
-
-	return map[string]any{
-		"success":   receipt.Success,
-		"index":     index,
-		"seqno":     message.Seqno,
-		"gasUsed":   receipt.GasUsed,
-		"gasPrice":  message.GasPrice,
-		"gasLimit":  message.GasLimit,
-		"from":      message.From,
-		"to":        message.To,
-		"value":     message.Value,
-		"data":      message.Data,
-		"signature": message.Signature,
-		"hash":      hash,
-	}
+	return api.getBlockByHash(tx, shardId, hash), nil
 }
 
-func toMap(shardId types.ShardId, block *types.Block, messages []*types.Message, receipts []*types.Receipt, fullTx bool) (
+func toMap(
+	shardId types.ShardId, block *types.Block, messages []*types.Message, receipts []*types.Receipt, fullTx bool) (
 	map[string]any, error,
 ) {
 	if block == nil {
@@ -246,7 +218,7 @@ func toMap(shardId types.ShardId, block *types.Block, messages []*types.Message,
 	messagesRes := make([]any, len(messages))
 	if fullTx {
 		for i, m := range messages {
-			messagesRes[i] = messageToMap(i, m, receipts[i])
+			messagesRes[i] = NewRPCInMessage(m, receipts[i], types.MessageIndex(i), block)
 		}
 	} else {
 		for i, m := range messages {
