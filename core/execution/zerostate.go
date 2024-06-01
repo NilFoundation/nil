@@ -4,11 +4,16 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
+	"errors"
 	"math/big"
+	"path/filepath"
+	"runtime"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/holiman/uint256"
 )
 
@@ -31,10 +36,30 @@ func init() {
 	common.Require(key.Equal(MainPrivateKey.Public()))
 }
 
+func obtainContractsPath() (string, error) {
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", errors.New("Failed to obtain current file")
+	}
+	return filepath.Abs(filepath.Join(filepath.Dir(currentFile), "./contracts.sol"))
+}
+
 func (es *ExecutionState) GenerateZeroState(ctx context.Context) error {
+	// TODO: Precompile at building phase.
+	contractsPath, err := obtainContractsPath()
+	if err != nil {
+		return err
+	}
+	contracts, err := solc.CompileSource(contractsPath)
+	if err != nil {
+		return err
+	}
+	faucetContract := contracts["Faucet"]
+
 	mainDeployMsg := &types.DeployMessage{
 		ShardId:   es.ShardId,
 		Seqno:     0,
+		Code:      hexutil.FromHex(faucetContract.Code),
 		PublicKey: crypto.CompressPubkey(&MainPrivateKey.PublicKey),
 	}
 
@@ -42,7 +67,9 @@ func (es *ExecutionState) GenerateZeroState(ctx context.Context) error {
 	addr := types.PubkeyBytesToAddress(es.ShardId, pub)
 	es.CreateAccount(addr)
 	es.CreateContract(addr)
-	es.SetInitState(addr, mainDeployMsg)
+	if err := es.SetInitState(addr, mainDeployMsg); err != nil {
+		return err
+	}
 
 	mainBalance, err := uint256.FromDecimal("1000000000000")
 	if err != nil {
