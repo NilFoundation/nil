@@ -6,8 +6,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-
-	"github.com/NilFoundation/nil/core/types"
 )
 
 type Request struct {
@@ -26,11 +24,16 @@ func NewRequest(method string, params ...any) *Request {
 	}
 }
 
+type Error struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
 type Response[R any] struct {
-	Jsonrpc string         `json:"jsonrpc"`
-	Result  R              `json:"result,omitempty"`
-	Error   map[string]any `json:"error,omitempty"`
-	Id      int            `json:"id"`
+	Jsonrpc string `json:"jsonrpc"`
+	Result  R      `json:"result,omitempty"`
+	Error   *Error `json:"error,omitempty"`
+	Id      int    `json:"id"`
 }
 
 const (
@@ -67,14 +70,4 @@ func makeRequest[R any](port int, data *Request) (*Response[R], error) {
 		return nil, err
 	}
 	return &response, nil
-}
-
-func transactionCount(port int, addr types.Address, blk string) (uint64, error) { //nolint:unparam
-	request := NewRequest(getTransactionCount, addr.Hex(), blk)
-	resp, err := makeRequest[string](port, request)
-	if err != nil {
-		return 0, err
-	}
-
-	return strconv.ParseUint(resp.Result, 0, 64)
 }
