@@ -181,18 +181,21 @@ func collectBlockEntities[
 	return entities, nil
 }
 
+func (api *APIImpl) getBlockHashTx(
+	tx db.RoTx, shardId types.ShardId, hashOrNum transport.BlockNumberOrHash,
+) (common.Hash, error) {
+	if hashOrNum.BlockHash != nil {
+		return *hashOrNum.BlockHash, nil
+	}
+	return api.getBlockHashByNumber(tx, shardId, *hashOrNum.BlockNumber)
+}
+
 func (api *APIImpl) getBlockByNumberOrHashTx(
 	tx db.RoTx, shardId types.ShardId, hashOrNum transport.BlockNumberOrHash,
 ) (*types.Block, error) {
-	var hash common.Hash
-	var err error
-	if hashOrNum.BlockHash != nil {
-		hash = *hashOrNum.BlockHash
-	} else {
-		hash, err = api.getBlockHashByNumber(tx, shardId, *hashOrNum.BlockNumber)
-		if err != nil {
-			return nil, err
-		}
+	hash, err := api.getBlockHashTx(tx, shardId, hashOrNum)
+	if err != nil {
+		return nil, err
 	}
 	return api.getBlockByHash(tx, shardId, hash), nil
 }

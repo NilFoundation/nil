@@ -33,7 +33,8 @@ func TestCall(t *testing.T) {
 	t.Parallel()
 	state := newState(t)
 
-	contracts, _ := solc.CompileSource("./testdata/contracts.sol")
+	contracts, err := solc.CompileSource("./testdata/contracts.sol")
+	require.NoError(t, err)
 
 	blockContext := NewEVMBlockContext(state)
 

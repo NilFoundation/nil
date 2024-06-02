@@ -65,6 +65,18 @@ func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types
 	return result
 }
 
+type CallArgs struct {
+	From     types.Address   `json:"from"`
+	To       types.Address   `json:"to"`
+	GasLimit types.Uint256   `json:"gasLimit"`
+	GasPrice *types.Uint256  `json:"gasPrice"`
+	Value    types.Uint256   `json:"value"`
+	Seqno    *hexutil.Uint64 `json:"seqno"`
+	Data     hexutil.Bytes   `json:"data"`
+	Input    *hexutil.Bytes  `json:"input"`
+	ChainID  *hexutil.Big    `json:"chainId"`
+}
+
 // EthAPI is a collection of functions that are exposed in the
 type EthAPI interface {
 	// Block related
@@ -102,6 +114,9 @@ type EthAPI interface {
 
 	// Shards related
 	GetShardIdList(ctx context.Context) ([]types.ShardId, error)
+
+	// Calls related
+	Call(ctx context.Context, args CallArgs, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error)
 }
 
 type BaseAPI struct {
