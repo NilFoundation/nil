@@ -132,8 +132,9 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 	suite.Equal(hexutil.Uint64(567), *res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	_, err = suite.api.GetTransactionCount(ctx, shardId, types.HexToAddress("deadbeef"), blockNum)
-	suite.Require().EqualError(err, "key not found in db")
+	res, err = suite.api.GetTransactionCount(ctx, shardId, types.HexToAddress("deadbeef"), blockNum)
+	suite.Require().NoError(err)
+	suite.Equal(hexutil.Uint64(0), *res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.EarliestBlock.BlockNumber}
 	_, err = suite.api.GetTransactionCount(ctx, shardId, suite.smcAddr, blockNum)

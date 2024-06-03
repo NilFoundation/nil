@@ -1,0 +1,9 @@
+# Configuration for interacting with the =nil; cluster
+
+# Specify the RPC endpoint of your cluster
+# For example, if your cluster's RPC endpoint is at "http://127.0.0.1:8529", set it as below
+rpc_endpoint: "http://127.0.0.1:8529"
+
+# Specify the private key used for signing transactions
+# This should be a hexadecimal string corresponding to your account's private key
+private_key: "41285f03e8692676bf80a98e4052a008026427a7302ca97cb06edcd60689850b"

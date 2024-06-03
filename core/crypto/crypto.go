@@ -134,6 +134,11 @@ func GenerateKey() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(S256(), rand.Reader)
 }
 
+// PrivateKeyToEthereumFormat formats the private key in Ethereum format (hexadecimal)
+func PrivateKeyToEthereumFormat(priv *ecdsa.PrivateKey) string {
+	return hex.EncodeToString(FromECDSA(priv))
+}
+
 // ValidateSignatureValues verifies whether the signature values are valid with
 // the given chain rules. The v value is assumed to be either 0 or 1.
 func ValidateSignatureValues(v byte, r, s *uint256.Int, homestead bool) bool {

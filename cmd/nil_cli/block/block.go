@@ -1,0 +1,82 @@
+package block
+
+import (
+	blockService "github.com/NilFoundation/nil/cli/services/block"
+	"github.com/NilFoundation/nil/client/rpc"
+	"github.com/NilFoundation/nil/common"
+	"github.com/spf13/cobra"
+)
+
+var logger = common.NewLogger("blockCommand")
+
+func GetCommand(rpcEndpoint string) *cobra.Command {
+	serverCmd := &cobra.Command{
+		Use:     "block",
+		Short:   "Retrieve a block from the cluster",
+		PreRunE: runPreRun,
+		Run: func(cmd *cobra.Command, args []string) {
+			runCommand(cmd, args, rpcEndpoint)
+		},
+	}
+
+	setFlags(serverCmd)
+
+	return serverCmd
+}
+
+func setFlags(cmd *cobra.Command) {
+	cmd.Flags().BoolVar(
+		&params.latest,
+		latestFlag,
+		false,
+		"Retrieve the latest block from the cluster",
+	)
+	cmd.Flags().StringVar(
+		&params.number,
+		numberFlag,
+		"",
+		"Retrieve block by block number from the cluster",
+	)
+	cmd.Flags().StringVar(
+		&params.hash,
+		hashFlag,
+		"",
+		"Retrieve block by block hash from the cluster",
+	)
+}
+
+func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
+	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
+
+	client := rpc.NewRPCClient(rpcEndpoint)
+	service := blockService.NewService(client)
+
+	if params.latest {
+		_, err := service.FetchBlockByNumber("latest")
+		if err != nil {
+			logger.Error().Msg("Failed to fetch latest block")
+		}
+
+		return
+	}
+
+	if params.number != "" {
+		_, err := service.FetchBlockByNumber(params.number)
+		if err != nil {
+			logger.Error().Msg("Failed to fetch block by number")
+		}
+
+		return
+	}
+
+	if params.hash != "" {
+		_, err := service.FetchBlockByHash(params.hash)
+		if err != nil {
+			logger.Error().Msg("Failed to fetch block by hash")
+		}
+
+		return
+	}
+}
+
+func runPreRun(cmd *cobra.Command, _ []string) error { return params.initRawParams() }

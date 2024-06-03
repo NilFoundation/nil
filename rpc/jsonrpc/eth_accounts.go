@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -95,12 +96,16 @@ func (api *APIImpl) GetTransactionCount(ctx context.Context, shardId types.Shard
 
 	acc, err := api.getSmartContract(tx, shardId, address, blockNrOrHash)
 	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return &zeroNonce, nil
+		}
+
 		return nil, err
 	}
 	if acc == nil {
-		return &zeroNonce, err
+		return &zeroNonce, nil
 	}
-	return (*hexutil.Uint64)(&acc.Seqno), err
+	return (*hexutil.Uint64)(&acc.Seqno), nil
 }
 
 // GetCode implements eth_getCode. Returns the byte code at a given address (if it's a smart contract).

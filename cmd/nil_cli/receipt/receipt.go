@@ -1,0 +1,51 @@
+package receipt
+
+import (
+	"github.com/NilFoundation/nil/cli/services/receipt"
+	"github.com/NilFoundation/nil/client/rpc"
+	"github.com/NilFoundation/nil/common"
+	"github.com/spf13/cobra"
+)
+
+var logger = common.NewLogger("receiptCommand")
+
+func GetCommand(rpcEndpoint string) *cobra.Command {
+	serverCmd := &cobra.Command{
+		Use:     "receipt",
+		Short:   "Retrieve a receipt from the cluster",
+		PreRunE: runPreRun,
+		Run: func(cmd *cobra.Command, args []string) {
+			runCommand(cmd, args, rpcEndpoint)
+		},
+	}
+
+	setFlags(serverCmd)
+
+	return serverCmd
+}
+
+func setFlags(cmd *cobra.Command) {
+	cmd.Flags().StringVar(
+		&params.hash,
+		hashFlag,
+		"",
+		"Retrieve receipt by receipt hash from the cluster",
+	)
+}
+
+func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
+	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
+
+	client := rpc.NewRPCClient(rpcEndpoint)
+	service := receipt.NewService(client)
+	if params.hash != "" {
+		_, err := service.FetchReceiptByHash(params.hash)
+		if err != nil {
+			logger.Error().Msg("Failed to fetch receipt")
+		}
+
+		return
+	}
+}
+
+func runPreRun(cmd *cobra.Command, _ []string) error { return params.initRawParams() }
