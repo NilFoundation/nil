@@ -62,7 +62,16 @@ func (pp *blockPostprocessor) fillBlockHashByNumberIndex() error {
 func (pp *blockPostprocessor) fillBlockHashAndMessageIndexByMessageHash() error {
 	// TODO: fix for out messages
 	mptMessages := mpt.NewMerklePatriciaTrieWithRoot(pp.tx, pp.shardId, db.MessageTrieTable, pp.block.InMessagesRoot)
+
+	// TODO: currently "Iterate" works via channel.
+	// It probably causes concurrent usage of "tx" object that
+	// triggers race detector. So split logic in two steps that should be safer.
+	messages := make([]mpt.MptIteratorKey, 0)
 	for kv := range mptMessages.Iterate() {
+		messages = append(messages, kv)
+	}
+
+	for _, kv := range messages {
 		messageIndex := types.BytesToMessageIndex(kv.Key)
 
 		var message types.Message
