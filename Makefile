@@ -22,7 +22,7 @@ test:
 %.runcmd: %.cmd
 	@$(GOBIN)/$* $(CMDARGS)
 
-COMMANDS += nil
+COMMANDS += nil nil_cli
 
 $(COMMANDS): %: %.cmd
 
