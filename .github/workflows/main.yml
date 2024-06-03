@@ -40,3 +40,5 @@ jobs:
           sudo yum update -y
           sudo yum install -y awscli python3-pip
           pip3 install -U mkrepo
+          aws s3 cp "deb-package-dbms/`ls deb-package-dbms`" s3://nil-deb-repo/ubuntu/pool/main/d/dbms/
+          mkrepo s3://nil-deb-repo/ubuntu
