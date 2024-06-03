@@ -12,7 +12,7 @@ import (
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/db"
-	"github.com/NilFoundation/nil/core/shardchain"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/stretchr/testify/suite"
@@ -98,7 +98,7 @@ func (suite *SuiteRpc) deployContract(from types.Address, code types.Code, seqno
 		Data:  data,
 		From:  from,
 	}
-	suite.Require().NoError(msg.Sign(shardchain.MainPrivateKey))
+	suite.Require().NoError(msg.Sign(execution.MainPrivateKey))
 	mData, err := msg.MarshalSSZ()
 	suite.Require().NoError(err)
 
@@ -155,7 +155,7 @@ func (suite *SuiteRpc) TestRpcBasic() {
 }
 
 func (suite *SuiteRpc) TestRpcContract() {
-	pub := crypto.CompressPubkey(&shardchain.MainPrivateKey.PublicKey)
+	pub := crypto.CompressPubkey(&execution.MainPrivateKey.PublicKey)
 	from := types.PubkeyBytesToAddress(types.MasterShardId, pub)
 
 	seqno1, err := transactionCount(suite.port, types.MasterShardId, from, "latest")
@@ -177,7 +177,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 		Data:  data,
 		From:  from,
 	}
-	suite.Require().NoError(m.Sign(shardchain.MainPrivateKey))
+	suite.Require().NoError(m.Sign(execution.MainPrivateKey))
 
 	mData, err := m.MarshalSSZ()
 	suite.Require().NoError(err)
@@ -213,7 +213,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 		To:    addr,
 		Data:  calldata,
 	}
-	suite.Require().NoError(m.Sign(shardchain.MainPrivateKey))
+	suite.Require().NoError(m.Sign(execution.MainPrivateKey))
 	mData, err = m.MarshalSSZ()
 	suite.Require().NoError(err)
 
@@ -227,7 +227,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 }
 
 func (suite *SuiteRpc) TestRpcContractSendMessage() {
-	pub := crypto.CompressPubkey(&shardchain.MainPrivateKey.PublicKey)
+	pub := crypto.CompressPubkey(&execution.MainPrivateKey.PublicKey)
 	from := types.PubkeyBytesToAddress(types.MasterShardId, pub)
 
 	nbShardId := types.ShardId(4)
@@ -250,7 +250,7 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 		To:       nbAddr,
 		Internal: true,
 	}
-	suite.Require().NoError(mSend.Sign(shardchain.MainPrivateKey))
+	suite.Require().NoError(mSend.Sign(execution.MainPrivateKey))
 	mSendData, err := mSend.MarshalSSZ()
 	suite.Require().NoError(err)
 
@@ -262,7 +262,7 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 		To:    sendMessageAddr,
 		Data:  mSendData,
 	}
-	suite.Require().NoError(m.Sign(shardchain.MainPrivateKey))
+	suite.Require().NoError(m.Sign(execution.MainPrivateKey))
 	mData, err := m.MarshalSSZ()
 	suite.Require().NoError(err)
 

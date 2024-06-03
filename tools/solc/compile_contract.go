@@ -18,9 +18,13 @@ func CompileSource(sourcePath string) (map[string]*compiler.Contract, error) {
 	}
 
 	cmd := exec.Command(solc, "--combined-json", "abi,bin", sourcePath)
+
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = &stderrBuf
+
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute `%s`: %w", cmd, err)
+		return nil, fmt.Errorf("failed to execute `%s`: %w.\n%s", cmd, err, stderrBuf.String())
 	}
 
 	// Provide empty strings for the additional required arguments

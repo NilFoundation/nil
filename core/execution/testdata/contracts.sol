@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 contract SimpleContract {
     uint256 public value = 42;
 
+    receive() external payable {}
+
     function setValue(uint256 _value) public {
         value = _value;
     }
@@ -14,10 +16,10 @@ contract SimpleContract {
 }
 
 contract Caller {
-    function callSet(address addr, uint256 value) public {
+    function callSet(address payable addr, uint256 value) public {
         SimpleContract(addr).setValue(value);
     }
-    function callSetAndRevert(address addr, uint256 value) public {
+    function callSetAndRevert(address payable addr, uint256 value) public {
         SimpleContract(addr).setValue(value);
         revert();
     }

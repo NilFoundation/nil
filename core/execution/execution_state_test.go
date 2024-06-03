@@ -176,6 +176,9 @@ func newState(t *testing.T) *ExecutionState {
 	require.NoError(t, err)
 	state, err := NewExecutionState(tx, 0, common.EmptyHash, common.NewTestTimer(0))
 	require.NoError(t, err)
+
+	err = state.GenerateZeroState(context.Background())
+	require.NoError(t, err)
 	return state
 }
 

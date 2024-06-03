@@ -424,11 +424,23 @@ func (es *ExecutionState) SetCode(addr types.Address, code []byte) {
 	acc.SetCode(types.Code(code).Hash(), code)
 }
 
-func (es *ExecutionState) SetInitState(addr types.Address, message *types.DeployMessage) {
+func (es *ExecutionState) SetInitState(addr types.Address, message *types.DeployMessage) error {
 	acc := es.GetAccount(addr)
-	acc.setCode(message.Code.Hash(), message.Code)
 	acc.setSeqno(message.Seqno)
 	acc.setPublicKey(message.PublicKey)
+
+	evm := vm.NewEVM(NewEVMBlockContext(es), es)
+	var from types.Address
+	var value uint256.Int
+	var err error
+	_, deployAddr, _, err := evm.Deploy(addr, (vm.AccountRef)(from), message.Code, uint64(100000) /* gas */, &value)
+	if err != nil {
+		return err
+	}
+	if addr != deployAddr {
+		return errors.New("deploy address is not correct")
+	}
+	return nil
 }
 
 func (es *ExecutionState) SlotInAccessList(addr types.Address, slot common.Hash) (addressOk bool, slotOk bool) {
