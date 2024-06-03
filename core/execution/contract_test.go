@@ -89,3 +89,43 @@ func TestCall(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2b"), 32), ret)
 }
+
+func TestDelegate(t *testing.T) {
+	t.Parallel()
+	state := newState(t)
+
+	contracts, err := solc.CompileSource("./testdata/delegate.sol")
+	require.NoError(t, err)
+
+	blockContext := NewEVMBlockContext(state)
+
+	delegateContract := contracts["DelegateContract"]
+	delegateAddr, err := deployContract(delegateContract, state, &blockContext, 1)
+	require.NoError(t, err)
+
+	proxyContract := contracts["ProxyContract"]
+	proxyAddr, err := deployContract(proxyContract, state, &blockContext, 2)
+	require.NoError(t, err)
+
+	// call ProxyContract.setValue(delegateAddr, 42)
+	calldata, err := solc.ExtractABI(proxyContract).Pack("setValue", delegateAddr, big.NewInt(42))
+	require.NoError(t, err)
+	callMessage := &types.Message{
+		Data: calldata,
+		To:   proxyAddr,
+	}
+	_, err = state.HandleExecutionMessage(callMessage, 3, &blockContext)
+	require.NoError(t, err)
+
+	// call ProxyContract.getValue()
+	calldata, err = solc.ExtractABI(proxyContract).Pack("getValue", delegateAddr)
+	require.NoError(t, err)
+	callMessage = &types.Message{
+		Data: calldata,
+		To:   proxyAddr,
+	}
+	ret, err := state.HandleExecutionMessage(callMessage, 2, &blockContext)
+	require.NoError(t, err)
+	// check that it returned 42
+	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2a"), 32), ret)
+}
