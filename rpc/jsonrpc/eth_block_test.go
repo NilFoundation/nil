@@ -87,19 +87,17 @@ func (suite *SuiteEthBlock) TestGetBlockByNumber() {
 	data, err := suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.LatestBlockNumber, false)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
-	suite.Require().NotNil(data["parentHash"])
-	suite.Equal(suite.lastBlockHash, data["hash"])
+	suite.Equal(suite.lastBlockHash, data.Hash)
 
 	data, err = suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.EarliestBlockNumber, false)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
-	suite.Equal(common.EmptyHash, data["parentHash"])
+	suite.Equal(common.EmptyHash, data.ParentHash)
 
 	data, err = suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.BlockNumber(1), false)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
-	suite.Require().NotNil(data["parentHash"])
-	suite.Equal(suite.lastBlockHash, data["hash"])
+	suite.Equal(suite.lastBlockHash, data.Hash)
 
 	data, err = suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.BlockNumber(100500), false)
 	suite.Require().NoError(err)
@@ -110,7 +108,7 @@ func (suite *SuiteEthBlock) TestGetBlockByHash() {
 	data, err := suite.api.GetBlockByHash(context.Background(), types.MasterShardId, suite.lastBlockHash, false)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
-	suite.Equal(suite.lastBlockHash, data["hash"])
+	suite.Equal(suite.lastBlockHash, data.Hash)
 }
 
 func (suite *SuiteEthBlock) TestGetBlockTransactionCountByHash() {
@@ -127,23 +125,17 @@ func (suite *SuiteEthBlock) TestGetBlockTransactionCountByHash() {
 func (suite *SuiteEthBlock) TestGetBlockContent() {
 	resNoFullTx, err := suite.api.GetBlockByHash(context.Background(), types.MasterShardId, suite.lastBlockHash, false)
 	suite.Require().NoError(err)
-	suite.Len(resNoFullTx["messages"], 1)
+	suite.Len(resNoFullTx.Messages, 1)
 
 	resFullTx, err := suite.api.GetBlockByHash(context.Background(), types.MasterShardId, suite.lastBlockHash, true)
 	suite.Require().NoError(err)
-	suite.Len(resFullTx["messages"], 1)
+	suite.Len(resFullTx.Messages, 1)
 
-	msgs, ok := resFullTx["messages"].([]any)
-	suite.Require().True(ok)
-
-	for i, msgAny := range msgs {
+	for i, msgAny := range resFullTx.Messages {
 		msg, ok := msgAny.(*RPCInMessage)
 		suite.Require().True(ok)
 
-		msgsHash, ok := resNoFullTx["messages"].([]any)
-		suite.Require().True(ok)
-
-		msgHash, ok := msgsHash[i].(common.Hash)
+		msgHash, ok := resNoFullTx.Messages[i].(common.Hash)
 		suite.Require().True(ok)
 
 		suite.Equal(msgHash, msg.Hash)
