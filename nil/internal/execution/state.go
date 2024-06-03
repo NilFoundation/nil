@@ -1314,10 +1314,10 @@ func (es *ExecutionState) GetCurrencies(addr types.Address) map[types.CurrencyId
 	}
 
 	res := make(map[types.CurrencyId]types.Value)
-	for _, kv := range acc.CurrencyTrieReader.Iterate() {
+	for k, v := range acc.CurrencyTrieReader.Iterate() {
 		var c types.CurrencyBalance
-		c.Currency = types.CurrencyId(kv.Key)
-		if err := c.Balance.UnmarshalSSZ(kv.Value); err != nil {
+		c.Currency = types.CurrencyId(k)
+		if err := c.Balance.UnmarshalSSZ(v); err != nil {
 			logger.Error().Err(err).Msg("failed to unmarshal currency balance")
 			continue
 		}
