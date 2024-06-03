@@ -372,8 +372,8 @@ func (args *FilterQuery) UnmarshalJSON(data []byte) error {
 
 func decodeAddress(s string) (types.Address, error) {
 	b, err := hexutil.Decode(s)
-	if err == nil && len(b) != common.AddrSize {
-		err = fmt.Errorf("hex has invalid length %d after decoding; expected %d for address", len(b), common.AddrSize)
+	if err == nil && len(b) != types.AddrSize {
+		err = fmt.Errorf("hex has invalid length %d after decoding; expected %d for address", len(b), types.AddrSize)
 	}
 	return types.BytesToAddress(b), err
 }

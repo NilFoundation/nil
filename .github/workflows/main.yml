@@ -28,6 +28,9 @@ jobs:
       - name: build
         run: nix build -L
 
+      - name: SSZ generation
+        run: nix develop -c make ssz
+
       - name: upload packages to s3
         if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' ||  github.ref == 'refs/heads/master') }}
         env:

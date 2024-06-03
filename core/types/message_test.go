@@ -28,7 +28,7 @@ func TestMessageSign(t *testing.T) {
 
 	h, err := msg.SigningHash()
 	require.NoError(t, err)
-	assert.Equal(t, common.HexToHash("0x1dd97981dadf92ac13fd0873abfd0d902bb9972e76ad4e65d859a98ba3bb219b"), h)
+	assert.Equal(t, common.HexToHash("06f587eee99f58de7f9a6a4324e35b5b5ddfce778950cebb0f9da1b4765de4b1"), h)
 
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)

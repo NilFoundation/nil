@@ -15,8 +15,11 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
+// Addr is the expected length of the address (in bytes)
+const AddrSize = 20
+
 // Address represents the 20-byte address of an Ethereum account.
-type Address [common.AddrSize]byte
+type Address [AddrSize]byte
 
 var EmptyAddress = Address{}
 
@@ -139,9 +142,9 @@ func (a Address) Format(s fmt.State, c rune) {
 // If b is larger than len(a), b will be cropped from the left.
 func (a *Address) SetBytes(b []byte) {
 	if len(b) > len(a) {
-		b = b[len(b)-common.AddrSize:]
+		b = b[len(b)-AddrSize:]
 	}
-	copy(a[common.AddrSize-len(b):], b)
+	copy(a[AddrSize-len(b):], b)
 }
 
 // MarshalText returns the hex representation of a.
@@ -167,7 +170,7 @@ func (a Address) ShardId() ShardId {
 }
 
 func PubkeyBytesToAddress(shardId ShardId, pubBytes []byte) Address {
-	raw := make([]byte, 2, common.AddrSize)
+	raw := make([]byte, 2, AddrSize)
 	raw = appendShardId(raw, shardId)
 	raw = append(raw, common.PoseidonHash(pubBytes).Bytes()[14:]...)
 	return BytesToAddress(raw)
@@ -175,7 +178,7 @@ func PubkeyBytesToAddress(shardId ShardId, pubBytes []byte) Address {
 
 // CreateAddress creates an address given the bytes and the nonce.
 func CreateAddress(shardId ShardId, b Address, nonce uint64) Address {
-	raw := make([]byte, 2, common.AddrSize)
+	raw := make([]byte, 2, AddrSize)
 	raw = appendShardId(raw, shardId)
 
 	buf := make([]byte, len(b)+8)
@@ -193,7 +196,7 @@ func GenerateRandomAddress(shardId ShardId) Address {
 		panic(err)
 	}
 
-	raw := make([]byte, 2, common.AddrSize)
+	raw := make([]byte, 2, AddrSize)
 	raw = appendShardId(raw, shardId)
 	raw = append(raw, b...)
 	return BytesToAddress(raw)
