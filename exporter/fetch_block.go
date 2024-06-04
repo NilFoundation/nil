@@ -34,7 +34,7 @@ type blockShardIdsResponse struct {
 	Id      int             `json:"id"`
 }
 
-func (cfg *Cfg) fetchBlockData(ctx context.Context, requestBody request) (*types.Block, error) {
+func (cfg *Cfg) fetchBlockData(ctx context.Context, requestBody request) (*BlockMsg, error) {
 	requestBytesBody, err := json.Marshal(requestBody)
 	if err != nil {
 		return nil, err
@@ -68,8 +68,12 @@ func (cfg *Cfg) fetchBlockData(ctx context.Context, requestBody request) (*types
 		return nil, errors.New("block not found")
 	}
 
+	log.Debug().Msgf("result map %v", bodyResponse.Result)
+
 	hexBody, ok := bodyResponse.Result["content"].(string)
-	common.Require(ok)
+	if !ok {
+		return nil, errors.New("block content not found")
+	}
 
 	hexBytes := hexutil.FromHex(hexBody)
 
@@ -79,20 +83,82 @@ func (cfg *Cfg) fetchBlockData(ctx context.Context, requestBody request) (*types
 		return nil, err
 	}
 
-	return &block, nil
+	hexMessagesRaw, ok := bodyResponse.Result["messages"]
+	if !ok {
+		return nil, errors.New("block messages not found")
+	}
+
+	log.Debug().Msgf("messages %v", hexMessagesRaw)
+
+	hexMessages, ok := hexMessagesRaw.([]any)
+	if !ok {
+		return nil, errors.New("cannot convert messages to []any")
+	}
+
+	messages := make([]*types.Message, 0)
+	for _, hexMessage := range hexMessages {
+		message := types.Message{}
+		stringMsg, ok := hexMessage.(string)
+		if !ok {
+			return nil, errors.New("cannot convert message to string")
+		}
+		hexMessageBytes := hexutil.FromHex(stringMsg)
+		if err = message.UnmarshalSSZ(hexMessageBytes); err != nil {
+			return nil, err
+		}
+		messages = append(messages, &message)
+	}
+
+	hexReceiptsRaw, ok := bodyResponse.Result["receipts"]
+	if !ok {
+		return nil, errors.New("block receipts not found")
+	}
+	hexReceipts, ok := hexReceiptsRaw.([]any)
+	if !ok {
+		return nil, errors.New("cannot convert receipts to []any")
+	}
+	receipts := make([]*types.Receipt, 0)
+	for _, hexReceipt := range hexReceipts {
+		receipt := types.Receipt{}
+		stringMsg, ok := hexReceipt.(string)
+		if !ok {
+			return nil, errors.New("cannot convert receipt to string")
+		}
+		hexReceiptBytes := hexutil.FromHex(stringMsg)
+		if err = receipt.UnmarshalSSZ(hexReceiptBytes); err != nil {
+			return nil, err
+		}
+		receipts = append(receipts, &receipt)
+	}
+
+	paramsShardId, ok := requestBody.Params[0].(types.ShardId)
+	if !ok {
+		return nil, errors.New("cannot convert shardId to types.ShardId")
+	}
+
+	result := &BlockMsg{
+		Block:    &block,
+		Messages: messages,
+		Receipts: receipts,
+		Shard:    paramsShardId,
+	}
+
+	log.Debug().Msgf("Fetched block %s", result.Block.Hash().String())
+
+	return result, nil
 }
 
-func (cfg *Cfg) FetchBlockByNumber(ctx context.Context, shardId types.ShardId, blockId transport.BlockNumber) (*types.Block, error) {
-	requestBody := request{Id: 1, Jsonrpc: "2.0", Method: "debug_getBlockByNumber", Params: []any{shardId, blockId}}
+func (cfg *Cfg) FetchBlockByNumber(ctx context.Context, shardId types.ShardId, blockId transport.BlockNumber) (*BlockMsg, error) {
+	requestBody := request{Id: 1, Jsonrpc: "2.0", Method: "debug_getBlockByNumber", Params: []any{shardId, blockId, true}}
 	return cfg.fetchBlockData(ctx, requestBody)
 }
 
-func (cfg *Cfg) FetchBlockByHash(ctx context.Context, shardId types.ShardId, blockHash common.Hash) (*types.Block, error) {
-	requestBody := request{Id: 1, Jsonrpc: "2.0", Method: "debug_getBlockByHash", Params: []any{shardId, blockHash}}
+func (cfg *Cfg) FetchBlockByHash(ctx context.Context, shardId types.ShardId, blockHash common.Hash) (*BlockMsg, error) {
+	requestBody := request{Id: 1, Jsonrpc: "2.0", Method: "debug_getBlockByHash", Params: []any{shardId, blockHash, true}}
 	return cfg.fetchBlockData(ctx, requestBody)
 }
 
-func (cfg *Cfg) FetchLastBlock(ctx context.Context, shardId types.ShardId) (*types.Block, error) {
+func (cfg *Cfg) FetchLastBlock(ctx context.Context, shardId types.ShardId) (*BlockMsg, error) {
 	latestBlock, err := cfg.FetchBlockByNumber(ctx, shardId, transport.LatestBlockNumber)
 	if err != nil {
 		return nil, err

@@ -51,7 +51,7 @@ func TestDebugGetBlock(t *testing.T) {
 	api := NewDebugAPI(base, database, nil)
 
 	// When: Get latest block
-	res, err := api.GetBlockByNumber(ctx, types.MasterShardId, transport.LatestBlockNumber)
+	res, err := api.GetBlockByNumber(ctx, types.MasterShardId, transport.LatestBlockNumber, false)
 
 	// Then:
 	require.NoError(t, err)
@@ -73,7 +73,7 @@ func TestDebugGetBlock(t *testing.T) {
 	require.Equal(t, content, hexutil.Encode(hexBytes))
 
 	// When: Get existing block
-	res, err = api.GetBlockByNumber(ctx, types.MasterShardId, transport.BlockNumber(block.Id))
+	res, err = api.GetBlockByNumber(ctx, types.MasterShardId, transport.BlockNumber(block.Id), false)
 
 	// Then:
 	require.NoError(t, err)
@@ -95,7 +95,7 @@ func TestDebugGetBlock(t *testing.T) {
 	require.Equal(t, content, hexutil.Encode(hexBytes))
 
 	// When: Get nonexistent block
-	res, err = api.GetBlockByNumber(ctx, types.MasterShardId, transport.BlockNumber(block.Id+1))
+	res, err = api.GetBlockByNumber(ctx, types.MasterShardId, transport.BlockNumber(block.Id+1), false)
 
 	// Then:
 	require.NoError(t, err)

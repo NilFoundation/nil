@@ -75,7 +75,7 @@ func StartExporter(ctx context.Context, cfg *Cfg) error {
 func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 	log.Info().Msgf("Starting top fetcher for shard %s...", shardId.String())
 	ticker := time.NewTicker(1 * time.Second)
-	curExportRound := cfg.exportRound.Load()
+	curExportRound := cfg.exportRound.Load() + 1000
 	for {
 		select {
 		case <-ctx.Done():
@@ -100,7 +100,7 @@ func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 			}
 
 			// totally synced on top level
-			if lastProcessedBlock != nil && isSetLastProcessed && topBlock.Id == lastProcessedBlock.Id {
+			if lastProcessedBlock != nil && isSetLastProcessed && topBlock.Block.Id == lastProcessedBlock.Id {
 				continue
 			}
 
@@ -111,16 +111,14 @@ func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 
 			curBlock := topBlock
 
-			for curBlock != nil && curBlock.Id >= firstPoint {
-				blockMsg := wrapBlockWithShard(shardId, curBlock)
-				cfg.BlocksChan <- blockMsg
-				if len(curBlock.PrevBlock.Bytes()) == 0 {
+			for curBlock != nil && curBlock.Block.Id >= firstPoint {
+				cfg.BlocksChan <- curBlock
+				if len(curBlock.Block.PrevBlock.Bytes()) == 0 {
 					break
 				}
-				curBlock, err = cfg.FetchBlockByHash(ctx, shardId, curBlock.PrevBlock)
+				curBlock, err = cfg.FetchBlockByHash(ctx, shardId, curBlock.Block.PrevBlock)
 				if err != nil {
 					cfg.ErrorChan <- fmt.Errorf("top fetcher for shard %s: failed to fetch block: %w", shardId.String(), err)
-					time.Sleep(1 * time.Second)
 					break
 				}
 			}
@@ -131,7 +129,7 @@ func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 	log.Info().Msgf("Starting bottom fetcher for shard %s...", shardId)
 	ticker := time.NewTicker(1 * time.Second)
-	curExportRound := cfg.exportRound.Load() + 1
+	curExportRound := cfg.exportRound.Load() + 1000
 	for {
 		select {
 		case <-ctx.Done():
@@ -181,8 +179,7 @@ func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 					cfg.ErrorChan <- fmt.Errorf("bottom fetcher for shard %s: failed to fetch block: %w", shardId.String(), err)
 					continue
 				}
-				blockMsg := wrapBlockWithShard(shardId, curBlock)
-				cfg.BlocksChan <- blockMsg
+				cfg.BlocksChan <- curBlock
 			}
 		}
 	}

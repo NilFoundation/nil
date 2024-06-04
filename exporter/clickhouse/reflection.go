@@ -3,10 +3,15 @@ package clickhouse
 import (
 	"fmt"
 	"reflect"
+	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 func mapTypeToClickhouseType(t reflect.Type) string {
 	switch t.Kind() { //nolint:exhaustive
+	case reflect.Bool:
+		return "Boolean"
 	case reflect.Uint64:
 		return "UInt64"
 	case reflect.Uint32:
@@ -25,6 +30,8 @@ func mapTypeToClickhouseType(t reflect.Type) string {
 		return "Int8"
 	case reflect.String:
 		return "String"
+	case reflect.Slice:
+		return fmt.Sprintf("Array(%s)", mapTypeToClickhouseType(t.Elem()))
 	case reflect.Array:
 		if t.Elem().Kind() == reflect.Uint8 {
 			return fmt.Sprintf("FixedString(%d)", t.Len())
@@ -36,15 +43,103 @@ func mapTypeToClickhouseType(t reflect.Type) string {
 	}
 }
 
-func ReflectSchemeToClickhouse(f any) ([]string, error) {
-	fields := make([]string, 0)
+type reflectedScheme struct {
+	fieldTypes map[string]string
+	fieldNames map[string]string
+}
+
+func mergeScheme(schemes []reflectedScheme) reflectedScheme {
+	fieldTypes := make(map[string]string)
+	fieldNames := make(map[string]string)
+	for _, scheme := range schemes {
+		// check if there are any conflicts
+		for k := range scheme.fieldTypes {
+			if _, ok := fieldTypes[k]; ok {
+				panic(fmt.Sprintf("field %s already exists", k))
+			}
+		}
+		for k := range scheme.fieldNames {
+			if _, ok := fieldNames[k]; ok {
+				panic(fmt.Sprintf("field name mapping %s already exists", k))
+			}
+		}
+		for k, v := range scheme.fieldTypes {
+			fieldTypes[k] = v
+		}
+		for k, v := range scheme.fieldNames {
+			fieldNames[k] = v
+		}
+	}
+	return reflectedScheme{
+		fieldTypes: fieldTypes,
+		fieldNames: fieldNames,
+	}
+}
+
+func reflectSchemeToClickhouse(f any) (reflectedScheme, error) {
+	fieldTypes := make(map[string]string)
+	fieldNames := make(map[string]string)
 	t := reflect.TypeOf(f).Elem()
+	additionalSchemes := make([]reflectedScheme, 0)
 
 	for i := range t.NumField() {
 		field := t.Field(i)
-
-		fields = append(fields, field.Name+" "+mapTypeToClickhouseType(field.Type))
+		clickhouseName := field.Tag.Get("ch")
+		jsonName := field.Tag.Get("json")
+		fieldNameInDb := field.Name
+		if jsonName != "" {
+			fieldNameInDb = strings.Split(jsonName, ",")[0]
+		}
+		if clickhouseName != "" {
+			fieldNameInDb = strings.Split(clickhouseName, ",")[0]
+		}
+		if field.Type.Kind() == reflect.Struct {
+			if field.Type.Name() == "Uint256" {
+				fieldTypes[fieldNameInDb] = "UInt256"
+				fieldNames[field.Name] = fieldNameInDb
+				continue
+			}
+			scheme, err := reflectSchemeToClickhouse(reflect.New(field.Type).Interface())
+			if err != nil {
+				return reflectedScheme{}, err
+			}
+			additionalSchemes = append(additionalSchemes, scheme)
+		} else {
+			fieldTypes[fieldNameInDb] = mapTypeToClickhouseType(field.Type)
+			fieldNames[field.Name] = fieldNameInDb
+		}
 	}
 
-	return fields, nil
+	log.Debug().Msgf("fieldTypes: %v", fieldTypes)
+	log.Debug().Msgf("fieldNames: %v", fieldNames)
+	log.Debug().Msgf("additionalSchemes: %v", additionalSchemes)
+
+	result := reflectedScheme{
+		fieldTypes: fieldTypes,
+		fieldNames: fieldNames,
+	}
+
+	result = mergeScheme(append(additionalSchemes, result))
+
+	return result, nil
+}
+
+func (s reflectedScheme) Fields() string {
+	var fields []string
+	for name, typ := range s.fieldTypes {
+		fields = append(fields, fmt.Sprintf("%s %s", name, typ))
+	}
+	return strings.Join(fields, ", ")
+}
+
+func (s reflectedScheme) CreateTableQuery(tableName, engine string, primaryKeys []string, orderKeys []string) string {
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s 
+		    			(%s)
+		 ENGINE = %s
+		PRIMARY KEY (%s)
+		order by (%s)
+`, tableName, s.Fields(), engine, strings.Join(primaryKeys, ", "), strings.Join(orderKeys, ", "))
+	log.Debug().Msgf("CreateTableQuery: %s", query)
+	return query
 }

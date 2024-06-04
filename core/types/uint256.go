@@ -1,15 +1,20 @@
 package types
 
 import (
+	"database/sql/driver"
+	"encoding"
+
 	ssz "github.com/ferranbt/fastssz"
 	"github.com/holiman/uint256"
 )
 
 // interfaces
 var (
-	_ ssz.Marshaler   = (*Uint256)(nil)
-	_ ssz.Unmarshaler = (*Uint256)(nil)
-	_ ssz.HashRoot    = (*Uint256)(nil)
+	_ ssz.Marshaler            = (*Uint256)(nil)
+	_ ssz.Unmarshaler          = (*Uint256)(nil)
+	_ ssz.HashRoot             = (*Uint256)(nil)
+	_ encoding.BinaryMarshaler = (*Uint256)(nil)
+	_ driver.Valuer            = (*Uint256)(nil)
 )
 
 type Uint256 struct{ uint256.Int }
@@ -68,4 +73,14 @@ func (u *Uint256) HashTreeRootWith(hh ssz.HashWalker) (err error) {
 // GetTree ssz hashes the Uint256 object
 func (u *Uint256) GetTree() (*ssz.Node, error) {
 	return ssz.ProofTree(u)
+}
+
+// MarshalBinary
+func (u *Uint256) MarshalBinary() (data []byte, err error) {
+	return u.Int.MarshalSSZ()
+}
+
+// Valuer
+func (u Uint256) Value() (driver.Value, error) {
+	return u.Int.ToBig(), nil
 }

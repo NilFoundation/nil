@@ -21,21 +21,21 @@ type BlockNumberList struct {
 }
 
 type Block struct {
-	Id                 BlockNumber
-	PrevBlock          common.Hash
-	SmartContractsRoot common.Hash
-	InMessagesRoot     common.Hash
+	Id                 BlockNumber `ch:"id"`
+	PrevBlock          common.Hash `ch:"prev_block"`
+	SmartContractsRoot common.Hash `ch:"smart_contracts_root"`
+	InMessagesRoot     common.Hash `ch:"in_messages_root"`
 	// OutMessagesRoot stores all outbound messages produced by transactions of this block. The key of the tree is a
 	// sequential index of the message, value is a Message struct.
 	// It can be considered as an array, where each segment is referred by corresponding receipt.
-	OutMessagesRoot common.Hash
+	OutMessagesRoot common.Hash `ch:"out_messages_root"`
 	// We cache size of out messages, otherwise we should iterate all the tree to get its size
-	OutMessagesNum      uint32
-	ReceiptsRoot        common.Hash
-	ChildBlocksRootHash common.Hash
-	MasterChainHash     common.Hash
-	LogsBloom           Bloom
-	Timestamp           uint64
+	OutMessagesNum      uint32      `ch:"out_messages_num"`
+	ReceiptsRoot        common.Hash `ch:"receipts_root"`
+	ChildBlocksRootHash common.Hash `ch:"child_blocks_root_hash"`
+	MasterChainHash     common.Hash `ch:"master_chain_hash"`
+	LogsBloom           Bloom       `ch:"logs_bloom"`
+	Timestamp           uint64      `ch:"timestamp"`
 }
 
 // interfaces

@@ -14,8 +14,8 @@ import (
 )
 
 type DebugAPI interface {
-	GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber) (map[string]any, error)
-	GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (map[string]any, error)
+	GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withMessages bool) (map[string]any, error)
+	GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (map[string]any, error)
 }
 
 type DebugAPIImpl struct {
@@ -23,6 +23,8 @@ type DebugAPIImpl struct {
 	db     db.DB
 	logger *zerolog.Logger
 }
+
+var _ DebugAPI = &DebugAPIImpl{}
 
 func NewDebugAPI(base *BaseAPI, db db.DB, logger *zerolog.Logger) *DebugAPIImpl {
 	return &DebugAPIImpl{
@@ -33,7 +35,7 @@ func NewDebugAPI(base *BaseAPI, db db.DB, logger *zerolog.Logger) *DebugAPIImpl 
 }
 
 // GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
-func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber) (map[string]any, error) {
+func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withMessages bool) (map[string]any, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
@@ -47,7 +49,7 @@ func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.Sha
 			return nil, err
 		}
 
-		return api.getBlockByHash(tx, shardId, common.CastToHash(*hash))
+		return api.getBlockByHash(tx, shardId, common.CastToHash(*hash), withMessages)
 	}
 
 	blockHash, err := tx.GetFromShard(shardId, db.BlockHashByNumberIndex, number.BlockNumber().Bytes())
@@ -57,11 +59,11 @@ func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.Sha
 	if err != nil {
 		return nil, err
 	}
-	return api.getBlockByHash(tx, shardId, common.CastToHash(*blockHash))
+	return api.getBlockByHash(tx, shardId, common.CastToHash(*blockHash), withMessages)
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
-func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (map[string]any, error) {
+func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (map[string]any, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
@@ -69,10 +71,10 @@ func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.Shard
 
 	defer tx.Rollback()
 
-	return api.getBlockByHash(tx, shardId, hash)
+	return api.getBlockByHash(tx, shardId, hash, withMessages)
 }
 
-func (api *DebugAPIImpl) getBlockByHash(tx db.Tx, shardId types.ShardId, hash common.Hash) (map[string]any, error) {
+func (api *DebugAPIImpl) getBlockByHash(tx db.Tx, shardId types.ShardId, hash common.Hash, withMessages bool) (map[string]any, error) {
 	block := db.ReadBlock(tx, shardId, hash)
 	if block == nil {
 		return nil, nil
@@ -82,11 +84,39 @@ func (api *DebugAPIImpl) getBlockByHash(tx db.Tx, shardId types.ShardId, hash co
 	if err != nil {
 		return nil, err
 	}
-
 	result := map[string]any{
 		"number":  block.Id,
 		"hash":    block.Hash(),
 		"content": hexutil.Encode(blockBytes),
+	}
+	if withMessages {
+		messages, err := collectBlockEntities[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot)
+		if err != nil {
+			return nil, err
+		}
+
+		receipts, err := collectBlockEntities[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot)
+		if err != nil {
+			return nil, err
+		}
+		hexMessages := make([]string, len(messages))
+		for i, message := range messages {
+			messageBytes, err := message.MarshalSSZ()
+			if err != nil {
+				return nil, err
+			}
+			hexMessages[i] = hexutil.Encode(messageBytes)
+		}
+		hexReceipts := make([]string, len(receipts))
+		for i, receipt := range receipts {
+			receiptBytes, err := receipt.MarshalSSZ()
+			if err != nil {
+				return nil, err
+			}
+			hexReceipts[i] = hexutil.Encode(receiptBytes)
+		}
+		result["messages"] = hexMessages
+		result["receipts"] = hexReceipts
 	}
 
 	return result, nil
