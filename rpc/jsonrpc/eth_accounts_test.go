@@ -73,75 +73,78 @@ func (suite *SuiteEthAccounts) TearDownSuite() {
 
 func (suite *SuiteEthAccounts) TestGetBalance() {
 	ctx := context.Background()
-	shardId := types.MasterShardId
 
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	res, err := suite.api.GetBalance(ctx, shardId, suite.smcAddr, blockNum)
+	res, err := suite.api.GetBalance(ctx, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
 	suite.Equal((*hexutil.Big)(big.NewInt(1234)), res)
 
 	blockHash := transport.BlockNumberOrHash{BlockHash: &suite.blockHash}
-	res, err = suite.api.GetBalance(ctx, shardId, suite.smcAddr, blockHash)
+	res, err = suite.api.GetBalance(ctx, suite.smcAddr, blockHash)
 	suite.Require().NoError(err)
 	suite.Equal((*hexutil.Big)(big.NewInt(1234)), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	_, err = suite.api.GetBalance(ctx, shardId, types.HexToAddress("deadbeef"), blockNum)
+	_, err = suite.api.GetBalance(ctx, types.GenerateRandomAddress(0), blockNum)
 	suite.Require().EqualError(err, "key not found in db")
 
-	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.EarliestBlock.BlockNumber}
-	_, err = suite.api.GetBalance(ctx, shardId, suite.smcAddr, blockNum)
-	suite.Require().EqualError(err, "not implemented")
+	blockNumber := transport.BlockNumber(1000)
+	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
+	res, err = suite.api.GetBalance(ctx, suite.smcAddr, blockNum)
+	suite.Require().NoError(err)
+	suite.Equal((*hexutil.Big)(big.NewInt(0)), res)
 }
 
 func (suite *SuiteEthAccounts) TestGetCode() {
 	ctx := context.Background()
-	shardId := types.MasterShardId
 
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	res, err := suite.api.GetCode(ctx, shardId, suite.smcAddr, blockNum)
+	res, err := suite.api.GetCode(ctx, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Bytes("some code"), res)
 
 	blockHash := transport.BlockNumberOrHash{BlockHash: &suite.blockHash}
-	res, err = suite.api.GetCode(ctx, shardId, suite.smcAddr, blockHash)
+	res, err = suite.api.GetCode(ctx, suite.smcAddr, blockHash)
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Bytes("some code"), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	_, err = suite.api.GetCode(ctx, shardId, types.HexToAddress("deadbeef"), blockNum)
+	_, err = suite.api.GetCode(ctx, types.GenerateRandomAddress(0), blockNum)
 	suite.Require().EqualError(err, "key not found in db")
 
-	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.EarliestBlock.BlockNumber}
-	_, err = suite.api.GetCode(ctx, shardId, suite.smcAddr, blockNum)
-	suite.Require().EqualError(err, "not implemented")
+	blockNumber := transport.BlockNumber(1000)
+	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
+	res, err = suite.api.GetCode(ctx, suite.smcAddr, blockNum)
+	suite.Require().NoError(err)
+	suite.Equal(hexutil.Bytes(nil), res)
 }
 
 func (suite *SuiteEthAccounts) TestGetSeqno() {
 	ctx := context.Background()
-	shardId := types.MasterShardId
 
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	res, err := suite.api.GetTransactionCount(ctx, shardId, suite.smcAddr, blockNum)
+	res, err := suite.api.GetTransactionCount(ctx, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Uint64(567), *res)
 
 	blockHash := transport.BlockNumberOrHash{BlockHash: &suite.blockHash}
-	res, err = suite.api.GetTransactionCount(ctx, shardId, suite.smcAddr, blockHash)
+	res, err = suite.api.GetTransactionCount(ctx, suite.smcAddr, blockHash)
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Uint64(567), *res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	res, err = suite.api.GetTransactionCount(ctx, shardId, types.HexToAddress("deadbeef"), blockNum)
+	res, err = suite.api.GetTransactionCount(ctx, types.GenerateRandomAddress(0), blockNum)
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Uint64(0), *res)
 
-	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.EarliestBlock.BlockNumber}
-	_, err = suite.api.GetTransactionCount(ctx, shardId, suite.smcAddr, blockNum)
-	suite.Require().EqualError(err, "not implemented")
+	blockNumber := transport.BlockNumber(1000)
+	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
+	res, err = suite.api.GetTransactionCount(ctx, suite.smcAddr, blockNum)
+	suite.Require().NoError(err)
+	suite.Equal(hexutil.Uint64(0), *res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.PendingBlock.BlockNumber}
-	res, err = suite.api.GetTransactionCount(ctx, shardId, suite.smcAddr, blockNum)
+	res, err = suite.api.GetTransactionCount(ctx, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Uint64(567), *res)
 
@@ -168,7 +171,7 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 	suite.NotEqual(common.EmptyHash, hash)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.PendingBlock.BlockNumber}
-	res, err = suite.api.GetTransactionCount(ctx, shardId, suite.smcAddr, blockNum)
+	res, err = suite.api.GetTransactionCount(ctx, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Uint64(1), *res)
 }

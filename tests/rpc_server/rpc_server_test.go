@@ -159,7 +159,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 	pub := crypto.CompressPubkey(&execution.MainPrivateKey.PublicKey)
 	from := types.PubkeyBytesToAddress(types.MasterShardId, pub)
 
-	seqno1, err := transactionCount(suite.port, types.MasterShardId, from, "latest")
+	seqno1, err := transactionCount(suite.port, from, "latest")
 	suite.Require().NoError(err)
 
 	contracts, err := solc.CompileSource("./contracts/increment.sol")
@@ -192,7 +192,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 	suite.Equal(m.Hash(), resp.Result)
 
 	suite.Eventually(func() bool {
-		seqno, err := transactionCount(suite.port, types.MasterShardId, from, "latest")
+		seqno, err := transactionCount(suite.port, from, "latest")
 		suite.Require().NoError(err)
 		return seqno == seqno1+1
 	}, 6*time.Second, 200*time.Millisecond)
@@ -202,7 +202,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 	suite.waitForReceipt(addr, m)
 
 	// now call (= send a message to) created contract. as a result, it should also create a new contract
-	seqno, err := transactionCount(suite.port, types.MasterShardId, from, "latest")
+	seqno, err := transactionCount(suite.port, from, "latest")
 	suite.Require().NoError(err)
 
 	abi := solc.ExtractABI(contracts["Incrementer"])
@@ -234,10 +234,10 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 	nbShardId := types.ShardId(4)
 	nbFrom := types.PubkeyBytesToAddress(nbShardId, pub)
 
-	seqno, err := transactionCount(suite.port, types.MasterShardId, from, "latest")
+	seqno, err := transactionCount(suite.port, from, "latest")
 	suite.Require().NoError(err)
 
-	nbSeqno, err := transactionCount(suite.port, nbShardId, nbFrom, "latest")
+	nbSeqno, err := transactionCount(suite.port, nbFrom, "latest")
 	suite.Require().NoError(err)
 
 	// Deploy contract on neighbour shard
