@@ -22,8 +22,6 @@ const (
 	Bytes64Size = 64
 	// expected length of Bytes48 (beacon domain and such)
 	Bytes4Size = 4
-	// Addr is the expected length of the address (in bytes)
-	AddrSize = 20
 	// BlockNumberLen length of uint64 big endian
 	BlockNumSize = 8
 	// Ts TimeStamp (BlockNum, TxNum or any other uint64 equivalent of Time)
