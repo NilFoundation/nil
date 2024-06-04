@@ -176,7 +176,7 @@ func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
 	// Create table for blocks
 	blockScheme, ok := tableSchemeCache["blocks"]
 	if !ok {
-		return errors.New("scheme for blocks not found")
+		panic("scheme for blocks not found")
 	}
 
 	err := conn.Exec(ctx, blockScheme.CreateTableQuery(
@@ -192,7 +192,7 @@ func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
 	// Create table for messages
 	messagesScheme, ok := tableSchemeCache["messages"]
 	if !ok {
-		return errors.New("scheme for messages not found")
+		panic("scheme for messages not found")
 	}
 
 	err = conn.Exec(
@@ -211,7 +211,7 @@ func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
 	// Create table for receipts
 	logScheme, ok := tableSchemeCache["logs"]
 	if !ok {
-		return errors.New("scheme for receipts not found")
+		panic("scheme for receipts not found")
 	}
 
 	if err = conn.Exec(

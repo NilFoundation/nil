@@ -320,7 +320,7 @@ func (suite *SuiteRpc) TestRpcError() {
 }
 
 func (suite *SuiteRpc) TestRpcDebugModules() {
-	res := suite.makeGenericRequest("debug_getBlockByNumber", types.MasterShardId, "latest")
+	res := suite.makeGenericRequest("debug_getBlockByNumber", types.MasterShardId, "latest", false)
 
 	suite.Require().Contains(res, "number")
 	suite.Require().Contains(res, "hash")
@@ -332,6 +332,11 @@ func (suite *SuiteRpc) TestRpcDebugModules() {
 	suite.Require().Equal("0x", sliceContent[:2])
 	// print resp to see the result
 	suite.T().Logf("resp: %v", res)
+
+	fullRes := suite.makeGenericRequest("debug_getBlockByNumber", types.MasterShardId, "latest", true)
+	suite.Require().Contains(fullRes, "content")
+	suite.Require().Contains(fullRes, "messages")
+	suite.Require().Contains(fullRes, "receipts")
 }
 
 func TestSuiteRpc(t *testing.T) {

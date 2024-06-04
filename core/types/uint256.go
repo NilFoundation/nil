@@ -3,6 +3,7 @@ package types
 import (
 	"database/sql/driver"
 	"encoding"
+
 	ssz "github.com/ferranbt/fastssz"
 	"github.com/holiman/uint256"
 )
