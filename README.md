@@ -82,7 +82,7 @@ Make note of the "Transaction hash" in the output, and then:
 You should get a json object, which contains "contractAddress" in the result.
 
 ```bash
-/build/bin/nil_cli contract --address <contract address> --bytecode d09de08a
+./build/bin/nil_cli contract --address <contract address> --bytecode d09de08a
 ```
 
 As a result, you should get "Transaction hash" again, but this time for the function call.
