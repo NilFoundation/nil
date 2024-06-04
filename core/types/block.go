@@ -29,13 +29,13 @@ type Block struct {
 	// sequential index of the message, value is a Message struct.
 	// It can be considered as an array, where each segment is referred by corresponding receipt.
 	OutMessagesRoot common.Hash `ch:"out_messages_root"`
-	// We cache size of out messages, otherwise we should iterate all the tree to get its size
-	OutMessagesNum      uint32      `ch:"out_messages_num"`
-	ReceiptsRoot        common.Hash `ch:"receipts_root"`
-	ChildBlocksRootHash common.Hash `ch:"child_blocks_root_hash"`
-	MasterChainHash     common.Hash `ch:"master_chain_hash"`
-	LogsBloom           Bloom       `ch:"logs_bloom"`
-	Timestamp           uint64      `ch:"timestamp"`
+	// We cache the size of out messages, otherwise we should iterate all the tree to get its size
+	OutMessagesNum      MessageIndex `ch:"out_messages_num"`
+	ReceiptsRoot        common.Hash  `ch:"receipts_root"`
+	ChildBlocksRootHash common.Hash  `ch:"child_blocks_root_hash"`
+	MasterChainHash     common.Hash  `ch:"master_chain_hash"`
+	LogsBloom           Bloom        `ch:"logs_bloom"`
+	Timestamp           uint64       `ch:"timestamp"`
 }
 
 // interfaces

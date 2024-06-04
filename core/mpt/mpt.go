@@ -106,8 +106,8 @@ func NewMerklePatriciaTrie(db db.DBAccessor, shardId types.ShardId, name db.Shar
 	return &MerklePatriciaTrie{db, shardId, name, nil}
 }
 
-func NewMerklePatriciaTrieWithRoot(db db.DBAccessor, shardid types.ShardId, name db.ShardedTableName, root common.Hash) *MerklePatriciaTrie {
-	return &MerklePatriciaTrie{db, shardid, name, root.Bytes()}
+func NewMerklePatriciaTrieWithRoot(db db.DBAccessor, shardId types.ShardId, name db.ShardedTableName, root common.Hash) *MerklePatriciaTrie {
+	return &MerklePatriciaTrie{db, shardId, name, root.Bytes()}
 }
 
 func GetEntity[

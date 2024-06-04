@@ -65,7 +65,7 @@ type StateDB interface {
 	AddLog(*types.Log)
 
 	// returns new message index
-	AddInMessage(*types.Message) uint64
+	AddInMessage(*types.Message) types.MessageIndex
 
 	// add out message for particular transaction
 	AddOutMessage(common.Hash, *types.Message)

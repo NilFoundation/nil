@@ -10,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/shardchain"
 	"github.com/NilFoundation/nil/core/types"
-	ssz "github.com/ferranbt/fastssz"
 	"github.com/rs/zerolog"
 )
 
@@ -200,16 +199,13 @@ func (c *collator) collectFromNeighbours(roTx db.RoTx) ([]*types.Message, []*Out
 				break
 			}
 
-			outMsgTrie := mpt.NewMerklePatriciaTrieWithRoot(roTx, id, db.MessageTrieTable, block.OutMessagesRoot)
+			outMsgTrie := execution.NewMessageTrie(mpt.NewMerklePatriciaTrieWithRoot(roTx, id, db.MessageTrieTable, block.OutMessagesRoot))
 			for msgIndex := range block.OutMessagesNum {
-				msgRaw, err := outMsgTrie.Get(ssz.MarshalUint32(nil, msgIndex))
+				msg, err := outMsgTrie.Fetch(msgIndex)
 				if err != nil {
 					return nil, nil, err
 				}
-				msg := new(types.Message)
-				if err := msg.UnmarshalSSZ(msgRaw); err != nil {
-					return nil, nil, err
-				}
+
 				msgShardId := msg.To.ShardId()
 				if msgShardId == c.id {
 					inMsgs = append(inMsgs, msg)

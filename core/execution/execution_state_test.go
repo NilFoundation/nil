@@ -10,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
-	ssz "github.com/ferranbt/fastssz"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -82,29 +81,20 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	messageTrieTable := db.MessageTrieTable
 	receiptTrieTable := db.ReceiptTrieTable
-	messagesRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, messageTrieTable, block.InMessagesRoot)
-	receiptsRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, receiptTrieTable, block.ReceiptsRoot)
-	var messageIndex uint64 = 0
+	messagesRoot := NewMessageTrie(mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, messageTrieTable, block.InMessagesRoot))
+	receiptsRoot := NewReceiptTrie(mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, receiptTrieTable, block.ReceiptsRoot))
+	var messageIndex types.MessageIndex
 
 	for {
-		k := ssz.MarshalUint64(nil, messageIndex)
-		suite.Require().NoError(err)
-
-		mRaw, err := messagesRoot.Get(k)
+		m, err := messagesRoot.Fetch(messageIndex)
 		if errors.Is(err, db.ErrKeyNotFound) {
 			break
 		}
 		suite.Require().NoError(err)
 
-		rRaw, err := receiptsRoot.Get(k)
-		suite.Require().NoError(err)
-
-		var m types.Message
-		suite.Require().NoError(m.UnmarshalSSZ(mRaw))
-
 		deploy := types.DeployMessage{
 			ShardId: shardId,
-			Seqno:   messageIndex,
+			Seqno:   uint64(messageIndex),
 			// constructor that generates the code "01020304"
 			Code: hexutil.FromHex("6004600c60003960046000f301020304"),
 		}
@@ -112,11 +102,11 @@ func (suite *SuiteExecutionState) TestExecState() {
 		suite.Require().NoError(err)
 		suite.Equal(types.Code(data), m.Data)
 
-		var r types.Receipt
-		suite.Require().NoError(r.UnmarshalSSZ(rRaw))
-		suite.NotZero(len(r.ContractAddress))
+		r, err := receiptsRoot.Fetch(messageIndex)
+		suite.Require().NoError(err)
+		suite.Equal(m.Hash(), r.MsgHash)
 
-		messageIndex += 1
+		messageIndex++
 	}
 	suite.Equal(numMessages, uint8(messageIndex))
 }
@@ -146,14 +136,11 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 		block := db.ReadBlock(tx, types.MasterShardId, blockHash)
 		suite.Require().NotNil(block)
 
-		messagesRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, db.MessageTrieTable, block.InMessagesRoot)
-		var msgRead types.Message
-
-		msgRaw, err := messagesRoot.Get(ssz.MarshalUint64(nil, 0))
+		messagesRoot := NewMessageTrie(mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, db.MessageTrieTable, block.InMessagesRoot))
+		msgRead, err := messagesRoot.Fetch(0)
 		suite.Require().NoError(err)
-		suite.Require().NoError(msgRead.UnmarshalSSZ(msgRaw))
 
-		suite.Equal(*msg, msgRead)
+		suite.Equal(msg, msgRead)
 	}
 
 	check(blockHash1, &msg1)
