@@ -35,7 +35,7 @@ type NodeBase struct {
 
 type LeafNode struct {
 	NodeBase
-	LeafData []byte `ssz-max:"1000"`
+	LeafData []byte `ssz-max:"100000000"`
 }
 
 type ExtensionNode struct {
@@ -45,7 +45,7 @@ type ExtensionNode struct {
 
 type BranchNode struct {
 	Branches [BranchesNum]Reference `ssz-max:"16,1000"`
-	Value    []byte                 `ssz-max:"1000"`
+	Value    []byte                 `ssz-max:"100000000"`
 }
 
 func newLeafNode(path *Path, data []byte) *LeafNode {
