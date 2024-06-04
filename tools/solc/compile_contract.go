@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common/compiler"
 )
@@ -17,7 +18,7 @@ func CompileSource(sourcePath string) (map[string]*compiler.Contract, error) {
 		return nil, fmt.Errorf("solc compiler not found: %w", err)
 	}
 
-	cmd := exec.Command(solc, "--combined-json", "abi,bin", sourcePath)
+	cmd := exec.Command(solc, "--combined-json", "abi,bin", "--allow-paths", common.GetAbsolutePath("../../"), sourcePath)
 
 	var stderrBuf bytes.Buffer
 	cmd.Stderr = &stderrBuf
