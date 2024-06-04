@@ -32,10 +32,16 @@ curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix 
 
 ### Building
 
-Build the project with:
+Enter the Nix development environment:
 
 ```bash
 cd nil
+nix develop
+```
+
+Build the project with:
+
+```bash
 make
 ```
 
@@ -45,6 +51,53 @@ Run tests with:
 
 ```bash
 make test
+```
+
+### Deploying a smart contract via CLI
+
+While being in the repo root, copy the config for the CLI where it specifies the private key and RPC endpoint:
+
+```
+cp cmd/nil_cli/config.yaml .
+```
+
+Now, compile a test contract
+
+```bash
+solc -o . --bin --abi example/counter.sol
+```
+
+And deploy the contract with the CLI:
+
+```bash
+./build/bin/nil_cli contract --deploy `cat SimpleStorage.bin`
+```
+
+Make note of the "Transaction hash" in the output, and then:
+
+```bash
+./build/bin/nil_cli receipt --hash <transaction hash>
+```
+
+You should get a json object, which contains "contractAddress" in the result.
+
+```bash
+/build/bin/nil_cli contract --address <contract address> --bytecode d09de08a
+```
+
+As a result, you should get "Transaction hash" again, but this time for the function call.
+Now let's retrieve the message hash to see the current value of the counter:
+
+
+```bash
+./build/bin/nil_cli receipt --hash <another transaction hash>
+```
+
+You'll see the counter value in the "data" section of the log in the json. To see the actual value:
+
+
+```bash
+echo "<value in data section>" | base64 -d | xxd
 ```
 
 ### Deploying a smart contract
@@ -91,11 +144,11 @@ request.Params = []any{types.MasterShardId, msgHash}
 
 var respReceipt *Response[*types.Receipt]
 suite.Eventually(func() bool {
-		respReceipt, err = makeRequest[*types.Receipt](&request)
-		suite.Require().NoError(err)
-		suite.Require().Nil(resp.Error["code"])
-		return respReceipt.Result != nil
-	},
+        respReceipt, err = makeRequest[*types.Receipt](&request)
+        suite.Require().NoError(err)
+        suite.Require().Nil(resp.Error["code"])
+        return respReceipt.Result != nil
+    },
     5*time.Second,
     200*time.Millisecond)
 ```
