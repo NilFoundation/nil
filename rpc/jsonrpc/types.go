@@ -48,7 +48,7 @@ type RPCBlock struct {
 type RPCReceipt struct {
 	Success         bool               `json:"success"`
 	GasUsed         uint32             `json:"gasUsed"`
-	Bloom           types.Bloom        `json:"bloom"`
+	Bloom           hexutil.Bytes      `json:"bloom"`
 	Logs            []*RPCLog          `json:"logs"`
 	OutMsgIndex     uint32             `json:"outMsgIndex"`
 	MsgHash         common.Hash        `json:"messageHash"`
@@ -155,7 +155,7 @@ func NewRPCReceipt(
 	return &RPCReceipt{
 		Success:         receipt.Success,
 		GasUsed:         receipt.GasUsed,
-		Bloom:           receipt.Bloom,
+		Bloom:           hexutil.Bytes(receipt.Bloom.Bytes()),
 		Logs:            logs,
 		OutMsgIndex:     receipt.OutMsgIndex,
 		MsgHash:         receipt.MsgHash,
