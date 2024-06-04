@@ -27,15 +27,15 @@ import (
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/params"
-	"github.com/rs/zerolog/log"
+	"github.com/holiman/uint256"
 )
 
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
 // requires a deterministic gas count based on the input size of the Run method of the
 // contract.
 type PrecompiledContract interface {
-	RequiredGas(input []byte) uint64                 // RequiredPrice calculates the contract gas use
-	Run(state StateDB, input []byte) ([]byte, error) // Run runs the precompiled contract
+	RequiredGas(input []byte) uint64                                                                     // RequiredPrice calculates the contract gas use
+	Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef) ([]byte, error) // Run runs the precompiled contract
 }
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -44,7 +44,8 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	types.BytesToAddress([]byte{0x02}): &sha256hash{},
 	types.BytesToAddress([]byte{0x04}): &dataCopy{},
 	types.BytesToAddress([]byte{0x05}): &bigModExp{eip2565: true},
-	types.BytesToAddress([]byte{0x06}): &sendMessagePrecompiledContract{},
+	types.BytesToAddress([]byte{0x06}): &sendRawMessage{},
+	types.BytesToAddress([]byte{0x07}): &sendMessage{},
 }
 
 var PrecompiledContractsBLS = PrecompiledContractsPrague
@@ -67,7 +68,9 @@ func ActivePrecompiles() []types.Address {
 // - the returned bytes,
 // - the _remaining_ gas,
 // - any error that occurred
-func RunPrecompiledContract(p PrecompiledContract, state StateDB, input []byte, suppliedGas uint64, logger *tracing.Hooks) (ret []byte, remainingGas uint64, err error) {
+func RunPrecompiledContract(p PrecompiledContract, state StateDB, input []byte, suppliedGas uint64,
+	logger *tracing.Hooks, gas uint64, value *uint256.Int, caller ContractRef,
+) (ret []byte, remainingGas uint64, err error) {
 	gasCost := p.RequiredGas(input)
 	if suppliedGas < gasCost {
 		return nil, 0, ErrOutOfGas
@@ -76,7 +79,7 @@ func RunPrecompiledContract(p PrecompiledContract, state StateDB, input []byte, 
 		logger.OnGasChange(suppliedGas, suppliedGas-gasCost, tracing.GasChangeCallPrecompiledContract)
 	}
 	suppliedGas -= gasCost
-	output, err := p.Run(state, input)
+	output, err := p.Run(state, input, gas, value, caller)
 	return output, suppliedGas, err
 }
 
@@ -91,7 +94,7 @@ func (c *sha256hash) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.Sha256PerWordGas + params.Sha256BaseGas
 }
 
-func (c *sha256hash) Run(_ StateDB, input []byte) ([]byte, error) {
+func (c *sha256hash) Run(_ StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	h := sha256.Sum256(input)
 	return h[:], nil
 }
@@ -107,7 +110,7 @@ func (c *dataCopy) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.IdentityPerWordGas + params.IdentityBaseGas
 }
 
-func (c *dataCopy) Run(_ StateDB, in []byte) ([]byte, error) {
+func (c *dataCopy) Run(_ StateDB, in []byte, gas uint64, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	return slices.Clone(in), nil
 }
 
@@ -232,7 +235,7 @@ func (c *bigModExp) RequiredGas(input []byte) uint64 {
 	return gas.Uint64()
 }
 
-func (c *bigModExp) Run(_ StateDB, input []byte) ([]byte, error) {
+func (c *bigModExp) Run(_ StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	var (
 		baseLen = new(big.Int).SetBytes(getData(input, 0, 32)).Uint64()
 		expLen  = new(big.Int).SetBytes(getData(input, 32, 32)).Uint64()
@@ -267,14 +270,14 @@ func (c *bigModExp) Run(_ StateDB, input []byte) ([]byte, error) {
 	return common.LeftPadBytes(v, int(modLen)), nil
 }
 
-type sendMessagePrecompiledContract struct{}
+type sendRawMessage struct{}
 
-func (c *sendMessagePrecompiledContract) RequiredGas([]byte) uint64 {
+func (c *sendRawMessage) RequiredGas([]byte) uint64 {
 	// TODO: change cost
 	return 0
 }
 
-func (c *sendMessagePrecompiledContract) Run(state StateDB, input []byte) ([]byte, error) {
+func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	msg := new(types.Message)
 	if err := msg.UnmarshalSSZ(input); err != nil {
 		return nil, err
@@ -282,7 +285,29 @@ func (c *sendMessagePrecompiledContract) Run(state StateDB, input []byte) ([]byt
 	if !msg.Internal {
 		return nil, errors.New("Expected internal message")
 	}
-	log.Debug().Msgf("SendMessage precompiled called with %+v hash %v", msg, msg.Hash())
 	state.AddOutMessage(state.GetInMessageHash(), msg)
+	return nil, nil
+}
+
+type sendMessage struct{}
+
+func (c *sendMessage) RequiredGas([]byte) uint64 {
+	// TODO: change cost
+	return 0
+}
+
+func (c *sendMessage) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	var dst types.Address
+	copy(dst[:], input[32-types.AddrSize:32])
+	input = input[32:]
+	msg := &types.Message{
+		GasLimit: *types.NewUint256(gas),
+		Value:    types.Uint256{Int: *value},
+		From:     caller.Address(),
+		To:       dst,
+	}
+	msg.Data = make([]byte, len(input))
+	copy(msg.Data, input)
+	state.AddOutMessage(common.EmptyHash, msg)
 	return nil, nil
 }

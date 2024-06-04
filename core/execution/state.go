@@ -79,6 +79,9 @@ type ExecutionState struct {
 	journal        *journal
 	validRevisions []revision
 	nextRevisionId int
+
+	// If true, log every instruction execution.
+	TraceVm bool
 }
 
 type revision struct {
@@ -736,6 +739,17 @@ func (es *ExecutionState) HandleExecutionMessage(message *types.Message, index u
 	gas := uint64(1000000)
 
 	evm := vm.NewEVM(*blockContext, es)
+
+	if es.TraceVm {
+		evm.Config.Tracer = &tracing.Hooks{
+			OnOpcode: func(pc uint64, op byte, gas, cost uint64, scope tracing.OpContext, rData []byte, depth int, err error) {
+				for i, item := range scope.StackData() {
+					logger.Debug().Msgf("     %d: %s", i, item.String())
+				}
+				logger.Debug().Msgf("%04x: %s", pc, vm.OpCode(op).String())
+			},
+		}
+	}
 
 	ret, leftOverGas, err := evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas, &message.Value.Int)
 	if err != nil {

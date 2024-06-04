@@ -14,6 +14,10 @@ var (
 
 type Uint256 struct{ uint256.Int }
 
+func NewUint256(val uint64) *Uint256 {
+	return &Uint256{*uint256.NewInt(val)}
+}
+
 // MarshalSSZ ssz marshals the Uint256 object
 func (u *Uint256) MarshalSSZ() ([]byte, error) {
 	return ssz.MarshalSSZ(u)

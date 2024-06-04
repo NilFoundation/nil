@@ -129,3 +129,156 @@ func TestDelegate(t *testing.T) {
 	// check that it returned 42
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2a"), 32), ret)
 }
+
+func TestAsyncCall(t *testing.T) {
+	t.Parallel()
+	state := newState(t)
+
+	state.TraceVm = false
+
+	contracts, err := solc.CompileSource(common.GetAbsolutePath("../../tests/rpc_server/contracts/async_call.sol"))
+	require.NoError(t, err)
+
+	blockContext := NewEVMBlockContext(state)
+
+	smcCallee := contracts["Callee"]
+	addrCallee, err := deployContract(smcCallee, state, &blockContext, 0)
+	require.NoError(t, err)
+
+	smcCaller := contracts["Caller"]
+	addrCaller, err := deployContract(smcCaller, state, &blockContext, 1)
+	require.NoError(t, err)
+
+	// Call Callee::add that should increase value by 11
+	abi := solc.ExtractABI(smcCaller)
+	calldata, err := abi.Pack("call", addrCallee, int32(11))
+	require.NoError(t, err)
+
+	callMessage := &types.Message{
+		Data: calldata,
+		To:   addrCaller,
+	}
+	_, err = state.HandleExecutionMessage(callMessage, 0, &blockContext)
+	require.NoError(t, err)
+	require.NotEmpty(t, state.Receipts)
+	require.True(t, state.Receipts[len(state.Receipts)-1].Success)
+	tx := state.Receipts[len(state.Receipts)-1].MsgHash
+
+	require.Len(t, state.OutMessages, 1)
+	require.Len(t, state.OutMessages[tx], 1)
+
+	outMsg := state.OutMessages[tx][0]
+	require.Equal(t, addrCaller, outMsg.From)
+	require.Equal(t, addrCallee, outMsg.To)
+
+	// Process outbound message, i.e. "Callee::add"
+	ret, err := state.HandleExecutionMessage(outMsg, 0, &blockContext)
+	require.NoError(t, err)
+	lastReceipt := state.Receipts[len(state.Receipts)-1]
+	require.True(t, lastReceipt.Success)
+	require.Len(t, ret, 32)
+	var res types.Uint256
+	res.SetBytes(ret)
+	require.Equal(t, res, *types.NewUint256(11))
+
+	// Call Callee::add that should decrease value by 7
+	calldata, err = abi.Pack("call", addrCallee, int32(-7))
+	require.NoError(t, err)
+	callMessage = &types.Message{
+		Data: calldata,
+		To:   addrCaller,
+	}
+	_, err = state.HandleExecutionMessage(callMessage, 0, &blockContext)
+	require.NoError(t, err)
+	require.NotEmpty(t, state.Receipts)
+	require.True(t, state.Receipts[len(state.Receipts)-1].Success)
+	tx = state.Receipts[len(state.Receipts)-1].MsgHash
+
+	require.Len(t, state.OutMessages, 1)
+	require.Len(t, state.OutMessages[tx], 2)
+
+	outMsg = state.OutMessages[tx][1]
+	require.Equal(t, outMsg.From, addrCaller)
+	require.Equal(t, outMsg.To, addrCallee)
+
+	require.Len(t, state.OutMessages, 1)
+	require.Len(t, state.OutMessages[tx], 2)
+
+	outMsg = state.OutMessages[tx][1]
+	require.Equal(t, outMsg.From, addrCaller)
+	require.Equal(t, outMsg.To, addrCallee)
+
+	// Process outbound message, i.e. "Callee::add"
+	ret, err = state.HandleExecutionMessage(outMsg, 0, &blockContext)
+	require.NoError(t, err)
+	lastReceipt = state.Receipts[len(state.Receipts)-1]
+	require.True(t, lastReceipt.Success)
+	require.Len(t, ret, 32)
+	res.SetBytes(ret)
+	require.Equal(t, res, *types.NewUint256(4))
+}
+
+func TestSendMessage(t *testing.T) {
+	t.Parallel()
+	state := newState(t)
+
+	state.TraceVm = false
+
+	contracts, err := solc.CompileSource(common.GetAbsolutePath("../../tests/rpc_server/contracts/async_call.sol"))
+	require.NoError(t, err)
+
+	blockContext := NewEVMBlockContext(state)
+
+	smcCallee := contracts["Callee"]
+	addrCallee, err := deployContract(smcCallee, state, &blockContext, 0)
+	require.NoError(t, err)
+
+	smcCaller := contracts["Caller"]
+	addrCaller, err := deployContract(smcCaller, state, &blockContext, 1)
+	require.NoError(t, err)
+
+	// Send message that calls `Callee::add`, which should increase value by 11
+	abiCalee := solc.ExtractABI(smcCallee)
+	calldata, err := abiCalee.Pack("add", int32(11))
+	require.NoError(t, err)
+	messageToSend := &types.Message{
+		Data:     calldata,
+		From:     addrCaller,
+		To:       addrCallee,
+		Value:    *types.NewUint256(0),
+		Internal: true,
+	}
+	calldata, err = messageToSend.MarshalSSZ()
+	require.NoError(t, err)
+
+	abi := solc.ExtractABI(smcCaller)
+	calldata, err = abi.Pack("send_msg", calldata)
+	require.NoError(t, err)
+
+	callMessage := &types.Message{
+		Data: calldata,
+		To:   addrCaller,
+	}
+	_, err = state.HandleExecutionMessage(callMessage, 0, &blockContext)
+	require.NoError(t, err)
+	require.NotEmpty(t, state.Receipts)
+	require.True(t, state.Receipts[len(state.Receipts)-1].Success)
+	tx := state.Receipts[len(state.Receipts)-1].MsgHash
+
+	require.Len(t, state.OutMessages, 1)
+	require.Len(t, state.OutMessages[tx], 1)
+
+	outMsg := state.OutMessages[tx][0]
+	require.Equal(t, addrCaller, outMsg.From)
+	require.Equal(t, addrCallee, outMsg.To)
+
+	// Process outbound message, i.e. "Callee::add"
+	ret, err := state.HandleExecutionMessage(outMsg, 0, &blockContext)
+	require.NoError(t, err)
+	lastReceipt := state.Receipts[len(state.Receipts)-1]
+	require.True(t, lastReceipt.Success)
+	require.Len(t, ret, 32)
+	var res types.Uint256
+	res.SetBytes(ret)
+	require.Equal(t, res, *types.NewUint256(11))
+}
