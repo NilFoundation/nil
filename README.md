@@ -32,10 +32,16 @@ curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix 
 
 ### Building
 
-Build the project with:
+Enter the Nix development environment:
 
 ```bash
 cd nil
+nix develop
+```
+
+Build the project with:
+
+```bash
 make
 ```
 
