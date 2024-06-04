@@ -52,11 +52,9 @@ func (s *SuiteShardchainState) TestGenerateBlock() {
 	s.Require().NoError(err)
 
 	r := es.Receipts[0]
-	s.Equal(uint64(0), r.MsgIndex)
 	s.Equal(m1.Hash(), r.MsgHash)
 
 	r = es.Receipts[1]
-	s.Equal(uint64(1), r.MsgIndex)
 	s.Equal(m2.Hash(), r.MsgHash)
 }
 
@@ -86,7 +84,7 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 	}
 
 	// "From" doesn't exist
-	ok, err := validateMessage(es, &msg, 0)
+	ok, err := validateMessage(es, &msg)
 	s.Require().NoError(err)
 	s.False(ok)
 	s.Require().Len(es.Receipts, 1)
@@ -94,7 +92,7 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 
 	// Invalid signature
 	msg.From = addrFrom
-	ok, err = validateMessage(es, &msg, 1)
+	ok, err = validateMessage(es, &msg)
 	s.Require().NoError(err)
 	s.False(ok)
 	s.Require().Len(es.Receipts, 2)
@@ -102,14 +100,14 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 
 	// Signed message - OK
 	s.Require().NoError(msg.Sign(key))
-	ok, err = validateMessage(es, &msg, 2)
+	ok, err = validateMessage(es, &msg)
 	s.Require().NoError(err)
 	s.True(ok)
 	s.Len(es.Receipts, 2)
 
 	// Gap in seqno
 	msg.Seqno = 100
-	ok, err = validateMessage(es, &msg, 3)
+	ok, err = validateMessage(es, &msg)
 	s.Require().NoError(err)
 	s.False(ok)
 	s.Require().Len(es.Receipts, 3)

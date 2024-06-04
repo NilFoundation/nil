@@ -40,10 +40,10 @@ func writeMessages(t *testing.T, tx db.Tx, shardId types.ShardId, messages []*ty
 func writeReceipts(t *testing.T, tx db.Tx, shardId types.ShardId, receipts []*types.Receipt) *mpt.MerklePatriciaTrie {
 	t.Helper()
 	receiptRoot := mpt.NewMerklePatriciaTrie(tx, shardId, db.ReceiptTrieTable)
-	for _, receipt := range receipts {
+	for i, receipt := range receipts {
 		receiptBytes, err := receipt.MarshalSSZ()
 		require.NoError(t, err)
-		require.NoError(t, receiptRoot.Set(ssz.MarshalUint64(nil, receipt.MsgIndex), receiptBytes))
+		require.NoError(t, receiptRoot.Set(ssz.MarshalUint64(nil, uint64(i)), receiptBytes))
 	}
 	return receiptRoot
 }

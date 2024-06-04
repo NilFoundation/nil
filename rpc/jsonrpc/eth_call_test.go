@@ -60,8 +60,8 @@ func (s *SuiteEthCall) SetupSuite() {
 	m := &types.Message{Seqno: 0, Data: data, From: s.from}
 	es.AddInMessage(m)
 
-	index := es.AddInMessage(m)
-	s.Require().NoError(es.HandleDeployMessage(m, index, &blockContext))
+	es.AddInMessage(m)
+	s.Require().NoError(es.HandleDeployMessage(m, &blockContext))
 
 	blockHash, err := es.Commit(0)
 	s.Require().NoError(err)

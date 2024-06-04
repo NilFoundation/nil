@@ -14,6 +14,7 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/stretchr/testify/suite"
 )
@@ -61,17 +62,17 @@ func (suite *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, addr types.A
 
 	request := NewRequest(getInMessageReceipt, shardId, msg.Hash())
 
-	var respReceipt *Response[*types.Receipt]
+	var respReceipt *Response[*jsonrpc.RPCReceipt]
 	var err error
 	suite.Require().Eventually(func() bool {
-		respReceipt, err = makeRequest[*types.Receipt](suite.port, request)
+		respReceipt, err = makeRequest[*jsonrpc.RPCReceipt](suite.port, request)
 		suite.Require().NoError(err)
 		suite.Require().Nil(respReceipt.Error["code"])
 		return respReceipt.Result != nil
 	}, 6*time.Hour, 200*time.Millisecond)
 
 	suite.True(respReceipt.Result.Success)
-	suite.Equal(uint64(0), respReceipt.Result.MsgIndex) // now in all test cases it's first msg in block
+	suite.Equal(types.MessageIndex(0), respReceipt.Result.MsgIndex) // now in all test cases it's first msg in block
 	suite.Equal(msg.Hash(), respReceipt.Result.MsgHash)
 	suite.Equal(addr, respReceipt.Result.ContractAddress)
 }

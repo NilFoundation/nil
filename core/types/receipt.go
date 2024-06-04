@@ -15,8 +15,6 @@ type Receipt struct {
 
 	MsgHash         common.Hash `json:"messageHash"`
 	ContractAddress Address     `json:"contractAddress"`
-
-	MsgIndex uint64 `json:"messageIndex"`
 }
 
 func (r *Receipt) AddLog(log *Log) {

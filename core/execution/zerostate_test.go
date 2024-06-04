@@ -73,7 +73,7 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 		Data: calldata,
 		To:   suite.faucetAddr,
 	}
-	_, err = suite.state.HandleExecutionMessage(callMessage, 2, &suite.blockContext)
+	_, err = suite.state.HandleExecutionMessage(callMessage, &suite.blockContext)
 	suite.Require().NoError(err)
 
 	suite.Require().EqualValues(*uint256.NewInt(1000000000000 - 100), suite.getBalance(suite.faucetAddr))

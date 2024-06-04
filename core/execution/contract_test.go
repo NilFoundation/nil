@@ -26,7 +26,7 @@ func deployContract(contract *compiler.Contract, state *ExecutionState, blockCon
 	}
 	addr := types.CreateAddress(state.ShardId, message.From, message.Seqno)
 
-	return addr, state.HandleDeployMessage(message, 0, blockContext)
+	return addr, state.HandleDeployMessage(message, blockContext)
 }
 
 func TestCall(t *testing.T) {
@@ -50,7 +50,7 @@ func TestCall(t *testing.T) {
 		Data: calldata,
 		To:   addr,
 	}
-	ret, err := state.HandleExecutionMessage(callMessage, 2, &blockContext)
+	ret, err := state.HandleExecutionMessage(callMessage, &blockContext)
 	require.NoError(t, err)
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2A"), 32), ret)
 
@@ -65,11 +65,11 @@ func TestCall(t *testing.T) {
 		Data: calldata2,
 		To:   callerAddr,
 	}
-	_, err = state.HandleExecutionMessage(callMessage2, 3, &blockContext)
+	_, err = state.HandleExecutionMessage(callMessage2, &blockContext)
 	require.NoError(t, err)
 
 	// check that it changed the state of SimpleContract
-	ret, err = state.HandleExecutionMessage(callMessage, 2, &blockContext)
+	ret, err = state.HandleExecutionMessage(callMessage, &blockContext)
 	require.NoError(t, err)
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2b"), 32), ret)
 
@@ -81,11 +81,11 @@ func TestCall(t *testing.T) {
 		Data: calldata2,
 		To:   callerAddr,
 	}
-	_, err = state.HandleExecutionMessage(callMessage2, 3, &blockContext)
+	_, err = state.HandleExecutionMessage(callMessage2, &blockContext)
 	require.NoError(t, err)
 
 	// check that did not change the state of SimpleContract
-	ret, err = state.HandleExecutionMessage(callMessage, 2, &blockContext)
+	ret, err = state.HandleExecutionMessage(callMessage, &blockContext)
 	require.NoError(t, err)
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2b"), 32), ret)
 }
@@ -114,7 +114,7 @@ func TestDelegate(t *testing.T) {
 		Data: calldata,
 		To:   proxyAddr,
 	}
-	_, err = state.HandleExecutionMessage(callMessage, 3, &blockContext)
+	_, err = state.HandleExecutionMessage(callMessage, &blockContext)
 	require.NoError(t, err)
 
 	// call ProxyContract.getValue()
@@ -124,7 +124,7 @@ func TestDelegate(t *testing.T) {
 		Data: calldata,
 		To:   proxyAddr,
 	}
-	ret, err := state.HandleExecutionMessage(callMessage, 2, &blockContext)
+	ret, err := state.HandleExecutionMessage(callMessage, &blockContext)
 	require.NoError(t, err)
 	// check that it returned 42
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2a"), 32), ret)
@@ -158,7 +158,7 @@ func TestAsyncCall(t *testing.T) {
 		Data: calldata,
 		To:   addrCaller,
 	}
-	_, err = state.HandleExecutionMessage(callMessage, 0, &blockContext)
+	_, err = state.HandleExecutionMessage(callMessage, &blockContext)
 	require.NoError(t, err)
 	require.NotEmpty(t, state.Receipts)
 	require.True(t, state.Receipts[len(state.Receipts)-1].Success)
@@ -172,7 +172,7 @@ func TestAsyncCall(t *testing.T) {
 	require.Equal(t, addrCallee, outMsg.To)
 
 	// Process outbound message, i.e. "Callee::add"
-	ret, err := state.HandleExecutionMessage(outMsg, 0, &blockContext)
+	ret, err := state.HandleExecutionMessage(outMsg, &blockContext)
 	require.NoError(t, err)
 	lastReceipt := state.Receipts[len(state.Receipts)-1]
 	require.True(t, lastReceipt.Success)
@@ -188,7 +188,7 @@ func TestAsyncCall(t *testing.T) {
 		Data: calldata,
 		To:   addrCaller,
 	}
-	_, err = state.HandleExecutionMessage(callMessage, 0, &blockContext)
+	_, err = state.HandleExecutionMessage(callMessage, &blockContext)
 	require.NoError(t, err)
 	require.NotEmpty(t, state.Receipts)
 	require.True(t, state.Receipts[len(state.Receipts)-1].Success)
@@ -209,7 +209,7 @@ func TestAsyncCall(t *testing.T) {
 	require.Equal(t, outMsg.To, addrCallee)
 
 	// Process outbound message, i.e. "Callee::add"
-	ret, err = state.HandleExecutionMessage(outMsg, 0, &blockContext)
+	ret, err = state.HandleExecutionMessage(outMsg, &blockContext)
 	require.NoError(t, err)
 	lastReceipt = state.Receipts[len(state.Receipts)-1]
 	require.True(t, lastReceipt.Success)
@@ -259,7 +259,7 @@ func TestSendMessage(t *testing.T) {
 		Data: calldata,
 		To:   addrCaller,
 	}
-	_, err = state.HandleExecutionMessage(callMessage, 0, &blockContext)
+	_, err = state.HandleExecutionMessage(callMessage, &blockContext)
 	require.NoError(t, err)
 	require.NotEmpty(t, state.Receipts)
 	require.True(t, state.Receipts[len(state.Receipts)-1].Success)
@@ -273,7 +273,7 @@ func TestSendMessage(t *testing.T) {
 	require.Equal(t, addrCallee, outMsg.To)
 
 	// Process outbound message, i.e. "Callee::add"
-	ret, err := state.HandleExecutionMessage(outMsg, 0, &blockContext)
+	ret, err := state.HandleExecutionMessage(outMsg, &blockContext)
 	require.NoError(t, err)
 	lastReceipt := state.Receipts[len(state.Receipts)-1]
 	require.True(t, lastReceipt.Success)

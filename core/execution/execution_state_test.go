@@ -63,8 +63,8 @@ func (suite *SuiteExecutionState) TestExecState() {
 		suite.Require().NoError(err)
 
 		msg := types.Message{Data: data, From: from, Seqno: uint64(i)}
-		index := es.AddInMessage(&msg)
-		suite.Require().NoError(es.HandleDeployMessage(&msg, index, &blockContext))
+		es.AddInMessage(&msg)
+		suite.Require().NoError(es.HandleDeployMessage(&msg, &blockContext))
 	}
 
 	blockHash, err := es.Commit(0)
@@ -114,7 +114,6 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 		var r types.Receipt
 		suite.Require().NoError(r.UnmarshalSSZ(rRaw))
-		suite.Equal(messageIndex, r.MsgIndex)
 		suite.NotZero(len(r.ContractAddress))
 
 		messageIndex += 1
