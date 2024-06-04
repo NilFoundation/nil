@@ -64,9 +64,9 @@ func (s *SuiteFilters) TestMatcherOneReceipt() {
 
 	s.Require().NoError(filters.process(&block, receipts))
 	s.Len(f.output, 3)
-	s.Equal(<-f.LogsChannel(), logs[0])
-	s.Equal(<-f.LogsChannel(), logs[1])
-	s.Equal(<-f.LogsChannel(), logs[2])
+	s.Equal((<-f.LogsChannel()).Log, logs[0])
+	s.Equal((<-f.LogsChannel()).Log, logs[1])
+	s.Equal((<-f.LogsChannel()).Log, logs[2])
 	filters.RemoveFilter(id)
 
 	// Only logs with [1, 2] topics
@@ -75,7 +75,7 @@ func (s *SuiteFilters) TestMatcherOneReceipt() {
 	s.NotNil(f)
 	s.Require().NoError(filters.process(&block, receipts))
 	s.Len(f.output, 1)
-	s.Equal(<-f.LogsChannel(), logs[0])
+	s.Equal((<-f.LogsChannel()).Log, logs[0])
 	filters.RemoveFilter(id)
 
 	// Only logs with [any, 2] topics
@@ -85,8 +85,8 @@ func (s *SuiteFilters) TestMatcherOneReceipt() {
 
 	s.Require().NoError(filters.process(&block, receipts))
 	s.Len(f.output, 2)
-	s.Equal(<-f.LogsChannel(), logs[0])
-	s.Equal(<-f.LogsChannel(), logs[1])
+	s.Equal((<-f.LogsChannel()).Log, logs[0])
+	s.Equal((<-f.LogsChannel()).Log, logs[1])
 	filters.RemoveFilter(id)
 }
 
@@ -146,12 +146,12 @@ func (s *SuiteFilters) TestMatcherTwoReceipts() {
 
 	s.Require().NoError(filters.process(&block, receipts))
 	s.Len(f.output, 6)
-	s.Equal(<-f.LogsChannel(), logs1[0])
-	s.Equal(<-f.LogsChannel(), logs1[1])
-	s.Equal(<-f.LogsChannel(), logs1[2])
-	s.Equal(<-f.LogsChannel(), logs1[3])
-	s.Equal(<-f.LogsChannel(), logs2[0])
-	s.Equal(<-f.LogsChannel(), logs2[1])
+	s.Equal((<-f.LogsChannel()).Log, logs1[0])
+	s.Equal((<-f.LogsChannel()).Log, logs1[1])
+	s.Equal((<-f.LogsChannel()).Log, logs1[2])
+	s.Equal((<-f.LogsChannel()).Log, logs1[3])
+	s.Equal((<-f.LogsChannel()).Log, logs2[0])
+	s.Equal((<-f.LogsChannel()).Log, logs2[1])
 	filters.RemoveFilter(id)
 
 	// All logs of address1
@@ -161,10 +161,10 @@ func (s *SuiteFilters) TestMatcherTwoReceipts() {
 
 	s.Require().NoError(filters.process(&block, receipts))
 	s.Len(f.output, 4)
-	s.Equal(<-f.LogsChannel(), logs1[0])
-	s.Equal(<-f.LogsChannel(), logs1[1])
-	s.Equal(<-f.LogsChannel(), logs1[2])
-	s.Equal(<-f.LogsChannel(), logs1[3])
+	s.Equal((<-f.LogsChannel()).Log, logs1[0])
+	s.Equal((<-f.LogsChannel()).Log, logs1[1])
+	s.Equal((<-f.LogsChannel()).Log, logs1[2])
+	s.Equal((<-f.LogsChannel()).Log, logs1[3])
 	filters.RemoveFilter(id)
 
 	// All logs of address2
@@ -174,8 +174,8 @@ func (s *SuiteFilters) TestMatcherTwoReceipts() {
 
 	s.Require().NoError(filters.process(&block, receipts))
 	s.Len(f.output, 2)
-	s.Equal(<-f.LogsChannel(), logs2[0])
-	s.Equal(<-f.LogsChannel(), logs2[1])
+	s.Equal((<-f.LogsChannel()).Log, logs2[0])
+	s.Equal((<-f.LogsChannel()).Log, logs2[1])
 	filters.RemoveFilter(id)
 
 	// address1: nil, nil, 3
@@ -188,8 +188,8 @@ func (s *SuiteFilters) TestMatcherTwoReceipts() {
 
 	s.Require().NoError(filters.process(&block, receipts))
 	s.Require().Len(f.LogsChannel(), 2)
-	s.Equal(<-f.LogsChannel(), logs1[0])
-	s.Equal(<-f.LogsChannel(), logs1[3])
+	s.Equal((<-f.LogsChannel()).Log, logs1[0])
+	s.Equal((<-f.LogsChannel()).Log, logs1[3])
 	filters.RemoveFilter(id)
 
 	// any address: nil, 2
@@ -199,8 +199,8 @@ func (s *SuiteFilters) TestMatcherTwoReceipts() {
 
 	s.Require().NoError(filters.process(&block, receipts))
 	s.Require().Len(f.LogsChannel(), 2)
-	s.Equal(<-f.LogsChannel(), logs1[0])
-	s.Equal(<-f.LogsChannel(), logs2[0])
+	s.Equal((<-f.LogsChannel()).Log, logs1[0])
+	s.Equal((<-f.LogsChannel()).Log, logs2[0])
 	filters.RemoveFilter(id)
 
 	// any address: nil, 2
@@ -210,8 +210,8 @@ func (s *SuiteFilters) TestMatcherTwoReceipts() {
 
 	s.Require().NoError(filters.process(&block, receipts))
 	s.Require().Len(f.LogsChannel(), 2)
-	s.Equal(<-f.LogsChannel(), logs1[3])
-	s.Equal(<-f.LogsChannel(), logs2[1])
+	s.Equal((<-f.LogsChannel()).Log, logs1[3])
+	s.Equal((<-f.LogsChannel()).Log, logs2[1])
 	filters.RemoveFilter(id)
 
 	// address1: 3
@@ -224,8 +224,8 @@ func (s *SuiteFilters) TestMatcherTwoReceipts() {
 
 	s.Require().NoError(filters.process(&block, receipts))
 	s.Require().Len(f.LogsChannel(), 2)
-	s.Equal(<-f.LogsChannel(), logs1[1])
-	s.Equal(<-f.LogsChannel(), logs1[3])
+	s.Equal((<-f.LogsChannel()).Log, logs1[1])
+	s.Equal((<-f.LogsChannel()).Log, logs1[3])
 	filters.RemoveFilter(id)
 
 	// any address: 3
@@ -235,9 +235,9 @@ func (s *SuiteFilters) TestMatcherTwoReceipts() {
 
 	s.Require().NoError(filters.process(&block, receipts))
 	s.Require().Len(f.LogsChannel(), 3)
-	s.Equal(<-f.LogsChannel(), logs1[1])
-	s.Equal(<-f.LogsChannel(), logs1[3])
-	s.Equal(<-f.LogsChannel(), logs2[1])
+	s.Equal((<-f.LogsChannel()).Log, logs1[1])
+	s.Equal((<-f.LogsChannel()).Log, logs1[3])
+	s.Equal((<-f.LogsChannel()).Log, logs2[1])
 	filters.RemoveFilter(id)
 }
 

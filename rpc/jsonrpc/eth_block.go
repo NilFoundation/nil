@@ -44,26 +44,26 @@ func (api *APIImpl) getBlockHashByNumber(
 
 func (api *APIImpl) getBlockByNumberOrHash(
 	ctx context.Context, shardId types.ShardId, numOrHash transport.BlockNumberOrHash, fullTx bool,
-) (map[string]any, error) {
+) (*RPCBlock, error) {
 	block, messages, receipts, err := api.getBlockWithCollectedEntitiesByNumberOrHash(ctx, shardId, numOrHash)
 	if err != nil || block == nil || messages == nil || receipts == nil {
 		return nil, err
 	}
 
-	return toMap(shardId, block, messages, receipts, fullTx)
+	return NewRPCBlock(shardId, block, messages, receipts, fullTx), nil
 }
 
 // GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
 func (api *APIImpl) GetBlockByNumber(
 	ctx context.Context, shardId types.ShardId, number transport.BlockNumber, fullTx bool,
-) (map[string]any, error) {
+) (*RPCBlock, error) {
 	return api.getBlockByNumberOrHash(ctx, shardId, transport.BlockNumberOrHash{BlockNumber: &number}, fullTx)
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
 func (api *APIImpl) GetBlockByHash(
 	ctx context.Context, shardId types.ShardId, hash common.Hash, fullTx bool,
-) (map[string]any, error) {
+) (*RPCBlock, error) {
 	return api.getBlockByNumberOrHash(ctx, shardId, transport.BlockNumberOrHash{BlockHash: &hash}, fullTx)
 }
 
@@ -198,37 +198,4 @@ func (api *APIImpl) getBlockByNumberOrHashTx(
 		return nil, err
 	}
 	return api.getBlockByHash(tx, shardId, hash), nil
-}
-
-func toMap(
-	shardId types.ShardId, block *types.Block, messages []*types.Message, receipts []*types.Receipt, fullTx bool) (
-	map[string]any, error,
-) {
-	if block == nil {
-		return nil, nil
-	}
-
-	var number hexutil.Big
-	number.ToInt().SetUint64(block.Id.Uint64())
-
-	messagesRes := make([]any, len(messages))
-	if fullTx {
-		for i, m := range messages {
-			messagesRes[i] = NewRPCInMessage(m, receipts[i], types.MessageIndex(i), block)
-		}
-	} else {
-		for i, m := range messages {
-			messagesRes[i] = m.Hash()
-		}
-	}
-
-	return map[string]any{
-		"number":         number,
-		"hash":           block.Hash(),
-		"inMessagesRoot": block.InMessagesRoot,
-		"receiptsRoot":   block.ReceiptsRoot,
-		"shardId":        shardId,
-		"parentHash":     block.PrevBlock,
-		"messages":       messagesRes,
-	}, nil
 }

@@ -13,14 +13,14 @@ import (
 
 type LogsAggregator struct {
 	filters   *filters.FiltersManager
-	logsMap   *SyncMap[filters.SubscriptionID, []*types.Log]
+	logsMap   *SyncMap[filters.SubscriptionID, []*filters.MetaLog]
 	blocksMap *SyncMap[filters.SubscriptionID, []*types.Block]
 }
 
 func NewLogsAggregator(ctx context.Context, db db.DB) *LogsAggregator {
 	return &LogsAggregator{
 		filters:   filters.NewFiltersManager(ctx, db, false),
-		logsMap:   NewSyncMap[filters.SubscriptionID, []*types.Log](),
+		logsMap:   NewSyncMap[filters.SubscriptionID, []*filters.MetaLog](),
 		blocksMap: NewSyncMap[filters.SubscriptionID, []*types.Block](),
 	}
 }
@@ -33,7 +33,7 @@ func (l *LogsAggregator) CreateFilter(query *filters.FilterQuery) (filters.Subsc
 
 	go func() {
 		for log := range filter.LogsChannel() {
-			l.logsMap.DoAndStore(id, func(st []*types.Log, ok bool) []*types.Log {
+			l.logsMap.DoAndStore(id, func(st []*filters.MetaLog, ok bool) []*filters.MetaLog {
 				return append(st, log)
 			})
 		}
@@ -72,7 +72,7 @@ func (l *LogsAggregator) RemoveBlocksListener(id filters.SubscriptionID) error {
 	return errors.New("cannot remove blocks listener")
 }
 
-func (l *LogsAggregator) GetLogs(id filters.SubscriptionID) ([]*types.Log, bool) {
+func (l *LogsAggregator) GetLogs(id filters.SubscriptionID) ([]*filters.MetaLog, bool) {
 	return l.logsMap.Delete(id)
 }
 
@@ -119,7 +119,7 @@ func (api *APIImpl) GetFilterChanges(_ context.Context, id string) ([]any, error
 	if logs, ok := api.logs.GetLogs(filters.SubscriptionID(id)); ok {
 		res := make([]any, 0, len(logs))
 		for _, log := range logs {
-			res = append(res, log)
+			res = append(res, NewRPCLog(log.Log, log.BlockId))
 		}
 		return res, nil
 	}
@@ -141,7 +141,7 @@ func (api *APIImpl) GetFilterChanges(_ context.Context, id string) ([]any, error
 // GetFilterLogs implements eth_getFilterLogs.
 // Polling method for a previously-created filter
 // returns an array of logs which occurred since last poll.
-func (api *APIImpl) GetFilterLogs(_ context.Context, id string) ([]*types.Log, error) {
+func (api *APIImpl) GetFilterLogs(_ context.Context, id string) ([]*RPCLog, error) {
 	// TODO: It is legacy from Erigon, probably we need to fix it. The problem: seems that we need to return all logs
 	// matching the criteria, but we return only changes since last Poll.
 	id = strings.TrimPrefix(id, "0x")
@@ -149,5 +149,10 @@ func (api *APIImpl) GetFilterLogs(_ context.Context, id string) ([]*types.Log, e
 	if !ok {
 		return nil, fmt.Errorf("filter does not exist: %s", id)
 	}
-	return logs, nil
+
+	result := make([]*RPCLog, len(logs))
+	for i, metaLog := range logs {
+		result[i] = NewRPCLog(metaLog.Log, metaLog.BlockId)
+	}
+	return result, nil
 }

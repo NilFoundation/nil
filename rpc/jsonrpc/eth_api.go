@@ -13,75 +13,14 @@ import (
 	"github.com/NilFoundation/nil/rpc/filters"
 	"github.com/NilFoundation/nil/rpc/transport"
 	lru "github.com/hashicorp/golang-lru/v2"
-	"github.com/holiman/uint256"
 	"github.com/rs/zerolog"
 )
-
-type RPCInMessage struct {
-	Success     bool              `json:"success"`
-	BlockHash   *common.Hash      `json:"blockHash"`
-	BlockNumber types.BlockNumber `json:"blockNumber"`
-	From        types.Address     `json:"from"`
-	GasUsed     hexutil.Uint64    `json:"gasUsed"`
-	GasPrice    types.Uint256     `json:"gasPrice,omitempty"`
-	GasLimit    types.Uint256     `json:"gasLimit,omitempty"`
-	Hash        common.Hash       `json:"hash"`
-	Seqno       hexutil.Uint64    `json:"seqno"`
-	To          *types.Address    `json:"to"`
-	Index       *hexutil.Uint64   `json:"index"`
-	Value       types.Uint256     `json:"value"`
-	ChainID     types.Uint256     `json:"chainId,omitempty"`
-	Signature   common.Signature  `json:"signature"`
-}
-
-func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types.MessageIndex, block *types.Block) *RPCInMessage {
-	hash := message.Hash()
-	if receipt == nil || hash != receipt.MsgHash {
-		panic("Msg and receipt are not compatible")
-	}
-
-	blockHash := block.Hash()
-	chainId := types.Uint256{Int: *uint256.NewInt(0)}
-	gasUsed := hexutil.Uint64(receipt.GasUsed)
-	msgIndex := hexutil.Uint64(index)
-	seqno := hexutil.Uint64(message.Seqno)
-	result := &RPCInMessage{
-		Success:     receipt.Success,
-		BlockHash:   &blockHash,
-		BlockNumber: block.Id,
-		From:        message.From,
-		GasUsed:     gasUsed,
-		GasPrice:    message.GasPrice,
-		GasLimit:    message.GasLimit,
-		Hash:        hash,
-		Seqno:       seqno,
-		To:          &message.To,
-		Index:       &msgIndex,
-		Value:       message.Value,
-		ChainID:     chainId,
-		Signature:   message.Signature,
-	}
-
-	return result
-}
-
-type CallArgs struct {
-	From     types.Address   `json:"from"`
-	To       types.Address   `json:"to"`
-	GasLimit types.Uint256   `json:"gasLimit"`
-	GasPrice *types.Uint256  `json:"gasPrice"`
-	Value    types.Uint256   `json:"value"`
-	Seqno    *hexutil.Uint64 `json:"seqno"`
-	Data     hexutil.Bytes   `json:"data"`
-	Input    *hexutil.Bytes  `json:"input"`
-	ChainID  *hexutil.Big    `json:"chainId"`
-}
 
 // EthAPI is a collection of functions that are exposed in the
 type EthAPI interface {
 	// Block related
-	GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, fullTx bool) (map[string]any, error)
-	GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, fullTx bool) (map[string]any, error)
+	GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, fullTx bool) (*RPCBlock, error)
+	GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, fullTx bool) (*RPCBlock, error)
 	GetBlockTransactionCountByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber) (*hexutil.Uint, error)
 	GetBlockTransactionCountByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*hexutil.Uint, error)
 
@@ -94,7 +33,7 @@ type EthAPI interface {
 	GetRawInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (hexutil.Bytes, error)
 
 	// Receipt related (see ./eth_receipt.go)
-	GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Receipt, error)
+	GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*RPCReceipt, error)
 
 	// Account related
 	GetBalance(ctx context.Context, shardId types.ShardId, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error)
@@ -110,7 +49,7 @@ type EthAPI interface {
 	NewBlockFilter(_ context.Context) (string, error)
 	UninstallFilter(_ context.Context, id string) (isDeleted bool, err error)
 	GetFilterChanges(_ context.Context, index string) ([]any, error)
-	GetFilterLogs(_ context.Context, index string) ([]*types.Log, error)
+	GetFilterLogs(_ context.Context, index string) ([]*RPCLog, error)
 
 	// Shards related
 	GetShardIdList(ctx context.Context) ([]types.ShardId, error)

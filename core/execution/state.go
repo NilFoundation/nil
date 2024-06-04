@@ -693,7 +693,7 @@ func (es *ExecutionState) AddOutMessage(txId common.Hash, msg *types.Message) {
 	es.OutMessages[txId] = append(es.OutMessages[txId], msg)
 }
 
-func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint64, blockContext *vm.BlockContext) error {
+func (es *ExecutionState) HandleDeployMessage(message *types.Message, blockContext *vm.BlockContext) error {
 	deployMsg, err := types.NewDeployMessage(message.Data)
 	if err != nil {
 		return err
@@ -715,7 +715,6 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint
 		Success:         err == nil,
 		ContractAddress: addr,
 		MsgHash:         message.Hash(),
-		MsgIndex:        index,
 		GasUsed:         uint32(gas - leftOverGas),
 	}
 
@@ -731,7 +730,7 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, index uint
 	return nil
 }
 
-func (es *ExecutionState) HandleExecutionMessage(message *types.Message, index uint64, blockContext *vm.BlockContext) ([]byte, error) {
+func (es *ExecutionState) HandleExecutionMessage(message *types.Message, blockContext *vm.BlockContext) ([]byte, error) {
 	addr := message.To
 	logger.Debug().Msgf("Call contract %s", addr)
 
@@ -760,7 +759,6 @@ func (es *ExecutionState) HandleExecutionMessage(message *types.Message, index u
 		GasUsed:         uint32(gas - leftOverGas),
 		Logs:            es.Logs[es.InMessageHash],
 		MsgHash:         es.InMessageHash,
-		MsgIndex:        index,
 		ContractAddress: addr,
 	}
 	es.AddReceipt(&r)
@@ -825,14 +823,13 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 	msgStart := 0
 	for i, r := range es.Receipts {
 		msgHash := es.InMessages[i].Hash()
-		r.BlockNumber = blockId
 		r.OutMsgIndex = uint32(msgStart)
 
 		v, err := r.MarshalSSZ()
 		if err != nil {
 			return common.EmptyHash, err
 		}
-		k := ssz.MarshalUint64(nil, r.MsgIndex)
+		k := ssz.MarshalUint64(nil, uint64(i))
 		if err := es.ReceiptRoot.Set(k, v); err != nil {
 			return common.EmptyHash, err
 		}

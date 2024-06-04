@@ -39,7 +39,7 @@ func (suite *SuiteEthReceipt) SetupSuite() {
 
 	message := types.Message{Data: []byte{}}
 	msgHash := message.Hash()
-	suite.receipt = types.Receipt{MsgIndex: 0, MsgHash: msgHash, Logs: []*types.Log{}}
+	suite.receipt = types.Receipt{MsgHash: msgHash, Logs: []*types.Log{}}
 
 	blockHash := writeTestBlock(suite.T(), tx, types.MasterShardId, types.BlockNumber(0), []*types.Message{&message}, []*types.Receipt{&suite.receipt})
 	_, err = execution.PostprocessBlock(tx, types.MasterShardId, blockHash)
@@ -58,7 +58,8 @@ func (suite *SuiteEthReceipt) TestGetMessageReceipt() {
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
 
-	suite.Equal(suite.receipt, *data)
+	suite.Equal(suite.receipt.MsgHash, data.MsgHash)
+	suite.Equal(suite.receipt.Success, data.Success)
 }
 
 func TestSuiteEthReceipt(t *testing.T) {

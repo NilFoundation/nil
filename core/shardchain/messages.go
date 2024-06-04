@@ -12,10 +12,10 @@ func HandleMessages(ctx context.Context, es *execution.ExecutionState, msgs []*t
 	blockContext := execution.NewEVMBlockContext(es)
 	for _, message := range msgs {
 		msgHash := message.Hash()
-		index := es.AddInMessage(message)
+		es.AddInMessage(message)
 		es.InMessageHash = msgHash
 
-		ok, err := validateMessage(es, message, index)
+		ok, err := validateMessage(es, message)
 		if err != nil {
 			return err
 		}
@@ -25,11 +25,11 @@ func HandleMessages(ctx context.Context, es *execution.ExecutionState, msgs []*t
 
 		// Deploy message
 		if message.To.IsEmpty() {
-			if err := es.HandleDeployMessage(message, index, &blockContext); err != nil {
+			if err := es.HandleDeployMessage(message, &blockContext); err != nil {
 				return err
 			}
 		} else {
-			if _, err := es.HandleExecutionMessage(message, index, &blockContext); err != nil {
+			if _, err := es.HandleExecutionMessage(message, &blockContext); err != nil {
 				return err
 			}
 		}
@@ -38,7 +38,7 @@ func HandleMessages(ctx context.Context, es *execution.ExecutionState, msgs []*t
 	return nil
 }
 
-func validateMessage(es *execution.ExecutionState, message *types.Message, index uint64) (bool, error) {
+func validateMessage(es *execution.ExecutionState, message *types.Message) (bool, error) {
 	if !features.EnableSignatureCheck {
 		return true, nil
 	}
@@ -53,7 +53,6 @@ func validateMessage(es *execution.ExecutionState, message *types.Message, index
 		Success:         false,
 		GasUsed:         0,
 		MsgHash:         es.InMessageHash,
-		MsgIndex:        index,
 		ContractAddress: addr,
 	}
 	if accountState == nil {

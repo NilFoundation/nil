@@ -1,6 +1,6 @@
 package types
 
-//go:generate go run github.com/ferranbt/fastssz/sszgen --path log.go -include ../../common/length.go,address.go,../../common/hash.go --objs Log
+//go:generate go run github.com/ferranbt/fastssz/sszgen --path log.go -include ../../common/length.go,address.go,../../common/hash.go,block.go --objs Log
 //go:generate go run github.com/ferranbt/fastssz/sszgen --path receipt.go -include ../../common/length.go,address.go,block.go,bloom.go,log.go,../../common/hash.go --objs Receipt
 //go:generate go run github.com/ferranbt/fastssz/sszgen --path message.go -include ../../common/length.go,address.go,uint256.go,code.go,shard.go,bloom.go,log.go,../../common/hash.go,../../common/signature.go --objs Message,messageDigest
 //go:generate go run github.com/ferranbt/fastssz/sszgen --path messages.go -include ../../common/length.go,address.go,uint256.go,code.go,shard.go,bloom.go,log.go,../../common/hash.go,../../common/signature.go --objs DeployMessage

@@ -89,7 +89,6 @@ func (s *CollatorTestSuite) checkReceipt(ctx context.Context, shardId types.Shar
 	r, err := es.GetReceipt(0)
 	s.Require().NoError(err)
 
-	s.Equal(uint64(0), r.MsgIndex)
 	s.Equal(m.Hash(), r.MsgHash)
 }
 
