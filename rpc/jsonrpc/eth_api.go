@@ -33,7 +33,7 @@ type EthAPI interface {
 	GetRawInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (hexutil.Bytes, error)
 
 	// Receipt related (see ./eth_receipt.go)
-	GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Receipt, error)
+	GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*RPCReceipt, error)
 
 	// Account related
 	GetBalance(ctx context.Context, shardId types.ShardId, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error)
@@ -49,7 +49,7 @@ type EthAPI interface {
 	NewBlockFilter(_ context.Context) (string, error)
 	UninstallFilter(_ context.Context, id string) (isDeleted bool, err error)
 	GetFilterChanges(_ context.Context, index string) ([]any, error)
-	GetFilterLogs(_ context.Context, index string) ([]*types.Log, error)
+	GetFilterLogs(_ context.Context, index string) ([]*RPCLog, error)
 
 	// Shards related
 	GetShardIdList(ctx context.Context) ([]types.ShardId, error)

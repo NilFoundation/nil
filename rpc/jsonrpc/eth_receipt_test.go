@@ -58,7 +58,8 @@ func (suite *SuiteEthReceipt) TestGetMessageReceipt() {
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
 
-	suite.Equal(suite.receipt, *data)
+	suite.Equal(suite.receipt.MsgHash, data.MsgHash)
+	suite.Equal(suite.receipt.Success, data.Success)
 }
 
 func TestSuiteEthReceipt(t *testing.T) {

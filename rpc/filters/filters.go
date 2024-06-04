@@ -25,9 +25,14 @@ import (
 
 var logger = common.NewLogger("filters")
 
+type MetaLog struct {
+	Log     *types.Log
+	BlockId types.BlockNumber
+}
+
 type Filter struct {
 	query  *FilterQuery
-	output chan *types.Log
+	output chan *MetaLog
 }
 
 // FilterQuery contains options for contract log filtering.
@@ -81,7 +86,7 @@ func NewFiltersManager(ctx context.Context, db db.DB, noPolling bool) *FiltersMa
 	return f
 }
 
-func (f *Filter) LogsChannel() <-chan *types.Log {
+func (f *Filter) LogsChannel() <-chan *MetaLog {
 	return f.output
 }
 
@@ -91,7 +96,7 @@ func (m *FiltersManager) NewFilter(query *FilterQuery) (SubscriptionID, *Filter)
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	filter := Filter{query: query, output: make(chan *types.Log, 100)}
+	filter := Filter{query: query, output: make(chan *MetaLog, 100)}
 	m.filters[id] = &filter
 
 	return id, &filter
@@ -227,7 +232,7 @@ func (m *FiltersManager) process(block *types.Block, receipts types.Receipts) er
 					}
 				}
 				if found {
-					filter.output <- log
+					filter.output <- &MetaLog{log, block.Id}
 				}
 			}
 		}

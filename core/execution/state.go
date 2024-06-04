@@ -825,7 +825,6 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 	msgStart := 0
 	for i, r := range es.Receipts {
 		msgHash := es.InMessages[i].Hash()
-		r.BlockNumber = blockId
 		r.OutMsgIndex = uint32(msgStart)
 
 		v, err := r.MarshalSSZ()

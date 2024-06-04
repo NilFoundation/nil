@@ -10,7 +10,7 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 )
 
-func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*types.Receipt, error) {
+func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*RPCReceipt, error) {
 	if err := api.checkShard(shardId); err != nil {
 		return nil, err
 	}
@@ -26,6 +26,13 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return nil, nil
 	}
+	if err != nil {
+		return nil, err
+	}
 
-	return getBlockEntity[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot, indexes.MessageIndex.Bytes())
+	receipt, err := getBlockEntity[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot, indexes.MessageIndex.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	return NewRPCReceipt(block, indexes.MessageIndex, receipt), nil
 }

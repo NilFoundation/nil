@@ -796,7 +796,7 @@ func makeLog(size int) executionFunc {
 		}
 
 		d := scope.Memory.GetCopy(int64(mStart.Uint64()), int64(mSize.Uint64()))
-		log := types.NewLog(scope.Contract.Address(), d, interpreter.evm.Context.BlockNumber, topics)
+		log := types.NewLog(scope.Contract.Address(), d, topics)
 		interpreter.evm.StateDB.AddLog(log)
 
 		return nil, nil
