@@ -12,20 +12,6 @@ This project is a prototype implementation of =nil; in Go.
 
 Install Nix:
 
-#### On Linux
-
-```bash
-sh <(curl -L https://nixos.org/nix/install) --daemon
-```
-
-#### On Mac
-
-```bash
-sh <(curl -L https://nixos.org/nix/install)
-```
-
-#### On Mac silicon
-
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
 ```
