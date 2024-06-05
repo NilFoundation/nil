@@ -1,10 +1,8 @@
 package rpctest
 
 import (
-	"encoding/hex"
 	"time"
 
-	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/types"
@@ -23,40 +21,24 @@ func (suite *SuiteRpc) TestRpcBlockContent() {
 	data, err := dm.MarshalSSZ()
 	suite.Require().NoError(err)
 
-	m := types.Message{
+	m := &types.Message{
 		From: types.GenerateRandomAddress(types.MasterShardId),
 		Data: data,
 	}
-
 	suite.Require().NoError(m.Sign(key))
 
-	mData, err := m.MarshalSSZ()
-	suite.Require().NoError(err)
-
-	request := NewRequest(sendRawTransaction, "0x"+hex.EncodeToString(mData))
-
-	resp, err := makeRequest[common.Hash](suite.port, request)
-	suite.Require().NoError(err)
-	suite.Require().Nil(resp.Error["code"])
-	suite.Equal(m.Hash(), resp.Result)
+	suite.sendRawTransaction(m)
 
 	suite.Eventually(func() bool {
-		res := suite.makeGenericRequest(getBlockByNumber, types.MasterShardId, "latest", true)
-		msgs, ok := res["messages"].([]any)
-		if !ok {
-			return false
-		}
-		return len(msgs) == 1
+		res := suite.getBlockByNumber(types.MasterShardId, "latest", true)
+		return len(res.Messages) > 0
 	}, 6*time.Second, 100*time.Millisecond)
 
-	latestRes := suite.makeGenericRequest(getBlockByNumber, types.MasterShardId, "latest", true)
-	suite.Require().NotNil(latestRes["hash"])
+	latestRes := suite.getBlockByNumber(types.MasterShardId, "latest", true)
+	suite.Require().NotNil(latestRes.Hash)
+	suite.Require().Len(latestRes.Messages, 1)
 
-	suite.Require().Len(latestRes["messages"], 1)
-
-	msgs, ok := latestRes["messages"].([]any)
-	suite.Require().True(ok)
-	msg, ok := msgs[0].(map[string]any)
+	msg, ok := latestRes.Messages[0].(map[string]any)
 	suite.Require().True(ok)
 	suite.Require().Equal(msg["signature"], m.Signature.Hex())
 }
