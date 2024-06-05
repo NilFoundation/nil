@@ -50,13 +50,20 @@ func setFlags(cmd *cobra.Command) {
 		"",
 		"Specify the bytecode to be executed with the deployed contract",
 	)
+
+	cmd.Flags().Uint32Var(
+		(*uint32)(&params.shardId),
+		shardIdFlag,
+		0,
+		"Specify the shard id to interact with",
+	)
 }
 
 func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, privateKey string) {
 	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
 
 	client := rpc.NewRPCClient(rpcEndpoint)
-	service := contract.NewService(client, privateKey)
+	service := contract.NewService(client, privateKey, params.shardId)
 	if params.deploy != "" {
 		_, err := service.DeployContract(params.deploy)
 		if err != nil {
