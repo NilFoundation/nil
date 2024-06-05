@@ -13,8 +13,8 @@ func (suite *SuiteRpc) TestRpcBlockContent() {
 	key, err := crypto.GenerateKey()
 	suite.Require().NoError(err)
 
-	dm := types.DeployMessage{
-		ShardId: types.MasterShardId,
+	dm := &types.DeployMessage{
+		ShardId: types.BaseShardId,
 		Data:    hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
 	}
 
@@ -22,7 +22,7 @@ func (suite *SuiteRpc) TestRpcBlockContent() {
 	suite.Require().NoError(err)
 
 	m := &types.Message{
-		From: types.GenerateRandomAddress(types.MasterShardId),
+		From: types.GenerateRandomAddress(types.BaseShardId),
 		Data: data,
 	}
 	suite.Require().NoError(m.Sign(key))
@@ -30,11 +30,11 @@ func (suite *SuiteRpc) TestRpcBlockContent() {
 	suite.sendRawTransaction(m)
 
 	suite.Eventually(func() bool {
-		res := suite.getBlockByNumber(types.MasterShardId, "latest", true)
+		res := suite.getBlockByNumber(types.BaseShardId, "latest", true)
 		return len(res.Messages) > 0
 	}, 6*time.Second, 100*time.Millisecond)
 
-	latestRes := suite.getBlockByNumber(types.MasterShardId, "latest", true)
+	latestRes := suite.getBlockByNumber(types.BaseShardId, "latest", true)
 	suite.Require().NotNil(latestRes.Hash)
 	suite.Require().Len(latestRes.Messages, 1)
 

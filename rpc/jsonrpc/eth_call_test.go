@@ -29,7 +29,7 @@ type SuiteEthCall struct {
 }
 
 func (s *SuiteEthCall) SetupSuite() {
-	shardId := types.MasterShardId
+	shardId := types.BaseShardId
 	ctx := context.Background()
 
 	var err error
@@ -92,7 +92,7 @@ func (s *SuiteEthCall) TestSmcCall() {
 	calldata, err := abi.Pack("getValue")
 	s.Require().NoError(err)
 
-	to := types.CreateAddress(types.MasterShardId, s.from, 0)
+	to := types.CreateAddress(types.BaseShardId, s.from, 0)
 	callArgsData := hexutil.Bytes(calldata)
 	args := CallArgs{
 		From:     s.from,

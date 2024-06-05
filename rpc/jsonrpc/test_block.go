@@ -22,7 +22,7 @@ func writeTestBlock(t *testing.T, tx db.Tx, shardId types.ShardId, blockNumber t
 		ChildBlocksRootHash: common.EmptyHash,
 		MasterChainHash:     common.EmptyHash,
 	}
-	require.NoError(t, db.WriteBlock(tx, types.MasterShardId, &block))
+	require.NoError(t, db.WriteBlock(tx, types.BaseShardId, &block))
 	return block.Hash()
 }
 

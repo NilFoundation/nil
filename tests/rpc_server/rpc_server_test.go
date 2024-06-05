@@ -122,7 +122,7 @@ func (suite *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, addr types.A
 
 func (suite *SuiteRpc) waitForReceipt(addr types.Address, msg *types.Message) {
 	suite.T().Helper()
-	suite.waitForReceiptOnShard(types.MasterShardId, addr, msg)
+	suite.waitForReceiptOnShard(types.BaseShardId, addr, msg)
 }
 
 func (suite *SuiteRpc) deployContract(from types.Address, code types.Code, seqno uint64) types.Address {
@@ -165,33 +165,33 @@ func (suite *SuiteRpc) TestRpcBasic() {
 		return resp.Result
 	}
 
-	res := makeReq(getBlockByNumber, types.MasterShardId, "0x1b4", false)
+	res := makeReq(getBlockByNumber, types.BaseShardId, "0x1b4", false)
 	suite.Require().Nil(res)
 
-	res = makeReq(getBlockTransactionCountByNumber, types.MasterShardId, "earliest")
+	res = makeReq(getBlockTransactionCountByNumber, types.BaseShardId, "earliest")
 	suite.Equal("0x0", res)
 
-	res = makeReq(getBlockTransactionCountByHash, types.MasterShardId, someRandomMissingBlock)
+	res = makeReq(getBlockTransactionCountByHash, types.BaseShardId, someRandomMissingBlock)
 	suite.Equal("0x0", res)
 
-	res = makeReq(getBlockByHash, types.MasterShardId, someRandomMissingBlock, false)
+	res = makeReq(getBlockByHash, types.BaseShardId, someRandomMissingBlock, false)
 	suite.Require().Nil(res)
 
-	res = makeReq(getBlockByNumber, types.MasterShardId, "earliest", false)
+	res = makeReq(getBlockByNumber, types.BaseShardId, "earliest", false)
 	suite.Require().NotNil(res)
 
-	latest := suite.makeGenericRequest(getBlockByNumber, types.MasterShardId, "latest", false)
+	latest := suite.makeGenericRequest(getBlockByNumber, types.BaseShardId, "latest", false)
 
-	res = makeReq(getBlockByHash, types.MasterShardId, latest["hash"], false)
+	res = makeReq(getBlockByHash, types.BaseShardId, latest["hash"], false)
 	suite.Require().Equal(latest, res)
 
-	res = makeReq(getInMessageByHash, types.MasterShardId, someRandomMissingBlock)
+	res = makeReq(getInMessageByHash, types.BaseShardId, someRandomMissingBlock)
 	suite.Require().Nil(res)
 }
 
 func (suite *SuiteRpc) TestRpcContract() {
 	pub := crypto.CompressPubkey(&execution.MainPrivateKey.PublicKey)
-	from := types.PubkeyBytesToAddress(types.MasterShardId, pub)
+	from := types.PubkeyBytesToAddress(types.BaseShardId, pub)
 
 	seqno := suite.getTransactionCount(from, "latest")
 
@@ -200,7 +200,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 	contractCode := hexutil.FromHex(contracts["Incrementer"].Code)
 
 	dm := &types.DeployMessage{
-		ShardId: types.MasterShardId,
+		ShardId: types.BaseShardId,
 		Code:    contractCode,
 	}
 	data, err := dm.MarshalSSZ()
@@ -221,7 +221,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 		return seqno == m.Seqno+1
 	}, 6*time.Second, 200*time.Millisecond)
 
-	addr := types.CreateAddress(types.MasterShardId, m.From, m.Seqno)
+	addr := types.CreateAddress(types.BaseShardId, m.From, m.Seqno)
 
 	suite.waitForReceipt(addr, m)
 
@@ -246,7 +246,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 
 func (suite *SuiteRpc) TestRpcContractSendMessage() {
 	pub := crypto.CompressPubkey(&execution.MainPrivateKey.PublicKey)
-	from := types.PubkeyBytesToAddress(types.MasterShardId, pub)
+	from := types.PubkeyBytesToAddress(types.BaseShardId, pub)
 
 	nbShardId := types.ShardId(4)
 	nbFrom := types.PubkeyBytesToAddress(nbShardId, pub)
@@ -313,17 +313,17 @@ func (suite *SuiteRpc) TestRpcError() {
 		getBlockByNumber, 1<<40)
 
 	check(-32602, "missing value for required argument 1",
-		getBlockByNumber, types.MasterShardId)
+		getBlockByNumber, types.BaseShardId)
 
 	check(-32000, "invalid argument 1: hex string of odd length",
-		getBlockByHash, types.MasterShardId, "0x1b4", false)
+		getBlockByHash, types.BaseShardId, "0x1b4", false)
 
 	check(-32000, "invalid argument 1: hex string without 0x prefix",
-		getBlockByHash, types.MasterShardId, "latest")
+		getBlockByHash, types.BaseShardId, "latest")
 }
 
 func (suite *SuiteRpc) TestRpcDebugModules() {
-	res := suite.makeGenericRequest("debug_getBlockByNumber", types.MasterShardId, "latest", false)
+	res := suite.makeGenericRequest("debug_getBlockByNumber", types.BaseShardId, "latest", false)
 
 	suite.Require().Contains(res, "number")
 	suite.Require().Contains(res, "hash")
@@ -336,7 +336,7 @@ func (suite *SuiteRpc) TestRpcDebugModules() {
 	// print resp to see the result
 	suite.T().Logf("resp: %v", res)
 
-	fullRes := suite.makeGenericRequest("debug_getBlockByNumber", types.MasterShardId, "latest", true)
+	fullRes := suite.makeGenericRequest("debug_getBlockByNumber", types.BaseShardId, "latest", true)
 	suite.Require().Contains(fullRes, "content")
 	suite.Require().Contains(fullRes, "messages")
 	suite.Require().Contains(fullRes, "receipts")

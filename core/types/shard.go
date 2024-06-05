@@ -8,7 +8,10 @@ import (
 // 32 bits are more than enough while avoiding problems with marshaling 64-bit values as numbers in JSON.
 type ShardId uint32
 
-const MasterShardId = ShardId(0)
+const (
+	MasterShardId = ShardId(0)
+	BaseShardId   = ShardId(1)
+)
 
 func IsMasterShard(shardId ShardId) bool {
 	return shardId == MasterShardId

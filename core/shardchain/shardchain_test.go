@@ -62,7 +62,7 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 	tx, err := s.db.CreateRwTx(context.Background())
 	s.Require().NoError(err)
 
-	es, err := execution.NewExecutionStateForShard(tx, types.MasterShardId, common.NewTestTimer(0))
+	es, err := execution.NewExecutionStateForShard(tx, types.BaseShardId, common.NewTestTimer(0))
 	s.Require().NoError(err)
 	s.Require().NotNil(es)
 

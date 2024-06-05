@@ -34,7 +34,7 @@ func (s *Service) FetchReceiptByHash(receiptHash string) ([]byte, error) {
 func (s *Service) fetchReceipt(method, identifier string) ([]byte, error) {
 	// Create params for the RPC call
 	params := []interface{}{
-		types.MasterShardId,
+		types.BaseShardId,
 		identifier,
 	}
 

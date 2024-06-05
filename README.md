@@ -92,9 +92,9 @@ Create a deployment message:
 
 ```golang
 var m types.Message
-m.From = types.GenerateRandomAddress(types.MasterShardId)
+m.From = types.GenerateRandomAddress(types.BaseShardId)
 dm := types.DeployMessage{
-    ShardId: types.MasterShardId,
+    ShardId: types.BaseShardId,
     Code: hexutil.FromHex("{contractBytecode}")
 }
 data, err := dm.MarshalSSZ()
@@ -119,24 +119,22 @@ resp, err := makeRequest[common.Hash](&request)
 Create the address:
 
 ```golang
-addr := types.CreateAddress(types.MasterShardId, m.From, m.Seqno)
+addr := types.CreateAddress(types.BaseShardId, m.From, m.Seqno)
 ```
 
 Send repeated requests for receipts:
 
 ```golang
 request.Method = getMessageReceipt
-request.Params = []any{types.MasterShardId, msgHash}
+request.Params = []any{types.BaseShardId, msgHash}
 
-var respReceipt *Response[*types.Receipt]
+var respReceipt *Response[*jsonrpc.RPCReceipt]
 suite.Eventually(func() bool {
-        respReceipt, err = makeRequest[*types.Receipt](&request)
-        suite.Require().NoError(err)
-        suite.Require().Nil(resp.Error["code"])
-        return respReceipt.Result != nil
-    },
-    5*time.Second,
-    200*time.Millisecond)
+    respReceipt, err = makeRequest[*jsonrpc.RPCReceipt](&request)
+    suite.Require().NoError(err)
+    suite.Require().Nil(resp.Error["code"])
+    return respReceipt.Result != nil
+}, 5*time.Second, 200*time.Millisecond)
 ```
 
 ### Calling a deployed smart contract
@@ -161,13 +159,13 @@ mData, err = m.MarshalSSZ()
 Send the message:
 
 ```golang
-newRequest := Request {
+newRequest := &Request{
     Jsonrpc: "2.0",
     Method: sendRawTransaction,
     Params: []any{"0x" + hex.EncodeToString(mData)},
     Id: 1,
-newResp, err := makeRequest(&newRequest)
 }
+newResp, err := makeRequest(newRequest)
 
 txHash = result["hash"].(string)
 
@@ -178,7 +176,7 @@ Get the receipt:
 
 ```golang
 newRequest.Method = getMessageReceipt
-newRequest.Params = []any{types.MasterShardId, txHash}
+newRequest.Params = []any{types.BaseShardId, txHash}
 respTwo, err = makeRequest(&request)
 
 receipt, err = types.FromMap[types.Receipt](result)
