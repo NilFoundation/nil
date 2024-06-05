@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/client/mock"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,7 +34,7 @@ func TestGetCode_Successfully(t *testing.T) {
 		},
 	}
 
-	service := NewService(mockClient, mockPrivateKey)
+	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
 
 	code, err := service.GetCode("0x1234")
 	require.NoError(t, err)
@@ -51,7 +52,7 @@ func TestGetCode_Err(t *testing.T) {
 		},
 	}
 
-	service := NewService(mockClient, mockPrivateKey)
+	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
 
 	_, err := service.GetCode("0x1234")
 	require.Error(t, err)
@@ -64,7 +65,7 @@ func TestGetCode_Err(t *testing.T) {
 		},
 	}
 
-	service = NewService(mockClient, mockPrivateKey)
+	service = NewService(mockClient, mockPrivateKey, types.BaseShardId)
 
 	_, err = service.GetCode("0x1234")
 	require.Error(t, err)
@@ -85,7 +86,7 @@ func TestRunContract_Successfully(t *testing.T) {
 		},
 	}
 
-	service := NewService(mockClient, mockPrivateKey)
+	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
 
 	txHash, err := service.RunContract("0x6001600101600055", "0x1234")
 	require.NoError(t, err)
@@ -106,7 +107,7 @@ func TestRunContract_Err(t *testing.T) {
 		},
 	}
 
-	service := NewService(mockClient, mockPrivateKey)
+	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
 
 	_, err := service.RunContract("0x6001600101600055", "0x1234")
 	require.Error(t, err)
@@ -125,7 +126,7 @@ func TestRunContract_Err(t *testing.T) {
 		},
 	}
 
-	service = NewService(mockClient, mockPrivateKey)
+	service = NewService(mockClient, mockPrivateKey, types.BaseShardId)
 
 	_, err = service.RunContract("0x6001600101600055", "0x1234")
 	require.Error(t, err)
@@ -146,7 +147,7 @@ func TestDeployContract_Successfully(t *testing.T) {
 		},
 	}
 
-	service := NewService(mockClient, mockPrivateKey)
+	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
 
 	txHash, err := service.DeployContract("0x6001600101600055")
 	require.NoError(t, err)
@@ -167,7 +168,7 @@ func TestContractDeployment_Err(t *testing.T) {
 		},
 	}
 
-	service := NewService(mockClient, mockPrivateKey)
+	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
 
 	_, err := service.DeployContract("0x6001600101600055")
 	require.Error(t, err)
@@ -186,7 +187,7 @@ func TestContractDeployment_Err(t *testing.T) {
 		},
 	}
 
-	service = NewService(mockClient, mockPrivateKey)
+	service = NewService(mockClient, mockPrivateKey, types.BaseShardId)
 
 	_, err = service.DeployContract("0x6001600101600055")
 	require.Error(t, err)
