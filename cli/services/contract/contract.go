@@ -51,7 +51,6 @@ func (s *Service) GetCode(contractAddress string) (string, error) {
 
 	// Create params for the RPC call
 	params := []interface{}{
-		types.MasterShardId,
 		address,
 		blockNum,
 	}
@@ -209,7 +208,6 @@ func (s *Service) getSeqNum(address string) (uint64, error) {
 
 	// Create params for the RPC call
 	params := []interface{}{
-		types.MasterShardId,
 		address,
 		blockNum,
 	}
