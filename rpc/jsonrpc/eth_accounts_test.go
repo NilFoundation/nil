@@ -27,7 +27,7 @@ type SuiteEthAccounts struct {
 }
 
 func (suite *SuiteEthAccounts) SetupSuite() {
-	shardId := types.MasterShardId
+	shardId := types.BaseShardId
 	ctx := context.Background()
 
 	var err error
@@ -64,7 +64,7 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	suite.Require().NotNil(pool)
 
 	suite.api = NewEthAPI(ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool}, common.NewLogger("Test"))
+		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool, pool}, common.NewLogger("Test"))
 }
 
 func (suite *SuiteEthAccounts) TearDownSuite() {
@@ -85,7 +85,7 @@ func (suite *SuiteEthAccounts) TestGetBalance() {
 	suite.Equal((*hexutil.Big)(big.NewInt(1234)), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	_, err = suite.api.GetBalance(ctx, types.GenerateRandomAddress(0), blockNum)
+	_, err = suite.api.GetBalance(ctx, types.GenerateRandomAddress(types.BaseShardId), blockNum)
 	suite.Require().EqualError(err, "key not found in db")
 
 	blockNumber := transport.BlockNumber(1000)
@@ -109,7 +109,7 @@ func (suite *SuiteEthAccounts) TestGetCode() {
 	suite.Equal(hexutil.Bytes("some code"), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	_, err = suite.api.GetCode(ctx, types.GenerateRandomAddress(0), blockNum)
+	_, err = suite.api.GetCode(ctx, types.GenerateRandomAddress(types.BaseShardId), blockNum)
 	suite.Require().EqualError(err, "key not found in db")
 
 	blockNumber := transport.BlockNumber(1000)

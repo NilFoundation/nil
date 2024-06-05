@@ -40,7 +40,7 @@ func (s *Service) FetchBlockByHash(blockHash string) ([]byte, error) {
 func (s *Service) fetchBlock(method, identifier string) ([]byte, error) {
 	// Create params for the RPC call
 	params := []interface{}{
-		types.MasterShardId,
+		types.BaseShardId,
 		identifier,
 		true,
 	}

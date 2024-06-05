@@ -29,7 +29,7 @@ type SuiteEthCall struct {
 }
 
 func (s *SuiteEthCall) SetupSuite() {
-	shardId := types.MasterShardId
+	shardId := types.BaseShardId
 	ctx := context.Background()
 
 	var err error
@@ -50,7 +50,7 @@ func (s *SuiteEthCall) SetupSuite() {
 
 	s.from = types.GenerateRandomAddress(shardId)
 
-	dm := types.DeployMessage{
+	dm := &types.DeployMessage{
 		ShardId: shardId,
 		Code:    hexutil.FromHex(s.contracts["SimpleContract"].Code),
 	}
@@ -61,7 +61,7 @@ func (s *SuiteEthCall) SetupSuite() {
 	es.AddInMessage(m)
 
 	es.AddInMessage(m)
-	s.Require().NoError(es.HandleDeployMessage(m, &blockContext))
+	s.Require().NoError(es.HandleDeployMessage(m, dm, &blockContext))
 
 	blockHash, err := es.Commit(0)
 	s.Require().NoError(err)
@@ -92,7 +92,7 @@ func (s *SuiteEthCall) TestSmcCall() {
 	calldata, err := abi.Pack("getValue")
 	s.Require().NoError(err)
 
-	to := types.CreateAddress(types.MasterShardId, s.from, 0)
+	to := types.CreateAddress(types.BaseShardId, s.from, 0)
 	callArgsData := hexutil.Bytes(calldata)
 	args := CallArgs{
 		From:     s.from,

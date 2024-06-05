@@ -52,7 +52,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	from := types.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
 	blockContext := NewEVMBlockContext(es)
 	for i := range numMessages {
-		deploy := types.DeployMessage{
+		deploy := &types.DeployMessage{
 			ShardId: shardId,
 			Seqno:   uint64(i),
 
@@ -62,9 +62,9 @@ func (suite *SuiteExecutionState) TestExecState() {
 		data, err := deploy.MarshalSSZ()
 		suite.Require().NoError(err)
 
-		msg := types.Message{Data: data, From: from, Seqno: uint64(i)}
-		es.AddInMessage(&msg)
-		suite.Require().NoError(es.HandleDeployMessage(&msg, &blockContext))
+		msg := &types.Message{Data: data, From: from, Seqno: uint64(i)}
+		es.AddInMessage(msg)
+		suite.Require().NoError(es.HandleDeployMessage(msg, deploy, &blockContext))
 	}
 
 	blockHash, err := es.Commit(0)
@@ -125,7 +125,7 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 	tx, err := suite.db.CreateRwTx(context.Background())
 	suite.Require().NoError(err)
 
-	es, err := NewExecutionState(tx, types.MasterShardId, common.EmptyHash, common.NewTestTimer(0))
+	es, err := NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
 	msg1 := types.Message{Data: []byte{1}, Seqno: uint64(1)}
@@ -135,7 +135,7 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 	blockHash1, err := es.Commit(0)
 	suite.Require().NoError(err)
 
-	es, err = NewExecutionState(tx, types.MasterShardId, blockHash1, common.NewTestTimer(0))
+	es, err = NewExecutionState(tx, types.BaseShardId, blockHash1, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
 	es.AddInMessage(&msg2)
@@ -143,7 +143,7 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 	suite.Require().NoError(err)
 
 	check := func(blockHash common.Hash, msg *types.Message) {
-		block := db.ReadBlock(tx, types.MasterShardId, blockHash)
+		block := db.ReadBlock(tx, types.BaseShardId, blockHash)
 		suite.Require().NotNil(block)
 
 		messagesRoot := mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, db.MessageTrieTable, block.InMessagesRoot)
@@ -173,7 +173,7 @@ func newState(t *testing.T) *ExecutionState {
 	require.NoError(t, err)
 	tx, err := database.CreateRwTx(context.Background())
 	require.NoError(t, err)
-	state, err := NewExecutionState(tx, 0, common.EmptyHash, common.NewTestTimer(0))
+	state, err := NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0))
 	require.NoError(t, err)
 
 	err = state.GenerateZeroState(context.Background())

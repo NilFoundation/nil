@@ -693,12 +693,9 @@ func (es *ExecutionState) AddOutMessage(txId common.Hash, msg *types.Message) {
 	es.OutMessages[txId] = append(es.OutMessages[txId], msg)
 }
 
-func (es *ExecutionState) HandleDeployMessage(message *types.Message, blockContext *vm.BlockContext) error {
-	deployMsg, err := types.NewDeployMessage(message.Data)
-	if err != nil {
-		return err
-	}
-
+func (es *ExecutionState) HandleDeployMessage(
+	message *types.Message, deployMsg *types.DeployMessage, blockContext *vm.BlockContext,
+) error {
 	var addr types.Address
 	if len(deployMsg.PublicKey) == 0 {
 		addr = types.CreateAddress(deployMsg.ShardId, message.From, message.Seqno)
@@ -714,7 +711,7 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, blockConte
 	r := &types.Receipt{
 		Success:         err == nil,
 		ContractAddress: addr,
-		MsgHash:         message.Hash(),
+		MsgHash:         es.InMessageHash,
 		GasUsed:         uint32(gas - leftOverGas),
 	}
 

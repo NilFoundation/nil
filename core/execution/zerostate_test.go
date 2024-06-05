@@ -27,7 +27,7 @@ type SuiteZeroState struct {
 
 func (suite *SuiteZeroState) SetupSuite() {
 	pub := crypto.CompressPubkey(&MainPrivateKey.PublicKey)
-	suite.faucetAddr = types.PubkeyBytesToAddress(types.MasterShardId, pub)
+	suite.faucetAddr = types.PubkeyBytesToAddress(types.BaseShardId, pub)
 
 	contractsPath, err := obtainContractsPath()
 	suite.Require().NoError(err)

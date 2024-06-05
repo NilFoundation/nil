@@ -31,7 +31,7 @@ func (suite *SuiteEthReceipt) SetupSuite() {
 	suite.Require().NotNil(pool)
 
 	suite.api = NewEthAPI(ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool}, common.NewLogger("Test"))
+		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool, pool}, common.NewLogger("Test"))
 
 	tx, err := suite.db.CreateRwTx(ctx)
 	defer tx.Rollback()
@@ -41,8 +41,8 @@ func (suite *SuiteEthReceipt) SetupSuite() {
 	msgHash := message.Hash()
 	suite.receipt = types.Receipt{MsgHash: msgHash, Logs: []*types.Log{}}
 
-	blockHash := writeTestBlock(suite.T(), tx, types.MasterShardId, types.BlockNumber(0), []*types.Message{&message}, []*types.Receipt{&suite.receipt})
-	_, err = execution.PostprocessBlock(tx, types.MasterShardId, blockHash)
+	blockHash := writeTestBlock(suite.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Message{&message}, []*types.Receipt{&suite.receipt})
+	_, err = execution.PostprocessBlock(tx, types.BaseShardId, blockHash)
 	suite.Require().NoError(err)
 
 	err = tx.Commit()
@@ -54,7 +54,7 @@ func (suite *SuiteEthReceipt) TearDownSuite() {
 }
 
 func (suite *SuiteEthReceipt) TestGetMessageReceipt() {
-	data, err := suite.api.GetInMessageReceipt(context.Background(), types.MasterShardId, suite.receipt.MsgHash)
+	data, err := suite.api.GetInMessageReceipt(context.Background(), types.BaseShardId, suite.receipt.MsgHash)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
 
