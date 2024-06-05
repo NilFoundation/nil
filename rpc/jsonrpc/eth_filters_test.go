@@ -8,6 +8,7 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
@@ -51,9 +52,6 @@ func (s *SuiteEthFilters) TestLogs() {
 
 	topics := [][]common.Hash{{}, {}, {{3}}}
 	query1 := filters.FilterQuery{
-		BlockHash: nil,
-		FromBlock: nil,
-		ToBlock:   nil,
 		Addresses: []types.Address{address1},
 		Topics:    topics,
 	}
@@ -63,9 +61,6 @@ func (s *SuiteEthFilters) TestLogs() {
 
 	topics2 := [][]common.Hash{{}, {{2}}}
 	query2 := filters.FilterQuery{
-		BlockHash: nil,
-		FromBlock: nil,
-		ToBlock:   nil,
 		Addresses: []types.Address{},
 		Topics:    topics2,
 	}
@@ -102,21 +97,10 @@ func (s *SuiteEthFilters) TestLogs() {
 			Data:    []byte{0xaa, 0xaa},
 		},
 	}
-	receiptsMpt := mpt.NewMerklePatriciaTrie(s.db, s.shardId, db.ReceiptTrieTable)
 
-	receipt := &types.Receipt{ContractAddress: address1, Logs: logsInput}
-	receiptEncoded, err := receipt.MarshalSSZ()
-	s.Require().NoError(err)
-	key, err := receipt.HashTreeRoot()
-	s.Require().NoError(err)
-	s.Require().NoError(receiptsMpt.Set(key[:], receiptEncoded))
-
-	receipt2 := &types.Receipt{ContractAddress: address2, Logs: logsInput2}
-	receiptEncoded, err = receipt2.MarshalSSZ()
-	s.Require().NoError(err)
-	key, err = receipt2.HashTreeRoot()
-	s.Require().NoError(err)
-	s.Require().NoError(receiptsMpt.Set(key[:], receiptEncoded))
+	receiptsMpt := execution.NewReceiptTrie(mpt.NewMerklePatriciaTrie(s.db, s.shardId, db.ReceiptTrieTable))
+	s.Require().NoError(receiptsMpt.Update(0, &types.Receipt{ContractAddress: address1, Logs: logsInput}))
+	s.Require().NoError(receiptsMpt.Update(1, &types.Receipt{ContractAddress: address2, Logs: logsInput2}))
 
 	block := types.Block{
 		ReceiptsRoot: receiptsMpt.RootHash(),

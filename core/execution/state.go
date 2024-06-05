@@ -11,7 +11,6 @@ import (
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
-	ssz "github.com/ferranbt/fastssz"
 	"github.com/holiman/uint256"
 )
 
@@ -29,7 +28,7 @@ type AccountState struct {
 	CodeHash    common.Hash
 	Seqno       uint64
 	PublicKey   []byte
-	StorageRoot *mpt.MerklePatriciaTrie
+	StorageTree *StorageTrie
 
 	State Storage
 
@@ -48,10 +47,10 @@ type AccountState struct {
 type ExecutionState struct {
 	tx               db.Tx
 	Timer            common.Timer
-	ContractRoot     *mpt.MerklePatriciaTrie
-	InMessageRoot    *mpt.MerklePatriciaTrie
-	OutMessageRoot   *mpt.MerklePatriciaTrie
-	ReceiptRoot      *mpt.MerklePatriciaTrie
+	ContractTree     *ContractTrie
+	InMessageTree    *MessageTrie
+	OutMessageTree   *MessageTrie
+	ReceiptTree      *ReceiptTrie
 	PrevBlock        common.Hash
 	MasterChain      common.Hash
 	ShardId          types.ShardId
@@ -95,15 +94,11 @@ func (s *AccountState) empty() bool {
 	return s.Seqno == 0 && s.Balance.IsZero() && len(s.Code) == 0
 }
 
-func NewAccountState(es *ExecutionState, addr types.Address, tx db.Tx, data []byte) (*AccountState, error) {
-	account := new(types.SmartContract)
+func NewAccountState(es *ExecutionState, addr types.Address, tx db.Tx, account *types.SmartContract) (*AccountState, error) {
 	shardId := addr.ShardId()
 
-	err := account.UnmarshalSSZ(data)
-	common.FatalIf(err, logger, "Invalid SSZ while decoding account")
-
 	// TODO: store storage of each contract in separate table
-	root := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.StorageTrieTable, account.StorageRoot)
+	root := NewStorageTrie(mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.StorageTrieTable, account.StorageRoot))
 
 	code, err := db.ReadCode(tx, shardId, account.CodeHash)
 	if err != nil {
@@ -115,7 +110,7 @@ func NewAccountState(es *ExecutionState, addr types.Address, tx db.Tx, data []by
 		address: addr,
 
 		Tx:          tx,
-		StorageRoot: root,
+		StorageTree: root,
 		CodeHash:    account.CodeHash,
 		Code:        code,
 		Seqno:       account.Seqno,
@@ -159,10 +154,10 @@ func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash, t
 	return &ExecutionState{
 		tx:               tx,
 		Timer:            timer,
-		ContractRoot:     contractRoot,
-		InMessageRoot:    messageRoot,
-		OutMessageRoot:   outMessagesTrie,
-		ReceiptRoot:      receiptRoot,
+		ContractTree:     NewContractTrie(contractRoot),
+		InMessageTree:    NewMessageTrie(messageRoot),
+		OutMessageTree:   NewMessageTrie(outMessagesTrie),
+		ReceiptTree:      NewReceiptTrie(receiptRoot),
 		PrevBlock:        blockHash,
 		ShardId:          shardId,
 		ChildChainBlocks: map[types.ShardId]common.Hash{},
@@ -190,13 +185,8 @@ func NewExecutionStateForShard(tx db.Tx, shardId types.ShardId, timer common.Tim
 	return NewExecutionState(tx, shardId, lastBlockHash, timer)
 }
 
-func (es *ExecutionState) GetReceipt(msgIndex uint64) (*types.Receipt, error) {
-	var r types.Receipt
-	buf, err := es.ReceiptRoot.Get(ssz.MarshalUint64(nil, msgIndex))
-	if err != nil {
-		return nil, err
-	}
-	return &r, r.UnmarshalSSZ(buf)
+func (es *ExecutionState) GetReceipt(msgIndex types.MessageIndex) (*types.Receipt, error) {
+	return es.ReceiptTree.Fetch(msgIndex)
 }
 
 func (es *ExecutionState) GetAccount(addr types.Address) *AccountState {
@@ -207,13 +197,12 @@ func (es *ExecutionState) GetAccount(addr types.Address) *AccountState {
 
 	addrHash := addr.Hash()
 
-	data, err := es.ContractRoot.Get(addrHash[:])
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		panic(fmt.Sprintf("failed to fetch account %v: %v", addrHash, err))
-	}
-
-	if data == nil {
+	data, err := es.ContractTree.Fetch(addrHash)
+	if errors.Is(err, db.ErrKeyNotFound) {
 		return nil
+	}
+	if err != nil {
+		panic(fmt.Sprintf("failed to fetch account %v: %v", addrHash, err))
 	}
 
 	acc, err = NewAccountState(es, addr, es.tx, data)
@@ -353,7 +342,7 @@ func (s *ExecutionState) RevertToSnapshot(revid int) {
 func (es *ExecutionState) GetStorageRoot(addr types.Address) common.Hash {
 	acc := es.GetAccount(addr)
 	if acc != nil {
-		return acc.StorageRoot.RootHash()
+		return acc.StorageTree.RootHash()
 	}
 	return common.EmptyHash
 }
@@ -537,7 +526,7 @@ func (s *AccountState) setState(key common.Hash, value common.Hash) {
 
 // GetCommittedState retrieves a value from the committed account storage trie.
 func (s *AccountState) GetCommittedState(key common.Hash) common.Hash {
-	rawVal, err := s.StorageRoot.Get(key[:])
+	res, err := s.StorageTree.Fetch(key)
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return common.EmptyHash
 	}
@@ -545,43 +534,30 @@ func (s *AccountState) GetCommittedState(key common.Hash) common.Hash {
 		panic(fmt.Sprintf("unexpected error fetching storage: %v", err))
 	}
 
-	var newVal uint256.Int
-	if err := newVal.UnmarshalSSZ(rawVal); err != nil {
-		panic("failed to unmarshal storage cell")
-	}
-	return newVal.Bytes32()
+	return res.Bytes32()
 }
 
-func (as *AccountState) Commit() ([]byte, error) {
+func (as *AccountState) Commit() (*types.SmartContract, error) {
 	for k, v := range as.State {
-		vv, err := v.Uint256().MarshalSSZ()
-		if err != nil {
-			return nil, err
-		}
-		if err := as.StorageRoot.Set(k[:], vv); err != nil {
+		if err := as.StorageTree.Update(k, v.Uint256()); err != nil {
 			return nil, err
 		}
 	}
 
-	acc := types.SmartContract{
+	acc := &types.SmartContract{
 		Address:     as.address,
 		Balance:     types.Uint256{Int: as.Balance},
-		StorageRoot: as.StorageRoot.RootHash(),
+		StorageRoot: as.StorageTree.RootHash(),
 		CodeHash:    as.CodeHash,
 		Seqno:       as.Seqno,
 		PublicKey:   as.PublicKey,
-	}
-
-	data, err := acc.MarshalSSZ()
-	if err != nil {
-		return nil, err
 	}
 
 	if err := db.WriteCode(as.Tx, as.address.ShardId(), as.Code); err != nil {
 		return nil, err
 	}
 
-	return data, nil
+	return acc, nil
 }
 
 func (es *ExecutionState) GetState(addr types.Address, key common.Hash) common.Hash {
@@ -651,14 +627,14 @@ func (es *ExecutionState) CreateAccount(addr types.Address) {
 	es.journal.append(createObjectChange{account: &addr})
 
 	// TODO: store storage of each contract in separate table
-	root := mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.StorageTrieTable)
+	root := NewStorageTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.StorageTrieTable))
 
 	es.Accounts[addr] = &AccountState{
 		db:      es,
 		address: addr,
 
 		Tx:          es.tx,
-		StorageRoot: root,
+		StorageTree: root,
 		CodeHash:    common.EmptyHash,
 		Code:        nil,
 		State:       map[common.Hash]common.Hash{},
@@ -683,10 +659,10 @@ func (es *ExecutionState) ContractExists(addr types.Address) bool {
 	return acc != nil
 }
 
-func (es *ExecutionState) AddInMessage(message *types.Message) uint64 {
-	index := uint64(len(es.InMessages))
+func (es *ExecutionState) AddInMessage(message *types.Message) types.MessageIndex {
+	index := len(es.InMessages)
 	es.InMessages = append(es.InMessages, message)
-	return index
+	return types.MessageIndex(index)
 }
 
 func (es *ExecutionState) AddOutMessage(txId common.Hash, msg *types.Message) {
@@ -774,17 +750,16 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		}
 
 		kHash := k.Hash()
-		if err = es.ContractRoot.Set(kHash[:], v); err != nil {
+		if err = es.ContractTree.Update(kHash, v); err != nil {
 			return common.EmptyHash, err
 		}
 	}
 
 	treeShardsRootHash := common.EmptyHash
 	if len(es.ChildChainBlocks) > 0 {
-		treeShards := mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.ShardBlocksTrieTableName(blockId))
+		treeShards := NewShardBlocksTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.ShardBlocksTrieTableName(blockId)))
 		for k, hash := range es.ChildChainBlocks {
-			key := k.Bytes()
-			if err := treeShards.Set(key, hash.Bytes()); err != nil {
+			if err := treeShards.Update(k, hash.Uint256()); err != nil {
 				return common.EmptyHash, err
 			}
 		}
@@ -792,28 +767,18 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 	}
 
 	for i, m := range es.InMessages {
-		v, err := m.MarshalSSZ()
-		if err != nil {
-			return common.EmptyHash, err
-		}
-		k := types.MessageIndex(i)
-		if err := es.InMessageRoot.Set(k.Bytes(), v); err != nil {
+		if err := es.InMessageTree.Update(types.MessageIndex(i), m); err != nil {
 			return common.EmptyHash, err
 		}
 	}
 
-	var msgIndex uint32 = 0
+	var msgIndex types.MessageIndex
 	for _, messages := range es.OutMessages {
 		for _, m := range messages {
-			v, err := m.MarshalSSZ()
-			if err != nil {
+			if err := es.OutMessageTree.Update(msgIndex, m); err != nil {
 				return common.EmptyHash, err
 			}
-			k := ssz.MarshalUint32(nil, msgIndex)
-			if err := es.OutMessageRoot.Set(k, v); err != nil {
-				return common.EmptyHash, err
-			}
-			msgIndex += 1
+			msgIndex++
 		}
 	}
 
@@ -822,12 +787,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		msgHash := es.InMessages[i].Hash()
 		r.OutMsgIndex = uint32(msgStart)
 
-		v, err := r.MarshalSSZ()
-		if err != nil {
-			return common.EmptyHash, err
-		}
-		k := ssz.MarshalUint64(nil, uint64(i))
-		if err := es.ReceiptRoot.Set(k, v); err != nil {
+		if err := es.ReceiptTree.Update(types.MessageIndex(i), r); err != nil {
 			return common.EmptyHash, err
 		}
 		msgStart += len(es.OutMessages[msgHash])
@@ -836,11 +796,11 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 	block := types.Block{
 		Id:                  blockId,
 		PrevBlock:           es.PrevBlock,
-		SmartContractsRoot:  es.ContractRoot.RootHash(),
-		InMessagesRoot:      es.InMessageRoot.RootHash(),
-		OutMessagesRoot:     es.OutMessageRoot.RootHash(),
+		SmartContractsRoot:  es.ContractTree.RootHash(),
+		InMessagesRoot:      es.InMessageTree.RootHash(),
+		OutMessagesRoot:     es.OutMessageTree.RootHash(),
 		OutMessagesNum:      msgIndex,
-		ReceiptsRoot:        es.ReceiptRoot.RootHash(),
+		ReceiptsRoot:        es.ReceiptTree.RootHash(),
 		ChildBlocksRootHash: treeShardsRootHash,
 		MasterChainHash:     es.MasterChain,
 		Timestamp:           es.Timer.Now(),

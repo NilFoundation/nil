@@ -3,6 +3,8 @@ package types
 import (
 	"encoding/json"
 	"strconv"
+
+	"github.com/NilFoundation/nil/common"
 )
 
 // 32 bits are more than enough while avoiding problems with marshaling 64-bit values as numbers in JSON.
@@ -34,6 +36,13 @@ func (s ShardId) Static() bool {
 	return true
 }
 
+func BytesToShardId(b []byte) ShardId {
+	// todo: id marshaling should not happen via string formatting
+	res, err := ParseShardIdFromString(string(b))
+	common.FatalIf(err, nil, "Given data is not a valid shard id")
+	return res
+}
+
 func ParseShardIdFromString(s string) (ShardId, error) {
 	id, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
@@ -41,5 +50,6 @@ func ParseShardIdFromString(s string) (ShardId, error) {
 	}
 	return ShardId(id), nil
 }
+
 func (s ShardId) String() string { return strconv.FormatUint(uint64(s), 10) }
 func (s ShardId) Bytes() []byte  { return []byte(s.String()) }

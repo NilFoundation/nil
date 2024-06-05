@@ -5,9 +5,9 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
-	ssz "github.com/ferranbt/fastssz"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,24 +26,20 @@ func writeTestBlock(t *testing.T, tx db.Tx, shardId types.ShardId, blockNumber t
 	return block.Hash()
 }
 
-func writeMessages(t *testing.T, tx db.Tx, shardId types.ShardId, messages []*types.Message) *mpt.MerklePatriciaTrie {
+func writeMessages(t *testing.T, tx db.Tx, shardId types.ShardId, messages []*types.Message) *execution.MessageTrie {
 	t.Helper()
-	messageRoot := mpt.NewMerklePatriciaTrie(tx, shardId, db.MessageTrieTable)
+	messageRoot := execution.NewMessageTrie(mpt.NewMerklePatriciaTrie(tx, shardId, db.MessageTrieTable))
 	for i, message := range messages {
-		messageBytes, err := message.MarshalSSZ()
-		require.NoError(t, err)
-		require.NoError(t, messageRoot.Set(ssz.MarshalUint64(nil, uint64(i)), messageBytes))
+		require.NoError(t, messageRoot.Update(types.MessageIndex(i), message))
 	}
 	return messageRoot
 }
 
-func writeReceipts(t *testing.T, tx db.Tx, shardId types.ShardId, receipts []*types.Receipt) *mpt.MerklePatriciaTrie {
+func writeReceipts(t *testing.T, tx db.Tx, shardId types.ShardId, receipts []*types.Receipt) *execution.ReceiptTrie {
 	t.Helper()
-	receiptRoot := mpt.NewMerklePatriciaTrie(tx, shardId, db.ReceiptTrieTable)
+	receiptRoot := execution.NewReceiptTrie(mpt.NewMerklePatriciaTrie(tx, shardId, db.ReceiptTrieTable))
 	for i, receipt := range receipts {
-		receiptBytes, err := receipt.MarshalSSZ()
-		require.NoError(t, err)
-		require.NoError(t, receiptRoot.Set(ssz.MarshalUint64(nil, uint64(i)), receiptBytes))
+		require.NoError(t, receiptRoot.Update(types.MessageIndex(i), receipt))
 	}
 	return receiptRoot
 }

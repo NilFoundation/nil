@@ -17,6 +17,7 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
@@ -39,7 +40,7 @@ type Filter struct {
 type FilterQuery struct {
 	BlockHash *common.Hash    // used by eth_getLogs, return logs only from block with this hash
 	FromBlock *uint256.Int    // beginning of the queried range, nil means genesis block
-	ToBlock   *uint256.Int    // end of the range, nil means latest block
+	ToBlock   *uint256.Int    // end of the range, nil means the latest block
 	Addresses []types.Address // restricts matches to events created by specific contracts
 
 	// The Topic list restricts matches to particular event topics. Each event has a list
@@ -186,18 +187,13 @@ func (m *FiltersManager) processBlockHash(lastHash *common.Hash) (*types.Block, 
 	}
 	block := db.ReadBlock(tx, m.shardId, *lastHash)
 	if block == nil {
-		return nil, errors.New("Can not read last block")
+		return nil, errors.New("can not read last block")
 	}
 
-	var receipts types.Receipts
-
-	mptReceipts := mpt.NewMerklePatriciaTrieWithRoot(m.db, m.shardId, db.ReceiptTrieTable, block.ReceiptsRoot)
-	for kv := range mptReceipts.Iterate() {
-		receipt := types.Receipt{}
-		if err := receipt.UnmarshalSSZ(kv.Value); err != nil {
-			return nil, err
-		}
-		receipts = append(receipts, &receipt)
+	mptReceipts := execution.NewReceiptTrie(mpt.NewMerklePatriciaTrieWithRoot(m.db, m.shardId, db.ReceiptTrieTable, block.ReceiptsRoot))
+	receipts, err := mptReceipts.Values()
+	if err != nil {
+		return nil, err
 	}
 
 	return block, m.process(block, receipts)
@@ -257,7 +253,7 @@ var globalSubscriptionId uint64
 func generateSubscriptionID() SubscriptionID {
 	id := [16]byte{}
 	sb := new(strings.Builder)
-	hex := hex.NewEncoder(sb)
+	h := hex.NewEncoder(sb)
 	binary.LittleEndian.PutUint64(id[:], atomic.AddUint64(&globalSubscriptionId, 1))
 	// Try 4 times to generate an id
 	for range 4 {
@@ -267,7 +263,7 @@ func generateSubscriptionID() SubscriptionID {
 		}
 	}
 	// If the computer has no functioning secure rand source, it will just use the incrementing number
-	if _, err := hex.Write(id[:]); err != nil {
+	if _, err := h.Write(id[:]); err != nil {
 		return ""
 	}
 	return SubscriptionID(sb.String())

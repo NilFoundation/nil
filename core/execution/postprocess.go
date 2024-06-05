@@ -61,7 +61,7 @@ func (pp *blockPostprocessor) fillBlockHashByNumberIndex() error {
 
 func (pp *blockPostprocessor) fillBlockHashAndMessageIndexByMessageHash() error {
 	// TODO: fix for out messages
-	mptMessages := mpt.NewMerklePatriciaTrieWithRoot(pp.tx, pp.shardId, db.MessageTrieTable, pp.block.InMessagesRoot)
+	mptMessages := NewMessageTrie(mpt.NewMerklePatriciaTrieWithRoot(pp.tx, pp.shardId, db.MessageTrieTable, pp.block.InMessagesRoot))
 
 	// TODO: currently "Iterate" works via channel.
 	// It probably causes concurrent usage of "tx" object that
