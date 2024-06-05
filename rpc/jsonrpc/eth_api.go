@@ -74,14 +74,14 @@ type APIImpl struct {
 
 	accessor *execution.StateAccessor
 
-	db       db.DB
+	db       db.ReadOnlyDB
 	msgPools []msgpool.Pool
 	logs     *LogsAggregator
 	logger   *zerolog.Logger
 }
 
 // NewEthAPI returns APIImpl instance
-func NewEthAPI(ctx context.Context, base *BaseAPI, db db.DB, pools []msgpool.Pool, logger *zerolog.Logger) (*APIImpl, error) {
+func NewEthAPI(ctx context.Context, base *BaseAPI, db db.ReadOnlyDB, pools []msgpool.Pool, logger *zerolog.Logger) (*APIImpl, error) {
 	accessor, err := execution.NewStateAccessor()
 	if err != nil {
 		return nil, err

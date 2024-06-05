@@ -46,7 +46,7 @@ func NewStateAccessor() (*StateAccessor, error) {
 	}, nil
 }
 
-func (s *StateAccessor) GetBlockByHash(tx db.Tx, shardId types.ShardId, hash common.Hash) *types.Block {
+func (s *StateAccessor) GetBlockByHash(tx db.RoTx, shardId types.ShardId, hash common.Hash) *types.Block {
 	block, ok := s.blocksLRU.Get(hash)
 	if ok {
 		return block
@@ -142,8 +142,8 @@ func CollectBlockEntities[
 		ssz.Unmarshaler
 	},
 	S any,
-](tx db.Tx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash) ([]*S, error) {
-	root := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, tableName, rootHash)
+](tx db.RoTx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash) ([]*S, error) {
+	root := mpt.NewReaderWithRoot(tx, shardId, tableName, rootHash)
 
 	entities := make([]*S, 0, 1024)
 	var index uint64
@@ -214,6 +214,6 @@ func getBlockEntity[
 	},
 	S any,
 ](tx db.RoTx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash, entityKey []byte) (*S, error) {
-	root := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, tableName, rootHash)
+	root := mpt.NewReaderWithRoot(tx, shardId, tableName, rootHash)
 	return mpt.GetEntity[T](root, entityKey)
 }

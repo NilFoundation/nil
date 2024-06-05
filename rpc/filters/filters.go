@@ -63,7 +63,7 @@ type (
 
 type FiltersManager struct {
 	ctx       context.Context
-	db        db.DB
+	db        db.ReadOnlyDB
 	shardId   types.ShardId
 	filters   map[SubscriptionID]*Filter
 	blockSubs map[SubscriptionID]chan<- *types.Block
@@ -71,7 +71,7 @@ type FiltersManager struct {
 	lastHash  common.Hash
 }
 
-func NewFiltersManager(ctx context.Context, db db.DB, noPolling bool) *FiltersManager {
+func NewFiltersManager(ctx context.Context, db db.ReadOnlyDB, noPolling bool) *FiltersManager {
 	f := &FiltersManager{
 		ctx:       ctx,
 		db:        db,
@@ -233,10 +233,10 @@ func (m *FiltersManager) processBlocksRange(filter *Filter) error {
 	return nil
 }
 
-func (m *FiltersManager) readReceipts(tx db.DBAccessor, block *types.Block) ([]*types.Receipt, error) {
+func (m *FiltersManager) readReceipts(tx db.RoTx, block *types.Block) ([]*types.Receipt, error) {
 	var receipts types.Receipts
 
-	mptReceipts := execution.NewReceiptTrie(mpt.NewMerklePatriciaTrieWithRoot(tx, m.shardId, db.ReceiptTrieTable, block.ReceiptsRoot))
+	mptReceipts := execution.NewReceiptTrieReader(mpt.NewReaderWithRoot(tx, m.shardId, db.ReceiptTrieTable, block.ReceiptsRoot))
 	for kv := range mptReceipts.Iterate() {
 		receipt := types.Receipt{}
 		if err := receipt.UnmarshalSSZ(kv.Value); err != nil {
@@ -259,7 +259,7 @@ func (m *FiltersManager) processBlockHash(lastHash *common.Hash) (*types.Block, 
 		return nil, errors.New("can not read last block")
 	}
 
-	mptReceipts := execution.NewReceiptTrie(mpt.NewMerklePatriciaTrieWithRoot(m.db, m.shardId, db.ReceiptTrieTable, block.ReceiptsRoot))
+	mptReceipts := execution.NewReceiptTrieReader(mpt.NewReaderWithRoot(tx, m.shardId, db.ReceiptTrieTable, block.ReceiptsRoot))
 	receipts, err := mptReceipts.Values()
 	if err != nil {
 		return nil, err
@@ -320,7 +320,13 @@ func (m *FiltersManager) OnNewBlock(block *types.Block) {
 }
 
 func (m *FiltersManager) getLastBlockHash() (common.Hash, error) {
-	lastBlockRaw, err := m.db.Get(db.LastBlockTable, m.shardId.Bytes())
+	tx, err := m.db.CreateRoTx(m.ctx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	defer tx.Rollback()
+
+	lastBlockRaw, err := tx.Get(db.LastBlockTable, m.shardId.Bytes())
 	if err == nil && lastBlockRaw != nil {
 		return common.Hash(*lastBlockRaw), nil
 	}

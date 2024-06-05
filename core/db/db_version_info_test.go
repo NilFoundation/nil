@@ -46,13 +46,13 @@ func (suite *SuiteVersionInfo) TestVersionInfoStore() {
 	suite.Require().NoError(WriteVersionInfo(tx, currentVersionInfo))
 	suite.Require().NoError(tx.Commit())
 
-	tx, err = suite.db.CreateRoTx(suite.context)
+	roTx, err := suite.db.CreateRoTx(suite.context)
 	suite.Require().NoError(err)
-	defer tx.Rollback()
-	dbVersionInfo, err := ReadVersionInfo(tx)
+	defer roTx.Rollback()
+	dbVersionInfo, err := ReadVersionInfo(roTx)
 	suite.Require().NoError(err)
 	suite.Require().Equal(dbVersionInfo.Version, currentVersionInfo.Version)
-	suite.Require().False(IsVersionOutdated(tx))
+	suite.Require().False(IsVersionOutdated(roTx))
 }
 
 func (suite *SuiteVersionInfo) TestVersionInfoOutdated() {
@@ -66,15 +66,17 @@ func (suite *SuiteVersionInfo) TestVersionInfoOutdated() {
 	suite.Require().NoError(WriteVersionInfo(tx, outdatedVersionInfo))
 	suite.Require().NoError(tx.Commit())
 
-	tx, err = suite.db.CreateRoTx(suite.context)
+	roTx, err := suite.db.CreateRoTx(suite.context)
 	suite.Require().NoError(err)
-	defer tx.Rollback()
-	outdatedVersionInfo, err = ReadVersionInfo(tx)
+	defer roTx.Rollback()
+	outdatedVersionInfo, err = ReadVersionInfo(roTx)
 	suite.Require().NoError(err)
 	suite.Require().NotEqual(outdatedVersionInfo.Version, currentVersionInfo.Version)
-	suite.Require().True(IsVersionOutdated(tx))
+	suite.Require().True(IsVersionOutdated(roTx))
 }
 
-func TestSuitVersionInfo(t *testing.T) { //nolint:paralleltest
+func TestSuitVersionInfo(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, new(SuiteVersionInfo))
 }

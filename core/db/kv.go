@@ -7,18 +7,28 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 )
 
-type DBAccessor interface {
+type RoTx interface {
 	Exists(tableName TableName, key []byte) (bool, error)
 	Get(tableName TableName, key []byte) (*[]byte, error)
-	Put(tableName TableName, key, value []byte) error
-	Delete(tableName TableName, key []byte) error
 	Range(tableName TableName, from []byte, to []byte) (Iter, error)
 
 	ExistsInShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (bool, error)
 	GetFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (*[]byte, error)
+	RangeByShard(shardId types.ShardId, tableName ShardedTableName, from []byte, to []byte) (Iter, error)
+
+	Rollback()
+}
+
+type RwTx interface {
+	RoTx
+
+	Put(tableName TableName, key, value []byte) error
+	Delete(tableName TableName, key []byte) error
+
 	PutToShard(shardId types.ShardId, tableName ShardedTableName, key, value []byte) error
 	DeleteFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) error
-	RangeByShard(shardId types.ShardId, tableName ShardedTableName, from []byte, to []byte) (Iter, error)
+
+	Commit() error
 }
 
 type Iter interface {
@@ -27,29 +37,42 @@ type Iter interface {
 	Close()
 }
 
-type Tx interface {
-	DBAccessor
-
-	Commit() error
-	// Rollback can't really fail, because it's not clear how to proceed.
-	// It's better to just panic in this case and restart.
-	Rollback()
-}
-
-type RoTx interface {
-	Tx
-}
-
-type RwTx interface {
-	Tx
+type ReadOnlyDB interface {
+	CreateRoTx(ctx context.Context) (RoTx, error)
 }
 
 type DB interface {
-	DBAccessor
+	ReadOnlyDB
 
 	CreateRwTx(ctx context.Context) (RwTx, error)
-	CreateRoTx(ctx context.Context) (RoTx, error)
+
 	DropAll() error
 	LogGC(ctx context.Context, discardRation float64, gcFrequency time.Duration) error
 	Close()
+}
+
+type RwWrapper struct {
+	RoTx
+}
+
+var _ RwTx = new(RwWrapper)
+
+func (a *RwWrapper) Put(TableName, []byte, []byte) error {
+	panic("unsupported operation")
+}
+
+func (a *RwWrapper) Delete(TableName, []byte) error {
+	panic("unsupported operation")
+}
+
+func (a *RwWrapper) PutToShard(types.ShardId, ShardedTableName, []byte, []byte) error {
+	panic("unsupported operation")
+}
+
+func (a *RwWrapper) DeleteFromShard(types.ShardId, ShardedTableName, []byte) error {
+	panic("unsupported operation")
+}
+
+func (a *RwWrapper) Commit() error {
+	panic("unsupported operation")
 }

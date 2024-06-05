@@ -23,7 +23,7 @@ type AccountState struct {
 	db      *ExecutionState
 	address types.Address // address of the ethereum account
 
-	Tx          db.Tx
+	Tx          db.RwTx
 	Balance     uint256.Int
 	Code        types.Code
 	CodeHash    common.Hash
@@ -46,7 +46,7 @@ type AccountState struct {
 }
 
 type ExecutionState struct {
-	tx               db.Tx
+	tx               db.RwTx
 	Timer            common.Timer
 	ContractTree     *ContractTrie
 	InMessageTree    *MessageTrie
@@ -97,7 +97,7 @@ func (s *AccountState) empty() bool {
 	return s.Seqno == 0 && s.Balance.IsZero() && len(s.Code) == 0
 }
 
-func NewAccountState(es *ExecutionState, addr types.Address, tx db.Tx, account *types.SmartContract) (*AccountState, error) {
+func NewAccountState(es *ExecutionState, addr types.Address, tx db.RwTx, account *types.SmartContract) (*AccountState, error) {
 	shardId := addr.ShardId()
 
 	// TODO: store storage of each contract in separate table
@@ -136,7 +136,15 @@ func NewEVMBlockContext(es *ExecutionState) vm.BlockContext {
 	}
 }
 
-func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash, timer common.Timer) (*ExecutionState, error) {
+func NewROExecutionState(tx db.RoTx, shardId types.ShardId, blockHash common.Hash, timer common.Timer) (*ExecutionState, error) {
+	return NewExecutionState(&db.RwWrapper{RoTx: tx}, shardId, blockHash, timer)
+}
+
+func NewROExecutionStateForShard(tx db.RoTx, shardId types.ShardId, timer common.Timer) (*ExecutionState, error) {
+	return NewExecutionStateForShard(&db.RwWrapper{RoTx: tx}, shardId, timer)
+}
+
+func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash, timer common.Timer) (*ExecutionState, error) {
 	block := db.ReadBlock(tx, shardId, blockHash)
 
 	var contractRoot, messageRoot, outMessagesTrie, receiptRoot *mpt.MerklePatriciaTrie
@@ -181,7 +189,7 @@ func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash, t
 	}, nil
 }
 
-func NewExecutionStateForShard(tx db.Tx, shardId types.ShardId, timer common.Timer) (*ExecutionState, error) {
+func NewExecutionStateForShard(tx db.RwTx, shardId types.ShardId, timer common.Timer) (*ExecutionState, error) {
 	lastBlockHashBytes, err := tx.Get(db.LastBlockTable, shardId.Bytes())
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, fmt.Errorf("failed getting last block: %w", err)

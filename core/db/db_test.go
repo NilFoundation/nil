@@ -11,7 +11,13 @@ import (
 
 type SuiteBadgerDb struct {
 	suite.Suite
-	db DB
+
+	ctx context.Context
+	db  DB
+}
+
+func (suite *SuiteBadgerDb) SetupSuite() {
+	suite.ctx = context.Background()
 }
 
 func (suite *SuiteBadgerDb) SetupTest() {
@@ -24,92 +30,122 @@ func (suite *SuiteBadgerDb) TearDownTest() {
 	suite.db.Close()
 }
 
-func ValidateTables(t *suite.Suite, db DB) {
-	defer t.Require().NoError(db.Put("tbl-1", []byte("foo"), []byte("bar")))
+func ValidateTables(s *suite.Suite, db DB) {
+	ctx := context.Background()
 
-	has, err := db.Exists("tbl-1", []byte("foo"))
-	t.Require().NoError(err)
-	t.True(has, "Key 'foo' should be present in tbl-1")
+	s.Run("put", func() {
+		tx, err := db.CreateRwTx(ctx)
+		s.Require().NoError(err)
+		defer tx.Rollback()
 
-	has, err = db.Exists("tbl-2", []byte("foo"))
-	t.Require().NoError(err)
-	t.False(has, "Key 'foo' should be present in tbl-2")
+		s.Require().NoError(tx.Put("tbl-1", []byte("foo"), []byte("bar")))
+		s.Require().NoError(tx.Commit())
+	})
+
+	s.Run("exist", func() {
+		tx, err := db.CreateRoTx(ctx)
+		s.Require().NoError(err)
+		defer tx.Rollback()
+
+		has, err := tx.Exists("tbl-1", []byte("foo"))
+		s.Require().NoError(err)
+		s.True(has, "Key 'foo' should be present in tbl-1")
+
+		has, err = tx.Exists("tbl-2", []byte("foo"))
+		s.Require().NoError(err)
+		s.False(has, "Key 'foo' should be present in tbl-2")
+	})
 }
 
-func ValidateTablesName(t *suite.Suite, db DB) {
-	t.Require().NoError(db.Put("tbl", []byte("HelloWorld"), []byte("bar1")))
-	t.Require().NoError(db.Put("tblHello", []byte("World"), []byte("bar2")))
+func ValidateTablesName(s *suite.Suite, db DB) {
+	ctx := context.Background()
 
-	val1, err := db.Get("tbl", []byte("HelloWorld"))
-	t.Require().NoError(err)
-	t.Equal(*val1, []byte("bar1"))
+	s.Run("put", func() {
+		tx, err := db.CreateRwTx(ctx)
+		s.Require().NoError(err)
+		defer tx.Rollback()
 
-	val2, err := db.Get("tblHello", []byte("World"))
-	t.Require().NoError(err)
-	t.Equal(*val2, []byte("bar2"))
+		s.Require().NoError(tx.Put("tbl", []byte("HelloWorld"), []byte("bar1")))
+		s.Require().NoError(tx.Put("tblHello", []byte("World"), []byte("bar2")))
+		s.Require().NoError(tx.Commit())
+	})
+
+	s.Run("get", func() {
+		tx, err := db.CreateRoTx(ctx)
+		s.Require().NoError(err)
+		defer tx.Rollback()
+
+		val1, err := tx.Get("tbl", []byte("HelloWorld"))
+		s.Require().NoError(err)
+		s.Equal(*val1, []byte("bar1"))
+
+		val2, err := tx.Get("tblHello", []byte("World"))
+		s.Require().NoError(err)
+		s.Equal(*val2, []byte("bar2"))
+	})
 }
 
-func ValidateTransaction(t *suite.Suite, db DB) {
+func ValidateTransaction(s *suite.Suite, db DB) {
 	ctx := context.Background()
 	tx, err := db.CreateRwTx(ctx)
-	t.Require().NoError(err)
+	s.Require().NoError(err)
 	defer tx.Rollback()
 
 	tx2, err := db.CreateRwTx(ctx)
-	t.Require().NoError(err)
+	s.Require().NoError(err)
 	defer tx2.Rollback()
 
-	t.Require().NoError(tx.Put("tbl", []byte("foo"), []byte("bar")))
+	s.Require().NoError(tx.Put("tbl", []byte("foo"), []byte("bar")))
 
 	val, err := tx.Get("tbl", []byte("foo"))
-	t.Require().NoError(err)
-	t.Equal(*val, []byte("bar"))
+	s.Require().NoError(err)
+	s.Equal(*val, []byte("bar"))
 
 	_, err = tx.Get("tbl", []byte("bar"))
-	t.Require().ErrorIs(err, ErrKeyNotFound)
+	s.Require().ErrorIs(err, ErrKeyNotFound)
 
 	has, err := tx.Exists("tbl", []byte("foo"))
-	t.Require().NoError(err)
-	t.True(has, "Key 'foo' should be present")
+	s.Require().NoError(err)
+	s.True(has, "Key 'foo' should be present")
 	// Testing that parallel transactions don't see changes made by the first one
 
 	has, err = tx2.Exists("tbl", []byte("foo"))
-	t.Require().NoError(err)
-	t.False(has, "Key 'foo' should not be present")
+	s.Require().NoError(err)
+	s.False(has, "Key 'foo' should not be present")
 
 	tx2.Rollback()
-	t.Require().NoError(err)
+	s.Require().NoError(err)
 
 	err = tx.Commit()
-	t.Require().NoError(err)
+	s.Require().NoError(err)
 
 	// Testing deletion of rows
 
 	tx, err = db.CreateRwTx(ctx)
-	t.Require().NoError(err)
+	s.Require().NoError(err)
 	defer tx.Rollback()
 
 	has, err = tx.Exists("tbl", []byte("foo"))
 
-	t.Require().NoError(err)
-	t.True(has, "Key 'foo' should be present")
+	s.Require().NoError(err)
+	s.True(has, "Key 'foo' should be present")
 
 	err = tx.Delete("tbl", []byte("foo"))
-	t.Require().NoError(err)
+	s.Require().NoError(err)
 
 	has, err = tx.Exists("tbl", []byte("foo"))
-	t.Require().NoError(err)
-	t.False(has, "Key 'foo' should not be present")
+	s.Require().NoError(err)
+	s.False(has, "Key 'foo' should not be present")
 
 	err = tx.Commit()
-	t.Require().NoError(err)
+	s.Require().NoError(err)
 }
 
-func ValidateBlock(t *suite.Suite, d DB) {
+func ValidateBlock(s *suite.Suite, d DB) {
 	ctx := context.Background()
 
 	tx, err := d.CreateRwTx(ctx)
-	t.Require().NoError(err)
+	s.Require().NoError(err)
 
 	block := types.Block{
 		Id:                 1,
@@ -118,38 +154,67 @@ func ValidateBlock(t *suite.Suite, d DB) {
 	}
 
 	err = WriteBlock(tx, types.BaseShardId, &block)
-	t.Require().NoError(err)
+	s.Require().NoError(err)
 
 	block2 := ReadBlock(tx, types.BaseShardId, block.Hash())
 
-	t.Equal(block2.Id, block.Id)
-	t.Equal(block2.PrevBlock, block.PrevBlock)
-	t.Equal(block2.SmartContractsRoot, block.SmartContractsRoot)
+	s.Equal(block2.Id, block.Id)
+	s.Equal(block2.PrevBlock, block.PrevBlock)
+	s.Equal(block2.SmartContractsRoot, block.SmartContractsRoot)
 }
 
-func ValidateDbOperations(t *suite.Suite, d DB) {
-	t.Require().NoError(d.Put("tbl", []byte("foo"), []byte("bar")))
+func ValidateDbOperations(s *suite.Suite, d DB) {
+	ctx := context.Background()
 
-	val, err := d.Get("tbl", []byte("foo"))
-	t.Require().NoError(err)
-	t.Equal(*val, []byte("bar"))
+	s.Run("put", func() {
+		tx, err := d.CreateRwTx(ctx)
+		s.Require().NoError(err)
+		defer tx.Rollback()
 
-	_, err = d.Get("tbl", []byte("bar"))
-	t.Require().ErrorIs(err, ErrKeyNotFound)
+		s.Require().NoError(tx.Put("tbl", []byte("foo"), []byte("bar")))
+		s.Require().NoError(tx.Commit())
+	})
 
-	has, err := d.Exists("tbl", []byte("foo"))
-	t.Require().NoError(err)
-	t.True(has, "Key 'foo' should be present")
+	s.Run("get", func() {
+		roTx, err := d.CreateRoTx(ctx)
+		s.Require().NoError(err)
+		defer roTx.Rollback()
 
-	t.Require().NoError(d.Delete("tbl", []byte("foo")))
+		val, err := roTx.Get("tbl", []byte("foo"))
+		s.Require().NoError(err)
+		s.Equal(*val, []byte("bar"))
 
-	has, err = d.Exists("tbl", []byte("foo"))
-	t.Require().NoError(err)
-	t.False(has, "Key 'foo' should not be present")
+		_, err = roTx.Get("tbl", []byte("bar"))
+		s.Require().ErrorIs(err, ErrKeyNotFound)
+
+		has, err := roTx.Exists("tbl", []byte("foo"))
+		s.Require().NoError(err)
+		s.True(has, "Key 'foo' should be present")
+	})
+
+	s.Run("delete", func() {
+		tx, err := d.CreateRwTx(ctx)
+		s.Require().NoError(err)
+		defer tx.Rollback()
+
+		s.Require().NoError(tx.Delete("tbl", []byte("foo")))
+		s.Require().NoError(tx.Commit())
+	})
+
+	s.Run("non-existent", func() {
+		roTx, err := d.CreateRoTx(ctx)
+		s.Require().NoError(err)
+		defer roTx.Rollback()
+
+		has, err := roTx.Exists("tbl", []byte("foo"))
+		s.Require().NoError(err)
+		s.False(has, "Key 'foo' should not be present")
+	})
 }
 
 func (suite *SuiteBadgerDb) TestTwoParallelTransaction() {
 	ctx := context.Background()
+
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Suite.Require().NoError(err)
 	defer tx.Rollback()
@@ -171,7 +236,6 @@ func (suite *SuiteBadgerDb) TestTwoParallelTransaction() {
 
 	suite.Suite.Require().NoError(tx2.Put("tbl", []byte("foo2"), []byte("bar22")))
 	suite.Suite.Require().NoError(tx2.Commit())
-	suite.Suite.Require().NoError(tx1.Commit())
 }
 
 func (suite *SuiteBadgerDb) TestValidateTables() {
@@ -197,17 +261,23 @@ func (suite *SuiteBadgerDb) TestValidateDbOperations() {
 func (suite *SuiteBadgerDb) fillData(tbl string) {
 	suite.T().Helper()
 
+	tx, err := suite.db.CreateRwTx(suite.ctx)
+	suite.Require().NoError(err)
+	defer tx.Rollback()
+
 	t := TableName(tbl)
 	tg := TableName(tbl + "garbage")
 	// Insert some dupsorted records
-	suite.Require().NoError(suite.db.Put(t, []byte("key0"), []byte("value0.1")))
-	suite.Require().NoError(suite.db.Put(t, []byte("key1"), []byte("value1.1")))
-	suite.Require().NoError(suite.db.Put(t, []byte("key3"), []byte("value3.1")))
-	suite.Require().NoError(suite.db.Put(t, []byte("key4"), []byte("value4.1")))
-	suite.Require().NoError(suite.db.Put(tg, []byte("key0"), []byte("value0.3")))
-	suite.Require().NoError(suite.db.Put(tg, []byte("key2"), []byte("value1.3")))
-	suite.Require().NoError(suite.db.Put(tg, []byte("key3"), []byte("value2.3")))
-	suite.Require().NoError(suite.db.Put(tg, []byte("key4"), []byte("value4.3")))
+	suite.Require().NoError(tx.Put(t, []byte("key0"), []byte("value0.1")))
+	suite.Require().NoError(tx.Put(t, []byte("key1"), []byte("value1.1")))
+	suite.Require().NoError(tx.Put(t, []byte("key3"), []byte("value3.1")))
+	suite.Require().NoError(tx.Put(t, []byte("key4"), []byte("value4.1")))
+	suite.Require().NoError(tx.Put(tg, []byte("key0"), []byte("value0.3")))
+	suite.Require().NoError(tx.Put(tg, []byte("key2"), []byte("value1.3")))
+	suite.Require().NoError(tx.Put(tg, []byte("key3"), []byte("value2.3")))
+	suite.Require().NoError(tx.Put(tg, []byte("key4"), []byte("value4.3")))
+
+	suite.Require().NoError(tx.Commit())
 }
 
 func (suite *SuiteBadgerDb) TestRange() {
@@ -301,7 +371,6 @@ func (suite *SuiteBadgerDb) TestRange() {
 		suite.False(it.HasNext())
 
 		it.Close()
-		suite.Require().NoError(tx.Commit())
 	})
 	suite.Run("from-inf", func() {
 		suite.fillData("from-inf")
@@ -335,7 +404,6 @@ func (suite *SuiteBadgerDb) TestRange() {
 		suite.False(it.HasNext())
 
 		it.Close()
-		suite.Require().NoError(tx.Commit())
 	})
 	suite.Run("inf-to", func() {
 		suite.fillData("inf-to")
@@ -363,12 +431,11 @@ func (suite *SuiteBadgerDb) TestRange() {
 		suite.False(it.HasNext())
 
 		it.Close()
-		suite.Require().NoError(tx.Commit())
 	})
 }
 
-func TestSuiteBadgerDb(t *testing.T) {
-	t.Parallel()
+func TestSuiteBadgerDb(s *testing.T) {
+	s.Parallel()
 
-	suite.Run(t, new(SuiteBadgerDb))
+	suite.Run(s, new(SuiteBadgerDb))
 }

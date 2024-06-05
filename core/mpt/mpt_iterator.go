@@ -6,7 +6,7 @@ type MptIteratorKey struct {
 }
 
 // TODO: Fix leaked coroutine
-func (m *MerklePatriciaTrie) Iterate() chan MptIteratorKey {
+func (m *Reader) Iterate() chan MptIteratorKey {
 	out := make(chan MptIteratorKey)
 	go func() {
 		defer close(out)

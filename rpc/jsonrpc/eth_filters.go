@@ -17,7 +17,7 @@ type LogsAggregator struct {
 	blocksMap *SyncMap[filters.SubscriptionID, []*types.Block]
 }
 
-func NewLogsAggregator(ctx context.Context, db db.DB) *LogsAggregator {
+func NewLogsAggregator(ctx context.Context, db db.ReadOnlyDB) *LogsAggregator {
 	return &LogsAggregator{
 		filters:   filters.NewFiltersManager(ctx, db, false),
 		logsMap:   NewSyncMap[filters.SubscriptionID, []*filters.MetaLog](),

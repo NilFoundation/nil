@@ -22,7 +22,7 @@ func (m *MockMsgPool) Peek(context.Context, int, uint64) ([]*types.Message, erro
 	return m.Msgs, nil
 }
 
-func (m *MockMsgPool) OnNewBlock(context.Context, *types.Block, []*types.Message, db.Tx) error {
+func (m *MockMsgPool) OnNewBlock(context.Context, *types.Block, []*types.Message) error {
 	return nil
 }
 
@@ -79,7 +79,7 @@ func (s *CollatorTestSuite) checkReceipt(ctx context.Context, shardId types.Shar
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	es, err := execution.NewExecutionStateForShard(tx, shardId, common.NewTestTimer(0))
+	es, err := execution.NewROExecutionStateForShard(tx, shardId, common.NewTestTimer(0))
 	s.Require().NoError(err)
 
 	r, err := es.GetReceipt(0)

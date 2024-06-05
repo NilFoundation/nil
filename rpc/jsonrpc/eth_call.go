@@ -26,7 +26,7 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash trans
 		return nil, err
 	}
 
-	es, err := execution.NewExecutionState(tx, shardId, hash, timer)
+	es, err := execution.NewROExecutionState(tx, shardId, hash, timer)
 	if err != nil {
 		return nil, err
 	}

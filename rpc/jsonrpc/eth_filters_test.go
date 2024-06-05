@@ -101,7 +101,7 @@ func (s *SuiteEthFilters) TestLogs() {
 		},
 	}
 
-	receiptsMpt := execution.NewReceiptTrie(mpt.NewMerklePatriciaTrie(s.db, s.shardId, db.ReceiptTrieTable))
+	receiptsMpt := execution.NewReceiptTrie(mpt.NewMerklePatriciaTrie(tx, s.shardId, db.ReceiptTrieTable))
 	s.Require().NoError(receiptsMpt.Update(0, &types.Receipt{ContractAddress: address1, Logs: logsInput}))
 	s.Require().NoError(receiptsMpt.Update(1, &types.Receipt{ContractAddress: address2, Logs: logsInput2}))
 

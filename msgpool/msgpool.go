@@ -7,22 +7,21 @@ import (
 	"sync/atomic"
 
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/rs/zerolog"
 )
 
 type Pool interface {
 	Add(ctx context.Context, newTxs []*types.Message) ([]DiscardReason, error)
-	OnNewBlock(ctx context.Context, block *types.Block, committed []*types.Message, tx db.Tx) error
+	OnNewBlock(ctx context.Context, block *types.Block, committed []*types.Message) error
 	// IdHashKnown check whether transaction with given Id hash is known to the pool
-	IdHashKnown(tx db.Tx, hash common.Hash) (bool, error)
+	IdHashKnown(hash common.Hash) (bool, error)
 	Started() bool
 
 	Peek(ctx context.Context, n int, onTopOf uint64) ([]*types.Message, error)
 	SeqnoFromAddress(addr types.Address) (seqno uint64, inPool bool)
 	MessageCount() int
-	Get(tx db.Tx, hash common.Hash) (*types.Message, error)
+	Get(hash common.Hash) (*types.Message, error)
 }
 
 type MsgPool struct {
@@ -100,17 +99,17 @@ func (p *MsgPool) validateMsg(msg *types.Message) (DiscardReason, bool) {
 	return NotSet, true
 }
 
-func (p *MsgPool) idHashKnownLocked(_ db.Tx, hash common.Hash) (bool, error) {
+func (p *MsgPool) idHashKnownLocked(hash common.Hash) (bool, error) {
 	if _, ok := p.byHash[string(hash.Bytes())]; ok {
 		return true, nil
 	}
 	return false, nil
 }
 
-func (p *MsgPool) IdHashKnown(tx db.Tx, hash common.Hash) (bool, error) {
+func (p *MsgPool) IdHashKnown(hash common.Hash) (bool, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	return p.idHashKnownLocked(tx, hash)
+	return p.idHashKnownLocked(hash)
 }
 
 func (p *MsgPool) Started() bool {
@@ -123,13 +122,13 @@ func (p *MsgPool) SeqnoFromAddress(addr types.Address) (seqno uint64, inPool boo
 	return p.all.seqno(addr)
 }
 
-func (p *MsgPool) Get(tx db.Tx, hash common.Hash) (*types.Message, error) {
+func (p *MsgPool) Get(hash common.Hash) (*types.Message, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	return p.getLocked(tx, hash)
+	return p.getLocked(hash)
 }
 
-func (p *MsgPool) getLocked(_ db.Tx, hash common.Hash) (*types.Message, error) {
+func (p *MsgPool) getLocked(hash common.Hash) (*types.Message, error) {
 	msg, ok := p.byHash[string(hash.Bytes())]
 	if ok {
 		return msg, nil
@@ -178,7 +177,7 @@ func (p *MsgPool) discardLocked(msg *types.Message, reason DiscardReason) {
 	p.all.delete(msg, reason, p.logger)
 }
 
-func (p *MsgPool) OnNewBlock(ctx context.Context, block *types.Block, committed []*types.Message, tx db.Tx) (err error) {
+func (p *MsgPool) OnNewBlock(ctx context.Context, block *types.Block, committed []*types.Message) (err error) {
 	defer func() {
 		p.logger.Debug().
 			Int("committed", len(committed)).

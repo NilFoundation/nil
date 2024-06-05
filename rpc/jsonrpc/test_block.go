@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func writeTestBlock(t *testing.T, tx db.Tx, shardId types.ShardId, blockNumber types.BlockNumber, messages []*types.Message, receipts []*types.Receipt) common.Hash {
+func writeTestBlock(t *testing.T, tx db.RwTx, shardId types.ShardId, blockNumber types.BlockNumber, messages []*types.Message, receipts []*types.Receipt) common.Hash {
 	t.Helper()
 	block := types.Block{
 		Id:                  blockNumber,
@@ -26,7 +26,7 @@ func writeTestBlock(t *testing.T, tx db.Tx, shardId types.ShardId, blockNumber t
 	return block.Hash()
 }
 
-func writeMessages(t *testing.T, tx db.Tx, shardId types.ShardId, messages []*types.Message) *execution.MessageTrie {
+func writeMessages(t *testing.T, tx db.RwTx, shardId types.ShardId, messages []*types.Message) *execution.MessageTrie {
 	t.Helper()
 	messageRoot := execution.NewMessageTrie(mpt.NewMerklePatriciaTrie(tx, shardId, db.MessageTrieTable))
 	for i, message := range messages {
@@ -35,7 +35,7 @@ func writeMessages(t *testing.T, tx db.Tx, shardId types.ShardId, messages []*ty
 	return messageRoot
 }
 
-func writeReceipts(t *testing.T, tx db.Tx, shardId types.ShardId, receipts []*types.Receipt) *execution.ReceiptTrie {
+func writeReceipts(t *testing.T, tx db.RwTx, shardId types.ShardId, receipts []*types.Receipt) *execution.ReceiptTrie {
 	t.Helper()
 	receiptRoot := execution.NewReceiptTrie(mpt.NewMerklePatriciaTrie(tx, shardId, db.ReceiptTrieTable))
 	for i, receipt := range receipts {

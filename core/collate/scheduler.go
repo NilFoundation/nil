@@ -12,7 +12,7 @@ import (
 
 type MsgPool interface {
 	Peek(ctx context.Context, n int, onTopOf uint64) ([]*types.Message, error)
-	OnNewBlock(ctx context.Context, block *types.Block, committed []*types.Message, tx db.Tx) error
+	OnNewBlock(ctx context.Context, block *types.Block, committed []*types.Message) error
 }
 
 type Scheduler struct {

@@ -253,7 +253,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	s.NotNil(filters)
 	address := types.HexToAddress("0x1111111111")
 
-	receiptsMpt := mpt.NewMerklePatriciaTrie(s.db, 0, db.ReceiptTrieTable)
+	receiptsMpt := mpt.NewMerklePatriciaTrie(tx, 0, db.ReceiptTrieTable)
 
 	logsInput := []*types.Log{
 		{

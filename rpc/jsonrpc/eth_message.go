@@ -24,7 +24,6 @@ func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardI
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}
-
 	defer tx.Rollback()
 
 	msg, receipt, index, block, err := api.accessor.GetMessageWithEntitiesByHash(tx, shardId, hash)
@@ -146,7 +145,7 @@ func (api *APIImpl) getBlockAndMessageIndexByMessageHash(tx db.RoTx, shardId typ
 func getRawBlockEntity(
 	tx db.RoTx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash, entityKey []byte,
 ) ([]byte, error) {
-	root := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, tableName, rootHash)
+	root := mpt.NewReaderWithRoot(tx, shardId, tableName, rootHash)
 	entityBytes, err := root.Get(entityKey)
 	if err != nil {
 		return nil, err
@@ -161,7 +160,7 @@ func getBlockEntity[
 	},
 	S any,
 ](tx db.RoTx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash, entityKey []byte) (*S, error) {
-	root := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, tableName, rootHash)
+	root := mpt.NewReaderWithRoot(tx, shardId, tableName, rootHash)
 	return mpt.GetEntity[T](root, entityKey)
 }
 
