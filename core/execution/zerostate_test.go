@@ -29,9 +29,7 @@ func (suite *SuiteZeroState) SetupSuite() {
 	pub := crypto.CompressPubkey(&MainPrivateKey.PublicKey)
 	suite.faucetAddr = types.PubkeyBytesToAddress(types.BaseShardId, pub)
 
-	contractsPath, err := obtainContractsPath()
-	suite.Require().NoError(err)
-	contracts, err := solc.CompileSource(contractsPath)
+	contracts, err := obtainContracts()
 	suite.Require().NoError(err)
 	suite.faucetABI = solc.ExtractABI(contracts["Faucet"])
 }

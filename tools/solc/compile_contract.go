@@ -12,6 +12,28 @@ import (
 	"github.com/ethereum/go-ethereum/common/compiler"
 )
 
+func ParseCombinedJSON(json []byte) (map[string]*compiler.Contract, error) {
+	// Provide empty strings for the additional required arguments
+	contracts, err := compiler.ParseCombinedJSON(
+		json,
+		"", /* source */
+		"", /* langVersion */
+		"", /* compilerVersion */
+		"" /* compilerOpts */)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse solc output: %w", err)
+	}
+
+	res := make(map[string]*compiler.Contract)
+	for name, c := range contracts {
+		// extract contract name
+		contractName := name[strings.LastIndex(name, ":")+1:]
+		res[contractName] = c
+	}
+
+	return res, nil
+}
+
 func CompileSource(sourcePath string) (map[string]*compiler.Contract, error) {
 	solc, err := exec.LookPath("solc")
 	if err != nil {
@@ -28,20 +50,7 @@ func CompileSource(sourcePath string) (map[string]*compiler.Contract, error) {
 		return nil, fmt.Errorf("failed to execute `%s`: %w.\n%s", cmd, err, stderrBuf.String())
 	}
 
-	// Provide empty strings for the additional required arguments
-	contracts, err := compiler.ParseCombinedJSON(output, "" /*source*/, "" /*langVersion*/, "" /*compilerVersion*/, "" /*compilerOpts*/)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse solc output: %w", err)
-	}
-
-	res := make(map[string]*compiler.Contract)
-	for name, c := range contracts {
-		// extract contract name
-		parts := strings.Split(name, ":")
-		res[parts[len(parts)-1]] = c
-	}
-
-	return res, nil
+	return ParseCombinedJSON(output)
 }
 
 func ExtractABI(c *compiler.Contract) abi.ABI {
