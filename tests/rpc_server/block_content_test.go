@@ -13,18 +13,10 @@ func (suite *SuiteRpc) TestRpcBlockContent() {
 	key, err := crypto.GenerateKey()
 	suite.Require().NoError(err)
 
-	dm := &types.DeployMessage{
-		ShardId: types.BaseShardId,
-		Data:    hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
-	}
+	from := types.GenerateRandomAddress(types.BaseShardId)
+	code := hexutil.FromHex("6009600c60003960096000f3600054600101600055")
+	m := suite.createMessageForDeploy(from, 0, code, types.BaseShardId)
 
-	data, err := dm.MarshalSSZ()
-	suite.Require().NoError(err)
-
-	m := &types.Message{
-		From: types.GenerateRandomAddress(types.BaseShardId),
-		Data: data,
-	}
 	suite.Require().NoError(m.Sign(key))
 
 	suite.sendRawTransaction(m)

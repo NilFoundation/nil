@@ -50,7 +50,7 @@ func (s *SuiteEthCall) SetupSuite() {
 
 	s.from = types.GenerateRandomAddress(shardId)
 
-	dm := types.DeployMessage{
+	dm := &types.DeployMessage{
 		ShardId: shardId,
 		Code:    hexutil.FromHex(s.contracts["SimpleContract"].Code),
 	}
@@ -61,7 +61,7 @@ func (s *SuiteEthCall) SetupSuite() {
 	es.AddInMessage(m)
 
 	es.AddInMessage(m)
-	s.Require().NoError(es.HandleDeployMessage(m, &blockContext))
+	s.Require().NoError(es.HandleDeployMessage(m, dm, &blockContext))
 
 	blockHash, err := es.Commit(0)
 	s.Require().NoError(err)

@@ -76,7 +76,7 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 	addrTo := types.HexToAddress("1111832983856CB0CF6CD570F071122F1BEA2F20")
 	es.CreateAccount(addrTo)
 
-	msg := types.Message{
+	msg := &types.Message{
 		From:      types.EmptyAddress,
 		To:        addrTo,
 		Seqno:     0,
@@ -84,7 +84,7 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 	}
 
 	// "From" doesn't exist
-	ok, err := validateMessage(es, &msg)
+	ok, err := validateMessage(es, msg)
 	s.Require().NoError(err)
 	s.False(ok)
 	s.Require().Len(es.Receipts, 1)
@@ -92,7 +92,7 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 
 	// Invalid signature
 	msg.From = addrFrom
-	ok, err = validateMessage(es, &msg)
+	ok, err = validateMessage(es, msg)
 	s.Require().NoError(err)
 	s.False(ok)
 	s.Require().Len(es.Receipts, 2)
@@ -100,18 +100,61 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 
 	// Signed message - OK
 	s.Require().NoError(msg.Sign(key))
-	ok, err = validateMessage(es, &msg)
+	ok, err = validateMessage(es, msg)
 	s.Require().NoError(err)
 	s.True(ok)
 	s.Len(es.Receipts, 2)
 
 	// Gap in seqno
 	msg.Seqno = 100
-	ok, err = validateMessage(es, &msg)
+	ok, err = validateMessage(es, msg)
 	s.Require().NoError(err)
 	s.False(ok)
 	s.Require().Len(es.Receipts, 3)
 	s.False(es.Receipts[2].Success)
+}
+
+func (s *SuiteShardchainState) TestValidateDeployMessage() {
+	tx, err := s.db.CreateRwTx(context.Background())
+	s.Require().NoError(err)
+
+	es, err := execution.NewExecutionStateForShard(tx, types.BaseShardId, common.NewTestTimer(0))
+	s.Require().NoError(err)
+	s.Require().NotNil(es)
+
+	dmMaster := &types.DeployMessage{
+		ShardId: types.MasterShardId,
+		Seqno:   100500,
+	}
+	dataMaster, err := dmMaster.MarshalSSZ()
+	s.Require().NoError(err)
+
+	dmBase := &types.DeployMessage{
+		ShardId: types.BaseShardId,
+		Seqno:   100501,
+	}
+	dataBase, err := dmBase.MarshalSSZ()
+	s.Require().NoError(err)
+
+	msg := &types.Message{
+		Data: types.Code("invalid-ssz"),
+	}
+
+	// Invalid SSZ
+	dm := validateDeployMessage(es, msg)
+	s.Require().Nil(dm)
+
+	// Deploy to master shard
+	msg.Data = dataMaster
+	dm = validateDeployMessage(es, msg)
+	s.Require().Nil(dm)
+
+	// Deploy to base shard
+	msg.Data = dataBase
+	dm = validateDeployMessage(es, msg)
+	s.Require().NotNil(dm)
+	s.Equal(dmBase.Seqno, dm.Seqno)
+	s.Equal(dmBase.ShardId, dm.ShardId)
 }
 
 func TestSuiteShardchainState(t *testing.T) {

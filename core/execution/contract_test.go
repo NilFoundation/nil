@@ -26,7 +26,7 @@ func deployContract(contract *compiler.Contract, state *ExecutionState, blockCon
 	}
 	addr := types.CreateAddress(state.ShardId, message.From, message.Seqno)
 
-	return addr, state.HandleDeployMessage(message, blockContext)
+	return addr, state.HandleDeployMessage(message, dm, blockContext)
 }
 
 func TestCall(t *testing.T) {

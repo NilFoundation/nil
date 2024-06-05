@@ -27,7 +27,12 @@ func HandleMessages(ctx context.Context, es *execution.ExecutionState, msgs []*t
 
 		// Deploy message
 		if message.To.IsEmpty() {
-			if err := es.HandleDeployMessage(message, &blockContext); err != nil && !errors.As(err, new(vm.VMError)) {
+			deployMsg := validateDeployMessage(es, message)
+			if deployMsg == nil {
+				continue
+			}
+
+			if err := es.HandleDeployMessage(message, deployMsg, &blockContext); err != nil && !errors.As(err, new(vm.VMError)) {
 				return err
 			}
 		} else {
@@ -38,6 +43,29 @@ func HandleMessages(ctx context.Context, es *execution.ExecutionState, msgs []*t
 	}
 
 	return nil
+}
+
+func validateDeployMessage(es *execution.ExecutionState, message *types.Message) *types.DeployMessage {
+	r := &types.Receipt{
+		Success: false,
+		GasUsed: 0,
+		MsgHash: es.InMessageHash,
+	}
+
+	deployMsg, err := types.NewDeployMessage(message.Data)
+	if err != nil {
+		es.AddReceipt(r)
+		sharedLogger.Debug().Err(err).Stringer("hash", es.InMessageHash).Msg("Invalid deploy message")
+		return nil
+	}
+
+	if types.IsMasterShard(deployMsg.ShardId) {
+		es.AddReceipt(r)
+		sharedLogger.Debug().Stringer("hash", es.InMessageHash).Msg("Attempt to deploy to master shard")
+		return nil
+	}
+
+	return deployMsg
 }
 
 func validateMessage(es *execution.ExecutionState, message *types.Message) (bool, error) {

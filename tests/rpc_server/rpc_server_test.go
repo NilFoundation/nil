@@ -100,7 +100,7 @@ func (suite *SuiteRpc) getTransactionCount(addr types.Address, blk string) uint6
 	return res
 }
 
-func (suite *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, addr types.Address, msg *types.Message) {
+func (suite *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, msg *types.Message) *jsonrpc.RPCReceipt {
 	suite.T().Helper()
 
 	request := NewRequest(getInMessageReceipt, shardId, msg.Hash())
@@ -114,43 +114,30 @@ func (suite *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, addr types.A
 		return respReceipt.Result != nil
 	}, 6*time.Hour, 200*time.Millisecond)
 
-	suite.True(respReceipt.Result.Success)
-	suite.Equal(types.MessageIndex(0), respReceipt.Result.MsgIndex) // now in all test cases it's the first msg in block
+	suite.Equal(types.MessageIndex(0), respReceipt.Result.MsgIndex) // now in all test cases it's first msg in block
 	suite.Equal(msg.Hash(), respReceipt.Result.MsgHash)
-	suite.Equal(addr, respReceipt.Result.ContractAddress)
+	return respReceipt.Result
 }
 
 func (suite *SuiteRpc) waitForReceipt(addr types.Address, msg *types.Message) {
 	suite.T().Helper()
-	suite.waitForReceiptOnShard(types.BaseShardId, addr, msg)
+	res := suite.waitForReceiptOnShard(types.BaseShardId, msg)
+	suite.Equal(addr, res.ContractAddress)
 }
 
-func (suite *SuiteRpc) deployContract(from types.Address, code types.Code, seqno uint64) types.Address {
+func (suite *SuiteRpc) sendDeployMessage(from types.Address, code types.Code, seqno uint64) *jsonrpc.RPCReceipt {
 	suite.T().Helper()
 
 	shardId := from.ShardId()
 
-	dm := &types.DeployMessage{
-		ShardId: from.ShardId(),
-		Code:    code,
-	}
-	data, err := dm.MarshalSSZ()
-	suite.Require().NoError(err)
-
-	msg := &types.Message{
-		Seqno: seqno,
-		Data:  data,
-		From:  from,
-	}
+	msg := suite.createMessageForDeploy(from, seqno, code, shardId)
 	suite.Require().NoError(msg.Sign(execution.MainPrivateKey))
 
 	// create contract
 	suite.sendRawTransaction(msg)
 
 	// wait for receipt
-	addr := types.CreateAddress(shardId, msg.From, msg.Seqno)
-	suite.waitForReceiptOnShard(shardId, addr, msg)
-	return addr
+	return suite.waitForReceiptOnShard(shardId, msg)
 }
 
 func (suite *SuiteRpc) TestRpcBasic() {
@@ -189,6 +176,26 @@ func (suite *SuiteRpc) TestRpcBasic() {
 	suite.Require().Nil(res)
 }
 
+func (suite *SuiteRpc) createMessageForDeploy(
+	from types.Address, seqno uint64, code types.Code, toShard types.ShardId,
+) *types.Message {
+	suite.T().Helper()
+
+	dm := &types.DeployMessage{
+		ShardId: toShard,
+		Code:    code,
+	}
+	data, err := dm.MarshalSSZ()
+	suite.Require().NoError(err)
+
+	m := &types.Message{
+		Seqno: seqno,
+		Data:  data,
+		From:  from,
+	}
+	return m
+}
+
 func (suite *SuiteRpc) TestRpcContract() {
 	pub := crypto.CompressPubkey(&execution.MainPrivateKey.PublicKey)
 	from := types.PubkeyBytesToAddress(types.BaseShardId, pub)
@@ -199,18 +206,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 	suite.Require().NoError(err)
 	contractCode := hexutil.FromHex(contracts["Incrementer"].Code)
 
-	dm := &types.DeployMessage{
-		ShardId: types.BaseShardId,
-		Code:    contractCode,
-	}
-	data, err := dm.MarshalSSZ()
-	suite.Require().NoError(err)
-
-	m := &types.Message{
-		Seqno: seqno,
-		Data:  data,
-		From:  from,
-	}
+	m := suite.createMessageForDeploy(from, seqno, contractCode, types.BaseShardId)
 	suite.Require().NoError(m.Sign(execution.MainPrivateKey))
 
 	// create contract
@@ -244,6 +240,16 @@ func (suite *SuiteRpc) TestRpcContract() {
 	suite.waitForReceipt(addr, m)
 }
 
+func (suite *SuiteRpc) TestRpcDeployToMainShard() {
+	pub := crypto.CompressPubkey(&execution.MainPrivateKey.PublicKey)
+	from := types.PubkeyBytesToAddress(types.MasterShardId, pub)
+
+	seqno := suite.getTransactionCount(from, "latest")
+	code := hexutil.FromHex("6009600c60003960096000f3600054600101600055")
+	receipt := suite.sendDeployMessage(from, code, seqno)
+	suite.False(receipt.Success)
+}
+
 func (suite *SuiteRpc) TestRpcContractSendMessage() {
 	pub := crypto.CompressPubkey(&execution.MainPrivateKey.PublicKey)
 	from := types.PubkeyBytesToAddress(types.BaseShardId, pub)
@@ -256,7 +262,11 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 
 	// Deploy contract on neighbour shard
 	code := hexutil.FromHex("6009600c60003960096000f3600054600101600055")
-	nbAddr := suite.deployContract(nbFrom, code, nbSeqno)
+	receipt := suite.sendDeployMessage(nbFrom, code, nbSeqno)
+
+	addr := types.CreateAddress(nbFrom.ShardId(), nbFrom, nbSeqno)
+	suite.Equal(addr, receipt.ContractAddress)
+	nbAddr := receipt.ContractAddress
 
 	// Create internal message to the neighbouring shard
 	mSend := &types.Message{
@@ -284,7 +294,8 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 	suite.waitForReceipt(sendMessageAddr, m)
 
 	// This message is handled as an outgoing one, it is received by the neighbour shard
-	suite.waitForReceiptOnShard(nbShardId, nbAddr, mSend)
+	res := suite.waitForReceiptOnShard(nbShardId, mSend)
+	suite.Equal(nbAddr, res.ContractAddress)
 }
 
 func (suite *SuiteRpc) TestRpcApiModules() {
