@@ -8,7 +8,6 @@ import (
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
-	"github.com/NilFoundation/nil/core/shardchain"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/suite"
 )
@@ -45,7 +44,6 @@ func (s *CollatorTestSuite) TearDownTest() {
 func (s *CollatorTestSuite) TestCollator() {
 	ctx := context.Background()
 	shardId := types.ShardId(1)
-	shard := shardchain.NewShardChain(shardId, s.db)
 
 	m := &types.Message{
 		From: types.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20"),
@@ -53,16 +51,14 @@ func (s *CollatorTestSuite) TestCollator() {
 	}
 	pool := &MockMsgPool{Msgs: []*types.Message{m}}
 
-	c := newCollator(shard, pool, shardId, 2, common.NewLogger("collator"), new(TrivialShardTopology))
+	c := newCollator(shardId, 2, new(TrivialShardTopology), pool, common.NewLogger("collator"))
 
 	s.Run("zero-state", func() {
-		err := c.GenerateBlock(ctx)
-		s.Require().NoError(err)
+		s.Require().NoError(c.GenerateBlock(ctx, s.db))
 	})
 
 	s.Run("deploy-message", func() {
-		err := c.GenerateBlock(ctx)
-		s.Require().NoError(err)
+		s.Require().NoError(c.GenerateBlock(ctx, s.db))
 
 		s.checkReceipt(ctx, shardId, m)
 	})
@@ -70,8 +66,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	s.Run("call-message", func() {
 		m.To = types.CreateAddress(shardId, m.From, m.Seqno)
 
-		err := c.GenerateBlock(ctx)
-		s.Require().NoError(err)
+		s.Require().NoError(c.GenerateBlock(ctx, s.db))
 
 		s.checkReceipt(ctx, shardId, m)
 	})

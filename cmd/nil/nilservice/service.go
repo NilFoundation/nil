@@ -8,7 +8,6 @@ import (
 	"github.com/NilFoundation/nil/common/concurrent"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
-	"github.com/NilFoundation/nil/core/shardchain"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc"
@@ -80,8 +79,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent
 	msgPools := make([]msgpool.Pool, cfg.NShards)
 	for i := range cfg.NShards {
 		msgPool := msgpool.New(msgpool.DefaultConfig)
-		shard := shardchain.NewShardChain(types.ShardId(i), database)
-		collator := collate.NewScheduler(shard, msgPool, types.ShardId(i), cfg.NShards, collate.GetShardTopologyById(cfg.Topology))
+		collator := collate.NewScheduler(database, msgPool, types.ShardId(i), cfg.NShards, collate.GetShardTopologyById(cfg.Topology))
 		funcs = append(funcs, func(ctx context.Context) error {
 			return collator.Run(ctx)
 		})

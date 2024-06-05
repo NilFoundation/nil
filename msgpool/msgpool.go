@@ -13,7 +13,7 @@ import (
 )
 
 type Pool interface {
-	Add(ctx context.Context, newTxs []*types.Message, tx db.Tx) ([]DiscardReason, error)
+	Add(ctx context.Context, newTxs []*types.Message) ([]DiscardReason, error)
 	OnNewBlock(ctx context.Context, block *types.Block, committed []*types.Message, tx db.Tx) error
 	// IdHashKnown check whether transaction with given Id hash is known to the pool
 	IdHashKnown(tx db.Tx, hash common.Hash) (bool, error)
@@ -56,7 +56,7 @@ func New(cfg Config) *MsgPool {
 	}
 }
 
-func (p *MsgPool) Add(ctx context.Context, msgs []*types.Message, tx db.Tx) ([]DiscardReason, error) {
+func (p *MsgPool) Add(ctx context.Context, msgs []*types.Message) ([]DiscardReason, error) {
 	discardReasons := make([]DiscardReason, len(msgs))
 
 	p.lock.Lock()

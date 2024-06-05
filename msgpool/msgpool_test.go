@@ -57,48 +57,48 @@ func (suite *SuiteMsgPool) TestAdd() {
 	msg1 := newMessage(address, 0, 123)
 
 	// Send message for the first time - OK
-	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg1}, tx)
+	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg1})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 	suite.Equal(1, suite.pool.MessageCount())
 
 	// Send message once again - Duplicate hash
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg1}, tx)
+	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg1})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{DuplicateHash}, reasons)
 	suite.Equal(1, suite.pool.MessageCount())
 
 	// Try to replace message but with lower fee - NotReplaced
 	msg2 := newMessage(address, 0, 122)
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg2}, tx)
+	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg2})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotReplaced}, reasons)
 	suite.Equal(1, suite.pool.MessageCount())
 
 	// Try to replace message but with higher fee - OK
 	msg3 := newMessage(address, 0, 124)
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg3}, tx)
+	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg3})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 	suite.Equal(1, suite.pool.MessageCount())
 
 	// Add a message with higher seqno from the same sender
 	msg4 := newMessage(address, 1, 124)
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg4}, tx)
+	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg4})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 	suite.Equal(2, suite.pool.MessageCount())
 
 	// Add a message with lower seqno from the same sender - SeqnoTooLow
 	msg5 := newMessage(address, 0, 124)
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg5}, tx)
+	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg5})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{SeqnoTooLow}, reasons)
 	suite.Equal(2, suite.pool.MessageCount())
 
 	// Add a message with higher seqno from new sender
 	msg6 := newMessage(types.HexToAddress("deadbeef2"), 1, 124)
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg6}, tx)
+	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg6})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 	suite.Equal(3, suite.pool.MessageCount())
@@ -119,12 +119,12 @@ func (suite *SuiteMsgPool) TestAddOverflow() {
 	suite.Require().NotEqual(types.Address{}, address)
 
 	msg1 := newMessage(address, 0, 123)
-	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg1}, tx)
+	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg1})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 
 	msg2 := newMessage(address, 1, 123)
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg2}, tx)
+	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg2})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{PoolOverflow}, reasons)
 
@@ -146,7 +146,7 @@ func (suite *SuiteMsgPool) TestIdHashKnownGet() {
 	suite.Require().NotEqual(types.Address{}, address)
 
 	msg := newMessage(address, 0, 123)
-	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg}, tx)
+	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 
@@ -184,7 +184,7 @@ func (suite *SuiteMsgPool) TestSeqnoFromAddress() {
 	suite.Require().False(inPool)
 
 	msg := newMessage(address, 0, 123)
-	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg}, tx)
+	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 
@@ -193,7 +193,7 @@ func (suite *SuiteMsgPool) TestSeqnoFromAddress() {
 	suite.Require().Equal(uint64(0), seqno)
 
 	msg.Seqno++
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg}, tx)
+	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 
@@ -223,7 +223,7 @@ func (suite *SuiteMsgPool) TestPeek() {
 	msg2_1 := newMessage(address2, 0, 123)
 	msg2_2 := newMessage(address2, 1, 123)
 
-	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg1_1, &msg1_2, &msg2_1, &msg2_2}, tx)
+	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg1_1, &msg1_2, &msg2_1, &msg2_2})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet, NotSet, NotSet, NotSet}, reasons)
 	suite.Equal(4, suite.pool.MessageCount())
@@ -261,7 +261,7 @@ func (suite *SuiteMsgPool) TestOnNewBlock() {
 	msg2_1 := newMessage(address2, 0, 123)
 	msg2_2 := newMessage(address2, 1, 123)
 
-	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg1_1, &msg1_2, &msg2_1, &msg2_2}, tx)
+	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg1_1, &msg1_2, &msg2_1, &msg2_2})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet, NotSet, NotSet, NotSet}, reasons)
 	suite.Equal(4, suite.pool.MessageCount())

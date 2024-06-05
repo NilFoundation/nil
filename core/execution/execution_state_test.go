@@ -32,7 +32,8 @@ func (s *SuiteExecutionState) TearDownTest() {
 }
 
 func (suite *SuiteExecutionState) TestExecState() {
-	tx, err := suite.db.CreateRwTx(context.Background())
+	ctx := context.Background()
+	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
@@ -71,7 +72,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 			To:       types.DeployMsgToAddress(deploy, from),
 		}
 		es.AddInMessage(msg)
-		suite.Require().NoError(es.HandleDeployMessage(msg, deploy, &blockContext))
+		suite.Require().NoError(es.HandleDeployMessage(ctx, msg, deploy, &blockContext))
 	}
 
 	blockHash, err := es.Commit(0)

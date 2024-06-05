@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"context"
 	"math/big"
 	"testing"
 
@@ -17,6 +18,8 @@ import (
 type SuiteZeroState struct {
 	suite.Suite
 
+	ctx context.Context
+
 	faucetAddr types.Address
 	faucetABI  abi.ABI
 
@@ -26,6 +29,8 @@ type SuiteZeroState struct {
 }
 
 func (suite *SuiteZeroState) SetupSuite() {
+	suite.ctx = context.Background()
+
 	pub := crypto.CompressPubkey(&MainPrivateKey.PublicKey)
 	suite.faucetAddr = types.PubkeyBytesToAddress(types.BaseShardId, pub)
 
@@ -61,8 +66,7 @@ func (suite *SuiteZeroState) TestFaucetBalance() {
 
 func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 	receiverContract := suite.contracts["SimpleContract"]
-	receiverAddr, err := deployContract(receiverContract, suite.state, &suite.blockContext, 2)
-	suite.Require().NoError(err)
+	receiverAddr := deployContract(suite.T(), receiverContract, suite.state, &suite.blockContext, 2)
 
 	calldata, err := suite.faucetABI.Pack("withdrawTo", receiverAddr, big.NewInt(100))
 	suite.Require().NoError(err)
@@ -72,7 +76,7 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 		To:       suite.faucetAddr,
 		GasLimit: *types.NewUint256(10000),
 	}
-	_, err = suite.state.HandleExecutionMessage(callMessage, &suite.blockContext)
+	_, err = suite.state.HandleExecutionMessage(suite.ctx, callMessage, &suite.blockContext)
 	suite.Require().NoError(err)
 
 	suite.Require().EqualValues(*uint256.NewInt(1000000000000 - 100), suite.getBalance(suite.faucetAddr))
