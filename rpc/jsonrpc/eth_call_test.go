@@ -45,7 +45,7 @@ func (s *SuiteEthCall) SetupSuite() {
 
 	blockContext := execution.NewEVMBlockContext(es)
 
-	s.contracts, err = solc.CompileSource("../../core/execution/testdata/contracts.sol")
+	s.contracts, err = solc.CompileSource("../../core/execution/testdata/call.sol")
 	s.Require().NoError(err)
 
 	s.from = types.GenerateRandomAddress(shardId)

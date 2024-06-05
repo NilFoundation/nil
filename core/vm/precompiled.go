@@ -34,8 +34,11 @@ import (
 // requires a deterministic gas count based on the input size of the Run method of the
 // contract.
 type PrecompiledContract interface {
-	RequiredGas(input []byte) uint64                                                                     // RequiredPrice calculates the contract gas use
-	Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef) ([]byte, error) // Run runs the precompiled contract
+	// RequiredPrice calculates the contract gas use
+	RequiredGas(input []byte) uint64
+
+	// Run runs the precompiled contract
+	Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, _ bool) ([]byte, error)
 }
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -69,7 +72,7 @@ func ActivePrecompiles() []types.Address {
 // - the _remaining_ gas,
 // - any error that occurred
 func RunPrecompiledContract(p PrecompiledContract, state StateDB, input []byte, suppliedGas uint64,
-	logger *tracing.Hooks, gas uint64, value *uint256.Int, caller ContractRef,
+	logger *tracing.Hooks, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool,
 ) (ret []byte, remainingGas uint64, err error) {
 	gasCost := p.RequiredGas(input)
 	if suppliedGas < gasCost {
@@ -79,7 +82,7 @@ func RunPrecompiledContract(p PrecompiledContract, state StateDB, input []byte, 
 		logger.OnGasChange(suppliedGas, suppliedGas-gasCost, tracing.GasChangeCallPrecompiledContract)
 	}
 	suppliedGas -= gasCost
-	output, err := p.Run(state, input, gas, value, caller)
+	output, err := p.Run(state, input, gas, value, caller, readOnly)
 	return output, suppliedGas, err
 }
 
@@ -94,7 +97,7 @@ func (c *sha256hash) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.Sha256PerWordGas + params.Sha256BaseGas
 }
 
-func (c *sha256hash) Run(_ StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef) ([]byte, error) {
+func (c *sha256hash) Run(_ StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, _ bool) ([]byte, error) {
 	h := sha256.Sum256(input)
 	return h[:], nil
 }
@@ -110,7 +113,7 @@ func (c *dataCopy) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.IdentityPerWordGas + params.IdentityBaseGas
 }
 
-func (c *dataCopy) Run(_ StateDB, in []byte, gas uint64, value *uint256.Int, caller ContractRef) ([]byte, error) {
+func (c *dataCopy) Run(_ StateDB, in []byte, gas uint64, value *uint256.Int, caller ContractRef, _ bool) ([]byte, error) {
 	return slices.Clone(in), nil
 }
 
@@ -235,7 +238,7 @@ func (c *bigModExp) RequiredGas(input []byte) uint64 {
 	return gas.Uint64()
 }
 
-func (c *bigModExp) Run(_ StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef) ([]byte, error) {
+func (c *bigModExp) Run(_ StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, _ bool) ([]byte, error) {
 	var (
 		baseLen = new(big.Int).SetBytes(getData(input, 0, 32)).Uint64()
 		expLen  = new(big.Int).SetBytes(getData(input, 32, 32)).Uint64()
@@ -277,7 +280,10 @@ func (c *sendRawMessage) RequiredGas([]byte) uint64 {
 	return 0
 }
 
-func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef) ([]byte, error) {
+func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+	if readOnly {
+		return nil, ErrWriteProtection
+	}
 	msg := new(types.Message)
 	if err := msg.UnmarshalSSZ(input); err != nil {
 		return nil, err
@@ -296,7 +302,10 @@ func (c *sendMessage) RequiredGas([]byte) uint64 {
 	return 0
 }
 
-func (c *sendMessage) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef) ([]byte, error) {
+func (c *sendMessage) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+	if readOnly {
+		return nil, ErrWriteProtection
+	}
 	var dst types.Address
 	copy(dst[:], input[32-types.AddrSize:32])
 	input = input[32:]

@@ -751,7 +751,7 @@ func opRevert(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]b
 }
 
 func opUndefined(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
-	return nil, &InvalidOpCodeError{opcode: OpCode(scope.Contract.Code[*pc])}
+	return nil, InvalidOpCodeError(OpCode(scope.Contract.Code[*pc]))
 }
 
 func opStop(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {

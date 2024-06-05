@@ -141,10 +141,10 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 				return
 			}
 			if !logged && in.evm.Config.Tracer.OnOpcode != nil {
-				in.evm.Config.Tracer.OnOpcode(pcCopy, byte(op), gasCopy, cost, callContext, in.returnData, in.evm.depth, VMErrorFromErr(err))
+				in.evm.Config.Tracer.OnOpcode(pcCopy, byte(op), gasCopy, cost, callContext, in.returnData, in.evm.depth, err)
 			}
 			if logged && in.evm.Config.Tracer.OnFault != nil {
-				in.evm.Config.Tracer.OnFault(pcCopy, byte(op), gasCopy, cost, callContext, in.evm.depth, VMErrorFromErr(err))
+				in.evm.Config.Tracer.OnFault(pcCopy, byte(op), gasCopy, cost, callContext, in.evm.depth, err)
 			}
 		}()
 	}
@@ -165,9 +165,9 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 
 		// Validate stack
 		if sLen := stack.len(); sLen < operation.minStack {
-			return nil, &StackUnderflowError{stackLen: sLen, required: operation.minStack, op: op}
+			return nil, StackUnderflowError(sLen, operation.minStack, op)
 		} else if sLen > operation.maxStack {
-			return nil, &StackOverflowError{stackLen: sLen, limit: operation.maxStack, op: op}
+			return nil, StackOverflowError(sLen, operation.maxStack, op)
 		}
 		if !contract.UseGas(cost, in.evm.Config.Tracer, tracing.GasChangeIgnored) {
 			return nil, ErrOutOfGas
@@ -191,7 +191,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 				in.evm.Config.Tracer.OnGasChange(gasCopy, gasCopy-cost, tracing.GasChangeCallOpCode)
 			}
 			if in.evm.Config.Tracer.OnOpcode != nil {
-				in.evm.Config.Tracer.OnOpcode(pc, byte(op), gasCopy, cost, callContext, in.returnData, in.evm.depth, VMErrorFromErr(err))
+				in.evm.Config.Tracer.OnOpcode(pc, byte(op), gasCopy, cost, callContext, in.returnData, in.evm.depth, err)
 				logged = true
 			}
 		}

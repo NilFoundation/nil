@@ -33,7 +33,7 @@ func TestCall(t *testing.T) {
 	t.Parallel()
 	state := newState(t)
 
-	contracts, err := solc.CompileSource("./testdata/contracts.sol")
+	contracts, err := solc.CompileSource("./testdata/call.sol")
 	require.NoError(t, err)
 
 	blockContext := NewEVMBlockContext(state)
@@ -82,7 +82,7 @@ func TestCall(t *testing.T) {
 		To:   callerAddr,
 	}
 	_, err = state.HandleExecutionMessage(callMessage2, &blockContext)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, vm.ErrExecutionReverted)
 
 	// check that did not change the state of SimpleContract
 	ret, err = state.HandleExecutionMessage(callMessage, &blockContext)
@@ -128,6 +128,16 @@ func TestDelegate(t *testing.T) {
 	require.NoError(t, err)
 	// check that it returned 42
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2a"), 32), ret)
+
+	// call ProxyContract.setValueStatic(delegateAddr, 42)
+	calldata, err = solc.ExtractABI(proxyContract).Pack("setValueStatic", delegateAddr, big.NewInt(42))
+	require.NoError(t, err)
+	callMessage = &types.Message{
+		Data: calldata,
+		To:   proxyAddr,
+	}
+	_, err = state.HandleExecutionMessage(callMessage, &blockContext)
+	require.ErrorAs(t, err, new(vm.VMError))
 }
 
 func TestAsyncCall(t *testing.T) {

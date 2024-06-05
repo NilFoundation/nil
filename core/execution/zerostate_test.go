@@ -41,7 +41,7 @@ func (suite *SuiteZeroState) SetupTest() {
 	suite.blockContext = NewEVMBlockContext(suite.state)
 
 	var err error
-	suite.contracts, err = solc.CompileSource("./testdata/contracts.sol")
+	suite.contracts, err = solc.CompileSource("./testdata/call.sol")
 	suite.Require().NoError(err)
 }
 

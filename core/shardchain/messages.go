@@ -2,9 +2,11 @@ package shardchain
 
 import (
 	"context"
+	"errors"
 
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/core/vm"
 	"github.com/NilFoundation/nil/features"
 )
 
@@ -25,11 +27,11 @@ func HandleMessages(ctx context.Context, es *execution.ExecutionState, msgs []*t
 
 		// Deploy message
 		if message.To.IsEmpty() {
-			if err := es.HandleDeployMessage(message, &blockContext); err != nil {
+			if err := es.HandleDeployMessage(message, &blockContext); err != nil && !errors.As(err, new(vm.VMError)) {
 				return err
 			}
 		} else {
-			if _, err := es.HandleExecutionMessage(message, &blockContext); err != nil {
+			if _, err := es.HandleExecutionMessage(message, &blockContext); err != nil && !errors.Is(err, new(vm.VMError)) {
 				return err
 			}
 		}

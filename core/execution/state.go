@@ -727,7 +727,7 @@ func (es *ExecutionState) HandleDeployMessage(message *types.Message, blockConte
 		event.Msg("Created new contract")
 	}
 
-	return nil
+	return err
 }
 
 func (es *ExecutionState) HandleExecutionMessage(message *types.Message, blockContext *vm.BlockContext) ([]byte, error) {
@@ -762,7 +762,7 @@ func (es *ExecutionState) HandleExecutionMessage(message *types.Message, blockCo
 		ContractAddress: addr,
 	}
 	es.AddReceipt(&r)
-	return ret, nil
+	return ret, err
 }
 
 func (es *ExecutionState) AddReceipt(receipt *types.Receipt) {

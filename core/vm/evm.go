@@ -107,6 +107,8 @@ func (evm *EVM) Interpreter() *EVMInterpreter {
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
 func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas uint64, value *uint256.Int) (ret []byte, leftOverGas uint64, err error) {
+	const readOnly = false
+
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
@@ -128,7 +130,7 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 	transfer(evm.StateDB, caller.Address(), addr, value)
 
 	if isPrecompile {
-		ret, gas, err = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, gas, value, caller)
+		ret, gas, err = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, gas, value, caller, readOnly)
 	} else {
 		// Initialise a new contract and set the code that is to be used by the EVM.
 		// The contract is a scoped environment for this execution context only.
@@ -141,7 +143,7 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 			// The depth-check is already done, and precompiles handled above
 			contract := NewContract(caller, AccountRef(addrCopy), value, gas)
 			contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), code)
-			ret, err = evm.interpreter.Run(contract, input, false)
+			ret, err = evm.interpreter.Run(contract, input, readOnly)
 			gas = contract.Gas
 		}
 	}
@@ -172,6 +174,8 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 // CallCode differs from Call in the sense that it executes the given address'
 // code with the caller as context.
 func (evm *EVM) CallCode(caller ContractRef, addr types.Address, input []byte, gas uint64, value *uint256.Int) (ret []byte, leftOverGas uint64, err error) {
+	const readOnly = false
+
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
@@ -187,14 +191,14 @@ func (evm *EVM) CallCode(caller ContractRef, addr types.Address, input []byte, g
 
 	// It is allowed to call precompiles, even via delegatecall
 	if p, isPrecompile := evm.precompile(addr); isPrecompile {
-		ret, gas, err = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, gas, value, caller)
+		ret, gas, err = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, gas, value, caller, readOnly)
 	} else {
 		addrCopy := addr
 		// Initialise a new contract and set the code that is to be used by the EVM.
 		// The contract is a scoped environment for this execution context only.
 		contract := NewContract(caller, AccountRef(caller.Address()), value, gas)
 		contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), evm.StateDB.GetCode(addrCopy))
-		ret, err = evm.interpreter.Run(contract, input, false)
+		ret, err = evm.interpreter.Run(contract, input, readOnly)
 		gas = contract.Gas
 	}
 	if err != nil {
@@ -216,6 +220,8 @@ func (evm *EVM) CallCode(caller ContractRef, addr types.Address, input []byte, g
 // DelegateCall differs from CallCode in the sense that it executes the given address'
 // code with the caller as context and the caller is set to the caller of the caller.
 func (evm *EVM) DelegateCall(caller ContractRef, addr types.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
+	const readOnly = false
+
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
@@ -224,13 +230,13 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr types.Address, input []byt
 
 	// It is allowed to call precompiles, even via delegatecall
 	if p, isPrecompile := evm.precompile(addr); isPrecompile {
-		ret, gas, err = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, gas, nil, caller)
+		ret, gas, err = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, gas, nil, caller, readOnly)
 	} else {
 		addrCopy := addr
 		// Initialise a new contract and make initialise the delegate values
 		contract := NewContract(caller, AccountRef(caller.Address()), nil, gas).AsDelegate()
 		contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), evm.StateDB.GetCode(addrCopy))
-		ret, err = evm.interpreter.Run(contract, input, false)
+		ret, err = evm.interpreter.Run(contract, input, readOnly)
 		gas = contract.Gas
 	}
 	if err != nil {
@@ -250,6 +256,8 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr types.Address, input []byt
 // Opcodes that attempt to perform such modifications will result in exceptions
 // instead of performing the modifications.
 func (evm *EVM) StaticCall(caller ContractRef, addr types.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
+	const readOnly = true
+
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
@@ -268,7 +276,7 @@ func (evm *EVM) StaticCall(caller ContractRef, addr types.Address, input []byte,
 	evm.StateDB.AddBalance(addr, new(uint256.Int), tracing.BalanceChangeTouchAccount)
 
 	if p, isPrecompile := evm.precompile(addr); isPrecompile {
-		ret, gas, err = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, gas, nil, caller)
+		ret, gas, err = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, gas, nil, caller, readOnly)
 	} else {
 		// At this point, we use a copy of address. If we don't, the go compiler will
 		// leak the 'contract' to the outer scope, and make allocation for 'contract'
@@ -281,7 +289,7 @@ func (evm *EVM) StaticCall(caller ContractRef, addr types.Address, input []byte,
 		// When an error was returned by the EVM or when setting the creation code
 		// above we revert to the snapshot and consume any gas remaining. Additionally
 		// when we're in Homestead this also counts for code storage gas errors.
-		ret, err = evm.interpreter.Run(contract, input, true)
+		ret, err = evm.interpreter.Run(contract, input, readOnly)
 		gas = contract.Gas
 	}
 	if err != nil {
