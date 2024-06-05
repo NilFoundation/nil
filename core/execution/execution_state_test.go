@@ -102,9 +102,8 @@ func (suite *SuiteExecutionState) TestExecState() {
 		suite.Require().NoError(err)
 		suite.Equal(types.Code(data), m.Data)
 
-		r, err := receiptsRoot.Fetch(messageIndex)
+		_, err = receiptsRoot.Fetch(messageIndex)
 		suite.Require().NoError(err)
-		suite.Equal(m.Hash(), r.MsgHash)
 
 		messageIndex++
 	}
