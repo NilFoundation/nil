@@ -32,7 +32,7 @@ func HandleMessages(ctx context.Context, es *execution.ExecutionState, msgs []*t
 				continue
 			}
 
-			if err := es.HandleDeployMessage(message, deployMsg, &blockContext); err != nil && !errors.As(err, new(vm.VMError)) {
+			if err := es.HandleDeployMessage(message, deployMsg, &blockContext); err != nil && !errors.Is(err, new(vm.VMError)) {
 				return err
 			}
 		} else {

@@ -83,7 +83,7 @@ func (s *Service) RunContract(bytecode string, contractAddress string) (string, 
 	}
 
 	// Convert the public key to a public address
-	publicAddress := types.PubkeyBytesToAddress(0, crypto.CompressPubkey(pubKey))
+	publicAddress := types.PubkeyBytesToAddress(types.BaseShardId, crypto.CompressPubkey(pubKey))
 
 	// Get the sequence number for the public address
 	seqNum, err := s.getSeqNum(publicAddress.Hex())
@@ -131,7 +131,7 @@ func (s *Service) DeployContract(bytecode string) (string, error) {
 	}
 
 	// Convert the public key to a public address
-	publicAddress := types.PubkeyBytesToAddress(0, crypto.CompressPubkey(pubKey))
+	publicAddress := types.PubkeyBytesToAddress(types.BaseShardId, crypto.CompressPubkey(pubKey))
 
 	// Get the sequence number for the public address
 	seqNum, err := s.getSeqNum(publicAddress.Hex())
