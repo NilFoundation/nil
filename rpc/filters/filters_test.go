@@ -6,7 +6,10 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/execution"
+	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -14,13 +17,13 @@ type SuiteFilters struct {
 	suite.Suite
 	ctx    context.Context
 	cancel context.CancelFunc
-	stor   db.DB
+	db     db.DB
 }
 
 func (s *SuiteFilters) SetupTest() {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	var err error
-	s.stor, err = db.NewBadgerDbInMemory()
+	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 }
 
@@ -29,7 +32,7 @@ func (s *SuiteFilters) TearDownTest() {
 }
 
 func (s *SuiteFilters) TestMatcherOneReceipt() {
-	filters := NewFiltersManager(s.ctx, s.stor, false)
+	filters := NewFiltersManager(s.ctx, s.db, false)
 	s.NotNil(filters)
 
 	block := types.Block{Id: 1}
@@ -91,7 +94,7 @@ func (s *SuiteFilters) TestMatcherOneReceipt() {
 }
 
 func (s *SuiteFilters) TestMatcherTwoReceipts() {
-	filters := NewFiltersManager(s.ctx, s.stor, false)
+	filters := NewFiltersManager(s.ctx, s.db, false)
 	s.NotNil(filters)
 
 	block := types.Block{Id: 1}
@@ -239,6 +242,134 @@ func (s *SuiteFilters) TestMatcherTwoReceipts() {
 	s.Equal((<-f.LogsChannel()).Log, logs1[3])
 	s.Equal((<-f.LogsChannel()).Log, logs2[1])
 	filters.RemoveFilter(id)
+}
+
+func (s *SuiteFilters) TestBlocksRange() {
+	tx, err := s.db.CreateRwTx(s.ctx)
+	s.Require().NoError(err)
+
+	filters := NewFiltersManager(s.ctx, s.db, false)
+	s.NotNil(filters)
+	address := types.HexToAddress("0x1111111111")
+
+	receiptsMpt := mpt.NewMerklePatriciaTrie(s.db, 0, db.ReceiptTrieTable)
+
+	logsInput := []*types.Log{
+		{
+			Address: address,
+			Topics:  []common.Hash{{0x03}, {0x02}},
+			Data:    []byte{1},
+		},
+		{
+			Address: address,
+			Topics:  []common.Hash{{0x04}, {0x02}},
+			Data:    []byte{2},
+		},
+	}
+
+	receipt := &types.Receipt{ContractAddress: address, Logs: logsInput}
+	receiptEncoded, err := receipt.MarshalSSZ()
+	s.Require().NoError(err)
+	key, err := receipt.HashTreeRoot()
+	s.Require().NoError(err)
+	s.Require().NoError(receiptsMpt.Set(key[:], receiptEncoded))
+
+	block := types.Block{
+		Id:           0,
+		ReceiptsRoot: receiptsMpt.RootHash(),
+	}
+	s.Require().NoError(db.WriteBlock(tx, 0, &block))
+	_, err = execution.PostprocessBlock(tx, 0, block.Hash())
+	s.Require().NoError(err)
+
+	block = types.Block{
+		Id:           1,
+		ReceiptsRoot: receiptsMpt.RootHash(),
+	}
+	s.Require().NoError(db.WriteBlock(tx, 0, &block))
+	_, err = execution.PostprocessBlock(tx, 0, block.Hash())
+	s.Require().NoError(err)
+
+	block = types.Block{
+		Id:           2,
+		ReceiptsRoot: receiptsMpt.RootHash(),
+	}
+	s.Require().NoError(db.WriteBlock(tx, 0, &block))
+	_, err = execution.PostprocessBlock(tx, 0, block.Hash())
+	s.Require().NoError(err)
+
+	block = types.Block{
+		Id:           3,
+		ReceiptsRoot: receiptsMpt.RootHash(),
+	}
+	s.Require().NoError(db.WriteBlock(tx, 0, &block))
+	_, err = execution.PostprocessBlock(tx, 0, block.Hash())
+	s.Require().NoError(err)
+	s.Require().NoError(tx.Commit())
+
+	topics := [][]common.Hash{{{3}}}
+	query := &FilterQuery{
+		BlockHash: nil,
+		FromBlock: uint256.NewInt(1),
+		ToBlock:   uint256.NewInt(2),
+		Addresses: []types.Address{address},
+		Topics:    topics,
+	}
+	id1, filter1 := filters.NewFilter(query)
+	s.Require().NotNil(filter1)
+	s.Require().NotEmpty(id1)
+
+	s.Len(filter1.output, 2)
+	s.Equal(logsInput[0], (<-filter1.LogsChannel()).Log)
+	s.Equal(logsInput[0], (<-filter1.LogsChannel()).Log)
+
+	topics = [][]common.Hash{{{3}}}
+	query = &FilterQuery{
+		BlockHash: nil,
+		FromBlock: uint256.NewInt(1),
+		ToBlock:   nil,
+		Addresses: []types.Address{address},
+		Topics:    topics,
+	}
+	id2, filter2 := filters.NewFilter(query)
+	s.Require().NotNil(filter2)
+	s.Require().NotEmpty(id2)
+
+	s.Len(filter2.output, 3)
+	s.Equal(logsInput[0], (<-filter2.LogsChannel()).Log)
+	s.Equal(logsInput[0], (<-filter2.LogsChannel()).Log)
+	s.Equal(logsInput[0], (<-filter2.LogsChannel()).Log)
+
+	// Check with toBlock but without fromBlock
+	query = &FilterQuery{
+		BlockHash: nil,
+		FromBlock: nil,
+		ToBlock:   uint256.NewInt(0),
+		Addresses: []types.Address{address},
+		Topics:    topics,
+	}
+	id3, filter3 := filters.NewFilter(query)
+	s.Require().NotNil(filter3)
+	s.Require().NotEmpty(id3)
+
+	s.Len(filter3.output, 1)
+	s.Equal(logsInput[0], (<-filter3.LogsChannel()).Log)
+
+	tx, err = s.db.CreateRwTx(s.ctx)
+	s.Require().NoError(err)
+	block = types.Block{
+		Id:           4,
+		ReceiptsRoot: receiptsMpt.RootHash(),
+	}
+	s.Require().NoError(db.WriteBlock(tx, 0, &block))
+	_, err = execution.PostprocessBlock(tx, 0, block.Hash())
+	s.Require().NoError(err)
+	s.Require().NoError(tx.Commit())
+
+	// Check that only filter2 can get new logs, because it doesn't have `ToBlock` field
+	s.Require().NoError(filters.process(&block, []*types.Receipt{receipt}))
+	s.Empty(filter1.output)
+	s.Len(filter2.output, 1)
 }
 
 func TestFilters(t *testing.T) {

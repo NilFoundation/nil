@@ -91,6 +91,14 @@ func ReadBlock(tx Tx, shardId types.ShardId, hash common.Hash) *types.Block {
 	return readDecodable[types.Block, *types.Block](tx, blockTable, shardId, hash)
 }
 
+func ReadLastBlock(tx RoTx, shardId types.ShardId) (*types.Block, error) {
+	hash, err := ReadLastBlockHash(tx, shardId)
+	if err != nil {
+		return nil, err
+	}
+	return readDecodable[types.Block, *types.Block](tx, blockTable, shardId, hash), nil
+}
+
 func ReadNbBlockNumbers(tx Tx, shardId types.ShardId, nbCount int) (bn types.BlockNumberList, err error) {
 	buf, err := tx.Get(NeighbourBlockNumber, shardId.Bytes())
 	if errors.Is(err, ErrKeyNotFound) {

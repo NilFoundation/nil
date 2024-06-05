@@ -97,10 +97,17 @@ func (m *FiltersManager) NewFilter(query *FilterQuery) (SubscriptionID, *Filter)
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	filter := Filter{query: query, output: make(chan *MetaLog, 100)}
-	m.filters[id] = &filter
+	filter := &Filter{query: query, output: make(chan *MetaLog, 100)}
+	m.filters[id] = filter
 
-	return id, &filter
+	if query.FromBlock != nil || query.ToBlock != nil {
+		if err := m.processBlocksRange(filter); err != nil {
+			logger.Error().Err(err).Msg("Filter processing blocks failed")
+			return "", nil
+		}
+	}
+
+	return id, filter
 }
 
 func (m *FiltersManager) RemoveFilter(id SubscriptionID) bool {
@@ -180,11 +187,73 @@ func (m *FiltersManager) PollBlocks(delay time.Duration) {
 	}
 }
 
+// / If FromBlock is set in the filter, then processBlocksRange processes all blocks in the range [FromBlock..ToBlock].
+func (m *FiltersManager) processBlocksRange(filter *Filter) error {
+	tx, err := m.db.CreateRoTx(m.ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var fromBlockNum, lastBlockNum uint64
+
+	if filter.query.FromBlock != nil {
+		fromBlockNum = filter.query.FromBlock.Uint64()
+	} else {
+		fromBlockNum = 0
+	}
+
+	if filter.query.ToBlock != nil {
+		lastBlockNum = filter.query.ToBlock.Uint64()
+	} else {
+		lastBlock, err := db.ReadLastBlock(tx, m.shardId)
+		if err != nil {
+			return err
+		}
+		lastBlockNum = uint64(lastBlock.Id)
+	}
+
+	for ; fromBlockNum <= lastBlockNum; fromBlockNum++ {
+		block, err := db.ReadBlockByNumber(tx, m.shardId, types.BlockNumber(fromBlockNum))
+		if err != nil {
+			return err
+		}
+		if block == nil {
+			return errors.New("block not found")
+		}
+		receipts, err := m.readReceipts(tx, block)
+		if err != nil {
+			return err
+		}
+		err = m.processFilter(block, filter, receipts)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *FiltersManager) readReceipts(tx db.DBAccessor, block *types.Block) ([]*types.Receipt, error) {
+	var receipts types.Receipts
+
+	mptReceipts := execution.NewReceiptTrie(mpt.NewMerklePatriciaTrieWithRoot(tx, m.shardId, db.ReceiptTrieTable, block.ReceiptsRoot))
+	for kv := range mptReceipts.Iterate() {
+		receipt := types.Receipt{}
+		if err := receipt.UnmarshalSSZ(kv.Value); err != nil {
+			return nil, err
+		}
+		receipts = append(receipts, &receipt)
+	}
+	return receipts, nil
+}
+
 func (m *FiltersManager) processBlockHash(lastHash *common.Hash) (*types.Block, error) {
 	tx, err := m.db.CreateRoTx(m.ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}
+	defer tx.Rollback()
+
 	block := db.ReadBlock(tx, m.shardId, *lastHash)
 	if block == nil {
 		return nil, errors.New("can not read last block")
@@ -199,38 +268,48 @@ func (m *FiltersManager) processBlockHash(lastHash *common.Hash) (*types.Block, 
 	return block, m.process(block, receipts)
 }
 
-//nolint:unparam
+func (m *FiltersManager) processFilter(block *types.Block, filter *Filter, receipts types.Receipts) error {
+	if filter.query.ToBlock != nil && uint64(block.Id) > filter.query.ToBlock.Uint64() {
+		return nil
+	}
+	for _, receipt := range receipts {
+		if len(filter.query.Addresses) != 0 && !slices.Contains(filter.query.Addresses, receipt.ContractAddress) {
+			continue
+		}
+		for _, log := range receipt.Logs {
+			found := true
+			for i, topics := range filter.query.Topics {
+				if i >= log.TopicsNum() {
+					found = false
+					break
+				}
+				switch len(topics) {
+				case 0:
+					continue
+				case 1: // valid case, process after switch block
+				default:
+					panic("TODO: Topics disjunction isn't supported yet")
+				}
+
+				logTopic := log.Topics[i]
+				if logTopic != topics[0] {
+					found = false
+					break
+				}
+			}
+			if found {
+				filter.output <- &MetaLog{log, block.Id}
+			}
+		}
+	}
+	return nil
+}
+
 func (m *FiltersManager) process(block *types.Block, receipts types.Receipts) error {
 	for _, filter := range m.filters {
-		for _, receipt := range receipts {
-			if len(filter.query.Addresses) != 0 && !slices.Contains(filter.query.Addresses, receipt.ContractAddress) {
-				continue
-			}
-			for _, log := range receipt.Logs {
-				found := true
-				for i, topics := range filter.query.Topics {
-					if i >= log.TopicsNum() {
-						found = false
-						break
-					}
-					switch len(topics) {
-					case 0:
-						continue
-					case 1: // valid case, process after switch block
-					default:
-						panic("TODO: Topics disjunction isn't supported yet")
-					}
-
-					logTopic := log.Topics[i]
-					if logTopic != topics[0] {
-						found = false
-						break
-					}
-				}
-				if found {
-					filter.output <- &MetaLog{log, block.Id}
-				}
-			}
+		err := m.processFilter(block, filter, receipts)
+		if err != nil {
+			return err
 		}
 	}
 
