@@ -663,9 +663,21 @@ func (s *ExecutionState) CreateContract(addr types.Address) {
 	}
 }
 
-func (es *ExecutionState) ContractExists(addr types.Address) bool {
+func (es *ExecutionState) accountExists(addr types.Address) bool {
 	acc := es.GetAccount(addr)
 	return acc != nil
+}
+
+// Contract is regarded as existent if any of these three conditions is met:
+// - the nonce is non-zero
+// - the code is non-empty
+// - the storage is non-empty
+func (es *ExecutionState) ContractExists(address types.Address) bool {
+	contractHash := es.GetCodeHash(address)
+	storageRoot := es.GetStorageRoot(address)
+	return es.GetSeqno(address) != 0 ||
+		(contractHash != common.EmptyHash) || // non-empty code
+		(storageRoot != common.EmptyHash) // non-empty storage
 }
 
 func (es *ExecutionState) AddInMessage(message *types.Message) types.MessageIndex {

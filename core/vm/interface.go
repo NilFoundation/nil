@@ -47,6 +47,8 @@ type StateDB interface {
 	// Empty returns whether the given account is empty. Empty
 	// is defined according to EIP161 (balance = nonce = code = 0).
 	Empty(types.Address) bool
+	// ContractExists is used to check whether we can deploy to an address
+	ContractExists(types.Address) bool
 
 	AddressInAccessList(addr types.Address) bool
 	SlotInAccessList(addr types.Address, slot common.Hash) (addressOk bool, slotOk bool)

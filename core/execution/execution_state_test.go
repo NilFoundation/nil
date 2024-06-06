@@ -182,11 +182,11 @@ func TestStorage(t *testing.T) {
 	num := state.GetState(account, key)
 	require.Equal(t, num, common.EmptyHash)
 
-	require.False(t, state.ContractExists(account))
+	require.False(t, state.accountExists(account))
 
 	state.CreateAccount(account)
 
-	require.True(t, state.ContractExists(account))
+	require.True(t, state.accountExists(account))
 
 	state.SetState(account, key, value)
 

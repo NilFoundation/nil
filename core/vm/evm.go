@@ -325,15 +325,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, v
 	}
 
 	// Ensure there's no existing contract already at the designated address.
-	// Account is regarded as existent if any of these three conditions is met:
-	// - the nonce is non-zero
-	// - the code is non-empty
-	// - the storage is non-empty
-	contractHash := evm.StateDB.GetCodeHash(address)
-	storageRoot := evm.StateDB.GetStorageRoot(address)
-	if evm.StateDB.GetSeqno(address) != 0 ||
-		(contractHash != common.EmptyHash) || // non-empty code
-		(storageRoot != common.EmptyHash) { // non-empty storage
+	if evm.StateDB.ContractExists(address) {
 		if evm.Config.Tracer != nil && evm.Config.Tracer.OnGasChange != nil {
 			evm.Config.Tracer.OnGasChange(gas, 0, tracing.GasChangeCallFailedExecution)
 		}
