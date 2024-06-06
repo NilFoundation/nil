@@ -71,7 +71,7 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 
 	addrFrom := types.HexToAddress("0000832983856CB0CF6CD570F071122F1BEA2F20")
 	es.CreateAccount(addrFrom)
-	es.Accounts[addrFrom].PublicKey = crypto.CompressPubkey(&key.PublicKey)
+	es.Accounts[addrFrom].PublicKey = [types.PublicKeySize]byte(crypto.CompressPubkey(&key.PublicKey))
 
 	addrTo := types.HexToAddress("1111832983856CB0CF6CD570F071122F1BEA2F20")
 	es.CreateAccount(addrTo)

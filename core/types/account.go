@@ -5,6 +5,11 @@ import (
 	fastssz "github.com/ferranbt/fastssz"
 )
 
+// PublicKeySize is the expected length of the PublicKey (in bytes)
+const PublicKeySize = 33
+
+var EmptyPublicKey [PublicKeySize]byte
+
 type SmartContract struct {
 	Address     Address
 	Initialised bool
@@ -12,7 +17,7 @@ type SmartContract struct {
 	StorageRoot common.Hash
 	CodeHash    common.Hash
 	Seqno       uint64
-	PublicKey   []byte `ssz-max:"33"`
+	PublicKey   [PublicKeySize]byte
 }
 
 // interfaces

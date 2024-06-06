@@ -92,17 +92,15 @@ func validateMessage(es *execution.ExecutionState, message *types.Message) (bool
 		return false, nil
 	}
 
-	if len(accountState.PublicKey) != 0 {
-		ok, err := message.ValidateSignature(accountState.PublicKey)
-		if err != nil {
-			return false, err
-		}
-		if !ok {
-			r.Logs = es.Logs[es.InMessageHash]
-			es.AddReceipt(r)
-			sharedLogger.Debug().Stringer("shardId", es.ShardId).Stringer("address", addr).Msg("Invalid signature")
-			return false, nil
-		}
+	ok, err := message.ValidateSignature(accountState.PublicKey[:])
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		r.Logs = es.Logs[es.InMessageHash]
+		es.AddReceipt(r)
+		sharedLogger.Debug().Stringer("shardId", es.ShardId).Stringer("address", addr).Msg("Invalid signature")
+		return false, nil
 	}
 
 	if accountState.Seqno != message.Seqno {
