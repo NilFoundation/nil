@@ -34,7 +34,7 @@ func init() {
 }
 
 func (es *ExecutionState) GenerateZeroState(ctx context.Context) error {
-	faucetCode, err := contracts.Fs.ReadFile("Faucet.bin")
+	faucetCode, err := contracts.Fs.ReadFile("compiled/Faucet.bin")
 	if err != nil {
 		return err
 	}
