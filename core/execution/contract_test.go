@@ -21,8 +21,9 @@ func deployContract(contract *compiler.Contract, state *ExecutionState, blockCon
 	}
 	data, _ := dm.MarshalSSZ()
 	message := &types.Message{
-		Data:  data,
-		Seqno: uint64(seqno),
+		Data:     data,
+		Seqno:    uint64(seqno),
+		GasLimit: *types.NewUint256(100000),
 	}
 	addr := types.CreateAddress(state.ShardId, message.From, message.Seqno)
 
@@ -47,8 +48,9 @@ func TestCall(t *testing.T) {
 	require.NoError(t, err)
 
 	callMessage := &types.Message{
-		Data: calldata,
-		To:   addr,
+		Data:     calldata,
+		To:       addr,
+		GasLimit: *types.NewUint256(10000),
 	}
 	ret, err := state.HandleExecutionMessage(callMessage, &blockContext)
 	require.NoError(t, err)
@@ -62,8 +64,9 @@ func TestCall(t *testing.T) {
 	require.NoError(t, err)
 
 	callMessage2 := &types.Message{
-		Data: calldata2,
-		To:   callerAddr,
+		Data:     calldata2,
+		To:       callerAddr,
+		GasLimit: *types.NewUint256(10000),
 	}
 	_, err = state.HandleExecutionMessage(callMessage2, &blockContext)
 	require.NoError(t, err)
@@ -78,8 +81,9 @@ func TestCall(t *testing.T) {
 	require.NoError(t, err)
 
 	callMessage2 = &types.Message{
-		Data: calldata2,
-		To:   callerAddr,
+		Data:     calldata2,
+		To:       callerAddr,
+		GasLimit: *types.NewUint256(10000),
 	}
 	_, err = state.HandleExecutionMessage(callMessage2, &blockContext)
 	require.ErrorIs(t, err, vm.ErrExecutionReverted)
@@ -111,8 +115,9 @@ func TestDelegate(t *testing.T) {
 	calldata, err := solc.ExtractABI(proxyContract).Pack("setValue", delegateAddr, big.NewInt(42))
 	require.NoError(t, err)
 	callMessage := &types.Message{
-		Data: calldata,
-		To:   proxyAddr,
+		Data:     calldata,
+		To:       proxyAddr,
+		GasLimit: *types.NewUint256(100000),
 	}
 	_, err = state.HandleExecutionMessage(callMessage, &blockContext)
 	require.NoError(t, err)
@@ -121,8 +126,9 @@ func TestDelegate(t *testing.T) {
 	calldata, err = solc.ExtractABI(proxyContract).Pack("getValue", delegateAddr)
 	require.NoError(t, err)
 	callMessage = &types.Message{
-		Data: calldata,
-		To:   proxyAddr,
+		Data:     calldata,
+		To:       proxyAddr,
+		GasLimit: *types.NewUint256(10000),
 	}
 	ret, err := state.HandleExecutionMessage(callMessage, &blockContext)
 	require.NoError(t, err)
@@ -133,8 +139,9 @@ func TestDelegate(t *testing.T) {
 	calldata, err = solc.ExtractABI(proxyContract).Pack("setValueStatic", delegateAddr, big.NewInt(42))
 	require.NoError(t, err)
 	callMessage = &types.Message{
-		Data: calldata,
-		To:   proxyAddr,
+		Data:     calldata,
+		To:       proxyAddr,
+		GasLimit: *types.NewUint256(10000),
 	}
 	_, err = state.HandleExecutionMessage(callMessage, &blockContext)
 	require.ErrorAs(t, err, new(vm.VMError))
@@ -165,8 +172,9 @@ func TestAsyncCall(t *testing.T) {
 	require.NoError(t, err)
 
 	callMessage := &types.Message{
-		Data: calldata,
-		To:   addrCaller,
+		Data:     calldata,
+		To:       addrCaller,
+		GasLimit: *types.NewUint256(100000),
 	}
 	_, err = state.HandleExecutionMessage(callMessage, &blockContext)
 	require.NoError(t, err)
@@ -195,8 +203,9 @@ func TestAsyncCall(t *testing.T) {
 	calldata, err = abi.Pack("call", addrCallee, int32(-7))
 	require.NoError(t, err)
 	callMessage = &types.Message{
-		Data: calldata,
-		To:   addrCaller,
+		Data:     calldata,
+		To:       addrCaller,
+		GasLimit: *types.NewUint256(10000),
 	}
 	_, err = state.HandleExecutionMessage(callMessage, &blockContext)
 	require.NoError(t, err)
@@ -257,6 +266,7 @@ func TestSendMessage(t *testing.T) {
 		To:       addrCallee,
 		Value:    *types.NewUint256(0),
 		Internal: true,
+		GasLimit: *types.NewUint256(100000),
 	}
 	calldata, err = messageToSend.MarshalSSZ()
 	require.NoError(t, err)
@@ -266,8 +276,9 @@ func TestSendMessage(t *testing.T) {
 	require.NoError(t, err)
 
 	callMessage := &types.Message{
-		Data: calldata,
-		To:   addrCaller,
+		Data:     calldata,
+		To:       addrCaller,
+		GasLimit: *types.NewUint256(100000),
 	}
 	_, err = state.HandleExecutionMessage(callMessage, &blockContext)
 	require.NoError(t, err)
@@ -281,6 +292,7 @@ func TestSendMessage(t *testing.T) {
 	outMsg := state.OutMessages[tx][0]
 	require.Equal(t, addrCaller, outMsg.From)
 	require.Equal(t, addrCallee, outMsg.To)
+	require.True(t, outMsg.GasLimit.GtUint64(99999))
 
 	// Process outbound message, i.e. "Callee::add"
 	ret, err := state.HandleExecutionMessage(outMsg, &blockContext)

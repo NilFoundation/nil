@@ -77,7 +77,7 @@ func openDb(dbPath string, allowDrop bool, logger *zerolog.Logger) (db.DB, error
 
 	if isVersionOutdated {
 		if !allowDrop {
-			return nil, errors.New("database schema is outdated; use -allow-db-clear to clear database or clear it manually")
+			return nil, errors.New("database schema is outdated; remove database or use --allow-db-clear")
 		}
 
 		logger.Info().Msg("Clearing database from old data...")

@@ -679,7 +679,7 @@ func (es *ExecutionState) HandleDeployMessage(
 		addr = types.PubkeyBytesToAddress(deployMsg.ShardId, deployMsg.PublicKey[:])
 	}
 
-	gas := uint64(100000)
+	gas := message.GasLimit.Uint64()
 
 	evm := vm.NewEVM(*blockContext, es)
 	_, addr, leftOverGas, err := evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code, gas, &message.Value.Int)
@@ -707,8 +707,7 @@ func (es *ExecutionState) HandleExecutionMessage(message *types.Message, blockCo
 	addr := message.To
 	logger.Debug().Msgf("Call contract %s", addr)
 
-	// TODO: use gas from message
-	gas := uint64(1000000)
+	gas := message.GasLimit.Uint64()
 
 	evm := vm.NewEVM(*blockContext, es)
 

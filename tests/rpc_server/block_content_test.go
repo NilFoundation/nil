@@ -15,7 +15,7 @@ func (suite *SuiteRpc) TestRpcBlockContent() {
 
 	from := types.GenerateRandomAddress(types.BaseShardId)
 	code := hexutil.FromHex("6009600c60003960096000f3600054600101600055")
-	m := suite.createMessageForDeploy(from, 0, code, types.BaseShardId)
+	m := suite.createMessageForDeploy(from, 0, code, types.BaseShardId, 10000)
 
 	suite.Require().NoError(m.Sign(key))
 
