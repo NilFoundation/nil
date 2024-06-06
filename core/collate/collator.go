@@ -38,7 +38,7 @@ type collator struct {
 }
 
 func newCollator(shard shardchain.BlockGenerator, pool MsgPool, id types.ShardId, nShards int, logger *zerolog.Logger, topology ShardTopology) *collator {
-	neighbors := topology.GetNeighbours(id, nShards)
+	neighbors := topology.GetNeighbours(id, nShards, true /* includeSelf */)
 	return &collator{
 		shard:                shard,
 		pool:                 pool,
@@ -189,9 +189,9 @@ func (c *collator) collectFromNeighbours(roTx db.RoTx) ([]*types.Message, []*Out
 
 	var inMsgs []*types.Message
 	var outMsgs []*OutMessage
-	for i, id := range c.neighborIds {
+	for i, srcShardId := range c.neighborIds {
 		for {
-			block, err := db.ReadBlockByNumber(roTx, id, types.BlockNumber(numbers.List[i]))
+			block, err := db.ReadBlockByNumber(roTx, srcShardId, types.BlockNumber(numbers.List[i]))
 			if err != nil {
 				return nil, nil, err
 			}
@@ -199,17 +199,17 @@ func (c *collator) collectFromNeighbours(roTx db.RoTx) ([]*types.Message, []*Out
 				break
 			}
 
-			outMsgTrie := execution.NewMessageTrie(mpt.NewMerklePatriciaTrieWithRoot(roTx, id, db.MessageTrieTable, block.OutMessagesRoot))
+			outMsgTrie := execution.NewMessageTrie(mpt.NewMerklePatriciaTrieWithRoot(roTx, srcShardId, db.MessageTrieTable, block.OutMessagesRoot))
 			for msgIndex := range block.OutMessagesNum {
 				msg, err := outMsgTrie.Fetch(msgIndex)
 				if err != nil {
 					return nil, nil, err
 				}
 
-				msgShardId := msg.To.ShardId()
-				if msgShardId == c.id {
+				dstShardId := msg.To.ShardId()
+				if dstShardId == c.id {
 					inMsgs = append(inMsgs, msg)
-				} else if c.topology.ShouldPropagateMsg(id, c.id, msgShardId) {
+				} else if c.id != srcShardId && c.topology.ShouldPropagateMsg(srcShardId, c.id, dstShardId) {
 					// TODO: add inMsgHash support (do we even need it?)
 					outMsgs = append(outMsgs, &OutMessage{msg: msg})
 				}

@@ -40,7 +40,12 @@ func CompileSource(sourcePath string) (map[string]*compiler.Contract, error) {
 		return nil, fmt.Errorf("solc compiler not found: %w", err)
 	}
 
-	cmd := exec.Command(solc, "--combined-json", "abi,bin", "--allow-paths", common.GetAbsolutePath("../../"), sourcePath)
+	cmd := exec.Command(
+		solc, "--combined-json", "abi,bin",
+		"--allow-paths", common.GetAbsolutePath("../../"),
+		"--base-path", "/",
+		sourcePath,
+	)
 
 	var stderrBuf bytes.Buffer
 	cmd.Stderr = &stderrBuf
