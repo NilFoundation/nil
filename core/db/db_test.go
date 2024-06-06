@@ -14,11 +14,6 @@ type SuiteBadgerDb struct {
 	db DB
 }
 
-type SuiteSqliteDb struct {
-	suite.Suite
-	db DB
-}
-
 func (suite *SuiteBadgerDb) SetupTest() {
 	var err error
 	suite.db, err = NewBadgerDb(suite.Suite.T().TempDir())
@@ -26,16 +21,6 @@ func (suite *SuiteBadgerDb) SetupTest() {
 }
 
 func (suite *SuiteBadgerDb) TearDownTest() {
-	suite.db.Close()
-}
-
-func (suite *SuiteSqliteDb) SetupTest() {
-	var err error
-	suite.db, err = NewSqlite(suite.Suite.T().TempDir() + "foo.bar")
-	suite.Require().NoError(err)
-}
-
-func (suite *SuiteSqliteDb) TearDownTest() {
 	suite.db.Close()
 }
 
@@ -380,30 +365,4 @@ func TestSuiteBadgerDb(t *testing.T) {
 	t.Parallel()
 
 	suite.Run(t, new(SuiteBadgerDb))
-}
-
-func (suite *SuiteSqliteDb) TestValidateTables() {
-	ValidateTables(&suite.Suite, suite.db)
-}
-
-func (suite *SuiteSqliteDb) TestValidateTablesName() {
-	ValidateTablesName(&suite.Suite, suite.db)
-}
-
-func (suite *SuiteSqliteDb) TestValidateTransaction() {
-	ValidateTransaction(&suite.Suite, suite.db)
-}
-
-func (suite *SuiteSqliteDb) TestValidateBlock() {
-	ValidateBlock(&suite.Suite, suite.db)
-}
-
-func (suite *SuiteSqliteDb) TestValidateDbOperations() {
-	ValidateDbOperations(&suite.Suite, suite.db)
-}
-
-func TestSuiteSqliteDb(t *testing.T) {
-	t.Parallel()
-
-	suite.Run(t, new(SuiteSqliteDb))
 }

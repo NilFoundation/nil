@@ -28,7 +28,7 @@
 
             src = ./.;
             # to obtain run `nix build` with vendorHash = "";
-            vendorHash = "sha256-Cu+vXryxEuNFRkJIPu1FLZjgZrS7IsyDSd99cCbrnkQ=";
+            vendorHash = "sha256-PabMkYtlX5Fn4kcArS5llAd7SkCCA6dqsEqwetVjOd0=";
             hardeningDisable = [ "all" ];
             ldflags = [
               "-linkmode external"
