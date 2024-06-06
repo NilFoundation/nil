@@ -27,7 +27,7 @@ type AccountState struct {
 	Code        types.Code
 	CodeHash    common.Hash
 	Seqno       uint64
-	PublicKey   []byte
+	PublicKey   [types.PublicKeySize]byte
 	StorageTree *StorageTrie
 
 	State Storage
@@ -485,7 +485,7 @@ func (as *AccountState) setSeqno(seqno uint64) {
 	as.Seqno = seqno
 }
 
-func (as *AccountState) setPublicKey(publicKey []byte) {
+func (as *AccountState) setPublicKey(publicKey [types.PublicKeySize]byte) {
 	as.PublicKey = publicKey
 }
 
@@ -673,10 +673,10 @@ func (es *ExecutionState) HandleDeployMessage(
 	message *types.Message, deployMsg *types.DeployMessage, blockContext *vm.BlockContext,
 ) error {
 	var addr types.Address
-	if len(deployMsg.PublicKey) == 0 {
+	if deployMsg.PublicKey == types.EmptyPublicKey {
 		addr = types.CreateAddress(deployMsg.ShardId, message.From, message.Seqno)
 	} else {
-		addr = types.PubkeyBytesToAddress(deployMsg.ShardId, deployMsg.PublicKey)
+		addr = types.PubkeyBytesToAddress(deployMsg.ShardId, deployMsg.PublicKey[:])
 	}
 
 	gas := uint64(100000)

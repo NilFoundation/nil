@@ -60,7 +60,7 @@ func (es *ExecutionState) GenerateZeroState(ctx context.Context) error {
 		ShardId:   es.ShardId,
 		Seqno:     0,
 		Code:      hexutil.FromHex(faucetContract.Code),
-		PublicKey: crypto.CompressPubkey(&MainPrivateKey.PublicKey),
+		PublicKey: [types.PublicKeySize]byte(crypto.CompressPubkey(&MainPrivateKey.PublicKey)),
 	}
 
 	pub := crypto.CompressPubkey(&MainPrivateKey.PublicKey)
