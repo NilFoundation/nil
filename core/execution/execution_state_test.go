@@ -61,7 +61,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 		data, err := deploy.MarshalSSZ()
 		suite.Require().NoError(err)
 
-		msg := &types.Message{Data: data, From: from, Seqno: uint64(i)}
+		msg := &types.Message{Data: data, From: from, Seqno: uint64(i), GasLimit: *types.NewUint256(10000)}
 		es.AddInMessage(msg)
 		suite.Require().NoError(es.HandleDeployMessage(msg, deploy, &blockContext))
 	}

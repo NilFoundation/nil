@@ -57,7 +57,7 @@ func (s *SuiteEthCall) SetupSuite() {
 	data, err := dm.MarshalSSZ()
 	s.Require().NoError(err)
 
-	m := &types.Message{Seqno: 0, Data: data, From: s.from}
+	m := &types.Message{Seqno: 0, Data: data, From: s.from, GasLimit: *types.NewUint256(100000)}
 	es.AddInMessage(m)
 
 	es.AddInMessage(m)

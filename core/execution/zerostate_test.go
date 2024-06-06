@@ -70,8 +70,9 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 	suite.Require().NoError(err)
 
 	callMessage := &types.Message{
-		Data: calldata,
-		To:   suite.faucetAddr,
+		Data:     calldata,
+		To:       suite.faucetAddr,
+		GasLimit: *types.NewUint256(10000),
 	}
 	_, err = suite.state.HandleExecutionMessage(callMessage, &suite.blockContext)
 	suite.Require().NoError(err)

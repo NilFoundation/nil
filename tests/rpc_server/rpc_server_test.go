@@ -130,7 +130,7 @@ func (suite *SuiteRpc) sendDeployMessage(from types.Address, code types.Code, se
 
 	shardId := from.ShardId()
 
-	msg := suite.createMessageForDeploy(from, seqno, code, shardId)
+	msg := suite.createMessageForDeploy(from, seqno, code, shardId, 10001)
 	suite.Require().NoError(msg.Sign(execution.MainPrivateKey))
 
 	// create contract
@@ -177,7 +177,7 @@ func (suite *SuiteRpc) TestRpcBasic() {
 }
 
 func (suite *SuiteRpc) createMessageForDeploy(
-	from types.Address, seqno uint64, code types.Code, toShard types.ShardId,
+	from types.Address, seqno uint64, code types.Code, toShard types.ShardId, gas uint64,
 ) *types.Message {
 	suite.T().Helper()
 
@@ -189,9 +189,10 @@ func (suite *SuiteRpc) createMessageForDeploy(
 	suite.Require().NoError(err)
 
 	m := &types.Message{
-		Seqno: seqno,
-		Data:  data,
-		From:  from,
+		Seqno:    seqno,
+		Data:     data,
+		From:     from,
+		GasLimit: *types.NewUint256(gas),
 	}
 	return m
 }
@@ -206,7 +207,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 	suite.Require().NoError(err)
 	contractCode := hexutil.FromHex(contracts["Incrementer"].Code)
 
-	m := suite.createMessageForDeploy(from, seqno, contractCode, types.BaseShardId)
+	m := suite.createMessageForDeploy(from, seqno, contractCode, types.BaseShardId, 10002)
 	suite.Require().NoError(m.Sign(execution.MainPrivateKey))
 
 	// create contract
@@ -228,10 +229,11 @@ func (suite *SuiteRpc) TestRpcContract() {
 	calldata, err := abi.Pack("increment_and_send_msg")
 	suite.Require().NoError(err)
 	m = &types.Message{
-		Seqno: seqno,
-		From:  from,
-		To:    addr,
-		Data:  calldata,
+		Seqno:    seqno,
+		From:     from,
+		To:       addr,
+		Data:     calldata,
+		GasLimit: *types.NewUint256(100003),
 	}
 	suite.Require().NoError(m.Sign(execution.MainPrivateKey))
 
@@ -274,6 +276,7 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 		From:     from,
 		To:       nbAddr,
 		Internal: true,
+		GasLimit: *types.NewUint256(100004),
 	}
 	suite.Require().NoError(mSend.Sign(execution.MainPrivateKey))
 	mSendData, err := mSend.MarshalSSZ()
@@ -282,10 +285,11 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 	// call SendMessage precompiled contract that executes sends message to neighbour shard
 	sendMessageAddr := types.BytesToAddress([]byte{0x06}) // sendMessagePrecompiledContract
 	m := &types.Message{
-		Seqno: seqno,
-		From:  from,
-		To:    sendMessageAddr,
-		Data:  mSendData,
+		Seqno:    seqno,
+		From:     from,
+		To:       sendMessageAddr,
+		Data:     mSendData,
+		GasLimit: *types.NewUint256(10005),
 	}
 	suite.Require().NoError(m.Sign(execution.MainPrivateKey))
 
