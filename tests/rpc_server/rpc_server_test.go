@@ -342,8 +342,8 @@ func (suite *SuiteRpc) TestRpcError() {
 		suite.Equal(msg, resp.Error.Message)
 	}
 
-	check(-32601, "the method eth_doesntExists does not exist/is not available",
-		"eth_doesntExists")
+	check(-32601, "the method eth_doesntExist does not exist/is not available",
+		"eth_doesntExist")
 
 	check(-32602, "missing value for required argument 0",
 		getBlockByNumber)
