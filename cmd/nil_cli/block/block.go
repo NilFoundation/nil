@@ -4,6 +4,7 @@ import (
 	blockService "github.com/NilFoundation/nil/cli/services/block"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
 
@@ -43,13 +44,20 @@ func setFlags(cmd *cobra.Command) {
 		"",
 		"Retrieve block by block hash from the cluster",
 	)
+
+	cmd.Flags().Uint32Var(
+		(*uint32)(&params.shardId),
+		shardIdFlag,
+		uint32(types.BaseShardId),
+		"Specify the shard id to interact with",
+	)
 }
 
 func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
 
 	client := rpc.NewRPCClient(rpcEndpoint)
-	service := blockService.NewService(client)
+	service := blockService.NewService(client, params.shardId)
 
 	if params.latest {
 		_, err := service.FetchBlockByNumber("latest")

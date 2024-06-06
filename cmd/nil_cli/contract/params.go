@@ -1,6 +1,10 @@
 package contract
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/NilFoundation/nil/core/types"
+)
 
 var (
 	errNoSelected       = errors.New("at least one flag (--deploy, --code) is required")
@@ -12,6 +16,7 @@ const (
 	codeFlag     = "code"
 	addressFlag  = "address"
 	bytecodeFlag = "bytecode"
+	shardIdFlag  = "shard-id"
 )
 
 var params = &contractParams{}
@@ -21,6 +26,7 @@ type contractParams struct {
 	code     string
 	address  string
 	bytecode string
+	shardId  types.ShardId
 }
 
 // initRawParams validates all parameters to ensure they are correctly set

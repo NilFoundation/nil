@@ -4,6 +4,7 @@ import (
 	"github.com/NilFoundation/nil/cli/services/contract"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
 
@@ -50,13 +51,20 @@ func setFlags(cmd *cobra.Command) {
 		"",
 		"Specify the bytecode to be executed with the deployed contract",
 	)
+
+	cmd.Flags().Uint32Var(
+		(*uint32)(&params.shardId),
+		shardIdFlag,
+		uint32(types.BaseShardId),
+		"Specify the shard id to interact with",
+	)
 }
 
 func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, privateKey string) {
 	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
 
 	client := rpc.NewRPCClient(rpcEndpoint)
-	service := contract.NewService(client, privateKey)
+	service := contract.NewService(client, privateKey, params.shardId)
 	if params.deploy != "" {
 		_, err := service.DeployContract(params.deploy)
 		if err != nil {

@@ -15,13 +15,15 @@ const (
 var logger = common.NewLogger("receiptService")
 
 type Service struct {
-	client client.Client
+	client  client.Client
+	shardId types.ShardId
 }
 
 // NewService initializes a new Service with the given client
-func NewService(c client.Client) *Service {
+func NewService(c client.Client, shardId types.ShardId) *Service {
 	return &Service{
-		client: c,
+		client:  c,
+		shardId: shardId,
 	}
 }
 
@@ -34,7 +36,7 @@ func (s *Service) FetchReceiptByHash(receiptHash string) ([]byte, error) {
 func (s *Service) fetchReceipt(method, identifier string) ([]byte, error) {
 	// Create params for the RPC call
 	params := []interface{}{
-		types.BaseShardId,
+		s.shardId,
 		identifier,
 	}
 

@@ -26,10 +26,11 @@ var logger = common.NewLogger("contractService")
 type Service struct {
 	client     client.Client
 	privateKey *ecdsa.PrivateKey
+	shardId    types.ShardId
 }
 
 // NewService initializes a new Service with the given client and private key
-func NewService(client client.Client, pk string) *Service {
+func NewService(client client.Client, pk string, shardId types.ShardId) *Service {
 	privateKey, err := crypto.HexToECDSA(pk)
 	if err != nil {
 		logger.Fatal().Msg("Failed to parse private key")
@@ -38,6 +39,7 @@ func NewService(client client.Client, pk string) *Service {
 	return &Service{
 		client,
 		privateKey,
+		shardId,
 	}
 }
 
@@ -83,7 +85,7 @@ func (s *Service) RunContract(bytecode string, contractAddress string) (string, 
 	}
 
 	// Convert the public key to a public address
-	publicAddress := types.PubkeyBytesToAddress(types.BaseShardId, crypto.CompressPubkey(pubKey))
+	publicAddress := types.PubkeyBytesToAddress(s.shardId, crypto.CompressPubkey(pubKey))
 
 	// Get the sequence number for the public address
 	seqNum, err := s.getSeqNum(publicAddress.Hex())
@@ -131,7 +133,7 @@ func (s *Service) DeployContract(bytecode string) (string, error) {
 	}
 
 	// Convert the public key to a public address
-	publicAddress := types.PubkeyBytesToAddress(types.BaseShardId, crypto.CompressPubkey(pubKey))
+	publicAddress := types.PubkeyBytesToAddress(s.shardId, crypto.CompressPubkey(pubKey))
 
 	// Get the sequence number for the public address
 	seqNum, err := s.getSeqNum(publicAddress.Hex())

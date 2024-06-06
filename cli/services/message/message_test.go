@@ -7,6 +7,7 @@ import (
 
 	"github.com/NilFoundation/nil/cli/services/message"
 	"github.com/NilFoundation/nil/client/mock"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -37,7 +38,7 @@ func TestFetchMessage_Successfully(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := message.NewService(mockClient)
+	service := message.NewService(mockClient, types.BaseShardId)
 
 	// Call the FetchMessageByHash
 	response, err := service.FetchMessageByHash("0x1234")
@@ -61,7 +62,7 @@ func TestFetchMessage_Err(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := message.NewService(mockClient)
+	service := message.NewService(mockClient, types.BaseShardId)
 
 	// Call the FetchMessageByHash
 	_, err := service.FetchMessageByHash("0x1234")
@@ -77,7 +78,7 @@ func TestFetchMessage_Err(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service = message.NewService(mockClient)
+	service = message.NewService(mockClient, types.BaseShardId)
 
 	// Call the FetchMessageByHash
 	_, err = service.FetchMessageByHash("0x1234")

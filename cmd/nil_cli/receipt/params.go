@@ -1,17 +1,23 @@
 package receipt
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/NilFoundation/nil/core/types"
+)
 
 var errNoSelected = errors.New("at least one flag (--hash) is required")
 
 const (
-	hashFlag = "hash"
+	hashFlag    = "hash"
+	shardIdFlag = "shard-id"
 )
 
 var params = &receiptParams{}
 
 type receiptParams struct {
-	hash string
+	hash    string
+	shardId types.ShardId
 }
 
 // initRawParams validates all parameters to ensure they are correctly set
