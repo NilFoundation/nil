@@ -22,6 +22,10 @@
             revCount = self.revCount or self.dirtyRevCount or 1;
             version = "0.1.0-${toString revCount}";
 
+            preBuild = ''
+                make compile-contracts
+            '';
+
             src = ./.;
             # to obtain run `nix build` with vendorHash = "";
             vendorHash = "sha256-Cu+vXryxEuNFRkJIPu1FLZjgZrS7IsyDSd99cCbrnkQ=";

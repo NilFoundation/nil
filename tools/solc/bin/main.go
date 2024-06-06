@@ -20,6 +20,7 @@ func main() {
 	}
 
 	cmd.Flags().StringP("source", "s", "contract.sol", "path to solidity source file")
+	cmd.Flags().StringP("output", "o", "", "path to output dir. leave empty to use source dir")
 	cmd.Flags().StringP("contract", "c", "", "particular contract to compile. leave empty to compile all contracts")
 
 	err := viper.BindPFlags(cmd.Flags())
@@ -30,11 +31,18 @@ func main() {
 
 	sourcePath := viper.GetString("source")
 	contractName := viper.GetString("contract")
+	contractDir := viper.GetString("output")
+	if contractDir == "" {
+		contractDir = filepath.Dir(sourcePath)
+	}
+	contractDir, err = filepath.Abs(contractDir)
+	common.FatalIf(err, logger, "failed to resolve output dir")
+	err = os.MkdirAll(contractDir, os.ModePerm)
+	common.FatalIf(err, logger, "failed to create output dir")
 
 	contracts, err := solc.CompileSource(sourcePath)
 	common.FatalIf(err, logger, "failed to compile contract `%s`", sourcePath)
 
-	contractDir := filepath.Dir(sourcePath)
 	for name, c := range contracts {
 		if contractName != "" && contractName != name {
 			continue

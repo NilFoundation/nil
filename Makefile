@@ -34,6 +34,10 @@ ssz:
 	pushd core/types && go generate && popd
 	pushd core/mpt && go generate && popd
 
+compile-contracts:
+	@echo "Generating contracts code"
+	pushd contracts && go generate && popd
+
 lint:
 	go mod tidy
 	gofumpt -l -w .
