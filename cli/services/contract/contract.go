@@ -96,10 +96,11 @@ func (s *Service) RunContract(bytecode string, contractAddress string) (string, 
 
 	// Create the message with the bytecode to run
 	message := types.Message{
-		From:  publicAddress,
-		To:    types.HexToAddress(contractAddress),
-		Data:  hexutil.FromHex(bytecode),
-		Seqno: seqNum,
+		From:     publicAddress,
+		To:       types.HexToAddress(contractAddress),
+		Data:     hexutil.FromHex(bytecode),
+		Seqno:    seqNum,
+		GasLimit: *types.NewUint256(100000000),
 	}
 
 	// Sign the message with the private key
@@ -147,6 +148,7 @@ func (s *Service) DeployContract(bytecode string) (string, error) {
 		Code:    hexutil.FromHex(bytecode),
 		Seqno:   seqNum,
 	}
+
 	data, err := dm.MarshalSSZ()
 	if err != nil {
 		return "", err
@@ -154,9 +156,10 @@ func (s *Service) DeployContract(bytecode string) (string, error) {
 
 	// Create the message with the deploy data
 	message := types.Message{
-		From:  publicAddress,
-		Seqno: seqNum,
-		Data:  data,
+		From:     publicAddress,
+		Seqno:    seqNum,
+		Data:     data,
+		GasLimit: *types.NewUint256(100000000),
 	}
 
 	// Sign the message with the private key
