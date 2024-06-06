@@ -4,16 +4,13 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
-	"errors"
 	"math/big"
-	"path/filepath"
-	"runtime"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/holiman/uint256"
 )
 
@@ -36,30 +33,16 @@ func init() {
 	common.Require(key.Equal(MainPrivateKey.Public()))
 }
 
-func obtainContractsPath() (string, error) {
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", errors.New("Failed to obtain current file")
-	}
-	return filepath.Abs(filepath.Join(filepath.Dir(currentFile), "./contracts.sol"))
-}
-
 func (es *ExecutionState) GenerateZeroState(ctx context.Context) error {
-	// TODO: Precompile at building phase.
-	contractsPath, err := obtainContractsPath()
+	faucetCode, err := contracts.Fs.ReadFile("Faucet.bin")
 	if err != nil {
 		return err
 	}
-	contracts, err := solc.CompileSource(contractsPath)
-	if err != nil {
-		return err
-	}
-	faucetContract := contracts["Faucet"]
 
 	mainDeployMsg := &types.DeployMessage{
 		ShardId:   es.ShardId,
 		Seqno:     0,
-		Code:      hexutil.FromHex(faucetContract.Code),
+		Code:      hexutil.FromHex(string(faucetCode)),
 		PublicKey: [types.PublicKeySize]byte(crypto.CompressPubkey(&MainPrivateKey.PublicKey)),
 	}
 

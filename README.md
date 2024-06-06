@@ -190,6 +190,12 @@ Run the below command to generate the SSZ serialization code:
 make ssz
 ```
 
+### Generating zero state compiled contracts code
+
+```bash
+make compile-contracts
+```
+
 ## Lifecycle
 
 In the current implementation, a transaction passes the following stages.
