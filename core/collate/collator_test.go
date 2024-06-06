@@ -82,6 +82,7 @@ func (s *CollatorTestSuite) checkReceipt(ctx context.Context, shardId types.Shar
 
 	tx, err := s.db.CreateRoTx(ctx)
 	s.Require().NoError(err)
+	defer tx.Rollback()
 
 	es, err := execution.NewExecutionStateForShard(tx, shardId, common.NewTestTimer(0))
 	s.Require().NoError(err)

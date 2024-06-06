@@ -36,6 +36,7 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Require().NoError(err)
+	defer tx.Rollback()
 
 	es, err := execution.NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)

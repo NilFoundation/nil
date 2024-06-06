@@ -33,6 +33,7 @@ func (s *SuiteExecutionState) TearDownTest() {
 func (suite *SuiteExecutionState) TestExecState() {
 	tx, err := suite.db.CreateRwTx(context.Background())
 	suite.Require().NoError(err)
+	defer tx.Rollback()
 
 	shardId := types.ShardId(5)
 	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
@@ -108,11 +109,13 @@ func (suite *SuiteExecutionState) TestExecState() {
 		messageIndex++
 	}
 	suite.Equal(numMessages, uint8(messageIndex))
+	suite.Require().NoError(tx.Commit())
 }
 
 func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 	tx, err := suite.db.CreateRwTx(context.Background())
 	suite.Require().NoError(err)
+	defer tx.Rollback()
 
 	es, err := NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
@@ -144,6 +147,7 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 
 	check(blockHash1, &msg1)
 	check(blockHash2, &msg2)
+	suite.Require().NoError(tx.Commit())
 }
 
 func TestSuiteExecutionState(t *testing.T) {

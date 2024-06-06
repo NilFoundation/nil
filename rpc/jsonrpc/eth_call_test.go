@@ -38,6 +38,7 @@ func (s *SuiteEthCall) SetupSuite() {
 
 	tx, err := s.db.CreateRwTx(ctx)
 	s.Require().NoError(err)
+	defer tx.Rollback()
 
 	s.lastBlockHash = common.EmptyHash
 	es, err := execution.NewExecutionState(tx, shardId, s.lastBlockHash, common.NewTestTimer(0))

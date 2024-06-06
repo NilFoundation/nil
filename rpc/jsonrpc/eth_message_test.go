@@ -38,8 +38,8 @@ func (suite *SuiteEthMessage) SetupSuite() {
 		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool, pool}, common.NewLogger("Test"))
 
 	tx, err := suite.db.CreateRwTx(ctx)
-	defer tx.Rollback()
 	suite.Require().NoError(err)
+	defer tx.Rollback()
 
 	suite.message = types.Message{Data: []byte("data")}
 	receipt := types.Receipt{MsgHash: suite.message.Hash()}

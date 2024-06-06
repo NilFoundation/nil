@@ -34,6 +34,7 @@ func (suite *SuiteEthBlock) SetupSuite() {
 
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Require().NoError(err)
+	defer tx.Rollback()
 
 	suite.lastBlockHash = common.EmptyHash
 	for i := range types.BlockNumber(2) {

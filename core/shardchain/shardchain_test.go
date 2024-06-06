@@ -61,6 +61,7 @@ func (s *SuiteShardchainState) TestGenerateBlock() {
 func (s *SuiteShardchainState) TestValidateMessage() {
 	tx, err := s.db.CreateRwTx(context.Background())
 	s.Require().NoError(err)
+	defer tx.Rollback()
 
 	es, err := execution.NewExecutionStateForShard(tx, types.BaseShardId, common.NewTestTimer(0))
 	s.Require().NoError(err)
@@ -117,6 +118,7 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 func (s *SuiteShardchainState) TestValidateDeployMessage() {
 	tx, err := s.db.CreateRwTx(context.Background())
 	s.Require().NoError(err)
+	defer tx.Rollback()
 
 	es, err := execution.NewExecutionStateForShard(tx, types.BaseShardId, common.NewTestTimer(0))
 	s.Require().NoError(err)

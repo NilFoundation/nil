@@ -247,6 +247,7 @@ func (s *SuiteFilters) TestMatcherTwoReceipts() {
 func (s *SuiteFilters) TestBlocksRange() {
 	tx, err := s.db.CreateRwTx(s.ctx)
 	s.Require().NoError(err)
+	defer tx.Rollback()
 
 	filters := NewFiltersManager(s.ctx, s.db, false)
 	s.NotNil(filters)
@@ -357,6 +358,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 
 	tx, err = s.db.CreateRwTx(s.ctx)
 	s.Require().NoError(err)
+	defer tx.Rollback()
 	block = types.Block{
 		Id:           4,
 		ReceiptsRoot: receiptsMpt.RootHash(),
