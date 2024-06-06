@@ -26,6 +26,7 @@ type SuiteRpc struct {
 	port    int
 	context context.Context
 	cancel  context.CancelFunc
+	address types.Address
 }
 
 func (suite *SuiteRpc) SetupSuite() {
@@ -194,7 +195,9 @@ func (suite *SuiteRpc) createMessageForDeploy(
 		Data:     data,
 		From:     from,
 		GasLimit: *types.NewUint256(gas),
+		To:       types.DeployMsgToAddress(toShard, data),
 	}
+	suite.address = m.To
 	return m
 }
 
@@ -227,7 +230,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 		return seqno == m.Seqno+1
 	}, 6*time.Second, 200*time.Millisecond)
 
-	addr := types.CreateAddress(types.BaseShardId, m.From, m.Seqno)
+	addr := suite.address
 
 	suite.waitForReceipt(addr, m)
 

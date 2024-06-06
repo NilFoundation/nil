@@ -24,10 +24,9 @@ func deployContract(contract *compiler.Contract, state *ExecutionState, blockCon
 		Data:     data,
 		Seqno:    uint64(seqno),
 		GasLimit: *types.NewUint256(100000),
+		To:       types.DeployMsgToAddress(dm.ShardId, data),
 	}
-	addr := types.CreateAddress(state.ShardId, message.From, message.Seqno)
-
-	return addr, state.HandleDeployMessage(message, dm, blockContext)
+	return message.To, state.HandleDeployMessage(message, dm, blockContext)
 }
 
 func TestCall(t *testing.T) {

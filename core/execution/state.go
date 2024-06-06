@@ -693,12 +693,7 @@ func (es *ExecutionState) AddOutMessage(txId common.Hash, msg *types.Message) {
 func (es *ExecutionState) HandleDeployMessage(
 	message *types.Message, deployMsg *types.DeployMessage, blockContext *vm.BlockContext,
 ) error {
-	var addr types.Address
-	if deployMsg.PublicKey == types.EmptyPublicKey {
-		addr = types.CreateAddress(deployMsg.ShardId, message.From, message.Seqno)
-	} else {
-		addr = types.PubkeyBytesToAddress(deployMsg.ShardId, deployMsg.PublicKey[:])
-	}
+	addr := message.To
 
 	gas := message.GasLimit.Uint64()
 
