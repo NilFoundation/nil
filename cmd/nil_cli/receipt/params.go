@@ -2,6 +2,7 @@ package receipt
 
 import (
 	"errors"
+
 	"github.com/NilFoundation/nil/core/types"
 )
 

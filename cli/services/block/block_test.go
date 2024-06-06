@@ -3,10 +3,10 @@ package block
 import (
 	"encoding/json"
 	"errors"
-	"github.com/NilFoundation/nil/core/types"
 	"testing"
 
 	"github.com/NilFoundation/nil/client/mock"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

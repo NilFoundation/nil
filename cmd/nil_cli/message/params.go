@@ -2,6 +2,7 @@ package message
 
 import (
 	"errors"
+
 	"github.com/NilFoundation/nil/core/types"
 )
 
