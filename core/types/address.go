@@ -176,6 +176,11 @@ func PubkeyBytesToAddress(shardId ShardId, pubBytes []byte) Address {
 	return BytesToAddress(raw)
 }
 
+func DeployMsgToAddress(shardId ShardId, deployMsgSSZ []byte) Address {
+	// TODO: add fixed prefix to make a separate namespace
+	return PubkeyBytesToAddress(shardId, deployMsgSSZ)
+}
+
 // CreateAddress creates an address given the bytes and the nonce.
 func CreateAddress(shardId ShardId, b Address, nonce uint64) Address {
 	raw := make([]byte, 2, AddrSize)
