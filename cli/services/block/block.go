@@ -16,13 +16,15 @@ const (
 var logger = common.NewLogger("blockService")
 
 type Service struct {
-	client client.Client
+	client  client.Client
+	shardId types.ShardId
 }
 
 // NewService initializes a new Service with the given client
-func NewService(c client.Client) *Service {
+func NewService(c client.Client, shardId types.ShardId) *Service {
 	return &Service{
-		client: c,
+		client:  c,
+		shardId: shardId,
 	}
 }
 
@@ -40,7 +42,7 @@ func (s *Service) FetchBlockByHash(blockHash string) ([]byte, error) {
 func (s *Service) fetchBlock(method, identifier string) ([]byte, error) {
 	// Create params for the RPC call
 	params := []interface{}{
-		types.BaseShardId,
+		s.shardId,
 		identifier,
 		true,
 	}

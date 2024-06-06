@@ -3,6 +3,7 @@ package block
 import (
 	"encoding/json"
 	"errors"
+	"github.com/NilFoundation/nil/core/types"
 	"testing"
 
 	"github.com/NilFoundation/nil/client/mock"
@@ -35,7 +36,7 @@ func TestFetchBlock_Successfully(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient)
+	service := NewService(mockClient, types.BaseShardId)
 
 	// Call the FetchBlockByHash
 	response, err := service.FetchBlockByHash("")
@@ -77,7 +78,7 @@ func TestFetchBlock_Err(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient)
+	service := NewService(mockClient, types.BaseShardId)
 
 	// Call the fetchBlock
 	_, err := service.FetchBlockByHash("0x294a68120c056a549d314efa8306dafdb856f7b51dde976df0e807e001ff84ac")
@@ -93,7 +94,7 @@ func TestFetchBlock_Err(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service = NewService(mockClient)
+	service = NewService(mockClient, types.BaseShardId)
 
 	// Call the fetchBlock
 	_, err = service.FetchBlockByHash("0x294a68120c056a549d314efa8306dafdb856f7b51dde976df0e807e001ff84ac")

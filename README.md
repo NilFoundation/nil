@@ -56,19 +56,19 @@ solc -o . --bin --abi example/counter.sol
 And deploy the contract with the CLI:
 
 ```bash
-./build/bin/nil_cli contract --deploy `cat SimpleStorage.bin`
+./build/bin/nil_cli contract --deploy `cat SimpleStorage.bin` --shard-id 1
 ```
 
 Make note of the "Transaction hash" in the output, and then:
 
 ```bash
-./build/bin/nil_cli receipt --hash <transaction hash>
+./build/bin/nil_cli receipt --hash <transaction hash> --shard-id 1
 ```
 
 You should get a json object, which contains "contractAddress" in the result.
 
 ```bash
-./build/bin/nil_cli contract --address <contract address> --bytecode d09de08a
+./build/bin/nil_cli contract --address <contract address> --bytecode d09de08a --shard-id 1
 ```
 
 As a result, you should get "Transaction hash" again, but this time for the function call.
@@ -76,7 +76,7 @@ Now let's retrieve the message hash to see the current value of the counter:
 
 
 ```bash
-./build/bin/nil_cli receipt --hash <another transaction hash>
+./build/bin/nil_cli receipt --hash <another transaction hash> --shard-id 1
 ```
 
 You'll see the counter value in the "data" section of the log in the json. To see the actual value:

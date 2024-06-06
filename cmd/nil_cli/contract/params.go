@@ -50,7 +50,7 @@ func (p *contractParams) initRawParams() error {
 	}
 
 	if p.shardId == 0 {
-		return errors.New("--shard-id must be set")
+		return errors.New("--shard-id must be set and non-zero")
 	}
 
 	if flagsSet == 0 {

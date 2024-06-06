@@ -31,13 +31,20 @@ func setFlags(cmd *cobra.Command) {
 		"",
 		"Retrieve receipt by receipt hash from the cluster",
 	)
+
+	cmd.Flags().Uint32Var(
+		(*uint32)(&params.shardId),
+		shardIdFlag,
+		0,
+		"Specify the shard id to interact with",
+	)
 }
 
 func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
 
 	client := rpc.NewRPCClient(rpcEndpoint)
-	service := receipt.NewService(client)
+	service := receipt.NewService(client, params.shardId)
 	if params.hash != "" {
 		_, err := service.FetchReceiptByHash(params.hash)
 		if err != nil {
