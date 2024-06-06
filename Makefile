@@ -36,13 +36,20 @@ ssz:
 
 compile-contracts:
 	@echo "Generating contracts code"
-	pushd contracts && go generate && popd
+	cd contracts && go generate
 
-lint:
+lint: lint-compiled-contracts
 	go mod tidy
 	gofumpt -l -w .
 	gci write .
 	golangci-lint run
+
+lint-compiled-contracts:
+	TMP_DIR=$$(mktemp -d); \
+	contracts/generate.sh "$$TMP_DIR" && diff -ru contracts/compiled "$$TMP_DIR"; \
+	d=$$?; \
+	rm -rf "$$TMP_DIR"; \
+	test $$d
 
 clean:
 	go clean -cache
