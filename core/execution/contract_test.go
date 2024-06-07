@@ -24,7 +24,7 @@ func deployContract(contract *compiler.Contract, state *ExecutionState, blockCon
 		Data:     data,
 		Seqno:    uint64(seqno),
 		GasLimit: *types.NewUint256(100000),
-		To:       types.DeployMsgToAddress(dm.ShardId, data),
+		To:       types.DeployMsgToAddress(dm, types.Address{}),
 	}
 	return message.To, state.HandleDeployMessage(message, dm, blockContext)
 }

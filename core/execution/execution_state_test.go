@@ -67,7 +67,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 			From:     from,
 			Seqno:    uint64(i),
 			GasLimit: *types.NewUint256(10000),
-			To:       types.DeployMsgToAddress(shardId, data),
+			To:       types.DeployMsgToAddress(deploy, from),
 		}
 		es.AddInMessage(msg)
 		suite.Require().NoError(es.HandleDeployMessage(msg, deploy, &blockContext))

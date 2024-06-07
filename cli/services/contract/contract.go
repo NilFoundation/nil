@@ -160,7 +160,7 @@ func (s *Service) DeployContract(bytecode string) (string, error) {
 		Seqno:    seqNum,
 		Data:     data,
 		GasLimit: *types.NewUint256(100000000),
-		To:       types.DeployMsgToAddress(dm.ShardId, data),
+		To:       types.DeployMsgToAddress(dm, publicAddress),
 	}
 
 	// Sign the message with the private key

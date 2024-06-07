@@ -195,7 +195,7 @@ func (suite *SuiteRpc) createMessageForDeploy(
 		Data:     data,
 		From:     from,
 		GasLimit: *types.NewUint256(gas),
-		To:       types.DeployMsgToAddress(toShard, data),
+		To:       types.DeployMsgToAddress(dm, from),
 	}
 	suite.address = m.To
 	return m

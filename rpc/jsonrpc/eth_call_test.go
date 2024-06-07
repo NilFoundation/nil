@@ -64,7 +64,7 @@ func (s *SuiteEthCall) SetupSuite() {
 		Data:     data,
 		From:     s.from,
 		GasLimit: *types.NewUint256(100000),
-		To:       types.DeployMsgToAddress(shardId, data),
+		To:       types.DeployMsgToAddress(dm, s.from),
 	}
 	s.simple = m.To
 	es.AddInMessage(m)

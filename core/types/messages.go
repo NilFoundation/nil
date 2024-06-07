@@ -11,6 +11,12 @@ type DeployMessage struct {
 	Code      Code `ssz-max:"24576"`
 }
 
+type AddressSourceData struct {
+	DeployMessage
+	From Address
+	Salt uint64
+}
+
 func NewDeployMessage(data []byte) (*DeployMessage, error) {
 	var msg DeployMessage
 

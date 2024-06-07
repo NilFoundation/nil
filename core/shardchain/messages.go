@@ -72,7 +72,7 @@ func validateDeployMessage(es *execution.ExecutionState, message *types.Message)
 		return fail(nil, "Attempt to deploy to master shard")
 	}
 
-	if message.To != types.DeployMsgToAddress(deployMsg.ShardId, message.Data) {
+	if message.To != types.DeployMsgToAddress(deployMsg, message.From) {
 		return fail(nil, "Incorrect deployment address")
 	}
 
