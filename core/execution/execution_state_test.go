@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -272,4 +273,29 @@ func TestCreateObjectRevert(t *testing.T) {
 	if state.Exist(addr) {
 		t.Error("Unexpected account after revert")
 	}
+}
+
+func TestAccountState(t *testing.T) {
+	t.Parallel()
+	state := newState(t)
+	addr := types.BytesToAddress([]byte("so0"))
+
+	state.CreateAccount(addr)
+
+	balance := *uint256.NewInt(42)
+	acc := state.GetAccount(addr)
+	acc.SetBalance(balance)
+	acc.SetSeqno(43)
+	code := types.Code([]byte{'c', 'a', 'f', 'e'})
+	acc.SetCode(code.Hash(), code)
+
+	_, err := state.Commit(0)
+	require.NoError(t, err)
+
+	// Drop local state account cache
+	delete(state.Accounts, addr)
+
+	acc = state.GetAccount(addr)
+	require.NotNil(t, acc)
+	assert.Equal(t, balance, acc.Balance)
 }
