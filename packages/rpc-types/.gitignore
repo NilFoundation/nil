@@ -1,0 +1,15 @@
+node_modules
+dist
+
+logs
+*.log
+npm-debug.log*
+
+coverage
+
+*.tgz
+
+.env
+.env.local
+
+generated-types.ts

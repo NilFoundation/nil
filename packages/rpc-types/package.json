@@ -1,0 +1,33 @@
+{
+  "name": "@nilfoundation/rpc-types",
+  "version": "0.1.0",
+  "description": "Type definitions for nil network rpc api",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "dts-bundle-generator -o dist/index.d.ts src/index.ts --no-banner",
+    "prebuild": "node ./scripts/generate-types.js && rimraf dist"
+  },
+  "author": "=nil; Foundation",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "keywords": [
+    "nil",
+    "blockchain",
+    "client",
+    "rpc",
+    "types",
+    "typescript"
+  ],
+  "devDependencies": {
+    "dts-bundle-generator": "^9.5.1",
+    "rimraf": "^5.0.7",
+    "typescript": "^5.4.5"
+  }
+}
