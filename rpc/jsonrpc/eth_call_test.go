@@ -26,6 +26,7 @@ type SuiteEthCall struct {
 	lastBlockHash common.Hash
 	contracts     map[string]*compiler.Contract
 	from          types.Address
+	simple        types.Address
 }
 
 func (s *SuiteEthCall) SetupSuite() {
@@ -58,7 +59,14 @@ func (s *SuiteEthCall) SetupSuite() {
 	data, err := dm.MarshalSSZ()
 	s.Require().NoError(err)
 
-	m := &types.Message{Seqno: 0, Data: data, From: s.from, GasLimit: *types.NewUint256(100000)}
+	m := &types.Message{
+		Seqno:    0,
+		Data:     data,
+		From:     s.from,
+		GasLimit: *types.NewUint256(100000),
+		To:       types.DeployMsgToAddress(dm, s.from),
+	}
+	s.simple = m.To
 	es.AddInMessage(m)
 
 	es.AddInMessage(m)
@@ -94,7 +102,7 @@ func (s *SuiteEthCall) TestSmcCall() {
 	calldata, err := abi.Pack("getValue")
 	s.Require().NoError(err)
 
-	to := types.CreateAddress(types.BaseShardId, s.from, 0)
+	to := s.simple
 	callArgsData := hexutil.Bytes(calldata)
 	args := CallArgs{
 		From:     s.from,

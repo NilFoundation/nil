@@ -176,6 +176,19 @@ func PubkeyBytesToAddress(shardId ShardId, pubBytes []byte) Address {
 	return BytesToAddress(raw)
 }
 
+func DeployMsgToAddress(deployMsg *DeployMessage, from Address) Address {
+	data := AddressSourceData{
+		DeployMessage: *deployMsg,
+		From:          from,
+	}
+	serialized, err := data.MarshalSSZ()
+	if err != nil {
+		panic("SSZ marshalling failed")
+	}
+	// TODO: add fixed prefix to make a separate namespace
+	return PubkeyBytesToAddress(deployMsg.ShardId, serialized)
+}
+
 // CreateAddress creates an address given the bytes and the nonce.
 func CreateAddress(shardId ShardId, b Address, nonce uint64) Address {
 	raw := make([]byte, 2, AddrSize)

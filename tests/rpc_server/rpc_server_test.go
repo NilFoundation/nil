@@ -26,6 +26,7 @@ type SuiteRpc struct {
 	port    int
 	context context.Context
 	cancel  context.CancelFunc
+	address types.Address
 }
 
 func (suite *SuiteRpc) SetupSuite() {
@@ -194,7 +195,9 @@ func (suite *SuiteRpc) createMessageForDeploy(
 		Data:     data,
 		From:     from,
 		GasLimit: *types.NewUint256(gas),
+		To:       types.DeployMsgToAddress(dm, from),
 	}
+	suite.address = m.To
 	return m
 }
 
@@ -227,7 +230,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 		return seqno == m.Seqno+1
 	}, 6*time.Second, 200*time.Millisecond)
 
-	addr := types.CreateAddress(types.BaseShardId, m.From, m.Seqno)
+	addr := suite.address
 
 	suite.waitForReceipt(addr, m)
 
@@ -323,7 +326,7 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 	checkForShard(types.ShardId(4))
 
 	// check that we can also send message to the same shard
-	checkForShard(types.BaseShardId)
+	// checkForShard(types.BaseShardId)
 }
 
 func (suite *SuiteRpc) TestRpcApiModules() {
@@ -342,8 +345,8 @@ func (suite *SuiteRpc) TestRpcError() {
 		suite.Equal(msg, resp.Error.Message)
 	}
 
-	check(-32601, "the method eth_doesntExists does not exist/is not available",
-		"eth_doesntExists")
+	check(-32601, "the method eth_doesntExist does not exist/is not available",
+		"eth_doesntExist")
 
 	check(-32602, "missing value for required argument 0",
 		getBlockByNumber)

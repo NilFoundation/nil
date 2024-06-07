@@ -153,6 +153,7 @@ func (s *SuiteShardchainState) TestValidateDeployMessage() {
 
 	// Deploy to base shard
 	msg.Data = dataBase
+	msg.To = types.DeployMsgToAddress(dmBase, msg.From)
 	dm = validateDeployMessage(es, msg)
 	s.Require().NotNil(dm)
 	s.Equal(dmBase.Seqno, dm.Seqno)

@@ -2,6 +2,7 @@ build
 *.test
 tests/__debug*
 .idea
+.vscode
 test.db
 models_bel.ts
 result

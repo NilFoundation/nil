@@ -62,7 +62,13 @@ func (suite *SuiteExecutionState) TestExecState() {
 		data, err := deploy.MarshalSSZ()
 		suite.Require().NoError(err)
 
-		msg := &types.Message{Data: data, From: from, Seqno: uint64(i), GasLimit: *types.NewUint256(10000)}
+		msg := &types.Message{
+			Data:     data,
+			From:     from,
+			Seqno:    uint64(i),
+			GasLimit: *types.NewUint256(10000),
+			To:       types.DeployMsgToAddress(deploy, from),
+		}
 		es.AddInMessage(msg)
 		suite.Require().NoError(es.HandleDeployMessage(msg, deploy, &blockContext))
 	}
@@ -182,11 +188,11 @@ func TestStorage(t *testing.T) {
 	num := state.GetState(account, key)
 	require.Equal(t, num, common.EmptyHash)
 
-	require.False(t, state.ContractExists(account))
+	require.False(t, state.accountExists(account))
 
 	state.CreateAccount(account)
 
-	require.True(t, state.ContractExists(account))
+	require.True(t, state.accountExists(account))
 
 	state.SetState(account, key, value)
 

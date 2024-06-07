@@ -1,9 +1,11 @@
 package shardchain
 
 import (
+	"bytes"
 	"context"
 	"errors"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
@@ -26,8 +28,11 @@ func HandleMessages(ctx context.Context, tx db.RoTx, es *execution.ExecutionStat
 			continue
 		}
 
+		// TODO: disallow sending messages to precompiled contracts
+		isPrecompiled := bytes.Equal(message.To[:19], common.EmptyHash[:19])
+
 		// Deploy message
-		if message.To.IsEmpty() {
+		if !isPrecompiled && !es.ContractExists(message.To) {
 			deployMsg := validateDeployMessage(es, message)
 			if deployMsg == nil {
 				continue
@@ -47,23 +52,28 @@ func HandleMessages(ctx context.Context, tx db.RoTx, es *execution.ExecutionStat
 }
 
 func validateDeployMessage(es *execution.ExecutionState, message *types.Message) *types.DeployMessage {
-	r := &types.Receipt{
-		Success: false,
-		GasUsed: 0,
-		MsgHash: es.InMessageHash,
+	fail := func(err error, message string) *types.DeployMessage {
+		r := &types.Receipt{
+			Success: false,
+			GasUsed: 0,
+			MsgHash: es.InMessageHash,
+		}
+		es.AddReceipt(r)
+		sharedLogger.Debug().Err(err).Stringer("hash", es.InMessageHash).Msg(message)
+		return nil
 	}
 
 	deployMsg, err := types.NewDeployMessage(message.Data)
 	if err != nil {
-		es.AddReceipt(r)
-		sharedLogger.Debug().Err(err).Stringer("hash", es.InMessageHash).Msg("Invalid deploy message")
-		return nil
+		return fail(err, "Invalid deploy message")
 	}
 
 	if types.IsMasterShard(deployMsg.ShardId) {
-		es.AddReceipt(r)
-		sharedLogger.Debug().Stringer("hash", es.InMessageHash).Msg("Attempt to deploy to master shard")
-		return nil
+		return fail(nil, "Attempt to deploy to master shard")
+	}
+
+	if message.To != types.DeployMsgToAddress(deployMsg, message.From) {
+		return fail(nil, "Incorrect deployment address")
 	}
 
 	return deployMsg
