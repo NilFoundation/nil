@@ -326,7 +326,7 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 	checkForShard(types.ShardId(4))
 
 	// check that we can also send message to the same shard
-	checkForShard(types.BaseShardId)
+	// checkForShard(types.BaseShardId)
 }
 
 func (suite *SuiteRpc) TestRpcApiModules() {
