@@ -33,7 +33,10 @@ func startRpcServer(ctx context.Context, cfg *Config, db db.DB, pools []msgpool.
 
 	base := jsonrpc.NewBaseApi(rpccfg.DefaultEvmCallTimeout)
 
-	ethImpl := jsonrpc.NewEthAPI(ctx, base, db, pools, logger)
+	ethImpl, err := jsonrpc.NewEthAPI(ctx, base, db, pools, logger)
+	if err != nil {
+		return err
+	}
 	debugImpl := jsonrpc.NewDebugAPI(base, db, logger)
 
 	apiList := []transport.API{

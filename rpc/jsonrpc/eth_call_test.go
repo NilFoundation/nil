@@ -78,8 +78,9 @@ func (s *SuiteEthCall) SetupSuite() {
 	pool := msgpool.New(msgpool.DefaultConfig)
 	s.Require().NotNil(pool)
 
-	s.api = NewEthAPI(ctx,
+	s.api, err = NewEthAPI(ctx,
 		NewBaseApi(rpccfg.DefaultEvmCallTimeout), s.db, []msgpool.Pool{pool}, common.NewLogger("Test"))
+	s.Require().NoError(err)
 }
 
 func (s *SuiteEthCall) TearDownSuite() {

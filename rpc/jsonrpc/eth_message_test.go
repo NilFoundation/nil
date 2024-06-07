@@ -34,8 +34,9 @@ func (suite *SuiteEthMessage) SetupSuite() {
 	pool := msgpool.New(msgpool.DefaultConfig)
 	suite.Require().NotNil(pool)
 
-	suite.api = NewEthAPI(ctx,
+	suite.api, err = NewEthAPI(ctx,
 		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool, pool}, common.NewLogger("Test"))
+	suite.Require().NoError(err)
 
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Require().NoError(err)

@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/rs/zerolog"
@@ -90,12 +91,12 @@ func (api *DebugAPIImpl) getBlockByHash(tx db.Tx, shardId types.ShardId, hash co
 		"content": hexutil.Encode(blockBytes),
 	}
 	if withMessages {
-		messages, err := collectBlockEntities[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot)
+		messages, err := execution.CollectBlockEntities[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot)
 		if err != nil {
 			return nil, err
 		}
 
-		receipts, err := collectBlockEntities[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot)
+		receipts, err := execution.CollectBlockEntities[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot)
 		if err != nil {
 			return nil, err
 		}

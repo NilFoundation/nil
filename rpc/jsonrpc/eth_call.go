@@ -21,7 +21,7 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash trans
 	timer := common.NewTimer()
 	shardId := args.From.ShardId()
 
-	hash, err := api.getBlockHashTx(tx, shardId, blockNrOrHash)
+	hash, err := api.extractBlockHash(tx, shardId, blockNrOrHash)
 	if err != nil {
 		return nil, err
 	}

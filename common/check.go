@@ -27,6 +27,5 @@ func FatalIf(err error, logger *zerolog.Logger, format string, args ...interface
 	} else {
 		log.Err(err).Msgf(format, args...)
 	}
-
 	panic(err)
 }

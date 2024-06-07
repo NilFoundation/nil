@@ -2,16 +2,13 @@ package jsonrpc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
-	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
-	ssz "github.com/ferranbt/fastssz"
 )
 
 func (api *APIImpl) getBlockHashByNumber(
@@ -20,15 +17,15 @@ func (api *APIImpl) getBlockHashByNumber(
 	var requestedBlockNumber types.BlockNumber
 	switch number {
 	case transport.LatestExecutedBlockNumber:
-		fallthrough
+		return common.EmptyHash, errNotImplemented
 	case transport.FinalizedBlockNumber:
-		fallthrough
+		return common.EmptyHash, errNotImplemented
 	case transport.SafeBlockNumber:
-		fallthrough
+		return common.EmptyHash, errNotImplemented
 	case transport.PendingBlockNumber:
 		return common.EmptyHash, errNotImplemented
 	case transport.LatestBlockNumber:
-		lastBlock, err := api.getLastBlock(tx, shardId)
+		lastBlock, err := db.ReadLastBlock(tx, shardId)
 		if err != nil || lastBlock == nil {
 			return common.EmptyHash, err
 		}
@@ -42,11 +39,26 @@ func (api *APIImpl) getBlockHashByNumber(
 	return db.ReadBlockHashByNumber(tx, shardId, requestedBlockNumber)
 }
 
+func (api *APIImpl) extractBlockHash(tx db.RoTx, shardId types.ShardId, numOrHash transport.BlockNumberOrHash) (common.Hash, error) {
+	if numOrHash.BlockNumber != nil {
+		return api.getBlockHashByNumber(tx, shardId, *numOrHash.BlockNumber)
+	}
+	return *numOrHash.BlockHash, nil
+}
+
+func (api *APIImpl) fetchBlockByNumberOrHash(tx db.RoTx, shardId types.ShardId, numOrHash transport.BlockNumberOrHash) (*types.Block, error) {
+	hash, err := api.extractBlockHash(tx, shardId, numOrHash)
+	if err != nil {
+		return nil, err
+	}
+	return api.accessor.GetBlockByHash(tx, shardId, hash), nil
+}
+
 func (api *APIImpl) getBlockByNumberOrHash(
 	ctx context.Context, shardId types.ShardId, numOrHash transport.BlockNumberOrHash, fullTx bool,
 ) (*RPCBlock, error) {
 	block, messages, receipts, err := api.getBlockWithCollectedEntitiesByNumberOrHash(ctx, shardId, numOrHash)
-	if err != nil || block == nil || messages == nil || receipts == nil {
+	if err != nil || block == nil {
 		return nil, err
 	}
 
@@ -93,19 +105,6 @@ func (api *APIImpl) GetBlockTransactionCountByHash(
 	return api.getBlockTransactionCountByNumberOrHash(ctx, shardId, transport.BlockNumberOrHash{BlockHash: &hash})
 }
 
-func (api *APIImpl) getBlockByHash(tx db.Tx, shardId types.ShardId, hash common.Hash) *types.Block {
-	block, ok := api.blocksLRU.Get(hash)
-	if ok {
-		return block
-	}
-	block = db.ReadBlock(tx, shardId, hash)
-	if block != nil {
-		// We should not cache (at least without TTL) missing blocks because they may appear in the future.
-		api.blocksLRU.Add(hash, block)
-	}
-	return block
-}
-
 func (api *APIImpl) getBlockWithCollectedEntitiesByNumberOrHash(
 	ctx context.Context, shardId types.ShardId, numOrHash transport.BlockNumberOrHash) (
 	*types.Block, []*types.Message, []*types.Receipt, error,
@@ -120,82 +119,10 @@ func (api *APIImpl) getBlockWithCollectedEntitiesByNumberOrHash(
 	}
 	defer tx.Rollback()
 
-	block, err := api.getBlockByNumberOrHashTx(tx, shardId, numOrHash)
-	if err != nil || block == nil {
+	hash, err := api.extractBlockHash(tx, shardId, numOrHash)
+	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	hash := block.Hash()
-	messages, messagesCached := api.messagesLRU.Get(hash)
-	if !messagesCached {
-		messages, err = collectBlockEntities[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		api.messagesLRU.Add(hash, messages)
-	}
-
-	receipts, receiptsCached := api.receiptsLRU.Get(hash)
-	if !receiptsCached {
-		receipts, err = collectBlockEntities[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		api.receiptsLRU.Add(hash, receipts)
-	}
-
-	return block, messages, receipts, nil
-}
-
-func (api *APIImpl) getLastBlock(tx db.Tx, shardId types.ShardId) (*types.Block, error) {
-	lastBlockHash, err := db.ReadLastBlockHash(tx, shardId)
-	if err != nil || lastBlockHash == common.EmptyHash {
-		return nil, err
-	}
-	return db.ReadBlock(tx, shardId, lastBlockHash), nil
-}
-
-func collectBlockEntities[
-	T interface {
-		~*S
-		ssz.Unmarshaler
-	},
-	S any,
-](tx db.Tx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash) ([]*S, error) {
-	root := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, tableName, rootHash)
-
-	entities := make([]*S, 0, 1024)
-	var index uint64
-	for {
-		k := ssz.MarshalUint64(nil, index)
-
-		entity, err := mpt.GetEntity[T](root, k)
-		if errors.Is(err, db.ErrKeyNotFound) {
-			break
-		} else if err != nil {
-			return nil, fmt.Errorf("failed to get from %v with index %v from trie: %w", tableName, index, err)
-		}
-		entities = append(entities, entity)
-		index += 1
-	}
-	return entities, nil
-}
-
-func (api *APIImpl) getBlockHashTx(
-	tx db.RoTx, shardId types.ShardId, hashOrNum transport.BlockNumberOrHash,
-) (common.Hash, error) {
-	if hashOrNum.BlockHash != nil {
-		return *hashOrNum.BlockHash, nil
-	}
-	return api.getBlockHashByNumber(tx, shardId, *hashOrNum.BlockNumber)
-}
-
-func (api *APIImpl) getBlockByNumberOrHashTx(
-	tx db.RoTx, shardId types.ShardId, hashOrNum transport.BlockNumberOrHash,
-) (*types.Block, error) {
-	hash, err := api.getBlockHashTx(tx, shardId, hashOrNum)
-	if err != nil {
-		return nil, err
-	}
-	return api.getBlockByHash(tx, shardId, hash), nil
+	return api.accessor.GetBlockWithCollectedEntitiesByHash(tx, shardId, hash)
 }

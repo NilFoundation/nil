@@ -15,7 +15,7 @@ import (
 
 func (api *APIImpl) getSmartContract(tx db.RoTx, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*types.SmartContract, error) {
 	shardId := address.ShardId()
-	block, err := api.getBlockByNumberOrHashTx(tx, shardId, blockNrOrHash)
+	block, err := api.fetchBlockByNumberOrHash(tx, shardId, blockNrOrHash)
 	if err != nil || block == nil {
 		return nil, err
 	}

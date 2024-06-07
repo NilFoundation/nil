@@ -27,23 +27,11 @@ func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardI
 
 	defer tx.Rollback()
 
-	block, indexes, err := api.getBlockAndMessageIndexByMessageHash(tx, shardId, hash)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil
-	}
-	if err != nil {
+	msg, receipt, index, block, err := api.accessor.GetMessageWithEntitiesByHash(tx, shardId, hash)
+	if msg == nil || err != nil {
 		return nil, err
 	}
-
-	msg, err := getBlockEntity[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot, indexes.MessageIndex.Bytes())
-	if err != nil {
-		return nil, err
-	}
-	receipt, err := getBlockEntity[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot, indexes.MessageIndex.Bytes())
-	if err != nil {
-		return nil, err
-	}
-	return NewRPCInMessage(msg, receipt, indexes.MessageIndex, block), nil
+	return NewRPCInMessage(msg, receipt, index, block), nil
 }
 
 func (api *APIImpl) getInMessageByBlockNumberOrHashAndIndex(ctx context.Context, shardId types.ShardId,
@@ -59,7 +47,7 @@ func (api *APIImpl) getInMessageByBlockNumberOrHashAndIndex(ctx context.Context,
 	}
 	defer tx.Rollback()
 
-	block, err := api.getBlockByNumberOrHashTx(tx, shardId, hashOrNum)
+	block, err := api.fetchBlockByNumberOrHash(tx, shardId, hashOrNum)
 	if err != nil || block == nil {
 		return nil, err
 	}
@@ -97,7 +85,7 @@ func (api *APIImpl) getRawInMessageByBlockNumberOrHashAndIndex(ctx context.Conte
 	}
 	defer tx.Rollback()
 
-	block, err := api.getBlockByNumberOrHashTx(tx, shardId, hashOrNum)
+	block, err := api.fetchBlockByNumberOrHash(tx, shardId, hashOrNum)
 	if err != nil || block == nil {
 		return nil, err
 	}
@@ -148,7 +136,7 @@ func (api *APIImpl) getBlockAndMessageIndexByMessageHash(tx db.RoTx, shardId typ
 		return nil, db.BlockHashAndMessageIndex{}, err
 	}
 
-	block := api.getBlockByHash(tx, shardId, blockHashAndMessageIndex.BlockHash)
+	block := api.accessor.GetBlockByHash(tx, shardId, blockHashAndMessageIndex.BlockHash)
 	if block == nil {
 		return nil, db.BlockHashAndMessageIndex{}, errNotFound
 	}

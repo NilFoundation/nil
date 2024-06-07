@@ -4,20 +4,21 @@ import (
 	"context"
 	"errors"
 
+	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
 	"github.com/NilFoundation/nil/features"
 )
 
-func HandleMessages(ctx context.Context, es *execution.ExecutionState, msgs []*types.Message) error {
+func HandleMessages(ctx context.Context, tx db.RoTx, es *execution.ExecutionState, msgs []*types.Message) error {
 	blockContext := execution.NewEVMBlockContext(es)
 	for _, message := range msgs {
 		msgHash := message.Hash()
 		es.AddInMessage(message)
 		es.InMessageHash = msgHash
 
-		ok, err := validateMessage(es, message)
+		ok, err := validateMessage(tx, es, message)
 		if err != nil {
 			return err
 		}
@@ -68,13 +69,17 @@ func validateDeployMessage(es *execution.ExecutionState, message *types.Message)
 	return deployMsg
 }
 
-func validateMessage(es *execution.ExecutionState, message *types.Message) (bool, error) {
+func validateMessage(tx db.RoTx, es *execution.ExecutionState, message *types.Message) (bool, error) {
 	if !features.EnableSignatureCheck {
 		return true, nil
 	}
-	// TODO: Add internal message validation logic
 	if message.Internal {
-		return true, nil
+		fromId := message.From.ShardId()
+		msg, _, _, _, err := es.Accessor.GetMessageWithEntitiesByHash(tx, fromId, message.Hash())
+		if err != nil {
+			return false, err
+		}
+		return msg != nil, nil
 	}
 	addr := message.From
 	accountState := es.GetAccount(addr)

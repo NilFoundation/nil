@@ -44,4 +44,5 @@ func ShardBlocksTrieTableName(blockId types.BlockNumber) ShardedTableName {
 type BlockHashAndMessageIndex struct {
 	BlockHash    common.Hash
 	MessageIndex types.MessageIndex
+	Outgoing     bool
 }

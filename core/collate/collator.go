@@ -96,7 +96,7 @@ func (c *collator) GenerateBlock(ctx context.Context) error {
 			return err
 		}
 
-		if err := shardchain.HandleMessages(ctx, es, append(inMsgs, poolMsgs...)); err != nil {
+		if err := shardchain.HandleMessages(ctx, roTx, es, append(inMsgs, poolMsgs...)); err != nil {
 			return err
 		}
 		for _, msg := range outMsgs {

@@ -81,6 +81,8 @@ type ExecutionState struct {
 
 	// If true, log every instruction execution.
 	TraceVm bool
+
+	Accessor *StateAccessor
 }
 
 type revision struct {
@@ -151,6 +153,11 @@ func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash, t
 		receiptRoot = mpt.NewMerklePatriciaTrie(tx, shardId, receiptTrieTable)
 	}
 
+	accessor, err := NewStateAccessor()
+	if err != nil {
+		return nil, err
+	}
+
 	return &ExecutionState{
 		tx:               tx,
 		Timer:            timer,
@@ -167,6 +174,8 @@ func NewExecutionState(tx db.Tx, shardId types.ShardId, blockHash common.Hash, t
 
 		journal:          newJournal(),
 		transientStorage: newTransientStorage(),
+
+		Accessor: accessor,
 	}, nil
 }
 
