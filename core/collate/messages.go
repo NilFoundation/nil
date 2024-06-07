@@ -1,4 +1,4 @@
-package shardchain
+package collate
 
 import (
 	"bytes"
@@ -10,17 +10,16 @@ import (
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
-	"github.com/NilFoundation/nil/features"
 )
 
-func HandleMessages(ctx context.Context, tx db.RoTx, es *execution.ExecutionState, msgs []*types.Message) error {
+func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionState, msgs []*types.Message) error {
 	blockContext := execution.NewEVMBlockContext(es)
 	for _, message := range msgs {
 		msgHash := message.Hash()
 		es.AddInMessage(message)
 		es.InMessageHash = msgHash
 
-		ok, err := validateMessage(tx, es, message)
+		ok, err := validateMessage(roTx, es, message)
 		if err != nil {
 			return err
 		}
@@ -38,11 +37,11 @@ func HandleMessages(ctx context.Context, tx db.RoTx, es *execution.ExecutionStat
 				continue
 			}
 
-			if err := es.HandleDeployMessage(message, deployMsg, &blockContext); err != nil && !errors.Is(err, new(vm.VMError)) {
+			if err := es.HandleDeployMessage(ctx, message, deployMsg, &blockContext); err != nil && !errors.Is(err, new(vm.VMError)) {
 				return err
 			}
 		} else {
-			if _, err := es.HandleExecutionMessage(message, &blockContext); err != nil && !errors.Is(err, new(vm.VMError)) {
+			if _, err := es.HandleExecutionMessage(ctx, message, &blockContext); err != nil && !errors.Is(err, new(vm.VMError)) {
 				return err
 			}
 		}
@@ -79,27 +78,25 @@ func validateDeployMessage(es *execution.ExecutionState, message *types.Message)
 	return deployMsg
 }
 
-func validateMessage(tx db.RoTx, es *execution.ExecutionState, message *types.Message) (bool, error) {
-	if !features.EnableSignatureCheck {
-		return true, nil
-	}
+func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.Message) (bool, error) {
 	if message.Internal {
 		fromId := message.From.ShardId()
-		msg, _, _, _, err := es.Accessor.GetMessageWithEntitiesByHash(tx, fromId, message.Hash())
+		msg, _, _, _, err := es.Accessor.GetMessageWithEntitiesByHash(roTx, fromId, message.Hash())
 		if err != nil {
 			return false, err
 		}
 		return msg != nil, nil
 	}
-	addr := message.From
-	accountState := es.GetAccount(addr)
 
+	addr := message.From
 	r := &types.Receipt{
 		Success:         false,
 		GasUsed:         0,
 		MsgHash:         es.InMessageHash,
 		ContractAddress: addr,
 	}
+
+	accountState := es.GetAccount(addr)
 	if accountState == nil {
 		r.Logs = es.Logs[es.InMessageHash]
 		es.AddReceipt(r)

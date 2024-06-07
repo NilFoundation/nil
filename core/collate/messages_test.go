@@ -1,4 +1,4 @@
-package shardchain
+package collate
 
 import (
 	"context"
@@ -13,28 +13,26 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type SuiteShardchainState struct {
+type MessagesSuite struct {
 	suite.Suite
 	db db.DB
 }
 
-func (s *SuiteShardchainState) SetupTest() {
+func (s *MessagesSuite) SetupTest() {
 	var err error
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 }
 
-func (s *SuiteShardchainState) TearDownTest() {
+func (s *MessagesSuite) TearDownTest() {
 	s.db.Close()
 }
 
-func (s *SuiteShardchainState) TestGenerateBlock() {
+func (s *MessagesSuite) TestGenerateBlock() {
 	ctx := context.Background()
 	shardId := types.ShardId(1)
-	shard := NewShardChain(shardId, s.db)
-	s.Require().NotNil(shard)
 
-	rwTx, err := shard.CreateRwTx(ctx)
+	rwTx, err := s.db.CreateRwTx(ctx)
 	s.Require().NoError(err)
 	defer rwTx.Rollback()
 
@@ -58,7 +56,7 @@ func (s *SuiteShardchainState) TestGenerateBlock() {
 	s.Equal(m2.Hash(), r.MsgHash)
 }
 
-func (s *SuiteShardchainState) TestValidateMessage() {
+func (s *MessagesSuite) TestValidateMessage() {
 	tx, err := s.db.CreateRwTx(context.Background())
 	s.Require().NoError(err)
 	defer tx.Rollback()
@@ -115,7 +113,7 @@ func (s *SuiteShardchainState) TestValidateMessage() {
 	s.False(es.Receipts[2].Success)
 }
 
-func (s *SuiteShardchainState) TestValidateDeployMessage() {
+func (s *MessagesSuite) TestValidateDeployMessage() {
 	tx, err := s.db.CreateRwTx(context.Background())
 	s.Require().NoError(err)
 	defer tx.Rollback()
@@ -160,8 +158,8 @@ func (s *SuiteShardchainState) TestValidateDeployMessage() {
 	s.Equal(dmBase.ShardId, dm.ShardId)
 }
 
-func TestSuiteShardchainState(t *testing.T) {
+func TestMessages(t *testing.T) {
 	t.Parallel()
 
-	suite.Run(t, new(SuiteShardchainState))
+	suite.Run(t, new(MessagesSuite))
 }

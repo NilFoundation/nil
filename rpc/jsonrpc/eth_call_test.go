@@ -70,7 +70,7 @@ func (s *SuiteEthCall) SetupSuite() {
 	es.AddInMessage(m)
 
 	es.AddInMessage(m)
-	s.Require().NoError(es.HandleDeployMessage(m, dm, &blockContext))
+	s.Require().NoError(es.HandleDeployMessage(ctx, m, dm, &blockContext))
 
 	blockHash, err := es.Commit(0)
 	s.Require().NoError(err)

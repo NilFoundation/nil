@@ -1,12 +1,13 @@
 package execution
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
 
 	"github.com/NilFoundation/nil/common"
-	db "github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
@@ -692,7 +693,7 @@ func (es *ExecutionState) AddOutMessage(txId common.Hash, msg *types.Message) {
 }
 
 func (es *ExecutionState) HandleDeployMessage(
-	message *types.Message, deployMsg *types.DeployMessage, blockContext *vm.BlockContext,
+	_ context.Context, message *types.Message, deployMsg *types.DeployMessage, blockContext *vm.BlockContext,
 ) error {
 	addr := message.To
 
@@ -720,7 +721,7 @@ func (es *ExecutionState) HandleDeployMessage(
 	return err
 }
 
-func (es *ExecutionState) HandleExecutionMessage(message *types.Message, blockContext *vm.BlockContext) ([]byte, error) {
+func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *types.Message, blockContext *vm.BlockContext) ([]byte, error) {
 	addr := message.To
 	logger.Debug().Msgf("Call contract %s", addr)
 
@@ -834,4 +835,8 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 
 func (es *ExecutionState) GetInMessageHash() common.Hash {
 	return es.InMessageHash
+}
+
+func (es *ExecutionState) RoTx() db.RoTx {
+	return es.tx
 }
