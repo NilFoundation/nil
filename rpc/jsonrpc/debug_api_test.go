@@ -34,8 +34,8 @@ func TestDebugGetBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	tx, err := database.CreateRwTx(ctx)
-	defer tx.Rollback()
 	require.NoError(t, err)
+	defer tx.Rollback()
 
 	err = db.WriteBlock(tx, types.MasterShardId, &block)
 	require.NoError(t, err)

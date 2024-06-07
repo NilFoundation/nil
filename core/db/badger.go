@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"runtime"
+	"sync/atomic"
 	"time"
 
+	"github.com/NilFoundation/nil/common/assert"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/rs/zerolog/log"
@@ -23,7 +27,8 @@ type BadgerDBOptions struct {
 }
 
 type BadgerRoTx struct {
-	tx *badger.Txn
+	tx         *badger.Txn
+	Terminated atomic.Bool
 }
 
 type BadgerRwTx struct {
@@ -131,14 +136,37 @@ func (k *BadgerDB) Range(table TableName, from []byte, to []byte) (Iter, error) 
 	return nil, ErrNotImplemented
 }
 
+func captureStacktrace() []byte {
+	stack := make([]byte, 1024)
+	_ = runtime.Stack(stack, false)
+	return stack
+}
+
+func runTxLeakChecker(tx *BadgerRoTx, stack []byte, timeout time.Duration) {
+	time.Sleep(timeout)
+	if !tx.Terminated.Load() {
+		panic(fmt.Sprintf("Transaction wasn't terminated:\n%s", stack))
+	}
+}
+
 func (k *BadgerDB) CreateRoTx(ctx context.Context) (RoTx, error) {
 	txn := k.db.NewTransaction(false)
-	return &BadgerRoTx{tx: txn}, nil
+	tx := &BadgerRoTx{tx: txn}
+	if assert.Enable {
+		stack := captureStacktrace()
+		go runTxLeakChecker(tx, stack, 1*time.Second)
+	}
+	return tx, nil
 }
 
 func (k *BadgerDB) CreateRwTx(ctx context.Context) (RwTx, error) {
 	txn := k.db.NewTransaction(true)
-	return &BadgerRwTx{BadgerRoTx{tx: txn}}, nil
+	tx := &BadgerRwTx{BadgerRoTx{tx: txn}}
+	if assert.Enable {
+		stack := captureStacktrace()
+		go runTxLeakChecker(&tx.BadgerRoTx, stack, 10*time.Second)
+	}
+	return tx, nil
 }
 
 func (db *BadgerDB) ExistsInShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (bool, error) {
@@ -183,10 +211,12 @@ func (db *BadgerDB) LogGC(ctx context.Context, discardRation float64, gcFrequenc
 }
 
 func (tx *BadgerRoTx) Commit() error {
+	tx.Terminated.Store(true)
 	return tx.tx.Commit()
 }
 
 func (tx *BadgerRoTx) Rollback() {
+	tx.Terminated.Store(true)
 	tx.tx.Discard()
 }
 

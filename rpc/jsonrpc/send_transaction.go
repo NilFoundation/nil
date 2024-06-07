@@ -33,11 +33,15 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Byte
 	if err != nil {
 		return common.Hash{}, err
 	}
+	defer tx.Rollback()
 
 	reason, err := api.msgPools[shardId].Add(ctx, []*types.Message{&msg}, tx)
 	if err != nil {
 		return common.Hash{}, err
 	}
+
+	err = tx.Commit()
+	api.logger.Error().Err(err).Stringer("hash", msg.Hash()).Msg("Failed to commit tx")
 
 	if reason[0] != msgpool.NotSet {
 		return common.Hash{}, fmt.Errorf("message status: %s", reason[0])

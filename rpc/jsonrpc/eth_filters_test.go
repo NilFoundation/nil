@@ -47,6 +47,8 @@ func (s *SuiteEthFilters) TearDownTest() {
 func (s *SuiteEthFilters) TestLogs() {
 	tx, err := s.db.CreateRwTx(s.ctx)
 	s.Require().NoError(err)
+	defer tx.Rollback()
+
 	address1 := types.HexToAddress("0x1111111111")
 	address2 := types.HexToAddress("0x2222222222")
 
@@ -141,6 +143,7 @@ func (s *SuiteEthFilters) TestLogs() {
 func (s *SuiteEthFilters) TestBlocks() {
 	tx, err := s.db.CreateRwTx(s.ctx)
 	s.Require().NoError(err)
+	defer tx.Rollback()
 	shardId := types.ShardId(0)
 
 	id1, err := s.api.NewBlockFilter(s.ctx)
@@ -178,6 +181,7 @@ func (s *SuiteEthFilters) TestBlocks() {
 
 	tx, err = s.db.CreateRwTx(s.ctx)
 	s.Require().NoError(err)
+	defer tx.Rollback()
 
 	// Add new three blocks
 	block2 := types.Block{Id: 2, PrevBlock: block1.Hash()}
@@ -220,6 +224,7 @@ func (s *SuiteEthFilters) TestBlocks() {
 
 	tx, err = s.db.CreateRwTx(s.ctx)
 	s.Require().NoError(err)
+	defer tx.Rollback()
 
 	// Add another two blocks
 	block5 := types.Block{Id: 5, PrevBlock: block4.Hash()}

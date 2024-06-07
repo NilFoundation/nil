@@ -39,7 +39,7 @@
             ];
 
             doCheck = true;
-            checkFlags = ["-race"];
+            checkFlags = ["-race" "-tags assert"];
           };
 
           default = nil;

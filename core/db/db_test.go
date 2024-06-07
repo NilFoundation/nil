@@ -160,9 +160,11 @@ func (suite *SuiteBadgerDb) TestTwoParallelTransaction() {
 
 	tx1, err := suite.db.CreateRoTx(ctx)
 	suite.Suite.Require().NoError(err)
+	defer tx1.Rollback()
 
 	tx2, err := suite.db.CreateRwTx(ctx)
 	suite.Suite.Require().NoError(err)
+	defer tx2.Rollback()
 
 	_, err = tx1.Get("tbl", []byte("foo2"))
 	suite.Suite.Require().NoError(err)
@@ -258,7 +260,8 @@ func (suite *SuiteBadgerDb) TestRange() {
 		keys := make([][]byte, 0, 3)
 		value := make([][]byte, 0, 3)
 
-		it, _ := tx.Range("empty", nil, nil)
+		it, err := tx.Range("empty", nil, nil)
+		suite.Require().NoError(err)
 		for it.HasNext() {
 			k, v, err := it.Next()
 			suite.Require().NoError(err)
@@ -275,7 +278,8 @@ func (suite *SuiteBadgerDb) TestRange() {
 	suite.Run("from-to", func() {
 		suite.fillData("from-to")
 
-		tx, _ := db.CreateRoTx(ctx)
+		tx, err := db.CreateRoTx(ctx)
+		suite.Require().NoError(err)
 		defer tx.Rollback()
 
 		it, err := tx.Range("from-to", []byte("key1"), []byte("key3"))
@@ -302,7 +306,8 @@ func (suite *SuiteBadgerDb) TestRange() {
 	suite.Run("from-inf", func() {
 		suite.fillData("from-inf")
 
-		tx, _ := db.CreateRoTx(ctx)
+		tx, err := db.CreateRoTx(ctx)
+		suite.Require().NoError(err)
 		defer tx.Rollback()
 
 		it, err := tx.Range("from-inf", []byte("key1"), nil)
@@ -335,7 +340,8 @@ func (suite *SuiteBadgerDb) TestRange() {
 	suite.Run("inf-to", func() {
 		suite.fillData("inf-to")
 
-		tx, _ := db.CreateRoTx(ctx)
+		tx, err := db.CreateRoTx(ctx)
+		suite.Require().NoError(err)
 		defer tx.Rollback()
 
 		it, err := tx.Range("inf-to", nil, []byte("key1"))
