@@ -112,6 +112,7 @@ func NewAccountState(es *ExecutionState, addr types.Address, tx db.Tx, account *
 		address: addr,
 
 		Tx:          tx,
+		Balance:     account.Balance.Int,
 		StorageTree: root,
 		CodeHash:    account.CodeHash,
 		Code:        code,
