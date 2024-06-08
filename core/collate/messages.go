@@ -104,10 +104,16 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 		return false, nil
 	}
 
-	ok, err := message.ValidateSignature(accountState.PublicKey[:])
-	if err != nil {
-		return false, err
+	ok := es.CallValidateExternal(message, accountState)
+
+	if !ok {
+		ok2, err := message.ValidateSignature(accountState.PublicKey[:])
+		if err != nil {
+			return false, err
+		}
+		ok = ok2
 	}
+
 	if !ok {
 		r.Logs = es.Logs[es.InMessageHash]
 		es.AddReceipt(r)

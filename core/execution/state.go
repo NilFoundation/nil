@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 )
 
@@ -847,4 +849,27 @@ func (es *ExecutionState) GetInMessageHash() common.Hash {
 
 func (es *ExecutionState) RoTx() db.RoTx {
 	return es.tx
+}
+
+func (es *ExecutionState) CallValidateExternal(message *types.Message, account *AccountState) bool {
+	methodSignature := "verifyExternal(bytes,uint256,bytes)"
+	methodSelector := crypto.Keccak256([]byte(methodSignature))[:4]
+	argSpec := vm.VerifyExternalArgs()
+	hash, err := message.SigningHash()
+	if err != nil {
+		return false
+	}
+	argData, err := argSpec.Pack(account.PublicKey[:], hash.Big(), message.Signature[:])
+	if err != nil {
+		return false
+	}
+	calldata := append(methodSelector, argData...) //nolint:gocritic
+
+	blockContext := NewEVMBlockContext(es)
+	evm := vm.NewEVM(blockContext, es)
+	ret, _, err := evm.StaticCall((vm.AccountRef)(account.address), account.address, calldata, 10000)
+	if err != nil || !bytes.Equal(ret, common.LeftPadBytes([]byte{1}, 32)) {
+		return false
+	}
+	return true
 }
