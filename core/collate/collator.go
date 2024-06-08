@@ -17,7 +17,7 @@ const (
 	defaultPeriod  = 2 * time.Second
 	defaultTimeout = time.Second
 
-	nMessagesForBlock = 10
+	maxMessagesInBlock = 100
 )
 
 var sharedLogger = logging.NewLogger("collator")
@@ -28,27 +28,25 @@ type collator struct {
 
 	pool MsgPool
 
-	topology             ShardTopology
-	neighborIds          []types.ShardId
-	neighborBlockNumbers types.BlockNumberList
+	topology    ShardTopology
+	neighborIds []types.ShardId
+	state       types.CollatorState
 
 	logger zerolog.Logger
 
-	state *execution.ExecutionState
-	roTx  db.RoTx
-	rwTx  db.RwTx
+	executionState *execution.ExecutionState
+	roTx           db.RoTx
+	rwTx           db.RwTx
 }
 
 func newCollator(id types.ShardId, nShards int, topology ShardTopology, pool MsgPool, logger zerolog.Logger) *collator {
-	neighbors := topology.GetNeighbours(id, nShards, true)
 	return &collator{
-		pool:                 pool,
-		id:                   id,
-		nShards:              nShards,
-		logger:               logger,
-		neighborIds:          neighbors,
-		neighborBlockNumbers: types.BlockNumberList{List: make([]uint64, len(neighbors))},
-		topology:             topology,
+		pool:        pool,
+		id:          id,
+		nShards:     nShards,
+		logger:      logger,
+		neighborIds: topology.GetNeighbors(id, nShards, true),
+		topology:    topology,
 	}
 }
 
@@ -67,28 +65,29 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 	if lastBlockHash == common.EmptyHash {
 		c.logger.Trace().Msg("Generating zero-state...")
 
-		if err := c.state.GenerateZeroState(ctx); err != nil {
+		if err := c.executionState.GenerateZeroState(ctx); err != nil {
 			return err
 		}
 	} else {
 		c.logger.Trace().Msg("Collating...")
 
-		// todo: store last block id
-		inMsgs, outMsgs, err := c.collectFromNeighbours()
+		inMsgs, outMsgs, err := c.collectFromNeighbors()
 		if err != nil {
 			return err
 		}
 
-		poolMsgs, err = c.pool.Peek(ctx, nMessagesForBlock, 0)
-		if err != nil {
-			return err
+		if nPooled := maxMessagesInBlock - len(inMsgs) - len(outMsgs); nPooled != 0 {
+			poolMsgs, err = c.pool.Peek(ctx, nPooled, 0)
+			if err != nil {
+				return err
+			}
 		}
 
-		if err := HandleMessages(ctx, c.roTx, c.state, append(inMsgs, poolMsgs...)); err != nil {
+		if err := HandleMessages(ctx, c.roTx, c.executionState, append(inMsgs, poolMsgs...)); err != nil {
 			return err
 		}
 		for _, msg := range outMsgs {
-			c.state.AddOutMessage(msg.inMsgHash, msg.msg)
+			c.executionState.AddOutMessage(msg.inMsgHash, msg.msg)
 		}
 	}
 
@@ -118,7 +117,7 @@ func (c *collator) init(ctx context.Context, txFabric db.DB) error {
 		return err
 	}
 
-	c.state, err = execution.NewExecutionStateForShard(c.rwTx, c.id, common.NewTimer())
+	c.executionState, err = execution.NewExecutionStateForShard(c.rwTx, c.id, common.NewTimer())
 	if err != nil {
 		return err
 	}
@@ -135,7 +134,7 @@ func (c *collator) clear() {
 		c.rwTx.Rollback()
 		c.rwTx = nil
 	}
-	c.state = nil
+	c.executionState = nil
 }
 
 func (c *collator) finalize() (*types.Block, error) {
@@ -143,16 +142,16 @@ func (c *collator) finalize() (*types.Block, error) {
 		return nil, err
 	}
 
-	if err := c.setLastBlockNumbers(); err != nil {
+	if err := db.WriteCollatorState(c.rwTx, c.id, c.state); err != nil {
 		return nil, err
 	}
 
 	blockId := types.BlockNumber(0)
-	if c.state.PrevBlock != common.EmptyHash {
-		blockId = db.ReadBlock(c.rwTx, c.id, c.state.PrevBlock).Id + 1
+	if c.executionState.PrevBlock != common.EmptyHash {
+		blockId = db.ReadBlock(c.rwTx, c.id, c.executionState.PrevBlock).Id + 1
 	}
 
-	blockHash, err := c.state.Commit(blockId)
+	blockHash, err := c.executionState.Commit(blockId)
 	if err != nil {
 		return nil, err
 	}
@@ -177,24 +176,16 @@ func (c *collator) setLastBlockHashes() error {
 			if err != nil {
 				return err
 			}
-			c.state.SetShardHash(shardId, lastBlockHash)
+			c.executionState.SetShardHash(shardId, lastBlockHash)
 		}
 	} else {
 		lastBlockHash, err := db.ReadLastBlockHash(c.roTx, types.MasterShardId)
 		if err != nil {
 			return err
 		}
-		c.state.SetMasterchainHash(lastBlockHash)
+		c.executionState.SetMasterchainHash(lastBlockHash)
 	}
 	return nil
-}
-
-func (c *collator) setLastBlockNumbers() error {
-	value, err := c.neighborBlockNumbers.MarshalSSZ()
-	if err != nil {
-		return err
-	}
-	return c.rwTx.Put(db.NeighbourBlockNumber, c.id.Bytes(), value)
 }
 
 type OutMessage struct {
@@ -202,27 +193,42 @@ type OutMessage struct {
 	msg       *types.Message
 }
 
-func (c *collator) collectFromNeighbours() ([]*types.Message, []*OutMessage, error) {
-	numbers, err := db.ReadNbBlockNumbers(c.roTx, c.id, len(c.neighborIds))
+func (c *collator) collectFromNeighbors() ([]*types.Message, []*OutMessage, error) {
+	state, err := db.ReadCollatorState(c.roTx, c.id)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	neighborIndexes := common.SliceToMap[types.Neighbor, types.ShardId, int](state.Neighbors, func(i int, t types.Neighbor) (types.ShardId, int) {
+		return t.ShardId, i
+	})
+
 	var inMsgs []*types.Message
 	var outMsgs []*OutMessage
-	for i, srcShardId := range c.neighborIds {
+
+SHARDS:
+	for _, neighborId := range c.neighborIds {
+		position, ok := neighborIndexes[neighborId]
+		if !ok {
+			position = len(neighborIndexes)
+			neighborIndexes[neighborId] = position
+			state.Neighbors = append(state.Neighbors, types.Neighbor{ShardId: neighborId})
+		}
+		neighbor := &state.Neighbors[position]
+
+	BLOCKS:
 		for {
-			block, err := db.ReadBlockByNumber(c.roTx, srcShardId, types.BlockNumber(numbers.List[i]))
+			block, err := db.ReadBlockByNumber(c.roTx, neighborId, neighbor.BlockNumber)
 			if err != nil {
 				return nil, nil, err
 			}
 			if block == nil {
-				break
+				break BLOCKS
 			}
 
-			outMsgTrie := execution.NewMessageTrieReader(mpt.NewReaderWithRoot(c.roTx, srcShardId, db.MessageTrieTable, block.OutMessagesRoot))
-			for msgIndex := range block.OutMessagesNum {
-				msg, err := outMsgTrie.Fetch(msgIndex)
+			outMsgTrie := execution.NewMessageTrieReader(mpt.NewReaderWithRoot(c.roTx, neighborId, db.MessageTrieTable, block.OutMessagesRoot))
+			for ; neighbor.MessageIndex < block.OutMessagesNum; neighbor.MessageIndex++ {
+				msg, err := outMsgTrie.Fetch(neighbor.MessageIndex)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -230,15 +236,20 @@ func (c *collator) collectFromNeighbours() ([]*types.Message, []*OutMessage, err
 				dstShardId := msg.To.ShardId()
 				if dstShardId == c.id {
 					inMsgs = append(inMsgs, msg)
-				} else if c.id != srcShardId && c.topology.ShouldPropagateMsg(srcShardId, c.id, dstShardId) {
+				} else if c.id != neighborId && c.topology.ShouldPropagateMsg(neighborId, c.id, dstShardId) {
 					// TODO: add inMsgHash support (do we even need it?)
 					outMsgs = append(outMsgs, &OutMessage{msg: msg})
 				}
+
+				if len(inMsgs)+len(outMsgs) >= maxMessagesInBlock {
+					break SHARDS
+				}
 			}
-			numbers.List[i]++
+			neighbor.BlockNumber++
+			neighbor.MessageIndex = 0
 		}
 	}
 
-	c.neighborBlockNumbers = numbers
+	c.state = state
 	return inMsgs, outMsgs, nil
 }

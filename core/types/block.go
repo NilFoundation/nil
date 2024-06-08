@@ -17,10 +17,6 @@ func (bn BlockNumber) Uint64() uint64 {
 func (bn BlockNumber) String() string { return strconv.FormatUint(bn.Uint64(), 10) }
 func (bn BlockNumber) Bytes() []byte  { return []byte(bn.String()) }
 
-type BlockNumberList struct {
-	List []uint64 `ssz-max:"10000"`
-}
-
 type Block struct {
 	Id                 BlockNumber `ch:"id"`
 	PrevBlock          common.Hash `ch:"prev_block"`
