@@ -61,32 +61,20 @@ func (pp *blockPostprocessor) fillBlockHashByNumberIndex() error {
 
 func (pp *blockPostprocessor) fillBlockHashAndMessageIndexByMessageHash() error {
 	fill := func(root common.Hash, outgoing bool) error {
-		mptMessages := mpt.NewMerklePatriciaTrieWithRoot(pp.tx, pp.shardId, db.MessageTrieTable, root)
-
-		// TODO: currently "Iterate" works via channel.
-		// It probably causes concurrent usage of "tx" object that
-		// triggers race detector. So split logic in two steps that should be safer.
-		messages := make([]mpt.MptIteratorKey, 0)
-		for kv := range mptMessages.Iterate() {
-			messages = append(messages, kv)
+		mptMessages := NewMessageTrieReader(mpt.NewReaderWithRoot(pp.tx, pp.shardId, db.MessageTrieTable, root))
+		msgs, err := mptMessages.Entries()
+		if err != nil {
+			return err
 		}
 
-		for _, kv := range messages {
-			messageIndex := types.BytesToMessageIndex(kv.Key)
-
-			var message types.Message
-			if err := message.UnmarshalSSZ(kv.Value); err != nil {
-				return err
-			}
-			messageHash := message.Hash()
-
-			blockHashAndMessageIndex := db.BlockHashAndMessageIndex{BlockHash: pp.blockHash, MessageIndex: messageIndex, Outgoing: outgoing}
+		for _, kv := range msgs {
+			blockHashAndMessageIndex := db.BlockHashAndMessageIndex{BlockHash: pp.blockHash, MessageIndex: kv.Key, Outgoing: outgoing}
 			value, err := blockHashAndMessageIndex.MarshalSSZ()
 			if err != nil {
 				return err
 			}
 
-			if err := pp.tx.PutToShard(pp.shardId, db.BlockHashAndMessageIndexByMessageHash, messageHash.Bytes(), value); err != nil {
+			if err := pp.tx.PutToShard(pp.shardId, db.BlockHashAndMessageIndexByMessageHash, kv.Val.Hash().Bytes(), value); err != nil {
 				return err
 			}
 		}
