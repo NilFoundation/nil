@@ -1,6 +1,7 @@
 package mpt
 
 import (
+	"context"
 	"encoding/binary"
 	"math/rand"
 	"testing"
@@ -18,19 +19,21 @@ func getValue(value interface{}, err error) interface{} {
 	return value
 }
 
-func CreateMerklePatriciaTrie() *MerklePatriciaTrie {
+func CreateMerklePatriciaTrie(t *testing.T) *MerklePatriciaTrie {
+	t.Helper()
+
 	d, err := db.NewBadgerDbInMemory()
-	if err != nil {
-		panic("Failed to create BadgerDb")
-	}
-	trie := NewMerklePatriciaTrie(d, types.BaseShardId, "mpt")
-	return trie
+	require.NoError(t, err)
+	tx, err := d.CreateRwTx(context.Background())
+	require.NoError(t, err)
+
+	return NewMerklePatriciaTrie(tx, types.BaseShardId, "mpt")
 }
 
 func TestInsertGetOneShort(t *testing.T) {
 	t.Parallel()
 
-	trie := CreateMerklePatriciaTrie()
+	trie := CreateMerklePatriciaTrie(t)
 
 	key := []byte("key")
 	value := []byte("value")
@@ -46,7 +49,7 @@ func TestInsertGetOneShort(t *testing.T) {
 func TestInsertGetOneLong(t *testing.T) {
 	t.Parallel()
 
-	trie := CreateMerklePatriciaTrie()
+	trie := CreateMerklePatriciaTrie(t)
 
 	key := []byte("key_0000000000000000000000000000000000000000000000000000000000000000")
 	value := []byte("value_0000000000000000000000000000000000000000000000000000000000000000")
@@ -57,7 +60,7 @@ func TestInsertGetOneLong(t *testing.T) {
 func TestInsertGetMany(t *testing.T) {
 	t.Parallel()
 
-	trie := CreateMerklePatriciaTrie()
+	trie := CreateMerklePatriciaTrie(t)
 
 	require.NoError(t, trie.Set([]byte("do"), []byte("verb")))
 	require.NoError(t, trie.Set([]byte("dog"), []byte("puppy")))
@@ -73,7 +76,7 @@ func TestInsertGetMany(t *testing.T) {
 func TestIterate(t *testing.T) {
 	t.Parallel()
 
-	trie := CreateMerklePatriciaTrie()
+	trie := CreateMerklePatriciaTrie(t)
 	keys := [][]byte{[]byte("do"), []byte("dog"), []byte("doge"), []byte("horse")}
 	values := [][]byte{[]byte("verb"), []byte("puppy"), []byte("coin"), []byte("stallion")}
 
@@ -93,7 +96,7 @@ func TestIterate(t *testing.T) {
 func TestInsertGetLots(t *testing.T) {
 	t.Parallel()
 
-	trie := CreateMerklePatriciaTrie()
+	trie := CreateMerklePatriciaTrie(t)
 	const size = 100
 
 	var keys [size][]byte
@@ -116,7 +119,7 @@ func TestInsertGetLots(t *testing.T) {
 func TestDeleteOne(t *testing.T) {
 	t.Parallel()
 
-	trie := CreateMerklePatriciaTrie()
+	trie := CreateMerklePatriciaTrie(t)
 
 	require.NoError(t, trie.Set([]byte("key"), []byte("value")))
 	require.NoError(t, trie.Delete([]byte("key")))
@@ -129,7 +132,7 @@ func TestDeleteOne(t *testing.T) {
 func TestDeleteMany(t *testing.T) {
 	t.Parallel()
 
-	trie := CreateMerklePatriciaTrie()
+	trie := CreateMerklePatriciaTrie(t)
 
 	require.NoError(t, trie.Set([]byte("do"), []byte("verb")))
 	require.NoError(t, trie.Set([]byte("dog"), []byte("puppy")))
@@ -158,7 +161,7 @@ func TestDeleteMany(t *testing.T) {
 func TestDeleteLots(t *testing.T) {
 	t.Parallel()
 
-	trie := CreateMerklePatriciaTrie()
+	trie := CreateMerklePatriciaTrie(t)
 	const size = 100
 
 	require.Equal(t, trie.RootHash(), common.EmptyHash)
@@ -186,7 +189,7 @@ func TestDeleteLots(t *testing.T) {
 func TestTrieFromOldRoot(t *testing.T) {
 	t.Parallel()
 
-	trie := CreateMerklePatriciaTrie()
+	trie := CreateMerklePatriciaTrie(t)
 
 	require.NoError(t, trie.Set([]byte("do"), []byte("verb")))
 	require.NoError(t, trie.Set([]byte("dog"), []byte("puppy")))
@@ -197,7 +200,7 @@ func TestTrieFromOldRoot(t *testing.T) {
 	require.NoError(t, trie.Set([]byte("do"), []byte("not_a_verb")))
 
 	// Old
-	trie2 := NewMerklePatriciaTrieWithRoot(trie.db, types.BaseShardId, "mpt", rootHash)
+	trie2 := NewMerklePatriciaTrieWithRoot(trie.accessor, types.BaseShardId, "mpt", rootHash)
 	require.Equal(t, getValue(trie2.Get([]byte("do"))), []byte("verb"))
 	require.Equal(t, getValue(trie2.Get([]byte("dog"))), []byte("puppy"))
 

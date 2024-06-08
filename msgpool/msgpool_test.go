@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
@@ -14,7 +13,7 @@ import (
 
 type SuiteMsgPool struct {
 	suite.Suite
-	db   db.DB
+
 	pool *MsgPool
 }
 
@@ -30,26 +29,15 @@ func newMessage(from types.Address, seqno uint64, fee uint64) types.Message {
 }
 
 func (suite *SuiteMsgPool) BeforeTest(suiteName, testName string) {
-	var err error
-	suite.db, err = db.NewBadgerDbInMemory()
-	suite.Require().NoError(err)
-
 	suite.pool = New(DefaultConfig)
 	suite.Require().NotNil(suite.pool)
 	suite.Equal(0, suite.pool.MessageCount())
-}
-
-func (suite *SuiteMsgPool) AfterTest(suiteName, testName string) {
-	suite.db.Close()
 }
 
 func (suite *SuiteMsgPool) TestAdd() {
 	suite.Equal(0, suite.pool.MessageCount())
 
 	ctx := context.Background()
-	tx, err := suite.db.CreateRwTx(ctx)
-	suite.Require().NoError(err)
-	defer tx.Rollback()
 
 	address := types.HexToAddress("deadbeef")
 	suite.Require().NotEqual(types.Address{}, address)
@@ -102,16 +90,10 @@ func (suite *SuiteMsgPool) TestAdd() {
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 	suite.Equal(3, suite.pool.MessageCount())
-
-	err = tx.Commit()
-	suite.Require().NoError(err)
 }
 
 func (suite *SuiteMsgPool) TestAddOverflow() {
 	ctx := context.Background()
-	tx, err := suite.db.CreateRwTx(ctx)
-	suite.Require().NoError(err)
-	defer tx.Rollback()
 
 	suite.pool.cfg.Size = 1
 
@@ -127,9 +109,6 @@ func (suite *SuiteMsgPool) TestAddOverflow() {
 	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg2})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{PoolOverflow}, reasons)
-
-	err = tx.Commit()
-	suite.Require().NoError(err)
 }
 
 func (suite *SuiteMsgPool) TestStarted() {
@@ -138,9 +117,6 @@ func (suite *SuiteMsgPool) TestStarted() {
 
 func (suite *SuiteMsgPool) TestIdHashKnownGet() {
 	ctx := context.Background()
-	tx, err := suite.db.CreateRwTx(ctx)
-	suite.Require().NoError(err)
-	defer tx.Rollback()
 
 	address := types.HexToAddress("deadbeef01")
 	suite.Require().NotEqual(types.Address{}, address)
@@ -150,32 +126,26 @@ func (suite *SuiteMsgPool) TestIdHashKnownGet() {
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 
-	has, err := suite.pool.IdHashKnown(tx, msg.Hash())
+	has, err := suite.pool.IdHashKnown(msg.Hash())
 	suite.Require().NoError(err)
 	suite.Require().True(has)
 
-	poolMsg, err := suite.pool.Get(tx, msg.Hash())
+	poolMsg, err := suite.pool.Get(msg.Hash())
 	suite.Require().NoError(err)
 	suite.Require().NotNil(poolMsg)
 	suite.Equal(msg, *poolMsg)
 
-	has, err = suite.pool.IdHashKnown(tx, common.BytesToHash([]byte("abcd")))
+	has, err = suite.pool.IdHashKnown(common.BytesToHash([]byte("abcd")))
 	suite.Require().NoError(err)
 	suite.Require().False(has)
 
-	poolMsg, err = suite.pool.Get(tx, common.BytesToHash([]byte("abcd")))
+	poolMsg, err = suite.pool.Get(common.BytesToHash([]byte("abcd")))
 	suite.Require().NoError(err)
 	suite.Require().Nil(poolMsg)
-
-	err = tx.Commit()
-	suite.Require().NoError(err)
 }
 
 func (suite *SuiteMsgPool) TestSeqnoFromAddress() {
 	ctx := context.Background()
-	tx, err := suite.db.CreateRwTx(ctx)
-	suite.Require().NoError(err)
-	defer tx.Rollback()
 
 	address := types.HexToAddress("deadbeef02")
 	suite.Require().NotEqual(types.Address{}, address)
@@ -203,16 +173,10 @@ func (suite *SuiteMsgPool) TestSeqnoFromAddress() {
 
 	_, inPool = suite.pool.SeqnoFromAddress(types.BytesToAddress([]byte("abcd")))
 	suite.Require().False(inPool)
-
-	err = tx.Commit()
-	suite.Require().NoError(err)
 }
 
 func (suite *SuiteMsgPool) TestPeek() {
 	ctx := context.Background()
-	tx, err := suite.db.CreateRwTx(ctx)
-	suite.Require().NoError(err)
-	defer tx.Rollback()
 
 	address1 := types.HexToAddress("deadbeef01")
 	address2 := types.HexToAddress("deadbeef02")
@@ -227,9 +191,6 @@ func (suite *SuiteMsgPool) TestPeek() {
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet, NotSet, NotSet, NotSet}, reasons)
 	suite.Equal(4, suite.pool.MessageCount())
-
-	err = tx.Commit()
-	suite.Require().NoError(err)
 
 	msgs, err := suite.pool.Peek(ctx, 1, 0)
 	suite.Require().NoError(err)
@@ -248,9 +209,6 @@ func (suite *SuiteMsgPool) TestPeek() {
 
 func (suite *SuiteMsgPool) TestOnNewBlock() {
 	ctx := context.Background()
-	tx, err := suite.db.CreateRwTx(ctx)
-	suite.Require().NoError(err)
-	defer tx.Rollback()
 
 	address1 := types.HexToAddress("deadbeef01")
 	address2 := types.HexToAddress("deadbeef02")
@@ -285,7 +243,7 @@ func (suite *SuiteMsgPool) TestOnNewBlock() {
 
 	// TODO: Ideally we need to do that via execution state
 	block := types.Block{Id: 1}
-	err = suite.pool.OnNewBlock(ctx, &block, []*types.Message{&msg1_1, &msg1_2, &msg2_1}, tx)
+	err = suite.pool.OnNewBlock(ctx, &block, []*types.Message{&msg1_1, &msg1_2, &msg2_1})
 	suite.Require().NoError(err)
 
 	time.Sleep(100 * time.Millisecond)
@@ -301,9 +259,6 @@ func (suite *SuiteMsgPool) TestOnNewBlock() {
 	suite.Require().Len(messages, 1)
 	suite.Require().Equal([]*types.Message{&msg2_2}, messages)
 	suite.Equal(1, suite.pool.MessageCount())
-
-	err = tx.Commit()
-	suite.Require().NoError(err)
 }
 
 func TestSuiteMsgpool(t *testing.T) {

@@ -21,13 +21,13 @@ type DebugAPI interface {
 
 type DebugAPIImpl struct {
 	*BaseAPI
-	db     db.DB
+	db     db.ReadOnlyDB
 	logger *zerolog.Logger
 }
 
 var _ DebugAPI = &DebugAPIImpl{}
 
-func NewDebugAPI(base *BaseAPI, db db.DB, logger *zerolog.Logger) *DebugAPIImpl {
+func NewDebugAPI(base *BaseAPI, db db.ReadOnlyDB, logger *zerolog.Logger) *DebugAPIImpl {
 	return &DebugAPIImpl{
 		BaseAPI: base,
 		db:      db,
@@ -69,13 +69,12 @@ func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.Shard
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}
-
 	defer tx.Rollback()
 
 	return api.getBlockByHash(tx, shardId, hash, withMessages)
 }
 
-func (api *DebugAPIImpl) getBlockByHash(tx db.Tx, shardId types.ShardId, hash common.Hash, withMessages bool) (map[string]any, error) {
+func (api *DebugAPIImpl) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash common.Hash, withMessages bool) (map[string]any, error) {
 	block := db.ReadBlock(tx, shardId, hash)
 	if block == nil {
 		return nil, nil

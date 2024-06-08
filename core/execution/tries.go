@@ -14,11 +14,17 @@ type MPTValue[S any] interface {
 	fastssz.Unmarshaler
 }
 
-type BaseMPT[K any, V any, VPtr MPTValue[V]] struct {
-	*mpt.MerklePatriciaTrie
+type BaseMPTReader[K any, V any, VPtr MPTValue[V]] struct {
+	*mpt.Reader
 
 	keyToBytes   func(k K) []byte
 	keyFromBytes func(bs []byte) (K, error)
+}
+
+type BaseMPT[K any, V any, VPtr MPTValue[V]] struct {
+	*BaseMPTReader[K, V, VPtr]
+
+	rwTrie *mpt.MerklePatriciaTrie
 }
 
 type (
@@ -27,56 +33,95 @@ type (
 	ReceiptTrie     = BaseMPT[types.MessageIndex, types.Receipt, *types.Receipt]
 	StorageTrie     = BaseMPT[common.Hash, uint256.Int, *uint256.Int]
 	ShardBlocksTrie = BaseMPT[types.ShardId, uint256.Int, *uint256.Int]
+
+	ContractTrieReader    = BaseMPTReader[common.Hash, types.SmartContract, *types.SmartContract]
+	MessageTrieReader     = BaseMPTReader[types.MessageIndex, types.Message, *types.Message]
+	ReceiptTrieReader     = BaseMPTReader[types.MessageIndex, types.Receipt, *types.Receipt]
+	StorageTrieReader     = BaseMPTReader[common.Hash, uint256.Int, *uint256.Int]
+	ShardBlocksTrieReader = BaseMPTReader[types.ShardId, uint256.Int, *uint256.Int]
 )
 
-func NewContractTrie(parent *mpt.MerklePatriciaTrie) *ContractTrie {
-	return newBaseMPT[common.Hash, types.SmartContract, *types.SmartContract](parent,
+func NewContractTrieReader(parent *mpt.Reader) *ContractTrieReader {
+	return &ContractTrieReader{
+		parent,
 		func(k common.Hash) []byte { return k.Bytes() },
-		func(bs []byte) (common.Hash, error) { return common.BytesToHash(bs), nil })
-}
-
-func NewMessageTrie(parent *mpt.MerklePatriciaTrie) *MessageTrie {
-	return newBaseMPT[types.MessageIndex, types.Message, *types.Message](parent,
-		func(k types.MessageIndex) []byte { return k.Bytes() },
-		func(bs []byte) (types.MessageIndex, error) { return types.BytesToMessageIndex(bs), nil })
-}
-
-func NewReceiptTrie(parent *mpt.MerklePatriciaTrie) *ReceiptTrie {
-	return newBaseMPT[types.MessageIndex, types.Receipt, *types.Receipt](parent,
-		func(k types.MessageIndex) []byte { return k.Bytes() },
-		func(bs []byte) (types.MessageIndex, error) { return types.BytesToMessageIndex(bs), nil })
-}
-
-func NewShardBlocksTrie(parent *mpt.MerklePatriciaTrie) *ShardBlocksTrie {
-	return newBaseMPT[types.ShardId, uint256.Int, *uint256.Int](parent,
-		func(k types.ShardId) []byte { return k.Bytes() },
-		func(bs []byte) (types.ShardId, error) { return types.BytesToShardId(bs), nil })
-}
-
-func NewStorageTrie(parent *mpt.MerklePatriciaTrie) *StorageTrie {
-	return newBaseMPT[common.Hash, uint256.Int, *uint256.Int](parent,
-		func(k common.Hash) []byte { return k.Bytes() },
-		func(bs []byte) (common.Hash, error) { return common.BytesToHash(bs), nil })
-}
-
-func newBaseMPT[K any, V any, VPtr MPTValue[V]](
-	parent *mpt.MerklePatriciaTrie,
-	keyToBytes func(k K) []byte,
-	keyFromBytes func(bs []byte) (K, error),
-) *BaseMPT[K, V, VPtr] {
-	return &BaseMPT[K, V, VPtr]{
-		MerklePatriciaTrie: parent,
-		keyToBytes:         keyToBytes,
-		keyFromBytes:       keyFromBytes,
+		func(bs []byte) (common.Hash, error) { return common.BytesToHash(bs), nil },
 	}
 }
 
-func (m *BaseMPT[K, V, VPtr]) newV() VPtr {
+func NewMessageTrieReader(parent *mpt.Reader) *MessageTrieReader {
+	return &MessageTrieReader{
+		parent,
+		func(k types.MessageIndex) []byte { return k.Bytes() },
+		func(bs []byte) (types.MessageIndex, error) { return types.BytesToMessageIndex(bs), nil },
+	}
+}
+
+func NewReceiptTrieReader(parent *mpt.Reader) *ReceiptTrieReader {
+	return &ReceiptTrieReader{
+		parent,
+		func(k types.MessageIndex) []byte { return k.Bytes() },
+		func(bs []byte) (types.MessageIndex, error) { return types.BytesToMessageIndex(bs), nil },
+	}
+}
+
+func NewStorageTrieReader(parent *mpt.Reader) *StorageTrieReader {
+	return &StorageTrieReader{
+		parent,
+		func(k common.Hash) []byte { return k.Bytes() },
+		func(bs []byte) (common.Hash, error) { return common.BytesToHash(bs), nil },
+	}
+}
+
+func NewShardBlocksTrieReader(parent *mpt.Reader) *ShardBlocksTrieReader {
+	return &ShardBlocksTrieReader{
+		parent,
+		func(k types.ShardId) []byte { return k.Bytes() },
+		func(bs []byte) (types.ShardId, error) { return types.BytesToShardId(bs), nil },
+	}
+}
+
+func NewContractTrie(parent *mpt.MerklePatriciaTrie) *ContractTrie {
+	return &ContractTrie{
+		BaseMPTReader: NewContractTrieReader(parent.Reader),
+		rwTrie:        parent,
+	}
+}
+
+func NewMessageTrie(parent *mpt.MerklePatriciaTrie) *MessageTrie {
+	return &MessageTrie{
+		BaseMPTReader: NewMessageTrieReader(parent.Reader),
+		rwTrie:        parent,
+	}
+}
+
+func NewReceiptTrie(parent *mpt.MerklePatriciaTrie) *ReceiptTrie {
+	return &ReceiptTrie{
+		BaseMPTReader: NewReceiptTrieReader(parent.Reader),
+		rwTrie:        parent,
+	}
+}
+
+func NewStorageTrie(parent *mpt.MerklePatriciaTrie) *StorageTrie {
+	return &StorageTrie{
+		BaseMPTReader: NewStorageTrieReader(parent.Reader),
+		rwTrie:        parent,
+	}
+}
+
+func NewShardBlocksTrie(parent *mpt.MerklePatriciaTrie) *ShardBlocksTrie {
+	return &ShardBlocksTrie{
+		BaseMPTReader: NewShardBlocksTrieReader(parent.Reader),
+		rwTrie:        parent,
+	}
+}
+
+func (m *BaseMPTReader[K, V, VPtr]) newV() VPtr {
 	var v V
 	return VPtr(&v)
 }
 
-func (m *BaseMPT[K, V, VPtr]) Fetch(key K) (VPtr, error) {
+func (m *BaseMPTReader[K, V, VPtr]) Fetch(key K) (VPtr, error) {
 	v := m.newV()
 	raw, err := m.Get(m.keyToBytes(key))
 	if err != nil {
@@ -87,17 +132,7 @@ func (m *BaseMPT[K, V, VPtr]) Fetch(key K) (VPtr, error) {
 	return v, err
 }
 
-func (m *BaseMPT[K, V, VPtr]) Update(key K, value VPtr) error {
-	k := m.keyToBytes(key)
-	v, err := value.MarshalSSZ()
-	if err != nil {
-		return err
-	}
-
-	return m.Set(k, v)
-}
-
-func (m *BaseMPT[K, V, VPtr]) Keys() ([]K, error) {
+func (m *BaseMPTReader[K, V, VPtr]) Keys() ([]K, error) {
 	// todo: choose good initial buffer size
 	res := make([]K, 0, 100)
 	for kv := range m.Iterate() {
@@ -110,7 +145,7 @@ func (m *BaseMPT[K, V, VPtr]) Keys() ([]K, error) {
 	return res, nil
 }
 
-func (m *BaseMPT[K, V, VPtr]) Values() ([]VPtr, error) {
+func (m *BaseMPTReader[K, V, VPtr]) Values() ([]VPtr, error) {
 	// todo: choose good initial buffer size
 	res := make([]VPtr, 0, 100)
 	for kv := range m.Iterate() {
@@ -121,4 +156,14 @@ func (m *BaseMPT[K, V, VPtr]) Values() ([]VPtr, error) {
 		res = append(res, v)
 	}
 	return res, nil
+}
+
+func (m *BaseMPT[K, V, VPtr]) Update(key K, value VPtr) error {
+	k := m.keyToBytes(key)
+	v, err := value.MarshalSSZ()
+	if err != nil {
+		return err
+	}
+
+	return m.rwTrie.Set(k, v)
 }

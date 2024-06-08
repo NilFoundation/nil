@@ -30,8 +30,13 @@ func TestDebugGetBlock(t *testing.T) {
 	}
 	blockHash := block.Hash()
 
-	err = database.Put(db.LastBlockTable, []byte(strconv.Itoa(0)), blockHash.Bytes())
-	require.NoError(t, err)
+	{
+		tx, err := database.CreateRwTx(ctx)
+		require.NoError(t, err)
+		defer tx.Rollback()
+
+		require.NoError(t, tx.Put(db.LastBlockTable, []byte(strconv.Itoa(0)), blockHash.Bytes()))
+	}
 
 	tx, err := database.CreateRwTx(ctx)
 	require.NoError(t, err)

@@ -27,6 +27,7 @@ func (api *APIImpl) GetShardIdList(ctx context.Context) ([]types.ShardId, error)
 		return nil, nil
 	}
 
-	treeShards := execution.NewShardBlocksTrie(mpt.NewMerklePatriciaTrieWithRoot(tx, types.MasterShardId, db.ShardBlocksTrieTableName(block.Id), block.ChildBlocksRootHash))
+	treeShards := execution.NewShardBlocksTrieReader(
+		mpt.NewReaderWithRoot(tx, types.MasterShardId, db.ShardBlocksTrieTableName(block.Id), block.ChildBlocksRootHash))
 	return treeShards.Keys()
 }

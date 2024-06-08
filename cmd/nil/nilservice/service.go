@@ -18,7 +18,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func startRpcServer(ctx context.Context, cfg *Config, db db.DB, pools []msgpool.Pool) error {
+func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []msgpool.Pool) error {
 	logger := common.NewLogger("RPC")
 
 	httpConfig := &httpcfg.HttpCfg{

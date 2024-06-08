@@ -97,7 +97,7 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 	}
 
 	// todo: pool should not take too much responsibility, collator must check messages for duplicates
-	if err := c.pool.OnNewBlock(ctx, block, poolMsgs, nil); err != nil {
+	if err := c.pool.OnNewBlock(ctx, block, poolMsgs); err != nil {
 		return err
 	}
 
@@ -219,7 +219,7 @@ func (c *collator) collectFromNeighbours() ([]*types.Message, []*OutMessage, err
 				break
 			}
 
-			outMsgTrie := execution.NewMessageTrie(mpt.NewMerklePatriciaTrieWithRoot(c.roTx, srcShardId, db.MessageTrieTable, block.OutMessagesRoot))
+			outMsgTrie := execution.NewMessageTrieReader(mpt.NewReaderWithRoot(c.roTx, srcShardId, db.MessageTrieTable, block.OutMessagesRoot))
 			for msgIndex := range block.OutMessagesNum {
 				msg, err := outMsgTrie.Fetch(msgIndex)
 				if err != nil {

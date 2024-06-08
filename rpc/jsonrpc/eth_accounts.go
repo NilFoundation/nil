@@ -20,7 +20,7 @@ func (api *APIImpl) getSmartContract(tx db.RoTx, address types.Address, blockNrO
 		return nil, err
 	}
 
-	root := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.ContractTrieTable, block.SmartContractsRoot)
+	root := mpt.NewReaderWithRoot(tx, shardId, db.ContractTrieTable, block.SmartContractsRoot)
 	contractRaw, err := root.Get(address.Hash().Bytes())
 	if contractRaw == nil || err != nil {
 		return nil, err
