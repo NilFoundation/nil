@@ -72,7 +72,8 @@ func (suite *SuiteExecutionState) TestExecState() {
 			To:       types.DeployMsgToAddress(deploy, from),
 		}
 		es.AddInMessage(msg)
-		suite.Require().NoError(es.HandleDeployMessage(ctx, msg, deploy, &blockContext))
+		_, err = es.HandleDeployMessage(ctx, msg, deploy, &blockContext)
+		suite.Require().NoError(err)
 	}
 
 	blockHash, err := es.Commit(0)

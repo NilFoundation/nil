@@ -705,7 +705,7 @@ func (es *ExecutionState) AddOutMessage(txId common.Hash, msg *types.Message) {
 
 func (es *ExecutionState) HandleDeployMessage(
 	_ context.Context, message *types.Message, deployMsg *types.DeployMessage, blockContext *vm.BlockContext,
-) error {
+) (uint64, error) {
 	addr := message.To
 
 	gas := message.GasLimit.Uint64()
@@ -729,10 +729,10 @@ func (es *ExecutionState) HandleDeployMessage(
 		event.Msg("Created new contract.")
 	}
 
-	return err
+	return leftOverGas, err
 }
 
-func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *types.Message, blockContext *vm.BlockContext) ([]byte, error) {
+func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *types.Message, blockContext *vm.BlockContext) (uint64, []byte, error) {
 	addr := message.To
 	logger.Debug().
 		Stringer(logging.FieldMessageTo, addr).
@@ -765,7 +765,7 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 		ContractAddress: addr,
 	}
 	es.AddReceipt(&r)
-	return ret, err
+	return leftOverGas, ret, err
 }
 
 func (es *ExecutionState) AddReceipt(receipt *types.Receipt) {
