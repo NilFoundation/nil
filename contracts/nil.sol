@@ -39,4 +39,25 @@ library nil {
             }
         }
     }
+
+    // Function to call the validateSignature precompiled contract
+    function validateSignature(bytes memory pubkey, uint256 hash, bytes memory signature) internal view returns (bool) {
+        // ABI encode the input parameters
+        bytes memory encodedInput = abi.encode(pubkey, hash, signature);
+        bool success;
+        bool result;
+
+        // Perform the static call to the precompiled contract at address 0xfe
+        bytes memory returnData;
+        (success, returnData) = address(0xfe).staticcall(encodedInput);
+
+        require(success, "Precompiled contract call failed");
+
+        // Extract the boolean result from the returned data
+        if (returnData.length > 0) {
+            result = abi.decode(returnData, (bool));
+        }
+
+        return result;
+    }
 }

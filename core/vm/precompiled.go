@@ -24,9 +24,11 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/math"
+	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/params"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/holiman/uint256"
 )
 
@@ -49,6 +51,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	types.BytesToAddress([]byte{0x05}): &bigModExp{eip2565: true},
 	types.BytesToAddress([]byte{0x06}): &sendRawMessage{},
 	types.BytesToAddress([]byte{0x07}): &sendMessage{},
+	types.BytesToAddress([]byte{0xfe}): &verifySignature{},
 }
 
 var PrecompiledContractsBLS = PrecompiledContractsPrague
@@ -319,4 +322,43 @@ func (c *sendMessage) Run(state StateDB, input []byte, gas uint64, value *uint25
 	copy(msg.Data, input)
 	state.AddOutMessage(common.EmptyHash, msg)
 	return nil, nil
+}
+
+type verifySignature struct{}
+
+func (c *verifySignature) RequiredGas([]byte) uint64 {
+	return 5000
+}
+
+func (c *verifySignature) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+	args := VerifyExternalArgs()
+	values, err := args.Unpack(input)
+	if err != nil || len(values) != 3 {
+		return common.EmptyHash[:], nil //nolint:nilerr
+	}
+	// there's probably a better way to do this
+	pubkey, ok1 := values[0].([]byte)
+	hash, ok2 := values[1].(*big.Int)
+	sig, ok3 := values[2].([]byte)
+	if !(ok1 && ok2 && ok3 && len(sig) == 65) {
+		return common.EmptyHash[:], nil
+	}
+	result := crypto.VerifySignature(pubkey, common.BigToHash(hash).Bytes(), sig[:64])
+	if result {
+		return common.LeftPadBytes([]byte{1}, 32), nil
+	}
+	return common.EmptyHash[:], nil
+}
+
+func VerifyExternalArgs() abi.Arguments {
+	// arguments: bytes pubkey, uint256 hash, bytes signature
+	// returns: bool signatureValid
+	uint256Ty, _ := abi.NewType("uint256", "", nil)
+	bytesTy, _ := abi.NewType("bytes", "", nil)
+	args := abi.Arguments{
+		abi.Argument{Name: "pubkey", Type: bytesTy},
+		abi.Argument{Name: "hash", Type: uint256Ty},
+		abi.Argument{Name: "signature", Type: bytesTy},
+	}
+	return args
 }
