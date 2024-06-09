@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	keyManagerService "github.com/NilFoundation/nil/cli/services/keygen"
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/spf13/cobra"
 )
 
-var logger = common.NewLogger("keygenCommand")
+var logger = logging.NewLogger("keygenCommand")
 
 func GetCommand() *cobra.Command {
 	serverCmd := &cobra.Command{

@@ -27,7 +27,7 @@ type Client struct {
 	writeConn jsonWriter
 
 	// for dispatch
-	logger *zerolog.Logger
+	logger zerolog.Logger
 }
 
 type connectFunc func(ctx context.Context) (ServerCodec, error)
@@ -47,7 +47,7 @@ func (op *requestOp) wait(ctx context.Context) (*jsonrpcMessage, error) {
 	}
 }
 
-func newClient(initctx context.Context, connect connectFunc, logger *zerolog.Logger) (*Client, error) {
+func newClient(initctx context.Context, connect connectFunc, logger zerolog.Logger) (*Client, error) {
 	conn, err := connect(initctx)
 	if err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func newClient(initctx context.Context, connect connectFunc, logger *zerolog.Log
 	return c, nil
 }
 
-func initClient(conn ServerCodec, logger *zerolog.Logger) *Client {
+func initClient(conn ServerCodec, logger zerolog.Logger) *Client {
 	c := &Client{
 		writeConn: conn,
 		logger:    logger,

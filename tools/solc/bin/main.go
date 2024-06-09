@@ -6,13 +6,14 @@ import (
 	"path/filepath"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 func main() {
-	logger := common.NewLogger("solc")
+	logger := logging.NewLogger("solc")
 
 	cmd := &cobra.Command{
 		Short: "Tool for solidity contracts compilation",

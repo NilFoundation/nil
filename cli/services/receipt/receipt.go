@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/NilFoundation/nil/client"
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 )
 
@@ -12,7 +12,7 @@ const (
 	getReceiptByHash = "eth_getInMessageReceipt"
 )
 
-var logger = common.NewLogger("receiptService")
+var logger = logging.NewLogger("receiptService")
 
 type Service struct {
 	client  client.Client
@@ -43,7 +43,9 @@ func (s *Service) fetchReceipt(method, identifier string) ([]byte, error) {
 	// Call the RPC method to fetch the receipt data
 	result, err := s.client.Call(method, params)
 	if err != nil {
-		logger.Error().Err(err).Msgf("Failed to fetch receipt using method %s", method)
+		logger.Error().Err(err).
+			Str(logging.FieldRpcMethod, method).
+			Msg("Failed to fetch receipt")
 		return nil, err
 	}
 
@@ -61,7 +63,7 @@ func (s *Service) fetchReceipt(method, identifier string) ([]byte, error) {
 		return nil, err
 	}
 
-	logger.Info().Msgf("Fetched receipt:\n%s", receiptDataJSON)
+	logger.Trace().Msgf("Fetched receipt:\n%s", receiptDataJSON)
 
 	return receiptDataJSON, nil
 }

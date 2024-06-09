@@ -8,6 +8,7 @@ import (
 
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
@@ -16,7 +17,7 @@ import (
 )
 
 func main() {
-	logger := common.NewLogger("nil")
+	logger := logging.NewLogger("nil")
 
 	rootCmd := &cobra.Command{
 		Use:   "nil",
@@ -47,7 +48,7 @@ func main() {
 		}))
 }
 
-func openDb(dbPath string, allowDrop bool, logger *zerolog.Logger) (db.DB, error) {
+func openDb(dbPath string, allowDrop bool, logger zerolog.Logger) (db.DB, error) {
 	dbExists := true
 	if _, err := os.Open(dbPath); err != nil {
 		if !os.IsNotExist(err) {

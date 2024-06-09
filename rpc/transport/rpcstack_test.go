@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	"github.com/stretchr/testify/assert"
 )
@@ -127,7 +127,7 @@ func Test_checkPath(t *testing.T) {
 func createAndStartServer(t *testing.T, conf *httpConfig) *httpServer {
 	t.Helper()
 
-	logger := common.NewLogger("Test server")
+	logger := logging.NewLogger("Test server")
 	srv := newHTTPServer(logger, rpccfg.DefaultHTTPTimeouts)
 	assert.NoError(t, srv.enableRPC(nil, *conf))
 	assert.NoError(t, srv.setListenAddr("localhost", 0))

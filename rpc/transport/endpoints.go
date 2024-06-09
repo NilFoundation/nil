@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
@@ -35,6 +36,7 @@ func StartHTTPEndpoint(urlEndpoint string, cfg *HttpEndpointConfig, handler http
 	if listener, err = net.Listen(socketUrl.Scheme, socketUrl.Host+socketUrl.EscapedPath()); err != nil {
 		return nil, nil, err
 	}
+
 	// make sure timeout values are meaningful
 	CheckTimeouts(&cfg.Timeouts)
 	// create the http2 server for handling h2c
@@ -49,14 +51,17 @@ func StartHTTPEndpoint(urlEndpoint string, cfg *HttpEndpointConfig, handler http
 		IdleTimeout:       cfg.Timeouts.IdleTimeout,
 		ReadHeaderTimeout: cfg.Timeouts.ReadTimeout,
 	}
+	addr := listener.Addr()
+
 	// start the HTTP server
 	go func() {
 		serveErr := httpSrv.Serve(listener)
 		if serveErr != nil && !isIgnoredHttpServerError(serveErr) {
-			log.Warn().Str("err", serveErr.Error()).Msg("Failed to serve https endpoint")
+			log.Warn().Err(serveErr).Stringer(logging.FieldUrl, addr).Msg("Failed to serve https endpoint")
 		}
 	}()
-	return httpSrv, listener.Addr(), err
+
+	return httpSrv, addr, err
 }
 
 func isIgnoredHttpServerError(serveErr error) bool {

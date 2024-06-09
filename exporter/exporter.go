@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/common/concurrent"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/rs/zerolog/log"
@@ -127,7 +128,10 @@ func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 }
 
 func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
-	log.Info().Msgf("Starting bottom fetcher for shard %s...", shardId)
+	log.Info().
+		Stringer(logging.FieldShardId, shardId).
+		Msg("Starting bottom fetcher...")
+
 	ticker := time.NewTicker(1 * time.Second)
 	curExportRound := cfg.exportRound.Load() + 1000
 	for {
@@ -142,7 +146,7 @@ func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 			curExportRound = newExportRound
 			absentBlockNumber, isSet, err := cfg.ExporterDriver.FetchEarliestAbsentBlock(ctx, shardId)
 			if err != nil {
-				cfg.ErrorChan <- fmt.Errorf("bottom fetcher for shard %s: failed to fetch absent block: %w", shardId.String(), err)
+				cfg.ErrorChan <- fmt.Errorf("bottom fetcher for shard %s: failed to fetch absent block: %w", shardId, err)
 				continue
 			}
 			if !isSet {
@@ -160,7 +164,10 @@ func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 				startBlockId = 0
 			}
 
-			log.Info().Msgf("Fetching from bottom block %d with shard id %s", startBlockId, shardId.String())
+			log.Info().
+				Stringer(logging.FieldShardId, shardId).
+				Stringer(logging.FieldBlockNumber, startBlockId).
+				Msg("Fetching from bottom block...")
 
 			nextPresentId, isSet, err := cfg.ExporterDriver.FetchNextPresentBlock(ctx, shardId, startBlockId)
 			if err != nil {

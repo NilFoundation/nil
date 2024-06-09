@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"math"
 
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/google/btree"
 	"github.com/rs/zerolog"
@@ -20,6 +21,8 @@ type BySenderAndSeqno struct {
 	tree         *btree.BTreeG[*types.Message]
 	search       *types.Message
 	fromMsgCount map[types.Address]int // count of sender's msgs in the pool - may differ from seqno
+
+	logger zerolog.Logger
 }
 
 func sortBySeqnoLess(a, b *types.Message) bool {
@@ -30,11 +33,12 @@ func sortBySeqnoLess(a, b *types.Message) bool {
 	return a.Seqno < b.Seqno
 }
 
-func NewBySenderAndSeqno() *BySenderAndSeqno {
+func NewBySenderAndSeqno(logger zerolog.Logger) *BySenderAndSeqno {
 	return &BySenderAndSeqno{
 		tree:         btree.NewG(32, sortBySeqnoLess),
 		search:       &types.Message{},
 		fromMsgCount: map[types.Address]int{},
+		logger:       logger,
 	}
 }
 
@@ -110,14 +114,17 @@ func (b *BySenderAndSeqno) has(mt *types.Message) bool { //nolint:unused
 	return b.tree.Has(mt)
 }
 
-func (b *BySenderAndSeqno) delete(msg *types.Message, reason DiscardReason, logger *zerolog.Logger) {
+func (b *BySenderAndSeqno) logTrace(msg *types.Message, logMsg string) {
+	b.logger.Trace().
+		Stringer(logging.FieldMessageHash, msg.Hash()).
+		Stringer(logging.FieldMessageFrom, msg.From).
+		Uint64(logging.FieldMessageSeqno, msg.Seqno).
+		Msg(logMsg)
+}
+
+func (b *BySenderAndSeqno) delete(msg *types.Message, reason DiscardReason) {
 	if _, ok := b.tree.Delete(msg); ok {
-		logger.Trace().
-			Str("hash", msg.Hash().String()).
-			Str("from", msg.From.String()).
-			Uint64("seqno", msg.Seqno).
-			Str("reason", reason.String()).
-			Msg("Deleted msg by seqno")
+		b.logTrace(msg, "Deleted msg: "+reason.String())
 
 		from := msg.From
 		count := b.fromMsgCount[from]
@@ -129,24 +136,14 @@ func (b *BySenderAndSeqno) delete(msg *types.Message, reason DiscardReason, logg
 	}
 }
 
-func (b *BySenderAndSeqno) replaceOrInsert(msg *types.Message, logger *zerolog.Logger) *types.Message {
+func (b *BySenderAndSeqno) replaceOrInsert(msg *types.Message) *types.Message {
 	it, ok := b.tree.ReplaceOrInsert(msg)
-
 	if ok {
-		logger.Trace().
-			Str("hash", msg.Hash().String()).
-			Str("from", msg.From.String()).
-			Uint64("seqno", msg.Seqno).
-			Msg("Replaced msg by seqno")
+		b.logTrace(msg, "Replaced msg by seqno.")
 		return it
 	}
 
-	logger.Trace().
-		Str("hash", msg.Hash().String()).
-		Str("from", msg.From.String()).
-		Uint64("seqno", msg.Seqno).
-		Msg("Inserted msg by seqno")
-
+	b.logTrace(msg, "Inserted msg by seqno.")
 	b.fromMsgCount[msg.From]++
 	return nil
 }

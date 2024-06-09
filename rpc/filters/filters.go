@@ -16,6 +16,7 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/mpt"
@@ -24,7 +25,7 @@ import (
 	"github.com/holiman/uint256"
 )
 
-var logger = common.NewLogger("filters")
+var logger = logging.NewLogger("filters")
 
 type MetaLog struct {
 	Log     *types.Log
@@ -156,7 +157,7 @@ func (m *FiltersManager) PollBlocks(delay time.Duration) {
 
 		lastHash, err := m.getLastBlockHash()
 		if err != nil {
-			logger.Warn().Msgf("getLastBlockHash failed: %s", err)
+			logger.Warn().Err(err).Msg("getLastBlockHash failed")
 			continue
 		} else if lastHash == common.EmptyHash {
 			continue
@@ -167,11 +168,11 @@ func (m *FiltersManager) PollBlocks(delay time.Duration) {
 			for currHash := lastHash; m.lastHash != currHash; {
 				block, err := m.processBlockHash(&currHash)
 				if err != nil {
-					logger.Warn().Msgf("processBlockHash failed: %s", err)
+					logger.Warn().Err(err).Msg("processBlockHash failed")
 					continue
 				}
 				for _, ch := range m.blockSubs {
-					// Don't send if channel is full. Probably subscriber just disconnected, and it shouldn't block us.
+					// Don't send if the channel is full. Probably subscriber just disconnected, and it shouldn't block us.
 					if len(ch) < cap(ch) {
 						ch <- block
 					}

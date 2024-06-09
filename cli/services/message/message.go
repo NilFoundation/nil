@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/NilFoundation/nil/client"
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 )
 
@@ -12,7 +12,7 @@ const (
 	getTransactionByHash = "eth_getInMessageByHash"
 )
 
-var logger = common.NewLogger("messageService")
+var logger = logging.NewLogger("messageService")
 
 type Service struct {
 	client  client.Client
@@ -43,12 +43,14 @@ func (s *Service) fetchMessage(method, identifier string) ([]byte, error) {
 	// Call the RPC method to fetch the message data
 	result, err := s.client.Call(method, params)
 	if err != nil {
-		logger.Error().Err(err).Msgf("Failed to fetch message using method %s", method)
+		logger.Error().Err(err).
+			Str(logging.FieldRpcMethod, method).
+			Msg("Failed to fetch message")
 		return nil, err
 	}
 
 	// Unmarshal the result into a map
-	var messageData map[string]interface{}
+	var messageData map[string]any
 	if err := json.Unmarshal(result, &messageData); err != nil {
 		logger.Error().Err(err).Msg("Failed to unmarshal message data")
 		return nil, err
@@ -61,6 +63,6 @@ func (s *Service) fetchMessage(method, identifier string) ([]byte, error) {
 		return nil, err
 	}
 
-	logger.Info().Msgf("Fetched message:\n%s", messageDataJSON)
+	logger.Trace().Msgf("Fetched message:\n%s", messageDataJSON)
 	return messageDataJSON, nil
 }

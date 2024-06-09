@@ -3,12 +3,12 @@ package receipt
 import (
 	"github.com/NilFoundation/nil/cli/services/receipt"
 	"github.com/NilFoundation/nil/client/rpc"
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
 
-var logger = common.NewLogger("receiptCommand")
+var logger = logging.NewLogger("receiptCommand")
 
 func GetCommand(rpcEndpoint string) *cobra.Command {
 	serverCmd := &cobra.Command{
@@ -49,7 +49,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 	if params.hash != "" {
 		_, err := service.FetchReceiptByHash(params.hash)
 		if err != nil {
-			logger.Error().Msg("Failed to fetch receipt")
+			logger.Error().Err(err).Msg("Failed to fetch receipt")
 		}
 
 		return

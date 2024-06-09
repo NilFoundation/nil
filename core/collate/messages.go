@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
@@ -58,7 +59,7 @@ func validateDeployMessage(es *execution.ExecutionState, message *types.Message)
 			MsgHash: es.InMessageHash,
 		}
 		es.AddReceipt(r)
-		sharedLogger.Debug().Err(err).Stringer("hash", es.InMessageHash).Msg(message)
+		sharedLogger.Debug().Err(err).Stringer(logging.FieldMessageHash, es.InMessageHash).Msg(message)
 		return nil
 	}
 
@@ -100,7 +101,10 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 	if accountState == nil {
 		r.Logs = es.Logs[es.InMessageHash]
 		es.AddReceipt(r)
-		sharedLogger.Debug().Stringer("shardId", es.ShardId).Stringer("address", addr).Msg("Invalid address")
+		sharedLogger.Debug().
+			Stringer(logging.FieldShardId, es.ShardId).
+			Stringer(logging.FieldMessageFrom, addr).
+			Msg("Invalid address.")
 		return false, nil
 	}
 
@@ -117,7 +121,10 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 	if !ok {
 		r.Logs = es.Logs[es.InMessageHash]
 		es.AddReceipt(r)
-		sharedLogger.Debug().Stringer("shardId", es.ShardId).Stringer("address", addr).Msg("Invalid signature")
+		sharedLogger.Debug().
+			Stringer(logging.FieldShardId, es.ShardId).
+			Stringer(logging.FieldMessageFrom, addr).
+			Msg("Invalid signature.")
 		return false, nil
 	}
 
@@ -125,10 +132,10 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 		r.Logs = es.Logs[es.InMessageHash]
 		es.AddReceipt(r)
 		sharedLogger.Debug().
-			Stringer("shardId", es.ShardId).
-			Stringer("address", addr).
-			Uint64("account.seqno", accountState.Seqno).
-			Uint64("message.seqno", message.Seqno).
+			Stringer(logging.FieldShardId, es.ShardId).
+			Stringer(logging.FieldMessageFrom, addr).
+			Uint64(logging.FieldAccountSeqno, accountState.Seqno).
+			Uint64(logging.FieldMessageSeqno, message.Seqno).
 			Msg("Seqno gap")
 		return false, nil
 	}

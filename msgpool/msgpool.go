@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/rs/zerolog"
 )
@@ -35,12 +36,13 @@ type MsgPool struct {
 	byHash map[string]*types.Message // hash => msg : only those records not committed to db yet
 	all    *BySenderAndSeqno         // from => (sorted map of msg seqno => *msg)
 	queue  *MsgQueue
-	logger *zerolog.Logger
+	logger zerolog.Logger
 }
 
 func New(cfg Config) *MsgPool {
 	lock := &sync.Mutex{}
 
+	logger := logging.NewLogger("msgpool")
 	return &MsgPool{
 		started: true,
 		cfg:     cfg,
@@ -49,9 +51,9 @@ func New(cfg Config) *MsgPool {
 		lastSeenCond: sync.NewCond(lock),
 
 		byHash: map[string]*types.Message{},
-		all:    NewBySenderAndSeqno(),
+		all:    NewBySenderAndSeqno(logger),
 		queue:  NewMessageQueue(),
-		logger: common.NewLogger("msgpool"),
+		logger: logger,
 	}
 }
 
@@ -78,9 +80,9 @@ func (p *MsgPool) Add(ctx context.Context, msgs []*types.Message) ([]DiscardReas
 		}
 		discardReasons[i] = NotSet // unnecessary
 		p.logger.Debug().
-			Stringer("hash", msg.Hash()).
-			Stringer("from", msg.From).
-			Msg("Added new message")
+			Stringer(logging.FieldMessageHash, msg.Hash()).
+			Stringer(logging.FieldMessageFrom, msg.From).
+			Msg("Added new message.")
 	}
 
 	return discardReasons, nil
@@ -90,10 +92,10 @@ func (p *MsgPool) validateMsg(msg *types.Message) (DiscardReason, bool) {
 	seqno, has := p.all.seqno(msg.From)
 	if has && seqno > msg.Seqno {
 		p.logger.Debug().
-			Stringer("hash", msg.Hash()).
-			Uint64("sender.seqno", seqno).
-			Uint64("msg.seqno", msg.Seqno).
-			Msg("seqno too low")
+			Stringer(logging.FieldMessageHash, msg.Hash()).
+			Uint64(logging.FieldAccountSeqno, seqno).
+			Uint64(logging.FieldMessageSeqno, msg.Seqno).
+			Msg("Seqno too low.")
 		return SeqnoTooLow, false
 	}
 	return NotSet, true
@@ -160,7 +162,7 @@ func (p *MsgPool) addLocked(msg *types.Message) DiscardReason {
 	hashStr := string(msg.Hash().Bytes())
 	p.byHash[hashStr] = msg
 
-	if replaced := p.all.replaceOrInsert(msg, p.logger); replaced != nil {
+	if replaced := p.all.replaceOrInsert(msg); replaced != nil {
 		panic("must never happen")
 	}
 
@@ -174,7 +176,7 @@ func (p *MsgPool) discardLocked(msg *types.Message, reason DiscardReason) {
 	hashStr := string(msg.Hash().Bytes())
 	delete(p.byHash, hashStr)
 	// p.deletedTxs = append(p.deletedTxs, mt)
-	p.all.delete(msg, reason, p.logger)
+	p.all.delete(msg, reason)
 }
 
 func (p *MsgPool) OnNewBlock(ctx context.Context, block *types.Block, committed []*types.Message) (err error) {
@@ -226,18 +228,18 @@ func (p *MsgPool) removeCommitted(bySeqno *BySenderAndSeqno, msgs []*types.Messa
 		bySeqno.ascend(senderID, func(msg *types.Message) bool {
 			if msg.Seqno > seqno {
 				p.logger.Trace().
-					Uint64("tx.seqno", msg.Seqno).
-					Uint64("sender.seqno", seqno).
+					Uint64(logging.FieldMessageSeqno, msg.Seqno).
+					Uint64(logging.FieldAccountSeqno, seqno).
 					Msg("Removing committed, cmp seqnos")
 
 				return false
 			}
 
 			p.logger.Trace().
-				Stringer("hash", msg.Hash()).
-				Stringer("from", msg.From).
-				Uint64("seqno", msg.Seqno).
-				Msg("removeCommitted")
+				Stringer(logging.FieldMessageHash, msg.Hash()).
+				Stringer(logging.FieldMessageFrom, msg.From).
+				Uint64(logging.FieldMessageSeqno, msg.Seqno).
+				Msg("Remove committed.")
 
 			toDel = append(toDel, msg)
 			p.queue.Remove(msg)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/rs/zerolog/log"
@@ -143,7 +144,9 @@ func (cfg *Cfg) fetchBlockData(ctx context.Context, requestBody request) (*Block
 		Shard:    paramsShardId,
 	}
 
-	log.Debug().Msgf("Fetched block %s", result.Block.Hash().String())
+	log.Debug().
+		Stringer(logging.FieldBlockHash, result.Block.Hash()).
+		Msg("Fetched block")
 
 	return result, nil
 }

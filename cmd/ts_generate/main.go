@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/rpc"
 	"github.com/spf13/cobra"
 )
@@ -23,7 +24,7 @@ func main() {
 		return
 	}
 
-	logger := common.NewLogger("ts-generate")
+	logger := logging.NewLogger("ts-generate")
 
 	// get the absolute path
 	absPath, err := filepath.Abs(*path)

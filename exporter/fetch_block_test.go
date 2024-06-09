@@ -10,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -42,11 +41,6 @@ func (suite *SuiteFetchBlock) TestFetchBlock() {
 func (suite *SuiteFetchBlock) TestFetchShardIdList() {
 	shardIds, err := suite.cfg.FetchShards(suite.context)
 	suite.Require().NoError(err, "Failed to fetch shard ids")
-
-	// log the shard ids
-	for _, shardId := range shardIds {
-		log.Info().Msgf("Shard id: %d", shardId)
-	}
 	suite.Require().Len(shardIds, suite.nShards-1, "Shard ids length is not equal to expected")
 }
 

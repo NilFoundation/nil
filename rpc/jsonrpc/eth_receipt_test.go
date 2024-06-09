@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
@@ -31,7 +31,7 @@ func (suite *SuiteEthReceipt) SetupSuite() {
 	suite.Require().NotNil(pool)
 
 	suite.api, err = NewEthAPI(ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool, pool}, common.NewLogger("Test"))
+		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool, pool}, logging.NewLogger("Test"))
 	suite.Require().NoError(err)
 
 	tx, err := suite.db.CreateRwTx(ctx)

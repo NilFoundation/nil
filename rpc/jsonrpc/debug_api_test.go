@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -53,9 +54,9 @@ func TestDebugGetBlock(t *testing.T) {
 
 	base := NewBaseApi(0)
 
-	api := NewDebugAPI(base, database, nil)
+	api := NewDebugAPI(base, database, log.Logger)
 
-	// When: Get latest block
+	// When: Get the latest block
 	res, err := api.GetBlockByNumber(ctx, types.MasterShardId, transport.LatestBlockNumber, false)
 
 	// Then:

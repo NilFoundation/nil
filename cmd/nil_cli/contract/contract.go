@@ -4,11 +4,12 @@ import (
 	"github.com/NilFoundation/nil/cli/services/contract"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
 
-var logger = common.NewLogger("contractCommand")
+var logger = logging.NewLogger("contractCommand")
 
 func GetCommand(rpcEndpoint string, privateKey string) *cobra.Command {
 	serverCmd := &cobra.Command{
@@ -67,27 +68,19 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, privateKey str
 	service := contract.NewService(client, privateKey, params.shardId)
 	if params.deploy != "" {
 		_, err := service.DeployContract(params.deploy)
-		if err != nil {
-			logger.Fatal().Msgf("Failed to deploy contract")
-		}
-
+		common.FatalIf(err, logger, "Failed to deploy contract")
 		return
 	}
 
 	if params.code != "" {
 		_, err := service.GetCode(params.code)
-		if err != nil {
-			logger.Fatal().Msgf("Failed to get contract code")
-		}
-
+		common.FatalIf(err, logger, "Failed to get contract code")
 		return
 	}
 
 	if params.address != "" && params.bytecode != "" {
 		_, err := service.RunContract(params.bytecode, params.address)
-		if err != nil {
-			logger.Fatal().Msgf("Failed to run contract")
-		}
+		common.FatalIf(err, logger, "Failed to run contract")
 	}
 }
 
