@@ -20,7 +20,7 @@ type Pool interface {
 	Started() bool
 
 	Peek(ctx context.Context, n int, onTopOf uint64) ([]*types.Message, error)
-	SeqnoFromAddress(addr types.Address) (seqno uint64, inPool bool)
+	SeqnoFromAddress(addr types.Address) (seqno types.Seqno, inPool bool)
 	MessageCount() int
 	Get(hash common.Hash) (*types.Message, error)
 }
@@ -93,8 +93,8 @@ func (p *MsgPool) validateMsg(msg *types.Message) (DiscardReason, bool) {
 	if has && seqno > msg.Seqno {
 		p.logger.Debug().
 			Stringer(logging.FieldMessageHash, msg.Hash()).
-			Uint64(logging.FieldAccountSeqno, seqno).
-			Uint64(logging.FieldMessageSeqno, msg.Seqno).
+			Uint64(logging.FieldAccountSeqno, seqno.Uint64()).
+			Uint64(logging.FieldMessageSeqno, msg.Seqno.Uint64()).
 			Msg("Seqno too low.")
 		return SeqnoTooLow, false
 	}
@@ -118,7 +118,7 @@ func (p *MsgPool) Started() bool {
 	return p.started
 }
 
-func (p *MsgPool) SeqnoFromAddress(addr types.Address) (seqno uint64, inPool bool) {
+func (p *MsgPool) SeqnoFromAddress(addr types.Address) (seqno types.Seqno, inPool bool) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	return p.all.seqno(addr)
@@ -212,7 +212,7 @@ func (p *MsgPool) OnNewBlock(ctx context.Context, block *types.Block, committed 
 // included into a block), and finally, walk over the message records and update queue depending on
 // the actual presence of seqno gaps and what the balance is.
 func (p *MsgPool) removeCommitted(bySeqno *BySenderAndSeqno, msgs []*types.Message) error { //nolint:unparam
-	seqnosToRemove := map[types.Address]uint64{}
+	seqnosToRemove := map[types.Address]types.Seqno{}
 	for _, msg := range msgs {
 		seqno, ok := seqnosToRemove[msg.From]
 		if !ok || msg.Seqno > seqno {
@@ -228,8 +228,8 @@ func (p *MsgPool) removeCommitted(bySeqno *BySenderAndSeqno, msgs []*types.Messa
 		bySeqno.ascend(senderID, func(msg *types.Message) bool {
 			if msg.Seqno > seqno {
 				p.logger.Trace().
-					Uint64(logging.FieldMessageSeqno, msg.Seqno).
-					Uint64(logging.FieldAccountSeqno, seqno).
+					Uint64(logging.FieldMessageSeqno, msg.Seqno.Uint64()).
+					Uint64(logging.FieldAccountSeqno, seqno.Uint64()).
 					Msg("Removing committed, cmp seqnos")
 
 				return false
@@ -238,7 +238,7 @@ func (p *MsgPool) removeCommitted(bySeqno *BySenderAndSeqno, msgs []*types.Messa
 			p.logger.Trace().
 				Stringer(logging.FieldMessageHash, msg.Hash()).
 				Stringer(logging.FieldMessageFrom, msg.From).
-				Uint64(logging.FieldMessageSeqno, msg.Seqno).
+				Uint64(logging.FieldMessageSeqno, msg.Seqno.Uint64()).
 				Msg("Remove committed.")
 
 			toDel = append(toDel, msg)

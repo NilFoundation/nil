@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func deployContract(t *testing.T, contract *compiler.Contract, state *ExecutionState, blockContext *vm.BlockContext, seqno int) types.Address {
+func deployContract(t *testing.T, contract *compiler.Contract, state *ExecutionState, blockContext *vm.BlockContext, seqno types.Seqno) types.Address {
 	t.Helper()
 
 	contractCode := hexutil.FromHex(contract.Code)
@@ -25,7 +25,7 @@ func deployContract(t *testing.T, contract *compiler.Contract, state *ExecutionS
 	data, _ := dm.MarshalSSZ()
 	message := &types.Message{
 		Data:     data,
-		Seqno:    uint64(seqno),
+		Seqno:    seqno,
 		GasLimit: *types.NewUint256(100000),
 		To:       types.DeployMsgToAddress(dm, types.Address{}),
 	}

@@ -17,7 +17,7 @@ type SuiteMsgPool struct {
 	pool *MsgPool
 }
 
-func newMessage(from types.Address, seqno uint64, fee uint64) types.Message {
+func newMessage(from types.Address, seqno types.Seqno, fee uint64) types.Message {
 	return types.Message{
 		From:      from,
 		To:        types.Address{},
@@ -160,7 +160,7 @@ func (suite *SuiteMsgPool) TestSeqnoFromAddress() {
 
 	seqno, inPool := suite.pool.SeqnoFromAddress(address)
 	suite.Require().True(inPool)
-	suite.Require().Equal(uint64(0), seqno)
+	suite.Require().EqualValues(0, seqno)
 
 	msg.Seqno++
 	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg})
@@ -169,7 +169,7 @@ func (suite *SuiteMsgPool) TestSeqnoFromAddress() {
 
 	seqno, inPool = suite.pool.SeqnoFromAddress(address)
 	suite.Require().True(inPool)
-	suite.Require().Equal(uint64(1), seqno)
+	suite.Require().EqualValues(1, seqno)
 
 	_, inPool = suite.pool.SeqnoFromAddress(types.BytesToAddress([]byte("abcd")))
 	suite.Require().False(inPool)

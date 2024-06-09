@@ -70,7 +70,7 @@ type (
 	}
 	seqnoChange struct {
 		account *types.Address
-		prev    uint64
+		prev    types.Seqno
 	}
 	storageChange struct {
 		account   *types.Address

@@ -16,6 +16,12 @@ const (
 	OutMessageKind
 )
 
+type Seqno uint64
+
+func (seqno Seqno) Uint64() uint64 {
+	return uint64(seqno)
+}
+
 type MessageIndex uint64
 
 func (mi MessageIndex) Bytes() []byte {
@@ -34,7 +40,7 @@ func BytesToMessageIndex(b []byte) MessageIndex {
 
 type Message struct {
 	Internal  bool             `json:"internal" ch:"internal"`
-	Seqno     uint64           `json:"seqno,omitempty" ch:"seqno"`
+	Seqno     Seqno            `json:"seqno,omitempty" ch:"seqno"`
 	GasPrice  Uint256          `json:"gasPrice,omitempty" ch:"gas_price" ssz-size:"32"`
 	GasLimit  Uint256          `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
 	From      Address          `json:"from,omitempty" ch:"from"`
@@ -46,7 +52,7 @@ type Message struct {
 
 type messageDigest struct {
 	Internal bool
-	Seqno    uint64
+	Seqno    Seqno
 	GasPrice Uint256 `ssz-size:"32"`
 	GasLimit Uint256 `ssz-size:"32"`
 	From     Address
@@ -101,9 +107,8 @@ func (m *Message) Sign(key *ecdsa.PrivateKey) error {
 }
 
 func (m *Message) ValidateSignature(pubBytes []byte) (bool, error) {
-	if len(m.Signature) != 65 {
-		return false, nil
-	}
+	// Compile-time assertion that len >= 65.
+	const _ = uint(len(m.Signature)) - 65
 
 	hash, err := m.SigningHash()
 	if err != nil {

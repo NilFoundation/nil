@@ -49,14 +49,14 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	es.SetState(addr, storageKey, common.IntToHash(123456))
 
-	const numMessages uint8 = 10
+	const numMessages types.Seqno = 10
 
 	from := types.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
 	blockContext := NewEVMBlockContext(es)
 	for i := range numMessages {
 		deploy := &types.DeployMessage{
 			ShardId: shardId,
-			Seqno:   uint64(i),
+			Seqno:   i,
 
 			// constructor that generates the code "01020304"
 			Code: hexutil.FromHex("6004600c60003960046000f301020304"),
@@ -67,7 +67,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 		msg := &types.Message{
 			Data:     data,
 			From:     from,
-			Seqno:    uint64(i),
+			Seqno:    i,
 			GasLimit: *types.NewUint256(10000),
 			To:       types.DeployMsgToAddress(deploy, from),
 		}
@@ -103,7 +103,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 		deploy := types.DeployMessage{
 			ShardId: shardId,
-			Seqno:   uint64(messageIndex),
+			Seqno:   types.Seqno(messageIndex),
 			// constructor that generates the code "01020304"
 			Code: hexutil.FromHex("6004600c60003960046000f301020304"),
 		}
@@ -116,7 +116,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 		messageIndex++
 	}
-	suite.Equal(numMessages, uint8(messageIndex))
+	suite.Equal(types.MessageIndex(numMessages), messageIndex)
 	suite.Require().NoError(tx.Commit())
 }
 
@@ -128,8 +128,8 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 	es, err := NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
-	msg1 := types.Message{Data: []byte{1}, Seqno: uint64(1)}
-	msg2 := types.Message{Data: []byte{2}, Seqno: uint64(2)}
+	msg1 := types.Message{Data: []byte{1}, Seqno: 1}
+	msg2 := types.Message{Data: []byte{2}, Seqno: 2}
 
 	es.AddInMessage(&msg1)
 	blockHash1, err := es.Commit(0)
