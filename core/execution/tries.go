@@ -14,6 +14,11 @@ type MPTValue[S any] interface {
 	fastssz.Unmarshaler
 }
 
+type Entry[K, V any] struct {
+	Key K
+	Val V
+}
+
 type BaseMPTReader[K any, V any, VPtr MPTValue[V]] struct {
 	*mpt.Reader
 
@@ -130,6 +135,25 @@ func (m *BaseMPTReader[K, V, VPtr]) Fetch(key K) (VPtr, error) {
 
 	err = v.UnmarshalSSZ(raw)
 	return v, err
+}
+
+func (m *BaseMPTReader[K, V, VPtr]) Entries() ([]Entry[K, VPtr], error) {
+	// todo: choose good initial buffer size
+	res := make([]Entry[K, VPtr], 0, 100)
+	for kv := range m.Iterate() {
+		k, err := m.keyFromBytes(kv.Key)
+		if err != nil {
+			return nil, err
+		}
+
+		v := m.newV()
+		if err := v.UnmarshalSSZ(kv.Value); err != nil {
+			return nil, err
+		}
+
+		res = append(res, Entry[K, VPtr]{k, v})
+	}
+	return res, nil
 }
 
 func (m *BaseMPTReader[K, V, VPtr]) Keys() ([]K, error) {
