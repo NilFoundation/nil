@@ -3,7 +3,7 @@ package mpt
 import (
 	"fmt"
 
-	ssz "github.com/ferranbt/fastssz"
+	ssz "github.com/NilFoundation/fastssz"
 )
 
 type SszNodeKind = uint8

@@ -3,8 +3,8 @@ package types
 import (
 	"strconv"
 
+	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
-	fastssz "github.com/ferranbt/fastssz"
 	"github.com/rs/zerolog/log"
 )
 

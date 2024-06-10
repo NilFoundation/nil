@@ -3,9 +3,9 @@ package types
 import (
 	"crypto/ecdsa"
 
+	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/crypto"
-	ssz "github.com/ferranbt/fastssz"
 	"github.com/rs/zerolog/log"
 )
 

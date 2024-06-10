@@ -4,9 +4,9 @@ import (
 	"errors"
 	"reflect"
 
+	fastssz "github.com/NilFoundation/fastssz"
 	common "github.com/NilFoundation/nil/common"
 	types "github.com/NilFoundation/nil/core/types"
-	fastssz "github.com/ferranbt/fastssz"
 	"github.com/rs/zerolog/log"
 )
 

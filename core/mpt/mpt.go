@@ -3,10 +3,10 @@ package mpt
 import (
 	"errors"
 
+	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
-	fastssz "github.com/ferranbt/fastssz"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 

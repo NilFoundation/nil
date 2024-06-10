@@ -3,7 +3,6 @@ module github.com/NilFoundation/nil
 go 1.22
 
 require (
-	github.com/ferranbt/fastssz v0.1.4-0.20240530174348-f43e88e3e05f
 	github.com/google/btree v1.1.2
 	github.com/gorilla/handlers v1.5.2
 	github.com/holiman/uint256 v1.2.4
@@ -18,6 +17,7 @@ require github.com/spf13/cobra v1.8.0
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.24.0
+	github.com/NilFoundation/fastssz v0.1.4
 	github.com/btcsuite/btcd/btcec/v2 v2.3.3
 	github.com/ethereum/go-ethereum v1.14.3
 	github.com/hashicorp/golang-lru/v2 v2.0.7
@@ -44,9 +44,7 @@ require (
 	github.com/iancoleman/strcase v0.0.0-20180726023541-3605ed457bf7 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
-	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
-	github.com/minio/sha256-simd v1.0.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/paulmach/orb v0.11.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect

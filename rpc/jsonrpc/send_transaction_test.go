@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
@@ -12,7 +13,6 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
-	ssz "github.com/ferranbt/fastssz"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
