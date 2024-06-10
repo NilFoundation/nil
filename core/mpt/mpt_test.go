@@ -9,13 +9,15 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func getValue(value interface{}, err error) interface{} {
-	if err != nil {
-		panic(err)
-	}
+func getValue(t *testing.T, trie *MerklePatriciaTrie, key []byte) []byte {
+	t.Helper()
+
+	value, err := trie.Get(key)
+	require.NoError(t, err)
 	return value
 }
 
@@ -34,16 +36,15 @@ func TestInsertGetOneShort(t *testing.T) {
 	t.Parallel()
 
 	trie := CreateMerklePatriciaTrie(t)
-
 	key := []byte("key")
 	value := []byte("value")
-	err := trie.Set(key, value)
-	require.NoError(t, err)
-	require.Equal(t, getValue(trie.Get(key)), value)
+
+	require.NoError(t, trie.Set(key, value))
+	assert.Equal(t, value, getValue(t, trie, key))
 
 	gotValue, err := trie.Get([]byte("wrong_key"))
 	require.Error(t, err)
-	require.Equal(t, gotValue, []byte(nil))
+	assert.Empty(t, gotValue)
 }
 
 func TestInsertGetOneLong(t *testing.T) {
@@ -54,7 +55,7 @@ func TestInsertGetOneLong(t *testing.T) {
 	key := []byte("key_0000000000000000000000000000000000000000000000000000000000000000")
 	value := []byte("value_0000000000000000000000000000000000000000000000000000000000000000")
 	require.NoError(t, trie.Set(key, value))
-	require.Equal(t, getValue(trie.Get(key)), value)
+	require.Equal(t, value, getValue(t, trie, key))
 }
 
 func TestInsertGetMany(t *testing.T) {
@@ -62,15 +63,23 @@ func TestInsertGetMany(t *testing.T) {
 
 	trie := CreateMerklePatriciaTrie(t)
 
-	require.NoError(t, trie.Set([]byte("do"), []byte("verb")))
-	require.NoError(t, trie.Set([]byte("dog"), []byte("puppy")))
-	require.NoError(t, trie.Set([]byte("doge"), []byte("coin")))
-	require.NoError(t, trie.Set([]byte("horse"), []byte("stallion")))
+	cases := []struct {
+		k string
+		v string
+	}{
+		{"do", "verb"},
+		{"dog", "puppy"},
+		{"doge", "coin"},
+		{"horse", "stallion"},
+	}
 
-	require.Equal(t, getValue(trie.Get([]byte("do"))), []byte("verb"))
-	require.Equal(t, getValue(trie.Get([]byte("dog"))), []byte("puppy"))
-	require.Equal(t, getValue(trie.Get([]byte("doge"))), []byte("coin"))
-	require.Equal(t, getValue(trie.Get([]byte("horse"))), []byte("stallion"))
+	for _, c := range cases {
+		require.NoError(t, trie.Set([]byte(c.k), []byte(c.v)))
+	}
+
+	for _, c := range cases {
+		assert.Equal(t, []byte(c.v), getValue(t, trie, []byte(c.k)))
+	}
 }
 
 func TestIterate(t *testing.T) {
@@ -112,7 +121,7 @@ func TestInsertGetLots(t *testing.T) {
 	}
 
 	for i := range keys {
-		require.Equal(t, getValue(trie.Get(keys[i])), values[i])
+		assert.Equal(t, values[i], getValue(t, trie, keys[i]))
 	}
 }
 
@@ -201,12 +210,12 @@ func TestTrieFromOldRoot(t *testing.T) {
 
 	// Old
 	trie2 := NewMerklePatriciaTrieWithRoot(trie.accessor, types.BaseShardId, "mpt", rootHash)
-	require.Equal(t, getValue(trie2.Get([]byte("do"))), []byte("verb"))
-	require.Equal(t, getValue(trie2.Get([]byte("dog"))), []byte("puppy"))
+	require.Equal(t, []byte("verb"), getValue(t, trie2, []byte("do")))
+	require.Equal(t, []byte("puppy"), getValue(t, trie2, []byte("dog")))
 
 	// New
-	require.Equal(t, getValue(trie.Get([]byte("do"))), []byte("not_a_verb"))
+	require.Equal(t, []byte("not_a_verb"), getValue(t, trie, []byte("do")))
 	value, err := trie.Get([]byte("dog"))
-	require.Equal(t, value, []byte(nil))
 	require.Error(t, err)
+	require.Empty(t, value)
 }

@@ -4,7 +4,7 @@ import (
 	"github.com/NilFoundation/nil/cli/services/message"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -51,8 +51,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 
 	if params.hash != "" {
 		_, err := service.FetchMessageByHash(params.hash)
-		common.FatalIf(err, logger, "Failed to retrieve message by hash")
-		return
+		check.PanicIfErr(err)
 	}
 }
 

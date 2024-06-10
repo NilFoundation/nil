@@ -66,7 +66,7 @@ func (api *APIImpl) getBlockByNumberOrHash(
 		return nil, err
 	}
 
-	return NewRPCBlock(shardId, block, messages, receipts, fullTx), nil
+	return NewRPCBlock(shardId, block, messages, receipts, fullTx)
 }
 
 // GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.

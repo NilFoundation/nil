@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/rs/zerolog"
@@ -162,9 +163,8 @@ func (p *MsgPool) addLocked(msg *types.Message) DiscardReason {
 	hashStr := string(msg.Hash().Bytes())
 	p.byHash[hashStr] = msg
 
-	if replaced := p.all.replaceOrInsert(msg); replaced != nil {
-		panic("must never happen")
-	}
+	replaced := p.all.replaceOrInsert(msg)
+	check.PanicIfNot(replaced == nil)
 
 	p.queue.Push(msg)
 	return NotSet

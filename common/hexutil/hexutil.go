@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+
+	"github.com/NilFoundation/nil/common/check"
 )
 
 // Decode decodes a hex string with 0x prefix.
@@ -39,9 +41,7 @@ func DecodeUint64(input string) (uint64, error) {
 // MustDecode decodes a hex string with 0x prefix. It panics for invalid input.
 func MustDecode(input string) []byte {
 	dec, err := Decode(input)
-	if err != nil {
-		panic(err)
-	}
+	check.PanicIfErr(err)
 	return dec
 }
 

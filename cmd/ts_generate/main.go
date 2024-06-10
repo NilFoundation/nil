@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/rpc"
 	"github.com/spf13/cobra"
@@ -28,17 +28,17 @@ func main() {
 
 	// get the absolute path
 	absPath, err := filepath.Abs(*path)
-	common.FatalIf(err, logger, "Failed to get absolute path")
+	check.PanicIfErr(err)
 
 	// open the file
 	openFile, err := os.OpenFile(absPath, os.O_CREATE|os.O_WRONLY, 0o644)
-	common.FatalIf(err, logger, "Failed to open file")
+	check.PanicIfErr(err)
 
 	typescriptContent, err := rpc.ExportTypescriptTypes()
-	common.FatalIf(err, logger, "Failed to export typescript types")
+	check.PanicIfErr(err)
 
 	_, err = openFile.Write(typescriptContent)
-	common.FatalIf(err, logger, "Failed to write to file %s", absPath)
+	check.PanicIfErr(err)
 
 	logger.Info().Msgf("Export Typescript Types to %s", absPath)
 }

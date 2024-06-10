@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/db"
@@ -30,6 +31,10 @@ type SuiteRpc struct {
 	cancel  context.CancelFunc
 	address types.Address
 	client  client.Client
+}
+
+func (suite *SuiteRpc) SetupSuite() {
+	logging.SetupGlobalLogger()
 }
 
 func (suite *SuiteRpc) SetupTest() {

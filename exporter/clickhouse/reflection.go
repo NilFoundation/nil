@@ -48,19 +48,19 @@ type reflectedScheme struct {
 	fieldNames map[string]string
 }
 
-func mergeScheme(schemes []reflectedScheme) reflectedScheme {
+func mergeScheme(schemes []reflectedScheme) (reflectedScheme, error) {
 	fieldTypes := make(map[string]string)
 	fieldNames := make(map[string]string)
 	for _, scheme := range schemes {
 		// check if there are any conflicts
 		for k := range scheme.fieldTypes {
 			if _, ok := fieldTypes[k]; ok {
-				panic(fmt.Sprintf("field %s already exists", k))
+				return reflectedScheme{}, fmt.Errorf("field %s already exists", k)
 			}
 		}
 		for k := range scheme.fieldNames {
 			if _, ok := fieldNames[k]; ok {
-				panic(fmt.Sprintf("field name mapping %s already exists", k))
+				return reflectedScheme{}, fmt.Errorf("field name mapping %s already exists", k)
 			}
 		}
 		for k, v := range scheme.fieldTypes {
@@ -73,7 +73,7 @@ func mergeScheme(schemes []reflectedScheme) reflectedScheme {
 	return reflectedScheme{
 		fieldTypes: fieldTypes,
 		fieldNames: fieldNames,
-	}
+	}, nil
 }
 
 func reflectSchemeToClickhouse(f any) (reflectedScheme, error) {
@@ -114,18 +114,14 @@ func reflectSchemeToClickhouse(f any) (reflectedScheme, error) {
 	log.Debug().Msgf("fieldNames: %v", fieldNames)
 	log.Debug().Msgf("additionalSchemes: %v", additionalSchemes)
 
-	result := reflectedScheme{
+	return mergeScheme(append(additionalSchemes, reflectedScheme{
 		fieldTypes: fieldTypes,
 		fieldNames: fieldNames,
-	}
-
-	result = mergeScheme(append(additionalSchemes, result))
-
-	return result, nil
+	}))
 }
 
 func (s reflectedScheme) Fields() string {
-	var fields []string
+	fields := make([]string, 0, len(s.fieldTypes))
 	for name, typ := range s.fieldTypes {
 		fields = append(fields, fmt.Sprintf("%s %s", name, typ))
 	}

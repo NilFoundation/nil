@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"math/big"
 
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/types"
@@ -20,16 +20,16 @@ func init() {
 	// but for now it's hardcoded for simplicity.
 	pubkeyHex := "02eb7216201e65f0a41bc655ada025ad943b79d38aca4d671cbd9875b9604f1ac1"
 	pubkey, err := hex.DecodeString(pubkeyHex)
-	common.FatalIf(err, logger, "Failed to prepare main key (decode hex)")
+	check.PanicIfErr(err)
 
 	key, err := crypto.DecompressPubkey(pubkey)
-	common.FatalIf(err, logger, "Failed to prepare main key (unmarshal)")
+	check.PanicIfErr(err)
 
 	keyD := new(big.Int)
 	keyD.SetString("29471664811761943693235393363502564971627872515497410365595228231506458150155", 10)
 	MainPrivateKey = &ecdsa.PrivateKey{PublicKey: *key, D: keyD}
 
-	common.Require(key.Equal(MainPrivateKey.Public()))
+	check.PanicIfNot(key.Equal(MainPrivateKey.Public()))
 }
 
 func (es *ExecutionState) GenerateZeroState(ctx context.Context) error {

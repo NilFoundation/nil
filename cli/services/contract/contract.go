@@ -5,13 +5,12 @@ import (
 
 	"github.com/NilFoundation/nil/client"
 	"github.com/NilFoundation/nil/client/rpc"
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
-	"github.com/rs/zerolog/log"
 )
 
 var logger = logging.NewLogger("contractService")
@@ -25,7 +24,7 @@ type Service struct {
 // NewService initializes a new Service with the given client and private key
 func NewService(client client.Client, pk string, shardId types.ShardId) *Service {
 	privateKey, err := crypto.HexToECDSA(pk)
-	common.FatalIf(err, log.Logger, "Failed to parse private key")
+	check.PanicIfErr(err)
 
 	return &Service{
 		client,
@@ -56,7 +55,7 @@ func (s *Service) GetCode(contractAddress string) (string, error) {
 func (s *Service) RunContract(bytecode string, contractAddress string) (string, error) {
 	// Get the public key from the private key
 	pubKey, ok := s.privateKey.Public().(*ecdsa.PublicKey)
-	common.Require(ok)
+	check.PanicIfNot(ok)
 
 	// Convert the public key to a public address
 	publicAddress := types.PubkeyBytesToAddress(s.shardId, crypto.CompressPubkey(pubKey))
@@ -95,7 +94,7 @@ func (s *Service) RunContract(bytecode string, contractAddress string) (string, 
 func (s *Service) DeployContract(bytecode string) (string, error) {
 	// Get the public key from the private key
 	pubKey, ok := s.privateKey.Public().(*ecdsa.PublicKey)
-	common.Require(ok)
+	check.PanicIfNot(ok)
 
 	// Convert the public key to a public address
 	publicAddress := types.PubkeyBytesToAddress(s.shardId, crypto.CompressPubkey(pubKey))

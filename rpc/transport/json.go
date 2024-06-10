@@ -11,8 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/NilFoundation/nil/common"
-	"github.com/rs/zerolog/log"
+	"github.com/NilFoundation/nil/common/check"
 )
 
 const (
@@ -49,8 +48,7 @@ func (msg *jsonrpcMessage) hasValidID() bool {
 
 func (msg *jsonrpcMessage) String() string {
 	b, err := json.Marshal(msg)
-	common.FatalIf(err, log.Logger, "Failed to marshal jsonrpc message")
-
+	check.PanicIfErr(err)
 	return string(b)
 }
 

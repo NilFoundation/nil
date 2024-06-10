@@ -6,10 +6,12 @@ import (
 
 	fastssz "github.com/NilFoundation/fastssz"
 	common "github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	types "github.com/NilFoundation/nil/core/types"
 	"github.com/rs/zerolog/log"
 )
 
+// todo: return errors
 func readDecodable[
 	S any,
 	T interface {
@@ -21,14 +23,14 @@ func readDecodable[
 	if errors.Is(err, ErrKeyNotFound) {
 		return nil
 	}
-	common.FatalIf(err, log.Logger, "Read from table %s [%s] failed.", table, shardId)
+	check.LogAndPanicIfErrf(err, log.Logger, "Read from table %s [%s] failed.", table, shardId)
 	if data == nil {
 		return nil
 	}
 
 	decoded := new(S)
 	err = T(decoded).UnmarshalSSZ(*data)
-	common.FatalIf(err, log.Logger, "Invalid SSZ while reading from %s. hash: %v", table, hash)
+	check.LogAndPanicIfErrf(err, log.Logger, "Invalid SSZ while reading from %s. hash: %v", table, hash)
 
 	return decoded
 }

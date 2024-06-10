@@ -2,6 +2,7 @@ package vm
 
 import (
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
@@ -122,9 +123,8 @@ func (c *Contract) AsDelegate() *Contract {
 	// NOTE: caller must at all times be a contract. It should never happen
 	// that caller is something other than a Contract.
 	parent, ok := c.caller.(*Contract)
-	if !ok {
-		panic("caller is not a contract")
-	}
+	check.PanicIfNot(ok)
+
 	c.CallerAddress = parent.CallerAddress
 	c.value = parent.value
 
