@@ -110,7 +110,9 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 			}
 			refundGas(payer, message, leftOverGas)
 		case types.RefundMessageKind:
-			es.HandleRefundMessage(ctx, message)
+			if err := es.HandleRefundMessage(ctx, message); err != nil {
+				return err
+			}
 		default:
 			panic("unreachable")
 		}
@@ -182,7 +184,10 @@ func validateExternalDeployMessage(es *execution.ExecutionState, message *types.
 	check.PanicIfNot(message.Kind == types.DeployMessageKind)
 
 	addr := message.To
-	accountState := es.GetAccount(addr)
+	accountState, err := es.GetAccount(addr)
+	if err != nil {
+		return err
+	}
 	if accountState == nil {
 		err := ErrNoPayer
 		sharedLogger.Debug().
@@ -194,7 +199,9 @@ func validateExternalDeployMessage(es *execution.ExecutionState, message *types.
 		return err
 	}
 
-	if es.ContractExists(addr) {
+	if exists, err := es.ContractExists(addr); err != nil {
+		return err
+	} else if exists {
 		return ErrContractAlreadyExists
 	}
 
@@ -206,14 +213,20 @@ func validateExternalExecutionMessage(es *execution.ExecutionState, message *typ
 	check.PanicIfNot(message.Kind == types.ExecutionMessageKind)
 
 	addr := message.To
-	if !es.ContractExists(addr) {
+
+	if exists, err := es.ContractExists(addr); err != nil {
+		return err
+	} else if !exists {
 		if len(message.Data) > 0 && message.Value.IsZero() {
 			return ErrContractDoesNotExist
 		}
 		return nil // Just send value
 	}
 
-	accountState := es.GetAccount(addr)
+	accountState, err := es.GetAccount(addr)
+	if err != nil {
+		return err
+	}
 	check.PanicIfNot(accountState != nil)
 
 	if accountState.Seqno != message.Seqno {
@@ -275,5 +288,10 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 		es.AddReceipt(0, err)
 		return false, nil
 	}
-	return true, accountPayer{es.GetAccount(message.To), message}
+	account, err := es.GetAccount(message.To)
+	if err != nil {
+		es.AddReceipt(0, err)
+		return false, nil
+	}
+	return true, accountPayer{account, message}
 }

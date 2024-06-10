@@ -32,13 +32,15 @@ func makeGasSStoreFunc(clearingRefund uint64) gasFunc {
 		if contract.Gas <= params.SstoreSentryGasEIP2200 {
 			return 0, errors.New("not enough gas for reentrancy sentry")
 		}
-		// Gas sentry honoured, do the actual gas calculation based on the stored value
-		var (
-			y, x    = stack.Back(1), stack.peek()
-			slot    = common.Hash(x.Bytes32())
-			current = evm.StateDB.GetState(contract.Address(), slot)
-			cost    = uint64(0)
-		)
+		// Gas sentry honored, do the actual gas calculation based on the stored value
+		y, x := stack.Back(1), stack.peek()
+		slot := common.Hash(x.Bytes32())
+		cost := uint64(0)
+		current, err := evm.StateDB.GetState(contract.Address(), slot)
+		if err != nil {
+			return 0, err
+		}
+
 		// Check slot presence in the access list
 		if addrPresent, slotPresent := evm.StateDB.SlotInAccessList(contract.Address(), slot); !slotPresent {
 			cost = params.ColdSloadCostEIP2929
@@ -239,10 +241,22 @@ func makeSelfdestructGasFn(refundsEnabled bool) gasFunc {
 			gas = params.ColdAccountAccessCostEIP2929
 		}
 		// if empty and transfers value
-		if evm.StateDB.Empty(address) && evm.StateDB.GetBalance(contract.Address()).Sign() != 0 {
+		empty, err := evm.StateDB.Empty(address)
+		if err != nil {
+			return 0, err
+		}
+		balance, err := evm.StateDB.GetBalance(contract.Address())
+		if err != nil {
+			return gas, err
+		}
+		if empty && balance.Sign() != 0 {
 			gas += params.CreateBySelfdestructGas
 		}
-		if refundsEnabled && !evm.StateDB.HasSelfDestructed(contract.Address()) {
+		destructed, err := evm.StateDB.HasSelfDestructed(contract.Address())
+		if err != nil {
+			return gas, err
+		}
+		if refundsEnabled && !destructed {
 			evm.StateDB.AddRefund(params.SelfdestructRefundGas)
 		}
 		return gas, nil

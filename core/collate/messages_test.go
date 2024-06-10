@@ -71,11 +71,11 @@ func (s *MessagesSuite) TestValidateMessage() {
 	s.Require().NotNil(es)
 
 	addrFrom := types.GenerateRandomAddress(types.BaseShardId)
-	es.CreateAccount(addrFrom)
+	s.Require().NoError(es.CreateAccount(addrFrom))
 
 	addrTo := types.GenerateRandomAddress(types.BaseShardId)
-	es.CreateAccount(addrTo)
-	es.SetBalance(addrTo, *uint256.NewInt(10_000_000))
+	s.Require().NoError(es.CreateAccount(addrTo))
+	s.Require().NoError(es.SetBalance(addrTo, *uint256.NewInt(10_000_000)))
 
 	msg := &types.Message{
 		To:       addrTo,
@@ -94,7 +94,7 @@ func (s *MessagesSuite) TestValidateMessage() {
 
 	// contract that always returns "true",
 	// so verifies any message
-	es.SetCode(addrTo, hexutil.FromHex("600160005260206000f3"))
+	s.Require().NoError(es.SetCode(addrTo, hexutil.FromHex("600160005260206000f3")))
 	es.AddInMessage(msg)
 	ok, payer = validateMessage(tx, es, msg)
 	s.Require().NotNil(payer)

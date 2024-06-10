@@ -98,10 +98,11 @@ var (
 )
 
 func gasSStore(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
-	var (
-		y, x    = stack.Back(1), stack.Back(0)
-		current = evm.StateDB.GetState(contract.Address(), x.Bytes32())
-	)
+	y, x := stack.Back(1), stack.Back(0)
+	current, err := evm.StateDB.GetState(contract.Address(), x.Bytes32())
+	if err != nil {
+		return 0, err
+	}
 
 	// The new gas metering is based on net gas costs (EIP-1283):
 	//
@@ -169,10 +170,11 @@ func gasSStoreEIP2200(evm *EVM, contract *Contract, stack *Stack, mem *Memory, m
 		return 0, errors.New("not enough gas for reentrancy sentry")
 	}
 	// Gas sentry honoured, do the actual gas calculation based on the stored value
-	var (
-		y, x    = stack.Back(1), stack.Back(0)
-		current = evm.StateDB.GetState(contract.Address(), x.Bytes32())
-	)
+	y, x := stack.Back(1), stack.Back(0)
+	current, err := evm.StateDB.GetState(contract.Address(), x.Bytes32())
+	if err != nil {
+		return 0, err
+	}
 	value := common.Hash(y.Bytes32())
 
 	if current == value { // noop (1)
@@ -359,11 +361,13 @@ func gasCall(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize
 		transfersValue = !stack.Back(2).IsZero()
 		address        = types.Address(stack.Back(1).Bytes20())
 	)
-	if true /* IsEIP158 */ {
-		if transfersValue && evm.StateDB.Empty(address) {
-			gas += params.CallNewAccountGas
-		}
-	} else if !evm.StateDB.Exist(address) {
+
+	empty, err := evm.StateDB.Empty(address)
+	if err != nil {
+		return 0, err
+	}
+	/* EIP158 */
+	if transfersValue && empty {
 		gas += params.CallNewAccountGas
 	}
 	if transfersValue {

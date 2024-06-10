@@ -164,7 +164,7 @@ func TestAsyncCall(t *testing.T) {
 	calldata, err := abi.Pack("call", addrCallee, int32(11))
 	require.NoError(t, err)
 
-	state.SetBalance(addrCaller, *uint256.NewInt(1_000_000))
+	require.NoError(t, state.SetBalance(addrCaller, *uint256.NewInt(1_000_000)))
 
 	callMessage := &types.Message{
 		Internal: true,

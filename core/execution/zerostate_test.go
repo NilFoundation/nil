@@ -114,7 +114,8 @@ contracts:
 	err = state.GenerateZeroState(configYaml)
 	require.NoError(t, err)
 
-	wallet := state.GetAccount(walletAddr)
+	wallet, err := state.GetAccount(walletAddr)
+	require.NoError(t, err)
 	require.NotNil(t, wallet)
 	require.Equal(t, wallet.Balance, types.NewUint256(12345678).Int)
 
@@ -122,7 +123,8 @@ contracts:
 	require.NoError(t, err)
 	faucetAddr := types.CreateAddress(types.MasterShardId, faucetCode)
 
-	faucet := state.GetAccount(faucetAddr)
+	faucet, err := state.GetAccount(faucetAddr)
+	require.NoError(t, err)
 	require.NotNil(t, faucet)
 	require.Equal(t, faucet.Balance, types.NewUint256(87654321).Int)
 
@@ -156,9 +158,11 @@ contracts:
 
 	faucetAddr = types.CreateAddress(types.BaseShardId, faucetCode)
 
-	faucet = state.GetAccount(faucetAddr)
+	faucet, err = state.GetAccount(faucetAddr)
+	require.NoError(t, err)
 	require.NotNil(t, faucet)
-	wallet = state.GetAccount(walletAddr)
+	wallet, err = state.GetAccount(walletAddr)
+	require.NoError(t, err)
 	require.Nil(t, wallet)
 }
 

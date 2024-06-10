@@ -51,13 +51,14 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 
 		switch msg.Kind {
 		case types.DeployMessageKind:
-			_, err = es.HandleDeployMessage(ctx, msg)
+			_, err := es.HandleDeployMessage(ctx, msg)
 			require.NoError(t, err)
 		case types.ExecutionMessageKind:
-			_, _, err = es.HandleExecutionMessage(ctx, msg)
+			_, _, err := es.HandleExecutionMessage(ctx, msg)
 			require.NoError(t, err)
 		case types.RefundMessageKind:
-			es.HandleRefundMessage(ctx, msg)
+			err := es.HandleRefundMessage(ctx, msg)
+			require.NoError(t, err)
 		default:
 			panic("unreachable")
 		}

@@ -256,7 +256,11 @@ func opAddress(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]
 func opBalance(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	slot := scope.Stack.peek()
 	address := types.Address(slot.Bytes20())
-	slot.Set(interpreter.evm.StateDB.GetBalance(address))
+	balance, err := interpreter.evm.StateDB.GetBalance(address)
+	if err != nil {
+		return nil, err
+	}
+	slot.Set(balance)
 	return nil, nil
 }
 
@@ -338,7 +342,11 @@ func opReturnDataCopy(pc *uint64, interpreter *EVMInterpreter, scope *ScopeConte
 
 func opExtCodeSize(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	slot := scope.Stack.peek()
-	slot.SetUint64(uint64(interpreter.evm.StateDB.GetCodeSize(slot.Bytes20())))
+	code, _, err := interpreter.evm.StateDB.GetCode(slot.Bytes20())
+	if err != nil {
+		return nil, err
+	}
+	slot.SetUint64(uint64(len(code)))
 	return nil, nil
 }
 
@@ -376,7 +384,12 @@ func opExtCodeCopy(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext)
 		uint64CodeOffset = math.MaxUint64
 	}
 	addr := types.Address(a.Bytes20())
-	codeCopy := getData(interpreter.evm.StateDB.GetCode(addr), uint64CodeOffset, length.Uint64())
+	code, _, err := interpreter.evm.StateDB.GetCode(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	codeCopy := getData(code, uint64CodeOffset, length.Uint64())
 	scope.Memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
 
 	return nil, nil
@@ -407,14 +420,20 @@ func opExtCodeCopy(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext)
 //     in the current transaction, the code hash of this account should be returned.
 //
 //  6. Caller tries to get the code hash for an account which is marked as deleted, this
-//     account should be regarded as a non-existent account and zero should be returned.
+//     account should be regarded as a non-existent account, and zero should be returned.
 func opExtCodeHash(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	slot := scope.Stack.peek()
 	address := types.Address(slot.Bytes20())
-	if interpreter.evm.StateDB.Empty(address) {
+	if empty, err := interpreter.evm.StateDB.Empty(address); err != nil {
+		return nil, err
+	} else if empty {
 		slot.Clear()
 	} else {
-		slot.SetBytes(interpreter.evm.StateDB.GetCodeHash(address).Bytes())
+		_, codeHash, err := interpreter.evm.StateDB.GetCode(address)
+		if err != nil {
+			return nil, err
+		}
+		slot.SetBytes(codeHash.Bytes())
 	}
 	return nil, nil
 }
@@ -512,7 +531,10 @@ func opMstore8(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]
 func opSload(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	loc := scope.Stack.peek()
 	hash := common.Hash(loc.Bytes32())
-	val := interpreter.evm.StateDB.GetState(scope.Contract.Address(), hash)
+	val, err := interpreter.evm.StateDB.GetState(scope.Contract.Address(), hash)
+	if err != nil {
+		return nil, err
+	}
 	loc.SetBytes(val.Bytes())
 	return nil, nil
 }
@@ -523,8 +545,7 @@ func opSstore(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]b
 	}
 	loc := scope.Stack.pop()
 	val := scope.Stack.pop()
-	interpreter.evm.StateDB.SetState(scope.Contract.Address(), loc.Bytes32(), val.Bytes32())
-	return nil, nil
+	return nil, interpreter.evm.StateDB.SetState(scope.Contract.Address(), loc.Bytes32(), val.Bytes32())
 }
 
 func opJump(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
@@ -767,10 +788,21 @@ func opSelfdestruct6780(pc *uint64, interpreter *EVMInterpreter, scope *ScopeCon
 		return nil, ErrWriteProtection
 	}
 	beneficiary := scope.Stack.pop()
-	balance := interpreter.evm.StateDB.GetBalance(scope.Contract.Address())
-	interpreter.evm.StateDB.SubBalance(scope.Contract.Address(), balance, tracing.BalanceDecreaseSelfdestruct)
-	interpreter.evm.StateDB.AddBalance(beneficiary.Bytes20(), balance, tracing.BalanceIncreaseSelfdestruct)
-	interpreter.evm.StateDB.Selfdestruct6780(scope.Contract.Address())
+	balance, err := interpreter.evm.StateDB.GetBalance(scope.Contract.Address())
+	if err != nil {
+		return nil, err
+	}
+
+	if err := interpreter.evm.StateDB.SubBalance(scope.Contract.Address(), balance, tracing.BalanceDecreaseSelfdestruct); err != nil {
+		return nil, err
+	}
+	if err := interpreter.evm.StateDB.AddBalance(beneficiary.Bytes20(), balance, tracing.BalanceIncreaseSelfdestruct); err != nil {
+		return nil, err
+	}
+	if err := interpreter.evm.StateDB.Selfdestruct6780(scope.Contract.Address()); err != nil {
+		return nil, err
+	}
+
 	if tracer := interpreter.evm.Config.Tracer; tracer != nil {
 		if tracer.OnEnter != nil {
 			tracer.OnEnter(interpreter.evm.depth, byte(SELFDESTRUCT), scope.Contract.Address(), beneficiary.Bytes20(), []byte{}, 0, balance.ToBig())

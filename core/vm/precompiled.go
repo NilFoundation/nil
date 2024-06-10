@@ -304,13 +304,15 @@ func setRefundTo(refundTo *types.Address, msg *types.Message) {
 }
 
 func withdrawFunds(state StateDB, addr types.Address, value *uint256.Int) error {
-	balance := state.GetBalance(addr)
+	balance, err := state.GetBalance(addr)
+	if err != nil {
+		return err
+	}
 	if balance.Lt(value) {
 		log.Logger.Error().Msgf("withdrawFunds failed: insufficient balance on address %v, expected at least %v, got %v", addr, value, balance)
 		return ErrInsufficientBalance
 	}
-	state.SubBalance(addr, value, tracing.BalanceDecreasePrecompile)
-	return nil
+	return state.SubBalance(addr, value, tracing.BalanceDecreasePrecompile)
 }
 
 func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
@@ -396,11 +398,16 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 }
 
 func addOutInternal(state StateDB, caller types.Address, payload *types.InternalMessagePayload) error {
-	seqno := state.GetSeqno(caller)
+	seqno, err := state.GetSeqno(caller)
+	if err != nil {
+		return err
+	}
 	if seqno+1 < seqno {
 		return ErrNonceUintOverflow
 	}
-	state.SetSeqno(caller, seqno+1)
+	if err := state.SetSeqno(caller, seqno+1); err != nil {
+		return err
+	}
 
 	msg := payload.ToMessage(caller, seqno)
 	state.AddOutMessage(msg)
