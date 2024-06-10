@@ -4,13 +4,11 @@ import (
 	"encoding/json"
 
 	"github.com/NilFoundation/nil/client"
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
-)
-
-const (
-	getBlockByNumber = "eth_getBlockByNumber"
-	getBlockByHash   = "eth_getBlockByHash"
+	"github.com/NilFoundation/nil/rpc/jsonrpc"
+	"github.com/NilFoundation/nil/rpc/transport"
 )
 
 var logger = logging.NewLogger("blockService")
@@ -30,34 +28,30 @@ func NewService(c client.Client, shardId types.ShardId) *Service {
 
 // FetchBlockByNumber fetches the block by number
 func (s *Service) FetchBlockByNumber(blockNumber string) ([]byte, error) {
-	return s.fetchBlock(getBlockByNumber, blockNumber)
+	var bn transport.BlockNumber
+	if err := bn.UnmarshalJSON([]byte(blockNumber)); err != nil {
+		logger.Error().Err(err).Msg("Invalid block number")
+		return nil, err
+	}
+
+	return s.onFetchBlock(s.client.GetBlockByNumber(s.shardId, bn, true))
 }
 
 // FetchBlockByHash fetches the block by hash
 func (s *Service) FetchBlockByHash(blockHash string) ([]byte, error) {
-	return s.fetchBlock(getBlockByHash, blockHash)
-}
-
-// fetchBlock is a common method to fetch block data based on the method and identifier
-func (s *Service) fetchBlock(method, identifier string) ([]byte, error) {
-	// Create params for the RPC call
-	params := []interface{}{
-		s.shardId,
-		identifier,
-		true,
-	}
-
-	// Call the RPC method to fetch the block data
-	result, err := s.client.Call(method, params)
-	if err != nil {
-		logger.Error().Err(err).Str(logging.FieldRpcMethod, method).Msg("Failed to fetch block")
+	var hash common.Hash
+	if err := hash.UnmarshalText([]byte(blockHash)); err != nil {
+		logger.Error().Err(err).Msg("Invalid hash")
 		return nil, err
 	}
 
-	// Unmarshal the result into a map
-	var blockData map[string]interface{}
-	if err := json.Unmarshal(result, &blockData); err != nil {
-		logger.Error().Err(err).Msg("Failed to unmarshal block data")
+	return s.onFetchBlock(s.client.GetBlockByHash(s.shardId, hash, true))
+}
+
+// onFetchBlock is a callback that handles result from server (prints block or error)
+func (s *Service) onFetchBlock(blockData *jsonrpc.RPCBlock, err error) ([]byte, error) {
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to fetch block")
 		return nil, err
 	}
 

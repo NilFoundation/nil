@@ -46,7 +46,7 @@ func setFlags(cmd *cobra.Command) {
 func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
 
-	client := rpc.NewRPCClient(rpcEndpoint)
+	client := rpc.NewClient(rpcEndpoint)
 	service := message.NewService(client, params.shardId)
 
 	if params.hash != "" {

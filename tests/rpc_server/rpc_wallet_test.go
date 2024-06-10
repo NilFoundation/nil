@@ -1,8 +1,6 @@
 package rpctest
 
 import (
-	"encoding/hex"
-
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
@@ -15,6 +13,8 @@ import (
 
 // Deploy contract to specific shard
 func (suite *SuiteRpc) deployContractViaWallet(shardId types.ShardId, code []byte) types.Address {
+	suite.T().Helper()
+
 	seqno := suite.getTransactionCount(types.MainWalletAddress, "latest")
 
 	addrWallet := types.CreateAddress(shardId, code)
@@ -55,20 +55,10 @@ func (suite *SuiteRpc) deployContractViaWallet(shardId types.ShardId, code []byt
 		Data:     calldata,
 	}
 	suite.Require().NoError(msgExternal.Sign(execution.MainPrivateKey))
-	msgExternalData, err := msgExternal.MarshalSSZ()
-	suite.Require().NoError(err)
 
-	request := &Request{
-		Jsonrpc: "2.0",
-		Method:  sendRawTransaction,
-		Params:  []any{"0x" + hex.EncodeToString(msgExternalData)},
-		Id:      1,
-	}
-
-	resp, err := makeRequest[common.Hash](suite.port, request)
+	resHash, err := suite.client.SendMessage(msgExternal)
 	suite.Require().NoError(err)
-	suite.Require().Nil(resp.Error)
-	suite.Equal(msgExternal.Hash(), resp.Result)
+	suite.Equal(msgExternal.Hash(), resHash)
 
 	suite.waitForReceiptOnShard(types.MainWalletAddress.ShardId(), msgExternal)
 
@@ -78,6 +68,8 @@ func (suite *SuiteRpc) deployContractViaWallet(shardId types.ShardId, code []byt
 }
 
 func (suite *SuiteRpc) sendMessageViaWallet(addrFrom types.Address, messageToSend *types.Message) {
+	suite.T().Helper()
+
 	seqno := suite.getTransactionCount(addrFrom, "latest")
 
 	calldata, err := messageToSend.MarshalSSZ()
@@ -98,20 +90,10 @@ func (suite *SuiteRpc) sendMessageViaWallet(addrFrom types.Address, messageToSen
 		Data:     calldataExt,
 	}
 	suite.Require().NoError(msgExternal.Sign(execution.MainPrivateKey))
-	msgExternalData, err := msgExternal.MarshalSSZ()
-	suite.Require().NoError(err)
 
-	request := &Request{
-		Jsonrpc: "2.0",
-		Method:  sendRawTransaction,
-		Params:  []any{"0x" + hex.EncodeToString(msgExternalData)},
-		Id:      1,
-	}
-
-	resp, err := makeRequest[common.Hash](suite.port, request)
+	resHash, err := suite.client.SendMessage(msgExternal)
 	suite.Require().NoError(err)
-	suite.Require().Nil(resp.Error)
-	suite.Equal(msgExternal.Hash(), resp.Result)
+	suite.Equal(msgExternal.Hash(), resHash)
 
 	suite.waitForReceipt(addrFrom, msgExternal)
 
@@ -159,20 +141,10 @@ func (suite *SuiteRpc) TestWallet() {
 		Internal: false,
 	}
 	suite.Require().NoError(messageToSend.Sign(execution.MainPrivateKey))
-	msgExternalData, err := messageToSend.MarshalSSZ()
-	suite.Require().NoError(err)
 
-	request := &Request{
-		Jsonrpc: "2.0",
-		Method:  sendRawTransaction,
-		Params:  []any{"0x" + hex.EncodeToString(msgExternalData)},
-		Id:      1,
-	}
-
-	resp, err := makeRequest[common.Hash](suite.port, request)
+	resHash, err := suite.client.SendMessage(messageToSend)
 	suite.Require().NoError(err)
-	suite.Require().Nil(resp.Error)
-	suite.Equal(messageToSend.Hash(), resp.Result)
+	suite.Equal(messageToSend.Hash(), resHash)
 
 	suite.waitForReceiptOnShard(addrCallee.ShardId(), messageToSend)
 }
