@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
+	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
-	ssz "github.com/ferranbt/fastssz"
 	lru "github.com/hashicorp/golang-lru/v2"
 )
 

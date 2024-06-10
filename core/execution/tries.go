@@ -1,10 +1,10 @@
 package execution
 
 import (
+	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
-	fastssz "github.com/ferranbt/fastssz"
 	"github.com/holiman/uint256"
 )
 

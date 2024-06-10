@@ -1,8 +1,8 @@
 package types
 
 import (
+	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
-	fastssz "github.com/ferranbt/fastssz"
 )
 
 type VersionInfo struct {

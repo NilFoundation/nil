@@ -5,7 +5,7 @@ import (
 	"encoding"
 	"encoding/binary"
 
-	ssz "github.com/ferranbt/fastssz"
+	ssz "github.com/NilFoundation/fastssz"
 	"github.com/holiman/uint256"
 )
 

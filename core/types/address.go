@@ -9,9 +9,9 @@ import (
 	"math"
 	"math/big"
 
+	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
-	ssz "github.com/ferranbt/fastssz"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 

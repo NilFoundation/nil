@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 
+	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
-	fastssz "github.com/ferranbt/fastssz"
 )
 
 // GetInMessageByHash implements eth_getTransactioByHash. Returns the message structure

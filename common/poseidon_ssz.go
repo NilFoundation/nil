@@ -3,7 +3,7 @@ package common
 import (
 	"sync"
 
-	ssz "github.com/ferranbt/fastssz"
+	ssz "github.com/NilFoundation/fastssz"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/rs/zerolog/log"
 )
