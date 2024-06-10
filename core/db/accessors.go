@@ -100,21 +100,28 @@ func ReadLastBlock(tx RoTx, shardId types.ShardId) (*types.Block, error) {
 	return readDecodable[types.Block, *types.Block](tx, blockTable, shardId, hash), nil
 }
 
-func ReadNbBlockNumbers(tx RoTx, shardId types.ShardId, nbCount int) (bn types.BlockNumberList, err error) {
-	buf, err := tx.Get(NeighbourBlockNumber, shardId.Bytes())
+func ReadCollatorState(tx RoTx, shardId types.ShardId) (types.CollatorState, error) {
+	res := types.CollatorState{}
+	buf, err := tx.Get(CollatorStateTable, shardId.Bytes())
 	if errors.Is(err, ErrKeyNotFound) {
-		bn.List = make([]uint64, nbCount)
-		return bn, nil
+		return res, nil
 	}
 	if err != nil {
-		return
+		return res, err
 	}
 
-	if err = bn.UnmarshalSSZ(*buf); err != nil {
-		return
+	if err = res.UnmarshalSSZ(*buf); err != nil {
+		return res, err
 	}
-	common.Require(nbCount == len(bn.List))
-	return
+	return res, nil
+}
+
+func WriteCollatorState(tx RwTx, shardId types.ShardId, state types.CollatorState) error {
+	value, err := state.MarshalSSZ()
+	if err != nil {
+		return err
+	}
+	return tx.Put(CollatorStateTable, shardId.Bytes(), value)
 }
 
 func ReadLastBlockHash(tx RoTx, shardId types.ShardId) (common.Hash, error) {
