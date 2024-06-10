@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/rs/zerolog"
@@ -23,7 +23,7 @@ type Scheduler struct {
 	nShards  int
 	topology ShardTopology
 
-	logger *zerolog.Logger
+	logger zerolog.Logger
 }
 
 func NewScheduler(txFabric db.DB, pool MsgPool, id types.ShardId, nShards int, topology ShardTopology) *Scheduler {
@@ -33,12 +33,14 @@ func NewScheduler(txFabric db.DB, pool MsgPool, id types.ShardId, nShards int, t
 		id:       id,
 		nShards:  nShards,
 		topology: topology,
-		logger:   common.NewLogger("collator-" + id.String()),
+		logger: logging.NewLogger("collator").With().
+			Str(logging.FieldShardId, id.String()).
+			Logger(),
 	}
 }
 
 func (s *Scheduler) Run(ctx context.Context) error {
-	sharedLogger.Info().Msgf("Starting collation on shard %s...", s.id)
+	sharedLogger.Info().Msg("Starting collation...")
 
 	// Run shard collations once immediately, then run by timer.
 	if err := s.doCollate(ctx); err != nil {
@@ -54,7 +56,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 				return err
 			}
 		case <-ctx.Done():
-			sharedLogger.Info().Msgf("Stopping collation on shard %s...", s.id)
+			sharedLogger.Info().Msg("Stopping collation...")
 			return nil
 		}
 	}

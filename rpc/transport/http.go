@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -150,7 +151,7 @@ func newHTTPServerConn(r *http.Request, w http.ResponseWriter) ServerCodec {
 			Method: methodUp,
 			Params: param,
 		})
-		common.FatalIf(err, nil, "Messages encode failed")
+		common.FatalIf(err, log.Logger, "Messages encode failed")
 
 		conn.Reader = buf
 	} else {

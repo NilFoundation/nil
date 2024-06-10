@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/NilFoundation/nil/client"
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 )
 
@@ -13,7 +13,7 @@ const (
 	getBlockByHash   = "eth_getBlockByHash"
 )
 
-var logger = common.NewLogger("blockService")
+var logger = logging.NewLogger("blockService")
 
 type Service struct {
 	client  client.Client
@@ -50,7 +50,7 @@ func (s *Service) fetchBlock(method, identifier string) ([]byte, error) {
 	// Call the RPC method to fetch the block data
 	result, err := s.client.Call(method, params)
 	if err != nil {
-		logger.Error().Err(err).Msgf("Failed to fetch block using method %s", method)
+		logger.Error().Err(err).Str(logging.FieldRpcMethod, method).Msg("Failed to fetch block")
 		return nil, err
 	}
 
@@ -68,6 +68,6 @@ func (s *Service) fetchBlock(method, identifier string) ([]byte, error) {
 		return nil, err
 	}
 
-	logger.Info().Msgf("Fetched block:\n%s", blockDataJSON)
+	logger.Trace().Msgf("Fetched block:\n%s", blockDataJSON)
 	return blockDataJSON, nil
 }

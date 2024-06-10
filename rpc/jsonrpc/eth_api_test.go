@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
@@ -26,7 +26,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 	require.NotNil(t, pool)
 
 	api, err := NewEthAPI(ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), badger, []msgpool.Pool{pool}, common.NewLogger("Test"))
+		NewBaseApi(rpccfg.DefaultEvmCallTimeout), badger, []msgpool.Pool{pool}, logging.NewLogger("Test"))
 	require.NoError(t, err)
 
 	// Call GetBlockByNumber for transaction which is not in the database

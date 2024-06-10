@@ -6,6 +6,7 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
@@ -51,7 +52,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	}
 	pool := &MockMsgPool{Msgs: []*types.Message{m}}
 
-	c := newCollator(shardId, 2, new(TrivialShardTopology), pool, common.NewLogger("collator"))
+	c := newCollator(shardId, 2, new(TrivialShardTopology), pool, logging.NewLogger("collator"))
 
 	s.Run("zero-state", func() {
 		s.Require().NoError(c.GenerateBlock(ctx, s.db))

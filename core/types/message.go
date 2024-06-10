@@ -6,6 +6,7 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/crypto"
 	ssz "github.com/ferranbt/fastssz"
+	"github.com/rs/zerolog/log"
 )
 
 type MessageKind int
@@ -63,7 +64,7 @@ var (
 
 func (m *Message) Hash() common.Hash {
 	h, err := common.PoseidonSSZ(m)
-	common.FatalIf(err, nil, "Can't get message hash")
+	common.FatalIf(err, log.Logger, "Can't get message hash")
 
 	return h
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
@@ -65,7 +66,7 @@ func (suite *SuiteEthBlock) SetupSuite() {
 	suite.Require().NotNil(pool)
 
 	suite.api, err = NewEthAPI(ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool}, common.NewLogger("Test"))
+		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool}, logging.NewLogger("Test"))
 	suite.Require().NoError(err)
 }
 
@@ -177,7 +178,7 @@ func TestGetBlockByNumberOnEmptyBase(t *testing.T) {
 	ctx := context.Background()
 	shardId := types.MasterShardId
 	api, err := NewEthAPI(ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), db, []msgpool.Pool{pool}, common.NewLogger("Test"))
+		NewBaseApi(rpccfg.DefaultEvmCallTimeout), db, []msgpool.Pool{pool}, logging.NewLogger("Test"))
 	require.NoError(t, err)
 
 	data, err := api.GetBlockByNumber(ctx, shardId, transport.EarliestBlockNumber, false)

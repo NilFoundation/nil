@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/rs/zerolog/log"
 )
 
 // 32 bits are more than enough while avoiding problems with marshaling 64-bit values as numbers in JSON.
@@ -39,7 +40,7 @@ func (s ShardId) Static() bool {
 func BytesToShardId(b []byte) ShardId {
 	// todo: id marshaling should not happen via string formatting
 	res, err := ParseShardIdFromString(string(b))
-	common.FatalIf(err, nil, "Given data is not a valid shard id")
+	common.FatalIf(err, log.Logger, "Given data is not a valid shard id")
 	return res
 }
 

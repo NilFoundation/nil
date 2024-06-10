@@ -4,8 +4,8 @@ import (
 	"context"
 	"syscall"
 
-	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/concurrent"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
@@ -19,7 +19,7 @@ import (
 )
 
 func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []msgpool.Pool) error {
-	logger := common.NewLogger("RPC")
+	logger := logging.NewLogger("RPC")
 
 	httpConfig := &httpcfg.HttpCfg{
 		Enabled:           true,
@@ -64,7 +64,7 @@ func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []
 //
 // It returns a value suitable for os.Exit().
 func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent.Func) int {
-	common.SetupGlobalLogger()
+	logging.SetupGlobalLogger()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

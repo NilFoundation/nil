@@ -1,4 +1,4 @@
-package common
+package logging
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 )
 
 func SetupGlobalLogger() {
-	log.Logger = *NewLogger("global")
+	log.Logger = NewLogger("global")
 }
 
 // defaults to INFO
@@ -38,36 +38,26 @@ func makeComponentFormatter(noColor bool) zerolog.Formatter {
 	}
 }
 
-func NewLogger(component string) *zerolog.Logger {
-	const componentFieldName = "component"
-	noColor := false
-
-	if os.Getenv("NO_COLOR") != "" {
-		noColor = true
-	} else if !term.IsTerminal(int(os.Stdout.Fd())) {
-		noColor = true
-	}
-
-	logger := zerolog.New(zerolog.ConsoleWriter{
+func NewLogger(component string) zerolog.Logger {
+	noColor := os.Getenv("NO_COLOR") != "" || !term.IsTerminal(int(os.Stdout.Fd()))
+	return zerolog.New(zerolog.ConsoleWriter{
 		Out:        os.Stderr,
 		TimeFormat: time.DateTime,
 		PartsOrder: []string{
 			zerolog.TimestampFieldName,
 			zerolog.LevelFieldName,
-			componentFieldName,
+			FieldComponent,
 			zerolog.CallerFieldName,
 			zerolog.MessageFieldName,
 		},
-		FieldsExclude:    []string{componentFieldName},
+		FieldsExclude:    []string{FieldComponent},
 		FormatFieldValue: makeComponentFormatter(noColor),
 		NoColor:          noColor,
 	}).
 		Level(zerolog.TraceLevel).
 		With().
-		Str(componentFieldName, component).
+		Str(FieldComponent, component).
 		Caller().
 		Timestamp().
 		Logger()
-
-	return &logger
 }

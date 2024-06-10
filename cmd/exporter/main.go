@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/exporter"
 	"github.com/NilFoundation/nil/exporter/clickhouse"
 	"github.com/rs/zerolog/log"
@@ -26,7 +27,7 @@ func initConfig() {
 	} else {
 		// Find home directory.
 		home, err := os.Getwd()
-		common.FatalIf(err, nil, "Failed to get working directory")
+		common.FatalIf(err, log.Logger, "Failed to get working directory")
 
 		// Search config in home directory with the name "exporter.cobra" (without an extension).
 		viper.AddConfigPath(home)
@@ -34,13 +35,13 @@ func initConfig() {
 	}
 
 	err := viper.ReadInConfig()
-	common.FatalIf(err, nil, "Can't read config")
+	common.FatalIf(err, log.Logger, "Can't read config")
 
 	viper.AutomaticEnv()
 }
 
 func main() {
-	logger := common.NewLogger("exporter")
+	logger := logging.NewLogger("exporter")
 
 	cobra.OnInitialize(initConfig)
 	rootCmd := &cobra.Command{

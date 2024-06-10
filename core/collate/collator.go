@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/mpt"
@@ -19,7 +20,7 @@ const (
 	nMessagesForBlock = 10
 )
 
-var sharedLogger = common.NewLogger("collator")
+var sharedLogger = logging.NewLogger("collator")
 
 type collator struct {
 	id      types.ShardId
@@ -31,14 +32,14 @@ type collator struct {
 	neighborIds          []types.ShardId
 	neighborBlockNumbers types.BlockNumberList
 
-	logger *zerolog.Logger
+	logger zerolog.Logger
 
 	state *execution.ExecutionState
 	roTx  db.RoTx
 	rwTx  db.RwTx
 }
 
-func newCollator(id types.ShardId, nShards int, topology ShardTopology, pool MsgPool, logger *zerolog.Logger) *collator {
+func newCollator(id types.ShardId, nShards int, topology ShardTopology, pool MsgPool, logger zerolog.Logger) *collator {
 	neighbors := topology.GetNeighbours(id, nShards, true)
 	return &collator{
 		pool:                 pool,
@@ -64,13 +65,13 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 
 	var poolMsgs []*types.Message
 	if lastBlockHash == common.EmptyHash {
-		c.logger.Trace().Msgf("Generating zero-state on shard %s...", c.id)
+		c.logger.Trace().Msg("Generating zero-state...")
 
 		if err := c.state.GenerateZeroState(ctx); err != nil {
 			return err
 		}
 	} else {
-		c.logger.Trace().Msgf("Collating on shard %s...", c.id)
+		c.logger.Trace().Msg("Collating...")
 
 		// todo: store last block id
 		inMsgs, outMsgs, err := c.collectFromNeighbours()

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
@@ -28,7 +29,7 @@ type handler struct {
 	rootCtx    context.Context       // canceled by close()
 	cancelRoot func()                // cancel function for rootCtx
 	conn       jsonWriter            // where responses will be sent
-	logger     *zerolog.Logger
+	logger     zerolog.Logger
 
 	traceRequests bool
 
@@ -73,7 +74,7 @@ func HandleError(err error, stream *jsoniter.Stream) {
 	stream.WriteObjectEnd()
 }
 
-func newHandler(connCtx context.Context, conn jsonWriter, reg *serviceRegistry, traceRequests bool, logger *zerolog.Logger, rpcSlowLogThreshold time.Duration) *handler {
+func newHandler(connCtx context.Context, conn jsonWriter, reg *serviceRegistry, traceRequests bool, logger zerolog.Logger, rpcSlowLogThreshold time.Duration) *handler {
 	rootCtx, cancelRoot := context.WithCancel(connCtx)
 
 	h := &handler{
@@ -91,6 +92,24 @@ func newHandler(connCtx context.Context, conn jsonWriter, reg *serviceRegistry, 
 	}
 
 	return h
+}
+
+func (h *handler) log(lvl zerolog.Level, msg *jsonrpcMessage, logMsg string, duration time.Duration) {
+	l := h.logger.WithLevel(lvl).
+		Stringer(logging.FieldReqId, idForLog(msg.ID)).
+		Str(logging.FieldRpcMethod, msg.Method).
+		Str(logging.FieldRpcParams, string(msg.Params))
+	if duration > 0 {
+		l = l.Stringer(logging.FieldDuration, duration)
+	}
+	l.Msg(logMsg)
+}
+
+func (h *handler) requestLoggingLevel() zerolog.Level {
+	if h.traceRequests {
+		return zerolog.InfoLevel
+	}
+	return zerolog.TraceLevel
 }
 
 func (h *handler) isRpcMethodNeedsCheck(method string) bool {
@@ -163,7 +182,7 @@ func (h *handler) handleImmediate(msg *jsonrpcMessage) bool {
 	switch {
 	case msg.isResponse():
 		h.handleResponse(msg)
-		h.logger.Trace().Str("reqid", idForLog(msg.ID).String()).Str("t", time.Since(start).String()).Msg("[rpc] handled response")
+		h.log(zerolog.TraceLevel, msg, "Handled response", time.Since(start))
 		return true
 	default:
 		return false
@@ -174,7 +193,7 @@ func (h *handler) handleImmediate(msg *jsonrpcMessage) bool {
 func (h *handler) handleResponse(msg *jsonrpcMessage) {
 	op := h.respWait[string(msg.ID)]
 	if op == nil {
-		h.logger.Trace().Str("reqid", idForLog(msg.ID).String()).Msg("[rpc] unsolicited response")
+		h.log(zerolog.TraceLevel, msg, "Unsolicited response", 0)
 		return
 	}
 	delete(h.respWait, string(msg.ID))
@@ -192,43 +211,26 @@ func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage, stream *json
 			doSlowLog = h.isRpcMethodNeedsCheck(msg.Method)
 			if doSlowLog {
 				slowTimer := time.AfterFunc(h.slowLogThreshold, func() {
-					h.logger.Info().Str("t", time.Since(start).String()).Str("method", msg.Method).Str("params", string(msg.Params)).Msg("[rpc.slow] running")
+					h.log(zerolog.InfoLevel, msg, "Slow running request", time.Since(start))
 				})
 				defer slowTimer.Stop()
 			}
 		}
 
 		resp := h.handleCall(ctx, msg, stream)
+		requestDuration := time.Since(start)
 
 		if doSlowLog {
-			requestDuration := time.Since(start)
 			if requestDuration > h.slowLogThreshold {
-				h.logger.Info().Str("t", time.Since(start).String()).Str("method", msg.Method).Str("params", string(msg.Params)).Msg("[rpc.slow] finished")
+				h.log(zerolog.InfoLevel, msg, "Slow request finished.", requestDuration)
 			}
 		}
 
 		if resp != nil && resp.Error != nil {
-			h.logger.Info().
-				Str("t", time.Since(start).String()).
-				Str("method", msg.Method).
-				Str("reqid", idForLog(msg.ID).String()).
-				Str("err", resp.Error.Message).
-				Msg("[rpc] served")
+			h.log(zerolog.InfoLevel, msg, "Served with error: "+resp.Error.Message, requestDuration)
 		}
 
-		var lvl zerolog.Level
-		if h.traceRequests {
-			lvl = zerolog.InfoLevel
-		} else {
-			lvl = zerolog.TraceLevel
-		}
-
-		h.logger.WithLevel(lvl).
-			Str("t", time.Since(start).String()).
-			Str("method", msg.Method).
-			Str("reqid", idForLog(msg.ID).String()).
-			Str("params", string(msg.Params)).
-			Msg("Served")
+		h.log(h.requestLoggingLevel(), msg, "Served.", requestDuration)
 
 		return resp
 	case msg.hasValidID():

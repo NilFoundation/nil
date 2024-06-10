@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/tracing"
@@ -17,7 +18,7 @@ import (
 	"github.com/holiman/uint256"
 )
 
-var logger = common.NewLogger("execution")
+var logger = logging.NewLogger("execution")
 
 type Storage map[common.Hash]common.Hash
 
@@ -721,11 +722,11 @@ func (es *ExecutionState) HandleDeployMessage(
 
 	es.Receipts = append(es.Receipts, r)
 
-	event := logger.Debug().Stringer("address", addr)
+	event := logger.Debug().Stringer(logging.FieldMessageTo, addr)
 	if err != nil {
-		event.Err(err).Msg("Contract deployment failed")
+		event.Err(err).Msg("Contract deployment failed.")
 	} else {
-		event.Msg("Created new contract")
+		event.Msg("Created new contract.")
 	}
 
 	return err
@@ -733,7 +734,9 @@ func (es *ExecutionState) HandleDeployMessage(
 
 func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *types.Message, blockContext *vm.BlockContext) ([]byte, error) {
 	addr := message.To
-	logger.Debug().Msgf("Call contract %s", addr)
+	logger.Debug().
+		Stringer(logging.FieldMessageTo, addr).
+		Msg("Handling execution message...")
 
 	gas := message.GasLimit.Uint64()
 
@@ -755,7 +758,7 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 		logger.Error().Err(err).Msg("execution message failed")
 	}
 	r := types.Receipt{
-		Success:         (err == nil),
+		Success:         err == nil,
 		GasUsed:         uint32(gas - leftOverGas),
 		Logs:            es.Logs[es.InMessageHash],
 		MsgHash:         es.InMessageHash,

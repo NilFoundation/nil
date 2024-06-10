@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/mpt"
@@ -36,7 +37,7 @@ func (s *SuiteEthFilters) SetupTest() {
 	s.Require().NotNil(pool)
 
 	s.api, err = NewEthAPI(s.ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), s.db, []msgpool.Pool{pool}, common.NewLogger("Test"))
+		NewBaseApi(rpccfg.DefaultEvmCallTimeout), s.db, []msgpool.Pool{pool}, logging.NewLogger("Test"))
 	s.Require().NoError(err)
 }
 

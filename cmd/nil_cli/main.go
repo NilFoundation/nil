@@ -9,7 +9,7 @@ import (
 	"github.com/NilFoundation/nil/cmd/nil_cli/keygen"
 	"github.com/NilFoundation/nil/cmd/nil_cli/message"
 	"github.com/NilFoundation/nil/cmd/nil_cli/receipt"
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -24,7 +24,7 @@ type RootCommand struct {
 	config  Config
 }
 
-var logger = common.NewLogger("rootCommand")
+var logger = logging.NewLogger("rootCommand")
 
 func main() {
 	rootCommand := &RootCommand{

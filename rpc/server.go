@@ -7,12 +7,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/rpc/httpcfg"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/rs/zerolog"
 )
 
-func StartRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []transport.API, logger *zerolog.Logger) error {
+func StartRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []transport.API, logger zerolog.Logger) error {
 	if cfg.Enabled {
 		return startRegularRpcServer(ctx, cfg, rpcAPI, logger)
 	}
@@ -20,7 +21,7 @@ func StartRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []transpor
 	return nil
 }
 
-func startRegularRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []transport.API, logger *zerolog.Logger) error {
+func startRegularRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []transport.API, logger zerolog.Logger) error {
 	// register apis and create handler stack
 	srv := transport.NewServer(cfg.TraceRequests, cfg.DebugSingleRequest, logger, cfg.RPCSlowLogThreshold)
 
@@ -45,7 +46,6 @@ func startRegularRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []t
 		return fmt.Errorf("could not start register RPC apis: %w", err)
 	}
 
-	event := logger.Info()
 	httpHandler := transport.NewHTTPHandlerStack(srv, cfg.HttpCORSDomain, cfg.HttpVirtualHost, cfg.HttpCompression)
 
 	httpEndpoint := "tcp://" + net.JoinHostPort(cfg.HttpListenAddress, strconv.Itoa(cfg.HttpPort))
@@ -58,16 +58,17 @@ func startRegularRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []t
 	if err != nil {
 		return fmt.Errorf("could not start RPC api: %w", err)
 	}
-	event = event.Str("http.url", httpAddr.String())
+
 	defer func() { //nolint:contextcheck
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+		logger.Info().Stringer(logging.FieldUrl, httpAddr).Msg("JsonRPC endpoint closing...")
 		_ = listener.Shutdown(shutdownCtx)
-		logger.Info().Str("url", httpAddr.String()).Msg("HTTP endpoint closed")
+		logger.Info().Stringer(logging.FieldUrl, httpAddr).Msg("JsonRPC endpoint closed.")
 	}()
 
-	event.Msg("JsonRpc endpoint opened")
+	logger.Info().Stringer(logging.FieldUrl, httpAddr).Msg("JsonRPC endpoint opened.")
+
 	<-ctx.Done()
-	logger.Info().Msg("Exiting...")
 	return nil
 }

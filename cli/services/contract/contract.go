@@ -4,15 +4,16 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"strconv"
 
 	"github.com/NilFoundation/nil/client"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -21,7 +22,7 @@ const (
 	getTransactionCount = "eth_getTransactionCount"
 )
 
-var logger = common.NewLogger("contractService")
+var logger = logging.NewLogger("contractService")
 
 type Service struct {
 	client     client.Client
@@ -32,9 +33,7 @@ type Service struct {
 // NewService initializes a new Service with the given client and private key
 func NewService(client client.Client, pk string, shardId types.ShardId) *Service {
 	privateKey, err := crypto.HexToECDSA(pk)
-	if err != nil {
-		logger.Fatal().Msg("Failed to parse private key")
-	}
+	common.FatalIf(err, log.Logger, "Failed to parse private key")
 
 	return &Service{
 		client,
@@ -60,7 +59,7 @@ func (s *Service) GetCode(contractAddress string) (string, error) {
 	// Call the RPC method to get the contract code
 	result, err := s.client.Call(getCode, params)
 	if err != nil {
-		logger.Error().Err(err).Msgf("Failed to getCode")
+		logger.Error().Err(err).Str(logging.FieldRpcMethod, getCode).Msg("Method call failed")
 		return "", err
 	}
 
@@ -71,7 +70,7 @@ func (s *Service) GetCode(contractAddress string) (string, error) {
 		return "", err
 	}
 
-	logger.Info().Msgf("Contract code: %s", code)
+	logger.Trace().Msgf("Contract code: %s", code)
 	return code, nil
 }
 
@@ -79,10 +78,7 @@ func (s *Service) GetCode(contractAddress string) (string, error) {
 func (s *Service) RunContract(bytecode string, contractAddress string) (string, error) {
 	// Get the public key from the private key
 	pubKey, ok := s.privateKey.Public().(*ecdsa.PublicKey)
-	if !ok {
-		logger.Fatal().Msgf("Failed to get public key")
-		return "", errors.New("failed to get public key")
-	}
+	common.Require(ok)
 
 	// Convert the public key to a public address
 	publicAddress := types.PubkeyBytesToAddress(s.shardId, crypto.CompressPubkey(pubKey))
@@ -90,7 +86,6 @@ func (s *Service) RunContract(bytecode string, contractAddress string) (string, 
 	// Get the sequence number for the public address
 	seqNum, err := s.getSeqNum(publicAddress.Hex())
 	if err != nil {
-		logger.Error().Err(err).Msg("Failed to get sequence number")
 		return "", err
 	}
 
@@ -128,10 +123,7 @@ func (s *Service) RunContract(bytecode string, contractAddress string) (string, 
 func (s *Service) DeployContract(bytecode string) (string, error) {
 	// Get the public key from the private key
 	pubKey, ok := s.privateKey.Public().(*ecdsa.PublicKey)
-	if !ok {
-		logger.Fatal().Msgf("Could not assert the public key to ecdsa public key")
-		return "", errors.New("could not assert the public key to ecdsa public key")
-	}
+	common.Require(ok)
 
 	// Convert the public key to a public address
 	publicAddress := types.PubkeyBytesToAddress(s.shardId, crypto.CompressPubkey(pubKey))
@@ -192,7 +184,7 @@ func (s *Service) sendRawTransaction(messageData []byte) (string, error) {
 	// Call the RPC method to send the raw transaction
 	result, err := s.client.Call(sendRawTransaction, params)
 	if err != nil {
-		logger.Error().Err(err).Msgf("Failed to send new transaction")
+		logger.Error().Err(err).Msg("Failed to send new transaction")
 		return "", err
 	}
 
@@ -203,13 +195,13 @@ func (s *Service) sendRawTransaction(messageData []byte) (string, error) {
 		return "", err
 	}
 
-	logger.Info().Msgf("Transaction hash: %s", txHash)
+	logger.Trace().Msgf("Transaction hash: %s", txHash)
 	return txHash, nil
 }
 
 // getSeqNum gets the sequence number for the given address
 func (s *Service) getSeqNum(address string) (uint64, error) {
-	// Define the block number (latest block)
+	// Define the block number (the latest block)
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 
 	// Create params for the RPC call
@@ -221,7 +213,10 @@ func (s *Service) getSeqNum(address string) (uint64, error) {
 	// Call the RPC method to get the transaction count
 	result, err := s.client.Call(getTransactionCount, params)
 	if err != nil {
-		logger.Error().Err(err).Msgf("Failed to get transaction count for address: %s", address)
+		logger.Error().Err(err).
+			Str(logging.FieldMessageTo, address).
+			Str(logging.FieldRpcMethod, getTransactionCount).
+			Msg("Method call failed.")
 		return 0, err
 	}
 
@@ -232,8 +227,6 @@ func (s *Service) getSeqNum(address string) (uint64, error) {
 		return 0, err
 	}
 
-	logger.Info().Msgf("Sequence number (string): %s", seqNumStr)
-
 	// Convert the hexadecimal string to uint64
 	seqNum, err := strconv.ParseUint(seqNumStr[2:], 16, 64)
 	if err != nil {
@@ -241,6 +234,6 @@ func (s *Service) getSeqNum(address string) (uint64, error) {
 		return 0, err
 	}
 
-	logger.Info().Msgf("Sequence number (uint64): %d", seqNum)
+	logger.Trace().Msgf("Sequence number (uint64): %d", seqNum)
 	return seqNum, nil
 }

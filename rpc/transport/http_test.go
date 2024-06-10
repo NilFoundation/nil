@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/rs/zerolog"
 )
 
@@ -23,7 +23,7 @@ func (x largeRespService) LargeResp() string {
 
 // dialHTTPWithClient creates a new RPC client that connects to an RPC server over HTTP
 // using the provided HTTP Client.
-func dialHTTPWithClient(endpoint string, client *http.Client, logger *zerolog.Logger) (*Client, error) {
+func dialHTTPWithClient(endpoint string, client *http.Client, logger zerolog.Logger) (*Client, error) {
 	// Sanity check URL, so we don't end up with a client that will fail every request.
 	_, err := url.Parse(endpoint)
 	if err != nil {
@@ -46,7 +46,7 @@ func dialHTTPWithClient(endpoint string, client *http.Client, logger *zerolog.Lo
 }
 
 // dialHTTP creates a new RPC client that connects to an RPC server over HTTP.
-func dialHTTP(endpoint string, logger *zerolog.Logger) (*Client, error) {
+func dialHTTP(endpoint string, logger zerolog.Logger) (*Client, error) {
 	return dialHTTPWithClient(endpoint, new(http.Client), logger)
 }
 
@@ -143,7 +143,7 @@ func TestHTTPResponseWithEmptyGet(t *testing.T) {
 func TestHTTPRespBodyUnlimited(t *testing.T) {
 	t.Parallel()
 
-	logger := common.NewLogger("Test server")
+	logger := logging.NewLogger("Test server")
 	const respLength = maxRequestContentLength * 3
 
 	s := NewServer(false /* traceRequests */, false /* debugSingleRequests */, logger, 100)

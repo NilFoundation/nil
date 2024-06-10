@@ -22,12 +22,12 @@ type Server struct {
 
 	traceRequests       bool // Whether to print requests at INFO level
 	debugSingleRequest  bool // Whether to print requests at INFO level
-	logger              *zerolog.Logger
+	logger              zerolog.Logger
 	rpcSlowLogThreshold time.Duration
 }
 
 // NewServer creates a new server instance with no registered handlers.
-func NewServer(traceRequests, debugSingleRequest bool, logger *zerolog.Logger, rpcSlowLogThreshold time.Duration) *Server {
+func NewServer(traceRequests, debugSingleRequest bool, logger zerolog.Logger, rpcSlowLogThreshold time.Duration) *Server {
 	server := &Server{
 		services: serviceRegistry{logger: logger}, codecs: mapset.NewSet(), run: 1,
 		traceRequests: traceRequests, debugSingleRequest: debugSingleRequest, logger: logger, rpcSlowLogThreshold: rpcSlowLogThreshold,

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/rs/zerolog/log"
 )
 
 type ShardTopology interface {
@@ -76,7 +75,5 @@ func GetShardTopologyById(id string) ShardTopology {
 	case NeighbouringShardTopologyId:
 		return neighbouringShardTopology
 	}
-	err := fmt.Errorf("unknown shard topology id: %v", id)
-	log.Error().Err(err).Msgf("failed to get shard topology")
-	panic(err)
+	panic(fmt.Errorf("unknown shard topology id: %v", id))
 }
