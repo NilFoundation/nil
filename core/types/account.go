@@ -17,7 +17,7 @@ type SmartContract struct {
 	Balance     Uint256 `ssz-size:"32"`
 	StorageRoot common.Hash
 	CodeHash    common.Hash
-	Seqno       uint64
+	Seqno       Seqno
 	PublicKey   [PublicKeySize]byte
 }
 

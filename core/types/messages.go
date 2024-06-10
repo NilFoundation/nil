@@ -1,12 +1,8 @@
 package types
 
-import (
-	"errors"
-)
-
 type DeployMessage struct {
 	ShardId   ShardId
-	Seqno     uint64
+	Seqno     Seqno
 	PublicKey [PublicKeySize]byte
 	Code      Code `ssz-max:"24576"`
 }
@@ -18,15 +14,9 @@ type AddressSourceData struct {
 }
 
 func NewDeployMessage(data []byte) (*DeployMessage, error) {
-	var msg DeployMessage
-
+	msg := &DeployMessage{}
 	if err := msg.UnmarshalSSZ(data); err != nil {
 		return nil, err
 	}
-
-	if l := len(msg.PublicKey); l != PublicKeySize {
-		return nil, errors.New("invalid public key size")
-	}
-
-	return &msg, nil
+	return msg, nil
 }

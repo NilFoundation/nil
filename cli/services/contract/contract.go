@@ -200,7 +200,7 @@ func (s *Service) sendRawTransaction(messageData []byte) (string, error) {
 }
 
 // getSeqNum gets the sequence number for the given address
-func (s *Service) getSeqNum(address string) (uint64, error) {
+func (s *Service) getSeqNum(address string) (types.Seqno, error) {
 	// Define the block number (the latest block)
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 
@@ -235,5 +235,5 @@ func (s *Service) getSeqNum(address string) (uint64, error) {
 	}
 
 	logger.Trace().Msgf("Sequence number (uint64): %d", seqNum)
-	return seqNum, nil
+	return types.Seqno(seqNum), nil
 }

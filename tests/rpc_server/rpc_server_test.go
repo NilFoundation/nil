@@ -87,7 +87,7 @@ func (suite *SuiteRpc) getBlockByNumber(shardId types.ShardId, blk string, b boo
 }
 
 //nolint:unparam
-func (suite *SuiteRpc) getTransactionCount(addr types.Address, blk string) uint64 {
+func (suite *SuiteRpc) getTransactionCount(addr types.Address, blk string) types.Seqno {
 	suite.T().Helper()
 
 	request := NewRequest(getTransactionCount, addr, blk)
@@ -99,7 +99,7 @@ func (suite *SuiteRpc) getTransactionCount(addr types.Address, blk string) uint6
 
 	res, err := strconv.ParseUint(resp.Result, 0, 64)
 	suite.Require().NoError(err)
-	return res
+	return types.Seqno(res)
 }
 
 func (suite *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, msg *types.Message) *jsonrpc.RPCReceipt {
@@ -127,7 +127,7 @@ func (suite *SuiteRpc) waitForReceipt(addr types.Address, msg *types.Message) {
 	suite.Equal(addr, res.ContractAddress)
 }
 
-func (suite *SuiteRpc) sendDeployMessage(from types.Address, code types.Code, seqno uint64) *jsonrpc.RPCReceipt {
+func (suite *SuiteRpc) sendDeployMessage(from types.Address, code types.Code, seqno types.Seqno) *jsonrpc.RPCReceipt {
 	suite.T().Helper()
 
 	shardId := from.ShardId()
@@ -179,7 +179,7 @@ func (suite *SuiteRpc) TestRpcBasic() {
 }
 
 func (suite *SuiteRpc) createMessageForDeploy(
-	from types.Address, seqno uint64, code types.Code, toShard types.ShardId, gas uint64,
+	from types.Address, seqno types.Seqno, code types.Code, toShard types.ShardId, gas uint64,
 ) *types.Message {
 	suite.T().Helper()
 

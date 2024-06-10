@@ -17,8 +17,8 @@ type StateDB interface {
 	AddBalance(types.Address, *uint256.Int, tracing.BalanceChangeReason)
 	GetBalance(types.Address) *uint256.Int
 
-	GetSeqno(types.Address) uint64
-	SetSeqno(types.Address, uint64)
+	GetSeqno(types.Address) types.Seqno
+	SetSeqno(types.Address, types.Seqno)
 
 	GetCodeHash(types.Address) common.Hash
 	GetCode(types.Address) []byte

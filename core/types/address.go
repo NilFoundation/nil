@@ -190,13 +190,13 @@ func DeployMsgToAddress(deployMsg *DeployMessage, from Address) Address {
 }
 
 // CreateAddress creates an address given the bytes and the nonce.
-func CreateAddress(shardId ShardId, b Address, nonce uint64) Address {
+func CreateAddress(shardId ShardId, b Address, nonce Seqno) Address {
 	raw := make([]byte, 2, AddrSize)
 	raw = appendShardId(raw, shardId)
 
 	buf := make([]byte, len(b)+8)
 	copy(buf, b.Bytes())
-	buf = ssz.MarshalUint64(buf, nonce)
+	buf = ssz.MarshalUint64(buf, nonce.Uint64())
 
 	raw = append(raw, common.PoseidonHash(buf).Bytes()[14:]...)
 	return BytesToAddress(raw)

@@ -134,8 +134,8 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 		sharedLogger.Debug().
 			Stringer(logging.FieldShardId, es.ShardId).
 			Stringer(logging.FieldMessageFrom, addr).
-			Uint64(logging.FieldAccountSeqno, accountState.Seqno).
-			Uint64(logging.FieldMessageSeqno, message.Seqno).
+			Uint64(logging.FieldAccountSeqno, accountState.Seqno.Uint64()).
+			Uint64(logging.FieldMessageSeqno, message.Seqno.Uint64()).
 			Msg("Seqno gap")
 		return false, nil
 	}

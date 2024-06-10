@@ -42,7 +42,7 @@ func NewBySenderAndSeqno(logger zerolog.Logger) *BySenderAndSeqno {
 	}
 }
 
-func (b *BySenderAndSeqno) seqno(from types.Address) (seqno uint64, ok bool) {
+func (b *BySenderAndSeqno) seqno(from types.Address) (seqno types.Seqno, ok bool) {
 	s := b.search
 	s.From = from
 	s.Seqno = math.MaxUint64
@@ -100,7 +100,7 @@ func (b *BySenderAndSeqno) hasTxs(from types.Address) bool { //nolint:unused
 	return has
 }
 
-func (b *BySenderAndSeqno) get(from types.Address, seqno uint64) *types.Message {
+func (b *BySenderAndSeqno) get(from types.Address, seqno types.Seqno) *types.Message {
 	s := b.search
 	s.From = from
 	s.Seqno = seqno
@@ -118,7 +118,7 @@ func (b *BySenderAndSeqno) logTrace(msg *types.Message, logMsg string) {
 	b.logger.Trace().
 		Stringer(logging.FieldMessageHash, msg.Hash()).
 		Stringer(logging.FieldMessageFrom, msg.From).
-		Uint64(logging.FieldMessageSeqno, msg.Seqno).
+		Uint64(logging.FieldMessageSeqno, msg.Seqno.Uint64()).
 		Msg(logMsg)
 }
 

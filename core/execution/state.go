@@ -30,7 +30,7 @@ type AccountState struct {
 	Balance     uint256.Int
 	Code        types.Code
 	CodeHash    common.Hash
-	Seqno       uint64
+	Seqno       types.Seqno
 	PublicKey   [types.PublicKeySize]byte
 	StorageTree *StorageTrie
 
@@ -495,7 +495,7 @@ func (s *AccountState) setBalance(amount *uint256.Int) {
 	s.Balance = *amount
 }
 
-func (as *AccountState) SetSeqno(seqno uint64) {
+func (as *AccountState) SetSeqno(seqno types.Seqno) {
 	as.db.journal.append(seqnoChange{
 		account: &as.address,
 		prev:    as.Seqno,
@@ -503,7 +503,7 @@ func (as *AccountState) SetSeqno(seqno uint64) {
 	as.setSeqno(seqno)
 }
 
-func (as *AccountState) setSeqno(seqno uint64) {
+func (as *AccountState) setSeqno(seqno types.Seqno) {
 	as.Seqno = seqno
 }
 
@@ -604,7 +604,7 @@ func (es *ExecutionState) GetBalance(addr types.Address) *uint256.Int {
 	return &acc.Balance
 }
 
-func (es *ExecutionState) GetSeqno(addr types.Address) uint64 {
+func (es *ExecutionState) GetSeqno(addr types.Address) types.Seqno {
 	acc := es.GetAccount(addr)
 	if acc == nil {
 		return 0
@@ -626,7 +626,7 @@ func (es *ExecutionState) SetBalance(addr types.Address, balance uint256.Int) {
 	acc.SetBalance(balance)
 }
 
-func (es *ExecutionState) SetSeqno(addr types.Address, seqno uint64) {
+func (es *ExecutionState) SetSeqno(addr types.Address, seqno types.Seqno) {
 	acc := es.getOrNewAccount(addr)
 	acc.SetSeqno(seqno)
 }
