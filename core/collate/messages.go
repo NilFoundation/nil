@@ -4,14 +4,68 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"math/big"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
+	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
+	"github.com/holiman/uint256"
 )
+
+type payer interface {
+	fmt.Stringer
+	CanPay(*big.Int) bool
+	SubBalance(*uint256.Int)
+	AddBalance(*uint256.Int)
+}
+
+type messagePayer struct {
+	message *types.Message
+}
+
+func (m messagePayer) CanPay(amount *big.Int) bool {
+	return m.message.Value.Int.ToBig().Cmp(amount) >= 0
+}
+
+func (m messagePayer) SubBalance(delta *uint256.Int) {
+	m.message.Value.Sub(&m.message.Value.Int, delta)
+}
+
+func (m messagePayer) AddBalance(delta *uint256.Int) {
+	m.message.Value.Add(&m.message.Value.Int, delta)
+}
+
+func (m messagePayer) String() string {
+	return "message"
+}
+
+type accountPayer struct {
+	account *execution.AccountState
+	message *types.Message
+}
+
+func (a accountPayer) CanPay(amount *big.Int) bool {
+	required := a.message.Value.Int.ToBig()
+	required.Add(required, amount)
+	return a.account.Balance.ToBig().Cmp(required) >= 0
+}
+
+func (a accountPayer) SubBalance(amount *uint256.Int) {
+	a.account.SubBalance(amount, tracing.BalanceDecreaseGasBuy)
+}
+
+func (a accountPayer) AddBalance(amount *uint256.Int) {
+	a.account.AddBalance(amount, tracing.BalanceIncreaseGasReturn)
+}
+
+func (a accountPayer) String() string {
+	return fmt.Sprintf("account %v", a.message.From.Hex())
+}
 
 func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionState, msgs []*types.Message) error {
 	blockContext := execution.NewEVMBlockContext(es)
@@ -28,6 +82,19 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 			continue
 		}
 
+		var payer payer
+		if message.Internal {
+			payer = messagePayer{message}
+		} else {
+			payer = accountPayer{es.GetAccount(message.From), message}
+		}
+		err = buyGas(payer, message)
+		if err != nil {
+			sharedLogger.Info().Err(err).Stringer("hash", es.InMessageHash).Msg("discarding message")
+			continue
+		}
+		var leftOverGas uint64
+
 		// TODO: disallow sending messages to precompiled contracts
 		isPrecompiled := bytes.Equal(message.To[:19], common.EmptyHash[:19])
 
@@ -38,17 +105,50 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 				continue
 			}
 
-			if err := es.HandleDeployMessage(ctx, message, deployMsg, &blockContext); err != nil && !errors.Is(err, new(vm.VMError)) {
+			if leftOverGas, err = es.HandleDeployMessage(ctx, message, deployMsg, &blockContext); err != nil && !errors.Is(err, new(vm.VMError)) {
 				return err
 			}
 		} else {
-			if _, err := es.HandleExecutionMessage(ctx, message, &blockContext); err != nil && !errors.Is(err, new(vm.VMError)) {
+			if leftOverGas, _, err = es.HandleExecutionMessage(ctx, message, &blockContext); err != nil && !errors.Is(err, new(vm.VMError)) {
 				return err
 			}
 		}
+		refundGas(payer, message, leftOverGas)
 	}
 
 	return nil
+}
+
+var (
+	// ErrInsufficientFunds is returned if the total cost of executing a transaction
+	// is higher than the balance of the user's account.
+	ErrInsufficientFunds = errors.New("insufficient funds for gas * price + value")
+
+	// ErrGasUintOverflow is returned when calculating gas usage.
+	ErrGasUintOverflow = errors.New("gas uint64 overflow")
+)
+
+func buyGas(payer payer, message *types.Message) error {
+	mgval := message.GasLimit.ToBig()
+	mgval.Mul(mgval, message.GasPrice.ToBig())
+
+	required, overflow := uint256.FromBig(mgval)
+	if overflow {
+		return fmt.Errorf("%w: %v required balance exceeds 256 bits", ErrInsufficientFunds, payer.String())
+	}
+	if !payer.CanPay(mgval) {
+		return fmt.Errorf("%w: %v can't pay %v", ErrInsufficientFunds, payer.String(), required)
+	}
+
+	payer.SubBalance(required)
+	return nil
+}
+
+func refundGas(payer payer, message *types.Message, gasRemaining uint64) {
+	// Return currency for remaining gas, exchanged at the original rate.
+	remaining := uint256.NewInt(gasRemaining)
+	remaining.Mul(remaining, &message.GasPrice.Int)
+	payer.AddBalance(remaining)
 }
 
 func validateDeployMessage(es *execution.ExecutionState, message *types.Message) *types.DeployMessage {
@@ -108,9 +208,16 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 		return false, nil
 	}
 
-	ok := es.CallValidateExternal(message, accountState)
+	var ok bool
+	if es.ContractExists(addr) {
+		ok = es.CallValidateExternal(message, accountState)
+	} else {
+		// External deployment. Ensure that the account pays for it itself
+		ok = (message.From == message.To)
+	}
 
 	if !ok {
+		// Legacy fallback: hardcoded signature validation
 		ok2, err := message.ValidateSignature(accountState.PublicKey[:])
 		if err != nil {
 			return false, err
