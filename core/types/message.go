@@ -39,19 +39,22 @@ func BytesToMessageIndex(b []byte) MessageIndex {
 }
 
 type Message struct {
-	Internal  bool             `json:"internal" ch:"internal"`
-	Seqno     Seqno            `json:"seqno,omitempty" ch:"seqno"`
-	GasPrice  Uint256          `json:"gasPrice,omitempty" ch:"gas_price" ssz-size:"32"`
-	GasLimit  Uint256          `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
-	From      Address          `json:"from,omitempty" ch:"from"`
-	To        Address          `json:"to,omitempty" ch:"to"`
-	Value     Uint256          `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Data      Code             `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	Internal bool    `json:"internal" ch:"internal"`
+	Deploy   bool    `json:"deploy,omitempty" ch:"deploy"`
+	Seqno    Seqno   `json:"seqno,omitempty" ch:"seqno"`
+	GasPrice Uint256 `json:"gasPrice,omitempty" ch:"gas_price" ssz-size:"32"`
+	GasLimit Uint256 `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
+	From     Address `json:"from,omitempty" ch:"from"`
+	To       Address `json:"to,omitempty" ch:"to"`
+	Value    Uint256 `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Data     Code    `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	// This field should always be at the end of the structure for easy signing
 	Signature common.Signature `json:"signature,omitempty" ch:"signature"`
 }
 
 type messageDigest struct {
 	Internal bool
+	Deploy   bool
 	Seqno    Seqno
 	GasPrice Uint256 `ssz-size:"32"`
 	GasLimit Uint256 `ssz-size:"32"`
