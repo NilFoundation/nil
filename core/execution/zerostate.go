@@ -7,7 +7,6 @@ import (
 	"math/big"
 
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/types"
@@ -34,7 +33,7 @@ func init() {
 }
 
 func (es *ExecutionState) GenerateZeroState(ctx context.Context) error {
-	faucetCode, err := contracts.Fs.ReadFile("compiled/Faucet.bin")
+	faucetCode, err := contracts.GetCode("Faucet")
 	if err != nil {
 		return err
 	}
@@ -42,7 +41,7 @@ func (es *ExecutionState) GenerateZeroState(ctx context.Context) error {
 	mainDeployMsg := &types.DeployMessage{
 		ShardId:   es.ShardId,
 		Seqno:     0,
-		Code:      hexutil.FromHex(string(faucetCode)),
+		Code:      faucetCode,
 		PublicKey: [types.PublicKeySize]byte(crypto.CompressPubkey(&MainPrivateKey.PublicKey)),
 	}
 
@@ -60,6 +59,46 @@ func (es *ExecutionState) GenerateZeroState(ctx context.Context) error {
 	}
 
 	es.SetBalance(addr, *mainBalance)
+
+	if es.ShardId == 0 {
+		err = es.deployMainWallet(&types.Uint256{Int: *mainBalance})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (es *ExecutionState) deployMainWallet(balance *types.Uint256) error {
+	code, err := contracts.GetCode("Wallet")
+	if err != nil {
+		return err
+	}
+
+	abi, err := contracts.GetAbi("Wallet")
+	if err != nil {
+		return err
+	}
+	pub := crypto.CompressPubkey(&MainPrivateKey.PublicKey)
+	args, err := abi.Pack("", pub)
+	if err != nil {
+		return err
+	}
+	code = append(code, args...)
+
+	deployMsg := &types.DeployMessage{
+		ShardId: es.ShardId,
+		Seqno:   0,
+		Code:    code,
+	}
+
+	es.CreateAccount(types.MainWalletAddress)
+	es.CreateContract(types.MainWalletAddress)
+	if err := es.SetInitState(types.MainWalletAddress, deployMsg); err != nil {
+		return err
+	}
+	es.SetBalance(types.MainWalletAddress, balance.Int)
 
 	return nil
 }

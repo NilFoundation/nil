@@ -119,8 +119,11 @@ resp, err := makeRequest[common.Hash](&request)
 Create the address:
 
 ```golang
-addr := types.CreateAddress(types.BaseShardId, m.From, m.Seqno)
+addr := types.CreateAddress(types.BaseShardId, code)
+// or
+addr := types.CreateAddressWithSalt(types.BaseShardId, code, salt)
 ```
+Where `code` is the code of the deployed contract and `salt` is some arbitrary 32-byte value
 
 Send repeated requests for receipts:
 

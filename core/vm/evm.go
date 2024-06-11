@@ -120,18 +120,18 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 	snapshot := evm.StateDB.Snapshot()
 	p, isPrecompile := evm.precompile(addr)
 
-	if !evm.StateDB.Exist(addr) {
-		if !isPrecompile && value.IsZero() {
-			// Calling a non-existing account, don't do anything.
-			return nil, gas, nil
-		}
-		evm.StateDB.CreateAccount(addr)
-	}
-	transfer(evm.StateDB, caller.Address(), addr, value)
-
 	if isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, gas, value, caller, readOnly)
 	} else {
+		if !evm.StateDB.Exist(addr) {
+			if value.IsZero() {
+				// Calling a non-existing account, don't do anything.
+				return nil, gas, nil
+			}
+			evm.StateDB.CreateAccount(addr)
+		}
+		transfer(evm.StateDB, caller.Address(), addr, value)
+
 		// Initialise a new contract and set the code that is to be used by the EVM.
 		// The contract is a scoped environment for this execution context only.
 		code := evm.StateDB.GetCode(addr)
@@ -392,7 +392,7 @@ func (evm *EVM) Deploy(addr types.Address, caller ContractRef, code []byte, gas 
 
 // Create creates a new contract using code as deployment code.
 func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *uint256.Int) (ret []byte, contractAddr types.Address, leftOverGas uint64, err error) {
-	contractAddr = types.CreateAddress(evm.Origin.ShardId(), caller.Address(), evm.StateDB.GetSeqno(caller.Address()))
+	contractAddr = types.CreateAddress(evm.Origin.ShardId(), code)
 	return evm.create(caller, types.Code(code), gas, value, contractAddr)
 }
 

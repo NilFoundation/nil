@@ -1,13 +1,11 @@
 package collate
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"math/big"
 
-	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
@@ -76,9 +74,11 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 
 		ok, err := validateMessage(roTx, es, message)
 		if err != nil {
+			addFailReceipt(es, err)
 			return err
 		}
 		if !ok {
+			addFailReceipt(es, errors.New("validateMessage failed"))
 			continue
 		}
 
@@ -95,11 +95,8 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 		}
 		var leftOverGas uint64
 
-		// TODO: disallow sending messages to precompiled contracts
-		isPrecompiled := bytes.Equal(message.To[:19], common.EmptyHash[:19])
-
 		// Deploy message
-		if !isPrecompiled && !es.ContractExists(message.To) {
+		if message.Deploy {
 			deployMsg := validateDeployMessage(es, message)
 			if deployMsg == nil {
 				continue
@@ -153,12 +150,7 @@ func refundGas(payer payer, message *types.Message, gasRemaining uint64) {
 
 func validateDeployMessage(es *execution.ExecutionState, message *types.Message) *types.DeployMessage {
 	fail := func(err error, message string) *types.DeployMessage {
-		r := &types.Receipt{
-			Success: false,
-			GasUsed: 0,
-			MsgHash: es.InMessageHash,
-		}
-		es.AddReceipt(r)
+		addFailReceipt(es, err)
 		sharedLogger.Debug().Err(err).Stringer(logging.FieldMessageHash, es.InMessageHash).Msg(message)
 		return nil
 	}
@@ -168,11 +160,11 @@ func validateDeployMessage(es *execution.ExecutionState, message *types.Message)
 		return fail(err, "Invalid deploy message")
 	}
 
-	if types.IsMasterShard(deployMsg.ShardId) {
-		return fail(nil, "Attempt to deploy to master shard")
+	if types.IsMasterShard(deployMsg.ShardId) && message.From != types.MainWalletAddress {
+		return fail(nil, "Attempt to deploy to master shard from non system wallet")
 	}
 
-	if message.To != types.DeployMsgToAddress(deployMsg, message.From) {
+	if message.To != types.CreateAddress(message.To.ShardId(), deployMsg.Code) {
 		return fail(nil, "Incorrect deployment address")
 	}
 
@@ -248,4 +240,13 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 	}
 
 	return true, nil
+}
+
+func addFailReceipt(es *execution.ExecutionState, err error) {
+	r := &types.Receipt{
+		Success: false,
+		MsgHash: es.InMessageHash,
+	}
+	es.AddReceipt(r)
+	sharedLogger.Error().Err(err).Stringer("hash", es.InMessageHash).Msg("Add fail receipt")
 }

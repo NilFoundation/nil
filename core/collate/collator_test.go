@@ -47,8 +47,9 @@ func (s *CollatorTestSuite) TestCollator() {
 	shardId := types.ShardId(1)
 
 	m := &types.Message{
-		From: types.CreateAddress(shardId, types.EmptyAddress, 123),
-		Data: hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
+		From:     types.CreateAddress(shardId, []byte("1234")),
+		Data:     hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
+		Internal: true,
 	}
 	pool := &MockMsgPool{Msgs: []*types.Message{m}}
 
@@ -65,7 +66,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	})
 
 	s.Run("call-message", func() {
-		m.To = types.CreateAddress(shardId, m.From, m.Seqno)
+		m.To = types.CreateAddress(shardId, []byte("call-message"))
 		pool.Msgs = append(pool.Msgs, m)
 
 		s.Require().NoError(c.GenerateBlock(ctx, s.db))
