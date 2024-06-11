@@ -6,7 +6,17 @@ import "./nil.sol";
 
 contract Wallet {
 
-    function send(bytes memory message) public payable {
+    bytes pubkey;
+
+    constructor(bytes memory _pubkey) {
+        pubkey = _pubkey;
+    }
+
+    function send(bytes calldata message) public payable {
         nil.send_msg(gasleft(), message);
+    }
+
+    function verifyExternal(bytes memory unused, uint256 hash, bytes memory signature) public view returns (bool) {
+        return nil.validateSignature(pubkey, hash, signature);
     }
 }
