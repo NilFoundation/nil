@@ -84,20 +84,16 @@ func (cfg *Cfg) fetchBlockData(ctx context.Context, requestBody request) (*Block
 		return nil, err
 	}
 
-	hexMessagesRaw, ok := bodyResponse.Result["messages"]
+	hexInMessagesRaw, ok := bodyResponse.Result["inMessages"]
 	if !ok {
-		return nil, errors.New("block messages not found")
+		return nil, errors.New("block inMessages not found")
 	}
-
-	log.Debug().Msgf("messages %v", hexMessagesRaw)
-
-	hexMessages, ok := hexMessagesRaw.([]any)
+	hexInMessages, ok := hexInMessagesRaw.([]any)
 	if !ok {
-		return nil, errors.New("cannot convert messages to []any")
+		return nil, errors.New("cannot convert inMessages to []any")
 	}
-
-	messages := make([]*types.Message, 0)
-	for _, hexMessage := range hexMessages {
+	inMessages := make([]*types.Message, 0)
+	for _, hexMessage := range hexInMessages {
 		message := types.Message{}
 		stringMsg, ok := hexMessage.(string)
 		if !ok {
@@ -107,7 +103,29 @@ func (cfg *Cfg) fetchBlockData(ctx context.Context, requestBody request) (*Block
 		if err = message.UnmarshalSSZ(hexMessageBytes); err != nil {
 			return nil, err
 		}
-		messages = append(messages, &message)
+		inMessages = append(inMessages, &message)
+	}
+
+	hexOutMessagesRaw, ok := bodyResponse.Result["outMessages"]
+	if !ok {
+		return nil, errors.New("block outMessages not found")
+	}
+	hexOutMessages, ok := hexOutMessagesRaw.([]any)
+	if !ok {
+		return nil, errors.New("cannot convert outMessages to []any")
+	}
+	outMessages := make([]*types.Message, 0)
+	for _, hexMessage := range hexOutMessages {
+		message := types.Message{}
+		strOutMsg, ok := hexMessage.(string)
+		if !ok {
+			return nil, errors.New("cannot convert message to strOutg")
+		}
+		hexMessageBytes := hexutil.FromHex(strOutMsg)
+		if err = message.UnmarshalSSZ(hexMessageBytes); err != nil {
+			return nil, err
+		}
+		outMessages = append(outMessages, &message)
 	}
 
 	hexReceiptsRaw, ok := bodyResponse.Result["receipts"]
@@ -132,16 +150,38 @@ func (cfg *Cfg) fetchBlockData(ctx context.Context, requestBody request) (*Block
 		receipts = append(receipts, &receipt)
 	}
 
+	positionsRaw, ok := bodyResponse.Result["positions"]
+	if !ok {
+		return nil, errors.New("block positions not found")
+	}
+
+	positions, ok := positionsRaw.([]any)
+	if !ok {
+		return nil, errors.New("cannot convert positions to []uint64")
+	}
+
+	positionsUint64 := make([]uint64, 0)
+
+	for _, position := range positions {
+		u, ok := position.(float64)
+		if !ok {
+			return nil, errors.New("cannot convert position to uint64")
+		}
+		positionsUint64 = append(positionsUint64, uint64(u))
+	}
+
 	paramsShardId, ok := requestBody.Params[0].(types.ShardId)
 	if !ok {
 		return nil, errors.New("cannot convert shardId to types.ShardId")
 	}
 
 	result := &BlockMsg{
-		Block:    &block,
-		Messages: messages,
-		Receipts: receipts,
-		Shard:    paramsShardId,
+		Block:       &block,
+		InMessages:  inMessages,
+		OutMessages: outMessages,
+		Receipts:    receipts,
+		Shard:       paramsShardId,
+		Positions:   positionsUint64,
 	}
 
 	log.Debug().

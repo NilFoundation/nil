@@ -25,21 +25,25 @@ var (
 // extend types.Block with binary field
 type BlockWithBinary struct {
 	types.Block
-	Binary  []byte        `ch:"binary"`
-	Hash    []byte        `ch:"hash"`
-	ShardId types.ShardId `ch:"shard_id"`
+	Binary    []byte        `ch:"binary"`
+	Hash      common.Hash   `ch:"hash"`
+	ShardId   types.ShardId `ch:"shard_id"`
+	OutMsgNum uint64        `ch:"out_msg_num"`
+	InMsgNum  uint64        `ch:"in_msg_num"`
 }
 
 type MessageWithBinary struct {
 	types.Message
-	Success       bool              `ch:"success"`
-	GasUsed       uint32            `ch:"gas_used"`
-	BlockId       types.BlockNumber `ch:"block_id"`
-	BlockHash     common.Hash       `ch:"block_hash"`
-	Binary        []byte            `ch:"binary"`
-	ReceiptBinary []byte            `ch:"receipt_binary"`
-	Hash          []byte            `ch:"hash"`
-	ShardId       types.ShardId     `ch:"shard_id"`
+	Success       bool               `ch:"success"`
+	GasUsed       uint32             `ch:"gas_used"`
+	BlockId       types.BlockNumber  `ch:"block_id"`
+	BlockHash     common.Hash        `ch:"block_hash"`
+	Binary        []byte             `ch:"binary"`
+	ReceiptBinary []byte             `ch:"receipt_binary"`
+	Hash          common.Hash        `ch:"hash"`
+	ShardId       types.ShardId      `ch:"shard_id"`
+	MessageIndex  types.MessageIndex `ch:"message_index"`
+	Outgoing      bool               `ch:"outgoing"`
 }
 
 type LogWithBinary struct {
@@ -244,10 +248,12 @@ func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, msgs []*exporter.Bl
 			return blockErr
 		}
 		binaryBlockExtended := &BlockWithBinary{
-			Block:   *block.Block,
-			Binary:  binary,
-			ShardId: block.Shard,
-			Hash:    block.Block.Hash().Bytes(),
+			Block:     *block.Block,
+			Binary:    binary,
+			ShardId:   block.Shard,
+			Hash:      block.Block.Hash(),
+			OutMsgNum: uint64(len(block.OutMessages)),
+			InMsgNum:  uint64(len(block.InMessages)),
 		}
 		blockErr = blockBatch.AppendStruct(binaryBlockExtended)
 		if blockErr != nil {
@@ -276,7 +282,7 @@ func exportMessagesAndLogs(ctx context.Context, conn driver.Conn, msgs []*export
 	}
 
 	for _, block := range msgs {
-		for _, message := range block.Messages {
+		for index, message := range block.InMessages {
 			binary, messageErr := message.MarshalSSZ()
 			if messageErr != nil {
 				return messageErr
@@ -296,14 +302,40 @@ func exportMessagesAndLogs(ctx context.Context, conn driver.Conn, msgs []*export
 				GasUsed:       receipt.GasUsed,
 				BlockId:       block.Block.Id,
 				BlockHash:     block.Block.Hash(),
-				Hash:          message.Hash().Bytes(),
+				Hash:          message.Hash(),
 				ShardId:       block.Shard,
 				ReceiptBinary: receiptBinary,
+				MessageIndex:  types.MessageIndex(block.Positions[index]),
+				Outgoing:      false,
 			}
 			messageErr = messageBatch.AppendStruct(binaryMessageExtended)
 			if messageErr != nil {
 				return fmt.Errorf("failed to append message to batch: %w", messageErr)
 			}
+		}
+		for _, message := range block.OutMessages {
+			binary, messageErr := message.MarshalSSZ()
+			if messageErr != nil {
+				return messageErr
+			}
+			binaryMessageExtended := &MessageWithBinary{
+				Message:       *message,
+				Binary:        binary,
+				Success:       true,
+				GasUsed:       0,
+				BlockId:       block.Block.Id,
+				BlockHash:     block.Block.Hash(),
+				Hash:          message.Hash(),
+				ShardId:       block.Shard,
+				ReceiptBinary: make([]byte, 0),
+				MessageIndex:  0,
+				Outgoing:      true,
+			}
+			messageErr = messageBatch.AppendStruct(binaryMessageExtended)
+			if messageErr != nil {
+				return fmt.Errorf("failed to append message to batch: %w", messageErr)
+			}
+
 		}
 	}
 

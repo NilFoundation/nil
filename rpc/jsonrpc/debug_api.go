@@ -90,22 +90,35 @@ func (api *DebugAPIImpl) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash 
 		"content": hexutil.Encode(blockBytes),
 	}
 	if withMessages {
-		messages, err := execution.CollectBlockEntities[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot)
+		inMsgs, err := execution.CollectBlockEntities[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot)
 		if err != nil {
 			return nil, err
+		}
+		hexInMessages := make([]string, len(inMsgs))
+		for i, message := range inMsgs {
+			messageBytes, err := message.MarshalSSZ()
+			if err != nil {
+				return nil, err
+			}
+			hexInMessages[i] = hexutil.Encode(messageBytes)
+		}
+
+		outMsgs, err := execution.CollectBlockEntities[*types.Message](tx, shardId, db.MessageTrieTable, block.OutMessagesRoot)
+		if err != nil {
+			return nil, err
+		}
+		hexOutMessages := make([]string, len(outMsgs))
+		for i, message := range outMsgs {
+			messageBytes, err := message.MarshalSSZ()
+			if err != nil {
+				return nil, err
+			}
+			hexOutMessages[i] = hexutil.Encode(messageBytes)
 		}
 
 		receipts, err := execution.CollectBlockEntities[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot)
 		if err != nil {
 			return nil, err
-		}
-		hexMessages := make([]string, len(messages))
-		for i, message := range messages {
-			messageBytes, err := message.MarshalSSZ()
-			if err != nil {
-				return nil, err
-			}
-			hexMessages[i] = hexutil.Encode(messageBytes)
 		}
 		hexReceipts := make([]string, len(receipts))
 		for i, receipt := range receipts {
@@ -115,8 +128,24 @@ func (api *DebugAPIImpl) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash 
 			}
 			hexReceipts[i] = hexutil.Encode(receiptBytes)
 		}
-		result["messages"] = hexMessages
+
+		positions := make([]uint64, len(inMsgs))
+		for i, message := range inMsgs {
+			value, err := tx.GetFromShard(shardId, db.BlockHashAndMessageIndexByMessageHash, message.Hash().Bytes())
+			if err != nil {
+				return nil, err
+			}
+
+			var blockHashAndMessageIndex db.BlockHashAndMessageIndex
+			if err := blockHashAndMessageIndex.UnmarshalSSZ(*value); err != nil {
+				return nil, err
+			}
+			positions[i] = uint64(blockHashAndMessageIndex.MessageIndex)
+		}
+		result["inMessages"] = hexInMessages
+		result["outMessages"] = hexOutMessages
 		result["receipts"] = hexReceipts
+		result["positions"] = positions
 	}
 
 	return result, nil

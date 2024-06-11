@@ -380,7 +380,8 @@ func (suite *SuiteRpc) TestRpcDebugModules() {
 
 	fullRes := suite.makeGenericRequest("debug_getBlockByNumber", types.BaseShardId, "latest", true)
 	suite.Require().Contains(fullRes, "content")
-	suite.Require().Contains(fullRes, "messages")
+	suite.Require().Contains(fullRes, "inMessages")
+	suite.Require().Contains(fullRes, "outMessages")
 	suite.Require().Contains(fullRes, "receipts")
 }
 

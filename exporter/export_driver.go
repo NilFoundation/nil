@@ -7,10 +7,12 @@ import (
 )
 
 type BlockMsg struct {
-	Receipts []*types.Receipt
-	Messages []*types.Message
-	Block    *types.Block
-	Shard    types.ShardId
+	Receipts    []*types.Receipt
+	InMessages  []*types.Message
+	OutMessages []*types.Message
+	Block       *types.Block
+	Shard       types.ShardId
+	Positions   []uint64
 }
 
 type ExportDriver interface {
