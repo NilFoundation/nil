@@ -1,6 +1,8 @@
 package client
 
 import (
+	"math/big"
+
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
@@ -26,4 +28,5 @@ type Client interface {
 	GetTransactionCount(address types.Address, blockNrOrHash transport.BlockNumberOrHash) (types.Seqno, error)
 	GetBlockTransactionCountByNumber(shardId types.ShardId, number transport.BlockNumber) (uint64, error)
 	GetBlockTransactionCountByHash(shardId types.ShardId, hash common.Hash) (uint64, error)
+	GetBalance(address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*big.Int, error)
 }

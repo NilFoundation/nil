@@ -8,6 +8,8 @@ contract Wallet {
 
     bytes pubkey;
 
+    receive() external payable {}
+
     constructor(bytes memory _pubkey) {
         pubkey = _pubkey;
     }

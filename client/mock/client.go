@@ -1,6 +1,8 @@
 package mock
 
 import (
+	"math/big"
+
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
@@ -17,6 +19,7 @@ type MockClient struct {
 	Receipt    *jsonrpc.RPCReceipt
 	Counter    *uint64
 	Seqno      *types.Seqno
+	Balance    *big.Int
 	Err        error
 }
 
@@ -128,4 +131,11 @@ func (m *MockClient) GetBlockTransactionCountByHash(shardId types.ShardId, hash 
 		return *m.Counter, nil
 	}
 	return 0, nil
+}
+
+func (m *MockClient) GetBalance(address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*big.Int, error) {
+	if m.Err != nil {
+		return big.NewInt(0), m.Err
+	}
+	return m.Balance, nil
 }
