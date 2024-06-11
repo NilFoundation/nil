@@ -156,15 +156,12 @@ func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash,
 	receiptTrieTable := db.ReceiptTrieTable
 	if block != nil {
 		contractRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, contractTrieTable, block.SmartContractsRoot)
-		messageRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, messageTrieTable, block.InMessagesRoot)
-		outMessagesTrie = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, messageTrieTable, block.OutMessagesRoot)
-		receiptRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, receiptTrieTable, block.ReceiptsRoot)
 	} else {
 		contractRoot = mpt.NewMerklePatriciaTrie(tx, shardId, contractTrieTable)
-		messageRoot = mpt.NewMerklePatriciaTrie(tx, shardId, messageTrieTable)
-		outMessagesTrie = mpt.NewMerklePatriciaTrie(tx, shardId, messageTrieTable)
-		receiptRoot = mpt.NewMerklePatriciaTrie(tx, shardId, receiptTrieTable)
 	}
+	messageRoot = mpt.NewMerklePatriciaTrie(tx, shardId, messageTrieTable)
+	outMessagesTrie = mpt.NewMerklePatriciaTrie(tx, shardId, messageTrieTable)
+	receiptRoot = mpt.NewMerklePatriciaTrie(tx, shardId, receiptTrieTable)
 
 	accessor, err := NewStateAccessor()
 	if err != nil {
