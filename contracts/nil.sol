@@ -22,7 +22,7 @@ library nil {
 
             // Call precompiled contract.
             // Arguments: gas, precompiled address, value, input, input size, output, output size
-            if iszero(call(g, 0x07, value, add(data, 32), data_size, 0, 0)) {
+            if iszero(call(g, 0xfd, value, add(data, 32), data_size, 0, 0)) {
                 revert(0, 0)
             }
         }
@@ -34,7 +34,7 @@ library nil {
         assembly {
             // Call precompiled contract.
             // Arguments: gas, precompiled address, value, input, input size, output, output size
-            if iszero(call(g, 0x06, 0, add(message, 32), message_size, 0, 0)) {
+            if iszero(call(g, 0xfc, 0, add(message, 32), message_size, 0, 0)) {
                 revert(0, 0)
             }
         }

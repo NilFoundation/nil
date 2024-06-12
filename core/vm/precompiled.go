@@ -50,8 +50,10 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	types.BytesToAddress([]byte{0x02}): &sha256hash{},
 	types.BytesToAddress([]byte{0x04}): &dataCopy{},
 	types.BytesToAddress([]byte{0x05}): &bigModExp{eip2565: true},
-	types.BytesToAddress([]byte{0x06}): &sendRawMessage{},
-	types.BytesToAddress([]byte{0x07}): &sendMessage{},
+	// Ethereum uses addresses up to 0x13
+
+	types.BytesToAddress([]byte{0xfc}): &sendRawMessage{},
+	types.BytesToAddress([]byte{0xfd}): &sendMessage{},
 	types.BytesToAddress([]byte{0xfe}): &verifySignature{},
 }
 
