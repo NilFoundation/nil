@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
@@ -21,17 +22,20 @@ type DebugAPI interface {
 
 type DebugAPIImpl struct {
 	*BaseAPI
-	db     db.ReadOnlyDB
-	logger zerolog.Logger
+	db       db.ReadOnlyDB
+	logger   zerolog.Logger
+	accessor *execution.StateAccessor
 }
 
 var _ DebugAPI = &DebugAPIImpl{}
 
 func NewDebugAPI(base *BaseAPI, db db.ReadOnlyDB, logger zerolog.Logger) *DebugAPIImpl {
+	accessor, _ := execution.NewStateAccessor()
 	return &DebugAPIImpl{
-		BaseAPI: base,
-		db:      db,
-		logger:  logger,
+		BaseAPI:  base,
+		db:       db,
+		logger:   logger,
+		accessor: accessor,
 	}
 }
 
@@ -75,63 +79,47 @@ func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.Shard
 }
 
 func (api *DebugAPIImpl) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash common.Hash, withMessages bool) (map[string]any, error) {
-	block := db.ReadBlock(tx, shardId, hash)
-	if block == nil {
-		return nil, nil
+	accessor := api.accessor.Access(tx, shardId).GetBlock()
+	if withMessages {
+		accessor = accessor.WithInMessages().WithOutMessages().WithReceipts()
 	}
 
-	blockBytes, err := block.MarshalSSZ()
+	data, err := accessor.ByHash(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	if data.Block() == nil {
+		return nil, nil
+	}
+	blockBytes, err := data.Block().MarshalSSZ()
 	if err != nil {
 		return nil, err
 	}
 	result := map[string]any{
-		"number":  block.Id,
-		"hash":    block.Hash(),
+		"number":  data.Block().Id,
+		"hash":    data.Block().Hash(),
 		"content": hexutil.Encode(blockBytes),
 	}
+
 	if withMessages {
-		inMsgs, err := execution.CollectBlockEntities[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot)
+		hexInMessages, err := hexify(data.InMessages())
 		if err != nil {
 			return nil, err
 		}
-		hexInMessages := make([]string, len(inMsgs))
-		for i, message := range inMsgs {
-			messageBytes, err := message.MarshalSSZ()
-			if err != nil {
-				return nil, err
-			}
-			hexInMessages[i] = hexutil.Encode(messageBytes)
-		}
-
-		outMsgs, err := execution.CollectBlockEntities[*types.Message](tx, shardId, db.MessageTrieTable, block.OutMessagesRoot)
+		hexOutMessages, err := hexify(data.OutMessages())
 		if err != nil {
 			return nil, err
 		}
-		hexOutMessages := make([]string, len(outMsgs))
-		for i, message := range outMsgs {
-			messageBytes, err := message.MarshalSSZ()
-			if err != nil {
-				return nil, err
-			}
-			hexOutMessages[i] = hexutil.Encode(messageBytes)
-		}
-
-		receipts, err := execution.CollectBlockEntities[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot)
+		hexReceipts, err := hexify(data.Receipts())
 		if err != nil {
 			return nil, err
 		}
-		hexReceipts := make([]string, len(receipts))
-		for i, receipt := range receipts {
-			receiptBytes, err := receipt.MarshalSSZ()
-			if err != nil {
-				return nil, err
-			}
-			hexReceipts[i] = hexutil.Encode(receiptBytes)
-		}
 
-		positions := make([]uint64, len(inMsgs))
-		for i, message := range inMsgs {
-			value, err := tx.GetFromShard(shardId, db.BlockHashAndMessageIndexByMessageHash, message.Hash().Bytes())
+		// TODO: do we need this? looks like data.InMessages() are already ordered by index from 0 to N
+		positions := make([]uint64, len(data.InMessages()))
+		for i, message := range data.InMessages() {
+			value, err := tx.GetFromShard(shardId, db.BlockHashAndInMessageIndexByMessageHash, message.Hash().Bytes())
 			if err != nil {
 				return nil, err
 			}
@@ -149,4 +137,16 @@ func (api *DebugAPIImpl) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash 
 	}
 
 	return result, nil
+}
+
+func hexify[T fastssz.Marshaler](data []T) ([]string, error) {
+	hexed := make([]string, len(data))
+	for i, val := range data {
+		valBytes, err := val.MarshalSSZ()
+		if err != nil {
+			return nil, err
+		}
+		hexed[i] = hexutil.Encode(valBytes)
+	}
+	return hexed, nil
 }

@@ -85,11 +85,11 @@ func (s *CollatorTestSuite) checkReceipt(ctx context.Context, shardId types.Shar
 	sa, err := execution.NewStateAccessor()
 	s.Require().NoError(err)
 
-	block, indexes, err := sa.GetBlockAndMessageIndexByMessageHash(tx, m.From.ShardId(), m.Hash())
+	msgData, err := sa.Access(tx, m.From.ShardId()).GetInMessage().ByHash(m.Hash())
 	s.Require().NoError(err)
 
-	receiptsTrie := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot)
-	data, err := receiptsTrie.Get(indexes.MessageIndex.Bytes())
+	receiptsTrie := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.ReceiptTrieTable, msgData.Block().ReceiptsRoot)
+	data, err := receiptsTrie.Get(msgData.Index().Bytes())
 	s.Require().NoError(err)
 
 	var receipt types.Receipt

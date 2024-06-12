@@ -21,6 +21,7 @@ func FatalIf(err error, logger zerolog.Logger, format string, args ...interface{
 		return
 	}
 
-	logger.Err(err).Msgf(format, args...)
+	l := logger.With().CallerWithSkipFrameCount(3).Logger()
+	l.Err(err).Msgf(format, args...)
 	panic(err)
 }

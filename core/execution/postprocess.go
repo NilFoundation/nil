@@ -60,7 +60,7 @@ func (pp *blockPostprocessor) fillBlockHashByNumberIndex() error {
 }
 
 func (pp *blockPostprocessor) fillBlockHashAndMessageIndexByMessageHash() error {
-	fill := func(root common.Hash, outgoing bool) error {
+	fill := func(root common.Hash, table db.ShardedTableName) error {
 		mptMessages := NewMessageTrieReader(mpt.NewReaderWithRoot(pp.tx, pp.shardId, db.MessageTrieTable, root))
 		msgs, err := mptMessages.Entries()
 		if err != nil {
@@ -68,21 +68,21 @@ func (pp *blockPostprocessor) fillBlockHashAndMessageIndexByMessageHash() error 
 		}
 
 		for _, kv := range msgs {
-			blockHashAndMessageIndex := db.BlockHashAndMessageIndex{BlockHash: pp.blockHash, MessageIndex: kv.Key, Outgoing: outgoing}
+			blockHashAndMessageIndex := db.BlockHashAndMessageIndex{BlockHash: pp.blockHash, MessageIndex: kv.Key}
 			value, err := blockHashAndMessageIndex.MarshalSSZ()
 			if err != nil {
 				return err
 			}
 
-			if err := pp.tx.PutToShard(pp.shardId, db.BlockHashAndMessageIndexByMessageHash, kv.Val.Hash().Bytes(), value); err != nil {
+			if err := pp.tx.PutToShard(pp.shardId, table, kv.Val.Hash().Bytes(), value); err != nil {
 				return err
 			}
 		}
 		return nil
 	}
 
-	if err := fill(pp.block.InMessagesRoot, false); err != nil {
+	if err := fill(pp.block.InMessagesRoot, db.BlockHashAndInMessageIndexByMessageHash); err != nil {
 		return err
 	}
-	return fill(pp.block.OutMessagesRoot, true)
+	return fill(pp.block.OutMessagesRoot, db.BlockHashAndOutMessageIndexByMessageHash)
 }

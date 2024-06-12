@@ -22,8 +22,8 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 
 	defer tx.Rollback()
 
-	block, indexes, err := api.getBlockAndMessageIndexByMessageHash(tx, shardId, hash)
-	if errors.Is(err, db.ErrKeyNotFound) || indexes.Outgoing {
+	block, indexes, err := api.getBlockAndInMessageIndexByMessageHash(tx, shardId, hash)
+	if errors.Is(err, db.ErrKeyNotFound) {
 		return nil, nil
 	}
 	if err != nil {

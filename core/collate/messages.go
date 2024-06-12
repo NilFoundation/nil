@@ -174,11 +174,11 @@ func validateDeployMessage(es *execution.ExecutionState, message *types.Message)
 func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.Message) (bool, error) {
 	if message.Internal {
 		fromId := message.From.ShardId()
-		msg, _, _, _, err := es.Accessor.GetMessageWithEntitiesByHash(roTx, fromId, message.Hash())
+		data, err := es.Accessor.Access(roTx, fromId).GetOutMessage().ByHash(message.Hash())
 		if err != nil {
 			return false, err
 		}
-		return msg != nil, nil
+		return data.Message() != nil, nil
 	}
 
 	addr := message.From

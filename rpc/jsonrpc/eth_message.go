@@ -26,11 +26,11 @@ func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardI
 	}
 	defer tx.Rollback()
 
-	msg, receipt, index, block, err := api.accessor.GetMessageWithEntitiesByHash(tx, shardId, hash)
-	if msg == nil || err != nil {
+	data, err := api.accessor.Access(tx, shardId).GetInMessage().WithReceipt().ByHash(hash)
+	if data.Message() == nil || err != nil {
 		return nil, err
 	}
-	return NewRPCInMessage(msg, receipt, index, block), nil
+	return NewRPCInMessage(data.Message(), data.Receipt(), data.Index(), data.Block()), nil
 }
 
 func (api *APIImpl) getInMessageByBlockNumberOrHashAndIndex(ctx context.Context, shardId types.ShardId,
@@ -117,15 +117,15 @@ func (api *APIImpl) GetRawInMessageByHash(ctx context.Context, shardId types.Sha
 
 	defer tx.Rollback()
 
-	block, indexes, err := api.getBlockAndMessageIndexByMessageHash(tx, shardId, hash)
+	block, indexes, err := api.getBlockAndInMessageIndexByMessageHash(tx, shardId, hash)
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return nil, nil
 	}
 	return getRawBlockEntity(tx, shardId, db.MessageTrieTable, block.InMessagesRoot, indexes.MessageIndex.Bytes())
 }
 
-func (api *APIImpl) getBlockAndMessageIndexByMessageHash(tx db.RoTx, shardId types.ShardId, hash common.Hash) (*types.Block, db.BlockHashAndMessageIndex, error) {
-	value, err := tx.GetFromShard(shardId, db.BlockHashAndMessageIndexByMessageHash, hash.Bytes())
+func (api *APIImpl) getBlockAndInMessageIndexByMessageHash(tx db.RoTx, shardId types.ShardId, hash common.Hash) (*types.Block, db.BlockHashAndMessageIndex, error) {
+	value, err := tx.GetFromShard(shardId, db.BlockHashAndInMessageIndexByMessageHash, hash.Bytes())
 	if err != nil {
 		return nil, db.BlockHashAndMessageIndex{}, err
 	}
@@ -135,11 +135,14 @@ func (api *APIImpl) getBlockAndMessageIndexByMessageHash(tx db.RoTx, shardId typ
 		return nil, db.BlockHashAndMessageIndex{}, err
 	}
 
-	block := api.accessor.GetBlockByHash(tx, shardId, blockHashAndMessageIndex.BlockHash)
-	if block == nil {
-		return nil, db.BlockHashAndMessageIndex{}, errNotFound
+	data, err := api.accessor.Access(tx, shardId).GetBlock().ByHash(blockHashAndMessageIndex.BlockHash)
+	if err == nil && data.Block() == nil {
+		err = errNotFound
 	}
-	return block, blockHashAndMessageIndex, nil
+	if err != nil {
+		return nil, db.BlockHashAndMessageIndex{}, err
+	}
+	return data.Block(), blockHashAndMessageIndex, nil
 }
 
 func getRawBlockEntity(
