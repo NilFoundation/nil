@@ -98,8 +98,9 @@ func (s *MessagesSuite) TestValidateMessage() {
 	s.Require().Len(es.Receipts, 2)
 	s.False(es.Receipts[1].Success)
 
-	// Signed message - OK
-	s.Require().NoError(msg.Sign(key))
+	// contract that always returns "true",
+	// so verifies any message
+	es.SetCode(addrTo, hexutil.FromHex("600160005260206000f3"))
 	ok, err = validateMessage(tx, es, msg)
 	s.Require().NoError(err)
 	s.True(ok)
