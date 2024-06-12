@@ -54,8 +54,5 @@ func main() {
 		check.LogAndPanicIfErrf(os.WriteFile(abiFile, abi, 0o644), logger, "failed to write abi for contract %s", name) //nolint:gosec
 
 		check.LogAndPanicIfErrf(os.WriteFile(codeFile, []byte(c.Code), 0o644), logger, "failed to write code hext for contract %s", name) //nolint:gosec
-
-		logger.Info().Str("file", abiFile).Msgf("ABI = %s", abi)
-		logger.Info().Str("file", codeFile).Msgf("Code = %s", c.Code)
 	}
 }
