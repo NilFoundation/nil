@@ -2,7 +2,6 @@ package jsonrpc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	fastssz "github.com/NilFoundation/fastssz"
@@ -45,26 +44,22 @@ func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.Sha
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}
-
 	defer tx.Rollback()
 
 	if number == transport.LatestBlockNumber {
-		hash, err := tx.Get(db.LastBlockTable, shardId.Bytes())
+		hash, err := db.ReadLastBlockHash(tx, shardId)
 		if err != nil {
 			return nil, err
 		}
 
-		return api.getBlockByHash(tx, shardId, common.CastToHash(hash), withMessages)
+		return api.getBlockByHash(tx, shardId, hash, withMessages)
 	}
 
-	blockHash, err := tx.GetFromShard(shardId, db.BlockHashByNumberIndex, number.BlockNumber().Bytes())
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil
-	}
+	blockHash, err := db.ReadBlockHashByNumber(tx, shardId, number.BlockNumber())
 	if err != nil {
 		return nil, err
 	}
-	return api.getBlockByHash(tx, shardId, common.CastToHash(blockHash), withMessages)
+	return api.getBlockByHash(tx, shardId, blockHash, withMessages)
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.

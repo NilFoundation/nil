@@ -16,6 +16,7 @@ import (
 
 type SuiteEthMessage struct {
 	suite.Suite
+	ctx           context.Context
 	db            db.DB
 	api           *APIImpl
 	lastBlockHash common.Hash
@@ -26,7 +27,7 @@ type SuiteEthMessage struct {
 var unknownBlockHash = common.HexToHash("0x00eb398db0189885e7cbf70586eeefb9aec472d7216c821866d9254f14269f67")
 
 func (suite *SuiteEthMessage) SetupSuite() {
-	ctx := context.Background()
+	suite.ctx = context.Background()
 
 	var err error
 	suite.db, err = db.NewBadgerDbInMemory()
@@ -35,11 +36,11 @@ func (suite *SuiteEthMessage) SetupSuite() {
 	pool := msgpool.New(msgpool.DefaultConfig)
 	suite.Require().NotNil(pool)
 
-	suite.api, err = NewEthAPI(ctx,
+	suite.api, err = NewEthAPI(suite.ctx,
 		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool, pool}, logging.NewLogger("Test"))
 	suite.Require().NoError(err)
 
-	tx, err := suite.db.CreateRwTx(ctx)
+	tx, err := suite.db.CreateRwTx(suite.ctx)
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
@@ -63,62 +64,55 @@ func (suite *SuiteEthMessage) TearDownSuite() {
 }
 
 func (s *SuiteEthMessage) TestGetMessageByHash() {
-	data, err := s.api.GetInMessageByHash(context.Background(), types.BaseShardId, s.message.Hash())
+	data, err := s.api.GetInMessageByHash(s.ctx, types.BaseShardId, s.message.Hash())
 	s.Require().NoError(err)
 	s.Equal(s.message.Hash(), data.Hash)
 	s.EqualValues([]byte("data"), data.Data)
 
-	rawData, err := s.api.GetRawInMessageByHash(context.Background(), types.BaseShardId, s.message.Hash())
+	rawData, err := s.api.GetRawInMessageByHash(s.ctx, types.BaseShardId, s.message.Hash())
 	s.Require().NoError(err)
 	s.Equal(s.messageRaw, []byte(rawData))
 
-	data, err = s.api.GetInMessageByHash(context.Background(), types.BaseShardId, unknownBlockHash)
-	s.Require().NoError(err)
-	s.Nil(data)
+	_, err = s.api.GetInMessageByHash(s.ctx, types.BaseShardId, unknownBlockHash)
+	s.Require().ErrorIs(err, db.ErrKeyNotFound)
 }
 
-func (s *SuiteEthMessage) TestGetMessageyBlockNumberAndIndex() {
-	data, err := s.api.GetInMessageByBlockNumberAndIndex(context.Background(), types.BaseShardId, 0, 0)
+func (s *SuiteEthMessage) TestGetMessageBlockNumberAndIndex() {
+	data, err := s.api.GetInMessageByBlockNumberAndIndex(s.ctx, types.BaseShardId, 0, 0)
 	s.Require().NoError(err)
 	s.Equal(s.message.Hash(), data.Hash)
 
-	rawData, err := s.api.GetRawInMessageByBlockNumberAndIndex(context.Background(), types.BaseShardId, 0, 0)
+	rawData, err := s.api.GetRawInMessageByBlockNumberAndIndex(s.ctx, types.BaseShardId, 0, 0)
 	s.Require().NoError(err)
 	s.Equal(s.messageRaw, []byte(rawData))
 
-	data, err = s.api.GetInMessageByBlockNumberAndIndex(context.Background(), types.BaseShardId, 0, 100500)
-	s.Require().NoError(err)
-	s.Nil(data)
+	_, err = s.api.GetInMessageByBlockNumberAndIndex(s.ctx, types.BaseShardId, 0, 100500)
+	s.Require().ErrorIs(err, db.ErrKeyNotFound)
 
-	data, err = s.api.GetInMessageByBlockNumberAndIndex(context.Background(), types.BaseShardId, 100500, 0)
-	s.Require().NoError(err)
-	s.Nil(data)
+	_, err = s.api.GetInMessageByBlockNumberAndIndex(s.ctx, types.BaseShardId, 100500, 0)
+	s.Require().ErrorIs(err, db.ErrKeyNotFound)
 
-	rawData, err = s.api.GetRawInMessageByBlockNumberAndIndex(context.Background(), types.BaseShardId, 100500, 100500)
-	s.Require().NoError(err)
-	s.Nil(rawData)
+	_, err = s.api.GetRawInMessageByBlockNumberAndIndex(s.ctx, types.BaseShardId, 100500, 100500)
+	s.Require().ErrorIs(err, db.ErrKeyNotFound)
 }
 
-func (s *SuiteEthMessage) TestGetMessageyBlockHashAndIndex() {
-	data, err := s.api.GetInMessageByBlockHashAndIndex(context.Background(), types.BaseShardId, s.lastBlockHash, 0)
+func (s *SuiteEthMessage) TestGetMessageBlockHashAndIndex() {
+	data, err := s.api.GetInMessageByBlockHashAndIndex(s.ctx, types.BaseShardId, s.lastBlockHash, 0)
 	s.Require().NoError(err)
 	s.Equal(s.message.Hash(), data.Hash)
 
-	rawData, err := s.api.GetRawInMessageByBlockHashAndIndex(context.Background(), types.BaseShardId, s.lastBlockHash, 0)
+	rawData, err := s.api.GetRawInMessageByBlockHashAndIndex(s.ctx, types.BaseShardId, s.lastBlockHash, 0)
 	s.Require().NoError(err)
 	s.Equal(s.messageRaw, []byte(rawData))
 
-	data, err = s.api.GetInMessageByBlockHashAndIndex(context.Background(), types.BaseShardId, s.lastBlockHash, 100500)
-	s.Require().NoError(err)
-	s.Nil(data)
+	_, err = s.api.GetInMessageByBlockHashAndIndex(s.ctx, types.BaseShardId, s.lastBlockHash, 100500)
+	s.Require().ErrorIs(err, db.ErrKeyNotFound)
 
-	data, err = s.api.GetInMessageByBlockHashAndIndex(context.Background(), types.BaseShardId, unknownBlockHash, 0)
-	s.Require().NoError(err)
-	s.Nil(data)
+	_, err = s.api.GetInMessageByBlockHashAndIndex(s.ctx, types.BaseShardId, unknownBlockHash, 0)
+	s.Require().ErrorIs(err, db.ErrKeyNotFound)
 
-	rawData, err = s.api.GetRawInMessageByBlockHashAndIndex(context.Background(), types.BaseShardId, unknownBlockHash, 100500)
-	s.Require().NoError(err)
-	s.Nil(rawData)
+	_, err = s.api.GetRawInMessageByBlockHashAndIndex(s.ctx, types.BaseShardId, unknownBlockHash, 100500)
+	s.Require().ErrorIs(err, db.ErrKeyNotFound)
 }
 
 func TestSuiteEthMessage(t *testing.T) {

@@ -4,7 +4,6 @@ import "errors"
 
 var (
 	errNotImplemented = errors.New("not implemented")
-	errNotFound       = errors.New("not found")
 	errInvalidChainId = errors.New("invalid ChainId")
 	errBlockNotFound  = errors.New("block not found")
 )

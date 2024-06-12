@@ -95,8 +95,8 @@ func (suite *SuiteEthAccounts) TestGetBalance() {
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
 	res, err = suite.api.GetBalance(ctx, suite.smcAddr, blockNum)
-	suite.Require().Error(err)
-	suite.Nil(res)
+	suite.Require().NoError(err)
+	suite.Equal((*hexutil.Big)(big.NewInt(0)), res)
 }
 
 func (suite *SuiteEthAccounts) TestGetCode() {
@@ -115,12 +115,12 @@ func (suite *SuiteEthAccounts) TestGetCode() {
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 	res, err = suite.api.GetCode(ctx, types.GenerateRandomAddress(types.BaseShardId), blockNum)
 	suite.Require().NoError(err)
-	suite.Equal(hexutil.Bytes(nil), res)
+	suite.Nil(res)
 
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
 	res, err = suite.api.GetCode(ctx, suite.smcAddr, blockNum)
-	suite.Require().Error(err)
+	suite.Require().NoError(err)
 	suite.Nil(res)
 }
 
@@ -145,7 +145,8 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
 	_, err = suite.api.GetTransactionCount(ctx, suite.smcAddr, blockNum)
-	suite.Require().Error(err)
+	suite.Require().NoError(err)
+	suite.Equal(hexutil.Uint64(0), *res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.PendingBlock.BlockNumber}
 	res, err = suite.api.GetTransactionCount(ctx, suite.smcAddr, blockNum)

@@ -56,7 +56,9 @@ func (suite *SuiteExecutionState) TestExecState() {
 	code := "6004600c60003960046000f301020304"
 
 	from := types.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
-	blockContext := NewEVMBlockContext(es)
+	blockContext, err := NewEVMBlockContext(es)
+	suite.Require().NoError(err)
+
 	for i := range numMessages {
 		deploy := types.BuildDeployPayload(hexutil.FromHex(code), common.BytesToHash([]byte{byte(i)}))
 
@@ -69,7 +71,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 		}
 		es.AddInMessage(msg)
 		es.InMessageHash = msg.Hash()
-		_, err = es.HandleDeployMessage(ctx, msg, &deploy, &blockContext)
+		_, err = es.HandleDeployMessage(ctx, msg, &deploy, blockContext)
 		suite.Require().NoError(err)
 	}
 
@@ -83,7 +85,8 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	suite.Equal(storageVal, common.IntToHash(123456))
 
-	block := db.ReadBlock(tx, shardId, blockHash)
+	block, err := db.ReadBlock(tx, shardId, blockHash)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(block)
 
 	messageTrieTable := db.MessageTrieTable
@@ -127,7 +130,8 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
-	blockContext := NewEVMBlockContext(es)
+	blockContext, err := NewEVMBlockContext(es)
+	suite.Require().NoError(err)
 	deployMsg := types.BuildDeployPayload(code, common.EmptyHash)
 	message := &types.Message{
 		Kind:     types.DeployMessageKind,
@@ -139,7 +143,7 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 
 	suite.EqualValues(0, es.GetSeqno(addrWallet))
 
-	_, err = es.HandleDeployMessage(ctx, message, &deployMsg, &blockContext)
+	_, err = es.HandleDeployMessage(ctx, message, &deployMsg, blockContext)
 	suite.Require().NoError(err)
 
 	// Check that initially seqno is 1
@@ -157,7 +161,7 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 		Value:    *types.NewUint256(0),
 		GasLimit: *types.NewUint256(100000),
 	}
-	_, _, err = es.HandleExecutionMessage(ctx, messageToSend, &blockContext)
+	_, _, err = es.HandleExecutionMessage(ctx, messageToSend, blockContext)
 	suite.Require().NoError(err)
 
 	// Check that seqno is increased
@@ -189,7 +193,8 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 	suite.Require().NoError(err)
 
 	check := func(blockHash common.Hash, msg *types.Message) {
-		block := db.ReadBlock(tx, types.BaseShardId, blockHash)
+		block, err := db.ReadBlock(tx, types.BaseShardId, blockHash)
+		suite.Require().NoError(err)
 		suite.Require().NotNil(block)
 
 		messagesRoot := NewMessageTrie(mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, db.MessageTrieTable, block.InMessagesRoot))

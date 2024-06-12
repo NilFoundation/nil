@@ -6,9 +6,7 @@ import (
 
 	fastssz "github.com/NilFoundation/fastssz"
 	common "github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/common/check"
 	types "github.com/NilFoundation/nil/core/types"
-	"github.com/rs/zerolog/log"
 )
 
 // todo: return errors
@@ -18,21 +16,17 @@ func readDecodable[
 		~*S
 		fastssz.Unmarshaler
 	},
-](tx RoTx, table ShardedTableName, shardId types.ShardId, hash common.Hash) *S {
+](tx RoTx, table ShardedTableName, shardId types.ShardId, hash common.Hash) (*S, error) {
 	data, err := tx.GetFromShard(shardId, table, hash.Bytes())
-	if errors.Is(err, ErrKeyNotFound) {
-		return nil
-	}
-	check.LogAndPanicIfErrf(err, log.Logger, "Read from table %s [%s] failed.", table, shardId)
-	if data == nil {
-		return nil
+	if err != nil {
+		return nil, err
 	}
 
 	decoded := new(S)
-	err = T(decoded).UnmarshalSSZ(data)
-	check.LogAndPanicIfErrf(err, log.Logger, "Invalid SSZ while reading from %s. hash: %v", table, hash)
-
-	return decoded
+	if err := T(decoded).UnmarshalSSZ(data); err != nil {
+		return nil, err
+	}
+	return decoded, nil
 }
 
 func writeRawKeyEncodable[
@@ -62,12 +56,11 @@ func ReadVersionInfo(tx RoTx) (*types.VersionInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	res := types.VersionInfo{}
-	err = res.UnmarshalSSZ(rawVersionInfo)
-	if err != nil {
+	res := &types.VersionInfo{}
+	if err := res.UnmarshalSSZ(rawVersionInfo); err != nil {
 		return nil, err
 	}
-	return &res, nil
+	return res, nil
 }
 
 func WriteVersionInfo(tx RwTx, version *types.VersionInfo) error {
@@ -75,14 +68,13 @@ func WriteVersionInfo(tx RwTx, version *types.VersionInfo) error {
 	if err != nil {
 		return err
 	}
-	err = tx.Put(SchemeVersionTable, []byte(types.SchemeVersionInfoKey), rawVersionInfo)
-	return err
+	return tx.Put(SchemeVersionTable, []byte(types.SchemeVersionInfoKey), rawVersionInfo)
 }
 
 func IsVersionOutdated(tx RoTx) (bool, error) {
 	dbVersion, err := ReadVersionInfo(tx)
 	if errors.Is(err, ErrKeyNotFound) {
-		return false, nil
+		return true, nil
 	}
 	if err != nil {
 		return false, err
@@ -90,7 +82,7 @@ func IsVersionOutdated(tx RoTx) (bool, error) {
 	return !reflect.DeepEqual(dbVersion, types.NewVersionInfo()), nil
 }
 
-func ReadBlock(tx RoTx, shardId types.ShardId, hash common.Hash) *types.Block {
+func ReadBlock(tx RoTx, shardId types.ShardId, hash common.Hash) (*types.Block, error) {
 	return readDecodable[types.Block, *types.Block](tx, blockTable, shardId, hash)
 }
 
@@ -99,20 +91,17 @@ func ReadLastBlock(tx RoTx, shardId types.ShardId) (*types.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	return readDecodable[types.Block, *types.Block](tx, blockTable, shardId, hash), nil
+	return readDecodable[types.Block, *types.Block](tx, blockTable, shardId, hash)
 }
 
 func ReadCollatorState(tx RoTx, shardId types.ShardId) (types.CollatorState, error) {
 	res := types.CollatorState{}
 	buf, err := tx.Get(CollatorStateTable, shardId.Bytes())
-	if errors.Is(err, ErrKeyNotFound) {
-		return res, nil
-	}
 	if err != nil {
 		return res, err
 	}
 
-	if err = res.UnmarshalSSZ(buf); err != nil {
+	if err := res.UnmarshalSSZ(buf); err != nil {
 		return res, err
 	}
 	return res, nil
@@ -128,20 +117,18 @@ func WriteCollatorState(tx RwTx, shardId types.ShardId, state types.CollatorStat
 
 func ReadLastBlockHash(tx RoTx, shardId types.ShardId) (common.Hash, error) {
 	h, err := tx.Get(LastBlockTable, shardId.Bytes())
-	if errors.Is(err, ErrKeyNotFound) {
-		return common.EmptyHash, nil
-	}
-	if err != nil {
-		return common.EmptyHash, err
-	}
-	return common.BytesToHash(h), nil
+	return common.BytesToHash(h), err
+}
+
+func WriteLastBlockHash(tx RwTx, shardId types.ShardId, hash common.Hash) error {
+	return tx.Put(LastBlockTable, shardId.Bytes(), hash.Bytes())
 }
 
 func WriteBlock(tx RwTx, shardId types.ShardId, block *types.Block) error {
 	return writeEncodable(tx, blockTable, shardId, block)
 }
 
-func ReadContract(tx RoTx, shardId types.ShardId, hash common.Hash) *types.SmartContract {
+func ReadContract(tx RoTx, shardId types.ShardId, hash common.Hash) (*types.SmartContract, error) {
 	return readDecodable[types.SmartContract, *types.SmartContract](tx, contractTable, shardId, hash)
 }
 
@@ -150,34 +137,16 @@ func WriteContract(tx RwTx, shardId types.ShardId, contract *types.SmartContract
 }
 
 func WriteCode(tx RwTx, shardId types.ShardId, code types.Code) error {
-	hash := code.Hash()
-	if err := tx.PutToShard(shardId, codeTable, hash.Bytes(), code[:]); err != nil {
-		return err
-	}
-	return nil
+	return tx.PutToShard(shardId, codeTable, code.Hash().Bytes(), code[:])
 }
 
 func ReadCode(tx RoTx, shardId types.ShardId, hash common.Hash) (types.Code, error) {
-	code, err := tx.GetFromShard(shardId, codeTable, hash[:])
-	if errors.Is(err, ErrKeyNotFound) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return code, nil
+	return tx.GetFromShard(shardId, codeTable, hash.Bytes())
 }
 
 func ReadBlockHashByNumber(tx RoTx, shardId types.ShardId, blockNumber types.BlockNumber) (common.Hash, error) {
 	blockHash, err := tx.GetFromShard(shardId, BlockHashByNumberIndex, blockNumber.Bytes())
-	if errors.Is(err, ErrKeyNotFound) {
-		return common.EmptyHash, nil
-	}
-	if err != nil {
-		return common.EmptyHash, err
-	}
-	return common.BytesToHash(blockHash), nil
+	return common.BytesToHash(blockHash), err
 }
 
 func ReadBlockByNumber(tx RoTx, shardId types.ShardId, blockNumber types.BlockNumber) (*types.Block, error) {
@@ -185,8 +154,5 @@ func ReadBlockByNumber(tx RoTx, shardId types.ShardId, blockNumber types.BlockNu
 	if err != nil {
 		return nil, err
 	}
-	if blockHash == common.EmptyHash {
-		return nil, nil
-	}
-	return ReadBlock(tx, shardId, blockHash), nil
+	return ReadBlock(tx, shardId, blockHash)
 }

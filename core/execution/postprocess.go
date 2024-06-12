@@ -1,8 +1,6 @@
 package execution
 
 import (
-	"fmt"
-
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
@@ -24,12 +22,12 @@ type blockPostprocessor struct {
 	block     *types.Block
 }
 
-func newBlockPostprocessor(tx db.RwTx, shardId types.ShardId, blockHash common.Hash) (blockPostprocessor, error) {
-	block := db.ReadBlock(tx, shardId, blockHash)
-	if block == nil {
-		return blockPostprocessor{}, fmt.Errorf("Block %s not found", blockHash.String())
+func newBlockPostprocessor(tx db.RwTx, shardId types.ShardId, blockHash common.Hash) (*blockPostprocessor, error) {
+	block, err := db.ReadBlock(tx, shardId, blockHash)
+	if err != nil {
+		return nil, err
 	}
-	return blockPostprocessor{tx, shardId, blockHash, block}, nil
+	return &blockPostprocessor{tx, shardId, blockHash, block}, nil
 }
 
 func (pp *blockPostprocessor) Postprocess() error {
@@ -46,10 +44,7 @@ func (pp *blockPostprocessor) Postprocess() error {
 }
 
 func (pp *blockPostprocessor) fillLastBlockTable() error {
-	if err := pp.tx.Put(db.LastBlockTable, pp.shardId.Bytes(), pp.blockHash[:]); err != nil {
-		return err
-	}
-	return nil
+	return db.WriteLastBlockHash(pp.tx, pp.shardId, pp.blockHash)
 }
 
 func (pp *blockPostprocessor) fillBlockHashByNumberIndex() error {

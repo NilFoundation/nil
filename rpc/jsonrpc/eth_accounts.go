@@ -25,10 +25,7 @@ func (api *APIImpl) getSmartContract(tx db.RoTx, address types.Address, blockNrO
 
 	root := mpt.NewReaderWithRoot(tx, shardId, db.ContractTrieTable, block.SmartContractsRoot)
 	contractRaw, err := root.Get(address.Hash().Bytes())
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil
-	}
-	if contractRaw == nil || err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -55,11 +52,10 @@ func (api *APIImpl) GetBalance(ctx context.Context, address types.Address, block
 
 	acc, err := api.getSmartContract(tx, address, blockNrOrHash)
 	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return (*hexutil.Big)(big.NewInt(0)), nil
+		}
 		return nil, err
-	}
-	if acc == nil {
-		// Special case - non-existent account is assumed to have zero balance
-		return (*hexutil.Big)(big.NewInt(0)), nil
 	}
 	return (*hexutil.Big)(acc.Balance.ToBig()), nil
 }
@@ -95,9 +91,6 @@ func (api *APIImpl) GetTransactionCount(ctx context.Context, address types.Addre
 
 		return nil, err
 	}
-	if acc == nil {
-		return &zeroNonce, nil
-	}
 	return (*hexutil.Uint64)(&acc.Seqno), nil
 }
 
@@ -115,12 +108,18 @@ func (api *APIImpl) GetCode(ctx context.Context, address types.Address, blockNrO
 	defer tx.Rollback()
 
 	acc, err := api.getSmartContract(tx, address, blockNrOrHash)
-	if acc == nil || err != nil {
+	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 
 	code, err := db.ReadCode(tx, shardId, acc.CodeHash)
-	if code == nil || err != nil {
+	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return hexutil.Bytes(code), nil

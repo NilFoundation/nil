@@ -20,6 +20,7 @@ import (
 
 type SuiteEthBlock struct {
 	suite.Suite
+	ctx           context.Context
 	db            db.DB
 	api           *APIImpl
 	lastBlockHash common.Hash
@@ -27,13 +28,13 @@ type SuiteEthBlock struct {
 
 func (suite *SuiteEthBlock) SetupSuite() {
 	shardId := types.MasterShardId
-	ctx := context.Background()
+	suite.ctx = context.Background()
 
 	var err error
 	suite.db, err = db.NewBadgerDbInMemory()
 	suite.Require().NoError(err)
 
-	tx, err := suite.db.CreateRwTx(ctx)
+	tx, err := suite.db.CreateRwTx(suite.ctx)
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
@@ -65,7 +66,7 @@ func (suite *SuiteEthBlock) SetupSuite() {
 	pool := msgpool.New(msgpool.DefaultConfig)
 	suite.Require().NotNil(pool)
 
-	suite.api, err = NewEthAPI(ctx,
+	suite.api, err = NewEthAPI(suite.ctx,
 		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool}, logging.NewLogger("Test"))
 	suite.Require().NoError(err)
 }
@@ -75,40 +76,39 @@ func (suite *SuiteEthBlock) TearDownSuite() {
 }
 
 func (suite *SuiteEthBlock) TestGetBlockByNumber() {
-	_, err := suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.LatestExecutedBlockNumber, false)
+	_, err := suite.api.GetBlockByNumber(suite.ctx, types.MasterShardId, transport.LatestExecutedBlockNumber, false)
 	suite.Require().EqualError(err, "not implemented")
 
-	_, err = suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.FinalizedBlockNumber, false)
+	_, err = suite.api.GetBlockByNumber(suite.ctx, types.MasterShardId, transport.FinalizedBlockNumber, false)
 	suite.Require().EqualError(err, "not implemented")
 
-	_, err = suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.SafeBlockNumber, false)
+	_, err = suite.api.GetBlockByNumber(suite.ctx, types.MasterShardId, transport.SafeBlockNumber, false)
 	suite.Require().EqualError(err, "not implemented")
 
-	_, err = suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.PendingBlockNumber, false)
+	_, err = suite.api.GetBlockByNumber(suite.ctx, types.MasterShardId, transport.PendingBlockNumber, false)
 	suite.Require().EqualError(err, "not implemented")
 
-	data, err := suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.LatestBlockNumber, false)
+	data, err := suite.api.GetBlockByNumber(suite.ctx, types.MasterShardId, transport.LatestBlockNumber, false)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
 	suite.Equal(suite.lastBlockHash, data.Hash)
 
-	data, err = suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.EarliestBlockNumber, false)
+	data, err = suite.api.GetBlockByNumber(suite.ctx, types.MasterShardId, transport.EarliestBlockNumber, false)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
 	suite.Equal(common.EmptyHash, data.ParentHash)
 
-	data, err = suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.BlockNumber(1), false)
+	data, err = suite.api.GetBlockByNumber(suite.ctx, types.MasterShardId, transport.BlockNumber(1), false)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
 	suite.Equal(suite.lastBlockHash, data.Hash)
 
-	data, err = suite.api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.BlockNumber(100500), false)
-	suite.Require().NoError(err)
-	suite.Require().Nil(data)
+	_, err = suite.api.GetBlockByNumber(suite.ctx, types.MasterShardId, transport.BlockNumber(100500), false)
+	suite.Require().ErrorIs(err, db.ErrKeyNotFound)
 }
 
 func (suite *SuiteEthBlock) TestGetBlockByHash() {
-	data, err := suite.api.GetBlockByHash(context.Background(), types.MasterShardId, suite.lastBlockHash, false)
+	data, err := suite.api.GetBlockByHash(suite.ctx, types.MasterShardId, suite.lastBlockHash, false)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
 	suite.Equal(suite.lastBlockHash, data.Hash)
@@ -116,21 +116,20 @@ func (suite *SuiteEthBlock) TestGetBlockByHash() {
 
 func (suite *SuiteEthBlock) TestGetBlockTransactionCountByHash() {
 	blockHash := common.HexToHash("0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")
-	res, err := suite.api.GetBlockTransactionCountByHash(context.Background(), types.MasterShardId, blockHash)
-	suite.Require().NoError(err)
-	suite.Require().Equal(hexutil.Uint(0), *res)
+	_, err := suite.api.GetBlockTransactionCountByHash(suite.ctx, types.MasterShardId, blockHash)
+	suite.Require().ErrorIs(err, db.ErrKeyNotFound)
 
-	res, err = suite.api.GetBlockTransactionCountByHash(context.Background(), types.MasterShardId, suite.lastBlockHash)
+	res, err := suite.api.GetBlockTransactionCountByHash(suite.ctx, types.MasterShardId, suite.lastBlockHash)
 	suite.Require().NoError(err)
-	suite.Require().Equal(hexutil.Uint(1), *res)
+	suite.Require().Equal(hexutil.Uint(1), res)
 }
 
 func (suite *SuiteEthBlock) TestGetBlockContent() {
-	resNoFullTx, err := suite.api.GetBlockByHash(context.Background(), types.MasterShardId, suite.lastBlockHash, false)
+	resNoFullTx, err := suite.api.GetBlockByHash(suite.ctx, types.MasterShardId, suite.lastBlockHash, false)
 	suite.Require().NoError(err)
 	suite.Len(resNoFullTx.Messages, 1)
 
-	resFullTx, err := suite.api.GetBlockByHash(context.Background(), types.MasterShardId, suite.lastBlockHash, true)
+	resFullTx, err := suite.api.GetBlockByHash(suite.ctx, types.MasterShardId, suite.lastBlockHash, true)
 	suite.Require().NoError(err)
 	suite.Len(resFullTx.Messages, 1)
 
@@ -146,17 +145,16 @@ func (suite *SuiteEthBlock) TestGetBlockContent() {
 }
 
 func (suite *SuiteEthBlock) TestGetBlockTransactionCountByNumber() {
-	res, err := suite.api.GetBlockTransactionCountByNumber(context.Background(), types.MasterShardId, 0)
+	res, err := suite.api.GetBlockTransactionCountByNumber(suite.ctx, types.MasterShardId, 0)
 	suite.Require().NoError(err)
-	suite.Require().Equal(hexutil.Uint(0), *res)
+	suite.Require().Zero(res)
 
-	res, err = suite.api.GetBlockTransactionCountByNumber(context.Background(), types.MasterShardId, transport.LatestBlockNumber)
+	res, err = suite.api.GetBlockTransactionCountByNumber(suite.ctx, types.MasterShardId, transport.LatestBlockNumber)
 	suite.Require().NoError(err)
-	suite.Require().Equal(hexutil.Uint(1), *res)
+	suite.Require().Equal(hexutil.Uint(1), res)
 
-	res, err = suite.api.GetBlockTransactionCountByNumber(context.Background(), types.MasterShardId, 100500)
-	suite.Require().NoError(err)
-	suite.Require().Equal(hexutil.Uint(0), *res)
+	_, err = suite.api.GetBlockTransactionCountByNumber(suite.ctx, types.MasterShardId, 100500)
+	suite.Require().ErrorIs(err, db.ErrKeyNotFound)
 }
 
 func TestSuiteEthBlock(t *testing.T) {
@@ -169,7 +167,7 @@ func TestGetBlockByNumberOnEmptyBase(t *testing.T) {
 	t.Parallel()
 
 	var err error
-	db, err := db.NewBadgerDbInMemory()
+	d, err := db.NewBadgerDbInMemory()
 	require.NoError(t, err)
 
 	pool := msgpool.New(msgpool.DefaultConfig)
@@ -178,18 +176,15 @@ func TestGetBlockByNumberOnEmptyBase(t *testing.T) {
 	ctx := context.Background()
 	shardId := types.MasterShardId
 	api, err := NewEthAPI(ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), db, []msgpool.Pool{pool}, logging.NewLogger("Test"))
+		NewBaseApi(rpccfg.DefaultEvmCallTimeout), d, []msgpool.Pool{pool}, logging.NewLogger("Test"))
 	require.NoError(t, err)
 
-	data, err := api.GetBlockByNumber(ctx, shardId, transport.EarliestBlockNumber, false)
-	require.NoError(t, err)
-	require.Nil(t, data)
+	_, err = api.GetBlockByNumber(ctx, shardId, transport.EarliestBlockNumber, false)
+	require.ErrorIs(t, err, db.ErrKeyNotFound)
 
-	data, err = api.GetBlockByNumber(ctx, shardId, transport.LatestBlockNumber, false)
-	require.NoError(t, err)
-	require.Nil(t, data)
+	_, err = api.GetBlockByNumber(ctx, shardId, transport.LatestBlockNumber, false)
+	require.ErrorIs(t, err, db.ErrKeyNotFound)
 
-	data, err = api.GetBlockByNumber(ctx, shardId, transport.BlockNumber(123), false)
-	require.NoError(t, err)
-	require.Nil(t, data)
+	_, err = api.GetBlockByNumber(ctx, shardId, transport.BlockNumber(123), false)
+	require.ErrorIs(t, err, db.ErrKeyNotFound)
 }

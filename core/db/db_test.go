@@ -126,7 +126,6 @@ func ValidateTransaction(s *suite.Suite, db DB) {
 	defer tx.Rollback()
 
 	has, err = tx.Exists("tbl", []byte("foo"))
-
 	s.Require().NoError(err)
 	s.True(has, "Key 'foo' should be present")
 
@@ -156,8 +155,8 @@ func ValidateBlock(s *suite.Suite, d DB) {
 	err = WriteBlock(tx, types.BaseShardId, &block)
 	s.Require().NoError(err)
 
-	block2 := ReadBlock(tx, types.BaseShardId, block.Hash())
-
+	block2, err := ReadBlock(tx, types.BaseShardId, block.Hash())
+	s.Require().NoError(err)
 	s.Equal(block2.Id, block.Id)
 	s.Equal(block2.PrevBlock, block.PrevBlock)
 	s.Equal(block2.SmartContractsRoot, block.SmartContractsRoot)

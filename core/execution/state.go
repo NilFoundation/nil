@@ -144,16 +144,20 @@ func NewAccountState(es *ExecutionState, addr types.Address, tx db.RwTx, account
 }
 
 // NewEVMBlockContext creates a new context for use in the EVM.
-func NewEVMBlockContext(es *ExecutionState) vm.BlockContext {
-	header := db.ReadBlock(es.tx, es.ShardId, es.PrevBlock)
+func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
+	header, err := db.ReadBlock(es.tx, es.ShardId, es.PrevBlock)
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		return nil, err
+	}
+
 	lastBlockId := uint64(0)
 	if header != nil {
 		lastBlockId = header.Id.Uint64()
 	}
-	return vm.BlockContext{
+	return &vm.BlockContext{
 		GetHash:     getHashFn(es, header),
 		BlockNumber: lastBlockId,
-	}
+	}, nil
 }
 
 func NewROExecutionState(tx db.RoTx, shardId types.ShardId, blockHash common.Hash, timer common.Timer) (*ExecutionState, error) {
@@ -165,33 +169,14 @@ func NewROExecutionStateForShard(tx db.RoTx, shardId types.ShardId, timer common
 }
 
 func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash, timer common.Timer) (*ExecutionState, error) {
-	block := db.ReadBlock(tx, shardId, blockHash)
-
-	var contractRoot, messageRoot, outMessagesTrie, receiptRoot *mpt.MerklePatriciaTrie
-	contractTrieTable := db.ContractTrieTable
-	messageTrieTable := db.MessageTrieTable
-	receiptTrieTable := db.ReceiptTrieTable
-	if block != nil {
-		contractRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, contractTrieTable, block.SmartContractsRoot)
-	} else {
-		contractRoot = mpt.NewMerklePatriciaTrie(tx, shardId, contractTrieTable)
-	}
-	messageRoot = mpt.NewMerklePatriciaTrie(tx, shardId, messageTrieTable)
-	outMessagesTrie = mpt.NewMerklePatriciaTrie(tx, shardId, messageTrieTable)
-	receiptRoot = mpt.NewMerklePatriciaTrie(tx, shardId, receiptTrieTable)
-
 	accessor, err := NewStateAccessor()
 	if err != nil {
 		return nil, err
 	}
 
-	return &ExecutionState{
+	res := &ExecutionState{
 		tx:               tx,
 		Timer:            timer,
-		ContractTree:     NewContractTrie(contractRoot),
-		InMessageTree:    NewMessageTrie(messageRoot),
-		OutMessageTree:   NewMessageTrie(outMessagesTrie),
-		ReceiptTree:      NewReceiptTrie(receiptRoot),
 		PrevBlock:        blockHash,
 		ShardId:          shardId,
 		ChildChainBlocks: map[types.ShardId]common.Hash{},
@@ -203,22 +188,34 @@ func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash,
 		transientStorage: newTransientStorage(),
 
 		Accessor: accessor,
-	}, nil
+	}
+	return res, res.initTries()
+}
+
+func (es *ExecutionState) initTries() error {
+	block, err := db.ReadBlock(es.tx, es.ShardId, es.PrevBlock)
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		return err
+	}
+
+	if block != nil {
+		es.ContractTree = NewContractTrie(mpt.NewMerklePatriciaTrieWithRoot(es.tx, es.ShardId, db.ContractTrieTable, block.SmartContractsRoot))
+	} else {
+		es.ContractTree = NewContractTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.ContractTrieTable))
+	}
+	es.InMessageTree = NewMessageTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.MessageTrieTable))
+	es.OutMessageTree = NewMessageTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.MessageTrieTable))
+	es.ReceiptTree = NewReceiptTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.ReceiptTrieTable))
+
+	return nil
 }
 
 func NewExecutionStateForShard(tx db.RwTx, shardId types.ShardId, timer common.Timer) (*ExecutionState, error) {
-	lastBlockHashBytes, err := tx.Get(db.LastBlockTable, shardId.Bytes())
+	hash, err := db.ReadLastBlockHash(tx, shardId)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, fmt.Errorf("failed getting last block: %w", err)
 	}
-
-	lastBlockHash := common.EmptyHash
-	// No previous blocks yet
-	if lastBlockHashBytes != nil {
-		lastBlockHash = common.Hash(lastBlockHashBytes)
-	}
-
-	return NewExecutionState(tx, shardId, lastBlockHash, timer)
+	return NewExecutionState(tx, shardId, hash, timer)
 }
 
 func (es *ExecutionState) GetReceipt(msgIndex types.MessageIndex) (*types.Receipt, error) {
@@ -467,12 +464,13 @@ func (es *ExecutionState) SetInitState(addr types.Address, message *types.Messag
 	acc := es.GetAccount(addr)
 	acc.setSeqno(message.Seqno)
 
-	es.newVm()
+	if err := es.newVm(); err != nil {
+		return err
+	}
 	defer es.resetVm()
 
 	var from types.Address
 	var value uint256.Int
-	var err error
 	_, deployAddr, _, err := es.evm.Deploy(addr, (vm.AccountRef)(from), message.Data, uint64(100000) /* gas */, &value)
 	if err != nil {
 		return err
@@ -737,7 +735,9 @@ func (es *ExecutionState) HandleDeployMessage(
 
 	gas := message.GasLimit.Uint64()
 
-	es.newVm()
+	if err := es.newVm(); err != nil {
+		return gas, err
+	}
 	defer es.resetVm()
 
 	_, addr, leftOverGas, err := es.evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code(), gas, &message.Value.Int)
@@ -769,7 +769,9 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 
 	gas := message.GasLimit.Uint64()
 
-	es.newVm()
+	if err := es.newVm(); err != nil {
+		return gas, nil, err
+	}
 	defer es.resetVm()
 
 	if es.TraceVm {
@@ -908,34 +910,40 @@ func (es *ExecutionState) RoTx() db.RoTx {
 	return es.tx
 }
 
-func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *AccountState) bool {
+func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *AccountState) (bool, error) {
 	methodSignature := "verifyExternal(uint256,bytes)"
 	methodSelector := crypto.Keccak256([]byte(methodSignature))[:4]
 	argSpec := vm.VerifySignatureArgs()[1:] // skip first arg (pubkey)
 	hash, err := message.SigningHash()
 	if err != nil {
-		return false
+		return false, err
 	}
 	argData, err := argSpec.Pack(hash.Big(), ([]byte)(message.Signature))
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to pack arguments")
-		return false
+		return false, err
 	}
 	calldata := append(methodSelector, argData...) //nolint:gocritic
 
-	es.newVm()
+	if err := es.newVm(); err != nil {
+		return false, err
+	}
 	defer es.resetVm()
 
 	ret, _, err := es.evm.StaticCall((vm.AccountRef)(account.address), account.address, calldata, ExternalMessageVerificationMaxGas)
 	if err != nil || !bytes.Equal(ret, common.LeftPadBytes([]byte{1}, 32)) {
-		return false
+		return false, err
 	}
-	return true
+	return true, nil
 }
 
-func (es *ExecutionState) newVm() {
-	blockContext := NewEVMBlockContext(es)
+func (es *ExecutionState) newVm() error {
+	blockContext, err := NewEVMBlockContext(es)
+	if err != nil {
+		return err
+	}
 	es.evm = vm.NewEVM(blockContext, es)
+	return nil
 }
 
 func (es *ExecutionState) resetVm() {

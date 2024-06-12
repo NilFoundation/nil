@@ -2,7 +2,6 @@ package jsonrpc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	fastssz "github.com/NilFoundation/fastssz"
@@ -27,7 +26,7 @@ func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardI
 	defer tx.Rollback()
 
 	data, err := api.accessor.Access(tx, shardId).GetInMessage().WithReceipt().ByHash(hash)
-	if data.Message() == nil || err != nil {
+	if err != nil {
 		return nil, err
 	}
 	return NewRPCInMessage(data.Message(), data.Receipt(), data.Index(), data.Block())
@@ -47,12 +46,12 @@ func (api *APIImpl) getInMessageByBlockNumberOrHashAndIndex(ctx context.Context,
 	defer tx.Rollback()
 
 	block, err := api.fetchBlockByNumberOrHash(tx, shardId, hashOrNum)
-	if err != nil || block == nil {
+	if err != nil {
 		return nil, err
 	}
 
 	msg, receipt, err := api.getInMessageByBlockHashAndIndex(tx, shardId, block, types.MessageIndex(index))
-	if err != nil || msg == nil || receipt == nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -85,7 +84,7 @@ func (api *APIImpl) getRawInMessageByBlockNumberOrHashAndIndex(ctx context.Conte
 	defer tx.Rollback()
 
 	block, err := api.fetchBlockByNumberOrHash(tx, shardId, hashOrNum)
-	if err != nil || block == nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -114,35 +113,30 @@ func (api *APIImpl) GetRawInMessageByHash(ctx context.Context, shardId types.Sha
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}
-
 	defer tx.Rollback()
 
 	block, indexes, err := api.getBlockAndInMessageIndexByMessageHash(tx, shardId, hash)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil
+	if err != nil {
+		return nil, err
 	}
 	return getRawBlockEntity(tx, shardId, db.MessageTrieTable, block.InMessagesRoot, indexes.MessageIndex.Bytes())
 }
 
 func (api *APIImpl) getBlockAndInMessageIndexByMessageHash(tx db.RoTx, shardId types.ShardId, hash common.Hash) (*types.Block, db.BlockHashAndMessageIndex, error) {
+	var index db.BlockHashAndMessageIndex
 	value, err := tx.GetFromShard(shardId, db.BlockHashAndInMessageIndexByMessageHash, hash.Bytes())
 	if err != nil {
-		return nil, db.BlockHashAndMessageIndex{}, err
+		return nil, index, err
+	}
+	if err := index.UnmarshalSSZ(value); err != nil {
+		return nil, index, err
 	}
 
-	var blockHashAndMessageIndex db.BlockHashAndMessageIndex
-	if err := blockHashAndMessageIndex.UnmarshalSSZ(value); err != nil {
-		return nil, db.BlockHashAndMessageIndex{}, err
-	}
-
-	data, err := api.accessor.Access(tx, shardId).GetBlock().ByHash(blockHashAndMessageIndex.BlockHash)
-	if err == nil && data.Block() == nil {
-		err = errNotFound
-	}
+	data, err := api.accessor.Access(tx, shardId).GetBlock().ByHash(index.BlockHash)
 	if err != nil {
 		return nil, db.BlockHashAndMessageIndex{}, err
 	}
-	return data.Block(), blockHashAndMessageIndex, nil
+	return data.Block(), index, nil
 }
 
 func getRawBlockEntity(
@@ -187,11 +181,7 @@ func (api *APIImpl) getInMessageByBlockHashAndIndex(
 	tx db.RoTx, shardId types.ShardId, block *types.Block, msgIndex types.MessageIndex,
 ) (*types.Message, *types.Receipt, error) {
 	msgRaw, receiptRaw, err := api.getRawInMessageByBlockHashAndIndex(tx, shardId, block, msgIndex)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil, nil
-	}
-
-	if err != nil || msgRaw == nil || receiptRaw == nil {
+	if err != nil {
 		return nil, nil, err
 	}
 

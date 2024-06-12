@@ -2,6 +2,7 @@ package collate
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/NilFoundation/nil/common"
@@ -80,7 +81,7 @@ func (s *Scheduler) generateZeroState(ctx context.Context) error {
 	defer roTx.Rollback()
 
 	lastBlockHash, err := db.ReadLastBlockHash(roTx, s.id)
-	if err != nil {
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return err
 	}
 	if lastBlockHash == common.EmptyHash {
