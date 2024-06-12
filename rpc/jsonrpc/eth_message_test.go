@@ -66,6 +66,7 @@ func (s *SuiteEthMessage) TestGetMessageByHash() {
 	data, err := s.api.GetInMessageByHash(context.Background(), types.BaseShardId, s.message.Hash())
 	s.Require().NoError(err)
 	s.Equal(s.message.Hash(), data.Hash)
+	s.EqualValues([]byte("data"), data.Data)
 
 	rawData, err := s.api.GetRawInMessageByHash(context.Background(), types.BaseShardId, s.message.Hash())
 	s.Require().NoError(err)
