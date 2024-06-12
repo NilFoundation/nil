@@ -3,6 +3,7 @@ package receipt
 import (
 	"github.com/NilFoundation/nil/cli/services/receipt"
 	"github.com/NilFoundation/nil/client/rpc"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -10,13 +11,13 @@ import (
 
 var logger = logging.NewLogger("receiptCommand")
 
-func GetCommand(rpcEndpoint string) *cobra.Command {
+func GetCommand(cfg *config.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
 		Use:     "receipt",
 		Short:   "Retrieve a receipt from the cluster",
 		PreRunE: runPreRun,
 		Run: func(cmd *cobra.Command, args []string) {
-			runCommand(cmd, args, rpcEndpoint)
+			runCommand(cmd, args, cfg.RPCEndpoint)
 		},
 	}
 
