@@ -319,7 +319,10 @@ func (c *sendMessage) Run(state StateDB, input []byte, gas uint64, value *uint25
 	var dst types.Address
 	copy(dst[:], input[32-types.AddrSize:32])
 	input = input[32:]
+
+	// Internal is required for the message
 	msg := &types.Message{
+		Internal: true,
 		GasLimit: *types.NewUint256(gas),
 		Value:    types.Uint256{Int: *value},
 		From:     caller.Address(),
