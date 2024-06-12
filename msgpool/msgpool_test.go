@@ -19,12 +19,11 @@ type SuiteMsgPool struct {
 
 func newMessage(from types.Address, seqno types.Seqno, fee uint64) types.Message {
 	return types.Message{
-		From:      from,
-		To:        types.Address{},
-		Value:     types.Uint256{Int: *uint256.NewInt(fee)},
-		Data:      types.Code(""),
-		Seqno:     seqno,
-		Signature: common.EmptySignature,
+		From:  from,
+		To:    types.Address{},
+		Value: types.Uint256{Int: *uint256.NewInt(fee)},
+		Data:  types.Code(""),
+		Seqno: seqno,
 	}
 }
 

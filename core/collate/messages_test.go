@@ -77,11 +77,10 @@ func (s *MessagesSuite) TestValidateMessage() {
 	es.CreateAccount(addrTo)
 
 	msg := &types.Message{
-		From:      types.EmptyAddress,
-		To:        addrTo,
-		Seqno:     0,
-		Signature: common.EmptySignature,
-		Internal:  false,
+		From:     types.EmptyAddress,
+		To:       addrTo,
+		Seqno:    0,
+		Internal: false,
 	}
 
 	// "From" doesn't exist

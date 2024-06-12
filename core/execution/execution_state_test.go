@@ -153,6 +153,9 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 		msgRead, err := messagesRoot.Fetch(0)
 		suite.Require().NoError(err)
 
+		if len(msgRead.Signature) == 0 {
+			msgRead.Signature = nil
+		}
 		suite.Equal(msg, msgRead)
 	}
 

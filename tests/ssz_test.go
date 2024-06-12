@@ -45,12 +45,11 @@ func TestSszMessage(t *testing.T) {
 	t.Parallel()
 
 	message := types.Message{
-		From:      types.Address{},
-		To:        types.Address{},
-		Value:     types.Uint256{Int: uint256.Int{1234}},
-		Data:      types.Code{0x00000001},
-		Seqno:     567,
-		Signature: common.EmptySignature,
+		From:  types.Address{},
+		To:    types.Address{},
+		Value: types.Uint256{Int: uint256.Int{1234}},
+		Data:  types.Code{0x00000001},
+		Seqno: 567,
 	}
 
 	encoded, err := message.MarshalSSZ()
@@ -65,12 +64,12 @@ func TestSszMessage(t *testing.T) {
 	require.Equal(t, message2.Value, message.Value)
 	require.Equal(t, message2.Data, message.Data)
 	require.Equal(t, message2.Seqno, message.Seqno)
-	require.Equal(t, message2.Signature, message.Signature)
+	require.True(t, bytes.Equal(message2.Signature, message.Signature))
 
 	h, err := common.PoseidonSSZ(&message2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("25013acbca987b5cb4c1b40743590589af31766ad94448ee3ef3243fd4b161c9")
+	h2, err := hex.DecodeString("0f9a7fd8c484ddb71323bc26d469b1ac082f8203bdfc7ca11bf4091b84cc8736")
 	require.NoError(t, err)
 
 	require.Equal(t, common.BytesToHash(h2), common.BytesToHash(h[:]))

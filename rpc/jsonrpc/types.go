@@ -33,7 +33,7 @@ type RPCInMessage struct {
 	Index       *hexutil.Uint64   `json:"index"`
 	Value       types.Uint256     `json:"value"`
 	ChainID     types.Uint256     `json:"chainId,omitempty"`
-	Signature   common.Signature  `json:"signature"`
+	Signature   types.Signature   `json:"signature"`
 }
 
 type RPCBlock struct {

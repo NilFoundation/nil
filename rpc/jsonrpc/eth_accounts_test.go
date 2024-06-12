@@ -164,7 +164,7 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 
 	sig, err := crypto.Sign(digest.Bytes(), key)
 	suite.Require().NoError(err)
-	msg.Signature = common.Signature(sig)
+	msg.Signature = types.Signature(sig)
 
 	data, err := msg.MarshalSSZ()
 	suite.Require().NoError(err)

@@ -49,7 +49,7 @@ type Message struct {
 	Value    Uint256 `json:"value,omitempty" ch:"value" ssz-size:"32"`
 	Data     Code    `json:"data,omitempty" ch:"data" ssz-max:"24576"`
 	// This field should always be at the end of the structure for easy signing
-	Signature common.Signature `json:"signature,omitempty" ch:"signature"`
+	Signature Signature `json:"signature,omitempty" ch:"signature" ssz-max:"256"`
 }
 
 type messageDigest struct {
@@ -104,14 +104,15 @@ func (m *Message) Sign(key *ecdsa.PrivateKey) error {
 		return err
 	}
 
-	m.Signature = common.Signature(sig)
+	m.Signature = Signature(sig)
 
 	return nil
 }
 
 func (m *Message) ValidateSignature(pubBytes []byte) (bool, error) {
-	// Compile-time assertion that len >= 65.
-	const _ = uint(len(m.Signature)) - 65
+	if len(m.Signature) < 65 {
+		return false, nil
+	}
 
 	hash, err := m.SigningHash()
 	if err != nil {
