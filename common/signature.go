@@ -15,7 +15,7 @@ func (s Signature) MarshalText() ([]byte, error) {
 }
 
 func (s Signature) Hex() string {
-	enc := make([]byte, len(s[:])*2+2)
+	enc := make([]byte, hex.EncodedLen(len(s[:]))+2)
 	copy(enc, "0x")
 	hex.Encode(enc[2:], s[:])
 	return string(enc)

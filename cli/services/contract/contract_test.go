@@ -1,11 +1,12 @@
 package contract
 
 import (
-	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/NilFoundation/nil/client/mock"
+	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,7 +16,10 @@ import (
 var mockSuccessResponse = "0x6001600101600055"
 
 // Mock responses
-var mockSuccessSeqNumResponse = json.RawMessage(`"0x1"`)
+var mockSuccessSeqNumResponse = types.Seqno(0x1)
+
+// Mock hash
+var mockSuccessHash = common.HexToHash("294a68120c056a549d314efa8306dafdb856f7b51dde976df0e807e001ff84ac")
 
 // Mock private key
 var mockPrivateKey = "6c1beb99b140a104df88b6f63275feaa7fcab908b1ef0632c78539da9a486c7e"
@@ -24,21 +28,16 @@ var mockPrivateKey = "6c1beb99b140a104df88b6f63275feaa7fcab908b1ef0632c78539da9a
 func TestGetCode_Successfully(t *testing.T) {
 	t.Parallel()
 
+	code := types.Code(hexutil.MustDecodeHex(mockSuccessResponse))
 	mockClient := &mock.MockClient{
-		CallFn: func(method string, params []interface{}) (json.RawMessage, error) {
-			mockResponse, err := json.Marshal(mockSuccessResponse)
-			if err != nil {
-				return nil, err
-			}
-			return mockResponse, nil
-		},
+		Code: &code,
 	}
 
 	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
 
-	code, err := service.GetCode("0x1234")
+	codeHex, err := service.GetCode("0x1234")
 	require.NoError(t, err)
-	assert.Equal(t, mockSuccessResponse, code)
+	assert.Equal(t, mockSuccessResponse, codeHex)
 }
 
 // TestGetCode_Err tests getting the contract code with errors
@@ -47,9 +46,7 @@ func TestGetCode_Err(t *testing.T) {
 
 	// Test case for RPC error
 	mockClient := &mock.MockClient{
-		CallFn: func(method string, params []interface{}) (json.RawMessage, error) {
-			return nil, errors.New("RPC error")
-		},
+		Err: errors.New("RPC error"),
 	}
 
 	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
@@ -57,19 +54,6 @@ func TestGetCode_Err(t *testing.T) {
 	_, err := service.GetCode("0x1234")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "RPC error")
-
-	// Test case for JSON unmarshal error
-	mockClient = &mock.MockClient{
-		CallFn: func(method string, params []interface{}) (json.RawMessage, error) {
-			return json.RawMessage(`{"result": "0x1234567890abcdef"`), nil
-		},
-	}
-
-	service = NewService(mockClient, mockPrivateKey, types.BaseShardId)
-
-	_, err = service.GetCode("0x1234")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unexpected end of JSON input")
 }
 
 // TestRunContract_Successfully tests running a contract without errors
@@ -77,20 +61,15 @@ func TestRunContract_Successfully(t *testing.T) {
 	t.Parallel()
 
 	mockClient := &mock.MockClient{
-		CallFn: func(method string, params []interface{}) (json.RawMessage, error) {
-			mockResponse, err := json.Marshal(mockSuccessResponse)
-			if err != nil {
-				return nil, err
-			}
-			return mockResponse, nil
-		},
+		Seqno: &mockSuccessSeqNumResponse,
+		Hash:  &mockSuccessHash,
 	}
 
 	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
 
 	txHash, err := service.RunContract("0x6001600101600055", "0x1234")
 	require.NoError(t, err)
-	assert.Equal(t, mockSuccessResponse, txHash)
+	assert.Equal(t, mockSuccessHash, common.HexToHash(txHash))
 }
 
 // TestRunContract_Err tests running a contract with errors
@@ -99,36 +78,12 @@ func TestRunContract_Err(t *testing.T) {
 
 	// Test case for RPC error
 	mockClient := &mock.MockClient{
-		CallFn: func(method string, params []interface{}) (json.RawMessage, error) {
-			if method == getTransactionCount {
-				return nil, errors.New("RPC error")
-			}
-			return nil, nil
-		},
+		Err: errors.New("RPC error"),
 	}
 
 	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
 
 	_, err := service.RunContract("0x6001600101600055", "0x1234")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "RPC error")
-
-	// Test case for sendRawTransactionError
-	mockClient = &mock.MockClient{
-		CallFn: func(method string, params []interface{}) (json.RawMessage, error) {
-			if method == getTransactionCount {
-				return mockSuccessSeqNumResponse, nil
-			}
-			if method == sendRawTransaction {
-				return nil, errors.New("RPC error")
-			}
-			return nil, nil
-		},
-	}
-
-	service = NewService(mockClient, mockPrivateKey, types.BaseShardId)
-
-	_, err = service.RunContract("0x6001600101600055", "0x1234")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "RPC error")
 }
@@ -138,20 +93,15 @@ func TestDeployContract_Successfully(t *testing.T) {
 	t.Parallel()
 
 	mockClient := &mock.MockClient{
-		CallFn: func(method string, params []interface{}) (json.RawMessage, error) {
-			mockResponse, err := json.Marshal(mockSuccessResponse)
-			if err != nil {
-				return nil, err
-			}
-			return mockResponse, nil
-		},
+		Seqno: &mockSuccessSeqNumResponse,
+		Hash:  &mockSuccessHash,
 	}
 
 	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
 
 	txHash, err := service.DeployContract("0x6001600101600055")
 	require.NoError(t, err)
-	assert.Equal(t, mockSuccessResponse, txHash)
+	assert.Equal(t, mockSuccessHash, common.HexToHash(txHash))
 }
 
 // TestContractDeployment_Err tests deploying a contract with errors
@@ -160,36 +110,12 @@ func TestContractDeployment_Err(t *testing.T) {
 
 	// Test case for RPC error
 	mockClient := &mock.MockClient{
-		CallFn: func(method string, params []interface{}) (json.RawMessage, error) {
-			if method == getTransactionCount {
-				return nil, errors.New("RPC error")
-			}
-			return nil, nil
-		},
+		Err: errors.New("RPC error"),
 	}
 
 	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
 
 	_, err := service.DeployContract("0x6001600101600055")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "RPC error")
-
-	// Test case for sendRawTransactionError
-	mockClient = &mock.MockClient{
-		CallFn: func(method string, params []interface{}) (json.RawMessage, error) {
-			if method == getTransactionCount {
-				return mockSuccessSeqNumResponse, nil
-			}
-			if method == sendRawTransaction {
-				return nil, errors.New("RPC error")
-			}
-			return nil, nil
-		},
-	}
-
-	service = NewService(mockClient, mockPrivateKey, types.BaseShardId)
-
-	_, err = service.DeployContract("0x6001600101600055")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "RPC error")
 }
