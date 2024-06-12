@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
@@ -38,6 +39,7 @@ const (
 	Eth_getTransactionCount              = "eth_getTransactionCount"
 	Eth_getBlockTransactionCountByNumber = "eth_getBlockTransactionCountByNumber"
 	Eth_getBlockTransactionCountByHash   = "eth_getBlockTransactionCountByHash"
+	Eth_getBalance                       = "eth_getBalance"
 )
 
 type Client struct {
@@ -249,4 +251,16 @@ func (c *Client) GetBlockTransactionCountByHash(shardId types.ShardId, hash comm
 		return 0, err
 	}
 	return toUint64(res)
+}
+
+func (c *Client) GetBalance(address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*big.Int, error) {
+	params := []any{address.String(), blockNrOrHash}
+	res, err := c.call(Eth_getBalance, params)
+	if err != nil {
+		return big.NewInt(0), err
+	}
+
+	balance := hexutil.Big{}
+	err = balance.UnmarshalJSON(res)
+	return balance.ToInt(), err
 }

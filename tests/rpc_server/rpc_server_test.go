@@ -32,7 +32,7 @@ type SuiteRpc struct {
 	client  client.Client
 }
 
-func (suite *SuiteRpc) SetupSuite() {
+func (suite *SuiteRpc) SetupTest() {
 	suite.context, suite.cancel = context.WithCancel(context.Background())
 
 	badger, err := db.NewBadgerDbInMemory()
@@ -50,7 +50,7 @@ func (suite *SuiteRpc) SetupSuite() {
 	time.Sleep(time.Second) // To be sure that server is started
 }
 
-func (suite *SuiteRpc) TearDownSuite() {
+func (suite *SuiteRpc) TearDownTest() {
 	suite.cancel()
 }
 

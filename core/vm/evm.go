@@ -401,7 +401,8 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *uint2
 // The different between Create2 with Create is Create2 uses keccak256(0xff ++ msg.sender ++ salt ++ keccak256(init_code))[12:]
 // instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
 func (evm *EVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *uint256.Int, salt *uint256.Int) (ret []byte, contractAddr types.Address, leftOverGas uint64, err error) {
-	panic("CREATE2 not implemented")
+	contractAddr = types.CreateAddressWithSalt(caller.Address().ShardId(), code, &types.Uint256{Int: *salt})
+	return evm.create(caller, types.Code(code), gas, endowment, contractAddr)
 }
 
 // canTransfer checks whether there are enough funds in the address' account to make a transfer.
