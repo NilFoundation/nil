@@ -25,7 +25,3 @@ func (c Code) Hash() common.Hash {
 	}
 	return common.PoseidonHash(c[:])
 }
-
-func (s Code) Static() bool {
-	return false
-}
