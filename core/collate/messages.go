@@ -74,7 +74,6 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 
 		ok, err := validateMessage(roTx, es, message)
 		if err != nil {
-			addFailReceipt(es, err)
 			return err
 		}
 		if !ok {
@@ -176,6 +175,7 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 		fromId := message.From.ShardId()
 		data, err := es.Accessor.Access(roTx, fromId).GetOutMessage().ByHash(message.Hash())
 		if err != nil {
+			addFailReceipt(es, err)
 			return false, err
 		}
 		return data.Message() != nil, nil
