@@ -6,7 +6,6 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
-	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
@@ -66,12 +65,8 @@ func (s *MessagesSuite) TestValidateMessage() {
 	s.Require().NoError(err)
 	s.Require().NotNil(es)
 
-	key, err := crypto.GenerateKey()
-	s.Require().NoError(err)
-
 	addrFrom := types.HexToAddress("0000832983856CB0CF6CD570F071122F1BEA2F20")
 	es.CreateAccount(addrFrom)
-	es.Accounts[addrFrom].PublicKey = [types.PublicKeySize]byte(crypto.CompressPubkey(&key.PublicKey))
 
 	addrTo := types.HexToAddress("1111832983856CB0CF6CD570F071122F1BEA2F20")
 	es.CreateAccount(addrTo)

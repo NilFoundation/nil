@@ -202,7 +202,7 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 
 	var ok bool
 	if es.ContractExists(addr) {
-		ok = es.CallValidateExternal(message, accountState)
+		ok = es.CallVerifyExternal(message, accountState)
 	} else {
 		// External deployment. Ensure that the account pays for it itself
 		ok = (message.From == message.To)
