@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/NilFoundation/nil/cmd/nil_cli/block"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/cmd/nil_cli/contract"
 	"github.com/NilFoundation/nil/cmd/nil_cli/keygen"
 	"github.com/NilFoundation/nil/cmd/nil_cli/message"
@@ -14,26 +15,27 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Config struct {
-	RPCEndpoint string `mapstructure:"rpc_endpoint"`
-	PrivateKey  string `mapstructure:"private_key"`
-}
-
 type RootCommand struct {
 	baseCmd *cobra.Command
-	config  Config
+	config  config.Config
 }
 
 var logger = logging.NewLogger("rootCommand")
 
 func main() {
-	rootCommand := &RootCommand{
+	var rootCommand *RootCommand
+
+	rootCommand = &RootCommand{
 		baseCmd: &cobra.Command{
 			Short: "CLI tool for interacting with the =nil; cluster",
+			PersistentPreRun: func(cmd *cobra.Command, args []string) {
+				if cmd.CalledAs() != "help" {
+					rootCommand.loadConfig()
+				}
+			},
 		},
 	}
 
-	rootCommand.loadConfig()
 	rootCommand.registerSubCommands()
 	rootCommand.Execute()
 }
@@ -42,13 +44,13 @@ func main() {
 func (rc *RootCommand) registerSubCommands() {
 	rc.baseCmd.AddCommand(
 		keygen.GetCommand(),
-		block.GetCommand(rc.config.RPCEndpoint),
-		message.GetCommand(rc.config.RPCEndpoint),
-		receipt.GetCommand(rc.config.RPCEndpoint),
-		contract.GetCommand(rc.config.RPCEndpoint, rc.config.PrivateKey),
+		block.GetCommand(&rc.config),
+		message.GetCommand(&rc.config),
+		receipt.GetCommand(&rc.config),
+		contract.GetCommand(&rc.config),
 	)
 
-	logger.Info().Msg("Subcommands registered")
+	logger.Trace().Msg("Subcommands registered")
 }
 
 // loadConfig loads the configuration from the config file
@@ -76,5 +78,5 @@ func (rc *RootCommand) Execute() {
 		os.Exit(1)
 	}
 
-	logger.Info().Msg("Command executed successfully")
+	logger.Trace().Msg("Command executed successfully")
 }
