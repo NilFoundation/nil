@@ -892,8 +892,9 @@ func (es *ExecutionState) CallValidateExternal(message *types.Message, account *
 	if err != nil {
 		return false
 	}
-	argData, err := argSpec.Pack(account.PublicKey[:], hash.Big(), message.Signature[:])
+	argData, err := argSpec.Pack(account.PublicKey[:], hash.Big(), ([]byte)(message.Signature))
 	if err != nil {
+		logger.Error().Err(err).Msg("failed to pack arguments")
 		return false
 	}
 	calldata := append(methodSelector, argData...) //nolint:gocritic

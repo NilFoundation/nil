@@ -1,4 +1,4 @@
-package common
+package types
 
 import (
 	"encoding/hex"
@@ -6,9 +6,7 @@ import (
 	"github.com/NilFoundation/nil/common/hexutil"
 )
 
-type Signature [SignatureSize]byte
-
-var EmptySignature = Signature{}
+type Signature []byte
 
 func (s Signature) MarshalText() ([]byte, error) {
 	return hexutil.Bytes(s[:]).MarshalText()
