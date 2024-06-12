@@ -6,14 +6,9 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/crypto"
-	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 )
-
-var faucetAddr types.Address = types.PubkeyBytesToAddress(
-	types.BaseShardId,
-	crypto.CompressPubkey(&execution.MainPrivateKey.PublicKey))
 
 func (suite *SuiteRpc) createWalletViaFaucet(shardId types.ShardId, value int64) types.Address {
 	privateKey, err := crypto.GenerateKey()
@@ -26,6 +21,11 @@ func (suite *SuiteRpc) createWalletViaFaucet(shardId types.ShardId, value int64)
 	salt := types.NewUint256(123)
 	calldata, err := faucetABI.Pack("createWallet", publicKey, salt.Bytes32(), big.NewInt(value))
 	suite.Require().NoError(err)
+
+	faucetCode, err := contracts.GetCode("Faucet")
+	suite.Require().NoError(err)
+
+	faucetAddr := types.CreateAddress(types.BaseShardId, faucetCode)
 
 	seqno := suite.getTransactionCount(faucetAddr, "latest")
 	msgExternal := &types.Message{

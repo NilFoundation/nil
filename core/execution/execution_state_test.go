@@ -180,7 +180,7 @@ func newState(t *testing.T) *ExecutionState {
 	state, err := NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0))
 	require.NoError(t, err)
 
-	err = state.GenerateZeroState(context.Background())
+	err = state.GenerateZeroState(DefaultZeroStateConfig)
 	require.NoError(t, err)
 	return state
 }
