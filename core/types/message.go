@@ -108,16 +108,3 @@ func (m *Message) Sign(key *ecdsa.PrivateKey) error {
 
 	return nil
 }
-
-func (m *Message) ValidateSignature(pubBytes []byte) (bool, error) {
-	if len(m.Signature) < 65 {
-		return false, nil
-	}
-
-	hash, err := m.SigningHash()
-	if err != nil {
-		return false, err
-	}
-
-	return crypto.VerifySignature(pubBytes, hash.Bytes(), m.Signature[:64]), nil
-}

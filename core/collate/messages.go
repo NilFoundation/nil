@@ -181,7 +181,7 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 		return data.Message() != nil, nil
 	}
 
-	addr := message.From
+	addr := message.To
 	r := &types.Receipt{
 		Success:         false,
 		GasUsed:         0,
@@ -206,15 +206,6 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 	} else {
 		// External deployment. Ensure that the account pays for it itself
 		ok = (message.From == message.To)
-	}
-
-	if !ok {
-		// Legacy fallback: hardcoded signature validation
-		ok2, err := message.ValidateSignature(accountState.PublicKey[:])
-		if err != nil {
-			return false, err
-		}
-		ok = ok2
 	}
 
 	if !ok {
