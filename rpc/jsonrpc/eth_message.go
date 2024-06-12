@@ -131,7 +131,7 @@ func (api *APIImpl) getBlockAndInMessageIndexByMessageHash(tx db.RoTx, shardId t
 	}
 
 	var blockHashAndMessageIndex db.BlockHashAndMessageIndex
-	if err := blockHashAndMessageIndex.UnmarshalSSZ(*value); err != nil {
+	if err := blockHashAndMessageIndex.UnmarshalSSZ(value); err != nil {
 		return nil, db.BlockHashAndMessageIndex{}, err
 	}
 

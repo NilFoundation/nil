@@ -77,11 +77,11 @@ func ValidateTablesName(s *suite.Suite, db DB) {
 
 		val1, err := tx.Get("tbl", []byte("HelloWorld"))
 		s.Require().NoError(err)
-		s.Equal(*val1, []byte("bar1"))
+		s.Equal([]byte("bar1"), val1)
 
 		val2, err := tx.Get("tblHello", []byte("World"))
 		s.Require().NoError(err)
-		s.Equal(*val2, []byte("bar2"))
+		s.Equal([]byte("bar2"), val2)
 	})
 }
 
@@ -99,7 +99,7 @@ func ValidateTransaction(s *suite.Suite, db DB) {
 
 	val, err := tx.Get("tbl", []byte("foo"))
 	s.Require().NoError(err)
-	s.Equal(*val, []byte("bar"))
+	s.Equal([]byte("bar"), val)
 
 	_, err = tx.Get("tbl", []byte("bar"))
 	s.Require().ErrorIs(err, ErrKeyNotFound)
@@ -182,7 +182,7 @@ func ValidateDbOperations(s *suite.Suite, d DB) {
 
 		val, err := roTx.Get("tbl", []byte("foo"))
 		s.Require().NoError(err)
-		s.Equal(*val, []byte("bar"))
+		s.Equal([]byte("bar"), val)
 
 		_, err = roTx.Get("tbl", []byte("bar"))
 		s.Require().ErrorIs(err, ErrKeyNotFound)

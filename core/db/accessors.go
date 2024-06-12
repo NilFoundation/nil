@@ -29,7 +29,7 @@ func readDecodable[
 	}
 
 	decoded := new(S)
-	err = T(decoded).UnmarshalSSZ(*data)
+	err = T(decoded).UnmarshalSSZ(data)
 	check.LogAndPanicIfErrf(err, log.Logger, "Invalid SSZ while reading from %s. hash: %v", table, hash)
 
 	return decoded
@@ -63,7 +63,7 @@ func ReadVersionInfo(tx RoTx) (*types.VersionInfo, error) {
 		return nil, err
 	}
 	res := types.VersionInfo{}
-	err = res.UnmarshalSSZ(*rawVersionInfo)
+	err = res.UnmarshalSSZ(rawVersionInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func ReadCollatorState(tx RoTx, shardId types.ShardId) (types.CollatorState, err
 		return res, err
 	}
 
-	if err = res.UnmarshalSSZ(*buf); err != nil {
+	if err = res.UnmarshalSSZ(buf); err != nil {
 		return res, err
 	}
 	return res, nil
@@ -134,7 +134,7 @@ func ReadLastBlockHash(tx RoTx, shardId types.ShardId) (common.Hash, error) {
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	return common.BytesToHash(*h), nil
+	return common.BytesToHash(h), nil
 }
 
 func WriteBlock(tx RwTx, shardId types.ShardId, block *types.Block) error {
@@ -166,12 +166,7 @@ func ReadCode(tx RoTx, shardId types.ShardId, hash common.Hash) (types.Code, err
 		return nil, err
 	}
 
-	if code == nil {
-		return nil, nil
-	}
-
-	res := types.Code(*code)
-	return res, nil
+	return code, nil
 }
 
 func ReadBlockHashByNumber(tx RoTx, shardId types.ShardId, blockNumber types.BlockNumber) (common.Hash, error) {
@@ -182,7 +177,7 @@ func ReadBlockHashByNumber(tx RoTx, shardId types.ShardId, blockNumber types.Blo
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	return common.BytesToHash(*blockHash), nil
+	return common.BytesToHash(blockHash), nil
 }
 
 func ReadBlockByNumber(tx RoTx, shardId types.ShardId, blockNumber types.BlockNumber) (*types.Block, error) {

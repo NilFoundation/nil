@@ -214,7 +214,7 @@ func NewExecutionStateForShard(tx db.RwTx, shardId types.ShardId, timer common.T
 	lastBlockHash := common.EmptyHash
 	// No previous blocks yet
 	if lastBlockHashBytes != nil {
-		lastBlockHash = common.Hash(*lastBlockHashBytes)
+		lastBlockHash = common.Hash(lastBlockHashBytes)
 	}
 
 	return NewExecutionState(tx, shardId, lastBlockHash, timer)

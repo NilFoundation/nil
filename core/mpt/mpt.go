@@ -621,6 +621,5 @@ func (m *Reader) getNode(ref Reference) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO: consider data == nil
-	return DecodeNode(*data)
+	return DecodeNode(data)
 }
