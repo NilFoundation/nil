@@ -3,6 +3,7 @@ package contract
 import (
 	"github.com/NilFoundation/nil/cli/services/contract"
 	"github.com/NilFoundation/nil/client/rpc"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
@@ -11,13 +12,13 @@ import (
 
 var logger = logging.NewLogger("contractCommand")
 
-func GetCommand(rpcEndpoint string, privateKey string) *cobra.Command {
+func GetCommand(cfg *config.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
 		Use:     "contract",
 		Short:   "Interact with contract on the cluster",
 		PreRunE: runPreRun,
 		Run: func(cmd *cobra.Command, args []string) {
-			runCommand(cmd, args, rpcEndpoint, privateKey)
+			runCommand(cmd, args, cfg.RPCEndpoint, cfg.PrivateKey)
 		},
 	}
 
@@ -64,7 +65,7 @@ func setFlags(cmd *cobra.Command) {
 func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, privateKey string) {
 	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
 
-	client := rpc.NewRPCClient(rpcEndpoint)
+	client := rpc.NewClient(rpcEndpoint)
 	service := contract.NewService(client, privateKey, params.shardId)
 	if params.deploy != "" {
 		_, err := service.DeployContract(params.deploy)

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/hex"
 	"slices"
 
 	"github.com/NilFoundation/nil/common"
@@ -26,6 +27,9 @@ func (c Code) Hash() common.Hash {
 	return common.PoseidonHash(c[:])
 }
 
-func (s Code) Static() bool {
-	return false
+func (c Code) Hex() string {
+	enc := make([]byte, hex.EncodedLen(len(c))+2)
+	copy(enc, "0x")
+	hex.Encode(enc[2:], c[:])
+	return string(enc)
 }

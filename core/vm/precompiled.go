@@ -30,6 +30,7 @@ import (
 	"github.com/NilFoundation/nil/params"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/holiman/uint256"
+	"github.com/rs/zerolog/log"
 )
 
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
@@ -49,8 +50,10 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	types.BytesToAddress([]byte{0x02}): &sha256hash{},
 	types.BytesToAddress([]byte{0x04}): &dataCopy{},
 	types.BytesToAddress([]byte{0x05}): &bigModExp{eip2565: true},
-	types.BytesToAddress([]byte{0x06}): &sendRawMessage{},
-	types.BytesToAddress([]byte{0x07}): &sendMessage{},
+	// Ethereum uses addresses up to 0x13
+
+	types.BytesToAddress([]byte{0xfc}): &sendRawMessage{},
+	types.BytesToAddress([]byte{0xfd}): &sendMessage{},
 	types.BytesToAddress([]byte{0xfe}): &verifySignature{},
 }
 
@@ -292,8 +295,14 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uin
 		return nil, err
 	}
 	if !msg.Internal {
-		return nil, errors.New("Expected internal message")
+		return nil, errors.New("expected internal message")
 	}
+	balance := state.GetBalance(msg.From)
+	if balance.Lt(&msg.Value.Int) {
+		log.Logger.Error().Msg("sendRawMessage failed: insufficient balance")
+		return nil, errors.New("insufficient balance")
+	}
+	log.Logger.Debug().Msgf("sendRawMessage to: %s\n", msg.To.Hex())
 	state.AddOutMessage(state.GetInMessageHash(), msg)
 	return nil, nil
 }
@@ -312,7 +321,10 @@ func (c *sendMessage) Run(state StateDB, input []byte, gas uint64, value *uint25
 	var dst types.Address
 	copy(dst[:], input[32-types.AddrSize:32])
 	input = input[32:]
+
+	// Internal is required for the message
 	msg := &types.Message{
+		Internal: true,
 		GasLimit: *types.NewUint256(gas),
 		Value:    types.Uint256{Int: *value},
 		From:     caller.Address(),
@@ -320,6 +332,7 @@ func (c *sendMessage) Run(state StateDB, input []byte, gas uint64, value *uint25
 	}
 	msg.Data = make([]byte, len(input))
 	copy(msg.Data, input)
+	log.Logger.Debug().Msgf("sendMessage to: %s\n", msg.To.Hex())
 	state.AddOutMessage(common.EmptyHash, msg)
 	return nil, nil
 }

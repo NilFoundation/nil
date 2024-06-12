@@ -24,10 +24,11 @@ const (
 
 	contractTable = ShardedTableName("Contract")
 
-	LastBlockTable                        = TableName("LastBlock")
-	CollatorStateTable                    = TableName("CollatorState")
-	BlockHashByNumberIndex                = ShardedTableName("BlockHashByNumber")
-	BlockHashAndMessageIndexByMessageHash = ShardedTableName("BlockHashAndMessageIndexByMessageHash")
+	LastBlockTable                           = TableName("LastBlock")
+	CollatorStateTable                       = TableName("CollatorState")
+	BlockHashByNumberIndex                   = ShardedTableName("BlockHashByNumber")
+	BlockHashAndInMessageIndexByMessageHash  = ShardedTableName("BlockHashAndInMessageIndexByMessageHash")
+	BlockHashAndOutMessageIndexByMessageHash = ShardedTableName("BlockHashAndOutMessageIndexByMessageHash")
 
 	SchemeVersionTable = TableName("SchemeVersion")
 )
@@ -43,5 +44,4 @@ func ShardBlocksTrieTableName(blockId types.BlockNumber) ShardedTableName {
 type BlockHashAndMessageIndex struct {
 	BlockHash    common.Hash
 	MessageIndex types.MessageIndex
-	Outgoing     bool
 }

@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
+	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/suite"
 )
@@ -47,8 +47,9 @@ func (s *CollatorTestSuite) TestCollator() {
 	shardId := types.ShardId(1)
 
 	m := &types.Message{
-		From: types.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20"),
-		Data: hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
+		From:     types.CreateAddress(shardId, []byte("1234")),
+		Data:     hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
+		Internal: true,
 	}
 	pool := &MockMsgPool{Msgs: []*types.Message{m}}
 
@@ -65,7 +66,8 @@ func (s *CollatorTestSuite) TestCollator() {
 	})
 
 	s.Run("call-message", func() {
-		m.To = types.CreateAddress(shardId, m.From, m.Seqno)
+		m.To = types.CreateAddress(shardId, []byte("call-message"))
+		pool.Msgs = append(pool.Msgs, m)
 
 		s.Require().NoError(c.GenerateBlock(ctx, s.db))
 
@@ -76,17 +78,23 @@ func (s *CollatorTestSuite) TestCollator() {
 func (s *CollatorTestSuite) checkReceipt(ctx context.Context, shardId types.ShardId, m *types.Message) {
 	s.T().Helper()
 
-	tx, err := s.db.CreateRoTx(ctx)
+	tx, err := s.db.CreateRwTx(ctx)
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	es, err := execution.NewROExecutionStateForShard(tx, shardId, common.NewTestTimer(0))
+	sa, err := execution.NewStateAccessor()
 	s.Require().NoError(err)
 
-	r, err := es.GetReceipt(0)
+	msgData, err := sa.Access(tx, m.From.ShardId()).GetInMessage().ByHash(m.Hash())
 	s.Require().NoError(err)
 
-	s.Equal(m.Hash(), r.MsgHash)
+	receiptsTrie := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.ReceiptTrieTable, msgData.Block().ReceiptsRoot)
+	data, err := receiptsTrie.Get(msgData.Index().Bytes())
+	s.Require().NoError(err)
+
+	var receipt types.Receipt
+	s.Require().NoError(receipt.UnmarshalSSZ(data))
+	s.Equal(m.Hash(), receipt.MsgHash)
 }
 
 func TestCollator(t *testing.T) {

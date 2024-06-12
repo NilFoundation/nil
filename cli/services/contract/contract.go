@@ -2,11 +2,9 @@ package contract
 
 import (
 	"crypto/ecdsa"
-	"encoding/hex"
-	"encoding/json"
-	"strconv"
 
 	"github.com/NilFoundation/nil/client"
+	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
@@ -14,12 +12,6 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/rs/zerolog/log"
-)
-
-const (
-	sendRawTransaction  = "eth_sendRawTransaction"
-	getCode             = "eth_getCode"
-	getTransactionCount = "eth_getTransactionCount"
 )
 
 var logger = logging.NewLogger("contractService")
@@ -50,28 +42,14 @@ func (s *Service) GetCode(contractAddress string) (string, error) {
 	// Convert the contract address from string to common.Address
 	address := types.HexToAddress(contractAddress)
 
-	// Create params for the RPC call
-	params := []interface{}{
-		address,
-		blockNum,
-	}
-
-	// Call the RPC method to get the contract code
-	result, err := s.client.Call(getCode, params)
+	code, err := s.client.GetCode(address, blockNum)
 	if err != nil {
-		logger.Error().Err(err).Str(logging.FieldRpcMethod, getCode).Msg("Method call failed")
+		logger.Error().Err(err).Str(logging.FieldRpcMethod, rpc.Eth_getCode).Msg("Failed to get contract code")
 		return "", err
 	}
 
-	// Unmarshal the result into a string
-	var code string
-	if err := json.Unmarshal(result, &code); err != nil {
-		logger.Error().Err(err).Msg("Failed to unmarshal contract code")
-		return "", err
-	}
-
-	logger.Trace().Msgf("Contract code: %s", code)
-	return code, nil
+	logger.Trace().Msgf("Contract code: %x", code)
+	return code.Hex(), nil
 }
 
 // RunContract runs bytecode on the specified contract address
@@ -90,7 +68,7 @@ func (s *Service) RunContract(bytecode string, contractAddress string) (string, 
 	}
 
 	// Create the message with the bytecode to run
-	message := types.Message{
+	message := &types.Message{
 		From:     publicAddress,
 		To:       types.HexToAddress(contractAddress),
 		Data:     hexutil.FromHex(bytecode),
@@ -104,14 +82,8 @@ func (s *Service) RunContract(bytecode string, contractAddress string) (string, 
 		return "", err
 	}
 
-	// Marshal the message to SSZ format
-	mData, err := message.MarshalSSZ()
-	if err != nil {
-		return "", err
-	}
-
 	// Send the raw transaction
-	txHash, err := s.sendRawTransaction(mData)
+	txHash, err := s.sendRawTransaction(message)
 	if err != nil {
 		return "", err
 	}
@@ -147,7 +119,7 @@ func (s *Service) DeployContract(bytecode string) (string, error) {
 	}
 
 	// Create the message with the deploy data
-	message := types.Message{
+	message := &types.Message{
 		From:     publicAddress,
 		Seqno:    seqNum,
 		Data:     data,
@@ -161,14 +133,8 @@ func (s *Service) DeployContract(bytecode string) (string, error) {
 		return "", err
 	}
 
-	// Marshal the message to SSZ format
-	mData, err := message.MarshalSSZ()
-	if err != nil {
-		return "", err
-	}
-
 	// Send the raw transaction
-	txHash, err := s.sendRawTransaction(mData)
+	txHash, err := s.sendRawTransaction(message)
 	if err != nil {
 		return "", err
 	}
@@ -177,26 +143,16 @@ func (s *Service) DeployContract(bytecode string) (string, error) {
 }
 
 // sendRawTransaction sends a raw transaction to the cluster
-func (s *Service) sendRawTransaction(messageData []byte) (string, error) {
-	// Encode the message data to hex and create the RPC call parameters
-	params := []interface{}{"0x" + hex.EncodeToString(messageData)}
-
+func (s *Service) sendRawTransaction(message *types.Message) (string, error) {
 	// Call the RPC method to send the raw transaction
-	result, err := s.client.Call(sendRawTransaction, params)
+	txHash, err := s.client.SendMessage(message)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to send new transaction")
 		return "", err
 	}
 
-	// Unmarshal the result into a transaction hash
-	var txHash string
-	if err := json.Unmarshal(result, &txHash); err != nil {
-		logger.Error().Err(err).Msg("Failed to unmarshal transaction hash")
-		return "", err
-	}
-
 	logger.Trace().Msgf("Transaction hash: %s", txHash)
-	return txHash, nil
+	return txHash.String(), nil
 }
 
 // getSeqNum gets the sequence number for the given address
@@ -204,36 +160,18 @@ func (s *Service) getSeqNum(address string) (types.Seqno, error) {
 	// Define the block number (the latest block)
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 
-	// Create params for the RPC call
-	params := []interface{}{
-		address,
-		blockNum,
-	}
-
-	// Call the RPC method to get the transaction count
-	result, err := s.client.Call(getTransactionCount, params)
-	if err != nil {
-		logger.Error().Err(err).
-			Str(logging.FieldMessageTo, address).
-			Str(logging.FieldRpcMethod, getTransactionCount).
-			Msg("Method call failed.")
+	var addr types.Address
+	if err := addr.UnmarshalText([]byte(address)); err != nil {
+		logger.Error().Err(err).Msg("Invalid address")
 		return 0, err
 	}
 
-	// Unmarshal the result into a string
-	var seqNumStr string
-	if err := json.Unmarshal(result, &seqNumStr); err != nil {
-		logger.Error().Err(err).Msg("Failed to unmarshal sequence number")
-		return 0, err
-	}
-
-	// Convert the hexadecimal string to uint64
-	seqNum, err := strconv.ParseUint(seqNumStr[2:], 16, 64)
+	seqNum, err := s.client.GetTransactionCount(addr, blockNum)
 	if err != nil {
-		logger.Error().Err(err).Msg("Failed to convert sequence number to uint64")
+		logger.Error().Err(err).Msg("Failed to get sequence number")
 		return 0, err
 	}
 
 	logger.Trace().Msgf("Sequence number (uint64): %d", seqNum)
-	return types.Seqno(seqNum), nil
+	return seqNum, nil
 }

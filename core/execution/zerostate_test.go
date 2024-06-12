@@ -76,7 +76,7 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 		To:       suite.faucetAddr,
 		GasLimit: *types.NewUint256(10000),
 	}
-	_, err = suite.state.HandleExecutionMessage(suite.ctx, callMessage, &suite.blockContext)
+	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, callMessage, &suite.blockContext)
 	suite.Require().NoError(err)
 
 	suite.Require().EqualValues(*uint256.NewInt(1000000000000 - 100), suite.getBalance(suite.faucetAddr))

@@ -2,11 +2,12 @@ package rpctest
 
 import (
 	"context"
-	"encoding/hex"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/NilFoundation/nil/client"
+	rpc_client "github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
@@ -16,6 +17,7 @@ import (
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
+	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/stretchr/testify/suite"
@@ -27,6 +29,7 @@ type SuiteRpc struct {
 	context context.Context
 	cancel  context.CancelFunc
 	address types.Address
+	client  client.Client
 }
 
 func (suite *SuiteRpc) SetupSuite() {
@@ -35,11 +38,13 @@ func (suite *SuiteRpc) SetupSuite() {
 	badger, err := db.NewBadgerDbInMemory()
 	suite.Require().NoError(err)
 
+	suite.client = rpc_client.NewClient("http://127.0.0.1:8531/")
+
 	suite.port = 8531
 	cfg := &nilservice.Config{
 		NShards:  5,
 		HttpPort: suite.port,
-		Topology: collate.NeighbouringShardTopologyId,
+		Topology: collate.TrivialShardTopologyId,
 	}
 	go nilservice.Run(suite.context, cfg, badger)
 	time.Sleep(time.Second) // To be sure that server is started
@@ -49,76 +54,51 @@ func (suite *SuiteRpc) TearDownSuite() {
 	suite.cancel()
 }
 
-func (suite *SuiteRpc) makeGenericRequest(method string, params ...any) map[string]any {
-	suite.T().Helper()
+func (s *SuiteRpc) sendRawTransaction(m *types.Message) {
+	s.T().Helper()
 
-	request := NewRequest(method, params...)
-	resp, err := makeRequest[map[string]any](suite.port, request)
-	suite.Require().NoError(err)
-	suite.Require().NotNil(resp)
-	suite.Require().Nil(resp.Error)
-	return resp.Result
+	resp, err := s.client.SendMessage(m)
+	s.Require().NoError(err)
+	s.Require().Equal(m.Hash(), resp)
 }
 
-func (suite *SuiteRpc) sendRawTransaction(m *types.Message) {
-	suite.T().Helper()
+func (s *SuiteRpc) getBlockByNumber(shardId types.ShardId, blk string, fullTx bool) *jsonrpc.RPCBlock {
+	s.T().Helper()
 
-	data, err := m.MarshalSSZ()
-	suite.Require().NoError(err)
+	var bn transport.BlockNumber
+	s.Require().NoError(bn.UnmarshalJSON([]byte(blk)))
 
-	request := NewRequest(sendRawTransaction, "0x"+hex.EncodeToString(data))
-	resp, err := makeRequest[common.Hash](suite.port, request)
-	suite.Require().NoError(err)
-	suite.Require().NotNil(resp)
-	suite.Require().Nil(resp.Error)
-	suite.Require().Equal(m.Hash(), resp.Result)
-}
-
-func (suite *SuiteRpc) getBlockByNumber(shardId types.ShardId, blk string, b bool) *jsonrpc.RPCBlock {
-	suite.T().Helper()
-
-	request := NewRequest(getBlockByNumber, shardId, blk, b)
-	resp, err := makeRequest[*jsonrpc.RPCBlock](suite.port, request)
-	suite.Require().NoError(err)
-	suite.Require().NotNil(resp)
-	suite.Require().Nil(resp.Error)
-	suite.Require().NotNil(resp.Result)
-	return resp.Result
+	resp, err := s.client.GetBlockByNumber(shardId, bn, fullTx)
+	s.Require().NoError(err)
+	return resp
 }
 
 //nolint:unparam
-func (suite *SuiteRpc) getTransactionCount(addr types.Address, blk string) types.Seqno {
-	suite.T().Helper()
+func (s *SuiteRpc) getTransactionCount(addr types.Address, blk string) types.Seqno {
+	s.T().Helper()
 
-	request := NewRequest(getTransactionCount, addr, blk)
-	resp, err := makeRequest[string](suite.port, request)
-	suite.Require().NoError(err)
-	suite.Require().NotNil(resp)
-	suite.Require().Nil(resp.Error)
-	suite.Require().NotNil(resp.Result)
+	var bn transport.BlockNumber
+	s.Require().NoError(bn.UnmarshalJSON([]byte(blk)))
 
-	res, err := strconv.ParseUint(resp.Result, 0, 64)
-	suite.Require().NoError(err)
-	return types.Seqno(res)
+	resp, err := s.client.GetTransactionCount(addr, transport.BlockNumberOrHash{BlockNumber: &bn})
+	s.Require().NoError(err)
+	return resp
 }
 
 func (suite *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, msg *types.Message) *jsonrpc.RPCReceipt {
 	suite.T().Helper()
 
-	request := NewRequest(getInMessageReceipt, shardId, msg.Hash())
-
-	var respReceipt *Response[*jsonrpc.RPCReceipt]
+	var receipt *jsonrpc.RPCReceipt
 	var err error
 	suite.Require().Eventually(func() bool {
-		respReceipt, err = makeRequest[*jsonrpc.RPCReceipt](suite.port, request)
+		receipt, err = suite.client.GetInMessageReceipt(shardId, msg.Hash())
 		suite.Require().NoError(err)
-		suite.Require().Nil(respReceipt.Error)
-		return respReceipt.Result != nil
+		return receipt != nil
 	}, 15*time.Second, 200*time.Millisecond)
 
-	suite.Equal(types.MessageIndex(0), respReceipt.Result.MsgIndex) // now in all test cases it's first msg in block
-	suite.Equal(msg.Hash(), respReceipt.Result.MsgHash)
-	return respReceipt.Result
+	suite.Equal(msg.Hash(), receipt.MsgHash)
+
+	return receipt
 }
 
 func (suite *SuiteRpc) waitForReceipt(addr types.Address, msg *types.Message) {
@@ -142,40 +122,41 @@ func (suite *SuiteRpc) sendDeployMessage(from types.Address, code types.Code, se
 	return suite.waitForReceiptOnShard(shardId, msg)
 }
 
-func (suite *SuiteRpc) TestRpcBasic() {
-	const someRandomMissingBlock = "0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef"
+func (s *SuiteRpc) TestRpcBasic() {
+	var someRandomMissingBlock common.Hash
+	s.Require().NoError(someRandomMissingBlock.UnmarshalText([]byte("0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")))
 
-	makeReq := func(method string, params ...any) any {
-		request := NewRequest(method, params...)
-		resp, err := makeRequest[any](suite.port, request)
-		suite.Require().NoError(err)
-		suite.Require().NotNil(resp)
-		suite.Require().Nil(resp.Error)
-		return resp.Result
-	}
+	res, err := s.client.GetBlockByNumber(types.BaseShardId, transport.BlockNumber(0x1b4), false)
+	s.Require().NoError(err)
+	s.Require().Nil(res)
 
-	res := makeReq(getBlockByNumber, types.BaseShardId, "0x1b4", false)
-	suite.Require().Nil(res)
+	count, err := s.client.GetBlockTransactionCountByNumber(types.BaseShardId, transport.EarliestBlockNumber)
+	s.Require().NoError(err)
+	s.EqualValues(0, count)
 
-	res = makeReq(getBlockTransactionCountByNumber, types.BaseShardId, "earliest")
-	suite.Equal("0x0", res)
+	count, err = s.client.GetBlockTransactionCountByHash(types.BaseShardId, someRandomMissingBlock)
+	s.Require().NoError(err)
+	s.EqualValues(0, count)
 
-	res = makeReq(getBlockTransactionCountByHash, types.BaseShardId, someRandomMissingBlock)
-	suite.Equal("0x0", res)
+	res, err = s.client.GetBlockByHash(types.BaseShardId, someRandomMissingBlock, false)
+	s.Require().NoError(err)
+	s.Require().Nil(res)
 
-	res = makeReq(getBlockByHash, types.BaseShardId, someRandomMissingBlock, false)
-	suite.Require().Nil(res)
+	res, err = s.client.GetBlockByNumber(types.BaseShardId, transport.EarliestBlockNumber, false)
+	s.Require().NoError(err)
+	s.Require().NotNil(res)
 
-	res = makeReq(getBlockByNumber, types.BaseShardId, "earliest", false)
-	suite.Require().NotNil(res)
+	latest, err := s.client.GetBlockByNumber(types.BaseShardId, transport.LatestBlockNumber, false)
+	s.Require().NoError(err)
+	s.Require().NotNil(res)
 
-	latest := suite.makeGenericRequest(getBlockByNumber, types.BaseShardId, "latest", false)
+	res, err = s.client.GetBlockByHash(types.BaseShardId, latest.Hash, false)
+	s.Require().NoError(err)
+	s.Require().Equal(latest, res)
 
-	res = makeReq(getBlockByHash, types.BaseShardId, latest["hash"], false)
-	suite.Require().Equal(latest, res)
-
-	res = makeReq(getInMessageByHash, types.BaseShardId, someRandomMissingBlock)
-	suite.Require().Nil(res)
+	msg, err := s.client.GetInMessageByHash(types.BaseShardId, someRandomMissingBlock)
+	s.Require().NoError(err)
+	s.Require().Nil(msg)
 }
 
 func (suite *SuiteRpc) createMessageForDeploy(
@@ -196,6 +177,8 @@ func (suite *SuiteRpc) createMessageForDeploy(
 		From:     from,
 		GasLimit: *types.NewUint256(gas),
 		To:       types.DeployMsgToAddress(dm, from),
+		Internal: true,
+		Deploy:   true,
 	}
 	suite.address = m.To
 	return m
@@ -212,45 +195,26 @@ func (suite *SuiteRpc) loadContract(path string, name string) (types.Code, abi.A
 }
 
 func (suite *SuiteRpc) TestRpcContract() {
-	pub := crypto.CompressPubkey(&execution.MainPrivateKey.PublicKey)
-	from := types.PubkeyBytesToAddress(types.BaseShardId, pub)
+	contractCode, abi := suite.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 
-	seqno := suite.getTransactionCount(from, "latest")
-
-	contractCode, abi := suite.loadContract("./contracts/increment.sol", "Incrementer")
-
-	m := suite.createMessageForDeploy(from, seqno, contractCode, types.BaseShardId, 10002)
-	suite.Require().NoError(m.Sign(execution.MainPrivateKey))
-
-	// create contract
-	suite.sendRawTransaction(m)
-
-	suite.Eventually(func() bool {
-		seqno := suite.getTransactionCount(from, "latest")
-		return seqno == m.Seqno+1
-	}, 6*time.Second, 200*time.Millisecond)
-
-	addr := suite.address
-
-	suite.waitForReceipt(addr, m)
+	addr := suite.deployContractViaWallet(1, contractCode)
 
 	// now call (= send a message to) created contract
-	seqno = suite.getTransactionCount(from, "latest")
+	seqno := suite.getTransactionCount(addr, "latest")
 
 	calldata, err := abi.Pack("increment")
 	suite.Require().NoError(err)
-	m = &types.Message{
+	messageToSend := &types.Message{
 		Seqno:    seqno,
-		From:     from,
+		From:     types.MainWalletAddress,
 		To:       addr,
 		Data:     calldata,
 		GasLimit: *types.NewUint256(100003),
+		Internal: true,
 	}
-	suite.Require().NoError(m.Sign(execution.MainPrivateKey))
+	suite.Require().NoError(messageToSend.Sign(execution.MainPrivateKey))
 
-	suite.sendRawTransaction(m)
-
-	suite.waitForReceipt(addr, m)
+	suite.sendMessageViaWallet(types.MainWalletAddress, messageToSend)
 }
 
 func (suite *SuiteRpc) TestRpcDeployToMainShard() {
@@ -259,40 +223,28 @@ func (suite *SuiteRpc) TestRpcDeployToMainShard() {
 
 	seqno := suite.getTransactionCount(from, "latest")
 
-	code, _ := suite.loadContract("./contracts/increment.sol", "Incrementer")
+	code, _ := suite.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	receipt := suite.sendDeployMessage(from, code, seqno)
 	suite.False(receipt.Success)
 }
 
 func (suite *SuiteRpc) TestRpcContractSendMessage() {
-	pub := crypto.CompressPubkey(&execution.MainPrivateKey.PublicKey)
-
 	// deploy caller contract
-	callerFrom := types.PubkeyBytesToAddress(types.BaseShardId, pub)
-	callerSeqno := suite.getTransactionCount(callerFrom, "latest")
-	callerCode, callerAbi := suite.loadContract("./contracts/async_call.sol", "Caller")
-
-	receipt := suite.sendDeployMessage(callerFrom, callerCode, callerSeqno)
-	suite.Require().True(receipt.Success)
-	callerAddr := receipt.ContractAddress
+	callerCode, callerAbi := suite.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Caller")
+	callerAddr := suite.deployContractViaWallet(types.MasterShardId, callerCode)
 
 	checkForShard := func(shardId types.ShardId) {
 		suite.T().Helper()
 
 		// deploy callee contracts to different shards
-		calleeFrom := types.PubkeyBytesToAddress(shardId, pub)
-		calleeSeqno := suite.getTransactionCount(calleeFrom, "latest")
-		calleeCode, calleeAbi := suite.loadContract("./contracts/async_call.sol", "Callee")
-
-		receipt = suite.sendDeployMessage(calleeFrom, calleeCode, calleeSeqno)
-		suite.Require().True(receipt.Success)
-		calleeAddr := receipt.ContractAddress
+		calleeCode, calleeAbi := suite.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Callee")
+		calleeAddr := suite.deployContractViaWallet(shardId, calleeCode)
 
 		// pack call of Callee::add into message
 		calldata, err := calleeAbi.Pack("add", int32(123))
 		suite.Require().NoError(err)
 		messageToSend := &types.Message{
-			Seqno:    suite.getTransactionCount(calleeFrom, "latest"),
+			Seqno:    suite.getTransactionCount(callerAddr, "latest"),
 			Data:     calldata,
 			From:     callerAddr,
 			To:       calleeAddr,
@@ -304,21 +256,22 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 		suite.Require().NoError(err)
 
 		// now call Caller::send_message
-		callerSeqno = suite.getTransactionCount(callerFrom, "latest")
+		callerSeqno := suite.getTransactionCount(callerAddr, "latest")
 		calldata, err = callerAbi.Pack("send_msg", calldata)
 		suite.Require().NoError(err)
 
 		callCallerMethod := &types.Message{
 			Seqno:    callerSeqno,
-			From:     callerFrom,
+			From:     callerAddr,
 			To:       callerAddr,
 			Data:     calldata,
 			GasLimit: *types.NewUint256(10005),
+			Internal: false,
 		}
 		suite.Require().NoError(callCallerMethod.Sign(execution.MainPrivateKey))
 		suite.sendRawTransaction(callCallerMethod)
-		suite.waitForReceipt(callerAddr, callCallerMethod)
 
+		suite.waitForReceipt(callerAddr, callCallerMethod)
 		suite.waitForReceipt(calleeAddr, messageToSend)
 	}
 
@@ -326,46 +279,46 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 	checkForShard(types.ShardId(4))
 
 	// check that we can also send message to the same shard
-	// checkForShard(types.BaseShardId)
+	checkForShard(types.BaseShardId)
 }
 
 func (suite *SuiteRpc) TestRpcApiModules() {
-	res := suite.makeGenericRequest("rpc_modules")
+	res, err := suite.client.Call("rpc_modules")
+	suite.Require().NoError(err)
 	suite.Equal("1.0", res["eth"])
 	suite.Equal("1.0", res["rpc"])
 }
 
 func (suite *SuiteRpc) TestRpcError() {
 	check := func(code int, msg, method string, params ...any) {
-		request := NewRequest(method, params...)
-		resp, err := makeRequest[any](suite.port, request)
-		suite.Require().NoError(err)
-		suite.Require().NotNil(resp.Error)
-		suite.InEpsilon(float64(code), resp.Error.Code, 0.1)
-		suite.Equal(msg, resp.Error.Message)
+		resp, err := suite.client.Call(method, params...)
+		suite.Require().ErrorContains(err, strconv.Itoa(code))
+		suite.Require().ErrorContains(err, msg)
+		suite.Require().Nil(resp)
 	}
 
 	check(-32601, "the method eth_doesntExist does not exist/is not available",
 		"eth_doesntExist")
 
 	check(-32602, "missing value for required argument 0",
-		getBlockByNumber)
+		rpc_client.Eth_getBlockByNumber)
 
 	check(-32602, "invalid argument 0: json: cannot unmarshal number 1099511627776 into Go value of type uint32",
-		getBlockByNumber, 1<<40)
+		rpc_client.Eth_getBlockByNumber, 1<<40)
 
 	check(-32602, "missing value for required argument 1",
-		getBlockByNumber, types.BaseShardId)
+		rpc_client.Eth_getBlockByNumber, types.BaseShardId)
 
-	check(-32000, "invalid argument 1: hex string of odd length",
-		getBlockByHash, types.BaseShardId, "0x1b4", false)
+	check(-32602, "invalid argument 1: hex string of odd length",
+		rpc_client.Eth_getBlockByHash, types.BaseShardId, "0x1b4", false)
 
-	check(-32000, "invalid argument 1: hex string without 0x prefix",
-		getBlockByHash, types.BaseShardId, "latest")
+	check(-32602, "invalid argument 1: hex string without 0x prefix",
+		rpc_client.Eth_getBlockByHash, types.BaseShardId, "latest")
 }
 
 func (suite *SuiteRpc) TestRpcDebugModules() {
-	res := suite.makeGenericRequest("debug_getBlockByNumber", types.BaseShardId, "latest", false)
+	res, err := suite.client.Call("debug_getBlockByNumber", types.BaseShardId, "latest", false)
+	suite.Require().NoError(err)
 
 	suite.Require().Contains(res, "number")
 	suite.Require().Contains(res, "hash")
@@ -378,7 +331,8 @@ func (suite *SuiteRpc) TestRpcDebugModules() {
 	// print resp to see the result
 	suite.T().Logf("resp: %v", res)
 
-	fullRes := suite.makeGenericRequest("debug_getBlockByNumber", types.BaseShardId, "latest", true)
+	fullRes, err := suite.client.Call("debug_getBlockByNumber", types.BaseShardId, "latest", true)
+	suite.Require().NoError(err)
 	suite.Require().Contains(fullRes, "content")
 	suite.Require().Contains(fullRes, "inMessages")
 	suite.Require().Contains(fullRes, "outMessages")

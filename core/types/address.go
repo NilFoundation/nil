@@ -9,7 +9,6 @@ import (
 	"math"
 	"math/big"
 
-	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/iden3/go-iden3-crypto/poseidon"
@@ -21,7 +20,10 @@ const AddrSize = 20
 // Address represents the 20-byte address of an Ethereum account.
 type Address [AddrSize]byte
 
-var EmptyAddress = Address{}
+var (
+	EmptyAddress      = Address{}
+	MainWalletAddress = HexToAddress("0000111111111111111111111111111111111111")
+)
 
 // BytesToAddress returns Address with value b.
 // If b is larger than len(h), b will be cropped from the left.
@@ -177,29 +179,21 @@ func PubkeyBytesToAddress(shardId ShardId, pubBytes []byte) Address {
 }
 
 func DeployMsgToAddress(deployMsg *DeployMessage, from Address) Address {
-	data := AddressSourceData{
-		DeployMessage: *deployMsg,
-		From:          from,
-	}
-	serialized, err := data.MarshalSSZ()
-	if err != nil {
-		panic("SSZ marshalling failed")
-	}
-	// TODO: add fixed prefix to make a separate namespace
-	return PubkeyBytesToAddress(deployMsg.ShardId, serialized)
+	return CreateAddress(from.ShardId(), deployMsg.Code)
 }
 
-// CreateAddress creates an address given the bytes and the nonce.
-func CreateAddress(shardId ShardId, b Address, nonce Seqno) Address {
-	raw := make([]byte, 2, AddrSize)
-	raw = appendShardId(raw, shardId)
+// CreateAddress creates address for the given contract code
+func CreateAddress(shardId ShardId, code []byte) Address {
+	if len(code) == 0 {
+		code = []byte{0}
+	}
+	return PubkeyBytesToAddress(shardId, code)
+}
 
-	buf := make([]byte, len(b)+8)
-	copy(buf, b.Bytes())
-	buf = ssz.MarshalUint64(buf, nonce.Uint64())
-
-	raw = append(raw, common.PoseidonHash(buf).Bytes()[14:]...)
-	return BytesToAddress(raw)
+// CreateAddressWithSalt creates address for the given contract code and salt
+func CreateAddressWithSalt(shardId ShardId, code []byte, salt *Uint256) Address {
+	code = append(code, salt.Bytes()...)
+	return CreateAddress(shardId, code)
 }
 
 func GenerateRandomAddress(shardId ShardId) Address {

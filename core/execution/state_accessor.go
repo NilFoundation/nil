@@ -6,32 +6,57 @@ import (
 
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/assert"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	lru "github.com/hashicorp/golang-lru/v2"
 )
 
-var ErrNotFound = errors.New("not found")
+type fieldAccessor[T any] func() T
 
+func notInitialized[T any](name string) fieldAccessor[T] {
+	return func() T { panic(fmt.Sprintf("field not initialized : `%s`", name)) }
+}
+
+func initWith[T any](val T) fieldAccessor[T] {
+	return func() T { return val }
+}
+
+/*
+supposed usage is
+
+data, err := accessor.Access(tx, shardId).GetBlock().ByHash(hash)
+block := data.Block
+
+data, err := accessor.Access(tx, shardId).GetBlock().ByIndex(index)
+block := data.Block
+
+data, err := accessor.Access(tx, shardId).GetBlock().WithInMessages().ByIndex(index)
+block, msgs := data.Block, data.InMessages
+...
+*/
 type StateAccessor struct {
-	blocksLRU   *lru.Cache[common.Hash, *types.Block]
-	messagesLRU *lru.Cache[common.Hash, []*types.Message]
-	receiptsLRU *lru.Cache[common.Hash, []*types.Receipt]
+	cache *accessorCache
 }
 
 func NewStateAccessor() (*StateAccessor, error) {
 	const (
-		blocksLRUSize   = 128 // ~32Mb
-		messagesLRUSize = 32
-		receiptsLRUSize = 32
+		blocksLRUSize      = 128 // ~32Mb
+		inMessagesLRUSize  = 32
+		outMessagesLRUSize = 32
+		receiptsLRUSize    = 32
 	)
 
 	blocksLRU, err := lru.New[common.Hash, *types.Block](blocksLRUSize)
 	if err != nil {
 		return nil, err
 	}
-	messagesLRU, err := lru.New[common.Hash, []*types.Message](messagesLRUSize)
+	outMessagesLRU, err := lru.New[common.Hash, []*types.Message](outMessagesLRUSize)
+	if err != nil {
+		return nil, err
+	}
+	inMessagesLRU, err := lru.New[common.Hash, []*types.Message](inMessagesLRUSize)
 	if err != nil {
 		return nil, err
 	}
@@ -39,113 +64,46 @@ func NewStateAccessor() (*StateAccessor, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &StateAccessor{
-		blocksLRU:   blocksLRU,
-		messagesLRU: messagesLRU,
-		receiptsLRU: receiptsLRU,
-	}, nil
+	return &StateAccessor{&accessorCache{
+		blocksLRU:      blocksLRU,
+		inMessagesLRU:  inMessagesLRU,
+		outMessagesLRU: outMessagesLRU,
+		receiptsLRU:    receiptsLRU,
+	}}, nil
 }
 
-func (s *StateAccessor) GetBlockByHash(tx db.RoTx, shardId types.ShardId, hash common.Hash) *types.Block {
-	block, ok := s.blocksLRU.Get(hash)
-	if ok {
-		return block
-	}
-	block = db.ReadBlock(tx, shardId, hash)
-	if block != nil {
-		// We should not cache (at least without TTL) missing blocks because they may appear in the future.
-		s.blocksLRU.Add(hash, block)
-	}
-	return block
+func (s *StateAccessor) Access(tx db.RoTx, shardId types.ShardId) *shardAccessor {
+	return &shardAccessor{cache: s.cache, tx: tx, shardId: shardId}
 }
 
-func (s *StateAccessor) GetBlockByNumber(
-	tx db.RoTx, shardId types.ShardId, number types.BlockNumber,
-) (*types.Block, error) {
-	hash, err := db.ReadBlockHashByNumber(tx, shardId, number)
-	if err != nil {
-		return nil, err
-	}
-	return s.GetBlockByHash(tx, shardId, hash), nil
+type accessorCache struct {
+	blocksLRU      *lru.Cache[common.Hash, *types.Block]
+	inMessagesLRU  *lru.Cache[common.Hash, []*types.Message]
+	outMessagesLRU *lru.Cache[common.Hash, []*types.Message]
+	receiptsLRU    *lru.Cache[common.Hash, []*types.Receipt]
 }
 
-func (s *StateAccessor) GetBlockTransactionCountByHash(
-	tx db.RoTx, shardId types.ShardId, hash common.Hash,
-) (int, error) {
-	_, messages, _, err := s.GetBlockWithCollectedEntitiesByHash(tx, shardId, hash)
-	if err != nil {
-		return 0, err
-	}
-	return len(messages), nil
+type shardAccessor struct {
+	cache   *accessorCache
+	tx      db.RoTx
+	shardId types.ShardId
 }
 
-func (s *StateAccessor) GetBlockTransactionCountByNumber(
-	tx db.RoTx, shardId types.ShardId, number types.BlockNumber,
-) (int, error) {
-	hash, err := db.ReadBlockHashByNumber(tx, shardId, number)
-	if err != nil {
-		return 0, err
-	}
-	return s.GetBlockTransactionCountByHash(tx, shardId, hash)
-}
-
-func (s *StateAccessor) getBlockEntities(tx db.RoTx, shardId types.ShardId, block *types.Block) ([]*types.Message, []*types.Receipt, error) {
-	hash := block.Hash()
-	messages, messagesCached := s.messagesLRU.Get(hash)
-	if !messagesCached {
-		messages, err := CollectBlockEntities[*types.Message](tx, shardId, db.MessageTrieTable, block.InMessagesRoot)
-		if err != nil {
-			return nil, nil, err
-		}
-		s.messagesLRU.Add(hash, messages)
-	}
-
-	receipts, receiptsCached := s.receiptsLRU.Get(hash)
-	if !receiptsCached {
-		receipts, err := CollectBlockEntities[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot)
-		if err != nil {
-			return nil, nil, err
-		}
-		s.receiptsLRU.Add(hash, receipts)
-	}
-
-	return messages, receipts, nil
-}
-
-func (s *StateAccessor) GetBlockWithCollectedEntitiesByHash(
-	tx db.RoTx, shardId types.ShardId, hash common.Hash) (
-	*types.Block, []*types.Message, []*types.Receipt, error,
-) {
-	block := s.GetBlockByHash(tx, shardId, hash)
-	if block == nil {
-		return nil, nil, nil, nil
-	}
-	msg, receipt, err := s.getBlockEntities(tx, shardId, block)
-	return block, msg, receipt, err
-}
-
-func (s *StateAccessor) GetBlockWithCollectedEntitiesByNumber(
-	tx db.RoTx, shardId types.ShardId, number types.BlockNumber) (
-	*types.Block, []*types.Message, []*types.Receipt, error,
-) {
-	block, err := s.GetBlockByNumber(tx, shardId, number)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	msg, receipt, err := s.getBlockEntities(tx, shardId, block)
-	return block, msg, receipt, err
-}
-
-func CollectBlockEntities[
+func collectBlockEntities[
 	T interface {
 		~*S
 		ssz.Unmarshaler
 	},
 	S any,
-](tx db.RoTx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash) ([]*S, error) {
-	root := mpt.NewReaderWithRoot(tx, shardId, tableName, rootHash)
+](block common.Hash, sa *shardAccessor, cache *lru.Cache[common.Hash, []*S], tableName db.ShardedTableName, rootHash common.Hash, res *fieldAccessor[[]*S]) error {
+	if items, ok := cache.Get(block); ok {
+		*res = initWith(items)
+		return nil
+	}
 
-	entities := make([]*S, 0, 1024)
+	root := mpt.NewReaderWithRoot(sa.tx, sa.shardId, tableName, rootHash)
+
+	items := make([]*S, 0, 1024)
 	var index uint64
 	for {
 		k := ssz.MarshalUint64(nil, index)
@@ -154,66 +112,293 @@ func CollectBlockEntities[
 		if errors.Is(err, db.ErrKeyNotFound) {
 			break
 		} else if err != nil {
-			return nil, fmt.Errorf("failed to get from %v with index %v from trie: %w", tableName, index, err)
+			return fmt.Errorf("failed to get from %v with index %v from trie: %w", tableName, index, err)
 		}
-		entities = append(entities, entity)
+		items = append(items, entity)
 		index += 1
 	}
-	return entities, nil
+
+	*res = initWith(items)
+	cache.Add(block, items)
+	return nil
 }
 
-func (s *StateAccessor) GetBlockAndMessageIndexByMessageHash(tx db.RoTx, shardId types.ShardId, hash common.Hash) (*types.Block, db.BlockHashAndMessageIndex, error) {
-	value, err := tx.GetFromShard(shardId, db.BlockHashAndMessageIndexByMessageHash, hash.Bytes())
+func (s *shardAccessor) mptReader(tableName db.ShardedTableName, rootHash common.Hash) *mpt.Reader {
+	return mpt.NewReaderWithRoot(s.tx, s.shardId, tableName, rootHash)
+}
+
+func (s *shardAccessor) GetBlock() blockAccessor {
+	return blockAccessor{shardAccessor: s}
+}
+
+func (s *shardAccessor) GetInMessage() inMessageAccessor {
+	return inMessageAccessor{shardAccessor: s}
+}
+
+func (s *shardAccessor) GetOutMessage() outMessageAccessor {
+	return outMessageAccessor{shardAccessor: s}
+}
+
+//////// block accessor //////////
+
+type blockAccessorResult struct {
+	block       fieldAccessor[*types.Block]
+	inMessages  fieldAccessor[[]*types.Message]
+	outMessages fieldAccessor[[]*types.Message]
+	receipts    fieldAccessor[[]*types.Receipt]
+}
+
+func (r blockAccessorResult) Block() *types.Block {
+	return r.block()
+}
+
+func (r blockAccessorResult) InMessages() []*types.Message {
+	return r.inMessages()
+}
+
+func (r blockAccessorResult) OutMessages() []*types.Message {
+	return r.outMessages()
+}
+
+func (r blockAccessorResult) Receipts() []*types.Receipt {
+	return r.receipts()
+}
+
+type blockAccessor struct {
+	shardAccessor   *shardAccessor
+	withInMessages  bool
+	withOutMessages bool
+	withReceipts    bool
+}
+
+func (b blockAccessor) WithInMessages() blockAccessor {
+	b.withInMessages = true
+	return b
+}
+
+func (b blockAccessor) WithOutMessages() blockAccessor {
+	b.withOutMessages = true
+	return b
+}
+
+func (b blockAccessor) WithReceipts() blockAccessor {
+	b.withReceipts = true
+	return b
+}
+
+func (b blockAccessor) ByHash(hash common.Hash) (blockAccessorResult, error) {
+	sa := b.shardAccessor
+	block, ok := sa.cache.blocksLRU.Get(hash)
+	if !ok {
+		block = db.ReadBlock(sa.tx, b.shardAccessor.shardId, hash)
+	}
+
+	res := blockAccessorResult{
+		block:       initWith(block),
+		inMessages:  notInitialized[[]*types.Message]("InMessages"),
+		outMessages: notInitialized[[]*types.Message]("OutMessages"),
+		receipts:    notInitialized[[]*types.Receipt]("Receipts"),
+	}
+
+	if block != nil {
+		// We should not cache (at least without TTL) missing blocks because they may appear in the future.
+		sa.cache.blocksLRU.Add(hash, block)
+	}
+
+	if b.withInMessages {
+		if block == nil {
+			res.inMessages = initWith[[]*types.Message](nil)
+		} else if err := collectBlockEntities[*types.Message](hash, sa, sa.cache.inMessagesLRU, db.MessageTrieTable, block.InMessagesRoot, &res.inMessages); err != nil {
+			return blockAccessorResult{}, err
+		}
+	}
+
+	if b.withOutMessages {
+		if block == nil {
+			res.outMessages = initWith[[]*types.Message](nil)
+		} else if err := collectBlockEntities[*types.Message](hash, sa, sa.cache.outMessagesLRU, db.MessageTrieTable, block.OutMessagesRoot, &res.outMessages); err != nil {
+			return blockAccessorResult{}, err
+		}
+	}
+
+	if b.withReceipts {
+		if block == nil {
+			res.receipts = initWith[[]*types.Receipt](nil)
+		} else if err := collectBlockEntities[*types.Receipt](hash, sa, sa.cache.receiptsLRU, db.ReceiptTrieTable, block.ReceiptsRoot, &res.receipts); err != nil {
+			return blockAccessorResult{}, err
+		}
+	}
+
+	return res, nil
+}
+
+func (b blockAccessor) ByNumber(num types.BlockNumber) (blockAccessorResult, error) {
+	hash, err := db.ReadBlockHashByNumber(b.shardAccessor.tx, b.shardAccessor.shardId, num)
 	if err != nil {
-		return nil, db.BlockHashAndMessageIndex{}, err
+		return blockAccessorResult{}, err
 	}
-
-	var blockHashAndMessageIndex db.BlockHashAndMessageIndex
-	if err := blockHashAndMessageIndex.UnmarshalSSZ(*value); err != nil {
-		return nil, db.BlockHashAndMessageIndex{}, err
-	}
-
-	block := s.GetBlockByHash(tx, shardId, blockHashAndMessageIndex.BlockHash)
-	if block == nil {
-		return nil, db.BlockHashAndMessageIndex{}, ErrNotFound
-	}
-	return block, blockHashAndMessageIndex, nil
+	return b.ByHash(hash)
 }
 
-func (s *StateAccessor) GetMessageWithEntitiesByHash(tx db.RoTx, shardId types.ShardId, hash common.Hash) (msg *types.Message, receipt *types.Receipt, index types.MessageIndex, block *types.Block, err error) {
-	block, indexes, err := s.GetBlockAndMessageIndexByMessageHash(tx, shardId, hash)
+//////// message accessors //////////
+
+type messageAccessorResult struct {
+	block   fieldAccessor[*types.Block]
+	index   fieldAccessor[types.MessageIndex]
+	message fieldAccessor[*types.Message]
+}
+
+func (r messageAccessorResult) Block() *types.Block {
+	return r.block()
+}
+
+func (r messageAccessorResult) Index() types.MessageIndex {
+	return r.index()
+}
+
+func (r messageAccessorResult) Message() *types.Message {
+	return r.message()
+}
+
+func getBlockAndInMsgIndexByHash(sa *shardAccessor, incoming bool, hash common.Hash) (*types.Block, db.BlockHashAndMessageIndex, error) {
+	var idx db.BlockHashAndMessageIndex
+
+	table := db.BlockHashAndInMessageIndexByMessageHash
+	if !incoming {
+		table = db.BlockHashAndOutMessageIndexByMessageHash
+	}
+
+	value, err := sa.tx.GetFromShard(sa.shardId, table, hash.Bytes())
+	if err != nil {
+		return nil, idx, err
+	}
+
+	if err = idx.UnmarshalSSZ(*value); err != nil {
+		return nil, idx, err
+	}
+
+	data, err := sa.GetBlock().ByHash(idx.BlockHash)
+	if err == nil && data.Block() == nil {
+		err = db.ErrKeyNotFound
+	}
+
+	return data.Block(), idx, err
+}
+
+func baseGetMsgByHash(sa *shardAccessor, incoming bool, hash common.Hash) (messageAccessorResult, error) {
+	block, idx, err := getBlockAndInMsgIndexByHash(sa, incoming, hash)
 	if errors.Is(err, db.ErrKeyNotFound) {
-		err = nil
-		return
+		return messageAccessorResult{
+			block:   initWith[*types.Block](nil),
+			index:   initWith(types.MessageIndex(0)),
+			message: initWith[*types.Message](nil),
+		}, nil
 	}
 	if err != nil {
-		return
-	}
-	index = indexes.MessageIndex
-
-	var root common.Hash
-	if indexes.Outgoing {
-		root = block.OutMessagesRoot
-	} else {
-		root = block.InMessagesRoot
+		return messageAccessorResult{}, err
 	}
 
-	msg, err = getBlockEntity[*types.Message](tx, shardId, db.MessageTrieTable, root, indexes.MessageIndex.Bytes())
-	if msg == nil || err != nil {
-		return
-	}
-	common.Require(msg.Hash() == hash)
-	receipt, err = getBlockEntity[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot, indexes.MessageIndex.Bytes())
-	return
+	data, err := baseGetMsgByIndex(sa, incoming, idx.MessageIndex, block)
+	common.Require(!assert.Enable || data.Message() == nil || data.Message().Hash() == hash)
+	return data, err
 }
 
-func getBlockEntity[
-	T interface {
-		~*S
-		ssz.Unmarshaler
-	},
-	S any,
-](tx db.RoTx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash, entityKey []byte) (*S, error) {
-	root := mpt.NewReaderWithRoot(tx, shardId, tableName, rootHash)
-	return mpt.GetEntity[T](root, entityKey)
+func baseGetMsgByIndex(sa *shardAccessor, incoming bool, idx types.MessageIndex, block *types.Block) (messageAccessorResult, error) {
+	root := block.InMessagesRoot
+	if !incoming {
+		root = block.OutMessagesRoot
+	}
+	msgTrie := sa.mptReader(db.MessageTrieTable, root)
+	msg, err := mpt.GetEntity[*types.Message](msgTrie, idx.Bytes())
+	if err != nil {
+		return messageAccessorResult{}, err
+	}
+
+	return messageAccessorResult{block: initWith(block), index: initWith(idx), message: initWith(msg)}, nil
+}
+
+type outMessageAccessorResult struct {
+	messageAccessorResult
+}
+
+type outMessageAccessor struct {
+	shardAccessor *shardAccessor
+}
+
+func (a outMessageAccessor) ByHash(hash common.Hash) (outMessageAccessorResult, error) {
+	data, err := baseGetMsgByHash(a.shardAccessor, false, hash)
+	return outMessageAccessorResult{data}, err
+}
+
+func (a outMessageAccessor) ByIndex(idx types.MessageIndex, block *types.Block) (outMessageAccessorResult, error) {
+	data, err := baseGetMsgByIndex(a.shardAccessor, false, idx, block)
+	return outMessageAccessorResult{data}, err
+}
+
+type inMessageAccessorResult struct {
+	messageAccessorResult
+	receipt fieldAccessor[*types.Receipt]
+}
+
+func (r inMessageAccessorResult) Receipt() *types.Receipt {
+	return r.receipt()
+}
+
+type inMessageAccessor struct {
+	shardAccessor *shardAccessor
+	withReceipt   bool
+}
+
+func (a inMessageAccessor) WithReceipt() inMessageAccessor {
+	a.withReceipt = true
+	return a
+}
+
+func (a inMessageAccessor) ByHash(hash common.Hash) (inMessageAccessorResult, error) {
+	data, err := baseGetMsgByHash(a.shardAccessor, true, hash)
+	if err != nil {
+		return inMessageAccessorResult{}, err
+	}
+
+	res := inMessageAccessorResult{
+		messageAccessorResult: data,
+		receipt:               notInitialized[*types.Receipt]("Receipt"),
+	}
+
+	if a.withReceipt {
+		return a.addReceipt(res)
+	}
+
+	return res, nil
+}
+
+func (a inMessageAccessor) ByIndex(idx types.MessageIndex, block *types.Block) (inMessageAccessorResult, error) {
+	data, err := baseGetMsgByIndex(a.shardAccessor, true, idx, block)
+	if err != nil {
+		return inMessageAccessorResult{}, err
+	}
+
+	res := inMessageAccessorResult{
+		messageAccessorResult: data,
+		receipt:               notInitialized[*types.Receipt]("Receipt"),
+	}
+
+	if a.withReceipt {
+		return a.addReceipt(res)
+	}
+	return res, nil
+}
+
+func (a inMessageAccessor) addReceipt(accessResult inMessageAccessorResult) (inMessageAccessorResult, error) {
+	if accessResult.Block() == nil {
+		accessResult.receipt = initWith[*types.Receipt](nil)
+		return accessResult, nil
+	}
+	receiptTrie := a.shardAccessor.mptReader(db.ReceiptTrieTable, accessResult.Block().ReceiptsRoot)
+	receipt, err := mpt.GetEntity[*types.Receipt](receiptTrie, accessResult.Index().Bytes())
+	if err != nil {
+		return inMessageAccessorResult{}, err
+	}
+	accessResult.receipt = initWith(receipt)
+	return accessResult, nil
 }

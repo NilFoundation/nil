@@ -40,11 +40,12 @@ func (s *MessagesSuite) TestGenerateBlock() {
 	s.Require().NoError(err)
 
 	m1 := types.Message{
-		From: types.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20"),
-		Data: hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
+		From:     types.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20"),
+		Data:     hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
+		Internal: true,
 	}
 	m2 := m1
-	m2.To = types.CreateAddress(shardId, m2.From, m2.Seqno)
+	m2.To = types.CreateAddress(shardId, []byte("code"))
 
 	err = HandleMessages(ctx, rwTx, es, []*types.Message{&m1, &m2})
 	s.Require().NoError(err)
@@ -80,6 +81,7 @@ func (s *MessagesSuite) TestValidateMessage() {
 		To:        addrTo,
 		Seqno:     0,
 		Signature: common.EmptySignature,
+		Internal:  false,
 	}
 
 	// "From" doesn't exist

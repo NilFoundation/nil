@@ -51,7 +51,11 @@ func (api *APIImpl) fetchBlockByNumberOrHash(tx db.RoTx, shardId types.ShardId, 
 	if err != nil {
 		return nil, err
 	}
-	return api.accessor.GetBlockByHash(tx, shardId, hash), nil
+	if data, err := api.accessor.Access(tx, shardId).GetBlock().ByHash(hash); err != nil {
+		return nil, err
+	} else {
+		return data.Block(), nil
+	}
 }
 
 func (api *APIImpl) getBlockByNumberOrHash(
@@ -124,5 +128,9 @@ func (api *APIImpl) getBlockWithCollectedEntitiesByNumberOrHash(
 		return nil, nil, nil, err
 	}
 
-	return api.accessor.GetBlockWithCollectedEntitiesByHash(tx, shardId, hash)
+	data, err := api.accessor.Access(tx, shardId).GetBlock().WithReceipts().WithInMessages().ByHash(hash)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return data.Block(), data.InMessages(), data.Receipts(), err
 }
