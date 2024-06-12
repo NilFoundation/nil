@@ -43,7 +43,9 @@ func (suite *SuiteRpc) createWalletViaFaucet(ownerPrivateKey *ecdsa.PrivateKey, 
 	suite.Require().NoError(err)
 
 	faucetAddress := suite.getFaucetAddress()
-	seqno := suite.getTransactionCount(faucetAddress, "latest")
+	seqno, err := suite.client.GetTransactionCount(faucetAddress, "latest")
+	suite.Require().NoError(err)
+
 	msgExternal := &types.Message{
 		Seqno:    seqno,
 		From:     faucetAddress, // Now From should point to the address of an existing contract
@@ -73,7 +75,8 @@ func (suite *SuiteRpc) createWalletViaFaucet(ownerPrivateKey *ecdsa.PrivateKey, 
 
 func (suite *SuiteRpc) deployContractViaFaucet(code []byte, ownerPrivateKey *ecdsa.PrivateKey, value types.Uint256) types.Address {
 	faucetAddress := suite.getFaucetAddress()
-	seqno := suite.getTransactionCount(faucetAddress, "latest")
+	seqno, err := suite.client.GetTransactionCount(faucetAddress, "latest")
+	suite.Require().NoError(err)
 
 	walletAddress := types.CreateAddress(faucetAddress.ShardId(), code)
 

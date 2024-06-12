@@ -13,7 +13,8 @@ import (
 func (suite *SuiteRpc) deployContractViaWallet(shardId types.ShardId, code []byte) types.Address {
 	suite.T().Helper()
 
-	seqno := suite.getTransactionCount(types.MainWalletAddress, "latest")
+	seqno, err := suite.client.GetTransactionCount(types.MainWalletAddress, "latest")
+	suite.Require().NoError(err)
 
 	addrWallet := types.CreateAddress(shardId, code)
 
@@ -62,7 +63,8 @@ func (suite *SuiteRpc) deployContractViaWallet(shardId types.ShardId, code []byt
 func (suite *SuiteRpc) sendMessageViaWallet(addrFrom types.Address, messageToSend *types.Message) {
 	suite.T().Helper()
 
-	seqno := suite.getTransactionCount(addrFrom, "latest")
+	seqno, err := suite.client.GetTransactionCount(addrFrom, "latest")
+	suite.Require().NoError(err)
 
 	calldata, err := messageToSend.MarshalSSZ()
 	suite.Require().NoError(err)
@@ -120,7 +122,8 @@ func (suite *SuiteRpc) TestWallet() {
 	suite.sendMessageViaWallet(types.MainWalletAddress, messageToSend)
 
 	// Call get method
-	seqno := suite.getTransactionCount(addrCallee, "latest")
+	seqno, err := suite.client.GetTransactionCount(addrCallee, "latest")
+	suite.Require().NoError(err)
 	calldata, err = abiCalee.Pack("get")
 	suite.Require().NoError(err)
 	messageToSend = &types.Message{

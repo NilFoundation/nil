@@ -67,29 +67,6 @@ func (s *SuiteRpc) sendRawTransaction(m *types.Message) {
 	s.Require().Equal(m.Hash(), resp)
 }
 
-func (s *SuiteRpc) getBlockByNumber(shardId types.ShardId, blk string, fullTx bool) *jsonrpc.RPCBlock {
-	s.T().Helper()
-
-	var bn transport.BlockNumber
-	s.Require().NoError(bn.UnmarshalJSON([]byte(blk)))
-
-	resp, err := s.client.GetBlockByNumber(shardId, bn, fullTx)
-	s.Require().NoError(err)
-	return resp
-}
-
-//nolint:unparam
-func (s *SuiteRpc) getTransactionCount(addr types.Address, blk string) types.Seqno {
-	s.T().Helper()
-
-	var bn transport.BlockNumber
-	s.Require().NoError(bn.UnmarshalJSON([]byte(blk)))
-
-	resp, err := s.client.GetTransactionCount(addr, transport.BlockNumberOrHash{BlockNumber: &bn})
-	s.Require().NoError(err)
-	return resp
-}
-
 func (suite *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, msg *types.Message) *jsonrpc.RPCReceipt {
 	suite.T().Helper()
 
@@ -155,31 +132,40 @@ func (s *SuiteRpc) TestRpcBasic() {
 	var someRandomMissingBlock common.Hash
 	s.Require().NoError(someRandomMissingBlock.UnmarshalText([]byte("0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")))
 
-	res, err := s.client.GetBlockByNumber(types.BaseShardId, transport.BlockNumber(0x1b4), false)
+	res0Num, err := s.client.GetBlock(types.BaseShardId, 0, false)
+	s.Require().NoError(err)
+	s.Require().NotNil(res0Num)
+
+	res0Str, err := s.client.GetBlock(types.BaseShardId, "0", false)
+	s.Require().NoError(err)
+	s.Require().NotNil(res0Num)
+	s.Equal(res0Num, res0Str)
+
+	res, err := s.client.GetBlock(types.BaseShardId, transport.BlockNumber(0x1b4), false)
 	s.Require().NoError(err)
 	s.Require().Nil(res)
 
-	count, err := s.client.GetBlockTransactionCountByNumber(types.BaseShardId, transport.EarliestBlockNumber)
+	count, err := s.client.GetBlockTransactionCount(types.BaseShardId, transport.EarliestBlockNumber)
 	s.Require().NoError(err)
 	s.EqualValues(0, count)
 
-	count, err = s.client.GetBlockTransactionCountByHash(types.BaseShardId, someRandomMissingBlock)
+	count, err = s.client.GetBlockTransactionCount(types.BaseShardId, someRandomMissingBlock)
 	s.Require().NoError(err)
 	s.EqualValues(0, count)
 
-	res, err = s.client.GetBlockByHash(types.BaseShardId, someRandomMissingBlock, false)
+	res, err = s.client.GetBlock(types.BaseShardId, someRandomMissingBlock, false)
 	s.Require().NoError(err)
 	s.Require().Nil(res)
 
-	res, err = s.client.GetBlockByNumber(types.BaseShardId, transport.EarliestBlockNumber, false)
+	res, err = s.client.GetBlock(types.BaseShardId, transport.EarliestBlockNumber, false)
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
-	latest, err := s.client.GetBlockByNumber(types.BaseShardId, transport.LatestBlockNumber, false)
+	latest, err := s.client.GetBlock(types.BaseShardId, transport.LatestBlockNumber, false)
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
-	res, err = s.client.GetBlockByHash(types.BaseShardId, latest.Hash, false)
+	res, err = s.client.GetBlock(types.BaseShardId, latest.Hash, false)
 	s.Require().NoError(err)
 	s.Require().Equal(latest, res)
 
@@ -224,7 +210,8 @@ func (suite *SuiteRpc) TestRpcContract() {
 	addr := suite.deployContractViaWallet(1, contractCode)
 
 	// now call (= send a message to) created contract
-	seqno := suite.getTransactionCount(addr, "latest")
+	seqno, err := suite.client.GetTransactionCount(addr, "latest")
+	suite.Require().NoError(err)
 
 	calldata, err := abi.Pack("increment")
 	suite.Require().NoError(err)
@@ -245,7 +232,8 @@ func (suite *SuiteRpc) TestRpcDeployToMainShard() {
 	pub := crypto.CompressPubkey(&execution.MainPrivateKey.PublicKey)
 	from := types.PubkeyBytesToAddress(types.MasterShardId, pub)
 
-	seqno := suite.getTransactionCount(from, "latest")
+	seqno, err := suite.client.GetTransactionCount(from, "latest")
+	suite.Require().NoError(err)
 
 	code, _ := suite.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	receipt := suite.sendDeployMessage(from, code, seqno)
@@ -267,8 +255,11 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 		// pack call of Callee::add into message
 		calldata, err := calleeAbi.Pack("add", int32(123))
 		suite.Require().NoError(err)
+
+		seqno, err := suite.client.GetTransactionCount(callerAddr, "latest")
+		suite.Require().NoError(err)
 		messageToSend := &types.Message{
-			Seqno:    suite.getTransactionCount(callerAddr, "latest"),
+			Seqno:    seqno,
 			Data:     calldata,
 			From:     callerAddr,
 			To:       calleeAddr,
@@ -280,7 +271,8 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 		suite.Require().NoError(err)
 
 		// now call Caller::send_message
-		callerSeqno := suite.getTransactionCount(callerAddr, "latest")
+		callerSeqno, err := suite.client.GetTransactionCount(callerAddr, "latest")
+		suite.Require().NoError(err)
 		calldata, err = callerAbi.Pack("send_msg", calldata)
 		suite.Require().NoError(err)
 

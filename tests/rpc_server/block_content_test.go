@@ -22,11 +22,15 @@ func (suite *SuiteRpc) TestRpcBlockContent() {
 	suite.sendRawTransaction(m)
 
 	suite.Eventually(func() bool {
-		res := suite.getBlockByNumber(types.BaseShardId, "latest", true)
+		res, err := suite.client.GetBlock(types.BaseShardId, "latest", false)
+		suite.Require().NoError(err)
+
 		return len(res.Messages) > 0
 	}, 6*time.Second, 100*time.Millisecond)
 
-	latestRes := suite.getBlockByNumber(types.BaseShardId, "latest", true)
+	latestRes, err := suite.client.GetBlock(types.BaseShardId, "latest", true)
+	suite.Require().NoError(err)
+
 	suite.Require().NotNil(latestRes.Hash)
 	suite.Require().Len(latestRes.Messages, 1)
 
