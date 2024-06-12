@@ -69,10 +69,10 @@ func TestSszMessage(t *testing.T) {
 	h, err := common.PoseidonSSZ(&message2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("0f9a7fd8c484ddb71323bc26d469b1ac082f8203bdfc7ca11bf4091b84cc8736")
+	h2, err := hex.DecodeString("184cc049eb7f487524c12365397c8f2642cbbf660936fb2f7f1ed30caab54d86")
 	require.NoError(t, err)
 
-	require.Equal(t, common.BytesToHash(h2), common.BytesToHash(h[:]))
+	require.Equal(t, common.BytesToHash(h2), h)
 }
 
 func TestSszSmc(t *testing.T) {

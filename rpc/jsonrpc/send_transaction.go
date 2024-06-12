@@ -19,6 +19,10 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Byte
 		return common.Hash{}, fmt.Errorf("failed to decode message: %w", err)
 	}
 
+	if msg.ChainId != types.DefaultChainId {
+		return common.Hash{}, errInvalidChainId
+	}
+
 	shardId := msg.From.ShardId()
 	if err := api.checkShard(shardId); err != nil {
 		return common.Hash{}, err

@@ -189,6 +189,14 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 		ContractAddress: addr,
 	}
 
+	if message.ChainId != types.DefaultChainId {
+		es.AddReceipt(r)
+		sharedLogger.Debug().
+			Uint64(logging.FieldChainId, uint64(message.ChainId)).
+			Msg("Invalid chainId")
+		return false, nil
+	}
+
 	accountState := es.GetAccount(addr)
 	if accountState == nil {
 		r.Logs = es.Logs[es.InMessageHash]

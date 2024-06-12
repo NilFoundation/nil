@@ -26,7 +26,7 @@ type CallArgs struct {
 	Seqno    *hexutil.Uint64 `json:"seqno"`
 	Data     hexutil.Bytes   `json:"data"`
 	Input    *hexutil.Bytes  `json:"input"`
-	ChainID  *hexutil.Big    `json:"chainId"`
+	ChainId  types.ChainId   `json:"chainId"`
 }
 
 // @component RPCInMessage rpcInMessage object "The message whose information is requested."
@@ -58,7 +58,7 @@ type RPCInMessage struct {
 	To          *types.Address    `json:"to"`
 	Index       *hexutil.Uint64   `json:"index"`
 	Value       types.Uint256     `json:"value"`
-	ChainID     types.Uint256     `json:"chainId,omitempty"`
+	ChainID     types.ChainId     `json:"chainId,omitempty"`
 	Signature   types.Signature   `json:"signature"`
 }
 
@@ -117,7 +117,6 @@ func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types
 	}
 
 	blockHash := block.Hash()
-	chainId := types.NewUint256(0)
 	gasUsed := hexutil.Uint64(receipt.GasUsed)
 	msgIndex := hexutil.Uint64(index)
 	seqno := hexutil.Uint64(message.Seqno)
@@ -135,7 +134,7 @@ func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types
 		To:          &message.To,
 		Index:       &msgIndex,
 		Value:       message.Value,
-		ChainID:     *chainId,
+		ChainID:     message.ChainId,
 		Signature:   message.Signature,
 	}
 
