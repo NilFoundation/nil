@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"unicode"
 
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
 )
@@ -184,7 +185,7 @@ func (c *callback) call(ctx context.Context, method string, args []reflect.Value
 	// Catch panic while running the callback.
 	defer func() {
 		if err := recover(); err != nil {
-			c.logger.Error().Msg("RPC method " + method + " crashed: " + fmt.Sprintf("%v", err))
+			c.logger.Error().Msgf("RPC method %s crashed: %v. Stack:\n%s", method, err, string(debug.Stack()))
 			errRes = errors.New("method handler crashed")
 		}
 	}()
@@ -196,7 +197,7 @@ func (c *callback) call(ctx context.Context, method string, args []reflect.Value
 	if c.errPos >= 0 && !results[c.errPos].IsNil() {
 		// Method has returned non-nil error value.
 		err, ok := results[c.errPos].Interface().(error)
-		common.Require(ok)
+		check.PanicIfNot(ok)
 		return reflect.Value{}, err
 	}
 	return results[0].Interface(), nil

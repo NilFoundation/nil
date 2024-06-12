@@ -121,26 +121,26 @@ func (n *BranchNode) Encode() ([]byte, error) {
 }
 
 func DecodeNode(data []byte) (Node, error) {
-	var nodeKind SszNodeKind = ssz.UnmarshallUint8(data)
+	nodeKind := ssz.UnmarshallUint8(data)
 	data = data[1:]
 
 	switch nodeKind {
 	case SszLeafNode:
 		node := &LeafNode{}
 		if err := node.UnmarshalSSZ(data); err != nil {
-			panic("SSZ unmarshal failed")
+			return nil, err
 		}
 		return node, nil
 	case SszExtensionNode:
 		node := &ExtensionNode{}
 		if err := node.UnmarshalSSZ(data); err != nil {
-			panic("SSZ unmarshal failed")
+			return nil, err
 		}
 		return node, nil
 	case SszBranchNode:
 		node := &BranchNode{}
 		if err := node.UnmarshalSSZ(data); err != nil {
-			panic("SSZ unmarshal failed")
+			return nil, err
 		}
 		return node, nil
 	default:

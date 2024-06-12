@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"math/bits"
 	"strconv"
+
+	"github.com/NilFoundation/nil/common/check"
 )
 
 // Integer limit values.
@@ -84,9 +86,7 @@ func ParseUint64(s string) (uint64, bool) {
 // MustParseUint64 parses s as an integer and panics if the string is invalid.
 func MustParseUint64(s string) uint64 {
 	v, ok := ParseUint64(s)
-	if !ok {
-		panic("invalid unsigned 64 bit integer: " + s)
-	}
+	check.PanicIfNot(ok)
 	return v
 }
 

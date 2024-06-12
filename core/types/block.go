@@ -5,7 +5,7 @@ import (
 
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
-	"github.com/rs/zerolog/log"
+	"github.com/NilFoundation/nil/common/check"
 )
 
 type BlockNumber uint64
@@ -44,7 +44,6 @@ var (
 
 func (b *Block) Hash() common.Hash {
 	h, err := common.PoseidonSSZ(b)
-	common.FatalIf(err, log.Logger, "Can't get block hash")
-
+	check.PanicIfErr(err)
 	return h
 }

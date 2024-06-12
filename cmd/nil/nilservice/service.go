@@ -64,8 +64,6 @@ func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []
 //
 // It returns a value suitable for os.Exit().
 func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent.Func) int {
-	logging.SetupGlobalLogger()
-
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

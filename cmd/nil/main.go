@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
@@ -31,11 +31,13 @@ func main() {
 	dbDiscardRatio := rootCmd.Flags().Float64("db-discard-ratio", 0.5, "discard ratio for badger GC")
 	dbGcFrequency := rootCmd.Flags().Duration("db-gc-interval", time.Hour, "frequency for badger GC")
 
-	common.FatalIf(rootCmd.Execute(), logger, "Error parsing flags.")
+	check.PanicIfErr(rootCmd.Execute())
+
+	logging.SetupGlobalLogger()
 
 	dbOpts := db.BadgerDBOptions{Path: *dbPath, DiscardRatio: *dbDiscardRatio, GcFrequency: *dbGcFrequency, AllowDrop: *allowDropDb}
 	database, err := openDb(dbOpts.Path, dbOpts.AllowDrop, logger)
-	common.FatalIf(err, logger, "Error opening db.")
+	check.PanicIfErr(err)
 
 	cfg := &nilservice.Config{
 		NShards:  *nShards,

@@ -4,7 +4,7 @@ import (
 	"github.com/NilFoundation/nil/cli/services/contract"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -69,19 +69,19 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, privateKey str
 	service := contract.NewService(client, privateKey, params.shardId)
 	if params.deploy != "" {
 		_, err := service.DeployContract(params.deploy)
-		common.FatalIf(err, logger, "Failed to deploy contract")
+		check.PanicIfErr(err)
 		return
 	}
 
 	if params.code != "" {
 		_, err := service.GetCode(params.code)
-		common.FatalIf(err, logger, "Failed to get contract code")
+		check.PanicIfErr(err)
 		return
 	}
 
 	if params.address != "" && params.bytecode != "" {
 		_, err := service.RunContract(params.bytecode, params.address)
-		common.FatalIf(err, logger, "Failed to run contract")
+		check.PanicIfErr(err)
 	}
 }
 

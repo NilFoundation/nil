@@ -10,6 +10,7 @@ import (
 	"math/big"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
@@ -159,9 +160,8 @@ func (a *Address) UnmarshalText(input []byte) error {
 }
 
 func appendShardId(bytes []byte, shardId ShardId) []byte {
-	if shardId > math.MaxUint16 {
-		panic("invalid shardId value")
-	}
+	check.PanicIfNot(shardId <= math.MaxUint16)
+
 	binary.BigEndian.PutUint16(bytes, uint16(shardId))
 	return bytes
 }
