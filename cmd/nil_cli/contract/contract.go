@@ -1,7 +1,7 @@
 package contract
 
 import (
-	"github.com/NilFoundation/nil/cli/services/contract"
+	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/common/check"
@@ -66,7 +66,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, privateKey str
 	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
 
 	client := rpc.NewClient(rpcEndpoint)
-	service := contract.NewService(client, privateKey, params.shardId)
+	service := service.NewService(client, privateKey, params.shardId)
 	if params.deploy != "" {
 		_, err := service.DeployContract(params.deploy)
 		check.PanicIfErr(err)

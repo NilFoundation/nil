@@ -1,4 +1,4 @@
-package receipt
+package service
 
 import (
 	"encoding/json"
@@ -37,7 +37,7 @@ func TestFetchReceipt_Successfully(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient, types.BaseShardId)
+	service := NewService(mockClient, "", types.BaseShardId)
 
 	// Call the FetchReceiptByHash
 	response, err := service.FetchReceiptByHash("0x1234")
@@ -59,7 +59,7 @@ func TestFetchReceipt_Err(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient, types.BaseShardId)
+	service := NewService(mockClient, "", types.BaseShardId)
 
 	// Call the FetchReceiptByHash
 	_, err := service.FetchReceiptByHash("0x1234")
