@@ -329,7 +329,7 @@ func (m *FiltersManager) getLastBlockHash() (common.Hash, error) {
 
 	lastBlockRaw, err := tx.Get(db.LastBlockTable, m.shardId.Bytes())
 	if err == nil && lastBlockRaw != nil {
-		return common.Hash(*lastBlockRaw), nil
+		return common.Hash(lastBlockRaw), nil
 	}
 	return common.EmptyHash, err
 }

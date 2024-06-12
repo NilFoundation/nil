@@ -9,11 +9,11 @@ import (
 
 type RoTx interface {
 	Exists(tableName TableName, key []byte) (bool, error)
-	Get(tableName TableName, key []byte) (*[]byte, error)
+	Get(tableName TableName, key []byte) ([]byte, error)
 	Range(tableName TableName, from []byte, to []byte) (Iter, error)
 
 	ExistsInShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (bool, error)
-	GetFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (*[]byte, error)
+	GetFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) ([]byte, error)
 	RangeByShard(shardId types.ShardId, tableName ShardedTableName, from []byte, to []byte) (Iter, error)
 
 	Rollback()

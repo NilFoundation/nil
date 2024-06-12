@@ -147,21 +147,15 @@ func (tx *BadgerRwTx) Put(tableName TableName, key, value []byte) error {
 	return tx.tx.Set(makeKey(tableName, key), value)
 }
 
-func (tx *BadgerRoTx) Get(tableName TableName, key []byte) (val *[]byte, err error) {
-	var res *[]byte
+func (tx *BadgerRoTx) Get(tableName TableName, key []byte) (val []byte, err error) {
 	item, err := tx.tx.Get(makeKey(tableName, key))
 	if errors.Is(err, badger.ErrKeyNotFound) {
 		return nil, ErrKeyNotFound
 	}
 	if err != nil {
-		return res, err
+		return nil, err
 	}
-	err = item.Value(func(val []byte) error {
-		val = append([]byte{}, val...)
-		res = &val
-		return nil
-	})
-	return res, err
+	return item.ValueCopy(nil)
 }
 
 func (tx *BadgerRoTx) Exists(tableName TableName, key []byte) (bool, error) {
@@ -179,9 +173,6 @@ func (tx *BadgerRwTx) Delete(tableName TableName, key []byte) error {
 func (tx *BadgerRoTx) Range(tableName TableName, from []byte, to []byte) (Iter, error) {
 	var iter BadgerIter
 	iter.iter = tx.tx.NewIterator(badger.DefaultIteratorOptions)
-	if iter.iter == nil {
-		return nil, ErrIteratorCreate
-	}
 
 	prefix := makeKey(tableName, from)
 	iter.iter.Seek(prefix)
@@ -197,7 +188,7 @@ func (tx *BadgerRoTx) ExistsInShard(shardId types.ShardId, tableName ShardedTabl
 	return tx.Exists(shardTableName(tableName, shardId), key)
 }
 
-func (tx *BadgerRoTx) GetFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (*[]byte, error) {
+func (tx *BadgerRoTx) GetFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) ([]byte, error) {
 	return tx.Get(shardTableName(tableName, shardId), key)
 }
 

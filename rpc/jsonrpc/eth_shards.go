@@ -22,7 +22,7 @@ func (api *APIImpl) GetShardIdList(ctx context.Context) ([]types.ShardId, error)
 		return nil, err
 	}
 
-	block := db.ReadBlock(tx, types.MasterShardId, common.CastToHash(*hash))
+	block := db.ReadBlock(tx, types.MasterShardId, common.CastToHash(hash))
 	if block == nil {
 		return nil, nil
 	}

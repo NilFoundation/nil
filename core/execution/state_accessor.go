@@ -274,7 +274,7 @@ func getBlockAndInMsgIndexByHash(sa *shardAccessor, incoming bool, hash common.H
 		return nil, idx, err
 	}
 
-	if err = idx.UnmarshalSSZ(*value); err != nil {
+	if err = idx.UnmarshalSSZ(value); err != nil {
 		return nil, idx, err
 	}
 
