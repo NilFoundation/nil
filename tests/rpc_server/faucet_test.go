@@ -10,7 +10,7 @@ import (
 	"github.com/NilFoundation/nil/rpc/transport"
 )
 
-func (suite *SuiteRpc) createWalletViaFaucet(shardId types.ShardId, value int64) types.Address {
+func (suite *SuiteRpc) createWalletViaFaucet(value int64) types.Address {
 	privateKey, err := crypto.GenerateKey()
 	suite.Require().NoError(err)
 	publicKey := crypto.CompressPubkey(&privateKey.PublicKey)
@@ -37,7 +37,7 @@ func (suite *SuiteRpc) createWalletViaFaucet(shardId types.ShardId, value int64)
 		Data:     calldata,
 		Deploy:   false,
 	}
-	suite.Require().NoError(msgExternal.Sign(privateKey)) // We sign the message with our key, Fauset does not check
+	suite.Require().NoError(msgExternal.Sign(privateKey)) // We sign the message with our key, Faucet does not check
 
 	resHash, err := suite.client.SendMessage(msgExternal)
 	suite.Require().NoError(err)
@@ -52,7 +52,7 @@ func (suite *SuiteRpc) createWalletViaFaucet(shardId types.ShardId, value int64)
 	args, err := walletAbi.Pack("", publicKey)
 	suite.Require().NoError(err)
 	walletCode = append(walletCode, args...)
-	addrWallet := types.CreateAddressWithSalt(shardId, walletCode, salt.Bytes32())
+	addrWallet := types.CreateAddressForCreate2(faucetAddr, walletCode, salt.Bytes32())
 
 	res := suite.waitForReceiptOnShard(types.BaseShardId, msgExternal)
 
@@ -63,7 +63,7 @@ func (suite *SuiteRpc) createWalletViaFaucet(shardId types.ShardId, value int64)
 
 func (suite *SuiteRpc) TestFaucet() {
 	var value int64 = 100000
-	walletAddr := suite.createWalletViaFaucet(types.BaseShardId, value)
+	walletAddr := suite.createWalletViaFaucet(value)
 
 	blockNumber := transport.LatestBlockNumber
 	balance, err := suite.client.GetBalance(walletAddr, transport.BlockNumberOrHash{BlockNumber: &blockNumber})

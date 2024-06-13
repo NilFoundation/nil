@@ -190,10 +190,14 @@ func CreateAddress(shardId ShardId, code []byte) Address {
 	return PubkeyBytesToAddress(shardId, code)
 }
 
-// CreateAddressWithSalt creates address for the given contract code and salt
-func CreateAddressWithSalt(shardId ShardId, code []byte, salt common.Hash) Address {
-	code = append(code, salt.Bytes()...)
-	return CreateAddress(shardId, code)
+// CreateAddressForCreate2 creates address in a CREATE2-like way
+func CreateAddressForCreate2(sender Address, code []byte, salt common.Hash) Address {
+	data := make([]byte, 0, 1+AddrSize+2*common.HashSize)
+	data = append(data, 0xff)
+	data = append(data, sender.Bytes()...)
+	data = append(data, salt.Bytes()...)
+	data = append(data, common.PoseidonHash(code).Bytes()...)
+	return CreateAddress(sender.ShardId(), data)
 }
 
 func GenerateRandomAddress(shardId ShardId) Address {
