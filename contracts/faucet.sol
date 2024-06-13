@@ -8,7 +8,7 @@ contract Faucet {
     event Deploy(address addr);
     event Send(address addr, uint256 value);
 
-    function verifyExternal(bytes memory pubkey, uint256 hash, bytes memory signature) public view returns (bool) {
+    function verifyExternal(uint256, bytes memory) external view returns (bool) {
         return true;
     }
 

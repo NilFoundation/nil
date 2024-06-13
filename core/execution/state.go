@@ -47,7 +47,6 @@ type AccountState struct {
 	Code        types.Code
 	CodeHash    common.Hash
 	Seqno       types.Seqno
-	PublicKey   [types.PublicKeySize]byte
 	StorageTree *StorageTrie
 
 	State Storage
@@ -137,7 +136,6 @@ func NewAccountState(es *ExecutionState, addr types.Address, tx db.RwTx, account
 		CodeHash:    account.CodeHash,
 		Code:        code,
 		Seqno:       account.Seqno,
-		PublicKey:   account.PublicKey,
 		State:       make(Storage),
 	}, nil
 }
@@ -465,7 +463,6 @@ func (es *ExecutionState) EnableVmTracing(evm *vm.EVM) {
 func (es *ExecutionState) SetInitState(addr types.Address, message *types.DeployMessage) error {
 	acc := es.GetAccount(addr)
 	acc.setSeqno(message.Seqno)
-	acc.setPublicKey(message.PublicKey)
 
 	evm := vm.NewEVM(NewEVMBlockContext(es), es)
 	var from types.Address
@@ -531,10 +528,6 @@ func (as *AccountState) setSeqno(seqno types.Seqno) {
 	as.Seqno = seqno
 }
 
-func (as *AccountState) setPublicKey(publicKey [types.PublicKeySize]byte) {
-	as.PublicKey = publicKey
-}
-
 func (s *AccountState) SetCode(codeHash common.Hash, code []byte) {
 	prevcode := s.Code
 	s.db.journal.append(codeChange{
@@ -596,7 +589,6 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 		StorageRoot: as.StorageTree.RootHash(),
 		CodeHash:    as.CodeHash,
 		Seqno:       as.Seqno,
-		PublicKey:   as.PublicKey,
 	}
 
 	if err := db.WriteCode(as.Tx, as.address.ShardId(), as.Code); err != nil {
@@ -884,15 +876,15 @@ func (es *ExecutionState) RoTx() db.RoTx {
 	return es.tx
 }
 
-func (es *ExecutionState) CallValidateExternal(message *types.Message, account *AccountState) bool {
-	methodSignature := "verifyExternal(bytes,uint256,bytes)"
+func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *AccountState) bool {
+	methodSignature := "verifyExternal(uint256,bytes)"
 	methodSelector := crypto.Keccak256([]byte(methodSignature))[:4]
-	argSpec := vm.VerifyExternalArgs()
+	argSpec := vm.VerifySignatureArgs()[1:] // skip first arg (pubkey)
 	hash, err := message.SigningHash()
 	if err != nil {
 		return false
 	}
-	argData, err := argSpec.Pack(account.PublicKey[:], hash.Big(), ([]byte)(message.Signature))
+	argData, err := argSpec.Pack(hash.Big(), ([]byte)(message.Signature))
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to pack arguments")
 		return false

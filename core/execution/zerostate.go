@@ -111,10 +111,9 @@ func (es *ExecutionState) GenerateZeroState(configYaml string) error {
 		code = append(code, argsPacked...)
 
 		mainDeployMsg := &types.DeployMessage{
-			ShardId:   es.ShardId,
-			Seqno:     0,
-			Code:      code,
-			PublicKey: [types.PublicKeySize]byte(crypto.CompressPubkey(&MainPrivateKey.PublicKey)),
+			ShardId: es.ShardId,
+			Seqno:   0,
+			Code:    code,
 		}
 
 		es.CreateAccount(addr)

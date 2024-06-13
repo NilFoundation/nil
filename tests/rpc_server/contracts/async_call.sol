@@ -23,7 +23,7 @@ contract Caller {
         nil.send_msg(gasleft(), message);
     }
 
-    function verifyExternal(bytes memory unused, uint256 hash, bytes memory signature) public view returns (bool) {
+    function verifyExternal(uint256, bytes memory) external view returns (bool) {
         return true;
     }
 }
