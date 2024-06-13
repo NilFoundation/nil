@@ -32,7 +32,7 @@ contract Caller {
     function verifyExternal(
         uint256,
         bytes memory
-    ) external view returns (bool) {
+    ) external pure returns (bool) {
         return true;
     }
 }
