@@ -58,9 +58,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	blockContext := NewEVMBlockContext(es)
 	for i := range numMessages {
 		deploy := &types.DeployMessage{
-			ShardId: shardId,
-			Seqno:   i,
-			Code:    hexutil.FromHex(code),
+			Code: hexutil.FromHex(code),
 		}
 		data, err := deploy.MarshalSSZ()
 		suite.Require().NoError(err)
@@ -104,9 +102,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 		suite.Require().NoError(err)
 
 		deploy := types.DeployMessage{
-			ShardId: shardId,
-			Seqno:   types.Seqno(messageIndex),
-			Code:    hexutil.FromHex(code),
+			Code: hexutil.FromHex(code),
 		}
 		data, err := deploy.MarshalSSZ()
 		suite.Require().NoError(err)

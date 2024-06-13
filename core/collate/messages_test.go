@@ -119,17 +119,11 @@ func (s *MessagesSuite) TestValidateDeployMessage() {
 	s.Require().NoError(err)
 	s.Require().NotNil(es)
 
-	dmMaster := &types.DeployMessage{
-		ShardId: types.MasterShardId,
-		Seqno:   100500,
-	}
+	dmMaster := &types.DeployMessage{}
 	dataMaster, err := dmMaster.MarshalSSZ()
 	s.Require().NoError(err)
 
-	dmBase := &types.DeployMessage{
-		ShardId: types.BaseShardId,
-		Seqno:   100501,
-	}
+	dmBase := &types.DeployMessage{}
 	dataBase, err := dmBase.MarshalSSZ()
 	s.Require().NoError(err)
 
@@ -143,16 +137,15 @@ func (s *MessagesSuite) TestValidateDeployMessage() {
 
 	// Deploy to master shard
 	msg.Data = dataMaster
+	msg.To = types.CreateAddress(types.MasterShardId, nil)
 	dm = validateDeployMessage(es, msg)
 	s.Require().Nil(dm)
 
 	// Deploy to base shard
 	msg.Data = dataBase
-	msg.To = types.DeployMsgToAddress(dmBase, msg.From)
+	msg.To = types.CreateAddress(types.BaseShardId, nil)
 	dm = validateDeployMessage(es, msg)
 	s.Require().NotNil(dm)
-	s.Equal(dmBase.Seqno, dm.Seqno)
-	s.Equal(dmBase.ShardId, dm.ShardId)
 }
 
 func TestMessages(t *testing.T) {

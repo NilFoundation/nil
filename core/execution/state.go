@@ -460,7 +460,7 @@ func (es *ExecutionState) EnableVmTracing(evm *vm.EVM) {
 	}
 }
 
-func (es *ExecutionState) SetInitState(addr types.Address, message *types.DeployMessage) error {
+func (es *ExecutionState) SetInitState(addr types.Address, message *types.Message) error {
 	acc := es.GetAccount(addr)
 	acc.setSeqno(message.Seqno)
 
@@ -468,7 +468,7 @@ func (es *ExecutionState) SetInitState(addr types.Address, message *types.Deploy
 	var from types.Address
 	var value uint256.Int
 	var err error
-	_, deployAddr, _, err := evm.Deploy(addr, (vm.AccountRef)(from), message.Code, uint64(100000) /* gas */, &value)
+	_, deployAddr, _, err := evm.Deploy(addr, (vm.AccountRef)(from), message.Data, uint64(100000) /* gas */, &value)
 	if err != nil {
 		return err
 	}

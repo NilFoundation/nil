@@ -170,8 +170,7 @@ func (suite *SuiteRpc) createMessageForDeploy(
 	suite.T().Helper()
 
 	dm := &types.DeployMessage{
-		ShardId: toShard,
-		Code:    code,
+		Code: code,
 	}
 	data, err := dm.MarshalSSZ()
 	suite.Require().NoError(err)
@@ -181,7 +180,7 @@ func (suite *SuiteRpc) createMessageForDeploy(
 		Data:     data,
 		From:     from,
 		GasLimit: *types.NewUint256(gas),
-		To:       types.DeployMsgToAddress(dm, from),
+		To:       types.CreateAddress(toShard, code),
 		Internal: true,
 		Deploy:   true,
 	}
