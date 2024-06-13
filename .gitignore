@@ -8,6 +8,7 @@ models_bel.ts
 result
 clickhouse
 exporter.yaml
+*.json
 
 # compiled solidity contracts
 *.bin
