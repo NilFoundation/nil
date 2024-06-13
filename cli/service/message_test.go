@@ -1,11 +1,10 @@
-package message_test
+package service
 
 import (
 	"encoding/json"
 	"errors"
 	"testing"
 
-	"github.com/NilFoundation/nil/cli/services/message"
 	"github.com/NilFoundation/nil/client/mock"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
@@ -32,7 +31,7 @@ func TestFetchMessage_Successfully(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := message.NewService(mockClient, types.BaseShardId)
+	service := NewService(mockClient, "", types.BaseShardId)
 
 	// Call the FetchMessageByHash
 	response, err := service.FetchMessageByHash(hexutil.Encode(common.EmptyHash[:]))
@@ -54,7 +53,7 @@ func TestFetchMessage_Err(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := message.NewService(mockClient, types.BaseShardId)
+	service := NewService(mockClient, "", types.BaseShardId)
 
 	// Call the FetchMessageByHash
 	_, err := service.FetchMessageByHash("0x1234")

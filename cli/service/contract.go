@@ -1,9 +1,8 @@
-package contract
+package service
 
 import (
 	"crypto/ecdsa"
 
-	"github.com/NilFoundation/nil/client"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
@@ -12,26 +11,6 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 )
-
-var logger = logging.NewLogger("contractService")
-
-type Service struct {
-	client     client.Client
-	privateKey *ecdsa.PrivateKey
-	shardId    types.ShardId
-}
-
-// NewService initializes a new Service with the given client and private key
-func NewService(client client.Client, pk string, shardId types.ShardId) *Service {
-	privateKey, err := crypto.HexToECDSA(pk)
-	check.PanicIfErr(err)
-
-	return &Service{
-		client,
-		privateKey,
-		shardId,
-	}
-}
 
 // GetCode retrieves the contract code at the given address
 func (s *Service) GetCode(contractAddress string) (string, error) {
@@ -43,11 +22,11 @@ func (s *Service) GetCode(contractAddress string) (string, error) {
 
 	code, err := s.client.GetCode(address, blockNum)
 	if err != nil {
-		logger.Error().Err(err).Str(logging.FieldRpcMethod, rpc.Eth_getCode).Msg("Failed to get contract code")
+		s.logger.Error().Err(err).Str(logging.FieldRpcMethod, rpc.Eth_getCode).Msg("Failed to get contract code")
 		return "", err
 	}
 
-	logger.Trace().Msgf("Contract code: %x", code)
+	s.logger.Trace().Msgf("Contract code: %x", code)
 	return code.Hex(), nil
 }
 
@@ -146,11 +125,11 @@ func (s *Service) sendRawTransaction(message *types.Message) (string, error) {
 	// Call the RPC method to send the raw transaction
 	txHash, err := s.client.SendMessage(message)
 	if err != nil {
-		logger.Error().Err(err).Msg("Failed to send new transaction")
+		s.logger.Error().Err(err).Msg("Failed to send new transaction")
 		return "", err
 	}
 
-	logger.Trace().Msgf("Transaction hash: %s", txHash)
+	s.logger.Trace().Msgf("Transaction hash: %s", txHash)
 	return txHash.String(), nil
 }
 
@@ -161,16 +140,16 @@ func (s *Service) getSeqNum(address string) (types.Seqno, error) {
 
 	var addr types.Address
 	if err := addr.UnmarshalText([]byte(address)); err != nil {
-		logger.Error().Err(err).Msg("Invalid address")
+		s.logger.Error().Err(err).Msg("Invalid address")
 		return 0, err
 	}
 
 	seqNum, err := s.client.GetTransactionCount(addr, blockNum)
 	if err != nil {
-		logger.Error().Err(err).Msg("Failed to get sequence number")
+		s.logger.Error().Err(err).Msg("Failed to get sequence number")
 		return 0, err
 	}
 
-	logger.Trace().Msgf("Sequence number (uint64): %d", seqNum)
+	s.logger.Trace().Msgf("Sequence number (uint64): %d", seqNum)
 	return seqNum, nil
 }
