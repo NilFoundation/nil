@@ -22,8 +22,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: check the relevance of the compiled contracts
-        run: nix develop -c make lint-compiled-contracts
+      - name: compile contracts
+        run: nix develop -c make compile-contracts
 
       - name: golangci-lint
         run: nix develop -c golangci-lint run

@@ -10,7 +10,8 @@ GOTEST = GOPRIVATE="$(GOPRIVATE)" GODEBUG=cgocheck=0 $(GO) test -tags $(BUILD_TA
 
 default: all
 
-test:
+.PHONY: test
+test: compile-contracts
 	$(GOTEST) $(CMDARGS)
 
 %.cmd:
@@ -24,9 +25,9 @@ test:
 
 COMMANDS += nil nil_cli
 
-$(COMMANDS): %: %.cmd
-
 all: $(COMMANDS)
+
+$(COMMANDS): %: compile-contracts %.cmd
 
 ssz:
 	@echo "Generating SSZ code"
@@ -34,9 +35,10 @@ ssz:
 	pushd core/types && go generate && popd
 	pushd core/mpt && go generate && popd
 
-compile-contracts:
-	@echo "Generating contracts code"
-	cd contracts && go generate
+contracts/compiled/%.bin: contracts/%.sol $(wildcard contract/*.sol)
+	go run tools/solc/bin/main.go -s $< -o contracts/compiled
+
+compile-contracts: contracts/compiled/Faucet.bin contracts/compiled/Wallet.bin
 
 lint: lint-compiled-contracts
 	go mod tidy
