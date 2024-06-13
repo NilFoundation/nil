@@ -9,7 +9,6 @@ type DeployMessage struct {
 
 type AddressSourceData struct {
 	DeployMessage
-	From Address
 	Salt uint64
 }
 

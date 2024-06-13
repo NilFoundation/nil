@@ -66,12 +66,12 @@ func (suite *SuiteSendTransaction) TearDownSuite() {
 	suite.db.Close()
 }
 
-func (suite *SuiteEthAccounts) TestInvalidMessage() {
+func (suite *SuiteSendTransaction) TestInvalidMessage() {
 	_, err := suite.api.SendRawTransaction(context.Background(), hexutil.Bytes("querty"))
 	suite.Require().ErrorIs(err, ssz.ErrSize)
 }
 
-func (suite *SuiteEthAccounts) TestInvalidSignature() {
+func (suite *SuiteSendTransaction) TestInvalidSignature() {
 	msg := types.Message{
 		From: types.GenerateRandomAddress(0),
 	}
@@ -83,7 +83,7 @@ func (suite *SuiteEthAccounts) TestInvalidSignature() {
 	suite.Require().EqualError(err, "invalid signature")
 }
 
-func (suite *SuiteEthAccounts) TestInvalidShard() {
+func (suite *SuiteSendTransaction) TestInvalidShard() {
 	msg := types.Message{
 		From: types.GenerateRandomAddress(1234),
 	}

@@ -20,7 +20,23 @@ import (
 
 var logger = logging.NewLogger("execution")
 
+const TraceBlocksEnabled = false
+
+const ExternalMessageVerificationMaxGas = 100000
+
+var blocksTracer *BlocksTracer
+
 type Storage map[common.Hash]common.Hash
+
+func init() {
+	if TraceBlocksEnabled {
+		var err error
+		blocksTracer, err = NewBlocksTracer()
+		if err != nil || blocksTracer == nil {
+			panic("Can not create Blocks tracer")
+		}
+	}
+}
 
 type AccountState struct {
 	db      *ExecutionState
@@ -156,15 +172,12 @@ func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash,
 	receiptTrieTable := db.ReceiptTrieTable
 	if block != nil {
 		contractRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, contractTrieTable, block.SmartContractsRoot)
-		messageRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, messageTrieTable, block.InMessagesRoot)
-		outMessagesTrie = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, messageTrieTable, block.OutMessagesRoot)
-		receiptRoot = mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, receiptTrieTable, block.ReceiptsRoot)
 	} else {
 		contractRoot = mpt.NewMerklePatriciaTrie(tx, shardId, contractTrieTable)
-		messageRoot = mpt.NewMerklePatriciaTrie(tx, shardId, messageTrieTable)
-		outMessagesTrie = mpt.NewMerklePatriciaTrie(tx, shardId, messageTrieTable)
-		receiptRoot = mpt.NewMerklePatriciaTrie(tx, shardId, receiptTrieTable)
 	}
+	messageRoot = mpt.NewMerklePatriciaTrie(tx, shardId, messageTrieTable)
+	outMessagesTrie = mpt.NewMerklePatriciaTrie(tx, shardId, messageTrieTable)
+	receiptRoot = mpt.NewMerklePatriciaTrie(tx, shardId, receiptTrieTable)
 
 	accessor, err := NewStateAccessor()
 	if err != nil {
@@ -438,6 +451,17 @@ func (es *ExecutionState) SetCode(addr types.Address, code []byte) {
 	acc.SetCode(types.Code(code).Hash(), code)
 }
 
+func (es *ExecutionState) EnableVmTracing(evm *vm.EVM) {
+	evm.Config.Tracer = &tracing.Hooks{
+		OnOpcode: func(pc uint64, op byte, gas, cost uint64, scope tracing.OpContext, rData []byte, depth int, err error) {
+			for i, item := range scope.StackData() {
+				logger.Debug().Msgf("     %d: %s", i, item.String())
+			}
+			logger.Debug().Msgf("%04x: %s", pc, vm.OpCode(op).String())
+		},
+	}
+}
+
 func (es *ExecutionState) SetInitState(addr types.Address, message *types.DeployMessage) error {
 	acc := es.GetAccount(addr)
 	acc.setSeqno(message.Seqno)
@@ -705,8 +729,12 @@ func (es *ExecutionState) AddOutMessage(txId common.Hash, msg *types.Message) {
 
 func (es *ExecutionState) HandleDeployMessage(
 	_ context.Context, message *types.Message, deployMsg *types.DeployMessage, blockContext *vm.BlockContext,
-) error {
+) (uint64, error) {
 	addr := message.To
+
+	logger.Debug().
+		Stringer(logging.FieldMessageTo, addr).
+		Msg("Handling deploy message...")
 
 	gas := message.GasLimit.Uint64()
 
@@ -720,7 +748,7 @@ func (es *ExecutionState) HandleDeployMessage(
 		GasUsed:         uint32(gas - leftOverGas),
 	}
 
-	es.Receipts = append(es.Receipts, r)
+	es.AddReceipt(r)
 
 	event := logger.Debug().Stringer(logging.FieldMessageTo, addr)
 	if err != nil {
@@ -729,10 +757,10 @@ func (es *ExecutionState) HandleDeployMessage(
 		event.Msg("Created new contract.")
 	}
 
-	return err
+	return leftOverGas, err
 }
 
-func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *types.Message, blockContext *vm.BlockContext) ([]byte, error) {
+func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *types.Message, blockContext *vm.BlockContext) (uint64, []byte, error) {
 	addr := message.To
 	logger.Debug().
 		Stringer(logging.FieldMessageTo, addr).
@@ -743,14 +771,7 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	evm := vm.NewEVM(*blockContext, es)
 
 	if es.TraceVm {
-		evm.Config.Tracer = &tracing.Hooks{
-			OnOpcode: func(pc uint64, op byte, gas, cost uint64, scope tracing.OpContext, rData []byte, depth int, err error) {
-				for i, item := range scope.StackData() {
-					logger.Debug().Msgf("     %d: %s", i, item.String())
-				}
-				logger.Debug().Msgf("%04x: %s", pc, vm.OpCode(op).String())
-			},
-		}
+		es.EnableVmTracing(evm)
 	}
 
 	ret, leftOverGas, err := evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas, &message.Value.Int)
@@ -765,7 +786,7 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 		ContractAddress: addr,
 	}
 	es.AddReceipt(&r)
-	return ret, err
+	return leftOverGas, ret, err
 }
 
 func (es *ExecutionState) AddReceipt(receipt *types.Receipt) {
@@ -823,6 +844,11 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		msgStart += len(es.OutMessages[msgHash])
 	}
 
+	// TODO: we should enable this check, because each inbound message must have a receipt
+	// if len(es.InMessages) != len(es.Receipts) {
+	//	return common.EmptyHash, fmt.Errorf("number of messages does not match number of receipts: %d != %d", len(es.InMessages), len(es.Receipts))
+	//}
+
 	block := types.Block{
 		Id:                  blockId,
 		PrevBlock:           es.PrevBlock,
@@ -834,6 +860,10 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		ChildBlocksRootHash: treeShardsRootHash,
 		MasterChainHash:     es.MasterChain,
 		Timestamp:           es.Timer.Now(),
+	}
+
+	if TraceBlocksEnabled {
+		blocksTracer.Trace(es, &block)
 	}
 
 	blockHash := block.Hash()
@@ -870,7 +900,7 @@ func (es *ExecutionState) CallValidateExternal(message *types.Message, account *
 
 	blockContext := NewEVMBlockContext(es)
 	evm := vm.NewEVM(blockContext, es)
-	ret, _, err := evm.StaticCall((vm.AccountRef)(account.address), account.address, calldata, 10000)
+	ret, _, err := evm.StaticCall((vm.AccountRef)(account.address), account.address, calldata, ExternalMessageVerificationMaxGas)
 	if err != nil || !bytes.Equal(ret, common.LeftPadBytes([]byte{1}, 32)) {
 		return false
 	}

@@ -2,11 +2,21 @@ package rpc
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/NilFoundation/nil/client"
+	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/rpc/jsonrpc"
+	"github.com/NilFoundation/nil/rpc/transport"
 )
 
 var (
@@ -18,24 +28,40 @@ var (
 	ErrRPCError                  = errors.New("rpc error")
 )
 
-type RPCClient struct {
+const (
+	Eth_getCode                          = "eth_getCode"
+	Eth_getBlockByHash                   = "eth_getBlockByHash"
+	Eth_getBlockByNumber                 = "eth_getBlockByNumber"
+	Eth_sendRawTransaction               = "eth_sendRawTransaction"
+	Eth_getInMessageByHash               = "eth_getInMessageByHash"
+	Eth_getInMessageReceipt              = "eth_getInMessageReceipt"
+	Eth_getTransactionCount              = "eth_getTransactionCount"
+	Eth_getBlockTransactionCountByNumber = "eth_getBlockTransactionCountByNumber"
+	Eth_getBlockTransactionCountByHash   = "eth_getBlockTransactionCountByHash"
+)
+
+type Client struct {
 	endpoint string
+	seqno    uint64
+	client   http.Client
 }
 
-// NewRPCClient creates a new RPCClient instance
-func NewRPCClient(endpoint string) *RPCClient {
-	return &RPCClient{
+var _ client.Client = (*Client)(nil)
+
+func NewClient(endpoint string) *Client {
+	return &Client{
 		endpoint: endpoint,
 	}
 }
 
-// Call sends a JSON-RPC request to the server and returns the response
-func (c *RPCClient) Call(method string, params []interface{}) (json.RawMessage, error) {
-	request := map[string]interface{}{
+func (c *Client) call(method string, params []any) (json.RawMessage, error) {
+	c.seqno++
+
+	request := map[string]any{
 		"jsonrpc": "2.0",
 		"method":  method,
 		"params":  params,
-		"id":      1,
+		"id":      c.seqno,
 	}
 
 	requestBody, err := json.Marshal(request)
@@ -43,7 +69,13 @@ func (c *RPCClient) Call(method string, params []interface{}) (json.RawMessage, 
 		return nil, fmt.Errorf("%w: %w", ErrFailedToMarshalRequest, err)
 	}
 
-	resp, err := http.Post(c.endpoint, "application/json", bytes.NewBuffer(requestBody))
+	req, err := http.NewRequest(http.MethodPost, c.endpoint, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToSendRequest, err)
 	}
@@ -68,4 +100,153 @@ func (c *RPCClient) Call(method string, params []interface{}) (json.RawMessage, 
 	}
 
 	return rpcResponse["result"], nil
+}
+
+func (c *Client) Call(method string, params ...any) (map[string]any, error) {
+	raw, err := c.call(method, params)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (c *Client) GetCode(addr types.Address, blockNrOrHash transport.BlockNumberOrHash) (types.Code, error) {
+	params := []any{addr, blockNrOrHash}
+	raw, err := c.call(Eth_getCode, params)
+	if err != nil {
+		return types.Code{}, err
+	}
+
+	var codeHex string
+	if err := json.Unmarshal(raw, &codeHex); err != nil {
+		return types.Code{}, err
+	}
+
+	bytes, err := hex.DecodeString(codeHex)
+	if err != nil {
+		return types.Code{}, err
+	}
+
+	return types.Code(bytes), nil
+}
+
+func (c *Client) GetBlockByHash(shardId types.ShardId, hash common.Hash, fullTx bool) (*jsonrpc.RPCBlock, error) {
+	params := []any{shardId, hash, fullTx}
+	res, err := c.call(Eth_getBlockByHash, params)
+	if err != nil {
+		return nil, err
+	}
+	return toRPCBlock(res)
+}
+
+func (c *Client) GetBlockByNumber(shardId types.ShardId, num transport.BlockNumber, fullTx bool) (*jsonrpc.RPCBlock, error) {
+	params := []any{shardId, num, fullTx}
+	res, err := c.call(Eth_getBlockByNumber, params)
+	if err != nil {
+		return nil, err
+	}
+	return toRPCBlock(res)
+}
+
+func toRPCBlock(raw json.RawMessage) (*jsonrpc.RPCBlock, error) {
+	var block *jsonrpc.RPCBlock
+	if err := json.Unmarshal(raw, &block); err != nil {
+		return nil, err
+	}
+	return block, nil
+}
+
+func (c *Client) SendMessage(msg *types.Message) (common.Hash, error) {
+	data, err := msg.MarshalSSZ()
+	if err != nil {
+		return common.EmptyHash, err
+	}
+	return c.SendRawTransaction(data)
+}
+
+func (c *Client) SendRawTransaction(data []byte) (common.Hash, error) {
+	params := []any{hexutil.Bytes(data)}
+	res, err := c.call(Eth_sendRawTransaction, params)
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	var hash common.Hash
+	if err := json.Unmarshal(res, &hash); err != nil {
+		return common.EmptyHash, err
+	}
+	return hash, nil
+}
+
+func (c *Client) GetInMessageByHash(shardId types.ShardId, hash common.Hash) (*jsonrpc.RPCInMessage, error) {
+	params := []any{shardId, hash}
+	res, err := c.call(Eth_getInMessageByHash, params)
+	if err != nil {
+		return nil, err
+	}
+
+	var msg *jsonrpc.RPCInMessage
+	if err := json.Unmarshal(res, &msg); err != nil {
+		return nil, err
+	}
+	return msg, nil
+}
+
+func (c *Client) GetInMessageReceipt(shardId types.ShardId, hash common.Hash) (*jsonrpc.RPCReceipt, error) {
+	params := []any{shardId, hash}
+	res, err := c.call(Eth_getInMessageReceipt, params)
+	if err != nil {
+		return nil, err
+	}
+
+	var receipt *jsonrpc.RPCReceipt
+	if err := json.Unmarshal(res, &receipt); err != nil {
+		return nil, err
+	}
+	return receipt, nil
+}
+
+func (c *Client) GetTransactionCount(address types.Address, blockNrOrHash transport.BlockNumberOrHash) (types.Seqno, error) {
+	params := []any{address, blockNrOrHash}
+	res, err := c.call(Eth_getTransactionCount, params)
+	if err != nil {
+		return 0, err
+	}
+
+	val, err := toUint64(res)
+	if err != nil {
+		return 0, err
+	}
+	return types.Seqno(val), nil
+}
+
+func toUint64(raw json.RawMessage) (uint64, error) {
+	input := strings.TrimSpace(string(raw))
+	if len(input) >= 2 && input[0] == '"' && input[len(input)-1] == '"' {
+		input = input[1 : len(input)-1]
+	}
+	return strconv.ParseUint(input, 0, 64)
+}
+
+func (c *Client) GetBlockTransactionCountByNumber(shardId types.ShardId, number transport.BlockNumber) (uint64, error) {
+	params := []any{shardId, number}
+	res, err := c.call(Eth_getBlockTransactionCountByNumber, params)
+	if err != nil {
+		return 0, err
+	}
+	return toUint64(res)
+}
+
+func (c *Client) GetBlockTransactionCountByHash(shardId types.ShardId, hash common.Hash) (uint64, error) {
+	params := []any{shardId, hash}
+	res, err := c.call(Eth_getBlockTransactionCountByHash, params)
+	if err != nil {
+		return 0, err
+	}
+	return toUint64(res)
 }

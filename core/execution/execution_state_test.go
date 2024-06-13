@@ -51,15 +51,16 @@ func (suite *SuiteExecutionState) TestExecState() {
 
 	const numMessages types.Seqno = 10
 
+	// constructor that generates the code "01020304"
+	code := "6004600c60003960046000f301020304"
+
 	from := types.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
 	blockContext := NewEVMBlockContext(es)
 	for i := range numMessages {
 		deploy := &types.DeployMessage{
 			ShardId: shardId,
 			Seqno:   i,
-
-			// constructor that generates the code "01020304"
-			Code: hexutil.FromHex("6004600c60003960046000f301020304"),
+			Code:    hexutil.FromHex(code),
 		}
 		data, err := deploy.MarshalSSZ()
 		suite.Require().NoError(err)
@@ -69,10 +70,11 @@ func (suite *SuiteExecutionState) TestExecState() {
 			From:     from,
 			Seqno:    i,
 			GasLimit: *types.NewUint256(10000),
-			To:       types.DeployMsgToAddress(deploy, from),
+			To:       types.CreateAddressWithSalt(types.BaseShardId, hexutil.FromHex(code), types.NewUint256(uint64(i))),
 		}
 		es.AddInMessage(msg)
-		suite.Require().NoError(es.HandleDeployMessage(ctx, msg, deploy, &blockContext))
+		_, err = es.HandleDeployMessage(ctx, msg, deploy, &blockContext)
+		suite.Require().NoError(err)
 	}
 
 	blockHash, err := es.Commit(0)
@@ -104,8 +106,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 		deploy := types.DeployMessage{
 			ShardId: shardId,
 			Seqno:   types.Seqno(messageIndex),
-			// constructor that generates the code "01020304"
-			Code: hexutil.FromHex("6004600c60003960046000f301020304"),
+			Code:    hexutil.FromHex(code),
 		}
 		data, err := deploy.MarshalSSZ()
 		suite.Require().NoError(err)
@@ -132,6 +133,7 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 	msg2 := types.Message{Data: []byte{2}, Seqno: 2}
 
 	es.AddInMessage(&msg1)
+	es.AddReceipt(&types.Receipt{MsgHash: msg1.Hash()})
 	blockHash1, err := es.Commit(0)
 	suite.Require().NoError(err)
 
@@ -139,6 +141,7 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 	suite.Require().NoError(err)
 
 	es.AddInMessage(&msg2)
+	es.AddReceipt(&types.Receipt{MsgHash: msg2.Hash()})
 	blockHash2, err := es.Commit(1)
 	suite.Require().NoError(err)
 

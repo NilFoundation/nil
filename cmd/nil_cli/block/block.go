@@ -3,6 +3,7 @@ package block
 import (
 	blockService "github.com/NilFoundation/nil/cli/services/block"
 	"github.com/NilFoundation/nil/client/rpc"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -10,13 +11,13 @@ import (
 
 var logger = logging.NewLogger("blockCommand")
 
-func GetCommand(rpcEndpoint string) *cobra.Command {
+func GetCommand(cfg *config.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
 		Use:     "block",
 		Short:   "Retrieve a block from the cluster",
 		PreRunE: runPreRun,
 		Run: func(cmd *cobra.Command, args []string) {
-			runCommand(cmd, args, rpcEndpoint)
+			runCommand(cmd, args, cfg.RPCEndpoint)
 		},
 	}
 
@@ -56,7 +57,7 @@ func setFlags(cmd *cobra.Command) {
 func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
 
-	client := rpc.NewRPCClient(rpcEndpoint)
+	client := rpc.NewClient(rpcEndpoint)
 	service := blockService.NewService(client, params.shardId)
 
 	if params.latest {

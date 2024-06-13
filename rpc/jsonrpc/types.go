@@ -44,6 +44,7 @@ type CallArgs struct {
 // @componentprop Value value string true "The message value."
 type RPCInMessage struct {
 	Success     bool              `json:"success"`
+	Data        hexutil.Bytes     `json:"data"`
 	BlockHash   *common.Hash      `json:"blockHash"`
 	BlockNumber types.BlockNumber `json:"blockNumber"`
 	From        types.Address     `json:"from"`
@@ -120,6 +121,7 @@ func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types
 	seqno := hexutil.Uint64(message.Seqno)
 	result := &RPCInMessage{
 		Success:     receipt.Success,
+		Data:        hexutil.Bytes(message.Data),
 		BlockHash:   &blockHash,
 		BlockNumber: block.Id,
 		From:        message.From,

@@ -22,4 +22,8 @@ contract Caller {
     function send_msg(bytes calldata message) public payable {
         nil.send_msg(gasleft(), message);
     }
+
+    function verifyExternal(bytes memory unused, uint256 hash, bytes memory signature) public view returns (bool) {
+        return true;
+    }
 }
