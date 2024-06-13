@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/NilFoundation/nil/client/rpc"
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
@@ -84,22 +85,12 @@ func (s *Service) DeployContract(bytecode string) (string, error) {
 		return "", err
 	}
 
-	// Create the deploy message
-	dm := &types.DeployMessage{
-		Code: hexutil.FromHex(bytecode),
-	}
-
-	data, err := dm.MarshalSSZ()
-	if err != nil {
-		return "", err
-	}
-
 	// Create the message with the deploy data
 	message := &types.Message{
 		To:       publicAddress,
 		Deploy:   true,
 		Seqno:    seqNum,
-		Data:     data,
+		Data:     types.BuildDeployPayload(hexutil.FromHex(bytecode), common.EmptyHash).Bytes(),
 		GasLimit: *types.NewUint256(100000000),
 	}
 

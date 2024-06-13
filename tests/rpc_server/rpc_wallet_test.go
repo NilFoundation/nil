@@ -19,11 +19,7 @@ func (suite *SuiteRpc) deployContractViaWallet(shardId types.ShardId, code []byt
 
 	addrWallet := types.CreateAddress(shardId, code)
 
-	msgDeploy := &types.DeployMessage{
-		Code: code,
-	}
-	msgDeployData, err := msgDeploy.MarshalSSZ()
-	suite.Require().NoError(err)
+	msgDeploy := types.BuildDeployPayload(code, common.EmptyHash)
 
 	msgInternal := &types.Message{
 		Seqno:    seqno,
@@ -31,7 +27,7 @@ func (suite *SuiteRpc) deployContractViaWallet(shardId types.ShardId, code []byt
 		To:       addrWallet,
 		Value:    *types.NewUint256(0),
 		GasLimit: *types.NewUint256(100000),
-		Data:     msgDeployData,
+		Data:     msgDeploy.Bytes(),
 		Internal: true,
 		Deploy:   true,
 	}

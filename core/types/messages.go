@@ -1,18 +1,31 @@
 package types
 
-type DeployMessage struct {
-	Code Code `ssz-max:"24576"`
+import (
+	"slices"
+
+	"github.com/NilFoundation/nil/common"
+)
+
+type DeployPayload []byte
+
+func (dp DeployPayload) Code() Code {
+	return Code(dp[:len(dp)-common.HashSize])
 }
 
-type AddressSourceData struct {
-	DeployMessage
-	Salt uint64
+func (dp DeployPayload) Bytes() []byte {
+	return dp
 }
 
-func NewDeployMessage(data []byte) (*DeployMessage, error) {
-	msg := &DeployMessage{}
-	if err := msg.UnmarshalSSZ(data); err != nil {
-		return nil, err
+func BuildDeployPayload(code []byte, salt common.Hash) DeployPayload {
+	code = slices.Clone(code)
+	code = append(code, salt.Bytes()...)
+	return code
+}
+
+func ParseDeployPayload(data []byte) *DeployPayload {
+	if len(data) < 32 {
+		return nil
 	}
-	return msg, nil
+	dp := DeployPayload(data)
+	return &dp
 }

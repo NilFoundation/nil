@@ -53,25 +53,21 @@ func (s *SuiteEthCall) SetupSuite() {
 
 	s.from = types.GenerateRandomAddress(shardId)
 
-	dm := &types.DeployMessage{
-		Code: hexutil.FromHex(s.contracts["SimpleContract"].Code),
-	}
-	data, err := dm.MarshalSSZ()
-	s.Require().NoError(err)
+	dm := types.BuildDeployPayload(hexutil.FromHex(s.contracts["SimpleContract"].Code), common.EmptyHash)
 
 	m := &types.Message{
 		Seqno:    0,
-		Data:     data,
+		Data:     dm.Bytes(),
 		From:     s.from,
 		GasLimit: *types.NewUint256(100000),
-		To:       types.DeployMsgToAddress(dm, s.from),
+		To:       types.DeployMsgToAddress(&dm, s.from),
 	}
 	s.simple = m.To
 	es.AddInMessage(m)
 
 	es.AddInMessage(m)
 
-	_, err = es.HandleDeployMessage(ctx, m, dm, &blockContext)
+	_, err = es.HandleDeployMessage(ctx, m, &dm, &blockContext)
 	s.Require().NoError(err)
 
 	blockHash, err := es.Commit(0)

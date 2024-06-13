@@ -178,8 +178,8 @@ func PubkeyBytesToAddress(shardId ShardId, pubBytes []byte) Address {
 	return BytesToAddress(raw)
 }
 
-func DeployMsgToAddress(deployMsg *DeployMessage, to Address) Address {
-	return CreateAddress(to.ShardId(), deployMsg.Code)
+func DeployMsgToAddress(deployMsg *DeployPayload, to Address) Address {
+	return CreateAddress(to.ShardId(), deployMsg.Code())
 }
 
 // CreateAddress creates address for the given contract code
@@ -191,7 +191,7 @@ func CreateAddress(shardId ShardId, code []byte) Address {
 }
 
 // CreateAddressWithSalt creates address for the given contract code and salt
-func CreateAddressWithSalt(shardId ShardId, code []byte, salt *Uint256) Address {
+func CreateAddressWithSalt(shardId ShardId, code []byte, salt common.Hash) Address {
 	code = append(code, salt.Bytes()...)
 	return CreateAddress(shardId, code)
 }

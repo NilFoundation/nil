@@ -18,17 +18,14 @@ func deployContract(t *testing.T, contract *compiler.Contract, state *ExecutionS
 	t.Helper()
 
 	contractCode := hexutil.FromHex(contract.Code)
-	dm := &types.DeployMessage{
-		Code: contractCode,
-	}
-	data, _ := dm.MarshalSSZ()
+	dm := types.BuildDeployPayload(contractCode, common.EmptyHash)
 	message := &types.Message{
-		Data:     data,
+		Data:     dm.Bytes(),
 		Seqno:    seqno,
 		GasLimit: *types.NewUint256(100000),
 		To:       types.CreateAddress(state.ShardId, contractCode),
 	}
-	_, err := state.HandleDeployMessage(context.Background(), message, dm, blockContext)
+	_, err := state.HandleDeployMessage(context.Background(), message, &dm, blockContext)
 	require.NoError(t, err)
 	return message.To
 }

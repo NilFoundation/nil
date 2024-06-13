@@ -147,27 +147,27 @@ func refundGas(payer payer, message *types.Message, gasRemaining uint64) {
 	payer.AddBalance(remaining)
 }
 
-func validateDeployMessage(es *execution.ExecutionState, message *types.Message) *types.DeployMessage {
-	fail := func(err error, message string) *types.DeployMessage {
+func validateDeployMessage(es *execution.ExecutionState, message *types.Message) *types.DeployPayload {
+	fail := func(err error, message string) *types.DeployPayload {
 		addFailReceipt(es, err)
 		sharedLogger.Debug().Err(err).Stringer(logging.FieldMessageHash, es.InMessageHash).Msg(message)
 		return nil
 	}
 
-	deployMsg, err := types.NewDeployMessage(message.Data)
-	if err != nil {
-		return fail(err, "Invalid deploy message")
+	deployPayload := types.ParseDeployPayload(message.Data)
+	if deployPayload == nil {
+		return fail(nil, "Invalid deploy payload")
 	}
 
 	if types.IsMasterShard(message.To.ShardId()) && message.From != types.MainWalletAddress {
 		return fail(nil, "Attempt to deploy to master shard from non system wallet")
 	}
 
-	if message.To != types.CreateAddress(message.To.ShardId(), deployMsg.Code) {
+	if message.To != types.CreateAddress(message.To.ShardId(), deployPayload.Bytes()) {
 		return fail(nil, "Incorrect deployment address")
 	}
 
-	return deployMsg
+	return deployPayload
 }
 
 func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.Message) (bool, error) {

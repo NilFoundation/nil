@@ -52,7 +52,7 @@ func (suite *SuiteRpc) createWalletViaFaucet(shardId types.ShardId, value int64)
 	args, err := walletAbi.Pack("", publicKey)
 	suite.Require().NoError(err)
 	walletCode = append(walletCode, args...)
-	addrWallet := types.CreateAddressWithSalt(shardId, walletCode, salt)
+	addrWallet := types.CreateAddressWithSalt(shardId, walletCode, salt.Bytes32())
 
 	res := suite.waitForReceiptOnShard(types.BaseShardId, msgExternal)
 

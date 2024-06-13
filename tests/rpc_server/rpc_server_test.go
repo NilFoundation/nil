@@ -169,15 +169,11 @@ func (suite *SuiteRpc) createMessageForDeploy(
 ) *types.Message {
 	suite.T().Helper()
 
-	dm := &types.DeployMessage{
-		Code: code,
-	}
-	data, err := dm.MarshalSSZ()
-	suite.Require().NoError(err)
+	dm := types.BuildDeployPayload(code, common.EmptyHash)
 
 	m := &types.Message{
 		Seqno:    seqno,
-		Data:     data,
+		Data:     dm.Bytes(),
 		From:     from,
 		GasLimit: *types.NewUint256(gas),
 		To:       types.CreateAddress(toShard, code),

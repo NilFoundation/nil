@@ -57,21 +57,17 @@ func (suite *SuiteExecutionState) TestExecState() {
 	from := types.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
 	blockContext := NewEVMBlockContext(es)
 	for i := range numMessages {
-		deploy := &types.DeployMessage{
-			Code: hexutil.FromHex(code),
-		}
-		data, err := deploy.MarshalSSZ()
-		suite.Require().NoError(err)
+		deploy := types.BuildDeployPayload(hexutil.FromHex(code), common.BytesToHash([]byte{byte(i)}))
 
 		msg := &types.Message{
-			Data:     data,
+			Data:     deploy.Bytes(),
 			From:     from,
 			Seqno:    i,
 			GasLimit: *types.NewUint256(10000),
-			To:       types.CreateAddressWithSalt(types.BaseShardId, hexutil.FromHex(code), types.NewUint256(uint64(i))),
+			To:       types.CreateAddress(types.BaseShardId, deploy.Bytes()),
 		}
 		es.AddInMessage(msg)
-		_, err = es.HandleDeployMessage(ctx, msg, deploy, &blockContext)
+		_, err = es.HandleDeployMessage(ctx, msg, &deploy, &blockContext)
 		suite.Require().NoError(err)
 	}
 
@@ -101,12 +97,8 @@ func (suite *SuiteExecutionState) TestExecState() {
 		}
 		suite.Require().NoError(err)
 
-		deploy := types.DeployMessage{
-			Code: hexutil.FromHex(code),
-		}
-		data, err := deploy.MarshalSSZ()
-		suite.Require().NoError(err)
-		suite.Equal(types.Code(data), m.Data)
+		deploy := types.BuildDeployPayload(hexutil.FromHex(code), common.BytesToHash([]byte{byte(messageIndex)}))
+		suite.Equal(types.Code(deploy.Bytes()), m.Data)
 
 		_, err = receiptsRoot.Fetch(messageIndex)
 		suite.Require().NoError(err)

@@ -128,31 +128,23 @@ func (s *MessagesSuite) TestValidateDeployMessage() {
 	s.Require().NoError(err)
 	s.Require().NotNil(es)
 
-	dmMaster := &types.DeployMessage{}
-	dataMaster, err := dmMaster.MarshalSSZ()
-	s.Require().NoError(err)
-
-	dmBase := &types.DeployMessage{}
-	dataBase, err := dmBase.MarshalSSZ()
-	s.Require().NoError(err)
-
 	msg := &types.Message{
-		Data: types.Code("invalid-ssz"),
+		Data: types.Code("no-salt"),
 	}
 
-	// Invalid SSZ
+	// data too short
 	dm := validateDeployMessage(es, msg)
 	s.Require().Nil(dm)
 
 	// Deploy to master shard
-	msg.Data = dataMaster
-	msg.To = types.CreateAddress(types.MasterShardId, nil)
+	data := types.BuildDeployPayload([]byte("some-code"), common.EmptyHash)
+	msg.To = types.CreateAddress(types.MasterShardId, data.Bytes())
+	msg.Data = data.Bytes()
 	dm = validateDeployMessage(es, msg)
 	s.Require().Nil(dm)
 
 	// Deploy to base shard
-	msg.Data = dataBase
-	msg.To = types.CreateAddress(types.BaseShardId, nil)
+	msg.To = types.CreateAddress(types.BaseShardId, data.Bytes())
 	dm = validateDeployMessage(es, msg)
 	s.Require().NotNil(dm)
 }

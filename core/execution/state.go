@@ -720,7 +720,7 @@ func (es *ExecutionState) AddOutMessage(txId common.Hash, msg *types.Message) {
 }
 
 func (es *ExecutionState) HandleDeployMessage(
-	_ context.Context, message *types.Message, deployMsg *types.DeployMessage, blockContext *vm.BlockContext,
+	_ context.Context, message *types.Message, deployMsg *types.DeployPayload, blockContext *vm.BlockContext,
 ) (uint64, error) {
 	addr := message.To
 
@@ -731,7 +731,7 @@ func (es *ExecutionState) HandleDeployMessage(
 	gas := message.GasLimit.Uint64()
 
 	evm := vm.NewEVM(*blockContext, es)
-	_, addr, leftOverGas, err := evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code, gas, &message.Value.Int)
+	_, addr, leftOverGas, err := evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code(), gas, &message.Value.Int)
 
 	r := &types.Receipt{
 		Success:         err == nil,
