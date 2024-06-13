@@ -54,8 +54,7 @@ func (s *SuiteEthCall) SetupSuite() {
 	s.from = types.GenerateRandomAddress(shardId)
 
 	dm := &types.DeployMessage{
-		ShardId: shardId,
-		Code:    hexutil.FromHex(s.contracts["SimpleContract"].Code),
+		Code: hexutil.FromHex(s.contracts["SimpleContract"].Code),
 	}
 	data, err := dm.MarshalSSZ()
 	s.Require().NoError(err)

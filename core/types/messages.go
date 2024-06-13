@@ -1,9 +1,7 @@
 package types
 
 type DeployMessage struct {
-	ShardId ShardId
-	Seqno   Seqno
-	Code    Code `ssz-max:"24576"`
+	Code Code `ssz-max:"24576"`
 }
 
 type AddressSourceData struct {

@@ -20,8 +20,7 @@ func (suite *SuiteRpc) deployContractViaWallet(shardId types.ShardId, code []byt
 	addrWallet := types.CreateAddress(shardId, code)
 
 	msgDeploy := &types.DeployMessage{
-		ShardId: shardId,
-		Code:    code,
+		Code: code,
 	}
 	msgDeployData, err := msgDeploy.MarshalSSZ()
 	suite.Require().NoError(err)

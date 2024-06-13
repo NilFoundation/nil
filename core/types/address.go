@@ -178,8 +178,8 @@ func PubkeyBytesToAddress(shardId ShardId, pubBytes []byte) Address {
 	return BytesToAddress(raw)
 }
 
-func DeployMsgToAddress(deployMsg *DeployMessage, from Address) Address {
-	return CreateAddress(from.ShardId(), deployMsg.Code)
+func DeployMsgToAddress(deployMsg *DeployMessage, to Address) Address {
+	return CreateAddress(to.ShardId(), deployMsg.Code)
 }
 
 // CreateAddress creates address for the given contract code

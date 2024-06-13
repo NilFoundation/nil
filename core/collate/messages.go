@@ -159,7 +159,7 @@ func validateDeployMessage(es *execution.ExecutionState, message *types.Message)
 		return fail(err, "Invalid deploy message")
 	}
 
-	if types.IsMasterShard(deployMsg.ShardId) && message.From != types.MainWalletAddress {
+	if types.IsMasterShard(message.To.ShardId()) && message.From != types.MainWalletAddress {
 		return fail(nil, "Attempt to deploy to master shard from non system wallet")
 	}
 

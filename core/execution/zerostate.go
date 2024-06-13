@@ -110,10 +110,9 @@ func (es *ExecutionState) GenerateZeroState(configYaml string) error {
 		}
 		code = append(code, argsPacked...)
 
-		mainDeployMsg := &types.DeployMessage{
-			ShardId: es.ShardId,
-			Seqno:   0,
-			Code:    code,
+		mainDeployMsg := &types.Message{
+			Seqno: 0,
+			Data:  code,
 		}
 
 		es.CreateAccount(addr)

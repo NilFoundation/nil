@@ -86,9 +86,7 @@ func (s *Service) DeployContract(bytecode string) (string, error) {
 
 	// Create the deploy message
 	dm := &types.DeployMessage{
-		ShardId: publicAddress.ShardId(),
-		Code:    hexutil.FromHex(bytecode),
-		Seqno:   seqNum,
+		Code: hexutil.FromHex(bytecode),
 	}
 
 	data, err := dm.MarshalSSZ()
@@ -98,11 +96,11 @@ func (s *Service) DeployContract(bytecode string) (string, error) {
 
 	// Create the message with the deploy data
 	message := &types.Message{
-		From:     publicAddress,
+		To:       publicAddress,
+		Deploy:   true,
 		Seqno:    seqNum,
 		Data:     data,
 		GasLimit: *types.NewUint256(100000000),
-		To:       types.DeployMsgToAddress(dm, publicAddress),
 	}
 
 	// Sign the message with the private key
