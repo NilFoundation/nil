@@ -101,13 +101,22 @@ func (s *MessagesSuite) TestValidateMessage() {
 	s.True(ok)
 	s.Len(es.Receipts, 2)
 
-	// Gap in seqno
-	msg.Seqno = 100
+	// Invalid ChainId
+	msg.ChainId = 100500
 	ok, err = validateMessage(tx, es, msg)
 	s.Require().NoError(err)
 	s.False(ok)
 	s.Require().Len(es.Receipts, 3)
 	s.False(es.Receipts[2].Success)
+
+	// Gap in seqno
+	msg.ChainId = types.DefaultChainId
+	msg.Seqno = 100
+	ok, err = validateMessage(tx, es, msg)
+	s.Require().NoError(err)
+	s.False(ok)
+	s.Require().Len(es.Receipts, 4)
+	s.False(es.Receipts[3].Success)
 }
 
 func (s *MessagesSuite) TestValidateDeployMessage() {

@@ -38,9 +38,14 @@ func BytesToMessageIndex(b []byte) MessageIndex {
 	return mi
 }
 
+type ChainId uint64
+
+const DefaultChainId = ChainId(0)
+
 type Message struct {
 	Internal bool    `json:"internal" ch:"internal"`
 	Deploy   bool    `json:"deploy,omitempty" ch:"deploy"`
+	ChainId  ChainId `json:"chainId" ch:"chainId"`
 	Seqno    Seqno   `json:"seqno,omitempty" ch:"seqno"`
 	GasPrice Uint256 `json:"gasPrice,omitempty" ch:"gas_price" ssz-size:"32"`
 	GasLimit Uint256 `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
@@ -55,6 +60,7 @@ type Message struct {
 type messageDigest struct {
 	Internal bool
 	Deploy   bool
+	ChainId  ChainId
 	Seqno    Seqno
 	GasPrice Uint256 `ssz-size:"32"`
 	GasLimit Uint256 `ssz-size:"32"`
@@ -87,6 +93,7 @@ func (m *Message) SigningHash() (common.Hash, error) {
 		Value:    m.Value,
 		Data:     m.Data,
 		Internal: m.Internal,
+		ChainId:  m.ChainId,
 	}
 
 	return common.PoseidonSSZ(&messageDigest)

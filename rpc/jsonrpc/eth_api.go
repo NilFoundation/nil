@@ -265,6 +265,15 @@ type EthAPI interface {
 		@returns returnedValue ReturnedValue
 	*/
 	Call(ctx context.Context, args CallArgs, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error)
+
+	/*
+		@name ChainId
+		@summary Returns the chain ID of the current network..
+		@description Implements eth_chainId.
+		@tags [System]
+		@returns chainId ChainId
+	*/
+	ChainId(ctx context.Context) (hexutil.Uint64, error)
 }
 
 type BaseAPI struct {

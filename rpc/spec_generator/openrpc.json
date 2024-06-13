@@ -1,0 +1,750 @@
+{
+  "components": {
+    "schemas": {},
+    "tags": {
+      "Accounts": {
+        "description": "Methods for interacting with accounts.",
+        "name": "Accounts"
+      },
+      "Blocks": {
+        "description": "Methods for interacting with blocks.",
+        "name": "Blocks"
+      },
+      "Calls": {
+        "description": "Methods for calling messages.",
+        "name": "Sending"
+      },
+      "Filters": {
+        "description": "Methods for interacting with filters.",
+        "name": "Filters"
+      },
+      "Messages": {
+        "description": "Methods for interacting with messages.",
+        "name": "Messages"
+      },
+      "Receipts": {
+        "description": "Methods for interacting with receipts.",
+        "name": "Receipts"
+      },
+      "Shards": {
+        "description": "Methods for interacting with shards.",
+        "name": "Shards"
+      },
+      "Transactions": {
+        "description": "Methods for interacting with transactions.",
+        "name": "Transactions"
+      }
+    }
+  },
+  "info": {
+    "description": "This section lists the JSON-RPC methods exposed by the =nil; RPC node.",
+    "title": "JSON-RPC API",
+    "version": "1.0.0"
+  },
+  "methods": [
+    {
+      "name": "GetBlockByNumber",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Blocks"
+        }
+      ],
+      "summary": "Returns information about a block with the given number.",
+      "description": "Implements eth_getBlockByNumber.",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/Blockshardid"
+          }
+        },
+        {
+          "name": "blockNumber",
+          "schema": {
+            "$ref": "#/components/schemas/Blocknumber"
+          }
+        },
+        {
+          "name": "fullTx",
+          "schema": {
+            "$ref": "#/components/schemas/Fulltx"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "rpcBlock",
+        "schema": {
+          "$ref": "#/components/schemas/Rpcblock"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetBlockByHash",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Blocks"
+        }
+      ],
+      "summary": "Returns information about a block with the given hash.",
+      "description": "Implements eth_getBlockByHash.",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/Blockshardid"
+          }
+        },
+        {
+          "name": "hash",
+          "schema": {
+            "$ref": "#/components/schemas/Blockhash"
+          }
+        },
+        {
+          "name": "fullTx",
+          "schema": {
+            "$ref": "#/components/schemas/Fulltx"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "rpcBlock",
+        "schema": {
+          "$ref": "#/components/schemas/Rpcblock"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetBlockTransactionCountByNumber",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Blocks"
+        }
+      ],
+      "summary": "Returns the total number of transactions recorded in the block with the given number.",
+      "description": "Implements eth_getBlockTransactionCountByNumber.",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/Blockshardid"
+          }
+        },
+        {
+          "name": "number",
+          "schema": {
+            "$ref": "#/components/schemas/Blocknumber"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "transactionNumber",
+        "schema": {
+          "$ref": "#/components/schemas/Transactionnumber"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetBlockTransactionCountByHash",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Blocks"
+        }
+      ],
+      "summary": "Returns the total number of transactions recorded in the block with the given hash.",
+      "description": "Implements eth_getBlockTransactionCountByHash.",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/Blockshardid"
+          }
+        },
+        {
+          "name": "hash",
+          "schema": {
+            "$ref": "#/components/schemas/Blockhash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "transactionNumber",
+        "schema": {
+          "$ref": "#/components/schemas/Transactionnumber"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetInMessageByHash",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Messages"
+        }
+      ],
+      "summary": "Returns the structure of the internal message with the given hash.",
+      "description": "",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/Messageshardid"
+          }
+        },
+        {
+          "name": "hash",
+          "schema": {
+            "$ref": "#/components/schemas/Messagehash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "rpcInMessage",
+        "schema": {
+          "$ref": "#/components/schemas/Rpcinmessage"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetInMessageByBlockHashAndIndex",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Messages"
+        }
+      ],
+      "summary": "Returns the structure of the internal message with the given index and contained within the block with the given hash.",
+      "description": "",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/Messageshardid"
+          }
+        },
+        {
+          "name": "hash",
+          "schema": {
+            "$ref": "#/components/schemas/Blockhash"
+          }
+        },
+        {
+          "name": "index",
+          "schema": {
+            "$ref": "#/components/schemas/Messageindex"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "rpcInMessage",
+        "schema": {
+          "$ref": "#/components/schemas/Rpcinmessage"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetInMessageByBlockNumberAndIndex",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Messages"
+        }
+      ],
+      "summary": "Returns the structure of the internal message with the given index and contained within the block with the given number.",
+      "description": "",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/Messageshardid"
+          }
+        },
+        {
+          "name": "number",
+          "schema": {
+            "$ref": "#/components/schemas/Blocknumber"
+          }
+        },
+        {
+          "name": "index",
+          "schema": {
+            "$ref": "#/components/schemas/Messageindex"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "rpcInMessage",
+        "schema": {
+          "$ref": "#/components/schemas/Rpcinmessage"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetRawInMessageByBlockNumberAndIndex",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Messages"
+        }
+      ],
+      "summary": "Returns the bytecode of the internal message with the given index and contained within the block with the given number.",
+      "description": "",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/Messageshardid"
+          }
+        },
+        {
+          "name": "number",
+          "schema": {
+            "$ref": "#/components/schemas/Blocknumber"
+          }
+        },
+        {
+          "name": "index",
+          "schema": {
+            "$ref": "#/components/schemas/Messageindex"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "messageBytecode",
+        "schema": {
+          "$ref": "#/components/schemas/Messagebytecode"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetRawInMessageByBlockHashAndIndex",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Messages"
+        }
+      ],
+      "summary": "Returns the bytecode of the internal message with the given index and contained within the block with the given hash.",
+      "description": "",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/Messageshardid"
+          }
+        },
+        {
+          "name": "hash",
+          "schema": {
+            "$ref": "#/components/schemas/Blockhash"
+          }
+        },
+        {
+          "name": "index",
+          "schema": {
+            "$ref": "#/components/schemas/Messageindex"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "messageBytecode",
+        "schema": {
+          "$ref": "#/components/schemas/Messagebytecode"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetRawInMessageByHash",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Messages"
+        }
+      ],
+      "summary": "Returns the bytecode of the internal message with the given hash.",
+      "description": "",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/Messageshardid"
+          }
+        },
+        {
+          "name": "hash",
+          "schema": {
+            "$ref": "#/components/schemas/Messagehash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "messageBytecode",
+        "schema": {
+          "$ref": "#/components/schemas/Messagebytecode"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetInMessageReceipt",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Receipts"
+        }
+      ],
+      "summary": "Returns the receipt for the message with the given hash.",
+      "description": "",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/Messageshardid"
+          }
+        },
+        {
+          "name": "hash",
+          "schema": {
+            "$ref": "#/components/schemas/Messagehash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "rpcReceipt",
+        "schema": {
+          "$ref": "#/components/schemas/Rpcreceipt"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetBalance",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Accounts"
+        }
+      ],
+      "summary": "Returns the balance of the account with the given address and at the given block.",
+      "description": "Implements eth_getBalance.",
+      "params": [
+        {
+          "name": "address",
+          "schema": {
+            "$ref": "#/components/schemas/Address"
+          }
+        },
+        {
+          "name": "blockNumberOrHash",
+          "schema": {
+            "$ref": "#/components/schemas/Blocknumberorhash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "balance",
+        "schema": {
+          "$ref": "#/components/schemas/Balance"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetTransactionCount",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Accounts"
+        }
+      ],
+      "summary": "Returns the transaction count of the account with the given address and at the given block.",
+      "description": "Implements eth_getTransactionCount.",
+      "params": [
+        {
+          "name": "address",
+          "schema": {
+            "$ref": "#/components/schemas/Address"
+          }
+        },
+        {
+          "name": "blockNumberOrHash",
+          "schema": {
+            "$ref": "#/components/schemas/Blocknumberorhash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "transactionCount",
+        "schema": {
+          "$ref": "#/components/schemas/Transactioncount"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetCode",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Accounts"
+        }
+      ],
+      "summary": "Returns the bytecode of the contract with the given address and at the given block.",
+      "description": "Implements eth_getCode.",
+      "params": [
+        {
+          "name": "address",
+          "schema": {
+            "$ref": "#/components/schemas/Address"
+          }
+        },
+        {
+          "name": "blockNumberOrHash",
+          "schema": {
+            "$ref": "#/components/schemas/Blocknumberorhash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "contractBytecode",
+        "schema": {
+          "$ref": "#/components/schemas/Contractbytecode"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "SendRawTransaction",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Transactions"
+        }
+      ],
+      "summary": "Creates a new message or creates a contract for a previously signed message.",
+      "description": "Implements eth_sendRawTransaction.",
+      "params": [
+        {
+          "name": "encoded",
+          "schema": {
+            "$ref": "#/components/schemas/Encoded"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "hash",
+        "schema": {
+          "$ref": "#/components/schemas/Messagehash"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "NewFilter",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Filters"
+        }
+      ],
+      "summary": "Creates a new filter.",
+      "description": "",
+      "params": [
+        {
+          "name": "query",
+          "schema": {
+            "$ref": "#/components/schemas/Filterquery"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "FilterId",
+        "schema": {
+          "$ref": "#/components/schemas/Filterid"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "NewPendingTransactionFilter",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Filters"
+        }
+      ],
+      "summary": "Creates a new pending transactions filter.",
+      "description": "Implements eth_newPendingTransactionFilter.",
+      "params": [],
+      "errors": [],
+      "result": {
+        "name": "FilterId",
+        "schema": {
+          "$ref": "#/components/schemas/Filterid"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "NewBlockFilter",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Filters"
+        }
+      ],
+      "summary": "Creates a new block filter.",
+      "description": "Implements eth_newBlockFilter.",
+      "params": [],
+      "errors": [],
+      "result": {
+        "name": "FilterId",
+        "schema": {
+          "$ref": "#/components/schemas/Filterid"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "UninstallFilter",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Filters"
+        }
+      ],
+      "summary": "Uninstalls the filter with the given id.",
+      "description": "Implements eth_uninstallFilter.",
+      "params": [
+        {
+          "name": "id",
+          "schema": {
+            "$ref": "#/components/schemas/Uninstallfilterid"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "isDeleted",
+        "schema": {
+          "$ref": "#/components/schemas/Isdeleted"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetFilterChanges",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Filters"
+        }
+      ],
+      "summary": "Polls the filter with the given id for all changes.",
+      "description": "Implements eth_getFilterChanges.",
+      "params": [
+        {
+          "name": "id",
+          "schema": {
+            "$ref": "#/components/schemas/Pollfilterid"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "filterChanges",
+        "schema": {
+          "$ref": "#/components/schemas/Filterchanges"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetFilterLogs",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Filters"
+        }
+      ],
+      "summary": "Polls the filter with the given id for logs.",
+      "description": "Implements eth_getFilterLogs.",
+      "params": [
+        {
+          "name": "id",
+          "schema": {
+            "$ref": "#/components/schemas/Pollfilterid"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "filterLogs",
+        "schema": {
+          "$ref": "#/components/schemas/Filterlogs"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetShardsIdList",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Shards"
+        }
+      ],
+      "summary": "Retrieves a list of ids of all shards.",
+      "description": "",
+      "params": [],
+      "errors": [],
+      "result": {
+        "name": "shardIds",
+        "schema": {
+          "$ref": "#/components/schemas/Shardids"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "Call",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Calls"
+        }
+      ],
+      "summary": "Executes a new message call immediately without creating a transaction.",
+      "description": "Implements eth_call.",
+      "params": [
+        {
+          "name": "args",
+          "schema": {
+            "$ref": "#/components/schemas/Callargs"
+          }
+        },
+        {
+          "name": "blockNrOrHash",
+          "schema": {
+            "$ref": "#/components/schemas/Blocknumberorhash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "returnedValue",
+        "schema": {
+          "$ref": "#/components/schemas/Returnedvalue"
+        }
+      },
+      "examples": []
+    }
+  ],
+  "openrpc": "1.2.4"
+}

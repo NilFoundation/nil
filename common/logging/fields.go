@@ -3,6 +3,7 @@ package logging
 const (
 	FieldComponent = "component"
 	FieldShardId   = "shardId"
+	FieldChainId   = "chainId"
 
 	FieldDuration = "duration"
 	FieldUrl      = "url"

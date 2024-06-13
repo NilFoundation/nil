@@ -83,6 +83,19 @@ func (suite *SuiteSendTransaction) TestInvalidSignature() {
 	suite.Require().EqualError(err, "invalid signature")
 }
 
+func (suite *SuiteSendTransaction) TestInvalidChainId() {
+	msg := types.Message{
+		ChainId: 50,
+		From:    types.GenerateRandomAddress(0),
+	}
+
+	data, err := msg.MarshalSSZ()
+	suite.Require().NoError(err)
+
+	_, err = suite.api.SendRawTransaction(context.Background(), data)
+	suite.Require().ErrorIs(err, errInvalidChainId)
+}
+
 func (suite *SuiteSendTransaction) TestInvalidShard() {
 	msg := types.Message{
 		From: types.GenerateRandomAddress(1234),
