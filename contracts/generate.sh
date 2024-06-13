@@ -5,7 +5,7 @@ SCRIPT_DIR=$(dirname $(realpath "$0"))
 OUTDIR="${1:-.}"
 
 CONTRACTS=(
-    faucet.sol
+    Faucet.sol
 )
 
 pushd ${SCRIPT_DIR}

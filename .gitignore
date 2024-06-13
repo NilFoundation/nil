@@ -13,6 +13,7 @@ exporter.yaml
 # compiled solidity contracts
 *.bin
 *.abi
+contracts/compiled
 
 .run
 # CLI config file

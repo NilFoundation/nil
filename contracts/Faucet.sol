@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./nil.sol";
-import "./wallet.sol";
+import "./Wallet.sol";
 
 contract Faucet {
     event Deploy(address addr);
