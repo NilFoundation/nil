@@ -7,6 +7,8 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 type Component struct {
@@ -54,8 +56,8 @@ func main() {
 }
 
 func generate_spec() error {
-	componentsFromAPI := generateComponentsFromFile("../../rpc/jsonrpc/doc.go")
-	componentsFromTypes := generateComponentsFromFile("../../rpc/jsonrpc/types.go")
+	componentsFromAPI := generateComponentsFromFile("rpc/jsonrpc/doc.go")
+	componentsFromTypes := generateComponentsFromFile("rpc/jsonrpc/types.go")
 	components := make(map[string]Component)
 
 	for k, v := range componentsFromTypes {
@@ -65,7 +67,7 @@ func generate_spec() error {
 		components[k] = v
 	}
 
-	methods := generateMethodsFromFile("../../rpc/jsonrpc/eth_api.go")
+	methods := generateMethodsFromFile("rpc/jsonrpc/eth_api.go")
 	openrpcSpec := map[string]interface{}{
 		"openrpc": "1.2.4",
 		"info": map[string]interface{}{
@@ -109,6 +111,10 @@ func generate_spec() error {
 					"name":        "Shards",
 					"description": "Methods for interacting with shards.",
 				},
+				"System": map[string]interface{}{
+					"name":        "System",
+					"description": "System methods.",
+				},
 			},
 		},
 	}
@@ -126,7 +132,11 @@ func generate_spec() error {
 
 func generateComponentsFromFile(filename string) map[string]Component {
 	components := make(map[string]Component)
-	file, _ := os.Open(filename)
+	file, err := os.Open(filename)
+	if err != nil {
+		log.Error().Err(err).Str("file", filename).Msg("Failed to open file")
+		panic(err)
+	}
 	defer file.Close()
 
 	var currentComponent *Component
@@ -193,7 +203,11 @@ func generateComponentsFromFile(filename string) map[string]Component {
 
 func generateMethodsFromFile(filename string) []Method {
 	methods := []Method{}
-	file, _ := os.Open(filename)
+	file, err := os.Open(filename)
+	if err != nil {
+		log.Error().Err(err).Str("file", filename).Msg("Failed to open file")
+		panic(err)
+	}
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)

@@ -34,6 +34,9 @@ jobs:
       - name: SSZ generation
         run: nix develop -c make ssz
 
+      - name: Generate OpenRPC spec for JSON RPC API
+        run: nix develop -c make rpcspec
+
       - name: upload packages to s3
         if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' ||  github.ref == 'refs/heads/master') }}
         env:

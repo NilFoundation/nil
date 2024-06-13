@@ -1,3 +1,4 @@
+SHELL = bash # `pushd` is available only for bash
 GO ?= go
 GOBIN = $(CURDIR)/build/bin
 GOPRIVATE = github.com/NilFoundation
@@ -52,6 +53,9 @@ lint-compiled-contracts:
 	d=$$?; \
 	rm -rf "$$TMP_DIR"; \
 	test $$d
+
+rpcspec:
+	go run cmd/spec_generator/spec_generator.go
 
 clean:
 	go clean -cache
