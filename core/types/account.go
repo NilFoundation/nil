@@ -3,7 +3,7 @@ package types
 import (
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
-	"github.com/rs/zerolog/log"
+	"github.com/NilFoundation/nil/common/check"
 )
 
 // PublicKeySize is the expected length of the PublicKey (in bytes)
@@ -30,7 +30,6 @@ var (
 
 func (s *SmartContract) Hash() common.Hash {
 	h, err := common.PoseidonSSZ(s)
-	common.FatalIf(err, log.Logger, "Can't get smart contract hash")
-
+	check.PanicIfErr(err)
 	return h
 }

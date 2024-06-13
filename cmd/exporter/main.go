@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/exporter"
 	"github.com/NilFoundation/nil/exporter/clickhouse"
@@ -27,15 +27,14 @@ func initConfig() {
 	} else {
 		// Find home directory.
 		home, err := os.Getwd()
-		common.FatalIf(err, log.Logger, "Failed to get working directory")
+		check.PanicIfErr(err)
 
 		// Search config in home directory with the name "exporter.cobra" (without an extension).
 		viper.AddConfigPath(home)
 		viper.SetConfigName("exporter")
 	}
 
-	err := viper.ReadInConfig()
-	common.FatalIf(err, log.Logger, "Can't read config")
+	check.PanicIfErr(viper.ReadInConfig())
 
 	viper.AutomaticEnv()
 }
@@ -60,8 +59,8 @@ You could config it via config file or flags or environment variables.`,
 			if len(absentParams) > 0 {
 				var buffer bytes.Buffer
 				cmd.SetOut(&buffer)
-				err := cmd.Help()
-				common.FatalIf(err, logger, "Failed to print help")
+
+				check.PanicIfErr(cmd.Help())
 
 				fmt.Printf("Required parameters are absent: %v\n%s", absentParams, buffer.String())
 				os.Exit(1)
@@ -77,11 +76,9 @@ You could config it via config file or flags or environment variables.`,
 	rootCmd.Flags().StringP("clickhouse-database", "d", "", "Clickhouse database")
 	rootCmd.Flags().BoolP("only-scheme-init", "s", false, "Only scheme initialization")
 
-	err := viper.BindPFlags(rootCmd.Flags())
-	common.FatalIf(err, logger, "Failed to bind flags")
+	check.PanicIfErr(viper.BindPFlags(rootCmd.Flags()))
 
-	err = rootCmd.Execute()
-	common.FatalIf(err, logger, "Failed to execute command")
+	check.PanicIfErr(rootCmd.Execute())
 
 	clickhousePassword := viper.GetString("clickhouse-password")
 	clickhouseEndpoint := viper.GetString("clickhouse-endpoint")
@@ -94,10 +91,9 @@ You could config it via config file or flags or environment variables.`,
 
 	if onlySchemeInit {
 		clickhouseExporter, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
-		common.FatalIf(err, logger, "Failed to create Clickhouse driver")
+		check.PanicIfErr(err)
 
-		err = clickhouseExporter.SetupScheme(ctx)
-		common.FatalIf(err, logger, "Failed to initialize Clickhouse scheme")
+		check.PanicIfErr(clickhouseExporter.SetupScheme(ctx))
 
 		logger.Info().Msg("Scheme initialized")
 		return
@@ -115,7 +111,7 @@ You could config it via config file or flags or environment variables.`,
 		break
 	}
 
-	cfg := exporter.Cfg{
+	cfg := &exporter.Cfg{
 		APIEndpoints:   []string{apiEndpoint},
 		ExporterDriver: clickhouseExporter,
 		BlocksChan:     make(chan *exporter.BlockMsg, 100),
@@ -133,7 +129,6 @@ You could config it via config file or flags or environment variables.`,
 		}
 	}()
 
-	err = exporter.StartExporter(ctx, &cfg)
-	common.FatalIf(err, logger, "Failed to start exporter")
+	check.PanicIfErr(exporter.StartExporter(ctx, cfg))
 	logger.Info().Msg("Exporter stopped")
 }

@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/spf13/cobra"
@@ -24,11 +24,9 @@ func main() {
 	cmd.Flags().StringP("output", "o", "", "path to output dir. leave empty to use source dir")
 	cmd.Flags().StringP("contract", "c", "", "particular contract to compile. leave empty to compile all contracts")
 
-	err := viper.BindPFlags(cmd.Flags())
-	common.FatalIf(err, logger, "Failed to bind flags")
+	check.PanicIfErr(viper.BindPFlags(cmd.Flags()))
 
-	err = cmd.Execute()
-	common.FatalIf(err, logger, "Failed to parse args")
+	check.PanicIfErr(cmd.Execute())
 
 	sourcePath := viper.GetString("source")
 	contractName := viper.GetString("contract")
@@ -36,13 +34,12 @@ func main() {
 	if contractDir == "" {
 		contractDir = filepath.Dir(sourcePath)
 	}
-	contractDir, err = filepath.Abs(contractDir)
-	common.FatalIf(err, logger, "failed to resolve output dir")
-	err = os.MkdirAll(contractDir, os.ModePerm)
-	common.FatalIf(err, logger, "failed to create output dir")
+	contractDir, err := filepath.Abs(contractDir)
+	check.PanicIfErr(err)
+	check.PanicIfErr(os.MkdirAll(contractDir, os.ModePerm))
 
 	contracts, err := solc.CompileSource(sourcePath)
-	common.FatalIf(err, logger, "failed to compile contract `%s`", sourcePath)
+	check.PanicIfErr(err)
 
 	for name, c := range contracts {
 		if contractName != "" && contractName != name {
@@ -52,13 +49,10 @@ func main() {
 		codeFile := filepath.Join(contractDir, name+".bin")
 
 		abi, err := json.Marshal(c.Info.AbiDefinition)
-		common.FatalIf(err, logger, "failed to marshal abi")
+		check.PanicIfErr(err)
 
-		common.FatalIf(os.WriteFile(abiFile, abi, 0o644), logger, "failed to write abi for contract %s", name) //nolint:gosec
+		check.LogAndPanicIfErrf(os.WriteFile(abiFile, abi, 0o644), logger, "failed to write abi for contract %s", name) //nolint:gosec
 
-		common.FatalIf(os.WriteFile(codeFile, []byte(c.Code), 0o644), logger, "failed to write code hext for contract %s", name) //nolint:gosec
-
-		logger.Info().Str("file", abiFile).Msgf("ABI = %s", abi)
-		logger.Info().Str("file", codeFile).Msgf("Code = %s", c.Code)
+		check.LogAndPanicIfErrf(os.WriteFile(codeFile, []byte(c.Code), 0o644), logger, "failed to write code hext for contract %s", name) //nolint:gosec
 	}
 }

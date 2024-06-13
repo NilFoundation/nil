@@ -1,10 +1,10 @@
 package message
 
 import (
-	"github.com/NilFoundation/nil/cli/services/message"
+	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -47,12 +47,11 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
 
 	client := rpc.NewClient(rpcEndpoint)
-	service := message.NewService(client, params.shardId)
+	service := service.NewService(client, "", params.shardId)
 
 	if params.hash != "" {
 		_, err := service.FetchMessageByHash(params.hash)
-		common.FatalIf(err, logger, "Failed to retrieve message by hash")
-		return
+		check.PanicIfErr(err)
 	}
 }
 

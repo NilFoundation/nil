@@ -19,7 +19,7 @@ package vm
 import (
 	"sync"
 
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/holiman/uint256"
 )
 
@@ -38,7 +38,7 @@ type Stack struct {
 
 func newStack() *Stack {
 	res, ok := stackPool.Get().(*Stack)
-	common.Require(ok)
+	check.PanicIfNot(ok)
 	return res
 }
 

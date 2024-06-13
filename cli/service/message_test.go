@@ -1,11 +1,10 @@
-package message_test
+package service
 
 import (
 	"encoding/json"
 	"errors"
 	"testing"
 
-	"github.com/NilFoundation/nil/cli/services/message"
 	"github.com/NilFoundation/nil/client/mock"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
@@ -20,7 +19,7 @@ var mockSuccessMessageResponse = &jsonrpc.RPCInMessage{
 	Data:      []byte("abcd"),
 	From:      types.GenerateRandomAddress(types.BaseShardId),
 	To:        &types.EmptyAddress,
-	Signature: common.Signature(hexutil.FromHex("0x68c0973bebacf32ae1ef6c8147e6301f103fc7d6125dc2444ed3f425f73ea11e28dafd13a5008bd6b692545a85eb54d453c9c1705e1bd8af71453a1c23f48ddc00")),
+	Signature: types.Signature(hexutil.FromHex("0x68c0973bebacf32ae1ef6c8147e6301f103fc7d6125dc2444ed3f425f73ea11e28dafd13a5008bd6b692545a85eb54d453c9c1705e1bd8af71453a1c23f48ddc00")),
 }
 
 // TestFetchMessage_Successfully tests fetching a message without errors
@@ -32,7 +31,7 @@ func TestFetchMessage_Successfully(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := message.NewService(mockClient, types.BaseShardId)
+	service := NewService(mockClient, "", types.BaseShardId)
 
 	// Call the FetchMessageByHash
 	response, err := service.FetchMessageByHash(hexutil.Encode(common.EmptyHash[:]))
@@ -54,7 +53,7 @@ func TestFetchMessage_Err(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := message.NewService(mockClient, types.BaseShardId)
+	service := NewService(mockClient, "", types.BaseShardId)
 
 	// Call the FetchMessageByHash
 	_, err := service.FetchMessageByHash("0x1234")

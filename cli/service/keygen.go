@@ -1,18 +1,8 @@
-package keygen
+package service
 
 import (
-	"crypto/ecdsa"
-
 	"github.com/NilFoundation/nil/core/crypto"
 )
-
-type Service struct {
-	*ecdsa.PrivateKey
-}
-
-func NewService() *Service {
-	return &Service{}
-}
 
 // GenerateNewKey generates a new private key
 func (s *Service) GenerateNewKey() error {
@@ -21,7 +11,7 @@ func (s *Service) GenerateNewKey() error {
 		return err
 	}
 
-	s.PrivateKey = privateKey
+	s.privateKey = privateKey
 	return nil
 }
 
@@ -32,13 +22,13 @@ func (s *Service) GenerateKeyFromHex(hexKey string) error {
 		return err
 	}
 
-	s.PrivateKey = privateKey
+	s.privateKey = privateKey
 	return nil
 }
 
 // GetPrivateKey returns the private key in hexadecimal format
 func (s *Service) GetPrivateKey() string {
-	privHex := crypto.PrivateKeyToEthereumFormat(s.PrivateKey)
+	privHex := crypto.PrivateKeyToEthereumFormat(s.privateKey)
 
 	return privHex
 }

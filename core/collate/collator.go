@@ -65,7 +65,7 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 	if lastBlockHash == common.EmptyHash {
 		c.logger.Trace().Msg("Generating zero-state...")
 
-		if err := c.executionState.GenerateZeroState(ctx); err != nil {
+		if err := c.executionState.GenerateZeroState(execution.DefaultZeroStateConfig); err != nil {
 			return err
 		}
 	} else {

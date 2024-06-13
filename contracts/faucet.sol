@@ -2,16 +2,29 @@
 pragma solidity ^0.8.0;
 
 import "./nil.sol";
+import "./wallet.sol";
 
 contract Faucet {
-    // This function signature is temporary.
-    // Eventually, contracts are going to store pubkey(s) in their storage,
-    // and verifyExternal is going to receive the actual message in full.
-    function verifyExternal(bytes memory pubkey, uint256 hash, bytes memory signature) public view returns (bool) {
-        return nil.validateSignature(pubkey, hash, signature);
+    event Deploy(address addr);
+    event Send(address addr, uint256 value);
+
+    function verifyExternal(uint256, bytes memory) external view returns (bool) {
+        return true;
     }
 
     function withdrawTo(address payable addr, uint256 value) public {
         addr.send(value);
+    }
+
+    function createWallet(bytes memory owner_pubkey, bytes32 salt, uint256 value) external returns (address) {
+        Wallet wallet = new Wallet{salt: salt}(owner_pubkey);
+        address addr = address(wallet);
+        emit Deploy(addr);
+
+        bool success = payable(addr).send(value);
+        require(success, "Send value failed");
+        emit Send(addr, value);
+
+        return addr;
     }
 }

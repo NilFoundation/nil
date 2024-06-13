@@ -8,6 +8,8 @@ contract Wallet {
 
     bytes pubkey;
 
+    receive() external payable {}
+
     constructor(bytes memory _pubkey) {
         pubkey = _pubkey;
     }
@@ -16,7 +18,7 @@ contract Wallet {
         nil.send_msg(gasleft(), message);
     }
 
-    function verifyExternal(bytes memory unused, uint256 hash, bytes memory signature) public view returns (bool) {
+    function verifyExternal(uint256 hash, bytes memory signature) external view returns (bool) {
         return nil.validateSignature(pubkey, hash, signature);
     }
 }

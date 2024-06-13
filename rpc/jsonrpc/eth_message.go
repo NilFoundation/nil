@@ -30,7 +30,7 @@ func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardI
 	if data.Message() == nil || err != nil {
 		return nil, err
 	}
-	return NewRPCInMessage(data.Message(), data.Receipt(), data.Index(), data.Block()), nil
+	return NewRPCInMessage(data.Message(), data.Receipt(), data.Index(), data.Block())
 }
 
 func (api *APIImpl) getInMessageByBlockNumberOrHashAndIndex(ctx context.Context, shardId types.ShardId,
@@ -56,7 +56,7 @@ func (api *APIImpl) getInMessageByBlockNumberOrHashAndIndex(ctx context.Context,
 		return nil, err
 	}
 
-	return NewRPCInMessage(msg, receipt, types.MessageIndex(index), block), nil
+	return NewRPCInMessage(msg, receipt, types.MessageIndex(index), block)
 }
 
 func (api *APIImpl) GetInMessageByBlockHashAndIndex(
@@ -131,7 +131,7 @@ func (api *APIImpl) getBlockAndInMessageIndexByMessageHash(tx db.RoTx, shardId t
 	}
 
 	var blockHashAndMessageIndex db.BlockHashAndMessageIndex
-	if err := blockHashAndMessageIndex.UnmarshalSSZ(*value); err != nil {
+	if err := blockHashAndMessageIndex.UnmarshalSSZ(value); err != nil {
 		return nil, db.BlockHashAndMessageIndex{}, err
 	}
 

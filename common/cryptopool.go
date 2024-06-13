@@ -4,6 +4,7 @@ import (
 	"hash"
 	"sync"
 
+	"github.com/NilFoundation/nil/common/check"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -15,7 +16,7 @@ var cryptoPool = sync.Pool{
 
 func GetLegacyKeccak256() hash.Hash {
 	h, ok := cryptoPool.Get().(hash.Hash)
-	Require(ok)
+	check.PanicIfNot(ok)
 	h.Reset()
 	return h
 }

@@ -14,8 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/NilFoundation/nil/common"
-	"github.com/rs/zerolog/log"
+	"github.com/NilFoundation/nil/common/check"
 )
 
 const (
@@ -67,7 +66,7 @@ func (hc *httpConn) closed() <-chan interface{} {
 
 func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) error {
 	hc, ok := c.writeConn.(*httpConn)
-	common.Require(ok)
+	check.PanicIfNot(ok)
 
 	respBody, err := hc.doRequest(ctx, msg)
 	if err != nil {
@@ -146,12 +145,11 @@ func newHTTPServerConn(r *http.Request, w http.ResponseWriter) ServerCodec {
 		}
 
 		buf := new(bytes.Buffer)
-		err := json.NewEncoder(buf).Encode(jsonrpcMessage{
+		check.PanicIfErr(json.NewEncoder(buf).Encode(jsonrpcMessage{
 			ID:     json.RawMessage(id),
 			Method: methodUp,
 			Params: param,
-		})
-		common.FatalIf(err, log.Logger, "Messages encode failed")
+		}))
 
 		conn.Reader = buf
 	} else {

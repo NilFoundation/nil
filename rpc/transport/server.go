@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	mapset "github.com/deckarep/golang-set"
 	"github.com/rs/zerolog"
 )
@@ -32,12 +32,10 @@ func NewServer(traceRequests, debugSingleRequest bool, logger zerolog.Logger, rp
 		services: serviceRegistry{logger: logger}, codecs: mapset.NewSet(), run: 1,
 		traceRequests: traceRequests, debugSingleRequest: debugSingleRequest, logger: logger, rpcSlowLogThreshold: rpcSlowLogThreshold,
 	}
+
 	// Register the default service providing meta-information about the RPC service such
 	// as the services and methods it offers.
-	rpcService := &RPCService{server: server}
-	err := server.RegisterName(MetadataApi, rpcService)
-	common.FatalIf(err, logger, "failed to register RPC service name")
-
+	check.PanicIfErr(server.RegisterName(MetadataApi, &RPCService{server: server}))
 	return server
 }
 
@@ -50,7 +48,7 @@ func (s *Server) RegisterName(name string, receiver interface{}) error {
 
 // ServeCodec reads incoming requests from codec, calls the appropriate callback and writes
 // the response back using the given codec. It will block until the codec is closed or the
-// server is stopped. In either case the codec is closed.
+// server is stopped. In either case, the codec is closed.
 //
 // Note that codec options are no longer supported.
 func (s *Server) ServeCodec(codec ServerCodec) {

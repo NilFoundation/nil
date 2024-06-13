@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestCorsHandler makes sure CORS are properly handled on the http server.
@@ -148,9 +149,7 @@ func rpcRequest(t *testing.T, url string, extraHeaders ...string) *http.Response
 	req.Header.Set("Content-Type", "application/json")
 
 	// Apply extra headers.
-	if len(extraHeaders)%2 != 0 {
-		panic("odd extraHeaders length")
-	}
+	require.Zero(t, len(extraHeaders)%2, "odd extraHeaders length")
 	for i := 0; i < len(extraHeaders); i += 2 {
 		key, value := extraHeaders[i], extraHeaders[i+1]
 		if strings.EqualFold(key, "host") {

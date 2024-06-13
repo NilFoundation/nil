@@ -4,8 +4,8 @@ import (
 	"sync"
 
 	ssz "github.com/NilFoundation/fastssz"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/iden3/go-iden3-crypto/poseidon"
-	"github.com/rs/zerolog/log"
 )
 
 // HasherPool may be used for pooling Hasher`s for similarly typed SSZs.
@@ -18,13 +18,12 @@ func (hh *HasherPool) Get() *ssz.Hasher {
 	h := hh.pool.Get()
 	if h == nil {
 		hash, err := poseidon.New(16)
-		FatalIf(err, log.Logger, "Can't create poseidon hasher")
-
+		check.PanicIfErr(err)
 		return ssz.NewHasherWithHash(hash)
 	}
 
 	res, ok := h.(*ssz.Hasher)
-	Require(ok)
+	check.PanicIfNot(ok)
 	return res
 }
 

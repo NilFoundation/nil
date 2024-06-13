@@ -344,7 +344,7 @@ func (c *verifySignature) RequiredGas([]byte) uint64 {
 }
 
 func (c *verifySignature) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
-	args := VerifyExternalArgs()
+	args := VerifySignatureArgs()
 	values, err := args.Unpack(input)
 	if err != nil || len(values) != 3 {
 		return common.EmptyHash[:], nil //nolint:nilerr
@@ -363,7 +363,7 @@ func (c *verifySignature) Run(state StateDB, input []byte, gas uint64, value *ui
 	return common.EmptyHash[:], nil
 }
 
-func VerifyExternalArgs() abi.Arguments {
+func VerifySignatureArgs() abi.Arguments {
 	// arguments: bytes pubkey, uint256 hash, bytes signature
 	// returns: bool signatureValid
 	uint256Ty, _ := abi.NewType("uint256", "", nil)

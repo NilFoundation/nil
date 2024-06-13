@@ -1,7 +1,7 @@
 package block
 
 import (
-	blockService "github.com/NilFoundation/nil/cli/services/block"
+	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/common/logging"
@@ -58,7 +58,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
 
 	client := rpc.NewClient(rpcEndpoint)
-	service := blockService.NewService(client, params.shardId)
+	service := service.NewService(client, "", params.shardId)
 
 	if params.latest {
 		_, err := service.FetchBlockByNumber("latest")

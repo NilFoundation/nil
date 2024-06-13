@@ -1,6 +1,10 @@
 package hexutil
 
-import "encoding/hex"
+import (
+	"encoding/hex"
+
+	"github.com/NilFoundation/nil/common/check"
+)
 
 func MustDecodeHex(in string) []byte {
 	in = strip0x(in)
@@ -8,9 +12,7 @@ func MustDecodeHex(in string) []byte {
 		in = "0" + in
 	}
 	payload, err := hex.DecodeString(in)
-	if err != nil {
-		panic(err)
-	}
+	check.PanicIfErr(err)
 	return payload
 }
 

@@ -74,7 +74,6 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 
 		ok, err := validateMessage(roTx, es, message)
 		if err != nil {
-			addFailReceipt(es, err)
 			return err
 		}
 		if !ok {
@@ -176,12 +175,13 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 		fromId := message.From.ShardId()
 		data, err := es.Accessor.Access(roTx, fromId).GetOutMessage().ByHash(message.Hash())
 		if err != nil {
+			addFailReceipt(es, err)
 			return false, err
 		}
 		return data.Message() != nil, nil
 	}
 
-	addr := message.From
+	addr := message.To
 	r := &types.Receipt{
 		Success:         false,
 		GasUsed:         0,
@@ -202,19 +202,10 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 
 	var ok bool
 	if es.ContractExists(addr) {
-		ok = es.CallValidateExternal(message, accountState)
+		ok = es.CallVerifyExternal(message, accountState)
 	} else {
 		// External deployment. Ensure that the account pays for it itself
 		ok = (message.From == message.To)
-	}
-
-	if !ok {
-		// Legacy fallback: hardcoded signature validation
-		ok2, err := message.ValidateSignature(accountState.PublicKey[:])
-		if err != nil {
-			return false, err
-		}
-		ok = ok2
 	}
 
 	if !ok {

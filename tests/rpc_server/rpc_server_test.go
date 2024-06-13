@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/db"
@@ -33,6 +34,10 @@ type SuiteRpc struct {
 }
 
 func (suite *SuiteRpc) SetupSuite() {
+	logging.SetupGlobalLogger()
+}
+
+func (suite *SuiteRpc) SetupTest() {
 	suite.context, suite.cancel = context.WithCancel(context.Background())
 
 	badger, err := db.NewBadgerDbInMemory()
@@ -50,7 +55,7 @@ func (suite *SuiteRpc) SetupSuite() {
 	time.Sleep(time.Second) // To be sure that server is started
 }
 
-func (suite *SuiteRpc) TearDownSuite() {
+func (suite *SuiteRpc) TearDownTest() {
 	suite.cancel()
 }
 

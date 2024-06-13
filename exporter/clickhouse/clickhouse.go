@@ -8,6 +8,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/exporter"
 )
@@ -66,19 +67,16 @@ var tableSchemeCache = make(map[string]reflectedScheme)
 
 func intiSchemeCache() {
 	blockScheme, err := reflectSchemeToClickhouse(&BlockWithBinary{})
-	if err != nil {
-		panic(err)
-	}
+	check.PanicIfErr(err)
+
 	tableSchemeCache["blocks"] = blockScheme
 	messageScheme, err := reflectSchemeToClickhouse(&MessageWithBinary{})
-	if err != nil {
-		panic(err)
-	}
+	check.PanicIfErr(err)
+
 	tableSchemeCache["messages"] = messageScheme
 	logScheme, err := reflectSchemeToClickhouse(&LogWithBinary{})
-	if err != nil {
-		panic(err)
-	}
+	check.PanicIfErr(err)
+
 	tableSchemeCache["logs"] = logScheme
 }
 
@@ -180,7 +178,7 @@ func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
 	// Create table for blocks
 	blockScheme, ok := tableSchemeCache["blocks"]
 	if !ok {
-		panic("scheme for blocks not found")
+		return errors.New("scheme for blocks not found")
 	}
 
 	err := conn.Exec(ctx, blockScheme.CreateTableQuery(
@@ -196,7 +194,7 @@ func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
 	// Create table for messages
 	messagesScheme, ok := tableSchemeCache["messages"]
 	if !ok {
-		panic("scheme for messages not found")
+		return errors.New("scheme for messages not found")
 	}
 
 	err = conn.Exec(
@@ -215,7 +213,7 @@ func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
 	// Create table for receipts
 	logScheme, ok := tableSchemeCache["logs"]
 	if !ok {
-		panic("scheme for receipts not found")
+		return errors.New("scheme for receipts not found")
 	}
 
 	if err = conn.Exec(

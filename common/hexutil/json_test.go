@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,9 +26,7 @@ func checkError(t *testing.T, input string, got, want error) {
 
 func bigFromString(s string) *big.Int {
 	b, ok := new(big.Int).SetString(s, 16)
-	if !ok {
-		panic("invalid")
-	}
+	check.PanicIfNot(ok)
 	return b
 }
 

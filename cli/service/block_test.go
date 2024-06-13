@@ -1,4 +1,4 @@
-package block
+package service
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ import (
 )
 
 // Mock response data for a successful block fetch
-var mockSuccessResponse = &jsonrpc.RPCBlock{
+var mockBlockResponse = &jsonrpc.RPCBlock{
 	Hash:       common.HexToHash("294a68120c056a549d314efa8306dafdb856f7b51dde976df0e807e001ff84ac"),
 	ParentHash: common.HexToHash("15dd3170e2e6a80d41fe81977c6d08940c32834356b086eada2bae57e6bbd20f"),
 	Messages:   []any{},
@@ -30,18 +30,18 @@ func TestFetchBlock_Successfully(t *testing.T) {
 	t.Parallel()
 
 	mockClient := &mock.MockClient{
-		Block: mockSuccessResponse,
+		Block: mockBlockResponse,
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient, types.BaseShardId)
+	service := NewService(mockClient, "", types.BaseShardId)
 
 	// Call the FetchBlockByHash
-	response, err := service.FetchBlockByHash(mockSuccessResponse.Hash.Hex())
+	response, err := service.FetchBlockByHash(mockBlockResponse.Hash.Hex())
 	require.NoError(t, err)
 
 	// Check if the response matches the expected mock response
-	expectedResponse, err := json.MarshalIndent(mockSuccessResponse, "", "  ")
+	expectedResponse, err := json.MarshalIndent(mockBlockResponse, "", "  ")
 	require.NoError(t, err)
 	require.JSONEq(t, string(expectedResponse), string(response))
 
@@ -50,12 +50,12 @@ func TestFetchBlock_Successfully(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check if the response matches the expected mock response
-	expectedResponse, err = json.MarshalIndent(mockSuccessResponse, "", "  ")
+	expectedResponse, err = json.MarshalIndent(mockBlockResponse, "", "  ")
 	require.NoError(t, err)
 	assert.JSONEq(t, string(expectedResponse), string(response))
 
 	// Check if the response matches the expected mock response
-	expectedResponse, err = json.MarshalIndent(mockSuccessResponse, "", "  ")
+	expectedResponse, err = json.MarshalIndent(mockBlockResponse, "", "  ")
 	require.NoError(t, err)
 	assert.JSONEq(t, string(expectedResponse), string(response))
 }
@@ -70,7 +70,7 @@ func TestFetchBlock_Err(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient, types.BaseShardId)
+	service := NewService(mockClient, "", types.BaseShardId)
 
 	// Call the fetchBlock
 	_, err := service.FetchBlockByHash("0x294a68120c056a549d314efa8306dafdb856f7b51dde976df0e807e001ff84ac")

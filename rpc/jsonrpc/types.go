@@ -1,6 +1,8 @@
 package jsonrpc
 
 import (
+	"errors"
+
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/types"
@@ -57,7 +59,7 @@ type RPCInMessage struct {
 	Index       *hexutil.Uint64   `json:"index"`
 	Value       types.Uint256     `json:"value"`
 	ChainID     types.Uint256     `json:"chainId,omitempty"`
-	Signature   common.Signature  `json:"signature"`
+	Signature   types.Signature   `json:"signature"`
 }
 
 // @component RPCBlock rpcBlock object "The block whose information was requested."
@@ -108,10 +110,10 @@ type RPCLog struct {
 	BlockNumber types.BlockNumber `json:"blockNumber"`
 }
 
-func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types.MessageIndex, block *types.Block) *RPCInMessage {
+func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types.MessageIndex, block *types.Block) (*RPCInMessage, error) {
 	hash := message.Hash()
 	if receipt == nil || hash != receipt.MsgHash {
-		panic("Msg and receipt are not compatible")
+		return nil, errors.New("msg and receipt are not compatible")
 	}
 
 	blockHash := block.Hash()
@@ -137,20 +139,24 @@ func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types
 		Signature:   message.Signature,
 	}
 
-	return result
+	return result, nil
 }
 
 func NewRPCBlock(
 	shardId types.ShardId, block *types.Block, messages []*types.Message, receipts []*types.Receipt, fullTx bool,
-) *RPCBlock {
+) (*RPCBlock, error) {
 	if block == nil {
-		return nil
+		return nil, nil
 	}
 
 	messagesRes := make([]any, len(messages))
+	var err error
 	if fullTx {
 		for i, m := range messages {
-			messagesRes[i] = NewRPCInMessage(m, receipts[i], types.MessageIndex(i), block)
+			messagesRes[i], err = NewRPCInMessage(m, receipts[i], types.MessageIndex(i), block)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
 		for i, m := range messages {
@@ -166,7 +172,7 @@ func NewRPCBlock(
 		ReceiptsRoot:   block.ReceiptsRoot,
 		ShardId:        shardId,
 		Messages:       messagesRes,
-	}
+	}, nil
 }
 
 func NewRPCLog(

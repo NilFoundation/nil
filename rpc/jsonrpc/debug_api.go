@@ -54,7 +54,7 @@ func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.Sha
 			return nil, err
 		}
 
-		return api.getBlockByHash(tx, shardId, common.CastToHash(*hash), withMessages)
+		return api.getBlockByHash(tx, shardId, common.CastToHash(hash), withMessages)
 	}
 
 	blockHash, err := tx.GetFromShard(shardId, db.BlockHashByNumberIndex, number.BlockNumber().Bytes())
@@ -64,7 +64,7 @@ func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.Sha
 	if err != nil {
 		return nil, err
 	}
-	return api.getBlockByHash(tx, shardId, common.CastToHash(*blockHash), withMessages)
+	return api.getBlockByHash(tx, shardId, common.CastToHash(blockHash), withMessages)
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
@@ -125,7 +125,7 @@ func (api *DebugAPIImpl) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash 
 			}
 
 			var blockHashAndMessageIndex db.BlockHashAndMessageIndex
-			if err := blockHashAndMessageIndex.UnmarshalSSZ(*value); err != nil {
+			if err := blockHashAndMessageIndex.UnmarshalSSZ(value); err != nil {
 				return nil, err
 			}
 			positions[i] = uint64(blockHashAndMessageIndex.MessageIndex)

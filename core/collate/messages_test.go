@@ -6,7 +6,6 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
-	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
@@ -66,22 +65,17 @@ func (s *MessagesSuite) TestValidateMessage() {
 	s.Require().NoError(err)
 	s.Require().NotNil(es)
 
-	key, err := crypto.GenerateKey()
-	s.Require().NoError(err)
-
 	addrFrom := types.HexToAddress("0000832983856CB0CF6CD570F071122F1BEA2F20")
 	es.CreateAccount(addrFrom)
-	es.Accounts[addrFrom].PublicKey = [types.PublicKeySize]byte(crypto.CompressPubkey(&key.PublicKey))
 
 	addrTo := types.HexToAddress("1111832983856CB0CF6CD570F071122F1BEA2F20")
 	es.CreateAccount(addrTo)
 
 	msg := &types.Message{
-		From:      types.EmptyAddress,
-		To:        addrTo,
-		Seqno:     0,
-		Signature: common.EmptySignature,
-		Internal:  false,
+		From:     types.EmptyAddress,
+		To:       addrTo,
+		Seqno:    0,
+		Internal: false,
 	}
 
 	// "From" doesn't exist
@@ -99,8 +93,9 @@ func (s *MessagesSuite) TestValidateMessage() {
 	s.Require().Len(es.Receipts, 2)
 	s.False(es.Receipts[1].Success)
 
-	// Signed message - OK
-	s.Require().NoError(msg.Sign(key))
+	// contract that always returns "true",
+	// so verifies any message
+	es.SetCode(addrTo, hexutil.FromHex("600160005260206000f3"))
 	ok, err = validateMessage(tx, es, msg)
 	s.Require().NoError(err)
 	s.True(ok)

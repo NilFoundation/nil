@@ -20,6 +20,8 @@ package math
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/NilFoundation/nil/common/check"
 )
 
 // Various big integer limit values.
@@ -112,7 +114,7 @@ func (i *Decimal256) String() string {
 	return fmt.Sprintf("%#d", (*big.Int)(i))
 }
 
-// ParseBig256 parses s as a 256 bit integer in decimal or hexadecimal syntax.
+// ParseBig256 parses s as a 256-bit integer in decimal or hexadecimal syntax.
 // Leading zeros are accepted. The empty string parses as zero.
 func ParseBig256(s string) (*big.Int, bool) {
 	if s == "" {
@@ -131,12 +133,10 @@ func ParseBig256(s string) (*big.Int, bool) {
 	return bigint, ok
 }
 
-// MustParseBig256 parses s as a 256 bit big integer and panics if the string is invalid.
+// MustParseBig256 parses s as a 256-bit big integer and panics if the string is invalid.
 func MustParseBig256(s string) *big.Int {
 	v, ok := ParseBig256(s)
-	if !ok {
-		panic("invalid 256 bit integer: " + s)
-	}
+	check.PanicIfNot(ok)
 	return v
 }
 
@@ -146,7 +146,7 @@ func BigPow(a, b int64) *big.Int {
 	return r.Exp(r, big.NewInt(b), nil)
 }
 
-// BigMax returns the larger of x or y.
+// BigMax returns the largest of x or y.
 func BigMax(x, y *big.Int) *big.Int {
 	if x.Cmp(y) < 0 {
 		return y
