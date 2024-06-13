@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch nil",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "cmd/nil",
+            "args": ["--allow-db-clear"],
+            "preLaunchTask": "Run Make"
+        }
+
+    ]
+}
