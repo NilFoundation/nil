@@ -31,6 +31,9 @@ func BytesToHash(b []byte) Hash {
 
 // PoseidonHash returns 32-bytes poseidon hash of b bytes.
 func PoseidonHash(b []byte) Hash {
+	if len(b) == 0 {
+		return EmptyHash
+	}
 	return BytesToHash(poseidon.Sum(b))
 }
 
