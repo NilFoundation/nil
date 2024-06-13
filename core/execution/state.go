@@ -829,6 +829,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 	for i, r := range es.Receipts {
 		msgHash := es.InMessages[i].Hash()
 		r.OutMsgIndex = uint32(msgStart)
+		r.OutMsgNum = uint32(len(es.OutMessages[msgHash]))
 
 		if err := es.ReceiptTree.Update(types.MessageIndex(i), r); err != nil {
 			return common.EmptyHash, err

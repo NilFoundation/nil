@@ -9,8 +9,6 @@ import (
 	"github.com/NilFoundation/nil/tools/solc"
 )
 
-// TODO: This is too boilerplate code, need to simplify it
-
 // Deploy contract to specific shard
 func (suite *SuiteRpc) deployContractViaWallet(shardId types.ShardId, code []byte) types.Address {
 	suite.T().Helper()
@@ -55,9 +53,9 @@ func (suite *SuiteRpc) deployContractViaWallet(shardId types.ShardId, code []byt
 	suite.Require().NoError(err)
 	suite.Equal(msgExternal.Hash(), resHash)
 
-	suite.waitForReceiptOnShard(types.MainWalletAddress.ShardId(), msgExternal)
-
-	suite.waitForReceipt(addrWallet, msgInternal)
+	receipt := suite.waitForReceipt(msgExternal)
+	suite.Require().Len(receipt.OutReceipts, 1)
+	suite.checkReceipt(receipt.OutReceipts[0], msgInternal.Hash())
 
 	return addrWallet
 }
@@ -90,9 +88,9 @@ func (suite *SuiteRpc) sendMessageViaWallet(addrFrom types.Address, messageToSen
 	suite.Require().NoError(err)
 	suite.Equal(msgExternal.Hash(), resHash)
 
-	suite.waitForReceipt(addrFrom, msgExternal)
-
-	suite.waitForReceipt(messageToSend.To, messageToSend)
+	receipt := suite.waitForReceipt(msgExternal)
+	suite.Require().Len(receipt.OutReceipts, 1)
+	suite.checkReceipt(receipt.OutReceipts[0], messageToSend.Hash())
 }
 
 func (suite *SuiteRpc) TestWallet() {

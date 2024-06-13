@@ -98,7 +98,7 @@ func (suite *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, msg *types.M
 	suite.Require().Eventually(func() bool {
 		receipt, err = suite.client.GetInMessageReceipt(shardId, msg.Hash())
 		suite.Require().NoError(err)
-		return receipt != nil
+		return receipt.IsComplete()
 	}, 15*time.Second, 200*time.Millisecond)
 
 	suite.Equal(msg.Hash(), receipt.MsgHash)
@@ -106,10 +106,34 @@ func (suite *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, msg *types.M
 	return receipt
 }
 
-func (suite *SuiteRpc) waitForReceipt(addr types.Address, msg *types.Message) {
+func (suite *SuiteRpc) waitForReceipt(msg *types.Message) *jsonrpc.RPCReceipt {
 	suite.T().Helper()
-	res := suite.waitForReceiptOnShard(addr.ShardId(), msg)
-	suite.Equal(addr, res.ContractAddress)
+
+	var shardId types.ShardId
+	if msg.Internal {
+		shardId = msg.From.ShardId()
+	} else {
+		shardId = msg.To.ShardId()
+	}
+	var receipt *jsonrpc.RPCReceipt
+	var err error
+	suite.Require().Eventually(func() bool {
+		receipt, err = suite.client.GetInMessageReceipt(shardId, msg.Hash())
+		suite.Require().NoError(err)
+		return receipt.IsComplete()
+	}, 15*time.Second, 200*time.Millisecond)
+
+	// Check receipt only for the outermost message
+	suite.checkReceipt(receipt, msg.Hash())
+
+	return receipt
+}
+
+func (suite *SuiteRpc) checkReceipt(receipt *jsonrpc.RPCReceipt, msgHash common.Hash) {
+	suite.T().Helper()
+	suite.Require().NotNil(receipt)
+	suite.Require().True(receipt.Success)
+	suite.Require().Equal(msgHash, receipt.MsgHash)
 }
 
 func (suite *SuiteRpc) sendDeployMessage(from types.Address, code types.Code, seqno types.Seqno) *jsonrpc.RPCReceipt {
@@ -271,8 +295,7 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 		suite.Require().NoError(callCallerMethod.Sign(execution.MainPrivateKey))
 		suite.sendRawTransaction(callCallerMethod)
 
-		suite.waitForReceipt(callerAddr, callCallerMethod)
-		suite.waitForReceipt(calleeAddr, messageToSend)
+		suite.waitForReceipt(callCallerMethod)
 	}
 
 	// check that we can call contract from neighbor shard

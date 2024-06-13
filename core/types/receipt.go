@@ -13,6 +13,7 @@ type Receipt struct {
 	Bloom       Bloom  `json:"bloom"`
 	Logs        []*Log `json:"logs" ssz-max:"1000"`
 	OutMsgIndex uint32 `json:"outMsgIndex"`
+	OutMsgNum   uint32 `json:"outMsgNum"`
 
 	MsgHash         common.Hash `json:"messageHash"`
 	ContractAddress Address     `json:"contractAddress"`

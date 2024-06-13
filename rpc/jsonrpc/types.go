@@ -89,6 +89,8 @@ type RPCBlock struct {
 // @componentprop MessageHash messageHash string true "The hash of the message whose receipt is requested."
 // @componentprop MessageIndex messageIndex integer true "The index of the message whose receipt is requested."
 // @componentprop OutMsgIndex outMsgIndex integer true "The index of the outgoing message whose receipt is requested."
+// @componentprop OutMsgNum outMsgNum integer true "The number of the outgoing messages whose receipt is requested."
+// @componentprop OutReceipts outputReceipts array true "Receipts of the outgoing messages. Set to nil for messages that have not yet been processed."
 // @componentprop Success success boolean true "The flag that shows whether the message was successful."
 type RPCReceipt struct {
 	Success         bool               `json:"success"`
@@ -96,6 +98,8 @@ type RPCReceipt struct {
 	Bloom           hexutil.Bytes      `json:"bloom"`
 	Logs            []*RPCLog          `json:"logs"`
 	OutMsgIndex     uint32             `json:"outMsgIndex"`
+	OutMsgNum       uint32             `json:"outMsgNum"`
+	OutReceipts     []*RPCReceipt      `json:"outputReceipts"`
 	MsgHash         common.Hash        `json:"messageHash"`
 	ContractAddress types.Address      `json:"contractAddress"`
 	BlockHash       common.Hash        `json:"blockHash,omitempty"`
@@ -108,6 +112,18 @@ type RPCLog struct {
 	Topics      []common.Hash     `json:"topics"`
 	Data        hexutil.Bytes     `json:"data"`
 	BlockNumber types.BlockNumber `json:"blockNumber"`
+}
+
+func (re *RPCReceipt) IsComplete() bool {
+	if re == nil || len(re.OutReceipts) != int(re.OutMsgNum) {
+		return false
+	}
+	for _, receipt := range re.OutReceipts {
+		if !receipt.IsComplete() {
+			return false
+		}
+	}
+	return true
 }
 
 func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types.MessageIndex, block *types.Block) (*RPCInMessage, error) {
@@ -190,7 +206,7 @@ func NewRPCLog(
 }
 
 func NewRPCReceipt(
-	block *types.Block, index types.MessageIndex, receipt *types.Receipt,
+	block *types.Block, index types.MessageIndex, receipt *types.Receipt, outReceipts []*RPCReceipt,
 ) *RPCReceipt {
 	if block == nil || receipt == nil {
 		return nil
@@ -207,6 +223,8 @@ func NewRPCReceipt(
 		Bloom:           hexutil.Bytes(receipt.Bloom.Bytes()),
 		Logs:            logs,
 		OutMsgIndex:     receipt.OutMsgIndex,
+		OutMsgNum:       receipt.OutMsgNum,
+		OutReceipts:     outReceipts,
 		MsgHash:         receipt.MsgHash,
 		ContractAddress: receipt.ContractAddress,
 		BlockHash:       block.Hash(),
