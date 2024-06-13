@@ -315,6 +315,15 @@ func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, v
 	if !canTransfer(evm.StateDB, caller.Address(), value) {
 		return nil, types.Address{}, gas, ErrInsufficientBalance
 	}
+
+	// Ensure there's no existing contract already at the designated address.
+	if evm.StateDB.ContractExists(address) {
+		if evm.Config.Tracer != nil && evm.Config.Tracer.OnGasChange != nil {
+			evm.Config.Tracer.OnGasChange(gas, 0, tracing.GasChangeCallFailedExecution)
+		}
+		return nil, types.Address{}, 0, ErrContractAddressCollision
+	}
+
 	if caller.Address() != types.EmptyAddress {
 		// bump caller's nonce
 		nonce := evm.StateDB.GetSeqno(caller.Address())
@@ -324,13 +333,6 @@ func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, v
 		evm.StateDB.SetSeqno(caller.Address(), nonce+1)
 	}
 
-	// Ensure there's no existing contract already at the designated address.
-	if evm.StateDB.ContractExists(address) {
-		if evm.Config.Tracer != nil && evm.Config.Tracer.OnGasChange != nil {
-			evm.Config.Tracer.OnGasChange(gas, 0, tracing.GasChangeCallFailedExecution)
-		}
-		return nil, types.Address{}, 0, ErrContractAddressCollision
-	}
 	// Create a new account on the state only if the object was not present.
 	// It might be possible the contract code is deployed to a pre-existent
 	// account with non-zero balance.

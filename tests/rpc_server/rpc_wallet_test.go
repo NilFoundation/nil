@@ -29,7 +29,6 @@ func (suite *SuiteRpc) deployContractViaWallet(shardId types.ShardId, code []byt
 		Internal: true,
 		Deploy:   true,
 	}
-	suite.Require().NoError(msgInternal.Sign(execution.MainPrivateKey))
 	msgInternalData, err := msgInternal.MarshalSSZ()
 	suite.Require().NoError(err)
 
