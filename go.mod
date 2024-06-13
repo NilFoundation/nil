@@ -24,7 +24,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/spf13/viper v1.18.2
 	golang.org/x/term v0.19.0
-	golang.org/x/text v0.16.0
+	golang.org/x/text v0.16.0 // indirect
 )
 
 require (

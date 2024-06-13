@@ -7,9 +7,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 type Component struct {
@@ -57,8 +54,8 @@ func main() {
 }
 
 func generate_spec() error {
-	componentsFromAPI := generateComponentsFromFile("../jsonrpc/eth_api.go")
-	componentsFromTypes := generateComponentsFromFile("../jsonrpc/types.go")
+	componentsFromAPI := generateComponentsFromFile("../../rpc/jsonrpc/doc.go")
+	componentsFromTypes := generateComponentsFromFile("../../rpc/jsonrpc/types.go")
 	components := make(map[string]Component)
 
 	for k, v := range componentsFromTypes {
@@ -68,7 +65,7 @@ func generate_spec() error {
 		components[k] = v
 	}
 
-	methods := generateMethodsFromFile("../jsonrpc/eth_api.go")
+	methods := generateMethodsFromFile("../../rpc/jsonrpc/eth_api.go")
 	openrpcSpec := map[string]interface{}{
 		"openrpc": "1.2.4",
 		"info": map[string]interface{}{
@@ -144,7 +141,7 @@ func generateComponentsFromFile(filename string) map[string]Component {
 		if line == "" {
 			continue
 		}
-		compMatch := regexp.MustCompile(`^\s*\/\/@component\s+(\w+)\s+(\w+)\s+(\w+)\s+"([^"]+)"`).FindStringSubmatch(line)
+		compMatch := regexp.MustCompile(`^\s*\/\/\s*@component\s+(\w+)\s+(\w+)\s+(\w+)\s+"([^"]+)"`).FindStringSubmatch(line)
 		if len(compMatch) == 5 {
 			name := compMatch[1]
 			title := compMatch[2]
@@ -166,7 +163,7 @@ func generateComponentsFromFile(filename string) map[string]Component {
 		}
 
 		if inObjectComponent {
-			propMatch := regexp.MustCompile(`^\s*\/\/@componentprop\s+(\w+)\s+(\w+)\s+(\w+)\s+(true|false)\s+"([^"]+)"`).FindStringSubmatch(line)
+			propMatch := regexp.MustCompile(`^\s*\/\/\s*@componentprop\s+(\w+)\s+(\w+)\s+(\w+)\s+(true|false)\s+"([^"]+)"`).FindStringSubmatch(line)
 			if len(propMatch) == 6 {
 				propName := propMatch[1]
 				propTitle := propMatch[2]
@@ -248,7 +245,7 @@ func generateMethodsFromFile(filename string) []Method {
 					param := Param{
 						Name: paramMatch[1],
 						Schema: SchemaRef{
-							Ref: "#/components/schemas/" + cases.Title(language.Und).String(paramMatch[2]),
+							Ref: "#/components/schemas/" + paramMatch[2],
 						},
 					}
 					method.Params = append(method.Params, param)
@@ -259,7 +256,7 @@ func generateMethodsFromFile(filename string) []Method {
 					method.Result = Result{
 						Name: returnsMatch[1],
 						Schema: SchemaRef{
-							Ref: "#/components/schemas/" + cases.Title(language.Und).String(returnsMatch[2]),
+							Ref: "#/components/schemas/" + returnsMatch[2],
 						},
 					}
 				}
