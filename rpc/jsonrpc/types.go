@@ -8,6 +8,15 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 )
 
+// @component CallArgs callArgs object "The arguments for the message call."
+// @componentprop From from string true "The address from which the message must be called."
+// @componentprop GasLimit gasLimit string true "The gas limit for the message."
+// @componentprop GasPrice gasPrice string false "The gas price for the message."
+// @componentprop Value value integer true "The message value."
+// @componentprop Seqno seqno integer true "The sequence number of the message."
+// @componentprop Data data string true "The encoded bytecode of the message."
+// @componentprop Input input string false "The message input."
+// @component propr ChainId chainId integer "The chain id."
 type CallArgs struct {
 	From     types.Address   `json:"from"`
 	To       types.Address   `json:"to"`
@@ -20,6 +29,21 @@ type CallArgs struct {
 	ChainID  *hexutil.Big    `json:"chainId"`
 }
 
+// @component RPCInMessage rpcInMessage object "The message whose information is requested."
+// @componentprop BlockHash blockHash string true "The hash of the block containing the message."
+// @componentprop BlockNumber blockNumber integer true "The number of the block containin the message."
+// @componentprop ChainId chainId integer true "The number of the chain containing the message."
+// @componentprop From from string true "The address from where the message was sent."
+// @componentprop GasLimit gasLimit string true "The gas limit for the message."
+// @componentprop GasPrice gasPrice string true "The gas price paid for the message."
+// @componentprop GasUsed gasUsed string true "The amount of gas spent on the message."
+// @componentprop Hash hash string true "The message hash."
+// @componentprop Index index string true "The message index."
+// @componentprop Seqno seqno string true "The sequence number of the message."
+// @componentprop Signature signature string true "The message signature."
+// @componentprop Success success boolean true "The flag that shows whether the message was successful."
+// @componentprop To to string true "The address where the message was sent."
+// @componentprop Value value string true "The message value."
 type RPCInMessage struct {
 	Success     bool              `json:"success"`
 	Data        hexutil.Bytes     `json:"data"`
@@ -38,6 +62,13 @@ type RPCInMessage struct {
 	Signature   types.Signature   `json:"signature"`
 }
 
+// @component RPCBlock rpcBlock object "The block whose information was requested."
+// @componentprop Hash hash string true "The hash of the block."
+// @componentprop Messages messages array true "The messages included in the block."
+// @componentprop Number number integer true "The block number."
+// @componentprop ParentHash parentHash string true "The hash of the parent block."
+// @componentprop ReceiptsRoot receiptsRoot string true "The root of the block receipts."
+// @componentprop ShardId shardId integer true "The ID of the shard where the block was generated."
 type RPCBlock struct {
 	Number         types.BlockNumber `json:"number"`
 	Hash           common.Hash       `json:"hash"`
@@ -48,6 +79,17 @@ type RPCBlock struct {
 	Messages       []any             `json:"messages"`
 }
 
+// @component RPCReceipt rpcReceipt object "The receipt whose structure is requested."
+// @componentprop BlockHash blockHash string true "The hash of the block containing the message whose receipt is requested."
+// @componentprop BlockNumber blockNumber integer true "The number of the block containin the message whose receipt is requested."
+// @componentprop Bloom bloom string true "The receipt bloom filter."
+// @componentprop ContractAddress contractAddress string true "The address of the contract that has originated the message whose receipt is requested."
+// @componentprop GasUsed gasUsed string true "The amount of gas spent on the message whose receipt is requested."
+// @componentprop Logs logs array true "The logs attached to the receipt."
+// @componentprop MessageHash messageHash string true "The hash of the message whose receipt is requested."
+// @componentprop MessageIndex messageIndex integer true "The index of the message whose receipt is requested."
+// @componentprop OutMsgIndex outMsgIndex integer true "The index of the outgoing message whose receipt is requested."
+// @componentprop Success success boolean true "The flag that shows whether the message was successful."
 type RPCReceipt struct {
 	Success         bool               `json:"success"`
 	GasUsed         uint32             `json:"gasUsed"`
