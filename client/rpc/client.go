@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -105,17 +104,8 @@ func (c *Client) call(method string, params []any) (json.RawMessage, error) {
 	return rpcResponse["result"], nil
 }
 
-func (c *Client) Call(method string, params ...any) (map[string]any, error) {
-	raw, err := c.call(method, params)
-	if err != nil {
-		return nil, err
-	}
-
-	var result map[string]any
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
+func (c *Client) Call(method string, params ...any) (json.RawMessage, error) {
+	return c.call(method, params)
 }
 
 func (c *Client) GetCode(addr types.Address, blockId any) (types.Code, error) {
@@ -135,11 +125,7 @@ func (c *Client) GetCode(addr types.Address, blockId any) (types.Code, error) {
 		return types.Code{}, err
 	}
 
-	bytes, err := hex.DecodeString(codeHex)
-	if err != nil {
-		return types.Code{}, err
-	}
-
+	bytes := hexutil.FromHex(codeHex)
 	return types.Code(bytes), nil
 }
 

@@ -2,10 +2,13 @@ package rpctest
 
 import (
 	"context"
+	"encoding/hex"
+	"encoding/json"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client"
 	rpc_client "github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
@@ -31,6 +34,7 @@ type SuiteRpc struct {
 	cancel  context.CancelFunc
 	address types.Address
 	client  client.Client
+	cli     *service.Service
 }
 
 func (suite *SuiteRpc) SetupSuite() {
@@ -44,6 +48,10 @@ func (suite *SuiteRpc) SetupTest() {
 	suite.Require().NoError(err)
 
 	suite.client = rpc_client.NewClient("http://127.0.0.1:8531/")
+
+	pk := hex.EncodeToString(crypto.FromECDSA(execution.MainPrivateKey))
+	suite.cli = service.NewService(suite.client, pk, types.BaseShardId)
+	suite.Require().NotNil(suite.cli)
 
 	suite.port = 8531
 	cfg := &nilservice.Config{
@@ -197,7 +205,7 @@ func (suite *SuiteRpc) loadContract(path string, name string) (types.Code, abi.A
 func (suite *SuiteRpc) TestRpcContract() {
 	contractCode, abi := suite.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 
-	addr := suite.deployContractViaWallet(1, contractCode)
+	addr, _ := suite.deployContractViaWallet(types.BaseShardId, contractCode)
 
 	// now call (= send a message to) created contract
 	seqno, err := suite.client.GetTransactionCount(addr, "latest")
@@ -229,14 +237,14 @@ func (suite *SuiteRpc) TestRpcDeployToMainShard() {
 func (suite *SuiteRpc) TestRpcContractSendMessage() {
 	// deploy caller contract
 	callerCode, callerAbi := suite.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Caller")
-	callerAddr := suite.deployContractViaWallet(types.MasterShardId, callerCode)
+	callerAddr, _ := suite.deployContractViaWallet(types.MasterShardId, callerCode)
 
 	checkForShard := func(shardId types.ShardId) {
 		suite.T().Helper()
 
 		// deploy callee contracts to different shards
 		calleeCode, calleeAbi := suite.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Callee")
-		calleeAddr := suite.deployContractViaWallet(shardId, calleeCode)
+		calleeAddr, _ := suite.deployContractViaWallet(shardId, calleeCode)
 
 		// pack call of Callee::add into message
 		calldata, err := calleeAbi.Pack("add", int32(123))
@@ -283,8 +291,11 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 func (suite *SuiteRpc) TestRpcApiModules() {
 	res, err := suite.client.Call("rpc_modules")
 	suite.Require().NoError(err)
-	suite.Equal("1.0", res["eth"])
-	suite.Equal("1.0", res["rpc"])
+
+	var data map[string]any
+	suite.Require().NoError(json.Unmarshal(res, &data))
+	suite.Equal("1.0", data["eth"])
+	suite.Equal("1.0", data["rpc"])
 }
 
 func (suite *SuiteRpc) TestRpcError() {
@@ -315,8 +326,11 @@ func (suite *SuiteRpc) TestRpcError() {
 }
 
 func (suite *SuiteRpc) TestRpcDebugModules() {
-	res, err := suite.client.Call("debug_getBlockByNumber", types.BaseShardId, "latest", false)
+	raw, err := suite.client.Call("debug_getBlockByNumber", types.BaseShardId, "latest", false)
 	suite.Require().NoError(err)
+
+	var res map[string]any
+	suite.Require().NoError(json.Unmarshal(raw, &res))
 
 	suite.Require().Contains(res, "number")
 	suite.Require().Contains(res, "hash")
@@ -329,7 +343,10 @@ func (suite *SuiteRpc) TestRpcDebugModules() {
 	// print resp to see the result
 	suite.T().Logf("resp: %v", res)
 
-	fullRes, err := suite.client.Call("debug_getBlockByNumber", types.BaseShardId, "latest", true)
+	raw, err = suite.client.Call("debug_getBlockByNumber", types.BaseShardId, "latest", true)
+
+	var fullRes map[string]any
+	suite.Require().NoError(json.Unmarshal(raw, &fullRes))
 	suite.Require().NoError(err)
 	suite.Require().Contains(fullRes, "content")
 	suite.Require().Contains(fullRes, "inMessages")

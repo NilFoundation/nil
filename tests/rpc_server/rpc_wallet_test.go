@@ -6,11 +6,14 @@ import (
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/tools/solc"
 )
 
 // Deploy contract to specific shard
-func (suite *SuiteRpc) deployContractViaWallet(shardId types.ShardId, code []byte) types.Address {
+func (suite *SuiteRpc) deployContractViaWallet(
+	shardId types.ShardId, code []byte,
+) (types.Address, *jsonrpc.RPCReceipt) {
 	suite.T().Helper()
 
 	seqno, err := suite.client.GetTransactionCount(types.MainWalletAddress, "latest")
@@ -53,7 +56,7 @@ func (suite *SuiteRpc) deployContractViaWallet(shardId types.ShardId, code []byt
 	suite.Require().Len(receipt.OutReceipts, 1)
 	suite.checkReceipt(receipt.OutReceipts[0], msgInternal.Hash())
 
-	return addrWallet
+	return addrWallet, receipt
 }
 
 func (suite *SuiteRpc) sendMessageViaWallet(addrFrom types.Address, messageToSend *types.Message) {
@@ -93,7 +96,7 @@ func (suite *SuiteRpc) TestWallet() {
 	suite.Require().NoError(err)
 	smcCallee := contracts["Counter"]
 	suite.Require().NotNil(smcCallee)
-	addrCallee := suite.deployContractViaWallet(types.BaseShardId, hexutil.FromHex(smcCallee.Code))
+	addrCallee, _ := suite.deployContractViaWallet(types.BaseShardId, hexutil.FromHex(smcCallee.Code))
 
 	var calldata []byte
 

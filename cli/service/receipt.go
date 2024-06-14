@@ -6,9 +6,9 @@ import (
 	"github.com/NilFoundation/nil/common"
 )
 
-// FetchReceiptByHash fetches the receipt by hash
-func (s *Service) FetchReceiptByHash(receiptHash string) ([]byte, error) {
-	hash := common.BytesToHash([]byte(receiptHash))
+// FetchReceiptByHash fetches the message receipt by hash
+func (s *Service) FetchReceiptByHash(msgHash string) ([]byte, error) {
+	hash := common.HexToHash(msgHash)
 	receiptData, err := s.client.GetInMessageReceipt(s.shardId, hash)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to fetch receipt")

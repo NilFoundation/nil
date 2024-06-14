@@ -1,14 +1,11 @@
 package service
 
 import (
-	"crypto/ecdsa"
-
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
-	"github.com/NilFoundation/nil/core/crypto"
+	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 )
@@ -32,35 +29,56 @@ func (s *Service) GetCode(contractAddress string) (string, error) {
 }
 
 // RunContract runs bytecode on the specified contract address
-func (s *Service) RunContract(bytecode string, contractAddress string) (string, error) {
-	// Get the public key from the private key
-	pubKey, ok := s.privateKey.Public().(*ecdsa.PublicKey)
-	check.PanicIfNot(ok)
+func (s *Service) RunContract(address string, bytecode string, contractAddress string) (string, error) {
+	// Get the sequence number for the wallet
+	seqnoWallet, err := s.getSeqNum(address)
+	if err != nil {
+		return "", err
+	}
 
-	// Convert the public key to a public address
-	publicAddress := types.PubkeyBytesToAddress(s.shardId, crypto.CompressPubkey(pubKey))
+	calldata := hexutil.FromHex(bytecode)
+	contract := types.HexToAddress(contractAddress)
+	wallet := types.HexToAddress(address)
 
-	// Get the sequence number for the public address
-	seqNum, err := s.getSeqNum(publicAddress.Hex())
+	intMsg := &types.Message{
+		Data:     calldata,
+		From:     wallet,
+		To:       contract,
+		Value:    *types.NewUint256(0),
+		GasLimit: *types.NewUint256(100000),
+		Internal: true,
+	}
+
+	intMsgData, err := intMsg.MarshalSSZ()
+	if err != nil {
+		return "", err
+	}
+
+	walletAbi, err := contracts.GetAbi("Wallet")
+	if err != nil {
+		return "", err
+	}
+
+	calldataExt, err := walletAbi.Pack("send", intMsgData)
 	if err != nil {
 		return "", err
 	}
 
 	// Create the message with the bytecode to run
-	message := &types.ExternalMessage{
-		To:    types.HexToAddress(contractAddress),
-		Data:  hexutil.FromHex(bytecode),
-		Seqno: seqNum,
+	extMsg := &types.ExternalMessage{
+		To:    wallet,
+		Data:  calldataExt,
+		Seqno: seqnoWallet,
 	}
 
 	// Sign the message with the private key
-	err = message.Sign(s.privateKey)
+	err = extMsg.Sign(s.privateKey)
 	if err != nil {
 		return "", err
 	}
 
 	// Send the raw transaction
-	txHash, err := s.sendRawTransaction(message)
+	txHash, err := s.sendRawTransaction(extMsg)
 	if err != nil {
 		return "", err
 	}
@@ -69,41 +87,65 @@ func (s *Service) RunContract(bytecode string, contractAddress string) (string, 
 }
 
 // DeployContract deploys a new smart contract with the given bytecode
-func (s *Service) DeployContract(bytecode string) (string, error) {
-	// Get the public key from the private key
-	pubKey, ok := s.privateKey.Public().(*ecdsa.PublicKey)
-	check.PanicIfNot(ok)
+func (s *Service) DeployContract(address string, bytecode string) (string, string, error) {
+	publicAddress := types.HexToAddress(address)
+	code := hexutil.FromHex(bytecode)
 
-	// Convert the public key to a public address
-	publicAddress := types.PubkeyBytesToAddress(s.shardId, crypto.CompressPubkey(pubKey))
+	// Calculate contract address
+	addrWallet := types.CreateAddress(s.shardId, code)
 
 	// Get the sequence number for the public address
-	seqNum, err := s.getSeqNum(publicAddress.Hex())
+	seqno, err := s.getSeqNum(publicAddress.Hex())
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	// Create the message with the deploy data
-	message := &types.ExternalMessage{
-		To:     publicAddress,
-		Deploy: true,
-		Seqno:  seqNum,
-		Data:   types.BuildDeployPayload(hexutil.FromHex(bytecode), common.EmptyHash).Bytes(),
+	intMsg := &types.Message{
+		Seqno:    seqno,
+		From:     publicAddress,
+		To:       addrWallet,
+		Value:    *types.NewUint256(0),
+		GasLimit: *types.NewUint256(100000),
+		Data:     types.BuildDeployPayload(hexutil.FromHex(bytecode), common.EmptyHash).Bytes(),
+		Deploy:   true,
+		Internal: true,
 	}
 
-	// Sign the message with the private key
-	err = message.Sign(s.privateKey)
+	msgInternalData, err := intMsg.MarshalSSZ()
 	if err != nil {
-		return "", err
+		return "", "", err
+	}
+
+	// Make external message to the address
+	walletAbi, err := contracts.GetAbi("Wallet")
+	if err != nil {
+		return "", "", err
+	}
+
+	// Send a message with the deploy data
+	calldata, err := walletAbi.Pack("send", msgInternalData)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Create external message to the wallet
+	extMsg := &types.ExternalMessage{
+		Seqno: seqno,
+		To:    publicAddress,
+		Data:  calldata,
+	}
+
+	if err := extMsg.Sign(s.privateKey); err != nil {
+		return "", "", err
 	}
 
 	// Send the raw transaction
-	txHash, err := s.sendRawTransaction(message)
+	txHash, err := s.sendRawTransaction(extMsg)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-
-	return txHash, nil
+	return txHash, addrWallet.Hex(), nil
 }
 
 // sendRawTransaction sends a raw transaction to the cluster
@@ -124,12 +166,7 @@ func (s *Service) getSeqNum(address string) (types.Seqno, error) {
 	// Define the block number (the latest block)
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 
-	var addr types.Address
-	if err := addr.UnmarshalText([]byte(address)); err != nil {
-		s.logger.Error().Err(err).Msg("Invalid address")
-		return 0, err
-	}
-
+	addr := types.HexToAddress(address)
 	seqNum, err := s.client.GetTransactionCount(addr, blockNum)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to get sequence number")

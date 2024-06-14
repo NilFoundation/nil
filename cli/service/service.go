@@ -38,3 +38,8 @@ func NewService(c client.Client, pk string, shardId types.ShardId) *Service {
 
 	return s
 }
+
+// SetShardId changes current shardId. Useful for testing purposes
+func (s *Service) SetShardId(shardId types.ShardId) {
+	s.shardId = shardId
+}

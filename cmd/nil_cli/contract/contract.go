@@ -68,7 +68,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, privateKey str
 	client := rpc.NewClient(rpcEndpoint)
 	service := service.NewService(client, privateKey, params.shardId)
 	if params.deploy != "" {
-		_, err := service.DeployContract(params.deploy)
+		_, _, err := service.DeployContract("", params.deploy)
 		check.PanicIfErr(err)
 		return
 	}
@@ -80,7 +80,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, privateKey str
 	}
 
 	if params.address != "" && params.bytecode != "" {
-		_, err := service.RunContract(params.bytecode, params.address)
+		_, err := service.RunContract("", params.bytecode, params.address)
 		check.PanicIfErr(err)
 	}
 }

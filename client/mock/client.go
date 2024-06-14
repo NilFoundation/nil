@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"encoding/json"
 	"math/big"
 
 	"github.com/NilFoundation/nil/common"
@@ -9,7 +10,7 @@ import (
 )
 
 type MockClient struct {
-	CallResult map[string]any
+	CallResult json.RawMessage
 	Block      *jsonrpc.RPCBlock
 	Str        *string
 	Code       *types.Code
@@ -22,7 +23,7 @@ type MockClient struct {
 	Err        error
 }
 
-func (m *MockClient) Call(method string, params ...any) (map[string]any, error) {
+func (m *MockClient) Call(method string, params ...any) (json.RawMessage, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}

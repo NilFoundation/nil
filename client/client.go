@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/json"
 	"math/big"
 
 	"github.com/NilFoundation/nil/common"
@@ -15,7 +16,7 @@ import (
 type Client interface {
 	// Call sends a request to the server with the given method and parameters,
 	// and returns the response as json.RawMessage, or an error if the call fails
-	Call(method string, params ...any) (map[string]any, error)
+	Call(method string, params ...any) (json.RawMessage, error)
 
 	GetCode(addr types.Address, blockId any) (types.Code, error)
 	GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error)
