@@ -241,6 +241,11 @@ The current RPC is loosely modeled after the Ethereum RPC. The RPC exposes the f
 ### Messages
 
 * `GetInMessageByHash()`
+* `GetInMessageByBlockHashAndIndex()`
+* `GetInMessageByBlockNumberAndIndex()`
+* `GetRawInMessageByBlockNumberAndIndex()`
+* `GetRawInMessageByBlockHashAndIndex()`
+* `GetRawInMessageByHash()`
 
 ### Receipts
 
@@ -256,7 +261,7 @@ The current RPC is loosely modeled after the Ethereum RPC. The RPC exposes the f
 
 * `SendRawTransaction()`
 
-### Logs
+### Filters
 
 * `NewFilter() `
 * `NewPendingTransactionFilter()`
@@ -265,6 +270,38 @@ The current RPC is loosely modeled after the Ethereum RPC. The RPC exposes the f
 * `GetFilterChanges()`
 * `GetFilterLogs()`
 * `GetShardIdList()`
+
+### Shards
+
+* `GetShardIdList()`
+
+### Calls
+
+* `Call()`
+
+### Chains
+
+* `ChainId()`
+
+## OpenRPC spec generator
+
+The project also includes a generator of an OpenRPC spec file from the type definitions the RPC API interface.
+
+The primary benefit of this is allowing for automatic RPC API documentation generation on the side of [**the documentation portal**](https://docs.nil.foundation/).
+
+Another benefit is greater coupling of docs and code. Do not hesitate to adjust the doc strings (be mindful to follow the doc string spec) in `rpc/jsonrpc/eth_api.go`, `rpc/jsonrpc/types.go` and `rpc/jsonrpc/doc.go` to account for latest changes in the RPC API. All changes will make their way to the documentation portal without any overhead. 
+
+To run the spec generator:
+
+```bash
+cp cmd/spec_generator/spec_generator.go .
+go run spec_generator.
+rm spec_generator.go
+```
+
+This will procude the `openrpc.json` file in the root directory. 
+
+The spec generator is part of CI, and the OpenRPC spec will be hosted at the devstand. 
 
 ## Linting
 
