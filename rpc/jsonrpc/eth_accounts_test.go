@@ -151,8 +151,8 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Uint64(567), *res)
 
-	msg := types.Message{
-		From:  suite.smcAddr,
+	msg := types.ExternalMessage{
+		To:    suite.smcAddr,
 		Seqno: 0,
 	}
 
@@ -164,7 +164,7 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 
 	sig, err := crypto.Sign(digest.Bytes(), key)
 	suite.Require().NoError(err)
-	msg.Signature = types.Signature(sig)
+	msg.AuthData = types.Signature(sig)
 
 	data, err := msg.MarshalSSZ()
 	suite.Require().NoError(err)

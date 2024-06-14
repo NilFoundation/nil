@@ -17,10 +17,9 @@ type SuiteMsgPool struct {
 	pool *MsgPool
 }
 
-func newMessage(from types.Address, seqno types.Seqno, fee uint64) types.Message {
+func newMessage(to types.Address, seqno types.Seqno, fee uint64) types.Message {
 	return types.Message{
-		From:  from,
-		To:    types.Address{},
+		To:    to,
 		Value: types.Uint256{Int: *uint256.NewInt(fee)},
 		Data:  types.Code(""),
 		Seqno: seqno,
@@ -69,22 +68,22 @@ func (suite *SuiteMsgPool) TestAdd() {
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 	suite.Equal(1, suite.pool.MessageCount())
 
-	// Add a message with higher seqno from the same sender
+	// Add a message with higher seqno to the same receiver
 	msg4 := newMessage(address, 1, 124)
 	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg4})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 	suite.Equal(2, suite.pool.MessageCount())
 
-	// Add a message with lower seqno from the same sender - SeqnoTooLow
+	// Add a message with lower seqno to the same receiver - SeqnoTooLow
 	msg5 := newMessage(address, 0, 124)
 	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg5})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{SeqnoTooLow}, reasons)
 	suite.Equal(2, suite.pool.MessageCount())
 
-	// Add a message with higher seqno from new sender
-	msg6 := newMessage(types.HexToAddress("deadbeef2"), 1, 124)
+	// Add a message with higher seqno to new receiver
+	msg6 := newMessage(types.HexToAddress("deadbeef02"), 1, 124)
 	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg6})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
@@ -149,7 +148,7 @@ func (suite *SuiteMsgPool) TestSeqnoFromAddress() {
 	address := types.HexToAddress("deadbeef02")
 	suite.Require().NotEqual(types.Address{}, address)
 
-	_, inPool := suite.pool.SeqnoFromAddress(address)
+	_, inPool := suite.pool.SeqnoToAddress(address)
 	suite.Require().False(inPool)
 
 	msg := newMessage(address, 0, 123)
@@ -157,7 +156,7 @@ func (suite *SuiteMsgPool) TestSeqnoFromAddress() {
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 
-	seqno, inPool := suite.pool.SeqnoFromAddress(address)
+	seqno, inPool := suite.pool.SeqnoToAddress(address)
 	suite.Require().True(inPool)
 	suite.Require().EqualValues(0, seqno)
 
@@ -166,11 +165,11 @@ func (suite *SuiteMsgPool) TestSeqnoFromAddress() {
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 
-	seqno, inPool = suite.pool.SeqnoFromAddress(address)
+	seqno, inPool = suite.pool.SeqnoToAddress(address)
 	suite.Require().True(inPool)
 	suite.Require().EqualValues(1, seqno)
 
-	_, inPool = suite.pool.SeqnoFromAddress(types.BytesToAddress([]byte("abcd")))
+	_, inPool = suite.pool.SeqnoToAddress(types.BytesToAddress([]byte("abcd")))
 	suite.Require().False(inPool)
 }
 

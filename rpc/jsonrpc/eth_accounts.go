@@ -66,7 +66,7 @@ func (api *APIImpl) GetTransactionCount(ctx context.Context, address types.Addre
 	}
 
 	if blockNrOrHash.BlockNumber != nil && *blockNrOrHash.BlockNumber == transport.PendingBlockNumber {
-		nonce, inPool := api.msgPools[shardId].SeqnoFromAddress(address)
+		nonce, inPool := api.msgPools[shardId].SeqnoToAddress(address)
 		if inPool {
 			nonce++
 			return (*hexutil.Uint64)(&nonce), nil

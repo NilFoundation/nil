@@ -10,45 +10,45 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// BySenderAndSeqno - designed to perform the most expensive operation in MsgPool:
+// ByReceiverAndSeqno - designed to perform the most expensive operation in MsgPool:
 // "recalculate all ephemeral fields of all transactions" by algo
-//   - for all senders - iterate over all transactions in seqno growing order
+//   - for all receivers - iterate over all transactions in seqno growing order
 //
 // Performances decisions:
 //   - All senders stored inside 1 large BTree - because iterate over 1 BTree is faster than over map[senderId]BTree
 //   - sortByNonce used as non-pointer wrapper - because iterate over BTree of pointers is 2x slower
-type BySenderAndSeqno struct {
-	tree         *btree.BTreeG[*types.Message]
-	search       *types.Message
-	fromMsgCount map[types.Address]int // count of sender's msgs in the pool - may differ from seqno
+type ByReceiverAndSeqno struct {
+	tree       *btree.BTreeG[*types.Message]
+	search     *types.Message
+	toMsgCount map[types.Address]int // count of receiver's msgs in the pool - may differ from seqno
 
 	logger zerolog.Logger
 }
 
 func sortBySeqnoLess(a, b *types.Message) bool {
-	fromCmp := bytes.Compare(a.From.Bytes(), b.From.Bytes())
+	fromCmp := bytes.Compare(a.To.Bytes(), b.To.Bytes())
 	if fromCmp != 0 {
 		return fromCmp == -1 // a < b
 	}
 	return a.Seqno < b.Seqno
 }
 
-func NewBySenderAndSeqno(logger zerolog.Logger) *BySenderAndSeqno {
-	return &BySenderAndSeqno{
-		tree:         btree.NewG(32, sortBySeqnoLess),
-		search:       &types.Message{},
-		fromMsgCount: map[types.Address]int{},
-		logger:       logger,
+func NewBySenderAndSeqno(logger zerolog.Logger) *ByReceiverAndSeqno {
+	return &ByReceiverAndSeqno{
+		tree:       btree.NewG(32, sortBySeqnoLess),
+		search:     &types.Message{},
+		toMsgCount: map[types.Address]int{},
+		logger:     logger,
 	}
 }
 
-func (b *BySenderAndSeqno) seqno(from types.Address) (seqno types.Seqno, ok bool) {
+func (b *ByReceiverAndSeqno) seqno(to types.Address) (seqno types.Seqno, ok bool) {
 	s := b.search
-	s.From = from
+	s.To = to
 	s.Seqno = math.MaxUint64
 
 	b.tree.DescendLessOrEqual(s, func(msg *types.Message) bool {
-		if bytes.Equal(msg.From.Bytes(), from.Bytes()) {
+		if bytes.Equal(msg.To.Bytes(), to.Bytes()) {
 			seqno = msg.Seqno
 			ok = true
 		}
@@ -57,52 +57,52 @@ func (b *BySenderAndSeqno) seqno(from types.Address) (seqno types.Seqno, ok bool
 	return seqno, ok
 }
 
-func (b *BySenderAndSeqno) ascendAll(f func(*types.Message) bool) { //nolint:unused
+func (b *ByReceiverAndSeqno) ascendAll(f func(*types.Message) bool) { //nolint:unused
 	b.tree.Ascend(func(mt *types.Message) bool {
 		return f(mt)
 	})
 }
 
-func (b *BySenderAndSeqno) ascend(from types.Address, f func(*types.Message) bool) {
+func (b *ByReceiverAndSeqno) ascend(to types.Address, f func(*types.Message) bool) {
 	s := b.search
-	s.From = from
+	s.To = to
 	s.Seqno = 0
 	b.tree.AscendGreaterOrEqual(s, func(msg *types.Message) bool {
-		if !bytes.Equal(msg.From.Bytes(), from.Bytes()) {
+		if !bytes.Equal(msg.To.Bytes(), to.Bytes()) {
 			return false
 		}
 		return f(msg)
 	})
 }
 
-func (b *BySenderAndSeqno) descend(from types.Address, f func(*types.Message) bool) { //nolint:unused
+func (b *ByReceiverAndSeqno) descend(to types.Address, f func(*types.Message) bool) { //nolint:unused
 	s := b.search
-	s.From = from
+	s.To = to
 	s.Seqno = math.MaxUint64
 	b.tree.DescendLessOrEqual(s, func(msg *types.Message) bool {
-		if !bytes.Equal(msg.From.Bytes(), from.Bytes()) {
+		if !bytes.Equal(msg.To.Bytes(), to.Bytes()) {
 			return false
 		}
 		return f(msg)
 	})
 }
 
-func (b *BySenderAndSeqno) count(from types.Address) int { //nolint:unused
-	return b.fromMsgCount[from]
+func (b *ByReceiverAndSeqno) count(to types.Address) int { //nolint:unused
+	return b.toMsgCount[to]
 }
 
-func (b *BySenderAndSeqno) hasTxs(from types.Address) bool { //nolint:unused
+func (b *ByReceiverAndSeqno) hasTxs(to types.Address) bool { //nolint:unused
 	has := false
-	b.ascend(from, func(*types.Message) bool {
+	b.ascend(to, func(*types.Message) bool {
 		has = true
 		return false
 	})
 	return has
 }
 
-func (b *BySenderAndSeqno) get(from types.Address, seqno types.Seqno) *types.Message {
+func (b *ByReceiverAndSeqno) get(to types.Address, seqno types.Seqno) *types.Message {
 	s := b.search
-	s.From = from
+	s.To = to
 	s.Seqno = seqno
 	if found, ok := b.tree.Get(s); ok {
 		return found
@@ -110,33 +110,33 @@ func (b *BySenderAndSeqno) get(from types.Address, seqno types.Seqno) *types.Mes
 	return nil
 }
 
-func (b *BySenderAndSeqno) has(mt *types.Message) bool { //nolint:unused
+func (b *ByReceiverAndSeqno) has(mt *types.Message) bool { //nolint:unused
 	return b.tree.Has(mt)
 }
 
-func (b *BySenderAndSeqno) logTrace(msg *types.Message, logMsg string) {
+func (b *ByReceiverAndSeqno) logTrace(msg *types.Message, logMsg string) {
 	b.logger.Trace().
 		Stringer(logging.FieldMessageHash, msg.Hash()).
-		Stringer(logging.FieldMessageFrom, msg.From).
+		Stringer(logging.FieldMessageTo, msg.To).
 		Uint64(logging.FieldMessageSeqno, msg.Seqno.Uint64()).
 		Msg(logMsg)
 }
 
-func (b *BySenderAndSeqno) delete(msg *types.Message, reason DiscardReason) {
+func (b *ByReceiverAndSeqno) delete(msg *types.Message, reason DiscardReason) {
 	if _, ok := b.tree.Delete(msg); ok {
 		b.logTrace(msg, "Deleted msg: "+reason.String())
 
-		from := msg.From
-		count := b.fromMsgCount[from]
+		to := msg.To
+		count := b.toMsgCount[to]
 		if count > 1 {
-			b.fromMsgCount[from] = count - 1
+			b.toMsgCount[to] = count - 1
 		} else {
-			delete(b.fromMsgCount, from)
+			delete(b.toMsgCount, to)
 		}
 	}
 }
 
-func (b *BySenderAndSeqno) replaceOrInsert(msg *types.Message) *types.Message {
+func (b *ByReceiverAndSeqno) replaceOrInsert(msg *types.Message) *types.Message {
 	it, ok := b.tree.ReplaceOrInsert(msg)
 	if ok {
 		b.logTrace(msg, "Replaced msg by seqno.")
@@ -144,6 +144,6 @@ func (b *BySenderAndSeqno) replaceOrInsert(msg *types.Message) *types.Message {
 	}
 
 	b.logTrace(msg, "Inserted msg by seqno.")
-	b.fromMsgCount[msg.From]++
+	b.toMsgCount[msg.To]++
 	return nil
 }

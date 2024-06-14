@@ -47,12 +47,10 @@ func (s *Service) RunContract(bytecode string, contractAddress string) (string, 
 	}
 
 	// Create the message with the bytecode to run
-	message := &types.Message{
-		From:     publicAddress,
-		To:       types.HexToAddress(contractAddress),
-		Data:     hexutil.FromHex(bytecode),
-		Seqno:    seqNum,
-		GasLimit: *types.NewUint256(100000000),
+	message := &types.ExternalMessage{
+		To:    types.HexToAddress(contractAddress),
+		Data:  hexutil.FromHex(bytecode),
+		Seqno: seqNum,
 	}
 
 	// Sign the message with the private key
@@ -86,12 +84,11 @@ func (s *Service) DeployContract(bytecode string) (string, error) {
 	}
 
 	// Create the message with the deploy data
-	message := &types.Message{
-		To:       publicAddress,
-		Deploy:   true,
-		Seqno:    seqNum,
-		Data:     types.BuildDeployPayload(hexutil.FromHex(bytecode), common.EmptyHash).Bytes(),
-		GasLimit: *types.NewUint256(100000000),
+	message := &types.ExternalMessage{
+		To:     publicAddress,
+		Deploy: true,
+		Seqno:  seqNum,
+		Data:   types.BuildDeployPayload(hexutil.FromHex(bytecode), common.EmptyHash).Bytes(),
 	}
 
 	// Sign the message with the private key
@@ -110,7 +107,7 @@ func (s *Service) DeployContract(bytecode string) (string, error) {
 }
 
 // sendRawTransaction sends a raw transaction to the cluster
-func (s *Service) sendRawTransaction(message *types.Message) (string, error) {
+func (s *Service) sendRawTransaction(message *types.ExternalMessage) (string, error) {
 	// Call the RPC method to send the raw transaction
 	txHash, err := s.client.SendMessage(message)
 	if err != nil {

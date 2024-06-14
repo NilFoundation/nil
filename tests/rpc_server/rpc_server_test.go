@@ -59,49 +59,43 @@ func (suite *SuiteRpc) TearDownTest() {
 	suite.cancel()
 }
 
-func (s *SuiteRpc) sendRawTransaction(m *types.Message) {
+func (s *SuiteRpc) sendRawTransaction(m *types.ExternalMessage) common.Hash {
 	s.T().Helper()
 
-	resp, err := s.client.SendMessage(m)
+	hash, err := s.client.SendMessage(m)
 	s.Require().NoError(err)
-	s.Require().Equal(m.Hash(), resp)
+	return hash
 }
 
-func (suite *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, msg *types.Message) *jsonrpc.RPCReceipt {
+func (suite *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
 	suite.T().Helper()
 
 	var receipt *jsonrpc.RPCReceipt
 	var err error
 	suite.Require().Eventually(func() bool {
-		receipt, err = suite.client.GetInMessageReceipt(shardId, msg.Hash())
+		receipt, err = suite.client.GetInMessageReceipt(shardId, hash)
 		suite.Require().NoError(err)
 		return receipt.IsComplete()
 	}, 15*time.Second, 200*time.Millisecond)
 
-	suite.Equal(msg.Hash(), receipt.MsgHash)
+	suite.Equal(hash, receipt.MsgHash)
 
 	return receipt
 }
 
-func (suite *SuiteRpc) waitForReceipt(msg *types.Message) *jsonrpc.RPCReceipt {
+func (suite *SuiteRpc) waitForReceipt(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
 	suite.T().Helper()
 
-	var shardId types.ShardId
-	if msg.Internal {
-		shardId = msg.From.ShardId()
-	} else {
-		shardId = msg.To.ShardId()
-	}
 	var receipt *jsonrpc.RPCReceipt
 	var err error
 	suite.Require().Eventually(func() bool {
-		receipt, err = suite.client.GetInMessageReceipt(shardId, msg.Hash())
+		receipt, err = suite.client.GetInMessageReceipt(shardId, hash)
 		suite.Require().NoError(err)
 		return receipt.IsComplete()
 	}, 15*time.Second, 200*time.Millisecond)
 
 	// Check receipt only for the outermost message
-	suite.checkReceipt(receipt, msg.Hash())
+	suite.checkReceipt(receipt, hash)
 
 	return receipt
 }
@@ -113,19 +107,18 @@ func (suite *SuiteRpc) checkReceipt(receipt *jsonrpc.RPCReceipt, msgHash common.
 	suite.Require().Equal(msgHash, receipt.MsgHash)
 }
 
-func (suite *SuiteRpc) sendDeployMessage(from types.Address, code types.Code, seqno types.Seqno) *jsonrpc.RPCReceipt {
+func (suite *SuiteRpc) sendDeployMessage(from types.Address, code types.Code) *jsonrpc.RPCReceipt {
 	suite.T().Helper()
 
 	shardId := from.ShardId()
 
-	msg := suite.createMessageForDeploy(from, seqno, code, shardId, 10001)
-	suite.Require().NoError(msg.Sign(execution.MainPrivateKey))
+	msg := suite.createMessageForDeploy(code, shardId)
 
 	// create contract
-	suite.sendRawTransaction(msg)
+	hash := suite.sendRawTransaction(msg)
 
 	// wait for receipt
-	return suite.waitForReceiptOnShard(shardId, msg)
+	return suite.waitForReceiptOnShard(shardId, hash)
 }
 
 func (s *SuiteRpc) TestRpcBasic() {
@@ -175,20 +168,16 @@ func (s *SuiteRpc) TestRpcBasic() {
 }
 
 func (suite *SuiteRpc) createMessageForDeploy(
-	from types.Address, seqno types.Seqno, code types.Code, toShard types.ShardId, gas uint64,
-) *types.Message {
+	code types.Code, toShard types.ShardId,
+) *types.ExternalMessage {
 	suite.T().Helper()
 
 	dm := types.BuildDeployPayload(code, common.EmptyHash)
 
-	m := &types.Message{
-		Seqno:    seqno,
-		Data:     dm.Bytes(),
-		From:     from,
-		GasLimit: *types.NewUint256(gas),
-		To:       types.CreateAddress(toShard, code),
-		Internal: true,
-		Deploy:   true,
+	m := &types.ExternalMessage{
+		Data:   dm.Bytes(),
+		To:     types.CreateAddress(toShard, code),
+		Deploy: true,
 	}
 	suite.address = m.To
 	return m
@@ -223,7 +212,6 @@ func (suite *SuiteRpc) TestRpcContract() {
 		GasLimit: *types.NewUint256(100003),
 		Internal: true,
 	}
-	suite.Require().NoError(messageToSend.Sign(execution.MainPrivateKey))
 
 	suite.sendMessageViaWallet(types.MainWalletAddress, messageToSend)
 }
@@ -232,11 +220,8 @@ func (suite *SuiteRpc) TestRpcDeployToMainShard() {
 	pub := crypto.CompressPubkey(&execution.MainPrivateKey.PublicKey)
 	from := types.PubkeyBytesToAddress(types.MasterShardId, pub)
 
-	seqno, err := suite.client.GetTransactionCount(from, "latest")
-	suite.Require().NoError(err)
-
 	code, _ := suite.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
-	receipt := suite.sendDeployMessage(from, code, seqno)
+	receipt := suite.sendDeployMessage(from, code)
 	suite.False(receipt.Success)
 }
 
@@ -276,18 +261,15 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 		calldata, err = callerAbi.Pack("send_msg", calldata)
 		suite.Require().NoError(err)
 
-		callCallerMethod := &types.Message{
-			Seqno:    callerSeqno,
-			From:     callerAddr,
-			To:       callerAddr,
-			Data:     calldata,
-			GasLimit: *types.NewUint256(10005),
-			Internal: false,
+		callCallerMethod := &types.ExternalMessage{
+			Seqno: callerSeqno,
+			To:    callerAddr,
+			Data:  calldata,
 		}
 		suite.Require().NoError(callCallerMethod.Sign(execution.MainPrivateKey))
-		suite.sendRawTransaction(callCallerMethod)
+		hash := suite.sendRawTransaction(callCallerMethod)
 
-		suite.waitForReceipt(callCallerMethod)
+		suite.waitForReceipt(callerAddr.ShardId(), hash)
 	}
 
 	// check that we can call contract from neighbor shard

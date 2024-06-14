@@ -766,7 +766,7 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 		es.EnableVmTracing(evm)
 	}
 
-	es.SetSeqno(message.From, es.GetSeqno(message.From)+1)
+	es.SetSeqno(addr, es.GetSeqno(addr)+1)
 	ret, leftOverGas, err := evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas, &message.Value.Int)
 	if err != nil {
 		logger.Error().Err(err).Msg("execution message failed")

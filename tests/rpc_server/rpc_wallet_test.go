@@ -39,21 +39,17 @@ func (suite *SuiteRpc) deployContractViaWallet(shardId types.ShardId, code []byt
 	calldata, err := walletAbi.Pack("send", msgInternalData)
 	suite.Require().NoError(err)
 
-	msgExternal := &types.Message{
-		Seqno:    seqno,
-		From:     types.MainWalletAddress,
-		To:       types.MainWalletAddress,
-		Value:    *types.NewUint256(123456),
-		GasLimit: *types.NewUint256(20000000),
-		Data:     calldata,
+	msgExternal := &types.ExternalMessage{
+		Seqno: seqno,
+		To:    types.MainWalletAddress,
+		Data:  calldata,
 	}
 	suite.Require().NoError(msgExternal.Sign(execution.MainPrivateKey))
 
 	resHash, err := suite.client.SendMessage(msgExternal)
 	suite.Require().NoError(err)
-	suite.Equal(msgExternal.Hash(), resHash)
 
-	receipt := suite.waitForReceipt(msgExternal)
+	receipt := suite.waitForReceipt(types.MainWalletAddress.ShardId(), resHash)
 	suite.Require().Len(receipt.OutReceipts, 1)
 	suite.checkReceipt(receipt.OutReceipts[0], msgInternal.Hash())
 
@@ -75,21 +71,17 @@ func (suite *SuiteRpc) sendMessageViaWallet(addrFrom types.Address, messageToSen
 	calldataExt, err := walletAbi.Pack("send", calldata)
 	suite.Require().NoError(err)
 
-	msgExternal := &types.Message{
-		Seqno:    seqno,
-		From:     addrFrom,
-		To:       addrFrom,
-		Value:    *types.NewUint256(123456),
-		GasLimit: *types.NewUint256(20000000),
-		Data:     calldataExt,
+	msgExternal := &types.ExternalMessage{
+		Seqno: seqno,
+		To:    addrFrom,
+		Data:  calldataExt,
 	}
 	suite.Require().NoError(msgExternal.Sign(execution.MainPrivateKey))
 
 	resHash, err := suite.client.SendMessage(msgExternal)
 	suite.Require().NoError(err)
-	suite.Equal(msgExternal.Hash(), resHash)
 
-	receipt := suite.waitForReceipt(msgExternal)
+	receipt := suite.waitForReceipt(addrFrom.ShardId(), resHash)
 	suite.Require().Len(receipt.OutReceipts, 1)
 	suite.checkReceipt(receipt.OutReceipts[0], messageToSend.Hash())
 }
@@ -126,22 +118,16 @@ func (suite *SuiteRpc) TestWallet() {
 	suite.Require().NoError(err)
 	calldata, err = abiCalee.Pack("get")
 	suite.Require().NoError(err)
-	messageToSend = &types.Message{
-		Data:     calldata,
-		Seqno:    seqno,
-		From:     addrCallee,
-		To:       addrCallee,
-		Value:    *types.NewUint256(0),
-		GasLimit: *types.NewUint256(100000),
-		Internal: false,
+	messageToSend2 := &types.ExternalMessage{
+		Data:  calldata,
+		Seqno: seqno,
+		To:    addrCallee,
 	}
-	suite.Require().NoError(messageToSend.Sign(execution.MainPrivateKey))
 
-	resHash, err := suite.client.SendMessage(messageToSend)
+	resHash, err := suite.client.SendMessage(messageToSend2)
 	suite.Require().NoError(err)
-	suite.Equal(messageToSend.Hash(), resHash)
 
-	suite.waitForReceiptOnShard(addrCallee.ShardId(), messageToSend)
+	suite.waitForReceiptOnShard(addrCallee.ShardId(), resHash)
 
 	newSeqno, err := suite.client.GetTransactionCount(addrCallee, "latest")
 	suite.Require().NoError(err)

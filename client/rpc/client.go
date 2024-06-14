@@ -188,7 +188,7 @@ func toRPCBlock(raw json.RawMessage) (*jsonrpc.RPCBlock, error) {
 	return block, nil
 }
 
-func (c *Client) SendMessage(msg *types.Message) (common.Hash, error) {
+func (c *Client) SendMessage(msg *types.ExternalMessage) (common.Hash, error) {
 	data, err := msg.MarshalSSZ()
 	if err != nil {
 		return common.EmptyHash, err

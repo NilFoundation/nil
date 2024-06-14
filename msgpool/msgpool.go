@@ -21,7 +21,7 @@ type Pool interface {
 	Started() bool
 
 	Peek(ctx context.Context, n int, onTopOf uint64) ([]*types.Message, error)
-	SeqnoFromAddress(addr types.Address) (seqno types.Seqno, inPool bool)
+	SeqnoToAddress(addr types.Address) (seqno types.Seqno, inPool bool)
 	MessageCount() int
 	Get(hash common.Hash) (*types.Message, error)
 }
@@ -35,7 +35,7 @@ type MsgPool struct {
 	lastSeenBlock atomic.Uint64
 
 	byHash map[string]*types.Message // hash => msg : only those records not committed to db yet
-	all    *BySenderAndSeqno         // from => (sorted map of msg seqno => *msg)
+	all    *ByReceiverAndSeqno       // from => (sorted map of msg seqno => *msg)
 	queue  *MsgQueue
 	logger zerolog.Logger
 }
@@ -82,7 +82,7 @@ func (p *MsgPool) Add(ctx context.Context, msgs []*types.Message) ([]DiscardReas
 		discardReasons[i] = NotSet // unnecessary
 		p.logger.Debug().
 			Stringer(logging.FieldMessageHash, msg.Hash()).
-			Stringer(logging.FieldMessageFrom, msg.From).
+			Stringer(logging.FieldMessageTo, msg.To).
 			Msg("Added new message.")
 	}
 
@@ -90,7 +90,7 @@ func (p *MsgPool) Add(ctx context.Context, msgs []*types.Message) ([]DiscardReas
 }
 
 func (p *MsgPool) validateMsg(msg *types.Message) (DiscardReason, bool) {
-	seqno, has := p.all.seqno(msg.From)
+	seqno, has := p.all.seqno(msg.To)
 	if has && seqno > msg.Seqno {
 		p.logger.Debug().
 			Stringer(logging.FieldMessageHash, msg.Hash()).
@@ -119,7 +119,7 @@ func (p *MsgPool) Started() bool {
 	return p.started
 }
 
-func (p *MsgPool) SeqnoFromAddress(addr types.Address) (seqno types.Seqno, inPool bool) {
+func (p *MsgPool) SeqnoToAddress(addr types.Address) (seqno types.Seqno, inPool bool) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	return p.all.seqno(addr)
@@ -141,7 +141,7 @@ func (p *MsgPool) getLocked(hash common.Hash) (*types.Message, error) {
 
 func (p *MsgPool) addLocked(msg *types.Message) DiscardReason {
 	// Insert to pending pool, if pool doesn't have txn with the same Nonce and bigger Tip
-	found := p.all.get(msg.From, msg.Seqno)
+	found := p.all.get(msg.To, msg.Seqno)
 	if found != nil {
 		// Discard Message with lower fee (TODO: do we need it?)
 		if found.Value.Cmp(&msg.Value.Int) >= 0 {
@@ -211,12 +211,12 @@ func (p *MsgPool) OnNewBlock(ctx context.Context, block *types.Block, committed 
 // modify state_balance and state_seqno, potentially remove some elements (if message with some seqno is
 // included into a block), and finally, walk over the message records and update queue depending on
 // the actual presence of seqno gaps and what the balance is.
-func (p *MsgPool) removeCommitted(bySeqno *BySenderAndSeqno, msgs []*types.Message) error { //nolint:unparam
+func (p *MsgPool) removeCommitted(bySeqno *ByReceiverAndSeqno, msgs []*types.Message) error { //nolint:unparam
 	seqnosToRemove := map[types.Address]types.Seqno{}
 	for _, msg := range msgs {
-		seqno, ok := seqnosToRemove[msg.From]
+		seqno, ok := seqnosToRemove[msg.To]
 		if !ok || msg.Seqno > seqno {
-			seqnosToRemove[msg.From] = msg.Seqno
+			seqnosToRemove[msg.To] = msg.Seqno
 		}
 	}
 
@@ -237,7 +237,7 @@ func (p *MsgPool) removeCommitted(bySeqno *BySenderAndSeqno, msgs []*types.Messa
 
 			p.logger.Trace().
 				Stringer(logging.FieldMessageHash, msg.Hash()).
-				Stringer(logging.FieldMessageFrom, msg.From).
+				Stringer(logging.FieldMessageTo, msg.To).
 				Uint64(logging.FieldMessageSeqno, msg.Seqno.Uint64()).
 				Msg("Remove committed.")
 
