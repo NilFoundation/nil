@@ -79,32 +79,33 @@ func (s *MessagesSuite) TestValidateMessage() {
 	}
 
 	// "From" doesn't exist
-	ok, err := validateMessage(tx, es, msg)
-	s.Require().NoError(err)
+	ok, payer := validateMessage(tx, es, msg)
+	s.Require().Nil(payer)
 	s.False(ok)
 	s.Require().Len(es.Receipts, 1)
 	s.False(es.Receipts[0].Success)
 
 	// Invalid signature
 	msg.From = addrFrom
-	ok, err = validateMessage(tx, es, msg)
-	s.Require().NoError(err)
+	ok, payer = validateMessage(tx, es, msg)
+	s.Require().Nil(payer)
 	s.False(ok)
 	s.Require().Len(es.Receipts, 2)
 	s.False(es.Receipts[1].Success)
 
 	// contract that always returns "true",
 	// so verifies any message
+	msg.From = addrTo
 	es.SetCode(addrTo, hexutil.FromHex("600160005260206000f3"))
-	ok, err = validateMessage(tx, es, msg)
-	s.Require().NoError(err)
+	ok, payer = validateMessage(tx, es, msg)
+	s.Require().NotNil(payer)
 	s.True(ok)
 	s.Len(es.Receipts, 2)
 
 	// Invalid ChainId
 	msg.ChainId = 100500
-	ok, err = validateMessage(tx, es, msg)
-	s.Require().NoError(err)
+	ok, payer = validateMessage(tx, es, msg)
+	s.Require().Nil(payer)
 	s.False(ok)
 	s.Require().Len(es.Receipts, 3)
 	s.False(es.Receipts[2].Success)
@@ -112,8 +113,8 @@ func (s *MessagesSuite) TestValidateMessage() {
 	// Gap in seqno
 	msg.ChainId = types.DefaultChainId
 	msg.Seqno = 100
-	ok, err = validateMessage(tx, es, msg)
-	s.Require().NoError(err)
+	ok, payer = validateMessage(tx, es, msg)
+	s.Require().Nil(payer)
 	s.False(ok)
 	s.Require().Len(es.Receipts, 4)
 	s.False(es.Receipts[3].Success)

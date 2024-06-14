@@ -27,4 +27,8 @@ contract Faucet {
 
         return addr;
     }
+
+    function send(bytes calldata message) public payable {
+        nil.send_msg(gasleft(), message);
+    }
 }
