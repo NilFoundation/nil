@@ -19,8 +19,8 @@ var MainPrivateKey *ecdsa.PrivateKey
 const DefaultZeroStateConfig = `
 contracts:
 - name: Faucet
+  address: 0x000100000000000000000000000000000FA00CE7
   value: 1000000000000
-  shard: 1
   contract: Faucet
 - name: MainWallet
   address: 0x0000111111111111111111111111111111111111
@@ -59,9 +59,31 @@ type ZeroStateConfig struct {
 	Contracts []*ContractDescr `yaml:"contracts"`
 }
 
-func (es *ExecutionState) GenerateZeroState(configYaml string) error {
+func (c *ZeroStateConfig) FindContractByName(name string) *ContractDescr {
+	for _, contract := range c.Contracts {
+		if contract.Name == name {
+			return contract
+		}
+	}
+	return nil
+}
+
+func (c *ZeroStateConfig) GetContractAddress(name string) *types.Address {
+	contract := c.FindContractByName(name)
+	if contract != nil {
+		return contract.Address
+	}
+	return nil
+}
+
+func ParseZeroStateConfig(configYaml string) (*ZeroStateConfig, error) {
 	var config ZeroStateConfig
 	err := yaml.Unmarshal([]byte(configYaml), &config)
+	return &config, err
+}
+
+func (es *ExecutionState) GenerateZeroState(configYaml string) error {
+	config, err := ParseZeroStateConfig(configYaml)
 	if err != nil {
 		return err
 	}
@@ -129,6 +151,7 @@ func (es *ExecutionState) GenerateZeroState(configYaml string) error {
 		}
 
 		es.SetBalance(addr, value.Int)
+		logger.Debug().Stringer(contract.Name, addr).Msg("Created zero state contract")
 	}
 	return nil
 }
