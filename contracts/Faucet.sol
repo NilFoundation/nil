@@ -13,7 +13,9 @@ contract Faucet {
     }
 
     function withdrawTo(address payable addr, uint256 value) public {
-        addr.send(value);
+        bool success = addr.send(value);
+        require(success, "Send value failed");
+        emit Send(addr, value);
     }
 
     function createWallet(bytes memory owner_pubkey, bytes32 salt, uint256 value) external returns (address) {

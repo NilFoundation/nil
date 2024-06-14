@@ -73,7 +73,7 @@ func (suite *SuiteRpc) createWalletViaFaucet(ownerPrivateKey *ecdsa.PrivateKey, 
 	return walletAddr
 }
 
-func (suite *SuiteRpc) deployContractViaFaucet(code []byte, ownerPrivateKey *ecdsa.PrivateKey, value types.Uint256) types.Address {
+func (suite *SuiteRpc) sendViaFaucet(code []byte, ownerPrivateKey *ecdsa.PrivateKey, value types.Uint256) types.Address {
 	faucetAddress := suite.getFaucetAddress()
 	seqno, err := suite.client.GetTransactionCount(faucetAddress, "latest")
 	suite.Require().NoError(err)
@@ -93,7 +93,7 @@ func (suite *SuiteRpc) deployContractViaFaucet(code []byte, ownerPrivateKey *ecd
 	sendMsgInternalData, err := sendMsgInternal.MarshalSSZ()
 	suite.Require().NoError(err)
 
-	// Make external message to the Main Wallet
+	// Make external message to the Faucet
 	faucetAbi, err := contracts.GetAbi("Faucet")
 	suite.Require().NoError(err)
 	calldata, err := faucetAbi.Pack("send", sendMsgInternalData)
@@ -116,12 +116,51 @@ func (suite *SuiteRpc) deployContractViaFaucet(code []byte, ownerPrivateKey *ecd
 	res := suite.waitForReceiptOnShard(walletAddress.ShardId(), sendMsgExternal)
 	suite.Require().Equal(faucetAddress, res.ContractAddress)
 
-	deployPayload := types.BuildDeployPayload(code, common.EmptyHash)
+	return walletAddress
+}
 
+func (suite *SuiteRpc) withdrawFromFaucet(code []byte, ownerPrivateKey *ecdsa.PrivateKey, value types.Uint256) types.Address {
+	faucetAddress := suite.getFaucetAddress()
+	seqno, err := suite.client.GetTransactionCount(faucetAddress, "latest")
+	suite.Require().NoError(err)
+
+	walletAddress := types.CreateAddress(faucetAddress.ShardId(), code)
+
+	// Make external message to the Faucet
+	faucetAbi, err := contracts.GetAbi("Faucet")
+	suite.Require().NoError(err)
+	calldata, err := faucetAbi.Pack("withdrawTo", walletAddress, big.NewInt(0).SetBytes(value.Bytes()))
+	suite.Require().NoError(err)
+
+	sendMsgExternal := &types.Message{
+		Seqno:    seqno,
+		From:     faucetAddress,
+		To:       faucetAddress,
+		Value:    *types.NewUint256(0),
+		GasLimit: *types.NewUint256(20000000),
+		Data:     calldata,
+	}
+	suite.Require().NoError(sendMsgExternal.Sign(ownerPrivateKey)) // We sign the message with our key, Fauсet does not check
+
+	result, err := suite.client.SendMessage(sendMsgExternal)
+	suite.Require().NoError(err)
+	suite.Equal(sendMsgExternal.Hash(), result)
+
+	res := suite.waitForReceiptOnShard(walletAddress.ShardId(), sendMsgExternal)
+	suite.Require().Equal(faucetAddress, res.ContractAddress)
+
+	return walletAddress
+}
+
+func (suite *SuiteRpc) deployContract(address types.Address, code []byte, ownerPrivateKey *ecdsa.PrivateKey) types.Address {
+	seqno, err := suite.client.GetTransactionCount(address, "latest")
+	suite.Require().NoError(err)
+
+	deployPayload := types.BuildDeployPayload(code, common.EmptyHash)
 	deployMsgExternal := &types.Message{
 		Seqno:    seqno,
-		From:     walletAddress,
-		To:       walletAddress,
+		From:     address,
+		To:       address,
 		Value:    *types.NewUint256(0),
 		GasLimit: *types.NewUint256(100000),
 		GasPrice: *types.NewUint256(1),
@@ -129,16 +168,14 @@ func (suite *SuiteRpc) deployContractViaFaucet(code []byte, ownerPrivateKey *ecd
 		Internal: false,
 		Deploy:   true,
 	}
-	suite.Require().NoError(deployMsgExternal.Sign(ownerPrivateKey)) // We sign the message with our key, Fauсet does not check
+	suite.Require().NoError(deployMsgExternal.Sign(ownerPrivateKey))
 
-	result, err = suite.client.SendMessage(deployMsgExternal)
+	result, err := suite.client.SendMessage(deployMsgExternal)
 	suite.Require().NoError(err)
 	suite.Equal(deployMsgExternal.Hash(), result)
 
-	res = suite.waitForReceiptOnShard(walletAddress.ShardId(), deployMsgExternal)
-	suite.Require().Equal(walletAddress, res.ContractAddress)
-
-	return walletAddress
+	res := suite.waitForReceiptOnShard(address.ShardId(), deployMsgExternal)
+	return res.ContractAddress
 }
 
 func (suite *SuiteRpc) TestCreateWalletViaFaucet() {
@@ -156,14 +193,34 @@ func (suite *SuiteRpc) TestCreateWalletViaFaucet() {
 	suite.Require().Equal(uint64(value), balance.Uint64())
 }
 
-func (suite *SuiteRpc) TestDeployContractViaFaucet() {
+func (suite *SuiteRpc) TestDeployContractViaFaucetWithSend() {
 	userPrivateKey, err := crypto.GenerateKey()
 	suite.Require().NoError(err)
 	userPublicKey := crypto.CompressPubkey(&userPrivateKey.PublicKey)
 
 	var value uint64 = 1000000
 	walletCode := suite.getWalletConstructorCode(userPublicKey)
-	walletAddr := suite.deployContractViaFaucet(walletCode, userPrivateKey, *types.NewUint256(value))
+	walletAddr := suite.sendViaFaucet(walletCode, userPrivateKey, *types.NewUint256(value))
+	receiptContractAddress := suite.deployContract(walletAddr, walletCode, userPrivateKey)
+	suite.Require().Equal(walletAddr, receiptContractAddress)
+
+	blockNumber := transport.LatestBlockNumber
+	balance, err := suite.client.GetBalance(walletAddr, transport.BlockNumberOrHash{BlockNumber: &blockNumber})
+	suite.Require().NoError(err)
+	suite.Require().Less(balance.Uint64(), value)
+	suite.Require().Greater(balance.Uint64(), uint64(0))
+}
+
+func (suite *SuiteRpc) TestDeployContractViaFaucetWithWithdraw() {
+	userPrivateKey, err := crypto.GenerateKey()
+	suite.Require().NoError(err)
+	userPublicKey := crypto.CompressPubkey(&userPrivateKey.PublicKey)
+
+	var value uint64 = 1000000
+	walletCode := suite.getWalletConstructorCode(userPublicKey)
+	walletAddr := suite.withdrawFromFaucet(walletCode, userPrivateKey, *types.NewUint256(value))
+	receiptContractAddress := suite.deployContract(walletAddr, walletCode, userPrivateKey)
+	suite.Require().Equal(walletAddr, receiptContractAddress)
 
 	blockNumber := transport.LatestBlockNumber
 	balance, err := suite.client.GetBalance(walletAddr, transport.BlockNumberOrHash{BlockNumber: &blockNumber})
