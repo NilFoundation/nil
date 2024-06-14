@@ -68,6 +68,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 			To:       types.CreateAddress(types.BaseShardId, deploy.Bytes()),
 		}
 		es.AddInMessage(msg)
+		es.InMessageHash = msg.Hash()
 		_, err = es.HandleDeployMessage(ctx, msg, &deploy, &blockContext)
 		suite.Require().NoError(err)
 	}

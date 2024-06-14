@@ -826,6 +826,15 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		}
 	}
 
+	if len(es.InMessages) != len(es.Receipts) {
+		return common.EmptyHash, fmt.Errorf("number of messages does not match number of receipts: %d != %d", len(es.InMessages), len(es.Receipts))
+	}
+	for i, msg := range es.InMessages {
+		if msg.Hash() != es.Receipts[i].MsgHash {
+			return common.EmptyHash, fmt.Errorf("receipt hash doesn't match its message #%d", i)
+		}
+	}
+
 	msgStart := 0
 	for i, r := range es.Receipts {
 		msgHash := es.InMessages[i].Hash()
@@ -837,11 +846,6 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		}
 		msgStart += len(es.OutMessages[msgHash])
 	}
-
-	// TODO: we should enable this check, because each inbound message must have a receipt
-	// if len(es.InMessages) != len(es.Receipts) {
-	//	return common.EmptyHash, fmt.Errorf("number of messages does not match number of receipts: %d != %d", len(es.InMessages), len(es.Receipts))
-	//}
 
 	block := types.Block{
 		Id:                  blockId,
