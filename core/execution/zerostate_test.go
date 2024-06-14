@@ -34,13 +34,15 @@ type SuiteZeroState struct {
 func (suite *SuiteZeroState) SetupSuite() {
 	suite.ctx = context.Background()
 
-	faucetCode, err := contracts.GetCode("Faucet")
-	suite.Require().NoError(err)
 	faucetABI, err := contracts.GetAbi("Faucet")
 	suite.Require().NoError(err)
 	suite.faucetABI = *faucetABI
 
-	suite.faucetAddr = types.CreateAddress(types.BaseShardId, faucetCode)
+	zeroStateConfig, err := ParseZeroStateConfig(DefaultZeroStateConfig)
+	suite.Require().NoError(err)
+	faucetAddress := zeroStateConfig.GetContractAddress("Faucet")
+	suite.Require().NotNil(faucetAddress)
+	suite.faucetAddr = *faucetAddress
 }
 
 func (suite *SuiteZeroState) SetupTest() {

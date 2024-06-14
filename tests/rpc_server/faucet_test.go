@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/crypto"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 )
@@ -14,10 +15,11 @@ import (
 func (suite *SuiteRpc) getFaucetAddress() types.Address {
 	suite.T().Helper()
 
-	faucetCode, err := contracts.GetCode("Faucet")
+	zeroStateConfig, err := execution.ParseZeroStateConfig(execution.DefaultZeroStateConfig)
 	suite.Require().NoError(err)
-
-	return types.CreateAddress(types.BaseShardId, faucetCode)
+	faucetAddress := zeroStateConfig.GetContractAddress("Faucet")
+	suite.Require().NotNil(faucetAddress)
+	return *faucetAddress
 }
 
 func (suite *SuiteRpc) getWalletConstructorCode(ownerPublicKey []byte) []byte {
