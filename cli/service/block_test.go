@@ -3,7 +3,6 @@ package service
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/NilFoundation/nil/client/mock"
@@ -37,27 +36,13 @@ func TestFetchBlock_Successfully(t *testing.T) {
 	service := NewService(mockClient, "", types.BaseShardId)
 
 	// Call the FetchBlockByHash
-	response, err := service.FetchBlockByHash(mockBlockResponse.Hash.Hex())
+	response, err := service.FetchBlock(mockBlockResponse.Hash.Hex())
 	require.NoError(t, err)
 
 	// Check if the response matches the expected mock response
 	expectedResponse, err := json.MarshalIndent(mockBlockResponse, "", "  ")
 	require.NoError(t, err)
 	require.JSONEq(t, string(expectedResponse), string(response))
-
-	// Call the FetchBlockByNumber
-	response, err = service.FetchBlockByNumber(fmt.Sprintf("%x", mockBlockNumber))
-	require.NoError(t, err)
-
-	// Check if the response matches the expected mock response
-	expectedResponse, err = json.MarshalIndent(mockBlockResponse, "", "  ")
-	require.NoError(t, err)
-	assert.JSONEq(t, string(expectedResponse), string(response))
-
-	// Check if the response matches the expected mock response
-	expectedResponse, err = json.MarshalIndent(mockBlockResponse, "", "  ")
-	require.NoError(t, err)
-	assert.JSONEq(t, string(expectedResponse), string(response))
 }
 
 // TestFetchBlock_Err tests error scenarios for fetching a block
@@ -73,7 +58,7 @@ func TestFetchBlock_Err(t *testing.T) {
 	service := NewService(mockClient, "", types.BaseShardId)
 
 	// Call the fetchBlock
-	_, err := service.FetchBlockByHash("0x294a68120c056a549d314efa8306dafdb856f7b51dde976df0e807e001ff84ac")
+	_, err := service.FetchBlock("0x294a68120c056a549d314efa8306dafdb856f7b51dde976df0e807e001ff84ac")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "RPC error")
 }

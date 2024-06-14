@@ -166,7 +166,8 @@ func (bn BlockNumber) String() string {
 }
 
 func (bn BlockNumber) AsBlockReference() BlockReference {
-	return AsBlockReference(bn)
+	res, _ := AsBlockReference(bn)
+	return res
 }
 
 func (bn BlockNumber) string(base int) string {
@@ -224,9 +225,10 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 		bnh.BlockNumber = &bn
 		return nil
 	}
-	var input string
-	if err = json.Unmarshal(data, &input); err != nil {
-		return err
+
+	input := strings.TrimSpace(string(data))
+	if len(input) >= 2 && input[0] == '"' && input[len(input)-1] == '"' {
+		input = input[1 : len(input)-1]
 	}
 	switch input {
 	case Earliest:
@@ -311,26 +313,43 @@ func (br BlockReference) String() string {
 	return ""
 }
 
-func AsBlockReference(ref interface{}) BlockReference {
+func AsBlockReference(ref any) (BlockReference, error) {
 	switch ref := ref.(type) {
+	case BlockNumberOrHash:
+		return BlockReference(ref), nil
+	case *BlockNumberOrHash:
+		return BlockReference(*ref), nil
+	case BlockReference:
+		return ref, nil
+	case *BlockReference:
+		return *ref, nil
 	case *big.Int:
-		return IntBlockReference(ref)
+		return IntBlockReference(ref), nil
 	case BlockNumber:
-		return BlockReference{BlockNumber: &ref}
+		return BlockReference{BlockNumber: &ref}, nil
 	case *BlockNumber:
-		return BlockReference{BlockNumber: ref}
+		return BlockReference{BlockNumber: ref}, nil
+	case int:
+		bn := BlockNumber(ref)
+		return BlockReference{BlockNumber: &bn}, nil
 	case int64:
 		bn := BlockNumber(ref)
-		return BlockReference{BlockNumber: &bn}
+		return BlockReference{BlockNumber: &bn}, nil
 	case uint64:
-		return Uint64BlockReference(ref)
+		return Uint64BlockReference(ref), nil
 	case common.Hash:
-		return HashBlockReference(ref)
+		return HashBlockReference(ref), nil
 	case *common.Hash:
-		return HashBlockReference(*ref)
+		return HashBlockReference(*ref), nil
+	case string:
+		br := &BlockReference{}
+		if err := br.UnmarshalJSON([]byte(ref)); err != nil {
+			return BlockReference{}, err
+		}
+		return *br, nil
 	}
 
-	return BlockReference{}
+	return BlockReference{}, nil
 }
 
 func IntBlockReference(blockNr *big.Int) BlockReference {

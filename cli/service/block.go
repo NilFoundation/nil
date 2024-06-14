@@ -2,36 +2,11 @@ package service
 
 import (
 	"encoding/json"
-
-	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/rpc/jsonrpc"
-	"github.com/NilFoundation/nil/rpc/transport"
 )
 
-// FetchBlockByNumber fetches the block by number
-func (s *Service) FetchBlockByNumber(blockNumber string) ([]byte, error) {
-	var bn transport.BlockNumber
-	if err := bn.UnmarshalJSON([]byte(blockNumber)); err != nil {
-		s.logger.Error().Err(err).Msg("Invalid block number")
-		return nil, err
-	}
-
-	return s.onFetchBlock(s.client.GetBlockByNumber(s.shardId, bn, true))
-}
-
-// FetchBlockByHash fetches the block by hash
-func (s *Service) FetchBlockByHash(blockHash string) ([]byte, error) {
-	var hash common.Hash
-	if err := hash.UnmarshalText([]byte(blockHash)); err != nil {
-		s.logger.Error().Err(err).Msg("Invalid hash")
-		return nil, err
-	}
-
-	return s.onFetchBlock(s.client.GetBlockByHash(s.shardId, hash, true))
-}
-
-// onFetchBlock is a callback that handles result from server (prints block or error)
-func (s *Service) onFetchBlock(blockData *jsonrpc.RPCBlock, err error) ([]byte, error) {
+// FetchBlock fetches the block by number or hash
+func (s *Service) FetchBlock(blockId string) ([]byte, error) {
+	blockData, err := s.client.GetBlock(s.shardId, blockId, true)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to fetch block")
 		return nil, err

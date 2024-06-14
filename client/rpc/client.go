@@ -14,6 +14,7 @@ import (
 
 	"github.com/NilFoundation/nil/client"
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/assert"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
@@ -117,7 +118,12 @@ func (c *Client) Call(method string, params ...any) (map[string]any, error) {
 	return result, nil
 }
 
-func (c *Client) GetCode(addr types.Address, blockNrOrHash transport.BlockNumberOrHash) (types.Code, error) {
+func (c *Client) GetCode(addr types.Address, blockId any) (types.Code, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return types.Code{}, err
+	}
+
 	params := []any{addr, blockNrOrHash}
 	raw, err := c.call(Eth_getCode, params)
 	if err != nil {
@@ -137,7 +143,26 @@ func (c *Client) GetCode(addr types.Address, blockNrOrHash transport.BlockNumber
 	return types.Code(bytes), nil
 }
 
-func (c *Client) GetBlockByHash(shardId types.ShardId, hash common.Hash, fullTx bool) (*jsonrpc.RPCBlock, error) {
+func (c *Client) GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return nil, err
+	}
+
+	if blockNrOrHash.BlockHash != nil {
+		return c.getBlockByHash(shardId, *blockNrOrHash.BlockHash, fullTx)
+	}
+	if blockNrOrHash.BlockNumber != nil {
+		return c.getBlockByNumber(shardId, *blockNrOrHash.BlockNumber, fullTx)
+	}
+	if assert.Enable {
+		panic("Unreachable")
+	}
+
+	return nil, nil
+}
+
+func (c *Client) getBlockByHash(shardId types.ShardId, hash common.Hash, fullTx bool) (*jsonrpc.RPCBlock, error) {
 	params := []any{shardId, hash, fullTx}
 	res, err := c.call(Eth_getBlockByHash, params)
 	if err != nil {
@@ -146,7 +171,7 @@ func (c *Client) GetBlockByHash(shardId types.ShardId, hash common.Hash, fullTx 
 	return toRPCBlock(res)
 }
 
-func (c *Client) GetBlockByNumber(shardId types.ShardId, num transport.BlockNumber, fullTx bool) (*jsonrpc.RPCBlock, error) {
+func (c *Client) getBlockByNumber(shardId types.ShardId, num transport.BlockNumber, fullTx bool) (*jsonrpc.RPCBlock, error) {
 	params := []any{shardId, num, fullTx}
 	res, err := c.call(Eth_getBlockByNumber, params)
 	if err != nil {
@@ -213,8 +238,13 @@ func (c *Client) GetInMessageReceipt(shardId types.ShardId, hash common.Hash) (*
 	return receipt, nil
 }
 
-func (c *Client) GetTransactionCount(address types.Address, blockNrOrHash transport.BlockNumberOrHash) (types.Seqno, error) {
-	params := []any{address, blockNrOrHash}
+func (c *Client) GetTransactionCount(address types.Address, blockId any) (types.Seqno, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return 0, err
+	}
+
+	params := []any{address, transport.BlockNumberOrHash(blockNrOrHash)}
 	res, err := c.call(Eth_getTransactionCount, params)
 	if err != nil {
 		return 0, err
@@ -235,7 +265,25 @@ func toUint64(raw json.RawMessage) (uint64, error) {
 	return strconv.ParseUint(input, 0, 64)
 }
 
-func (c *Client) GetBlockTransactionCountByNumber(shardId types.ShardId, number transport.BlockNumber) (uint64, error) {
+func (c *Client) GetBlockTransactionCount(shardId types.ShardId, blockId any) (uint64, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return 0, err
+	}
+
+	if blockNrOrHash.BlockHash != nil {
+		return c.getBlockTransactionCountByHash(shardId, *blockNrOrHash.BlockHash)
+	}
+	if blockNrOrHash.BlockNumber != nil {
+		return c.getBlockTransactionCountByNumber(shardId, *blockNrOrHash.BlockNumber)
+	}
+	if assert.Enable {
+		panic("Unreachable")
+	}
+	return 0, nil
+}
+
+func (c *Client) getBlockTransactionCountByNumber(shardId types.ShardId, number transport.BlockNumber) (uint64, error) {
 	params := []any{shardId, number}
 	res, err := c.call(Eth_getBlockTransactionCountByNumber, params)
 	if err != nil {
@@ -244,7 +292,7 @@ func (c *Client) GetBlockTransactionCountByNumber(shardId types.ShardId, number 
 	return toUint64(res)
 }
 
-func (c *Client) GetBlockTransactionCountByHash(shardId types.ShardId, hash common.Hash) (uint64, error) {
+func (c *Client) getBlockTransactionCountByHash(shardId types.ShardId, hash common.Hash) (uint64, error) {
 	params := []any{shardId, hash}
 	res, err := c.call(Eth_getBlockTransactionCountByHash, params)
 	if err != nil {
@@ -253,8 +301,13 @@ func (c *Client) GetBlockTransactionCountByHash(shardId types.ShardId, hash comm
 	return toUint64(res)
 }
 
-func (c *Client) GetBalance(address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*big.Int, error) {
-	params := []any{address.String(), blockNrOrHash}
+func (c *Client) GetBalance(address types.Address, blockId any) (*big.Int, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return big.NewInt(0), err
+	}
+
+	params := []any{address.String(), transport.BlockNumberOrHash(blockNrOrHash)}
 	res, err := c.call(Eth_getBalance, params)
 	if err != nil {
 		return big.NewInt(0), err

@@ -6,7 +6,6 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
-	"github.com/NilFoundation/nil/rpc/transport"
 )
 
 type MockClient struct {
@@ -33,7 +32,7 @@ func (m *MockClient) Call(method string, params ...any) (map[string]any, error) 
 	return nil, nil
 }
 
-func (m *MockClient) GetCode(addr types.Address, blockNrOrHash transport.BlockNumberOrHash) (types.Code, error) {
+func (m *MockClient) GetCode(addr types.Address, blockNrOrHash any) (types.Code, error) {
 	if m.Err != nil {
 		return types.Code{}, m.Err
 	}
@@ -43,17 +42,7 @@ func (m *MockClient) GetCode(addr types.Address, blockNrOrHash transport.BlockNu
 	return types.Code{}, nil
 }
 
-func (m *MockClient) GetBlockByHash(shardId types.ShardId, hash common.Hash, fullTx bool) (*jsonrpc.RPCBlock, error) {
-	if m.Err != nil {
-		return nil, m.Err
-	}
-	if m.Block != nil {
-		return m.Block, nil
-	}
-	return nil, nil
-}
-
-func (m *MockClient) GetBlockByNumber(shardId types.ShardId, num transport.BlockNumber, fullTx bool) (*jsonrpc.RPCBlock, error) {
+func (m *MockClient) GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
@@ -103,7 +92,7 @@ func (m *MockClient) GetInMessageReceipt(shardId types.ShardId, hash common.Hash
 	return nil, nil
 }
 
-func (m *MockClient) GetTransactionCount(address types.Address, blockNrOrHash transport.BlockNumberOrHash) (types.Seqno, error) {
+func (m *MockClient) GetTransactionCount(address types.Address, blockNrOrHash any) (types.Seqno, error) {
 	if m.Err != nil {
 		return 0, m.Err
 	}
@@ -113,7 +102,7 @@ func (m *MockClient) GetTransactionCount(address types.Address, blockNrOrHash tr
 	return 0, nil
 }
 
-func (m *MockClient) GetBlockTransactionCountByNumber(shardId types.ShardId, number transport.BlockNumber) (uint64, error) {
+func (m *MockClient) GetBlockTransactionCount(shardId types.ShardId, blockId any) (uint64, error) {
 	if m.Err != nil {
 		return 0, m.Err
 	}
@@ -123,17 +112,7 @@ func (m *MockClient) GetBlockTransactionCountByNumber(shardId types.ShardId, num
 	return 0, nil
 }
 
-func (m *MockClient) GetBlockTransactionCountByHash(shardId types.ShardId, hash common.Hash) (uint64, error) {
-	if m.Err != nil {
-		return 0, m.Err
-	}
-	if m.Counter != nil {
-		return *m.Counter, nil
-	}
-	return 0, nil
-}
-
-func (m *MockClient) GetBalance(address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*big.Int, error) {
+func (m *MockClient) GetBalance(address types.Address, blockNrOrHash any) (*big.Int, error) {
 	if m.Err != nil {
 		return big.NewInt(0), m.Err
 	}
