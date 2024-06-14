@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -107,6 +108,62 @@ func (suite *SuiteExecutionState) TestExecState() {
 	}
 	suite.Equal(types.MessageIndex(numMessages), messageIndex)
 	suite.Require().NoError(tx.Commit())
+}
+
+func (suite *SuiteExecutionState) TestDeployAndCall() {
+	shardId := types.ShardId(5)
+
+	ctx := context.Background()
+	tx, err := suite.db.CreateRwTx(ctx)
+	suite.Require().NoError(err)
+	defer tx.Rollback()
+
+	srcCode := common.GetAbsolutePath("../../tests/rpc_server/contracts/counter.sol")
+	contracts, err := solc.CompileSource(srcCode)
+	suite.Require().NoError(err)
+
+	smcCallee := contracts["Counter"]
+	suite.Require().NotNil(smcCallee)
+	code := hexutil.FromHex(smcCallee.Code)
+	addrWallet := types.CreateAddress(shardId, code)
+
+	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
+	suite.Require().NoError(err)
+
+	blockContext := NewEVMBlockContext(es)
+	deployMsg := types.BuildDeployPayload(code, common.EmptyHash)
+	message := &types.Message{
+		Deploy:   true,
+		Seqno:    1,
+		GasLimit: types.Uint256{Int: *uint256.NewInt(100000)},
+		To:       addrWallet,
+		Data:     types.Code(deployMsg),
+	}
+
+	suite.EqualValues(0, es.GetSeqno(addrWallet))
+
+	_, err = es.HandleDeployMessage(ctx, message, &deployMsg, &blockContext)
+	suite.Require().NoError(err)
+
+	// Check that initially seqno is 1
+	suite.EqualValues(1, es.GetSeqno(addrWallet))
+
+	abiCalee := solc.ExtractABI(smcCallee)
+	calldata, err := abiCalee.Pack("add", int32(11))
+	suite.Require().NoError(err)
+	messageToSend := &types.Message{
+		Data:     calldata,
+		Seqno:    1,
+		From:     addrWallet,
+		To:       addrWallet,
+		Value:    *types.NewUint256(0),
+		GasLimit: *types.NewUint256(100000),
+	}
+	_, _, err = es.HandleExecutionMessage(ctx, messageToSend, &blockContext)
+	suite.Require().NoError(err)
+
+	// Check that seqno is increased
+	suite.EqualValues(2, es.GetSeqno(addrWallet))
 }
 
 func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {

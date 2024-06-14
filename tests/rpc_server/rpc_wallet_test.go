@@ -101,7 +101,7 @@ func (suite *SuiteRpc) TestWallet() {
 	suite.Require().NoError(err)
 	smcCallee := contracts["Counter"]
 	suite.Require().NotNil(smcCallee)
-	addrCallee := suite.deployContractViaWallet(1, hexutil.FromHex(smcCallee.Code))
+	addrCallee := suite.deployContractViaWallet(types.BaseShardId, hexutil.FromHex(smcCallee.Code))
 
 	var calldata []byte
 
@@ -142,4 +142,8 @@ func (suite *SuiteRpc) TestWallet() {
 	suite.Equal(messageToSend.Hash(), resHash)
 
 	suite.waitForReceiptOnShard(addrCallee.ShardId(), messageToSend)
+
+	newSeqno, err := suite.client.GetTransactionCount(addrCallee, "latest")
+	suite.Require().NoError(err)
+	suite.Equal(seqno+1, newSeqno)
 }
