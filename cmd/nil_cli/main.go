@@ -1,8 +1,10 @@
 package main
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"os"
+	"reflect"
 
 	"github.com/NilFoundation/nil/cmd/nil_cli/block"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
@@ -11,6 +13,8 @@ import (
 	"github.com/NilFoundation/nil/cmd/nil_cli/message"
 	"github.com/NilFoundation/nil/cmd/nil_cli/receipt"
 	"github.com/NilFoundation/nil/common/logging"
+	"github.com/NilFoundation/nil/core/crypto"
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -53,6 +57,21 @@ func (rc *RootCommand) registerSubCommands() {
 	logger.Trace().Msg("Subcommands registered")
 }
 
+func decodePrivateKey(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+	if f.Kind() != reflect.String {
+		return data, nil
+	}
+	if t != reflect.TypeOf(&ecdsa.PrivateKey{}) {
+		return data, nil
+	}
+	s, _ := data.(string)
+	return crypto.HexToECDSA(s)
+}
+
+func updateDecoderConfig(config *mapstructure.DecoderConfig) {
+	config.DecodeHook = mapstructure.ComposeDecodeHookFunc(config.DecodeHook, decodePrivateKey)
+}
+
 // loadConfig loads the configuration from the config file
 func (rc *RootCommand) loadConfig() {
 	viper.SetConfigName("config")
@@ -63,7 +82,7 @@ func (rc *RootCommand) loadConfig() {
 		logger.Fatal().Err(err).Msg("Error reading config file")
 	}
 
-	if err := viper.Unmarshal(&rc.config); err != nil {
+	if err := viper.Unmarshal(&rc.config, updateDecoderConfig); err != nil {
 		logger.Fatal().Err(err).Msg("Unable to decode into config struct")
 	}
 

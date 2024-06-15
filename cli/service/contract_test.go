@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/client/mock"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,7 +23,7 @@ var mockSuccessSeqNumResponse = types.Seqno(0x1)
 var mockSuccessHash = common.HexToHash("294a68120c056a549d314efa8306dafdb856f7b51dde976df0e807e001ff84ac")
 
 // Mock private key
-var mockPrivateKey = "6c1beb99b140a104df88b6f63275feaa7fcab908b1ef0632c78539da9a486c7e"
+var mockPrivateKey, _ = crypto.HexToECDSA("6c1beb99b140a104df88b6f63275feaa7fcab908b1ef0632c78539da9a486c7e")
 
 // TestGetCode_Successfully tests getting the contract code without errors
 func TestGetCode_Successfully(t *testing.T) {

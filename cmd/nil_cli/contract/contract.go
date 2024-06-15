@@ -1,6 +1,8 @@
 package contract
 
 import (
+	"crypto/ecdsa"
+
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
@@ -62,7 +64,7 @@ func setFlags(cmd *cobra.Command) {
 	)
 }
 
-func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, privateKey string) {
+func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, privateKey *ecdsa.PrivateKey) {
 	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
 
 	client := rpc.NewClient(rpcEndpoint)

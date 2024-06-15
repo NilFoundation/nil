@@ -2,7 +2,6 @@ package rpctest
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"strconv"
 	"testing"
@@ -16,7 +15,6 @@ import (
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/collate"
-	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
@@ -49,8 +47,7 @@ func (suite *SuiteRpc) SetupTest() {
 
 	suite.client = rpc_client.NewClient("http://127.0.0.1:8531/")
 
-	pk := hex.EncodeToString(crypto.FromECDSA(execution.MainPrivateKey))
-	suite.cli = service.NewService(suite.client, pk)
+	suite.cli = service.NewService(suite.client, execution.MainPrivateKey)
 	suite.Require().NotNil(suite.cli)
 
 	suite.port = 8531

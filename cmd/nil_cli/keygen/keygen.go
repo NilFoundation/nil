@@ -40,7 +40,7 @@ func setFlags(cmd *cobra.Command) {
 }
 
 func runCommand(cmd *cobra.Command, _ []string) {
-	keygen := service.NewService(&rpc.Client{}, "")
+	keygen := service.NewService(&rpc.Client{}, nil)
 
 	var err error
 	if params.newKey {
