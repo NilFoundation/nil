@@ -207,7 +207,7 @@ In the current implementation, a transaction passes the following stages.
 
 The RPC exposes the `SendRawTransaction()` method that calls the `CreateRwTx()` function of the DB and adds the transaction to the mempool.
 
-2. The transaction is sent to the mempool of the shard where it originated
+2. The transaction is sent to the mempool of its destination shard
 
 The `msgpool` object calls the `Add()` function to iterate over a list of transactions and add them to the mempool. The function also returns a list of reasons for discarding a transaction (if any were discarded).
 

@@ -57,17 +57,21 @@ type Message struct {
 	Signature Signature `json:"signature,omitempty" ch:"signature" ssz-max:"256"`
 }
 
+type ExternalMessage struct {
+	Deploy   bool      `json:"deploy,omitempty" ch:"deploy"`
+	To       Address   `json:"to,omitempty" ch:"to"`
+	ChainId  ChainId   `json:"chainId" ch:"chainId"`
+	Seqno    Seqno     `json:"seqno,omitempty" ch:"seqno"`
+	Data     Code      `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	AuthData Signature `json:"authData,omitempty" ch:"auth_data" ssz-max:"256"`
+}
+
 type messageDigest struct {
-	Internal bool
-	Deploy   bool
-	ChainId  ChainId
-	Seqno    Seqno
-	GasPrice Uint256 `ssz-size:"32"`
-	GasLimit Uint256 `ssz-size:"32"`
-	From     Address
-	To       Address
-	Value    Uint256 `ssz-size:"32"`
-	Data     Code    `ssz-max:"24576"`
+	Deploy  bool
+	To      Address
+	ChainId ChainId
+	Seqno   Seqno
+	Data    Code `ssz-max:"24576"`
 }
 
 // interfaces
@@ -83,23 +87,31 @@ func (m *Message) Hash() common.Hash {
 	return h
 }
 
-func (m *Message) SigningHash() (common.Hash, error) {
+func (m *ExternalMessage) SigningHash() (common.Hash, error) {
 	messageDigest := messageDigest{
-		Seqno:    m.Seqno,
-		GasPrice: m.GasPrice,
-		GasLimit: m.GasLimit,
-		From:     m.From,
-		To:       m.To,
-		Value:    m.Value,
-		Data:     m.Data,
-		Internal: m.Internal,
-		ChainId:  m.ChainId,
+		Deploy:  m.Deploy,
+		Seqno:   m.Seqno,
+		To:      m.To,
+		Data:    m.Data,
+		ChainId: m.ChainId,
 	}
 
 	return common.PoseidonSSZ(&messageDigest)
 }
 
-func (m *Message) Sign(key *ecdsa.PrivateKey) error {
+func (m *Message) SigningHash() (common.Hash, error) {
+	messageDigest := messageDigest{
+		Deploy:  m.Deploy,
+		Seqno:   m.Seqno,
+		To:      m.To,
+		Data:    m.Data,
+		ChainId: m.ChainId,
+	}
+
+	return common.PoseidonSSZ(&messageDigest)
+}
+
+func (m *ExternalMessage) Sign(key *ecdsa.PrivateKey) error {
 	hash, err := m.SigningHash()
 	if err != nil {
 		return err
@@ -110,7 +122,7 @@ func (m *Message) Sign(key *ecdsa.PrivateKey) error {
 		return err
 	}
 
-	m.Signature = Signature(sig)
+	m.AuthData = Signature(sig)
 
 	return nil
 }

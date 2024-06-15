@@ -2,19 +2,17 @@ package jsonrpc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
-	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
 )
 
 // SendRawTransaction implements eth_sendRawTransaction. Creates new message or a contract creation for previously-signed message.
 func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Bytes) (common.Hash, error) {
-	var msg types.Message
+	var msg types.ExternalMessage
 	if err := msg.UnmarshalSSZ(encoded); err != nil {
 		return common.Hash{}, fmt.Errorf("failed to decode message: %w", err)
 	}
@@ -23,16 +21,23 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Byte
 		return common.Hash{}, errInvalidChainId
 	}
 
-	shardId := msg.From.ShardId()
+	shardId := msg.To.ShardId()
 	if err := api.checkShard(shardId); err != nil {
 		return common.Hash{}, err
 	}
 
-	if !crypto.TransactionSignatureIsValidBytes(msg.Signature[:]) {
-		return common.Hash{}, errors.New("invalid signature")
+	msg2 := types.Message{
+		Internal:  false,
+		Deploy:    msg.Deploy,
+		To:        msg.To,
+		From:      msg.To,
+		ChainId:   msg.ChainId,
+		Seqno:     msg.Seqno,
+		Data:      msg.Data,
+		Signature: msg.AuthData,
+		GasLimit:  *types.NewUint256(500_000),
 	}
-
-	reason, err := api.msgPools[shardId].Add(ctx, []*types.Message{&msg})
+	reason, err := api.msgPools[shardId].Add(ctx, []*types.Message{&msg2})
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -41,5 +46,5 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Byte
 		return common.Hash{}, fmt.Errorf("message status: %s", reason[0])
 	}
 
-	return msg.Hash(), nil
+	return msg2.Hash(), nil
 }

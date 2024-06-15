@@ -19,7 +19,7 @@ type Client interface {
 
 	GetCode(addr types.Address, blockId any) (types.Code, error)
 	GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error)
-	SendMessage(msg *types.Message) (common.Hash, error)
+	SendMessage(msg *types.ExternalMessage) (common.Hash, error)
 	SendRawTransaction(data []byte) (common.Hash, error)
 	GetInMessageByHash(shardId types.ShardId, hash common.Hash) (*jsonrpc.RPCInMessage, error)
 	GetInMessageReceipt(shardId types.ShardId, hash common.Hash) (*jsonrpc.RPCReceipt, error)

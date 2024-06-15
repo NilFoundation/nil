@@ -113,7 +113,7 @@ var (
 	// ErrGasUintOverflow is returned when calculating gas usage.
 	ErrGasUintOverflow = errors.New("gas uint64 overflow")
 
-	// ErrInternalMessageValidationFailed is returned when no corresponding outgoing message found.
+	// ErrInternalMessageValidationFailed is returned when no corresponding outgoing message is found.
 	ErrInternalMessageValidationFailed = errors.New("internal message validation failed")
 
 	// ErrNoPayer is returned when no account at address specified to pay fees.
@@ -122,8 +122,8 @@ var (
 	// ErrContractAlreadyExists is returned when attempt to deploy code to address of already deployed contract.
 	ErrContractAlreadyExists = errors.New("contract already exists")
 
-	// ErrContractDoesNotExists is returnet when attempt to call unexisted contract.
-	ErrContractDoestNotExists = errors.New("contract does not exist")
+	// ErrContractDoesNotExists is returned when attempt to call non-existent contract.
+	ErrContractDoesNotExist = errors.New("contract does not exist")
 
 	// ErrSeqnoGap is returned when message seqno does not match the seqno of the recipient.
 	ErrSeqnoGap = errors.New("seqno gap")
@@ -227,7 +227,7 @@ func validateExternalExecutionMessage(es *execution.ExecutionState, message *typ
 	addr := message.To
 	if !es.ContractExists(addr) {
 		if len(message.Data) > 0 && message.Value.IsZero() {
-			return ErrContractDoestNotExists
+			return ErrContractDoesNotExist
 		}
 		return nil // Just send value
 	}
@@ -256,10 +256,6 @@ func validateExternalExecutionMessage(es *execution.ExecutionState, message *typ
 }
 
 func validateExternalMessage(es *execution.ExecutionState, message *types.Message) error {
-	if message.From != message.To {
-		return errors.New("From for external messages will be removed soon, so now require it be equivalent to To")
-	}
-
 	if message.ChainId != types.DefaultChainId {
 		err := ErrInvalidChainId
 		sharedLogger.Debug().

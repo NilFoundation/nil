@@ -52,7 +52,7 @@ func (m *MockClient) GetBlock(shardId types.ShardId, blockId any, fullTx bool) (
 	return nil, nil
 }
 
-func (m *MockClient) SendMessage(msg *types.Message) (common.Hash, error) {
+func (m *MockClient) SendMessage(msg *types.ExternalMessage) (common.Hash, error) {
 	if m.Err != nil {
 		return common.EmptyHash, m.Err
 	}

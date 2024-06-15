@@ -71,22 +71,10 @@ func (suite *SuiteSendTransaction) TestInvalidMessage() {
 	suite.Require().ErrorIs(err, ssz.ErrSize)
 }
 
-func (suite *SuiteSendTransaction) TestInvalidSignature() {
-	msg := types.Message{
-		From: types.GenerateRandomAddress(0),
-	}
-
-	data, err := msg.MarshalSSZ()
-	suite.Require().NoError(err)
-
-	_, err = suite.api.SendRawTransaction(context.Background(), data)
-	suite.Require().EqualError(err, "invalid signature")
-}
-
 func (suite *SuiteSendTransaction) TestInvalidChainId() {
-	msg := types.Message{
+	msg := types.ExternalMessage{
 		ChainId: 50,
-		From:    types.GenerateRandomAddress(0),
+		To:      types.GenerateRandomAddress(0),
 	}
 
 	data, err := msg.MarshalSSZ()
@@ -97,8 +85,8 @@ func (suite *SuiteSendTransaction) TestInvalidChainId() {
 }
 
 func (suite *SuiteSendTransaction) TestInvalidShard() {
-	msg := types.Message{
-		From: types.GenerateRandomAddress(1234),
+	msg := types.ExternalMessage{
+		To: types.GenerateRandomAddress(1234),
 	}
 
 	data, err := msg.MarshalSSZ()
