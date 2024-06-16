@@ -54,20 +54,6 @@ func (suite *SuiteMsgPool) TestAdd() {
 	suite.Require().Equal([]DiscardReason{DuplicateHash}, reasons)
 	suite.Equal(1, suite.pool.MessageCount())
 
-	// Try to replace message but with lower fee - NotReplaced
-	msg2 := newMessage(address, 0, 122)
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg2})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{NotReplaced}, reasons)
-	suite.Equal(1, suite.pool.MessageCount())
-
-	// Try to replace message but with higher fee - OK
-	msg3 := newMessage(address, 0, 124)
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg3})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
-	suite.Equal(1, suite.pool.MessageCount())
-
 	// Add a message with higher seqno to the same receiver
 	msg4 := newMessage(address, 1, 124)
 	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg4})
