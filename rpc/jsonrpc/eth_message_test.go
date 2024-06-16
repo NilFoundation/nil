@@ -47,7 +47,7 @@ func (suite *SuiteEthMessage) SetupSuite() {
 	receipt := types.Receipt{MsgHash: suite.message.Hash()}
 
 	suite.lastBlockHash = writeTestBlock(
-		suite.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Message{&suite.message}, []*types.Receipt{&receipt})
+		suite.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Message{&suite.message}, []*types.Receipt{&receipt}, []*types.Message{})
 	_, err = execution.PostprocessBlock(tx, types.BaseShardId, suite.lastBlockHash)
 	suite.Require().NoError(err)
 

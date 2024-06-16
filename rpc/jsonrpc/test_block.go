@@ -11,14 +11,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func writeTestBlock(t *testing.T, tx db.RwTx, shardId types.ShardId, blockNumber types.BlockNumber, messages []*types.Message, receipts []*types.Receipt) common.Hash {
+func writeTestBlock(t *testing.T, tx db.RwTx, shardId types.ShardId, blockNumber types.BlockNumber,
+	messages []*types.Message, receipts []*types.Receipt, outMessages []*types.Message,
+) common.Hash {
 	t.Helper()
 	block := types.Block{
 		Id:                  blockNumber,
 		PrevBlock:           common.EmptyHash,
 		SmartContractsRoot:  common.EmptyHash,
 		InMessagesRoot:      writeMessages(t, tx, shardId, messages).RootHash(),
+		OutMessagesRoot:     writeMessages(t, tx, shardId, outMessages).RootHash(),
 		ReceiptsRoot:        writeReceipts(t, tx, shardId, receipts).RootHash(),
+		OutMessagesNum:      types.MessageIndex(len(outMessages)),
 		ChildBlocksRootHash: common.EmptyHash,
 		MasterChainHash:     common.EmptyHash,
 	}

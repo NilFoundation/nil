@@ -36,6 +36,7 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 	}
 
 	var outReceipts []*RPCReceipt = nil
+	var outMessages []common.Hash = nil
 
 	if receipt != nil && receipt.OutMsgNum != 0 {
 		outReceipts = make([]*RPCReceipt, 0, receipt.OutMsgNum)
@@ -55,8 +56,9 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 				return nil, err
 			}
 			outReceipts = append(outReceipts, r)
+			outMessages = append(outMessages, res.Message().Hash())
 		}
 	}
 
-	return NewRPCReceipt(block, indexes.MessageIndex, receipt, outReceipts), nil
+	return NewRPCReceipt(block, indexes.MessageIndex, receipt, outMessages, outReceipts), nil
 }

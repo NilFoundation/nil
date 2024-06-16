@@ -24,7 +24,6 @@ var mockSuccessReceiptResponse = &jsonrpc.RPCReceipt{
 	Logs:            []*jsonrpc.RPCLog{},
 	MsgHash:         common.HexToHash("0x1dbf1be14f8329839e81695a6c656c4f76d0e1da79ba6e67881e16db16981d61"),
 	MsgIndex:        0,
-	OutMsgIndex:     0,
 	Success:         true,
 }
 

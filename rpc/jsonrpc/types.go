@@ -97,8 +97,7 @@ type RPCReceipt struct {
 	GasUsed         uint32             `json:"gasUsed"`
 	Bloom           hexutil.Bytes      `json:"bloom"`
 	Logs            []*RPCLog          `json:"logs"`
-	OutMsgIndex     uint32             `json:"outMsgIndex"`
-	OutMsgNum       uint32             `json:"outMsgNum"`
+	OutMessages     []common.Hash      `json:"outMessages"`
 	OutReceipts     []*RPCReceipt      `json:"outputReceipts"`
 	MsgHash         common.Hash        `json:"messageHash"`
 	ContractAddress types.Address      `json:"contractAddress"`
@@ -115,7 +114,7 @@ type RPCLog struct {
 }
 
 func (re *RPCReceipt) IsComplete() bool {
-	if re == nil || len(re.OutReceipts) != int(re.OutMsgNum) {
+	if re == nil || len(re.OutReceipts) != len(re.OutMessages) {
 		return false
 	}
 	for _, receipt := range re.OutReceipts {
@@ -206,7 +205,7 @@ func NewRPCLog(
 }
 
 func NewRPCReceipt(
-	block *types.Block, index types.MessageIndex, receipt *types.Receipt, outReceipts []*RPCReceipt,
+	block *types.Block, index types.MessageIndex, receipt *types.Receipt, outMessages []common.Hash, outReceipts []*RPCReceipt,
 ) *RPCReceipt {
 	if block == nil || receipt == nil {
 		return nil
@@ -222,8 +221,7 @@ func NewRPCReceipt(
 		GasUsed:         receipt.GasUsed,
 		Bloom:           hexutil.Bytes(receipt.Bloom.Bytes()),
 		Logs:            logs,
-		OutMsgIndex:     receipt.OutMsgIndex,
-		OutMsgNum:       receipt.OutMsgNum,
+		OutMessages:     outMessages,
 		OutReceipts:     outReceipts,
 		MsgHash:         receipt.MsgHash,
 		ContractAddress: receipt.ContractAddress,
