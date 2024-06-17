@@ -31,10 +31,10 @@ func TestFetchMessage_Successfully(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient, "", types.BaseShardId)
+	service := NewService(mockClient, "")
 
 	// Call the FetchMessageByHash
-	response, err := service.FetchMessageByHash(hexutil.Encode(common.EmptyHash[:]))
+	response, err := service.FetchMessageByHash(types.BaseShardId, hexutil.Encode(common.EmptyHash[:]))
 	require.NoError(t, err)
 
 	// Check if the response matches the expected mock response
@@ -53,10 +53,10 @@ func TestFetchMessage_Err(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient, "", types.BaseShardId)
+	service := NewService(mockClient, "")
 
 	// Call the FetchMessageByHash
-	_, err := service.FetchMessageByHash("0x1234")
+	_, err := service.FetchMessageByHash(types.BaseShardId, "0x1234")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "RPC error")
 }

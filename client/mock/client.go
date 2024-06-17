@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"crypto/ecdsa"
 	"encoding/json"
 	"math/big"
 
@@ -118,4 +119,27 @@ func (m *MockClient) GetBalance(address types.Address, blockNrOrHash any) (*big.
 		return big.NewInt(0), m.Err
 	}
 	return m.Balance, nil
+}
+
+func (m *MockClient) DeployContract(shardId types.ShardId, address types.Address, bytecode types.Code, pk *ecdsa.PrivateKey) (common.Hash, types.Address, error) {
+	hash := common.EmptyHash
+	addr := types.EmptyAddress
+
+	if m.Err != nil {
+		return hash, addr, m.Err
+	}
+
+	if m.Hash != nil {
+		hash = *m.Hash
+	}
+
+	return hash, addr, nil
+}
+
+func (m *MockClient) SendMessageViaWallet(address types.Address, bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey) (common.Hash, error) {
+	hash := common.EmptyHash
+	if m.Hash != nil {
+		hash = *m.Hash
+	}
+	return hash, m.Err
 }

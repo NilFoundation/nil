@@ -7,26 +7,20 @@ import (
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/crypto"
-	"github.com/NilFoundation/nil/core/types"
 	"github.com/rs/zerolog"
 )
 
 type Service struct {
 	client     client.Client
-	shardId    types.ShardId
 	privateKey *ecdsa.PrivateKey
 	logger     zerolog.Logger
 }
 
 // NewService initializes a new Service with the given client
-func NewService(c client.Client, pk string, shardId types.ShardId) *Service {
+func NewService(c client.Client, pk string) *Service {
 	s := &Service{
-		client:  c,
-		shardId: shardId,
-		logger: logging.NewLogger("cliService").
-			With().
-			Stringer(logging.FieldShardId, shardId).
-			Logger(),
+		client: c,
+		logger: logging.NewLogger("cliService"),
 	}
 
 	if len(pk) != 0 {
@@ -37,9 +31,4 @@ func NewService(c client.Client, pk string, shardId types.ShardId) *Service {
 	}
 
 	return s
-}
-
-// SetShardId changes current shardId. Useful for testing purposes
-func (s *Service) SetShardId(shardId types.ShardId) {
-	s.shardId = shardId
 }

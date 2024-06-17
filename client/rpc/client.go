@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/assert"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
@@ -302,4 +304,78 @@ func (c *Client) GetBalance(address types.Address, blockId any) (*big.Int, error
 	balance := hexutil.Big{}
 	err = balance.UnmarshalJSON(res)
 	return balance.ToInt(), err
+}
+
+func (c *Client) DeployContract(
+	shardId types.ShardId, address types.Address, bytecode types.Code, pk *ecdsa.PrivateKey,
+) (common.Hash, types.Address, error) {
+	contractAddr := types.CreateAddress(shardId, bytecode)
+	txHash, err := c.sendMessageViaWallet(address, bytecode, contractAddr, pk, true)
+	if err != nil {
+		return common.EmptyHash, types.EmptyAddress, err
+	}
+	return txHash, contractAddr, nil
+}
+
+func (c *Client) SendMessageViaWallet(
+	address types.Address, bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey,
+) (common.Hash, error) {
+	return c.sendMessageViaWallet(address, bytecode, contractAddress, pk, false)
+}
+
+// RunContract runs bytecode on the specified contract address
+func (c *Client) sendMessageViaWallet(
+	address types.Address, bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
+) (common.Hash, error) {
+	// Get the sequence number for the wallet
+	seqno, err := c.GetTransactionCount(address, "latest")
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	intMsg := &types.Message{
+		Data:     bytecode,
+		From:     address,
+		To:       contractAddress,
+		Value:    *types.NewUint256(0),
+		GasLimit: *types.NewUint256(100000),
+		Internal: true,
+		Deploy:   isDeploy,
+	}
+
+	intMsgData, err := intMsg.MarshalSSZ()
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	walletAbi, err := contracts.GetAbi("Wallet")
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	calldataExt, err := walletAbi.Pack("send", intMsgData)
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	// Create the message with the bytecode to run
+	extMsg := &types.ExternalMessage{
+		To:    address,
+		Data:  calldataExt,
+		Seqno: seqno,
+	}
+
+	// Sign the message with the private key
+	err = extMsg.Sign(pk)
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	// Send the raw transaction
+	txHash, err := c.SendMessage(extMsg)
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	return txHash, nil
 }

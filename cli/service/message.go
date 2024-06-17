@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/types"
 )
 
 // FetchMessageByHash fetches the message by hash
-func (s *Service) FetchMessageByHash(messageHash string) ([]byte, error) {
+func (s *Service) FetchMessageByHash(shardId types.ShardId, messageHash string) ([]byte, error) {
 	hash := common.HexToHash(messageHash)
-	messageData, err := s.client.GetInMessageByHash(s.shardId, hash)
+	messageData, err := s.client.GetInMessageByHash(shardId, hash)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to fetch message")
 		return nil, err

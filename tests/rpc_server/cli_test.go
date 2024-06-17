@@ -20,23 +20,19 @@ func (s *SuiteRpc) toJSON(v interface{}) string {
 }
 
 func (s *SuiteRpc) TestCliBlock() {
-	s.cli.SetShardId(types.BaseShardId)
-
 	block, err := s.client.GetBlock(types.BaseShardId, 0, false)
 	s.Require().NoError(err)
 
-	res, err := s.cli.FetchBlock(block.Hash.Hex())
+	res, err := s.cli.FetchBlock(types.BaseShardId, block.Hash.Hex())
 	s.Require().NoError(err)
 	s.JSONEq(s.toJSON(block), string(res))
 
-	res, err = s.cli.FetchBlock("0")
+	res, err = s.cli.FetchBlock(types.BaseShardId, "0")
 	s.Require().NoError(err)
 	s.JSONEq(s.toJSON(block), string(res))
 }
 
 func (s *SuiteRpc) TestCliMessage() {
-	s.cli.SetShardId(types.MasterShardId)
-
 	contractCode, _ := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 
 	_, receipt := s.deployContractViaWallet(types.BaseShardId, contractCode)
@@ -47,18 +43,16 @@ func (s *SuiteRpc) TestCliMessage() {
 	s.Require().NotNil(msg)
 	s.Require().True(msg.Success)
 
-	res, err := s.cli.FetchMessageByHash(receipt.MsgHash.Hex())
+	res, err := s.cli.FetchMessageByHash(types.MasterShardId, receipt.MsgHash.Hex())
 	s.Require().NoError(err)
 	s.JSONEq(s.toJSON(msg), string(res))
 
-	res, err = s.cli.FetchReceiptByHash(receipt.MsgHash.Hex())
+	res, err = s.cli.FetchReceiptByHash(types.MasterShardId, receipt.MsgHash.Hex())
 	s.Require().NoError(err)
 	s.JSONEq(s.toJSON(receipt), string(res))
 }
 
 func (s *SuiteRpc) TestReadContract() {
-	s.cli.SetShardId(types.MasterShardId)
-
 	contractCode, _ := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 
 	addr, receipt := s.deployContractViaWallet(types.BaseShardId, contractCode)
@@ -75,12 +69,11 @@ func (s *SuiteRpc) TestReadContract() {
 }
 
 func (s *SuiteRpc) TestContract() {
-	s.cli.SetShardId(types.BaseShardId)
 	wallet := types.MainWalletAddress.Hex()
 
 	// Deploy contract
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
-	txHash, addrStr, err := s.cli.DeployContract(wallet, contractCode.Hex())
+	txHash, addrStr, err := s.cli.DeployContract(types.BaseShardId, wallet, contractCode.Hex())
 	s.Require().NoError(err)
 	addr := types.HexToAddress(addrStr)
 

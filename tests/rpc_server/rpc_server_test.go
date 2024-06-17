@@ -50,7 +50,7 @@ func (suite *SuiteRpc) SetupTest() {
 	suite.client = rpc_client.NewClient("http://127.0.0.1:8531/")
 
 	pk := hex.EncodeToString(crypto.FromECDSA(execution.MainPrivateKey))
-	suite.cli = service.NewService(suite.client, pk, types.BaseShardId)
+	suite.cli = service.NewService(suite.client, pk)
 	suite.Require().NotNil(suite.cli)
 
 	suite.port = 8531
@@ -114,20 +114,6 @@ func (suite *SuiteRpc) checkReceipt(receipt *jsonrpc.RPCReceipt, msgHash common.
 	suite.Require().NotNil(receipt)
 	suite.Require().True(receipt.Success)
 	suite.Require().Equal(msgHash, receipt.MsgHash)
-}
-
-func (suite *SuiteRpc) sendDeployMessage(from types.Address, code types.Code) *jsonrpc.RPCReceipt {
-	suite.T().Helper()
-
-	shardId := from.ShardId()
-
-	msg := suite.createMessageForDeploy(code, shardId)
-
-	// create contract
-	hash := suite.sendRawTransaction(msg)
-
-	// wait for receipt
-	return suite.waitForReceiptOnShard(shardId, hash)
 }
 
 func (s *SuiteRpc) TestRpcBasic() {
@@ -208,30 +194,19 @@ func (suite *SuiteRpc) TestRpcContract() {
 	addr, _ := suite.deployContractViaWallet(types.BaseShardId, contractCode)
 
 	// now call (= send a message to) created contract
-	seqno, err := suite.client.GetTransactionCount(addr, "latest")
-	suite.Require().NoError(err)
-
 	calldata, err := abi.Pack("increment")
 	suite.Require().NoError(err)
-	messageToSend := &types.Message{
-		Seqno:    seqno,
-		From:     types.MainWalletAddress,
-		To:       addr,
-		Data:     calldata,
-		GasLimit: *types.NewUint256(100003),
-		Internal: true,
-	}
 
-	suite.sendMessageViaWallet(types.MainWalletAddress, messageToSend)
+	suite.sendMessageViaWallet(addr, calldata)
 }
 
-func (suite *SuiteRpc) TestRpcDeployToMainShard() {
-	pub := crypto.CompressPubkey(&execution.MainPrivateKey.PublicKey)
-	from := types.PubkeyBytesToAddress(types.MasterShardId, pub)
+func (s *SuiteRpc) TestRpcDeployToMainShardViaMainWallet() {
+	code, _ := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
+	txHash, _, err := s.client.DeployContract(types.MasterShardId, types.MainWalletAddress, code, execution.MainPrivateKey)
+	s.Require().NoError(err)
 
-	code, _ := suite.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
-	receipt := suite.sendDeployMessage(from, code)
-	suite.False(receipt.Success)
+	receipt := s.waitForReceipt(types.MasterShardId, txHash)
+	s.True(receipt.Success)
 }
 
 func (suite *SuiteRpc) TestRpcContractSendMessage() {

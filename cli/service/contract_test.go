@@ -33,7 +33,7 @@ func TestGetCode_Successfully(t *testing.T) {
 		Code: &code,
 	}
 
-	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
+	service := NewService(mockClient, mockPrivateKey)
 
 	codeHex, err := service.GetCode("0x1234")
 	require.NoError(t, err)
@@ -49,7 +49,7 @@ func TestGetCode_Err(t *testing.T) {
 		Err: errors.New("RPC error"),
 	}
 
-	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
+	service := NewService(mockClient, mockPrivateKey)
 
 	_, err := service.GetCode("0x1234")
 	require.Error(t, err)
@@ -65,7 +65,7 @@ func TestRunContract_Successfully(t *testing.T) {
 		Hash:  &mockSuccessHash,
 	}
 
-	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
+	service := NewService(mockClient, mockPrivateKey)
 
 	txHash, err := service.RunContract(types.EmptyAddress.Hex(), "0x6001600101600055", "0x1234")
 	require.NoError(t, err)
@@ -81,7 +81,7 @@ func TestRunContract_Err(t *testing.T) {
 		Err: errors.New("RPC error"),
 	}
 
-	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
+	service := NewService(mockClient, mockPrivateKey)
 
 	_, err := service.RunContract(types.EmptyAddress.Hex(), "0x6001600101600055", "0x1234")
 	require.Error(t, err)
@@ -97,9 +97,9 @@ func TestDeployContract_Successfully(t *testing.T) {
 		Hash:  &mockSuccessHash,
 	}
 
-	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
+	service := NewService(mockClient, mockPrivateKey)
 
-	txHash, _, err := service.DeployContract(types.EmptyAddress.Hex(), "0x6001600101600055")
+	txHash, _, err := service.DeployContract(types.BaseShardId, types.EmptyAddress.Hex(), "0x6001600101600055")
 	require.NoError(t, err)
 	assert.Equal(t, mockSuccessHash, common.HexToHash(txHash))
 }
@@ -113,9 +113,9 @@ func TestContractDeployment_Err(t *testing.T) {
 		Err: errors.New("RPC error"),
 	}
 
-	service := NewService(mockClient, mockPrivateKey, types.BaseShardId)
+	service := NewService(mockClient, mockPrivateKey)
 
-	_, _, err := service.DeployContract(types.EmptyAddress.Hex(), "0x6001600101600055")
+	_, _, err := service.DeployContract(types.BaseShardId, types.EmptyAddress.Hex(), "0x6001600101600055")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "RPC error")
 }

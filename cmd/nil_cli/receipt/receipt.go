@@ -46,9 +46,9 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
 
 	client := rpc.NewClient(rpcEndpoint)
-	service := service.NewService(client, "", params.shardId)
+	service := service.NewService(client, "")
 	if params.hash != "" {
-		_, err := service.FetchReceiptByHash(params.hash)
+		_, err := service.FetchReceiptByHash(params.shardId, params.hash)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to fetch receipt")
 		}

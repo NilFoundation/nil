@@ -1,6 +1,7 @@
 package client
 
 import (
+	"crypto/ecdsa"
 	"encoding/json"
 	"math/big"
 
@@ -27,4 +28,7 @@ type Client interface {
 	GetTransactionCount(address types.Address, blockId any) (types.Seqno, error)
 	GetBlockTransactionCount(shardId types.ShardId, blockId any) (uint64, error)
 	GetBalance(address types.Address, blockId any) (*big.Int, error)
+
+	DeployContract(shardId types.ShardId, address types.Address, bytecode types.Code, pk *ecdsa.PrivateKey) (common.Hash, types.Address, error)
+	SendMessageViaWallet(address types.Address, bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey) (common.Hash, error)
 }

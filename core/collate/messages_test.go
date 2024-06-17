@@ -116,6 +116,10 @@ func (s *MessagesSuite) TestValidateDeployMessage() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
+	esMain, err := execution.NewExecutionStateForShard(tx, types.MasterShardId, common.NewTestTimer(0))
+	s.Require().NoError(err)
+	s.Require().NotNil(esMain)
+
 	es, err := execution.NewExecutionStateForShard(tx, types.BaseShardId, common.NewTestTimer(0))
 	s.Require().NoError(err)
 	s.Require().NotNil(es)
@@ -128,12 +132,20 @@ func (s *MessagesSuite) TestValidateDeployMessage() {
 	dm := validateDeployMessage(es, msg)
 	s.Require().Nil(dm)
 
-	// Deploy to master shard
+	// Deploy to master shard from base shard - FAIL
 	data := types.BuildDeployPayload([]byte("some-code"), common.EmptyHash)
 	msg.To = types.CreateAddress(types.MasterShardId, data.Bytes())
 	msg.Data = data.Bytes()
 	dm = validateDeployMessage(es, msg)
 	s.Require().Nil(dm)
+
+	// Deploy to master shard from main wallet - OK
+	data = types.BuildDeployPayload([]byte("some-code"), common.EmptyHash)
+	msg.To = types.CreateAddress(types.MasterShardId, data.Bytes())
+	msg.From = types.MainWalletAddress
+	msg.Data = data.Bytes()
+	dm = validateDeployMessage(es, msg)
+	s.Require().NotNil(dm)
 
 	// Deploy to base shard
 	msg.To = types.CreateAddress(types.BaseShardId, data.Bytes())

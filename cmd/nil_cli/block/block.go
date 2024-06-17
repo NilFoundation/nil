@@ -58,10 +58,10 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
 
 	client := rpc.NewClient(rpcEndpoint)
-	service := service.NewService(client, "", params.shardId)
+	service := service.NewService(client, "")
 
 	if params.latest {
-		_, err := service.FetchBlock("latest")
+		_, err := service.FetchBlock(params.shardId, "latest")
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to fetch latest block")
 		}
@@ -70,7 +70,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 	}
 
 	if params.number != "" {
-		_, err := service.FetchBlock(params.number)
+		_, err := service.FetchBlock(params.shardId, params.number)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to fetch block by number")
 		}
@@ -79,7 +79,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 	}
 
 	if params.hash != "" {
-		_, err := service.FetchBlock(params.hash)
+		_, err := service.FetchBlock(params.shardId, params.hash)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to fetch block by hash")
 		}
