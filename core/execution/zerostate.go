@@ -2,9 +2,7 @@ package execution
 
 import (
 	"crypto/ecdsa"
-	"encoding/hex"
 	"fmt"
-	"math/big"
 
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
@@ -14,36 +12,30 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var MainPrivateKey *ecdsa.PrivateKey
+var (
+	MainPrivateKey *ecdsa.PrivateKey
+	MainPublicKey  []byte
+)
 
-const DefaultZeroStateConfig = `
+var DefaultZeroStateConfig string
+
+func init() {
+	var err error
+	MainPrivateKey, MainPublicKey, err = crypto.GenerateKeyPair()
+	check.PanicIfErr(err)
+
+	DefaultZeroStateConfig = fmt.Sprintf(`
 contracts:
 - name: Faucet
   address: 0x000100000000000000000000000000000FA00CE7
   value: 1000000000000
   contract: Faucet
 - name: MainWallet
-  address: 0x0000111111111111111111111111111111111111
+  address: %s
   value: 100000000000000
   contract: Wallet
-  ctorArgs: [0x02eb7216201e65f0a41bc655ada025ad943b79d38aca4d671cbd9875b9604f1ac1]
-`
-
-func init() {
-	// All this info should be provided via zerostate / config / etc
-	// but for now it's hardcoded for simplicity.
-	pubkeyHex := "02eb7216201e65f0a41bc655ada025ad943b79d38aca4d671cbd9875b9604f1ac1"
-	pubkey, err := hex.DecodeString(pubkeyHex)
-	check.PanicIfErr(err)
-
-	key, err := crypto.DecompressPubkey(pubkey)
-	check.PanicIfErr(err)
-
-	keyD := new(big.Int)
-	keyD.SetString("29471664811761943693235393363502564971627872515497410365595228231506458150155", 10)
-	MainPrivateKey = &ecdsa.PrivateKey{PublicKey: *key, D: keyD}
-
-	check.PanicIfNot(key.Equal(MainPrivateKey.Public()))
+  ctorArgs: [%s]
+`, types.MainWalletAddress.Hex(), hexutil.Encode(MainPublicKey))
 }
 
 type ContractDescr struct {
@@ -115,8 +107,7 @@ func (es *ExecutionState) GenerateZeroState(configYaml string) error {
 			case string:
 				switch {
 				case arg == "MainPublicKey":
-					pub := crypto.CompressPubkey(&MainPrivateKey.PublicKey)
-					args = append(args, pub)
+					args = append(args, MainPublicKey)
 				case arg[:2] == "0x":
 					args = append(args, hexutil.FromHex(arg))
 				default:
@@ -151,7 +142,7 @@ func (es *ExecutionState) GenerateZeroState(configYaml string) error {
 		}
 
 		es.SetBalance(addr, value.Int)
-		logger.Debug().Stringer(contract.Name, addr).Msg("Created zero state contract")
+		logger.Debug().Str("name", contract.Name).Stringer("address", addr).Msg("Created zero state contract")
 	}
 	return nil
 }

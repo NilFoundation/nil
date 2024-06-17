@@ -23,6 +23,8 @@ type Scheduler struct {
 	nShards  int
 	topology ShardTopology
 
+	ZeroState string
+
 	logger zerolog.Logger
 }
 
@@ -42,8 +44,8 @@ func NewScheduler(txFabric db.DB, pool MsgPool, id types.ShardId, nShards int, t
 func (s *Scheduler) Run(ctx context.Context) error {
 	sharedLogger.Info().Msg("Starting collation...")
 
-	// Run shard collations once immediately, then run by timer.
-	if err := s.doCollate(ctx); err != nil {
+	// At first generate zerostate for shard
+	if err := s.generateZeroState(ctx); err != nil {
 		return err
 	}
 
@@ -60,6 +62,14 @@ func (s *Scheduler) Run(ctx context.Context) error {
 			return nil
 		}
 	}
+}
+
+func (s *Scheduler) generateZeroState(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
+	defer cancel()
+
+	collator := newCollator(s.id, s.nShards, s.topology, s.pool, s.logger)
+	return collator.GenerateZeroState(ctx, s.txFabric, s.ZeroState)
 }
 
 func (s *Scheduler) doCollate(ctx context.Context) error {
