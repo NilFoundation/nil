@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
@@ -50,6 +51,25 @@ func newCollator(id types.ShardId, nShards int, topology ShardTopology, pool Msg
 	}
 }
 
+func (c *collator) GenerateZeroState(ctx context.Context, txFabric db.DB, zerostate string) error {
+	if err := c.init(ctx, txFabric); err != nil {
+		return err
+	}
+	defer c.clear()
+
+	c.logger.Trace().Stringer("shard", c.id).Msg("Generating zero-state...")
+
+	if err := c.executionState.GenerateZeroState(zerostate); err != nil {
+		return err
+	}
+
+	if _, err := c.finalize(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 	if err := c.init(ctx, txFabric); err != nil {
 		return err
@@ -60,35 +80,29 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 	if err != nil {
 		return err
 	}
+	check.PanicIfNotf(lastBlockHash != common.EmptyHash, "zerostate must be generated before block generation")
 
 	var poolMsgs []*types.Message
-	if lastBlockHash == common.EmptyHash {
-		c.logger.Trace().Msg("Generating zero-state...")
 
-		if err := c.executionState.GenerateZeroState(execution.DefaultZeroStateConfig); err != nil {
-			return err
-		}
-	} else {
-		c.logger.Trace().Msg("Collating...")
+	c.logger.Trace().Msg("Collating...")
 
-		inMsgs, outMsgs, err := c.collectFromNeighbors()
+	inMsgs, outMsgs, err := c.collectFromNeighbors()
+	if err != nil {
+		return err
+	}
+
+	if nPooled := maxMessagesInBlock - len(inMsgs) - len(outMsgs); nPooled != 0 {
+		poolMsgs, err = c.pool.Peek(ctx, nPooled, 0)
 		if err != nil {
 			return err
 		}
+	}
 
-		if nPooled := maxMessagesInBlock - len(inMsgs) - len(outMsgs); nPooled != 0 {
-			poolMsgs, err = c.pool.Peek(ctx, nPooled, 0)
-			if err != nil {
-				return err
-			}
-		}
-
-		if err := HandleMessages(ctx, c.roTx, c.executionState, append(inMsgs, poolMsgs...)); err != nil {
-			return err
-		}
-		for _, msg := range outMsgs {
-			c.executionState.AddOutMessage(msg.inMsgHash, msg.msg)
-		}
+	if err := HandleMessages(ctx, c.roTx, c.executionState, append(inMsgs, poolMsgs...)); err != nil {
+		return err
+	}
+	for _, msg := range outMsgs {
+		c.executionState.AddOutMessage(msg.inMsgHash, msg.msg)
 	}
 
 	block, err := c.finalize()

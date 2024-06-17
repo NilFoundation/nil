@@ -3,6 +3,11 @@ pragma solidity ^0.8.0;
 
 library nil {
 
+    uint private constant SEND_MESSAGE = 0xfc;
+    uint private constant ASYNC_CALL = 0xfd;
+    address public constant VERIFY_SIGNATURE = address(0xfe);
+    address public constant IS_INTERNAL_MESSAGE = address(0xff);
+
     function async_call(address dst, uint gas, bool deploy, uint value, bytes memory call_data) internal {
         bytes memory data = abi.encode(deploy, dst, gas, call_data);
         bool success;
@@ -19,7 +24,7 @@ library nil {
         assembly {
             // Call precompiled contract.
             // Arguments: gas, precompiled address, value, input, input size, output, output size
-            if iszero(call(g, 0xfc, 0, add(message, 32), message_size, 0, 0)) {
+            if iszero(call(g, SEND_MESSAGE, 0, add(message, 32), message_size, 0, 0)) {
                 revert(0, 0)
             }
         }
@@ -32,9 +37,9 @@ library nil {
         bool success;
         bool result;
 
-        // Perform the static call to the precompiled contract at address 0xfe
+        // Perform the static call to the precompiled contract at address `VerifyExternalMessage`
         bytes memory returnData;
-        (success, returnData) = address(0xfe).staticcall(encodedInput);
+        (success, returnData) = VERIFY_SIGNATURE.staticcall(encodedInput);
 
         require(success, "Precompiled contract call failed");
 
@@ -44,5 +49,27 @@ library nil {
         }
 
         return result;
+    }
+}
+
+contract NilBase {
+    // Check that method was invoked from internal message
+    modifier onlyInternal {
+        require(isInternalMessage(), "Try to call internal function with external message");
+        _;
+    }
+
+    // Check that method was invoked from external message
+    modifier onlyExternal {
+        require(!isInternalMessage(), "Try to call external function with internal message");
+        _;
+    }
+
+    function isInternalMessage() internal view returns (bool) {
+        bytes memory data;
+        (bool success, bytes memory returnData) = nil.IS_INTERNAL_MESSAGE.staticcall(data);
+        require(success, "Precompiled contract call failed");
+        require(returnData.length > 0, "'IS_INTERNAL_MESSAGE' returns invalid data");
+        return abi.decode(returnData, (bool));
     }
 }

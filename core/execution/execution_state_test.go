@@ -7,10 +7,10 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -119,13 +119,9 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	srcCode := common.GetAbsolutePath("../../tests/rpc_server/contracts/counter.sol")
-	contracts, err := solc.CompileSource(srcCode)
+	code, err := contracts.GetCode("tests/Counter")
 	suite.Require().NoError(err)
 
-	smcCallee := contracts["Counter"]
-	suite.Require().NotNil(smcCallee)
-	code := hexutil.FromHex(smcCallee.Code)
 	addrWallet := types.CreateAddress(shardId, code)
 
 	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
@@ -149,7 +145,8 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 	// Check that initially seqno is 1
 	suite.EqualValues(1, es.GetSeqno(addrWallet))
 
-	abiCalee := solc.ExtractABI(smcCallee)
+	abiCalee, err := contracts.GetAbi("tests/Counter")
+	suite.Require().NoError(err)
 	calldata, err := abiCalee.Pack("add", int32(11))
 	suite.Require().NoError(err)
 	messageToSend := &types.Message{

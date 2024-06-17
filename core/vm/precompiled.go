@@ -56,6 +56,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	types.BytesToAddress([]byte{0xfc}): &sendRawMessage{},
 	types.BytesToAddress([]byte{0xfd}): &asyncCall{},
 	types.BytesToAddress([]byte{0xfe}): &verifySignature{},
+	types.BytesToAddress([]byte{0xff}): &checkIsInternal{},
 }
 
 var PrecompiledContractsBLS = PrecompiledContractsPrague
@@ -396,4 +397,20 @@ func VerifySignatureArgs() abi.Arguments {
 		abi.Argument{Name: "signature", Type: bytesTy},
 	}
 	return args
+}
+
+type checkIsInternal struct{}
+
+func (c *checkIsInternal) RequiredGas([]byte) uint64 {
+	return 10
+}
+
+func (c *checkIsInternal) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+	res := make([]byte, 32)
+
+	if state.IsInternalMessage() {
+		res[31] = 1
+	}
+
+	return res, nil
 }

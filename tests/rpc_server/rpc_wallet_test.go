@@ -1,56 +1,62 @@
 package rpctest
 
 import (
-	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/common/hexutil"
+	"context"
+	"fmt"
+	"testing"
+
+	rpc_client "github.com/NilFoundation/nil/client/rpc"
+	"github.com/NilFoundation/nil/cmd/nil/nilservice"
+	"github.com/NilFoundation/nil/contracts"
+	"github.com/NilFoundation/nil/core/collate"
+	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/NilFoundation/nil/rpc/jsonrpc"
-	"github.com/NilFoundation/nil/tools/solc"
+	"github.com/stretchr/testify/suite"
 )
 
-// Deploy contract to specific shard
-func (suite *SuiteRpc) deployContractViaWallet(
-	shardId types.ShardId, code []byte,
-) (types.Address, *jsonrpc.RPCReceipt) {
-	suite.T().Helper()
-
-	txHash, addr, err := suite.client.DeployContract(shardId, types.MainWalletAddress, types.Code(code), execution.MainPrivateKey)
-	suite.Require().NoError(err)
-
-	receipt := suite.waitForReceipt(types.MainWalletAddress.ShardId(), txHash)
-	suite.Require().Len(receipt.OutReceipts, 1)
-	return addr, receipt
+type SuiteWalletRpc struct {
+	RpcSuite
 }
 
-func (suite *SuiteRpc) sendMessageViaWallet(addrTo types.Address, calldata []byte) {
-	suite.T().Helper()
+func (s *SuiteWalletRpc) SetupSuite() {
+	s.shardsNum = 4
+	s.context, s.cancel = context.WithCancel(context.Background())
 
-	txHash, err := suite.client.SendMessageViaWallet(types.MainWalletAddress, types.Code(calldata), addrTo, execution.MainPrivateKey)
-	suite.Require().NoError(err)
+	badger, err := db.NewBadgerDbInMemory()
+	s.Require().NoError(err)
 
-	receipt := suite.waitForReceipt(types.MainWalletAddress.ShardId(), txHash)
-	suite.Require().Len(receipt.OutReceipts, 1)
-	suite.checkReceipt(receipt.OutReceipts[0])
+	s.port = 8533
+	s.client = rpc_client.NewClient(fmt.Sprintf("http://127.0.0.1:%d/", s.port))
+
+	cfg := &nilservice.Config{
+		NShards:   s.shardsNum,
+		HttpPort:  s.port,
+		Topology:  collate.TrivialShardTopologyId,
+		ZeroState: execution.DefaultZeroStateConfig,
+	}
+	go nilservice.Run(s.context, cfg, badger)
+	s.waitZerostate()
 }
 
-func (suite *SuiteRpc) TestWallet() {
+func (suite *SuiteWalletRpc) TestWallet() {
 	// Deploy counter contract via main wallet
-	code := common.GetAbsolutePath("../../tests/rpc_server/contracts/counter.sol")
-	contracts, err := solc.CompileSource(code)
+	code, err := contracts.GetCode("tests/Counter")
 	suite.Require().NoError(err)
-	smcCallee := contracts["Counter"]
-	suite.Require().NotNil(smcCallee)
-	addrCallee, _ := suite.deployContractViaWallet(types.BaseShardId, hexutil.FromHex(smcCallee.Code))
+	abiCalee, err := contracts.GetAbi("tests/Counter")
+	suite.Require().NoError(err)
+
+	addrCallee, receipt := suite.deployContractViaMainWallet(types.BaseShardId, code)
+	suite.Require().True(receipt.OutReceipts[0].Success)
 
 	var calldata []byte
 
 	// Call `Counter::add` method via main wallet
-	abiCalee := solc.ExtractABI(smcCallee)
 	calldata, err = abiCalee.Pack("add", int32(11))
 	suite.Require().NoError(err)
 
-	suite.sendMessageViaWallet(addrCallee, calldata)
+	receipt = suite.sendMessageViaWallet(types.MainWalletAddress, addrCallee, execution.MainPrivateKey, calldata)
+	suite.Require().True(receipt.OutReceipts[0].Success)
 
 	// Call get method
 	seqno, err := suite.client.GetTransactionCount(addrCallee, "latest")
@@ -66,9 +72,16 @@ func (suite *SuiteRpc) TestWallet() {
 	resHash, err := suite.client.SendMessage(messageToSend2)
 	suite.Require().NoError(err)
 
-	suite.waitForReceiptOnShard(addrCallee.ShardId(), resHash)
+	receipt = suite.waitForReceipt(addrCallee.ShardId(), resHash)
+	suite.Require().True(receipt.Success)
 
 	newSeqno, err := suite.client.GetTransactionCount(addrCallee, "latest")
 	suite.Require().NoError(err)
 	suite.Equal(seqno+1, newSeqno)
+}
+
+func TestSuiteWalletRpc(t *testing.T) {
+	t.Parallel()
+
+	suite.Run(t, new(SuiteWalletRpc))
 }

@@ -72,6 +72,7 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 		msgHash := message.Hash()
 		es.AddInMessage(message)
 		es.InMessageHash = msgHash
+		es.InMessage = message
 
 		ok, payer := validateMessage(roTx, es, message)
 		if !ok {
@@ -91,11 +92,11 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 				continue
 			}
 
-			if leftOverGas, err = es.HandleDeployMessage(ctx, message, deployMsg, &blockContext); err != nil && !errors.Is(err, new(vm.VMError)) {
+			if leftOverGas, err = es.HandleDeployMessage(ctx, message, deployMsg, &blockContext); err != nil && !errors.As(err, new(vm.VMError)) {
 				return err
 			}
 		} else {
-			if leftOverGas, _, err = es.HandleExecutionMessage(ctx, message, &blockContext); err != nil && !errors.Is(err, new(vm.VMError)) {
+			if leftOverGas, _, err = es.HandleExecutionMessage(ctx, message, &blockContext); err != nil && !errors.As(err, new(vm.VMError)) {
 				return err
 			}
 		}

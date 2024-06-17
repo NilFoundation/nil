@@ -35,7 +35,7 @@ func (s *SuiteRpc) TestCliBlock() {
 func (s *SuiteRpc) TestCliMessage() {
 	contractCode, _ := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 
-	_, receipt := s.deployContractViaWallet(types.BaseShardId, contractCode)
+	_, receipt := s.deployContractViaMainWallet(types.BaseShardId, contractCode)
 	s.Require().True(receipt.Success)
 
 	msg, err := s.client.GetInMessageByHash(types.MasterShardId, receipt.MsgHash)
@@ -55,7 +55,7 @@ func (s *SuiteRpc) TestCliMessage() {
 func (s *SuiteRpc) TestReadContract() {
 	contractCode, _ := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 
-	addr, receipt := s.deployContractViaWallet(types.BaseShardId, contractCode)
+	addr, receipt := s.deployContractViaMainWallet(types.BaseShardId, contractCode)
 	s.Require().True(receipt.Success)
 
 	res, err := s.cli.GetCode(addr.String())

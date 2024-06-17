@@ -76,6 +76,7 @@ type ExecutionState struct {
 	ChildChainBlocks map[types.ShardId]common.Hash
 
 	InMessageHash common.Hash
+	InMessage     *types.Message
 	Logs          map[common.Hash][]*types.Log
 
 	Accounts   map[types.Address]*AccountState
@@ -102,6 +103,9 @@ type ExecutionState struct {
 	TraceVm bool
 
 	Accessor *StateAccessor
+
+	// Pointer to currently executed VM
+	evm *vm.EVM
 }
 
 type revision struct {
@@ -464,11 +468,13 @@ func (es *ExecutionState) SetInitState(addr types.Address, message *types.Messag
 	acc := es.GetAccount(addr)
 	acc.setSeqno(message.Seqno)
 
-	evm := vm.NewEVM(NewEVMBlockContext(es), es)
+	es.newVm()
+	defer es.resetVm()
+
 	var from types.Address
 	var value uint256.Int
 	var err error
-	_, deployAddr, _, err := evm.Deploy(addr, (vm.AccountRef)(from), message.Data, uint64(100000) /* gas */, &value)
+	_, deployAddr, _, err := es.evm.Deploy(addr, (vm.AccountRef)(from), message.Data, uint64(100000) /* gas */, &value)
 	if err != nil {
 		return err
 	}
@@ -730,8 +736,10 @@ func (es *ExecutionState) HandleDeployMessage(
 
 	gas := message.GasLimit.Uint64()
 
-	evm := vm.NewEVM(*blockContext, es)
-	_, addr, leftOverGas, err := evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code(), gas, &message.Value.Int)
+	es.newVm()
+	defer es.resetVm()
+
+	_, addr, leftOverGas, err := es.evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code(), gas, &message.Value.Int)
 
 	r := &types.Receipt{
 		Success:         err == nil,
@@ -760,14 +768,15 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 
 	gas := message.GasLimit.Uint64()
 
-	evm := vm.NewEVM(*blockContext, es)
+	es.newVm()
+	defer es.resetVm()
 
 	if es.TraceVm {
-		es.EnableVmTracing(evm)
+		es.EnableVmTracing(es.evm)
 	}
 
 	es.SetSeqno(addr, es.GetSeqno(addr)+1)
-	ret, leftOverGas, err := evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas, &message.Value.Int)
+	ret, leftOverGas, err := es.evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas, &message.Value.Int)
 	if err != nil {
 		logger.Error().Err(err).Msg("execution message failed")
 	}
@@ -878,6 +887,11 @@ func (es *ExecutionState) GetInMessageHash() common.Hash {
 	return es.InMessageHash
 }
 
+func (es *ExecutionState) IsInternalMessage() bool {
+	// If contract calls another contract using EVM's call(depth > 1), we treat it as an internal message.
+	return es.InMessage.Internal || es.evm.GetDepth() > 1
+}
+
 func (es *ExecutionState) RoTx() db.RoTx {
 	return es.tx
 }
@@ -897,11 +911,21 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 	}
 	calldata := append(methodSelector, argData...) //nolint:gocritic
 
-	blockContext := NewEVMBlockContext(es)
-	evm := vm.NewEVM(blockContext, es)
-	ret, _, err := evm.StaticCall((vm.AccountRef)(account.address), account.address, calldata, ExternalMessageVerificationMaxGas)
+	es.newVm()
+	defer es.resetVm()
+
+	ret, _, err := es.evm.StaticCall((vm.AccountRef)(account.address), account.address, calldata, ExternalMessageVerificationMaxGas)
 	if err != nil || !bytes.Equal(ret, common.LeftPadBytes([]byte{1}, 32)) {
 		return false
 	}
 	return true
+}
+
+func (es *ExecutionState) newVm() {
+	blockContext := NewEVMBlockContext(es)
+	es.evm = vm.NewEVM(blockContext, es)
+}
+
+func (es *ExecutionState) resetVm() {
+	es.evm = nil
 }

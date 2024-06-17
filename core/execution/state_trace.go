@@ -7,11 +7,13 @@ import (
 	"sync"
 
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 )
 
 const (
-	printToStdout    = false
+	printToStdout    = true
 	printEmptyBlocks = true
 )
 
@@ -46,6 +48,12 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 	bt.lock.Lock()
 	defer bt.lock.Unlock()
 
+	root := mpt.NewReaderWithRoot(es.tx, es.ShardId, db.ContractTrieTable, block.SmartContractsRoot)
+	contractsNum := 0
+	for range root.Iterate() {
+		contractsNum++
+	}
+
 	if !printEmptyBlocks && len(es.InMessages) == 0 {
 		return
 	}
@@ -65,6 +73,7 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 		bt.printf("shard: %d\n", es.ShardId)
 		bt.printf("id: %d\n", block.Id)
 		bt.printf("hash: %s\n", block.Hash().Hex())
+		bt.printf("contracts_num: %d\n", contractsNum)
 		if len(es.InMessages) != 0 {
 			bt.printf("in_messages:\n")
 			for i, msg := range es.InMessages {

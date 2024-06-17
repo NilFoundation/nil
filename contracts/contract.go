@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 )
 
@@ -22,4 +23,25 @@ func GetAbi(name string) (*abi.ABI, error) {
 	}
 	abi, err := abi.JSON(bytes.NewReader(data))
 	return &abi, err
+}
+
+func CalculateAddress(name string, shardId types.ShardId, ctorArgs []any, salt []byte) (types.Address, error) {
+	code, err := GetCode(name)
+	if err != nil {
+		return types.Address{}, err
+	}
+	if len(ctorArgs) != 0 {
+		abi, err := GetAbi(name)
+		if err != nil {
+			return types.Address{}, err
+		}
+		argsPacked, err := abi.Pack("", ctorArgs...)
+		if err != nil {
+			return types.Address{}, err
+		}
+		code = append(code, argsPacked...)
+	}
+	code = append(code, salt...)
+
+	return types.CreateAddress(shardId, code), nil
 }
