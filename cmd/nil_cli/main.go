@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -22,7 +23,7 @@ import (
 
 type RootCommand struct {
 	baseCmd *cobra.Command
-	config  config.Config
+	config  *config.Config
 }
 
 var logger = logging.NewLogger("rootCommand")
@@ -33,14 +34,18 @@ func main() {
 	rootCommand = &RootCommand{
 		baseCmd: &cobra.Command{
 			Short: "CLI tool for interacting with the =nil; cluster",
-			PersistentPreRun: func(cmd *cobra.Command, args []string) {
-				if cmd.CalledAs() != "help" {
-					rootCommand.loadConfig()
+			PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+				if rootCommand.config == nil {
+					err := errors.New("Config required")
+					logger.Fatal().Err(err).Send()
+					return err
 				}
+				return nil
 			},
 		},
 	}
 
+	rootCommand.loadConfig()
 	rootCommand.registerSubCommands()
 	rootCommand.Execute()
 }
@@ -49,10 +54,10 @@ func main() {
 func (rc *RootCommand) registerSubCommands() {
 	rc.baseCmd.AddCommand(
 		keygen.GetCommand(),
-		block.GetCommand(&rc.config),
-		message.GetCommand(&rc.config),
-		receipt.GetCommand(&rc.config),
-		contract.GetCommand(&rc.config),
+		block.GetCommand(rc.config),
+		message.GetCommand(rc.config),
+		receipt.GetCommand(rc.config),
+		contract.GetCommand(rc.config),
 	)
 
 	logger.Trace().Msg("Subcommands registered")
@@ -93,6 +98,10 @@ func (rc *RootCommand) loadConfig() {
 	viper.AddConfigPath("./")
 
 	if err := viper.ReadInConfig(); err != nil {
+		if reflect.TypeOf(err) == reflect.TypeOf(viper.ConfigFileNotFoundError{}) {
+			logger.Warn().Msg("No config file found")
+			return
+		}
 		logger.Fatal().Err(err).Msg("Error reading config file")
 	}
 
