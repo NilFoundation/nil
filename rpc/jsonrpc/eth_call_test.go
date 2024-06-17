@@ -16,7 +16,6 @@ import (
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/common/compiler"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -105,8 +104,8 @@ func (s *SuiteEthCall) TestSmcCall() {
 		From:     s.from,
 		Data:     callArgsData,
 		To:       to,
-		Value:    types.Uint256{Int: *uint256.NewInt(0)},
-		GasLimit: types.Uint256{Int: *uint256.NewInt(10000)},
+		Value:    types.NewUint256(0),
+		GasLimit: types.NewUint256(10000),
 	}
 	data, err := s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash})
 	s.Require().NoError(err)
@@ -119,7 +118,7 @@ func (s *SuiteEthCall) TestSmcCall() {
 	s.Require().Equal(uint8(0x2a), data[len(data)-1])
 
 	// Out of gas
-	args.GasLimit = types.Uint256{}
+	args.GasLimit = types.NewUint256(0)
 	_, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num})
 	s.Require().ErrorIs(err, vm.ErrOutOfGas)
 

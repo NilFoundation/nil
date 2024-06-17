@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding"
 	"encoding/binary"
+	"encoding/json"
 
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/holiman/uint256"
@@ -12,6 +13,7 @@ import (
 // interfaces
 var (
 	_ ssz.Marshaler            = (*Uint256)(nil)
+	_ json.Marshaler           = (*Uint256)(nil)
 	_ ssz.Unmarshaler          = (*Uint256)(nil)
 	_ ssz.HashRoot             = (*Uint256)(nil)
 	_ encoding.BinaryMarshaler = (*Uint256)(nil)

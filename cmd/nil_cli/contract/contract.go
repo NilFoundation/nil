@@ -66,9 +66,9 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, privateKey str
 	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
 
 	client := rpc.NewClient(rpcEndpoint)
-	service := service.NewService(client, privateKey, params.shardId)
+	service := service.NewService(client, privateKey)
 	if params.deploy != "" {
-		_, err := service.DeployContract(params.deploy)
+		_, _, err := service.DeployContract(params.shardId, "", params.deploy)
 		check.PanicIfErr(err)
 		return
 	}
@@ -80,7 +80,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, privateKey str
 	}
 
 	if params.address != "" && params.bytecode != "" {
-		_, err := service.RunContract(params.bytecode, params.address)
+		_, err := service.RunContract("", params.bytecode, params.address)
 		check.PanicIfErr(err)
 	}
 }

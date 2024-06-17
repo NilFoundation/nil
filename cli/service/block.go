@@ -2,11 +2,13 @@ package service
 
 import (
 	"encoding/json"
+
+	"github.com/NilFoundation/nil/core/types"
 )
 
 // FetchBlock fetches the block by number or hash
-func (s *Service) FetchBlock(blockId string) ([]byte, error) {
-	blockData, err := s.client.GetBlock(s.shardId, blockId, true)
+func (s *Service) FetchBlock(shardId types.ShardId, blockId string) ([]byte, error) {
+	blockData, err := s.client.GetBlock(shardId, blockId, true)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to fetch block")
 		return nil, err

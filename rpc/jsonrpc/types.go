@@ -20,9 +20,9 @@ import (
 type CallArgs struct {
 	From     types.Address   `json:"from"`
 	To       types.Address   `json:"to"`
-	GasLimit types.Uint256   `json:"gasLimit"`
+	GasLimit *types.Uint256  `json:"gasLimit"`
 	GasPrice *types.Uint256  `json:"gasPrice"`
-	Value    types.Uint256   `json:"value"`
+	Value    *types.Uint256  `json:"value"`
 	Seqno    *hexutil.Uint64 `json:"seqno"`
 	Data     hexutil.Bytes   `json:"data"`
 	Input    *hexutil.Bytes  `json:"input"`

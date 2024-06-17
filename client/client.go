@@ -1,6 +1,8 @@
 package client
 
 import (
+	"crypto/ecdsa"
+	"encoding/json"
 	"math/big"
 
 	"github.com/NilFoundation/nil/common"
@@ -15,7 +17,7 @@ import (
 type Client interface {
 	// Call sends a request to the server with the given method and parameters,
 	// and returns the response as json.RawMessage, or an error if the call fails
-	Call(method string, params ...any) (map[string]any, error)
+	Call(method string, params ...any) (json.RawMessage, error)
 
 	GetCode(addr types.Address, blockId any) (types.Code, error)
 	GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error)
@@ -26,4 +28,7 @@ type Client interface {
 	GetTransactionCount(address types.Address, blockId any) (types.Seqno, error)
 	GetBlockTransactionCount(shardId types.ShardId, blockId any) (uint64, error)
 	GetBalance(address types.Address, blockId any) (*big.Int, error)
+
+	DeployContract(shardId types.ShardId, address types.Address, bytecode types.Code, pk *ecdsa.PrivateKey) (common.Hash, types.Address, error)
+	SendMessageViaWallet(address types.Address, bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey) (common.Hash, error)
 }

@@ -1,14 +1,9 @@
 package service
 
 import (
-	"crypto/ecdsa"
-
 	"github.com/NilFoundation/nil/client/rpc"
-	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
-	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 )
@@ -32,110 +27,30 @@ func (s *Service) GetCode(contractAddress string) (string, error) {
 }
 
 // RunContract runs bytecode on the specified contract address
-func (s *Service) RunContract(bytecode string, contractAddress string) (string, error) {
-	// Get the public key from the private key
-	pubKey, ok := s.privateKey.Public().(*ecdsa.PublicKey)
-	check.PanicIfNot(ok)
+func (s *Service) RunContract(address string, bytecode string, contractAddress string) (string, error) {
+	calldata := hexutil.FromHex(bytecode)
+	contract := types.HexToAddress(contractAddress)
+	wallet := types.HexToAddress(address)
 
-	// Convert the public key to a public address
-	publicAddress := types.PubkeyBytesToAddress(s.shardId, crypto.CompressPubkey(pubKey))
-
-	// Get the sequence number for the public address
-	seqNum, err := s.getSeqNum(publicAddress.Hex())
-	if err != nil {
-		return "", err
-	}
-
-	// Create the message with the bytecode to run
-	message := &types.ExternalMessage{
-		To:    types.HexToAddress(contractAddress),
-		Data:  hexutil.FromHex(bytecode),
-		Seqno: seqNum,
-	}
-
-	// Sign the message with the private key
-	err = message.Sign(s.privateKey)
-	if err != nil {
-		return "", err
-	}
-
-	// Send the raw transaction
-	txHash, err := s.sendRawTransaction(message)
-	if err != nil {
-		return "", err
-	}
-
-	return txHash, nil
-}
-
-// DeployContract deploys a new smart contract with the given bytecode
-func (s *Service) DeployContract(bytecode string) (string, error) {
-	// Get the public key from the private key
-	pubKey, ok := s.privateKey.Public().(*ecdsa.PublicKey)
-	check.PanicIfNot(ok)
-
-	// Convert the public key to a public address
-	publicAddress := types.PubkeyBytesToAddress(s.shardId, crypto.CompressPubkey(pubKey))
-
-	// Get the sequence number for the public address
-	seqNum, err := s.getSeqNum(publicAddress.Hex())
-	if err != nil {
-		return "", err
-	}
-
-	// Create the message with the deploy data
-	message := &types.ExternalMessage{
-		To:     publicAddress,
-		Deploy: true,
-		Seqno:  seqNum,
-		Data:   types.BuildDeployPayload(hexutil.FromHex(bytecode), common.EmptyHash).Bytes(),
-	}
-
-	// Sign the message with the private key
-	err = message.Sign(s.privateKey)
-	if err != nil {
-		return "", err
-	}
-
-	// Send the raw transaction
-	txHash, err := s.sendRawTransaction(message)
-	if err != nil {
-		return "", err
-	}
-
-	return txHash, nil
-}
-
-// sendRawTransaction sends a raw transaction to the cluster
-func (s *Service) sendRawTransaction(message *types.ExternalMessage) (string, error) {
-	// Call the RPC method to send the raw transaction
-	txHash, err := s.client.SendMessage(message)
+	txHash, err := s.client.SendMessageViaWallet(wallet, types.Code(calldata), contract, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
 		return "", err
 	}
-
 	s.logger.Trace().Msgf("Transaction hash: %s", txHash)
-	return txHash.String(), nil
+	return txHash.Hex(), nil
 }
 
-// getSeqNum gets the sequence number for the given address
-func (s *Service) getSeqNum(address string) (types.Seqno, error) {
-	// Define the block number (the latest block)
-	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
+// DeployContract deploys a new smart contract with the given bytecode
+func (s *Service) DeployContract(shardId types.ShardId, address string, bytecode string) (string, string, error) {
+	wallet := types.HexToAddress(address)
+	code := hexutil.FromHex(bytecode)
 
-	var addr types.Address
-	if err := addr.UnmarshalText([]byte(address)); err != nil {
-		s.logger.Error().Err(err).Msg("Invalid address")
-		return 0, err
-	}
-
-	seqNum, err := s.client.GetTransactionCount(addr, blockNum)
+	txHash, contractAddr, err := s.client.DeployContract(shardId, wallet, code, s.privateKey)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get sequence number")
-		return 0, err
+		s.logger.Error().Err(err).Msg("Failed to send new transaction")
+		return "", "", err
 	}
-
-	s.logger.Trace().Msgf("Sequence number (uint64): %d", seqNum)
-	return seqNum, nil
+	s.logger.Trace().Msgf("Transaction hash: %s", txHash)
+	return txHash.Hex(), contractAddr.Hex(), nil
 }

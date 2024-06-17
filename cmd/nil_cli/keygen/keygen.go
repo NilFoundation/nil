@@ -6,7 +6,6 @@ import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/common/logging"
-	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
 
@@ -41,7 +40,7 @@ func setFlags(cmd *cobra.Command) {
 }
 
 func runCommand(cmd *cobra.Command, _ []string) {
-	keygen := service.NewService(&rpc.Client{}, "", types.BaseShardId)
+	keygen := service.NewService(&rpc.Client{}, "")
 
 	var err error
 	if params.newKey {

@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/types"
 )
 
-// FetchReceiptByHash fetches the receipt by hash
-func (s *Service) FetchReceiptByHash(receiptHash string) ([]byte, error) {
-	hash := common.BytesToHash([]byte(receiptHash))
-	receiptData, err := s.client.GetInMessageReceipt(s.shardId, hash)
+// FetchReceiptByHash fetches the message receipt by hash
+func (s *Service) FetchReceiptByHash(shardId types.ShardId, msgHash string) ([]byte, error) {
+	hash := common.HexToHash(msgHash)
+	receiptData, err := s.client.GetInMessageReceipt(shardId, hash)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to fetch receipt")
 		return nil, err

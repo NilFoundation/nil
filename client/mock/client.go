@@ -1,6 +1,8 @@
 package mock
 
 import (
+	"crypto/ecdsa"
+	"encoding/json"
 	"math/big"
 
 	"github.com/NilFoundation/nil/common"
@@ -9,7 +11,7 @@ import (
 )
 
 type MockClient struct {
-	CallResult map[string]any
+	CallResult json.RawMessage
 	Block      *jsonrpc.RPCBlock
 	Str        *string
 	Code       *types.Code
@@ -22,7 +24,7 @@ type MockClient struct {
 	Err        error
 }
 
-func (m *MockClient) Call(method string, params ...any) (map[string]any, error) {
+func (m *MockClient) Call(method string, params ...any) (json.RawMessage, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
@@ -117,4 +119,27 @@ func (m *MockClient) GetBalance(address types.Address, blockNrOrHash any) (*big.
 		return big.NewInt(0), m.Err
 	}
 	return m.Balance, nil
+}
+
+func (m *MockClient) DeployContract(shardId types.ShardId, address types.Address, bytecode types.Code, pk *ecdsa.PrivateKey) (common.Hash, types.Address, error) {
+	hash := common.EmptyHash
+	addr := types.EmptyAddress
+
+	if m.Err != nil {
+		return hash, addr, m.Err
+	}
+
+	if m.Hash != nil {
+		hash = *m.Hash
+	}
+
+	return hash, addr, nil
+}
+
+func (m *MockClient) SendMessageViaWallet(address types.Address, bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey) (common.Hash, error) {
+	hash := common.EmptyHash
+	if m.Hash != nil {
+		hash = *m.Hash
+	}
+	return hash, m.Err
 }

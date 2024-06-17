@@ -33,10 +33,10 @@ func TestFetchBlock_Successfully(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient, "", types.BaseShardId)
+	service := NewService(mockClient, "")
 
 	// Call the FetchBlockByHash
-	response, err := service.FetchBlock(mockBlockResponse.Hash.Hex())
+	response, err := service.FetchBlock(types.BaseShardId, mockBlockResponse.Hash.Hex())
 	require.NoError(t, err)
 
 	// Check if the response matches the expected mock response
@@ -55,10 +55,10 @@ func TestFetchBlock_Err(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient, "", types.BaseShardId)
+	service := NewService(mockClient, "")
 
 	// Call the fetchBlock
-	_, err := service.FetchBlock("0x294a68120c056a549d314efa8306dafdb856f7b51dde976df0e807e001ff84ac")
+	_, err := service.FetchBlock(types.BaseShardId, "0x294a68120c056a549d314efa8306dafdb856f7b51dde976df0e807e001ff84ac")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "RPC error")
 }

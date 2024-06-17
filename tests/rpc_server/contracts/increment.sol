@@ -6,4 +6,8 @@ contract Incrementer {
     function increment() public {
         value += 1;
     }
+
+    function get() public view returns(uint256) {
+        return value;
+    }
 }
