@@ -113,6 +113,19 @@ func (m *Message) toExternal() *ExternalMessage {
 	}
 }
 
+func (m *InternalMessagePayload) ToMessage(from Address, seqno Seqno) *Message {
+	return &Message{
+		Internal: true,
+		Deploy:   m.Deploy,
+		To:       m.To,
+		From:     from,
+		Value:    m.Value,
+		Data:     m.Data,
+		GasLimit: m.GasLimit,
+		Seqno:    seqno,
+	}
+}
+
 func (m *ExternalMessage) Hash() common.Hash {
 	h, err := common.PoseidonSSZ(m)
 	check.PanicIfErr(err)

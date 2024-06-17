@@ -302,25 +302,7 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uin
 	}
 	log.Logger.Debug().Msgf("sendRawMessage to: %s\n", payload.To.Hex())
 
-	seqno := state.GetSeqno(caller.Address())
-	if seqno+1 < seqno {
-		return nil, ErrNonceUintOverflow
-	}
-	state.SetSeqno(caller.Address(), seqno+1)
-
-	msg := &types.Message{
-		Internal: true,
-		GasLimit: payload.GasLimit,
-		Value:    payload.Value,
-		From:     caller.Address(),
-		To:       payload.To,
-		Deploy:   payload.Deploy,
-		Data:     payload.Data,
-		Seqno:    seqno,
-	}
-
-	state.AddOutMessage(state.GetInMessageHash(), msg)
-	return nil, nil
+	return nil, addOutInternal(state, caller.Address(), payload)
 }
 
 type asyncCall struct{}
@@ -355,19 +337,26 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 	state.SetSeqno(caller.Address(), seqno+1)
 
 	// Internal is required for the message
-	msg := &types.Message{
-		Internal: true,
+	payload := types.InternalMessagePayload{
+		Deploy:   deploy,
 		GasLimit: types.Uint256{Int: *uint256.MustFromBig(messageGas)},
 		Value:    types.Uint256{Int: *value},
-		From:     caller.Address(),
 		To:       dst,
 		Data:     slices.Clone(input),
-		Seqno:    seqno,
-		Deploy:   deploy,
 	}
-	log.Logger.Debug().Msgf("sendMessage to: %s\n", msg.To.Hex())
+	return nil, addOutInternal(state, caller.Address(), &payload)
+}
+
+func addOutInternal(state StateDB, caller types.Address, payload *types.InternalMessagePayload) error {
+	seqno := state.GetSeqno(caller)
+	if seqno+1 < seqno {
+		return ErrNonceUintOverflow
+	}
+	state.SetSeqno(caller, seqno+1)
+
+	msg := payload.ToMessage(caller, seqno)
 	state.AddOutMessage(state.GetInMessageHash(), msg)
-	return nil, nil
+	return nil
 }
 
 type verifySignature struct{}
