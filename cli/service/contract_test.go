@@ -68,7 +68,7 @@ func TestRunContract_Successfully(t *testing.T) {
 
 	service := NewService(mockClient, mockPrivateKey)
 
-	txHash, err := service.RunContract(types.EmptyAddress, "0x6001600101600055", "0x1234")
+	txHash, err := service.RunContract(types.EmptyAddress, "0x6001600101600055", types.EmptyAddress)
 	require.NoError(t, err)
 	assert.Equal(t, mockSuccessHash, common.HexToHash(txHash))
 }
@@ -84,7 +84,7 @@ func TestRunContract_Err(t *testing.T) {
 
 	service := NewService(mockClient, mockPrivateKey)
 
-	_, err := service.RunContract(types.EmptyAddress, "0x6001600101600055", "0x1234")
+	_, err := service.RunContract(types.EmptyAddress, "0x6001600101600055", types.EmptyAddress)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "RPC error")
 }

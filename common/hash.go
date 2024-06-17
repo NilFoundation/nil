@@ -122,6 +122,14 @@ func (h Hash) MarshalText() ([]byte, error) {
 	return hexutil.Bytes(h.Bytes()).MarshalText()
 }
 
+func (h *Hash) Set(val string) error {
+	return h.UnmarshalText([]byte(val))
+}
+
+func (h *Hash) Type() string {
+	return "Hash"
+}
+
 // SetBytes sets the hash to the value of b.
 // If b is larger than len(h), b will be cropped from the left.
 func (h *Hash) SetBytes(b []byte) {

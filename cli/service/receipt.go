@@ -8,8 +8,7 @@ import (
 )
 
 // FetchReceiptByHash fetches the message receipt by hash
-func (s *Service) FetchReceiptByHash(shardId types.ShardId, msgHash string) ([]byte, error) {
-	hash := common.HexToHash(msgHash)
+func (s *Service) FetchReceiptByHash(shardId types.ShardId, hash common.Hash) ([]byte, error) {
 	receiptData, err := s.client.GetInMessageReceipt(shardId, hash)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to fetch receipt")

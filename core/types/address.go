@@ -171,6 +171,14 @@ func (a Address) ShardId() ShardId {
 	return ShardId(num)
 }
 
+func (a *Address) Set(val string) error {
+	return a.UnmarshalText([]byte(val))
+}
+
+func (a *Address) Type() string {
+	return "Address"
+}
+
 func PubkeyBytesToAddress(shardId ShardId, pubBytes []byte) Address {
 	raw := make([]byte, 2, AddrSize)
 	raw = appendShardId(raw, shardId)

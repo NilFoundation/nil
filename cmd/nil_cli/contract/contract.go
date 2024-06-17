@@ -42,10 +42,9 @@ func setFlags(cmd *cobra.Command) {
 		"",
 		"Get contract code from deployed contract",
 	)
-	cmd.Flags().StringVar(
+	cmd.Flags().Var(
 		&params.address,
 		addressFlag,
-		"",
 		"Specify the address of the contract to interact with",
 	)
 
@@ -56,10 +55,9 @@ func setFlags(cmd *cobra.Command) {
 		"Specify the bytecode to be executed with the deployed contract",
 	)
 
-	cmd.Flags().Uint32Var(
-		(*uint32)(&params.shardId),
+	cmd.Flags().Var(
+		types.NewShardId(&params.shardId, types.BaseShardId),
 		shardIdFlag,
-		uint32(types.BaseShardId),
 		"Specify the shard id to interact with",
 	)
 }
@@ -81,7 +79,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, address types.
 		return
 	}
 
-	if params.address != "" && params.bytecode != "" {
+	if params.address != types.EmptyAddress && params.bytecode != "" {
 		_, err := service.RunContract(address, params.bytecode, params.address)
 		check.PanicIfErr(err)
 	}

@@ -4,6 +4,7 @@ import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
@@ -28,17 +29,15 @@ func GetCommand(cfg *config.Config) *cobra.Command {
 }
 
 func setFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVar(
+	cmd.Flags().Var(
 		&params.hash,
 		hashFlag,
-		"",
 		"Retrieve message by message hash from the cluster",
 	)
 
-	cmd.Flags().Uint32Var(
-		(*uint32)(&params.shardId),
+	cmd.Flags().Var(
+		types.NewShardId(&params.shardId, types.BaseShardId),
 		shardIdFlag,
-		uint32(types.BaseShardId),
 		"Specify the shard id to interact with",
 	)
 }
@@ -49,7 +48,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 	client := rpc.NewClient(rpcEndpoint)
 	service := service.NewService(client, nil)
 
-	if params.hash != "" {
+	if params.hash != common.EmptyHash {
 		_, err := service.FetchMessageByHash(params.shardId, params.hash)
 		check.PanicIfErr(err)
 	}

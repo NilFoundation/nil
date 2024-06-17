@@ -313,6 +313,23 @@ func (br BlockReference) String() string {
 	return ""
 }
 
+func (br BlockReference) IsValid() bool {
+	return br.BlockHash != nil || br.BlockNumber != nil
+}
+
+func (br BlockReference) Type() string {
+	return "BlockReference"
+}
+
+func (br *BlockReference) Set(v string) (err error) {
+	value, err := AsBlockReference(v)
+	if err != nil {
+		return err
+	}
+	*br = value
+	return
+}
+
 func AsBlockReference(ref any) (BlockReference, error) {
 	switch ref := ref.(type) {
 	case BlockNumberOrHash:

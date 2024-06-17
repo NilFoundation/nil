@@ -24,7 +24,7 @@ var params = &contractParams{}
 type contractParams struct {
 	deploy   string
 	code     string
-	address  string
+	address  types.Address
 	bytecode string
 	shardId  types.ShardId
 }
@@ -41,11 +41,11 @@ func (p *contractParams) initRawParams() error {
 		flagsSet++
 	}
 
-	if p.address != "" && p.bytecode != "" {
+	if p.address != types.EmptyAddress && p.bytecode != "" {
 		flagsSet++
 	}
 
-	if (p.address != "" && p.bytecode == "") || (p.address == "" && p.bytecode != "") {
+	if (p.address != types.EmptyAddress && p.bytecode == "") || (p.address == types.EmptyAddress && p.bytecode != "") {
 		return errors.New("both --address and --bytecode must be set together")
 	}
 

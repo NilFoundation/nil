@@ -43,11 +43,11 @@ func (s *SuiteRpc) TestCliMessage() {
 	s.Require().NotNil(msg)
 	s.Require().True(msg.Success)
 
-	res, err := s.cli.FetchMessageByHash(types.MasterShardId, receipt.MsgHash.Hex())
+	res, err := s.cli.FetchMessageByHash(types.MasterShardId, receipt.MsgHash)
 	s.Require().NoError(err)
 	s.JSONEq(s.toJSON(msg), string(res))
 
-	res, err = s.cli.FetchReceiptByHash(types.MasterShardId, receipt.MsgHash.Hex())
+	res, err = s.cli.FetchReceiptByHash(types.MasterShardId, receipt.MsgHash)
 	s.Require().NoError(err)
 	s.JSONEq(s.toJSON(receipt), string(res))
 }
@@ -103,7 +103,7 @@ func (s *SuiteRpc) TestContract() {
 	calldata, err := abi.Pack("increment")
 	s.Require().NoError(err)
 
-	txHash, err = s.cli.RunContract(wallet, hex.EncodeToString(calldata), addrStr)
+	txHash, err = s.cli.RunContract(wallet, hex.EncodeToString(calldata), addr)
 	s.Require().NoError(err)
 
 	receipt = s.waitForReceiptOnShard(types.MasterShardId, common.HexToHash(txHash))

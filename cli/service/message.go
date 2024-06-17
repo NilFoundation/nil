@@ -8,8 +8,7 @@ import (
 )
 
 // FetchMessageByHash fetches the message by hash
-func (s *Service) FetchMessageByHash(shardId types.ShardId, messageHash string) ([]byte, error) {
-	hash := common.HexToHash(messageHash)
+func (s *Service) FetchMessageByHash(shardId types.ShardId, hash common.Hash) ([]byte, error) {
 	messageData, err := s.client.GetInMessageByHash(shardId, hash)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to fetch message")
