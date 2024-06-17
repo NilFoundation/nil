@@ -14,6 +14,7 @@ import (
 	"github.com/NilFoundation/nil/cmd/nil_cli/receipt"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/crypto"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -58,18 +59,31 @@ func (rc *RootCommand) registerSubCommands() {
 }
 
 func decodePrivateKey(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
-	if f.Kind() != reflect.String {
-		return data, nil
+	if f.Kind() == reflect.String && t == reflect.TypeOf(&ecdsa.PrivateKey{}) {
+		s, _ := data.(string)
+		return crypto.HexToECDSA(s)
 	}
-	if t != reflect.TypeOf(&ecdsa.PrivateKey{}) {
-		return data, nil
+	return data, nil
+}
+
+func decodeAddress(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+	if f.Kind() == reflect.String && t == reflect.TypeOf(types.Address{}) {
+		s, _ := data.(string)
+		var res types.Address
+		if err := res.UnmarshalText([]byte(s)); err != nil {
+			return nil, err
+		}
+		return res, nil
 	}
-	s, _ := data.(string)
-	return crypto.HexToECDSA(s)
+	return data, nil
 }
 
 func updateDecoderConfig(config *mapstructure.DecoderConfig) {
-	config.DecodeHook = mapstructure.ComposeDecodeHookFunc(config.DecodeHook, decodePrivateKey)
+	config.DecodeHook = mapstructure.ComposeDecodeHookFunc(
+		config.DecodeHook,
+		decodePrivateKey,
+		decodeAddress,
+	)
 }
 
 // loadConfig loads the configuration from the config file

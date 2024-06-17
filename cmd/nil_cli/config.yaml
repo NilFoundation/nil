@@ -7,3 +7,7 @@ rpc_endpoint: "http://127.0.0.1:8529"
 # Specify the private key used for signing transactions
 # This should be a hexadecimal string corresponding to your account's private key
 private_key: "41285f03e8692676bf80a98e4052a008026427a7302ca97cb06edcd60689850b"
+
+# Specify the the address of your wallet to be receipt of your external messages
+# This should be a hexadecimal string corresponding to your account's address
+address: "0x0000111111111111111111111111111111111111"

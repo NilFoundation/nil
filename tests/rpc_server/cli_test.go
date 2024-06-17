@@ -69,7 +69,7 @@ func (s *SuiteRpc) TestReadContract() {
 }
 
 func (s *SuiteRpc) TestContract() {
-	wallet := types.MainWalletAddress.Hex()
+	wallet := types.MainWalletAddress
 
 	// Deploy contract
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
