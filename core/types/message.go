@@ -77,11 +77,35 @@ type messageDigest struct {
 // interfaces
 var (
 	_ common.Hashable = new(Message)
+	_ common.Hashable = new(ExternalMessage)
 	_ ssz.Marshaler   = new(Message)
 	_ ssz.Unmarshaler = new(Message)
 )
 
 func (m *Message) Hash() common.Hash {
+	if !m.Internal {
+		return m.toExternal().Hash()
+	}
+	h, err := common.PoseidonSSZ(m)
+	check.PanicIfErr(err)
+	return h
+}
+
+func (m *Message) toExternal() *ExternalMessage {
+	if m.Internal {
+		panic("cannot convert internal message to external message")
+	}
+	return &ExternalMessage{
+		Deploy:   m.Deploy,
+		To:       m.To,
+		ChainId:  m.ChainId,
+		Seqno:    m.Seqno,
+		Data:     m.Data,
+		AuthData: m.Signature,
+	}
+}
+
+func (m *ExternalMessage) Hash() common.Hash {
 	h, err := common.PoseidonSSZ(m)
 	check.PanicIfErr(err)
 	return h

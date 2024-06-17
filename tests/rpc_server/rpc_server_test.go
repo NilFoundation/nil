@@ -64,6 +64,7 @@ func (s *SuiteRpc) sendRawTransaction(m *types.ExternalMessage) common.Hash {
 
 	hash, err := s.client.SendMessage(m)
 	s.Require().NoError(err)
+	s.Equal(hash, m.Hash())
 	return hash
 }
 
