@@ -213,7 +213,7 @@ func (c *collator) collectFromNeighbors() ([]*types.Message, []*OutMessage, erro
 		return nil, nil, err
 	}
 
-	neighborIndexes := common.SliceToMap[types.Neighbor, types.ShardId, int](state.Neighbors, func(i int, t types.Neighbor) (types.ShardId, int) {
+	neighborIndexes := common.SliceToMap(state.Neighbors, func(i int, t types.Neighbor) (types.ShardId, int) {
 		return t.ShardId, i
 	})
 

@@ -130,7 +130,7 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 	blockContext := NewEVMBlockContext(es)
 	deployMsg := types.BuildDeployPayload(code, common.EmptyHash)
 	message := &types.Message{
-		Deploy:   true,
+		Kind:     types.DeployMessageKind,
 		Seqno:    1,
 		GasLimit: types.Uint256{Int: *uint256.NewInt(100000)},
 		To:       addrWallet,

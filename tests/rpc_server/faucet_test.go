@@ -49,10 +49,10 @@ func (suite *SuiteRpc) createWalletViaFaucet(ownerPrivateKey *ecdsa.PrivateKey, 
 	suite.Require().NoError(err)
 
 	msgExternal := &types.ExternalMessage{
-		Seqno:  seqno,
-		To:     faucetAddress,
-		Data:   calldata,
-		Deploy: false,
+		Seqno: seqno,
+		To:    faucetAddress,
+		Data:  calldata,
+		Kind:  types.ExecutionMessageKind,
 	}
 
 	resHash, err := suite.client.SendMessage(msgExternal)
@@ -81,7 +81,7 @@ func (suite *SuiteRpc) sendViaFaucet(code []byte, ownerPrivateKey *ecdsa.Private
 		To:       walletAddress,
 		Value:    value,
 		GasLimit: *types.NewUint256(100000),
-		Deploy:   false,
+		Kind:     types.ExecutionMessageKind,
 	}
 	sendMsgInternalData, err := sendMsgInternal.MarshalSSZ()
 	suite.Require().NoError(err)
@@ -143,10 +143,10 @@ func (suite *SuiteRpc) deployContract(address types.Address, code []byte, ownerP
 
 	deployPayload := types.BuildDeployPayload(code, common.EmptyHash)
 	deployMsgExternal := &types.ExternalMessage{
-		Seqno:  seqno,
-		To:     address,
-		Data:   deployPayload.Bytes(),
-		Deploy: true,
+		Seqno: seqno,
+		To:    address,
+		Data:  deployPayload.Bytes(),
+		Kind:  types.ExecutionMessageKind,
 	}
 	suite.Require().NoError(deployMsgExternal.Sign(ownerPrivateKey))
 

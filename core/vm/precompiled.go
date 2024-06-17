@@ -328,6 +328,9 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 	dst := types.BytesToAddress(input[32-types.AddrSize : 32])
 	input = input[32:]
 
+	refundTo := types.BytesToAddress(input[32-types.AddrSize : 32])
+	input = input[32:]
+
 	messageGas := big.NewInt(0).SetBytes(input[:32])
 	input = input[96:] // skip gas, dynamic value offset and calldata length
 
@@ -337,12 +340,30 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 	}
 	state.SetSeqno(caller.Address(), seqno+1)
 
+	var kind types.MessageKind
+	if deploy {
+		kind = types.DeployMessageKind
+	} else {
+		kind = types.ExecutionMessageKind
+	}
+
+	// TODO: We should consider non-refundable messages
+	if refundTo == types.EmptyAddress {
+		msg := state.GetInMessage()
+		if msg.RefundTo == types.EmptyAddress {
+			refundTo = msg.From
+		} else {
+			refundTo = msg.RefundTo
+		}
+	}
+
 	// Internal is required for the message
 	payload := types.InternalMessagePayload{
-		Deploy:   deploy,
+		Kind:     kind,
 		GasLimit: types.Uint256{Int: *uint256.MustFromBig(messageGas)},
 		Value:    types.Uint256{Int: *value},
 		To:       dst,
+		RefundTo: refundTo,
 		Data:     slices.Clone(input),
 	}
 	return nil, addOutInternal(state, caller.Address(), &payload)

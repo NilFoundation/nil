@@ -25,6 +25,7 @@ type payer interface {
 
 type messagePayer struct {
 	message *types.Message
+	es      *execution.ExecutionState
 }
 
 func (m messagePayer) CanPay(amount *big.Int) bool {
@@ -37,6 +38,13 @@ func (m messagePayer) SubBalance(delta *uint256.Int) {
 
 func (m messagePayer) AddBalance(delta *uint256.Int) {
 	m.message.Value.Add(&m.message.Value.Int, delta)
+	m.es.AddOutMessage(m.message.Hash(), &types.Message{
+		Internal: true,
+		Kind:     types.RefundMessageKind,
+		From:     m.message.To,
+		To:       m.message.RefundTo,
+		Value:    m.message.Value,
+	})
 }
 
 func (m messagePayer) String() string {
@@ -85,8 +93,8 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 		}
 		var leftOverGas uint64
 
-		// Deploy message
-		if message.Deploy {
+		switch message.Kind {
+		case types.DeployMessageKind:
 			deployMsg := validateDeployMessage(es, message)
 			if deployMsg == nil {
 				continue
@@ -95,12 +103,17 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 			if leftOverGas, err = es.HandleDeployMessage(ctx, message, deployMsg, &blockContext); err != nil && !errors.As(err, new(vm.VMError)) {
 				return err
 			}
-		} else {
+			refundGas(payer, message, leftOverGas)
+		case types.ExecutionMessageKind:
 			if leftOverGas, _, err = es.HandleExecutionMessage(ctx, message, &blockContext); err != nil && !errors.As(err, new(vm.VMError)) {
 				return err
 			}
+			refundGas(payer, message, leftOverGas)
+		case types.RefundMessageKind:
+			es.HandleRefundMessage(ctx, message)
+		default:
+			panic("unreachable")
 		}
-		refundGas(payer, message, leftOverGas)
 	}
 
 	return nil
@@ -199,7 +212,7 @@ func validateInternalMessage(roTx db.RoTx, es *execution.ExecutionState, message
 
 func validateExternalDeployMessage(es *execution.ExecutionState, message *types.Message) error {
 	check.PanicIfNot(!message.Internal)
-	check.PanicIfNot(message.Deploy)
+	check.PanicIfNot(message.Kind == types.DeployMessageKind)
 
 	addr := message.To
 	accountState := es.GetAccount(addr)
@@ -223,7 +236,7 @@ func validateExternalDeployMessage(es *execution.ExecutionState, message *types.
 
 func validateExternalExecutionMessage(es *execution.ExecutionState, message *types.Message) error {
 	check.PanicIfNot(!message.Internal)
-	check.PanicIfNot(!message.Deploy)
+	check.PanicIfNot(message.Kind == types.ExecutionMessageKind)
 
 	addr := message.To
 	if !es.ContractExists(addr) {
@@ -266,10 +279,16 @@ func validateExternalMessage(es *execution.ExecutionState, message *types.Messag
 		return err
 	}
 
-	if message.Deploy {
+	switch message.Kind {
+	case types.DeployMessageKind:
 		return validateExternalDeployMessage(es, message)
+	case types.ExecutionMessageKind:
+		return validateExternalExecutionMessage(es, message)
+	case types.RefundMessageKind:
+		return errors.New("refund message is not allowed in external messages")
+	default:
+		panic("unreachable")
 	}
-	return validateExternalExecutionMessage(es, message)
 }
 
 func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.Message) (bool, payer) {
@@ -278,7 +297,7 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 			addFailReceipt(es, message.To, err)
 			return false, nil
 		}
-		return true, messagePayer{message}
+		return true, messagePayer{message, es}
 	}
 
 	if err := validateExternalMessage(es, message); err != nil {

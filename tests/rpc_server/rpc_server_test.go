@@ -133,9 +133,9 @@ func (suite *SuiteRpc) createMessageForDeploy(
 	dm := types.BuildDeployPayload(code, common.EmptyHash)
 
 	m := &types.ExternalMessage{
-		Data:   dm.Bytes(),
-		To:     types.CreateAddress(toShard, code),
-		Deploy: true,
+		Data: dm.Bytes(),
+		To:   types.CreateAddress(toShard, code),
+		Kind: types.DeployMessageKind,
 	}
 	suite.address = m.To
 	return m
@@ -195,6 +195,7 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 		messageToSend := &types.InternalMessagePayload{
 			Data:     calldata,
 			To:       calleeAddr,
+			RefundTo: callerAddr,
 			Value:    *types.NewUint256(0),
 			GasLimit: *types.NewUint256(100004),
 		}
@@ -216,6 +217,16 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 		hash := suite.sendRawTransaction(callCallerMethod)
 
 		receipt = suite.waitForReceipt(callerAddr.ShardId(), hash)
+		suite.Require().True(receipt.Success)
+
+		refundMsgHash := (&types.Message{
+			Internal: true,
+			Kind:     types.RefundMessageKind,
+			From:     calleeAddr,
+			To:       callerAddr,
+			Value:    messageToSend.Value,
+		}).Hash()
+		receipt = suite.waitForReceipt(callerAddr.ShardId(), refundMsgHash)
 		suite.Require().True(receipt.Success)
 	}
 

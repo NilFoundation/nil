@@ -9,11 +9,13 @@ import (
 	"github.com/NilFoundation/nil/core/crypto"
 )
 
-type MessageKind int
+type MessageKind uint8
 
+// TODO: Maybe separated this enum for internal/external case
 const (
-	InMessageKind MessageKind = iota
-	OutMessageKind
+	ExecutionMessageKind MessageKind = iota
+	DeployMessageKind
+	RefundMessageKind
 )
 
 type Seqno uint64
@@ -43,39 +45,41 @@ type ChainId uint64
 const DefaultChainId = ChainId(0)
 
 type Message struct {
-	Internal bool    `json:"internal" ch:"internal"`
-	Deploy   bool    `json:"deploy,omitempty" ch:"deploy"`
-	ChainId  ChainId `json:"chainId" ch:"chainId"`
-	Seqno    Seqno   `json:"seqno,omitempty" ch:"seqno"`
-	GasPrice Uint256 `json:"gasPrice,omitempty" ch:"gas_price" ssz-size:"32"`
-	GasLimit Uint256 `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
-	From     Address `json:"from,omitempty" ch:"from"`
-	To       Address `json:"to,omitempty" ch:"to"`
-	Value    Uint256 `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Data     Code    `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	Internal bool        `json:"internal" ch:"internal"`
+	Kind     MessageKind `json:"kind,omitempty" ch:"kind"`
+	ChainId  ChainId     `json:"chainId" ch:"chainId"`
+	Seqno    Seqno       `json:"seqno,omitempty" ch:"seqno"`
+	GasPrice Uint256     `json:"gasPrice,omitempty" ch:"gas_price" ssz-size:"32"`
+	GasLimit Uint256     `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
+	From     Address     `json:"from,omitempty" ch:"from"`
+	To       Address     `json:"to,omitempty" ch:"to"`
+	RefundTo Address     `json:"refundTo,omitempty" ch:"refundTo"`
+	Value    Uint256     `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Data     Code        `json:"data,omitempty" ch:"data" ssz-max:"24576"`
 	// This field should always be at the end of the structure for easy signing
 	Signature Signature `json:"signature,omitempty" ch:"signature" ssz-max:"256"`
 }
 
 type ExternalMessage struct {
-	Deploy   bool      `json:"deploy,omitempty" ch:"deploy"`
-	To       Address   `json:"to,omitempty" ch:"to"`
-	ChainId  ChainId   `json:"chainId" ch:"chainId"`
-	Seqno    Seqno     `json:"seqno,omitempty" ch:"seqno"`
-	Data     Code      `json:"data,omitempty" ch:"data" ssz-max:"24576"`
-	AuthData Signature `json:"authData,omitempty" ch:"auth_data" ssz-max:"256"`
+	Kind     MessageKind `json:"kind,omitempty" ch:"kind"`
+	To       Address     `json:"to,omitempty" ch:"to"`
+	ChainId  ChainId     `json:"chainId" ch:"chainId"`
+	Seqno    Seqno       `json:"seqno,omitempty" ch:"seqno"`
+	Data     Code        `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	AuthData Signature   `json:"authData,omitempty" ch:"auth_data" ssz-max:"256"`
 }
 
 type InternalMessagePayload struct {
-	Deploy   bool    `json:"deploy,omitempty" ch:"deploy"`
-	GasLimit Uint256 `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
-	To       Address `json:"to,omitempty" ch:"to"`
-	Value    Uint256 `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Data     Code    `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	Kind     MessageKind `json:"kind,omitempty" ch:"kind"`
+	GasLimit Uint256     `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
+	To       Address     `json:"to,omitempty" ch:"to"`
+	RefundTo Address     `json:"refundTo,omitempty" ch:"refundTo"`
+	Value    Uint256     `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Data     Code        `json:"data,omitempty" ch:"data" ssz-max:"24576"`
 }
 
 type messageDigest struct {
-	Deploy  bool
+	Kind    MessageKind
 	To      Address
 	ChainId ChainId
 	Seqno   Seqno
@@ -104,7 +108,7 @@ func (m *Message) toExternal() *ExternalMessage {
 		panic("cannot convert internal message to external message")
 	}
 	return &ExternalMessage{
-		Deploy:   m.Deploy,
+		Kind:     m.Kind,
 		To:       m.To,
 		ChainId:  m.ChainId,
 		Seqno:    m.Seqno,
@@ -116,8 +120,9 @@ func (m *Message) toExternal() *ExternalMessage {
 func (m *InternalMessagePayload) ToMessage(from Address, seqno Seqno) *Message {
 	return &Message{
 		Internal: true,
-		Deploy:   m.Deploy,
+		Kind:     m.Kind,
 		To:       m.To,
+		RefundTo: m.RefundTo,
 		From:     from,
 		Value:    m.Value,
 		Data:     m.Data,
@@ -134,7 +139,7 @@ func (m *ExternalMessage) Hash() common.Hash {
 
 func (m *ExternalMessage) SigningHash() (common.Hash, error) {
 	messageDigest := messageDigest{
-		Deploy:  m.Deploy,
+		Kind:    m.Kind,
 		Seqno:   m.Seqno,
 		To:      m.To,
 		Data:    m.Data,
@@ -146,7 +151,7 @@ func (m *ExternalMessage) SigningHash() (common.Hash, error) {
 
 func (m *Message) SigningHash() (common.Hash, error) {
 	messageDigest := messageDigest{
-		Deploy:  m.Deploy,
+		Kind:    m.Kind,
 		Seqno:   m.Seqno,
 		To:      m.To,
 		Data:    m.Data,

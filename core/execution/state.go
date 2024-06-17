@@ -791,6 +791,15 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	return leftOverGas, ret, err
 }
 
+func (es *ExecutionState) HandleRefundMessage(_ context.Context, message *types.Message) {
+	es.AddBalance(message.To, &message.Value.Int, tracing.BalanceIncreaseRefund)
+	es.AddReceipt(&types.Receipt{
+		Success:         true,
+		ContractAddress: message.To,
+		MsgHash:         es.InMessageHash,
+	})
+}
+
 func (es *ExecutionState) AddReceipt(receipt *types.Receipt) {
 	es.Receipts = append(es.Receipts, receipt)
 }
@@ -890,6 +899,10 @@ func (es *ExecutionState) GetInMessageHash() common.Hash {
 func (es *ExecutionState) IsInternalMessage() bool {
 	// If contract calls another contract using EVM's call(depth > 1), we treat it as an internal message.
 	return es.InMessage.Internal || es.evm.GetDepth() > 1
+}
+
+func (es *ExecutionState) GetInMessage() *types.Message {
+	return es.InMessages[len(es.InMessages)-1]
 }
 
 func (es *ExecutionState) RoTx() db.RoTx {

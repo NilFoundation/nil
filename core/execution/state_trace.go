@@ -60,7 +60,7 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 	printMessage := func(msg *types.Message) {
 		bt.printf("hash: %s\n", msg.Hash().Hex())
 		bt.printf("internal: %t\n", msg.Internal)
-		bt.printf("deploy: %t\n", msg.Deploy)
+		bt.printf("kind: %v\n", msg.Kind)
 		bt.printf("seqno: %d\n", msg.Seqno)
 		bt.printf("from: %s\n", msg.From.Hex())
 		bt.printf("to: %s\n", msg.To.Hex())

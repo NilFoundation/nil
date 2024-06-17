@@ -333,12 +333,19 @@ func (c *Client) sendMessageViaWallet(
 		return common.EmptyHash, err
 	}
 
+	var kind types.MessageKind
+	if isDeploy {
+		kind = types.DeployMessageKind
+	} else {
+		kind = types.ExecutionMessageKind
+	}
+
 	intMsg := &types.InternalMessagePayload{
 		Data:     bytecode,
 		To:       contractAddress,
 		Value:    *types.NewUint256(0),
 		GasLimit: *types.NewUint256(100000),
-		Deploy:   isDeploy,
+		Kind:     kind,
 	}
 
 	intMsgData, err := intMsg.MarshalSSZ()

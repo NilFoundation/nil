@@ -176,6 +176,7 @@ func TestAsyncCall(t *testing.T) {
 		To:       addrCaller,
 		GasLimit: *types.NewUint256(100000),
 	}
+	state.AddInMessage(callMessage)
 	_, _, err = state.HandleExecutionMessage(ctx, callMessage, &blockContext)
 	require.NoError(t, err)
 	require.NotEmpty(t, state.Receipts)
