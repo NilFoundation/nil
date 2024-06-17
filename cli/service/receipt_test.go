@@ -36,7 +36,7 @@ func TestFetchReceipt_Successfully(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient, "")
+	service := NewService(mockClient, nil)
 
 	// Call the FetchReceiptByHash
 	response, err := service.FetchReceiptByHash(types.BaseShardId, "0x1234")
@@ -58,7 +58,7 @@ func TestFetchReceipt_Err(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient, "")
+	service := NewService(mockClient, nil)
 
 	// Call the FetchReceiptByHash
 	_, err := service.FetchReceiptByHash(types.BaseShardId, "0x1234")

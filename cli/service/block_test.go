@@ -33,7 +33,7 @@ func TestFetchBlock_Successfully(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient, "")
+	service := NewService(mockClient, nil)
 
 	// Call the FetchBlockByHash
 	response, err := service.FetchBlock(types.BaseShardId, mockBlockResponse.Hash.Hex())
@@ -55,7 +55,7 @@ func TestFetchBlock_Err(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient, "")
+	service := NewService(mockClient, nil)
 
 	// Call the fetchBlock
 	_, err := service.FetchBlock(types.BaseShardId, "0x294a68120c056a549d314efa8306dafdb856f7b51dde976df0e807e001ff84ac")

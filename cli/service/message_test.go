@@ -31,7 +31,7 @@ func TestFetchMessage_Successfully(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient, "")
+	service := NewService(mockClient, nil)
 
 	// Call the FetchMessageByHash
 	response, err := service.FetchMessageByHash(types.BaseShardId, hexutil.Encode(common.EmptyHash[:]))
@@ -53,7 +53,7 @@ func TestFetchMessage_Err(t *testing.T) {
 	}
 
 	// Initialize the service with the mock client
-	service := NewService(mockClient, "")
+	service := NewService(mockClient, nil)
 
 	// Call the FetchMessageByHash
 	_, err := service.FetchMessageByHash(types.BaseShardId, "0x1234")
