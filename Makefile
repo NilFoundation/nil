@@ -36,8 +36,8 @@ ssz:
 	pushd core/types && go generate && popd
 	pushd core/mpt && go generate && popd
 
-contracts/compiled/%.bin: contracts/%.sol $(wildcard contract/*.sol)
-	go run tools/solc/bin/main.go -s $< -o contracts/compiled
+contracts/compiled/%.bin: $(wildcard contracts/solidity/tests/*.sol) $(wildcard contracts/solidity/*.sol)
+	go generate contracts/generate.go
 
 compile-contracts: contracts/compiled/Faucet.bin contracts/compiled/Wallet.bin
 

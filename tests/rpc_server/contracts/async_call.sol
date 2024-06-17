@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "../../../contracts/nil.sol";
+import "../../../contracts/solidity/nil.sol";
 
 contract Callee {
     int32 value;

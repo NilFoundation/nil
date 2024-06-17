@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 
 import "./nil.sol";
 
-contract Wallet {
+contract Wallet is NilBase {
 
     bytes pubkey;
 
@@ -14,7 +14,7 @@ contract Wallet {
         pubkey = _pubkey;
     }
 
-    function send(bytes calldata message) public payable {
+    function send(bytes calldata message) onlyExternal public {
         nil.send_msg(gasleft(), message);
     }
 
