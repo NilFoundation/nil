@@ -28,7 +28,5 @@ func (s *Service) GenerateKeyFromHex(hexKey string) error {
 
 // GetPrivateKey returns the private key in hexadecimal format
 func (s *Service) GetPrivateKey() string {
-	privHex := crypto.PrivateKeyToEthereumFormat(s.privateKey)
-
-	return privHex
+	return crypto.PrivateKeyToEthereumFormat(s.privateKey)
 }

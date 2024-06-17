@@ -20,7 +20,7 @@ func GetCommand(cfg *config.Config) *cobra.Command {
 		Short:   "Interact with contract on the cluster",
 		PreRunE: runPreRun,
 		Run: func(cmd *cobra.Command, args []string) {
-			runCommand(cmd, args, cfg.RPCEndpoint, cfg.PrivateKey)
+			runCommand(cmd, args, cfg.RPCEndpoint, cfg.Address, cfg.PrivateKey)
 		},
 	}
 
@@ -64,13 +64,13 @@ func setFlags(cmd *cobra.Command) {
 	)
 }
 
-func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, privateKey *ecdsa.PrivateKey) {
+func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, address types.Address, privateKey *ecdsa.PrivateKey) {
 	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
 
 	client := rpc.NewClient(rpcEndpoint)
 	service := service.NewService(client, privateKey)
 	if params.deploy != "" {
-		_, _, err := service.DeployContract(params.shardId, "", params.deploy)
+		_, _, err := service.DeployContract(params.shardId, address, params.deploy)
 		check.PanicIfErr(err)
 		return
 	}
@@ -82,7 +82,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, privateKey *ec
 	}
 
 	if params.address != "" && params.bytecode != "" {
-		_, err := service.RunContract("", params.bytecode, params.address)
+		_, err := service.RunContract(address, params.bytecode, params.address)
 		check.PanicIfErr(err)
 	}
 }

@@ -22,28 +22,26 @@ func (s *Service) GetCode(contractAddress string) (string, error) {
 		return "", err
 	}
 
-	s.logger.Trace().Msgf("Contract code: %x", code)
+	s.logger.Info().Msgf("Contract code: %x", code)
 	return code.Hex(), nil
 }
 
 // RunContract runs bytecode on the specified contract address
-func (s *Service) RunContract(address string, bytecode string, contractAddress string) (string, error) {
+func (s *Service) RunContract(wallet types.Address, bytecode string, contractAddress string) (string, error) {
 	calldata := hexutil.FromHex(bytecode)
 	contract := types.HexToAddress(contractAddress)
-	wallet := types.HexToAddress(address)
 
 	txHash, err := s.client.SendMessageViaWallet(wallet, types.Code(calldata), contract, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
 		return "", err
 	}
-	s.logger.Trace().Msgf("Transaction hash: %s", txHash)
+	s.logger.Info().Msgf("Transaction hash (shard %s): %s", txHash, wallet.ShardId())
 	return txHash.Hex(), nil
 }
 
 // DeployContract deploys a new smart contract with the given bytecode
-func (s *Service) DeployContract(shardId types.ShardId, address string, bytecode string) (string, string, error) {
-	wallet := types.HexToAddress(address)
+func (s *Service) DeployContract(shardId types.ShardId, wallet types.Address, bytecode string) (string, string, error) {
 	code := hexutil.FromHex(bytecode)
 
 	txHash, contractAddr, err := s.client.DeployContract(shardId, wallet, code, s.privateKey)
@@ -51,6 +49,7 @@ func (s *Service) DeployContract(shardId types.ShardId, address string, bytecode
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
 		return "", "", err
 	}
-	s.logger.Trace().Msgf("Transaction hash: %s", txHash)
+	s.logger.Info().Msgf("Contract address: 0x%x", contractAddr)
+	s.logger.Info().Msgf("Transaction hash: %s (shard %s)", txHash, wallet.ShardId())
 	return txHash.Hex(), contractAddr.Hex(), nil
 }
