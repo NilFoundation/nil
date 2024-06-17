@@ -8,12 +8,10 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/cli/service"
-	"github.com/NilFoundation/nil/client"
 	rpc_client "github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
-	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
@@ -26,20 +24,12 @@ import (
 )
 
 type SuiteRpc struct {
-	suite.Suite
-	port    int
-	context context.Context
-	cancel  context.CancelFunc
-	address types.Address
-	client  client.Client
-	cli     *service.Service
-}
-
-func (suite *SuiteRpc) SetupSuite() {
-	logging.SetupGlobalLogger()
+	RpcSuite
+	cli *service.Service
 }
 
 func (suite *SuiteRpc) SetupTest() {
+	suite.shardsNum = 5
 	suite.context, suite.cancel = context.WithCancel(context.Background())
 
 	badger, err := db.NewBadgerDbInMemory()
@@ -52,12 +42,12 @@ func (suite *SuiteRpc) SetupTest() {
 
 	suite.port = 8531
 	cfg := &nilservice.Config{
-		NShards:  5,
+		NShards:  suite.shardsNum,
 		HttpPort: suite.port,
 		Topology: collate.TrivialShardTopologyId,
 	}
 	go nilservice.Run(suite.context, cfg, badger)
-	time.Sleep(time.Second) // To be sure that server is started
+	suite.waitZerostate()
 }
 
 func (suite *SuiteRpc) TearDownTest() {
@@ -87,29 +77,6 @@ func (suite *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, hash common.
 	suite.Equal(hash, receipt.MsgHash)
 
 	return receipt
-}
-
-func (suite *SuiteRpc) waitForReceipt(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
-	suite.T().Helper()
-
-	var receipt *jsonrpc.RPCReceipt
-	var err error
-	suite.Require().Eventually(func() bool {
-		receipt, err = suite.client.GetInMessageReceipt(shardId, hash)
-		suite.Require().NoError(err)
-		return receipt.IsComplete()
-	}, 15*time.Second, 200*time.Millisecond)
-
-	// Check receipt only for the outermost message
-	suite.checkReceipt(receipt)
-
-	return receipt
-}
-
-func (suite *SuiteRpc) checkReceipt(receipt *jsonrpc.RPCReceipt) {
-	suite.T().Helper()
-	suite.Require().NotNil(receipt)
-	suite.Require().True(receipt.Success)
 }
 
 func (s *SuiteRpc) TestRpcBasic() {
@@ -187,13 +154,15 @@ func (suite *SuiteRpc) loadContract(path string, name string) (types.Code, abi.A
 func (suite *SuiteRpc) TestRpcContract() {
 	contractCode, abi := suite.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 
-	addr, _ := suite.deployContractViaWallet(types.BaseShardId, contractCode)
+	addr, receipt := suite.deployContractViaMainWallet(types.BaseShardId, contractCode)
+	suite.Require().True(receipt.OutReceipts[0].Success)
 
 	// now call (= send a message to) created contract
 	calldata, err := abi.Pack("increment")
 	suite.Require().NoError(err)
 
-	suite.sendMessageViaWallet(addr, calldata)
+	receipt = suite.sendMessageViaWallet(types.MainWalletAddress, addr, execution.MainPrivateKey, calldata)
+	suite.Require().True(receipt.OutReceipts[0].Success)
 }
 
 func (s *SuiteRpc) TestRpcDeployToMainShardViaMainWallet() {
@@ -208,14 +177,16 @@ func (s *SuiteRpc) TestRpcDeployToMainShardViaMainWallet() {
 func (suite *SuiteRpc) TestRpcContractSendMessage() {
 	// deploy caller contract
 	callerCode, callerAbi := suite.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Caller")
-	callerAddr, _ := suite.deployContractViaWallet(types.MasterShardId, callerCode)
+	callerAddr, receipt := suite.deployContractViaMainWallet(types.MasterShardId, callerCode)
+	suite.Require().True(receipt.OutReceipts[0].Success)
 
 	checkForShard := func(shardId types.ShardId) {
 		suite.T().Helper()
 
 		// deploy callee contracts to different shards
 		calleeCode, calleeAbi := suite.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Callee")
-		calleeAddr, _ := suite.deployContractViaWallet(shardId, calleeCode)
+		calleeAddr, receipt := suite.deployContractViaMainWallet(shardId, calleeCode)
+		suite.Require().True(receipt.OutReceipts[0].Success)
 
 		// pack call of Callee::add into message
 		calldata, err := calleeAbi.Pack("add", int32(123))
@@ -244,7 +215,8 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 		suite.Require().NoError(callCallerMethod.Sign(execution.MainPrivateKey))
 		hash := suite.sendRawTransaction(callCallerMethod)
 
-		suite.waitForReceipt(callerAddr.ShardId(), hash)
+		receipt = suite.waitForReceipt(callerAddr.ShardId(), hash)
+		suite.Require().True(receipt.Success)
 	}
 
 	// check that we can call contract from neighbor shard

@@ -418,3 +418,7 @@ func transfer(db StateDB, sender, recipient types.Address, amount *uint256.Int) 
 	db.SubBalance(sender, amount, tracing.BalanceChangeTransfer)
 	db.AddBalance(recipient, amount, tracing.BalanceChangeTransfer)
 }
+
+func (evm *EVM) GetDepth() int {
+	return evm.depth
+}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/math"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/holiman/uint256"
 )
 
@@ -152,4 +153,13 @@ func ValidateSignatureValues(v byte, r, s *uint256.Int, homestead bool) bool {
 	}
 	// Frontier: allow s to be in full N range
 	return r.Lt(secp256k1N) && s.Lt(secp256k1N) && (v == 0 || v == 1)
+}
+
+func GenerateKeyPair() (*ecdsa.PrivateKey, []byte, error) {
+	privateKey, err := ecdsa.GenerateKey(btcec.S256(), rand.Reader)
+	if err != nil {
+		return nil, nil, err
+	}
+	publicKey := CompressPubkey(&privateKey.PublicKey)
+	return privateKey, publicKey, err
 }

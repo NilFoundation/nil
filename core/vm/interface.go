@@ -74,6 +74,10 @@ type StateDB interface {
 
 	// Get current message hash
 	GetInMessageHash() common.Hash
+
+	// IsInternalMessage returns true if the message that initiated execution is internal. Synchronous calls inside
+	// one contract are also considered as internal.
+	IsInternalMessage() bool
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM
