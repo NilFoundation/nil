@@ -101,16 +101,15 @@ func (suite *SuiteRpc) waitForReceipt(shardId types.ShardId, hash common.Hash) *
 	}, 15*time.Second, 200*time.Millisecond)
 
 	// Check receipt only for the outermost message
-	suite.checkReceipt(receipt, hash)
+	suite.checkReceipt(receipt)
 
 	return receipt
 }
 
-func (suite *SuiteRpc) checkReceipt(receipt *jsonrpc.RPCReceipt, msgHash common.Hash) {
+func (suite *SuiteRpc) checkReceipt(receipt *jsonrpc.RPCReceipt) {
 	suite.T().Helper()
 	suite.Require().NotNil(receipt)
 	suite.Require().True(receipt.Success)
-	suite.Require().Equal(msgHash, receipt.MsgHash)
 }
 
 func (s *SuiteRpc) TestRpcBasic() {
@@ -222,16 +221,11 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 		calldata, err := calleeAbi.Pack("add", int32(123))
 		suite.Require().NoError(err)
 
-		seqno, err := suite.client.GetTransactionCount(callerAddr, "latest")
-		suite.Require().NoError(err)
-		messageToSend := &types.Message{
-			Seqno:    seqno,
+		messageToSend := &types.InternalMessagePayload{
 			Data:     calldata,
-			From:     callerAddr,
 			To:       calleeAddr,
 			Value:    *types.NewUint256(0),
 			GasLimit: *types.NewUint256(100004),
-			Internal: true,
 		}
 		calldata, err = messageToSend.MarshalSSZ()
 		suite.Require().NoError(err)

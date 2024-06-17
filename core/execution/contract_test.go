@@ -260,12 +260,10 @@ func TestSendMessage(t *testing.T) {
 	abiCalee := solc.ExtractABI(smcCallee)
 	calldata, err := abiCalee.Pack("add", int32(11))
 	require.NoError(t, err)
-	messageToSend := &types.Message{
+	messageToSend := &types.InternalMessagePayload{
 		Data:     calldata,
-		From:     addrCaller,
 		To:       addrCallee,
 		Value:    *types.NewUint256(0),
-		Internal: true,
 		GasLimit: *types.NewUint256(100000),
 	}
 	calldata, err = messageToSend.MarshalSSZ()

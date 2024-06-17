@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"errors"
 	"math/big"
@@ -53,7 +54,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	// Ethereum uses addresses up to 0x13
 
 	types.BytesToAddress([]byte{0xfc}): &sendRawMessage{},
-	types.BytesToAddress([]byte{0xfd}): &sendMessage{},
+	types.BytesToAddress([]byte{0xfd}): &asyncCall{},
 	types.BytesToAddress([]byte{0xfe}): &verifySignature{},
 }
 
@@ -290,50 +291,82 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uin
 	if readOnly {
 		return nil, ErrWriteProtection
 	}
-	msg := new(types.Message)
-	if err := msg.UnmarshalSSZ(input); err != nil {
+	payload := new(types.InternalMessagePayload)
+	if err := payload.UnmarshalSSZ(input); err != nil {
 		return nil, err
 	}
-	if !msg.Internal {
-		return nil, errors.New("expected internal message")
-	}
-	balance := state.GetBalance(msg.From)
-	if balance.Lt(&msg.Value.Int) {
+	balance := state.GetBalance(caller.Address())
+	if balance.Lt(&payload.Value.Int) {
 		log.Logger.Error().Msg("sendRawMessage failed: insufficient balance")
 		return nil, errors.New("insufficient balance")
 	}
-	log.Logger.Debug().Msgf("sendRawMessage to: %s\n", msg.To.Hex())
+	log.Logger.Debug().Msgf("sendRawMessage to: %s\n", payload.To.Hex())
+
+	seqno := state.GetSeqno(caller.Address())
+	if seqno+1 < seqno {
+		return nil, ErrNonceUintOverflow
+	}
+	state.SetSeqno(caller.Address(), seqno+1)
+
+	msg := &types.Message{
+		Internal: true,
+		GasLimit: payload.GasLimit,
+		Value:    payload.Value,
+		From:     caller.Address(),
+		To:       payload.To,
+		Deploy:   payload.Deploy,
+		Data:     payload.Data,
+		Seqno:    seqno,
+	}
+
 	state.AddOutMessage(state.GetInMessageHash(), msg)
 	return nil, nil
 }
 
-type sendMessage struct{}
+type asyncCall struct{}
 
-func (c *sendMessage) RequiredGas([]byte) uint64 {
+func (c *asyncCall) RequiredGas([]byte) uint64 {
 	// TODO: change cost
 	return 0
 }
 
-func (c *sendMessage) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
 	if readOnly {
 		return nil, ErrWriteProtection
 	}
-	var dst types.Address
-	copy(dst[:], input[32-types.AddrSize:32])
+
+	if len(input) < 32*5 {
+		return nil, errors.New("sendMessage: input too short")
+	}
+
+	deploy := !bytes.Equal(input[:32], common.EmptyHash.Bytes())
 	input = input[32:]
+
+	dst := types.BytesToAddress(input[32-types.AddrSize : 32])
+	input = input[32:]
+
+	messageGas := big.NewInt(0).SetBytes(input[:32])
+	input = input[96:] // skip gas, dynamic value offset and calldata length
+
+	seqno := state.GetSeqno(caller.Address())
+	if seqno+1 < seqno {
+		return nil, ErrNonceUintOverflow
+	}
+	state.SetSeqno(caller.Address(), seqno+1)
 
 	// Internal is required for the message
 	msg := &types.Message{
 		Internal: true,
-		GasLimit: *types.NewUint256(gas),
+		GasLimit: types.Uint256{Int: *uint256.MustFromBig(messageGas)},
 		Value:    types.Uint256{Int: *value},
 		From:     caller.Address(),
 		To:       dst,
+		Data:     slices.Clone(input),
+		Seqno:    seqno,
+		Deploy:   deploy,
 	}
-	msg.Data = make([]byte, len(input))
-	copy(msg.Data, input)
 	log.Logger.Debug().Msgf("sendMessage to: %s\n", msg.To.Hex())
-	state.AddOutMessage(common.EmptyHash, msg)
+	state.AddOutMessage(state.GetInMessageHash(), msg)
 	return nil, nil
 }
 

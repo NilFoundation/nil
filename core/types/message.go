@@ -66,6 +66,14 @@ type ExternalMessage struct {
 	AuthData Signature `json:"authData,omitempty" ch:"auth_data" ssz-max:"256"`
 }
 
+type InternalMessagePayload struct {
+	Deploy   bool    `json:"deploy,omitempty" ch:"deploy"`
+	GasLimit Uint256 `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
+	To       Address `json:"to,omitempty" ch:"to"`
+	Value    Uint256 `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Data     Code    `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+}
+
 type messageDigest struct {
 	Deploy  bool
 	To      Address
