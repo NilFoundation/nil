@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/rpc/transport"
 )
 
 var (
@@ -21,10 +22,9 @@ const (
 var params = &blockParams{}
 
 type blockParams struct {
-	latest  bool
-	number  string
-	hash    string
-	shardId types.ShardId
+	latest        bool
+	blockNrOrHash transport.BlockReference
+	shardId       types.ShardId
 }
 
 // initRawParams validates all parameters to ensure they are correctly set
@@ -34,10 +34,7 @@ func (p *blockParams) initRawParams() error {
 	if p.latest {
 		flagsSet++
 	}
-	if p.number != "" {
-		flagsSet++
-	}
-	if p.hash != "" {
+	if p.blockNrOrHash.IsValid() {
 		flagsSet++
 	}
 

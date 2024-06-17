@@ -4,6 +4,7 @@ import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -27,17 +28,15 @@ func GetCommand(cfg *config.Config) *cobra.Command {
 }
 
 func setFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVar(
+	cmd.Flags().Var(
 		&params.hash,
 		hashFlag,
-		"",
 		"Retrieve receipt by receipt hash from the cluster",
 	)
 
-	cmd.Flags().Uint32Var(
-		(*uint32)(&params.shardId),
+	cmd.Flags().Var(
+		types.NewShardId(&params.shardId, types.BaseShardId),
 		shardIdFlag,
-		uint32(types.BaseShardId),
 		"Specify the shard id to interact with",
 	)
 }
@@ -47,7 +46,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 
 	client := rpc.NewClient(rpcEndpoint)
 	service := service.NewService(client, nil)
-	if params.hash != "" {
+	if params.hash != common.EmptyHash {
 		_, err := service.FetchReceiptByHash(params.shardId, params.hash)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to fetch receipt")

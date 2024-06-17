@@ -33,23 +33,19 @@ func setFlags(cmd *cobra.Command) {
 		false,
 		"Retrieve the latest block from the cluster",
 	)
-	cmd.Flags().StringVar(
-		&params.number,
+	cmd.Flags().Var(
+		&params.blockNrOrHash,
 		numberFlag,
-		"",
 		"Retrieve block by block number from the cluster",
 	)
-	cmd.Flags().StringVar(
-		&params.hash,
+	cmd.Flags().Var(
+		&params.blockNrOrHash,
 		hashFlag,
-		"",
 		"Retrieve block by block hash from the cluster",
 	)
-
-	cmd.Flags().Uint32Var(
-		(*uint32)(&params.shardId),
+	cmd.Flags().Var(
+		types.NewShardId(&params.shardId, types.BaseShardId),
 		shardIdFlag,
-		uint32(types.BaseShardId),
 		"Specify the shard id to interact with",
 	)
 }
@@ -69,23 +65,20 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 		return
 	}
 
-	if params.number != "" {
-		_, err := service.FetchBlock(params.shardId, params.number)
+	if params.blockNrOrHash.IsValid() {
+		_, err := service.FetchBlock(params.shardId, params.blockNrOrHash)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to fetch block by number")
 		}
 
 		return
 	}
-
-	if params.hash != "" {
-		_, err := service.FetchBlock(params.shardId, params.hash)
-		if err != nil {
-			logger.Error().Err(err).Msg("Failed to fetch block by hash")
-		}
-
-		return
-	}
 }
 
-func runPreRun(cmd *cobra.Command, _ []string) error { return params.initRawParams() }
+func runPreRun(cmd *cobra.Command, _ []string) error {
+	if cmd.Flag(hashFlag).Changed && cmd.Flag(numberFlag).Changed {
+		return errMultipleSelected
+	}
+
+	return params.initRawParams()
+}

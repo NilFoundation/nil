@@ -3,6 +3,7 @@ package message
 import (
 	"errors"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
 )
 
@@ -16,7 +17,7 @@ const (
 var params = &messageParams{}
 
 type messageParams struct {
-	hash    string
+	hash    common.Hash
 	shardId types.ShardId
 }
 
@@ -24,7 +25,7 @@ type messageParams struct {
 func (p *messageParams) initRawParams() error {
 	flagsSet := 0
 
-	if p.hash != "" {
+	if p.hash != common.EmptyHash {
 		flagsSet++
 	}
 

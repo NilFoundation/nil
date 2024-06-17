@@ -39,7 +39,7 @@ func TestFetchReceipt_Successfully(t *testing.T) {
 	service := NewService(mockClient, nil)
 
 	// Call the FetchReceiptByHash
-	response, err := service.FetchReceiptByHash(types.BaseShardId, "0x1234")
+	response, err := service.FetchReceiptByHash(types.BaseShardId, common.EmptyHash)
 	require.NoError(t, err)
 
 	// Check if the response matches the expected mock response
@@ -61,7 +61,7 @@ func TestFetchReceipt_Err(t *testing.T) {
 	service := NewService(mockClient, nil)
 
 	// Call the FetchReceiptByHash
-	_, err := service.FetchReceiptByHash(types.BaseShardId, "0x1234")
+	_, err := service.FetchReceiptByHash(types.BaseShardId, common.EmptyHash)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "RPC error")
 }

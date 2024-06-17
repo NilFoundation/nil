@@ -27,9 +27,8 @@ func (s *Service) GetCode(contractAddress string) (string, error) {
 }
 
 // RunContract runs bytecode on the specified contract address
-func (s *Service) RunContract(wallet types.Address, bytecode string, contractAddress string) (string, error) {
+func (s *Service) RunContract(wallet types.Address, bytecode string, contract types.Address) (string, error) {
 	calldata := hexutil.FromHex(bytecode)
-	contract := types.HexToAddress(contractAddress)
 
 	txHash, err := s.client.SendMessageViaWallet(wallet, types.Code(calldata), contract, s.privateKey)
 	if err != nil {

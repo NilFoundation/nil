@@ -7,7 +7,7 @@ import (
 )
 
 // FetchBlock fetches the block by number or hash
-func (s *Service) FetchBlock(shardId types.ShardId, blockId string) ([]byte, error) {
+func (s *Service) FetchBlock(shardId types.ShardId, blockId any) ([]byte, error) {
 	blockData, err := s.client.GetBlock(shardId, blockId, true)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to fetch block")

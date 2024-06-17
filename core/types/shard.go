@@ -32,6 +32,21 @@ func (s *ShardId) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (s *ShardId) Set(val string) error {
+	var err error
+	*s, err = ParseShardIdFromString(val)
+	return err
+}
+
+func (s *ShardId) Type() string {
+	return "ShardId"
+}
+
+func NewShardId(value *ShardId, defaultValue ShardId) *ShardId {
+	*value = defaultValue
+	return value
+}
+
 func (s ShardId) Static() bool {
 	return true
 }
