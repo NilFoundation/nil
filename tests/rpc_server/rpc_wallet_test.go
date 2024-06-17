@@ -31,6 +31,7 @@ func (suite *SuiteRpc) sendMessageViaWallet(addrTo types.Address, calldata []byt
 
 	receipt := suite.waitForReceipt(types.MainWalletAddress.ShardId(), txHash)
 	suite.Require().Len(receipt.OutReceipts, 1)
+	suite.checkReceipt(receipt.OutReceipts[0])
 }
 
 func (suite *SuiteRpc) TestWallet() {

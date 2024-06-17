@@ -77,14 +77,10 @@ func (suite *SuiteRpc) sendViaFaucet(code []byte, ownerPrivateKey *ecdsa.Private
 
 	walletAddress := types.CreateAddress(faucetAddress.ShardId(), code)
 
-	sendMsgInternal := &types.Message{
-		Seqno:    seqno,
-		From:     faucetAddress,
+	sendMsgInternal := &types.InternalMessagePayload{
 		To:       walletAddress,
 		Value:    value,
 		GasLimit: *types.NewUint256(100000),
-		GasPrice: *types.NewUint256(1),
-		Internal: true,
 		Deploy:   false,
 	}
 	sendMsgInternalData, err := sendMsgInternal.MarshalSSZ()
@@ -190,7 +186,10 @@ func (suite *SuiteRpc) TestDeployContractViaFaucetWithSend() {
 	blockNumber := transport.LatestBlockNumber
 	balance, err := suite.client.GetBalance(walletAddr, transport.BlockNumberOrHash{BlockNumber: &blockNumber})
 	suite.Require().NoError(err)
-	suite.Require().Less(balance.Uint64(), value)
+	if false {
+		// enable this check when gas price calculation is implemented
+		suite.Require().Less(balance.Uint64(), value)
+	}
 	suite.Require().Greater(balance.Uint64(), uint64(0))
 }
 

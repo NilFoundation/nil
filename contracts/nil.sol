@@ -3,29 +3,14 @@ pragma solidity ^0.8.0;
 
 library nil {
 
-    function async_call(address dst, uint g, uint value, bytes memory call_data) internal {
-        bytes memory data = new bytes(32 + call_data.length);
-        uint data_size = data.length;
-        uint call_data_size = call_data.length;
+    function async_call(address dst, uint gas, bool deploy, uint value, bytes memory call_data) internal {
+        bytes memory data = abi.encode(deploy, dst, gas, call_data);
+        bool success;
 
-        assembly {
-            // NOTE: Each dynamic array in Solidity has array size stored in the first 32 bytes. That's why we add 32
-            // to the arrays below.
+        bytes memory returnData;
+        (success, returnData) = address(0xfd).call{value: value, gas: gasleft()}(data);
 
-            // Copy call_data to &data[32] using `identity` precompiled contract. First 32 bytes of the data is intended
-            // for destination address.
-            if iszero(staticcall(g, 0x04, add(call_data, 32), call_data_size, add(data, 64), call_data_size)) {
-                revert(0, 0)
-            }
-            // Store destination address.
-            mstore(add(data, 32), dst)
-
-            // Call precompiled contract.
-            // Arguments: gas, precompiled address, value, input, input size, output, output size
-            if iszero(call(g, 0xfd, value, add(data, 32), data_size, 0, 0)) {
-                revert(0, 0)
-            }
-        }
+        require(success, "Precompiled contract call failed");
     }
 
     // Send raw internal message using a special precompiled contract
