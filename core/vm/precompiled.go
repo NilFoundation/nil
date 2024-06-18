@@ -19,7 +19,6 @@ package vm
 import (
 	"bytes"
 	"crypto/sha256"
-	"errors"
 	"math/big"
 	"slices"
 
@@ -299,7 +298,7 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uin
 	balance := state.GetBalance(caller.Address())
 	if balance.Lt(&payload.Value.Int) {
 		log.Logger.Error().Msg("sendRawMessage failed: insufficient balance")
-		return nil, errors.New("insufficient balance")
+		return nil, ErrInsufficientBalance
 	}
 	log.Logger.Debug().Msgf("sendRawMessage to: %s\n", payload.To.Hex())
 
@@ -318,8 +317,8 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 		return nil, ErrWriteProtection
 	}
 
-	if len(input) < 32*5 {
-		return nil, errors.New("sendMessage: input too short")
+	if len(input) < 32*6 {
+		return nil, ErrInvalidInputLength
 	}
 
 	deploy := !bytes.Equal(input[:32], common.EmptyHash.Bytes())
