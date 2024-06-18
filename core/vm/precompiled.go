@@ -331,7 +331,15 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 	input = input[32:]
 
 	messageGas := big.NewInt(0).SetBytes(input[:32])
-	input = input[96:] // skip gas, dynamic value offset and calldata length
+	input = input[64:] // skip gas and dynamic value offset
+
+	inputLength := big.NewInt(0).SetBytes(input[:32])
+	input = input[32:]
+
+	if inputLength.Cmp(big.NewInt(int64(len(input)))) > 0 {
+		return nil, ErrInvalidInputLength
+	}
+	input = input[:inputLength.Int64()]
 
 	var kind types.MessageKind
 	if deploy {
