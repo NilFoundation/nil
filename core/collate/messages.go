@@ -89,6 +89,7 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 		err := buyGas(payer, message)
 		if err != nil {
 			sharedLogger.Info().Err(err).Stringer("hash", es.InMessageHash).Msg("discarding message")
+			es.AddReceipt(&types.Receipt{Success: false, ContractAddress: message.To, MsgHash: msgHash})
 			continue
 		}
 		var leftOverGas uint64
@@ -97,6 +98,7 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 		case types.DeployMessageKind:
 			deployMsg := validateDeployMessage(es, message)
 			if deployMsg == nil {
+				es.AddReceipt(&types.Receipt{Success: false, ContractAddress: message.To, MsgHash: msgHash})
 				continue
 			}
 
