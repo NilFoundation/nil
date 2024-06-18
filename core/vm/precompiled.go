@@ -371,7 +371,7 @@ func addOutInternal(state StateDB, caller types.Address, payload *types.Internal
 	state.SetSeqno(caller, seqno+1)
 
 	msg := payload.ToMessage(caller, seqno)
-	state.AddOutMessage(state.GetInMessageHash(), msg)
+	state.AddOutMessage(msg)
 	return nil
 }
 

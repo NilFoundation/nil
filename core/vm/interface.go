@@ -66,14 +66,8 @@ type StateDB interface {
 
 	AddLog(*types.Log)
 
-	// returns new message index
-	AddInMessage(*types.Message) types.MessageIndex
-
-	// add out message for particular transaction
-	AddOutMessage(common.Hash, *types.Message)
-
-	// Get current message hash
-	GetInMessageHash() common.Hash
+	// add out message for current transaction
+	AddOutMessage(*types.Message)
 
 	// IsInternalMessage returns true if the message that initiated execution is internal. Synchronous calls inside
 	// one contract are also considered as internal.
