@@ -94,7 +94,7 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 		return err
 	}
 	for _, msg := range outMsgs {
-		c.executionState.AddOutMessage(msg.inMsgHash, msg.msg)
+		c.executionState.AddOutMessageForTx(msg.inMsgHash, msg.msg)
 	}
 
 	block, err := c.finalize()

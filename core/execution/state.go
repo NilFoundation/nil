@@ -76,7 +76,6 @@ type ExecutionState struct {
 	ChildChainBlocks map[types.ShardId]common.Hash
 
 	InMessageHash common.Hash
-	InMessage     *types.Message
 	Logs          map[common.Hash][]*types.Log
 
 	Accounts   map[types.Address]*AccountState
@@ -715,14 +714,16 @@ func (es *ExecutionState) ContractExists(address types.Address) bool {
 		(storageRoot != common.EmptyHash) // non-empty storage
 }
 
-func (es *ExecutionState) AddInMessage(message *types.Message) types.MessageIndex {
-	index := len(es.InMessages)
+func (es *ExecutionState) AddInMessage(message *types.Message) {
 	es.InMessages = append(es.InMessages, message)
-	return types.MessageIndex(index)
 }
 
-func (es *ExecutionState) AddOutMessage(txId common.Hash, msg *types.Message) {
+func (es *ExecutionState) AddOutMessageForTx(txId common.Hash, msg *types.Message) {
 	es.OutMessages[txId] = append(es.OutMessages[txId], msg)
+}
+
+func (es *ExecutionState) AddOutMessage(msg *types.Message) {
+	es.AddOutMessageForTx(es.InMessageHash, msg)
 }
 
 func (es *ExecutionState) HandleDeployMessage(
@@ -892,13 +893,9 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 	return blockHash, nil
 }
 
-func (es *ExecutionState) GetInMessageHash() common.Hash {
-	return es.InMessageHash
-}
-
 func (es *ExecutionState) IsInternalMessage() bool {
 	// If contract calls another contract using EVM's call(depth > 1), we treat it as an internal message.
-	return es.InMessage.Internal || es.evm.GetDepth() > 1
+	return es.GetInMessage().Internal || es.evm.GetDepth() > 1
 }
 
 func (es *ExecutionState) GetInMessage() *types.Message {

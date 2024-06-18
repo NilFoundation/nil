@@ -38,7 +38,7 @@ func (m messagePayer) SubBalance(delta *uint256.Int) {
 
 func (m messagePayer) AddBalance(delta *uint256.Int) {
 	m.message.Value.Add(&m.message.Value.Int, delta)
-	m.es.AddOutMessage(m.message.Hash(), &types.Message{
+	m.es.AddOutMessageForTx(m.message.Hash(), &types.Message{
 		Internal: true,
 		Kind:     types.RefundMessageKind,
 		From:     m.message.To,
@@ -80,7 +80,6 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 		msgHash := inMessage.Hash()
 		es.AddInMessage(inMessage)
 		es.InMessageHash = msgHash
-		es.InMessage = inMessage
 
 		// We copy the message so as not to spoil es.InMessages when purchasing gas
 		inMessageCopy := *inMessage
