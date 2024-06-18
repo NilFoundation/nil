@@ -334,12 +334,6 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 	messageGas := big.NewInt(0).SetBytes(input[:32])
 	input = input[96:] // skip gas, dynamic value offset and calldata length
 
-	seqno := state.GetSeqno(caller.Address())
-	if seqno+1 < seqno {
-		return nil, ErrNonceUintOverflow
-	}
-	state.SetSeqno(caller.Address(), seqno+1)
-
 	var kind types.MessageKind
 	if deploy {
 		kind = types.DeployMessageKind
