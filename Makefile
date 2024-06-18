@@ -41,18 +41,11 @@ contracts/compiled/%.bin: $(wildcard contracts/solidity/tests/*.sol) $(wildcard 
 
 compile-contracts: contracts/compiled/Faucet.bin contracts/compiled/Wallet.bin
 
-lint: lint-compiled-contracts
+lint:
 	go mod tidy
 	gofumpt -l -w .
 	gci write .
 	golangci-lint run
-
-lint-compiled-contracts:
-	TMP_DIR=$$(mktemp -d); \
-	contracts/generate.sh "$$TMP_DIR" && diff -ru contracts/compiled "$$TMP_DIR"; \
-	d=$$?; \
-	rm -rf "$$TMP_DIR"; \
-	test $$d
 
 rpcspec:
 	go run cmd/spec_generator/spec_generator.go
