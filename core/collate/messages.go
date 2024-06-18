@@ -76,11 +76,15 @@ func (a accountPayer) String() string {
 
 func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionState, msgs []*types.Message) error {
 	blockContext := execution.NewEVMBlockContext(es)
-	for _, message := range msgs {
-		msgHash := message.Hash()
-		es.AddInMessage(message)
+	for _, inMessage := range msgs {
+		msgHash := inMessage.Hash()
+		es.AddInMessage(inMessage)
 		es.InMessageHash = msgHash
-		es.InMessage = message
+		es.InMessage = inMessage
+
+		// We copy the message so as not to spoil es.InMessages when purchasing gas
+		inMessageCopy := *inMessage
+		message := &inMessageCopy
 
 		ok, payer := validateMessage(roTx, es, message)
 		if !ok {
