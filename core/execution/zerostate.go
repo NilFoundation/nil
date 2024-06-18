@@ -3,6 +3,7 @@ package execution
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"os"
 
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
@@ -49,6 +50,27 @@ type ContractDescr struct {
 
 type ZeroStateConfig struct {
 	Contracts []*ContractDescr `yaml:"contracts"`
+}
+
+func DumpMainKeys(fname string) error {
+	keys := map[string]string{
+		"main_private_key": "0x" + crypto.PrivateKeyToEthereumFormat(MainPrivateKey),
+		"main_public_key":  hexutil.Encode(MainPublicKey),
+	}
+
+	data, err := yaml.Marshal(&keys)
+	if err != nil {
+		return err
+	}
+
+	file, err := os.Create(fname)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.Write(data)
+	return err
 }
 
 func (c *ZeroStateConfig) FindContractByName(name string) *ContractDescr {

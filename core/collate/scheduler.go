@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/rs/zerolog"
 )
@@ -24,7 +25,8 @@ type Scheduler struct {
 	nShards  int
 	topology ShardTopology
 
-	ZeroState string
+	ZeroState       string
+	MainKeysOutPath string
 
 	logger zerolog.Logger
 }
@@ -80,6 +82,12 @@ func (s *Scheduler) generateZeroState(ctx context.Context) error {
 		return err
 	}
 	if lastBlockHash == common.EmptyHash {
+		if len(s.MainKeysOutPath) != 0 && s.id == types.MasterShardId {
+			if err := execution.DumpMainKeys(s.MainKeysOutPath); err != nil {
+				return err
+			}
+		}
+
 		collator := newCollator(s.id, s.nShards, s.topology, s.pool, s.logger)
 		return collator.GenerateZeroState(ctx, s.txFabric, s.ZeroState)
 	}
