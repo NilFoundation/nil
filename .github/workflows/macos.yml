@@ -1,0 +1,24 @@
+name: Cluster CI (macOS)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  ensure_cluster_builds_macos:
+    runs-on: macos-latest
+    environment: prod
+    name: MacOS CI
+    steps:
+      - name: checkout local actions
+        uses: actions/checkout@v3
+
+      - name: Install Golang and solc
+        run: |
+          brew tap ethereum/ethereum
+          brew install go solidity
+
+      - name: build binaries
+        run: make
