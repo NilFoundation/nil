@@ -1,0 +1,137 @@
+package new_wallet
+
+import (
+	"crypto/ecdsa"
+	"errors"
+	"math/big"
+
+	"github.com/NilFoundation/nil/cli/service"
+	"github.com/NilFoundation/nil/client/rpc"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
+	"github.com/NilFoundation/nil/common/check"
+	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/common/logging"
+	"github.com/NilFoundation/nil/contracts"
+	"github.com/NilFoundation/nil/core/crypto"
+	"github.com/NilFoundation/nil/core/types"
+	"github.com/holiman/uint256"
+	"github.com/spf13/cobra"
+)
+
+var logger = logging.NewLogger("newWalletCommand")
+
+func GetCommand(cfg *config.Config) *cobra.Command {
+	serverCmd := &cobra.Command{
+		Use:   "new-wallet",
+		Short: "Create new wallet with initial value on the cluster",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return runPreRun(cmd, args, cfg)
+		},
+		Run: func(cmd *cobra.Command, args []string) {
+			runCommand(cmd, args, cfg)
+		},
+	}
+
+	setFlags(serverCmd)
+
+	return serverCmd
+}
+
+type uint256Value types.Uint256
+
+func (u uint256Value) String() string {
+	v := types.Uint256(u)
+	return v.String()
+}
+
+func (u *uint256Value) Set(value string) error {
+	i, ok := big.NewInt(0).SetString(value, 10)
+	if !ok {
+		return errors.New("failed to parse Uint256")
+	}
+	u.Int.SetBytes(i.Bytes())
+	return nil
+}
+
+func (*uint256Value) Type() string {
+	return "Uint256"
+}
+
+func newUint256Value(val types.Uint256, p *types.Uint256) *uint256Value {
+	*p = val
+	return (*uint256Value)(p)
+}
+
+type codeValue types.Code
+
+func (c codeValue) String() string {
+	if len(c) == 0 {
+		return "<default wallet code>"
+	}
+	v := types.Code(c).Hex()
+	return v
+}
+
+func (c *codeValue) Set(value string) error {
+	*(*types.Code)(c) = hexutil.FromHex(value)
+	return nil
+}
+
+func (*codeValue) Type() string {
+	return "Code"
+}
+
+func newCodeValue(val types.Code, p *types.Code) *codeValue {
+	*p = val
+	return (*codeValue)(p)
+}
+
+func defaultWalletCode(privateKey *ecdsa.PrivateKey) types.Code {
+	walletCode, err := contracts.GetCode("Wallet")
+	check.PanicIfErr(err)
+
+	walletAbi, err := contracts.GetAbi("Wallet")
+	check.PanicIfErr(err)
+
+	publicKey := crypto.CompressPubkey(&privateKey.PublicKey)
+	args, err := walletAbi.Pack("", publicKey)
+	check.PanicIfErr(err)
+
+	return types.Code(append(walletCode, args...))
+}
+
+func setFlags(cmd *cobra.Command) {
+	defaultSalt := types.Uint256{Int: *uint256.NewInt(0)}
+	cmd.Flags().Var(
+		newUint256Value(defaultSalt, &params.salt),
+		saltFlag,
+		"Salt for wallet address calculation")
+
+	cmd.Flags().Var(
+		newCodeValue(types.Code{}, &params.code),
+		codeFlag,
+		"Bytecode of wallet constructor")
+
+	// TODO: Be able to create wallets in any shard.
+	// cmd.Flags().Uint32Var(
+	//	(*uint32)(&params.shardId),
+	//	shardIdFlag,
+	//	uint32(types.BaseShardId),
+	//	"Specify the shard id to interact with",
+	//)
+}
+
+func runCommand(_ *cobra.Command, _ []string, cfg *config.Config) {
+	logger.Info().Msgf("RPC Endpoint: %s", cfg.RPCEndpoint)
+
+	client := rpc.NewClient(cfg.RPCEndpoint)
+	service := service.NewService(client, cfg.PrivateKey)
+	walletAddress, err := service.CreateWallet(params.shardId, params.code, params.salt, cfg.PrivateKey)
+	check.PanicIfErr(err)
+
+	logger.Info().Msgf("New wallet address: %s", walletAddress.Hex())
+}
+
+func runPreRun(_ *cobra.Command, _ []string, cfg *config.Config) error {
+	return params.initRawParams(cfg)
+}
