@@ -60,3 +60,11 @@ func (b *Bytes) UnmarshalText(input []byte) error {
 func (b Bytes) String() string {
 	return Encode(b)
 }
+
+func (b Bytes) Type() string {
+	return "Bytes"
+}
+
+func (b *Bytes) Set(val string) error {
+	return b.UnmarshalText([]byte(val))
+}

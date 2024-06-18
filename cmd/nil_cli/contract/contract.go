@@ -29,6 +29,9 @@ func GetCommand(cfg *config.Config) *cobra.Command {
 	callCmd := GetCallCommand(cfg)
 	serverCmd.AddCommand(callCmd)
 
+	sendCmd := GetSendCommand(cfg)
+	serverCmd.AddCommand(sendCmd)
+
 	return serverCmd
 }
 
@@ -51,10 +54,9 @@ func setFlags(cmd *cobra.Command) {
 		"Specify the address of the contract to interact with",
 	)
 
-	cmd.Flags().StringVar(
+	cmd.Flags().Var(
 		&params.bytecode,
 		bytecodeFlag,
-		"",
 		"Specify the bytecode to be executed with the deployed contract",
 	)
 
@@ -82,7 +84,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, address types.
 		return
 	}
 
-	if params.address != types.EmptyAddress && params.bytecode != "" {
+	if params.address != types.EmptyAddress && params.bytecode != nil {
 		_, err := service.RunContract(address, params.bytecode, params.address)
 		check.PanicIfErr(err)
 	}
