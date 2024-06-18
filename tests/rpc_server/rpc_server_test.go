@@ -237,22 +237,22 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 	checkForShard(types.BaseShardId)
 }
 
-func (suite *SuiteRpc) TestRpcApiModules() {
-	res, err := suite.client.Call("rpc_modules")
-	suite.Require().NoError(err)
+func (s *SuiteRpc) TestRpcApiModules() {
+	res, err := s.client.RawCall("rpc_modules")
+	s.Require().NoError(err)
 
 	var data map[string]any
-	suite.Require().NoError(json.Unmarshal(res, &data))
-	suite.Equal("1.0", data["eth"])
-	suite.Equal("1.0", data["rpc"])
+	s.Require().NoError(json.Unmarshal(res, &data))
+	s.Equal("1.0", data["eth"])
+	s.Equal("1.0", data["rpc"])
 }
 
-func (suite *SuiteRpc) TestRpcError() {
+func (s *SuiteRpc) TestRpcError() {
 	check := func(code int, msg, method string, params ...any) {
-		resp, err := suite.client.Call(method, params...)
-		suite.Require().ErrorContains(err, strconv.Itoa(code))
-		suite.Require().ErrorContains(err, msg)
-		suite.Require().Nil(resp)
+		resp, err := s.client.RawCall(method, params...)
+		s.Require().ErrorContains(err, strconv.Itoa(code))
+		s.Require().ErrorContains(err, msg)
+		s.Require().Nil(resp)
 	}
 
 	check(-32601, "the method eth_doesntExist does not exist/is not available",
@@ -275,7 +275,7 @@ func (suite *SuiteRpc) TestRpcError() {
 }
 
 func (suite *SuiteRpc) TestRpcDebugModules() {
-	raw, err := suite.client.Call("debug_getBlockByNumber", types.BaseShardId, "latest", false)
+	raw, err := suite.client.RawCall("debug_getBlockByNumber", types.BaseShardId, "latest", false)
 	suite.Require().NoError(err)
 
 	var res map[string]any
@@ -292,7 +292,7 @@ func (suite *SuiteRpc) TestRpcDebugModules() {
 	// print resp to see the result
 	suite.T().Logf("resp: %v", res)
 
-	raw, err = suite.client.Call("debug_getBlockByNumber", types.BaseShardId, "latest", true)
+	raw, err = suite.client.RawCall("debug_getBlockByNumber", types.BaseShardId, "latest", true)
 
 	var fullRes map[string]any
 	suite.Require().NoError(json.Unmarshal(raw, &fullRes))

@@ -15,10 +15,11 @@ import (
 // for other protocols like WebSocket or gRPC in the future, you might need to
 // change or extend this interface to accommodate those protocols.
 type Client interface {
-	// Call sends a request to the server with the given method and parameters,
+	// RawCall sends a request to the server with the given method and parameters,
 	// and returns the response as json.RawMessage, or an error if the call fails
-	Call(method string, params ...any) (json.RawMessage, error)
+	RawCall(method string, params ...any) (json.RawMessage, error)
 
+	Call(args *jsonrpc.CallArgs) (string, error)
 	GetCode(addr types.Address, blockId any) (types.Code, error)
 	GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error)
 	SendMessage(msg *types.ExternalMessage) (common.Hash, error)

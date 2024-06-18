@@ -11,25 +11,25 @@ import (
 )
 
 type MockClient struct {
-	CallResult json.RawMessage
-	Block      *jsonrpc.RPCBlock
-	Str        *string
-	Code       *types.Code
-	Hash       *common.Hash
-	InMessage  *jsonrpc.RPCInMessage
-	Receipt    *jsonrpc.RPCReceipt
-	Counter    *uint64
-	Seqno      *types.Seqno
-	Balance    *big.Int
-	Err        error
+	RawCallResult json.RawMessage
+	Block         *jsonrpc.RPCBlock
+	Str           *string
+	Code          *types.Code
+	Hash          *common.Hash
+	InMessage     *jsonrpc.RPCInMessage
+	Receipt       *jsonrpc.RPCReceipt
+	Counter       *uint64
+	Seqno         *types.Seqno
+	Balance       *big.Int
+	Err           error
 }
 
-func (m *MockClient) Call(method string, params ...any) (json.RawMessage, error) {
+func (m *MockClient) RawCall(method string, params ...any) (json.RawMessage, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
-	if m.CallResult != nil {
-		return m.CallResult, nil
+	if m.RawCallResult != nil {
+		return m.RawCallResult, nil
 	}
 	return nil, nil
 }
@@ -142,4 +142,14 @@ func (m *MockClient) SendMessageViaWallet(address types.Address, bytecode types.
 		hash = *m.Hash
 	}
 	return hash, m.Err
+}
+
+func (m *MockClient) Call(args *jsonrpc.CallArgs) (string, error) {
+	if m.Err != nil {
+		return "", m.Err
+	}
+	if m.Str != nil {
+		return *m.Str, nil
+	}
+	return "", nil
 }
