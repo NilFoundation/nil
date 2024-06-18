@@ -84,6 +84,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent
 		} else {
 			collator.ZeroState = execution.DefaultZeroStateConfig
 		}
+		collator.MainKeysOutPath = cfg.MainKeysOutPath
 		funcs = append(funcs, func(ctx context.Context) error {
 			return collator.Run(ctx)
 		})
