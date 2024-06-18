@@ -46,6 +46,8 @@ var (
 	ErrInvalidCode              = VMError{"invalid code: must not begin with 0xef"}
 	ErrNonceUintOverflow        = VMError{"nonce uint64 overflow"}
 
+	ErrInvalidInputLength = VMError{"invalid input length"}
+
 	// errStopToken is an internal token indicating interpreter loop termination,
 	// never returned to outside callers.
 	errStopToken = VMError{"stop token"}
