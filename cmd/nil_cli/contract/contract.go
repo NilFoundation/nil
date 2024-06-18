@@ -26,6 +26,9 @@ func GetCommand(cfg *config.Config) *cobra.Command {
 
 	setFlags(serverCmd)
 
+	callCmd := GetCallCommand(cfg)
+	serverCmd.AddCommand(callCmd)
+
 	return serverCmd
 }
 

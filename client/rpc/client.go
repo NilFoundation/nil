@@ -106,7 +106,7 @@ func (c *Client) call(method string, params []any) (json.RawMessage, error) {
 	return rpcResponse["result"], nil
 }
 
-func (c *Client) Call(method string, params ...any) (json.RawMessage, error) {
+func (c *Client) RawCall(method string, params ...any) (json.RawMessage, error) {
 	return c.call(method, params)
 }
 
@@ -383,4 +383,18 @@ func (c *Client) sendMessageViaWallet(
 	}
 
 	return txHash, nil
+}
+
+func (c *Client) Call(args *jsonrpc.CallArgs) (string, error) {
+	params := []any{args, "latest"}
+	raw, err := c.call("eth_call", params)
+	if err != nil {
+		return "", err
+	}
+
+	var res string
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return "", err
+	}
+	return res, nil
 }

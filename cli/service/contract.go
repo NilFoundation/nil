@@ -5,6 +5,7 @@ import (
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
 )
 
@@ -51,4 +52,27 @@ func (s *Service) DeployContract(shardId types.ShardId, wallet types.Address, by
 	s.logger.Info().Msgf("Contract address: 0x%x", contractAddr)
 	s.logger.Info().Msgf("Transaction hash: %s (shard %s)", txHash, wallet.ShardId())
 	return txHash.Hex(), contractAddr.Hex(), nil
+}
+
+// CallContract performs read-only call to the contract
+func (s *Service) CallContract(contract types.Address, calldata string) (string, error) {
+	data := hexutil.FromHex(calldata)
+
+	seqno := hexutil.Uint64(0)
+	callArgs := &jsonrpc.CallArgs{
+		From:     contract,
+		Data:     data,
+		To:       contract,
+		Value:    types.NewUint256(0),
+		GasLimit: types.NewUint256(10000),
+		Seqno:    &seqno,
+	}
+
+	res, err := s.client.Call(callArgs)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to call")
+		return "", err
+	}
+	s.logger.Info().Msgf("Call result: %s", res)
+	return res, nil
 }

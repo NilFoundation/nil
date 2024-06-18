@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/NilFoundation/nil/rpc/jsonrpc"
 )
 
 func (s *SuiteRpc) toJSON(v interface{}) string {
@@ -83,21 +81,10 @@ func (s *SuiteRpc) TestContract() {
 	getCalldata, err := abi.Pack("get")
 	s.Require().NoError(err)
 
-	callArgsData := hexutil.Bytes(getCalldata)
-	seqno := hexutil.Uint64(0)
-	callArgs := jsonrpc.CallArgs{
-		From:     addr,
-		Data:     callArgsData,
-		To:       addr,
-		Value:    types.NewUint256(0),
-		GasLimit: types.NewUint256(10000),
-		Seqno:    &seqno,
-	}
-
 	// Get current value
-	res, err := s.client.Call("eth_call", callArgs, "latest")
+	res, err := s.cli.CallContract(addr, hex.EncodeToString(getCalldata))
 	s.Require().NoError(err)
-	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000000", string(res[1:len(res)-1]))
+	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000000", res)
 
 	// Call contract method
 	calldata, err := abi.Pack("increment")
@@ -110,7 +97,7 @@ func (s *SuiteRpc) TestContract() {
 	s.Require().True(receipt.Success)
 
 	// Get updated value
-	res, err = s.client.Call("eth_call", callArgs, "latest")
+	res, err = s.cli.CallContract(addr, hex.EncodeToString(getCalldata))
 	s.Require().NoError(err)
-	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000001", string(res[1:len(res)-1]))
+	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000001", res)
 }

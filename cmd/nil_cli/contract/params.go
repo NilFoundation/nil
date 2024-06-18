@@ -29,6 +29,13 @@ type contractParams struct {
 	shardId  types.ShardId
 }
 
+var callParams = &callContractParams{}
+
+type callContractParams struct {
+	address types.Address
+	code    string
+}
+
 // initRawParams validates all parameters to ensure they are correctly set
 func (p *contractParams) initRawParams() error {
 	flagsSet := 0
