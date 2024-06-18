@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
@@ -44,7 +45,7 @@ func NewScheduler(txFabric db.DB, pool MsgPool, id types.ShardId, nShards int, t
 func (s *Scheduler) Run(ctx context.Context) error {
 	sharedLogger.Info().Msg("Starting collation...")
 
-	// At first generate zerostate for shard
+	// At first generate zerostate if needed
 	if err := s.generateZeroState(ctx); err != nil {
 		return err
 	}
@@ -68,8 +69,21 @@ func (s *Scheduler) generateZeroState(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
 
-	collator := newCollator(s.id, s.nShards, s.topology, s.pool, s.logger)
-	return collator.GenerateZeroState(ctx, s.txFabric, s.ZeroState)
+	roTx, err := s.txFabric.CreateRoTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer roTx.Rollback()
+
+	lastBlockHash, err := db.ReadLastBlockHash(roTx, s.id)
+	if err != nil {
+		return err
+	}
+	if lastBlockHash == common.EmptyHash {
+		collator := newCollator(s.id, s.nShards, s.topology, s.pool, s.logger)
+		return collator.GenerateZeroState(ctx, s.txFabric, s.ZeroState)
+	}
+	return nil
 }
 
 func (s *Scheduler) doCollate(ctx context.Context) error {

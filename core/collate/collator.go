@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
@@ -75,12 +74,6 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 		return err
 	}
 	defer c.clear()
-
-	lastBlockHash, err := db.ReadLastBlockHash(c.roTx, c.id)
-	if err != nil {
-		return err
-	}
-	check.PanicIfNotf(lastBlockHash != common.EmptyHash, "zerostate must be generated before block generation")
 
 	var poolMsgs []*types.Message
 
