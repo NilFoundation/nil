@@ -62,9 +62,10 @@ func (suite *SuiteFetchBlock) SetupSuite() {
 	suite.Require().NoError(err)
 
 	cfg := &nilservice.Config{
-		NShards:  suite.nShards,
-		HttpPort: port,
-		Topology: collate.TrivialShardTopologyId,
+		NShards:              suite.nShards,
+		HttpPort:             port,
+		Topology:             collate.TrivialShardTopologyId,
+		CollatorTickPeriodMs: 100,
 	}
 	go nilservice.Run(suite.context, cfg, database)
 

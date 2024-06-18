@@ -42,9 +42,10 @@ func (suite *SuiteRpc) SetupTest() {
 
 	suite.port = 8531
 	cfg := &nilservice.Config{
-		NShards:  suite.shardsNum,
-		HttpPort: suite.port,
-		Topology: collate.TrivialShardTopologyId,
+		NShards:              suite.shardsNum,
+		HttpPort:             suite.port,
+		Topology:             collate.TrivialShardTopologyId,
+		CollatorTickPeriodMs: 100,
 	}
 	go nilservice.Run(suite.context, cfg, badger)
 	suite.waitZerostate()

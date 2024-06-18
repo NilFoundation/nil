@@ -65,10 +65,11 @@ contracts:
 `, s.walletAddr.Hex(), hexutil.Encode(s.walletPublicKey), s.testAddr)
 
 	cfg := &nilservice.Config{
-		NShards:   s.shardsNum,
-		HttpPort:  s.port,
-		Topology:  collate.TrivialShardTopologyId,
-		ZeroState: zerostate,
+		NShards:              s.shardsNum,
+		HttpPort:             s.port,
+		Topology:             collate.TrivialShardTopologyId,
+		ZeroState:            zerostate,
+		CollatorTickPeriodMs: 100,
 	}
 	go nilservice.Run(s.context, cfg, badger)
 	s.waitZerostate()

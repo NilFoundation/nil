@@ -21,9 +21,10 @@ type Scheduler struct {
 	txFabric db.DB
 	pool     MsgPool
 
-	id       types.ShardId
-	nShards  int
-	topology ShardTopology
+	id                 types.ShardId
+	nShards            int
+	topology           ShardTopology
+	collatorTickPeriod time.Duration
 
 	ZeroState       string
 	MainKeysOutPath string
@@ -31,13 +32,14 @@ type Scheduler struct {
 	logger zerolog.Logger
 }
 
-func NewScheduler(txFabric db.DB, pool MsgPool, id types.ShardId, nShards int, topology ShardTopology) *Scheduler {
+func NewScheduler(txFabric db.DB, pool MsgPool, id types.ShardId, nShards int, topology ShardTopology, collatorTickPeriod time.Duration) *Scheduler {
 	return &Scheduler{
-		txFabric: txFabric,
-		pool:     pool,
-		id:       id,
-		nShards:  nShards,
-		topology: topology,
+		txFabric:           txFabric,
+		pool:               pool,
+		id:                 id,
+		nShards:            nShards,
+		topology:           topology,
+		collatorTickPeriod: collatorTickPeriod,
 		logger: logging.NewLogger("collator").With().
 			Str(logging.FieldShardId, id.String()).
 			Logger(),
@@ -52,7 +54,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 		return err
 	}
 
-	ticker := time.NewTicker(defaultPeriod)
+	ticker := time.NewTicker(s.collatorTickPeriod)
 	defer ticker.Stop()
 	for {
 		select {

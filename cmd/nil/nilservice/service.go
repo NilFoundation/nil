@@ -3,6 +3,7 @@ package nilservice
 import (
 	"context"
 	"syscall"
+	"time"
 
 	"github.com/NilFoundation/nil/common/concurrent"
 	"github.com/NilFoundation/nil/common/logging"
@@ -57,6 +58,8 @@ func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []
 	return rpc.StartRpcServer(ctx, httpConfig, apiList, logger)
 }
 
+const defaultCollatorTickPeriodMs = 2000
+
 // Run starts message pools and collators for given shards, creates a single RPC server for all shards.
 // It waits until one of the events:
 //   - all goroutines finish successfully,
@@ -75,10 +78,15 @@ func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent
 		},
 	}
 
+	if cfg.CollatorTickPeriodMs == 0 {
+		cfg.CollatorTickPeriodMs = defaultCollatorTickPeriodMs
+	}
+	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
+
 	msgPools := make([]msgpool.Pool, cfg.NShards)
 	for i := range cfg.NShards {
 		msgPool := msgpool.New(msgpool.DefaultConfig)
-		collator := collate.NewScheduler(database, msgPool, types.ShardId(i), cfg.NShards, collate.GetShardTopologyById(cfg.Topology))
+		collator := collate.NewScheduler(database, msgPool, types.ShardId(i), cfg.NShards, collate.GetShardTopologyById(cfg.Topology), collatorTickPeriod)
 		if len(cfg.ZeroState) != 0 {
 			collator.ZeroState = cfg.ZeroState
 		} else {

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	"github.com/rs/zerolog/log"
@@ -33,7 +34,13 @@ func StartHTTPEndpoint(urlEndpoint string, cfg *HttpEndpointConfig, handler http
 	if err != nil {
 		return nil, nil, fmt.Errorf("malformatted http listen url %s: %w", urlEndpoint, err)
 	}
-	if listener, err = net.Listen(socketUrl.Scheme, socketUrl.Host+socketUrl.EscapedPath()); err != nil {
+
+	// We need to retry socket binding because tests may fail due to port already in use
+	common.Retry(func() error {
+		listener, err = net.Listen(socketUrl.Scheme, socketUrl.Host+socketUrl.EscapedPath())
+		return err
+	}, 3, 100*time.Millisecond, 400*time.Millisecond)
+	if err != nil {
 		return nil, nil, err
 	}
 

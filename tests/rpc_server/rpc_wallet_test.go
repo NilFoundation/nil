@@ -30,10 +30,11 @@ func (s *SuiteWalletRpc) SetupSuite() {
 	s.client = rpc_client.NewClient(fmt.Sprintf("http://127.0.0.1:%d/", s.port))
 
 	cfg := &nilservice.Config{
-		NShards:   s.shardsNum,
-		HttpPort:  s.port,
-		Topology:  collate.TrivialShardTopologyId,
-		ZeroState: execution.DefaultZeroStateConfig,
+		NShards:              s.shardsNum,
+		HttpPort:             s.port,
+		Topology:             collate.TrivialShardTopologyId,
+		ZeroState:            execution.DefaultZeroStateConfig,
+		CollatorTickPeriodMs: 100,
 	}
 	go nilservice.Run(s.context, cfg, badger)
 	s.waitZerostate()

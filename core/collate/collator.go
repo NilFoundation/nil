@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	defaultPeriod  = 2 * time.Second
 	defaultTimeout = time.Second
 
 	maxMessagesInBlock = 100
