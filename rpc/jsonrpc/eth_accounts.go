@@ -22,6 +22,9 @@ func (api *APIImpl) getSmartContract(tx db.RoTx, address types.Address, blockNrO
 
 	root := mpt.NewReaderWithRoot(tx, shardId, db.ContractTrieTable, block.SmartContractsRoot)
 	contractRaw, err := root.Get(address.Hash().Bytes())
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return nil, nil
+	}
 	if contractRaw == nil || err != nil {
 		return nil, err
 	}
