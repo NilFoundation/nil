@@ -16,8 +16,11 @@ import (
 func (api *APIImpl) getSmartContract(tx db.RoTx, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*types.SmartContract, error) {
 	shardId := address.ShardId()
 	block, err := api.fetchBlockByNumberOrHash(tx, shardId, blockNrOrHash)
-	if err != nil || block == nil {
+	if err != nil {
 		return nil, err
+	}
+	if block == nil {
+		return nil, errBlockNotFound
 	}
 
 	root := mpt.NewReaderWithRoot(tx, shardId, db.ContractTrieTable, block.SmartContractsRoot)
