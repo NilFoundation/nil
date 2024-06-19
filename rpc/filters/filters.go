@@ -157,16 +157,16 @@ func (m *FiltersManager) PollBlocks(delay time.Duration) {
 
 		lastHash, err := m.getLastBlockHash()
 		if err != nil {
-			logger.Warn().Err(err).Msg("getLastBlockHash failed")
-			continue
-		} else if lastHash == common.EmptyHash {
+			if !errors.Is(err, db.ErrKeyNotFound) {
+				logger.Warn().Err(err).Msg("getLastBlockHash failed")
+			}
 			continue
 		}
 
 		if m.lastHash != lastHash {
 			m.mutex.Lock()
 			for currHash := lastHash; m.lastHash != currHash; {
-				block, err := m.processBlockHash(&currHash)
+				block, err := m.processBlockHash(currHash)
 				if err != nil {
 					logger.Warn().Err(err).Msg("processBlockHash failed")
 					continue
@@ -219,15 +219,11 @@ func (m *FiltersManager) processBlocksRange(filter *Filter) error {
 		if err != nil {
 			return err
 		}
-		if block == nil {
-			return errors.New("block not found")
-		}
 		receipts, err := m.readReceipts(tx, block)
 		if err != nil {
 			return err
 		}
-		err = m.processFilter(block, filter, receipts)
-		if err != nil {
+		if err = m.processFilter(block, filter, receipts); err != nil {
 			return err
 		}
 	}
@@ -235,33 +231,24 @@ func (m *FiltersManager) processBlocksRange(filter *Filter) error {
 }
 
 func (m *FiltersManager) readReceipts(tx db.RoTx, block *types.Block) ([]*types.Receipt, error) {
-	var receipts types.Receipts
-
-	mptReceipts := execution.NewReceiptTrieReader(mpt.NewReaderWithRoot(tx, m.shardId, db.ReceiptTrieTable, block.ReceiptsRoot))
-	for kv := range mptReceipts.Iterate() {
-		receipt := types.Receipt{}
-		if err := receipt.UnmarshalSSZ(kv.Value); err != nil {
-			return nil, err
-		}
-		receipts = append(receipts, &receipt)
-	}
-	return receipts, nil
+	return execution.NewReceiptTrieReader(
+		mpt.NewReaderWithRoot(tx, m.shardId, db.ReceiptTrieTable, block.ReceiptsRoot),
+	).Values()
 }
 
-func (m *FiltersManager) processBlockHash(lastHash *common.Hash) (*types.Block, error) {
+func (m *FiltersManager) processBlockHash(lastHash common.Hash) (*types.Block, error) {
 	tx, err := m.db.CreateRoTx(m.ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transaction: %w", err)
+		return nil, err
 	}
 	defer tx.Rollback()
 
-	block := db.ReadBlock(tx, m.shardId, *lastHash)
-	if block == nil {
-		return nil, errors.New("can not read last block")
+	block, err := db.ReadBlock(tx, m.shardId, lastHash)
+	if err != nil {
+		return nil, err
 	}
 
-	mptReceipts := execution.NewReceiptTrieReader(mpt.NewReaderWithRoot(tx, m.shardId, db.ReceiptTrieTable, block.ReceiptsRoot))
-	receipts, err := mptReceipts.Values()
+	receipts, err := m.readReceipts(tx, block)
 	if err != nil {
 		return nil, err
 	}
@@ -327,11 +314,7 @@ func (m *FiltersManager) getLastBlockHash() (common.Hash, error) {
 	}
 	defer tx.Rollback()
 
-	lastBlockRaw, err := tx.Get(db.LastBlockTable, m.shardId.Bytes())
-	if err == nil && lastBlockRaw != nil {
-		return common.Hash(lastBlockRaw), nil
-	}
-	return common.EmptyHash, err
+	return db.ReadLastBlockHash(tx, m.shardId)
 }
 
 var globalSubscriptionId uint64

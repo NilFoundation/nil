@@ -147,7 +147,7 @@ func (tx *BadgerRwTx) Put(tableName TableName, key, value []byte) error {
 	return tx.tx.Set(makeKey(tableName, key), value)
 }
 
-func (tx *BadgerRoTx) Get(tableName TableName, key []byte) (val []byte, err error) {
+func (tx *BadgerRoTx) Get(tableName TableName, key []byte) ([]byte, error) {
 	item, err := tx.tx.Get(makeKey(tableName, key))
 	if errors.Is(err, badger.ErrKeyNotFound) {
 		return nil, ErrKeyNotFound
@@ -155,6 +155,7 @@ func (tx *BadgerRoTx) Get(tableName TableName, key []byte) (val []byte, err erro
 	if err != nil {
 		return nil, err
 	}
+
 	return item.ValueCopy(nil)
 }
 

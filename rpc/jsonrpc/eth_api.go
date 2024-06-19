@@ -51,7 +51,7 @@ type EthAPI interface {
 		@param number BlockNumber
 		@returns transactionNumber TransactionNumber
 	*/
-	GetBlockTransactionCountByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber) (*hexutil.Uint, error)
+	GetBlockTransactionCountByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber) (hexutil.Uint, error)
 
 	/*
 		@name GetBlockTransactionCountByHash
@@ -62,7 +62,7 @@ type EthAPI interface {
 		@param hash BlockHash
 		@returns transactionNumber TransactionNumber
 	*/
-	GetBlockTransactionCountByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*hexutil.Uint, error)
+	GetBlockTransactionCountByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (hexutil.Uint, error)
 
 	/*
 		@name GetInMessageByHash

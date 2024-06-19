@@ -15,7 +15,7 @@ import (
 type (
 	// GetHashFunc returns the n'th block hash in the blockchain
 	// and is used by the BLOCKHASH EVM op code.
-	GetHashFunc func(uint64) common.Hash
+	GetHashFunc func(uint64) (common.Hash, error)
 )
 
 func (evm *EVM) precompile(addr types.Address) (PrecompiledContract, bool) {
@@ -62,7 +62,7 @@ type TxContext struct {
 // The EVM should never be reused and is not thread safe.
 type EVM struct {
 	// Context provides auxiliary blockchain related information
-	Context BlockContext
+	Context *BlockContext
 	TxContext
 	// StateDB gives access to the underlying state
 	StateDB StateDB
@@ -88,7 +88,7 @@ type EVM struct {
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
 // only ever be used *once*.
-func NewEVM(blockContext BlockContext, statedb StateDB) *EVM {
+func NewEVM(blockContext *BlockContext, statedb StateDB) *EVM {
 	evm := &EVM{
 		Context: blockContext,
 		StateDB: statedb,

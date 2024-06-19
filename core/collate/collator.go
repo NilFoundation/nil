@@ -2,6 +2,7 @@ package collate
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/NilFoundation/nil/common"
@@ -153,8 +154,12 @@ func (c *collator) finalize() (*types.Block, error) {
 	}
 
 	blockId := types.BlockNumber(0)
-	if c.executionState.PrevBlock != common.EmptyHash {
-		blockId = db.ReadBlock(c.rwTx, c.id, c.executionState.PrevBlock).Id + 1
+	if !c.executionState.PrevBlock.Empty() {
+		b, err := db.ReadBlock(c.rwTx, c.id, c.executionState.PrevBlock)
+		if err != nil {
+			return nil, err
+		}
+		blockId = b.Id + 1
 	}
 
 	blockHash, err := c.executionState.Commit(blockId)
@@ -179,16 +184,18 @@ func (c *collator) setLastBlockHashes() error {
 		for i := 1; i < c.nShards; i++ {
 			shardId := types.ShardId(i)
 			lastBlockHash, err := db.ReadLastBlockHash(c.roTx, shardId)
-			if err != nil {
+			if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 				return err
 			}
+
 			c.executionState.SetShardHash(shardId, lastBlockHash)
 		}
 	} else {
 		lastBlockHash, err := db.ReadLastBlockHash(c.roTx, types.MasterShardId)
-		if err != nil {
+		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 			return err
 		}
+
 		c.executionState.SetMasterchainHash(lastBlockHash)
 	}
 	return nil
@@ -201,7 +208,7 @@ type OutMessage struct {
 
 func (c *collator) collectFromNeighbors() ([]*types.Message, []*OutMessage, error) {
 	state, err := db.ReadCollatorState(c.roTx, c.id)
-	if err != nil {
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, nil, err
 	}
 
@@ -225,11 +232,11 @@ SHARDS:
 	BLOCKS:
 		for {
 			block, err := db.ReadBlockByNumber(c.roTx, neighborId, neighbor.BlockNumber)
+			if errors.Is(err, db.ErrKeyNotFound) {
+				break BLOCKS
+			}
 			if err != nil {
 				return nil, nil, err
-			}
-			if block == nil {
-				break BLOCKS
 			}
 
 			outMsgTrie := execution.NewMessageTrieReader(mpt.NewReaderWithRoot(c.roTx, neighborId, db.MessageTrieTable, block.OutMessagesRoot))

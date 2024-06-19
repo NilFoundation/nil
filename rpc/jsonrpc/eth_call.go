@@ -31,15 +31,13 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash trans
 		return nil, err
 	}
 
-	blockContext := execution.NewEVMBlockContext(es)
-
-	evm := vm.NewEVM(blockContext, es)
-
-	gas := args.GasLimit.Uint64()
-	ret, _, err := evm.Call((vm.AccountRef)(args.From), args.To, args.Data, gas, &args.Value.Int)
+	blockContext, err := execution.NewEVMBlockContext(es)
 	if err != nil {
 		return nil, err
 	}
 
-	return ret, nil
+	evm := vm.NewEVM(blockContext, es)
+	gas := args.GasLimit.Uint64()
+	ret, _, err := evm.Call((vm.AccountRef)(args.From), args.To, args.Data, gas, &args.Value.Int)
+	return ret, err
 }

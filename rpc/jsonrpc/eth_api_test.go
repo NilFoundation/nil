@@ -30,6 +30,6 @@ func TestGetTransactionReceipt(t *testing.T) {
 	require.NoError(t, err)
 
 	// Call GetBlockByNumber for transaction which is not in the database
-	_, err = api.GetBlockByNumber(context.Background(), types.MasterShardId, transport.LatestBlockNumber, false)
-	require.NoError(t, err)
+	_, err = api.GetBlockByNumber(ctx, types.MasterShardId, transport.LatestBlockNumber, false)
+	require.ErrorIs(t, err, db.ErrKeyNotFound)
 }

@@ -26,7 +26,7 @@ func (api *APIImpl) getBlockHashByNumber(
 		return common.EmptyHash, errNotImplemented
 	case transport.LatestBlockNumber:
 		lastBlock, err := db.ReadLastBlock(tx, shardId)
-		if err != nil || lastBlock == nil {
+		if err != nil {
 			return common.EmptyHash, err
 		}
 		requestedBlockNumber = lastBlock.Id
@@ -85,27 +85,26 @@ func (api *APIImpl) GetBlockByHash(
 
 func (api *APIImpl) getBlockTransactionCountByNumberOrHash(
 	ctx context.Context, shardId types.ShardId, numOrHash transport.BlockNumberOrHash,
-) (*hexutil.Uint, error) {
+) (hexutil.Uint, error) {
 	_, messages, _, err := api.getBlockWithCollectedEntitiesByNumberOrHash(ctx, shardId, numOrHash)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	msgLen := hexutil.Uint(len(messages))
-	return &msgLen, nil
+	return hexutil.Uint(len(messages)), nil
 }
 
 // GetBlockTransactionCountByNumber implements eth_getBlockTransactionCountByNumber. Returns the number of transactions in a block given the block's block number.
 func (api *APIImpl) GetBlockTransactionCountByNumber(
 	ctx context.Context, shardId types.ShardId, number transport.BlockNumber,
-) (*hexutil.Uint, error) {
+) (hexutil.Uint, error) {
 	return api.getBlockTransactionCountByNumberOrHash(ctx, shardId, transport.BlockNumberOrHash{BlockNumber: &number})
 }
 
 // GetBlockTransactionCountByHash implements eth_getBlockTransactionCountByHash. Returns the number of transactions in a block given the block's block hash.
 func (api *APIImpl) GetBlockTransactionCountByHash(
 	ctx context.Context, shardId types.ShardId, hash common.Hash,
-) (*hexutil.Uint, error) {
+) (hexutil.Uint, error) {
 	return api.getBlockTransactionCountByNumberOrHash(ctx, shardId, transport.BlockNumberOrHash{BlockHash: &hash})
 }
 

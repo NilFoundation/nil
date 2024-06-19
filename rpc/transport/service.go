@@ -11,6 +11,7 @@ import (
 	"unicode"
 
 	"github.com/NilFoundation/nil/common/check"
+	"github.com/NilFoundation/nil/core/db"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
 )
@@ -198,7 +199,11 @@ func (c *callback) call(ctx context.Context, method string, args []reflect.Value
 		// Method has returned non-nil error value.
 		err, ok := results[c.errPos].Interface().(error)
 		check.PanicIfNot(ok)
-		return reflect.Value{}, err
+
+		// todo: proper error conversion
+		if !errors.Is(err, db.ErrKeyNotFound) {
+			return reflect.Value{}, err
+		}
 	}
 	return results[0].Interface(), nil
 }

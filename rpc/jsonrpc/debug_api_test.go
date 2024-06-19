@@ -2,7 +2,6 @@ package jsonrpc
 
 import (
 	"context"
-	"strconv"
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
@@ -24,26 +23,21 @@ func TestDebugGetBlock(t *testing.T) {
 	require.NoError(t, err)
 	defer database.Close()
 
-	block := types.Block{
+	block := &types.Block{
 		Id:                 259,
 		PrevBlock:          common.EmptyHash,
 		SmartContractsRoot: common.EmptyHash,
 	}
-	blockHash := block.Hash()
 
-	{
-		tx, err := database.CreateRwTx(ctx)
-		require.NoError(t, err)
-		defer tx.Rollback()
-
-		require.NoError(t, tx.Put(db.LastBlockTable, []byte(strconv.Itoa(0)), blockHash.Bytes()))
-	}
+	hexBytes, err := block.MarshalSSZ()
+	require.NoError(t, err)
+	blockHex := hexutil.Encode(hexBytes)
 
 	tx, err := database.CreateRwTx(ctx)
 	require.NoError(t, err)
 	defer tx.Rollback()
 
-	err = db.WriteBlock(tx, types.MasterShardId, &block)
+	err = db.WriteBlock(tx, types.MasterShardId, block)
 	require.NoError(t, err)
 
 	_, err = execution.PostprocessBlock(tx, types.MasterShardId, block.Hash())
@@ -53,59 +47,23 @@ func TestDebugGetBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	base := NewBaseApi(0)
-
 	api := NewDebugAPI(base, database, log.Logger)
 
 	// When: Get the latest block
-	res, err := api.GetBlockByNumber(ctx, types.MasterShardId, transport.LatestBlockNumber, false)
-
-	// Then:
+	res1, err := api.GetBlockByNumber(ctx, types.MasterShardId, transport.LatestBlockNumber, false)
 	require.NoError(t, err)
 
-	// contains res
-	require.NotNil(t, res)
-
-	require.Contains(t, res, "content")
-	content, ok := res["content"]
-
-	// content is a map
+	content, ok := res1["content"]
 	require.True(t, ok)
-	require.NotNil(t, content)
-
-	hexBytes, err := block.MarshalSSZ()
-	require.NoError(t, err)
-
-	// content contains hash
-	require.Equal(t, content, hexutil.Encode(hexBytes))
+	require.Equal(t, blockHex, content)
 
 	// When: Get existing block
-	res, err = api.GetBlockByNumber(ctx, types.MasterShardId, transport.BlockNumber(block.Id), false)
-
-	// Then:
+	res2, err := api.GetBlockByNumber(ctx, types.MasterShardId, transport.BlockNumber(block.Id), false)
 	require.NoError(t, err)
 
-	// contains res
-	require.NotNil(t, res)
-
-	require.Contains(t, res, "content")
-	content, ok = res["content"]
-
-	// content is a map
-	require.True(t, ok)
-	require.NotNil(t, content)
-
-	hexBytes, err = block.MarshalSSZ()
-	require.NoError(t, err)
-
-	// content contains hash
-	require.Equal(t, content, hexutil.Encode(hexBytes))
+	require.Equal(t, res1, res2)
 
 	// When: Get nonexistent block
-	res, err = api.GetBlockByNumber(ctx, types.MasterShardId, transport.BlockNumber(block.Id+1), false)
-
-	// Then:
-	require.NoError(t, err)
-
-	// contains res
-	require.Nil(t, res)
+	_, err = api.GetBlockByNumber(ctx, types.MasterShardId, transport.BlockNumber(block.Id+1), false)
+	require.ErrorIs(t, err, db.ErrKeyNotFound)
 }

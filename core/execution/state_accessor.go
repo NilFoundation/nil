@@ -6,7 +6,6 @@ import (
 
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/common/assert"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
@@ -191,7 +190,11 @@ func (b blockAccessor) ByHash(hash common.Hash) (blockAccessorResult, error) {
 	sa := b.shardAccessor
 	block, ok := sa.cache.blocksLRU.Get(hash)
 	if !ok {
-		block = db.ReadBlock(sa.tx, b.shardAccessor.shardId, hash)
+		var err error
+		block, err = db.ReadBlock(sa.tx, b.shardAccessor.shardId, hash)
+		if err != nil {
+			return blockAccessorResult{}, err
+		}
 	}
 
 	res := blockAccessorResult{
@@ -201,31 +204,22 @@ func (b blockAccessor) ByHash(hash common.Hash) (blockAccessorResult, error) {
 		receipts:    notInitialized[[]*types.Receipt]("Receipts"),
 	}
 
-	if block != nil {
-		// We should not cache (at least without TTL) missing blocks because they may appear in the future.
-		sa.cache.blocksLRU.Add(hash, block)
-	}
+	sa.cache.blocksLRU.Add(hash, block)
 
 	if b.withInMessages {
-		if block == nil {
-			res.inMessages = initWith[[]*types.Message](nil)
-		} else if err := collectBlockEntities[*types.Message](hash, sa, sa.cache.inMessagesLRU, db.MessageTrieTable, block.InMessagesRoot, &res.inMessages); err != nil {
+		if err := collectBlockEntities[*types.Message](hash, sa, sa.cache.inMessagesLRU, db.MessageTrieTable, block.InMessagesRoot, &res.inMessages); err != nil {
 			return blockAccessorResult{}, err
 		}
 	}
 
 	if b.withOutMessages {
-		if block == nil {
-			res.outMessages = initWith[[]*types.Message](nil)
-		} else if err := collectBlockEntities[*types.Message](hash, sa, sa.cache.outMessagesLRU, db.MessageTrieTable, block.OutMessagesRoot, &res.outMessages); err != nil {
+		if err := collectBlockEntities[*types.Message](hash, sa, sa.cache.outMessagesLRU, db.MessageTrieTable, block.OutMessagesRoot, &res.outMessages); err != nil {
 			return blockAccessorResult{}, err
 		}
 	}
 
 	if b.withReceipts {
-		if block == nil {
-			res.receipts = initWith[[]*types.Receipt](nil)
-		} else if err := collectBlockEntities[*types.Receipt](hash, sa, sa.cache.receiptsLRU, db.ReceiptTrieTable, block.ReceiptsRoot, &res.receipts); err != nil {
+		if err := collectBlockEntities[*types.Receipt](hash, sa, sa.cache.receiptsLRU, db.ReceiptTrieTable, block.ReceiptsRoot, &res.receipts); err != nil {
 			return blockAccessorResult{}, err
 		}
 	}
@@ -279,29 +273,25 @@ func getBlockAndInMsgIndexByHash(sa *shardAccessor, incoming bool, hash common.H
 	}
 
 	data, err := sa.GetBlock().ByHash(idx.BlockHash)
-	if err == nil && data.Block() == nil {
-		err = db.ErrKeyNotFound
+	if err != nil {
+		return nil, idx, err
 	}
 
-	return data.Block(), idx, err
+	return data.Block(), idx, nil
 }
 
 func baseGetMsgByHash(sa *shardAccessor, incoming bool, hash common.Hash) (messageAccessorResult, error) {
 	block, idx, err := getBlockAndInMsgIndexByHash(sa, incoming, hash)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return messageAccessorResult{
-			block:   initWith[*types.Block](nil),
-			index:   initWith(types.MessageIndex(0)),
-			message: initWith[*types.Message](nil),
-		}, nil
-	}
 	if err != nil {
 		return messageAccessorResult{}, err
 	}
 
 	data, err := baseGetMsgByIndex(sa, incoming, idx.MessageIndex, block)
-	check.PanicIfNot(!assert.Enable || data.Message() == nil || data.Message().Hash() == hash)
-	return data, err
+	if err != nil {
+		return messageAccessorResult{}, err
+	}
+	check.PanicIfNot(data.Message() == nil || data.Message().Hash() == hash)
+	return data, nil
 }
 
 func baseGetMsgByIndex(sa *shardAccessor, incoming bool, idx types.MessageIndex, block *types.Block) (messageAccessorResult, error) {

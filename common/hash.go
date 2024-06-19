@@ -52,6 +52,10 @@ func IntToHash(i int) Hash {
 	return BigToHash(b)
 }
 
+func (h Hash) Empty() bool {
+	return h == EmptyHash
+}
+
 // Bytes gets the byte representation of the underlying hash.
 func (h Hash) Bytes() []byte { return h[:] }
 

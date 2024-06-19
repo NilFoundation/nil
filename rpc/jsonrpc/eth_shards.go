@@ -3,7 +3,6 @@ package jsonrpc
 import (
 	"context"
 
-	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/mpt"
@@ -17,14 +16,9 @@ func (api *APIImpl) GetShardIdList(ctx context.Context) ([]types.ShardId, error)
 	}
 	defer tx.Rollback()
 
-	hash, err := tx.Get(db.LastBlockTable, types.MasterShardId.Bytes())
+	block, err := db.ReadLastBlock(tx, types.MasterShardId)
 	if err != nil {
 		return nil, err
-	}
-
-	block := db.ReadBlock(tx, types.MasterShardId, common.CastToHash(hash))
-	if block == nil {
-		return nil, nil
 	}
 
 	treeShards := execution.NewShardBlocksTrieReader(
