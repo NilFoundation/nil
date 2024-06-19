@@ -88,8 +88,9 @@ func (suite *SuiteEthAccounts) TestGetBalance() {
 	suite.Equal((*hexutil.Big)(big.NewInt(1234)), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	_, err = suite.api.GetBalance(ctx, types.GenerateRandomAddress(types.BaseShardId), blockNum)
-	suite.Require().EqualError(err, "key not found in db")
+	res, err = suite.api.GetBalance(ctx, types.GenerateRandomAddress(types.BaseShardId), blockNum)
+	suite.Require().NoError(err)
+	suite.Equal((*hexutil.Big)(big.NewInt(0)), res)
 
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
@@ -112,8 +113,9 @@ func (suite *SuiteEthAccounts) TestGetCode() {
 	suite.Equal(hexutil.Bytes("some code"), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-	_, err = suite.api.GetCode(ctx, types.GenerateRandomAddress(types.BaseShardId), blockNum)
-	suite.Require().EqualError(err, "key not found in db")
+	res, err = suite.api.GetCode(ctx, types.GenerateRandomAddress(types.BaseShardId), blockNum)
+	suite.Require().NoError(err)
+	suite.Equal(hexutil.Bytes(nil), res)
 
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
