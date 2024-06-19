@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-library nil {
+library Nil {
     uint private constant SEND_MESSAGE = 0xfc;
     address private constant ASYNC_CALL = address(0xfd);
     address public constant VERIFY_SIGNATURE = address(0xfe);
@@ -87,7 +87,7 @@ contract NilBase {
 
     function isInternalMessage() internal view returns (bool) {
         bytes memory data;
-        (bool success, bytes memory returnData) = nil
+        (bool success, bytes memory returnData) = Nil
             .IS_INTERNAL_MESSAGE
             .staticcall(data);
         require(success, "Precompiled contract call failed");

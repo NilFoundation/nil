@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "../../../contracts/solidity/nil.sol";
+import "../../../contracts/solidity/Nil.sol";
 
 contract Callee {
     int32 value;
@@ -13,7 +13,7 @@ contract Callee {
 }
 
 contract Caller {
-    using nil for address;
+    using Nil for address;
 
     function call(address dst, int32 val) public payable {
         dst.async_call(
@@ -26,7 +26,7 @@ contract Caller {
     }
 
     function send_msg(bytes calldata message) public payable {
-        nil.send_msg(gasleft(), message);
+        Nil.send_msg(gasleft(), message);
     }
 
     function verifyExternal(

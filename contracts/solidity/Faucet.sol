@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./nil.sol";
+import "./Nil.sol";
 import "./Wallet.sol";
 
 contract Faucet {
     event Deploy(address addr);
     event Send(address addr, uint256 value);
 
-    function verifyExternal(uint256, bytes memory) external view returns (bool) {
+    function verifyExternal(uint256, bytes memory) external pure returns (bool) {
         return true;
     }
 
@@ -31,6 +31,6 @@ contract Faucet {
     }
 
     function send(bytes calldata message) public payable {
-        nil.send_msg(gasleft(), message);
+        Nil.send_msg(gasleft(), message);
     }
 }

@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.9;
 
-import "../nil.sol";
+import "../Nil.sol";
 
 contract MessageCheck is NilBase {
 
@@ -22,7 +22,7 @@ contract MessageCheck is NilBase {
         MessageCheck(addr).internalFunc();
     }
 
-    function verifyExternal(uint256, bytes memory) external view returns (bool) {
+    function verifyExternal(uint256, bytes memory) external pure returns (bool) {
         return true;
     }
 }
