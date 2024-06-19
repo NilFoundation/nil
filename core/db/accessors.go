@@ -74,7 +74,7 @@ func WriteVersionInfo(tx RwTx, version *types.VersionInfo) error {
 func IsVersionOutdated(tx RoTx) (bool, error) {
 	dbVersion, err := ReadVersionInfo(tx)
 	if errors.Is(err, ErrKeyNotFound) {
-		return true, nil
+		return false, nil
 	}
 	if err != nil {
 		return false, err
