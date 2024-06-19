@@ -55,7 +55,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	// constructor that generates the code "01020304"
 	code := "6004600c60003960046000f301020304"
 
-	from := types.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20")
+	from := types.GenerateRandomAddress(shardId)
 	blockContext, err := NewEVMBlockContext(es)
 	suite.Require().NoError(err)
 
@@ -134,6 +134,7 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 	suite.Require().NoError(err)
 	deployMsg := types.BuildDeployPayload(code, common.EmptyHash)
 	message := &types.Message{
+		Internal: true,
 		Kind:     types.DeployMessageKind,
 		Seqno:    1,
 		GasLimit: types.Uint256{Int: *uint256.NewInt(100000)},

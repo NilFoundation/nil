@@ -68,6 +68,8 @@ type EVM struct {
 	StateDB StateDB
 	// Depth is the current call stack
 	depth int
+	// Indicates whether this is async call
+	IsAsyncCall bool
 
 	// chainConfig contains information about the current chain
 	chainConfig *params.ChainConfig
@@ -102,10 +104,6 @@ func (evm *EVM) Interpreter() *EVMInterpreter {
 	return evm.interpreter
 }
 
-func (evm *EVM) isAsyncCall() bool {
-	return evm.depth == 0
-}
-
 // Call executes the contract associated with the addr with the given input as
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
@@ -118,14 +116,13 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
-	if !value.IsZero() && !canTransfer(evm.StateDB, caller.Address(), value, evm.isAsyncCall()) {
+	if !value.IsZero() && !canTransfer(evm.StateDB, caller.Address(), value, evm.IsAsyncCall) {
 		return nil, gas, ErrInsufficientBalance
 	}
 	snapshot := evm.StateDB.Snapshot()
 	p, isPrecompile := evm.precompile(addr)
 
 	if isPrecompile {
-		// TODO: add sub balance
 		ret, gas, err = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, gas, value, caller, readOnly)
 	} else {
 		if !evm.StateDB.Exist(addr) {
@@ -135,7 +132,7 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 			}
 			evm.StateDB.CreateAccount(addr)
 		}
-		transfer(evm.StateDB, caller.Address(), addr, value, evm.isAsyncCall())
+		transfer(evm.StateDB, caller.Address(), addr, value, evm.IsAsyncCall)
 
 		// Initialise a new contract and set the code that is to be used by the EVM.
 		// The contract is a scoped environment for this execution context only.
@@ -189,7 +186,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr types.Address, input []byte, g
 	// Note although it's noop to transfer X ether to caller itself. But
 	// if caller doesn't have enough balance, it would be an error to allow
 	// over-charging itself. So the check here is necessary.
-	if !canTransfer(evm.StateDB, caller.Address(), value, evm.isAsyncCall()) {
+	if !canTransfer(evm.StateDB, caller.Address(), value, evm.IsAsyncCall) {
 		return nil, gas, ErrInsufficientBalance
 	}
 	snapshot := evm.StateDB.Snapshot()
@@ -317,7 +314,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, v
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, types.Address{}, gas, ErrDepth
 	}
-	if !canTransfer(evm.StateDB, caller.Address(), value, evm.isAsyncCall()) {
+	if !canTransfer(evm.StateDB, caller.Address(), value, evm.IsAsyncCall) {
 		return nil, types.Address{}, gas, ErrInsufficientBalance
 	}
 
@@ -330,7 +327,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, v
 	}
 
 	// bump nonce only for sync calls
-	if caller.Address() != types.EmptyAddress && !evm.isAsyncCall() {
+	if caller.Address() != types.EmptyAddress && !evm.IsAsyncCall {
 		// bump caller's nonce
 		nonce := evm.StateDB.GetSeqno(caller.Address())
 		if nonce+1 < nonce {
@@ -353,7 +350,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, v
 	evm.StateDB.CreateContract(address)
 
 	evm.StateDB.SetSeqno(address, 1)
-	transfer(evm.StateDB, caller.Address(), address, value, evm.isAsyncCall())
+	transfer(evm.StateDB, caller.Address(), address, value, evm.IsAsyncCall)
 
 	// Initialise a new contract and set the code that is to be used by the EVM.
 	// The contract is a scoped environment for this execution context only.

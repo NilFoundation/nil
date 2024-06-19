@@ -146,8 +146,9 @@ func (es *ExecutionState) GenerateZeroState(configYaml string) error {
 		code = append(code, argsPacked...)
 
 		mainDeployMsg := &types.Message{
-			Seqno: 0,
-			Data:  code,
+			Internal: true,
+			Seqno:    0,
+			Data:     code,
 		}
 
 		es.CreateAccount(addr)

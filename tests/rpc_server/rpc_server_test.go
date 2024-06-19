@@ -20,6 +20,7 @@ import (
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -191,10 +192,8 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 	checkForShard := func(shardId types.ShardId) {
 		suite.T().Helper()
 
-		// TODO: make this work
-		// blockNumber := transport.LatestBlockNumber
-		// prevBalance, err := suite.client.GetBalance(callerAddr, transport.BlockNumberOrHash{BlockNumber: &blockNumber})
-		// suite.Require().NoError(err)
+		prevBalance, err := suite.client.GetBalance(callerAddr, transport.LatestBlockNumber)
+		suite.Require().NoError(err)
 
 		// deploy callee contracts to different shards
 		calleeCode, calleeAbi := suite.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Callee")
@@ -232,11 +231,10 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 		receipt = suite.waitForReceipt(callerAddr.ShardId(), hash)
 		suite.Require().True(receipt.Success)
 
-		// TODO: make this work
-		// balance, err := suite.client.GetBalance(callerAddr, transport.BlockNumberOrHash{BlockNumber: &blockNumber})
-		// suite.Require().NoError(err)
-		// suite.Require().Greater(prevBalance.Uint64(), balance.Uint64())
-		// log.Logger.Info().Msgf("Spent %v nil", prevBalance.Uint64()-balance.Uint64())
+		balance, err := suite.client.GetBalance(callerAddr, transport.LatestBlockNumber)
+		suite.Require().NoError(err)
+		suite.Require().Greater(prevBalance.Uint64(), balance.Uint64())
+		log.Logger.Info().Msgf("Spent %v nil", prevBalance.Uint64()-balance.Uint64())
 	}
 
 	// check that we can call contract from neighbor shard

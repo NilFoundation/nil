@@ -245,6 +245,9 @@ const (
 
 	// BalanceIncreaseRefund is added when refund message arrives.
 	BalanceIncreaseRefund BalanceChangeReason = 15
+
+	// BalanceDecreasePrecompile is decreased when calling precompiled contracts.
+	BalanceDecreasePrecompile BalanceChangeReason = 15
 )
 
 // GasChangeReason is used to indicate the reason for a gas change, useful

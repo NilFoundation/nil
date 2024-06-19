@@ -303,6 +303,16 @@ func setRefundTo(refundTo *types.Address, msg *types.Message) {
 	}
 }
 
+func withdrawFunds(state StateDB, addr types.Address, value *uint256.Int) error {
+	balance := state.GetBalance(addr)
+	if balance.Lt(value) {
+		log.Logger.Error().Msgf("withdrawFunds failed: insufficient balance on address %v, expected at least %v, got %v", addr, value, balance)
+		return ErrInsufficientBalance
+	}
+	state.SubBalance(addr, value, tracing.BalanceDecreasePrecompile)
+	return nil
+}
+
 func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
 	if readOnly {
 		return nil, ErrWriteProtection
@@ -311,10 +321,8 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uin
 	if err := payload.UnmarshalSSZ(input); err != nil {
 		return nil, err
 	}
-	balance := state.GetBalance(caller.Address())
-	if balance.Lt(&payload.Value.Int) {
-		log.Logger.Error().Msgf("sendRawMessage failed: insufficient balance on address %v, expected at least %v, got %v", caller.Address(), payload.Value, balance)
-		return nil, ErrInsufficientBalance
+	if err := withdrawFunds(state, caller.Address(), &payload.Value.Int); err != nil {
+		return nil, err
 	}
 
 	// TODO: We should consider non-refundable messages
@@ -350,7 +358,7 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 	refundTo := types.BytesToAddress(input[32-types.AddrSize : 32])
 	input = input[32:]
 
-	messageGas := big.NewInt(0).SetBytes(input[:32])
+	messageGas := uint256.MustFromBig(big.NewInt(0).SetBytes(input[:32]))
 	input = input[64:] // skip gas and dynamic value offset
 
 	inputLength := big.NewInt(0).SetBytes(input[:32])
@@ -368,13 +376,17 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 		kind = types.ExecutionMessageKind
 	}
 
+	if err := withdrawFunds(state, caller.Address(), messageGas); err != nil {
+		return nil, err
+	}
+
 	// TODO: We should consider non-refundable messages
 	setRefundTo(&refundTo, state.GetInMessage())
 
 	// Internal is required for the message
 	payload := types.InternalMessagePayload{
 		Kind:     kind,
-		GasLimit: types.Uint256{Int: *uint256.MustFromBig(messageGas)},
+		GasLimit: types.Uint256{Int: *messageGas},
 		Value:    types.Uint256{Int: *value},
 		To:       dst,
 		RefundTo: refundTo,

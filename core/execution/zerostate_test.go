@@ -81,6 +81,7 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 
 	callMessage := &types.Message{
 		Data:     calldata,
+		From:     suite.faucetAddr,
 		To:       suite.faucetAddr,
 		GasLimit: *types.NewUint256(10000),
 	}

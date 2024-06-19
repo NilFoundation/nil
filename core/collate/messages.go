@@ -87,7 +87,6 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 		msgHash := inMessage.Hash()
 		es.AddInMessage(inMessage)
 		es.InMessageHash = msgHash
-
 		// We copy the message so as not to spoil es.InMessages when purchasing gas
 		inMessageCopy := *inMessage
 		message := &inMessageCopy

@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/core/vm"
 	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/common/compiler"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,6 +21,7 @@ func deployContract(t *testing.T, contract *compiler.Contract, state *ExecutionS
 	contractCode := hexutil.FromHex(contract.Code)
 	dm := types.BuildDeployPayload(contractCode, common.EmptyHash)
 	message := &types.Message{
+		Internal: true,
 		Data:     dm.Bytes(),
 		Seqno:    seqno,
 		GasLimit: *types.NewUint256(100000),
@@ -50,6 +52,7 @@ func TestCall(t *testing.T) {
 	require.NoError(t, err)
 
 	callMessage := &types.Message{
+		Internal: true,
 		Data:     calldata,
 		To:       addr,
 		GasLimit: *types.NewUint256(10000),
@@ -65,6 +68,7 @@ func TestCall(t *testing.T) {
 	require.NoError(t, err)
 
 	callMessage2 := &types.Message{
+		Internal: true,
 		Data:     calldata2,
 		To:       callerAddr,
 		GasLimit: *types.NewUint256(10000),
@@ -82,6 +86,7 @@ func TestCall(t *testing.T) {
 	require.NoError(t, err)
 
 	callMessage2 = &types.Message{
+		Internal: true,
 		Data:     calldata2,
 		To:       callerAddr,
 		GasLimit: *types.NewUint256(10000),
@@ -117,6 +122,7 @@ func TestDelegate(t *testing.T) {
 	calldata, err := solc.ExtractABI(proxyContract).Pack("setValue", delegateAddr, big.NewInt(42))
 	require.NoError(t, err)
 	callMessage := &types.Message{
+		Internal: true,
 		Data:     calldata,
 		To:       proxyAddr,
 		GasLimit: *types.NewUint256(100000),
@@ -128,6 +134,7 @@ func TestDelegate(t *testing.T) {
 	calldata, err = solc.ExtractABI(proxyContract).Pack("getValue", delegateAddr)
 	require.NoError(t, err)
 	callMessage = &types.Message{
+		Internal: true,
 		Data:     calldata,
 		To:       proxyAddr,
 		GasLimit: *types.NewUint256(10000),
@@ -141,6 +148,7 @@ func TestDelegate(t *testing.T) {
 	calldata, err = solc.ExtractABI(proxyContract).Pack("setValueStatic", delegateAddr, big.NewInt(42))
 	require.NoError(t, err)
 	callMessage = &types.Message{
+		Internal: true,
 		Data:     calldata,
 		To:       proxyAddr,
 		GasLimit: *types.NewUint256(10000),
@@ -174,10 +182,13 @@ func TestAsyncCall(t *testing.T) {
 	calldata, err := abi.Pack("call", addrCallee, int32(11))
 	require.NoError(t, err)
 
+	state.SetBalance(addrCaller, *uint256.NewInt(1_000_000))
+
 	callMessage := &types.Message{
+		Internal: true,
 		Data:     calldata,
 		To:       addrCaller,
-		GasLimit: *types.NewUint256(100000),
+		GasLimit: *types.NewUint256(100_000),
 	}
 	state.AddInMessage(callMessage)
 	_, _, err = state.HandleExecutionMessage(ctx, callMessage, blockContext)
@@ -207,6 +218,7 @@ func TestAsyncCall(t *testing.T) {
 	calldata, err = abi.Pack("call", addrCallee, int32(-7))
 	require.NoError(t, err)
 	callMessage = &types.Message{
+		Internal: true,
 		Data:     calldata,
 		To:       addrCaller,
 		GasLimit: *types.NewUint256(10000),
@@ -279,6 +291,7 @@ func TestSendMessage(t *testing.T) {
 	require.NoError(t, err)
 
 	callMessage := &types.Message{
+		Internal: true,
 		Data:     calldata,
 		To:       addrCaller,
 		GasLimit: *types.NewUint256(100000),
