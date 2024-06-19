@@ -179,7 +179,7 @@ func (s *SuiteRpc) TestRpcDeployToMainShardViaMainWallet() {
 	txHash, _, err := s.client.DeployContract(types.MasterShardId, types.MainWalletAddress, code, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
-	receipt := s.waitForReceipt(types.MasterShardId, txHash)
+	receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), txHash)
 	s.True(receipt.Success)
 }
 

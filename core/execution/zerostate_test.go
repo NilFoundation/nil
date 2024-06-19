@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -102,21 +103,23 @@ func TestZerostateFromConfig(t *testing.T) {
 	state, err := NewExecutionState(tx, types.MasterShardId, common.EmptyHash, common.NewTestTimer(0))
 	require.NoError(t, err)
 
-	configYaml := `
+	walletAddr := types.ShardAndHexToAddress(types.MasterShardId, "0x111111111111111111111111111111111111")
+
+	configYaml := fmt.Sprintf(`
 contracts:
 - name: Faucet
   value: 87654321
   contract: Faucet
 - name: MainWallet
-  address: 0x0000111111111111111111111111111111111111
+  address: %s
   value: 12345678
   contract: Wallet
   ctorArgs: [MainPublicKey]
-`
+`, walletAddr.Hex())
 	err = state.GenerateZeroState(configYaml)
 	require.NoError(t, err)
 
-	wallet := state.GetAccount(types.MainWalletAddress)
+	wallet := state.GetAccount(walletAddr)
 	require.NotNil(t, wallet)
 	require.Equal(t, wallet.Balance, types.NewUint256(12345678).Int)
 
@@ -139,18 +142,18 @@ contracts:
 	require.Error(t, err)
 
 	// Test only one contract should deployed in specific shard
-	configYaml3 := `
+	configYaml3 := fmt.Sprintf(`
 contracts:
 - name: Faucet
   value: 87654321
   shard: 1
   contract: Faucet
 - name: MainWallet
-  address: 0x0000111111111111111111111111111111111111
+  address: %s
   value: 12345678
   contract: Wallet
   ctorArgs: [MainPublicKey]
-`
+`, walletAddr.Hex())
 	state, err = NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0))
 	require.NoError(t, err)
 	err = state.GenerateZeroState(configYaml3)
@@ -160,7 +163,7 @@ contracts:
 
 	faucet = state.GetAccount(faucetAddr)
 	require.NotNil(t, faucet)
-	wallet = state.GetAccount(types.MainWalletAddress)
+	wallet = state.GetAccount(walletAddr)
 	require.Nil(t, wallet)
 }
 

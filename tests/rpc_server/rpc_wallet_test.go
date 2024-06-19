@@ -7,7 +7,6 @@ import (
 
 	rpc_client "github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
-	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
@@ -18,7 +17,6 @@ import (
 
 type SuiteWalletRpc struct {
 	RpcSuite
-	WalletAddress types.Address
 }
 
 func (s *SuiteWalletRpc) SetupSuite() {
@@ -31,19 +29,12 @@ func (s *SuiteWalletRpc) SetupSuite() {
 	s.port = 8533
 	s.client = rpc_client.NewClient(fmt.Sprintf("http://127.0.0.1:%d/", s.port))
 
-	s.WalletAddress = types.HexToAddress("0001111111111111111111111111111111111111") // Put wallet to Base shard instead of Main
-	zerostate := fmt.Sprintf(`contracts:
-- name: Wallet
-  address: %s
-  value: 1000000000000
-  contract: Wallet
-  ctorArgs: [%s]
-`, s.WalletAddress.Hex(), hexutil.Encode(execution.MainPublicKey))
 	cfg := &nilservice.Config{
-		NShards:   s.shardsNum,
-		HttpPort:  s.port,
-		Topology:  collate.TrivialShardTopologyId,
-		ZeroState: zerostate,
+		NShards:              s.shardsNum,
+		HttpPort:             s.port,
+		Topology:             collate.TrivialShardTopologyId,
+		ZeroState:            execution.DefaultZeroStateConfig,
+		CollatorTickPeriodMs: 100,
 	}
 	go nilservice.Run(s.context, cfg, badger)
 	s.waitZerostate()
@@ -56,7 +47,7 @@ func (suite *SuiteWalletRpc) TestWallet() {
 	abiCalee, err := contracts.GetAbi("tests/Counter")
 	suite.Require().NoError(err)
 
-	addrCallee, receipt := suite.deployContractViaWallet(suite.WalletAddress, execution.MainPrivateKey, types.BaseShardId, code, *types.NewUint256(5_000_000))
+	addrCallee, receipt := suite.deployContractViaMainWallet(3, code, *types.NewUint256(5_000_000))
 	suite.Require().True(receipt.OutReceipts[0].Success)
 
 	var calldata []byte
@@ -65,7 +56,7 @@ func (suite *SuiteWalletRpc) TestWallet() {
 	calldata, err = abiCalee.Pack("add", int32(11))
 	suite.Require().NoError(err)
 
-	receipt = suite.sendMessageViaWallet(suite.WalletAddress, addrCallee, execution.MainPrivateKey, calldata)
+	receipt = suite.sendMessageViaWallet(types.MainWalletAddress, addrCallee, execution.MainPrivateKey, calldata)
 	suite.Require().True(receipt.OutReceipts[0].Success)
 
 	// Call get method
