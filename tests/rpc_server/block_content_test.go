@@ -3,13 +3,14 @@ package rpctest
 import (
 	"time"
 
-	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/types"
 )
 
 func (suite *SuiteRpc) TestRpcBlockContent() {
 	// Deploy message
-	code := hexutil.FromHex("6009600c60003960096000f3600054600101600055")
+	code, err := contracts.GetCode("tests/Counter")
+	suite.Require().NoError(err)
 	m := suite.createMessageForDeploy(code, types.BaseShardId)
 
 	suite.sendRawTransaction(m)
@@ -19,7 +20,7 @@ func (suite *SuiteRpc) TestRpcBlockContent() {
 		suite.Require().NoError(err)
 
 		return len(res.Messages) > 0
-	}, 6*time.Second, 100*time.Millisecond)
+	}, 6*time.Second, 50*time.Millisecond)
 
 	latestRes, err := suite.client.GetBlock(types.BaseShardId, "latest", true)
 	suite.Require().NoError(err)

@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
+	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/mpt"
@@ -46,9 +46,12 @@ func (s *CollatorTestSuite) TestCollator() {
 	ctx := context.Background()
 	shardId := types.ShardId(1)
 
+	code, err := contracts.GetCode("tests/Counter")
+	s.Require().NoError(err)
+
 	m := &types.Message{
 		From:     types.CreateAddress(shardId, []byte("1234")),
-		Data:     hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
+		Data:     code,
 		Internal: true,
 	}
 	pool := &MockMsgPool{Msgs: []*types.Message{m}}

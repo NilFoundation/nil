@@ -6,6 +6,7 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
@@ -38,9 +39,12 @@ func (s *MessagesSuite) TestGenerateBlock() {
 	es, err := execution.NewExecutionStateForShard(rwTx, shardId, common.NewTimer())
 	s.Require().NoError(err)
 
+	code, err := contracts.GetCode("tests/Counter")
+	s.Require().NoError(err)
+
 	m1 := types.Message{
 		From:     types.HexToAddress("9405832983856CB0CF6CD570F071122F1BEA2F20"),
-		Data:     hexutil.FromHex("6009600c60003960096000f3600054600101600055"),
+		Data:     code,
 		Internal: true,
 	}
 	m2 := m1
