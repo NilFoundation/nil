@@ -2,6 +2,7 @@ package rpctest
 
 import (
 	"encoding/json"
+	"math/big"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
@@ -30,7 +31,8 @@ func (s *SuiteRpc) TestCliBlock() {
 }
 
 func (s *SuiteRpc) TestCliMessage() {
-	contractCode, _ := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
+	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
+	contractCode = s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(0))
 
 	_, receipt := s.deployContractViaMainWallet(types.BaseShardId, contractCode, *types.NewUint256(5_000_000))
 	s.Require().True(receipt.Success)
@@ -50,7 +52,8 @@ func (s *SuiteRpc) TestCliMessage() {
 }
 
 func (s *SuiteRpc) TestReadContract() {
-	contractCode, _ := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
+	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
+	contractCode = s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(1))
 
 	addr, receipt := s.deployContractViaMainWallet(types.BaseShardId, contractCode, *types.NewUint256(5_000_000))
 	s.Require().True(receipt.Success)
@@ -70,12 +73,14 @@ func (s *SuiteRpc) TestContract() {
 
 	// Deploy contract
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
-	txHash, addrStr, err := s.cli.DeployContract(types.BaseShardId, wallet, contractCode)
+	deployCode := s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(2))
+	txHash, addrStr, err := s.cli.DeployContract(types.BaseShardId, wallet, deployCode)
 	s.Require().NoError(err)
 	addr := types.HexToAddress(addrStr)
 
 	receipt := s.waitForReceiptOnShard(wallet.ShardId(), common.HexToHash(txHash))
 	s.Require().True(receipt.Success)
+	s.Require().True(receipt.OutReceipts[0].Success)
 
 	getCalldata, err := abi.Pack("get")
 	s.Require().NoError(err)
@@ -83,7 +88,7 @@ func (s *SuiteRpc) TestContract() {
 	// Get current value
 	res, err := s.cli.CallContract(addr, getCalldata)
 	s.Require().NoError(err)
-	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000000", res)
+	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000002", res)
 
 	// Call contract method
 	calldata, err := abi.Pack("increment")
@@ -98,5 +103,5 @@ func (s *SuiteRpc) TestContract() {
 	// Get updated value
 	res, err = s.cli.CallContract(addr, getCalldata)
 	s.Require().NoError(err)
-	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000001", res)
+	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000003", res)
 }

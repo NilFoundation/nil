@@ -3,6 +3,7 @@ package rpctest
 import (
 	"context"
 	"encoding/json"
+	"math/big"
 	"strconv"
 	"testing"
 	"time"
@@ -161,10 +162,20 @@ func (suite *SuiteRpc) loadContract(path string, name string) (types.Code, abi.A
 	return code, abi
 }
 
+func (s *SuiteRpc) prepareDefaultDeployBytecode(abi abi.ABI, code []byte, args ...any) []byte {
+	s.T().Helper()
+
+	constructor, err := abi.Pack("", args...)
+	s.Require().NoError(err)
+	code = append(code, constructor...)
+	return types.BuildDeployPayload(code, common.EmptyHash)
+}
+
 const defaultContractValue = uint64(50_000_000)
 
 func (suite *SuiteRpc) TestRpcContract() {
 	contractCode, abi := suite.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
+	contractCode = suite.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(0))
 
 	addr, receipt := suite.deployContractViaMainWallet(types.BaseShardId, contractCode, *types.NewUint256(defaultContractValue))
 	suite.Require().True(receipt.OutReceipts[0].Success)
@@ -183,7 +194,9 @@ func (suite *SuiteRpc) TestRpcContract() {
 }
 
 func (s *SuiteRpc) TestRpcDeployToMainShardViaMainWallet() {
-	code, _ := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
+	code, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
+	code = s.prepareDefaultDeployBytecode(abi, code, big.NewInt(0))
+
 	txHash, _, err := s.client.DeployContract(types.MasterShardId, types.MainWalletAddress, code, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
