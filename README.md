@@ -39,6 +39,22 @@ Run tests with:
 make test
 ```
 
+### Creating a new wallet
+
+The easisest way to create a new wallet is to use the =nil; CLI.
+
+To create a new wallet on the base shard:
+
+```bash
+nil_cli new-wallet
+```
+
+To create a wallet with a constructor and some arbitrary salt:
+
+```bash
+nil_cli new-wallet --code CONSTRUCTOR_CODE --salt SALT
+```
+
 ### Deploying a smart contract via CLI
 
 While being in the repo root, copy the config for the CLI where it specifies the private key and RPC endpoint:
@@ -86,7 +102,7 @@ You'll see the counter value in the "data" section of the log in the json. To se
 echo "<value in data section>" | base64 -d | xxd
 ```
 
-### Deploying a smart contract
+### Deploying a smart contract via Go
 
 Create a deployment message:
 
