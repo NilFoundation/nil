@@ -35,7 +35,7 @@ func (s *Service) GetCode(contractAddress string) (string, error) {
 
 // RunContract runs bytecode on the specified contract address
 func (s *Service) RunContract(wallet types.Address, bytecode []byte, contract types.Address) (string, error) {
-	txHash, err := s.client.SendMessageViaWallet(wallet, types.Code(bytecode), contract, s.privateKey)
+	txHash, err := s.client.SendMessageViaWallet(wallet, types.Code(bytecode), *types.NewUint256(0), contract, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
 		return "", err

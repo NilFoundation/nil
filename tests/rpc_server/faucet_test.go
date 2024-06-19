@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
+	"github.com/rs/zerolog/log"
 )
 
 func (suite *SuiteRpc) getFaucetAddress() types.Address {
@@ -79,6 +80,7 @@ func (suite *SuiteRpc) sendViaFaucet(code []byte, ownerPrivateKey *ecdsa.Private
 
 	sendMsgInternal := &types.InternalMessagePayload{
 		To:       walletAddress,
+		RefundTo: walletAddress,
 		Value:    value,
 		GasLimit: *types.NewUint256(100000),
 		Kind:     types.ExecutionMessageKind,
@@ -146,7 +148,7 @@ func (suite *SuiteRpc) deployContract(address types.Address, code []byte, ownerP
 		Seqno: seqno,
 		To:    address,
 		Data:  deployPayload.Bytes(),
-		Kind:  types.ExecutionMessageKind,
+		Kind:  types.DeployMessageKind,
 	}
 	suite.Require().NoError(deployMsgExternal.Sign(ownerPrivateKey))
 
@@ -154,6 +156,7 @@ func (suite *SuiteRpc) deployContract(address types.Address, code []byte, ownerP
 	suite.Require().NoError(err)
 
 	res := suite.waitForReceiptOnShard(address.ShardId(), result)
+	suite.Require().True(res.Success)
 	return res.ContractAddress
 }
 
@@ -172,45 +175,34 @@ func (suite *SuiteRpc) TestCreateWalletViaFaucet() {
 	suite.Require().Equal(uint64(value), balance.Uint64())
 }
 
-func (suite *SuiteRpc) TestDeployContractViaFaucetWithSend() {
+func (suite *SuiteRpc) testDeployContractViaFaucet(withdraw bool) {
+	suite.T().Helper()
 	userPrivateKey, err := crypto.GenerateKey()
 	suite.Require().NoError(err)
 	userPublicKey := crypto.CompressPubkey(&userPrivateKey.PublicKey)
 
-	var value uint64 = 1000000
+	var value uint64 = 123_456_789
 	walletCode := suite.getWalletConstructorCode(userPublicKey)
-	walletAddr := suite.sendViaFaucet(walletCode, userPrivateKey, *types.NewUint256(value))
+	var walletAddr types.Address
+	if withdraw {
+		walletAddr = suite.withdrawFromFaucet(walletCode, userPrivateKey, *types.NewUint256(value))
+	} else {
+		walletAddr = suite.sendViaFaucet(walletCode, userPrivateKey, *types.NewUint256(value))
+	}
 	receiptContractAddress := suite.deployContract(walletAddr, walletCode, userPrivateKey)
 	suite.Require().Equal(walletAddr, receiptContractAddress)
 
-	blockNumber := transport.LatestBlockNumber
-	balance, err := suite.client.GetBalance(walletAddr, transport.BlockNumberOrHash{BlockNumber: &blockNumber})
+	balance, err := suite.client.GetBalance(walletAddr, "latest")
 	suite.Require().NoError(err)
-	if false {
-		// enable this check when gas price calculation is implemented
-		suite.Require().Less(balance.Uint64(), value)
-	}
+	suite.Require().Less(balance.Uint64(), value)
 	suite.Require().Greater(balance.Uint64(), uint64(0))
+	log.Logger.Info().Msgf("Spent %v nil", value-balance.Uint64())
+}
+
+func (suite *SuiteRpc) TestDeployContractViaFaucetWithSend() {
+	suite.testDeployContractViaFaucet(false)
 }
 
 func (suite *SuiteRpc) TestDeployContractViaFaucetWithWithdraw() {
-	userPrivateKey, err := crypto.GenerateKey()
-	suite.Require().NoError(err)
-	userPublicKey := crypto.CompressPubkey(&userPrivateKey.PublicKey)
-
-	var value uint64 = 1000000
-	walletCode := suite.getWalletConstructorCode(userPublicKey)
-	walletAddr := suite.withdrawFromFaucet(walletCode, userPrivateKey, *types.NewUint256(value))
-	receiptContractAddress := suite.deployContract(walletAddr, walletCode, userPrivateKey)
-	suite.Require().Equal(walletAddr, receiptContractAddress)
-
-	blockNumber := transport.LatestBlockNumber
-	balance, err := suite.client.GetBalance(walletAddr, transport.BlockNumberOrHash{BlockNumber: &blockNumber})
-	suite.Require().NoError(err)
-	if false {
-		// Enable this check once gas price calculation is implemented
-		// and contracts are required to pay for deployment.
-		suite.Require().Less(balance.Uint64(), value)
-	}
-	suite.Require().Greater(balance.Uint64(), uint64(0))
+	suite.testDeployContractViaFaucet(true)
 }

@@ -37,13 +37,16 @@ func (m messagePayer) SubBalance(delta *uint256.Int) {
 }
 
 func (m messagePayer) AddBalance(delta *uint256.Int) {
-	m.message.Value.Add(&m.message.Value.Int, delta)
+	if m.message.RefundTo == types.EmptyAddress {
+		sharedLogger.Error().Stringer(logging.FieldMessageHash, m.message.Hash()).Msg("refund address is empty")
+		return
+	}
 	m.es.AddOutMessageForTx(m.message.Hash(), &types.Message{
 		Internal: true,
 		Kind:     types.RefundMessageKind,
 		From:     m.message.To,
 		To:       m.message.RefundTo,
-		Value:    m.message.Value,
+		Value:    types.Uint256{Int: *delta},
 	})
 }
 
@@ -158,9 +161,12 @@ var (
 	ErrInvalidChainId = errors.New("invalid chainId")
 )
 
+// TODO: Make gas price dynamic and use message.GasPrice
+var GasPrice = uint256.NewInt(10)
+
 func buyGas(payer payer, message *types.Message) error {
 	mgval := message.GasLimit.ToBig()
-	mgval.Mul(mgval, message.GasPrice.ToBig())
+	mgval.Mul(mgval, GasPrice.ToBig())
 
 	required, overflow := uint256.FromBig(mgval)
 	if overflow {
@@ -174,10 +180,10 @@ func buyGas(payer payer, message *types.Message) error {
 	return nil
 }
 
-func refundGas(payer payer, message *types.Message, gasRemaining uint64) {
+func refundGas(payer payer, _ *types.Message, gasRemaining uint64) {
 	// Return currency for remaining gas, exchanged at the original rate.
 	remaining := uint256.NewInt(gasRemaining)
-	remaining.Mul(remaining, &message.GasPrice.Int)
+	remaining.Mul(remaining, GasPrice)
 	payer.AddBalance(remaining)
 }
 

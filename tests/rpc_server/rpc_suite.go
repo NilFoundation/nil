@@ -54,26 +54,36 @@ func (suite *RpcSuite) waitZerostate() {
 }
 
 // Deploy contract to specific shard
-func (suite *RpcSuite) deployContractViaWallet(addrFrom types.Address, key *ecdsa.PrivateKey, shardId types.ShardId, code []byte) (types.Address, *jsonrpc.RPCReceipt) {
+func (suite *RpcSuite) deployContractViaWallet(addrFrom types.Address, key *ecdsa.PrivateKey, shardId types.ShardId, code []byte, initialAmount types.Uint256,
+) (types.Address, *jsonrpc.RPCReceipt) {
 	suite.T().Helper()
+
+	contractAddr := types.CreateAddress(shardId, code)
+	suite.T().Logf("Deploying contract %v", contractAddr)
+	txHash, err := suite.client.SendMessageViaWallet(addrFrom, types.Code{}, initialAmount, contractAddr, key)
+	suite.Require().NoError(err)
+	receipt := suite.waitForReceipt(addrFrom.ShardId(), txHash)
+	suite.Require().True(receipt.Success)
+	suite.Require().Len(receipt.OutReceipts, 1)
 
 	txHash, addr, err := suite.client.DeployContract(shardId, addrFrom, code, key)
 	suite.Require().NoError(err)
+	suite.Require().Equal(contractAddr, addr)
 
-	receipt := suite.waitForReceipt(addrFrom.ShardId(), txHash)
+	receipt = suite.waitForReceipt(addrFrom.ShardId(), txHash)
 	suite.Require().True(receipt.Success)
 	suite.Require().Len(receipt.OutReceipts, 1)
 	return addr, receipt
 }
 
-func (suite *RpcSuite) deployContractViaMainWallet(shardId types.ShardId, code []byte) (types.Address, *jsonrpc.RPCReceipt) {
-	return suite.deployContractViaWallet(types.MainWalletAddress, execution.MainPrivateKey, shardId, code)
+func (suite *RpcSuite) deployContractViaMainWallet(shardId types.ShardId, code []byte, initialAmount types.Uint256) (types.Address, *jsonrpc.RPCReceipt) {
+	return suite.deployContractViaWallet(types.MainWalletAddress, execution.MainPrivateKey, shardId, code, initialAmount)
 }
 
 func (suite *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey, calldata []byte) *jsonrpc.RPCReceipt {
 	suite.T().Helper()
 
-	txHash, err := suite.client.SendMessageViaWallet(addrFrom, calldata, addrTo, key)
+	txHash, err := suite.client.SendMessageViaWallet(addrFrom, calldata, *types.NewUint256(0), addrTo, key)
 	suite.Require().NoError(err)
 
 	receipt := suite.waitForReceipt(addrFrom.ShardId(), txHash)

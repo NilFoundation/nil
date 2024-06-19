@@ -75,6 +75,9 @@ type StateDB interface {
 
 	// Get current message
 	GetInMessage() *types.Message
+
+	// Get execution context shard id
+	GetShardID() types.ShardId
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

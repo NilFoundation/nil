@@ -287,6 +287,22 @@ func (c *sendRawMessage) RequiredGas([]byte) uint64 {
 	return 0
 }
 
+func setRefundTo(refundTo *types.Address, msg *types.Message) {
+	if msg == nil {
+		return
+	}
+	if *refundTo == types.EmptyAddress {
+		if msg.RefundTo == types.EmptyAddress {
+			*refundTo = msg.From
+		} else {
+			*refundTo = msg.RefundTo
+		}
+	}
+	if *refundTo == types.EmptyAddress {
+		log.Logger.Error().Msg("refund address is empty")
+	}
+}
+
 func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
 	if readOnly {
 		return nil, ErrWriteProtection
@@ -297,9 +313,13 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uin
 	}
 	balance := state.GetBalance(caller.Address())
 	if balance.Lt(&payload.Value.Int) {
-		log.Logger.Error().Msg("sendRawMessage failed: insufficient balance")
+		log.Logger.Error().Msgf("sendRawMessage failed: insufficient balance on address %v, expected at least %v, got %v", caller.Address(), payload.Value, balance)
 		return nil, ErrInsufficientBalance
 	}
+
+	// TODO: We should consider non-refundable messages
+	setRefundTo(&payload.RefundTo, state.GetInMessage())
+
 	log.Logger.Debug().Msgf("sendRawMessage to: %s\n", payload.To.Hex())
 
 	return nil, addOutInternal(state, caller.Address(), payload)
@@ -349,14 +369,7 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 	}
 
 	// TODO: We should consider non-refundable messages
-	if refundTo == types.EmptyAddress {
-		msg := state.GetInMessage()
-		if msg.RefundTo == types.EmptyAddress {
-			refundTo = msg.From
-		} else {
-			refundTo = msg.RefundTo
-		}
-	}
+	setRefundTo(&refundTo, state.GetInMessage())
 
 	// Internal is required for the message
 	payload := types.InternalMessagePayload{

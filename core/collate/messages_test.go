@@ -69,10 +69,10 @@ func (s *MessagesSuite) TestValidateMessage() {
 	s.Require().NoError(err)
 	s.Require().NotNil(es)
 
-	addrFrom := types.HexToAddress("0000832983856CB0CF6CD570F071122F1BEA2F20")
+	addrFrom := types.GenerateRandomAddress(types.BaseShardId)
 	es.CreateAccount(addrFrom)
 
-	addrTo := types.HexToAddress("1111832983856CB0CF6CD570F071122F1BEA2F20")
+	addrTo := types.GenerateRandomAddress(types.BaseShardId)
 	es.CreateAccount(addrTo)
 
 	msg := &types.Message{

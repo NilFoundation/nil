@@ -31,5 +31,5 @@ type Client interface {
 	GetBalance(address types.Address, blockId any) (*big.Int, error)
 
 	DeployContract(shardId types.ShardId, address types.Address, bytecode types.Code, pk *ecdsa.PrivateKey) (common.Hash, types.Address, error)
-	SendMessageViaWallet(address types.Address, bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey) (common.Hash, error)
+	SendMessageViaWallet(address types.Address, bytecode types.Code, value types.Uint256, contractAddress types.Address, pk *ecdsa.PrivateKey) (common.Hash, error)
 }

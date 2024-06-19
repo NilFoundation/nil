@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
@@ -659,6 +660,7 @@ func (es *ExecutionState) SetShardHash(shardId types.ShardId, hash common.Hash) 
 }
 
 func (es *ExecutionState) CreateAccount(addr types.Address) {
+	check.PanicIfNotf(addr.ShardId() == es.ShardId, "Attempt to create account %v from %v shard on %v shard", addr, addr.ShardId(), es.ShardId)
 	acc := es.GetAccount(addr)
 
 	if acc != nil {
@@ -731,6 +733,7 @@ func (es *ExecutionState) HandleDeployMessage(
 
 	logger.Debug().
 		Stringer(logging.FieldMessageTo, addr).
+		Stringer(logging.FieldShardId, es.ShardId).
 		Msg("Handling deploy message...")
 
 	gas := message.GasLimit.Uint64()
@@ -803,6 +806,7 @@ func (es *ExecutionState) HandleRefundMessage(_ context.Context, message *types.
 		ContractAddress: message.To,
 		MsgHash:         es.InMessageHash,
 	})
+	logger.Debug().Msgf("Refunded %v to %v", message.Value.Int, message.To)
 }
 
 func (es *ExecutionState) AddReceipt(receipt *types.Receipt) {
@@ -894,6 +898,8 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		return common.EmptyHash, err
 	}
 
+	logger.Debug().Msgf("Committed block %v on shard %v", blockId, es.ShardId)
+
 	return blockHash, nil
 }
 
@@ -903,7 +909,14 @@ func (es *ExecutionState) IsInternalMessage() bool {
 }
 
 func (es *ExecutionState) GetInMessage() *types.Message {
+	if len(es.InMessages) == 0 {
+		return nil
+	}
 	return es.InMessages[len(es.InMessages)-1]
+}
+
+func (es *ExecutionState) GetShardID() types.ShardId {
+	return es.ShardId
 }
 
 func (es *ExecutionState) RoTx() db.RoTx {

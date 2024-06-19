@@ -49,13 +49,14 @@ type Message struct {
 	Kind     MessageKind `json:"kind,omitempty" ch:"kind"`
 	ChainId  ChainId     `json:"chainId" ch:"chainId"`
 	Seqno    Seqno       `json:"seqno,omitempty" ch:"seqno"`
-	GasPrice Uint256     `json:"gasPrice,omitempty" ch:"gas_price" ssz-size:"32"`
-	GasLimit Uint256     `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
-	From     Address     `json:"from,omitempty" ch:"from"`
-	To       Address     `json:"to,omitempty" ch:"to"`
-	RefundTo Address     `json:"refundTo,omitempty" ch:"refundTo"`
-	Value    Uint256     `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Data     Code        `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	// TODO: This field is not used right now, but it should be used in the future
+	GasPrice Uint256 `json:"gasPrice,omitempty" ch:"gas_price" ssz-size:"32"`
+	GasLimit Uint256 `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
+	From     Address `json:"from,omitempty" ch:"from"`
+	To       Address `json:"to,omitempty" ch:"to"`
+	RefundTo Address `json:"refundTo,omitempty" ch:"refundTo"`
+	Value    Uint256 `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Data     Code    `json:"data,omitempty" ch:"data" ssz-max:"24576"`
 	// This field should always be at the end of the structure for easy signing
 	Signature Signature `json:"signature,omitempty" ch:"signature" ssz-max:"256"`
 }

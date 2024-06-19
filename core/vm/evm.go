@@ -102,6 +102,10 @@ func (evm *EVM) Interpreter() *EVMInterpreter {
 	return evm.interpreter
 }
 
+func (evm *EVM) isAsyncCall() bool {
+	return evm.depth == 0
+}
+
 // Call executes the contract associated with the addr with the given input as
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
@@ -114,13 +118,14 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
-	if !value.IsZero() && !canTransfer(evm.StateDB, caller.Address(), value) {
+	if !value.IsZero() && !canTransfer(evm.StateDB, caller.Address(), value, evm.isAsyncCall()) {
 		return nil, gas, ErrInsufficientBalance
 	}
 	snapshot := evm.StateDB.Snapshot()
 	p, isPrecompile := evm.precompile(addr)
 
 	if isPrecompile {
+		// TODO: add sub balance
 		ret, gas, err = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, gas, value, caller, readOnly)
 	} else {
 		if !evm.StateDB.Exist(addr) {
@@ -130,7 +135,7 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 			}
 			evm.StateDB.CreateAccount(addr)
 		}
-		transfer(evm.StateDB, caller.Address(), addr, value)
+		transfer(evm.StateDB, caller.Address(), addr, value, evm.isAsyncCall())
 
 		// Initialise a new contract and set the code that is to be used by the EVM.
 		// The contract is a scoped environment for this execution context only.
@@ -184,7 +189,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr types.Address, input []byte, g
 	// Note although it's noop to transfer X ether to caller itself. But
 	// if caller doesn't have enough balance, it would be an error to allow
 	// over-charging itself. So the check here is necessary.
-	if !canTransfer(evm.StateDB, caller.Address(), value) {
+	if !canTransfer(evm.StateDB, caller.Address(), value, evm.isAsyncCall()) {
 		return nil, gas, ErrInsufficientBalance
 	}
 	snapshot := evm.StateDB.Snapshot()
@@ -312,7 +317,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, v
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, types.Address{}, gas, ErrDepth
 	}
-	if !canTransfer(evm.StateDB, caller.Address(), value) {
+	if !canTransfer(evm.StateDB, caller.Address(), value, evm.isAsyncCall()) {
 		return nil, types.Address{}, gas, ErrInsufficientBalance
 	}
 
@@ -324,7 +329,8 @@ func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, v
 		return nil, types.Address{}, 0, ErrContractAddressCollision
 	}
 
-	if caller.Address() != types.EmptyAddress {
+	// bump nonce only for sync calls
+	if caller.Address() != types.EmptyAddress && !evm.isAsyncCall() {
 		// bump caller's nonce
 		nonce := evm.StateDB.GetSeqno(caller.Address())
 		if nonce+1 < nonce {
@@ -347,7 +353,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, v
 	evm.StateDB.CreateContract(address)
 
 	evm.StateDB.SetSeqno(address, 1)
-	transfer(evm.StateDB, caller.Address(), address, value)
+	transfer(evm.StateDB, caller.Address(), address, value, evm.isAsyncCall())
 
 	// Initialise a new contract and set the code that is to be used by the EVM.
 	// The contract is a scoped environment for this execution context only.
@@ -409,13 +415,20 @@ func (evm *EVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *
 
 // canTransfer checks whether there are enough funds in the address' account to make a transfer.
 // This does not take the necessary gas in to account to make the transfer valid.
-func canTransfer(db StateDB, addr types.Address, amount *uint256.Int) bool {
+func canTransfer(db StateDB, addr types.Address, amount *uint256.Int, isAsync bool) bool {
+	// We don't need to check the balance for the async call
+	if isAsync {
+		return true
+	}
 	return db.GetBalance(addr).Cmp(amount) >= 0
 }
 
 // transfer subtracts amount from sender and adds amount to recipient using the given Db
-func transfer(db StateDB, sender, recipient types.Address, amount *uint256.Int) {
-	db.SubBalance(sender, amount, tracing.BalanceChangeTransfer)
+func transfer(db StateDB, sender, recipient types.Address, amount *uint256.Int, isAsync bool) {
+	// We don't need to subsctract balance from async call
+	if !isAsync {
+		db.SubBalance(sender, amount, tracing.BalanceChangeTransfer)
+	}
 	db.AddBalance(recipient, amount, tracing.BalanceChangeTransfer)
 }
 

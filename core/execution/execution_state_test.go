@@ -67,7 +67,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 			From:     from,
 			Seqno:    i,
 			GasLimit: *types.NewUint256(10000),
-			To:       types.CreateAddress(types.BaseShardId, deploy.Bytes()),
+			To:       types.CreateAddress(shardId, deploy.Bytes()),
 		}
 		es.AddInMessage(msg)
 		es.InMessageHash = msg.Hash()
@@ -237,7 +237,7 @@ func TestStorage(t *testing.T) {
 	t.Parallel()
 
 	state := newState(t)
-	account := types.HexToAddress("deadbeef")
+	account := types.GenerateRandomAddress(types.BaseShardId)
 	key := common.EmptyHash
 	value := common.IntToHash(42)
 
@@ -260,7 +260,7 @@ func TestBalance(t *testing.T) {
 	t.Parallel()
 
 	state := newState(t)
-	account := types.HexToAddress("deadbeef")
+	account := types.GenerateRandomAddress(types.BaseShardId)
 
 	state.SetBalance(account, *uint256.NewInt(100500))
 
@@ -269,7 +269,7 @@ func TestBalance(t *testing.T) {
 
 func TestSnapshot(t *testing.T) {
 	t.Parallel()
-	stateobjaddr := types.BytesToAddress([]byte("aa"))
+	stateobjaddr := types.GenerateRandomAddress(types.BaseShardId)
 	var storageaddr common.Hash
 	data1 := common.BytesToHash([]byte{42})
 	data2 := common.BytesToHash([]byte{43})
@@ -312,7 +312,7 @@ func TestSnapshotEmpty(t *testing.T) {
 func TestCreateObjectRevert(t *testing.T) {
 	t.Parallel()
 	state := newState(t)
-	addr := types.BytesToAddress([]byte("so0"))
+	addr := types.GenerateRandomAddress(types.BaseShardId)
 	snap := state.Snapshot()
 
 	state.CreateAccount(addr)
@@ -333,7 +333,7 @@ func TestCreateObjectRevert(t *testing.T) {
 func TestAccountState(t *testing.T) {
 	t.Parallel()
 	state := newState(t)
-	addr := types.BytesToAddress([]byte("so0"))
+	addr := types.GenerateRandomAddress(types.BaseShardId)
 
 	state.CreateAccount(addr)
 

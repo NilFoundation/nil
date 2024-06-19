@@ -17,6 +17,7 @@ import (
 	"github.com/NilFoundation/nil/common/assert"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
+	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
@@ -310,7 +311,7 @@ func (c *Client) DeployContract(
 	shardId types.ShardId, address types.Address, bytecode types.Code, pk *ecdsa.PrivateKey,
 ) (common.Hash, types.Address, error) {
 	contractAddr := types.CreateAddress(shardId, bytecode)
-	txHash, err := c.sendMessageViaWallet(address, bytecode, contractAddr, pk, true)
+	txHash, err := c.sendMessageViaWallet(address, bytecode, *types.NewUint256(0), contractAddr, pk, true)
 	if err != nil {
 		return common.EmptyHash, types.EmptyAddress, err
 	}
@@ -318,14 +319,14 @@ func (c *Client) DeployContract(
 }
 
 func (c *Client) SendMessageViaWallet(
-	address types.Address, bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey,
+	address types.Address, bytecode types.Code, value types.Uint256, contractAddress types.Address, pk *ecdsa.PrivateKey,
 ) (common.Hash, error) {
-	return c.sendMessageViaWallet(address, bytecode, contractAddress, pk, false)
+	return c.sendMessageViaWallet(address, bytecode, value, contractAddress, pk, false)
 }
 
 // RunContract runs bytecode on the specified contract address
 func (c *Client) sendMessageViaWallet(
-	address types.Address, bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
+	address types.Address, bytecode types.Code, value types.Uint256, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
 ) (common.Hash, error) {
 	// Get the sequence number for the wallet
 	seqno, err := c.GetTransactionCount(address, "latest")
@@ -340,11 +341,16 @@ func (c *Client) sendMessageViaWallet(
 		kind = types.ExecutionMessageKind
 	}
 
+	gasLimit := *types.NewUint256(100_000)
+	totalValue := types.NewUint256(0)
+	totalValue.Int.Mul(&gasLimit.Int, collate.GasPrice)
+	totalValue.Int.Add(&value.Int, &totalValue.Int)
+
 	intMsg := &types.InternalMessagePayload{
 		Data:     bytecode,
 		To:       contractAddress,
-		Value:    *types.NewUint256(0),
-		GasLimit: *types.NewUint256(100000),
+		Value:    *totalValue,
+		GasLimit: gasLimit,
 		Kind:     kind,
 	}
 
