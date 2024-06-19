@@ -22,3 +22,10 @@ jobs:
 
       - name: build binaries
         run: make
+
+      - name: Upload binaries as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nil-${{ github.run_number }}
+          path: |
+            build/bin/*
