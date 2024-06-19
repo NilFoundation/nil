@@ -21,7 +21,7 @@ require (
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.24.0
-	github.com/NilFoundation/fastssz v0.1.4
+	github.com/NilFoundation/fastssz v0.1.5-0.20240619161128-4843cd9de1bb
 	github.com/btcsuite/btcd/btcec/v2 v2.3.3
 	github.com/ethereum/go-ethereum v1.14.3
 	github.com/hashicorp/golang-lru/v2 v2.0.7

@@ -2,8 +2,6 @@ package new_wallet
 
 import (
 	"crypto/ecdsa"
-	"errors"
-	"math/big"
 
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
@@ -45,12 +43,7 @@ func (u uint256Value) String() string {
 }
 
 func (u *uint256Value) Set(value string) error {
-	i, ok := big.NewInt(0).SetString(value, 10)
-	if !ok {
-		return errors.New("failed to parse Uint256")
-	}
-	u.Int.SetBytes(i.Bytes())
-	return nil
+	return u.Int.SetFromDecimal(value)
 }
 
 func (*uint256Value) Type() string {
