@@ -32,16 +32,13 @@ func GetCommand(cfg *config.Config) *cobra.Command {
 	sendCmd := GetSendCommand(cfg)
 	serverCmd.AddCommand(sendCmd)
 
+	deployCmd := GetDeployCommand(cfg)
+	serverCmd.AddCommand(deployCmd)
+
 	return serverCmd
 }
 
 func setFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVar(
-		&params.deploy,
-		deployFlag,
-		"",
-		"Deploy new contract by specifying deployment bytecode",
-	)
 	cmd.Flags().StringVar(
 		&params.code,
 		codeFlag,
@@ -72,11 +69,6 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, address types.
 
 	client := rpc.NewClient(rpcEndpoint)
 	service := service.NewService(client, privateKey)
-	if params.deploy != "" {
-		_, _, err := service.DeployContract(params.shardId, address, params.deploy)
-		check.PanicIfErr(err)
-		return
-	}
 
 	if params.code != "" {
 		_, err := service.GetCode(params.code)

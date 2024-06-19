@@ -72,7 +72,7 @@ solc -o . --bin --abi example/counter.sol
 And deploy the contract with the CLI:
 
 ```bash
-./build/bin/nil_cli contract --deploy `cat SimpleStorage.bin` --shard-id 1
+./build/bin/nil_cli contract deploy SimpleStorage.bin --shard-id 1
 ```
 
 Make note of the "Transaction hash" in the output, and then:
@@ -305,7 +305,7 @@ The project also includes a generator of an OpenRPC spec file from the type defi
 
 The primary benefit of this is allowing for automatic RPC API documentation generation on the side of [**the documentation portal**](https://docs.nil.foundation/).
 
-Another benefit is greater coupling of docs and code. Do not hesitate to adjust the doc strings (be mindful to follow the doc string spec) in `rpc/jsonrpc/eth_api.go`, `rpc/jsonrpc/types.go` and `rpc/jsonrpc/doc.go` to account for latest changes in the RPC API. All changes will make their way to the documentation portal without any overhead. 
+Another benefit is greater coupling of docs and code. Do not hesitate to adjust the doc strings (be mindful to follow the doc string spec) in `rpc/jsonrpc/eth_api.go`, `rpc/jsonrpc/types.go` and `rpc/jsonrpc/doc.go` to account for latest changes in the RPC API. All changes will make their way to the documentation portal without any overhead.
 
 To run the spec generator:
 
@@ -315,9 +315,9 @@ go run spec_generator.
 rm spec_generator.go
 ```
 
-This will procude the `openrpc.json` file in the root directory. 
+This will procude the `openrpc.json` file in the root directory.
 
-The spec generator is part of CI, and the OpenRPC spec will be hosted at the devstand. 
+The spec generator is part of CI, and the OpenRPC spec will be hosted at the devstand.
 
 ## Linting
 

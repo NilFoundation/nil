@@ -70,7 +70,7 @@ func (s *SuiteRpc) TestContract() {
 
 	// Deploy contract
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
-	txHash, addrStr, err := s.cli.DeployContract(types.BaseShardId, wallet, contractCode.Hex())
+	txHash, addrStr, err := s.cli.DeployContract(types.BaseShardId, wallet, contractCode)
 	s.Require().NoError(err)
 	addr := types.HexToAddress(addrStr)
 

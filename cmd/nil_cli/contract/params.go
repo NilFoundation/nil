@@ -24,7 +24,6 @@ const (
 var params = &contractParams{}
 
 type contractParams struct {
-	deploy   string
 	code     string
 	address  types.Address
 	bytecode hexutil.Bytes
@@ -35,10 +34,6 @@ type contractParams struct {
 // initRawParams validates all parameters to ensure they are correctly set
 func (p *contractParams) initRawParams() error {
 	flagsSet := 0
-
-	if p.deploy != "" {
-		flagsSet++
-	}
 
 	if p.code != "" {
 		flagsSet++
