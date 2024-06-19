@@ -3,6 +3,7 @@ package contract
 import (
 	"errors"
 
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/types"
 )
 
@@ -17,6 +18,7 @@ const (
 	addressFlag  = "address"
 	bytecodeFlag = "bytecode"
 	shardIdFlag  = "shard-id"
+	abiFlag      = "abi"
 )
 
 var params = &contractParams{}
@@ -25,15 +27,9 @@ type contractParams struct {
 	deploy   string
 	code     string
 	address  types.Address
-	bytecode string
+	bytecode hexutil.Bytes
 	shardId  types.ShardId
-}
-
-var callParams = &callContractParams{}
-
-type callContractParams struct {
-	address types.Address
-	code    string
+	abiPath  string
 }
 
 // initRawParams validates all parameters to ensure they are correctly set
@@ -48,11 +44,11 @@ func (p *contractParams) initRawParams() error {
 		flagsSet++
 	}
 
-	if p.address != types.EmptyAddress && p.bytecode != "" {
+	if p.address != types.EmptyAddress && p.bytecode != nil {
 		flagsSet++
 	}
 
-	if (p.address != types.EmptyAddress && p.bytecode == "") || (p.address == types.EmptyAddress && p.bytecode != "") {
+	if (p.address != types.EmptyAddress && p.bytecode == nil) || (p.address == types.EmptyAddress && p.bytecode != nil) {
 		return errors.New("both --address and --bytecode must be set together")
 	}
 

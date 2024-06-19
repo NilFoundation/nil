@@ -1,7 +1,6 @@
 package rpctest
 
 import (
-	"encoding/hex"
 	"encoding/json"
 
 	"github.com/NilFoundation/nil/common"
@@ -82,7 +81,7 @@ func (s *SuiteRpc) TestContract() {
 	s.Require().NoError(err)
 
 	// Get current value
-	res, err := s.cli.CallContract(addr, hex.EncodeToString(getCalldata))
+	res, err := s.cli.CallContract(addr, getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000000", res)
 
@@ -90,14 +89,14 @@ func (s *SuiteRpc) TestContract() {
 	calldata, err := abi.Pack("increment")
 	s.Require().NoError(err)
 
-	txHash, err = s.cli.RunContract(wallet, hex.EncodeToString(calldata), addr)
+	txHash, err = s.cli.RunContract(wallet, calldata, addr)
 	s.Require().NoError(err)
 
 	receipt = s.waitForReceiptOnShard(types.MasterShardId, common.HexToHash(txHash))
 	s.Require().True(receipt.Success)
 
 	// Get updated value
-	res, err = s.cli.CallContract(addr, hex.EncodeToString(getCalldata))
+	res, err = s.cli.CallContract(addr, getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000001", res)
 }
