@@ -20,7 +20,6 @@ type RpcSuite struct {
 	port      int
 	context   context.Context
 	cancel    context.CancelFunc
-	address   types.Address
 	client    client.Client
 	shardsNum int
 }

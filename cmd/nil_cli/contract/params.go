@@ -19,12 +19,14 @@ const (
 	bytecodeFlag = "bytecode"
 	shardIdFlag  = "shard-id"
 	abiFlag      = "abi"
+	saltFlag     = "salt"
 )
 
 var params = &contractParams{}
 
 type contractParams struct {
 	code     string
+	salt     types.Uint256
 	address  types.Address
 	bytecode hexutil.Bytes
 	shardId  types.ShardId

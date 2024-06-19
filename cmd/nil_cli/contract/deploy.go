@@ -9,16 +9,18 @@ import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
+	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
 
 func GetDeployCommand(cfg *config.Config) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "deploy [path to file]",
+		Use:   "deploy [path to file] [args...]",
 		Short: "Deploy smart contract",
 		Long:  "Deploy smart contract with specified hex-bytecode from stdin or from file",
-		Args:  cobra.MaximumNArgs(1),
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDeploy(cmd, args, cfg)
 		},
@@ -35,17 +37,44 @@ func setDeployFlags(cmd *cobra.Command) {
 		shardIdFlag,
 		"Specify the shard id to interact with",
 	)
+
+	params.salt = *types.NewUint256(0)
+	cmd.Flags().Var(
+		&params.salt,
+		saltFlag,
+		"Salt for deploy message",
+	)
+
+	cmd.Flags().StringVar(
+		&params.abiPath,
+		abiFlag,
+		"",
+		"Path to ABI file",
+	)
 }
 
 func runDeploy(_ *cobra.Command, args []string, cfg *config.Config) error {
 	var bytecode []byte
 	var err error
 
-	if len(args) == 1 {
-		bytecode, err = os.ReadFile(args[0])
+	client := rpc.NewClient(cfg.RPCEndpoint)
+	service := service.NewService(client, cfg.PrivateKey)
+
+	if len(args) > 0 {
+		codeHex, err := os.ReadFile(args[0])
 		if err != nil {
 			return fmt.Errorf("failed to read file: %w", err)
 		}
+
+		bytecode = hexutil.FromHex(string(codeHex))
+		if params.abiPath != "" {
+			calldata, err := service.ArgsToCalldata(params.abiPath, "", args[1:])
+			if err != nil {
+				return fmt.Errorf("failed to handle constructor arguments: %w", err)
+			}
+			bytecode = append(bytecode, calldata...)
+		}
+		bytecode = types.BuildDeployPayload(bytecode, common.Hash(params.salt.Bytes32()))
 	} else {
 		scanner := bufio.NewScanner(os.Stdin)
 		input := ""
@@ -61,8 +90,6 @@ func runDeploy(_ *cobra.Command, args []string, cfg *config.Config) error {
 		}
 	}
 
-	client := rpc.NewClient(cfg.RPCEndpoint)
-	service := service.NewService(client, cfg.PrivateKey)
 	_, _, err = service.DeployContract(params.shardId, cfg.Address, bytecode)
 	if err != nil {
 		return err

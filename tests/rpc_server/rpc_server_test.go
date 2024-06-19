@@ -136,22 +136,6 @@ func (s *SuiteRpc) TestRpcBasic() {
 	s.Require().Nil(msg)
 }
 
-func (suite *SuiteRpc) createMessageForDeploy(
-	code types.Code, toShard types.ShardId,
-) *types.ExternalMessage {
-	suite.T().Helper()
-
-	dm := types.BuildDeployPayload(code, common.EmptyHash)
-
-	m := &types.ExternalMessage{
-		Data: dm.Bytes(),
-		To:   types.CreateAddress(toShard, code),
-		Kind: types.DeployMessageKind,
-	}
-	suite.address = m.To
-	return m
-}
-
 func (suite *SuiteRpc) loadContract(path string, name string) (types.Code, abi.ABI) {
 	suite.T().Helper()
 
