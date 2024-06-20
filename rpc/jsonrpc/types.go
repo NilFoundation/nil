@@ -44,22 +44,24 @@ type CallArgs struct {
 // @componentprop Success success boolean true "The flag that shows whether the message was successful."
 // @componentprop To to string true "The address where the message was sent."
 // @componentprop Value value string true "The message value."
+// @componentprop Currency value array true "Currency values."
 type RPCInMessage struct {
-	Success     bool              `json:"success"`
-	Data        hexutil.Bytes     `json:"data"`
-	BlockHash   *common.Hash      `json:"blockHash"`
-	BlockNumber types.BlockNumber `json:"blockNumber"`
-	From        types.Address     `json:"from"`
-	GasUsed     hexutil.Uint64    `json:"gasUsed"`
-	GasPrice    types.Uint256     `json:"gasPrice,omitempty"`
-	GasLimit    types.Uint256     `json:"gasLimit,omitempty"`
-	Hash        common.Hash       `json:"hash"`
-	Seqno       hexutil.Uint64    `json:"seqno"`
-	To          *types.Address    `json:"to"`
-	Index       *hexutil.Uint64   `json:"index"`
-	Value       types.Uint256     `json:"value"`
-	ChainID     types.ChainId     `json:"chainId,omitempty"`
-	Signature   types.Signature   `json:"signature"`
+	Success     bool                    `json:"success"`
+	Data        hexutil.Bytes           `json:"data"`
+	BlockHash   *common.Hash            `json:"blockHash"`
+	BlockNumber types.BlockNumber       `json:"blockNumber"`
+	From        types.Address           `json:"from"`
+	GasUsed     hexutil.Uint64          `json:"gasUsed"`
+	GasPrice    types.Uint256           `json:"gasPrice,omitempty"`
+	GasLimit    types.Uint256           `json:"gasLimit,omitempty"`
+	Hash        common.Hash             `json:"hash"`
+	Seqno       hexutil.Uint64          `json:"seqno"`
+	To          *types.Address          `json:"to"`
+	Index       *hexutil.Uint64         `json:"index"`
+	Value       types.Uint256           `json:"value"`
+	Currency    []types.CurrencyBalance `json:"currency,omitempty"`
+	ChainID     types.ChainId           `json:"chainId,omitempty"`
+	Signature   types.Signature         `json:"signature"`
 }
 
 // @component RPCBlock rpcBlock object "The block whose information was requested."
