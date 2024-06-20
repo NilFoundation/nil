@@ -38,6 +38,16 @@ func mapTypeToClickhouseType(t reflect.Type) string {
 		} else {
 			return fmt.Sprintf("Array(%s)", mapTypeToClickhouseType(t.Elem()))
 		}
+	case reflect.Struct:
+		if t.Name() == "Uint256" {
+			return "UInt256"
+		}
+		// return tuple of field type
+		fields := make([]string, 0, t.NumField())
+		for i := 0; i < t.NumField(); i++ {
+			fields = append(fields, mapTypeToClickhouseType(t.Field(i).Type))
+		}
+		return fmt.Sprintf("Tuple(%s)", strings.Join(fields, ", "))
 	default:
 		panic(fmt.Sprintf("unknown type %v", t))
 	}
