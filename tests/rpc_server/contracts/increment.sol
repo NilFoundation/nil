@@ -11,6 +11,8 @@ contract Incrementer {
         value += 1;
     }
 
+    receive() external payable {}
+
     function get() public view returns(uint256) {
         return value;
     }

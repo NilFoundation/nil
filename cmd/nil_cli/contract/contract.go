@@ -35,6 +35,9 @@ func GetCommand(cfg *config.Config) *cobra.Command {
 	deployCmd := GetDeployCommand(cfg)
 	serverCmd.AddCommand(deployCmd)
 
+	transferCmd := GetTransferCommand(cfg)
+	serverCmd.AddCommand(transferCmd)
+
 	return serverCmd
 }
 
@@ -77,7 +80,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string, address types.
 	}
 
 	if params.address != types.EmptyAddress && params.bytecode != nil {
-		_, err := service.RunContract(address, params.bytecode, params.address)
+		_, err := service.RunContract(address, params.bytecode, nil, params.address)
 		check.PanicIfErr(err)
 	}
 }

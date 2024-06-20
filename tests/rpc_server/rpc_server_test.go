@@ -161,7 +161,7 @@ func (suite *SuiteRpc) TestRpcContract() {
 	contractCode, abi := suite.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	contractCode = suite.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(0))
 
-	addr, receipt := suite.deployContractViaMainWallet(types.BaseShardId, contractCode, *types.NewUint256(defaultContractValue))
+	addr, receipt := suite.deployContractViaMainWallet(types.BaseShardId, contractCode, types.NewUint256(defaultContractValue))
 	suite.Require().True(receipt.OutReceipts[0].Success)
 
 	blockNumber := transport.LatestBlockNumber
@@ -192,7 +192,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 	// deploy caller contract
 	callerCode, callerAbi := s.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Caller")
 	calleeCode, calleeAbi := s.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Callee")
-	callerAddr, receipt := s.deployContractViaMainWallet(types.MasterShardId, callerCode, *types.NewUint256(defaultContractValue))
+	callerAddr, receipt := s.deployContractViaMainWallet(types.MasterShardId, callerCode, types.NewUint256(defaultContractValue))
 	s.Require().True(receipt.OutReceipts[0].Success)
 
 	checkForShard := func(shardId types.ShardId) {
@@ -204,7 +204,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 		var calleeAddr types.Address
 		s.Run("DeployCallee", func() {
 			// deploy callee contracts to different shards
-			calleeAddr, receipt = s.deployContractViaMainWallet(shardId, calleeCode, *types.NewUint256(defaultContractValue))
+			calleeAddr, receipt = s.deployContractViaMainWallet(shardId, calleeCode, types.NewUint256(defaultContractValue))
 			s.Require().True(receipt.OutReceipts[0].Success)
 		})
 

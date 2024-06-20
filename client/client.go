@@ -3,7 +3,6 @@ package client
 import (
 	"crypto/ecdsa"
 	"encoding/json"
-	"math/big"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
@@ -28,9 +27,9 @@ type Client interface {
 	GetInMessageReceipt(shardId types.ShardId, hash common.Hash) (*jsonrpc.RPCReceipt, error)
 	GetTransactionCount(address types.Address, blockId any) (types.Seqno, error)
 	GetBlockTransactionCount(shardId types.ShardId, blockId any) (uint64, error)
-	GetBalance(address types.Address, blockId any) (*big.Int, error)
+	GetBalance(address types.Address, blockId any) (*types.Uint256, error)
 	GetShardIdList() ([]types.ShardId, error)
 
 	DeployContract(shardId types.ShardId, address types.Address, bytecode types.Code, pk *ecdsa.PrivateKey) (common.Hash, types.Address, error)
-	SendMessageViaWallet(address types.Address, bytecode types.Code, value types.Uint256, contractAddress types.Address, pk *ecdsa.PrivateKey) (common.Hash, error)
+	SendMessageViaWallet(address types.Address, bytecode types.Code, value *types.Uint256, contractAddress types.Address, pk *ecdsa.PrivateKey) (common.Hash, error)
 }

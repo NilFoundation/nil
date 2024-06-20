@@ -20,6 +20,7 @@ const (
 	shardIdFlag  = "shard-id"
 	abiFlag      = "abi"
 	saltFlag     = "salt"
+	amountFlag   = "amount"
 )
 
 var params = &contractParams{}
@@ -31,6 +32,7 @@ type contractParams struct {
 	bytecode hexutil.Bytes
 	shardId  types.ShardId
 	abiPath  string
+	amount   types.Uint256
 }
 
 // initRawParams validates all parameters to ensure they are correctly set
