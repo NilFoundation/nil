@@ -201,6 +201,9 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 		if len(msgRead.Signature) == 0 {
 			msgRead.Signature = nil
 		}
+		if len(msgRead.Currency) == 0 {
+			msgRead.Currency = nil
+		}
 		suite.Equal(msg, msgRead)
 	}
 

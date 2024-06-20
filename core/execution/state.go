@@ -43,12 +43,13 @@ type AccountState struct {
 	db      *ExecutionState
 	address types.Address // address of the ethereum account
 
-	Tx          db.RwTx
-	Balance     uint256.Int
-	Code        types.Code
-	CodeHash    common.Hash
-	Seqno       types.Seqno
-	StorageTree *StorageTrie
+	Tx           db.RwTx
+	Balance      uint256.Int
+	Code         types.Code
+	CodeHash     common.Hash
+	Seqno        types.Seqno
+	StorageTree  *StorageTrie
+	CurrencyTree *CurrencyTrie
 
 	State Storage
 
@@ -125,6 +126,8 @@ func NewAccountState(es *ExecutionState, addr types.Address, tx db.RwTx, account
 	// TODO: store storage of each contract in separate table
 	root := NewStorageTrie(mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.StorageTrieTable, account.StorageRoot))
 
+	currencyRoot := NewCurrencyTrie(mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.CurrencyTrieTable, account.CurrencyRoot))
+
 	code, err := db.ReadCode(tx, shardId, account.CodeHash)
 	if err != nil {
 		return nil, err
@@ -134,13 +137,14 @@ func NewAccountState(es *ExecutionState, addr types.Address, tx db.RwTx, account
 		db:      es,
 		address: addr,
 
-		Tx:          tx,
-		Balance:     account.Balance.Int,
-		StorageTree: root,
-		CodeHash:    account.CodeHash,
-		Code:        code,
-		Seqno:       account.Seqno,
-		State:       make(Storage),
+		Tx:           tx,
+		Balance:      account.Balance.Int,
+		CurrencyTree: currencyRoot,
+		StorageTree:  root,
+		CodeHash:     account.CodeHash,
+		Code:         code,
+		Seqno:        account.Seqno,
+		State:        make(Storage),
 	}, nil
 }
 
@@ -671,16 +675,18 @@ func (es *ExecutionState) CreateAccount(addr types.Address) {
 
 	// TODO: store storage of each contract in separate table
 	root := NewStorageTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.StorageTrieTable))
+	currencyRoot := NewCurrencyTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.CurrencyTrieTable))
 
 	es.Accounts[addr] = &AccountState{
 		db:      es,
 		address: addr,
 
-		Tx:          es.tx,
-		StorageTree: root,
-		CodeHash:    common.EmptyHash,
-		Code:        nil,
-		State:       map[common.Hash]common.Hash{},
+		Tx:           es.tx,
+		StorageTree:  root,
+		CurrencyTree: currencyRoot,
+		CodeHash:     common.EmptyHash,
+		Code:         nil,
+		State:        map[common.Hash]common.Hash{},
 	}
 }
 
