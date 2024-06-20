@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/NilFoundation/nil/core/vm"
 	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common/compiler"
@@ -26,9 +26,8 @@ type SuiteZeroState struct {
 	faucetAddr types.Address
 	faucetABI  abi.ABI
 
-	state        *ExecutionState
-	blockContext *vm.BlockContext
-	contracts    map[string]*compiler.Contract
+	state     *ExecutionState
+	contracts map[string]*compiler.Contract
 }
 
 func (suite *SuiteZeroState) SetupSuite() {
@@ -48,9 +47,6 @@ func (suite *SuiteZeroState) SetupSuite() {
 func (suite *SuiteZeroState) SetupTest() {
 	var err error
 	suite.state = newState(suite.T())
-
-	suite.blockContext, err = NewEVMBlockContext(suite.state)
-	suite.Require().NoError(err)
 
 	suite.contracts, err = solc.CompileSource("./testdata/call.sol")
 	suite.Require().NoError(err)
@@ -74,7 +70,7 @@ func (suite *SuiteZeroState) TestFaucetBalance() {
 
 func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 	receiverContract := suite.contracts["SimpleContract"]
-	receiverAddr := deployContract(suite.T(), receiverContract, suite.state, suite.blockContext, 2)
+	receiverAddr := deployContract(suite.T(), receiverContract, suite.state, 2)
 
 	calldata, err := suite.faucetABI.Pack("withdrawTo", receiverAddr, big.NewInt(100))
 	suite.Require().NoError(err)
@@ -85,7 +81,7 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 		To:       suite.faucetAddr,
 		GasLimit: *types.NewUint256(10000),
 	}
-	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, callMessage, suite.blockContext)
+	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, callMessage)
 	suite.Require().NoError(err)
 
 	suite.Require().EqualValues(*uint256.NewInt(1000000000000 - 100), suite.getBalance(suite.faucetAddr))
@@ -102,21 +98,23 @@ func TestZerostateFromConfig(t *testing.T) {
 	state, err := NewExecutionState(tx, types.MasterShardId, common.EmptyHash, common.NewTestTimer(0))
 	require.NoError(t, err)
 
-	configYaml := `
+	walletAddr := types.ShardAndHexToAddress(types.MasterShardId, "0x111111111111111111111111111111111111")
+
+	configYaml := fmt.Sprintf(`
 contracts:
 - name: Faucet
   value: 87654321
   contract: Faucet
 - name: MainWallet
-  address: 0x0000111111111111111111111111111111111111
+  address: %s
   value: 12345678
   contract: Wallet
   ctorArgs: [MainPublicKey]
-`
+`, walletAddr.Hex())
 	err = state.GenerateZeroState(configYaml)
 	require.NoError(t, err)
 
-	wallet := state.GetAccount(types.MainWalletAddress)
+	wallet := state.GetAccount(walletAddr)
 	require.NotNil(t, wallet)
 	require.Equal(t, wallet.Balance, types.NewUint256(12345678).Int)
 
@@ -139,18 +137,18 @@ contracts:
 	require.Error(t, err)
 
 	// Test only one contract should deployed in specific shard
-	configYaml3 := `
+	configYaml3 := fmt.Sprintf(`
 contracts:
 - name: Faucet
   value: 87654321
   shard: 1
   contract: Faucet
 - name: MainWallet
-  address: 0x0000111111111111111111111111111111111111
+  address: %s
   value: 12345678
   contract: Wallet
   ctorArgs: [MainPublicKey]
-`
+`, walletAddr.Hex())
 	state, err = NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0))
 	require.NoError(t, err)
 	err = state.GenerateZeroState(configYaml3)
@@ -160,7 +158,7 @@ contracts:
 
 	faucet = state.GetAccount(faucetAddr)
 	require.NotNil(t, faucet)
-	wallet = state.GetAccount(types.MainWalletAddress)
+	wallet = state.GetAccount(walletAddr)
 	require.Nil(t, wallet)
 }
 

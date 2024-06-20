@@ -78,11 +78,6 @@ func (a accountPayer) String() string {
 }
 
 func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionState, msgs []*types.Message) error {
-	blockContext, err := execution.NewEVMBlockContext(es)
-	if err != nil {
-		return err
-	}
-
 	for _, inMessage := range msgs {
 		msgHash := inMessage.Hash()
 		es.AddInMessage(inMessage)
@@ -111,12 +106,12 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 				continue
 			}
 
-			if leftOverGas, err = es.HandleDeployMessage(ctx, message, deployMsg, blockContext); err != nil && !errors.As(err, new(vm.VMError)) {
+			if leftOverGas, err = es.HandleDeployMessage(ctx, message, deployMsg); err != nil && !errors.As(err, new(vm.VMError)) {
 				return err
 			}
 			refundGas(payer, message, leftOverGas)
 		case types.ExecutionMessageKind:
-			if leftOverGas, _, err = es.HandleExecutionMessage(ctx, message, blockContext); err != nil && !errors.As(err, new(vm.VMError)) {
+			if leftOverGas, _, err = es.HandleExecutionMessage(ctx, message); err != nil && !errors.As(err, new(vm.VMError)) {
 				return err
 			}
 			refundGas(payer, message, leftOverGas)

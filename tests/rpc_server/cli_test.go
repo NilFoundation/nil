@@ -35,16 +35,16 @@ func (s *SuiteRpc) TestCliMessage() {
 	_, receipt := s.deployContractViaMainWallet(types.BaseShardId, contractCode, *types.NewUint256(5_000_000))
 	s.Require().True(receipt.Success)
 
-	msg, err := s.client.GetInMessageByHash(types.MasterShardId, receipt.MsgHash)
+	msg, err := s.client.GetInMessageByHash(types.MainWalletAddress.ShardId(), receipt.MsgHash)
 	s.Require().NoError(err)
 	s.Require().NotNil(msg)
 	s.Require().True(msg.Success)
 
-	res, err := s.cli.FetchMessageByHash(types.MasterShardId, receipt.MsgHash)
+	res, err := s.cli.FetchMessageByHash(types.MainWalletAddress.ShardId(), receipt.MsgHash)
 	s.Require().NoError(err)
 	s.JSONEq(s.toJSON(msg), string(res))
 
-	res, err = s.cli.FetchReceiptByHash(types.MasterShardId, receipt.MsgHash)
+	res, err = s.cli.FetchReceiptByHash(types.MainWalletAddress.ShardId(), receipt.MsgHash)
 	s.Require().NoError(err)
 	s.JSONEq(s.toJSON(receipt), string(res))
 }
@@ -74,7 +74,7 @@ func (s *SuiteRpc) TestContract() {
 	s.Require().NoError(err)
 	addr := types.HexToAddress(addrStr)
 
-	receipt := s.waitForReceiptOnShard(types.MasterShardId, common.HexToHash(txHash))
+	receipt := s.waitForReceiptOnShard(wallet.ShardId(), common.HexToHash(txHash))
 	s.Require().True(receipt.Success)
 
 	getCalldata, err := abi.Pack("get")
@@ -92,7 +92,7 @@ func (s *SuiteRpc) TestContract() {
 	txHash, err = s.cli.RunContract(wallet, calldata, addr)
 	s.Require().NoError(err)
 
-	receipt = s.waitForReceiptOnShard(types.MasterShardId, common.HexToHash(txHash))
+	receipt = s.waitForReceiptOnShard(wallet.ShardId(), common.HexToHash(txHash))
 	s.Require().True(receipt.Success)
 
 	// Get updated value

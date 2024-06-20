@@ -85,6 +85,14 @@ func (s *SuiteRpc) TestRpcBasic() {
 	var someRandomMissingBlock common.Hash
 	s.Require().NoError(someRandomMissingBlock.UnmarshalText([]byte("0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")))
 
+	shardIdListRes, err := s.client.GetShardIdList()
+	s.Require().NoError(err)
+	shardIdListExp := make([]types.ShardId, s.shardsNum-1)
+	for i := range shardIdListExp {
+		shardIdListExp[i] = types.ShardId(i + 1)
+	}
+	s.Require().Equal(shardIdListExp, shardIdListRes)
+
 	res0Num, err := s.client.GetBlock(types.BaseShardId, 0, false)
 	s.Require().NoError(err)
 	s.Require().NotNil(res0Num)
@@ -179,7 +187,7 @@ func (s *SuiteRpc) TestRpcDeployToMainShardViaMainWallet() {
 	txHash, _, err := s.client.DeployContract(types.MasterShardId, types.MainWalletAddress, code, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
-	receipt := s.waitForReceipt(types.MasterShardId, txHash)
+	receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), txHash)
 	s.True(receipt.Success)
 }
 
@@ -217,7 +225,7 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 		// now call Caller::send_message
 		callerSeqno, err := suite.client.GetTransactionCount(callerAddr, "latest")
 		suite.Require().NoError(err)
-		calldata, err = callerAbi.Pack("send_msg", calldata)
+		calldata, err = callerAbi.Pack("sendMessage", calldata)
 		suite.Require().NoError(err)
 
 		callCallerMethod := &types.ExternalMessage{

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
@@ -8,10 +9,16 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
+	"github.com/NilFoundation/nil/common/concurrent"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
+)
+
+const (
+	ReceiptWaitFor  = 15 * time.Second
+	ReceiptWaitTick = 200 * time.Millisecond
 )
 
 // TODO: Use a generic constant after adding it.
@@ -25,47 +32,10 @@ func getFaucetAddress() types.Address {
 	return *faucetAddress
 }
 
-// Almost a copy of assert.Eventually.
-func waitFor(condition func() bool, waitFor time.Duration, tick time.Duration) bool {
-	ch := make(chan bool, 1)
-
-	timer := time.NewTimer(waitFor)
-	defer timer.Stop()
-
-	ticker := time.NewTicker(tick)
-	defer ticker.Stop()
-
-	for tick := ticker.C; ; {
-		select {
-		case <-timer.C:
-			return false
-		case <-tick:
-			tick = nil
-			go func() { ch <- condition() }()
-		case v := <-ch:
-			if v {
-				return true
-			}
-			tick = ticker.C
-		}
-	}
-}
-
-func (s *Service) waitForReceipt(shardId types.ShardId, mshHash common.Hash) *jsonrpc.RPCReceipt {
-	var receipt *jsonrpc.RPCReceipt
-	var err error
-	waitFor(func() bool {
-		receipt, err = s.client.GetInMessageReceipt(shardId, mshHash)
-		if err != nil {
-			return false
-		}
-		return receipt.IsComplete()
-	}, 15*time.Second, 200*time.Millisecond)
-
-	if receipt == nil || receipt.MsgHash != mshHash {
-		return nil
-	}
-	return receipt
+func (s *Service) WaitForReceipt(shardId types.ShardId, mshHash common.Hash) (*jsonrpc.RPCReceipt, error) {
+	return concurrent.WaitFor(context.Background(), ReceiptWaitFor, ReceiptWaitTick, func(ctx context.Context) (*jsonrpc.RPCReceipt, error) {
+		return s.client.GetInMessageReceipt(shardId, mshHash)
+	})
 }
 
 type MessageHashMismatchError struct {
@@ -124,12 +94,16 @@ func (s *Service) sendViaFaucet(to types.Address, value types.Uint256, privateKe
 		return MessageHashMismatchError{result, msgHash}
 	}
 
-	receipt := s.waitForReceipt(to.ShardId(), sendMsgExternal.Hash())
+	receipt, err := s.WaitForReceipt(to.ShardId(), sendMsgExternal.Hash())
+	if err != nil {
+		return errors.New("error during waiting for receipt")
+	}
+
 	if receipt == nil {
-		return errors.New("Receipt not received")
+		return errors.New("receipt not received")
 	}
 	if !receipt.Success {
-		return errors.New("Send message processing failed")
+		return errors.New("send message processing failed")
 	}
 	return nil
 }
@@ -165,9 +139,13 @@ func (s *Service) deployContractToPrepaidAddressViaExternalMessage(
 		return types.EmptyAddress, MessageHashMismatchError{result, msgHash}
 	}
 
-	res := s.waitForReceipt(address.ShardId(), msgHash)
+	res, err := s.WaitForReceipt(address.ShardId(), msgHash)
+	if err != nil {
+		return types.EmptyAddress, errors.New("error during waiting for receipt")
+	}
+
 	if !res.Success {
-		return types.EmptyAddress, errors.New("Deploy message processing failed")
+		return types.EmptyAddress, errors.New("deploy message processing failed")
 	}
 	return res.ContractAddress, nil
 }
@@ -189,7 +167,7 @@ func (s *Service) CreateWallet(shardId types.ShardId, code types.Code, salt type
 		return types.EmptyAddress, err
 	}
 	if addr != walletAddress {
-		return types.EmptyAddress, errors.New("Contract was deployed to unexpected address")
+		return types.EmptyAddress, errors.New("contract was deployed to unexpected address")
 	}
 	return addr, nil
 }

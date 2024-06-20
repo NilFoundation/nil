@@ -18,12 +18,15 @@ import (
 // Addr is the expected length of the address (in bytes)
 const AddrSize = 20
 
+// ShardIdSize is a size of Address's shard id in bytes
+const ShardIdSize = 2
+
 // Address represents the 20-byte address of an Ethereum account.
 type Address [AddrSize]byte
 
 var (
 	EmptyAddress      = Address{}
-	MainWalletAddress = HexToAddress("0000111111111111111111111111111111111111")
+	MainWalletAddress = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111111")
 )
 
 // BytesToAddress returns Address with value b.
@@ -50,6 +53,19 @@ func HexToAddress(s string) Address {
 	}
 
 	return BytesToAddress(b)
+}
+
+// ShardAndHexToAddress returns Address with byte values of ShardId + s.
+// If s is larger than `AddrSize - ShardIdSize`, it will panic.
+func ShardAndHexToAddress(shardId ShardId, s string) Address {
+	addr := HexToAddress(s)
+	check.PanicIfNotf(ShardIdSize == 2, "please adjust shard id size")
+	check.PanicIfNotf(shardId <= 65535, "too big shard id")
+	if addr[0] != 0 || addr[1] != 0 {
+		panic("incorrect address length")
+	}
+	binary.BigEndian.PutUint16(addr[:], uint16(shardId))
+	return addr
 }
 
 // IsHexAddress verifies whether a string can represent a valid hex-encoded

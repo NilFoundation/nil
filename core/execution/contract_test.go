@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func deployContract(t *testing.T, contract *compiler.Contract, state *ExecutionState, blockContext *vm.BlockContext, seqno types.Seqno) types.Address {
+func deployContract(t *testing.T, contract *compiler.Contract, state *ExecutionState, seqno types.Seqno) types.Address {
 	t.Helper()
 
 	contractCode := hexutil.FromHex(contract.Code)
@@ -27,7 +27,7 @@ func deployContract(t *testing.T, contract *compiler.Contract, state *ExecutionS
 		GasLimit: *types.NewUint256(100000),
 		To:       types.CreateAddress(state.ShardId, contractCode),
 	}
-	_, err := state.HandleDeployMessage(context.Background(), message, &dm, blockContext)
+	_, err := state.HandleDeployMessage(context.Background(), message, &dm)
 	require.NoError(t, err)
 	return message.To
 }
@@ -41,11 +41,8 @@ func TestCall(t *testing.T) {
 	contracts, err := solc.CompileSource("./testdata/call.sol")
 	require.NoError(t, err)
 
-	blockContext, err := NewEVMBlockContext(state)
-	require.NoError(t, err)
-
 	simpleContract := contracts["SimpleContract"]
-	addr := deployContract(t, simpleContract, state, blockContext, 1)
+	addr := deployContract(t, simpleContract, state, 1)
 
 	abi := solc.ExtractABI(simpleContract)
 	calldata, err := abi.Pack("getValue")
@@ -57,13 +54,13 @@ func TestCall(t *testing.T) {
 		To:       addr,
 		GasLimit: *types.NewUint256(10000),
 	}
-	_, ret, err := state.HandleExecutionMessage(ctx, callMessage, blockContext)
+	_, ret, err := state.HandleExecutionMessage(ctx, callMessage)
 	require.NoError(t, err)
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2A"), 32), ret)
 
 	// deploy and call Caller
 	caller := contracts["Caller"]
-	callerAddr := deployContract(t, caller, state, blockContext, 2)
+	callerAddr := deployContract(t, caller, state, 2)
 	calldata2, err := solc.ExtractABI(caller).Pack("callSet", addr, big.NewInt(43))
 	require.NoError(t, err)
 
@@ -73,11 +70,11 @@ func TestCall(t *testing.T) {
 		To:       callerAddr,
 		GasLimit: *types.NewUint256(10000),
 	}
-	_, _, err = state.HandleExecutionMessage(ctx, callMessage2, blockContext)
+	_, _, err = state.HandleExecutionMessage(ctx, callMessage2)
 	require.NoError(t, err)
 
 	// check that it changed the state of SimpleContract
-	_, ret, err = state.HandleExecutionMessage(ctx, callMessage, blockContext)
+	_, ret, err = state.HandleExecutionMessage(ctx, callMessage)
 	require.NoError(t, err)
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2b"), 32), ret)
 
@@ -91,11 +88,11 @@ func TestCall(t *testing.T) {
 		To:       callerAddr,
 		GasLimit: *types.NewUint256(10000),
 	}
-	_, _, err = state.HandleExecutionMessage(ctx, callMessage2, blockContext)
+	_, _, err = state.HandleExecutionMessage(ctx, callMessage2)
 	require.ErrorIs(t, err, vm.ErrExecutionReverted)
 
 	// check that did not change the state of SimpleContract
-	_, ret, err = state.HandleExecutionMessage(ctx, callMessage, blockContext)
+	_, ret, err = state.HandleExecutionMessage(ctx, callMessage)
 	require.NoError(t, err)
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2b"), 32), ret)
 }
@@ -109,14 +106,11 @@ func TestDelegate(t *testing.T) {
 	contracts, err := solc.CompileSource("./testdata/delegate.sol")
 	require.NoError(t, err)
 
-	blockContext, err := NewEVMBlockContext(state)
-	require.NoError(t, err)
-
 	delegateContract := contracts["DelegateContract"]
-	delegateAddr := deployContract(t, delegateContract, state, blockContext, 1)
+	delegateAddr := deployContract(t, delegateContract, state, 1)
 
 	proxyContract := contracts["ProxyContract"]
-	proxyAddr := deployContract(t, proxyContract, state, blockContext, 2)
+	proxyAddr := deployContract(t, proxyContract, state, 2)
 
 	// call ProxyContract.setValue(delegateAddr, 42)
 	calldata, err := solc.ExtractABI(proxyContract).Pack("setValue", delegateAddr, big.NewInt(42))
@@ -127,7 +121,7 @@ func TestDelegate(t *testing.T) {
 		To:       proxyAddr,
 		GasLimit: *types.NewUint256(100000),
 	}
-	_, _, err = state.HandleExecutionMessage(ctx, callMessage, blockContext)
+	_, _, err = state.HandleExecutionMessage(ctx, callMessage)
 	require.NoError(t, err)
 
 	// call ProxyContract.getValue()
@@ -139,7 +133,7 @@ func TestDelegate(t *testing.T) {
 		To:       proxyAddr,
 		GasLimit: *types.NewUint256(10000),
 	}
-	_, ret, err := state.HandleExecutionMessage(ctx, callMessage, blockContext)
+	_, ret, err := state.HandleExecutionMessage(ctx, callMessage)
 	require.NoError(t, err)
 	// check that it returned 42
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2a"), 32), ret)
@@ -153,7 +147,7 @@ func TestDelegate(t *testing.T) {
 		To:       proxyAddr,
 		GasLimit: *types.NewUint256(10000),
 	}
-	_, _, err = state.HandleExecutionMessage(ctx, callMessage, blockContext)
+	_, _, err = state.HandleExecutionMessage(ctx, callMessage)
 	require.ErrorAs(t, err, new(vm.VMError))
 }
 
@@ -168,14 +162,11 @@ func TestAsyncCall(t *testing.T) {
 	contracts, err := solc.CompileSource(common.GetAbsolutePath("../../tests/rpc_server/contracts/async_call.sol"))
 	require.NoError(t, err)
 
-	blockContext, err := NewEVMBlockContext(state)
-	require.NoError(t, err)
-
 	smcCallee := contracts["Callee"]
-	addrCallee := deployContract(t, smcCallee, state, blockContext, 0)
+	addrCallee := deployContract(t, smcCallee, state, 0)
 
 	smcCaller := contracts["Caller"]
-	addrCaller := deployContract(t, smcCaller, state, blockContext, 1)
+	addrCaller := deployContract(t, smcCaller, state, 1)
 
 	// Call Callee::add that should increase value by 11
 	abi := solc.ExtractABI(smcCaller)
@@ -191,7 +182,7 @@ func TestAsyncCall(t *testing.T) {
 		GasLimit: *types.NewUint256(100_000),
 	}
 	state.AddInMessage(callMessage)
-	_, _, err = state.HandleExecutionMessage(ctx, callMessage, blockContext)
+	_, _, err = state.HandleExecutionMessage(ctx, callMessage)
 	require.NoError(t, err)
 	require.NotEmpty(t, state.Receipts)
 	require.True(t, state.Receipts[len(state.Receipts)-1].Success)
@@ -205,7 +196,7 @@ func TestAsyncCall(t *testing.T) {
 	require.Equal(t, addrCallee, outMsg.To)
 
 	// Process outbound message, i.e. "Callee::add"
-	_, ret, err := state.HandleExecutionMessage(ctx, outMsg, blockContext)
+	_, ret, err := state.HandleExecutionMessage(ctx, outMsg)
 	require.NoError(t, err)
 	lastReceipt := state.Receipts[len(state.Receipts)-1]
 	require.True(t, lastReceipt.Success)
@@ -223,7 +214,7 @@ func TestAsyncCall(t *testing.T) {
 		To:       addrCaller,
 		GasLimit: *types.NewUint256(10000),
 	}
-	_, _, err = state.HandleExecutionMessage(ctx, callMessage, blockContext)
+	_, _, err = state.HandleExecutionMessage(ctx, callMessage)
 	require.NoError(t, err)
 	require.NotEmpty(t, state.Receipts)
 	require.True(t, state.Receipts[len(state.Receipts)-1].Success)
@@ -244,7 +235,7 @@ func TestAsyncCall(t *testing.T) {
 	require.Equal(t, outMsg.To, addrCallee)
 
 	// Process outbound message, i.e. "Callee::add"
-	_, ret, err = state.HandleExecutionMessage(ctx, outMsg, blockContext)
+	_, ret, err = state.HandleExecutionMessage(ctx, outMsg)
 	require.NoError(t, err)
 	lastReceipt = state.Receipts[len(state.Receipts)-1]
 	require.True(t, lastReceipt.Success)
@@ -264,14 +255,11 @@ func TestSendMessage(t *testing.T) {
 	contracts, err := solc.CompileSource(common.GetAbsolutePath("../../tests/rpc_server/contracts/async_call.sol"))
 	require.NoError(t, err)
 
-	blockContext, err := NewEVMBlockContext(state)
-	require.NoError(t, err)
-
 	smcCallee := contracts["Callee"]
-	addrCallee := deployContract(t, smcCallee, state, blockContext, 0)
+	addrCallee := deployContract(t, smcCallee, state, 0)
 
 	smcCaller := contracts["Caller"]
-	addrCaller := deployContract(t, smcCaller, state, blockContext, 1)
+	addrCaller := deployContract(t, smcCaller, state, 1)
 
 	// Send a message that calls `Callee::add`, which should increase the value by 11
 	abiCalee := solc.ExtractABI(smcCallee)
@@ -287,7 +275,7 @@ func TestSendMessage(t *testing.T) {
 	require.NoError(t, err)
 
 	abi := solc.ExtractABI(smcCaller)
-	calldata, err = abi.Pack("send_msg", calldata)
+	calldata, err = abi.Pack("sendMessage", calldata)
 	require.NoError(t, err)
 
 	callMessage := &types.Message{
@@ -296,7 +284,7 @@ func TestSendMessage(t *testing.T) {
 		To:       addrCaller,
 		GasLimit: *types.NewUint256(100000),
 	}
-	_, _, err = state.HandleExecutionMessage(ctx, callMessage, blockContext)
+	_, _, err = state.HandleExecutionMessage(ctx, callMessage)
 	require.NoError(t, err)
 	require.NotEmpty(t, state.Receipts)
 	require.True(t, state.Receipts[len(state.Receipts)-1].Success)
@@ -311,7 +299,7 @@ func TestSendMessage(t *testing.T) {
 	require.True(t, outMsg.GasLimit.GtUint64(99999))
 
 	// Process outbound message, i.e. "Callee::add"
-	_, ret, err := state.HandleExecutionMessage(ctx, outMsg, blockContext)
+	_, ret, err := state.HandleExecutionMessage(ctx, outMsg)
 	require.NoError(t, err)
 	lastReceipt := state.Receipts[len(state.Receipts)-1]
 	require.True(t, lastReceipt.Success)

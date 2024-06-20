@@ -7,15 +7,15 @@ library Nil {
     address public constant VERIFY_SIGNATURE = address(0xfe);
     address public constant IS_INTERNAL_MESSAGE = address(0xff);
 
-    function async_call(
+    function asyncCall(
         address dst,
         address refundTo,
         uint gas,
         bool deploy,
         uint value,
-        bytes memory call_data
+        bytes memory callData
     ) internal {
-        bytes memory data = abi.encode(deploy, dst, refundTo, gas, call_data);
+        bytes memory data = abi.encode(deploy, dst, refundTo, gas, callData);
         bool success;
 
         bytes memory returnData;
@@ -27,7 +27,7 @@ library Nil {
     }
 
     // Send raw internal message using a special precompiled contract
-    function send_msg(uint g, bytes memory message) internal {
+    function sendMessage(uint g, bytes memory message) internal {
         uint message_size = message.length;
         assembly {
             // Call precompiled contract.

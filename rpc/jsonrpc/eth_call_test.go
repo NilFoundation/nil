@@ -45,9 +45,6 @@ func (s *SuiteEthCall) SetupSuite() {
 	es, err := execution.NewExecutionState(tx, shardId, s.lastBlockHash, common.NewTestTimer(0))
 	s.Require().NoError(err)
 
-	blockContext, err := execution.NewEVMBlockContext(es)
-	s.Require().NoError(err)
-
 	s.contracts, err = solc.CompileSource("../../core/execution/testdata/call.sol")
 	s.Require().NoError(err)
 
@@ -66,7 +63,7 @@ func (s *SuiteEthCall) SetupSuite() {
 	es.AddInMessage(m)
 	es.InMessageHash = m.Hash()
 
-	_, err = es.HandleDeployMessage(ctx, m, &dm, blockContext)
+	_, err = es.HandleDeployMessage(ctx, m, &dm)
 	s.Require().NoError(err)
 
 	blockHash, err := es.Commit(0)

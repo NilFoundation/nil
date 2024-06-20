@@ -43,6 +43,7 @@ const (
 	Eth_getBlockTransactionCountByNumber = "eth_getBlockTransactionCountByNumber"
 	Eth_getBlockTransactionCountByHash   = "eth_getBlockTransactionCountByHash"
 	Eth_getBalance                       = "eth_getBalance"
+	Eth_getShardIdList                   = "eth_getShardIdList"
 )
 
 type Client struct {
@@ -305,6 +306,19 @@ func (c *Client) GetBalance(address types.Address, blockId any) (*big.Int, error
 	balance := hexutil.Big{}
 	err = balance.UnmarshalJSON(res)
 	return balance.ToInt(), err
+}
+
+func (c *Client) GetShardIdList() ([]types.ShardId, error) {
+	res, err := c.call(Eth_getShardIdList, []any{})
+	if err != nil {
+		return []types.ShardId{}, err
+	}
+
+	var shardIdList []types.ShardId
+	if err := json.Unmarshal(res, &shardIdList); err != nil {
+		return []types.ShardId{}, err
+	}
+	return shardIdList, nil
 }
 
 func (c *Client) DeployContract(

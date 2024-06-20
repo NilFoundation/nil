@@ -37,6 +37,26 @@ func TestCreateAddressShardId(t *testing.T) {
 	assert.Equal(t, addr, addr2)
 }
 
+func TestShardAndHexToAddress(t *testing.T) {
+	t.Parallel()
+
+	addr1 := HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e71")
+	addr2 := ShardAndHexToAddress(2, "0xF09EC9F5cCA264eba822BB887f5c900c6e71")
+	assert.Equal(t, addr1, addr2)
+
+	addr1 = HexToAddress("0x0002000000000000000000000000000000000071")
+	addr2 = ShardAndHexToAddress(2, "0x71")
+	assert.Equal(t, addr1, addr2)
+
+	assert.Panics(t, func() {
+		ShardAndHexToAddress(2, "0x0002F09EC9F5cCA264eba822BB887f5c900c6e71")
+	}, "ShardAndHexToAddress should panic on too long hex string")
+
+	assert.Panics(t, func() {
+		ShardAndHexToAddress(0x12345, "0xF09EC9F5cCA264eba822BB887f5c900c6e71")
+	}, "ShardAndHexToAddress should panic on too big shard id")
+}
+
 func TestCreateRandomAddressShardId(t *testing.T) {
 	t.Parallel()
 

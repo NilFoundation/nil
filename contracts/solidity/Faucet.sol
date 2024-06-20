@@ -18,8 +18,8 @@ contract Faucet {
         emit Send(addr, value);
     }
 
-    function createWallet(bytes memory owner_pubkey, bytes32 salt, uint256 value) external returns (address) {
-        Wallet wallet = new Wallet{salt: salt}(owner_pubkey);
+    function createWallet(bytes memory ownerPubkey, bytes32 salt, uint256 value) external returns (address) {
+        Wallet wallet = new Wallet{salt: salt}(ownerPubkey);
         address addr = address(wallet);
         emit Deploy(addr);
 
@@ -31,6 +31,6 @@ contract Faucet {
     }
 
     function send(bytes calldata message) public payable {
-        Nil.send_msg(gasleft(), message);
+        Nil.sendMessage(gasleft(), message);
     }
 }

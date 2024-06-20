@@ -15,11 +15,11 @@ contract Wallet is NilBase {
     }
 
     function send(bytes calldata message) onlyExternal public {
-        Nil.send_msg(gasleft(), message);
+        Nil.sendMessage(gasleft(), message);
     }
 
-    function asyncCall(address dst, address refundTo, uint gas, bool deploy, uint value, bytes calldata call_data) onlyExternal public {
-        Nil.async_call(dst, refundTo, gas, deploy, value, call_data);
+    function asyncCall(address dst, address refundTo, uint gas, bool deploy, uint value, bytes calldata callData) onlyExternal public {
+        Nil.asyncCall(dst, refundTo, gas, deploy, value, callData);
     }
 
     function syncCall(address dst, uint gas, uint value, bytes memory call_data) onlyExternal public {
