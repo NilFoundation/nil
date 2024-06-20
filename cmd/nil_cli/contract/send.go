@@ -4,6 +4,7 @@ import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
 
@@ -12,7 +13,7 @@ func GetSendCommand(cfg *config.Config) *cobra.Command {
 		Use:   "send [address] [bytecode or method] [args...]",
 		Short: "Send amessage to the smart contract",
 		Long:  "Send a message to the smart contract with specified bytecode or command",
-		Args:  cobra.MinimumNArgs(2),
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSend(cmd, args, cfg)
 		},
@@ -23,6 +24,13 @@ func GetSendCommand(cfg *config.Config) *cobra.Command {
 		abiFlag,
 		"",
 		"Path to ABI file",
+	)
+
+	params.amount = *types.NewUint256(0)
+	cmd.Flags().Var(
+		&params.amount,
+		amountFlag,
+		"Amount of coins to send",
 	)
 
 	return cmd
@@ -37,6 +45,6 @@ func runSend(_ *cobra.Command, args []string, cfg *config.Config) error {
 		return err
 	}
 
-	_, _ = service.RunContract(cfg.Address, calldata, address)
+	_, _ = service.RunContract(cfg.Address, calldata, &params.amount, address)
 	return nil
 }

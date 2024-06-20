@@ -85,10 +85,9 @@ func setFlags(cmd *cobra.Command) {
 		"Bytecode of wallet constructor")
 
 	// TODO: Be able to create wallets in any shard.
-	// cmd.Flags().Uint32Var(
-	//	(*uint32)(&params.shardId),
+	// cmd.Flags().Var(
+	//	types.NewShardId(&params.shardId, types.BaseShardId),
 	//	shardIdFlag,
-	//	uint32(types.BaseShardId),
 	//	"Specify the shard id to interact with",
 	//)
 }

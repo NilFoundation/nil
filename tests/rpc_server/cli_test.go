@@ -34,7 +34,7 @@ func (s *SuiteRpc) TestCliMessage() {
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	contractCode = s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(0))
 
-	_, receipt := s.deployContractViaMainWallet(types.BaseShardId, contractCode, *types.NewUint256(5_000_000))
+	_, receipt := s.deployContractViaMainWallet(types.BaseShardId, contractCode, types.NewUint256(5_000_000))
 	s.Require().True(receipt.Success)
 
 	msg, err := s.client.GetInMessageByHash(types.MainWalletAddress.ShardId(), receipt.MsgHash)
@@ -55,7 +55,7 @@ func (s *SuiteRpc) TestReadContract() {
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	contractCode = s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(1))
 
-	addr, receipt := s.deployContractViaMainWallet(types.BaseShardId, contractCode, *types.NewUint256(5_000_000))
+	addr, receipt := s.deployContractViaMainWallet(types.BaseShardId, contractCode, types.NewUint256(5_000_000))
 	s.Require().True(receipt.Success)
 
 	res, err := s.cli.GetCode(addr.String())
@@ -94,14 +94,31 @@ func (s *SuiteRpc) TestContract() {
 	calldata, err := abi.Pack("increment")
 	s.Require().NoError(err)
 
-	txHash, err = s.cli.RunContract(wallet, calldata, addr)
+	txHash, err = s.cli.RunContract(wallet, calldata, nil, addr)
 	s.Require().NoError(err)
 
 	receipt = s.waitForReceiptOnShard(wallet.ShardId(), common.HexToHash(txHash))
 	s.Require().True(receipt.Success)
+	s.Require().True(receipt.OutReceipts[0].Success)
 
 	// Get updated value
 	res, err = s.cli.CallContract(addr, getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000003", res)
+
+	// Test value transfer
+	balanceBefore, err := s.client.GetBalance(addr, "latest")
+	s.Require().NoError(err)
+
+	txHash, err = s.cli.RunContract(wallet, nil, types.NewUint256(100), addr)
+	s.Require().NoError(err)
+
+	receipt = s.waitForReceiptOnShard(wallet.ShardId(), common.HexToHash(txHash))
+	s.Require().True(receipt.Success)
+	s.Require().True(receipt.OutReceipts[0].Success)
+
+	balanceAfter, err := s.client.GetBalance(addr, "latest")
+	s.Require().NoError(err)
+
+	s.EqualValues(100, balanceBefore.Sub(&balanceAfter.Int, &balanceBefore.Int).Uint64())
 }

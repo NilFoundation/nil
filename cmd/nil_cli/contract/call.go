@@ -40,13 +40,15 @@ func prepareArgs(service *service.Service, params *contractParams, args []string
 	}
 
 	var calldata []byte
-	if strings.HasPrefix(args[1], "0x") && params.abiPath == "" {
-		calldata = hexutil.FromHex(args[1])
-	} else {
-		var err error
-		calldata, err = service.ArgsToCalldata(params.abiPath, args[1], args[2:])
-		if err != nil {
-			return types.EmptyAddress, nil, err
+	if len(args) > 1 {
+		if strings.HasPrefix(args[1], "0x") && params.abiPath == "" {
+			calldata = hexutil.FromHex(args[1])
+		} else {
+			var err error
+			calldata, err = service.ArgsToCalldata(params.abiPath, args[1], args[2:])
+			if err != nil {
+				return types.EmptyAddress, nil, err
+			}
 		}
 	}
 	return address, calldata, nil
