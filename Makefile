@@ -24,7 +24,7 @@ test: compile-contracts
 %.runcmd: %.cmd
 	@$(GOBIN)/$* $(CMDARGS)
 
-COMMANDS += nil nil_cli
+COMMANDS += nil nil_cli nil_load_generator
 
 all: $(COMMANDS)
 

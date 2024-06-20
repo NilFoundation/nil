@@ -85,6 +85,14 @@ func (s *SuiteRpc) TestRpcBasic() {
 	var someRandomMissingBlock common.Hash
 	s.Require().NoError(someRandomMissingBlock.UnmarshalText([]byte("0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")))
 
+	shardIdListRes, err := s.client.GetShardIdList()
+	s.Require().NoError(err)
+	shardIdListExp := make([]types.ShardId, s.shardsNum-1)
+	for i := range shardIdListExp {
+		shardIdListExp[i] = types.ShardId(i + 1)
+	}
+	s.Require().Equal(shardIdListExp, shardIdListRes)
+
 	res0Num, err := s.client.GetBlock(types.BaseShardId, 0, false)
 	s.Require().NoError(err)
 	s.Require().NotNil(res0Num)

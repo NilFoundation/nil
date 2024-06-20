@@ -48,15 +48,17 @@ type ContractDescr struct {
 	CtorArgs []any          `yaml:"ctorArgs,omitempty"`
 }
 
+type MainKeys struct {
+	MainPrivateKey string `yaml:"mainPrivateKey"`
+	MainPublicKey  string `yaml:"mainPublicKey"`
+}
+
 type ZeroStateConfig struct {
 	Contracts []*ContractDescr `yaml:"contracts"`
 }
 
 func DumpMainKeys(fname string) error {
-	keys := map[string]string{
-		"main_private_key": "0x" + crypto.PrivateKeyToEthereumFormat(MainPrivateKey),
-		"main_public_key":  hexutil.Encode(MainPublicKey),
-	}
+	keys := MainKeys{"0x" + crypto.PrivateKeyToEthereumFormat(MainPrivateKey), hexutil.Encode(MainPublicKey)}
 
 	data, err := yaml.Marshal(&keys)
 	if err != nil {
@@ -70,6 +72,24 @@ func DumpMainKeys(fname string) error {
 	defer file.Close()
 
 	_, err = file.Write(data)
+	return err
+}
+
+func LoadMainKeys(fname string) error {
+	var keys MainKeys
+
+	data, err := os.ReadFile(fname)
+	if err != nil {
+		return err
+	}
+	if err := yaml.Unmarshal(data, &keys); err != nil {
+		return err
+	}
+	MainPrivateKey, err = crypto.HexToECDSA(keys.MainPrivateKey[2:])
+	if err != nil {
+		return err
+	}
+	MainPublicKey, err = hexutil.Decode(keys.MainPublicKey)
 	return err
 }
 

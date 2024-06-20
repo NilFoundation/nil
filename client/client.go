@@ -29,6 +29,7 @@ type Client interface {
 	GetTransactionCount(address types.Address, blockId any) (types.Seqno, error)
 	GetBlockTransactionCount(shardId types.ShardId, blockId any) (uint64, error)
 	GetBalance(address types.Address, blockId any) (*big.Int, error)
+	GetShardIdList() ([]types.ShardId, error)
 
 	DeployContract(shardId types.ShardId, address types.Address, bytecode types.Code, pk *ecdsa.PrivateKey) (common.Hash, types.Address, error)
 	SendMessageViaWallet(address types.Address, bytecode types.Code, value types.Uint256, contractAddress types.Address, pk *ecdsa.PrivateKey) (common.Hash, error)
