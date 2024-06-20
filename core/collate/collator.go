@@ -100,7 +100,7 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 	}
 	for _, msg := range outMsgs {
 		if msg.msg.Value.Cmp(ForwardFee) < 0 {
-			sharedLogger.Info().Err(errors.New("message can't pay forward fee")).Msgf("discarding message %v", msg.msg)
+			sharedLogger.Warn().Err(errors.New("message can't pay forward fee")).Msgf("discarding message %v", msg.msg)
 			continue
 		}
 		msg.msg.Value.Sub(&msg.msg.Value.Int, ForwardFee)

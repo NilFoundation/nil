@@ -217,7 +217,7 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 			To:       calleeAddr,
 			RefundTo: callerAddr,
 			Value:    *types.NewUint256(10_000_000),
-			GasLimit: *types.NewUint256(100004),
+			GasLimit: *types.NewUint256(100_004),
 		}
 		calldata, err = messageToSend.MarshalSSZ()
 		suite.Require().NoError(err)

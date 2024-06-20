@@ -47,7 +47,7 @@ func (suite *SuiteWalletRpc) TestWallet() {
 	abiCalee, err := contracts.GetAbi("tests/Counter")
 	suite.Require().NoError(err)
 
-	addrCallee, receipt := suite.deployContractViaMainWallet(3, code, *types.NewUint256(5_000_000))
+	addrCallee, receipt := suite.deployContractViaMainWallet(3, code, *types.NewUint256(50_000_000))
 	suite.Require().True(receipt.OutReceipts[0].Success)
 
 	var calldata []byte

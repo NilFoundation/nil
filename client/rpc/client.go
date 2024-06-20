@@ -17,7 +17,7 @@ import (
 	"github.com/NilFoundation/nil/common/assert"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
-	"github.com/NilFoundation/nil/core/collate"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
@@ -357,7 +357,7 @@ func (c *Client) sendMessageViaWallet(
 
 	gasLimit := *types.NewUint256(100_000)
 	totalValue := types.NewUint256(0)
-	totalValue.Int.Mul(&gasLimit.Int, collate.GasPrice)
+	totalValue.Int.Mul(&gasLimit.Int, execution.GasPrice)
 	totalValue.Int.Add(&value.Int, &totalValue.Int)
 
 	intMsg := &types.InternalMessagePayload{

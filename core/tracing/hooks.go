@@ -17,6 +17,7 @@
 package tracing
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/NilFoundation/nil/common"
@@ -247,8 +248,55 @@ const (
 	BalanceIncreaseRefund BalanceChangeReason = 15
 
 	// BalanceDecreasePrecompile is decreased when calling precompiled contracts.
-	BalanceDecreasePrecompile BalanceChangeReason = 15
+	BalanceDecreasePrecompile BalanceChangeReason = 16
+
+	// BalanceDecreaseVerifyExternal is decreased when verifying external message via verifyExternal contract call.
+	BalanceDecreaseVerifyExternal BalanceChangeReason = 17
 )
+
+// generate fmt.Stringer implementation for BalanceChangeReason
+func (bcr BalanceChangeReason) String() string {
+	switch bcr {
+	case BalanceChangeUnspecified:
+		return "BalanceChangeUnspecified"
+	case BalanceIncreaseRewardMineUncle:
+		return "BalanceIncreaseRewardMineUncle"
+	case BalanceIncreaseRewardMineBlock:
+		return "BalanceIncreaseRewardMineBlock"
+	case BalanceIncreaseWithdrawal:
+		return "BalanceIncreaseWithdrawal"
+	case BalanceIncreaseGenesisBalance:
+		return "BalanceIncreaseGenesisBalance"
+	case BalanceIncreaseRewardTransactionFee:
+		return "BalanceIncreaseRewardTransactionFee"
+	case BalanceDecreaseGasBuy:
+		return "BalanceDecreaseGasBuy"
+	case BalanceIncreaseGasReturn:
+		return "BalanceIncreaseGasReturn"
+	case BalanceIncreaseDaoContract:
+		return "BalanceIncreaseDaoContract"
+	case BalanceDecreaseDaoAccount:
+		return "BalanceDecreaseDaoAccount"
+	case BalanceChangeTransfer:
+		return "BalanceChangeTransfer"
+	case BalanceChangeTouchAccount:
+		return "BalanceChangeTouchAccount"
+	case BalanceIncreaseSelfdestruct:
+		return "BalanceIncreaseSelfdestruct"
+	case BalanceDecreaseSelfdestruct:
+		return "BalanceDecreaseSelfdestruct"
+	case BalanceDecreaseSelfdestructBurn:
+		return "BalanceDecreaseSelfdestructBurn"
+	case BalanceIncreaseRefund:
+		return "BalanceIncreaseRefund"
+	case BalanceDecreasePrecompile:
+		return "BalanceDecreasePrecompile"
+	case BalanceDecreaseVerifyExternal:
+		return "BalanceDecreaseVerifyExternal"
+	default:
+		return fmt.Sprintf("Unknown BalanceChangeReason: %d", bcr)
+	}
+}
 
 // GasChangeReason is used to indicate the reason for a gas change, useful
 // for tracing and reporting.

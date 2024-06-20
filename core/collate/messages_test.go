@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -74,6 +75,7 @@ func (s *MessagesSuite) TestValidateMessage() {
 
 	addrTo := types.GenerateRandomAddress(types.BaseShardId)
 	es.CreateAccount(addrTo)
+	es.SetBalance(addrTo, *uint256.NewInt(10_000_000))
 
 	msg := &types.Message{
 		To:       addrTo,

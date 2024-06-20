@@ -124,7 +124,7 @@ var GasPrice = uint256.NewInt(10)
 
 func buyGas(payer payer, message *types.Message) error {
 	mgval := message.GasLimit.ToBig()
-	mgval.Mul(mgval, GasPrice.ToBig())
+	mgval.Mul(mgval, execution.GasPrice.ToBig())
 
 	required, overflow := uint256.FromBig(mgval)
 	if overflow {
@@ -141,7 +141,7 @@ func buyGas(payer payer, message *types.Message) error {
 func refundGas(payer payer, _ *types.Message, gasRemaining uint64) {
 	// Return currency for remaining gas, exchanged at the original rate.
 	remaining := uint256.NewInt(gasRemaining)
-	remaining.Mul(remaining, GasPrice)
+	remaining.Mul(remaining, execution.GasPrice)
 	payer.AddBalance(remaining)
 }
 
@@ -218,7 +218,7 @@ func validateExternalExecutionMessage(es *execution.ExecutionState, message *typ
 
 	if accountState.Seqno != message.Seqno {
 		err := ErrSeqnoGap
-		sharedLogger.Debug().
+		sharedLogger.Warn().
 			Err(err).
 			Stringer("hash", es.InMessageHash).
 			Stringer(logging.FieldShardId, es.ShardId).

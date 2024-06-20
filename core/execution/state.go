@@ -23,7 +23,10 @@ var logger = logging.NewLogger("execution")
 
 const TraceBlocksEnabled = false
 
-const ExternalMessageVerificationMaxGas = 100000
+var ExternalMessageVerificationMaxGas = uint256.NewInt(100_000)
+
+// TODO: Make gas price dynamic and use message.GasPrice
+var GasPrice = uint256.NewInt(10)
 
 var blocksTracer *BlocksTracer
 
@@ -280,7 +283,10 @@ func (s *AccountState) AddBalance(amount *uint256.Int, reason tracing.BalanceCha
 	if amount.IsZero() {
 		return
 	}
-	s.SetBalance(*new(uint256.Int).Add(&s.Balance, amount))
+	newBalance := *new(uint256.Int).Add(&s.Balance, amount)
+	logger.Debug().Stringer("address", s.address).Stringer("reason", reason).
+		Msgf("Balance change: adding balance %v + %v = %v", s.Balance, amount, newBalance)
+	s.SetBalance(newBalance)
 }
 
 // SubBalance removes amount from s's balance.
@@ -289,7 +295,10 @@ func (s *AccountState) SubBalance(amount *uint256.Int, reason tracing.BalanceCha
 	if amount.IsZero() {
 		return
 	}
-	s.SetBalance(*new(uint256.Int).Sub(&s.Balance, amount))
+	newBalance := *new(uint256.Int).Sub(&s.Balance, amount)
+	logger.Debug().Stringer("address", s.address).Stringer("reason", reason).
+		Msgf("Balance change: withdrawing balance %v - %v = %v", s.Balance, amount, newBalance)
+	s.SetBalance(newBalance)
 }
 
 func (es *ExecutionState) AddLog(log *types.Log) {
@@ -940,10 +949,18 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 	}
 	defer es.resetVm()
 
-	ret, _, err := es.evm.StaticCall((vm.AccountRef)(account.address), account.address, calldata, ExternalMessageVerificationMaxGas)
+	buyNil := new(uint256.Int).Mul(ExternalMessageVerificationMaxGas, GasPrice)
+	if account.Balance.Cmp(buyNil) < 0 {
+		return false, vm.ErrInsufficientBalance
+	}
+
+	ret, leftOverGas, err := es.evm.StaticCall((vm.AccountRef)(account.address), account.address, calldata, ExternalMessageVerificationMaxGas.Uint64())
 	if err != nil || !bytes.Equal(ret, common.LeftPadBytes([]byte{1}, 32)) {
 		return false, err
 	}
+	spentGas := new(uint256.Int).Sub(ExternalMessageVerificationMaxGas, uint256.NewInt(leftOverGas))
+	spentNil := new(uint256.Int).Mul(spentGas, GasPrice)
+	account.SubBalance(spentNil, tracing.BalanceDecreaseVerifyExternal)
 	return true, nil
 }
 
