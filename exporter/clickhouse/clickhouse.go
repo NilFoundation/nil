@@ -45,6 +45,7 @@ type MessageWithBinary struct {
 	ShardId       types.ShardId      `ch:"shard_id"`
 	MessageIndex  types.MessageIndex `ch:"message_index"`
 	Outgoing      bool               `ch:"outgoing"`
+	Timestamp     uint64             `ch:"timestamp"`
 }
 
 type LogWithBinary struct {
@@ -305,6 +306,7 @@ func exportMessagesAndLogs(ctx context.Context, conn driver.Conn, msgs []*export
 				ReceiptBinary: receiptBinary,
 				MessageIndex:  types.MessageIndex(block.Positions[index]),
 				Outgoing:      false,
+				Timestamp:     block.Block.Timestamp,
 			}
 			messageErr = messageBatch.AppendStruct(binaryMessageExtended)
 			if messageErr != nil {
@@ -328,6 +330,7 @@ func exportMessagesAndLogs(ctx context.Context, conn driver.Conn, msgs []*export
 				ReceiptBinary: make([]byte, 0),
 				MessageIndex:  0,
 				Outgoing:      true,
+				Timestamp:     block.Block.Timestamp,
 			}
 			messageErr = messageBatch.AppendStruct(binaryMessageExtended)
 			if messageErr != nil {
