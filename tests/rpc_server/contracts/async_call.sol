@@ -16,7 +16,7 @@ contract Caller {
     using Nil for address;
 
     function call(address dst, int32 val) public payable {
-        dst.async_call(
+        dst.asyncCall(
             address(0),
             gasleft(),
             false,
@@ -25,8 +25,8 @@ contract Caller {
         );
     }
 
-    function send_msg(bytes calldata message) public payable {
-        Nil.send_msg(gasleft(), message);
+    function sendMessage(bytes calldata message) public payable {
+        Nil.sendMessage(gasleft(), message);
     }
 
     function verifyExternal(

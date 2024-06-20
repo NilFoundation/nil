@@ -287,7 +287,7 @@ func TestSendMessage(t *testing.T) {
 	require.NoError(t, err)
 
 	abi := solc.ExtractABI(smcCaller)
-	calldata, err = abi.Pack("send_msg", calldata)
+	calldata, err = abi.Pack("sendMessage", calldata)
 	require.NoError(t, err)
 
 	callMessage := &types.Message{

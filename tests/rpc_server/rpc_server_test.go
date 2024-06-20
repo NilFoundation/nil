@@ -225,7 +225,7 @@ func (suite *SuiteRpc) TestRpcContractSendMessage() {
 		// now call Caller::send_message
 		callerSeqno, err := suite.client.GetTransactionCount(callerAddr, "latest")
 		suite.Require().NoError(err)
-		calldata, err = callerAbi.Pack("send_msg", calldata)
+		calldata, err = callerAbi.Pack("sendMessage", calldata)
 		suite.Require().NoError(err)
 
 		callCallerMethod := &types.ExternalMessage{
