@@ -10,52 +10,50 @@ import (
 )
 
 type StateDB interface {
-	CreateAccount(types.Address)
-	CreateContract(types.Address)
+	CreateAccount(types.Address) error
+	CreateContract(types.Address) error
 
-	SubBalance(types.Address, *uint256.Int, tracing.BalanceChangeReason)
-	AddBalance(types.Address, *uint256.Int, tracing.BalanceChangeReason)
-	GetBalance(types.Address) *uint256.Int
+	SubBalance(types.Address, *uint256.Int, tracing.BalanceChangeReason) error
+	AddBalance(types.Address, *uint256.Int, tracing.BalanceChangeReason) error
+	GetBalance(types.Address) (*uint256.Int, error)
 
-	GetSeqno(types.Address) types.Seqno
-	SetSeqno(types.Address, types.Seqno)
+	GetSeqno(types.Address) (types.Seqno, error)
+	SetSeqno(types.Address, types.Seqno) error
 
-	GetCodeHash(types.Address) common.Hash
-	GetCode(types.Address) []byte
-	SetCode(types.Address, []byte)
-	GetCodeSize(types.Address) int
+	GetCode(types.Address) ([]byte, common.Hash, error)
+	SetCode(types.Address, []byte) error
 
 	AddRefund(uint64)
 	SubRefund(uint64)
 	GetRefund() uint64
 
 	GetCommittedState(types.Address, common.Hash) common.Hash
-	GetState(types.Address, common.Hash) common.Hash
-	SetState(types.Address, common.Hash, common.Hash)
-	GetStorageRoot(addr types.Address) common.Hash
+	GetState(types.Address, common.Hash) (common.Hash, error)
+	SetState(types.Address, common.Hash, common.Hash) error
+	GetStorageRoot(addr types.Address) (common.Hash, error)
 
 	GetTransientState(addr types.Address, key common.Hash) common.Hash
 	SetTransientState(addr types.Address, key, value common.Hash)
 
-	HasSelfDestructed(types.Address) bool
+	HasSelfDestructed(types.Address) (bool, error)
 
-	Selfdestruct6780(types.Address)
+	Selfdestruct6780(types.Address) error
 
 	// Exist reports whether the given account exists in state.
 	// Notably this should also return true for self-destructed accounts.
-	Exist(types.Address) bool
+	Exists(types.Address) (bool, error)
 	// Empty returns whether the given account is empty. Empty
 	// is defined according to EIP161 (balance = nonce = code = 0).
-	Empty(types.Address) bool
+	Empty(types.Address) (bool, error)
 	// ContractExists is used to check whether we can deploy to an address
-	ContractExists(types.Address) bool
+	ContractExists(types.Address) (bool, error)
 
 	AddressInAccessList(addr types.Address) bool
 	SlotInAccessList(addr types.Address, slot common.Hash) (addressOk bool, slotOk bool)
 	// AddAddressToAccessList adds the given address to the access list. This operation is safe to perform
 	// even if the feature/fork is not active yet
 	AddAddressToAccessList(addr types.Address)
-	// AddSlotToAccessList adds the given (address,slot) to the access list. This operation is safe to perform
+	// AddSlotToAccessList adds the given (address, slot) to the access list. This operation is safe to perform
 	// even if the feature/fork is not active yet
 	AddSlotToAccessList(addr types.Address, slot common.Hash)
 

@@ -171,8 +171,12 @@ func (es *ExecutionState) GenerateZeroState(configYaml string) error {
 			Data:     code,
 		}
 
-		es.CreateAccount(addr)
-		es.CreateContract(addr)
+		if err := es.CreateAccount(addr); err != nil {
+			return err
+		}
+		if err := es.CreateContract(addr); err != nil {
+			return err
+		}
 		if err := es.SetInitState(addr, mainDeployMsg); err != nil {
 			return err
 		}
@@ -184,7 +188,9 @@ func (es *ExecutionState) GenerateZeroState(configYaml string) error {
 			value = *types.NewUint256(0)
 		}
 
-		es.SetBalance(addr, value.Int)
+		if err := es.SetBalance(addr, value.Int); err != nil {
+			return err
+		}
 		logger.Debug().Str("name", contract.Name).Stringer("address", addr).Msg("Created zero state contract")
 	}
 	return nil

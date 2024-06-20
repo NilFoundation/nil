@@ -43,10 +43,10 @@ func (suite *SuiteSendTransaction) SetupSuite() {
 	suite.smcAddr = types.CreateAddress(shardId, []byte("1234"))
 	suite.Require().NotEqual(types.Address{}, suite.smcAddr)
 
-	es.CreateAccount(suite.smcAddr)
+	suite.Require().NoError(es.CreateAccount(suite.smcAddr))
 
-	es.SetBalance(suite.smcAddr, *uint256.NewInt(1234))
-	es.SetSeqno(suite.smcAddr, 567)
+	suite.Require().NoError(es.SetBalance(suite.smcAddr, *uint256.NewInt(1234)))
+	suite.Require().NoError(es.SetSeqno(suite.smcAddr, 567))
 
 	blockHash, err := es.Commit(0)
 	suite.Require().NoError(err)

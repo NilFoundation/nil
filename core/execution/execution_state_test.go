@@ -54,8 +54,8 @@ func (suite *SuiteExecutionState) TestExecState() {
 	suite.Require().NoError(err)
 
 	suite.Run("CreateAccount", func() {
-		es.CreateAccount(addr)
-		es.SetState(addr, storageKey, common.IntToHash(123456))
+		suite.Require().NoError(es.CreateAccount(addr))
+		suite.Require().NoError(es.SetState(addr, storageKey, common.IntToHash(123456)))
 	})
 
 	suite.Run("DeployMessages", func() {
@@ -78,7 +78,8 @@ func (suite *SuiteExecutionState) TestExecState() {
 		es, err := NewExecutionState(tx, shardId, blockHash, common.NewTestTimer(0))
 		suite.Require().NoError(err)
 
-		storageVal := es.GetState(addr, storageKey)
+		storageVal, err := es.GetState(addr, storageKey)
+		suite.Require().NoError(err)
 		suite.Equal(storageVal, common.IntToHash(123456))
 	})
 
@@ -130,12 +131,16 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 	suite.Require().NoError(err)
 
 	suite.Run("Deploy", func() {
-		suite.EqualValues(0, es.GetSeqno(addrWallet))
+		seqno, err := es.GetSeqno(addrWallet)
+		suite.Require().NoError(err)
+		suite.EqualValues(0, seqno)
 
 		Deploy(suite.T(), suite.ctx, es, types.BuildDeployPayload(code, common.EmptyHash),
 			shardId, types.Address{}, 0)
 
-		suite.EqualValues(1, es.GetSeqno(addrWallet))
+		seqno, err = es.GetSeqno(addrWallet)
+		suite.Require().NoError(err)
+		suite.EqualValues(1, seqno)
 	})
 
 	suite.Run("Execute", func() {
@@ -143,7 +148,9 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 			contracts.NewCounterExecuteMessage(suite.T(), shardId, addrWallet, 1))
 		suite.Require().NoError(err)
 
-		suite.EqualValues(2, es.GetSeqno(addrWallet))
+		seqno, err := es.GetSeqno(addrWallet)
+		suite.Require().NoError(err)
+		suite.EqualValues(2, seqno)
 	})
 }
 
@@ -211,18 +218,24 @@ func TestStorage(t *testing.T) {
 	key := common.EmptyHash
 	value := common.IntToHash(42)
 
-	num := state.GetState(account, key)
+	num, err := state.GetState(account, key)
+	require.NoError(t, err)
 	require.Equal(t, num, common.EmptyHash)
 
-	require.False(t, state.accountExists(account))
+	exists, err := state.Exists(account)
+	require.NoError(t, err)
+	require.False(t, exists)
 
-	state.CreateAccount(account)
+	require.NoError(t, state.CreateAccount(account))
 
-	require.True(t, state.accountExists(account))
+	exists, err = state.Exists(account)
+	require.NoError(t, err)
+	require.True(t, exists)
 
-	state.SetState(account, key, value)
+	require.NoError(t, state.SetState(account, key, value))
 
-	num = state.GetState(account, key)
+	num, err = state.GetState(account, key)
+	require.NoError(t, err)
 	require.Equal(t, num, value)
 }
 
@@ -232,9 +245,11 @@ func TestBalance(t *testing.T) {
 	state := newState(t)
 	account := types.GenerateRandomAddress(types.BaseShardId)
 
-	state.SetBalance(account, *uint256.NewInt(100500))
+	require.NoError(t, state.SetBalance(account, *uint256.NewInt(100500)))
 
-	require.Equal(t, *state.GetBalance(account), *uint256.NewInt(100500))
+	balance, err := state.GetBalance(account)
+	require.NoError(t, err)
+	require.Equal(t, balance, uint256.NewInt(100500))
 }
 
 func TestSnapshot(t *testing.T) {
@@ -249,25 +264,26 @@ func TestSnapshot(t *testing.T) {
 	genesis := s.Snapshot()
 
 	// set initial state object value
-	s.SetState(stateobjaddr, storageaddr, data1)
+	require.NoError(t, s.SetState(stateobjaddr, storageaddr, data1))
 	snapshot := s.Snapshot()
 
 	// set a new state object value, revert it and ensure correct content
-	s.SetState(stateobjaddr, storageaddr, data2)
+	require.NoError(t, s.SetState(stateobjaddr, storageaddr, data2))
 	s.RevertToSnapshot(snapshot)
 
-	if v := s.GetState(stateobjaddr, storageaddr); v != data1 {
-		t.Errorf("wrong storage value %v, want %v", v, data1)
-	}
+	v, err := s.GetState(stateobjaddr, storageaddr)
+	require.NoError(t, err)
+	assert.Equal(t, data1, v)
+
 	if v := s.GetCommittedState(stateobjaddr, storageaddr); v != (common.Hash{}) {
 		t.Errorf("wrong committed storage value %v, want %v", v, common.Hash{})
 	}
 
 	// revert up to the genesis state and ensure correct content
 	s.RevertToSnapshot(genesis)
-	if v := s.GetState(stateobjaddr, storageaddr); v != (common.Hash{}) {
-		t.Errorf("wrong storage value %v, want %v", v, common.Hash{})
-	}
+	v, err = s.GetState(stateobjaddr, storageaddr)
+	require.NoError(t, err)
+	assert.Empty(t, v)
 	if v := s.GetCommittedState(stateobjaddr, storageaddr); v != (common.Hash{}) {
 		t.Errorf("wrong committed storage value %v, want %v", v, common.Hash{})
 	}
@@ -285,9 +301,10 @@ func TestCreateObjectRevert(t *testing.T) {
 	addr := types.GenerateRandomAddress(types.BaseShardId)
 	snap := state.Snapshot()
 
-	state.CreateAccount(addr)
+	require.NoError(t, state.CreateAccount(addr))
 
-	so0 := state.GetAccount(addr)
+	so0, err := state.GetAccount(addr)
+	require.NoError(t, err)
 	so0.SetBalance(*uint256.NewInt(42))
 	so0.SetSeqno(43)
 	code := types.Code([]byte{'c', 'a', 'f', 'e'})
@@ -295,9 +312,9 @@ func TestCreateObjectRevert(t *testing.T) {
 	state.setAccountObject(so0)
 
 	state.RevertToSnapshot(snap)
-	if state.Exist(addr) {
-		t.Error("Unexpected account after revert")
-	}
+	exists, err := state.Exists(addr)
+	require.NoError(t, err)
+	require.False(t, exists)
 }
 
 func TestAccountState(t *testing.T) {
@@ -305,22 +322,24 @@ func TestAccountState(t *testing.T) {
 	state := newState(t)
 	addr := types.GenerateRandomAddress(types.BaseShardId)
 
-	state.CreateAccount(addr)
+	require.NoError(t, state.CreateAccount(addr))
 
 	balance := *uint256.NewInt(42)
-	acc := state.GetAccount(addr)
+	acc, err := state.GetAccount(addr)
+	require.NoError(t, err)
 	acc.SetBalance(balance)
 	acc.SetSeqno(43)
 	code := types.Code([]byte{'c', 'a', 'f', 'e'})
 	acc.SetCode(code.Hash(), code)
 
-	_, err := state.Commit(0)
+	_, err = state.Commit(0)
 	require.NoError(t, err)
 
 	// Drop local state account cache
 	delete(state.Accounts, addr)
 
-	acc = state.GetAccount(addr)
+	acc, err = state.GetAccount(addr)
+	require.NoError(t, err)
 	require.NotNil(t, acc)
 	assert.Equal(t, balance, acc.Balance)
 }

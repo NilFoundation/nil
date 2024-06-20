@@ -2,6 +2,7 @@ package execution
 
 import (
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/holiman/uint256"
 )
@@ -102,31 +103,52 @@ func (ch createObjectChange) revert(s *ExecutionState) {
 }
 
 func (ch createContractChange) revert(s *ExecutionState) {
-	s.GetAccount(ch.account).newContract = false
+	account, err := s.GetAccount(ch.account)
+	check.PanicIfErr(err)
+	if account != nil {
+		account.newContract = false
+	}
 }
 
 func (ch selfDestructChange) revert(s *ExecutionState) {
-	obj := s.GetAccount(*ch.account)
-	if obj != nil {
-		obj.selfDestructed = ch.prev
-		obj.setBalance(ch.prevbalance)
+	account, err := s.GetAccount(*ch.account)
+	check.PanicIfErr(err)
+	if account != nil {
+		account.selfDestructed = ch.prev
+		account.setBalance(ch.prevbalance)
 	}
 }
 
 func (ch balanceChange) revert(s *ExecutionState) {
-	s.GetAccount(*ch.account).setBalance(ch.prev)
+	account, err := s.GetAccount(*ch.account)
+	check.PanicIfErr(err)
+	if account != nil {
+		account.setBalance(ch.prev)
+	}
 }
 
 func (ch seqnoChange) revert(s *ExecutionState) {
-	s.GetAccount(*ch.account).setSeqno(ch.prev)
+	account, err := s.GetAccount(*ch.account)
+	check.PanicIfErr(err)
+	if account != nil {
+		account.setSeqno(ch.prev)
+	}
 }
 
 func (ch codeChange) revert(s *ExecutionState) {
-	s.GetAccount(*ch.account).setCode(common.BytesToHash(ch.prevhash), ch.prevcode)
+	account, err := s.GetAccount(*ch.account)
+	check.PanicIfErr(err)
+	if account != nil {
+		account.setCode(common.BytesToHash(ch.prevhash), ch.prevcode)
+	}
 }
 
 func (ch storageChange) revert(s *ExecutionState) {
-	s.GetAccount(*ch.account).setState(ch.key, ch.prevvalue)
+	account, err := s.GetAccount(*ch.account)
+	check.PanicIfErr(err)
+	if account != nil {
+		account.setState(ch.key, ch.prevvalue)
+	}
 }
 
 func (ch refundChange) revert(s *ExecutionState) {

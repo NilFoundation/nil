@@ -45,11 +45,11 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	suite.smcAddr = types.GenerateRandomAddress(shardId)
 	suite.Require().NotEmpty(suite.smcAddr)
 
-	es.CreateAccount(suite.smcAddr)
-	es.SetCode(suite.smcAddr, []byte("some code"))
+	suite.Require().NoError(es.CreateAccount(suite.smcAddr))
+	suite.Require().NoError(es.SetCode(suite.smcAddr, []byte("some code")))
 
-	es.SetBalance(suite.smcAddr, *uint256.NewInt(1234))
-	es.SetSeqno(suite.smcAddr, 567)
+	suite.Require().NoError(es.SetBalance(suite.smcAddr, *uint256.NewInt(1234)))
+	suite.Require().NoError(es.SetSeqno(suite.smcAddr, 567))
 
 	blockHash, err := es.Commit(0)
 	suite.Require().NoError(err)

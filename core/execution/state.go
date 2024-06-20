@@ -119,8 +119,8 @@ type revision struct {
 
 var _ vm.StateDB = new(ExecutionState)
 
-func (s *AccountState) empty() bool {
-	return s.Seqno == 0 && s.Balance.IsZero() && len(s.Code) == 0
+func (as *AccountState) empty() bool {
+	return as.Seqno == 0 && as.Balance.IsZero() && len(as.Code) == 0
 }
 
 func NewAccountState(es *ExecutionState, addr types.Address, tx db.RwTx, account *types.SmartContract) (*AccountState, error) {
@@ -230,28 +230,28 @@ func (es *ExecutionState) GetReceipt(msgIndex types.MessageIndex) (*types.Receip
 	return es.ReceiptTree.Fetch(msgIndex)
 }
 
-func (es *ExecutionState) GetAccount(addr types.Address) *AccountState {
+func (es *ExecutionState) GetAccount(addr types.Address) (*AccountState, error) {
 	acc, ok := es.Accounts[addr]
 	if ok {
-		return acc
+		return acc, nil
 	}
 
 	addrHash := addr.Hash()
 
 	data, err := es.ContractTree.Fetch(addrHash)
 	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil
+		return nil, nil
 	}
 	if err != nil {
-		panic(fmt.Sprintf("failed to fetch account %v: %v", addrHash, err))
+		return nil, err
 	}
 
 	acc, err = NewAccountState(es, addr, es.tx, data)
 	if err != nil {
-		panic(fmt.Sprintf("failed to create account on shard %v: %v", es.ShardId, err))
+		return nil, err
 	}
 	es.Accounts[addr] = acc
-	return acc
+	return acc, nil
 }
 
 func (es *ExecutionState) setAccountObject(acc *AccountState) {
@@ -262,43 +262,47 @@ func (es *ExecutionState) AddAddressToAccessList(addr types.Address) {
 }
 
 // AddBalance adds amount to the account associated with addr.
-func (s *ExecutionState) AddBalance(addr types.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) {
-	stateObject := s.getOrNewAccount(addr)
-	if stateObject != nil {
-		stateObject.AddBalance(amount, reason)
+func (es *ExecutionState) AddBalance(addr types.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) error {
+	stateObject, err := es.getOrNewAccount(addr)
+	if err != nil || stateObject == nil {
+		return err
 	}
+	stateObject.AddBalance(amount, reason)
+	return nil
 }
 
 // SubBalance subtracts amount from the account associated with addr.
-func (s *ExecutionState) SubBalance(addr types.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) {
-	stateObject := s.getOrNewAccount(addr)
-	if stateObject != nil {
-		stateObject.SubBalance(amount, reason)
+func (es *ExecutionState) SubBalance(addr types.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) error {
+	stateObject, err := es.getOrNewAccount(addr)
+	if err != nil || stateObject == nil {
+		return err
 	}
+	stateObject.SubBalance(amount, reason)
+	return nil
 }
 
 // AddBalance adds amount to s's balance.
 // It is used to add funds to the destination account of a transfer.
-func (s *AccountState) AddBalance(amount *uint256.Int, reason tracing.BalanceChangeReason) {
+func (as *AccountState) AddBalance(amount *uint256.Int, reason tracing.BalanceChangeReason) {
 	if amount.IsZero() {
 		return
 	}
-	newBalance := *new(uint256.Int).Add(&s.Balance, amount)
-	logger.Debug().Stringer("address", s.address).Stringer("reason", reason).
-		Msgf("Balance change: adding balance %v + %v = %v", s.Balance, amount, newBalance)
-	s.SetBalance(newBalance)
+	newBalance := *new(uint256.Int).Add(&as.Balance, amount)
+	logger.Debug().Stringer("address", as.address).Stringer("reason", reason).
+		Msgf("Balance change: adding balance %v + %v = %v", as.Balance, amount, newBalance)
+	as.SetBalance(newBalance)
 }
 
 // SubBalance removes amount from s's balance.
 // It is used to remove funds from the origin account of a transfer.
-func (s *AccountState) SubBalance(amount *uint256.Int, reason tracing.BalanceChangeReason) {
+func (as *AccountState) SubBalance(amount *uint256.Int, reason tracing.BalanceChangeReason) {
 	if amount.IsZero() {
 		return
 	}
-	newBalance := *new(uint256.Int).Sub(&s.Balance, amount)
-	logger.Debug().Stringer("address", s.address).Stringer("reason", reason).
-		Msgf("Balance change: withdrawing balance %v - %v = %v", s.Balance, amount, newBalance)
-	s.SetBalance(newBalance)
+	newBalance := *new(uint256.Int).Sub(&as.Balance, amount)
+	logger.Debug().Stringer("address", as.address).Stringer("reason", reason).
+		Msgf("Balance change: withdrawing balance %v - %v = %v", as.Balance, amount, newBalance)
+	as.SetBalance(newBalance)
 }
 
 func (es *ExecutionState) AddLog(log *types.Log) {
@@ -307,14 +311,14 @@ func (es *ExecutionState) AddLog(log *types.Log) {
 }
 
 // AddRefund adds gas to the refund counter
-func (s *ExecutionState) AddRefund(gas uint64) {
-	s.journal.append(refundChange{prev: s.refund})
-	s.refund += gas
+func (es *ExecutionState) AddRefund(gas uint64) {
+	es.journal.append(refundChange{prev: es.refund})
+	es.refund += gas
 }
 
 // GetRefund returns the current value of the refund counter.
-func (s *ExecutionState) GetRefund() uint64 {
-	return s.refund
+func (es *ExecutionState) GetRefund() uint64 {
+	return es.refund
 }
 
 func (es *ExecutionState) AddSlotToAccessList(addr types.Address, slot common.Hash) {
@@ -324,38 +328,22 @@ func (es *ExecutionState) AddressInAccessList(addr types.Address) bool {
 	return true // FIXME
 }
 
-func (es *ExecutionState) Empty(addr types.Address) bool {
-	acc := es.GetAccount(addr)
-	return acc == nil || acc.empty()
+func (es *ExecutionState) Empty(addr types.Address) (bool, error) {
+	acc, err := es.GetAccount(addr)
+	return acc == nil || acc.empty(), err
 }
 
-func (es *ExecutionState) Exist(addr types.Address) bool {
-	acc := es.GetAccount(addr)
-	return acc != nil
+func (es *ExecutionState) Exists(addr types.Address) (bool, error) {
+	acc, err := es.GetAccount(addr)
+	return acc != nil, err
 }
 
-func (es *ExecutionState) GetCode(addr types.Address) []byte {
-	acc := es.GetAccount(addr)
-	if acc != nil {
-		return acc.Code
+func (es *ExecutionState) GetCode(addr types.Address) ([]byte, common.Hash, error) {
+	acc, err := es.GetAccount(addr)
+	if err != nil || acc == nil {
+		return nil, common.Hash{}, err
 	}
-	return nil
-}
-
-func (es *ExecutionState) GetCodeHash(addr types.Address) common.Hash {
-	acc := es.GetAccount(addr)
-	if acc != nil {
-		return acc.CodeHash
-	}
-	return common.EmptyHash
-}
-
-func (es *ExecutionState) GetCodeSize(addr types.Address) int {
-	acc := es.GetAccount(addr)
-	if acc != nil {
-		return len(acc.Code)
-	}
-	return 0
+	return acc.Code, acc.CodeHash, nil
 }
 
 func (es *ExecutionState) GetCommittedState(types.Address, common.Hash) common.Hash {
@@ -363,75 +351,75 @@ func (es *ExecutionState) GetCommittedState(types.Address, common.Hash) common.H
 }
 
 // Snapshot returns an identifier for the current revision of the state.
-func (s *ExecutionState) Snapshot() int {
-	id := s.nextRevisionId
-	s.nextRevisionId++
-	s.validRevisions = append(s.validRevisions, revision{id, s.journal.length()})
+func (es *ExecutionState) Snapshot() int {
+	id := es.nextRevisionId
+	es.nextRevisionId++
+	es.validRevisions = append(es.validRevisions, revision{id, es.journal.length()})
 	return id
 }
 
 // RevertToSnapshot reverts all state changes made since the given revision.
-func (s *ExecutionState) RevertToSnapshot(revid int) {
+func (es *ExecutionState) RevertToSnapshot(revid int) {
 	// Find the snapshot in the stack of valid snapshots.
-	idx := sort.Search(len(s.validRevisions), func(i int) bool {
-		return s.validRevisions[i].id >= revid
+	idx := sort.Search(len(es.validRevisions), func(i int) bool {
+		return es.validRevisions[i].id >= revid
 	})
-	if idx == len(s.validRevisions) || s.validRevisions[idx].id != revid {
+	if idx == len(es.validRevisions) || es.validRevisions[idx].id != revid {
 		panic(fmt.Errorf("revision id %v cannot be reverted", revid))
 	}
-	snapshot := s.validRevisions[idx].journalIndex
+	snapshot := es.validRevisions[idx].journalIndex
 
 	// Replay the journal to undo changes and remove invalidated snapshots
-	s.journal.revert(s, snapshot)
-	s.validRevisions = s.validRevisions[:idx]
+	es.journal.revert(es, snapshot)
+	es.validRevisions = es.validRevisions[:idx]
 }
 
-func (es *ExecutionState) GetStorageRoot(addr types.Address) common.Hash {
-	acc := es.GetAccount(addr)
-	if acc != nil {
-		return acc.StorageTree.RootHash()
+func (es *ExecutionState) GetStorageRoot(addr types.Address) (common.Hash, error) {
+	acc, err := es.GetAccount(addr)
+	if err != nil || acc == nil {
+		return common.Hash{}, err
 	}
-	return common.EmptyHash
+	return acc.StorageTree.RootHash(), nil
 }
 
 // SetTransientState sets transient storage for a given account. It
 // adds the change to the journal so that it can be rolled back
 // to its previous value if there is a revert.
-func (s *ExecutionState) SetTransientState(addr types.Address, key, value common.Hash) {
-	prev := s.GetTransientState(addr, key)
+func (es *ExecutionState) SetTransientState(addr types.Address, key, value common.Hash) {
+	prev := es.GetTransientState(addr, key)
 	if prev == value {
 		return
 	}
-	s.journal.append(transientStorageChange{
+	es.journal.append(transientStorageChange{
 		account:  &addr,
 		key:      key,
 		prevalue: prev,
 	})
-	s.setTransientState(addr, key, value)
+	es.setTransientState(addr, key, value)
 }
 
 // setTransientState is a lower level setter for transient storage. It
 // is called during a revert to prevent modifications to the journal.
-func (s *ExecutionState) setTransientState(addr types.Address, key, value common.Hash) {
-	s.transientStorage.Set(addr, key, value)
+func (es *ExecutionState) setTransientState(addr types.Address, key, value common.Hash) {
+	es.transientStorage.Set(addr, key, value)
 }
 
 // GetTransientState gets transient storage for a given account.
-func (s *ExecutionState) GetTransientState(addr types.Address, key common.Hash) common.Hash {
-	return s.transientStorage.Get(addr, key)
+func (es *ExecutionState) GetTransientState(addr types.Address, key common.Hash) common.Hash {
+	return es.transientStorage.Get(addr, key)
 }
 
-// SelfDestruct marks the given account as selfdestructed.
+// SelfDestruct marks the given account as self-destructed.
 // This clears the account balance.
 //
 // The account's state object is still available until the state is committed,
 // GetAccount will return a non-nil account after SelfDestruct.
-func (s *ExecutionState) selfDestruct(stateObject *AccountState) {
+func (es *ExecutionState) selfDestruct(stateObject *AccountState) {
 	var (
 		prev = new(uint256.Int).Set(&stateObject.Balance)
 		n    = new(uint256.Int)
 	)
-	s.journal.append(selfDestructChange{
+	es.journal.append(selfDestructChange{
 		account:     &stateObject.address,
 		prev:        stateObject.selfDestructed,
 		prevbalance: prev,
@@ -440,27 +428,32 @@ func (s *ExecutionState) selfDestruct(stateObject *AccountState) {
 	stateObject.Balance = *n
 }
 
-func (s *ExecutionState) Selfdestruct6780(addr types.Address) {
-	stateObject := s.GetAccount(addr)
-	if stateObject == nil {
-		return
+func (es *ExecutionState) Selfdestruct6780(addr types.Address) error {
+	stateObject, err := es.GetAccount(addr)
+	if err != nil || stateObject == nil {
+		return err
 	}
 	if stateObject.newContract {
-		s.selfDestruct(stateObject)
+		es.selfDestruct(stateObject)
 	}
+	return nil
 }
 
-func (s *ExecutionState) HasSelfDestructed(addr types.Address) bool {
-	stateObject := s.GetAccount(addr)
-	if stateObject != nil {
-		return stateObject.selfDestructed
+func (es *ExecutionState) HasSelfDestructed(addr types.Address) (bool, error) {
+	stateObject, err := es.GetAccount(addr)
+	if err != nil || stateObject == nil {
+		return false, err
 	}
-	return false
+	return stateObject.selfDestructed, nil
 }
 
-func (es *ExecutionState) SetCode(addr types.Address, code []byte) {
-	acc := es.GetAccount(addr)
+func (es *ExecutionState) SetCode(addr types.Address, code []byte) error {
+	acc, err := es.GetAccount(addr)
+	if err != nil {
+		return err
+	}
 	acc.SetCode(types.Code(code).Hash(), code)
+	return nil
 }
 
 func (es *ExecutionState) EnableVmTracing(evm *vm.EVM) {
@@ -475,7 +468,10 @@ func (es *ExecutionState) EnableVmTracing(evm *vm.EVM) {
 }
 
 func (es *ExecutionState) SetInitState(addr types.Address, message *types.Message) error {
-	acc := es.GetAccount(addr)
+	acc, err := es.GetAccount(addr)
+	if err != nil {
+		return err
+	}
 	acc.setSeqno(message.Seqno)
 
 	if err := es.newVm(message.Internal); err != nil {
@@ -483,9 +479,7 @@ func (es *ExecutionState) SetInitState(addr types.Address, message *types.Messag
 	}
 	defer es.resetVm()
 
-	var from types.Address
-	var value uint256.Int
-	_, deployAddr, _, err := es.evm.Deploy(addr, (vm.AccountRef)(from), message.Data, uint64(100000) /* gas */, &value)
+	_, deployAddr, _, err := es.evm.Deploy(addr, vm.AccountRef{}, message.Data, uint64(100000) /* gas */, uint256.NewInt(0))
 	if err != nil {
 		return err
 	}
@@ -501,36 +495,38 @@ func (es *ExecutionState) SlotInAccessList(addr types.Address, slot common.Hash)
 
 // SubRefund removes gas from the refund counter.
 // This method will panic if the refund counter goes below zero
-func (s *ExecutionState) SubRefund(gas uint64) {
-	s.journal.append(refundChange{prev: s.refund})
-	if gas > s.refund {
-		panic(fmt.Sprintf("Refund counter below zero (gas: %d > refund: %d)", gas, s.refund))
+func (es *ExecutionState) SubRefund(gas uint64) {
+	es.journal.append(refundChange{prev: es.refund})
+	if gas > es.refund {
+		panic(fmt.Sprintf("Refund counter below zero (gas: %d > refund: %d)", gas, es.refund))
 	}
-	s.refund -= gas
+	es.refund -= gas
 }
 
-func (as *AccountState) GetState(key common.Hash) common.Hash {
+func (as *AccountState) GetState(key common.Hash) (common.Hash, error) {
 	val, ok := as.State[key]
 	if ok {
-		return val
+		return val, nil
 	}
 
-	newVal := as.GetCommittedState(key)
+	newVal, err := as.GetCommittedState(key)
+	if err != nil {
+		return common.Hash{}, err
+	}
 	as.State[key] = newVal
-
-	return newVal
+	return newVal, nil
 }
 
-func (s *AccountState) SetBalance(amount uint256.Int) {
-	s.db.journal.append(balanceChange{
-		account: &s.address,
-		prev:    new(uint256.Int).Set(&s.Balance),
+func (as *AccountState) SetBalance(amount uint256.Int) {
+	as.db.journal.append(balanceChange{
+		account: &as.address,
+		prev:    new(uint256.Int).Set(&as.Balance),
 	})
-	s.setBalance(&amount)
+	as.setBalance(&amount)
 }
 
-func (s *AccountState) setBalance(amount *uint256.Int) {
-	s.Balance = *amount
+func (as *AccountState) setBalance(amount *uint256.Int) {
+	as.Balance = *amount
 }
 
 func (as *AccountState) SetSeqno(seqno types.Seqno) {
@@ -545,52 +541,56 @@ func (as *AccountState) setSeqno(seqno types.Seqno) {
 	as.Seqno = seqno
 }
 
-func (s *AccountState) SetCode(codeHash common.Hash, code []byte) {
-	prevcode := s.Code
-	s.db.journal.append(codeChange{
-		account:  &s.address,
-		prevhash: s.CodeHash[:],
+func (as *AccountState) SetCode(codeHash common.Hash, code []byte) {
+	prevcode := as.Code
+	as.db.journal.append(codeChange{
+		account:  &as.address,
+		prevhash: as.CodeHash[:],
 		prevcode: prevcode,
 	})
-	s.setCode(codeHash, code)
+	as.setCode(codeHash, code)
 }
 
-func (s *AccountState) setCode(codeHash common.Hash, code []byte) {
-	s.Code = code
-	s.CodeHash = common.Hash(codeHash[:])
+func (as *AccountState) setCode(codeHash common.Hash, code []byte) {
+	as.Code = code
+	as.CodeHash = common.Hash(codeHash[:])
 }
 
-func (s *AccountState) SetState(key common.Hash, value common.Hash) {
+func (as *AccountState) SetState(key common.Hash, value common.Hash) error {
 	// If the new value is the same as old, don't set. Otherwise, track only the
 	// dirty changes, supporting reverting all of it back to no change.
-	prev := s.GetState(key)
+	prev, err := as.GetState(key)
+	if err != nil {
+		return err
+	}
 	if prev == value {
-		return
+		return nil
 	}
 	// New value is different, update and journal the change
-	s.db.journal.append(storageChange{
-		account:   &s.address,
+	as.db.journal.append(storageChange{
+		account:   &as.address,
 		key:       key,
 		prevvalue: prev,
 	})
-	s.setState(key, value)
+	as.setState(key, value)
+	return nil
 }
 
-func (s *AccountState) setState(key common.Hash, value common.Hash) {
-	s.State[key] = value
+func (as *AccountState) setState(key common.Hash, value common.Hash) {
+	as.State[key] = value
 }
 
 // GetCommittedState retrieves a value from the committed account storage trie.
-func (s *AccountState) GetCommittedState(key common.Hash) common.Hash {
-	res, err := s.StorageTree.Fetch(key)
+func (as *AccountState) GetCommittedState(key common.Hash) (common.Hash, error) {
+	res, err := as.StorageTree.Fetch(key)
 	if errors.Is(err, db.ErrKeyNotFound) {
-		return common.EmptyHash
+		return common.EmptyHash, nil
 	}
 	if err != nil {
-		panic(fmt.Sprintf("unexpected error fetching storage: %v", err))
+		return common.EmptyHash, err
 	}
 
-	return res.Bytes32()
+	return res.Bytes32(), nil
 }
 
 func (as *AccountState) Commit() (*types.SmartContract, error) {
@@ -615,53 +615,65 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 	return acc, nil
 }
 
-func (es *ExecutionState) GetState(addr types.Address, key common.Hash) common.Hash {
-	acc := es.GetAccount(addr)
-	if acc == nil {
-		return common.EmptyHash
+func (es *ExecutionState) GetState(addr types.Address, key common.Hash) (common.Hash, error) {
+	acc, err := es.GetAccount(addr)
+	if err != nil || acc == nil {
+		return common.EmptyHash, err
 	}
-
 	return acc.GetState(key)
 }
 
-func (es *ExecutionState) SetState(addr types.Address, key common.Hash, val common.Hash) {
-	acc := es.getOrNewAccount(addr)
-	acc.SetState(key, val)
-}
-
-func (es *ExecutionState) GetBalance(addr types.Address) *uint256.Int {
-	acc := es.GetAccount(addr)
-	if acc == nil {
-		return uint256.NewInt(0)
+func (es *ExecutionState) SetState(addr types.Address, key common.Hash, val common.Hash) error {
+	acc, err := es.getOrNewAccount(addr)
+	if err != nil {
+		return err
 	}
-	return &acc.Balance
+	return acc.SetState(key, val)
 }
 
-func (es *ExecutionState) GetSeqno(addr types.Address) types.Seqno {
-	acc := es.GetAccount(addr)
-	if acc == nil {
-		return 0
+func (es *ExecutionState) GetBalance(addr types.Address) (*uint256.Int, error) {
+	acc, err := es.GetAccount(addr)
+	if err != nil || acc == nil {
+		return uint256.NewInt(0), err
 	}
-	return acc.Seqno
+	return &acc.Balance, nil
 }
 
-func (es *ExecutionState) getOrNewAccount(addr types.Address) *AccountState {
-	acc := es.GetAccount(addr)
+func (es *ExecutionState) GetSeqno(addr types.Address) (types.Seqno, error) {
+	acc, err := es.GetAccount(addr)
+	if err != nil || acc == nil {
+		return 0, err
+	}
+	return acc.Seqno, nil
+}
+
+func (es *ExecutionState) getOrNewAccount(addr types.Address) (*AccountState, error) {
+	acc, err := es.GetAccount(addr)
+	if err != nil {
+		return nil, err
+	}
 	if acc != nil {
-		return acc
+		return acc, nil
 	}
-	es.CreateAccount(addr)
-	return es.GetAccount(addr)
+	return es.createAccount(addr)
 }
 
-func (es *ExecutionState) SetBalance(addr types.Address, balance uint256.Int) {
-	acc := es.getOrNewAccount(addr)
+func (es *ExecutionState) SetBalance(addr types.Address, balance uint256.Int) error {
+	acc, err := es.getOrNewAccount(addr)
+	if err != nil {
+		return err
+	}
 	acc.SetBalance(balance)
+	return nil
 }
 
-func (es *ExecutionState) SetSeqno(addr types.Address, seqno types.Seqno) {
-	acc := es.getOrNewAccount(addr)
+func (es *ExecutionState) SetSeqno(addr types.Address, seqno types.Seqno) error {
+	acc, err := es.getOrNewAccount(addr)
+	if err != nil {
+		return err
+	}
 	acc.SetSeqno(seqno)
+	return nil
 }
 
 func (es *ExecutionState) SetMasterchainHash(masterChainHash common.Hash) {
@@ -672,12 +684,19 @@ func (es *ExecutionState) SetShardHash(shardId types.ShardId, hash common.Hash) 
 	es.ChildChainBlocks[shardId] = hash
 }
 
-func (es *ExecutionState) CreateAccount(addr types.Address) {
-	check.PanicIfNotf(addr.ShardId() == es.ShardId, "Attempt to create account %v from %v shard on %v shard", addr, addr.ShardId(), es.ShardId)
-	acc := es.GetAccount(addr)
+func (es *ExecutionState) CreateAccount(addr types.Address) error {
+	_, err := es.createAccount(addr)
+	return err
+}
 
+func (es *ExecutionState) createAccount(addr types.Address) (*AccountState, error) {
+	check.PanicIfNotf(addr.ShardId() == es.ShardId, "Attempt to create account %v from %v shard on %v shard", addr, addr.ShardId(), es.ShardId)
+	acc, err := es.GetAccount(addr)
+	if err != nil {
+		return nil, err
+	}
 	if acc != nil {
-		panic("account already exists")
+		return nil, errors.New("account already exists")
 	}
 
 	es.journal.append(createObjectChange{account: &addr})
@@ -686,17 +705,17 @@ func (es *ExecutionState) CreateAccount(addr types.Address) {
 	root := NewStorageTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.StorageTrieTable))
 	currencyRoot := NewCurrencyTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.CurrencyTrieTable))
 
-	es.Accounts[addr] = &AccountState{
+	res := &AccountState{
 		db:      es,
 		address: addr,
 
 		Tx:           es.tx,
 		StorageTree:  root,
 		CurrencyTree: currencyRoot,
-		CodeHash:     common.EmptyHash,
-		Code:         nil,
 		State:        map[common.Hash]common.Hash{},
 	}
+	es.Accounts[addr] = res
+	return res, nil
 }
 
 // CreateContract is used whenever a contract is created. This may be preceded
@@ -704,29 +723,38 @@ func (es *ExecutionState) CreateAccount(addr types.Address) {
 // state due to funds sent beforehand.
 // This operation sets the 'newContract'-flag, which is required in order to
 // correctly handle EIP-6780 'delete-in-same-transaction' logic.
-func (s *ExecutionState) CreateContract(addr types.Address) {
-	obj := s.GetAccount(addr)
+func (es *ExecutionState) CreateContract(addr types.Address) error {
+	obj, err := es.GetAccount(addr)
+	if err != nil {
+		return err
+	}
 	if !obj.newContract {
 		obj.newContract = true
-		s.journal.append(createContractChange{account: addr})
+		es.journal.append(createContractChange{account: addr})
 	}
-}
-
-func (es *ExecutionState) accountExists(addr types.Address) bool {
-	acc := es.GetAccount(addr)
-	return acc != nil
+	return nil
 }
 
 // Contract is regarded as existent if any of these three conditions is met:
 // - the nonce is non-zero
 // - the code is non-empty
 // - the storage is non-empty
-func (es *ExecutionState) ContractExists(address types.Address) bool {
-	contractHash := es.GetCodeHash(address)
-	storageRoot := es.GetStorageRoot(address)
-	return es.GetSeqno(address) != 0 ||
+func (es *ExecutionState) ContractExists(address types.Address) (bool, error) {
+	_, contractHash, err := es.GetCode(address)
+	if err != nil {
+		return false, err
+	}
+	storageRoot, err := es.GetStorageRoot(address)
+	if err != nil {
+		return false, err
+	}
+	seqno, err := es.GetSeqno(address)
+	if err != nil {
+		return false, err
+	}
+	return seqno != 0 ||
 		(contractHash != common.EmptyHash) || // non-empty code
-		(storageRoot != common.EmptyHash) // non-empty storage
+		(storageRoot != common.EmptyHash), nil // non-empty storage
 }
 
 func (es *ExecutionState) AddInMessage(message *types.Message) {
@@ -793,8 +821,15 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	}
 
 	if !message.Internal {
-		es.SetSeqno(addr, es.GetSeqno(addr)+1)
+		seqno, err := es.GetSeqno(addr)
+		if err != nil {
+			return gas, nil, err
+		}
+		if err := es.SetSeqno(addr, seqno+1); err != nil {
+			return gas, nil, err
+		}
 	}
+
 	ret, leftOverGas, err := es.evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas, &message.Value.Int)
 	if err != nil {
 		logger.Error().Err(err).Msg("execution message failed")
@@ -803,10 +838,11 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	return leftOverGas, ret, err
 }
 
-func (es *ExecutionState) HandleRefundMessage(_ context.Context, message *types.Message) {
-	es.AddBalance(message.To, &message.Value.Int, tracing.BalanceIncreaseRefund)
-	es.AddReceipt(0, nil)
-	logger.Debug().Msgf("Refunded %v to %v", message.Value.Int, message.To)
+func (es *ExecutionState) HandleRefundMessage(_ context.Context, message *types.Message) error {
+	err := es.AddBalance(message.To, &message.Value.Int, tracing.BalanceIncreaseRefund)
+	es.AddReceipt(0, err)
+	logger.Debug().Err(err).Msgf("Refunded %v to %v", message.Value.Int, message.To)
+	return err
 }
 
 func (es *ExecutionState) AddReceipt(gasUsed uint32, err error) {

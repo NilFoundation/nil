@@ -40,7 +40,7 @@ type Contract struct {
 
 	Code     []byte
 	CodeHash common.Hash
-	CodeAddr *types.Address
+	CodeAddr types.Address
 	Input    []byte
 
 	// is the execution frame represented by this object a contract deployment
@@ -183,7 +183,7 @@ func (c *Contract) Value() *uint256.Int {
 
 // SetCallCode sets the code of the contract and address of the backing data
 // object
-func (c *Contract) SetCallCode(addr *types.Address, hash common.Hash, code []byte) {
+func (c *Contract) SetCallCode(addr types.Address, hash common.Hash, code []byte) {
 	c.Code = code
 	c.CodeHash = hash
 	c.CodeAddr = addr
