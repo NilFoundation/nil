@@ -21,6 +21,7 @@ const (
 	shardBlocksTrieTable = ShardedTableName("ShardBlocksTrie")
 	MessageTrieTable     = ShardedTableName("MessageTrie")
 	ReceiptTrieTable     = ShardedTableName("ReceiptTrie")
+	CurrencyTrieTable    = ShardedTableName("CurrencyTrie")
 
 	contractTable = ShardedTableName("Contract")
 

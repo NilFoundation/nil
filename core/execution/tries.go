@@ -37,12 +37,14 @@ type (
 	MessageTrie     = BaseMPT[types.MessageIndex, types.Message, *types.Message]
 	ReceiptTrie     = BaseMPT[types.MessageIndex, types.Receipt, *types.Receipt]
 	StorageTrie     = BaseMPT[common.Hash, uint256.Int, *uint256.Int]
+	CurrencyTrie    = BaseMPT[types.CurrencyId, uint256.Int, *uint256.Int]
 	ShardBlocksTrie = BaseMPT[types.ShardId, uint256.Int, *uint256.Int]
 
 	ContractTrieReader    = BaseMPTReader[common.Hash, types.SmartContract, *types.SmartContract]
 	MessageTrieReader     = BaseMPTReader[types.MessageIndex, types.Message, *types.Message]
 	ReceiptTrieReader     = BaseMPTReader[types.MessageIndex, types.Receipt, *types.Receipt]
 	StorageTrieReader     = BaseMPTReader[common.Hash, uint256.Int, *uint256.Int]
+	CurrencyTrieReader    = BaseMPTReader[types.CurrencyId, uint256.Int, *uint256.Int]
 	ShardBlocksTrieReader = BaseMPTReader[types.ShardId, uint256.Int, *uint256.Int]
 )
 
@@ -78,6 +80,18 @@ func NewStorageTrieReader(parent *mpt.Reader) *StorageTrieReader {
 	}
 }
 
+func NewCurrencyTrieReader(parent *mpt.Reader) *CurrencyTrieReader {
+	return &CurrencyTrieReader{
+		parent,
+		func(k types.CurrencyId) []byte { return k[:] },
+		func(bs []byte) (types.CurrencyId, error) {
+			var res types.CurrencyId
+			copy(res[:], bs)
+			return res, nil
+		},
+	}
+}
+
 func NewShardBlocksTrieReader(parent *mpt.Reader) *ShardBlocksTrieReader {
 	return &ShardBlocksTrieReader{
 		parent,
@@ -110,6 +124,13 @@ func NewReceiptTrie(parent *mpt.MerklePatriciaTrie) *ReceiptTrie {
 func NewStorageTrie(parent *mpt.MerklePatriciaTrie) *StorageTrie {
 	return &StorageTrie{
 		BaseMPTReader: NewStorageTrieReader(parent.Reader),
+		rwTrie:        parent,
+	}
+}
+
+func NewCurrencyTrie(parent *mpt.MerklePatriciaTrie) *CurrencyTrie {
+	return &CurrencyTrie{
+		BaseMPTReader: NewCurrencyTrieReader(parent.Reader),
 		rwTrie:        parent,
 	}
 }
