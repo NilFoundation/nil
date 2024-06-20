@@ -27,7 +27,8 @@ func deployContract(t *testing.T, contract *compiler.Contract, state *ExecutionS
 		GasLimit: *types.NewUint256(100000),
 		To:       types.CreateAddress(state.ShardId, contractCode),
 	}
-	_, err := state.HandleDeployMessage(context.Background(), message, &dm)
+	state.AddInMessage(message)
+	_, err := state.HandleDeployMessage(context.Background(), message)
 	require.NoError(t, err)
 	return message.To
 }

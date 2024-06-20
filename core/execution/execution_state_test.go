@@ -68,8 +68,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 			To:       types.CreateAddress(shardId, deploy.Bytes()),
 		}
 		es.AddInMessage(msg)
-		es.InMessageHash = msg.Hash()
-		_, err = es.HandleDeployMessage(ctx, msg, &deploy)
+		_, err = es.HandleDeployMessage(ctx, msg)
 		suite.Require().NoError(err)
 	}
 
@@ -140,7 +139,8 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 
 	suite.EqualValues(0, es.GetSeqno(addrWallet))
 
-	_, err = es.HandleDeployMessage(ctx, message, &deployMsg)
+	es.AddInMessage(message)
+	_, err = es.HandleDeployMessage(ctx, message)
 	suite.Require().NoError(err)
 
 	// Check that initially seqno is 1
@@ -173,19 +173,19 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 	es, err := NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
-	msg1 := types.Message{Data: []byte{1}, Seqno: 1}
-	msg2 := types.Message{Data: []byte{2}, Seqno: 2}
+	msg1 := &types.Message{Data: []byte{1}, Seqno: 1}
+	msg2 := &types.Message{Data: []byte{2}, Seqno: 2}
 
-	es.AddInMessage(&msg1)
-	es.AddReceipt(&types.Receipt{MsgHash: msg1.Hash()})
+	es.AddInMessage(msg1)
+	es.AddReceipt(0, nil)
 	blockHash1, err := es.Commit(0)
 	suite.Require().NoError(err)
 
 	es, err = NewExecutionState(tx, types.BaseShardId, blockHash1, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
-	es.AddInMessage(&msg2)
-	es.AddReceipt(&types.Receipt{MsgHash: msg2.Hash()})
+	es.AddInMessage(msg2)
+	es.AddReceipt(0, nil)
 	blockHash2, err := es.Commit(1)
 	suite.Require().NoError(err)
 
@@ -207,8 +207,8 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 		suite.Equal(msg, msgRead)
 	}
 
-	check(blockHash1, &msg1)
-	check(blockHash2, &msg2)
+	check(blockHash1, msg1)
+	check(blockHash2, msg2)
 	suite.Require().NoError(tx.Commit())
 }
 

@@ -45,11 +45,8 @@ func (suite *SuiteEthBlock) SetupSuite() {
 		suite.Require().NoError(err)
 
 		for j := range int(i) {
-			m := &types.Message{Data: types.Code(strconv.Itoa(j))}
-			es.AddInMessage(m)
-
-			r := &types.Receipt{MsgHash: m.Hash()}
-			es.AddReceipt(r)
+			es.AddInMessage(&types.Message{Data: types.Code(strconv.Itoa(j))})
+			es.AddReceipt(0, nil)
 		}
 
 		blockHash, err := es.Commit(i)
