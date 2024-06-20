@@ -985,18 +985,20 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 	}
 	defer es.resetVm()
 
-	buyNil := new(uint256.Int).Mul(ExternalMessageVerificationMaxGas, GasPrice)
-	if account.Balance.Cmp(buyNil) < 0 {
-		return false, vm.ErrInsufficientBalance
+	gasCreditLimit := ExternalMessageVerificationMaxGas
+	gasAvailable := new(uint256.Int).Div(&account.Balance, GasPrice)
+
+	if gasAvailable.Cmp(gasCreditLimit) < 0 {
+		gasCreditLimit = gasAvailable
 	}
 
-	ret, leftOverGas, err := es.evm.StaticCall((vm.AccountRef)(account.address), account.address, calldata, ExternalMessageVerificationMaxGas.Uint64())
+	ret, leftOverGas, err := es.evm.StaticCall((vm.AccountRef)(account.address), account.address, calldata, gasCreditLimit.Uint64())
 	if err != nil || !bytes.Equal(ret, common.LeftPadBytes([]byte{1}, 32)) {
 		return false, err
 	}
-	spentGas := new(uint256.Int).Sub(ExternalMessageVerificationMaxGas, uint256.NewInt(leftOverGas))
-	spentNil := new(uint256.Int).Mul(spentGas, GasPrice)
-	account.SubBalance(spentNil, tracing.BalanceDecreaseVerifyExternal)
+	spentGas := new(uint256.Int).Sub(gasCreditLimit, uint256.NewInt(leftOverGas))
+	spentValue := new(uint256.Int).Mul(spentGas, GasPrice)
+	account.SubBalance(spentValue, tracing.BalanceDecreaseVerifyExternal)
 	return true, nil
 }
 
