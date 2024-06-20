@@ -191,65 +191,78 @@ func (s *SuiteRpc) TestRpcDeployToMainShardViaMainWallet() {
 	s.True(receipt.Success)
 }
 
-func (suite *SuiteRpc) TestRpcContractSendMessage() {
+func (s *SuiteRpc) TestRpcContractSendMessage() {
 	// deploy caller contract
-	callerCode, callerAbi := suite.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Caller")
-	callerAddr, receipt := suite.deployContractViaMainWallet(types.MasterShardId, callerCode, *types.NewUint256(defaultContractValue))
-	suite.Require().True(receipt.OutReceipts[0].Success)
+	callerCode, callerAbi := s.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Caller")
+	calleeCode, calleeAbi := s.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Callee")
+	callerAddr, receipt := s.deployContractViaMainWallet(types.MasterShardId, callerCode, *types.NewUint256(defaultContractValue))
+	s.Require().True(receipt.OutReceipts[0].Success)
 
 	checkForShard := func(shardId types.ShardId) {
-		suite.T().Helper()
+		s.T().Helper()
 
-		prevBalance, err := suite.client.GetBalance(callerAddr, transport.LatestBlockNumber)
-		suite.Require().NoError(err)
+		prevBalance, err := s.client.GetBalance(callerAddr, transport.LatestBlockNumber)
+		s.Require().NoError(err)
 
-		// deploy callee contracts to different shards
-		calleeCode, calleeAbi := suite.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Callee")
-		calleeAddr, receipt := suite.deployContractViaMainWallet(shardId, calleeCode, *types.NewUint256(defaultContractValue))
-		suite.Require().True(receipt.OutReceipts[0].Success)
+		var calleeAddr types.Address
+		s.Run("DeployCallee", func() {
+			// deploy callee contracts to different shards
+			calleeAddr, receipt = s.deployContractViaMainWallet(shardId, calleeCode, *types.NewUint256(defaultContractValue))
+			s.Require().True(receipt.OutReceipts[0].Success)
+		})
 
-		// pack call of Callee::add into message
-		calldata, err := calleeAbi.Pack("add", int32(123))
-		suite.Require().NoError(err)
+		var callData []byte
+		s.Run("GenerateCallData", func() {
+			// pack call of Callee::add into message
+			callData, err = calleeAbi.Pack("add", int32(123))
+			s.Require().NoError(err)
 
-		messageToSend := &types.InternalMessagePayload{
-			Data:     calldata,
-			To:       calleeAddr,
-			RefundTo: callerAddr,
-			Value:    *types.NewUint256(10_000_000),
-			GasLimit: *types.NewUint256(100_004),
-		}
-		calldata, err = messageToSend.MarshalSSZ()
-		suite.Require().NoError(err)
+			messageToSend := &types.InternalMessagePayload{
+				Data:     callData,
+				To:       calleeAddr,
+				RefundTo: callerAddr,
+				Value:    *types.NewUint256(10_000_000),
+				GasLimit: *types.NewUint256(100_004),
+			}
+			callData, err = messageToSend.MarshalSSZ()
+			s.Require().NoError(err)
 
-		// now call Caller::send_message
-		callerSeqno, err := suite.client.GetTransactionCount(callerAddr, "latest")
-		suite.Require().NoError(err)
-		calldata, err = callerAbi.Pack("sendMessage", calldata)
-		suite.Require().NoError(err)
+			// now call Caller::send_message
+			callData, err = callerAbi.Pack("sendMessage", callData)
+			s.Require().NoError(err)
+		})
 
-		callCallerMethod := &types.ExternalMessage{
-			Seqno: callerSeqno,
-			To:    callerAddr,
-			Data:  calldata,
-		}
-		suite.Require().NoError(callCallerMethod.Sign(execution.MainPrivateKey))
-		hash := suite.sendRawTransaction(callCallerMethod)
+		var hash common.Hash
+		s.Run("MakeCall", func() {
+			callerSeqno, err := s.client.GetTransactionCount(callerAddr, "latest")
+			s.Require().NoError(err)
+			callCallerMethod := &types.ExternalMessage{
+				Seqno: callerSeqno,
+				To:    callerAddr,
+				Data:  callData,
+			}
+			s.Require().NoError(callCallerMethod.Sign(execution.MainPrivateKey))
+			hash = s.sendRawTransaction(callCallerMethod)
+		})
 
-		receipt = suite.waitForReceipt(callerAddr.ShardId(), hash)
-		suite.Require().True(receipt.Success)
+		s.Run("Check", func() {
+			receipt = s.waitForReceipt(callerAddr.ShardId(), hash)
+			s.Require().True(receipt.Success)
 
-		balance, err := suite.client.GetBalance(callerAddr, transport.LatestBlockNumber)
-		suite.Require().NoError(err)
-		suite.Require().Greater(prevBalance.Uint64(), balance.Uint64())
-		log.Logger.Info().Msgf("Spent %v nil", prevBalance.Uint64()-balance.Uint64())
+			balance, err := s.client.GetBalance(callerAddr, transport.LatestBlockNumber)
+			s.Require().NoError(err)
+			s.Require().Greater(prevBalance.Uint64(), balance.Uint64())
+			log.Logger.Info().Msgf("Spent %v nil", prevBalance.Uint64()-balance.Uint64())
+		})
 	}
 
-	// check that we can call contract from neighbor shard
-	checkForShard(types.ShardId(4))
+	s.Run("ToNeighborShard", func() {
+		checkForShard(types.ShardId(4))
+	})
 
-	// check that we can also send message to the same shard
-	checkForShard(types.BaseShardId)
+	s.Run("ToSameShard", func() {
+		checkForShard(types.BaseShardId)
+	})
 }
 
 func (s *SuiteRpc) TestRpcApiModules() {

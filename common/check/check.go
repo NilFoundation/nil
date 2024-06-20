@@ -17,6 +17,13 @@ import (
 // As a rule of thumb, if you wish to use the function with a custom message,
 // consider returning a wrapped error instead.
 
+// PanicIf panics on true.
+func PanicIf(flag bool) {
+	if flag {
+		panic("requirement not met")
+	}
+}
+
 // PanicIfNot panics on false.
 func PanicIfNot(flag bool) {
 	if !flag {

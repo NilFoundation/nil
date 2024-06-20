@@ -37,44 +37,16 @@ func (s *SuiteEthCall) SetupSuite() {
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 
-	tx, err := s.db.CreateRwTx(ctx)
-	s.Require().NoError(err)
-	defer tx.Rollback()
-
-	s.lastBlockHash = common.EmptyHash
-	es, err := execution.NewExecutionState(tx, shardId, s.lastBlockHash, common.NewTestTimer(0))
-	s.Require().NoError(err)
-
 	s.contracts, err = solc.CompileSource("../../core/execution/testdata/call.sol")
 	s.Require().NoError(err)
 
 	s.from = types.GenerateRandomAddress(shardId)
 
-	dm := types.BuildDeployPayload(hexutil.FromHex(s.contracts["SimpleContract"].Code), common.EmptyHash)
-
-	m := &types.Message{
-		Seqno:    0,
-		Data:     dm.Bytes(),
-		From:     s.from,
-		GasLimit: *types.NewUint256(100000),
-		To:       types.DeployMsgToAddress(&dm, s.from),
-	}
+	m := execution.NewDeployMessage(types.BuildDeployPayload(hexutil.FromHex(s.contracts["SimpleContract"].Code), common.EmptyHash),
+		shardId, s.from, 0)
 	s.simple = m.To
-	es.AddInMessage(m)
 
-	_, err = es.HandleDeployMessage(ctx, m)
-	s.Require().NoError(err)
-
-	blockHash, err := es.Commit(0)
-	s.Require().NoError(err)
-	s.lastBlockHash = blockHash
-
-	block, err := execution.PostprocessBlock(tx, shardId, blockHash)
-	s.Require().NotNil(block)
-	s.Require().NoError(err)
-
-	err = tx.Commit()
-	s.Require().NoError(err)
+	s.lastBlockHash = execution.GenerateBlockFromMessages(s.T(), ctx, shardId, 0, s.lastBlockHash, s.db, m)
 
 	pool := msgpool.New(msgpool.DefaultConfig)
 	s.Require().NotNil(pool)
