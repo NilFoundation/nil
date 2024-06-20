@@ -4,7 +4,8 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/core/crypto"
+	nilcrypto "github.com/NilFoundation/nil/core/crypto"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,7 +31,7 @@ func TestMessageSign(t *testing.T) {
 	err = msg.Sign(key)
 	require.NoError(t, err)
 	assert.Len(t, msg.AuthData, common.SignatureSize)
-	assert.True(t, crypto.TransactionSignatureIsValidBytes(msg.AuthData[:]))
+	assert.True(t, nilcrypto.TransactionSignatureIsValidBytes(msg.AuthData[:]))
 
 	pub, err := crypto.SigToPub(h.Bytes(), msg.AuthData[:])
 	require.NoError(t, err)
