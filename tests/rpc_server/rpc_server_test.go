@@ -262,6 +262,18 @@ func (s *SuiteRpc) TestRpcApiModules() {
 	s.Equal("1.0", data["rpc"])
 }
 
+func (s *SuiteRpc) TestEmptyDeployPayload() {
+	wallet := types.MainWalletAddress
+
+	// Deploy contract with invalid payload
+	hash, _, err := s.client.DeployContract(types.BaseShardId, wallet, nil, execution.MainPrivateKey)
+	s.Require().NoError(err)
+
+	receipt := s.waitForReceiptOnShard(wallet.ShardId(), hash)
+	s.Require().True(receipt.Success)
+	s.Require().False(receipt.OutReceipts[0].Success)
+}
+
 func (s *SuiteRpc) TestRpcError() {
 	check := func(code int, msg, method string, params ...any) {
 		resp, err := s.client.RawCall(method, params...)
