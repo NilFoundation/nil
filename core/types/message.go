@@ -120,6 +120,15 @@ func (m *Message) Hash() common.Hash {
 	return h
 }
 
+func (m *Message) Sign(key *ecdsa.PrivateKey) error {
+	ext := m.toExternal()
+	if err := ext.Sign(key); err != nil {
+		return err
+	}
+	m.Signature = ext.AuthData
+	return nil
+}
+
 func (m *Message) toExternal() *ExternalMessage {
 	if m.Internal {
 		panic("cannot convert internal message to external message")

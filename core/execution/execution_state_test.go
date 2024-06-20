@@ -152,8 +152,8 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 }
 
 func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
-	msg1 := &types.Message{Data: []byte{1}, Seqno: 1}
-	msg2 := &types.Message{Data: []byte{2}, Seqno: 2}
+	msg1 := &types.Message{Data: []byte{1}, Seqno: 1, Currency: make([]types.CurrencyBalance, 0), Signature: make(types.Signature, 0)}
+	msg2 := &types.Message{Data: []byte{2}, Seqno: 2, Currency: make([]types.CurrencyBalance, 0), Signature: make(types.Signature, 0)}
 	blockHash1 := GenerateBlockFromMessagesWithoutExecution(suite.T(), context.Background(),
 		types.BaseShardId, 0, common.EmptyHash, suite.db, msg1, msg2)
 	blockHash2 := GenerateBlockFromMessagesWithoutExecution(suite.T(), context.Background(),
@@ -172,13 +172,7 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 		msgRead, err := messagesRoot.Fetch(idx)
 		suite.Require().NoError(err)
 
-		if len(msgRead.Signature) == 0 {
-			msgRead.Signature = nil
-		}
-		if len(msgRead.Currency) == 0 {
-			msgRead.Currency = nil
-		}
-		suite.Equal(msg, msgRead)
+		suite.EqualValues(msg, msgRead)
 	}
 
 	check(blockHash1, 0, msg1)

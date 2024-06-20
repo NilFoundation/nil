@@ -17,91 +17,93 @@ import (
 const (
 	defaultTimeout = time.Second
 
-	maxMessagesInBlock = 100
+	maxInMessagesInBlock  = 1024
+	maxOutMessagesInBlock = 1024
 )
 
 var sharedLogger = logging.NewLogger("collator")
 
 type collator struct {
-	id      types.ShardId
-	nShards int
+	params execution.BlockGeneratorParams
 
-	pool MsgPool
-
-	topology    ShardTopology
-	neighborIds []types.ShardId
-	state       types.CollatorState
-	traceEVM    bool
+	topology ShardTopology
+	pool     MsgPool
 
 	logger zerolog.Logger
 
-	executionState *execution.ExecutionState
-	roTx           db.RoTx
-	rwTx           db.RwTx
+	state   types.CollatorState
+	txOwner *execution.TxOwner
+
+	inMsgs  []*types.Message
+	outMsgs []*types.Message
 }
 
-func newCollator(id types.ShardId, nShards int, topology ShardTopology, traceEVM bool, pool MsgPool, logger zerolog.Logger) *collator {
+func newCollator(params execution.BlockGeneratorParams, topology ShardTopology, pool MsgPool, logger zerolog.Logger) *collator {
 	return &collator{
-		pool:        pool,
-		id:          id,
-		nShards:     nShards,
-		logger:      logger,
-		neighborIds: topology.GetNeighbors(id, nShards, true),
-		topology:    topology,
-		traceEVM:    traceEVM,
+		params:   params,
+		topology: topology,
+		pool:     pool,
+		logger:   logger,
 	}
 }
 
-func (c *collator) GenerateZeroState(ctx context.Context, txFabric db.DB, zerostate string) error {
-	if err := c.init(ctx, txFabric); err != nil {
+func (c *collator) shouldContinue() bool {
+	// todo: we should break collation on some gas condition, not on the number of messages
+	return len(c.inMsgs) < maxInMessagesInBlock && len(c.outMsgs) < maxOutMessagesInBlock
+}
+
+func (c *collator) GenerateZeroState(ctx context.Context, txFabric db.DB, zeroState string) error {
+	var err error
+	c.txOwner, err = execution.NewTxOwner(ctx, txFabric)
+	if err != nil {
 		return err
 	}
-	defer c.clear()
+	defer c.txOwner.Rollback()
 
-	c.logger.Trace().Stringer("shard", c.id).Msg("Generating zero-state...")
+	c.logger.Info().Msg("Generating zero-state...")
 
-	if err := c.executionState.GenerateZeroState(zerostate); err != nil {
+	gen, err := execution.NewBlockGenerator(c.params, c.txOwner)
+	if err != nil {
 		return err
 	}
 
-	if _, err := c.finalize(); err != nil {
+	if err := gen.GenerateZeroState(zeroState); err != nil {
 		return err
 	}
 
-	return nil
+	return c.finalize()
 }
 
 func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
-	if err := c.init(ctx, txFabric); err != nil {
+	var err error
+	c.txOwner, err = execution.NewTxOwner(ctx, txFabric)
+	if err != nil {
 		return err
 	}
-	defer c.clear()
+	defer c.txOwner.Rollback()
 
-	var poolMsgs []*types.Message
+	c.logger.Debug().Msg("Collating...")
 
-	c.logger.Trace().Msg("Collating...")
+	if err := c.handleMessagesFromNeighbors(); err != nil {
+		return err
+	}
 
-	inMsgs, outMsgs, err := c.collectFromNeighbors()
+	poolMsgs, err := c.handleMessagesFromPool()
 	if err != nil {
 		return err
 	}
 
-	if nPooled := maxMessagesInBlock - len(inMsgs) - len(outMsgs); nPooled != 0 {
-		poolMsgs, err = c.pool.Peek(ctx, nPooled, 0)
-		if err != nil {
-			return err
-		}
-	}
-
-	if err := HandleMessages(ctx, c.roTx, c.executionState, append(inMsgs, poolMsgs...)); err != nil {
+	blockGenerator, err := execution.NewBlockGenerator(c.params, c.txOwner)
+	if err != nil {
 		return err
 	}
-	for _, msg := range outMsgs {
-		c.executionState.AddOutMessageForTx(msg.inMsgHash, msg.msg)
+
+	block, err := blockGenerator.GenerateBlock(c.inMsgs, c.outMsgs)
+	if err != nil {
+		return err
 	}
 
-	block, err := c.finalize()
-	if err != nil {
+	if err := c.finalize(); err != nil {
 		return err
 	}
 
@@ -113,117 +115,40 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 	return nil
 }
 
-func (c *collator) init(ctx context.Context, txFabric db.DB) error {
-	var err error
-
-	c.roTx, err = txFabric.CreateRoTx(ctx)
+func (c *collator) handleMessagesFromPool() ([]*types.Message, error) {
+	// todo: take messages one by one
+	poolMsgs, err := c.pool.Peek(c.txOwner.Ctx, maxInMessagesInBlock-len(c.inMsgs), 0)
 	if err != nil {
+		return nil, err
+	}
+
+	nExternal := 0
+	for ; c.shouldContinue() && nExternal < len(poolMsgs); nExternal++ {
+		c.inMsgs = append(c.inMsgs, poolMsgs[nExternal])
+	}
+
+	return poolMsgs[:nExternal], nil
+}
+
+func (c *collator) finalize() error {
+	if err := db.WriteCollatorState(c.txOwner.RwTx, c.params.ShardId, c.state); err != nil {
 		return err
 	}
 
-	c.rwTx, err = txFabric.CreateRwTx(ctx)
-	if err != nil {
-		return err
-	}
-
-	c.executionState, err = execution.NewExecutionStateForShard(c.rwTx, c.id, common.NewTimer())
-	c.executionState.TraceVm = c.traceEVM
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return c.txOwner.Commit()
 }
 
-func (c *collator) clear() {
-	if c.roTx != nil {
-		c.roTx.Rollback()
-		c.roTx = nil
-	}
-	if c.rwTx != nil {
-		c.rwTx.Rollback()
-		c.rwTx = nil
-	}
-	c.executionState = nil
-}
-
-func (c *collator) finalize() (*types.Block, error) {
-	if err := c.setLastBlockHashes(); err != nil {
-		return nil, err
-	}
-
-	if err := db.WriteCollatorState(c.rwTx, c.id, c.state); err != nil {
-		return nil, err
-	}
-
-	blockId := types.BlockNumber(0)
-	if !c.executionState.PrevBlock.Empty() {
-		b, err := db.ReadBlock(c.rwTx, c.id, c.executionState.PrevBlock)
-		if err != nil {
-			return nil, err
-		}
-		blockId = b.Id + 1
-	}
-
-	blockHash, err := c.executionState.Commit(blockId)
-	if err != nil {
-		return nil, err
-	}
-
-	block, err := execution.PostprocessBlock(c.rwTx, c.id, blockHash)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := c.rwTx.Commit(); err != nil {
-		return nil, err
-	}
-
-	return block, nil
-}
-
-func (c *collator) setLastBlockHashes() error {
-	if types.IsMasterShard(c.id) {
-		for i := 1; i < c.nShards; i++ {
-			shardId := types.ShardId(i)
-			lastBlockHash, err := db.ReadLastBlockHash(c.roTx, shardId)
-			if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-				return err
-			}
-
-			c.executionState.SetShardHash(shardId, lastBlockHash)
-		}
-	} else {
-		lastBlockHash, err := db.ReadLastBlockHash(c.roTx, types.MasterShardId)
-		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-			return err
-		}
-
-		c.executionState.SetMasterchainHash(lastBlockHash)
-	}
-	return nil
-}
-
-type OutMessage struct {
-	inMsgHash common.Hash
-	msg       *types.Message
-}
-
-func (c *collator) collectFromNeighbors() ([]*types.Message, []*OutMessage, error) {
-	state, err := db.ReadCollatorState(c.roTx, c.id)
+func (c *collator) handleMessagesFromNeighbors() error {
+	state, err := db.ReadCollatorState(c.txOwner.RoTx, c.params.ShardId)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil, err
+		return err
 	}
 
 	neighborIndexes := common.SliceToMap(state.Neighbors, func(i int, t types.Neighbor) (types.ShardId, int) {
 		return t.ShardId, i
 	})
 
-	var inMsgs []*types.Message
-	var outMsgs []*OutMessage
-
-SHARDS:
-	for _, neighborId := range c.neighborIds {
+	for _, neighborId := range c.topology.GetNeighbors(c.params.ShardId, c.params.NShards, true) {
 		position, ok := neighborIndexes[neighborId]
 		if !ok {
 			position = len(neighborIndexes)
@@ -232,41 +157,36 @@ SHARDS:
 		}
 		neighbor := &state.Neighbors[position]
 
-	BLOCKS:
-		for {
-			block, err := db.ReadBlockByNumber(c.roTx, neighborId, neighbor.BlockNumber)
+		for c.shouldContinue() {
+			block, err := db.ReadBlockByNumber(c.txOwner.RoTx, neighborId, neighbor.BlockNumber)
 			if errors.Is(err, db.ErrKeyNotFound) {
-				break BLOCKS
+				break
 			}
 			if err != nil {
-				return nil, nil, err
+				return err
 			}
 
-			outMsgTrie := execution.NewMessageTrieReader(mpt.NewReaderWithRoot(c.roTx, neighborId, db.MessageTrieTable, block.OutMessagesRoot))
-			for ; neighbor.MessageIndex < block.OutMessagesNum; neighbor.MessageIndex++ {
+			outMsgTrie := execution.NewMessageTrieReader(mpt.NewReaderWithRoot(c.txOwner.RoTx, neighborId, db.MessageTrieTable, block.OutMessagesRoot))
+			for ; c.shouldContinue() && neighbor.MessageIndex < block.OutMessagesNum; neighbor.MessageIndex++ {
 				msg, err := outMsgTrie.Fetch(neighbor.MessageIndex)
 				if err != nil {
-					return nil, nil, err
+					return err
 				}
 
-				dstShardId := msg.To.ShardId()
-				if dstShardId == c.id {
-					sharedLogger.Debug().Msgf("Adding %s message to %v to shard %v", msg.Kind, msg.To, c.id)
-					inMsgs = append(inMsgs, msg)
-				} else if c.id != neighborId && c.topology.ShouldPropagateMsg(neighborId, c.id, dstShardId) {
-					// TODO: add inMsgHash support (do we even need it?)
-					outMsgs = append(outMsgs, &OutMessage{msg: msg})
-				}
-
-				if len(inMsgs)+len(outMsgs) >= maxMessagesInBlock {
-					break SHARDS
+				if msg.To.ShardId() == c.params.ShardId {
+					c.inMsgs = append(c.inMsgs, msg)
+				} else if c.params.ShardId != neighborId {
+					if c.topology.ShouldPropagateMsg(neighborId, c.params.ShardId, msg.To.ShardId()) {
+						c.outMsgs = append(c.outMsgs, msg)
+					}
 				}
 			}
+
 			neighbor.BlockNumber++
 			neighbor.MessageIndex = 0
 		}
 	}
 
 	c.state = state
-	return inMsgs, outMsgs, nil
+	return nil
 }
