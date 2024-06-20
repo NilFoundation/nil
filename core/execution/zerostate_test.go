@@ -10,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/NilFoundation/nil/core/vm"
 	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common/compiler"
@@ -27,9 +26,8 @@ type SuiteZeroState struct {
 	faucetAddr types.Address
 	faucetABI  abi.ABI
 
-	state        *ExecutionState
-	blockContext *vm.BlockContext
-	contracts    map[string]*compiler.Contract
+	state     *ExecutionState
+	contracts map[string]*compiler.Contract
 }
 
 func (suite *SuiteZeroState) SetupSuite() {
@@ -49,9 +47,6 @@ func (suite *SuiteZeroState) SetupSuite() {
 func (suite *SuiteZeroState) SetupTest() {
 	var err error
 	suite.state = newState(suite.T())
-
-	suite.blockContext, err = NewEVMBlockContext(suite.state)
-	suite.Require().NoError(err)
 
 	suite.contracts, err = solc.CompileSource("./testdata/call.sol")
 	suite.Require().NoError(err)
@@ -75,7 +70,7 @@ func (suite *SuiteZeroState) TestFaucetBalance() {
 
 func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 	receiverContract := suite.contracts["SimpleContract"]
-	receiverAddr := deployContract(suite.T(), receiverContract, suite.state, suite.blockContext, 2)
+	receiverAddr := deployContract(suite.T(), receiverContract, suite.state, 2)
 
 	calldata, err := suite.faucetABI.Pack("withdrawTo", receiverAddr, big.NewInt(100))
 	suite.Require().NoError(err)
@@ -86,7 +81,7 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 		To:       suite.faucetAddr,
 		GasLimit: *types.NewUint256(10000),
 	}
-	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, callMessage, suite.blockContext)
+	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, callMessage)
 	suite.Require().NoError(err)
 
 	suite.Require().EqualValues(*uint256.NewInt(1000000000000 - 100), suite.getBalance(suite.faucetAddr))

@@ -727,7 +727,7 @@ func (es *ExecutionState) AddOutMessage(msg *types.Message) {
 }
 
 func (es *ExecutionState) HandleDeployMessage(
-	_ context.Context, message *types.Message, deployMsg *types.DeployPayload, blockContext *vm.BlockContext,
+	_ context.Context, message *types.Message, deployMsg *types.DeployPayload,
 ) (uint64, error) {
 	addr := message.To
 
@@ -764,7 +764,7 @@ func (es *ExecutionState) HandleDeployMessage(
 	return leftOverGas, err
 }
 
-func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *types.Message, blockContext *vm.BlockContext) (uint64, []byte, error) {
+func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *types.Message) (uint64, []byte, error) {
 	addr := message.To
 	logger.Debug().
 		Stringer(logging.FieldMessageTo, addr).
