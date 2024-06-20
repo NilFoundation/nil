@@ -24,11 +24,11 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/math"
-	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/params"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 	"github.com/rs/zerolog/log"
 )
@@ -44,14 +44,38 @@ type PrecompiledContract interface {
 	Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, _ bool) ([]byte, error)
 }
 
+type SimplePrecompiledContract interface {
+	// RequiredPrice calculates the contract gas use
+	RequiredGas(input []byte) uint64
+
+	// Run runs the precompiled contract
+	Run(input []byte) ([]byte, error)
+}
+
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
 // contracts used in the Prague release.
 var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
+	types.BytesToAddress([]byte{0x01}): &simple{&ecrecover{}},
 	types.BytesToAddress([]byte{0x02}): &sha256hash{},
+	// types.BytesToAddress([]byte{0x03}): &ripemd160hash{},
 	types.BytesToAddress([]byte{0x04}): &dataCopy{},
 	types.BytesToAddress([]byte{0x05}): &bigModExp{eip2565: true},
-	// Ethereum uses addresses up to 0x13
+	// types.BytesToAddress([]byte{0x06}): &bn256AddIstanbul{},
+	// types.BytesToAddress([]byte{0x07}): &bn256ScalarMulIstanbul{},
+	// types.BytesToAddress([]byte{0x08}): &bn256PairingIstanbul{},
+	// types.BytesToAddress([]byte{0x09}): &blake2F{},
+	// types.BytesToAddress([]byte{0x0a}): &kzgPointEvaluation{},
+	// types.BytesToAddress([]byte{0x0b}): &bls12381G1Add{},
+	// types.BytesToAddress([]byte{0x0c}): &bls12381G1Mul{},
+	// types.BytesToAddress([]byte{0x0d}): &bls12381G1MultiExp{},
+	// types.BytesToAddress([]byte{0x0e}): &bls12381G2Add{},
+	// types.BytesToAddress([]byte{0x0f}): &bls12381G2Mul{},
+	// types.BytesToAddress([]byte{0x10}): &bls12381G2MultiExp{},
+	// types.BytesToAddress([]byte{0x11}): &bls12381Pairing{},
+	// types.BytesToAddress([]byte{0x12}): &bls12381MapG1{},
+	// types.BytesToAddress([]byte{0x13}): &bls12381MapG2{},
 
+	// NilFoundation precompiled contracts
 	types.BytesToAddress([]byte{0xfc}): &sendRawMessage{},
 	types.BytesToAddress([]byte{0xfd}): &asyncCall{},
 	types.BytesToAddress([]byte{0xfe}): &verifySignature{},
@@ -91,6 +115,56 @@ func RunPrecompiledContract(p PrecompiledContract, state StateDB, input []byte, 
 	suppliedGas -= gasCost
 	output, err := p.Run(state, input, gas, value, caller, readOnly)
 	return output, suppliedGas, err
+}
+
+type simple struct {
+	contract SimplePrecompiledContract
+}
+
+func (a *simple) RequiredGas(input []byte) uint64 {
+	return a.contract.RequiredGas(input)
+}
+
+func (a *simple) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+	return a.contract.Run(input)
+}
+
+// ecrecover implemented as a native contract.
+type ecrecover struct{}
+
+func (c *ecrecover) RequiredGas(input []byte) uint64 {
+	return params.EcrecoverGas
+}
+
+func (c *ecrecover) Run(input []byte) ([]byte, error) {
+	const ecRecoverInputLength = 128
+
+	input = common.RightPadBytes(input, ecRecoverInputLength)
+	// "input" is (hash, v, r, s), each 32 bytes
+	// but for ecrecover we want (r, s, v)
+
+	r := new(big.Int).SetBytes(input[64:96])
+	s := new(big.Int).SetBytes(input[96:128])
+	v := input[63] - 27
+
+	// tighter sig s values input homestead only apply to tx sigs
+	if !allZero(input[32:63]) || !crypto.ValidateSignatureValues(v, r, s, false) {
+		return nil, nil
+	}
+	// We must make sure not to modify the 'input', so placing the 'v' along with
+	// the signature needs to be done on a new allocation
+	sig := make([]byte, 65)
+	copy(sig, input[64:128])
+	sig[64] = v
+	// v needs to be at the end for libsecp256k1
+	pubKey, err := crypto.Ecrecover(input[:32], sig)
+	// make sure the public key is a valid one
+	if err != nil {
+		return nil, nil //nolint:nilerr
+	}
+
+	// the first byte of pubkey is bitcoin heritage
+	return common.LeftPadBytes(crypto.Keccak256(pubKey[1:])[12:], 32), nil
 }
 
 // SHA256 implemented as a native contract.
