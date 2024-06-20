@@ -22,6 +22,7 @@ const shardId = types.MasterShardId
 
 type SuiteEthBlock struct {
 	suite.Suite
+
 	ctx           context.Context
 	db            db.DB
 	api           *APIImpl
@@ -35,37 +36,19 @@ func (suite *SuiteEthBlock) SetupSuite() {
 	suite.db, err = db.NewBadgerDbInMemory()
 	suite.Require().NoError(err)
 
-	tx, err := suite.db.CreateRwTx(suite.ctx)
-	suite.Require().NoError(err)
-	defer tx.Rollback()
-
 	suite.lastBlockHash = common.EmptyHash
 	for i := range types.BlockNumber(2) {
-		es, err := execution.NewExecutionState(tx, shardId, suite.lastBlockHash, common.NewTestTimer(0))
-		suite.Require().NoError(err)
-
+		msgs := make([]*types.Message, 0, int(i))
 		for j := range int(i) {
-			es.AddInMessage(&types.Message{Data: types.Code(strconv.Itoa(j))})
-			es.AddReceipt(0, nil)
+			msgs = append(msgs, &types.Message{Data: types.Code(strconv.Itoa(j))})
 		}
-
-		blockHash, err := es.Commit(i)
-		suite.Require().NoError(err)
-		suite.lastBlockHash = blockHash
-
-		block, err := execution.PostprocessBlock(tx, shardId, blockHash)
-		suite.Require().NotNil(block)
-		suite.Require().NoError(err)
+		suite.lastBlockHash = execution.GenerateBlockFromMessagesWithoutExecution(suite.T(), suite.ctx,
+			shardId, i, suite.lastBlockHash, suite.db, msgs...)
 	}
 
-	err = tx.Commit()
-	suite.Require().NoError(err)
-
-	pool := msgpool.New(msgpool.DefaultConfig)
-	suite.Require().NotNil(pool)
-
 	suite.api, err = NewEthAPI(suite.ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool}, logging.NewLogger("Test"))
+		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db,
+		[]msgpool.Pool{msgpool.New(msgpool.DefaultConfig)}, logging.NewLogger("Test"))
 	suite.Require().NoError(err)
 }
 

@@ -19,7 +19,13 @@ import (
 
 type SuiteExecutionState struct {
 	suite.Suite
-	db db.DB
+
+	ctx context.Context
+	db  db.DB
+}
+
+func (suite *SuiteExecutionState) SetupSuite() {
+	suite.ctx = context.Background()
 }
 
 func (suite *SuiteExecutionState) SetupTest() {
@@ -33,89 +39,85 @@ func (s *SuiteExecutionState) TearDownTest() {
 }
 
 func (suite *SuiteExecutionState) TestExecState() {
-	ctx := context.Background()
-	tx, err := suite.db.CreateRwTx(ctx)
+	const shardId types.ShardId = 5
+	const numMessages types.Seqno = 10
+	const code = "6004600c60003960046000f301020304"
+
+	tx, err := suite.db.CreateRwTx(suite.ctx)
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	shardId := types.ShardId(5)
+	addr := types.GenerateRandomAddress(shardId)
+	storageKey := common.BytesToHash([]byte("storage-key"))
+
 	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
-	addr := types.GenerateRandomAddress(shardId)
+	suite.Run("CreateAccount", func() {
+		es.CreateAccount(addr)
+		es.SetState(addr, storageKey, common.IntToHash(123456))
+	})
 
-	es.CreateAccount(addr)
-
-	storageKey := common.BytesToHash([]byte("storage-key"))
-
-	es.SetState(addr, storageKey, common.IntToHash(123456))
-
-	const numMessages types.Seqno = 10
-
-	// constructor that generates the code "01020304"
-	code := "6004600c60003960046000f301020304"
-
-	from := types.GenerateRandomAddress(shardId)
-
-	for i := range numMessages {
-		deploy := types.BuildDeployPayload(hexutil.FromHex(code), common.BytesToHash([]byte{byte(i)}))
-
-		msg := &types.Message{
-			Data:     deploy.Bytes(),
-			From:     from,
-			Seqno:    i,
-			GasLimit: *types.NewUint256(10000),
-			To:       types.CreateAddress(shardId, deploy.Bytes()),
+	suite.Run("DeployMessages", func() {
+		from := types.GenerateRandomAddress(shardId)
+		for i := range numMessages {
+			Deploy(suite.T(), suite.ctx, es,
+				types.BuildDeployPayload(hexutil.FromHex(code), common.BytesToHash([]byte{byte(i)})),
+				shardId, from, i)
 		}
-		es.AddInMessage(msg)
-		_, err = es.HandleDeployMessage(ctx, msg)
+	})
+
+	var blockHash common.Hash
+
+	suite.Run("CommitBlock", func() {
+		blockHash, err = es.Commit(0)
 		suite.Require().NoError(err)
-	}
+	})
 
-	blockHash, err := es.Commit(0)
-	suite.Require().NoError(err)
+	suite.Run("CheckAccount", func() {
+		es, err := NewExecutionState(tx, shardId, blockHash, common.NewTestTimer(0))
+		suite.Require().NoError(err)
 
-	es, err = NewExecutionState(tx, shardId, blockHash, common.NewTestTimer(0))
-	suite.Require().NoError(err)
+		storageVal := es.GetState(addr, storageKey)
+		suite.Equal(storageVal, common.IntToHash(123456))
+	})
 
-	storageVal := es.GetState(addr, storageKey)
+	suite.Run("CheckMessages", func() {
+		block, err := db.ReadBlock(tx, shardId, blockHash)
+		suite.Require().NoError(err)
+		suite.Require().NotNil(block)
 
-	suite.Equal(storageVal, common.IntToHash(123456))
+		messagesRoot := NewMessageTrieReader(mpt.NewReaderWithRoot(tx, es.ShardId, db.MessageTrieTable, block.InMessagesRoot))
+		receiptsRoot := NewReceiptTrieReader(mpt.NewReaderWithRoot(tx, es.ShardId, db.ReceiptTrieTable, block.ReceiptsRoot))
+		var messageIndex types.MessageIndex
 
-	block, err := db.ReadBlock(tx, shardId, blockHash)
-	suite.Require().NoError(err)
-	suite.Require().NotNil(block)
+		for {
+			m, err := messagesRoot.Fetch(messageIndex)
+			if errors.Is(err, db.ErrKeyNotFound) {
+				break
+			}
+			suite.Require().NoError(err)
 
-	messageTrieTable := db.MessageTrieTable
-	receiptTrieTable := db.ReceiptTrieTable
-	messagesRoot := NewMessageTrie(mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, messageTrieTable, block.InMessagesRoot))
-	receiptsRoot := NewReceiptTrie(mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, receiptTrieTable, block.ReceiptsRoot))
-	var messageIndex types.MessageIndex
+			deploy := types.BuildDeployPayload(hexutil.FromHex(code), common.BytesToHash([]byte{byte(messageIndex)}))
+			suite.Equal(types.Code(deploy.Bytes()), m.Data)
 
-	for {
-		m, err := messagesRoot.Fetch(messageIndex)
-		if errors.Is(err, db.ErrKeyNotFound) {
-			break
+			_, err = receiptsRoot.Fetch(messageIndex)
+			suite.Require().NoError(err)
+
+			messageIndex++
 		}
-		suite.Require().NoError(err)
+		suite.Equal(types.MessageIndex(numMessages), messageIndex)
+	})
 
-		deploy := types.BuildDeployPayload(hexutil.FromHex(code), common.BytesToHash([]byte{byte(messageIndex)}))
-		suite.Equal(types.Code(deploy.Bytes()), m.Data)
-
-		_, err = receiptsRoot.Fetch(messageIndex)
-		suite.Require().NoError(err)
-
-		messageIndex++
-	}
-	suite.Equal(types.MessageIndex(numMessages), messageIndex)
-	suite.Require().NoError(tx.Commit())
+	suite.Run("CommitTx", func() {
+		suite.Require().NoError(tx.Commit())
+	})
 }
 
 func (suite *SuiteExecutionState) TestDeployAndCall() {
 	shardId := types.ShardId(5)
 
-	ctx := context.Background()
-	tx, err := suite.db.CreateRwTx(ctx)
+	tx, err := suite.db.CreateRwTx(suite.ctx)
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
@@ -127,75 +129,43 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
-	deployMsg := types.BuildDeployPayload(code, common.EmptyHash)
-	message := &types.Message{
-		Internal: true,
-		Kind:     types.DeployMessageKind,
-		Seqno:    1,
-		GasLimit: types.Uint256{Int: *uint256.NewInt(100000)},
-		To:       addrWallet,
-		Data:     types.Code(deployMsg),
-	}
+	suite.Run("Deploy", func() {
+		suite.EqualValues(0, es.GetSeqno(addrWallet))
 
-	suite.EqualValues(0, es.GetSeqno(addrWallet))
+		Deploy(suite.T(), suite.ctx, es, types.BuildDeployPayload(code, common.EmptyHash),
+			shardId, types.Address{}, 0)
 
-	es.AddInMessage(message)
-	_, err = es.HandleDeployMessage(ctx, message)
-	suite.Require().NoError(err)
+		suite.EqualValues(1, es.GetSeqno(addrWallet))
+	})
 
-	// Check that initially seqno is 1
-	suite.EqualValues(1, es.GetSeqno(addrWallet))
+	suite.Run("Execute", func() {
+		_, _, err := es.HandleExecutionMessage(suite.ctx,
+			contracts.NewCounterExecuteMessage(suite.T(), shardId, addrWallet, 1))
+		suite.Require().NoError(err)
 
-	abiCalee, err := contracts.GetAbi("tests/Counter")
-	suite.Require().NoError(err)
-	calldata, err := abiCalee.Pack("add", int32(11))
-	suite.Require().NoError(err)
-	messageToSend := &types.Message{
-		Data:     calldata,
-		Seqno:    1,
-		From:     addrWallet,
-		To:       addrWallet,
-		Value:    *types.NewUint256(0),
-		GasLimit: *types.NewUint256(100000),
-	}
-	_, _, err = es.HandleExecutionMessage(ctx, messageToSend)
-	suite.Require().NoError(err)
-
-	// Check that seqno is increased
-	suite.EqualValues(2, es.GetSeqno(addrWallet))
+		suite.EqualValues(2, es.GetSeqno(addrWallet))
+	})
 }
 
 func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
-	tx, err := suite.db.CreateRwTx(context.Background())
+	msg1 := &types.Message{Data: []byte{1}, Seqno: 1}
+	msg2 := &types.Message{Data: []byte{2}, Seqno: 2}
+	blockHash1 := GenerateBlockFromMessagesWithoutExecution(suite.T(), context.Background(),
+		types.BaseShardId, 0, common.EmptyHash, suite.db, msg1, msg2)
+	blockHash2 := GenerateBlockFromMessagesWithoutExecution(suite.T(), context.Background(),
+		types.BaseShardId, 1, blockHash1, suite.db, msg2)
+
+	tx, err := suite.db.CreateRoTx(suite.ctx)
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	es, err := NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0))
-	suite.Require().NoError(err)
-
-	msg1 := &types.Message{Data: []byte{1}, Seqno: 1}
-	msg2 := &types.Message{Data: []byte{2}, Seqno: 2}
-
-	es.AddInMessage(msg1)
-	es.AddReceipt(0, nil)
-	blockHash1, err := es.Commit(0)
-	suite.Require().NoError(err)
-
-	es, err = NewExecutionState(tx, types.BaseShardId, blockHash1, common.NewTestTimer(0))
-	suite.Require().NoError(err)
-
-	es.AddInMessage(msg2)
-	es.AddReceipt(0, nil)
-	blockHash2, err := es.Commit(1)
-	suite.Require().NoError(err)
-
-	check := func(blockHash common.Hash, msg *types.Message) {
+	check := func(blockHash common.Hash, idx types.MessageIndex, msg *types.Message) {
 		block, err := db.ReadBlock(tx, types.BaseShardId, blockHash)
 		suite.Require().NoError(err)
 		suite.Require().NotNil(block)
 
-		messagesRoot := NewMessageTrie(mpt.NewMerklePatriciaTrieWithRoot(tx, es.ShardId, db.MessageTrieTable, block.InMessagesRoot))
-		msgRead, err := messagesRoot.Fetch(0)
+		messagesRoot := NewMessageTrieReader(mpt.NewReaderWithRoot(tx, types.BaseShardId, db.MessageTrieTable, block.InMessagesRoot))
+		msgRead, err := messagesRoot.Fetch(idx)
 		suite.Require().NoError(err)
 
 		if len(msgRead.Signature) == 0 {
@@ -207,9 +177,9 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 		suite.Equal(msg, msgRead)
 	}
 
-	check(blockHash1, msg1)
-	check(blockHash2, msg2)
-	suite.Require().NoError(tx.Commit())
+	check(blockHash1, 0, msg1)
+	check(blockHash1, 1, msg2)
+	check(blockHash2, 0, msg2)
 }
 
 func TestSuiteExecutionState(t *testing.T) {

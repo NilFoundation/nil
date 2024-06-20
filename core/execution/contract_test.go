@@ -18,19 +18,9 @@ import (
 func deployContract(t *testing.T, contract *compiler.Contract, state *ExecutionState, seqno types.Seqno) types.Address {
 	t.Helper()
 
-	contractCode := hexutil.FromHex(contract.Code)
-	dm := types.BuildDeployPayload(contractCode, common.EmptyHash)
-	message := &types.Message{
-		Internal: true,
-		Data:     dm.Bytes(),
-		Seqno:    seqno,
-		GasLimit: *types.NewUint256(100000),
-		To:       types.CreateAddress(state.ShardId, contractCode),
-	}
-	state.AddInMessage(message)
-	_, err := state.HandleDeployMessage(context.Background(), message)
-	require.NoError(t, err)
-	return message.To
+	return Deploy(t, context.Background(), state,
+		types.BuildDeployPayload(hexutil.FromHex(contract.Code), common.EmptyHash),
+		types.BaseShardId, types.Address{}, seqno)
 }
 
 func TestCall(t *testing.T) {
@@ -182,25 +172,22 @@ func TestAsyncCall(t *testing.T) {
 		To:       addrCaller,
 		GasLimit: *types.NewUint256(100_000),
 	}
+	msgHash := callMessage.Hash()
 	state.AddInMessage(callMessage)
 	_, _, err = state.HandleExecutionMessage(ctx, callMessage)
 	require.NoError(t, err)
-	require.NotEmpty(t, state.Receipts)
-	require.True(t, state.Receipts[len(state.Receipts)-1].Success)
-	tx := state.Receipts[len(state.Receipts)-1].MsgHash
 
 	require.Len(t, state.OutMessages, 1)
-	require.Len(t, state.OutMessages[tx], 1)
+	require.Len(t, state.OutMessages[msgHash], 1)
 
-	outMsg := state.OutMessages[tx][0]
+	outMsg := state.OutMessages[msgHash][0]
 	require.Equal(t, addrCaller, outMsg.From)
 	require.Equal(t, addrCallee, outMsg.To)
 
 	// Process outbound message, i.e. "Callee::add"
+	state.AddInMessage(outMsg)
 	_, ret, err := state.HandleExecutionMessage(ctx, outMsg)
 	require.NoError(t, err)
-	lastReceipt := state.Receipts[len(state.Receipts)-1]
-	require.True(t, lastReceipt.Success)
 	require.Len(t, ret, 32)
 	var res types.Uint256
 	res.SetBytes(ret)
@@ -209,37 +196,23 @@ func TestAsyncCall(t *testing.T) {
 	// Call Callee::add that should decrease value by 7
 	calldata, err = abi.Pack("call", addrCallee, int32(-7))
 	require.NoError(t, err)
-	callMessage = &types.Message{
-		Internal: true,
-		Data:     calldata,
-		To:       addrCaller,
-		GasLimit: *types.NewUint256(10000),
-	}
+
+	callMessage.Data = calldata
+	msgHash = callMessage.Hash()
+	state.AddInMessage(callMessage)
 	_, _, err = state.HandleExecutionMessage(ctx, callMessage)
 	require.NoError(t, err)
-	require.NotEmpty(t, state.Receipts)
-	require.True(t, state.Receipts[len(state.Receipts)-1].Success)
-	tx = state.Receipts[len(state.Receipts)-1].MsgHash
 
-	require.Len(t, state.OutMessages, 1)
-	require.Len(t, state.OutMessages[tx], 2)
+	require.Len(t, state.OutMessages, 2)
+	require.Len(t, state.OutMessages[msgHash], 1)
 
-	outMsg = state.OutMessages[tx][1]
-	require.Equal(t, outMsg.From, addrCaller)
-	require.Equal(t, outMsg.To, addrCallee)
-
-	require.Len(t, state.OutMessages, 1)
-	require.Len(t, state.OutMessages[tx], 2)
-
-	outMsg = state.OutMessages[tx][1]
+	outMsg = state.OutMessages[msgHash][0]
 	require.Equal(t, outMsg.From, addrCaller)
 	require.Equal(t, outMsg.To, addrCallee)
 
 	// Process outbound message, i.e. "Callee::add"
 	_, ret, err = state.HandleExecutionMessage(ctx, outMsg)
 	require.NoError(t, err)
-	lastReceipt = state.Receipts[len(state.Receipts)-1]
-	require.True(t, lastReceipt.Success)
 	require.Len(t, ret, 32)
 	res.SetBytes(ret)
 	require.Equal(t, res, *types.NewUint256(4))
