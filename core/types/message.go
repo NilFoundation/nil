@@ -6,7 +6,7 @@ import (
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
-	"github.com/NilFoundation/nil/core/crypto"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type MessageKind uint8
