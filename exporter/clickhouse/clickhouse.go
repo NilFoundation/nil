@@ -203,8 +203,8 @@ func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
 		messagesScheme.CreateTableQuery(
 			"messages",
 			"ReplacingMergeTree",
-			[]string{"shard_id", "hash"},
-			[]string{"shard_id", "hash"},
+			[]string{"hash", "outgoing"},
+			[]string{"hash", "outgoing"},
 		),
 	)
 	if err != nil {
