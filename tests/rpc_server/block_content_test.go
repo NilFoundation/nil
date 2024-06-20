@@ -5,29 +5,34 @@ import (
 
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/rpc/jsonrpc"
 )
 
-func (suite *SuiteRpc) TestRpcBlockContent() {
+func (s *SuiteRpc) TestRpcBlockContent() {
 	// Deploy message
 	code, err := contracts.GetCode("tests/Counter")
-	suite.Require().NoError(err)
-	m := suite.createMessageForDeploy(code, types.BaseShardId)
+	s.Require().NoError(err)
+	m := s.createMessageForDeploy(code, types.BaseShardId)
 
-	suite.sendRawTransaction(m)
+	hash, err := s.client.SendMessage(m)
+	s.Require().NoError(err)
 
-	suite.Eventually(func() bool {
-		res, err := suite.client.GetBlock(types.BaseShardId, "latest", false)
-		suite.Require().NoError(err)
+	var block *jsonrpc.RPCBlock
+	s.Eventually(func() bool {
+		var err error
+		block, err = s.client.GetBlock(types.BaseShardId, "latest", false)
+		s.Require().NoError(err)
 
-		return len(res.Messages) > 0
+		return len(block.Messages) > 0
 	}, 6*time.Second, 50*time.Millisecond)
 
-	latestRes, err := suite.client.GetBlock(types.BaseShardId, "latest", true)
-	suite.Require().NoError(err)
+	block, err = s.client.GetBlock(types.BaseShardId, block.Hash, true)
+	s.Require().NoError(err)
 
-	suite.Require().NotNil(latestRes.Hash)
-	suite.Require().Len(latestRes.Messages, 1)
+	s.Require().NotNil(block.Hash)
+	s.Require().Len(block.Messages, 1)
 
-	_, ok := latestRes.Messages[0].(map[string]any)
-	suite.Require().True(ok)
+	msg, ok := block.Messages[0].(map[string]any)
+	s.Require().True(ok)
+	s.Equal(hash.Hex(), msg["hash"])
 }
