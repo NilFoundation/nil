@@ -53,6 +53,7 @@ rpcspec:
 clean:
 	go clean -cache
 	rm -fr build/*
+	rm -fr contracts/compiled/*
 
 solc:
 	$(eval ARGS ?= --help)
