@@ -12,7 +12,6 @@ import (
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 	"github.com/spf13/cobra"
 )
 
@@ -33,26 +32,6 @@ func GetCommand(cfg *config.Config) *cobra.Command {
 	setFlags(serverCmd)
 
 	return serverCmd
-}
-
-type uint256Value types.Uint256
-
-func (u uint256Value) String() string {
-	v := types.Uint256(u)
-	return v.String()
-}
-
-func (u *uint256Value) Set(value string) error {
-	return u.Int.SetFromDecimal(value)
-}
-
-func (*uint256Value) Type() string {
-	return "Uint256"
-}
-
-func newUint256Value(val types.Uint256, p *types.Uint256) *uint256Value {
-	*p = val
-	return (*uint256Value)(p)
 }
 
 type codeValue types.Code
@@ -94,9 +73,9 @@ func defaultWalletCode(privateKey *ecdsa.PrivateKey) types.Code {
 }
 
 func setFlags(cmd *cobra.Command) {
-	defaultSalt := types.Uint256{Int: *uint256.NewInt(0)}
+	params.salt = *types.NewUint256(0)
 	cmd.Flags().Var(
-		newUint256Value(defaultSalt, &params.salt),
+		&params.salt,
 		saltFlag,
 		"Salt for wallet address calculation")
 

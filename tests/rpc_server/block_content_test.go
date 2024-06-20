@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/contracts"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 )
@@ -12,9 +13,11 @@ func (s *SuiteRpc) TestRpcBlockContent() {
 	// Deploy message
 	code, err := contracts.GetCode("tests/Counter")
 	s.Require().NoError(err)
-	m := s.createMessageForDeploy(code, types.BaseShardId)
+	abi, err := contracts.GetAbi("tests/Counter")
+	s.Require().NoError(err)
 
-	hash, err := s.client.SendMessage(m)
+	m := s.prepareDefaultDeployBytecode(*abi, code)
+	hash, _, err := s.client.DeployContract(types.BaseShardId, types.MainWalletAddress, m, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	var block *jsonrpc.RPCBlock

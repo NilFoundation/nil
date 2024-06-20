@@ -84,3 +84,15 @@ func (u *Uint256) MarshalBinary() (data []byte, err error) {
 func (u Uint256) Value() (driver.Value, error) {
 	return u.Int.ToBig(), nil
 }
+
+func (u Uint256) String() string {
+	return u.Int.String()
+}
+
+func (u *Uint256) Set(value string) error {
+	return u.Int.SetFromDecimal(value)
+}
+
+func (*Uint256) Type() string {
+	return "Uint256"
+}
