@@ -78,13 +78,8 @@ func (a accountPayer) String() string {
 }
 
 func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionState, msgs []*types.Message) error {
-	for _, inMessage := range msgs {
-		msgHash := inMessage.Hash()
-		es.AddInMessage(inMessage)
-		es.InMessageHash = msgHash
-		// We copy the message so as not to spoil es.InMessages when purchasing gas
-		inMessageCopy := *inMessage
-		message := &inMessageCopy
+	for _, message := range msgs {
+		es.AddInMessage(message)
 
 		ok, payer := validateMessage(roTx, es, message)
 		if !ok {
@@ -93,20 +88,19 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 		err := buyGas(payer, message)
 		if err != nil {
 			sharedLogger.Info().Err(err).Stringer("hash", es.InMessageHash).Msg("discarding message")
-			es.AddReceipt(&types.Receipt{Success: false, ContractAddress: message.To, MsgHash: msgHash})
+			es.AddReceipt(0, err)
 			continue
 		}
 		var leftOverGas uint64
 
 		switch message.Kind {
 		case types.DeployMessageKind:
-			deployMsg := validateDeployMessage(es, message)
-			if deployMsg == nil {
-				es.AddReceipt(&types.Receipt{Success: false, ContractAddress: message.To, MsgHash: msgHash})
+			if err := validateDeployMessage(message); err != nil {
+				es.AddReceipt(0, err)
 				continue
 			}
 
-			if leftOverGas, err = es.HandleDeployMessage(ctx, message, deployMsg); err != nil && !errors.As(err, new(vm.VMError)) {
+			if leftOverGas, err = es.HandleDeployMessage(ctx, message); err != nil && !errors.As(err, new(vm.VMError)) {
 				return err
 			}
 			refundGas(payer, message, leftOverGas)
@@ -125,36 +119,6 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 	return nil
 }
 
-var (
-	// ErrInsufficientFunds is returned if the total cost of executing a transaction
-	// is higher than the balance of the user's account.
-	ErrInsufficientFunds = errors.New("insufficient funds for gas * price + value")
-
-	// ErrGasUintOverflow is returned when calculating gas usage.
-	ErrGasUintOverflow = errors.New("gas uint64 overflow")
-
-	// ErrInternalMessageValidationFailed is returned when no corresponding outgoing message is found.
-	ErrInternalMessageValidationFailed = errors.New("internal message validation failed")
-
-	// ErrNoPayer is returned when no account at address specified to pay fees.
-	ErrNoPayer = errors.New("no account at address to pay fees")
-
-	// ErrContractAlreadyExists is returned when attempt to deploy code to address of already deployed contract.
-	ErrContractAlreadyExists = errors.New("contract already exists")
-
-	// ErrContractDoesNotExists is returned when attempt to call non-existent contract.
-	ErrContractDoesNotExist = errors.New("contract does not exist")
-
-	// ErrSeqnoGap is returned when message seqno does not match the seqno of the recipient.
-	ErrSeqnoGap = errors.New("seqno gap")
-
-	// ErrInvalidSignature is returned when verifyExternal call fails.
-	ErrInvalidSignature = errors.New("invalid signature")
-
-	// ErrInvalidChainId is returned when message chain id is different from DefaultChainId.
-	ErrInvalidChainId = errors.New("invalid chainId")
-)
-
 // TODO: Make gas price dynamic and use message.GasPrice
 var GasPrice = uint256.NewInt(10)
 
@@ -164,10 +128,10 @@ func buyGas(payer payer, message *types.Message) error {
 
 	required, overflow := uint256.FromBig(mgval)
 	if overflow {
-		return fmt.Errorf("%w: %v required balance exceeds 256 bits", ErrInsufficientFunds, payer.String())
+		return fmt.Errorf("%w: %s required balance exceeds 256 bits", ErrInsufficientFunds, payer)
 	}
 	if !payer.CanPay(mgval) {
-		return fmt.Errorf("%w: %v can't pay %v", ErrInsufficientFunds, payer.String(), required)
+		return fmt.Errorf("%w: %s can't pay %v", ErrInsufficientFunds, payer, required)
 	}
 
 	payer.SubBalance(required)
@@ -181,28 +145,22 @@ func refundGas(payer payer, _ *types.Message, gasRemaining uint64) {
 	payer.AddBalance(remaining)
 }
 
-func validateDeployMessage(es *execution.ExecutionState, message *types.Message) *types.DeployPayload {
-	address := message.To
-	fail := func(err error, message string) *types.DeployPayload {
-		addFailReceipt(es, address, err)
-		sharedLogger.Debug().Err(err).Stringer(logging.FieldMessageHash, es.InMessageHash).Msg(message)
-		return nil
-	}
-
+func validateDeployMessage(message *types.Message) error {
 	deployPayload := types.ParseDeployPayload(message.Data)
 	if deployPayload == nil {
-		return fail(nil, "Invalid deploy payload")
+		return ErrInvalidPayload
 	}
 
-	if types.IsMasterShard(address.ShardId()) && message.From != types.MainWalletAddress {
-		return fail(nil, "Attempt to deploy to master shard from non system wallet")
+	shardId := message.To.ShardId()
+	if types.IsMasterShard(shardId) && message.From != types.MainWalletAddress {
+		return ErrDeployToMainShard
 	}
 
-	if message.To != types.CreateAddress(address.ShardId(), deployPayload.Bytes()) {
-		return fail(nil, "Incorrect deployment address")
+	if message.To != types.CreateAddress(shardId, deployPayload.Bytes()) {
+		return ErrIncorrectDeploymentAddress
 	}
 
-	return deployPayload
+	return nil
 }
 
 func validateInternalMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.Message) error {
@@ -306,7 +264,7 @@ func validateExternalMessage(es *execution.ExecutionState, message *types.Messag
 func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.Message) (bool, payer) {
 	if message.Internal {
 		if err := validateInternalMessage(roTx, es, message); err != nil {
-			addFailReceipt(es, message.To, err)
+			es.AddReceipt(0, err)
 			return false, nil
 		}
 		return true, messagePayer{message, es}
@@ -314,19 +272,8 @@ func validateMessage(roTx db.RoTx, es *execution.ExecutionState, message *types.
 
 	if err := validateExternalMessage(es, message); err != nil {
 		// TODO: Inform RPC about errors without storing receipts in the blockchain
-		addFailReceipt(es, message.To, err)
+		es.AddReceipt(0, err)
 		return false, nil
 	}
 	return true, accountPayer{es.GetAccount(message.To), message}
-}
-
-func addFailReceipt(es *execution.ExecutionState, address types.Address, err error) {
-	r := &types.Receipt{
-		Success:         false,
-		MsgHash:         es.InMessageHash,
-		Logs:            es.Logs[es.InMessageHash],
-		ContractAddress: address,
-	}
-	es.AddReceipt(r)
-	sharedLogger.Error().Err(err).Stringer("hash", es.InMessageHash).Msg("Add fail receipt")
 }

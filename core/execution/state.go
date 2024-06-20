@@ -715,7 +715,9 @@ func (es *ExecutionState) ContractExists(address types.Address) bool {
 }
 
 func (es *ExecutionState) AddInMessage(message *types.Message) {
-	es.InMessages = append(es.InMessages, message)
+	// We store a copy of the message, because the original message will be modified.
+	es.InMessages = append(es.InMessages, common.CopyPtr(message))
+	es.InMessageHash = message.Hash()
 }
 
 func (es *ExecutionState) AddOutMessageForTx(txId common.Hash, msg *types.Message) {
@@ -727,9 +729,10 @@ func (es *ExecutionState) AddOutMessage(msg *types.Message) {
 }
 
 func (es *ExecutionState) HandleDeployMessage(
-	_ context.Context, message *types.Message, deployMsg *types.DeployPayload,
+	_ context.Context, message *types.Message,
 ) (uint64, error) {
 	addr := message.To
+	deployMsg := types.ParseDeployPayload(message.Data)
 
 	logger.Debug().
 		Stringer(logging.FieldMessageTo, addr).
@@ -745,14 +748,7 @@ func (es *ExecutionState) HandleDeployMessage(
 
 	_, addr, leftOverGas, err := es.evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code(), gas, &message.Value.Int)
 
-	r := &types.Receipt{
-		Success:         err == nil,
-		ContractAddress: addr,
-		MsgHash:         es.InMessageHash,
-		GasUsed:         uint32(gas - leftOverGas),
-	}
-
-	es.AddReceipt(r)
+	es.AddReceipt(uint32(gas-leftOverGas), err)
 
 	event := logger.Debug().Stringer(logging.FieldMessageTo, addr)
 	if err != nil {
@@ -788,29 +784,24 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	if err != nil {
 		logger.Error().Err(err).Msg("execution message failed")
 	}
-	r := types.Receipt{
-		Success:         err == nil,
-		GasUsed:         uint32(gas - leftOverGas),
-		Logs:            es.Logs[es.InMessageHash],
-		MsgHash:         es.InMessageHash,
-		ContractAddress: addr,
-	}
-	es.AddReceipt(&r)
+	es.AddReceipt(uint32(gas-leftOverGas), err)
 	return leftOverGas, ret, err
 }
 
 func (es *ExecutionState) HandleRefundMessage(_ context.Context, message *types.Message) {
 	es.AddBalance(message.To, &message.Value.Int, tracing.BalanceIncreaseRefund)
-	es.AddReceipt(&types.Receipt{
-		Success:         true,
-		ContractAddress: message.To,
-		MsgHash:         es.InMessageHash,
-	})
+	es.AddReceipt(0, nil)
 	logger.Debug().Msgf("Refunded %v to %v", message.Value.Int, message.To)
 }
 
-func (es *ExecutionState) AddReceipt(receipt *types.Receipt) {
-	es.Receipts = append(es.Receipts, receipt)
+func (es *ExecutionState) AddReceipt(gasUsed uint32, err error) {
+	es.Receipts = append(es.Receipts, &types.Receipt{
+		Success:         err == nil,
+		GasUsed:         gasUsed,
+		MsgHash:         es.InMessageHash,
+		Logs:            es.Logs[es.InMessageHash],
+		ContractAddress: es.GetInMessage().To,
+	})
 }
 
 func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error) {

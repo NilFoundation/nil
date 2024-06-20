@@ -61,9 +61,8 @@ func (s *SuiteEthCall) SetupSuite() {
 	}
 	s.simple = m.To
 	es.AddInMessage(m)
-	es.InMessageHash = m.Hash()
 
-	_, err = es.HandleDeployMessage(ctx, m, &dm)
+	_, err = es.HandleDeployMessage(ctx, m)
 	s.Require().NoError(err)
 
 	blockHash, err := es.Commit(0)

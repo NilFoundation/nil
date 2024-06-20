@@ -83,6 +83,7 @@ func (s *MessagesSuite) TestValidateMessage() {
 	}
 
 	// Invalid signature
+	es.AddInMessage(msg)
 	ok, payer := validateMessage(tx, es, msg)
 	s.Require().Nil(payer)
 	s.False(ok)
@@ -92,6 +93,7 @@ func (s *MessagesSuite) TestValidateMessage() {
 	// contract that always returns "true",
 	// so verifies any message
 	es.SetCode(addrTo, hexutil.FromHex("600160005260206000f3"))
+	es.AddInMessage(msg)
 	ok, payer = validateMessage(tx, es, msg)
 	s.Require().NotNil(payer)
 	s.True(ok)
@@ -99,6 +101,7 @@ func (s *MessagesSuite) TestValidateMessage() {
 
 	// Invalid ChainId
 	msg.ChainId = 100500
+	es.AddInMessage(msg)
 	ok, payer = validateMessage(tx, es, msg)
 	s.Require().Nil(payer)
 	s.False(ok)
@@ -108,6 +111,7 @@ func (s *MessagesSuite) TestValidateMessage() {
 	// Gap in seqno
 	msg.ChainId = types.DefaultChainId
 	msg.Seqno = 100
+	es.AddInMessage(msg)
 	ok, payer = validateMessage(tx, es, msg)
 	s.Require().Nil(payer)
 	s.False(ok)
@@ -133,28 +137,24 @@ func (s *MessagesSuite) TestValidateDeployMessage() {
 	}
 
 	// data too short
-	dm := validateDeployMessage(es, msg)
-	s.Require().Nil(dm)
+	s.Require().ErrorIs(validateDeployMessage(msg), ErrInvalidPayload)
 
-	// Deploy to master shard from base shard - FAIL
+	// Deploy to the main shard from base shard - FAIL
 	data := types.BuildDeployPayload([]byte("some-code"), common.EmptyHash)
 	msg.To = types.CreateAddress(types.MasterShardId, data.Bytes())
 	msg.Data = data.Bytes()
-	dm = validateDeployMessage(es, msg)
-	s.Require().Nil(dm)
+	s.Require().ErrorIs(validateDeployMessage(msg), ErrDeployToMainShard)
 
-	// Deploy to master shard from main wallet - OK
+	// Deploy to the main shard from main wallet - OK
 	data = types.BuildDeployPayload([]byte("some-code"), common.EmptyHash)
 	msg.To = types.CreateAddress(types.MasterShardId, data.Bytes())
 	msg.From = types.MainWalletAddress
 	msg.Data = data.Bytes()
-	dm = validateDeployMessage(es, msg)
-	s.Require().NotNil(dm)
+	s.Require().NoError(validateDeployMessage(msg))
 
 	// Deploy to base shard
 	msg.To = types.CreateAddress(types.BaseShardId, data.Bytes())
-	dm = validateDeployMessage(es, msg)
-	s.Require().NotNil(dm)
+	s.Require().NoError(validateDeployMessage(msg))
 }
 
 func TestMessages(t *testing.T) {
