@@ -29,10 +29,7 @@ contract Caller {
         Nil.sendMessage(gasleft(), message);
     }
 
-    function verifyExternal(
-        uint256,
-        bytes memory
-    ) external pure returns (bool) {
+    function verifyExternal(uint256, bytes calldata) external pure returns (bool) {
         return true;
     }
 }

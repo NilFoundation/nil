@@ -8,7 +8,7 @@ contract Faucet {
     event Deploy(address addr);
     event Send(address addr, uint256 value);
 
-    function verifyExternal(uint256, bytes memory) external pure returns (bool) {
+    function verifyExternal(uint256, bytes calldata) external pure returns (bool) {
         return true;
     }
 
