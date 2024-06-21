@@ -3,6 +3,7 @@ package rpctest
 import (
 	"encoding/json"
 	"math/big"
+	"strconv"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
@@ -58,12 +59,12 @@ func (s *SuiteRpc) TestReadContract() {
 	addr, receipt := s.deployContractViaMainWallet(types.BaseShardId, contractCode, types.NewUint256(5_000_000))
 	s.Require().True(receipt.Success)
 
-	res, err := s.cli.GetCode(addr.String())
+	res, err := s.cli.GetCode(addr)
 	s.Require().NoError(err)
 	s.NotEmpty(res)
 	s.NotEqual("0x", res)
 
-	res, err = s.cli.GetCode("0x00000000000000000000")
+	res, err = s.cli.GetCode(types.EmptyAddress)
 	s.Require().NoError(err)
 	s.Equal("0x", res)
 }
@@ -107,7 +108,7 @@ func (s *SuiteRpc) TestContract() {
 	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000003", res)
 
 	// Test value transfer
-	balanceBefore, err := s.client.GetBalance(addr, "latest")
+	balanceBefore, err := s.cli.GetBalance(addr)
 	s.Require().NoError(err)
 
 	txHash, err = s.cli.RunContract(wallet, nil, types.NewUint256(100), addr)
@@ -117,8 +118,13 @@ func (s *SuiteRpc) TestContract() {
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
-	balanceAfter, err := s.client.GetBalance(addr, "latest")
+	balanceAfter, err := s.cli.GetBalance(addr)
 	s.Require().NoError(err)
 
-	s.EqualValues(100, balanceBefore.Sub(&balanceAfter.Int, &balanceBefore.Int).Uint64())
+	b1, err := strconv.ParseInt(balanceBefore, 10, 64)
+	s.Require().NoError(err)
+	b2, err := strconv.ParseInt(balanceAfter, 10, 64)
+	s.Require().NoError(err)
+
+	s.EqualValues(100, b2-b1)
 }
