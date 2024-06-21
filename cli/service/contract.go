@@ -11,19 +11,12 @@ import (
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
-	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 )
 
 // GetCode retrieves the contract code at the given address
-func (s *Service) GetCode(contractAddress string) (string, error) {
-	// Define the block number (hardcoded to latest block)
-	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
-
-	// Convert the contract address from string to common.Address
-	address := types.HexToAddress(contractAddress)
-
-	code, err := s.client.GetCode(address, blockNum)
+func (s *Service) GetCode(contractAddress types.Address) (string, error) {
+	code, err := s.client.GetCode(contractAddress, "latest")
 	if err != nil {
 		s.logger.Error().Err(err).Str(logging.FieldRpcMethod, rpc.Eth_getCode).Msg("Failed to get contract code")
 		return "", err
@@ -31,6 +24,18 @@ func (s *Service) GetCode(contractAddress string) (string, error) {
 
 	s.logger.Info().Msgf("Contract code: %x", code)
 	return code.Hex(), nil
+}
+
+// GetBalance retrieves the contract balance at the given address
+func (s *Service) GetBalance(contractAddress types.Address) (string, error) {
+	balance, err := s.client.GetBalance(contractAddress, "latest")
+	if err != nil {
+		s.logger.Error().Err(err).Str(logging.FieldRpcMethod, rpc.Eth_getCode).Msg("Failed to get contract balance")
+		return "", err
+	}
+
+	s.logger.Info().Msgf("Contract balance: %s", balance)
+	return balance.String(), nil
 }
 
 // RunContract runs bytecode on the specified contract address
