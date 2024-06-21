@@ -27,7 +27,7 @@ contract Wallet is NilBase {
         require(success, "Call failed");
     }
 
-    function verifyExternal(uint256 hash, bytes memory signature) external view returns (bool) {
+    function verifyExternal(uint256 hash, bytes calldata signature) external view returns (bool) {
         return Nil.validateSignature(pubkey, hash, signature);
     }
 }
