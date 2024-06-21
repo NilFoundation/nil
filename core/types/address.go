@@ -27,6 +27,7 @@ type Address [AddrSize]byte
 var (
 	EmptyAddress      = Address{}
 	MainWalletAddress = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111111")
+	FaucetAddress     = ShardAndHexToAddress(BaseShardId, "00000000000000000000000000000FA00CE7")
 )
 
 // BytesToAddress returns Address with value b.

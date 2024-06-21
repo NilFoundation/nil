@@ -60,5 +60,5 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 		}
 	}
 
-	return NewRPCReceipt(block, indexes.MessageIndex, receipt, outMessages, outReceipts), nil
+	return NewRPCReceipt(shardId, block, indexes.MessageIndex, receipt, outMessages, outReceipts), nil
 }

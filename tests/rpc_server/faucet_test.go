@@ -6,22 +6,11 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/contracts"
-	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rs/zerolog/log"
 )
-
-func (suite *SuiteRpc) getFaucetAddress() types.Address {
-	suite.T().Helper()
-
-	zeroStateConfig, err := execution.ParseZeroStateConfig(execution.DefaultZeroStateConfig)
-	suite.Require().NoError(err)
-	faucetAddress := zeroStateConfig.GetContractAddress("Faucet")
-	suite.Require().NotNil(faucetAddress)
-	return *faucetAddress
-}
 
 func (suite *SuiteRpc) getWalletConstructorCode(ownerPublicKey []byte) []byte {
 	suite.T().Helper()
@@ -45,13 +34,12 @@ func (suite *SuiteRpc) createWalletViaFaucet(ownerPrivateKey *ecdsa.PrivateKey, 
 	calldata, err := faucetABI.Pack("createWallet", ownerPublicKey, salt.Bytes32(), big.NewInt(value))
 	suite.Require().NoError(err)
 
-	faucetAddress := suite.getFaucetAddress()
-	seqno, err := suite.client.GetTransactionCount(faucetAddress, "latest")
+	seqno, err := suite.client.GetTransactionCount(types.FaucetAddress, "latest")
 	suite.Require().NoError(err)
 
 	msgExternal := &types.ExternalMessage{
 		Seqno: seqno,
-		To:    faucetAddress,
+		To:    types.FaucetAddress,
 		Data:  calldata,
 		Kind:  types.ExecutionMessageKind,
 	}
@@ -62,7 +50,7 @@ func (suite *SuiteRpc) createWalletViaFaucet(ownerPrivateKey *ecdsa.PrivateKey, 
 	suite.waitForReceiptOnShard(types.BaseShardId, resHash)
 
 	walletCode := suite.getWalletConstructorCode(ownerPublicKey)
-	walletAddr := types.CreateAddressForCreate2(faucetAddress, walletCode, salt.Bytes32())
+	walletAddr := types.CreateAddressForCreate2(types.FaucetAddress, walletCode, salt.Bytes32())
 
 	res := suite.waitForReceiptOnShard(types.BaseShardId, resHash)
 
@@ -72,11 +60,10 @@ func (suite *SuiteRpc) createWalletViaFaucet(ownerPrivateKey *ecdsa.PrivateKey, 
 }
 
 func (suite *SuiteRpc) sendViaFaucet(code []byte, ownerPrivateKey *ecdsa.PrivateKey, value types.Uint256) types.Address {
-	faucetAddress := suite.getFaucetAddress()
-	seqno, err := suite.client.GetTransactionCount(faucetAddress, "latest")
+	seqno, err := suite.client.GetTransactionCount(types.FaucetAddress, "latest")
 	suite.Require().NoError(err)
 
-	walletAddress := types.CreateAddress(faucetAddress.ShardId(), code)
+	walletAddress := types.CreateAddress(types.FaucetAddress.ShardId(), code)
 
 	sendMsgInternal := &types.InternalMessagePayload{
 		To:       walletAddress,
@@ -96,7 +83,7 @@ func (suite *SuiteRpc) sendViaFaucet(code []byte, ownerPrivateKey *ecdsa.Private
 
 	sendMsgExternal := &types.ExternalMessage{
 		Seqno: seqno,
-		To:    faucetAddress,
+		To:    types.FaucetAddress,
 		Data:  calldata,
 	}
 	suite.Require().NoError(sendMsgExternal.Sign(ownerPrivateKey)) // We sign the message with our key, Fauсet does not check
@@ -105,17 +92,16 @@ func (suite *SuiteRpc) sendViaFaucet(code []byte, ownerPrivateKey *ecdsa.Private
 	suite.Require().NoError(err)
 
 	res := suite.waitForReceiptOnShard(walletAddress.ShardId(), result)
-	suite.Require().Equal(faucetAddress, res.ContractAddress)
+	suite.Require().Equal(types.FaucetAddress, res.ContractAddress)
 
 	return walletAddress
 }
 
 func (suite *SuiteRpc) withdrawFromFaucet(code []byte, ownerPrivateKey *ecdsa.PrivateKey, value types.Uint256) types.Address {
-	faucetAddress := suite.getFaucetAddress()
-	seqno, err := suite.client.GetTransactionCount(faucetAddress, "latest")
+	seqno, err := suite.client.GetTransactionCount(types.FaucetAddress, "latest")
 	suite.Require().NoError(err)
 
-	walletAddress := types.CreateAddress(faucetAddress.ShardId(), code)
+	walletAddress := types.CreateAddress(types.FaucetAddress.ShardId(), code)
 
 	// Make external message to the Faucet
 	faucetAbi, err := contracts.GetAbi("Faucet")
@@ -125,7 +111,7 @@ func (suite *SuiteRpc) withdrawFromFaucet(code []byte, ownerPrivateKey *ecdsa.Pr
 
 	sendMsgExternal := &types.ExternalMessage{
 		Seqno: seqno,
-		To:    faucetAddress,
+		To:    types.FaucetAddress,
 		Data:  calldata,
 	}
 	suite.Require().NoError(sendMsgExternal.Sign(ownerPrivateKey)) // We sign the message with our key, Fauсet does not check
@@ -134,7 +120,7 @@ func (suite *SuiteRpc) withdrawFromFaucet(code []byte, ownerPrivateKey *ecdsa.Pr
 	suite.Require().NoError(err)
 
 	res := suite.waitForReceiptOnShard(walletAddress.ShardId(), result)
-	suite.Require().Equal(faucetAddress, res.ContractAddress)
+	suite.Require().Equal(types.FaucetAddress, res.ContractAddress)
 
 	return walletAddress
 }

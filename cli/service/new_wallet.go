@@ -11,7 +11,6 @@ import (
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/concurrent"
 	"github.com/NilFoundation/nil/contracts"
-	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 )
@@ -24,17 +23,16 @@ const (
 // TODO: Use a generic constant after adding it.
 var gasPrice = *types.NewUint256(10)
 
-func getFaucetAddress() types.Address {
-	zeroStateConfig, err := execution.ParseZeroStateConfig(execution.DefaultZeroStateConfig)
-	check.PanicIfErr(err)
-	faucetAddress := zeroStateConfig.GetContractAddress("Faucet")
-	check.PanicIfErr(err)
-	return *faucetAddress
-}
-
 func (s *Service) WaitForReceipt(shardId types.ShardId, mshHash common.Hash) (*jsonrpc.RPCReceipt, error) {
 	return concurrent.WaitFor(context.Background(), ReceiptWaitFor, ReceiptWaitTick, func(ctx context.Context) (*jsonrpc.RPCReceipt, error) {
-		return s.client.GetInMessageReceipt(shardId, mshHash)
+		receipt, err := s.client.GetInMessageReceipt(shardId, mshHash)
+		if err != nil {
+			return nil, err
+		}
+		if !receipt.IsComplete() {
+			return nil, nil
+		}
+		return receipt, nil
 	})
 }
 
@@ -69,7 +67,7 @@ func (s *Service) sendViaFaucet(to types.Address, value types.Uint256, privateKe
 		return err
 	}
 
-	from := getFaucetAddress()
+	from := types.FaucetAddress
 	seqno, err := s.client.GetTransactionCount(from, "latest")
 	if err != nil {
 		return err
@@ -94,7 +92,7 @@ func (s *Service) sendViaFaucet(to types.Address, value types.Uint256, privateKe
 		return MessageHashMismatchError{result, msgHash}
 	}
 
-	receipt, err := s.WaitForReceipt(to.ShardId(), sendMsgExternal.Hash())
+	receipt, err := s.WaitForReceipt(from.ShardId(), sendMsgExternal.Hash())
 	if err != nil {
 		return errors.New("error during waiting for receipt")
 	}
@@ -102,9 +100,11 @@ func (s *Service) sendViaFaucet(to types.Address, value types.Uint256, privateKe
 	if receipt == nil {
 		return errors.New("receipt not received")
 	}
+
 	if !receipt.Success {
 		return errors.New("send message processing failed")
 	}
+
 	return nil
 }
 

@@ -6,7 +6,9 @@ import (
 	"strconv"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func (s *SuiteRpc) toJSON(v interface{}) string {
@@ -75,7 +77,7 @@ func (s *SuiteRpc) TestContract() {
 	// Deploy contract
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	deployCode := s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(2))
-	txHash, addrStr, err := s.cli.DeployContract(types.BaseShardId, wallet, deployCode)
+	txHash, addrStr, err := s.cli.DeployContract(wallet.ShardId()+1, wallet, deployCode)
 	s.Require().NoError(err)
 	addr := types.HexToAddress(addrStr)
 
@@ -127,4 +129,25 @@ func (s *SuiteRpc) TestContract() {
 	s.Require().NoError(err)
 
 	s.EqualValues(100, b2-b1)
+}
+
+func (s *SuiteRpc) testNewWalletOnShard(shardId types.ShardId) {
+	s.T().Helper()
+
+	ownerPrivateKey, err := crypto.GenerateKey()
+	s.Require().NoError(err)
+
+	walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(&ownerPrivateKey.PublicKey))
+	expectedAddress := types.CreateAddress(shardId, walletCode)
+	walletAddres, err := s.cli.CreateWallet(shardId, walletCode, *types.NewUint256(0), ownerPrivateKey)
+	s.Require().NoError(err)
+	s.Require().Equal(expectedAddress, walletAddres)
+}
+
+func (s *SuiteRpc) TestNewWalletOnFaucetShard() {
+	s.testNewWalletOnShard(types.FaucetAddress.ShardId())
+}
+
+func (s *SuiteRpc) TestNewWalletOnRandomShard() {
+	s.testNewWalletOnShard(types.FaucetAddress.ShardId() + 1)
 }
