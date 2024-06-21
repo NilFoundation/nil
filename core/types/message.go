@@ -18,6 +18,18 @@ const (
 	RefundMessageKind
 )
 
+func (k MessageKind) String() string {
+	switch k {
+	case ExecutionMessageKind:
+		return "ExecutionMessageKind"
+	case DeployMessageKind:
+		return "DeployMessageKind"
+	case RefundMessageKind:
+		return "RefundMessageKind"
+	}
+	panic("unknown MessageKind")
+}
+
 type Seqno uint64
 
 func (seqno Seqno) Uint64() uint64 {

@@ -106,6 +106,7 @@ type RPCReceipt struct {
 	BlockHash       common.Hash        `json:"blockHash,omitempty"`
 	BlockNumber     types.BlockNumber  `json:"blockNumber,omitempty"`
 	MsgIndex        types.MessageIndex `json:"messageIndex"`
+	ShardId         types.ShardId      `json:"shardId"`
 }
 
 type RPCLog struct {
@@ -207,7 +208,7 @@ func NewRPCLog(
 }
 
 func NewRPCReceipt(
-	block *types.Block, index types.MessageIndex, receipt *types.Receipt, outMessages []common.Hash, outReceipts []*RPCReceipt,
+	shardId types.ShardId, block *types.Block, index types.MessageIndex, receipt *types.Receipt, outMessages []common.Hash, outReceipts []*RPCReceipt,
 ) *RPCReceipt {
 	if block == nil || receipt == nil {
 		return nil
@@ -230,5 +231,6 @@ func NewRPCReceipt(
 		BlockHash:       block.Hash(),
 		BlockNumber:     block.Id,
 		MsgIndex:        index,
+		ShardId:         shardId,
 	}
 }

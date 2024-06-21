@@ -257,7 +257,7 @@ SHARDS:
 
 				dstShardId := msg.To.ShardId()
 				if dstShardId == c.id {
-					sharedLogger.Debug().Msgf("Adding message to %v to shard %v", msg.To, c.id)
+					sharedLogger.Debug().Msgf("Adding %s message to %v to shard %v", msg.Kind, msg.To, c.id)
 					inMsgs = append(inMsgs, msg)
 				} else if c.id != neighborId && c.topology.ShouldPropagateMsg(neighborId, c.id, dstShardId) {
 					// TODO: add inMsgHash support (do we even need it?)

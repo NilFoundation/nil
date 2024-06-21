@@ -29,7 +29,7 @@ func init() {
 	DefaultZeroStateConfig = fmt.Sprintf(`
 contracts:
 - name: Faucet
-  address: 0x000100000000000000000000000000000FA00CE7
+  address: %s
   value: 1000000000000
   contract: Faucet
 - name: MainWallet
@@ -37,7 +37,7 @@ contracts:
   value: 100000000000000
   contract: Wallet
   ctorArgs: [%s]
-`, types.MainWalletAddress.Hex(), hexutil.Encode(MainPublicKey))
+`, types.FaucetAddress.Hex(), types.MainWalletAddress.Hex(), hexutil.Encode(MainPublicKey))
 }
 
 type ContractDescr struct {
