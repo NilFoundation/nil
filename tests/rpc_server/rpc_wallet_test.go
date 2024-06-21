@@ -81,6 +81,32 @@ func (suite *SuiteWalletRpc) TestWallet() {
 	suite.Equal(seqno+1, newSeqno)
 }
 
+func (s *SuiteWalletRpc) TestDeployWithValueNonpayableConstructor() {
+	code, err := contracts.GetCode("tests/Counter")
+	s.Require().NoError(err)
+	abiCalee, err := contracts.GetAbi("tests/Counter")
+	s.Require().NoError(err)
+
+	wallet := types.MainWalletAddress
+	code = s.prepareDefaultDeployBytecode(*abiCalee, code)
+
+	var shardId types.ShardId = 2
+	hash, addr, err := s.client.DeployContract(shardId, wallet, code, types.NewUint256(500_000), execution.MainPrivateKey)
+	s.Require().NoError(err)
+
+	receipt := s.waitForReceipt(wallet.ShardId(), hash)
+	s.Require().True(receipt.Success)
+	s.Require().False(receipt.OutReceipts[0].Success)
+
+	balance, err := s.client.GetBalance(addr, "latest")
+	s.Require().NoError(err)
+	s.EqualValues(0, balance.Uint64())
+
+	code, err = s.client.GetCode(addr, "latest")
+	s.Require().NoError(err)
+	s.Empty(code)
+}
+
 func TestSuiteWalletRpc(t *testing.T) {
 	t.Parallel()
 

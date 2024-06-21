@@ -66,7 +66,7 @@ func (suite *RpcSuite) deployContractViaWallet(
 	suite.Require().True(receipt.Success)
 	suite.Require().Len(receipt.OutReceipts, 1)
 
-	txHash, addr, err := suite.client.DeployContract(shardId, addrFrom, code, key)
+	txHash, addr, err := suite.client.DeployContract(shardId, addrFrom, code, nil, key)
 	suite.Require().NoError(err)
 	suite.Require().Equal(contractAddr, addr)
 

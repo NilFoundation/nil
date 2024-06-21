@@ -289,7 +289,7 @@ func (as *AccountState) AddBalance(amount *uint256.Int, reason tracing.BalanceCh
 	}
 	newBalance := *new(uint256.Int).Add(&as.Balance, amount)
 	logger.Debug().Stringer("address", as.address).Stringer("reason", reason).
-		Msgf("Balance change: adding balance %v + %v = %v", as.Balance, amount, newBalance)
+		Msgf("Balance change: adding balance %v + %v = %v", &as.Balance, amount, &newBalance)
 	as.SetBalance(newBalance)
 }
 
@@ -301,7 +301,7 @@ func (as *AccountState) SubBalance(amount *uint256.Int, reason tracing.BalanceCh
 	}
 	newBalance := *new(uint256.Int).Sub(&as.Balance, amount)
 	logger.Debug().Stringer("address", as.address).Stringer("reason", reason).
-		Msgf("Balance change: withdrawing balance %v - %v = %v", as.Balance, amount, newBalance)
+		Msgf("Balance change: withdrawing balance %v - %v = %v", &as.Balance, amount, &newBalance)
 	as.SetBalance(newBalance)
 }
 
