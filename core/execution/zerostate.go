@@ -8,8 +8,9 @@ import (
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
-	"github.com/NilFoundation/nil/core/crypto"
+	nilcrypto "github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"gopkg.in/yaml.v3"
 )
 
@@ -22,7 +23,7 @@ var DefaultZeroStateConfig string
 
 func init() {
 	var err error
-	MainPrivateKey, MainPublicKey, err = crypto.GenerateKeyPair()
+	MainPrivateKey, MainPublicKey, err = nilcrypto.GenerateKeyPair()
 	check.PanicIfErr(err)
 
 	DefaultZeroStateConfig = fmt.Sprintf(`
@@ -58,7 +59,7 @@ type ZeroStateConfig struct {
 }
 
 func DumpMainKeys(fname string) error {
-	keys := MainKeys{"0x" + crypto.PrivateKeyToEthereumFormat(MainPrivateKey), hexutil.Encode(MainPublicKey)}
+	keys := MainKeys{"0x" + nilcrypto.PrivateKeyToEthereumFormat(MainPrivateKey), hexutil.Encode(MainPublicKey)}
 
 	data, err := yaml.Marshal(&keys)
 	if err != nil {

@@ -10,8 +10,8 @@ import (
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/contracts"
-	"github.com/NilFoundation/nil/core/crypto"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"
 )
 
