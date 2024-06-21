@@ -321,10 +321,10 @@ func (c *Client) GetShardIdList() ([]types.ShardId, error) {
 }
 
 func (c *Client) DeployContract(
-	shardId types.ShardId, address types.Address, bytecode types.Code, value *types.Uint256, pk *ecdsa.PrivateKey,
+	shardId types.ShardId, walletAddress types.Address, bytecode types.Code, value *types.Uint256, pk *ecdsa.PrivateKey,
 ) (common.Hash, types.Address, error) {
 	contractAddr := types.CreateAddress(shardId, bytecode)
-	txHash, err := c.sendMessageViaWallet(address, bytecode, value, contractAddr, pk, true)
+	txHash, err := c.sendMessageViaWallet(walletAddress, bytecode, value, contractAddr, pk, true)
 	if err != nil {
 		return common.EmptyHash, types.EmptyAddress, err
 	}
@@ -332,21 +332,15 @@ func (c *Client) DeployContract(
 }
 
 func (c *Client) SendMessageViaWallet(
-	address types.Address, bytecode types.Code, value *types.Uint256, contractAddress types.Address, pk *ecdsa.PrivateKey,
+	walletAddress types.Address, bytecode types.Code, value *types.Uint256, contractAddress types.Address, pk *ecdsa.PrivateKey,
 ) (common.Hash, error) {
-	return c.sendMessageViaWallet(address, bytecode, value, contractAddress, pk, false)
+	return c.sendMessageViaWallet(walletAddress, bytecode, value, contractAddress, pk, false)
 }
 
 // RunContract runs bytecode on the specified contract address
 func (c *Client) sendMessageViaWallet(
-	address types.Address, bytecode types.Code, value *types.Uint256, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
+	walletAddress types.Address, bytecode types.Code, value *types.Uint256, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
 ) (common.Hash, error) {
-	// Get the sequence number for the wallet
-	seqno, err := c.GetTransactionCount(address, "latest")
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
 	var kind types.MessageKind
 	if isDeploy {
 		kind = types.DeployMessageKind
@@ -386,17 +380,31 @@ func (c *Client) sendMessageViaWallet(
 		return common.EmptyHash, err
 	}
 
+	return c.SendExternalMessage(calldataExt, walletAddress, pk)
+}
+
+func (c *Client) SendExternalMessage(
+	bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey,
+) (common.Hash, error) {
+	// Get the sequence number for the wallet
+	seqno, err := c.GetTransactionCount(contractAddress, "latest")
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
 	// Create the message with the bytecode to run
 	extMsg := &types.ExternalMessage{
-		To:    address,
-		Data:  calldataExt,
+		To:    contractAddress,
+		Data:  bytecode,
 		Seqno: seqno,
 	}
 
 	// Sign the message with the private key
-	err = extMsg.Sign(pk)
-	if err != nil {
-		return common.EmptyHash, err
+	if pk != nil {
+		err = extMsg.Sign(pk)
+		if err != nil {
+			return common.EmptyHash, err
+		}
 	}
 
 	// Send the raw transaction
@@ -404,7 +412,6 @@ func (c *Client) sendMessageViaWallet(
 	if err != nil {
 		return common.EmptyHash, err
 	}
-
 	return txHash, nil
 }
 

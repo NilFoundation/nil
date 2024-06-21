@@ -16,6 +16,7 @@ func GetCommand(cfg *config.Config) *cobra.Command {
 	serverCmd.AddCommand(GetCallCommand(cfg))
 	serverCmd.AddCommand(GetDeployCommand(cfg))
 	serverCmd.AddCommand(GetSendCommand(cfg))
+	serverCmd.AddCommand(GetSendExternalMessageCommand(cfg))
 	serverCmd.AddCommand(GetTransferCommand(cfg))
 
 	return serverCmd
