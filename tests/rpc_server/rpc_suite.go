@@ -3,11 +3,15 @@ package rpctest
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"time"
 
 	"github.com/NilFoundation/nil/client"
+	rpc_client "github.com/NilFoundation/nil/client/rpc"
+	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/logging"
+	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
@@ -17,7 +21,6 @@ import (
 
 type RpcSuite struct {
 	suite.Suite
-	port      int
 	context   context.Context
 	cancel    context.CancelFunc
 	client    client.Client
@@ -26,6 +29,20 @@ type RpcSuite struct {
 
 func init() {
 	logging.SetupGlobalLogger()
+}
+
+func (suite *RpcSuite) start(cfg *nilservice.Config) {
+	suite.T().Helper()
+
+	suite.shardsNum = cfg.NShards
+	suite.context, suite.cancel = context.WithCancel(context.Background())
+
+	badger, err := db.NewBadgerDbInMemory()
+	suite.Require().NoError(err)
+
+	suite.client = rpc_client.NewClient(fmt.Sprintf("http://127.0.0.1:%d/", cfg.HttpPort))
+	go nilservice.Run(suite.context, cfg, badger)
+	suite.waitZerostate()
 }
 
 func (suite *RpcSuite) waitForReceipt(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {

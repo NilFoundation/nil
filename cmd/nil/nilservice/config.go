@@ -7,4 +7,5 @@ type Config struct {
 	ZeroState            string
 	MainKeysOutPath      string
 	CollatorTickPeriodMs uint32
+	GracefulShutdown     bool
 }

@@ -71,11 +71,14 @@ func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	funcs := []concurrent.Func{
-		func(ctx context.Context) error {
-			concurrent.OnSignal(ctx, cancel, syscall.SIGTERM, syscall.SIGINT)
-			return nil
-		},
+	funcs := []concurrent.Func{}
+	if cfg.GracefulShutdown {
+		funcs = []concurrent.Func{
+			func(ctx context.Context) error {
+				concurrent.OnSignal(ctx, cancel, syscall.SIGTERM, syscall.SIGINT)
+				return nil
+			},
+		}
 	}
 
 	if cfg.CollatorTickPeriodMs == 0 {

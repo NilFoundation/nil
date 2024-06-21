@@ -1,7 +1,6 @@
 package rpctest
 
 import (
-	"context"
 	"encoding/json"
 	"math/big"
 	"strconv"
@@ -14,7 +13,6 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/collate"
-	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
@@ -31,26 +29,16 @@ type SuiteRpc struct {
 }
 
 func (suite *SuiteRpc) SetupTest() {
-	suite.shardsNum = 5
-	suite.context, suite.cancel = context.WithCancel(context.Background())
-
-	badger, err := db.NewBadgerDbInMemory()
-	suite.Require().NoError(err)
-
-	suite.client = rpc_client.NewClient("http://127.0.0.1:8531/")
+	suite.start(&nilservice.Config{
+		NShards:              5,
+		HttpPort:             8531,
+		Topology:             collate.TrivialShardTopologyId,
+		CollatorTickPeriodMs: 100,
+		GracefulShutdown:     false,
+	})
 
 	suite.cli = service.NewService(suite.client, execution.MainPrivateKey)
 	suite.Require().NotNil(suite.cli)
-
-	suite.port = 8531
-	cfg := &nilservice.Config{
-		NShards:              suite.shardsNum,
-		HttpPort:             suite.port,
-		Topology:             collate.TrivialShardTopologyId,
-		CollatorTickPeriodMs: 100,
-	}
-	go nilservice.Run(suite.context, cfg, badger)
-	suite.waitZerostate()
 }
 
 func (suite *SuiteRpc) TearDownTest() {

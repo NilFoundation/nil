@@ -1,18 +1,15 @@
 package rpctest
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"fmt"
 	"testing"
 
-	rpc_client "github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/crypto"
-	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/stretchr/testify/suite"
@@ -32,15 +29,7 @@ type SuiteModifiersRpc struct {
 }
 
 func (s *SuiteModifiersRpc) SetupSuite() {
-	s.shardsNum = 4
-	s.context, s.cancel = context.WithCancel(context.Background())
-
-	badger, err := db.NewBadgerDbInMemory()
-	s.Require().NoError(err)
-
-	s.port = 8532
-	s.client = rpc_client.NewClient(fmt.Sprintf("http://127.0.0.1:%d/", s.port))
-
+	var err error
 	s.walletPrivateKey, s.walletPublicKey, err = crypto.GenerateKeyPair()
 	s.Require().NoError(err)
 
@@ -64,15 +53,14 @@ contracts:
   contract: tests/MessageCheck
 `, s.walletAddr.Hex(), hexutil.Encode(s.walletPublicKey), s.testAddr)
 
-	cfg := &nilservice.Config{
-		NShards:              s.shardsNum,
-		HttpPort:             s.port,
+	s.start(&nilservice.Config{
+		NShards:              4,
+		HttpPort:             8532,
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            zerostate,
 		CollatorTickPeriodMs: 100,
-	}
-	go nilservice.Run(s.context, cfg, badger)
-	s.waitZerostate()
+		GracefulShutdown:     false,
+	})
 }
 
 func (s *SuiteModifiersRpc) TestInternalIncorrect() {

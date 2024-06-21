@@ -40,10 +40,11 @@ func main() {
 	check.PanicIfErr(err)
 
 	cfg := &nilservice.Config{
-		NShards:         *nShards,
-		HttpPort:        *port,
-		Topology:        collate.TrivialShardTopologyId,
-		MainKeysOutPath: "keys.yaml",
+		NShards:          *nShards,
+		HttpPort:         *port,
+		Topology:         collate.TrivialShardTopologyId,
+		MainKeysOutPath:  "keys.yaml",
+		GracefulShutdown: true,
 	}
 	os.Exit(nilservice.Run(context.Background(), cfg, database,
 		func(ctx context.Context) error {
