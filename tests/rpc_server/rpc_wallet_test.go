@@ -7,11 +7,13 @@ import (
 
 	rpc_client "github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -105,6 +107,28 @@ func (s *SuiteWalletRpc) TestDeployWithValueNonpayableConstructor() {
 	code, err = s.client.GetCode(addr, "latest")
 	s.Require().NoError(err)
 	s.Empty(code)
+}
+
+func (s *SuiteRpc) TestDeployWalletWithValue() {
+	pk, err := crypto.GenerateKey()
+	s.Require().NoError(err)
+
+	pub := crypto.CompressPubkey(&pk.PublicKey)
+	walletCode := contracts.PrepareDefaultWalletForOwnerCode(pub)
+	deployCode := types.BuildDeployPayload(walletCode, common.EmptyHash)
+
+	hash, address, err := s.client.DeployContract(
+		types.BaseShardId, types.MainWalletAddress, types.Code(deployCode), types.NewUint256(500_000), execution.MainPrivateKey,
+	)
+	s.Require().NoError(err)
+
+	receipt := s.waitForReceiptOnShard(types.MainWalletAddress.ShardId(), hash)
+	s.Require().True(receipt.Success)
+	s.Require().True(receipt.OutReceipts[0].Success)
+
+	value, err := s.client.GetBalance(address, "latest")
+	s.Require().NoError(err)
+	s.EqualValues(500_000, value.Uint64())
 }
 
 func TestSuiteWalletRpc(t *testing.T) {

@@ -10,7 +10,7 @@ contract Wallet is NilBase {
 
     receive() external payable {}
 
-    constructor(bytes memory _pubkey) {
+    constructor(bytes memory _pubkey) payable {
         pubkey = _pubkey;
     }
 
