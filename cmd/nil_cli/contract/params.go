@@ -7,6 +7,7 @@ import (
 const (
 	abiFlag     = "abi"
 	amountFlag  = "amount"
+	noSignFlag  = "no-sign"
 	saltFlag    = "salt"
 	shardIdFlag = "shard-id"
 )
@@ -14,8 +15,9 @@ const (
 var params = &contractParams{}
 
 type contractParams struct {
-	salt    types.Uint256
-	shardId types.ShardId
 	abiPath string
 	amount  types.Uint256
+	noSign  bool
+	salt    types.Uint256
+	shardId types.ShardId
 }

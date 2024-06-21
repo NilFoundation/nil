@@ -77,7 +77,7 @@ func (s *SuiteRpc) TestContract() {
 	// Deploy contract
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	deployCode := s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(2))
-	txHash, addrStr, err := s.cli.DeployContract(wallet.ShardId()+1, wallet, deployCode)
+	txHash, addrStr, err := s.cli.DeployContract(wallet.ShardId()+1, wallet, deployCode, nil)
 	s.Require().NoError(err)
 	addr := types.HexToAddress(addrStr)
 
@@ -150,4 +150,45 @@ func (s *SuiteRpc) TestNewWalletOnFaucetShard() {
 
 func (s *SuiteRpc) TestNewWalletOnRandomShard() {
 	s.testNewWalletOnShard(types.FaucetAddress.ShardId() + 1)
+}
+
+func (s *SuiteRpc) TestSendExternalMessage() {
+	wallet := types.MainWalletAddress
+
+	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/external_increment.sol"), "ExternalIncrementer")
+	deployCode := s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(2))
+	txHash, addrStr, err := s.cli.DeployContract(types.BaseShardId, wallet, deployCode, types.NewUint256(10_000_000))
+	s.Require().NoError(err)
+	addr := types.HexToAddress(addrStr)
+
+	receipt := s.waitForReceiptOnShard(wallet.ShardId(), common.HexToHash(txHash))
+	s.Require().True(receipt.Success)
+	s.Require().True(receipt.OutReceipts[0].Success)
+
+	balance, err := s.cli.GetBalance(addr)
+	s.Require().NoError(err)
+	s.Equal("10000000", balance)
+
+	getCalldata, err := abi.Pack("get")
+	s.Require().NoError(err)
+
+	// Get current value
+	res, err := s.cli.CallContract(addr, getCalldata)
+	s.Require().NoError(err)
+	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000002", res)
+
+	// Call contract method
+	calldata, err := abi.Pack("increment", big.NewInt(123))
+	s.Require().NoError(err)
+
+	txHash, err = s.cli.SendExternalMessage(calldata, addr, true)
+	s.Require().NoError(err)
+
+	receipt = s.waitForReceiptOnShard(addr.ShardId(), common.HexToHash(txHash))
+	s.Require().True(receipt.Success)
+
+	// Get updated value
+	res, err = s.cli.CallContract(addr, getCalldata)
+	s.Require().NoError(err)
+	s.Equal("0x000000000000000000000000000000000000000000000000000000000000007d", res)
 }

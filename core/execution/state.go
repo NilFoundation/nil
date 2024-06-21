@@ -841,7 +841,7 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 func (es *ExecutionState) HandleRefundMessage(_ context.Context, message *types.Message) error {
 	err := es.AddBalance(message.To, &message.Value.Int, tracing.BalanceIncreaseRefund)
 	es.AddReceipt(0, err)
-	logger.Debug().Err(err).Msgf("Refunded %v to %v", message.Value.Int, message.To)
+	logger.Debug().Err(err).Msgf("Refunded %v to %v", &message.Value.Int, message.To)
 	return err
 }
 

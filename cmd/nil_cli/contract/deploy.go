@@ -90,7 +90,7 @@ func runDeploy(_ *cobra.Command, args []string, cfg *config.Config) error {
 		}
 	}
 
-	_, _, err = service.DeployContract(params.shardId, cfg.Address, bytecode)
+	_, _, err = service.DeployContract(params.shardId, cfg.Address, bytecode, nil)
 	if err != nil {
 		return err
 	}
