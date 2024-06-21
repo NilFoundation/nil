@@ -17,7 +17,7 @@ func (s *SuiteRpc) TestRpcBlockContent() {
 	s.Require().NoError(err)
 
 	m := s.prepareDefaultDeployBytecode(*abi, code)
-	hash, _, err := s.client.DeployContract(types.BaseShardId, types.MainWalletAddress, m, execution.MainPrivateKey)
+	hash, _, err := s.client.DeployContract(types.BaseShardId, types.MainWalletAddress, m, nil, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	var block *jsonrpc.RPCBlock

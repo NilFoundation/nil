@@ -50,7 +50,7 @@ func main() {
 
 	var addresses []types.Address
 	for i := 1; i < nShards+1; i++ {
-		txHashCaller, addr, err := client.DeployContract(types.ShardId(i), types.MainWalletAddress, hexutil.FromHex(IncrementContractCode), execution.MainPrivateKey)
+		txHashCaller, addr, err := client.DeployContract(types.ShardId(i), types.MainWalletAddress, hexutil.FromHex(IncrementContractCode), nil, execution.MainPrivateKey)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error during deploy contract")
 		}

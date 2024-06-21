@@ -51,7 +51,7 @@ func (s *Service) RunContract(wallet types.Address, bytecode []byte, value *type
 
 // DeployContract deploys a new smart contract with the given bytecode
 func (s *Service) DeployContract(shardId types.ShardId, wallet types.Address, bytecode []byte) (string, string, error) {
-	txHash, contractAddr, err := s.client.DeployContract(shardId, wallet, bytecode, s.privateKey)
+	txHash, contractAddr, err := s.client.DeployContract(shardId, wallet, bytecode, nil, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
 		return "", "", err

@@ -321,10 +321,10 @@ func (c *Client) GetShardIdList() ([]types.ShardId, error) {
 }
 
 func (c *Client) DeployContract(
-	shardId types.ShardId, address types.Address, bytecode types.Code, pk *ecdsa.PrivateKey,
+	shardId types.ShardId, address types.Address, bytecode types.Code, value *types.Uint256, pk *ecdsa.PrivateKey,
 ) (common.Hash, types.Address, error) {
 	contractAddr := types.CreateAddress(shardId, bytecode)
-	txHash, err := c.sendMessageViaWallet(address, bytecode, types.NewUint256(0), contractAddr, pk, true)
+	txHash, err := c.sendMessageViaWallet(address, bytecode, value, contractAddr, pk, true)
 	if err != nil {
 		return common.EmptyHash, types.EmptyAddress, err
 	}

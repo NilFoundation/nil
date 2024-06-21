@@ -30,6 +30,6 @@ type Client interface {
 	GetBalance(address types.Address, blockId any) (*types.Uint256, error)
 	GetShardIdList() ([]types.ShardId, error)
 
-	DeployContract(shardId types.ShardId, address types.Address, bytecode types.Code, pk *ecdsa.PrivateKey) (common.Hash, types.Address, error)
+	DeployContract(shardId types.ShardId, address types.Address, bytecode types.Code, value *types.Uint256, pk *ecdsa.PrivateKey) (common.Hash, types.Address, error)
 	SendMessageViaWallet(address types.Address, bytecode types.Code, value *types.Uint256, contractAddress types.Address, pk *ecdsa.PrivateKey) (common.Hash, error)
 }

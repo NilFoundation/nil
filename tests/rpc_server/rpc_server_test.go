@@ -146,7 +146,7 @@ func (suite *SuiteRpc) loadContract(path string, name string) (types.Code, abi.A
 	return code, abi
 }
 
-func (s *SuiteRpc) prepareDefaultDeployBytecode(abi abi.ABI, code []byte, args ...any) []byte {
+func (s *RpcSuite) prepareDefaultDeployBytecode(abi abi.ABI, code []byte, args ...any) []byte {
 	s.T().Helper()
 
 	constructor, err := abi.Pack("", args...)
@@ -181,7 +181,7 @@ func (s *SuiteRpc) TestRpcDeployToMainShardViaMainWallet() {
 	code, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	code = s.prepareDefaultDeployBytecode(abi, code, big.NewInt(0))
 
-	txHash, _, err := s.client.DeployContract(types.MasterShardId, types.MainWalletAddress, code, execution.MainPrivateKey)
+	txHash, _, err := s.client.DeployContract(types.MasterShardId, types.MainWalletAddress, code, nil, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), txHash)
@@ -276,7 +276,7 @@ func (s *SuiteRpc) TestEmptyDeployPayload() {
 	wallet := types.MainWalletAddress
 
 	// Deploy contract with invalid payload
-	hash, _, err := s.client.DeployContract(types.BaseShardId, wallet, nil, execution.MainPrivateKey)
+	hash, _, err := s.client.DeployContract(types.BaseShardId, wallet, nil, nil, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceiptOnShard(wallet.ShardId(), hash)

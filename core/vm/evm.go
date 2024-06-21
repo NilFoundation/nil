@@ -439,9 +439,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, v
 	// Above, we revert to the snapshot and consume any gas remaining.
 	// Additionally, this also counts for code storage gas errors.
 	if err != nil {
-		if evm.StateDB.RevertToSnapshot(snapshot); err != nil {
-			panic(err)
-		}
+		evm.StateDB.RevertToSnapshot(snapshot)
 		if !errors.Is(err, ErrExecutionReverted) {
 			contract.UseGas(contract.Gas, evm.Config.Tracer, tracing.GasChangeCallFailedExecution)
 		}
