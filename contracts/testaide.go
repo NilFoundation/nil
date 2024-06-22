@@ -10,41 +10,38 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const fileNameCounter = "tests/Counter"
+const (
+	FileNameCounter      = "tests/Counter"
+	FileNameMessageCheck = "tests/MessageCheck"
+)
 
-func NewCounterDeployMessage(t *testing.T, shardId types.ShardId, from types.Address, seqno types.Seqno) *types.Message {
+func CounterDeployPayload(t *testing.T) types.DeployPayload {
 	t.Helper()
 
-	code, err := GetCode(fileNameCounter)
+	code, err := GetCode(FileNameCounter)
 	require.NoError(t, err)
-
-	data := types.BuildDeployPayload(code, common.EmptyHash).Bytes()
-	return &types.Message{
-		Kind:     types.DeployMessageKind,
-		From:     from,
-		To:       types.CreateAddress(shardId, data),
-		Data:     data,
-		Seqno:    seqno,
-		GasLimit: *types.NewUint256(100000),
-	}
+	return types.BuildDeployPayload(code, common.EmptyHash)
 }
 
-func NewCounterExecuteMessage(t *testing.T, shardId types.ShardId, from types.Address, seqno types.Seqno) *types.Message {
+func NewCallData(t *testing.T, fileName, methodName string, args ...any) []byte {
 	t.Helper()
 
-	code, err := GetCode(fileNameCounter)
+	abiCallee, err := GetAbi(fileName)
 	require.NoError(t, err)
-	abiCallee, err := GetAbi(fileNameCounter)
-	require.NoError(t, err)
-	callData, err := abiCallee.Pack("add", int32(11))
+	callData, err := abiCallee.Pack(methodName, args...)
 	require.NoError(t, err)
 
-	return &types.Message{
-		Kind:     types.ExecutionMessageKind,
-		From:     from,
-		To:       types.CreateAddress(shardId, types.BuildDeployPayload(code, common.EmptyHash).Bytes()),
-		Data:     callData,
-		Seqno:    seqno,
-		GasLimit: *types.NewUint256(100000),
-	}
+	return callData
+}
+
+func NewCounterAddCallData(t *testing.T, value int32) []byte {
+	t.Helper()
+
+	return NewCallData(t, FileNameCounter, "add", value)
+}
+
+func NewCounterGetCallData(t *testing.T) []byte {
+	t.Helper()
+
+	return NewCallData(t, FileNameCounter, "get")
 }

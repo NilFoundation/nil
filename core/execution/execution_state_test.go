@@ -118,14 +118,12 @@ func (suite *SuiteExecutionState) TestExecState() {
 func (suite *SuiteExecutionState) TestDeployAndCall() {
 	shardId := types.ShardId(5)
 
+	payload := contracts.CounterDeployPayload(suite.T())
+	addrWallet := types.CreateAddress(shardId, payload.Bytes())
+
 	tx, err := suite.db.CreateRwTx(suite.ctx)
 	suite.Require().NoError(err)
 	defer tx.Rollback()
-
-	code, err := contracts.GetCode("tests/Counter")
-	suite.Require().NoError(err)
-
-	addrWallet := types.CreateAddress(shardId, code)
 
 	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
@@ -135,8 +133,7 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 		suite.Require().NoError(err)
 		suite.EqualValues(0, seqno)
 
-		Deploy(suite.T(), suite.ctx, es, types.BuildDeployPayload(code, common.EmptyHash),
-			shardId, types.Address{}, 0)
+		Deploy(suite.T(), suite.ctx, es, payload, shardId, types.Address{}, 0)
 
 		seqno, err = es.GetSeqno(addrWallet)
 		suite.Require().NoError(err)
@@ -144,8 +141,8 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 	})
 
 	suite.Run("Execute", func() {
-		_, _, err := es.HandleExecutionMessage(suite.ctx,
-			contracts.NewCounterExecuteMessage(suite.T(), shardId, addrWallet, 1))
+		_, _, err := es.HandleExecutionMessage(suite.ctx, NewExecutionMessage(addrWallet, addrWallet, 1,
+			contracts.NewCounterAddCallData(suite.T(), 47)))
 		suite.Require().NoError(err)
 
 		seqno, err := es.GetSeqno(addrWallet)

@@ -35,9 +35,9 @@ func (s *SuiteModifiersRpc) SetupSuite() {
 
 	s.walletAddr, err = contracts.CalculateAddress("Wallet", 2, []any{s.walletPublicKey}, nil)
 	s.Require().NoError(err)
-	s.testAddr, err = contracts.CalculateAddress("tests/MessageCheck", 1, nil, nil)
+	s.testAddr, err = contracts.CalculateAddress(contracts.FileNameMessageCheck, 1, nil, nil)
 	s.Require().NoError(err)
-	s.abi, err = contracts.GetAbi("tests/MessageCheck")
+	s.abi, err = contracts.GetAbi(contracts.FileNameMessageCheck)
 	s.Require().NoError(err)
 
 	zerostate := fmt.Sprintf(`
