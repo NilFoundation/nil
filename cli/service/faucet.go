@@ -45,11 +45,12 @@ func (e MessageHashMismatchError) Error() string {
 	return fmt.Sprintf("Unexpected sentmessage hash %s, expected %s", e.actual, e.expected)
 }
 
-func (s *Service) sendViaFaucet(to types.Address, value types.Uint256, privateKey *ecdsa.PrivateKey) error {
+func (s *Service) TopUpViaFaucet(contractAddress types.Address, amount *types.Uint256) error {
 	gasLimit := *types.NewUint256(100_000)
+	value := *amount
 	value.Add(&value.Int, types.NewUint256(0).Mul(&gasLimit.Int, &gasPrice.Int))
 	sendMsgInternal := &types.InternalMessagePayload{
-		To:       to,
+		To:       contractAddress,
 		Value:    value,
 		GasLimit: gasLimit,
 		Kind:     types.ExecutionMessageKind,
@@ -78,10 +79,6 @@ func (s *Service) sendViaFaucet(to types.Address, value types.Uint256, privateKe
 		To:    from,
 		Data:  calldata,
 	}
-	err = sendMsgExternal.Sign(privateKey) // From should accept our signature
-	if err != nil {
-		return err
-	}
 
 	result, err := s.client.SendMessage(sendMsgExternal)
 	if err != nil {
@@ -104,6 +101,8 @@ func (s *Service) sendViaFaucet(to types.Address, value types.Uint256, privateKe
 	if !receipt.Success {
 		return errors.New("send message processing failed")
 	}
+
+	s.logger.Info().Msgf("Contract %s balance is topped up by %s", contractAddress, amount)
 
 	return nil
 }
@@ -157,7 +156,7 @@ func (s *Service) CreateWallet(shardId types.ShardId, code types.Code, salt type
 	deployGasLimit := *types.NewUint256(500_000)
 	value := types.NewUint256(0)
 	value.Mul(&deployGasLimit.Int, &gasPrice.Int)
-	err := s.sendViaFaucet(walletAddress, *value, ownerPrivateKey)
+	err := s.TopUpViaFaucet(walletAddress, value)
 	if err != nil {
 		return types.EmptyAddress, err
 	}
