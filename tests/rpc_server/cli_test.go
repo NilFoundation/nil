@@ -138,7 +138,8 @@ func (s *SuiteRpc) testNewWalletOnShard(shardId types.ShardId) {
 	s.Require().NoError(err)
 
 	walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(&ownerPrivateKey.PublicKey))
-	expectedAddress := types.CreateAddress(shardId, walletCode)
+	code := types.BuildDeployPayload(walletCode, common.EmptyHash)
+	expectedAddress := types.CreateAddress(shardId, code)
 	walletAddres, err := s.cli.CreateWallet(shardId, walletCode, *types.NewUint256(0), ownerPrivateKey)
 	s.Require().NoError(err)
 	s.Require().Equal(expectedAddress, walletAddres)

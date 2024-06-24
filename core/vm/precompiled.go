@@ -17,18 +17,27 @@
 package vm
 
 import (
-	"bytes"
+	"errors"
+	"fmt"
 	"math/big"
+	"reflect"
 	"slices"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
+	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 	"github.com/rs/zerolog/log"
 )
+
+func init() {
+	check.PanicIfNot(eth_common.AddressLength == types.AddrSize)
+}
 
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
 // requires a deterministic gas count based on the input size of the Run method of the
@@ -54,6 +63,8 @@ var (
 	AsyncCallAddress       = types.BytesToAddress([]byte{0xfd})
 	VerifySignatureAddress = types.BytesToAddress([]byte{0xfe})
 	CheckIsInternalAddress = types.BytesToAddress([]byte{0xff})
+	MintCurrencyAddress    = types.BytesToAddress([]byte{0xd0})
+	CurrencyBalanceAddress = types.BytesToAddress([]byte{0xd1})
 )
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -84,6 +95,8 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	AsyncCallAddress:       &asyncCall{},
 	VerifySignatureAddress: &verifySignature{},
 	CheckIsInternalAddress: &checkIsInternal{},
+	MintCurrencyAddress:    &mintCurrency{},
+	CurrencyBalanceAddress: &currencyBalance{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -198,37 +211,89 @@ func (c *asyncCall) RequiredGas([]byte) uint64 {
 	return ForwardFee
 }
 
-func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+func convertGethAddress(addrGeth any) (types.Address, error) {
+	dstGo, ok := addrGeth.(eth_common.Address)
+	if !ok {
+		return types.EmptyAddress, fmt.Errorf("dst is not a common.Address: %v", addrGeth)
+	}
+	return types.BytesToAddress(dstGo.Bytes()), nil
+}
+
+func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) (res []byte, err error) {
 	if readOnly {
 		return nil, ErrWriteProtection
 	}
 
-	if len(input) < 32*7 {
-		return nil, ErrInvalidInputLength
+	abi, err := contracts.GetAbi("Precompile")
+	if err != nil {
+		return nil, err
+	}
+	method, ok := abi.Methods["precompileAsyncCall"]
+	if !ok {
+		return nil, errors.New("'precompileAsyncCall' method not found in 'Precompile' class")
 	}
 
-	deploy := !bytes.Equal(input[:32], common.EmptyHash.Bytes())
-	input = input[32:]
-
-	dst := types.BytesToAddress(input[32-types.AddrSize : 32])
-	input = input[32:]
-
-	refundTo := types.BytesToAddress(input[32-types.AddrSize : 32])
-	input = input[32:]
-
-	bounceTo := types.BytesToAddress(input[32-types.AddrSize : 32])
-	input = input[32:]
-
-	messageGas := uint256.MustFromBig(big.NewInt(0).SetBytes(input[:32]))
-	input = input[64:] // skip gas and dynamic value offset
-
-	inputLength := big.NewInt(0).SetBytes(input[:32])
-	input = input[32:]
-
-	if inputLength.Cmp(big.NewInt(int64(len(input)))) > 0 {
-		return nil, ErrInvalidInputLength
+	// Unpack arguments, skipping the first 4 bytes (function selector)
+	args, err := method.Inputs.Unpack(input[4:])
+	if err != nil {
+		return nil, err
 	}
-	input = input[:inputLength.Int64()]
+
+	// Get `isDeploy` argument
+	deploy, ok := args[0].(bool)
+	if !ok {
+		return nil, errors.New("deploy is not a bool")
+	}
+
+	// Get `dst` argument
+	dst, err := convertGethAddress(args[1])
+	if err != nil {
+		return nil, err
+	}
+
+	// Get `value` argument
+	refundTo, err := convertGethAddress(args[2])
+	if err != nil {
+		return nil, err
+	}
+
+	// Get `value` argument
+	bounceTo, err := convertGethAddress(args[3])
+	if err != nil {
+		return nil, err
+	}
+
+	// Get `messageGas` argument
+	messageGasBig, ok := args[4].(*big.Int)
+	if !ok {
+		return nil, errors.New("messageGas is not a big.Int")
+	}
+	messageGas, _ := uint256.FromBig(messageGasBig)
+
+	// Get `currencies` argument, which is a slice of `CurrencyBalance`
+	slice := reflect.ValueOf(args[5])
+	currencies := make([]types.CurrencyBalance, slice.Len())
+	for i := range slice.Len() {
+		elem := slice.Index(i)
+		id, ok := elem.FieldByIndex([]int{0}).Interface().(*big.Int)
+		if !ok {
+			return nil, errors.New("currencyId is not a big.Int")
+		}
+		currencyId, _ := uint256.FromBig(id)
+		currencies[i].Currency = currencyId.Bytes32()
+
+		balance, ok := elem.FieldByIndex([]int{1}).Interface().(*big.Int)
+		if !ok {
+			return nil, errors.New("balance is not a big.Int")
+		}
+		b, _ := uint256.FromBig(balance)
+		currencies[i].Balance = types.Uint256{Int: *b}
+	}
+
+	// Get `input` argument
+	if input, ok = args[6].([]byte); !ok {
+		return nil, errors.New("input is not a byte slice")
+	}
 
 	var kind types.MessageKind
 	if deploy {
@@ -250,12 +315,16 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 		Kind:     kind,
 		GasLimit: types.Uint256{Int: *messageGas},
 		Value:    types.Uint256{Int: *value},
+		Currency: currencies,
 		To:       dst,
 		RefundTo: refundTo,
 		BounceTo: bounceTo,
 		Data:     slices.Clone(input),
 	}
-	return nil, AddOutInternal(state, caller.Address(), &payload)
+	res = make([]byte, 32)
+	res[31] = 1
+
+	return res, AddOutInternal(state, caller.Address(), &payload)
 }
 
 func AddOutInternal(state StateDB, caller types.Address, payload *types.InternalMessagePayload) error {
@@ -271,8 +340,8 @@ func AddOutInternal(state StateDB, caller types.Address, payload *types.Internal
 	}
 
 	msg := payload.ToMessage(caller, seqno)
-	state.AddOutMessage(msg)
-	return nil
+
+	return state.AddOutMessage(msg)
 }
 
 type verifySignature struct{}
@@ -325,6 +394,101 @@ func (c *checkIsInternal) Run(state StateDB, input []byte, gas uint64, value *ui
 
 	if state.IsInternalMessage() {
 		res[31] = 1
+	}
+
+	return res, nil
+}
+
+type mintCurrency struct{}
+
+func (c *mintCurrency) RequiredGas([]byte) uint64 {
+	return 10
+}
+
+func (c *mintCurrency) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+	res := make([]byte, 32)
+
+	if caller.Address() != types.MinterAddress {
+		return res, nil
+	}
+
+	abi, err := contracts.GetAbi("Precompile")
+	if err != nil {
+		return nil, err
+	}
+	method, ok := abi.Methods["precompileMintCurrency"]
+	if !ok {
+		return nil, errors.New("'precompileMintCurrency' method not found in 'Precompile' class")
+	}
+	args, err := method.Inputs.Unpack(input[4:])
+	if err != nil {
+		return nil, err
+	}
+	currencyIdBig, ok1 := args[0].(*big.Int)
+	amountBig, ok2 := args[1].(*big.Int)
+	if !ok1 || !ok2 {
+		return nil, errors.New("currencyId or amount is not a big.Int")
+	}
+	amount, overflow := uint256.FromBig(amountBig)
+	if overflow {
+		log.Logger.Warn().Msgf("amount overflow: %v", amountBig)
+	}
+
+	var currencyId types.CurrencyId
+	currencyIdBig.FillBytes(currencyId[:])
+
+	if err = state.AddCurrency(caller.Address(), &currencyId, amount); err != nil {
+		return nil, err
+	}
+
+	// Set return data to boolean `true` value
+	res[31] = 1
+
+	return res, nil
+}
+
+type currencyBalance struct{}
+
+func (c *currencyBalance) RequiredGas([]byte) uint64 {
+	return 10
+}
+
+func (c *currencyBalance) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+	res := make([]byte, 32)
+
+	if caller.Address() != types.MinterAddress {
+		return res, nil
+	}
+
+	abi, err := contracts.GetAbi("Precompile")
+	if err != nil {
+		return nil, err
+	}
+	method, ok := abi.Methods["precompileGetCurrencyBalance"]
+	if !ok {
+		return nil, errors.New("'precompileGetCurrencyBalance' method not found in 'Precompile' class")
+	}
+
+	// Unpack arguments, skipping the first 4 bytes (function selector)
+	args, err := method.Inputs.Unpack(input[4:])
+	if err != nil {
+		return nil, err
+	}
+
+	currencyIdBig, ok := args[0].(*big.Int)
+	if !ok {
+		return nil, errors.New("currencyId is not a big.Int")
+	}
+
+	var currencyId types.CurrencyId
+	currencyIdBig.FillBytes(currencyId[:])
+
+	currencies := state.GetCurrencies(caller.Address())
+	for _, cur := range currencies {
+		if cur.Currency == currencyId {
+			r := cur.Balance.Bytes32()
+			return r[:], nil
+		}
 	}
 
 	return res, nil

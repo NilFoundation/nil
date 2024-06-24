@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
+	"github.com/holiman/uint256"
 )
 
 func (api *APIImpl) getSmartContract(tx db.RoTx, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*types.SmartContract, error) {
@@ -58,6 +59,40 @@ func (api *APIImpl) GetBalance(ctx context.Context, address types.Address, block
 		return nil, err
 	}
 	return (*hexutil.Big)(acc.Balance.ToBig()), nil
+}
+
+// GetCurrencies implements eth_getCurrencies. Returns the balance of all currencies of account for a given address.
+func (api *APIImpl) GetCurrencies(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (map[string]*hexutil.Big, error) {
+	shardId := address.ShardId()
+	if err := api.checkShard(shardId); err != nil {
+		return nil, err
+	}
+
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open tx to find account: %w", err)
+	}
+	defer tx.Rollback()
+
+	acc, err := api.getSmartContract(tx, address, blockNrOrHash)
+	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	currencyReader := mpt.NewReaderWithRoot(tx, shardId, db.CurrencyTrieTable, acc.CurrencyRoot)
+
+	res := make(map[string]*hexutil.Big)
+	for kv := range currencyReader.Iterate() {
+		var v uint256.Int
+		if err = v.UnmarshalSSZ(kv.Value); err != nil {
+			return nil, err
+		}
+		key := hexutil.ToHexNoLeadingZeroes(kv.Key)
+		res[key] = (*hexutil.Big)(v.ToBig())
+	}
+	return res, nil
 }
 
 // GetTransactionCount implements eth_getTransactionCount. Returns the number of transactions sent from an address (the nonce / seqno).

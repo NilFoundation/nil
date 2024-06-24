@@ -17,6 +17,10 @@ type StateDB interface {
 	AddBalance(types.Address, *uint256.Int, tracing.BalanceChangeReason) error
 	GetBalance(types.Address) (*uint256.Int, error)
 
+	AddCurrency(to types.Address, currencyId *types.CurrencyId, amount *uint256.Int) error
+	SubCurrency(to types.Address, currencyId *types.CurrencyId, amount *uint256.Int) error
+	GetCurrencies(addr types.Address) []*types.CurrencyBalance
+
 	GetSeqno(types.Address) (types.Seqno, error)
 	SetSeqno(types.Address, types.Seqno) error
 
@@ -65,7 +69,7 @@ type StateDB interface {
 	AddLog(*types.Log)
 
 	// add out message for current transaction
-	AddOutMessage(*types.Message)
+	AddOutMessage(*types.Message) error
 
 	// IsInternalMessage returns true if the message that initiated execution is internal. Synchronous calls inside
 	// one contract are also considered as internal.

@@ -2,6 +2,7 @@ package hexutil
 
 import (
 	"encoding/hex"
+	"math/big"
 
 	"github.com/NilFoundation/nil/common/check"
 )
@@ -48,4 +49,10 @@ func Has0xPrefix(str string) bool {
 func Hex2Bytes(str string) []byte {
 	h, _ := hex.DecodeString(str)
 	return h
+}
+
+func ToHexNoLeadingZeroes(b []byte) string {
+	var g big.Int
+	g.SetBytes(b)
+	return "0x" + g.Text(16)
 }
