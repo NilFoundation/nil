@@ -46,13 +46,13 @@ The easisest way to create a new wallet is to use the =nil; CLI.
 To create a new wallet on the base shard:
 
 ```bash
-nil_cli new-wallet
+nil_cli wallet new
 ```
 
 To create a wallet with a constructor and some arbitrary salt:
 
 ```bash
-nil_cli new-wallet --code CONSTRUCTOR_CODE --salt SALT
+nil_cli wallet new --code CONSTRUCTOR_CODE --salt SALT
 ```
 
 ### Deploying a smart contract via CLI

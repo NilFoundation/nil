@@ -1,4 +1,4 @@
-package new_wallet
+package wallet
 
 import (
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
@@ -13,16 +13,16 @@ const (
 	saltFlag    = "salt"
 )
 
-var params = &walletParams{}
+var params = &walletNewParams{}
 
-type walletParams struct {
+type walletNewParams struct {
 	shardId types.ShardId
 	code    types.Code
 	salt    types.Uint256
 }
 
 // initRawParams validates all parameters to ensure they are correctly set
-func (p *walletParams) initRawParams(cfg *config.Config) error {
+func (p *walletNewParams) initRawParams(cfg *config.Config) error {
 	if len(p.code) == 0 {
 		p.code = contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(&cfg.PrivateKey.PublicKey))
 	}

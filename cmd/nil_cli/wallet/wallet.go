@@ -12,6 +12,7 @@ func GetCommand(cfg *config.Config) *cobra.Command {
 	}
 
 	serverCmd.AddCommand(TopUpCommand(cfg))
+	serverCmd.AddCommand(GetNewCommand(cfg))
 
 	return serverCmd
 }
