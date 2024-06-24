@@ -26,6 +26,7 @@ type Scheduler struct {
 	nShards            int
 	topology           ShardTopology
 	collatorTickPeriod time.Duration
+	traceEVM           bool
 
 	ZeroState       string
 	MainKeysOutPath string
@@ -33,7 +34,7 @@ type Scheduler struct {
 	logger zerolog.Logger
 }
 
-func NewScheduler(txFabric db.DB, pool MsgPool, id types.ShardId, nShards int, topology ShardTopology, collatorTickPeriod time.Duration) *Scheduler {
+func NewScheduler(txFabric db.DB, pool MsgPool, id types.ShardId, nShards int, topology ShardTopology, collatorTickPeriod time.Duration, traceEVM bool) *Scheduler {
 	return &Scheduler{
 		txFabric:           txFabric,
 		pool:               pool,
@@ -41,6 +42,7 @@ func NewScheduler(txFabric db.DB, pool MsgPool, id types.ShardId, nShards int, t
 		nShards:            nShards,
 		topology:           topology,
 		collatorTickPeriod: collatorTickPeriod,
+		traceEVM:           traceEVM,
 		logger: logging.NewLogger("collator").With().
 			Str(logging.FieldShardId, id.String()).
 			Logger(),
@@ -91,7 +93,7 @@ func (s *Scheduler) generateZeroState(ctx context.Context) error {
 			}
 		}
 
-		collator := newCollator(s.id, s.nShards, s.topology, s.pool, s.logger)
+		collator := newCollator(s.id, s.nShards, s.topology, s.traceEVM, s.pool, s.logger)
 		return collator.GenerateZeroState(ctx, s.txFabric, s.ZeroState)
 	}
 	return nil
@@ -101,6 +103,6 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
 
-	collator := newCollator(s.id, s.nShards, s.topology, s.pool, s.logger)
+	collator := newCollator(s.id, s.nShards, s.topology, s.traceEVM, s.pool, s.logger)
 	return collator.GenerateBlock(ctx, s.txFabric)
 }

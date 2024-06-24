@@ -32,6 +32,7 @@ type collator struct {
 	topology    ShardTopology
 	neighborIds []types.ShardId
 	state       types.CollatorState
+	traceEVM    bool
 
 	logger zerolog.Logger
 
@@ -40,7 +41,7 @@ type collator struct {
 	rwTx           db.RwTx
 }
 
-func newCollator(id types.ShardId, nShards int, topology ShardTopology, pool MsgPool, logger zerolog.Logger) *collator {
+func newCollator(id types.ShardId, nShards int, topology ShardTopology, traceEVM bool, pool MsgPool, logger zerolog.Logger) *collator {
 	return &collator{
 		pool:        pool,
 		id:          id,
@@ -48,6 +49,7 @@ func newCollator(id types.ShardId, nShards int, topology ShardTopology, pool Msg
 		logger:      logger,
 		neighborIds: topology.GetNeighbors(id, nShards, true),
 		topology:    topology,
+		traceEVM:    traceEVM,
 	}
 }
 
@@ -134,6 +136,7 @@ func (c *collator) init(ctx context.Context, txFabric db.DB) error {
 	}
 
 	c.executionState, err = execution.NewExecutionStateForShard(c.rwTx, c.id, common.NewTimer())
+	c.executionState.TraceVm = c.traceEVM
 	if err != nil {
 		return err
 	}
