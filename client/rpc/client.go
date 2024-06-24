@@ -14,6 +14,7 @@ import (
 	"github.com/NilFoundation/nil/client"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/assert"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/execution"
@@ -331,6 +332,12 @@ func (c *Client) DeployContract(
 	return txHash, contractAddr, nil
 }
 
+func (c *Client) DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload, pk *ecdsa.PrivateKey) (common.Hash, types.Address, error) {
+	address := types.CreateAddress(shardId, deployPayload)
+	msgHash, err := c.sendExternalMessage(deployPayload.Bytes(), address, pk, true)
+	return msgHash, address, err
+}
+
 func (c *Client) SendMessageViaWallet(
 	walletAddress types.Address, bytecode types.Code, value *types.Uint256, contractAddress types.Address, pk *ecdsa.PrivateKey,
 ) (common.Hash, error) {
@@ -386,6 +393,19 @@ func (c *Client) sendMessageViaWallet(
 func (c *Client) SendExternalMessage(
 	bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey,
 ) (common.Hash, error) {
+	return c.sendExternalMessage(bytecode, contractAddress, pk, false)
+}
+
+func (c *Client) sendExternalMessage(
+	bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
+) (common.Hash, error) {
+	var kind types.MessageKind
+	if isDeploy {
+		kind = types.DeployMessageKind
+	} else {
+		kind = types.ExecutionMessageKind
+	}
+
 	// Get the sequence number for the wallet
 	seqno, err := c.GetTransactionCount(contractAddress, "latest")
 	if err != nil {
@@ -397,6 +417,7 @@ func (c *Client) SendExternalMessage(
 		To:    contractAddress,
 		Data:  bytecode,
 		Seqno: seqno,
+		Kind:  kind,
 	}
 
 	// Sign the message with the private key
@@ -413,6 +434,33 @@ func (c *Client) SendExternalMessage(
 		return common.EmptyHash, err
 	}
 	return txHash, nil
+}
+
+func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount *types.Uint256) (common.Hash, error) {
+	gasLimit := *types.NewUint256(100_000)
+	value := *amount
+	value.Add(&value.Int, types.NewUint256(0).Mul(&gasLimit.Int, execution.GasPrice))
+	sendMsgInternal := &types.InternalMessagePayload{
+		To:       contractAddress,
+		Value:    value,
+		GasLimit: gasLimit,
+		Kind:     types.ExecutionMessageKind,
+	}
+	sendMsgInternalData, err := sendMsgInternal.MarshalSSZ()
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	// Make external message to the Faucet
+	faucetAbi, err := contracts.GetAbi("Faucet")
+	check.PanicIfErr(err)
+	calldata, err := faucetAbi.Pack("send", sendMsgInternalData)
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	from := types.FaucetAddress
+	return c.SendExternalMessage(calldata, from, nil)
 }
 
 func (c *Client) Call(args *jsonrpc.CallArgs) (string, error) {
