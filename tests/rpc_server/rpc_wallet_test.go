@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/suite"
 )
@@ -28,58 +29,49 @@ func (s *SuiteWalletRpc) SetupSuite() {
 	})
 }
 
-func (suite *SuiteWalletRpc) TestWallet() {
-	// Deploy counter contract via main wallet
-	code, err := contracts.GetCode("tests/Counter")
-	suite.Require().NoError(err)
-	abiCalee, err := contracts.GetAbi("tests/Counter")
-	suite.Require().NoError(err)
+func (s *SuiteWalletRpc) TestWallet() {
+	var addrCallee types.Address
 
-	addrCallee, receipt := suite.deployContractViaMainWallet(3, code, types.NewUint256(50_000_000))
-	suite.Require().True(receipt.OutReceipts[0].Success)
+	s.Run("Deploy", func() {
+		var receipt *jsonrpc.RPCReceipt
+		addrCallee, receipt = s.deployContractViaMainWallet(3,
+			contracts.CounterDeployPayload(s.T()).Bytes(),
+			types.NewUint256(50_000_000))
+		s.Require().True(receipt.OutReceipts[0].Success)
+	})
 
-	var calldata []byte
+	s.Run("Call", func() {
+		receipt := s.sendMessageViaWallet(types.MainWalletAddress, addrCallee, execution.MainPrivateKey,
+			contracts.NewCounterAddCallData(s.T(), 11))
+		s.Require().True(receipt.OutReceipts[0].Success)
+	})
 
-	// Call `Counter::add` method via main wallet
-	calldata, err = abiCalee.Pack("add", int32(11))
-	suite.Require().NoError(err)
+	s.Run("Check", func() {
+		seqno, err := s.client.GetTransactionCount(addrCallee, "latest")
+		s.Require().NoError(err)
 
-	receipt = suite.sendMessageViaWallet(types.MainWalletAddress, addrCallee, execution.MainPrivateKey, calldata)
-	suite.Require().True(receipt.OutReceipts[0].Success)
+		resHash, err := s.client.SendMessage(&types.ExternalMessage{
+			Data:  contracts.NewCounterGetCallData(s.T()),
+			Seqno: seqno,
+			To:    addrCallee,
+		})
+		s.Require().NoError(err)
 
-	// Call get method
-	seqno, err := suite.client.GetTransactionCount(addrCallee, "latest")
-	suite.Require().NoError(err)
-	calldata, err = abiCalee.Pack("get")
-	suite.Require().NoError(err)
-	messageToSend2 := &types.ExternalMessage{
-		Data:  calldata,
-		Seqno: seqno,
-		To:    addrCallee,
-	}
+		receipt := s.waitForReceipt(addrCallee.ShardId(), resHash)
+		s.Require().True(receipt.Success)
 
-	resHash, err := suite.client.SendMessage(messageToSend2)
-	suite.Require().NoError(err)
-
-	receipt = suite.waitForReceipt(addrCallee.ShardId(), resHash)
-	suite.Require().True(receipt.Success)
-
-	newSeqno, err := suite.client.GetTransactionCount(addrCallee, "latest")
-	suite.Require().NoError(err)
-	suite.Equal(seqno+1, newSeqno)
+		newSeqno, err := s.client.GetTransactionCount(addrCallee, "latest")
+		s.Require().NoError(err)
+		s.Equal(seqno+1, newSeqno)
+	})
 }
 
-func (s *SuiteWalletRpc) TestDeployWithValueNonpayableConstructor() {
-	code, err := contracts.GetCode("tests/Counter")
-	s.Require().NoError(err)
-	abiCalee, err := contracts.GetAbi("tests/Counter")
-	s.Require().NoError(err)
-
+func (s *SuiteWalletRpc) TestDeployWithValueNonPayableConstructor() {
 	wallet := types.MainWalletAddress
-	code = s.prepareDefaultDeployBytecode(*abiCalee, code)
 
-	var shardId types.ShardId = 2
-	hash, addr, err := s.client.DeployContract(shardId, wallet, code, types.NewUint256(500_000), execution.MainPrivateKey)
+	hash, addr, err := s.client.DeployContract(2, wallet,
+		contracts.CounterDeployPayload(s.T()).Bytes(),
+		types.NewUint256(500_000), execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceipt(wallet.ShardId(), hash)
@@ -90,7 +82,7 @@ func (s *SuiteWalletRpc) TestDeployWithValueNonpayableConstructor() {
 	s.Require().NoError(err)
 	s.EqualValues(0, balance.Uint64())
 
-	code, err = s.client.GetCode(addr, "latest")
+	code, err := s.client.GetCode(addr, "latest")
 	s.Require().NoError(err)
 	s.Empty(code)
 }

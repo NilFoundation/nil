@@ -91,6 +91,17 @@ func NewDeployMessage(payload types.DeployPayload,
 	}
 }
 
+func NewExecutionMessage(from, to types.Address, seqno types.Seqno, callData []byte) *types.Message {
+	return &types.Message{
+		Kind:     types.ExecutionMessageKind,
+		From:     from,
+		To:       to,
+		Data:     callData,
+		Seqno:    seqno,
+		GasLimit: *types.NewUint256(100000),
+	}
+}
+
 func Deploy(t *testing.T, ctx context.Context, es *ExecutionState,
 	payload types.DeployPayload, shardId types.ShardId, from types.Address, seqno types.Seqno,
 ) types.Address {
