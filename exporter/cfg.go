@@ -10,8 +10,6 @@ type Cfg struct {
 	ExporterDriver ExportDriver
 	Client         client.Client
 	BlocksChan     chan *BlockMsg
-	ErrorChan      chan error
-	used           bool
 	exportRound    atomic.Uint32
 }
 
