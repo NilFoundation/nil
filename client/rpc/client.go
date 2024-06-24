@@ -43,6 +43,7 @@ const (
 	Eth_getBlockTransactionCountByNumber = "eth_getBlockTransactionCountByNumber"
 	Eth_getBlockTransactionCountByHash   = "eth_getBlockTransactionCountByHash"
 	Eth_getBalance                       = "eth_getBalance"
+	Eth_getCurrencies                    = "eth_getCurrencies"
 	Eth_getShardIdList                   = "eth_getShardIdList"
 )
 
@@ -308,6 +309,27 @@ func (c *Client) GetBalance(address types.Address, blockId any) (*types.Uint256,
 	return balance, err
 }
 
+func (c *Client) GetCurrencies(address types.Address, blockId any) (map[string]*types.Uint256, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return nil, err
+	}
+
+	params := []any{address.String(), transport.BlockNumberOrHash(blockNrOrHash)}
+	res, err := c.call(Eth_getCurrencies, params)
+	if err != nil {
+		return nil, err
+	}
+
+	currencies := make(map[string]*types.Uint256)
+	err = json.Unmarshal(res, &currencies)
+	if err != nil {
+		return nil, err
+	}
+
+	return currencies, err
+}
+
 func (c *Client) GetShardIdList() ([]types.ShardId, error) {
 	res, err := c.call(Eth_getShardIdList, []any{})
 	if err != nil {
@@ -325,7 +347,7 @@ func (c *Client) DeployContract(
 	shardId types.ShardId, walletAddress types.Address, bytecode types.Code, value *types.Uint256, pk *ecdsa.PrivateKey,
 ) (common.Hash, types.Address, error) {
 	contractAddr := types.CreateAddress(shardId, bytecode)
-	txHash, err := c.sendMessageViaWallet(walletAddress, bytecode, value, contractAddr, pk, true)
+	txHash, err := c.sendMessageViaWallet(walletAddress, bytecode, types.NewUint256(100_000), value, []types.CurrencyBalance{}, contractAddr, pk, true)
 	if err != nil {
 		return common.EmptyHash, types.EmptyAddress, err
 	}
@@ -339,14 +361,16 @@ func (c *Client) DeployExternal(shardId types.ShardId, deployPayload types.Deplo
 }
 
 func (c *Client) SendMessageViaWallet(
-	walletAddress types.Address, bytecode types.Code, value *types.Uint256, contractAddress types.Address, pk *ecdsa.PrivateKey,
+	walletAddress types.Address, bytecode types.Code, gasLimit *types.Uint256, value *types.Uint256,
+	currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
 ) (common.Hash, error) {
-	return c.sendMessageViaWallet(walletAddress, bytecode, value, contractAddress, pk, false)
+	return c.sendMessageViaWallet(walletAddress, bytecode, gasLimit, value, currencies, contractAddress, pk, false)
 }
 
 // RunContract runs bytecode on the specified contract address
 func (c *Client) sendMessageViaWallet(
-	walletAddress types.Address, bytecode types.Code, value *types.Uint256, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
+	walletAddress types.Address, bytecode types.Code, gasLimit *types.Uint256, value *types.Uint256,
+	currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
 ) (common.Hash, error) {
 	var kind types.MessageKind
 	if isDeploy {
@@ -359,7 +383,6 @@ func (c *Client) sendMessageViaWallet(
 		value = types.NewUint256(0)
 	}
 
-	gasLimit := types.NewUint256(100_000)
 	totalValue := types.NewUint256(0)
 	totalValue.Int.Mul(&gasLimit.Int, execution.GasPrice)
 	totalValue.Int.Add(&value.Int, &totalValue.Int)
@@ -369,6 +392,7 @@ func (c *Client) sendMessageViaWallet(
 		To:       contractAddress,
 		Value:    *totalValue,
 		GasLimit: *gasLimit,
+		Currency: currencies,
 		Kind:     kind,
 	}
 

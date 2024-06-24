@@ -116,6 +116,14 @@ func HandleMessages(ctx context.Context, roTx db.RoTx, es *execution.ExecutionSt
 		default:
 			panic("unreachable")
 		}
+
+		// If we got this far, the message was successfully executed. So we can transfer the currency.
+		for _, c := range message.Currency {
+			if err = es.AddCurrency(message.To, &c.Currency, &c.Balance.Int); err != nil {
+				sharedLogger.Error().Err(err).Msg("failed to add currency")
+				return err
+			}
+		}
 	}
 
 	return nil

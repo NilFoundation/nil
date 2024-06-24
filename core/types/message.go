@@ -85,13 +85,14 @@ type ExternalMessage struct {
 }
 
 type InternalMessagePayload struct {
-	Kind     MessageKind `json:"kind,omitempty" ch:"kind"`
-	GasLimit Uint256     `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
-	To       Address     `json:"to,omitempty" ch:"to"`
-	RefundTo Address     `json:"refundTo,omitempty" ch:"refundTo"`
-	BounceTo Address     `json:"bounceTo,omitempty" ch:"bounceTo"`
-	Value    Uint256     `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Data     Code        `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	Kind     MessageKind       `json:"kind,omitempty" ch:"kind"`
+	GasLimit Uint256           `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
+	To       Address           `json:"to,omitempty" ch:"to"`
+	RefundTo Address           `json:"refundTo,omitempty" ch:"refundTo"`
+	BounceTo Address           `json:"bounceTo,omitempty" ch:"bounceTo"`
+	Currency []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
+	Value    Uint256           `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Data     Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
 }
 
 type messageDigest struct {
@@ -142,6 +143,7 @@ func (m *InternalMessagePayload) ToMessage(from Address, seqno Seqno) *Message {
 		BounceTo: m.BounceTo,
 		From:     from,
 		Value:    m.Value,
+		Currency: m.Currency,
 		Data:     m.Data,
 		GasLimit: m.GasLimit,
 		Seqno:    seqno,

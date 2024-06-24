@@ -16,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -77,7 +78,8 @@ func (suite *RpcSuite) deployContractViaWallet(
 
 	contractAddr := types.CreateAddress(shardId, code)
 	suite.T().Logf("Deploying contract %v", contractAddr)
-	txHash, err := suite.client.SendMessageViaWallet(addrFrom, types.Code{}, initialAmount, contractAddr, key)
+	txHash, err := suite.client.SendMessageViaWallet(addrFrom, types.Code{}, types.NewUint256(100_000), initialAmount,
+		[]types.CurrencyBalance{}, contractAddr, key)
 	suite.Require().NoError(err)
 	receipt := suite.waitForReceipt(addrFrom.ShardId(), txHash)
 	suite.Require().True(receipt.Success)
@@ -100,12 +102,34 @@ func (suite *RpcSuite) deployContractViaMainWallet(shardId types.ShardId, code [
 func (suite *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey, calldata []byte) *jsonrpc.RPCReceipt {
 	suite.T().Helper()
 
-	txHash, err := suite.client.SendMessageViaWallet(addrFrom, calldata, types.NewUint256(0), addrTo, key)
+	txHash, err := suite.client.SendMessageViaWallet(addrFrom, calldata, types.NewUint256(100_000), types.NewUint256(0),
+		[]types.CurrencyBalance{}, addrTo, key)
 	suite.Require().NoError(err)
 
 	receipt := suite.waitForReceipt(addrFrom.ShardId(), txHash)
 	suite.Require().True(receipt.Success)
 	suite.Require().Len(receipt.OutReceipts, 1)
+
+	return receipt
+}
+
+// sendMessageViaWalletNoCheck sends a message via a wallet contract. Doesn't require the receipt be successful.
+func (suite *RpcSuite) sendMessageViaWalletNoCheck(addrWallet types.Address, addrTo types.Address, key *ecdsa.PrivateKey,
+	calldata []byte, gas *uint256.Int, value *uint256.Int, currencies []types.CurrencyBalance,
+) *jsonrpc.RPCReceipt {
+	suite.T().Helper()
+
+	// Send the raw transaction
+	txHash, err := suite.client.SendMessageViaWallet(addrWallet, calldata, &types.Uint256{Int: *gas},
+		&types.Uint256{Int: *value}, currencies, addrTo, key)
+	suite.Require().NoError(err)
+
+	receipt := suite.waitForReceipt(addrWallet.ShardId(), txHash)
+	// We don't check the receipt for success here, as it can be failed on purpose
+	if receipt.Success {
+		// But if it is successful, we expect exactly one out receipt
+		suite.Require().Len(receipt.OutReceipts, 1)
+	}
 
 	return receipt
 }

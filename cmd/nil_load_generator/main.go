@@ -67,7 +67,9 @@ func main() {
 			logger.Error().Err(err).Msg("Error during get random contract address")
 		}
 
-		_, err = client.SendMessageViaWallet(types.MainWalletAddress, hexutil.FromHex(IncrementCalldata), types.NewUint256(0), addresses[addrNumber.Int64()], execution.MainPrivateKey)
+		_, err = client.SendMessageViaWallet(types.MainWalletAddress, hexutil.FromHex(IncrementCalldata),
+			types.NewUint256(100_000), types.NewUint256(0), []types.CurrencyBalance{}, addresses[addrNumber.Int64()],
+			execution.MainPrivateKey)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error during contract call")
 		}

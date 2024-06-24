@@ -530,6 +530,36 @@ func (as *AccountState) setBalance(amount *uint256.Int) {
 	as.Balance = *amount
 }
 
+func (s *AccountState) SetCurrencyBalance(id *types.CurrencyId, amount *uint256.Int) {
+	prev, err := s.CurrencyTree.Fetch(*id)
+	if err != nil {
+		prev = &types.NewUint256(0).Int
+	}
+	s.db.journal.append(currencyChange{
+		account: &s.address,
+		id:      *id,
+		prev:    prev,
+	})
+	s.setCurrencyBalance(id, amount)
+}
+
+func (s *AccountState) setCurrencyBalance(id *types.CurrencyId, amount *uint256.Int) {
+	check.PanicIfErr(s.CurrencyTree.Update(*id, amount))
+	logger.Debug().
+		Stringer("address", s.address).
+		Hex("id", id[:]).
+		Stringer("amount", amount).
+		Msg("Set balance currency")
+}
+
+func (s *AccountState) GetCurrencyBalance(id *types.CurrencyId) *uint256.Int {
+	res, err := s.CurrencyTree.Fetch(*id)
+	if err != nil {
+		res = uint256.NewInt(0)
+	}
+	return res
+}
+
 func (as *AccountState) SetSeqno(seqno types.Seqno) {
 	as.db.journal.append(seqnoChange{
 		account: &as.address,
@@ -602,11 +632,12 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 	}
 
 	acc := &types.SmartContract{
-		Address:     as.address,
-		Balance:     types.Uint256{Int: as.Balance},
-		StorageRoot: as.StorageTree.RootHash(),
-		CodeHash:    as.CodeHash,
-		Seqno:       as.Seqno,
+		Address:      as.address,
+		Balance:      types.Uint256{Int: as.Balance},
+		StorageRoot:  as.StorageTree.RootHash(),
+		CurrencyRoot: as.CurrencyTree.RootHash(),
+		CodeHash:     as.CodeHash,
+		Seqno:        as.Seqno,
 	}
 
 	if err := db.WriteCode(as.Tx, as.address.ShardId(), as.Code); err != nil {
@@ -768,8 +799,22 @@ func (es *ExecutionState) AddOutMessageForTx(txId common.Hash, msg *types.Messag
 	es.OutMessages[txId] = append(es.OutMessages[txId], msg)
 }
 
-func (es *ExecutionState) AddOutMessage(msg *types.Message) {
+func (es *ExecutionState) AddOutMessage(msg *types.Message) error {
+	acc, err := es.GetAccount(msg.From)
+	if err != nil {
+		return err
+	}
+	for _, currency := range msg.Currency {
+		balance := acc.GetCurrencyBalance(&currency.Currency)
+		if balance.Lt(&currency.Balance.Int) {
+			return errors.New("caller does not have enough currency")
+		}
+		if err := es.SubCurrency(msg.From, &currency.Currency, &currency.Balance.Int); err != nil {
+			return err
+		}
+	}
 	es.AddOutMessageForTx(es.InMessageHash, msg)
+	return nil
 }
 
 func createBounceMethod() abi.Method {
@@ -1057,6 +1102,74 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 	spentValue := new(uint256.Int).Mul(spentGas, GasPrice)
 	account.SubBalance(spentValue, tracing.BalanceDecreaseVerifyExternal)
 	return true, nil
+}
+
+func (es *ExecutionState) AddCurrency(addr types.Address, currencyId *types.CurrencyId, amount *uint256.Int) error {
+	logger.Debug().
+		Stringer("addr", addr).
+		Stringer("amount", amount).
+		Stringer("id", common.Hash(*currencyId)).
+		Msg("Add currency")
+
+	acc, err := es.GetAccount(addr)
+	if err != nil {
+		return err
+	}
+	if acc == nil {
+		return fmt.Errorf("destination account %v not found", addr)
+	}
+
+	balance := acc.GetCurrencyBalance(currencyId)
+	newBalance := new(uint256.Int).Add(balance, amount)
+	acc.SetCurrencyBalance(currencyId, newBalance)
+
+	return nil
+}
+
+func (es *ExecutionState) SubCurrency(addr types.Address, currencyId *types.CurrencyId, amount *uint256.Int) error {
+	logger.Debug().
+		Stringer("addr", addr).
+		Stringer("amount", amount).
+		Stringer("id", common.Hash(*currencyId)).
+		Msg("Sub currency")
+
+	acc, err := es.GetAccount(addr)
+	if err != nil {
+		return err
+	}
+	if acc == nil {
+		return fmt.Errorf("destination account %v not found", addr)
+	}
+
+	balance := acc.GetCurrencyBalance(currencyId)
+	newBalance := new(uint256.Int).Sub(balance, amount)
+	acc.SetCurrencyBalance(currencyId, newBalance)
+
+	return nil
+}
+
+func (es *ExecutionState) GetCurrencies(addr types.Address) []*types.CurrencyBalance {
+	acc, err := es.GetAccount(addr)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to get account")
+		return nil
+	}
+	if acc == nil {
+		return nil
+	}
+
+	res := make([]*types.CurrencyBalance, 0)
+	for kv := range acc.CurrencyTree.Iterate() {
+		var c types.CurrencyBalance
+		c.Currency = types.CurrencyId(kv.Key)
+		if err := c.Balance.UnmarshalSSZ(kv.Value); err != nil {
+			logger.Error().Err(err).Msg("failed to unmarshal currency balance")
+			continue
+		}
+		res = append(res, &c)
+	}
+
+	return res
 }
 
 func (es *ExecutionState) newVm(internal bool) error {

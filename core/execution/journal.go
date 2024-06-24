@@ -69,6 +69,11 @@ type (
 		account *types.Address
 		prev    *uint256.Int
 	}
+	currencyChange struct {
+		account *types.Address
+		id      types.CurrencyId
+		prev    *uint256.Int
+	}
 	seqnoChange struct {
 		account *types.Address
 		prev    types.Seqno
@@ -124,6 +129,14 @@ func (ch balanceChange) revert(s *ExecutionState) {
 	check.PanicIfErr(err)
 	if account != nil {
 		account.setBalance(ch.prev)
+	}
+}
+
+func (ch currencyChange) revert(s *ExecutionState) {
+	account, err := s.GetAccount(*ch.account)
+	check.PanicIfErr(err)
+	if account != nil {
+		account.setCurrencyBalance(&ch.id, ch.prev)
 	}
 }
 

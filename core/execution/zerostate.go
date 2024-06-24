@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
@@ -26,18 +27,31 @@ func init() {
 	MainPrivateKey, MainPublicKey, err = nilcrypto.GenerateKeyPair()
 	check.PanicIfErr(err)
 
-	DefaultZeroStateConfig = fmt.Sprintf(`
+	zerostate := `
 contracts:
 - name: Faucet
-  address: %s
+  address: {{ .FaucetAddress }}
   value: 1000000000000
   contract: Faucet
 - name: MainWallet
-  address: %s
+  address: {{ .MainWalletAddress }}
   value: 100000000000000
   contract: Wallet
-  ctorArgs: [%s]
-`, types.FaucetAddress.Hex(), types.MainWalletAddress.Hex(), hexutil.Encode(MainPublicKey))
+  ctorArgs: [{{ .MainPublicKey }}]
+- name: Minter
+  address: {{ .MinterAddress }}
+  value: 0
+  contract: Minter
+  ctorArgs: [{{ .MainPublicKey }}]
+`
+
+	DefaultZeroStateConfig, err = common.ParseTemplate(zerostate, map[string]interface{}{
+		"FaucetAddress":     types.FaucetAddress.Hex(),
+		"MainWalletAddress": types.MainWalletAddress.Hex(),
+		"MainPublicKey":     hexutil.Encode(MainPublicKey),
+		"MinterAddress":     types.MinterAddress.Hex(),
+	})
+	check.PanicIfErr(err)
 }
 
 type ContractDescr struct {
