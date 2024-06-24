@@ -19,7 +19,6 @@ import (
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -197,15 +196,17 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 		})
 
 		var callData []byte
-		s.Run("GenerateCallData", func() {
+
+		generateAddCallData := func(val int32) {
 			// pack call of Callee::add into message
-			callData, err = calleeAbi.Pack("add", int32(123))
+			callData, err = calleeAbi.Pack("add", val)
 			s.Require().NoError(err)
 
 			messageToSend := &types.InternalMessagePayload{
 				Data:     callData,
 				To:       calleeAddr,
 				RefundTo: callerAddr,
+				BounceTo: callerAddr,
 				Value:    *types.NewUint256(10_000_000),
 				GasLimit: *types.NewUint256(100_004),
 			}
@@ -215,10 +216,14 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			// now call Caller::send_message
 			callData, err = callerAbi.Pack("sendMessage", callData)
 			s.Require().NoError(err)
+		}
+
+		s.Run("GenerateCallData", func() {
+			generateAddCallData(123)
 		})
 
 		var hash common.Hash
-		s.Run("MakeCall", func() {
+		makeCall := func() {
 			callerSeqno, err := s.client.GetTransactionCount(callerAddr, "latest")
 			s.Require().NoError(err)
 			callCallerMethod := &types.ExternalMessage{
@@ -228,7 +233,9 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			}
 			s.Require().NoError(callCallerMethod.Sign(execution.MainPrivateKey))
 			hash = s.sendRawTransaction(callCallerMethod)
-		})
+		}
+
+		s.Run("MakeCall", makeCall)
 
 		s.Run("Check", func() {
 			receipt = s.waitForReceipt(callerAddr.ShardId(), hash)
@@ -237,7 +244,40 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			balance, err := s.client.GetBalance(callerAddr, transport.LatestBlockNumber)
 			s.Require().NoError(err)
 			s.Require().Greater(prevBalance.Uint64(), balance.Uint64())
-			log.Logger.Info().Msgf("Spent %v nil", prevBalance.Uint64()-balance.Uint64())
+			s.T().Logf("Spent %v nil", prevBalance.Uint64()-balance.Uint64())
+		})
+
+		s.Run("GenerateCallDataBounce", func() {
+			generateAddCallData(0)
+		})
+		s.Run("MakeCallBounce", makeCall)
+		s.Run("CheckBounce", func() {
+			receipt = s.waitForReceipt(callerAddr.ShardId(), hash)
+			s.Require().True(receipt.Success)
+
+			getBounceErrName := "get_bounce_err"
+
+			callData, err := callerAbi.Pack(getBounceErrName)
+			s.Require().NoError(err)
+
+			callerSeqno, err := s.client.GetTransactionCount(callerAddr, "latest")
+			s.Require().NoError(err)
+			seqno := hexutil.Uint64(callerSeqno)
+
+			callArgs := &jsonrpc.CallArgs{
+				From:     callerAddr,
+				Data:     callData,
+				To:       callerAddr,
+				Value:    types.NewUint256(0),
+				GasLimit: types.NewUint256(10000),
+				Seqno:    &seqno,
+			}
+			res, err := s.client.Call(callArgs)
+			s.Require().NoError(err)
+			var bounceErr string
+			s.Require().NoError(callerAbi.UnpackIntoInterface(&bounceErr, getBounceErrName, hexutil.FromHex(res)))
+			s.T().Logf("Bounce error: %v", bounceErr)
+			s.Require().Equal("execution reverted", bounceErr)
 		})
 	}
 

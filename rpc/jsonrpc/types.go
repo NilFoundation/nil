@@ -56,7 +56,9 @@ type RPCInMessage struct {
 	GasLimit    types.Uint256           `json:"gasLimit,omitempty"`
 	Hash        common.Hash             `json:"hash"`
 	Seqno       hexutil.Uint64          `json:"seqno"`
-	To          *types.Address          `json:"to"`
+	To          types.Address           `json:"to"`
+	RefundTo    types.Address           `json:"refundTo"`
+	BounceTo    types.Address           `json:"bounceTo"`
 	Index       *hexutil.Uint64         `json:"index"`
 	Value       types.Uint256           `json:"value"`
 	Currency    []types.CurrencyBalance `json:"currency,omitempty"`
@@ -149,7 +151,9 @@ func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types
 		GasLimit:    message.GasLimit,
 		Hash:        hash,
 		Seqno:       seqno,
-		To:          &message.To,
+		To:          message.To,
+		RefundTo:    message.RefundTo,
+		BounceTo:    message.BounceTo,
 		Index:       &msgIndex,
 		Value:       message.Value,
 		ChainID:     message.ChainId,

@@ -15,6 +15,7 @@ import (
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 )
@@ -771,6 +772,52 @@ func (es *ExecutionState) AddOutMessage(msg *types.Message) {
 	es.AddOutMessageForTx(es.InMessageHash, msg)
 }
 
+func createBounceMethod() abi.Method {
+	stringType, err := abi.NewType("string", "", nil)
+	check.PanicIfErr(err)
+	// Parse the method signature: function bounce(string err) external payable returns ()
+	bounceMethod := abi.NewMethod("bounce", "bounce", abi.Function, "external payable", false, true, abi.Arguments{abi.Argument{Name: "err", Type: stringType}}, nil)
+	return bounceMethod
+}
+
+var bounceMethod = createBounceMethod()
+
+func packBounceCall(bounceErr string) ([]byte, error) {
+	// Pack the method call
+	data, err := bounceMethod.Inputs.Pack(bounceErr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack method call: %w", err)
+	}
+
+	// Combine the method ID and the packed arguments
+	methodID := bounceMethod.ID
+	return append(methodID, data...), nil
+}
+
+var BounceGasLimit = types.NewUint256(100_000)
+
+func (es *ExecutionState) sendBounceMessage(msg *types.Message, bounceErr string) error {
+	if msg.BounceTo == types.EmptyAddress {
+		logger.Debug().Stringer(logging.FieldMessageHash, msg.Hash()).Msg("Bounce message not sent, no bounce address")
+		return nil
+	}
+	data, err := packBounceCall(bounceErr)
+	if err != nil {
+		return err
+	}
+	bounceMsg := &types.InternalMessagePayload{
+		To:       msg.BounceTo,
+		Value:    msg.Value,
+		Data:     data,
+		GasLimit: *BounceGasLimit,
+	}
+	if err = vm.AddOutInternal(es, msg.To, bounceMsg); err != nil {
+		return err
+	}
+	logger.Debug().Stringer(logging.FieldMessageFrom, msg.To).Stringer(logging.FieldMessageTo, msg.BounceTo).Msg("Bounce message sent")
+	return nil
+}
+
 func (es *ExecutionState) HandleDeployMessage(
 	_ context.Context, message *types.Message,
 ) (uint64, error) {
@@ -796,6 +843,11 @@ func (es *ExecutionState) HandleDeployMessage(
 	event := logger.Debug().Stringer(logging.FieldMessageTo, addr)
 	if err != nil {
 		event.Err(err).Msg("Contract deployment failed.")
+		if message.Internal {
+			if bounceErr := es.sendBounceMessage(message, err.Error()); bounceErr != nil {
+				return leftOverGas, bounceErr
+			}
+		}
 	} else {
 		event.Msg("Created new contract.")
 	}
@@ -833,6 +885,11 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	ret, leftOverGas, err := es.evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas, &message.Value.Int)
 	if err != nil {
 		logger.Error().Err(err).Msg("execution message failed")
+		if message.Internal {
+			if bounceErr := es.sendBounceMessage(message, err.Error()); bounceErr != nil {
+				return leftOverGas, ret, bounceErr
+			}
+		}
 	}
 	es.AddReceipt(uint32(gas-leftOverGas), err)
 	return leftOverGas, ret, err

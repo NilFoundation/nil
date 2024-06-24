@@ -49,6 +49,13 @@ type SimplePrecompiledContract interface {
 	Run(input []byte) ([]byte, error)
 }
 
+var (
+	SendRawMessageAddress  = types.BytesToAddress([]byte{0xfc})
+	AsyncCallAddress       = types.BytesToAddress([]byte{0xfd})
+	VerifySignatureAddress = types.BytesToAddress([]byte{0xfe})
+	CheckIsInternalAddress = types.BytesToAddress([]byte{0xff})
+)
+
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
 // contracts used in the Prague release.
 var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
@@ -73,10 +80,10 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	types.BytesToAddress([]byte{0x13}): &simple{&bls12381MapG2{}},
 
 	// NilFoundation precompiled contracts
-	types.BytesToAddress([]byte{0xfc}): &sendRawMessage{},
-	types.BytesToAddress([]byte{0xfd}): &asyncCall{},
-	types.BytesToAddress([]byte{0xfe}): &verifySignature{},
-	types.BytesToAddress([]byte{0xff}): &checkIsInternal{},
+	SendRawMessageAddress:  &sendRawMessage{},
+	AsyncCallAddress:       &asyncCall{},
+	VerifySignatureAddress: &verifySignature{},
+	CheckIsInternalAddress: &checkIsInternal{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -113,9 +120,11 @@ func (a *simple) Run(state StateDB, input []byte, gas uint64, value *uint256.Int
 
 type sendRawMessage struct{}
 
+// TODO: Make this dynamically calculated based on the network conditions and current shard gas price
+const ForwardFee uint64 = 1_000
+
 func (c *sendRawMessage) RequiredGas([]byte) uint64 {
-	// TODO: change cost
-	return 0
+	return ForwardFee
 }
 
 func setRefundTo(refundTo *types.Address, msg *types.Message) {
@@ -130,7 +139,23 @@ func setRefundTo(refundTo *types.Address, msg *types.Message) {
 		}
 	}
 	if *refundTo == types.EmptyAddress {
-		log.Logger.Error().Msg("refund address is empty")
+		log.Logger.Warn().Msg("refund address is empty")
+	}
+}
+
+func setBounceTo(bounceTo *types.Address, msg *types.Message) {
+	if msg == nil {
+		return
+	}
+	if *bounceTo == types.EmptyAddress {
+		if msg.BounceTo == types.EmptyAddress {
+			*bounceTo = msg.From
+		} else {
+			*bounceTo = msg.BounceTo
+		}
+	}
+	if *bounceTo == types.EmptyAddress {
+		log.Logger.Warn().Msg("bounce address is empty")
 	}
 }
 
@@ -160,17 +185,17 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uin
 
 	// TODO: We should consider non-refundable messages
 	setRefundTo(&payload.RefundTo, state.GetInMessage())
+	setBounceTo(&payload.BounceTo, state.GetInMessage())
 
 	log.Logger.Debug().Msgf("sendRawMessage to: %s\n", payload.To.Hex())
 
-	return nil, addOutInternal(state, caller.Address(), payload)
+	return nil, AddOutInternal(state, caller.Address(), payload)
 }
 
 type asyncCall struct{}
 
 func (c *asyncCall) RequiredGas([]byte) uint64 {
-	// TODO: change cost
-	return 0
+	return ForwardFee
 }
 
 func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
@@ -178,7 +203,7 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 		return nil, ErrWriteProtection
 	}
 
-	if len(input) < 32*6 {
+	if len(input) < 32*7 {
 		return nil, ErrInvalidInputLength
 	}
 
@@ -189,6 +214,9 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 	input = input[32:]
 
 	refundTo := types.BytesToAddress(input[32-types.AddrSize : 32])
+	input = input[32:]
+
+	bounceTo := types.BytesToAddress(input[32-types.AddrSize : 32])
 	input = input[32:]
 
 	messageGas := uint256.MustFromBig(big.NewInt(0).SetBytes(input[:32]))
@@ -215,6 +243,7 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 
 	// TODO: We should consider non-refundable messages
 	setRefundTo(&refundTo, state.GetInMessage())
+	setBounceTo(&bounceTo, state.GetInMessage())
 
 	// Internal is required for the message
 	payload := types.InternalMessagePayload{
@@ -223,12 +252,13 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 		Value:    types.Uint256{Int: *value},
 		To:       dst,
 		RefundTo: refundTo,
+		BounceTo: bounceTo,
 		Data:     slices.Clone(input),
 	}
-	return nil, addOutInternal(state, caller.Address(), &payload)
+	return nil, AddOutInternal(state, caller.Address(), &payload)
 }
 
-func addOutInternal(state StateDB, caller types.Address, payload *types.InternalMessagePayload) error {
+func AddOutInternal(state StateDB, caller types.Address, payload *types.InternalMessagePayload) error {
 	seqno, err := state.GetSeqno(caller)
 	if err != nil {
 		return err

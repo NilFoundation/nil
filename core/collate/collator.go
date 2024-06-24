@@ -11,7 +11,6 @@ import (
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 	"github.com/rs/zerolog"
 )
 
@@ -72,9 +71,6 @@ func (c *collator) GenerateZeroState(ctx context.Context, txFabric db.DB, zerost
 	return nil
 }
 
-// TODO: Make this dynamically calculated based on the network conditions and current shard gas price
-var ForwardFee = uint256.NewInt(100)
-
 func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 	if err := c.init(ctx, txFabric); err != nil {
 		return err
@@ -101,11 +97,6 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 		return err
 	}
 	for _, msg := range outMsgs {
-		if msg.msg.Value.Cmp(ForwardFee) < 0 {
-			sharedLogger.Warn().Err(errors.New("message can't pay forward fee")).Msgf("discarding message %v", msg.msg)
-			continue
-		}
-		msg.msg.Value.Sub(&msg.msg.Value.Int, ForwardFee)
 		c.executionState.AddOutMessageForTx(msg.inMsgHash, msg.msg)
 	}
 
