@@ -8,4 +8,5 @@ type Config struct {
 	MainKeysOutPath      string
 	CollatorTickPeriodMs uint32
 	GracefulShutdown     bool
+	TraceEVM             bool
 }

@@ -56,7 +56,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	}
 	pool := &MockMsgPool{Msgs: []*types.Message{m}}
 
-	c := newCollator(shardId, 2, new(TrivialShardTopology), pool, logging.NewLogger("collator"))
+	c := newCollator(shardId, 2, new(TrivialShardTopology), false, pool, logging.NewLogger("collator"))
 
 	s.Run("zero-state", func() {
 		s.Require().NoError(c.GenerateZeroState(ctx, s.db, ""))

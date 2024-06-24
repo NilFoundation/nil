@@ -12,7 +12,7 @@ GOTEST = GOPRIVATE="$(GOPRIVATE)" GODEBUG=cgocheck=0 $(GO) test -tags $(BUILD_TA
 default: all
 
 .PHONY: test
-test: compile-contracts
+test: compile-contracts ssz
 	$(GOTEST) $(CMDARGS)
 
 %.cmd:

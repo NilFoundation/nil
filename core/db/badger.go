@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
-	"sync/atomic"
 	"time"
 
 	"github.com/NilFoundation/nil/common/assert"
@@ -27,8 +26,8 @@ type BadgerDBOptions struct {
 }
 
 type BadgerRoTx struct {
-	tx         *badger.Txn
-	Terminated atomic.Bool
+	tx              *badger.Txn
+	cancelTxChecker context.CancelFunc
 }
 
 type BadgerRwTx struct {
@@ -85,9 +84,13 @@ func captureStacktrace() []byte {
 	return stack
 }
 
-func runTxLeakChecker(tx *BadgerRoTx, stack []byte, timeout time.Duration) {
-	time.Sleep(timeout)
-	if !tx.Terminated.Load() {
+func runTxLeakChecker(ctx context.Context, stack []byte, timeout time.Duration) {
+	log.Trace().Ctx(ctx).Msg("Start TX leak checker")
+
+	select {
+	case <-ctx.Done():
+		log.Trace().Ctx(ctx).Msg("TX leak checker cancelled")
+	case <-time.After(timeout):
 		panic(fmt.Sprintf("Transaction wasn't terminated:\n%s", stack))
 	}
 }
@@ -96,8 +99,9 @@ func (db *BadgerDB) CreateRoTx(ctx context.Context) (RoTx, error) {
 	txn := db.db.NewTransaction(false)
 	tx := &BadgerRoTx{tx: txn}
 	if assert.Enable {
+		ctx, tx.cancelTxChecker = context.WithCancel(ctx)
 		stack := captureStacktrace()
-		go runTxLeakChecker(tx, stack, 1*time.Second)
+		go runTxLeakChecker(ctx, stack, 1*time.Second)
 	}
 	return tx, nil
 }
@@ -106,8 +110,9 @@ func (db *BadgerDB) CreateRwTx(ctx context.Context) (RwTx, error) {
 	txn := db.db.NewTransaction(true)
 	tx := &BadgerRwTx{&BadgerRoTx{tx: txn}}
 	if assert.Enable {
+		ctx, tx.cancelTxChecker = context.WithCancel(ctx)
 		stack := captureStacktrace()
-		go runTxLeakChecker(tx.BadgerRoTx, stack, 10*time.Second)
+		go runTxLeakChecker(ctx, stack, 10*time.Second)
 	}
 	return tx, nil
 }
@@ -134,12 +139,16 @@ func (db *BadgerDB) LogGC(ctx context.Context, discardRation float64, gcFrequenc
 }
 
 func (tx *BadgerRwTx) Commit() error {
-	tx.Terminated.Store(true)
+	if assert.Enable {
+		tx.cancelTxChecker()
+	}
 	return tx.tx.Commit()
 }
 
 func (tx *BadgerRoTx) Rollback() {
-	tx.Terminated.Store(true)
+	if assert.Enable {
+		tx.cancelTxChecker()
+	}
 	tx.tx.Discard()
 }
 
