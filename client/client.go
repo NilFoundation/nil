@@ -33,10 +33,13 @@ type Client interface {
 	DeployContract(
 		shardId types.ShardId, walletAddress types.Address, bytecode types.Code, value *types.Uint256, pk *ecdsa.PrivateKey,
 	) (common.Hash, types.Address, error)
+	DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload, pk *ecdsa.PrivateKey) (common.Hash, types.Address, error)
 	SendMessageViaWallet(
 		walletAddress types.Address, bytecode types.Code, value *types.Uint256, contractAddress types.Address, pk *ecdsa.PrivateKey,
 	) (common.Hash, error)
 	SendExternalMessage(
 		bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey,
 	) (common.Hash, error)
+
+	TopUpViaFaucet(contractAddress types.Address, amount *types.Uint256) (common.Hash, error)
 }
