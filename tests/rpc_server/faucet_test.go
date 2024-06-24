@@ -63,7 +63,8 @@ func (suite *SuiteRpc) withdrawFromFaucet(code []byte, ownerPrivateKey *ecdsa.Pr
 	seqno, err := suite.client.GetTransactionCount(types.FaucetAddress, "latest")
 	suite.Require().NoError(err)
 
-	walletAddress := types.CreateAddress(types.FaucetAddress.ShardId(), code)
+	codeTmp := types.BuildDeployPayload(code, common.EmptyHash)
+	walletAddress := types.CreateAddress(types.FaucetAddress.ShardId(), codeTmp)
 
 	// Make external message to the Faucet
 	faucetAbi, err := contracts.GetAbi("Faucet")
@@ -135,7 +136,8 @@ func (suite *SuiteRpc) testDeployContractViaFaucet(withdraw bool) {
 	if withdraw {
 		walletAddr = suite.withdrawFromFaucet(walletCode, userPrivateKey, *types.NewUint256(value))
 	} else {
-		walletAddr = types.CreateAddress(types.FaucetAddress.ShardId(), walletCode)
+		code := types.BuildDeployPayload(walletCode, common.EmptyHash)
+		walletAddr = types.CreateAddress(types.FaucetAddress.ShardId(), code)
 		mshHash, err := suite.client.TopUpViaFaucet(walletAddr, types.NewUint256(value))
 		suite.Require().NoError(err)
 		receipt := suite.waitForReceiptOnShard(walletAddr.ShardId(), mshHash)
