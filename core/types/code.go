@@ -15,9 +15,8 @@ func (c Code) String() string {
 	return string(c)
 }
 
-func (s Code) Clone() common.Clonable {
-	cloned := slices.Clone(s)
-	return &cloned
+func (c Code) Clone() Code {
+	return slices.Clone(c)
 }
 
 func (c Code) Hash() common.Hash {

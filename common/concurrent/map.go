@@ -1,26 +1,26 @@
-package jsonrpc
+package concurrent
 
 import "sync"
 
-type SyncMap[K comparable, T any] struct {
+type Map[K comparable, T any] struct {
 	m  map[K]T
 	mu sync.RWMutex
 }
 
-func NewSyncMap[K comparable, T any]() *SyncMap[K, T] {
-	return &SyncMap[K, T]{
+func NewMap[K comparable, T any]() *Map[K, T] {
+	return &Map[K, T]{
 		m: make(map[K]T),
 	}
 }
 
-func (m *SyncMap[K, T]) Get(k K) (res T, ok bool) {
+func (m *Map[K, T]) Get(k K) (res T, ok bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	res, ok = m.m[k]
 	return res, ok
 }
 
-func (m *SyncMap[K, T]) Put(k K, v T) (T, bool) {
+func (m *Map[K, T]) Put(k K, v T) (T, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	old, ok := m.m[k]
@@ -28,7 +28,7 @@ func (m *SyncMap[K, T]) Put(k K, v T) (T, bool) {
 	return old, ok
 }
 
-func (m *SyncMap[K, T]) Do(k K, fn func(T, bool) (T, bool)) (after T, ok bool) {
+func (m *Map[K, T]) Do(k K, fn func(T, bool) (T, bool)) (after T, ok bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	val, ok := m.m[k]
@@ -39,14 +39,14 @@ func (m *SyncMap[K, T]) Do(k K, fn func(T, bool) (T, bool)) (after T, ok bool) {
 	return nv, ok
 }
 
-func (m *SyncMap[K, T]) DoAndStore(k K, fn func(t T, ok bool) T) (after T, ok bool) {
+func (m *Map[K, T]) DoAndStore(k K, fn func(t T, ok bool) T) (after T, ok bool) {
 	return m.Do(k, func(t T, b bool) (T, bool) {
 		res := fn(t, b)
 		return res, true
 	})
 }
 
-func (m *SyncMap[K, T]) Range(fn func(k K, v T) error) error {
+func (m *Map[K, T]) Range(fn func(k K, v T) error) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	for k, v := range m.m {
@@ -57,7 +57,7 @@ func (m *SyncMap[K, T]) Range(fn func(k K, v T) error) error {
 	return nil
 }
 
-func (m *SyncMap[K, T]) Delete(k K) (t T, deleted bool) {
+func (m *Map[K, T]) Delete(k K) (t T, deleted bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	val, ok := m.m[k]
