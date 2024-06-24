@@ -1,4 +1,4 @@
-package contract
+package wallet
 
 import (
 	"github.com/NilFoundation/nil/core/types"
@@ -7,16 +7,15 @@ import (
 const (
 	abiFlag     = "abi"
 	amountFlag  = "amount"
-	noSignFlag  = "no-sign"
 	saltFlag    = "salt"
 	shardIdFlag = "shard-id"
 )
 
-var params = &contractParams{}
+var params = &walletParams{}
 
-type contractParams struct {
+type walletParams struct {
 	abiPath string
-	noSign  bool
+	amount  types.Uint256
 	salt    types.Uint256
 	shardId types.ShardId
 }

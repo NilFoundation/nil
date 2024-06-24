@@ -1,17 +1,12 @@
 package service
 
 import (
-	"encoding/json"
-	"fmt"
-	"math/big"
-	"os"
-
 	"github.com/NilFoundation/nil/client/rpc"
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 )
 
 // GetCode retrieves the contract code at the given address
@@ -65,8 +60,8 @@ func (s *Service) SendExternalMessage(bytecode []byte, contract types.Address, n
 	return txHash.Hex(), nil
 }
 
-// DeployContract deploys a new smart contract with the given bytecode
-func (s *Service) DeployContract(shardId types.ShardId, wallet types.Address, bytecode []byte, value *types.Uint256) (string, string, error) {
+// DeployContractViaWallet deploys a new smart contract with the given bytecode via the wallet
+func (s *Service) DeployContractViaWallet(shardId types.ShardId, wallet types.Address, bytecode []byte, value *types.Uint256) (string, string, error) {
 	txHash, contractAddr, err := s.client.DeployContract(shardId, wallet, bytecode, value, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
@@ -75,6 +70,18 @@ func (s *Service) DeployContract(shardId types.ShardId, wallet types.Address, by
 	s.logger.Info().Msgf("Contract address: 0x%x", contractAddr)
 	s.logger.Info().Msgf("Transaction hash: %s (shard %s)", txHash, wallet.ShardId())
 	return txHash.Hex(), contractAddr.Hex(), nil
+}
+
+// DeployContractExternal deploys a new smart contract with the given bytecode via external message
+func (s *Service) DeployContractExternal(shardId types.ShardId, bytecode []byte) (common.Hash, types.Address, error) {
+	txHash, contractAddr, err := s.client.DeployExternal(shardId, bytecode)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to send new transaction")
+		return common.EmptyHash, types.EmptyAddress, err
+	}
+	s.logger.Info().Msgf("Contract address: 0x%x", contractAddr)
+	s.logger.Info().Msgf("Transaction hash: %s (shard %s)", txHash, contractAddr.ShardId())
+	return txHash, contractAddr, nil
 }
 
 // CallContract performs read-only call to the contract
@@ -96,34 +103,4 @@ func (s *Service) CallContract(contract types.Address, calldata []byte) (string,
 	}
 	s.logger.Info().Msgf("Call result: %s", res)
 	return res, nil
-}
-
-func parseCallArguments(args []string) []interface{} {
-	var parsedArgs []interface{}
-	for _, arg := range args {
-		if i, ok := new(big.Int).SetString(arg, 10); ok {
-			parsedArgs = append(parsedArgs, i)
-		} else {
-			parsedArgs = append(parsedArgs, arg)
-		}
-	}
-	return parsedArgs
-}
-
-func (s *Service) ArgsToCalldata(abiPath string, method string, args []string) ([]byte, error) {
-	abiFile, err := os.ReadFile(abiPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read ABI file: %w", err)
-	}
-	var contractAbi abi.ABI
-	if err := json.Unmarshal(abiFile, &contractAbi); err != nil {
-		return nil, fmt.Errorf("failed to parse ABI: %w", err)
-	}
-
-	methodArgs := parseCallArguments(args)
-	calldata, err := contractAbi.Pack(method, methodArgs...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to pack method call: %w", err)
-	}
-	return calldata, nil
 }

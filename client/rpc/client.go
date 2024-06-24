@@ -354,9 +354,9 @@ func (c *Client) DeployContract(
 	return txHash, contractAddr, nil
 }
 
-func (c *Client) DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload, pk *ecdsa.PrivateKey) (common.Hash, types.Address, error) {
+func (c *Client) DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload) (common.Hash, types.Address, error) {
 	address := types.CreateAddress(shardId, deployPayload)
-	msgHash, err := c.sendExternalMessage(deployPayload.Bytes(), address, pk, true)
+	msgHash, err := c.sendExternalMessage(deployPayload.Bytes(), address, nil, true)
 	return msgHash, address, err
 }
 

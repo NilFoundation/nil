@@ -77,7 +77,7 @@ func (s *SuiteRpc) TestContract() {
 	// Deploy contract
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	deployCode := s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(2))
-	txHash, addrStr, err := s.cli.DeployContract(wallet.ShardId()+1, wallet, deployCode, nil)
+	txHash, addrStr, err := s.cli.DeployContractViaWallet(wallet.ShardId()+1, wallet, deployCode, nil)
 	s.Require().NoError(err)
 	addr := types.HexToAddress(addrStr)
 
@@ -140,7 +140,7 @@ func (s *SuiteRpc) testNewWalletOnShard(shardId types.ShardId) {
 	walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(&ownerPrivateKey.PublicKey))
 	code := types.BuildDeployPayload(walletCode, common.EmptyHash)
 	expectedAddress := types.CreateAddress(shardId, code)
-	walletAddres, err := s.cli.CreateWallet(shardId, walletCode, *types.NewUint256(0), ownerPrivateKey)
+	walletAddres, err := s.cli.CreateWallet(shardId, *types.NewUint256(0), &ownerPrivateKey.PublicKey)
 	s.Require().NoError(err)
 	s.Require().Equal(expectedAddress, walletAddres)
 }
@@ -158,7 +158,7 @@ func (s *SuiteRpc) TestSendExternalMessage() {
 
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/external_increment.sol"), "ExternalIncrementer")
 	deployCode := s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(2))
-	txHash, addrStr, err := s.cli.DeployContract(types.BaseShardId, wallet, deployCode, types.NewUint256(10_000_000))
+	txHash, addrStr, err := s.cli.DeployContractViaWallet(types.BaseShardId, wallet, deployCode, types.NewUint256(10_000_000))
 	s.Require().NoError(err)
 	addr := types.HexToAddress(addrStr)
 

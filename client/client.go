@@ -34,7 +34,7 @@ type Client interface {
 	DeployContract(
 		shardId types.ShardId, walletAddress types.Address, bytecode types.Code, value *types.Uint256, pk *ecdsa.PrivateKey,
 	) (common.Hash, types.Address, error)
-	DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload, pk *ecdsa.PrivateKey) (common.Hash, types.Address, error)
+	DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload) (common.Hash, types.Address, error)
 	SendMessageViaWallet(
 		walletAddress types.Address, bytecode types.Code, gasLimit *types.Uint256, value *types.Uint256,
 		currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
