@@ -1,4 +1,4 @@
-package new_wallet
+package wallet
 
 import (
 	"github.com/NilFoundation/nil/cli/service"
@@ -11,11 +11,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var logger = logging.NewLogger("newWalletCommand")
+var logger = logging.NewLogger("walletNewCommand")
 
-func GetCommand(cfg *config.Config) *cobra.Command {
+func GetNewCommand(cfg *config.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
-		Use:   "new-wallet",
+		Use:   "new",
 		Short: "Create new wallet with initial value on the cluster",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return runPreRun(cmd, args, cfg)
