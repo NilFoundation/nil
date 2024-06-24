@@ -101,7 +101,7 @@ func (db *BadgerDB) CreateRoTx(ctx context.Context) (RoTx, error) {
 	if assert.Enable {
 		ctx, tx.cancelTxChecker = context.WithCancel(ctx)
 		stack := captureStacktrace()
-		go runTxLeakChecker(ctx, stack, 1*time.Second)
+		go runTxLeakChecker(ctx, stack, 2*time.Second)
 	}
 	return tx, nil
 }
