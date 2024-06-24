@@ -3,6 +3,7 @@ package contract
 import (
 	"bufio"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 
@@ -11,9 +12,12 @@ import (
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
+
+var logger = logging.NewLogger("contractDeployCommand")
 
 func GetDeployCommand(cfg *config.Config) *cobra.Command {
 	cmd := &cobra.Command{
@@ -54,6 +58,11 @@ func setDeployFlags(cmd *cobra.Command) {
 }
 
 func runDeploy(_ *cobra.Command, args []string, cfg *config.Config) error {
+	if cfg.Address.Equal(types.EmptyAddress) {
+		logger.Error().Msg("config.address is empty")
+		return errors.New("deploy failed")
+	}
+	logger.Info().Msgf("Deploy via wallet: %s", cfg.Address)
 	var bytecode []byte
 	var err error
 

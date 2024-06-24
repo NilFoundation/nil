@@ -19,6 +19,8 @@ const (
 	ReceiptWaitTick = 200 * time.Millisecond
 )
 
+var ErrWalletExists = errors.New("wallet already exists")
+
 func (s *Service) WaitForReceipt(shardId types.ShardId, mshHash common.Hash) (*jsonrpc.RPCReceipt, error) {
 	return concurrent.WaitFor(context.Background(), ReceiptWaitFor, ReceiptWaitTick, func(ctx context.Context) (*jsonrpc.RPCReceipt, error) {
 		receipt, err := s.client.GetInMessageReceipt(shardId, mshHash)
@@ -38,7 +40,7 @@ type MessageHashMismatchError struct {
 }
 
 func (e MessageHashMismatchError) Error() string {
-	return fmt.Sprintf("Unexpected sentmessage hash %s, expected %s", e.actual, e.expected)
+	return fmt.Sprintf("Unexpected message hash %s, expected %s", e.actual, e.expected)
 }
 
 func (s *Service) TopUpViaFaucet(contractAddress types.Address, amount *types.Uint256) error {
@@ -94,10 +96,10 @@ func (s *Service) CreateWallet(shardId types.ShardId, code types.Code, salt type
 		return types.EmptyAddress, err
 	}
 	if len(code) > 0 {
-		return types.EmptyAddress, errors.New("Wallet already exists")
+		return types.EmptyAddress, ErrWalletExists
 	}
 
-	deployGasLimit := *types.NewUint256(500_000)
+	deployGasLimit := *types.NewUint256(1_000_000)
 	value := types.NewUint256(0)
 	value.Mul(&deployGasLimit.Int, execution.GasPrice)
 	err = s.TopUpViaFaucet(walletAddress, value)

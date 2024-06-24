@@ -43,7 +43,7 @@ make test
 
 The easisest way to create a new wallet is to use the =nil; CLI.
 
-To create a new wallet on the base shard:
+To create a new wallet **on the base shard**:
 
 ```bash
 nil_cli wallet new
@@ -52,12 +52,15 @@ nil_cli wallet new
 To create a wallet with a constructor and some arbitrary salt:
 
 ```bash
-nil_cli wallet new --code CONSTRUCTOR_CODE --salt SALT
+nil_cli wallet new --code CONSTRUCTOR_CODE --salt SALT --shard-id WALLET_SHARD
 ```
 
 ### Deploying a smart contract via CLI
 
-While being in the repo root, copy the config for the CLI where it specifies the private key and RPC endpoint:
+While being in the repo root, copy the config for the CLI where it specifies:
+- private key
+- RPC endpoint
+- the wallet address (default wallet is on the base shard)
 
 ```
 cp cmd/nil_cli/config.yaml .
@@ -72,19 +75,21 @@ solc -o . --bin --abi example/counter.sol
 And deploy the contract with the CLI:
 
 ```bash
-./build/bin/nil_cli contract deploy SimpleStorage.bin --shard-id 1
+./build/bin/nil_cli contract deploy SimpleStorage.bin --shard-id CONTRACT_SHARD
 ```
 
-Make note of the "Transaction hash" in the output, and then:
+Make note of the "Transaction hash: 0x... (shard <WALLET_SHARD>)" in the output, and then:
 
 ```bash
-./build/bin/nil_cli receipt --hash <transaction hash> --shard-id 1
+./build/bin/nil_cli receipt --hash <transaction hash> --shard-id WALLET_SHARD
 ```
 
 You should get a json object, which contains "contractAddress" in the result.
 
+Now let's send message to this contract to call its increment method:
+
 ```bash
-./build/bin/nil_cli contract --address <contract address> --bytecode d09de08a --shard-id 1
+./build/bin/nil_cli contract send <contract address> increment
 ```
 
 As a result, you should get "Transaction hash" again, but this time for the function call.
@@ -92,7 +97,7 @@ Now let's retrieve the message hash to see the current value of the counter:
 
 
 ```bash
-./build/bin/nil_cli receipt --hash <another transaction hash> --shard-id 1
+./build/bin/nil_cli receipt --hash <another transaction hash> --shard-id CONTRACT_SHARD
 ```
 
 You'll see the counter value in the "data" section of the log in the json. To see the actual value:

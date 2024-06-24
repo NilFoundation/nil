@@ -1,6 +1,8 @@
 package wallet
 
 import (
+	"errors"
+
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
@@ -77,8 +79,14 @@ func runCommand(_ *cobra.Command, _ []string, cfg *config.Config) {
 	logger.Info().Msgf("RPC Endpoint: %s", cfg.RPCEndpoint)
 
 	client := rpc.NewClient(cfg.RPCEndpoint)
-	service := service.NewService(client, cfg.PrivateKey)
-	walletAddress, err := service.CreateWallet(params.shardId, params.code, params.salt, cfg.PrivateKey)
+	srv := service.NewService(client, cfg.PrivateKey)
+	walletAddress, err := srv.CreateWallet(params.shardId, params.code, params.salt, cfg.PrivateKey)
+
+	if errors.Is(err, service.ErrWalletExists) {
+		logger.Error().Err(err).Msg("failed to create wallet")
+		return
+	}
+
 	check.PanicIfErr(err)
 
 	logger.Info().Msgf("New wallet address: %s", walletAddress.Hex())
