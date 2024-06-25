@@ -5,6 +5,7 @@ import (
 
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
+	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
@@ -70,6 +71,12 @@ func runNew(_ *cobra.Command, _ []string, cfg *config.Config) error {
 	}
 	if err != nil {
 		return err
+	}
+
+	if err := common.PatchConfig(map[string]interface{}{
+		common.WalletField: walletAddress.Hex(),
+	}, false); err != nil {
+		logger.Error().Err(err).Msg("failed to update wallet address in config file")
 	}
 
 	logger.Info().Msgf("New wallet address: %s", walletAddress.Hex())
