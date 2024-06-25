@@ -3,9 +3,9 @@ name: Cluster CI
 on:
   push:
     branches:
-      - master
       - main
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -36,6 +36,14 @@ jobs:
 
       - name: Generate OpenRPC spec for JSON RPC API
         run: nix develop -c make rpcspec
+
+      - name: Upload binaries as artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nil-linux-amd64-${{ github.run_number }}
+          path: |
+            result/bin/nil*
 
       - name: upload packages to s3
         if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' ||  github.ref == 'refs/heads/master') }}
