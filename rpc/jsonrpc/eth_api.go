@@ -274,6 +274,17 @@ type EthAPI interface {
 		@returns chainId ChainId
 	*/
 	ChainId(ctx context.Context) (hexutil.Uint64, error)
+
+	/*
+		@name GetCurrencies
+		@summary Returns the balance of the account with the given address and at the given block.
+		@description Implements eth_getCurrencies.
+		@tags [Accounts]
+		@param address Address
+		@param blockNumberOrHash BlockNumberOrHash
+		@returns balance Balance of all currencies
+	*/
+	GetCurrencies(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (map[string]*hexutil.Big, error)
 }
 
 type BaseAPI struct {
