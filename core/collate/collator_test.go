@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
@@ -13,23 +12,15 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type MockMsgPool struct {
-	Msgs []*types.Message
-}
-
-var _ MsgPool = (*MockMsgPool)(nil)
-
-func (m *MockMsgPool) Peek(context.Context, int, uint64) ([]*types.Message, error) {
-	return m.Msgs, nil
-}
-
-func (m *MockMsgPool) OnNewBlock(context.Context, *types.Block, []*types.Message) error {
-	return nil
-}
-
 type CollatorTestSuite struct {
 	suite.Suite
-	db db.DB
+
+	ctx context.Context
+	db  db.DB
+}
+
+func (s *CollatorTestSuite) SetupSuite() {
+	s.ctx = context.Background()
 }
 
 func (s *CollatorTestSuite) SetupTest() {
@@ -43,45 +34,33 @@ func (s *CollatorTestSuite) TearDownTest() {
 }
 
 func (s *CollatorTestSuite) TestCollator() {
-	ctx := context.Background()
-	shardId := types.ShardId(1)
+	shardId := types.BaseShardId
 
-	code, err := contracts.GetCode("tests/Counter")
-	s.Require().NoError(err)
-
-	m := &types.Message{
-		From:     types.CreateAddress(shardId, []byte("1234")),
-		Data:     code,
-		Internal: true,
-	}
-	pool := &MockMsgPool{Msgs: []*types.Message{m}}
-
-	c := newCollator(shardId, 2, new(TrivialShardTopology), false, pool, logging.NewLogger("collator"))
-
-	s.Run("zero-state", func() {
-		s.Require().NoError(c.GenerateZeroState(ctx, s.db, ""))
+	s.Run("GenerateZeroState", func() {
+		GenerateZeroState(s.T(), s.ctx, shardId, s.db)
 	})
 
-	s.Run("deploy-message", func() {
-		s.Require().NoError(c.GenerateBlock(ctx, s.db))
+	from := types.MainWalletAddress
+	var to types.Address
 
-		s.checkReceipt(ctx, shardId, m)
+	s.Run("Deploy", func() {
+		m := execution.NewDeployMessage(contracts.CounterDeployPayload(s.T()), shardId, from, 0)
+		to = m.To
+		GenerateBlockWithMessages(s.T(), s.ctx, shardId, s.db, m)
+		s.checkReceipt(shardId, m)
 	})
 
-	s.Run("call-message", func() {
-		m.To = types.CreateAddress(shardId, []byte("call-message"))
-		pool.Msgs = append(pool.Msgs, m)
-
-		s.Require().NoError(c.GenerateBlock(ctx, s.db))
-
-		s.checkReceipt(ctx, shardId, m)
+	s.Run("Execute", func() {
+		m := execution.NewExecutionMessage(from, to, 2, contracts.NewCounterAddCallData(s.T(), 3))
+		GenerateBlockWithMessages(s.T(), s.ctx, shardId, s.db, m)
+		s.checkReceipt(shardId, m)
 	})
 }
 
-func (s *CollatorTestSuite) checkReceipt(ctx context.Context, shardId types.ShardId, m *types.Message) {
+func (s *CollatorTestSuite) checkReceipt(shardId types.ShardId, m *types.Message) {
 	s.T().Helper()
 
-	tx, err := s.db.CreateRwTx(ctx)
+	tx, err := s.db.CreateRoTx(s.ctx)
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
@@ -91,12 +70,9 @@ func (s *CollatorTestSuite) checkReceipt(ctx context.Context, shardId types.Shar
 	msgData, err := sa.Access(tx, m.From.ShardId()).GetInMessage().ByHash(m.Hash())
 	s.Require().NoError(err)
 
-	receiptsTrie := mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.ReceiptTrieTable, msgData.Block().ReceiptsRoot)
-	data, err := receiptsTrie.Get(msgData.Index().Bytes())
+	receiptsTrie := execution.NewReceiptTrieReader(mpt.NewReaderWithRoot(tx, shardId, db.ReceiptTrieTable, msgData.Block().ReceiptsRoot))
+	receipt, err := receiptsTrie.Fetch(msgData.Index())
 	s.Require().NoError(err)
-
-	var receipt types.Receipt
-	s.Require().NoError(receipt.UnmarshalSSZ(data))
 	s.Equal(m.Hash(), receipt.MsgHash)
 }
 

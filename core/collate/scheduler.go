@@ -22,11 +22,9 @@ type Scheduler struct {
 	txFabric db.DB
 	pool     MsgPool
 
-	id                 types.ShardId
-	nShards            int
+	params             execution.BlockGeneratorParams
 	topology           ShardTopology
 	collatorTickPeriod time.Duration
-	traceEVM           bool
 
 	ZeroState       string
 	MainKeysOutPath string
@@ -34,25 +32,23 @@ type Scheduler struct {
 	logger zerolog.Logger
 }
 
-func NewScheduler(txFabric db.DB, pool MsgPool, id types.ShardId, nShards int, topology ShardTopology, collatorTickPeriod time.Duration, traceEVM bool) *Scheduler {
+func NewScheduler(txFabric db.DB, pool MsgPool, params execution.BlockGeneratorParams, topology ShardTopology, collatorTickPeriod time.Duration) *Scheduler {
 	return &Scheduler{
 		txFabric:           txFabric,
 		pool:               pool,
-		id:                 id,
-		nShards:            nShards,
+		params:             params,
 		topology:           topology,
 		collatorTickPeriod: collatorTickPeriod,
-		traceEVM:           traceEVM,
 		logger: logging.NewLogger("collator").With().
-			Str(logging.FieldShardId, id.String()).
+			Stringer(logging.FieldShardId, params.ShardId).
 			Logger(),
 	}
 }
 
 func (s *Scheduler) Run(ctx context.Context) error {
-	sharedLogger.Info().Msg("Starting collation...")
+	s.logger.Info().Msg("Starting collation...")
 
-	// At first generate zerostate if needed
+	// At first generate zero-state if needed
 	if err := s.generateZeroState(ctx); err != nil {
 		return err
 	}
@@ -66,7 +62,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 				return err
 			}
 		case <-ctx.Done():
-			sharedLogger.Info().Msg("Stopping collation...")
+			s.logger.Info().Msg("Stopping collation...")
 			return nil
 		}
 	}
@@ -82,18 +78,18 @@ func (s *Scheduler) generateZeroState(ctx context.Context) error {
 	}
 	defer roTx.Rollback()
 
-	lastBlockHash, err := db.ReadLastBlockHash(roTx, s.id)
+	lastBlockHash, err := db.ReadLastBlockHash(roTx, s.params.ShardId)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return err
 	}
 	if lastBlockHash == common.EmptyHash {
-		if len(s.MainKeysOutPath) != 0 && s.id == types.MasterShardId {
+		if len(s.MainKeysOutPath) != 0 && s.params.ShardId == types.MasterShardId {
 			if err := execution.DumpMainKeys(s.MainKeysOutPath); err != nil {
 				return err
 			}
 		}
 
-		collator := newCollator(s.id, s.nShards, s.topology, s.traceEVM, s.pool, s.logger)
+		collator := newCollator(s.params, s.topology, s.pool, s.logger)
 		return collator.GenerateZeroState(ctx, s.txFabric, s.ZeroState)
 	}
 	return nil
@@ -103,6 +99,6 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
 
-	collator := newCollator(s.id, s.nShards, s.topology, s.traceEVM, s.pool, s.logger)
+	collator := newCollator(s.params, s.topology, s.pool, s.logger)
 	return collator.GenerateBlock(ctx, s.txFabric)
 }

@@ -1,0 +1,154 @@
+package execution
+
+import (
+	"context"
+	"testing"
+
+	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/core/vm"
+	"github.com/holiman/uint256"
+	"github.com/stretchr/testify/suite"
+)
+
+type MessagesSuite struct {
+	suite.Suite
+
+	ctx context.Context
+	db  db.DB
+}
+
+func (s *MessagesSuite) SetupSuite() {
+	s.ctx = context.Background()
+}
+
+func (s *MessagesSuite) SetupTest() {
+	var err error
+	s.db, err = db.NewBadgerDbInMemory()
+	s.Require().NoError(err)
+}
+
+func (s *MessagesSuite) TearDownTest() {
+	s.db.Close()
+}
+
+func (s *MessagesSuite) TestValidateExternalMessage() {
+	tx, err := s.db.CreateRwTx(s.ctx)
+	s.Require().NoError(err)
+	defer tx.Rollback()
+
+	es, err := NewExecutionStateForShard(tx, types.BaseShardId, common.NewTestTimer(0))
+	s.Require().NoError(err)
+	s.Require().NotNil(es)
+
+	s.Run("Deploy", func() {
+		code := types.Code("some-code")
+		msg := &types.Message{
+			Kind: types.DeployMessageKind,
+			To:   types.GenerateRandomAddress(types.BaseShardId),
+			Data: types.BuildDeployPayload(code, common.EmptyHash).Bytes(),
+		}
+
+		s.Run("NoAccount", func() {
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg), ErrNoPayer)
+
+			s.Require().NoError(es.CreateAccount(msg.To))
+		})
+
+		s.Run("IncorrectAddress", func() {
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg), ErrIncorrectDeploymentAddress)
+
+			msg.To = types.CreateAddress(types.BaseShardId, msg.Data)
+			s.Require().NoError(es.CreateAccount(msg.To))
+		})
+
+		s.Run("Ok", func() {
+			s.Require().NoError(ValidateExternalMessage(es, msg))
+		})
+
+		s.Run("ContractAlreadyExists", func() {
+			s.Require().NoError(es.SetCode(msg.To, code))
+
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg), ErrContractAlreadyExists)
+		})
+	})
+
+	s.Run("Execution", func() {
+		msg := &types.Message{
+			Kind: types.ExecutionMessageKind,
+			To:   types.GenerateRandomAddress(types.BaseShardId),
+			Data: []byte("hello"),
+		}
+
+		s.Run("NoAccount", func() {
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg), ErrNoPayer)
+
+			s.Require().NoError(es.CreateAccount(msg.To))
+		})
+
+		s.Run("NoContract", func() {
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg), ErrContractDoesNotExist)
+
+			// contract that always returns "true",
+			// so verifies any message
+			s.Require().NoError(es.SetCode(msg.To, hexutil.FromHex("600160005260206000f3")))
+		})
+
+		s.Run("NoBalance", func() {
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg), vm.ErrOutOfGas)
+
+			s.Require().NoError(es.SetBalance(msg.To, *uint256.NewInt(10_000_000)))
+		})
+
+		s.Run("Ok", func() {
+			s.Require().NoError(ValidateExternalMessage(es, msg))
+		})
+
+		// todo: fail signature verification
+
+		s.Run("InvalidChain", func() {
+			msg.ChainId = 100500
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg), ErrInvalidChainId)
+		})
+
+		s.Run("SeqnoGap", func() {
+			msg.ChainId = types.DefaultChainId
+			msg.Seqno = 100
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg), ErrSeqnoGap)
+		})
+	})
+}
+
+func (s *MessagesSuite) TestValidateDeployMessage() {
+	msg := &types.Message{
+		Data: types.Code("no-salt"),
+	}
+
+	// data too short
+	s.Require().ErrorIs(ValidateDeployMessage(msg), ErrInvalidPayload)
+
+	// Deploy to the main shard from base shard - FAIL
+	data := types.BuildDeployPayload([]byte("some-code"), common.EmptyHash)
+	msg.To = types.CreateAddress(types.MasterShardId, data.Bytes())
+	msg.Data = data.Bytes()
+	s.Require().ErrorIs(ValidateDeployMessage(msg), ErrDeployToMainShard)
+
+	// Deploy to the main shard from main wallet - OK
+	data = types.BuildDeployPayload([]byte("some-code"), common.EmptyHash)
+	msg.To = types.CreateAddress(types.MasterShardId, data.Bytes())
+	msg.From = types.MainWalletAddress
+	msg.Data = data.Bytes()
+	s.Require().NoError(ValidateDeployMessage(msg))
+
+	// Deploy to base shard
+	msg.To = types.CreateAddress(types.BaseShardId, data.Bytes())
+	s.Require().NoError(ValidateDeployMessage(msg))
+}
+
+func TestMessages(t *testing.T) {
+	t.Parallel()
+
+	suite.Run(t, new(MessagesSuite))
+}

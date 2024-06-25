@@ -5,6 +5,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/concurrent"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/collate"
@@ -17,7 +18,6 @@ import (
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
-	"github.com/rs/zerolog/log"
 )
 
 func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []msgpool.Pool) error {
@@ -71,7 +71,9 @@ func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	funcs := []concurrent.Func{}
+	logger := logging.NewLogger("nil")
+
+	funcs := make([]concurrent.Func, 0, cfg.NShards+2+len(workers))
 	if cfg.GracefulShutdown {
 		funcs = []concurrent.Func{
 			func(ctx context.Context) error {
@@ -89,7 +91,12 @@ func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent
 	msgPools := make([]msgpool.Pool, cfg.NShards)
 	for i := range cfg.NShards {
 		msgPool := msgpool.New(msgpool.DefaultConfig)
-		collator := collate.NewScheduler(database, msgPool, types.ShardId(i), cfg.NShards, collate.GetShardTopologyById(cfg.Topology), collatorTickPeriod, cfg.TraceEVM)
+		collator := collate.NewScheduler(database, msgPool, execution.BlockGeneratorParams{
+			ShardId:  types.ShardId(i),
+			NShards:  cfg.NShards,
+			TraceEVM: cfg.TraceEVM,
+			Timer:    common.NewTimer(),
+		}, collate.GetShardTopologyById(cfg.Topology), collatorTickPeriod)
 		if len(cfg.ZeroState) != 0 {
 			collator.ZeroState = cfg.ZeroState
 		} else {
@@ -97,25 +104,36 @@ func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent
 		}
 		collator.MainKeysOutPath = cfg.MainKeysOutPath
 		funcs = append(funcs, func(ctx context.Context) error {
-			return collator.Run(ctx)
+			if err := collator.Run(ctx); err != nil {
+				logger.Error().
+					Err(err).
+					Stringer(logging.FieldShardId, types.ShardId(i)).
+					Msg("Collator goroutine failed")
+				return err
+			}
+			return nil
 		})
 
 		msgPools[i] = msgPool
 	}
 
 	funcs = append(funcs, func(ctx context.Context) error {
-		return startRpcServer(ctx, cfg, database, msgPools)
+		if err := startRpcServer(ctx, cfg, database, msgPools); err != nil {
+			logger.Error().Err(err).Msg("RPC server goroutine failed")
+			return err
+		}
+		return nil
 	})
 
 	funcs = append(funcs, workers...)
 
-	log.Info().Msg("Starting services...")
+	logger.Info().Msg("Starting services...")
 
 	if err := concurrent.Run(ctx, funcs...); err != nil {
-		log.Error().Err(err).Msg("App encountered an error and will be terminated.")
+		logger.Error().Err(err).Msg("App encountered an error and will be terminated.")
 		return 1
 	}
 
-	log.Warn().Msg("App is terminated.")
+	logger.Info().Msg("App is terminated.")
 	return 0
 }
