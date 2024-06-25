@@ -1,5 +1,5 @@
 {
-  description = "NIX dev env for toy version of nil network";
+  description = "NIX dev env for Nil network";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
