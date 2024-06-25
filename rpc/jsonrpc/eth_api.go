@@ -277,7 +277,7 @@ type EthAPI interface {
 
 	/*
 		@name GetCurrencies
-		@summary Returns the balance of the account with the given address and at the given block.
+		@summary Returns the currency balances of the account with the given address and at the given block.
 		@description Implements eth_getCurrencies.
 		@tags [Accounts]
 		@param address Address
