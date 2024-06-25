@@ -5,10 +5,18 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
 
 jobs:
   ensure_cluster_builds_macos:
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            arch: aarch64
+          - os: macos-13
+            arch: amd64
     environment: prod
     name: MacOS CI
     steps:
@@ -24,8 +32,9 @@ jobs:
         run: make
 
       - name: Upload binaries as artifact
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: nil-${{ github.run_number }}
+          name: nil-macos-${{ matrix.arch }}-${{ github.run_number }}
           path: |
             build/bin/*
