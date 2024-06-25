@@ -26,13 +26,13 @@ contract Wallet is NilBase {
     function asyncCall(
         address dst,
         address refundTo,
+        address bounceTo,
         uint gas,
         bool deploy,
         Nil.Token[] memory tokens,
         uint value,
         bytes calldata callData) onlyExternal public {
-        // TODO: add bounceTo
-        Nil.asyncCall(dst, refundTo, refundTo, gas, deploy, value, tokens, callData);
+        Nil.asyncCall(dst, refundTo, bounceTo, gas, deploy, value, tokens, callData);
     }
 
     function syncCall(address dst, uint gas, uint value, bytes memory call_data) onlyExternal public {
