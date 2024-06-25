@@ -1,8 +1,10 @@
 package rpctest
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
@@ -139,9 +141,15 @@ func (s *SuiteMinterRpc) TestBasic() {
 	data, err = abiMinter.Pack("transfer", &currencyIdInt1, big.NewInt(100), s.walletAddress1)
 	s.Require().NoError(err)
 
-	receipt = s.sendMessageViaWallet(s.walletAddress1, types.MinterAddress, execution.MainPrivateKey, data)
+	receipt = s.sendMessageViaWalletWithValue(s.walletAddress1, types.MinterAddress, execution.MainPrivateKey, data, 966650)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
+
+	for !receipt.IsComplete() {
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	fmt.Printf("receipt: %v\n", receipt)
 
 	// Check that currency has been transferred
 	currencies, err = s.client.GetCurrencies(types.MinterAddress, "latest")
@@ -205,7 +213,7 @@ func (s *SuiteMinterRpc) TestBasic() {
 	data, err = abiMinter.Pack("transfer", &currencyIdInt2, amount.ToBig(), s.walletAddress2)
 	s.Require().NoError(err)
 
-	receipt = s.sendMessageViaWallet(s.walletAddress2, types.MinterAddress, execution.MainPrivateKey, data)
+	receipt = s.sendMessageViaWalletWithValue(s.walletAddress2, types.MinterAddress, execution.MainPrivateKey, data, 966650)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
