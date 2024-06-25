@@ -72,7 +72,7 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Can't generate private key")
 		}
-		walletAddr, err := service.CreateWallet(shardId, *types.NewUint256(0), types.NewUint256(1_000_000_000), &ownerPrivateKey.PublicKey)
+		walletAddr, err := service.CreateWallet(shardId, types.NewUint256(0), types.NewValueFromUint64(1_000_000_000), &ownerPrivateKey.PublicKey)
 		if err != nil {
 			logger.Error().Err(err).Msg("Can't create wallet")
 			walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(&ownerPrivateKey.PublicKey))
@@ -84,7 +84,7 @@ func main() {
 	}
 
 	for _, shardId := range shardIdList {
-		txHashCaller, addr, err := client.DeployContract(shardId, wallets[0], types.BuildDeployPayload(hexutil.FromHex(IncrementContractCode), common.EmptyHash), nil, privateKeys[0])
+		txHashCaller, addr, err := client.DeployContract(shardId, wallets[0], types.BuildDeployPayload(hexutil.FromHex(IncrementContractCode), common.EmptyHash), types.Value{}, privateKeys[0])
 		if err != nil {
 			logger.Error().Err(err).Msg("Error during deploy contract, maybe contract already deployed")
 		}
@@ -112,7 +112,7 @@ func main() {
 				var hash common.Hash
 				for _, addr := range addrToCall {
 					hash, err = client.SendMessageViaWallet(wallet, hexutil.FromHex(IncrementCalldata),
-						types.NewUint256(100_000), types.NewUint256(0), []types.CurrencyBalance{}, contractsCall[addr],
+						100_000, types.Value{}, []types.CurrencyBalance{}, contractsCall[addr],
 						privateKeys[i])
 					if err != nil {
 						logger.Error().Err(err).Msg("Error during contract call")

@@ -90,7 +90,7 @@ func opSelfBalance(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext)
 	if err != nil {
 		return nil, err
 	}
-	scope.Stack.push(balance)
+	scope.Stack.push(balance.Int())
 	return nil, nil
 }
 

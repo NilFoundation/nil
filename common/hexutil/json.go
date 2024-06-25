@@ -22,6 +22,14 @@ var (
 // marshaled without error.
 type Big big.Int
 
+func NewBig(i *big.Int) *Big {
+	return (*Big)(i)
+}
+
+func NewBigFromInt64(i int64) *Big {
+	return (*Big)(big.NewInt(i))
+}
+
 // MarshalText implements encoding.TextMarshaler
 func (b Big) MarshalText() ([]byte, error) {
 	return []byte(EncodeBig((*big.Int)(&b))), nil
@@ -70,6 +78,10 @@ func (b *Big) UnmarshalText(input []byte) error {
 // ToInt converts b to a big.Int.
 func (b *Big) ToInt() *big.Int {
 	return (*big.Int)(b)
+}
+
+func (b *Big) IsZero() bool {
+	return b.ToInt().Sign() == 0
 }
 
 // String returns the hex encoding of b.

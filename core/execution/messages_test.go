@@ -9,7 +9,6 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -35,7 +34,7 @@ func (s *MessagesSuite) TearDownTest() {
 }
 
 func (s *MessagesSuite) TestValidateExternalMessage() {
-	gasPrice := uint256.NewInt(10)
+	gasPrice := types.NewValueFromUint64(10)
 	tx, err := s.db.CreateRwTx(s.ctx)
 	s.Require().NoError(err)
 	defer tx.Rollback()
@@ -99,7 +98,7 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 		s.Run("NoBalance", func() {
 			s.Require().ErrorIs(ValidateExternalMessage(es, msg, gasPrice), vm.ErrOutOfGas)
 
-			s.Require().NoError(es.SetBalance(msg.To, *uint256.NewInt(10_000_000)))
+			s.Require().NoError(es.SetBalance(msg.To, types.NewValueFromUint64(10_000_000)))
 		})
 
 		s.Run("Ok", func() {

@@ -33,10 +33,10 @@ func runMintCurrency(_ *cobra.Command, args []string, cfg *common.Config) error 
 		return err
 	}
 
-	var amount types.Uint256
-	if err := amount.SetFromDecimal(args[1]); err != nil {
+	var amount types.Value
+	if err := amount.Set(args[1]); err != nil {
 		return err
 	}
 
-	return service.CurrencyMint(address, amount.ToBig(), params.withdraw)
+	return service.CurrencyMint(address, amount, params.withdraw)
 }

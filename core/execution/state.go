@@ -25,7 +25,7 @@ var logger = logging.NewLogger("execution")
 
 const TraceBlocksEnabled = false
 
-var ExternalMessageVerificationMaxGas = uint256.NewInt(100_000)
+var ExternalMessageVerificationMaxGas types.Gas = 100_000
 
 var blocksTracer *BlocksTracer
 
@@ -110,7 +110,7 @@ func NewAccountState(es *ExecutionState, addr types.Address, tx db.RwTx, account
 		address: addr,
 
 		Tx:           tx,
-		Balance:      account.Balance.Int,
+		Balance:      account.Balance,
 		CurrencyTree: currencyRoot,
 		StorageTree:  root,
 		CodeHash:     account.CodeHash,
@@ -236,7 +236,7 @@ func (es *ExecutionState) AddAddressToAccessList(addr types.Address) {
 }
 
 // AddBalance adds amount to the account associated with addr.
-func (es *ExecutionState) AddBalance(addr types.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) error {
+func (es *ExecutionState) AddBalance(addr types.Address, amount types.Value, reason tracing.BalanceChangeReason) error {
 	stateObject, err := es.getOrNewAccount(addr)
 	if err != nil || stateObject == nil {
 		return err
@@ -246,7 +246,7 @@ func (es *ExecutionState) AddBalance(addr types.Address, amount *uint256.Int, re
 }
 
 // SubBalance subtracts amount from the account associated with addr.
-func (es *ExecutionState) SubBalance(addr types.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) error {
+func (es *ExecutionState) SubBalance(addr types.Address, amount types.Value, reason tracing.BalanceChangeReason) error {
 	stateObject, err := es.getOrNewAccount(addr)
 	if err != nil || stateObject == nil {
 		return err
@@ -365,17 +365,13 @@ func (es *ExecutionState) GetTransientState(addr types.Address, key common.Hash)
 // The account's state object is still available until the state is committed,
 // GetAccount will return a non-nil account after SelfDestruct.
 func (es *ExecutionState) selfDestruct(stateObject *AccountState) {
-	var (
-		prev = new(uint256.Int).Set(&stateObject.Balance)
-		n    = new(uint256.Int)
-	)
 	es.journal.append(selfDestructChange{
 		account:     &stateObject.address,
 		prev:        stateObject.selfDestructed,
-		prevbalance: prev,
+		prevbalance: stateObject.Balance,
 	})
 	stateObject.selfDestructed = true
-	stateObject.Balance = *n
+	stateObject.Balance = types.Value{}
 }
 
 func (es *ExecutionState) Selfdestruct6780(addr types.Address) error {
@@ -469,12 +465,12 @@ func (es *ExecutionState) SetState(addr types.Address, key common.Hash, val comm
 	return acc.SetState(key, val)
 }
 
-func (es *ExecutionState) GetBalance(addr types.Address) (*uint256.Int, error) {
+func (es *ExecutionState) GetBalance(addr types.Address) (types.Value, error) {
 	acc, err := es.GetAccount(addr)
 	if err != nil || acc == nil {
-		return uint256.NewInt(0), err
+		return types.Value{}, err
 	}
-	return &acc.Balance, nil
+	return acc.Balance, nil
 }
 
 func (es *ExecutionState) GetSeqno(addr types.Address) (types.Seqno, error) {
@@ -504,7 +500,7 @@ func (es *ExecutionState) getOrNewAccount(addr types.Address) (*AccountState, er
 	return es.createAccount(addr)
 }
 
-func (es *ExecutionState) SetBalance(addr types.Address, balance uint256.Int) error {
+func (es *ExecutionState) SetBalance(addr types.Address, balance types.Value) error {
 	acc, err := es.getOrNewAccount(addr)
 	if err != nil {
 		return err
@@ -641,11 +637,11 @@ func (es *ExecutionState) AddOutMessage(msg *types.Message) error {
 	// In case of bounce message, we don't debit currency from account
 	if !msg.IsBounce() {
 		for _, currency := range msg.Currency {
-			balance := acc.GetCurrencyBalance(&currency.Currency)
-			if balance.Lt(&currency.Balance.Int) {
+			balance := acc.GetCurrencyBalance(currency.Currency)
+			if balance.Cmp(currency.Balance) < 0 {
 				return errors.New("caller does not have enough currency")
 			}
-			if err := es.SubCurrency(msg.From, &currency.Currency, &currency.Balance.Int); err != nil {
+			if err := es.SubCurrency(msg.From, currency.Currency, currency.Balance); err != nil {
 				return err
 			}
 		}
@@ -664,7 +660,7 @@ func (es *ExecutionState) AddOutMessage(msg *types.Message) error {
 	return nil
 }
 
-var BounceGasLimit = types.NewUint256(100_000)
+var BounceGasLimit types.Gas = 100_000
 
 func (es *ExecutionState) sendBounceMessage(msg *types.Message, bounceErr string) error {
 	if msg.BounceTo == types.EmptyAddress {
@@ -683,7 +679,7 @@ func (es *ExecutionState) sendBounceMessage(msg *types.Message, bounceErr string
 		Value:    msg.Value,
 		Currency: msg.Currency,
 		Data:     data,
-		GasLimit: *BounceGasLimit,
+		GasLimit: BounceGasLimit,
 	}
 	if err = vm.AddOutInternal(es, msg.To, bounceMsg); err != nil {
 		return err
@@ -692,9 +688,7 @@ func (es *ExecutionState) sendBounceMessage(msg *types.Message, bounceErr string
 	return nil
 }
 
-func (es *ExecutionState) HandleDeployMessage(
-	_ context.Context, message *types.Message,
-) (uint64, error) {
+func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.Message) (types.Gas, error) {
 	addr := message.To
 	deployMsg := types.ParseDeployPayload(message.Data)
 
@@ -703,14 +697,15 @@ func (es *ExecutionState) HandleDeployMessage(
 		Stringer(logging.FieldShardId, es.ShardId).
 		Msg("Handling deploy message...")
 
-	gas := message.GasLimit.Uint64()
+	gas := message.GasLimit
 
 	if err := es.newVm(message.IsInternal()); err != nil {
 		return gas, err
 	}
 	defer es.resetVm()
 
-	ret, addr, leftOverGas, err := es.evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code(), gas, &message.Value.Int)
+	ret, addr, leftOver, err := es.evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code(), gas.Uint64(), message.Value.Int())
+	leftOverGas := types.Gas(leftOver)
 	event := logger.Debug().Stringer(logging.FieldMessageTo, addr)
 	if err != nil {
 		revString := decodeRevertMessage(ret)
@@ -730,13 +725,13 @@ func (es *ExecutionState) HandleDeployMessage(
 	return leftOverGas, err
 }
 
-func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *types.Message) (uint64, []byte, error) {
+func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *types.Message) (types.Gas, []byte, error) {
 	addr := message.To
 	logger.Debug().
 		Stringer(logging.FieldMessageTo, addr).
 		Msg("Handling execution message...")
 
-	gas := message.GasLimit.Uint64()
+	gas := message.GasLimit
 
 	if err := es.newVm(message.IsInternal()); err != nil {
 		return gas, nil, err
@@ -758,7 +753,8 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	}
 
 	es.evm.SetCurrencyTransfer(message.Currency)
-	ret, leftOverGas, err := es.evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas, &message.Value.Int)
+	ret, leftOver, err := es.evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas.Uint64(), message.Value.Int())
+	leftOverGas := types.Gas(leftOver)
 	if err != nil {
 		revString := decodeRevertMessage(ret)
 		if revString != "" {
@@ -792,12 +788,12 @@ func decodeRevertMessage(data []byte) string {
 }
 
 func (es *ExecutionState) HandleRefundMessage(_ context.Context, message *types.Message) error {
-	err := es.AddBalance(message.To, &message.Value.Int, tracing.BalanceIncreaseRefund)
-	logger.Debug().Err(err).Msgf("Refunded %v to %v", &message.Value.Int, message.To)
+	err := es.AddBalance(message.To, message.Value, tracing.BalanceIncreaseRefund)
+	logger.Debug().Err(err).Msgf("Refunded %s to %v", message.Value, message.To)
 	return err
 }
 
-func (es *ExecutionState) AddReceipt(gasUsed uint32, err error) {
+func (es *ExecutionState) AddReceipt(gasUsed types.Gas, err error) {
 	r := &types.Receipt{
 		Success:         err == nil,
 		GasUsed:         gasUsed,
@@ -829,7 +825,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 	if len(es.ChildChainBlocks) > 0 {
 		treeShards := NewShardBlocksTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.ShardBlocksTrieTableName(blockId)))
 		for k, hash := range es.ChildChainBlocks {
-			if err := treeShards.Update(k, &types.Uint256{Int: *hash.Uint256()}); err != nil {
+			if err := treeShards.Update(k, types.CastToUint256(hash.Uint256())); err != nil {
 				return common.EmptyHash, err
 			}
 		}
@@ -922,7 +918,7 @@ func (es *ExecutionState) RoTx() db.RoTx {
 	return es.tx
 }
 
-func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *AccountState, gasPrice *uint256.Int) (bool, error) {
+func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *AccountState, gasPrice types.Value) (bool, error) {
 	methodSignature := "verifyExternal(uint256,bytes)"
 	methodSelector := crypto.Keccak256([]byte(methodSignature))[:4]
 	argSpec := vm.VerifySignatureArgs()[1:] // skip first arg (pubkey)
@@ -943,9 +939,9 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 	defer es.resetVm()
 
 	gasCreditLimit := ExternalMessageVerificationMaxGas
-	gasAvailable := new(uint256.Int).Div(&account.Balance, gasPrice)
+	gasAvailable := account.Balance.ToGas(gasPrice)
 
-	if gasAvailable.Cmp(gasCreditLimit) < 0 {
+	if gasAvailable.Lt(gasCreditLimit) {
 		gasCreditLimit = gasAvailable
 	}
 
@@ -953,17 +949,17 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 	if err != nil || !bytes.Equal(ret, common.LeftPadBytes([]byte{1}, 32)) {
 		return false, err
 	}
-	spentGas := new(uint256.Int).Sub(gasCreditLimit, uint256.NewInt(leftOverGas))
-	spentValue := new(uint256.Int).Mul(spentGas, gasPrice)
+	spentGas := gasCreditLimit.Sub(types.Gas(leftOverGas))
+	spentValue := spentGas.ToValue(gasPrice)
 	account.SubBalance(spentValue, tracing.BalanceDecreaseVerifyExternal)
 	return true, nil
 }
 
-func (es *ExecutionState) AddCurrency(addr types.Address, currencyId *types.CurrencyId, amount *uint256.Int) error {
+func (es *ExecutionState) AddCurrency(addr types.Address, currencyId types.CurrencyId, amount types.Value) error {
 	logger.Debug().
 		Stringer("addr", addr).
 		Stringer("amount", amount).
-		Stringer("id", common.Hash(*currencyId)).
+		Stringer("id", common.Hash(currencyId)).
 		Msg("Add currency")
 
 	acc, err := es.GetAccount(addr)
@@ -975,21 +971,21 @@ func (es *ExecutionState) AddCurrency(addr types.Address, currencyId *types.Curr
 	}
 
 	balance := acc.GetCurrencyBalance(currencyId)
-	newBalance := new(uint256.Int).Add(balance, amount)
+	newBalance := balance.Add(amount)
 	// Amount can be negative(currency burning). So, if the new balance is negative, set it to 0
-	if newBalance.Sign() < 0 {
-		newBalance = uint256.NewInt(0)
+	if newBalance.Cmp(types.Value{}) < 0 {
+		newBalance = types.Value{}
 	}
 	acc.SetCurrencyBalance(currencyId, newBalance)
 
 	return nil
 }
 
-func (es *ExecutionState) SubCurrency(addr types.Address, currencyId *types.CurrencyId, amount *uint256.Int) error {
+func (es *ExecutionState) SubCurrency(addr types.Address, currencyId types.CurrencyId, amount types.Value) error {
 	logger.Debug().
 		Stringer("addr", addr).
 		Stringer("amount", amount).
-		Stringer("id", common.Hash(*currencyId)).
+		Stringer("id", common.Hash(currencyId)).
 		Msg("Sub currency")
 
 	acc, err := es.GetAccount(addr)
@@ -1001,16 +997,15 @@ func (es *ExecutionState) SubCurrency(addr types.Address, currencyId *types.Curr
 	}
 
 	balance := acc.GetCurrencyBalance(currencyId)
-	newBalance := new(uint256.Int).Sub(balance, amount)
-	if newBalance.Sign() < 0 {
+	if balance.Cmp(amount) < 0 {
 		return fmt.Errorf("insufficient balance %v for currency %v", balance, currencyId)
 	}
-	acc.SetCurrencyBalance(currencyId, newBalance)
+	acc.SetCurrencyBalance(currencyId, balance.Sub(amount))
 
 	return nil
 }
 
-func (es *ExecutionState) GetCurrencies(addr types.Address) map[types.CurrencyId]*types.Uint256 {
+func (es *ExecutionState) GetCurrencies(addr types.Address) map[types.CurrencyId]types.Value {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get account")
@@ -1020,7 +1015,7 @@ func (es *ExecutionState) GetCurrencies(addr types.Address) map[types.CurrencyId
 		return nil
 	}
 
-	res := make(map[types.CurrencyId]*types.Uint256)
+	res := make(map[types.CurrencyId]types.Value)
 	for kv := range acc.CurrencyTree.Iterate() {
 		var c types.CurrencyBalance
 		c.Currency = types.CurrencyId(kv.Key)
@@ -1028,7 +1023,7 @@ func (es *ExecutionState) GetCurrencies(addr types.Address) map[types.CurrencyId
 			logger.Error().Err(err).Msg("failed to unmarshal currency balance")
 			continue
 		}
-		res[c.Currency] = &c.Balance
+		res[c.Currency] = c.Balance
 	}
 
 	return res

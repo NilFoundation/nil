@@ -13,7 +13,6 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -45,7 +44,7 @@ func (suite *SuiteSendTransaction) SetupSuite() {
 
 	suite.Require().NoError(es.CreateAccount(suite.smcAddr))
 
-	suite.Require().NoError(es.SetBalance(suite.smcAddr, *uint256.NewInt(1234)))
+	suite.Require().NoError(es.SetBalance(suite.smcAddr, types.NewValueFromUint64(1234)))
 	suite.Require().NoError(es.SetSeqno(suite.smcAddr, 567))
 
 	blockHash, err := es.Commit(0)

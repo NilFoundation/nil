@@ -12,7 +12,6 @@ import (
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -72,7 +71,7 @@ contracts:
 	})
 }
 
-func (s *SuitOpcodes) GetBalance(address types.Address) *types.Uint256 {
+func (s *SuitOpcodes) GetBalance(address types.Address) types.Value {
 	s.T().Helper()
 
 	balance, err := s.client.GetBalance(address, transport.LatestBlockNumber)
@@ -80,17 +79,11 @@ func (s *SuitOpcodes) GetBalance(address types.Address) *types.Uint256 {
 	return balance
 }
 
-func (s *SuitOpcodes) CmpBalance(address types.Address, value uint64) int {
-	s.T().Helper()
-
-	return s.GetBalance(address).Cmp(uint256.NewInt(value))
-}
-
 func (s *SuitOpcodes) TestSend() {
 	// Given
-	s.Require().Positive(s.GetBalance(s.senderAddress1).Cmp(uint256.NewInt(0)))
-	s.Require().Zero(s.GetBalance(s.walletAddress1).Cmp(uint256.NewInt(0)))
-	s.Require().Zero(s.GetBalance(s.walletAddress2).Cmp(uint256.NewInt(0)))
+	s.Require().Positive(s.GetBalance(s.senderAddress1).Cmp(types.Value{}))
+	s.Require().True(s.GetBalance(s.walletAddress1).IsZero())
+	s.Require().True(s.GetBalance(s.walletAddress2).IsZero())
 
 	s.Run("Top up wallet on same shard", func() {
 		callData, err := contracts.NewCallData(contracts.NameSender, "send", s.walletAddress1, big.NewInt(100500))
@@ -103,7 +96,7 @@ func (s *SuitOpcodes) TestSend() {
 		s.Require().True(receipt.Success)
 
 		// Then
-		s.Require().Equal(types.NewUint256(100500), s.GetBalance(s.walletAddress1))
+		s.Require().Equal(types.NewValueFromUint64(100500), s.GetBalance(s.walletAddress1))
 	})
 
 	s.Run("Top up wallet on another shard", func() {
@@ -117,7 +110,7 @@ func (s *SuitOpcodes) TestSend() {
 		s.Require().False(receipt.Success)
 
 		// Then
-		s.Require().Zero(s.GetBalance(s.walletAddress2).Cmp(uint256.NewInt(0)))
+		s.Require().True(s.GetBalance(s.walletAddress2).IsZero())
 	})
 }
 

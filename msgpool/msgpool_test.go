@@ -7,7 +7,6 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -20,7 +19,7 @@ type SuiteMsgPool struct {
 func newMessage(to types.Address, seqno types.Seqno, fee uint64) types.Message {
 	return types.Message{
 		To:    to,
-		Value: types.Uint256{Int: *uint256.NewInt(fee)},
+		Value: types.NewValueFromUint64(fee),
 		Data:  types.Code(""),
 		Seqno: seqno,
 	}

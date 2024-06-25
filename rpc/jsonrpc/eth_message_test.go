@@ -11,7 +11,6 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -50,7 +49,7 @@ func (suite *SuiteEthMessage) SetupSuite() {
 
 	suite.lastBlockHash = writeTestBlock(
 		suite.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Message{&suite.message}, []*types.Receipt{&receipt}, []*types.Message{})
-	_, err = execution.PostprocessBlock(tx, types.BaseShardId, uint256.NewInt(10), 0, suite.lastBlockHash)
+	_, err = execution.PostprocessBlock(tx, types.BaseShardId, types.NewValueFromUint64(10), 0, suite.lastBlockHash)
 	suite.Require().NoError(err)
 
 	err = tx.Commit()

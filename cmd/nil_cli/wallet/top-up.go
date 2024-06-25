@@ -26,8 +26,8 @@ func runTopUp(_ *cobra.Command, args []string, cfg *common.Config) error {
 	client := rpc.NewClient(cfg.RPCEndpoint)
 	service := service.NewService(client, cfg.PrivateKey)
 
-	var amount types.Uint256
-	if err := amount.SetFromDecimal(args[0]); err != nil {
+	var amount types.Value
+	if err := amount.Set(args[0]); err != nil {
 		return err
 	}
 
@@ -35,7 +35,7 @@ func runTopUp(_ *cobra.Command, args []string, cfg *common.Config) error {
 		return err
 	}
 
-	if err := service.TopUpViaFaucet(cfg.Address, &amount); err != nil {
+	if err := service.TopUpViaFaucet(cfg.Address, amount); err != nil {
 		return err
 	}
 

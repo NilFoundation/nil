@@ -76,7 +76,7 @@ func (e MessageHashMismatchError) Error() string {
 	return fmt.Sprintf("Unexpected message hash %s, expected %s", e.actual, e.expected)
 }
 
-func (s *Service) TopUpViaFaucet(contractAddress types.Address, amount *types.Uint256) error {
+func (s *Service) TopUpViaFaucet(contractAddress types.Address, amount types.Value) error {
 	msgHash, err := s.client.TopUpViaFaucet(contractAddress, amount)
 	if err != nil {
 		return err
@@ -91,9 +91,9 @@ func (s *Service) TopUpViaFaucet(contractAddress types.Address, amount *types.Ui
 	return nil
 }
 
-func (s *Service) CreateWallet(shardId types.ShardId, salt types.Uint256, balance *types.Uint256, pubKey *ecdsa.PublicKey) (types.Address, error) {
+func (s *Service) CreateWallet(shardId types.ShardId, salt *types.Uint256, balance types.Value, pubKey *ecdsa.PublicKey) (types.Address, error) {
 	walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(pubKey))
-	walletAddress := s.ContractAddress(shardId, salt, walletCode)
+	walletAddress := s.ContractAddress(shardId, *salt, walletCode)
 
 	code, err := s.client.GetCode(walletAddress, "latest")
 	if err != nil {

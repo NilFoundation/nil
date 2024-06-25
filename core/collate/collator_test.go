@@ -10,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -38,29 +37,34 @@ func (s *CollatorTestSuite) TearDownTest() {
 func (s *CollatorTestSuite) TestCollator() {
 	shardId := types.BaseShardId
 	nShards := 2
+	gasPrice := types.NewValueFromUint64(10)
 	from := types.MainWalletAddress
 	to := contracts.CounterAddress(s.T(), shardId)
 
 	pool := &MockMsgPool{}
 	c := newCollator(Params{
-		BlockGeneratorParams: execution.NewBlockGeneratorParams(shardId, nShards, uint256.NewInt(10), 0),
+		BlockGeneratorParams: execution.NewBlockGeneratorParams(shardId, nShards, gasPrice, 0),
 	}, new(TrivialShardTopology), pool, sharedLogger)
 
 	s.Run("GenerateZeroState", func() {
 		s.Require().NoError(c.GenerateZeroState(s.ctx, s.db, execution.DefaultZeroStateConfig))
 	})
 
+	// This values depends on the current implementation (precompiled contract, opcode gas prices).
+	actualMsgGas := types.Gas(12_959)
+
+	// These parameters can be adjusted for test purposes. The rest is calculated.
+	gasLimit := types.Gas(100_000)
+	sentValue := types.NewValueFromUint64(2_000_000)
+
 	balance := s.getBalance(shardId, from)
-	gasLimit := types.NewUint256(100_000)
-	sentValue := types.NewUint256(2_000_000)
-	reserveForGas := uint256.NewInt(0).Mul(&gasLimit.Int, uint256.NewInt(10))
-	msgFinalPrice := uint256.NewInt(2_129_650)
+	reserveForGas := gasLimit.ToValue(gasPrice)
+	actualMsgPrice := actualMsgGas.ToValue(gasPrice)
 
 	s.Run("SendTokens", func() {
-		var msgValue types.Uint256
-		msgValue.Add(&sentValue.Int, reserveForGas)
+		msgValue := sentValue.Add(reserveForGas)
 		m1 := execution.NewExecutionMessage(from, from, 0, contracts.NewWalletSendCallData(s.T(), types.Code{},
-			gasLimit, &msgValue, []types.CurrencyBalance{}, to, types.ExecutionMessageKind))
+			gasLimit, msgValue, []types.CurrencyBalance{}, to, types.ExecutionMessageKind))
 		m2 := common.CopyPtr(m1)
 		m2.Seqno = 1
 		s.Require().NoError(m1.Sign(execution.MainPrivateKey))
@@ -71,12 +75,12 @@ func (s *CollatorTestSuite) TestCollator() {
 		s.checkReceipt(shardId, m1)
 		s.checkReceipt(shardId, m2)
 
-		balance.Sub(balance, msgFinalPrice)
-		balance.Sub(balance, reserveForGas)
-		balance.Sub(balance, msgFinalPrice)
-		balance.Sub(balance, reserveForGas)
+		// Each message subtracts its value + actual gas used from the balance.
+		balance = balance.
+			Sub(msgValue).Sub(actualMsgPrice).
+			Sub(msgValue).Sub(actualMsgPrice)
 		s.Equal(balance, s.getBalance(shardId, from))
-		s.Equal(uint256.NewInt(0), s.getBalance(shardId, to))
+		s.Equal(types.Value{}, s.getBalance(shardId, to))
 	})
 
 	// Now process messages by one to test queueing.
@@ -85,18 +89,18 @@ func (s *CollatorTestSuite) TestCollator() {
 	// So add a faulty message.
 	pool.Msgs = []*types.Message{nil}
 
-	s.Run("ProcessFirstInternalMessage", func() {
+	s.Run("ProcessInternalMessage1", func() {
 		s.Require().NoError(c.GenerateBlock(s.ctx, s.db))
 
 		s.Equal(balance, s.getBalance(shardId, from))
-		s.Equal(&sentValue.Int, s.getBalance(shardId, to))
+		s.Equal(sentValue, s.getBalance(shardId, to))
 	})
 
-	s.Run("ProcessSecondInternalMessage", func() {
+	s.Run("ProcessInternalMessage2", func() {
 		s.Require().NoError(c.GenerateBlock(s.ctx, s.db))
 
 		s.Equal(balance, s.getBalance(shardId, from))
-		s.Equal(uint256.NewInt(0).Add(&sentValue.Int, &sentValue.Int), s.getBalance(shardId, to))
+		s.Equal(sentValue.Add(sentValue), s.getBalance(shardId, to))
 	})
 
 	c.params.MaxInMessagesInBlock = 2
@@ -104,8 +108,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	s.Run("ProcessRefundMessages", func() {
 		s.Require().NoError(c.GenerateBlock(s.ctx, s.db))
 
-		balance.Add(balance, reserveForGas)
-		balance.Add(balance, reserveForGas)
+		balance = balance.Add(reserveForGas).Add(reserveForGas)
 		s.Equal(balance, s.getBalance(shardId, from))
 	})
 
@@ -130,7 +133,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	})
 }
 
-func (s *CollatorTestSuite) getBalance(shardId types.ShardId, addr types.Address) *uint256.Int {
+func (s *CollatorTestSuite) getBalance(shardId types.ShardId, addr types.Address) types.Value {
 	s.T().Helper()
 
 	tx, err := s.db.CreateRwTx(s.ctx)
@@ -142,9 +145,9 @@ func (s *CollatorTestSuite) getBalance(shardId types.ShardId, addr types.Address
 	acc, err := state.GetAccount(addr)
 	s.Require().NoError(err)
 	if acc == nil {
-		return uint256.NewInt(0)
+		return types.Value{}
 	}
-	return &acc.Balance
+	return acc.Balance
 }
 
 func (s *CollatorTestSuite) checkReceipt(shardId types.ShardId, m *types.Message) {

@@ -144,7 +144,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	currencies, err = s.client.GetCurrencies(types.MinterAddress, "latest")
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 1)
-	s.Require().Equal(types.NewUint256(100), currencies[currency1.idStr])
+	s.Equal(types.NewValueFromUint64(100), currencies[currency1.idStr])
 
 	// Check currency name is valid
 	data, err = s.abiMinter.Pack("getName", &currency1.idInt)
@@ -170,7 +170,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	currencies, err = s.client.GetCurrencies(types.MinterAddress, "latest")
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 1)
-	s.Require().Equal(types.NewUint256(350), currencies[currency1.idStr])
+	s.Equal(types.NewValueFromUint64(350), currencies[currency1.idStr])
 
 	///////////////////////////////////////////////////////////////////////////
 	// Transfer some currency
@@ -191,18 +191,18 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	currencies, err = s.client.GetCurrencies(types.MinterAddress, "latest")
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 1)
-	s.Require().Equal(types.NewUint256(250), currencies[currency1.idStr])
+	s.Equal(types.NewValueFromUint64(250), currencies[currency1.idStr])
 
 	currencies, err = s.client.GetCurrencies(s.walletAddress1, "latest")
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 1)
-	s.Require().Equal(types.NewUint256(100), currencies[currency1.idStr])
+	s.Equal(types.NewValueFromUint64(100), currencies[currency1.idStr])
 
 	///////////////////////////////////////////////////////////////////////////
 	// Send from Wallet1 to Wallet2
 	receipt = s.sendMessageViaWalletNoCheck(s.walletAddress1, s.walletAddress2, execution.MainPrivateKey, nil,
-		uint256.NewInt(100_000), uint256.NewInt(2_000_000),
-		[]types.CurrencyBalance{{Currency: *currency1.id, Balance: *types.NewUint256(40)}})
+		100_000, types.NewValueFromUint64(2_000_000),
+		[]types.CurrencyBalance{{Currency: *currency1.id, Balance: types.NewValueFromUint64(40)}})
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -210,30 +210,30 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	currencies, err = s.client.GetCurrencies(s.walletAddress1, "latest")
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 1)
-	s.Require().Equal(types.NewUint256(60), currencies[currency1.idStr])
+	s.Equal(types.NewValueFromUint64(60), currencies[currency1.idStr])
 
 	currencies, err = s.client.GetCurrencies(s.walletAddress2, "latest")
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 1)
-	s.Require().Equal(types.NewUint256(40), currencies[currency1.idStr])
+	s.Equal(types.NewValueFromUint64(40), currencies[currency1.idStr])
 
 	///////////////////////////////////////////////////////////////////////////
 	// Create same currency from different address - should fail
 	data, err = s.abiMinter.Pack("create", big.NewInt(100), s.walletAddress1, "token1", types.EmptyAddress)
 	s.Require().NoError(err)
 
-	receipt = s.sendMessageViaWallet(s.walletAddress2, types.MinterAddress, execution.MainPrivateKey, data, types.NewUint256(0))
+	receipt = s.sendMessageViaWallet(s.walletAddress2, types.MinterAddress, execution.MainPrivateKey, data, types.Value{})
 	s.Require().True(receipt.Success)
 	s.Require().False(receipt.OutReceipts[0].Success)
 
 	///////////////////////////////////////////////////////////////////////////
 	// Create 2-nd currency from Wallet2
-	amount := uint256.NewInt(0)
-	s.Require().NoError(amount.UnmarshalText([]byte("1000000000000000000000")))
+	var amount types.Value
+	s.Require().NoError(amount.Set("1000000000000000000000"))
 	data, err = s.abiMinter.Pack("create", amount.ToBig(), s.walletAddress2, "token2", types.EmptyAddress)
 	s.Require().NoError(err)
 
-	receipt = s.sendMessageViaWallet(s.walletAddress2, types.MinterAddress, execution.MainPrivateKey, data, types.NewUint256(0))
+	receipt = s.sendMessageViaWallet(s.walletAddress2, types.MinterAddress, execution.MainPrivateKey, data, types.Value{})
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -241,15 +241,15 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	currencies, err = s.client.GetCurrencies(types.MinterAddress, "latest")
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 2)
-	s.Require().Equal(types.NewUint256(250), currencies[currency1.idStr])
-	s.Require().Equal(*amount, currencies[currency2.idStr].Int)
+	s.Equal(types.NewValueFromUint64(250), currencies[currency1.idStr])
+	s.Equal(amount, currencies[currency2.idStr])
 
 	///////////////////////////////////////////////////////////////////////////
 	// Transfer all 2-nd currency to Wallet2
 	data, err = s.abiMinter.Pack("withdraw", &currency2.idInt, amount.ToBig(), s.walletAddress2)
 	s.Require().NoError(err)
 
-	receipt = s.sendMessageViaWallet(s.walletAddress2, types.MinterAddress, execution.MainPrivateKey, data, types.NewUint256(968650))
+	receipt = s.sendMessageViaWallet(s.walletAddress2, types.MinterAddress, execution.MainPrivateKey, data, types.NewValueFromUint64(968650))
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -257,23 +257,23 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	currencies, err = s.client.GetCurrencies(types.MinterAddress, "latest")
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 2)
-	s.Require().Zero(currencies[currency1.idStr].Cmp(uint256.NewInt(250)))
-	s.Require().Zero(currencies[currency2.idStr].Cmp(uint256.NewInt(0)))
+	s.Equal(types.NewValueFromUint64(250), currencies[currency1.idStr])
+	s.Equal(types.NewValueFromUint64(0), currencies[currency2.idStr])
 
 	currencies, err = s.client.GetCurrencies(s.walletAddress2, "latest")
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 2)
-	s.Require().Equal(types.NewUint256(40), currencies[currency1.idStr])
-	s.Require().Equal(*amount, currencies[currency2.idStr].Int)
+	s.Equal(types.NewValueFromUint64(40), currencies[currency1.idStr])
+	s.Equal(amount, currencies[currency2.idStr])
 
 	///////////////////////////////////////////////////////////////////////////
 	// Send 1-st and 2-nd currencies Wallet2 to Wallet3 (same shard)
 	s.Require().Equal(s.walletAddress2.ShardId(), s.walletAddress3.ShardId())
 	receipt = s.sendMessageViaWalletNoCheck(s.walletAddress2, s.walletAddress3, execution.MainPrivateKey, nil,
-		uint256.NewInt(1_000_000), uint256.NewInt(2_000_000),
+		1_000_000, types.NewValueFromUint64(2_000_000),
 		[]types.CurrencyBalance{
-			{Currency: *currency1.id, Balance: *types.NewUint256(10)},
-			{Currency: *currency2.id, Balance: *types.NewUint256(500)},
+			{Currency: *currency1.id, Balance: types.NewValueFromUint64(10)},
+			{Currency: *currency2.id, Balance: types.NewValueFromUint64(500)},
 		})
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
@@ -282,41 +282,41 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	currencies, err = s.client.GetCurrencies(s.walletAddress3, "latest")
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 2)
-	s.Require().Equal(types.NewUint256(10), currencies[currency1.idStr])
-	s.Require().Equal(types.NewUint256(500), currencies[currency2.idStr])
+	s.Equal(types.NewValueFromUint64(10), currencies[currency1.idStr])
+	s.Equal(types.NewValueFromUint64(500), currencies[currency2.idStr])
 
 	currencies, err = s.client.GetCurrencies(s.walletAddress2, "latest")
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 2)
-	s.Require().Equal(types.NewUint256(30), currencies[currency1.idStr])
-	s.Require().Zero(amount.Sub(amount, uint256.NewInt(500)).Cmp(&currencies[currency2.idStr].Int))
+	s.Equal(types.NewValueFromUint64(30), currencies[currency1.idStr])
+	s.Equal(amount.Sub(types.NewValueFromUint64(500)), currencies[currency2.idStr])
 
 	///////////////////////////////////////////////////////////////////////////
 	// Transfer 1-nd currency to Wallet2 - should fail, wrong owner
 	data, err = s.abiMinter.Pack("withdraw", &currency1.idInt, big.NewInt(2), s.walletAddress2)
 	s.Require().NoError(err)
 
-	receipt = s.sendMessageViaWallet(s.walletAddress2, types.MinterAddress, execution.MainPrivateKey, data, types.NewUint256(0))
+	receipt = s.sendMessageViaWallet(s.walletAddress2, types.MinterAddress, execution.MainPrivateKey, data, types.Value{})
 	s.Require().True(receipt.Success)
 	s.Require().False(receipt.OutReceipts[0].Success)
 
 	///////////////////////////////////////////////////////////////////////////
 	// Send insufficient amount of 1-nd currency - should fail
 	receipt = s.sendMessageViaWalletNoCheck(s.walletAddress2, s.walletAddress3, execution.MainPrivateKey, nil,
-		uint256.NewInt(1_000_000), uint256.NewInt(2_000_000),
-		[]types.CurrencyBalance{{Currency: *currency1.id, Balance: *types.NewUint256(700)}})
+		1_000_000, types.NewValueFromUint64(2_000_000),
+		[]types.CurrencyBalance{{Currency: *currency1.id, Balance: types.NewValueFromUint64(700)}})
 	s.Require().False(receipt.Success)
 
 	// Check that currency was not sent
 	currencies, err = s.client.GetCurrencies(s.walletAddress2, "latest")
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 2)
-	s.Require().Equal(types.NewUint256(30), currencies[currency1.idStr])
+	s.Equal(types.NewValueFromUint64(30), currencies[currency1.idStr])
 
 	currencies, err = s.client.GetCurrencies(s.walletAddress3, "latest")
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 2)
-	s.Require().Equal(types.NewUint256(10), currencies[currency1.idStr])
+	s.Equal(types.NewValueFromUint64(10), currencies[currency1.idStr])
 
 	///////////////////////////////////////////////////////////////////////////
 	// Mint some currency and transfer it to wallet3 at once
@@ -330,24 +330,24 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	data, err = s.abiMinter.Pack("mint", &currency1.idInt, big.NewInt(1000), s.walletAddress3)
 	s.Require().NoError(err)
 
-	receipt = s.sendMessageViaWallet(s.walletAddress1, types.MinterAddress, execution.MainPrivateKey, data, types.NewUint256(0))
+	receipt = s.sendMessageViaWallet(s.walletAddress1, types.MinterAddress, execution.MainPrivateKey, data, types.Value{})
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
 	// Check currency is minted, minter should not get it
 	currencies, err = s.client.GetCurrencies(types.MinterAddress, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(minterCurrency1, currencies[currency1.idStr])
+	s.Equal(minterCurrency1, currencies[currency1.idStr])
 
 	// Currency of wallet1(owner) should not be changed
 	currencies, err = s.client.GetCurrencies(s.walletAddress1, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(walletCurrency1, currencies[currency1.idStr])
+	s.Equal(walletCurrency1, currencies[currency1.idStr])
 
-	// Finally currency should be credited to wallet3
+	// Finally, currency should be credited to wallet3
 	currencies, err = s.client.GetCurrencies(s.walletAddress3, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewUint256(1010), currencies[currency1.idStr])
+	s.Equal(types.NewValueFromUint64(1010), currencies[currency1.idStr])
 
 	///////////////////////////////////////////////////////////////////////////
 	// Second part of testing: tests through TokensTest.sol
@@ -357,8 +357,8 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 	///////////////////////////////////////////////////////////////////////////
 	// Create tokens for test addresses
-	s.createCurrencyForTestContract(currencyTest1, big.NewInt(1_000_000), "testToken1")
-	s.createCurrencyForTestContract(currencyTest2, big.NewInt(2_000_000), "testToken2")
+	s.createCurrencyForTestContract(currencyTest1, types.NewValueFromUint64(1_000_000), "testToken1")
+	s.createCurrencyForTestContract(currencyTest2, types.NewValueFromUint64(2_000_000), "testToken2")
 
 	///////////////////////////////////////////////////////////////////////////
 	// Call testCallWithTokensSync of testAddress1_0, which should call method of testAddress1_1
@@ -374,15 +374,15 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	// Check currency is debited from testAddress1_0
 	currencies, err = s.client.GetCurrencies(s.testAddress1_0, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewUint256(1_000_000-5000), currencies[currencyTest1.idStr])
+	s.Equal(types.NewValueFromUint64(1_000_000-5000), currencies[currencyTest1.idStr])
 
 	// Check currency is credited to testAddress1_1
 	currencies, err = s.client.GetCurrencies(s.testAddress1_1, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewUint256(5000), currencies[currencyTest1.idStr])
+	s.Equal(types.NewValueFromUint64(5000), currencies[currencyTest1.idStr])
 
 	///////////////////////////////////////////////////////////////////////////
-	// Try to call with non existent currency
+	// Try to call with non-existent currency
 	data, err = s.abiTest.Pack("testCallWithTokensSync", s.testAddress1_1,
 		[]types.CurrencyBalanceAbiCompatible{
 			{Currency: currencyTest1.idInt, Balance: uint256.NewInt(5000).ToBig()},
@@ -398,12 +398,12 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	// Check currency of testAddress1_0 was not changed
 	currencies, err = s.client.GetCurrencies(s.testAddress1_0, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewUint256(1_000_000-5000), currencies[currencyTest1.idStr])
+	s.Equal(types.NewValueFromUint64(1_000_000-5000), currencies[currencyTest1.idStr])
 
 	// Check currency of testAddress1_1 was not changed
 	currencies, err = s.client.GetCurrencies(s.testAddress1_1, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewUint256(5000), currencies[currencyTest1.idStr])
+	s.Equal(types.NewValueFromUint64(5000), currencies[currencyTest1.idStr])
 
 	///////////////////////////////////////////////////////////////////////////
 	// Call testCallWithTokensAsync of testAddress1_0, which should send message to testAddress1_1
@@ -421,12 +421,12 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	// Check currency is debited from testAddress1_0
 	currencies, err = s.client.GetCurrencies(s.testAddress1_0, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewUint256(1_000_000-5000-5000), currencies[currencyTest1.idStr])
+	s.Equal(types.NewValueFromUint64(1_000_000-5000-5000), currencies[currencyTest1.idStr])
 
 	// Check currency is credited to testAddress1_1
 	currencies, err = s.client.GetCurrencies(s.testAddress1_1, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewUint256(5000+5000), currencies[currencyTest1.idStr])
+	s.Equal(types.NewValueFromUint64(5000+5000), currencies[currencyTest1.idStr])
 
 	///////////////////////////////////////////////////////////////////////////
 	// Try to call with non existent currency
@@ -446,12 +446,12 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	// Check currency of testAddress1_0 was not changed
 	currencies, err = s.client.GetCurrencies(s.testAddress1_0, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewUint256(1_000_000-5000-5000), currencies[currencyTest1.idStr])
+	s.Equal(types.NewValueFromUint64(1_000_000-5000-5000), currencies[currencyTest1.idStr])
 
 	// Check currency of testAddress1_1 was not changed
 	currencies, err = s.client.GetCurrencies(s.testAddress1_1, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewUint256(5000+5000), currencies[currencyTest1.idStr])
+	s.Equal(types.NewValueFromUint64(5000+5000), currencies[currencyTest1.idStr])
 
 	///////////////////////////////////////////////////////////////////////////
 	// Call method that transfer tokens through sync call
@@ -470,12 +470,12 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	// Check currency was debited from testAddress1_0
 	currencies, err = s.client.GetCurrencies(s.testAddress1_0, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewUint256(amountTest1-5000), currencies[currencyTest1.idStr])
+	s.Equal(amountTest1.Sub64(5000), currencies[currencyTest1.idStr])
 
 	// Check currency was credited to testAddress1_1
 	currencies, err = s.client.GetCurrencies(s.testAddress1_1, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewUint256(amountTest2+5000), currencies[currencyTest1.idStr])
+	s.Equal(amountTest2.Add64(5000), currencies[currencyTest1.idStr])
 
 	///////////////////////////////////////////////////////////////////////////
 	// Call the same method but fail flag, so currency should not be changed
@@ -490,12 +490,12 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	// Check currency of testAddress1_0 was not changed
 	currencies, err = s.client.GetCurrencies(s.testAddress1_0, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewUint256(amountTest1-5000), currencies[currencyTest1.idStr])
+	s.Equal(amountTest1.Sub64(5000), currencies[currencyTest1.idStr])
 
 	// Check currency of testAddress1_1 was not changed
 	currencies, err = s.client.GetCurrencies(s.testAddress1_1, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewUint256(amountTest2+5000), currencies[currencyTest1.idStr])
+	s.Equal(amountTest2.Add64(5000), currencies[currencyTest1.idStr])
 
 	///////////////////////////////////////////////////////////////////////////
 	// Call `testSendTokensSync` for address in different shard - should fail
@@ -510,7 +510,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	// Check currency of testAddress1_0 was not changed
 	currencies, err = s.client.GetCurrencies(s.testAddress1_0, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewUint256(amountTest1-5000), currencies[currencyTest1.idStr])
+	s.Require().Equal(amountTest1.Sub64(5000), currencies[currencyTest1.idStr])
 }
 
 func (s *SuiteMultiCurrencyRpc) TestBounce() {
@@ -529,8 +529,8 @@ func (s *SuiteMultiCurrencyRpc) TestBounce() {
 	s.Require().NoError(err)
 
 	receipt = s.sendMessageViaWalletNoCheck(s.walletAddress1, s.testAddress1_0, execution.MainPrivateKey, data,
-		uint256.NewInt(100_000), uint256.NewInt(2_000_000),
-		[]types.CurrencyBalance{{Currency: *currencyWallet1.id, Balance: *types.NewUint256(100)}})
+		100_000, types.NewValueFromUint64(2_000_000),
+		[]types.CurrencyBalance{{Currency: *currencyWallet1.id, Balance: types.NewValueFromUint64(100)}})
 	s.Require().True(receipt.Success)
 	s.Require().Len(receipt.OutReceipts, 1)
 	s.Require().False(receipt.OutReceipts[0].Success)
@@ -538,26 +538,26 @@ func (s *SuiteMultiCurrencyRpc) TestBounce() {
 	// Check that nothing credited tp destination account
 	currencies, err = s.client.GetCurrencies(s.testAddress1_0, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(uint256.NewInt(0), &currencies[currencyWallet1.idStr].Int)
+	s.Require().Equal(types.NewValueFromUint64(0), currencies[currencyWallet1.idStr])
 
 	// Check that currency wasn't changed
 	currencies, err = s.client.GetCurrencies(s.walletAddress1, "latest")
 	s.Require().NoError(err)
-	s.Require().Equal(uint256.NewInt(1_000_000), &currencies[currencyWallet1.idStr].Int)
+	s.Require().Equal(types.NewValueFromUint64(1_000_000), currencies[currencyWallet1.idStr])
 }
 
-func (s *SuiteMultiCurrencyRpc) getCurrencyBalance(address *types.Address, currency *CurrencyId) uint64 {
+func (s *SuiteMultiCurrencyRpc) getCurrencyBalance(address *types.Address, currency *CurrencyId) types.Value {
 	s.T().Helper()
 
 	currencies, err := s.client.GetCurrencies(*address, "latest")
 	s.Require().NoError(err)
-	return currencies[currency.idStr].Uint64()
+	return currencies[currency.idStr]
 }
 
-func (s *SuiteMultiCurrencyRpc) createCurrencyForTestContract(currency *CurrencyId, amount *big.Int, name string) {
+func (s *SuiteMultiCurrencyRpc) createCurrencyForTestContract(currency *CurrencyId, amount types.Value, name string) {
 	s.T().Helper()
 
-	data, err := s.abiTest.Pack("createToken", amount, name)
+	data, err := s.abiTest.Pack("createToken", amount.ToBig(), name)
 	s.Require().NoError(err)
 
 	txhash, err := s.client.SendExternalMessage(data, *currency.address, nil)
@@ -570,8 +570,7 @@ func (s *SuiteMultiCurrencyRpc) createCurrencyForTestContract(currency *Currency
 	currencies, err := s.client.GetCurrencies(*currency.address, "latest")
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 1)
-	v, _ := uint256.FromBig(amount)
-	s.Require().Equal(&types.Uint256{Int: *v}, currencies[currency.idStr])
+	s.Equal(amount, currencies[currency.idStr])
 }
 
 func (s *SuiteMultiCurrencyRpc) createCurrencyForWallet(currency *CurrencyId, amount *big.Int, name string) {

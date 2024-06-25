@@ -18,6 +18,7 @@ package vm
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/math"
@@ -174,7 +175,7 @@ func makeCallVariantGasCallEIP2929(oldCalculator gasFunc) gasFunc {
 			// Charge the remaining difference here already, to correctly calculate available
 			// gas for call
 			if !contract.UseGas(coldCost, evm.Config.Tracer, tracing.GasChangeCallStorageColdAccess) {
-				return 0, ErrOutOfGas
+				return 0, fmt.Errorf("%w: %d < %d", ErrOutOfGas, contract.Gas, coldCost)
 			}
 		}
 		// Now call the old calculator, which takes into account
@@ -249,7 +250,7 @@ func makeSelfdestructGasFn(refundsEnabled bool) gasFunc {
 		if err != nil {
 			return gas, err
 		}
-		if empty && balance.Sign() != 0 {
+		if empty && !balance.IsZero() {
 			gas += params.CreateBySelfdestructGas
 		}
 		destructed, err := evm.StateDB.HasSelfDestructed(contract.Address())

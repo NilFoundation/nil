@@ -9,7 +9,6 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +19,7 @@ func GenerateZeroState(t *testing.T, ctx context.Context,
 
 	txOwner, err := NewTxOwner(ctx, txFabric)
 	require.NoError(t, err)
-	g, err := NewBlockGenerator(NewBlockGeneratorParams(shardId, 1, uint256.NewInt(10), 0), txOwner)
+	g, err := NewBlockGenerator(NewBlockGeneratorParams(shardId, 1, types.NewValueFromUint64(10), 0), txOwner)
 	require.NoError(t, err)
 	require.NoError(t, g.GenerateZeroState(DefaultZeroStateConfig))
 }
@@ -62,8 +61,8 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 			continue
 		}
 
-		gas := msg.GasLimit.Uint64()
-		var leftOverGas uint64
+		gas := msg.GasLimit
+		var leftOverGas types.Gas
 		switch {
 		case msg.IsDeploy():
 			leftOverGas, err = es.HandleDeployMessage(ctx, msg)
@@ -76,13 +75,13 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 			require.NoError(t, err)
 		}
 
-		es.AddReceipt(uint32(gas-leftOverGas), err)
+		es.AddReceipt(gas.Sub(leftOverGas), err)
 	}
 
 	blockHash, err := es.Commit(blockId)
 	require.NoError(t, err)
 
-	block, err := PostprocessBlock(tx, shardId, uint256.NewInt(10), 0, blockHash)
+	block, err := PostprocessBlock(tx, shardId, types.NewValueFromUint64(10), 0, blockHash)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 
@@ -99,7 +98,7 @@ func NewDeployMessage(payload types.DeployPayload,
 		Data:     payload.Bytes(),
 		From:     from,
 		Seqno:    seqno,
-		GasLimit: *types.NewUint256(100000),
+		GasLimit: 100000,
 		To:       types.CreateAddress(shardId, payload),
 	}
 }
@@ -110,7 +109,7 @@ func NewExecutionMessage(from, to types.Address, seqno types.Seqno, callData []b
 		To:       to,
 		Data:     callData,
 		Seqno:    seqno,
-		GasLimit: *types.NewUint256(100000),
+		GasLimit: 100000,
 	}
 }
 
@@ -120,11 +119,11 @@ func Deploy(t *testing.T, ctx context.Context, es *ExecutionState,
 	t.Helper()
 
 	msg := NewDeployMessage(payload, shardId, from, seqno)
-	gas := msg.GasLimit.Uint64()
+	gas := msg.GasLimit
 	es.AddInMessage(msg)
 	gasLeft, err := es.HandleDeployMessage(ctx, msg)
 	require.NoError(t, err)
-	es.AddReceipt(uint32(gas-gasLeft), nil)
+	es.AddReceipt(gas.Sub(gasLeft), nil)
 
 	return msg.To
 }

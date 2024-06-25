@@ -87,7 +87,7 @@ func (s *SuiteRpc) TestRpcBasic() {
 
 	gasPrice, err := s.client.GasPrice(types.BaseShardId)
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewUint256(10), gasPrice)
+	s.Require().Equal(types.NewValueFromUint64(10), gasPrice)
 
 	res0Num, err := s.client.GetBlock(types.BaseShardId, 0, false)
 	s.Require().NoError(err)
@@ -150,25 +150,25 @@ func (s *RpcSuite) prepareDefaultDeployPayload(abi abi.ABI, code []byte, args ..
 	return types.BuildDeployPayload(code, common.EmptyHash)
 }
 
-const defaultContractValue = uint64(50_000_000)
+var defaultContractValue = types.NewValueFromUint64(50_000_000)
 
 func (suite *SuiteRpc) TestRpcContract() {
 	contractCode, abi := suite.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	deployPayload := suite.prepareDefaultDeployPayload(abi, contractCode, big.NewInt(0))
 
-	addr, receipt := suite.deployContractViaMainWallet(types.BaseShardId, deployPayload, types.NewUint256(defaultContractValue))
+	addr, receipt := suite.deployContractViaMainWallet(types.BaseShardId, deployPayload, defaultContractValue)
 	suite.Require().True(receipt.OutReceipts[0].Success)
 
 	blockNumber := transport.LatestBlockNumber
 	balance, err := suite.client.GetBalance(addr, transport.BlockNumberOrHash{BlockNumber: &blockNumber})
 	suite.Require().NoError(err)
-	suite.Require().Equal(defaultContractValue, balance.Uint64())
+	suite.Require().Equal(defaultContractValue, balance)
 
 	// now call (= send a message to) created contract
 	calldata, err := abi.Pack("increment")
 	suite.Require().NoError(err)
 
-	receipt = suite.sendMessageViaWallet(types.MainWalletAddress, addr, execution.MainPrivateKey, calldata, types.NewUint256(0))
+	receipt = suite.sendMessageViaWallet(types.MainWalletAddress, addr, execution.MainPrivateKey, calldata, types.Value{})
 	suite.Require().True(receipt.OutReceipts[0].Success)
 }
 
@@ -176,7 +176,7 @@ func (s *SuiteRpc) TestRpcDeployToMainShardViaMainWallet() {
 	code, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	deployPayload := s.prepareDefaultDeployPayload(abi, code, big.NewInt(0))
 
-	txHash, _, err := s.client.DeployContract(types.MasterShardId, types.MainWalletAddress, deployPayload, nil, execution.MainPrivateKey)
+	txHash, _, err := s.client.DeployContract(types.MasterShardId, types.MainWalletAddress, deployPayload, types.Value{}, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), txHash)
@@ -187,20 +187,20 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 	// deploy caller contract
 	callerCode, callerAbi := s.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Caller")
 	calleeCode, calleeAbi := s.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Callee")
-	callerAddr, receipt := s.deployContractViaMainWallet(types.MasterShardId, types.BuildDeployPayload(callerCode, common.EmptyHash), types.NewUint256(defaultContractValue))
+	callerAddr, receipt := s.deployContractViaMainWallet(types.MasterShardId, types.BuildDeployPayload(callerCode, common.EmptyHash), defaultContractValue)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
-	waitTilBalanceAtLeast := func(balance uint64, saveTo *types.Uint256) {
+	waitTilBalanceAtLeast := func(balance uint64) types.Value {
 		s.T().Helper()
 
+		var curBalance types.Value
 		s.Require().Eventually(func() bool {
-			curBalance, err := s.client.GetBalance(callerAddr, transport.LatestBlockNumber)
+			var err error
+			curBalance, err = s.client.GetBalance(callerAddr, transport.LatestBlockNumber)
 			s.Require().NoError(err)
-			if saveTo != nil {
-				*saveTo = *curBalance
-			}
 			return curBalance.Uint64() > balance
 		}, time.Minute, 200*time.Millisecond)
+		return curBalance
 	}
 
 	checkForShard := func(shardId types.ShardId) {
@@ -225,7 +225,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 		var calleeAddr types.Address
 		s.Run("DeployCallee", func() {
 			// deploy callee contracts to different shards
-			calleeAddr, receipt = s.deployContractViaMainWallet(shardId, types.BuildDeployPayload(calleeCode, common.EmptyHash), types.NewUint256(defaultContractValue))
+			calleeAddr, receipt = s.deployContractViaMainWallet(shardId, types.BuildDeployPayload(calleeCode, common.EmptyHash), defaultContractValue)
 			s.Require().True(receipt.Success)
 			s.Require().True(receipt.OutReceipts[0].Success)
 		})
@@ -242,8 +242,8 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 				To:       calleeAddr,
 				RefundTo: callerAddr,
 				BounceTo: callerAddr,
-				Value:    *types.NewUint256(callValue),
-				GasLimit: *types.NewUint256(100_004),
+				Value:    types.NewValueFromUint64(callValue),
+				GasLimit: 100_004,
 			}
 			callData, err = messageToSend.MarshalSSZ()
 			s.Require().NoError(err)
@@ -282,7 +282,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.T().Logf("Spent %v nil", prevBalance.Uint64()-balance.Uint64())
 
 			// we should get some non-zero refund
-			waitTilBalanceAtLeast(prevBalance.Uint64()-callValue, prevBalance)
+			prevBalance = waitTilBalanceAtLeast(prevBalance.Uint64() - callValue)
 		})
 
 		s.Run("GenerateCallDataBounce", func() {
@@ -306,9 +306,8 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 				From:     callerAddr,
 				Data:     callData,
 				To:       callerAddr,
-				Value:    types.NewUint256(0),
-				GasLimit: types.NewUint256(10000),
-				Seqno:    &seqno,
+				GasLimit: 10000,
+				Seqno:    seqno,
 			}
 			res, err := s.client.Call(callArgs)
 			s.T().Logf("Call res : %v, err: %v", res, err)
@@ -317,7 +316,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.Require().NoError(callerAbi.UnpackIntoInterface(&bounceErr, getBounceErrName, hexutil.FromHex(res)))
 			s.Require().Equal(vm.ErrExecutionReverted.Error(), bounceErr)
 
-			waitTilBalanceAtLeast(prevBalance.Uint64()-callValue, nil)
+			waitTilBalanceAtLeast(prevBalance.Uint64() - callValue)
 		})
 	}
 
@@ -344,7 +343,7 @@ func (s *SuiteRpc) TestEmptyDeployPayload() {
 	wallet := types.MainWalletAddress
 
 	// Deploy contract with invalid payload
-	hash, _, err := s.client.DeployContract(types.BaseShardId, wallet, types.DeployPayload{}, nil, execution.MainPrivateKey)
+	hash, _, err := s.client.DeployContract(types.BaseShardId, wallet, types.DeployPayload{}, types.Value{}, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceiptOnShard(wallet.ShardId(), hash)
@@ -415,7 +414,7 @@ func (suite *SuiteRpc) TestNoOutMessagesIfFailure() {
 	abi, err := contracts.GetAbi(contracts.NameCommonTest)
 	suite.Require().NoError(err)
 
-	addr, receipt := suite.deployContractViaMainWallet(2, types.BuildDeployPayload(code, common.EmptyHash), types.NewUint256(defaultContractValue))
+	addr, receipt := suite.deployContractViaMainWallet(2, types.BuildDeployPayload(code, common.EmptyHash), defaultContractValue)
 	suite.Require().True(receipt.OutReceipts[0].Success)
 
 	// Call CommonTest contract with invalid argument, so no output messages should be generated

@@ -49,14 +49,14 @@ func setDeployFlags(cmd *cobra.Command) {
 		"Path to ABI file",
 	)
 
-	params.amount = *types.NewUint256(0)
+	params.amount = types.Value{}
 	cmd.Flags().Var(
 		&params.amount,
 		amountFlag,
 		"Amount of tokens to send",
 	)
 
-	params.currency = *types.NewUint256(0)
+	params.currency = types.Value{}
 	cmd.Flags().Var(
 		&params.currency,
 		"currency",
@@ -93,7 +93,7 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 
 	payload := types.BuildDeployPayload(bytecode, libcommon.Hash(params.salt.Bytes32()))
 
-	msgHash, _, err := service.DeployContractViaWallet(params.shardId, cfg.Address, payload, &params.amount)
+	msgHash, _, err := service.DeployContractViaWallet(params.shardId, cfg.Address, payload, params.amount)
 	if err != nil {
 		return err
 	}

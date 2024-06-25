@@ -1,8 +1,6 @@
 package service
 
 import (
-	"math/big"
-
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
@@ -18,7 +16,7 @@ func (s *Service) handleCurrencyTx(txHash common.Hash, contractAddr types.Addres
 	return nil
 }
 
-func (s *Service) CurrencyCreate(contractAddr types.Address, amount *big.Int, name string, withdraw bool) error {
+func (s *Service) CurrencyCreate(contractAddr types.Address, amount types.Value, name string, withdraw bool) error {
 	txHash, err := s.client.CurrencyCreate(contractAddr, amount, name, withdraw, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send create transaction")
@@ -33,7 +31,7 @@ func (s *Service) CurrencyCreate(contractAddr types.Address, amount *big.Int, na
 	return nil
 }
 
-func (s *Service) CurrencyWithdraw(contractAddr types.Address, amount *big.Int, toAddr types.Address) error {
+func (s *Service) CurrencyWithdraw(contractAddr types.Address, amount types.Value, toAddr types.Address) error {
 	txHash, err := s.client.CurrencyWithdraw(contractAddr, amount, toAddr, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send transfer transaction")
@@ -48,7 +46,7 @@ func (s *Service) CurrencyWithdraw(contractAddr types.Address, amount *big.Int, 
 	return nil
 }
 
-func (s *Service) CurrencyMint(contractAddr types.Address, amount *big.Int, withdraw bool) error {
+func (s *Service) CurrencyMint(contractAddr types.Address, amount types.Value, withdraw bool) error {
 	txHash, err := s.client.CurrencyMint(contractAddr, amount, withdraw, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send transfer transaction")

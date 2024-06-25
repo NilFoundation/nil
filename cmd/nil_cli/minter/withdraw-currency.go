@@ -31,8 +31,8 @@ func runWithdrawCurrency(_ *cobra.Command, args []string, cfg *common.Config) er
 		return err
 	}
 
-	var amount types.Uint256
-	if err := amount.SetFromDecimal(args[1]); err != nil {
+	var amount types.Value
+	if err := amount.Set(args[1]); err != nil {
 		return err
 	}
 
@@ -41,5 +41,5 @@ func runWithdrawCurrency(_ *cobra.Command, args []string, cfg *common.Config) er
 		return err
 	}
 
-	return service.CurrencyWithdraw(address, amount.ToBig(), to)
+	return service.CurrencyWithdraw(address, amount, to)
 }

@@ -22,5 +22,5 @@ type contractParams struct {
 	noWait   bool
 	salt     types.Uint256
 	shardId  types.ShardId
-	gasLimit types.Uint256
+	gasLimit types.Gas
 }

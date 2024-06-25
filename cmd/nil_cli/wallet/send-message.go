@@ -29,7 +29,7 @@ func SendMessageCommand(cfg *common.Config) *cobra.Command {
 		"Path to ABI file",
 	)
 
-	params.amount = *types.NewUint256(0)
+	params.amount = types.Value{}
 	cmd.Flags().Var(
 		&params.amount,
 		amountFlag,
@@ -43,7 +43,7 @@ func SendMessageCommand(cfg *common.Config) *cobra.Command {
 		"Wait for receipt",
 	)
 
-	params.gasLimit = *types.NewUint256(100_000)
+	params.gasLimit = 100_000
 	cmd.Flags().Var(
 		&params.gasLimit,
 		gasLimitFlag,
@@ -78,7 +78,7 @@ func runSend(_ *cobra.Command, args []string, cfg *common.Config) error {
 		return err
 	}
 
-	msgHash, err := service.RunContract(cfg.Address, calldata, &params.gasLimit, &params.amount, currencies, address)
+	msgHash, err := service.RunContract(cfg.Address, calldata, params.gasLimit, params.amount, currencies, address)
 	if err != nil {
 		return err
 	}

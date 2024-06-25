@@ -9,7 +9,6 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,7 +32,7 @@ func GenerateZeroState(t *testing.T, ctx context.Context,
 	t.Helper()
 
 	c := newCollator(Params{
-		BlockGeneratorParams: execution.NewBlockGeneratorParams(shardId, 0, uint256.NewInt(10), 0),
+		BlockGeneratorParams: execution.NewBlockGeneratorParams(shardId, 0, types.NewValueFromUint64(10), 0),
 	}, nil, nil, sharedLogger)
 	err := c.GenerateZeroState(ctx, txFabric, execution.DefaultZeroStateConfig)
 	require.NoError(t, err)
@@ -46,7 +45,7 @@ func GenerateBlockWithMessages(t *testing.T, ctx context.Context,
 
 	pool := &MockMsgPool{Msgs: msgs}
 	c := newCollator(Params{
-		BlockGeneratorParams: execution.NewBlockGeneratorParams(shardId, nShards, uint256.NewInt(10), 0),
+		BlockGeneratorParams: execution.NewBlockGeneratorParams(shardId, nShards, types.NewValueFromUint64(10), 0),
 	}, new(TrivialShardTopology), pool, sharedLogger)
 	require.NoError(t, c.GenerateBlock(ctx, txFabric))
 }

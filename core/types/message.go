@@ -75,13 +75,13 @@ type Message struct {
 	ChainId ChainId      `json:"chainId" ch:"chainId"`
 	Seqno   Seqno        `json:"seqno,omitempty" ch:"seqno"`
 	// TODO: This field is not used right now, but it should be used in the future
-	GasPrice Uint256           `json:"gasPrice,omitempty" ch:"gas_price" ssz-size:"32"`
-	GasLimit Uint256           `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
+	GasPrice Value             `json:"gasPrice,omitempty" ch:"gas_price" ssz-size:"32"`
+	GasLimit Gas               `json:"gasLimit,omitempty" ch:"gas_limit"`
 	From     Address           `json:"from,omitempty" ch:"from"`
 	To       Address           `json:"to,omitempty" ch:"to"`
 	RefundTo Address           `json:"refundTo,omitempty" ch:"refundTo"`
 	BounceTo Address           `json:"bounceTo,omitempty" ch:"bounceTo"`
-	Value    Uint256           `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Value    Value             `json:"value,omitempty" ch:"value" ssz-size:"32"`
 	Currency []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
 	Data     Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
 	// This field should always be at the end of the structure for easy signing
@@ -100,12 +100,12 @@ type ExternalMessage struct {
 type InternalMessagePayload struct {
 	Kind     MessageKind       `json:"kind,omitempty" ch:"kind"`
 	Bounce   bool              `json:"bounce,omitempty" ch:"bounce"`
-	GasLimit Uint256           `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
+	GasLimit Gas               `json:"gasLimit,omitempty" ch:"gas_limit"`
 	To       Address           `json:"to,omitempty" ch:"to"`
 	RefundTo Address           `json:"refundTo,omitempty" ch:"refundTo"`
 	BounceTo Address           `json:"bounceTo,omitempty" ch:"bounceTo"`
 	Currency []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
-	Value    Uint256           `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Value    Value             `json:"value,omitempty" ch:"value" ssz-size:"32"`
 	Data     Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
 }
 
@@ -124,6 +124,15 @@ var (
 	_ ssz.Marshaler   = new(Message)
 	_ ssz.Unmarshaler = new(Message)
 )
+
+func NewEmptyMessage() *Message {
+	return &Message{
+		GasPrice:  NewValueFromUint64(0),
+		Value:     NewValueFromUint64(0),
+		Currency:  make([]CurrencyBalance, 0),
+		Signature: make(Signature, 0),
+	}
+}
 
 func (m *Message) Hash() common.Hash {
 	if m.IsExternal() {

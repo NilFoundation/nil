@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/big"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
-	"github.com/holiman/uint256"
 )
 
 func (api *APIImpl) getSmartContract(tx db.RoTx, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*types.SmartContract, error) {
@@ -54,11 +54,11 @@ func (api *APIImpl) GetBalance(ctx context.Context, address types.Address, block
 	acc, err := api.getSmartContract(tx, address, blockNrOrHash)
 	if err != nil {
 		if errors.Is(err, db.ErrKeyNotFound) {
-			return (*hexutil.Big)(big.NewInt(0)), nil
+			return hexutil.NewBigFromInt64(0), nil
 		}
 		return nil, err
 	}
-	return (*hexutil.Big)(acc.Balance.ToBig()), nil
+	return hexutil.NewBig(acc.Balance.ToBig()), nil
 }
 
 // GetCurrencies implements eth_getCurrencies. Returns the balance of all currencies of account for a given address.
@@ -81,18 +81,16 @@ func (api *APIImpl) GetCurrencies(ctx context.Context, address types.Address, bl
 		}
 		return nil, err
 	}
-	currencyReader := mpt.NewReaderWithRoot(tx, shardId, db.CurrencyTrieTable, acc.CurrencyRoot)
 
-	res := make(map[string]*hexutil.Big)
-	for kv := range currencyReader.Iterate() {
-		var v uint256.Int
-		if err = v.UnmarshalSSZ(kv.Value); err != nil {
-			return nil, err
-		}
-		key := hexutil.ToHexNoLeadingZeroes(kv.Key)
-		res[key] = (*hexutil.Big)(v.ToBig())
+	currencyReader := execution.NewCurrencyTrieReader(mpt.NewReaderWithRoot(tx, shardId, db.CurrencyTrieTable, acc.CurrencyRoot))
+	entries, err := currencyReader.Entries()
+	if err != nil {
+		return nil, err
 	}
-	return res, nil
+
+	return common.SliceToMap(entries, func(_ int, kv execution.Entry[types.CurrencyId, *types.Value]) (string, *hexutil.Big) {
+		return hexutil.ToHexNoLeadingZeroes(kv.Key[:]), hexutil.NewBig(kv.Val.ToBig())
+	}), nil
 }
 
 // GetTransactionCount implements eth_getTransactionCount. Returns the number of transactions sent from an address (the nonce / seqno).
