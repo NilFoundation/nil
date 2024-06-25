@@ -11,7 +11,6 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/concurrent"
 	"github.com/NilFoundation/nil/contracts"
-	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -91,7 +90,7 @@ func (s *Service) TopUpViaFaucet(contractAddress types.Address, amount *types.Ui
 	return nil
 }
 
-func (s *Service) CreateWallet(shardId types.ShardId, salt types.Uint256, pubKey *ecdsa.PublicKey) (types.Address, error) {
+func (s *Service) CreateWallet(shardId types.ShardId, salt types.Uint256, balance *types.Uint256, pubKey *ecdsa.PublicKey) (types.Address, error) {
 	walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(pubKey))
 	deployPayload := types.BuildDeployPayload(walletCode, common.Hash(salt.Bytes32()))
 	walletAddress := types.CreateAddress(shardId, deployPayload)
@@ -104,10 +103,9 @@ func (s *Service) CreateWallet(shardId types.ShardId, salt types.Uint256, pubKey
 		return types.EmptyAddress, ErrWalletExists
 	}
 
-	deployGasLimit := *types.NewUint256(1_000_000)
-	value := types.NewUint256(0)
-	value.Mul(&deployGasLimit.Int, execution.GasPrice)
-	err = s.TopUpViaFaucet(walletAddress, value)
+	// NOTE: we deploy wallet code with ext message
+	// in current implementation this costs 629_160
+	err = s.TopUpViaFaucet(walletAddress, balance)
 	if err != nil {
 		return types.EmptyAddress, err
 	}

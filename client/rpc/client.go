@@ -461,6 +461,7 @@ func (c *Client) sendExternalMessage(
 }
 
 func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount *types.Uint256) (common.Hash, error) {
+	// unused gas will be refunded to the Faucet
 	gasLimit := *types.NewUint256(100_000)
 	value := *amount
 	value.Add(&value.Int, types.NewUint256(0).Mul(&gasLimit.Int, execution.GasPrice))

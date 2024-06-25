@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/holiman/uint256"
 	"github.com/spf13/cobra"
 )
 
@@ -39,6 +40,17 @@ func setFlags(cmd *cobra.Command) {
 		shardIdFlag,
 		"Specify the shard id to interact with",
 	)
+
+	params.amount = *types.NewUint256(10_000_000)
+	cmd.Flags().Var(
+		&params.amount,
+		amountFlag,
+		"Start balance (capped at 10'000'000). Deployment fee will be subtracted",
+	)
+
+	if params.amount.Cmp(uint256.NewInt(10_000_000)) > 0 {
+		params.amount = *types.NewUint256(10_000_000)
+	}
 }
 
 func runNew(_ *cobra.Command, _ []string, cfg *config.Config) error {
@@ -46,7 +58,7 @@ func runNew(_ *cobra.Command, _ []string, cfg *config.Config) error {
 
 	client := rpc.NewClient(cfg.RPCEndpoint)
 	srv := service.NewService(client, cfg.PrivateKey)
-	walletAddress, err := srv.CreateWallet(params.shardId, params.salt, &cfg.PrivateKey.PublicKey)
+	walletAddress, err := srv.CreateWallet(params.shardId, params.salt, &params.amount, &cfg.PrivateKey.PublicKey)
 
 	if errors.Is(err, service.ErrWalletExists) {
 		logger.Error().Err(err).Msg("failed to create wallet")

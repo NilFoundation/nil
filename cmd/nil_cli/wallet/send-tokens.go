@@ -26,6 +26,13 @@ func SendTokensCommand(cfg *config.Config) *cobra.Command {
 		"Wait for receipt",
 	)
 
+	params.gasLimit = *types.NewUint256(100_000)
+	cmd.Flags().Var(
+		&params.gasLimit,
+		gasLimitFlag,
+		"Gas limit",
+	)
+
 	return cmd
 }
 
@@ -43,7 +50,7 @@ func runTransfer(_ *cobra.Command, args []string, cfg *config.Config) error {
 		return err
 	}
 
-	msgHash, err := service.RunContract(cfg.Address, nil, amount, address)
+	msgHash, err := service.RunContract(cfg.Address, nil, &params.gasLimit, amount, address)
 	if err != nil {
 		return err
 	}

@@ -88,7 +88,7 @@ func (s *SuiteRpc) TestContract() {
 	s.Require().NoError(err)
 
 	// Get current value
-	res, err := s.cli.CallContract(addr, getCalldata)
+	res, err := s.cli.CallContract(addr, types.NewUint256(100000), getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000002", res)
 
@@ -96,7 +96,7 @@ func (s *SuiteRpc) TestContract() {
 	calldata, err := abi.Pack("increment")
 	s.Require().NoError(err)
 
-	txHash, err = s.cli.RunContract(wallet, calldata, nil, addr)
+	txHash, err = s.cli.RunContract(wallet, calldata, types.NewUint256(100_000), nil, addr)
 	s.Require().NoError(err)
 
 	receipt = s.waitForReceiptOnShard(wallet.ShardId(), txHash)
@@ -104,7 +104,7 @@ func (s *SuiteRpc) TestContract() {
 	s.Require().True(receipt.OutReceipts[0].Success)
 
 	// Get updated value
-	res, err = s.cli.CallContract(addr, getCalldata)
+	res, err = s.cli.CallContract(addr, types.NewUint256(100000), getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000003", res)
 
@@ -112,7 +112,7 @@ func (s *SuiteRpc) TestContract() {
 	balanceBefore, err := s.cli.GetBalance(addr)
 	s.Require().NoError(err)
 
-	txHash, err = s.cli.RunContract(wallet, nil, types.NewUint256(100), addr)
+	txHash, err = s.cli.RunContract(wallet, nil, types.NewUint256(100_000), types.NewUint256(100), addr)
 	s.Require().NoError(err)
 
 	receipt = s.waitForReceiptOnShard(wallet.ShardId(), txHash)
@@ -139,7 +139,7 @@ func (s *SuiteRpc) testNewWalletOnShard(shardId types.ShardId) {
 	walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(&ownerPrivateKey.PublicKey))
 	code := types.BuildDeployPayload(walletCode, common.EmptyHash)
 	expectedAddress := types.CreateAddress(shardId, code)
-	walletAddres, err := s.cli.CreateWallet(shardId, *types.NewUint256(0), &ownerPrivateKey.PublicKey)
+	walletAddres, err := s.cli.CreateWallet(shardId, *types.NewUint256(0), types.NewUint256(10_000_000), &ownerPrivateKey.PublicKey)
 	s.Require().NoError(err)
 	s.Require().Equal(expectedAddress, walletAddres)
 }
@@ -172,7 +172,7 @@ func (s *SuiteRpc) TestSendExternalMessage() {
 	s.Require().NoError(err)
 
 	// Get current value
-	res, err := s.cli.CallContract(addr, getCalldata)
+	res, err := s.cli.CallContract(addr, types.NewUint256(100000), getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000002", res)
 
@@ -187,7 +187,7 @@ func (s *SuiteRpc) TestSendExternalMessage() {
 	s.Require().True(receipt.Success)
 
 	// Get updated value
-	res, err = s.cli.CallContract(addr, getCalldata)
+	res, err = s.cli.CallContract(addr, types.NewUint256(100000), getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x000000000000000000000000000000000000000000000000000000000000007d", res)
 }

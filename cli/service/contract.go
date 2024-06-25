@@ -34,8 +34,8 @@ func (s *Service) GetBalance(contractAddress types.Address) (string, error) {
 }
 
 // RunContract runs bytecode on the specified contract address
-func (s *Service) RunContract(wallet types.Address, bytecode []byte, value *types.Uint256, contract types.Address) (common.Hash, error) {
-	txHash, err := s.client.SendMessageViaWallet(wallet, bytecode, types.NewUint256(100_000), value,
+func (s *Service) RunContract(wallet types.Address, bytecode []byte, gasLimit *types.Uint256, value *types.Uint256, contract types.Address) (common.Hash, error) {
+	txHash, err := s.client.SendMessageViaWallet(wallet, bytecode, gasLimit, value,
 		[]types.CurrencyBalance{}, contract, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
@@ -85,14 +85,14 @@ func (s *Service) DeployContractExternal(shardId types.ShardId, bytecode []byte)
 }
 
 // CallContract performs read-only call to the contract
-func (s *Service) CallContract(contract types.Address, calldata []byte) (string, error) {
+func (s *Service) CallContract(contract types.Address, gasLimit *types.Uint256, calldata []byte) (string, error) {
 	seqno := hexutil.Uint64(0)
 	callArgs := &jsonrpc.CallArgs{
 		From:     contract,
 		Data:     calldata,
 		To:       contract,
 		Value:    types.NewUint256(0),
-		GasLimit: types.NewUint256(10000),
+		GasLimit: gasLimit,
 		Seqno:    &seqno,
 	}
 
