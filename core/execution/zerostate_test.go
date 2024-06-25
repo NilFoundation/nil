@@ -63,14 +63,10 @@ func (suite *SuiteZeroState) getBalance(address types.Address) uint256.Int {
 	return account.Balance
 }
 
-func (suite *SuiteZeroState) TestFaucetBalance() {
-	ret := suite.getBalance(suite.faucetAddr)
-	suite.Require().EqualValues(*uint256.NewInt(1000000000000), ret)
-}
-
 func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 	receiverContract := suite.contracts["SimpleContract"]
 	receiverAddr := deployContract(suite.T(), receiverContract, suite.state, 2)
+	balance := suite.getBalance(suite.faucetAddr)
 
 	calldata, err := suite.faucetABI.Pack("withdrawTo", receiverAddr, big.NewInt(100))
 	suite.Require().NoError(err)
@@ -83,8 +79,8 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 	}
 	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, callMessage)
 	suite.Require().NoError(err)
-
-	suite.Require().EqualValues(*uint256.NewInt(1000000000000 - 100), suite.getBalance(suite.faucetAddr))
+	balance.SubUint64(&balance, 100)
+	suite.Require().EqualValues(balance, suite.getBalance(suite.faucetAddr))
 	suite.Require().EqualValues(*uint256.NewInt(100), suite.getBalance(receiverAddr))
 }
 

@@ -113,6 +113,20 @@ func (suite *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types
 	return receipt
 }
 
+func (suite *RpcSuite) sendMessageViaWalletWithValue(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey, calldata []byte, value uint64) *jsonrpc.RPCReceipt {
+	suite.T().Helper()
+
+	txHash, err := suite.client.SendMessageViaWallet(addrFrom, calldata, types.NewUint256(100_000), types.NewUint256(value),
+		[]types.CurrencyBalance{}, addrTo, key)
+	suite.Require().NoError(err)
+
+	receipt := suite.waitForReceipt(addrFrom.ShardId(), txHash)
+	suite.Require().True(receipt.Success)
+	suite.Require().Len(receipt.OutReceipts, 1)
+
+	return receipt
+}
+
 // sendMessageViaWalletNoCheck sends a message via a wallet contract. Doesn't require the receipt be successful.
 func (suite *RpcSuite) sendMessageViaWalletNoCheck(addrWallet types.Address, addrTo types.Address, key *ecdsa.PrivateKey,
 	calldata []byte, gas *uint256.Int, value *uint256.Int, currencies []types.CurrencyBalance,

@@ -31,7 +31,7 @@ func init() {
 contracts:
 - name: Faucet
   address: {{ .FaucetAddress }}
-  value: 1000000000000
+  value: 20000000000000000000000
   contract: Faucet
 - name: MainWallet
   address: {{ .MainWalletAddress }}
