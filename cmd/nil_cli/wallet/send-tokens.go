@@ -1,4 +1,4 @@
-package contract
+package wallet
 
 import (
 	"github.com/NilFoundation/nil/cli/service"
@@ -8,11 +8,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func GetTransferCommand(cfg *config.Config) *cobra.Command {
+func SendTokensCommand(cfg *config.Config) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "transfer [address] [amount]",
-		Short: "Transfer coins to specific address",
-		Long:  "Transfer some amount of coins to specific address",
+		Use:   "send-tokens [address] [amount]",
+		Short: "Transfer tokens to specific address",
+		Long:  "Transfer some amount of tokens to specific address",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTransfer(cmd, args, cfg)

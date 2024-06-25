@@ -11,8 +11,12 @@ func GetCommand(cfg *config.Config) *cobra.Command {
 		Short: "Interact with wallet on the cluster",
 	}
 
+	serverCmd.AddCommand(BalanceCommand(cfg))
+	serverCmd.AddCommand(DeployCommand(cfg))
+	serverCmd.AddCommand(SendMessageCommand(cfg))
+	serverCmd.AddCommand(SendTokensCommand(cfg))
 	serverCmd.AddCommand(TopUpCommand(cfg))
-	serverCmd.AddCommand(GetNewCommand(cfg))
+	serverCmd.AddCommand(NewCommand(cfg))
 
 	return serverCmd
 }

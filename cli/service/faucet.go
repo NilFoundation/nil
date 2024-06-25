@@ -9,9 +9,11 @@ import (
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/concurrent"
+	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 const (
@@ -66,29 +68,9 @@ func (s *Service) TopUpViaFaucet(contractAddress types.Address, amount *types.Ui
 	return nil
 }
 
-func (s *Service) DeployExternal(
-	shardId types.ShardId,
-	deployPayload types.DeployPayload,
-	ownerPrivateKey *ecdsa.PrivateKey,
-) (types.Address, error) {
-	msgHash, address, err := s.client.DeployExternal(shardId, deployPayload, ownerPrivateKey)
-	if err != nil {
-		return address, err
-	}
-
-	res, err := s.WaitForReceipt(address.ShardId(), msgHash)
-	if err != nil {
-		return types.EmptyAddress, errors.New("error during waiting for receipt")
-	}
-
-	if !res.Success {
-		return types.EmptyAddress, errors.New("deploy message processing failed")
-	}
-	return res.ContractAddress, nil
-}
-
-func (s *Service) CreateWallet(shardId types.ShardId, code types.Code, salt types.Uint256, ownerPrivateKey *ecdsa.PrivateKey) (types.Address, error) {
-	deployPayload := types.BuildDeployPayload(code, common.Hash(salt.Bytes32()))
+func (s *Service) CreateWallet(shardId types.ShardId, salt types.Uint256, pubKey *ecdsa.PublicKey) (types.Address, error) {
+	walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(pubKey))
+	deployPayload := types.BuildDeployPayload(walletCode, common.Hash(salt.Bytes32()))
 	walletAddress := types.CreateAddress(shardId, deployPayload)
 
 	code, err := s.client.GetCode(walletAddress, "latest")
@@ -107,12 +89,19 @@ func (s *Service) CreateWallet(shardId types.ShardId, code types.Code, salt type
 		return types.EmptyAddress, err
 	}
 
-	addr, err := s.DeployExternal(shardId, deployPayload, ownerPrivateKey)
+	msgHash, addr, err := s.DeployContractExternal(shardId, deployPayload)
 	if err != nil {
 		return types.EmptyAddress, err
 	}
 	if addr != walletAddress {
 		return types.EmptyAddress, errors.New("contract was deployed to unexpected address")
+	}
+	res, err := s.WaitForReceipt(addr.ShardId(), msgHash)
+	if err != nil {
+		return types.EmptyAddress, errors.New("error during waiting for receipt")
+	}
+	if !res.IsComplete() {
+		return types.EmptyAddress, errors.New("deploy message processing failed")
 	}
 	return addr, nil
 }

@@ -1,4 +1,4 @@
-package contract
+package wallet
 
 import (
 	"github.com/NilFoundation/nil/cli/service"
@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func GetDeployCommand(cfg *config.Config) *cobra.Command {
+func DeployCommand(cfg *config.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "deploy [path to file] [args...]",
 		Short: "Deploy smart contract",
@@ -46,6 +46,13 @@ func setDeployFlags(cmd *cobra.Command) {
 		"",
 		"Path to ABI file",
 	)
+
+	params.amount = *types.NewUint256(0)
+	cmd.Flags().Var(
+		&params.amount,
+		amountFlag,
+		"Amount of tokens to send",
+	)
 }
 
 func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *config.Config) error {
@@ -66,7 +73,7 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *config.Config) error {
 
 	bytecode = types.BuildDeployPayload(bytecode, libcommon.Hash(params.salt.Bytes32()))
 
-	_, _, err = service.DeployContractExternal(params.shardId, bytecode)
+	_, _, err = service.DeployContractViaWallet(params.shardId, cfg.Address, bytecode, &params.amount)
 	if err != nil {
 		return err
 	}
