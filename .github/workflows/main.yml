@@ -43,7 +43,7 @@ jobs:
         with:
           name: nil-linux-amd64-${{ github.run_number }}
           path: |
-            build/bin/*
+            result/bin/nil*
 
       - name: upload packages to s3
         if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' ||  github.ref == 'refs/heads/master') }}
