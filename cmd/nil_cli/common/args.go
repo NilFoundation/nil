@@ -68,7 +68,7 @@ func ReadBytecode(filename string, abiPath string, args []string) ([]byte, error
 
 		bytecode = hexutil.FromHex(string(codeHex))
 		if abiPath != "" {
-			calldata, err := ArgsToCalldata(abiPath, "", args[1:])
+			calldata, err := ArgsToCalldata(abiPath, "", args)
 			if err != nil {
 				return nil, fmt.Errorf("failed to handle constructor arguments: %w", err)
 			}
