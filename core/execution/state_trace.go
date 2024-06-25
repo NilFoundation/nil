@@ -6,7 +6,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
@@ -14,7 +13,7 @@ import (
 
 const (
 	printToStdout    = true
-	printEmptyBlocks = true
+	printEmptyBlocks = false
 )
 
 type BlocksTracer struct {
@@ -64,8 +63,8 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 		bt.printf("seqno: %d\n", msg.Seqno)
 		bt.printf("from: %s\n", msg.From.Hex())
 		bt.printf("to: %s\n", msg.To.Hex())
-		bt.printf("value: %s\n", msg.Value.Hex())
-		bt.printf("data: %s\n", hexutil.Encode(msg.Data))
+		bt.printf("value: %s\n", msg.Value.String())
+		bt.printf("data_size: %d\n", len(msg.Data))
 	}
 
 	bt.printf("-\n")

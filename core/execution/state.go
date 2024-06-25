@@ -619,6 +619,10 @@ func (es *ExecutionState) AddOutMessage(msg *types.Message) error {
 			return err
 		}
 	}
+	es.journal.append(outMessagesChange{
+		msgHash: es.InMessageHash,
+		index:   len(es.OutMessages[es.InMessageHash]),
+	})
 	es.AddOutMessageForTx(es.InMessageHash, msg)
 	return nil
 }

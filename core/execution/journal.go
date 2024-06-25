@@ -101,6 +101,10 @@ type (
 		account       *types.Address
 		key, prevalue common.Hash
 	}
+	outMessagesChange struct {
+		msgHash common.Hash
+		index   int
+	}
 )
 
 func (ch createObjectChange) revert(s *ExecutionState) {
@@ -179,4 +183,15 @@ func (ch addLogChange) revert(s *ExecutionState) {
 
 func (ch transientStorageChange) revert(s *ExecutionState) {
 	s.setTransientState(*ch.account, ch.key, ch.prevalue)
+}
+
+func (ch outMessagesChange) revert(s *ExecutionState) {
+	outMessages, ok := s.OutMessages[ch.msgHash]
+	check.PanicIfNot(ok)
+
+	// Probably it is possible that the message is not the last in the list, but let's assume it is for a now.
+	// And catch opposite case with this assert.
+	check.PanicIfNot(ch.index == len(outMessages)-1)
+
+	s.OutMessages[ch.msgHash] = outMessages[:ch.index]
 }

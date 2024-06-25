@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
@@ -366,6 +367,39 @@ func (suite *SuiteRpc) TestRpcDebugModules() {
 	suite.Require().Contains(fullRes, "inMessages")
 	suite.Require().Contains(fullRes, "outMessages")
 	suite.Require().Contains(fullRes, "receipts")
+}
+
+// Test that we remove output messages if the transaction failed
+func (suite *SuiteRpc) TestNoOutMessagesIfFailure() {
+	code, err := contracts.GetCode("tests/CommonTest")
+	suite.Require().NoError(err)
+	abi, err := contracts.GetAbi("tests/CommonTest")
+	suite.Require().NoError(err)
+
+	addr, receipt := suite.deployContractViaMainWallet(2, code, types.NewUint256(defaultContractValue))
+	suite.Require().True(receipt.OutReceipts[0].Success)
+
+	// Call CommonTest contract with invalid argument, so no output messages should be generated
+	calldata, err := abi.Pack("testFailedAsyncCall", addr, int32(0))
+	suite.Require().NoError(err)
+
+	txhash, err := suite.client.SendExternalMessage(calldata, addr, nil)
+	suite.Require().NoError(err)
+	receipt = suite.waitForReceipt(addr.ShardId(), txhash)
+	suite.Require().False(receipt.Success)
+	suite.Require().Empty(receipt.OutReceipts)
+	suite.Require().Empty(receipt.OutMessages)
+
+	// Call CommonTest contract with valid argument, so output messages should be generated
+	calldata, err = abi.Pack("testFailedAsyncCall", addr, int32(10))
+	suite.Require().NoError(err)
+
+	txhash, err = suite.client.SendExternalMessage(calldata, addr, nil)
+	suite.Require().NoError(err)
+	receipt = suite.waitForReceipt(addr.ShardId(), txhash)
+	suite.Require().True(receipt.Success)
+	suite.Require().Len(receipt.OutReceipts, 1)
+	suite.Require().Len(receipt.OutMessages, 1)
 }
 
 func TestSuiteRpc(t *testing.T) {
