@@ -27,7 +27,10 @@ const TraceBlocksEnabled = false
 var ExternalMessageVerificationMaxGas = uint256.NewInt(100_000)
 
 // TODO: Make gas price dynamic and use message.GasPrice
-var GasPrice = uint256.NewInt(10)
+var (
+	GasPrice   = uint256.NewInt(10)
+	ForwardFee = uint256.NewInt(100)
+)
 
 var blocksTracer *BlocksTracer
 
@@ -685,9 +688,6 @@ func (es *ExecutionState) HandleDeployMessage(
 	defer es.resetVm()
 
 	_, addr, leftOverGas, err := es.evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code(), gas, &message.Value.Int)
-
-	es.AddReceipt(uint32(gas-leftOverGas), err)
-
 	event := logger.Debug().Stringer(logging.FieldMessageTo, addr)
 	if err != nil {
 		event.Err(err).Msg("Contract deployment failed.")
@@ -739,13 +739,11 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 			}
 		}
 	}
-	es.AddReceipt(uint32(gas-leftOverGas), err)
 	return leftOverGas, ret, err
 }
 
 func (es *ExecutionState) HandleRefundMessage(_ context.Context, message *types.Message) error {
 	err := es.AddBalance(message.To, &message.Value.Int, tracing.BalanceIncreaseRefund)
-	es.AddReceipt(0, err)
 	logger.Debug().Err(err).Msgf("Refunded %v to %v", &message.Value.Int, message.To)
 	return err
 }

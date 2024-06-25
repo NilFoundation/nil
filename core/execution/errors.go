@@ -1,4 +1,4 @@
-package collate
+package execution
 
 import "errors"
 

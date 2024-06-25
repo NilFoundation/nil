@@ -12,6 +12,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func GenerateZeroState(t *testing.T, ctx context.Context,
+	shardId types.ShardId, txFabric db.DB,
+) {
+	t.Helper()
+
+	txOwner, err := NewTxOwner(ctx, txFabric)
+	require.NoError(t, err)
+	g, err := NewBlockGenerator(NewBlockGeneratorParams(shardId, 1), txOwner)
+	require.NoError(t, err)
+	require.NoError(t, g.GenerateZeroState(DefaultZeroStateConfig))
+}
+
 func GenerateBlockFromMessages(t *testing.T, ctx context.Context,
 	shardId types.ShardId, blockId types.BlockNumber, prevBlock common.Hash,
 	txFabric db.DB, msgs ...*types.Message,
@@ -49,19 +61,23 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 			continue
 		}
 
+		gas := msg.GasLimit.Uint64()
+		var leftOverGas uint64
 		switch msg.Kind {
 		case types.DeployMessageKind:
-			_, err := es.HandleDeployMessage(ctx, msg)
+			leftOverGas, err = es.HandleDeployMessage(ctx, msg)
 			require.NoError(t, err)
 		case types.ExecutionMessageKind:
-			_, _, err := es.HandleExecutionMessage(ctx, msg)
+			leftOverGas, _, err = es.HandleExecutionMessage(ctx, msg)
 			require.NoError(t, err)
 		case types.RefundMessageKind:
-			err := es.HandleRefundMessage(ctx, msg)
+			err = es.HandleRefundMessage(ctx, msg)
 			require.NoError(t, err)
 		default:
 			panic("unreachable")
 		}
+
+		es.AddReceipt(uint32(gas-leftOverGas), err)
 	}
 
 	blockHash, err := es.Commit(blockId)
@@ -108,9 +124,11 @@ func Deploy(t *testing.T, ctx context.Context, es *ExecutionState,
 	t.Helper()
 
 	msg := NewDeployMessage(payload, shardId, from, seqno)
+	gas := msg.GasLimit.Uint64()
 	es.AddInMessage(msg)
-	_, err := es.HandleDeployMessage(ctx, msg)
+	gasLeft, err := es.HandleDeployMessage(ctx, msg)
 	require.NoError(t, err)
+	es.AddReceipt(uint32(gas-gasLeft), nil)
 
 	return msg.To
 }
