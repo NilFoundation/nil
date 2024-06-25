@@ -533,18 +533,18 @@ func (as *AccountState) setBalance(amount *uint256.Int) {
 func (s *AccountState) SetCurrencyBalance(id *types.CurrencyId, amount *uint256.Int) {
 	prev, err := s.CurrencyTree.Fetch(*id)
 	if err != nil {
-		prev = &types.NewUint256(0).Int
+		prev = types.NewUint256(0)
 	}
 	s.db.journal.append(currencyChange{
 		account: &s.address,
 		id:      *id,
-		prev:    prev,
+		prev:    &prev.Int,
 	})
 	s.setCurrencyBalance(id, amount)
 }
 
 func (s *AccountState) setCurrencyBalance(id *types.CurrencyId, amount *uint256.Int) {
-	check.PanicIfErr(s.CurrencyTree.Update(*id, amount))
+	check.PanicIfErr(s.CurrencyTree.Update(*id, &types.Uint256{Int: *amount}))
 	logger.Debug().
 		Stringer("address", s.address).
 		Hex("id", id[:]).
@@ -555,9 +555,9 @@ func (s *AccountState) setCurrencyBalance(id *types.CurrencyId, amount *uint256.
 func (s *AccountState) GetCurrencyBalance(id *types.CurrencyId) *uint256.Int {
 	res, err := s.CurrencyTree.Fetch(*id)
 	if err != nil {
-		res = uint256.NewInt(0)
+		res = types.NewUint256(0)
 	}
-	return res
+	return &res.Int
 }
 
 func (as *AccountState) SetSeqno(seqno types.Seqno) {
@@ -626,7 +626,7 @@ func (as *AccountState) GetCommittedState(key common.Hash) (common.Hash, error) 
 
 func (as *AccountState) Commit() (*types.SmartContract, error) {
 	for k, v := range as.State {
-		if err := as.StorageTree.Update(k, v.Uint256()); err != nil {
+		if err := as.StorageTree.Update(k, &types.Uint256{Int: *v.Uint256()}); err != nil {
 			return nil, err
 		}
 	}
@@ -974,7 +974,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 	if len(es.ChildChainBlocks) > 0 {
 		treeShards := NewShardBlocksTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.ShardBlocksTrieTableName(blockId)))
 		for k, hash := range es.ChildChainBlocks {
-			if err := treeShards.Update(k, hash.Uint256()); err != nil {
+			if err := treeShards.Update(k, &types.Uint256{Int: *hash.Uint256()}); err != nil {
 				return common.EmptyHash, err
 			}
 		}
