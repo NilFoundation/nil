@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/ecdsa"
-	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -24,21 +23,28 @@ import (
 
 type RootCommand struct {
 	baseCmd *cobra.Command
-	config  *config.Config
+	config  config.Config
+	cfgFile string
 }
 
 var logger = logging.NewLogger("rootCommand")
 
-func main() {
-	var rootCommand *RootCommand
+var noConfigCmd map[string]struct{} = map[string]struct{}{
+	"help":   {},
+	"keygen": {},
+}
 
-	rootCommand = &RootCommand{
+func main() {
+	var rootCmd *RootCommand
+
+	rootCmd = &RootCommand{
 		baseCmd: &cobra.Command{
 			Short: "CLI tool for interacting with the =nil; cluster",
 			PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-				if rootCommand.config == nil {
-					err := errors.New("Config required")
-					logger.Fatal().Err(err).Send()
+				if _, withoutConfig := noConfigCmd[cmd.Name()]; withoutConfig {
+					return nil
+				}
+				if err := rootCmd.loadConfig(); err != nil {
 					return err
 				}
 				return nil
@@ -46,20 +52,21 @@ func main() {
 		},
 	}
 
-	rootCommand.loadConfig()
-	rootCommand.registerSubCommands()
-	rootCommand.Execute()
+	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.cfgFile, "config", "c", "config.yaml", "Path to config file")
+
+	rootCmd.registerSubCommands()
+	rootCmd.Execute()
 }
 
 // registerSubCommands adds all subcommands to the root command
 func (rc *RootCommand) registerSubCommands() {
 	rc.baseCmd.AddCommand(
 		keygen.GetCommand(),
-		block.GetCommand(rc.config),
-		message.GetCommand(rc.config),
-		receipt.GetCommand(rc.config),
-		contract.GetCommand(rc.config),
-		wallet.GetCommand(rc.config),
+		block.GetCommand(&rc.config),
+		message.GetCommand(&rc.config),
+		receipt.GetCommand(&rc.config),
+		contract.GetCommand(&rc.config),
+		wallet.GetCommand(&rc.config),
 	)
 
 	logger.Trace().Msg("Subcommands registered")
@@ -94,24 +101,19 @@ func updateDecoderConfig(config *mapstructure.DecoderConfig) {
 }
 
 // loadConfig loads the configuration from the config file
-func (rc *RootCommand) loadConfig() {
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath("./")
+func (rc *RootCommand) loadConfig() error {
+	viper.SetConfigFile(rc.cfgFile)
 
 	if err := viper.ReadInConfig(); err != nil {
-		if reflect.TypeOf(err) == reflect.TypeOf(viper.ConfigFileNotFoundError{}) {
-			logger.Warn().Msg("No config file found")
-			return
-		}
-		logger.Fatal().Err(err).Msg("Error reading config file")
+		return fmt.Errorf("failed to read config file: %w", err)
 	}
 
 	if err := viper.Unmarshal(&rc.config, updateDecoderConfig); err != nil {
-		logger.Fatal().Err(err).Msg("Unable to decode into config struct")
+		return fmt.Errorf("unable to decode config: %w", err)
 	}
 
 	logger.Info().Msg("Configuration loaded successfully")
+	return nil
 }
 
 // Execute runs the root command and handles any errors
