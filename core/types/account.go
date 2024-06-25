@@ -1,6 +1,8 @@
 package types
 
 import (
+	"database/sql/driver"
+
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
@@ -29,8 +31,13 @@ type CurrencyBalance struct {
 	Balance  Uint256    `json:"value" ssz-size:"32"`
 }
 
+func (currency CurrencyBalance) Value() (driver.Value, error) {
+	return []interface{}{currency.Currency, currency.Balance.ToBig()}, nil
+}
+
 // interfaces
 var (
+	_ driver.Valuer       = new(CurrencyBalance)
 	_ common.Hashable     = new(SmartContract)
 	_ fastssz.Marshaler   = new(Block)
 	_ fastssz.Unmarshaler = new(Block)
