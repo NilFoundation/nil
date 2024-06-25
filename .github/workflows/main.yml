@@ -37,6 +37,13 @@ jobs:
       - name: Generate OpenRPC spec for JSON RPC API
         run: nix develop -c make rpcspec
 
+      - name: Upload binaries as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nil-linux-amd64-${{ github.run_number }}
+          path: |
+            build/bin/*
+
       - name: upload packages to s3
         if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' ||  github.ref == 'refs/heads/master') }}
         env:
