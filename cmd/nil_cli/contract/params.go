@@ -8,6 +8,7 @@ const (
 	abiFlag     = "abi"
 	amountFlag  = "amount"
 	noSignFlag  = "no-sign"
+	noWaitFlag  = "no-wait"
 	saltFlag    = "salt"
 	shardIdFlag = "shard-id"
 )
@@ -17,6 +18,7 @@ var params = &contractParams{}
 type contractParams struct {
 	abiPath string
 	noSign  bool
+	noWait  bool
 	salt    types.Uint256
 	shardId types.ShardId
 }

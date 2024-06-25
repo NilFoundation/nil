@@ -34,19 +34,19 @@ func (s *Service) GetBalance(contractAddress types.Address) (string, error) {
 }
 
 // RunContract runs bytecode on the specified contract address
-func (s *Service) RunContract(wallet types.Address, bytecode []byte, value *types.Uint256, contract types.Address) (string, error) {
+func (s *Service) RunContract(wallet types.Address, bytecode []byte, value *types.Uint256, contract types.Address) (common.Hash, error) {
 	txHash, err := s.client.SendMessageViaWallet(wallet, bytecode, types.NewUint256(100_000), value,
 		[]types.CurrencyBalance{}, contract, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
-		return "", err
+		return common.EmptyHash, err
 	}
 	s.logger.Info().Msgf("Transaction hash: %s (shard %s)", txHash, wallet.ShardId())
-	return txHash.Hex(), nil
+	return txHash, nil
 }
 
 // SendExternalMessage runs bytecode on the specified contract address
-func (s *Service) SendExternalMessage(bytecode []byte, contract types.Address, noSign bool) (string, error) {
+func (s *Service) SendExternalMessage(bytecode []byte, contract types.Address, noSign bool) (common.Hash, error) {
 	pk := s.privateKey
 	if noSign {
 		pk = nil
@@ -54,22 +54,22 @@ func (s *Service) SendExternalMessage(bytecode []byte, contract types.Address, n
 	txHash, err := s.client.SendExternalMessage(types.Code(bytecode), contract, pk)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send external message")
-		return "", err
+		return common.EmptyHash, err
 	}
 	s.logger.Info().Msgf("Transaction hash: %s (shard %s)", txHash, contract.ShardId())
-	return txHash.Hex(), nil
+	return txHash, nil
 }
 
 // DeployContractViaWallet deploys a new smart contract with the given bytecode via the wallet
-func (s *Service) DeployContractViaWallet(shardId types.ShardId, wallet types.Address, bytecode []byte, value *types.Uint256) (string, string, error) {
+func (s *Service) DeployContractViaWallet(shardId types.ShardId, wallet types.Address, bytecode []byte, value *types.Uint256) (common.Hash, types.Address, error) {
 	txHash, contractAddr, err := s.client.DeployContract(shardId, wallet, bytecode, value, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
-		return "", "", err
+		return common.EmptyHash, types.EmptyAddress, err
 	}
 	s.logger.Info().Msgf("Contract address: 0x%x", contractAddr)
 	s.logger.Info().Msgf("Transaction hash: %s (shard %s)", txHash, wallet.ShardId())
-	return txHash.Hex(), contractAddr.Hex(), nil
+	return txHash, contractAddr, nil
 }
 
 // DeployContractExternal deploys a new smart contract with the given bytecode via external message

@@ -39,6 +39,13 @@ func GetSendExternalMessageCommand(cfg *config.Config) *cobra.Command {
 		"Don't sign external message",
 	)
 
+	cmd.Flags().BoolVar(
+		&params.noWait,
+		noWaitFlag,
+		false,
+		"Wait for receipt",
+	)
+
 	return cmd
 }
 
@@ -56,6 +63,15 @@ func runSendExternalMessage(_ *cobra.Command, args []string, cfg *config.Config)
 		return err
 	}
 
-	_, _ = service.SendExternalMessage(calldata, address, params.noSign)
+	msgHash, err := service.SendExternalMessage(calldata, address, params.noSign)
+	if err != nil {
+		return err
+	}
+
+	if !params.noWait {
+		if _, err := service.WaitForReceipt(address.ShardId(), msgHash); err != nil {
+			return err
+		}
+	}
 	return nil
 }

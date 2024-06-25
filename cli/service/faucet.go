@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -24,7 +25,7 @@ const (
 var ErrWalletExists = errors.New("wallet already exists")
 
 func (s *Service) WaitForReceipt(shardId types.ShardId, mshHash common.Hash) (*jsonrpc.RPCReceipt, error) {
-	return concurrent.WaitFor(context.Background(), ReceiptWaitFor, ReceiptWaitTick, func(ctx context.Context) (*jsonrpc.RPCReceipt, error) {
+	receipt, err := concurrent.WaitFor(context.Background(), ReceiptWaitFor, ReceiptWaitTick, func(ctx context.Context) (*jsonrpc.RPCReceipt, error) {
 		receipt, err := s.client.GetInMessageReceipt(shardId, mshHash)
 		if err != nil {
 			return nil, err
@@ -34,6 +35,36 @@ func (s *Service) WaitForReceipt(shardId types.ShardId, mshHash common.Hash) (*j
 		}
 		return receipt, nil
 	})
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Error during waiting for receipt")
+		return nil, err
+	}
+	if receipt == nil {
+		err := errors.New("successful receipt not received")
+		s.logger.Error().Err(err).Send()
+		return nil, err
+	}
+
+	successful := receipt.Success
+	if successful {
+		for _, OutReceipt := range receipt.OutReceipts {
+			if !OutReceipt.Success {
+				successful = false
+				break
+			}
+		}
+	}
+
+	if !successful {
+		receiptDataJSON, err := json.MarshalIndent(receipt, "", "  ")
+		if err != nil {
+			s.logger.Error().Err(err).Msg("Failed to marshal unsuccessful receipt data to JSON")
+			return nil, err
+		}
+		s.logger.Error().Msgf("Unsuccessful receipt:\n%s", receiptDataJSON)
+		return nil, errors.New("message processing failed")
+	}
+	return receipt, nil
 }
 
 type MessageHashMismatchError struct {
@@ -51,17 +82,9 @@ func (s *Service) TopUpViaFaucet(contractAddress types.Address, amount *types.Ui
 		return err
 	}
 
-	receipt, err := s.WaitForReceipt(types.FaucetAddress.ShardId(), msgHash)
+	_, err = s.WaitForReceipt(types.FaucetAddress.ShardId(), msgHash)
 	if err != nil {
-		return errors.New("error during waiting for receipt")
-	}
-
-	if receipt == nil {
-		return errors.New("receipt not received")
-	}
-
-	if !receipt.Success {
-		return errors.New("send message processing failed")
+		return err
 	}
 
 	s.logger.Info().Msgf("Contract %s balance is topped up by %s", contractAddress, amount)

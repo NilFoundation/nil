@@ -46,6 +46,13 @@ func setDeployFlags(cmd *cobra.Command) {
 		"",
 		"Path to ABI file",
 	)
+
+	cmd.Flags().BoolVar(
+		&params.noWait,
+		noWaitFlag,
+		false,
+		"Wait for receipt",
+	)
 }
 
 func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *config.Config) error {
@@ -66,9 +73,16 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *config.Config) error {
 
 	bytecode = types.BuildDeployPayload(bytecode, libcommon.Hash(params.salt.Bytes32()))
 
-	_, _, err = service.DeployContractExternal(params.shardId, bytecode)
+	msgHash, addr, err := service.DeployContractExternal(params.shardId, bytecode)
 	if err != nil {
 		return err
 	}
+
+	if !params.noWait {
+		if _, err := service.WaitForReceipt(addr.ShardId(), msgHash); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
