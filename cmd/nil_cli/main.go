@@ -30,8 +30,11 @@ type RootCommand struct {
 var logger = logging.NewLogger("rootCommand")
 
 var noConfigCmd map[string]struct{} = map[string]struct{}{
-	"help":   {},
-	"keygen": {},
+	"help":             {},
+	"keygen":           {},
+	"completion":       {},
+	"__complete":       {},
+	"__completeNoDesc": {},
 }
 
 func main() {
@@ -39,6 +42,7 @@ func main() {
 
 	rootCmd = &RootCommand{
 		baseCmd: &cobra.Command{
+			Use:   "nil_cli",
 			Short: "CLI tool for interacting with the =nil; cluster",
 			PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 				if _, withoutConfig := noConfigCmd[cmd.Name()]; withoutConfig {
