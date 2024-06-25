@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/NilFoundation/nil/common/hexutil"
@@ -27,16 +28,37 @@ func PrepareArgs(abiPath string, args []string) ([]byte, error) {
 	return calldata, nil
 }
 
-func parseCallArguments(args []string) []interface{} {
-	var parsedArgs []interface{}
-	for _, arg := range args {
-		if i, ok := new(big.Int).SetString(arg, 10); ok {
-			parsedArgs = append(parsedArgs, i)
-		} else {
-			parsedArgs = append(parsedArgs, arg)
+func parseCallArguments(args []string, inputs abi.Arguments) ([]any, error) {
+	parsedArgs := make([]any, 0, len(args))
+	for ind, arg := range args {
+		tp := inputs[ind].Type
+		refTp := tp.GetType()
+		val := reflect.New(refTp).Elem()
+		switch tp.T {
+		case abi.IntTy:
+			fallthrough
+		case abi.UintTy:
+			i, ok := new(big.Int).SetString(arg, 0)
+			if !ok {
+				return nil, fmt.Errorf("failed to parse int argument: %s", arg)
+			}
+			if tp.Size > 64 {
+				val.Set(reflect.ValueOf(i))
+			} else {
+				if tp.T == abi.UintTy {
+					val.SetUint(i.Uint64())
+				} else {
+					val.SetInt(i.Int64())
+				}
+			}
+		case abi.StringTy:
+			val.SetString(arg)
+		default:
+			return nil, fmt.Errorf("unsupported argument type: %s", tp.String())
 		}
+		parsedArgs = append(parsedArgs, val.Interface())
 	}
-	return parsedArgs
+	return parsedArgs, nil
 }
 
 func ArgsToCalldata(abiPath string, method string, args []string) ([]byte, error) {
@@ -49,7 +71,10 @@ func ArgsToCalldata(abiPath string, method string, args []string) ([]byte, error
 		return nil, fmt.Errorf("failed to parse ABI: %w", err)
 	}
 
-	methodArgs := parseCallArguments(args)
+	methodArgs, err := parseCallArguments(args, contractAbi.Methods[method].Inputs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse method arguments: %w", err)
+	}
 	calldata, err := contractAbi.Pack(method, methodArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack method call: %w", err)
