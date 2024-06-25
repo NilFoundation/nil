@@ -5,29 +5,29 @@ go 1.22
 require (
 	github.com/google/btree v1.1.2
 	github.com/gorilla/handlers v1.5.2
-	github.com/holiman/uint256 v1.2.4
+	github.com/holiman/uint256 v1.2.5-0.20240612125212-75a520988c94
 	github.com/iden3/go-iden3-crypto v0.0.16
 	github.com/kkharji/bel v1.2.0
-	github.com/rs/zerolog v1.32.0
+	github.com/rs/zerolog v1.33.0
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/crypto v0.22.0
+	golang.org/x/crypto v0.24.0
 
 )
 
 require (
 	github.com/consensys/gnark-crypto v0.12.1
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.8.1
 )
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.24.0
 	github.com/NilFoundation/fastssz v0.1.5-0.20240619161128-4843cd9de1bb
 	github.com/btcsuite/btcd/btcec/v2 v2.3.3
-	github.com/ethereum/go-ethereum v1.14.3
+	github.com/ethereum/go-ethereum v1.14.5
 	github.com/hashicorp/golang-lru/v2 v2.0.7
-	github.com/spf13/viper v1.18.2
-	golang.org/x/term v0.19.0
+	github.com/spf13/viper v1.19.0
+	golang.org/x/term v0.21.0
 	golang.org/x/text v0.16.0 // indirect
 )
 
@@ -40,7 +40,7 @@ require (
 	github.com/crate-crypto/go-kzg-4844 v1.0.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/ethereum/c-kzg-4844 v1.0.0 // indirect
-	github.com/felixge/httpsnoop v1.0.3 // indirect
+	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-faster/city v1.0.1 // indirect
 	github.com/go-faster/errors v0.7.1 // indirect
@@ -57,7 +57,7 @@ require (
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/paulmach/orb v0.11.1 // indirect
-	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
@@ -96,6 +96,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	golang.org/x/net v0.24.0
-	golang.org/x/sys v0.19.0 // indirect
+	golang.org/x/sys v0.21.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1
 )

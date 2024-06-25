@@ -3,7 +3,6 @@ package types
 import (
 	"database/sql/driver"
 	"encoding"
-	"encoding/binary"
 	"encoding/json"
 
 	ssz "github.com/NilFoundation/fastssz"
@@ -26,23 +25,14 @@ func NewUint256(val uint64) *Uint256 {
 	return &Uint256{*uint256.NewInt(val)}
 }
 
-// TODO: it can be simplified after following issues will be resolved
-//   - https://github.com/holiman/uint256/pull/171
-//   - https://github.com/holiman/uint256/issues/170
-//
 // MarshalSSZ ssz marshals the Uint256 object
 func (u *Uint256) MarshalSSZ() ([]byte, error) {
-	blob, _ := u.MarshalSSZTo(make([]byte, 0, 32))
-	return blob, nil
+	return u.Int.MarshalSSZ()
 }
 
 // MarshalSSZTo ssz marshals the Uint256 object to a target array
 func (u *Uint256) MarshalSSZTo(dst []byte) ([]byte, error) {
-	dst = binary.LittleEndian.AppendUint64(dst, u.Int[0])
-	dst = binary.LittleEndian.AppendUint64(dst, u.Int[1])
-	dst = binary.LittleEndian.AppendUint64(dst, u.Int[2])
-	dst = binary.LittleEndian.AppendUint64(dst, u.Int[3])
-	return dst, nil
+	return u.Int.MarshalSSZAppend(dst)
 }
 
 // UnmarshalSSZ ssz unmarshals the Uint256 object

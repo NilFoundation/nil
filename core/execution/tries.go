@@ -5,7 +5,6 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 )
 
 type MPTValue[S any] interface {
@@ -36,16 +35,16 @@ type (
 	ContractTrie    = BaseMPT[common.Hash, types.SmartContract, *types.SmartContract]
 	MessageTrie     = BaseMPT[types.MessageIndex, types.Message, *types.Message]
 	ReceiptTrie     = BaseMPT[types.MessageIndex, types.Receipt, *types.Receipt]
-	StorageTrie     = BaseMPT[common.Hash, uint256.Int, *uint256.Int]
-	CurrencyTrie    = BaseMPT[types.CurrencyId, uint256.Int, *uint256.Int]
-	ShardBlocksTrie = BaseMPT[types.ShardId, uint256.Int, *uint256.Int]
+	StorageTrie     = BaseMPT[common.Hash, types.Uint256, *types.Uint256]
+	CurrencyTrie    = BaseMPT[types.CurrencyId, types.Uint256, *types.Uint256]
+	ShardBlocksTrie = BaseMPT[types.ShardId, types.Uint256, *types.Uint256]
 
 	ContractTrieReader    = BaseMPTReader[common.Hash, types.SmartContract, *types.SmartContract]
 	MessageTrieReader     = BaseMPTReader[types.MessageIndex, types.Message, *types.Message]
 	ReceiptTrieReader     = BaseMPTReader[types.MessageIndex, types.Receipt, *types.Receipt]
-	StorageTrieReader     = BaseMPTReader[common.Hash, uint256.Int, *uint256.Int]
-	CurrencyTrieReader    = BaseMPTReader[types.CurrencyId, uint256.Int, *uint256.Int]
-	ShardBlocksTrieReader = BaseMPTReader[types.ShardId, uint256.Int, *uint256.Int]
+	StorageTrieReader     = BaseMPTReader[common.Hash, types.Uint256, *types.Uint256]
+	CurrencyTrieReader    = BaseMPTReader[types.CurrencyId, types.Uint256, *types.Uint256]
+	ShardBlocksTrieReader = BaseMPTReader[types.ShardId, types.Uint256, *types.Uint256]
 )
 
 func NewContractTrieReader(parent *mpt.Reader) *ContractTrieReader {
