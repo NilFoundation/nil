@@ -53,6 +53,13 @@ func setDeployFlags(cmd *cobra.Command) {
 		amountFlag,
 		"Amount of tokens to send",
 	)
+
+	cmd.Flags().BoolVar(
+		&params.noWait,
+		noWaitFlag,
+		false,
+		"Wait for receipt",
+	)
 }
 
 func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *config.Config) error {
@@ -61,7 +68,7 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *config.Config) error {
 
 	var filename string
 	var args []string
-	if len(cmdArgs) > 0 {
+	if argsCount := len(cmdArgs); argsCount > 0 {
 		filename = cmdArgs[0]
 		args = cmdArgs[1:]
 	}
@@ -73,9 +80,16 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *config.Config) error {
 
 	bytecode = types.BuildDeployPayload(bytecode, libcommon.Hash(params.salt.Bytes32()))
 
-	_, _, err = service.DeployContractViaWallet(params.shardId, cfg.Address, bytecode, &params.amount)
+	msgHash, _, err := service.DeployContractViaWallet(params.shardId, cfg.Address, bytecode, &params.amount)
 	if err != nil {
 		return err
 	}
+
+	if !params.noWait {
+		if _, err := service.WaitForReceipt(cfg.Address.ShardId(), msgHash); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

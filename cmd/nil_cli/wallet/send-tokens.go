@@ -19,6 +19,13 @@ func SendTokensCommand(cfg *config.Config) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().BoolVar(
+		&params.noWait,
+		noWaitFlag,
+		false,
+		"Wait for receipt",
+	)
+
 	return cmd
 }
 
@@ -36,6 +43,16 @@ func runTransfer(_ *cobra.Command, args []string, cfg *config.Config) error {
 		return err
 	}
 
-	_, _ = service.RunContract(cfg.Address, nil, amount, address)
+	msgHash, err := service.RunContract(cfg.Address, nil, amount, address)
+	if err != nil {
+		return err
+	}
+
+	if !params.noWait {
+		if _, err := service.WaitForReceipt(cfg.Address.ShardId(), msgHash); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

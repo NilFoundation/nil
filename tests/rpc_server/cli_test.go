@@ -77,11 +77,10 @@ func (s *SuiteRpc) TestContract() {
 	// Deploy contract
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	deployCode := s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(2))
-	txHash, addrStr, err := s.cli.DeployContractViaWallet(wallet.ShardId()+1, wallet, deployCode, nil)
+	txHash, addr, err := s.cli.DeployContractViaWallet(wallet.ShardId()+1, wallet, deployCode, nil)
 	s.Require().NoError(err)
-	addr := types.HexToAddress(addrStr)
 
-	receipt := s.waitForReceiptOnShard(wallet.ShardId(), common.HexToHash(txHash))
+	receipt := s.waitForReceiptOnShard(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -100,7 +99,7 @@ func (s *SuiteRpc) TestContract() {
 	txHash, err = s.cli.RunContract(wallet, calldata, nil, addr)
 	s.Require().NoError(err)
 
-	receipt = s.waitForReceiptOnShard(wallet.ShardId(), common.HexToHash(txHash))
+	receipt = s.waitForReceiptOnShard(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -116,7 +115,7 @@ func (s *SuiteRpc) TestContract() {
 	txHash, err = s.cli.RunContract(wallet, nil, types.NewUint256(100), addr)
 	s.Require().NoError(err)
 
-	receipt = s.waitForReceiptOnShard(wallet.ShardId(), common.HexToHash(txHash))
+	receipt = s.waitForReceiptOnShard(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -158,11 +157,10 @@ func (s *SuiteRpc) TestSendExternalMessage() {
 
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/external_increment.sol"), "ExternalIncrementer")
 	deployCode := s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(2))
-	txHash, addrStr, err := s.cli.DeployContractViaWallet(types.BaseShardId, wallet, deployCode, types.NewUint256(10_000_000))
+	txHash, addr, err := s.cli.DeployContractViaWallet(types.BaseShardId, wallet, deployCode, types.NewUint256(10_000_000))
 	s.Require().NoError(err)
-	addr := types.HexToAddress(addrStr)
 
-	receipt := s.waitForReceiptOnShard(wallet.ShardId(), common.HexToHash(txHash))
+	receipt := s.waitForReceiptOnShard(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -185,7 +183,7 @@ func (s *SuiteRpc) TestSendExternalMessage() {
 	txHash, err = s.cli.SendExternalMessage(calldata, addr, true)
 	s.Require().NoError(err)
 
-	receipt = s.waitForReceiptOnShard(addr.ShardId(), common.HexToHash(txHash))
+	receipt = s.waitForReceiptOnShard(addr.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 
 	// Get updated value
