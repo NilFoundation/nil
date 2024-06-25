@@ -13,7 +13,7 @@ contract Minter is NilBase {
         pubkey = _pubkey;
     }
 
-    function create(uint256 amount, address owner) onlyInternal public returns(bool) {
+    function create(uint256 amount, address owner) onlyInternal payable public returns(bool) {
         if (owner == address(0)) {
             owner = msg.sender;
         }
@@ -27,13 +27,13 @@ contract Minter is NilBase {
         return true;
     }
 
-    function mint(uint256 id, uint256 amount) onlyInternal public {
+    function mint(uint256 id, uint256 amount) onlyInternal payable public {
         require(owners[id] != address(0), "Token not exists");
         require(msg.sender == owners[id], "Not from owner");
         Nil.mintToken(id, amount);
     }
 
-    function transfer(uint256 id, uint256 amount, address to) onlyInternal public {
+    function transfer(uint256 id, uint256 amount, address to) onlyInternal payable public {
         require(owners[id] != address(0), "Token not exists");
         require(msg.sender == owners[id], "Not from owner");
 
@@ -44,7 +44,7 @@ contract Minter is NilBase {
         Nil.Token[] memory tokens = new Nil.Token[](1);
         tokens[0] = Nil.Token(id, amount);
 
-        Nil.asyncCall(to, address(0), address(0), 0, false, 0, tokens, emptyData);
+        Nil.asyncCall(to, address(0), address(0), gasleft(), false, msg.value, tokens, emptyData);
     }
 
     function verifyExternal(uint256 hash, bytes memory signature) external view returns (bool) {
