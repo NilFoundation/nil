@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"math"
 	"math/big"
 	"testing"
 
@@ -21,6 +22,40 @@ func deployContract(t *testing.T, contract *compiler.Contract, state *ExecutionS
 	return Deploy(t, context.Background(), state,
 		types.BuildDeployPayload(hexutil.FromHex(contract.Code), common.EmptyHash),
 		types.BaseShardId, types.Address{}, seqno)
+}
+
+func TestOpcodes(t *testing.T) {
+	t.Parallel()
+
+	state := newState(t)
+
+	address := types.BytesToAddress([]byte("contract"))
+	address[1] = 1
+
+	require.NoError(t, state.CreateAccount(address))
+	require.NoError(t, state.SetCode(address, []byte{
+		byte(vm.GASPRICE),
+		byte(vm.NUMBER),
+		byte(vm.BLOCKHASH),
+		byte(vm.PUSH0),
+		byte(vm.BLOBHASH),
+		byte(vm.ADDRESS),
+		byte(vm.COINBASE),
+		byte(vm.TIMESTAMP),
+		byte(vm.ORIGIN),
+		byte(vm.PREVRANDAO),
+		byte(vm.GASLIMIT),
+		byte(vm.CALLER),
+		byte(vm.BASEFEE),
+		byte(vm.BLOBBASEFEE),
+		byte(vm.CHAINID),
+		byte(vm.STOP),
+	}))
+
+	require.NoError(t, state.newVm(true))
+	_, _, err := state.evm.Call(
+		vm.AccountRef(types.EmptyAddress), address, nil, math.MaxUint64, new(uint256.Int))
+	require.NoError(t, err)
 }
 
 func TestCall(t *testing.T) {
