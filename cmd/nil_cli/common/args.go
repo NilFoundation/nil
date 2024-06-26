@@ -30,6 +30,10 @@ func PrepareArgs(abiPath string, args []string) ([]byte, error) {
 
 func parseCallArguments(args []string, inputs abi.Arguments) ([]any, error) {
 	parsedArgs := make([]any, 0, len(args))
+	if len(args) != len(inputs) {
+		return nil, fmt.Errorf("invalid amout of arguments is provided: expected %d but got %d", len(inputs), len(args))
+	}
+
 	for ind, arg := range args {
 		tp := inputs[ind].Type
 		refTp := tp.GetType()
@@ -71,7 +75,12 @@ func ArgsToCalldata(abiPath string, method string, args []string) ([]byte, error
 		return nil, fmt.Errorf("failed to parse ABI: %w", err)
 	}
 
-	methodArgs, err := parseCallArguments(args, contractAbi.Methods[method].Inputs)
+	inputs := contractAbi.Constructor.Inputs
+	if method != "" {
+		inputs = contractAbi.Methods[method].Inputs
+	}
+
+	methodArgs, err := parseCallArguments(args, inputs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse method arguments: %w", err)
 	}
