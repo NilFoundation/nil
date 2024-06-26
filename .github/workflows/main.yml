@@ -28,6 +28,9 @@ jobs:
       - name: golangci-lint
         run: nix develop -c golangci-lint run
 
+      - name: run tests with race detector
+        run: nix flake check -L
+
       - name: build
         run: nix build -L
 
