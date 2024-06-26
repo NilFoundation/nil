@@ -22,4 +22,5 @@ type ExportDriver interface {
 	FetchLatestProcessedBlock(context.Context, types.ShardId) (*types.Block, bool, error)
 	FetchEarliestAbsentBlock(context.Context, types.ShardId) (types.BlockNumber, bool, error)
 	FetchNextPresentBlock(context.Context, types.ShardId, types.BlockNumber) (types.BlockNumber, bool, error)
+	Reconnect() error
 }

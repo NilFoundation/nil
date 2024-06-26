@@ -125,6 +125,12 @@ You could config it via config file or flags or environment variables.`,
 				return
 			case errMsg := <-cfg.ErrorChan:
 				logger.Error().Err(errMsg).Msg("Error occurred")
+				if strings.Contains(errMsg.Error(), "read: connection reset by peer") {
+					err := cfg.ExporterDriver.Reconnect()
+					if err != nil {
+						logger.Error().Err(errMsg).Msg("Failed to reconnect")
+					}
+				}
 			}
 		}
 	}()

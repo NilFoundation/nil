@@ -16,6 +16,7 @@ import (
 type ClickhouseDriver struct {
 	conn       driver.Conn
 	insertConn driver.Conn
+	options    clickhouse.Options
 }
 
 // I saw this trick. dunno should I use it here too
@@ -83,33 +84,39 @@ func intiSchemeCache() {
 
 func NewClickhouseDriver(_ context.Context, endpoint, login, password, database string) (*ClickhouseDriver, error) {
 	// Create connection to Clickhouse
-	conn, err := clickhouse.Open(&clickhouse.Options{
+	connectionOptions := clickhouse.Options{
 		Auth: clickhouse.Auth{
 			Username: login,
 			Password: password,
 			Database: database,
 		},
 		Addr: []string{endpoint},
-	})
+	}
+	conn, err := clickhouse.Open(&connectionOptions)
 	if err != nil {
 		return nil, err
 	}
 
-	insertConn, err := clickhouse.Open(&clickhouse.Options{
-		Auth: clickhouse.Auth{
-			Username: login,
-			Password: password,
-			Database: database,
-		},
-		Addr: []string{endpoint},
-	})
+	insertConn, err := clickhouse.Open(&connectionOptions)
 	if err != nil {
 		return nil, err
 	}
 	return &ClickhouseDriver{
 		conn:       conn,
 		insertConn: insertConn,
+		options:    connectionOptions,
 	}, nil
+}
+
+func (d *ClickhouseDriver) Reconnect() error {
+	var err error
+	d.conn, err = clickhouse.Open(&d.options)
+	if err != nil {
+		return err
+	}
+
+	d.insertConn, err = clickhouse.Open(&d.options)
+	return err
 }
 
 func (d *ClickhouseDriver) SetupScheme(ctx context.Context) error {
