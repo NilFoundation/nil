@@ -5,6 +5,7 @@ import (
 
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
+	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/spf13/cobra"
 )
@@ -55,6 +56,12 @@ func runCommand(cmd *cobra.Command, _ []string) {
 
 	privateKey := keygen.GetPrivateKey()
 	logger.Info().Msg(fmt.Sprintf("Pivate key: %v", privateKey))
+
+	if err := common.PatchConfig(map[string]interface{}{
+		common.PrivateKeyField: privateKey,
+	}, false); err != nil {
+		logger.Error().Err(err).Msg("failed to update private key in config file")
+	}
 }
 
 func runPreRun(cmd *cobra.Command, _ []string) error {

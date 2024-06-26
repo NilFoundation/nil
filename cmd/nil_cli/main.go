@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/NilFoundation/nil/cmd/nil_cli/block"
+	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/cmd/nil_cli/contract"
 	"github.com/NilFoundation/nil/cmd/nil_cli/keygen"
@@ -45,10 +46,17 @@ func main() {
 			Use:   "nil_cli",
 			Short: "CLI tool for interacting with the =nil; cluster",
 			PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+				// Set the config file for all commands because some commands can write something to it.
+				// E.g. "keygen" command writes a private key to the config file (and creates if it doesn't exist)
+				rootCmd.setConfigFile()
+
 				if _, withoutConfig := noConfigCmd[cmd.Name()]; withoutConfig {
 					return nil
 				}
 				if err := rootCmd.loadConfig(); err != nil {
+					return err
+				}
+				if err := rootCmd.validateConfig(); err != nil {
 					return err
 				}
 				return nil
@@ -104,10 +112,13 @@ func updateDecoderConfig(config *mapstructure.DecoderConfig) {
 	)
 }
 
+// setConfigFile sets the config file for the viper
+func (rc *RootCommand) setConfigFile() {
+	viper.SetConfigFile(rc.cfgFile)
+}
+
 // loadConfig loads the configuration from the config file
 func (rc *RootCommand) loadConfig() error {
-	viper.SetConfigFile(rc.cfgFile)
-
 	if err := viper.ReadInConfig(); err != nil {
 		return fmt.Errorf("failed to read config file: %w", err)
 	}
@@ -117,6 +128,14 @@ func (rc *RootCommand) loadConfig() error {
 	}
 
 	logger.Info().Msg("Configuration loaded successfully")
+	return nil
+}
+
+// validateConfig perform some simple configuration validation
+func (rc *RootCommand) validateConfig() error {
+	if rc.config.RPCEndpoint == "" {
+		return fmt.Errorf("%q is missed in config", common.RPCEndpointField)
+	}
 	return nil
 }
 
