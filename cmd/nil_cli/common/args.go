@@ -12,6 +12,7 @@ import (
 
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	eth_common "github.com/ethereum/go-ethereum/common"
 )
 
 func PrepareArgs(abiPath string, args []string) ([]byte, error) {
@@ -57,6 +58,12 @@ func parseCallArguments(args []string, inputs abi.Arguments) ([]any, error) {
 			}
 		case abi.StringTy:
 			val.SetString(arg)
+		case abi.AddressTy:
+			var address eth_common.Address
+			if err := address.UnmarshalText([]byte(arg)); err != nil {
+				return nil, fmt.Errorf("failed to parse address argument: %w", err)
+			}
+			val.Set(reflect.ValueOf(address))
 		default:
 			return nil, fmt.Errorf("unsupported argument type: %s", tp.String())
 		}
