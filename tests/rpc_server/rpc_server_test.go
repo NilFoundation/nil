@@ -35,6 +35,8 @@ func (suite *SuiteRpc) SetupTest() {
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GracefulShutdown:     false,
+		GasPriceScale:        0,
+		GasBasePrice:         10,
 	})
 
 	suite.cli = service.NewService(suite.client, execution.MainPrivateKey)
@@ -81,6 +83,10 @@ func (s *SuiteRpc) TestRpcBasic() {
 		shardIdListExp[i] = types.ShardId(i + 1)
 	}
 	s.Require().Equal(shardIdListExp, shardIdListRes)
+
+	gasPrice, err := s.client.GasPrice(types.BaseShardId)
+	s.Require().NoError(err)
+	s.Require().Equal(types.NewUint256(10), gasPrice)
 
 	res0Num, err := s.client.GetBlock(types.BaseShardId, 0, false)
 	s.Require().NoError(err)

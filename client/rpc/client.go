@@ -17,7 +17,6 @@ import (
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
-	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
@@ -45,6 +44,7 @@ const (
 	Eth_getBalance                       = "eth_getBalance"
 	Eth_getCurrencies                    = "eth_getCurrencies"
 	Eth_getShardIdList                   = "eth_getShardIdList"
+	Eth_gasPrice                         = "eth_gasPrice"
 )
 
 type Client struct {
@@ -330,6 +330,18 @@ func (c *Client) GetCurrencies(address types.Address, blockId any) (map[string]*
 	return currencies, err
 }
 
+func (c *Client) GasPrice(shardId types.ShardId) (*types.Uint256, error) {
+	gasPrice := types.NewUint256(0)
+	params := []any{shardId}
+	res, err := c.call(Eth_gasPrice, params)
+	if err != nil {
+		return gasPrice, err
+	}
+
+	err = gasPrice.UnmarshalJSON(res)
+	return gasPrice, err
+}
+
 func (c *Client) GetShardIdList() ([]types.ShardId, error) {
 	res, err := c.call(Eth_getShardIdList, []any{})
 	if err != nil {
@@ -383,8 +395,13 @@ func (c *Client) sendMessageViaWallet(
 		value = types.NewUint256(0)
 	}
 
+	gasPrice, err := c.GasPrice(walletAddress.ShardId())
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
 	totalValue := types.NewUint256(0)
-	totalValue.Int.Mul(&gasLimit.Int, execution.GasPrice)
+	totalValue.Int.Mul(&gasLimit.Int, &gasPrice.Int)
 	totalValue.Int.Add(&value.Int, &totalValue.Int)
 
 	intMsg := &types.InternalMessagePayload{
@@ -464,7 +481,12 @@ func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount *types.Uin
 	// unused gas will be refunded to the Faucet
 	gasLimit := *types.NewUint256(100_000)
 	value := *amount
-	value.Add(&value.Int, types.NewUint256(0).Mul(&gasLimit.Int, execution.GasPrice))
+	gasPrice, err := c.GasPrice(contractAddress.ShardId())
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	value.Add(&value.Int, types.NewUint256(0).Mul(&gasLimit.Int, &gasPrice.Int))
 	sendMsgInternal := &types.InternalMessagePayload{
 		To:       contractAddress,
 		Value:    value,

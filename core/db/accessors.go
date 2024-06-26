@@ -7,6 +7,7 @@ import (
 	fastssz "github.com/NilFoundation/fastssz"
 	common "github.com/NilFoundation/nil/common"
 	types "github.com/NilFoundation/nil/core/types"
+	"github.com/holiman/uint256"
 )
 
 // todo: return errors
@@ -122,6 +123,17 @@ func ReadLastBlockHash(tx RoTx, shardId types.ShardId) (common.Hash, error) {
 
 func WriteLastBlockHash(tx RwTx, shardId types.ShardId, hash common.Hash) error {
 	return tx.Put(LastBlockTable, shardId.Bytes(), hash.Bytes())
+}
+
+func ReadGasPerShard(tx RoTx, shardId types.ShardId) (uint256.Int, error) {
+	b, err := tx.Get(GasPerShardTable, shardId.Bytes())
+	res := uint256.Int{}
+	res.SetBytes(b)
+	return res, err
+}
+
+func WriteGasPerShard(tx RwTx, shardId types.ShardId, value uint256.Int) error {
+	return tx.Put(GasPerShardTable, shardId.Bytes(), value.Bytes())
 }
 
 func WriteBlock(tx RwTx, shardId types.ShardId, block *types.Block) error {

@@ -18,6 +18,7 @@ import (
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
+	"github.com/holiman/uint256"
 )
 
 func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []msgpool.Pool) error {
@@ -92,10 +93,12 @@ func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent
 	for i := range cfg.NShards {
 		msgPool := msgpool.New(msgpool.DefaultConfig)
 		collator := collate.NewScheduler(database, msgPool, execution.BlockGeneratorParams{
-			ShardId:  types.ShardId(i),
-			NShards:  cfg.NShards,
-			TraceEVM: cfg.TraceEVM,
-			Timer:    common.NewTimer(),
+			ShardId:       types.ShardId(i),
+			NShards:       cfg.NShards,
+			TraceEVM:      cfg.TraceEVM,
+			Timer:         common.NewTimer(),
+			GasBasePrice:  uint256.NewInt(cfg.GasBasePrice),
+			GasPriceScale: cfg.GasPriceScale,
 		}, collate.GetShardTopologyById(cfg.Topology), collatorTickPeriod)
 		if len(cfg.ZeroState) != 0 {
 			collator.ZeroState = cfg.ZeroState

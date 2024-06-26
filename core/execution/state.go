@@ -26,12 +26,6 @@ const TraceBlocksEnabled = false
 
 var ExternalMessageVerificationMaxGas = uint256.NewInt(100_000)
 
-// TODO: Make gas price dynamic and use message.GasPrice
-var (
-	GasPrice   = uint256.NewInt(10)
-	ForwardFee = uint256.NewInt(100)
-)
-
 var blocksTracer *BlocksTracer
 
 type Storage map[common.Hash]common.Hash
@@ -872,7 +866,7 @@ func (es *ExecutionState) RoTx() db.RoTx {
 	return es.tx
 }
 
-func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *AccountState) (bool, error) {
+func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *AccountState, gasPrice *uint256.Int) (bool, error) {
 	methodSignature := "verifyExternal(uint256,bytes)"
 	methodSelector := crypto.Keccak256([]byte(methodSignature))[:4]
 	argSpec := vm.VerifySignatureArgs()[1:] // skip first arg (pubkey)
@@ -893,7 +887,7 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 	defer es.resetVm()
 
 	gasCreditLimit := ExternalMessageVerificationMaxGas
-	gasAvailable := new(uint256.Int).Div(&account.Balance, GasPrice)
+	gasAvailable := new(uint256.Int).Div(&account.Balance, gasPrice)
 
 	if gasAvailable.Cmp(gasCreditLimit) < 0 {
 		gasCreditLimit = gasAvailable
@@ -904,7 +898,7 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 		return false, err
 	}
 	spentGas := new(uint256.Int).Sub(gasCreditLimit, uint256.NewInt(leftOverGas))
-	spentValue := new(uint256.Int).Mul(spentGas, GasPrice)
+	spentValue := new(uint256.Int).Mul(spentGas, gasPrice)
 	account.SubBalance(spentValue, tracing.BalanceDecreaseVerifyExternal)
 	return true, nil
 }

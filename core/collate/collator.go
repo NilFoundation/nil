@@ -98,7 +98,7 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 		return err
 	}
 
-	block, err := blockGenerator.GenerateBlock(c.inMsgs, c.outMsgs)
+	block, err := blockGenerator.GenerateBlock(c.inMsgs, c.outMsgs, c.params.GasBasePrice)
 	if err != nil {
 		return err
 	}

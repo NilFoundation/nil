@@ -9,4 +9,6 @@ type Config struct {
 	CollatorTickPeriodMs uint32
 	GracefulShutdown     bool
 	TraceEVM             bool
+	GasPriceScale        float64
+	GasBasePrice         uint64
 }

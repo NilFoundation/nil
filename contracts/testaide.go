@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	FileNameCounter      = "tests/Counter"
-	FileNameMessageCheck = "tests/MessageCheck"
+	FileNameCounter        = "tests/Counter"
+	FileNameCounterPayable = "tests/CounterPayable"
+	FileNameMessageCheck   = "tests/MessageCheck"
 )
 
 func CounterDeployPayload(t *testing.T) types.DeployPayload {
@@ -44,4 +45,24 @@ func NewCounterGetCallData(t *testing.T) []byte {
 	t.Helper()
 
 	return NewCallData(t, FileNameCounter, "get")
+}
+
+func CounterPayableDeployPayload(t *testing.T) types.DeployPayload {
+	t.Helper()
+
+	code, err := GetCode(FileNameCounterPayable)
+	require.NoError(t, err)
+	return types.BuildDeployPayload(code, common.EmptyHash)
+}
+
+func NewCounterPayableAddCallData(t *testing.T, value int32) []byte {
+	t.Helper()
+
+	return NewCallData(t, FileNameCounterPayable, "add", value)
+}
+
+func NewCounterPayableGetCallData(t *testing.T) []byte {
+	t.Helper()
+
+	return NewCallData(t, FileNameCounterPayable, "get")
 }

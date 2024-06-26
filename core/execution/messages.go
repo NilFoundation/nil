@@ -75,9 +75,9 @@ func (a accountPayer) String() string {
 	return fmt.Sprintf("account %v", a.message.From.Hex())
 }
 
-func buyGas(payer payer, message *types.Message) error {
+func buyGas(payer payer, message *types.Message, gasPrice *uint256.Int) error {
 	mgval := message.GasLimit.ToBig()
-	mgval.Mul(mgval, GasPrice.ToBig())
+	mgval.Mul(mgval, gasPrice.ToBig())
 
 	required, overflow := uint256.FromBig(mgval)
 	if overflow {
@@ -91,10 +91,10 @@ func buyGas(payer payer, message *types.Message) error {
 	return nil
 }
 
-func refundGas(payer payer, _ *types.Message, gasRemaining uint64) {
+func refundGas(payer payer, _ *types.Message, gasRemaining uint64, gasPrice *uint256.Int) {
 	// Return currency for remaining gas, exchanged at the original rate.
 	remaining := uint256.NewInt(gasRemaining)
-	remaining.Mul(remaining, GasPrice)
+	remaining.Mul(remaining, gasPrice)
 	payer.AddBalance(remaining)
 }
 
@@ -132,7 +132,7 @@ func validateExternalDeployMessage(es *ExecutionState, message *types.Message) e
 	return nil
 }
 
-func validateExternalExecutionMessage(es *ExecutionState, message *types.Message) error {
+func validateExternalExecutionMessage(es *ExecutionState, message *types.Message, gasPrice *uint256.Int) error {
 	check.PanicIfNot(message.Kind == types.ExecutionMessageKind)
 
 	to := message.To
@@ -151,7 +151,7 @@ func validateExternalExecutionMessage(es *ExecutionState, message *types.Message
 		return fmt.Errorf("%w: account %v != message %v", ErrSeqnoGap, account.Seqno, message.Seqno)
 	}
 
-	ok, err := es.CallVerifyExternal(message, account)
+	ok, err := es.CallVerifyExternal(message, account, gasPrice)
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func validateExternalExecutionMessage(es *ExecutionState, message *types.Message
 	return nil
 }
 
-func ValidateExternalMessage(es *ExecutionState, message *types.Message) error {
+func ValidateExternalMessage(es *ExecutionState, message *types.Message, gasPrice *uint256.Int) error {
 	check.PanicIfNot(!message.Internal)
 
 	if message.ChainId != types.DefaultChainId {
@@ -178,7 +178,7 @@ func ValidateExternalMessage(es *ExecutionState, message *types.Message) error {
 	case types.DeployMessageKind:
 		return validateExternalDeployMessage(es, message)
 	case types.ExecutionMessageKind:
-		return validateExternalExecutionMessage(es, message)
+		return validateExternalExecutionMessage(es, message, gasPrice)
 	case types.RefundMessageKind:
 		return errors.New("refund message is not allowed in external messages")
 	default:

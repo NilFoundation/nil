@@ -67,6 +67,8 @@ func (suite *SuiteFetchBlock) SetupSuite() {
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GracefulShutdown:     false,
+		GasPriceScale:        0,
+		GasBasePrice:         10,
 	}
 	go nilservice.Run(suite.context, cfg, database)
 

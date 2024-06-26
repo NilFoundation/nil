@@ -26,6 +26,8 @@ func (s *SuiteWalletRpc) SetupSuite() {
 		ZeroState:            execution.DefaultZeroStateConfig,
 		CollatorTickPeriodMs: 100,
 		GracefulShutdown:     false,
+		GasPriceScale:        0,
+		GasBasePrice:         10,
 	})
 }
 

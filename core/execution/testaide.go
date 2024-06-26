@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,7 +20,7 @@ func GenerateZeroState(t *testing.T, ctx context.Context,
 
 	txOwner, err := NewTxOwner(ctx, txFabric)
 	require.NoError(t, err)
-	g, err := NewBlockGenerator(NewBlockGeneratorParams(shardId, 1), txOwner)
+	g, err := NewBlockGenerator(NewBlockGeneratorParams(shardId, 1, uint256.NewInt(10), 0), txOwner)
 	require.NoError(t, err)
 	require.NoError(t, g.GenerateZeroState(DefaultZeroStateConfig))
 }
@@ -83,7 +84,7 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 	blockHash, err := es.Commit(blockId)
 	require.NoError(t, err)
 
-	block, err := PostprocessBlock(tx, shardId, blockHash)
+	block, err := PostprocessBlock(tx, shardId, uint256.NewInt(10), 0, blockHash)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 

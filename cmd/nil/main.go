@@ -30,6 +30,8 @@ func main() {
 	dbPath := rootCmd.Flags().String("db-path", "test.db", "path to database")
 	dbDiscardRatio := rootCmd.Flags().Float64("db-discard-ratio", 0.5, "discard ratio for badger GC")
 	dbGcFrequency := rootCmd.Flags().Duration("db-gc-interval", time.Hour, "frequency for badger GC")
+	gasPriceScale := rootCmd.Flags().Float64("gas-price-scale", 0, "gas price scale factor for each transaction")
+	gasBasePrice := rootCmd.Flags().Uint64("gas-base-price", 10, "base gas price for each transaction")
 
 	check.PanicIfErr(rootCmd.Execute())
 
@@ -45,6 +47,8 @@ func main() {
 		Topology:         collate.TrivialShardTopologyId,
 		MainKeysOutPath:  "keys.yaml",
 		GracefulShutdown: true,
+		GasPriceScale:    *gasPriceScale,
+		GasBasePrice:     *gasBasePrice,
 	}
 	os.Exit(nilservice.Run(context.Background(), cfg, database,
 		func(ctx context.Context) error {

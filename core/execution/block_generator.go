@@ -8,21 +8,26 @@ import (
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/holiman/uint256"
 	"github.com/rs/zerolog"
 )
 
 type BlockGeneratorParams struct {
-	ShardId  types.ShardId
-	NShards  int
-	TraceEVM bool
-	Timer    common.Timer
+	ShardId       types.ShardId
+	NShards       int
+	TraceEVM      bool
+	Timer         common.Timer
+	GasBasePrice  *uint256.Int
+	GasPriceScale float64
 }
 
-func NewBlockGeneratorParams(shardId types.ShardId, nShards int) BlockGeneratorParams {
+func NewBlockGeneratorParams(shardId types.ShardId, nShards int, gasBasePrice *uint256.Int, gasPriceScale float64) BlockGeneratorParams {
 	return BlockGeneratorParams{
-		ShardId: shardId,
-		NShards: nShards,
-		Timer:   common.NewTimer(),
+		ShardId:       shardId,
+		NShards:       nShards,
+		Timer:         common.NewTimer(),
+		GasBasePrice:  gasBasePrice,
+		GasPriceScale: gasPriceScale,
 	}
 }
 
@@ -62,17 +67,22 @@ func (g *BlockGenerator) GenerateZeroState(zeroState string) error {
 	return err
 }
 
-func (g *BlockGenerator) GenerateBlock(inMsgs, outMsgs []*types.Message) (*types.Block, error) {
-	g.logger.Debug().Msg("Collating...")
+func (g *BlockGenerator) GenerateBlock(inMsgs, outMsgs []*types.Message, defaultGasPrice *uint256.Int) (*types.Block, error) {
+	gasPrice, err := db.ReadGasPerShard(g.txOwner.RoTx, g.executionState.ShardId)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		gasPrice = *defaultGasPrice
+	} else if err != nil {
+		return nil, err
+	}
 
 	for _, msg := range inMsgs {
 		g.executionState.AddInMessage(msg)
 		var gasUsed uint32
 		var err error
 		if msg.Internal {
-			gasUsed, err = g.handleInternalInMessage(msg)
+			gasUsed, err = g.handleInternalInMessage(msg, &gasPrice)
 		} else {
-			gasUsed, err = g.handleExternalMessage(msg)
+			gasUsed, err = g.handleExternalMessage(msg, &gasPrice)
 		}
 		g.addReceipt(gasUsed, err)
 	}
@@ -85,9 +95,9 @@ func (g *BlockGenerator) GenerateBlock(inMsgs, outMsgs []*types.Message) (*types
 	return g.finalize()
 }
 
-func (g *BlockGenerator) handleMessage(msg *types.Message, payer payer) (uint32, error) {
+func (g *BlockGenerator) handleMessage(msg *types.Message, payer payer, gasPrice *uint256.Int) (uint32, error) {
 	gas := msg.GasLimit.Uint64()
-	if err := buyGas(payer, msg); err != nil {
+	if err := buyGas(payer, msg, gasPrice); err != nil {
 		return 0, err
 	}
 
@@ -111,7 +121,7 @@ func (g *BlockGenerator) handleMessage(msg *types.Message, payer payer) (uint32,
 		}
 	}
 
-	refundGas(payer, msg, leftOverGas)
+	refundGas(payer, msg, leftOverGas, gasPrice)
 	return uint32(gas - leftOverGas), err
 }
 
@@ -139,17 +149,17 @@ func (g *BlockGenerator) validateInternalMessage(message *types.Message) error {
 	}
 }
 
-func (g *BlockGenerator) handleInternalInMessage(msg *types.Message) (uint32, error) {
+func (g *BlockGenerator) handleInternalInMessage(msg *types.Message, gasPrice *uint256.Int) (uint32, error) {
 	if err := g.validateInternalMessage(msg); err != nil {
 		g.logger.Warn().Err(err).Msg("Invalid internal message")
 		return 0, err
 	}
 
-	return g.handleMessage(msg, messagePayer{msg, g.executionState})
+	return g.handleMessage(msg, messagePayer{msg, g.executionState}, gasPrice)
 }
 
-func (g *BlockGenerator) handleExternalMessage(msg *types.Message) (uint32, error) {
-	if err := ValidateExternalMessage(g.executionState, msg); err != nil {
+func (g *BlockGenerator) handleExternalMessage(msg *types.Message, gasPrice *uint256.Int) (uint32, error) {
+	if err := ValidateExternalMessage(g.executionState, msg, gasPrice); err != nil {
 		g.logger.Trace().Err(err).Msg("Invalid external message")
 		return 0, err
 	}
@@ -158,7 +168,7 @@ func (g *BlockGenerator) handleExternalMessage(msg *types.Message) (uint32, erro
 	if err != nil {
 		return 0, err
 	}
-	return g.handleMessage(msg, accountPayer{acc, msg})
+	return g.handleMessage(msg, accountPayer{acc, msg}, gasPrice)
 }
 
 func (g *BlockGenerator) addReceipt(gasUsed uint32, err error) {
@@ -215,5 +225,5 @@ func (g *BlockGenerator) finalize() (*types.Block, error) {
 		return nil, err
 	}
 
-	return PostprocessBlock(g.txOwner.RwTx, g.params.ShardId, blockHash)
+	return PostprocessBlock(g.txOwner.RwTx, g.params.ShardId, g.params.GasBasePrice, g.params.GasPriceScale, blockHash)
 }

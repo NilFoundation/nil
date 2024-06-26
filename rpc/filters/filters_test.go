@@ -252,6 +252,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	filters := NewFiltersManager(s.ctx, s.db, false)
 	s.NotNil(filters)
 	address := types.HexToAddress("0x1111111111")
+	defaultGasPrice := uint256.NewInt(10)
 
 	receiptsMpt := mpt.NewMerklePatriciaTrie(tx, 0, db.ReceiptTrieTable)
 
@@ -280,7 +281,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 		ReceiptsRoot: receiptsMpt.RootHash(),
 	}
 	s.Require().NoError(db.WriteBlock(tx, 0, &block))
-	_, err = execution.PostprocessBlock(tx, 0, block.Hash())
+	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, block.Hash())
 	s.Require().NoError(err)
 
 	block = types.Block{
@@ -288,7 +289,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 		ReceiptsRoot: receiptsMpt.RootHash(),
 	}
 	s.Require().NoError(db.WriteBlock(tx, 0, &block))
-	_, err = execution.PostprocessBlock(tx, 0, block.Hash())
+	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, block.Hash())
 	s.Require().NoError(err)
 
 	block = types.Block{
@@ -296,7 +297,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 		ReceiptsRoot: receiptsMpt.RootHash(),
 	}
 	s.Require().NoError(db.WriteBlock(tx, 0, &block))
-	_, err = execution.PostprocessBlock(tx, 0, block.Hash())
+	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, block.Hash())
 	s.Require().NoError(err)
 
 	block = types.Block{
@@ -304,7 +305,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 		ReceiptsRoot: receiptsMpt.RootHash(),
 	}
 	s.Require().NoError(db.WriteBlock(tx, 0, &block))
-	_, err = execution.PostprocessBlock(tx, 0, block.Hash())
+	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, block.Hash())
 	s.Require().NoError(err)
 	s.Require().NoError(tx.Commit())
 
@@ -364,7 +365,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 		ReceiptsRoot: receiptsMpt.RootHash(),
 	}
 	s.Require().NoError(db.WriteBlock(tx, 0, &block))
-	_, err = execution.PostprocessBlock(tx, 0, block.Hash())
+	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, block.Hash())
 	s.Require().NoError(err)
 	s.Require().NoError(tx.Commit())
 

@@ -25,6 +25,7 @@ const (
 
 	contractTable = ShardedTableName("Contract")
 
+	GasPerShardTable                         = TableName("GasPerShard")
 	LastBlockTable                           = TableName("LastBlock")
 	CollatorStateTable                       = TableName("CollatorState")
 	BlockHashByNumberIndex                   = ShardedTableName("BlockHashByNumber")

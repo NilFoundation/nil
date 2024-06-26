@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
+	"github.com/holiman/uint256"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
 )
@@ -40,7 +41,7 @@ func TestDebugGetBlock(t *testing.T) {
 	err = db.WriteBlock(tx, types.MasterShardId, block)
 	require.NoError(t, err)
 
-	_, err = execution.PostprocessBlock(tx, types.MasterShardId, block.Hash())
+	_, err = execution.PostprocessBlock(tx, types.MasterShardId, uint256.NewInt(10), 0, block.Hash())
 	require.NoError(t, err)
 
 	err = tx.Commit()

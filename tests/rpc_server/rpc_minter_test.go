@@ -83,6 +83,8 @@ contracts:
 		ZeroState:            zerostate,
 		CollatorTickPeriodMs: 100,
 		GracefulShutdown:     false,
+		GasPriceScale:        0,
+		GasBasePrice:         10,
 	})
 }
 

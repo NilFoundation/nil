@@ -157,6 +157,16 @@ type EthAPI interface {
 	GetBalance(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error)
 
 	/*
+		@name GasPrice
+		@summary Returns the current gas price in the network.
+		@description Implements eth_gasPrice.
+		@tags [Transactions]
+		@param shardId ShardId
+		@returns gasPrice GasPrice
+	*/
+	GasPrice(ctx context.Context, shardId types.ShardId) (*hexutil.Big, error)
+
+	/*
 		@name GetTransactionCount
 		@summary Returns the transaction count of the account with the given address and at the given block.
 		@description Implements eth_getTransactionCount.

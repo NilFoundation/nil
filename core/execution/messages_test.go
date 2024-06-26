@@ -35,6 +35,7 @@ func (s *MessagesSuite) TearDownTest() {
 }
 
 func (s *MessagesSuite) TestValidateExternalMessage() {
+	gasPrice := uint256.NewInt(10)
 	tx, err := s.db.CreateRwTx(s.ctx)
 	s.Require().NoError(err)
 	defer tx.Rollback()
@@ -52,26 +53,26 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 		}
 
 		s.Run("NoAccount", func() {
-			s.Require().ErrorIs(ValidateExternalMessage(es, msg), ErrNoPayer)
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg, gasPrice), ErrNoPayer)
 
 			s.Require().NoError(es.CreateAccount(msg.To))
 		})
 
 		s.Run("IncorrectAddress", func() {
-			s.Require().ErrorIs(ValidateExternalMessage(es, msg), ErrIncorrectDeploymentAddress)
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg, gasPrice), ErrIncorrectDeploymentAddress)
 
 			msg.To = types.CreateAddress(types.BaseShardId, msg.Data)
 			s.Require().NoError(es.CreateAccount(msg.To))
 		})
 
 		s.Run("Ok", func() {
-			s.Require().NoError(ValidateExternalMessage(es, msg))
+			s.Require().NoError(ValidateExternalMessage(es, msg, gasPrice))
 		})
 
 		s.Run("ContractAlreadyExists", func() {
 			s.Require().NoError(es.SetCode(msg.To, code))
 
-			s.Require().ErrorIs(ValidateExternalMessage(es, msg), ErrContractAlreadyExists)
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg, gasPrice), ErrContractAlreadyExists)
 		})
 	})
 
@@ -83,13 +84,13 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 		}
 
 		s.Run("NoAccount", func() {
-			s.Require().ErrorIs(ValidateExternalMessage(es, msg), ErrNoPayer)
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg, gasPrice), ErrNoPayer)
 
 			s.Require().NoError(es.CreateAccount(msg.To))
 		})
 
 		s.Run("NoContract", func() {
-			s.Require().ErrorIs(ValidateExternalMessage(es, msg), ErrContractDoesNotExist)
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg, gasPrice), ErrContractDoesNotExist)
 
 			// contract that always returns "true",
 			// so verifies any message
@@ -97,26 +98,26 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 		})
 
 		s.Run("NoBalance", func() {
-			s.Require().ErrorIs(ValidateExternalMessage(es, msg), vm.ErrOutOfGas)
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg, gasPrice), vm.ErrOutOfGas)
 
 			s.Require().NoError(es.SetBalance(msg.To, *uint256.NewInt(10_000_000)))
 		})
 
 		s.Run("Ok", func() {
-			s.Require().NoError(ValidateExternalMessage(es, msg))
+			s.Require().NoError(ValidateExternalMessage(es, msg, gasPrice))
 		})
 
 		// todo: fail signature verification
 
 		s.Run("InvalidChain", func() {
 			msg.ChainId = 100500
-			s.Require().ErrorIs(ValidateExternalMessage(es, msg), ErrInvalidChainId)
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg, gasPrice), ErrInvalidChainId)
 		})
 
 		s.Run("SeqnoGap", func() {
 			msg.ChainId = types.DefaultChainId
 			msg.Seqno = 100
-			s.Require().ErrorIs(ValidateExternalMessage(es, msg), ErrSeqnoGap)
+			s.Require().ErrorIs(ValidateExternalMessage(es, msg, gasPrice), ErrSeqnoGap)
 		})
 	})
 }
