@@ -16,7 +16,7 @@
 
       in rec {
         packages = rec {
-          nil = pkgs.pkgsStatic.buildGoModule rec {
+          nil = pkgs.buildGoModule rec {
             name = "nil";
             pname = "nil";
             revCount = self.revCount or self.dirtyRevCount or 1;
@@ -30,9 +30,8 @@
             # to obtain run `nix build` with vendorHash = "";
             vendorHash = "sha256-QlZZBBoCOYjDBeKaiX7Q3haJGc7cb+3oqHN7sOP8wxE=";
             hardeningDisable = [ "all" ];
-            ldflags = [
-              "-linkmode external"
-            ];
+
+            CGO_ENABLED = 0;
 
             nativeBuildInputs = [
               pkgs.solc
