@@ -16,11 +16,11 @@
 
       in rec {
         packages = rec {
-          nil = (pkgs.callPackage ./nil.nix { src = self; });
+          nil = (pkgs.callPackage ./nil.nix { src_repo = self; });
           default = nil;
         };
         checks = rec {
-          nil = (pkgs.callPackage ./nil.nix { src = self; enableRaceDetector = true; enableTesting = true; });
+          nil = (pkgs.callPackage ./nil.nix { src_repo = self; enableRaceDetector = true; enableTesting = true; });
           default = nil;
         };
 
