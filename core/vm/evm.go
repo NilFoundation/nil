@@ -35,7 +35,6 @@ type BlockContext struct {
 	GasLimit    uint64        // Provides information for GASLIMIT
 	BlockNumber uint64        // Provides information for NUMBER
 	Time        uint64        // Provides information for TIME
-	Difficulty  *big.Int      // Provides information for DIFFICULTY
 	BaseFee     *big.Int      // Provides information for BASEFEE (0 if vm runs with NoBaseFee flag and 0 gas price)
 	BlobBaseFee *big.Int      // Provides information for BLOBBASEFEE (0 if vm runs with NoBaseFee flag and 0 blob gas price)
 	Random      *common.Hash  // Provides information for PREVRANDAO
@@ -48,7 +47,6 @@ type TxContext struct {
 	Origin     types.Address // Provides information for ORIGIN
 	GasPrice   *big.Int      // Provides information for GASPRICE (and is used to zero the basefee if NoBaseFee is set)
 	BlobHashes []common.Hash // Provides information for BLOBHASH
-	BlobFeeCap *big.Int      // Is used to zero the blobbasefee if NoBaseFee is set
 }
 
 // EVM is the Ethereum Virtual Machine base object and provides
@@ -94,6 +92,10 @@ func NewEVM(blockContext *BlockContext, statedb StateDB) *EVM {
 	evm := &EVM{
 		Context: blockContext,
 		StateDB: statedb,
+		TxContext: TxContext{
+			GasPrice: big.NewInt(10),
+		},
+		chainConfig: &params.ChainConfig{ChainID: big.NewInt(1)},
 	}
 	evm.interpreter = NewEVMInterpreter(evm)
 	return evm

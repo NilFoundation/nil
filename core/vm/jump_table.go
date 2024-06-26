@@ -493,8 +493,8 @@ func newFrontierInstructionSet() JumpTable { //nolint:maintidx
 			minStack:    minStack(0, 1),
 			maxStack:    maxStack(0, 1),
 		},
-		DIFFICULTY: {
-			execute:     opDifficulty,
+		PREVRANDAO: {
+			execute:     opRandom,
 			constantGas: GasQuickStep,
 			minStack:    minStack(0, 1),
 			maxStack:    maxStack(0, 1),

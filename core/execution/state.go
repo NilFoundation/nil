@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"sort"
 
 	"github.com/NilFoundation/nil/common"
@@ -133,6 +134,9 @@ func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
 	return &vm.BlockContext{
 		GetHash:     getHashFn(es, header),
 		BlockNumber: lastBlockId,
+		Random:      &common.EmptyHash,
+		BaseFee:     big.NewInt(10),
+		BlobBaseFee: big.NewInt(10),
 	}, nil
 }
 
