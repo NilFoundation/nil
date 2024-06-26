@@ -53,7 +53,7 @@ jobs:
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
         run: |
           export PATH=/home/ec2-user/.local/bin:${PATH}
-          nix bundle --bundler . .#nil
+          nix bundle --bundler . .#nil -L
           sudo yum update -y
           sudo yum install -y awscli python3-pip
           pip3 install -U mkrepo
