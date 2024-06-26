@@ -16,6 +16,7 @@ func GetCodeCommand(cfg *config.Config) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCode(cmd, args, cfg)
 		},
+		SilenceUsage: true,
 	}
 
 	return cmd

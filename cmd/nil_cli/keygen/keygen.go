@@ -14,10 +14,11 @@ var logger = logging.NewLogger("keygenCommand")
 
 func GetCommand() *cobra.Command {
 	serverCmd := &cobra.Command{
-		Use:     "keygen",
-		Short:   "Generate a new key or generate a key from a provided hex private key",
-		PreRunE: runPreRun,
-		Run:     runCommand,
+		Use:          "keygen",
+		Short:        "Generate a new key or generate a key from a provided hex private key",
+		PreRunE:      runPreRun,
+		Run:          runCommand,
+		SilenceUsage: true,
 	}
 
 	setFlags(serverCmd)

@@ -19,6 +19,7 @@ func GetCommand(cfg *config.Config) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			runCommand(cmd, args, cfg.RPCEndpoint)
 		},
+		SilenceUsage: true,
 	}
 
 	setFlags(serverCmd)

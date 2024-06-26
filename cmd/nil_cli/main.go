@@ -61,6 +61,7 @@ func main() {
 				}
 				return nil
 			},
+			SilenceUsage: true,
 		},
 	}
 

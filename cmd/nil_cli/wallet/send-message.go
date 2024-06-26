@@ -20,6 +20,7 @@ func SendMessageCommand(cfg *config.Config) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSend(cmd, args, cfg)
 		},
+		SilenceUsage: true,
 	}
 
 	cmd.Flags().StringVar(

@@ -16,6 +16,7 @@ func GetBalanceCommand(cfg *config.Config) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runBalance(cmd, args, cfg)
 		},
+		SilenceUsage: true,
 	}
 
 	return cmd

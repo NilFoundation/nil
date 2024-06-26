@@ -20,6 +20,7 @@ func GetCallReadonlyCommand(cfg *config.Config) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCallReadonly(cmd, args, cfg)
 		},
+		SilenceUsage: true,
 	}
 
 	cmd.Flags().StringVar(

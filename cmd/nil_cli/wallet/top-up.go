@@ -16,6 +16,7 @@ func TopUpCommand(cfg *config.Config) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTopUp(cmd, args, cfg)
 		},
+		SilenceUsage: true,
 	}
 
 	return cmd

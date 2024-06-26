@@ -23,6 +23,7 @@ func NewCommand(cfg *config.Config) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runNew(cmd, args, cfg)
 		},
+		SilenceUsage: true,
 	}
 
 	setFlags(serverCmd)

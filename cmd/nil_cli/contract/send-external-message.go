@@ -20,6 +20,7 @@ func GetSendExternalMessageCommand(cfg *config.Config) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSendExternalMessage(cmd, args, cfg)
 		},
+		SilenceUsage: true,
 		// This command is useful for only rare cases, so it's hidden
 		// to avoid confusion for the users between "send" and "send-message"
 		Hidden: true,
