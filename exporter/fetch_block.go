@@ -13,8 +13,9 @@ import (
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
-	"github.com/rs/zerolog/log"
 )
+
+var logger = logging.NewLogger("fetch-block")
 
 type request struct {
 	Jsonrpc string `json:"jsonrpc"`
@@ -69,7 +70,7 @@ func (cfg *Cfg) fetchBlockData(ctx context.Context, requestBody request) (*Block
 		return nil, errors.New("block not found")
 	}
 
-	log.Debug().Msgf("result map %v", bodyResponse.Result)
+	logger.Debug().Msgf("result map %v", bodyResponse.Result)
 
 	hexBody, ok := bodyResponse.Result["content"].(string)
 	if !ok {
@@ -184,7 +185,7 @@ func (cfg *Cfg) fetchBlockData(ctx context.Context, requestBody request) (*Block
 		Positions:   positionsUint64,
 	}
 
-	log.Debug().
+	logger.Debug().
 		Stringer(logging.FieldBlockHash, result.Block.Hash()).
 		Msg("Fetched block")
 
@@ -234,7 +235,7 @@ func (cfg *Cfg) FetchShards(ctx context.Context) ([]types.ShardId, error) {
 		return nil, err
 	}
 
-	log.Info().Msgf("Response body: %s", body)
+	logger.Debug().Msgf("Response body: %s", body)
 
 	var bodyResponse blockShardIdsResponse
 

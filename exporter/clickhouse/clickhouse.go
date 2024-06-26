@@ -62,25 +62,33 @@ type LogWithBinary struct {
 	Data        []byte        `ch:"data"`
 }
 
-func init() {
-	intiSchemeCache()
-}
+var tableSchemeCache map[string]reflectedScheme = nil
 
-var tableSchemeCache = make(map[string]reflectedScheme)
+func initSchemeCache() map[string]reflectedScheme {
+	tableScheme := make(map[string]reflectedScheme)
 
-func intiSchemeCache() {
 	blockScheme, err := reflectSchemeToClickhouse(&BlockWithBinary{})
 	check.PanicIfErr(err)
 
-	tableSchemeCache["blocks"] = blockScheme
+	tableScheme["blocks"] = blockScheme
 	messageScheme, err := reflectSchemeToClickhouse(&MessageWithBinary{})
 	check.PanicIfErr(err)
 
-	tableSchemeCache["messages"] = messageScheme
+	tableScheme["messages"] = messageScheme
 	logScheme, err := reflectSchemeToClickhouse(&LogWithBinary{})
 	check.PanicIfErr(err)
 
-	tableSchemeCache["logs"] = logScheme
+	tableScheme["logs"] = logScheme
+
+	return tableScheme
+}
+
+func getTableScheme() map[string]reflectedScheme {
+	if tableSchemeCache == nil {
+		tableSchemeCache = initSchemeCache()
+	}
+
+	return tableSchemeCache
 }
 
 func NewClickhouseDriver(_ context.Context, endpoint, login, password, database string) (*ClickhouseDriver, error) {
@@ -162,7 +170,7 @@ func (d *ClickhouseDriver) FetchEarliestAbsentBlock(ctx context.Context, shardId
 	// join in clickhouse return default value on outer join
 	rows, err := d.conn.Query(ctx, `SELECT a.id + 1
 from blocks as a
-         left outer join blocks as b on a.id + 1 = b.id and a.shard_id = b.shard_id
+		 left outer join blocks as b on a.id + 1 = b.id and a.shard_id = b.shard_id
 where a.shard_id = $1 and a.id > b.id
 order by a.id asc
 `, shardId)
@@ -185,7 +193,8 @@ order by a.id asc
 
 func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
 	// Create table for blocks
-	blockScheme, ok := tableSchemeCache["blocks"]
+	tableScheme := getTableScheme()
+	blockScheme, ok := tableScheme["blocks"]
 	if !ok {
 		return errors.New("scheme for blocks not found")
 	}
@@ -201,7 +210,7 @@ func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
 	}
 
 	// Create table for messages
-	messagesScheme, ok := tableSchemeCache["messages"]
+	messagesScheme, ok := tableScheme["messages"]
 	if !ok {
 		return errors.New("scheme for messages not found")
 	}
@@ -220,7 +229,7 @@ func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
 	}
 
 	// Create table for receipts
-	logScheme, ok := tableSchemeCache["logs"]
+	logScheme, ok := tableScheme["logs"]
 	if !ok {
 		return errors.New("scheme for receipts not found")
 	}
@@ -419,7 +428,7 @@ func (d *ClickhouseDriver) FetchBlock(ctx context.Context, id types.ShardId, num
 
 func (d *ClickhouseDriver) FetchNextPresentBlock(ctx context.Context, shardId types.ShardId, number types.BlockNumber) (types.BlockNumber, bool, error) {
 	rows, err := d.conn.Query(ctx, `SELECT blocks.id
-from blocks 
+from blocks
 where shard_id = $1 and id > $2 order by id asc`, shardId, number)
 	if err != nil {
 		return 0, false, err

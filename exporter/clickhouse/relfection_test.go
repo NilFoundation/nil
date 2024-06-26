@@ -46,6 +46,6 @@ func TestReflectComplexScheme(t *testing.T) {
 func TestInitScheme(t *testing.T) {
 	t.Parallel()
 	require.NotPanics(t, func() {
-		intiSchemeCache()
+		initSchemeCache()
 	})
 }

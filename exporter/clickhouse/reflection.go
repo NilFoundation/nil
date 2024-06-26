@@ -5,8 +5,10 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/rs/zerolog/log"
+	"github.com/NilFoundation/nil/common/logging"
 )
+
+var logger = logging.NewLogger("ch-reflection")
 
 func mapTypeToClickhouseType(t reflect.Type) string {
 	switch t.Kind() { //nolint:exhaustive
@@ -139,9 +141,9 @@ func reflectSchemeToClickhouse(f any) (reflectedScheme, error) {
 		}
 	}
 
-	log.Debug().Msgf("fieldTypes: %v", fieldTypes)
-	log.Debug().Msgf("fieldNames: %v", fieldNames)
-	log.Debug().Msgf("additionalSchemes: %v", additionalSchemes)
+	logger.Debug().Msgf("fieldTypes: %v", fieldTypes)
+	logger.Debug().Msgf("fieldNames: %v", fieldNames)
+	logger.Debug().Msgf("additionalSchemes: %v", additionalSchemes)
 
 	return mergeScheme(append(additionalSchemes, reflectedScheme{
 		fieldTypes: fieldTypes,
@@ -159,12 +161,12 @@ func (s reflectedScheme) Fields() string {
 
 func (s reflectedScheme) CreateTableQuery(tableName, engine string, primaryKeys []string, orderKeys []string) string {
 	query := fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS %s 
-		    			(%s)
+		CREATE TABLE IF NOT EXISTS %s
+						(%s)
 		 ENGINE = %s
 		PRIMARY KEY (%s)
 		order by (%s)
 `, tableName, s.Fields(), engine, strings.Join(primaryKeys, ", "), strings.Join(orderKeys, ", "))
-	log.Debug().Msgf("CreateTableQuery: %s", query)
+	logger.Debug().Msgf("CreateTableQuery: %s", query)
 	return query
 }
