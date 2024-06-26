@@ -69,8 +69,8 @@ You could config it via config file or flags or environment variables.`,
 	}
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $CWD/exporter.cobra.yaml)")
-	rootCmd.Flags().StringP("api-endpoint", "a", "http://127.0.0.1:8545", "API endpoint")
-	rootCmd.Flags().StringP("clickhouse-endpoint", "e", "", "Clickhouse endpoint")
+	rootCmd.Flags().StringP("api-endpoint", "a", "http://127.0.0.1:8529", "API endpoint")
+	rootCmd.Flags().StringP("clickhouse-endpoint", "e", "127.0.0.1:9000", "Clickhouse endpoint")
 	rootCmd.Flags().StringP("clickhouse-login", "l", "", "Clickhouse login")
 	rootCmd.Flags().StringP("clickhouse-password", "p", "", "Clickhouse password")
 	rootCmd.Flags().StringP("clickhouse-database", "d", "", "Clickhouse database")
