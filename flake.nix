@@ -16,31 +16,11 @@
 
       in rec {
         packages = rec {
-          nil = pkgs.buildGoModule rec {
-            name = "nil";
-            pname = "nil";
-            revCount = self.revCount or self.dirtyRevCount or 1;
-            version = "0.1.0-${toString revCount}";
-
-            preBuild = ''
-                make compile-contracts
-            '';
-
-            src = ./.;
-            # to obtain run `nix build` with vendorHash = "";
-            vendorHash = "sha256-QlZZBBoCOYjDBeKaiX7Q3haJGc7cb+3oqHN7sOP8wxE=";
-            hardeningDisable = [ "all" ];
-
-            CGO_ENABLED = 0;
-
-            nativeBuildInputs = [
-              pkgs.solc
-            ];
-
-            doCheck = true;
-            checkFlags = ["-race" "-tags assert,test"];
-          };
-
+          nil = (pkgs.callPackage ./nil.nix { src = self; });
+          default = nil;
+        };
+        checks = rec {
+          nil = (pkgs.callPackage ./nil.nix { src = self; enableRaceDetector = true; enableTesting = true; });
           default = nil;
         };
 
@@ -95,9 +75,6 @@
           '';
         };
 
-        overlays.default = final: prev: {
-          nil = packages.default;
-        };
       })
     );
 }
