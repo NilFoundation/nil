@@ -8,11 +8,12 @@ import (
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 	"github.com/spf13/cobra"
 )
 
 var logger = logging.NewLogger("walletNewCommand")
+
+var defaultNewWalletAmount = types.NewUint256(10_000_000)
 
 func NewCommand(cfg *config.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
@@ -41,24 +42,27 @@ func setFlags(cmd *cobra.Command) {
 		"Specify the shard id to interact with",
 	)
 
-	params.amount = *types.NewUint256(10_000_000)
+	params.amount = *defaultNewWalletAmount
 	cmd.Flags().Var(
 		&params.amount,
 		amountFlag,
 		"Start balance (capped at 10'000'000). Deployment fee will be subtracted",
 	)
-
-	if params.amount.Cmp(uint256.NewInt(10_000_000)) > 0 {
-		params.amount = *types.NewUint256(10_000_000)
-	}
 }
 
 func runNew(_ *cobra.Command, _ []string, cfg *config.Config) error {
 	logger.Info().Msgf("RPC Endpoint: %s", cfg.RPCEndpoint)
 
+	amount := &params.amount
+	if amount.Cmp(&defaultNewWalletAmount.Int) > 0 {
+		logger.Warn().
+			Msgf("Specified balance (%s) is greater than a limit (%s). Decrease it.", &params.amount, defaultNewWalletAmount)
+		amount = defaultNewWalletAmount
+	}
+
 	client := rpc.NewClient(cfg.RPCEndpoint)
 	srv := service.NewService(client, cfg.PrivateKey)
-	walletAddress, err := srv.CreateWallet(params.shardId, params.salt, &params.amount, &cfg.PrivateKey.PublicKey)
+	walletAddress, err := srv.CreateWallet(params.shardId, params.salt, amount, &cfg.PrivateKey.PublicKey)
 
 	if errors.Is(err, service.ErrWalletExists) {
 		logger.Error().Err(err).Msg("failed to create wallet")
