@@ -734,6 +734,10 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 
 	ret, leftOverGas, err := es.evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas, &message.Value.Int)
 	if err != nil {
+		revString := decodeRevertMessage(ret)
+		if revString != "" {
+			err = fmt.Errorf("%w: %s", err, revString)
+		}
 		logger.Error().Err(err).Msg("execution message failed")
 		if message.Internal {
 			if bounceErr := es.sendBounceMessage(message, err.Error()); bounceErr != nil {
@@ -742,6 +746,19 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 		}
 	}
 	return leftOverGas, ret, err
+}
+
+// decodeRevertMessage decodes the revert message from the EVM revert data
+func decodeRevertMessage(data []byte) string {
+	if len(data) < 68 {
+		return ""
+	}
+
+	data = data[68:]
+
+	revString := string(data[:bytes.IndexByte(data, 0)])
+
+	return revString
 }
 
 func (es *ExecutionState) HandleRefundMessage(_ context.Context, message *types.Message) error {

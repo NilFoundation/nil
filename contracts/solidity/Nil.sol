@@ -8,6 +8,7 @@ library Nil {
     address public constant IS_INTERNAL_MESSAGE = address(0xff);
     address private constant MINT_CURRENCY = address(0xd0);
     address private constant GET_CURRENCY_BALANCE = address(0xd1);
+	address public constant MINTER_ADDRESS = payable(address(0x0001222222222222222222222222222222222222));
 
     // Token is a struct that represents a token with an id and amount.
     struct Token {

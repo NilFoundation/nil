@@ -251,13 +251,13 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 		return nil, err
 	}
 
-	// Get `value` argument
+	// Get `refundTo` argument
 	refundTo, err := convertGethAddress(args[2])
 	if err != nil {
 		return nil, err
 	}
 
-	// Get `value` argument
+	// Get `bounceTo` argument
 	bounceTo, err := convertGethAddress(args[3])
 	if err != nil {
 		return nil, err

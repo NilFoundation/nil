@@ -97,6 +97,8 @@ func (s *SuiteMinterRpc) TestBasic() {
 
 	abiMinter, err := contracts.GetAbi("Minter")
 	s.Require().NoError(err)
+	multiCurrAbi, err := contracts.GetAbi("NilCurrencyBase")
+	s.Require().NoError(err)
 
 	currencyId1 := currencyIdFromAddress(s.walletAddress1)
 	currencyIdStr1 := hexutil.ToHexNoLeadingZeroes(s.walletAddress1.Bytes())
@@ -110,10 +112,10 @@ func (s *SuiteMinterRpc) TestBasic() {
 
 	///////////////////////////////////////////////////////////////////////////
 	// Create currency
-	data, err = abiMinter.Pack("create", big.NewInt(100), s.walletAddress1)
+	data, err = multiCurrAbi.Pack("createToken", big.NewInt(100))
 	s.Require().NoError(err)
 
-	receipt = s.sendMessageViaWallet(s.walletAddress1, types.MinterAddress, execution.MainPrivateKey, data, types.NewUint256(0))
+	receipt = s.sendExternalMessage(data, s.walletAddress1)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -125,10 +127,10 @@ func (s *SuiteMinterRpc) TestBasic() {
 
 	///////////////////////////////////////////////////////////////////////////
 	// Mint some currency
-	data, err = abiMinter.Pack("mint", &currencyIdInt1, big.NewInt(250))
+	data, err = multiCurrAbi.Pack("mintToken", big.NewInt(250))
 	s.Require().NoError(err)
 
-	receipt = s.sendMessageViaWallet(s.walletAddress1, types.MinterAddress, execution.MainPrivateKey, data, types.NewUint256(0))
+	receipt = s.sendExternalMessage(data, s.walletAddress1)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -140,10 +142,10 @@ func (s *SuiteMinterRpc) TestBasic() {
 
 	///////////////////////////////////////////////////////////////////////////
 	// Transfer some currency
-	data, err = abiMinter.Pack("transfer", &currencyIdInt1, big.NewInt(100), s.walletAddress1)
+	data, err = multiCurrAbi.Pack("transferToken", big.NewInt(100), s.walletAddress1)
 	s.Require().NoError(err)
 
-	receipt = s.sendMessageViaWallet(s.walletAddress1, types.MinterAddress, execution.MainPrivateKey, data, types.NewUint256(966650))
+	receipt = s.sendExternalMessage(data, s.walletAddress1)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -215,7 +217,7 @@ func (s *SuiteMinterRpc) TestBasic() {
 	data, err = abiMinter.Pack("transfer", &currencyIdInt2, amount.ToBig(), s.walletAddress2)
 	s.Require().NoError(err)
 
-	receipt = s.sendMessageViaWallet(s.walletAddress2, types.MinterAddress, execution.MainPrivateKey, data, types.NewUint256(966650))
+	receipt = s.sendMessageViaWallet(s.walletAddress2, types.MinterAddress, execution.MainPrivateKey, data, types.NewUint256(968650))
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 

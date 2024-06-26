@@ -3,8 +3,9 @@
 pragma solidity ^0.8.9;
 
 import "./Nil.sol";
+import "./NilCurrencyBase.sol";
 
-contract Wallet is NilBase {
+contract Wallet is NilCurrencyBase {
 
     bytes pubkey;
 

@@ -28,13 +28,13 @@ contract Minter is NilBase {
     }
 
     function mint(uint256 id, uint256 amount) onlyInternal payable public {
-        require(owners[id] != address(0), "Token not exists");
+        require(owners[id] != address(0), "Token doesn't exist");
         require(msg.sender == owners[id], "Not from owner");
         Nil.mintToken(id, amount);
     }
 
     function transfer(uint256 id, uint256 amount, address to) onlyInternal payable public {
-        require(owners[id] != address(0), "Token not exists");
+        require(owners[id] != address(0), "Token doesn't exist");
         require(msg.sender == owners[id], "Not from owner");
 
         uint256 balance = Nil.getTokenBalance(id);
