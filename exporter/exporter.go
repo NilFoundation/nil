@@ -185,6 +185,19 @@ func startDriverExport(ctx context.Context, cfg *Cfg) {
 	fullMode := false
 	var blockBuffer []*BlockMsg
 	for {
+		if len(blockBuffer) > BlockBufferSize {
+			if !fullMode {
+				log.Info().Msgf("Buffer is full. Stop reading from channel. Buffer size: %d", len(blockBuffer))
+				fullMode = true
+			}
+		} else {
+			if fullMode {
+				log.Info().Msg("Buffer is not full. Start reading from channel")
+				fullMode = false
+			}
+			blockBuffer = append(blockBuffer, <-cfg.BlocksChan)
+		}
+
 		select {
 		case <-ctx.Done():
 			return
@@ -198,19 +211,6 @@ func startDriverExport(ctx context.Context, cfg *Cfg) {
 			}
 			blockBuffer = blockBuffer[:0]
 			cfg.incrementRound()
-		}
-
-		if len(blockBuffer) > BlockBufferSize {
-			if !fullMode {
-				log.Info().Msgf("Buffer is full. Stop reading from channel. Buffer size: %d", len(blockBuffer))
-				fullMode = true
-			}
-		} else {
-			if fullMode {
-				log.Info().Msg("Buffer is not full. Start reading from channel")
-				fullMode = false
-			}
-			blockBuffer = append(blockBuffer, <-cfg.BlocksChan)
 		}
 	}
 }
