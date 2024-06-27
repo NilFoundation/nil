@@ -248,7 +248,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			receipt = s.waitForReceipt(callerAddr.ShardId(), hash)
 			s.Require().True(receipt.Success)
 
-			balance, err := s.client.GetBalance(callerAddr, transport.LatestBlockNumber)
+			balance, err := s.client.GetBalance(callerAddr, transport.BlockNumberOrHash{BlockHash: &receipt.BlockHash})
 			s.Require().NoError(err)
 			s.Require().Greater(prevBalance.Uint64(), balance.Uint64())
 			s.T().Logf("Spent %v nil", prevBalance.Uint64()-balance.Uint64())
