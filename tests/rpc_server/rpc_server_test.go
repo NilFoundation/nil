@@ -140,7 +140,7 @@ func (suite *SuiteRpc) loadContract(path string, name string) (types.Code, abi.A
 	return code, abi
 }
 
-func (s *RpcSuite) prepareDefaultDeployBytecode(abi abi.ABI, code []byte, args ...any) []byte {
+func (s *RpcSuite) prepareDefaultDeployPayload(abi abi.ABI, code []byte, args ...any) types.DeployPayload {
 	s.T().Helper()
 
 	constructor, err := abi.Pack("", args...)
@@ -153,9 +153,9 @@ const defaultContractValue = uint64(50_000_000)
 
 func (suite *SuiteRpc) TestRpcContract() {
 	contractCode, abi := suite.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
-	contractCode = suite.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(0))
+	deployPayload := suite.prepareDefaultDeployPayload(abi, contractCode, big.NewInt(0))
 
-	addr, receipt := suite.deployContractViaMainWallet(types.BaseShardId, contractCode, types.NewUint256(defaultContractValue))
+	addr, receipt := suite.deployContractViaMainWallet(types.BaseShardId, deployPayload, types.NewUint256(defaultContractValue))
 	suite.Require().True(receipt.OutReceipts[0].Success)
 
 	blockNumber := transport.LatestBlockNumber
@@ -173,9 +173,9 @@ func (suite *SuiteRpc) TestRpcContract() {
 
 func (s *SuiteRpc) TestRpcDeployToMainShardViaMainWallet() {
 	code, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
-	code = s.prepareDefaultDeployBytecode(abi, code, big.NewInt(0))
+	deployPayload := s.prepareDefaultDeployPayload(abi, code, big.NewInt(0))
 
-	txHash, _, err := s.client.DeployContract(types.MasterShardId, types.MainWalletAddress, code, nil, execution.MainPrivateKey)
+	txHash, _, err := s.client.DeployContract(types.MasterShardId, types.MainWalletAddress, deployPayload, nil, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), txHash)
@@ -186,7 +186,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 	// deploy caller contract
 	callerCode, callerAbi := s.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Caller")
 	calleeCode, calleeAbi := s.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Callee")
-	callerAddr, receipt := s.deployContractViaMainWallet(types.MasterShardId, callerCode, types.NewUint256(defaultContractValue))
+	callerAddr, receipt := s.deployContractViaMainWallet(types.MasterShardId, types.BuildDeployPayload(callerCode, common.EmptyHash), types.NewUint256(defaultContractValue))
 	s.Require().True(receipt.OutReceipts[0].Success)
 
 	checkForShard := func(shardId types.ShardId) {
@@ -198,7 +198,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 		var calleeAddr types.Address
 		s.Run("DeployCallee", func() {
 			// deploy callee contracts to different shards
-			calleeAddr, receipt = s.deployContractViaMainWallet(shardId, calleeCode, types.NewUint256(defaultContractValue))
+			calleeAddr, receipt = s.deployContractViaMainWallet(shardId, types.BuildDeployPayload(calleeCode, common.EmptyHash), types.NewUint256(defaultContractValue))
 			s.Require().True(receipt.OutReceipts[0].Success)
 		})
 
@@ -311,7 +311,7 @@ func (s *SuiteRpc) TestEmptyDeployPayload() {
 	wallet := types.MainWalletAddress
 
 	// Deploy contract with invalid payload
-	hash, _, err := s.client.DeployContract(types.BaseShardId, wallet, nil, nil, execution.MainPrivateKey)
+	hash, _, err := s.client.DeployContract(types.BaseShardId, wallet, types.DeployPayload{}, nil, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceiptOnShard(wallet.ShardId(), hash)
@@ -382,7 +382,7 @@ func (suite *SuiteRpc) TestNoOutMessagesIfFailure() {
 	abi, err := contracts.GetAbi("tests/CommonTest")
 	suite.Require().NoError(err)
 
-	addr, receipt := suite.deployContractViaMainWallet(2, code, types.NewUint256(defaultContractValue))
+	addr, receipt := suite.deployContractViaMainWallet(2, types.BuildDeployPayload(code, common.EmptyHash), types.NewUint256(defaultContractValue))
 	suite.Require().True(receipt.OutReceipts[0].Success)
 
 	// Call CommonTest contract with invalid argument, so no output messages should be generated

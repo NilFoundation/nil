@@ -91,9 +91,9 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 		return err
 	}
 
-	bytecode = types.BuildDeployPayload(bytecode, libcommon.Hash(params.salt.Bytes32()))
+	payload := types.BuildDeployPayload(bytecode, libcommon.Hash(params.salt.Bytes32()))
 
-	msgHash, _, err := service.DeployContractViaWallet(params.shardId, cfg.Address, bytecode, &params.amount)
+	msgHash, _, err := service.DeployContractViaWallet(params.shardId, cfg.Address, payload, &params.amount)
 	if err != nil {
 		return err
 	}

@@ -119,7 +119,7 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 	shardId := types.ShardId(5)
 
 	payload := contracts.CounterDeployPayload(suite.T())
-	addrWallet := types.CreateAddress(shardId, payload.Bytes())
+	addrWallet := types.CreateAddress(shardId, payload)
 
 	tx, err := suite.db.CreateRwTx(suite.ctx)
 	suite.Require().NoError(err)

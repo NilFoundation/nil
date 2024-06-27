@@ -35,9 +35,9 @@ func (s *SuiteRpc) TestCliBlock() {
 
 func (s *SuiteRpc) TestCliMessage() {
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
-	contractCode = s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(0))
+	deployPayload := s.prepareDefaultDeployPayload(abi, contractCode, big.NewInt(0))
 
-	_, receipt := s.deployContractViaMainWallet(types.BaseShardId, contractCode, types.NewUint256(5_000_000))
+	_, receipt := s.deployContractViaMainWallet(types.BaseShardId, deployPayload, types.NewUint256(5_000_000))
 	s.Require().True(receipt.Success)
 
 	msg, err := s.client.GetInMessageByHash(types.MainWalletAddress.ShardId(), receipt.MsgHash)
@@ -56,9 +56,9 @@ func (s *SuiteRpc) TestCliMessage() {
 
 func (s *SuiteRpc) TestReadContract() {
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
-	contractCode = s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(1))
+	deployPayload := s.prepareDefaultDeployPayload(abi, contractCode, big.NewInt(1))
 
-	addr, receipt := s.deployContractViaMainWallet(types.BaseShardId, contractCode, types.NewUint256(5_000_000))
+	addr, receipt := s.deployContractViaMainWallet(types.BaseShardId, deployPayload, types.NewUint256(5_000_000))
 	s.Require().True(receipt.Success)
 
 	res, err := s.cli.GetCode(addr)
@@ -76,7 +76,7 @@ func (s *SuiteRpc) TestContract() {
 
 	// Deploy contract
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
-	deployCode := s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(2))
+	deployCode := s.prepareDefaultDeployPayload(abi, contractCode, big.NewInt(2))
 	txHash, addr, err := s.cli.DeployContractViaWallet(wallet.ShardId()+1, wallet, deployCode, nil)
 	s.Require().NoError(err)
 
@@ -156,7 +156,7 @@ func (s *SuiteRpc) TestSendExternalMessage() {
 	wallet := types.MainWalletAddress
 
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/external_increment.sol"), "ExternalIncrementer")
-	deployCode := s.prepareDefaultDeployBytecode(abi, contractCode, big.NewInt(2))
+	deployCode := s.prepareDefaultDeployPayload(abi, contractCode, big.NewInt(2))
 	txHash, addr, err := s.cli.DeployContractViaWallet(types.BaseShardId, wallet, deployCode, types.NewUint256(10_000_000))
 	s.Require().NoError(err)
 

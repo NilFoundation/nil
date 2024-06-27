@@ -3,6 +3,7 @@ package contracts
 import (
 	"bytes"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/concurrent"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/types"
@@ -14,7 +15,7 @@ var (
 	abiCache  = concurrent.NewMap[string, *abi.ABI]()
 )
 
-func GetCode(name string) ([]byte, error) {
+func GetCode(name string) (types.Code, error) {
 	// The result taken from the cache must be cloned.
 	if res, ok := codeCache.Get(name); ok {
 		return res.Clone(), nil
@@ -65,7 +66,7 @@ func CalculateAddress(name string, shardId types.ShardId, ctorArgs []any, salt [
 		}
 		code = append(code, argsPacked...)
 	}
-	code = append(code, salt...)
+	payload := types.BuildDeployPayload(code, common.BytesToHash(salt))
 
-	return types.CreateAddress(shardId, code), nil
+	return types.CreateAddress(shardId, payload), nil
 }

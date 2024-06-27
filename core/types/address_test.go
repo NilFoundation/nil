@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,11 +29,13 @@ func TestCreateAddressShardId(t *testing.T) {
 	addr1 := HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e71")
 	addr2 := HexToAddress("0xfDE82e88Dc6ccABA63a4c5C23f530011c7F1A2e5")
 
-	addr := CreateAddress(shardId1, []byte{12, 34})
+	payload := BuildDeployPayload([]byte{12, 34}, common.EmptyHash)
+	addr := CreateAddress(shardId1, payload)
 	assert.Equal(t, shardId1, addr.ShardId())
 	assert.Equal(t, addr, addr1)
 
-	addr = CreateAddress(shardId2, []byte{56, 78})
+	payload = BuildDeployPayload([]byte{56, 78}, common.EmptyHash)
+	addr = CreateAddress(shardId2, payload)
 	assert.Equal(t, shardId2, addr.ShardId())
 	assert.Equal(t, addr, addr2)
 }

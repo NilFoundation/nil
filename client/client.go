@@ -33,7 +33,7 @@ type Client interface {
 	GasPrice(shardId types.ShardId) (*types.Uint256, error)
 
 	DeployContract(
-		shardId types.ShardId, walletAddress types.Address, bytecode types.Code, value *types.Uint256, pk *ecdsa.PrivateKey,
+		shardId types.ShardId, walletAddress types.Address, payload types.DeployPayload, value *types.Uint256, pk *ecdsa.PrivateKey,
 	) (common.Hash, types.Address, error)
 	DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload) (common.Hash, types.Address, error)
 	SendMessageViaWallet(

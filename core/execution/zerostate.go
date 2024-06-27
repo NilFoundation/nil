@@ -146,7 +146,7 @@ func (es *ExecutionState) GenerateZeroState(configYaml string) error {
 		if contract.Address != nil {
 			addr = *contract.Address
 		} else {
-			addr = types.CreateAddress(contract.Shard, code)
+			addr = types.CreateAddress(contract.Shard, types.BuildDeployPayload(code, common.EmptyHash))
 		}
 
 		if addr.ShardId() != es.ShardId {

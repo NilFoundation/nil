@@ -96,15 +96,14 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 func NewDeployMessage(payload types.DeployPayload,
 	shardId types.ShardId, from types.Address, seqno types.Seqno,
 ) *types.Message {
-	data := payload.Bytes()
 	return &types.Message{
 		Internal: true,
 		Kind:     types.DeployMessageKind,
-		Data:     data,
+		Data:     payload.Bytes(),
 		From:     from,
 		Seqno:    seqno,
 		GasLimit: *types.NewUint256(100000),
-		To:       types.CreateAddress(shardId, data),
+		To:       types.CreateAddress(shardId, payload),
 	}
 }
 
