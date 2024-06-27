@@ -104,3 +104,8 @@ func (s *Service) CallContract(contract types.Address, gasLimit *types.Uint256, 
 	s.logger.Info().Msgf("Call result: %s", res)
 	return res, nil
 }
+
+func (s *Service) ContractAddress(shardId types.ShardId, salt types.Uint256, bytecode []byte) types.Address {
+	deployPayload := types.BuildDeployPayload(bytecode, common.Hash(salt.Bytes32()))
+	return types.CreateAddress(shardId, deployPayload)
+}

@@ -11,6 +11,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 		Short: "Interact with contract on the cluster",
 	}
 
+	serverCmd.AddCommand(GetAddressCommand(cfg))
 	serverCmd.AddCommand(GetBalanceCommand(cfg))
 	serverCmd.AddCommand(GetCodeCommand(cfg))
 	serverCmd.AddCommand(GetCallReadonlyCommand(cfg))

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/concurrent"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/types"
@@ -92,8 +93,7 @@ func (s *Service) TopUpViaFaucet(contractAddress types.Address, amount *types.Ui
 
 func (s *Service) CreateWallet(shardId types.ShardId, salt types.Uint256, balance *types.Uint256, pubKey *ecdsa.PublicKey) (types.Address, error) {
 	walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(pubKey))
-	deployPayload := types.BuildDeployPayload(walletCode, common.Hash(salt.Bytes32()))
-	walletAddress := types.CreateAddress(shardId, deployPayload)
+	walletAddress := s.ContractAddress(shardId, salt, walletCode)
 
 	code, err := s.client.GetCode(walletAddress, "latest")
 	if err != nil {
@@ -110,13 +110,12 @@ func (s *Service) CreateWallet(shardId types.ShardId, salt types.Uint256, balanc
 		return types.EmptyAddress, err
 	}
 
+	deployPayload := types.BuildDeployPayload(walletCode, common.Hash(salt.Bytes32()))
 	msgHash, addr, err := s.DeployContractExternal(shardId, deployPayload)
 	if err != nil {
 		return types.EmptyAddress, err
 	}
-	if addr != walletAddress {
-		return types.EmptyAddress, errors.New("contract was deployed to unexpected address")
-	}
+	check.PanicIfNotf(addr == walletAddress, "contract was deployed to unexpected address")
 	res, err := s.WaitForReceipt(addr.ShardId(), msgHash)
 	if err != nil {
 		return types.EmptyAddress, errors.New("error during waiting for receipt")
