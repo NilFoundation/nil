@@ -6,12 +6,9 @@ import (
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	libcommon "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
-	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
-
-var logger = logging.NewLogger("messageCommand")
 
 func GetCommand(cfg *common.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
@@ -44,8 +41,6 @@ func setFlags(cmd *cobra.Command) {
 }
 
 func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
-	logger.Info().Msgf("RPC Endpoint: %s", rpcEndpoint)
-
 	client := rpc.NewClient(rpcEndpoint)
 	service := service.NewService(client, nil)
 

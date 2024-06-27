@@ -1,8 +1,6 @@
 package keygen
 
 import (
-	"fmt"
-
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
@@ -56,7 +54,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 	}
 
 	privateKey := keygen.GetPrivateKey()
-	logger.Info().Msg(fmt.Sprintf("Pivate key: %v", privateKey))
+	logger.Info().Msgf("Pivate key: %v", privateKey)
 
 	if err := common.PatchConfig(map[string]interface{}{
 		common.PrivateKeyField: privateKey,

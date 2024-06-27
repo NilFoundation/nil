@@ -21,6 +21,6 @@ func (s *Service) FetchMessageByHash(shardId types.ShardId, hash common.Hash) ([
 		return nil, err
 	}
 
-	s.logger.Trace().Msgf("Fetched message:\n%s", messageDataJSON)
+	s.logger.Info().Msgf("Fetched message:\n%s", messageDataJSON)
 	return messageDataJSON, nil
 }

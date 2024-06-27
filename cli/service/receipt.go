@@ -21,7 +21,7 @@ func (s *Service) FetchReceiptByHash(shardId types.ShardId, hash common.Hash) ([
 		return nil, err
 	}
 
-	s.logger.Trace().Msgf("Fetched receipt:\n%s", receiptDataJSON)
+	s.logger.Info().Msgf("Fetched receipt:\n%s", receiptDataJSON)
 
 	return receiptDataJSON, nil
 }
