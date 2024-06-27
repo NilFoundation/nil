@@ -689,9 +689,13 @@ func (es *ExecutionState) HandleDeployMessage(
 	}
 	defer es.resetVm()
 
-	_, addr, leftOverGas, err := es.evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code(), gas, &message.Value.Int)
+	ret, addr, leftOverGas, err := es.evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code(), gas, &message.Value.Int)
 	event := logger.Debug().Stringer(logging.FieldMessageTo, addr)
 	if err != nil {
+		revString := decodeRevertMessage(ret)
+		if revString != "" {
+			err = fmt.Errorf("%w: %s", err, revString)
+		}
 		event.Err(err).Msg("Contract deployment failed.")
 		if message.Internal {
 			if bounceErr := es.sendBounceMessage(message, err.Error()); bounceErr != nil {

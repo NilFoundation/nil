@@ -163,6 +163,7 @@ func (suite *SuiteRpc) TestDeployContractViaFaucetWithWithdraw() {
 
 func (suite *SuiteRpc) TestTopUpViaFaucet() {
 	pk, err := crypto.GenerateKey()
+	suite.Require().NoError(err)
 	pubKey := crypto.CompressPubkey(&pk.PublicKey)
 	suite.Require().NoError(err)
 	walletCode := contracts.PrepareDefaultWalletForOwnerCode(pubKey)
@@ -172,10 +173,17 @@ func (suite *SuiteRpc) TestTopUpViaFaucet() {
 	receipt = suite.waitForReceiptOnShard(types.MainWalletAddress.ShardId(), receipt.MsgHash)
 	suite.Require().NotNil(receipt)
 	suite.Require().True(receipt.Success)
+	for _, r := range receipt.OutReceipts {
+		suite.Require().True(r.Success)
+	}
 
 	balance, err := suite.client.GetBalance(address, transport.LatestBlockNumber)
 	suite.Require().NoError(err)
 	suite.Require().Equal(defaultContractValue, balance.Uint64())
+
+	code, err := suite.client.GetCode(address, transport.LatestBlockNumber)
+	suite.Require().NoError(err)
+	suite.Require().NotEmpty(code)
 
 	const value = 100500
 	mshHash, err := suite.client.TopUpViaFaucet(address, types.NewUint256(value))
