@@ -264,6 +264,9 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 	if err != nil {
 		return nil, err
 	}
+	if len(args) != 7 {
+		return nil, errors.New("precompileAsyncCall: invalid number of arguments")
+	}
 
 	// Get `isDeploy` argument
 	deploy, ok := args[0].(bool)
@@ -436,6 +439,10 @@ func (c *mintCurrency) Run(state StateDB, input []byte, gas uint64, value *uint2
 	if err != nil {
 		return nil, err
 	}
+	if len(args) != 2 {
+		return nil, errors.New("precompileMintCurrency: invalid number of arguments")
+	}
+
 	currencyIdBig, ok1 := args[0].(*big.Int)
 	amountBig, ok2 := args[1].(*big.Int)
 	if !ok1 || !ok2 {
@@ -485,6 +492,9 @@ func (c *currencyBalance) Run(state StateDB, input []byte, gas uint64, value *ui
 	args, err := method.Inputs.Unpack(input[4:])
 	if err != nil {
 		return nil, err
+	}
+	if len(args) != 2 {
+		return nil, errors.New("precompileGetCurrencyBalance: invalid number of arguments")
 	}
 
 	// Get `id` argument
@@ -537,6 +547,9 @@ func (c *sendCurrencySync) Run(state StateDB, input []byte, gas uint64, value *u
 	args, err := method.Inputs.Unpack(input[4:])
 	if err != nil {
 		return nil, err
+	}
+	if len(args) != 2 {
+		return nil, errors.New("precompileSendTokens: invalid number of arguments")
 	}
 
 	// Get destination address
