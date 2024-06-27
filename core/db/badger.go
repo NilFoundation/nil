@@ -85,11 +85,9 @@ func captureStacktrace() []byte {
 }
 
 func runTxLeakChecker(ctx context.Context, stack []byte, timeout time.Duration) {
-	log.Trace().Ctx(ctx).Msg("Start TX leak checker")
-
 	select {
 	case <-ctx.Done():
-		log.Trace().Ctx(ctx).Msg("TX leak checker cancelled")
+		return
 	case <-time.After(timeout):
 		panic(fmt.Sprintf("Transaction wasn't terminated:\n%s", stack))
 	}
