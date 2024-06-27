@@ -180,15 +180,13 @@ func (p *MsgPool) discardLocked(msg *types.Message, reason DiscardReason) {
 }
 
 func (p *MsgPool) OnNewBlock(ctx context.Context, block *types.Block, committed []*types.Message) (err error) {
+	p.lock.Lock()
 	defer func() {
 		p.logger.Debug().
 			Int("committed", len(committed)).
 			Int("queued", p.queue.Size()).
 			Msg("New block")
-	}()
 
-	p.lock.Lock()
-	defer func() {
 		if err == nil {
 			p.lastSeenBlock.Store(block.Id.Uint64())
 			p.lastSeenCond.Broadcast()
