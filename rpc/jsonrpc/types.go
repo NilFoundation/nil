@@ -106,8 +106,8 @@ type RPCReceipt struct {
 	OutReceipts     []*RPCReceipt      `json:"outputReceipts"`
 	MsgHash         common.Hash        `json:"messageHash"`
 	ContractAddress types.Address      `json:"contractAddress"`
-	BlockHash       common.Hash        `json:"blockHash,omitempty"`
-	BlockNumber     types.BlockNumber  `json:"blockNumber,omitempty"`
+	BlockHash       common.Hash        `json:"blockHash"`
+	BlockNumber     types.BlockNumber  `json:"blockNumber"`
 	MsgIndex        types.MessageIndex `json:"messageIndex"`
 	ShardId         types.ShardId      `json:"shardId"`
 	Temporary       bool               `json:"temporary,omitempty"`
@@ -221,27 +221,31 @@ func NewRPCReceipt(
 		return nil
 	}
 
+	var blockNumber types.BlockNumber
+	var blockHash common.Hash
+	if block != nil {
+		blockNumber = block.Id
+		blockHash = block.Hash()
+	}
 	logs := make([]*RPCLog, len(receipt.Logs))
 	for i, log := range receipt.Logs {
-		logs[i] = NewRPCLog(log, block.Id)
+		logs[i] = NewRPCLog(log, blockNumber)
 	}
 
 	res := &RPCReceipt{
 		Success:         receipt.Success,
 		GasUsed:         receipt.GasUsed,
-		Bloom:           hexutil.Bytes(receipt.Bloom.Bytes()),
+		Bloom:           receipt.Bloom.Bytes(),
 		Logs:            logs,
 		OutMessages:     outMessages,
 		OutReceipts:     outReceipts,
 		MsgHash:         receipt.MsgHash,
 		ContractAddress: receipt.ContractAddress,
+		BlockHash:       blockHash,
+		BlockNumber:     blockNumber,
 		MsgIndex:        index,
 		ShardId:         shardId,
 		Temporary:       temporary,
-	}
-	if block != nil {
-		res.BlockHash = block.Hash()
-		res.BlockNumber = block.Id
 	}
 	return res
 }

@@ -773,13 +773,18 @@ func (es *ExecutionState) HandleRefundMessage(_ context.Context, message *types.
 }
 
 func (es *ExecutionState) AddReceipt(gasUsed uint32, err error) {
-	es.Receipts = append(es.Receipts, &types.Receipt{
+	r := &types.Receipt{
 		Success:         err == nil,
 		GasUsed:         gasUsed,
 		MsgHash:         es.InMessageHash,
 		Logs:            es.Logs[es.InMessageHash],
 		ContractAddress: es.GetInMessage().To,
-	})
+	}
+	if err != nil {
+		es.Logs[es.InMessageHash] = append(es.Logs[es.InMessageHash],
+			NewErrorLog(r.ContractAddress, err))
+	}
+	es.Receipts = append(es.Receipts, r)
 }
 
 func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error) {

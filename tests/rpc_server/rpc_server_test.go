@@ -218,6 +218,8 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			receipt := s.waitForReceipt(shardId, hash)
 			s.False(receipt.Success)
 			s.True(receipt.Temporary)
+			s.Len(receipt.Logs, 1)
+			s.Equal("no account at address to pay fees", string(receipt.Logs[0].Data))
 		})
 
 		var calleeAddr types.Address
