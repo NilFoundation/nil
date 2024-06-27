@@ -8,7 +8,10 @@ library Nil {
     address public constant IS_INTERNAL_MESSAGE = address(0xff);
     address private constant MINT_CURRENCY = address(0xd0);
     address private constant GET_CURRENCY_BALANCE = address(0xd1);
-	address public constant MINTER_ADDRESS = payable(address(0x0001222222222222222222222222222222222222));
+    address private constant SEND_CURRENCY_SYNC = address(0xd2);
+    address private constant GET_MESSAGE_TOKENS = address(0xd3);
+
+    address payable public constant MINTER_ADDRESS = payable(address(0x0001222222222222222222222222222222222222));
 
     // Token is a struct that represents a token with an id and amount.
     struct Token {
@@ -25,7 +28,7 @@ library Nil {
         bool deploy,
         uint value,
         bytes memory callData
-    ) internal {
+    ) internal returns(bool) {
         Token[] memory tokens;
         return asyncCall(dst, refundTo, bounceTo, gas, deploy, value, tokens, callData);
     }
@@ -41,10 +44,24 @@ library Nil {
         uint value,
         Token[] memory tokens,
         bytes memory callData
-    ) internal {
+    ) internal returns(bool) {
         bool success = Precompile(ASYNC_CALL).precompileAsyncCall{value: value}(deploy, dst, refundTo, bounceTo, gas,
             tokens, callData);
-        require(success, "Precompiled contract call failed");
+        return success;
+    }
+
+    function syncCall(
+        address dst,
+        uint gas,
+        uint value,
+        Token[] memory tokens,
+        bytes memory callData
+    ) internal returns(bool, bytes memory) {
+        if (tokens.length > 0) {
+            Precompile(SEND_CURRENCY_SYNC).precompileSendTokens(dst, tokens);
+        }
+        (bool success, bytes memory returnData) = dst.call{gas: gas, value: value}(callData);
+        return (success, returnData);
     }
 
     // Send raw internal message using a special precompiled contract
@@ -90,30 +107,28 @@ library Nil {
         return Precompile(MINT_CURRENCY).precompileMintCurrency(id, amount);
     }
 
-    // getCurrencyBalance gets the balance of a token with a given id.
-    function getTokenBalance(uint256 id) internal returns(uint256) {
-        return Precompile(GET_CURRENCY_BALANCE).precompileGetCurrencyBalance(id);
+    // getCurrencyBalance returns the balance of a token with a given id for a given address.
+    function tokensBalance(address addr, uint256 id) internal returns(uint256) {
+        return Precompile(GET_CURRENCY_BALANCE).precompileGetCurrencyBalance(id, addr);
     }
-}
 
-// Precompile is a contract that provides stubs for precompiled contract calls.
-contract Precompile {
-    function precompileMintCurrency(uint256 id, uint256 amount) public returns(bool) {}
-    function precompileGetCurrencyBalance(uint256 id) public returns(uint256) {}
-    function precompileAsyncCall(bool, address, address, address, uint, Nil.Token[] memory, bytes memory) public payable returns(bool) {}
+    // msgTokens returns tokens from the current message.
+    function msgTokens() internal returns(Token[] memory) {
+        return Precompile(GET_MESSAGE_TOKENS).precompileGetMessageTokens();
+    }
 }
 
 // NilBase is a base contract that provides modifiers for checking the type of message (internal or external).
 contract NilBase {
     // Check that method was invoked from internal message
     modifier onlyInternal() {
-        require(isInternalMessage(), "Try to call internal function with external message");
+        require(isInternalMessage(), "Trying to call internal function with external message");
         _;
     }
 
     // Check that method was invoked from external message
     modifier onlyExternal() {
-        require(!isInternalMessage(), "Try to call external function with internal message");
+        require(!isInternalMessage(), "Trying to call external function with internal message");
         _;
     }
 
@@ -124,4 +139,14 @@ contract NilBase {
         require(returnData.length > 0, "'IS_INTERNAL_MESSAGE' returns invalid data");
         return abi.decode(returnData, (bool));
     }
+}
+
+// Precompile is a contract that provides stubs for precompiled contract calls.
+// NOTE: Function should always return value, otherwise Solidity will check contract existence by EXTCODESIZE opcode
+contract Precompile {
+    function precompileMintCurrency(uint256 id, uint256 amount) public returns(bool) {}
+    function precompileGetCurrencyBalance(uint256 id, address addr) public returns(uint256) {}
+    function precompileAsyncCall(bool, address, address, address, uint, Nil.Token[] memory, bytes memory) public payable returns(bool) {}
+    function precompileSendTokens(address, Nil.Token[] memory) public returns(bool) {}
+    function precompileGetMessageTokens() public returns(Nil.Token[] memory) {}
 }

@@ -113,13 +113,6 @@ func (g *BlockGenerator) handleMessage(msg *types.Message, payer payer, gasPrice
 	default:
 		panic("unreachable")
 	}
-	// If we got this far, the message was successfully executed. So we can transfer the currency.
-	for _, c := range msg.Currency {
-		if err = g.executionState.AddCurrency(msg.To, &c.Currency, &c.Balance.Int); err != nil {
-			g.logger.Error().Err(err).Msg("Failed to add currency.")
-			return 0, err
-		}
-	}
 
 	refundGas(payer, msg, leftOverGas, gasPrice)
 	return uint32(gas - leftOverGas), err

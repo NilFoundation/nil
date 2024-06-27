@@ -65,6 +65,8 @@ var (
 	CheckIsInternalAddress = types.BytesToAddress([]byte{0xff})
 	MintCurrencyAddress    = types.BytesToAddress([]byte{0xd0})
 	CurrencyBalanceAddress = types.BytesToAddress([]byte{0xd1})
+	SendTokensAddress      = types.BytesToAddress([]byte{0xd2})
+	MessageTokensAddress   = types.BytesToAddress([]byte{0xd3})
 )
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -97,6 +99,8 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	CheckIsInternalAddress: &checkIsInternal{},
 	MintCurrencyAddress:    &mintCurrency{},
 	CurrencyBalanceAddress: &currencyBalance{},
+	SendTokensAddress:      &sendCurrencySync{},
+	MessageTokensAddress:   &getMessageTokens{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -219,6 +223,28 @@ func convertGethAddress(addrGeth any) (types.Address, error) {
 	return types.BytesToAddress(dstGo.Bytes()), nil
 }
 
+func extractCurrencies(arg any) ([]types.CurrencyBalance, error) {
+	slice := reflect.ValueOf(arg)
+	currencies := make([]types.CurrencyBalance, slice.Len())
+	for i := range slice.Len() {
+		elem := slice.Index(i)
+		id, ok := elem.FieldByIndex([]int{0}).Interface().(*big.Int)
+		if !ok {
+			return nil, errors.New("currencyId is not a big.Int")
+		}
+		currencyId, _ := uint256.FromBig(id)
+		currencies[i].Currency = currencyId.Bytes32()
+
+		balance, ok := elem.FieldByIndex([]int{1}).Interface().(*big.Int)
+		if !ok {
+			return nil, errors.New("balance is not a big.Int")
+		}
+		b, _ := uint256.FromBig(balance)
+		currencies[i].Balance = types.Uint256{Int: *b}
+	}
+	return currencies, nil
+}
+
 func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) (res []byte, err error) {
 	if readOnly {
 		return nil, ErrWriteProtection
@@ -271,23 +297,9 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 	messageGas, _ := uint256.FromBig(messageGasBig)
 
 	// Get `currencies` argument, which is a slice of `CurrencyBalance`
-	slice := reflect.ValueOf(args[5])
-	currencies := make([]types.CurrencyBalance, slice.Len())
-	for i := range slice.Len() {
-		elem := slice.Index(i)
-		id, ok := elem.FieldByIndex([]int{0}).Interface().(*big.Int)
-		if !ok {
-			return nil, errors.New("currencyId is not a big.Int")
-		}
-		currencyId, _ := uint256.FromBig(id)
-		currencies[i].Currency = currencyId.Bytes32()
-
-		balance, ok := elem.FieldByIndex([]int{1}).Interface().(*big.Int)
-		if !ok {
-			return nil, errors.New("balance is not a big.Int")
-		}
-		b, _ := uint256.FromBig(balance)
-		currencies[i].Balance = types.Uint256{Int: *b}
+	currencies, err := extractCurrencies(args[5])
+	if err != nil {
+		return nil, err
 	}
 
 	// Get `input` argument
@@ -475,20 +487,109 @@ func (c *currencyBalance) Run(state StateDB, input []byte, gas uint64, value *ui
 		return nil, err
 	}
 
+	// Get `id` argument
 	currencyIdBig, ok := args[0].(*big.Int)
 	if !ok {
 		return nil, errors.New("currencyId is not a big.Int")
 	}
 
+	// Get `addr` argument
+	addr, err := convertGethAddress(args[1])
+	if err != nil {
+		return nil, err
+	}
+	if addr == types.EmptyAddress {
+		addr = caller.Address()
+	}
+
 	var currencyId types.CurrencyId
 	currencyIdBig.FillBytes(currencyId[:])
 
-	currencies := state.GetCurrencies(caller.Address())
-	for _, cur := range currencies {
-		if cur.Currency == currencyId {
-			r := cur.Balance.Bytes32()
-			return r[:], nil
-		}
+	currencies := state.GetCurrencies(addr)
+	r, ok := currencies[currencyId]
+	if ok {
+		b := r.Bytes32()
+		return b[:], nil
+	}
+
+	return res, nil
+}
+
+type sendCurrencySync struct{}
+
+var _ PrecompiledContract = (*sendCurrencySync)(nil)
+
+func (c *sendCurrencySync) RequiredGas([]byte) uint64 {
+	return 10
+}
+
+func (c *sendCurrencySync) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+	abi, err := contracts.GetAbi("Precompile")
+	if err != nil {
+		return nil, err
+	}
+	method, ok := abi.Methods["precompileSendTokens"]
+	if !ok {
+		return nil, errors.New("'precompileSendTokens' method not found in 'Precompile' class")
+	}
+
+	// Unpack arguments, skipping the first 4 bytes (function selector)
+	args, err := method.Inputs.Unpack(input[4:])
+	if err != nil {
+		return nil, err
+	}
+
+	// Get destination address
+	addr, err := convertGethAddress(args[0])
+	if err != nil {
+		return nil, err
+	}
+	if caller.Address().ShardId() != addr.ShardId() {
+		return nil, errors.New("sendCurrencySync: cross-shard transfer is not allowed")
+	}
+
+	// Get currencies
+	currencies, err := extractCurrencies(args[1])
+	if err != nil {
+		return nil, err
+	}
+
+	state.SetCurrencyTransfer(currencies)
+
+	res := make([]byte, 32)
+	res[31] = 1
+
+	return res, nil
+}
+
+type getMessageTokens struct{}
+
+var _ PrecompiledContract = (*getMessageTokens)(nil)
+
+func (c *getMessageTokens) RequiredGas([]byte) uint64 {
+	return 10
+}
+
+func (c *getMessageTokens) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+	abi, err := contracts.GetAbi("Precompile")
+	if err != nil {
+		return nil, err
+	}
+	method, ok := abi.Methods["precompileGetMessageTokens"]
+	if !ok {
+		return nil, errors.New("'precompileGetMessageTokens' method not found in 'Precompile' class")
+	}
+
+	callerCurrencies := caller.Currency()
+	abiCurrencies := make([]types.CurrencyBalanceAbiCompatible, len(callerCurrencies))
+	for i, c := range callerCurrencies {
+		abiCurrencies[i].Currency = new(big.Int).SetBytes(c.Currency[:])
+		abiCurrencies[i].Balance = c.Balance.Int.ToBig()
+	}
+
+	res, err := method.Outputs.Pack(abiCurrencies)
+	if err != nil {
+		return nil, err
 	}
 
 	return res, nil

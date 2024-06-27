@@ -736,6 +736,7 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 		}
 	}
 
+	es.evm.SetCurrencyTransfer(message.Currency)
 	ret, leftOverGas, err := es.evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas, &message.Value.Int)
 	if err != nil {
 		revString := decodeRevertMessage(ret)
@@ -945,6 +946,10 @@ func (es *ExecutionState) AddCurrency(addr types.Address, currencyId *types.Curr
 
 	balance := acc.GetCurrencyBalance(currencyId)
 	newBalance := new(uint256.Int).Add(balance, amount)
+	// Amount can be negative(currency burning). So, if the new balance is negative, set it to 0
+	if newBalance.Sign() < 0 {
+		newBalance = uint256.NewInt(0)
+	}
 	acc.SetCurrencyBalance(currencyId, newBalance)
 
 	return nil
@@ -967,12 +972,15 @@ func (es *ExecutionState) SubCurrency(addr types.Address, currencyId *types.Curr
 
 	balance := acc.GetCurrencyBalance(currencyId)
 	newBalance := new(uint256.Int).Sub(balance, amount)
+	if newBalance.Sign() < 0 {
+		return fmt.Errorf("insufficient balance %v for currency %v", balance, currencyId)
+	}
 	acc.SetCurrencyBalance(currencyId, newBalance)
 
 	return nil
 }
 
-func (es *ExecutionState) GetCurrencies(addr types.Address) []*types.CurrencyBalance {
+func (es *ExecutionState) GetCurrencies(addr types.Address) map[types.CurrencyId]*types.Uint256 {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get account")
@@ -982,7 +990,7 @@ func (es *ExecutionState) GetCurrencies(addr types.Address) []*types.CurrencyBal
 		return nil
 	}
 
-	res := make([]*types.CurrencyBalance, 0)
+	res := make(map[types.CurrencyId]*types.Uint256)
 	for kv := range acc.CurrencyTree.Iterate() {
 		var c types.CurrencyBalance
 		c.Currency = types.CurrencyId(kv.Key)
@@ -990,10 +998,14 @@ func (es *ExecutionState) GetCurrencies(addr types.Address) []*types.CurrencyBal
 			logger.Error().Err(err).Msg("failed to unmarshal currency balance")
 			continue
 		}
-		res = append(res, &c)
+		res[c.Currency] = &c.Balance
 	}
 
 	return res
+}
+
+func (es *ExecutionState) SetCurrencyTransfer(currencies []types.CurrencyBalance) {
+	es.evm.SetCurrencyTransfer(currencies)
 }
 
 func (es *ExecutionState) newVm(internal bool) error {

@@ -11,6 +11,7 @@ import (
 // ContractRef is a reference to the contract's backing object
 type ContractRef interface {
 	Address() types.Address
+	Currency() []types.CurrencyBalance
 }
 
 // AccountRef implements ContractRef.
@@ -24,6 +25,10 @@ type AccountRef types.Address
 
 // Address casts AccountRef to an Address
 func (ar AccountRef) Address() types.Address { return (types.Address)(ar) }
+
+func (ar AccountRef) Currency() []types.CurrencyBalance {
+	return nil
+}
 
 // Contract represents an ethereum contract in the state database. It contains
 // the contract code, calling arguments. Contract implements ContractRef
@@ -46,13 +51,14 @@ type Contract struct {
 	// is the execution frame represented by this object a contract deployment
 	IsDeployment bool
 
-	Gas   uint64
-	value *uint256.Int
+	Gas      uint64
+	value    *uint256.Int
+	currency []types.CurrencyBalance
 }
 
 // NewContract returns a new contract environment for the execution of EVM.
-func NewContract(caller ContractRef, object ContractRef, value *uint256.Int, gas uint64) *Contract {
-	c := &Contract{CallerAddress: caller.Address(), caller: caller, self: object}
+func NewContract(caller ContractRef, object ContractRef, value *uint256.Int, gas uint64, currency []types.CurrencyBalance) *Contract {
+	c := &Contract{CallerAddress: caller.Address(), caller: caller, self: object, currency: currency}
 
 	if parent, ok := caller.(*Contract); ok {
 		// Reuse JUMPDEST analysis from parent context if available.
@@ -127,6 +133,7 @@ func (c *Contract) AsDelegate() *Contract {
 
 	c.CallerAddress = parent.CallerAddress
 	c.value = parent.value
+	c.currency = parent.currency
 
 	return c
 }
@@ -146,6 +153,10 @@ func (c *Contract) GetOp(n uint64) OpCode {
 // call, including that of caller's caller.
 func (c *Contract) Caller() types.Address {
 	return c.CallerAddress
+}
+
+func (c *Contract) Currency() []types.CurrencyBalance {
+	return c.currency
 }
 
 // UseGas attempts to use gas and subtracts it and returns true on success
