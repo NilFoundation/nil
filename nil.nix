@@ -1,4 +1,6 @@
-{ lib, stdenv, src_repo, buildGoModule, enableRaceDetector ? false, enableTesting ? false, solc }:
+{ lib, stdenv, src_repo, buildGoModule, enableRaceDetector ? false
+, enableTesting ? false, solc, clickhouse, go-tools, gotools, golangci-lint
+, gofumpt, gci, delve, gopls }:
 let inherit (lib) optional;
 in buildGoModule rec {
   name = "nil";
@@ -12,14 +14,30 @@ in buildGoModule rec {
 
   src = src_repo;
   # to obtain run `nix build` with vendorHash = "";
-  vendorHash = "sha256-QlZZBBoCOYjDBeKaiX7Q3haJGc7cb+3oqHN7sOP8wxE=";
+  vendorHash = "sha256-8Z1l1KS0H7xxBuLZi7ains8aW3dLwCcOlUJn+5Ac0Ug=";
   hardeningDisable = [ "all" ];
 
   CGO_ENABLED = if enableRaceDetector then 1 else 0;
 
-  nativeBuildInputs = [ solc ];
+  nativeBuildInputs = [
+    solc
+    clickhouse
+    gotools
+    go-tools
+    gopls
+    golangci-lint
+    gofumpt
+    gci
+    delve
+  ];
 
   doCheck = enableTesting;
   checkFlags = [ "-tags assert,test" ]
     ++ (if enableRaceDetector then [ "-race" ] else [ ]);
+
+  GOFLAGS = [ "-modcacherw" ];
+  shellHook = ''
+    eval "$configurePhase"
+    chmod -R u+w vendor
+  '';
 }
