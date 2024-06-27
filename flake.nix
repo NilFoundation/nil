@@ -47,34 +47,6 @@
           };
           default = deb;
         };
-
-        devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            go_1_22
-            gotools
-            go-tools
-            gopls
-            golangci-lint
-            gofumpt
-            gci
-            delve
-            solc
-          ];
-
-          hardeningDisable = [ "all" ];
-
-          shellHook = ''
-            export GO_CFG_DIR=$HOME/.nix/go/$(go env GOVERSION)
-
-            mkdir -p $GO_CFG_DIR/config $GO_CFG_DIR/cache $GO_CFG_DIR/pkg/mod
-
-            export GOENV="$GO_CFG_DIR/config/env"
-
-            go env -w GOCACHE="$GO_CFG_DIR/cache"
-            go env -w GOMODCACHE="$GO_CFG_DIR/pkg/mod"
-          '';
-        };
-
       })
     );
 }
