@@ -600,6 +600,15 @@ func (es *ExecutionState) AddInMessage(message *types.Message) {
 	es.InMessageHash = message.Hash()
 }
 
+func (es *ExecutionState) DropInMessage() {
+	es.InMessages = es.InMessages[:len(es.InMessages)-1]
+	if len(es.InMessages) > 0 {
+		es.InMessageHash = es.InMessages[len(es.InMessages)-1].Hash()
+	} else {
+		es.InMessageHash = common.EmptyHash
+	}
+}
+
 func (es *ExecutionState) AddOutMessageForTx(txId common.Hash, msg *types.Message) {
 	es.OutMessages[txId] = append(es.OutMessages[txId], msg)
 }
@@ -618,6 +627,12 @@ func (es *ExecutionState) AddOutMessage(msg *types.Message) error {
 			return err
 		}
 	}
+
+	logger.Trace().
+		Stringer(logging.FieldMessageFrom, msg.From).
+		Stringer(logging.FieldMessageTo, msg.To).
+		Msg("Outbound message added")
+
 	es.journal.append(outMessagesChange{
 		msgHash: es.InMessageHash,
 		index:   len(es.OutMessages[es.InMessageHash]),

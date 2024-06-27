@@ -23,16 +23,25 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 	defer tx.Rollback()
 
 	block, indexes, err := api.getBlockAndInMessageIndexByMessageHash(tx, shardId, hash)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil
-	}
-	if err != nil {
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, err
 	}
 
-	receipt, err := getBlockEntity[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot, indexes.MessageIndex.Bytes())
-	if err != nil {
-		return nil, err
+	var receipt *types.Receipt
+
+	if block != nil {
+		receipt, err = getBlockEntity[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot, indexes.MessageIndex.Bytes())
+		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+			return nil, err
+		}
+	}
+
+	var haveCachedReceipt bool
+	if receipt == nil {
+		receipt, haveCachedReceipt = execution.FailureReceiptCache.Get(hash)
+		if !haveCachedReceipt {
+			return nil, nil
+		}
 	}
 
 	var outReceipts []*RPCReceipt = nil
@@ -60,5 +69,5 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 		}
 	}
 
-	return NewRPCReceipt(shardId, block, indexes.MessageIndex, receipt, outMessages, outReceipts), nil
+	return NewRPCReceipt(shardId, block, indexes.MessageIndex, receipt, outMessages, outReceipts, haveCachedReceipt), nil
 }

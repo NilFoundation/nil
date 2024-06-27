@@ -165,13 +165,33 @@ func (g *BlockGenerator) handleExternalMessage(msg *types.Message, gasPrice *uin
 }
 
 func (g *BlockGenerator) addReceipt(gasUsed uint32, err error) {
+	msgHash := g.executionState.InMessageHash
+	msg := g.executionState.GetInMessage()
+
+	if gasUsed == 0 && !msg.Internal {
+		check.PanicIfNot(err != nil)
+
+		g.executionState.DropInMessage()
+		FailureReceiptCache.Add(msgHash, &types.Receipt{
+			Success:         false,
+			MsgHash:         msgHash,
+			ContractAddress: msg.To,
+		})
+
+		g.logger.Debug().
+			Err(err).
+			Stringer(logging.FieldMessageHash, msgHash).
+			Stringer(logging.FieldMessageTo, msg.To).
+			Msg("Cached non-authorized fail receipt.")
+		return
+	}
+
 	g.executionState.AddReceipt(gasUsed, err)
 
 	if err != nil {
-		msg := g.executionState.GetInMessage()
 		g.logger.Debug().
 			Err(err).
-			Stringer(logging.FieldMessageHash, g.executionState.InMessageHash).
+			Stringer(logging.FieldMessageHash, msgHash).
 			Stringer(logging.FieldMessageTo, msg.To).
 			Msg("Added fail receipt.")
 	}

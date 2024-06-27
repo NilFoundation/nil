@@ -38,11 +38,11 @@ func GenerateZeroState(t *testing.T, ctx context.Context,
 }
 
 func GenerateBlockWithMessages(t *testing.T, ctx context.Context,
-	shardId types.ShardId, txFabric db.DB, msgs ...*types.Message,
+	shardId types.ShardId, nShards int, txFabric db.DB, msgs ...*types.Message,
 ) {
 	t.Helper()
 
 	pool := &MockMsgPool{Msgs: msgs}
-	c := newCollator(execution.NewBlockGeneratorParams(shardId, 1, uint256.NewInt(10), 0), new(TrivialShardTopology), pool, sharedLogger)
+	c := newCollator(execution.NewBlockGeneratorParams(shardId, nShards, uint256.NewInt(10), 0), new(TrivialShardTopology), pool, sharedLogger)
 	require.NoError(t, c.GenerateBlock(ctx, txFabric))
 }

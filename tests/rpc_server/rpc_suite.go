@@ -97,6 +97,8 @@ func (suite *RpcSuite) deployContractViaWallet(
 }
 
 func (suite *RpcSuite) deployContractViaMainWallet(shardId types.ShardId, payload types.DeployPayload, initialAmount *types.Uint256) (types.Address, *jsonrpc.RPCReceipt) {
+	suite.T().Helper()
+
 	return suite.deployContractViaWallet(types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
 }
 

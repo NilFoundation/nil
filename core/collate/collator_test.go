@@ -35,24 +35,39 @@ func (s *CollatorTestSuite) TearDownTest() {
 
 func (s *CollatorTestSuite) TestCollator() {
 	shardId := types.BaseShardId
+	nShards := 2
 
 	s.Run("GenerateZeroState", func() {
 		GenerateZeroState(s.T(), s.ctx, shardId, s.db)
 	})
 
 	from := types.MainWalletAddress
-	var to types.Address
+	to := contracts.CounterAddress(s.T(), shardId)
+
+	s.Run("SendTokens", func() {
+		m := execution.NewExecutionMessage(from, from, 1, contracts.NewWalletSendCallData(s.T(), types.Code{},
+			types.NewUint256(100_000), types.NewUint256(3_000_000), []types.CurrencyBalance{},
+			to, types.ExecutionMessageKind))
+		s.Require().NoError(m.Sign(execution.MainPrivateKey))
+		GenerateBlockWithMessages(s.T(), s.ctx, shardId, nShards, s.db, m)
+		s.checkReceipt(shardId, m)
+	})
+
+	s.Run("ProcessInternalMessage", func() {
+		GenerateBlockWithMessages(s.T(), s.ctx, shardId, nShards, s.db)
+	})
 
 	s.Run("Deploy", func() {
-		m := execution.NewDeployMessage(contracts.CounterDeployPayload(s.T()), shardId, from, 0)
-		to = m.To
-		GenerateBlockWithMessages(s.T(), s.ctx, shardId, s.db, m)
+		m := execution.NewDeployMessage(contracts.CounterDeployPayload(s.T()), shardId, to, 0)
+		m.Internal = false
+		s.Equal(to, m.To)
+		GenerateBlockWithMessages(s.T(), s.ctx, shardId, nShards, s.db, m)
 		s.checkReceipt(shardId, m)
 	})
 
 	s.Run("Execute", func() {
-		m := execution.NewExecutionMessage(from, to, 2, contracts.NewCounterAddCallData(s.T(), 3))
-		GenerateBlockWithMessages(s.T(), s.ctx, shardId, s.db, m)
+		m := execution.NewExecutionMessage(to, to, 1, contracts.NewCounterAddCallData(s.T(), 3))
+		GenerateBlockWithMessages(s.T(), s.ctx, shardId, nShards, s.db, m)
 		s.checkReceipt(shardId, m)
 	})
 }

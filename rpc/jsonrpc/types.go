@@ -96,6 +96,7 @@ type RPCBlock struct {
 // @componentprop OutMsgNum outMsgNum integer true "The number of the outgoing messages whose receipt is requested."
 // @componentprop OutReceipts outputReceipts array true "Receipts of the outgoing messages. Set to nil for messages that have not yet been processed."
 // @componentprop Success success boolean true "The flag that shows whether the message was successful."
+// @componentprop Temporary temporary boolean false "The flag that shows whether the message is temporary."
 type RPCReceipt struct {
 	Success         bool               `json:"success"`
 	GasUsed         uint32             `json:"gasUsed"`
@@ -109,6 +110,7 @@ type RPCReceipt struct {
 	BlockNumber     types.BlockNumber  `json:"blockNumber,omitempty"`
 	MsgIndex        types.MessageIndex `json:"messageIndex"`
 	ShardId         types.ShardId      `json:"shardId"`
+	Temporary       bool               `json:"temporary,omitempty"`
 }
 
 type RPCLog struct {
@@ -212,9 +214,10 @@ func NewRPCLog(
 }
 
 func NewRPCReceipt(
-	shardId types.ShardId, block *types.Block, index types.MessageIndex, receipt *types.Receipt, outMessages []common.Hash, outReceipts []*RPCReceipt,
+	shardId types.ShardId, block *types.Block, index types.MessageIndex, receipt *types.Receipt,
+	outMessages []common.Hash, outReceipts []*RPCReceipt, temporary bool,
 ) *RPCReceipt {
-	if block == nil || receipt == nil {
+	if receipt == nil {
 		return nil
 	}
 
@@ -223,7 +226,7 @@ func NewRPCReceipt(
 		logs[i] = NewRPCLog(log, block.Id)
 	}
 
-	return &RPCReceipt{
+	res := &RPCReceipt{
 		Success:         receipt.Success,
 		GasUsed:         receipt.GasUsed,
 		Bloom:           hexutil.Bytes(receipt.Bloom.Bytes()),
@@ -232,9 +235,13 @@ func NewRPCReceipt(
 		OutReceipts:     outReceipts,
 		MsgHash:         receipt.MsgHash,
 		ContractAddress: receipt.ContractAddress,
-		BlockHash:       block.Hash(),
-		BlockNumber:     block.Id,
 		MsgIndex:        index,
 		ShardId:         shardId,
+		Temporary:       temporary,
 	}
+	if block != nil {
+		res.BlockHash = block.Hash()
+		res.BlockNumber = block.Id
+	}
+	return res
 }
