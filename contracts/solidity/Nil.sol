@@ -150,3 +150,7 @@ contract Precompile {
     function precompileSendTokens(address, Nil.Token[] memory) public returns(bool) {}
     function precompileGetMessageTokens() public returns(Nil.Token[] memory) {}
 }
+
+abstract contract NilBounceable is NilBase {
+    function bounce(string calldata err) virtual payable external;
+}

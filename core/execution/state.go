@@ -11,12 +11,12 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
+	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 )
@@ -625,28 +625,6 @@ func (es *ExecutionState) AddOutMessage(msg *types.Message) error {
 	return nil
 }
 
-func createBounceMethod() abi.Method {
-	stringType, err := abi.NewType("string", "", nil)
-	check.PanicIfErr(err)
-	// Parse the method signature: function bounce(string err) external payable returns ()
-	bounceMethod := abi.NewMethod("bounce", "bounce", abi.Function, "external payable", false, true, abi.Arguments{abi.Argument{Name: "err", Type: stringType}}, nil)
-	return bounceMethod
-}
-
-var bounceMethod = createBounceMethod()
-
-func packBounceCall(bounceErr string) ([]byte, error) {
-	// Pack the method call
-	data, err := bounceMethod.Inputs.Pack(bounceErr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to pack method call: %w", err)
-	}
-
-	// Combine the method ID and the packed arguments
-	methodID := bounceMethod.ID
-	return append(methodID, data...), nil
-}
-
 var BounceGasLimit = types.NewUint256(100_000)
 
 func (es *ExecutionState) sendBounceMessage(msg *types.Message, bounceErr string) error {
@@ -654,10 +632,16 @@ func (es *ExecutionState) sendBounceMessage(msg *types.Message, bounceErr string
 		logger.Debug().Stringer(logging.FieldMessageHash, msg.Hash()).Msg("Bounce message not sent, no bounce address")
 		return nil
 	}
-	data, err := packBounceCall(bounceErr)
+
+	bounceAbi, err := contracts.GetAbi("NilBounceable")
 	if err != nil {
 		return err
 	}
+	data, err := bounceAbi.Pack("bounce", bounceErr)
+	if err != nil {
+		return err
+	}
+
 	bounceMsg := &types.InternalMessagePayload{
 		To:       msg.BounceTo,
 		Value:    msg.Value,

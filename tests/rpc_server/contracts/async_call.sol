@@ -13,7 +13,7 @@ contract Callee {
     }
 }
 
-contract Caller {
+contract Caller is NilBounceable {
     using Nil for address;
 
     string last_bounce_err;
@@ -40,7 +40,7 @@ contract Caller {
         return true;
     }
 
-    function bounce(string calldata err) external payable {
+    function bounce(string calldata err) onlyInternal override external payable {
         last_bounce_err = err;
     }
 
