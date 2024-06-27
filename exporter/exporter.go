@@ -13,6 +13,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	BlockBufferSize     = 10000
+	InitialRoundsAmount = 1000
+)
+
 type ExportMessage struct {
 	BlockNumber transport.BlockNumber
 }
@@ -24,37 +29,20 @@ func StartExporter(ctx context.Context, cfg *Cfg) error {
 	cfg.used = true
 	defer func() { cfg.used = false }()
 
-	for {
-		err := cfg.ExporterDriver.SetupScheme(ctx)
-		if err != nil {
-			cfg.ErrorChan <- fmt.Errorf("failed to setup scheme: %w", err)
-			time.Sleep(3 * time.Second)
-			continue
-		}
-		break
+	for err := cfg.ExporterDriver.SetupScheme(ctx); err != nil; {
+		cfg.ErrorChan <- fmt.Errorf("failed to setup scheme: %w", err)
+		time.Sleep(3 * time.Second)
 	}
+
+	var err error
 	var shards []types.ShardId
-	for {
-		fetchedShards, err := cfg.FetchShards(ctx)
-		if err != nil {
-			cfg.ErrorChan <- fmt.Errorf("failed to fetch shards: %w", err)
-			time.Sleep(3 * time.Second)
-			continue
-		}
-		shards = fetchedShards
-		break
+	for shards, err = cfg.FetchShards(ctx); err != nil; {
+		cfg.ErrorChan <- fmt.Errorf("failed to fetch shards: %w", err)
+		time.Sleep(3 * time.Second)
 	}
 
 	workers := make([]concurrent.Func, 0)
-	workers = append(workers, func(ctx context.Context) error {
-		startTopFetcher(ctx, cfg, types.MasterShardId)
-		return nil
-	})
-	workers = append(workers, func(ctx context.Context) error {
-		startBottomFetcher(ctx, cfg, types.MasterShardId)
-		return nil
-	})
-
+	shards = append(shards, types.MasterShardId)
 	for _, shard := range shards {
 		workers = append(workers, func(ctx context.Context) error {
 			startTopFetcher(ctx, cfg, shard)
@@ -76,18 +64,16 @@ func StartExporter(ctx context.Context, cfg *Cfg) error {
 func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 	log.Info().Msgf("Starting top fetcher for shard %s...", shardId.String())
 	ticker := time.NewTicker(1 * time.Second)
-	curExportRound := cfg.exportRound.Load() + 1000
+	curExportRound := cfg.exportRound.Load() + InitialRoundsAmount
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
 			newExportRound := cfg.exportRound.Load()
-			// because we could start reexport already exported block to database so we await to be pushed to database
 			if curExportRound == newExportRound {
 				continue
 			}
-			curExportRound = newExportRound
 			lastProcessedBlock, isSetLastProcessed, err := cfg.ExporterDriver.FetchLatestProcessedBlock(ctx, shardId)
 			if err != nil {
 				cfg.ErrorChan <- fmt.Errorf("top fetcher for shard %s: failed to fetch last processed block: %w", shardId.String(), err)
@@ -114,6 +100,7 @@ func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 
 			for curBlock != nil && curBlock.Block.Id >= firstPoint {
 				cfg.BlocksChan <- curBlock
+				curExportRound = newExportRound
 				if len(curBlock.Block.PrevBlock.Bytes()) == 0 {
 					break
 				}
@@ -133,7 +120,7 @@ func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 		Msg("Starting bottom fetcher...")
 
 	ticker := time.NewTicker(1 * time.Second)
-	curExportRound := cfg.exportRound.Load() + 1000
+	curExportRound := cfg.exportRound.Load() + InitialRoundsAmount
 	for {
 		select {
 		case <-ctx.Done():
@@ -143,7 +130,6 @@ func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 			if curExportRound == newExportRound {
 				continue
 			}
-			curExportRound = newExportRound
 			absentBlockNumber, isSet, err := cfg.ExporterDriver.FetchEarliestAbsentBlock(ctx, shardId)
 			if err != nil {
 				cfg.ErrorChan <- fmt.Errorf("bottom fetcher for shard %s: failed to fetch absent block: %w", shardId, err)
@@ -187,6 +173,7 @@ func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 					continue
 				}
 				cfg.BlocksChan <- curBlock
+				curExportRound = newExportRound
 			}
 		}
 	}
@@ -198,44 +185,32 @@ func startDriverExport(ctx context.Context, cfg *Cfg) {
 	fullMode := false
 	var blockBuffer []*BlockMsg
 	for {
-		// if buffer size is more than 1000 stop read from channel to block fetchers
-		if len(blockBuffer) > 10000 {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if len(blockBuffer) == 0 {
+				continue
+			}
+			if err := cfg.ExporterDriver.ExportBlocks(ctx, blockBuffer); err != nil {
+				cfg.ErrorChan <- fmt.Errorf("exporter: failed to export blocks: %w", err)
+				continue
+			}
+			blockBuffer = blockBuffer[:0]
+			cfg.incrementRound()
+		}
+
+		if len(blockBuffer) > BlockBufferSize {
 			if !fullMode {
 				log.Info().Msgf("Buffer is full. Stop reading from channel. Buffer size: %d", len(blockBuffer))
 				fullMode = true
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				if err := cfg.ExporterDriver.ExportBlocks(ctx, blockBuffer); err != nil {
-					cfg.ErrorChan <- fmt.Errorf("exporter: failed to export blocks: %w", err)
-					continue
-				}
-				blockBuffer = blockBuffer[:0]
-				cfg.incrementRound()
 			}
 		} else {
 			if fullMode {
 				log.Info().Msg("Buffer is not full. Start reading from channel")
 				fullMode = false
 			}
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				if len(blockBuffer) == 0 {
-					continue
-				}
-				if err := cfg.ExporterDriver.ExportBlocks(ctx, blockBuffer); err != nil {
-					cfg.ErrorChan <- fmt.Errorf("failed to export blocks: %w", err)
-					continue
-				}
-				blockBuffer = blockBuffer[:0]
-				cfg.incrementRound()
-			case block := <-cfg.BlocksChan:
-				blockBuffer = append(blockBuffer, block)
-			}
+			blockBuffer = append(blockBuffer, <-cfg.BlocksChan)
 		}
 	}
 }
