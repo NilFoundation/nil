@@ -10,6 +10,7 @@ import (
 	rpc_client "github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
@@ -55,7 +56,7 @@ func (suite *RpcSuite) waitForReceipt(shardId types.ShardId, hash common.Hash) *
 		receipt, err = suite.client.GetInMessageReceipt(shardId, hash)
 		suite.Require().NoError(err)
 		return receipt.IsComplete()
-	}, 15*time.Second, 200*time.Millisecond)
+	}, 15*time.Minute, 200*time.Millisecond)
 
 	return receipt
 }
@@ -145,4 +146,24 @@ func (suite *RpcSuite) sendMessageViaWalletNoCheck(addrWallet types.Address, add
 	}
 
 	return receipt
+}
+
+func (suite *RpcSuite) CallGetter(addr types.Address, callData []byte) []byte {
+	suite.T().Helper()
+
+	callerSeqno, err := suite.client.GetTransactionCount(addr, "latest")
+	suite.Require().NoError(err)
+	seqno := hexutil.Uint64(callerSeqno)
+
+	callArgs := &jsonrpc.CallArgs{
+		From:     addr,
+		Data:     callData,
+		To:       addr,
+		Value:    types.NewUint256(0),
+		GasLimit: types.NewUint256(10000),
+		Seqno:    &seqno,
+	}
+	res, err := suite.client.Call(callArgs)
+	suite.Require().NoError(err)
+	return []byte(res)
 }

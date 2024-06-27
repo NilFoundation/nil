@@ -84,6 +84,10 @@ type EVM struct {
 	// available gas is calculated in gasCall* according to the 63/64 rule and later
 	// applied in opCall*.
 	callGasTemp uint64
+
+	// currencyTransfer holds the currencis that will be transferred in next Call opcode.
+	// Main usage is a transfer currency through regular EVM Call opcode in Nil Solidity library(syncCall function).
+	currencyTransfer []types.CurrencyBalance
 }
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
@@ -120,7 +124,7 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 
 	// Fail if we're trying to transfer more than the available balance
 	if !value.IsZero() {
-		if can, err := canTransfer(evm.StateDB, caller.Address(), value, evm.IsAsyncCall); err != nil {
+		if can, err := evm.canTransfer(caller.Address(), value); err != nil {
 			return nil, gas, err
 		} else if !can {
 			return nil, gas, ErrInsufficientBalance
@@ -146,7 +150,8 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 			}
 		}
 
-		if err := transfer(evm.StateDB, caller.Address(), addr, value, evm.IsAsyncCall); err != nil {
+		currencyTransfer := evm.currencyTransfer
+		if err := evm.transfer(caller.Address(), addr, value); err != nil {
 			return nil, gas, err
 		}
 
@@ -162,7 +167,7 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 
 		// If the account has no code, we can abort here
 		// The depth-check is already done, and precompiles handled above
-		contract := NewContract(caller, AccountRef(addr), value, gas)
+		contract := NewContract(caller, AccountRef(addr), value, gas, currencyTransfer)
 		contract.SetCallCode(addr, codeHash, code)
 		ret, runErr = evm.interpreter.Run(contract, input, readOnly)
 		gas = contract.Gas
@@ -206,7 +211,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr types.Address, input []byte, g
 	// if caller doesn't have enough balance, it would be an error to allow
 	// over-charging itself. So the check here is necessary.
 
-	if can, err := canTransfer(evm.StateDB, caller.Address(), value, evm.IsAsyncCall); err != nil {
+	if can, err := evm.canTransfer(caller.Address(), value); err != nil {
 		return nil, gas, err
 	} else if !can {
 		return nil, gas, ErrInsufficientBalance
@@ -226,7 +231,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr types.Address, input []byte, g
 
 		// Initialise a new contract and set the code that is to be used by the EVM.
 		// The contract is a scoped environment for this execution context only.
-		contract := NewContract(caller, AccountRef(caller.Address()), value, gas)
+		contract := NewContract(caller, AccountRef(caller.Address()), value, gas, nil)
 		contract.SetCallCode(addr, codeHash, code)
 		ret, runErr = evm.interpreter.Run(contract, input, readOnly)
 		gas = contract.Gas
@@ -270,7 +275,7 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr types.Address, input []byt
 		}
 
 		// Initialise a new contract and make initialise the delegate values
-		contract := NewContract(caller, AccountRef(caller.Address()), nil, gas).AsDelegate()
+		contract := NewContract(caller, AccountRef(caller.Address()), nil, gas, nil).AsDelegate()
 		contract.SetCallCode(addr, codeHash, code)
 		ret, runErr = evm.interpreter.Run(contract, input, readOnly)
 		gas = contract.Gas
@@ -326,7 +331,7 @@ func (evm *EVM) StaticCall(caller ContractRef, addr types.Address, input []byte,
 
 		// Initialise a new contract and set the code that is to be used by the EVM.
 		// The contract is a scoped environment for this execution context only.
-		contract := NewContract(caller, AccountRef(addr), new(uint256.Int), gas)
+		contract := NewContract(caller, AccountRef(addr), new(uint256.Int), gas, nil)
 		contract.SetCallCode(addr, codeHash, code)
 		// When an error was returned by the EVM or when setting the creation code
 		// above we revert to the snapshot and consume any gas remaining. Additionally
@@ -355,7 +360,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, v
 		return nil, types.Address{}, gas, ErrDepth
 	}
 
-	if can, err := canTransfer(evm.StateDB, caller.Address(), value, evm.IsAsyncCall); err != nil {
+	if can, err := evm.canTransfer(caller.Address(), value); err != nil {
 		return nil, types.Address{}, gas, err
 	} else if !can {
 		return nil, types.Address{}, gas, ErrInsufficientBalance
@@ -410,13 +415,13 @@ func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, v
 		return nil, types.Address{}, gas, err
 	}
 
-	if err := transfer(evm.StateDB, caller.Address(), address, value, evm.IsAsyncCall); err != nil {
+	if err := evm.transfer(caller.Address(), address, value); err != nil {
 		return nil, types.Address{}, gas, err
 	}
 
 	// Initialise a new contract and set the code that is to be used by the EVM.
 	// The contract is a scoped environment for this execution context only.
-	contract := NewContract(caller, AccountRef(address), value, gas)
+	contract := NewContract(caller, AccountRef(address), value, gas, nil)
 	contract.SetCallCode(address, codeAndHash.Hash(), codeAndHash)
 	contract.IsDeployment = true
 
@@ -472,29 +477,65 @@ func (evm *EVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *
 
 // canTransfer checks whether there are enough funds in the address' account to make a transfer.
 // This does not take the necessary gas in to account to make the transfer valid.
-func canTransfer(db StateDB, addr types.Address, amount *uint256.Int, isAsync bool) (bool, error) {
+func (evm *EVM) canTransfer(addr types.Address, amount *uint256.Int) (bool, error) {
 	// We don't need to check the balance for the async call
-	if isAsync {
+	if evm.IsAsyncCall {
 		return true, nil
 	}
-	balance, err := db.GetBalance(addr)
+	balance, err := evm.StateDB.GetBalance(addr)
 	if err != nil {
 		return false, err
 	}
-	return balance.Cmp(amount) >= 0, nil
+	if balance.Cmp(amount) < 0 {
+		return false, nil
+	}
+
+	if len(evm.currencyTransfer) > 0 {
+		accCurencies := evm.StateDB.GetCurrencies(addr)
+		for _, currency := range evm.currencyTransfer {
+			balance, ok := accCurencies[currency.Currency]
+			if !ok {
+				balance = types.NewUint256(0)
+			}
+			if balance.Cmp(&currency.Balance.Int) < 0 {
+				return false, nil
+			}
+		}
+	}
+
+	return true, nil
 }
 
 // transfer subtracts amount from sender and adds amount to recipient using the given Db
-func transfer(db StateDB, sender, recipient types.Address, amount *uint256.Int, isAsync bool) error {
+func (evm *EVM) transfer(sender, recipient types.Address, amount *uint256.Int) error {
 	// We don't need to subtract balance from async call
-	if !isAsync {
-		if err := db.SubBalance(sender, amount, tracing.BalanceChangeTransfer); err != nil {
+	if !evm.IsAsyncCall {
+		if err := evm.StateDB.SubBalance(sender, amount, tracing.BalanceChangeTransfer); err != nil {
 			return err
 		}
 	}
-	return db.AddBalance(recipient, amount, tracing.BalanceChangeTransfer)
+	if len(evm.currencyTransfer) > 0 {
+		defer func() { evm.currencyTransfer = nil }()
+
+		for _, currency := range evm.currencyTransfer {
+			if evm.depth > 0 {
+				if err := evm.StateDB.SubCurrency(sender, &currency.Currency, &currency.Balance.Int); err != nil {
+					return err
+				}
+			}
+			if err := evm.StateDB.AddCurrency(recipient, &currency.Currency, &currency.Balance.Int); err != nil {
+				return err
+			}
+		}
+	}
+
+	return evm.StateDB.AddBalance(recipient, amount, tracing.BalanceChangeTransfer)
 }
 
 func (evm *EVM) GetDepth() int {
 	return evm.depth
+}
+
+func (evm *EVM) SetCurrencyTransfer(tokens []types.CurrencyBalance) {
+	evm.currencyTransfer = tokens
 }

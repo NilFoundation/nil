@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./Minter.sol";
 
 contract NilCurrencyBase is NilBase {
-    function createToken(uint256 amount) public payable onlyExternal {
+    function createToken(uint256 amount, string memory name, bool withdraw) public payable onlyExternal {
         uint256 gas = gasleft();
         Nil.asyncCall(
             Nil.MINTER_ADDRESS,
@@ -13,11 +13,11 @@ contract NilCurrencyBase is NilBase {
             gas, // gas
             false, // deploy
             gas * 10, // value
-            abi.encodeCall(Minter.create, (amount, address(0)))
+            abi.encodeCall(Minter.create, (amount, address(0), name, withdraw ? address(this) : address(0)))
         );
     }
 
-    function mintToken(uint256 amount) public payable onlyExternal {
+    function mintToken(uint256 amount, bool withdraw) public payable onlyExternal {
         uint256 id = uint256(uint160(address(this)));
         uint256 gas = 10000;
         Nil.asyncCall(
@@ -27,7 +27,7 @@ contract NilCurrencyBase is NilBase {
             gas, // gas
             false, // deploy
             gas * 10, // value
-            abi.encodeCall(Minter.mint, (id, amount))
+            abi.encodeCall(Minter.mint, (id, amount, withdraw ? address(this) : address(0)))
         );
     }
 

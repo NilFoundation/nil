@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
@@ -65,6 +66,14 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 		bt.printf("to: %s\n", msg.To.Hex())
 		bt.printf("value: %s\n", msg.Value.String())
 		bt.printf("data_size: %d\n", len(msg.Data))
+		if len(msg.Currency) > 0 {
+			bt.printf("currency:\n")
+			for _, curr := range msg.Currency {
+				bt.withIndent(func(t *BlocksTracer) {
+					bt.printf("%s:%s\n", hexutil.Encode(curr.Currency[:]), curr.Balance.String())
+				})
+			}
+		}
 	}
 
 	bt.printf("-\n")

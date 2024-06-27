@@ -17,9 +17,10 @@ type StateDB interface {
 	AddBalance(types.Address, *uint256.Int, tracing.BalanceChangeReason) error
 	GetBalance(types.Address) (*uint256.Int, error)
 
-	AddCurrency(to types.Address, currencyId *types.CurrencyId, amount *uint256.Int) error
-	SubCurrency(to types.Address, currencyId *types.CurrencyId, amount *uint256.Int) error
-	GetCurrencies(addr types.Address) []*types.CurrencyBalance
+	AddCurrency(types.Address, *types.CurrencyId, *uint256.Int) error
+	SubCurrency(types.Address, *types.CurrencyId, *uint256.Int) error
+	GetCurrencies(types.Address) map[types.CurrencyId]*types.Uint256
+	SetCurrencyTransfer([]types.CurrencyBalance)
 
 	GetSeqno(types.Address) (types.Seqno, error)
 	SetSeqno(types.Address, types.Seqno) error
