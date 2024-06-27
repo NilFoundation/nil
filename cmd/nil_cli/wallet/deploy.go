@@ -4,13 +4,12 @@ import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
-	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	libcommon "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
 
-func DeployCommand(cfg *config.Config) *cobra.Command {
+func DeployCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "deploy [path to file] [args...]",
 		Short: "Deploy smart contract",
@@ -63,7 +62,7 @@ func setDeployFlags(cmd *cobra.Command) {
 	)
 }
 
-func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *config.Config) error {
+func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 	client := rpc.NewClient(cfg.RPCEndpoint)
 	service := service.NewService(client, cfg.PrivateKey)
 

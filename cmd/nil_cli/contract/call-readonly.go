@@ -6,12 +6,11 @@ import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
-	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
 
-func GetCallReadonlyCommand(cfg *config.Config) *cobra.Command {
+func GetCallReadonlyCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "call-readonly [address] [calldata or method] [args...]",
 		Short: "Readonly call of a smart contract",
@@ -40,7 +39,7 @@ func GetCallReadonlyCommand(cfg *config.Config) *cobra.Command {
 	return cmd
 }
 
-func runCallReadonly(_ *cobra.Command, args []string, cfg *config.Config) error {
+func runCallReadonly(_ *cobra.Command, args []string, cfg *common.Config) error {
 	client := rpc.NewClient(cfg.RPCEndpoint)
 	service := service.NewService(client, cfg.PrivateKey)
 

@@ -3,12 +3,12 @@ package contract
 import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
-	"github.com/NilFoundation/nil/cmd/nil_cli/config"
+	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
 
-func GetCodeCommand(cfg *config.Config) *cobra.Command {
+func GetCodeCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "code [address]",
 		Short: "Returns a smart contract code",
@@ -22,7 +22,7 @@ func GetCodeCommand(cfg *config.Config) *cobra.Command {
 	return cmd
 }
 
-func runCode(_ *cobra.Command, args []string, cfg *config.Config) error {
+func runCode(_ *cobra.Command, args []string, cfg *common.Config) error {
 	var address types.Address
 	if err := address.Set(args[0]); err != nil {
 		return err

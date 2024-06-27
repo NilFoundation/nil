@@ -3,8 +3,8 @@ package receipt
 import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
-	"github.com/NilFoundation/nil/cmd/nil_cli/config"
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	libcommon "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -12,7 +12,7 @@ import (
 
 var logger = logging.NewLogger("receiptCommand")
 
-func GetCommand(cfg *config.Config) *cobra.Command {
+func GetCommand(cfg *common.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
 		Use:     "receipt",
 		Short:   "Retrieve a receipt from the cluster",
@@ -47,13 +47,11 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 
 	client := rpc.NewClient(rpcEndpoint)
 	service := service.NewService(client, nil)
-	if params.hash != common.EmptyHash {
+	if params.hash != libcommon.EmptyHash {
 		_, err := service.FetchReceiptByHash(params.shardId, params.hash)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to fetch receipt")
 		}
-
-		return
 	}
 }
 

@@ -6,7 +6,6 @@ import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
-	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -16,7 +15,7 @@ var logger = logging.NewLogger("walletNewCommand")
 
 var defaultNewWalletAmount = types.NewUint256(10_000_000)
 
-func NewCommand(cfg *config.Config) *cobra.Command {
+func NewCommand(cfg *common.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
 		Use:   "new",
 		Short: "Create new wallet with initial value on the cluster",
@@ -52,7 +51,7 @@ func setFlags(cmd *cobra.Command) {
 	)
 }
 
-func runNew(_ *cobra.Command, _ []string, cfg *config.Config) error {
+func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
 	logger.Info().Msgf("RPC Endpoint: %s", cfg.RPCEndpoint)
 
 	amount := &params.amount

@@ -6,12 +6,11 @@ import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
-	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
 
-func SendMessageCommand(cfg *config.Config) *cobra.Command {
+func SendMessageCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "send-message [address] [bytecode or method] [args...]",
 		Short: "Send a message to the smart contract via the wallet",
@@ -54,7 +53,7 @@ func SendMessageCommand(cfg *config.Config) *cobra.Command {
 	return cmd
 }
 
-func runSend(_ *cobra.Command, args []string, cfg *config.Config) error {
+func runSend(_ *cobra.Command, args []string, cfg *common.Config) error {
 	client := rpc.NewClient(cfg.RPCEndpoint)
 	service := service.NewService(client, cfg.PrivateKey)
 

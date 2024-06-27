@@ -3,11 +3,11 @@ package wallet
 import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
-	"github.com/NilFoundation/nil/cmd/nil_cli/config"
+	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/spf13/cobra"
 )
 
-func BalanceCommand(cfg *config.Config) *cobra.Command {
+func BalanceCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "balance",
 		Short: "Returns balance of wallet whose address specified in config.address field",
@@ -21,7 +21,7 @@ func BalanceCommand(cfg *config.Config) *cobra.Command {
 	return cmd
 }
 
-func runBalance(_ *cobra.Command, _ []string, cfg *config.Config) error {
+func runBalance(_ *cobra.Command, _ []string, cfg *common.Config) error {
 	client := rpc.NewClient(cfg.RPCEndpoint)
 	service := service.NewService(client, cfg.PrivateKey)
 	_, _ = service.GetBalance(cfg.Address)
