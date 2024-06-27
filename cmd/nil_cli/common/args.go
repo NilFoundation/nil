@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/NilFoundation/nil/common/hexutil"
@@ -58,6 +59,18 @@ func parseCallArguments(args []string, inputs abi.Arguments) ([]any, error) {
 			}
 		case abi.StringTy:
 			val.SetString(arg)
+		case abi.BytesTy:
+			data, err := hexutil.DecodeHex(arg)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse bytes argument: %w", err)
+			}
+			val.SetBytes(data)
+		case abi.BoolTy:
+			valBool, err := strconv.ParseBool(arg)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse bool argument: %w", err)
+			}
+			val.SetBool(valBool)
 		case abi.AddressTy:
 			var address eth_common.Address
 			if err := address.UnmarshalText([]byte(arg)); err != nil {

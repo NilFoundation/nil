@@ -8,13 +8,17 @@ import (
 )
 
 func MustDecodeHex(in string) []byte {
+	payload, err := DecodeHex(in)
+	check.PanicIfErr(err)
+	return payload
+}
+
+func DecodeHex(in string) ([]byte, error) {
 	in = strip0x(in)
 	if len(in)%2 == 1 {
 		in = "0" + in
 	}
-	payload, err := hex.DecodeString(in)
-	check.PanicIfErr(err)
-	return payload
+	return hex.DecodeString(in)
 }
 
 func strip0x(str string) string {
