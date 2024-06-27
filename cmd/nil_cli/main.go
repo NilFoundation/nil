@@ -14,18 +14,21 @@ import (
 	"github.com/NilFoundation/nil/cmd/nil_cli/message"
 	"github.com/NilFoundation/nil/cmd/nil_cli/receipt"
 	"github.com/NilFoundation/nil/cmd/nil_cli/wallet"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mitchellh/mapstructure"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 type RootCommand struct {
-	baseCmd *cobra.Command
-	config  common.Config
-	cfgFile string
+	baseCmd  *cobra.Command
+	config   common.Config
+	cfgFile  string
+	logLevel string
 }
 
 var logger = logging.NewLogger("rootCommand")
@@ -60,6 +63,9 @@ func main() {
 				if err := rootCmd.validateConfig(); err != nil {
 					return err
 				}
+				logLevel, err := zerolog.ParseLevel(rootCmd.logLevel)
+				check.PanicIfErr(err)
+				zerolog.SetGlobalLevel(logLevel)
 				return nil
 			},
 			SilenceUsage: true,
@@ -67,6 +73,7 @@ func main() {
 	}
 
 	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.cfgFile, "config", "c", "config.yaml", "Path to config file")
+	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.logLevel, "log-level", "l", "trace", "Log level: trace|debug|info|warn|error|fatal|panic")
 
 	rootCmd.registerSubCommands()
 	rootCmd.Execute()

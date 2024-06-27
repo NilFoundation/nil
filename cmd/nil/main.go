@@ -32,10 +32,11 @@ func main() {
 	dbGcFrequency := rootCmd.Flags().Duration("db-gc-interval", time.Hour, "frequency for badger GC")
 	gasPriceScale := rootCmd.Flags().Float64("gas-price-scale", 0, "gas price scale factor for each transaction")
 	gasBasePrice := rootCmd.Flags().Uint64("gas-base-price", 10, "base gas price for each transaction")
+	logLevel := rootCmd.Flags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
 
 	check.PanicIfErr(rootCmd.Execute())
 
-	logging.SetupGlobalLogger()
+	logging.SetupGlobalLogger(*logLevel)
 
 	dbOpts := db.BadgerDBOptions{Path: *dbPath, DiscardRatio: *dbDiscardRatio, GcFrequency: *dbGcFrequency, AllowDrop: *allowDropDb}
 	database, err := openDb(dbOpts.Path, dbOpts.AllowDrop, logger)

@@ -30,7 +30,7 @@ type RpcSuite struct {
 }
 
 func init() {
-	logging.SetupGlobalLogger()
+	logging.SetupGlobalLogger("info")
 }
 
 func (suite *RpcSuite) start(cfg *nilservice.Config) {

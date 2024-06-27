@@ -5,12 +5,16 @@ import (
 	"os"
 	"time"
 
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/term"
 )
 
-func SetupGlobalLogger() {
+func SetupGlobalLogger(level string) {
+	l, err := zerolog.ParseLevel(level)
+	check.PanicIfErr(err)
+	zerolog.SetGlobalLevel(l)
 	log.Logger = NewLogger("global")
 }
 
