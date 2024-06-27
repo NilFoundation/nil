@@ -83,8 +83,6 @@ func (rc *RootCommand) registerSubCommands() {
 		contract.GetCommand(&rc.config),
 		wallet.GetCommand(&rc.config),
 	)
-
-	logger.Trace().Msg("Subcommands registered")
 }
 
 func decodePrivateKey(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
@@ -149,6 +147,4 @@ func (rc *RootCommand) Execute() {
 
 		os.Exit(1)
 	}
-
-	logger.Trace().Msg("Command executed successfully")
 }

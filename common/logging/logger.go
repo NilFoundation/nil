@@ -54,7 +54,6 @@ func NewLogger(component string) zerolog.Logger {
 		FormatFieldValue: makeComponentFormatter(noColor),
 		NoColor:          noColor,
 	}).
-		Level(zerolog.TraceLevel).
 		With().
 		Str(FieldComponent, component).
 		Caller().

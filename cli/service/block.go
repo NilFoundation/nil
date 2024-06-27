@@ -21,6 +21,6 @@ func (s *Service) FetchBlock(shardId types.ShardId, blockId any) ([]byte, error)
 		return nil, err
 	}
 
-	s.logger.Trace().Msgf("Fetched block:\n%s", blockDataJSON)
+	s.logger.Info().Msgf("Fetched block:\n%s", blockDataJSON)
 	return blockDataJSON, nil
 }
