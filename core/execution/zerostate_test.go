@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"reflect"
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
@@ -66,7 +67,7 @@ func (suite *SuiteZeroState) getBalance(address types.Address) uint256.Int {
 func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 	receiverContract := suite.contracts["SimpleContract"]
 	receiverAddr := deployContract(suite.T(), receiverContract, suite.state, 2)
-	balance := suite.getBalance(suite.faucetAddr)
+	faucetBalance := suite.getBalance(suite.faucetAddr)
 
 	calldata, err := suite.faucetABI.Pack("withdrawTo", receiverAddr, big.NewInt(100))
 	suite.Require().NoError(err)
@@ -75,12 +76,19 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 		Data:     calldata,
 		From:     suite.faucetAddr,
 		To:       suite.faucetAddr,
-		GasLimit: *types.NewUint256(10000),
+		GasLimit: *types.NewUint256(100_000),
 	}
 	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, callMessage)
 	suite.Require().NoError(err)
-	balance.SubUint64(&balance, 100)
-	suite.Require().EqualValues(balance, suite.getBalance(suite.faucetAddr))
+
+	outMsgHash, ok := reflect.ValueOf(suite.state.OutMessages).MapKeys()[0].Interface().(common.Hash)
+	suite.Require().True(ok)
+	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, suite.state.OutMessages[outMsgHash][0])
+	suite.Require().NoError(err)
+
+	faucetBalance.SubUint64(&faucetBalance, 100)
+	newFaucetBalance := suite.getBalance(suite.faucetAddr)
+	suite.Require().Negative(newFaucetBalance.Cmp(&faucetBalance))
 	suite.Require().EqualValues(*uint256.NewInt(100), suite.getBalance(receiverAddr))
 }
 

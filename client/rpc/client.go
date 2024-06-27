@@ -480,7 +480,7 @@ func (c *Client) sendExternalMessage(
 
 func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount *types.Uint256) (common.Hash, error) {
 	// unused gas will be refunded to the Faucet
-	gasLimit := *types.NewUint256(100_000)
+	gasLimit := *types.NewUint256(100_000) // The amount of gas we buy in withdrawTo
 	value := *amount
 	gasPrice, err := c.GasPrice(contractAddress.ShardId())
 	if err != nil {
@@ -488,27 +488,15 @@ func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount *types.Uin
 	}
 
 	value.Add(&value.Int, types.NewUint256(0).Mul(&gasLimit.Int, &gasPrice.Int))
-	sendMsgInternal := &types.InternalMessagePayload{
-		To:       contractAddress,
-		Value:    value,
-		GasLimit: gasLimit,
-		Kind:     types.ExecutionMessageKind,
-	}
-	sendMsgInternalData, err := sendMsgInternal.MarshalSSZ()
-	if err != nil {
-		return common.EmptyHash, err
-	}
 
 	// Make external message to the Faucet
 	faucetAbi, err := contracts.GetAbi("Faucet")
 	check.PanicIfErr(err)
-	calldata, err := faucetAbi.Pack("send", sendMsgInternalData)
+	calldata, err := faucetAbi.Pack("withdrawTo", contractAddress, big.NewInt(0).SetBytes(value.Int.Bytes()))
 	if err != nil {
 		return common.EmptyHash, err
 	}
-
-	from := types.FaucetAddress
-	return c.SendExternalMessage(calldata, from, nil)
+	return c.SendExternalMessage(calldata, types.FaucetAddress, nil)
 }
 
 func (c *Client) Call(args *jsonrpc.CallArgs) (string, error) {
