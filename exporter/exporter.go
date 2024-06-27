@@ -16,6 +16,7 @@ import (
 const (
 	BlockBufferSize     = 10000
 	InitialRoundsAmount = 1000
+	LongSleepTimeout    = 3 * time.Second
 )
 
 type ExportMessage struct {
@@ -31,14 +32,14 @@ func StartExporter(ctx context.Context, cfg *Cfg) error {
 
 	for err := cfg.ExporterDriver.SetupScheme(ctx); err != nil; {
 		cfg.ErrorChan <- fmt.Errorf("failed to setup scheme: %w", err)
-		time.Sleep(3 * time.Second)
+		time.Sleep(LongSleepTimeout)
 	}
 
 	var err error
 	var shards []types.ShardId
 	for shards, err = cfg.FetchShards(ctx); err != nil; {
 		cfg.ErrorChan <- fmt.Errorf("failed to fetch shards: %w", err)
-		time.Sleep(3 * time.Second)
+		time.Sleep(LongSleepTimeout)
 	}
 
 	workers := make([]concurrent.Func, 0)
@@ -190,27 +191,38 @@ func startDriverExport(ctx context.Context, cfg *Cfg) {
 				log.Info().Msgf("Buffer is full. Stop reading from channel. Buffer size: %d", len(blockBuffer))
 				fullMode = true
 			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := cfg.ExporterDriver.ExportBlocks(ctx, blockBuffer); err != nil {
+					cfg.ErrorChan <- fmt.Errorf("exporter: failed to export blocks: %w", err)
+					continue
+				}
+				blockBuffer = blockBuffer[:0]
+				cfg.incrementRound()
+			}
 		} else {
 			if fullMode {
 				log.Info().Msg("Buffer is not full. Start reading from channel")
 				fullMode = false
 			}
-			blockBuffer = append(blockBuffer, <-cfg.BlocksChan)
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if len(blockBuffer) == 0 {
-				continue
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if len(blockBuffer) == 0 {
+					continue
+				}
+				if err := cfg.ExporterDriver.ExportBlocks(ctx, blockBuffer); err != nil {
+					cfg.ErrorChan <- fmt.Errorf("failed to export blocks: %w", err)
+					continue
+				}
+				blockBuffer = blockBuffer[:0]
+				cfg.incrementRound()
+			case block := <-cfg.BlocksChan:
+				blockBuffer = append(blockBuffer, block)
 			}
-			if err := cfg.ExporterDriver.ExportBlocks(ctx, blockBuffer); err != nil {
-				cfg.ErrorChan <- fmt.Errorf("exporter: failed to export blocks: %w", err)
-				continue
-			}
-			blockBuffer = blockBuffer[:0]
-			cfg.incrementRound()
 		}
 	}
 }
