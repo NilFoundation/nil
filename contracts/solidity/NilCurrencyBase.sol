@@ -31,7 +31,7 @@ contract NilCurrencyBase is NilBase {
         );
     }
 
-    function transferToken(uint256 amount, address to) public payable onlyExternal {
+    function withdrawToken(uint256 amount, address to) public payable onlyExternal {
         uint256 id = uint256(uint160(address(this)));
         uint256 gas = 50000;
         Nil.asyncCall(
@@ -41,7 +41,7 @@ contract NilCurrencyBase is NilBase {
             gas, // gas
             false, // deploy
             2 * gas * 10, // value, 2x because transfer requires another async call
-            abi.encodeCall(Minter.transfer, (id, amount, to))
+            abi.encodeCall(Minter.withdraw, (id, amount, to))
         );
     }
 }

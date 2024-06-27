@@ -168,7 +168,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 	///////////////////////////////////////////////////////////////////////////
 	// Transfer some currency
-	data, err = multiCurrAbi.Pack("transferToken", big.NewInt(100), s.walletAddress1)
+	data, err = multiCurrAbi.Pack("withdrawToken", big.NewInt(100), s.walletAddress1)
 	s.Require().NoError(err)
 
 	receipt = s.sendExternalMessage(data, s.walletAddress1)
@@ -240,7 +240,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 	///////////////////////////////////////////////////////////////////////////
 	// Transfer all 2-nd currency to Wallet2
-	data, err = s.abiMinter.Pack("transfer", &currency2.idInt, amount.ToBig(), s.walletAddress2)
+	data, err = s.abiMinter.Pack("withdraw", &currency2.idInt, amount.ToBig(), s.walletAddress2)
 	s.Require().NoError(err)
 
 	receipt = s.sendMessageViaWallet(s.walletAddress2, types.MinterAddress, execution.MainPrivateKey, data, types.NewUint256(968650))
@@ -287,7 +287,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 	///////////////////////////////////////////////////////////////////////////
 	// Transfer 1-nd currency to Wallet2 - should fail, wrong owner
-	data, err = s.abiMinter.Pack("transfer", &currency1.idInt, big.NewInt(2), s.walletAddress2)
+	data, err = s.abiMinter.Pack("withdraw", &currency1.idInt, big.NewInt(2), s.walletAddress2)
 	s.Require().NoError(err)
 
 	receipt = s.sendMessageViaWallet(s.walletAddress2, types.MinterAddress, execution.MainPrivateKey, data, types.NewUint256(0))

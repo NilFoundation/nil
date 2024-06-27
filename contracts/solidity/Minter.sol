@@ -32,7 +32,7 @@ contract Minter is NilBase {
         tokens[id].totalSupply += amount;
 
         if (sendTo != address(0)) {
-            transferImpl(id, amount, sendTo);
+            withdrawImpl(id, amount, sendTo);
         }
 
         return true;
@@ -45,21 +45,21 @@ contract Minter is NilBase {
         tokens[id].totalSupply += amount;
 
         if (sendTo != address(0)) {
-            transferImpl(id, amount, sendTo);
+            withdrawImpl(id, amount, sendTo);
         }
     }
 
-    function transfer(uint256 id, uint256 amount, address to) onlyInternal payable public {
+    function withdraw(uint256 id, uint256 amount, address to) onlyInternal payable public {
         require(tokens[id].owner != address(0), "Token doesn't exist");
         require(msg.sender == tokens[id].owner, "Not from owner");
 
         uint256 balance = Nil.tokensBalance(address(this), id);
         require(balance >= amount, "Insufficient balance");
 
-        transferImpl(id, amount, to);
+        withdrawImpl(id, amount, to);
     }
 
-    function transferImpl(uint256 id, uint256 amount, address to) onlyInternal internal {
+    function withdrawImpl(uint256 id, uint256 amount, address to) onlyInternal internal {
         Nil.Token[] memory tokens_ = new Nil.Token[](1);
         tokens_[0] = Nil.Token(id, amount);
 
