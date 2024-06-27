@@ -21,4 +21,6 @@ const (
 
 	FieldBlockHash   = "blockHash"
 	FieldBlockNumber = "blockNumber"
+
+	FieldCurrencyId = "CurrencyId"
 )

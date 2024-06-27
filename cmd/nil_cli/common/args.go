@@ -11,7 +11,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	eth_common "github.com/ethereum/go-ethereum/common"
 )
@@ -143,4 +145,26 @@ func ReadBytecode(filename string, abiPath string, args []string) ([]byte, error
 		}
 	}
 	return bytecode, nil
+}
+
+func ParseCurrencies(params []string) ([]types.CurrencyBalance, error) {
+	currencies := []types.CurrencyBalance{}
+
+	for _, currency := range params {
+		curAndBalance := strings.Split(currency, "=")
+		if len(curAndBalance) != 2 {
+			return nil, fmt.Errorf("invalid currency format: %s, expected <currencyId>=<balance>", currency)
+		}
+		currencyIdBytes, err := hex.DecodeString(curAndBalance[0])
+		if err != nil {
+			return nil, fmt.Errorf("invalid currency id %s, can't parse hex: %w", curAndBalance[0], err)
+		}
+		currencyId := types.CurrencyId(common.BytesToHash(currencyIdBytes))
+		balance := new(types.Uint256)
+		if err := balance.Set(curAndBalance[1]); err != nil {
+			return nil, fmt.Errorf("invalid balance %s: %w", curAndBalance[1], err)
+		}
+		currencies = append(currencies, types.CurrencyBalance{Currency: currencyId, Balance: *balance})
+	}
+	return currencies, nil
 }

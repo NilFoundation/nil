@@ -62,3 +62,11 @@ func (s *SmartContract) Hash() common.Hash {
 	check.PanicIfErr(err)
 	return h
 }
+
+func NewCurrencyIdFromAddress(a Address) CurrencyId {
+	c := CurrencyId{}
+	copy(c[12:], a.Bytes())
+	return c
+}
+
+type CurrenciesMap map[string]*Uint256

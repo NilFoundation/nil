@@ -1,6 +1,8 @@
 package wallet
 
 import (
+	"errors"
+
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
@@ -54,6 +56,13 @@ func setDeployFlags(cmd *cobra.Command) {
 		"Amount of tokens to send",
 	)
 
+	params.currency = *types.NewUint256(0)
+	cmd.Flags().Var(
+		&params.currency,
+		"currency",
+		"Amount of contract currency to generate. You can't perform this operation with no-wait flag.",
+	)
+
 	cmd.Flags().BoolVar(
 		&params.noWait,
 		noWaitFlag,
@@ -63,6 +72,10 @@ func setDeployFlags(cmd *cobra.Command) {
 }
 
 func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
+	if !params.currency.IsZero() && params.noWait {
+		return errors.New("no-wait flag can't be used with currency flag")
+	}
+
 	client := rpc.NewClient(cfg.RPCEndpoint)
 	service := service.NewService(client, cfg.PrivateKey)
 

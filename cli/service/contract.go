@@ -25,7 +25,7 @@ func (s *Service) GetCode(contractAddress types.Address) (string, error) {
 func (s *Service) GetBalance(contractAddress types.Address) (string, error) {
 	balance, err := s.client.GetBalance(contractAddress, "latest")
 	if err != nil {
-		s.logger.Error().Err(err).Str(logging.FieldRpcMethod, rpc.Eth_getCode).Msg("Failed to get contract balance")
+		s.logger.Error().Err(err).Str(logging.FieldRpcMethod, rpc.Eth_getBalance).Msg("Failed to get contract balance")
 		return "", err
 	}
 
@@ -33,10 +33,25 @@ func (s *Service) GetBalance(contractAddress types.Address) (string, error) {
 	return balance.String(), nil
 }
 
+// GetCurrencies retrieves the contract currencies at the given address
+func (s *Service) GetCurrencies(contractAddress types.Address) (types.CurrenciesMap, error) {
+	currencies, err := s.client.GetCurrencies(contractAddress, "latest")
+	if err != nil {
+		s.logger.Error().Err(err).Str(logging.FieldRpcMethod, rpc.Eth_getCurrencies).Msg("Failed to get contract currencies")
+		return nil, err
+	}
+
+	s.logger.Info().Msg("Contract currencies:")
+	for k, v := range currencies {
+		s.logger.Info().Str(logging.FieldCurrencyId, k).Msgf("Balance: %v", v)
+	}
+	return currencies, nil
+}
+
 // RunContract runs bytecode on the specified contract address
-func (s *Service) RunContract(wallet types.Address, bytecode []byte, gasLimit *types.Uint256, value *types.Uint256, contract types.Address) (common.Hash, error) {
+func (s *Service) RunContract(wallet types.Address, bytecode []byte, gasLimit *types.Uint256, value *types.Uint256, currencies []types.CurrencyBalance, contract types.Address) (common.Hash, error) {
 	txHash, err := s.client.SendMessageViaWallet(wallet, bytecode, gasLimit, value,
-		[]types.CurrencyBalance{}, contract, s.privateKey)
+		currencies, contract, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
 		return common.EmptyHash, err

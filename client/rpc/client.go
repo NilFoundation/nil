@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
@@ -309,7 +310,7 @@ func (c *Client) GetBalance(address types.Address, blockId any) (*types.Uint256,
 	return balance, err
 }
 
-func (c *Client) GetCurrencies(address types.Address, blockId any) (map[string]*types.Uint256, error) {
+func (c *Client) GetCurrencies(address types.Address, blockId any) (types.CurrenciesMap, error) {
 	blockNrOrHash, err := transport.AsBlockReference(blockId)
 	if err != nil {
 		return nil, err
@@ -321,7 +322,7 @@ func (c *Client) GetCurrencies(address types.Address, blockId any) (map[string]*
 		return nil, err
 	}
 
-	currencies := make(map[string]*types.Uint256)
+	currencies := make(types.CurrenciesMap)
 	err = json.Unmarshal(res, &currencies)
 	if err != nil {
 		return nil, err
@@ -522,4 +523,46 @@ func (c *Client) Call(args *jsonrpc.CallArgs) (string, error) {
 		return "", err
 	}
 	return res, nil
+}
+
+func (c *Client) CurrencyCreate(contractAddr types.Address, amount *big.Int, name string, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error) {
+	abiCurrency, err := contracts.GetAbi("NilCurrencyBase")
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	data, err := abiCurrency.Pack("createToken", amount, name, withdraw)
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	return c.SendExternalMessage(data, contractAddr, pk)
+}
+
+func (c *Client) CurrencyWithdraw(contractAddr types.Address, amount *big.Int, toAddr types.Address, pk *ecdsa.PrivateKey) (common.Hash, error) {
+	abiCurrency, err := contracts.GetAbi("NilCurrencyBase")
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	data, err := abiCurrency.Pack("transferToken", amount, toAddr)
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	return c.SendExternalMessage(data, contractAddr, pk)
+}
+
+func (c *Client) CurrencyMint(contractAddr types.Address, amount *big.Int, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error) {
+	abiCurrency, err := contracts.GetAbi("NilCurrencyBase")
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	data, err := abiCurrency.Pack("mintToken", amount, withdraw)
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	return c.SendExternalMessage(data, contractAddr, pk)
 }

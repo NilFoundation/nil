@@ -115,7 +115,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	var (
 		data       []byte
 		receipt    *jsonrpc.RPCReceipt
-		currencies map[string]*types.Uint256
+		currencies types.CurrenciesMap
 		txhash     common.Hash
 		err        error
 	)

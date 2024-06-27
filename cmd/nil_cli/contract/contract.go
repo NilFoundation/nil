@@ -13,6 +13,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 
 	serverCmd.AddCommand(GetAddressCommand(cfg))
 	serverCmd.AddCommand(GetBalanceCommand(cfg))
+	serverCmd.AddCommand(GetCurrenciesCommand(cfg))
 	serverCmd.AddCommand(GetCodeCommand(cfg))
 	serverCmd.AddCommand(GetCallReadonlyCommand(cfg))
 	serverCmd.AddCommand(GetDeployCommand(cfg))

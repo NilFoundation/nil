@@ -13,7 +13,7 @@ import (
 
 var logger = logging.NewLogger("walletNewCommand")
 
-var defaultNewWalletAmount = types.NewUint256(10_000_000)
+var defaultNewWalletAmount = types.NewUint256(100_000_000)
 
 func NewCommand(cfg *common.Config) *cobra.Command {
 	serverCmd := &cobra.Command{

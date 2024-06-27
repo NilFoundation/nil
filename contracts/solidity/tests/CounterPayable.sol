@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-contract CounterPayable {
+import "../NilCurrencyBase.sol";
+
+contract CounterPayable is NilCurrencyBase {
     int32 value;
 
     receive() external payable {}

@@ -34,6 +34,12 @@ func SendTokensCommand(cfg *common.Config) *cobra.Command {
 		"Gas limit",
 	)
 
+	cmd.Flags().StringArrayVar(&params.currencies,
+		tokenFlag,
+		nil,
+		"Token to transfer in format '<currencyId>=<amount>', can be used multiple times",
+	)
+
 	return cmd
 }
 
@@ -51,7 +57,12 @@ func runTransfer(_ *cobra.Command, args []string, cfg *common.Config) error {
 		return err
 	}
 
-	msgHash, err := service.RunContract(cfg.Address, nil, &params.gasLimit, amount, address)
+	currencies, err := common.ParseCurrencies(params.currencies)
+	if err != nil {
+		return err
+	}
+
+	msgHash, err := service.RunContract(cfg.Address, nil, &params.gasLimit, amount, currencies, address)
 	if err != nil {
 		return err
 	}

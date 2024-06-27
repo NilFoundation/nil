@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/cmd/nil_cli/contract"
 	"github.com/NilFoundation/nil/cmd/nil_cli/keygen"
 	"github.com/NilFoundation/nil/cmd/nil_cli/message"
+	"github.com/NilFoundation/nil/cmd/nil_cli/minter"
 	"github.com/NilFoundation/nil/cmd/nil_cli/receipt"
 	"github.com/NilFoundation/nil/cmd/nil_cli/wallet"
 	"github.com/NilFoundation/nil/common/check"
@@ -89,6 +90,7 @@ func (rc *RootCommand) registerSubCommands() {
 		receipt.GetCommand(&rc.config),
 		contract.GetCommand(&rc.config),
 		wallet.GetCommand(&rc.config),
+		minter.GetCommand(&rc.config),
 	)
 }
 

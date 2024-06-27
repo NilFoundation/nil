@@ -3,6 +3,7 @@ package client
 import (
 	"crypto/ecdsa"
 	"encoding/json"
+	"math/big"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
@@ -28,7 +29,6 @@ type Client interface {
 	GetTransactionCount(address types.Address, blockId any) (types.Seqno, error)
 	GetBlockTransactionCount(shardId types.ShardId, blockId any) (uint64, error)
 	GetBalance(address types.Address, blockId any) (*types.Uint256, error)
-	GetCurrencies(address types.Address, blockId any) (map[string]*types.Uint256, error)
 	GetShardIdList() ([]types.ShardId, error)
 	GasPrice(shardId types.ShardId) (*types.Uint256, error)
 
@@ -45,4 +45,16 @@ type Client interface {
 	) (common.Hash, error)
 
 	TopUpViaFaucet(contractAddress types.Address, amount *types.Uint256) (common.Hash, error)
+
+	// GetCurrencies retrieves the contract currencies at the given address
+	GetCurrencies(address types.Address, blockId any) (types.CurrenciesMap, error)
+
+	// CurrencyMint creates currency for the contract
+	CurrencyCreate(contractAddr types.Address, amount *big.Int, name string, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error)
+
+	// CurrencyWithdraw transfers currency to the contract
+	CurrencyWithdraw(contractAddr types.Address, amount *big.Int, toAddr types.Address, pk *ecdsa.PrivateKey) (common.Hash, error)
+
+	// CurrencyMint mints currency for the contract
+	CurrencyMint(contractAddr types.Address, amount *big.Int, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error)
 }
