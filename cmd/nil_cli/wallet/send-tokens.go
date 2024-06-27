@@ -3,12 +3,12 @@ package wallet
 import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
-	"github.com/NilFoundation/nil/cmd/nil_cli/config"
+	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
 
-func SendTokensCommand(cfg *config.Config) *cobra.Command {
+func SendTokensCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "send-tokens [address] [amount]",
 		Short: "Transfer tokens to specific address",
@@ -37,7 +37,7 @@ func SendTokensCommand(cfg *config.Config) *cobra.Command {
 	return cmd
 }
 
-func runTransfer(_ *cobra.Command, args []string, cfg *config.Config) error {
+func runTransfer(_ *cobra.Command, args []string, cfg *common.Config) error {
 	client := rpc.NewClient(cfg.RPCEndpoint)
 	service := service.NewService(client, cfg.PrivateKey)
 

@@ -6,12 +6,11 @@ import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
-	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
 
-func GetSendExternalMessageCommand(cfg *config.Config) *cobra.Command {
+func GetSendExternalMessageCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "send-external-message [address] [bytecode or method] [args...]",
 		Short: "Send external amessage to the smart contract",
@@ -50,7 +49,7 @@ func GetSendExternalMessageCommand(cfg *config.Config) *cobra.Command {
 	return cmd
 }
 
-func runSendExternalMessage(_ *cobra.Command, args []string, cfg *config.Config) error {
+func runSendExternalMessage(_ *cobra.Command, args []string, cfg *common.Config) error {
 	client := rpc.NewClient(cfg.RPCEndpoint)
 	service := service.NewService(client, cfg.PrivateKey)
 

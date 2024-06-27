@@ -3,7 +3,7 @@ package block
 import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
-	"github.com/NilFoundation/nil/cmd/nil_cli/config"
+	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -11,7 +11,7 @@ import (
 
 var logger = logging.NewLogger("blockCommand")
 
-func GetCommand(cfg *config.Config) *cobra.Command {
+func GetCommand(cfg *common.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
 		Use:     "block",
 		Short:   "Retrieve a block from the cluster",

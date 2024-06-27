@@ -3,8 +3,8 @@ package message
 import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
-	"github.com/NilFoundation/nil/cmd/nil_cli/config"
-	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	libcommon "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
@@ -13,7 +13,7 @@ import (
 
 var logger = logging.NewLogger("messageCommand")
 
-func GetCommand(cfg *config.Config) *cobra.Command {
+func GetCommand(cfg *common.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
 		Use:     "message",
 		Short:   "Retrieve a message from the cluster",
@@ -49,7 +49,7 @@ func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
 	client := rpc.NewClient(rpcEndpoint)
 	service := service.NewService(client, nil)
 
-	if params.hash != common.EmptyHash {
+	if params.hash != libcommon.EmptyHash {
 		_, err := service.FetchMessageByHash(params.shardId, params.hash)
 		check.PanicIfErr(err)
 	}

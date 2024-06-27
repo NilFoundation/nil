@@ -3,12 +3,12 @@ package wallet
 import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
-	"github.com/NilFoundation/nil/cmd/nil_cli/config"
+	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
 
-func TopUpCommand(cfg *config.Config) *cobra.Command {
+func TopUpCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "top-up [amount]",
 		Short: "Top up wallet",
@@ -22,7 +22,7 @@ func TopUpCommand(cfg *config.Config) *cobra.Command {
 	return cmd
 }
 
-func runTopUp(_ *cobra.Command, args []string, cfg *config.Config) error {
+func runTopUp(_ *cobra.Command, args []string, cfg *common.Config) error {
 	client := rpc.NewClient(cfg.RPCEndpoint)
 	service := service.NewService(client, cfg.PrivateKey)
 

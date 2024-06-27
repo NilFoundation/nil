@@ -1,11 +1,11 @@
 package contract
 
 import (
-	"github.com/NilFoundation/nil/cmd/nil_cli/config"
+	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/spf13/cobra"
 )
 
-func GetCommand(cfg *config.Config) *cobra.Command {
+func GetCommand(cfg *common.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
 		Use:   "contract",
 		Short: "Interact with contract on the cluster",

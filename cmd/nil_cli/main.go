@@ -24,7 +24,7 @@ import (
 
 type RootCommand struct {
 	baseCmd *cobra.Command
-	config  config.Config
+	config  common.Config
 	cfgFile string
 }
 
@@ -36,6 +36,7 @@ var noConfigCmd map[string]struct{} = map[string]struct{}{
 	"completion":       {},
 	"__complete":       {},
 	"__completeNoDesc": {},
+	"config":           {},
 }
 
 func main() {
@@ -76,6 +77,7 @@ func (rc *RootCommand) registerSubCommands() {
 	rc.baseCmd.AddCommand(
 		keygen.GetCommand(),
 		block.GetCommand(&rc.config),
+		config.GetCommand(&rc.cfgFile, &rc.config),
 		message.GetCommand(&rc.config),
 		receipt.GetCommand(&rc.config),
 		contract.GetCommand(&rc.config),
