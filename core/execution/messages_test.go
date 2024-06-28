@@ -61,7 +61,7 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 		s.Run("IncorrectAddress", func() {
 			s.Require().ErrorIs(ValidateExternalMessage(es, msg, gasPrice), ErrIncorrectDeploymentAddress)
 
-			msg.To = types.CreateAddress(types.BaseShardId, msg.Data)
+			msg.To = types.CreateAddress(types.BaseShardId, *types.ParseDeployPayload(msg.Data))
 			s.Require().NoError(es.CreateAccount(msg.To))
 		})
 
@@ -132,19 +132,19 @@ func (s *MessagesSuite) TestValidateDeployMessage() {
 
 	// Deploy to the main shard from base shard - FAIL
 	data := types.BuildDeployPayload([]byte("some-code"), common.EmptyHash)
-	msg.To = types.CreateAddress(types.MasterShardId, data.Bytes())
+	msg.To = types.CreateAddress(types.MasterShardId, data)
 	msg.Data = data.Bytes()
 	s.Require().ErrorIs(ValidateDeployMessage(msg), ErrDeployToMainShard)
 
 	// Deploy to the main shard from main wallet - OK
 	data = types.BuildDeployPayload([]byte("some-code"), common.EmptyHash)
-	msg.To = types.CreateAddress(types.MasterShardId, data.Bytes())
+	msg.To = types.CreateAddress(types.MasterShardId, data)
 	msg.From = types.MainWalletAddress
 	msg.Data = data.Bytes()
 	s.Require().NoError(ValidateDeployMessage(msg))
 
 	// Deploy to base shard
-	msg.To = types.CreateAddress(types.BaseShardId, data.Bytes())
+	msg.To = types.CreateAddress(types.BaseShardId, data)
 	s.Require().NoError(ValidateDeployMessage(msg))
 }
 

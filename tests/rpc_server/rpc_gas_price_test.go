@@ -39,7 +39,7 @@ func (s *SuitGasPrice) TestGasBehaviour() {
 	s.Run("Deploy", func() {
 		var receipt *jsonrpc.RPCReceipt
 		addrCallee, receipt = s.deployContractViaMainWallet(shardId,
-			contracts.CounterPayableDeployPayload(s.T()).Bytes(),
+			contracts.CounterPayableDeployPayload(s.T()),
 			types.NewUint256(50_000_000))
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})

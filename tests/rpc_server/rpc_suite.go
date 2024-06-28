@@ -73,11 +73,11 @@ func (suite *RpcSuite) waitZerostate() {
 
 // Deploy contract to specific shard
 func (suite *RpcSuite) deployContractViaWallet(
-	addrFrom types.Address, key *ecdsa.PrivateKey, shardId types.ShardId, code []byte, initialAmount *types.Uint256,
+	addrFrom types.Address, key *ecdsa.PrivateKey, shardId types.ShardId, payload types.DeployPayload, initialAmount *types.Uint256,
 ) (types.Address, *jsonrpc.RPCReceipt) {
 	suite.T().Helper()
 
-	contractAddr := types.CreateAddress(shardId, code)
+	contractAddr := types.CreateAddress(shardId, payload)
 	suite.T().Logf("Deploying contract %v", contractAddr)
 	txHash, err := suite.client.SendMessageViaWallet(addrFrom, types.Code{}, types.NewUint256(100_000), initialAmount,
 		[]types.CurrencyBalance{}, contractAddr, key)
@@ -86,7 +86,7 @@ func (suite *RpcSuite) deployContractViaWallet(
 	suite.Require().True(receipt.Success)
 	suite.Require().Len(receipt.OutReceipts, 1)
 
-	txHash, addr, err := suite.client.DeployContract(shardId, addrFrom, code, nil, key)
+	txHash, addr, err := suite.client.DeployContract(shardId, addrFrom, payload, nil, key)
 	suite.Require().NoError(err)
 	suite.Require().Equal(contractAddr, addr)
 
@@ -96,8 +96,8 @@ func (suite *RpcSuite) deployContractViaWallet(
 	return addr, receipt
 }
 
-func (suite *RpcSuite) deployContractViaMainWallet(shardId types.ShardId, code []byte, initialAmount *types.Uint256) (types.Address, *jsonrpc.RPCReceipt) {
-	return suite.deployContractViaWallet(types.MainWalletAddress, execution.MainPrivateKey, shardId, code, initialAmount)
+func (suite *RpcSuite) deployContractViaMainWallet(shardId types.ShardId, payload types.DeployPayload, initialAmount *types.Uint256) (types.Address, *jsonrpc.RPCReceipt) {
+	return suite.deployContractViaWallet(types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
 }
 
 func (suite *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey, calldata []byte, value *types.Uint256) *jsonrpc.RPCReceipt {

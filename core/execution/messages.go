@@ -109,7 +109,7 @@ func ValidateDeployMessage(message *types.Message) error {
 		return ErrDeployToMainShard
 	}
 
-	if message.To != types.CreateAddress(shardId, deployPayload.Bytes()) {
+	if message.To != types.CreateAddress(shardId, *deployPayload) {
 		return ErrIncorrectDeploymentAddress
 	}
 

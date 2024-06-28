@@ -81,7 +81,7 @@ func main() {
 	}
 
 	for _, shardId := range shardIdList {
-		txHashCaller, addr, err := client.DeployContract(shardId, wallets[0], hexutil.FromHex(IncrementContractCode), nil, privateKeys[0])
+		txHashCaller, addr, err := client.DeployContract(shardId, wallets[0], types.BuildDeployPayload(hexutil.FromHex(IncrementContractCode), common.EmptyHash), nil, privateKeys[0])
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error during deploy contract")
 		}

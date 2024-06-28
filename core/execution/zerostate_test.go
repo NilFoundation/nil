@@ -117,7 +117,7 @@ contracts:
 
 	faucetCode, err := contracts.GetCode("Faucet")
 	require.NoError(t, err)
-	faucetAddr := types.CreateAddress(types.MasterShardId, faucetCode)
+	faucetAddr := types.CreateAddress(types.MasterShardId, types.BuildDeployPayload(faucetCode, common.EmptyHash))
 
 	faucet, err := state.GetAccount(faucetAddr)
 	require.NoError(t, err)
@@ -152,7 +152,7 @@ contracts:
 	err = state.GenerateZeroState(configYaml3)
 	require.NoError(t, err)
 
-	faucetAddr = types.CreateAddress(types.BaseShardId, faucetCode)
+	faucetAddr = types.CreateAddress(types.BaseShardId, types.BuildDeployPayload(faucetCode, common.EmptyHash))
 
 	faucet, err = state.GetAccount(faucetAddr)
 	require.NoError(t, err)

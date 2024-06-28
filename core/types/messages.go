@@ -6,26 +6,28 @@ import (
 	"github.com/NilFoundation/nil/common"
 )
 
-type DeployPayload []byte
+type DeployPayload struct {
+	bytes []byte
+}
 
 func (dp DeployPayload) Code() Code {
-	return Code(dp[:len(dp)-common.HashSize])
+	return Code(dp.bytes[:len(dp.bytes)-common.HashSize])
 }
 
 func (dp DeployPayload) Bytes() []byte {
-	return dp
+	return dp.bytes
 }
 
-func BuildDeployPayload(code []byte, salt common.Hash) DeployPayload {
+func BuildDeployPayload(code Code, salt common.Hash) DeployPayload {
 	code = slices.Clone(code)
 	code = append(code, salt.Bytes()...)
-	return code
+	return DeployPayload{code}
 }
 
 func ParseDeployPayload(data []byte) *DeployPayload {
 	if len(data) < 32 {
 		return nil
 	}
-	dp := DeployPayload(data)
+	dp := DeployPayload{data}
 	return &dp
 }

@@ -113,7 +113,7 @@ func ArgsToCalldata(abiPath string, method string, args []string) ([]byte, error
 	return calldata, nil
 }
 
-func ReadBytecode(filename string, abiPath string, args []string) ([]byte, error) {
+func ReadBytecode(filename string, abiPath string, args []string) (types.Code, error) {
 	var bytecode []byte
 	var err error
 	if filename != "" {

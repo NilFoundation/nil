@@ -204,16 +204,16 @@ func PubkeyBytesToAddress(shardId ShardId, pubBytes []byte) Address {
 	return BytesToAddress(raw)
 }
 
-func DeployMsgToAddress(deployMsg *DeployPayload, to Address) Address {
-	return CreateAddress(to.ShardId(), deployMsg.Code())
+func createAddress(shardId ShardId, deployPayload []byte) Address {
+	raw := make([]byte, 2, AddrSize)
+	raw = appendShardId(raw, shardId)
+	raw = append(raw, common.PoseidonHash(deployPayload).Bytes()[14:]...)
+	return BytesToAddress(raw)
 }
 
-// CreateAddress creates address for the given contract code
-func CreateAddress(shardId ShardId, code []byte) Address {
-	if len(code) == 0 {
-		code = []byte{0}
-	}
-	return PubkeyBytesToAddress(shardId, code)
+// CreateAddress creates address for the given contract code + salt
+func CreateAddress(shardId ShardId, deployPayload DeployPayload) Address {
+	return createAddress(shardId, deployPayload.Bytes())
 }
 
 // CreateAddressForCreate2 creates address in a CREATE2-like way
@@ -223,7 +223,7 @@ func CreateAddressForCreate2(sender Address, code []byte, salt common.Hash) Addr
 	data = append(data, sender.Bytes()...)
 	data = append(data, salt.Bytes()...)
 	data = append(data, common.PoseidonHash(code).Bytes()...)
-	return CreateAddress(sender.ShardId(), data)
+	return createAddress(sender.ShardId(), data)
 }
 
 func GenerateRandomAddress(shardId ShardId) Address {

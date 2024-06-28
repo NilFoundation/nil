@@ -71,9 +71,9 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 		return err
 	}
 
-	bytecode = types.BuildDeployPayload(bytecode, libcommon.Hash(params.salt.Bytes32()))
+	payload := types.BuildDeployPayload(bytecode, libcommon.Hash(params.salt.Bytes32()))
 
-	msgHash, addr, err := service.DeployContractExternal(params.shardId, bytecode)
+	msgHash, addr, err := service.DeployContractExternal(params.shardId, payload)
 	if err != nil {
 		return err
 	}

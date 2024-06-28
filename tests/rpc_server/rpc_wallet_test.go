@@ -37,7 +37,7 @@ func (s *SuiteWalletRpc) TestWallet() {
 	s.Run("Deploy", func() {
 		var receipt *jsonrpc.RPCReceipt
 		addrCallee, receipt = s.deployContractViaMainWallet(3,
-			contracts.CounterDeployPayload(s.T()).Bytes(),
+			contracts.CounterDeployPayload(s.T()),
 			types.NewUint256(50_000_000))
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})
@@ -72,7 +72,7 @@ func (s *SuiteWalletRpc) TestDeployWithValueNonPayableConstructor() {
 	wallet := types.MainWalletAddress
 
 	hash, addr, err := s.client.DeployContract(2, wallet,
-		contracts.CounterDeployPayload(s.T()).Bytes(),
+		contracts.CounterDeployPayload(s.T()),
 		types.NewUint256(500_000), execution.MainPrivateKey)
 	s.Require().NoError(err)
 
@@ -98,7 +98,7 @@ func (s *SuiteRpc) TestDeployWalletWithValue() {
 	deployCode := types.BuildDeployPayload(walletCode, common.EmptyHash)
 
 	hash, address, err := s.client.DeployContract(
-		types.BaseShardId, types.MainWalletAddress, types.Code(deployCode), types.NewUint256(500_000), execution.MainPrivateKey,
+		types.BaseShardId, types.MainWalletAddress, deployCode, types.NewUint256(500_000), execution.MainPrivateKey,
 	)
 	s.Require().NoError(err)
 

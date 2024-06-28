@@ -40,7 +40,7 @@ func (suite *SuiteSendTransaction) SetupSuite() {
 	es, err := execution.NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
 	suite.Require().NoError(err)
 
-	suite.smcAddr = types.CreateAddress(shardId, []byte("1234"))
+	suite.smcAddr = types.CreateAddress(shardId, types.BuildDeployPayload([]byte("1234"), common.EmptyHash))
 	suite.Require().NotEqual(types.Address{}, suite.smcAddr)
 
 	suite.Require().NoError(es.CreateAccount(suite.smcAddr))
