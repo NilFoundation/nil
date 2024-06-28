@@ -492,7 +492,7 @@ func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount *types.Uin
 	// Make external message to the Faucet
 	faucetAbi, err := contracts.GetAbi("Faucet")
 	check.PanicIfErr(err)
-	calldata, err := faucetAbi.Pack("withdrawTo", contractAddress, big.NewInt(0).SetBytes(value.Int.Bytes()))
+	calldata, err := faucetAbi.Pack("withdrawTo", contractAddress, value.Int.ToBig())
 	if err != nil {
 		return common.EmptyHash, err
 	}

@@ -36,8 +36,4 @@ contract Faucet {
 
         return addr;
     }
-
-    function send(bytes calldata message) public payable {
-        Nil.sendMessage(gasleft(), message);
-    }
 }
