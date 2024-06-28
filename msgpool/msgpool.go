@@ -182,7 +182,7 @@ func (p *MsgPool) discardLocked(msg *types.Message, reason DiscardReason) {
 func (p *MsgPool) OnNewBlock(ctx context.Context, block *types.Block, committed []*types.Message) (err error) {
 	p.lock.Lock()
 	defer func() {
-		p.logger.Debug().
+		p.logger.Trace().
 			Int("committed", len(committed)).
 			Int("queued", p.queue.Size()).
 			Msg("New block")
