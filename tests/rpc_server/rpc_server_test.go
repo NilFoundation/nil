@@ -210,10 +210,21 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 		s.Require().NoError(err)
 		var callValue uint64 = 10_000_000
 
+		s.Run("FailedDeploy", func() {
+			// no account at address to pay for the message
+			hash, _, err := s.client.DeployExternal(shardId, types.BuildDeployPayload(calleeCode, common.EmptyHash))
+			s.Require().NoError(err)
+
+			receipt := s.waitForReceipt(shardId, hash)
+			s.False(receipt.Success)
+			s.True(receipt.Temporary)
+		})
+
 		var calleeAddr types.Address
 		s.Run("DeployCallee", func() {
 			// deploy callee contracts to different shards
 			calleeAddr, receipt = s.deployContractViaMainWallet(shardId, types.BuildDeployPayload(calleeCode, common.EmptyHash), types.NewUint256(defaultContractValue))
+			s.Require().True(receipt.Success)
 			s.Require().True(receipt.OutReceipts[0].Success)
 		})
 
@@ -302,7 +313,6 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.Require().NoError(err)
 			var bounceErr string
 			s.Require().NoError(callerAbi.UnpackIntoInterface(&bounceErr, getBounceErrName, hexutil.FromHex(res)))
-			s.T().Logf("Bounce error: %v", bounceErr)
 			s.Require().Equal(vm.ErrExecutionReverted.Error(), bounceErr)
 
 			waitTilBalanceAtLeast(prevBalance.Uint64()-callValue, nil)

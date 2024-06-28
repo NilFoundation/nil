@@ -93,6 +93,8 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 		return err
 	}
 
+	c.logger.Trace().Msgf("Collected %d in messages and %d out messages", len(c.inMsgs), len(c.outMsgs))
+
 	blockGenerator, err := execution.NewBlockGenerator(c.params, c.txOwner)
 	if err != nil {
 		return err
