@@ -1,4 +1,5 @@
 build
+vendor
 *.test
 tests/__debug*
 .idea
