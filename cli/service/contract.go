@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // GetCode retrieves the contract code at the given address
@@ -31,6 +32,20 @@ func (s *Service) GetBalance(contractAddress types.Address) (string, error) {
 
 	s.logger.Info().Msgf("Contract balance: %s", balance)
 	return balance.String(), nil
+}
+
+// GetInfo returns wallet's address and public key
+func (s *Service) GetInfo(address types.Address) (string, string, error) {
+	s.logger.Info().Msgf("Address: %s", address)
+
+	var pub string
+	if s.privateKey != nil {
+		pubBytes := crypto.CompressPubkey(&s.privateKey.PublicKey)
+		pub = hexutil.Encode(pubBytes)
+		s.logger.Info().Msgf("Public key: %s", pub)
+	}
+
+	return address.String(), pub, nil
 }
 
 // GetCurrencies retrieves the contract currencies at the given address

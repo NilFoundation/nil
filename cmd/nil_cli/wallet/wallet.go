@@ -13,6 +13,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 
 	serverCmd.AddCommand(BalanceCommand(cfg))
 	serverCmd.AddCommand(DeployCommand(cfg))
+	serverCmd.AddCommand(InfoCommand(cfg))
 	serverCmd.AddCommand(SendMessageCommand(cfg))
 	serverCmd.AddCommand(SendTokensCommand(cfg))
 	serverCmd.AddCommand(TopUpCommand(cfg))
