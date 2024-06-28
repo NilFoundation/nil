@@ -2,8 +2,9 @@ package execution
 
 import (
 	"context"
-	"math"
 	"math/big"
+	"math/rand"
+	"slices"
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
@@ -27,35 +28,49 @@ func deployContract(t *testing.T, contract *compiler.Contract, state *ExecutionS
 func TestOpcodes(t *testing.T) {
 	t.Parallel()
 
-	state := newState(t)
-
 	address := types.BytesToAddress([]byte("contract"))
 	address[1] = 1
 
-	require.NoError(t, state.CreateAccount(address))
-	require.NoError(t, state.SetCode(address, []byte{
-		byte(vm.GASPRICE),
-		byte(vm.NUMBER),
-		byte(vm.BLOCKHASH),
-		byte(vm.PUSH0),
-		byte(vm.BLOBHASH),
-		byte(vm.ADDRESS),
-		byte(vm.COINBASE),
-		byte(vm.TIMESTAMP),
-		byte(vm.ORIGIN),
-		byte(vm.PREVRANDAO),
-		byte(vm.GASLIMIT),
-		byte(vm.CALLER),
-		byte(vm.BASEFEE),
-		byte(vm.BLOBBASEFEE),
-		byte(vm.CHAINID),
+	codeTemplate := []byte{
+		byte(vm.PUSH1), 0, // retSize
+		byte(vm.PUSH1), 0, // retOffset
+		byte(vm.PUSH1), 0, // argSize
+		byte(vm.PUSH1), 0, // argOffset
+		byte(vm.PUSH1), 0, // value
+		byte(vm.PUSH32), // address
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+		byte(vm.GAS),
+		byte(vm.CALL),
 		byte(vm.STOP),
-	}))
+	}
 
-	require.NoError(t, state.newVm(true))
-	_, _, err := state.evm.Call(
-		vm.AccountRef(types.EmptyAddress), address, nil, math.MaxUint64, new(uint256.Int))
-	require.NoError(t, err)
+	// initialize a random generator with a fixed seed
+	// to make the test deterministic
+	rnd := rand.New(rand.NewSource(1543)) //nolint:gosec
+
+	for i := range 50 {
+		state := newState(t)
+		require.NoError(t, state.CreateAccount(address))
+		require.NoError(t, state.SetBalance(address, *uint256.NewInt(1_000_000_000)))
+		code := slices.Clone(codeTemplate)
+
+		for j := range 50 {
+			position := rnd.Int() % len(code)
+			code[position] = byte(rnd.Int() % 256)
+
+			require.NoError(t, state.SetCode(address, code))
+
+			require.NoError(t, state.newVm(true))
+			_, _, err := state.evm.Call(
+				vm.AccountRef(address), address, nil, 100000, new(uint256.Int))
+			if err != nil {
+				t.Log("error at iteration", i, j)
+			}
+		}
+		_, err := state.Commit(types.BlockNumber(i))
+		require.NoError(t, err)
+	}
 }
 
 func TestCall(t *testing.T) {
