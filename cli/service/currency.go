@@ -28,7 +28,7 @@ func (s *Service) CurrencyCreate(contractAddr types.Address, amount *big.Int, na
 	if err = s.handleCurrencyTx(txHash, contractAddr); err != nil {
 		return err
 	}
-	currencyId := types.NewCurrencyIdFromAddress(contractAddr)
+	currencyId := types.CurrencyIdForAddress(contractAddr)
 	s.logger.Info().Stringer(logging.FieldCurrencyId, common.BytesToHash(currencyId[:])).Msgf("Created %v", amount)
 	return nil
 }
@@ -43,7 +43,7 @@ func (s *Service) CurrencyWithdraw(contractAddr types.Address, amount *big.Int, 
 	if err = s.handleCurrencyTx(txHash, contractAddr); err != nil {
 		return err
 	}
-	currencyId := types.NewCurrencyIdFromAddress(contractAddr)
+	currencyId := types.CurrencyIdForAddress(contractAddr)
 	s.logger.Info().Stringer(logging.FieldCurrencyId, common.BytesToHash(currencyId[:])).Msgf("Transferred %v to %v", amount, toAddr)
 	return nil
 }
@@ -58,7 +58,7 @@ func (s *Service) CurrencyMint(contractAddr types.Address, amount *big.Int, with
 	if err = s.handleCurrencyTx(txHash, contractAddr); err != nil {
 		return err
 	}
-	currencyId := types.NewCurrencyIdFromAddress(contractAddr)
+	currencyId := types.CurrencyIdForAddress(contractAddr)
 	s.logger.Info().Stringer(logging.FieldCurrencyId, common.BytesToHash(currencyId[:])).Msgf("Minted %v", amount)
 	return nil
 }
