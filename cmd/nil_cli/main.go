@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -54,7 +55,7 @@ func main() {
 			PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 				// Set the config file for all commands because some commands can write something to it.
 				// E.g. "keygen" command writes a private key to the config file (and creates if it doesn't exist)
-				rootCmd.setConfigFile()
+				common.SetConfigFile(rootCmd.cfgFile)
 
 				if _, withoutConfig := noConfigCmd[cmd.Name()]; withoutConfig {
 					return nil
@@ -74,7 +75,7 @@ func main() {
 		},
 	}
 
-	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.cfgFile, "config", "c", "config.yaml", "Path to config file")
+	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.cfgFile, "config", "c", "", "Path to config file")
 	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.logLevel, "log-level", "l", "trace", "Log level: trace|debug|info|warn|error|fatal|panic")
 
 	rootCmd.registerSubCommands()
@@ -124,14 +125,26 @@ func updateDecoderConfig(config *mapstructure.DecoderConfig) {
 	)
 }
 
-// setConfigFile sets the config file for the viper
-func (rc *RootCommand) setConfigFile() {
-	viper.SetConfigFile(rc.cfgFile)
-}
-
 // loadConfig loads the configuration from the config file
 func (rc *RootCommand) loadConfig() error {
-	if err := viper.ReadInConfig(); err != nil {
+	err := viper.ReadInConfig()
+
+	// Create file on if doesn't exist
+	if errors.As(err, new(viper.ConfigFileNotFoundError)) {
+		logger.Info().Msg("Config file not found. Creating a new one...")
+
+		path, errCfg := common.InitDefaultConfig(rc.cfgFile)
+		if errCfg != nil {
+			logger.Error().Err(err).Msg("Failed to create config")
+			return err
+		}
+
+		logger.Info().Msgf("Config file created successfully at %s", path)
+		logger.Info().Msgf("set via `%s config set <option> <value>` or via config file", os.Args[0])
+		return err
+	}
+
+	if err != nil {
 		return fmt.Errorf("failed to read config file: %w", err)
 	}
 
@@ -146,6 +159,8 @@ func (rc *RootCommand) loadConfig() error {
 // validateConfig perform some simple configuration validation
 func (rc *RootCommand) validateConfig() error {
 	if rc.config.RPCEndpoint == "" {
+		logger.Info().Msg("RPCEndpoint is missed in config")
+		logger.Info().Msgf("set via `%s config set rpc_endpoint <endpoint>` or via config file", os.Args[0])
 		return fmt.Errorf("%q is missed in config", common.RPCEndpointField)
 	}
 	return nil
