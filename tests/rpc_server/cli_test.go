@@ -1,8 +1,12 @@
 package rpctest
 
 import (
+	"bytes"
 	"encoding/json"
 	"math/big"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 
 	"github.com/NilFoundation/nil/common"
@@ -10,6 +14,7 @@ import (
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"gopkg.in/yaml.v3"
 )
 
 func (s *SuiteRpc) toJSON(v interface{}) string {
@@ -215,4 +220,51 @@ func (s *SuiteRpc) TestCurrency() {
 	val, ok = cur[currencyId]
 	s.Require().True(ok)
 	s.Require().Equal(uint64(2*value), val.Uint64())
+}
+
+func (s *SuiteRpc) runCli(args ...string) string {
+	s.T().Helper()
+
+	mainPath, err := filepath.Abs("../../cmd/nil_cli/main.go")
+	s.Require().NoError(err)
+
+	args = append([]string{"run", mainPath}, args...)
+	cmd := exec.Command("go", args...)
+
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	err = cmd.Run()
+	s.Require().NoError(err)
+	return out.String()
+}
+
+func (s *SuiteRpc) TestCallCliHelp() {
+	res := s.runCli("help")
+
+	for _, cmd := range []string{"block", "message", "contract", "wallet", "completion"} {
+		s.Contains(res, cmd)
+	}
+}
+
+func (s *SuiteRpc) TestCallCliBasic() {
+	data := map[string]string{
+		"rpc_endpoint": s.endpoint,
+	}
+
+	cfgPath := s.T().TempDir() + "/config.yaml"
+
+	yamlData, err := yaml.Marshal(&data)
+	s.Require().NoError(err)
+
+	err = os.WriteFile(cfgPath, yamlData, 0o600)
+	s.Require().NoError(err)
+
+	block, err := s.client.GetBlock(types.BaseShardId, "latest", false)
+	s.Require().NoError(err)
+
+	res := s.runCli("-c", cfgPath, "block", block.Number.String())
+	s.Contains(res, block.Number.String())
+	s.Contains(res, block.Hash.String())
 }
