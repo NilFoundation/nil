@@ -147,7 +147,11 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 
 		seqno, err := es.GetSeqno(addrWallet)
 		suite.Require().NoError(err)
-		suite.EqualValues(2, seqno)
+		suite.EqualValues(1, seqno)
+
+		extSeqno, err := es.GetExtSeqno(addrWallet)
+		suite.Require().NoError(err)
+		suite.EqualValues(1, extSeqno)
 	})
 }
 

@@ -78,6 +78,10 @@ type (
 		account *types.Address
 		prev    types.Seqno
 	}
+	extSeqnoChange struct {
+		account *types.Address
+		prev    types.Seqno
+	}
 	storageChange struct {
 		account   *types.Address
 		key       common.Hash
@@ -148,7 +152,15 @@ func (ch seqnoChange) revert(s *ExecutionState) {
 	account, err := s.GetAccount(*ch.account)
 	check.PanicIfErr(err)
 	if account != nil {
-		account.setSeqno(ch.prev)
+		account.Seqno = ch.prev
+	}
+}
+
+func (ch extSeqnoChange) revert(s *ExecutionState) {
+	account, err := s.GetAccount(*ch.account)
+	check.PanicIfErr(err)
+	if account != nil {
+		account.ExtSeqno = ch.prev
 	}
 }
 

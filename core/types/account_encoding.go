@@ -39,7 +39,10 @@ func (s *SmartContract) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 	// Field (6) 'Seqno'
 	dst = ssz.MarshalUint64(dst, uint64(s.Seqno))
 
-	// Field (7) 'PublicKey'
+	// Field (7) 'ExtSeqno'
+	dst = ssz.MarshalUint64(dst, uint64(s.ExtSeqno))
+
+	// Field (8) 'PublicKey'
 	dst = append(dst, s.PublicKey[:]...)
 
 	return
@@ -49,7 +52,7 @@ func (s *SmartContract) MarshalSSZTo(buf []byte) (dst []byte, err error) {
 func (s *SmartContract) UnmarshalSSZ(buf []byte) error {
 	var err error
 	size := uint64(len(buf))
-	if size != 190 {
+	if size != 198 {
 		return ssz.ErrSize
 	}
 
@@ -76,15 +79,18 @@ func (s *SmartContract) UnmarshalSSZ(buf []byte) error {
 	// Field (6) 'Seqno'
 	s.Seqno = Seqno(ssz.UnmarshallUint64(buf[149:157]))
 
-	// Field (7) 'PublicKey'
-	copy(s.PublicKey[:], buf[157:190])
+	// Field (7) 'ExtSeqno'
+	s.ExtSeqno = Seqno(ssz.UnmarshallUint64(buf[157:165]))
+
+	// Field (8) 'PublicKey'
+	copy(s.PublicKey[:], buf[165:198])
 
 	return err
 }
 
 // SizeSSZ returns the ssz encoded size in bytes for the SmartContract object
 func (s *SmartContract) SizeSSZ() (size int) {
-	size = 190
+	size = 198
 	return
 }
 
@@ -120,7 +126,10 @@ func (s *SmartContract) HashTreeRootWith(hh ssz.HashWalker) (err error) {
 	// Field (6) 'Seqno'
 	hh.PutUint64(uint64(s.Seqno))
 
-	// Field (7) 'PublicKey'
+	// Field (7) 'ExtSeqno'
+	hh.PutUint64(uint64(s.ExtSeqno))
+
+	// Field (8) 'PublicKey'
 	hh.PutBytes(s.PublicKey[:])
 
 	hh.Merkleize(indx)

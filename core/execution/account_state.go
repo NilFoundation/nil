@@ -20,6 +20,7 @@ type AccountState struct {
 	Code         types.Code
 	CodeHash     common.Hash
 	Seqno        types.Seqno
+	ExtSeqno     types.Seqno
 	StorageTree  *StorageTrie
 	CurrencyTree *CurrencyTrie
 
@@ -126,11 +127,15 @@ func (as *AccountState) SetSeqno(seqno types.Seqno) {
 		account: &as.address,
 		prev:    as.Seqno,
 	})
-	as.setSeqno(seqno)
+	as.Seqno = seqno
 }
 
-func (as *AccountState) setSeqno(seqno types.Seqno) {
-	as.Seqno = seqno
+func (as *AccountState) SetExtSeqno(seqno types.Seqno) {
+	as.db.journal.append(extSeqnoChange{
+		account: &as.address,
+		prev:    as.ExtSeqno,
+	})
+	as.ExtSeqno = seqno
 }
 
 func (as *AccountState) SetCode(codeHash common.Hash, code []byte) {
@@ -198,6 +203,7 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 		StorageRoot:  as.StorageTree.RootHash(),
 		CurrencyRoot: as.CurrencyTree.RootHash(),
 		CodeHash:     as.CodeHash,
+		ExtSeqno:     as.ExtSeqno,
 		Seqno:        as.Seqno,
 	}
 

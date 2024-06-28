@@ -49,7 +49,7 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	suite.Require().NoError(es.SetCode(suite.smcAddr, []byte("some code")))
 
 	suite.Require().NoError(es.SetBalance(suite.smcAddr, *uint256.NewInt(1234)))
-	suite.Require().NoError(es.SetSeqno(suite.smcAddr, 567))
+	suite.Require().NoError(es.SetExtSeqno(suite.smcAddr, 567))
 
 	blockHash, err := es.Commit(0)
 	suite.Require().NoError(err)

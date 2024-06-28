@@ -126,7 +126,7 @@ func (api *APIImpl) GetTransactionCount(ctx context.Context, address types.Addre
 
 		return nil, err
 	}
-	return (*hexutil.Uint64)(&acc.Seqno), nil
+	return (*hexutil.Uint64)(&acc.ExtSeqno), nil
 }
 
 // GetCode implements eth_getCode. Returns the byte code at a given address (if it's a smart contract).

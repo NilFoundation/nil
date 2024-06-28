@@ -115,6 +115,7 @@ func NewAccountState(es *ExecutionState, addr types.Address, tx db.RwTx, account
 		StorageTree:  root,
 		CodeHash:     account.CodeHash,
 		Code:         code,
+		ExtSeqno:     account.ExtSeqno,
 		Seqno:        account.Seqno,
 		State:        make(Storage),
 	}, nil
@@ -421,7 +422,7 @@ func (es *ExecutionState) SetInitState(addr types.Address, message *types.Messag
 	if err != nil {
 		return err
 	}
-	acc.setSeqno(message.Seqno)
+	acc.Seqno = message.Seqno
 
 	if err := es.newVm(message.Internal); err != nil {
 		return err
@@ -484,6 +485,14 @@ func (es *ExecutionState) GetSeqno(addr types.Address) (types.Seqno, error) {
 	return acc.Seqno, nil
 }
 
+func (es *ExecutionState) GetExtSeqno(addr types.Address) (types.Seqno, error) {
+	acc, err := es.GetAccount(addr)
+	if err != nil || acc == nil {
+		return 0, err
+	}
+	return acc.ExtSeqno, nil
+}
+
 func (es *ExecutionState) getOrNewAccount(addr types.Address) (*AccountState, error) {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
@@ -510,6 +519,15 @@ func (es *ExecutionState) SetSeqno(addr types.Address, seqno types.Seqno) error 
 		return err
 	}
 	acc.SetSeqno(seqno)
+	return nil
+}
+
+func (es *ExecutionState) SetExtSeqno(addr types.Address, seqno types.Seqno) error {
+	acc, err := es.getOrNewAccount(addr)
+	if err != nil {
+		return err
+	}
+	acc.SetExtSeqno(seqno)
 	return nil
 }
 
@@ -729,11 +747,11 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	}
 
 	if !message.Internal {
-		seqno, err := es.GetSeqno(addr)
+		seqno, err := es.GetExtSeqno(addr)
 		if err != nil {
 			return gas, nil, err
 		}
-		if err := es.SetSeqno(addr, seqno+1); err != nil {
+		if err := es.SetExtSeqno(addr, seqno+1); err != nil {
 			return gas, nil, err
 		}
 	}
