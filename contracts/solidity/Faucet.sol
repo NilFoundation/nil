@@ -5,6 +5,54 @@ import "./Nil.sol";
 import "./Wallet.sol";
 
 contract Faucet {
+    uint256 private constant WITHDRAW_PER_TIMEOUT_LIMIT = 10**16;
+    uint256 private constant TIMEOUT = 1000; // 900s == 15min
+
+    struct LimitInfo {
+        uint prevT;
+        uint prevLimit;
+    }
+    mapping(address => LimitInfo) private limits;
+
+//         Limit
+//           ^
+//           |
+// max_limit +---------+  +----+        +----+     +---
+//           |         | /     |       /     |    /
+//           |         |/      |      /      |   /
+//           |                 |  /| /       |  /
+//           |                 | / |/        | /
+//           |                 |/            |/
+//           +-------------------------------+-----+---> Time
+//                                              ^
+//                                           timeout
+//
+//           k = max_limit / timeout
+//           current_limit = min(prev_limit + delta_t * k, max_limit)
+    function acquire(address addr, uint256 value) private returns (uint256) {
+        LimitInfo memory limitInfo = limits[addr];
+
+        uint256 currentT = block.timestamp;
+        uint256 currentLimit;
+        if (limitInfo.prevT == 0) {
+            currentLimit = WITHDRAW_PER_TIMEOUT_LIMIT;
+        } else {
+            uint256 deltaT = currentT - limitInfo.prevT;
+            currentLimit = limitInfo.prevLimit + (WITHDRAW_PER_TIMEOUT_LIMIT / TIMEOUT) * deltaT;
+            if (currentLimit > WITHDRAW_PER_TIMEOUT_LIMIT) {
+                currentLimit = WITHDRAW_PER_TIMEOUT_LIMIT;
+            }
+        }
+        uint256 acquired = value;
+        if (value > currentLimit) {
+            acquired = currentLimit;
+        }
+
+        limits[addr] = LimitInfo(currentT, currentLimit - acquired);
+
+        return acquired;
+    }
+
     event Deploy(address addr);
     event Send(address addr, uint256 value);
 
@@ -13,6 +61,8 @@ contract Faucet {
     }
 
     function withdrawTo(address payable addr, uint256 value) public {
+        value = acquire(addr, value);
+
         bytes memory callData;
         uint gasLimit = 100_000;
         uint gasPrice = 10;
