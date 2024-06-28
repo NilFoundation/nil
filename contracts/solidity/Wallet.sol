@@ -10,6 +10,8 @@ contract Wallet is NilCurrencyBase {
 
     receive() external payable {}
 
+    function bounce(string calldata err) external payable {}
+
     constructor(bytes memory _pubkey) payable {
         pubkey = _pubkey;
     }
