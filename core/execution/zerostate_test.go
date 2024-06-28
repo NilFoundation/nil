@@ -72,18 +72,24 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 	calldata, err := suite.faucetABI.Pack("withdrawTo", receiverAddr, big.NewInt(100))
 	suite.Require().NoError(err)
 
+	gasLimit := uint64(100_000)
+	gasPrice := uint64(10)
 	callMessage := &types.Message{
 		Data:     calldata,
 		From:     suite.faucetAddr,
 		To:       suite.faucetAddr,
-		GasLimit: *types.NewUint256(100_000),
+		GasLimit: *types.NewUint256(gasLimit),
 	}
 	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, callMessage)
 	suite.Require().NoError(err)
 
 	outMsgHash, ok := reflect.ValueOf(suite.state.OutMessages).MapKeys()[0].Interface().(common.Hash)
 	suite.Require().True(ok)
-	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, suite.state.OutMessages[outMsgHash][0])
+	outMsg := suite.state.OutMessages[outMsgHash][0]
+	suite.Require().NotNil(outMsg)
+	// buy gas
+	outMsg.Value.Sub(&outMsg.Value.Int, uint256.NewInt(gasLimit*gasPrice))
+	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, outMsg)
 	suite.Require().NoError(err)
 
 	faucetBalance.SubUint64(&faucetBalance, 100)

@@ -14,13 +14,15 @@ contract Faucet {
 
     function withdrawTo(address payable addr, uint256 value) public {
         bytes memory callData;
+        uint gasLimit = 100_000;
+        uint gasPrice = 10;
         Nil.asyncCall(
             addr,
             address(this) /* refundTo */,
             address(this) /* bounceTo */,
-            100_000,
+            gasLimit,
             false /* deploy */,
-            value,
+            value + gasLimit * gasPrice,
             callData);
         emit Send(addr, value);
     }

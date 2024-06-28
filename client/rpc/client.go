@@ -479,20 +479,9 @@ func (c *Client) sendExternalMessage(
 }
 
 func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount *types.Uint256) (common.Hash, error) {
-	// unused gas will be refunded to the Faucet
-	gasLimit := *types.NewUint256(100_000) // The amount of gas we buy in withdrawTo
-	value := *amount
-	gasPrice, err := c.GasPrice(contractAddress.ShardId())
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	value.Add(&value.Int, types.NewUint256(0).Mul(&gasLimit.Int, &gasPrice.Int))
-
-	// Make external message to the Faucet
 	faucetAbi, err := contracts.GetAbi("Faucet")
 	check.PanicIfErr(err)
-	calldata, err := faucetAbi.Pack("withdrawTo", contractAddress, value.Int.ToBig())
+	calldata, err := faucetAbi.Pack("withdrawTo", contractAddress, amount.Int.ToBig())
 	if err != nil {
 		return common.EmptyHash, err
 	}
