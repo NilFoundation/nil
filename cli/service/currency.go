@@ -29,7 +29,7 @@ func (s *Service) CurrencyCreate(contractAddr types.Address, amount *big.Int, na
 		return err
 	}
 	currencyId := types.CurrencyIdForAddress(contractAddr)
-	s.logger.Info().Stringer(logging.FieldCurrencyId, common.BytesToHash(currencyId[:])).Msgf("Created %v", amount)
+	s.logger.Info().Stringer(logging.FieldCurrencyId, common.BytesToHash(currencyId[:])).Msgf("Created %v:%v", name, amount)
 	return nil
 }
 

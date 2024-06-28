@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -190,4 +191,28 @@ func (s *SuiteRpc) TestSendExternalMessage() {
 	res, err = s.cli.CallContract(addr, types.NewUint256(100000), getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x000000000000000000000000000000000000000000000000000000000000007d", res)
+}
+
+func (s *SuiteRpc) TestCurrency() {
+	wallet := types.MainWalletAddress
+	value := int64(12345)
+	s.Require().NoError(s.cli.CurrencyCreate(wallet, big.NewInt(value), "token1", true))
+	cur, err := s.cli.GetCurrencies(wallet)
+	s.Require().NoError(err)
+	s.Require().Len(cur, 1)
+
+	currencyId := hexutil.ToHexNoLeadingZeroes(types.CurrencyIdForAddress(wallet)[:])
+	val, ok := cur[currencyId]
+	s.Require().True(ok)
+	s.Require().Equal(uint64(value), val.Uint64())
+
+	s.Require().NoError(s.cli.CurrencyMint(wallet, big.NewInt(value), false))
+	s.Require().NoError(s.cli.CurrencyWithdraw(wallet, big.NewInt(value), wallet))
+	cur, err = s.cli.GetCurrencies(wallet)
+	s.Require().NoError(err)
+	s.Require().Len(cur, 1)
+
+	val, ok = cur[currencyId]
+	s.Require().True(ok)
+	s.Require().Equal(uint64(2*value), val.Uint64())
 }

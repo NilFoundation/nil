@@ -37,7 +37,7 @@ func runWithdrawCurrency(_ *cobra.Command, args []string, cfg *common.Config) er
 	}
 
 	var to types.Address
-	if err := address.Set(args[0]); err != nil {
+	if err := to.Set(args[2]); err != nil {
 		return err
 	}
 

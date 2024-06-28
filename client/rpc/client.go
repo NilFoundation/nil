@@ -522,7 +522,7 @@ func (c *Client) CurrencyWithdraw(contractAddr types.Address, amount *big.Int, t
 		return common.EmptyHash, err
 	}
 
-	data, err := abiCurrency.Pack("transferToken", amount, toAddr)
+	data, err := abiCurrency.Pack("withdrawToken", amount, toAddr)
 	if err != nil {
 		return common.EmptyHash, err
 	}
