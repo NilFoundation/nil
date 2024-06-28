@@ -16,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/core/vm"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/tools/solc"
@@ -189,11 +190,25 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 	callerAddr, receipt := s.deployContractViaMainWallet(types.MasterShardId, types.BuildDeployPayload(callerCode, common.EmptyHash), types.NewUint256(defaultContractValue))
 	s.Require().True(receipt.OutReceipts[0].Success)
 
+	waitTilBalanceAtLeast := func(balance uint64, saveTo *types.Uint256) {
+		s.T().Helper()
+
+		s.Require().Eventually(func() bool {
+			curBalance, err := s.client.GetBalance(callerAddr, transport.LatestBlockNumber)
+			s.Require().NoError(err)
+			if saveTo != nil {
+				*saveTo = *curBalance
+			}
+			return curBalance.Uint64() > balance
+		}, time.Minute, 200*time.Millisecond)
+	}
+
 	checkForShard := func(shardId types.ShardId) {
 		s.T().Helper()
 
 		prevBalance, err := s.client.GetBalance(callerAddr, transport.LatestBlockNumber)
 		s.Require().NoError(err)
+		var callValue uint64 = 10_000_000
 
 		var calleeAddr types.Address
 		s.Run("DeployCallee", func() {
@@ -214,7 +229,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 				To:       calleeAddr,
 				RefundTo: callerAddr,
 				BounceTo: callerAddr,
-				Value:    *types.NewUint256(10_000_000),
+				Value:    *types.NewUint256(callValue),
 				GasLimit: *types.NewUint256(100_004),
 			}
 			callData, err = messageToSend.MarshalSSZ()
@@ -252,6 +267,9 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.Require().NoError(err)
 			s.Require().Greater(prevBalance.Uint64(), balance.Uint64())
 			s.T().Logf("Spent %v nil", prevBalance.Uint64()-balance.Uint64())
+
+			// we should get some non-zero refund
+			waitTilBalanceAtLeast(prevBalance.Uint64()-callValue, prevBalance)
 		})
 
 		s.Run("GenerateCallDataBounce", func() {
@@ -280,11 +298,14 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 				Seqno:    &seqno,
 			}
 			res, err := s.client.Call(callArgs)
+			s.T().Logf("Call res : %v, err: %v", res, err)
 			s.Require().NoError(err)
 			var bounceErr string
 			s.Require().NoError(callerAbi.UnpackIntoInterface(&bounceErr, getBounceErrName, hexutil.FromHex(res)))
 			s.T().Logf("Bounce error: %v", bounceErr)
-			s.Require().Equal("execution reverted", bounceErr)
+			s.Require().Equal(vm.ErrExecutionReverted.Error(), bounceErr)
+
+			waitTilBalanceAtLeast(prevBalance.Uint64()-callValue, nil)
 		})
 	}
 
