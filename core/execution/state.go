@@ -9,7 +9,6 @@ import (
 	"sort"
 
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/db"
@@ -526,7 +525,9 @@ func (es *ExecutionState) CreateAccount(addr types.Address) error {
 }
 
 func (es *ExecutionState) createAccount(addr types.Address) (*AccountState, error) {
-	check.PanicIfNotf(addr.ShardId() == es.ShardId, "Attempt to create account %v from %v shard on %v shard", addr, addr.ShardId(), es.ShardId)
+	if addr.ShardId() != es.ShardId {
+		return nil, fmt.Errorf("Attempt to create account %v from %v shard on %v shard", addr, addr.ShardId(), es.ShardId)
+	}
 	acc, err := es.GetAccount(addr)
 	if err != nil {
 		return nil, err
