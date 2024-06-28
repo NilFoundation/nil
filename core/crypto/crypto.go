@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 
 	"github.com/NilFoundation/nil/common/hexutil"
-	"github.com/btcsuite/btcd/btcec/v2"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 )
@@ -19,7 +18,7 @@ func PrivateKeyToEthereumFormat(priv *ecdsa.PrivateKey) string {
 }
 
 func GenerateKeyPair() (*ecdsa.PrivateKey, []byte, error) {
-	privateKey, err := ecdsa.GenerateKey(btcec.S256(), rand.Reader)
+	privateKey, err := ecdsa.GenerateKey(gethcrypto.S256(), rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
