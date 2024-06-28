@@ -16,6 +16,7 @@ func CreateCurrencyCommand(cfg *common.Config) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreateCurrency(cmd, args, cfg)
 		},
+		SilenceUsage: true,
 	}
 
 	cmd.Flags().BoolVar(&params.withdraw, withdrawFlag, false, "Withdraw created currency to the wallet/contract")

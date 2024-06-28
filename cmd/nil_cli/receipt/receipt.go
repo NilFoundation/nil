@@ -14,11 +14,11 @@ var logger = logging.NewLogger("receiptCommand")
 
 func GetCommand(cfg *common.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
-		Use:     "receipt",
-		Short:   "Retrieve a receipt from the cluster",
-		PreRunE: runPreRun,
-		Run: func(cmd *cobra.Command, args []string) {
-			runCommand(cmd, args, cfg.RPCEndpoint)
+		Use:   "receipt [hash]",
+		Short: "Retrieve a receipt from the cluster",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runCommand(cmd, args, cfg.RPCEndpoint)
 		},
 		SilenceUsage: true,
 	}
@@ -30,27 +30,27 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 
 func setFlags(cmd *cobra.Command) {
 	cmd.Flags().Var(
-		&params.hash,
-		hashFlag,
-		"Retrieve receipt by receipt hash from the cluster",
-	)
-
-	cmd.Flags().Var(
 		types.NewShardId(&params.shardId, types.BaseShardId),
 		shardIdFlag,
 		"Specify the shard id to interact with",
 	)
 }
 
-func runCommand(_ *cobra.Command, _ []string, rpcEndpoint string) {
+func runCommand(_ *cobra.Command, args []string, rpcEndpoint string) error {
 	client := rpc.NewClient(rpcEndpoint)
 	service := service.NewService(client, nil)
-	if params.hash != libcommon.EmptyHash {
-		_, err := service.FetchReceiptByHash(params.shardId, params.hash)
+
+	var hash libcommon.Hash
+	if err := hash.Set(args[0]); err != nil {
+		return err
+	}
+
+	if hash != libcommon.EmptyHash {
+		_, err := service.FetchReceiptByHash(params.shardId, hash)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to fetch receipt")
+			return err
 		}
 	}
+	return nil
 }
-
-func runPreRun(cmd *cobra.Command, _ []string) error { return params.initRawParams() }
