@@ -52,8 +52,6 @@ func setFlags(cmd *cobra.Command) {
 }
 
 func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
-	logger.Info().Msgf("RPC Endpoint: %s", cfg.RPCEndpoint)
-
 	amount := &params.amount
 	if amount.Cmp(&defaultNewWalletAmount.Int) > 0 {
 		logger.Warn().
