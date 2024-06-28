@@ -74,7 +74,7 @@ func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
 	}
 
 	if err := common.PatchConfig(map[string]interface{}{
-		common.WalletField: walletAddress.Hex(),
+		common.AddressField: walletAddress.Hex(),
 	}, false); err != nil {
 		logger.Error().Err(err).Msg("failed to update wallet address in config file")
 	}
