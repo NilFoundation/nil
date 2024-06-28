@@ -46,6 +46,7 @@ const (
 	Eth_getCurrencies                    = "eth_getCurrencies"
 	Eth_getShardIdList                   = "eth_getShardIdList"
 	Eth_gasPrice                         = "eth_gasPrice"
+	Eth_chainId                          = "eth_chainId"
 )
 
 type Client struct {
@@ -341,6 +342,20 @@ func (c *Client) GasPrice(shardId types.ShardId) (*types.Uint256, error) {
 
 	err = gasPrice.UnmarshalJSON(res)
 	return gasPrice, err
+}
+
+func (c *Client) ChainId() (types.ChainId, error) {
+	params := []any{}
+	res, err := c.call(Eth_chainId, params)
+	if err != nil {
+		return types.ChainId(0), err
+	}
+
+	val, err := toUint64(res)
+	if err != nil {
+		return types.ChainId(0), err
+	}
+	return types.ChainId(val), err
 }
 
 func (c *Client) GetShardIdList() ([]types.ShardId, error) {

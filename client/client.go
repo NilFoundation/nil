@@ -31,6 +31,7 @@ type Client interface {
 	GetBalance(address types.Address, blockId any) (*types.Uint256, error)
 	GetShardIdList() ([]types.ShardId, error)
 	GasPrice(shardId types.ShardId) (*types.Uint256, error)
+	ChainId() (types.ChainId, error)
 
 	DeployContract(
 		shardId types.ShardId, walletAddress types.Address, payload types.DeployPayload, value *types.Uint256, pk *ecdsa.PrivateKey,
