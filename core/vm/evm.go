@@ -463,7 +463,7 @@ func (evm *EVM) Deploy(addr types.Address, caller ContractRef, code []byte, gas 
 // Create creates a new contract using code as deployment code.
 func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *uint256.Int) (ret []byte, contractAddr types.Address, leftOverGas uint64, err error) {
 	payload := types.BuildDeployPayload(code, common.EmptyHash)
-	contractAddr = types.CreateAddress(evm.Origin.ShardId(), payload)
+	contractAddr = types.CreateAddress(caller.Address().ShardId(), payload)
 	return evm.create(caller, code, gas, value, contractAddr)
 }
 

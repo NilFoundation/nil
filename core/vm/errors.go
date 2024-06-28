@@ -47,6 +47,7 @@ var (
 	ErrNonceUintOverflow        = VMError{"nonce uint64 overflow"}
 
 	ErrInvalidInputLength = VMError{"invalid input length"}
+	ErrCrossShardMessage  = VMError{"invalid cross shard message"}
 
 	// errStopToken is an internal token indicating interpreter loop termination,
 	// never returned to outside callers.
