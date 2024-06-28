@@ -43,6 +43,10 @@ contract TokensTest is NilBase {
         }
     }
 
+    function receiveTokens(bool fail) payable public {
+        require(!fail, "Test for failed transaction");
+    }
+
     function verifyExternal(uint256, bytes calldata) external pure returns (bool) {
         return true;
     }

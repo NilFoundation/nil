@@ -28,6 +28,8 @@ type SuiteMultiCurrencyRpc struct {
 	testAddress1_1 types.Address
 	abiMinter      *abi.ABI
 	abiTest        *abi.ABI
+	abiWallet      *abi.ABI
+	zerostateCfg   string
 }
 
 func (s *SuiteMultiCurrencyRpc) SetupSuite() {
@@ -80,7 +82,7 @@ contracts:
   value: 100000000000000
   contract: tests/TokensTest
 `
-	zerostate, err := common.ParseTemplate(zerostateTmpl, map[string]interface{}{
+	s.zerostateCfg, err = common.ParseTemplate(zerostateTmpl, map[string]interface{}{
 		"MinterAddress":        types.MinterAddress.Hex(),
 		"MainPublicKey":        hexutil.Encode(execution.MainPublicKey),
 		"TestAddress1":         s.walletAddress1.Hex(),
@@ -94,20 +96,29 @@ contracts:
 	s.abiMinter, err = contracts.GetAbi("Minter")
 	s.Require().NoError(err)
 
-	s.abiTest, err = contracts.GetAbi("tests/TokensTest")
+	s.abiWallet, err = contracts.GetAbi("Wallet")
 	s.Require().NoError(err)
 
+	s.abiTest, err = contracts.GetAbi("tests/TokensTest")
+	s.Require().NoError(err)
+}
+
+func (s *SuiteMultiCurrencyRpc) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards:              s.shardsNum,
 		HttpPort:             8534,
 		Topology:             collate.TrivialShardTopologyId,
-		ZeroState:            zerostate,
+		ZeroState:            s.zerostateCfg,
 		CollatorTickPeriodMs: 100,
 		GracefulShutdown:     false,
 		GasPriceScale:        0,
 		GasBasePrice:         10,
 	})
 	s.waitZerostate()
+}
+
+func (s *SuiteMultiCurrencyRpc) TearDownTest() {
+	s.cancel()
 }
 
 // This test seems to quite big and complex, but there is no obvious way how to split it.
@@ -351,8 +362,8 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 	///////////////////////////////////////////////////////////////////////////
 	// Create tokens for test addresses
-	s.createCurrency(currencyTest1, big.NewInt(1_000_000), "testToken1")
-	s.createCurrency(currencyTest2, big.NewInt(2_000_000), "testToken2")
+	s.createCurrencyForTestContract(currencyTest1, big.NewInt(1_000_000), "testToken1")
+	s.createCurrencyForTestContract(currencyTest2, big.NewInt(2_000_000), "testToken2")
 
 	///////////////////////////////////////////////////////////////////////////
 	// Call testCallWithTokensSync of testAddress1_0, which should call method of testAddress1_1
@@ -507,6 +518,39 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	s.Require().Equal(types.NewUint256(amountTest1-5000), currencies[currencyTest1.idStr])
 }
 
+func (s *SuiteMultiCurrencyRpc) TestBounce() {
+	var (
+		data       []byte
+		currencies types.CurrenciesMap
+		receipt    *jsonrpc.RPCReceipt
+		err        error
+	)
+
+	currencyWallet1 := CreateTokenId(&s.walletAddress1)
+
+	s.createCurrencyForWallet(currencyWallet1, big.NewInt(1_000_000), "wallet1")
+
+	data, err = s.abiTest.Pack("receiveTokens", true)
+	s.Require().NoError(err)
+
+	receipt = s.sendMessageViaWalletNoCheck(s.walletAddress1, s.testAddress1_0, execution.MainPrivateKey, data,
+		uint256.NewInt(100_000), uint256.NewInt(2_000_000),
+		[]types.CurrencyBalance{{Currency: *currencyWallet1.id, Balance: *types.NewUint256(100)}})
+	s.Require().True(receipt.Success)
+	s.Require().Len(receipt.OutReceipts, 1)
+	s.Require().False(receipt.OutReceipts[0].Success)
+
+	// Check that nothing credited tp destination account
+	currencies, err = s.client.GetCurrencies(s.testAddress1_0, "latest")
+	s.Require().NoError(err)
+	s.Require().Equal(uint256.NewInt(0), &currencies[currencyWallet1.idStr].Int)
+
+	// Check that currency wasn't changed
+	currencies, err = s.client.GetCurrencies(s.walletAddress1, "latest")
+	s.Require().NoError(err)
+	s.Require().Equal(uint256.NewInt(1_000_000), &currencies[currencyWallet1.idStr].Int)
+}
+
 func (s *SuiteMultiCurrencyRpc) getCurrencyBalance(address *types.Address, currency *CurrencyId) uint64 {
 	s.T().Helper()
 
@@ -515,7 +559,7 @@ func (s *SuiteMultiCurrencyRpc) getCurrencyBalance(address *types.Address, curre
 	return currencies[currency.idStr].Uint64()
 }
 
-func (s *SuiteMultiCurrencyRpc) createCurrency(currency *CurrencyId, amount *big.Int, name string) {
+func (s *SuiteMultiCurrencyRpc) createCurrencyForTestContract(currency *CurrencyId, amount *big.Int, name string) {
 	s.T().Helper()
 
 	data, err := s.abiTest.Pack("createToken", amount, name)
@@ -535,6 +579,22 @@ func (s *SuiteMultiCurrencyRpc) createCurrency(currency *CurrencyId, amount *big
 	s.Require().Equal(&types.Uint256{Int: *v}, currencies[currency.idStr])
 }
 
+func (s *SuiteMultiCurrencyRpc) createCurrencyForWallet(currency *CurrencyId, amount *big.Int, name string) {
+	s.T().Helper()
+
+	data, err := s.abiWallet.Pack("createToken", amount, name, true)
+	s.Require().NoError(err)
+
+	receipt := s.sendExternalMessage(data, *currency.address)
+	s.Require().True(receipt.Success)
+	s.Require().True(receipt.OutReceipts[0].Success)
+
+	// Check currency is created and balance is correct
+	currencies, err := s.client.GetCurrencies(*currency.address, "latest")
+	s.Require().NoError(err)
+	s.Require().Equal(amount, currencies[currency.idStr].ToBig())
+}
+
 type CurrencyId struct {
 	address *types.Address
 	id      *types.CurrencyId
@@ -551,8 +611,6 @@ func CreateTokenId(address *types.Address) *CurrencyId {
 	}
 }
 
-func TestMultiCurrencyRpc(t *testing.T) {
-	t.Parallel()
-
+func TestMultiCurrencyRpc(t *testing.T) { //nolint
 	suite.Run(t, new(SuiteMultiCurrencyRpc))
 }

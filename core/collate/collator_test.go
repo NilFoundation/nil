@@ -59,7 +59,7 @@ func (s *CollatorTestSuite) TestCollator() {
 
 	s.Run("Deploy", func() {
 		m := execution.NewDeployMessage(contracts.CounterDeployPayload(s.T()), shardId, to, 0)
-		m.Internal = false
+		m.Flags.ClearBit(types.MessageFlagInternal)
 		s.Equal(to, m.To)
 		GenerateBlockWithMessages(s.T(), s.ctx, shardId, nShards, s.db, m)
 		s.checkReceipt(shardId, m)

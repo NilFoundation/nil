@@ -27,8 +27,7 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Byte
 	}
 
 	msg2 := types.Message{
-		Internal:  false,
-		Kind:      msg.Kind,
+		Flags:     types.MessageFlagsFromKind(false, msg.Kind),
 		To:        msg.To,
 		From:      msg.To,
 		ChainId:   msg.ChainId,

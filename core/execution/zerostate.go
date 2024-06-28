@@ -181,9 +181,9 @@ func (es *ExecutionState) GenerateZeroState(configYaml string) error {
 		code = append(code, argsPacked...)
 
 		mainDeployMsg := &types.Message{
-			Internal: true,
-			Seqno:    0,
-			Data:     code,
+			Flags: types.NewMessageFlags(types.MessageFlagInternal),
+			Seqno: 0,
+			Data:  code,
 		}
 
 		if err := es.CreateAccount(addr); err != nil {

@@ -18,11 +18,12 @@ require (
 	github.com/consensys/gnark-crypto v0.12.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/spf13/cobra v1.8.1
+	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
 )
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.24.0
-	github.com/NilFoundation/fastssz v0.1.5-0.20240619161128-4843cd9de1bb
+	github.com/NilFoundation/fastssz v0.1.5-0.20240630083434-05d4f4772360
 	github.com/btcsuite/btcd/btcec/v2 v2.3.3 // indirect
 	github.com/ethereum/go-ethereum v1.14.5
 	github.com/hashicorp/golang-lru/v2 v2.0.7
@@ -73,7 +74,6 @@ require (
 	go.opentelemetry.io/otel v1.26.0 // indirect
 	go.opentelemetry.io/otel/trace v1.26.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect

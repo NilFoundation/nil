@@ -185,6 +185,14 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 
 			gas = 0
 		}
+		message := evm.StateDB.GetInMessage()
+		if message != nil && message.IsBounce() {
+			// Re-transfer value and currency in case of bounce message.
+			evm.currencyTransfer = message.Currency
+			if err := evm.transfer(caller.Address(), addr, value); err != nil {
+				return nil, gas, err
+			}
+		}
 		// TODO: consider clearing up unused snapshots:
 		// } else {
 		//	evm.StateDB.DiscardSnapshot(snapshot)

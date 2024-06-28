@@ -406,8 +406,8 @@ func (es *ExecutionState) SetCode(addr types.Address, code []byte) error {
 	return nil
 }
 
-func (es *ExecutionState) EnableVmTracing(evm *vm.EVM) {
-	evm.Config.Tracer = &tracing.Hooks{
+func (es *ExecutionState) EnableVmTracing() {
+	es.evm.Config.Tracer = &tracing.Hooks{
 		OnOpcode: func(pc uint64, op byte, gas, cost uint64, scope tracing.OpContext, rData []byte, depth int, err error) {
 			for i, item := range scope.StackData() {
 				logger.Debug().Msgf("     %d: %s", i, item.String())
@@ -424,7 +424,7 @@ func (es *ExecutionState) SetInitState(addr types.Address, message *types.Messag
 	}
 	acc.Seqno = message.Seqno
 
-	if err := es.newVm(message.Internal); err != nil {
+	if err := es.newVm(message.IsInternal()); err != nil {
 		return err
 	}
 	defer es.resetVm()
@@ -638,13 +638,16 @@ func (es *ExecutionState) AddOutMessage(msg *types.Message) error {
 	if err != nil {
 		return err
 	}
-	for _, currency := range msg.Currency {
-		balance := acc.GetCurrencyBalance(&currency.Currency)
-		if balance.Lt(&currency.Balance.Int) {
-			return errors.New("caller does not have enough currency")
-		}
-		if err := es.SubCurrency(msg.From, &currency.Currency, &currency.Balance.Int); err != nil {
-			return err
+	// In case of bounce message, we don't debit currency from account
+	if !msg.IsBounce() {
+		for _, currency := range msg.Currency {
+			balance := acc.GetCurrencyBalance(&currency.Currency)
+			if balance.Lt(&currency.Balance.Int) {
+				return errors.New("caller does not have enough currency")
+			}
+			if err := es.SubCurrency(msg.From, &currency.Currency, &currency.Balance.Int); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -679,8 +682,10 @@ func (es *ExecutionState) sendBounceMessage(msg *types.Message, bounceErr string
 	}
 
 	bounceMsg := &types.InternalMessagePayload{
+		Bounce:   true,
 		To:       msg.BounceTo,
 		Value:    msg.Value,
+		Currency: msg.Currency,
 		Data:     data,
 		GasLimit: *BounceGasLimit,
 	}
@@ -704,7 +709,7 @@ func (es *ExecutionState) HandleDeployMessage(
 
 	gas := message.GasLimit.Uint64()
 
-	if err := es.newVm(message.Internal); err != nil {
+	if err := es.newVm(message.IsInternal()); err != nil {
 		return gas, err
 	}
 	defer es.resetVm()
@@ -717,7 +722,7 @@ func (es *ExecutionState) HandleDeployMessage(
 			err = fmt.Errorf("%w: %s", err, revString)
 		}
 		event.Err(err).Msg("Contract deployment failed.")
-		if message.Internal {
+		if message.IsInternal() {
 			if bounceErr := es.sendBounceMessage(message, err.Error()); bounceErr != nil {
 				return leftOverGas, bounceErr
 			}
@@ -737,16 +742,16 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 
 	gas := message.GasLimit.Uint64()
 
-	if err := es.newVm(message.Internal); err != nil {
+	if err := es.newVm(message.IsInternal()); err != nil {
 		return gas, nil, err
 	}
 	defer es.resetVm()
 
 	if es.TraceVm {
-		es.EnableVmTracing(es.evm)
+		es.EnableVmTracing()
 	}
 
-	if !message.Internal {
+	if message.IsExternal() {
 		seqno, err := es.GetExtSeqno(addr)
 		if err != nil {
 			return gas, nil, err
@@ -763,10 +768,14 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 		if revString != "" {
 			err = fmt.Errorf("%w: %s", err, revString)
 		}
-		logger.Error().Err(err).Msg("execution message failed")
-		if message.Internal {
-			if bounceErr := es.sendBounceMessage(message, err.Error()); bounceErr != nil {
-				return leftOverGas, ret, bounceErr
+		if message.IsBounce() {
+			logger.Warn().Err(err).Msg("VM returns error during bounce message processing")
+		} else {
+			logger.Error().Err(err).Msg("execution message failed")
+			if message.IsInternal() {
+				if bounceErr := es.sendBounceMessage(message, err.Error()); bounceErr != nil {
+					return leftOverGas, ret, bounceErr
+				}
 			}
 		}
 	}
@@ -899,7 +908,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 
 func (es *ExecutionState) IsInternalMessage() bool {
 	// If contract calls another contract using EVM's call(depth > 1), we treat it as an internal message.
-	return es.GetInMessage().Internal || es.evm.GetDepth() > 1
+	return es.GetInMessage().IsInternal() || es.evm.GetDepth() > 1
 }
 
 func (es *ExecutionState) GetInMessage() *types.Message {
@@ -932,7 +941,7 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 	}
 	calldata := append(methodSelector, argData...) //nolint:gocritic
 
-	if err := es.newVm(message.Internal); err != nil {
+	if err := es.newVm(message.IsInternal()); err != nil {
 		return false, err
 	}
 	defer es.resetVm()

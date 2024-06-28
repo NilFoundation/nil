@@ -47,9 +47,9 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 	s.Run("Deploy", func() {
 		code := types.Code("some-code")
 		msg := &types.Message{
-			Kind: types.DeployMessageKind,
-			To:   types.GenerateRandomAddress(types.BaseShardId),
-			Data: types.BuildDeployPayload(code, common.EmptyHash).Bytes(),
+			Flags: types.NewMessageFlags(types.MessageFlagDeploy),
+			To:    types.GenerateRandomAddress(types.BaseShardId),
+			Data:  types.BuildDeployPayload(code, common.EmptyHash).Bytes(),
 		}
 
 		s.Run("NoAccount", func() {
@@ -78,7 +78,6 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 
 	s.Run("Execution", func() {
 		msg := &types.Message{
-			Kind: types.ExecutionMessageKind,
 			To:   types.GenerateRandomAddress(types.BaseShardId),
 			Data: []byte("hello"),
 		}

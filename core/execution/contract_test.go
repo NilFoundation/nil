@@ -90,7 +90,7 @@ func TestCall(t *testing.T) {
 	require.NoError(t, err)
 
 	callMessage := &types.Message{
-		Internal: true,
+		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata,
 		To:       addr,
 		GasLimit: *types.NewUint256(10000),
@@ -106,7 +106,7 @@ func TestCall(t *testing.T) {
 	require.NoError(t, err)
 
 	callMessage2 := &types.Message{
-		Internal: true,
+		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata2,
 		To:       callerAddr,
 		GasLimit: *types.NewUint256(10000),
@@ -124,7 +124,7 @@ func TestCall(t *testing.T) {
 	require.NoError(t, err)
 
 	callMessage2 = &types.Message{
-		Internal: true,
+		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata2,
 		To:       callerAddr,
 		GasLimit: *types.NewUint256(10000),
@@ -157,7 +157,7 @@ func TestDelegate(t *testing.T) {
 	calldata, err := solc.ExtractABI(proxyContract).Pack("setValue", delegateAddr, big.NewInt(42))
 	require.NoError(t, err)
 	callMessage := &types.Message{
-		Internal: true,
+		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata,
 		To:       proxyAddr,
 		GasLimit: *types.NewUint256(100000),
@@ -169,7 +169,7 @@ func TestDelegate(t *testing.T) {
 	calldata, err = solc.ExtractABI(proxyContract).Pack("getValue", delegateAddr)
 	require.NoError(t, err)
 	callMessage = &types.Message{
-		Internal: true,
+		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata,
 		To:       proxyAddr,
 		GasLimit: *types.NewUint256(10000),
@@ -183,7 +183,7 @@ func TestDelegate(t *testing.T) {
 	calldata, err = solc.ExtractABI(proxyContract).Pack("setValueStatic", delegateAddr, big.NewInt(42))
 	require.NoError(t, err)
 	callMessage = &types.Message{
-		Internal: true,
+		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata,
 		To:       proxyAddr,
 		GasLimit: *types.NewUint256(10000),
@@ -217,7 +217,7 @@ func TestAsyncCall(t *testing.T) {
 	require.NoError(t, state.SetBalance(addrCaller, *uint256.NewInt(1_000_000)))
 
 	callMessage := &types.Message{
-		Internal: true,
+		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata,
 		To:       addrCaller,
 		GasLimit: *types.NewUint256(100_000),
@@ -303,7 +303,7 @@ func TestSendMessage(t *testing.T) {
 	require.NoError(t, err)
 
 	callMessage := &types.Message{
-		Internal: true,
+		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata,
 		To:       addrCaller,
 		GasLimit: *types.NewUint256(100000),
