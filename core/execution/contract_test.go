@@ -47,7 +47,7 @@ func TestOpcodes(t *testing.T) {
 
 	// initialize a random generator with a fixed seed
 	// to make the test deterministic
-	rnd := rand.New(rand.NewSource(1543))
+	rnd := rand.New(rand.NewSource(1543)) //nolint:gosec
 
 	for i := range 50 {
 		state := newState(t)
@@ -68,7 +68,8 @@ func TestOpcodes(t *testing.T) {
 				t.Log("error at iteration", i, j)
 			}
 		}
-		state.Commit(types.BlockNumber(i))
+		_, err := state.Commit(types.BlockNumber(i))
+		require.NoError(t, err)
 	}
 }
 
