@@ -15,7 +15,7 @@ type Config struct {
 }
 
 const (
-	WalletField      = "wallet"
+	AddressField     = "address"
 	PrivateKeyField  = "private_key"
 	RPCEndpointField = "rpc_endpoint"
 )
