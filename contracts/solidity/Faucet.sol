@@ -13,8 +13,17 @@ contract Faucet {
     }
 
     function withdrawTo(address payable addr, uint256 value) public {
-        bool success = addr.send(value);
-        require(success, "Send value failed");
+        bytes memory callData;
+        uint gasLimit = 100_000;
+        uint gasPrice = 10;
+        Nil.asyncCall(
+            addr,
+            address(this) /* refundTo */,
+            address(this) /* bounceTo */,
+            gasLimit,
+            false /* deploy */,
+            value + gasLimit * gasPrice,
+            callData);
         emit Send(addr, value);
     }
 
@@ -28,9 +37,5 @@ contract Faucet {
         emit Send(addr, value);
 
         return addr;
-    }
-
-    function send(bytes calldata message) public payable {
-        Nil.sendMessage(gasleft(), message);
     }
 }
