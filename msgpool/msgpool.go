@@ -102,17 +102,17 @@ func (p *MsgPool) validateMsg(msg *types.Message) (DiscardReason, bool) {
 	return NotSet, true
 }
 
-func (p *MsgPool) idHashKnownLocked(hash common.Hash) (bool, error) {
+func (p *MsgPool) idHashKnownLocked(hash common.Hash) bool {
 	if _, ok := p.byHash[string(hash.Bytes())]; ok {
-		return true, nil
+		return true
 	}
-	return false, nil
+	return false
 }
 
 func (p *MsgPool) IdHashKnown(hash common.Hash) (bool, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	return p.idHashKnownLocked(hash)
+	return p.idHashKnownLocked(hash), nil
 }
 
 func (p *MsgPool) Started() bool {
@@ -128,15 +128,15 @@ func (p *MsgPool) SeqnoToAddress(addr types.Address) (seqno types.Seqno, inPool 
 func (p *MsgPool) Get(hash common.Hash) (*types.Message, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	return p.getLocked(hash)
+	return p.getLocked(hash), nil
 }
 
-func (p *MsgPool) getLocked(hash common.Hash) (*types.Message, error) {
+func (p *MsgPool) getLocked(hash common.Hash) *types.Message {
 	msg, ok := p.byHash[string(hash.Bytes())]
 	if ok {
-		return msg, nil
+		return msg
 	}
-	return nil, nil
+	return nil
 }
 
 func (p *MsgPool) addLocked(msg *types.Message) DiscardReason {
