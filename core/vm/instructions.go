@@ -659,6 +659,11 @@ func opCreate2(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]
 	return nil, nil
 }
 
+func isCrossShardMessage(from, to types.Address) bool {
+	precompiled := allZero(to.Bytes()[:19])
+	return !precompiled && (from.ShardId() != to.ShardId())
+}
+
 func opCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	stack := scope.Stack
 	// Pop gas. The actual gas in interpreter.evm.callGasTemp.
@@ -667,6 +672,9 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byt
 	// Pop other call parameters.
 	addr, value, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
 	toAddr := types.Address(addr.Bytes20())
+	if isCrossShardMessage(scope.Contract.Address(), toAddr) {
+		return nil, ErrCrossShardMessage
+	}
 	// Get the arguments from the memory.
 	args := scope.Memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
 
@@ -701,6 +709,9 @@ func opCallCode(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([
 	// Pop other call parameters.
 	addr, value, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
 	toAddr := types.Address(addr.Bytes20())
+	if isCrossShardMessage(scope.Contract.Address(), toAddr) {
+		return nil, ErrCrossShardMessage
+	}
 	// Get arguments from the memory.
 	args := scope.Memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
 
@@ -732,6 +743,9 @@ func opDelegateCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext
 	// Pop other call parameters.
 	addr, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
 	toAddr := types.Address(addr.Bytes20())
+	if isCrossShardMessage(scope.Contract.Address(), toAddr) {
+		return nil, ErrCrossShardMessage
+	}
 	// Get arguments from the memory.
 	args := scope.Memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
 
@@ -782,6 +796,10 @@ func opSelfdestruct6780(pc *uint64, interpreter *EVMInterpreter, scope *ScopeCon
 		return nil, ErrWriteProtection
 	}
 	beneficiary := scope.Stack.pop()
+
+	if types.Address(beneficiary.Bytes20()).ShardId() != scope.Contract.Address().ShardId() {
+		return nil, ErrCrossShardMessage
+	}
 	balance, err := interpreter.evm.StateDB.GetBalance(scope.Contract.Address())
 	if err != nil {
 		return nil, err
