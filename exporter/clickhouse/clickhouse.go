@@ -36,18 +36,18 @@ type BlockWithBinary struct {
 
 type MessageWithBinary struct {
 	types.Message
-	Success         bool                 `ch:"success"`
-	GasUsed         uint32               `ch:"gas_used"`
-	BlockId         types.BlockNumber    `ch:"block_id"`
-	BlockHash       common.Hash          `ch:"block_hash"`
-	Binary          []byte               `ch:"binary"`
-	ReceiptBinary   []byte               `ch:"receipt_binary"`
-	Hash            common.Hash          `ch:"hash"`
-	ShardId         types.ShardId        `ch:"shard_id"`
-	MessageIndex    types.MessageIndex   `ch:"message_index"`
-	Outgoing        bool                 `ch:"outgoing"`
-	Timestamp       uint64               `ch:"timestamp"`
-	OutgoingIndexes []types.MessageIndex `ch:"outgoing_indexes"`
+	Success           bool               `ch:"success"`
+	GasUsed           uint32             `ch:"gas_used"`
+	BlockId           types.BlockNumber  `ch:"block_id"`
+	BlockHash         common.Hash        `ch:"block_hash"`
+	Binary            []byte             `ch:"binary"`
+	ReceiptBinary     []byte             `ch:"receipt_binary"`
+	Hash              common.Hash        `ch:"hash"`
+	ShardId           types.ShardId      `ch:"shard_id"`
+	MessageIndex      types.MessageIndex `ch:"message_index"`
+	Outgoing          bool               `ch:"outgoing"`
+	Timestamp         uint64             `ch:"timestamp"`
+	ParentTransaction common.Hash        `ch:"parent_transaction"`
 }
 
 type LogWithBinary struct {
@@ -289,6 +289,7 @@ func exportMessagesAndLogs(ctx context.Context, conn driver.Conn, msgs []*export
 	}
 
 	for _, block := range msgs {
+		parentIndex := make([]common.Hash, len(block.OutMessages))
 		for index, message := range block.InMessages {
 			binary, messageErr := message.MarshalSSZ()
 			if messageErr != nil {
@@ -302,24 +303,22 @@ func exportMessagesAndLogs(ctx context.Context, conn driver.Conn, msgs []*export
 			if err != nil {
 				return err
 			}
-			outgoingMsgIndexes := make([]types.MessageIndex, receipt.OutMsgNum)
 			for i := receipt.OutMsgIndex; i < receipt.OutMsgNum; i++ {
-				outgoingMsgIndexes[i] = types.MessageIndex(i)
+				parentIndex[i] = message.Hash()
 			}
 			binaryMessageExtended := &MessageWithBinary{
-				Message:         *message,
-				Binary:          binary,
-				Success:         receipt.Success,
-				GasUsed:         receipt.GasUsed,
-				BlockId:         block.Block.Id,
-				BlockHash:       block.Block.Hash(),
-				Hash:            message.Hash(),
-				ShardId:         block.Shard,
-				ReceiptBinary:   receiptBinary,
-				MessageIndex:    types.MessageIndex(block.Positions[index]),
-				Outgoing:        false,
-				Timestamp:       block.Block.Timestamp,
-				OutgoingIndexes: outgoingMsgIndexes,
+				Message:       *message,
+				Binary:        binary,
+				Success:       receipt.Success,
+				GasUsed:       receipt.GasUsed,
+				BlockId:       block.Block.Id,
+				BlockHash:     block.Block.Hash(),
+				Hash:          message.Hash(),
+				ShardId:       block.Shard,
+				ReceiptBinary: receiptBinary,
+				MessageIndex:  types.MessageIndex(block.Positions[index]),
+				Outgoing:      false,
+				Timestamp:     block.Block.Timestamp,
 			}
 			messageErr = messageBatch.AppendStruct(binaryMessageExtended)
 			if messageErr != nil {
@@ -332,18 +331,19 @@ func exportMessagesAndLogs(ctx context.Context, conn driver.Conn, msgs []*export
 				return messageErr
 			}
 			binaryMessageExtended := &MessageWithBinary{
-				Message:       *message,
-				Binary:        binary,
-				Success:       true,
-				GasUsed:       0,
-				BlockId:       block.Block.Id,
-				BlockHash:     block.Block.Hash(),
-				Hash:          message.Hash(),
-				ShardId:       block.Shard,
-				ReceiptBinary: make([]byte, 0),
-				MessageIndex:  types.MessageIndex(index),
-				Outgoing:      true,
-				Timestamp:     block.Block.Timestamp,
+				Message:           *message,
+				Binary:            binary,
+				Success:           true,
+				GasUsed:           0,
+				BlockId:           block.Block.Id,
+				BlockHash:         block.Block.Hash(),
+				Hash:              message.Hash(),
+				ShardId:           block.Shard,
+				ReceiptBinary:     make([]byte, 0),
+				MessageIndex:      types.MessageIndex(index),
+				Outgoing:          true,
+				Timestamp:         block.Block.Timestamp,
+				ParentTransaction: parentIndex[index],
 			}
 			messageErr = messageBatch.AppendStruct(binaryMessageExtended)
 			if messageErr != nil {
