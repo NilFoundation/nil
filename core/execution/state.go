@@ -867,7 +867,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		return common.EmptyHash, err
 	}
 
-	logger.Debug().Msgf("Committed block %v on shard %v", blockId, es.ShardId)
+	logger.Trace().Msgf("Committed block %v on shard %v", blockId, es.ShardId)
 
 	return blockHash, nil
 }

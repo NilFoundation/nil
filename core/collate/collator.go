@@ -82,7 +82,7 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 	}
 	defer c.txOwner.Rollback()
 
-	c.logger.Debug().Msg("Collating...")
+	c.logger.Trace().Msg("Collating...")
 
 	if err := c.handleMessagesFromNeighbors(); err != nil {
 		return err
