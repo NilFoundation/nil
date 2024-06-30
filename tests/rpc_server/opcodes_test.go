@@ -28,14 +28,11 @@ type SuitOpcodes struct {
 func (s *SuitOpcodes) SetupSuite() {
 	var err error
 
-	s.senderAddress1, err = contracts.CalculateAddress("tests/Sender", 1, []any{}, []byte{0})
+	s.senderAddress1, err = contracts.CalculateAddress(contracts.NameSender, 1, nil)
 	s.Require().NoError(err)
 
-	s.walletAddress1, err = contracts.CalculateAddress("Wallet", 1, []any{execution.MainPublicKey}, []byte{0})
-	s.Require().NoError(err)
-
-	s.walletAddress2, err = contracts.CalculateAddress("Wallet", 2, []any{execution.MainPublicKey}, []byte{0})
-	s.Require().NoError(err)
+	s.walletAddress1 = contracts.WalletAddress(s.T(), 1, nil, execution.MainPublicKey)
+	s.walletAddress2 = contracts.WalletAddress(s.T(), 2, nil, execution.MainPublicKey)
 
 	zerostateTmpl := `
 contracts:
@@ -96,13 +93,10 @@ func (s *SuitOpcodes) TestSend() {
 	s.Require().Zero(s.GetBalance(s.walletAddress2).Cmp(uint256.NewInt(0)))
 
 	s.Run("Top up wallet on same shard", func() {
-		// When
-		senderAbi, err := contracts.GetAbi("tests/Sender")
-		s.Require().NoError(err)
-		calldata, err := senderAbi.Pack("send", s.walletAddress1, big.NewInt(100500))
+		callData, err := contracts.NewCallData(contracts.NameSender, "send", s.walletAddress1, big.NewInt(100500))
 		s.Require().NoError(err)
 
-		msgHash, err := s.client.SendExternalMessage(calldata, s.senderAddress1, nil)
+		msgHash, err := s.client.SendExternalMessage(callData, s.senderAddress1, nil)
 		s.Require().NoError(err)
 		receipt := s.waitForReceipt(s.senderAddress1.ShardId(), msgHash)
 		s.Require().NotNil(receipt)
@@ -113,13 +107,10 @@ func (s *SuitOpcodes) TestSend() {
 	})
 
 	s.Run("Top up wallet on another shard", func() {
-		// When
-		senderAbi, err := contracts.GetAbi("tests/Sender")
-		s.Require().NoError(err)
-		calldata, err := senderAbi.Pack("send", s.walletAddress2, big.NewInt(100500))
+		callData, err := contracts.NewCallData(contracts.NameSender, "send", s.walletAddress2, big.NewInt(100500))
 		s.Require().NoError(err)
 
-		msgHash, err := s.client.SendExternalMessage(calldata, s.senderAddress1, nil)
+		msgHash, err := s.client.SendExternalMessage(callData, s.senderAddress1, nil)
 		s.Require().NoError(err)
 		receipt := s.waitForReceipt(s.senderAddress1.ShardId(), msgHash)
 		s.Require().NotNil(receipt)

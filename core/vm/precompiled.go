@@ -188,6 +188,14 @@ func withdrawFunds(state StateDB, addr types.Address, value *uint256.Int) error 
 	return state.SubBalance(addr, value, tracing.BalanceDecreasePrecompile)
 }
 
+func getPrecompiledMethod(methodName string) abi.Method {
+	a, err := contracts.GetAbi(contracts.NamePrecompile)
+	check.PanicIfErr(err)
+	method, ok := a.Methods[methodName]
+	check.PanicIfNot(ok)
+	return method
+}
+
 func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
 	if readOnly {
 		return nil, ErrWriteProtection
@@ -250,17 +258,8 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 		return nil, ErrWriteProtection
 	}
 
-	abi, err := contracts.GetAbi("Precompile")
-	if err != nil {
-		return nil, err
-	}
-	method, ok := abi.Methods["precompileAsyncCall"]
-	if !ok {
-		return nil, errors.New("'precompileAsyncCall' method not found in 'Precompile' class")
-	}
-
 	// Unpack arguments, skipping the first 4 bytes (function selector)
-	args, err := method.Inputs.Unpack(input[4:])
+	args, err := getPrecompiledMethod("precompileAsyncCall").Inputs.Unpack(input[4:])
 	if err != nil {
 		return nil, err
 	}
@@ -427,15 +426,7 @@ func (c *mintCurrency) Run(state StateDB, input []byte, gas uint64, value *uint2
 		return res, nil
 	}
 
-	abi, err := contracts.GetAbi("Precompile")
-	if err != nil {
-		return nil, err
-	}
-	method, ok := abi.Methods["precompileMintCurrency"]
-	if !ok {
-		return nil, errors.New("'precompileMintCurrency' method not found in 'Precompile' class")
-	}
-	args, err := method.Inputs.Unpack(input[4:])
+	args, err := getPrecompiledMethod("precompileMintCurrency").Inputs.Unpack(input[4:])
 	if err != nil {
 		return nil, err
 	}
@@ -479,17 +470,8 @@ func (c *currencyBalance) Run(state StateDB, input []byte, gas uint64, value *ui
 		return res, nil
 	}
 
-	abi, err := contracts.GetAbi("Precompile")
-	if err != nil {
-		return nil, err
-	}
-	method, ok := abi.Methods["precompileGetCurrencyBalance"]
-	if !ok {
-		return nil, errors.New("'precompileGetCurrencyBalance' method not found in 'Precompile' class")
-	}
-
 	// Unpack arguments, skipping the first 4 bytes (function selector)
-	args, err := method.Inputs.Unpack(input[4:])
+	args, err := getPrecompiledMethod("precompileGetCurrencyBalance").Inputs.Unpack(input[4:])
 	if err != nil {
 		return nil, err
 	}
@@ -534,17 +516,8 @@ func (c *sendCurrencySync) RequiredGas([]byte) uint64 {
 }
 
 func (c *sendCurrencySync) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
-	abi, err := contracts.GetAbi("Precompile")
-	if err != nil {
-		return nil, err
-	}
-	method, ok := abi.Methods["precompileSendTokens"]
-	if !ok {
-		return nil, errors.New("'precompileSendTokens' method not found in 'Precompile' class")
-	}
-
 	// Unpack arguments, skipping the first 4 bytes (function selector)
-	args, err := method.Inputs.Unpack(input[4:])
+	args, err := getPrecompiledMethod("precompileSendTokens").Inputs.Unpack(input[4:])
 	if err != nil {
 		return nil, err
 	}
@@ -584,15 +557,6 @@ func (c *getMessageTokens) RequiredGas([]byte) uint64 {
 }
 
 func (c *getMessageTokens) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
-	abi, err := contracts.GetAbi("Precompile")
-	if err != nil {
-		return nil, err
-	}
-	method, ok := abi.Methods["precompileGetMessageTokens"]
-	if !ok {
-		return nil, errors.New("'precompileGetMessageTokens' method not found in 'Precompile' class")
-	}
-
 	callerCurrencies := caller.Currency()
 	abiCurrencies := make([]types.CurrencyBalanceAbiCompatible, len(callerCurrencies))
 	for i, c := range callerCurrencies {
@@ -600,7 +564,7 @@ func (c *getMessageTokens) Run(state StateDB, input []byte, gas uint64, value *u
 		abiCurrencies[i].Balance = c.Balance.Int.ToBig()
 	}
 
-	res, err := method.Outputs.Pack(abiCurrencies)
+	res, err := getPrecompiledMethod("precompileGetMessageTokens").Outputs.Pack(abiCurrencies)
 	if err != nil {
 		return nil, err
 	}
