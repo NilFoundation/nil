@@ -171,11 +171,15 @@ func (g *BlockGenerator) addReceipt(gasUsed uint32, err error) {
 	if gasUsed == 0 && !msg.Internal {
 		check.PanicIfNot(err != nil)
 
+		// todo: this is a temporary solution, we shouldn't store errors for unpaid failures
 		g.executionState.DropInMessage()
 		FailureReceiptCache.Add(msgHash, &types.Receipt{
 			Success:         false,
 			MsgHash:         msgHash,
 			ContractAddress: msg.To,
+			Logs: []*types.Log{
+				NewErrorLog(msg.To, err),
+			},
 		})
 
 		g.logger.Debug().
