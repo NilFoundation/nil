@@ -63,7 +63,7 @@ func NewClient(endpoint string) *Client {
 	}
 }
 
-func (c *Client) call(method string, params []any) (json.RawMessage, error) {
+func (c *Client) call(method string, params ...any) (json.RawMessage, error) {
 	c.seqno++
 
 	request := map[string]any{
@@ -112,7 +112,7 @@ func (c *Client) call(method string, params []any) (json.RawMessage, error) {
 }
 
 func (c *Client) RawCall(method string, params ...any) (json.RawMessage, error) {
-	return c.call(method, params)
+	return c.call(method, params...)
 }
 
 func (c *Client) GetCode(addr types.Address, blockId any) (types.Code, error) {
@@ -121,8 +121,7 @@ func (c *Client) GetCode(addr types.Address, blockId any) (types.Code, error) {
 		return types.Code{}, err
 	}
 
-	params := []any{addr, blockNrOrHash}
-	raw, err := c.call(Eth_getCode, params)
+	raw, err := c.call(Eth_getCode, addr, blockNrOrHash)
 	if err != nil {
 		return types.Code{}, err
 	}
@@ -132,8 +131,7 @@ func (c *Client) GetCode(addr types.Address, blockId any) (types.Code, error) {
 		return types.Code{}, err
 	}
 
-	bytes := hexutil.FromHex(codeHex)
-	return types.Code(bytes), nil
+	return hexutil.FromHex(codeHex), nil
 }
 
 func (c *Client) GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error) {
@@ -156,8 +154,7 @@ func (c *Client) GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jso
 }
 
 func (c *Client) getBlockByHash(shardId types.ShardId, hash common.Hash, fullTx bool) (*jsonrpc.RPCBlock, error) {
-	params := []any{shardId, hash, fullTx}
-	res, err := c.call(Eth_getBlockByHash, params)
+	res, err := c.call(Eth_getBlockByHash, shardId, hash, fullTx)
 	if err != nil {
 		return nil, err
 	}
@@ -165,8 +162,7 @@ func (c *Client) getBlockByHash(shardId types.ShardId, hash common.Hash, fullTx 
 }
 
 func (c *Client) getBlockByNumber(shardId types.ShardId, num transport.BlockNumber, fullTx bool) (*jsonrpc.RPCBlock, error) {
-	params := []any{shardId, num, fullTx}
-	res, err := c.call(Eth_getBlockByNumber, params)
+	res, err := c.call(Eth_getBlockByNumber, shardId, num, fullTx)
 	if err != nil {
 		return nil, err
 	}
@@ -190,8 +186,7 @@ func (c *Client) SendMessage(msg *types.ExternalMessage) (common.Hash, error) {
 }
 
 func (c *Client) SendRawTransaction(data []byte) (common.Hash, error) {
-	params := []any{hexutil.Bytes(data)}
-	res, err := c.call(Eth_sendRawTransaction, params)
+	res, err := c.call(Eth_sendRawTransaction, hexutil.Bytes(data))
 	if err != nil {
 		return common.EmptyHash, err
 	}
@@ -204,8 +199,7 @@ func (c *Client) SendRawTransaction(data []byte) (common.Hash, error) {
 }
 
 func (c *Client) GetInMessageByHash(shardId types.ShardId, hash common.Hash) (*jsonrpc.RPCInMessage, error) {
-	params := []any{shardId, hash}
-	res, err := c.call(Eth_getInMessageByHash, params)
+	res, err := c.call(Eth_getInMessageByHash, shardId, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -218,8 +212,7 @@ func (c *Client) GetInMessageByHash(shardId types.ShardId, hash common.Hash) (*j
 }
 
 func (c *Client) GetInMessageReceipt(shardId types.ShardId, hash common.Hash) (*jsonrpc.RPCReceipt, error) {
-	params := []any{shardId, hash}
-	res, err := c.call(Eth_getInMessageReceipt, params)
+	res, err := c.call(Eth_getInMessageReceipt, shardId, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -237,8 +230,7 @@ func (c *Client) GetTransactionCount(address types.Address, blockId any) (types.
 		return 0, err
 	}
 
-	params := []any{address, transport.BlockNumberOrHash(blockNrOrHash)}
-	res, err := c.call(Eth_getTransactionCount, params)
+	res, err := c.call(Eth_getTransactionCount, address, transport.BlockNumberOrHash(blockNrOrHash))
 	if err != nil {
 		return 0, err
 	}
@@ -277,8 +269,7 @@ func (c *Client) GetBlockTransactionCount(shardId types.ShardId, blockId any) (u
 }
 
 func (c *Client) getBlockTransactionCountByNumber(shardId types.ShardId, number transport.BlockNumber) (uint64, error) {
-	params := []any{shardId, number}
-	res, err := c.call(Eth_getBlockTransactionCountByNumber, params)
+	res, err := c.call(Eth_getBlockTransactionCountByNumber, shardId, number)
 	if err != nil {
 		return 0, err
 	}
@@ -286,8 +277,7 @@ func (c *Client) getBlockTransactionCountByNumber(shardId types.ShardId, number 
 }
 
 func (c *Client) getBlockTransactionCountByHash(shardId types.ShardId, hash common.Hash) (uint64, error) {
-	params := []any{shardId, hash}
-	res, err := c.call(Eth_getBlockTransactionCountByHash, params)
+	res, err := c.call(Eth_getBlockTransactionCountByHash, shardId, hash)
 	if err != nil {
 		return 0, err
 	}
@@ -301,8 +291,7 @@ func (c *Client) GetBalance(address types.Address, blockId any) (*types.Uint256,
 		return balance, err
 	}
 
-	params := []any{address.String(), transport.BlockNumberOrHash(blockNrOrHash)}
-	res, err := c.call(Eth_getBalance, params)
+	res, err := c.call(Eth_getBalance, address.String(), transport.BlockNumberOrHash(blockNrOrHash))
 	if err != nil {
 		return balance, err
 	}
@@ -317,8 +306,7 @@ func (c *Client) GetCurrencies(address types.Address, blockId any) (types.Curren
 		return nil, err
 	}
 
-	params := []any{address.String(), transport.BlockNumberOrHash(blockNrOrHash)}
-	res, err := c.call(Eth_getCurrencies, params)
+	res, err := c.call(Eth_getCurrencies, address.String(), transport.BlockNumberOrHash(blockNrOrHash))
 	if err != nil {
 		return nil, err
 	}
@@ -334,8 +322,7 @@ func (c *Client) GetCurrencies(address types.Address, blockId any) (types.Curren
 
 func (c *Client) GasPrice(shardId types.ShardId) (*types.Uint256, error) {
 	gasPrice := types.NewUint256(0)
-	params := []any{shardId}
-	res, err := c.call(Eth_gasPrice, params)
+	res, err := c.call(Eth_gasPrice, shardId)
 	if err != nil {
 		return gasPrice, err
 	}
@@ -345,8 +332,7 @@ func (c *Client) GasPrice(shardId types.ShardId) (*types.Uint256, error) {
 }
 
 func (c *Client) ChainId() (types.ChainId, error) {
-	params := []any{}
-	res, err := c.call(Eth_chainId, params)
+	res, err := c.call(Eth_chainId)
 	if err != nil {
 		return types.ChainId(0), err
 	}
@@ -359,7 +345,7 @@ func (c *Client) ChainId() (types.ChainId, error) {
 }
 
 func (c *Client) GetShardIdList() ([]types.ShardId, error) {
-	res, err := c.call(Eth_getShardIdList, []any{})
+	res, err := c.call(Eth_getShardIdList)
 	if err != nil {
 		return []types.ShardId{}, err
 	}
@@ -504,8 +490,7 @@ func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount *types.Uin
 }
 
 func (c *Client) Call(args *jsonrpc.CallArgs) (string, error) {
-	params := []any{args, "latest"}
-	raw, err := c.call("eth_call", params)
+	raw, err := c.call("eth_call", args, "latest")
 	if err != nil {
 		return "", err
 	}
