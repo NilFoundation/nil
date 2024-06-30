@@ -16,7 +16,7 @@ Install Nix:
 curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
 ```
 
-### Building
+### Building and running
 
 Enter the Nix development environment:
 
@@ -31,6 +31,24 @@ Build the project with:
 make
 ```
 
+To run the cluster:
+
+```bash
+./build/bin/nil
+```
+
+To run the load generator:
+
+```bash
+./build/bin/nil_load_generator
+```
+
+To access the =nil; CLI:
+
+```bash
+./build/bin/nil_cli
+```
+
 ### Running tests
 
 Run tests with:
@@ -39,7 +57,37 @@ Run tests with:
 make test
 ```
 
+## Unique features
+
+=nil; boasts several unique features making it distinct from Ethereum and other L2s. 
+
+* [**Structurally distinct external and internal messages**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/core-concepts/shards-parallel-execution#internal-vs-external-messages)
+* [**Async execution**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/core-concepts/shards-parallel-execution#async-execution)
+* [**Cross-shard communications without fragmentation**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/core-concepts/shards-parallel-execution#message-passing-checks)
+
+## Tools
+
+To interact with the cluster, =nil; supplies several developer tools. 
+
+* The =nil; CLI (provided in this repository)
+* [**The `Nil.js` client library**](https://github.com/nilFoundation/nil.js)
+* [**The =nil; Hardhat plugin**](https://github.com/NilFoundation/nil-hardhat-plugin)
+
+## =nil; CLI confirugation
+
+The =nil; CLI requires initial setup before being able to interact with the cluster.
+
+[**Complete the steps in this tutorial**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/tools/nil-cli/usage) to configure the =nil; CLI.
+
+## Wallets and contracts
+
+In =nil; a wallet is any smart contract that authenticates users and allows for sending signed messages to other contracts. There are no other structural distinctions between a smart contract and a wallet. This means that a wallet can have any logic that a smart contract can have, which makes it easy to create complex wallets (e.g., vesting wallets).
+
+[**Learn more about wallets in =nil;**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/essentials/creating-a-wallet).
+
 ### Creating a new wallet
+
+#### Via the CLI
 
 The easisest way to create a new wallet is to use the =nil; CLI.
 
@@ -49,162 +97,171 @@ To create a new wallet **on the base shard**:
 nil_cli wallet new
 ```
 
-To create a wallet with a constructor and some arbitrary salt:
+#### Via the client library
+
+Execute this to create a new wallet via `Nil.js`:
+
+```ts
+import {
+  Faucet,
+  HttpTransport,
+  LocalECDSAKeySigner,
+  PublicClient,
+  WalletV1,
+  generateRandomPrivateKey,
+  waitTillCompleted,
+} from "@nilfoundation/niljs";
+
+const client = new PublicClient({
+  transport: new HttpTransport({
+    endpoint: "http://127.0.0.1:8529",
+  }),
+  shardId: 1,
+});
+
+const faucet = new Faucet(client);
+
+const signer = new LocalECDSAKeySigner({
+  privateKey: generateRandomPrivateKey(),
+});
+
+const pubkey = await signer.getPublicKey();
+
+const wallet = new WalletV1({
+  pubkey: pubkey,
+  salt: 100n,
+  shardId: 1,
+  client,
+  signer,
+  address: WalletV1.calculateWalletAddress({
+    pubKey: pubkey,
+    shardId: 1,
+    salt: 100n,
+  }),
+});
+const walletAddress = await wallet.getAddressHex();
+const faucetHash = await faucet.withdrawTo(walletAddress, 1_000_000_000_000n);
+
+await waitTillCompleted(client, 1, bytesToHex(faucetHash));
+await wallet.selfDeploy(true);
+```
+
+### Deploying a smart contract
+
+This brief tutorial describes how to deploy the `./examples/counter.sol` contract.
+
+To compile the contract:
 
 ```bash
-nil_cli wallet new --code CONSTRUCTOR_CODE --salt SALT --shard-id WALLET_SHARD
+solc -o . --bin --abi example/counter.sol --overwrite
 ```
 
-### Deploying a smart contract via CLI
+The docs contain [**a more detailed tutorial about the different means of contract deployment**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/essentials/creating-a-wallet).
 
-While being in the repo root, copy the config for the CLI where it specifies:
-- private key
-- RPC endpoint
-- the wallet address (default wallet is on the base shard)
+#### Via the CLI
 
-```
-cp cmd/nil_cli/config.yaml .
-```
-
-Now, compile a test contract
+To deploy the contract through the wallet:
 
 ```bash
-solc -o . --bin --abi example/counter.sol
+./build/bin/nil_cli wallet deploy ./SimpleStorage.bin
 ```
 
-And deploy the contract with the CLI:
+To deploy the contract through an external message:
 
 ```bash
-./build/bin/nil_cli contract deploy SimpleStorage.bin --shard-id CONTRACT_SHARD
+./build/bin/nil_cli contract address ./SimpleStorage.bin
+./build/bin/nil_cli wallet send-tokens ADDRESS 50000000
+./build/bin/nil_cli contract deploy ./SimpleStorage.bin
 ```
 
-Make note of the "Transaction hash: 0x... (shard <WALLET_SHARD>)" in the output, and then:
+#### Via the client library
+
+To deploy the contract through the wallet:
+
+```ts
+const { address: addressS, hash: hashS } = await wallet.deployContract({
+  bytecode: BYTECODE,
+  value: 1000000n,
+  gas: 100000n,
+  salt: BigInt(Math.floor(Math.random() * 10000)),
+  shardId: 1,
+});
+
+const hashStor = await waitTillCompleted(client, 1, hashS);
+```
+
+To deploy the contract via an external message:
+
+```ts
+const chainId = await client.chainId();
+const deploymentMessage = externalDeploymentMessage(
+  {
+    salt: BigInt(Math.floor(Math.random() * 10000)),
+    shard: 1,
+    bytecode: hexToBytes(BYTECODE),
+  },
+  chainId,
+);
+const addrS = bytesToHex(deploymentMessage.to);
+
+const faucetHash = await faucet.withdrawTo(addrS, 1_000_000_000_000n);
+
+await deploymentMessage.send(client);
+
+const receipts = await waitTillCompleted(client, 1, bytesToHex(faucetHash));
+```
+
+### Calling a smart contract
+
+The `./example/counter.sol` contains the `increment()` method which can be called in different ways.
+
+
+**NB**: the `increment()` method modifies the contract state and it cannot be called via an external message.
+
+The docs contain [**a more detailed tutorial on calling smart contract methods**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/working-with-smart-contracts/calling-contract-methods).
+
+#### Via the CLI
+
+To call the method via the wallet:
 
 ```bash
-./build/bin/nil_cli receipt --hash <transaction hash> --shard-id WALLET_SHARD
+./build/bin/nil_cli wallet send-message ADDRESS increment --abi ./SimpleStorage.abi
+```
+#### Via the client library
+
+Execute this code to call the method via the wallet:
+
+```ts
+const hashMessage = await wallet.sendMessage({
+  to: ADDRESS,
+  gas: 100000n,
+  value: 1000000n,
+  data: encodeFunctionData({
+    abi: ABI,
+    functionName: "increment",
+    args: [],
+  }),
+});
+
+await waitTillCompleted(client, 1, hashMessage);
 ```
 
-You should get a json object, which contains "contractAddress" in the result.
+### Tokens and multi-currency support
 
-Now let's send message to this contract to call its increment method:
+The basic token in =nil; is used for paying for message execution:
 
-```bash
-./build/bin/nil_cli contract send <contract address> increment
-```
+* For internal messages, the message itself acts as the 'payer', spending its value
+* For internal messages, the 'receiver' contract acts as the 'payer'
 
-As a result, you should get "Transaction hash" again, but this time for the function call.
-Now let's retrieve the message hash to see the current value of the counter:
+In the case of external deployment, funds have to be set for the intended address first before actual deployment occurs. Unless the address already contains some funds, the contract cannot pay for its own external execution.
 
+[**Learn more about the payment structure during external deployment**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/working-with-smart-contracts/deploying-a-contract#external-deployment).
 
-```bash
-./build/bin/nil_cli receipt --hash <another transaction hash> --shard-id CONTRACT_SHARD
-```
+=nil; also has a multi-currency mechanism. All accounts (smart contracts) can contain any number of arbitrary currencies as a Merkle trie root. Currency creation is dedicated to a special precompiled contract (the minter), and anyone can request the creation of new currencies. 
 
-You'll see the counter value in the "data" section of the log in the json. To see the actual value:
+**NB**: the currency owner is recorded during creation, and only messages from the owner are processed for the currency. A contract can only be the owner of one currency.
 
-
-```bash
-echo "<value in data section>" | base64 -d | xxd
-```
-
-### Deploying a smart contract via Go
-
-Create a deployment message:
-
-```golang
-var m types.Message
-m.From = types.GenerateRandomAddress(types.BaseShardId)
-dm := types.DeployMessage{
-    ShardId: types.BaseShardId,
-    Code: hexutil.FromHex("{contractBytecode}")
-}
-data, err := dm.MarshalSSZ()
-suite.Require().NoError(err)
-m.Data = data
-mData, err := m.MarshallSSZ()
-```
-
-Send the deployment message:
-
-```golang
-request := Request{
-    Jsonrpc: "2.0",
-    Method:  sendRawTransaction,
-    Params:  []any{"0x" + hex.EncodeToString(mData)},
-    Id:      1,
-}
-
-resp, err := makeRequest[common.Hash](&request)
-```
-
-Create the address:
-
-```golang
-addr := types.CreateAddress(types.BaseShardId, code)
-// or
-addr := types.CreateAddressWithSalt(types.BaseShardId, code, salt)
-```
-Where `code` is the code of the deployed contract and `salt` is some arbitrary 32-byte value
-
-Send repeated requests for receipts:
-
-```golang
-request.Method = getMessageReceipt
-request.Params = []any{types.BaseShardId, msgHash}
-
-var respReceipt *Response[*jsonrpc.RPCReceipt]
-suite.Eventually(func() bool {
-    respReceipt, err = makeRequest[*jsonrpc.RPCReceipt](&request)
-    suite.Require().NoError(err)
-    suite.Require().Nil(resp.Error["code"])
-    return respReceipt.Result != nil
-}, 5*time.Second, 200*time.Millisecond)
-```
-
-### Calling a deployed smart contract
-
-Extract the contract bytecode:
-
-```golang
-codeHex = hexutil.Encode(contractBytecode)
-m.From = types.HexToAddress(codeHex)
-```
-
-Create a contract call message:
-
-```golang
-methodData, _ := parsedABI.Pack("{methodName}")
-m.Data = methodData
-m.Seqno = 1
-m.To = addr
-mData, err = m.MarshalSSZ()
-```
-
-Send the message:
-
-```golang
-newRequest := &Request{
-    Jsonrpc: "2.0",
-    Method: sendRawTransaction,
-    Params: []any{"0x" + hex.EncodeToString(mData)},
-    Id: 1,
-}
-newResp, err := makeRequest(newRequest)
-
-txHash = result["hash"].(string)
-
-time.Sleep(2 * time.Second)
-```
-
-Get the receipt:
-
-```golang
-newRequest.Method = getMessageReceipt
-newRequest.Params = []any{types.BaseShardId, txHash}
-respTwo, err = makeRequest(&request)
-
-receipt, err = types.FromMap[types.Receipt](result)
-```
+The documentation contains [**an extensive tutorial on working with custom currencies**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/essentials/tokens-multi-currency).  
 
 ### Generating the SSZ serialization code
 
@@ -222,23 +279,17 @@ make compile-contracts
 
 ## Lifecycle
 
-In the current implementation, a transaction passes the following stages.
+In the current implementation, a message passes the following stages.
 
-1. The transaction is submitted by an account
+1. The message is submitted by a user (external message) or a smart contract (internal message)
 
-The RPC exposes the `SendRawTransaction()` method that calls the `CreateRwTx()` function of the DB and adds the transaction to the mempool.
+2. If the message is external, it is added to the mempool of its destination shard
 
-2. The transaction is sent to the mempool of its destination shard
+3. The message is picked is picked up by the collator, which is the component responsible for passing messages for execution
 
-The `msgpool` object calls the `Add()` function to iterate over a list of transactions and add them to the mempool. The function also returns a list of reasons for discarding a transaction (if any were discarded).
+4. The message is batched with other messages by the collator, and is subsequently executed
 
-3. The transaction is picked up by the collator, which is the component responsible for passing transactions for execution
-
-The collator periodically calls the `GenerateBlock()` method of the shardchain object and the `OnNewBlock()` handler of the mempool.
-
-4. The shard executes the transaction
-
-The shardchain records the block with the transaction in the DB and updates the execution state of the shard.
+5. The message is included in the new block within its destination shard
 
 ## The DB
 
@@ -277,6 +328,7 @@ The current RPC is loosely modeled after the Ethereum RPC. The RPC exposes the f
 * `GetBalance()`
 * `GetCode()`
 * `GetTransactionCount()`
+* `GetCurrencies()`
 
 ### Transactions
 
