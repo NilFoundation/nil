@@ -92,13 +92,15 @@ func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent
 	msgPools := make([]msgpool.Pool, cfg.NShards)
 	for i := range cfg.NShards {
 		msgPool := msgpool.New(msgpool.DefaultConfig)
-		collator := collate.NewScheduler(database, msgPool, execution.BlockGeneratorParams{
-			ShardId:       types.ShardId(i),
-			NShards:       cfg.NShards,
-			TraceEVM:      cfg.TraceEVM,
-			Timer:         common.NewTimer(),
-			GasBasePrice:  uint256.NewInt(cfg.GasBasePrice),
-			GasPriceScale: cfg.GasPriceScale,
+		collator := collate.NewScheduler(database, msgPool, collate.Params{
+			BlockGeneratorParams: execution.BlockGeneratorParams{
+				ShardId:       types.ShardId(i),
+				NShards:       cfg.NShards,
+				TraceEVM:      cfg.TraceEVM,
+				Timer:         common.NewTimer(),
+				GasBasePrice:  uint256.NewInt(cfg.GasBasePrice),
+				GasPriceScale: cfg.GasPriceScale,
+			},
 		}, collate.GetShardTopologyById(cfg.Topology), collatorTickPeriod)
 		if len(cfg.ZeroState) != 0 {
 			collator.ZeroState = cfg.ZeroState
