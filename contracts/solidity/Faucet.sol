@@ -32,7 +32,7 @@ contract Faucet {
     function acquire(address addr, uint256 value) private returns (uint256) {
         LimitInfo memory limitInfo = limits[addr];
 
-        uint256 currentT = block.timestamp;
+        uint256 currentT = block.number;
         uint256 currentLimit;
         if (limitInfo.prevT == 0) {
             currentLimit = WITHDRAW_PER_TIMEOUT_LIMIT;
