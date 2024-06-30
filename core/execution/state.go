@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"time"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/logging"
@@ -136,6 +137,7 @@ func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
 		Random:      &common.EmptyHash,
 		BaseFee:     big.NewInt(10),
 		BlobBaseFee: big.NewInt(10),
+		Time:        uint64(time.Now().Second()),
 	}, nil
 }
 
