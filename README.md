@@ -77,7 +77,16 @@ To interact with the cluster, =nil; supplies several developer tools.
 
 The =nil; CLI requires initial setup before being able to interact with the cluster.
 
-[**Complete the steps in this tutorial**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/tools/nil-cli/usage) to configure the =nil; CLI.
+To configure the CLI:
+
+```bash
+./build/bin/nil_cli config set rpc_endpoint NIL_ENDPOINT
+./build/bin/nil_cli keygen new
+```
+
+This will update the CLI configuration file to include the RPC endpoint and the private key to be used for creatign a wallet and signing messages.
+
+[**This tutorial outlines the steps needed**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/tools/nil-cli/usage) to configure the =nil; CLI.
 
 ## Wallets and contracts
 
@@ -87,63 +96,12 @@ In =nil; a wallet is any smart contract that authenticates users and allows for 
 
 ### Creating a new wallet
 
-#### Via the CLI
-
-The easisest way to create a new wallet is to use the =nil; CLI.
+The easisest way to create a new wallet is to use the =nil; CLI after configuring it.
 
 To create a new wallet **on the base shard**:
 
 ```bash
 nil_cli wallet new
-```
-
-#### Via the client library
-
-Execute this to create a new wallet via `Nil.js`:
-
-```ts
-import {
-  Faucet,
-  HttpTransport,
-  LocalECDSAKeySigner,
-  PublicClient,
-  WalletV1,
-  generateRandomPrivateKey,
-  waitTillCompleted,
-} from "@nilfoundation/niljs";
-
-const client = new PublicClient({
-  transport: new HttpTransport({
-    endpoint: "http://127.0.0.1:8529",
-  }),
-  shardId: 1,
-});
-
-const faucet = new Faucet(client);
-
-const signer = new LocalECDSAKeySigner({
-  privateKey: generateRandomPrivateKey(),
-});
-
-const pubkey = await signer.getPublicKey();
-
-const wallet = new WalletV1({
-  pubkey: pubkey,
-  salt: 100n,
-  shardId: 1,
-  client,
-  signer,
-  address: WalletV1.calculateWalletAddress({
-    pubKey: pubkey,
-    shardId: 1,
-    salt: 100n,
-  }),
-});
-const walletAddress = await wallet.getAddressHex();
-const faucetHash = await faucet.withdrawTo(walletAddress, 1_000_000_000_000n);
-
-await waitTillCompleted(client, 1, bytesToHex(faucetHash));
-await wallet.selfDeploy(true);
 ```
 
 ### Deploying a smart contract
@@ -157,8 +115,6 @@ solc -o . --bin --abi example/counter.sol --overwrite
 ```
 
 The docs contain [**a more detailed tutorial about the different means of contract deployment**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/essentials/creating-a-wallet).
-
-#### Via the CLI
 
 To deploy the contract through the wallet:
 
@@ -174,76 +130,18 @@ To deploy the contract through an external message:
 ./build/bin/nil_cli contract deploy ./SimpleStorage.bin
 ```
 
-#### Via the client library
-
-To deploy the contract through the wallet:
-
-```ts
-const { address: addressS, hash: hashS } = await wallet.deployContract({
-  bytecode: BYTECODE,
-  value: 1000000n,
-  gas: 100000n,
-  salt: BigInt(Math.floor(Math.random() * 10000)),
-  shardId: 1,
-});
-
-const hashStor = await waitTillCompleted(client, 1, hashS);
-```
-
-To deploy the contract via an external message:
-
-```ts
-const chainId = await client.chainId();
-const deploymentMessage = externalDeploymentMessage(
-  {
-    salt: BigInt(Math.floor(Math.random() * 10000)),
-    shard: 1,
-    bytecode: hexToBytes(BYTECODE),
-  },
-  chainId,
-);
-const addrS = bytesToHex(deploymentMessage.to);
-
-const faucetHash = await faucet.withdrawTo(addrS, 1_000_000_000_000n);
-
-await deploymentMessage.send(client);
-
-const receipts = await waitTillCompleted(client, 1, bytesToHex(faucetHash));
-```
-
 ### Calling a smart contract
 
 The `./example/counter.sol` contains the `increment()` method which can be called in different ways.
-
 
 **NB**: the `increment()` method modifies the contract state and it cannot be called via an external message.
 
 The docs contain [**a more detailed tutorial on calling smart contract methods**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/working-with-smart-contracts/calling-contract-methods).
 
-#### Via the CLI
-
 To call the method via the wallet:
 
 ```bash
 ./build/bin/nil_cli wallet send-message ADDRESS increment --abi ./SimpleStorage.abi
-```
-#### Via the client library
-
-Execute this code to call the method via the wallet:
-
-```ts
-const hashMessage = await wallet.sendMessage({
-  to: ADDRESS,
-  gas: 100000n,
-  value: 1000000n,
-  data: encodeFunctionData({
-    abi: ABI,
-    functionName: "increment",
-    args: [],
-  }),
-});
-
-await waitTillCompleted(client, 1, hashMessage);
 ```
 
 ### Tokens and multi-currency support
