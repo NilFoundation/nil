@@ -102,7 +102,7 @@ func (suite *SuiteRpc) TestTopUpViaFaucet() {
 	pubKey := crypto.CompressPubkey(&pk.PublicKey)
 	walletCode := contracts.PrepareDefaultWalletForOwnerCode(pubKey)
 
-	address, receipt := suite.deployContractViaMainWallet(types.BaseShardId, types.BuildDeployPayload(walletCode, common.EmptyHash), types.NewUint256(defaultContractValue))
+	address, receipt := suite.deployContractViaMainWallet(types.BaseShardId, types.BuildDeployPayload(walletCode, common.EmptyHash), types.NewUint256(0))
 	receipt = suite.waitForReceiptOnShard(types.MainWalletAddress.ShardId(), receipt.MsgHash)
 	suite.Require().NotNil(receipt)
 	suite.Require().True(receipt.Success)
@@ -110,25 +110,44 @@ func (suite *SuiteRpc) TestTopUpViaFaucet() {
 		suite.Require().True(r.Success)
 	}
 
-	balance, err := suite.client.GetBalance(address, transport.LatestBlockNumber)
-	suite.Require().NoError(err)
-	suite.Require().Equal(defaultContractValue, balance.Uint64())
+	testTopUp := func(initialValue uint64, value uint64, expectedValue uint64, delta float64) {
+		balance, err := suite.client.GetBalance(address, transport.LatestBlockNumber)
+		suite.Require().NoError(err)
+		suite.Require().Equal(initialValue, balance.Uint64())
 
-	code, err := suite.client.GetCode(address, transport.LatestBlockNumber)
-	suite.Require().NoError(err)
-	suite.Require().NotEmpty(code)
+		code, err := suite.client.GetCode(address, transport.LatestBlockNumber)
+		suite.Require().NoError(err)
+		suite.Require().NotEmpty(code)
 
-	const value = 100500
-	mshHash, err := suite.client.TopUpViaFaucet(address, types.NewUint256(value))
-	suite.Require().NoError(err)
-	receipt = suite.waitForReceiptOnShard(address.ShardId(), mshHash)
-	suite.Require().NotNil(receipt)
-	suite.Require().True(receipt.Success)
-	for _, r := range receipt.OutReceipts {
-		suite.Require().True(r.Success)
+		mshHash, err := suite.client.TopUpViaFaucet(address, types.NewUint256(value))
+		suite.Require().NoError(err)
+		receipt = suite.waitForReceiptOnShard(address.ShardId(), mshHash)
+		suite.Require().NotNil(receipt)
+		suite.Require().True(receipt.Success)
+		for _, r := range receipt.OutReceipts {
+			suite.Require().True(r.Success)
+		}
+
+		balance, err = suite.client.GetBalance(address, transport.LatestBlockNumber)
+		suite.Require().NoError(err)
+		suite.Require().InDelta(expectedValue, balance.Uint64(), delta)
 	}
 
-	balance, err = suite.client.GetBalance(address, transport.LatestBlockNumber)
-	suite.Require().NoError(err)
-	suite.Require().Equal(defaultContractValue+value, balance.Uint64())
+	var value1 uint64 = 5 * 1_000_000_000_000_000
+	balance1 := value1
+	suite.Run("Top up for the first time without exceeding the limit", func() {
+		testTopUp(0, value1, balance1, 0)
+	})
+
+	var value2 uint64 = 4 * 1_000_000_000_000_000
+	balance2 := balance1 + value2
+	suite.Run("Top up for the second time without exceeding the limit", func() {
+		testTopUp(balance1, value2, balance2, 0)
+	})
+
+	var value3 uint64 = 5 * 1_000_000_000_000_000
+	var balance3 uint64 = 10_000_000_000_000_000
+	suite.Run("Top up over limit", func() {
+		testTopUp(balance2, value3, balance3, float64(balance3)*0.01)
+	})
 }

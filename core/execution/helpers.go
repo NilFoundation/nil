@@ -3,7 +3,9 @@ package execution
 import (
 	"context"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/types"
 )
 
 type TxOwner struct {
@@ -46,4 +48,8 @@ func (t *TxOwner) Commit() error {
 	}
 	t.Rollback()
 	return nil
+}
+
+func NewErrorLog(addr types.Address, err error) *types.Log {
+	return types.NewLog(addr, []byte(err.Error()), []common.Hash{types.TopicErrorMessage})
 }
