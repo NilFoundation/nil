@@ -33,6 +33,9 @@ func mapTypeToClickhouseType(t reflect.Type) string {
 	case reflect.Slice:
 		return fmt.Sprintf("Array(%s)", mapTypeToClickhouseType(t.Elem()))
 	case reflect.Array:
+		if t.Name() == "Value" {
+			return "UInt256"
+		}
 		if t.Name() == "Uint256" {
 			return "UInt256"
 		}
@@ -42,6 +45,15 @@ func mapTypeToClickhouseType(t reflect.Type) string {
 			return fmt.Sprintf("Array(%s)", mapTypeToClickhouseType(t.Elem()))
 		}
 	case reflect.Struct:
+		if t.Name() == "Value" {
+			return "UInt256"
+		}
+		if t.Name() == "Uint256" {
+			return "UInt256"
+		}
+		if t.Name() == "MessageFlags" {
+			return "UInt8"
+		}
 		// return tuple of field type
 		fields := make([]string, 0, t.NumField())
 		for i := 0; i < t.NumField(); i++ {
@@ -105,7 +117,17 @@ func reflectSchemeToClickhouse(f any) (reflectedScheme, error) {
 		if clickhouseName != "" {
 			fieldNameInDb = strings.Split(clickhouseName, ",")[0]
 		}
-		if field.Type.Kind() == reflect.Struct && field.Type.Name() != "Value" {
+		if field.Type.Kind() == reflect.Struct {
+			if field.Type.Name() == "Value" {
+				fieldTypes[fieldNameInDb] = "UInt256"
+				fieldNames[field.Name] = fieldNameInDb
+				continue
+			}
+			if field.Type.Name() == "MessageFlags" {
+				fieldTypes[fieldNameInDb] = "UInt8"
+				fieldNames[field.Name] = fieldNameInDb
+				continue
+			}
 			scheme, err := reflectSchemeToClickhouse(reflect.New(field.Type).Interface())
 			if err != nil {
 				return reflectedScheme{}, err

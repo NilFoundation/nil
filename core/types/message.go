@@ -2,6 +2,7 @@ package types
 
 import (
 	"crypto/ecdsa"
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -58,6 +59,12 @@ func BytesToMessageIndex(b []byte) MessageIndex {
 type MessageFlags struct {
 	BitFlags[uint8]
 }
+
+func (flags MessageFlags) Value() (driver.Value, error) {
+	return flags.Bits, nil
+}
+
+var _ driver.Value = new(MessageFlags)
 
 type ChainId uint64
 
