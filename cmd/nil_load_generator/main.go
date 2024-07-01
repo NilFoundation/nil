@@ -13,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
+	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -65,8 +66,7 @@ func main() {
 	}
 	privateKeys := make([]*ecdsa.PrivateKey, 0)
 	wallets := make([]types.Address, 0)
-	contracts := make([]types.Address, 0)
-
+	contractsCall := make([]types.Address, 0)
 	for _, shardId := range shardIdList {
 		ownerPrivateKey, err := crypto.GenerateKey()
 		if err != nil {
@@ -74,7 +74,10 @@ func main() {
 		}
 		walletAddr, err := service.CreateWallet(shardId, *types.NewUint256(0), types.NewUint256(1_000_000_000), &ownerPrivateKey.PublicKey)
 		if err != nil {
-			logger.Fatal().Err(err).Msg("Can't create wallet")
+			logger.Error().Err(err).Msg("Can't create wallet")
+			walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(&ownerPrivateKey.PublicKey))
+			walletAddr = service.ContractAddress(shardId, *types.NewUint256(0), walletCode)
+			logger.Info().Msg("Using already created wallet")
 		}
 		wallets = append(wallets, walletAddr)
 		privateKeys = append(privateKeys, ownerPrivateKey)
@@ -83,19 +86,19 @@ func main() {
 	for _, shardId := range shardIdList {
 		txHashCaller, addr, err := client.DeployContract(shardId, wallets[0], types.BuildDeployPayload(hexutil.FromHex(IncrementContractCode), common.EmptyHash), nil, privateKeys[0])
 		if err != nil {
-			logger.Fatal().Err(err).Msg("Error during deploy contract")
+			logger.Error().Err(err).Msg("Error during deploy contract, maybe contract already deployed")
 		}
 		_, err = service.WaitForReceipt(wallets[0].ShardId(), txHashCaller)
 		if err != nil {
 			logger.Error().Err(err).Msg("Can't get receipt for contract. Maybe duplicate contract deploy")
 		}
-		contracts = append(contracts, addr)
+		contractsCall = append(contractsCall, addr)
 	}
 
 	for {
 		var wg sync.WaitGroup
 		for i, wallet := range wallets {
-			numberCalls, err := rand.Int(rand.Reader, big.NewInt(int64(len(contracts))))
+			numberCalls, err := rand.Int(rand.Reader, big.NewInt(int64(len(contractsCall))))
 			if err != nil {
 				logger.Error().Err(err).Msg("Error during get random calls number")
 			}
@@ -109,7 +112,7 @@ func main() {
 				var hash common.Hash
 				for _, addr := range addrToCall {
 					hash, err = client.SendMessageViaWallet(wallet, hexutil.FromHex(IncrementCalldata),
-						types.NewUint256(100_000), types.NewUint256(0), []types.CurrencyBalance{}, contracts[addr],
+						types.NewUint256(100_000), types.NewUint256(0), []types.CurrencyBalance{}, contractsCall[addr],
 						privateKeys[i])
 					if err != nil {
 						logger.Error().Err(err).Msg("Error during contract call")
