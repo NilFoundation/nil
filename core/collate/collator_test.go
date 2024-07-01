@@ -45,7 +45,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	to := contracts.CounterAddress(s.T(), shardId)
 
 	s.Run("SendTokens", func() {
-		m := execution.NewExecutionMessage(from, from, 1, contracts.NewWalletSendCallData(s.T(), types.Code{},
+		m := execution.NewExecutionMessage(from, from, 0, contracts.NewWalletSendCallData(s.T(), types.Code{},
 			types.NewUint256(100_000), types.NewUint256(3_000_000), []types.CurrencyBalance{},
 			to, types.ExecutionMessageKind))
 		s.Require().NoError(m.Sign(execution.MainPrivateKey))
@@ -66,7 +66,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	})
 
 	s.Run("Execute", func() {
-		m := execution.NewExecutionMessage(to, to, 1, contracts.NewCounterAddCallData(s.T(), 3))
+		m := execution.NewExecutionMessage(to, to, 0, contracts.NewCounterAddCallData(s.T(), 3))
 		GenerateBlockWithMessages(s.T(), s.ctx, shardId, nShards, s.db, m)
 		s.checkReceipt(shardId, m)
 	})
