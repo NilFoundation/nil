@@ -9,7 +9,7 @@ in buildGoModule rec {
   version = "0.1.0-${toString revCount}";
 
   preBuild = ''
-    make compile-contracts
+    make compile-contracts ssz
   '';
 
   src = src_repo;
