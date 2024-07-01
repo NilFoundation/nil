@@ -27,6 +27,7 @@ type RpcSuite struct {
 	cancel    context.CancelFunc
 	client    client.Client
 	shardsNum int
+	endpoint  string
 }
 
 func init() {
@@ -42,7 +43,8 @@ func (suite *RpcSuite) start(cfg *nilservice.Config) {
 	badger, err := db.NewBadgerDbInMemory()
 	suite.Require().NoError(err)
 
-	suite.client = rpc_client.NewClient(fmt.Sprintf("http://127.0.0.1:%d/", cfg.HttpPort))
+	suite.endpoint = fmt.Sprintf("http://127.0.0.1:%d", cfg.HttpPort)
+	suite.client = rpc_client.NewClient(suite.endpoint)
 	go nilservice.Run(suite.context, cfg, badger)
 	suite.waitZerostate()
 }
