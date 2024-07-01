@@ -6,13 +6,10 @@ import (
 )
 
 func PrepareDefaultWalletForOwnerCode(publicKey []byte) types.Code {
-	walletCode, err := GetCode("Wallet")
+	walletCode, err := GetCode(NameWallet)
 	check.PanicIfErr(err)
 
-	walletAbi, err := GetAbi("Wallet")
-	check.PanicIfErr(err)
-
-	args, err := walletAbi.Pack("", publicKey)
+	args, err := NewCallData(NameWallet, "", publicKey)
 	check.PanicIfErr(err)
 
 	return append(walletCode, args...)

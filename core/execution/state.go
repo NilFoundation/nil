@@ -672,11 +672,7 @@ func (es *ExecutionState) sendBounceMessage(msg *types.Message, bounceErr string
 		return nil
 	}
 
-	bounceAbi, err := contracts.GetAbi("NilBounceable")
-	if err != nil {
-		return err
-	}
-	data, err := bounceAbi.Pack("bounce", bounceErr)
+	data, err := contracts.NewCallData(contracts.NameNilBounceable, "bounce", bounceErr)
 	if err != nil {
 		return err
 	}

@@ -13,13 +13,10 @@ import (
 )
 
 func (suite *SuiteRpc) createWalletViaFaucet(ownerPrivateKey *ecdsa.PrivateKey, value int64) types.Address {
-	faucetABI, err := contracts.GetAbi("Faucet")
-	suite.Require().NoError(err)
-
 	ownerPublicKey := crypto.CompressPubkey(&ownerPrivateKey.PublicKey)
 
 	salt := types.NewUint256(123)
-	calldata, err := faucetABI.Pack("createWallet", ownerPublicKey, salt.Bytes32(), big.NewInt(value))
+	callData, err := contracts.NewCallData(contracts.NameFaucet, "createWallet", ownerPublicKey, salt.Bytes32(), big.NewInt(value))
 	suite.Require().NoError(err)
 
 	seqno, err := suite.client.GetTransactionCount(types.FaucetAddress, "latest")
@@ -28,7 +25,7 @@ func (suite *SuiteRpc) createWalletViaFaucet(ownerPrivateKey *ecdsa.PrivateKey, 
 	msgExternal := &types.ExternalMessage{
 		Seqno: seqno,
 		To:    types.FaucetAddress,
-		Data:  calldata,
+		Data:  callData,
 		Kind:  types.ExecutionMessageKind,
 	}
 

@@ -25,7 +25,7 @@ type SuiteZeroState struct {
 	ctx context.Context
 
 	faucetAddr types.Address
-	faucetABI  abi.ABI
+	faucetABI  *abi.ABI
 
 	state     *ExecutionState
 	contracts map[string]*compiler.Contract
@@ -34,15 +34,14 @@ type SuiteZeroState struct {
 func (suite *SuiteZeroState) SetupSuite() {
 	suite.ctx = context.Background()
 
-	faucetABI, err := contracts.GetAbi("Faucet")
-	suite.Require().NoError(err)
-	suite.faucetABI = *faucetABI
-
 	zeroStateConfig, err := ParseZeroStateConfig(DefaultZeroStateConfig)
 	suite.Require().NoError(err)
 	faucetAddress := zeroStateConfig.GetContractAddress("Faucet")
 	suite.Require().NotNil(faucetAddress)
 	suite.faucetAddr = *faucetAddress
+
+	suite.faucetABI, err = contracts.GetAbi(contracts.NameFaucet)
+	suite.Require().NoError(err)
 }
 
 func (suite *SuiteZeroState) SetupTest() {
@@ -129,7 +128,7 @@ contracts:
 	require.NotNil(t, wallet)
 	require.Equal(t, wallet.Balance, types.NewUint256(12345678).Int)
 
-	faucetCode, err := contracts.GetCode("Faucet")
+	faucetCode, err := contracts.GetCode(contracts.NameFaucet)
 	require.NoError(t, err)
 	faucetAddr := types.CreateAddress(types.MasterShardId, types.BuildDeployPayload(faucetCode, common.EmptyHash))
 

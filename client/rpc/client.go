@@ -15,7 +15,6 @@ import (
 	"github.com/NilFoundation/nil/client"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/assert"
-	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/types"
@@ -420,12 +419,7 @@ func (c *Client) sendMessageViaWallet(
 		return common.EmptyHash, err
 	}
 
-	walletAbi, err := contracts.GetAbi("Wallet")
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	calldataExt, err := walletAbi.Pack("send", intMsgData)
+	calldataExt, err := contracts.NewCallData(contracts.NameWallet, "send", intMsgData)
 	if err != nil {
 		return common.EmptyHash, err
 	}
@@ -480,13 +474,11 @@ func (c *Client) sendExternalMessage(
 }
 
 func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount *types.Uint256) (common.Hash, error) {
-	faucetAbi, err := contracts.GetAbi("Faucet")
-	check.PanicIfErr(err)
-	calldata, err := faucetAbi.Pack("withdrawTo", contractAddress, amount.Int.ToBig())
+	callData, err := contracts.NewCallData(contracts.NameFaucet, "withdrawTo", contractAddress, amount.Int.ToBig())
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	return c.SendExternalMessage(calldata, types.FaucetAddress, nil)
+	return c.SendExternalMessage(callData, types.FaucetAddress, nil)
 }
 
 func (c *Client) Call(args *jsonrpc.CallArgs) (string, error) {
@@ -503,12 +495,7 @@ func (c *Client) Call(args *jsonrpc.CallArgs) (string, error) {
 }
 
 func (c *Client) CurrencyCreate(contractAddr types.Address, amount *big.Int, name string, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error) {
-	abiCurrency, err := contracts.GetAbi("NilCurrencyBase")
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	data, err := abiCurrency.Pack("createToken", amount, name, withdraw)
+	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, "createToken", amount, name, withdraw)
 	if err != nil {
 		return common.EmptyHash, err
 	}
@@ -517,12 +504,7 @@ func (c *Client) CurrencyCreate(contractAddr types.Address, amount *big.Int, nam
 }
 
 func (c *Client) CurrencyWithdraw(contractAddr types.Address, amount *big.Int, toAddr types.Address, pk *ecdsa.PrivateKey) (common.Hash, error) {
-	abiCurrency, err := contracts.GetAbi("NilCurrencyBase")
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	data, err := abiCurrency.Pack("withdrawToken", amount, toAddr)
+	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, "withdrawToken", amount, toAddr)
 	if err != nil {
 		return common.EmptyHash, err
 	}
@@ -531,12 +513,7 @@ func (c *Client) CurrencyWithdraw(contractAddr types.Address, amount *big.Int, t
 }
 
 func (c *Client) CurrencyMint(contractAddr types.Address, amount *big.Int, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error) {
-	abiCurrency, err := contracts.GetAbi("NilCurrencyBase")
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	data, err := abiCurrency.Pack("mintToken", amount, withdraw)
+	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, "mintToken", amount, withdraw)
 	if err != nil {
 		return common.EmptyHash, err
 	}

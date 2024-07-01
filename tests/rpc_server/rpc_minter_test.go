@@ -35,20 +35,15 @@ type SuiteMultiCurrencyRpc struct {
 func (s *SuiteMultiCurrencyRpc) SetupSuite() {
 	s.shardsNum = 4
 
+	s.walletAddress1 = contracts.WalletAddress(s.T(), 2, []byte{0}, execution.MainPublicKey)
+	s.walletAddress2 = contracts.WalletAddress(s.T(), 3, []byte{1}, execution.MainPublicKey)
+	s.walletAddress3 = contracts.WalletAddress(s.T(), 3, []byte{3}, execution.MainPublicKey)
+
 	var err error
-	s.walletAddress1, err = contracts.CalculateAddress("Wallet", 2, []any{execution.MainPublicKey}, []byte{0})
+	s.testAddress1_0, err = contracts.CalculateAddress(contracts.NameTokensTest, types.MinterAddress.ShardId(), []byte{1})
 	s.Require().NoError(err)
 
-	s.walletAddress2, err = contracts.CalculateAddress("Wallet", 3, []any{execution.MainPublicKey}, []byte{1})
-	s.Require().NoError(err)
-
-	s.walletAddress3, err = contracts.CalculateAddress("Wallet", 3, []any{execution.MainPublicKey}, []byte{3})
-	s.Require().NoError(err)
-
-	s.testAddress1_0, err = contracts.CalculateAddress("tests/TokensTest", types.MinterAddress.ShardId(), nil, []byte{1})
-	s.Require().NoError(err)
-
-	s.testAddress1_1, err = contracts.CalculateAddress("tests/TokensTest", types.MinterAddress.ShardId(), nil, []byte{2})
+	s.testAddress1_1, err = contracts.CalculateAddress(contracts.NameTokensTest, types.MinterAddress.ShardId(), []byte{2})
 	s.Require().NoError(err)
 
 	zerostateTmpl := `
@@ -93,13 +88,13 @@ contracts:
 	})
 	s.Require().NoError(err)
 
-	s.abiMinter, err = contracts.GetAbi("Minter")
+	s.abiMinter, err = contracts.GetAbi(contracts.NameMinter)
 	s.Require().NoError(err)
 
 	s.abiWallet, err = contracts.GetAbi("Wallet")
 	s.Require().NoError(err)
 
-	s.abiTest, err = contracts.GetAbi("tests/TokensTest")
+	s.abiTest, err = contracts.GetAbi(contracts.NameTokensTest)
 	s.Require().NoError(err)
 }
 
@@ -130,7 +125,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		txhash     common.Hash
 		err        error
 	)
-	multiCurrAbi, err := contracts.GetAbi("NilCurrencyBase")
+	multiCurrAbi, err := contracts.GetAbi(contracts.NameNilCurrencyBase)
 	s.Require().NoError(err)
 
 	currency1 := CreateTokenId(&s.walletAddress1)

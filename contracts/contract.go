@@ -10,6 +10,15 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 )
 
+const (
+	NameWallet          = "Wallet"
+	NameMinter          = "Minter"
+	NameFaucet          = "Faucet"
+	NamePrecompile      = "Precompile"
+	NameNilCurrencyBase = "NilCurrencyBase"
+	NameNilBounceable   = "NilBounceable"
+)
+
 var (
 	codeCache = concurrent.NewMap[string, types.Code]()
 	abiCache  = concurrent.NewMap[string, *abi.ABI]()
@@ -50,17 +59,14 @@ func GetAbi(name string) (*abi.ABI, error) {
 	return &res, nil
 }
 
-func CalculateAddress(name string, shardId types.ShardId, ctorArgs []any, salt []byte) (types.Address, error) {
+func CalculateAddress(name string, shardId types.ShardId, salt []byte, ctorArgs ...any) (types.Address, error) {
 	code, err := GetCode(name)
 	if err != nil {
 		return types.Address{}, err
 	}
+
 	if len(ctorArgs) != 0 {
-		abi, err := GetAbi(name)
-		if err != nil {
-			return types.Address{}, err
-		}
-		argsPacked, err := abi.Pack("", ctorArgs...)
+		argsPacked, err := NewCallData(name, "", ctorArgs...)
 		if err != nil {
 			return types.Address{}, err
 		}
@@ -69,4 +75,16 @@ func CalculateAddress(name string, shardId types.ShardId, ctorArgs []any, salt [
 	payload := types.BuildDeployPayload(code, common.BytesToHash(salt))
 
 	return types.CreateAddress(shardId, payload), nil
+}
+
+func NewCallData(fileName, methodName string, args ...any) ([]byte, error) {
+	abiCallee, err := GetAbi(fileName)
+	if err != nil {
+		return nil, err
+	}
+	callData, err := abiCallee.Pack(methodName, args...)
+	if err != nil {
+		return nil, err
+	}
+	return callData, nil
 }

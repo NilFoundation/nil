@@ -410,9 +410,9 @@ func (suite *SuiteRpc) TestRpcDebugModules() {
 
 // Test that we remove output messages if the transaction failed
 func (suite *SuiteRpc) TestNoOutMessagesIfFailure() {
-	code, err := contracts.GetCode("tests/CommonTest")
+	code, err := contracts.GetCode(contracts.NameCommonTest)
 	suite.Require().NoError(err)
-	abi, err := contracts.GetAbi("tests/CommonTest")
+	abi, err := contracts.GetAbi(contracts.NameCommonTest)
 	suite.Require().NoError(err)
 
 	addr, receipt := suite.deployContractViaMainWallet(2, types.BuildDeployPayload(code, common.EmptyHash), types.NewUint256(defaultContractValue))
