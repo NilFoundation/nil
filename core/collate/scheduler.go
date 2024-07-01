@@ -18,11 +18,18 @@ type MsgPool interface {
 	OnNewBlock(ctx context.Context, block *types.Block, committed []*types.Message) error
 }
 
+type Params struct {
+	execution.BlockGeneratorParams
+
+	MaxInMessagesInBlock  int
+	MaxOutMessagesInBlock int
+}
+
 type Scheduler struct {
 	txFabric db.DB
 	pool     MsgPool
 
-	params             execution.BlockGeneratorParams
+	params             Params
 	topology           ShardTopology
 	collatorTickPeriod time.Duration
 
@@ -32,7 +39,7 @@ type Scheduler struct {
 	logger zerolog.Logger
 }
 
-func NewScheduler(txFabric db.DB, pool MsgPool, params execution.BlockGeneratorParams, topology ShardTopology, collatorTickPeriod time.Duration) *Scheduler {
+func NewScheduler(txFabric db.DB, pool MsgPool, params Params, topology ShardTopology, collatorTickPeriod time.Duration) *Scheduler {
 	return &Scheduler{
 		txFabric:           txFabric,
 		pool:               pool,
