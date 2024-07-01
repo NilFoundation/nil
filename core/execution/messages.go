@@ -147,8 +147,8 @@ func validateExternalExecutionMessage(es *ExecutionState, message *types.Message
 
 	account, err := es.GetAccount(to)
 	check.PanicIfErr(err)
-	if account.Seqno != message.Seqno {
-		return fmt.Errorf("%w: account %v != message %v", ErrSeqnoGap, account.Seqno, message.Seqno)
+	if account.ExtSeqno != message.Seqno {
+		return fmt.Errorf("%w: account %v != message %v", ErrSeqnoGap, account.ExtSeqno, message.Seqno)
 	}
 
 	ok, err := es.CallVerifyExternal(message, account, gasPrice)

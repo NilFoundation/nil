@@ -22,6 +22,7 @@ type SmartContract struct {
 	StorageRoot  common.Hash
 	CodeHash     common.Hash
 	Seqno        Seqno
+	ExtSeqno     Seqno
 	PublicKey    [PublicKeySize]byte
 }
 
