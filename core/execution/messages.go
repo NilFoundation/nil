@@ -40,11 +40,10 @@ func (m messagePayer) AddBalance(delta *uint256.Int) {
 		return
 	}
 	m.es.AddOutMessageForTx(m.message.Hash(), &types.Message{
-		Internal: true,
-		Kind:     types.RefundMessageKind,
-		From:     m.message.To,
-		To:       m.message.RefundTo,
-		Value:    types.Uint256{Int: *delta},
+		Flags: types.NewMessageFlags(types.MessageFlagInternal, types.MessageFlagRefund),
+		From:  m.message.To,
+		To:    m.message.RefundTo,
+		Value: types.Uint256{Int: *delta},
 	})
 }
 
@@ -117,7 +116,7 @@ func ValidateDeployMessage(message *types.Message) error {
 }
 
 func validateExternalDeployMessage(es *ExecutionState, message *types.Message) error {
-	check.PanicIfNot(message.Kind == types.DeployMessageKind)
+	check.PanicIfNot(message.IsDeploy())
 
 	if err := ValidateDeployMessage(message); err != nil {
 		return err
@@ -133,7 +132,7 @@ func validateExternalDeployMessage(es *ExecutionState, message *types.Message) e
 }
 
 func validateExternalExecutionMessage(es *ExecutionState, message *types.Message, gasPrice *uint256.Int) error {
-	check.PanicIfNot(message.Kind == types.ExecutionMessageKind)
+	check.PanicIfNot(message.IsExecution())
 
 	to := message.To
 	if exists, err := es.ContractExists(to); err != nil {
@@ -162,7 +161,7 @@ func validateExternalExecutionMessage(es *ExecutionState, message *types.Message
 }
 
 func ValidateExternalMessage(es *ExecutionState, message *types.Message, gasPrice *uint256.Int) error {
-	check.PanicIfNot(!message.Internal)
+	check.PanicIfNot(message.IsExternal())
 
 	if message.ChainId != types.DefaultChainId {
 		return ErrInvalidChainId
@@ -174,14 +173,12 @@ func ValidateExternalMessage(es *ExecutionState, message *types.Message, gasPric
 		return ErrNoPayer
 	}
 
-	switch message.Kind {
-	case types.DeployMessageKind:
+	switch {
+	case message.IsDeploy():
 		return validateExternalDeployMessage(es, message)
-	case types.ExecutionMessageKind:
-		return validateExternalExecutionMessage(es, message, gasPrice)
-	case types.RefundMessageKind:
+	case message.IsRefund():
 		return errors.New("refund message is not allowed in external messages")
 	default:
-		panic("unreachable")
+		return validateExternalExecutionMessage(es, message, gasPrice)
 	}
 }

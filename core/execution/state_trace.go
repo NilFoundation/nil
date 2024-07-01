@@ -59,13 +59,18 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 	}
 	printMessage := func(msg *types.Message) {
 		bt.printf("hash: %s\n", msg.Hash().Hex())
-		bt.printf("internal: %t\n", msg.Internal)
-		bt.printf("kind: %v\n", msg.Kind)
+		bt.printf("flags: %v\n", msg.Flags)
 		bt.printf("seqno: %d\n", msg.Seqno)
 		bt.printf("from: %s\n", msg.From.Hex())
 		bt.printf("to: %s\n", msg.To.Hex())
+		bt.printf("refundTo: %s\n", msg.RefundTo.Hex())
+		bt.printf("bounceTo: %s\n", msg.BounceTo.Hex())
 		bt.printf("value: %s\n", msg.Value.String())
-		bt.printf("data_size: %d\n", len(msg.Data))
+		if len(msg.Data) < 1024 {
+			bt.printf("data: %s\n", hexutil.Encode(msg.Data))
+		} else {
+			bt.printf("data_size: %d\n", len(msg.Data))
+		}
 		if len(msg.Currency) > 0 {
 			bt.printf("currency:\n")
 			for _, curr := range msg.Currency {

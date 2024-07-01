@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/common/logging"
@@ -23,29 +22,13 @@ var supportedOptions map[string]struct{} = map[string]struct{}{
 	"address":      {},
 }
 
-const intitConfigTemplate = `---
-# Configuration for interacting with the =nil; cluster
-
-# Specify the RPC endpoint of your cluster
-# For example, if your cluster's RPC endpoint is at "http://127.0.0.1:8529", set it as below
-# rpc_endpoint: "http://127.0.0.1:8529"
-
-# Specify the private key used for signing transactions
-# This should be a hexadecimal string corresponding to your account's private key
-# private_key: "WRITE_YOUR_PRIVATE_KEY_HERE"
-
-# Specify the the address of your wallet to be receipt of your external messages
-# This should be a hexadecimal string corresponding to your account's address
-# address: "0xWRITE_YOUR_ADDRESS_HERE"
-`
-
 func GetCommand(configPath *string, cfg *common.Config) *cobra.Command {
 	configCmd := &cobra.Command{
 		Use:          "config",
 		Short:        "Configuration management",
 		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			viper.SetConfigFile(*configPath)
+			common.SetConfigFile(*configPath)
 
 			if _, withoutConfig := noConfigCmd[cmd.Name()]; withoutConfig {
 				return nil
@@ -64,20 +47,13 @@ func GetCommand(configPath *string, cfg *common.Config) *cobra.Command {
 		Args:         cobra.ExactArgs(0),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			file, err := os.OpenFile(viper.ConfigFileUsed(), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+			path, err := common.InitDefaultConfig(*configPath)
 			if err != nil {
-				logger.Error().Err(err).Msg("Failed to create config file")
-				return err
-			}
-			defer file.Close()
-
-			_, err = file.WriteString(intitConfigTemplate)
-			if err != nil {
-				logger.Error().Err(err).Msg("Failed to write template to config file")
+				logger.Error().Err(err).Msg("Failed to create config")
 				return err
 			}
 
-			logger.Info().Msgf("Config initialized successfully: %s", viper.ConfigFileUsed())
+			logger.Info().Msgf("Config initialized successfully: %s", path)
 			return nil
 		},
 	}

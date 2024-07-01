@@ -64,18 +64,16 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 
 		gas := msg.GasLimit.Uint64()
 		var leftOverGas uint64
-		switch msg.Kind {
-		case types.DeployMessageKind:
+		switch {
+		case msg.IsDeploy():
 			leftOverGas, err = es.HandleDeployMessage(ctx, msg)
 			require.NoError(t, err)
-		case types.ExecutionMessageKind:
-			leftOverGas, _, err = es.HandleExecutionMessage(ctx, msg)
-			require.NoError(t, err)
-		case types.RefundMessageKind:
+		case msg.IsRefund():
 			err = es.HandleRefundMessage(ctx, msg)
 			require.NoError(t, err)
 		default:
-			panic("unreachable")
+			leftOverGas, _, err = es.HandleExecutionMessage(ctx, msg)
+			require.NoError(t, err)
 		}
 
 		es.AddReceipt(uint32(gas-leftOverGas), err)
@@ -97,8 +95,7 @@ func NewDeployMessage(payload types.DeployPayload,
 	shardId types.ShardId, from types.Address, seqno types.Seqno,
 ) *types.Message {
 	return &types.Message{
-		Internal: true,
-		Kind:     types.DeployMessageKind,
+		Flags:    types.NewMessageFlags(types.MessageFlagInternal, types.MessageFlagDeploy),
 		Data:     payload.Bytes(),
 		From:     from,
 		Seqno:    seqno,
@@ -109,7 +106,6 @@ func NewDeployMessage(payload types.DeployPayload,
 
 func NewExecutionMessage(from, to types.Address, seqno types.Seqno, callData []byte) *types.Message {
 	return &types.Message{
-		Kind:     types.ExecutionMessageKind,
 		From:     from,
 		To:       to,
 		Data:     callData,

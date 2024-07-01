@@ -2,6 +2,9 @@ package types
 
 import (
 	"crypto/ecdsa"
+	"encoding/json"
+	"errors"
+	"fmt"
 
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
@@ -52,15 +55,25 @@ func BytesToMessageIndex(b []byte) MessageIndex {
 	return mi
 }
 
+type MessageFlags struct {
+	BitFlags[uint8]
+}
+
 type ChainId uint64
 
 const DefaultChainId = ChainId(0)
 
+const (
+	MessageFlagInternal int = iota
+	MessageFlagDeploy
+	MessageFlagRefund
+	MessageFlagBounce
+)
+
 type Message struct {
-	Internal bool        `json:"internal" ch:"internal"`
-	Kind     MessageKind `json:"kind,omitempty" ch:"kind"`
-	ChainId  ChainId     `json:"chainId" ch:"chainId"`
-	Seqno    Seqno       `json:"seqno,omitempty" ch:"seqno"`
+	Flags   MessageFlags `json:"flags" ch:"flags"`
+	ChainId ChainId      `json:"chainId" ch:"chainId"`
+	Seqno   Seqno        `json:"seqno,omitempty" ch:"seqno"`
 	// TODO: This field is not used right now, but it should be used in the future
 	GasPrice Uint256           `json:"gasPrice,omitempty" ch:"gas_price" ssz-size:"32"`
 	GasLimit Uint256           `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
@@ -86,6 +99,7 @@ type ExternalMessage struct {
 
 type InternalMessagePayload struct {
 	Kind     MessageKind       `json:"kind,omitempty" ch:"kind"`
+	Bounce   bool              `json:"bounce,omitempty" ch:"bounce"`
 	GasLimit Uint256           `json:"gasLimit,omitempty" ch:"gas_limit" ssz-size:"32"`
 	To       Address           `json:"to,omitempty" ch:"to"`
 	RefundTo Address           `json:"refundTo,omitempty" ch:"refundTo"`
@@ -96,7 +110,7 @@ type InternalMessagePayload struct {
 }
 
 type messageDigest struct {
-	Kind    MessageKind
+	Flags   MessageFlags
 	To      Address
 	ChainId ChainId
 	Seqno   Seqno
@@ -112,7 +126,7 @@ var (
 )
 
 func (m *Message) Hash() common.Hash {
-	if !m.Internal {
+	if m.IsExternal() {
 		return m.toExternal().Hash()
 	}
 	h, err := common.PoseidonSSZ(m)
@@ -130,11 +144,20 @@ func (m *Message) Sign(key *ecdsa.PrivateKey) error {
 }
 
 func (m *Message) toExternal() *ExternalMessage {
-	if m.Internal {
+	if m.IsInternal() {
 		panic("cannot convert internal message to external message")
 	}
+	var kind MessageKind
+	switch {
+	case m.IsDeploy():
+		kind = DeployMessageKind
+	case m.IsRefund():
+		kind = RefundMessageKind
+	default:
+		kind = ExecutionMessageKind
+	}
 	return &ExternalMessage{
-		Kind:     m.Kind,
+		Kind:     kind,
 		To:       m.To,
 		ChainId:  m.ChainId,
 		Seqno:    m.Seqno,
@@ -143,10 +166,54 @@ func (m *Message) toExternal() *ExternalMessage {
 	}
 }
 
+func (m *Message) VerifyFlags() error {
+	if m.IsInternal() {
+		num := 0
+		if m.IsDeploy() {
+			num++
+		}
+		if m.IsRefund() {
+			num++
+		}
+		if m.IsBounce() {
+			num++
+		}
+		if num > 1 {
+			return errors.New("internal message cannot be deploy, refund or bounce at the same time")
+		}
+	} else if m.IsRefund() || m.IsBounce() {
+		return errors.New("external message cannot be bounce or refund")
+	}
+	return nil
+}
+
+func (m *Message) IsInternal() bool {
+	return m.Flags.GetBit(MessageFlagInternal)
+}
+
+func (m *Message) IsExternal() bool {
+	return !m.IsInternal()
+}
+
+func (m *Message) IsExecution() bool {
+	return !m.Flags.GetBit(MessageFlagDeploy) && !m.Flags.GetBit(MessageFlagRefund)
+}
+
+func (m *Message) IsBounce() bool {
+	return m.Flags.GetBit(MessageFlagBounce)
+}
+
+func (m *Message) IsDeploy() bool {
+	return m.Flags.GetBit(MessageFlagDeploy)
+}
+
+func (m *Message) IsRefund() bool {
+	return m.Flags.GetBit(MessageFlagRefund)
+}
+
 func (m *InternalMessagePayload) ToMessage(from Address, seqno Seqno) *Message {
-	return &Message{
-		Internal: true,
-		Kind:     m.Kind,
+	msg := &Message{
+		Flags:    MessageFlagsFromKind(true, m.Kind),
 		To:       m.To,
 		RefundTo: m.RefundTo,
 		BounceTo: m.BounceTo,
@@ -157,6 +224,11 @@ func (m *InternalMessagePayload) ToMessage(from Address, seqno Seqno) *Message {
 		GasLimit: m.GasLimit,
 		Seqno:    seqno,
 	}
+	if m.Bounce {
+		msg.Flags.SetBit(MessageFlagBounce)
+	}
+
+	return msg
 }
 
 func (m *ExternalMessage) Hash() common.Hash {
@@ -167,7 +239,7 @@ func (m *ExternalMessage) Hash() common.Hash {
 
 func (m *ExternalMessage) SigningHash() (common.Hash, error) {
 	messageDigest := messageDigest{
-		Kind:    m.Kind,
+		Flags:   MessageFlagsFromKind(false, m.Kind),
 		Seqno:   m.Seqno,
 		To:      m.To,
 		Data:    m.Data,
@@ -179,7 +251,7 @@ func (m *ExternalMessage) SigningHash() (common.Hash, error) {
 
 func (m *Message) SigningHash() (common.Hash, error) {
 	messageDigest := messageDigest{
-		Kind:    m.Kind,
+		Flags:   m.Flags,
 		Seqno:   m.Seqno,
 		To:      m.To,
 		Data:    m.Data,
@@ -202,5 +274,83 @@ func (m *ExternalMessage) Sign(key *ecdsa.PrivateKey) error {
 
 	m.AuthData = Signature(sig)
 
+	return nil
+}
+
+func NewMessageFlags(flags ...int) MessageFlags {
+	return MessageFlags{NewBitFlags[uint8](flags...)}
+}
+
+func MessageFlagsFromKind(internal bool, kind MessageKind) MessageFlags {
+	flags := make([]int, 0, 2)
+	if internal {
+		flags = append(flags, MessageFlagInternal)
+	}
+	switch kind {
+	case DeployMessageKind:
+		flags = append(flags, MessageFlagDeploy)
+	case RefundMessageKind:
+		flags = append(flags, MessageFlagRefund)
+	case ExecutionMessageKind: // do nothing
+	}
+	return NewMessageFlags(flags...)
+}
+
+func (m MessageFlags) String() string {
+	var res string
+	if m.GetBit(MessageFlagInternal) {
+		res += "Internal"
+	} else {
+		res += "External"
+	}
+	if m.GetBit(MessageFlagDeploy) {
+		res += ", Deploy"
+	}
+	if m.GetBit(MessageFlagRefund) {
+		res += ", Refund"
+	}
+	if m.GetBit(MessageFlagBounce) {
+		res += ", Bounce"
+	}
+	return res
+}
+
+func (m MessageFlags) MarshalJSON() ([]byte, error) {
+	var res string
+	if m.GetBit(MessageFlagInternal) {
+		res += "\"Internal\""
+	} else {
+		res += "\"External\""
+	}
+	if m.GetBit(MessageFlagDeploy) {
+		res += ", \"Deploy\""
+	}
+	if m.GetBit(MessageFlagRefund) {
+		res += ", \"Refund\""
+	}
+	if m.GetBit(MessageFlagBounce) {
+		res += ", \"Bounce\""
+	}
+	return []byte(fmt.Sprintf("[%s]", res)), nil
+}
+
+func (m *MessageFlags) UnmarshalJSON(data []byte) error {
+	m.Clear()
+	var s []string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	for _, v := range s {
+		switch v {
+		case "Internal":
+			m.SetBit(MessageFlagInternal)
+		case "Deploy":
+			m.SetBit(MessageFlagDeploy)
+		case "Refund":
+			m.SetBit(MessageFlagRefund)
+		case "Bounce":
+			m.SetBit(MessageFlagBounce)
+		}
+	}
 	return nil
 }

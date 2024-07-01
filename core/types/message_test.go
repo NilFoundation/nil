@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
@@ -39,4 +40,27 @@ func TestMessageSign(t *testing.T) {
 
 	pubBytes := crypto.CompressPubkey(pub)
 	assert.True(t, crypto.VerifySignature(pubBytes, h.Bytes(), msg.AuthData[:64]))
+}
+
+func TestMessageFlagsJson(t *testing.T) {
+	t.Parallel()
+
+	m := NewMessageFlags(MessageFlagInternal, MessageFlagRefund)
+	data, err := json.Marshal(m)
+	require.NoError(t, err)
+	var m2 MessageFlags
+	require.NoError(t, json.Unmarshal(data, &m2))
+	require.Equal(t, m, m2)
+
+	m = NewMessageFlags(MessageFlagInternal, MessageFlagRefund, MessageFlagDeploy, MessageFlagBounce)
+	data, err = json.Marshal(m)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(data, &m2))
+	require.Equal(t, m, m2)
+
+	m = NewMessageFlags()
+	data, err = json.Marshal(m)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(data, &m2))
+	require.Equal(t, m, m2)
 }
