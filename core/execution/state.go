@@ -57,8 +57,9 @@ type ExecutionState struct {
 	InMessageHash common.Hash
 	Logs          map[common.Hash][]*types.Log
 
-	Accounts   map[types.Address]*AccountState
-	InMessages []*types.Message
+	Accounts       map[types.Address]*AccountState
+	AccountReaders map[types.Address]*AccountStateReader
+	InMessages     []*types.Message
 
 	// OutMessages holds outbound messages for every transaction in the executed block, where key is hash of Message that sends the message
 	OutMessages map[common.Hash][]*types.Message
@@ -94,33 +95,50 @@ type revision struct {
 
 var _ vm.StateDB = new(ExecutionState)
 
-func NewAccountState(es *ExecutionState, addr types.Address, tx db.RwTx, account *types.SmartContract) (*AccountState, error) {
+func NewAccountStateReader(addr types.Address, tx db.RoTx, account *types.SmartContract) (*AccountStateReader, error) {
 	shardId := addr.ShardId()
 
-	// TODO: store storage of each contract in separate table
-	root := NewStorageTrie(mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.StorageTrieTable, account.StorageRoot))
-
-	currencyRoot := NewCurrencyTrie(mpt.NewMerklePatriciaTrieWithRoot(tx, shardId, db.CurrencyTrieTable, account.CurrencyRoot))
-
-	code, err := db.ReadCode(tx, shardId, account.CodeHash)
-	if err != nil {
-		return nil, err
+	var currencyRoot *CurrencyTrieReader
+	if account != nil {
+		currencyRoot = NewCurrencyTrieReader(mpt.NewReaderWithRoot(tx, shardId, db.CurrencyTrieTable, account.CurrencyRoot))
+	} else {
+		currencyRoot = NewCurrencyTrieReader(mpt.NewReader(tx, shardId, db.CurrencyTrieTable))
 	}
 
-	return &AccountState{
-		db:      es,
-		address: addr,
-
-		Tx:           tx,
-		Balance:      account.Balance,
-		CurrencyTree: currencyRoot,
-		StorageTree:  root,
-		CodeHash:     account.CodeHash,
-		Code:         code,
-		ExtSeqno:     account.ExtSeqno,
-		Seqno:        account.Seqno,
-		State:        make(Storage),
+	return &AccountStateReader{
+		CurrencyTrieReader: currencyRoot,
 	}, nil
+}
+
+func NewAccountState(es *ExecutionState, addr types.Address, account *types.SmartContract, accountStateReader *AccountStateReader) (*AccountState, error) {
+	shardId := addr.ShardId()
+
+	accountState := &AccountState{
+		db:                 es,
+		address:            addr,
+		accountStateReader: accountStateReader,
+		CurrencyTree:       NewCurrencyTrie(mpt.NewMerklePatriciaTrieFromReader(es.tx, accountStateReader.CurrencyTrieReader.Reader)),
+
+		Tx:    es.tx,
+		State: make(Storage),
+	}
+
+	if account != nil {
+		accountState.Balance = account.Balance
+		accountState.StorageTree = NewStorageTrie(mpt.NewMerklePatriciaTrieWithRoot(es.tx, shardId, db.StorageTrieTable, account.StorageRoot))
+		accountState.CodeHash = account.CodeHash
+		var err error
+		accountState.Code, err = db.ReadCode(es.tx, shardId, account.CodeHash)
+		if err != nil {
+			return nil, err
+		}
+		accountState.ExtSeqno = account.ExtSeqno
+		accountState.Seqno = account.Seqno
+	} else {
+		accountState.StorageTree = NewStorageTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.StorageTrieTable))
+	}
+
+	return accountState, nil
 }
 
 // NewEVMBlockContext creates a new context for use in the EVM.
@@ -165,6 +183,7 @@ func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash,
 		ShardId:          shardId,
 		ChildChainBlocks: map[types.ShardId]common.Hash{},
 		Accounts:         map[types.Address]*AccountState{},
+		AccountReaders:   map[types.Address]*AccountStateReader{},
 		OutMessages:      map[common.Hash][]*types.Message{},
 		Logs:             map[common.Hash][]*types.Log{},
 		Errors:           map[common.Hash]error{},
@@ -207,6 +226,30 @@ func (es *ExecutionState) GetReceipt(msgIndex types.MessageIndex) (*types.Receip
 	return es.ReceiptTree.Fetch(msgIndex)
 }
 
+func (es *ExecutionState) GetAccountReader(addr types.Address) (*AccountStateReader, error) {
+	acc, ok := es.AccountReaders[addr]
+	if ok {
+		return acc, nil
+	}
+
+	addrHash := addr.Hash()
+
+	data, err := es.ContractTree.Fetch(addrHash)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	acc, err = NewAccountStateReader(addr, es.tx, data)
+	if err != nil {
+		return nil, err
+	}
+	es.AccountReaders[addr] = acc
+	return acc, nil
+}
+
 func (es *ExecutionState) GetAccount(addr types.Address) (*AccountState, error) {
 	acc, ok := es.Accounts[addr]
 	if ok {
@@ -223,7 +266,15 @@ func (es *ExecutionState) GetAccount(addr types.Address) (*AccountState, error) 
 		return nil, err
 	}
 
-	acc, err = NewAccountState(es, addr, es.tx, data)
+	accountStateReader, err := es.GetAccountReader(addr)
+	if err != nil {
+		return nil, err
+	}
+	if accountStateReader == nil {
+		return nil, nil
+	}
+
+	acc, err = NewAccountState(es, addr, data, accountStateReader)
 	if err != nil {
 		return nil, err
 	}
@@ -557,21 +608,17 @@ func (es *ExecutionState) createAccount(addr types.Address) (*AccountState, erro
 
 	es.journal.append(createObjectChange{account: &addr})
 
-	// TODO: store storage of each contract in separate table
-	root := NewStorageTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.StorageTrieTable))
-	currencyRoot := NewCurrencyTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.CurrencyTrieTable))
-
-	res := &AccountState{
-		db:      es,
-		address: addr,
-
-		Tx:           es.tx,
-		StorageTree:  root,
-		CurrencyTree: currencyRoot,
-		State:        map[common.Hash]common.Hash{},
+	accountStateReader, err := NewAccountStateReader(addr, es.tx, nil)
+	if err != nil {
+		return nil, err
 	}
-	es.Accounts[addr] = res
-	return res, nil
+
+	accountState, err := NewAccountState(es, addr, nil, accountStateReader)
+	if err != nil {
+		return nil, err
+	}
+	es.Accounts[addr] = accountState
+	return accountState, nil
 }
 
 // CreateContract is used whenever a contract is created. This may be preceded
@@ -1080,7 +1127,7 @@ func (es *ExecutionState) SubCurrency(addr types.Address, currencyId types.Curre
 }
 
 func (es *ExecutionState) GetCurrencies(addr types.Address) map[types.CurrencyId]types.Value {
-	acc, err := es.GetAccount(addr)
+	acc, err := es.GetAccountReader(addr)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get account")
 		return nil
@@ -1090,7 +1137,7 @@ func (es *ExecutionState) GetCurrencies(addr types.Address) map[types.CurrencyId
 	}
 
 	res := make(map[types.CurrencyId]types.Value)
-	for kv := range acc.CurrencyTree.Iterate() {
+	for kv := range acc.CurrencyTrieReader.Iterate() {
 		var c types.CurrencyBalance
 		c.Currency = types.CurrencyId(kv.Key)
 		if err := c.Balance.UnmarshalSSZ(kv.Value); err != nil {

@@ -117,20 +117,20 @@ func NewReaderWithRoot(db db.RoTx, shardId types.ShardId, name db.ShardedTableNa
 	return &Reader{reader: db, shardId: shardId, table: name, root: root.Bytes()}
 }
 
-func NewMerklePatriciaTrie(db db.RwTx, shardId types.ShardId, name db.ShardedTableName) *MerklePatriciaTrie {
-	return &MerklePatriciaTrie{
-		NewReader(db, shardId, name),
-		db,
-	}
-}
-
-func NewMerklePatriciaTrieWithRoot(db db.RwTx, shardId types.ShardId, name db.ShardedTableName, root common.Hash) *MerklePatriciaTrie {
-	reader := NewReader(db, shardId, name)
-	reader.root = root.Bytes()
+func NewMerklePatriciaTrieFromReader(db db.RwTx, reader *Reader) *MerklePatriciaTrie {
 	return &MerklePatriciaTrie{
 		reader,
 		db,
 	}
+}
+
+func NewMerklePatriciaTrie(db db.RwTx, shardId types.ShardId, name db.ShardedTableName) *MerklePatriciaTrie {
+	return NewMerklePatriciaTrieFromReader(db, NewReader(db, shardId, name))
+}
+
+func NewMerklePatriciaTrieWithRoot(db db.RwTx, shardId types.ShardId, name db.ShardedTableName, root common.Hash) *MerklePatriciaTrie {
+	reader := NewReaderWithRoot(db, shardId, name, root)
+	return NewMerklePatriciaTrieFromReader(db, reader)
 }
 
 func GetEntity[

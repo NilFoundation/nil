@@ -136,7 +136,7 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 	var ret []byte
 	var runErr error
 	if isPrecompile {
-		ret, gas, runErr = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, gas, value, caller, readOnly)
+		ret, gas, runErr = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, value, caller, readOnly)
 	} else {
 		if exists, err := evm.StateDB.Exists(addr); err != nil {
 			return nil, gas, err
@@ -230,7 +230,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr types.Address, input []byte, g
 	var ret []byte
 	var runErr error
 	if p, isPrecompile := evm.precompile(addr); isPrecompile {
-		ret, gas, runErr = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, gas, value, caller, readOnly)
+		ret, gas, runErr = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, value, caller, readOnly)
 	} else {
 		code, codeHash, err := evm.StateDB.GetCode(addr)
 		if err != nil {
@@ -275,7 +275,7 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr types.Address, input []byt
 	var ret []byte
 	var runErr error
 	if p, isPrecompile := evm.precompile(addr); isPrecompile {
-		ret, gas, runErr = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, gas, nil, caller, readOnly)
+		ret, gas, runErr = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, nil, caller, readOnly)
 	} else {
 		code, codeHash, err := evm.StateDB.GetCode(addr)
 		if err != nil {
@@ -330,7 +330,7 @@ func (evm *EVM) StaticCall(caller ContractRef, addr types.Address, input []byte,
 	var ret []byte
 	var runErr error
 	if p, isPrecompile := evm.precompile(addr); isPrecompile {
-		ret, gas, runErr = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, gas, nil, caller, readOnly)
+		ret, gas, runErr = RunPrecompiledContract(p, evm.StateDB, input, gas, evm.Config.Tracer, nil, caller, readOnly)
 	} else {
 		code, codeHash, err := evm.StateDB.GetCode(addr)
 		if err != nil {

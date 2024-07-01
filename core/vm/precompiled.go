@@ -45,9 +45,16 @@ func init() {
 type PrecompiledContract interface {
 	// RequiredPrice calculates the contract gas use
 	RequiredGas(input []byte) uint64
+}
 
+type ReadOnlyPrecompiledContract interface {
 	// Run runs the precompiled contract
-	Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, _ bool) ([]byte, error)
+	Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error)
+}
+
+type ReadWritePrecompiledContract interface {
+	// Run runs the precompiled contract without state modifications
+	Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error)
 }
 
 type SimplePrecompiledContract interface {
@@ -73,10 +80,10 @@ var (
 // contracts used in the Prague release.
 var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	types.BytesToAddress([]byte{0x01}): &simple{&ecrecover{}},
-	types.BytesToAddress([]byte{0x02}): &sha256hash{},
+	types.BytesToAddress([]byte{0x02}): &simple{&sha256hash{}},
 	types.BytesToAddress([]byte{0x03}): &simple{&ripemd160hash{}},
-	types.BytesToAddress([]byte{0x04}): &dataCopy{},
-	types.BytesToAddress([]byte{0x05}): &bigModExp{eip2565: true},
+	types.BytesToAddress([]byte{0x04}): &simple{&dataCopy{}},
+	types.BytesToAddress([]byte{0x05}): &simple{&bigModExp{eip2565: true}},
 	types.BytesToAddress([]byte{0x06}): &simple{&bn256AddIstanbul{}},
 	types.BytesToAddress([]byte{0x07}): &simple{&bn256ScalarMulIstanbul{}},
 	types.BytesToAddress([]byte{0x08}): &simple{&bn256PairingIstanbul{}},
@@ -95,7 +102,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	// NilFoundation precompiled contracts
 	SendRawMessageAddress:  &sendRawMessage{},
 	AsyncCallAddress:       &asyncCall{},
-	VerifySignatureAddress: &verifySignature{},
+	VerifySignatureAddress: &simple{&verifySignature{}},
 	CheckIsInternalAddress: &checkIsInternal{},
 	MintCurrencyAddress:    &mintCurrency{},
 	CurrencyBalanceAddress: &currencyBalance{},
@@ -109,7 +116,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 // - the _remaining_ gas,
 // - any error that occurred
 func RunPrecompiledContract(p PrecompiledContract, state StateDB, input []byte, suppliedGas uint64,
-	logger *tracing.Hooks, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool,
+	logger *tracing.Hooks, value *uint256.Int, caller ContractRef, readOnly bool,
 ) (ret []byte, remainingGas uint64, err error) {
 	gasCost := p.RequiredGas(input)
 	if suppliedGas < gasCost {
@@ -119,8 +126,19 @@ func RunPrecompiledContract(p PrecompiledContract, state StateDB, input []byte, 
 		logger.OnGasChange(suppliedGas, suppliedGas-gasCost, tracing.GasChangeCallPrecompiledContract)
 	}
 	suppliedGas -= gasCost
-	output, err := p.Run(state, input, gas, value, caller, readOnly)
-	return output, suppliedGas, err
+	switch p := p.(type) {
+	case ReadOnlyPrecompiledContract:
+		ret, err = p.Run(StateDBReadOnly(state), input, value, caller)
+	case ReadWritePrecompiledContract:
+		if readOnly {
+			err = ErrWriteProtection
+		} else {
+			ret, err = p.Run(state, input, value, caller)
+		}
+	default:
+		err = ErrUnexpectedType
+	}
+	return ret, suppliedGas, err
 }
 
 type simple struct {
@@ -131,7 +149,7 @@ func (a *simple) RequiredGas(input []byte) uint64 {
 	return a.contract.RequiredGas(input)
 }
 
-func (a *simple) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+func (a *simple) Run(_ StateDBReadOnly /* state */, input []byte, _ *uint256.Int /* value */, _ ContractRef /* caller */) ([]byte, error) {
 	return a.contract.Run(input)
 }
 
@@ -196,10 +214,7 @@ func getPrecompiledMethod(methodName string) abi.Method {
 	return method
 }
 
-func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
-	if readOnly {
-		return nil, ErrWriteProtection
-	}
+func (c *sendRawMessage) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	payload := new(types.InternalMessagePayload)
 	if err := payload.UnmarshalSSZ(input); err != nil {
 		return nil, err
@@ -252,11 +267,7 @@ func extractCurrencies(arg any) ([]types.CurrencyBalance, error) {
 	return currencies, nil
 }
 
-func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) (res []byte, err error) {
-	if readOnly {
-		return nil, ErrWriteProtection
-	}
-
+func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) (res []byte, err error) {
 	// Unpack arguments, skipping the first 4 bytes (function selector)
 	args, err := getPrecompiledMethod("precompileAsyncCall").Inputs.Unpack(input[4:])
 	if err != nil {
@@ -348,7 +359,7 @@ func (c *verifySignature) RequiredGas([]byte) uint64 {
 	return 5000
 }
 
-func (c *verifySignature) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+func (a *verifySignature) Run(input []byte) ([]byte, error) {
 	args := VerifySignatureArgs()
 	values, err := args.Unpack(input)
 	if err != nil || len(values) != 3 {
@@ -387,7 +398,7 @@ func (c *checkIsInternal) RequiredGas([]byte) uint64 {
 	return 10
 }
 
-func (c *checkIsInternal) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+func (a *checkIsInternal) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	res := make([]byte, 32)
 
 	if state.IsInternalMessage() {
@@ -403,7 +414,7 @@ func (c *mintCurrency) RequiredGas([]byte) uint64 {
 	return 10
 }
 
-func (c *mintCurrency) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+func (c *mintCurrency) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	res := make([]byte, 32)
 
 	if caller.Address() != types.MinterAddress {
@@ -447,7 +458,7 @@ func (c *currencyBalance) RequiredGas([]byte) uint64 {
 	return 10
 }
 
-func (c *currencyBalance) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+func (a *currencyBalance) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	res := make([]byte, 32)
 
 	if caller.Address() != types.MinterAddress {
@@ -499,7 +510,7 @@ func (c *sendCurrencySync) RequiredGas([]byte) uint64 {
 	return 10
 }
 
-func (c *sendCurrencySync) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+func (c *sendCurrencySync) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	// Unpack arguments, skipping the first 4 bytes (function selector)
 	args, err := getPrecompiledMethod("precompileSendTokens").Inputs.Unpack(input[4:])
 	if err != nil {
@@ -540,7 +551,7 @@ func (c *getMessageTokens) RequiredGas([]byte) uint64 {
 	return 10
 }
 
-func (c *getMessageTokens) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
+func (c *getMessageTokens) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	callerCurrencies := caller.Currency()
 	abiCurrencies := make([]types.CurrencyBalanceAbiCompatible, len(callerCurrencies))
 	for i, c := range callerCurrencies {
