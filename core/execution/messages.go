@@ -84,6 +84,9 @@ func buyGas(payer payer, message *types.Message, gasPrice types.Value) error {
 }
 
 func refundGas(payer payer, _ *types.Message, gasRemaining types.Gas, gasPrice types.Value) {
+	if gasRemaining == 0 {
+		return
+	}
 	// Return currency for remaining gas, exchanged at the original rate.
 	payer.AddBalance(gasRemaining.ToValue(gasPrice))
 }

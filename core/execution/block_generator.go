@@ -108,13 +108,14 @@ func (g *BlockGenerator) handleMessage(msg *types.Message, payer payer, gasPrice
 	switch {
 	case msg.IsDeploy():
 		leftOverGas, err = g.executionState.HandleDeployMessage(g.txOwner.Ctx, msg)
+		refundGas(payer, msg, leftOverGas, gasPrice)
 	case msg.IsRefund():
 		err = g.executionState.HandleRefundMessage(g.txOwner.Ctx, msg)
 	default:
 		leftOverGas, _, err = g.executionState.HandleExecutionMessage(g.txOwner.Ctx, msg)
+		refundGas(payer, msg, leftOverGas, gasPrice)
 	}
 
-	refundGas(payer, msg, leftOverGas, gasPrice)
 	return gas.Sub(leftOverGas), err
 }
 
