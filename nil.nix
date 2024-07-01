@@ -38,6 +38,13 @@ in buildGoModule rec {
     delve
   ];
 
+  rev = src_repo.shortRev or src_repo.dirtyShortRev or "unknown";
+  packageName = "github.com/NilFoundation/nil";
+  ldflags = [
+    "-X ${packageName}/cmd/nil_cli/version.gitCommit=${rev}"
+    "-X ${packageName}/cmd/nil_cli/version.gitTag=${version}"
+  ];
+
   doCheck = enableTesting;
   checkFlags = [ "-tags assert,test" ]
     ++ (if enableRaceDetector then [ "-race" ] else [ ]);

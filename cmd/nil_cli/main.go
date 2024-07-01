@@ -16,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/cmd/nil_cli/minter"
 	"github.com/NilFoundation/nil/cmd/nil_cli/receipt"
 	"github.com/NilFoundation/nil/cmd/nil_cli/system"
+	"github.com/NilFoundation/nil/cmd/nil_cli/version"
 	"github.com/NilFoundation/nil/cmd/nil_cli/wallet"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
@@ -43,6 +44,7 @@ var noConfigCmd map[string]struct{} = map[string]struct{}{
 	"__complete":       {},
 	"__completeNoDesc": {},
 	"config":           {},
+	"version":          {},
 }
 
 func main() {
@@ -85,15 +87,16 @@ func main() {
 // registerSubCommands adds all subcommands to the root command
 func (rc *RootCommand) registerSubCommands() {
 	rc.baseCmd.AddCommand(
-		keygen.GetCommand(),
 		block.GetCommand(&rc.config),
 		config.GetCommand(&rc.cfgFile, &rc.config),
+		contract.GetCommand(&rc.config),
+		keygen.GetCommand(),
 		message.GetCommand(&rc.config),
+		minter.GetCommand(&rc.config),
 		receipt.GetCommand(&rc.config),
 		system.GetCommand(&rc.config),
-		contract.GetCommand(&rc.config),
+		version.GetCommand(),
 		wallet.GetCommand(&rc.config),
-		minter.GetCommand(&rc.config),
 	)
 }
 
