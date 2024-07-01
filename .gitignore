@@ -16,6 +16,9 @@ exporter.yaml
 *.abi
 contracts/compiled
 
+# SSZ encoding files
+*_encoding.go
+
 .run
 # CLI config file
 config.yaml

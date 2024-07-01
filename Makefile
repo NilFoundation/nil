@@ -1,4 +1,3 @@
-SHELL = bash # `pushd` is available only for bash
 GO ?= go
 GOBIN = $(CURDIR)/build/bin
 GOPRIVATE = github.com/NilFoundation
@@ -28,13 +27,14 @@ COMMANDS += nil nil_cli nil_load_generator
 
 all: $(COMMANDS)
 
-$(COMMANDS): %: compile-contracts %.cmd
+$(COMMANDS): %: compile-contracts ssz %.cmd
 
-ssz:
-	@echo "Generating SSZ code"
-	pushd core/db && go generate && popd
-	pushd core/types && go generate && popd
-	pushd core/mpt && go generate && popd
+include core/db/Makefile.inc
+include core/mpt/Makefile.inc
+include core/types/Makefile.inc
+
+.PHONY: ssz
+ssz: ssz_db ssz_mpt ssz_types
 
 contracts/compiled/%.bin: $(wildcard contracts/solidity/tests/*.sol) $(wildcard contracts/solidity/*.sol)
 	go generate contracts/generate.go
