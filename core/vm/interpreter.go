@@ -170,7 +170,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			return nil, StackOverflowError(sLen, operation.maxStack, op)
 		}
 		if !contract.UseGas(cost, in.evm.Config.Tracer, tracing.GasChangeIgnored) {
-			return nil, ErrOutOfGas
+			return nil, fmt.Errorf("%w: %d < %d", ErrOutOfGas, contract.Gas, cost)
 		}
 
 		// All ops with a dynamic memory usage also have a dynamic gas cost.
@@ -239,7 +239,7 @@ func calcDynamicCosts(contract *Contract, operation *operation, stack *Stack, in
 		return 0, 0, fmt.Errorf("%w: %w", ErrOutOfGas, err)
 	}
 	if !contract.UseGas(dynamicCost, in.evm.Config.Tracer, tracing.GasChangeIgnored) {
-		return 0, 0, ErrOutOfGas
+		return 0, 0, fmt.Errorf("%w: %d < %d", ErrOutOfGas, contract.Gas, dynamicCost)
 	}
 	return memorySize, dynamicCost, nil
 }

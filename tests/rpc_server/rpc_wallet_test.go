@@ -38,13 +38,13 @@ func (s *SuiteWalletRpc) TestWallet() {
 		var receipt *jsonrpc.RPCReceipt
 		addrCallee, receipt = s.deployContractViaMainWallet(3,
 			contracts.CounterDeployPayload(s.T()),
-			types.NewUint256(50_000_000))
+			types.NewValueFromUint64(50_000_000))
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})
 
 	s.Run("Call", func() {
 		receipt := s.sendMessageViaWallet(types.MainWalletAddress, addrCallee, execution.MainPrivateKey,
-			contracts.NewCounterAddCallData(s.T(), 11), types.NewUint256(0))
+			contracts.NewCounterAddCallData(s.T(), 11), types.Value{})
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})
 
@@ -73,7 +73,7 @@ func (s *SuiteWalletRpc) TestDeployWithValueNonPayableConstructor() {
 
 	hash, addr, err := s.client.DeployContract(2, wallet,
 		contracts.CounterDeployPayload(s.T()),
-		types.NewUint256(500_000), execution.MainPrivateKey)
+		types.NewValueFromUint64(500_000), execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceipt(wallet.ShardId(), hash)
@@ -98,7 +98,7 @@ func (s *SuiteRpc) TestDeployWalletWithValue() {
 	deployCode := types.BuildDeployPayload(walletCode, common.EmptyHash)
 
 	hash, address, err := s.client.DeployContract(
-		types.BaseShardId, types.MainWalletAddress, deployCode, types.NewUint256(500_000), execution.MainPrivateKey,
+		types.BaseShardId, types.MainWalletAddress, deployCode, types.NewValueFromUint64(500_000), execution.MainPrivateKey,
 	)
 	s.Require().NoError(err)
 

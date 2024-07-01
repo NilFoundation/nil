@@ -88,7 +88,7 @@ func (s *SuiteModifiersRpc) TestInternalCorrect() {
 	internalFuncCalldata, err := s.abi.Pack("internalFunc")
 	s.Require().NoError(err)
 
-	receipt := s.sendMessageViaWallet(s.walletAddr, s.testAddr, s.walletPrivateKey, internalFuncCalldata, types.NewUint256(0))
+	receipt := s.sendMessageViaWallet(s.walletAddr, s.testAddr, s.walletPrivateKey, internalFuncCalldata, types.Value{})
 	s.Require().True(receipt.OutReceipts[0].Success)
 }
 
@@ -116,7 +116,7 @@ func (s *SuiteModifiersRpc) TestExternalIncorrect() {
 	internalFuncCalldata, err := s.abi.Pack("externalFunc")
 	s.Require().NoError(err)
 
-	receipt := s.sendMessageViaWallet(s.walletAddr, s.testAddr, s.walletPrivateKey, internalFuncCalldata, types.NewUint256(0))
+	receipt := s.sendMessageViaWallet(s.walletAddr, s.testAddr, s.walletPrivateKey, internalFuncCalldata, types.Value{})
 	s.Require().False(receipt.OutReceipts[0].Success)
 }
 

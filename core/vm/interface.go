@@ -6,20 +6,19 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 )
 
 type StateDB interface {
 	CreateAccount(types.Address) error
 	CreateContract(types.Address) error
 
-	SubBalance(types.Address, *uint256.Int, tracing.BalanceChangeReason) error
-	AddBalance(types.Address, *uint256.Int, tracing.BalanceChangeReason) error
-	GetBalance(types.Address) (*uint256.Int, error)
+	SubBalance(types.Address, types.Value, tracing.BalanceChangeReason) error
+	AddBalance(types.Address, types.Value, tracing.BalanceChangeReason) error
+	GetBalance(types.Address) (types.Value, error)
 
-	AddCurrency(types.Address, *types.CurrencyId, *uint256.Int) error
-	SubCurrency(types.Address, *types.CurrencyId, *uint256.Int) error
-	GetCurrencies(types.Address) map[types.CurrencyId]*types.Uint256
+	AddCurrency(to types.Address, currencyId types.CurrencyId, amount types.Value) error
+	SubCurrency(to types.Address, currencyId types.CurrencyId, amount types.Value) error
+	GetCurrencies(addr types.Address) map[types.CurrencyId]types.Value
 	SetCurrencyTransfer([]types.CurrencyBalance)
 
 	GetSeqno(types.Address) (types.Seqno, error)

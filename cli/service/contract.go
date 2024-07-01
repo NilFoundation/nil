@@ -64,7 +64,7 @@ func (s *Service) GetCurrencies(contractAddress types.Address) (types.Currencies
 }
 
 // RunContract runs bytecode on the specified contract address
-func (s *Service) RunContract(wallet types.Address, bytecode []byte, gasLimit *types.Uint256, value *types.Uint256, currencies []types.CurrencyBalance, contract types.Address) (common.Hash, error) {
+func (s *Service) RunContract(wallet types.Address, bytecode []byte, gasLimit types.Gas, value types.Value, currencies []types.CurrencyBalance, contract types.Address) (common.Hash, error) {
 	txHash, err := s.client.SendMessageViaWallet(wallet, bytecode, gasLimit, value,
 		currencies, contract, s.privateKey)
 	if err != nil {
@@ -91,7 +91,7 @@ func (s *Service) SendExternalMessage(bytecode []byte, contract types.Address, n
 }
 
 // DeployContractViaWallet deploys a new smart contract with the given bytecode via the wallet
-func (s *Service) DeployContractViaWallet(shardId types.ShardId, wallet types.Address, deployPayload types.DeployPayload, value *types.Uint256) (common.Hash, types.Address, error) {
+func (s *Service) DeployContractViaWallet(shardId types.ShardId, wallet types.Address, deployPayload types.DeployPayload, value types.Value) (common.Hash, types.Address, error) {
 	txHash, contractAddr, err := s.client.DeployContract(shardId, wallet, deployPayload, value, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
@@ -115,15 +115,12 @@ func (s *Service) DeployContractExternal(shardId types.ShardId, payload types.De
 }
 
 // CallContract performs read-only call to the contract
-func (s *Service) CallContract(contract types.Address, gasLimit *types.Uint256, calldata []byte) (string, error) {
-	seqno := hexutil.Uint64(0)
+func (s *Service) CallContract(contract types.Address, gasLimit types.Gas, calldata []byte) (string, error) {
 	callArgs := &jsonrpc.CallArgs{
 		From:     contract,
 		Data:     calldata,
 		To:       contract,
-		Value:    types.NewUint256(0),
 		GasLimit: gasLimit,
-		Seqno:    &seqno,
 	}
 
 	res, err := s.client.Call(callArgs)

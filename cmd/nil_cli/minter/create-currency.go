@@ -33,12 +33,12 @@ func runCreateCurrency(_ *cobra.Command, args []string, cfg *common.Config) erro
 		return err
 	}
 
-	var amount types.Uint256
-	if err := amount.SetFromDecimal(args[1]); err != nil {
+	var amount types.Value
+	if err := amount.Set(args[1]); err != nil {
 		return err
 	}
 
 	name := args[2]
 
-	return service.CurrencyCreate(address, amount.ToBig(), name, params.withdraw)
+	return service.CurrencyCreate(address, amount, name, params.withdraw)
 }

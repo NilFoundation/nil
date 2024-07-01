@@ -40,26 +40,26 @@ func (s *SuitGasPrice) TestGasBehaviour() {
 		var receipt *jsonrpc.RPCReceipt
 		addrCallee, receipt = s.deployContractViaMainWallet(shardId,
 			contracts.CounterPayableDeployPayload(s.T()),
-			types.NewUint256(50_000_000))
+			types.NewValueFromUint64(50_000_000))
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})
 
 	s.Run("IncreaseGasCost", func() {
 		for i := range 10 {
 			receipt := s.sendMessageViaWallet(types.MainWalletAddress, addrCallee, execution.MainPrivateKey,
-				contracts.NewCounterAddCallData(s.T(), int32(i)), types.NewUint256(0))
+				contracts.NewCounterAddCallData(s.T(), int32(i)), types.Value{})
 			s.Require().True(receipt.OutReceipts[0].Success)
 		}
 		increasedGasPrice, err := s.client.GasPrice(shardId)
 		s.Require().NoError(err)
-		s.Require().Positive(increasedGasPrice.Cmp(&initialGasPrice.Int))
+		s.Require().Positive(increasedGasPrice.Cmp(initialGasPrice))
 	})
 
 	s.Run("DecreaseGasCost", func() {
 		s.Require().Eventually(func() bool {
 			gasPrice, err := s.client.GasPrice(shardId)
 			s.Require().NoError(err)
-			return gasPrice.Cmp(&initialGasPrice.Int) == 0
+			return gasPrice.Cmp(initialGasPrice) == 0
 		}, 20*time.Second, time.Second)
 	})
 }

@@ -73,8 +73,7 @@ func (s *SuiteEthCall) TestSmcCall() {
 		From:     s.from,
 		Data:     callArgsData,
 		To:       to,
-		Value:    types.NewUint256(0),
-		GasLimit: types.NewUint256(10000),
+		GasLimit: 10_000,
 	}
 	data, err := s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash})
 	s.Require().NoError(err)
@@ -87,7 +86,7 @@ func (s *SuiteEthCall) TestSmcCall() {
 	s.Require().Equal(uint8(0x2a), data[len(data)-1])
 
 	// Out of gas
-	args.GasLimit = types.NewUint256(0)
+	args.GasLimit = 0
 	_, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num})
 	s.Require().ErrorIs(err, vm.ErrOutOfGas)
 

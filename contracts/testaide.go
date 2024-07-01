@@ -63,7 +63,7 @@ func NewCounterGetCallData(t *testing.T) []byte {
 }
 
 func NewWalletSendCallData(t *testing.T,
-	bytecode types.Code, gasLimit *types.Uint256, value *types.Uint256,
+	bytecode types.Code, gasLimit types.Gas, value types.Value,
 	currencies []types.CurrencyBalance, contractAddress types.Address, kind types.MessageKind,
 ) []byte {
 	t.Helper()
@@ -71,8 +71,8 @@ func NewWalletSendCallData(t *testing.T,
 	intMsg := &types.InternalMessagePayload{
 		Data:     bytecode,
 		To:       contractAddress,
-		Value:    *value,
-		GasLimit: *gasLimit,
+		Value:    value,
+		GasLimit: gasLimit,
 		Currency: currencies,
 		Kind:     kind,
 	}

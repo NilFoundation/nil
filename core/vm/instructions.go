@@ -260,7 +260,7 @@ func opBalance(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]
 	if err != nil {
 		return nil, err
 	}
-	slot.Set(balance)
+	slot.Set(balance.Int())
 	return nil, nil
 }
 

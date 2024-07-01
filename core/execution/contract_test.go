@@ -49,10 +49,12 @@ func TestOpcodes(t *testing.T) {
 	// to make the test deterministic
 	rnd := rand.New(rand.NewSource(1543)) //nolint:gosec
 
-	for i := range 50 {
+	check := func(i int) {
 		state := newState(t)
+		defer state.tx.Rollback()
+
 		require.NoError(t, state.CreateAccount(address))
-		require.NoError(t, state.SetBalance(address, *uint256.NewInt(1_000_000_000)))
+		require.NoError(t, state.SetBalance(address, types.NewValueFromUint64(1_000_000_000)))
 		code := slices.Clone(codeTemplate)
 
 		for j := range 50 {
@@ -71,6 +73,9 @@ func TestOpcodes(t *testing.T) {
 		_, err := state.Commit(types.BlockNumber(i))
 		require.NoError(t, err)
 	}
+	for i := range 50 {
+		check(i)
+	}
 }
 
 func TestCall(t *testing.T) {
@@ -78,6 +83,7 @@ func TestCall(t *testing.T) {
 
 	ctx := context.Background()
 	state := newState(t)
+	defer state.tx.Rollback()
 
 	contracts, err := solc.CompileSource("./testdata/call.sol")
 	require.NoError(t, err)
@@ -93,7 +99,7 @@ func TestCall(t *testing.T) {
 		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata,
 		To:       addr,
-		GasLimit: *types.NewUint256(10000),
+		GasLimit: 10000,
 	}
 	_, ret, err := state.HandleExecutionMessage(ctx, callMessage)
 	require.NoError(t, err)
@@ -109,7 +115,7 @@ func TestCall(t *testing.T) {
 		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata2,
 		To:       callerAddr,
-		GasLimit: *types.NewUint256(10000),
+		GasLimit: 10000,
 	}
 	_, _, err = state.HandleExecutionMessage(ctx, callMessage2)
 	require.NoError(t, err)
@@ -127,7 +133,7 @@ func TestCall(t *testing.T) {
 		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata2,
 		To:       callerAddr,
-		GasLimit: *types.NewUint256(10000),
+		GasLimit: 10000,
 	}
 	_, _, err = state.HandleExecutionMessage(ctx, callMessage2)
 	require.ErrorIs(t, err, vm.ErrExecutionReverted)
@@ -143,6 +149,7 @@ func TestDelegate(t *testing.T) {
 
 	ctx := context.Background()
 	state := newState(t)
+	defer state.tx.Rollback()
 
 	contracts, err := solc.CompileSource("./testdata/delegate.sol")
 	require.NoError(t, err)
@@ -160,7 +167,7 @@ func TestDelegate(t *testing.T) {
 		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata,
 		To:       proxyAddr,
-		GasLimit: *types.NewUint256(100000),
+		GasLimit: 100000,
 	}
 	_, _, err = state.HandleExecutionMessage(ctx, callMessage)
 	require.NoError(t, err)
@@ -172,7 +179,7 @@ func TestDelegate(t *testing.T) {
 		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata,
 		To:       proxyAddr,
-		GasLimit: *types.NewUint256(10000),
+		GasLimit: 10000,
 	}
 	_, ret, err := state.HandleExecutionMessage(ctx, callMessage)
 	require.NoError(t, err)
@@ -186,7 +193,7 @@ func TestDelegate(t *testing.T) {
 		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata,
 		To:       proxyAddr,
-		GasLimit: *types.NewUint256(10000),
+		GasLimit: 10000,
 	}
 	_, _, err = state.HandleExecutionMessage(ctx, callMessage)
 	require.ErrorAs(t, err, new(vm.VMError))
@@ -197,6 +204,7 @@ func TestAsyncCall(t *testing.T) {
 
 	ctx := context.Background()
 	state := newState(t)
+	defer state.tx.Rollback()
 
 	state.TraceVm = false
 
@@ -214,13 +222,13 @@ func TestAsyncCall(t *testing.T) {
 	calldata, err := abi.Pack("call", addrCallee, int32(11))
 	require.NoError(t, err)
 
-	require.NoError(t, state.SetBalance(addrCaller, *uint256.NewInt(1_000_000)))
+	require.NoError(t, state.SetBalance(addrCaller, types.NewValueFromUint64(2_000_000)))
 
 	callMessage := &types.Message{
 		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata,
 		To:       addrCaller,
-		GasLimit: *types.NewUint256(100_000),
+		GasLimit: 100_000,
 	}
 	msgHash := callMessage.Hash()
 	state.AddInMessage(callMessage)
@@ -239,9 +247,7 @@ func TestAsyncCall(t *testing.T) {
 	_, ret, err := state.HandleExecutionMessage(ctx, outMsg)
 	require.NoError(t, err)
 	require.Len(t, ret, 32)
-	var res types.Uint256
-	res.SetBytes(ret)
-	require.Equal(t, res, *types.NewUint256(11))
+	require.Equal(t, types.NewUint256FromBytes(ret), types.NewUint256(11))
 
 	// Call Callee::add that should decrease value by 7
 	calldata, err = abi.Pack("call", addrCallee, int32(-7))
@@ -264,8 +270,7 @@ func TestAsyncCall(t *testing.T) {
 	_, ret, err = state.HandleExecutionMessage(ctx, outMsg)
 	require.NoError(t, err)
 	require.Len(t, ret, 32)
-	res.SetBytes(ret)
-	require.Equal(t, res, *types.NewUint256(4))
+	require.Equal(t, types.NewUint256FromBytes(ret), types.NewUint256(4))
 }
 
 func TestSendMessage(t *testing.T) {
@@ -273,6 +278,7 @@ func TestSendMessage(t *testing.T) {
 
 	ctx := context.Background()
 	state := newState(t)
+	defer state.tx.Rollback()
 
 	state.TraceVm = false
 
@@ -292,8 +298,7 @@ func TestSendMessage(t *testing.T) {
 	messageToSend := &types.InternalMessagePayload{
 		Data:     calldata,
 		To:       addrCallee,
-		Value:    *types.NewUint256(0),
-		GasLimit: *types.NewUint256(100000),
+		GasLimit: 100000,
 	}
 	calldata, err = messageToSend.MarshalSSZ()
 	require.NoError(t, err)
@@ -306,7 +311,7 @@ func TestSendMessage(t *testing.T) {
 		Flags:    types.NewMessageFlags(types.MessageFlagInternal),
 		Data:     calldata,
 		To:       addrCaller,
-		GasLimit: *types.NewUint256(100000),
+		GasLimit: 100000,
 	}
 	_, _, err = state.HandleExecutionMessage(ctx, callMessage)
 	require.NoError(t, err)
@@ -320,7 +325,7 @@ func TestSendMessage(t *testing.T) {
 	outMsg := state.OutMessages[tx][0]
 	require.Equal(t, addrCaller, outMsg.From)
 	require.Equal(t, addrCallee, outMsg.To)
-	require.True(t, outMsg.GasLimit.GtUint64(99999))
+	require.Less(t, uint64(99999), outMsg.GasLimit.Uint64())
 
 	// Process outbound message, i.e. "Callee::add"
 	_, ret, err := state.HandleExecutionMessage(ctx, outMsg)
@@ -328,7 +333,5 @@ func TestSendMessage(t *testing.T) {
 	lastReceipt := state.Receipts[len(state.Receipts)-1]
 	require.True(t, lastReceipt.Success)
 	require.Len(t, ret, 32)
-	var res types.Uint256
-	res.SetBytes(ret)
-	require.Equal(t, res, *types.NewUint256(11))
+	require.Equal(t, types.NewUint256FromBytes(ret), types.NewUint256(11))
 }

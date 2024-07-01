@@ -11,7 +11,6 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -156,8 +155,12 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 }
 
 func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
-	msg1 := &types.Message{Data: []byte{1}, Seqno: 1, Currency: make([]types.CurrencyBalance, 0), Signature: make(types.Signature, 0)}
-	msg2 := &types.Message{Data: []byte{2}, Seqno: 2, Currency: make([]types.CurrencyBalance, 0), Signature: make(types.Signature, 0)}
+	msg1 := types.NewEmptyMessage()
+	msg1.Data = []byte{1}
+	msg1.Seqno = 1
+	msg2 := types.NewEmptyMessage()
+	msg2.Data = []byte{2}
+	msg2.Seqno = 2
 	blockHash1 := GenerateBlockFromMessagesWithoutExecution(suite.T(), context.Background(),
 		types.BaseShardId, 0, common.EmptyHash, suite.db, msg1, msg2)
 	blockHash2 := GenerateBlockFromMessagesWithoutExecution(suite.T(), context.Background(),
@@ -209,6 +212,8 @@ func TestStorage(t *testing.T) {
 	t.Parallel()
 
 	state := newState(t)
+	defer state.tx.Rollback()
+
 	account := types.GenerateRandomAddress(types.BaseShardId)
 	key := common.EmptyHash
 	value := common.IntToHash(42)
@@ -238,13 +243,14 @@ func TestBalance(t *testing.T) {
 	t.Parallel()
 
 	state := newState(t)
+	defer state.tx.Rollback()
 	account := types.GenerateRandomAddress(types.BaseShardId)
 
-	require.NoError(t, state.SetBalance(account, *uint256.NewInt(100500)))
+	require.NoError(t, state.SetBalance(account, types.NewValueFromUint64(100500)))
 
 	balance, err := state.GetBalance(account)
 	require.NoError(t, err)
-	require.Equal(t, balance, uint256.NewInt(100500))
+	require.Equal(t, types.NewValueFromUint64(100500), balance)
 }
 
 func TestSnapshot(t *testing.T) {
@@ -254,6 +260,7 @@ func TestSnapshot(t *testing.T) {
 	data1 := common.BytesToHash([]byte{42})
 	data2 := common.BytesToHash([]byte{43})
 	s := newState(t)
+	defer s.tx.Rollback()
 
 	// snapshot the genesis state
 	genesis := s.Snapshot()
@@ -287,12 +294,14 @@ func TestSnapshot(t *testing.T) {
 func TestSnapshotEmpty(t *testing.T) {
 	t.Parallel()
 	s := newState(t)
+	defer s.tx.Rollback()
 	s.RevertToSnapshot(s.Snapshot())
 }
 
 func TestCreateObjectRevert(t *testing.T) {
 	t.Parallel()
 	state := newState(t)
+	defer state.tx.Rollback()
 	addr := types.GenerateRandomAddress(types.BaseShardId)
 	snap := state.Snapshot()
 
@@ -300,7 +309,7 @@ func TestCreateObjectRevert(t *testing.T) {
 
 	so0, err := state.GetAccount(addr)
 	require.NoError(t, err)
-	so0.SetBalance(*uint256.NewInt(42))
+	so0.SetBalance(types.NewValueFromUint64(42))
 	so0.SetSeqno(43)
 	code := types.Code([]byte{'c', 'a', 'f', 'e'})
 	so0.SetCode(code.Hash(), code)
@@ -315,11 +324,12 @@ func TestCreateObjectRevert(t *testing.T) {
 func TestAccountState(t *testing.T) {
 	t.Parallel()
 	state := newState(t)
+	defer state.tx.Rollback()
 	addr := types.GenerateRandomAddress(types.BaseShardId)
 
 	require.NoError(t, state.CreateAccount(addr))
 
-	balance := *uint256.NewInt(42)
+	balance := types.NewValueFromUint64(42)
 	acc, err := state.GetAccount(addr)
 	require.NoError(t, err)
 	acc.SetBalance(balance)

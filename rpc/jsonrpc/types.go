@@ -18,15 +18,15 @@ import (
 // @componentprop Input input string false "The message input."
 // @component propr ChainId chainId integer "The chain id."
 type CallArgs struct {
-	From     types.Address   `json:"from"`
-	To       types.Address   `json:"to"`
-	GasLimit *types.Uint256  `json:"gasLimit"`
-	GasPrice *types.Uint256  `json:"gasPrice"`
-	Value    *types.Uint256  `json:"value"`
-	Seqno    *hexutil.Uint64 `json:"seqno"`
-	Data     hexutil.Bytes   `json:"data"`
-	Input    *hexutil.Bytes  `json:"input"`
-	ChainId  types.ChainId   `json:"chainId"`
+	From     types.Address  `json:"from"`
+	To       types.Address  `json:"to"`
+	GasLimit types.Gas      `json:"gasLimit"`
+	GasPrice types.Value    `json:"gasPrice,omitempty"`
+	Value    types.Value    `json:"value"`
+	Seqno    hexutil.Uint64 `json:"seqno"`
+	Data     hexutil.Bytes  `json:"data"`
+	Input    hexutil.Bytes  `json:"input,omitempty"`
+	ChainId  types.ChainId  `json:"chainId"`
 }
 
 // @component RPCInMessage rpcInMessage object "The message whose information is requested."
@@ -48,19 +48,19 @@ type CallArgs struct {
 type RPCInMessage struct {
 	Success     bool                    `json:"success"`
 	Data        hexutil.Bytes           `json:"data"`
-	BlockHash   *common.Hash            `json:"blockHash"`
+	BlockHash   common.Hash             `json:"blockHash"`
 	BlockNumber types.BlockNumber       `json:"blockNumber"`
 	From        types.Address           `json:"from"`
-	GasUsed     hexutil.Uint64          `json:"gasUsed"`
-	GasPrice    types.Uint256           `json:"gasPrice,omitempty"`
-	GasLimit    types.Uint256           `json:"gasLimit,omitempty"`
+	GasUsed     types.Gas               `json:"gasUsed"`
+	GasPrice    types.Value             `json:"gasPrice,omitempty"`
+	GasLimit    types.Gas               `json:"gasLimit,omitempty"`
 	Hash        common.Hash             `json:"hash"`
 	Seqno       hexutil.Uint64          `json:"seqno"`
 	To          types.Address           `json:"to"`
 	RefundTo    types.Address           `json:"refundTo"`
 	BounceTo    types.Address           `json:"bounceTo"`
-	Index       *hexutil.Uint64         `json:"index"`
-	Value       types.Uint256           `json:"value"`
+	Index       hexutil.Uint64          `json:"index"`
+	Value       types.Value             `json:"value"`
 	Currency    []types.CurrencyBalance `json:"currency,omitempty"`
 	ChainID     types.ChainId           `json:"chainId,omitempty"`
 	Signature   types.Signature         `json:"signature"`
@@ -99,7 +99,7 @@ type RPCBlock struct {
 // @componentprop Temporary temporary boolean false "The flag that shows whether the message is temporary."
 type RPCReceipt struct {
 	Success         bool               `json:"success"`
-	GasUsed         uint32             `json:"gasUsed"`
+	GasUsed         types.Gas          `json:"gasUsed"`
 	Bloom           hexutil.Bytes      `json:"bloom"`
 	Logs            []*RPCLog          `json:"logs"`
 	OutMessages     []common.Hash      `json:"outMessages"`
@@ -138,25 +138,21 @@ func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types
 		return nil, errors.New("msg and receipt are not compatible")
 	}
 
-	blockHash := block.Hash()
-	gasUsed := hexutil.Uint64(receipt.GasUsed)
-	msgIndex := hexutil.Uint64(index)
-	seqno := hexutil.Uint64(message.Seqno)
 	result := &RPCInMessage{
 		Success:     receipt.Success,
 		Data:        hexutil.Bytes(message.Data),
-		BlockHash:   &blockHash,
+		BlockHash:   block.Hash(),
 		BlockNumber: block.Id,
 		From:        message.From,
-		GasUsed:     gasUsed,
+		GasUsed:     receipt.GasUsed,
 		GasPrice:    message.GasPrice,
 		GasLimit:    message.GasLimit,
 		Hash:        hash,
-		Seqno:       seqno,
+		Seqno:       hexutil.Uint64(message.Seqno),
 		To:          message.To,
 		RefundTo:    message.RefundTo,
 		BounceTo:    message.BounceTo,
-		Index:       &msgIndex,
+		Index:       hexutil.Uint64(index),
 		Value:       message.Value,
 		ChainID:     message.ChainId,
 		Signature:   message.Signature,

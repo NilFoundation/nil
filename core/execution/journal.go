@@ -4,7 +4,6 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 )
 
 // journalEntry is a modification entry in the state change journal that can be
@@ -61,18 +60,18 @@ type (
 	selfDestructChange struct {
 		account     *types.Address
 		prev        bool // whether account had already self-destructed
-		prevbalance *uint256.Int
+		prevbalance types.Value
 	}
 
 	// Changes to individual accounts.
 	balanceChange struct {
 		account *types.Address
-		prev    *uint256.Int
+		prev    types.Value
 	}
 	currencyChange struct {
 		account *types.Address
 		id      types.CurrencyId
-		prev    *uint256.Int
+		prev    types.Value
 	}
 	seqnoChange struct {
 		account *types.Address
@@ -144,7 +143,7 @@ func (ch currencyChange) revert(s *ExecutionState) {
 	account, err := s.GetAccount(*ch.account)
 	check.PanicIfErr(err)
 	if account != nil {
-		account.setCurrencyBalance(&ch.id, ch.prev)
+		account.setCurrencyBalance(ch.id, ch.prev)
 	}
 }
 

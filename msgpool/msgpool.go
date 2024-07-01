@@ -144,7 +144,7 @@ func (p *MsgPool) addLocked(msg *types.Message) DiscardReason {
 	found := p.all.get(msg.To, msg.Seqno)
 	if found != nil {
 		// Discard Message with lower fee (TODO: do we need it?)
-		if found.Value.Cmp(&msg.Value.Int) >= 0 {
+		if found.Value.Cmp(msg.Value) >= 0 {
 			// TODO: Currently this condition can't be true because "Value" affects hash
 			if bytes.Equal(found.Hash().Bytes(), msg.Hash().Bytes()) {
 				return NotSet

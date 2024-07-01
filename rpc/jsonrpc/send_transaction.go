@@ -34,7 +34,7 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Byte
 		Seqno:     msg.Seqno,
 		Data:      msg.Data,
 		Signature: msg.AuthData,
-		GasLimit:  *types.NewUint256(500_000),
+		GasLimit:  500_000,
 	}
 	reason, err := api.msgPools[shardId].Add(ctx, []*types.Message{&msg2})
 	if err != nil {

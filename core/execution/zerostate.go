@@ -57,7 +57,7 @@ contracts:
 type ContractDescr struct {
 	Name     string         `yaml:"name"`
 	Address  *types.Address `yaml:"address,omitempty"`
-	Value    *types.Uint256 `yaml:"value"`
+	Value    types.Value    `yaml:"value"`
 	Shard    types.ShardId  `yaml:"shard,omitempty"`
 	Contract string         `yaml:"contract"`
 	CtorArgs []any          `yaml:"ctorArgs,omitempty"`
@@ -196,14 +196,7 @@ func (es *ExecutionState) GenerateZeroState(configYaml string) error {
 			return err
 		}
 
-		var value types.Uint256
-		if contract.Value != nil {
-			value = *contract.Value
-		} else {
-			value = *types.NewUint256(0)
-		}
-
-		if err := es.SetBalance(addr, value.Int); err != nil {
+		if err := es.SetBalance(addr, contract.Value); err != nil {
 			return err
 		}
 		logger.Debug().Str("name", contract.Name).Stringer("address", addr).Msg("Created zero state contract")
