@@ -154,11 +154,12 @@ func ParseCurrencies(params []string) ([]types.CurrencyBalance, error) {
 		if len(curAndBalance) != 2 {
 			return nil, fmt.Errorf("invalid currency format: %s, expected <currencyId>=<balance>", currency)
 		}
-		currencyIdBytes, err := hex.DecodeString(curAndBalance[0])
+		// Not using Hash.Set because want to be able to parse currencyId without leading zeros
+		currencyBytes, err := hexutil.DecodeHex(curAndBalance[0])
 		if err != nil {
 			return nil, fmt.Errorf("invalid currency id %s, can't parse hex: %w", curAndBalance[0], err)
 		}
-		currencyId := types.CurrencyId(common.BytesToHash(currencyIdBytes))
+		currencyId := types.CurrencyId(common.BytesToHash(currencyBytes))
 		var balance types.Value
 		if err := balance.Set(curAndBalance[1]); err != nil {
 			return nil, fmt.Errorf("invalid balance %s: %w", curAndBalance[1], err)
