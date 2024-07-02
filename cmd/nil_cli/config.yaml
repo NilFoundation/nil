@@ -10,4 +10,4 @@ private_key: "41285f03e8692676bf80a98e4052a008026427a7302ca97cb06edcd60689850b"
 
 # Specify the the address of your wallet to be receipt of your external messages
 # This should be a hexadecimal string corresponding to your account's address
-address: "0x0000111111111111111111111111111111111111"
+address: "0x0001B6d605715978DeB5995ab826b014F7b896e6"
