@@ -77,6 +77,12 @@ To interact with the cluster, =nil; supplies several developer tools.
 
 The =nil; CLI requires initial setup before being able to interact with the cluster.
 
+To create the config file if it does not already exist:
+
+```bash
+./build/bin/nil_cli config config init
+```
+
 To configure the CLI:
 
 ```bash
@@ -119,7 +125,7 @@ The docs contain [**a more detailed tutorial about the different means of contra
 To deploy the contract through the wallet:
 
 ```bash
-./build/bin/nil_cli wallet deploy ./SimpleStorage.bin
+./build/bin/nil_cli wallet deploy ./SimpleStorage.bin --abi ./SimpleStorage.abi
 ```
 
 To deploy the contract through an external message:
