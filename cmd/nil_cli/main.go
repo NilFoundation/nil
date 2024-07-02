@@ -55,6 +55,10 @@ func main() {
 			Use:   "nil_cli",
 			Short: "CLI tool for interacting with the =nil; cluster",
 			PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+				logLevel, err := zerolog.ParseLevel(rootCmd.logLevel)
+				check.PanicIfErr(err)
+				zerolog.SetGlobalLevel(logLevel)
+
 				// Set the config file for all commands because some commands can write something to it.
 				// E.g. "keygen" command writes a private key to the config file (and creates if it doesn't exist)
 				common.SetConfigFile(rootCmd.cfgFile)
@@ -68,9 +72,6 @@ func main() {
 				if err := rootCmd.validateConfig(); err != nil {
 					return err
 				}
-				logLevel, err := zerolog.ParseLevel(rootCmd.logLevel)
-				check.PanicIfErr(err)
-				zerolog.SetGlobalLevel(logLevel)
 				return nil
 			},
 			SilenceUsage: true,
@@ -78,7 +79,7 @@ func main() {
 	}
 
 	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.cfgFile, "config", "c", "", "Path to config file")
-	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.logLevel, "log-level", "l", "trace", "Log level: trace|debug|info|warn|error|fatal|panic")
+	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.logLevel, "log-level", "l", "info", "Log level: trace|debug|info|warn|error|fatal|panic")
 
 	rootCmd.registerSubCommands()
 	rootCmd.Execute()
@@ -155,7 +156,7 @@ func (rc *RootCommand) loadConfig() error {
 		return fmt.Errorf("unable to decode config: %w", err)
 	}
 
-	logger.Info().Msg("Configuration loaded successfully")
+	logger.Debug().Msg("Configuration loaded successfully")
 	return nil
 }
 

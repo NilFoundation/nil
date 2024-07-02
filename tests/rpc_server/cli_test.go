@@ -294,9 +294,8 @@ func (s *SuiteRpc) TestCliCreateWallet() {
 
 	var addr types.Address
 	s.Run("Get contract address", func() {
-		res := s.runCli("-c", cfgPath, "contract", "address", dir+"/Incrementer.bin", "123321", "--abi", dir+"/Incrementer.abi")
-		s.Contains(res, "Contract address:")
-		s.Require().NoError(addr.Set(res[len(res)-43 : len(res)-1]))
+		res := s.runCli("-c", cfgPath, "contract", "address", dir+"/Incrementer.bin", "123321", "--abi", abiFileName, "-q")
+		s.Require().NoError(addr.Set(strings.TrimSpace(res)))
 	})
 
 	s.Run("Deploy contract", func() {

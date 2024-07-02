@@ -1,6 +1,8 @@
 package contract
 
 import (
+	"fmt"
+
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
@@ -36,6 +38,14 @@ func GetAddressCommand(cfg *common.Config) *cobra.Command {
 		"Salt for deploy message",
 	)
 
+	cmd.Flags().BoolVarP(
+		&params.quiet,
+		quietFlag,
+		"q",
+		false,
+		"Quiet mode (print only the contract address and exit)",
+	)
+
 	cmd.Flags().StringVar(
 		&params.abiPath,
 		abiFlag,
@@ -63,7 +73,11 @@ func runAddress(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 	}
 
 	address := service.ContractAddress(params.shardId, params.salt, bytecode)
-	logger.Info().Msgf("Contract address: %s", address)
+	if !params.quiet {
+		logger.Info().Msgf("Contract address: %s", address)
+	} else {
+		fmt.Println(address)
+	}
 
 	return nil
 }
