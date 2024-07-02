@@ -30,12 +30,12 @@ const InitConfigTemplate = `---
 # For example, if your cluster's RPC endpoint is at "http://127.0.0.1:8529", set it as below
 # rpc_endpoint: "http://127.0.0.1:8529"
 
-# Specify the private key used for signing transactions
-# This should be a hexadecimal string corresponding to your account's private key
+# Specify the private key used for signing external messages to your wallet.
+# You can generate a new key with "nil_cli keygen new".
 # private_key: "WRITE_YOUR_PRIVATE_KEY_HERE"
 
-# Specify the the address of your wallet to be receipt of your external messages
-# This should be a hexadecimal string corresponding to your account's address
+# Specify the address of your wallet to be the receiver of your external messages.
+# You can deploy a new wallet and save its address with "nil_cli wallet new".
 # address: "0xWRITE_YOUR_ADDRESS_HERE"
 `
 
