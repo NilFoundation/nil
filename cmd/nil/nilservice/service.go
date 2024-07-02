@@ -61,7 +61,7 @@ func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []
 
 func startAdminServer(ctx context.Context, cfg *Config) error {
 	config := &admin.ServerConfig{
-		Enabled:        true,
+		Enabled:        cfg.AdminSocketPath != "",
 		UnixSocketPath: cfg.AdminSocketPath,
 	}
 	return admin.StartAdminServer(ctx, config, logging.NewLogger("admin"))
