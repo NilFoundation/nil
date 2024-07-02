@@ -46,8 +46,22 @@ func (s *CollatorTestSuite) TestCollator() {
 		BlockGeneratorParams: execution.NewBlockGeneratorParams(shardId, nShards, gasPrice, 0),
 	}, new(TrivialShardTopology), pool, sharedLogger)
 
+	generateBlock := func() {
+		proposal, err := c.GenerateProposal(s.ctx, s.db)
+		s.Require().NoError(err)
+		s.Require().NotNil(proposal)
+
+		blockGenerator, err := execution.NewBlockGenerator(s.ctx, execution.NewBlockGeneratorParams(shardId, nShards, gasPrice, 0), s.db)
+		s.Require().NoError(err)
+		defer blockGenerator.Rollback()
+
+		block, err := blockGenerator.GenerateBlock(proposal, gasPrice)
+		s.Require().NoError(err)
+		s.Require().NotNil(block)
+	}
+
 	s.Run("GenerateZeroState", func() {
-		s.Require().NoError(c.GenerateZeroState(s.ctx, s.db, execution.DefaultZeroStateConfig))
+		execution.GenerateZeroState(s.T(), s.ctx, shardId, s.db)
 	})
 
 	// This values depends on the current implementation (precompiled contract, opcode gas prices).
@@ -71,7 +85,7 @@ func (s *CollatorTestSuite) TestCollator() {
 		s.Require().NoError(m2.Sign(execution.MainPrivateKey))
 		pool.Msgs = []*types.Message{m1, m2}
 
-		s.Require().NoError(c.GenerateBlock(s.ctx, s.db))
+		generateBlock()
 		s.checkReceipt(shardId, m1)
 		s.checkReceipt(shardId, m2)
 
@@ -90,14 +104,14 @@ func (s *CollatorTestSuite) TestCollator() {
 	pool.Msgs = []*types.Message{nil}
 
 	s.Run("ProcessInternalMessage1", func() {
-		s.Require().NoError(c.GenerateBlock(s.ctx, s.db))
+		generateBlock()
 
 		s.Equal(balance, s.getBalance(shardId, from))
 		s.Equal(sentValue, s.getBalance(shardId, to))
 	})
 
 	s.Run("ProcessInternalMessage2", func() {
-		s.Require().NoError(c.GenerateBlock(s.ctx, s.db))
+		generateBlock()
 
 		s.Equal(balance, s.getBalance(shardId, from))
 		s.Equal(sentValue.Add(sentValue), s.getBalance(shardId, to))
@@ -106,7 +120,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	c.params.MaxInMessagesInBlock = 2
 
 	s.Run("ProcessRefundMessages", func() {
-		s.Require().NoError(c.GenerateBlock(s.ctx, s.db))
+		generateBlock()
 
 		balance = balance.Add(reserveForGas).Add(reserveForGas)
 		s.Equal(balance, s.getBalance(shardId, from))
@@ -118,7 +132,7 @@ func (s *CollatorTestSuite) TestCollator() {
 		s.Equal(to, m.To)
 		pool.Msgs = []*types.Message{m}
 
-		s.Require().NoError(c.GenerateBlock(s.ctx, s.db))
+		generateBlock()
 		pool.Msgs = nil
 		s.checkReceipt(shardId, m)
 	})
@@ -127,7 +141,7 @@ func (s *CollatorTestSuite) TestCollator() {
 		m := execution.NewExecutionMessage(to, to, 0, contracts.NewCounterAddCallData(s.T(), 3))
 		pool.Msgs = []*types.Message{m}
 
-		s.Require().NoError(c.GenerateBlock(s.ctx, s.db))
+		generateBlock()
 		pool.Msgs = nil
 		s.checkReceipt(shardId, m)
 	})
