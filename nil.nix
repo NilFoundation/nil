@@ -9,7 +9,9 @@ in buildGoModule rec {
   version = "0.1.0-${toString revCount}";
 
   preBuild = ''
-    make compile-contracts ssz
+    make compile-contracts ssz rpcspec
+    mkdir -p $out/share/doc/nil
+    cp openrpc.json $out/share/doc/nil
   '';
 
   src = src_repo;

@@ -41,6 +41,7 @@
                 export HOME=$PWD
                 mkdir -p ./usr
                 cp -r ${pkg}/bin ./usr/
+                cp -r ${pkg}/share ./usr/
                 chmod -R u+rw,g+r,o+r ./usr
                 chmod -R u+rwx,g+rx,o+rx ./usr/bin
                 ${pkgs.fpm}/bin/fpm -s dir -t deb --name ${pkg.pname} -v ${pkg.version} --deb-use-file-permissions usr
