@@ -1,18 +1,19 @@
 package rpctest
 
 import (
-	"bytes"
 	"encoding/json"
 	"math/big"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -230,13 +231,9 @@ func (s *SuiteRpc) runCli(args ...string) string {
 	args = append([]string{"run", mainPath}, args...)
 	cmd := exec.Command("go", args...)
 
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-
-	err = cmd.Run()
-	s.Require().NoError(err)
-	return out.String()
+	data, err := cmd.CombinedOutput()
+	s.Require().NoErrorf(err, string(data))
+	return string(data)
 }
 
 func (s *SuiteRpc) TestCallCliHelp() {
@@ -251,7 +248,6 @@ func (s *SuiteRpc) TestCallCliBasic() {
 	cfgPath := s.T().TempDir() + "/config.ini"
 
 	iniData := "[nil]\nrpc_endpoint = " + s.endpoint + "\n"
-
 	err := os.WriteFile(cfgPath, []byte(iniData), 0o600)
 	s.Require().NoError(err)
 
@@ -261,4 +257,71 @@ func (s *SuiteRpc) TestCallCliBasic() {
 	res := s.runCli("-c", cfgPath, "block", block.Number.String())
 	s.Contains(res, block.Number.String())
 	s.Contains(res, block.Hash.String())
+}
+
+func (s *SuiteRpc) TestCliCreateWallet() {
+	dir := s.T().TempDir()
+
+	cfgPath := dir + "/config.ini"
+	iniData := "[nil]\nrpc_endpoint = " + s.endpoint + "\n"
+	err := os.WriteFile(cfgPath, []byte(iniData), 0o600)
+	s.Require().NoError(err)
+
+	s.Run("Generate a key", func() {
+		res := s.runCli("-c", cfgPath, "keygen", "new")
+		s.Contains(res, "Pivate key:")
+	})
+
+	s.Run("Deploy new wallet", func() {
+		res := s.runCli("-c", cfgPath, "wallet", "new")
+		s.Contains(res, "New wallet address:")
+	})
+
+	binFileName := dir + "/Incrementer.bin"
+	abiFileName := dir + "/Incrementer.abi"
+	s.Run("Compile contract", func() {
+		contractData, err := solc.CompileSource(common.GetAbsolutePath("./contracts/increment.sol"))
+		s.Require().NoError(err)
+
+		err = os.WriteFile(binFileName, []byte(contractData["Incrementer"].Code), 0o600)
+		s.Require().NoError(err)
+
+		abiData, err := json.Marshal(contractData["Incrementer"].Info.AbiDefinition)
+		s.Require().NoError(err)
+		err = os.WriteFile(abiFileName, abiData, 0o600)
+		s.Require().NoError(err)
+	})
+
+	var addr types.Address
+	s.Run("Get contract address", func() {
+		res := s.runCli("-c", cfgPath, "contract", "address", dir+"/Incrementer.bin", "123321", "--abi", dir+"/Incrementer.abi")
+		s.Contains(res, "Contract address:")
+		s.Require().NoError(addr.Set(res[len(res)-43 : len(res)-1]))
+	})
+
+	s.Run("Deploy contract", func() {
+		res := s.runCli("-c", cfgPath, "wallet", "deploy", dir+"/Incrementer.bin", "123321", "--abi", abiFileName)
+		s.Contains(res, "Transaction hash:")
+		s.Contains(res, strings.ToLower(addr.String()))
+	})
+
+	s.Run("Check contract code", func() {
+		res := s.runCli("-c", cfgPath, "contract", "code", addr.String())
+		s.Contains(res, "Contract code: 6080")
+	})
+
+	s.Run("Call read-only 'get' function of contract", func() {
+		res := s.runCli("-c", cfgPath, "contract", "call-readonly", addr.String(), "get", "--abi", abiFileName)
+		s.Contains(res, "Call result: 0x000000000000000000000000000000000000000000000000000000000001e1b9")
+	})
+
+	s.Run("Call 'increment' function of contract", func() {
+		res := s.runCli("-c", cfgPath, "wallet", "send-message", addr.String(), "increment", "--abi", abiFileName)
+		s.Contains(res, "Transaction hash:")
+	})
+
+	s.Run("Call read-only 'get' function of contract once again", func() {
+		res := s.runCli("-c", cfgPath, "contract", "call-readonly", addr.String(), "get", "--abi", abiFileName)
+		s.Contains(res, "Call result: 0x000000000000000000000000000000000000000000000000000000000001e1ba")
+	})
 }
