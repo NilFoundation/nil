@@ -19,6 +19,11 @@ in buildGoModule rec {
   vendorHash = "sha256-MrwLqrmnOYUp6y/zg81q06gd8An3Aau4gFckYNbislY=";
   hardeningDisable = [ "all" ];
 
+  postConfigure = ''
+    export GOCACHE=/tmp/${vendorHash}/go-cache
+    export GOMODCACHE=/tmp/${vendorHash}/go/mod/cache
+  '';
+
   CGO_ENABLED = if enableRaceDetector then 1 else 0;
 
   nativeBuildInputs = [
