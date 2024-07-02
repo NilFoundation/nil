@@ -148,7 +148,7 @@ func (g *BlockGenerator) handleInternalInMessage(msg *types.Message, gasPrice ty
 
 func (g *BlockGenerator) handleExternalMessage(msg *types.Message, gasPrice types.Value) (types.Gas, error) {
 	if err := ValidateExternalMessage(g.executionState, msg, gasPrice); err != nil {
-		g.logger.Trace().Err(err).Msg("Invalid external message.")
+		g.logger.Error().Err(err).Msg("Invalid external message.")
 		return 0, err
 	}
 

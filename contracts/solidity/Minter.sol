@@ -12,6 +12,7 @@ contract Minter is NilBase {
     }
     bytes pubkey;
     mapping(uint256 => TokenInfo) public tokens;
+    mapping(string => uint256) public namesMap;
 
     receive() external payable {}
 
@@ -30,6 +31,10 @@ contract Minter is NilBase {
         tokens[id] = TokenInfo(id, name, owner, 0);
         require(Nil.mintToken(id, amount), "Mint failed");
         tokens[id].totalSupply += amount;
+
+        if (bytes(name).length != 0) {
+            namesMap[name] = id;
+        }
 
         if (sendTo != address(0)) {
             withdrawImpl(id, amount, sendTo);
@@ -64,12 +69,22 @@ contract Minter is NilBase {
         tokens_[0] = Nil.Token(id, amount);
 
         uint256 gas = gasleft();
-        Nil.asyncCall(to, address(0), address(0), gas, false, gas * 10, tokens_, "");
+        if (Nil.getShardId(to) == Nil.getShardId(address(this))) {
+            Nil.syncCall(to, gas, gas * 10, tokens_, "");
+        } else {
+            Nil.asyncCall(to, address(0), address(0), gas, false, gas * 10, tokens_, "");
+        }
     }
 
+    // getName returns token name by its id.
     function getName(uint256 id) public view returns(string memory) {
         require(tokens[id].owner != address(0), "Token does not exist");
         return tokens[id].name;
+    }
+
+    // getIdByName returns token id by its name. If token with such name does not exist, returns 0.
+    function getIdByName(string memory name) public view returns(uint256) {
+        return namesMap[name];
     }
 
     function verifyExternal(uint256 hash, bytes memory signature) external view returns (bool) {

@@ -116,22 +116,28 @@ library Nil {
     function msgTokens() internal returns(Token[] memory) {
         return Precompile(GET_MESSAGE_TOKENS).precompileGetMessageTokens();
     }
+
+    // getShardId returns shard id for a given address.
+    function getShardId(address addr) internal pure returns(uint256) {
+        return uint256(uint160(addr)) >> (18 * 8);
+    }
 }
 
 // NilBase is a base contract that provides modifiers for checking the type of message (internal or external).
 contract NilBase {
-    // Check that method was invoked from internal message
+    // onlyInternal checks that method was invoked from internal message.
     modifier onlyInternal() {
         require(isInternalMessage(), "Trying to call internal function with external message");
         _;
     }
 
-    // Check that method was invoked from external message
+    // onlyExternal checks that method was invoked from external message.
     modifier onlyExternal() {
         require(!isInternalMessage(), "Trying to call external function with internal message");
         _;
     }
 
+    // isInternalMessage returns true if the current message is internal.
     function isInternalMessage() internal view returns (bool) {
         bytes memory data;
         (bool success, bytes memory returnData) = Nil.IS_INTERNAL_MESSAGE.staticcall(data);

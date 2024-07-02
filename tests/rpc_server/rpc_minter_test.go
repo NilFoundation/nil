@@ -523,7 +523,7 @@ func (s *SuiteMultiCurrencyRpc) TestBounce() {
 
 	currencyWallet1 := CreateTokenId(&s.walletAddress1)
 
-	s.createCurrencyForWallet(currencyWallet1, big.NewInt(1_000_000), "wallet1")
+	s.createCurrencyForWallet(currencyWallet1, big.NewInt(1_000_000), "wallet1", true)
 
 	data, err = s.abiTest.Pack("receiveTokens", true)
 	s.Require().NoError(err)
@@ -554,6 +554,66 @@ func (s *SuiteMultiCurrencyRpc) getCurrencyBalance(address *types.Address, curre
 	return currencies[currency.idStr]
 }
 
+func (s *SuiteMultiCurrencyRpc) TestInfoAndShardId() {
+	var (
+		data []byte
+		err  error
+	)
+	currencyWallet1 := CreateTokenId(&s.walletAddress1)
+	currencyWallet2 := CreateTokenId(&s.walletAddress2)
+
+	s.createCurrencyForWallet(currencyWallet1, big.NewInt(1_000_000), "wallet1", false)
+	s.createCurrencyForWallet(currencyWallet2, big.NewInt(2_000_000), "wallet2", false)
+
+	// testAddress1_0 is in the same shard as Minter, thus withdrawal should be performed through sync call
+	data, err = s.abiMinter.Pack("withdraw", currencyWallet1.idInt, big.NewInt(1000), s.testAddress1_0)
+	s.Require().NoError(err)
+	receipt := s.sendMessageViaWallet(s.walletAddress1, types.MinterAddress, execution.MainPrivateKey, data, types.Value{})
+	s.Require().True(receipt.Success)
+	s.Require().Len(receipt.OutReceipts, 1)
+	s.Require().True(receipt.OutReceipts[0].Success)
+	s.Require().Empty(receipt.OutReceipts[0].OutReceipts)
+
+	// walletAddress2 is in a shard other than Minter, thus withdrawal should be performed through async call
+	data, err = s.abiMinter.Pack("withdraw", currencyWallet1.idInt, big.NewInt(1000), s.walletAddress2)
+	s.Require().NoError(err)
+	receipt = s.sendMessageViaWallet(s.walletAddress1, types.MinterAddress, execution.MainPrivateKey, data, types.Value{})
+	s.Require().True(receipt.Success)
+	s.Require().Len(receipt.OutReceipts, 1)
+	s.Require().True(receipt.OutReceipts[0].Success)
+	s.Require().Len(receipt.OutReceipts[0].OutReceipts, 1)
+	s.Require().True(receipt.OutReceipts[0].OutReceipts[0].Success)
+
+	// Test getName
+	data, err = s.abiMinter.Pack("getName", currencyWallet1.idInt)
+	s.Require().NoError(err)
+
+	data = s.CallGetter(types.MinterAddress, data)
+	unpackedRes, err := s.abiMinter.Unpack("getName", hexutil.FromHex(string(data)))
+	s.Require().NoError(err)
+	s.Require().Equal("wallet1", unpackedRes[0])
+
+	// Test getIdByName returns correct id
+	data, err = s.abiMinter.Pack("getIdByName", "wallet2")
+	s.Require().NoError(err)
+
+	data = s.CallGetter(types.MinterAddress, data)
+	unpackedRes, err = s.abiMinter.Unpack("getIdByName", hexutil.FromHex(string(data)))
+	s.Require().NoError(err)
+	s.Require().Equal(currencyWallet2.idInt, unpackedRes[0])
+
+	// Check that getIdByName returns 0 for non-existent currency
+	data, err = s.abiMinter.Pack("getIdByName", "not_existing")
+	s.Require().NoError(err)
+
+	data = s.CallGetter(types.MinterAddress, data)
+	unpackedRes, err = s.abiMinter.Unpack("getIdByName", hexutil.FromHex(string(data)))
+	s.Require().NoError(err)
+	resInt, ok := unpackedRes[0].(*big.Int)
+	s.Require().True(ok)
+	s.Require().Zero(resInt.Cmp(big.NewInt(0)))
+}
+
 func (s *SuiteMultiCurrencyRpc) createCurrencyForTestContract(currency *CurrencyId, amount types.Value, name string) {
 	s.T().Helper()
 
@@ -564,7 +624,13 @@ func (s *SuiteMultiCurrencyRpc) createCurrencyForTestContract(currency *Currency
 	s.Require().NoError(err)
 	receipt := s.waitForReceipt(currency.address.ShardId(), txhash)
 	s.Require().True(receipt.Success)
-	s.Require().True(receipt.OutReceipts[0].Success)
+	// If currency address is in the same shard as Minter, then withdrawal will be performed through sync call
+	if currency.address.ShardId() == types.MinterAddress.ShardId() {
+		s.Require().Empty(receipt.OutReceipts)
+	} else {
+		s.Require().Len(receipt.OutReceipts, 1)
+		s.Require().True(receipt.OutReceipts[0].Success)
+	}
 
 	// Check currency is created and balance is correct
 	currencies, err := s.client.GetCurrencies(*currency.address, "latest")
@@ -573,20 +639,22 @@ func (s *SuiteMultiCurrencyRpc) createCurrencyForTestContract(currency *Currency
 	s.Equal(amount, currencies[currency.idStr])
 }
 
-func (s *SuiteMultiCurrencyRpc) createCurrencyForWallet(currency *CurrencyId, amount *big.Int, name string) {
+func (s *SuiteMultiCurrencyRpc) createCurrencyForWallet(currency *CurrencyId, amount *big.Int, name string, withdraw bool) {
 	s.T().Helper()
 
-	data, err := s.abiWallet.Pack("createToken", amount, name, true)
+	data, err := s.abiWallet.Pack("createToken", amount, name, withdraw)
 	s.Require().NoError(err)
 
 	receipt := s.sendExternalMessage(data, *currency.address)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
-	// Check currency is created and balance is correct
-	currencies, err := s.client.GetCurrencies(*currency.address, "latest")
-	s.Require().NoError(err)
-	s.Require().Equal(amount, currencies[currency.idStr].ToBig())
+	if withdraw {
+		// Check currency is created and balance is correct
+		currencies, err := s.client.GetCurrencies(*currency.address, "latest")
+		s.Require().NoError(err)
+		s.Require().Equal(amount, currencies[currency.idStr].ToBig())
+	}
 }
 
 type CurrencyId struct {
@@ -606,5 +674,6 @@ func CreateTokenId(address *types.Address) *CurrencyId {
 }
 
 func TestMultiCurrencyRpc(t *testing.T) { //nolint
+	// Not parallel, because tests use same port
 	suite.Run(t, new(SuiteMultiCurrencyRpc))
 }

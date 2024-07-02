@@ -106,7 +106,7 @@ func (suite *RpcSuite) deployContractViaMainWallet(shardId types.ShardId, payloa
 func (suite *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey, calldata []byte, value types.Value) *jsonrpc.RPCReceipt {
 	suite.T().Helper()
 
-	txHash, err := suite.client.SendMessageViaWallet(addrFrom, calldata, 100_000, value,
+	txHash, err := suite.client.SendMessageViaWallet(addrFrom, calldata, 1_000_000, value,
 		[]types.CurrencyBalance{}, addrTo, key)
 	suite.Require().NoError(err)
 
