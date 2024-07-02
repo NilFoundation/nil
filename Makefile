@@ -39,8 +39,9 @@ contracts/compiled/%.bin: $(wildcard contracts/solidity/tests/*.sol) $(wildcard 
 
 compile-contracts: contracts/compiled/Faucet.bin contracts/compiled/Wallet.bin
 
-lint:
+lint: ssz
 	GOPROXY= go mod tidy
+	GOPROXY= go mod vendor
 	gofumpt -l -w .
 	gci write .
 	golangci-lint run

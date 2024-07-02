@@ -12,10 +12,17 @@ import (
 )
 
 func SetupGlobalLogger(level string) {
-	l, err := zerolog.ParseLevel(level)
-	check.PanicIfErr(err)
-	zerolog.SetGlobalLevel(l)
+	check.PanicIfErr(TrySetupGlobalLevel(level))
 	log.Logger = NewLogger("global")
+}
+
+func TrySetupGlobalLevel(level string) error {
+	l, err := zerolog.ParseLevel(level)
+	if err != nil {
+		return err
+	}
+	zerolog.SetGlobalLevel(l)
+	return nil
 }
 
 // defaults to INFO

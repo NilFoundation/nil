@@ -5,6 +5,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/NilFoundation/nil/admin"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/concurrent"
 	"github.com/NilFoundation/nil/common/logging"
@@ -56,6 +57,14 @@ func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []
 	}
 
 	return rpc.StartRpcServer(ctx, httpConfig, apiList, logger)
+}
+
+func startAdminServer(ctx context.Context, cfg *Config) error {
+	config := &admin.ServerConfig{
+		Enabled:        true,
+		UnixSocketPath: cfg.AdminSocketPath,
+	}
+	return admin.StartAdminServer(ctx, config, logging.NewLogger("admin"))
 }
 
 const defaultCollatorTickPeriodMs = 2000
@@ -124,6 +133,14 @@ func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent
 	funcs = append(funcs, func(ctx context.Context) error {
 		if err := startRpcServer(ctx, cfg, database, msgPools); err != nil {
 			logger.Error().Err(err).Msg("RPC server goroutine failed")
+			return err
+		}
+		return nil
+	})
+
+	funcs = append(funcs, func(ctx context.Context) error {
+		if err := startAdminServer(ctx, cfg); err != nil {
+			logger.Error().Err(err).Msg("Admin server goroutine failed")
 			return err
 		}
 		return nil
