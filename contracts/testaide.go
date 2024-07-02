@@ -11,17 +11,18 @@ import (
 )
 
 const (
-	FileNameWallet = "Wallet"
-
-	FileNameCounter        = "tests/Counter"
-	FileNameCounterPayable = "tests/CounterPayable"
-	FileNameMessageCheck   = "tests/MessageCheck"
+	NameCounter        = "tests/Counter"
+	NameCounterPayable = "tests/CounterPayable"
+	NameCommonTest     = "tests/CommonTest"
+	NameMessageCheck   = "tests/MessageCheck"
+	NameSender         = "tests/Sender"
+	NameTokensTest     = "tests/TokensTest"
 )
 
 func CounterDeployPayload(t *testing.T) types.DeployPayload {
 	t.Helper()
 
-	code, err := GetCode(FileNameCounter)
+	code, err := GetCode(NameCounter)
 	require.NoError(t, err)
 	return types.BuildDeployPayload(code, common.EmptyHash)
 }
@@ -32,12 +33,18 @@ func CounterAddress(t *testing.T, shardId types.ShardId) types.Address {
 	return types.CreateAddress(shardId, CounterDeployPayload(t))
 }
 
-func NewCallData(t *testing.T, fileName, methodName string, args ...any) []byte {
+func WalletAddress(t *testing.T, shardId types.ShardId, salt, pubKey []byte) types.Address {
 	t.Helper()
 
-	abiCallee, err := GetAbi(fileName)
+	res, err := CalculateAddress(NameWallet, shardId, salt, pubKey)
 	require.NoError(t, err)
-	callData, err := abiCallee.Pack(methodName, args...)
+	return res
+}
+
+func NewCallDataT(t *testing.T, fileName, methodName string, args ...any) []byte {
+	t.Helper()
+
+	callData, err := NewCallData(fileName, methodName, args...)
 	require.NoError(t, err)
 
 	return callData
@@ -46,17 +53,17 @@ func NewCallData(t *testing.T, fileName, methodName string, args ...any) []byte 
 func NewCounterAddCallData(t *testing.T, value int32) []byte {
 	t.Helper()
 
-	return NewCallData(t, FileNameCounter, "add", value)
+	return NewCallDataT(t, NameCounter, "add", value)
 }
 
 func NewCounterGetCallData(t *testing.T) []byte {
 	t.Helper()
 
-	return NewCallData(t, FileNameCounter, "get")
+	return NewCallDataT(t, NameCounter, "get")
 }
 
 func NewWalletSendCallData(t *testing.T,
-	bytecode types.Code, gasLimit *types.Uint256, value *types.Uint256,
+	bytecode types.Code, gasLimit types.Gas, value types.Value,
 	currencies []types.CurrencyBalance, contractAddress types.Address, kind types.MessageKind,
 ) []byte {
 	t.Helper()
@@ -64,8 +71,8 @@ func NewWalletSendCallData(t *testing.T,
 	intMsg := &types.InternalMessagePayload{
 		Data:     bytecode,
 		To:       contractAddress,
-		Value:    *value,
-		GasLimit: *gasLimit,
+		Value:    value,
+		GasLimit: gasLimit,
 		Currency: currencies,
 		Kind:     kind,
 	}
@@ -73,13 +80,13 @@ func NewWalletSendCallData(t *testing.T,
 	intMsgData, err := intMsg.MarshalSSZ()
 	require.NoError(t, err)
 
-	return NewCallData(t, FileNameWallet, "send", intMsgData)
+	return NewCallDataT(t, NameWallet, "send", intMsgData)
 }
 
 func CounterPayableDeployPayload(t *testing.T) types.DeployPayload {
 	t.Helper()
 
-	code, err := GetCode(FileNameCounterPayable)
+	code, err := GetCode(NameCounterPayable)
 	require.NoError(t, err)
 	return types.BuildDeployPayload(code, common.EmptyHash)
 }
@@ -87,11 +94,11 @@ func CounterPayableDeployPayload(t *testing.T) types.DeployPayload {
 func NewCounterPayableAddCallData(t *testing.T, value int32) []byte {
 	t.Helper()
 
-	return NewCallData(t, FileNameCounterPayable, "add", value)
+	return NewCallDataT(t, NameCounterPayable, "add", value)
 }
 
 func NewCounterPayableGetCallData(t *testing.T) []byte {
 	t.Helper()
 
-	return NewCallData(t, FileNameCounterPayable, "get")
+	return NewCallDataT(t, NameCounterPayable, "get")
 }

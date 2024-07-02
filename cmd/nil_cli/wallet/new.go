@@ -13,7 +13,7 @@ import (
 
 var logger = logging.NewLogger("walletNewCommand")
 
-var defaultNewWalletAmount = types.NewUint256(100_000_000)
+var defaultNewWalletAmount = types.NewValueFromUint64(100_000_000)
 
 func NewCommand(cfg *common.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
@@ -43,7 +43,7 @@ func setFlags(cmd *cobra.Command) {
 		"Specify the shard id to interact with",
 	)
 
-	params.new_wallet_amount = *defaultNewWalletAmount
+	params.new_wallet_amount = defaultNewWalletAmount
 	cmd.Flags().Var(
 		&params.new_wallet_amount,
 		amountFlag,
@@ -52,8 +52,8 @@ func setFlags(cmd *cobra.Command) {
 }
 
 func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
-	amount := &params.new_wallet_amount
-	if amount.Cmp(&defaultNewWalletAmount.Int) > 0 {
+	amount := params.new_wallet_amount
+	if amount.Cmp(defaultNewWalletAmount) > 0 {
 		logger.Warn().
 			Msgf("Specified balance (%s) is greater than a limit (%s). Decrease it.", &params.new_wallet_amount, defaultNewWalletAmount)
 		amount = defaultNewWalletAmount
@@ -61,7 +61,7 @@ func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
 
 	client := rpc.NewClient(cfg.RPCEndpoint)
 	srv := service.NewService(client, cfg.PrivateKey)
-	walletAddress, err := srv.CreateWallet(params.shardId, params.salt, amount, &cfg.PrivateKey.PublicKey)
+	walletAddress, err := srv.CreateWallet(params.shardId, &params.salt, amount, &cfg.PrivateKey.PublicKey)
 
 	if errors.Is(err, service.ErrWalletExists) {
 		logger.Error().Err(err).Msg("failed to create wallet")

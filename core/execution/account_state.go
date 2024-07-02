@@ -8,7 +8,6 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 )
 
 type AccountState struct {
@@ -16,7 +15,7 @@ type AccountState struct {
 	address types.Address // address of the ethereum account
 
 	Tx           db.RwTx
-	Balance      uint256.Int
+	Balance      types.Value
 	Code         types.Code
 	CodeHash     common.Hash
 	Seqno        types.Seqno
@@ -44,25 +43,25 @@ func (as *AccountState) empty() bool {
 
 // AddBalance adds amount to s's balance.
 // It is used to add funds to the destination account of a transfer.
-func (as *AccountState) AddBalance(amount *uint256.Int, reason tracing.BalanceChangeReason) {
+func (as *AccountState) AddBalance(amount types.Value, reason tracing.BalanceChangeReason) {
 	if amount.IsZero() {
 		return
 	}
-	newBalance := *new(uint256.Int).Add(&as.Balance, amount)
+	newBalance := as.Balance.Add(amount)
 	logger.Debug().Stringer("address", as.address).Stringer("reason", reason).
-		Msgf("Balance change: adding balance %v + %v = %v", &as.Balance, amount, &newBalance)
+		Msgf("Balance change: adding balance %s + %s = %s", as.Balance, amount, newBalance)
 	as.SetBalance(newBalance)
 }
 
 // SubBalance removes amount from s's balance.
 // It is used to remove funds from the origin account of a transfer.
-func (as *AccountState) SubBalance(amount *uint256.Int, reason tracing.BalanceChangeReason) {
+func (as *AccountState) SubBalance(amount types.Value, reason tracing.BalanceChangeReason) {
 	if amount.IsZero() {
 		return
 	}
-	newBalance := *new(uint256.Int).Sub(&as.Balance, amount)
+	newBalance := as.Balance.Sub(amount)
 	logger.Debug().Stringer("address", as.address).Stringer("reason", reason).
-		Msgf("Balance change: withdrawing balance %v - %v = %v", &as.Balance, amount, &newBalance)
+		Msgf("Balance change: withdrawing balance %s - %s = %s", as.Balance, amount, newBalance)
 	as.SetBalance(newBalance)
 }
 
@@ -80,33 +79,36 @@ func (as *AccountState) GetState(key common.Hash) (common.Hash, error) {
 	return newVal, nil
 }
 
-func (as *AccountState) SetBalance(amount uint256.Int) {
+func (as *AccountState) SetBalance(amount types.Value) {
 	as.db.journal.append(balanceChange{
 		account: &as.address,
-		prev:    new(uint256.Int).Set(&as.Balance),
+		prev:    as.Balance,
 	})
-	as.setBalance(&amount)
+	as.setBalance(amount)
 }
 
-func (as *AccountState) setBalance(amount *uint256.Int) {
-	as.Balance = *amount
+func (as *AccountState) setBalance(amount types.Value) {
+	as.Balance = amount
 }
 
-func (as *AccountState) SetCurrencyBalance(id *types.CurrencyId, amount *uint256.Int) {
-	prev, err := as.CurrencyTree.Fetch(*id)
-	if err != nil {
-		prev = types.NewUint256(0)
+func (as *AccountState) SetCurrencyBalance(id types.CurrencyId, amount types.Value) {
+	prev, err := as.CurrencyTree.Fetch(id)
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		panic(err)
 	}
-	as.db.journal.append(currencyChange{
+	change := currencyChange{
 		account: &as.address,
-		id:      *id,
-		prev:    &prev.Int,
-	})
+		id:      id,
+	}
+	if prev != nil {
+		change.prev = *prev
+	}
+	as.db.journal.append(change)
 	as.setCurrencyBalance(id, amount)
 }
 
-func (as *AccountState) setCurrencyBalance(id *types.CurrencyId, amount *uint256.Int) {
-	check.PanicIfErr(as.CurrencyTree.Update(*id, &types.Uint256{Int: *amount}))
+func (as *AccountState) setCurrencyBalance(id types.CurrencyId, amount types.Value) {
+	check.PanicIfErr(as.CurrencyTree.Update(id, &amount))
 	logger.Debug().
 		Stringer("address", as.address).
 		Hex("id", id[:]).
@@ -114,12 +116,15 @@ func (as *AccountState) setCurrencyBalance(id *types.CurrencyId, amount *uint256
 		Msg("Set balance currency")
 }
 
-func (as *AccountState) GetCurrencyBalance(id *types.CurrencyId) *uint256.Int {
-	res, err := as.CurrencyTree.Fetch(*id)
+func (as *AccountState) GetCurrencyBalance(id types.CurrencyId) types.Value {
+	res, err := as.CurrencyTree.Fetch(id)
 	if err != nil {
-		res = types.NewUint256(0)
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return types.Value{}
+		}
+		panic(err)
 	}
-	return &res.Int
+	return *res
 }
 
 func (as *AccountState) SetSeqno(seqno types.Seqno) {
@@ -192,14 +197,14 @@ func (as *AccountState) GetCommittedState(key common.Hash) (common.Hash, error) 
 
 func (as *AccountState) Commit() (*types.SmartContract, error) {
 	for k, v := range as.State {
-		if err := as.StorageTree.Update(k, &types.Uint256{Int: *v.Uint256()}); err != nil {
+		if err := as.StorageTree.Update(k, (*types.Uint256)(v.Uint256())); err != nil {
 			return nil, err
 		}
 	}
 
 	acc := &types.SmartContract{
 		Address:      as.address,
-		Balance:      types.Uint256{Int: as.Balance},
+		Balance:      as.Balance,
 		StorageRoot:  as.StorageTree.RootHash(),
 		CurrencyRoot: as.CurrencyTree.RootHash(),
 		CodeHash:     as.CodeHash,

@@ -14,7 +14,6 @@ import (
 	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common/compiler"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -25,7 +24,7 @@ type SuiteZeroState struct {
 	ctx context.Context
 
 	faucetAddr types.Address
-	faucetABI  abi.ABI
+	faucetABI  *abi.ABI
 
 	state     *ExecutionState
 	contracts map[string]*compiler.Contract
@@ -34,15 +33,14 @@ type SuiteZeroState struct {
 func (suite *SuiteZeroState) SetupSuite() {
 	suite.ctx = context.Background()
 
-	faucetABI, err := contracts.GetAbi("Faucet")
-	suite.Require().NoError(err)
-	suite.faucetABI = *faucetABI
-
 	zeroStateConfig, err := ParseZeroStateConfig(DefaultZeroStateConfig)
 	suite.Require().NoError(err)
 	faucetAddress := zeroStateConfig.GetContractAddress("Faucet")
 	suite.Require().NotNil(faucetAddress)
 	suite.faucetAddr = *faucetAddress
+
+	suite.faucetABI, err = contracts.GetAbi(contracts.NameFaucet)
+	suite.Require().NoError(err)
 }
 
 func (suite *SuiteZeroState) SetupTest() {
@@ -54,9 +52,10 @@ func (suite *SuiteZeroState) SetupTest() {
 }
 
 func (suite *SuiteZeroState) TearDownTest() {
+	suite.state.tx.Rollback()
 }
 
-func (suite *SuiteZeroState) getBalance(address types.Address) uint256.Int {
+func (suite *SuiteZeroState) getBalance(address types.Address) types.Value {
 	suite.T().Helper()
 
 	account, ok := suite.state.Accounts[address]
@@ -72,13 +71,13 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 	calldata, err := suite.faucetABI.Pack("withdrawTo", receiverAddr, big.NewInt(100))
 	suite.Require().NoError(err)
 
-	gasLimit := uint64(100_000)
-	gasPrice := uint64(10)
+	gasLimit := types.Gas(100_000)
+	gasPrice := types.NewValueFromUint64(10)
 	callMessage := &types.Message{
 		Data:     calldata,
 		From:     suite.faucetAddr,
 		To:       suite.faucetAddr,
-		GasLimit: *types.NewUint256(gasLimit),
+		GasLimit: gasLimit,
 	}
 	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, callMessage)
 	suite.Require().NoError(err)
@@ -88,14 +87,14 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 	outMsg := suite.state.OutMessages[outMsgHash][0]
 	suite.Require().NotNil(outMsg)
 	// buy gas
-	outMsg.Value.Sub(&outMsg.Value.Int, uint256.NewInt(gasLimit*gasPrice))
+	outMsg.Value = outMsg.Value.Sub(gasLimit.ToValue(gasPrice))
 	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, outMsg)
 	suite.Require().NoError(err)
 
-	faucetBalance.SubUint64(&faucetBalance, 100)
+	faucetBalance = faucetBalance.Sub64(100)
 	newFaucetBalance := suite.getBalance(suite.faucetAddr)
-	suite.Require().Negative(newFaucetBalance.Cmp(&faucetBalance))
-	suite.Require().EqualValues(*uint256.NewInt(100), suite.getBalance(receiverAddr))
+	suite.Require().Negative(newFaucetBalance.Cmp(faucetBalance))
+	suite.Require().EqualValues(types.NewValueFromUint64(100), suite.getBalance(receiverAddr))
 }
 
 func TestZerostateFromConfig(t *testing.T) {
@@ -105,6 +104,7 @@ func TestZerostateFromConfig(t *testing.T) {
 	require.NoError(t, err)
 	tx, err := database.CreateRwTx(context.Background())
 	require.NoError(t, err)
+	defer tx.Rollback()
 	state, err := NewExecutionState(tx, types.MasterShardId, common.EmptyHash, common.NewTestTimer(0))
 	require.NoError(t, err)
 
@@ -127,16 +127,16 @@ contracts:
 	wallet, err := state.GetAccount(walletAddr)
 	require.NoError(t, err)
 	require.NotNil(t, wallet)
-	require.Equal(t, wallet.Balance, types.NewUint256(12345678).Int)
+	require.Equal(t, wallet.Balance, types.NewValueFromUint64(12345678))
 
-	faucetCode, err := contracts.GetCode("Faucet")
+	faucetCode, err := contracts.GetCode(contracts.NameFaucet)
 	require.NoError(t, err)
 	faucetAddr := types.CreateAddress(types.MasterShardId, types.BuildDeployPayload(faucetCode, common.EmptyHash))
 
 	faucet, err := state.GetAccount(faucetAddr)
 	require.NoError(t, err)
 	require.NotNil(t, faucet)
-	require.Equal(t, faucet.Balance, types.NewUint256(87654321).Int)
+	require.Equal(t, faucet.Balance, types.NewValueFromUint64(87654321))
 
 	// Test should fail because contract hasn't `code` item
 	configYaml2 := `

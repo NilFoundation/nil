@@ -36,14 +36,14 @@ type (
 	MessageTrie     = BaseMPT[types.MessageIndex, types.Message, *types.Message]
 	ReceiptTrie     = BaseMPT[types.MessageIndex, types.Receipt, *types.Receipt]
 	StorageTrie     = BaseMPT[common.Hash, types.Uint256, *types.Uint256]
-	CurrencyTrie    = BaseMPT[types.CurrencyId, types.Uint256, *types.Uint256]
+	CurrencyTrie    = BaseMPT[types.CurrencyId, types.Value, *types.Value]
 	ShardBlocksTrie = BaseMPT[types.ShardId, types.Uint256, *types.Uint256]
 
 	ContractTrieReader    = BaseMPTReader[common.Hash, types.SmartContract, *types.SmartContract]
 	MessageTrieReader     = BaseMPTReader[types.MessageIndex, types.Message, *types.Message]
 	ReceiptTrieReader     = BaseMPTReader[types.MessageIndex, types.Receipt, *types.Receipt]
 	StorageTrieReader     = BaseMPTReader[common.Hash, types.Uint256, *types.Uint256]
-	CurrencyTrieReader    = BaseMPTReader[types.CurrencyId, types.Uint256, *types.Uint256]
+	CurrencyTrieReader    = BaseMPTReader[types.CurrencyId, types.Value, *types.Value]
 	ShardBlocksTrieReader = BaseMPTReader[types.ShardId, types.Uint256, *types.Uint256]
 )
 

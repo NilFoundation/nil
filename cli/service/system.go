@@ -17,10 +17,10 @@ func (s *Service) GetShards() ([]types.ShardId, error) {
 	return list, nil
 }
 
-func (s *Service) GetGasPrice(shardId types.ShardId) (*types.Uint256, error) {
+func (s *Service) GetGasPrice(shardId types.ShardId) (types.Value, error) {
 	value, err := s.client.GasPrice(shardId)
 	if err != nil {
-		return nil, err
+		return types.Value{}, err
 	}
 
 	s.logger.Info().Msgf("Gas price of shard %d: %s", shardId, value)

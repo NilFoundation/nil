@@ -12,7 +12,7 @@ import (
 func (s *SuiteRpc) TestRpcBlockContent() {
 	// Deploy message
 	hash, _, err := s.client.DeployContract(types.BaseShardId, types.MainWalletAddress,
-		contracts.CounterDeployPayload(s.T()), nil,
+		contracts.CounterDeployPayload(s.T()), types.Value{},
 		execution.MainPrivateKey)
 	s.Require().NoError(err)
 

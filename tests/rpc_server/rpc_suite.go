@@ -17,7 +17,6 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -27,10 +26,11 @@ type RpcSuite struct {
 	cancel    context.CancelFunc
 	client    client.Client
 	shardsNum int
+	endpoint  string
 }
 
 func init() {
-	logging.SetupGlobalLogger("info")
+	logging.SetupGlobalLogger("debug")
 }
 
 func (suite *RpcSuite) start(cfg *nilservice.Config) {
@@ -42,7 +42,8 @@ func (suite *RpcSuite) start(cfg *nilservice.Config) {
 	badger, err := db.NewBadgerDbInMemory()
 	suite.Require().NoError(err)
 
-	suite.client = rpc_client.NewClient(fmt.Sprintf("http://127.0.0.1:%d/", cfg.HttpPort))
+	suite.endpoint = fmt.Sprintf("http://127.0.0.1:%d", cfg.HttpPort)
+	suite.client = rpc_client.NewClient(suite.endpoint)
 	go nilservice.Run(suite.context, cfg, badger)
 	suite.waitZerostate()
 }
@@ -73,20 +74,20 @@ func (suite *RpcSuite) waitZerostate() {
 
 // Deploy contract to specific shard
 func (suite *RpcSuite) deployContractViaWallet(
-	addrFrom types.Address, key *ecdsa.PrivateKey, shardId types.ShardId, payload types.DeployPayload, initialAmount *types.Uint256,
+	addrFrom types.Address, key *ecdsa.PrivateKey, shardId types.ShardId, payload types.DeployPayload, initialAmount types.Value,
 ) (types.Address, *jsonrpc.RPCReceipt) {
 	suite.T().Helper()
 
 	contractAddr := types.CreateAddress(shardId, payload)
 	suite.T().Logf("Deploying contract %v", contractAddr)
-	txHash, err := suite.client.SendMessageViaWallet(addrFrom, types.Code{}, types.NewUint256(100_000), initialAmount,
+	txHash, err := suite.client.SendMessageViaWallet(addrFrom, types.Code{}, 100_000, initialAmount,
 		[]types.CurrencyBalance{}, contractAddr, key)
 	suite.Require().NoError(err)
 	receipt := suite.waitForReceipt(addrFrom.ShardId(), txHash)
 	suite.Require().True(receipt.Success)
 	suite.Require().Len(receipt.OutReceipts, 1)
 
-	txHash, addr, err := suite.client.DeployContract(shardId, addrFrom, payload, nil, key)
+	txHash, addr, err := suite.client.DeployContract(shardId, addrFrom, payload, types.Value{}, key)
 	suite.Require().NoError(err)
 	suite.Require().Equal(contractAddr, addr)
 
@@ -96,16 +97,16 @@ func (suite *RpcSuite) deployContractViaWallet(
 	return addr, receipt
 }
 
-func (suite *RpcSuite) deployContractViaMainWallet(shardId types.ShardId, payload types.DeployPayload, initialAmount *types.Uint256) (types.Address, *jsonrpc.RPCReceipt) {
+func (suite *RpcSuite) deployContractViaMainWallet(shardId types.ShardId, payload types.DeployPayload, initialAmount types.Value) (types.Address, *jsonrpc.RPCReceipt) {
 	suite.T().Helper()
 
 	return suite.deployContractViaWallet(types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
 }
 
-func (suite *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey, calldata []byte, value *types.Uint256) *jsonrpc.RPCReceipt {
+func (suite *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey, calldata []byte, value types.Value) *jsonrpc.RPCReceipt {
 	suite.T().Helper()
 
-	txHash, err := suite.client.SendMessageViaWallet(addrFrom, calldata, types.NewUint256(100_000), value,
+	txHash, err := suite.client.SendMessageViaWallet(addrFrom, calldata, 100_000, value,
 		[]types.CurrencyBalance{}, addrTo, key)
 	suite.Require().NoError(err)
 
@@ -131,13 +132,12 @@ func (suite *RpcSuite) sendExternalMessage(bytecode types.Code, contractAddress 
 
 // sendMessageViaWalletNoCheck sends a message via a wallet contract. Doesn't require the receipt be successful.
 func (suite *RpcSuite) sendMessageViaWalletNoCheck(addrWallet types.Address, addrTo types.Address, key *ecdsa.PrivateKey,
-	calldata []byte, gas *uint256.Int, value *uint256.Int, currencies []types.CurrencyBalance,
+	calldata []byte, gas types.Gas, value types.Value, currencies []types.CurrencyBalance,
 ) *jsonrpc.RPCReceipt {
 	suite.T().Helper()
 
 	// Send the raw transaction
-	txHash, err := suite.client.SendMessageViaWallet(addrWallet, calldata, &types.Uint256{Int: *gas},
-		&types.Uint256{Int: *value}, currencies, addrTo, key)
+	txHash, err := suite.client.SendMessageViaWallet(addrWallet, calldata, gas, value, currencies, addrTo, key)
 	suite.Require().NoError(err)
 
 	receipt := suite.waitForReceipt(addrWallet.ShardId(), txHash)
@@ -161,9 +161,8 @@ func (suite *RpcSuite) CallGetter(addr types.Address, callData []byte) []byte {
 		From:     addr,
 		Data:     callData,
 		To:       addr,
-		Value:    types.NewUint256(0),
-		GasLimit: types.NewUint256(10000),
-		Seqno:    &seqno,
+		GasLimit: 10000,
+		Seqno:    seqno,
 	}
 	res, err := suite.client.Call(callArgs)
 	suite.Require().NoError(err)

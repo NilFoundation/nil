@@ -37,7 +37,7 @@ type BlockWithBinary struct {
 type MessageWithBinary struct {
 	types.Message
 	Success           bool               `ch:"success"`
-	GasUsed           uint32             `ch:"gas_used"`
+	GasUsed           types.Gas          `ch:"gas_used"`
 	BlockId           types.BlockNumber  `ch:"block_id"`
 	BlockHash         common.Hash        `ch:"block_hash"`
 	Binary            []byte             `ch:"binary"`
@@ -334,7 +334,6 @@ func exportMessagesAndLogs(ctx context.Context, conn driver.Conn, msgs []*export
 				Message:           *message,
 				Binary:            binary,
 				Success:           true,
-				GasUsed:           0,
 				BlockId:           block.Block.Id,
 				BlockHash:         block.Block.Hash(),
 				Hash:              message.Hash(),

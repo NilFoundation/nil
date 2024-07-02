@@ -7,6 +7,7 @@ import (
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
+	"github.com/NilFoundation/nil/common/hexutil"
 )
 
 // PublicKeySize is the expected length of the PublicKey (in bytes)
@@ -17,7 +18,7 @@ var EmptyPublicKey [PublicKeySize]byte
 type SmartContract struct {
 	Address      Address
 	Initialised  bool
-	Balance      Uint256 `ssz-size:"32"`
+	Balance      Value `ssz-size:"32"`
 	CurrencyRoot common.Hash
 	StorageRoot  common.Hash
 	CodeHash     common.Hash
@@ -28,9 +29,13 @@ type SmartContract struct {
 
 type CurrencyId common.Hash
 
+func (c CurrencyId) String() string {
+	return common.Hash(c).String()
+}
+
 type CurrencyBalance struct {
 	Currency CurrencyId `json:"id" ssz-size:"32" abi:"id"`
-	Balance  Uint256    `json:"value" ssz-size:"32" abi:"amount"`
+	Balance  Value      `json:"value" ssz-size:"32" abi:"amount"`
 }
 
 // CurrencyBalanceAbiCompatible is a struct same as CurrencyBalance, but compatible with the eth ABI
@@ -64,4 +69,12 @@ func (s *SmartContract) Hash() common.Hash {
 	return h
 }
 
-type CurrenciesMap map[string]*Uint256
+type CurrenciesMap = map[string]Value
+
+type RPCCurrenciesMap = map[string]*hexutil.Big
+
+func ToCurrenciesMap(m RPCCurrenciesMap) CurrenciesMap {
+	return common.TransformMap(m, func(k string, v *hexutil.Big) (string, Value) {
+		return k, NewValueFromBigMust(v.ToInt())
+	})
+}

@@ -252,7 +252,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	filters := NewFiltersManager(s.ctx, s.db, false)
 	s.NotNil(filters)
 	address := types.HexToAddress("0x1111111111")
-	defaultGasPrice := uint256.NewInt(10)
+	defaultGasPrice := types.NewValueFromUint64(10)
 
 	receiptsMpt := mpt.NewMerklePatriciaTrie(tx, 0, db.ReceiptTrieTable)
 

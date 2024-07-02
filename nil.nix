@@ -9,12 +9,12 @@ in buildGoModule rec {
   version = "0.1.0-${toString revCount}";
 
   preBuild = ''
-    make compile-contracts
+    make compile-contracts ssz
   '';
 
   src = src_repo;
   # to obtain run `nix build` with vendorHash = "";
-  vendorHash = "sha256-8Z1l1KS0H7xxBuLZi7ains8aW3dLwCcOlUJn+5Ac0Ug=";
+  vendorHash = "sha256-MrwLqrmnOYUp6y/zg81q06gd8An3Aau4gFckYNbislY=";
   hardeningDisable = [ "all" ];
 
   CGO_ENABLED = if enableRaceDetector then 1 else 0;

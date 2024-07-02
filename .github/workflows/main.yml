@@ -25,6 +25,9 @@ jobs:
       - name: compile contracts
         run: nix develop -c make compile-contracts
 
+      - name: SSZ generation
+        run: nix develop -c make ssz
+
       - name: golangci-lint
         run: nix develop -c golangci-lint run
 
@@ -33,9 +36,6 @@ jobs:
 
       - name: build
         run: nix build -L
-
-      - name: SSZ generation
-        run: nix develop -c make ssz
 
       - name: Generate OpenRPC spec for JSON RPC API
         run: nix develop -c make rpcspec

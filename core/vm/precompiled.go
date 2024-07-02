@@ -113,7 +113,7 @@ func RunPrecompiledContract(p PrecompiledContract, state StateDB, input []byte, 
 ) (ret []byte, remainingGas uint64, err error) {
 	gasCost := p.RequiredGas(input)
 	if suppliedGas < gasCost {
-		return nil, 0, ErrOutOfGas
+		return nil, 0, fmt.Errorf("%w: %d < %d", ErrOutOfGas, suppliedGas, gasCost)
 	}
 	if logger != nil && logger.OnGasChange != nil {
 		logger.OnGasChange(suppliedGas, suppliedGas-gasCost, tracing.GasChangeCallPrecompiledContract)
@@ -176,16 +176,24 @@ func setBounceTo(bounceTo *types.Address, msg *types.Message) {
 	}
 }
 
-func withdrawFunds(state StateDB, addr types.Address, value *uint256.Int) error {
+func withdrawFunds(state StateDB, addr types.Address, value types.Value) error {
 	balance, err := state.GetBalance(addr)
 	if err != nil {
 		return err
 	}
-	if balance.Lt(value) {
+	if balance.Cmp(value) < 0 {
 		log.Logger.Error().Msgf("withdrawFunds failed: insufficient balance on address %v, expected at least %v, got %v", addr, value, balance)
 		return ErrInsufficientBalance
 	}
 	return state.SubBalance(addr, value, tracing.BalanceDecreasePrecompile)
+}
+
+func getPrecompiledMethod(methodName string) abi.Method {
+	a, err := contracts.GetAbi(contracts.NamePrecompile)
+	check.PanicIfErr(err)
+	method, ok := a.Methods[methodName]
+	check.PanicIfNot(ok)
+	return method
 }
 
 func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
@@ -196,7 +204,7 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uin
 	if err := payload.UnmarshalSSZ(input); err != nil {
 		return nil, err
 	}
-	if err := withdrawFunds(state, caller.Address(), &payload.Value.Int); err != nil {
+	if err := withdrawFunds(state, caller.Address(), payload.Value); err != nil {
 		return nil, err
 	}
 
@@ -235,12 +243,11 @@ func extractCurrencies(arg any) ([]types.CurrencyBalance, error) {
 		currencyId, _ := uint256.FromBig(id)
 		currencies[i].Currency = currencyId.Bytes32()
 
-		balance, ok := elem.FieldByIndex([]int{1}).Interface().(*big.Int)
+		balanceBig, ok := elem.FieldByIndex([]int{1}).Interface().(*big.Int)
 		if !ok {
 			return nil, errors.New("balance is not a big.Int")
 		}
-		b, _ := uint256.FromBig(balance)
-		currencies[i].Balance = types.Uint256{Int: *b}
+		currencies[i].Balance = types.NewValueFromBigMust(balanceBig)
 	}
 	return currencies, nil
 }
@@ -250,17 +257,8 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 		return nil, ErrWriteProtection
 	}
 
-	abi, err := contracts.GetAbi("Precompile")
-	if err != nil {
-		return nil, err
-	}
-	method, ok := abi.Methods["precompileAsyncCall"]
-	if !ok {
-		return nil, errors.New("'precompileAsyncCall' method not found in 'Precompile' class")
-	}
-
 	// Unpack arguments, skipping the first 4 bytes (function selector)
-	args, err := method.Inputs.Unpack(input[4:])
+	args, err := getPrecompiledMethod("precompileAsyncCall").Inputs.Unpack(input[4:])
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +295,7 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 	if !ok {
 		return nil, errors.New("messageGas is not a big.Int")
 	}
-	messageGas, _ := uint256.FromBig(messageGasBig)
+	messageGas := types.Gas(messageGasBig.Uint64())
 
 	// Get `currencies` argument, which is a slice of `CurrencyBalance`
 	currencies, err := extractCurrencies(args[5])
@@ -317,7 +315,9 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 		kind = types.ExecutionMessageKind
 	}
 
-	if err := withdrawFunds(state, caller.Address(), messageGas); err != nil {
+	// todo: correct gas price
+	gasPrice := types.NewValueFromUint64(10)
+	if err := withdrawFunds(state, caller.Address(), messageGas.ToValue(gasPrice)); err != nil {
 		return nil, err
 	}
 
@@ -328,8 +328,8 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 	// Internal is required for the message
 	payload := types.InternalMessagePayload{
 		Kind:     kind,
-		GasLimit: types.Uint256{Int: *messageGas},
-		Value:    types.Uint256{Int: *value},
+		GasLimit: messageGas,
+		Value:    types.NewValue(value),
 		Currency: currencies,
 		To:       dst,
 		RefundTo: refundTo,
@@ -427,15 +427,7 @@ func (c *mintCurrency) Run(state StateDB, input []byte, gas uint64, value *uint2
 		return res, nil
 	}
 
-	abi, err := contracts.GetAbi("Precompile")
-	if err != nil {
-		return nil, err
-	}
-	method, ok := abi.Methods["precompileMintCurrency"]
-	if !ok {
-		return nil, errors.New("'precompileMintCurrency' method not found in 'Precompile' class")
-	}
-	args, err := method.Inputs.Unpack(input[4:])
+	args, err := getPrecompiledMethod("precompileMintCurrency").Inputs.Unpack(input[4:])
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +440,7 @@ func (c *mintCurrency) Run(state StateDB, input []byte, gas uint64, value *uint2
 	if !ok1 || !ok2 {
 		return nil, errors.New("currencyId or amount is not a big.Int")
 	}
-	amount, overflow := uint256.FromBig(amountBig)
+	amount, overflow := types.NewValueFromBig(amountBig)
 	if overflow {
 		log.Logger.Warn().Msgf("amount overflow: %v", amountBig)
 	}
@@ -456,7 +448,7 @@ func (c *mintCurrency) Run(state StateDB, input []byte, gas uint64, value *uint2
 	var currencyId types.CurrencyId
 	currencyIdBig.FillBytes(currencyId[:])
 
-	if err = state.AddCurrency(caller.Address(), &currencyId, amount); err != nil {
+	if err = state.AddCurrency(caller.Address(), currencyId, amount); err != nil {
 		return nil, err
 	}
 
@@ -479,17 +471,8 @@ func (c *currencyBalance) Run(state StateDB, input []byte, gas uint64, value *ui
 		return res, nil
 	}
 
-	abi, err := contracts.GetAbi("Precompile")
-	if err != nil {
-		return nil, err
-	}
-	method, ok := abi.Methods["precompileGetCurrencyBalance"]
-	if !ok {
-		return nil, errors.New("'precompileGetCurrencyBalance' method not found in 'Precompile' class")
-	}
-
 	// Unpack arguments, skipping the first 4 bytes (function selector)
-	args, err := method.Inputs.Unpack(input[4:])
+	args, err := getPrecompiledMethod("precompileGetCurrencyBalance").Inputs.Unpack(input[4:])
 	if err != nil {
 		return nil, err
 	}
@@ -534,17 +517,8 @@ func (c *sendCurrencySync) RequiredGas([]byte) uint64 {
 }
 
 func (c *sendCurrencySync) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
-	abi, err := contracts.GetAbi("Precompile")
-	if err != nil {
-		return nil, err
-	}
-	method, ok := abi.Methods["precompileSendTokens"]
-	if !ok {
-		return nil, errors.New("'precompileSendTokens' method not found in 'Precompile' class")
-	}
-
 	// Unpack arguments, skipping the first 4 bytes (function selector)
-	args, err := method.Inputs.Unpack(input[4:])
+	args, err := getPrecompiledMethod("precompileSendTokens").Inputs.Unpack(input[4:])
 	if err != nil {
 		return nil, err
 	}
@@ -584,23 +558,14 @@ func (c *getMessageTokens) RequiredGas([]byte) uint64 {
 }
 
 func (c *getMessageTokens) Run(state StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, readOnly bool) ([]byte, error) {
-	abi, err := contracts.GetAbi("Precompile")
-	if err != nil {
-		return nil, err
-	}
-	method, ok := abi.Methods["precompileGetMessageTokens"]
-	if !ok {
-		return nil, errors.New("'precompileGetMessageTokens' method not found in 'Precompile' class")
-	}
-
 	callerCurrencies := caller.Currency()
 	abiCurrencies := make([]types.CurrencyBalanceAbiCompatible, len(callerCurrencies))
 	for i, c := range callerCurrencies {
 		abiCurrencies[i].Currency = new(big.Int).SetBytes(c.Currency[:])
-		abiCurrencies[i].Balance = c.Balance.Int.ToBig()
+		abiCurrencies[i].Balance = c.Balance.ToBig()
 	}
 
-	res, err := method.Outputs.Pack(abiCurrencies)
+	res, err := getPrecompiledMethod("precompileGetMessageTokens").Outputs.Pack(abiCurrencies)
 	if err != nil {
 		return nil, err
 	}

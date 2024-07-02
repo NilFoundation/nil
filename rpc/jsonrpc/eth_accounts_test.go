@@ -2,7 +2,6 @@ package jsonrpc
 
 import (
 	"context"
-	"math/big"
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
@@ -15,7 +14,6 @@ import (
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -48,14 +46,14 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	suite.Require().NoError(es.CreateAccount(suite.smcAddr))
 	suite.Require().NoError(es.SetCode(suite.smcAddr, []byte("some code")))
 
-	suite.Require().NoError(es.SetBalance(suite.smcAddr, *uint256.NewInt(1234)))
+	suite.Require().NoError(es.SetBalance(suite.smcAddr, types.NewValueFromUint64(1234)))
 	suite.Require().NoError(es.SetExtSeqno(suite.smcAddr, 567))
 
 	blockHash, err := es.Commit(0)
 	suite.Require().NoError(err)
 	suite.blockHash = blockHash
 
-	block, err := execution.PostprocessBlock(tx, shardId, uint256.NewInt(10), 0, blockHash)
+	block, err := execution.PostprocessBlock(tx, shardId, types.NewValueFromUint64(10), 0, blockHash)
 	suite.Require().NotNil(block)
 	suite.Require().NoError(err)
 
@@ -80,23 +78,23 @@ func (suite *SuiteEthAccounts) TestGetBalance() {
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 	res, err := suite.api.GetBalance(ctx, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
-	suite.Equal((*hexutil.Big)(big.NewInt(1234)), res)
+	suite.Equal(hexutil.NewBigFromInt64(1234), res)
 
 	blockHash := transport.BlockNumberOrHash{BlockHash: &suite.blockHash}
 	res, err = suite.api.GetBalance(ctx, suite.smcAddr, blockHash)
 	suite.Require().NoError(err)
-	suite.Equal((*hexutil.Big)(big.NewInt(1234)), res)
+	suite.Equal(hexutil.NewBigFromInt64(1234), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 	res, err = suite.api.GetBalance(ctx, types.GenerateRandomAddress(types.BaseShardId), blockNum)
 	suite.Require().NoError(err)
-	suite.Equal((*hexutil.Big)(big.NewInt(0)), res)
+	suite.True(res.IsZero())
 
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
 	res, err = suite.api.GetBalance(ctx, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
-	suite.Equal((*hexutil.Big)(big.NewInt(0)), res)
+	suite.True(res.IsZero())
 }
 
 func (suite *SuiteEthAccounts) TestGetCode() {
@@ -164,9 +162,8 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 	digest, err := msg.SigningHash()
 	suite.Require().NoError(err)
 
-	sig, err := crypto.Sign(digest.Bytes(), key)
+	msg.AuthData, err = crypto.Sign(digest.Bytes(), key)
 	suite.Require().NoError(err)
-	msg.AuthData = types.Signature(sig)
 
 	data, err := msg.MarshalSSZ()
 	suite.Require().NoError(err)

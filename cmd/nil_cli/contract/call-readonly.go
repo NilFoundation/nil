@@ -29,7 +29,7 @@ func GetCallReadonlyCommand(cfg *common.Config) *cobra.Command {
 		"Path to ABI file",
 	)
 
-	params.gasLimit = *types.NewUint256(100000)
+	params.gasLimit = 100000
 	cmd.Flags().Var(
 		&params.gasLimit,
 		gasLimitFlag,
@@ -53,6 +53,6 @@ func runCallReadonly(_ *cobra.Command, args []string, cfg *common.Config) error 
 		return err
 	}
 
-	_, _ = service.CallContract(address, &params.gasLimit, calldata)
+	_, _ = service.CallContract(address, params.gasLimit, calldata)
 	return nil
 }

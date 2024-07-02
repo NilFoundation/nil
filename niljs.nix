@@ -29,7 +29,7 @@ stdenv.mkDerivation rec {
 
   buildPhase = ''
     nohup nil > nil.log 2>&1 & echo $! > nil_pid
-    CI=true bunx vitest run -c test/vitest.integration.config.ts --cache=false
+    CI=true bunx vitest run -c test/vitest.integration.config.ts --cache=false --testTimeout=40000
     kill `cat nil_pid` && rm nil_pid
     echo "tests finished successfully"
   '';

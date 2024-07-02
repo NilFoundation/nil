@@ -3,22 +3,20 @@ package execution
 import (
 	"errors"
 	"fmt"
-	"math/big"
 
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 )
 
 var sharedLogger = logging.NewLogger("execution")
 
 type payer interface {
 	fmt.Stringer
-	CanPay(*big.Int) bool
-	SubBalance(*uint256.Int)
-	AddBalance(*uint256.Int)
+	CanPay(types.Value) bool
+	SubBalance(types.Value)
+	AddBalance(types.Value)
 }
 
 type messagePayer struct {
@@ -26,25 +24,24 @@ type messagePayer struct {
 	es      *ExecutionState
 }
 
-func (m messagePayer) CanPay(amount *big.Int) bool {
-	return m.message.Value.Int.ToBig().Cmp(amount) >= 0
+func (m messagePayer) CanPay(amount types.Value) bool {
+	return m.message.Value.Cmp(amount) >= 0
 }
 
-func (m messagePayer) SubBalance(delta *uint256.Int) {
-	m.message.Value.Sub(&m.message.Value.Int, delta)
+func (m messagePayer) SubBalance(delta types.Value) {
+	m.message.Value = m.message.Value.Sub(delta)
 }
 
-func (m messagePayer) AddBalance(delta *uint256.Int) {
+func (m messagePayer) AddBalance(delta types.Value) {
 	if m.message.RefundTo == types.EmptyAddress {
 		sharedLogger.Error().Stringer(logging.FieldMessageHash, m.message.Hash()).Msg("refund address is empty")
 		return
 	}
 	m.es.AddOutMessageForTx(m.message.Hash(), &types.Message{
-		Internal: true,
-		Kind:     types.RefundMessageKind,
-		From:     m.message.To,
-		To:       m.message.RefundTo,
-		Value:    types.Uint256{Int: *delta},
+		Flags: types.NewMessageFlags(types.MessageFlagInternal, types.MessageFlagRefund),
+		From:  m.message.To,
+		To:    m.message.RefundTo,
+		Value: delta,
 	})
 }
 
@@ -57,17 +54,15 @@ type accountPayer struct {
 	message *types.Message
 }
 
-func (a accountPayer) CanPay(amount *big.Int) bool {
-	required := a.message.Value.Int.ToBig()
-	required.Add(required, amount)
-	return a.account.Balance.ToBig().Cmp(required) >= 0
+func (a accountPayer) CanPay(amount types.Value) bool {
+	return a.account.Balance.Cmp(a.message.Value.Add(amount)) >= 0
 }
 
-func (a accountPayer) SubBalance(amount *uint256.Int) {
+func (a accountPayer) SubBalance(amount types.Value) {
 	a.account.SubBalance(amount, tracing.BalanceDecreaseGasBuy)
 }
 
-func (a accountPayer) AddBalance(amount *uint256.Int) {
+func (a accountPayer) AddBalance(amount types.Value) {
 	a.account.AddBalance(amount, tracing.BalanceIncreaseGasReturn)
 }
 
@@ -75,27 +70,25 @@ func (a accountPayer) String() string {
 	return fmt.Sprintf("account %v", a.message.From.Hex())
 }
 
-func buyGas(payer payer, message *types.Message, gasPrice *uint256.Int) error {
-	mgval := message.GasLimit.ToBig()
-	mgval.Mul(mgval, gasPrice.ToBig())
-
-	required, overflow := uint256.FromBig(mgval)
+func buyGas(payer payer, message *types.Message, gasPrice types.Value) error {
+	required, overflow := message.GasLimit.ToValueOverflow(gasPrice)
 	if overflow {
 		return fmt.Errorf("%w: %s required balance exceeds 256 bits", ErrInsufficientFunds, payer)
 	}
-	if !payer.CanPay(mgval) {
-		return fmt.Errorf("%w: %s can't pay %v", ErrInsufficientFunds, payer, required)
+	if !payer.CanPay(required) {
+		return fmt.Errorf("%w: %s can't pay %s", ErrInsufficientFunds, payer, required)
 	}
 
 	payer.SubBalance(required)
 	return nil
 }
 
-func refundGas(payer payer, _ *types.Message, gasRemaining uint64, gasPrice *uint256.Int) {
+func refundGas(payer payer, _ *types.Message, gasRemaining types.Gas, gasPrice types.Value) {
+	if gasRemaining == 0 {
+		return
+	}
 	// Return currency for remaining gas, exchanged at the original rate.
-	remaining := uint256.NewInt(gasRemaining)
-	remaining.Mul(remaining, gasPrice)
-	payer.AddBalance(remaining)
+	payer.AddBalance(gasRemaining.ToValue(gasPrice))
 }
 
 func ValidateDeployMessage(message *types.Message) error {
@@ -117,7 +110,7 @@ func ValidateDeployMessage(message *types.Message) error {
 }
 
 func validateExternalDeployMessage(es *ExecutionState, message *types.Message) error {
-	check.PanicIfNot(message.Kind == types.DeployMessageKind)
+	check.PanicIfNot(message.IsDeploy())
 
 	if err := ValidateDeployMessage(message); err != nil {
 		return err
@@ -132,8 +125,8 @@ func validateExternalDeployMessage(es *ExecutionState, message *types.Message) e
 	return nil
 }
 
-func validateExternalExecutionMessage(es *ExecutionState, message *types.Message, gasPrice *uint256.Int) error {
-	check.PanicIfNot(message.Kind == types.ExecutionMessageKind)
+func validateExternalExecutionMessage(es *ExecutionState, message *types.Message, gasPrice types.Value) error {
+	check.PanicIfNot(message.IsExecution())
 
 	to := message.To
 	if exists, err := es.ContractExists(to); err != nil {
@@ -161,8 +154,8 @@ func validateExternalExecutionMessage(es *ExecutionState, message *types.Message
 	return nil
 }
 
-func ValidateExternalMessage(es *ExecutionState, message *types.Message, gasPrice *uint256.Int) error {
-	check.PanicIfNot(!message.Internal)
+func ValidateExternalMessage(es *ExecutionState, message *types.Message, gasPrice types.Value) error {
+	check.PanicIfNot(message.IsExternal())
 
 	if message.ChainId != types.DefaultChainId {
 		return ErrInvalidChainId
@@ -174,14 +167,12 @@ func ValidateExternalMessage(es *ExecutionState, message *types.Message, gasPric
 		return ErrNoPayer
 	}
 
-	switch message.Kind {
-	case types.DeployMessageKind:
+	switch {
+	case message.IsDeploy():
 		return validateExternalDeployMessage(es, message)
-	case types.ExecutionMessageKind:
-		return validateExternalExecutionMessage(es, message, gasPrice)
-	case types.RefundMessageKind:
+	case message.IsRefund():
 		return errors.New("refund message is not allowed in external messages")
 	default:
-		panic("unreachable")
+		return validateExternalExecutionMessage(es, message, gasPrice)
 	}
 }

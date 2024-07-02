@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
@@ -36,40 +37,117 @@ func (s *CollatorTestSuite) TearDownTest() {
 func (s *CollatorTestSuite) TestCollator() {
 	shardId := types.BaseShardId
 	nShards := 2
-
-	s.Run("GenerateZeroState", func() {
-		GenerateZeroState(s.T(), s.ctx, shardId, s.db)
-	})
-
+	gasPrice := types.NewValueFromUint64(10)
 	from := types.MainWalletAddress
 	to := contracts.CounterAddress(s.T(), shardId)
 
-	s.Run("SendTokens", func() {
-		m := execution.NewExecutionMessage(from, from, 0, contracts.NewWalletSendCallData(s.T(), types.Code{},
-			types.NewUint256(100_000), types.NewUint256(3_000_000), []types.CurrencyBalance{},
-			to, types.ExecutionMessageKind))
-		s.Require().NoError(m.Sign(execution.MainPrivateKey))
-		GenerateBlockWithMessages(s.T(), s.ctx, shardId, nShards, s.db, m)
-		s.checkReceipt(shardId, m)
+	pool := &MockMsgPool{}
+	c := newCollator(Params{
+		BlockGeneratorParams: execution.NewBlockGeneratorParams(shardId, nShards, gasPrice, 0),
+	}, new(TrivialShardTopology), pool, sharedLogger)
+
+	s.Run("GenerateZeroState", func() {
+		s.Require().NoError(c.GenerateZeroState(s.ctx, s.db, execution.DefaultZeroStateConfig))
 	})
 
-	s.Run("ProcessInternalMessage", func() {
-		GenerateBlockWithMessages(s.T(), s.ctx, shardId, nShards, s.db)
+	// This values depends on the current implementation (precompiled contract, opcode gas prices).
+	actualMsgGas := types.Gas(12_959)
+
+	// These parameters can be adjusted for test purposes. The rest is calculated.
+	gasLimit := types.Gas(100_000)
+	sentValue := types.NewValueFromUint64(2_000_000)
+
+	balance := s.getBalance(shardId, from)
+	reserveForGas := gasLimit.ToValue(gasPrice)
+	actualMsgPrice := actualMsgGas.ToValue(gasPrice)
+
+	s.Run("SendTokens", func() {
+		msgValue := sentValue.Add(reserveForGas)
+		m1 := execution.NewExecutionMessage(from, from, 0, contracts.NewWalletSendCallData(s.T(), types.Code{},
+			gasLimit, msgValue, []types.CurrencyBalance{}, to, types.ExecutionMessageKind))
+		m2 := common.CopyPtr(m1)
+		m2.Seqno = 1
+		s.Require().NoError(m1.Sign(execution.MainPrivateKey))
+		s.Require().NoError(m2.Sign(execution.MainPrivateKey))
+		pool.Msgs = []*types.Message{m1, m2}
+
+		s.Require().NoError(c.GenerateBlock(s.ctx, s.db))
+		s.checkReceipt(shardId, m1)
+		s.checkReceipt(shardId, m2)
+
+		// Each message subtracts its value + actual gas used from the balance.
+		balance = balance.
+			Sub(msgValue).Sub(actualMsgPrice).
+			Sub(msgValue).Sub(actualMsgPrice)
+		s.Equal(balance, s.getBalance(shardId, from))
+		s.Equal(types.Value{}, s.getBalance(shardId, to))
+	})
+
+	// Now process messages by one to test queueing.
+	c.params.MaxInMessagesInBlock = 1
+	// Messages from the pool must not be processed, while we have internal messages.
+	// So add a faulty message.
+	pool.Msgs = []*types.Message{nil}
+
+	s.Run("ProcessInternalMessage1", func() {
+		s.Require().NoError(c.GenerateBlock(s.ctx, s.db))
+
+		s.Equal(balance, s.getBalance(shardId, from))
+		s.Equal(sentValue, s.getBalance(shardId, to))
+	})
+
+	s.Run("ProcessInternalMessage2", func() {
+		s.Require().NoError(c.GenerateBlock(s.ctx, s.db))
+
+		s.Equal(balance, s.getBalance(shardId, from))
+		s.Equal(sentValue.Add(sentValue), s.getBalance(shardId, to))
+	})
+
+	c.params.MaxInMessagesInBlock = 2
+
+	s.Run("ProcessRefundMessages", func() {
+		s.Require().NoError(c.GenerateBlock(s.ctx, s.db))
+
+		balance = balance.Add(reserveForGas).Add(reserveForGas)
+		s.Equal(balance, s.getBalance(shardId, from))
 	})
 
 	s.Run("Deploy", func() {
 		m := execution.NewDeployMessage(contracts.CounterDeployPayload(s.T()), shardId, to, 0)
-		m.Internal = false
+		m.Flags.ClearBit(types.MessageFlagInternal)
 		s.Equal(to, m.To)
-		GenerateBlockWithMessages(s.T(), s.ctx, shardId, nShards, s.db, m)
+		pool.Msgs = []*types.Message{m}
+
+		s.Require().NoError(c.GenerateBlock(s.ctx, s.db))
+		pool.Msgs = nil
 		s.checkReceipt(shardId, m)
 	})
 
 	s.Run("Execute", func() {
 		m := execution.NewExecutionMessage(to, to, 0, contracts.NewCounterAddCallData(s.T(), 3))
-		GenerateBlockWithMessages(s.T(), s.ctx, shardId, nShards, s.db, m)
+		pool.Msgs = []*types.Message{m}
+
+		s.Require().NoError(c.GenerateBlock(s.ctx, s.db))
+		pool.Msgs = nil
 		s.checkReceipt(shardId, m)
 	})
+}
+
+func (s *CollatorTestSuite) getBalance(shardId types.ShardId, addr types.Address) types.Value {
+	s.T().Helper()
+
+	tx, err := s.db.CreateRwTx(s.ctx)
+	s.Require().NoError(err)
+	defer tx.Rollback()
+
+	state, err := execution.NewExecutionStateForShard(tx, shardId, common.NewTimer())
+	s.Require().NoError(err)
+	acc, err := state.GetAccount(addr)
+	s.Require().NoError(err)
+	if acc == nil {
+		return types.Value{}
+	}
+	return acc.Balance
 }
 
 func (s *CollatorTestSuite) checkReceipt(shardId types.ShardId, m *types.Message) {

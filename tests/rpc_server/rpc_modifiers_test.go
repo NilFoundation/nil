@@ -33,11 +33,10 @@ func (s *SuiteModifiersRpc) SetupSuite() {
 	s.walletPrivateKey, s.walletPublicKey, err = crypto.GenerateKeyPair()
 	s.Require().NoError(err)
 
-	s.walletAddr, err = contracts.CalculateAddress("Wallet", 2, []any{s.walletPublicKey}, nil)
+	s.walletAddr = contracts.WalletAddress(s.T(), 2, nil, s.walletPublicKey)
+	s.testAddr, err = contracts.CalculateAddress(contracts.NameMessageCheck, 1, nil)
 	s.Require().NoError(err)
-	s.testAddr, err = contracts.CalculateAddress(contracts.FileNameMessageCheck, 1, nil, nil)
-	s.Require().NoError(err)
-	s.abi, err = contracts.GetAbi(contracts.FileNameMessageCheck)
+	s.abi, err = contracts.GetAbi(contracts.NameMessageCheck)
 	s.Require().NoError(err)
 
 	zerostate := fmt.Sprintf(`
@@ -89,7 +88,7 @@ func (s *SuiteModifiersRpc) TestInternalCorrect() {
 	internalFuncCalldata, err := s.abi.Pack("internalFunc")
 	s.Require().NoError(err)
 
-	receipt := s.sendMessageViaWallet(s.walletAddr, s.testAddr, s.walletPrivateKey, internalFuncCalldata, types.NewUint256(0))
+	receipt := s.sendMessageViaWallet(s.walletAddr, s.testAddr, s.walletPrivateKey, internalFuncCalldata, types.Value{})
 	s.Require().True(receipt.OutReceipts[0].Success)
 }
 
@@ -117,7 +116,7 @@ func (s *SuiteModifiersRpc) TestExternalIncorrect() {
 	internalFuncCalldata, err := s.abi.Pack("externalFunc")
 	s.Require().NoError(err)
 
-	receipt := s.sendMessageViaWallet(s.walletAddr, s.testAddr, s.walletPrivateKey, internalFuncCalldata, types.NewUint256(0))
+	receipt := s.sendMessageViaWallet(s.walletAddr, s.testAddr, s.walletPrivateKey, internalFuncCalldata, types.Value{})
 	s.Require().False(receipt.OutReceipts[0].Success)
 }
 

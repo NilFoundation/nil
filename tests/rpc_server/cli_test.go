@@ -1,8 +1,12 @@
 package rpctest
 
 import (
+	"bytes"
 	"encoding/json"
 	"math/big"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 
 	"github.com/NilFoundation/nil/common"
@@ -10,6 +14,7 @@ import (
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"gopkg.in/yaml.v3"
 )
 
 func (s *SuiteRpc) toJSON(v interface{}) string {
@@ -38,7 +43,7 @@ func (s *SuiteRpc) TestCliMessage() {
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	deployPayload := s.prepareDefaultDeployPayload(abi, contractCode, big.NewInt(0))
 
-	_, receipt := s.deployContractViaMainWallet(types.BaseShardId, deployPayload, types.NewUint256(5_000_000))
+	_, receipt := s.deployContractViaMainWallet(types.BaseShardId, deployPayload, types.NewValueFromUint64(5_000_000))
 	s.Require().True(receipt.Success)
 
 	msg, err := s.client.GetInMessageByHash(types.MainWalletAddress.ShardId(), receipt.MsgHash)
@@ -59,7 +64,7 @@ func (s *SuiteRpc) TestReadContract() {
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	deployPayload := s.prepareDefaultDeployPayload(abi, contractCode, big.NewInt(1))
 
-	addr, receipt := s.deployContractViaMainWallet(types.BaseShardId, deployPayload, types.NewUint256(5_000_000))
+	addr, receipt := s.deployContractViaMainWallet(types.BaseShardId, deployPayload, types.NewValueFromUint64(5_000_000))
 	s.Require().True(receipt.Success)
 
 	res, err := s.cli.GetCode(addr)
@@ -78,7 +83,7 @@ func (s *SuiteRpc) TestContract() {
 	// Deploy contract
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	deployCode := s.prepareDefaultDeployPayload(abi, contractCode, big.NewInt(2))
-	txHash, addr, err := s.cli.DeployContractViaWallet(wallet.ShardId()+1, wallet, deployCode, nil)
+	txHash, addr, err := s.cli.DeployContractViaWallet(wallet.ShardId()+1, wallet, deployCode, types.Value{})
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceiptOnShard(wallet.ShardId(), txHash)
@@ -89,7 +94,7 @@ func (s *SuiteRpc) TestContract() {
 	s.Require().NoError(err)
 
 	// Get current value
-	res, err := s.cli.CallContract(addr, types.NewUint256(100000), getCalldata)
+	res, err := s.cli.CallContract(addr, 100000, getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000002", res)
 
@@ -97,7 +102,7 @@ func (s *SuiteRpc) TestContract() {
 	calldata, err := abi.Pack("increment")
 	s.Require().NoError(err)
 
-	txHash, err = s.cli.RunContract(wallet, calldata, types.NewUint256(100_000), nil, nil, addr)
+	txHash, err = s.cli.RunContract(wallet, calldata, 100_000, types.Value{}, nil, addr)
 	s.Require().NoError(err)
 
 	receipt = s.waitForReceiptOnShard(wallet.ShardId(), txHash)
@@ -105,7 +110,7 @@ func (s *SuiteRpc) TestContract() {
 	s.Require().True(receipt.OutReceipts[0].Success)
 
 	// Get updated value
-	res, err = s.cli.CallContract(addr, types.NewUint256(100000), getCalldata)
+	res, err = s.cli.CallContract(addr, 100000, getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000003", res)
 
@@ -113,7 +118,7 @@ func (s *SuiteRpc) TestContract() {
 	balanceBefore, err := s.cli.GetBalance(addr)
 	s.Require().NoError(err)
 
-	txHash, err = s.cli.RunContract(wallet, nil, types.NewUint256(100_000), types.NewUint256(100), nil, addr)
+	txHash, err = s.cli.RunContract(wallet, nil, 100_000, types.NewValueFromUint64(100), nil, addr)
 	s.Require().NoError(err)
 
 	receipt = s.waitForReceiptOnShard(wallet.ShardId(), txHash)
@@ -140,7 +145,7 @@ func (s *SuiteRpc) testNewWalletOnShard(shardId types.ShardId) {
 	walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(&ownerPrivateKey.PublicKey))
 	code := types.BuildDeployPayload(walletCode, common.EmptyHash)
 	expectedAddress := types.CreateAddress(shardId, code)
-	walletAddres, err := s.cli.CreateWallet(shardId, *types.NewUint256(0), types.NewUint256(10_000_000), &ownerPrivateKey.PublicKey)
+	walletAddres, err := s.cli.CreateWallet(shardId, types.NewUint256(0), types.NewValueFromUint64(10_000_000), &ownerPrivateKey.PublicKey)
 	s.Require().NoError(err)
 	s.Require().Equal(expectedAddress, walletAddres)
 }
@@ -158,7 +163,7 @@ func (s *SuiteRpc) TestSendExternalMessage() {
 
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/external_increment.sol"), "ExternalIncrementer")
 	deployCode := s.prepareDefaultDeployPayload(abi, contractCode, big.NewInt(2))
-	txHash, addr, err := s.cli.DeployContractViaWallet(types.BaseShardId, wallet, deployCode, types.NewUint256(10_000_000))
+	txHash, addr, err := s.cli.DeployContractViaWallet(types.BaseShardId, wallet, deployCode, types.NewValueFromUint64(10_000_000))
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceiptOnShard(wallet.ShardId(), txHash)
@@ -173,7 +178,7 @@ func (s *SuiteRpc) TestSendExternalMessage() {
 	s.Require().NoError(err)
 
 	// Get current value
-	res, err := s.cli.CallContract(addr, types.NewUint256(100000), getCalldata)
+	res, err := s.cli.CallContract(addr, 100000, getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000002", res)
 
@@ -188,15 +193,15 @@ func (s *SuiteRpc) TestSendExternalMessage() {
 	s.Require().True(receipt.Success)
 
 	// Get updated value
-	res, err = s.cli.CallContract(addr, types.NewUint256(100000), getCalldata)
+	res, err = s.cli.CallContract(addr, 100000, getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x000000000000000000000000000000000000000000000000000000000000007d", res)
 }
 
 func (s *SuiteRpc) TestCurrency() {
 	wallet := types.MainWalletAddress
-	value := int64(12345)
-	s.Require().NoError(s.cli.CurrencyCreate(wallet, big.NewInt(value), "token1", true))
+	value := types.NewValueFromUint64(12345)
+	s.Require().NoError(s.cli.CurrencyCreate(wallet, value, "token1", true))
 	cur, err := s.cli.GetCurrencies(wallet)
 	s.Require().NoError(err)
 	s.Require().Len(cur, 1)
@@ -204,15 +209,62 @@ func (s *SuiteRpc) TestCurrency() {
 	currencyId := hexutil.ToHexNoLeadingZeroes(types.CurrencyIdForAddress(wallet)[:])
 	val, ok := cur[currencyId]
 	s.Require().True(ok)
-	s.Require().Equal(uint64(value), val.Uint64())
+	s.Require().Equal(value, val)
 
-	s.Require().NoError(s.cli.CurrencyMint(wallet, big.NewInt(value), false))
-	s.Require().NoError(s.cli.CurrencyWithdraw(wallet, big.NewInt(value), wallet))
+	s.Require().NoError(s.cli.CurrencyMint(wallet, value, false))
+	s.Require().NoError(s.cli.CurrencyWithdraw(wallet, value, wallet))
 	cur, err = s.cli.GetCurrencies(wallet)
 	s.Require().NoError(err)
 	s.Require().Len(cur, 1)
 
 	val, ok = cur[currencyId]
 	s.Require().True(ok)
-	s.Require().Equal(uint64(2*value), val.Uint64())
+	s.Require().Equal(2*value.Uint64(), val.Uint64())
+}
+
+func (s *SuiteRpc) runCli(args ...string) string {
+	s.T().Helper()
+
+	mainPath, err := filepath.Abs("../../cmd/nil_cli/main.go")
+	s.Require().NoError(err)
+
+	args = append([]string{"run", mainPath}, args...)
+	cmd := exec.Command("go", args...)
+
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	err = cmd.Run()
+	s.Require().NoError(err)
+	return out.String()
+}
+
+func (s *SuiteRpc) TestCallCliHelp() {
+	res := s.runCli("help")
+
+	for _, cmd := range []string{"block", "message", "contract", "wallet", "completion"} {
+		s.Contains(res, cmd)
+	}
+}
+
+func (s *SuiteRpc) TestCallCliBasic() {
+	data := map[string]string{
+		"rpc_endpoint": s.endpoint,
+	}
+
+	cfgPath := s.T().TempDir() + "/config.yaml"
+
+	yamlData, err := yaml.Marshal(&data)
+	s.Require().NoError(err)
+
+	err = os.WriteFile(cfgPath, yamlData, 0o600)
+	s.Require().NoError(err)
+
+	block, err := s.client.GetBlock(types.BaseShardId, "latest", false)
+	s.Require().NoError(err)
+
+	res := s.runCli("-c", cfgPath, "block", block.Number.String())
+	s.Contains(res, block.Number.String())
+	s.Contains(res, block.Hash.String())
 }

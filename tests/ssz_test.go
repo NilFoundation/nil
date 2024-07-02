@@ -8,7 +8,7 @@ import (
 	common "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	types "github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,7 +47,7 @@ func TestSszMessage(t *testing.T) {
 	message := types.Message{
 		From:  types.Address{},
 		To:    types.Address{},
-		Value: types.Uint256{Int: uint256.Int{1234}},
+		Value: types.NewValueFromUint64(1234),
 		Data:  types.Code{0x00000001},
 		Seqno: 567,
 	}
@@ -69,7 +69,7 @@ func TestSszMessage(t *testing.T) {
 	h, err := common.PoseidonSSZ(&message2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("16784eb73aa7cf5a28ffc3431ea7477ad87caa8d6c50ba5adc735696b5f0b3b2")
+	h2, err := hex.DecodeString("25345d62059ca4212f067ef8b5e1390cae4c9e316a6cfb00356f2ba106a922e1")
 	require.NoError(t, err)
 
 	require.Equal(t, common.BytesToHash(h2), h)
@@ -81,7 +81,7 @@ func TestSszSmc(t *testing.T) {
 	smc := types.SmartContract{
 		Address:     types.HexToAddress("1d9bc16f1a559"),
 		Initialised: true,
-		Balance:     types.Uint256{Int: uint256.Int{1234}},
+		Balance:     types.NewValueFromUint64(1234),
 		StorageRoot: common.Hash{0x01},
 		CodeHash:    common.Hash{0x02},
 		Seqno:       567,
@@ -378,31 +378,20 @@ var sszUint256TestCases = []testcase{
 func TestSszUint256(t *testing.T) {
 	t.Parallel()
 
-	for i, tt := range sszUint256TestCases {
-		z := new(types.Uint256).SetBytes(hexutil.FromHex(tt.val))
-		if s := z.SizeSSZ(); s != 32 {
-			t.Errorf("testcase %d, size got: %d, exp: %d", i, s, 32)
-		}
+	for _, tt := range sszUint256TestCases {
+		z := types.NewUint256FromBytes(hexutil.FromHex(tt.val))
+		assert.Equal(t, 32, z.SizeSSZ())
+
 		b, err := z.MarshalSSZ()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if exp := hexutil.FromHex(tt.exp); !bytes.Equal(b, exp) {
-			t.Errorf("testcase %d, encoding got:\n%x\nexp:%x\n", i, b, exp)
-		}
-		z2 := new(types.Uint256)
-		if err := z2.UnmarshalSSZ(b); err != nil {
-			t.Fatal(err)
-		}
-		if !z2.Eq(z) {
-			t.Errorf("testcase %d, decoding got:\n%v\nexp:%v\n", i, z2, z)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, hexutil.FromHex(tt.exp), b)
+
+		z2 := &types.Uint256{}
+		require.NoError(t, z2.UnmarshalSSZ(b))
+		assert.Equal(t, z, z2)
+
 		r, err := z.HashTreeRoot()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if exp := hexutil.FromHex(tt.exp); !bytes.Equal(r[:], exp) {
-			t.Errorf("testcase %d, hashing got:\n%x\nexp:%x\n", i, r, exp)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, hexutil.FromHex(tt.exp), r[:])
 	}
 }

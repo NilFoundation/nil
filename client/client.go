@@ -3,7 +3,6 @@ package client
 import (
 	"crypto/ecdsa"
 	"encoding/json"
-	"math/big"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
@@ -28,34 +27,34 @@ type Client interface {
 	GetInMessageReceipt(shardId types.ShardId, hash common.Hash) (*jsonrpc.RPCReceipt, error)
 	GetTransactionCount(address types.Address, blockId any) (types.Seqno, error)
 	GetBlockTransactionCount(shardId types.ShardId, blockId any) (uint64, error)
-	GetBalance(address types.Address, blockId any) (*types.Uint256, error)
+	GetBalance(address types.Address, blockId any) (types.Value, error)
 	GetShardIdList() ([]types.ShardId, error)
-	GasPrice(shardId types.ShardId) (*types.Uint256, error)
+	GasPrice(shardId types.ShardId) (types.Value, error)
 	ChainId() (types.ChainId, error)
 
 	DeployContract(
-		shardId types.ShardId, walletAddress types.Address, payload types.DeployPayload, value *types.Uint256, pk *ecdsa.PrivateKey,
+		shardId types.ShardId, walletAddress types.Address, payload types.DeployPayload, value types.Value, pk *ecdsa.PrivateKey,
 	) (common.Hash, types.Address, error)
 	DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload) (common.Hash, types.Address, error)
 	SendMessageViaWallet(
-		walletAddress types.Address, bytecode types.Code, gasLimit *types.Uint256, value *types.Uint256,
+		walletAddress types.Address, bytecode types.Code, gasLimit types.Gas, value types.Value,
 		currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
 	) (common.Hash, error)
 	SendExternalMessage(
 		bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey,
 	) (common.Hash, error)
 
-	TopUpViaFaucet(contractAddress types.Address, amount *types.Uint256) (common.Hash, error)
+	TopUpViaFaucet(contractAddress types.Address, amount types.Value) (common.Hash, error)
 
 	// GetCurrencies retrieves the contract currencies at the given address
 	GetCurrencies(address types.Address, blockId any) (types.CurrenciesMap, error)
 
 	// CurrencyMint creates currency for the contract
-	CurrencyCreate(contractAddr types.Address, amount *big.Int, name string, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error)
+	CurrencyCreate(contractAddr types.Address, amount types.Value, name string, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error)
 
 	// CurrencyWithdraw transfers currency to the contract
-	CurrencyWithdraw(contractAddr types.Address, amount *big.Int, toAddr types.Address, pk *ecdsa.PrivateKey) (common.Hash, error)
+	CurrencyWithdraw(contractAddr types.Address, amount types.Value, toAddr types.Address, pk *ecdsa.PrivateKey) (common.Hash, error)
 
 	// CurrencyMint mints currency for the contract
-	CurrencyMint(contractAddr types.Address, amount *big.Int, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error)
+	CurrencyMint(contractAddr types.Address, amount types.Value, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error)
 }

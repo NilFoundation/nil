@@ -185,6 +185,14 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 
 			gas = 0
 		}
+		message := evm.StateDB.GetInMessage()
+		if message != nil && message.IsBounce() {
+			// Re-transfer value and currency in case of bounce message.
+			evm.currencyTransfer = message.Currency
+			if err := evm.transfer(caller.Address(), addr, value); err != nil {
+				return nil, gas, err
+			}
+		}
 		// TODO: consider clearing up unused snapshots:
 		// } else {
 		//	evm.StateDB.DiscardSnapshot(snapshot)
@@ -315,7 +323,7 @@ func (evm *EVM) StaticCall(caller ContractRef, addr types.Address, input []byte,
 	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
 	// but is the correct thing to do and matters on other networks, in tests, and potential
 	// future scenarios
-	if err := evm.StateDB.AddBalance(addr, new(uint256.Int), tracing.BalanceChangeTouchAccount); err != nil {
+	if err := evm.StateDB.AddBalance(addr, types.Value{}, tracing.BalanceChangeTouchAccount); err != nil {
 		return nil, gas, err
 	}
 
@@ -487,18 +495,18 @@ func (evm *EVM) canTransfer(addr types.Address, amount *uint256.Int) (bool, erro
 	if err != nil {
 		return false, err
 	}
-	if balance.Cmp(amount) < 0 {
+	if balance.Cmp(types.NewValue(amount)) < 0 {
 		return false, nil
 	}
 
 	if len(evm.currencyTransfer) > 0 {
-		accCurencies := evm.StateDB.GetCurrencies(addr)
+		accCurrencies := evm.StateDB.GetCurrencies(addr)
 		for _, currency := range evm.currencyTransfer {
-			balance, ok := accCurencies[currency.Currency]
+			balance, ok := accCurrencies[currency.Currency]
 			if !ok {
-				balance = types.NewUint256(0)
+				balance = types.Value{}
 			}
-			if balance.Cmp(&currency.Balance.Int) < 0 {
+			if balance.Cmp(currency.Balance) < 0 {
 				return false, nil
 			}
 		}
@@ -508,7 +516,8 @@ func (evm *EVM) canTransfer(addr types.Address, amount *uint256.Int) (bool, erro
 }
 
 // transfer subtracts amount from sender and adds amount to recipient using the given Db
-func (evm *EVM) transfer(sender, recipient types.Address, amount *uint256.Int) error {
+func (evm *EVM) transfer(sender, recipient types.Address, a *uint256.Int) error {
+	amount := types.Value{Uint256: types.CastToUint256(a)}
 	// We don't need to subtract balance from async call
 	if !evm.IsAsyncCall {
 		if err := evm.StateDB.SubBalance(sender, amount, tracing.BalanceChangeTransfer); err != nil {
@@ -520,11 +529,11 @@ func (evm *EVM) transfer(sender, recipient types.Address, amount *uint256.Int) e
 
 		for _, currency := range evm.currencyTransfer {
 			if evm.depth > 0 {
-				if err := evm.StateDB.SubCurrency(sender, &currency.Currency, &currency.Balance.Int); err != nil {
+				if err := evm.StateDB.SubCurrency(sender, currency.Currency, currency.Balance); err != nil {
 					return err
 				}
 			}
-			if err := evm.StateDB.AddCurrency(recipient, &currency.Currency, &currency.Balance.Int); err != nil {
+			if err := evm.StateDB.AddCurrency(recipient, currency.Currency, currency.Balance); err != nil {
 				return err
 			}
 		}

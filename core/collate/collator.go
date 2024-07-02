@@ -17,14 +17,14 @@ import (
 const (
 	defaultTimeout = time.Second
 
-	maxInMessagesInBlock  = 1024
-	maxOutMessagesInBlock = 1024
+	defaultMaxInMessagesInBlock  = 200
+	defaultMaxOutMessagesInBlock = 200
 )
 
 var sharedLogger = logging.NewLogger("collator")
 
 type collator struct {
-	params execution.BlockGeneratorParams
+	params Params
 
 	topology ShardTopology
 	pool     MsgPool
@@ -38,7 +38,13 @@ type collator struct {
 	outMsgs []*types.Message
 }
 
-func newCollator(params execution.BlockGeneratorParams, topology ShardTopology, pool MsgPool, logger zerolog.Logger) *collator {
+func newCollator(params Params, topology ShardTopology, pool MsgPool, logger zerolog.Logger) *collator {
+	if params.MaxInMessagesInBlock == 0 {
+		params.MaxInMessagesInBlock = defaultMaxInMessagesInBlock
+	}
+	if params.MaxOutMessagesInBlock == 0 {
+		params.MaxOutMessagesInBlock = defaultMaxOutMessagesInBlock
+	}
 	return &collator{
 		params:   params,
 		topology: topology,
@@ -49,7 +55,7 @@ func newCollator(params execution.BlockGeneratorParams, topology ShardTopology, 
 
 func (c *collator) shouldContinue() bool {
 	// todo: we should break collation on some gas condition, not on the number of messages
-	return len(c.inMsgs) < maxInMessagesInBlock && len(c.outMsgs) < maxOutMessagesInBlock
+	return len(c.inMsgs) < c.params.MaxInMessagesInBlock && len(c.outMsgs) < c.params.MaxOutMessagesInBlock
 }
 
 func (c *collator) GenerateZeroState(ctx context.Context, txFabric db.DB, zeroState string) error {
@@ -62,7 +68,7 @@ func (c *collator) GenerateZeroState(ctx context.Context, txFabric db.DB, zeroSt
 
 	c.logger.Info().Msg("Generating zero-state...")
 
-	gen, err := execution.NewBlockGenerator(c.params, c.txOwner)
+	gen, err := execution.NewBlockGenerator(c.params.BlockGeneratorParams, c.txOwner)
 	if err != nil {
 		return err
 	}
@@ -95,7 +101,7 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 
 	c.logger.Trace().Msgf("Collected %d in messages and %d out messages", len(c.inMsgs), len(c.outMsgs))
 
-	blockGenerator, err := execution.NewBlockGenerator(c.params, c.txOwner)
+	blockGenerator, err := execution.NewBlockGenerator(c.params.BlockGeneratorParams, c.txOwner)
 	if err != nil {
 		return err
 	}
@@ -104,6 +110,9 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 	if err != nil {
 		return err
 	}
+
+	c.inMsgs = c.inMsgs[:0]
+	c.outMsgs = c.outMsgs[:0]
 
 	if err := c.finalize(); err != nil {
 		return err
@@ -119,7 +128,7 @@ func (c *collator) GenerateBlock(ctx context.Context, txFabric db.DB) error {
 
 func (c *collator) handleMessagesFromPool() ([]*types.Message, error) {
 	// todo: take messages one by one
-	poolMsgs, err := c.pool.Peek(c.txOwner.Ctx, maxInMessagesInBlock-len(c.inMsgs), 0)
+	poolMsgs, err := c.pool.Peek(c.txOwner.Ctx, c.params.MaxInMessagesInBlock-len(c.inMsgs), 0)
 	if err != nil {
 		return nil, err
 	}
@@ -184,8 +193,10 @@ func (c *collator) handleMessagesFromNeighbors() error {
 				}
 			}
 
-			neighbor.BlockNumber++
-			neighbor.MessageIndex = 0
+			if neighbor.MessageIndex == block.OutMessagesNum {
+				neighbor.BlockNumber++
+				neighbor.MessageIndex = 0
+			}
 		}
 	}
 

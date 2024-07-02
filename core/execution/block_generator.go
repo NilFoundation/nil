@@ -8,7 +8,6 @@ import (
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/holiman/uint256"
 	"github.com/rs/zerolog"
 )
 
@@ -17,11 +16,11 @@ type BlockGeneratorParams struct {
 	NShards       int
 	TraceEVM      bool
 	Timer         common.Timer
-	GasBasePrice  *uint256.Int
+	GasBasePrice  types.Value
 	GasPriceScale float64
 }
 
-func NewBlockGeneratorParams(shardId types.ShardId, nShards int, gasBasePrice *uint256.Int, gasPriceScale float64) BlockGeneratorParams {
+func NewBlockGeneratorParams(shardId types.ShardId, nShards int, gasBasePrice types.Value, gasPriceScale float64) BlockGeneratorParams {
 	return BlockGeneratorParams{
 		ShardId:       shardId,
 		NShards:       nShards,
@@ -67,22 +66,22 @@ func (g *BlockGenerator) GenerateZeroState(zeroState string) error {
 	return err
 }
 
-func (g *BlockGenerator) GenerateBlock(inMsgs, outMsgs []*types.Message, defaultGasPrice *uint256.Int) (*types.Block, error) {
+func (g *BlockGenerator) GenerateBlock(inMsgs, outMsgs []*types.Message, defaultGasPrice types.Value) (*types.Block, error) {
 	gasPrice, err := db.ReadGasPerShard(g.txOwner.RoTx, g.executionState.ShardId)
 	if errors.Is(err, db.ErrKeyNotFound) {
-		gasPrice = *defaultGasPrice
+		gasPrice = defaultGasPrice
 	} else if err != nil {
 		return nil, err
 	}
 
 	for _, msg := range inMsgs {
 		g.executionState.AddInMessage(msg)
-		var gasUsed uint32
+		var gasUsed types.Gas
 		var err error
-		if msg.Internal {
-			gasUsed, err = g.handleInternalInMessage(msg, &gasPrice)
+		if msg.IsInternal() {
+			gasUsed, err = g.handleInternalInMessage(msg, gasPrice)
 		} else {
-			gasUsed, err = g.handleExternalMessage(msg, &gasPrice)
+			gasUsed, err = g.handleExternalMessage(msg, gasPrice)
 		}
 		g.addReceipt(gasUsed, err)
 	}
@@ -95,31 +94,33 @@ func (g *BlockGenerator) GenerateBlock(inMsgs, outMsgs []*types.Message, default
 	return g.finalize()
 }
 
-func (g *BlockGenerator) handleMessage(msg *types.Message, payer payer, gasPrice *uint256.Int) (uint32, error) {
-	gas := msg.GasLimit.Uint64()
+func (g *BlockGenerator) handleMessage(msg *types.Message, payer payer, gasPrice types.Value) (types.Gas, error) {
+	gas := msg.GasLimit
 	if err := buyGas(payer, msg, gasPrice); err != nil {
 		return 0, err
 	}
-
-	var leftOverGas uint64
-	var err error
-	switch msg.Kind {
-	case types.DeployMessageKind:
-		leftOverGas, err = g.executionState.HandleDeployMessage(g.txOwner.Ctx, msg)
-	case types.ExecutionMessageKind:
-		leftOverGas, _, err = g.executionState.HandleExecutionMessage(g.txOwner.Ctx, msg)
-	case types.RefundMessageKind:
-		err = g.executionState.HandleRefundMessage(g.txOwner.Ctx, msg)
-	default:
-		panic("unreachable")
+	if err := msg.VerifyFlags(); err != nil {
+		return 0, err
 	}
 
-	refundGas(payer, msg, leftOverGas, gasPrice)
-	return uint32(gas - leftOverGas), err
+	var leftOverGas types.Gas
+	var err error
+	switch {
+	case msg.IsDeploy():
+		leftOverGas, err = g.executionState.HandleDeployMessage(g.txOwner.Ctx, msg)
+		refundGas(payer, msg, leftOverGas, gasPrice)
+	case msg.IsRefund():
+		err = g.executionState.HandleRefundMessage(g.txOwner.Ctx, msg)
+	default:
+		leftOverGas, _, err = g.executionState.HandleExecutionMessage(g.txOwner.Ctx, msg)
+		refundGas(payer, msg, leftOverGas, gasPrice)
+	}
+
+	return gas.Sub(leftOverGas), err
 }
 
 func (g *BlockGenerator) validateInternalMessage(message *types.Message) error {
-	check.PanicIfNot(message.Internal)
+	check.PanicIfNot(message.IsInternal())
 
 	fromId := message.From.ShardId()
 	data, err := g.executionState.Accessor.Access(g.txOwner.RoTx, fromId).GetOutMessage().ByHash(message.Hash())
@@ -130,19 +131,13 @@ func (g *BlockGenerator) validateInternalMessage(message *types.Message) error {
 		return ErrInternalMessageValidationFailed
 	}
 
-	switch message.Kind {
-	case types.DeployMessageKind:
+	if message.IsDeploy() {
 		return ValidateDeployMessage(message)
-	case types.ExecutionMessageKind:
-		return nil
-	case types.RefundMessageKind:
-		return nil
-	default:
-		panic("unreachable")
 	}
+	return nil
 }
 
-func (g *BlockGenerator) handleInternalInMessage(msg *types.Message, gasPrice *uint256.Int) (uint32, error) {
+func (g *BlockGenerator) handleInternalInMessage(msg *types.Message, gasPrice types.Value) (types.Gas, error) {
 	if err := g.validateInternalMessage(msg); err != nil {
 		g.logger.Warn().Err(err).Msg("Invalid internal message")
 		return 0, err
@@ -151,9 +146,9 @@ func (g *BlockGenerator) handleInternalInMessage(msg *types.Message, gasPrice *u
 	return g.handleMessage(msg, messagePayer{msg, g.executionState}, gasPrice)
 }
 
-func (g *BlockGenerator) handleExternalMessage(msg *types.Message, gasPrice *uint256.Int) (uint32, error) {
+func (g *BlockGenerator) handleExternalMessage(msg *types.Message, gasPrice types.Value) (types.Gas, error) {
 	if err := ValidateExternalMessage(g.executionState, msg, gasPrice); err != nil {
-		g.logger.Trace().Err(err).Msg("Invalid external message")
+		g.logger.Trace().Err(err).Msg("Invalid external message.")
 		return 0, err
 	}
 
@@ -164,11 +159,11 @@ func (g *BlockGenerator) handleExternalMessage(msg *types.Message, gasPrice *uin
 	return g.handleMessage(msg, accountPayer{acc, msg}, gasPrice)
 }
 
-func (g *BlockGenerator) addReceipt(gasUsed uint32, err error) {
+func (g *BlockGenerator) addReceipt(gasUsed types.Gas, err error) {
 	msgHash := g.executionState.InMessageHash
 	msg := g.executionState.GetInMessage()
 
-	if gasUsed == 0 && !msg.Internal {
+	if gasUsed == 0 && msg.IsExternal() {
 		check.PanicIfNot(err != nil)
 
 		// todo: this is a temporary solution, we shouldn't store errors for unpaid failures
@@ -189,7 +184,6 @@ func (g *BlockGenerator) addReceipt(gasUsed uint32, err error) {
 			Msg("Cached non-authorized fail receipt.")
 		return
 	}
-
 	g.executionState.AddReceipt(gasUsed, err)
 
 	if err != nil {
