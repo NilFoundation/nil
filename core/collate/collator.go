@@ -127,15 +127,32 @@ func (c *collator) fetchLastBlockHashes() error {
 }
 
 func (c *collator) handleMessagesFromPool() ([]*types.Message, error) {
-	// todo: take messages one by one
-	poolMsgs, err := c.pool.Peek(c.ctx, c.params.MaxInMessagesInBlock-len(c.proposal.InMsgs), 0)
+	poolMsgs, err := c.pool.Peek(c.ctx, c.params.MaxInMessagesInBlock-len(c.proposal.InMsgs))
+	if err != nil {
+		return nil, err
+	}
+
+	sa, err := execution.NewStateAccessor()
 	if err != nil {
 		return nil, err
 	}
 
 	nExternal := 0
 	for ; c.shouldContinue() && nExternal < len(poolMsgs); nExternal++ {
-		c.proposal.InMsgs = append(c.proposal.InMsgs, poolMsgs[nExternal])
+		msg := poolMsgs[nExternal]
+		c.proposal.RemoveFromPool = append(c.proposal.RemoveFromPool, msg)
+
+		msgData, err := sa.Access(c.roTx, c.params.ShardId).GetInMessage().ByHash(msg.Hash())
+		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+			return nil, err
+		}
+		if !errors.Is(err, db.ErrKeyNotFound) && msgData.Message() != nil {
+			c.logger.Trace().Stringer(logging.FieldMessageHash, msg.Hash()).
+				Msg("Message is already in the blockchain. Dropping...")
+			continue
+		}
+
+		c.proposal.InMsgs = append(c.proposal.InMsgs, msg)
 	}
 
 	return poolMsgs[:nExternal], nil

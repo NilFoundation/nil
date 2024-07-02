@@ -30,6 +30,10 @@ type Proposal struct {
 
 	InMsgs  []*types.Message
 	OutMsgs []*types.Message
+
+	// In the future, collator should remove messages from the pool itself after the consensus on the proposal.
+	// Currently, we need to remove them after the block was committed, or they may be lost.
+	RemoveFromPool []*types.Message
 }
 
 func NewEmptyProposal() *Proposal {
@@ -90,11 +94,11 @@ func (g *BlockGenerator) GenerateZeroState(zeroState string) error {
 		return err
 	}
 
-	_, err := g.finalize(0)
+	err := g.finalize(0)
 	return err
 }
 
-func (g *BlockGenerator) GenerateBlock(proposal *Proposal, defaultGasPrice types.Value) (*types.Block, error) {
+func (g *BlockGenerator) GenerateBlock(proposal *Proposal, defaultGasPrice types.Value) error {
 	if g.executionState.PrevBlock != proposal.PrevBlockHash {
 		// This shouldn't happen currently, because a new block cannot appear between collator and block generator calls.
 		panic("Proposed previous block hash doesn't match the current state.")
@@ -104,7 +108,7 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, defaultGasPrice types
 	if errors.Is(err, db.ErrKeyNotFound) {
 		gasPrice = defaultGasPrice
 	} else if err != nil {
-		return nil, err
+		return err
 	}
 
 	for _, msg := range proposal.InMsgs {
@@ -128,7 +132,7 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, defaultGasPrice types
 	g.executionState.ChildChainBlocks = proposal.ShardHashes
 
 	if err := db.WriteCollatorState(g.rwTx, g.params.ShardId, proposal.CollatorState); err != nil {
-		return nil, err
+		return err
 	}
 
 	return g.finalize(proposal.PrevBlockId + 1)
@@ -226,20 +230,19 @@ func (g *BlockGenerator) addReceipt(gasUsed types.Gas, err error) {
 	}
 }
 
-func (g *BlockGenerator) finalize(blockId types.BlockNumber) (*types.Block, error) {
+func (g *BlockGenerator) finalize(blockId types.BlockNumber) error {
 	blockHash, err := g.executionState.Commit(blockId)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	block, err := PostprocessBlock(g.rwTx, g.params.ShardId, g.params.GasBasePrice, g.params.GasPriceScale, blockHash)
-	if err != nil {
-		return nil, err
+	if _, err := PostprocessBlock(g.rwTx, g.params.ShardId, g.params.GasBasePrice, g.params.GasPriceScale, blockHash); err != nil {
+		return err
 	}
 
 	if err := g.rwTx.Commit(); err != nil {
-		return nil, err
+		return err
 	}
 
-	return block, nil
+	return nil
 }

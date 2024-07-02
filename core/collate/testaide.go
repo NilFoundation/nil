@@ -14,10 +14,13 @@ type MockMsgPool struct {
 
 var _ MsgPool = (*MockMsgPool)(nil)
 
-func (m *MockMsgPool) Peek(context.Context, int, uint64) ([]*types.Message, error) {
-	return m.Msgs, nil
+func (m *MockMsgPool) Peek(_ context.Context, n int) ([]*types.Message, error) {
+	if n > len(m.Msgs) {
+		return m.Msgs, nil
+	}
+	return m.Msgs[:n], nil
 }
 
-func (m *MockMsgPool) OnNewBlock(context.Context, *types.Block, []*types.Message) error {
+func (m *MockMsgPool) OnCommitted(context.Context, []*types.Message) error {
 	return nil
 }

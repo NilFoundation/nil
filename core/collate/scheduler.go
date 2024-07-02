@@ -14,8 +14,8 @@ import (
 )
 
 type MsgPool interface {
-	Peek(ctx context.Context, n int, onTopOf uint64) ([]*types.Message, error)
-	OnNewBlock(ctx context.Context, block *types.Block, committed []*types.Message) error
+	Peek(ctx context.Context, n int) ([]*types.Message, error)
+	OnCommitted(ctx context.Context, committed []*types.Message) error
 }
 
 type Params struct {
@@ -125,14 +125,12 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 	}
 	defer gen.Rollback()
 
-	block, err := gen.GenerateBlock(proposal, s.params.GasBasePrice)
-	if err != nil {
+	if err := gen.GenerateBlock(proposal, s.params.GasBasePrice); err != nil {
 		return err
 	}
 
-	// todo: pool should not take too much responsibility, collator must check messages for duplicates
-	if err := s.pool.OnNewBlock(ctx, block, proposal.InMsgs); err != nil {
-		return err
+	if err := s.pool.OnCommitted(ctx, proposal.RemoveFromPool); err != nil {
+		s.logger.Warn().Err(err).Msgf("Failed to remove %d committed messages from pool", len(proposal.RemoveFromPool))
 	}
 
 	return nil

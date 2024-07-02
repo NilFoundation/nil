@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"sync"
-	"sync/atomic"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
@@ -15,12 +14,12 @@ import (
 
 type Pool interface {
 	Add(ctx context.Context, newTxs []*types.Message) ([]DiscardReason, error)
-	OnNewBlock(ctx context.Context, block *types.Block, committed []*types.Message) error
+	OnCommitted(ctx context.Context, committed []*types.Message) error
 	// IdHashKnown check whether transaction with given Id hash is known to the pool
 	IdHashKnown(hash common.Hash) (bool, error)
 	Started() bool
 
-	Peek(ctx context.Context, n int, onTopOf uint64) ([]*types.Message, error)
+	Peek(ctx context.Context, n int) ([]*types.Message, error)
 	SeqnoToAddress(addr types.Address) (seqno types.Seqno, inPool bool)
 	MessageCount() int
 	Get(hash common.Hash) (*types.Message, error)
@@ -30,9 +29,7 @@ type MsgPool struct {
 	started bool
 	cfg     Config
 
-	lock          *sync.Mutex
-	lastSeenCond  *sync.Cond
-	lastSeenBlock atomic.Uint64
+	lock sync.Mutex
 
 	byHash map[string]*types.Message // hash => msg : only those records not committed to db yet
 	all    *ByReceiverAndSeqno       // from => (sorted map of msg seqno => *msg)
@@ -41,15 +38,10 @@ type MsgPool struct {
 }
 
 func New(cfg Config) *MsgPool {
-	lock := &sync.Mutex{}
-
 	logger := logging.NewLogger("msgpool")
 	return &MsgPool{
 		started: true,
 		cfg:     cfg,
-
-		lock:         lock,
-		lastSeenCond: sync.NewCond(lock),
 
 		byHash: map[string]*types.Message{},
 		all:    NewBySenderAndSeqno(logger),
@@ -179,27 +171,11 @@ func (p *MsgPool) discardLocked(msg *types.Message, reason DiscardReason) {
 	p.all.delete(msg, reason)
 }
 
-func (p *MsgPool) OnNewBlock(ctx context.Context, block *types.Block, committed []*types.Message) (err error) {
+func (p *MsgPool) OnCommitted(_ context.Context, committed []*types.Message) (err error) {
 	p.lock.Lock()
-	defer func() {
-		p.logger.Trace().
-			Int("committed", len(committed)).
-			Int("queued", p.queue.Size()).
-			Msg("New block")
+	defer p.lock.Unlock()
 
-		if err == nil {
-			p.lastSeenBlock.Store(block.Id.Uint64())
-			p.lastSeenCond.Broadcast()
-		}
-
-		p.lock.Unlock()
-	}()
-
-	if err = p.removeCommitted(p.all, committed); err != nil {
-		return err
-	}
-
-	return nil
+	return p.removeCommitted(p.all, committed)
 }
 
 // removeCommitted - apply new highest block (or batch of blocks)
@@ -261,19 +237,9 @@ func (p *MsgPool) removeCommitted(bySeqno *ByReceiverAndSeqno, msgs []*types.Mes
 	return nil
 }
 
-func (p *MsgPool) Peek(ctx context.Context, n int, onTopOf uint64) ([]*types.Message, error) {
+func (p *MsgPool) Peek(ctx context.Context, n int) ([]*types.Message, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-
-	for last := p.lastSeenBlock.Load(); last < onTopOf; last = p.lastSeenBlock.Load() {
-		p.logger.Debug().
-			Uint64("expecting", onTopOf).
-			Uint64("lastSeen", last).
-			Int("txRequested", n).
-			Int("queue.size", p.queue.Size()).
-			Msg("Waiting for block")
-		p.lastSeenCond.Wait()
-	}
 
 	return p.queue.Peek(n), nil
 }
