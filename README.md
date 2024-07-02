@@ -61,17 +61,17 @@ make test
 
 =nil; boasts several unique features making it distinct from Ethereum and other L2s. 
 
-* [**Structurally distinct external and internal messages**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/core-concepts/shards-parallel-execution#internal-vs-external-messages)
-* [**Async execution**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/core-concepts/shards-parallel-execution#async-execution)
-* [**Cross-shard communications without fragmentation**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/core-concepts/shards-parallel-execution#message-passing-checks)
+* [Structurally distinct external and internal messages](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/core-concepts/shards-parallel-execution#internal-vs-external-messages)
+* [Async execution](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/core-concepts/shards-parallel-execution#async-execution)
+* [Cross-shard communications without fragmentation](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/core-concepts/shards-parallel-execution#message-passing-checks)
 
 ## Tools
 
 To interact with the cluster, =nil; supplies several developer tools. 
 
 * The =nil; CLI (provided in this repository)
-* [**The `Nil.js` client library**](https://github.com/nilFoundation/nil.js)
-* [**The =nil; Hardhat plugin**](https://github.com/NilFoundation/nil-hardhat-plugin)
+* [The `Nil.js` client library](https://github.com/nilFoundation/nil.js)
+* [The =nil; Hardhat plugin](https://github.com/NilFoundation/nil-hardhat-plugin)
 
 ## =nil; CLI configuration
 
@@ -93,13 +93,13 @@ To configure the CLI:
 This will update the CLI configuration file to include the RPC endpoint and the private key
 to be used for creating a wallet and signing messages.
 
-[**This tutorial outlines the steps needed**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/tools/nil-cli/usage) to configure the =nil; CLI.
+[This tutorial outlines the steps needed](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/tools/nil-cli/usage) to configure the =nil; CLI.
 
 ## Wallets and contracts
 
 In =nil; a wallet is any smart contract that authenticates users and allows for sending signed messages to other contracts. There are no other structural distinctions between a smart contract and a wallet. This means that a wallet can have any logic that a smart contract can have, which makes it easy to create complex wallets (e.g., vesting wallets).
 
-[**Learn more about wallets in =nil;**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/essentials/creating-a-wallet).
+[Learn more about wallets in =nil;](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/essentials/creating-a-wallet).
 
 ### Creating a new wallet
 
@@ -113,7 +113,7 @@ To create a new wallet **on the base shard**:
 
 ### Deploying a smart contract
 
-This brief tutorial describes how to deploy the `./examples/counter.sol` contract.
+This brief tutorial describes how to deploy the `example/counter.sol` contract.
 
 To compile the contract:
 
@@ -121,7 +121,7 @@ To compile the contract:
 solc -o . --bin --abi example/counter.sol --overwrite
 ```
 
-The docs contain [**a more detailed tutorial about the different means of contract deployment**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/essentials/creating-a-wallet).
+The docs contain [a more detailed tutorial about the different means of contract deployment](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/essentials/creating-a-wallet).
 
 To deploy the contract through the wallet:
 
@@ -143,7 +143,7 @@ The `./example/counter.sol` contains the `increment()` method which can be calle
 
 **NB**: the `increment()` method modifies the contract state and it cannot be called via an external message.
 
-The docs contain [**a more detailed tutorial on calling smart contract methods**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/working-with-smart-contracts/calling-contract-methods).
+The docs contain [a more detailed tutorial on calling smart contract methods](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/working-with-smart-contracts/calling-contract-methods).
 
 To call the method via the wallet:
 
@@ -160,13 +160,13 @@ The basic token in =nil; is used for paying for message execution:
 
 In the case of external deployment, funds have to be set for the intended address first before actual deployment occurs. Unless the address already contains some funds, the contract cannot pay for its own external execution.
 
-[**Learn more about the payment structure during external deployment**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/working-with-smart-contracts/deploying-a-contract#external-deployment).
+[Learn more about the payment structure during external deployment](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/working-with-smart-contracts/deploying-a-contract#external-deployment).
 
 =nil; also has a multi-currency mechanism. All accounts (smart contracts) can contain any number of arbitrary currencies as a Merkle trie root. Currency creation is dedicated to a special precompiled contract (the minter), and anyone can request the creation of new currencies. 
 
 **NB**: the currency owner is recorded during creation, and only messages from the owner are processed for the currency. A contract can only be the owner of one currency.
 
-The documentation contains [**an extensive tutorial on working with custom currencies**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/essentials/tokens-multi-currency).  
+The documentation contains [an extensive tutorial on working with custom currencies](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/essentials/tokens-multi-currency).
 
 ### Generating the SSZ serialization code
 
@@ -265,7 +265,8 @@ The current RPC is loosely modeled after the Ethereum RPC. The RPC exposes the f
 
 The project also includes a generator of an OpenRPC spec file from the type definitions the RPC API interface.
 
-The primary benefit of this is allowing for automatic RPC API documentation generation on the side of [**the documentation portal**](https://docs.nil.foundation/).
+The primary benefit of this is allowing for automatic RPC API documentation
+generation on the side of [the documentation portal](https://docs.nil.foundation/).
 
 Another benefit is greater coupling of docs and code. Do not hesitate to adjust the doc strings (be mindful to follow the doc string spec) in `rpc/jsonrpc/eth_api.go`, `rpc/jsonrpc/types.go` and `rpc/jsonrpc/doc.go` to account for latest changes in the RPC API. All changes will make their way to the documentation portal without any overhead.
 
@@ -291,7 +292,9 @@ All linters are downloaded and built as part of the `nix develop` command. Run l
 make lint
 ```
 
-`.golangci.yml` contains the configuration for `golangci-lint`, including the full list of all linters used in the project. [**Visit the official docs for `golangci-lint`**](https://golangci-lint.run/usage/linters).
+`.golangci.yml` contains the configuration for `golangci-lint`, including the
+full list of all linters used in the project.
+[Visit the official docs for `golangci-lint`](https://golangci-lint.run/usage/linters).
 
 Additional guides on integrating linters with IDEs:
 
