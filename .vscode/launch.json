@@ -9,7 +9,15 @@
             "program": "cmd/nil",
             "args": ["--allow-db-clear"],
             "preLaunchTask": "Run Make"
+        },
+        {
+            "name": "Launch nil_cli",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "cmd/nil_cli",
+            "args": ["keygen", "new"],
+            "preLaunchTask": "Run Make"
         }
-
     ]
 }

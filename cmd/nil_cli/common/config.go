@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/core/types"
@@ -23,20 +24,20 @@ const (
 	RPCEndpointField = "rpc_endpoint"
 )
 
-const InitConfigTemplate = `---
-# Configuration for interacting with the =nil; cluster
+const InitConfigTemplate = `; Configuration for interacting with the =nil; cluster
+[nil]
 
-# Specify the RPC endpoint of your cluster
-# For example, if your cluster's RPC endpoint is at "http://127.0.0.1:8529", set it as below
-# rpc_endpoint: "http://127.0.0.1:8529"
+; Specify the RPC endpoint of your cluster
+; For example, if your cluster's RPC endpoint is at "http://127.0.0.1:8529", set it as below
+; rpc_endpoint = "http://127.0.0.1:8529"
 
-# Specify the private key used for signing external messages to your wallet.
-# You can generate a new key with "nil_cli keygen new".
-# private_key: "WRITE_YOUR_PRIVATE_KEY_HERE"
+; Specify the private key used for signing external messages to your wallet.
+; You can generate a new key with "nil_cli keygen new".
+; private_key = "WRITE_YOUR_PRIVATE_KEY_HERE"
 
-# Specify the address of your wallet to be the receiver of your external messages.
-# You can deploy a new wallet and save its address with "nil_cli wallet new".
-# address: "0xWRITE_YOUR_ADDRESS_HERE"
+; Specify the address of your wallet to be the receiver of your external messages.
+; You can deploy a new wallet and save its address with "nil_cli wallet new".
+; address = "0xWRITE_YOUR_ADDRESS_HERE"
 `
 
 var DefaultConfigPath string
@@ -45,7 +46,7 @@ func init() {
 	homeDir, err := os.UserHomeDir()
 	check.PanicIfErr(err)
 
-	DefaultConfigPath = filepath.Join(homeDir, ".config/nil/config.yaml")
+	DefaultConfigPath = filepath.Join(homeDir, ".config/nil/config.ini")
 }
 
 func InitDefaultConfig(configPath string) (string, error) {
@@ -72,25 +73,39 @@ func InitDefaultConfig(configPath string) (string, error) {
 }
 
 func PatchConfig(delta map[string]any, force bool) error {
-	for key, value := range delta {
-		oldValue := viper.GetString(key)
-		if !force && oldValue != "" && oldValue != value {
-			return fmt.Errorf("key %q already exists in the config file", key)
-		}
-		viper.Set(key, value)
-	}
-
-	if err := viper.MergeConfigMap(delta); err != nil {
+	configPath := viper.ConfigFileUsed()
+	cfg, err := os.ReadFile(configPath)
+	if err != nil {
 		return err
 	}
-	return viper.WriteConfig()
+	// create a string builder to generate the new config file
+	result := strings.Builder{}
+	first := true
+	for _, line := range strings.Split(string(cfg), "\n") {
+		if !first {
+			result.WriteByte('\n')
+		} else {
+			first = false
+		}
+		key := strings.TrimSpace(strings.Split(line, "=")[0])
+		if value, ok := delta[key]; ok {
+			result.WriteString(fmt.Sprintf("%s = %v", key, value))
+			delete(delta, key)
+		} else {
+			result.WriteString(line)
+		}
+	}
+	for key, value := range delta {
+		result.WriteString(fmt.Sprintf("%s = %v\n", key, value))
+	}
+	return os.WriteFile(configPath, []byte(result.String()), 0o600)
 }
 
 // SetConfigFile sets the config file for the viper
 func SetConfigFile(cfgFile string) {
 	if cfgFile == "" {
 		viper.SetConfigName("config")
-		viper.SetConfigType("yaml")
+		viper.SetConfigType("ini")
 		viper.AddConfigPath("$HOME/.config/nil/")
 		viper.AddConfigPath(".")
 	} else {

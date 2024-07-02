@@ -14,7 +14,6 @@ import (
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"gopkg.in/yaml.v3"
 )
 
 func (s *SuiteRpc) toJSON(v interface{}) string {
@@ -249,16 +248,11 @@ func (s *SuiteRpc) TestCallCliHelp() {
 }
 
 func (s *SuiteRpc) TestCallCliBasic() {
-	data := map[string]string{
-		"rpc_endpoint": s.endpoint,
-	}
+	cfgPath := s.T().TempDir() + "/config.ini"
 
-	cfgPath := s.T().TempDir() + "/config.yaml"
+	iniData := "[nil]\nrpc_endpoint = " + s.endpoint + "\n"
 
-	yamlData, err := yaml.Marshal(&data)
-	s.Require().NoError(err)
-
-	err = os.WriteFile(cfgPath, yamlData, 0o600)
+	err := os.WriteFile(cfgPath, []byte(iniData), 0o600)
 	s.Require().NoError(err)
 
 	block, err := s.client.GetBlock(types.BaseShardId, "latest", false)
