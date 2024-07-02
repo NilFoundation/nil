@@ -23,20 +23,20 @@ const (
 	RPCEndpointField = "rpc_endpoint"
 )
 
-const InitConfigTemplate = `---
-# Configuration for interacting with the =nil; cluster
+const InitConfigTemplate = `; Configuration for interacting with the =nil; cluster
+[nil]
 
-# Specify the RPC endpoint of your cluster
-# For example, if your cluster's RPC endpoint is at "http://127.0.0.1:8529", set it as below
-# rpc_endpoint: "http://127.0.0.1:8529"
+; Specify the RPC endpoint of your cluster
+; For example, if your cluster's RPC endpoint is at "http://127.0.0.1:8529", set it as below
+; rpc_endpoint = "http://127.0.0.1:8529"
 
-# Specify the private key used for signing external messages to your wallet.
-# You can generate a new key with "nil_cli keygen new".
-# private_key: "WRITE_YOUR_PRIVATE_KEY_HERE"
+; Specify the private key used for signing external messages to your wallet.
+; You can generate a new key with "nil_cli keygen new".
+; private_key = "WRITE_YOUR_PRIVATE_KEY_HERE"
 
-# Specify the address of your wallet to be the receiver of your external messages.
-# You can deploy a new wallet and save its address with "nil_cli wallet new".
-# address: "0xWRITE_YOUR_ADDRESS_HERE"
+; Specify the address of your wallet to be the receiver of your external messages.
+; You can deploy a new wallet and save its address with "nil_cli wallet new".
+; address = "0xWRITE_YOUR_ADDRESS_HERE"
 `
 
 var DefaultConfigPath string
@@ -45,7 +45,7 @@ func init() {
 	homeDir, err := os.UserHomeDir()
 	check.PanicIfErr(err)
 
-	DefaultConfigPath = filepath.Join(homeDir, ".config/nil/config.yaml")
+	DefaultConfigPath = filepath.Join(homeDir, ".config/nil/config.ini")
 }
 
 func InitDefaultConfig(configPath string) (string, error) {
@@ -90,7 +90,7 @@ func PatchConfig(delta map[string]any, force bool) error {
 func SetConfigFile(cfgFile string) {
 	if cfgFile == "" {
 		viper.SetConfigName("config")
-		viper.SetConfigType("yaml")
+		viper.SetConfigType("ini")
 		viper.AddConfigPath("$HOME/.config/nil/")
 		viper.AddConfigPath(".")
 	} else {

@@ -129,7 +129,7 @@ func updateDecoderConfig(config *mapstructure.DecoderConfig) {
 func (rc *RootCommand) loadConfig() error {
 	err := viper.ReadInConfig()
 
-	// Create file on if doesn't exist
+	// Create file if it doesn't exist
 	if errors.As(err, new(viper.ConfigFileNotFoundError)) {
 		logger.Info().Msg("Config file not found. Creating a new one...")
 
@@ -148,7 +148,7 @@ func (rc *RootCommand) loadConfig() error {
 		return fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	if err := viper.Unmarshal(&rc.config, updateDecoderConfig); err != nil {
+	if err := viper.UnmarshalKey("nil", &rc.config, updateDecoderConfig); err != nil {
 		return fmt.Errorf("unable to decode config: %w", err)
 	}
 

@@ -65,7 +65,11 @@ func GetCommand(configPath *string, cfg *common.Config) *cobra.Command {
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logger.Info().Msgf("Config file: %s", viper.ConfigFileUsed())
-			for key, value := range viper.AllSettings() {
+			nilSection, ok := viper.AllSettings()["nil"].(map[string]interface{})
+			if !ok {
+				return nil
+			}
+			for key, value := range nilSection {
 				logger.Info().Msgf("%s: %v", key, value)
 			}
 			return nil
@@ -79,7 +83,7 @@ func GetCommand(configPath *string, cfg *common.Config) *cobra.Command {
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := args[0]
-			value := viper.Get(key)
+			value := viper.Get("nil." + key)
 			if value == nil {
 				logger.Warn().Msgf("Key %q is not found in config", key)
 				return nil
