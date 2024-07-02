@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/core/types"
@@ -72,18 +73,32 @@ func InitDefaultConfig(configPath string) (string, error) {
 }
 
 func PatchConfig(delta map[string]any, force bool) error {
-	for key, value := range delta {
-		oldValue := viper.GetString(key)
-		if !force && oldValue != "" && oldValue != value {
-			return fmt.Errorf("key %q already exists in the config file", key)
-		}
-		viper.Set(key, value)
-	}
-
-	if err := viper.MergeConfigMap(delta); err != nil {
+	configPath := viper.ConfigFileUsed()
+	cfg, err := os.ReadFile(configPath)
+	if err != nil {
 		return err
 	}
-	return viper.WriteConfig()
+	// create a string builder to generate the new config file
+	result := strings.Builder{}
+	first := true
+	for _, line := range strings.Split(string(cfg), "\n") {
+		if !first {
+			result.WriteByte('\n')
+		} else {
+			first = false
+		}
+		key := strings.TrimSpace(strings.Split(line, "=")[0])
+		if value, ok := delta[key]; ok {
+			result.WriteString(fmt.Sprintf("%s = %v", key, value))
+			delete(delta, key)
+		} else {
+			result.WriteString(line)
+		}
+	}
+	for key, value := range delta {
+		result.WriteString(fmt.Sprintf("%s = %v\n", key, value))
+	}
+	return os.WriteFile(configPath, []byte(result.String()), 0o600)
 }
 
 // SetConfigFile sets the config file for the viper
