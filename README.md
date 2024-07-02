@@ -73,14 +73,14 @@ To interact with the cluster, =nil; supplies several developer tools.
 * [**The `Nil.js` client library**](https://github.com/nilFoundation/nil.js)
 * [**The =nil; Hardhat plugin**](https://github.com/NilFoundation/nil-hardhat-plugin)
 
-## =nil; CLI confirugation
+## =nil; CLI configuration
 
 The =nil; CLI requires initial setup before being able to interact with the cluster.
 
 To create the config file if it does not already exist:
 
 ```bash
-./build/bin/nil_cli config config init
+./build/bin/nil_cli config init
 ```
 
 To configure the CLI:
@@ -90,7 +90,8 @@ To configure the CLI:
 ./build/bin/nil_cli keygen new
 ```
 
-This will update the CLI configuration file to include the RPC endpoint and the private key to be used for creatign a wallet and signing messages.
+This will update the CLI configuration file to include the RPC endpoint and the private key
+to be used for creating a wallet and signing messages.
 
 [**This tutorial outlines the steps needed**](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/tools/nil-cli/usage) to configure the =nil; CLI.
 
@@ -107,7 +108,7 @@ The easisest way to create a new wallet is to use the =nil; CLI after configurin
 To create a new wallet **on the base shard**:
 
 ```bash
-nil_cli wallet new
+./build/bin/nil_cli wallet new
 ```
 
 ### Deploying a smart contract
