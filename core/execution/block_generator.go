@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"context"
 	"errors"
 
 	"github.com/NilFoundation/nil/common"
@@ -20,6 +21,23 @@ type BlockGeneratorParams struct {
 	GasPriceScale float64
 }
 
+type Proposal struct {
+	PrevBlockId   types.BlockNumber
+	PrevBlockHash common.Hash
+	CollatorState types.CollatorState
+	MainChainHash common.Hash
+	ShardHashes   map[types.ShardId]common.Hash
+
+	InMsgs  []*types.Message
+	OutMsgs []*types.Message
+}
+
+func NewEmptyProposal() *Proposal {
+	return &Proposal{
+		ShardHashes: make(map[types.ShardId]common.Hash),
+	}
+}
+
 func NewBlockGeneratorParams(shardId types.ShardId, nShards int, gasBasePrice types.Value, gasPriceScale float64) BlockGeneratorParams {
 	return BlockGeneratorParams{
 		ShardId:       shardId,
@@ -31,28 +49,38 @@ func NewBlockGeneratorParams(shardId types.ShardId, nShards int, gasBasePrice ty
 }
 
 type BlockGenerator struct {
+	ctx    context.Context
 	params BlockGeneratorParams
 
-	txOwner        *TxOwner
+	rwTx           db.RwTx
 	executionState *ExecutionState
 
 	logger zerolog.Logger
 }
 
-func NewBlockGenerator(params BlockGeneratorParams, txOwner *TxOwner) (*BlockGenerator, error) {
-	executionState, err := NewExecutionStateForShard(txOwner.RwTx, params.ShardId, params.Timer)
+func NewBlockGenerator(ctx context.Context, params BlockGeneratorParams, txFabric db.DB) (*BlockGenerator, error) {
+	rwTx, err := txFabric.CreateRwTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	executionState, err := NewExecutionStateForShard(rwTx, params.ShardId, params.Timer)
 	if err != nil {
 		return nil, err
 	}
 	executionState.TraceVm = params.TraceEVM
 	return &BlockGenerator{
+		ctx:            ctx,
 		params:         params,
-		txOwner:        txOwner,
+		rwTx:           rwTx,
 		executionState: executionState,
 		logger: logging.NewLogger("block-gen").With().
 			Stringer(logging.FieldShardId, params.ShardId).
 			Logger(),
 	}, nil
+}
+
+func (g *BlockGenerator) Rollback() {
+	g.rwTx.Rollback()
 }
 
 func (g *BlockGenerator) GenerateZeroState(zeroState string) error {
@@ -62,19 +90,24 @@ func (g *BlockGenerator) GenerateZeroState(zeroState string) error {
 		return err
 	}
 
-	_, err := g.finalize()
+	_, err := g.finalize(0)
 	return err
 }
 
-func (g *BlockGenerator) GenerateBlock(inMsgs, outMsgs []*types.Message, defaultGasPrice types.Value) (*types.Block, error) {
-	gasPrice, err := db.ReadGasPerShard(g.txOwner.RoTx, g.executionState.ShardId)
+func (g *BlockGenerator) GenerateBlock(proposal *Proposal, defaultGasPrice types.Value) (*types.Block, error) {
+	if g.executionState.PrevBlock != proposal.PrevBlockHash {
+		// This shouldn't happen currently, because a new block cannot appear between collator and block generator calls.
+		panic("Proposed previous block hash doesn't match the current state.")
+	}
+
+	gasPrice, err := db.ReadGasPerShard(g.rwTx, g.executionState.ShardId)
 	if errors.Is(err, db.ErrKeyNotFound) {
 		gasPrice = defaultGasPrice
 	} else if err != nil {
 		return nil, err
 	}
 
-	for _, msg := range inMsgs {
+	for _, msg := range proposal.InMsgs {
 		g.executionState.AddInMessage(msg)
 		var gasUsed types.Gas
 		var err error
@@ -86,12 +119,19 @@ func (g *BlockGenerator) GenerateBlock(inMsgs, outMsgs []*types.Message, default
 		g.addReceipt(gasUsed, err)
 	}
 
-	for _, msg := range outMsgs {
+	for _, msg := range proposal.OutMsgs {
 		// TODO: add inMsgHash support (do we even need it?)
 		g.executionState.AddOutMessageForTx(common.EmptyHash, msg)
 	}
 
-	return g.finalize()
+	g.executionState.MasterChain = proposal.MainChainHash
+	g.executionState.ChildChainBlocks = proposal.ShardHashes
+
+	if err := db.WriteCollatorState(g.rwTx, g.params.ShardId, proposal.CollatorState); err != nil {
+		return nil, err
+	}
+
+	return g.finalize(proposal.PrevBlockId + 1)
 }
 
 func (g *BlockGenerator) handleMessage(msg *types.Message, payer payer, gasPrice types.Value) (types.Gas, error) {
@@ -107,12 +147,12 @@ func (g *BlockGenerator) handleMessage(msg *types.Message, payer payer, gasPrice
 	var err error
 	switch {
 	case msg.IsDeploy():
-		leftOverGas, err = g.executionState.HandleDeployMessage(g.txOwner.Ctx, msg)
+		leftOverGas, err = g.executionState.HandleDeployMessage(g.ctx, msg)
 		refundGas(payer, msg, leftOverGas, gasPrice)
 	case msg.IsRefund():
-		err = g.executionState.HandleRefundMessage(g.txOwner.Ctx, msg)
+		err = g.executionState.HandleRefundMessage(g.ctx, msg)
 	default:
-		leftOverGas, _, err = g.executionState.HandleExecutionMessage(g.txOwner.Ctx, msg)
+		leftOverGas, _, err = g.executionState.HandleExecutionMessage(g.ctx, msg)
 		refundGas(payer, msg, leftOverGas, gasPrice)
 	}
 
@@ -121,15 +161,6 @@ func (g *BlockGenerator) handleMessage(msg *types.Message, payer payer, gasPrice
 
 func (g *BlockGenerator) validateInternalMessage(message *types.Message) error {
 	check.PanicIfNot(message.IsInternal())
-
-	fromId := message.From.ShardId()
-	data, err := g.executionState.Accessor.Access(g.txOwner.RoTx, fromId).GetOutMessage().ByHash(message.Hash())
-	if err != nil {
-		return err
-	}
-	if data.Message() == nil {
-		return ErrInternalMessageValidationFailed
-	}
 
 	if message.IsDeploy() {
 		return ValidateDeployMessage(message)
@@ -195,46 +226,20 @@ func (g *BlockGenerator) addReceipt(gasUsed types.Gas, err error) {
 	}
 }
 
-func (g *BlockGenerator) setLastBlockHashes() error {
-	if types.IsMasterShard(g.params.ShardId) {
-		for i := 1; i < g.params.NShards; i++ {
-			shardId := types.ShardId(i)
-			lastBlockHash, err := db.ReadLastBlockHash(g.txOwner.RoTx, shardId)
-			if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-				return err
-			}
-
-			g.executionState.SetShardHash(shardId, lastBlockHash)
-		}
-	} else {
-		lastBlockHash, err := db.ReadLastBlockHash(g.txOwner.RoTx, types.MasterShardId)
-		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-			return err
-		}
-
-		g.executionState.SetMasterchainHash(lastBlockHash)
-	}
-	return nil
-}
-
-func (g *BlockGenerator) finalize() (*types.Block, error) {
-	if err := g.setLastBlockHashes(); err != nil {
-		return nil, err
-	}
-
-	blockId := types.BlockNumber(0)
-	if !g.executionState.PrevBlock.Empty() {
-		b, err := db.ReadBlock(g.txOwner.RoTx, g.params.ShardId, g.executionState.PrevBlock)
-		if err != nil {
-			return nil, err
-		}
-		blockId = b.Id + 1
-	}
-
+func (g *BlockGenerator) finalize(blockId types.BlockNumber) (*types.Block, error) {
 	blockHash, err := g.executionState.Commit(blockId)
 	if err != nil {
 		return nil, err
 	}
 
-	return PostprocessBlock(g.txOwner.RwTx, g.params.ShardId, g.params.GasBasePrice, g.params.GasPriceScale, blockHash)
+	block, err := PostprocessBlock(g.rwTx, g.params.ShardId, g.params.GasBasePrice, g.params.GasPriceScale, blockHash)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := g.rwTx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return block, nil
 }

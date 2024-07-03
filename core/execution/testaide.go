@@ -17,10 +17,11 @@ func GenerateZeroState(t *testing.T, ctx context.Context,
 ) {
 	t.Helper()
 
-	txOwner, err := NewTxOwner(ctx, txFabric)
+	g, err := NewBlockGenerator(ctx,
+		NewBlockGeneratorParams(shardId, 1, types.NewValueFromUint64(10), 0),
+		txFabric)
 	require.NoError(t, err)
-	g, err := NewBlockGenerator(NewBlockGeneratorParams(shardId, 1, types.NewValueFromUint64(10), 0), txOwner)
-	require.NoError(t, err)
+	defer g.Rollback()
 	require.NoError(t, g.GenerateZeroState(DefaultZeroStateConfig))
 }
 

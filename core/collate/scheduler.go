@@ -96,8 +96,15 @@ func (s *Scheduler) generateZeroState(ctx context.Context) error {
 			}
 		}
 
-		collator := newCollator(s.params, s.topology, s.pool, s.logger)
-		return collator.GenerateZeroState(ctx, s.txFabric, s.ZeroState)
+		s.logger.Info().Msg("Generating zero-state...")
+
+		gen, err := execution.NewBlockGenerator(ctx, s.params.BlockGeneratorParams, s.txFabric)
+		if err != nil {
+			return err
+		}
+		defer gen.Rollback()
+
+		return gen.GenerateZeroState(s.ZeroState)
 	}
 	return nil
 }
@@ -107,5 +114,26 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 	defer cancel()
 
 	collator := newCollator(s.params, s.topology, s.pool, s.logger)
-	return collator.GenerateBlock(ctx, s.txFabric)
+	proposal, err := collator.GenerateProposal(ctx, s.txFabric)
+	if err != nil {
+		return err
+	}
+
+	gen, err := execution.NewBlockGenerator(ctx, s.params.BlockGeneratorParams, s.txFabric)
+	if err != nil {
+		return err
+	}
+	defer gen.Rollback()
+
+	block, err := gen.GenerateBlock(proposal, s.params.GasBasePrice)
+	if err != nil {
+		return err
+	}
+
+	// todo: pool should not take too much responsibility, collator must check messages for duplicates
+	if err := s.pool.OnNewBlock(ctx, block, proposal.InMsgs); err != nil {
+		return err
+	}
+
+	return nil
 }

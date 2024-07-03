@@ -4,12 +4,8 @@ package collate
 
 import (
 	"context"
-	"testing"
 
-	"github.com/NilFoundation/nil/core/db"
-	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/stretchr/testify/require"
 )
 
 type MockMsgPool struct {
@@ -24,28 +20,4 @@ func (m *MockMsgPool) Peek(context.Context, int, uint64) ([]*types.Message, erro
 
 func (m *MockMsgPool) OnNewBlock(context.Context, *types.Block, []*types.Message) error {
 	return nil
-}
-
-func GenerateZeroState(t *testing.T, ctx context.Context,
-	shardId types.ShardId, txFabric db.DB,
-) {
-	t.Helper()
-
-	c := newCollator(Params{
-		BlockGeneratorParams: execution.NewBlockGeneratorParams(shardId, 0, types.NewValueFromUint64(10), 0),
-	}, nil, nil, sharedLogger)
-	err := c.GenerateZeroState(ctx, txFabric, execution.DefaultZeroStateConfig)
-	require.NoError(t, err)
-}
-
-func GenerateBlockWithMessages(t *testing.T, ctx context.Context,
-	shardId types.ShardId, nShards int, txFabric db.DB, msgs ...*types.Message,
-) {
-	t.Helper()
-
-	pool := &MockMsgPool{Msgs: msgs}
-	c := newCollator(Params{
-		BlockGeneratorParams: execution.NewBlockGeneratorParams(shardId, nShards, types.NewValueFromUint64(10), 0),
-	}, new(TrivialShardTopology), pool, sharedLogger)
-	require.NoError(t, c.GenerateBlock(ctx, txFabric))
 }
