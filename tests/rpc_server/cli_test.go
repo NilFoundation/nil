@@ -269,7 +269,7 @@ func (s *SuiteRpc) TestCliCreateWallet() {
 
 	s.Run("Generate a key", func() {
 		res := s.runCli("-c", cfgPath, "keygen", "new")
-		s.Contains(res, "Pivate key:")
+		s.Contains(res, "Private key:")
 	})
 
 	s.Run("Deploy new wallet", func() {

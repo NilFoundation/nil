@@ -14,6 +14,7 @@ var logger = logging.NewLogger("configCommand")
 var noConfigCmd map[string]struct{} = map[string]struct{}{
 	"help": {},
 	"init": {},
+	"set":  {},
 }
 
 var supportedOptions map[string]struct{} = map[string]struct{}{
