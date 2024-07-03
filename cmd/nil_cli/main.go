@@ -35,9 +35,9 @@ type RootCommand struct {
 	logLevel string
 }
 
-var logger = logging.NewLogger("rootCommand")
+var logger = logging.NewSimpleLogger()
 
-var noConfigCmd map[string]struct{} = map[string]struct{}{
+var noConfigCmd = map[string]struct{}{
 	"help":             {},
 	"keygen":           {},
 	"completion":       {},

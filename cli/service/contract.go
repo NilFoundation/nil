@@ -71,7 +71,10 @@ func (s *Service) RunContract(wallet types.Address, bytecode []byte, gasLimit ty
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
 		return common.EmptyHash, err
 	}
-	s.logger.Info().Msgf("Transaction hash: %s (shard %s)", txHash, wallet.ShardId())
+	s.logger.Info().
+		Stringer(logging.FieldShardId, wallet.ShardId()).
+		Stringer(logging.FieldMessageHash, txHash).
+		Send()
 	return txHash, nil
 }
 
@@ -86,7 +89,10 @@ func (s *Service) SendExternalMessage(bytecode []byte, contract types.Address, n
 		s.logger.Error().Err(err).Msg("Failed to send external message")
 		return common.EmptyHash, err
 	}
-	s.logger.Info().Msgf("Transaction hash: %s (shard %s)", txHash, contract.ShardId())
+	s.logger.Info().
+		Stringer(logging.FieldShardId, contract.ShardId()).
+		Stringer(logging.FieldMessageHash, txHash).
+		Send()
 	return txHash, nil
 }
 
@@ -98,7 +104,10 @@ func (s *Service) DeployContractViaWallet(shardId types.ShardId, wallet types.Ad
 		return common.EmptyHash, types.EmptyAddress, err
 	}
 	s.logger.Info().Msgf("Contract address: 0x%x", contractAddr)
-	s.logger.Info().Msgf("Transaction hash: %s (shard %s)", txHash, wallet.ShardId())
+	s.logger.Info().
+		Stringer(logging.FieldShardId, shardId).
+		Stringer(logging.FieldMessageHash, txHash).
+		Send()
 	return txHash, contractAddr, nil
 }
 
@@ -110,7 +119,10 @@ func (s *Service) DeployContractExternal(shardId types.ShardId, payload types.De
 		return common.EmptyHash, types.EmptyAddress, err
 	}
 	s.logger.Info().Msgf("Contract address: 0x%x", contractAddr)
-	s.logger.Info().Msgf("Transaction hash: %s (shard %s)", txHash, contractAddr.ShardId())
+	s.logger.Info().
+		Stringer(logging.FieldShardId, shardId).
+		Stringer(logging.FieldMessageHash, txHash).
+		Send()
 	return txHash, contractAddr, nil
 }
 

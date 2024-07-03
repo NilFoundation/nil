@@ -300,7 +300,7 @@ func (s *SuiteRpc) TestCliCreateWallet() {
 
 	s.Run("Deploy contract", func() {
 		res := s.runCli("-c", cfgPath, "wallet", "deploy", dir+"/Incrementer.bin", "123321", "--abi", abiFileName)
-		s.Contains(res, "Transaction hash:")
+		s.Contains(res, "msgHash=[")
 		s.Contains(res, strings.ToLower(addr.String()))
 	})
 
@@ -316,7 +316,7 @@ func (s *SuiteRpc) TestCliCreateWallet() {
 
 	s.Run("Call 'increment' function of contract", func() {
 		res := s.runCli("-c", cfgPath, "wallet", "send-message", addr.String(), "increment", "--abi", abiFileName)
-		s.Contains(res, "Transaction hash:")
+		s.Contains(res, "msgHash=[")
 	})
 
 	s.Run("Call read-only 'get' function of contract once again", func() {

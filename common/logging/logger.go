@@ -49,6 +49,24 @@ func makeComponentFormatter(noColor bool) zerolog.Formatter {
 	}
 }
 
+func NewSimpleLogger() zerolog.Logger {
+	noColor := os.Getenv("NO_COLOR") != "" || !term.IsTerminal(int(os.Stdout.Fd()))
+	return zerolog.New(zerolog.ConsoleWriter{
+		Out:        os.Stderr,
+		TimeFormat: time.TimeOnly,
+		PartsOrder: []string{
+			zerolog.TimestampFieldName,
+			zerolog.LevelFieldName,
+			zerolog.MessageFieldName,
+		},
+		FormatFieldValue: makeComponentFormatter(noColor),
+		NoColor:          noColor,
+	}).
+		With().
+		Timestamp().
+		Logger()
+}
+
 func NewLogger(component string) zerolog.Logger {
 	noColor := os.Getenv("NO_COLOR") != "" || !term.IsTerminal(int(os.Stdout.Fd()))
 	return zerolog.New(zerolog.ConsoleWriter{

@@ -18,7 +18,7 @@ type Service struct {
 func NewService(c client.Client, privateKey *ecdsa.PrivateKey) *Service {
 	s := &Service{
 		client: c,
-		logger: logging.NewLogger("cliService"),
+		logger: logging.NewSimpleLogger(),
 	}
 
 	s.privateKey = privateKey
