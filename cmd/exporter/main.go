@@ -17,7 +17,10 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
+var (
+	logger  = logging.NewLogger("exporter")
+	cfgFile string
+)
 
 func initConfig() {
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
@@ -39,8 +42,19 @@ func initConfig() {
 	viper.AutomaticEnv()
 }
 
+// This makes the --help command exit instead of proceeding to run
+// the exporter
+func ApplyExitOnHelp(c *cobra.Command, exitCode int) {
+	helpFunc := c.HelpFunc()
+	c.SetHelpFunc(func(c *cobra.Command, s []string) {
+		helpFunc(c, s)
+		os.Exit(exitCode)
+	})
+}
+
 func main() {
-	logger := logging.NewLogger("exporter")
+	logging.SetLogSeverityFromEnv()
+	logging.SetupGlobalLogger("info")
 
 	cobra.OnInitialize(initConfig)
 	rootCmd := &cobra.Command{
@@ -49,7 +63,7 @@ func main() {
 		Long: `Exporter is a tool to export data from Nil blockchain to Clickhouse.
 You could config it via config file or flags or environment variables.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			requiredParams := []string{"clickhouse-endpoint", "clickhouse-login", "clickhouse-password", "clickhouse-database"}
+			requiredParams := []string{"clickhouse-endpoint", "clickhouse-login", "clickhouse-database"}
 			absentParams := make([]string, 0)
 			for _, param := range requiredParams {
 				if viper.GetString(param) == "" {
@@ -67,6 +81,7 @@ You could config it via config file or flags or environment variables.`,
 			}
 		},
 	}
+	ApplyExitOnHelp(rootCmd, 0)
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $CWD/exporter.cobra.yaml)")
 	rootCmd.Flags().StringP("api-endpoint", "a", "http://127.0.0.1:8529", "API endpoint")
