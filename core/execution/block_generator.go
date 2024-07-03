@@ -168,13 +168,13 @@ func (g *BlockGenerator) addReceipt(gasUsed types.Gas, err error) {
 
 		// todo: this is a temporary solution, we shouldn't store errors for unpaid failures
 		g.executionState.DropInMessage()
-		FailureReceiptCache.Add(msgHash, &types.Receipt{
-			Success:         false,
-			MsgHash:         msgHash,
-			ContractAddress: msg.To,
-			Logs: []*types.Log{
-				NewErrorLog(msg.To, err),
+		FailureReceiptCache.Add(msgHash, ReceiptWithError{
+			Receipt: &types.Receipt{
+				Success:         false,
+				MsgHash:         msgHash,
+				ContractAddress: msg.To,
 			},
+			Error: err,
 		})
 
 		g.logger.Debug().

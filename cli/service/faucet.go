@@ -24,6 +24,16 @@ const (
 
 var ErrWalletExists = errors.New("wallet already exists")
 
+func collectFailedReceipts(dst []*jsonrpc.RPCReceipt, receipt *jsonrpc.RPCReceipt) []*jsonrpc.RPCReceipt {
+	if !receipt.Success {
+		dst = append(dst, receipt)
+	}
+	for _, r := range receipt.OutReceipts {
+		dst = collectFailedReceipts(dst, r)
+	}
+	return dst
+}
+
 func (s *Service) WaitForReceipt(shardId types.ShardId, mshHash common.Hash) (*jsonrpc.RPCReceipt, error) {
 	receipt, err := concurrent.WaitFor(context.Background(), ReceiptWaitFor, ReceiptWaitTick, func(ctx context.Context) (*jsonrpc.RPCReceipt, error) {
 		receipt, err := s.client.GetInMessageReceipt(shardId, mshHash)
@@ -45,24 +55,29 @@ func (s *Service) WaitForReceipt(shardId types.ShardId, mshHash common.Hash) (*j
 		return nil, err
 	}
 
-	successful := receipt.Success
-	if successful {
-		for _, OutReceipt := range receipt.OutReceipts {
-			if !OutReceipt.Success {
-				successful = false
-				break
+	failed := collectFailedReceipts(nil, receipt)
+
+	if len(failed) > 0 {
+		if !receipt.Success {
+			s.logger.Error().Msgf("Message processing failed: %s", receipt.ErrorMessage)
+
+			if len(receipt.OutReceipts) > 0 {
+				s.logger.Error().Msg("Failed message has out messages. Report to the developers.")
+			}
+		} else {
+			for _, r := range failed {
+				if !r.Success {
+					s.logger.Error().Msgf("Out message %s failed: %s", r.MsgHash, r.ErrorMessage)
+				}
 			}
 		}
-	}
 
-	if !successful {
 		receiptDataJSON, err := json.MarshalIndent(receipt, "", "  ")
 		if err != nil {
 			s.logger.Error().Err(err).Msg("Failed to marshal unsuccessful receipt data to JSON")
 			return nil, err
 		}
-		s.logger.Error().Msgf("Unsuccessful receipt:\n%s", receiptDataJSON)
-		return nil, errors.New("message processing failed")
+		s.logger.Debug().Msgf("Full receipt:\n%s", receiptDataJSON)
 	}
 	return receipt, nil
 }

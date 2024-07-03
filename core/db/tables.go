@@ -32,6 +32,8 @@ const (
 	BlockHashAndInMessageIndexByMessageHash  = ShardedTableName("BlockHashAndInMessageIndexByMessageHash")
 	BlockHashAndOutMessageIndexByMessageHash = ShardedTableName("BlockHashAndOutMessageIndexByMessageHash")
 
+	ErrorByMessageHashTable = TableName("ErrorByMessageHash")
+
 	SchemeVersionTable = TableName("SchemeVersion")
 )
 

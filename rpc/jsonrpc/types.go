@@ -97,6 +97,7 @@ type RPCBlock struct {
 // @componentprop OutReceipts outputReceipts array true "Receipts of the outgoing messages. Set to nil for messages that have not yet been processed."
 // @componentprop Success success boolean true "The flag that shows whether the message was successful."
 // @componentprop Temporary temporary boolean false "The flag that shows whether the message is temporary."
+// @componentprop ErrorMessage errorMessage string false "The error in case the message processing was unsuccessful."
 type RPCReceipt struct {
 	Success         bool               `json:"success"`
 	GasUsed         types.Gas          `json:"gasUsed"`
@@ -111,6 +112,7 @@ type RPCReceipt struct {
 	MsgIndex        types.MessageIndex `json:"messageIndex"`
 	ShardId         types.ShardId      `json:"shardId"`
 	Temporary       bool               `json:"temporary,omitempty"`
+	ErrorMessage    string             `json:"errorMessage,omitempty"`
 }
 
 type RPCLog struct {
@@ -211,7 +213,7 @@ func NewRPCLog(
 
 func NewRPCReceipt(
 	shardId types.ShardId, block *types.Block, index types.MessageIndex, receipt *types.Receipt,
-	outMessages []common.Hash, outReceipts []*RPCReceipt, temporary bool,
+	outMessages []common.Hash, outReceipts []*RPCReceipt, temporary bool, errorMessage string,
 ) *RPCReceipt {
 	if receipt == nil {
 		return nil
@@ -242,6 +244,7 @@ func NewRPCReceipt(
 		MsgIndex:        index,
 		ShardId:         shardId,
 		Temporary:       temporary,
+		ErrorMessage:    errorMessage,
 	}
 	return res
 }
