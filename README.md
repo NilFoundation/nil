@@ -57,6 +57,35 @@ Run tests with:
 make test
 ```
 
+### Working with nil.js
+
+To debug nil.js tests, for example, we need to get the right development environment. We can do this in the following way
+
+```bash
+nix develop .#niljs
+```
+
+Next, we need a directory with the nil.js source code and npm modules installed. Two options are possible.
+
+#### Use exactly the same nil.js from git that is used in the build
+
+```bash
+mkdir -p /path/to/directory
+cd /path/to/directory
+unpackPhase
+cd source
+npmConfigHook
+```
+
+#### Use a local copy of nil.js
+
+```bash
+cd /path/to/local/copy/of/nil.js
+npmConfigHook
+```
+
+After that we can work with nil.js, e.g. run tests `bunx vitest run -c test/vitest.integration.config.ts --cache=false`.
+
 ## Unique features
 
 =nil; boasts several unique features making it distinct from Ethereum and other L2s. 
