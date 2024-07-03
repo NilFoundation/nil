@@ -10,8 +10,6 @@ in buildGoModule rec {
 
   preBuild = ''
     make compile-contracts ssz rpcspec
-    mkdir -p $out/share/doc/nil
-    cp openrpc.json $out/share/doc/nil
   '';
 
   src = src_repo;
@@ -22,6 +20,11 @@ in buildGoModule rec {
   postConfigure = ''
     export GOCACHE=/tmp/${vendorHash}/go-cache
     export GOMODCACHE=/tmp/${vendorHash}/go/mod/cache
+  '';
+
+  postInstall = ''
+    mkdir -p $out/share/doc/nil
+    cp openrpc.json $out/share/doc/nil
   '';
 
   CGO_ENABLED = if enableRaceDetector then 1 else 0;
