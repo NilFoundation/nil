@@ -4,6 +4,8 @@ import (
 	"errors"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/assert"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/types"
 )
@@ -101,7 +103,7 @@ type RPCBlock struct {
 type RPCReceipt struct {
 	Success         bool               `json:"success"`
 	GasUsed         types.Gas          `json:"gasUsed"`
-	Bloom           hexutil.Bytes      `json:"bloom"`
+	Bloom           hexutil.Bytes      `json:"bloom,omitempty"`
 	Logs            []*RPCLog          `json:"logs"`
 	OutMessages     []common.Hash      `json:"outMessages"`
 	OutReceipts     []*RPCReceipt      `json:"outputReceipts"`
@@ -233,7 +235,6 @@ func NewRPCReceipt(
 	res := &RPCReceipt{
 		Success:         receipt.Success,
 		GasUsed:         receipt.GasUsed,
-		Bloom:           receipt.Bloom.Bytes(),
 		Logs:            logs,
 		OutMessages:     outMessages,
 		OutReceipts:     outReceipts,
@@ -246,5 +247,15 @@ func NewRPCReceipt(
 		Temporary:       temporary,
 		ErrorMessage:    errorMessage,
 	}
+
+	// Set only non-empty bloom
+	if len(receipt.Logs) > 0 {
+		res.Bloom = receipt.Bloom.Bytes()
+	} else if assert.Enable {
+		for _, b := range receipt.Bloom {
+			check.PanicIfNotf(b == 0, "bloom must be zero for empty logs")
+		}
+	}
+
 	return res
 }
