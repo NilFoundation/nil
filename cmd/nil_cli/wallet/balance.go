@@ -2,7 +2,6 @@ package wallet
 
 import (
 	"github.com/NilFoundation/nil/cli/service"
-	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/spf13/cobra"
 )
@@ -22,8 +21,7 @@ func BalanceCommand(cfg *common.Config) *cobra.Command {
 }
 
 func runBalance(_ *cobra.Command, _ []string, cfg *common.Config) error {
-	client := rpc.NewClient(cfg.RPCEndpoint)
-	service := service.NewService(client, cfg.PrivateKey)
+	service := service.NewService(common.GetRpcClient(), cfg.PrivateKey)
 	_, _ = service.GetBalance(cfg.Address)
 	return nil
 }

@@ -51,6 +51,7 @@ type Client struct {
 	endpoint string
 	seqno    uint64
 	client   http.Client
+	headers  map[string]string
 }
 
 var _ client.Client = (*Client)(nil)
@@ -58,6 +59,13 @@ var _ client.Client = (*Client)(nil)
 func NewClient(endpoint string) *Client {
 	return &Client{
 		endpoint: endpoint,
+	}
+}
+
+func NewClientWithDefaultHeaders(endpoint string, headers map[string]string) *Client {
+	return &Client{
+		endpoint: endpoint,
+		headers:  headers,
 	}
 }
 
@@ -82,19 +90,23 @@ func (c *Client) call(method string, params ...any) (json.RawMessage, error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
+	for key, value := range c.headers {
+		req.Header.Set(key, value)
+	}
+
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToSendRequest, err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: %d", ErrUnexpectedStatusCode, resp.StatusCode)
-	}
-
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToReadResponse, err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%w: %d: %s", ErrUnexpectedStatusCode, resp.StatusCode, body)
 	}
 
 	var rpcResponse map[string]json.RawMessage
