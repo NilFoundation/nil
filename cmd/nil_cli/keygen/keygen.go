@@ -18,7 +18,7 @@ func GetCommand() *cobra.Command {
 		Short: "Generate a new key or generate a key from a provided hex private key",
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
 			privateKey := keygen.GetPrivateKey()
-			logger.Info().Msgf("Pivate key: %v", privateKey)
+			logger.Info().Msgf("Private key: %v", privateKey)
 
 			if err := common.PatchConfig(map[string]interface{}{
 				common.PrivateKeyField: privateKey,

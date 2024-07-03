@@ -63,6 +63,11 @@ func main() {
 				// E.g. "keygen" command writes a private key to the config file (and creates if it doesn't exist)
 				common.SetConfigFile(rootCmd.cfgFile)
 
+				// Traverse up to find the top-level command
+				for cmd.HasParent() && cmd.Parent() != rootCmd.baseCmd {
+					cmd = cmd.Parent()
+				}
+
 				if _, withoutConfig := noConfigCmd[cmd.Name()]; withoutConfig {
 					return nil
 				}
@@ -145,7 +150,7 @@ func (rc *RootCommand) loadConfig() error {
 
 		logger.Info().Msgf("Config file created successfully at %s", path)
 		logger.Info().Msgf("set via `%s config set <option> <value>` or via config file", os.Args[0])
-		return err
+		return nil
 	}
 
 	if err != nil {
@@ -163,9 +168,9 @@ func (rc *RootCommand) loadConfig() error {
 // validateConfig perform some simple configuration validation
 func (rc *RootCommand) validateConfig() error {
 	if rc.config.RPCEndpoint == "" {
-		logger.Info().Msg("RPCEndpoint is missed in config")
+		logger.Info().Msg("RPCEndpoint is missing in config")
 		logger.Info().Msgf("set via `%s config set rpc_endpoint <endpoint>` or via config file", os.Args[0])
-		return fmt.Errorf("%q is missed in config", common.RPCEndpointField)
+		return fmt.Errorf("%q is missing in config", common.RPCEndpointField)
 	}
 	return nil
 }

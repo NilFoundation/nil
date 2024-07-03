@@ -2,7 +2,9 @@ package common
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,6 +76,15 @@ func InitDefaultConfig(configPath string) (string, error) {
 
 func PatchConfig(delta map[string]any, force bool) error {
 	configPath := viper.ConfigFileUsed()
+	if _, err := os.Stat(configPath); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			configPath, err = InitDefaultConfig(configPath)
+		}
+		if err != nil {
+			return err
+		}
+	}
+
 	cfg, err := os.ReadFile(configPath)
 	if err != nil {
 		return err
@@ -107,7 +118,6 @@ func SetConfigFile(cfgFile string) {
 		viper.SetConfigName("config")
 		viper.SetConfigType("ini")
 		viper.AddConfigPath("$HOME/.config/nil/")
-		viper.AddConfigPath(".")
 	} else {
 		viper.SetConfigFile(cfgFile)
 	}
