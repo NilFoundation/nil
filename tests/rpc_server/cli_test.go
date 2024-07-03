@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -223,20 +221,6 @@ func (s *SuiteRpc) TestCurrency() {
 	s.Require().Equal(2*value.Uint64(), val.Uint64())
 }
 
-func (s *SuiteRpc) runCli(args ...string) string {
-	s.T().Helper()
-
-	mainPath, err := filepath.Abs("../../cmd/nil_cli/main.go")
-	s.Require().NoError(err)
-
-	args = append([]string{"run", mainPath}, args...)
-	cmd := exec.Command("go", args...)
-
-	data, err := cmd.CombinedOutput()
-	s.Require().NoErrorf(err, string(data))
-	return string(data)
-}
-
 func (s *SuiteRpc) TestCallCliHelp() {
 	res := s.runCli("help")
 
@@ -312,7 +296,7 @@ func (s *SuiteRpc) TestCliCreateWallet() {
 
 	s.Run("Call read-only 'get' function of contract", func() {
 		res := s.runCli("-c", cfgPath, "contract", "call-readonly", addr.String(), "get", "--abi", abiFileName)
-		s.Contains(res, "Call result: 0x000000000000000000000000000000000000000000000000000000000001e1b9")
+		s.Contains(res, "uint256: 123321")
 	})
 
 	s.Run("Call 'increment' function of contract", func() {
@@ -322,7 +306,7 @@ func (s *SuiteRpc) TestCliCreateWallet() {
 
 	s.Run("Call read-only 'get' function of contract once again", func() {
 		res := s.runCli("-c", cfgPath, "contract", "call-readonly", addr.String(), "get", "--abi", abiFileName)
-		s.Contains(res, "Call result: 0x000000000000000000000000000000000000000000000000000000000001e1ba")
+		s.Contains(res, "uint256: 123322")
 	})
 }
 

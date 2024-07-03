@@ -137,10 +137,8 @@ func (s *Service) CallContract(contract types.Address, gasLimit types.Gas, calld
 
 	res, err := s.client.Call(callArgs)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to call")
 		return "", err
 	}
-	s.logger.Info().Msgf("Call result: %s", res)
 	return res, nil
 }
 

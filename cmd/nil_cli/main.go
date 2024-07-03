@@ -79,7 +79,8 @@ func main() {
 				}
 				return nil
 			},
-			SilenceUsage: true,
+			SilenceUsage:  true,
+			SilenceErrors: true,
 		},
 	}
 
@@ -178,7 +179,7 @@ func (rc *RootCommand) validateConfig() error {
 // Execute runs the root command and handles any errors
 func (rc *RootCommand) Execute() {
 	if err := rc.baseCmd.Execute(); err != nil {
-		_, _ = fmt.Fprintln(os.Stderr, err)
+		_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 
 		os.Exit(1)
 	}

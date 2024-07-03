@@ -16,6 +16,7 @@ const (
 	NameCommonTest     = "tests/CommonTest"
 	NameMessageCheck   = "tests/MessageCheck"
 	NameSender         = "tests/Sender"
+	NameTest           = "tests/Test"
 	NameTokensTest     = "tests/TokensTest"
 )
 

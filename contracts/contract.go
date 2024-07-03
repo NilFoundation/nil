@@ -59,6 +59,14 @@ func GetAbi(name string) (*abi.ABI, error) {
 	return &res, nil
 }
 
+func GetAbiData(name string) (string, error) {
+	data, err := Fs.ReadFile("compiled/" + name + ".abi")
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
 func CalculateAddress(name string, shardId types.ShardId, salt []byte, ctorArgs ...any) (types.Address, error) {
 	code, err := GetCode(name)
 	if err != nil {

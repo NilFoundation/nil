@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/NilFoundation/nil/client"
@@ -167,4 +169,25 @@ func (suite *RpcSuite) CallGetter(addr types.Address, callData []byte) []byte {
 	res, err := suite.client.Call(callArgs)
 	suite.Require().NoError(err)
 	return []byte(res)
+}
+
+func (s *RpcSuite) runCli(args ...string) string {
+	s.T().Helper()
+
+	data, err := s.runCliNoCheck(args...)
+	s.Require().NoErrorf(err, data)
+	return data
+}
+
+func (s *RpcSuite) runCliNoCheck(args ...string) (string, error) {
+	s.T().Helper()
+
+	mainPath, err := filepath.Abs("../../cmd/nil_cli/main.go")
+	s.Require().NoError(err)
+
+	args = append([]string{"run", mainPath}, args...)
+	cmd := exec.Command("go", args...)
+
+	data, err := cmd.CombinedOutput()
+	return string(data), err
 }
