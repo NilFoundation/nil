@@ -4,8 +4,6 @@ import (
 	"github.com/NilFoundation/nil/common"
 )
 
-var TopicErrorMessage = common.IntToHash(1)
-
 type Logs []*Log
 
 type Log struct {

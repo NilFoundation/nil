@@ -140,6 +140,18 @@ func WriteBlock(tx RwTx, shardId types.ShardId, block *types.Block) error {
 	return writeEncodable(tx, blockTable, shardId, block)
 }
 
+func WriteError(tx RwTx, msgHash common.Hash, errMsg string) error {
+	return tx.Put(ErrorByMessageHashTable, msgHash.Bytes(), []byte(errMsg))
+}
+
+func ReadError(tx RoTx, msgHash common.Hash) (string, error) {
+	res, err := tx.Get(ErrorByMessageHashTable, msgHash.Bytes())
+	if err != nil {
+		return "", err
+	}
+	return string(res), nil
+}
+
 func ReadContract(tx RoTx, shardId types.ShardId, hash common.Hash) (*types.SmartContract, error) {
 	return readDecodable[types.SmartContract, *types.SmartContract](tx, contractTable, shardId, hash)
 }

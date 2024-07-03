@@ -63,6 +63,7 @@ type ExecutionState struct {
 	OutMessages map[common.Hash][]*types.Message
 
 	Receipts []*types.Receipt
+	Errors   map[common.Hash]error
 
 	// Transient storage
 	transientStorage transientStorage
@@ -165,6 +166,7 @@ func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash,
 		Accounts:         map[types.Address]*AccountState{},
 		OutMessages:      map[common.Hash][]*types.Message{},
 		Logs:             map[common.Hash][]*types.Log{},
+		Errors:           map[common.Hash]error{},
 
 		journal:          newJournal(),
 		transientStorage: newTransientStorage(),
@@ -802,8 +804,7 @@ func (es *ExecutionState) AddReceipt(gasUsed types.Gas, err error) {
 		ContractAddress: es.GetInMessage().To,
 	}
 	if err != nil {
-		es.Logs[es.InMessageHash] = append(es.Logs[es.InMessageHash],
-			NewErrorLog(r.ContractAddress, err))
+		es.Errors[es.InMessageHash] = err
 	}
 	es.Receipts = append(es.Receipts, r)
 }
@@ -884,6 +885,12 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 
 	if TraceBlocksEnabled {
 		blocksTracer.Trace(es, &block)
+	}
+
+	for k, v := range es.Errors {
+		if err := db.WriteError(es.tx, k, v.Error()); err != nil {
+			return common.EmptyHash, err
+		}
 	}
 
 	blockHash := block.Hash()
