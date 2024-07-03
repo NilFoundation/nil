@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
@@ -25,10 +24,9 @@ func main() {
 		Short: "Run nil cluster",
 	}
 
-	curDir, _ := os.Getwd()
 	nShards := rootCmd.Flags().Int("nshards", 5, "number of shardchains")
 	port := rootCmd.Flags().Int("port", 8529, "http port for rpc server")
-	adminSocket := rootCmd.Flags().String("admin-socket-path", filepath.Join(curDir, "admin_socket"), "unix socket path for admin server")
+	adminSocket := rootCmd.Flags().String("admin-socket-path", "", "unix socket path to start admin server on (disabled if empty)}")
 	allowDropDb := rootCmd.Flags().Bool("allow-db-clear", false, "allow to clear database in case of outdated version")
 	dbPath := rootCmd.Flags().String("db-path", "test.db", "path to database")
 	dbDiscardRatio := rootCmd.Flags().Float64("db-discard-ratio", 0.5, "discard ratio for badger GC")
