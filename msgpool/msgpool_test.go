@@ -175,15 +175,15 @@ func (suite *SuiteMsgPool) TestPeek() {
 	suite.Require().Equal([]DiscardReason{NotSet, NotSet, NotSet, NotSet}, reasons)
 	suite.Equal(4, suite.pool.MessageCount())
 
-	msgs, err := suite.pool.Peek(ctx, 1, 0)
+	msgs, err := suite.pool.Peek(ctx, 1)
 	suite.Require().NoError(err)
 	suite.Require().Len(msgs, 1)
 
-	msgs, err = suite.pool.Peek(ctx, 4, 0)
+	msgs, err = suite.pool.Peek(ctx, 4)
 	suite.Require().NoError(err)
 	suite.Require().Len(msgs, 4)
 
-	msgs, err = suite.pool.Peek(ctx, 10, 0)
+	msgs, err = suite.pool.Peek(ctx, 10)
 	suite.Require().NoError(err)
 	suite.Require().Len(msgs, 4)
 
@@ -207,38 +207,15 @@ func (suite *SuiteMsgPool) TestOnNewBlock() {
 	suite.Require().Equal([]DiscardReason{NotSet, NotSet, NotSet, NotSet}, reasons)
 	suite.Equal(4, suite.pool.MessageCount())
 
-	// Attempt to peek messages for new block - wait until it's handled
-	ch := make(chan []*types.Message)
-	go func(ch chan []*types.Message) {
-		ctx := context.Background()
-		msgs, err := suite.pool.Peek(ctx, 4, 1)
-		if err == nil {
-			ch <- msgs
-		}
-	}(ch)
-
-	time.Sleep(100 * time.Millisecond)
-	select {
-	case <-ch:
-		suite.Fail("Channel expected to be empty")
-	default:
-	}
-
 	// TODO: Ideally we need to do that via execution state
-	block := types.Block{Id: 1}
-	err = suite.pool.OnNewBlock(ctx, &block, []*types.Message{&msg1_1, &msg1_2, &msg2_1})
+	err = suite.pool.OnCommitted(ctx, []*types.Message{&msg1_1, &msg1_2, &msg2_1})
 	suite.Require().NoError(err)
 
 	time.Sleep(100 * time.Millisecond)
 
 	// After commit Peek should return only one message
-	var messages []*types.Message
-	select {
-	case messages = <-ch:
-	default:
-		suite.Fail("Channel expected to have messages for block 1")
-	}
-
+	messages, err := suite.pool.Peek(ctx, 10)
+	suite.Require().NoError(err)
 	suite.Require().Len(messages, 1)
 	suite.Require().Equal([]*types.Message{&msg2_2}, messages)
 	suite.Equal(1, suite.pool.MessageCount())

@@ -46,7 +46,7 @@ func (s *CollatorTestSuite) TestCollator() {
 		BlockGeneratorParams: execution.NewBlockGeneratorParams(shardId, nShards, gasPrice, 0),
 	}, new(TrivialShardTopology), pool, sharedLogger)
 
-	generateBlock := func() {
+	generateBlock := func() *execution.Proposal {
 		proposal, err := c.GenerateProposal(s.ctx, s.db)
 		s.Require().NoError(err)
 		s.Require().NotNil(proposal)
@@ -55,9 +55,9 @@ func (s *CollatorTestSuite) TestCollator() {
 		s.Require().NoError(err)
 		defer blockGenerator.Rollback()
 
-		block, err := blockGenerator.GenerateBlock(proposal, gasPrice)
-		s.Require().NoError(err)
-		s.Require().NotNil(block)
+		s.Require().NoError(blockGenerator.GenerateBlock(proposal, gasPrice))
+
+		return proposal
 	}
 
 	s.Run("GenerateZeroState", func() {
@@ -74,20 +74,24 @@ func (s *CollatorTestSuite) TestCollator() {
 	balance := s.getBalance(shardId, from)
 	reserveForGas := gasLimit.ToValue(gasPrice)
 	actualMsgPrice := actualMsgGas.ToValue(gasPrice)
+	msgValue := sentValue.Add(reserveForGas)
+	m1 := execution.NewExecutionMessage(from, from, 0, contracts.NewWalletSendCallData(s.T(), types.Code{},
+		gasLimit, msgValue, []types.CurrencyBalance{}, to, types.ExecutionMessageKind))
+	m2 := common.CopyPtr(m1)
+	m2.Seqno = 1
+	s.Require().NoError(m1.Sign(execution.MainPrivateKey))
+	s.Require().NoError(m2.Sign(execution.MainPrivateKey))
 
 	s.Run("SendTokens", func() {
-		msgValue := sentValue.Add(reserveForGas)
-		m1 := execution.NewExecutionMessage(from, from, 0, contracts.NewWalletSendCallData(s.T(), types.Code{},
-			gasLimit, msgValue, []types.CurrencyBalance{}, to, types.ExecutionMessageKind))
-		m2 := common.CopyPtr(m1)
-		m2.Seqno = 1
-		s.Require().NoError(m1.Sign(execution.MainPrivateKey))
-		s.Require().NoError(m2.Sign(execution.MainPrivateKey))
 		pool.Msgs = []*types.Message{m1, m2}
 
-		generateBlock()
+		proposal := generateBlock()
 		s.checkReceipt(shardId, m1)
 		s.checkReceipt(shardId, m2)
+		s.Equal(pool.Msgs, proposal.InMsgs)
+		s.Equal(pool.Msgs, proposal.RemoveFromPool)
+
+		pool.Msgs = nil
 
 		// Each message subtracts its value + actual gas used from the balance.
 		balance = balance.
@@ -124,6 +128,17 @@ func (s *CollatorTestSuite) TestCollator() {
 
 		balance = balance.Add(reserveForGas).Add(reserveForGas)
 		s.Equal(balance, s.getBalance(shardId, from))
+	})
+
+	s.Run("DoNotProcessDuplicates", func() {
+		pool.Msgs = []*types.Message{m1, m2}
+
+		proposal := generateBlock()
+		s.Empty(proposal.InMsgs)
+		s.Empty(proposal.OutMsgs)
+		s.Equal(pool.Msgs, proposal.RemoveFromPool)
+
+		pool.Msgs = nil
 	})
 
 	s.Run("Deploy", func() {
