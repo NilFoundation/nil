@@ -27,6 +27,8 @@ package jsonrpc
 // @component FilterLogs filterLogs array "The array of logs that have been recorded since the last poll of the filter."
 // @component ShardIds shardIds array "The array of shard IDs."
 // @component GasShardId shardId integer "The ID of the shard whose gas price is requested."
+// @component GasPrice gasPrice integer "The current gas price in the given shard."
+// @component ChainId chainId integer "The chain ID of the network."
 // @component ReturnedValue returnedValue string "The returned value of the executed contract."
 // @component FullTx fullTx boolean "The flag that determines whether full transaction information is returned in the output."
 // @component BlockNumberOrHash blockNumberOrHash object "The number/hash of the block."
