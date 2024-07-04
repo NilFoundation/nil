@@ -27,3 +27,10 @@ func TestPubKeyAddressShardId(t *testing.T) {
 	// Padding with zeros in the higher-order bytes
 	assert.Equal(t, "0x00aac0fa3c5558573ba54dcb518b2f552df3f31d0483f05ac2b3f0894e9c86b5", result.Hex())
 }
+
+func TestHashNil(t *testing.T) {
+	t.Parallel()
+
+	result := PoseidonHash(nil)
+	assert.Len(t, result, 32)
+}
