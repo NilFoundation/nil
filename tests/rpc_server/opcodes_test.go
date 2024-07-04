@@ -65,10 +65,13 @@ contracts:
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            zerostate,
 		CollatorTickPeriodMs: 100,
-		GracefulShutdown:     false,
 		GasPriceScale:        15,
 		GasBasePrice:         10,
 	})
+}
+
+func (s *SuitOpcodes) TearDownSuite() {
+	s.cancel()
 }
 
 func (s *SuitOpcodes) GetBalance(address types.Address) types.Value {

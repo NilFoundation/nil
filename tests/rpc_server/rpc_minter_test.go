@@ -105,11 +105,8 @@ func (s *SuiteMultiCurrencyRpc) SetupTest() {
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            s.zerostateCfg,
 		CollatorTickPeriodMs: 100,
-		GracefulShutdown:     false,
-		GasPriceScale:        0,
 		GasBasePrice:         10,
 	})
-	s.waitZerostate()
 }
 
 func (s *SuiteMultiCurrencyRpc) TearDownTest() {

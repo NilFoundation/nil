@@ -58,10 +58,12 @@ contracts:
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            zerostate,
 		CollatorTickPeriodMs: 100,
-		GracefulShutdown:     false,
-		GasPriceScale:        0,
 		GasBasePrice:         10,
 	})
+}
+
+func (s *SuiteModifiersRpc) TearDownSuite() {
+	s.cancel()
 }
 
 func (s *SuiteModifiersRpc) TestInternalIncorrect() {

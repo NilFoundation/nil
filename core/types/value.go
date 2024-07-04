@@ -45,6 +45,11 @@ func (v Value) Add(other Value) Value {
 	return Value{v.Uint256.add(other.Uint256)}
 }
 
+func (v Value) AddOverflow(other Value) (Value, bool) {
+	res, overflow := v.Uint256.addOverflow(other.Uint256)
+	return Value{res}, overflow
+}
+
 func (v Value) Sub(other Value) Value {
 	return Value{v.Uint256.sub(other.Uint256)}
 }

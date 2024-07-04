@@ -32,6 +32,7 @@ type Scheduler struct {
 	params             Params
 	topology           ShardTopology
 	collatorTickPeriod time.Duration
+	timeout            time.Duration
 
 	ZeroState       string
 	MainKeysOutPath string
@@ -46,6 +47,7 @@ func NewScheduler(txFabric db.DB, pool MsgPool, params Params, topology ShardTop
 		params:             params,
 		topology:           topology,
 		collatorTickPeriod: collatorTickPeriod,
+		timeout:            collatorTickPeriod,
 		logger: logging.NewLogger("collator").With().
 			Stringer(logging.FieldShardId, params.ShardId).
 			Logger(),
@@ -76,7 +78,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 }
 
 func (s *Scheduler) generateZeroState(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
+	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
 	roTx, err := s.txFabric.CreateRoTx(ctx)
@@ -110,7 +112,7 @@ func (s *Scheduler) generateZeroState(ctx context.Context) error {
 }
 
 func (s *Scheduler) doCollate(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
+	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
 	collator := newCollator(s.params, s.topology, s.pool, s.logger)

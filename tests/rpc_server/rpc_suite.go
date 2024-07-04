@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/NilFoundation/nil/client"
@@ -24,8 +25,11 @@ import (
 
 type RpcSuite struct {
 	suite.Suite
+
 	context   context.Context
-	cancel    context.CancelFunc
+	ctxCancel context.CancelFunc
+	wg        sync.WaitGroup
+
 	client    client.Client
 	shardsNum int
 	endpoint  string
@@ -39,15 +43,27 @@ func (suite *RpcSuite) start(cfg *nilservice.Config) {
 	suite.T().Helper()
 
 	suite.shardsNum = cfg.NShards
-	suite.context, suite.cancel = context.WithCancel(context.Background())
+	suite.context, suite.ctxCancel = context.WithCancel(context.Background())
 
 	badger, err := db.NewBadgerDbInMemory()
 	suite.Require().NoError(err)
 
 	suite.endpoint = fmt.Sprintf("http://127.0.0.1:%d", cfg.HttpPort)
 	suite.client = rpc_client.NewClient(suite.endpoint)
-	go nilservice.Run(suite.context, cfg, badger)
+
+	suite.wg.Add(1)
+	go func() {
+		nilservice.Run(suite.context, cfg, badger)
+		suite.wg.Done()
+	}()
 	suite.waitZerostate()
+}
+
+func (suite *RpcSuite) cancel() {
+	suite.T().Helper()
+
+	suite.ctxCancel()
+	suite.wg.Wait()
 }
 
 func (suite *RpcSuite) waitForReceipt(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {

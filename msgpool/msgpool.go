@@ -73,6 +73,7 @@ func (p *MsgPool) Add(ctx context.Context, msgs []*types.Message) ([]DiscardReas
 		}
 		discardReasons[i] = NotSet // unnecessary
 		p.logger.Debug().
+			Uint64(logging.FieldShardId, uint64(msg.To.ShardId())).
 			Stringer(logging.FieldMessageHash, msg.Hash()).
 			Stringer(logging.FieldMessageTo, msg.To).
 			Msg("Added new message.")
@@ -85,6 +86,7 @@ func (p *MsgPool) validateMsg(msg *types.Message) (DiscardReason, bool) {
 	seqno, has := p.all.seqno(msg.To)
 	if has && seqno > msg.Seqno {
 		p.logger.Debug().
+			Uint64(logging.FieldShardId, uint64(msg.To.ShardId())).
 			Stringer(logging.FieldMessageHash, msg.Hash()).
 			Uint64(logging.FieldAccountSeqno, seqno.Uint64()).
 			Uint64(logging.FieldMessageSeqno, msg.Seqno.Uint64()).
@@ -202,6 +204,7 @@ func (p *MsgPool) removeCommitted(bySeqno *ByReceiverAndSeqno, msgs []*types.Mes
 		bySeqno.ascend(senderID, func(msg *types.Message) bool {
 			if msg.Seqno > seqno {
 				p.logger.Trace().
+					Uint64(logging.FieldShardId, uint64(msg.To.ShardId())).
 					Uint64(logging.FieldMessageSeqno, msg.Seqno.Uint64()).
 					Uint64(logging.FieldAccountSeqno, seqno.Uint64()).
 					Msg("Removing committed, cmp seqnos")
@@ -210,6 +213,7 @@ func (p *MsgPool) removeCommitted(bySeqno *ByReceiverAndSeqno, msgs []*types.Mes
 			}
 
 			p.logger.Trace().
+				Uint64(logging.FieldShardId, uint64(msg.To.ShardId())).
 				Stringer(logging.FieldMessageHash, msg.Hash()).
 				Stringer(logging.FieldMessageTo, msg.To).
 				Uint64(logging.FieldMessageSeqno, msg.Seqno.Uint64()).

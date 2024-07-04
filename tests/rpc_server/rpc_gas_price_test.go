@@ -24,10 +24,13 @@ func (s *SuitGasPrice) SetupSuite() {
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            execution.DefaultZeroStateConfig,
 		CollatorTickPeriodMs: 100,
-		GracefulShutdown:     false,
 		GasPriceScale:        15,
 		GasBasePrice:         10,
 	})
+}
+
+func (s *SuitGasPrice) TearDownSuite() {
+	s.cancel()
 }
 
 func (s *SuitGasPrice) TestGasBehaviour() {

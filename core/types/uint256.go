@@ -144,6 +144,11 @@ func (u *Uint256) add(other *Uint256) *Uint256 {
 	return (*Uint256)(uint256.NewInt(0).Add(u.safeInt(), other.safeInt()))
 }
 
+func (u *Uint256) addOverflow(other *Uint256) (*Uint256, bool) {
+	res, overflow := uint256.NewInt(0).AddOverflow(u.safeInt(), other.safeInt())
+	return (*Uint256)(res), overflow
+}
+
 func (u *Uint256) sub(other *Uint256) *Uint256 {
 	return (*Uint256)(uint256.NewInt(0).Sub(u.safeInt(), other.safeInt()))
 }
