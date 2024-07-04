@@ -2,7 +2,6 @@ package receipt
 
 import (
 	"github.com/NilFoundation/nil/cli/service"
-	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	libcommon "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/logging"
@@ -14,12 +13,10 @@ var logger = logging.NewLogger("receiptCommand")
 
 func GetCommand(cfg *common.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
-		Use:   "receipt [hash]",
-		Short: "Retrieve a receipt from the cluster",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCommand(cmd, args, cfg.RPCEndpoint)
-		},
+		Use:          "receipt [hash]",
+		Short:        "Retrieve a receipt from the cluster",
+		Args:         cobra.ExactArgs(1),
+		RunE:         runCommand,
 		SilenceUsage: true,
 	}
 
@@ -36,9 +33,8 @@ func setFlags(cmd *cobra.Command) {
 	)
 }
 
-func runCommand(_ *cobra.Command, args []string, rpcEndpoint string) error {
-	client := rpc.NewClient(rpcEndpoint)
-	service := service.NewService(client, nil)
+func runCommand(_ *cobra.Command, args []string) error {
+	service := service.NewService(common.GetRpcClient(), nil)
 
 	var hash libcommon.Hash
 	if err := hash.Set(args[0]); err != nil {

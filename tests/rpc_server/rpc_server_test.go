@@ -338,6 +338,26 @@ func (s *SuiteRpc) TestRpcApiModules() {
 	s.Equal("1.0", data["rpc"])
 }
 
+func (s *SuiteRpc) TestUnsupportedClientVersion() {
+	s.Run("Unsupported version", func() {
+		client := rpc_client.NewClientWithDefaultHeaders(s.endpoint, map[string]string{"User-Agent": "nil-cli/12"})
+		_, err := client.ChainId()
+		s.Require().ErrorContains(err, "unexpected status code: 426: specified revision 12, minimum supported is")
+	})
+
+	s.Run("0 means unknown - skip check", func() {
+		client := rpc_client.NewClientWithDefaultHeaders(s.endpoint, map[string]string{"User-Agent": "nil-cli/0"})
+		_, err := client.ChainId()
+		s.Require().NoError(err)
+	})
+
+	s.Run("Valid revision", func() {
+		client := rpc_client.NewClientWithDefaultHeaders(s.endpoint, map[string]string{"User-Agent": "nil-cli/10000000"})
+		_, err := client.ChainId()
+		s.Require().NoError(err)
+	})
+}
+
 func (s *SuiteRpc) TestEmptyDeployPayload() {
 	wallet := types.MainWalletAddress
 

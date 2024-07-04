@@ -2,7 +2,6 @@ package contract
 
 import (
 	"github.com/NilFoundation/nil/cli/service"
-	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -28,8 +27,7 @@ func runBalance(_ *cobra.Command, args []string, cfg *common.Config) error {
 		return err
 	}
 
-	client := rpc.NewClient(cfg.RPCEndpoint)
-	service := service.NewService(client, cfg.PrivateKey)
+	service := service.NewService(common.GetRpcClient(), cfg.PrivateKey)
 	_, _ = service.GetBalance(address)
 	return nil
 }

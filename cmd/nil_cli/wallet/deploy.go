@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/NilFoundation/nil/cli/service"
-	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	libcommon "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
@@ -76,8 +75,7 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 		return errors.New("no-wait flag can't be used with currency flag")
 	}
 
-	client := rpc.NewClient(cfg.RPCEndpoint)
-	service := service.NewService(client, cfg.PrivateKey)
+	service := service.NewService(common.GetRpcClient(), cfg.PrivateKey)
 
 	var filename string
 	var args []string

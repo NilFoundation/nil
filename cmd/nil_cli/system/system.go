@@ -2,7 +2,6 @@ package system
 
 import (
 	"github.com/NilFoundation/nil/cli/service"
-	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/core/types"
@@ -20,8 +19,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 			if err := cmd.Parent().Parent().PersistentPreRunE(cmd, args); err != nil {
 				return err
 			}
-			client := rpc.NewClient(cfg.RPCEndpoint)
-			svc = service.NewService(client, cfg.PrivateKey)
+			svc = service.NewService(common.GetRpcClient(), cfg.PrivateKey)
 			return nil
 		},
 	}

@@ -77,6 +77,7 @@ func main() {
 				if err := rootCmd.validateConfig(); err != nil {
 					return err
 				}
+				common.InitRpcClient(&rootCmd.config)
 				return nil
 			},
 			SilenceUsage:  true,

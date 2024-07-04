@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/cli/service"
-	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
@@ -57,8 +56,7 @@ func GetAddressCommand(cfg *common.Config) *cobra.Command {
 }
 
 func runAddress(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
-	client := rpc.NewClient(cfg.RPCEndpoint)
-	service := service.NewService(client, cfg.PrivateKey)
+	service := service.NewService(common.GetRpcClient(), cfg.PrivateKey)
 
 	var filename string
 	var args []string

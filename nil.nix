@@ -44,8 +44,9 @@ in buildGoModule rec {
   rev = src_repo.shortRev or src_repo.dirtyShortRev or "unknown";
   packageName = "github.com/NilFoundation/nil";
   ldflags = [
-    "-X ${packageName}/cmd/nil_cli/version.gitCommit=${rev}"
-    "-X ${packageName}/cmd/nil_cli/version.gitTag=${version}"
+    "-X ${packageName}/common/version.gitCommit=${rev}"
+    "-X ${packageName}/common/version.gitTag=${version}"
+    "-X ${packageName}/common/version.gitRevision=${toString revCount}"
   ];
 
   doCheck = enableTesting;

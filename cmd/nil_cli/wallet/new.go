@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/NilFoundation/nil/cli/service"
-	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
@@ -59,8 +58,7 @@ func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
 		amount = defaultNewWalletAmount
 	}
 
-	client := rpc.NewClient(cfg.RPCEndpoint)
-	srv := service.NewService(client, cfg.PrivateKey)
+	srv := service.NewService(common.GetRpcClient(), cfg.PrivateKey)
 	walletAddress, err := srv.CreateWallet(params.shardId, &params.salt, amount, &cfg.PrivateKey.PublicKey)
 
 	if errors.Is(err, service.ErrWalletExists) {

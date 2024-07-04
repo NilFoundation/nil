@@ -11,6 +11,8 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +22,7 @@ import (
 const (
 	maxRequestContentLength = 1024 * 1024 * 32 // 32MB
 	contentType             = "application/json"
+	minSupportedRevision    = 900
 )
 
 type (
@@ -215,6 +218,29 @@ func validateRequest(r *http.Request) (int, error) {
 	if r.Method == http.MethodOptions || r.Method == http.MethodGet {
 		return 0, nil
 	}
+
+	// User-Agent is supported by server
+	ua := r.Header.Get("User-Agent")
+	if ua != "" {
+		var uaPrefix string
+		if strings.HasPrefix(ua, "nil-cli") {
+			uaPrefix = "nil-cli/"
+		} else if strings.HasPrefix(ua, "niljs") {
+			uaPrefix = "niljs/"
+		}
+
+		version, hasVersion := strings.CutPrefix(ua, uaPrefix)
+		if hasVersion {
+			num, err := strconv.Atoi(version)
+			if err == nil && num > 0 {
+				if num < minSupportedRevision {
+					err := fmt.Errorf("specified revision %d, minimum supported is %d", num, minSupportedRevision)
+					return http.StatusUpgradeRequired, err
+				}
+			}
+		}
+	}
+
 	// Check content-type
 	if mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err == nil {
 		for _, accepted := range acceptedContentTypes {

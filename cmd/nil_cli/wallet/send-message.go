@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/cli/service"
-	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -60,8 +59,7 @@ func SendMessageCommand(cfg *common.Config) *cobra.Command {
 }
 
 func runSend(_ *cobra.Command, args []string, cfg *common.Config) error {
-	client := rpc.NewClient(cfg.RPCEndpoint)
-	service := service.NewService(client, cfg.PrivateKey)
+	service := service.NewService(common.GetRpcClient(), cfg.PrivateKey)
 
 	var address types.Address
 	if err := address.Set(args[0]); err != nil {
