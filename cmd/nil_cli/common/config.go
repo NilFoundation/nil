@@ -76,6 +76,10 @@ func InitDefaultConfig(configPath string) (string, error) {
 
 func PatchConfig(delta map[string]any, force bool) error {
 	configPath := viper.ConfigFileUsed()
+	if configPath == "" {
+		// impossible, since we set the default in SetConfigFile
+		panic("config file is not set")
+	}
 	if _, err := os.Stat(configPath); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			configPath, err = InitDefaultConfig(configPath)
@@ -89,7 +93,7 @@ func PatchConfig(delta map[string]any, force bool) error {
 	if err != nil {
 		return err
 	}
-	// create a string builder to generate the new config file
+
 	result := strings.Builder{}
 	first := true
 	for _, line := range strings.Split(string(cfg), "\n") {
@@ -114,11 +118,6 @@ func PatchConfig(delta map[string]any, force bool) error {
 
 // SetConfigFile sets the config file for the viper
 func SetConfigFile(cfgFile string) {
-	if cfgFile == "" {
-		viper.SetConfigName("config")
-		viper.SetConfigType("ini")
-		viper.AddConfigPath("$HOME/.config/nil/")
-	} else {
-		viper.SetConfigFile(cfgFile)
-	}
+	viper.SetConfigType("ini")
+	viper.SetConfigFile(cfgFile)
 }

@@ -83,7 +83,7 @@ func main() {
 		},
 	}
 
-	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.cfgFile, "config", "c", "", "Path to config file")
+	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.cfgFile, "config", "c", common.DefaultConfigPath, "Path to config file")
 	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.logLevel, "log-level", "l", "info", "Log level: trace|debug|info|warn|error|fatal|panic")
 
 	rootCmd.registerSubCommands()
