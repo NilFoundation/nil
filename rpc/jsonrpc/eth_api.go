@@ -161,7 +161,7 @@ type EthAPI interface {
 		@summary Returns the current gas price in the network.
 		@description Implements eth_gasPrice.
 		@tags [Transactions]
-		@param shardId ShardId
+		@param shardId GasShardId
 		@returns gasPrice GasPrice
 	*/
 	GasPrice(ctx context.Context, shardId types.ShardId) (*hexutil.Big, error)
@@ -258,7 +258,7 @@ type EthAPI interface {
 
 	/*
 		@name GetShardsIdList
-		@summary Retrieves a list of ids of all shards.
+		@summary Retrieves a list of IDs of all shards.
 		@description
 		@tags [Shards]
 		@returns shardIds ShardIds
