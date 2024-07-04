@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/concurrent"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
@@ -59,15 +60,16 @@ func (s *Service) WaitForReceipt(shardId types.ShardId, mshHash common.Hash) (*j
 
 	if len(failed) > 0 {
 		if !receipt.Success {
-			s.logger.Error().Msgf("Message processing failed: %s", receipt.ErrorMessage)
+			s.logger.Error().Str(logging.FieldError, receipt.ErrorMessage).Msg("Failed message processing.")
 
 			if len(receipt.OutReceipts) > 0 {
-				s.logger.Error().Msg("Failed message has out messages. Report to the developers.")
+				s.logger.Error().Msg("Failed message has outgoing messages. Report to the developers.")
 			}
 		} else {
+			s.logger.Info().Msg("Failed outgoing messages:")
 			for _, r := range failed {
 				if !r.Success {
-					s.logger.Error().Msgf("Out message %s failed: %s", r.MsgHash, r.ErrorMessage)
+					s.logger.Error().Str(logging.FieldError, r.ErrorMessage).Stringer(logging.FieldMessageHash, r.MsgHash).Send()
 				}
 			}
 		}
@@ -77,7 +79,14 @@ func (s *Service) WaitForReceipt(shardId types.ShardId, mshHash common.Hash) (*j
 			s.logger.Error().Err(err).Msg("Failed to marshal unsuccessful receipt data to JSON")
 			return nil, err
 		}
-		s.logger.Debug().Msgf("Full receipt:\n%s", receiptDataJSON)
+
+		debug := s.logger.Debug()
+		if debug == nil {
+			s.logger.Info().Msg("To view full receipts, run with debug log level or use `nil_cli receipt`.")
+		} else {
+			debug.Msg(string(receiptDataJSON))
+		}
+		return nil, nil
 	}
 	return receipt, nil
 }

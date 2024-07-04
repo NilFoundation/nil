@@ -7,7 +7,11 @@ import (
 )
 
 func (s *Service) handleCurrencyTx(txHash common.Hash, contractAddr types.Address) error {
-	s.logger.Info().Msgf("Transaction hash: %s (shard %s)", txHash, contractAddr.ShardId())
+	s.logger.Info().
+		Stringer(logging.FieldShardId, contractAddr.ShardId()).
+		Stringer(logging.FieldMessageHash, txHash).
+		Send()
+
 	_, err := s.WaitForReceipt(contractAddr.ShardId(), txHash)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to wait for currency transaction receipt")
