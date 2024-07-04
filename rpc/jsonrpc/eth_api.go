@@ -161,7 +161,7 @@ type EthAPI interface {
 		@summary Returns the current gas price in the network.
 		@description Implements eth_gasPrice.
 		@tags [Transactions]
-		@param shardId ShardId
+		@param shardId GasShardId
 		@returns gasPrice GasPrice
 	*/
 	GasPrice(ctx context.Context, shardId types.ShardId) (*hexutil.Big, error)
@@ -204,7 +204,7 @@ type EthAPI interface {
 		@description
 		@tags [Filters]
 		@param query FilterQuery
-		@returns FilterId filterId
+		@returns filterId FilterId
 	*/
 	NewFilter(_ context.Context, query filters.FilterQuery) (string, error)
 
@@ -213,7 +213,7 @@ type EthAPI interface {
 		@summary Creates a new pending transactions filter.
 		@description Implements eth_newPendingTransactionFilter.
 		@tags [Filters]
-		@returns FilterId filterId
+		@returns filterId FilterId
 	*/
 	NewPendingTransactionFilter(_ context.Context) (string, error)
 
@@ -222,7 +222,7 @@ type EthAPI interface {
 		@summary Creates a new block filter.
 		@description Implements eth_newBlockFilter.
 		@tags [Filters]
-		@returns FilterId filterId
+		@returns filterId FilterId
 	*/
 	NewBlockFilter(_ context.Context) (string, error)
 
@@ -258,7 +258,7 @@ type EthAPI interface {
 
 	/*
 		@name GetShardsIdList
-		@summary Retrieves a list of ids of all shards.
+		@summary Retrieves a list of IDs of all shards.
 		@description
 		@tags [Shards]
 		@returns shardIds ShardIds
@@ -278,7 +278,7 @@ type EthAPI interface {
 
 	/*
 		@name ChainId
-		@summary Returns the chain ID of the current network..
+		@summary Returns the chain ID of the current network.
 		@description Implements eth_chainId.
 		@tags [System]
 		@returns chainId ChainId

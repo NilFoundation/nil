@@ -45,7 +45,7 @@ lint: ssz
 	GOPROXY= go mod tidy
 	GOPROXY= go mod vendor
 	gofumpt -l -w .
-	gci write .
+	gci write . --skip-generated --skip-vendor
 	golangci-lint run
 
 rpcspec:

@@ -2,6 +2,7 @@ package rpctest
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"os"
 	"os/exec"
@@ -322,5 +323,31 @@ func (s *SuiteRpc) TestCliCreateWallet() {
 	s.Run("Call read-only 'get' function of contract once again", func() {
 		res := s.runCli("-c", cfgPath, "contract", "call-readonly", addr.String(), "get", "--abi", abiFileName)
 		s.Contains(res, "Call result: 0x000000000000000000000000000000000000000000000000000000000001e1ba")
+	})
+}
+
+func (s *SuiteRpc) TestCliConfig() {
+	dir := s.T().TempDir()
+
+	cfgPath := dir + "/config.ini"
+
+	s.Run("Create config", func() {
+		res := s.runCli("-c", cfgPath, "config", "init")
+		s.Contains(res, "Config initialized successfully: "+cfgPath)
+	})
+
+	s.Run("Set config value", func() {
+		res := s.runCli("-c", cfgPath, "config", "set", "rpc_endpoint", s.endpoint)
+		s.Contains(res, fmt.Sprintf("Set \"rpc_endpoint\" to %q", s.endpoint))
+	})
+
+	s.Run("Read config value", func() {
+		res := s.runCli("-c", cfgPath, "config", "get", "rpc_endpoint")
+		s.Contains(res, "rpc_endpoint: "+s.endpoint)
+	})
+
+	s.Run("Show config", func() {
+		res := s.runCli("-c", cfgPath, "config", "show")
+		s.Contains(res, "rpc_endpoint: "+s.endpoint)
 	})
 }
