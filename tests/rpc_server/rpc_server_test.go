@@ -429,6 +429,7 @@ func (s *SuiteRpc) TestNoOutMessagesIfFailure() {
 	s.Require().NoError(err)
 	receipt = s.waitForReceipt(addr.ShardId(), txhash)
 	s.Require().False(receipt.Success)
+	s.Require().NotEqual("Success", receipt.Status)
 	s.Require().Empty(receipt.OutReceipts)
 	s.Require().Empty(receipt.OutMessages)
 

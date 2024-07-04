@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/db"
@@ -733,7 +734,7 @@ func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.
 	gas := message.GasLimit
 
 	if err := es.newVm(message.IsInternal()); err != nil {
-		return gas, err
+		return gas, types.NewMessageError(types.MessageStatusOther, err)
 	}
 	defer es.resetVm()
 
@@ -748,14 +749,14 @@ func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.
 		event.Err(err).Msg("Contract deployment failed.")
 		if message.IsInternal() {
 			if bounceErr := es.sendBounceMessage(message, err.Error()); bounceErr != nil {
-				return leftOverGas, bounceErr
+				return leftOverGas, types.NewMessageError(types.MessageStatusBounce, err)
 			}
 		}
 	} else {
 		event.Msg("Created new contract.")
 	}
 
-	return leftOverGas, err
+	return leftOverGas, es.evmToMessageError(err)
 }
 
 func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *types.Message) (types.Gas, []byte, error) {
@@ -767,7 +768,7 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	gas := message.GasLimit
 
 	if err := es.newVm(message.IsInternal()); err != nil {
-		return gas, nil, err
+		return gas, nil, types.NewMessageError(types.MessageStatusOther, err)
 	}
 	defer es.resetVm()
 
@@ -778,10 +779,10 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	if message.IsExternal() {
 		seqno, err := es.GetExtSeqno(addr)
 		if err != nil {
-			return gas, nil, err
+			return gas, nil, types.NewMessageError(types.MessageStatusSeqno, err)
 		}
 		if err := es.SetExtSeqno(addr, seqno+1); err != nil {
-			return gas, nil, err
+			return gas, nil, types.NewMessageError(types.MessageStatusSeqno, err)
 		}
 	}
 
@@ -799,12 +800,13 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 			logger.Error().Err(err).Msg("execution message failed")
 			if message.IsInternal() {
 				if bounceErr := es.sendBounceMessage(message, err.Error()); bounceErr != nil {
-					return leftOverGas, ret, bounceErr
+					return leftOverGas, ret, types.NewMessageError(types.MessageStatusBounce, err)
 				}
 			}
 		}
 	}
-	return leftOverGas, ret, err
+
+	return leftOverGas, ret, es.evmToMessageError(err)
 }
 
 // decodeRevertMessage decodes the revert message from the EVM revert data
@@ -823,12 +825,23 @@ func decodeRevertMessage(data []byte) string {
 func (es *ExecutionState) HandleRefundMessage(_ context.Context, message *types.Message) error {
 	err := es.AddBalance(message.To, message.Value, tracing.BalanceIncreaseRefund)
 	logger.Debug().Err(err).Msgf("Refunded %s to %v", message.Value, message.To)
-	return err
+	if err != nil {
+		return types.NewMessageError(types.MessageStatusOther, err)
+	}
+	return nil
 }
 
 func (es *ExecutionState) AddReceipt(gasUsed types.Gas, err error) {
+	status := types.MessageStatusSuccess
+	if err != nil {
+		errMsg := &types.MessageError{}
+		check.PanicIfNotf(errors.As(err, &errMsg), "expected MessageError, got %T", err)
+		status = errMsg.Status
+	}
+
 	r := &types.Receipt{
 		Success:         err == nil,
+		Status:          status,
 		GasUsed:         gasUsed,
 		MsgHash:         es.InMessageHash,
 		Logs:            es.Logs[es.InMessageHash],
@@ -1106,4 +1119,44 @@ func (es *ExecutionState) newVm(internal bool) error {
 
 func (es *ExecutionState) resetVm() {
 	es.evm = nil
+}
+
+func (es *ExecutionState) evmToMessageError(err error) error {
+	switch {
+	case errors.Is(err, vm.ErrOutOfGas):
+		return types.NewMessageError(types.MessageStatusOutOfGas, err)
+	case errors.Is(err, vm.ErrCodeStoreOutOfGas):
+		return types.NewMessageError(types.MessageStatusCodeStoreOutOfGas, err)
+	case errors.Is(err, vm.ErrDepth):
+		return types.NewMessageError(types.MessageStatusDepth, err)
+	case errors.Is(err, vm.ErrInsufficientBalance):
+		return types.NewMessageError(types.MessageStatusInsufficientBalance, err)
+	case errors.Is(err, vm.ErrContractAddressCollision):
+		return types.NewMessageError(types.MessageStatusContractAddressCollision, err)
+	case errors.Is(err, vm.ErrExecutionReverted):
+		return types.NewMessageError(types.MessageStatusExecutionReverted, err)
+	case errors.Is(err, vm.ErrMaxCodeSizeExceeded):
+		return types.NewMessageError(types.MessageStatusMaxCodeSizeExceeded, err)
+	case errors.Is(err, vm.ErrMaxInitCodeSizeExceeded):
+		return types.NewMessageError(types.MessageStatusMaxInitCodeSizeExceeded, err)
+	case errors.Is(err, vm.ErrInvalidJump):
+		return types.NewMessageError(types.MessageStatusInvalidJump, err)
+	case errors.Is(err, vm.ErrWriteProtection):
+		return types.NewMessageError(types.MessageStatusWriteProtection, err)
+	case errors.Is(err, vm.ErrReturnDataOutOfBounds):
+		return types.NewMessageError(types.MessageStatusReturnDataOutOfBounds, err)
+	case errors.Is(err, vm.ErrGasUintOverflow):
+		return types.NewMessageError(types.MessageStatusGasUintOverflow, err)
+	case errors.Is(err, vm.ErrInvalidCode):
+		return types.NewMessageError(types.MessageStatusInvalidCode, err)
+	case errors.Is(err, vm.ErrNonceUintOverflow):
+		return types.NewMessageError(types.MessageStatusNonceUintOverflow, err)
+	case errors.Is(err, vm.ErrInvalidInputLength):
+		return types.NewMessageError(types.MessageStatusInvalidInputLength, err)
+	case errors.Is(err, vm.ErrCrossShardMessage):
+		return types.NewMessageError(types.MessageStatusCrossShardMessage, err)
+	case err == nil:
+		return nil
+	}
+	return types.NewMessageError(types.MessageStatusExecution, err)
 }

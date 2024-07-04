@@ -98,10 +98,12 @@ type RPCBlock struct {
 // @componentprop OutMsgNum outMsgNum integer true "The number of the outgoing messages whose receipt is requested."
 // @componentprop OutReceipts outputReceipts array true "Receipts of the outgoing messages. Set to nil for messages that have not yet been processed."
 // @componentprop Success success boolean true "The flag that shows whether the message was successful."
+// @componentprop Status status string false "Status shows concrete error of the executed message."
 // @componentprop Temporary temporary boolean false "The flag that shows whether the message is temporary."
 // @componentprop ErrorMessage errorMessage string false "The error in case the message processing was unsuccessful."
 type RPCReceipt struct {
 	Success         bool               `json:"success"`
+	Status          string             `json:"status"`
 	GasUsed         types.Gas          `json:"gasUsed"`
 	Bloom           hexutil.Bytes      `json:"bloom,omitempty"`
 	Logs            []*RPCLog          `json:"logs"`
@@ -234,6 +236,7 @@ func NewRPCReceipt(
 
 	res := &RPCReceipt{
 		Success:         receipt.Success,
+		Status:          receipt.Status.String(),
 		GasUsed:         receipt.GasUsed,
 		Logs:            logs,
 		OutMessages:     outMessages,

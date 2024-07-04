@@ -8,12 +8,13 @@ import (
 type Receipts []*Receipt
 
 type Receipt struct {
-	Success     bool   `json:"success"`
-	GasUsed     Gas    `json:"gasUsed"`
-	Bloom       Bloom  `json:"bloom"`
-	Logs        []*Log `json:"logs" ssz-max:"1000"`
-	OutMsgIndex uint32 `json:"outMsgIndex"`
-	OutMsgNum   uint32 `json:"outMsgNum"`
+	Success     bool          `json:"success"`
+	Status      MessageStatus `json:"status"`
+	GasUsed     Gas           `json:"gasUsed"`
+	Bloom       Bloom         `json:"bloom"`
+	Logs        []*Log        `json:"logs" ssz-max:"1000"`
+	OutMsgIndex uint32        `json:"outMsgIndex"`
+	OutMsgNum   uint32        `json:"outMsgNum"`
 
 	MsgHash         common.Hash `json:"messageHash"`
 	ContractAddress Address     `json:"contractAddress"`

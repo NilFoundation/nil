@@ -130,6 +130,7 @@ var (
 	_ common.Hashable = new(ExternalMessage)
 	_ ssz.Marshaler   = new(Message)
 	_ ssz.Unmarshaler = new(Message)
+	_ error           = new(MessageError)
 )
 
 func NewEmptyMessage() *Message {
@@ -369,4 +370,53 @@ func (m *MessageFlags) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return nil
+}
+
+const (
+	MessageStatusSuccess MessageStatus = iota
+	// All codes below are considered as errors
+	MessageStatusOther
+	MessageStatusExecution
+	MessageStatusOutOfGas
+	MessageStatusSeqno
+	MessageStatusBounce
+	MessageStatusBuyGas
+	MessageStatusValidation
+	MessageStatusInsufficientBalance
+	MessageStatusNoAccount
+	MessageStatusCodeStoreOutOfGas
+	MessageStatusDepth
+	MessageStatusContractAddressCollision
+	MessageStatusExecutionReverted
+	MessageStatusMaxCodeSizeExceeded
+	MessageStatusMaxInitCodeSizeExceeded
+	MessageStatusInvalidJump
+	MessageStatusWriteProtection
+	MessageStatusReturnDataOutOfBounds
+	MessageStatusGasUintOverflow
+	MessageStatusInvalidCode
+	MessageStatusNonceUintOverflow
+	MessageStatusInvalidInputLength
+	MessageStatusCrossShardMessage
+	MessageStatusStopToken
+)
+
+type MessageStatus uint32
+
+type MessageError struct {
+	Status MessageStatus
+	Inner  error
+}
+
+func NewMessageError(status MessageStatus, err error) *MessageError {
+	check.PanicIfNot(err != nil)
+	return &MessageError{status, err}
+}
+
+func (m *MessageError) Error() string {
+	return m.Inner.Error()
+}
+
+func (m *MessageError) Unwrap() error {
+	return m.Inner
 }

@@ -29,3 +29,6 @@ keys.yaml
 # Local build files
 cmd/nil/nil
 cmd/nil_cli/nil_cli
+
+# stringer generated files
+*_string.go

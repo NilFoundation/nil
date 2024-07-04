@@ -104,6 +104,7 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, defaultGasPrice types
 		panic("Proposed previous block hash doesn't match the current state.")
 	}
 
+	var err error
 	gasPrice, err := db.ReadGasPerShard(g.rwTx, g.executionState.ShardId)
 	if errors.Is(err, db.ErrKeyNotFound) {
 		gasPrice = defaultGasPrice
@@ -114,7 +115,6 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, defaultGasPrice types
 	for _, msg := range proposal.InMsgs {
 		g.executionState.AddInMessage(msg)
 		var gasUsed types.Gas
-		var err error
 		if msg.IsInternal() {
 			gasUsed, err = g.handleInternalInMessage(msg, gasPrice)
 		} else {
@@ -141,10 +141,10 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, defaultGasPrice types
 func (g *BlockGenerator) handleMessage(msg *types.Message, payer payer, gasPrice types.Value) (types.Gas, error) {
 	gas := msg.GasLimit
 	if err := buyGas(payer, msg, gasPrice); err != nil {
-		return 0, err
+		return 0, types.NewMessageError(types.MessageStatusBuyGas, err)
 	}
 	if err := msg.VerifyFlags(); err != nil {
-		return 0, err
+		return 0, types.NewMessageError(types.MessageStatusValidation, err)
 	}
 
 	var leftOverGas types.Gas
@@ -175,7 +175,7 @@ func (g *BlockGenerator) validateInternalMessage(message *types.Message) error {
 func (g *BlockGenerator) handleInternalInMessage(msg *types.Message, gasPrice types.Value) (types.Gas, error) {
 	if err := g.validateInternalMessage(msg); err != nil {
 		g.logger.Warn().Err(err).Msg("Invalid internal message")
-		return 0, err
+		return 0, types.NewMessageError(types.MessageStatusValidation, err)
 	}
 
 	return g.handleMessage(msg, messagePayer{msg, g.executionState}, gasPrice)
@@ -184,12 +184,12 @@ func (g *BlockGenerator) handleInternalInMessage(msg *types.Message, gasPrice ty
 func (g *BlockGenerator) handleExternalMessage(msg *types.Message, gasPrice types.Value) (types.Gas, error) {
 	if err := ValidateExternalMessage(g.executionState, msg, gasPrice); err != nil {
 		g.logger.Error().Err(err).Msg("Invalid external message.")
-		return 0, err
+		return 0, types.NewMessageError(types.MessageStatusValidation, err)
 	}
 
 	acc, err := g.executionState.GetAccount(msg.To)
 	if err != nil {
-		return 0, err
+		return 0, types.NewMessageError(types.MessageStatusNoAccount, err)
 	}
 	return g.handleMessage(msg, accountPayer{acc, msg}, gasPrice)
 }

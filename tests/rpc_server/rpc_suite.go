@@ -79,7 +79,7 @@ func (s *RpcSuite) waitForReceipt(shardId types.ShardId, hash common.Hash) *json
 		receipt, err = s.client.GetInMessageReceipt(shardId, hash)
 		s.Require().NoError(err)
 		return receipt.IsComplete()
-	}, 15*time.Minute, 200*time.Millisecond)
+	}, 15*time.Second, 200*time.Millisecond)
 
 	return receipt
 }
@@ -107,6 +107,7 @@ func (s *RpcSuite) deployContractViaWallet(
 	s.Require().NoError(err)
 	receipt := s.waitForReceipt(addrFrom.ShardId(), txHash)
 	s.Require().True(receipt.Success)
+	s.Require().Equal("Success", receipt.Status)
 	s.Require().Len(receipt.OutReceipts, 1)
 
 	txHash, addr, err := s.client.DeployContract(shardId, addrFrom, payload, types.Value{}, key)
@@ -115,6 +116,7 @@ func (s *RpcSuite) deployContractViaWallet(
 
 	receipt = s.waitForReceipt(addrFrom.ShardId(), txHash)
 	s.Require().True(receipt.Success)
+	s.Require().Equal("Success", receipt.Status)
 	s.Require().Len(receipt.OutReceipts, 1)
 	return addr, receipt
 }
@@ -134,6 +136,7 @@ func (s *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Add
 
 	receipt := s.waitForReceipt(addrFrom.ShardId(), txHash)
 	s.Require().True(receipt.Success)
+	s.Require().Equal("Success", receipt.Status)
 	s.Require().Len(receipt.OutReceipts, 1)
 
 	return receipt
@@ -147,6 +150,7 @@ func (s *RpcSuite) sendExternalMessage(bytecode types.Code, contractAddress type
 
 	receipt := s.waitForReceipt(contractAddress.ShardId(), txHash)
 	s.Require().True(receipt.Success)
+	s.Require().Equal("Success", receipt.Status)
 	s.Require().Len(receipt.OutReceipts, 1)
 
 	return receipt
@@ -167,6 +171,8 @@ func (s *RpcSuite) sendMessageViaWalletNoCheck(addrWallet types.Address, addrTo 
 	if receipt.Success {
 		// But if it is successful, we expect exactly one out receipt
 		s.Require().Len(receipt.OutReceipts, 1)
+	} else {
+		s.Require().NotEqual("Success", receipt.Status)
 	}
 
 	return receipt

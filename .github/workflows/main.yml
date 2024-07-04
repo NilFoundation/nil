@@ -84,9 +84,12 @@ jobs:
         run: |
           brew tap ethereum/ethereum
           brew install go solidity
+          go install golang.org/x/tools/cmd/stringer@latest
 
       - name: build binaries
-        run: make
+        run: |
+          export PATH=$PATH:$(go env GOPATH)/bin
+          make
 
       - name: Upload nil_cli binary as artifact
         if: github.event_name == 'workflow_dispatch'

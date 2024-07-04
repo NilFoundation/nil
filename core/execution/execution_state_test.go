@@ -348,3 +348,57 @@ func TestAccountState(t *testing.T) {
 	require.NotNil(t, acc)
 	assert.Equal(t, balance, acc.Balance)
 }
+
+func (suite *SuiteExecutionState) TestMessageStatus() {
+	shardId := types.ShardId(5)
+
+	payload := contracts.CounterDeployPayload(suite.T())
+	addrWallet := types.CreateAddress(shardId, payload)
+
+	tx, err := suite.db.CreateRwTx(suite.ctx)
+	suite.Require().NoError(err)
+	defer tx.Rollback()
+
+	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
+	suite.Require().NoError(err)
+
+	suite.Run("Deploy", func() {
+		seqno, err := es.GetSeqno(addrWallet)
+		suite.Require().NoError(err)
+		suite.EqualValues(0, seqno)
+
+		Deploy(suite.T(), suite.ctx, es, payload, shardId, types.Address{}, 0)
+
+		seqno, err = es.GetSeqno(addrWallet)
+		suite.Require().NoError(err)
+		suite.EqualValues(1, seqno)
+	})
+
+	suite.Run("ExecuteOutOfGas", func() {
+		msg := &types.Message{
+			From:     addrWallet,
+			To:       addrWallet,
+			Data:     contracts.NewCounterAddCallData(suite.T(), 47),
+			Seqno:    1,
+			GasLimit: 0,
+		}
+		_, _, err := es.HandleExecutionMessage(suite.ctx, msg)
+		merr := &types.MessageError{}
+		suite.Require().ErrorAs(err, &merr)
+		suite.EqualValues(types.MessageStatusOutOfGas, merr.Status)
+	})
+
+	suite.Run("ExecuteReverted", func() {
+		msg := &types.Message{
+			From:     addrWallet,
+			To:       addrWallet,
+			Data:     []byte("wrong calldata"),
+			Seqno:    1,
+			GasLimit: 1_000_000,
+		}
+		_, _, err := es.HandleExecutionMessage(suite.ctx, msg)
+		merr := &types.MessageError{}
+		suite.Require().ErrorAs(err, &merr)
+		suite.EqualValues(types.MessageStatusExecutionReverted, merr.Status)
+	})
+}
