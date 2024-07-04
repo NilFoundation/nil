@@ -61,12 +61,10 @@ func (pp *blockPostprocessor) updateGasPrice() error {
 	}
 
 	gasIncrease := uint64(math.Ceil(float64(pp.block.OutMessagesNum) * pp.gasPriceScale))
-	newGasPrice := gasPrice.Add(types.NewValueFromUint64(gasIncrease))
+	gasPrice, overflow := gasPrice.AddOverflow(types.NewValueFromUint64(gasIncrease))
 	// Check if new gas price is less than the current one (overflow case) or greater than the max allowed
-	if gasPrice.Cmp(newGasPrice) > 0 || newGasPrice.Cmp(maxGasPrice) > 0 {
+	if overflow || gasPrice.Cmp(maxGasPrice) > 0 {
 		gasPrice = maxGasPrice
-	} else {
-		gasPrice = newGasPrice
 	}
 	if gasPrice.Cmp(decreasePerBlock) >= 0 {
 		gasPrice = gasPrice.Sub(decreasePerBlock)

@@ -35,8 +35,6 @@ func (suite *SuiteRpc) SetupTest() {
 		HttpPort:             8531,
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
-		GracefulShutdown:     false,
-		GasPriceScale:        0,
 		GasBasePrice:         10,
 	})
 

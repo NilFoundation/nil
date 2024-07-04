@@ -25,8 +25,6 @@ func (s *SuiteWalletRpc) SetupSuite() {
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            execution.DefaultZeroStateConfig,
 		CollatorTickPeriodMs: 100,
-		GracefulShutdown:     false,
-		GasPriceScale:        0,
 		GasBasePrice:         10,
 	})
 }

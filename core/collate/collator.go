@@ -3,7 +3,6 @@ package collate
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/logging"
@@ -15,8 +14,6 @@ import (
 )
 
 const (
-	defaultTimeout = time.Second
-
 	defaultMaxInMessagesInBlock  = 200
 	defaultMaxOutMessagesInBlock = 200
 )
