@@ -60,7 +60,7 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 	if receipt.OutMsgNum != 0 {
 		outReceipts = make([]*RPCReceipt, 0, receipt.OutMsgNum)
 
-		for i := receipt.OutMsgIndex; i < receipt.OutMsgNum; i++ {
+		for i := receipt.OutMsgIndex; i < receipt.OutMsgIndex+receipt.OutMsgNum; i++ {
 			sa, err := execution.NewStateAccessor()
 			if err != nil {
 				return nil, err
