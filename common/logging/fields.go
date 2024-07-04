@@ -1,6 +1,9 @@
 package logging
 
 const (
+	// FieldError can be used instead of Err(err) if you have only the error message string.
+	FieldError = "err"
+
 	FieldComponent = "component"
 	FieldShardId   = "shardId"
 	FieldChainId   = "chainId"
