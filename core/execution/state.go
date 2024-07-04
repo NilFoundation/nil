@@ -665,6 +665,9 @@ func (es *ExecutionState) AddOutMessage(msg *types.Message) error {
 var BounceGasLimit types.Gas = 100_000
 
 func (es *ExecutionState) sendBounceMessage(msg *types.Message, bounceErr string) error {
+	if msg.Value.IsZero() && len(msg.Currency) == 0 {
+		return nil
+	}
 	if msg.BounceTo == types.EmptyAddress {
 		logger.Debug().Stringer(logging.FieldMessageHash, msg.Hash()).Msg("Bounce message not sent, no bounce address")
 		return nil
