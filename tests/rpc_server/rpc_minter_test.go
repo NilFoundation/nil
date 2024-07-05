@@ -569,7 +569,8 @@ func (s *SuiteMultiCurrencyRpc) TestInfoAndShardId() {
 	s.Require().True(receipt.Success)
 	s.Require().Len(receipt.OutReceipts, 1)
 	s.Require().True(receipt.OutReceipts[0].Success)
-	s.Require().Empty(receipt.OutReceipts[0].OutReceipts)
+	// One receipt is for refund
+	s.Require().Len(receipt.OutReceipts[0].OutReceipts, 1)
 
 	// walletAddress2 is in a shard other than Minter, thus withdrawal should be performed through async call
 	data, err = s.abiMinter.Pack("withdraw", currencyWallet1.idInt, big.NewInt(1000), s.walletAddress2)
@@ -578,8 +579,10 @@ func (s *SuiteMultiCurrencyRpc) TestInfoAndShardId() {
 	s.Require().True(receipt.Success)
 	s.Require().Len(receipt.OutReceipts, 1)
 	s.Require().True(receipt.OutReceipts[0].Success)
-	s.Require().Len(receipt.OutReceipts[0].OutReceipts, 1)
+	// One receipt is for refund
+	s.Require().Len(receipt.OutReceipts[0].OutReceipts, 2)
 	s.Require().True(receipt.OutReceipts[0].OutReceipts[0].Success)
+	s.Require().True(receipt.OutReceipts[0].OutReceipts[1].Success)
 
 	// Test getName
 	data, err = s.abiMinter.Pack("getName", currencyWallet1.idInt)

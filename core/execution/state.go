@@ -627,8 +627,12 @@ func (es *ExecutionState) DropInMessage() {
 	}
 }
 
-func (es *ExecutionState) AddOutMessageForTx(txId common.Hash, msg *types.Message) {
+func (es *ExecutionState) AppendOutMessageForTx(txId common.Hash, msg *types.Message) {
 	es.OutMessages[txId] = append(es.OutMessages[txId], msg)
+}
+
+func (es *ExecutionState) AppendOutMessage(msg *types.Message) {
+	es.OutMessages[es.InMessageHash] = append(es.OutMessages[es.InMessageHash], msg)
 }
 
 func (es *ExecutionState) AddOutMessage(msg *types.Message) error {
@@ -658,7 +662,7 @@ func (es *ExecutionState) AddOutMessage(msg *types.Message) error {
 		msgHash: es.InMessageHash,
 		index:   len(es.OutMessages[es.InMessageHash]),
 	})
-	es.AddOutMessageForTx(es.InMessageHash, msg)
+	es.AppendOutMessage(msg)
 	return nil
 }
 
@@ -836,22 +840,37 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		treeShardsRootHash = treeShards.RootHash()
 	}
 
-	for i, m := range es.InMessages {
-		if err := es.InMessageTree.Update(types.MessageIndex(i), m); err != nil {
+	var outMsgIndex types.MessageIndex
+	for i, msg := range es.InMessages {
+		if err := es.InMessageTree.Update(types.MessageIndex(i), msg); err != nil {
 			return common.EmptyHash, err
 		}
-	}
-
-	var msgIndex types.MessageIndex
-	for _, messages := range es.OutMessages {
-		for _, m := range messages {
-			if err := es.OutMessageTree.Update(msgIndex, m); err != nil {
+		// Put all outbound messages into the trie
+		for _, m := range es.OutMessages[msg.Hash()] {
+			if err := es.OutMessageTree.Update(outMsgIndex, m); err != nil {
 				return common.EmptyHash, err
 			}
-			msgIndex++
+			outMsgIndex++
 		}
 	}
 
+	// Check that each outbound message belongs to some inbound message
+	for msgHash := range es.OutMessages {
+		if msgHash == common.EmptyHash {
+			// Skip messages transmitted over the topology
+			continue
+		}
+		found := false
+		for _, m := range es.InMessages {
+			if m.Hash() == msgHash {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return common.EmptyHash, fmt.Errorf("outbound message %v does not belong to any inbound message", msgHash)
+		}
+	}
 	if len(es.InMessages) != len(es.Receipts) {
 		return common.EmptyHash, fmt.Errorf("number of messages does not match number of receipts: %d != %d", len(es.InMessages), len(es.Receipts))
 	}
@@ -861,6 +880,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		}
 	}
 
+	// Update receipts trie
 	msgStart := 0
 	for i, r := range es.Receipts {
 		msgHash := es.InMessages[i].Hash()
@@ -879,7 +899,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		SmartContractsRoot:  es.ContractTree.RootHash(),
 		InMessagesRoot:      es.InMessageTree.RootHash(),
 		OutMessagesRoot:     es.OutMessageTree.RootHash(),
-		OutMessagesNum:      msgIndex,
+		OutMessagesNum:      outMsgIndex,
 		ReceiptsRoot:        es.ReceiptTree.RootHash(),
 		ChildBlocksRootHash: treeShardsRootHash,
 		MasterChainHash:     es.MasterChain,

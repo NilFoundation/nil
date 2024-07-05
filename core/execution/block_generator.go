@@ -125,7 +125,7 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, defaultGasPrice types
 
 	for _, msg := range proposal.OutMsgs {
 		// TODO: add inMsgHash support (do we even need it?)
-		g.executionState.AddOutMessageForTx(common.EmptyHash, msg)
+		g.executionState.AppendOutMessageForTx(common.EmptyHash, msg)
 	}
 
 	g.executionState.MasterChain = proposal.MainChainHash

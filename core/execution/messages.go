@@ -37,7 +37,7 @@ func (m messagePayer) AddBalance(delta types.Value) {
 		sharedLogger.Error().Stringer(logging.FieldMessageHash, m.message.Hash()).Msg("refund address is empty")
 		return
 	}
-	m.es.AddOutMessageForTx(m.message.Hash(), &types.Message{
+	m.es.AppendOutMessage(&types.Message{
 		Flags: types.NewMessageFlags(types.MessageFlagInternal, types.MessageFlagRefund),
 		From:  m.message.To,
 		To:    m.message.RefundTo,
