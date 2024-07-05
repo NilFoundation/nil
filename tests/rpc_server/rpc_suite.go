@@ -21,6 +21,8 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
+	"github.com/NilFoundation/nil/tools/solc"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
@@ -208,4 +210,14 @@ func (s *RpcSuite) runCliNoCheck(args ...string) (string, error) {
 
 	data, err := cmd.CombinedOutput()
 	return string(data), err
+}
+
+func (s *RpcSuite) loadContract(path string, name string) (types.Code, abi.ABI) {
+	s.T().Helper()
+
+	contracts, err := solc.CompileSource(path)
+	s.Require().NoError(err)
+	code := hexutil.FromHex(contracts[name].Code)
+	abi := solc.ExtractABI(contracts[name])
+	return code, abi
 }
