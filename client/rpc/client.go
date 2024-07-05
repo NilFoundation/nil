@@ -19,6 +19,7 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -83,6 +84,7 @@ func (c *Client) call(method string, params ...any) (json.RawMessage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToMarshalRequest, err)
 	}
+	log.Trace().RawJSON("request", requestBody).Send()
 
 	req, err := http.NewRequest(http.MethodPost, c.endpoint, bytes.NewBuffer(requestBody))
 	if err != nil {
@@ -113,6 +115,7 @@ func (c *Client) call(method string, params ...any) (json.RawMessage, error) {
 	if err := json.Unmarshal(body, &rpcResponse); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToUnmarshalResponse, err)
 	}
+	log.Trace().RawJSON("response", body).Send()
 
 	if errorMsg, ok := rpcResponse["error"]; ok {
 		return nil, fmt.Errorf("%w: %s", ErrRPCError, errorMsg)
