@@ -853,6 +853,13 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 			outMsgIndex++
 		}
 	}
+	// Put all outbound messages transmitted over the topology into the trie
+	for _, m := range es.OutMessages[common.EmptyHash] {
+		if err := es.OutMessageTree.Update(outMsgIndex, m); err != nil {
+			return common.EmptyHash, err
+		}
+		outMsgIndex++
+	}
 
 	// Check that each outbound message belongs to some inbound message
 	for msgHash := range es.OutMessages {
