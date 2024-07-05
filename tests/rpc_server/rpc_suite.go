@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -49,7 +51,7 @@ func (suite *RpcSuite) start(cfg *nilservice.Config) {
 	suite.Require().NoError(err)
 
 	suite.endpoint = fmt.Sprintf("http://127.0.0.1:%d", cfg.HttpPort)
-	suite.client = rpc_client.NewClient(suite.endpoint)
+	suite.client = rpc_client.NewClient(suite.endpoint, zerolog.New(os.Stderr))
 
 	suite.wg.Add(1)
 	go func() {

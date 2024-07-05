@@ -19,6 +19,7 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
+	"github.com/rs/zerolog"
 )
 
 var (
@@ -52,19 +53,22 @@ type Client struct {
 	seqno    uint64
 	client   http.Client
 	headers  map[string]string
+	logger   zerolog.Logger
 }
 
 var _ client.Client = (*Client)(nil)
 
-func NewClient(endpoint string) *Client {
+func NewClient(endpoint string, logger zerolog.Logger) *Client {
 	return &Client{
 		endpoint: endpoint,
+		logger:   logger,
 	}
 }
 
-func NewClientWithDefaultHeaders(endpoint string, headers map[string]string) *Client {
+func NewClientWithDefaultHeaders(endpoint string, logger zerolog.Logger, headers map[string]string) *Client {
 	return &Client{
 		endpoint: endpoint,
+		logger:   logger,
 		headers:  headers,
 	}
 }
@@ -83,6 +87,7 @@ func (c *Client) call(method string, params ...any) (json.RawMessage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToMarshalRequest, err)
 	}
+	c.logger.Trace().RawJSON("request", requestBody).Send()
 
 	req, err := http.NewRequest(http.MethodPost, c.endpoint, bytes.NewBuffer(requestBody))
 	if err != nil {
@@ -111,8 +116,10 @@ func (c *Client) call(method string, params ...any) (json.RawMessage, error) {
 
 	var rpcResponse map[string]json.RawMessage
 	if err := json.Unmarshal(body, &rpcResponse); err != nil {
+		c.logger.Debug().Str("response", string(body)).Msg("failed to unmarshal response")
 		return nil, fmt.Errorf("%w: %w", ErrFailedToUnmarshalResponse, err)
 	}
+	c.logger.Trace().RawJSON("response", body).Send()
 
 	if errorMsg, ok := rpcResponse["error"]; ok {
 		return nil, fmt.Errorf("%w: %s", ErrRPCError, errorMsg)

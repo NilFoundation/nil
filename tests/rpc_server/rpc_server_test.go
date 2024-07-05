@@ -3,6 +3,7 @@ package rpctest
 import (
 	"encoding/json"
 	"math/big"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -337,20 +339,21 @@ func (s *SuiteRpc) TestRpcApiModules() {
 }
 
 func (s *SuiteRpc) TestUnsupportedClientVersion() {
+	logger := zerolog.New(os.Stderr)
 	s.Run("Unsupported version", func() {
-		client := rpc_client.NewClientWithDefaultHeaders(s.endpoint, map[string]string{"User-Agent": "nil-cli/12"})
+		client := rpc_client.NewClientWithDefaultHeaders(s.endpoint, logger, map[string]string{"User-Agent": "nil-cli/12"})
 		_, err := client.ChainId()
 		s.Require().ErrorContains(err, "unexpected status code: 426: specified revision 12, minimum supported is")
 	})
 
 	s.Run("0 means unknown - skip check", func() {
-		client := rpc_client.NewClientWithDefaultHeaders(s.endpoint, map[string]string{"User-Agent": "nil-cli/0"})
+		client := rpc_client.NewClientWithDefaultHeaders(s.endpoint, logger, map[string]string{"User-Agent": "nil-cli/0"})
 		_, err := client.ChainId()
 		s.Require().NoError(err)
 	})
 
 	s.Run("Valid revision", func() {
-		client := rpc_client.NewClientWithDefaultHeaders(s.endpoint, map[string]string{"User-Agent": "nil-cli/10000000"})
+		client := rpc_client.NewClientWithDefaultHeaders(s.endpoint, logger, map[string]string{"User-Agent": "nil-cli/10000000"})
 		_, err := client.ChainId()
 		s.Require().NoError(err)
 	})
