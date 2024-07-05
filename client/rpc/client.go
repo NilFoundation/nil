@@ -116,6 +116,7 @@ func (c *Client) call(method string, params ...any) (json.RawMessage, error) {
 
 	var rpcResponse map[string]json.RawMessage
 	if err := json.Unmarshal(body, &rpcResponse); err != nil {
+		c.logger.Debug().Str("response", string(body)).Msg("failed to unmarshal response")
 		return nil, fmt.Errorf("%w: %w", ErrFailedToUnmarshalResponse, err)
 	}
 	c.logger.Trace().RawJSON("response", body).Send()
