@@ -71,6 +71,9 @@ type StateDB interface {
 	// add out message for current transaction
 	AddOutMessage(*types.Message) error
 
+	// add internal out message for current transaction
+	AddOutInternal(caller types.Address, payload *types.InternalMessagePayload) error
+
 	// IsInternalMessage returns true if the message that initiated execution is internal. Synchronous calls inside
 	// one contract are also considered as internal.
 	IsInternalMessage() bool

@@ -636,12 +636,13 @@ func (es *ExecutionState) AppendOutMessage(msg *types.Message) {
 }
 
 func (es *ExecutionState) AddOutMessage(msg *types.Message) error {
-	acc, err := es.GetAccount(msg.From)
-	if err != nil {
-		return err
-	}
 	// In case of bounce message, we don't debit currency from account
-	if !msg.IsBounce() {
+	// In case of refund message, we don't transfer currencies
+	if !msg.IsBounce() && !msg.IsRefund() {
+		acc, err := es.GetAccount(msg.From)
+		if err != nil {
+			return err
+		}
 		for _, currency := range msg.Currency {
 			balance := acc.GetCurrencyBalance(currency.Currency)
 			if balance.Cmp(currency.Balance) < 0 {
@@ -664,6 +665,29 @@ func (es *ExecutionState) AddOutMessage(msg *types.Message) error {
 	})
 	es.AppendOutMessage(msg)
 	return nil
+}
+
+func (es *ExecutionState) AddOutInternal(caller types.Address, payload *types.InternalMessagePayload) error {
+	seqno, err := es.GetSeqno(caller)
+	if err != nil {
+		return err
+	}
+
+	// TODO:	This happens when we send refunds from uninitialized accounts when transferring money to them.
+	//			For now we will write all such refunds with identical zero seqno, because we can't change seqno of uninitialized accounts.
+	//			In future we should add transfer that is free on the reciepient's side, so that these transfers won't require refunds.
+	if seqno != 0 {
+		if seqno+1 < seqno {
+			return vm.ErrNonceUintOverflow
+		}
+		if err := es.SetSeqno(caller, seqno+1); err != nil {
+			return err
+		}
+	}
+
+	msg := payload.ToMessage(caller, seqno)
+
+	return es.AddOutMessage(msg)
 }
 
 var BounceGasLimit types.Gas = 100_000
@@ -690,7 +714,7 @@ func (es *ExecutionState) sendBounceMessage(msg *types.Message, bounceErr string
 		Data:     data,
 		GasLimit: BounceGasLimit,
 	}
-	if err = vm.AddOutInternal(es, msg.To, bounceMsg); err != nil {
+	if err = es.AddOutInternal(msg.To, bounceMsg); err != nil {
 		return err
 	}
 	logger.Debug().Stringer(logging.FieldMessageFrom, msg.To).Stringer(logging.FieldMessageTo, msg.BounceTo).Msg("Bounce message sent")

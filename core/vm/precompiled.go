@@ -214,7 +214,7 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, gas uint64, value *uin
 
 	log.Logger.Debug().Msgf("sendRawMessage to: %s\n", payload.To.Hex())
 
-	return nil, AddOutInternal(state, caller.Address(), payload)
+	return nil, state.AddOutInternal(caller.Address(), payload)
 }
 
 type asyncCall struct{}
@@ -339,24 +339,7 @@ func (c *asyncCall) Run(state StateDB, input []byte, gas uint64, value *uint256.
 	res = make([]byte, 32)
 	res[31] = 1
 
-	return res, AddOutInternal(state, caller.Address(), &payload)
-}
-
-func AddOutInternal(state StateDB, caller types.Address, payload *types.InternalMessagePayload) error {
-	seqno, err := state.GetSeqno(caller)
-	if err != nil {
-		return err
-	}
-	if seqno+1 < seqno {
-		return ErrNonceUintOverflow
-	}
-	if err := state.SetSeqno(caller, seqno+1); err != nil {
-		return err
-	}
-
-	msg := payload.ToMessage(caller, seqno)
-
-	return state.AddOutMessage(msg)
+	return res, state.AddOutInternal(caller.Address(), &payload)
 }
 
 type verifySignature struct{}

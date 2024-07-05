@@ -79,10 +79,9 @@ func (s *CollatorTestSuite) TestCollator() {
 		gasLimit, msgValue, []types.CurrencyBalance{}, to, types.ExecutionMessageKind))
 	m2 := common.CopyPtr(m1)
 	m2.Seqno = 1
-	s.Require().NoError(m1.Sign(execution.MainPrivateKey))
-	s.Require().NoError(m2.Sign(execution.MainPrivateKey))
-
-	s.Run("SendTokens", func() {
+	sendTokens := func() {
+		s.Require().NoError(m1.Sign(execution.MainPrivateKey))
+		s.Require().NoError(m2.Sign(execution.MainPrivateKey))
 		pool.Msgs = []*types.Message{m1, m2}
 
 		proposal := generateBlock()
@@ -99,8 +98,9 @@ func (s *CollatorTestSuite) TestCollator() {
 			Sub(msgValue).Sub(actualMsgPrice)
 		s.Equal(balance, s.getBalance(shardId, from))
 		s.Equal(types.Value{}, s.getBalance(shardId, to))
-	})
+	}
 
+	s.Run("SendTokens", sendTokens)
 	// Now process messages by one to test queueing.
 	c.params.MaxInMessagesInBlock = 1
 	// Messages from the pool must not be processed, while we have internal messages.
@@ -128,6 +128,9 @@ func (s *CollatorTestSuite) TestCollator() {
 
 		balance = balance.Add(reserveForGas).Add(reserveForGas)
 		s.Equal(balance, s.getBalance(shardId, from))
+
+		// TODO: Enable when fixed uninitialized refunds
+		// s.checkSeqno(shardId)
 	})
 
 	s.Run("DoNotProcessDuplicates", func() {
@@ -160,6 +163,26 @@ func (s *CollatorTestSuite) TestCollator() {
 		pool.Msgs = nil
 		s.checkReceipt(shardId, m)
 	})
+
+	s.Run("CheckRefundsSeqno", func() {
+		m1.Seqno = 2
+		m2.Seqno = 3
+		s.Require().NoError(m1.Sign(execution.MainPrivateKey))
+		s.Require().NoError(m2.Sign(execution.MainPrivateKey))
+		pool.Msgs = []*types.Message{m1, m2}
+
+		// send tokens
+		generateBlock()
+
+		// process internal messages
+		generateBlock()
+
+		// process refunds
+		generateBlock()
+
+		// check refunds seqnos
+		s.checkSeqno(shardId)
+	})
 }
 
 func (s *CollatorTestSuite) getBalance(shardId types.ShardId, addr types.Address) types.Value {
@@ -177,6 +200,37 @@ func (s *CollatorTestSuite) getBalance(shardId types.ShardId, addr types.Address
 		return types.Value{}
 	}
 	return acc.Balance
+}
+
+func (s *CollatorTestSuite) checkSeqno(shardId types.ShardId) {
+	s.T().Helper()
+
+	tx, err := s.db.CreateRoTx(s.ctx)
+	s.Require().NoError(err)
+	defer tx.Rollback()
+
+	sa, err := execution.NewStateAccessor()
+	s.Require().NoError(err)
+
+	blockHash, err := db.ReadLastBlockHash(tx, shardId)
+	s.Require().NoError(err)
+
+	block, err := sa.Access(tx, shardId).GetBlock().WithInMessages().WithOutMessages().ByHash(blockHash)
+	s.Require().NoError(err)
+
+	check := func(msgs []*types.Message) {
+		seqno := -1
+		for _, m := range msgs {
+			if seqno == -1 {
+				seqno = int(m.Seqno)
+			}
+			s.Require().Equal(seqno, int(m.Seqno))
+			seqno += 1
+		}
+	}
+
+	check(block.InMessages())
+	check(block.OutMessages())
 }
 
 func (s *CollatorTestSuite) checkReceipt(shardId types.ShardId, m *types.Message) {

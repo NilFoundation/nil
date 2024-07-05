@@ -37,12 +37,13 @@ func (m messagePayer) AddBalance(delta types.Value) {
 		sharedLogger.Error().Stringer(logging.FieldMessageHash, m.message.Hash()).Msg("refund address is empty")
 		return
 	}
-	m.es.AppendOutMessage(&types.Message{
-		Flags: types.NewMessageFlags(types.MessageFlagInternal, types.MessageFlagRefund),
-		From:  m.message.To,
+	if err := m.es.AddOutInternal(m.message.To, &types.InternalMessagePayload{
+		Kind:  types.RefundMessageKind,
 		To:    m.message.RefundTo,
 		Value: delta,
-	})
+	}); err != nil {
+		sharedLogger.Error().Err(err).Stringer(logging.FieldMessageHash, m.message.Hash()).Msg("failed to add refund message")
+	}
 }
 
 func (m messagePayer) String() string {

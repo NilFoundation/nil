@@ -460,6 +460,20 @@ func (suite *SuiteRpc) TestNoOutMessagesIfFailure() {
 	suite.Require().Len(receipt.OutMessages, 1)
 }
 
+func (suite *SuiteRpc) TestMultipleRefunds() {
+	code, err := contracts.GetCode(contracts.NameCommonTest)
+	suite.Require().NoError(err)
+
+	var leftShardId types.ShardId = 1
+	var rightShardId types.ShardId = 2
+
+	_, receipt := suite.deployContractViaMainWallet(leftShardId, types.BuildDeployPayload(code, common.EmptyHash), defaultContractValue)
+	suite.Require().True(receipt.OutReceipts[0].Success)
+
+	_, receipt = suite.deployContractViaMainWallet(rightShardId, types.BuildDeployPayload(code, common.EmptyHash), defaultContractValue)
+	suite.Require().True(receipt.OutReceipts[0].Success)
+}
+
 func TestSuiteRpc(t *testing.T) {
 	t.Parallel()
 
