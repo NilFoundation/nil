@@ -56,7 +56,7 @@ func main() {
 
 	check.PanicIfErr(rootCmd.Execute())
 
-	client := rpc_client.NewClient(*rpcEndpoint)
+	client := rpc_client.NewClient(*rpcEndpoint, logger)
 	service := service.NewService(client, execution.MainPrivateKey)
 
 	shardIdList, err := client.GetShardIdList()
