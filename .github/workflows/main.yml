@@ -49,7 +49,7 @@ jobs:
             result/bin/nil_cli
 
       - name: upload packages to s3
-        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' ||  github.ref == 'refs/heads/master') }}
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         env:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -62,3 +62,34 @@ jobs:
           pip3 install -U mkrepo
           aws s3 cp "deb-package-nil/`ls deb-package-nil`" s3://nil-deb-repo/ubuntu/pool/main/d/nil/
           mkrepo s3://nil-deb-repo/ubuntu
+
+  ensure_cluster_builds_macos:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            arch: aarch64
+          - os: macos-13
+            arch: x64
+    environment: prod
+    name: MacOS CI
+    steps:
+      - name: checkout local actions
+        uses: actions/checkout@v4
+
+      - name: Install Golang and solc
+        run: |
+          brew tap ethereum/ethereum
+          brew install go solidity
+
+      - name: build binaries
+        run: make
+
+      - name: Upload nil_cli binary as artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nil_cli-darwin-${{ matrix.arch }}
+          path: |
+            build/bin/nil_cli
