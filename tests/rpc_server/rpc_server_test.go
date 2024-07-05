@@ -31,8 +31,8 @@ type SuiteRpc struct {
 	cli *service.Service
 }
 
-func (suite *SuiteRpc) SetupTest() {
-	suite.start(&nilservice.Config{
+func (s *SuiteRpc) SetupTest() {
+	s.start(&nilservice.Config{
 		NShards:              5,
 		HttpPort:             8531,
 		Topology:             collate.TrivialShardTopologyId,
@@ -40,12 +40,12 @@ func (suite *SuiteRpc) SetupTest() {
 		GasBasePrice:         10,
 	})
 
-	suite.cli = service.NewService(suite.client, execution.MainPrivateKey)
-	suite.Require().NotNil(suite.cli)
+	s.cli = service.NewService(s.client, execution.MainPrivateKey)
+	s.Require().NotNil(s.cli)
 }
 
-func (suite *SuiteRpc) TearDownTest() {
-	suite.cancel()
+func (s *SuiteRpc) TearDownTest() {
+	s.cancel()
 }
 
 func (s *SuiteRpc) sendRawTransaction(m *types.ExternalMessage) common.Hash {
@@ -57,18 +57,18 @@ func (s *SuiteRpc) sendRawTransaction(m *types.ExternalMessage) common.Hash {
 	return hash
 }
 
-func (suite *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
-	suite.T().Helper()
+func (s *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
+	s.T().Helper()
 
 	var receipt *jsonrpc.RPCReceipt
 	var err error
-	suite.Require().Eventually(func() bool {
-		receipt, err = suite.client.GetInMessageReceipt(shardId, hash)
-		suite.Require().NoError(err)
+	s.Require().Eventually(func() bool {
+		receipt, err = s.client.GetInMessageReceipt(shardId, hash)
+		s.Require().NoError(err)
 		return receipt.IsComplete()
 	}, 15*time.Second, 200*time.Millisecond)
 
-	suite.Equal(hash, receipt.MsgHash)
+	s.Equal(hash, receipt.MsgHash)
 
 	return receipt
 }
@@ -131,11 +131,11 @@ func (s *SuiteRpc) TestRpcBasic() {
 	s.Require().Nil(msg)
 }
 
-func (suite *SuiteRpc) loadContract(path string, name string) (types.Code, abi.ABI) {
-	suite.T().Helper()
+func (s *SuiteRpc) loadContract(path string, name string) (types.Code, abi.ABI) {
+	s.T().Helper()
 
 	contracts, err := solc.CompileSource(path)
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 	code := hexutil.FromHex(contracts[name].Code)
 	abi := solc.ExtractABI(contracts[name])
 	return code, abi
@@ -152,24 +152,24 @@ func (s *RpcSuite) prepareDefaultDeployPayload(abi abi.ABI, code []byte, args ..
 
 var defaultContractValue = types.NewValueFromUint64(50_000_000)
 
-func (suite *SuiteRpc) TestRpcContract() {
-	contractCode, abi := suite.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
-	deployPayload := suite.prepareDefaultDeployPayload(abi, contractCode, big.NewInt(0))
+func (s *SuiteRpc) TestRpcContract() {
+	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
+	deployPayload := s.prepareDefaultDeployPayload(abi, contractCode, big.NewInt(0))
 
-	addr, receipt := suite.deployContractViaMainWallet(types.BaseShardId, deployPayload, defaultContractValue)
-	suite.Require().True(receipt.OutReceipts[0].Success)
+	addr, receipt := s.deployContractViaMainWallet(types.BaseShardId, deployPayload, defaultContractValue)
+	s.Require().True(receipt.OutReceipts[0].Success)
 
 	blockNumber := transport.LatestBlockNumber
-	balance, err := suite.client.GetBalance(addr, transport.BlockNumberOrHash{BlockNumber: &blockNumber})
-	suite.Require().NoError(err)
-	suite.Require().Equal(defaultContractValue, balance)
+	balance, err := s.client.GetBalance(addr, transport.BlockNumberOrHash{BlockNumber: &blockNumber})
+	s.Require().NoError(err)
+	s.Require().Equal(defaultContractValue, balance)
 
 	// now call (= send a message to) created contract
 	calldata, err := abi.Pack("increment")
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
-	receipt = suite.sendMessageViaWallet(types.MainWalletAddress, addr, execution.MainPrivateKey, calldata, types.Value{})
-	suite.Require().True(receipt.OutReceipts[0].Success)
+	receipt = s.sendMessageViaWallet(types.MainWalletAddress, addr, execution.MainPrivateKey, calldata, types.Value{})
+	s.Require().True(receipt.OutReceipts[0].Success)
 }
 
 func (s *SuiteRpc) TestRpcDeployToMainShardViaMainWallet() {
@@ -398,66 +398,66 @@ func (s *SuiteRpc) TestRpcError() {
 		rpc_client.Eth_getBlockByHash, types.BaseShardId, "latest")
 }
 
-func (suite *SuiteRpc) TestRpcDebugModules() {
-	raw, err := suite.client.RawCall("debug_getBlockByNumber", types.BaseShardId, "latest", false)
-	suite.Require().NoError(err)
+func (s *SuiteRpc) TestRpcDebugModules() {
+	raw, err := s.client.RawCall("debug_getBlockByNumber", types.BaseShardId, "latest", false)
+	s.Require().NoError(err)
 
 	var res map[string]any
-	suite.Require().NoError(json.Unmarshal(raw, &res))
+	s.Require().NoError(json.Unmarshal(raw, &res))
 
-	suite.Require().Contains(res, "number")
-	suite.Require().Contains(res, "hash")
-	suite.Require().Contains(res, "content")
+	s.Require().Contains(res, "number")
+	s.Require().Contains(res, "hash")
+	s.Require().Contains(res, "content")
 
 	sliceContent, ok := res["content"].(string)
-	suite.Require().True(ok)
+	s.Require().True(ok)
 	// check if the string starts with 0x prefix
-	suite.Require().Equal("0x", sliceContent[:2])
+	s.Require().Equal("0x", sliceContent[:2])
 	// print resp to see the result
-	suite.T().Logf("resp: %v", res)
+	s.T().Logf("resp: %v", res)
 
-	raw, err = suite.client.RawCall("debug_getBlockByNumber", types.BaseShardId, "latest", true)
+	raw, err = s.client.RawCall("debug_getBlockByNumber", types.BaseShardId, "latest", true)
 
 	var fullRes map[string]any
-	suite.Require().NoError(json.Unmarshal(raw, &fullRes))
-	suite.Require().NoError(err)
-	suite.Require().Contains(fullRes, "content")
-	suite.Require().Contains(fullRes, "inMessages")
-	suite.Require().Contains(fullRes, "outMessages")
-	suite.Require().Contains(fullRes, "receipts")
+	s.Require().NoError(json.Unmarshal(raw, &fullRes))
+	s.Require().NoError(err)
+	s.Require().Contains(fullRes, "content")
+	s.Require().Contains(fullRes, "inMessages")
+	s.Require().Contains(fullRes, "outMessages")
+	s.Require().Contains(fullRes, "receipts")
 }
 
 // Test that we remove output messages if the transaction failed
-func (suite *SuiteRpc) TestNoOutMessagesIfFailure() {
+func (s *SuiteRpc) TestNoOutMessagesIfFailure() {
 	code, err := contracts.GetCode(contracts.NameCommonTest)
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 	abi, err := contracts.GetAbi(contracts.NameCommonTest)
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
-	addr, receipt := suite.deployContractViaMainWallet(2, types.BuildDeployPayload(code, common.EmptyHash), defaultContractValue)
-	suite.Require().True(receipt.OutReceipts[0].Success)
+	addr, receipt := s.deployContractViaMainWallet(2, types.BuildDeployPayload(code, common.EmptyHash), defaultContractValue)
+	s.Require().True(receipt.OutReceipts[0].Success)
 
 	// Call CommonTest contract with invalid argument, so no output messages should be generated
 	calldata, err := abi.Pack("testFailedAsyncCall", addr, int32(0))
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
-	txhash, err := suite.client.SendExternalMessage(calldata, addr, nil)
-	suite.Require().NoError(err)
-	receipt = suite.waitForReceipt(addr.ShardId(), txhash)
-	suite.Require().False(receipt.Success)
-	suite.Require().Empty(receipt.OutReceipts)
-	suite.Require().Empty(receipt.OutMessages)
+	txhash, err := s.client.SendExternalMessage(calldata, addr, nil)
+	s.Require().NoError(err)
+	receipt = s.waitForReceipt(addr.ShardId(), txhash)
+	s.Require().False(receipt.Success)
+	s.Require().Empty(receipt.OutReceipts)
+	s.Require().Empty(receipt.OutMessages)
 
 	// Call CommonTest contract with valid argument, so output messages should be generated
 	calldata, err = abi.Pack("testFailedAsyncCall", addr, int32(10))
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
-	txhash, err = suite.client.SendExternalMessage(calldata, addr, nil)
-	suite.Require().NoError(err)
-	receipt = suite.waitForReceipt(addr.ShardId(), txhash)
-	suite.Require().True(receipt.Success)
-	suite.Require().Len(receipt.OutReceipts, 1)
-	suite.Require().Len(receipt.OutMessages, 1)
+	txhash, err = s.client.SendExternalMessage(calldata, addr, nil)
+	s.Require().NoError(err)
+	receipt = s.waitForReceipt(addr.ShardId(), txhash)
+	s.Require().True(receipt.Success)
+	s.Require().Len(receipt.OutReceipts, 1)
+	s.Require().Len(receipt.OutMessages, 1)
 }
 
 func (suite *SuiteRpc) TestMultipleRefunds() {

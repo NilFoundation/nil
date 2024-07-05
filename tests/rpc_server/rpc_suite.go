@@ -41,140 +41,140 @@ func init() {
 	logging.SetupGlobalLogger("debug")
 }
 
-func (suite *RpcSuite) start(cfg *nilservice.Config) {
-	suite.T().Helper()
+func (s *RpcSuite) start(cfg *nilservice.Config) {
+	s.T().Helper()
 
-	suite.shardsNum = cfg.NShards
-	suite.context, suite.ctxCancel = context.WithCancel(context.Background())
+	s.shardsNum = cfg.NShards
+	s.context, s.ctxCancel = context.WithCancel(context.Background())
 
 	badger, err := db.NewBadgerDbInMemory()
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
-	suite.endpoint = fmt.Sprintf("http://127.0.0.1:%d", cfg.HttpPort)
-	suite.client = rpc_client.NewClient(suite.endpoint, zerolog.New(os.Stderr))
+	s.endpoint = fmt.Sprintf("http://127.0.0.1:%d", cfg.HttpPort)
+	s.client = rpc_client.NewClient(s.endpoint, zerolog.New(os.Stderr))
 
-	suite.wg.Add(1)
+	s.wg.Add(1)
 	go func() {
-		nilservice.Run(suite.context, cfg, badger)
-		suite.wg.Done()
+		nilservice.Run(s.context, cfg, badger)
+		s.wg.Done()
 	}()
-	suite.waitZerostate()
+	s.waitZerostate()
 }
 
-func (suite *RpcSuite) cancel() {
-	suite.T().Helper()
+func (s *RpcSuite) cancel() {
+	s.T().Helper()
 
-	suite.ctxCancel()
-	suite.wg.Wait()
+	s.ctxCancel()
+	s.wg.Wait()
 }
 
-func (suite *RpcSuite) waitForReceipt(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
-	suite.T().Helper()
+func (s *RpcSuite) waitForReceipt(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
+	s.T().Helper()
 
 	var receipt *jsonrpc.RPCReceipt
 	var err error
-	suite.Require().Eventually(func() bool {
-		receipt, err = suite.client.GetInMessageReceipt(shardId, hash)
-		suite.Require().NoError(err)
+	s.Require().Eventually(func() bool {
+		receipt, err = s.client.GetInMessageReceipt(shardId, hash)
+		s.Require().NoError(err)
 		return receipt.IsComplete()
 	}, 15*time.Minute, 200*time.Millisecond)
 
 	return receipt
 }
 
-func (suite *RpcSuite) waitZerostate() {
-	for i := range suite.shardsNum {
-		suite.Require().Eventually(func() bool {
-			block, err := suite.client.GetBlock(types.ShardId(i), transport.BlockNumber(0), false)
-			suite.Require().NoError(err)
+func (s *RpcSuite) waitZerostate() {
+	for i := range s.shardsNum {
+		s.Require().Eventually(func() bool {
+			block, err := s.client.GetBlock(types.ShardId(i), transport.BlockNumber(0), false)
+			s.Require().NoError(err)
 			return block != nil
 		}, 10*time.Second, 100*time.Millisecond)
 	}
 }
 
 // Deploy contract to specific shard
-func (suite *RpcSuite) deployContractViaWallet(
+func (s *RpcSuite) deployContractViaWallet(
 	addrFrom types.Address, key *ecdsa.PrivateKey, shardId types.ShardId, payload types.DeployPayload, initialAmount types.Value,
 ) (types.Address, *jsonrpc.RPCReceipt) {
-	suite.T().Helper()
+	s.T().Helper()
 
 	contractAddr := types.CreateAddress(shardId, payload)
-	suite.T().Logf("Deploying contract %v", contractAddr)
-	txHash, err := suite.client.SendMessageViaWallet(addrFrom, types.Code{}, 100_000, initialAmount,
+	s.T().Logf("Deploying contract %v", contractAddr)
+	txHash, err := s.client.SendMessageViaWallet(addrFrom, types.Code{}, 100_000, initialAmount,
 		[]types.CurrencyBalance{}, contractAddr, key)
-	suite.Require().NoError(err)
-	receipt := suite.waitForReceipt(addrFrom.ShardId(), txHash)
-	suite.Require().True(receipt.Success)
-	suite.Require().Len(receipt.OutReceipts, 1)
+	s.Require().NoError(err)
+	receipt := s.waitForReceipt(addrFrom.ShardId(), txHash)
+	s.Require().True(receipt.Success)
+	s.Require().Len(receipt.OutReceipts, 1)
 
-	txHash, addr, err := suite.client.DeployContract(shardId, addrFrom, payload, types.Value{}, key)
-	suite.Require().NoError(err)
-	suite.Require().Equal(contractAddr, addr)
+	txHash, addr, err := s.client.DeployContract(shardId, addrFrom, payload, types.Value{}, key)
+	s.Require().NoError(err)
+	s.Require().Equal(contractAddr, addr)
 
-	receipt = suite.waitForReceipt(addrFrom.ShardId(), txHash)
-	suite.Require().True(receipt.Success)
-	suite.Require().Len(receipt.OutReceipts, 1)
+	receipt = s.waitForReceipt(addrFrom.ShardId(), txHash)
+	s.Require().True(receipt.Success)
+	s.Require().Len(receipt.OutReceipts, 1)
 	return addr, receipt
 }
 
-func (suite *RpcSuite) deployContractViaMainWallet(shardId types.ShardId, payload types.DeployPayload, initialAmount types.Value) (types.Address, *jsonrpc.RPCReceipt) {
-	suite.T().Helper()
+func (s *RpcSuite) deployContractViaMainWallet(shardId types.ShardId, payload types.DeployPayload, initialAmount types.Value) (types.Address, *jsonrpc.RPCReceipt) {
+	s.T().Helper()
 
-	return suite.deployContractViaWallet(types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
+	return s.deployContractViaWallet(types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
 }
 
-func (suite *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey, calldata []byte, value types.Value) *jsonrpc.RPCReceipt {
-	suite.T().Helper()
+func (s *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey, calldata []byte, value types.Value) *jsonrpc.RPCReceipt {
+	s.T().Helper()
 
-	txHash, err := suite.client.SendMessageViaWallet(addrFrom, calldata, 1_000_000, value,
+	txHash, err := s.client.SendMessageViaWallet(addrFrom, calldata, 1_000_000, value,
 		[]types.CurrencyBalance{}, addrTo, key)
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
-	receipt := suite.waitForReceipt(addrFrom.ShardId(), txHash)
-	suite.Require().True(receipt.Success)
-	suite.Require().Len(receipt.OutReceipts, 1)
+	receipt := s.waitForReceipt(addrFrom.ShardId(), txHash)
+	s.Require().True(receipt.Success)
+	s.Require().Len(receipt.OutReceipts, 1)
 
 	return receipt
 }
 
-func (suite *RpcSuite) sendExternalMessage(bytecode types.Code, contractAddress types.Address) *jsonrpc.RPCReceipt {
-	suite.T().Helper()
+func (s *RpcSuite) sendExternalMessage(bytecode types.Code, contractAddress types.Address) *jsonrpc.RPCReceipt {
+	s.T().Helper()
 
-	txHash, err := suite.client.SendExternalMessage(bytecode, contractAddress, execution.MainPrivateKey)
-	suite.Require().NoError(err)
+	txHash, err := s.client.SendExternalMessage(bytecode, contractAddress, execution.MainPrivateKey)
+	s.Require().NoError(err)
 
-	receipt := suite.waitForReceipt(contractAddress.ShardId(), txHash)
-	suite.Require().True(receipt.Success)
-	suite.Require().Len(receipt.OutReceipts, 1)
+	receipt := s.waitForReceipt(contractAddress.ShardId(), txHash)
+	s.Require().True(receipt.Success)
+	s.Require().Len(receipt.OutReceipts, 1)
 
 	return receipt
 }
 
 // sendMessageViaWalletNoCheck sends a message via a wallet contract. Doesn't require the receipt be successful.
-func (suite *RpcSuite) sendMessageViaWalletNoCheck(addrWallet types.Address, addrTo types.Address, key *ecdsa.PrivateKey,
+func (s *RpcSuite) sendMessageViaWalletNoCheck(addrWallet types.Address, addrTo types.Address, key *ecdsa.PrivateKey,
 	calldata []byte, gas types.Gas, value types.Value, currencies []types.CurrencyBalance,
 ) *jsonrpc.RPCReceipt {
-	suite.T().Helper()
+	s.T().Helper()
 
 	// Send the raw transaction
-	txHash, err := suite.client.SendMessageViaWallet(addrWallet, calldata, gas, value, currencies, addrTo, key)
-	suite.Require().NoError(err)
+	txHash, err := s.client.SendMessageViaWallet(addrWallet, calldata, gas, value, currencies, addrTo, key)
+	s.Require().NoError(err)
 
-	receipt := suite.waitForReceipt(addrWallet.ShardId(), txHash)
+	receipt := s.waitForReceipt(addrWallet.ShardId(), txHash)
 	// We don't check the receipt for success here, as it can be failed on purpose
 	if receipt.Success {
 		// But if it is successful, we expect exactly one out receipt
-		suite.Require().Len(receipt.OutReceipts, 1)
+		s.Require().Len(receipt.OutReceipts, 1)
 	}
 
 	return receipt
 }
 
-func (suite *RpcSuite) CallGetter(addr types.Address, callData []byte) []byte {
-	suite.T().Helper()
+func (s *RpcSuite) CallGetter(addr types.Address, callData []byte) []byte {
+	s.T().Helper()
 
-	callerSeqno, err := suite.client.GetTransactionCount(addr, "latest")
-	suite.Require().NoError(err)
+	callerSeqno, err := s.client.GetTransactionCount(addr, "latest")
+	s.Require().NoError(err)
 	seqno := hexutil.Uint64(callerSeqno)
 
 	callArgs := &jsonrpc.CallArgs{
@@ -184,8 +184,8 @@ func (suite *RpcSuite) CallGetter(addr types.Address, callData []byte) []byte {
 		GasLimit: 10000,
 		Seqno:    seqno,
 	}
-	res, err := suite.client.Call(callArgs)
-	suite.Require().NoError(err)
+	res, err := s.client.Call(callArgs)
+	s.Require().NoError(err)
 	return []byte(res)
 }
 
