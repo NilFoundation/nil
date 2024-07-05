@@ -77,6 +77,8 @@ jobs:
     steps:
       - name: checkout local actions
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Golang and solc
         run: |
