@@ -36,7 +36,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/blake2b"
 	"github.com/ethereum/go-ethereum/crypto/bn256"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
-	"github.com/holiman/uint256"
 	"golang.org/x/crypto/ripemd160" //nolint:staticcheck
 )
 
@@ -89,7 +88,7 @@ func (c *sha256hash) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.Sha256PerWordGas + params.Sha256BaseGas
 }
 
-func (c *sha256hash) Run(_ StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, _ bool) ([]byte, error) {
+func (c *sha256hash) Run(input []byte) ([]byte, error) {
 	h := sha256.Sum256(input)
 	return h[:], nil
 }
@@ -122,8 +121,8 @@ func (c *dataCopy) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.IdentityPerWordGas + params.IdentityBaseGas
 }
 
-func (c *dataCopy) Run(_ StateDB, in []byte, gas uint64, value *uint256.Int, caller ContractRef, _ bool) ([]byte, error) {
-	return slices.Clone(in), nil
+func (c *dataCopy) Run(input []byte) ([]byte, error) {
+	return slices.Clone(input), nil
 }
 
 // bigModExp implements a native big integer exponential modular operation.
@@ -247,7 +246,7 @@ func (c *bigModExp) RequiredGas(input []byte) uint64 {
 	return gas.Uint64()
 }
 
-func (c *bigModExp) Run(_ StateDB, input []byte, gas uint64, value *uint256.Int, caller ContractRef, _ bool) ([]byte, error) {
+func (c *bigModExp) Run(input []byte) ([]byte, error) {
 	var (
 		baseLen = new(big.Int).SetBytes(getData(input, 0, 32)).Uint64()
 		expLen  = new(big.Int).SetBytes(getData(input, 32, 32)).Uint64()

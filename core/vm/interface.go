@@ -8,7 +8,17 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 )
 
+type StateDBReadOnly interface {
+	// IsInternalMessage returns true if the message that initiated execution is internal.
+	// Synchronous calls inside one contract are also considered internal.
+	IsInternalMessage() bool
+
+	GetCurrencies(types.Address) map[types.CurrencyId]types.Value
+}
+
 type StateDB interface {
+	StateDBReadOnly
+
 	CreateAccount(types.Address) error
 	CreateContract(types.Address) error
 
@@ -18,7 +28,6 @@ type StateDB interface {
 
 	AddCurrency(to types.Address, currencyId types.CurrencyId, amount types.Value) error
 	SubCurrency(to types.Address, currencyId types.CurrencyId, amount types.Value) error
-	GetCurrencies(addr types.Address) map[types.CurrencyId]types.Value
 	SetCurrencyTransfer([]types.CurrencyBalance)
 
 	GetSeqno(types.Address) (types.Seqno, error)
@@ -73,10 +82,6 @@ type StateDB interface {
 
 	// add internal out message for current transaction
 	AddOutInternal(caller types.Address, payload *types.InternalMessagePayload) error
-
-	// IsInternalMessage returns true if the message that initiated execution is internal. Synchronous calls inside
-	// one contract are also considered as internal.
-	IsInternalMessage() bool
 
 	// Get current message
 	GetInMessage() *types.Message

@@ -10,9 +10,23 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 )
 
+type AccountStateReader struct {
+	CurrencyTrieReader *CurrencyTrieReader
+}
+
+func (asr *AccountStateReader) GetCurrencyBalance(id types.CurrencyId) types.Value {
+	res, err := asr.CurrencyTrieReader.Fetch(id)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return types.Value{}
+	}
+	check.PanicIfErr(err)
+	return *res
+}
+
 type AccountState struct {
-	db      *ExecutionState
-	address types.Address // address of the ethereum account
+	db                 *ExecutionState
+	address            types.Address // address of the ethereum account
+	accountStateReader *AccountStateReader
 
 	Tx           db.RwTx
 	Balance      types.Value
@@ -117,14 +131,7 @@ func (as *AccountState) setCurrencyBalance(id types.CurrencyId, amount types.Val
 }
 
 func (as *AccountState) GetCurrencyBalance(id types.CurrencyId) types.Value {
-	res, err := as.CurrencyTree.Fetch(id)
-	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			return types.Value{}
-		}
-		panic(err)
-	}
-	return *res
+	return as.accountStateReader.GetCurrencyBalance(id)
 }
 
 func (as *AccountState) SetSeqno(seqno types.Seqno) {
