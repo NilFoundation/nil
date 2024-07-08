@@ -33,8 +33,8 @@ func (suite *SuiteExecutionState) SetupTest() {
 	suite.Require().NoError(err)
 }
 
-func (s *SuiteExecutionState) TearDownTest() {
-	s.db.Close()
+func (suite *SuiteExecutionState) TearDownTest() {
+	suite.db.Close()
 }
 
 func (suite *SuiteExecutionState) TestExecState() {

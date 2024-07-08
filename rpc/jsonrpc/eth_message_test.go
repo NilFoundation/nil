@@ -26,41 +26,41 @@ type SuiteEthMessage struct {
 
 var unknownBlockHash = common.HexToHash("0x00eb398db0189885e7cbf70586eeefb9aec472d7216c821866d9254f14269f67")
 
-func (suite *SuiteEthMessage) SetupSuite() {
-	suite.ctx = context.Background()
+func (s *SuiteEthMessage) SetupSuite() {
+	s.ctx = context.Background()
 
 	var err error
-	suite.db, err = db.NewBadgerDbInMemory()
-	suite.Require().NoError(err)
+	s.db, err = db.NewBadgerDbInMemory()
+	s.Require().NoError(err)
 
 	pool := msgpool.New(msgpool.DefaultConfig)
-	suite.Require().NotNil(pool)
+	s.Require().NotNil(pool)
 
-	suite.api, err = NewEthAPI(suite.ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool, pool}, logging.NewLogger("Test"))
-	suite.Require().NoError(err)
+	s.api, err = NewEthAPI(s.ctx,
+		NewBaseApi(rpccfg.DefaultEvmCallTimeout), s.db, []msgpool.Pool{pool, pool}, logging.NewLogger("Test"))
+	s.Require().NoError(err)
 
-	tx, err := suite.db.CreateRwTx(suite.ctx)
-	suite.Require().NoError(err)
+	tx, err := s.db.CreateRwTx(s.ctx)
+	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	suite.message = types.Message{Data: []byte("data")}
-	receipt := types.Receipt{MsgHash: suite.message.Hash()}
+	s.message = types.Message{Data: []byte("data")}
+	receipt := types.Receipt{MsgHash: s.message.Hash()}
 
-	suite.lastBlockHash = writeTestBlock(
-		suite.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Message{&suite.message}, []*types.Receipt{&receipt}, []*types.Message{})
-	_, err = execution.PostprocessBlock(tx, types.BaseShardId, types.NewValueFromUint64(10), 0, suite.lastBlockHash)
-	suite.Require().NoError(err)
+	s.lastBlockHash = writeTestBlock(
+		s.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Message{&s.message}, []*types.Receipt{&receipt}, []*types.Message{})
+	_, err = execution.PostprocessBlock(tx, types.BaseShardId, types.NewValueFromUint64(10), 0, s.lastBlockHash)
+	s.Require().NoError(err)
 
 	err = tx.Commit()
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
-	suite.messageRaw, err = suite.message.MarshalSSZ()
-	suite.Require().NoError(err)
+	s.messageRaw, err = s.message.MarshalSSZ()
+	s.Require().NoError(err)
 }
 
-func (suite *SuiteEthMessage) TearDownSuite() {
-	suite.db.Close()
+func (s *SuiteEthMessage) TearDownSuite() {
+	s.db.Close()
 }
 
 func (s *SuiteEthMessage) TestGetMessageByHash() {
