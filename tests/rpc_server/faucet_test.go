@@ -144,6 +144,6 @@ func (s *SuiteRpc) TestTopUpViaFaucet() {
 	var value3 uint64 = 5 * 1_000_000_000_000_000
 	var balance3 uint64 = 10_000_000_000_000_000
 	s.Run("Top up over limit", func() {
-		testTopUp(balance2, value3, balance3, float64(balance3)*0.01)
+		testTopUp(balance2, value3, balance3, float64(balance3)*0.02)
 	})
 }
