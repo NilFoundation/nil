@@ -100,7 +100,7 @@ func (h *handler) log(lvl zerolog.Level, msg *jsonrpcMessage, logMsg string, dur
 		Str(logging.FieldRpcMethod, msg.Method).
 		Str(logging.FieldRpcParams, string(msg.Params))
 	if duration > 0 {
-		l = l.Stringer(logging.FieldDuration, duration)
+		l = l.Dur(logging.FieldDuration, duration)
 	}
 	l.Msg(logMsg)
 }
