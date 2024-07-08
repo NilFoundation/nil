@@ -23,11 +23,13 @@ type SuiteCliTestCall struct {
 	testAddress  types.Address
 	cfgPath      string
 	tmpPath      string
+	port         int
 }
 
 func (s *SuiteCliTestCall) SetupSuite() {
 	var err error
 
+	s.port = 8543
 	s.shardsNum = 2
 	s.tmpPath = s.T().TempDir()
 	s.cfgPath = s.tmpPath + "/config.ini"
@@ -38,7 +40,7 @@ private_key = {{ .PrivateKey }}
 address = {{ .Address }}
 `
 	iniData, err := common.ParseTemplate(iniDataTmpl, map[string]interface{}{
-		"Port":       8537,
+		"Port":       s.port,
 		"PrivateKey": nilcrypto.PrivateKeyToEthereumFormat(execution.MainPrivateKey),
 		"Address":    types.MainWalletAddress.Hex(),
 	})
@@ -62,7 +64,7 @@ contracts:
 func (s *SuiteCliTestCall) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards:              s.shardsNum,
-		HttpPort:             8537,
+		HttpPort:             s.port,
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            s.zerostateCfg,
 		CollatorTickPeriodMs: 100,
@@ -113,7 +115,8 @@ func (s *SuiteCliTestCall) TestCliCall() {
 	s.testResult(res, "Error: failed to pack method call: method 'nonExistingMethod' not found")
 }
 
-func TestCLiCall(t *testing.T) { //nolint
-	// Not parallel, because tests use same port
+func TestCLiCall(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, new(SuiteCliTestCall))
 }

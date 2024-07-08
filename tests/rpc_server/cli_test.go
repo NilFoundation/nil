@@ -7,16 +7,44 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"testing"
 
+	"github.com/NilFoundation/nil/cli/service"
+	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
+	"github.com/NilFoundation/nil/core/collate"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/stretchr/testify/suite"
 )
 
-func (s *SuiteRpc) toJSON(v interface{}) string {
+type SuiteCli struct {
+	RpcSuite
+	cli *service.Service
+}
+
+func (s *SuiteCli) SetupTest() {
+	s.start(&nilservice.Config{
+		NShards:              5,
+		HttpPort:             8542,
+		Topology:             collate.TrivialShardTopologyId,
+		CollatorTickPeriodMs: 100,
+		GasBasePrice:         10,
+	})
+
+	s.cli = service.NewService(s.client, execution.MainPrivateKey)
+	s.Require().NotNil(s.cli)
+}
+
+func (s *SuiteCli) TearDownTest() {
+	s.cancel()
+}
+
+func (s *SuiteCli) toJSON(v interface{}) string {
 	s.T().Helper()
 
 	data, err := json.MarshalIndent(v, "", "  ")
@@ -25,7 +53,7 @@ func (s *SuiteRpc) toJSON(v interface{}) string {
 	return string(data)
 }
 
-func (s *SuiteRpc) TestCliBlock() {
+func (s *SuiteCli) TestCliBlock() {
 	block, err := s.client.GetBlock(types.BaseShardId, 0, false)
 	s.Require().NoError(err)
 
@@ -38,7 +66,7 @@ func (s *SuiteRpc) TestCliBlock() {
 	s.JSONEq(s.toJSON(block), string(res))
 }
 
-func (s *SuiteRpc) TestCliMessage() {
+func (s *SuiteCli) TestCliMessage() {
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	deployPayload := s.prepareDefaultDeployPayload(abi, contractCode, big.NewInt(0))
 
@@ -59,7 +87,7 @@ func (s *SuiteRpc) TestCliMessage() {
 	s.JSONEq(s.toJSON(receipt), string(res))
 }
 
-func (s *SuiteRpc) TestReadContract() {
+func (s *SuiteCli) TestReadContract() {
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	deployPayload := s.prepareDefaultDeployPayload(abi, contractCode, big.NewInt(1))
 
@@ -76,7 +104,7 @@ func (s *SuiteRpc) TestReadContract() {
 	s.Equal("0x", res)
 }
 
-func (s *SuiteRpc) TestContract() {
+func (s *SuiteCli) TestContract() {
 	wallet := types.MainWalletAddress
 
 	// Deploy contract
@@ -85,7 +113,7 @@ func (s *SuiteRpc) TestContract() {
 	txHash, addr, err := s.cli.DeployContractViaWallet(wallet.ShardId()+1, wallet, deployCode, types.Value{})
 	s.Require().NoError(err)
 
-	receipt := s.waitForReceiptOnShard(wallet.ShardId(), txHash)
+	receipt := s.waitForReceipt(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -104,7 +132,7 @@ func (s *SuiteRpc) TestContract() {
 	txHash, err = s.cli.RunContract(wallet, calldata, 100_000, types.Value{}, nil, addr)
 	s.Require().NoError(err)
 
-	receipt = s.waitForReceiptOnShard(wallet.ShardId(), txHash)
+	receipt = s.waitForReceipt(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -120,7 +148,7 @@ func (s *SuiteRpc) TestContract() {
 	txHash, err = s.cli.RunContract(wallet, nil, 100_000, types.NewValueFromUint64(100), nil, addr)
 	s.Require().NoError(err)
 
-	receipt = s.waitForReceiptOnShard(wallet.ShardId(), txHash)
+	receipt = s.waitForReceipt(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -135,7 +163,7 @@ func (s *SuiteRpc) TestContract() {
 	s.EqualValues(100, b2-b1)
 }
 
-func (s *SuiteRpc) testNewWalletOnShard(shardId types.ShardId) {
+func (s *SuiteCli) testNewWalletOnShard(shardId types.ShardId) {
 	s.T().Helper()
 
 	ownerPrivateKey, err := crypto.GenerateKey()
@@ -149,15 +177,15 @@ func (s *SuiteRpc) testNewWalletOnShard(shardId types.ShardId) {
 	s.Require().Equal(expectedAddress, walletAddres)
 }
 
-func (s *SuiteRpc) TestNewWalletOnFaucetShard() {
+func (s *SuiteCli) TestNewWalletOnFaucetShard() {
 	s.testNewWalletOnShard(types.FaucetAddress.ShardId())
 }
 
-func (s *SuiteRpc) TestNewWalletOnRandomShard() {
+func (s *SuiteCli) TestNewWalletOnRandomShard() {
 	s.testNewWalletOnShard(types.FaucetAddress.ShardId() + 1)
 }
 
-func (s *SuiteRpc) TestSendExternalMessage() {
+func (s *SuiteCli) TestSendExternalMessage() {
 	wallet := types.MainWalletAddress
 
 	contractCode, abi := s.loadContract(common.GetAbsolutePath("./contracts/external_increment.sol"), "ExternalIncrementer")
@@ -165,7 +193,7 @@ func (s *SuiteRpc) TestSendExternalMessage() {
 	txHash, addr, err := s.cli.DeployContractViaWallet(types.BaseShardId, wallet, deployCode, types.NewValueFromUint64(10_000_000))
 	s.Require().NoError(err)
 
-	receipt := s.waitForReceiptOnShard(wallet.ShardId(), txHash)
+	receipt := s.waitForReceipt(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -188,7 +216,7 @@ func (s *SuiteRpc) TestSendExternalMessage() {
 	txHash, err = s.cli.SendExternalMessage(calldata, addr, true)
 	s.Require().NoError(err)
 
-	receipt = s.waitForReceiptOnShard(addr.ShardId(), txHash)
+	receipt = s.waitForReceipt(addr.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 
 	// Get updated value
@@ -197,7 +225,7 @@ func (s *SuiteRpc) TestSendExternalMessage() {
 	s.Equal("0x000000000000000000000000000000000000000000000000000000000000007d", res)
 }
 
-func (s *SuiteRpc) TestCurrency() {
+func (s *SuiteCli) TestCurrency() {
 	wallet := types.MainWalletAddress
 	value := types.NewValueFromUint64(12345)
 	s.Require().NoError(s.cli.CurrencyCreate(wallet, value, "token1", true))
@@ -221,7 +249,7 @@ func (s *SuiteRpc) TestCurrency() {
 	s.Require().Equal(2*value.Uint64(), val.Uint64())
 }
 
-func (s *SuiteRpc) TestCallCliHelp() {
+func (s *SuiteCli) TestCallCliHelp() {
 	res := s.runCli("help")
 
 	for _, cmd := range []string{"block", "message", "contract", "wallet", "completion"} {
@@ -229,7 +257,7 @@ func (s *SuiteRpc) TestCallCliHelp() {
 	}
 }
 
-func (s *SuiteRpc) TestCallCliBasic() {
+func (s *SuiteCli) TestCallCliBasic() {
 	cfgPath := s.T().TempDir() + "/config.ini"
 
 	iniData := "[nil]\nrpc_endpoint = " + s.endpoint + "\n"
@@ -244,7 +272,7 @@ func (s *SuiteRpc) TestCallCliBasic() {
 	s.Contains(res, block.Hash.String())
 }
 
-func (s *SuiteRpc) TestCliCreateWallet() {
+func (s *SuiteCli) TestCliCreateWallet() {
 	dir := s.T().TempDir()
 
 	cfgPath := dir + "/config.ini"
@@ -310,7 +338,7 @@ func (s *SuiteRpc) TestCliCreateWallet() {
 	})
 }
 
-func (s *SuiteRpc) TestCliConfig() {
+func (s *SuiteCli) TestCliConfig() {
 	dir := s.T().TempDir()
 
 	cfgPath := dir + "/config.ini"
@@ -334,4 +362,10 @@ func (s *SuiteRpc) TestCliConfig() {
 		res := s.runCli("-c", cfgPath, "config", "show")
 		s.Contains(res, "rpc_endpoint: "+s.endpoint)
 	})
+}
+
+func TestSuiteCli(t *testing.T) {
+	t.Parallel()
+
+	suite.Run(t, new(SuiteCli))
 }

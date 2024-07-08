@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NilFoundation/nil/cli/service"
 	rpc_client "github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
@@ -20,7 +19,6 @@ import (
 	"github.com/NilFoundation/nil/core/vm"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
-	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
@@ -28,7 +26,6 @@ import (
 
 type SuiteRpc struct {
 	RpcSuite
-	cli *service.Service
 }
 
 func (s *SuiteRpc) SetupTest() {
@@ -39,9 +36,6 @@ func (s *SuiteRpc) SetupTest() {
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
 	})
-
-	s.cli = service.NewService(s.client, execution.MainPrivateKey)
-	s.Require().NotNil(s.cli)
 }
 
 func (s *SuiteRpc) TearDownTest() {
@@ -129,16 +123,6 @@ func (s *SuiteRpc) TestRpcBasic() {
 	msg, err := s.client.GetInMessageByHash(types.BaseShardId, someRandomMissingBlock)
 	s.Require().NoError(err)
 	s.Require().Nil(msg)
-}
-
-func (s *SuiteRpc) loadContract(path string, name string) (types.Code, abi.ABI) {
-	s.T().Helper()
-
-	contracts, err := solc.CompileSource(path)
-	s.Require().NoError(err)
-	code := hexutil.FromHex(contracts[name].Code)
-	abi := solc.ExtractABI(contracts[name])
-	return code, abi
 }
 
 func (s *RpcSuite) prepareDefaultDeployPayload(abi abi.ABI, code []byte, args ...any) types.DeployPayload {
@@ -460,18 +444,45 @@ func (s *SuiteRpc) TestNoOutMessagesIfFailure() {
 	s.Require().Len(receipt.OutMessages, 1)
 }
 
-func (suite *SuiteRpc) TestMultipleRefunds() {
+func (s *SuiteRpc) TestMultipleRefunds() {
 	code, err := contracts.GetCode(contracts.NameCommonTest)
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
 	var leftShardId types.ShardId = 1
 	var rightShardId types.ShardId = 2
 
-	_, receipt := suite.deployContractViaMainWallet(leftShardId, types.BuildDeployPayload(code, common.EmptyHash), defaultContractValue)
-	suite.Require().True(receipt.OutReceipts[0].Success)
+	_, receipt := s.deployContractViaMainWallet(leftShardId, types.BuildDeployPayload(code, common.EmptyHash), defaultContractValue)
+	s.Require().True(receipt.OutReceipts[0].Success)
 
-	_, receipt = suite.deployContractViaMainWallet(rightShardId, types.BuildDeployPayload(code, common.EmptyHash), defaultContractValue)
-	suite.Require().True(receipt.OutReceipts[0].Success)
+	_, receipt = s.deployContractViaMainWallet(rightShardId, types.BuildDeployPayload(code, common.EmptyHash), defaultContractValue)
+	s.Require().True(receipt.OutReceipts[0].Success)
+}
+
+func (s *SuiteRpc) TestRpcBlockContent() {
+	// Deploy message
+	hash, _, err := s.client.DeployContract(types.BaseShardId, types.MainWalletAddress,
+		contracts.CounterDeployPayload(s.T()), types.Value{},
+		execution.MainPrivateKey)
+	s.Require().NoError(err)
+
+	var block *jsonrpc.RPCBlock
+	s.Eventually(func() bool {
+		var err error
+		block, err = s.client.GetBlock(types.BaseShardId, "latest", false)
+		s.Require().NoError(err)
+
+		return len(block.Messages) > 0
+	}, 6*time.Second, 50*time.Millisecond)
+
+	block, err = s.client.GetBlock(types.BaseShardId, block.Hash, true)
+	s.Require().NoError(err)
+
+	s.Require().NotNil(block.Hash)
+	s.Require().Len(block.Messages, 1)
+
+	msg, ok := block.Messages[0].(map[string]any)
+	s.Require().True(ok)
+	s.Equal(hash.Hex(), msg["hash"])
 }
 
 func TestSuiteRpc(t *testing.T) {
