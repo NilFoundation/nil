@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/core/vm"
 	"github.com/rs/zerolog"
 )
 
@@ -134,22 +135,51 @@ func (c *collator) handleMessagesFromPool() ([]*types.Message, error) {
 		return nil, err
 	}
 
+	es, err := execution.NewROExecutionStateForShard(c.roTx, c.params.ShardId, c.params.Timer, c.params.GasPriceScale)
+	if err != nil {
+		return nil, err
+	}
+
+	validate := func(msg *types.Message) (bool, error) {
+		hash := msg.Hash()
+
+		if msgData, err := sa.Access(c.roTx, c.params.ShardId).GetInMessage().ByHash(hash); err != nil &&
+			!errors.Is(err, db.ErrKeyNotFound) {
+			return false, err
+		} else if err == nil && msgData.Message() != nil {
+			c.logger.Trace().Stringer(logging.FieldMessageHash, hash).
+				Msg("Message is already in the blockchain. Dropping...")
+			return false, nil
+		}
+
+		if _, validationErr, err := execution.ValidateExternalMessage(es, msg); err != nil {
+			return false, err
+		} else if validationErr != nil {
+			// todo: we should run full transactions, because we cannot validate without it
+			// for now, skip VM errors here, they will be caught by the generator
+			if !vm.IsVMError(validationErr) {
+				execution.AddFailureReceipt(hash, msg.To, validationErr)
+				return false, nil
+			}
+		}
+
+		if err := es.SetExtSeqno(msg.To, msg.Seqno+1); err != nil {
+			return false, err
+		}
+
+		return true, nil
+	}
+
 	nExternal := 0
 	for ; c.shouldContinue() && nExternal < len(poolMsgs); nExternal++ {
 		msg := poolMsgs[nExternal]
 		c.proposal.RemoveFromPool = append(c.proposal.RemoveFromPool, msg)
 
-		msgData, err := sa.Access(c.roTx, c.params.ShardId).GetInMessage().ByHash(msg.Hash())
-		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		if ok, err := validate(msg); err != nil {
 			return nil, err
+		} else if ok {
+			c.proposal.InMsgs = append(c.proposal.InMsgs, msg)
 		}
-		if !errors.Is(err, db.ErrKeyNotFound) && msgData.Message() != nil {
-			c.logger.Trace().Stringer(logging.FieldMessageHash, msg.Hash()).
-				Msg("Message is already in the blockchain. Dropping...")
-			continue
-		}
-
-		c.proposal.InMsgs = append(c.proposal.InMsgs, msg)
 	}
 
 	return poolMsgs[:nExternal], nil

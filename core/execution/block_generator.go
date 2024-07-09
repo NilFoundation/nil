@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"errors"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
@@ -121,7 +122,11 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal) error {
 		} else {
 			gasUsed, err = g.handleExternalMessage(msg)
 		}
-		g.addReceipt(gasUsed, err)
+		if msgErr := (*types.MessageError)(nil); err != nil && !errors.As(err, &msgErr) {
+			return err
+		} else {
+			g.addReceipt(gasUsed, msgErr)
+		}
 	}
 
 	for _, msg := range proposal.OutMsgs {
@@ -158,46 +163,42 @@ func (g *BlockGenerator) handleInternalInMessage(msg *types.Message) (types.Gas,
 }
 
 func (g *BlockGenerator) handleExternalMessage(msg *types.Message) (types.Gas, error) {
-	var verifyGas types.Gas
-	var err error
-	if verifyGas, err = ValidateExternalMessage(g.executionState, msg); err != nil {
-		g.logger.Error().Err(err).Msg("Invalid external message.")
+	verifyGas, validationErr, err := ValidateExternalMessage(g.executionState, msg)
+	if err != nil {
+		g.logger.Error().Err(err).Msg("External message validation failed.")
+		return 0, err
+	}
+	if validationErr != nil {
+		g.logger.Error().Err(validationErr).Msg("Invalid external message.")
 		return 0, types.NewMessageError(types.MessageStatusValidation, err)
 	}
 
 	acc, err := g.executionState.GetAccount(msg.To)
-	if err != nil {
-		return 0, types.NewMessageError(types.MessageStatusNoAccount, err)
-	}
+	// Validation cached the account.
+	check.PanicIfErr(err)
+
 	usedGas, err := g.executionState.handleMessage(g.ctx, msg, accountPayer{acc, msg})
 	return verifyGas.Add(usedGas), err
 }
 
-func (g *BlockGenerator) addReceipt(gasUsed types.Gas, err error) {
+func (g *BlockGenerator) addReceipt(gasUsed types.Gas, err *types.MessageError) {
 	msgHash := g.executionState.InMessageHash
 	msg := g.executionState.GetInMessage()
 
 	if gasUsed == 0 && msg.IsExternal() {
+		// External messages that don't use gas must not appear here.
+		// todo: fail generation here when collator performs full validation.
 		check.PanicIfNot(err != nil)
 
-		// todo: this is a temporary solution, we shouldn't store errors for unpaid failures
 		g.executionState.DropInMessage()
-		FailureReceiptCache.Add(msgHash, ReceiptWithError{
-			Receipt: &types.Receipt{
-				Success:         false,
-				MsgHash:         msgHash,
-				ContractAddress: msg.To,
-			},
-			Error: err,
-		})
+		AddFailureReceipt(msgHash, msg.To, err)
 
-		g.logger.Debug().
-			Err(err).
-			Stringer(logging.FieldMessageHash, msgHash).
-			Stringer(logging.FieldMessageTo, msg.To).
-			Msg("Cached non-authorized fail receipt.")
+		g.logger.Warn().Stringer(logging.FieldMessageHash, msgHash).
+			Msg("Encountered unauthenticated failure. Collator must filter out such messages.")
+
 		return
 	}
+
 	g.executionState.AddReceipt(gasUsed, err)
 
 	if err != nil {

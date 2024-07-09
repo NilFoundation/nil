@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/tracing"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/core/vm"
 )
 
 var sharedLogger = logging.NewLogger("execution")
@@ -109,62 +110,70 @@ func ValidateDeployMessage(message *types.Message) error {
 	return nil
 }
 
-func validateExternalDeployMessage(es *ExecutionState, message *types.Message) error {
+func validateExternalDeployMessage(es *ExecutionState, message *types.Message) (types.Gas, error, error) {
 	check.PanicIfNot(message.IsDeploy())
 
 	if err := ValidateDeployMessage(message); err != nil {
-		return err
+		return 0, err, nil
 	}
 
 	if exists, err := es.ContractExists(message.To); err != nil {
-		return err
+		return 0, nil, err
 	} else if exists {
-		return ErrContractAlreadyExists
+		return 0, ErrContractAlreadyExists, nil
 	}
 
-	return nil
+	return 0, nil, nil
 }
 
-func validateExternalExecutionMessage(es *ExecutionState, message *types.Message) (types.Gas, error) {
+func validateExternalExecutionMessage(es *ExecutionState, message *types.Message) (types.Gas, error, error) {
 	check.PanicIfNot(message.IsExecution())
 
 	to := message.To
 	if exists, err := es.ContractExists(to); err != nil {
-		return 0, err
+		return 0, nil, err
 	} else if !exists {
 		if len(message.Data) > 0 && message.Value.IsZero() {
-			return 0, ErrContractDoesNotExist
+			return 0, ErrContractDoesNotExist, nil
 		}
-		return 0, nil // Just send value
+		return 0, nil, nil // send value
 	}
 
 	account, err := es.GetAccount(to)
 	check.PanicIfErr(err)
 	if account.ExtSeqno != message.Seqno {
-		return 0, fmt.Errorf("%w: account %v != message %v", ErrSeqnoGap, account.ExtSeqno, message.Seqno)
+		return 0, fmt.Errorf("%w: account %v != message %v", ErrSeqnoGap, account.ExtSeqno, message.Seqno), nil
 	}
 
-	return es.CallVerifyExternal(message, account)
+	gas, err := es.CallVerifyExternal(message, account)
+	if err != nil {
+		if vm.IsVMError(err) {
+			// means that the message is invalid
+			return gas, err, nil
+		}
+		return 0, nil, err
+	}
+	return gas, nil, nil
 }
 
-func ValidateExternalMessage(es *ExecutionState, message *types.Message) (types.Gas, error) {
+func ValidateExternalMessage(es *ExecutionState, message *types.Message) (types.Gas, error, error) {
 	check.PanicIfNot(message.IsExternal())
 
 	if message.ChainId != types.DefaultChainId {
-		return 0, ErrInvalidChainId
+		return 0, ErrInvalidChainId, nil
 	}
 
 	if account, err := es.GetAccount(message.To); err != nil {
-		return 0, err
+		return 0, nil, err
 	} else if account == nil {
-		return 0, ErrNoPayer
+		return 0, ErrNoPayer, nil
 	}
 
 	switch {
 	case message.IsDeploy():
-		return 0, validateExternalDeployMessage(es, message)
+		return validateExternalDeployMessage(es, message)
 	case message.IsRefund():
-		return 0, errors.New("refund message is not allowed in external messages")
+		return 0, errors.New("refund message is not allowed in external messages"), nil
 	default:
 		return validateExternalExecutionMessage(es, message)
 	}
