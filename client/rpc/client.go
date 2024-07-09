@@ -16,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/common/assert"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
+	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
@@ -46,6 +47,13 @@ const (
 	Eth_getShardIdList                   = "eth_getShardIdList"
 	Eth_gasPrice                         = "eth_gasPrice"
 	Eth_chainId                          = "eth_chainId"
+)
+
+const (
+	Db_get           = "db_get"
+	Db_exists        = "db_exists"
+	Db_existsInShard = "db_existsInShard"
+	Db_getFromShard  = "db_getFromShard"
 )
 
 type Client struct {
@@ -535,4 +543,30 @@ func (c *Client) CurrencyMint(contractAddr types.Address, amount types.Value, wi
 	}
 
 	return c.SendExternalMessage(data, contractAddr, pk)
+}
+
+func callTyped[T any](c *Client, method string, params ...any) (T, error) {
+	var res T
+	raw, err := c.call(method, params...)
+	if err != nil {
+		return res, err
+	}
+
+	return res, json.Unmarshal(raw, &res)
+}
+
+func (c *Client) DbGet(tableName db.TableName, key []byte) ([]byte, error) {
+	return callTyped[[]byte](c, Db_get, tableName, key)
+}
+
+func (c *Client) DbGetFromShard(shardId types.ShardId, tableName db.ShardedTableName, key []byte) ([]byte, error) {
+	return callTyped[[]byte](c, Db_getFromShard, shardId, tableName, key)
+}
+
+func (c *Client) DbExists(tableName db.TableName, key []byte) (bool, error) {
+	return callTyped[bool](c, Db_exists, tableName, key)
+}
+
+func (c *Client) DbExistsInShard(shardId types.ShardId, tableName db.ShardedTableName, key []byte) (bool, error) {
+	return callTyped[bool](c, Db_existsInShard, shardId, tableName, key)
 }

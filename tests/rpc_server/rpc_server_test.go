@@ -14,6 +14,7 @@ import (
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/collate"
+	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
@@ -484,6 +485,16 @@ func (s *SuiteRpc) TestRpcBlockContent() {
 	msg, ok := block.Messages[0].(map[string]any)
 	s.Require().True(ok)
 	s.Equal(hash.Hex(), msg["hash"])
+}
+
+func (s *SuiteRpc) TestDbApi() {
+	h, err := s.client.DbGet(db.LastBlockTable, types.BaseShardId.Bytes())
+	s.Require().NoError(err)
+
+	block, err := s.client.GetBlock(types.BaseShardId, transport.LatestBlockNumber, false)
+	s.Require().NoError(err)
+
+	s.Require().Equal(block.Hash, common.BytesToHash(h))
 }
 
 func TestSuiteRpc(t *testing.T) {

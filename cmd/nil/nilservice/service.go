@@ -40,6 +40,7 @@ func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []
 		return err
 	}
 	debugImpl := jsonrpc.NewDebugAPI(base, db, logger)
+	dbImpl := jsonrpc.NewDbAPI(db, logger)
 
 	apiList := []transport.API{
 		{
@@ -52,6 +53,12 @@ func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []
 			Namespace: "debug",
 			Public:    true,
 			Service:   jsonrpc.DebugAPI(debugImpl),
+			Version:   "1.0",
+		},
+		{
+			Namespace: "db",
+			Public:    true,
+			Service:   jsonrpc.DbAPI(dbImpl),
 			Version:   "1.0",
 		},
 	}

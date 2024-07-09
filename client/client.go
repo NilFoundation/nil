@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 )
@@ -57,4 +58,11 @@ type Client interface {
 
 	// CurrencyMint mints currency for the contract
 	CurrencyMint(contractAddr types.Address, amount types.Value, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error)
+
+	// Methods for accessing the DB
+	// TODO: Add batching and sanity checks
+	DbExists(tableName db.TableName, key []byte) (bool, error)
+	DbGet(tableName db.TableName, key []byte) ([]byte, error)
+	DbExistsInShard(shardId types.ShardId, tableName db.ShardedTableName, key []byte) (bool, error)
+	DbGetFromShard(shardId types.ShardId, tableName db.ShardedTableName, key []byte) ([]byte, error)
 }
