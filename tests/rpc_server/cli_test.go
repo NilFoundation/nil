@@ -284,6 +284,12 @@ func (s *SuiteCli) TestCliCreateWallet() {
 	err := os.WriteFile(cfgPath, []byte(iniData), 0o600)
 	s.Require().NoError(err)
 
+	s.Run("Deploy new wallet", func() {
+		res, err := s.runCliNoCheck("-c", cfgPath, "wallet", "new")
+		s.Require().Error(err)
+		s.Contains(res, "Error: No private key specified in config. Run `nil_cli keygen` command to generate one.")
+	})
+
 	s.Run("Generate a key", func() {
 		res := s.runCli("-c", cfgPath, "keygen", "new")
 		s.Contains(res, "Private key:")

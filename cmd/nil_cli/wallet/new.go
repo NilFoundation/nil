@@ -6,6 +6,7 @@ import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -60,6 +61,7 @@ func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
 	}
 
 	srv := service.NewService(common.GetRpcClient(), cfg.PrivateKey)
+	check.PanicIfNotf(cfg.PrivateKey != nil, "Private key doesn't set in config")
 	walletAddress, err := srv.CreateWallet(params.shardId, &params.salt, amount, &cfg.PrivateKey.PublicKey)
 	if err != nil {
 		return err
