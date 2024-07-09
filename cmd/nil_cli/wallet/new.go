@@ -1,10 +1,11 @@
 package wallet
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -60,11 +61,6 @@ func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
 
 	srv := service.NewService(common.GetRpcClient(), cfg.PrivateKey)
 	walletAddress, err := srv.CreateWallet(params.shardId, &params.salt, amount, &cfg.PrivateKey.PublicKey)
-
-	if errors.Is(err, service.ErrWalletExists) {
-		logger.Error().Err(err).Msg("failed to create wallet")
-		return nil
-	}
 	if err != nil {
 		return err
 	}
@@ -75,6 +71,9 @@ func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
 		logger.Error().Err(err).Msg("failed to update wallet address in config file")
 	}
 
-	logger.Info().Msgf("New wallet address: %s", walletAddress.Hex())
+	if !config.Quiet {
+		fmt.Print("New wallet address: ")
+	}
+	fmt.Println(walletAddress.Hex())
 	return nil
 }

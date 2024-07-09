@@ -1,8 +1,11 @@
 package contract
 
 import (
+	"fmt"
+
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
@@ -27,6 +30,12 @@ func runCurrencies(_ *cobra.Command, args []string, cfg *common.Config) error {
 	}
 
 	service := service.NewService(common.GetRpcClient(), cfg.PrivateKey)
-	_, _ = service.GetCurrencies(address)
+	currencies, _ := service.GetCurrencies(address)
+	if !config.Quiet {
+		fmt.Print("Contract currencies: ")
+	}
+	for k, v := range currencies {
+		fmt.Printf("%v\t%v\n", k, v)
+	}
 	return nil
 }

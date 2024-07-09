@@ -1,8 +1,20 @@
 package service
 
 import (
+	"fmt"
+
 	"github.com/NilFoundation/nil/core/types"
 )
+
+// Not using generic printer argument here because zerolog events need to be created,
+// so it would be printer factory function, which is quite ugly
+func ShardsToString(list []types.ShardId) string {
+	var str string
+	for _, id := range list {
+		str += fmt.Sprintf("  * %d\n", id)
+	}
+	return str
+}
 
 func (s *Service) GetShards() ([]types.ShardId, error) {
 	list, err := s.client.GetShardIdList()
@@ -11,9 +23,7 @@ func (s *Service) GetShards() ([]types.ShardId, error) {
 	}
 
 	s.logger.Info().Msg("List of shard id:")
-	for _, id := range list {
-		s.logger.Info().Msgf("  * %d", id)
-	}
+	s.logger.Info().Msg(ShardsToString(list))
 	return list, nil
 }
 

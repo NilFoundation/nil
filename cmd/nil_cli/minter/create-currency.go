@@ -1,8 +1,11 @@
 package minter
 
 import (
+	"fmt"
+
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
@@ -38,5 +41,13 @@ func runCreateCurrency(_ *cobra.Command, args []string, cfg *common.Config) erro
 
 	name := args[2]
 
-	return service.CurrencyCreate(address, amount, name, params.withdraw)
+	currencyId, err := service.CurrencyCreate(address, amount, name, params.withdraw)
+	if err != nil {
+		return err
+	}
+	if !config.Quiet {
+		fmt.Print("Created Currency ID: ")
+	}
+	fmt.Println(currencyId)
+	return nil
 }

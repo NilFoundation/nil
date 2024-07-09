@@ -5,12 +5,10 @@ import (
 
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
-	"github.com/NilFoundation/nil/common/logging"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
-
-var logger = logging.NewLogger("addressCommand")
 
 func GetAddressCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
@@ -35,14 +33,6 @@ func GetAddressCommand(cfg *common.Config) *cobra.Command {
 		&params.salt,
 		saltFlag,
 		"Salt for deploy message",
-	)
-
-	cmd.Flags().BoolVarP(
-		&params.quiet,
-		quietFlag,
-		"q",
-		false,
-		"Quiet mode (print only the contract address and exit)",
 	)
 
 	cmd.Flags().StringVar(
@@ -71,11 +61,10 @@ func runAddress(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 	}
 
 	address := service.ContractAddress(params.shardId, params.salt, bytecode)
-	if !params.quiet {
-		logger.Info().Msgf("Contract address: %s", address)
-	} else {
-		fmt.Println(address)
+	if !config.Quiet {
+		fmt.Print("Contract address: ")
 	}
+	fmt.Println(address.Hex())
 
 	return nil
 }

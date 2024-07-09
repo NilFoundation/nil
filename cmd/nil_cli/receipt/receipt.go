@@ -1,8 +1,12 @@
 package receipt
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	libcommon "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
@@ -42,11 +46,16 @@ func runCommand(_ *cobra.Command, args []string) error {
 	}
 
 	if hash != libcommon.EmptyHash {
-		_, err := service.FetchReceiptByHash(params.shardId, hash)
+		receipt, err := service.FetchReceiptByHash(params.shardId, hash)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to fetch receipt")
 			return err
 		}
+		if !config.Quiet {
+			fmt.Print("Receipt data: ")
+		}
+		fmt.Println(string(receipt))
+		return nil
 	}
-	return nil
+	return errors.New("empty hash")
 }

@@ -1,8 +1,11 @@
 package contract
 
 import (
+	"fmt"
+
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	libcommon "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -81,6 +84,16 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 			return err
 		}
 	}
+
+	if !config.Quiet {
+		fmt.Print("Message hash: ")
+	}
+	fmt.Println(msgHash)
+
+	if !config.Quiet {
+		fmt.Print("Contract address: ")
+	}
+	fmt.Println(addr)
 
 	return nil
 }

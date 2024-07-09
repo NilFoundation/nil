@@ -1,8 +1,11 @@
 package wallet
 
 import (
+	"fmt"
+
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/spf13/cobra"
 )
 
@@ -22,6 +25,13 @@ func BalanceCommand(cfg *common.Config) *cobra.Command {
 
 func runBalance(_ *cobra.Command, _ []string, cfg *common.Config) error {
 	service := service.NewService(common.GetRpcClient(), cfg.PrivateKey)
-	_, _ = service.GetBalance(cfg.Address)
+	balance, err := service.GetBalance(cfg.Address)
+	if err != nil {
+		return err
+	}
+	if !config.Quiet {
+		fmt.Print("Wallet balance: ")
+	}
+	fmt.Println(balance)
 	return nil
 }

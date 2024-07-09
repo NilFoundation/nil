@@ -1,8 +1,11 @@
 package wallet
 
 import (
+	"fmt"
+
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/spf13/cobra"
 )
 
@@ -22,8 +25,20 @@ func InfoCommand(cfg *common.Config) *cobra.Command {
 
 func infoBalance(_ *cobra.Command, _ []string, cfg *common.Config) error {
 	service := service.NewService(common.GetRpcClient(), cfg.PrivateKey)
-	if _, _, err := service.GetInfo(cfg.Address); err != nil {
+	addr, pub, err := service.GetInfo(cfg.Address)
+	if err != nil {
 		return err
 	}
+
+	if !config.Quiet {
+		fmt.Print("Wallet address: ")
+	}
+	fmt.Println(addr)
+
+	if !config.Quiet {
+		fmt.Print("Public key: ")
+	}
+	fmt.Println(pub)
+
 	return nil
 }

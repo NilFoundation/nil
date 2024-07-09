@@ -33,9 +33,10 @@ type RootCommand struct {
 	config   common.Config
 	cfgFile  string
 	logLevel string
+	verbose  bool
 }
 
-var logger = logging.NewSimpleLogger()
+var logger = logging.NewLogger("root")
 
 var noConfigCmd = map[string]struct{}{
 	"help":             {},
@@ -55,9 +56,13 @@ func main() {
 			Use:   "nil_cli",
 			Short: "CLI tool for interacting with the =nil; cluster",
 			PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-				logLevel, err := zerolog.ParseLevel(rootCmd.logLevel)
-				check.PanicIfErr(err)
-				zerolog.SetGlobalLevel(logLevel)
+				if !rootCmd.verbose {
+					zerolog.SetGlobalLevel(zerolog.Disabled)
+				} else {
+					logLevel, err := zerolog.ParseLevel(rootCmd.logLevel)
+					check.PanicIfErr(err)
+					zerolog.SetGlobalLevel(logLevel)
+				}
 
 				// Set the config file for all commands because some commands can write something to it.
 				// E.g. "keygen" command writes a private key to the config file (and creates if it doesn't exist)
@@ -87,6 +92,20 @@ func main() {
 
 	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.cfgFile, "config", "c", common.DefaultConfigPath, "Path to config file")
 	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.logLevel, "log-level", "l", "info", "Log level: trace|debug|info|warn|error|fatal|panic")
+	rootCmd.baseCmd.PersistentFlags().BoolVarP(
+		&config.Quiet,
+		"quiet",
+		"q",
+		false,
+		"Quiet mode (print only the result and exit)",
+	)
+	rootCmd.baseCmd.PersistentFlags().BoolVarP(
+		&rootCmd.verbose,
+		"verbose",
+		"v",
+		false,
+		"Verbose mode (print logs)",
+	)
 
 	rootCmd.registerSubCommands()
 	rootCmd.Execute()

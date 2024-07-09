@@ -1,8 +1,11 @@
 package system
 
 import (
+	"fmt"
+
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -31,9 +34,14 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			check.PanicIfNot(svc != nil)
-			if _, err := svc.GetShards(); err != nil {
+			list, err := svc.GetShards()
+			if err != nil {
 				return err
 			}
+			if !config.Quiet {
+				fmt.Println("Shards: ")
+			}
+			fmt.Print(service.ShardsToString(list))
 			return nil
 		},
 	}
@@ -51,9 +59,14 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 				return err
 			}
 
-			if _, err := svc.GetGasPrice(shardId); err != nil {
+			val, err := svc.GetGasPrice(shardId)
+			if err != nil {
 				return err
 			}
+			if !config.Quiet {
+				fmt.Printf("Gas price for shard %v: ", shardId)
+			}
+			fmt.Println(val)
 			return nil
 		},
 	}
@@ -65,9 +78,14 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			check.PanicIfNot(svc != nil)
-			if _, err := svc.GetChainId(); err != nil {
+			chainId, err := svc.GetChainId()
+			if err != nil {
 				return err
 			}
+			if !config.Quiet {
+				fmt.Print("ChainId: ")
+			}
+			fmt.Println(chainId)
 			return nil
 		},
 	}

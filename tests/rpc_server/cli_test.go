@@ -228,7 +228,9 @@ func (s *SuiteCli) TestSendExternalMessage() {
 func (s *SuiteCli) TestCurrency() {
 	wallet := types.MainWalletAddress
 	value := types.NewValueFromUint64(12345)
-	s.Require().NoError(s.cli.CurrencyCreate(wallet, value, "token1", true))
+
+	_, err := s.cli.CurrencyCreate(wallet, value, "token1", true)
+	s.Require().NoError(err)
 	cur, err := s.cli.GetCurrencies(wallet)
 	s.Require().NoError(err)
 	s.Require().Len(cur, 1)
@@ -238,8 +240,10 @@ func (s *SuiteCli) TestCurrency() {
 	s.Require().True(ok)
 	s.Require().Equal(value, val)
 
-	s.Require().NoError(s.cli.CurrencyMint(wallet, value, false))
-	s.Require().NoError(s.cli.CurrencyWithdraw(wallet, value, wallet))
+	_, err = s.cli.CurrencyMint(wallet, value, false)
+	s.Require().NoError(err)
+	_, err = s.cli.CurrencyWithdraw(wallet, value, wallet)
+	s.Require().NoError(err)
 	cur, err = s.cli.GetCurrencies(wallet)
 	s.Require().NoError(err)
 	s.Require().Len(cur, 1)
@@ -313,13 +317,13 @@ func (s *SuiteCli) TestCliCreateWallet() {
 
 	s.Run("Deploy contract", func() {
 		res := s.runCli("-c", cfgPath, "wallet", "deploy", dir+"/Incrementer.bin", "123321", "--abi", abiFileName)
-		s.Contains(res, "msgHash=[")
+		s.Contains(res, "Contract address")
 		s.Contains(res, strings.ToLower(addr.String()))
 	})
 
 	s.Run("Check contract code", func() {
 		res := s.runCli("-c", cfgPath, "contract", "code", addr.String())
-		s.Contains(res, "Contract code: 6080")
+		s.Contains(res, "Contract code: 0x6080")
 	})
 
 	s.Run("Call read-only 'get' function of contract", func() {
@@ -329,7 +333,7 @@ func (s *SuiteCli) TestCliCreateWallet() {
 
 	s.Run("Call 'increment' function of contract", func() {
 		res := s.runCli("-c", cfgPath, "wallet", "send-message", addr.String(), "increment", "--abi", abiFileName)
-		s.Contains(res, "msgHash=[")
+		s.Contains(res, "Message hash")
 	})
 
 	s.Run("Call read-only 'get' function of contract once again", func() {

@@ -2,9 +2,11 @@ package wallet
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	libcommon "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -91,7 +93,7 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 
 	payload := types.BuildDeployPayload(bytecode, libcommon.Hash(params.salt.Bytes32()))
 
-	msgHash, _, err := service.DeployContractViaWallet(params.shardId, cfg.Address, payload, params.amount)
+	msgHash, contractAddr, err := service.DeployContractViaWallet(params.shardId, cfg.Address, payload, params.amount)
 	if err != nil {
 		return err
 	}
@@ -102,5 +104,14 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 		}
 	}
 
+	if !config.Quiet {
+		fmt.Print("Message hash: ")
+	}
+	fmt.Printf("0x%x\n", msgHash)
+
+	if !config.Quiet {
+		fmt.Print("Contract address: ")
+	}
+	fmt.Printf("0x%x\n", contractAddr)
 	return nil
 }

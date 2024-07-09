@@ -7,6 +7,7 @@ import (
 
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -80,7 +81,7 @@ func runCallReadonly(_ *cobra.Command, args []string, cfg *common.Config) error 
 		return nil
 	}
 
-	if !params.quiet {
+	if !config.Quiet {
 		fmt.Println("Success, result:")
 	}
 	for i, output := range abi.Methods[args[1]].Outputs {

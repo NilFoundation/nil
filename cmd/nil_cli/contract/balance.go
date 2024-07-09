@@ -1,8 +1,11 @@
 package contract
 
 import (
+	"fmt"
+
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
@@ -28,6 +31,13 @@ func runBalance(_ *cobra.Command, args []string, cfg *common.Config) error {
 	}
 
 	service := service.NewService(common.GetRpcClient(), cfg.PrivateKey)
-	_, _ = service.GetBalance(address)
+	balance, err := service.GetBalance(address)
+	if err != nil {
+		return err
+	}
+	if !config.Quiet {
+		fmt.Print("Contract balance: ")
+	}
+	fmt.Println(balance)
 	return nil
 }

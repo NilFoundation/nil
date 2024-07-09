@@ -9,7 +9,6 @@ const (
 	amountFlag   = "amount"
 	noSignFlag   = "no-sign"
 	noWaitFlag   = "no-wait"
-	quietFlag    = "quiet"
 	saltFlag     = "salt"
 	shardIdFlag  = "shard-id"
 	gasLimitFlag = "gas-limit"
@@ -21,7 +20,6 @@ type contractParams struct {
 	abiPath  string
 	noSign   bool
 	noWait   bool
-	quiet    bool
 	salt     types.Uint256
 	shardId  types.ShardId
 	gasLimit types.Gas

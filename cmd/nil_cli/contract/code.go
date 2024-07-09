@@ -1,8 +1,11 @@
 package contract
 
 import (
+	"fmt"
+
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
@@ -29,5 +32,10 @@ func runCode(_ *cobra.Command, args []string, cfg *common.Config) error {
 
 	service := service.NewService(common.GetRpcClient(), cfg.PrivateKey)
 	_, _ = service.GetCode(address)
+	code, _ := service.GetCode(address)
+	if !config.Quiet {
+		fmt.Print("Contract code: ")
+	}
+	fmt.Println(code)
 	return nil
 }

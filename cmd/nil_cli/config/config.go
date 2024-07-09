@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+var Quiet = false
+
 var logger = logging.NewLogger("configCommand")
 
 var noConfigCmd map[string]struct{} = map[string]struct{}{

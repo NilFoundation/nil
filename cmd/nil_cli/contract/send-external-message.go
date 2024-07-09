@@ -5,6 +5,7 @@ import (
 
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
@@ -71,5 +72,10 @@ func runSendExternalMessage(_ *cobra.Command, args []string, cfg *common.Config)
 			return err
 		}
 	}
+
+	if !config.Quiet {
+		fmt.Print("Message hash: ")
+	}
+	fmt.Println(msgHash)
 	return nil
 }
