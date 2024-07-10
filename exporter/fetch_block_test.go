@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
@@ -23,12 +25,12 @@ type SuiteFetchBlock struct {
 }
 
 func (suite *SuiteFetchBlock) TestFetchBlock() {
-	fetchedBlock, err := suite.cfg.FetchLastBlock(suite.context, types.MasterShardId)
+	fetchedBlock, err := suite.cfg.FetchLastBlock(types.MasterShardId)
 	suite.Require().NoError(err, "Failed to fetch last block")
 
 	suite.Require().NotNil(fetchedBlock, "Fetched block is nil")
 
-	hashBlock, err := suite.cfg.FetchBlockByHash(suite.context, types.MasterShardId, fetchedBlock.Block.Hash())
+	hashBlock, err := suite.cfg.FetchBlockByHash(types.MasterShardId, fetchedBlock.Block.Hash())
 	suite.Require().NoError(err, "Failed to fetch block by hash")
 	suite.Require().NotNil(hashBlock, "Fetched block by hash is nil")
 
@@ -39,7 +41,7 @@ func (suite *SuiteFetchBlock) TestFetchBlock() {
 }
 
 func (suite *SuiteFetchBlock) TestFetchShardIdList() {
-	shardIds, err := suite.cfg.FetchShards(suite.context)
+	shardIds, err := suite.cfg.FetchShards()
 	suite.Require().NoError(err, "Failed to fetch shard ids")
 	suite.Require().Len(shardIds, suite.nShards-1, "Shard ids length is not equal to expected")
 }
@@ -54,8 +56,11 @@ func (suite *SuiteFetchBlock) SetupSuite() {
 	suite.context, suite.cancel = context.WithCancel(context.Background())
 	suite.nShards = 4
 	port := 8531
+
+	url := "http://127.0.0.1:" + strconv.Itoa(port)
+	logger := logging.NewLogger("test_exporter")
 	suite.cfg = Cfg{
-		APIEndpoints: []string{"http://127.0.0.1:" + strconv.Itoa(port)},
+		Client: rpc.NewClient(url, logger),
 	}
 
 	database, err := db.NewBadgerDbInMemory()

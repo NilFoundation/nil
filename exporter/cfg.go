@@ -1,22 +1,18 @@
 package exporter
 
 import (
-	"net/http"
 	"sync/atomic"
+
+	"github.com/NilFoundation/nil/client"
 )
 
 type Cfg struct {
-	APIEndpoints   []string
 	ExporterDriver ExportDriver
-	httpClient     http.Client
+	Client         client.Client
 	BlocksChan     chan *BlockMsg
 	ErrorChan      chan error
 	used           bool
 	exportRound    atomic.Uint32
-}
-
-func (cfg *Cfg) pickAPIEndpoint() string {
-	return cfg.APIEndpoints[0]
 }
 
 func (cfg *Cfg) incrementRound() {

@@ -47,6 +47,8 @@ const (
 	Eth_getShardIdList                   = "eth_getShardIdList"
 	Eth_gasPrice                         = "eth_gasPrice"
 	Eth_chainId                          = "eth_chainId"
+	Debug_getBlockByHash                 = "debug_getBlockByHash"
+	Debug_getBlockByNumber               = "debug_getBlockByNumber"
 )
 
 const (
@@ -200,6 +202,49 @@ func toRPCBlock(raw json.RawMessage) (*jsonrpc.RPCBlock, error) {
 		return nil, err
 	}
 	return block, nil
+}
+
+func (c *Client) GetRawBlock(shardId types.ShardId, blockId any, fullTx bool) (map[string]any, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return nil, err
+	}
+
+	if blockNrOrHash.BlockHash != nil {
+		return c.getRawBlockByHash(shardId, *blockNrOrHash.BlockHash, fullTx)
+	}
+	if blockNrOrHash.BlockNumber != nil {
+		return c.getRawBlockByNumber(shardId, *blockNrOrHash.BlockNumber, fullTx)
+	}
+	if assert.Enable {
+		panic("Unreachable")
+	}
+
+	return nil, nil
+}
+
+func (c *Client) getRawBlockByHash(shardId types.ShardId, hash common.Hash, fullTx bool) (map[string]any, error) {
+	res, err := c.call(Debug_getBlockByHash, shardId, hash, fullTx)
+	if err != nil {
+		return nil, err
+	}
+	return toRawBlock(res)
+}
+
+func (c *Client) getRawBlockByNumber(shardId types.ShardId, num transport.BlockNumber, fullTx bool) (map[string]any, error) {
+	res, err := c.call(Debug_getBlockByNumber, shardId, num, fullTx)
+	if err != nil {
+		return nil, err
+	}
+	return toRawBlock(res)
+}
+
+func toRawBlock(raw json.RawMessage) (map[string]any, error) {
+	var blockInfo map[string]any
+	if err := json.Unmarshal(raw, &blockInfo); err != nil {
+		return nil, err
+	}
+	return blockInfo, nil
 }
 
 func (c *Client) SendMessage(msg *types.ExternalMessage) (common.Hash, error) {
