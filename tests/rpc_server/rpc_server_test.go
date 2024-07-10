@@ -465,6 +465,24 @@ func (s *SuiteRpc) TestRpcBlockContent() {
 	s.Equal(hash.Hex(), msg["hash"])
 }
 
+func (s *SuiteRpc) TestRpcMessageContent() {
+	shardId := types.ShardId(3)
+	hash, _, err := s.client.DeployContract(shardId, types.MainWalletAddress,
+		contracts.CounterDeployPayload(s.T()), types.Value{},
+		execution.MainPrivateKey)
+	s.Require().NoError(err)
+
+	receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), hash)
+
+	msg1, err := s.client.GetInMessageByHash(types.MainWalletAddress.ShardId(), hash)
+	s.Require().NoError(err)
+	s.EqualValues(0, msg1.Flags.Bits)
+
+	msg2, err := s.client.GetInMessageByHash(shardId, receipt.OutMessages[0])
+	s.Require().NoError(err)
+	s.EqualValues(3, msg2.Flags.Bits)
+}
+
 func (s *SuiteRpc) TestDbApi() {
 	hBytes, err := s.client.DbGet(db.LastBlockTable, types.BaseShardId.Bytes())
 	s.Require().NoError(err)
