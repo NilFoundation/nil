@@ -81,6 +81,8 @@ func (s *RpcSuite) waitForReceipt(shardId types.ShardId, hash common.Hash) *json
 		return receipt.IsComplete()
 	}, 15*time.Second, 200*time.Millisecond)
 
+	s.Equal(hash, receipt.MsgHash)
+
 	return receipt
 }
 
