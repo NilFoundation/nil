@@ -100,7 +100,7 @@ func (s *SuiteRpc) TestDeployWalletWithValue() {
 	)
 	s.Require().NoError(err)
 
-	receipt := s.waitForReceiptOnShard(types.MainWalletAddress.ShardId(), hash)
+	receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), hash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 

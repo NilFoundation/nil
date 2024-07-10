@@ -52,22 +52,6 @@ func (s *SuiteRpc) sendRawTransaction(m *types.ExternalMessage) common.Hash {
 	return hash
 }
 
-func (s *SuiteRpc) waitForReceiptOnShard(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
-	s.T().Helper()
-
-	var receipt *jsonrpc.RPCReceipt
-	var err error
-	s.Require().Eventually(func() bool {
-		receipt, err = s.client.GetInMessageReceipt(shardId, hash)
-		s.Require().NoError(err)
-		return receipt.IsComplete()
-	}, 15*time.Second, 200*time.Millisecond)
-
-	s.Equal(hash, receipt.MsgHash)
-
-	return receipt
-}
-
 func (s *SuiteRpc) TestRpcBasic() {
 	var someRandomMissingBlock common.Hash
 	s.Require().NoError(someRandomMissingBlock.UnmarshalText([]byte("0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")))
@@ -351,7 +335,7 @@ func (s *SuiteRpc) TestEmptyDeployPayload() {
 	hash, _, err := s.client.DeployContract(types.BaseShardId, wallet, types.DeployPayload{}, types.Value{}, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
-	receipt := s.waitForReceiptOnShard(wallet.ShardId(), hash)
+	receipt := s.waitForReceipt(wallet.ShardId(), hash)
 	s.Require().True(receipt.Success)
 	s.Require().False(receipt.OutReceipts[0].Success)
 }
