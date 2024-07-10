@@ -368,11 +368,8 @@ func (s *SuiteRpc) TestRpcError() {
 }
 
 func (s *SuiteRpc) TestRpcDebugModules() {
-	raw, err := s.client.RawCall("debug_getBlockByNumber", types.BaseShardId, "latest", false)
+	res, err := s.client.GetRawBlock(types.BaseShardId, "latest", false)
 	s.Require().NoError(err)
-
-	var res map[string]any
-	s.Require().NoError(json.Unmarshal(raw, &res))
 
 	s.Require().Contains(res, "number")
 	s.Require().Contains(res, "hash")
@@ -385,10 +382,7 @@ func (s *SuiteRpc) TestRpcDebugModules() {
 	// print resp to see the result
 	s.T().Logf("resp: %v", res)
 
-	raw, err = s.client.RawCall("debug_getBlockByNumber", types.BaseShardId, "latest", true)
-
-	var fullRes map[string]any
-	s.Require().NoError(json.Unmarshal(raw, &fullRes))
+	fullRes, err := s.client.GetRawBlock(types.BaseShardId, "latest", true)
 	s.Require().NoError(err)
 	s.Require().Contains(fullRes, "content")
 	s.Require().Contains(fullRes, "inMessages")
@@ -469,6 +463,24 @@ func (s *SuiteRpc) TestRpcBlockContent() {
 	msg, ok := block.Messages[0].(map[string]any)
 	s.Require().True(ok)
 	s.Equal(hash.Hex(), msg["hash"])
+}
+
+func (s *SuiteRpc) TestRpcMessageContent() {
+	shardId := types.ShardId(3)
+	hash, _, err := s.client.DeployContract(shardId, types.MainWalletAddress,
+		contracts.CounterDeployPayload(s.T()), types.Value{},
+		execution.MainPrivateKey)
+	s.Require().NoError(err)
+
+	receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), hash)
+
+	msg1, err := s.client.GetInMessageByHash(types.MainWalletAddress.ShardId(), hash)
+	s.Require().NoError(err)
+	s.EqualValues(0, msg1.Flags.Bits)
+
+	msg2, err := s.client.GetInMessageByHash(shardId, receipt.OutMessages[0])
+	s.Require().NoError(err)
+	s.EqualValues(3, msg2.Flags.Bits)
 }
 
 func (s *SuiteRpc) TestDbApi() {

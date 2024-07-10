@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/exporter"
@@ -127,7 +128,7 @@ You could config it via config file or flags or environment variables.`,
 	}
 
 	cfg := &exporter.Cfg{
-		APIEndpoints:   []string{apiEndpoint},
+		Client:         rpc.NewClient(apiEndpoint, logger),
 		ExporterDriver: clickhouseExporter,
 		BlocksChan:     make(chan *exporter.BlockMsg, 100),
 		ErrorChan:      make(chan error),

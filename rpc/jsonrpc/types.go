@@ -44,10 +44,12 @@ type CallArgs struct {
 // @componentprop Seqno seqno string true "The sequence number of the message."
 // @componentprop Signature signature string true "The message signature."
 // @componentprop Success success boolean true "The flag that shows whether the message was successful."
+// @componentprop Flags flags array true "The array of message flags."
 // @componentprop To to string true "The address where the message was sent."
 // @componentprop Value value string true "The message value."
 // @componentprop Currency value array true "Currency values."
 type RPCInMessage struct {
+	Flags       types.MessageFlags      `json:"flags"`
 	Success     bool                    `json:"success"`
 	Data        hexutil.Bytes           `json:"data"`
 	BlockHash   common.Hash             `json:"blockHash"`
@@ -145,6 +147,7 @@ func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types
 	}
 
 	result := &RPCInMessage{
+		Flags:       message.Flags,
 		Success:     receipt.Success,
 		Data:        hexutil.Bytes(message.Data),
 		BlockHash:   block.Hash(),
