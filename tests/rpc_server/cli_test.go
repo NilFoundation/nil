@@ -276,7 +276,7 @@ func (s *SuiteCli) TestCallCliBasic() {
 	s.Contains(res, block.Hash.String())
 }
 
-func (s *SuiteCli) TestCliCreateWallet() {
+func (s *SuiteCli) TestCliWallet() {
 	dir := s.T().TempDir()
 
 	cfgPath := dir + "/config.ini"
@@ -287,12 +287,18 @@ func (s *SuiteCli) TestCliCreateWallet() {
 	s.Run("Deploy new wallet", func() {
 		res, err := s.runCliNoCheck("-c", cfgPath, "wallet", "new")
 		s.Require().Error(err)
-		s.Contains(res, "Error: No private key specified in config. Run `nil_cli keygen` command to generate one.")
+		s.Contains(res, "Error: Private key is not specified in config")
 	})
 
+	res := s.runCli("-c", cfgPath, "keygen", "new")
 	s.Run("Generate a key", func() {
-		res := s.runCli("-c", cfgPath, "keygen", "new")
 		s.Contains(res, "Private key:")
+	})
+
+	s.Run("Address not specified", func() {
+		res, err := s.runCliNoCheck("-c", cfgPath, "wallet", "info")
+		s.Require().Error(err)
+		s.Contains(res, "Error: Valid wallet address is not specified in config")
 	})
 
 	s.Run("Deploy new wallet", func() {

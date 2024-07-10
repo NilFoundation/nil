@@ -2,8 +2,10 @@ package wallet
 
 import (
 	"errors"
+	"os"
 
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
 
@@ -22,7 +24,12 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 				}
 			}
 			if cfg.PrivateKey == nil {
-				return errors.New("No private key specified in config. Run `nil_cli keygen` command to generate one.")
+				logger.Info().Msgf("No private key specified in config. Run `%s keygen` command to generate one.", os.Args[0])
+				return errors.New("Private key is not specified in config")
+			}
+			if cfg.Address == types.EmptyAddress && cmd.Name() != "new" {
+				logger.Info().Msgf("Valid wallet address is not specified in config. Run `%s config set address <address>` command to set.", os.Args[0])
+				return errors.New("Valid wallet address is not specified in config")
 			}
 			return nil
 		},
