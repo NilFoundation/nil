@@ -6,14 +6,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/exporter"
 	"github.com/NilFoundation/nil/exporter/clickhouse"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -105,52 +103,21 @@ You could config it via config file or flags or environment variables.`,
 
 	ctx := context.Background()
 
-	if onlySchemeInit {
-		clickhouseExporter, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
-		check.PanicIfErr(err)
+	clickhouseExporter, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
+	check.PanicIfErr(err)
 
+	if onlySchemeInit {
 		check.PanicIfErr(clickhouseExporter.SetupScheme(ctx))
 
 		logger.Info().Msg("Scheme initialized")
 		return
 	}
 
-	var clickhouseExporter *clickhouse.ClickhouseDriver
-	for {
-		clickhouseDriver, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create Clickhouse driver")
-			time.Sleep(3 * time.Second)
-			continue
-		}
-		clickhouseExporter = clickhouseDriver
-		break
-	}
-
-	cfg := &exporter.Cfg{
+	check.PanicIfErr(exporter.StartExporter(ctx, &exporter.Cfg{
 		Client:         rpc.NewClient(apiEndpoint, logger),
 		ExporterDriver: clickhouseExporter,
-		BlocksChan:     make(chan *exporter.BlockMsg, 100),
-		ErrorChan:      make(chan error),
-	}
+		BlocksChan:     make(chan *exporter.BlockMsg, 1000),
+	}))
 
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case errMsg := <-cfg.ErrorChan:
-				logger.Error().Err(errMsg).Msg("Error occurred")
-				if strings.Contains(errMsg.Error(), "read: connection reset by peer") {
-					err := cfg.ExporterDriver.Reconnect()
-					if err != nil {
-						logger.Error().Err(errMsg).Msg("Failed to reconnect")
-					}
-				}
-			}
-		}
-	}()
-
-	check.PanicIfErr(exporter.StartExporter(ctx, cfg))
 	logger.Info().Msg("Exporter stopped")
 }

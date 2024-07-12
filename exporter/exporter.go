@@ -2,8 +2,6 @@ package exporter
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"time"
 
 	"github.com/NilFoundation/nil/common/concurrent"
@@ -24,26 +22,20 @@ type ExportMessage struct {
 }
 
 func StartExporter(ctx context.Context, cfg *Cfg) error {
-	if cfg.used {
-		return errors.New("exporter already started")
-	}
-	cfg.used = true
-	defer func() { cfg.used = false }()
+	logger.Info().Msg("Starting exporter...")
 
-	for err := cfg.ExporterDriver.SetupScheme(ctx); err != nil; {
-		cfg.ErrorChan <- fmt.Errorf("failed to setup scheme: %w", err)
-		time.Sleep(LongSleepTimeout)
-	}
-
-	var err error
 	var shards []types.ShardId
-	for shards, err = cfg.FetchShards(); err != nil; {
-		cfg.ErrorChan <- fmt.Errorf("failed to fetch shards: %w", err)
+	for {
+		var err error
+		shards, err = setupExporter(ctx, cfg)
+		if err == nil {
+			break
+		}
+		logger.Error().Err(err).Msgf("Failed to setup exporter. Retrying in %s...", LongSleepTimeout)
 		time.Sleep(LongSleepTimeout)
 	}
 
-	workers := make([]concurrent.Func, 0)
-	shards = append(shards, types.MasterShardId)
+	workers := make([]concurrent.Func, 0, 2*len(shards)+1)
 	for _, shard := range shards {
 		workers = append(workers, func(ctx context.Context) error {
 			startTopFetcher(ctx, cfg, shard)
@@ -62,8 +54,23 @@ func StartExporter(ctx context.Context, cfg *Cfg) error {
 	return concurrent.Run(ctx, workers...)
 }
 
+func setupExporter(ctx context.Context, cfg *Cfg) ([]types.ShardId, error) {
+	if err := cfg.ExporterDriver.SetupScheme(ctx); err != nil {
+		return nil, err
+	}
+
+	shards, err := cfg.FetchShards()
+	if err != nil {
+		return nil, err
+	}
+
+	return append(shards, types.MasterShardId), nil
+}
+
 func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
-	log.Info().Msgf("Starting top fetcher for shard %s...", shardId.String())
+	logger := logger.With().Stringer(logging.FieldShardId, shardId).Logger()
+	logger.Info().Msg("Starting top fetcher...")
+
 	ticker := time.NewTicker(1 * time.Second)
 	curExportRound := cfg.exportRound.Load() + InitialRoundsAmount
 	for {
@@ -77,13 +84,13 @@ func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 			}
 			lastProcessedBlock, isSetLastProcessed, err := cfg.ExporterDriver.FetchLatestProcessedBlock(ctx, shardId)
 			if err != nil {
-				cfg.ErrorChan <- fmt.Errorf("top fetcher for shard %s: failed to fetch last processed block: %w", shardId.String(), err)
+				logger.Error().Err(err).Msg("Failed to fetch last processed block.")
 				continue
 			}
 
 			topBlock, err := cfg.FetchLastBlock(shardId)
 			if err != nil {
-				cfg.ErrorChan <- fmt.Errorf("top fetcher for shard %s: failed to fetch last block: %w", shardId, err)
+				logger.Error().Err(err).Msg("Failed to fetch last block.")
 				continue
 			}
 
@@ -107,7 +114,7 @@ func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 				}
 				curBlock, err = cfg.FetchBlockByHash(shardId, curBlock.Block.PrevBlock)
 				if err != nil {
-					cfg.ErrorChan <- fmt.Errorf("top fetcher for shard %s: failed to fetch block: %w", shardId.String(), err)
+					logger.Error().Err(err).Msg("Failed to fetch block.")
 					break
 				}
 			}
@@ -116,9 +123,8 @@ func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 }
 
 func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
-	log.Info().
-		Stringer(logging.FieldShardId, shardId).
-		Msg("Starting bottom fetcher...")
+	logger := logger.With().Stringer(logging.FieldShardId, shardId).Logger()
+	logger.Info().Msg("Starting bottom fetcher...")
 
 	ticker := time.NewTicker(1 * time.Second)
 	curExportRound := cfg.exportRound.Load() + InitialRoundsAmount
@@ -133,16 +139,16 @@ func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 			}
 			absentBlockNumber, isSet, err := cfg.ExporterDriver.FetchEarliestAbsentBlock(ctx, shardId)
 			if err != nil {
-				cfg.ErrorChan <- fmt.Errorf("bottom fetcher for shard %s: failed to fetch absent block: %w", shardId, err)
+				logger.Error().Err(err).Msg("Failed to fetch absent block.")
 				continue
 			}
 			if !isSet {
-				log.Info().Msg("Empty database. No blocks to fetch from bottom")
+				logger.Info().Msg("Empty database. No blocks to fetch from bottom")
 				return
 			}
 			zeroBlock, isSet, err := cfg.ExporterDriver.FetchBlock(ctx, shardId, types.BlockNumber(0))
 			if err != nil {
-				cfg.ErrorChan <- fmt.Errorf("bottom fetcher for shard %s: failed to fetch zero block: %w", shardId.String(), err)
+				logger.Error().Err(err).Msg("Failed to fetch zero block.")
 				continue
 			}
 
@@ -152,25 +158,24 @@ func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 			}
 
 			log.Info().
-				Stringer(logging.FieldShardId, shardId).
 				Stringer(logging.FieldBlockNumber, startBlockId).
 				Msg("Fetching from bottom block...")
 
 			nextPresentId, isSet, err := cfg.ExporterDriver.FetchNextPresentBlock(ctx, shardId, startBlockId)
 			if err != nil {
-				cfg.ErrorChan <- fmt.Errorf("bottom fetcher for shard %s: failed to fetch next present block: %w", shardId.String(), err)
+				logger.Error().Err(err).Msg("Failed to fetch next present block.")
 				continue
 			}
 			if !isSet {
-				log.Info().Msg("No more blocks to fetch from bottom")
+				logger.Info().Msg("No more blocks to fetch from bottom")
 				return
 			}
 
-			log.Info().Msgf("Fetching shard %s blocks from %d to %d", shardId.String(), startBlockId, nextPresentId)
+			logger.Info().Msgf("Fetching shard %s blocks from %d to %d", shardId.String(), startBlockId, nextPresentId)
 			for curBlockId := startBlockId; curBlockId < nextPresentId; curBlockId++ {
 				curBlock, err := cfg.FetchBlockByNumber(shardId, transport.BlockNumber(curBlockId))
 				if err != nil {
-					cfg.ErrorChan <- fmt.Errorf("bottom fetcher for shard %s: failed to fetch block: %w", shardId.String(), err)
+					logger.Error().Err(err).Msg("Failed to fetch block.")
 					continue
 				}
 				cfg.BlocksChan <- curBlock
@@ -181,48 +186,33 @@ func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 }
 
 func startDriverExport(ctx context.Context, cfg *Cfg) {
-	log.Info().Msg("Starting driver export...")
+	logger.Info().Msg("Starting driver export...")
+
 	ticker := time.NewTicker(1 * time.Second)
-	fullMode := false
 	var blockBuffer []*BlockMsg
 	for {
-		if len(blockBuffer) > BlockBufferSize {
-			if !fullMode {
-				log.Info().Msgf("Buffer is full. Stop reading from channel. Buffer size: %d", len(blockBuffer))
-				fullMode = true
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			// read available blocks
+			for len(cfg.BlocksChan) > 0 && len(blockBuffer) < BlockBufferSize {
+				blockBuffer = append(blockBuffer, <-cfg.BlocksChan)
 			}
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				if err := cfg.ExporterDriver.ExportBlocks(ctx, blockBuffer); err != nil {
-					cfg.ErrorChan <- fmt.Errorf("exporter: failed to export blocks: %w", err)
-					continue
-				}
-				blockBuffer = blockBuffer[:0]
-				cfg.incrementRound()
+			if len(cfg.BlocksChan) > 0 {
+				logger.Warn().Msg("Block buffer is full!")
 			}
-		} else {
-			if fullMode {
-				log.Info().Msg("Buffer is not full. Start reading from channel")
-				fullMode = false
+
+			if len(blockBuffer) == 0 {
+				continue
 			}
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				if len(blockBuffer) == 0 {
-					continue
-				}
-				if err := cfg.ExporterDriver.ExportBlocks(ctx, blockBuffer); err != nil {
-					cfg.ErrorChan <- fmt.Errorf("failed to export blocks: %w", err)
-					continue
-				}
-				blockBuffer = blockBuffer[:0]
-				cfg.incrementRound()
-			case block := <-cfg.BlocksChan:
-				blockBuffer = append(blockBuffer, block)
+
+			if err := cfg.ExporterDriver.ExportBlocks(ctx, blockBuffer); err != nil {
+				logger.Error().Err(err).Msg("Failed to export blocks; will retry in the next round.")
+				continue
 			}
+			blockBuffer = blockBuffer[:0]
+			cfg.incrementRound()
 		}
 	}
 }
