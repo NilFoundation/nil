@@ -17,11 +17,6 @@ in buildGoModule rec {
   vendorHash = "sha256-7j6kH3fbikhhO/4qrieqxWZQJscaIg5DKziNTBNHR5c=";
   hardeningDisable = [ "all" ];
 
-  postConfigure = ''
-    export GOCACHE=/tmp/${vendorHash}/go-cache
-    export GOMODCACHE=/tmp/${vendorHash}/go/mod/cache
-  '';
-
   postInstall = ''
     mkdir -p $out/share/doc/nil
     cp openrpc.json $out/share/doc/nil
@@ -56,6 +51,8 @@ in buildGoModule rec {
   GOFLAGS = [ "-modcacherw" ];
   shellHook = ''
     eval "$configurePhase"
+    export GOCACHE=/tmp/${vendorHash}/go-cache
+    export GOMODCACHE=/tmp/${vendorHash}/go/mod/cache
     chmod -R u+w vendor
   '';
 }
