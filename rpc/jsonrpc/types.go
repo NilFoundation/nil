@@ -3,6 +3,7 @@ package jsonrpc
 import (
 	"errors"
 
+	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/assert"
 	"github.com/NilFoundation/nil/common/check"
@@ -85,6 +86,34 @@ type RPCBlock struct {
 	ReceiptsRoot   common.Hash       `json:"receiptsRoot"`
 	ShardId        types.ShardId     `json:"shardId"`
 	Messages       []any             `json:"messages"`
+}
+
+type RPCRawBlock struct {
+	Number             types.BlockNumber `json:"number"`
+	Hash               common.Hash       `json:"hash"`
+	ParentHash         common.Hash       `json:"parentHash"`
+	Content            string            `json:"content"`
+	InMessagesRoot     common.Hash       `json:"inMessagesRoot"`
+	InMessagesContent  []string          `json:"inMessages"`
+	OutMessagesRoot    common.Hash       `json:"outMessagesRoot"`
+	OutMessagesContent []string          `json:"outMessages"`
+	ReceiptsRoot       common.Hash       `json:"receiptsRoot"`
+	ReceiptsContent    []string          `json:"receipts"`
+	Positions          []uint64          `json:"positions"`
+	MasterChainHash    common.Hash       `json:"masterChainHash"`
+	Timestamp          uint64            `json:"timestamp"`
+}
+
+func (rb *RPCRawBlock) InMessages() ([]*types.Message, error) {
+	return fromHex[types.Message, *types.Message](rb.InMessagesContent)
+}
+
+func (rb *RPCRawBlock) OutMessages() ([]*types.Message, error) {
+	return fromHex[types.Message, *types.Message](rb.OutMessagesContent)
+}
+
+func (rb *RPCRawBlock) Receipts() ([]*types.Receipt, error) {
+	return fromHex[types.Receipt, *types.Receipt](rb.ReceiptsContent)
 }
 
 // @component RPCReceipt rpcReceipt object "The receipt whose structure is requested."
@@ -264,4 +293,22 @@ func NewRPCReceipt(
 	}
 
 	return res
+}
+
+func fromHex[
+	S any,
+	T interface {
+		~*S
+		ssz.Unmarshaler
+	},
+](hexDataContainer []string) ([]*S, error) {
+	result := make([]*S, 0)
+	for _, hexData := range hexDataContainer {
+		decoded := new(S)
+		if err := T(decoded).UnmarshalSSZ(hexutil.FromHex(hexData)); err != nil {
+			return []*S{}, err
+		}
+		result = append(result, decoded)
+	}
+	return result, nil
 }

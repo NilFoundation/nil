@@ -53,8 +53,7 @@ func TestDebugGetBlock(t *testing.T) {
 	res1, err := api.GetBlockByNumber(ctx, types.MasterShardId, transport.LatestBlockNumber, false)
 	require.NoError(t, err)
 
-	content, ok := res1["content"]
-	require.True(t, ok)
+	content := res1.Content
 	require.Equal(t, blockHex, content)
 
 	// When: Get existing block
