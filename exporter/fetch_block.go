@@ -7,115 +7,39 @@ import (
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
 )
 
 var logger = logging.NewLogger("fetch-block")
 
-func toBlockMsg(shardId types.ShardId, raw map[string]any) (*BlockMsg, error) {
-	if raw == nil {
+func toBlockMsg(shardId types.ShardId, rawBlock *jsonrpc.RPCRawBlock) (*BlockMsg, error) {
+	if rawBlock == nil {
 		return nil, errors.New("block not found")
 	}
 
-	logger.Debug().Msgf("result map %v", raw)
+	logger.Debug().Msgf("result map %v", rawBlock)
 
-	hexBody, ok := raw["content"].(string)
-	if !ok {
-		return nil, errors.New("block content not found")
-	}
-
-	hexBytes := hexutil.FromHex(hexBody)
+	hexBytes := hexutil.FromHex(rawBlock.Content)
 
 	var block types.Block
-
 	if err := block.UnmarshalSSZ(hexBytes); err != nil {
 		return nil, err
 	}
 
-	hexInMessagesRaw, ok := raw["inMessages"]
-	if !ok {
-		return nil, errors.New("block inMessages not found")
-	}
-	hexInMessages, ok := hexInMessagesRaw.([]any)
-	if !ok {
-		return nil, errors.New("cannot convert inMessages to []any")
-	}
-	inMessages := make([]*types.Message, 0)
-	for _, hexMessage := range hexInMessages {
-		message := types.Message{}
-		stringMsg, ok := hexMessage.(string)
-		if !ok {
-			return nil, errors.New("cannot convert message to string")
-		}
-		hexMessageBytes := hexutil.FromHex(stringMsg)
-		if err := message.UnmarshalSSZ(hexMessageBytes); err != nil {
-			return nil, err
-		}
-		inMessages = append(inMessages, &message)
+	inMessages, err := rawBlock.InMessages()
+	if err != nil {
+		return nil, err
 	}
 
-	hexOutMessagesRaw, ok := raw["outMessages"]
-	if !ok {
-		return nil, errors.New("block outMessages not found")
-	}
-	hexOutMessages, ok := hexOutMessagesRaw.([]any)
-	if !ok {
-		return nil, errors.New("cannot convert outMessages to []any")
-	}
-	outMessages := make([]*types.Message, 0)
-	for _, hexMessage := range hexOutMessages {
-		message := types.Message{}
-		strOutMsg, ok := hexMessage.(string)
-		if !ok {
-			return nil, errors.New("cannot convert message to strOutg")
-		}
-		hexMessageBytes := hexutil.FromHex(strOutMsg)
-		if err := message.UnmarshalSSZ(hexMessageBytes); err != nil {
-			return nil, err
-		}
-		outMessages = append(outMessages, &message)
+	outMessages, err := rawBlock.OutMessages()
+	if err != nil {
+		return nil, err
 	}
 
-	hexReceiptsRaw, ok := raw["receipts"]
-	if !ok {
-		return nil, errors.New("block receipts not found")
-	}
-	hexReceipts, ok := hexReceiptsRaw.([]any)
-	if !ok {
-		return nil, errors.New("cannot convert receipts to []any")
-	}
-	receipts := make([]*types.Receipt, 0)
-	for _, hexReceipt := range hexReceipts {
-		receipt := types.Receipt{}
-		stringMsg, ok := hexReceipt.(string)
-		if !ok {
-			return nil, errors.New("cannot convert receipt to string")
-		}
-		hexReceiptBytes := hexutil.FromHex(stringMsg)
-		if err := receipt.UnmarshalSSZ(hexReceiptBytes); err != nil {
-			return nil, err
-		}
-		receipts = append(receipts, &receipt)
-	}
-
-	positionsRaw, ok := raw["positions"]
-	if !ok {
-		return nil, errors.New("block positions not found")
-	}
-
-	positions, ok := positionsRaw.([]any)
-	if !ok {
-		return nil, errors.New("cannot convert positions to []uint64")
-	}
-
-	positionsUint64 := make([]uint64, 0)
-
-	for _, position := range positions {
-		u, ok := position.(float64)
-		if !ok {
-			return nil, errors.New("cannot convert position to uint64")
-		}
-		positionsUint64 = append(positionsUint64, uint64(u))
+	receipts, err := rawBlock.Receipts()
+	if err != nil {
+		return nil, err
 	}
 
 	result := &BlockMsg{
@@ -124,7 +48,7 @@ func toBlockMsg(shardId types.ShardId, raw map[string]any) (*BlockMsg, error) {
 		OutMessages: outMessages,
 		Receipts:    receipts,
 		Shard:       shardId,
-		Positions:   positionsUint64,
+		Positions:   rawBlock.Positions,
 	}
 
 	logger.Debug().

@@ -15,8 +15,8 @@ import (
 )
 
 type DebugAPI interface {
-	GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withMessages bool) (map[string]any, error)
-	GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (map[string]any, error)
+	GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withMessages bool) (*RPCRawBlock, error)
+	GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (*RPCRawBlock, error)
 }
 
 type DebugAPIImpl struct {
@@ -39,7 +39,7 @@ func NewDebugAPI(base *BaseAPI, db db.ReadOnlyDB, logger zerolog.Logger) *DebugA
 }
 
 // GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
-func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withMessages bool) (map[string]any, error) {
+func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withMessages bool) (*RPCRawBlock, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
@@ -63,7 +63,7 @@ func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.Sha
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
-func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (map[string]any, error) {
+func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (*RPCRawBlock, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
@@ -73,7 +73,7 @@ func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.Shard
 	return api.getBlockByHash(tx, shardId, hash, withMessages)
 }
 
-func (api *DebugAPIImpl) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash common.Hash, withMessages bool) (map[string]any, error) {
+func (api *DebugAPIImpl) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash common.Hash, withMessages bool) (*RPCRawBlock, error) {
 	accessor := api.accessor.Access(tx, shardId).GetBlock()
 	if withMessages {
 		accessor = accessor.WithInMessages().WithOutMessages().WithReceipts()
@@ -91,10 +91,16 @@ func (api *DebugAPIImpl) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash 
 	if err != nil {
 		return nil, err
 	}
-	result := map[string]any{
-		"number":  data.Block().Id,
-		"hash":    data.Block().Hash(),
-		"content": hexutil.Encode(blockBytes),
+
+	blockHash := data.Block().Hash()
+	if blockHash != hash {
+		return nil, fmt.Errorf("block hash mismatch: expected %x, got %x", hash, blockHash)
+	}
+
+	rawBlock := &RPCRawBlock{
+		Number:  data.Block().Id,
+		Hash:    blockHash,
+		Content: hexutil.Encode(blockBytes),
 	}
 
 	if withMessages {
@@ -125,13 +131,16 @@ func (api *DebugAPIImpl) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash 
 			}
 			positions[i] = uint64(blockHashAndMessageIndex.MessageIndex)
 		}
-		result["inMessages"] = hexInMessages
-		result["outMessages"] = hexOutMessages
-		result["receipts"] = hexReceipts
-		result["positions"] = positions
+		rawBlock.InMessagesContent = hexInMessages
+		rawBlock.InMessagesRoot = data.Block().InMessagesRoot
+		rawBlock.OutMessagesContent = hexOutMessages
+		rawBlock.OutMessagesRoot = data.Block().OutMessagesRoot
+		rawBlock.ReceiptsContent = hexReceipts
+		rawBlock.ReceiptsRoot = data.Block().ReceiptsRoot
+		rawBlock.Positions = positions
 	}
 
-	return result, nil
+	return rawBlock, nil
 }
 
 func hexify[T fastssz.Marshaler](data []T) ([]string, error) {

@@ -371,12 +371,11 @@ func (s *SuiteRpc) TestRpcDebugModules() {
 	res, err := s.client.GetRawBlock(types.BaseShardId, "latest", false)
 	s.Require().NoError(err)
 
-	s.Require().Contains(res, "number")
-	s.Require().Contains(res, "hash")
-	s.Require().Contains(res, "content")
+	s.Require().NotEmpty(res.Number)
+	s.Require().NotEqual(common.EmptyHash, res.Hash)
+	s.Require().NotEmpty(res.Content)
 
-	sliceContent, ok := res["content"].(string)
-	s.Require().True(ok)
+	sliceContent := res.Content
 	// check if the string starts with 0x prefix
 	s.Require().Equal("0x", sliceContent[:2])
 	// print resp to see the result
@@ -384,10 +383,10 @@ func (s *SuiteRpc) TestRpcDebugModules() {
 
 	fullRes, err := s.client.GetRawBlock(types.BaseShardId, "latest", true)
 	s.Require().NoError(err)
-	s.Require().Contains(fullRes, "content")
-	s.Require().Contains(fullRes, "inMessages")
-	s.Require().Contains(fullRes, "outMessages")
-	s.Require().Contains(fullRes, "receipts")
+	s.Require().NotEmpty(fullRes.Content)
+	s.Require().Empty(res.InMessages())
+	s.Require().Empty(res.OutMessages())
+	s.Require().Empty(res.Receipts())
 }
 
 // Test that we remove output messages if the transaction failed

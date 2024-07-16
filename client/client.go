@@ -22,7 +22,7 @@ type Client interface {
 	Call(args *jsonrpc.CallArgs) (string, error)
 	GetCode(addr types.Address, blockId any) (types.Code, error)
 	GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error)
-	GetRawBlock(shardId types.ShardId, blockId any, fullTx bool) (map[string]any, error)
+	GetRawBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCRawBlock, error)
 	SendMessage(msg *types.ExternalMessage) (common.Hash, error)
 	SendRawTransaction(data []byte) (common.Hash, error)
 	GetInMessageByHash(shardId types.ShardId, hash common.Hash) (*jsonrpc.RPCInMessage, error)
