@@ -29,6 +29,7 @@ func (s *SuiteFilters) SetupTest() {
 
 func (s *SuiteFilters) TearDownTest() {
 	s.cancel()
+	s.db.Close()
 }
 
 func (s *SuiteFilters) TestMatcherOneReceipt() {
@@ -249,7 +250,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	filters := NewFiltersManager(s.ctx, s.db, false)
+	filters := NewFiltersManager(s.ctx, s.db, true)
 	s.NotNil(filters)
 	address := types.HexToAddress("0x1111111111")
 	defaultGasPrice := types.NewValueFromUint64(10)

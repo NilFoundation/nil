@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/NilFoundation/nil/client"
 	rpc_client "github.com/NilFoundation/nil/client/rpc"
@@ -34,6 +33,9 @@ type RpcSuite struct {
 	ctxCancel context.CancelFunc
 	wg        sync.WaitGroup
 
+	dbInit func() (db.DB, error)
+	db     db.DB
+
 	client    client.Client
 	shardsNum int
 	endpoint  string
@@ -49,15 +51,21 @@ func (s *RpcSuite) start(cfg *nilservice.Config) {
 	s.shardsNum = cfg.NShards
 	s.context, s.ctxCancel = context.WithCancel(context.Background())
 
-	badger, err := db.NewBadgerDbInMemory()
+	if s.dbInit == nil {
+		s.dbInit = func() (db.DB, error) {
+			return db.NewBadgerDbInMemory()
+		}
+	}
+	db, err := s.dbInit()
 	s.Require().NoError(err)
+	s.db = db
 
 	s.endpoint = fmt.Sprintf("http://127.0.0.1:%d", cfg.HttpPort)
 	s.client = rpc_client.NewClient(s.endpoint, zerolog.New(os.Stderr))
 
 	s.wg.Add(1)
 	go func() {
-		nilservice.Run(s.context, cfg, badger)
+		nilservice.Run(s.context, cfg, s.db)
 		s.wg.Done()
 	}()
 	s.waitZerostate()
@@ -68,6 +76,7 @@ func (s *RpcSuite) cancel() {
 
 	s.ctxCancel()
 	s.wg.Wait()
+	s.db.Close()
 }
 
 func (s *RpcSuite) waitForReceipt(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
@@ -79,7 +88,7 @@ func (s *RpcSuite) waitForReceipt(shardId types.ShardId, hash common.Hash) *json
 		receipt, err = s.client.GetInMessageReceipt(shardId, hash)
 		s.Require().NoError(err)
 		return receipt.IsComplete()
-	}, 15*time.Second, 200*time.Millisecond)
+	}, ReceiptWaitTimeout, ReceiptPollInterval)
 
 	s.Equal(hash, receipt.MsgHash)
 
@@ -90,9 +99,8 @@ func (s *RpcSuite) waitZerostate() {
 	for i := range s.shardsNum {
 		s.Require().Eventually(func() bool {
 			block, err := s.client.GetBlock(types.ShardId(i), transport.BlockNumber(0), false)
-			s.Require().NoError(err)
-			return block != nil
-		}, 10*time.Second, 100*time.Millisecond)
+			return err == nil && block != nil
+		}, ZeroStateWaitTimeout, ZeroStatePollInterval)
 	}
 }
 
@@ -103,7 +111,6 @@ func (s *RpcSuite) deployContractViaWallet(
 	s.T().Helper()
 
 	contractAddr := types.CreateAddress(shardId, payload)
-	s.T().Logf("Deploying contract %v", contractAddr)
 	txHash, err := s.client.SendMessageViaWallet(addrFrom, types.Code{}, 100_000, initialAmount,
 		[]types.CurrencyBalance{}, contractAddr, key)
 	s.Require().NoError(err)

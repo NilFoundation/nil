@@ -1,12 +1,14 @@
 package types
 
 import (
+	"crypto/rand"
 	"database/sql/driver"
 	"encoding"
 	"encoding/json"
 
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/holiman/uint256"
 )
 
@@ -28,6 +30,13 @@ func NewUint256(val uint64) *Uint256 {
 
 func NewUint256FromBytes(buf []byte) *Uint256 {
 	return (*Uint256)(new(uint256.Int).SetBytes(buf))
+}
+
+func NewUint256Random() *Uint256 {
+	buf := make([]byte, 32)
+	_, err := rand.Read(buf)
+	check.PanicIfErr(err)
+	return NewUint256FromBytes(buf)
 }
 
 func CastToUint256(val *uint256.Int) *Uint256 {

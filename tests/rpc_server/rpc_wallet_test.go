@@ -29,6 +29,10 @@ func (s *SuiteWalletRpc) SetupSuite() {
 	})
 }
 
+func (s *SuiteWalletRpc) TearDownSuite() {
+	s.cancel()
+}
+
 func (s *SuiteWalletRpc) TestWallet() {
 	var addrCallee types.Address
 
@@ -87,7 +91,7 @@ func (s *SuiteWalletRpc) TestDeployWithValueNonPayableConstructor() {
 	s.Empty(code)
 }
 
-func (s *SuiteRpc) TestDeployWalletWithValue() {
+func (s *SuiteWalletRpc) TestDeployWalletWithValue() {
 	pk, err := crypto.GenerateKey()
 	s.Require().NoError(err)
 

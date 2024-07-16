@@ -53,10 +53,13 @@ func main() {
 		GasPriceScale:    *gasPriceScale,
 		GasBasePrice:     *gasBasePrice,
 	}
-	os.Exit(nilservice.Run(context.Background(), cfg, database,
+
+	exitCode := nilservice.Run(context.Background(), cfg, database,
 		func(ctx context.Context) error {
 			return database.LogGC(ctx, dbOpts.DiscardRatio, dbOpts.GcFrequency)
-		}))
+		})
+	database.Close()
+	os.Exit(exitCode)
 }
 
 func openDb(dbPath string, allowDrop bool, logger zerolog.Logger) (db.DB, error) {

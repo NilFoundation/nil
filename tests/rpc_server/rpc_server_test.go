@@ -32,7 +32,7 @@ type SuiteRpc struct {
 func (s *SuiteRpc) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards:              5,
-		HttpPort:             8531,
+		HttpPort:             8530,
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,

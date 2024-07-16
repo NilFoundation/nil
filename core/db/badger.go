@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"runtime"
 	"time"
 
@@ -14,8 +13,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type BadgerDB struct {
-	db *badger.DB
+type badgerDB struct {
+	db       *badger.DB
+	txLedger assert.TxLedger
 }
 
 type BadgerDBOptions struct {
@@ -26,8 +26,8 @@ type BadgerDBOptions struct {
 }
 
 type BadgerRoTx struct {
-	tx              *badger.Txn
-	cancelTxChecker context.CancelFunc
+	tx       *badger.Txn
+	onFinish assert.TxFinishCb
 }
 
 type BadgerRwTx struct {
@@ -44,7 +44,7 @@ type BadgerIter struct {
 var (
 	_ RoTx = new(BadgerRoTx)
 	_ RwTx = new(BadgerRwTx)
-	_ DB   = new(BadgerDB)
+	_ DB   = new(badgerDB)
 	_ Iter = new(BadgerIter)
 )
 
@@ -52,29 +52,31 @@ func makeKey(table TableName, key []byte) []byte {
 	return append([]byte(table+":"), key...)
 }
 
-func NewBadgerDb(pathToDb string) (*BadgerDB, error) {
+func NewBadgerDb(pathToDb string) (*badgerDB, error) {
 	opts := badger.DefaultOptions(pathToDb).WithLogger(nil)
 	return newBadgerDb(&opts)
 }
 
-func NewBadgerDbInMemory() (*BadgerDB, error) {
+func NewBadgerDbInMemory() (*badgerDB, error) {
 	opts := badger.DefaultOptions("").WithInMemory(true).WithLogger(nil)
 	return newBadgerDb(&opts)
 }
 
-func newBadgerDb(opts *badger.Options) (*BadgerDB, error) {
+func newBadgerDb(opts *badger.Options) (*badgerDB, error) {
 	badgerInstance, err := badger.Open(*opts)
 	if err != nil {
 		return nil, err
 	}
-	return &BadgerDB{db: badgerInstance}, nil
+
+	return &badgerDB{db: badgerInstance, txLedger: assert.NewTxLedger()}, nil
 }
 
-func (db *BadgerDB) Close() {
+func (db *badgerDB) Close() {
 	db.db.Close()
+	db.txLedger.CheckLeakyTransactions()
 }
 
-func (db *BadgerDB) DropAll() error {
+func (db *badgerDB) DropAll() error {
 	return db.db.DropAll()
 }
 
@@ -84,38 +86,27 @@ func captureStacktrace() []byte {
 	return stack
 }
 
-func runTxLeakChecker(ctx context.Context, stack []byte, timeout time.Duration) {
-	select {
-	case <-ctx.Done():
-		return
-	case <-time.After(timeout):
-		panic(fmt.Sprintf("Transaction wasn't terminated:\n%s", stack))
-	}
-}
-
-func (db *BadgerDB) CreateRoTx(ctx context.Context) (RoTx, error) {
+func (db *badgerDB) CreateRoTx(ctx context.Context) (RoTx, error) {
 	txn := db.db.NewTransaction(false)
-	tx := &BadgerRoTx{tx: txn}
+	tx := &BadgerRoTx{tx: txn, onFinish: func() {}}
 	if assert.Enable {
-		ctx, tx.cancelTxChecker = context.WithCancel(ctx)
 		stack := captureStacktrace()
-		go runTxLeakChecker(ctx, stack, 2*time.Second)
+		tx.onFinish = db.txLedger.TxOnStart(stack)
 	}
 	return tx, nil
 }
 
-func (db *BadgerDB) CreateRwTx(ctx context.Context) (RwTx, error) {
+func (db *badgerDB) CreateRwTx(ctx context.Context) (RwTx, error) {
 	txn := db.db.NewTransaction(true)
-	tx := &BadgerRwTx{&BadgerRoTx{tx: txn}}
+	tx := &BadgerRwTx{&BadgerRoTx{tx: txn, onFinish: func() {}}}
 	if assert.Enable {
-		ctx, tx.cancelTxChecker = context.WithCancel(ctx)
 		stack := captureStacktrace()
-		go runTxLeakChecker(ctx, stack, 10*time.Second)
+		tx.onFinish = db.txLedger.TxOnStart(stack)
 	}
 	return tx, nil
 }
 
-func (db *BadgerDB) LogGC(ctx context.Context, discardRation float64, gcFrequency time.Duration) error {
+func (db *badgerDB) LogGC(ctx context.Context, discardRation float64, gcFrequency time.Duration) error {
 	log.Info().Msg("Starting badger log garbage collection...")
 	ticker := time.NewTicker(gcFrequency)
 	for {
@@ -137,16 +128,12 @@ func (db *BadgerDB) LogGC(ctx context.Context, discardRation float64, gcFrequenc
 }
 
 func (tx *BadgerRwTx) Commit() error {
-	if assert.Enable {
-		tx.cancelTxChecker()
-	}
+	tx.onFinish()
 	return tx.tx.Commit()
 }
 
 func (tx *BadgerRoTx) Rollback() {
-	if assert.Enable {
-		tx.cancelTxChecker()
-	}
+	tx.onFinish()
 	tx.tx.Discard()
 }
 
