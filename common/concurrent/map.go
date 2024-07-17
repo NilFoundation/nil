@@ -46,15 +46,30 @@ func (m *Map[K, T]) DoAndStore(k K, fn func(t T, ok bool) T) (after T, ok bool) 
 	})
 }
 
-func (m *Map[K, T]) Range(fn func(k K, v T) error) error {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	for k, v := range m.m {
-		if err := fn(k, v); err != nil {
-			return err
+func (m *Map[K, T]) Iter() <-chan struct {
+	Key   K
+	Value T
+} {
+	ch := make(chan struct {
+		Key   K
+		Value T
+	})
+
+	go func() {
+		m.mu.RLock()
+		defer m.mu.RUnlock()
+
+		for k, v := range m.m {
+			ch <- struct {
+				Key   K
+				Value T
+			}{k, v}
 		}
-	}
-	return nil
+
+		close(ch)
+	}()
+
+	return ch
 }
 
 func (m *Map[K, T]) Delete(k K) (t T, deleted bool) {
