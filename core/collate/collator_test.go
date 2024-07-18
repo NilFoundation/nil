@@ -39,7 +39,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	nShards := 2
 	gasPrice := types.NewValueFromUint64(10)
 	from := types.MainWalletAddress
-	to := contracts.CounterAddress(s.T(), shardId)
+	to := contracts.CounterPayableAddress(s.T(), shardId)
 
 	pool := &MockMsgPool{}
 	c := newCollator(Params{
@@ -65,7 +65,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	})
 
 	// This values depends on the current implementation (precompiled contract, opcode gas prices).
-	actualMsgGas := types.Gas(12_959)
+	actualMsgGas := types.Gas(12_965)
 
 	// These parameters can be adjusted for test purposes. The rest is calculated.
 	gasLimit := types.Gas(100_000)
@@ -74,7 +74,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	balance := s.getBalance(shardId, from)
 	reserveForGas := gasLimit.ToValue(gasPrice)
 	actualMsgPrice := actualMsgGas.ToValue(gasPrice)
-	msgValue := sentValue.Add(reserveForGas)
+	msgValue := sentValue
 	m1 := execution.NewExecutionMessage(from, from, 0, contracts.NewWalletSendCallData(s.T(), types.Code{},
 		gasLimit, msgValue, []types.CurrencyBalance{}, to, types.ExecutionMessageKind))
 	m2 := common.CopyPtr(m1)
@@ -94,8 +94,8 @@ func (s *CollatorTestSuite) TestCollator() {
 
 		// Each message subtracts its value + actual gas used from the balance.
 		balance = balance.
-			Sub(msgValue).Sub(actualMsgPrice).
-			Sub(msgValue).Sub(actualMsgPrice)
+			Sub(msgValue).Sub(actualMsgPrice).Sub(gasLimit.ToValue(gasPrice)).
+			Sub(msgValue).Sub(actualMsgPrice).Sub(gasLimit.ToValue(gasPrice))
 		s.Equal(balance, s.getBalance(shardId, from))
 		s.Equal(types.Value{}, s.getBalance(shardId, to))
 	}
@@ -145,7 +145,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	})
 
 	s.Run("Deploy", func() {
-		m := execution.NewDeployMessage(contracts.CounterDeployPayload(s.T()), shardId, to, 0)
+		m := execution.NewDeployMessage(contracts.CounterPayableDeployPayload(s.T()), shardId, to, 0)
 		m.Flags.ClearBit(types.MessageFlagInternal)
 		s.Equal(to, m.To)
 		pool.Msgs = []*types.Message{m}
@@ -192,7 +192,7 @@ func (s *CollatorTestSuite) getBalance(shardId types.ShardId, addr types.Address
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	state, err := execution.NewExecutionStateForShard(tx, shardId, common.NewTimer())
+	state, err := execution.NewExecutionStateForShard(tx, shardId, common.NewTimer(), 1)
 	s.Require().NoError(err)
 	acc, err := state.GetAccount(addr)
 	s.Require().NoError(err)

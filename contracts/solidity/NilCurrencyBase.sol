@@ -5,8 +5,8 @@ import "./Minter.sol";
 
 contract NilCurrencyBase is NilBase {
     function createToken(uint256 amount, string memory name, bool withdraw) public payable onlyExternal {
-        uint256 gas = gasleft();
-        uint256 value = gas * 10;
+        uint256 gas = gasleft() * tx.gasprice;
+        uint256 value = 0;
         if (withdraw) {
             value *= 2; // 2x because withdraw requires another async call
         }
@@ -23,8 +23,8 @@ contract NilCurrencyBase is NilBase {
 
     function mintToken(uint256 amount, bool withdraw) public payable onlyExternal {
         uint256 id = uint256(uint160(address(this)));
-        uint256 gas = gasleft();
-        uint256 value = gas * 10;
+        uint256 gas = gasleft() * tx.gasprice;
+        uint256 value = 0;
         if (withdraw) {
             value *= 2; // 2x because withdraw requires another async call
         }
@@ -41,7 +41,7 @@ contract NilCurrencyBase is NilBase {
 
     function withdrawToken(uint256 amount, address to) public payable onlyExternal {
         uint256 id = uint256(uint160(address(this)));
-        uint256 gas = gasleft();
+        uint256 gas = gasleft() * tx.gasprice;
         Nil.asyncCall(
             Nil.MINTER_ADDRESS,
             address(0), // refundTo

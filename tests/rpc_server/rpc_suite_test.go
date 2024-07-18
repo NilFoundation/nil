@@ -3,6 +3,7 @@ package rpctest
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,6 +14,7 @@ import (
 	rpc_client "github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
@@ -133,7 +135,7 @@ func (s *RpcSuite) deployContractViaWallet(
 	s.T().Helper()
 
 	contractAddr := types.CreateAddress(shardId, payload)
-	txHash, err := s.client.SendMessageViaWallet(addrFrom, types.Code{}, 100_000, initialAmount,
+	txHash, err := s.client.SendMessageViaWallet(addrFrom, types.Code{}, s.gasToValue(100_000), initialAmount,
 		[]types.CurrencyBalance{}, contractAddr, key)
 	s.Require().NoError(err)
 	receipt := s.waitForReceipt(addrFrom.ShardId(), txHash)
@@ -161,7 +163,7 @@ func (s *RpcSuite) deployContractViaMainWallet(shardId types.ShardId, payload ty
 func (s *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey, calldata []byte, value types.Value) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	txHash, err := s.client.SendMessageViaWallet(addrFrom, calldata, 10_000_000, value,
+	txHash, err := s.client.SendMessageViaWallet(addrFrom, calldata, s.gasToValue(10_000_000), value,
 		[]types.CurrencyBalance{}, addrTo, key)
 	s.Require().NoError(err)
 
@@ -189,12 +191,13 @@ func (s *RpcSuite) sendExternalMessage(bytecode types.Code, contractAddress type
 
 // sendMessageViaWalletNoCheck sends a message via a wallet contract. Doesn't require the receipt be successful.
 func (s *RpcSuite) sendMessageViaWalletNoCheck(addrWallet types.Address, addrTo types.Address, key *ecdsa.PrivateKey,
-	calldata []byte, gas types.Gas, value types.Value, currencies []types.CurrencyBalance,
+	calldata []byte, feeCredit types.Value, value types.Value, currencies []types.CurrencyBalance,
 ) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
 	// Send the raw transaction
-	txHash, err := s.client.SendMessageViaWallet(addrWallet, calldata, gas, value, currencies, addrTo, key)
+	txHash, err := s.client.SendMessageViaWallet(addrWallet, calldata, feeCredit, value, currencies,
+		addrTo, key)
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceipt(addrWallet.ShardId(), txHash)
@@ -219,11 +222,11 @@ func (s *RpcSuite) CallGetter(addr types.Address, callData []byte) []byte {
 	log.Debug().Str("contract", addr.String()).Uint64("seqno", uint64(seqno)).Msg("sending external message getter")
 
 	callArgs := &jsonrpc.CallArgs{
-		From:     addr,
-		Data:     callData,
-		To:       addr,
-		GasLimit: 10000,
-		Seqno:    seqno,
+		From:      addr,
+		Data:      callData,
+		To:        addr,
+		FeeCredit: s.gasToValue(10000),
+		Seqno:     seqno,
 	}
 	res, err := s.client.Call(callArgs)
 	s.Require().NoError(err)
@@ -259,4 +262,127 @@ func (s *RpcSuite) loadContract(path string, name string) (types.Code, abi.ABI) 
 	code := hexutil.FromHex(contracts[name].Code)
 	abi := solc.ExtractABI(contracts[name])
 	return code, abi
+}
+
+func (s *RpcSuite) getBalance(address types.Address) types.Value {
+	s.T().Helper()
+	balance, err := s.client.GetBalance(address, "latest")
+	s.Require().NoError(err)
+	return balance
+}
+
+func (s *RpcSuite) gasToValue(gas uint64) types.Value {
+	return types.Gas(gas).ToValue(types.DefaultGasPrice)
+}
+
+type ReceiptInfo map[types.Address]*ContractInfo
+
+type ContractInfo struct {
+	ValueUsed     types.Value
+	ValueSent     types.Value
+	ValueReceived types.Value
+	ValueRefunded types.Value
+	ValueBounced  types.Value
+	NumSuccess    int
+	NumFail       int
+}
+
+func (r *ReceiptInfo) Dump() {
+	data, err := json.MarshalIndent(r, "", "  ")
+	check.PanicIfErr(err)
+	fmt.Printf("info: %s\n", string(data))
+}
+
+// AllSuccess checks if the contract info contains only successful receipts.
+func (r *ReceiptInfo) AllSuccess() bool {
+	for _, info := range *r {
+		if !info.IsSuccess() {
+			return false
+		}
+	}
+	return true
+}
+
+// ContainsOnly checks that the receipt info contains only the specified addresses.
+func (r *ReceiptInfo) ContainsOnly(addresses ...types.Address) bool {
+	if len(*r) != len(addresses) {
+		return false
+	}
+	for _, addr := range addresses {
+		if _, found := (*r)[addr]; !found {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *ContractInfo) IsSuccess() bool {
+	return c.NumFail == 0 && c.NumSuccess > 0
+}
+
+// GetValueSpent returns the total value spent by the contract.
+func (c *ContractInfo) GetValueSpent() types.Value {
+	return c.ValueSent.Sub(c.ValueRefunded).Sub(c.ValueBounced)
+}
+
+// analyzeReceipt analyzes the receipt and returns the receipt info.
+func (s *RpcSuite) analyzeReceipt(receipt *jsonrpc.RPCReceipt) ReceiptInfo {
+	s.T().Helper()
+	res := make(ReceiptInfo)
+	s.analyzeReceiptRec(receipt, res)
+	return res
+}
+
+// analyzeReceiptRec is a recursive function that analyzes the receipt and fills the receipt info.
+func (s *RpcSuite) analyzeReceiptRec(receipt *jsonrpc.RPCReceipt, valuesMap ReceiptInfo) {
+	s.T().Helper()
+
+	value := getContractInfo(receipt.ContractAddress, valuesMap)
+
+	if receipt.Success {
+		value.NumSuccess += 1
+	} else {
+		value.NumFail += 1
+	}
+	msg, err := s.client.GetInMessageByHash(receipt.ShardId, receipt.MsgHash)
+	s.Require().NoError(err)
+
+	value.ValueUsed = value.ValueUsed.Add(receipt.GasUsed.ToValue(receipt.GasPrice))
+	switch {
+	case msg.Flags.GetBit(types.MessageFlagBounce):
+		value.ValueBounced = value.ValueBounced.Add(msg.Value)
+		// Bounce message also bears refunded gas. If `To` address is equal to `RefundTo`, fee should be credited to
+		// this account.
+		if msg.To == msg.RefundTo {
+			value.ValueRefunded = value.ValueRefunded.Add(msg.FeeCredit).Sub(receipt.GasUsed.ToValue(receipt.GasPrice))
+		}
+		// Remove the gas used by bounce message from the sent value
+		value.ValueSent = value.ValueSent.Sub(receipt.GasUsed.ToValue(receipt.GasPrice))
+	case msg.Flags.GetBit(types.MessageFlagRefund):
+		value.ValueRefunded = value.ValueRefunded.Add(msg.Value)
+	default:
+		// Receive value only if message was successful.
+		if receipt.Success {
+			value.ValueReceived = value.ValueReceived.Add(msg.Value)
+		}
+		caller := getContractInfo(msg.From, valuesMap)
+		caller.ValueSent = caller.ValueSent.Add(msg.Value)
+		// For internal message we need to add gas limit to sent value
+		if msg.Flags.GetBit(types.MessageFlagInternal) {
+			caller.ValueSent = caller.ValueSent.Add(msg.FeeCredit)
+		}
+	}
+
+	for _, outReceipt := range receipt.OutReceipts {
+		s.analyzeReceiptRec(outReceipt, valuesMap)
+	}
+}
+
+func getContractInfo(addr types.Address, valuesMap ReceiptInfo) *ContractInfo {
+	value, found := valuesMap[addr]
+	if !found {
+		value = &ContractInfo{}
+		valuesMap[addr] = value
+	}
+	return value
 }

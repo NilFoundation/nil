@@ -1,9 +1,6 @@
 package execution
 
 import (
-	"errors"
-	"math"
-
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
@@ -50,29 +47,7 @@ func (pp *blockPostprocessor) Postprocess() error {
 }
 
 func (pp *blockPostprocessor) updateGasPrice() error {
-	decreasePerBlock := types.NewValueFromUint64(1)
-	maxGasPrice := types.NewValueFromUint64(100)
-
-	gasPrice, err := db.ReadGasPerShard(pp.tx, pp.shardId)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		gasPrice = pp.defaultGasPrice
-	} else if err != nil {
-		return err
-	}
-
-	gasIncrease := uint64(math.Ceil(float64(pp.block.OutMessagesNum) * pp.gasPriceScale))
-	gasPrice, overflow := gasPrice.AddOverflow(types.NewValueFromUint64(gasIncrease))
-	// Check if new gas price is less than the current one (overflow case) or greater than the max allowed
-	if overflow || gasPrice.Cmp(maxGasPrice) > 0 {
-		gasPrice = maxGasPrice
-	}
-	if gasPrice.Cmp(decreasePerBlock) >= 0 {
-		gasPrice = gasPrice.Sub(decreasePerBlock)
-	}
-	if gasPrice.Cmp(pp.defaultGasPrice) < 0 {
-		gasPrice = pp.defaultGasPrice
-	}
-	return db.WriteGasPerShard(pp.tx, pp.shardId, gasPrice)
+	return db.WriteGasPerShard(pp.tx, pp.shardId, pp.block.GasPrice)
 }
 
 func (pp *blockPostprocessor) fillLastBlockTable() error {

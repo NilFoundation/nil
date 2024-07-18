@@ -112,7 +112,8 @@ func main() {
 				var hash common.Hash
 				for _, addr := range addrToCall {
 					hash, err = client.SendMessageViaWallet(wallet, hexutil.FromHex(IncrementCalldata),
-						100_000, types.Value{}, []types.CurrencyBalance{}, contractsCall[addr],
+						types.Gas(100_000).ToValue(types.DefaultGasPrice), types.Value{}, []types.CurrencyBalance{},
+						contractsCall[addr],
 						privateKeys[i])
 					if err != nil {
 						logger.Error().Err(err).Msg("Error during contract call")

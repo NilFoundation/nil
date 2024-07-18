@@ -12,23 +12,21 @@ import (
 
 // @component CallArgs callArgs object "The arguments for the message call."
 // @componentprop From from string true "The address from which the message must be called."
-// @componentprop GasLimit gasLimit string true "The gas limit for the message."
-// @componentprop GasPrice gasPrice string false "The gas price for the message."
+// @componentprop FeeCredit feeCredit string true "The fee credit for the message."
 // @componentprop Value value integer true "The message value."
 // @componentprop Seqno seqno integer true "The sequence number of the message."
 // @componentprop Data data string true "The encoded bytecode of the message."
 // @componentprop Input input string false "The message input."
 // @component propr ChainId chainId integer "The chain id."
 type CallArgs struct {
-	From     types.Address  `json:"from"`
-	To       types.Address  `json:"to"`
-	GasLimit types.Gas      `json:"gasLimit"`
-	GasPrice types.Value    `json:"gasPrice,omitempty"`
-	Value    types.Value    `json:"value"`
-	Seqno    hexutil.Uint64 `json:"seqno"`
-	Data     hexutil.Bytes  `json:"data"`
-	Input    hexutil.Bytes  `json:"input,omitempty"`
-	ChainId  types.ChainId  `json:"chainId"`
+	From      types.Address  `json:"from"`
+	To        types.Address  `json:"to"`
+	FeeCredit types.Value    `json:"feeCredit"`
+	Value     types.Value    `json:"value"`
+	Seqno     hexutil.Uint64 `json:"seqno"`
+	Data      hexutil.Bytes  `json:"data"`
+	Input     hexutil.Bytes  `json:"input,omitempty"`
+	ChainId   types.ChainId  `json:"chainId"`
 }
 
 // @component RPCInMessage rpcInMessage object "The message whose information is requested."
@@ -36,8 +34,7 @@ type CallArgs struct {
 // @componentprop BlockNumber blockNumber integer true "The number of the block containin the message."
 // @componentprop ChainId chainId integer true "The number of the chain containing the message."
 // @componentprop From from string true "The address from where the message was sent."
-// @componentprop GasLimit gasLimit string true "The gas limit for the message."
-// @componentprop GasPrice gasPrice string true "The gas price paid for the message."
+// @componentprop FeeCredit feeCredit string true "The fee credit for the message."
 // @componentprop GasUsed gasUsed string true "The amount of gas spent on the message."
 // @componentprop Hash hash string true "The message hash."
 // @componentprop Index index string true "The message index."
@@ -56,8 +53,7 @@ type RPCInMessage struct {
 	BlockNumber types.BlockNumber       `json:"blockNumber"`
 	From        types.Address           `json:"from"`
 	GasUsed     types.Gas               `json:"gasUsed"`
-	GasPrice    types.Value             `json:"gasPrice,omitempty"`
-	GasLimit    types.Gas               `json:"gasLimit,omitempty"`
+	FeeCredit   types.Value             `json:"feeCredit,omitempty"`
 	Hash        common.Hash             `json:"hash"`
 	Seqno       hexutil.Uint64          `json:"seqno"`
 	To          types.Address           `json:"to"`
@@ -150,6 +146,7 @@ func EncodeBlockWithRawExtractedData(block *types.BlockWithRawExtractedData) (*H
 // @componentprop Bloom bloom string true "The receipt bloom filter."
 // @componentprop ContractAddress contractAddress string true "The address of the contract that has originated the message whose receipt is requested."
 // @componentprop GasUsed gasUsed string true "The amount of gas spent on the message whose receipt is requested."
+// @componentprop GasPrice gasPrice string true "The gas price at the time of processing the message."
 // @componentprop Logs logs array true "The logs attached to the receipt."
 // @componentprop MessageHash messageHash string true "The hash of the message whose receipt is requested."
 // @componentprop MessageIndex messageIndex integer true "The index of the message whose receipt is requested."
@@ -164,6 +161,7 @@ type RPCReceipt struct {
 	Success         bool               `json:"success"`
 	Status          string             `json:"status"`
 	GasUsed         types.Gas          `json:"gasUsed"`
+	GasPrice        types.Value        `json:"gasPrice"`
 	Bloom           hexutil.Bytes      `json:"bloom,omitempty"`
 	Logs            []*RPCLog          `json:"logs"`
 	OutMessages     []common.Hash      `json:"outMessages"`
@@ -211,8 +209,7 @@ func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types
 		BlockNumber: block.Id,
 		From:        message.From,
 		GasUsed:     receipt.GasUsed,
-		GasPrice:    message.GasPrice,
-		GasLimit:    message.GasLimit,
+		FeeCredit:   message.FeeCredit,
 		Hash:        hash,
 		Seqno:       hexutil.Uint64(message.Seqno),
 		To:          message.To,
@@ -284,7 +281,7 @@ func NewRPCLog(
 
 func NewRPCReceipt(
 	shardId types.ShardId, block *types.Block, index types.MessageIndex, receipt *types.Receipt,
-	outMessages []common.Hash, outReceipts []*RPCReceipt, temporary bool, errorMessage string,
+	outMessages []common.Hash, outReceipts []*RPCReceipt, temporary bool, errorMessage string, gasPrice types.Value,
 ) *RPCReceipt {
 	if receipt == nil {
 		return nil
@@ -305,6 +302,7 @@ func NewRPCReceipt(
 		Success:         receipt.Success,
 		Status:          receipt.Status.String(),
 		GasUsed:         receipt.GasUsed,
+		GasPrice:        gasPrice,
 		Logs:            logs,
 		OutMessages:     outMessages,
 		OutReceipts:     outReceipts,

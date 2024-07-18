@@ -51,7 +51,7 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 	require.NoError(t, err)
 	defer tx.Rollback()
 
-	es, err := NewExecutionState(tx, shardId, prevBlock, common.NewTestTimer(0))
+	es, err := NewExecutionState(tx, shardId, prevBlock, common.NewTestTimer(0), 1)
 	require.NoError(t, err)
 
 	for _, msg := range msgs {
@@ -62,11 +62,11 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 			continue
 		}
 
-		gas := msg.GasLimit
+		gas := msg.FeeCredit.ToGas(es.GasPrice)
 		var leftOverGas types.Gas
 		switch {
 		case msg.IsDeploy():
-			leftOverGas, err = es.HandleDeployMessage(ctx, msg)
+			leftOverGas, _, err = es.HandleDeployMessage(ctx, msg)
 			require.NoError(t, err)
 		case msg.IsRefund():
 			err = es.HandleRefundMessage(ctx, msg)
@@ -96,23 +96,26 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 func NewDeployMessage(payload types.DeployPayload,
 	shardId types.ShardId, from types.Address, seqno types.Seqno,
 ) *types.Message {
+	gasCredit := types.Gas(100_000).ToValue(types.DefaultGasPrice)
 	return &types.Message{
-		Flags:    types.NewMessageFlags(types.MessageFlagInternal, types.MessageFlagDeploy),
-		Data:     payload.Bytes(),
-		From:     from,
-		Seqno:    seqno,
-		GasLimit: 100000,
-		To:       types.CreateAddress(shardId, payload),
+		Flags:     types.NewMessageFlags(types.MessageFlagInternal, types.MessageFlagDeploy),
+		Data:      payload.Bytes(),
+		From:      from,
+		Seqno:     seqno,
+		Value:     types.NewValueFromUint64(1_000_000),
+		FeeCredit: gasCredit,
+		To:        types.CreateAddress(shardId, payload),
 	}
 }
 
 func NewExecutionMessage(from, to types.Address, seqno types.Seqno, callData []byte) *types.Message {
+	gasCredit := types.Gas(100_000).ToValue(types.DefaultGasPrice)
 	return &types.Message{
-		From:     from,
-		To:       to,
-		Data:     callData,
-		Seqno:    seqno,
-		GasLimit: 100000,
+		From:      from,
+		To:        to,
+		Data:      callData,
+		Seqno:     seqno,
+		FeeCredit: gasCredit,
 	}
 }
 
@@ -122,9 +125,9 @@ func Deploy(t *testing.T, ctx context.Context, es *ExecutionState,
 	t.Helper()
 
 	msg := NewDeployMessage(payload, shardId, from, seqno)
-	gas := msg.GasLimit
+	gas := msg.FeeCredit.ToGas(es.GasPrice)
 	es.AddInMessage(msg)
-	gasLeft, err := es.HandleDeployMessage(ctx, msg)
+	gasLeft, _, err := es.HandleDeployMessage(ctx, msg)
 	require.NoError(t, err)
 	es.AddReceipt(gas.Sub(gasLeft), nil)
 

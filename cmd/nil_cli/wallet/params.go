@@ -23,7 +23,7 @@ type walletParams struct {
 	noWait            bool
 	salt              types.Uint256
 	shardId           types.ShardId
-	gasLimit          types.Gas
+	feeCredit         types.Value
 	currency          types.Value
 	currencies        []string
 }

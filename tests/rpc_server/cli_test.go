@@ -121,7 +121,7 @@ func (s *SuiteCli) TestContract() {
 	s.Require().NoError(err)
 
 	// Get current value
-	res, err := s.cli.CallContract(addr, 100000, getCalldata)
+	res, err := s.cli.CallContract(addr, s.gasToValue(100000), getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000002", res)
 
@@ -129,7 +129,7 @@ func (s *SuiteCli) TestContract() {
 	calldata, err := abi.Pack("increment")
 	s.Require().NoError(err)
 
-	txHash, err = s.cli.RunContract(wallet, calldata, 100_000, types.Value{}, nil, addr)
+	txHash, err = s.cli.RunContract(wallet, calldata, s.gasToValue(100_000), types.Value{}, nil, addr)
 	s.Require().NoError(err)
 
 	receipt = s.waitForReceipt(wallet.ShardId(), txHash)
@@ -137,7 +137,7 @@ func (s *SuiteCli) TestContract() {
 	s.Require().True(receipt.OutReceipts[0].Success)
 
 	// Get updated value
-	res, err = s.cli.CallContract(addr, 100000, getCalldata)
+	res, err = s.cli.CallContract(addr, s.gasToValue(100000), getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000003", res)
 
@@ -145,7 +145,7 @@ func (s *SuiteCli) TestContract() {
 	balanceBefore, err := s.cli.GetBalance(addr)
 	s.Require().NoError(err)
 
-	txHash, err = s.cli.RunContract(wallet, nil, 100_000, types.NewValueFromUint64(100), nil, addr)
+	txHash, err = s.cli.RunContract(wallet, nil, s.gasToValue(100_000), types.NewValueFromUint64(100), nil, addr)
 	s.Require().NoError(err)
 
 	receipt = s.waitForReceipt(wallet.ShardId(), txHash)
@@ -205,7 +205,7 @@ func (s *SuiteCli) TestSendExternalMessage() {
 	s.Require().NoError(err)
 
 	// Get current value
-	res, err := s.cli.CallContract(addr, 100000, getCalldata)
+	res, err := s.cli.CallContract(addr, s.gasToValue(100000), getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000002", res)
 
@@ -220,7 +220,7 @@ func (s *SuiteCli) TestSendExternalMessage() {
 	s.Require().True(receipt.Success)
 
 	// Get updated value
-	res, err = s.cli.CallContract(addr, 100000, getCalldata)
+	res, err = s.cli.CallContract(addr, s.gasToValue(100000), getCalldata)
 	s.Require().NoError(err)
 	s.Equal("0x000000000000000000000000000000000000000000000000000000000000007d", res)
 }

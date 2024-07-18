@@ -28,12 +28,16 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 	}
 
 	var receipt *types.Receipt
+	var gasPrice types.Value
 
 	if block != nil {
 		receipt, err = getBlockEntity[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot, indexes.MessageIndex.Bytes())
 		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 			return nil, err
 		}
+		gasPrice = block.GasPrice
+	} else {
+		gasPrice = types.DefaultGasPrice
 	}
 
 	var errMsg string
@@ -79,5 +83,6 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 		}
 	}
 
-	return NewRPCReceipt(shardId, block, indexes.MessageIndex, receipt, outMessages, outReceipts, cachedReceipt, errMsg), nil
+	return NewRPCReceipt(shardId, block, indexes.MessageIndex, receipt, outMessages, outReceipts, cachedReceipt, errMsg,
+		gasPrice), nil
 }

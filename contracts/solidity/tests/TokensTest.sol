@@ -29,7 +29,7 @@ contract TokensTest is NilBase {
 
     function testCallWithTokensAsync(address dst, Nil.Token[] memory tokens) onlyExternal public {
         bytes memory callData = abi.encodeCall(this.testMessageTokens, tokens);
-        uint256 gas = gasleft();
+        uint256 gas = gasleft() * tx.gasprice;
         bool success = Nil.asyncCall(dst, address(0), address(0), gas, false, gas * 10, tokens, callData);
         require(success, "Async call failed");
     }

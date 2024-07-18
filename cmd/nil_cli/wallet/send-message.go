@@ -43,9 +43,9 @@ func SendMessageCommand(cfg *common.Config) *cobra.Command {
 		"Wait for receipt",
 	)
 
-	params.gasLimit = 100_000
+	params.feeCredit = types.GasToValue(100_000)
 	cmd.Flags().Var(
-		&params.gasLimit,
+		&params.feeCredit,
 		gasLimitFlag,
 		"Gas limit",
 	)
@@ -77,7 +77,7 @@ func runSend(_ *cobra.Command, args []string, cfg *common.Config) error {
 		return err
 	}
 
-	msgHash, err := service.RunContract(cfg.Address, calldata, params.gasLimit, params.amount, currencies, address)
+	msgHash, err := service.RunContract(cfg.Address, calldata, params.feeCredit, params.amount, currencies, address)
 	if err != nil {
 		return err
 	}

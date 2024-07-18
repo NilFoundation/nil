@@ -40,7 +40,7 @@ type Client interface {
 	) (common.Hash, types.Address, error)
 	DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload) (common.Hash, types.Address, error)
 	SendMessageViaWallet(
-		walletAddress types.Address, bytecode types.Code, gasLimit types.Gas, value types.Value,
+		walletAddress types.Address, bytecode types.Code, feeCredit types.Value, value types.Value,
 		currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
 	) (common.Hash, error)
 	SendExternalMessage(

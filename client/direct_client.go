@@ -204,7 +204,7 @@ func (c *DirectClient) DeployContract(
 	shardId types.ShardId, walletAddress types.Address, payload types.DeployPayload, value types.Value, pk *ecdsa.PrivateKey,
 ) (common.Hash, types.Address, error) {
 	contractAddr := types.CreateAddress(shardId, payload)
-	txHash, err := c.sendMessageViaWallet(walletAddress, payload.Bytes(), 100_000, value, []types.CurrencyBalance{}, contractAddr, pk, true)
+	txHash, err := c.sendMessageViaWallet(walletAddress, payload.Bytes(), types.GasToValue(100_000), value, []types.CurrencyBalance{}, contractAddr, pk, true)
 	if err != nil {
 		return common.EmptyHash, types.EmptyAddress, err
 	}
@@ -218,15 +218,15 @@ func (c *DirectClient) DeployExternal(shardId types.ShardId, deployPayload types
 }
 
 func (c *DirectClient) SendMessageViaWallet(
-	walletAddress types.Address, bytecode types.Code, gasLimit types.Gas, value types.Value,
+	walletAddress types.Address, bytecode types.Code, feeCredit types.Value, value types.Value,
 	currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
 ) (common.Hash, error) {
-	return c.sendMessageViaWallet(walletAddress, bytecode, gasLimit, value, currencies, contractAddress, pk, false)
+	return c.sendMessageViaWallet(walletAddress, bytecode, feeCredit, value, currencies, contractAddress, pk, false)
 }
 
 // RunContract runs bytecode on the specified contract address
 func (c *DirectClient) sendMessageViaWallet(
-	walletAddress types.Address, bytecode types.Code, gasLimit types.Gas, value types.Value,
+	walletAddress types.Address, bytecode types.Code, feeCredit types.Value, value types.Value,
 	currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
 ) (common.Hash, error) {
 	var kind types.MessageKind
@@ -236,18 +236,13 @@ func (c *DirectClient) sendMessageViaWallet(
 		kind = types.ExecutionMessageKind
 	}
 
-	gasPrice, err := c.GasPrice(walletAddress.ShardId())
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
 	intMsg := &types.InternalMessagePayload{
-		Data:     bytecode,
-		To:       contractAddress,
-		Value:    gasLimit.ToValue(gasPrice).Add(value),
-		GasLimit: gasLimit,
-		Currency: currencies,
-		Kind:     kind,
+		Data:      bytecode,
+		To:        contractAddress,
+		Value:     value,
+		FeeCredit: feeCredit,
+		Currency:  currencies,
+		Kind:      kind,
 	}
 
 	intMsgData, err := intMsg.MarshalSSZ()

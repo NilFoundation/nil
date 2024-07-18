@@ -28,6 +28,8 @@ func init() {
 	check.PanicIfErr(err)
 
 	zerostate := `
+config:
+  gas_price: [10, 10, 10, 10, 10]
 contracts:
 - name: Faucet
   address: {{ .FaucetAddress }}
@@ -68,8 +70,13 @@ type MainKeys struct {
 	MainPublicKey  string `yaml:"mainPublicKey"`
 }
 
+type ConfigParams struct {
+	GasPrices []int `yaml:"gasPrices"`
+}
+
 type ZeroStateConfig struct {
-	Contracts []*ContractDescr `yaml:"contracts"`
+	ConfigParams ConfigParams     `yaml:"config,omitempty"`
+	Contracts    []*ContractDescr `yaml:"contracts"`
 }
 
 func DumpMainKeys(fname string) error {
@@ -135,6 +142,13 @@ func (es *ExecutionState) GenerateZeroState(configYaml string) error {
 	config, err := ParseZeroStateConfig(configYaml)
 	if err != nil {
 		return err
+	}
+
+	if config.ConfigParams.GasPrices != nil {
+		check.PanicIfNot(len(config.ConfigParams.GasPrices) > int(es.ShardId))
+		es.GasPrice = types.NewValueFromUint64(uint64(config.ConfigParams.GasPrices[es.ShardId]))
+	} else {
+		es.GasPrice = types.DefaultGasPrice
 	}
 
 	for _, contract := range config.Contracts {

@@ -8,6 +8,8 @@ import (
 	"github.com/NilFoundation/nil/common/check"
 )
 
+var DefaultGasPrice = NewValueFromUint64(10)
+
 type Gas uint64
 
 func (g Gas) Uint64() uint64 {
@@ -76,4 +78,8 @@ func (g *Gas) Set(value string) error {
 
 func (Gas) Type() string {
 	return "Gas"
+}
+
+func GasToValue(gas uint64) Value {
+	return Gas(gas).ToValue(DefaultGasPrice)
 }

@@ -14,6 +14,7 @@ type StateDBReadOnly interface {
 	IsInternalMessage() bool
 
 	GetCurrencies(types.Address) map[types.CurrencyId]types.Value
+	GetGasPrice(types.ShardId) (types.Value, error)
 }
 
 type StateDB interface {

@@ -49,7 +49,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	addr := types.GenerateRandomAddress(shardId)
 	storageKey := common.BytesToHash([]byte("storage-key"))
 
-	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
+	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0), 1)
 	suite.Require().NoError(err)
 
 	suite.Run("CreateAccount", func() {
@@ -74,7 +74,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	})
 
 	suite.Run("CheckAccount", func() {
-		es, err := NewExecutionState(tx, shardId, blockHash, common.NewTestTimer(0))
+		es, err := NewExecutionState(tx, shardId, blockHash, common.NewTestTimer(0), 1)
 		suite.Require().NoError(err)
 
 		storageVal, err := es.GetState(addr, storageKey)
@@ -117,14 +117,14 @@ func (suite *SuiteExecutionState) TestExecState() {
 func (suite *SuiteExecutionState) TestDeployAndCall() {
 	shardId := types.ShardId(5)
 
-	payload := contracts.CounterDeployPayload(suite.T())
+	payload := contracts.CounterPayableDeployPayload(suite.T())
 	addrWallet := types.CreateAddress(shardId, payload)
 
 	tx, err := suite.db.CreateRwTx(suite.ctx)
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
+	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0), 1)
 	suite.Require().NoError(err)
 
 	suite.Run("Deploy", func() {
@@ -200,7 +200,7 @@ func newState(t *testing.T) *ExecutionState {
 	require.NoError(t, err)
 	tx, err := database.CreateRwTx(context.Background())
 	require.NoError(t, err)
-	state, err := NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0))
+	state, err := NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0), 1)
 	require.NoError(t, err)
 
 	err = state.GenerateZeroState(DefaultZeroStateConfig)
@@ -352,14 +352,14 @@ func TestAccountState(t *testing.T) {
 func (suite *SuiteExecutionState) TestMessageStatus() {
 	shardId := types.ShardId(5)
 
-	payload := contracts.CounterDeployPayload(suite.T())
+	payload := contracts.CounterPayableDeployPayload(suite.T())
 	addrWallet := types.CreateAddress(shardId, payload)
 
 	tx, err := suite.db.CreateRwTx(suite.ctx)
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0))
+	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0), 1)
 	suite.Require().NoError(err)
 
 	suite.Run("Deploy", func() {
@@ -376,11 +376,11 @@ func (suite *SuiteExecutionState) TestMessageStatus() {
 
 	suite.Run("ExecuteOutOfGas", func() {
 		msg := &types.Message{
-			From:     addrWallet,
-			To:       addrWallet,
-			Data:     contracts.NewCounterAddCallData(suite.T(), 47),
-			Seqno:    1,
-			GasLimit: 0,
+			From:      addrWallet,
+			To:        addrWallet,
+			Data:      contracts.NewCounterAddCallData(suite.T(), 47),
+			Seqno:     1,
+			FeeCredit: toGasCredit(0),
 		}
 		_, _, err := es.HandleExecutionMessage(suite.ctx, msg)
 		merr := &types.MessageError{}
@@ -390,11 +390,11 @@ func (suite *SuiteExecutionState) TestMessageStatus() {
 
 	suite.Run("ExecuteReverted", func() {
 		msg := &types.Message{
-			From:     addrWallet,
-			To:       addrWallet,
-			Data:     []byte("wrong calldata"),
-			Seqno:    1,
-			GasLimit: 1_000_000,
+			From:      addrWallet,
+			To:        addrWallet,
+			Data:      []byte("wrong calldata"),
+			Seqno:     1,
+			FeeCredit: toGasCredit(1_000_000),
 		}
 		_, _, err := es.HandleExecutionMessage(suite.ctx, msg)
 		merr := &types.MessageError{}

@@ -64,8 +64,10 @@ func (s *Service) GetCurrencies(contractAddress types.Address) (types.Currencies
 }
 
 // RunContract runs bytecode on the specified contract address
-func (s *Service) RunContract(wallet types.Address, bytecode []byte, gasLimit types.Gas, value types.Value, currencies []types.CurrencyBalance, contract types.Address) (common.Hash, error) {
-	txHash, err := s.client.SendMessageViaWallet(wallet, bytecode, gasLimit, value,
+func (s *Service) RunContract(wallet types.Address, bytecode []byte, feeCredit types.Value, value types.Value,
+	currencies []types.CurrencyBalance, contract types.Address,
+) (common.Hash, error) {
+	txHash, err := s.client.SendMessageViaWallet(wallet, bytecode, feeCredit, value,
 		currencies, contract, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
@@ -127,12 +129,12 @@ func (s *Service) DeployContractExternal(shardId types.ShardId, payload types.De
 }
 
 // CallContract performs read-only call to the contract
-func (s *Service) CallContract(contract types.Address, gasLimit types.Gas, calldata []byte) (string, error) {
+func (s *Service) CallContract(contract types.Address, feeCredit types.Value, calldata []byte) (string, error) {
 	callArgs := &jsonrpc.CallArgs{
-		From:     contract,
-		Data:     calldata,
-		To:       contract,
-		GasLimit: gasLimit,
+		From:      contract,
+		Data:      calldata,
+		To:        contract,
+		FeeCredit: feeCredit,
 	}
 
 	res, err := s.client.Call(callArgs)

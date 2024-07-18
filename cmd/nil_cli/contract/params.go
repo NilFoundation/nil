@@ -17,10 +17,10 @@ const (
 var params = &contractParams{}
 
 type contractParams struct {
-	abiPath  string
-	noSign   bool
-	noWait   bool
-	salt     types.Uint256
-	shardId  types.ShardId
-	gasLimit types.Gas
+	abiPath   string
+	noSign    bool
+	noWait    bool
+	salt      types.Uint256
+	shardId   types.ShardId
+	feeCredit types.Value
 }

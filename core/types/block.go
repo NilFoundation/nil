@@ -36,6 +36,7 @@ type Block struct {
 	MainChainHash       common.Hash  `ch:"main_chain_hash"`
 	LogsBloom           Bloom        `ch:"logs_bloom"`
 	Timestamp           uint64       `ch:"timestamp"`
+	GasPrice            Value        `ch:"gas_price"`
 }
 
 type BlockWithRawExtractedData struct {

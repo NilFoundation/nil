@@ -74,6 +74,7 @@ var (
 	CurrencyBalanceAddress = types.BytesToAddress([]byte{0xd1})
 	SendTokensAddress      = types.BytesToAddress([]byte{0xd2})
 	MessageTokensAddress   = types.BytesToAddress([]byte{0xd3})
+	GetGasPriceAddress     = types.BytesToAddress([]byte{0xd4})
 )
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -108,6 +109,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	CurrencyBalanceAddress: &currencyBalance{},
 	SendTokensAddress:      &sendCurrencySync{},
 	MessageTokensAddress:   &getMessageTokens{},
+	GetGasPriceAddress:     &getGasPrice{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -195,6 +197,9 @@ func setBounceTo(bounceTo *types.Address, msg *types.Message) {
 }
 
 func withdrawFunds(state StateDB, addr types.Address, value types.Value) error {
+	if value.IsZero() {
+		return nil
+	}
 	balance, err := state.GetBalance(addr)
 	if err != nil {
 		return err
@@ -220,6 +225,10 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, value *uint256.Int, ca
 		return nil, err
 	}
 	if err := withdrawFunds(state, caller.Address(), payload.Value); err != nil {
+		return nil, err
+	}
+
+	if err := withdrawFunds(state, caller.Address(), payload.FeeCredit); err != nil {
 		return nil, err
 	}
 
@@ -306,7 +315,10 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	if !ok {
 		return nil, errors.New("messageGas is not a big.Int")
 	}
-	messageGas := types.Gas(messageGasBig.Uint64())
+	messageGas, overflow := types.NewValueFromBig(messageGasBig)
+	if overflow {
+		return nil, errors.New("messageGas overflow")
+	}
 
 	// Get `currencies` argument, which is a slice of `CurrencyBalance`
 	currencies, err := extractCurrencies(args[5])
@@ -326,9 +338,11 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 		kind = types.ExecutionMessageKind
 	}
 
-	// todo: correct gas price
-	gasPrice := types.NewValueFromUint64(10)
-	if err := withdrawFunds(state, caller.Address(), messageGas.ToValue(gasPrice)); err != nil {
+	if err := withdrawFunds(state, caller.Address(), messageGas); err != nil {
+		return nil, err
+	}
+
+	if err := withdrawFunds(state, caller.Address(), types.NewValue(value)); err != nil {
 		return nil, err
 	}
 
@@ -338,14 +352,14 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 
 	// Internal is required for the message
 	payload := types.InternalMessagePayload{
-		Kind:     kind,
-		GasLimit: messageGas,
-		Value:    types.NewValue(value),
-		Currency: currencies,
-		To:       dst,
-		RefundTo: refundTo,
-		BounceTo: bounceTo,
-		Data:     slices.Clone(input),
+		Kind:      kind,
+		FeeCredit: messageGas,
+		Value:     types.NewValue(value),
+		Currency:  currencies,
+		To:        dst,
+		RefundTo:  refundTo,
+		BounceTo:  bounceTo,
+		Data:      slices.Clone(input),
 	}
 	res = make([]byte, 32)
 	res[31] = 1
@@ -560,6 +574,47 @@ func (c *getMessageTokens) Run(state StateDBReadOnly, input []byte, value *uint2
 	}
 
 	res, err := getPrecompiledMethod("precompileGetMessageTokens").Outputs.Pack(abiCurrencies)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+type getGasPrice struct{}
+
+var _ PrecompiledContract = (*getGasPrice)(nil)
+
+func (c *getGasPrice) RequiredGas([]byte) uint64 {
+	return 10
+}
+
+func (c *getGasPrice) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	method := getPrecompiledMethod("precompileGetGasPrice")
+
+	args, err := method.Inputs.Unpack(input[4:])
+	if err != nil {
+		return nil, err
+	}
+	if len(args) != 1 {
+		return nil, errors.New("precompileGetGasPrice: invalid number of arguments")
+	}
+
+	// Get `shardId` argument
+	shardId, ok := args[0].(*big.Int)
+	if !ok {
+		return nil, errors.New("shardId is not a big.Int")
+	}
+	if !shardId.IsUint64() {
+		return nil, errors.New("shardId is too big")
+	}
+
+	gasPrice, err := state.GetGasPrice(types.ShardId(shardId.Uint64()))
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := method.Outputs.Pack(gasPrice.ToBig())
 	if err != nil {
 		return nil, err
 	}

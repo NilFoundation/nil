@@ -66,6 +66,7 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 		bt.printf("refundTo: %s\n", msg.RefundTo.Hex())
 		bt.printf("bounceTo: %s\n", msg.BounceTo.Hex())
 		bt.printf("value: %s\n", msg.Value.String())
+		bt.printf("fee: %s\n", msg.FeeCredit.String())
 		if len(msg.Data) < 1024 {
 			bt.printf("data: %s\n", hexutil.Encode(msg.Data))
 		} else {

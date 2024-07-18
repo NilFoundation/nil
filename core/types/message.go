@@ -78,19 +78,17 @@ const (
 )
 
 type Message struct {
-	Flags   MessageFlags `json:"flags" ch:"flags"`
-	ChainId ChainId      `json:"chainId" ch:"chainId"`
-	Seqno   Seqno        `json:"seqno,omitempty" ch:"seqno"`
-	// TODO: This field is not used right now, but it should be used in the future
-	GasPrice Value             `json:"gasPrice,omitempty" ch:"gas_price" ssz-size:"32"`
-	GasLimit Gas               `json:"gasLimit,omitempty" ch:"gas_limit"`
-	From     Address           `json:"from,omitempty" ch:"from"`
-	To       Address           `json:"to,omitempty" ch:"to"`
-	RefundTo Address           `json:"refundTo,omitempty" ch:"refundTo"`
-	BounceTo Address           `json:"bounceTo,omitempty" ch:"bounceTo"`
-	Value    Value             `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Currency []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
-	Data     Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	Flags     MessageFlags      `json:"flags" ch:"flags"`
+	ChainId   ChainId           `json:"chainId" ch:"chainId"`
+	Seqno     Seqno             `json:"seqno,omitempty" ch:"seqno"`
+	FeeCredit Value             `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
+	From      Address           `json:"from,omitempty" ch:"from"`
+	To        Address           `json:"to,omitempty" ch:"to"`
+	RefundTo  Address           `json:"refundTo,omitempty" ch:"refundTo"`
+	BounceTo  Address           `json:"bounceTo,omitempty" ch:"bounceTo"`
+	Value     Value             `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Currency  []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
+	Data      Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
 	// This field should always be at the end of the structure for easy signing
 	Signature Signature `json:"signature,omitempty" ch:"signature" ssz-max:"256"`
 }
@@ -105,15 +103,15 @@ type ExternalMessage struct {
 }
 
 type InternalMessagePayload struct {
-	Kind     MessageKind       `json:"kind,omitempty" ch:"kind"`
-	Bounce   bool              `json:"bounce,omitempty" ch:"bounce"`
-	GasLimit Gas               `json:"gasLimit,omitempty" ch:"gas_limit"`
-	To       Address           `json:"to,omitempty" ch:"to"`
-	RefundTo Address           `json:"refundTo,omitempty" ch:"refundTo"`
-	BounceTo Address           `json:"bounceTo,omitempty" ch:"bounceTo"`
-	Currency []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
-	Value    Value             `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Data     Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	Kind      MessageKind       `json:"kind,omitempty" ch:"kind"`
+	Bounce    bool              `json:"bounce,omitempty" ch:"bounce"`
+	FeeCredit Value             `json:"feeCredit,omitempty" ch:"fee_credit"`
+	To        Address           `json:"to,omitempty" ch:"to"`
+	RefundTo  Address           `json:"refundTo,omitempty" ch:"refundTo"`
+	BounceTo  Address           `json:"bounceTo,omitempty" ch:"bounceTo"`
+	Currency  []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
+	Value     Value             `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Data      Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
 }
 
 type messageDigest struct {
@@ -135,8 +133,8 @@ var (
 
 func NewEmptyMessage() *Message {
 	return &Message{
-		GasPrice:  NewValueFromUint64(0),
 		Value:     NewValueFromUint64(0),
+		FeeCredit: NewValueFromUint64(0),
 		Currency:  make([]CurrencyBalance, 0),
 		Signature: make(Signature, 0),
 	}
@@ -230,16 +228,16 @@ func (m *Message) IsRefund() bool {
 
 func (m *InternalMessagePayload) ToMessage(from Address, seqno Seqno) *Message {
 	msg := &Message{
-		Flags:    MessageFlagsFromKind(true, m.Kind),
-		To:       m.To,
-		RefundTo: m.RefundTo,
-		BounceTo: m.BounceTo,
-		From:     from,
-		Value:    m.Value,
-		Currency: m.Currency,
-		Data:     m.Data,
-		GasLimit: m.GasLimit,
-		Seqno:    seqno,
+		Flags:     MessageFlagsFromKind(true, m.Kind),
+		To:        m.To,
+		RefundTo:  m.RefundTo,
+		BounceTo:  m.BounceTo,
+		From:      from,
+		Value:     m.Value,
+		Currency:  m.Currency,
+		Data:      m.Data,
+		FeeCredit: m.FeeCredit,
+		Seqno:     seqno,
 	}
 	if m.Bounce {
 		msg.Flags.SetBit(MessageFlagBounce)
