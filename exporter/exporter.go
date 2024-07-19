@@ -95,7 +95,7 @@ func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 			}
 
 			// totally synced on top level
-			if lastProcessedBlock != nil && isSetLastProcessed && topBlock.Block.Id == lastProcessedBlock.Id {
+			if lastProcessedBlock != nil && isSetLastProcessed && topBlock.Id == lastProcessedBlock.Id {
 				continue
 			}
 
@@ -106,13 +106,13 @@ func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 
 			curBlock := topBlock
 
-			for curBlock != nil && curBlock.Block.Id >= firstPoint {
-				cfg.BlocksChan <- curBlock
+			for curBlock != nil && curBlock.Id >= firstPoint {
+				cfg.BlocksChan <- &BlockWithShardId{curBlock, shardId}
 				curExportRound = newExportRound
-				if len(curBlock.Block.PrevBlock.Bytes()) == 0 {
+				if len(curBlock.PrevBlock.Bytes()) == 0 {
 					break
 				}
-				curBlock, err = cfg.FetchBlockByHash(shardId, curBlock.Block.PrevBlock)
+				curBlock, err = cfg.FetchBlockByHash(shardId, curBlock.PrevBlock)
 				if err != nil {
 					logger.Error().Err(err).Msg("Failed to fetch block.")
 					break
@@ -178,7 +178,7 @@ func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 					logger.Error().Err(err).Msg("Failed to fetch block.")
 					continue
 				}
-				cfg.BlocksChan <- curBlock
+				cfg.BlocksChan <- &BlockWithShardId{curBlock, shardId}
 				curExportRound = newExportRound
 			}
 		}
@@ -189,7 +189,7 @@ func startDriverExport(ctx context.Context, cfg *Cfg) {
 	logger.Info().Msg("Starting driver export...")
 
 	ticker := time.NewTicker(1 * time.Second)
-	var blockBuffer []*BlockMsg
+	var blockBuffer []*BlockWithShardId
 	for {
 		select {
 		case <-ctx.Done():

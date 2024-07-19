@@ -9,7 +9,7 @@ import (
 type Cfg struct {
 	ExporterDriver ExportDriver
 	Client         client.Client
-	BlocksChan     chan *BlockMsg
+	BlocksChan     chan *BlockWithShardId
 	exportRound    atomic.Uint32
 }
 

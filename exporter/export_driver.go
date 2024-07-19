@@ -6,18 +6,14 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 )
 
-type BlockMsg struct {
-	Receipts    []*types.Receipt
-	InMessages  []*types.Message
-	OutMessages []*types.Message
-	Block       *types.Block
-	Shard       types.ShardId
-	Positions   []uint64
+type BlockWithShardId struct {
+	*types.BlockWithExtractedData
+	ShardId types.ShardId
 }
 
 type ExportDriver interface {
 	SetupScheme(context.Context) error
-	ExportBlocks(context.Context, []*BlockMsg) error
+	ExportBlocks(context.Context, []*BlockWithShardId) error
 	FetchBlock(context.Context, types.ShardId, types.BlockNumber) (*types.Block, bool, error)
 	FetchLatestProcessedBlock(context.Context, types.ShardId) (*types.Block, bool, error)
 	FetchEarliestAbsentBlock(context.Context, types.ShardId) (types.BlockNumber, bool, error)

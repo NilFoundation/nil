@@ -116,7 +116,7 @@ You could config it via config file or flags or environment variables.`,
 	check.PanicIfErr(exporter.StartExporter(ctx, &exporter.Cfg{
 		Client:         rpc.NewClient(apiEndpoint, logger),
 		ExporterDriver: clickhouseExporter,
-		BlocksChan:     make(chan *exporter.BlockMsg, 1000),
+		BlocksChan:     make(chan *exporter.BlockWithShardId, 1000),
 	}))
 
 	logger.Info().Msg("Exporter stopped")

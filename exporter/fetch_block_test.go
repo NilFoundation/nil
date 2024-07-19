@@ -34,10 +34,7 @@ func (suite *SuiteFetchBlock) TestFetchBlock() {
 	suite.Require().NoError(err, "Failed to fetch block by hash")
 	suite.Require().NotNil(hashBlock, "Fetched block by hash is nil")
 
-	suite.Require().Equal(fetchedBlock.Block.Id, hashBlock.Block.Id)
-	suite.Require().Equal(fetchedBlock.Block.PrevBlock, hashBlock.Block.PrevBlock)
-	suite.Require().Equal(fetchedBlock.Block.SmartContractsRoot, hashBlock.Block.SmartContractsRoot)
-	suite.Require().Equal(fetchedBlock.Block.InMessagesRoot, hashBlock.Block.InMessagesRoot)
+	suite.Require().Equal(fetchedBlock, hashBlock)
 }
 
 func (suite *SuiteFetchBlock) TestFetchShardIdList() {
