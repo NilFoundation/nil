@@ -24,9 +24,10 @@
             enableTesting = true;
           });
           niljs = (pkgs.callPackage ./niljs.nix { nil = nil; });
+          nil-hardhat-tests = (pkgs.callPackage ./nilhardhat.nix { nil = nil; });
           default = pkgs.symlinkJoin {
             name = "all";
-            paths = [ nil niljs ];
+            paths = [ nil niljs nil-hardhat-tests ];
           };
         };
 
