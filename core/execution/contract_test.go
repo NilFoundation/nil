@@ -63,7 +63,7 @@ func TestOpcodes(t *testing.T) {
 
 			require.NoError(t, state.SetCode(address, code))
 
-			require.NoError(t, state.newVm(true))
+			require.NoError(t, state.newVm(true, address))
 			_, _, err := state.evm.Call(
 				vm.AccountRef(address), address, nil, 100000, new(uint256.Int))
 			if err != nil {

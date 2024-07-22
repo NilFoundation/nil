@@ -36,7 +36,7 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash trans
 		return nil, err
 	}
 
-	evm := vm.NewEVM(blockContext, es)
+	evm := vm.NewEVM(blockContext, es, args.From)
 	ret, _, err := evm.Call((vm.AccountRef)(args.From), args.To, args.Data, args.GasLimit.Uint64(), args.Value.Int())
 	return ret, err
 }
