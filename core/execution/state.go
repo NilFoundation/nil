@@ -474,7 +474,7 @@ func (es *ExecutionState) SetInitState(addr types.Address, message *types.Messag
 	}
 	acc.Seqno = message.Seqno
 
-	if err := es.newVm(message.IsInternal()); err != nil {
+	if err := es.newVm(message.IsInternal(), message.From); err != nil {
 		return err
 	}
 	defer es.resetVm()
@@ -780,7 +780,7 @@ func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.
 
 	gas := message.GasLimit
 
-	if err := es.newVm(message.IsInternal()); err != nil {
+	if err := es.newVm(message.IsInternal(), message.From); err != nil {
 		return gas, types.NewMessageError(types.MessageStatusOther, err)
 	}
 	defer es.resetVm()
@@ -814,7 +814,7 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 
 	gas := message.GasLimit
 
-	if err := es.newVm(message.IsInternal()); err != nil {
+	if err := es.newVm(message.IsInternal(), message.From); err != nil {
 		return gas, nil, types.NewMessageError(types.MessageStatusOther, err)
 	}
 	defer es.resetVm()
@@ -1054,7 +1054,7 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 	}
 	calldata := append(methodSelector, argData...) //nolint:gocritic
 
-	if err := es.newVm(message.IsInternal()); err != nil {
+	if err := es.newVm(message.IsInternal(), message.From); err != nil {
 		return false, err
 	}
 	defer es.resetVm()
@@ -1154,12 +1154,12 @@ func (es *ExecutionState) SetCurrencyTransfer(currencies []types.CurrencyBalance
 	es.evm.SetCurrencyTransfer(currencies)
 }
 
-func (es *ExecutionState) newVm(internal bool) error {
+func (es *ExecutionState) newVm(internal bool, origin types.Address) error {
 	blockContext, err := NewEVMBlockContext(es)
 	if err != nil {
 		return err
 	}
-	es.evm = vm.NewEVM(blockContext, es)
+	es.evm = vm.NewEVM(blockContext, es, origin)
 	es.evm.IsAsyncCall = internal
 	return nil
 }
