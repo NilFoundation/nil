@@ -67,7 +67,7 @@ contracts:
 		CollatorTickPeriodMs: 100,
 		GasPriceScale:        15,
 		GasBasePrice:         10,
-	})
+	}, true)
 }
 
 func (s *SuitOpcodes) TearDownSuite() {

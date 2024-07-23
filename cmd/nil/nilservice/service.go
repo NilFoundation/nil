@@ -102,27 +102,15 @@ func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent
 	if cfg.CollatorTickPeriodMs == 0 {
 		cfg.CollatorTickPeriodMs = defaultCollatorTickPeriodMs
 	}
-	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
 
+	collators, err := CreateCollators(cfg, database)
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to create collators")
+		return 1
+	}
 	msgPools := make([]msgpool.Pool, cfg.NShards)
-	for i := range cfg.NShards {
-		msgPool := msgpool.New(msgpool.DefaultConfig)
-		collator := collate.NewScheduler(database, msgPool, collate.Params{
-			BlockGeneratorParams: execution.BlockGeneratorParams{
-				ShardId:       types.ShardId(i),
-				NShards:       cfg.NShards,
-				TraceEVM:      cfg.TraceEVM,
-				Timer:         common.NewTimer(),
-				GasBasePrice:  types.NewValueFromUint64(cfg.GasBasePrice),
-				GasPriceScale: cfg.GasPriceScale,
-			},
-		}, collate.GetShardTopologyById(cfg.Topology), collatorTickPeriod)
-		if len(cfg.ZeroState) != 0 {
-			collator.ZeroState = cfg.ZeroState
-		} else {
-			collator.ZeroState = execution.DefaultZeroStateConfig
-		}
-		collator.MainKeysOutPath = cfg.MainKeysOutPath
+	for i, collator := range collators {
+		msgPools[i] = collator.GetMsgPool()
 		funcs = append(funcs, func(ctx context.Context) error {
 			if err := collator.Run(ctx); err != nil {
 				logger.Error().
@@ -133,8 +121,6 @@ func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent
 			}
 			return nil
 		})
-
-		msgPools[i] = msgPool
 	}
 
 	funcs = append(funcs, func(ctx context.Context) error {
@@ -164,4 +150,79 @@ func Run(ctx context.Context, cfg *Config, database db.DB, workers ...concurrent
 
 	logger.Info().Msg("App is terminated.")
 	return 0
+}
+
+// RunCollatorsOnly is same as `Run`, but runs only collators, without any other workers.
+func RunCollatorsOnly(ctx context.Context, collators []*collate.Scheduler, cfg *Config) int {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	logger := logging.NewLogger("nil")
+
+	funcs := make([]concurrent.Func, 0, cfg.NShards+2)
+	if cfg.GracefulShutdown {
+		funcs = []concurrent.Func{
+			func(ctx context.Context) error {
+				concurrent.OnSignal(ctx, cancel, syscall.SIGTERM, syscall.SIGINT)
+				return nil
+			},
+		}
+	}
+
+	if cfg.CollatorTickPeriodMs == 0 {
+		cfg.CollatorTickPeriodMs = defaultCollatorTickPeriodMs
+	}
+
+	msgPools := make([]msgpool.Pool, cfg.NShards)
+	for i, collator := range collators {
+		msgPools[i] = collator.GetMsgPool()
+		funcs = append(funcs, func(ctx context.Context) error {
+			if err := collator.Run(ctx); err != nil {
+				logger.Error().
+					Err(err).
+					Stringer(logging.FieldShardId, types.ShardId(i)).
+					Msg("Collator goroutine failed")
+				return err
+			}
+			return nil
+		})
+	}
+
+	logger.Info().Msg("Starting collators...")
+
+	if err := concurrent.Run(ctx, funcs...); err != nil {
+		logger.Error().Err(err).Msg("App encountered an error and will be terminated.")
+		return 1
+	}
+
+	logger.Info().Msg("App is terminated.")
+	return 0
+}
+
+func CreateCollators(cfg *Config, database db.DB) ([]*collate.Scheduler, error) {
+	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
+
+	collators := make([]*collate.Scheduler, 0, cfg.NShards)
+
+	for i := range cfg.NShards {
+		msgPool := msgpool.New(msgpool.DefaultConfig)
+		collator := collate.NewScheduler(database, msgPool, collate.Params{
+			BlockGeneratorParams: execution.BlockGeneratorParams{
+				ShardId:       types.ShardId(i),
+				NShards:       cfg.NShards,
+				TraceEVM:      cfg.TraceEVM,
+				Timer:         common.NewTimer(),
+				GasBasePrice:  types.NewValueFromUint64(cfg.GasBasePrice),
+				GasPriceScale: cfg.GasPriceScale,
+			},
+		}, collate.GetShardTopologyById(cfg.Topology), collatorTickPeriod)
+		collators = append(collators, collator)
+		if len(cfg.ZeroState) != 0 {
+			collator.ZeroState = cfg.ZeroState
+		} else {
+			collator.ZeroState = execution.DefaultZeroStateConfig
+		}
+		collator.MainKeysOutPath = cfg.MainKeysOutPath
+	}
+	return collators, nil
 }

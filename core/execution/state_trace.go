@@ -100,6 +100,7 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 
 						bt.withIndent(func(t *BlocksTracer) {
 							bt.printf("success: %t\n", receipt.Success)
+							bt.printf("status: %s\n", receipt.Status.String())
 							bt.printf("gas_used: %d\n", receipt.GasUsed)
 							bt.printf("msg_hash: %s\n", receipt.MsgHash.Hex())
 							bt.printf("address: %s\n", receipt.ContractAddress.Hex())

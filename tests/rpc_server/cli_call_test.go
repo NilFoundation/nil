@@ -71,7 +71,7 @@ func (s *SuiteCliTestCall) SetupTest() {
 		GracefulShutdown:     false,
 		GasPriceScale:        0,
 		GasBasePrice:         10,
-	})
+	}, false)
 }
 
 func (s *SuiteCliTestCall) TearDownTest() {

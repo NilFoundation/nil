@@ -6,10 +6,12 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/msgpool"
 	"github.com/rs/zerolog"
 )
 
@@ -136,4 +138,10 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (s *Scheduler) GetMsgPool() msgpool.Pool {
+	pool, ok := s.pool.(msgpool.Pool)
+	check.PanicIfNotf(ok, "scheduler pool is not a msgpool.Pool")
+	return pool
 }

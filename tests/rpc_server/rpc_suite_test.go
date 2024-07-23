@@ -18,6 +18,7 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/tools/solc"
@@ -45,7 +46,7 @@ func init() {
 	logging.SetupGlobalLogger("debug")
 }
 
-func (s *RpcSuite) start(cfg *nilservice.Config) {
+func (s *RpcSuite) start(cfg *nilservice.Config, noRpc bool) {
 	s.T().Helper()
 
 	s.shardsNum = cfg.NShards
@@ -60,14 +61,32 @@ func (s *RpcSuite) start(cfg *nilservice.Config) {
 	s.Require().NoError(err)
 	s.db = db
 
-	s.endpoint = fmt.Sprintf("http://127.0.0.1:%d", cfg.HttpPort)
-	s.client = rpc_client.NewClient(s.endpoint, zerolog.New(os.Stderr))
+	if noRpc {
+		collators, err := nilservice.CreateCollators(cfg, s.db)
+		s.Require().NoError(err)
 
-	s.wg.Add(1)
-	go func() {
-		nilservice.Run(s.context, cfg, s.db)
-		s.wg.Done()
-	}()
+		msgPools := make([]msgpool.Pool, cfg.NShards)
+		for i, collator := range collators {
+			msgPools[i] = collator.GetMsgPool()
+		}
+		s.client, err = client.NewEthClient(s.context, db, msgPools, zerolog.New(os.Stderr))
+		s.Require().NoError(err)
+
+		s.wg.Add(1)
+		go func() {
+			nilservice.RunCollatorsOnly(s.context, collators, cfg)
+			s.wg.Done()
+		}()
+	} else {
+		s.endpoint = fmt.Sprintf("http://127.0.0.1:%d", cfg.HttpPort)
+		s.client = rpc_client.NewClient(s.endpoint, zerolog.New(os.Stderr))
+		s.wg.Add(1)
+		go func() {
+			nilservice.Run(s.context, cfg, s.db)
+			s.wg.Done()
+		}()
+	}
+
 	s.waitZerostate()
 }
 
@@ -139,7 +158,7 @@ func (s *RpcSuite) deployContractViaMainWallet(shardId types.ShardId, payload ty
 func (s *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey, calldata []byte, value types.Value) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	txHash, err := s.client.SendMessageViaWallet(addrFrom, calldata, 1_000_000, value,
+	txHash, err := s.client.SendMessageViaWallet(addrFrom, calldata, 10_000_000, value,
 		[]types.CurrencyBalance{}, addrTo, key)
 	s.Require().NoError(err)
 

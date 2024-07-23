@@ -26,7 +26,7 @@ func (s *SuitGasPrice) SetupSuite() {
 		CollatorTickPeriodMs: 100,
 		GasPriceScale:        15,
 		GasBasePrice:         10,
-	})
+	}, true)
 }
 
 func (s *SuitGasPrice) TearDownSuite() {

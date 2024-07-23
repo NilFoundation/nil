@@ -106,7 +106,7 @@ func (s *SuiteMultiCurrencyRpc) SetupTest() {
 		ZeroState:            s.zerostateCfg,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
-	})
+	}, true)
 }
 
 func (s *SuiteMultiCurrencyRpc) TearDownTest() {
@@ -673,7 +673,8 @@ func CreateTokenId(address *types.Address) *CurrencyId {
 	}
 }
 
-func TestMultiCurrencyRpc(t *testing.T) { //nolint
-	// Not parallel, because tests use same port
+func TestMultiCurrencyRpc(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, new(SuiteMultiCurrencyRpc))
 }

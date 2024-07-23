@@ -28,7 +28,7 @@ func (s *SuiteFaucet) SetupTest() {
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
-	})
+	}, true)
 }
 
 func (s *SuiteFaucet) TearDownTest() {
