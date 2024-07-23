@@ -142,13 +142,6 @@ func (s *MessagesSuite) TestValidateDeployMessage() {
 	msg.Data = data.Bytes()
 	s.Require().ErrorIs(ValidateDeployMessage(msg), ErrDeployToMainShard)
 
-	// Deploy to the main shard from main wallet - OK
-	data = types.BuildDeployPayload([]byte("some-code"), common.EmptyHash)
-	msg.To = types.CreateAddress(types.MainShardId, data)
-	msg.From = types.MainWalletAddress
-	msg.Data = data.Bytes()
-	s.Require().NoError(ValidateDeployMessage(msg))
-
 	// Deploy to base shard
 	msg.To = types.CreateAddress(types.BaseShardId, data)
 	s.Require().NoError(ValidateDeployMessage(msg))

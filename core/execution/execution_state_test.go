@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/core/vm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -356,9 +357,6 @@ func TestAccountState(t *testing.T) {
 func (suite *SuiteExecutionState) TestMessageStatus() {
 	shardId := types.ShardId(5)
 
-	payload := contracts.CounterDeployPayload(suite.T())
-	addrWallet := types.CreateAddress(shardId, payload)
-
 	tx, err := suite.db.CreateRwTx(suite.ctx)
 	suite.Require().NoError(err)
 	defer tx.Rollback()
@@ -366,40 +364,55 @@ func (suite *SuiteExecutionState) TestMessageStatus() {
 	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0), 1)
 	suite.Require().NoError(err)
 
+	var counterAddr, faucetAddr types.Address
+
 	suite.Run("Deploy", func() {
-		seqno, err := es.GetSeqno(addrWallet)
-		suite.Require().NoError(err)
-		suite.EqualValues(0, seqno)
+		counterAddr = Deploy(suite.T(), suite.ctx, es,
+			contracts.CounterDeployPayload(suite.T()), shardId, types.Address{}, 0)
 
-		Deploy(suite.T(), suite.ctx, es, payload, shardId, types.Address{}, 0)
-
-		seqno, err = es.GetSeqno(addrWallet)
-		suite.Require().NoError(err)
-		suite.EqualValues(1, seqno)
+		faucetAddr = Deploy(suite.T(), suite.ctx, es,
+			contracts.FaucetDeployPayload(suite.T()), shardId, types.Address{}, 0)
+		suite.Require().NoError(es.SetBalance(faucetAddr, types.NewValueFromUint64(100_000_000)))
 	})
 
 	suite.Run("ExecuteOutOfGas", func() {
 		msg := &types.Message{
-			From:      addrWallet,
-			To:        addrWallet,
+			From:      counterAddr,
+			To:        counterAddr,
 			Data:      contracts.NewCounterAddCallData(suite.T(), 47),
 			Seqno:     1,
 			FeeCredit: toGasCredit(0),
 		}
 		res := es.HandleExecutionMessage(suite.ctx, msg)
-		suite.EqualValues(types.MessageStatusOutOfGas, res.Error.Status)
+		suite.Equal(types.MessageStatusOutOfGas, res.Error.Status)
+		suite.ErrorIs(res.Error.Inner, vm.ErrOutOfGas)
 	})
 
 	suite.Run("ExecuteReverted", func() {
 		msg := &types.Message{
-			From:      addrWallet,
-			To:        addrWallet,
+			From:      counterAddr,
+			To:        counterAddr,
 			Data:      []byte("wrong calldata"),
 			Seqno:     1,
 			FeeCredit: toGasCredit(1_000_000),
 		}
 		res := es.HandleExecutionMessage(suite.ctx, msg)
-		suite.EqualValues(types.MessageStatusExecutionReverted, res.Error.Status)
+		suite.Equal(types.MessageStatusExecutionReverted, res.Error.Status)
+		suite.ErrorIs(res.Error.Inner, vm.ErrExecutionReverted)
+	})
+
+	suite.Run("CallToMainShard", func() {
+		msg := &types.Message{
+			From: faucetAddr,
+			To:   faucetAddr,
+			Data: contracts.NewFaucetWithdrawToCallData(suite.T(),
+				types.GenerateRandomAddress(types.MainShardId), types.NewValueFromUint64(1_000)),
+			Seqno:     1,
+			FeeCredit: toGasCredit(100_000),
+		}
+		res := es.HandleExecutionMessage(suite.ctx, msg)
+		suite.Equal(types.MessageStatusMessageToMainShard, res.Error.Status)
+		suite.ErrorIs(res.Error.Inner, vm.ErrMessageToMainShard)
 	})
 }
 

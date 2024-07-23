@@ -32,6 +32,14 @@ func CounterAddress(t *testing.T, shardId types.ShardId) types.Address {
 	return types.CreateAddress(shardId, CounterDeployPayload(t))
 }
 
+func FaucetDeployPayload(t *testing.T) types.DeployPayload {
+	t.Helper()
+
+	code, err := GetCode(NameFaucet)
+	require.NoError(t, err)
+	return types.BuildDeployPayload(code, common.EmptyHash)
+}
+
 func WalletAddress(t *testing.T, shardId types.ShardId, salt, pubKey []byte) types.Address {
 	t.Helper()
 
@@ -59,6 +67,12 @@ func NewCounterGetCallData(t *testing.T) []byte {
 	t.Helper()
 
 	return NewCallDataT(t, NameCounter, "get")
+}
+
+func NewFaucetWithdrawToCallData(t *testing.T, dst types.Address, value types.Value) []byte {
+	t.Helper()
+
+	return NewCallDataT(t, NameFaucet, "withdrawTo", dst, value.ToBig())
 }
 
 func GetCounterValue(t *testing.T, data []byte) int32 {

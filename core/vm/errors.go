@@ -54,6 +54,7 @@ var (
 	ErrInvalidInputLength = VMError{"invalid input length"}
 	ErrCrossShardMessage  = VMError{"invalid cross shard message"}
 	ErrUnexpectedType     = VMError{"unexpected precompile contract call-type"}
+	ErrMessageToMainShard = VMError{"attempt to send message to main shard"}
 
 	// errStopToken is an internal token indicating interpreter loop termination,
 	// never returned to outside callers.

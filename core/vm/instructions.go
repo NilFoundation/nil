@@ -601,13 +601,13 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]b
 
 	scope.Contract.UseGas(gas, interpreter.evm.Config.Tracer, tracing.GasChangeCallContractCreation)
 
-	res, addr, returnGas, suberr := interpreter.evm.Create(scope.Contract, input, gas, &value)
+	res, addr, returnGas, err := interpreter.evm.Create(scope.Contract, input, gas, &value)
 	// Push item on the stack based on the returned error. If the ruleset is
 	//  homestead, we must check for CodeStoreOutOfGasError (homestead-only
 	// rule) and treat as an error, if the ruleset is frontier we must
 	// ignore this error and pretend the operation was successful.
 	var stackvalue uint256.Int
-	if suberr == nil {
+	if err == nil {
 		stackvalue.SetBytes(addr.Bytes())
 	}
 
@@ -615,14 +615,14 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]b
 
 	scope.Contract.RefundGas(returnGas, interpreter.evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 
-	if errors.Is(suberr, ErrExecutionReverted) {
+	if errors.Is(err, ErrExecutionReverted) {
 		interpreter.returnData = res // set REVERT data to return data buffer
 		return res, nil
 	}
 
 	interpreter.returnData = nil // clear dirty return data buffer
 
-	return nil, nil
+	return nil, err
 }
 
 func opCreate2(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
@@ -640,23 +640,23 @@ func opCreate2(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]
 	gas -= gas / 64
 	scope.Contract.UseGas(gas, interpreter.evm.Config.Tracer, tracing.GasChangeCallContractCreation2)
 
-	res, addr, returnGas, suberr := interpreter.evm.Create2(scope.Contract, input, gas,
+	res, addr, returnGas, err := interpreter.evm.Create2(scope.Contract, input, gas,
 		&endowment, &salt)
 	// Push item on the stack based on the returned error.
 	var stackvalue uint256.Int
-	if suberr == nil {
+	if err == nil {
 		stackvalue.SetBytes(addr.Bytes())
 	}
 	scope.Stack.push(&stackvalue)
 
 	scope.Contract.RefundGas(returnGas, interpreter.evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 
-	if errors.Is(suberr, ErrExecutionReverted) {
+	if errors.Is(err, ErrExecutionReverted) {
 		interpreter.returnData = res // set REVERT data to return data buffer
 		return res, nil
 	}
 	interpreter.returnData = nil // clear dirty return data buffer
-	return nil, nil
+	return nil, err
 }
 
 func isCrossShardMessage(from, to types.Address) bool {
@@ -698,7 +698,7 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byt
 	scope.Contract.RefundGas(returnGas, interpreter.evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 
 	interpreter.returnData = ret
-	return ret, nil
+	return ret, err
 }
 
 func opCallCode(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
@@ -732,7 +732,7 @@ func opCallCode(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([
 	scope.Contract.RefundGas(returnGas, interpreter.evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 
 	interpreter.returnData = ret
-	return ret, nil
+	return ret, err
 }
 
 func opDelegateCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
@@ -762,7 +762,7 @@ func opDelegateCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext
 	scope.Contract.RefundGas(returnGas, interpreter.evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 
 	interpreter.returnData = ret
-	return ret, nil
+	return ret, err
 }
 
 func opStaticCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {

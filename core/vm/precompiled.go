@@ -224,6 +224,11 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, value *uint256.Int, ca
 	if err := payload.UnmarshalSSZ(input); err != nil {
 		return nil, err
 	}
+
+	if payload.To.ShardId().IsMainShard() {
+		return nil, ErrMessageToMainShard
+	}
+
 	if err := withdrawFunds(state, caller.Address(), payload.Value); err != nil {
 		return nil, err
 	}
@@ -356,6 +361,10 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 		kind = types.DeployMessageKind
 	} else {
 		kind = types.ExecutionMessageKind
+	}
+
+	if dst.ShardId().IsMainShard() {
+		return nil, ErrMessageToMainShard
 	}
 
 	if forwardKind == types.ForwardKindNone {
