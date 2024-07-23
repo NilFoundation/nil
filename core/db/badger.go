@@ -7,9 +7,9 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/NilFoundation/badger/v4"
 	"github.com/NilFoundation/nil/common/assert"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/dgraph-io/badger/v4"
 	"github.com/rs/zerolog/log"
 )
 
@@ -68,7 +68,8 @@ func newBadgerDb(opts *badger.Options) (*badgerDB, error) {
 		return nil, err
 	}
 
-	return &badgerDB{db: badgerInstance, txLedger: assert.NewTxLedger()}, nil
+	db := &badgerDB{db: badgerInstance, txLedger: assert.NewTxLedger()}
+	return db, nil
 }
 
 func (db *badgerDB) Close() {
@@ -86,8 +87,7 @@ func captureStacktrace() []byte {
 	return stack
 }
 
-func (db *badgerDB) CreateRoTx(ctx context.Context) (RoTx, error) {
-	txn := db.db.NewTransaction(false)
+func (db *badgerDB) createRoTx(_ context.Context, txn *badger.Txn) (RoTx, error) {
 	tx := &BadgerRoTx{tx: txn, onFinish: func() {}}
 	if assert.Enable {
 		stack := captureStacktrace()
@@ -96,14 +96,25 @@ func (db *badgerDB) CreateRoTx(ctx context.Context) (RoTx, error) {
 	return tx, nil
 }
 
-func (db *badgerDB) CreateRwTx(ctx context.Context) (RwTx, error) {
-	txn := db.db.NewTransaction(true)
+func (db *badgerDB) CreateRoTxAt(ctx context.Context, ts Timestamp) (RoTx, error) {
+	return db.createRoTx(ctx, db.db.NewTransactionAt(uint64(ts), false))
+}
+
+func (db *badgerDB) CreateRoTx(ctx context.Context) (RoTx, error) {
+	return db.createRoTx(ctx, db.db.NewTransaction(false))
+}
+
+func (db *badgerDB) createRwTx(_ context.Context, txn *badger.Txn) (RwTx, error) {
 	tx := &BadgerRwTx{&BadgerRoTx{tx: txn, onFinish: func() {}}}
 	if assert.Enable {
 		stack := captureStacktrace()
 		tx.onFinish = db.txLedger.TxOnStart(stack)
 	}
 	return tx, nil
+}
+
+func (db *badgerDB) CreateRwTx(ctx context.Context) (RwTx, error) {
+	return db.createRwTx(ctx, db.db.NewTransaction(true))
 }
 
 func (db *badgerDB) LogGC(ctx context.Context, discardRation float64, gcFrequency time.Duration) error {
@@ -132,9 +143,19 @@ func (tx *BadgerRwTx) Commit() error {
 	return tx.tx.Commit()
 }
 
+func (tx *BadgerRwTx) CommitWithTs() (Timestamp, error) {
+	tx.onFinish()
+	ts, err := tx.tx.CommitWithTs()
+	return Timestamp(ts), err
+}
+
 func (tx *BadgerRoTx) Rollback() {
 	tx.onFinish()
 	tx.tx.Discard()
+}
+
+func (tx *BadgerRoTx) ReadTimestamp() Timestamp {
+	return Timestamp(tx.tx.ReadTs())
 }
 
 func (tx *BadgerRwTx) Put(tableName TableName, key, value []byte) error {

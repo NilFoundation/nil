@@ -7,6 +7,8 @@ import (
 	"github.com/NilFoundation/nil/core/types"
 )
 
+type Timestamp uint64
+
 type RoTx interface {
 	Exists(tableName TableName, key []byte) (bool, error)
 	Get(tableName TableName, key []byte) ([]byte, error)
@@ -15,6 +17,8 @@ type RoTx interface {
 	ExistsInShard(shardId types.ShardId, tableName ShardedTableName, key []byte) (bool, error)
 	GetFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) ([]byte, error)
 	RangeByShard(shardId types.ShardId, tableName ShardedTableName, from []byte, to []byte) (Iter, error)
+
+	ReadTimestamp() Timestamp
 
 	Rollback()
 }
@@ -29,6 +33,7 @@ type RwTx interface {
 	DeleteFromShard(shardId types.ShardId, tableName ShardedTableName, key []byte) error
 
 	Commit() error
+	CommitWithTs() (Timestamp, error)
 }
 
 type Iter interface {
@@ -39,6 +44,7 @@ type Iter interface {
 
 type ReadOnlyDB interface {
 	CreateRoTx(ctx context.Context) (RoTx, error)
+	CreateRoTxAt(ctx context.Context, ts Timestamp) (RoTx, error)
 }
 
 type DB interface {
@@ -74,5 +80,9 @@ func (a *RwWrapper) DeleteFromShard(types.ShardId, ShardedTableName, []byte) err
 }
 
 func (a *RwWrapper) Commit() error {
+	panic("unsupported operation")
+}
+
+func (a *RwWrapper) CommitWithTs() (Timestamp, error) {
 	panic("unsupported operation")
 }

@@ -433,6 +433,51 @@ func (suite *SuiteBadgerDb) TestRange() {
 	})
 }
 
+func (s *SuiteBadgerDb) TestTimestamps() {
+	db := s.db
+	ctx := context.Background()
+	var ts Timestamp
+
+	s.Run("put", func() {
+		tx, err := db.CreateRwTx(ctx)
+		s.Require().NoError(err)
+		defer tx.Rollback()
+
+		s.Require().Equal(Timestamp(0), tx.ReadTimestamp())
+
+		s.Require().NoError(tx.Put("tbl", []byte("foo"), []byte("bar")))
+		ts, err = tx.CommitWithTs()
+		s.Require().NoError(err)
+	})
+
+	s.Run("read-timestamp", func() {
+		tx, err := db.CreateRoTxAt(ctx, Timestamp(0))
+		s.Require().NoError(err)
+		defer tx.Rollback()
+
+		s.Require().Equal(Timestamp(0), tx.ReadTimestamp())
+
+		exists, err := tx.Exists("tbl", []byte("foo"))
+		s.Require().NoError(err)
+		s.False(exists)
+	})
+
+	s.Run("put2", func() {
+		tx, err := db.CreateRwTx(ctx)
+		s.Require().NoError(err)
+		defer tx.Rollback()
+
+		s.Require().Equal(ts, tx.ReadTimestamp())
+
+		val, err := tx.Get("tbl", []byte("foo"))
+		s.Require().NoError(err)
+		s.Require().Equal([]byte("bar"), val)
+
+		s.Require().NoError(tx.Put("tbl", []byte("foo"), []byte("bar2")))
+		s.Require().NoError(tx.Commit())
+	})
+}
+
 func TestSuiteBadgerDb(s *testing.T) {
 	s.Parallel()
 
