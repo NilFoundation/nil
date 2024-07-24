@@ -204,7 +204,7 @@ func toRPCBlock(raw json.RawMessage) (*jsonrpc.RPCBlock, error) {
 	return block, nil
 }
 
-func (c *Client) GetRawBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCRawBlock, error) {
+func (c *Client) GetDebugBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.HexedDebugRPCBlock, error) {
 	blockNrOrHash, err := transport.AsBlockReference(blockId)
 	if err != nil {
 		return nil, err
@@ -223,7 +223,7 @@ func (c *Client) GetRawBlock(shardId types.ShardId, blockId any, fullTx bool) (*
 	return nil, nil
 }
 
-func (c *Client) getRawBlockByHash(shardId types.ShardId, hash common.Hash, fullTx bool) (*jsonrpc.RPCRawBlock, error) {
+func (c *Client) getRawBlockByHash(shardId types.ShardId, hash common.Hash, fullTx bool) (*jsonrpc.HexedDebugRPCBlock, error) {
 	res, err := c.call(Debug_getBlockByHash, shardId, hash, fullTx)
 	if err != nil {
 		return nil, err
@@ -231,7 +231,7 @@ func (c *Client) getRawBlockByHash(shardId types.ShardId, hash common.Hash, full
 	return toRawBlock(res)
 }
 
-func (c *Client) getRawBlockByNumber(shardId types.ShardId, num transport.BlockNumber, fullTx bool) (*jsonrpc.RPCRawBlock, error) {
+func (c *Client) getRawBlockByNumber(shardId types.ShardId, num transport.BlockNumber, fullTx bool) (*jsonrpc.HexedDebugRPCBlock, error) {
 	res, err := c.call(Debug_getBlockByNumber, shardId, num, fullTx)
 	if err != nil {
 		return nil, err
@@ -239,8 +239,8 @@ func (c *Client) getRawBlockByNumber(shardId types.ShardId, num transport.BlockN
 	return toRawBlock(res)
 }
 
-func toRawBlock(raw json.RawMessage) (*jsonrpc.RPCRawBlock, error) {
-	var blockInfo *jsonrpc.RPCRawBlock
+func toRawBlock(raw json.RawMessage) (*jsonrpc.HexedDebugRPCBlock, error) {
+	var blockInfo *jsonrpc.HexedDebugRPCBlock
 	if err := json.Unmarshal(raw, &blockInfo); err != nil {
 		return nil, err
 	}

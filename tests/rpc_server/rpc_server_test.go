@@ -368,11 +368,14 @@ func (s *SuiteRpc) TestRpcError() {
 }
 
 func (s *SuiteRpc) TestRpcDebugModules() {
-	res, err := s.client.GetRawBlock(types.BaseShardId, "latest", false)
+	res, err := s.client.GetDebugBlock(types.BaseShardId, "latest", false)
 	s.Require().NoError(err)
 
-	s.Require().NotEmpty(res.Number)
-	s.Require().NotEqual(common.EmptyHash, res.Hash)
+	block, err := res.DecodeHexAndSSZ()
+	s.Require().NoError(err)
+
+	s.Require().NotEmpty(block.Id)
+	s.Require().NotEqual(common.EmptyHash, block.Block.Hash())
 	s.Require().NotEmpty(res.Content)
 
 	sliceContent := res.Content
@@ -381,12 +384,12 @@ func (s *SuiteRpc) TestRpcDebugModules() {
 	// print resp to see the result
 	s.T().Logf("resp: %v", res)
 
-	fullRes, err := s.client.GetRawBlock(types.BaseShardId, "latest", true)
+	fullRes, err := s.client.GetDebugBlock(types.BaseShardId, "latest", true)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(fullRes.Content)
-	s.Require().Empty(res.InMessages())
-	s.Require().Empty(res.OutMessages())
-	s.Require().Empty(res.Receipts())
+	s.Require().Empty(block.InMessages)
+	s.Require().Empty(block.OutMessages)
+	s.Require().Empty(block.Receipts)
 }
 
 // Test that we remove output messages if the transaction failed

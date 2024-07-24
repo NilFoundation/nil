@@ -6,6 +6,8 @@ import (
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
+	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/common/ssz"
 )
 
 type BlockNumber uint64
@@ -35,6 +37,22 @@ type Block struct {
 	Timestamp           uint64       `ch:"timestamp"`
 }
 
+type BlockWithRawExtractedData struct {
+	*Block
+	InMessages  []ssz.SSZEncodedData
+	OutMessages []ssz.SSZEncodedData
+	Receipts    []ssz.SSZEncodedData
+	Errors      map[common.Hash]string
+}
+
+type BlockWithExtractedData struct {
+	*Block
+	InMessages  []*Message
+	OutMessages []*Message
+	Receipts    []*Receipt
+	Errors      map[common.Hash]string
+}
+
 // interfaces
 var (
 	_ common.Hashable     = new(Block)
@@ -46,4 +64,68 @@ func (b *Block) Hash() common.Hash {
 	h, err := common.PoseidonSSZ(b)
 	check.PanicIfErr(err)
 	return h
+}
+
+func (b *Block) ToHexedSSZ() (string, error) {
+	content, err := b.MarshalSSZ()
+	if err != nil {
+		return "", err
+	}
+	return hexutil.Encode(content), nil
+}
+
+func (b *Block) FromHexedSSZ(hexData string) error {
+	return b.UnmarshalSSZ(hexutil.FromHex(hexData))
+}
+
+func BlockFromHexedSSZ(hexData string) (*Block, error) {
+	block := new(Block)
+	if err := block.FromHexedSSZ(hexData); err != nil {
+		return nil, err
+	}
+	return block, nil
+}
+
+func (b *BlockWithRawExtractedData) DecodeSSZ() (*BlockWithExtractedData, error) {
+	inMessages, err := ssz.DecodeContainer[Message, *Message](b.InMessages)
+	if err != nil {
+		return nil, err
+	}
+	outMessages, err := ssz.DecodeContainer[Message, *Message](b.OutMessages)
+	if err != nil {
+		return nil, err
+	}
+	receipts, err := ssz.DecodeContainer[Receipt, *Receipt](b.Receipts)
+	if err != nil {
+		return nil, err
+	}
+	return &BlockWithExtractedData{
+		Block:       b.Block,
+		InMessages:  inMessages,
+		OutMessages: outMessages,
+		Receipts:    receipts,
+		Errors:      b.Errors,
+	}, nil
+}
+
+func (b *BlockWithExtractedData) EncodeSSZ() (*BlockWithRawExtractedData, error) {
+	inMessages, err := ssz.EncodeContainer(b.InMessages)
+	if err != nil {
+		return nil, err
+	}
+	outMessages, err := ssz.EncodeContainer(b.OutMessages)
+	if err != nil {
+		return nil, err
+	}
+	receipts, err := ssz.EncodeContainer(b.Receipts)
+	if err != nil {
+		return nil, err
+	}
+	return &BlockWithRawExtractedData{
+		Block:       b.Block,
+		InMessages:  inMessages,
+		OutMessages: outMessages,
+		Receipts:    receipts,
+		Errors:      b.Errors,
+	}, nil
 }

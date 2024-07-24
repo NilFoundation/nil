@@ -9,6 +9,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
+	"github.com/NilFoundation/nil/common/ssz"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/exporter"
 )
@@ -49,6 +50,36 @@ type MessageWithBinary struct {
 	Outgoing          bool               `ch:"outgoing"`
 	Timestamp         uint64             `ch:"timestamp"`
 	ParentTransaction common.Hash        `ch:"parent_transaction"`
+	ErrorMessage      string             `ch:"error_message"`
+}
+
+func NewMessageWithBinary(
+	message *types.Message,
+	messageBinary ssz.SSZEncodedData,
+	receipt *types.Receipt,
+	receiptBinary ssz.SSZEncodedData,
+	block *types.BlockWithExtractedData,
+	idx types.MessageIndex,
+	shardId types.ShardId,
+) *MessageWithBinary {
+	hash := message.Hash()
+	res := &MessageWithBinary{
+		Message:      *message,
+		Binary:       messageBinary,
+		BlockId:      block.Id,
+		BlockHash:    block.Block.Hash(),
+		Hash:         hash,
+		ShardId:      shardId,
+		MessageIndex: idx,
+		Timestamp:    block.Timestamp,
+		ErrorMessage: block.Errors[hash],
+	}
+	if receipt != nil {
+		res.Success = receipt.Success
+		res.GasUsed = receipt.GasUsed
+		res.ReceiptBinary = receiptBinary
+	}
+	return res
 }
 
 type LogWithBinary struct {
@@ -61,6 +92,29 @@ type LogWithBinary struct {
 	Topic3      common.Hash   `ch:"topic3"`
 	Topic4      common.Hash   `ch:"topic4"`
 	Data        []byte        `ch:"data"`
+}
+
+func NewLogWithBinary(log *types.Log, binary []byte, receipt *types.Receipt) *LogWithBinary {
+	res := &LogWithBinary{
+		MessageHash: receipt.MsgHash,
+		Binary:      binary,
+		Address:     log.Address,
+		TopicsCount: uint8(len(log.Topics)),
+		Data:        log.Data,
+	}
+	for i, topic := range log.Topics {
+		switch i {
+		case 0:
+			res.Topic1 = topic
+		case 1:
+			res.Topic2 = topic
+		case 2:
+			res.Topic3 = topic
+		case 3:
+			res.Topic4 = topic
+		}
+	}
+	return res
 }
 
 var tableSchemeCache map[string]reflectedScheme = nil
@@ -249,8 +303,34 @@ func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
 	return nil
 }
 
-func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, msgs []*exporter.BlockMsg) error {
-	if err := exportMessagesAndLogs(ctx, d.insertConn, msgs); err != nil {
+type blockWithSSZ struct {
+	decoded    *exporter.BlockWithShardId
+	sszEncoded *types.BlockWithRawExtractedData
+}
+
+type receiptWithSSZ struct {
+	decoded    *types.Receipt
+	sszEncoded ssz.SSZEncodedData
+}
+
+func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocksToExport []*exporter.BlockWithShardId) error {
+	blocks := make([]blockWithSSZ, len(blocksToExport))
+	receipts := make(map[common.Hash]receiptWithSSZ)
+	for blockIndex, block := range blocksToExport {
+		sszEncodedBlock, err := block.EncodeSSZ()
+		if err != nil {
+			return err
+		}
+		blocks[blockIndex] = blockWithSSZ{decoded: block, sszEncoded: sszEncodedBlock}
+		for receiptIndex, receipt := range block.Receipts {
+			receipts[receipt.MsgHash] = receiptWithSSZ{
+				decoded:    receipt,
+				sszEncoded: sszEncodedBlock.Receipts[receiptIndex],
+			}
+		}
+	}
+
+	if err := exportMessagesAndLogs(ctx, d.insertConn, blocks, receipts); err != nil {
 		return err
 	}
 
@@ -259,18 +339,18 @@ func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, msgs []*exporter.Bl
 		return err
 	}
 
-	for _, block := range msgs {
-		binary, blockErr := block.Block.MarshalSSZ()
+	for _, block := range blocks {
+		binary, blockErr := block.decoded.MarshalSSZ()
 		if blockErr != nil {
 			return blockErr
 		}
 		binaryBlockExtended := &BlockWithBinary{
-			Block:     *block.Block,
+			Block:     *block.decoded.Block,
 			Binary:    binary,
-			ShardId:   block.Shard,
-			Hash:      block.Block.Hash(),
-			OutMsgNum: uint64(len(block.OutMessages)),
-			InMsgNum:  uint64(len(block.InMessages)),
+			ShardId:   block.decoded.ShardId,
+			Hash:      block.decoded.Block.Hash(),
+			OutMsgNum: uint64(len(block.decoded.OutMessages)),
+			InMsgNum:  uint64(len(block.decoded.InMessages)),
 		}
 		blockErr = blockBatch.AppendStruct(binaryBlockExtended)
 		if blockErr != nil {
@@ -286,80 +366,49 @@ func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, msgs []*exporter.Bl
 	return nil
 }
 
-func exportMessagesAndLogs(ctx context.Context, conn driver.Conn, msgs []*exporter.BlockMsg) error {
+func exportMessagesAndLogs(ctx context.Context, conn driver.Conn, blocks []blockWithSSZ, receipts map[common.Hash]receiptWithSSZ) error {
 	messageBatch, err := conn.PrepareBatch(ctx, "INSERT INTO messages")
 	if err != nil {
 		return err
 	}
-	receiptMap := make(map[common.Hash]*types.Receipt)
-	for _, block := range msgs {
-		for _, receipt := range block.Receipts {
-			receiptMap[receipt.MsgHash] = receipt
-		}
-	}
 
-	for _, block := range msgs {
-		parentIndex := make([]common.Hash, len(block.OutMessages))
-		for index, message := range block.InMessages {
-			binary, messageErr := message.MarshalSSZ()
-			if messageErr != nil {
-				return messageErr
-			}
-			receipt, ok := receiptMap[message.Hash()]
+	for _, block := range blocks {
+		parentIndex := make([]common.Hash, len(block.decoded.OutMessages))
+		for inMsgIndex, message := range block.decoded.InMessages {
+			hash := message.Hash()
+			receipt, ok := receipts[hash]
 			if !ok {
 				return errors.New("receipt not found")
 			}
-			receiptBinary, err := receipt.MarshalSSZ()
-			if err != nil {
-				return err
+			for i := receipt.decoded.OutMsgIndex; i < receipt.decoded.OutMsgNum; i++ {
+				parentIndex[i] = hash
 			}
-			for i := receipt.OutMsgIndex; i < receipt.OutMsgNum; i++ {
-				parentIndex[i] = message.Hash()
-			}
-			binaryMessageExtended := &MessageWithBinary{
-				Message:       *message,
-				Binary:        binary,
-				Success:       receipt.Success,
-				Status:        receipt.Status.String(),
-				GasUsed:       receipt.GasUsed,
-				BlockId:       block.Block.Id,
-				BlockHash:     block.Block.Hash(),
-				Hash:          message.Hash(),
-				ShardId:       block.Shard,
-				ReceiptBinary: receiptBinary,
-				MessageIndex:  types.MessageIndex(block.Positions[index]),
-				Outgoing:      false,
-				Timestamp:     block.Block.Timestamp,
-			}
-			messageErr = messageBatch.AppendStruct(binaryMessageExtended)
-			if messageErr != nil {
-				return fmt.Errorf("failed to append message to batch: %w", messageErr)
+			mb := NewMessageWithBinary(
+				message,
+				block.sszEncoded.InMessages[inMsgIndex],
+				receipt.decoded,
+				receipt.sszEncoded,
+				block.decoded.BlockWithExtractedData,
+				types.MessageIndex(inMsgIndex),
+				block.decoded.ShardId)
+			if err := messageBatch.AppendStruct(mb); err != nil {
+				return fmt.Errorf("failed to append message to batch: %w", err)
 			}
 		}
-		for index, message := range block.OutMessages {
-			binary, messageErr := message.MarshalSSZ()
-			if messageErr != nil {
-				return messageErr
+		for outMessageIndex, message := range block.decoded.OutMessages {
+			mb := NewMessageWithBinary(
+				message,
+				block.sszEncoded.OutMessages[outMessageIndex],
+				nil,
+				nil,
+				block.decoded.BlockWithExtractedData,
+				types.MessageIndex(outMessageIndex),
+				block.decoded.ShardId)
+			mb.Outgoing = true
+			mb.ParentTransaction = parentIndex[outMessageIndex]
+			if err := messageBatch.AppendStruct(mb); err != nil {
+				return fmt.Errorf("failed to append message to batch: %w", err)
 			}
-			binaryMessageExtended := &MessageWithBinary{
-				Message:           *message,
-				Binary:            binary,
-				Success:           true,
-				BlockId:           block.Block.Id,
-				BlockHash:         block.Block.Hash(),
-				Hash:              message.Hash(),
-				ShardId:           block.Shard,
-				ReceiptBinary:     make([]byte, 0),
-				MessageIndex:      types.MessageIndex(index),
-				Outgoing:          true,
-				Timestamp:         block.Block.Timestamp,
-				ParentTransaction: parentIndex[index],
-			}
-			messageErr = messageBatch.AppendStruct(binaryMessageExtended)
-			if messageErr != nil {
-				return fmt.Errorf("failed to append message to batch: %w", messageErr)
-			}
-
 		}
 	}
 
@@ -373,41 +422,21 @@ func exportMessagesAndLogs(ctx context.Context, conn driver.Conn, msgs []*export
 		return fmt.Errorf("failed to prepare log batch: %w", err)
 	}
 
-	for _, block := range msgs {
-		for _, receipt := range block.Receipts {
+	for _, block := range blocks {
+		for _, receipt := range block.decoded.Receipts {
 			for _, log := range receipt.Logs {
 				binary, logErr := log.MarshalSSZ()
 				if logErr != nil {
 					return logErr
 				}
-				logExtended := &LogWithBinary{
-					MessageHash: receipt.MsgHash,
-					Binary:      binary,
-					Address:     log.Address,
-					TopicsCount: uint8(len(log.Topics)),
-					Data:        log.Data,
-				}
-				for i, topic := range log.Topics {
-					switch i {
-					case 0:
-						logExtended.Topic1 = topic
-					case 1:
-						logExtended.Topic2 = topic
-					case 2:
-						logExtended.Topic3 = topic
-					case 3:
-						logExtended.Topic4 = topic
-					}
-				}
-				logErr = logBatch.AppendStruct(logExtended)
-				if logErr != nil {
-					return fmt.Errorf("failed to append log to batch: %w", logErr)
+				if err := logBatch.AppendStruct(NewLogWithBinary(log, binary, receipt)); err != nil {
+					return fmt.Errorf("failed to append log to batch: %w", err)
 				}
 			}
 		}
 	}
-	err = logBatch.Send()
-	if err != nil {
+
+	if err = logBatch.Send(); err != nil {
 		return fmt.Errorf("failed to send logs batch: %w", err)
 	}
 	return nil

@@ -76,7 +76,7 @@ func (c *DirectClient) GetBlock(shardId types.ShardId, blockId any, fullTx bool)
 	return nil, nil
 }
 
-func (c *DirectClient) GetRawBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCRawBlock, error) {
+func (c *DirectClient) GetDebugBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.HexedDebugRPCBlock, error) {
 	blockNrOrHash, err := transport.AsBlockReference(blockId)
 	if err != nil {
 		return nil, err
