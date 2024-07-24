@@ -1,6 +1,7 @@
 package types
 
 import (
+	"math"
 	"strconv"
 
 	fastssz "github.com/NilFoundation/fastssz"
@@ -129,3 +130,5 @@ func (b *BlockWithExtractedData) EncodeSSZ() (*BlockWithRawExtractedData, error)
 		Errors:      b.Errors,
 	}, nil
 }
+
+const InvalidDbTimestamp uint64 = math.MaxUint64

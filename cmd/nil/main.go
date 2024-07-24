@@ -11,7 +11,9 @@ import (
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/readthroughdb"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
@@ -23,6 +25,11 @@ func main() {
 
 	database, err := openDb(dbOpts.Path, dbOpts.AllowDrop, logger)
 	check.PanicIfErr(err)
+
+	if len(dbOpts.DbAddr) != 0 {
+		database, err = readthroughdb.NewReadThroughWithEndpoint(context.Background(), dbOpts.DbAddr, database, transport.BlockNumber(dbOpts.StartBlock))
+		check.PanicIfErr(err)
+	}
 
 	exitCode := nilservice.Run(context.Background(), cfg, database, nil,
 		func(ctx context.Context) error {
@@ -80,11 +87,21 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 		os.Exit(0)
 	})
 
+	dbAddr := rootCmd.Flags().String("read-through-db-addr", "", "address of the read-through database server. If provided, the local node will be run in read-through mode.")
+	startBlock := rootCmd.Flags().Int64("read-through-start-block", int64(transport.LatestBlockNumber), "mainshard start block number for read-through mode, latest block by default")
+
 	check.PanicIfErr(rootCmd.Execute())
 
 	logging.SetupGlobalLogger(*logLevel)
 
-	dbOpts := &db.BadgerDBOptions{Path: *dbPath, DiscardRatio: *dbDiscardRatio, GcFrequency: *dbGcFrequency, AllowDrop: *allowDropDb}
+	dbOpts := &db.BadgerDBOptions{
+		Path:         *dbPath,
+		DiscardRatio: *dbDiscardRatio,
+		GcFrequency:  *dbGcFrequency,
+		AllowDrop:    *allowDropDb,
+		DbAddr:       *dbAddr,
+		StartBlock:   *startBlock,
+	}
 
 	cfg := &nilservice.Config{
 		NShards:          *nShards,

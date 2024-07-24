@@ -23,6 +23,7 @@ import (
 	"github.com/NilFoundation/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -214,6 +215,8 @@ func (s *RpcSuite) CallGetter(addr types.Address, callData []byte) []byte {
 	callerSeqno, err := s.client.GetTransactionCount(addr, "latest")
 	s.Require().NoError(err)
 	seqno := hexutil.Uint64(callerSeqno)
+
+	log.Debug().Str("contract", addr.String()).Uint64("seqno", uint64(seqno)).Msg("sending external message getter")
 
 	callArgs := &jsonrpc.CallArgs{
 		From:     addr,

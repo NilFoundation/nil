@@ -85,6 +85,9 @@ type RPCBlock struct {
 	ReceiptsRoot   common.Hash       `json:"receiptsRoot"`
 	ShardId        types.ShardId     `json:"shardId"`
 	Messages       []any             `json:"messages"`
+	ChildBlocks    []common.Hash     `json:"childBlocks"`
+	MainChainHash  common.Hash       `json:"mainChainHash"`
+	DbTimestamp    uint64            `json:"dbTimestamp"`
 }
 
 type HexedDebugRPCBlock struct {
@@ -224,9 +227,13 @@ func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types
 	return result, nil
 }
 
-func NewRPCBlock(
-	shardId types.ShardId, block *types.Block, messages []*types.Message, receipts []*types.Receipt, fullTx bool,
-) (*RPCBlock, error) {
+func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*RPCBlock, error) {
+	block := data.Block
+	messages := data.InMessages
+	receipts := data.Receipts
+	childBlocks := data.ChildBlocks
+	dbTimestamp := data.DbTimestamp
+
 	if block == nil {
 		return nil, nil
 	}
@@ -254,6 +261,9 @@ func NewRPCBlock(
 		ReceiptsRoot:   block.ReceiptsRoot,
 		ShardId:        shardId,
 		Messages:       messagesRes,
+		ChildBlocks:    childBlocks,
+		MainChainHash:  block.MainChainHash,
+		DbTimestamp:    dbTimestamp,
 	}, nil
 }
 

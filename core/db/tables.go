@@ -31,6 +31,7 @@ const (
 	BlockHashByNumberIndex                   = ShardedTableName("BlockHashByNumber")
 	BlockHashAndInMessageIndexByMessageHash  = ShardedTableName("BlockHashAndInMessageIndexByMessageHash")
 	BlockHashAndOutMessageIndexByMessageHash = ShardedTableName("BlockHashAndOutMessageIndexByMessageHash")
+	BlockTimestampTable                      = ShardedTableName("BlockTimestamp")
 
 	ErrorByMessageHashTable = TableName("ErrorByMessageHash")
 

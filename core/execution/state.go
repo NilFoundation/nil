@@ -917,7 +917,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 	if len(es.ChildChainBlocks) > 0 {
 		treeShards := NewShardBlocksTrie(mpt.NewMerklePatriciaTrie(es.tx, es.ShardId, db.ShardBlocksTrieTableName(blockId)))
 		for k, hash := range es.ChildChainBlocks {
-			if err := treeShards.Update(k, types.CastToUint256(hash.Uint256())); err != nil {
+			if err := treeShards.Update(k, &hash); err != nil {
 				return common.EmptyHash, err
 			}
 		}

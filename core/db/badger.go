@@ -23,11 +23,14 @@ type BadgerDBOptions struct {
 	DiscardRatio float64
 	GcFrequency  time.Duration
 	AllowDrop    bool
+	DbAddr       string
+	StartBlock   int64
 }
 
 type BadgerRoTx struct {
 	tx       *badger.Txn
 	onFinish assert.TxFinishCb
+	managed  bool
 }
 
 type BadgerRwTx struct {
@@ -87,8 +90,8 @@ func captureStacktrace() []byte {
 	return stack
 }
 
-func (db *badgerDB) createRoTx(_ context.Context, txn *badger.Txn) (RoTx, error) {
-	tx := &BadgerRoTx{tx: txn, onFinish: func() {}}
+func (db *badgerDB) createRoTx(_ context.Context, txn *badger.Txn, managed bool) (RoTx, error) {
+	tx := &BadgerRoTx{tx: txn, onFinish: func() {}, managed: managed}
 	if assert.Enable {
 		stack := captureStacktrace()
 		tx.onFinish = db.txLedger.TxOnStart(stack)
@@ -97,11 +100,11 @@ func (db *badgerDB) createRoTx(_ context.Context, txn *badger.Txn) (RoTx, error)
 }
 
 func (db *badgerDB) CreateRoTxAt(ctx context.Context, ts Timestamp) (RoTx, error) {
-	return db.createRoTx(ctx, db.db.NewTransactionAt(uint64(ts), false))
+	return db.createRoTx(ctx, db.db.NewTransactionAt(uint64(ts), false), true)
 }
 
 func (db *badgerDB) CreateRoTx(ctx context.Context) (RoTx, error) {
-	return db.createRoTx(ctx, db.db.NewTransaction(false))
+	return db.createRoTx(ctx, db.db.NewTransaction(false), false)
 }
 
 func (db *badgerDB) createRwTx(_ context.Context, txn *badger.Txn) (RwTx, error) {
@@ -151,7 +154,13 @@ func (tx *BadgerRwTx) CommitWithTs() (Timestamp, error) {
 
 func (tx *BadgerRoTx) Rollback() {
 	tx.onFinish()
-	tx.tx.Discard()
+	// Managed transaction can be only read-only.
+	// We don't need to discard them, but if we do, than we will have a panic from badger.
+	// It happens because badger tries to move watermarks, because it doesn't distinguish managed transactions in automatic mode
+	// TODO: maybe we should patch badger to distinguish managed transactions in automatic mode
+	if !tx.managed {
+		tx.tx.Discard()
+	}
 }
 
 func (tx *BadgerRoTx) ReadTimestamp() Timestamp {
