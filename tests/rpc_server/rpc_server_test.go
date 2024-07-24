@@ -145,7 +145,7 @@ func (s *SuiteRpc) TestRpcDeployToMainShardViaMainWallet() {
 	code, abi := s.loadContract(common.GetAbsolutePath("./contracts/increment.sol"), "Incrementer")
 	deployPayload := s.prepareDefaultDeployPayload(abi, code, big.NewInt(0))
 
-	txHash, _, err := s.client.DeployContract(types.MasterShardId, types.MainWalletAddress, deployPayload, types.Value{}, execution.MainPrivateKey)
+	txHash, _, err := s.client.DeployContract(types.MainShardId, types.MainWalletAddress, deployPayload, types.Value{}, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), txHash)
@@ -156,7 +156,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 	// deploy caller contract
 	callerCode, callerAbi := s.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Caller")
 	calleeCode, calleeAbi := s.loadContract(common.GetAbsolutePath("./contracts/async_call.sol"), "Callee")
-	callerAddr, receipt := s.deployContractViaMainWallet(types.MasterShardId, types.BuildDeployPayload(callerCode, common.EmptyHash), defaultContractValue)
+	callerAddr, receipt := s.deployContractViaMainWallet(types.MainShardId, types.BuildDeployPayload(callerCode, common.EmptyHash), defaultContractValue)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
 	waitTilBalanceAtLeast := func(balance uint64) types.Value {

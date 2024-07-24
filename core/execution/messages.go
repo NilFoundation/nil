@@ -99,7 +99,7 @@ func ValidateDeployMessage(message *types.Message) error {
 	}
 
 	shardId := message.To.ShardId()
-	if types.IsMasterShard(shardId) && message.From != types.MainWalletAddress {
+	if types.IsMainShard(shardId) && message.From != types.MainWalletAddress {
 		return ErrDeployToMainShard
 	}
 

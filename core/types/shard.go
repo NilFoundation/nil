@@ -11,12 +11,12 @@ import (
 type ShardId uint32
 
 const (
-	MasterShardId = ShardId(0)
-	BaseShardId   = ShardId(1)
+	MainShardId = ShardId(0)
+	BaseShardId = ShardId(1)
 )
 
-func IsMasterShard(shardId ShardId) bool {
-	return shardId == MasterShardId
+func IsMainShard(shardId ShardId) bool {
+	return shardId == MainShardId
 }
 
 func (s ShardId) MarshalJSON() ([]byte, error) {

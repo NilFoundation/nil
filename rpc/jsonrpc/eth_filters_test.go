@@ -110,7 +110,7 @@ func (s *SuiteEthFilters) TestLogs() {
 	}
 
 	s.Require().NoError(db.WriteBlock(tx, s.shardId, &block))
-	s.Require().NoError(db.WriteLastBlockHash(tx, types.MasterShardId, block.Hash()))
+	s.Require().NoError(db.WriteLastBlockHash(tx, types.MainShardId, block.Hash()))
 	s.Require().NoError(tx.Commit())
 
 	// Wait a bit so the filters detect new block
@@ -160,7 +160,7 @@ func (s *SuiteEthFilters) TestBlocks() {
 
 	// Add one block
 	s.Require().NoError(db.WriteBlock(tx, shardId, &block1))
-	s.Require().NoError(db.WriteLastBlockHash(tx, types.MasterShardId, block1.Hash()))
+	s.Require().NoError(db.WriteLastBlockHash(tx, types.MainShardId, block1.Hash()))
 	s.Require().NoError(tx.Commit())
 
 	// Wait some time, so filters manager processes new blocks
@@ -191,7 +191,7 @@ func (s *SuiteEthFilters) TestBlocks() {
 	s.Require().NoError(db.WriteBlock(tx, shardId, &block2))
 	s.Require().NoError(db.WriteBlock(tx, shardId, &block3))
 	s.Require().NoError(db.WriteBlock(tx, shardId, &block4))
-	s.Require().NoError(db.WriteLastBlockHash(tx, types.MasterShardId, block4.Hash()))
+	s.Require().NoError(db.WriteLastBlockHash(tx, types.MainShardId, block4.Hash()))
 	s.Require().NoError(tx.Commit())
 
 	// Wait some time, so filters manager processes new blocks
@@ -232,7 +232,7 @@ func (s *SuiteEthFilters) TestBlocks() {
 	block6 := types.Block{Id: 6, PrevBlock: block5.Hash()}
 	s.Require().NoError(db.WriteBlock(tx, shardId, &block5))
 	s.Require().NoError(db.WriteBlock(tx, shardId, &block6))
-	s.Require().NoError(db.WriteLastBlockHash(tx, types.MasterShardId, block6.Hash()))
+	s.Require().NoError(db.WriteLastBlockHash(tx, types.MainShardId, block6.Hash()))
 	s.Require().NoError(tx.Commit())
 
 	// Wait some time, so filters manager processes new blocks

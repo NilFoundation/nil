@@ -50,7 +50,7 @@ type ExecutionState struct {
 	OutMessageTree   *MessageTrie
 	ReceiptTree      *ReceiptTrie
 	PrevBlock        common.Hash
-	MasterChain      common.Hash
+	MainChainHash    common.Hash
 	ShardId          types.ShardId
 	ChildChainBlocks map[types.ShardId]common.Hash
 
@@ -581,8 +581,8 @@ func (es *ExecutionState) SetExtSeqno(addr types.Address, seqno types.Seqno) err
 	return nil
 }
 
-func (es *ExecutionState) SetMasterchainHash(masterChainHash common.Hash) {
-	es.MasterChain = masterChainHash
+func (es *ExecutionState) SetMainChainHash(hash common.Hash) {
+	es.MainChainHash = hash
 }
 
 func (es *ExecutionState) SetShardHash(shardId types.ShardId, hash common.Hash) {
@@ -993,7 +993,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		OutMessagesNum:      outMsgIndex,
 		ReceiptsRoot:        es.ReceiptTree.RootHash(),
 		ChildBlocksRootHash: treeShardsRootHash,
-		MasterChainHash:     es.MasterChain,
+		MainChainHash:       es.MainChainHash,
 		Timestamp:           es.Timer.Now(),
 	}
 

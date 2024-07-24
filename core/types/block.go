@@ -32,7 +32,7 @@ type Block struct {
 	OutMessagesNum      MessageIndex `ch:"out_messages_num"`
 	ReceiptsRoot        common.Hash  `ch:"receipts_root"`
 	ChildBlocksRootHash common.Hash  `ch:"child_blocks_root_hash"`
-	MasterChainHash     common.Hash  `ch:"master_chain_hash"`
+	MainChainHash       common.Hash  `ch:"main_chain_hash"`
 	LogsBloom           Bloom        `ch:"logs_bloom"`
 	Timestamp           uint64       `ch:"timestamp"`
 }

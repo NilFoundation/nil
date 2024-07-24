@@ -16,12 +16,12 @@ func (api *APIImpl) GetShardIdList(ctx context.Context) ([]types.ShardId, error)
 	}
 	defer tx.Rollback()
 
-	block, err := db.ReadLastBlock(tx, types.MasterShardId)
+	block, err := db.ReadLastBlock(tx, types.MainShardId)
 	if err != nil {
 		return nil, err
 	}
 
 	treeShards := execution.NewShardBlocksTrieReader(
-		mpt.NewReaderWithRoot(tx, types.MasterShardId, db.ShardBlocksTrieTableName(block.Id), block.ChildBlocksRootHash))
+		mpt.NewReaderWithRoot(tx, types.MainShardId, db.ShardBlocksTrieTableName(block.Id), block.ChildBlocksRootHash))
 	return treeShards.Keys()
 }
