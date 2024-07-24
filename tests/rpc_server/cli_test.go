@@ -34,7 +34,7 @@ func (s *SuiteCli) SetupTest() {
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
-	}, false)
+	})
 
 	s.cli = service.NewService(s.client, execution.MainPrivateKey)
 	s.Require().NotNil(s.cli)

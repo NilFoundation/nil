@@ -98,7 +98,7 @@ func (g *BlockGenerator) GenerateZeroState(zeroState string) error {
 	return err
 }
 
-func (g *BlockGenerator) GenerateBlock(proposal *Proposal, defaultGasPrice types.Value) error {
+func (g *BlockGenerator) GenerateBlock(proposal *Proposal) error {
 	if g.executionState.PrevBlock != proposal.PrevBlockHash {
 		// This shouldn't happen currently, because a new block cannot appear between collator and block generator calls.
 		panic("Proposed previous block hash doesn't match the current state.")
@@ -107,7 +107,7 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, defaultGasPrice types
 	var err error
 	gasPrice, err := db.ReadGasPerShard(g.rwTx, g.executionState.ShardId)
 	if errors.Is(err, db.ErrKeyNotFound) {
-		gasPrice = defaultGasPrice
+		gasPrice = g.params.GasBasePrice
 	} else if err != nil {
 		return err
 	}

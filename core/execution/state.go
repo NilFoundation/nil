@@ -994,7 +994,8 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		ReceiptsRoot:        es.ReceiptTree.RootHash(),
 		ChildBlocksRootHash: treeShardsRootHash,
 		MainChainHash:       es.MainChainHash,
-		Timestamp:           es.Timer.Now(),
+		// TODO(@klonD90): remove this field after changing explorer
+		Timestamp: 0,
 	}
 
 	if TraceBlocksEnabled {
@@ -1014,7 +1015,11 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		return common.EmptyHash, err
 	}
 
-	logger.Trace().Msgf("Committed block %v on shard %v", blockId, es.ShardId)
+	logger.Trace().
+		Stringer(logging.FieldShardId, es.ShardId).
+		Stringer(logging.FieldBlockNumber, blockId).
+		Stringer(logging.FieldBlockHash, blockHash).
+		Msgf("Committed new block with %d in-msgs and %d out-msgs", len(es.InMessages), block.OutMessagesNum)
 
 	return blockHash, nil
 }

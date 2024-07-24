@@ -106,7 +106,8 @@ func (s *SuiteMultiCurrencyRpc) SetupTest() {
 		ZeroState:            s.zerostateCfg,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
-	}, true)
+		RunMode:              nilservice.CollatorsOnlyRunMode,
+	})
 }
 
 func (s *SuiteMultiCurrencyRpc) TearDownTest() {

@@ -18,7 +18,6 @@ import (
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/tools/solc"
@@ -34,7 +33,7 @@ type RpcSuite struct {
 	ctxCancel context.CancelFunc
 	wg        sync.WaitGroup
 
-	dbInit func() (db.DB, error)
+	dbInit func() db.DB
 	db     db.DB
 
 	client    client.Client
@@ -46,48 +45,50 @@ func init() {
 	logging.SetupGlobalLogger("debug")
 }
 
-func (s *RpcSuite) start(cfg *nilservice.Config, noRpc bool) {
+func (s *RpcSuite) start(cfg *nilservice.Config) {
 	s.T().Helper()
 
 	s.shardsNum = cfg.NShards
 	s.context, s.ctxCancel = context.WithCancel(context.Background())
 
 	if s.dbInit == nil {
-		s.dbInit = func() (db.DB, error) {
-			return db.NewBadgerDbInMemory()
+		s.dbInit = func() db.DB {
+			db, err := db.NewBadgerDbInMemory()
+			s.Require().NoError(err)
+			return db
 		}
 	}
-	db, err := s.dbInit()
-	s.Require().NoError(err)
-	s.db = db
+	s.db = s.dbInit()
 
-	if noRpc {
-		collators, err := nilservice.CreateCollators(cfg, s.db)
+	var serviceInterop chan nilservice.ServiceInterop
+	if cfg.RunMode == nilservice.CollatorsOnlyRunMode {
+		serviceInterop = make(chan nilservice.ServiceInterop, 1)
+	}
+
+	s.wg.Add(1)
+	go func() {
+		nilservice.Run(s.context, cfg, s.db, serviceInterop)
+		s.wg.Done()
+	}()
+
+	if cfg.RunMode == nilservice.CollatorsOnlyRunMode {
+		service := <-serviceInterop
+		client, err := client.NewEthClient(s.context, s.db, service.MsgPools, zerolog.New(os.Stderr))
 		s.Require().NoError(err)
-
-		msgPools := make([]msgpool.Pool, cfg.NShards)
-		for i, collator := range collators {
-			msgPools[i] = collator.GetMsgPool()
-		}
-		s.client, err = client.NewEthClient(s.context, db, msgPools, zerolog.New(os.Stderr))
-		s.Require().NoError(err)
-
-		s.wg.Add(1)
-		go func() {
-			nilservice.RunCollatorsOnly(s.context, collators, cfg)
-			s.wg.Done()
-		}()
+		s.client = client
 	} else {
 		s.endpoint = fmt.Sprintf("http://127.0.0.1:%d", cfg.HttpPort)
 		s.client = rpc_client.NewClient(s.endpoint, zerolog.New(os.Stderr))
-		s.wg.Add(1)
-		go func() {
-			nilservice.Run(s.context, cfg, s.db)
-			s.wg.Done()
-		}()
 	}
 
-	s.waitZerostate()
+	if cfg.RunMode == nilservice.NormalRunMode || cfg.RunMode == nilservice.CollatorsOnlyRunMode {
+		s.waitZerostate()
+	} else {
+		s.Require().Eventually(func() bool {
+			block, err := s.client.GetBlock(cfg.ReplayShardId, "latest", false)
+			return err == nil && block != nil
+		}, ZeroStateWaitTimeout, ZeroStatePollInterval)
+	}
 }
 
 func (s *RpcSuite) cancel() {
@@ -115,6 +116,7 @@ func (s *RpcSuite) waitForReceipt(shardId types.ShardId, hash common.Hash) *json
 }
 
 func (s *RpcSuite) waitZerostate() {
+	s.T().Helper()
 	for i := range s.shardsNum {
 		s.Require().Eventually(func() bool {
 			block, err := s.client.GetBlock(types.ShardId(i), transport.BlockNumber(0), false)
