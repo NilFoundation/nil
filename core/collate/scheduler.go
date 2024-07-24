@@ -94,7 +94,7 @@ func (s *Scheduler) generateZeroState(ctx context.Context) error {
 		return err
 	}
 	if lastBlockHash == common.EmptyHash {
-		if len(s.MainKeysOutPath) != 0 && s.params.ShardId == types.MasterShardId {
+		if len(s.MainKeysOutPath) != 0 && s.params.ShardId == types.MainShardId {
 			if err := execution.DumpMainKeys(s.MainKeysOutPath); err != nil {
 				return err
 			}

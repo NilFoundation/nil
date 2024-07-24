@@ -102,7 +102,7 @@ func (c *collator) fetchPrevBlock() error {
 }
 
 func (c *collator) fetchLastBlockHashes() error {
-	if types.IsMasterShard(c.params.ShardId) {
+	if types.IsMainShard(c.params.ShardId) {
 		for i := 1; i < c.params.NShards; i++ {
 			shardId := types.ShardId(i)
 			lastBlockHash, err := db.ReadLastBlockHash(c.roTx, shardId)
@@ -113,7 +113,7 @@ func (c *collator) fetchLastBlockHashes() error {
 			c.proposal.ShardHashes[shardId] = lastBlockHash
 		}
 	} else {
-		lastBlockHash, err := db.ReadLastBlockHash(c.roTx, types.MasterShardId)
+		lastBlockHash, err := db.ReadLastBlockHash(c.roTx, types.MainShardId)
 		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 			return err
 		}

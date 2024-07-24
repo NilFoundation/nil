@@ -128,7 +128,7 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, defaultGasPrice types
 		g.executionState.AppendOutMessageForTx(common.EmptyHash, msg)
 	}
 
-	g.executionState.MasterChain = proposal.MainChainHash
+	g.executionState.MainChainHash = proposal.MainChainHash
 	g.executionState.ChildChainBlocks = proposal.ShardHashes
 
 	if err := db.WriteCollatorState(g.rwTx, g.params.ShardId, proposal.CollatorState); err != nil {

@@ -25,7 +25,7 @@ type SuiteSendTransaction struct {
 }
 
 func (suite *SuiteSendTransaction) SetupSuite() {
-	shardId := types.MasterShardId
+	shardId := types.MainShardId
 	ctx := context.Background()
 
 	var err error

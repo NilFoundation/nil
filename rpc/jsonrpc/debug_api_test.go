@@ -37,10 +37,10 @@ func TestDebugGetBlock(t *testing.T) {
 	require.NoError(t, err)
 	defer tx.Rollback()
 
-	err = db.WriteBlock(tx, types.MasterShardId, block)
+	err = db.WriteBlock(tx, types.MainShardId, block)
 	require.NoError(t, err)
 
-	_, err = execution.PostprocessBlock(tx, types.MasterShardId, types.NewValueFromUint64(10), 0, block.Hash())
+	_, err = execution.PostprocessBlock(tx, types.MainShardId, types.NewValueFromUint64(10), 0, block.Hash())
 	require.NoError(t, err)
 
 	err = tx.Commit()
@@ -50,19 +50,19 @@ func TestDebugGetBlock(t *testing.T) {
 	api := NewDebugAPI(base, database, log.Logger)
 
 	// When: Get the latest block
-	res1, err := api.GetBlockByNumber(ctx, types.MasterShardId, transport.LatestBlockNumber, false)
+	res1, err := api.GetBlockByNumber(ctx, types.MainShardId, transport.LatestBlockNumber, false)
 	require.NoError(t, err)
 
 	content := res1.Content
 	require.Equal(t, blockHex, content)
 
 	// When: Get existing block
-	res2, err := api.GetBlockByNumber(ctx, types.MasterShardId, transport.BlockNumber(block.Id), false)
+	res2, err := api.GetBlockByNumber(ctx, types.MainShardId, transport.BlockNumber(block.Id), false)
 	require.NoError(t, err)
 
 	require.Equal(t, res1, res2)
 
 	// When: Get nonexistent block
-	_, err = api.GetBlockByNumber(ctx, types.MasterShardId, transport.BlockNumber(block.Id+1), false)
+	_, err = api.GetBlockByNumber(ctx, types.MainShardId, transport.BlockNumber(block.Id+1), false)
 	require.ErrorIs(t, err, db.ErrKeyNotFound)
 }

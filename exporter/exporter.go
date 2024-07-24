@@ -64,7 +64,7 @@ func setupExporter(ctx context.Context, cfg *Cfg) ([]types.ShardId, error) {
 		return nil, err
 	}
 
-	return append(shards, types.MasterShardId), nil
+	return append(shards, types.MainShardId), nil
 }
 
 func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {

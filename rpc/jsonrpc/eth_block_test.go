@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-const shardId = types.MasterShardId
+const shardId = types.MainShardId
 
 type SuiteEthBlock struct {
 	suite.Suite
@@ -89,7 +89,7 @@ func (suite *SuiteEthBlock) TestGetBlockByNumber() {
 }
 
 func (suite *SuiteEthBlock) TestGetBlockByHash() {
-	data, err := suite.api.GetBlockByHash(suite.ctx, types.MasterShardId, suite.lastBlockHash, false)
+	data, err := suite.api.GetBlockByHash(suite.ctx, types.MainShardId, suite.lastBlockHash, false)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
 	suite.Equal(suite.lastBlockHash, data.Hash)

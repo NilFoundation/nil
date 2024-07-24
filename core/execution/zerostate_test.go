@@ -105,10 +105,10 @@ func TestZerostateFromConfig(t *testing.T) {
 	tx, err := database.CreateRwTx(context.Background())
 	require.NoError(t, err)
 	defer tx.Rollback()
-	state, err := NewExecutionState(tx, types.MasterShardId, common.EmptyHash, common.NewTestTimer(0))
+	state, err := NewExecutionState(tx, types.MainShardId, common.EmptyHash, common.NewTestTimer(0))
 	require.NoError(t, err)
 
-	walletAddr := types.ShardAndHexToAddress(types.MasterShardId, "0x111111111111111111111111111111111111")
+	walletAddr := types.ShardAndHexToAddress(types.MainShardId, "0x111111111111111111111111111111111111")
 
 	configYaml := fmt.Sprintf(`
 contracts:
@@ -131,7 +131,7 @@ contracts:
 
 	faucetCode, err := contracts.GetCode(contracts.NameFaucet)
 	require.NoError(t, err)
-	faucetAddr := types.CreateAddress(types.MasterShardId, types.BuildDeployPayload(faucetCode, common.EmptyHash))
+	faucetAddr := types.CreateAddress(types.MainShardId, types.BuildDeployPayload(faucetCode, common.EmptyHash))
 
 	faucet, err := state.GetAccount(faucetAddr)
 	require.NoError(t, err)
