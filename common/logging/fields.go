@@ -20,7 +20,8 @@ const (
 	FieldMessageFrom  = "msgFrom"
 	FieldMessageTo    = "msgTo"
 
-	FieldAccountSeqno = "accountSeqno"
+	FieldAccountAddress = "accountAddress"
+	FieldAccountSeqno   = "accountSeqno"
 
 	FieldBlockHash   = "blockHash"
 	FieldBlockNumber = "blockNumber"

@@ -86,6 +86,8 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 	require.NoError(t, err)
 	require.NotNil(t, block)
 
+	require.NoError(t, db.WriteBlockTimestamp(tx, shardId, blockHash, 0))
+
 	require.NoError(t, tx.Commit())
 
 	return blockHash

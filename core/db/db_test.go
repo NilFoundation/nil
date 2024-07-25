@@ -459,7 +459,7 @@ func (s *SuiteBadgerDb) TestTimestamps() {
 
 		exists, err := tx.Exists("tbl", []byte("foo"))
 		s.Require().NoError(err)
-		s.False(exists)
+		s.Require().False(exists)
 	})
 
 	s.Run("put2", func() {

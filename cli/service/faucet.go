@@ -124,7 +124,7 @@ func (s *Service) CreateWallet(shardId types.ShardId, salt *types.Uint256, balan
 		return types.EmptyAddress, err
 	}
 	if len(code) > 0 {
-		return types.EmptyAddress, ErrWalletExists
+		return types.EmptyAddress, fmt.Errorf("%w: %s", ErrWalletExists, walletAddress)
 	}
 
 	// NOTE: we deploy wallet code with ext message

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"encoding/binary"
 	"errors"
 	"reflect"
 
@@ -122,6 +123,20 @@ func ReadLastBlockHash(tx RoTx, shardId types.ShardId) (common.Hash, error) {
 
 func WriteLastBlockHash(tx RwTx, shardId types.ShardId, hash common.Hash) error {
 	return tx.Put(LastBlockTable, shardId.Bytes(), hash.Bytes())
+}
+
+func WriteBlockTimestamp(tx RwTx, shardId types.ShardId, blockHash common.Hash, timestamp uint64) error {
+	value := make([]byte, 8)
+	binary.LittleEndian.PutUint64(value, timestamp)
+	return tx.PutToShard(shardId, BlockTimestampTable, blockHash.Bytes(), value)
+}
+
+func ReadBlockTimestamp(tx RoTx, shardId types.ShardId, blockHash common.Hash) (uint64, error) {
+	value, err := tx.GetFromShard(shardId, BlockTimestampTable, blockHash.Bytes())
+	if err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint64(value), nil
 }
 
 func ReadGasPerShard(tx RoTx, shardId types.ShardId) (types.Value, error) {

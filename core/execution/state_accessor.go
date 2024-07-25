@@ -46,6 +46,7 @@ func NewStateAccessor() (*StateAccessor, error) {
 		inMessagesLRUSize  = 32
 		outMessagesLRUSize = 32
 		receiptsLRUSize    = 32
+		childBlocksLRUSize = 32
 	)
 
 	blocksLRU, err := lru.New[common.Hash, *types.Block](blocksLRUSize)
@@ -64,11 +65,17 @@ func NewStateAccessor() (*StateAccessor, error) {
 	if err != nil {
 		return nil, err
 	}
+	childBlocksLRU, err := lru.New[common.Hash, []*common.Hash](childBlocksLRUSize)
+	if err != nil {
+		return nil, err
+	}
+
 	return &StateAccessor{&accessorCache{
 		blocksLRU:      blocksLRU,
 		inMessagesLRU:  inMessagesLRU,
 		outMessagesLRU: outMessagesLRU,
 		receiptsLRU:    receiptsLRU,
+		childBlocksLRU: childBlocksLRU,
 	}}, nil
 }
 
@@ -81,6 +88,7 @@ type accessorCache struct {
 	inMessagesLRU  *lru.Cache[common.Hash, []*types.Message]
 	outMessagesLRU *lru.Cache[common.Hash, []*types.Message]
 	receiptsLRU    *lru.Cache[common.Hash, []*types.Receipt]
+	childBlocksLRU *lru.Cache[common.Hash, []*common.Hash]
 }
 
 type shardAccessor struct {
@@ -146,6 +154,8 @@ type blockAccessorResult struct {
 	inMessages  fieldAccessor[[]*types.Message]
 	outMessages fieldAccessor[[]*types.Message]
 	receipts    fieldAccessor[[]*types.Receipt]
+	childBlocks fieldAccessor[[]common.Hash]
+	dbTimestamp fieldAccessor[uint64]
 }
 
 func (r blockAccessorResult) Block() *types.Block {
@@ -164,11 +174,26 @@ func (r blockAccessorResult) Receipts() []*types.Receipt {
 	return r.receipts()
 }
 
+func (r blockAccessorResult) ChildBlocks() []common.Hash {
+	return r.childBlocks()
+}
+
+func (r blockAccessorResult) DbTimestamp() uint64 {
+	return r.dbTimestamp()
+}
+
 type blockAccessor struct {
 	shardAccessor   *shardAccessor
 	withInMessages  bool
 	withOutMessages bool
 	withReceipts    bool
+	withChildBlocks bool
+	withDbTimestamp bool
+}
+
+func (b blockAccessor) WithChildBlocks() blockAccessor {
+	b.withChildBlocks = true
+	return b
 }
 
 func (b blockAccessor) WithInMessages() blockAccessor {
@@ -183,6 +208,11 @@ func (b blockAccessor) WithOutMessages() blockAccessor {
 
 func (b blockAccessor) WithReceipts() blockAccessor {
 	b.withReceipts = true
+	return b
+}
+
+func (b blockAccessor) WithDbTimestamp() blockAccessor {
+	b.withDbTimestamp = true
 	return b
 }
 
@@ -202,6 +232,8 @@ func (b blockAccessor) ByHash(hash common.Hash) (blockAccessorResult, error) {
 		inMessages:  notInitialized[[]*types.Message]("InMessages"),
 		outMessages: notInitialized[[]*types.Message]("OutMessages"),
 		receipts:    notInitialized[[]*types.Receipt]("Receipts"),
+		childBlocks: notInitialized[[]common.Hash]("ChildBlocks"),
+		dbTimestamp: notInitialized[uint64]("DbTimestamp"),
 	}
 
 	sa.cache.blocksLRU.Add(hash, block)
@@ -222,6 +254,33 @@ func (b blockAccessor) ByHash(hash common.Hash) (blockAccessorResult, error) {
 		if err := collectBlockEntities[*types.Receipt](hash, sa, sa.cache.receiptsLRU, db.ReceiptTrieTable, block.ReceiptsRoot, &res.receipts); err != nil {
 			return blockAccessorResult{}, err
 		}
+	}
+
+	if b.withChildBlocks {
+		treeShards := NewShardBlocksTrieReader(
+			mpt.NewReaderWithRoot(sa.tx, sa.shardId, db.ShardBlocksTrieTableName(block.Id), block.ChildBlocksRootHash))
+		valuePtrs, err := treeShards.Values()
+		if err != nil {
+			return blockAccessorResult{}, err
+		}
+
+		values := make([]common.Hash, 0, len(valuePtrs))
+		for _, ptr := range valuePtrs {
+			values = append(values, *ptr)
+		}
+		res.childBlocks = initWith(values)
+	}
+
+	if b.withDbTimestamp {
+		ts, err := db.ReadBlockTimestamp(sa.tx, sa.shardId, hash)
+		// This is needed for old blocks that don't have their timestamp stored
+		if errors.Is(err, db.ErrKeyNotFound) {
+			ts = types.InvalidDbTimestamp
+		} else if err != nil {
+			return blockAccessorResult{}, err
+		}
+
+		res.dbTimestamp = initWith(ts)
 	}
 
 	return res, nil

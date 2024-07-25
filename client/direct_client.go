@@ -354,6 +354,10 @@ func (c *DirectClient) CurrencyMint(contractAddr types.Address, amount types.Val
 	return c.SendExternalMessage(data, contractAddr, pk)
 }
 
+func (c *DirectClient) DbInitTimestamp(ts uint64) error {
+	return c.dbApi.InitDbTimestamp(c.ctx, ts)
+}
+
 func (c *DirectClient) DbGet(tableName db.TableName, key []byte) ([]byte, error) {
 	return c.dbApi.Get(c.ctx, tableName, key)
 }

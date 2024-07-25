@@ -56,6 +56,7 @@ type BlockGenerator struct {
 	ctx    context.Context
 	params BlockGeneratorParams
 
+	txFabric       db.DB
 	rwTx           db.RwTx
 	executionState *ExecutionState
 
@@ -75,6 +76,7 @@ func NewBlockGenerator(ctx context.Context, params BlockGeneratorParams, txFabri
 	return &BlockGenerator{
 		ctx:            ctx,
 		params:         params,
+		txFabric:       txFabric,
 		rwTx:           rwTx,
 		executionState: executionState,
 		logger: logging.NewLogger("block-gen").With().
@@ -98,7 +100,7 @@ func (g *BlockGenerator) GenerateZeroState(zeroState string) error {
 	return err
 }
 
-func (g *BlockGenerator) GenerateBlock(proposal *Proposal, defaultGasPrice types.Value) error {
+func (g *BlockGenerator) GenerateBlock(proposal *Proposal) error {
 	if g.executionState.PrevBlock != proposal.PrevBlockHash {
 		// This shouldn't happen currently, because a new block cannot appear between collator and block generator calls.
 		panic("Proposed previous block hash doesn't match the current state.")
@@ -107,7 +109,7 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, defaultGasPrice types
 	var err error
 	gasPrice, err := db.ReadGasPerShard(g.rwTx, g.executionState.ShardId)
 	if errors.Is(err, db.ErrKeyNotFound) {
-		gasPrice = defaultGasPrice
+		gasPrice = g.params.GasBasePrice
 	} else if err != nil {
 		return err
 	}
@@ -240,9 +242,20 @@ func (g *BlockGenerator) finalize(blockId types.BlockNumber) error {
 		return err
 	}
 
-	if err := g.rwTx.Commit(); err != nil {
+	ts, err := g.rwTx.CommitWithTs()
+	if err != nil {
 		return err
 	}
 
-	return nil
+	// TODO: We should perform block commit and timestamp write atomically.
+	tx, err := g.txFabric.CreateRwTx(g.ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := db.WriteBlockTimestamp(tx, g.params.ShardId, blockHash, uint64(ts)); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }

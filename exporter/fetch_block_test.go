@@ -70,7 +70,7 @@ func (suite *SuiteFetchBlock) SetupSuite() {
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
 	}
-	go nilservice.Run(suite.context, cfg, database)
+	go nilservice.Run(suite.context, cfg, database, nil)
 
 	time.Sleep(time.Second) // To be sure that server is started
 }

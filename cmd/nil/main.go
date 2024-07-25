@@ -11,7 +11,9 @@ import (
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
+	"github.com/NilFoundation/nil/core/readthroughdb"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
@@ -19,29 +21,87 @@ import (
 func main() {
 	logger := logging.NewLogger("nil")
 
-	rootCmd := &cobra.Command{
-		Use:   "nil",
-		Short: "Run nil cluster",
+	cfg, dbOpts := parseArgs()
+
+	database, err := openDb(dbOpts.Path, dbOpts.AllowDrop, logger)
+	check.PanicIfErr(err)
+
+	if len(dbOpts.DbAddr) != 0 {
+		database, err = readthroughdb.NewReadThroughWithEndpoint(context.Background(), dbOpts.DbAddr, database, transport.BlockNumber(dbOpts.StartBlock))
+		check.PanicIfErr(err)
 	}
 
-	nShards := rootCmd.Flags().Int("nshards", 5, "number of shardchains")
-	port := rootCmd.Flags().Int("port", 8529, "http port for rpc server")
-	adminSocket := rootCmd.Flags().String("admin-socket-path", "", "unix socket path to start admin server on (disabled if empty)}")
-	allowDropDb := rootCmd.Flags().Bool("allow-db-clear", false, "allow to clear database in case of outdated version")
-	dbPath := rootCmd.Flags().String("db-path", "test.db", "path to database")
-	dbDiscardRatio := rootCmd.Flags().Float64("db-discard-ratio", 0.5, "discard ratio for badger GC")
-	dbGcFrequency := rootCmd.Flags().Duration("db-gc-interval", time.Hour, "frequency for badger GC")
-	gasPriceScale := rootCmd.Flags().Float64("gas-price-scale", 0, "gas price scale factor for each transaction")
-	gasBasePrice := rootCmd.Flags().Uint64("gas-base-price", 10, "base gas price for each transaction")
-	logLevel := rootCmd.Flags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
+	exitCode := nilservice.Run(context.Background(), cfg, database, nil,
+		func(ctx context.Context) error {
+			return database.LogGC(ctx, dbOpts.DiscardRatio, dbOpts.GcFrequency)
+		})
+
+	database.Close()
+	os.Exit(exitCode)
+}
+
+func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
+	rootCmd := &cobra.Command{
+		Use:           "nil [global flags] [command]",
+		Short:         "nil cluster app",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+	}
+
+	runMode := nilservice.NormalRunMode
+
+	dbPath := rootCmd.PersistentFlags().String("db-path", "test.db", "path to database")
+	dbDiscardRatio := rootCmd.PersistentFlags().Float64("db-discard-ratio", 0.5, "discard ratio for badger GC")
+	dbGcFrequency := rootCmd.PersistentFlags().Duration("db-gc-interval", time.Hour, "frequency for badger GC")
+	gasPriceScale := rootCmd.PersistentFlags().Float64("gas-price-scale", 0, "gas price scale factor for each transaction")
+	gasBasePrice := rootCmd.PersistentFlags().Uint64("gas-base-price", 10, "base gas price for each transaction")
+	logLevel := rootCmd.PersistentFlags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
+	port := rootCmd.PersistentFlags().Int("port", 8529, "http port for rpc server")
+	adminSocket := rootCmd.PersistentFlags().String("admin-socket-path", "", "unix socket path to start admin server on (disabled if empty)}")
+
+	runCmd := &cobra.Command{
+		Use:   "run",
+		Short: "Run nil application server",
+		Run: func(cmd *cobra.Command, args []string) {
+			runMode = nilservice.NormalRunMode
+		},
+	}
+	nShards := runCmd.Flags().Int("nshards", 5, "number of shardchains")
+	allowDropDb := runCmd.Flags().Bool("allow-db-clear", false, "allow to clear database in case of outdated version")
+
+	replayCmd := &cobra.Command{
+		Use:   "replay-block",
+		Short: "Start server in single-shard mode to replay particular block",
+		Run: func(cmd *cobra.Command, args []string) {
+			runMode = nilservice.BlockReplayRunMode
+		},
+	}
+	replayBlockId := replayCmd.Flags().Uint64("block-id", 1, "block id to replay")
+	replayShardId := replayCmd.Flags().Uint64("shard-id", 1, "shard id to replay block from")
+
+	rootCmd.AddCommand(runCmd, replayCmd)
+
+	f := rootCmd.HelpFunc()
+	rootCmd.SetHelpFunc(func(c *cobra.Command, s []string) {
+		f(c, s)
+		os.Exit(0)
+	})
+
+	dbAddr := rootCmd.Flags().String("read-through-db-addr", "", "address of the read-through database server. If provided, the local node will be run in read-through mode.")
+	startBlock := rootCmd.Flags().Int64("read-through-start-block", int64(transport.LatestBlockNumber), "mainshard start block number for read-through mode, latest block by default")
 
 	check.PanicIfErr(rootCmd.Execute())
 
 	logging.SetupGlobalLogger(*logLevel)
 
-	dbOpts := db.BadgerDBOptions{Path: *dbPath, DiscardRatio: *dbDiscardRatio, GcFrequency: *dbGcFrequency, AllowDrop: *allowDropDb}
-	database, err := openDb(dbOpts.Path, dbOpts.AllowDrop, logger)
-	check.PanicIfErr(err)
+	dbOpts := &db.BadgerDBOptions{
+		Path:         *dbPath,
+		DiscardRatio: *dbDiscardRatio,
+		GcFrequency:  *dbGcFrequency,
+		AllowDrop:    *allowDropDb,
+		DbAddr:       *dbAddr,
+		StartBlock:   *startBlock,
+	}
 
 	cfg := &nilservice.Config{
 		NShards:          *nShards,
@@ -52,14 +112,12 @@ func main() {
 		GracefulShutdown: true,
 		GasPriceScale:    *gasPriceScale,
 		GasBasePrice:     *gasBasePrice,
+		RunMode:          runMode,
+		ReplayBlockId:    types.BlockNumber(*replayBlockId),
+		ReplayShardId:    types.ShardId(*replayShardId),
 	}
 
-	exitCode := nilservice.Run(context.Background(), cfg, database,
-		func(ctx context.Context) error {
-			return database.LogGC(ctx, dbOpts.DiscardRatio, dbOpts.GcFrequency)
-		})
-	database.Close()
-	os.Exit(exitCode)
+	return cfg, dbOpts
 }
 
 func openDb(dbPath string, allowDrop bool, logger zerolog.Logger) (db.DB, error) {

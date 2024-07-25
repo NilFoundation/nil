@@ -10,11 +10,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/NilFoundation/nil/client"
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/assert"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
@@ -52,15 +54,16 @@ const (
 )
 
 const (
-	Db_get           = "db_get"
-	Db_exists        = "db_exists"
-	Db_existsInShard = "db_existsInShard"
-	Db_getFromShard  = "db_getFromShard"
+	Db_initDbTimestamp = "db_initDbTimestamp"
+	Db_get             = "db_get"
+	Db_exists          = "db_exists"
+	Db_existsInShard   = "db_existsInShard"
+	Db_getFromShard    = "db_getFromShard"
 )
 
 type Client struct {
 	endpoint string
-	seqno    uint64
+	seqno    atomic.Uint64
 	client   http.Client
 	headers  map[string]string
 	logger   zerolog.Logger
@@ -84,13 +87,13 @@ func NewClientWithDefaultHeaders(endpoint string, logger zerolog.Logger, headers
 }
 
 func (c *Client) call(method string, params ...any) (json.RawMessage, error) {
-	c.seqno++
+	seqno := c.seqno.Add(1)
 
 	request := map[string]any{
 		"jsonrpc": "2.0",
 		"method":  method,
 		"params":  params,
-		"id":      c.seqno,
+		"id":      seqno,
 	}
 
 	requestBody, err := json.Marshal(request)
@@ -518,6 +521,11 @@ func (c *Client) sendExternalMessage(
 		return common.EmptyHash, err
 	}
 
+	c.logger.Debug().
+		Str(logging.FieldAccountAddress, contractAddress.String()).
+		Uint64(logging.FieldAccountSeqno, uint64(seqno)).
+		Msg("sending external message")
+
 	// Create the message with the bytecode to run
 	extMsg := &types.ExternalMessage{
 		To:    contractAddress,
@@ -598,6 +606,11 @@ func callTyped[T any](c *Client, method string, params ...any) (T, error) {
 	}
 
 	return res, json.Unmarshal(raw, &res)
+}
+
+func (c *Client) DbInitTimestamp(ts uint64) error {
+	_, err := c.call(Db_initDbTimestamp, ts)
+	return err
 }
 
 func (c *Client) DbGet(tableName db.TableName, key []byte) ([]byte, error) {

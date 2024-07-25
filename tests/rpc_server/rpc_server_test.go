@@ -36,7 +36,7 @@ func (s *SuiteRpc) SetupTest() {
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
-	}, false)
+	})
 }
 
 func (s *SuiteRpc) TearDownTest() {

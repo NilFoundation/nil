@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"reflect"
 
+	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/holiman/uint256"
 	"github.com/iden3/go-iden3-crypto/poseidon"
@@ -156,3 +157,20 @@ func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
 // HexToHash sets byte representation of s to hash.
 // If b is larger than len(h), b will be cropped from the left.
 func HexToHash(s string) Hash { return BytesToHash(hexutil.FromHex(s)) }
+
+func (hash *Hash) UnmarshalSSZ(buf []byte) error {
+	*hash = BytesToHash(buf)
+	return nil
+}
+
+func (hash *Hash) MarshalSSZ() ([]byte, error) {
+	return ssz.MarshalSSZ(hash)
+}
+
+func (hash *Hash) MarshalSSZTo(dest []byte) ([]byte, error) {
+	return append(dest, hash.Bytes()...), nil
+}
+
+func (hash *Hash) SizeSSZ() int {
+	return HashSize
+}

@@ -61,12 +61,12 @@ func (api *APIImpl) fetchBlockByNumberOrHash(tx db.RoTx, shardId types.ShardId, 
 func (api *APIImpl) getBlockByNumberOrHash(
 	ctx context.Context, shardId types.ShardId, numOrHash transport.BlockNumberOrHash, fullTx bool,
 ) (*RPCBlock, error) {
-	block, messages, receipts, err := api.getBlockWithCollectedEntitiesByNumberOrHash(ctx, shardId, numOrHash)
-	if err != nil || block == nil {
+	data, err := api.getBlockWithEntities(ctx, shardId, numOrHash)
+	if err != nil || data.Block == nil {
 		return nil, err
 	}
 
-	return NewRPCBlock(shardId, block, messages, receipts, fullTx)
+	return NewRPCBlock(shardId, data, fullTx)
 }
 
 // GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
@@ -86,12 +86,12 @@ func (api *APIImpl) GetBlockByHash(
 func (api *APIImpl) getBlockTransactionCountByNumberOrHash(
 	ctx context.Context, shardId types.ShardId, numOrHash transport.BlockNumberOrHash,
 ) (hexutil.Uint, error) {
-	_, messages, _, err := api.getBlockWithCollectedEntitiesByNumberOrHash(ctx, shardId, numOrHash)
+	data, err := api.getBlockWithEntities(ctx, shardId, numOrHash)
 	if err != nil {
 		return 0, err
 	}
 
-	return hexutil.Uint(len(messages)), nil
+	return hexutil.Uint(len(data.InMessages)), nil
 }
 
 // GetBlockTransactionCountByNumber implements eth_getBlockTransactionCountByNumber. Returns the number of transactions in a block given the block's block number.
@@ -108,28 +108,49 @@ func (api *APIImpl) GetBlockTransactionCountByHash(
 	return api.getBlockTransactionCountByNumberOrHash(ctx, shardId, transport.BlockNumberOrHash{BlockHash: &hash})
 }
 
-func (api *APIImpl) getBlockWithCollectedEntitiesByNumberOrHash(
+type BlockWithEntities struct {
+	Block       *types.Block
+	Receipts    []*types.Receipt
+	InMessages  []*types.Message
+	ChildBlocks []common.Hash
+	DbTimestamp uint64
+}
+
+func (api *APIImpl) getBlockWithEntities(
 	ctx context.Context, shardId types.ShardId, numOrHash transport.BlockNumberOrHash) (
-	*types.Block, []*types.Message, []*types.Receipt, error,
+	*BlockWithEntities, error,
 ) {
 	if err := api.checkShard(shardId); err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to create transaction: %w", err)
+		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}
 	defer tx.Rollback()
 
 	hash, err := api.extractBlockHash(tx, shardId, numOrHash)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
-	data, err := api.accessor.Access(tx, shardId).GetBlock().WithReceipts().WithInMessages().ByHash(hash)
+	data, err := api.accessor.Access(tx, shardId).
+		GetBlock().
+		WithReceipts().
+		WithInMessages().
+		WithChildBlocks().
+		WithDbTimestamp().
+		ByHash(hash)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
-	return data.Block(), data.InMessages(), data.Receipts(), err
+
+	return &BlockWithEntities{
+		Block:       data.Block(),
+		Receipts:    data.Receipts(),
+		InMessages:  data.InMessages(),
+		ChildBlocks: data.ChildBlocks(),
+		DbTimestamp: data.DbTimestamp(),
+	}, nil
 }

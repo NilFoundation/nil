@@ -59,7 +59,8 @@ contracts:
 		ZeroState:            zerostate,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
-	}, true)
+		RunMode:              nilservice.CollatorsOnlyRunMode,
+	})
 }
 
 func (s *SuiteModifiersRpc) TearDownSuite() {

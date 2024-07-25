@@ -1,5 +1,17 @@
 package nilservice
 
+import (
+	"github.com/NilFoundation/nil/core/types"
+)
+
+type RunMode int
+
+const (
+	NormalRunMode RunMode = iota
+	CollatorsOnlyRunMode
+	BlockReplayRunMode
+)
+
 type Config struct {
 	NShards              int
 	HttpPort             int
@@ -12,4 +24,7 @@ type Config struct {
 	TraceEVM             bool
 	GasPriceScale        float64
 	GasBasePrice         uint64
+	RunMode              RunMode
+	ReplayBlockId        types.BlockNumber
+	ReplayShardId        types.ShardId
 }

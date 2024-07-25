@@ -25,31 +25,30 @@ type Params struct {
 
 	MaxInMessagesInBlock  int
 	MaxOutMessagesInBlock int
+
+	CollatorTickPeriod time.Duration
+	Timeout            time.Duration
+
+	ZeroState       string
+	MainKeysOutPath string
+
+	Topology ShardTopology
 }
 
 type Scheduler struct {
 	txFabric db.DB
 	pool     MsgPool
 
-	params             Params
-	topology           ShardTopology
-	collatorTickPeriod time.Duration
-	timeout            time.Duration
-
-	ZeroState       string
-	MainKeysOutPath string
+	params Params
 
 	logger zerolog.Logger
 }
 
-func NewScheduler(txFabric db.DB, pool MsgPool, params Params, topology ShardTopology, collatorTickPeriod time.Duration) *Scheduler {
+func NewScheduler(txFabric db.DB, pool MsgPool, params Params) *Scheduler {
 	return &Scheduler{
-		txFabric:           txFabric,
-		pool:               pool,
-		params:             params,
-		topology:           topology,
-		collatorTickPeriod: collatorTickPeriod,
-		timeout:            collatorTickPeriod,
+		txFabric: txFabric,
+		pool:     pool,
+		params:   params,
 		logger: logging.NewLogger("collator").With().
 			Stringer(logging.FieldShardId, params.ShardId).
 			Logger(),
@@ -64,7 +63,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 		return err
 	}
 
-	ticker := time.NewTicker(s.collatorTickPeriod)
+	ticker := time.NewTicker(s.params.CollatorTickPeriod)
 	defer ticker.Stop()
 	for {
 		select {
@@ -80,7 +79,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 }
 
 func (s *Scheduler) generateZeroState(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, s.timeout)
+	ctx, cancel := context.WithTimeout(ctx, s.params.Timeout)
 	defer cancel()
 
 	roTx, err := s.txFabric.CreateRoTx(ctx)
@@ -94,8 +93,8 @@ func (s *Scheduler) generateZeroState(ctx context.Context) error {
 		return err
 	}
 	if lastBlockHash == common.EmptyHash {
-		if len(s.MainKeysOutPath) != 0 && s.params.ShardId == types.MainShardId {
-			if err := execution.DumpMainKeys(s.MainKeysOutPath); err != nil {
+		if len(s.params.MainKeysOutPath) != 0 && s.params.ShardId == types.MainShardId {
+			if err := execution.DumpMainKeys(s.params.MainKeysOutPath); err != nil {
 				return err
 			}
 		}
@@ -108,16 +107,16 @@ func (s *Scheduler) generateZeroState(ctx context.Context) error {
 		}
 		defer gen.Rollback()
 
-		return gen.GenerateZeroState(s.ZeroState)
+		return gen.GenerateZeroState(s.params.ZeroState)
 	}
 	return nil
 }
 
 func (s *Scheduler) doCollate(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, s.timeout)
+	ctx, cancel := context.WithTimeout(ctx, s.params.Timeout)
 	defer cancel()
 
-	collator := newCollator(s.params, s.topology, s.pool, s.logger)
+	collator := newCollator(s.params, s.params.Topology, s.pool, s.logger)
 	proposal, err := collator.GenerateProposal(ctx, s.txFabric)
 	if err != nil {
 		return err
@@ -129,7 +128,7 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 	}
 	defer gen.Rollback()
 
-	if err := gen.GenerateBlock(proposal, s.params.GasBasePrice); err != nil {
+	if err := gen.GenerateBlock(proposal); err != nil {
 		return err
 	}
 
