@@ -85,15 +85,14 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 	suite.Require().True(ok)
 	outMsg := suite.state.OutMessages[outMsgHash][0]
 	suite.Require().NotNil(outMsg)
-	// buy gas
-	outMsg.Value = outMsg.Value.Sub(gasLimit)
+
 	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, outMsg)
 	suite.Require().NoError(err)
 
 	faucetBalance = faucetBalance.Sub64(100)
 	newFaucetBalance := suite.getBalance(suite.faucetAddr)
 	suite.Require().Negative(newFaucetBalance.Cmp(faucetBalance))
-	suite.Require().EqualValues(types.NewValueFromUint64(100), suite.getBalance(receiverAddr))
+	suite.Require().EqualValues(types.NewValueFromUint64(1000100), suite.getBalance(receiverAddr))
 }
 
 func TestZerostateFromConfig(t *testing.T) {

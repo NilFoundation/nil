@@ -2,6 +2,7 @@ package execution
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
@@ -57,26 +58,36 @@ func (as *AccountState) empty() bool {
 
 // AddBalance adds amount to s's balance.
 // It is used to add funds to the destination account of a transfer.
-func (as *AccountState) AddBalance(amount types.Value, reason tracing.BalanceChangeReason) {
+func (as *AccountState) AddBalance(amount types.Value, reason tracing.BalanceChangeReason) error {
 	if amount.IsZero() {
-		return
+		return nil
 	}
-	newBalance := as.Balance.Add(amount)
+	newBalance, overflow := as.Balance.AddOverflow(amount)
+	if overflow {
+		return fmt.Errorf("balance overflow: %s + %s", as.Balance, amount)
+	}
+
 	logger.Debug().Stringer("address", as.address).Stringer("reason", reason).
 		Msgf("Balance change: adding balance %s + %s = %s", as.Balance, amount, newBalance)
 	as.SetBalance(newBalance)
+	return nil
 }
 
 // SubBalance removes amount from s's balance.
 // It is used to remove funds from the origin account of a transfer.
-func (as *AccountState) SubBalance(amount types.Value, reason tracing.BalanceChangeReason) {
+func (as *AccountState) SubBalance(amount types.Value, reason tracing.BalanceChangeReason) error {
 	if amount.IsZero() {
-		return
+		return nil
 	}
-	newBalance := as.Balance.Sub(amount)
+	newBalance, overflow := as.Balance.SubOverflow(amount)
+	if overflow {
+		return fmt.Errorf("balance overflow: %s + %s", as.Balance, amount)
+	}
+
 	logger.Debug().Stringer("address", as.address).Stringer("reason", reason).
 		Msgf("Balance change: withdrawing balance %s - %s = %s", as.Balance, amount, newBalance)
 	as.SetBalance(newBalance)
+	return nil
 }
 
 func (as *AccountState) GetState(key common.Hash) (common.Hash, error) {
