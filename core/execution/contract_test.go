@@ -292,6 +292,7 @@ func TestSendMessage(t *testing.T) {
 
 	smcCaller := contracts["Caller"]
 	addrCaller := deployContract(t, smcCaller, state, 1)
+	require.NoError(t, state.SetBalance(addrCaller, types.NewValueFromUint64(20_000_000)))
 
 	// Send a message that calls `Callee::add`, which should increase the value by 11
 	abiCalee := solc.ExtractABI(smcCallee)

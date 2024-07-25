@@ -117,7 +117,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 func (suite *SuiteExecutionState) TestDeployAndCall() {
 	shardId := types.ShardId(5)
 
-	payload := contracts.CounterPayableDeployPayload(suite.T())
+	payload := contracts.CounterDeployPayload(suite.T())
 	addrWallet := types.CreateAddress(shardId, payload)
 
 	tx, err := suite.db.CreateRwTx(suite.ctx)
@@ -352,7 +352,7 @@ func TestAccountState(t *testing.T) {
 func (suite *SuiteExecutionState) TestMessageStatus() {
 	shardId := types.ShardId(5)
 
-	payload := contracts.CounterPayableDeployPayload(suite.T())
+	payload := contracts.CounterDeployPayload(suite.T())
 	addrWallet := types.CreateAddress(shardId, payload)
 
 	tx, err := suite.db.CreateRwTx(suite.ctx)

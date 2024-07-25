@@ -102,7 +102,6 @@ func NewDeployMessage(payload types.DeployPayload,
 		Data:      payload.Bytes(),
 		From:      from,
 		Seqno:     seqno,
-		Value:     types.NewValueFromUint64(1_000_000),
 		FeeCredit: gasCredit,
 		To:        types.CreateAddress(shardId, payload),
 	}
