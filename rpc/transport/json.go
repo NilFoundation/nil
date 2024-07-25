@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	vsn                    = "2.0"
+	Version                = "2.0"
 	serviceMethodSeparator = "_"
 
 	defaultWriteTimeout = 10 * time.Minute // used if context has no deadline
@@ -25,7 +25,7 @@ var null = json.RawMessage("null")
 
 // A value of this type can a JSON-RPC request, successful response or
 // error response. Which one it is depends on the fields.
-type jsonrpcMessage struct {
+type Message struct {
 	Version string          `json:"jsonrpc,omitempty"`
 	ID      json.RawMessage `json:"id,omitempty"`
 	Method  string          `json:"method,omitempty"`
@@ -34,41 +34,37 @@ type jsonrpcMessage struct {
 	Result  json.RawMessage `json:"result,omitempty"`
 }
 
-func (msg *jsonrpcMessage) isCall() bool {
+func (msg *Message) isCall() bool {
 	return msg.hasValidID() && msg.Method != ""
 }
 
-func (msg *jsonrpcMessage) isResponse() bool {
-	return msg.hasValidID() && msg.Method == "" && msg.Params == nil && (msg.Result != nil || msg.Error != nil)
-}
-
-func (msg *jsonrpcMessage) hasValidID() bool {
+func (msg *Message) hasValidID() bool {
 	return len(msg.ID) > 0 && msg.ID[0] != '{' && msg.ID[0] != '['
 }
 
-func (msg *jsonrpcMessage) String() string {
+func (msg *Message) String() string {
 	b, err := json.Marshal(msg)
 	check.PanicIfErr(err)
 	return string(b)
 }
 
-func (msg *jsonrpcMessage) errorResponse(err error) *jsonrpcMessage {
+func (msg *Message) errorResponse(err error) *Message {
 	resp := errorMessage(err)
 	resp.ID = msg.ID
 	return resp
 }
 
-func (msg *jsonrpcMessage) response(result interface{}) *jsonrpcMessage {
+func (msg *Message) response(result interface{}) *Message {
 	enc, err := json.Marshal(result)
 	if err != nil {
 		// TODO: wrap with 'internal server error'
 		return msg.errorResponse(err)
 	}
-	return &jsonrpcMessage{Version: vsn, ID: msg.ID, Result: enc}
+	return &Message{Version: Version, ID: msg.ID, Result: enc}
 }
 
-func errorMessage(err error) *jsonrpcMessage {
-	msg := &jsonrpcMessage{Version: vsn, ID: null, Error: &jsonError{
+func errorMessage(err error) *Message {
+	msg := &Message{Version: Version, ID: null, Error: &jsonError{
 		Code:    defaultErrorCode,
 		Message: err.Error(),
 	}}
@@ -157,11 +153,11 @@ func NewCodec(conn Conn) ServerCodec {
 	return NewFuncCodec(conn, enc.Encode, dec.Decode)
 }
 
-func (c *jsonCodec) remoteAddr() string {
+func (c *jsonCodec) RemoteAddr() string {
 	return c.remote
 }
 
-func (c *jsonCodec) Read() (message *jsonrpcMessage, err error) {
+func (c *jsonCodec) Read() (message *Message, err error) {
 	// This verifies basic syntax, etc.
 	var rawmsg json.RawMessage
 	if err := c.decode(&rawmsg); err != nil {
@@ -193,16 +189,16 @@ func (c *jsonCodec) Close() {
 }
 
 // Closed returns a channel which will be closed when Close is called
-func (c *jsonCodec) closed() <-chan interface{} {
+func (c *jsonCodec) Closed() <-chan interface{} {
 	return c.closeCh
 }
 
 // parseMessage parses raw bytes as a (batch of) JSON-RPC message. There are no error
 // checks in this function because the raw message has already been syntax-checked when it
 // is called. Any non-JSON-RPC messages in the input return the zero value of
-// jsonrpcMessage.
-func parseMessage(raw json.RawMessage) *jsonrpcMessage {
-	msgs := jsonrpcMessage{}
+// Message.
+func parseMessage(raw json.RawMessage) *Message {
+	msgs := Message{}
 	_ = json.Unmarshal(raw, &msgs)
 	return &msgs
 }

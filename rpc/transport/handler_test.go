@@ -36,7 +36,7 @@ func TestHandlerDoesNotDoubleWriteNull(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			msg := jsonrpcMessage{
+			msg := Message{
 				Version: "2.0",
 				ID:      []byte{49},
 				Method:  "test_test",
