@@ -32,3 +32,7 @@ func (c Code) Hex() string {
 	hex.Encode(enc[2:], c[:])
 	return string(enc)
 }
+
+func (c Code) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + c.Hex() + `"`), nil
+}

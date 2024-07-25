@@ -5,11 +5,17 @@ import (
 )
 
 const (
+	jsonFlag    = "json"
+	fullFlag    = "full"
+	noColorFlag = "no-color"
 	shardIdFlag = "shard-id"
 )
 
 var params = &blockParams{}
 
 type blockParams struct {
-	shardId types.ShardId
+	jsonOutput bool
+	fullOutput bool
+	noColor    bool
+	shardId    types.ShardId
 }

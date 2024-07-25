@@ -5,7 +5,6 @@ import (
 
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
-	"github.com/NilFoundation/nil/cmd/nil_cli/config"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
@@ -33,19 +32,20 @@ func setFlags(cmd *cobra.Command) {
 		shardIdFlag,
 		"Specify the shard id to interact with",
 	)
+
+	cmd.Flags().BoolVar(&params.jsonOutput, jsonFlag, false, "Enable JSON output")
+	cmd.Flags().BoolVar(&params.fullOutput, fullFlag, false, "Do not cut any data")
+	cmd.Flags().BoolVar(&params.noColor, noColorFlag, false, "Do not colorize the output")
 }
 
 func runCommand(_ *cobra.Command, args []string) error {
 	service := service.NewService(common.GetRpcClient(), nil)
 
-	blockDataJSON, err := service.FetchBlock(params.shardId, args[0])
+	blockData, err := service.FetchDebugBlock(params.shardId, args[0], params.jsonOutput, params.fullOutput, params.noColor)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to fetch block by number")
 		return err
 	}
-	if !config.Quiet {
-		fmt.Print("Block data: ")
-	}
-	fmt.Println(string(blockDataJSON))
+	fmt.Println(string(blockData))
 	return nil
 }
