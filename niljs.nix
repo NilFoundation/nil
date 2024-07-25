@@ -37,5 +37,7 @@ stdenv.mkDerivation rec {
   installPhase = ''
     mkdir -p $out
     touch $out/dummy
+    mkdir -p $out/src
+    cp -r $src/* $out/src
   '';
 }

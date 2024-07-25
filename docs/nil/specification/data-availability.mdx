@@ -1,0 +1,110 @@
+# Data availability
+
+## Definition
+
+In =nil;, data availability (DA) is ensured by the synchronization committee (operating on top of the consensus shard) submitting DA transactions to Ethereum
+
+## DA transactions
+
+### The synchronization committee
+
+The synchronization committee is a group of peers that jointly execute the following functions:
+
+* Agreeing on the next commitment to L1
+* Sending proof requests to proof producers
+* Paying for proofs and verifying them
+* Compising DA transactions, compressing them and sending them to Ethereum
+
+Any validator can opt in to be a member of the synchronization committee. When a validator joins the committee, they automatically stop being an active validator so that their stake can only be slashed for one role at a given time. This is enforced by the committee election algorithm.
+
+:::info[Committee rotation]
+
+The synchronization committee operates for one epoch (the duration of epochs is determined by the protocol parameters). A new committee is chosen when a new epoch begins.
+
+:::
+
+:::info[Protocol]
+
+The protocol of the synchronization committee is operated through an application deployed on top of the consensus shard.
+
+:::
+
+### The algorithm
+
+The basic algorithm of how the synchronization committee operates is as follows.
+
+1. The synchronization committee generates a state difference for a shard between time $T$ and time $T + p$
+2. A pre-selected node proposes a hash of the state difference
+3. The synchronization committee votes on the hash
+4. If the hash attains $2/3 + 1$ votes, the hash, the state difference, and the aggregate signature are composed into an Ethereum DA transaction and the transaction is sent to L1
+5. If the hash attains $1/3$ votes against it, the synchronization committee leader is slashed
+
+If there are sufficient transactions, the synchronization committee can compose them into an L1 block. This includes the block in the nearest L1 epoch slot (which achieves soft finality faster) and allows the block to participate in relay auctions. This case is shown in the following diagram.
+
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#0f0f0f',
+      'primaryTextColor': '#f1f1f1',
+      'primaryBorderColor': '#f1f1f1',
+      'lineColor': '#87B6FC',
+      'secondaryColor': '#f1f1f1',
+      'tertiaryColor': '#2f2f2f',
+    },
+    'flowchart':
+    {
+        'defaultRenderer': 'elk',
+        'curve': 'step'
+    }
+  }
+}%%
+flowchart TB
+    classDef subgraphTitleHidden display: none;
+    Actors:::subgraphTitleHidden
+    Eth:::subgraphTitleHidden
+    subgraph Top["L2 network"]
+        direction LR
+        SHRD(Shard)
+        SYNCCOM((Synchronization committee))
+        SHRD -- State diffs --> SYNCCOM
+    end
+    subgraph Bottom["L1 network"]
+        direction LR
+        ETHX(Ethereum TX)
+        ETHB(Ethereum block)
+        subgraph Eth
+            direction LR
+            ETHB
+            ETHX
+        end
+        subgraph Slots
+            direction LR
+            SLTONE[Slot 1]
+            SLTTWO[Slot 2]
+            SLTDTS[Slot ...]
+            SLTTHREE[Slot 31]
+        end
+        subgraph Actors
+            direction LR
+            SRCHR((Searcher))
+            BLDR((Builder))
+            RLR((Relayer))
+            SRCHR --> BLDR
+            BLDR --> RLR
+        end
+        RLR -- Soft finalization --> Slots
+        ETHB --> Slots 
+    end
+    SYNCCOM --> BLDR
+    SYNCCOM --- ETHB
+```
+
+If there are too few DA or state-proof transactions, the synchronization committee can decide to send them directly to L1 builders and searchers as a bundle.
+
+## Execution shards
+
+There are no specific requirements for how DA is handled at the level of execution shards.
+
+Execution shards are recommended to follow best practices, namely storing snapshots on a reliable off-chain platform. Compressed state diffs can be sent to Ethereum (via *calldata* or via [**EIP-4844**](https://www.eip4844.com/)) or to a dedicated DA layer.

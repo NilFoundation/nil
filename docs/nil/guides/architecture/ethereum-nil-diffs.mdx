@@ -1,0 +1,14 @@
+# Handling differences between Ethereum and =nil;
+
+This guide outlines the key incompatibilities between =nil; and Ethereum, and suggests ways for handling them when interacting with the cluster.
+
+## Opcode compatibility
+
+=nil; uses the same opcodes with the same signatures as the EVM. However, as =nil; supports cross-shard communications, the actions that some EVM opcodes may perform inside the cluster may differ from their behavior on L1.
+
+The following table contains these opcodes and how they behave in =nil;
+
+| Opcode | Behavior unique to =nil; |
+|:--:|:--|
+| `CALL`, `STATICCALL`, `DELEGATECALL`, `BALANCE`, `EXTCODECOPY`, `EXTCODEHASH`, `CALLCODE`, `SELFDESTRUCT` | If the input address is not located in the address space of the current execution shard, execution will be reverted. |
+| `CALLER`, `ORIGIN` | If processing a messare requires executing these opcodes, and this is the original (first) external call, they return the address of the caller contract. |

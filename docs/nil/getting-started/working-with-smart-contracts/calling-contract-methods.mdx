@@ -1,0 +1,211 @@
+import Tabs from '@theme/Tabs'
+import TabItem from '@theme/TabItem'
+
+# Calling methods inside smart contracts
+
+This tutorial outlines how to interact with [**the tutorial smart contracts**](./writing-a-contract) given the developer tools provided by =nil;.
+
+## Prerequisites
+
+Complete the following tutorials before proceeding.
+
+* [**Writing a contract**](./writing-a-contract)
+* [**Deploying a contract**](./deploying-a-contract)
+
+## Using internal messages
+
+### Via the =nil; CLI
+
+To call the `orderProduct()` function inside the retailer contract and trigger an async call:
+
+```bash
+nil_cli wallet send-tokens RETAILER_ADDRESS 5000000
+nil_cli wallet send-message RETAILER_ADDRESS orderProduct MANUFACTURER_ADDRESS new-product --abi path/to/Retailer.abi
+```
+
+Make a readonly call to access the value:
+
+```bash
+nil_cli contract call-readonly MANUFACTURER_ADDRESS getProducts --abi path/to/Manufacturer.abi
+```
+
+The CLI should output the decoded values automatically.
+
+### Via the client library
+
+To send funds to the retailer product and call the `orderProduct` method:
+
+```ts showLineNumbers
+const hashFunds = await faucet.withdrawToWithRetry(addressR, 5_000_000n);
+
+await waitTillCompleted(client, 1, hashFunds);
+
+const hashProduct = await wallet.sendMessage({
+  to: addressR,
+  data: encodeFunctionData({
+    abi: RETAILER_ABI as Abi,
+    functionName: "orderProduct",
+    args: [addressM, "another-product"],
+  }),
+  gas: 100000n,
+  value: 1000000n,
+});
+
+await waitTillCompleted(client, 1, hashProduct);
+
+console.log("Product created!");
+```
+
+To receive and decode the currently created products:
+
+```ts showLineNumbers
+import {
+  decodeFunctionResult,
+  encodeFunctionData,
+} from "viem";
+
+const resultsCall = await client.call(
+  {
+    from: addrM,
+    to: addrM,
+    data: encodeFunctionData({
+      abi: MANUFACTURER_ABI as Abi,
+      functionName: "getProducts",
+      args: [],
+    }),
+  },
+  "latest",
+);
+
+console.log(
+  "getProducts",
+  decodeFunctionResult({
+    abi: MANUFACTURER_ABI as Abi,
+    functionName: "getProducts",
+    data: resultsCall,
+  }),
+);
+```
+
+## Using external messages
+
+### Via the =nil; CLI
+
+The CLI currently does not support sending external messages that modify the internal state of smart contracts or spawn internal messages. As a result, sending an external message to a function that performs an async call to another function will fail. 
+
+In the retailer contract, the `orderProduct()` function cannot be called externally as it makes an async call to the manufacturer.
+
+### Via the client library
+
+To order a new product using the retailer:
+
+```ts showLineNumbers
+const orderMessage = new ExternalMessageEnvelope({
+  isDeploy: false,
+  to: hexToBytes(RETAILER_ADDRESS),
+  chainId,
+  seqno: await client.getMessageCount(RETAILER_ADDRESS, "latest"),
+  data: hexToBytes(
+    encodeFunctionData({
+      abi: RETAILER_ABI as Abi,
+      functionName: "orderProduct",
+      args: [addrM, "new-product"],
+    }),
+  ),
+  authData: new Uint8Array(0),
+});
+
+const encodedOrderMessage = orderMessage.encode();
+
+const orderMessageHash = await client.sendRawMessage(
+  bytesToHex(encodedOrderMessage),
+);
+
+await waitTillCompleted(client, 1, orderMessageHash);
+```
+
+To receive and decode the currently created products:
+
+```ts showLineNumbers
+import {
+  decodeFunctionResult,
+  encodeFunctionData,
+} from "viem";
+
+const resultsCall = await client.call(
+  {
+    from: addrM,
+    to: addrM,
+    data: encodeFunctionData({
+      abi: MANUFACTURER_ABI as Abi,
+      functionName: "getProducts",
+      args: [],
+    }),
+  },
+  "latest",
+);
+
+console.log(
+  "getProducts",
+  decodeFunctionResult({
+    abi: MANUFACTURER_ABI as Abi,
+    functionName: "getProducts",
+    data: resultsCall,
+  }),
+);
+```
+
+## Via the Hardhat plugin
+
+Calling smart contract methods via the Hardhat plugin requires creating Hardhat tasks.
+
+Ordering a product from the manufacturer:
+
+```typescript showLineNumbers
+import { task } from "hardhat/config";
+
+task("orderProduct", "Orders a product")
+  .addParam("retailer", "The address of the Retailer contract")
+  .addParam("manufacturer", "The address of the Manufacturer contract")
+  .addParam("product", "The name of the product")
+  .setAction(async (taskArgs, hre) => {
+    const Retailer = await hre.ethers.getContractFactory("Retailer");
+    const retailer = Retailer.attach(taskArgs.retailer);
+
+    console.log("Ordering the product...");
+    const setterTx = await retailer.orderProduct(taskArgs.manufacturer, taskArgs.product);
+    await setterTx.wait(0);
+  });
+```
+
+Retrieving the currently ordered products:
+
+```typescript showLineNumbers
+import { task } from "hardhat/config";
+
+task("getProducts", "Gets the current products")
+  .addParam("manufacturer", "The address of the Manufacturer contract")
+  .setAction(async (taskArgs, hre) => {
+    const Manufacturer = await hre.ethers.getContractFactory("Manufacturer");
+    const manufacturer = Manufacturer.attach(taskArgs.manufacturer);
+
+    console.log("Getting products..");
+    const products = await manufacturer.getProducts();
+
+    console.log(products);
+
+  });
+```
+
+Execute the following commands to run the newly created tasks:
+
+```bash
+npx hardhat orderProduct --manufacturer MANUFACTURER_ADDRESS --retailer RETAILER_ADDRESS --product PRODUCT_NAME --network nil
+```
+
+```bash
+npx hardhat getProducts --manufacturer MANUFACTURER_ADDRESS --network nil
+```
+
+The Hardhat plugin should decode the results of the call and show the new product directly in the terminal.
+

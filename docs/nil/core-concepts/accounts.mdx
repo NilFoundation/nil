@@ -1,0 +1,36 @@
+# Accounts
+
+## Definition
+
+In =nil;, an account is the minimal unit of data for sharding. An account consists of an address, its balance, its storage root and the hash of its source code.
+
+Each execution shard handles only a dedicated part of all accounts in the global state of the cluster while the consensus shard stores the mapping of accounts and their corresponding shards.
+
+:::info[Execution shards]
+
+Each execution shard acts as a separate blockchain that starts from a genesis block and continues until a possible last block. 
+
+:::
+
+## Security and rollbacks
+
+In the case of malicious nodes taking over a shard (and forcing commitment to corrupted data), validators for all other execution shards must initiate a rollback of all affected accounts. 
+
+The rollback must revert accounts to their last verified state, meaning the state before the corrupted shard had started sending messages to other shards.
+
+There exist two possible methods for rolling back accounts.
+
+* The 'carpet' method where the entire state is reset to the last previous valid state
+* The 'surgical' method where only the corrupted accounts are rolled back
+
+=nil; employs the 'carpet' method: during a rollback, all accounts are reset to their previous valid states regardless of whether they were affected by the attack.
+
+:::tip[Justification]
+
+Rolling back all accounts might seem excessive.
+
+However, attacks propagate faster than state transition proofs are generated. While the cluster is figuring out what accounts to roll back, the attack might grow in size, making the 'surgical' method costly and risky. 
+
+For now, this makes the 'carpet' method preferable despite its limitations. 
+
+:::

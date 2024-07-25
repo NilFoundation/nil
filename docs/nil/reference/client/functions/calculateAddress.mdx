@@ -1,0 +1,79 @@
+# Function: calculateAddress()
+
+```ts
+function calculateAddress(
+   shardId, 
+   code, 
+   salt): Uint8Array
+```
+
+## Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`shardId`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+The ID of the shard containing the address.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`code`
+
+</td>
+<td>
+
+`Uint8Array`
+
+</td>
+<td>
+
+The bytecode to be deployed at the address.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`salt`
+
+</td>
+<td>
+
+`Uint8Array`
+
+</td>
+<td>
+
+Arbitrary data for address generation.
+
+</td>
+</tr>
+</table>
+
+## Returns
+
+`Uint8Array`
+
+The address.
+
+## Defined in
+
+[nil/nil.js/src/utils/address.ts:41](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/utils/address.ts#L41)

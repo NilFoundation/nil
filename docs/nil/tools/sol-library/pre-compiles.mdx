@@ -1,0 +1,102 @@
+# Pre-compiles and Solidity functions
+
+=nil; provides several pre-compiled contracts that abstract over complex operations and provide a quick way to execute computationally-heavy actions.
+
+## `ASYNC_CALL`
+
+`ASYNC_CALL` is the pre-compile used in the `asyncCall()` function, which allows for async execution of contract functions:
+
+```solidity showLineNumbers
+function asyncCall(
+        address dst,
+        address refundTo,
+        address bounceTo,
+        uint gas,
+        bool deploy,
+        uint value,
+        bytes memory callData
+    ) internal returns(bool)
+```
+
+Alternative signature for calling a contract with custom currencies:
+
+```solidity showLineNumbers
+function asyncCall(
+        address dst,
+        address refundTo,
+        address bounceTo,
+        uint gas,
+        bool deploy,
+        uint value,
+        Token[] memory tokens,
+        bytes memory callData
+    ) internal returns(bool)
+```
+
+The contract takes a function call and spawns a new message. Whenever this message is processed, the function call is executed.
+
+[**The 'Core concepts' section contains**](../../core-concepts/shards-parallel-execution##async-execution) a primer on async execution and [**there is also a tutorial**](../../getting-started/essentials/handling-async-execution) on using `asyncCall()`.
+
+## `VERIFY_SIGNATURE`
+
+`VERIFY_SIGNATURE` is the pre-compile used in the `validateSignature()` function. The function has the following signature:
+
+```solidity showLineNumbers
+function validateSignature(
+        bytes memory pubkey,
+        uint256 messageHash,
+        bytes memory signature
+    ) internal view returns (bool)
+```
+
+The function verifies if the given message signature is valid for the provided `pubKey`, `messageHash` and `signature`.
+
+## `SEND_MESSAGE`
+
+`SEND_MESSAGE` is the pre-compile used in the `sendMsg()` function:
+
+```solidity showLineNumbers
+function sendMessage(uint g, bytes memory message) internal
+```
+
+The function sends a 'raw' message via the pre-compile.
+
+## `IS_INTERNAL_MESSAGE`
+
+`IS_INTERNAL_MESSAGE` is the pre-compile used in the `isInternalMessage()` function:
+
+```solidity showLineNumbers
+function isInternalMessage() internal view returns (bool)
+```
+
+The function is called as part of [**the `onlyInternal` and `onlyExternal` function modifiers**](./func-modifiers) to check if a given message is internal.
+
+## `MINT_CURRENCY`
+
+`MINT_CURRENCY` is the pre-compile used in the `mintToken()` function:
+
+```solidity showLineNumbers
+function mintToken(uint256 id, uint256 amount) internal returns(bool)
+```
+
+The function mints the custom token with the given `id`. 
+
+## `GET_CURRENCY_BALANCE`
+
+`GET_CURRENCY_BALANCE` is the pre-compile used in the `tokensBalance()` function:
+
+```solidity showLineNumbers
+function tokensBalance(address addr, uint256 id) internal returns(uint256)
+```
+
+The function shows how many tokens with the given `id` are held by the contract at the given `addr`.
+
+## `GET_MESSAGE_TOKENS`
+
+`GET_MESSAGE_TOKENS` is the pre-compile used in the `msgTokens()` function.
+
+```solidity showLineNumbers
+function msgTokens() internal returns(Token[] memory)
+```
+
+The function returns the list of tokens for the current message.

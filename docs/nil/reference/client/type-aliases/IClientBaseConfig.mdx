@@ -1,0 +1,45 @@
+# Type Alias: IClientBaseConfig
+
+```ts
+type IClientBaseConfig: object;
+```
+
+The client configuration that is shared between public and private clients.
+
+## Type declaration
+
+### shardId?
+
+```ts
+optional shardId: number;
+```
+
+The ID of the shard with which the client interacts.
+
+#### Example
+
+```ts
+1
+```
+
+### transport
+
+```ts
+transport: ITransport;
+```
+
+The transport is used to send requests to the network.
+
+#### Example
+
+```ts
+import { MetaMaskTransport } from '@nilfoundation/niljs';
+
+const transport = new MetaMaskTransport();
+
+const client = new PublicClient({ transport, shardId: 1 });
+```
+
+## Defined in
+
+[nil/nil.js/src/clients/types/ClientConfigs.ts:7](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/types/ClientConfigs.ts#L7)

@@ -1,0 +1,136 @@
+[data-theme='dark'] .indexHomepageCard {
+    display: flex;
+    flex-direction: column;
+    background-color: #0c0c0c;
+    padding: 1.25rem;
+    gap: 10px;
+    text-decoration: none;
+    color: #bdbdbd;
+    cursor: pointer;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #8a8a8a;
+    transition-property: background-color, color;
+    --ifm-link-hover-decoration: none;
+    --ifm-link-hover-color: inherit;
+  }
+  
+  [data-theme='light'] .indexHomepageCard {
+    display: flex;
+    flex-direction: column;
+    background-color: #1b1b1b;
+    padding: 1.25rem;
+    gap: 10px;
+    text-decoration: none;
+    color: #c8c8c8;
+    cursor: pointer;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #9a9a9a;
+    transition-property: background-color, color;
+    --ifm-link-hover-decoration: none;
+    --ifm-link-hover-color: inherit;
+  }
+  
+  [data-theme='dark'] .indexHomepageCard:hover {
+    background-color: #2f2f2f;
+    color: #f1f1f1;
+    border: 1px solid #bdbdbd; 
+  }
+  
+  [data-theme='light'] .indexHomepageCard:hover {
+    background-color: #353535;
+    color: #f1f1f1;
+    border: 1px solid #000000; 
+  }
+  
+  .indexHomepageCard.row {
+    flex-direction: row;
+  }
+  
+  .indexIcon {
+    max-width: 3em;
+    max-height: 3em;
+  }
+  
+  .indexCardContent {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .indexCardContentTitle {
+    font-size: 24px;
+    letter-spacing: -0.5px;
+    font-weight: 600;
+  }
+  
+  .indexCardContentDescription {
+    font-size: 18px;
+    color: var(--docs-color-text-100);
+    line-height: 1.5;
+  }
+  
+  .indexHomepageCard .tag {
+    font-size: 12px;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 500;
+    position: absolute;
+  }
+  
+  .indexSectionContent {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.5em;
+    padding-left: 3.5em;
+    padding-right: 3.5em;
+  }
+  
+  .indexHomepageSection {
+    margin-bottom: 3rem;
+    align-items: center;
+    justify-content: center;
+    align-content: center;
+  }
+  
+  .indexHomepageSection h3 {
+    font-weight: 600;
+  }
+  
+  @media (max-width: 1024px) {
+    .indexSectionContent {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      padding-left: 1em;
+      padding-right: 1em;
+    }
+  
+    .indexCardContentTitle {
+      font-size: 22px;
+      font-weight: 1000;
+    }
+  
+    .indexCardContentDescription {
+      font-size: 16px;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .indexSectionContent {
+      grid-template-columns: 1fr;
+      padding-left: 1em;
+      padding-right: 1em;
+    }
+  
+    .indexCardContentTitle {
+      font-size: 20px;
+      font-weight: 800;
+    }
+  
+    .indexCardContentDescription {
+      font-size: 14px;
+    }
+  }
+  

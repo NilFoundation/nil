@@ -1,0 +1,104 @@
+# Reading and writing to =nil;
+
+This tutorial details the different ways that allow for reading and writing information to =nil;. It covers these actions:
+
+1. Reading information from a block
+2. Calling an existing smart contract
+3. Retrieving data about the resulting message
+4. Reading the message receipt
+
+:::info
+
+At the moment, =nil; has a flat gas price of 10. When sending a message, make sure that its value is equal to at least `10 * gasLimit`.
+
+:::
+
+## Via the =nil; CLI
+
+The =nil; CLI provides several commands that produce data about key cluster entities including blocks, messages, and logs. 
+
+To view the latest block recorded by shard with `shardId = 1`:
+
+```bash
+nil_cli block latest --shard-id 1
+```
+
+To call an existing smart contract via the wallet:
+
+```bash
+nil_cli wallet send-message CONTRACT_ADDRESS METHOD_NAME [ARGS] --abi path/to/contract.abi
+```
+
+To read information about the resulting message:
+
+```bash
+nil_cli message MESSAGE_HASH
+```
+
+To read the message receipt:
+
+```bash
+nil_cli receipt MESSAGE_HASH
+```
+
+## Via the client library
+
+The `Nil.js` client library provides several 'helper' methods for reading and writing to =nil;
+
+To retrieve the block with the given hash:
+
+```typescript showLineNumbers
+import { PublicClient } from '@nilfoundation/niljs';
+
+const client = new PublicClient({
+    transport: new HttpTransport({
+        endpoint: "{NIL_ENDPOINT}",
+    }),
+    shardId: 1,
+});
+const block = await client.getBlockByHash(BLOCK_HASH);
+```
+
+To call an existing smart contract after [**initializing a wallet**](./creating-a-wallet#via-the-client-library):
+
+```typescript showLineNumbers
+import {
+  encodeFunctionData,
+  type Abi,
+} from "viem";
+
+const data = encodeFunctionData({
+    abi: CONTRACT_ABI as Abi,
+    functionName: "{funcName}",
+    args: [],
+    }
+);
+
+const messageHash = await wallet.sendMessage({
+    to: '{CONTRACT_ADDRESS}',
+    data: data,
+    value: 1000000n,
+    gas: 100000n
+});
+
+await waitTillCompleted(client, 1, messageHash);
+```
+
+:::tip
+
+The `waitTillCompleted()` function enforces waiting for the results of the execution of the message whose hash is passed as an argument. It is crucial for avoiding null-type errors.
+
+:::
+
+To read information about the resulting message:
+
+```typescript
+const message = await client.getMessageByHash(messageHash);
+```
+
+To read the message receipt:
+
+
+```typescript
+const receipt = await client.getMessageReceiptByHash(messageHash);
+```

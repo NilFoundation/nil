@@ -1,0 +1,234 @@
+# =nil; 101
+
+This tutorial acts as a 'primer' for working with =nil;. It explains how to perform essential actions with the cluster: creating a new wallet, deploying a contract, and calling a method inside this contract.
+
+:::info
+
+Before completing this tutorial, learn how to [**configure the =nil; CLI**](../tools/nil-cli/usage).
+
+:::
+
+## Create a new wallet
+
+In =nil; a wallet is just a smart contract that can handle payments. There are no other structural differences between a wallet and a smart contract, which means that wallets can support any logic that can be expressed inside a smart contract.
+
+### Flow
+
+To create a new wallet:
+
+```bash
+nil_cli wallet new
+```
+
+Expected response:
+
+```bash
+Contract WALLET_ADDRESS balance is topped up by 100000000
+Contract address: WALLET_ADDRESS
+```
+
+To check the wallet bytecode:
+
+```bash
+nil_cli contract code WALLET_ADDRESS
+```
+
+To request a 'top up':
+
+```bash
+nil_cli wallet top-up AMOUNT
+```
+
+To see the wallet address and its public key:
+
+```bash
+nil_cli wallet info
+```
+
+### Advanced tutorials
+
+* [**Creating a wallet**](./essentials/creating-a-wallet)
+
+## Deploy a smart contract
+
+In =nil; contracts can be deployed on different execution shards that act as separate blockchains. Contracts can communicate with contracts on other shards, avoiding state fragmentation.
+
+Any smart contract deployed in Ethereum-compatible networks and written in Solidity can be redeployed to =nil;
+
+### Flow
+
+Create a new contract containing this code:
+
+```solidity showLineNumbers
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract Incrementer {
+    uint256 private value;
+
+    event ValueChanged(uint256 newValue);
+
+    function increment() public payable {
+        value += 1;
+        emit ValueChanged(value);
+    }
+
+    function getValue() public view returns (uint256) {
+        return value;
+    }
+}
+```
+
+Compile the contract:
+
+```bash
+solc -o ./Incrementer --bin --abi ./Incrementer.sol
+```
+
+Deploy a contract with the =nil; CLI:
+
+```bash
+nil_cli wallet deploy ./Incrementer/Incrementer.bin
+```
+
+Expected output:
+
+```bash
+Contract address: INCREMENTER_ADDRESS
+Transaction hash: TRANSACTION_HASH (shard 1)
+```
+
+Call the `increment()` function:
+
+```bash
+nil_cli wallet send-message INCREMENTER_ADDRESS increment --abi ./Incrementer/Incrementer.abi
+```
+
+Retrieve the result:
+
+```bash
+nil_cli contract call-readonly INCREMENTER_ADDRESS getValue --abi ./Incrementer/Incrementer.abi
+```
+
+### Advanced tutorials
+
+* [**Reading and writing to =nil;**](./essentials/reading-writing-info)
+* [**Writing a smart contract**](./working-with-smart-contracts/writing-a-contract)
+* [**Deploying a contract**](./working-with-smart-contracts/deploying-a-contract)
+
+## Make a cross-shard call
+
+When a smart contract makes a call to another smart contract deployed on a separate shard, the destination shard retrieves the resulting message and processes it. To make thing simpler, the `Nil.sol` library provides the `async_call()` function: it calls a special precompiled contract that allows for easily passing messages between shards.
+
+## Flow
+
+Create a new contract with the following code:
+
+```solidity showLineNumbers
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.9;
+
+import "./Nil.sol";
+
+contract Caller {
+    using Nil for address;
+
+    receive() external payable {}
+
+    function call(address dst) public payable {
+        Nil.asyncCall(
+            dst,
+            msg.sender,
+            msg.sender,
+            100000,
+            false,
+            100000 * 10,
+            abi.encodeWithSignature("increment()")
+        );
+    }
+
+    function verifyExternal(
+        uint256,
+        bytes calldata
+    ) external pure returns (bool) {
+        return true;
+    }
+}
+```
+
+Compile it and deploy it to Shard 2:
+
+```bash
+solc -o ./Caller --bin --abi ./Caller.sol 
+nil_cli wallet deploy ./Caller/Caller.bin --shard-id 2
+```
+
+Expected output:
+
+```bash
+Contract address: CALLER_ADDRESS
+Transaction hash: TRANSACTION_HASH (shard 1)
+```
+
+Note that `CALLER_ADDRESS` starts with `0x0002`, which indicates that `Caller` is indeed deployed on Shard 2.
+
+Send tokens to `Caller` and call the `call()` function:
+
+```
+nil_cli wallet send-tokens CALLER_ADDRESS 3000000
+nil_cli wallet send-message CALLER_ADDRESS call INCREMENTER_ADDRESS --abi ./Caller/Caller.abi
+```
+
+Retrieve the result:
+
+```bash
+nil_cli contract call-readonly INCREMENTER_ADDRESS getValue --abi ./Incrementer/Incrementer.abi
+```
+
+### Advanced tutorials
+
+* [**Handling async execution**](./essentials/handling-async-execution)
+* [**Calling methods inside a contract**](./working-with-smart-contracts/calling-contract-methods)
+
+## Tokens and multi-currency
+
+=nil; has base tokens that are used to pay for essential functionalities such as deploying contracts.
+
+However, each contract can also create a custom currency. A contract can only be the owner of one custom currency. While custom currencies can be transferred between contracts, they cannot be used to pay for operations inside =nil;. 
+
+:::info
+
+Non-owners cannot perform any operations with a custom currency.
+
+:::
+
+### Flow
+
+Create a new wallet:
+
+```bash
+nil_cli wallet new --salt 2
+```
+
+Create a new currency and withdraw it:
+
+```bash
+nil_cli minter create-currency NEW_WALLET_ADDRESS 50000 new-currency --withdraw
+```
+
+Check the currencies of the wallet:
+
+```bash
+nil_cli contract currencies NEW_WALLET_ADDRESS
+```
+
+Expected output:
+
+```bash
+Contract currencies:
+Balance: 50000 CurrencyId=CURRENCY_ID
+```
+
+### Advanced tutorials
+
+* [**Tokens and multi-currency support**](./essentials/tokens-multi-currency)

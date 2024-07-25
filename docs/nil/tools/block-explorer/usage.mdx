@@ -1,0 +1,95 @@
+import SearchBar from '@site/static/img/nil/block-explorer/search-bar.png'
+import MessagesCounter from '@site/static/img/nil/block-explorer/messages-counter.png'
+import ShardCounter from '@site/static/img/nil/block-explorer/shard-counter.png'
+import LatestBlocks from '@site/static/img/nil/block-explorer/latest-blocks.png'
+import AccountScreen from '@site/static/img/nil/block-explorer/account-screen.png'
+import BlockScreen from '@site/static/img/nil/block-explorer/block-screen.png'
+import MessageScreen from '@site/static/img/nil/block-explorer/message-screen.png'
+
+# Block explorer
+
+The =nil; block explorer is a GUI for reading information from the cluster such as block statistics and message data.
+
+## Home screen
+
+The home screen of the =nil; block explorer includes the following components.
+
+### Search 
+
+<img src={SearchBar} className='roundedImage' />
+
+The search bar allows for retrieving blocks, messages or accounts by hash, shard ID, and block height.
+
+
+### Messages counter
+
+<img src={MessagesCounter} className='roundedImage'/>
+
+The messages counter shows the total number of messages recorded during a particular time period. It also contains a bar chart showing how many messages were recorded during the selected time interval.
+
+### Latest blocks
+
+The latest blocks table shows information about newly generated blocks including their height, shard ID, date, and message count.
+
+<img src={LatestBlocks} className='roundedImage'/>
+
+## Account screen
+
+<img src={AccountScreen} className='roundedImage'/>
+
+The account screen contains the details of a particular smart contract.
+
+It provides the following information:
+
+| Field | Definition |
+|:--:|:--|
+| Address | The address of the smart contract. |
+| Balance | The balance of the smart contract. |
+| Tokens | The custom tokens possessed by the smart contract. |
+| Code | The contract bytecode. |
+
+## Block screen
+
+<img src={BlockScreen} className='roundedImage'/>
+
+The block screen provides statistics for a specific block.
+
+It contains the following data:
+
+| Field | Definition |
+|:--:|:--|
+| Shard ID | The ID of the shard where the block was generated. |
+| Height | The block height. |
+| Incoming messages | The incoming messages included in the block. |
+| Outgoing messages | The outgoing messages included in the block. |
+| Time | The time when the block was generated. |
+
+The '**Incoming messages**' and '**Outgoing messages**' tabs contain tables listing all incoming and outgoing messages included in the block.
+
+## Message screen
+
+<img src={MessageScreen} className='roundedImage'/>
+
+The message screen details how a particular message is structured.
+
+It has the following fields:
+
+| Field | Definition |
+|:--:|:--|
+| Shard + Block height | The ID of the shard where the message was recorded and the height of the block where the message was included. |
+| Hash | The message hash. |
+| Nonce | The message nonce. |
+| From | The address from which the message was sent. |
+| To | The address to which the message was sent. |
+| Tokens | The tokens sent via the message. |
+| Value | The message value. |
+| Transaction fee | The transaction fee. |
+| Gas used | The gas used for processing the message. |
+| Gas price | The gas price. |
+| Message payload (bytecode) | The message bytecode. |
+
+
+
+
+
+

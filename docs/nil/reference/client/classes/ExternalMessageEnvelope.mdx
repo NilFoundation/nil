@@ -1,0 +1,420 @@
+# Class: ExternalMessageEnvelope
+
+The envelope for an external message (a message sent by a user, a dApp, etc.)
+
+ ExternalMessageEnvelope
+
+## Constructors
+
+### new ExternalMessageEnvelope()
+
+```ts
+new ExternalMessageEnvelope(param0): ExternalMessageEnvelope
+```
+
+Creates an instance of ExternalMessageEnvelope.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`param0`
+
+</td>
+<td>
+
+[`ExternalMessage`](../type-aliases/ExternalMessage.mdx)
+
+</td>
+<td>
+
+The object representing the external message.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+[`ExternalMessageEnvelope`](ExternalMessageEnvelope.mdx)
+
+#### Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:65](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L65)
+
+## Properties
+
+### authData
+
+```ts
+authData: Uint8Array;
+```
+
+The auth data attached to the message.
+
+#### Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:52](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L52)
+
+***
+
+### chainId
+
+```ts
+chainId: number;
+```
+
+The chain ID.
+
+#### Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:34](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L34)
+
+***
+
+### data
+
+```ts
+data: Uint8Array;
+```
+
+The message data.
+
+#### Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:46](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L46)
+
+***
+
+### isDeploy
+
+```ts
+isDeploy: boolean;
+```
+
+The flag that determines whether the external message is a deployment message.
+
+#### Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:22](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L22)
+
+***
+
+### seqno
+
+```ts
+seqno: number;
+```
+
+The message sequence number.
+
+#### Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:40](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L40)
+
+***
+
+### to
+
+```ts
+to: Uint8Array;
+```
+
+The destination address of the message.
+
+#### Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:28](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L28)
+
+## Methods
+
+### encode()
+
+```ts
+encode(): Uint8Array
+```
+
+Encodes the external message into a Uint8Array.
+
+#### Returns
+
+`Uint8Array`
+
+The encoded external message.
+
+#### Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:86](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L86)
+
+***
+
+### encodeWithSignature()
+
+```ts
+encodeWithSignature(signer): Promise<object>
+```
+
+Encodes the external message with its signature.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`signer`
+
+</td>
+<td>
+
+[`ISigner`](../interfaces/ISigner.mdx)
+
+</td>
+<td>
+
+The message signer.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`object`\>
+
+The object containing the encoded message and its hash.
+
+##### hash
+
+```ts
+hash: Uint8Array;
+```
+
+##### raw
+
+```ts
+raw: Uint8Array;
+```
+
+#### Async
+
+#### Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:139](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L139)
+
+***
+
+### hash()
+
+```ts
+hash(): Uint8Array
+```
+
+Provides the hash tree root of the external message.
+
+#### Returns
+
+`Uint8Array`
+
+The hash tree root of the external message.
+
+#### Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:102](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L102)
+
+***
+
+### hexAddress()
+
+```ts
+hexAddress(): `0x${string}`
+```
+
+Returns the hex address of the given bytes.
+
+#### Returns
+
+\`0x$\{string\}\`
+
+The hex address.
+
+#### Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:191](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L191)
+
+***
+
+### send()
+
+```ts
+send(client): Promise<`0x${string}`>
+```
+
+Sends the external message.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`client`
+
+</td>
+<td>
+
+[`PublicClient`](PublicClient.mdx)
+
+</td>
+<td>
+
+The client sending the message.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<\`0x$\{string\}\`\>
+
+The hash of the external message.
+
+#### Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:201](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L201)
+
+***
+
+### sign()
+
+```ts
+sign(signer): Promise<Uint8Array>
+```
+
+Signs the external message.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`signer`
+
+</td>
+<td>
+
+[`ISigner`](../interfaces/ISigner.mdx)
+
+</td>
+<td>
+
+The message signer.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`Uint8Array`\>
+
+The message signature.
+
+#### Async
+
+#### Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:170](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L170)
+
+***
+
+### signingHash()
+
+```ts
+signingHash(): Uint8Array
+```
+
+Provides the signing hash of the external message.
+
+#### Returns
+
+`Uint8Array`
+
+The signing hash of the external message.
+
+#### Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:118](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L118)
+
+***
+
+### updateAuthdata()
+
+```ts
+updateAuthdata(signer): Promise<Uint8Array>
+```
+
+Updates the authentication data in the external message and returns the result.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`signer`
+
+</td>
+<td>
+
+[`ISigner`](../interfaces/ISigner.mdx)
+
+</td>
+<td>
+
+The auth data signer.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`Uint8Array`\>
+
+The signed auth data.
+
+#### Async
+
+#### Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:181](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L181)

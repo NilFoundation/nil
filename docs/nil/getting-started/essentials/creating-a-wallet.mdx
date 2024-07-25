@@ -1,0 +1,122 @@
+# Creating a wallet
+
+This tutorial defines how wallets work in =nil; and outlines the different ways for creating a new wallet.
+
+## Definition
+
+In =nil; a wallet is any smart contract that is able to pay for interactions with real-life users.
+
+The traditional definition of a wallet in Ethereum mostly refers to externally-owned accounts (EOAs) that are secured via private keys and natively hold information about user's balances.
+
+Wallets in =nil; differ from this definition. A =nil; wallet is always a smart contract, and it must be deployed as such. The wallet handles all the usual functionalities (e.g., authenticating requests) but it can also include complex logic such as multi-sig operations.
+
+This means that in almost all cases an external message has to go through a wallet that signs the message and assigns a value to it. The message is only forwarded to its target smart contract for execution only after this process is complete.
+
+:::info[Counterfactual contracts]
+
+It is possible to send funds to an address where a contract is supposed to be deployed. These funds will be stored at that address until the contract is finally deployed, at which point the contract will be able to access them.
+
+Funds sent to an address without a deployed contract are safe, and another party cannot claim them by deploying another contract before the owners of the funds is able to deploy their own contract.
+
+:::
+
+## Pre-built and custom wallets
+
+Because any smart contract can be a wallet, there is a distinction between pre-built and custom wallets. 
+
+A pre-built wallet is provided as part of =nil;. Such a wallet includes essential wallet functionalities as well as pre-defined constructor bytecode. The =nil; developer tools provide several ways of deploying pre-built wallets such as the `nil_cli wallet new` =nil; CLI command.
+
+:::info[Pre-built wallets]
+
+Presently, only one type of pre-built wallets is available. Additional types of pre-built wallets are WIP.
+
+:::
+
+:::info[Guarantees]
+
+As pre-built wallets are provided as part of =nil; they are guaranteed to be valid and tested. An audit process for pre-built wallets is currently under consideration.
+
+:::
+
+A custom wallet is any smart contract written by a user. This contract can support any flow permitted by Solidity code such as multi-sig authorization or token vesting. Custom wallets [**can be deployed**](../working-with-smart-contracts/deploying-a-contract) just like any other smart contract.
+
+## New wallet creation
+
+### Via the =nil; CLI
+
+The =nil; CLI offers a quick and convenient way to create a new wallet:
+
+```bash
+nil_cli wallet new
+```
+
+This will produce the following response:
+
+```bash
+Contract NEW_WALLET_ADDRESS balance is topped up by 10000000
+New wallet address: NEW_WALLET_ADDRESS
+```
+
+This wallet essentially acts as a typical EOA: it supports basic asset management and authentication operations. The wallet should also be initialized with an initial balance (which is also seen in the initial command response). Send the following request to check this:
+
+```bash
+nil_cli wallet balance
+```
+
+:::tip
+
+The wallet can be 'topped up' by using the `wallet top-up AMOUNT` command.
+
+:::
+
+:::info
+
+The `wallet new` and the `wallet top-up` commands only work in the =nil; devnet. The process for attaining tokens and 'topping up' an address will be different in the production network.
+
+:::
+
+### Via the client library
+
+The `Nil.js` client library exposes the `WalletV1` class that allows for quickly creating and deploying a new wallet:
+
+```typescript
+import {
+  Faucet,
+  HttpTransport,
+  LocalECDSAKeySigner,
+  PublicClient,
+  WalletV1,
+  generateRandomPrivateKey,
+} from "@nilfoundation/niljs";
+
+const client = new PublicClient({
+  transport: new HttpTransport({
+    endpoint: "{NIL_ENDPOINT}",
+  }),
+  shardId: 1,
+});
+
+const faucet = new Faucet(client);
+
+const signer = new LocalECDSAKeySigner({
+  privateKey: generateRandomPrivateKey(),
+});
+
+const pubkey = await signer.getPublicKey();
+
+const wallet = new WalletV1({
+  pubkey: pubkey,
+  salt: 100n,
+  shardId: 1,
+  client,
+  signer,
+});
+const walletAddress = await wallet.getAddressHex();
+
+await faucet.withdrawToWithRetry(walletAddress, 100000n);
+
+await wallet.selfDeploy(true);
+```
+
+This example initializes a new wallet, provides it with a `Signer` and requests a 'top up' to the wallet address. The wallet is then deployed.
+

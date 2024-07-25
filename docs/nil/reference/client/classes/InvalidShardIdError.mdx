@@ -1,0 +1,291 @@
+# Class: InvalidShardIdError
+
+The error class for invalid shard ID.
+This error is thrown when the provided shard ID is invalid.
+
+## Extends
+
+- `BaseError`
+
+## Constructors
+
+### new InvalidShardIdError()
+
+```ts
+new InvalidShardIdError(param0): InvalidShardIdError
+```
+
+Creates an instance of InvalidShardIdError.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`param0`
+
+</td>
+<td>
+
+`InvalidShardIdErrorParameters`
+
+</td>
+<td>
+
+The error params.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+[`InvalidShardIdError`](InvalidShardIdError.mdx)
+
+#### Overrides
+
+`BaseError.constructor`
+
+#### Defined in
+
+[nil/nil.js/src/errors/shardId.ts:23](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/errors/shardId.ts#L23)
+
+## Properties
+
+### cause?
+
+```ts
+optional cause: BaseError | Error;
+```
+
+The error cause.
+
+#### Inherited from
+
+`BaseError.cause`
+
+#### Defined in
+
+[nil/nil.js/src/errors/BaseError.ts:40](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/errors/BaseError.ts#L40)
+
+***
+
+### docsPath?
+
+```ts
+optional docsPath: string;
+```
+
+The path to the documentation of this error.
+
+#### Inherited from
+
+`BaseError.docsPath`
+
+#### Defined in
+
+[nil/nil.js/src/errors/BaseError.ts:47](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/errors/BaseError.ts#L47)
+
+***
+
+### isOperational
+
+```ts
+isOperational: boolean;
+```
+
+The flag that indicates if this error is operational.
+This is useful to differentiate operational errors from programming errors.
+It is recommended to always set this property to true when creating a custom error class.
+
+#### Inherited from
+
+`BaseError.isOperational`
+
+#### Defined in
+
+[nil/nil.js/src/errors/BaseError.ts:33](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/errors/BaseError.ts#L33)
+
+***
+
+### message
+
+```ts
+message: string;
+```
+
+#### Inherited from
+
+`BaseError.message`
+
+#### Defined in
+
+node\_modules/typescript/lib/lib.es5.d.ts:1077
+
+***
+
+### name
+
+```ts
+name: string;
+```
+
+#### Inherited from
+
+`BaseError.name`
+
+#### Defined in
+
+node\_modules/typescript/lib/lib.es5.d.ts:1076
+
+***
+
+### stack?
+
+```ts
+optional stack: string;
+```
+
+#### Inherited from
+
+`BaseError.stack`
+
+#### Defined in
+
+node\_modules/typescript/lib/lib.es5.d.ts:1078
+
+***
+
+### prepareStackTrace()?
+
+```ts
+static optional prepareStackTrace: (err, stackTraces) => any;
+```
+
+Optional override for formatting stack traces
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+<tr>
+<td>
+
+`err`
+
+</td>
+<td>
+
+`Error`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`stackTraces`
+
+</td>
+<td>
+
+`CallSite`[]
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`any`
+
+#### See
+
+https://v8.dev/docs/stack-trace-api#customizing-stack-traces
+
+#### Inherited from
+
+`BaseError.prepareStackTrace`
+
+#### Defined in
+
+node\_modules/@types/node/globals.d.ts:28
+
+***
+
+### stackTraceLimit
+
+```ts
+static stackTraceLimit: number;
+```
+
+#### Inherited from
+
+`BaseError.stackTraceLimit`
+
+#### Defined in
+
+node\_modules/@types/node/globals.d.ts:30
+
+## Methods
+
+### captureStackTrace()
+
+```ts
+static captureStackTrace(targetObject, constructorOpt?): void
+```
+
+Create .stack property on a target object
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+<tr>
+<td>
+
+`targetObject`
+
+</td>
+<td>
+
+`object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`constructorOpt`?
+
+</td>
+<td>
+
+`Function`
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+`BaseError.captureStackTrace`
+
+#### Defined in
+
+node\_modules/@types/node/globals.d.ts:21

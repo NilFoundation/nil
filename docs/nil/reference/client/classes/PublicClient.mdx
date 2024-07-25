@@ -1,0 +1,1250 @@
+# Class: PublicClient
+
+PublicClient is a class that allows for interacting with the network via the JSON-RPC API.
+It provides an abstraction of the connection to =nil;.
+PublicClient enables using API requests that do not require signing data (or otherwise using one's private key).
+
+## Example
+
+```ts
+import { PublicClient } from '@nilfoundation/niljs';
+
+const client = new PublicClient({
+  transport: new HttpTransport({
+    endpoint: "http://127.0.0.1:8529",
+  }),
+  shardId: 1,
+});
+```
+
+## Extends
+
+- `BaseClient`
+
+## Constructors
+
+### new PublicClient()
+
+```ts
+new PublicClient(config): PublicClient
+```
+
+Creates an instance of PublicClient.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`config`
+
+</td>
+<td>
+
+[`IClientBaseConfig`](../type-aliases/IClientBaseConfig.mdx)
+
+</td>
+<td>
+
+The config to be used in the client. See [IPublicClientConfig](../type-aliases/IPublicClientConfig.mdx).
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+[`PublicClient`](PublicClient.mdx)
+
+#### Overrides
+
+`BaseClient.constructor`
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:38](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L38)
+
+## Properties
+
+### shardId?
+
+```ts
+protected optional shardId: number;
+```
+
+The ID of the shard which the client needs to interact with.
+The shard with this ID will be used in every call made by the client.
+
+#### Inherited from
+
+`BaseClient.shardId`
+
+#### Defined in
+
+[nil/nil.js/src/clients/BaseClient.ts:25](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/BaseClient.ts#L25)
+
+***
+
+### transport
+
+```ts
+protected transport: ITransport;
+```
+
+The ITransport to be used in the client. See [ITransport](ITransport.mdx).
+
+#### Inherited from
+
+`BaseClient.transport`
+
+#### Defined in
+
+[nil/nil.js/src/clients/BaseClient.ts:18](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/BaseClient.ts#L18)
+
+## Methods
+
+### call()
+
+```ts
+call(callArgs, blockNumberOrHash): Promise<`0x${string}`>
+```
+
+Returns the result of the call.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`callArgs`
+
+</td>
+<td>
+
+`CallArgs`
+
+</td>
+<td>
+
+The arguments for the call.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`blockNumberOrHash`
+
+</td>
+<td>
+
+\`0x$\{string\}\` \| [`BlockTag`](../type-aliases/BlockTag.mdx)
+
+</td>
+<td>
+
+The number/hash of the block.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<\`0x$\{string\}\`\>
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:405](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L405)
+
+***
+
+### chainId()
+
+```ts
+chainId(): Promise<number>
+```
+
+Returns the chain ID.
+
+#### Returns
+
+`Promise`\<`number`\>
+
+The chain ID.
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:361](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L361)
+
+***
+
+### estimateGasLimit()
+
+```ts
+estimateGasLimit(): Promise<bigint>
+```
+
+Returns the gas limit.
+
+#### Returns
+
+`Promise`\<`bigint`\>
+
+The gas limit.
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:351](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L351)
+
+***
+
+### getBalance()
+
+```ts
+getBalance(address, blockNumberOrHash): Promise<bigint>
+```
+
+Returns the balance of the given address and at the given block.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`address`
+
+</td>
+<td>
+
+\`0x$\{string\}\`
+
+</td>
+<td>
+
+The address of the account or contract.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`blockNumberOrHash`
+
+</td>
+<td>
+
+\`0x$\{string\}\` \| [`BlockTag`](../type-aliases/BlockTag.mdx)
+
+</td>
+<td>
+
+The number/hash of the block.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`bigint`\>
+
+The balance of the address.
+
+#### Example
+
+```ts
+import { PublicClient } from '@nilfoundation/niljs';
+
+const client = new PublicClient({
+ endpoint: 'http://127.0.0.1:8529'
+})
+
+const balance = await client.getBalance(Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]), 'latest');
+```
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:233](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L233)
+
+***
+
+### getBlockByHash()
+
+```ts
+getBlockByHash(
+   hash, 
+   fullTx, 
+shardId): Promise<Block>
+```
+
+Returns the block with the given hash.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default value</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`hash`
+
+</td>
+<td>
+
+\`0x$\{string\}\`
+
+</td>
+<td>
+
+`undefined`
+
+</td>
+<td>
+
+The hash of the block whose information is requested.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`fullTx`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+`false`
+
+</td>
+<td>
+
+The flag that determines whether full transaction information is returned in the output.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`shardId`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+`...`
+
+</td>
+<td>
+
+The ID of the shard where the block was generated.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<[`Block`](../type-aliases/Block.mdx)\>
+
+Information about the block with the given hash.
+
+#### Example
+
+```ts
+import { PublicClient } from '@nilfoundation/niljs';
+
+const client = new PublicClient({
+  transport: new HttpTransport({
+    endpoint: "http://127.0.0.1:8529",
+  }),
+  shardId: 1,
+});
+
+const block = await client.getBlockByHash(0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08);
+```
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:60](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L60)
+
+***
+
+### getBlockByNumber()
+
+```ts
+getBlockByNumber(
+   blockNumber, 
+   fullTx, 
+shardId): Promise<Block>
+```
+
+Returns the block with the given number.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default value</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`blockNumber`
+
+</td>
+<td>
+
+\`0x$\{string\}\`
+
+</td>
+<td>
+
+`undefined`
+
+</td>
+<td>
+
+The number of the block whose information is requested.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`fullTx`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+`false`
+
+</td>
+<td>
+
+The flag that determines whether full transaction information is returned in the output.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`shardId`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+`...`
+
+</td>
+<td>
+
+The ID of the shard where the block was generated.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<[`Block`](../type-aliases/Block.mdx)\>
+
+Returns information about a block with the given number.
+
+#### Example
+
+```ts
+import { PublicClient } from '@nilfoundation/niljs';
+
+const client = new PublicClient({
+ endpoint: 'http://127.0.0.1:8529'
+})
+
+const block = await client.getBlockByNumber(1);
+```
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:95](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L95)
+
+***
+
+### getBlockMessageCountByHash()
+
+```ts
+getBlockMessageCountByHash(hash, shardId): Promise<number>
+```
+
+Returns the total number of messages recorded in the block with the given hash.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`hash`
+
+</td>
+<td>
+
+\`0x$\{string\}\`
+
+</td>
+<td>
+
+The hash of the block whose information is requested.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`shardId`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+The ID of the shard where the block was generated.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`number`\>
+
+The number of messages contained within the block.
+
+#### Example
+
+```ts
+import { PublicClient } from '@nilfoundation/niljs';
+
+const client = new PublicClient({
+ endpoint: 'http://127.0.0.1:8529'
+})
+
+const count = await client.getBlockMessageCountByHash(Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]));
+```
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:157](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L157)
+
+***
+
+### getBlockMessageCountByNumber()
+
+```ts
+getBlockMessageCountByNumber(blockNumber, shardId): Promise<number>
+```
+
+Returns the total number of messages recorded in the block with the given number.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+<tr>
+<td>
+
+`blockNumber`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`shardId`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`number`\>
+
+The number of messages contained within the block.
+
+#### Example
+
+```ts
+import { PublicClient } from '@nilfoundation/niljs';
+
+const client = new PublicClient({
+ endpoint: 'http://127.0.0.1:8529'
+})
+
+const count = await client.getBlockMessageCountByNumber(1);
+```
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:129](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L129)
+
+***
+
+### getCode()
+
+```ts
+getCode(address, blockNumberOrHash): Promise<Uint8Array>
+```
+
+Returns the bytecode of the contract with the given address and at the given block.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`address`
+
+</td>
+<td>
+
+\`0x$\{string\}\`
+
+</td>
+<td>
+
+The address of the account or contract.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`blockNumberOrHash`
+
+</td>
+<td>
+
+\`0x$\{string\}\` \| [`BlockTag`](../type-aliases/BlockTag.mdx)
+
+</td>
+<td>
+
+The number/hash of the block.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`Uint8Array`\>
+
+The bytecode of the contract.
+
+#### Example
+
+```ts
+import { PublicClient } from '@nilfoundation/niljs';
+
+const client = new PublicClient({
+ endpoint: 'http://127.0.0.1:8529'
+})
+
+const code = await client.getCode(Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]), 'latest');
+```
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:183](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L183)
+
+***
+
+### getCurrencies()
+
+```ts
+getCurrencies(address, blockNumberOrHash): Promise<Record<string, bigint>>
+```
+
+Returns all tokens by the given address.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`address`
+
+</td>
+<td>
+
+\`0x$\{string\}\`
+
+</td>
+<td>
+
+The address of the account.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`blockNumberOrHash`
+
+</td>
+<td>
+
+\`0x$\{string\}\` \| [`BlockTag`](../type-aliases/BlockTag.mdx)
+
+</td>
+<td>
+
+The number/hash of the block.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`Record`\<`string`, `bigint`\>\>
+
+The list of tokens.
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:376](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L376)
+
+***
+
+### getGasPrice()
+
+```ts
+getGasPrice(): Promise<bigint>
+```
+
+Returns the gas price in wei.
+
+#### Returns
+
+`Promise`\<`bigint`\>
+
+The gas price.
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:341](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L341)
+
+***
+
+### getMessageByHash()
+
+```ts
+getMessageByHash(hash, shardId): Promise<ProcessedMessage>
+```
+
+Returns the structure of the internal message with the given hash.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`hash`
+
+</td>
+<td>
+
+\`0x$\{string\}\`
+
+</td>
+<td>
+
+The hash of the message.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`shardId`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+The ID of the shard where the message was recorded.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`ProcessedMessage`\>
+
+The message whose information is requested.
+
+#### Example
+
+```ts
+import { PublicClient } from '@nilfoundation/niljs';
+
+const client = new PublicClient({
+ endpoint: 'http://127.0.0.1:8529'
+})
+
+const message = await client.getMessageByHash(Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]));
+```
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:259](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L259)
+
+***
+
+### getMessageCount()
+
+```ts
+getMessageCount(address, blockNumberOrHash): Promise<number>
+```
+
+Returns the transaction count of the account with the given address and at the given block.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`address`
+
+</td>
+<td>
+
+\`0x$\{string\}\`
+
+</td>
+<td>
+
+The address of the account or contract.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`blockNumberOrHash`
+
+</td>
+<td>
+
+\`0x$\{string\}\` \| [`BlockTag`](../type-aliases/BlockTag.mdx)
+
+</td>
+<td>
+
+The number/hash of the block.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`number`\>
+
+The number of transactions contained within the block.
+
+#### Example
+
+```ts
+import { PublicClient } from '@nilfoundation/niljs';
+
+const client = new PublicClient({
+ endpoint: 'http://127.0.0.1:8529'
+})
+
+const count = await client.getMessageCount(Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]), 'latest');
+```
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:207](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L207)
+
+***
+
+### getMessageReceiptByHash()
+
+```ts
+getMessageReceiptByHash(hash, shardId): Promise<IReceipt>
+```
+
+Returns the receipt for the message with the given hash.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`hash`
+
+</td>
+<td>
+
+\`0x$\{string\}\`
+
+</td>
+<td>
+
+The hash of the message.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`shardId`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+The ID of the shard where the message was recorded.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<[`IReceipt`](../type-aliases/IReceipt.mdx)\>
+
+The receipt whose structure is requested.
+
+#### Example
+
+```ts
+import { PublicClient } from '@nilfoundation/niljs';
+
+const client = new PublicClient({
+endpoint: 'http://127.0.0.1:8529'
+})
+
+const receipt = await client.getMessageReceiptByHash(1, Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]));
+```
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:295](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L295)
+
+***
+
+### getShardId()
+
+```ts
+getShardId(): number
+```
+
+Returns the shard ID.
+
+#### Returns
+
+`number`
+
+The shard ID.
+
+#### Inherited from
+
+`BaseClient.getShardId`
+
+#### Defined in
+
+[nil/nil.js/src/clients/BaseClient.ts:50](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/BaseClient.ts#L50)
+
+***
+
+### request()
+
+```ts
+protected request<T>(requestObject): Promise<T>
+```
+
+Sends a request.
+
+#### Type Parameters
+
+<table>
+<tr>
+<th>Type Parameter</th>
+</tr>
+<tr>
+<td>
+
+`T`
+
+</td>
+</tr>
+</table>
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`requestObject`
+
+</td>
+<td>
+
+`Arguments`
+
+</td>
+<td>
+
+The request object. It contains the method and parameters.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`T`\>
+
+The response.
+
+#### Inherited from
+
+`BaseClient.request`
+
+#### Defined in
+
+[nil/nil.js/src/clients/BaseClient.ts:42](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/BaseClient.ts#L42)
+
+***
+
+### sendRawMessage()
+
+```ts
+sendRawMessage(message): Promise<`0x${string}`>
+```
+
+Creates a new message or creates a contract for a previously signed message.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`message`
+
+</td>
+<td>
+
+\`0x$\{string\}\` \| `Uint8Array`
+
+</td>
+<td>
+
+The encoded bytecode of the message.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<\`0x$\{string\}\`\>
+
+The hash of the message.
+
+#### Example
+
+```ts
+import { PublicClient } from '@nilfoundation/niljs';
+
+const client = new PublicClient({
+ endpoint: 'http://127.0.0.1:8529'
+})
+
+const message = Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+```
+
+#### Defined in
+
+[nil/nil.js/src/clients/PublicClient.ts:324](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/PublicClient.ts#L324)
+
+***
+
+### setShardId()
+
+```ts
+setShardId(shardId): void
+```
+
+Sets the shard ID.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`shardId`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+The shard ID.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`void`
+
+#### Throws
+
+Will throw an error if the provided shard ID is invalid.
+
+#### Example
+
+```ts
+client.setShardId(1);
+```
+
+#### Inherited from
+
+`BaseClient.setShardId`
+
+#### Defined in
+
+[nil/nil.js/src/clients/BaseClient.ts:61](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/clients/BaseClient.ts#L61)

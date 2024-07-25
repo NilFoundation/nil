@@ -1,0 +1,88 @@
+# Interface: IMessage
+
+The interface for the message object. This object is used to represent a message in the client code.
+It may differ from the actual message object used inside the network.
+
+## Extends
+
+- `ValueOf`\<*typeof* [`SszMessageSchema`](../variables/SszMessageSchema.mdx)\>
+
+## Properties
+
+### chainId
+
+```ts
+chainId: number = basicTypes.Uint64;
+```
+
+#### Inherited from
+
+`ValueOf.chainId`
+
+#### Defined in
+
+[nil/nil.js/src/encoding/ssz.ts:64](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/ssz.ts#L64)
+
+***
+
+### data
+
+```ts
+data: Uint8Array;
+```
+
+#### Inherited from
+
+`ValueOf.data`
+
+#### Defined in
+
+[nil/nil.js/src/encoding/ssz.ts:66](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/ssz.ts#L66)
+
+***
+
+### deploy
+
+```ts
+deploy: boolean = basicTypes.Bool;
+```
+
+#### Inherited from
+
+`ValueOf.deploy`
+
+#### Defined in
+
+[nil/nil.js/src/encoding/ssz.ts:62](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/ssz.ts#L62)
+
+***
+
+### seqno
+
+```ts
+seqno: number = basicTypes.Uint64;
+```
+
+#### Inherited from
+
+`ValueOf.seqno`
+
+#### Defined in
+
+[nil/nil.js/src/encoding/ssz.ts:65](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/ssz.ts#L65)
+
+***
+
+### to
+
+```ts
+to: Uint8Array = Bytes20;
+```
+
+#### Inherited from
+
+`ValueOf.to`
+
+#### Defined in
+
+[nil/nil.js/src/encoding/ssz.ts:63](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/ssz.ts#L63)

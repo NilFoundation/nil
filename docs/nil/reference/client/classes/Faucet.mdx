@@ -1,0 +1,254 @@
+# Class: Faucet
+
+Faucet is a special contract that is used to top up other contracts in the =nil; devnet.
+
+ Faucet
+
+## Constructors
+
+### new Faucet()
+
+```ts
+new Faucet(client): Faucet
+```
+
+Creates an instance of Faucet.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`client`
+
+</td>
+<td>
+
+[`PublicClient`](PublicClient.mdx)
+
+</td>
+<td>
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+[`Faucet`](Faucet.mdx)
+
+#### Defined in
+
+[nil/nil.js/src/contracts/Faucet/Faucet.ts:38](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/Faucet/Faucet.ts#L38)
+
+## Properties
+
+### address
+
+```ts
+static address: "0x000100000000000000000000000000000FA00CE7";
+```
+
+The const address of the faucet contract.
+
+#### Static
+
+#### Defined in
+
+[nil/nil.js/src/contracts/Faucet/Faucet.ts:23](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/Faucet/Faucet.ts#L23)
+
+## Methods
+
+### ~~withdrawTo()~~
+
+```ts
+withdrawTo(
+   address, 
+   value?, 
+seqno?): Promise<Uint8Array>
+```
+
+Withdraws the specified value to the given address.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`address`
+
+</td>
+<td>
+
+\`0x$\{string\}\`
+
+</td>
+<td>
+
+The address to which the withdrawal should be made.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`value`?
+
+</td>
+<td>
+
+`bigint`
+
+</td>
+<td>
+
+The value that should be withdrawn to the given address.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`seqno`?
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+The sequence number of the withdrawal message.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`Uint8Array`\>
+
+The hash of the withdrawal message.
+
+#### Deprecated
+
+#### Async
+
+#### Defined in
+
+[nil/nil.js/src/contracts/Faucet/Faucet.ts:52](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/Faucet/Faucet.ts#L52)
+
+***
+
+### withdrawToWithRetry()
+
+```ts
+withdrawToWithRetry(
+   address, 
+   value?, 
+retry?): Promise<`0x${string}`>
+```
+
+Withdraws the specified value to the given address with retries.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default value</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`address`
+
+</td>
+<td>
+
+\`0x$\{string\}\`
+
+</td>
+<td>
+
+`undefined`
+
+</td>
+<td>
+
+The address to which the withdrawal should be made.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`value`?
+
+</td>
+<td>
+
+`bigint`
+
+</td>
+<td>
+
+`...`
+
+</td>
+<td>
+
+The value that should be withdrawn to the given address.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`retry`?
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+`5`
+
+</td>
+<td>
+
+How many times to retry the withdrawal in case of failure.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<\`0x$\{string\}\`\>
+
+The hash of the withdrawal message.
+
+#### Async
+
+#### Defined in
+
+[nil/nil.js/src/contracts/Faucet/Faucet.ts:84](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/Faucet/Faucet.ts#L84)
