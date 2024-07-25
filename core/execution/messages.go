@@ -58,15 +58,17 @@ type accountPayer struct {
 }
 
 func (a accountPayer) CanPay(amount types.Value) bool {
-	return a.account.Balance.Cmp(a.message.Value.Add(amount)) >= 0
+	value, overflow := a.message.Value.AddOverflow(amount)
+	check.PanicIfNot(!overflow)
+	return a.account.Balance.Cmp(value) >= 0
 }
 
 func (a accountPayer) SubBalance(amount types.Value) {
-	a.account.SubBalance(amount, tracing.BalanceDecreaseGasBuy)
+	check.PanicIfErr(a.account.SubBalance(amount, tracing.BalanceDecreaseGasBuy))
 }
 
 func (a accountPayer) AddBalance(amount types.Value) {
-	a.account.AddBalance(amount, tracing.BalanceIncreaseGasReturn)
+	check.PanicIfErr(a.account.AddBalance(amount, tracing.BalanceIncreaseGasReturn))
 }
 
 func (a accountPayer) String() string {

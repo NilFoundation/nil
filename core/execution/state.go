@@ -317,8 +317,7 @@ func (es *ExecutionState) AddBalance(addr types.Address, amount types.Value, rea
 	if err != nil || stateObject == nil {
 		return err
 	}
-	stateObject.AddBalance(amount, reason)
-	return nil
+	return stateObject.AddBalance(amount, reason)
 }
 
 // SubBalance subtracts amount from the account associated with addr.
@@ -327,8 +326,7 @@ func (es *ExecutionState) SubBalance(addr types.Address, amount types.Value, rea
 	if err != nil || stateObject == nil {
 		return err
 	}
-	stateObject.SubBalance(amount, reason)
-	return nil
+	return stateObject.SubBalance(amount, reason)
 }
 
 func (es *ExecutionState) AddLog(log *types.Log) {
@@ -829,12 +827,12 @@ func (es *ExecutionState) handleMessage(ctx context.Context, msg *types.Message,
 			}
 		}
 	}
-	// Gas is already refunded with bounce message
+	// Gas is already refunded with the bounce message
 	if !bounced {
 		if msg.RefundTo == msg.To {
 			acc, err := es.GetAccount(msg.To)
 			check.PanicIfErr(err)
-			acc.AddBalance(leftOverGas.ToValue(es.GasPrice), tracing.BalanceIncreaseRefund)
+			check.PanicIfErr(acc.AddBalance(leftOverGas.ToValue(es.GasPrice), tracing.BalanceIncreaseRefund))
 		} else {
 			refundGas(payer, msg, leftOverGas, es.GasPrice)
 		}
@@ -1128,7 +1126,7 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 	}
 	spentGas := gasCreditLimit.Sub(types.Gas(leftOverGas))
 	spentValue := spentGas.ToValue(es.GasPrice)
-	account.SubBalance(spentValue, tracing.BalanceDecreaseVerifyExternal)
+	check.PanicIfErr(account.SubBalance(spentValue, tracing.BalanceDecreaseVerifyExternal))
 	return spentGas, nil
 }
 
