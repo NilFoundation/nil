@@ -39,7 +39,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	nShards := 2
 	gasPrice := types.NewValueFromUint64(10)
 	from := types.MainWalletAddress
-	to := contracts.CounterPayableAddress(s.T(), shardId)
+	to := contracts.CounterAddress(s.T(), shardId)
 
 	pool := &MockMsgPool{}
 	c := newCollator(Params{
@@ -145,7 +145,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	})
 
 	s.Run("Deploy", func() {
-		m := execution.NewDeployMessage(contracts.CounterPayableDeployPayload(s.T()), shardId, to, 0)
+		m := execution.NewDeployMessage(contracts.CounterDeployPayload(s.T()), shardId, to, 0)
 		m.Flags.ClearBit(types.MessageFlagInternal)
 		s.Equal(to, m.To)
 		pool.Msgs = []*types.Message{m}

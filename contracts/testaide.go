@@ -11,12 +11,11 @@ import (
 )
 
 const (
-	NameCounter        = "tests/Counter"
-	NameCounterPayable = "tests/CounterPayable"
-	NameMessageCheck   = "tests/MessageCheck"
-	NameSender         = "tests/Sender"
-	NameTest           = "tests/Test"
-	NameTokensTest     = "tests/TokensTest"
+	NameCounter      = "tests/Counter"
+	NameMessageCheck = "tests/MessageCheck"
+	NameSender       = "tests/Sender"
+	NameTest         = "tests/Test"
+	NameTokensTest   = "tests/TokensTest"
 )
 
 func CounterDeployPayload(t *testing.T) types.DeployPayload {
@@ -81,30 +80,4 @@ func NewWalletSendCallData(t *testing.T,
 	require.NoError(t, err)
 
 	return NewCallDataT(t, NameWallet, "send", intMsgData)
-}
-
-func CounterPayableDeployPayload(t *testing.T) types.DeployPayload {
-	t.Helper()
-
-	code, err := GetCode(NameCounterPayable)
-	require.NoError(t, err)
-	return types.BuildDeployPayload(code, common.EmptyHash)
-}
-
-func CounterPayableAddress(t *testing.T, shardId types.ShardId) types.Address {
-	t.Helper()
-
-	return types.CreateAddress(shardId, CounterPayableDeployPayload(t))
-}
-
-func NewCounterPayableAddCallData(t *testing.T, value int32) []byte {
-	t.Helper()
-
-	return NewCallDataT(t, NameCounterPayable, "add", value)
-}
-
-func NewCounterPayableGetCallData(t *testing.T) []byte {
-	t.Helper()
-
-	return NewCallDataT(t, NameCounterPayable, "get")
 }
