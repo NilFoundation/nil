@@ -7,7 +7,6 @@ import (
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
-	libcommon "github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/spf13/cobra"
 )
@@ -91,7 +90,7 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 		return err
 	}
 
-	payload := types.BuildDeployPayload(bytecode, libcommon.Hash(params.salt.Bytes32()))
+	payload := types.BuildDeployPayload(bytecode, params.salt.Bytes32())
 
 	msgHash, contractAddr, err := service.DeployContractViaWallet(params.shardId, cfg.Address, payload, params.amount)
 	if err != nil {

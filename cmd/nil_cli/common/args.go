@@ -32,6 +32,60 @@ func PrepareArgs(abiPath string, args []string) ([]byte, error) {
 	return calldata, nil
 }
 
+func parseCallArgument(arg string, tp abi.Type) (any, error) {
+	refTp := tp.GetType()
+	val := reflect.New(refTp).Elem()
+	switch tp.T {
+	case abi.IntTy:
+		fallthrough
+	case abi.UintTy:
+		i, ok := new(big.Int).SetString(arg, 0)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse int argument: %s", arg)
+		}
+		if tp.Size > 64 {
+			val.Set(reflect.ValueOf(i))
+		} else {
+			if tp.T == abi.UintTy {
+				val.SetUint(i.Uint64())
+			} else {
+				val.SetInt(i.Int64())
+			}
+		}
+	case abi.StringTy:
+		val.SetString(arg)
+	case abi.BytesTy:
+		data, err := hexutil.DecodeHex(arg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse bytes argument: %w", err)
+		}
+		val.SetBytes(data)
+	case abi.BoolTy:
+		valBool, err := strconv.ParseBool(arg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse bool argument: %w", err)
+		}
+		val.SetBool(valBool)
+	case abi.AddressTy:
+		var address eth_common.Address
+		if err := address.UnmarshalText([]byte(arg)); err != nil {
+			return nil, fmt.Errorf("failed to parse address argument: %w", err)
+		}
+		val.Set(reflect.ValueOf(address))
+	case abi.SliceTy:
+		for _, arg := range strings.Split(arg, ",") {
+			elem, err := parseCallArgument(arg, *tp.Elem)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse slice argument: %w", err)
+			}
+			val.Set(reflect.Append(val, reflect.ValueOf(elem)))
+		}
+	default:
+		return nil, fmt.Errorf("unsupported argument type: %s", tp.String())
+	}
+	return val.Interface(), nil
+}
+
 func parseCallArguments(args []string, inputs abi.Arguments) ([]any, error) {
 	parsedArgs := make([]any, 0, len(args))
 	if len(args) != len(inputs) {
@@ -39,50 +93,11 @@ func parseCallArguments(args []string, inputs abi.Arguments) ([]any, error) {
 	}
 
 	for ind, arg := range args {
-		tp := inputs[ind].Type
-		refTp := tp.GetType()
-		val := reflect.New(refTp).Elem()
-		switch tp.T {
-		case abi.IntTy:
-			fallthrough
-		case abi.UintTy:
-			i, ok := new(big.Int).SetString(arg, 0)
-			if !ok {
-				return nil, fmt.Errorf("failed to parse int argument: %s", arg)
-			}
-			if tp.Size > 64 {
-				val.Set(reflect.ValueOf(i))
-			} else {
-				if tp.T == abi.UintTy {
-					val.SetUint(i.Uint64())
-				} else {
-					val.SetInt(i.Int64())
-				}
-			}
-		case abi.StringTy:
-			val.SetString(arg)
-		case abi.BytesTy:
-			data, err := hexutil.DecodeHex(arg)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse bytes argument: %w", err)
-			}
-			val.SetBytes(data)
-		case abi.BoolTy:
-			valBool, err := strconv.ParseBool(arg)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse bool argument: %w", err)
-			}
-			val.SetBool(valBool)
-		case abi.AddressTy:
-			var address eth_common.Address
-			if err := address.UnmarshalText([]byte(arg)); err != nil {
-				return nil, fmt.Errorf("failed to parse address argument: %w", err)
-			}
-			val.Set(reflect.ValueOf(address))
-		default:
-			return nil, fmt.Errorf("unsupported argument type: %s", tp.String())
+		val, err := parseCallArgument(arg, inputs[ind].Type)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse argument %d: %w", ind, err)
 		}
-		parsedArgs = append(parsedArgs, val.Interface())
+		parsedArgs = append(parsedArgs, val)
 	}
 	return parsedArgs, nil
 }
