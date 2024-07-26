@@ -594,10 +594,13 @@ func (c *Client) CurrencyMint(contractAddr types.Address, amount types.Value, wi
 	return c.SendExternalMessage(data, contractAddr, pk)
 }
 
-func callTyped[T any](c *Client, method string, params ...any) (T, error) {
+func callDbAPI[T any](c *Client, method string, params ...any) (T, error) {
 	var res T
 	raw, err := c.call(method, params...)
 	if err != nil {
+		if strings.Contains(err.Error(), jsonrpc.ErrApiKeyNotFound.Error()) {
+			return res, db.ErrKeyNotFound
+		}
 		return res, err
 	}
 
@@ -610,17 +613,17 @@ func (c *Client) DbInitTimestamp(ts uint64) error {
 }
 
 func (c *Client) DbGet(tableName db.TableName, key []byte) ([]byte, error) {
-	return callTyped[[]byte](c, Db_get, tableName, key)
+	return callDbAPI[[]byte](c, Db_get, tableName, key)
 }
 
 func (c *Client) DbGetFromShard(shardId types.ShardId, tableName db.ShardedTableName, key []byte) ([]byte, error) {
-	return callTyped[[]byte](c, Db_getFromShard, shardId, tableName, key)
+	return callDbAPI[[]byte](c, Db_getFromShard, shardId, tableName, key)
 }
 
 func (c *Client) DbExists(tableName db.TableName, key []byte) (bool, error) {
-	return callTyped[bool](c, Db_exists, tableName, key)
+	return callDbAPI[bool](c, Db_exists, tableName, key)
 }
 
 func (c *Client) DbExistsInShard(shardId types.ShardId, tableName db.ShardedTableName, key []byte) (bool, error) {
-	return callTyped[bool](c, Db_existsInShard, shardId, tableName, key)
+	return callDbAPI[bool](c, Db_existsInShard, shardId, tableName, key)
 }

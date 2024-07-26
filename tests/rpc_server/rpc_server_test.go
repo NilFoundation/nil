@@ -486,13 +486,15 @@ func (s *SuiteRpc) TestRpcMessageContent() {
 }
 
 func (s *SuiteRpc) TestDbApi() {
+	block, err := s.client.GetBlock(types.BaseShardId, transport.LatestBlockNumber, false)
+	s.Require().NoError(err)
+
+	s.Require().NoError(s.client.DbInitTimestamp(block.DbTimestamp))
+
 	hBytes, err := s.client.DbGet(db.LastBlockTable, types.BaseShardId.Bytes())
 	s.Require().NoError(err)
 
 	h := common.BytesToHash(hBytes)
-
-	block, err := s.client.GetBlock(types.BaseShardId, h, false)
-	s.Require().NoError(err)
 
 	s.Require().Equal(block.Hash, h)
 }

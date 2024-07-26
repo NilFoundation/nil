@@ -2,11 +2,14 @@ package jsonrpc
 
 import (
 	"context"
+	"errors"
 
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/rs/zerolog"
 )
+
+var ErrApiKeyNotFound = errors.New("key not found in db api")
 
 type DbAPI interface {
 	InitDbTimestamp(ctx context.Context, ts uint64) error
@@ -36,10 +39,9 @@ func NewDbAPI(db db.ReadOnlyDB, logger zerolog.Logger) *DbAPIImpl {
 
 func (dbApi *DbAPIImpl) createRoTx(ctx context.Context) (db.RoTx, error) {
 	if dbApi.ts == nil {
-		return dbApi.db.CreateRoTx(ctx)
-	} else {
-		return dbApi.db.CreateRoTxAt(ctx, db.Timestamp(*dbApi.ts))
+		return nil, errors.New("Timestamp is not initialized in DB API")
 	}
+	return dbApi.db.CreateRoTxAt(ctx, db.Timestamp(*dbApi.ts))
 }
 
 func (dbApi *DbAPIImpl) Exists(ctx context.Context, tableName db.TableName, key []byte) (bool, error) {
@@ -59,27 +61,19 @@ func (dbApi *DbAPIImpl) Get(ctx context.Context, tableName db.TableName, key []b
 	}
 	defer tx.Rollback()
 
-	return tx.Get(tableName, key)
+	res, err := tx.Get(tableName, key)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return res, ErrApiKeyNotFound
+	}
+	return res, err
 }
 
 func (dbApi *DbAPIImpl) ExistsInShard(ctx context.Context, shardId types.ShardId, tableName db.ShardedTableName, key []byte) (bool, error) {
-	tx, err := dbApi.createRoTx(ctx)
-	if err != nil {
-		return false, err
-	}
-	defer tx.Rollback()
-
-	return tx.ExistsInShard(shardId, tableName, key)
+	return dbApi.Exists(ctx, db.ShardTableName(tableName, shardId), key)
 }
 
 func (dbApi *DbAPIImpl) GetFromShard(ctx context.Context, shardId types.ShardId, tableName db.ShardedTableName, key []byte) ([]byte, error) {
-	tx, err := dbApi.createRoTx(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	return tx.GetFromShard(shardId, tableName, key)
+	return dbApi.Get(ctx, db.ShardTableName(tableName, shardId), key)
 }
 
 // InitDbTimestamp initializes the database timestamp.

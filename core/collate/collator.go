@@ -174,7 +174,21 @@ func (c *collator) handleMessagesFromNeighbors() error {
 		}
 		neighbor := &state.Neighbors[position]
 
+		var lastBlockNumber types.BlockNumber
+		lastBlock, err := db.ReadLastBlock(c.roTx, neighborId)
+		if !errors.Is(err, db.ErrKeyNotFound) {
+			if err != nil {
+				return err
+			}
+			lastBlockNumber = lastBlock.Id
+		}
+
 		for c.shouldContinue() {
+			// We will break the loop when lastBlockNumber is reached anyway,
+			// but in case of read-through mode, we will make unnecessary requests to the server if we don't check it here.
+			if lastBlockNumber < neighbor.BlockNumber {
+				break
+			}
 			block, err := db.ReadBlockByNumber(c.roTx, neighborId, neighbor.BlockNumber)
 			if errors.Is(err, db.ErrKeyNotFound) {
 				break

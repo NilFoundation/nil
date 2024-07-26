@@ -39,6 +39,8 @@ func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []
 	if err != nil {
 		return err
 	}
+	defer ethImpl.Shutdown()
+
 	debugImpl := jsonrpc.NewDebugAPI(base, db, logger)
 	dbImpl := jsonrpc.NewDbAPI(db, logger)
 
