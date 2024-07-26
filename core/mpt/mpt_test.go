@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -211,4 +212,34 @@ func TestTrieFromOldRoot(t *testing.T) {
 	trie.SetRootHash(rootHash)
 	require.Equal(t, []byte("verb"), getValue(t, trie, []byte("do")))
 	require.Equal(t, []byte("puppy"), getValue(t, trie, []byte("dog")))
+}
+
+func TestProof(t *testing.T) {
+	t.Parallel()
+
+	trie := CreateMerklePatriciaTrie(t)
+	keys := [][]byte{[]byte("do"), []byte("dog"), []byte("doge"), []byte("horse")}
+	values := [][]byte{[]byte("verb"), []byte("puppy"), []byte("coin"), []byte("stallion")}
+
+	for i := range len(keys) {
+		require.NoError(t, trie.Set(keys[i], values[i]))
+	}
+
+	// Check valid proofs
+	for i, k := range keys {
+		proof, err := trie.CreateProof(k)
+		require.NoError(t, err)
+		valFromProof, err := VerifyProof(proof, k)
+		require.NoError(t, err)
+		require.Equal(t, values[i], valFromProof)
+	}
+
+	// Check invalid proofs
+	for _, k := range keys {
+		proof, err := trie.CreateProof(k)
+		require.NoError(t, err)
+		valFromProof, err := VerifyProof(proof, []byte("wrong_key"))
+		require.ErrorIs(t, err, db.ErrKeyNotFound)
+		assert.Empty(t, valFromProof)
+	}
 }
