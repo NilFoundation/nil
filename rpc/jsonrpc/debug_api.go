@@ -6,8 +6,10 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
+	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/rs/zerolog"
@@ -16,6 +18,7 @@ import (
 type DebugAPI interface {
 	GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withMessages bool) (*HexedDebugRPCBlock, error)
 	GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (*HexedDebugRPCBlock, error)
+	GetContract(ctx context.Context, contractAddr types.Address, blockNrOrHash transport.BlockNumberOrHash) (*DebugRPCContract, error)
 }
 
 type DebugAPIImpl struct {
@@ -117,4 +120,62 @@ func (api *DebugAPIImpl) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash 
 		return nil, err
 	}
 	return EncodeBlockWithRawExtractedData(b)
+}
+
+func (api *DebugAPIImpl) GetContract(ctx context.Context, contractAddr types.Address, blockNrOrHash transport.BlockNumberOrHash) (*DebugRPCContract, error) {
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	shardId := contractAddr.ShardId()
+
+	blockHash, err := extractBlockHash(tx, shardId, blockNrOrHash)
+	if err != nil {
+		return nil, err
+	}
+
+	accessor := api.accessor.Access(tx, shardId).GetBlock()
+	data, err := accessor.ByHash(blockHash)
+	if err != nil {
+		return nil, err
+	}
+
+	if data.Block() == nil {
+		return nil, nil
+	}
+
+	contractReader := execution.NewDbContractTrieReader(tx, shardId)
+	contractReader.SetRootHash(data.Block().SmartContractsRoot)
+	contract, err := contractReader.Fetch(contractAddr.Hash())
+	if err != nil {
+		return nil, err
+	}
+
+	storageReader := execution.NewDbStorageTrieReader(tx, shardId)
+	storageReader.SetRootHash(contract.StorageRoot)
+	entries, err := storageReader.Entries()
+	if err != nil {
+		return nil, err
+	}
+
+	contractRawReader := mpt.NewDbReader(tx, shardId, db.ContractTrieTable)
+	contractRawReader.SetRootHash(data.Block().SmartContractsRoot)
+	proof, err := contractRawReader.CreateProof(contractAddr.Hash().Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	hexed := make([]string, len(proof))
+	for i, val := range proof {
+		// Mb make proof follow fastssz.Marshaler interface to use hexify func below?
+		valBytes, err := val.Encode()
+		if err != nil {
+			return nil, err
+		}
+		hexed[i] = hexutil.Encode(valBytes)
+	}
+
+	return &DebugRPCContract{Proof: hexed, Storage: entries}, nil
 }

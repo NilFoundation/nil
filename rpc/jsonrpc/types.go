@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/common/assert"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 )
 
@@ -328,4 +329,12 @@ func NewRPCReceipt(
 	}
 
 	return res
+}
+
+// @component DebugRPCContract debugRpcContract object "The debug contract whose structure is requested."
+// @componentprop Proof proof slice of strings, containing serialized nodes from MPT for proving
+// @componentprop Storage storage slice of key-value pairs of the data in storage
+type DebugRPCContract struct {
+	Proof   []string                                       `json:"proof"`
+	Storage []execution.Entry[common.Hash, *types.Uint256] `json:"storage"`
 }

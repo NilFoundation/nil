@@ -17,22 +17,35 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type SuiteEthAccounts struct {
+type SuiteAccountsBase struct {
 	suite.Suite
 	db        db.DB
-	api       *APIImpl
 	smcAddr   types.Address
 	blockHash common.Hash
 }
 
+type SuiteEthAccounts struct {
+	SuiteAccountsBase
+	api *APIImpl
+}
+
+func (suite *SuiteAccountsBase) SetupSuite() {
+	var err error
+	suite.db, err = db.NewBadgerDbInMemory()
+	suite.Require().NoError(err)
+}
+
+func (suite *SuiteAccountsBase) TearDownSuite() {
+	suite.db.Close()
+}
+
 func (suite *SuiteEthAccounts) SetupSuite() {
+	suite.SuiteAccountsBase.SetupSuite()
+
 	shardId := types.BaseShardId
 	ctx := context.Background()
 
 	var err error
-	suite.db, err = db.NewBadgerDbInMemory()
-	suite.Require().NoError(err)
-
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Require().NoError(err)
 	defer tx.Rollback()
@@ -69,7 +82,7 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 }
 
 func (suite *SuiteEthAccounts) TearDownSuite() {
-	suite.db.Close()
+	suite.SuiteAccountsBase.TearDownSuite()
 }
 
 func (suite *SuiteEthAccounts) TestGetBalance() {

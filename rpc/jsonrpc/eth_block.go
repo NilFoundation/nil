@@ -11,7 +11,7 @@ import (
 	"github.com/NilFoundation/nil/rpc/transport"
 )
 
-func (api *APIImpl) getBlockHashByNumber(
+func getBlockHashByNumber(
 	tx db.RoTx, shardId types.ShardId, number transport.BlockNumber,
 ) (common.Hash, error) {
 	var requestedBlockNumber types.BlockNumber
@@ -39,15 +39,15 @@ func (api *APIImpl) getBlockHashByNumber(
 	return db.ReadBlockHashByNumber(tx, shardId, requestedBlockNumber)
 }
 
-func (api *APIImpl) extractBlockHash(tx db.RoTx, shardId types.ShardId, numOrHash transport.BlockNumberOrHash) (common.Hash, error) {
+func extractBlockHash(tx db.RoTx, shardId types.ShardId, numOrHash transport.BlockNumberOrHash) (common.Hash, error) {
 	if numOrHash.BlockNumber != nil {
-		return api.getBlockHashByNumber(tx, shardId, *numOrHash.BlockNumber)
+		return getBlockHashByNumber(tx, shardId, *numOrHash.BlockNumber)
 	}
 	return *numOrHash.BlockHash, nil
 }
 
 func (api *APIImpl) fetchBlockByNumberOrHash(tx db.RoTx, shardId types.ShardId, numOrHash transport.BlockNumberOrHash) (*types.Block, error) {
-	hash, err := api.extractBlockHash(tx, shardId, numOrHash)
+	hash, err := extractBlockHash(tx, shardId, numOrHash)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (api *APIImpl) getBlockWithEntities(
 	}
 	defer tx.Rollback()
 
-	hash, err := api.extractBlockHash(tx, shardId, numOrHash)
+	hash, err := extractBlockHash(tx, shardId, numOrHash)
 	if err != nil {
 		return nil, err
 	}
