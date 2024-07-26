@@ -38,7 +38,7 @@ const (
 	SchemeVersionTable = TableName("SchemeVersion")
 )
 
-func shardTableName(tableName ShardedTableName, shardId types.ShardId) TableName {
+func ShardTableName(tableName ShardedTableName, shardId types.ShardId) TableName {
 	return TableName(fmt.Sprintf("%s:%s", tableName, shardId))
 }
 

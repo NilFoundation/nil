@@ -70,6 +70,7 @@ type FiltersManager struct {
 	blockSubs map[SubscriptionID]chan<- *types.Block
 	mutex     sync.RWMutex
 	lastHash  common.Hash
+	wg        sync.WaitGroup
 }
 
 func NewFiltersManager(ctx context.Context, db db.ReadOnlyDB, noPolling bool) *FiltersManager {
@@ -82,10 +83,15 @@ func NewFiltersManager(ctx context.Context, db db.ReadOnlyDB, noPolling bool) *F
 	}
 
 	if !noPolling {
+		f.wg.Add(1)
 		go f.PollBlocks(200 * time.Millisecond)
 	}
 
 	return f
+}
+
+func (f *FiltersManager) WaitForShutdown() {
+	f.wg.Wait()
 }
 
 func (f *Filter) LogsChannel() <-chan *MetaLog {
@@ -147,6 +153,7 @@ func (m *FiltersManager) RemoveBlocksListener(id SubscriptionID) bool {
 // PollBlocks polls the blockchain for new committed blocks, if found - parse it's receipts and send logs to the matched
 // filters. TODO: Remove polling, probably blockhain should raise events about new blocks by itself.
 func (m *FiltersManager) PollBlocks(delay time.Duration) {
+	defer m.wg.Done()
 	for {
 		select {
 		case <-m.ctx.Done():

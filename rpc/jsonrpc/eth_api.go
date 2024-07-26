@@ -325,14 +325,15 @@ func NewEthAPI(ctx context.Context, base *BaseAPI, db db.ReadOnlyDB, pools []msg
 	if err != nil {
 		return nil, err
 	}
-	return &APIImpl{
+	api := &APIImpl{
 		BaseAPI:  base,
 		db:       db,
 		msgPools: pools,
-		logs:     NewLogsAggregator(ctx, db),
 		logger:   logger,
 		accessor: accessor,
-	}, nil
+	}
+	api.logs = NewLogsAggregator(ctx, db)
+	return api, nil
 }
 
 func (api *APIImpl) checkShard(shardId types.ShardId) error {
@@ -340,4 +341,8 @@ func (api *APIImpl) checkShard(shardId types.ShardId) error {
 		return fmt.Errorf("shard %v doesn't exist", shardId)
 	}
 	return nil
+}
+
+func (api *APIImpl) Shutdown() {
+	api.logs.WaitForShutdown()
 }

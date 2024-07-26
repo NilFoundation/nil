@@ -199,7 +199,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	///////////////////////////////////////////////////////////////////////////
 	// Send from Wallet1 to Wallet2
 	receipt = s.sendMessageViaWalletNoCheck(s.walletAddress1, s.walletAddress2, execution.MainPrivateKey, nil,
-		100_000, types.NewValueFromUint64(2_000_000),
+		s.gasToValue(100_000), types.NewValueFromUint64(2_000_000),
 		[]types.CurrencyBalance{{Currency: *currency1.id, Balance: types.NewValueFromUint64(40)}})
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
@@ -268,7 +268,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	// Send 1-st and 2-nd currencies Wallet2 to Wallet3 (same shard)
 	s.Require().Equal(s.walletAddress2.ShardId(), s.walletAddress3.ShardId())
 	receipt = s.sendMessageViaWalletNoCheck(s.walletAddress2, s.walletAddress3, execution.MainPrivateKey, nil,
-		1_000_000, types.NewValueFromUint64(2_000_000),
+		s.gasToValue(1_000_000), types.NewValueFromUint64(2_000_000),
 		[]types.CurrencyBalance{
 			{Currency: *currency1.id, Balance: types.NewValueFromUint64(10)},
 			{Currency: *currency2.id, Balance: types.NewValueFromUint64(500)},
@@ -301,7 +301,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	///////////////////////////////////////////////////////////////////////////
 	// Send insufficient amount of 1-nd currency - should fail
 	receipt = s.sendMessageViaWalletNoCheck(s.walletAddress2, s.walletAddress3, execution.MainPrivateKey, nil,
-		1_000_000, types.NewValueFromUint64(2_000_000),
+		s.gasToValue(1_000_000), types.NewValueFromUint64(2_000_000),
 		[]types.CurrencyBalance{{Currency: *currency1.id, Balance: types.NewValueFromUint64(700)}})
 	s.Require().False(receipt.Success)
 
@@ -527,7 +527,7 @@ func (s *SuiteMultiCurrencyRpc) TestBounce() {
 	s.Require().NoError(err)
 
 	receipt = s.sendMessageViaWalletNoCheck(s.walletAddress1, s.testAddress1_0, execution.MainPrivateKey, data,
-		100_000, types.NewValueFromUint64(2_000_000),
+		s.gasToValue(100_000), types.NewValueFromUint64(2_000_000),
 		[]types.CurrencyBalance{{Currency: *currencyWallet1.id, Balance: types.NewValueFromUint64(100)}})
 	s.Require().True(receipt.Success)
 	s.Require().Len(receipt.OutReceipts, 1)

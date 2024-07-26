@@ -15,9 +15,10 @@ import (
 
 type SuiteFilters struct {
 	suite.Suite
-	ctx    context.Context
-	cancel context.CancelFunc
-	db     db.DB
+	ctx     context.Context
+	cancel  context.CancelFunc
+	db      db.DB
+	filters *FiltersManager
 }
 
 func (s *SuiteFilters) SetupTest() {
@@ -29,12 +30,14 @@ func (s *SuiteFilters) SetupTest() {
 
 func (s *SuiteFilters) TearDownTest() {
 	s.cancel()
+	s.filters.WaitForShutdown()
 	s.db.Close()
 }
 
 func (s *SuiteFilters) TestMatcherOneReceipt() {
 	filters := NewFiltersManager(s.ctx, s.db, false)
 	s.NotNil(filters)
+	s.filters = filters
 
 	block := types.Block{Id: 1}
 
@@ -97,6 +100,7 @@ func (s *SuiteFilters) TestMatcherOneReceipt() {
 func (s *SuiteFilters) TestMatcherTwoReceipts() {
 	filters := NewFiltersManager(s.ctx, s.db, false)
 	s.NotNil(filters)
+	s.filters = filters
 
 	block := types.Block{Id: 1}
 
@@ -252,6 +256,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 
 	filters := NewFiltersManager(s.ctx, s.db, true)
 	s.NotNil(filters)
+	s.filters = filters
 	address := types.HexToAddress("0x1111111111")
 	defaultGasPrice := types.NewValueFromUint64(10)
 

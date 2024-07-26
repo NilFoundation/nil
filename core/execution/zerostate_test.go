@@ -71,13 +71,12 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 	calldata, err := suite.faucetABI.Pack("withdrawTo", receiverAddr, big.NewInt(100))
 	suite.Require().NoError(err)
 
-	gasLimit := types.Gas(100_000)
-	gasPrice := types.NewValueFromUint64(10)
+	gasLimit := types.Gas(100_000).ToValue(types.DefaultGasPrice)
 	callMessage := &types.Message{
-		Data:     calldata,
-		From:     suite.faucetAddr,
-		To:       suite.faucetAddr,
-		GasLimit: gasLimit,
+		Data:      calldata,
+		From:      suite.faucetAddr,
+		To:        suite.faucetAddr,
+		FeeCredit: gasLimit,
 	}
 	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, callMessage)
 	suite.Require().NoError(err)
@@ -86,8 +85,7 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 	suite.Require().True(ok)
 	outMsg := suite.state.OutMessages[outMsgHash][0]
 	suite.Require().NotNil(outMsg)
-	// buy gas
-	outMsg.Value = outMsg.Value.Sub(gasLimit.ToValue(gasPrice))
+
 	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, outMsg)
 	suite.Require().NoError(err)
 
@@ -105,7 +103,7 @@ func TestZerostateFromConfig(t *testing.T) {
 	tx, err := database.CreateRwTx(context.Background())
 	require.NoError(t, err)
 	defer tx.Rollback()
-	state, err := NewExecutionState(tx, types.MainShardId, common.EmptyHash, common.NewTestTimer(0))
+	state, err := NewExecutionState(tx, types.MainShardId, common.EmptyHash, common.NewTestTimer(0), 1)
 	require.NoError(t, err)
 
 	walletAddr := types.ShardAndHexToAddress(types.MainShardId, "0x111111111111111111111111111111111111")
@@ -143,7 +141,7 @@ contracts:
 contracts:
 - name: Faucet
 `
-	state, err = NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0))
+	state, err = NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0), 1)
 	require.NoError(t, err)
 	err = state.GenerateZeroState(configYaml2)
 	require.Error(t, err)
@@ -161,7 +159,7 @@ contracts:
   contract: Wallet
   ctorArgs: [MainPublicKey]
 `, walletAddr.Hex())
-	state, err = NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0))
+	state, err = NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0), 1)
 	require.NoError(t, err)
 	err = state.GenerateZeroState(configYaml3)
 	require.NoError(t, err)
@@ -175,6 +173,8 @@ contracts:
 	require.NoError(t, err)
 	require.Nil(t, wallet)
 }
+
+// TODO: TEST FOR CONFIG PARAMS
 
 func TestSuiteZeroState(t *testing.T) {
 	t.Parallel()

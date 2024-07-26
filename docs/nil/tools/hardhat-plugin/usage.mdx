@@ -1,0 +1,42 @@
+# Hardhat plugin usage
+
+=nil; provides an example repository containing a Hardhat project that is already configured to support all essential cluster features.
+
+To install the project:
+
+```bash
+git clone git@github.com:NilFoundation/nil-hardhat-example.git
+cd nil-hardhat-example
+```
+
+Install the project dependencies:
+
+```bash
+npm install
+```
+
+When inside the project, create an `.env` file and add the following information inside it:
+
+```
+NIL_RPC_ENDPOINT=NIL_ENDPOINT
+WALLET_ADDR=WALLET_ADDR
+PRIVATE_KEY=PRIVATE_KEY
+```
+
+:::tip
+
+[**Read this tutorial**](../../getting-started/nil-101) to learn how to create a wallet.
+
+:::
+
+The plugin contains an example smart contract that can be deployed immediately:
+
+```bash
+npx hardhat ignition deploy ./ignition/modules/Incrementer.ts --network nil
+```
+
+After deployment, interact with the contract:
+
+```bash
+npx hardhat increment --network nil --contract CONTRACT_ADDRESS
+```

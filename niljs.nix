@@ -5,9 +5,9 @@ stdenv.mkDerivation rec {
   src = fetchFromGitHub {
     owner = "NilFoundation";
     repo = "nil.js";
-    rev = "v0.7.0";
+    rev = "v0.11.0";
     sha256 =
-      "sha256-32tgcp+Y+0Vaq1o6mxDvTbiQJ3QX4Jhr4FjOXx4BRmU="; # replace with the actual sha256
+      "sha256-ED0Yt1dYuj1cTmezgq1lnCklTnnypKdIu0ZoXTskES8="; # replace with the actual sha256
   };
 
   buildInputs = [ bun ];
@@ -37,5 +37,7 @@ stdenv.mkDerivation rec {
   installPhase = ''
     mkdir -p $out
     touch $out/dummy
+    mkdir -p $out/src
+    cp -r $src/* $out/src
   '';
 }

@@ -1,0 +1,395 @@
+import Tabs from '@theme/Tabs'
+import TabItem from '@theme/TabItem'
+
+# Deploying a contract
+
+This guide lists all possible methods for deploying the [**tutorial contracts**](./writing-a-contract).
+
+## Prerequisites
+
+Complete the following tutorials before proceeding.
+
+* [**Writing a contract**](./writing-a-contract)
+
+## Internal deployment
+
+An internal deployment of a contract is made by another smart contract (as all wallets are smart contracts, this also applies to wallets).
+
+Internal messages pay for themselves by spending their `value`. As a result, there is no need to send funds to a particular address before deploying a contract there. This allows for handling deployment in just one message.
+
+:::info
+
+The contract constructor has to be set as `payable` to support internal deployment via some developer tools (such as the =nil; CLI), 
+
+:::
+
+### Via the =nil; CLI
+
+To deploy Contract 1 via the =nil; CLI:
+
+```bash
+nil_cli wallet deploy ./Retailer/Retailer.bin --abi ./Retailer/Retailer.abi
+```
+
+Take note of the address for Contract 1. To retrieve the wallet public key:
+
+```bash
+nil_cli wallet info
+```
+
+To deploy Contract 2 with the given public key and the address of the retailer contract:
+
+```bash
+nil_cli wallet deploy ./Manufacturer/Manufacturer.bin PUBKEY ADDRESS --abi ./Manufacturer/Manufacturer.abi --shard-id 2
+```
+
+This will make sure that `Manufacturer` and `Retailer` are on different shards.
+
+### Via the client library
+
+:::tip
+
+When submitting contract bytecode as a string to a deployment message, preface it with "0x".
+
+The contract ABI can be copy-pasted from the `./abi` file and then cast into the `Abi` type.
+
+:::
+
+To deploy the retailer contract:
+
+```ts showLineNumbers
+import { bytesToHex, type Abi } from "viem";
+import {
+  Faucet,
+  LocalECDSAKeySigner,
+  HttpTransport,
+  PublicClient,
+  generateRandomPrivateKey,
+  WalletV1,
+  waitTillCompleted,
+} from "@nilfoundation/niljs";
+
+const client = new PublicClient({
+  transport: new HttpTransport({
+    endpoint: "{NIL_ENDPOINT}",
+  }),
+  shardId: 1,
+});
+const faucet = new Faucet(client);
+
+const signer = new LocalECDSAKeySigner({
+  privateKey: generateRandomPrivateKey(),
+});
+
+const pubkey = await signer.getPublicKey();
+
+const wallet = new WalletV1({
+  pubkey: pubkey,
+  salt: BigInt(Math.floor(Math.random() * 10000)),
+  shardId: 1,
+  client,
+  signer,
+});
+const walletAddress = await wallet.getAddressHex();
+
+console.log("walletAddress", walletAddress);
+
+const faucetHash = await faucet.withdrawToWithRetry(walletAddress, 9_000_000n);
+
+await waitTillCompleted(client, 1, faucetHash);
+await wallet.selfDeploy(true);
+
+const { address: addressR, hash: hashR } = await wallet.deployContract({
+  bytecode: RETAILER_BYTECODE,
+  value: 1000000n,
+  gas: 100000n,
+  salt: BigInt(Math.floor(Math.random() * 10000)),
+  shardId: 1,
+  abi: RETAILER_ABI as Abi,
+  args: [],
+});
+
+await waitTillCompleted(client, 1, hashR);
+
+console.log(`Retailer address: ${addressR}`);
+```
+
+To deploy the manufacturer contract:
+
+```ts showLineNumbers
+const { address: addressM, hash: hashM } = await wallet.deployContract({
+  bytecode: MANUFACTURER_BYTECODE,
+  value: 1000000n,
+  gas: 100000n,
+  salt: BigInt(Math.floor(Math.random() * 10000)),
+  shardId: 2,
+  abi: MANUFACTURER_ABI as Abi,
+  args: [bytesToHex(PUBKEY), RETAILER_ADDRESS],
+});
+
+await waitTillCompleted(client, 1, hashM);
+
+console.log(`Manufcaturer address: ${addressM}`);
+```
+
+## External deployment
+
+An external deployment of a contract is made by a user or another entity outside of the cluster. 
+
+As is the case with all external messages, an external deployment must be paid by the contract at the address to which the call is maid. However, before deployment, this address is unoccupied. To proceed with external deployment, an entity must first send funds to the address where the contract will reside.
+
+:::info
+
+A new address is always calculated based on the bytecode of the contract constructor to deploy a contract. As a result, only the contract with a specific constructor can occupy its allocated address. This makes it so that funds sent to an address can only be used by the contract intended for this address.
+
+:::
+
+### Via the =nil; CLI
+
+First, calulate the address of the retailer contract and send funds to this address:
+
+```bash
+nil_cli contract address ./Retailer/Retailer.bin --salt SALT --shard-id 1
+nil_cli wallet send-tokens RETAILER_ADDRESS AMOUNT
+```
+
+Then, deploy the retailer contract while providing the same `SALT`:
+
+```bash
+nil_cli contract deploy ./Retailer/Retailer.bin --salt SALT --shard-id 1
+```
+
+Retrieve the public key assigned to the wallet:
+
+```bash
+nil_cli wallet info
+```
+
+Calculate the address of the manufacturer contract and send funds to it:
+
+```bash
+nil_cli contract address ./Manufacturer/Manufacturer.bin PUBKEY RETAILER_ADDRESS --salt SALT --shard-id 2 --abi ./Manufacturer/Manufacturer.abi
+nil_cli wallet send-tokens MANUFACTURER_ADDRESS AMOUNT
+```
+
+Deploy the manufacturer contract:
+
+```bash
+nil_cli contract deploy ./Manufacturer/Manufacturer.bin PUBKEY RETAILER_ADDRESS --salt SALT --shard-id 2 --abi ./Manufacturer/Manufacturer.abi
+```
+
+### Via the client library
+
+:::tip
+
+When submitting contract bytecode as a string to a deployment message, preface it with "0x".
+
+The contract ABI can be copy-pasted from the `./abi` file and then cast into the `Abi` type.
+
+:::
+
+To deploy the retailer contract:
+
+```typescript showLineNumbers
+
+import { bytesToHex } from "viem";
+import {
+  Faucet,
+  HttpTransport,
+  LocalECDSAKeySigner,
+  PublicClient,
+  externalDeploymentMessage,
+  generateRandomPrivateKey,
+  waitTillCompleted,
+} from "@nilfoundation/niljs";
+import type { Abi } from "abitype";
+
+const client = new PublicClient({
+  transport: new HttpTransport({
+    endpoint: "{NIL_ENDPOINT}",
+  }),
+  shardId: 1,
+});
+
+const signer = new LocalECDSAKeySigner({
+  privateKey: generateRandomPrivateKey(),
+});
+
+const pubkey = await signer.getPublicKey();
+
+const faucet = new Faucet(client);
+
+const chainId = await client.chainId();
+
+const deploymentMessageRetailer = externalDeploymentMessage(
+  {
+    salt: BigInt(Math.floor(Math.random() * 10000)),
+    shard: 1,
+    bytecode: RETAILER_BYTECODEE,
+  },
+  chainId,
+);
+const addrR = bytesToHex(deploymentMessageRetailer.to);
+console.log("Retailer address: ", addrR);
+
+const faucetHash = await faucet.withdrawToWithRetry(addrR, convertEthToWei(1));
+const receipts = await waitTillCompleted(client, 1, faucetHash);
+
+const hash = await deploymentMessageRetailer.send(client);
+
+await waitTillCompleted(client, 1, hash);
+
+console.log("Retailer deployed successfully");
+```
+
+To deploy the manufacturer contract:
+
+```ts showLineNumbers
+const deploymentMessageManufacturer = externalDeploymentMessage(
+  {
+    salt: BigInt(Math.floor(Math.random() * 10000)),
+    shard: 2,
+    bytecode: MANUFACTURER_BYTECODE,
+    abi: MANUFACTURER_ABI as Abi,
+    args: [bytesToHex(PUBKEY), RETAILER_ADDRESS],
+  },
+  chainId,
+);
+
+const addrM = bytesToHex(deploymentMessageManufacturer.to);
+console.log("Manufacturer address: ", addrM);
+
+const faucetHashM = await faucet.withdrawToWithRetry(addrM, convertEthToWei(1));
+const receiptsM = await waitTillCompleted(client, 1, faucetHashM);
+
+console.log(receiptsM);
+
+const hashM = await deploymentMessageManufacturer.send(client);
+
+await waitTillCompleted(client, 2, hashM);
+
+console.log("Manufacturer deployed successfully");
+```
+
+## Hardhat deployment
+
+:::info[Deployment type]
+
+The =nil; Hardhat plugin only supports internal deployment.
+
+:::
+
+After [**learning how to use the =nil; Hardhat plugin**](../../tools/hardhat-plugin/usage), create two module files for the tutorial contracts. 
+
+Retailer:
+
+```typescript showLineNumbers
+import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
+
+module.exports = buildModule("Retailer", (m: any) => {
+    const retailer = m.contract("Retailer");
+
+    return { retailer };
+});
+```
+
+Manufacturer:
+
+```typescript showLineNumbers
+import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
+
+module.exports = buildModule("Manufacturer", (m: any) => {
+
+    const pubkey = "{PUBKEY}";
+    const retailerContractAddress = "{RETAILER_ADDRESS}";
+
+    const manufacturer = m.contract("Manufacturer", [pubkey, retailerContractAddress]);
+
+    return { manufacturer };
+});
+```
+
+:::tip
+
+`PUBKEY` can be accessed by running the `nil_cli wallet info` command.
+
+:::
+
+Before deploying the retailer contract, open `hardhat.config.ts` and add this parameter to `NilHardhatUserConfig`:
+
+```json
+shardId: 1
+```
+
+Deploy the retailer:
+
+```bash
+npx hardhat ignition deploy ./ignition/modules/Retailer.ts --network nil
+```
+
+To deploy the manufacturer on a different shard, go back to `hardhat.config.ts` and change `NilHardhatUserConfig`:
+
+```json
+shardId: 2
+```
+
+Deploy the manufacturer:
+
+```bash
+npx hardhat ignition deploy ./ignition/modules/Manufacturer.ts --network nil
+```
+
+After the manufacturer is deployed, set `shardId` to `1` in `hardhat.config.ts`.
+
+## Opcode deployment
+
+It is also possible to deploy contracts without having to send an external or an internal message: this is done by directly using the `CREATE` and `CREATE2` opcodes.
+
+To use `CREATE` in Solidity:
+
+```solidity showLineNumbers
+import "./Nil.sol";
+
+using Nil for address;
+
+contract Manufacturer {
+    ...
+}
+
+contract Creator {
+    
+    function deployContract() private returns (address deployedAddress) {
+        bytes memory code = abi.encodePacked(type(NewContract).creationCode, abi.encode(msg.sender));
+
+        assembly {
+            deployedAddress := create(callvalue(), add(code), mload(code))
+        }
+
+        return deployedAddress;
+    }
+}
+```
+
+To use CREATE2 in Solidity:
+
+```solidity showLineNumbers
+import "./Nil.sol";
+
+using Nil for address;
+
+contract Manufacturer {
+    ...
+}
+
+contract Creator {
+    function deployContract(uint salt) private returns (address deployedAddress) {
+        bytes memory code = type(NewContract).creationCode;
+
+        assembly {
+            deployedAddress := create2(callvalue(), add(code, 0x20), mload(code), salt);
+        }
+
+        return deployedAddress;
+    }
+}
+```

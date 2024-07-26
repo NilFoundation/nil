@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"sort"
 	"time"
@@ -53,6 +54,8 @@ type ExecutionState struct {
 	MainChainHash    common.Hash
 	ShardId          types.ShardId
 	ChildChainBlocks map[types.ShardId]common.Hash
+	// Current gas price.
+	GasPrice types.Value
 
 	InMessageHash common.Hash
 	Logs          map[common.Hash][]*types.Log
@@ -86,6 +89,8 @@ type ExecutionState struct {
 
 	// Pointer to currently executed VM
 	evm *vm.EVM
+
+	gasPriceScale float64
 }
 
 type revision struct {
@@ -162,18 +167,32 @@ func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
 	}, nil
 }
 
-func NewROExecutionState(tx db.RoTx, shardId types.ShardId, blockHash common.Hash, timer common.Timer) (*ExecutionState, error) {
-	return NewExecutionState(&db.RwWrapper{RoTx: tx}, shardId, blockHash, timer)
+func NewROExecutionState(tx db.RoTx, shardId types.ShardId, blockHash common.Hash, timer common.Timer, gasPriceScale float64) (*ExecutionState, error) {
+	return NewExecutionState(&db.RwWrapper{RoTx: tx}, shardId, blockHash, timer, gasPriceScale)
 }
 
-func NewROExecutionStateForShard(tx db.RoTx, shardId types.ShardId, timer common.Timer) (*ExecutionState, error) {
-	return NewExecutionStateForShard(&db.RwWrapper{RoTx: tx}, shardId, timer)
+func NewROExecutionStateForShard(tx db.RoTx, shardId types.ShardId, timer common.Timer, gasPriceScale float64) (*ExecutionState, error) {
+	return NewExecutionStateForShard(&db.RwWrapper{RoTx: tx}, shardId, timer, gasPriceScale)
 }
 
-func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash, timer common.Timer) (*ExecutionState, error) {
+func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash, timer common.Timer, gasPriceScale float64) (*ExecutionState, error) {
 	accessor, err := NewStateAccessor()
 	if err != nil {
 		return nil, err
+	}
+	var gasPrice types.Value
+	if blockHash != common.EmptyHash {
+		block, err := accessor.Access(tx, shardId).GetBlock().ByHash(blockHash)
+		if err != nil {
+			return nil, err
+		}
+		gasPrice = block.Block().GasPrice
+	} else {
+		gasPrice = types.DefaultGasPrice
+	}
+
+	if gasPrice.IsZero() {
+		return nil, errors.New("gas price is zero")
 	}
 
 	res := &ExecutionState{
@@ -187,11 +206,14 @@ func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash,
 		OutMessages:      map[common.Hash][]*types.Message{},
 		Logs:             map[common.Hash][]*types.Log{},
 		Errors:           map[common.Hash]error{},
+		GasPrice:         gasPrice,
 
 		journal:          newJournal(),
 		transientStorage: newTransientStorage(),
 
 		Accessor: accessor,
+
+		gasPriceScale: gasPriceScale,
 	}
 	return res, res.initTries()
 }
@@ -214,12 +236,12 @@ func (es *ExecutionState) initTries() error {
 	return nil
 }
 
-func NewExecutionStateForShard(tx db.RwTx, shardId types.ShardId, timer common.Timer) (*ExecutionState, error) {
+func NewExecutionStateForShard(tx db.RwTx, shardId types.ShardId, timer common.Timer, gasPriceScale float64) (*ExecutionState, error) {
 	hash, err := db.ReadLastBlockHash(tx, shardId)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, fmt.Errorf("failed getting last block: %w", err)
 	}
-	return NewExecutionState(tx, shardId, hash, timer)
+	return NewExecutionState(tx, shardId, hash, timer, gasPriceScale)
 }
 
 func (es *ExecutionState) GetReceipt(msgIndex types.MessageIndex) (*types.Receipt, error) {
@@ -295,8 +317,7 @@ func (es *ExecutionState) AddBalance(addr types.Address, amount types.Value, rea
 	if err != nil || stateObject == nil {
 		return err
 	}
-	stateObject.AddBalance(amount, reason)
-	return nil
+	return stateObject.AddBalance(amount, reason)
 }
 
 // SubBalance subtracts amount from the account associated with addr.
@@ -305,8 +326,7 @@ func (es *ExecutionState) SubBalance(addr types.Address, amount types.Value, rea
 	if err != nil || stateObject == nil {
 		return err
 	}
-	stateObject.SubBalance(amount, reason)
-	return nil
+	return stateObject.SubBalance(amount, reason)
 }
 
 func (es *ExecutionState) AddLog(log *types.Log) {
@@ -738,38 +758,90 @@ func (es *ExecutionState) AddOutInternal(caller types.Address, payload *types.In
 	return es.AddOutMessage(msg)
 }
 
-var BounceGasLimit types.Gas = 100_000
-
-func (es *ExecutionState) sendBounceMessage(msg *types.Message, bounceErr string) error {
+func (es *ExecutionState) sendBounceMessage(msg *types.Message, bounceErr string, leftOverGas types.Gas) (bool, error) {
 	if msg.Value.IsZero() && len(msg.Currency) == 0 {
-		return nil
+		return false, nil
 	}
 	if msg.BounceTo == types.EmptyAddress {
 		logger.Debug().Stringer(logging.FieldMessageHash, msg.Hash()).Msg("Bounce message not sent, no bounce address")
-		return nil
+		return false, nil
 	}
 
 	data, err := contracts.NewCallData(contracts.NameNilBounceable, "bounce", bounceErr)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	bounceMsg := &types.InternalMessagePayload{
-		Bounce:   true,
-		To:       msg.BounceTo,
-		Value:    msg.Value,
-		Currency: msg.Currency,
-		Data:     data,
-		GasLimit: BounceGasLimit,
+		Bounce:    true,
+		To:        msg.BounceTo,
+		RefundTo:  msg.RefundTo,
+		Value:     msg.Value,
+		Currency:  msg.Currency,
+		Data:      data,
+		FeeCredit: leftOverGas.ToValue(es.GasPrice),
 	}
 	if err = es.AddOutInternal(msg.To, bounceMsg); err != nil {
-		return err
+		return false, err
 	}
 	logger.Debug().Stringer(logging.FieldMessageFrom, msg.To).Stringer(logging.FieldMessageTo, msg.BounceTo).Msg("Bounce message sent")
-	return nil
+	return true, nil
 }
 
-func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.Message) (types.Gas, error) {
+func (es *ExecutionState) handleMessage(ctx context.Context, msg *types.Message, payer payer) (types.Gas, error) {
+	gas := msg.FeeCredit.ToGas(es.GasPrice)
+	if err := buyGas(payer, msg); err != nil {
+		return 0, types.NewMessageError(types.MessageStatusBuyGas, err)
+	}
+	if err := msg.VerifyFlags(); err != nil {
+		return 0, types.NewMessageError(types.MessageStatusValidation, err)
+	}
+
+	var leftOverGas types.Gas
+	var err error
+	var ret []byte
+	switch {
+	case msg.IsRefund():
+		return 0, es.HandleRefundMessage(ctx, msg)
+	case msg.IsDeploy():
+		leftOverGas, ret, err = es.HandleDeployMessage(ctx, msg)
+	default:
+		leftOverGas, ret, err = es.HandleExecutionMessage(ctx, msg)
+	}
+	bounced := false
+	if err != nil {
+		revString := decodeRevertMessage(ret)
+		if revString != "" {
+			err = fmt.Errorf("%w: %s", err, revString)
+		}
+		if msg.IsBounce() {
+			logger.Error().Err(err).Msg("VM returns error during bounce message processing")
+		} else {
+			logger.Error().Err(err).Msg("execution msg failed")
+			var bounceErr error
+			if msg.IsInternal() {
+				if bounced, bounceErr = es.sendBounceMessage(msg, err.Error(), leftOverGas); bounceErr != nil {
+					logger.Error().Err(bounceErr).Msg("Failed to send a bounce message")
+					return 0, bounceErr
+				}
+			}
+		}
+	}
+	// Gas is already refunded with the bounce message
+	if !bounced {
+		if msg.RefundTo == msg.To {
+			acc, err := es.GetAccount(msg.To)
+			check.PanicIfErr(err)
+			check.PanicIfErr(acc.AddBalance(leftOverGas.ToValue(es.GasPrice), tracing.BalanceIncreaseRefund))
+		} else {
+			refundGas(payer, msg, leftOverGas, es.GasPrice)
+		}
+	}
+
+	return gas.Sub(leftOverGas), err
+}
+
+func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.Message) (types.Gas, []byte, error) {
 	addr := message.To
 	deployMsg := types.ParseDeployPayload(message.Data)
 
@@ -778,10 +850,10 @@ func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.
 		Stringer(logging.FieldShardId, es.ShardId).
 		Msg("Handling deploy message...")
 
-	gas := message.GasLimit
+	gas := message.FeeCredit.ToGas(es.GasPrice)
 
 	if err := es.newVm(message.IsInternal(), message.From); err != nil {
-		return gas, types.NewMessageError(types.MessageStatusOther, err)
+		return gas, nil, types.NewMessageError(types.MessageStatusOther, err)
 	}
 	defer es.resetVm()
 
@@ -789,30 +861,22 @@ func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.
 	leftOverGas := types.Gas(leftOver)
 	event := logger.Debug().Stringer(logging.FieldMessageTo, addr)
 	if err != nil {
-		revString := decodeRevertMessage(ret)
-		if revString != "" {
-			err = fmt.Errorf("%w: %s", err, revString)
-		}
 		event.Err(err).Msg("Contract deployment failed.")
-		if message.IsInternal() {
-			if bounceErr := es.sendBounceMessage(message, err.Error()); bounceErr != nil {
-				return leftOverGas, types.NewMessageError(types.MessageStatusBounce, err)
-			}
-		}
 	} else {
 		event.Msg("Created new contract.")
 	}
 
-	return leftOverGas, es.evmToMessageError(err)
+	return leftOverGas, ret, es.evmToMessageError(err)
 }
 
 func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *types.Message) (types.Gas, []byte, error) {
+	check.PanicIfNot(message.IsExecution())
 	addr := message.To
 	logger.Debug().
 		Stringer(logging.FieldMessageTo, addr).
 		Msg("Handling execution message...")
 
-	gas := message.GasLimit
+	gas := message.FeeCredit.ToGas(es.GasPrice)
 
 	if err := es.newVm(message.IsInternal(), message.From); err != nil {
 		return gas, nil, types.NewMessageError(types.MessageStatusOther, err)
@@ -836,22 +900,6 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	es.evm.SetCurrencyTransfer(message.Currency)
 	ret, leftOver, err := es.evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas.Uint64(), message.Value.Int())
 	leftOverGas := types.Gas(leftOver)
-	if err != nil {
-		revString := decodeRevertMessage(ret)
-		if revString != "" {
-			err = fmt.Errorf("%w: %s", err, revString)
-		}
-		if message.IsBounce() {
-			logger.Warn().Err(err).Msg("VM returns error during bounce message processing")
-		} else {
-			logger.Error().Err(err).Msg("execution message failed")
-			if message.IsInternal() {
-				if bounceErr := es.sendBounceMessage(message, err.Error()); bounceErr != nil {
-					return leftOverGas, ret, types.NewMessageError(types.MessageStatusBounce, err)
-				}
-			}
-		}
-	}
 
 	return leftOverGas, ret, es.evmToMessageError(err)
 }
@@ -994,6 +1042,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		ReceiptsRoot:        es.ReceiptTree.RootHash(),
 		ChildBlocksRootHash: treeShardsRootHash,
 		MainChainHash:       es.MainChainHash,
+		GasPrice:            es.GasPrice,
 		// TODO(@klonD90): remove this field after changing explorer
 		Timestamp: 0,
 	}
@@ -1044,28 +1093,28 @@ func (es *ExecutionState) RoTx() db.RoTx {
 	return es.tx
 }
 
-func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *AccountState, gasPrice types.Value) (bool, error) {
+func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *AccountState) (types.Gas, error) {
 	methodSignature := "verifyExternal(uint256,bytes)"
 	methodSelector := crypto.Keccak256([]byte(methodSignature))[:4]
 	argSpec := vm.VerifySignatureArgs()[1:] // skip first arg (pubkey)
 	hash, err := message.SigningHash()
 	if err != nil {
-		return false, err
+		return 0, err
 	}
 	argData, err := argSpec.Pack(hash.Big(), ([]byte)(message.Signature))
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to pack arguments")
-		return false, err
+		return 0, err
 	}
 	calldata := append(methodSelector, argData...) //nolint:gocritic
 
 	if err := es.newVm(message.IsInternal(), message.From); err != nil {
-		return false, err
+		return 0, err
 	}
 	defer es.resetVm()
 
 	gasCreditLimit := ExternalMessageVerificationMaxGas
-	gasAvailable := account.Balance.ToGas(gasPrice)
+	gasAvailable := account.Balance.ToGas(es.GasPrice)
 
 	if gasAvailable.Lt(gasCreditLimit) {
 		gasCreditLimit = gasAvailable
@@ -1073,12 +1122,12 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 
 	ret, leftOverGas, err := es.evm.StaticCall((vm.AccountRef)(account.address), account.address, calldata, gasCreditLimit.Uint64())
 	if err != nil || !bytes.Equal(ret, common.LeftPadBytes([]byte{1}, 32)) {
-		return false, err
+		return 0, err
 	}
 	spentGas := gasCreditLimit.Sub(types.Gas(leftOverGas))
-	spentValue := spentGas.ToValue(gasPrice)
-	account.SubBalance(spentValue, tracing.BalanceDecreaseVerifyExternal)
-	return true, nil
+	spentValue := spentGas.ToValue(es.GasPrice)
+	check.PanicIfErr(account.SubBalance(spentValue, tracing.BalanceDecreaseVerifyExternal))
+	return spentGas, nil
 }
 
 func (es *ExecutionState) AddCurrency(addr types.Address, currencyId types.CurrencyId, amount types.Value) error {
@@ -1155,6 +1204,10 @@ func (es *ExecutionState) GetCurrencies(addr types.Address) map[types.CurrencyId
 	return res
 }
 
+func (es *ExecutionState) GetGasPrice(shardId types.ShardId) (types.Value, error) {
+	return db.ReadGasPerShard(es.tx, shardId)
+}
+
 func (es *ExecutionState) SetCurrencyTransfer(currencies []types.CurrencyBalance) {
 	es.evm.SetCurrencyTransfer(currencies)
 }
@@ -1167,6 +1220,10 @@ func (es *ExecutionState) newVm(internal bool, origin types.Address) error {
 	es.evm = vm.NewEVM(blockContext, es, origin)
 	es.evm.IsAsyncCall = internal
 	return nil
+}
+
+func (es *ExecutionState) SetVm(evm *vm.EVM) {
+	es.evm = evm
 }
 
 func (es *ExecutionState) resetVm() {
@@ -1211,4 +1268,33 @@ func (es *ExecutionState) evmToMessageError(err error) error {
 		return nil
 	}
 	return types.NewMessageError(types.MessageStatusExecution, err)
+}
+
+func (es *ExecutionState) UpdateGasPrice() {
+	block, err := db.ReadBlock(es.tx, es.ShardId, es.PrevBlock)
+	if err != nil {
+		// If we can't read the previous block, we don't change the gas price
+		es.GasPrice = types.DefaultGasPrice
+		logger.Error().Err(err).Msg("failed to read previous block, gas price won't be changed")
+		return
+	}
+
+	es.GasPrice = block.GasPrice
+
+	decreasePerBlock := types.NewValueFromUint64(1)
+	maxGasPrice := types.NewValueFromUint64(100)
+
+	gasIncrease := uint64(math.Ceil(float64(block.OutMessagesNum) * es.gasPriceScale))
+	var overflow bool
+	es.GasPrice, overflow = es.GasPrice.AddOverflow(types.NewValueFromUint64(gasIncrease))
+	// Check if new gas price is less than the current one (overflow case) or greater than the max allowed
+	if overflow || es.GasPrice.Cmp(maxGasPrice) > 0 {
+		es.GasPrice = maxGasPrice
+	}
+	if es.GasPrice.Cmp(decreasePerBlock) >= 0 {
+		es.GasPrice = es.GasPrice.Sub(decreasePerBlock)
+	}
+	if es.GasPrice.Cmp(types.DefaultGasPrice) < 0 {
+		es.GasPrice = types.DefaultGasPrice
+	}
 }

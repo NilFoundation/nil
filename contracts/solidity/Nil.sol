@@ -10,6 +10,7 @@ library Nil {
     address private constant GET_CURRENCY_BALANCE = address(0xd1);
     address private constant SEND_CURRENCY_SYNC = address(0xd2);
     address private constant GET_MESSAGE_TOKENS = address(0xd3);
+    address private constant GET_GAS_PRICE = address(0xd4);
 
     address payable public constant MINTER_ADDRESS = payable(address(0x0001222222222222222222222222222222222222));
 
@@ -121,6 +122,16 @@ library Nil {
     function getShardId(address addr) internal pure returns(uint256) {
         return uint256(uint160(addr)) >> (18 * 8);
     }
+
+    // getGasPrice returns gas price for the shard, in which the given address is resided.
+    // It may return the price with some delay, i.e it can be not equal to the actual price. So, one should calculate
+    // real gas price pessimistically, i.e. `gas_price = getGasPrice() + blocks_delay * price_growth_factor`.
+    // Where, `blocks_delay` is the blocks number between the block for which gas price is actual and the block in which
+    // the message will be processed; and `price_growth_factor` is the maximum value by which gas can grow per block.
+    // TODO: add `getEstimatedGasPrice` method, which implements the above formula.
+    function getGasPrice(address addr) internal returns(uint256) {
+        return Precompile(GET_GAS_PRICE).precompileGetGasPrice(getShardId(addr));
+    }
 }
 
 // NilBase is a base contract that provides modifiers for checking the type of message (internal or external).
@@ -155,6 +166,7 @@ contract Precompile {
     function precompileAsyncCall(bool, address, address, address, uint, Nil.Token[] memory, bytes memory) public payable returns(bool) {}
     function precompileSendTokens(address, Nil.Token[] memory) public returns(bool) {}
     function precompileGetMessageTokens() public returns(Nil.Token[] memory) {}
+    function precompileGetGasPrice(uint id) public returns(uint256) {}
 }
 
 abstract contract NilBounceable is NilBase {

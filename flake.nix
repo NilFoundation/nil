@@ -3,7 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -15,6 +14,7 @@
         packages = rec {
           nil = (pkgs.callPackage ./nil.nix { src_repo = self; });
           niljs = (pkgs.callPackage ./niljs.nix { nil = nil; });
+          nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; niljs = niljs; });
           default = nil;
         };
         checks = rec {
@@ -24,13 +24,13 @@
             enableTesting = true;
           });
           niljs = (pkgs.callPackage ./niljs.nix { nil = nil; });
+          nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; niljs = niljs; });
           nil-hardhat-tests = (pkgs.callPackage ./nilhardhat.nix { nil = nil; });
           default = pkgs.symlinkJoin {
             name = "all";
-            paths = [ nil niljs nil-hardhat-tests ];
+            paths = [ nil niljs nildocs nil-hardhat-tests ];
           };
         };
-
         bundlers = rec {
           deb = pkg:
             pkgs.stdenv.mkDerivation {
@@ -41,10 +41,13 @@
               buildPhase = ''
                 export HOME=$PWD
                 mkdir -p ./usr
+                mkdir -p ./usr/share/${packages.nildocs.pname}
                 cp -r ${pkg}/bin ./usr/
                 cp -r ${pkg}/share ./usr/
+                cp -r ${packages.nildocs.outPath}/* ./usr/share/${packages.nildocs.pname}
                 chmod -R u+rw,g+r,o+r ./usr
                 chmod -R u+rwx,g+rx,o+rx ./usr/bin
+                chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.nildocs.pname}
                 ${pkgs.fpm}/bin/fpm -s dir -t deb --name ${pkg.pname} -v ${pkg.version} --deb-use-file-permissions usr
               '';
               installPhase = ''

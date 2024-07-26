@@ -26,6 +26,10 @@ func NewLogsAggregator(ctx context.Context, db db.ReadOnlyDB) *LogsAggregator {
 	}
 }
 
+func (l *LogsAggregator) WaitForShutdown() {
+	l.filters.WaitForShutdown()
+}
+
 func (l *LogsAggregator) CreateFilter(query *filters.FilterQuery) (filters.SubscriptionID, error) {
 	id, filter := l.filters.NewFilter(query)
 	if len(id) == 0 || filter == nil {

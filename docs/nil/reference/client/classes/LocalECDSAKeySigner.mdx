@@ -1,0 +1,197 @@
+# Class: LocalECDSAKeySigner
+
+LocalKeySigner is a class that allows for signing data with the private key.
+It uses the secp256k1 curve implementation by the @noble/curves/secp256k1 library.
+
+## Example
+
+```ts
+import {
+  LocalECDSAKeySigner,
+  generateRandomPrivateKey,
+} from '@nilfoundation/niljs';
+const signer = new LocalECDSAKeySigner({
+  privateKey: generateRandomPrivateKey(),
+});
+```
+
+## Implements
+
+- [`ISigner`](../interfaces/ISigner.mdx)
+
+## Constructors
+
+### new LocalECDSAKeySigner()
+
+```ts
+new LocalECDSAKeySigner(config): LocalECDSAKeySigner
+```
+
+Creates an instance of LocalECDSAKeySigner.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`config`
+
+</td>
+<td>
+
+[`ILocalKeySignerConfig`](../type-aliases/ILocalKeySignerConfig.mdx)
+
+</td>
+<td>
+
+The config for the LocalECDSAKeySigner. See [ILocalKeySignerConfig](../type-aliases/ILocalKeySignerConfig.mdx).
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+[`LocalECDSAKeySigner`](LocalECDSAKeySigner.mdx)
+
+#### Defined in
+
+[nil/nil.js/src/signers/LocalECDSAKeySigner.ts:54](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/signers/LocalECDSAKeySigner.ts#L54)
+
+## Methods
+
+### getAddress()
+
+```ts
+getAddress(shardId): Promise<Uint8Array>
+```
+
+Retrieves the wallet address.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`shardId`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+The ID of the shard where the wallet is deployed.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`Uint8Array`\>
+
+The wallet address.
+
+#### Async
+
+#### Implementation of
+
+[`ISigner`](../interfaces/ISigner.mdx).[`getAddress`](../interfaces/ISigner.mdx#getaddress)
+
+#### Defined in
+
+[nil/nil.js/src/signers/LocalECDSAKeySigner.ts:116](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/signers/LocalECDSAKeySigner.ts#L116)
+
+***
+
+### getPublicKey()
+
+```ts
+getPublicKey(): Promise<Uint8Array>
+```
+
+Retrieves the public key.
+
+#### Returns
+
+`Promise`\<`Uint8Array`\>
+
+The publc key of the signer.
+
+#### Async
+
+#### Implementation of
+
+[`ISigner`](../interfaces/ISigner.mdx).[`getPublicKey`](../interfaces/ISigner.mdx#getpublickey)
+
+#### Defined in
+
+[nil/nil.js/src/signers/LocalECDSAKeySigner.ts:97](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/signers/LocalECDSAKeySigner.ts#L97)
+
+***
+
+### sign()
+
+```ts
+sign(data): Promise<Uint8Array>
+```
+
+Signs the data.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`data`
+
+</td>
+<td>
+
+`Uint8Array`
+
+</td>
+<td>
+
+The input data.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`Uint8Array`\>
+
+The signed data.
+
+#### Async
+
+#### Implementation of
+
+[`ISigner`](../interfaces/ISigner.mdx).[`sign`](../interfaces/ISigner.mdx#sign)
+
+#### Defined in
+
+[nil/nil.js/src/signers/LocalECDSAKeySigner.ts:79](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/signers/LocalECDSAKeySigner.ts#L79)

@@ -1,0 +1,85 @@
+# Type Alias: IReceipt
+
+```ts
+type IReceipt: object;
+```
+
+The receipt interface.
+
+## Type declaration
+
+### blockHash
+
+```ts
+blockHash: string;
+```
+
+### blockNumber
+
+```ts
+blockNumber: bigint;
+```
+
+### bloom
+
+```ts
+bloom: string;
+```
+
+### contractAddress
+
+```ts
+contractAddress: string;
+```
+
+### gasUsed
+
+```ts
+gasUsed: number;
+```
+
+### logs
+
+```ts
+logs: ILog[];
+```
+
+### messageHash
+
+```ts
+messageHash: Hex;
+```
+
+### msgIndex
+
+```ts
+msgIndex: bigint;
+```
+
+### outMessages
+
+```ts
+outMessages: Hex[] | null;
+```
+
+### outputReceipts
+
+```ts
+outputReceipts: IReceipt[] | null;
+```
+
+### shardId
+
+```ts
+shardId: number;
+```
+
+### success
+
+```ts
+success: boolean;
+```
+
+## Defined in
+
+[nil/nil.js/src/types/IReceipt.ts:7](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/types/IReceipt.ts#L7)

@@ -1,0 +1,31 @@
+# Contract placement across shards
+
+## Definition
+
+[**Cross-shard communications**](../core-concepts/shards-parallel-execution#message-passing-checks) are a built-in feature of the =nil; protocol ensuring horizontal scalability with no fragmentation.
+
+However, =nil; makes it possible to request that two accounts are located on the same shard. In this case, interaction between these accounts does not require cross-shard communications.
+
+In plain terms, this request changes the value stored under the account's address in [**the mapping of accounts and shards**](../core-concepts/accounts) stored in the consensus shard. 
+
+:::note[Explanation]
+
+When two contracts (Contract 1 and Contract 2) are placed on the same shards, communications between them can occur synchronously without spawning messages. However, if Contract 1 and Contract 2 are located on different shards, communications between them will always be asynchronous. Async calls between contracts spawn additional messages, and their execution times may vary.
+
+[**Learn more about async calls**](../core-concepts/shards-parallel-execution#async-execution).
+
+:::
+
+## Scalability considerations
+
+On the one hand, placing contracts on the same shard presents a valuable opportunity for developers wanting to ensure the lowest possible transaction processing times for their users.
+
+On the other hand, this possibility encourages having as many accounts as possible on one shard, undermining the benefits of horizontal scaling.
+
+This concern, however, is mitigated by basic market mechanics: 
+
+* The more accounts exist on the same shard (and the more transactions are submitted by them), the higher the gas price 
+* The higher the gas price, the higher the cost of each transaction
+* The higher the cost of each transaction, the lower the benefits-to-costs ratio of placign additional accounts on the same shard
+
+It is up to the market participants to determine whether placing contracts on the same shard is worth incurring high transaction costs.

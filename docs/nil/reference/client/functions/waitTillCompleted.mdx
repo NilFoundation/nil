@@ -1,0 +1,77 @@
+# Function: waitTillCompleted()
+
+```ts
+function waitTillCompleted(
+   client, 
+   shardId, 
+hash): Promise<IReceipt[]>
+```
+
+## Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`client`
+
+</td>
+<td>
+
+[`PublicClient`](../classes/PublicClient.mdx)
+
+</td>
+<td>
+
+The client that must wait for action completion.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`shardId`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+The ID of the shard where the message is processed.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`hash`
+
+</td>
+<td>
+
+\`0x$\{string\}\`
+
+</td>
+<td>
+
+The message hash.
+
+</td>
+</tr>
+</table>
+
+## Returns
+
+`Promise`\<[`IReceipt`](../type-aliases/IReceipt.mdx)[]\>
+
+## Defined in
+
+[nil/nil.js/src/utils/receipt.ts:16](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/utils/receipt.ts#L16)

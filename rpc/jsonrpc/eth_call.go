@@ -2,10 +2,12 @@ package jsonrpc
 
 import (
 	"context"
+	"math/big"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/execution"
+	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
 	"github.com/NilFoundation/nil/rpc/transport"
 )
@@ -26,7 +28,7 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash trans
 		return nil, err
 	}
 
-	es, err := execution.NewROExecutionState(tx, shardId, hash, timer)
+	es, err := execution.NewROExecutionState(tx, shardId, hash, timer, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +38,13 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash trans
 		return nil, err
 	}
 
+	gasPrice, err := api.GasPrice(ctx, args.To.ShardId())
+	if err != nil {
+		return nil, err
+	}
+	gas := args.FeeCredit.ToGas(types.NewValueFromBigMust((*big.Int)(gasPrice)))
+
 	evm := vm.NewEVM(blockContext, es, args.From)
-	ret, _, err := evm.Call((vm.AccountRef)(args.From), args.To, args.Data, args.GasLimit.Uint64(), args.Value.Int())
+	ret, _, err := evm.Call((vm.AccountRef)(args.From), args.To, args.Data, gas.Uint64(), args.Value.Int())
 	return ret, err
 }

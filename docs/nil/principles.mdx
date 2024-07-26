@@ -1,0 +1,56 @@
+import Flows from '@site/static/img/nil/flows.png'
+
+# Principles
+
+This page offers a high-level explanation of the architecture of =nil;.
+
+## Flows
+
+The following diagram shows how =nil; organizes execution shards, the main shard, the transfer of ZKPs, and communications with Ethereum.
+
+<img src={Flows}/ >
+
+Each execution shard is responsible for generating a ZKP for their respective state change. While ZKPs are generated, execution shards employ a protocol based on [**Sync HotStuff**](https://eprint.iacr.org/2019/270.pdf) to reach consensus. Afterward, the proofs are verified via a [**HotStuff2-based**](https://eprint.iacr.org/2023/397.pdf) global consensus protocol. 
+
+The main shard uses all received ZKPs to create a 'master' ZKP that is then transmitted to Ethereum. The global state of =nil; is verified and transactions reach finality.
+
+## Consensus shard
+
+The consensus shard performs two essential functions:
+
+* The shard stores and sets consensus rules and parameters
+* The shard stores hashes of the most recent blocks from execution shards and ensures synchronization between execution shards
+
+:::info
+
+There is only one consensus shard in the cluster.
+
+:::
+
+## Execution shards
+
+As implied by their name, execution shards process transactions. 
+
+Each shard is allocated with a subset of accounts from the global state. The shard is responsible for executing transactions made to and from these accounts. Consensus is handled by a committee of randomly selected validators.
+
+[**Learn more about execution shards**](./core-concepts/shards-parallel-execution#execution-shards).
+
+:::info[Validator rotation]
+
+At the end of each epoch, a new set of validators is generated for each execution shard based on the Verifiable Secret Sharing (VSS) scheme.
+
+:::
+
+## Cross-shard communication
+
+Instead of handling cross-shard communication via bridges (which are often insecure and unstable), =nil; integrates such communications in its protocol.
+
+Each execution shard is tasked with surveying other execution shards and retrieving necessary transactions. A transaction is necessary for a shard if the shard holds the account that the transaction calls. Blocks within a shard are considered invalid unless they include all necessary messages. 
+
+[**Learn more about cross-shard communication**](./core-concepts/shards-parallel-execution#message-passing-checks) or read [**our primer**](./getting-started/essentials/handling-async-execution.mdx) on async execution.
+
+## Contract placement
+
+=nil; also allows participants to request for two or more accounts to be placed on the same shard.
+
+This ensures that execution speeds remain high but may raise gas fees across the affected shard. [**Learn more about contract placement and its benefits**](./specification/contract-co-location).

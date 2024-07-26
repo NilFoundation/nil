@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 contract DelegateContract {
     uint256 public value;
 
+    constructor() payable {}
+
     function setValue(uint256 _value) public {
         value = _value;
     }
@@ -14,6 +16,8 @@ contract DelegateContract {
 }
 
 contract ProxyContract {
+    constructor() payable {}
+
     function setValue(address delegateAddress, uint256 _value) public {
         (bool success, ) = delegateAddress.delegatecall(
             abi.encodeWithSignature("setValue(uint256)", _value)

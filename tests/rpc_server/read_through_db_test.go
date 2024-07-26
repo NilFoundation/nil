@@ -80,7 +80,7 @@ func (s *SuiteReadThroughDb) TestBasic() {
 
 	s.Run("Deploy", func() {
 		addrCallee, receipt = s.server.deployContractViaMainWallet(shardId,
-			contracts.CounterPayableDeployPayload(s.T()),
+			contracts.CounterDeployPayload(s.T()),
 			types.NewValueFromUint64(50_000_000))
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})
@@ -128,7 +128,7 @@ func (s *SuiteReadThroughDb) TestIsolation() {
 
 	s.Run("Deploy", func() {
 		addrCallee, receipt = s.server.deployContractViaMainWallet(shardId,
-			contracts.CounterPayableDeployPayload(s.T()),
+			contracts.CounterDeployPayload(s.T()),
 			types.NewValueFromUint64(50_000_000))
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})

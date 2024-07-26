@@ -6,6 +6,8 @@ import "../../../contracts/solidity/Nil.sol";
 contract Callee {
     int32 value;
 
+    constructor() payable {}
+
     function add(int32 val) public returns (int32) {
         require(val != 0, "Value must be non-zero");
         value += val;
@@ -18,11 +20,13 @@ contract Caller is NilBounceable {
 
     string last_bounce_err;
 
+    constructor() payable {}
+
     function call(address dst, int32 val) public payable {
         dst.asyncCall(
             address(0), // refundTo
             address(0), // bounceTo
-            gasleft(),
+            gasleft() * tx.gasprice,
             false,
             msg.value,
             abi.encodeWithSignature("add(int32)", val)
@@ -30,7 +34,7 @@ contract Caller is NilBounceable {
     }
 
     function sendMessage(bytes calldata message) public payable {
-        Nil.sendMessage(gasleft(), message);
+        Nil.sendMessage(gasleft() * tx.gasprice, message);
     }
 
     function verifyExternal(

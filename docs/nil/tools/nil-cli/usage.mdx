@@ -1,0 +1,39 @@
+# =nil; CLI usage
+
+There are several steps that need to be completed before using the =nil; CLI.
+
+## Create a new config file
+
+To create a config file for the =nil; CLI:
+
+```bash
+nil_cli config init
+```
+
+## Set the RPC endpoint
+
+Initially, the =nil; CLI is unaware of the RPC endpoint for interacting with the cluster.
+
+To set the RPC endpoint:
+
+```bash
+nil_cli config set rpc_endpoint NIL_ENDPOINT
+```
+
+## Create a new private key
+
+Creating a new private key is the next logical step before creating a new wallet.
+
+```bash
+nil_cli keygen new
+```
+
+## Create a new wallet
+
+At this point, the only remaining action is to create a new wallet:
+
+```bash
+nil_cli wallet new
+```
+
+After running this command, the =nil; CLI should be fully ready to interact with the cluster.

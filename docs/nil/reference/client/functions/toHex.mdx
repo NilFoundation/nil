@@ -1,0 +1,56 @@
+# Function: toHex()
+
+```ts
+function toHex<T>(value): `0x${string}`
+```
+
+## Type Parameters
+
+<table>
+<tr>
+<th>Type Parameter</th>
+</tr>
+<tr>
+<td>
+
+`T` *extends* 
+  \| `string`
+  \| `number`
+  \| `bigint`
+  \| `boolean`
+  \| `Uint8Array`
+
+</td>
+</tr>
+</table>
+
+## Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+<tr>
+<td>
+
+`value`
+
+</td>
+<td>
+
+`T`
+
+</td>
+</tr>
+</table>
+
+## Returns
+
+\`0x$\{string\}\`
+
+The hex string representation of the input.
+
+## Defined in
+
+[nil/nil.js/src/encoding/toHex.ts:23](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/toHex.ts#L23)

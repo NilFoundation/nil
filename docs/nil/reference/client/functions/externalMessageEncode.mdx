@@ -1,0 +1,71 @@
+# Function: externalMessageEncode()
+
+```ts
+function externalMessageEncode(params, signer): Promise<object>
+```
+
+## Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`params`
+
+</td>
+<td>
+
+`Omit`\<[`ExternalMessage`](../type-aliases/ExternalMessage.mdx), `"authData"`\>
+
+</td>
+<td>
+
+The external message to be encoded without its auth data.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`signer`
+
+</td>
+<td>
+
+[`ISigner`](../interfaces/ISigner.mdx)
+
+</td>
+<td>
+
+The message signer.
+
+</td>
+</tr>
+</table>
+
+## Returns
+
+`Promise`\<`object`\>
+
+The message bytecode and the message hash.
+
+### hash
+
+```ts
+hash: Uint8Array;
+```
+
+### raw
+
+```ts
+raw: Uint8Array;
+```
+
+## Defined in
+
+[nil/nil.js/src/encoding/externalMessage.ts:271](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/externalMessage.ts#L271)

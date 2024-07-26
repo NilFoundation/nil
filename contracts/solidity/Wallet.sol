@@ -34,7 +34,8 @@ contract Wallet is NilCurrencyBase {
         Nil.Token[] memory tokens,
         uint value,
         bytes calldata callData) onlyExternal public {
-        Nil.asyncCall(dst, refundTo, bounceTo, gas, deploy, value, tokens, callData);
+        bool success = Nil.asyncCall(dst, refundTo, bounceTo, gas, deploy, value, tokens, callData);
+        require(success, "asyncCall failed");
     }
 
     function syncCall(address dst, uint gas, uint value, bytes memory call_data) onlyExternal public {

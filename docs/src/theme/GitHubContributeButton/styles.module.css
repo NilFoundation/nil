@@ -1,0 +1,18 @@
+.navbarGitHubContributeButton:hover {
+    background: #b9b9b9;
+    cursor: pointer;
+  }
+
+.circle {
+    width: 33px; 
+    height: 33px; 
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gitHubLogo {
+    width: 27px;
+    height: 27px;
+}

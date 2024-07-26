@@ -1,0 +1,88 @@
+.pageContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding-left: 1em;
+  padding-right: 1em;
+  margin-top: 3em;
+}
+
+.indexContainer {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1200px;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.rowFlex {
+  display: flex;
+  flex-wrap: nowrap;
+  flex: 1 1 33%;
+  align-items: center;
+    justify-content: center;
+    align-content: center;
+}
+
+.header {
+  font-size: 56px;
+}
+
+.subheader {
+  font-size: 28px;
+  margin-bottom: 1.5em;
+}
+
+.rowFlex .col {
+  flex: 1 1 33%;
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
+.roundedImage {
+  border-radius: 5px;
+}
+
+[data-theme='dark'] .rowFlex [class*='col-'] {
+  padding: 10px;
+  border: 2px solid;
+  border-radius: 5px;
+  transition: all 0.3s ease;
+  color: #bdbdbd;
+  border-color: #2f2f2f;
+}
+
+@media (max-width: 1024px) {
+  .rowFlex [class*='col-'] {
+    margin-left: 0px;
+  }
+
+  .rowFlex {
+    flex-wrap: wrap;
+  }
+
+  .rowFlex .col {
+    flex: 1 1 100%;
+    margin-left: 0px;
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    font-size: 38px; 
+  }
+  .subheader {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    font-size: 32px; 
+  }
+  .subheader {
+    font-size: 16px;
+  }
+}

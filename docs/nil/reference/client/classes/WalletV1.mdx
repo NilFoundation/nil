@@ -1,0 +1,770 @@
+# Class: WalletV1
+
+WalletV1 is a class used for performing operations on the cluster that require authentication. 
+
+ WalletV1
+
+## Constructors
+
+### new WalletV1()
+
+```ts
+new WalletV1(param0): WalletV1
+```
+
+Creates an instance of WalletV1.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`param0`
+
+</td>
+<td>
+
+[`WalletV1Config`](../type-aliases/WalletV1Config.mdx)
+
+</td>
+<td>
+
+The object representing the initial wallet config. See [WalletV1Config](../type-aliases/WalletV1Config.mdx).
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+[`WalletV1`](WalletV1.mdx)
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:144](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L144)
+
+## Properties
+
+### address
+
+```ts
+address: Uint8Array;
+```
+
+The wallet address.
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:130](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L130)
+
+***
+
+### client
+
+```ts
+client: PublicClient;
+```
+
+The client for interacting with the wallet.
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:112](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L112)
+
+***
+
+### pubkey
+
+```ts
+pubkey: Uint8Array;
+```
+
+The wallet public key.
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:100](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L100)
+
+***
+
+### salt?
+
+```ts
+optional salt: Uint8Array;
+```
+
+Arbitrary data for changing the wallet address.
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:118](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L118)
+
+***
+
+### shardId
+
+```ts
+shardId: number;
+```
+
+The ID of the shard where the wallet is deployed.
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:106](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L106)
+
+***
+
+### signer
+
+```ts
+signer: ISigner;
+```
+
+The wallet signer.
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:124](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L124)
+
+***
+
+### abi
+
+```ts
+static abi: Abi;
+```
+
+The wallet ABI.
+
+#### Static
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:42](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L42)
+
+***
+
+### code
+
+```ts
+static code: Uint8Array;
+```
+
+The wallet bytecode.
+
+#### Static
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:35](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L35)
+
+## Methods
+
+### checkDeploymentStatus()
+
+```ts
+checkDeploymentStatus(): Promise<boolean>
+```
+
+Checks the deployment status.
+
+#### Returns
+
+`Promise`\<`boolean`\>
+
+The current deployment status.
+
+#### Async
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:270](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L270)
+
+***
+
+### deployContract()
+
+```ts
+deployContract(param0): Promise<object>
+```
+
+Deploys a new smart contract via the wallet.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`param0`
+
+</td>
+<td>
+
+[`DeployParams`](../type-aliases/DeployParams.mdx)
+
+</td>
+<td>
+
+The object representing the contract deployment params.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`object`\>
+
+The object containing the deployment message hash and the contract address.
+
+##### address
+
+```ts
+address: `0x${string}`;
+```
+
+##### hash
+
+```ts
+hash: `0x${string}`;
+```
+
+#### Async
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:412](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L412)
+
+***
+
+### getAddressHex()
+
+```ts
+getAddressHex(): `0x${string}`
+```
+
+Converts the wallet address into a hexadecimal.
+
+#### Returns
+
+\`0x$\{string\}\`
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:177](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L177)
+
+***
+
+### getBalance()
+
+```ts
+getBalance(): Promise<bigint>
+```
+
+Returns the wallet balance.
+
+#### Returns
+
+`Promise`\<`bigint`\>
+
+The wallet balance.
+
+#### Async
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:521](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L521)
+
+***
+
+### requestToWallet()
+
+```ts
+requestToWallet(requestParams, send?): Promise<object>
+```
+
+Performs a request to the wallet.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default value</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`requestParams`
+
+</td>
+<td>
+
+[`RequestParams`](../type-aliases/RequestParams.mdx)
+
+</td>
+<td>
+
+`undefined`
+
+</td>
+<td>
+
+The object representing the request parameters.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`send`?
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+`true`
+
+</td>
+<td>
+
+The flag that determines whether the request is sent when the function is called.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`object`\>
+
+The message bytecode and hash.
+
+##### hash
+
+```ts
+hash: Uint8Array;
+```
+
+##### raw
+
+```ts
+raw: Uint8Array;
+```
+
+#### Async
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:283](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L283)
+
+***
+
+### selfDeploy()
+
+```ts
+selfDeploy(waitTillConfirmation?): Promise<Uint8Array>
+```
+
+Deploys the wallet.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default value</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`waitTillConfirmation`?
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+`true`
+
+</td>
+<td>
+
+The flag that determines whether the function waits for deployment confirmation before exiting.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`Uint8Array`\>
+
+The hash of the deployment transaction.
+
+#### Async
+
+#### Example
+
+```ts
+import {
+    Faucet,
+    HttpTransport,
+    LocalECDSAKeySigner,
+    PublicClient,
+    WalletV1,
+    generateRandomPrivateKey,
+  } from '@nilfoundation/niljs';
+const client = new PublicClient({
+    transport: new HttpTransport({
+      endpoint: "http://127.0.0.1:8529",
+    }),
+    shardId: 1,
+  });
+const signer = new LocalECDSAKeySigner({
+    privateKey: generateRandomPrivateKey(),
+  });
+const faucet = new Faucet(client);
+await faucet.withdrawTo(walletAddress, 100000n);
+const pubkey = await signer.getPublicKey();
+const wallet = new WalletV1({
+    pubkey: pubkey,
+    salt: 100n,
+    shardId: 1,
+    client,
+    signer,
+    address: WalletV1.calculateWalletAddress({
+      pubKey: pubkey,
+      shardId: 1,
+      salt: 100n,
+    }),
+  });
+await wallet.selfDeploy(true);
+```
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:222](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L222)
+
+***
+
+### sendMessage()
+
+```ts
+sendMessage(param0): Promise<`0x${string}`>
+```
+
+Send a message via the wallet.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`param0`
+
+</td>
+<td>
+
+[`SendMessageParams`](../type-aliases/SendMessageParams.mdx)
+
+</td>
+<td>
+
+The object representing the message params.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<\`0x$\{string\}\`\>
+
+The message hash.
+
+#### Async
+
+#### Example
+
+```ts
+const anotherAddress = WalletV1.calculateWalletAddress({
+    pubKey: pubkey,
+    shardId: 1,
+    salt: 200n,
+  });
+await wallet.sendMessage({
+    to: anotherAddress,
+    value: 10n,
+    gas: 100000n,
+  });
+```
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:334](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L334)
+
+***
+
+### sendRawInternalMessage()
+
+```ts
+sendRawInternalMessage(rawMessage): Promise<`0x${string}`>
+```
+
+Send a raw signed message via the wallet.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`rawMessage`
+
+</td>
+<td>
+
+`Uint8Array`
+
+</td>
+<td>
+
+The message bytecode.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<\`0x$\{string\}\`\>
+
+The message hash.
+
+#### Async
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:387](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L387)
+
+***
+
+### syncSendMessage()
+
+```ts
+syncSendMessage(param0): Promise<`0x${string}`>
+```
+
+Send a message synchronously via the wallet.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`param0`
+
+</td>
+<td>
+
+[`SendSyncMessageParams`](../type-aliases/SendSyncMessageParams.mdx)
+
+</td>
+<td>
+
+The object representing the message params.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<\`0x$\{string\}\`\>
+
+The message hash.
+
+#### Async
+
+#### Example
+
+```ts
+const anotherAddress = WalletV1.calculateWalletAddress({
+    pubKey: pubkey,
+    shardId: 1,
+    salt: 200n,
+  });
+await wallet.sendMessage({
+    to: anotherAddress,
+    value: 10n,
+    gas: 100000n,
+  });
+```
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:486](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L486)
+
+***
+
+### calculateWalletAddress()
+
+```ts
+static calculateWalletAddress(param0): Uint8Array
+```
+
+Calculates the address of the new wallet.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`param0`
+
+</td>
+<td>
+
+`object`
+
+</td>
+<td>
+
+The object representing the config for address calculation.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`param0.pubKey`
+
+</td>
+<td>
+
+`Uint8Array`
+
+</td>
+<td>
+
+The wallet public key.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`param0.salt`
+
+</td>
+<td>
+
+`bigint` \| `Uint8Array`
+
+</td>
+<td>
+
+Arbitrary data change the address.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`param0.shardId`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+The ID of the shard where the wallet should be deployed.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Uint8Array`
+
+The address of the new wallet.
+
+#### Static
+
+#### Example
+
+```ts
+import {
+    LocalECDSAKeySigner,
+    WalletV1,
+    generateRandomPrivateKey,
+  } from '@nilfoundation/niljs';
+
+const signer = new LocalECDSAKeySigner({
+    privateKey: generateRandomPrivateKey(),
+  });
+
+  const pubkey = await signer.getPublicKey();
+
+const anotherAddress = WalletV1.calculateWalletAddress({
+    pubKey: pubkey,
+    shardId: 1,
+    salt: 200n,
+  });
+```
+
+#### Defined in
+
+[nil/nil.js/src/contracts/WalletV1/WalletV1.ts:76](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/contracts/WalletV1/WalletV1.ts#L76)

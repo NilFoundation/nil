@@ -70,9 +70,9 @@ contract Minter is NilBase {
 
         uint256 gas = gasleft();
         if (Nil.getShardId(to) == Nil.getShardId(address(this))) {
-            Nil.syncCall(to, gas, gas * 10, tokens_, "");
+            Nil.syncCall(to, gas * tx.gasprice, 0, tokens_, "");
         } else {
-            Nil.asyncCall(to, address(0), address(0), gas, false, gas * 10, tokens_, "");
+            Nil.asyncCall(to, address(0), address(0), gas * tx.gasprice, false, 0, tokens_, "");
         }
     }
 

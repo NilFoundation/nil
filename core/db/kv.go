@@ -9,6 +9,10 @@ import (
 
 type Timestamp uint64
 
+func (ts Timestamp) Uint64() uint64 {
+	return uint64(ts)
+}
+
 type RoTx interface {
 	Exists(tableName TableName, key []byte) (bool, error)
 	Get(tableName TableName, key []byte) ([]byte, error)

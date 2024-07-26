@@ -3,6 +3,7 @@ package readthroughdb
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/NilFoundation/nil/client"
@@ -16,14 +17,18 @@ import (
 
 // TODO: add tombstones and in-memory concurrenct cache
 type ReadThroughDb struct {
-	client client.DbClient
-	db     db.DB
+	client    client.DbClient
+	db        db.DB
+	cache     sync.Map
+	cacheTomb sync.Map
 }
 
 type RoTx struct {
 	// Using db.RwTx and RwWrapper to avoid implementing all the methods of db.RoTx in RwTx
-	tx     db.RwTx
-	client client.DbClient
+	tx        db.RwTx
+	cache     *sync.Map
+	cacheTomb *sync.Map
+	client    client.DbClient
 }
 
 var (
@@ -32,31 +37,55 @@ var (
 	_ db.RwTx = (*RwTx)(nil)
 )
 
-func (tx *RoTx) Exists(tableName db.TableName, key []byte) (bool, error) {
-	res, err := tx.tx.Exists(tableName, key)
+const TombstoneTableName = db.TableName("__TOMBSTONES__")
+
+func (tx *RoTx) Get(tableName db.TableName, key []byte) ([]byte, error) {
+	value, err := tx.tx.Get(tableName, key)
+	if err == nil {
+		return value, nil
+	} else if !errors.Is(err, db.ErrKeyNotFound) {
+		return nil, err
+	}
+	tombExists, err := tx.tx.Exists(TombstoneTableName, db.MakeKey(tableName, key))
 	if err != nil {
+		return nil, err
+	}
+	if tombExists {
+		return nil, db.ErrKeyNotFound
+	}
+	_, cacheTombExists := tx.cacheTomb.Load(string(db.MakeKey(tableName, key)))
+	if cacheTombExists {
+		return nil, db.ErrKeyNotFound
+	}
+	ivalue, ok := tx.cache.Load(string(db.MakeKey(tableName, key)))
+	if ok {
+		value, ok = ivalue.([]byte)
+		check.PanicIfNot(ok)
+		return value, nil
+	}
+	value, err = tx.client.DbGet(tableName, key)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		tx.cacheTomb.Store(string(db.MakeKey(tableName, key)), nil)
+		return nil, db.ErrKeyNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	tx.cache.Store(string(db.MakeKey(tableName, key)), value)
+	return value, nil
+}
+
+func (tx *RoTx) Exists(tableName db.TableName, key []byte) (bool, error) {
+	_, err := tx.Get(tableName, key)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return false, nil
+	} else if err != nil {
 		return false, err
 	}
-	if res {
-		return true, nil
-	}
-	return tx.client.DbExists(tableName, key)
+	return true, nil
 }
 
 func (tx *RoTx) ReadTimestamp() db.Timestamp {
 	return tx.tx.ReadTimestamp()
-}
-
-func (tx *RoTx) Get(tableName db.TableName, key []byte) ([]byte, error) {
-	res, err := tx.tx.Get(tableName, key)
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		return nil, err
-	}
-	if res != nil {
-		return res, nil
-	} else {
-		return tx.client.DbGet(tableName, key)
-	}
 }
 
 func (tx *RoTx) Range(tableName db.TableName, from []byte, to []byte) (db.Iter, error) {
@@ -65,31 +94,11 @@ func (tx *RoTx) Range(tableName db.TableName, from []byte, to []byte) (db.Iter, 
 }
 
 func (tx *RoTx) ExistsInShard(shardId types.ShardId, tableName db.ShardedTableName, key []byte) (bool, error) {
-	res, err := tx.tx.ExistsInShard(shardId, tableName, key)
-	if err != nil {
-		return false, err
-	}
-	if res {
-		return true, nil
-	} else {
-		return tx.client.DbExistsInShard(shardId, tableName, key)
-	}
+	return tx.Exists(db.ShardTableName(tableName, shardId), key)
 }
 
 func (tx *RoTx) GetFromShard(shardId types.ShardId, tableName db.ShardedTableName, key []byte) ([]byte, error) {
-	res, err := tx.tx.GetFromShard(shardId, tableName, key)
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		return nil, err
-	}
-	if res != nil {
-		return res, nil
-	} else {
-		res, err := tx.client.DbGetFromShard(shardId, tableName, key)
-		if res == nil && err == nil {
-			return nil, db.ErrKeyNotFound
-		}
-		return res, err
-	}
+	return tx.Get(db.ShardTableName(tableName, shardId), key)
 }
 
 func (tx *RoTx) RangeByShard(shardId types.ShardId, tableName db.ShardedTableName, from []byte, to []byte) (db.Iter, error) {
@@ -111,12 +120,15 @@ func (tx *RwTx) PutToShard(shardId types.ShardId, tableName db.ShardedTableName,
 
 // TODO: add tombstones for delete (do we even need delete? It seems that our main workflow is append-only)
 func (tx *RwTx) Delete(tableName db.TableName, key []byte) error {
-	return tx.tx.Delete(tableName, key)
+	if err := tx.tx.Delete(tableName, key); err != nil {
+		return err
+	}
+	return tx.tx.Put(TombstoneTableName, db.MakeKey(tableName, key), nil)
 }
 
 // TODO: add tombstones for delete
 func (tx *RwTx) DeleteFromShard(shardId types.ShardId, tableName db.ShardedTableName, key []byte) error {
-	return tx.tx.DeleteFromShard(shardId, tableName, key)
+	return tx.tx.Delete(db.ShardTableName(tableName, shardId), key)
 }
 
 func (tx *RwTx) Commit() error {
@@ -144,7 +156,7 @@ func (rdb *ReadThroughDb) CreateRoTx(ctx context.Context) (db.RoTx, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &RoTx{tx: &db.RwWrapper{RoTx: tx}, client: rdb.client}, nil
+	return &RoTx{tx: &db.RwWrapper{RoTx: tx}, client: rdb.client, cache: &rdb.cache, cacheTomb: &rdb.cacheTomb}, nil
 }
 
 func (rdb *ReadThroughDb) CreateRoTxAt(ctx context.Context, ts db.Timestamp) (db.RoTx, error) {
@@ -152,7 +164,7 @@ func (rdb *ReadThroughDb) CreateRoTxAt(ctx context.Context, ts db.Timestamp) (db
 	if err != nil {
 		return nil, err
 	}
-	return &RoTx{tx: &db.RwWrapper{RoTx: tx}, client: rdb.client}, nil
+	return &RoTx{tx: &db.RwWrapper{RoTx: tx}, client: rdb.client, cache: &rdb.cache, cacheTomb: &rdb.cacheTomb}, nil
 }
 
 func (db *ReadThroughDb) CreateRwTx(ctx context.Context) (db.RwTx, error) {
@@ -160,18 +172,19 @@ func (db *ReadThroughDb) CreateRwTx(ctx context.Context) (db.RwTx, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &RwTx{&RoTx{tx: tx, client: db.client}}, nil
+	return &RwTx{&RoTx{tx: tx, client: db.client, cache: &db.cache, cacheTomb: &db.cacheTomb}}, nil
 }
 
 func (db *ReadThroughDb) LogGC(ctx context.Context, discardRation float64, gcFrequency time.Duration) error {
 	return db.db.LogGC(ctx, discardRation, gcFrequency)
 }
 
-func NewReadThroughDb(client client.DbClient, db db.DB) db.DB {
-	return &ReadThroughDb{
+func NewReadThroughDb(client client.DbClient, baseDb db.DB) (db.DB, error) {
+	db := &ReadThroughDb{
 		client: client,
-		db:     db,
+		db:     baseDb,
 	}
+	return db, nil
 }
 
 func NewReadThroughDbWithMasterChain(ctx context.Context, client client.Client, cacheDb db.DB, masterBlockNumber transport.BlockNumber) (db.DB, error) {
@@ -182,11 +195,35 @@ func NewReadThroughDbWithMasterChain(ctx context.Context, client client.Client, 
 	check.PanicIfNot(block.Number != types.BlockNumber(masterBlockNumber))
 
 	tx, err := cacheDb.CreateRwTx(ctx)
-	defer tx.Rollback()
 	if err != nil {
 		return nil, err
 	}
+	defer tx.Rollback()
 
+	if block.DbTimestamp == types.InvalidDbTimestamp {
+		return nil, errors.New("The chosen block is too old and doesn't support read-through mode")
+	}
+	if err := client.DbInitTimestamp(block.DbTimestamp); err != nil {
+		return nil, err
+	}
+	rdb := &ReadThroughDb{
+		client: client,
+		db:     cacheDb,
+	}
+
+	_, err = db.ReadLastBlockHash(tx, types.MainShardId)
+	if err == nil {
+		// In case there is a last block, it means that the cache is already initialized
+		return rdb, nil
+	} else if !errors.Is(err, db.ErrKeyNotFound) {
+		return nil, err
+	}
+
+	// TODO: For now, the only updatable value is the last block hash, so we don't need to remember all versions of
+	// values on the server: `badgerOpts.WithNumBersionToKeep(1)`, we just need to rewrite the last block hash value.
+	// Maybe we should enable all versions saving on the server with `badgerOpts.WithNumBersionToKeep(0)`
+	// and get last block hash by block.dbTimestamp.
+	// This solution would be more general, it would withstand other updatable values, but it will consume more memory on server.
 	if err := db.WriteLastBlockHash(tx, types.MainShardId, block.Hash); err != nil {
 		return nil, err
 	}
@@ -201,17 +238,7 @@ func NewReadThroughDbWithMasterChain(ctx context.Context, client client.Client, 
 		return nil, err
 	}
 
-	if block.DbTimestamp == types.InvalidDbTimestamp {
-		return nil, errors.New("The chosen block is too old and doesn't support read-through mode")
-	}
-	if err := client.DbInitTimestamp(block.DbTimestamp); err != nil {
-		return nil, err
-	}
-
-	return &ReadThroughDb{
-		client: client,
-		db:     cacheDb,
-	}, nil
+	return rdb, nil
 }
 
 // Construct from endpoint string and db.DB

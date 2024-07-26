@@ -206,12 +206,12 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.Require().NoError(err)
 
 			messageToSend := &types.InternalMessagePayload{
-				Data:     callData,
-				To:       calleeAddr,
-				RefundTo: callerAddr,
-				BounceTo: callerAddr,
-				Value:    types.NewValueFromUint64(callValue),
-				GasLimit: 100_004,
+				Data:      callData,
+				To:        calleeAddr,
+				RefundTo:  callerAddr,
+				BounceTo:  callerAddr,
+				Value:     types.NewValueFromUint64(callValue),
+				FeeCredit: s.gasToValue(100_000),
 			}
 			callData, err = messageToSend.MarshalSSZ()
 			s.Require().NoError(err)
@@ -271,11 +271,11 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			seqno := hexutil.Uint64(callerSeqno)
 
 			callArgs := &jsonrpc.CallArgs{
-				From:     callerAddr,
-				Data:     callData,
-				To:       callerAddr,
-				GasLimit: 10000,
-				Seqno:    seqno,
+				From:      callerAddr,
+				Data:      callData,
+				To:        callerAddr,
+				FeeCredit: s.gasToValue(10000),
+				Seqno:     seqno,
 			}
 			res, err := s.client.Call(callArgs)
 			s.T().Logf("Call res : %v, err: %v", res, err)
@@ -394,15 +394,15 @@ func (s *SuiteRpc) TestRpcDebugModules() {
 
 // Test that we remove output messages if the transaction failed
 func (s *SuiteRpc) TestNoOutMessagesIfFailure() {
-	code, err := contracts.GetCode(contracts.NameCommonTest)
+	code, err := contracts.GetCode(contracts.NameTest)
 	s.Require().NoError(err)
-	abi, err := contracts.GetAbi(contracts.NameCommonTest)
+	abi, err := contracts.GetAbi(contracts.NameTest)
 	s.Require().NoError(err)
 
 	addr, receipt := s.deployContractViaMainWallet(2, types.BuildDeployPayload(code, common.EmptyHash), defaultContractValue)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
-	// Call CommonTest contract with invalid argument, so no output messages should be generated
+	// Call Test contract with invalid argument, so no output messages should be generated
 	calldata, err := abi.Pack("testFailedAsyncCall", addr, int32(0))
 	s.Require().NoError(err)
 
@@ -414,7 +414,7 @@ func (s *SuiteRpc) TestNoOutMessagesIfFailure() {
 	s.Require().Empty(receipt.OutReceipts)
 	s.Require().Empty(receipt.OutMessages)
 
-	// Call CommonTest contract with valid argument, so output messages should be generated
+	// Call Test contract with valid argument, so output messages should be generated
 	calldata, err = abi.Pack("testFailedAsyncCall", addr, int32(10))
 	s.Require().NoError(err)
 
@@ -427,7 +427,7 @@ func (s *SuiteRpc) TestNoOutMessagesIfFailure() {
 }
 
 func (s *SuiteRpc) TestMultipleRefunds() {
-	code, err := contracts.GetCode(contracts.NameCommonTest)
+	code, err := contracts.GetCode(contracts.NameTest)
 	s.Require().NoError(err)
 
 	var leftShardId types.ShardId = 1
@@ -486,13 +486,15 @@ func (s *SuiteRpc) TestRpcMessageContent() {
 }
 
 func (s *SuiteRpc) TestDbApi() {
+	block, err := s.client.GetBlock(types.BaseShardId, transport.LatestBlockNumber, false)
+	s.Require().NoError(err)
+
+	s.Require().NoError(s.client.DbInitTimestamp(block.DbTimestamp))
+
 	hBytes, err := s.client.DbGet(db.LastBlockTable, types.BaseShardId.Bytes())
 	s.Require().NoError(err)
 
 	h := common.BytesToHash(hBytes)
-
-	block, err := s.client.GetBlock(types.BaseShardId, h, false)
-	s.Require().NoError(err)
 
 	s.Require().Equal(block.Hash, h)
 }

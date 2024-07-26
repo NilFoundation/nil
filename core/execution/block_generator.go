@@ -2,7 +2,6 @@ package execution
 
 import (
 	"context"
-	"errors"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
@@ -42,6 +41,10 @@ func NewEmptyProposal() *Proposal {
 	}
 }
 
+func (p *Proposal) IsEmpty() bool {
+	return len(p.InMsgs) == 0 && len(p.OutMsgs) == 0
+}
+
 func NewBlockGeneratorParams(shardId types.ShardId, nShards int, gasBasePrice types.Value, gasPriceScale float64) BlockGeneratorParams {
 	return BlockGeneratorParams{
 		ShardId:       shardId,
@@ -68,7 +71,7 @@ func NewBlockGenerator(ctx context.Context, params BlockGeneratorParams, txFabri
 	if err != nil {
 		return nil, err
 	}
-	executionState, err := NewExecutionStateForShard(rwTx, params.ShardId, params.Timer)
+	executionState, err := NewExecutionStateForShard(rwTx, params.ShardId, params.Timer, params.GasPriceScale)
 	if err != nil {
 		return nil, err
 	}
@@ -106,21 +109,17 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal) error {
 		panic("Proposed previous block hash doesn't match the current state.")
 	}
 
+	g.executionState.UpdateGasPrice()
+
 	var err error
-	gasPrice, err := db.ReadGasPerShard(g.rwTx, g.executionState.ShardId)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		gasPrice = g.params.GasBasePrice
-	} else if err != nil {
-		return err
-	}
 
 	for _, msg := range proposal.InMsgs {
 		g.executionState.AddInMessage(msg)
 		var gasUsed types.Gas
 		if msg.IsInternal() {
-			gasUsed, err = g.handleInternalInMessage(msg, gasPrice)
+			gasUsed, err = g.handleInternalInMessage(msg)
 		} else {
-			gasUsed, err = g.handleExternalMessage(msg, gasPrice)
+			gasUsed, err = g.handleExternalMessage(msg)
 		}
 		g.addReceipt(gasUsed, err)
 	}
@@ -140,31 +139,6 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal) error {
 	return g.finalize(proposal.PrevBlockId + 1)
 }
 
-func (g *BlockGenerator) handleMessage(msg *types.Message, payer payer, gasPrice types.Value) (types.Gas, error) {
-	gas := msg.GasLimit
-	if err := buyGas(payer, msg, gasPrice); err != nil {
-		return 0, types.NewMessageError(types.MessageStatusBuyGas, err)
-	}
-	if err := msg.VerifyFlags(); err != nil {
-		return 0, types.NewMessageError(types.MessageStatusValidation, err)
-	}
-
-	var leftOverGas types.Gas
-	var err error
-	switch {
-	case msg.IsDeploy():
-		leftOverGas, err = g.executionState.HandleDeployMessage(g.ctx, msg)
-		refundGas(payer, msg, leftOverGas, gasPrice)
-	case msg.IsRefund():
-		err = g.executionState.HandleRefundMessage(g.ctx, msg)
-	default:
-		leftOverGas, _, err = g.executionState.HandleExecutionMessage(g.ctx, msg)
-		refundGas(payer, msg, leftOverGas, gasPrice)
-	}
-
-	return gas.Sub(leftOverGas), err
-}
-
 func (g *BlockGenerator) validateInternalMessage(message *types.Message) error {
 	check.PanicIfNot(message.IsInternal())
 
@@ -174,17 +148,19 @@ func (g *BlockGenerator) validateInternalMessage(message *types.Message) error {
 	return nil
 }
 
-func (g *BlockGenerator) handleInternalInMessage(msg *types.Message, gasPrice types.Value) (types.Gas, error) {
+func (g *BlockGenerator) handleInternalInMessage(msg *types.Message) (types.Gas, error) {
 	if err := g.validateInternalMessage(msg); err != nil {
 		g.logger.Warn().Err(err).Msg("Invalid internal message")
 		return 0, types.NewMessageError(types.MessageStatusValidation, err)
 	}
 
-	return g.handleMessage(msg, messagePayer{msg, g.executionState}, gasPrice)
+	return g.executionState.handleMessage(g.ctx, msg, messagePayer{msg, msg.FeeCredit.ToGas(g.executionState.GasPrice), g.executionState})
 }
 
-func (g *BlockGenerator) handleExternalMessage(msg *types.Message, gasPrice types.Value) (types.Gas, error) {
-	if err := ValidateExternalMessage(g.executionState, msg, gasPrice); err != nil {
+func (g *BlockGenerator) handleExternalMessage(msg *types.Message) (types.Gas, error) {
+	var verifyGas types.Gas
+	var err error
+	if verifyGas, err = ValidateExternalMessage(g.executionState, msg); err != nil {
 		g.logger.Error().Err(err).Msg("Invalid external message.")
 		return 0, types.NewMessageError(types.MessageStatusValidation, err)
 	}
@@ -193,7 +169,8 @@ func (g *BlockGenerator) handleExternalMessage(msg *types.Message, gasPrice type
 	if err != nil {
 		return 0, types.NewMessageError(types.MessageStatusNoAccount, err)
 	}
-	return g.handleMessage(msg, accountPayer{acc, msg}, gasPrice)
+	usedGas, err := g.executionState.handleMessage(g.ctx, msg, accountPayer{acc, msg})
+	return verifyGas.Add(usedGas), err
 }
 
 func (g *BlockGenerator) addReceipt(gasUsed types.Gas, err error) {

@@ -1,0 +1,81 @@
+# Function modifiers
+
+The =nil; Solidity library provides several function modifiers that simplify the processing of external messages and async calls.
+
+
+## `onlyInternal` and `onlyExternal`
+
+=nil; adds the following function modifiers:
+
+* `onlyInternal`
+* `onlyExternal`
+
+If a function has the `onlyInternal` modifier, it can only be called by another contract regardless of where this contract is located. A function with the `onlyExternal` modifier behaves the opposite way: it must always be called via an external message (e.g., from a user).
+
+:::info
+
+It is technically possible to call a function marked with `onlyExternal`/`onlyInternal` modifier with message whose type is opposite to the type in the modifier. However, such a call will produce an error.
+
+:::
+
+:::tip
+
+To use the `onlyInternal` and `onlyExternal` function modifiers, the contract must use `NilBase` as its base contract.
+
+:::
+
+## Example
+
+Consider the below examples that simulate on-chain voting.
+
+Contract 1 is a 'ballot' contract that is deployed for every voter:
+
+```solidity showLineNumbers
+import "./Nil.sol";
+
+contract Ballot is NilBase {
+    bytes pubkey;
+    constructor(bytes memory _pubkey) payable {
+        pubkey = _pubkey;
+    }
+    function vote(address election, string candidate) external onlyExternal {
+        address refundTo = address(0);
+        int gas = 5000;
+        bool deploy = false;
+        uint value = 0;
+        election.asyncCall(
+            refundTo, gas, deploy, value,
+            abi.encodeWithSignature("requestVote(string)", candidate));
+    }
+    function verifyExternal(uint256 hash, bytes calldata authData) external view returns (bool) {
+        return Nil.validateSignature(pubkey, hash, authData);
+    }
+}
+```
+
+Contract 1 contains the voter's public key. The `vote()` function can only be called externally by the voter for whom the ballot contract was deployed. This is made possible by the `verifyExternal()` function that validates the caller's signature.
+
+Contract 2 records votes:
+
+```solidity showLineNumbers
+import "./Nil.sol";
+
+contract Election {
+    using Nil for address; 
+    mapping(address => string) public votes;
+    mapping(address => bool) private voters; // Filled by the contract owner
+
+    function requestVote(string candidate) public {
+        address voter = msg.sender;
+        if (voters[voter] != true) {
+            return;
+        }
+        votes[voter] = candidate;
+    }
+}
+```
+
+Note that Contract 2 lacks the `verifyExternal()` function and, therefore, cannot accept external messages. This means that `requestVote()` does not need to have the `onlyInternal` modifier. Vote verification in Contract 2 can only be initiated by another contract.
+
+Contract 1 makes an async call to Contract 2 requesting vote registration. If the caller is a valid voter, the `votes` map is updated to include the new vote for the specified `candidate`. Careful use of modifiers and the `verifyExternal()` function means that the voting system cannot be abused: votes cannot be requested directly, and additional verification occurs at the level of the election contract.
+

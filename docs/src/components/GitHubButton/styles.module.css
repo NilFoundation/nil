@@ -1,0 +1,44 @@
+[data-theme='light'] .gitHubButton {
+  background-color: #f1f1f1;
+  color: #0f0f0f;
+  border-color: #404040;
+  border: 2px solid;
+  border-radius: 5px;
+  padding: 2px 10px 2px 5px;
+  display: flex;
+  width: fit-content;
+  margin-bottom: 10px;
+  cursor: pointer;
+  justify-content: center;
+  vertical-align: middle;
+  align-items: center;
+}
+
+[data-theme='dark'] .gitHubButton {
+  background-color: #f1f1f1;
+  color: #0f0f0f;
+  border-color: #404040;
+  border: 2px solid;
+  border-radius: 5px;
+  padding: 2px 10px 2px 5px;
+  display: flex;
+  width: fit-content;
+  margin-bottom: 10px;
+  cursor: pointer;
+  justify-content: center;
+  vertical-align: middle;
+  align-items: center;
+}
+
+
+
+.gitHubLogo {
+  object-fit: contain;
+  height: 2.5em;
+  vertical-align: middle;
+  display: inline;
+}
+
+.gitHubButton:hover {
+  background-color: #bdbdbd;
+}

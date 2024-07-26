@@ -42,7 +42,9 @@ func (v Value) IsZero() bool {
 }
 
 func (v Value) Add(other Value) Value {
-	return Value{v.Uint256.add(other.Uint256)}
+	res, overflow := v.AddOverflow(other)
+	check.PanicIfNot(!overflow)
+	return res
 }
 
 func (v Value) AddOverflow(other Value) (Value, bool) {
@@ -51,15 +53,26 @@ func (v Value) AddOverflow(other Value) (Value, bool) {
 }
 
 func (v Value) Sub(other Value) Value {
-	return Value{v.Uint256.sub(other.Uint256)}
+	res, overflow := v.SubOverflow(other)
+	check.PanicIfNot(!overflow)
+	return res
+}
+
+func (v Value) SubOverflow(other Value) (Value, bool) {
+	res, overflow := v.Uint256.subOverflow(other.Uint256)
+	return Value{res}, overflow
 }
 
 func (v Value) Add64(other uint64) Value {
-	return Value{v.Uint256.add(NewUint256(other))}
+	res, overflow := v.Uint256.addOverflow(NewUint256(other))
+	check.PanicIfNot(!overflow)
+	return Value{res}
 }
 
 func (v Value) Sub64(other uint64) Value {
-	return Value{v.Uint256.sub(NewUint256(other))}
+	res, overflow := v.Uint256.subOverflow(NewUint256(other))
+	check.PanicIfNot(!overflow)
+	return Value{res}
 }
 
 func (v Value) Cmp(other Value) int {

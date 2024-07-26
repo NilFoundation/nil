@@ -1,0 +1,43 @@
+# Variable: SszMessageSchema
+
+```ts
+const SszMessageSchema: ContainerType<object>;
+```
+
+The SSZ schema for a message object.
+
+## Type declaration
+
+### chainId
+
+```ts
+chainId: UintNumberType = basicTypes.Uint64;
+```
+
+### data
+
+```ts
+data: ByteListType;
+```
+
+### deploy
+
+```ts
+deploy: BooleanType = basicTypes.Bool;
+```
+
+### seqno
+
+```ts
+seqno: UintNumberType = basicTypes.Uint64;
+```
+
+### to
+
+```ts
+to: ByteVectorType = Bytes20;
+```
+
+## Defined in
+
+[nil/nil.js/src/encoding/ssz.ts:61](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/encoding/ssz.ts#L61)

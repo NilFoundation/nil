@@ -1,0 +1,112 @@
+import Thesis from '@site/static/img/nil/nil-icons/thesis.png'
+import Principles from '@site/static/img/nil/nil-icons/principles.png'
+import {Card, CardSection} from '@site/src/components/CardSection'
+import Accounts from '@site/static/img/nil/nil-icons/accounts.png'
+import Transaction from '@site/static/img/nil/nil-icons/transaction.png'
+import Shards from '@site/static/img/nil/nil-icons/shards.png'
+import Finality from '@site/static/img/nil/nil-icons/finality.png'
+import Data from '@site/static/img/nil/nil-icons/data.png'
+import Contract from '@site/static/img/nil/nil-icons/contract.png'
+import Sequencing from '@site/static/img/nil/nil-icons/sequencing.png'
+import Essentials from '@site/static/img/nil/nil-icons/essentials.png'
+import Architecture from '@site/static/img/nil/nil-icons/architecture.png'
+import Prerequisites from '@site/static/img/nil/nil-icons/prerequisites.png'
+import SolLibrary from '@site/static/img/nil/nil-icons/tools.png'
+import Nil101 from '@site/static/img/nil/nil-icons/nil101.png'
+import SmartContracts from '@site/static/img/nil/nil-icons/smart_contracts.png'
+import CLI from '@site/static/img/nil/nil-icons/cli.png'
+import Hardhat from '@site/static/img/nil/nil-icons/hardhat.png'
+import JS from '@site/static/img/nil/nil-icons/js.png'
+import API from '@site/static/img/nil/nil-icons/api.png'
+import Explorer from '@site/static/img/nil/nil-icons/explorer.png'
+
+# Overview
+
+## Definition
+
+=nil; is an Ethereum layer-2 blockchain powered by zkSharding. The design of =nil; embodies three core qualities:
+
+* **Horizontal scalability**. =nil; unlocks the power of many machines by partitioning state across shards with cross-shard communications being a built-in feature of the protocol.
+* **Modularity**. =nil; acts as an execution layer while using Ethereum for data availability and consensus.
+* **Verifiable security**. The entire =nil; network can be verified with a single zero-knowledge proof attesting to the correctness of all shards.
+
+The design of =nil; transcends the typical monolithic vs. modular discourse as it emphasizes horizontal scalability above all else. =nil; scales out beyond the constraints of a single machine's processing power, by leveraging zkSharding, a new type of sharding architecture. In zkSharding, execution shards produce zero-knowledge proofs (ZKPs) verifying intra-shard state transitions while the state of the cluster is managed by a designated consensus shard. The consensus shard is responsible for synchronizing execution shards and producing a 'master' ZKP that is sent to Ethereum for global state verification.
+
+=nil; offers an effective strategy for scaling Ethereum while avoiding the limitations typically associated with the modular approach such as state and liquidity fragmentation.
+
+## Structure of the documentation
+
+### Introduction
+
+Learn the basics of what =nil; is and how it works.
+
+<CardSection>
+    <Card icon={<img src={Thesis}/>} id='thesis' title='Thesis' description='Read about the "how" and "why" of =nil;' to='./thesis'/>
+    <Card icon={<img src={Principles}/>} id='principles' title='Principles' description='Grasp the architecture of =nil;' to='./principles'/>
+</CardSection>
+
+### Getting started
+
+Start working with =nil; and learn the essentials of its implementation.
+
+<CardSection>
+    <Card icon={<img src={Prerequisites}/>} id='prerequisites' title='Prerequisites' description='Complete the initial steps for working with =nil;' to='./getting-started/prerequisites'/>
+    <Card icon={<img src={Nil101}/>} id='nil101' title='=nil; 101' description='Read a 5-minute primer on interacting with the network' to='./getting-started/nil-101'/>
+    <Card icon={<img src={Essentials}/>} id='essentials' title='Essentials' description='Perform essential operations on the cluster' to='./getting-started/essentials/creating-a-wallet'/>
+    <Card icon={<img src={SmartContracts}/>} id='smart_contracts' title='Working with smart contracts' description='Write, deploy, and call smart contracts' to='./getting-started/working-with-smart-contracts/writing-a-contract'/>
+</CardSection>
+
+### Tools
+
+Access the developer tools supplied with =nil;.
+
+<CardSection>
+    <Card icon={<img src={CLI}/>} id='cli' title='=nil; CLI' description='Configure the =nil; CLI' to='./tools/nil-cli/usage'/>
+    <Card icon={<img src={Hardhat}/>} id='hardhat' title='Hardhat' description='Set up the =nil; Hardhat plugin' to='./tools/hardhat-plugin/usage'/>
+    <Card icon={<img src={SolLibrary}/>} id='sol-library' title='Solidity library' description='Learn more about Nil.sol' to='./tools/sol-library/func-modifiers'/>
+    <Card icon={<img src={Explorer}/>} id='explorer' title='Block explorer' description='Monitor blocks, accounts, and message' to='./tools/block-explorer/usage'/>
+</CardSection>
+
+### Core concepts
+
+Familiarize yourself with the key components of the architecture of =nil;.
+
+<CardSection>
+    <Card icon={<img src={Accounts}/>} id='accounts' title='Accounts' description='Learn about how =nil; handles accounts' to='./core-concepts/accounts'/>
+    <Card icon={<img src={Transaction}/>} id='lifecycle' title='Transaction lifecycle' description='Follow a transaction to finality' to='./core-concepts/transaction-lifecycle'/>
+    <Card icon={<img src={Shards}/>} id='shards' title='Shards and parallelized execution' description='See how =nil; achieves scalability' to='./core-concepts/shards-parallel-execution'/>
+</CardSection>
+
+### Guides
+
+Read about the inner workings of the =nil; implementation and access advanced tutorials.
+
+<CardSection>
+    <Card icon={<img src={Architecture}/>} id='architecture' title='Architecture' description='Learn more about ETH compatibility' to='./guides/architecture/ethereum-nil-diffs'/>
+</CardSection>
+
+### References
+
+<CardSection>
+    <Card icon={<img src={CLI}/>} id='cli-ref' title='=nil; CLI reference' description='See all commands, flags, and outputs' to='./reference/cli-reference'/>
+    <Card icon={<img src={JS}/>} id='client' title='Nil.js reference' description='Read about key classes and functions' to='./reference/client'/>
+    <Card icon={<img src={API}/>} id='api' title='JSON-RPC API' description='Access RPC requests, params, and responses' to='./references/json-rpc-api'/>
+</CardSection>
+
+
+### Specification
+
+Learn more about how =nil; plans to resolve issues central to any blockchain.
+
+:::info[WIP provisions]
+
+The materials in this section may describe features and components that are not yet part of =nil;.
+
+:::
+
+<CardSection>
+    <Card icon={<img src={Sequencing}/>} id='sequencing' title='Sequencing' description='Read about how =nil; adopts the PBS model' to='./specification/sequencing'/>
+    <Card icon={<img src={Finality}/>} id='finality' title='Finality' description='Learn about the strong security guarantees of =nil;' to='./specification/finality'/>
+    <Card icon={<img src={Data}/>} id='data' title='Data availability' description='See how =nil; achieves DA at all levels' to='./specification/data-availability'/>
+    <Card icon={<img src={Contract}/>} id='contract' title='Contract placement' description='Ensure account placement on the same shard' to='./specification/contract-co-location'/>
+</CardSection>

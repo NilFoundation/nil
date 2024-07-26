@@ -21,15 +21,16 @@ type payer interface {
 
 type messagePayer struct {
 	message *types.Message
+	gas     types.Gas
 	es      *ExecutionState
 }
 
 func (m messagePayer) CanPay(amount types.Value) bool {
-	return m.message.Value.Cmp(amount) >= 0
+	return true
 }
 
-func (m messagePayer) SubBalance(delta types.Value) {
-	m.message.Value = m.message.Value.Sub(delta)
+func (m messagePayer) SubBalance(_ types.Value) {
+	// Already paid by sender
 }
 
 func (m messagePayer) AddBalance(delta types.Value) {
@@ -37,6 +38,7 @@ func (m messagePayer) AddBalance(delta types.Value) {
 		sharedLogger.Error().Stringer(logging.FieldMessageHash, m.message.Hash()).Msg("refund address is empty")
 		return
 	}
+
 	if err := m.es.AddOutInternal(m.message.To, &types.InternalMessagePayload{
 		Kind:  types.RefundMessageKind,
 		To:    m.message.RefundTo,
@@ -56,31 +58,28 @@ type accountPayer struct {
 }
 
 func (a accountPayer) CanPay(amount types.Value) bool {
-	return a.account.Balance.Cmp(a.message.Value.Add(amount)) >= 0
+	value, overflow := a.message.Value.AddOverflow(amount)
+	check.PanicIfNot(!overflow)
+	return a.account.Balance.Cmp(value) >= 0
 }
 
 func (a accountPayer) SubBalance(amount types.Value) {
-	a.account.SubBalance(amount, tracing.BalanceDecreaseGasBuy)
+	check.PanicIfErr(a.account.SubBalance(amount, tracing.BalanceDecreaseGasBuy))
 }
 
 func (a accountPayer) AddBalance(amount types.Value) {
-	a.account.AddBalance(amount, tracing.BalanceIncreaseGasReturn)
+	check.PanicIfErr(a.account.AddBalance(amount, tracing.BalanceIncreaseGasReturn))
 }
 
 func (a accountPayer) String() string {
 	return fmt.Sprintf("account %v", a.message.From.Hex())
 }
 
-func buyGas(payer payer, message *types.Message, gasPrice types.Value) error {
-	required, overflow := message.GasLimit.ToValueOverflow(gasPrice)
-	if overflow {
-		return fmt.Errorf("%w: %s required balance exceeds 256 bits", ErrInsufficientFunds, payer)
+func buyGas(payer payer, message *types.Message) error {
+	if !payer.CanPay(message.FeeCredit) {
+		return fmt.Errorf("%w: %s can't pay %s", ErrInsufficientFunds, payer, message.FeeCredit)
 	}
-	if !payer.CanPay(required) {
-		return fmt.Errorf("%w: %s can't pay %s", ErrInsufficientFunds, payer, required)
-	}
-
-	payer.SubBalance(required)
+	payer.SubBalance(message.FeeCredit)
 	return nil
 }
 
@@ -126,54 +125,47 @@ func validateExternalDeployMessage(es *ExecutionState, message *types.Message) e
 	return nil
 }
 
-func validateExternalExecutionMessage(es *ExecutionState, message *types.Message, gasPrice types.Value) error {
+func validateExternalExecutionMessage(es *ExecutionState, message *types.Message) (types.Gas, error) {
 	check.PanicIfNot(message.IsExecution())
 
 	to := message.To
 	if exists, err := es.ContractExists(to); err != nil {
-		return err
+		return 0, err
 	} else if !exists {
 		if len(message.Data) > 0 && message.Value.IsZero() {
-			return ErrContractDoesNotExist
+			return 0, ErrContractDoesNotExist
 		}
-		return nil // Just send value
+		return 0, nil // Just send value
 	}
 
 	account, err := es.GetAccount(to)
 	check.PanicIfErr(err)
 	if account.ExtSeqno != message.Seqno {
-		return fmt.Errorf("%w: account %v != message %v", ErrSeqnoGap, account.ExtSeqno, message.Seqno)
+		return 0, fmt.Errorf("%w: account %v != message %v", ErrSeqnoGap, account.ExtSeqno, message.Seqno)
 	}
 
-	ok, err := es.CallVerifyExternal(message, account, gasPrice)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return ErrInvalidSignature
-	}
-	return nil
+	return es.CallVerifyExternal(message, account)
 }
 
-func ValidateExternalMessage(es *ExecutionState, message *types.Message, gasPrice types.Value) error {
+func ValidateExternalMessage(es *ExecutionState, message *types.Message) (types.Gas, error) {
 	check.PanicIfNot(message.IsExternal())
 
 	if message.ChainId != types.DefaultChainId {
-		return ErrInvalidChainId
+		return 0, ErrInvalidChainId
 	}
 
 	if account, err := es.GetAccount(message.To); err != nil {
-		return err
+		return 0, err
 	} else if account == nil {
-		return ErrNoPayer
+		return 0, ErrNoPayer
 	}
 
 	switch {
 	case message.IsDeploy():
-		return validateExternalDeployMessage(es, message)
+		return 0, validateExternalDeployMessage(es, message)
 	case message.IsRefund():
-		return errors.New("refund message is not allowed in external messages")
+		return 0, errors.New("refund message is not allowed in external messages")
 	default:
-		return validateExternalExecutionMessage(es, message, gasPrice)
+		return validateExternalExecutionMessage(es, message)
 	}
 }

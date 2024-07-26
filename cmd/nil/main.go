@@ -58,6 +58,8 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 	logLevel := rootCmd.PersistentFlags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
 	port := rootCmd.PersistentFlags().Int("port", 8529, "http port for rpc server")
 	adminSocket := rootCmd.PersistentFlags().String("admin-socket-path", "", "unix socket path to start admin server on (disabled if empty)}")
+	dbAddr := rootCmd.PersistentFlags().String("read-through-db-addr", "", "address of the read-through database server. If provided, the local node will be run in read-through mode.")
+	startBlock := rootCmd.PersistentFlags().Int64("read-through-start-block", int64(transport.LatestBlockNumber), "mainshard start block number for read-through mode, latest block by default")
 
 	runCmd := &cobra.Command{
 		Use:   "run",
@@ -86,9 +88,6 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 		f(c, s)
 		os.Exit(0)
 	})
-
-	dbAddr := rootCmd.Flags().String("read-through-db-addr", "", "address of the read-through database server. If provided, the local node will be run in read-through mode.")
-	startBlock := rootCmd.Flags().Int64("read-through-start-block", int64(transport.LatestBlockNumber), "mainshard start block number for read-through mode, latest block by default")
 
 	check.PanicIfErr(rootCmd.Execute())
 

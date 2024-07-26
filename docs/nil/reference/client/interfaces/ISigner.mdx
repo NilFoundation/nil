@@ -1,0 +1,150 @@
+# Interface: ISigner
+
+The interface for the Signer class
+
+## Methods
+
+### getAddress()
+
+```ts
+getAddress(params): Promise<Uint8Array>
+```
+
+Retrieves the address.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+<tr>
+<td>
+
+`params`
+
+</td>
+<td>
+
+`unknown`
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`Uint8Array`\>
+
+The address.
+
+#### Example
+
+```ts
+const address = signer.getAddress();
+```
+
+#### Defined in
+
+[nil/nil.js/src/signers/types/ISigner.ts:29](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/signers/types/ISigner.ts#L29)
+
+***
+
+### getPublicKey()
+
+```ts
+getPublicKey(params): Promise<Uint8Array>
+```
+
+Retrieves the public key.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+<tr>
+<td>
+
+`params`
+
+</td>
+<td>
+
+`unknown`
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`Uint8Array`\>
+
+The public key.
+
+#### Example
+
+```ts
+const address = signer.getPublicKey();
+```
+
+#### Defined in
+
+[nil/nil.js/src/signers/types/ISigner.ts:21](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/signers/types/ISigner.ts#L21)
+
+***
+
+### sign()
+
+```ts
+sign(data): Promise<Uint8Array>
+```
+
+Signs the data.
+Accepts valid data as an argument and returns the signature.
+
+#### Parameters
+
+<table>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>
+
+`data`
+
+</td>
+<td>
+
+`Uint8Array`
+
+</td>
+<td>
+
+The data to sign.
+
+</td>
+</tr>
+</table>
+
+#### Returns
+
+`Promise`\<`Uint8Array`\>
+
+#### Example
+
+```ts
+const data = Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+const recoveredSignature = signer.sign(data);
+```
+
+#### Defined in
+
+[nil/nil.js/src/signers/types/ISigner.ts:13](https://github.com/NilFoundation/nil.js/blob/08a7f90027b4c09b608245b19f15f6fb7ae1ff03/src/signers/types/ISigner.ts#L13)
