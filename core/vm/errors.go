@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -27,6 +28,10 @@ type VMError struct {
 
 func (e VMError) Error() string {
 	return e.err
+}
+
+func IsVMError(err error) bool {
+	return errors.As(err, &VMError{})
 }
 
 // List evm execution errors
