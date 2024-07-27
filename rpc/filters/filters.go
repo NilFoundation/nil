@@ -19,7 +19,6 @@ import (
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
-	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/holiman/uint256"
@@ -238,9 +237,9 @@ func (m *FiltersManager) processBlocksRange(filter *Filter) error {
 }
 
 func (m *FiltersManager) readReceipts(tx db.RoTx, block *types.Block) ([]*types.Receipt, error) {
-	return execution.NewReceiptTrieReader(
-		mpt.NewReaderWithRoot(tx, m.shardId, db.ReceiptTrieTable, block.ReceiptsRoot),
-	).Values()
+	reader := execution.NewDbReceiptTrieReader(tx, m.shardId)
+	reader.SetRootHash(block.ReceiptsRoot)
+	return reader.Values()
 }
 
 func (m *FiltersManager) processBlockHash(lastHash common.Hash) (*types.Block, error) {

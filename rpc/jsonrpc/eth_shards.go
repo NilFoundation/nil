@@ -5,7 +5,6 @@ import (
 
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
-	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 )
 
@@ -21,7 +20,7 @@ func (api *APIImpl) GetShardIdList(ctx context.Context) ([]types.ShardId, error)
 		return nil, err
 	}
 
-	treeShards := execution.NewShardBlocksTrieReader(
-		mpt.NewReaderWithRoot(tx, types.MainShardId, db.ShardBlocksTrieTableName(block.Id), block.ChildBlocksRootHash))
+	treeShards := execution.NewDbShardBlocksTrieReader(tx, types.MainShardId, block.Id)
+	treeShards.SetRootHash(block.ChildBlocksRootHash)
 	return treeShards.Keys()
 }

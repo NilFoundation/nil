@@ -6,7 +6,6 @@ import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
-	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/require"
 )
@@ -32,7 +31,7 @@ func writeTestBlock(t *testing.T, tx db.RwTx, shardId types.ShardId, blockNumber
 
 func writeMessages(t *testing.T, tx db.RwTx, shardId types.ShardId, messages []*types.Message) *execution.MessageTrie {
 	t.Helper()
-	messageRoot := execution.NewMessageTrie(mpt.NewMerklePatriciaTrie(tx, shardId, db.MessageTrieTable))
+	messageRoot := execution.NewDbMessageTrie(tx, shardId)
 	for i, message := range messages {
 		require.NoError(t, messageRoot.Update(types.MessageIndex(i), message))
 	}
@@ -41,7 +40,7 @@ func writeMessages(t *testing.T, tx db.RwTx, shardId types.ShardId, messages []*
 
 func writeReceipts(t *testing.T, tx db.RwTx, shardId types.ShardId, receipts []*types.Receipt) *execution.ReceiptTrie {
 	t.Helper()
-	receiptRoot := execution.NewReceiptTrie(mpt.NewMerklePatriciaTrie(tx, shardId, db.ReceiptTrieTable))
+	receiptRoot := execution.NewDbReceiptTrie(tx, shardId)
 	for i, receipt := range receipts {
 		require.NoError(t, receiptRoot.Update(types.MessageIndex(i), receipt))
 	}

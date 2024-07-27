@@ -10,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
-	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/rs/zerolog"
 )
@@ -133,7 +132,8 @@ func (s *ReplayScheduler) buildProposalFromPrevBlock(ctx context.Context) (*exec
 	// we could also consider option with fairly collecting these messages
 	// from neighbor shards and running collator
 	// however it's not a purpose of replay mode (at least now)
-	inMsgsReader := execution.NewMessageTrieReader(mpt.NewReaderWithRoot(roTx, s.params.ShardId, db.MessageTrieTable, blockToReplay.InMessagesRoot))
+	inMsgsReader := execution.NewDbMessageTrieReader(roTx, s.params.ShardId)
+	inMsgsReader.SetRootHash(blockToReplay.InMessagesRoot)
 	entries, err := inMsgsReader.Entries()
 	if err != nil {
 		return nil, err
@@ -143,7 +143,8 @@ func (s *ReplayScheduler) buildProposalFromPrevBlock(ctx context.Context) (*exec
 		proposal.InMsgs[inMsg.Key] = inMsg.Val
 	}
 
-	outMsgsReader := execution.NewMessageTrieReader(mpt.NewReaderWithRoot(roTx, s.params.ShardId, db.MessageTrieTable, blockToReplay.OutMessagesRoot))
+	outMsgsReader := execution.NewDbMessageTrieReader(roTx, s.params.ShardId)
+	outMsgsReader.SetRootHash(blockToReplay.OutMessagesRoot)
 	entries, err = outMsgsReader.Entries()
 	if err != nil {
 		return nil, err

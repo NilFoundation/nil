@@ -9,7 +9,6 @@ import (
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
-	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc/filters"
@@ -101,7 +100,7 @@ func (s *SuiteEthFilters) TestLogs() {
 		},
 	}
 
-	receiptsMpt := execution.NewReceiptTrie(mpt.NewMerklePatriciaTrie(tx, s.shardId, db.ReceiptTrieTable))
+	receiptsMpt := execution.NewDbReceiptTrie(tx, s.shardId)
 	s.Require().NoError(receiptsMpt.Update(0, &types.Receipt{ContractAddress: address1, Logs: logsInput}))
 	s.Require().NoError(receiptsMpt.Update(1, &types.Receipt{ContractAddress: address2, Logs: logsInput2}))
 

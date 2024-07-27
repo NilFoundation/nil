@@ -142,7 +142,8 @@ func (api *APIImpl) getBlockAndInMessageIndexByMessageHash(tx db.RoTx, shardId t
 func getRawBlockEntity(
 	tx db.RoTx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash, entityKey []byte,
 ) ([]byte, error) {
-	root := mpt.NewReaderWithRoot(tx, shardId, tableName, rootHash)
+	root := mpt.NewDbReader(tx, shardId, tableName)
+	root.SetRootHash(rootHash)
 	entityBytes, err := root.Get(entityKey)
 	if err != nil {
 		return nil, err
@@ -157,7 +158,8 @@ func getBlockEntity[
 	},
 	S any,
 ](tx db.RoTx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash, entityKey []byte) (*S, error) {
-	root := mpt.NewReaderWithRoot(tx, shardId, tableName, rootHash)
+	root := mpt.NewDbReader(tx, shardId, tableName)
+	root.SetRootHash(rootHash)
 	return mpt.GetEntity[T](root, entityKey)
 }
 

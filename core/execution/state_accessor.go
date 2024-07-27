@@ -109,7 +109,8 @@ func collectBlockEntities[
 		return nil
 	}
 
-	root := mpt.NewReaderWithRoot(sa.tx, sa.shardId, tableName, rootHash)
+	root := mpt.NewDbReader(sa.tx, sa.shardId, tableName)
+	root.SetRootHash(rootHash)
 
 	items := make([]*S, 0, 1024)
 	var index uint64
@@ -132,7 +133,9 @@ func collectBlockEntities[
 }
 
 func (s *shardAccessor) mptReader(tableName db.ShardedTableName, rootHash common.Hash) *mpt.Reader {
-	return mpt.NewReaderWithRoot(s.tx, s.shardId, tableName, rootHash)
+	res := mpt.NewDbReader(s.tx, s.shardId, tableName)
+	res.SetRootHash(rootHash)
+	return res
 }
 
 func (s *shardAccessor) GetBlock() blockAccessor {
@@ -257,8 +260,8 @@ func (b blockAccessor) ByHash(hash common.Hash) (blockAccessorResult, error) {
 	}
 
 	if b.withChildBlocks {
-		treeShards := NewShardBlocksTrieReader(
-			mpt.NewReaderWithRoot(sa.tx, sa.shardId, db.ShardBlocksTrieTableName(block.Id), block.ChildBlocksRootHash))
+		treeShards := NewDbShardBlocksTrieReader(sa.tx, sa.shardId, block.Id)
+		treeShards.SetRootHash(block.ChildBlocksRootHash)
 		valuePtrs, err := treeShards.Values()
 		if err != nil {
 			return blockAccessorResult{}, err

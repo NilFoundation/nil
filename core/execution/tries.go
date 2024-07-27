@@ -3,6 +3,7 @@ package execution
 import (
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 )
@@ -141,6 +142,54 @@ func NewShardBlocksTrie(parent *mpt.MerklePatriciaTrie) *ShardBlocksTrie {
 	}
 }
 
+func NewDbContractTrieReader(tx db.RoTx, shardId types.ShardId) *ContractTrieReader {
+	return NewContractTrieReader(mpt.NewDbReader(tx, shardId, db.ContractTrieTable))
+}
+
+func NewDbMessageTrieReader(tx db.RoTx, shardId types.ShardId) *MessageTrieReader {
+	return NewMessageTrieReader(mpt.NewDbReader(tx, shardId, db.MessageTrieTable))
+}
+
+func NewDbReceiptTrieReader(tx db.RoTx, shardId types.ShardId) *ReceiptTrieReader {
+	return NewReceiptTrieReader(mpt.NewDbReader(tx, shardId, db.ReceiptTrieTable))
+}
+
+func NewDbStorageTrieReader(tx db.RoTx, shardId types.ShardId) *StorageTrieReader {
+	return NewStorageTrieReader(mpt.NewDbReader(tx, shardId, db.StorageTrieTable))
+}
+
+func NewDbCurrencyTrieReader(tx db.RoTx, shardId types.ShardId) *CurrencyTrieReader {
+	return NewCurrencyTrieReader(mpt.NewDbReader(tx, shardId, db.CurrencyTrieTable))
+}
+
+func NewDbShardBlocksTrieReader(tx db.RoTx, shardId types.ShardId, blockNumber types.BlockNumber) *ShardBlocksTrieReader {
+	return NewShardBlocksTrieReader(mpt.NewDbReader(tx, shardId, db.ShardBlocksTrieTableName(blockNumber)))
+}
+
+func NewDbContractTrie(tx db.RwTx, shardId types.ShardId) *ContractTrie {
+	return NewContractTrie(mpt.NewDbMPT(tx, shardId, db.ContractTrieTable))
+}
+
+func NewDbMessageTrie(tx db.RwTx, shardId types.ShardId) *MessageTrie {
+	return NewMessageTrie(mpt.NewDbMPT(tx, shardId, db.MessageTrieTable))
+}
+
+func NewDbReceiptTrie(tx db.RwTx, shardId types.ShardId) *ReceiptTrie {
+	return NewReceiptTrie(mpt.NewDbMPT(tx, shardId, db.ReceiptTrieTable))
+}
+
+func NewDbStorageTrie(tx db.RwTx, shardId types.ShardId) *StorageTrie {
+	return NewStorageTrie(mpt.NewDbMPT(tx, shardId, db.StorageTrieTable))
+}
+
+func NewDbCurrencyTrie(tx db.RwTx, shardId types.ShardId) *CurrencyTrie {
+	return NewCurrencyTrie(mpt.NewDbMPT(tx, shardId, db.CurrencyTrieTable))
+}
+
+func NewDbShardBlocksTrie(tx db.RwTx, shardId types.ShardId, blockNumber types.BlockNumber) *ShardBlocksTrie {
+	return NewShardBlocksTrie(mpt.NewDbMPT(tx, shardId, db.ShardBlocksTrieTableName(blockNumber)))
+}
+
 func (m *BaseMPTReader[K, V, VPtr]) newV() VPtr {
 	var v V
 	return VPtr(&v)
@@ -158,9 +207,9 @@ func (m *BaseMPTReader[K, V, VPtr]) Fetch(key K) (VPtr, error) {
 }
 
 func (m *BaseMPTReader[K, V, VPtr]) Entries() ([]Entry[K, VPtr], error) {
-	// todo: choose good initial buffer size
-	res := make([]Entry[K, VPtr], 0, 100)
-	for kv := range m.Iterate() {
+	kvs := m.Iterate()
+	res := make([]Entry[K, VPtr], 0, len(kvs))
+	for _, kv := range kvs {
 		k, err := m.keyFromBytes(kv.Key)
 		if err != nil {
 			return nil, err
@@ -177,9 +226,9 @@ func (m *BaseMPTReader[K, V, VPtr]) Entries() ([]Entry[K, VPtr], error) {
 }
 
 func (m *BaseMPTReader[K, V, VPtr]) Keys() ([]K, error) {
-	// todo: choose good initial buffer size
-	res := make([]K, 0, 100)
-	for kv := range m.Iterate() {
+	kvs := m.Iterate()
+	res := make([]K, 0, len(kvs))
+	for _, kv := range kvs {
 		k, err := m.keyFromBytes(kv.Key)
 		if err != nil {
 			return nil, err
@@ -190,9 +239,9 @@ func (m *BaseMPTReader[K, V, VPtr]) Keys() ([]K, error) {
 }
 
 func (m *BaseMPTReader[K, V, VPtr]) Values() ([]VPtr, error) {
-	// todo: choose good initial buffer size
-	res := make([]VPtr, 0, 100)
-	for kv := range m.Iterate() {
+	kvs := m.Iterate()
+	res := make([]VPtr, 0, len(kvs))
+	for _, kv := range kvs {
 		v := m.newV()
 		if err := v.UnmarshalSSZ(kv.Value); err != nil {
 			return nil, err

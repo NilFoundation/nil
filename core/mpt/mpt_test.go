@@ -1,14 +1,11 @@
 package mpt
 
 import (
-	"context"
 	"encoding/binary"
 	"math/rand"
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/core/db"
-	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,12 +21,8 @@ func getValue(t *testing.T, trie *MerklePatriciaTrie, key []byte) []byte {
 func CreateMerklePatriciaTrie(t *testing.T) *MerklePatriciaTrie {
 	t.Helper()
 
-	d, err := db.NewBadgerDbInMemory()
-	require.NoError(t, err)
-	tx, err := d.CreateRwTx(context.Background())
-	require.NoError(t, err)
-
-	return NewMerklePatriciaTrie(tx, types.BaseShardId, "mpt")
+	holder := make(map[string][]byte)
+	return NewMPT(NewMapSetter(holder), NewReader(NewMapGetter(holder)))
 }
 
 func TestInsertGetOneShort(t *testing.T) {
@@ -94,7 +87,7 @@ func TestIterate(t *testing.T) {
 	}
 
 	i := 0
-	for kv := range trie.Iterate() {
+	for _, kv := range trie.Iterate() {
 		require.Equal(t, kv.Key, keys[i])
 		require.Equal(t, kv.Value, values[i])
 		i += 1
@@ -208,14 +201,14 @@ func TestTrieFromOldRoot(t *testing.T) {
 	require.NoError(t, trie.Delete([]byte("dog")))
 	require.NoError(t, trie.Set([]byte("do"), []byte("not_a_verb")))
 
-	// Old
-	trie2 := NewMerklePatriciaTrieWithRoot(trie.accessor, types.BaseShardId, "mpt", rootHash)
-	require.Equal(t, []byte("verb"), getValue(t, trie2, []byte("do")))
-	require.Equal(t, []byte("puppy"), getValue(t, trie2, []byte("dog")))
-
 	// New
 	require.Equal(t, []byte("not_a_verb"), getValue(t, trie, []byte("do")))
 	value, err := trie.Get([]byte("dog"))
 	require.Error(t, err)
 	require.Empty(t, value)
+
+	// Old
+	trie.SetRootHash(rootHash)
+	require.Equal(t, []byte("verb"), getValue(t, trie, []byte("do")))
+	require.Equal(t, []byte("puppy"), getValue(t, trie, []byte("dog")))
 }
