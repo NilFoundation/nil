@@ -42,6 +42,12 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 	s.Require().NoError(err)
 	s.Require().NotNil(es)
 
+	validate := func(msg *types.Message) error {
+		_, validationErr, err := ValidateExternalMessage(es, msg)
+		s.Require().NoError(err)
+		return validationErr
+	}
+
 	s.Run("Deploy", func() {
 		code := types.Code("some-code")
 		msg := &types.Message{
@@ -51,30 +57,26 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 		}
 
 		s.Run("NoAccount", func() {
-			_, err = ValidateExternalMessage(es, msg)
-			s.Require().ErrorIs(err, ErrNoPayer)
+			s.Require().ErrorIs(validate(msg), ErrNoPayer)
 
 			s.Require().NoError(es.CreateAccount(msg.To))
 		})
 
 		s.Run("IncorrectAddress", func() {
-			_, err = ValidateExternalMessage(es, msg)
-			s.Require().ErrorIs(err, ErrIncorrectDeploymentAddress)
+			s.Require().ErrorIs(validate(msg), ErrIncorrectDeploymentAddress)
 
 			msg.To = types.CreateAddress(types.BaseShardId, *types.ParseDeployPayload(msg.Data))
 			s.Require().NoError(es.CreateAccount(msg.To))
 		})
 
 		s.Run("Ok", func() {
-			_, err = ValidateExternalMessage(es, msg)
-			s.Require().NoError(err)
+			s.Require().NoError(validate(msg))
 		})
 
 		s.Run("ContractAlreadyExists", func() {
 			s.Require().NoError(es.SetCode(msg.To, code))
 
-			_, err = ValidateExternalMessage(es, msg)
-			s.Require().ErrorIs(err, ErrContractAlreadyExists)
+			s.Require().ErrorIs(validate(msg), ErrContractAlreadyExists)
 		})
 	})
 
@@ -85,15 +87,13 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 		}
 
 		s.Run("NoAccount", func() {
-			_, err = ValidateExternalMessage(es, msg)
-			s.Require().ErrorIs(err, ErrNoPayer)
+			s.Require().ErrorIs(validate(msg), ErrNoPayer)
 
 			s.Require().NoError(es.CreateAccount(msg.To))
 		})
 
 		s.Run("NoContract", func() {
-			_, err = ValidateExternalMessage(es, msg)
-			s.Require().ErrorIs(err, ErrContractDoesNotExist)
+			s.Require().ErrorIs(validate(msg), ErrContractDoesNotExist)
 
 			// contract that always returns "true",
 			// so verifies any message
@@ -101,30 +101,26 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 		})
 
 		s.Run("NoBalance", func() {
-			_, err = ValidateExternalMessage(es, msg)
-			s.Require().ErrorIs(err, vm.ErrOutOfGas)
+			s.Require().ErrorIs(validate(msg), vm.ErrOutOfGas)
 
 			s.Require().NoError(es.SetBalance(msg.To, types.NewValueFromUint64(10_000_000)))
 		})
 
 		s.Run("Ok", func() {
-			_, err = ValidateExternalMessage(es, msg)
-			s.Require().NoError(err)
+			s.Require().NoError(validate(msg))
 		})
 
 		// todo: fail signature verification
 
 		s.Run("InvalidChain", func() {
 			msg.ChainId = 100500
-			_, err = ValidateExternalMessage(es, msg)
-			s.Require().ErrorIs(err, ErrInvalidChainId)
+			s.Require().ErrorIs(validate(msg), ErrInvalidChainId)
 		})
 
 		s.Run("SeqnoGap", func() {
 			msg.ChainId = types.DefaultChainId
 			msg.Seqno = 100
-			_, err = ValidateExternalMessage(es, msg)
-			s.Require().ErrorIs(err, ErrSeqnoGap)
+			s.Require().ErrorIs(validate(msg), ErrSeqnoGap)
 		})
 	})
 }

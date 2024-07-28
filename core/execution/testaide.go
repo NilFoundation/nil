@@ -76,7 +76,7 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 			require.NoError(t, err)
 		}
 
-		es.AddReceipt(gas.Sub(leftOverGas), err)
+		es.AddReceipt(gas.Sub(leftOverGas), nil)
 	}
 
 	blockHash, err := es.Commit(blockId)

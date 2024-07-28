@@ -853,7 +853,7 @@ func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.
 	gas := message.FeeCredit.ToGas(es.GasPrice)
 
 	if err := es.newVm(message.IsInternal(), message.From); err != nil {
-		return gas, nil, types.NewMessageError(types.MessageStatusOther, err)
+		return gas, nil, err
 	}
 	defer es.resetVm()
 
@@ -879,7 +879,7 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	gas := message.FeeCredit.ToGas(es.GasPrice)
 
 	if err := es.newVm(message.IsInternal(), message.From); err != nil {
-		return gas, nil, types.NewMessageError(types.MessageStatusOther, err)
+		return gas, nil, err
 	}
 	defer es.resetVm()
 
@@ -890,10 +890,10 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	if message.IsExternal() {
 		seqno, err := es.GetExtSeqno(addr)
 		if err != nil {
-			return gas, nil, types.NewMessageError(types.MessageStatusSeqno, err)
+			return gas, nil, err
 		}
 		if err := es.SetExtSeqno(addr, seqno+1); err != nil {
-			return gas, nil, types.NewMessageError(types.MessageStatusSeqno, err)
+			return gas, nil, err
 		}
 	}
 
@@ -920,18 +920,13 @@ func decodeRevertMessage(data []byte) string {
 func (es *ExecutionState) HandleRefundMessage(_ context.Context, message *types.Message) error {
 	err := es.AddBalance(message.To, message.Value, tracing.BalanceIncreaseRefund)
 	logger.Debug().Err(err).Msgf("Refunded %s to %v", message.Value, message.To)
-	if err != nil {
-		return types.NewMessageError(types.MessageStatusOther, err)
-	}
-	return nil
+	return err
 }
 
-func (es *ExecutionState) AddReceipt(gasUsed types.Gas, err error) {
+func (es *ExecutionState) AddReceipt(gasUsed types.Gas, err *types.MessageError) {
 	status := types.MessageStatusSuccess
 	if err != nil {
-		errMsg := &types.MessageError{}
-		check.PanicIfNotf(errors.As(err, &errMsg), "expected MessageError, got %T", err)
-		status = errMsg.Status
+		status = err.Status
 	}
 
 	r := &types.Receipt{
@@ -1231,6 +1226,10 @@ func (es *ExecutionState) resetVm() {
 }
 
 func (es *ExecutionState) evmToMessageError(err error) error {
+	if !vm.IsVMError(err) {
+		return err
+	}
+
 	switch {
 	case errors.Is(err, vm.ErrOutOfGas):
 		return types.NewMessageError(types.MessageStatusOutOfGas, err)
@@ -1264,8 +1263,6 @@ func (es *ExecutionState) evmToMessageError(err error) error {
 		return types.NewMessageError(types.MessageStatusInvalidInputLength, err)
 	case errors.Is(err, vm.ErrCrossShardMessage):
 		return types.NewMessageError(types.MessageStatusCrossShardMessage, err)
-	case err == nil:
-		return nil
 	}
 	return types.NewMessageError(types.MessageStatusExecution, err)
 }
