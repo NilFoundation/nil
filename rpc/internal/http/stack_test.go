@@ -1,4 +1,4 @@
-package transport
+package http
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/common/logging"
+	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/NilFoundation/nil/rpc/transport/rpccfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -169,7 +170,7 @@ func rpcRequest(t *testing.T, url string, extraHeaders ...string) *http.Response
 }
 
 // enableRPC turns on JSON-RPC over HTTP on the server.
-func (h *httpServer) enableRPC(apis []API, config httpConfig) error {
+func (h *httpServer) enableRPC(apis []transport.API, config httpConfig) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -178,13 +179,13 @@ func (h *httpServer) enableRPC(apis []API, config httpConfig) error {
 	}
 
 	// Create RPC server and handler.
-	srv := NewServer(false /* traceRequests */, false /* traceSingleRequest */, h.logger, 0)
-	if err := RegisterApisFromWhitelist(apis, config.Modules, srv, h.logger); err != nil {
+	srv := transport.NewServer(false /* traceRequests */, false /* traceSingleRequest */, h.logger, 0)
+	if err := transport.RegisterApisFromWhitelist(apis, config.Modules, srv, h.logger); err != nil {
 		return err
 	}
 	h.httpConfig = config
 	h.httpHandler.Store(&rpcHandler{
-		Handler: NewHTTPHandlerStack(srv, config.CorsAllowedOrigins, config.Vhosts, config.Compression),
+		Handler: NewHTTPHandlerStack(NewServer(srv), config.CorsAllowedOrigins, config.Vhosts, config.Compression),
 		server:  srv,
 	})
 	return nil

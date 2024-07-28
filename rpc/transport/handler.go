@@ -24,11 +24,10 @@ import (
 //	h.handleMsg(message)
 type handler struct {
 	reg        *serviceRegistry
-	respWait   map[string]*requestOp // active client requests
-	callWG     sync.WaitGroup        // pending call goroutines
-	rootCtx    context.Context       // canceled by close()
-	cancelRoot func()                // cancel function for rootCtx
-	conn       jsonWriter            // where responses will be sent
+	callWG     sync.WaitGroup  // pending call goroutines
+	rootCtx    context.Context // canceled by close()
+	cancelRoot func()          // cancel function for rootCtx
+	conn       JsonWriter      // where responses will be sent
 	logger     zerolog.Logger
 
 	traceRequests bool
@@ -36,10 +35,6 @@ type handler struct {
 	// slow requests
 	slowLogThreshold time.Duration
 	slowLogBlacklist []string
-}
-
-type callProc struct {
-	ctx context.Context
 }
 
 func HandleError(err error, stream *jsoniter.Stream) {
@@ -74,13 +69,12 @@ func HandleError(err error, stream *jsoniter.Stream) {
 	stream.WriteObjectEnd()
 }
 
-func newHandler(connCtx context.Context, conn jsonWriter, reg *serviceRegistry, traceRequests bool, logger zerolog.Logger, rpcSlowLogThreshold time.Duration) *handler {
+func newHandler(connCtx context.Context, conn JsonWriter, reg *serviceRegistry, traceRequests bool, logger zerolog.Logger, rpcSlowLogThreshold time.Duration) *handler {
 	rootCtx, cancelRoot := context.WithCancel(connCtx)
 
 	h := &handler{
 		reg:        reg,
 		conn:       conn,
-		respWait:   make(map[string]*requestOp),
 		rootCtx:    rootCtx,
 		cancelRoot: cancelRoot,
 		logger:     logger,
@@ -94,7 +88,7 @@ func newHandler(connCtx context.Context, conn jsonWriter, reg *serviceRegistry, 
 	return h
 }
 
-func (h *handler) log(lvl zerolog.Level, msg *jsonrpcMessage, logMsg string, duration time.Duration) {
+func (h *handler) log(lvl zerolog.Level, msg *Message, logMsg string, duration time.Duration) {
 	l := h.logger.WithLevel(lvl).
 		Stringer(logging.FieldReqId, idForLog(msg.ID)).
 		Str(logging.FieldRpcMethod, msg.Method).
@@ -122,87 +116,36 @@ func (h *handler) isRpcMethodNeedsCheck(method string) bool {
 }
 
 // handleMsg handles a single message.
-func (h *handler) handleMsg(msg *jsonrpcMessage) {
-	if ok := h.handleImmediate(msg); ok {
-		return
-	}
-	h.startCallProc(func(cp *callProc) {
+func (h *handler) handleMsg(msg *Message) {
+	h.startCallProc(func() {
 		stream := jsoniter.NewStream(jsoniter.ConfigDefault, nil, 4096)
-		answer := h.handleCallMsg(cp, msg, stream)
+		answer := h.handleCallMsg(h.rootCtx, msg, stream)
 		if answer != nil {
 			buffer, _ := json.Marshal(answer)
 			_, _ = stream.Write(buffer)
 		}
-		_ = h.conn.WriteJSON(cp.ctx, json.RawMessage(stream.Buffer()))
+		_ = h.conn.WriteJSON(h.rootCtx, json.RawMessage(stream.Buffer()))
 	})
 }
 
 // close cancels all requests except for inflightReq and waits for
 // call goroutines to shut down.
-func (h *handler) close(err error, inflightReq *requestOp) {
-	h.cancelAllRequests(err, inflightReq)
-	h.callWG.Wait()
+func (h *handler) close() {
 	h.cancelRoot()
-}
-
-// cancelAllRequests unblocks and removes pending requests.
-func (h *handler) cancelAllRequests(err error, inflightReq *requestOp) {
-	didClose := make(map[*requestOp]bool)
-	if inflightReq != nil {
-		didClose[inflightReq] = true
-	}
-
-	for id, op := range h.respWait {
-		// Remove the op so that later calls will not close op.resp again.
-		delete(h.respWait, id)
-
-		if !didClose[op] {
-			op.err = err
-			close(op.resp)
-			didClose[op] = true
-		}
-	}
+	h.callWG.Wait()
 }
 
 // startCallProc runs fn in a new goroutine and starts tracking it in the h.calls wait group.
-func (h *handler) startCallProc(fn func(*callProc)) {
+func (h *handler) startCallProc(fn func()) {
 	h.callWG.Add(1)
 	go func() {
-		ctx, cancel := context.WithCancel(h.rootCtx)
 		defer h.callWG.Done()
-		defer cancel()
-		fn(&callProc{ctx: ctx})
+		fn()
 	}()
 }
 
-// handleImmediate executes non-call messages. It returns false if the message is a
-// call or requires a reply.
-func (h *handler) handleImmediate(msg *jsonrpcMessage) bool {
-	start := time.Now()
-	switch {
-	case msg.isResponse():
-		h.handleResponse(msg)
-		h.log(zerolog.TraceLevel, msg, "Handled response", time.Since(start))
-		return true
-	default:
-		return false
-	}
-}
-
-// handleResponse processes method call responses.
-func (h *handler) handleResponse(msg *jsonrpcMessage) {
-	op := h.respWait[string(msg.ID)]
-	if op == nil {
-		h.log(zerolog.TraceLevel, msg, "Unsolicited response", 0)
-		return
-	}
-	delete(h.respWait, string(msg.ID))
-	// For normal responses, just forward the reply to Call.
-	op.resp <- msg
-}
-
 // handleCallMsg executes a call message and returns the answer.
-func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage, stream *jsoniter.Stream) *jsonrpcMessage {
+func (h *handler) handleCallMsg(ctx context.Context, msg *Message, stream *jsoniter.Stream) *Message {
 	start := time.Now()
 	switch {
 	case msg.isCall():
@@ -241,7 +184,7 @@ func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage, stream *json
 }
 
 // handleCall processes method calls.
-func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage, stream *jsoniter.Stream) *jsonrpcMessage {
+func (h *handler) handleCall(ctx context.Context, msg *Message, stream *jsoniter.Stream) *Message {
 	callb := h.reg.callback(msg.Method)
 	if callb == nil {
 		return msg.errorResponse(&methodNotFoundError{method: msg.Method})
@@ -250,11 +193,11 @@ func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage, stream *jsoniter
 	if err != nil {
 		return msg.errorResponse(&InvalidParamsError{err.Error()})
 	}
-	return h.runMethod(cp.ctx, msg, callb, args, stream)
+	return h.runMethod(ctx, msg, callb, args, stream)
 }
 
 // runMethod runs the Go callback for an RPC method.
-func (h *handler) runMethod(ctx context.Context, msg *jsonrpcMessage, callb *callback, args []reflect.Value, stream *jsoniter.Stream) *jsonrpcMessage {
+func (h *handler) runMethod(ctx context.Context, msg *Message, callb *callback, args []reflect.Value, stream *jsoniter.Stream) *Message {
 	if !callb.streamable {
 		result, err := callb.call(ctx, msg.Method, args, stream)
 		if err != nil {

@@ -1,4 +1,4 @@
-package transport
+package http
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"sync/atomic"
 
+	"github.com/NilFoundation/nil/common/check"
+	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/rs/zerolog"
 )
 
@@ -24,30 +26,15 @@ type Client struct {
 	// writeConn is used for writing to the connection on the caller's goroutine. It should
 	// only be accessed outside of dispatch, with the write lock held. The write lock is
 	// taken by sending on reqInit and released by sending on reqSent.
-	writeConn jsonWriter
+	writeConn transport.JsonWriter
 
 	// for dispatch
 	logger zerolog.Logger
 }
 
-type connectFunc func(ctx context.Context) (ServerCodec, error)
+type connectFunc func(ctx context.Context) (transport.ServerCodec, error)
 
-type requestOp struct {
-	ids  []json.RawMessage
-	err  error
-	resp chan *jsonrpcMessage // receives up to len(ids) responses
-}
-
-func (op *requestOp) wait(ctx context.Context) (*jsonrpcMessage, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case resp := <-op.resp:
-		return resp, op.err
-	}
-}
-
-func newClient(initctx context.Context, connect connectFunc, logger zerolog.Logger) (*Client, error) {
+func NewClient(initctx context.Context, connect connectFunc, logger zerolog.Logger) (*Client, error) {
 	conn, err := connect(initctx)
 	if err != nil {
 		return nil, err
@@ -56,7 +43,7 @@ func newClient(initctx context.Context, connect connectFunc, logger zerolog.Logg
 	return c, nil
 }
 
-func initClient(conn ServerCodec, logger zerolog.Logger) *Client {
+func initClient(conn transport.ServerCodec, logger zerolog.Logger) *Client {
 	c := &Client{
 		writeConn: conn,
 		logger:    logger,
@@ -96,27 +83,20 @@ func (c *Client) CallContext(ctx context.Context, result interface{}, method str
 	if err != nil {
 		return err
 	}
-	op := &requestOp{ids: []json.RawMessage{msg.ID}, resp: make(chan *jsonrpcMessage, 1)}
 
-	if err = c.sendHTTP(ctx, op, msg); err != nil {
+	resp, err := c.sendHTTP(ctx, msg)
+	if err != nil {
 		return err
 	}
-
-	// dispatch has accepted the request and will close the channel when it quits.
-	switch resp, err := op.wait(ctx); {
-	case err != nil:
-		return err
-	case resp.Error != nil:
-		return resp.Error
-	case len(resp.Result) == 0:
+	if len(resp.Result) == 0 {
 		return ErrNoResult
-	default:
-		return json.Unmarshal(resp.Result, &result)
 	}
+
+	return json.Unmarshal(resp.Result, &result)
 }
 
-func (c *Client) newMessage(method string, paramsIn ...interface{}) (*jsonrpcMessage, error) {
-	msg := &jsonrpcMessage{Version: vsn, ID: c.nextID(), Method: method}
+func (c *Client) newMessage(method string, paramsIn ...interface{}) (*transport.Message, error) {
+	msg := &transport.Message{Version: transport.Version, ID: c.nextID(), Method: method}
 	if paramsIn != nil { // prevent sending "params":null
 		var err error
 		if msg.Params, err = json.Marshal(paramsIn); err != nil {
@@ -124,4 +104,21 @@ func (c *Client) newMessage(method string, paramsIn ...interface{}) (*jsonrpcMes
 		}
 	}
 	return msg, nil
+}
+
+func (c *Client) sendHTTP(ctx context.Context, msg interface{}) (*transport.Message, error) {
+	hc, ok := c.writeConn.(*httpConn)
+	check.PanicIfNot(ok)
+
+	respBody, err := hc.doRequest(ctx, msg)
+	if err != nil {
+		return nil, err
+	}
+
+	respMsg := &transport.Message{}
+	if err := json.Unmarshal(respBody, respMsg); err != nil {
+		return nil, err
+	}
+
+	return respMsg, nil
 }

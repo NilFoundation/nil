@@ -1,4 +1,4 @@
-package transport
+package http
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/common/logging"
+	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/rs/zerolog"
 )
 
@@ -34,7 +35,7 @@ func dialHTTPWithClient(endpoint string, client *http.Client, logger zerolog.Log
 	headers := make(http.Header, 2)
 	headers.Set("Accept", contentType)
 	headers.Set("Content-Type", contentType)
-	return newClient(initctx, func(context.Context) (ServerCodec, error) {
+	return NewClient(initctx, func(context.Context) (transport.ServerCodec, error) {
 		hc := &httpConn{
 			client:  client,
 			headers: headers,
@@ -114,8 +115,8 @@ func TestHTTPErrorResponseWithValidRequest(t *testing.T) {
 
 func confirmHTTPRequestYieldsStatusCode(t *testing.T, method, contentType, body string, expectedStatusCode int) {
 	t.Helper()
-	s := Server{}
-	ts := httptest.NewServer(&s)
+	s := &transport.Server{}
+	ts := httptest.NewServer(NewServer(s))
 	defer ts.Close()
 
 	request, err := http.NewRequest(method, ts.URL, strings.NewReader(body))
@@ -146,12 +147,12 @@ func TestHTTPRespBodyUnlimited(t *testing.T) {
 	logger := logging.NewLogger("Test server")
 	const respLength = maxRequestContentLength * 3
 
-	s := NewServer(false /* traceRequests */, false /* debugSingleRequests */, logger, 100)
+	s := transport.NewServer(false /* traceRequests */, false /* debugSingleRequests */, logger, 100)
 	defer s.Stop()
 	if err := s.RegisterName("test", largeRespService{respLength}); err != nil {
 		t.Fatal(err)
 	}
-	ts := httptest.NewServer(s)
+	ts := httptest.NewServer(NewServer(s))
 	defer ts.Close()
 
 	c, err := dialHTTP(ts.URL, logger)
