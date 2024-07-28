@@ -9,6 +9,7 @@ import (
 
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/rpc/httpcfg"
+	"github.com/NilFoundation/nil/rpc/internal/http"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/rs/zerolog"
 )
@@ -46,13 +47,13 @@ func startRegularRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []t
 		return fmt.Errorf("could not start register RPC apis: %w", err)
 	}
 
-	httpHandler := transport.NewHTTPHandlerStack(srv, cfg.HttpCORSDomain, cfg.HttpVirtualHost, cfg.HttpCompression)
+	httpHandler := http.NewHTTPHandlerStack(http.NewServer(srv), cfg.HttpCORSDomain, cfg.HttpVirtualHost, cfg.HttpCompression)
 
 	httpEndpoint := "tcp://" + net.JoinHostPort(cfg.HttpListenAddress, strconv.Itoa(cfg.HttpPort))
 	if cfg.HttpURL != "" {
 		httpEndpoint = cfg.HttpURL
 	}
-	listener, httpAddr, err := transport.StartHTTPEndpoint(httpEndpoint, &transport.HttpEndpointConfig{
+	listener, httpAddr, err := http.StartHTTPEndpoint(httpEndpoint, &http.HttpEndpointConfig{
 		Timeouts: cfg.HTTPTimeouts,
 	}, httpHandler)
 	if err != nil {

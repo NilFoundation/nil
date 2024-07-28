@@ -46,38 +46,16 @@ func (s *Server) RegisterName(name string, receiver interface{}) error {
 	return s.services.registerName(name, receiver)
 }
 
-// ServeCodec reads incoming requests from codec, calls the appropriate callback and writes
-// the response back using the given codec. It will block until the codec is closed or the
-// server is stopped. In either case, the codec is closed.
-//
-// Note that codec options are no longer supported.
-func (s *Server) ServeCodec(codec ServerCodec) {
-	defer codec.Close()
-
-	// Don't serve if the server is stopped.
-	if atomic.LoadInt32(&s.run) == 0 {
-		return
-	}
-
-	// Add the codec to the set, so it can be closed by Stop.
-	s.codecs.Add(codec)
-	defer s.codecs.Remove(codec)
-
-	c := initClient(codec, s.logger)
-	<-codec.closed()
-	c.Close()
-}
-
-// serveSingleRequest reads and processes a single RPC request from the given codec. This
+// ServeSingleRequest reads and processes a single RPC request from the given codec. This
 // is used to serve HTTP connections.
-func (s *Server) serveSingleRequest(ctx context.Context, codec ServerCodec) {
+func (s *Server) ServeSingleRequest(ctx context.Context, codec ServerCodec) {
 	// Don't serve if the server is stopped.
 	if atomic.LoadInt32(&s.run) == 0 {
 		return
 	}
 
 	h := newHandler(ctx, codec, &s.services, s.traceRequests, s.logger, s.rpcSlowLogThreshold)
-	defer h.close(io.EOF, nil)
+	defer h.close()
 
 	req, err := codec.Read()
 	if err != nil {

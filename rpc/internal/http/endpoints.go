@@ -1,4 +1,4 @@
-package transport
+package http
 
 import (
 	"context"
@@ -73,25 +73,6 @@ func StartHTTPEndpoint(urlEndpoint string, cfg *HttpEndpointConfig, handler http
 
 func isIgnoredHttpServerError(serveErr error) bool {
 	return errors.Is(serveErr, context.Canceled) || errors.Is(serveErr, ErrStopped) || errors.Is(serveErr, http.ErrServerClosed)
-}
-
-// checkModuleAvailability checks that all names given in modules are actually
-// available API services. It assumes that the MetadataApi module ("rpc") is always available;
-// the registration of this "rpc" module happens in NewServer() and is thus common to all endpoints.
-func checkModuleAvailability(modules []string, apis []API) (bad, available []string) {
-	availableSet := make(map[string]struct{})
-	for _, api := range apis {
-		if _, ok := availableSet[api.Namespace]; !ok {
-			availableSet[api.Namespace] = struct{}{}
-			available = append(available, api.Namespace)
-		}
-	}
-	for _, name := range modules {
-		if _, ok := availableSet[name]; !ok && name != MetadataApi {
-			bad = append(bad, name)
-		}
-	}
-	return bad, available
 }
 
 // CheckTimeouts ensures that timeout values are meaningful
