@@ -14,7 +14,7 @@ in buildGoModule rec {
 
   src = src_repo;
   # to obtain run `nix build` with vendorHash = "";
-  vendorHash = "sha256-x4Pb4gYuo6AJb2vfqo54WJjXoMRcFM/+E53j1Op8qdA=";
+  vendorHash = "sha256-5Fi5kCedL/mUyNp9Wj+pxXP6QMFgxSDGsGh7N6j9X3U=";
   hardeningDisable = [ "all" ];
 
   postInstall = ''
