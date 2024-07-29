@@ -43,9 +43,12 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 	s.Require().NotNil(es)
 
 	validate := func(msg *types.Message) error {
-		_, validationErr, err := ValidateExternalMessage(es, msg)
-		s.Require().NoError(err)
-		return validationErr
+		res := ValidateExternalMessage(es, msg)
+		s.Require().False(res.IsFatal())
+		if res.Failed() {
+			return res.Error.Inner
+		}
+		return nil
 	}
 
 	s.Run("Deploy", func() {

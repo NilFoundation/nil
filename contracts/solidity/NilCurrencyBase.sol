@@ -15,6 +15,7 @@ contract NilCurrencyBase is NilBase {
             address(0), // refundTo
             address(0), // bounceTo
             gas, // gas
+            Nil.FORWARD_REMAINING, // forwardKind
             false, // deploy
             value, // value
             abi.encodeCall(Minter.create, (amount, address(0), name, withdraw ? address(this) : address(0)))
@@ -24,17 +25,14 @@ contract NilCurrencyBase is NilBase {
     function mintToken(uint256 amount, bool withdraw) public payable onlyExternal {
         uint256 id = uint256(uint160(address(this)));
         uint256 gas = gasleft() * tx.gasprice;
-        uint256 value = 0;
-        if (withdraw) {
-            value *= 2; // 2x because withdraw requires another async call
-        }
         Nil.asyncCall(
             Nil.MINTER_ADDRESS,
             address(0), // refundTo
             address(0), // bounceTo
             gas, // gas
+            Nil.FORWARD_REMAINING, // forwardKind
             false, // deploy
-            value, // value
+            0, // value
             abi.encodeCall(Minter.mint, (id, amount, withdraw ? address(this) : address(0)))
         );
     }
@@ -47,8 +45,9 @@ contract NilCurrencyBase is NilBase {
             address(0), // refundTo
             address(0), // bounceTo
             gas, // gas
+            Nil.FORWARD_REMAINING, // forwardKind
             false, // deploy
-            2 * gas * 10, // value, 2x because transfer requires another async call
+            0, // value
             abi.encodeCall(Minter.withdraw, (id, amount, to))
         );
     }

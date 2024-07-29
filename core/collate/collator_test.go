@@ -64,7 +64,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	})
 
 	// This values depends on the current implementation (precompiled contract, opcode gas prices).
-	actualMsgGas := types.Gas(12_965)
+	actualMsgGas := types.Gas(12_943)
 
 	// These parameters can be adjusted for test purposes. The rest is calculated.
 	gasLimit := types.Gas(100_000)

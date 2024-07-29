@@ -5,9 +5,10 @@ stdenv.mkDerivation rec {
   src = fetchFromGitHub {
     owner = "NilFoundation";
     repo = "nil.js";
-    rev = "v0.11.0";
+    rev = "c971f74efda84cd94f1418be7784ef407c4db5f7";
+
     sha256 =
-      "sha256-ED0Yt1dYuj1cTmezgq1lnCklTnnypKdIu0ZoXTskES8="; # replace with the actual sha256
+      "sha256-0FWoDpYYDX4za1L/BuPJ0qQU15CzS2m+Y9FyIRJwIsE="; # replace with the actual sha256
   };
 
   buildInputs = [ bun ];

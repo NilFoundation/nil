@@ -161,6 +161,7 @@ type RPCReceipt struct {
 	Success         bool               `json:"success"`
 	Status          string             `json:"status"`
 	GasUsed         types.Gas          `json:"gasUsed"`
+	Forwarded       types.Value        `json:"forwarded"`
 	GasPrice        types.Value        `json:"gasPrice"`
 	Bloom           hexutil.Bytes      `json:"bloom,omitempty"`
 	Logs            []*RPCLog          `json:"logs"`
@@ -302,6 +303,7 @@ func NewRPCReceipt(
 		Success:         receipt.Success,
 		Status:          receipt.Status.String(),
 		GasUsed:         receipt.GasUsed,
+		Forwarded:       receipt.Forwarded,
 		GasPrice:        gasPrice,
 		Logs:            logs,
 		OutMessages:     outMessages,

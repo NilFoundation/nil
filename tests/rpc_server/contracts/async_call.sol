@@ -26,7 +26,8 @@ contract Caller is NilBounceable {
         dst.asyncCall(
             address(0), // refundTo
             address(0), // bounceTo
-            gasleft() * tx.gasprice,
+            gasleft() * tx.gasprice, // gas
+            Nil.FORWARD_NONE, // forwardKind
             false,
             msg.value,
             abi.encodeWithSignature("add(int32)", val)

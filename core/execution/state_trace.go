@@ -88,6 +88,7 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 		bt.printf("shard: %d\n", es.ShardId)
 		bt.printf("id: %d\n", block.Id)
 		bt.printf("hash: %s\n", block.Hash().Hex())
+		bt.printf("gas_price: %v\n", es.GasPrice)
 		bt.printf("contracts_num: %d\n", contractsNum)
 		if len(es.InMessages) != 0 {
 			bt.printf("in_messages:\n")
@@ -102,7 +103,9 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 
 						bt.withIndent(func(t *BlocksTracer) {
 							bt.printf("success: %t\n", receipt.Success)
-							bt.printf("status: %s\n", receipt.Status.String())
+							if !receipt.Success {
+								bt.printf("status: %s\n", receipt.Status.String())
+							}
 							bt.printf("gas_used: %d\n", receipt.GasUsed)
 							bt.printf("msg_hash: %s\n", receipt.MsgHash.Hex())
 							bt.printf("address: %s\n", receipt.ContractAddress.Hex())
@@ -116,7 +119,7 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 								for j, outMsg := range outMessages {
 									bt.printf("%d:\n", j)
 									bt.withIndent(func(t *BlocksTracer) {
-										printMessage(outMsg)
+										printMessage(outMsg.Message)
 									})
 								}
 							})

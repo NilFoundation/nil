@@ -78,11 +78,8 @@ type StateDB interface {
 
 	AddLog(*types.Log)
 
-	// add out message for current transaction
-	AddOutMessage(*types.Message) error
-
 	// add internal out message for current transaction
-	AddOutInternal(caller types.Address, payload *types.InternalMessagePayload) error
+	AddOutInternal(caller types.Address, payload *types.InternalMessagePayload) (*types.Message, error)
 
 	// Get current message
 	GetInMessage() *types.Message

@@ -11,6 +11,7 @@ type Receipt struct {
 	Success     bool          `json:"success"`
 	Status      MessageStatus `json:"status"`
 	GasUsed     Gas           `json:"gasUsed"`
+	Forwarded   Value         `json:"forwarded"`
 	Bloom       Bloom         `json:"bloom"`
 	Logs        []*Log        `json:"logs" ssz-max:"1000"`
 	OutMsgIndex uint32        `json:"outMsgIndex"`

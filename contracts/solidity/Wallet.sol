@@ -20,11 +20,6 @@ contract Wallet is NilCurrencyBase {
         Nil.sendMessage(gasleft(), message);
     }
 
-    function asyncCall(address dst, address refundTo, uint gas, bool deploy, uint value, bytes calldata callData) onlyExternal public {
-        // TODO: add bounceTo
-        Nil.asyncCall(dst, refundTo, refundTo, gas, deploy, value, callData);
-    }
-
     function asyncCall(
         address dst,
         address refundTo,
@@ -34,7 +29,7 @@ contract Wallet is NilCurrencyBase {
         Nil.Token[] memory tokens,
         uint value,
         bytes calldata callData) onlyExternal public {
-        bool success = Nil.asyncCall(dst, refundTo, bounceTo, gas, deploy, value, tokens, callData);
+        bool success = Nil.asyncCall(dst, refundTo, bounceTo, gas, Nil.FORWARD_NONE, deploy, value, tokens, callData);
         require(success, "asyncCall failed");
     }
 

@@ -63,7 +63,7 @@ type ExecutionState struct {
 	InMessages []*types.Message
 
 	// OutMessages holds outbound messages for every transaction in the executed block, where key is hash of Message that sends the message
-	OutMessages map[common.Hash][]*types.Message
+	OutMessages map[common.Hash][]*types.OutboundMessage
 
 	Receipts []*types.Receipt
 	Errors   map[common.Hash]error
@@ -79,6 +79,7 @@ type ExecutionState struct {
 	journal        *journal
 	validRevisions []revision
 	nextRevisionId int
+	revertId       int
 
 	// If true, log every instruction execution.
 	TraceVm bool
@@ -89,6 +90,66 @@ type ExecutionState struct {
 	evm *vm.EVM
 
 	gasPriceScale float64
+}
+
+type ExecutionResult struct {
+	ReturnData     []byte
+	Error          *types.MessageError
+	FatalError     error
+	CoinsUsed      types.Value
+	CoinsForwarded types.Value
+}
+
+func NewExecutionResult() *ExecutionResult {
+	return &ExecutionResult{
+		ReturnData: []byte{},
+	}
+}
+
+func (e *ExecutionResult) SetError(err *types.MessageError) *ExecutionResult {
+	e.Error = err
+	return e
+}
+
+func (e *ExecutionResult) SetFatal(err error) *ExecutionResult {
+	e.FatalError = err
+	return e
+}
+
+func (e *ExecutionResult) SetMsgErrorOrFatal(err error) *ExecutionResult {
+	if msgErr := (*types.MessageError)(nil); errors.As(err, &msgErr) {
+		e.SetError(msgErr)
+	} else {
+		e.SetFatal(err)
+	}
+	return e
+}
+
+func (e *ExecutionResult) SetUsed(value types.Value) *ExecutionResult {
+	e.CoinsUsed = value
+	return e
+}
+
+func (e *ExecutionResult) SetForwarded(value types.Value) *ExecutionResult {
+	e.CoinsForwarded = value
+	return e
+}
+
+func (e *ExecutionResult) SetReturnData(data []byte) *ExecutionResult {
+	e.ReturnData = data
+	return e
+}
+
+func (e *ExecutionResult) GetLeftOverValue(value types.Value) types.Value {
+	return value.Sub(e.CoinsUsed).Sub(e.CoinsForwarded)
+}
+
+func (e *ExecutionResult) Failed() bool {
+	return e.Error != nil || e.FatalError != nil
+}
+
+func (e *ExecutionResult) IsFatal() bool {
+	return e.FatalError != nil
 }
 
 type revision struct {
@@ -190,7 +251,7 @@ func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash,
 		ShardId:          shardId,
 		ChildChainBlocks: map[types.ShardId]common.Hash{},
 		Accounts:         map[types.Address]*AccountState{},
-		OutMessages:      map[common.Hash][]*types.Message{},
+		OutMessages:      map[common.Hash][]*types.OutboundMessage{},
 		Logs:             map[common.Hash][]*types.Log{},
 		Errors:           map[common.Hash]error{},
 		GasPrice:         gasPrice,
@@ -654,28 +715,44 @@ func (es *ExecutionState) DropInMessage() {
 }
 
 func (es *ExecutionState) AppendOutMessageForTx(txId common.Hash, msg *types.Message) {
-	es.OutMessages[txId] = append(es.OutMessages[txId], msg)
+	outMsg := &types.OutboundMessage{Message: msg, ForwardKind: types.ForwardKindNone}
+	es.OutMessages[txId] = append(es.OutMessages[txId], outMsg)
 }
 
-func (es *ExecutionState) AppendOutMessage(msg *types.Message) {
-	es.OutMessages[es.InMessageHash] = append(es.OutMessages[es.InMessageHash], msg)
-}
+func (es *ExecutionState) AddOutInternal(caller types.Address, payload *types.InternalMessagePayload) (*types.Message, error) {
+	seqno, err := es.GetSeqno(caller)
+	if err != nil {
+		return nil, err
+	}
 
-func (es *ExecutionState) AddOutMessage(msg *types.Message) error {
+	// TODO:	This happens when we send refunds from uninitialized accounts when transferring money to them.
+	//			For now we will write all such refunds with identical zero seqno, because we can't change seqno of uninitialized accounts.
+	//			In future we should add transfer that is free on the reciepient's side, so that these transfers won't require refunds.
+	if seqno != 0 {
+		if seqno+1 < seqno {
+			return nil, vm.ErrNonceUintOverflow
+		}
+		if err := es.SetSeqno(caller, seqno+1); err != nil {
+			return nil, err
+		}
+	}
+
+	msg := payload.ToMessage(caller, seqno)
+
 	// In case of bounce message, we don't debit currency from account
 	// In case of refund message, we don't transfer currencies
 	if !msg.IsBounce() && !msg.IsRefund() {
 		acc, err := es.GetAccount(msg.From)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		for _, currency := range msg.Currency {
 			balance := acc.GetCurrencyBalance(currency.Currency)
 			if balance.Cmp(currency.Balance) < 0 {
-				return errors.New("caller does not have enough currency")
+				return nil, errors.New("caller does not have enough currency")
 			}
 			if err := es.SubCurrency(msg.From, currency.Currency, currency.Balance); err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
@@ -689,34 +766,14 @@ func (es *ExecutionState) AddOutMessage(msg *types.Message) error {
 		msgHash: es.InMessageHash,
 		index:   len(es.OutMessages[es.InMessageHash]),
 	})
-	es.AppendOutMessage(msg)
-	return nil
+
+	outMsg := &types.OutboundMessage{Message: msg, ForwardKind: payload.ForwardKind}
+	es.OutMessages[es.InMessageHash] = append(es.OutMessages[es.InMessageHash], outMsg)
+
+	return msg, nil
 }
 
-func (es *ExecutionState) AddOutInternal(caller types.Address, payload *types.InternalMessagePayload) error {
-	seqno, err := es.GetSeqno(caller)
-	if err != nil {
-		return err
-	}
-
-	// TODO:	This happens when we send refunds from uninitialized accounts when transferring money to them.
-	//			For now we will write all such refunds with identical zero seqno, because we can't change seqno of uninitialized accounts.
-	//			In future we should add transfer that is free on the reciepient's side, so that these transfers won't require refunds.
-	if seqno != 0 {
-		if seqno+1 < seqno {
-			return vm.ErrNonceUintOverflow
-		}
-		if err := es.SetSeqno(caller, seqno+1); err != nil {
-			return err
-		}
-	}
-
-	msg := payload.ToMessage(caller, seqno)
-
-	return es.AddOutMessage(msg)
-}
-
-func (es *ExecutionState) sendBounceMessage(msg *types.Message, bounceErr string, leftOverGas types.Gas) (bool, error) {
+func (es *ExecutionState) sendBounceMessage(msg *types.Message, execResult *ExecutionResult) (bool, error) {
 	if msg.Value.IsZero() && len(msg.Currency) == 0 {
 		return false, nil
 	}
@@ -725,10 +782,13 @@ func (es *ExecutionState) sendBounceMessage(msg *types.Message, bounceErr string
 		return false, nil
 	}
 
-	data, err := contracts.NewCallData(contracts.NameNilBounceable, "bounce", bounceErr)
+	data, err := contracts.NewCallData(contracts.NameNilBounceable, "bounce", execResult.Error.Error())
 	if err != nil {
 		return false, err
 	}
+
+	check.PanicIfNotf(execResult.CoinsForwarded.IsZero(), "CoinsForwarded should be zero when sending bounce message")
+	toReturn := msg.FeeCredit.Sub(execResult.CoinsUsed)
 
 	bounceMsg := &types.InternalMessagePayload{
 		Bounce:    true,
@@ -737,69 +797,74 @@ func (es *ExecutionState) sendBounceMessage(msg *types.Message, bounceErr string
 		Value:     msg.Value,
 		Currency:  msg.Currency,
 		Data:      data,
-		FeeCredit: leftOverGas.ToValue(es.GasPrice),
+		FeeCredit: toReturn,
 	}
-	if err = es.AddOutInternal(msg.To, bounceMsg); err != nil {
+	if _, err = es.AddOutInternal(msg.To, bounceMsg); err != nil {
 		return false, err
 	}
 	logger.Debug().Stringer(logging.FieldMessageFrom, msg.To).Stringer(logging.FieldMessageTo, msg.BounceTo).Msg("Bounce message sent")
 	return true, nil
 }
 
-func (es *ExecutionState) handleMessage(ctx context.Context, msg *types.Message, payer payer) (types.Gas, error) {
-	gas := msg.FeeCredit.ToGas(es.GasPrice)
+func (es *ExecutionState) handleMessage(ctx context.Context, msg *types.Message, payer payer) *ExecutionResult {
 	if err := buyGas(payer, msg); err != nil {
-		return 0, types.NewMessageError(types.MessageStatusBuyGas, err)
+		return NewExecutionResult().SetError(types.NewMessageError(types.MessageStatusBuyGas, err))
 	}
 	if err := msg.VerifyFlags(); err != nil {
-		return 0, types.NewMessageError(types.MessageStatusValidation, err)
+		return NewExecutionResult().SetError(types.NewMessageError(types.MessageStatusValidation, err))
 	}
 
-	var leftOverGas types.Gas
-	var err error
-	var ret []byte
+	var res *ExecutionResult
 	switch {
 	case msg.IsRefund():
-		return 0, es.HandleRefundMessage(ctx, msg)
+		return NewExecutionResult().SetFatal(es.HandleRefundMessage(ctx, msg))
 	case msg.IsDeploy():
-		leftOverGas, ret, err = es.HandleDeployMessage(ctx, msg)
+		res = es.HandleDeployMessage(ctx, msg)
 	default:
-		leftOverGas, ret, err = es.HandleExecutionMessage(ctx, msg)
+		res = es.HandleExecutionMessage(ctx, msg)
 	}
 	bounced := false
-	if err != nil {
-		revString := decodeRevertMessage(ret)
+	if res.Error != nil {
+		revString := decodeRevertMessage(res.ReturnData)
 		if revString != "" {
-			err = fmt.Errorf("%w: %s", err, revString)
+			res.Error.Inner = fmt.Errorf("%w: %s", res.Error, revString)
 		}
 		if msg.IsBounce() {
-			logger.Error().Err(err).Msg("VM returns error during bounce message processing")
+			logger.Error().Err(res.Error).Msg("VM returns error during bounce message processing")
 		} else {
-			logger.Error().Err(err).Msg("execution msg failed")
-			var bounceErr error
+			logger.Error().Err(res.Error).Msg("execution msg failed")
 			if msg.IsInternal() {
-				if bounced, bounceErr = es.sendBounceMessage(msg, err.Error(), leftOverGas); bounceErr != nil {
-					logger.Error().Err(bounceErr).Msg("Failed to send a bounce message")
-					return 0, bounceErr
+				var bounceErr error
+				if bounced, bounceErr = es.sendBounceMessage(msg, res); bounceErr != nil {
+					logger.Error().Err(bounceErr).Msg("Bounce message sent failed")
+					return res.SetFatal(bounceErr)
 				}
 			}
+		}
+	} else {
+		availableGas := msg.FeeCredit.Sub(res.CoinsUsed)
+		var err error
+		if res.CoinsForwarded, err = es.CalculateGasForwarding(availableGas); err != nil {
+			es.RevertToSnapshot(es.revertId)
+			res.Error = types.NewMessageError(types.MessageStatusForwardingFailed, err)
 		}
 	}
 	// Gas is already refunded with the bounce message
 	if !bounced {
+		leftOverCredit := res.GetLeftOverValue(msg.FeeCredit)
 		if msg.RefundTo == msg.To {
 			acc, err := es.GetAccount(msg.To)
 			check.PanicIfErr(err)
-			check.PanicIfErr(acc.AddBalance(leftOverGas.ToValue(es.GasPrice), tracing.BalanceIncreaseRefund))
+			check.PanicIfErr(acc.AddBalance(leftOverCredit, tracing.BalanceIncreaseRefund))
 		} else {
-			refundGas(payer, msg, leftOverGas, es.GasPrice)
+			refundGas(payer, leftOverCredit)
 		}
 	}
 
-	return gas.Sub(leftOverGas), err
+	return res
 }
 
-func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.Message) (types.Gas, []byte, error) {
+func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.Message) *ExecutionResult {
 	addr := message.To
 	deployMsg := types.ParseDeployPayload(message.Data)
 
@@ -808,15 +873,14 @@ func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.
 		Stringer(logging.FieldShardId, es.ShardId).
 		Msg("Handling deploy message...")
 
-	gas := message.FeeCredit.ToGas(es.GasPrice)
-
 	if err := es.newVm(message.IsInternal(), message.From); err != nil {
-		return gas, nil, err
+		return NewExecutionResult().SetFatal(err)
 	}
 	defer es.resetVm()
 
+	gas := message.FeeCredit.ToGas(es.GasPrice)
 	ret, addr, leftOver, err := es.evm.Deploy(addr, (vm.AccountRef)(message.From), deployMsg.Code(), gas.Uint64(), message.Value.Int())
-	leftOverGas := types.Gas(leftOver)
+
 	event := logger.Debug().Stringer(logging.FieldMessageTo, addr)
 	if err != nil {
 		event.Err(err).Msg("Contract deployment failed.")
@@ -824,20 +888,20 @@ func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.
 		event.Msg("Created new contract.")
 	}
 
-	return leftOverGas, ret, es.evmToMessageError(err)
+	return NewExecutionResult().
+		SetMsgErrorOrFatal(es.evmToMessageError(err)).
+		SetUsed((gas - types.Gas(leftOver)).ToValue(es.GasPrice)).
+		SetReturnData(ret)
 }
 
-func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *types.Message) (types.Gas, []byte, error) {
+func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *types.Message) *ExecutionResult {
 	check.PanicIfNot(message.IsExecution())
 	addr := message.To
 	logger.Debug().
 		Stringer(logging.FieldMessageTo, addr).
 		Msg("Handling execution message...")
-
-	gas := message.FeeCredit.ToGas(es.GasPrice)
-
 	if err := es.newVm(message.IsInternal(), message.From); err != nil {
-		return gas, nil, err
+		return NewExecutionResult().SetFatal(err)
 	}
 	defer es.resetVm()
 
@@ -848,18 +912,23 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	if message.IsExternal() {
 		seqno, err := es.GetExtSeqno(addr)
 		if err != nil {
-			return gas, nil, err
+			return NewExecutionResult().SetFatal(err)
 		}
 		if err := es.SetExtSeqno(addr, seqno+1); err != nil {
-			return gas, nil, err
+			return NewExecutionResult().SetFatal(err)
 		}
 	}
 
-	es.evm.SetCurrencyTransfer(message.Currency)
-	ret, leftOver, err := es.evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas.Uint64(), message.Value.Int())
-	leftOverGas := types.Gas(leftOver)
+	es.revertId = es.Snapshot()
 
-	return leftOverGas, ret, es.evmToMessageError(err)
+	es.evm.SetCurrencyTransfer(message.Currency)
+	gas := message.FeeCredit.ToGas(es.GasPrice)
+	ret, leftOver, err := es.evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas.Uint64(), message.Value.Int())
+
+	return NewExecutionResult().
+		SetMsgErrorOrFatal(es.evmToMessageError(err)).
+		SetUsed((gas - types.Gas(leftOver)).ToValue(es.GasPrice)).
+		SetReturnData(ret)
 }
 
 // decodeRevertMessage decodes the revert message from the EVM revert data
@@ -881,22 +950,23 @@ func (es *ExecutionState) HandleRefundMessage(_ context.Context, message *types.
 	return err
 }
 
-func (es *ExecutionState) AddReceipt(gasUsed types.Gas, err *types.MessageError) {
+func (es *ExecutionState) AddReceipt(execResult *ExecutionResult) {
 	status := types.MessageStatusSuccess
-	if err != nil {
-		status = err.Status
+	if execResult.Failed() {
+		status = execResult.Error.Status
 	}
 
 	r := &types.Receipt{
-		Success:         err == nil,
+		Success:         !execResult.Failed(),
 		Status:          status,
-		GasUsed:         gasUsed,
+		GasUsed:         execResult.CoinsUsed.ToGas(es.GasPrice),
+		Forwarded:       execResult.CoinsForwarded,
 		MsgHash:         es.InMessageHash,
 		Logs:            es.Logs[es.InMessageHash],
 		ContractAddress: es.GetInMessage().To,
 	}
-	if err != nil {
-		es.Errors[es.InMessageHash] = err
+	if execResult.Failed() {
+		es.Errors[es.InMessageHash] = execResult.Error
 	}
 	es.Receipts = append(es.Receipts, r)
 }
@@ -932,7 +1002,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		}
 		// Put all outbound messages into the trie
 		for _, m := range es.OutMessages[msg.Hash()] {
-			if err := es.OutMessageTree.Update(outMsgIndex, m); err != nil {
+			if err := es.OutMessageTree.Update(outMsgIndex, m.Message); err != nil {
 				return common.EmptyHash, err
 			}
 			outMsgIndex++
@@ -940,7 +1010,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 	}
 	// Put all outbound messages transmitted over the topology into the trie
 	for _, m := range es.OutMessages[common.EmptyHash] {
-		if err := es.OutMessageTree.Update(outMsgIndex, m); err != nil {
+		if err := es.OutMessageTree.Update(outMsgIndex, m.Message); err != nil {
 			return common.EmptyHash, err
 		}
 		outMsgIndex++
@@ -1026,6 +1096,70 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 	return blockHash, nil
 }
 
+func (es *ExecutionState) CalculateGasForwarding(initialAvailValue types.Value) (types.Value, error) {
+	if len(es.OutMessages) == 0 {
+		return types.NewZeroValue(), nil
+	}
+	var overflow bool
+
+	availValue := initialAvailValue
+
+	remainingFwdMessages := make([]*types.OutboundMessage, 0, len(es.OutMessages[es.InMessageHash]))
+	percentageFwdMessages := make([]*types.OutboundMessage, 0, len(es.OutMessages[es.InMessageHash]))
+
+	for _, msg := range es.OutMessages[es.InMessageHash] {
+		switch msg.ForwardKind {
+		case types.ForwardKindValue:
+			availValue, overflow = availValue.SubOverflow(msg.Message.FeeCredit)
+			if overflow {
+				return types.NewZeroValue(), fmt.Errorf("%w: not enough credit for ForwardKindValue: %v < %v",
+					ErrMsgFeeForwarding, availValue, msg.Message.FeeCredit)
+			}
+		case types.ForwardKindPercentage:
+			percentageFwdMessages = append(percentageFwdMessages, msg)
+		case types.ForwardKindRemaining:
+			remainingFwdMessages = append(remainingFwdMessages, msg)
+		case types.ForwardKindNone:
+			// Do nothing for non-forwarding message and do not set refundTo
+			continue
+		}
+		if msg.RefundTo.IsEmpty() {
+			msg.RefundTo = es.GetInMessage().RefundTo
+		}
+	}
+
+	if len(percentageFwdMessages) != 0 {
+		availValue0 := availValue
+		for _, msg := range percentageFwdMessages {
+			if !msg.FeeCredit.IsUint64() || msg.FeeCredit.Uint64() > 100 {
+				return types.NewZeroValue(), fmt.Errorf("%w: invalid percentage value %v", ErrMsgFeeForwarding, msg.FeeCredit)
+			}
+			msg.FeeCredit = availValue0.Mul(msg.FeeCredit).Div(types.NewValueFromUint64(100))
+
+			availValue, overflow = availValue.SubOverflow(msg.Message.FeeCredit)
+			if overflow {
+				return types.NewZeroValue(), fmt.Errorf("%w: sum of percentage is more than 100", ErrMsgFeeForwarding)
+			}
+		}
+	}
+
+	if len(remainingFwdMessages) != 0 {
+		availValue0 := availValue
+		portion := availValue0.Div(types.NewValueFromUint64(uint64(len(remainingFwdMessages))))
+		for _, msg := range remainingFwdMessages {
+			msg.FeeCredit = portion
+			availValue = availValue.Sub(portion)
+		}
+		if !availValue.IsZero() {
+			// If there is some remaining value due to division inaccuracy, credit it to the first message.
+			remainingFwdMessages[0].FeeCredit = remainingFwdMessages[0].FeeCredit.Add(availValue)
+			availValue = types.NewZeroValue()
+		}
+	}
+
+	return initialAvailValue.Sub(availValue), nil
+}
+
 func (es *ExecutionState) IsInternalMessage() bool {
 	// If contract calls another contract using EVM's call(depth > 1), we treat it as an internal message.
 	return es.GetInMessage().IsInternal() || es.evm.GetDepth() > 1
@@ -1046,23 +1180,23 @@ func (es *ExecutionState) RoTx() db.RoTx {
 	return es.tx
 }
 
-func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *AccountState) (types.Gas, error) {
+func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *AccountState) *ExecutionResult {
 	methodSignature := "verifyExternal(uint256,bytes)"
 	methodSelector := crypto.Keccak256([]byte(methodSignature))[:4]
 	argSpec := vm.VerifySignatureArgs()[1:] // skip first arg (pubkey)
 	hash, err := message.SigningHash()
 	if err != nil {
-		return 0, err
+		return NewExecutionResult().SetFatal(fmt.Errorf("message.SigningHash() failed: %w", err))
 	}
 	argData, err := argSpec.Pack(hash.Big(), ([]byte)(message.Signature))
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to pack arguments")
-		return 0, err
+		return NewExecutionResult().SetFatal(err)
 	}
 	calldata := append(methodSelector, argData...) //nolint:gocritic
 
 	if err := es.newVm(message.IsInternal(), message.From); err != nil {
-		return 0, err
+		return NewExecutionResult().SetFatal(fmt.Errorf("newVm failed: %w", err))
 	}
 	defer es.resetVm()
 
@@ -1074,13 +1208,18 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 	}
 
 	ret, leftOverGas, err := es.evm.StaticCall((vm.AccountRef)(account.address), account.address, calldata, gasCreditLimit.Uint64())
-	if err != nil || !bytes.Equal(ret, common.LeftPadBytes([]byte{1}, 32)) {
-		return 0, err
+	if err != nil {
+		msgErr := types.NewMessageError(types.MessageStatusExecution, err)
+		return NewExecutionResult().SetError(msgErr)
 	}
+	if !bytes.Equal(ret, common.LeftPadBytes([]byte{1}, 32)) {
+		return NewExecutionResult().SetError(types.NewMessageError(types.MessageStatusExecution, ErrExternalMsgVerification))
+	}
+	res := NewExecutionResult()
 	spentGas := gasCreditLimit.Sub(types.Gas(leftOverGas))
-	spentValue := spentGas.ToValue(es.GasPrice)
-	check.PanicIfErr(account.SubBalance(spentValue, tracing.BalanceDecreaseVerifyExternal))
-	return spentGas, nil
+	res.CoinsUsed = spentGas.ToValue(es.GasPrice)
+	check.PanicIfErr(account.SubBalance(res.CoinsUsed, tracing.BalanceDecreaseVerifyExternal))
+	return res
 }
 
 func (es *ExecutionState) AddCurrency(addr types.Address, currencyId types.CurrencyId, amount types.Value) error {

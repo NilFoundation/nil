@@ -141,9 +141,9 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 	})
 
 	suite.Run("Execute", func() {
-		_, _, err := es.HandleExecutionMessage(suite.ctx, NewExecutionMessage(addrWallet, addrWallet, 1,
+		res := es.HandleExecutionMessage(suite.ctx, NewExecutionMessage(addrWallet, addrWallet, 1,
 			contracts.NewCounterAddCallData(suite.T(), 47)))
-		suite.Require().NoError(err)
+		suite.Require().False(res.Failed())
 
 		seqno, err := es.GetSeqno(addrWallet)
 		suite.Require().NoError(err)
@@ -384,10 +384,8 @@ func (suite *SuiteExecutionState) TestMessageStatus() {
 			Seqno:     1,
 			FeeCredit: toGasCredit(0),
 		}
-		_, _, err := es.HandleExecutionMessage(suite.ctx, msg)
-		merr := &types.MessageError{}
-		suite.Require().ErrorAs(err, &merr)
-		suite.EqualValues(types.MessageStatusOutOfGas, merr.Status)
+		res := es.HandleExecutionMessage(suite.ctx, msg)
+		suite.EqualValues(types.MessageStatusOutOfGas, res.Error.Status)
 	})
 
 	suite.Run("ExecuteReverted", func() {
@@ -398,9 +396,7 @@ func (suite *SuiteExecutionState) TestMessageStatus() {
 			Seqno:     1,
 			FeeCredit: toGasCredit(1_000_000),
 		}
-		_, _, err := es.HandleExecutionMessage(suite.ctx, msg)
-		merr := &types.MessageError{}
-		suite.Require().ErrorAs(err, &merr)
-		suite.EqualValues(types.MessageStatusExecutionReverted, merr.Status)
+		res := es.HandleExecutionMessage(suite.ctx, msg)
+		suite.EqualValues(types.MessageStatusExecutionReverted, res.Error.Status)
 	})
 }

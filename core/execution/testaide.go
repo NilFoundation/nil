@@ -58,25 +58,25 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 		es.AddInMessage(msg)
 
 		if !execute {
-			es.AddReceipt(0, nil)
+			es.AddReceipt(NewExecutionResult())
 			continue
 		}
 
-		gas := msg.FeeCredit.ToGas(es.GasPrice)
-		var leftOverGas types.Gas
+		var execResult *ExecutionResult
 		switch {
 		case msg.IsDeploy():
-			leftOverGas, _, err = es.HandleDeployMessage(ctx, msg)
-			require.NoError(t, err)
+			execResult = es.HandleDeployMessage(ctx, msg)
+			require.False(t, execResult.Failed())
 		case msg.IsRefund():
-			err = es.HandleRefundMessage(ctx, msg)
-			require.NoError(t, err)
+			execResult = NewExecutionResult()
+			execResult.SetFatal(es.HandleRefundMessage(ctx, msg))
+			require.False(t, execResult.Failed())
 		default:
-			leftOverGas, _, err = es.HandleExecutionMessage(ctx, msg)
-			require.NoError(t, err)
+			execResult = es.HandleExecutionMessage(ctx, msg)
+			require.False(t, execResult.Failed())
 		}
 
-		es.AddReceipt(gas.Sub(leftOverGas), nil)
+		es.AddReceipt(execResult)
 	}
 
 	blockHash, err := es.Commit(blockId)
@@ -124,11 +124,10 @@ func Deploy(t *testing.T, ctx context.Context, es *ExecutionState,
 	t.Helper()
 
 	msg := NewDeployMessage(payload, shardId, from, seqno)
-	gas := msg.FeeCredit.ToGas(es.GasPrice)
 	es.AddInMessage(msg)
-	gasLeft, _, err := es.HandleDeployMessage(ctx, msg)
-	require.NoError(t, err)
-	es.AddReceipt(gas.Sub(gasLeft), nil)
+	execResult := es.HandleDeployMessage(ctx, msg)
+	require.False(t, execResult.Failed())
+	es.AddReceipt(execResult)
 
 	return msg.To
 }

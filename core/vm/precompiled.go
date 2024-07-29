@@ -238,7 +238,9 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, value *uint256.Int, ca
 
 	log.Logger.Debug().Msgf("sendRawMessage to: %s\n", payload.To.Hex())
 
-	return nil, state.AddOutInternal(caller.Address(), payload)
+	_, err := state.AddOutInternal(caller.Address(), payload)
+
+	return nil, err
 }
 
 type asyncCall struct{}
@@ -277,58 +279,76 @@ func extractCurrencies(arg any) ([]types.CurrencyBalance, error) {
 }
 
 func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) (res []byte, err error) {
+	res = make([]byte, 32)
+
 	// Unpack arguments, skipping the first 4 bytes (function selector)
 	args, err := getPrecompiledMethod("precompileAsyncCall").Inputs.Unpack(input[4:])
 	if err != nil {
-		return nil, err
+		log.Logger.Error().Err(err).Msg("precompileAsyncCall pack failed")
+		return res, nil
 	}
-	if len(args) != 7 {
-		return nil, errors.New("precompileAsyncCall: invalid number of arguments")
+	if len(args) != 8 {
+		return res, errors.New("precompileAsyncCall: invalid number of arguments")
 	}
 
 	// Get `isDeploy` argument
 	deploy, ok := args[0].(bool)
 	if !ok {
-		return nil, errors.New("deploy is not a bool")
+		log.Logger.Error().Msg("deploy is not a bool")
+		return res, nil
+	}
+
+	// Get `forwardKind` argument
+	forwardKind, ok := args[1].(uint8)
+	if !ok {
+		log.Logger.Error().Msgf("forwardKind is not an uint8: %T", args[1])
+		return res, nil
 	}
 
 	// Get `dst` argument
-	dst, err := convertGethAddress(args[1])
+	dst, err := convertGethAddress(args[2])
 	if err != nil {
-		return nil, err
+		log.Logger.Error().Err(err).Msgf("dst is not an address: %T", args[2])
+		return res, nil
 	}
 
 	// Get `refundTo` argument
-	refundTo, err := convertGethAddress(args[2])
+	refundTo, err := convertGethAddress(args[3])
 	if err != nil {
-		return nil, err
+		log.Logger.Error().Err(err).Msgf("refundTo is not an address: %T", args[3])
+		return res, nil
 	}
 
 	// Get `bounceTo` argument
-	bounceTo, err := convertGethAddress(args[3])
+	bounceTo, err := convertGethAddress(args[4])
 	if err != nil {
-		return nil, err
+		log.Logger.Error().Err(err).Msgf("bounceTo is not an address: %T", args[4])
+		return res, nil
 	}
 
 	// Get `messageGas` argument
-	messageGasBig, ok := args[4].(*big.Int)
+	messageGasBig, ok := args[5].(*big.Int)
 	if !ok {
-		return nil, errors.New("messageGas is not a big.Int")
+		log.Logger.Error().Msgf("messageGas is not a big.Int: %T", args[5])
+		return res, nil
 	}
 	messageGas, overflow := types.NewValueFromBig(messageGasBig)
 	if overflow {
-		return nil, errors.New("messageGas overflow")
+		log.Logger.Error().Msgf("messageGas overflow: %v", messageGasBig)
+		return res, nil
 	}
 
 	// Get `currencies` argument, which is a slice of `CurrencyBalance`
-	currencies, err := extractCurrencies(args[5])
+	currencies, err := extractCurrencies(args[6])
 	if err != nil {
-		return nil, err
+		log.Logger.Error().Err(err).Msgf("currencies is not a slice of CurrencyBalance: %T", args[6])
+		return res, nil
 	}
 
 	// Get `input` argument
-	if input, ok = args[6].([]byte); !ok {
-		return nil, errors.New("input is not a byte slice")
+	if input, ok = args[7].([]byte); !ok {
+		log.Logger.Error().Msg("input is not a byte slice")
+		return res, nil
 	}
 
 	var kind types.MessageKind
@@ -338,12 +358,14 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 		kind = types.ExecutionMessageKind
 	}
 
-	if err := withdrawFunds(state, caller.Address(), messageGas); err != nil {
-		return nil, err
+	if forwardKind == types.ForwardKindNone {
+		if err := withdrawFunds(state, caller.Address(), messageGas); err != nil {
+			return res, err
+		}
 	}
 
 	if err := withdrawFunds(state, caller.Address(), types.NewValue(value)); err != nil {
-		return nil, err
+		return res, err
 	}
 
 	// TODO: We should consider non-refundable messages
@@ -352,19 +374,22 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 
 	// Internal is required for the message
 	payload := types.InternalMessagePayload{
-		Kind:      kind,
-		FeeCredit: messageGas,
-		Value:     types.NewValue(value),
-		Currency:  currencies,
-		To:        dst,
-		RefundTo:  refundTo,
-		BounceTo:  bounceTo,
-		Data:      slices.Clone(input),
+		Kind:        kind,
+		FeeCredit:   messageGas,
+		ForwardKind: types.ForwardKind(forwardKind),
+		Value:       types.NewValue(value),
+		Currency:    currencies,
+		To:          dst,
+		RefundTo:    refundTo,
+		BounceTo:    bounceTo,
+		Data:        slices.Clone(input),
 	}
 	res = make([]byte, 32)
 	res[31] = 1
 
-	return res, state.AddOutInternal(caller.Address(), &payload)
+	_, err = state.AddOutInternal(caller.Address(), &payload)
+
+	return res, err
 }
 
 type verifySignature struct{}

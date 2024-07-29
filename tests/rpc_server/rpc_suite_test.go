@@ -178,13 +178,22 @@ func (s *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Add
 func (s *RpcSuite) sendExternalMessage(bytecode types.Code, contractAddress types.Address) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
+	receipt := s.sendExternalMessageNoCheck(bytecode, contractAddress)
+
+	s.Require().True(receipt.Success)
+	s.Require().Equal("Success", receipt.Status)
+	s.Require().Len(receipt.OutReceipts, 1)
+
+	return receipt
+}
+
+func (s *RpcSuite) sendExternalMessageNoCheck(bytecode types.Code, contractAddress types.Address) *jsonrpc.RPCReceipt {
+	s.T().Helper()
+
 	txHash, err := s.client.SendExternalMessage(bytecode, contractAddress, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceipt(contractAddress.ShardId(), txHash)
-	s.Require().True(receipt.Success)
-	s.Require().Equal("Success", receipt.Status)
-	s.Require().Len(receipt.OutReceipts, 1)
 
 	return receipt
 }
@@ -271,6 +280,13 @@ func (s *RpcSuite) getBalance(address types.Address) types.Value {
 	return balance
 }
 
+func (s *RpcSuite) AbiPack(abi *abi.ABI, name string, args ...any) []byte {
+	s.T().Helper()
+	data, err := abi.Pack(name, args...)
+	s.Require().NoError(err)
+	return data
+}
+
 func (s *RpcSuite) gasToValue(gas uint64) types.Value {
 	return types.Gas(gas).ToValue(types.DefaultGasPrice)
 }
@@ -278,13 +294,22 @@ func (s *RpcSuite) gasToValue(gas uint64) types.Value {
 type ReceiptInfo map[types.Address]*ContractInfo
 
 type ContractInfo struct {
-	ValueUsed     types.Value
-	ValueSent     types.Value
-	ValueReceived types.Value
-	ValueRefunded types.Value
-	ValueBounced  types.Value
-	NumSuccess    int
-	NumFail       int
+	Name        string
+	OutMessages map[types.Address]*jsonrpc.RPCInMessage
+
+	ValueUsed      types.Value
+	ValueForwarded types.Value
+
+	ValueReceived  types.Value
+	RefundReceived types.Value
+	BounceReceived types.Value
+
+	ValueSent  types.Value
+	RefundSent types.Value
+	BounceSent types.Value
+
+	NumSuccess int
+	NumFail    int
 }
 
 func (r *ReceiptInfo) Dump() {
@@ -322,22 +347,25 @@ func (c *ContractInfo) IsSuccess() bool {
 
 // GetValueSpent returns the total value spent by the contract.
 func (c *ContractInfo) GetValueSpent() types.Value {
-	return c.ValueSent.Sub(c.ValueRefunded).Sub(c.ValueBounced)
+	return c.ValueSent.Sub(c.RefundReceived).Sub(c.BounceReceived)
 }
 
 // analyzeReceipt analyzes the receipt and returns the receipt info.
-func (s *RpcSuite) analyzeReceipt(receipt *jsonrpc.RPCReceipt) ReceiptInfo {
+func (s *RpcSuite) analyzeReceipt(receipt *jsonrpc.RPCReceipt, namesMap map[types.Address]string) ReceiptInfo {
 	s.T().Helper()
 	res := make(ReceiptInfo)
-	s.analyzeReceiptRec(receipt, res)
+	s.analyzeReceiptRec(receipt, res, namesMap)
 	return res
 }
 
 // analyzeReceiptRec is a recursive function that analyzes the receipt and fills the receipt info.
-func (s *RpcSuite) analyzeReceiptRec(receipt *jsonrpc.RPCReceipt, valuesMap ReceiptInfo) {
+func (s *RpcSuite) analyzeReceiptRec(receipt *jsonrpc.RPCReceipt, valuesMap ReceiptInfo, namesMap map[types.Address]string) {
 	s.T().Helper()
 
 	value := getContractInfo(receipt.ContractAddress, valuesMap)
+	if namesMap != nil {
+		value.Name = namesMap[receipt.ContractAddress]
+	}
 
 	if receipt.Success {
 		value.NumSuccess += 1
@@ -348,24 +376,33 @@ func (s *RpcSuite) analyzeReceiptRec(receipt *jsonrpc.RPCReceipt, valuesMap Rece
 	s.Require().NoError(err)
 
 	value.ValueUsed = value.ValueUsed.Add(receipt.GasUsed.ToValue(receipt.GasPrice))
+	value.ValueForwarded = value.ValueForwarded.Add(receipt.Forwarded)
+	caller := getContractInfo(msg.From, valuesMap)
+
+	if msg.Flags.GetBit(types.MessageFlagInternal) {
+		caller.OutMessages[receipt.ContractAddress] = msg
+	}
+
 	switch {
 	case msg.Flags.GetBit(types.MessageFlagBounce):
-		value.ValueBounced = value.ValueBounced.Add(msg.Value)
+		value.BounceReceived = value.BounceReceived.Add(msg.Value)
 		// Bounce message also bears refunded gas. If `To` address is equal to `RefundTo`, fee should be credited to
 		// this account.
 		if msg.To == msg.RefundTo {
-			value.ValueRefunded = value.ValueRefunded.Add(msg.FeeCredit).Sub(receipt.GasUsed.ToValue(receipt.GasPrice))
+			value.RefundReceived = value.RefundReceived.Add(msg.FeeCredit).Sub(receipt.GasUsed.ToValue(receipt.GasPrice))
 		}
 		// Remove the gas used by bounce message from the sent value
 		value.ValueSent = value.ValueSent.Sub(receipt.GasUsed.ToValue(receipt.GasPrice))
+
+		caller.BounceSent = caller.BounceSent.Add(msg.Value)
 	case msg.Flags.GetBit(types.MessageFlagRefund):
-		value.ValueRefunded = value.ValueRefunded.Add(msg.Value)
+		value.RefundReceived = value.RefundReceived.Add(msg.Value)
+		caller.RefundSent = caller.RefundSent.Add(msg.Value)
 	default:
 		// Receive value only if message was successful.
 		if receipt.Success {
 			value.ValueReceived = value.ValueReceived.Add(msg.Value)
 		}
-		caller := getContractInfo(msg.From, valuesMap)
 		caller.ValueSent = caller.ValueSent.Add(msg.Value)
 		// For internal message we need to add gas limit to sent value
 		if msg.Flags.GetBit(types.MessageFlagInternal) {
@@ -374,7 +411,7 @@ func (s *RpcSuite) analyzeReceiptRec(receipt *jsonrpc.RPCReceipt, valuesMap Rece
 	}
 
 	for _, outReceipt := range receipt.OutReceipts {
-		s.analyzeReceiptRec(outReceipt, valuesMap)
+		s.analyzeReceiptRec(outReceipt, valuesMap, namesMap)
 	}
 }
 
@@ -382,6 +419,7 @@ func getContractInfo(addr types.Address, valuesMap ReceiptInfo) *ContractInfo {
 	value, found := valuesMap[addr]
 	if !found {
 		value = &ContractInfo{}
+		value.OutMessages = make(map[types.Address]*jsonrpc.RPCInMessage)
 		valuesMap[addr] = value
 	}
 	return value

@@ -25,8 +25,8 @@ var (
 	// ErrSeqnoGap is returned when message seqno does not match the seqno of the recipient.
 	ErrSeqnoGap = errors.New("seqno gap")
 
-	// ErrInvalidSignature is returned when verifyExternal call fails.
-	ErrInvalidSignature = errors.New("invalid signature")
+	// ErrExternalMsgVerification is returned when verifyExternal call fails.
+	ErrExternalMsgVerification = errors.New("external message verification failed")
 
 	// ErrInvalidChainId is returned when message chain id is different from DefaultChainId.
 	ErrInvalidChainId = errors.New("invalid chainId")
@@ -39,4 +39,7 @@ var (
 
 	// ErrIncorrectDeploymentAddress is returned when the deployment address does not correspond to the payload.
 	ErrIncorrectDeploymentAddress = errors.New("incorrect deployment address")
+
+	// ErrMsgFeeForwarding is returned when error is encountered during message fee forwarding.
+	ErrMsgFeeForwarding = errors.New("message fee forwarding failed")
 )

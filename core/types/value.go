@@ -19,6 +19,10 @@ func NewValueFromUint64(val uint64) Value {
 	return Value{NewUint256(val)}
 }
 
+func NewZeroValue() Value {
+	return NewValueFromUint64(0)
+}
+
 func NewValueFromBig(val *big.Int) (Value, bool) {
 	res, overflow := uint256.FromBig(val)
 	if overflow {
@@ -41,10 +45,22 @@ func (v Value) IsZero() bool {
 	return v.Uint256 == nil || v.Uint256.IsZero()
 }
 
+func (v Value) Sign() int {
+	return v.Uint256.safeInt().Sign()
+}
+
 func (v Value) Add(other Value) Value {
 	res, overflow := v.AddOverflow(other)
 	check.PanicIfNot(!overflow)
 	return res
+}
+
+func (v Value) Mul(other Value) Value {
+	return NewValue(uint256.NewInt(0).Mul(v.Int(), other.Int()))
+}
+
+func (v Value) Div(other Value) Value {
+	return NewValue(uint256.NewInt(0).Div(v.Int(), other.Int()))
 }
 
 func (v Value) AddOverflow(other Value) (Value, bool) {

@@ -68,12 +68,13 @@ func NewWalletSendCallData(t *testing.T,
 	t.Helper()
 
 	intMsg := &types.InternalMessagePayload{
-		Data:      bytecode,
-		To:        contractAddress,
-		Value:     value,
-		FeeCredit: gasLimit.ToValue(types.NewValueFromUint64(10)),
-		Currency:  currencies,
-		Kind:      kind,
+		Data:        bytecode,
+		To:          contractAddress,
+		Value:       value,
+		FeeCredit:   gasLimit.ToValue(types.NewValueFromUint64(10)),
+		ForwardKind: types.ForwardKindNone,
+		Currency:    currencies,
+		Kind:        kind,
 	}
 
 	intMsgData, err := intMsg.MarshalSSZ()

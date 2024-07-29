@@ -29,7 +29,7 @@ func init() {
 
 	zerostate := `
 config:
-  gas_price: [10, 10, 10, 10, 10]
+  gasPrices: [10, 10, 10, 10, 10]
 contracts:
 - name: Faucet
   address: {{ .FaucetAddress }}

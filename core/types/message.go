@@ -77,6 +77,15 @@ const (
 	MessageFlagBounce
 )
 
+type ForwardKind uint64
+
+const (
+	ForwardKindRemaining = iota
+	ForwardKindPercentage
+	ForwardKindValue
+	ForwardKindNone
+)
+
 type Message struct {
 	Flags     MessageFlags      `json:"flags" ch:"flags"`
 	ChainId   ChainId           `json:"chainId" ch:"chainId"`
@@ -93,6 +102,11 @@ type Message struct {
 	Signature Signature `json:"signature,omitempty" ch:"signature" ssz-max:"256"`
 }
 
+type OutboundMessage struct {
+	*Message
+	ForwardKind ForwardKind `json:"forwardFee,omitempty" ch:"forward_kind"`
+}
+
 type ExternalMessage struct {
 	Kind     MessageKind `json:"kind,omitempty" ch:"kind"`
 	To       Address     `json:"to,omitempty" ch:"to"`
@@ -103,15 +117,16 @@ type ExternalMessage struct {
 }
 
 type InternalMessagePayload struct {
-	Kind      MessageKind       `json:"kind,omitempty" ch:"kind"`
-	Bounce    bool              `json:"bounce,omitempty" ch:"bounce"`
-	FeeCredit Value             `json:"feeCredit,omitempty" ch:"fee_credit"`
-	To        Address           `json:"to,omitempty" ch:"to"`
-	RefundTo  Address           `json:"refundTo,omitempty" ch:"refundTo"`
-	BounceTo  Address           `json:"bounceTo,omitempty" ch:"bounceTo"`
-	Currency  []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
-	Value     Value             `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Data      Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	Kind        MessageKind       `json:"kind,omitempty" ch:"kind"`
+	Bounce      bool              `json:"bounce,omitempty" ch:"bounce"`
+	FeeCredit   Value             `json:"feeCredit,omitempty" ch:"fee_credit"`
+	ForwardKind ForwardKind       `json:"forwardKind,omitempty" ch:"forward_kind"`
+	To          Address           `json:"to,omitempty" ch:"to"`
+	RefundTo    Address           `json:"refundTo,omitempty" ch:"refundTo"`
+	BounceTo    Address           `json:"bounceTo,omitempty" ch:"bounceTo"`
+	Currency    []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
+	Value       Value             `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Data        Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
 }
 
 type messageDigest struct {
@@ -397,6 +412,7 @@ const (
 	MessageStatusInvalidInputLength
 	MessageStatusCrossShardMessage
 	MessageStatusStopToken
+	MessageStatusForwardingFailed
 )
 
 type MessageStatus uint32

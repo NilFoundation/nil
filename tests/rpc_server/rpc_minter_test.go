@@ -580,10 +580,8 @@ func (s *SuiteMultiCurrencyRpc) TestInfoAndShardId() {
 	s.Require().True(receipt.Success)
 	s.Require().Len(receipt.OutReceipts, 1)
 	s.Require().True(receipt.OutReceipts[0].Success)
-	// One receipt is for refund
-	s.Require().Len(receipt.OutReceipts[0].OutReceipts, 2)
+	s.Require().Len(receipt.OutReceipts[0].OutReceipts, 1)
 	s.Require().True(receipt.OutReceipts[0].OutReceipts[0].Success)
-	s.Require().True(receipt.OutReceipts[0].OutReceipts[1].Success)
 
 	// Test getName
 	data, err = s.abiMinter.Pack("getName", currencyWallet1.idInt)

@@ -78,16 +78,16 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 		To:        suite.faucetAddr,
 		FeeCredit: gasLimit,
 	}
-	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, callMessage)
-	suite.Require().NoError(err)
+	res := suite.state.HandleExecutionMessage(suite.ctx, callMessage)
+	suite.Require().False(res.Failed())
 
 	outMsgHash, ok := reflect.ValueOf(suite.state.OutMessages).MapKeys()[0].Interface().(common.Hash)
 	suite.Require().True(ok)
 	outMsg := suite.state.OutMessages[outMsgHash][0]
 	suite.Require().NotNil(outMsg)
 
-	_, _, err = suite.state.HandleExecutionMessage(suite.ctx, outMsg)
-	suite.Require().NoError(err)
+	res = suite.state.HandleExecutionMessage(suite.ctx, outMsg.Message)
+	suite.Require().False(res.Failed())
 
 	faucetBalance = faucetBalance.Sub64(100)
 	newFaucetBalance := suite.getBalance(suite.faucetAddr)
@@ -98,17 +98,41 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 func TestZerostateFromConfig(t *testing.T) {
 	t.Parallel()
 
+	var configYaml string
+	var state *ExecutionState
+
 	database, err := db.NewBadgerDbInMemory()
 	require.NoError(t, err)
 	tx, err := database.CreateRwTx(context.Background())
 	require.NoError(t, err)
 	defer tx.Rollback()
-	state, err := NewExecutionState(tx, types.MainShardId, common.EmptyHash, common.NewTestTimer(0), 1)
+
+	// Test config params
+	configYaml = `
+config:
+  gasPrices: [1, 2, 3]
+`
+	state, err = NewExecutionState(tx, 0, common.EmptyHash, common.NewTestTimer(0), 1)
 	require.NoError(t, err)
+	err = state.GenerateZeroState(configYaml)
+	require.NoError(t, err)
+	require.Equal(t, 0, state.GasPrice.Cmp(types.NewValueFromUint64(1)))
+
+	state, err = NewExecutionState(tx, 1, common.EmptyHash, common.NewTestTimer(0), 1)
+	require.NoError(t, err)
+	err = state.GenerateZeroState(configYaml)
+	require.NoError(t, err)
+	require.Equal(t, 0, state.GasPrice.Cmp(types.NewValueFromUint64(2)))
+
+	state, err = NewExecutionState(tx, 2, common.EmptyHash, common.NewTestTimer(0), 1)
+	require.NoError(t, err)
+	err = state.GenerateZeroState(configYaml)
+	require.NoError(t, err)
+	require.Equal(t, 0, state.GasPrice.Cmp(types.NewValueFromUint64(3)))
 
 	walletAddr := types.ShardAndHexToAddress(types.MainShardId, "0x111111111111111111111111111111111111")
 
-	configYaml := fmt.Sprintf(`
+	configYaml = fmt.Sprintf(`
 contracts:
 - name: Faucet
   value: 87654321
@@ -119,8 +143,11 @@ contracts:
   contract: Wallet
   ctorArgs: [MainPublicKey]
 `, walletAddr.Hex())
+	state, err = NewExecutionState(tx, types.MainShardId, common.EmptyHash, common.NewTestTimer(0), 1)
+	require.NoError(t, err)
 	err = state.GenerateZeroState(configYaml)
 	require.NoError(t, err)
+	require.Equal(t, types.DefaultGasPrice, state.GasPrice)
 
 	wallet, err := state.GetAccount(walletAddr)
 	require.NoError(t, err)
@@ -173,8 +200,6 @@ contracts:
 	require.NoError(t, err)
 	require.Nil(t, wallet)
 }
-
-// TODO: TEST FOR CONFIG PARAMS
 
 func TestSuiteZeroState(t *testing.T) {
 	t.Parallel()

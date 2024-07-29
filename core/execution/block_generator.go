@@ -2,7 +2,6 @@ package execution
 
 import (
 	"context"
-	"errors"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
@@ -112,21 +111,19 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal) error {
 
 	g.executionState.UpdateGasPrice()
 
-	var err error
+	var res *ExecutionResult
 
 	for _, msg := range proposal.InMsgs {
 		g.executionState.AddInMessage(msg)
-		var gasUsed types.Gas
 		if msg.IsInternal() {
-			gasUsed, err = g.handleInternalInMessage(msg)
+			res = g.handleInternalInMessage(msg)
 		} else {
-			gasUsed, err = g.handleExternalMessage(msg)
+			res = g.handleExternalMessage(msg)
 		}
-		if msgErr := (*types.MessageError)(nil); err != nil && !errors.As(err, &msgErr) {
-			return err
-		} else {
-			g.addReceipt(gasUsed, msgErr)
+		if res.FatalError != nil {
+			return res.FatalError
 		}
+		g.addReceipt(res)
 	}
 
 	for _, msg := range proposal.OutMsgs {
@@ -153,57 +150,55 @@ func (g *BlockGenerator) validateInternalMessage(message *types.Message) error {
 	return nil
 }
 
-func (g *BlockGenerator) handleInternalInMessage(msg *types.Message) (types.Gas, error) {
+func (g *BlockGenerator) handleInternalInMessage(msg *types.Message) *ExecutionResult {
 	if err := g.validateInternalMessage(msg); err != nil {
 		g.logger.Warn().Err(err).Msg("Invalid internal message")
-		return 0, types.NewMessageError(types.MessageStatusValidation, err)
+		return NewExecutionResult().SetError(types.NewMessageError(types.MessageStatusValidation, err))
 	}
 
 	return g.executionState.handleMessage(g.ctx, msg, messagePayer{msg, msg.FeeCredit.ToGas(g.executionState.GasPrice), g.executionState})
 }
 
-func (g *BlockGenerator) handleExternalMessage(msg *types.Message) (types.Gas, error) {
-	verifyGas, validationErr, err := ValidateExternalMessage(g.executionState, msg)
-	if err != nil {
-		g.logger.Error().Err(err).Msg("External message validation failed.")
-		return 0, err
-	}
-	if validationErr != nil {
-		g.logger.Error().Err(validationErr).Msg("Invalid external message.")
-		return 0, types.NewMessageError(types.MessageStatusValidation, err)
+func (g *BlockGenerator) handleExternalMessage(msg *types.Message) *ExecutionResult {
+	verifyResult := ValidateExternalMessage(g.executionState, msg)
+	if verifyResult.Failed() {
+		g.logger.Error().Err(verifyResult.Error).Msg("External message validation failed.")
+		return verifyResult
 	}
 
 	acc, err := g.executionState.GetAccount(msg.To)
 	// Validation cached the account.
 	check.PanicIfErr(err)
 
-	usedGas, err := g.executionState.handleMessage(g.ctx, msg, accountPayer{acc, msg})
-	return verifyGas.Add(usedGas), err
+	res := g.executionState.handleMessage(g.ctx, msg, accountPayer{acc, msg})
+	res.CoinsUsed = res.CoinsUsed.Add(verifyResult.CoinsUsed)
+	return res
 }
 
-func (g *BlockGenerator) addReceipt(gasUsed types.Gas, err *types.MessageError) {
+func (g *BlockGenerator) addReceipt(execResult *ExecutionResult) {
+	check.PanicIfNot(execResult.FatalError == nil)
+
 	msgHash := g.executionState.InMessageHash
 	msg := g.executionState.GetInMessage()
 
-	if gasUsed == 0 && msg.IsExternal() {
+	if execResult.CoinsUsed.IsZero() && msg.IsExternal() {
 		// External messages that don't use gas must not appear here.
 		// todo: fail generation here when collator performs full validation.
-		check.PanicIfNot(err != nil)
+		check.PanicIfNot(execResult.Failed())
 
 		g.executionState.DropInMessage()
-		AddFailureReceipt(msgHash, msg.To, err)
+		AddFailureReceipt(msgHash, msg.To, execResult.Error)
 
 		g.logger.Warn().Stringer(logging.FieldMessageHash, msgHash).
 			Msg("Encountered unauthenticated failure. Collator must filter out such messages.")
 
 		return
 	}
+	g.executionState.AddReceipt(execResult)
 
-	g.executionState.AddReceipt(gasUsed, err)
-
-	if err != nil {
+	if execResult.Failed() {
 		g.logger.Debug().
-			Err(err).
+			Err(execResult.Error).
 			Stringer(logging.FieldMessageHash, msgHash).
 			Stringer(logging.FieldMessageTo, msg.To).
 			Msg("Added fail receipt.")

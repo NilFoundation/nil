@@ -151,13 +151,13 @@ func (c *collator) handleMessagesFromPool() ([]*types.Message, error) {
 			return false, nil
 		}
 
-		if _, validationErr, err := execution.ValidateExternalMessage(es, msg); err != nil {
-			return false, err
-		} else if validationErr != nil {
+		if res := execution.ValidateExternalMessage(es, msg); res.FatalError != nil {
+			return false, res.FatalError
+		} else if res.Error != nil {
 			// todo: we should run full transactions, because we cannot validate without it
 			// for now, skip VM errors here, they will be caught by the generator
-			if !vm.IsVMError(validationErr) {
-				execution.AddFailureReceipt(hash, msg.To, validationErr)
+			if !vm.IsVMError(res.Error) {
+				execution.AddFailureReceipt(hash, msg.To, res.Error)
 				return false, nil
 			}
 		}

@@ -474,12 +474,13 @@ func (c *Client) sendMessageViaWallet(
 	}
 
 	intMsg := &types.InternalMessagePayload{
-		Data:      bytecode,
-		To:        contractAddress,
-		Value:     value,
-		FeeCredit: feeCredit,
-		Currency:  currencies,
-		Kind:      kind,
+		Data:        bytecode,
+		To:          contractAddress,
+		Value:       value,
+		FeeCredit:   feeCredit,
+		ForwardKind: types.ForwardKindNone,
+		Currency:    currencies,
+		Kind:        kind,
 	}
 
 	intMsgData, err := intMsg.MarshalSSZ()

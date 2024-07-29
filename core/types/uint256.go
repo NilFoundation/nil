@@ -133,6 +133,10 @@ func (u *Uint256) Uint64() uint64 {
 	return u.safeInt().Uint64()
 }
 
+func (u *Uint256) IsUint64() bool {
+	return u.safeInt().IsUint64()
+}
+
 func (u *Uint256) Bytes() []byte {
 	return u.safeInt().Bytes()
 }
