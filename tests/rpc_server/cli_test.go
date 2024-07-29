@@ -271,7 +271,7 @@ func (s *SuiteCli) TestCallCliBasic() {
 	block, err := s.client.GetBlock(types.BaseShardId, "latest", false)
 	s.Require().NoError(err)
 
-	res := s.runCli("-c", cfgPath, "block", block.Number.String())
+	res := s.runCli("-c", cfgPath, "block", "--json", block.Number.String())
 	s.Contains(res, block.Number.String())
 	s.Contains(res, block.Hash.String())
 }
