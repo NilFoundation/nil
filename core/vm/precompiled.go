@@ -565,7 +565,8 @@ func (c *sendCurrencySync) Run(state StateDB, input []byte, value *uint256.Int, 
 		return nil, err
 	}
 	if caller.Address().ShardId() != addr.ShardId() {
-		return nil, errors.New("sendCurrencySync: cross-shard transfer is not allowed")
+		return nil, fmt.Errorf("sendCurrencySync: %w: %s -> %s",
+			ErrCrossShardMessage, caller.Address().ShardId(), addr.ShardId())
 	}
 
 	// Get currencies

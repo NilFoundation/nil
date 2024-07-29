@@ -749,7 +749,8 @@ func (es *ExecutionState) AddOutInternal(caller types.Address, payload *types.In
 		for _, currency := range msg.Currency {
 			balance := acc.GetCurrencyBalance(currency.Currency)
 			if balance.Cmp(currency.Balance) < 0 {
-				return nil, errors.New("caller does not have enough currency")
+				return nil, fmt.Errorf("%w: %s < %s, currency %s",
+					vm.ErrInsufficientBalance, balance, currency.Balance, currency.Currency)
 			}
 			if err := es.SubCurrency(msg.From, currency.Currency, currency.Balance); err != nil {
 				return nil, err
@@ -1265,7 +1266,8 @@ func (es *ExecutionState) SubCurrency(addr types.Address, currencyId types.Curre
 
 	balance := acc.GetCurrencyBalance(currencyId)
 	if balance.Cmp(amount) < 0 {
-		return fmt.Errorf("insufficient balance %v for currency %v", balance, currencyId)
+		return fmt.Errorf("%w: %s < %s, currency %s",
+			vm.ErrInsufficientBalance, balance, amount, currencyId)
 	}
 	acc.SetCurrencyBalance(currencyId, balance.Sub(amount))
 
