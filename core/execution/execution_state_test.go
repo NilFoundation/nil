@@ -9,7 +9,6 @@ import (
 	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/db"
-	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -87,10 +86,12 @@ func (suite *SuiteExecutionState) TestExecState() {
 		suite.Require().NoError(err)
 		suite.Require().NotNil(block)
 
-		messagesRoot := NewMessageTrieReader(mpt.NewReaderWithRoot(tx, es.ShardId, db.MessageTrieTable, block.InMessagesRoot))
-		receiptsRoot := NewReceiptTrieReader(mpt.NewReaderWithRoot(tx, es.ShardId, db.ReceiptTrieTable, block.ReceiptsRoot))
-		var messageIndex types.MessageIndex
+		messagesRoot := NewDbMessageTrieReader(tx, es.ShardId)
+		messagesRoot.SetRootHash(block.InMessagesRoot)
+		receiptsRoot := NewDbReceiptTrieReader(tx, es.ShardId)
+		receiptsRoot.SetRootHash(block.ReceiptsRoot)
 
+		var messageIndex types.MessageIndex
 		for {
 			m, err := messagesRoot.Fetch(messageIndex)
 			if errors.Is(err, db.ErrKeyNotFound) {
@@ -175,7 +176,8 @@ func (suite *SuiteExecutionState) TestExecStateMultipleBlocks() {
 		suite.Require().NoError(err)
 		suite.Require().NotNil(block)
 
-		messagesRoot := NewMessageTrieReader(mpt.NewReaderWithRoot(tx, types.BaseShardId, db.MessageTrieTable, block.InMessagesRoot))
+		messagesRoot := NewDbMessageTrieReader(tx, types.BaseShardId)
+		messagesRoot.SetRootHash(block.InMessagesRoot)
 		msgRead, err := messagesRoot.Fetch(idx)
 		suite.Require().NoError(err)
 

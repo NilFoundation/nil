@@ -8,7 +8,6 @@ import (
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
-	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/stretchr/testify/suite"
 )
@@ -246,7 +245,8 @@ func (s *CollatorTestSuite) checkReceipt(shardId types.ShardId, m *types.Message
 	msgData, err := sa.Access(tx, m.From.ShardId()).GetInMessage().ByHash(m.Hash())
 	s.Require().NoError(err)
 
-	receiptsTrie := execution.NewReceiptTrieReader(mpt.NewReaderWithRoot(tx, shardId, db.ReceiptTrieTable, msgData.Block().ReceiptsRoot))
+	receiptsTrie := execution.NewDbReceiptTrieReader(tx, shardId)
+	receiptsTrie.SetRootHash(msgData.Block().ReceiptsRoot)
 	receipt, err := receiptsTrie.Fetch(msgData.Index())
 	s.Require().NoError(err)
 	s.Equal(m.Hash(), receipt.MsgHash)

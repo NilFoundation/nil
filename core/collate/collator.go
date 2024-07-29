@@ -8,7 +8,6 @@ import (
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
-	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
 	"github.com/rs/zerolog"
@@ -227,7 +226,8 @@ func (c *collator) handleMessagesFromNeighbors() error {
 				return err
 			}
 
-			outMsgTrie := execution.NewMessageTrieReader(mpt.NewReaderWithRoot(c.roTx, neighborId, db.MessageTrieTable, block.OutMessagesRoot))
+			outMsgTrie := execution.NewDbMessageTrieReader(c.roTx, neighborId)
+			outMsgTrie.SetRootHash(block.OutMessagesRoot)
 			for ; c.shouldContinue() && neighbor.MessageIndex < block.OutMessagesNum; neighbor.MessageIndex++ {
 				msg, err := outMsgTrie.Fetch(neighbor.MessageIndex)
 				if err != nil {

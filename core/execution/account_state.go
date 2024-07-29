@@ -25,9 +25,8 @@ func (asr *AccountStateReader) GetCurrencyBalance(id types.CurrencyId) types.Val
 }
 
 type AccountState struct {
-	db                 *ExecutionState
-	address            types.Address // address of the ethereum account
-	accountStateReader *AccountStateReader
+	db      *ExecutionState
+	address types.Address // address of the ethereum account
 
 	Tx           db.RwTx
 	Balance      types.Value
@@ -142,7 +141,12 @@ func (as *AccountState) setCurrencyBalance(id types.CurrencyId, amount types.Val
 }
 
 func (as *AccountState) GetCurrencyBalance(id types.CurrencyId) types.Value {
-	return as.accountStateReader.GetCurrencyBalance(id)
+	res, err := as.CurrencyTree.Fetch(id)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return types.Value{}
+	}
+	check.PanicIfErr(err)
+	return *res
 }
 
 func (as *AccountState) SetSeqno(seqno types.Seqno) {

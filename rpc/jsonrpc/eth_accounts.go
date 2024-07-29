@@ -24,7 +24,8 @@ func (api *APIImpl) getSmartContract(tx db.RoTx, address types.Address, blockNrO
 		return nil, errBlockNotFound
 	}
 
-	root := mpt.NewReaderWithRoot(tx, shardId, db.ContractTrieTable, block.SmartContractsRoot)
+	root := mpt.NewDbReader(tx, shardId, db.ContractTrieTable)
+	root.SetRootHash(block.SmartContractsRoot)
 	contractRaw, err := root.Get(address.Hash().Bytes())
 	if err != nil {
 		return nil, err
@@ -82,7 +83,8 @@ func (api *APIImpl) GetCurrencies(ctx context.Context, address types.Address, bl
 		return nil, err
 	}
 
-	currencyReader := execution.NewCurrencyTrieReader(mpt.NewReaderWithRoot(tx, shardId, db.CurrencyTrieTable, acc.CurrencyRoot))
+	currencyReader := execution.NewDbCurrencyTrieReader(tx, shardId)
+	currencyReader.SetRootHash(acc.CurrencyRoot)
 	entries, err := currencyReader.Entries()
 	if err != nil {
 		return nil, err

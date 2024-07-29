@@ -23,16 +23,18 @@ const (
 const maxRawKeyLen = 32
 
 type Reader struct {
-	reader  db.RoTx
-	shardId types.ShardId
-	table   db.ShardedTableName
-	root    Reference
+	getter Getter
+	root   Reference
 }
 
 type MerklePatriciaTrie struct {
 	*Reader
 
-	accessor db.RwTx
+	setter Setter
+}
+
+func (m *Reader) SetRootHash(root common.Hash) {
+	m.root = root.Bytes()
 }
 
 func (m *Reader) RootHash() common.Hash {
@@ -109,28 +111,20 @@ func (m *MerklePatriciaTrie) Delete(key []byte) error {
 
 // Tree name must be unique across all trees in the DB
 
-func NewReader(db db.RoTx, shardId types.ShardId, name db.ShardedTableName) *Reader {
-	return &Reader{reader: db, shardId: shardId, table: name}
+func NewReader(getter Getter) *Reader {
+	return &Reader{getter: getter}
 }
 
-func NewReaderWithRoot(db db.RoTx, shardId types.ShardId, name db.ShardedTableName, root common.Hash) *Reader {
-	return &Reader{reader: db, shardId: shardId, table: name, root: root.Bytes()}
+func NewDbReader(tx db.RoTx, shardId types.ShardId, name db.ShardedTableName) *Reader {
+	return NewReader(NewDbGetter(tx, shardId, name))
 }
 
-func NewMerklePatriciaTrieFromReader(db db.RwTx, reader *Reader) *MerklePatriciaTrie {
-	return &MerklePatriciaTrie{
-		reader,
-		db,
-	}
+func NewMPT(setter Setter, reader *Reader) *MerklePatriciaTrie {
+	return &MerklePatriciaTrie{reader, setter}
 }
 
-func NewMerklePatriciaTrie(db db.RwTx, shardId types.ShardId, name db.ShardedTableName) *MerklePatriciaTrie {
-	return NewMerklePatriciaTrieFromReader(db, NewReader(db, shardId, name))
-}
-
-func NewMerklePatriciaTrieWithRoot(db db.RwTx, shardId types.ShardId, name db.ShardedTableName, root common.Hash) *MerklePatriciaTrie {
-	reader := NewReaderWithRoot(db, shardId, name, root)
-	return NewMerklePatriciaTrieFromReader(db, reader)
+func NewDbMPT(db db.RwTx, shardId types.ShardId, name db.ShardedTableName) *MerklePatriciaTrie {
+	return NewMPT(NewDbSetter(db, shardId, name), NewDbReader(db, shardId, name))
 }
 
 func GetEntity[
@@ -607,7 +601,7 @@ func (m *MerklePatriciaTrie) storeNode(node Node) (Reference, error) {
 	if len(key) != 32 {
 		key = common.BytesToHash(poseidon.Sum(data)).Bytes()
 	}
-	if err := m.accessor.PutToShard(m.shardId, m.table, key, data); err != nil {
+	if err := m.setter.Set(key, data); err != nil {
 		return nil, err
 	}
 	return key, nil
@@ -617,7 +611,7 @@ func (m *Reader) getNode(ref Reference) (Node, error) {
 	if len(ref) < 32 {
 		return DecodeNode(ref)
 	}
-	data, err := m.reader.GetFromShard(m.shardId, m.table, ref)
+	data, err := m.getter.Get(ref)
 	if err != nil {
 		return nil, err
 	}

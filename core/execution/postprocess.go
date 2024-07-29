@@ -3,7 +3,6 @@ package execution
 import (
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/db"
-	"github.com/NilFoundation/nil/core/mpt"
 	"github.com/NilFoundation/nil/core/types"
 )
 
@@ -63,7 +62,8 @@ func (pp *blockPostprocessor) fillBlockHashByNumberIndex() error {
 
 func (pp *blockPostprocessor) fillBlockHashAndMessageIndexByMessageHash() error {
 	fill := func(root common.Hash, table db.ShardedTableName) error {
-		mptMessages := NewMessageTrieReader(mpt.NewReaderWithRoot(pp.tx, pp.shardId, db.MessageTrieTable, root))
+		mptMessages := NewDbMessageTrieReader(pp.tx, pp.shardId)
+		mptMessages.SetRootHash(root)
 		msgs, err := mptMessages.Entries()
 		if err != nil {
 			return err
