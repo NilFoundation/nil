@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/assert"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/contracts"
@@ -59,8 +60,9 @@ type ExecutionState struct {
 	InMessageHash common.Hash
 	Logs          map[common.Hash][]*types.Log
 
-	Accounts   map[types.Address]*AccountState
-	InMessages []*types.Message
+	Accounts        map[types.Address]*AccountState
+	InMessages      []*types.Message
+	InMessageHashes []common.Hash
 
 	// OutMessages holds outbound messages for every transaction in the executed block, where key is hash of Message that sends the message
 	OutMessages map[common.Hash][]*types.OutboundMessage
@@ -703,6 +705,7 @@ func (es *ExecutionState) AddInMessage(message *types.Message) {
 	// We store a copy of the message, because the original message will be modified.
 	es.InMessages = append(es.InMessages, common.CopyPtr(message))
 	es.InMessageHash = message.Hash()
+	es.InMessageHashes = append(es.InMessageHashes, es.InMessageHash)
 }
 
 func (es *ExecutionState) DropInMessage() {
@@ -1002,7 +1005,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 			return common.EmptyHash, err
 		}
 		// Put all outbound messages into the trie
-		for _, m := range es.OutMessages[msg.Hash()] {
+		for _, m := range es.OutMessages[es.InMessageHashes[i]] {
 			if err := es.OutMessageTree.Update(outMsgIndex, m.Message); err != nil {
 				return common.EmptyHash, err
 			}
@@ -1017,28 +1020,30 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		outMsgIndex++
 	}
 
-	// Check that each outbound message belongs to some inbound message
-	for msgHash := range es.OutMessages {
-		if msgHash == common.EmptyHash {
-			// Skip messages transmitted over the topology
-			continue
-		}
-		found := false
-		for _, m := range es.InMessages {
-			if m.Hash() == msgHash {
-				found = true
-				break
+	if assert.Enable {
+		// Check that each outbound message belongs to some inbound message
+		for outMsgHash := range es.OutMessages {
+			if outMsgHash == common.EmptyHash {
+				// Skip messages transmitted over the topology
+				continue
 			}
-		}
-		if !found {
-			return common.EmptyHash, fmt.Errorf("outbound message %v does not belong to any inbound message", msgHash)
+			found := false
+			for _, msgHash := range es.InMessageHashes {
+				if msgHash == outMsgHash {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return common.EmptyHash, fmt.Errorf("outbound message %v does not belong to any inbound message", outMsgHash)
+			}
 		}
 	}
 	if len(es.InMessages) != len(es.Receipts) {
 		return common.EmptyHash, fmt.Errorf("number of messages does not match number of receipts: %d != %d", len(es.InMessages), len(es.Receipts))
 	}
-	for i, msg := range es.InMessages {
-		if msg.Hash() != es.Receipts[i].MsgHash {
+	for i, msgHash := range es.InMessageHashes {
+		if msgHash != es.Receipts[i].MsgHash {
 			return common.EmptyHash, fmt.Errorf("receipt hash doesn't match its message #%d", i)
 		}
 	}
@@ -1046,7 +1051,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 	// Update receipts trie
 	msgStart := 0
 	for i, r := range es.Receipts {
-		msgHash := es.InMessages[i].Hash()
+		msgHash := es.InMessageHashes[i]
 		r.OutMsgIndex = uint32(msgStart)
 		r.OutMsgNum = uint32(len(es.OutMessages[msgHash]))
 

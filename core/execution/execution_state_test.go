@@ -3,10 +3,12 @@ package execution
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/hexutil"
+	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/types"
@@ -399,4 +401,60 @@ func (suite *SuiteExecutionState) TestMessageStatus() {
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.EqualValues(types.MessageStatusExecutionReverted, res.Error.Status)
 	})
+}
+
+func BenchmarkBlockGeneration(b *testing.B) {
+	ctx := context.Background()
+	database, err := db.NewBadgerDbInMemory()
+	require.NoError(b, err)
+	logging.SetupGlobalLogger("error")
+
+	address, err := contracts.CalculateAddress(contracts.NameCounter, 1, nil)
+	require.NoError(b, err)
+
+	zerostateCfg := fmt.Sprintf(`
+contracts:
+- name: Counter
+  address: %s
+  value: 10000000
+  contract: tests/Counter
+`, address.Hex())
+
+	params := NewBlockGeneratorParams(1, 2, types.DefaultGasPrice, 0)
+
+	gen, err := NewBlockGenerator(ctx, params, database)
+	require.NoError(b, err)
+	err = gen.GenerateZeroState(zerostateCfg)
+	require.NoError(b, err)
+
+	msg := types.NewEmptyMessage()
+	msg.Flags = types.NewMessageFlags(types.MessageFlagInternal)
+	msg.To = address
+	msg.From = address
+	msg.RefundTo = address
+	msg.FeeCredit = types.NewValueFromUint64(10_000_000)
+
+	abi, err := contracts.GetAbi(contracts.NameCounter)
+	require.NoError(b, err)
+	msg.Data, err = abi.Pack("add", int32(1))
+	require.NoError(b, err)
+
+	proposal := NewEmptyProposal()
+	for range 1000 {
+		proposal.InMsgs = append(proposal.InMsgs, msg)
+	}
+
+	b.ResetTimer()
+
+	for range b.N {
+		tx, _ := database.CreateRwTx(ctx)
+		proposal.PrevBlockHash, _ = db.ReadLastBlockHash(tx, 1)
+
+		gen, err = NewBlockGenerator(ctx, params, database)
+		require.NoError(b, err)
+		err = gen.GenerateBlock(proposal)
+		require.NoError(b, err)
+
+		tx.Rollback()
+	}
 }
