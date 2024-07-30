@@ -279,7 +279,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 				FeeCredit: s.gasToValue(10000),
 				Seqno:     seqno,
 			}
-			res, err := s.client.Call(callArgs)
+			res, err := s.client.Call(callArgs, "latest")
 			s.T().Logf("Call res : %v, err: %v", res, err)
 			s.Require().NoError(err)
 			var bounceErr string
@@ -344,7 +344,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 		Seqno:     seqno,
 	}
 
-	res, err := s.client.Call(callArgs)
+	res, err := s.client.Call(callArgs, "latest")
 	s.T().Logf("Call res : %v, err: %v", res, err)
 	s.Require().NoError(err)
 	s.Require().Len(res.OutMessages, 1)

@@ -555,8 +555,13 @@ func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount types.Valu
 	return c.SendExternalMessage(callData, types.FaucetAddress, nil)
 }
 
-func (c *Client) Call(args *jsonrpc.CallArgs) (*jsonrpc.CallRes, error) {
-	raw, err := c.call("eth_call", args, "latest")
+func (c *Client) Call(args *jsonrpc.CallArgs, blockId any) (*jsonrpc.CallRes, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return nil, err
+	}
+
+	raw, err := c.call("eth_call", args, blockNrOrHash)
 	if err != nil {
 		return nil, err
 	}
