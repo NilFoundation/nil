@@ -5,11 +5,11 @@ import (
 	"errors"
 	"time"
 
-	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
+	"github.com/NilFoundation/nil/core/network"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
 	"github.com/rs/zerolog"
@@ -36,19 +36,21 @@ type Params struct {
 }
 
 type Scheduler struct {
-	txFabric db.DB
-	pool     MsgPool
+	txFabric       db.DB
+	pool           MsgPool
+	networkManager *network.Manager
 
 	params Params
 
 	logger zerolog.Logger
 }
 
-func NewScheduler(txFabric db.DB, pool MsgPool, params Params) *Scheduler {
+func NewScheduler(txFabric db.DB, pool MsgPool, params Params, networkManager *network.Manager) *Scheduler {
 	return &Scheduler{
-		txFabric: txFabric,
-		pool:     pool,
-		params:   params,
+		txFabric:       txFabric,
+		pool:           pool,
+		networkManager: networkManager,
+		params:         params,
 		logger: logging.NewLogger("collator").With().
 			Stringer(logging.FieldShardId, params.ShardId).
 			Logger(),
@@ -88,28 +90,31 @@ func (s *Scheduler) generateZeroState(ctx context.Context) error {
 	}
 	defer roTx.Rollback()
 
-	lastBlockHash, err := db.ReadLastBlockHash(roTx, s.params.ShardId)
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+	if _, err := db.ReadLastBlockHash(roTx, s.params.ShardId); !errors.Is(err, db.ErrKeyNotFound) {
+		// error or nil if last block found
 		return err
 	}
-	if lastBlockHash == common.EmptyHash {
-		if len(s.params.MainKeysOutPath) != 0 && s.params.ShardId == types.MainShardId {
-			if err := execution.DumpMainKeys(s.params.MainKeysOutPath); err != nil {
-				return err
-			}
-		}
 
-		s.logger.Info().Msg("Generating zero-state...")
-
-		gen, err := execution.NewBlockGenerator(ctx, s.params.BlockGeneratorParams, s.txFabric)
-		if err != nil {
+	if len(s.params.MainKeysOutPath) != 0 && s.params.ShardId == types.BaseShardId {
+		if err := execution.DumpMainKeys(s.params.MainKeysOutPath); err != nil {
 			return err
 		}
-		defer gen.Rollback()
-
-		return gen.GenerateZeroState(s.params.ZeroState)
 	}
-	return nil
+
+	s.logger.Info().Msg("Generating zero-state...")
+
+	gen, err := execution.NewBlockGenerator(ctx, s.params.BlockGeneratorParams, s.txFabric)
+	if err != nil {
+		return err
+	}
+	defer gen.Rollback()
+
+	block, err := gen.GenerateZeroState(s.params.ZeroState)
+	if err != nil {
+		return err
+	}
+
+	return PublishBlock(ctx, s.networkManager, s.params.ShardId, block)
 }
 
 func (s *Scheduler) doCollate(ctx context.Context) error {
@@ -128,7 +133,8 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 	}
 	defer gen.Rollback()
 
-	if err := gen.GenerateBlock(proposal); err != nil {
+	block, err := gen.GenerateBlock(proposal)
+	if err != nil {
 		return err
 	}
 
@@ -136,7 +142,7 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 		s.logger.Warn().Err(err).Msgf("Failed to remove %d committed messages from pool", len(proposal.RemoveFromPool))
 	}
 
-	return nil
+	return PublishBlock(ctx, s.networkManager, s.params.ShardId, block)
 }
 
 func (s *Scheduler) GetMsgPool() msgpool.Pool {

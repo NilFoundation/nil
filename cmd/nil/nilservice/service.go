@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
 	"github.com/NilFoundation/nil/core/execution"
+	"github.com/NilFoundation/nil/core/network"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/msgpool"
 	"github.com/NilFoundation/nil/rpc"
@@ -111,16 +112,32 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	}
 
 	var msgPools []msgpool.Pool
+	var networkManager *network.Manager
+	var err error
 
 	switch cfg.RunMode {
 	case NormalRunMode:
-		fallthrough
-	case CollatorsOnlyRunMode:
-		collators, err := CreateCollators(cfg, database)
+		networkManager, err = createNetworkManager(ctx, cfg)
 		if err != nil {
-			logger.Error().Err(err).Msg("Failed to create collators")
+			logger.Error().Err(err).Msg("Failed to create network manager")
 			return 1
 		}
+		if networkManager != nil {
+			defer networkManager.Close()
+
+			// todo: listen to select shards only
+			shardsToListen := make([]types.ShardId, cfg.NShards)
+			for i := range cfg.NShards {
+				shardsToListen[i] = types.ShardId(i)
+			}
+			funcs = append(funcs, func(ctx context.Context) error {
+				return collate.StartBlockListeners(ctx, networkManager, database, shardsToListen)
+			})
+		}
+
+		fallthrough
+	case CollatorsOnlyRunMode:
+		collators := createCollators(cfg, database, networkManager)
 
 		msgPools = make([]msgpool.Pool, cfg.NShards)
 		for i, collator := range collators {
@@ -203,7 +220,20 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	return 0
 }
 
-func CreateCollators(cfg *Config, database db.DB) ([]*collate.Scheduler, error) {
+func createNetworkManager(ctx context.Context, cfg *Config) (*network.Manager, error) {
+	networkConfig := &network.Config{
+		PrivateKey: network.GeneratePrivateKey(),
+		TcpPort:    cfg.Libp2pTcpPort,
+		QuicPort:   cfg.Libp2pQuicPort,
+		UseMdns:    cfg.UseMdns,
+	}
+	if !networkConfig.Enabled() {
+		return nil, nil
+	}
+	return network.NewManager(ctx, networkConfig)
+}
+
+func createCollators(cfg *Config, database db.DB, networkManager *network.Manager) []*collate.Scheduler {
 	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
 
 	collators := make([]*collate.Scheduler, 0, cfg.NShards)
@@ -229,8 +259,8 @@ func CreateCollators(cfg *Config, database db.DB) ([]*collate.Scheduler, error) 
 			collatorCfg.ZeroState = cfg.ZeroState
 		}
 
-		collator := collate.NewScheduler(database, msgPool, collatorCfg)
+		collator := collate.NewScheduler(database, msgPool, collatorCfg, networkManager)
 		collators = append(collators, collator)
 	}
-	return collators, nil
+	return collators
 }

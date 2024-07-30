@@ -22,7 +22,9 @@ func GenerateZeroState(t *testing.T, ctx context.Context,
 		txFabric)
 	require.NoError(t, err)
 	defer g.Rollback()
-	require.NoError(t, g.GenerateZeroState(DefaultZeroStateConfig))
+	block, err := g.GenerateZeroState(DefaultZeroStateConfig)
+	require.NoError(t, err)
+	require.NotNil(t, block)
 }
 
 func GenerateBlockFromMessages(t *testing.T, ctx context.Context,

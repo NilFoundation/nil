@@ -15,6 +15,11 @@ const (
 	FieldRpcMethod = "rpcMethod"
 	FieldRpcParams = "rpcParams"
 
+	FieldPeerId   = "peerId"
+	FieldTopic    = "topic"
+	FieldTcpPort  = "tcpPort"
+	FieldQuicPort = "quicPort"
+
 	FieldMessageHash  = "msgHash"
 	FieldMessageSeqno = "msgSeqno"
 	FieldMessageFrom  = "msgFrom"

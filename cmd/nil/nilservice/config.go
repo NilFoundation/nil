@@ -27,4 +27,9 @@ type Config struct {
 	RunMode              RunMode
 	ReplayBlockId        types.BlockNumber
 	ReplayShardId        types.ShardId
+
+	// network
+	Libp2pTcpPort  int
+	Libp2pQuicPort int
+	UseMdns        bool
 }

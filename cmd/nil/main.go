@@ -71,6 +71,11 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 	nShards := runCmd.Flags().Int("nshards", 5, "number of shardchains")
 	allowDropDb := runCmd.Flags().Bool("allow-db-clear", false, "allow to clear database in case of outdated version")
 
+	// network
+	tcpPort := runCmd.Flags().Int("tcp-port", 0, "tcp port for network")
+	quicPort := runCmd.Flags().Int("quic-port", 0, "quic udp port for network")
+	useMdns := runCmd.Flags().Bool("use-mdns", false, "use mDNS for discovery (works only in the local network)")
+
 	replayCmd := &cobra.Command{
 		Use:   "replay-block",
 		Short: "Start server in single-shard mode to replay particular block",
@@ -105,6 +110,9 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 	cfg := &nilservice.Config{
 		NShards:          *nShards,
 		HttpPort:         *port,
+		Libp2pTcpPort:    *tcpPort,
+		Libp2pQuicPort:   *quicPort,
+		UseMdns:          *useMdns,
 		AdminSocketPath:  *adminSocket,
 		Topology:         collate.TrivialShardTopologyId,
 		MainKeysOutPath:  "keys.yaml",
