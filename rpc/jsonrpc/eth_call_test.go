@@ -75,15 +75,15 @@ func (s *SuiteEthCall) TestSmcCall() {
 		To:        to,
 		FeeCredit: types.GasToValue(10_000),
 	}
-	data, err := s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash})
+	res, err := s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash})
 	s.Require().NoError(err)
-	s.Require().Equal(uint8(0x2a), data[len(data)-1])
+	s.Require().Equal(uint8(0x2a), res.Data[len(res.Data)-1])
 
 	// Call with block number
 	num := transport.BlockNumber(0)
-	data, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num})
+	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num})
 	s.Require().NoError(err)
-	s.Require().Equal(uint8(0x2a), data[len(data)-1])
+	s.Require().Equal(uint8(0x2a), res.Data[len(res.Data)-1])
 
 	// Out of gas
 	args.FeeCredit = types.GasToValue(0)
@@ -93,8 +93,8 @@ func (s *SuiteEthCall) TestSmcCall() {
 	// Call with invalid arguments
 	args.To = types.EmptyAddress
 	args.Data = []byte{}
-	data, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash})
-	s.Require().Nil(data)
+	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash})
+	s.Require().Nil(res.Data)
 	s.Require().NoError(err)
 }
 

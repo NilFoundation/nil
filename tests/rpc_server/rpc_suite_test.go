@@ -239,7 +239,7 @@ func (s *RpcSuite) CallGetter(addr types.Address, callData []byte) []byte {
 	}
 	res, err := s.client.Call(callArgs)
 	s.Require().NoError(err)
-	return []byte(res)
+	return res.Data
 }
 
 func (s *RpcSuite) runCli(args ...string) string {

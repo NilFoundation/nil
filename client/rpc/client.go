@@ -555,15 +555,15 @@ func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount types.Valu
 	return c.SendExternalMessage(callData, types.FaucetAddress, nil)
 }
 
-func (c *Client) Call(args *jsonrpc.CallArgs) (string, error) {
+func (c *Client) Call(args *jsonrpc.CallArgs) (*jsonrpc.CallRes, error) {
 	raw, err := c.call("eth_call", args, "latest")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	var res string
+	var res *jsonrpc.CallRes
 	if err := json.Unmarshal(raw, &res); err != nil {
-		return "", err
+		return nil, err
 	}
 	return res, nil
 }

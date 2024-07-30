@@ -338,3 +338,11 @@ type DebugRPCContract struct {
 	Proof   []string                                       `json:"proof"`
 	Storage []execution.Entry[common.Hash, *types.Uint256] `json:"storage"`
 }
+
+// @component CallRes CallRes object "Response for eth_call."
+// @componentprop Data data string true "Result of VM execution."
+// @componentprop GasUsed gasUsed string true "The amount of gas spent on the message."
+type CallRes struct {
+	Data    hexutil.Bytes `json:"data"`
+	GasUsed types.Gas     `json:"gasUsed"`
+}

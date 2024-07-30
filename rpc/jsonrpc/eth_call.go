@@ -5,7 +5,6 @@ import (
 	"math/big"
 
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/core/vm"
@@ -13,7 +12,7 @@ import (
 )
 
 // Call implements eth_call. Executes a new message call immediately without creating a transaction on the block chain.
-func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error) {
+func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash transport.BlockNumberOrHash) (*CallRes, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
@@ -45,6 +44,12 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash trans
 	gas := args.FeeCredit.ToGas(types.NewValueFromBigMust((*big.Int)(gasPrice)))
 
 	evm := vm.NewEVM(blockContext, es, args.From)
-	ret, _, err := evm.Call((vm.AccountRef)(args.From), args.To, args.Data, gas.Uint64(), args.Value.Int())
-	return ret, err
+	ret, gasUsed, err := evm.Call((vm.AccountRef)(args.From), args.To, args.Data, gas.Uint64(), args.Value.Int())
+	if err != nil {
+		return nil, err
+	}
+	return &CallRes{
+		Data:    ret,
+		GasUsed: types.Gas(gasUsed),
+	}, nil
 }

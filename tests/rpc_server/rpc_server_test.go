@@ -281,7 +281,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.T().Logf("Call res : %v, err: %v", res, err)
 			s.Require().NoError(err)
 			var bounceErr string
-			s.Require().NoError(callerAbi.UnpackIntoInterface(&bounceErr, getBounceErrName, hexutil.FromHex(res)))
+			s.Require().NoError(callerAbi.UnpackIntoInterface(&bounceErr, getBounceErrName, res.Data))
 			s.Require().Equal(vm.ErrExecutionReverted.Error(), bounceErr)
 
 			waitTilBalanceAtLeast(prevBalance.Uint64() - callValue)
