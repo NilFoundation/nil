@@ -52,6 +52,23 @@ func (m messagePayer) String() string {
 	return "message"
 }
 
+/* Public dummy payer implementation to be used with eth_call (simulator purposes). */
+type SimPayer struct{}
+
+func (m SimPayer) CanPay(amount types.Value) bool {
+	return true
+}
+
+func (m SimPayer) SubBalance(_ types.Value) {
+}
+
+func (m SimPayer) AddBalance(delta types.Value) {
+}
+
+func (m SimPayer) String() string {
+	return "simulator"
+}
+
 type accountPayer struct {
 	account *AccountState
 	message *types.Message

@@ -94,8 +94,8 @@ func (s *SuiteEthCall) TestSmcCall() {
 	args.To = types.EmptyAddress
 	args.Data = []byte{}
 	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash})
-	s.Require().Nil(res.Data)
-	s.Require().NoError(err)
+	s.Require().ErrorContains(err, "Attempt to create account 0x0000000000000000000000000000000000000000 from 0 shard on 1 shard")
+	s.Require().Nil(res)
 }
 
 func TestSuiteEthCall(t *testing.T) {

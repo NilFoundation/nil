@@ -2,12 +2,10 @@ package jsonrpc
 
 import (
 	"context"
-	"math/big"
 
 	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
-	"github.com/NilFoundation/nil/core/vm"
 	"github.com/NilFoundation/nil/rpc/transport"
 )
 
@@ -32,24 +30,28 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash trans
 		return nil, err
 	}
 
-	blockContext, err := execution.NewEVMBlockContext(es)
-	if err != nil {
-		return nil, err
+	msg := &types.Message{
+		ChainId:   types.DefaultChainId,
+		Seqno:     types.Seqno(args.Seqno),
+		FeeCredit: args.FeeCredit,
+		From:      args.From,
+		To:        args.To,
+		Value:     args.Value,
+		Data:      types.Code(args.Data),
 	}
 
-	gasPrice, err := api.GasPrice(ctx, args.To.ShardId())
-	if err != nil {
-		return nil, err
+	es.AddInMessage(msg)
+	res := es.HandleMessage(ctx, msg, execution.SimPayer{})
+	if res.IsFatal() {
+		return nil, res.FatalError
 	}
-	gas := args.FeeCredit.ToGas(types.NewValueFromBigMust((*big.Int)(gasPrice)))
-
-	evm := vm.NewEVM(blockContext, es, args.From)
-	ret, gasUsed, err := evm.Call((vm.AccountRef)(args.From), args.To, args.Data, gas.Uint64(), args.Value.Int())
-	if err != nil {
-		return nil, err
+	if res.Error != nil {
+		return nil, res.Error.Unwrap()
 	}
+	outMessages := es.OutMessages[msg.Hash()]
 	return &CallRes{
-		Data:    ret,
-		GasUsed: types.Gas(gasUsed),
+		Data:        res.ReturnData,
+		CoinsUsed:   res.CoinsUsed,
+		OutMessages: outMessages,
 	}, nil
 }

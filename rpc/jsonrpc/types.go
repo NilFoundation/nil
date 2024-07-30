@@ -341,8 +341,10 @@ type DebugRPCContract struct {
 
 // @component CallRes CallRes object "Response for eth_call."
 // @componentprop Data data string true "Result of VM execution."
-// @componentprop GasUsed gasUsed string true "The amount of gas spent on the message."
+// @componentprop CoinsUsed coinsUsed string true "The amount of coins spent on the message."
+// @componentprop OutMessages outMessages array true "Outbound messages produced by the message."
 type CallRes struct {
-	Data    hexutil.Bytes `json:"data"`
-	GasUsed types.Gas     `json:"gasUsed"`
+	Data        hexutil.Bytes            `json:"data"`
+	CoinsUsed   types.Value              `json:"coinsUsed"`
+	OutMessages []*types.OutboundMessage `json:"outMessages,omitempty"`
 }
