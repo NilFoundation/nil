@@ -96,7 +96,7 @@ func (s *SuiteReadThroughDb) TestBasic() {
 	s.initCache()
 
 	s.Run("GetFromCache", func() {
-		data := s.cache.CallGetter(addrCallee, contracts.NewCounterGetCallData(s.T()))
+		data := s.cache.CallGetter(addrCallee, contracts.NewCounterGetCallData(s.T()), "latest")
 		s.Require().Equal(value, int32(data[31]))
 	})
 
@@ -107,12 +107,12 @@ func (s *SuiteReadThroughDb) TestBasic() {
 	})
 
 	s.Run("GetFromServer", func() {
-		data := s.server.CallGetter(addrCallee, contracts.NewCounterGetCallData(s.T()))
+		data := s.server.CallGetter(addrCallee, contracts.NewCounterGetCallData(s.T()), "latest")
 		s.Require().Equal(value, int32(data[31]))
 	})
 
 	s.Run("GetFromCache2", func() {
-		data := s.cache.CallGetter(addrCallee, contracts.NewCounterGetCallData(s.T()))
+		data := s.cache.CallGetter(addrCallee, contracts.NewCounterGetCallData(s.T()), "latest")
 		s.Require().Equal(2*value, int32(data[31]))
 	})
 }
