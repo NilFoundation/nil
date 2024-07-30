@@ -101,7 +101,7 @@ func (s *SuiteEconomy) SetupTest() {
 		HttpPort:             8537,
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            s.zerostateCfg,
-		CollatorTickPeriodMs: 100,
+		CollatorTickPeriodMs: 300,
 		GasPriceScale:        0,
 		GasBasePrice:         10,
 		RunMode:              nilservice.CollatorsOnlyRunMode,
