@@ -20,7 +20,7 @@ type Client interface {
 	// and returns the response as json.RawMessage, or an error if the call fails
 	RawCall(method string, params ...any) (json.RawMessage, error)
 
-	Call(args *jsonrpc.CallArgs) (string, error)
+	Call(args *jsonrpc.CallArgs, blockId any) (*jsonrpc.CallRes, error)
 	GetCode(addr types.Address, blockId any) (types.Code, error)
 	GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error)
 	GetDebugBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.HexedDebugRPCBlock, error)

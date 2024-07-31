@@ -140,8 +140,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		s.Run("Check currency name", func() {
 			data, err := s.abiMinter.Pack("getName", &currency1.idInt)
 			s.Require().NoError(err)
-			data = s.CallGetter(types.MinterAddress, data)
-			data = hexutil.FromHex(string(data))
+			data = s.CallGetter(types.MinterAddress, data, "latest")
 			nameRes, err := s.abiMinter.Unpack("getName", data)
 			s.Require().NoError(err)
 			name, ok := nameRes[0].(string)
@@ -609,8 +608,8 @@ func (s *SuiteMultiCurrencyRpc) TestInfoAndShardId() {
 	data, err = s.abiMinter.Pack("getName", currencyWallet1.idInt)
 	s.Require().NoError(err)
 
-	data = s.CallGetter(types.MinterAddress, data)
-	unpackedRes, err := s.abiMinter.Unpack("getName", hexutil.FromHex(string(data)))
+	data = s.CallGetter(types.MinterAddress, data, "latest")
+	unpackedRes, err := s.abiMinter.Unpack("getName", data)
 	s.Require().NoError(err)
 	s.Require().Equal("wallet1", unpackedRes[0])
 
@@ -618,8 +617,8 @@ func (s *SuiteMultiCurrencyRpc) TestInfoAndShardId() {
 	data, err = s.abiMinter.Pack("getIdByName", "wallet2")
 	s.Require().NoError(err)
 
-	data = s.CallGetter(types.MinterAddress, data)
-	unpackedRes, err = s.abiMinter.Unpack("getIdByName", hexutil.FromHex(string(data)))
+	data = s.CallGetter(types.MinterAddress, data, "latest")
+	unpackedRes, err = s.abiMinter.Unpack("getIdByName", data)
 	s.Require().NoError(err)
 	s.Require().Equal(currencyWallet2.idInt, unpackedRes[0])
 
@@ -627,8 +626,8 @@ func (s *SuiteMultiCurrencyRpc) TestInfoAndShardId() {
 	data, err = s.abiMinter.Pack("getIdByName", "not_existing")
 	s.Require().NoError(err)
 
-	data = s.CallGetter(types.MinterAddress, data)
-	unpackedRes, err = s.abiMinter.Unpack("getIdByName", hexutil.FromHex(string(data)))
+	data = s.CallGetter(types.MinterAddress, data, "latest")
+	unpackedRes, err = s.abiMinter.Unpack("getIdByName", data)
 	s.Require().NoError(err)
 	resInt, ok := unpackedRes[0].(*big.Int)
 	s.Require().True(ok)

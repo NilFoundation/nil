@@ -137,11 +137,11 @@ func (s *Service) CallContract(contract types.Address, feeCredit types.Value, ca
 		FeeCredit: feeCredit,
 	}
 
-	res, err := s.client.Call(callArgs)
+	res, err := s.client.Call(callArgs, "latest")
 	if err != nil {
 		return "", err
 	}
-	return res, nil
+	return res.Data.String(), nil
 }
 
 func (s *Service) ContractAddress(shardId types.ShardId, salt types.Uint256, bytecode []byte) types.Address {

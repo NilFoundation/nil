@@ -2,6 +2,7 @@ package rpctest
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"os"
 	"strconv"
@@ -21,6 +22,7 @@ import (
 	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/rpc/transport"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
@@ -277,11 +279,11 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 				FeeCredit: s.gasToValue(10000),
 				Seqno:     seqno,
 			}
-			res, err := s.client.Call(callArgs)
+			res, err := s.client.Call(callArgs, "latest")
 			s.T().Logf("Call res : %v, err: %v", res, err)
 			s.Require().NoError(err)
 			var bounceErr string
-			s.Require().NoError(callerAbi.UnpackIntoInterface(&bounceErr, getBounceErrName, hexutil.FromHex(res)))
+			s.Require().NoError(callerAbi.UnpackIntoInterface(&bounceErr, getBounceErrName, res.Data))
 			s.Require().Equal(vm.ErrExecutionReverted.Error(), bounceErr)
 
 			waitTilBalanceAtLeast(prevBalance.Uint64() - callValue)
@@ -295,6 +297,62 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 	s.Run("ToSameShard", func() {
 		checkForShard(types.BaseShardId)
 	})
+}
+
+func (s *SuiteRpc) TestRpcCallWithMessageSend() {
+	pk, err := crypto.GenerateKey()
+	s.Require().NoError(err)
+
+	pub := crypto.CompressPubkey(&pk.PublicKey)
+	walletCode := contracts.PrepareDefaultWalletForOwnerCode(pub)
+	deployCode := types.BuildDeployPayload(walletCode, common.EmptyHash)
+
+	dstShardId := types.ShardId(2)
+	hash, address, err := s.client.DeployContract(
+		dstShardId, types.MainWalletAddress, deployCode, types.NewValueFromUint64(500_000), execution.MainPrivateKey,
+	)
+	s.Require().NoError(err)
+
+	receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), hash)
+	s.Require().True(receipt.Success)
+	s.Require().True(receipt.OutReceipts[0].Success)
+	fmt.Println(address)
+
+	intMsg := &types.InternalMessagePayload{
+		Data:        []byte("check"),
+		To:          address,
+		FeeCredit:   types.NewValueFromUint64(100000),
+		ForwardKind: types.ForwardKindNone,
+		Kind:        types.ExecutionMessageKind,
+	}
+
+	intMsgData, err := intMsg.MarshalSSZ()
+	s.Require().NoError(err)
+
+	calldata, err := contracts.NewCallData(contracts.NameWallet, "send", intMsgData)
+	s.Require().NoError(err)
+
+	callerSeqno, err := s.client.GetTransactionCount(types.MainWalletAddress, "latest")
+	s.Require().NoError(err)
+	seqno := hexutil.Uint64(callerSeqno)
+
+	callArgs := &jsonrpc.CallArgs{
+		From:      types.MainWalletAddress,
+		Data:      calldata,
+		To:        types.MainWalletAddress,
+		FeeCredit: s.gasToValue(100000000000),
+		Seqno:     seqno,
+	}
+
+	res, err := s.client.Call(callArgs, "latest")
+	s.T().Logf("Call res : %v, err: %v", res, err)
+	s.Require().NoError(err)
+	s.Require().Len(res.OutMessages, 1)
+
+	msg := res.OutMessages[0]
+	s.Equal(types.MainWalletAddress, msg.From)
+	s.Equal(address, msg.To)
+	s.NotEmpty(msg.Data)
 }
 
 func (s *SuiteRpc) TestRpcApiModules() {

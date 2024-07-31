@@ -5,7 +5,6 @@ import (
 
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common/check"
-	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
@@ -97,8 +96,7 @@ func (s *SuiteReadThroughDb) TestBasic() {
 	s.initCache()
 
 	s.Run("GetFromCache", func() {
-		result := s.cache.CallGetter(addrCallee, contracts.NewCounterGetCallData(s.T()))
-		data := hexutil.FromHex(string(result))
+		data := s.cache.CallGetter(addrCallee, contracts.NewCounterGetCallData(s.T()), "latest")
 		s.Require().Equal(value, int32(data[31]))
 	})
 
@@ -109,14 +107,12 @@ func (s *SuiteReadThroughDb) TestBasic() {
 	})
 
 	s.Run("GetFromServer", func() {
-		result := s.server.CallGetter(addrCallee, contracts.NewCounterGetCallData(s.T()))
-		data := hexutil.FromHex(string(result))
+		data := s.server.CallGetter(addrCallee, contracts.NewCounterGetCallData(s.T()), "latest")
 		s.Require().Equal(value, int32(data[31]))
 	})
 
 	s.Run("GetFromCache2", func() {
-		result := s.cache.CallGetter(addrCallee, contracts.NewCounterGetCallData(s.T()))
-		data := hexutil.FromHex(string(result))
+		data := s.cache.CallGetter(addrCallee, contracts.NewCounterGetCallData(s.T()), "latest")
 		s.Require().Equal(2*value, int32(data[31]))
 	})
 }

@@ -272,9 +272,9 @@ type EthAPI interface {
 		@tags [Calls]
 		@param args CallArgs
 		@param blockNrOrHash BlockNumberOrHash
-		@returns returnedValue ReturnedValue
+		@returns CallRes CallRes
 	*/
-	Call(ctx context.Context, args CallArgs, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error)
+	Call(ctx context.Context, args CallArgs, blockNrOrHash transport.BlockNumberOrHash) (*CallRes, error)
 
 	/*
 		@name ChainId
