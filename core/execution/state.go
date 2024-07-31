@@ -1116,11 +1116,12 @@ func (es *ExecutionState) CalculateGasForwarding(initialAvailValue types.Value) 
 	for _, msg := range es.OutMessages[es.InMessageHash] {
 		switch msg.ForwardKind {
 		case types.ForwardKindValue:
-			availValue, overflow = availValue.SubOverflow(msg.Message.FeeCredit)
+			diff, overflow := availValue.SubOverflow(msg.Message.FeeCredit)
 			if overflow {
 				return types.NewZeroValue(), fmt.Errorf("%w: not enough credit for ForwardKindValue: %v < %v",
 					ErrMsgFeeForwarding, availValue, msg.Message.FeeCredit)
 			}
+			availValue = diff
 		case types.ForwardKindPercentage:
 			percentageFwdMessages = append(percentageFwdMessages, msg)
 		case types.ForwardKindRemaining:
