@@ -41,7 +41,7 @@ No subcommands.
 
 ### Examples
 
-#### Retrieve a block by hash 
+#### Retrieve a block by hash
 
 ```bash
 nil_cli block BLOCK_HASH [--shard-id SHARD_ID; default 1]
@@ -78,9 +78,9 @@ Fetched block:
 
 ### Description
 
-This command generates autocompletion scripts for various shells. 
+This command generates autocompletion scripts for various shells.
 
-### Subcommands 
+### Subcommands
 
 | Subcommand | Definition |
 |:--:|:--|
@@ -144,7 +144,7 @@ nil_cli config get KEY
 nil_cli config show
 ```
 
-### Outputs 
+### Outputs
 
 #### Initializing the config file
 
@@ -204,7 +204,7 @@ For `call-readonly`:
 | Flag | Definition |
 |:--:|:--|
 | `--abi string` | The path to the `.abi` file containing the contract ABI. |
-| `--gas-limit Uint256` | The gas limit for the call. |
+| `--fee-credit Uint256` | The fee credit for the call. |
 
 For `deploy`:
 
@@ -226,7 +226,7 @@ nil_cli contract address path/to/contract.bin [--abi path/to/contract.abi] [--no
 #### Call a smart contract method
 
 ```bash
-nil_cli contract call-readonly CONTRACT_ADDRESS CALLDATA | METHOD_NAME [--abi path/to/contract.abi] [--gas-limit GAS_LIMIT]
+nil_cli contract call-readonly CONTRACT_ADDRESS CALLDATA | METHOD_NAME [--abi path/to/contract.abi] [--fee-credit FEE_CREDIT]
 ```
 
 #### Deploy a smart contract
@@ -301,7 +301,7 @@ No subcommands.
 
 ### Flags
 
-No flags. 
+No flags.
 
 ### Example
 
@@ -608,7 +608,7 @@ For `send-message`:
 |:--:|:--|
 | `--abi string` | Specify the path to the `.abi` file for the contract. |
 | `--amount Uint256` | Set the amount of tokens to send to the contract. |
-| `--gas-limit Uint256` | Set the message gas limit. |
+| `--fee-credit Uint256` | Set the message fee credit. |
 | `--no-wait` | Define whether the command should wait for the message receipt. |
 | `--token stringArray` | Define the tokens to transfer to the contract. Tokens are set using the `CURRENCY_ID=AMOUNT` format. The flag accepts can accept multiple tokens.  |
 
@@ -616,7 +616,7 @@ For `send-tokens`:
 
 | Flag | Definition |
 |:--:|:--|
-| `--gas-limit Uint256` | Set the message gas limit. |
+| `--fee-credit Uint256` | Set the message fee credit. |
 | `--no-wait` | Define whether the command should wait for the message receipt. |
 | `--token stringArray` | Define the tokens to transfer to the contract. Tokens are set using the `CURRENCY_ID=AMOUNT` format. The flag accepts can accept multiple tokens.  |
 
@@ -631,13 +631,13 @@ nil_cli wallet balance
 #### Deploy a smart contract
 
 ```bash
-nil_cli wallet deploy path/to/contract.bin [ARGS] [--abi path/to/contract.abi] [--amount AMOUNT] [--currency TOKENS_AMOUNT] [--no-wait] [--salt SALT] [shard-id SHARD_ID] 
+nil_cli wallet deploy path/to/contract.bin [ARGS] [--abi path/to/contract.abi] [--amount AMOUNT] [--currency TOKENS_AMOUNT] [--no-wait] [--salt SALT] [shard-id SHARD_ID]
 ```
 
 #### Send tokens to a smart contract
 
 ```bash
-nil_cli send-tokens ADDRESS [--gas-limit GAS_LIMIT] [--no-wait] [--token stringArray]
+nil_cli send-tokens ADDRESS [--fee-credit FEE_CREDIT] [--no-wait] [--token stringArray]
 ```
 
 #### Request a 'top up'
@@ -661,7 +661,7 @@ nil_cli wallet new [--amount AMOUNT] [--salt SALT] [--shard-id SHARD_ID]
 #### Send a message to a smart contract
 
 ```bash
-nil_cli wallet send-message ADDRESS BYTECODE | METHOD [ARGS] [--abi path/to/contract.abi] [--amount AMOUNT] [--gas-limit GAS_LIMIT] [--no-wait] [--token TOKENS] 
+nil_cli wallet send-message ADDRESS BYTECODE | METHOD [ARGS] [--abi path/to/contract.abi] [--amount AMOUNT] [--fee-credit FEE_CREDIT] [--no-wait] [--token TOKENS]
 ```
 
 ### Outputs
@@ -672,7 +672,7 @@ nil_cli wallet send-message ADDRESS BYTECODE | METHOD [ARGS] [--abi path/to/cont
 Contract balance: BALANCE
 ```
 
-#### Deploying a smart contract 
+#### Deploying a smart contract
 
 ```bash
 Contract address: ADDRESS
