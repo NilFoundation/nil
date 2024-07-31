@@ -565,6 +565,17 @@ func (es *ExecutionState) SetState(addr types.Address, key common.Hash, val comm
 	return acc.SetState(key, val)
 }
 
+// SetStorage replaces the entire storage for the specified account with given
+// storage. This function should only be used for debugging.
+func (es *ExecutionState) SetStorage(addr types.Address, storage Storage) error {
+	acc, err := es.getOrNewAccount(addr)
+	if err != nil {
+		return err
+	}
+	acc.SetStorage(storage)
+	return nil
+}
+
 func (es *ExecutionState) GetBalance(addr types.Address) (types.Value, error) {
 	acc, err := es.GetAccount(addr)
 	if err != nil || acc == nil {

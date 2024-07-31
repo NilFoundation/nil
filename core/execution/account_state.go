@@ -200,6 +200,20 @@ func (as *AccountState) SetState(key common.Hash, value common.Hash) error {
 	return nil
 }
 
+// SetStorage replaces the entire state storage with the given one.
+//
+// After this function is called, all original state will be ignored and state
+// lookup only happens in the fake state storage.
+//
+// Note this function should only be used for debugging purpose.
+func (as *AccountState) SetStorage(storage Storage) {
+	for key, value := range storage {
+		as.State[key] = value
+	}
+	// Don't bother journal since this function should only be used for
+	// debugging and the `fake` storage won't be committed to database.
+}
+
 func (as *AccountState) setState(key common.Hash, value common.Hash) {
 	as.State[key] = value
 }

@@ -10,7 +10,7 @@ import (
 )
 
 // Call implements eth_call. Executes a new message call immediately without creating a transaction on the block chain.
-func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash transport.BlockNumberOrHash) (*CallRes, error) {
+func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash transport.BlockNumberOrHash, overrides *StateOverrides) (*CallRes, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
@@ -28,6 +28,12 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash trans
 	es, err := execution.NewROExecutionState(tx, shardId, hash, timer, 1)
 	if err != nil {
 		return nil, err
+	}
+
+	if overrides != nil {
+		if err := overrides.Override(es); err != nil {
+			return nil, err
+		}
 	}
 
 	msg := &types.Message{

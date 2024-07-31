@@ -279,7 +279,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 				FeeCredit: s.gasToValue(10000),
 				Seqno:     seqno,
 			}
-			res, err := s.client.Call(callArgs, "latest")
+			res, err := s.client.Call(callArgs, "latest", nil)
 			s.T().Logf("Call res : %v, err: %v", res, err)
 			s.Require().NoError(err)
 			var bounceErr string
@@ -344,7 +344,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 		Seqno:     seqno,
 	}
 
-	res, err := s.client.Call(callArgs, "latest")
+	res, err := s.client.Call(callArgs, "latest", nil)
 	s.T().Logf("Call res : %v, err: %v", res, err)
 	s.Require().NoError(err)
 	s.Require().Len(res.OutMessages, 1)
@@ -353,6 +353,18 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	s.Equal(types.MainWalletAddress, msg.From)
 	s.Equal(address, msg.To)
 	s.NotEmpty(msg.Data)
+
+	override := &jsonrpc.StateOverrides{types.MainWalletAddress: jsonrpc.Contract{Balance: &types.Value{}}}
+	res, err = s.client.Call(callArgs, "latest", override)
+	s.T().Logf("Call res : %v, err: %v", res, err)
+	s.Require().Error(err)
+
+	val := types.NewValueFromUint64(100000)
+	override = &jsonrpc.StateOverrides{types.MainWalletAddress: jsonrpc.Contract{Balance: &val}}
+	res, err = s.client.Call(callArgs, "latest", override)
+	s.T().Logf("Call res : %v, err: %v", res, err)
+	s.Require().NoError(err)
+	s.Require().Len(res.OutMessages, 1)
 }
 
 func (s *SuiteRpc) TestRpcApiModules() {

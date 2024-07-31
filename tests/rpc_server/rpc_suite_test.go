@@ -237,7 +237,7 @@ func (s *RpcSuite) CallGetter(addr types.Address, callData []byte, blockId any) 
 		FeeCredit: s.gasToValue(10000),
 		Seqno:     seqno,
 	}
-	res, err := s.client.Call(callArgs, blockId)
+	res, err := s.client.Call(callArgs, blockId, nil)
 	s.Require().NoError(err)
 	return res.Data
 }
