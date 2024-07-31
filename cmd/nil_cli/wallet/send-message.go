@@ -46,8 +46,8 @@ func SendMessageCommand(cfg *common.Config) *cobra.Command {
 	params.feeCredit = types.GasToValue(100_000)
 	cmd.Flags().Var(
 		&params.feeCredit,
-		gasLimitFlag,
-		"Gas limit",
+		feeCreditFlag,
+		"Fee credit",
 	)
 
 	cmd.Flags().StringArrayVar(&params.currencies,
