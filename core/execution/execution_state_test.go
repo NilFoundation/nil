@@ -424,7 +424,7 @@ contracts:
 
 	gen, err := NewBlockGenerator(ctx, params, database)
 	require.NoError(b, err)
-	err = gen.GenerateZeroState(zerostateCfg)
+	_, err = gen.GenerateZeroState(zerostateCfg)
 	require.NoError(b, err)
 
 	msg := types.NewEmptyMessage()
@@ -452,7 +452,7 @@ contracts:
 
 		gen, err = NewBlockGenerator(ctx, params, database)
 		require.NoError(b, err)
-		err = gen.GenerateBlock(proposal)
+		_, err = gen.GenerateBlock(proposal)
 		require.NoError(b, err)
 
 		tx.Rollback()

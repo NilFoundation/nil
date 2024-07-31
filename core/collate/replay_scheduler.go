@@ -67,7 +67,7 @@ func (s *ReplayScheduler) doReplay(ctx context.Context) error {
 	}
 	defer gen.Rollback()
 
-	if err := gen.GenerateBlock(proposal); err != nil {
+	if _, err := gen.GenerateBlock(proposal); err != nil {
 		return err
 	}
 

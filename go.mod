@@ -17,6 +17,7 @@ require (
 require (
 	github.com/consensys/gnark-crypto v0.12.1
 	github.com/libp2p/go-libp2p v0.35.4
+	github.com/libp2p/go-libp2p-pubsub v0.11.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/spf13/cobra v1.8.1
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
@@ -86,6 +87,7 @@ require (
 	github.com/libp2p/go-netroute v0.2.1 // indirect
 	github.com/libp2p/go-reuseport v0.4.0 // indirect
 	github.com/libp2p/go-yamux/v4 v4.0.1 // indirect
+	github.com/libp2p/zeroconf/v2 v2.2.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/marten-seemann/tcp v0.0.0-20210406111302-dfbc87cc63fd // indirect
 	github.com/miekg/dns v1.1.58 // indirect

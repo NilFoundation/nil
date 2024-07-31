@@ -54,7 +54,8 @@ func (s *CollatorTestSuite) TestCollator() {
 		s.Require().NoError(err)
 		defer blockGenerator.Rollback()
 
-		s.Require().NoError(blockGenerator.GenerateBlock(proposal))
+		_, err = blockGenerator.GenerateBlock(proposal)
+		s.Require().NoError(err)
 
 		return proposal
 	}
