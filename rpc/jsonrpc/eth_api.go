@@ -272,9 +272,10 @@ type EthAPI interface {
 		@tags [Calls]
 		@param args CallArgs
 		@param blockNrOrHash BlockNumberOrHash
+		@param overrides StateOverrides
 		@returns CallRes CallRes
 	*/
-	Call(ctx context.Context, args CallArgs, blockNrOrHash transport.BlockNumberOrHash) (*CallRes, error)
+	Call(ctx context.Context, args CallArgs, blockNrOrHash transport.BlockNumberOrHash, overrides *StateOverrides) (*CallRes, error)
 
 	/*
 		@name ChainId

@@ -75,25 +75,25 @@ func (s *SuiteEthCall) TestSmcCall() {
 		To:        to,
 		FeeCredit: types.GasToValue(10_000),
 	}
-	res, err := s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash})
+	res, err := s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash}, nil)
 	s.Require().NoError(err)
 	s.Require().Equal(uint8(0x2a), res.Data[len(res.Data)-1])
 
 	// Call with block number
 	num := transport.BlockNumber(0)
-	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num})
+	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num}, nil)
 	s.Require().NoError(err)
 	s.Require().Equal(uint8(0x2a), res.Data[len(res.Data)-1])
 
 	// Out of gas
 	args.FeeCredit = types.GasToValue(0)
-	_, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num})
+	_, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num}, nil)
 	s.Require().ErrorIs(err, vm.ErrOutOfGas)
 
 	// Call with invalid arguments
 	args.To = types.EmptyAddress
 	args.Data = []byte{}
-	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash})
+	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash}, nil)
 	s.Require().ErrorContains(err, "Attempt to create account 0x0000000000000000000000000000000000000000 from 0 shard on 1 shard")
 	s.Require().Nil(res)
 }

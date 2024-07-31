@@ -313,12 +313,12 @@ func (c *DirectClient) TopUpViaFaucet(contractAddress types.Address, amount type
 	return c.SendExternalMessage(callData, types.FaucetAddress, nil)
 }
 
-func (c *DirectClient) Call(args *jsonrpc.CallArgs, blockId any) (*jsonrpc.CallRes, error) {
+func (c *DirectClient) Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error) {
 	blockNrOrHash, err := transport.AsBlockReference(blockId)
 	if err != nil {
 		return nil, err
 	}
-	return c.ethApi.Call(c.ctx, *args, transport.BlockNumberOrHash(blockNrOrHash))
+	return c.ethApi.Call(c.ctx, *args, transport.BlockNumberOrHash(blockNrOrHash), stateOverride)
 }
 
 func (c *DirectClient) RawCall(method string, params ...any) (json.RawMessage, error) {
