@@ -1,15 +1,13 @@
-node_modules
 dist
+
+.env
+
+generated-types.ts
 
 logs
 *.log
 npm-debug.log*
 
-coverage
-
 *.tgz
 
-.env
-.env.local
-
-generated-types.ts
+node_modules

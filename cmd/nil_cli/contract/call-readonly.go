@@ -36,8 +36,8 @@ func GetCallReadonlyCommand(cfg *common.Config) *cobra.Command {
 	params.feeCredit = types.GasToValue(100_000)
 	cmd.Flags().Var(
 		&params.feeCredit,
-		gasLimitFlag,
-		"Gas limit for read-only call",
+		feeCreditFlag,
+		"Fee credit for read-only call",
 	)
 
 	return cmd

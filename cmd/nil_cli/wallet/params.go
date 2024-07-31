@@ -5,13 +5,13 @@ import (
 )
 
 const (
-	abiFlag      = "abi"
-	amountFlag   = "amount"
-	noWaitFlag   = "no-wait"
-	saltFlag     = "salt"
-	shardIdFlag  = "shard-id"
-	gasLimitFlag = "gas-limit"
-	tokenFlag    = "token"
+	abiFlag       = "abi"
+	amountFlag    = "amount"
+	noWaitFlag    = "no-wait"
+	saltFlag      = "salt"
+	shardIdFlag   = "shard-id"
+	feeCreditFlag = "fee-credit"
+	tokenFlag     = "token"
 )
 
 var params = &walletParams{}

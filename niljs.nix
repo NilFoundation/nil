@@ -2,20 +2,14 @@
 
 stdenv.mkDerivation rec {
   name = "nil.js";
-  src = fetchFromGitHub {
-    owner = "NilFoundation";
-    repo = "nil.js";
-    rev = "c971f74efda84cd94f1418be7784ef407c4db5f7";
-
-    sha256 =
-      "sha256-0FWoDpYYDX4za1L/BuPJ0qQU15CzS2m+Y9FyIRJwIsE="; # replace with the actual sha256
-  };
+  pname = "niljs";
+  src = ./packages/niljs;
 
   buildInputs = [ bun ];
 
   npmDeps = fetchNpmDeps {
     inherit src;
-    hash = "sha256-4hdWPUOhs2BIeNKhChj6NbTUsN6s2jcmJFsSApKCb9s=";
+    hash = "sha256-sswv+Vpj4lgK/Sb8KNj5N080A5F0WXQvP9IU2Q2EfII=";
   };
 
   NODE_PATH = "$npmDeps";
@@ -30,7 +24,9 @@ stdenv.mkDerivation rec {
 
   buildPhase = ''
     nohup nil run > nil.log 2>&1 & echo $! > nil_pid
-    CI=true bunx vitest run -c test/vitest.integration.config.ts --cache=false --testTimeout=40000
+    bun run test:unit
+    bun run test:integration --cache=false
+    bun run build
     kill `cat nil_pid` && rm nil_pid
     echo "tests finished successfully"
   '';

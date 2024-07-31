@@ -32,6 +32,7 @@ package jsonrpc
 // @component ReturnedValue returnedValue string "The returned value of the executed contract."
 // @component FullTx fullTx boolean "The flag that determines whether full transaction information is returned in the output."
 // @component BlockNumberOrHash blockNumberOrHash object "The number/hash of the block."
+// @component StateOverrides stateOverrides object "Map of address-state pairs to be overrided."
 // @componentprop RequireCanonical requireCanonical boolean true "The flag that determines whether the block must be a part of the canonical chain."
 // @componentprop BlockHash blockHash string false "(Optional) The hash of the block. Either this or BlockNumber is required."
 // @componentprop BlockNumber blockNumber integer false "(Optional) The number of the block. Either this or BlockHash is required."

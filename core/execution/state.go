@@ -565,6 +565,17 @@ func (es *ExecutionState) SetState(addr types.Address, key common.Hash, val comm
 	return acc.SetState(key, val)
 }
 
+// SetStorage replaces the entire storage for the specified account with given
+// storage. This function should only be used for debugging.
+func (es *ExecutionState) SetStorage(addr types.Address, storage Storage) error {
+	acc, err := es.getOrNewAccount(addr)
+	if err != nil {
+		return err
+	}
+	acc.SetStorage(storage)
+	return nil
+}
+
 func (es *ExecutionState) GetBalance(addr types.Address) (types.Value, error) {
 	acc, err := es.GetAccount(addr)
 	if err != nil || acc == nil {
@@ -1116,11 +1127,12 @@ func (es *ExecutionState) CalculateGasForwarding(initialAvailValue types.Value) 
 	for _, msg := range es.OutMessages[es.InMessageHash] {
 		switch msg.ForwardKind {
 		case types.ForwardKindValue:
-			availValue, overflow = availValue.SubOverflow(msg.Message.FeeCredit)
+			diff, overflow := availValue.SubOverflow(msg.Message.FeeCredit)
 			if overflow {
 				return types.NewZeroValue(), fmt.Errorf("%w: not enough credit for ForwardKindValue: %v < %v",
 					ErrMsgFeeForwarding, availValue, msg.Message.FeeCredit)
 			}
+			availValue = diff
 		case types.ForwardKindPercentage:
 			percentageFwdMessages = append(percentageFwdMessages, msg)
 		case types.ForwardKindRemaining:

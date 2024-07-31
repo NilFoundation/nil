@@ -1,0 +1,106 @@
+[
+  {
+    "inputs": [{ "internalType": "bytes", "name": "_pubkey", "type": "bytes" }],
+    "stateMutability": "payable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "dst", "type": "address" },
+      { "internalType": "address", "name": "refundTo", "type": "address" },
+      { "internalType": "uint256", "name": "gas", "type": "uint256" },
+      { "internalType": "bool", "name": "deploy", "type": "bool" },
+      { "internalType": "uint256", "name": "value", "type": "uint256" },
+      { "internalType": "bytes", "name": "callData", "type": "bytes" }
+    ],
+    "name": "asyncCall",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "dst", "type": "address" },
+      { "internalType": "address", "name": "refundTo", "type": "address" },
+      { "internalType": "address", "name": "bounceTo", "type": "address" },
+      { "internalType": "uint256", "name": "gas", "type": "uint256" },
+      { "internalType": "bool", "name": "deploy", "type": "bool" },
+      {
+        "components": [
+          { "internalType": "uint256", "name": "id", "type": "uint256" },
+          { "internalType": "uint256", "name": "amount", "type": "uint256" }
+        ],
+        "internalType": "struct Nil.Token[]",
+        "name": "tokens",
+        "type": "tuple[]"
+      },
+      { "internalType": "uint256", "name": "value", "type": "uint256" },
+      { "internalType": "bytes", "name": "callData", "type": "bytes" }
+    ],
+    "name": "asyncCall",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "amount", "type": "uint256" },
+      { "internalType": "string", "name": "name", "type": "string" },
+      { "internalType": "bool", "name": "withdraw", "type": "bool" }
+    ],
+    "name": "createToken",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "amount", "type": "uint256" },
+      { "internalType": "bool", "name": "withdraw", "type": "bool" }
+    ],
+    "name": "mintToken",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "bytes", "name": "message", "type": "bytes" }],
+    "name": "send",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "dst", "type": "address" },
+      { "internalType": "uint256", "name": "gas", "type": "uint256" },
+      { "internalType": "uint256", "name": "value", "type": "uint256" },
+      { "internalType": "bytes", "name": "call_data", "type": "bytes" }
+    ],
+    "name": "syncCall",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "hash", "type": "uint256" },
+      { "internalType": "bytes", "name": "signature", "type": "bytes" }
+    ],
+    "name": "verifyExternal",
+    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "amount", "type": "uint256" },
+      { "internalType": "address", "name": "to", "type": "address" }
+    ],
+    "name": "withdrawToken",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  { "stateMutability": "payable", "type": "receive" }
+]

@@ -1,0 +1,22 @@
+{
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist"],
+  "compilerOptions": {
+    "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "esModuleInterop": false,
+    "allowSyntheticDefaultImports": false,
+    "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": true,
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext",
+    "target": "ES2021",
+    "lib": ["ES2021", "DOM"],
+    "skipLibCheck": true,
+    "noEmitOnError": true,
+    "types": ["vitest/globals"],
+    "resolveJsonModule": true,
+    "useUnknownInCatchVariables": false
+  }
+}

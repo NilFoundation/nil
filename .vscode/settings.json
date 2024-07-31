@@ -1,8 +1,25 @@
 {
     "go.testTags": "assert,test",
     "gopls": {
-        "formatting.gofumpt": true,
+        "formatting.gofumpt": true
     },
     "go.lintTool": "golangci-lint",
-    "go.lintFlags": ["--fast"]
+    "go.lintFlags": ["--fast"],
+    "[typescript]": {
+        "editor.defaultFormatter": "biomejs.biome"
+    },
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "biomejs.biome"
+    },
+    "[javascript]": {
+        "editor.defaultFormatter": "biomejs.biome"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "biomejs.biome"
+    },
+    "editor.codeActionsOnSave": {
+        "quickfix.biome": "explicit"
+    },
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true
 }

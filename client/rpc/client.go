@@ -555,13 +555,13 @@ func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount types.Valu
 	return c.SendExternalMessage(callData, types.FaucetAddress, nil)
 }
 
-func (c *Client) Call(args *jsonrpc.CallArgs, blockId any) (*jsonrpc.CallRes, error) {
+func (c *Client) Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error) {
 	blockNrOrHash, err := transport.AsBlockReference(blockId)
 	if err != nil {
 		return nil, err
 	}
 
-	raw, err := c.call("eth_call", args, blockNrOrHash)
+	raw, err := c.call("eth_call", args, blockNrOrHash, stateOverride)
 	if err != nil {
 		return nil, err
 	}

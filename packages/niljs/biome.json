@@ -1,0 +1,50 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.8.1/schema.json",
+  "organizeImports": {
+    "enabled": true
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noUnusedImports": "error"
+      },
+      "nursery": {
+        "noConsole": "error"
+      },
+      "style": {
+        "noDefaultExport": "warn",
+        "useNamingConvention": {
+          "level": "warn",
+          "options": {
+            "strictCase": false,
+            "requireAscii": true,
+            "enumMemberCase": "PascalCase",
+            "conventions": [
+              {
+                "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": false,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 80
+  },
+  "files": {
+    "ignore": [
+      "node_modules",
+      "dist",
+      "package.json",
+      "test/coverage",
+      "vendor"
+    ]
+  }
+}

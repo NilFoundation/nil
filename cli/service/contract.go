@@ -137,7 +137,7 @@ func (s *Service) CallContract(contract types.Address, feeCredit types.Value, ca
 		FeeCredit: feeCredit,
 	}
 
-	res, err := s.client.Call(callArgs, "latest")
+	res, err := s.client.Call(callArgs, "latest", nil)
 	if err != nil {
 		return "", err
 	}

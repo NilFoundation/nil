@@ -18,7 +18,7 @@ contract Caller {
     event CallCompleted(address indexed dst)
 
     function call(address dst) public payable {
-        dst.asyncCall(address(0), gasleft(), false, msg.value, abi.encodeWithSignature("funcName"));
+        dst.asyncCall(address(0), address(0), gasleft(), false, msg.value, abi.encodeWithSignature("funcName"));
         emit CallCompleted(dst);
     }
 }
@@ -70,7 +70,7 @@ contract Caller {
     using Nil for address; 
 
     function call(address dst) public payable {
-        dst.asyncCall(address(0), gasleft(), false, msg.value, abi.encodeWithSignature("increment()"));
+        dst.asyncCall(address(0), address(0), gasleft(), false, msg.value, abi.encodeWithSignature("increment()"));
     }
 
 }
@@ -117,7 +117,7 @@ contract Escrow {
     }
 
     function submitForVerification(address dst, address participantOne, address participantTwo) public payable {
-        dst.asyncCall(address(0), 100000, false, 1000000, abi.encodeWithSignature("verify(address, address)", participantOne, participantTwo));
+        dst.asyncCall(address(0), address(0), 100000, false, 1000000, abi.encodeWithSignature("verify(address, address)", participantOne, participantTwo));
     }
 
     function resolve(address participantOne, address participantTwo) public payable {
@@ -140,9 +140,9 @@ contract Validator {
     
     using Nil for address;
 
-    function verify(address dst, address participantOne, address participantTwo) public payable {
+    function verify(address participantOne, address participantTwo) public payable {
         if (participantOne != participantTwo) {
-            dst.asyncCall(address(0), 100000, false, 1000000, abi.encodeWithSignature("resolve(address, address)", participantOne, participantTwo));
+            Nil.asyncCall(msg.sender, address(0), address(0), 100000, false, 1000000, abi.encodeWithSignature("resolve(address, address)", participantOne, participantTwo));
         }
     }
 }

@@ -5,13 +5,13 @@ import (
 )
 
 const (
-	abiFlag      = "abi"
-	amountFlag   = "amount"
-	noSignFlag   = "no-sign"
-	noWaitFlag   = "no-wait"
-	saltFlag     = "salt"
-	shardIdFlag  = "shard-id"
-	gasLimitFlag = "gas-limit"
+	abiFlag       = "abi"
+	amountFlag    = "amount"
+	noSignFlag    = "no-sign"
+	noWaitFlag    = "no-wait"
+	saltFlag      = "salt"
+	shardIdFlag   = "shard-id"
+	feeCreditFlag = "fee-credit"
 )
 
 var params = &contractParams{}
