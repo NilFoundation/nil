@@ -1,9 +1,10 @@
 dist
 
+*.tsbuildinfo
+
+coverage
+
 .env
-
-generated-types.ts
-
 logs
 *.log
 npm-debug.log*
