@@ -224,9 +224,8 @@ func (s *RpcSuite) sendMessageViaWalletNoCheck(addrWallet types.Address, addrTo 
 func (s *RpcSuite) CallGetter(addr types.Address, callData []byte, blockId any) []byte {
 	s.T().Helper()
 
-	callerSeqno, err := s.client.GetTransactionCount(addr, blockId)
+	seqno, err := s.client.GetTransactionCount(addr, blockId)
 	s.Require().NoError(err)
-	seqno := hexutil.Uint64(callerSeqno)
 
 	log.Debug().Str("contract", addr.String()).Uint64("seqno", uint64(seqno)).Msg("sending external message getter")
 

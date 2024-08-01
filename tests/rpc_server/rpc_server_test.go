@@ -12,7 +12,6 @@ import (
 	rpc_client "github.com/NilFoundation/nil/client/rpc"
 	"github.com/NilFoundation/nil/cmd/nil/nilservice"
 	"github.com/NilFoundation/nil/common"
-	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/contracts"
 	"github.com/NilFoundation/nil/core/collate"
 	"github.com/NilFoundation/nil/core/db"
@@ -271,14 +270,13 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 
 			callerSeqno, err := s.client.GetTransactionCount(callerAddr, "latest")
 			s.Require().NoError(err)
-			seqno := hexutil.Uint64(callerSeqno)
 
 			callArgs := &jsonrpc.CallArgs{
 				From:      callerAddr,
 				Data:      callData,
 				To:        callerAddr,
 				FeeCredit: s.gasToValue(10000),
-				Seqno:     seqno,
+				Seqno:     callerSeqno,
 			}
 			res, err := s.client.Call(callArgs, "latest", nil)
 			s.T().Logf("Call res : %v, err: %v", res, err)
@@ -335,14 +333,13 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 
 	callerSeqno, err := s.client.GetTransactionCount(types.MainWalletAddress, "latest")
 	s.Require().NoError(err)
-	seqno := hexutil.Uint64(callerSeqno)
 
 	callArgs := &jsonrpc.CallArgs{
 		From:      types.MainWalletAddress,
 		Data:      calldata,
 		To:        types.MainWalletAddress,
 		FeeCredit: s.gasToValue(100000000000),
-		Seqno:     seqno,
+		Seqno:     callerSeqno,
 	}
 
 	res, err := s.client.Call(callArgs, "latest", nil)
@@ -366,6 +363,50 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	s.T().Logf("Call res : %v, err: %v", res, err)
 	s.Require().NoError(err)
 	s.Require().Len(res.OutMessages, 1)
+}
+
+func (s *SuiteRpc) TestChainCall() {
+	var receipt *jsonrpc.RPCReceipt
+	addrCallee, receipt := s.deployContractViaMainWallet(3,
+		contracts.CounterDeployPayload(s.T()),
+		types.NewValueFromUint64(50_000_000))
+	s.Require().True(receipt.OutReceipts[0].Success)
+
+	seqno, err := s.client.GetTransactionCount(addrCallee, "latest")
+	s.Require().NoError(err)
+
+	addCallData := contracts.NewCounterAddCallData(s.T(), 11)
+	getCallData := contracts.NewCounterGetCallData(s.T())
+
+	callArgs := &jsonrpc.CallArgs{
+		From:      addrCallee,
+		Data:      getCallData,
+		To:        addrCallee,
+		FeeCredit: s.gasToValue(100000000000),
+		Seqno:     seqno,
+	}
+
+	res, err := s.client.Call(callArgs, "latest", nil)
+	s.Require().NoError(err)
+	s.EqualValues(0, contracts.GetCounterValue(s.T(), res.Data), "Initial value should be 0")
+
+	callArgs.Data = addCallData
+	res, err = s.client.Call(callArgs, "latest", &res.StateOverrides)
+	s.Require().NoError(err, "No errors during the first addition")
+
+	callArgs.Data = getCallData
+	res, err = s.client.Call(callArgs, "latest", &res.StateOverrides)
+	s.Require().NoError(err)
+	s.EqualValues(11, contracts.GetCounterValue(s.T(), res.Data), "Updated value is 11")
+
+	callArgs.Data = addCallData
+	res, err = s.client.Call(callArgs, "latest", &res.StateOverrides)
+	s.Require().NoError(err, "No errors during the second addition")
+
+	callArgs.Data = getCallData
+	res, err = s.client.Call(callArgs, "latest", &res.StateOverrides)
+	s.Require().NoError(err)
+	s.EqualValues(22, contracts.GetCounterValue(s.T(), res.Data), "Final value after two additions is 22")
 }
 
 func (s *SuiteRpc) TestRpcApiModules() {

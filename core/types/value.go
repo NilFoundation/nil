@@ -74,6 +74,10 @@ func (v Value) Sub(other Value) Value {
 	return res
 }
 
+func (v Value) Eq(other Value) bool {
+	return v.Int().Eq(other.Int())
+}
+
 func (v Value) SubOverflow(other Value) (Value, bool) {
 	res, overflow := v.Uint256.subOverflow(other.Uint256)
 	return Value{res}, overflow
