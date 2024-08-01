@@ -14,7 +14,7 @@
         packages = rec {
           nil = (pkgs.callPackage ./nil.nix { src_repo = self; });
           niljs = (pkgs.callPackage ./niljs.nix { nil = nil; });
-          nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; niljs = niljs; });
+          nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; });
           default = nil;
         };
         checks = rec {
@@ -24,7 +24,7 @@
             enableTesting = true;
           });
           niljs = (pkgs.callPackage ./niljs.nix { nil = nil; });
-          nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; niljs = niljs; });
+          nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; });
           nil-hardhat-tests = (pkgs.callPackage ./nilhardhat.nix { nil = nil; });
           default = pkgs.symlinkJoin {
             name = "all";

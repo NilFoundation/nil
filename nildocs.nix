@@ -1,4 +1,4 @@
-{ stdenv, yarn, fixup-yarn-lock, nodejs, nil, niljs, openssl, fetchYarnDeps}:
+{ stdenv, yarn, fixup-yarn-lock, nodejs, nil, openssl, fetchYarnDeps}:
 
 stdenv.mkDerivation rec {
   name = "nil.docs";
@@ -16,7 +16,6 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [
     nodejs
     nil
-    niljs
     yarn
     fixup-yarn-lock
   ];
@@ -32,7 +31,7 @@ stdenv.mkDerivation rec {
   buildPhase = ''
     runHook preBuild
 
-    export NILJS_SRC=${niljs}/src/src
+    export NILJS_SRC=${./packages/niljs}
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
     export NODE_OPTIONS=--openssl-legacy-provider
     yarn --offline build
