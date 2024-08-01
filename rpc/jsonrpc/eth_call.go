@@ -1,9 +1,11 @@
 package jsonrpc
 
 import (
+	"bytes"
 	"context"
 
 	"github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 	"github.com/NilFoundation/nil/rpc/transport"
@@ -25,6 +27,7 @@ func calculateStateChange(newEs, oldEs *execution.ExecutionState) (StateOverride
 			contract.Seqno = &as.Seqno
 			contract.ExtSeqno = &as.ExtSeqno
 			contract.Balance = &as.Balance
+			contract.Code = (*hexutil.Bytes)(&as.Code)
 			contract.State = (*map[common.Hash]common.Hash)(&as.State)
 		} else {
 			if as.Seqno != oldAs.Seqno {
@@ -40,6 +43,11 @@ func calculateStateChange(newEs, oldEs *execution.ExecutionState) (StateOverride
 			if !as.Balance.Eq(oldAs.Balance) {
 				hasUpdates = true
 				contract.Balance = &as.Balance
+			}
+
+			if !bytes.Equal(as.Code, oldAs.Code) {
+				hasUpdates = true
+				contract.Code = (*hexutil.Bytes)(&as.Code)
 			}
 
 			for key, value := range as.State {
@@ -100,6 +108,18 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash trans
 		To:        args.To,
 		Value:     args.Value,
 		Data:      types.Code(args.Data),
+	}
+
+	if as, err := es.GetAccount(args.To); err != nil {
+		return nil, err
+	} else if as == nil {
+		msg.Flags = types.NewMessageFlags(types.MessageFlagDeploy)
+	}
+
+	if msg.IsDeploy() {
+		if err := execution.ValidateDeployMessage(msg); err != nil {
+			return nil, err
+		}
 	}
 
 	es.AddInMessage(msg)

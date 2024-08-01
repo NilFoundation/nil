@@ -366,27 +366,25 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 }
 
 func (s *SuiteRpc) TestChainCall() {
-	var receipt *jsonrpc.RPCReceipt
-	addrCallee, receipt := s.deployContractViaMainWallet(3,
-		contracts.CounterDeployPayload(s.T()),
-		types.NewValueFromUint64(50_000_000))
-	s.Require().True(receipt.OutReceipts[0].Success)
-
-	seqno, err := s.client.GetTransactionCount(addrCallee, "latest")
-	s.Require().NoError(err)
-
+	addrCallee := contracts.CounterAddress(s.T(), types.ShardId(3))
+	deployPayload := contracts.CounterDeployPayload(s.T())
 	addCallData := contracts.NewCounterAddCallData(s.T(), 11)
 	getCallData := contracts.NewCounterGetCallData(s.T())
 
 	callArgs := &jsonrpc.CallArgs{
 		From:      addrCallee,
-		Data:      getCallData,
 		To:        addrCallee,
 		FeeCredit: s.gasToValue(100000000000),
-		Seqno:     seqno,
 	}
 
+	callArgs.Data = deployPayload.Bytes()
 	res, err := s.client.Call(callArgs, "latest", nil)
+	s.Require().NoError(err, "Deployment should be successful")
+	s.Contains(res.StateOverrides, addrCallee)
+	s.NotEmpty(res.StateOverrides[addrCallee].Code)
+
+	callArgs.Data = getCallData
+	res, err = s.client.Call(callArgs, "latest", &res.StateOverrides)
 	s.Require().NoError(err)
 	s.EqualValues(0, contracts.GetCounterValue(s.T(), res.Data), "Initial value should be 0")
 

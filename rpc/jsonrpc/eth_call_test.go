@@ -103,10 +103,11 @@ func (s *SuiteEthCall) TestSmcCall() {
 	s.Require().ErrorIs(err, vm.ErrOutOfGas)
 
 	// Call with invalid arguments
-	args.To = types.EmptyAddress
-	args.Data = []byte{}
+	payload := types.BuildDeployPayload(common.EmptyHash[:], common.EmptyHash)
+	args.To = types.CreateAddress(0, payload)
+	args.Data = payload.Bytes()
 	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash}, nil)
-	s.Require().ErrorContains(err, "Attempt to create account 0x0000000000000000000000000000000000000000 from 0 shard on 1 shard")
+	s.Require().ErrorIs(err, execution.ErrDeployToMainShard)
 	s.Require().Nil(res)
 }
 
