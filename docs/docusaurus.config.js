@@ -132,6 +132,38 @@ const config = {
             src: 'img/nil-logo.png',
           },
           items: [
+            {
+              label: 'Documentation',
+              position: 'left',
+              to: '/nil/intro'
+            },
+            {
+              type: 'dropdown',
+              label: 'Developer tools',
+              position: 'right',
+              items: [
+                {
+                  label: 'Block explorer',
+                  href: 'https://explore.nil.foundation/'
+                },
+                {
+                  label: 'Solidity extension',
+                  href: 'https://github.com/NilFoundation/nil_cli/blob/master/Nil.sol'
+                },
+                {
+                  label: '=nil; CLI',
+                  href: 'https://github.com/NilFoundation/nil_cli/tree/master'
+                },
+                {
+                  label: 'Client library',
+                  href: 'https://www.npmjs.com/package/@nilfoundation/niljs'
+                },
+                {
+                  label: 'Hardhat plugin',
+                  href: 'https://github.com/NilFoundation/nil-hardhat-example'
+                }
+              ]
+            }
           ],
         },
         footer: {
