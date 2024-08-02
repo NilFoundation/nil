@@ -222,10 +222,9 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 
 func createNetworkManager(ctx context.Context, cfg *Config) (*network.Manager, error) {
 	networkConfig := &network.Config{
-		PrivateKey: network.GeneratePrivateKey(),
-		TcpPort:    cfg.Libp2pTcpPort,
-		QuicPort:   cfg.Libp2pQuicPort,
-		UseMdns:    cfg.UseMdns,
+		TcpPort:  cfg.Libp2pTcpPort,
+		QuicPort: cfg.Libp2pQuicPort,
+		UseMdns:  cfg.UseMdns,
 	}
 	if !networkConfig.Enabled() {
 		return nil, nil
