@@ -243,17 +243,27 @@ func createCollators(cfg *Config, database db.DB, networkManager *network.Manage
 	collators := make([]AbstractCollator, 0, cfg.NShards)
 
 	for i := range cfg.NShards {
-		collator := createActiveCollator(i, cfg, collatorTickPeriod, database, networkManager)
+		var collator AbstractCollator
+		shard := types.ShardId(i)
+		if cfg.IsShardActive(shard) {
+			collator = createActiveCollator(shard, cfg, collatorTickPeriod, database, networkManager)
+		} else {
+			collator = createSyncCollator(shard, cfg, collatorTickPeriod, database, networkManager)
+		}
 		collators = append(collators, collator)
 	}
 	return collators
 }
 
-func createActiveCollator(i int, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) *collate.Scheduler {
+func createSyncCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) AbstractCollator {
+	panic("unimplemented")
+}
+
+func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) *collate.Scheduler {
 	msgPool := msgpool.New(msgpool.DefaultConfig)
 	collatorCfg := collate.Params{
 		BlockGeneratorParams: execution.BlockGeneratorParams{
-			ShardId:       types.ShardId(i),
+			ShardId:       shard,
 			NShards:       cfg.NShards,
 			TraceEVM:      cfg.TraceEVM,
 			Timer:         common.NewTimer(),
