@@ -68,11 +68,10 @@ contract Minter is NilBase {
         Nil.Token[] memory tokens_ = new Nil.Token[](1);
         tokens_[0] = Nil.Token(id, amount);
 
-        uint256 gas = gasleft();
         if (Nil.getShardId(to) == Nil.getShardId(address(this))) {
-            Nil.syncCall(to, gas * tx.gasprice, 0, tokens_, "");
+            Nil.syncCall(to, gasleft(), 0, tokens_, "");
         } else {
-            Nil.asyncCall(to, address(0), address(0), gas * tx.gasprice, Nil.FORWARD_REMAINING, false, 0, tokens_, "");
+            Nil.asyncCall(to, address(0), address(0), 0, Nil.FORWARD_REMAINING, false, 0, tokens_, "");
         }
     }
 
