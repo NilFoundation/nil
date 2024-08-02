@@ -129,7 +129,9 @@ func (s *Service) DeployContractExternal(shardId types.ShardId, payload types.De
 }
 
 // CallContract performs read-only call to the contract
-func (s *Service) CallContract(contract types.Address, feeCredit types.Value, calldata []byte) (string, error) {
+func (s *Service) CallContract(
+	contract types.Address, feeCredit types.Value, calldata []byte, overrides *jsonrpc.StateOverrides,
+) (*jsonrpc.CallRes, error) {
 	callArgs := &jsonrpc.CallArgs{
 		From:      contract,
 		Data:      calldata,
@@ -137,11 +139,11 @@ func (s *Service) CallContract(contract types.Address, feeCredit types.Value, ca
 		FeeCredit: feeCredit,
 	}
 
-	res, err := s.client.Call(callArgs, "latest", nil)
+	res, err := s.client.Call(callArgs, "latest", overrides)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return res.Data.String(), nil
+	return res, nil
 }
 
 func (s *Service) ContractAddress(shardId types.ShardId, salt types.Uint256, bytecode []byte) types.Address {

@@ -2,14 +2,15 @@ package contract
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 
 	"github.com/NilFoundation/nil/cli/service"
 	"github.com/NilFoundation/nil/cmd/nil_cli/common"
 	"github.com/NilFoundation/nil/cmd/nil_cli/config"
-	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/types"
+	"github.com/NilFoundation/nil/rpc/jsonrpc"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/spf13/cobra"
 )
@@ -40,6 +41,20 @@ func GetCallReadonlyCommand(cfg *common.Config) *cobra.Command {
 		"Fee credit for read-only call",
 	)
 
+	cmd.Flags().StringVar(
+		&params.inOverridesPath,
+		inOverridesFlag,
+		"",
+		"Input state overrides",
+	)
+
+	cmd.Flags().StringVar(
+		&params.outOverridesPath,
+		outOverridesFlag,
+		"",
+		"Output state overrides",
+	)
+
 	return cmd
 }
 
@@ -51,12 +66,24 @@ func runCallReadonly(_ *cobra.Command, args []string, cfg *common.Config) error 
 		return fmt.Errorf("invalid address: %w", err)
 	}
 
+	var inOverrides *jsonrpc.StateOverrides
+	if params.inOverridesPath != "" {
+		inOverridesData, err := os.ReadFile(params.inOverridesPath)
+		if err != nil {
+			return err
+		}
+
+		if err := json.Unmarshal(inOverridesData, &inOverrides); err != nil {
+			return err
+		}
+	}
+
 	calldata, err := common.PrepareArgs(params.abiPath, args[1:])
 	if err != nil {
 		return err
 	}
 
-	res, err := service.CallContract(address, params.feeCredit, calldata)
+	res, err := service.CallContract(address, params.feeCredit, calldata, inOverrides)
 	if err != nil {
 		return err
 	}
@@ -71,9 +98,20 @@ func runCallReadonly(_ *cobra.Command, args []string, cfg *common.Config) error 
 		return err
 	}
 
-	obj, err := abi.Unpack(args[1], hexutil.FromHex(res))
+	obj, err := abi.Unpack(args[1], res.Data)
 	if err != nil {
 		return err
+	}
+
+	if params.outOverridesPath != "" {
+		outOverridesData, err := json.Marshal(res.StateOverrides)
+		if err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(params.outOverridesPath, outOverridesData, 0o600); err != nil {
+			return err
+		}
 	}
 
 	if len(abi.Methods[args[1]].Outputs) == 0 {
