@@ -90,9 +90,13 @@ func NewCallData(fileName, methodName string, args ...any) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	callData, err := abiCallee.Pack(methodName, args...)
+	return abiCallee.Pack(methodName, args...)
+}
+
+func UnpackData(fileName, methodName string, data []byte) ([]interface{}, error) {
+	abiCallee, err := GetAbi(fileName)
 	if err != nil {
 		return nil, err
 	}
-	return callData, nil
+	return abiCallee.Unpack(methodName, data)
 }

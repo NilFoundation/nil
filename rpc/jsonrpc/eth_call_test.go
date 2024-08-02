@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"math/big"
 	"testing"
 
 	"github.com/NilFoundation/nil/common"
@@ -27,6 +28,17 @@ type SuiteEthCall struct {
 	contracts     map[string]*compiler.Contract
 	from          types.Address
 	simple        types.Address
+}
+
+func (s *SuiteEthCall) unpackGetValue(data []byte) uint64 {
+	s.T().Helper()
+
+	abi := solc.ExtractABI(s.contracts["SimpleContract"])
+	res, err := abi.Unpack("getValue", data)
+	s.Require().NoError(err)
+	v, ok := res[0].(*big.Int)
+	s.Require().True(ok)
+	return v.Uint64()
 }
 
 func (s *SuiteEthCall) SetupSuite() {
@@ -77,13 +89,13 @@ func (s *SuiteEthCall) TestSmcCall() {
 	}
 	res, err := s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash}, nil)
 	s.Require().NoError(err)
-	s.Require().Equal(uint8(0x2a), res.Data[len(res.Data)-1])
+	s.EqualValues(0x2a, s.unpackGetValue(res.Data))
 
 	// Call with block number
 	num := transport.BlockNumber(0)
 	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num}, nil)
 	s.Require().NoError(err)
-	s.Require().Equal(uint8(0x2a), res.Data[len(res.Data)-1])
+	s.EqualValues(0x2a, s.unpackGetValue(res.Data))
 
 	// Out of gas
 	args.FeeCredit = types.GasToValue(0)
@@ -91,11 +103,51 @@ func (s *SuiteEthCall) TestSmcCall() {
 	s.Require().ErrorIs(err, vm.ErrOutOfGas)
 
 	// Call with invalid arguments
-	args.To = types.EmptyAddress
-	args.Data = []byte{}
+	payload := types.BuildDeployPayload(common.EmptyHash[:], common.EmptyHash)
+	args.To = types.CreateAddress(0, payload)
+	args.Data = payload.Bytes()
 	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash}, nil)
-	s.Require().ErrorContains(err, "Attempt to create account 0x0000000000000000000000000000000000000000 from 0 shard on 1 shard")
+	s.Require().ErrorIs(err, execution.ErrDeployToMainShard)
 	s.Require().Nil(res)
+}
+
+func (s *SuiteEthCall) TestChainCall() {
+	ctx := context.Background()
+
+	abi := solc.ExtractABI(s.contracts["SimpleContract"])
+	getCalldata, err := abi.Pack("getValue")
+	s.Require().NoError(err)
+
+	setCalldata, err := abi.Pack("setValue", big.NewInt(123))
+	s.Require().NoError(err)
+
+	to := s.simple
+	callArgsData := hexutil.Bytes(getCalldata)
+	args := CallArgs{
+		From:      s.from,
+		Data:      callArgsData,
+		To:        to,
+		FeeCredit: types.GasToValue(10_000),
+	}
+	res, err := s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash}, nil)
+	s.Require().NoError(err)
+	s.EqualValues(0x2a, s.unpackGetValue(res.Data))
+
+	args.Data = setCalldata
+	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash}, nil)
+	s.Require().NoError(err)
+	s.Empty(res.Data)
+	s.Len(res.StateOverrides, 2)
+	s.Nil(res.StateOverrides[s.from].StateDiff)
+	s.NotNil(res.StateOverrides[s.from].Balance)
+
+	s.NotNil(res.StateOverrides[s.simple].StateDiff)
+	s.Nil(res.StateOverrides[s.simple].Balance)
+
+	args.Data = getCalldata
+	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash}, &res.StateOverrides)
+	s.Require().NoError(err)
+	s.EqualValues(0x7b, s.unpackGetValue(res.Data))
 }
 
 func TestSuiteEthCall(t *testing.T) {

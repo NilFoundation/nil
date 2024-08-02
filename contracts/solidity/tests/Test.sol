@@ -7,6 +7,8 @@ import "../Nil.sol";
 contract Test is NilBase {
     event stubCalled(uint32 v);
 
+    uint32 private internalValue = 0;
+
     function getSum(uint a, uint b) public pure returns(uint) {
         return a + b;
     }
@@ -17,6 +19,14 @@ contract Test is NilBase {
 
     function getNumAndString() public pure returns(uint, string memory) {
         return (123456789012345678901234567890, "Simple string");
+    }
+
+    function getValue() public view returns(uint32) {
+        return internalValue;
+    }
+
+    function setValue(uint32 newValue) public {
+        internalValue = newValue;
     }
 
     function noReturn() public payable {}

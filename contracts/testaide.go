@@ -61,6 +61,17 @@ func NewCounterGetCallData(t *testing.T) []byte {
 	return NewCallDataT(t, NameCounter, "get")
 }
 
+func GetCounterValue(t *testing.T, data []byte) int32 {
+	t.Helper()
+
+	res, err := UnpackData(NameCounter, "get", data)
+	require.NoError(t, err)
+
+	val, ok := res[0].(int32)
+	require.True(t, ok)
+	return val
+}
+
 func NewWalletSendCallData(t *testing.T,
 	bytecode types.Code, gasLimit types.Gas, value types.Value,
 	currencies []types.CurrencyBalance, contractAddress types.Address, kind types.MessageKind,

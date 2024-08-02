@@ -20,14 +20,14 @@ import (
 // @componentprop Input input string false "The message input."
 // @component propr ChainId chainId integer "The chain id."
 type CallArgs struct {
-	From      types.Address  `json:"from"`
-	To        types.Address  `json:"to"`
-	FeeCredit types.Value    `json:"feeCredit"`
-	Value     types.Value    `json:"value"`
-	Seqno     hexutil.Uint64 `json:"seqno"`
-	Data      hexutil.Bytes  `json:"data"`
-	Input     hexutil.Bytes  `json:"input,omitempty"`
-	ChainId   types.ChainId  `json:"chainId"`
+	From      types.Address `json:"from"`
+	To        types.Address `json:"to"`
+	FeeCredit types.Value   `json:"feeCredit"`
+	Value     types.Value   `json:"value"`
+	Seqno     types.Seqno   `json:"seqno"`
+	Data      hexutil.Bytes `json:"data"`
+	Input     hexutil.Bytes `json:"input,omitempty"`
+	ChainId   types.ChainId `json:"chainId"`
 }
 
 // @component RPCInMessage rpcInMessage object "The message whose information is requested."
@@ -343,8 +343,10 @@ type DebugRPCContract struct {
 // @componentprop Data data string true "Result of VM execution."
 // @componentprop CoinsUsed coinsUsed string true "The amount of coins spent on the message."
 // @componentprop OutMessages outMessages array true "Outbound messages produced by the message."
+// @componentprop StateOverrides stateOverrides object true "Updated contracts state."
 type CallRes struct {
-	Data        hexutil.Bytes            `json:"data"`
-	CoinsUsed   types.Value              `json:"coinsUsed"`
-	OutMessages []*types.OutboundMessage `json:"outMessages,omitempty"`
+	Data           hexutil.Bytes            `json:"data"`
+	CoinsUsed      types.Value              `json:"coinsUsed"`
+	OutMessages    []*types.OutboundMessage `json:"outMessages,omitempty"`
+	StateOverrides StateOverrides           `json:"stateOverrides,omitempty"`
 }
