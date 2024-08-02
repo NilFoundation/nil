@@ -189,6 +189,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			receipt := s.waitForReceipt(shardId, hash)
 			s.False(receipt.Success)
 			s.True(receipt.Temporary)
+			s.NotEqual(types.MessageStatusSuccess.String(), receipt.Status)
 			s.Equal("no account at address to pay fees", receipt.ErrorMessage)
 		})
 

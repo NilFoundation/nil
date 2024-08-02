@@ -15,18 +15,19 @@ type ReceiptWithError struct {
 // todo: this is a temporary solution, we shouldn't store errors for unpaid failures
 var FailureReceiptCache, _ = lru.New[common.Hash, ReceiptWithError](1024)
 
-func AddFailureReceipt(hash common.Hash, to types.Address, err error) {
+func AddFailureReceipt(hash common.Hash, to types.Address, execResult *ExecutionResult) {
 	FailureReceiptCache.Add(hash, ReceiptWithError{
 		Receipt: &types.Receipt{
+			Status:          execResult.Error.Status,
 			Success:         false,
 			MsgHash:         hash,
 			ContractAddress: to,
 		},
-		Error: err,
+		Error: execResult.Error,
 	})
 
 	sharedLogger.Debug().
-		Err(err).
+		Err(execResult.Error).
 		Stringer(logging.FieldMessageHash, hash).
 		Stringer(logging.FieldMessageTo, to).
 		Msg("Cached non-authorized fail receipt.")
