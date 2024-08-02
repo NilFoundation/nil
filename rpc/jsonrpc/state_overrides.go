@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	common "github.com/NilFoundation/nil/common"
+	"github.com/NilFoundation/nil/common/hexutil"
 	"github.com/NilFoundation/nil/core/execution"
 	"github.com/NilFoundation/nil/core/types"
 )
@@ -19,7 +20,7 @@ import (
 type Contract struct {
 	Seqno     *types.Seqno                 `json:"seqno"`
 	ExtSeqno  *types.Seqno                 `json:"extSeqno"`
-	Code      *types.Code                  `json:"code"`
+	Code      *hexutil.Bytes               `json:"code"`
 	Balance   *types.Value                 `json:"balance"`
 	State     *map[common.Hash]common.Hash `json:"state"`
 	StateDiff *map[common.Hash]common.Hash `json:"stateDiff"`

@@ -113,6 +113,16 @@ func (s *SuiteCliTestCall) TestCliCall() {
 	res, err = s.runCliNoCheck("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "nonExistingMethod", "--abi", abiFile)
 	s.Require().Error(err)
 	s.testResult(res, "Error: failed to pack method call: method 'nonExistingMethod' not found")
+
+	overridesFile := s.tmpPath + "/overrides.json"
+	res = s.runCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getValue", "--abi", abiFile)
+	s.testResult(res, "Success, result:", "uint32: 0")
+
+	res = s.runCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "setValue", "123", "--abi", abiFile, "--out-overrides", overridesFile)
+	s.testResult(res, "Success, no result")
+
+	res = s.runCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getValue", "--abi", abiFile, "--in-overrides", overridesFile)
+	s.testResult(res, "Success, result:", "uint32: 123")
 }
 
 func TestCLiCall(t *testing.T) {

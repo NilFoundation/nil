@@ -121,9 +121,9 @@ func (s *SuiteCli) TestContract() {
 	s.Require().NoError(err)
 
 	// Get current value
-	res, err := s.cli.CallContract(addr, s.gasToValue(100000), getCalldata)
+	res, err := s.cli.CallContract(addr, s.gasToValue(100000), getCalldata, nil)
 	s.Require().NoError(err)
-	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000002", res)
+	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000002", res.Data.String())
 
 	// Call contract method
 	calldata, err := abi.Pack("increment")
@@ -137,9 +137,23 @@ func (s *SuiteCli) TestContract() {
 	s.Require().True(receipt.OutReceipts[0].Success)
 
 	// Get updated value
-	res, err = s.cli.CallContract(addr, s.gasToValue(100000), getCalldata)
+	res, err = s.cli.CallContract(addr, s.gasToValue(100000), getCalldata, nil)
 	s.Require().NoError(err)
-	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000003", res)
+	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000003", res.Data.String())
+
+	// Inc value via read-only call
+	res, err = s.cli.CallContract(addr, s.gasToValue(100000), calldata, nil)
+	s.Require().NoError(err)
+
+	// Get updated value with overrides
+	res, err = s.cli.CallContract(addr, s.gasToValue(100000), getCalldata, &res.StateOverrides)
+	s.Require().NoError(err)
+	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000004", res.Data.String())
+
+	// Get value without overrides
+	res, err = s.cli.CallContract(addr, s.gasToValue(100000), getCalldata, nil)
+	s.Require().NoError(err)
+	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000003", res.Data.String())
 
 	// Test value transfer
 	balanceBefore, err := s.cli.GetBalance(addr)
@@ -205,9 +219,9 @@ func (s *SuiteCli) TestSendExternalMessage() {
 	s.Require().NoError(err)
 
 	// Get current value
-	res, err := s.cli.CallContract(addr, s.gasToValue(100000), getCalldata)
+	res, err := s.cli.CallContract(addr, s.gasToValue(100000), getCalldata, nil)
 	s.Require().NoError(err)
-	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000002", res)
+	s.Equal("0x0000000000000000000000000000000000000000000000000000000000000002", res.Data.String())
 
 	// Call contract method
 	calldata, err := abi.Pack("increment", big.NewInt(123))
@@ -220,9 +234,9 @@ func (s *SuiteCli) TestSendExternalMessage() {
 	s.Require().True(receipt.Success)
 
 	// Get updated value
-	res, err = s.cli.CallContract(addr, s.gasToValue(100000), getCalldata)
+	res, err = s.cli.CallContract(addr, s.gasToValue(100000), getCalldata, nil)
 	s.Require().NoError(err)
-	s.Equal("0x000000000000000000000000000000000000000000000000000000000000007d", res)
+	s.Equal("0x000000000000000000000000000000000000000000000000000000000000007d", res.Data.String())
 }
 
 func (s *SuiteCli) TestCurrency() {
