@@ -44,19 +44,19 @@ No subcommands.
 #### Retrieve a block by hash
 
 ```bash
-nil_cli block BLOCK_HASH [--shard-id SHARD_ID; default 1]
+nil block BLOCK_HASH [--shard-id SHARD_ID; default 1]
 ```
 
 #### Retrieve a block by number
 
 ```bash
-nil_cli block BLOCK_NUMBER [--shard-id SHARD_ID; default 1]
+nil block BLOCK_NUMBER [--shard-id SHARD_ID; default 1]
 ```
 
 #### Retrieve the latest block
 
 ```bash
-nil_cli block latest [--shard-id SHARD_ID; default 1]
+nil block latest [--shard-id SHARD_ID; default 1]
 ```
 
 ### Output
@@ -92,7 +92,7 @@ This command generates autocompletion scripts for various shells.
 ### Example
 
 ```bash
-nil_cli completion bash | fish | powershell | zsh
+nil completion bash | fish | powershell | zsh
 ```
 
 ### Output
@@ -123,25 +123,25 @@ This command is for [**setting up the =nil; CLI**](../tools/nil-cli/usage.mdx).
 #### Initialize the config file
 
 ```bash
-nil_cli config init
+nil config init
 ```
 
 #### Set a config value
 
 ```bash
-nil_cli config set KEY VALUE
+nil config set KEY VALUE
 ```
 
 #### Read a config value
 
 ```bash
-nil_cli config get KEY
+nil config get KEY
 ```
 
 #### Show the contents of the config file
 
 ```bash
-nil_cli config show
+nil config show
 ```
 
 ### Outputs
@@ -220,37 +220,37 @@ For `deploy`:
 #### Calculate the smart contract address
 
 ```bash
-nil_cli contract address path/to/contract.bin [--abi path/to/contract.abi] [--no-wait] [--salt SALT] [--shard-id SHARD_ID; default 1]
+nil contract address path/to/contract.bin [--abi path/to/contract.abi] [--no-wait] [--salt SALT] [--shard-id SHARD_ID; default 1]
 ```
 
 #### Call a smart contract method
 
 ```bash
-nil_cli contract call-readonly CONTRACT_ADDRESS CALLDATA | METHOD_NAME [--abi path/to/contract.abi] [--fee-credit FEE_CREDIT]
+nil contract call-readonly CONTRACT_ADDRESS CALLDATA | METHOD_NAME [--abi path/to/contract.abi] [--fee-credit FEE_CREDIT]
 ```
 
 #### Deploy a smart contract
 
 ```bash
-nil_cli contract deploy path/to/contract.bin [--abi path/to/contract.abi] [--no-wait] [--salt SALT] [--shard-id SHARD_ID; default 1]
+nil contract deploy path/to/contract.bin [--abi path/to/contract.abi] [--no-wait] [--salt SALT] [--shard-id SHARD_ID; default 1]
 ```
 
 #### Retrieve the code of a smart contract
 
 ```bash
-nil_cli contract code CONTRACT_ADDRESS
+nil contract code CONTRACT_ADDRESS
 ```
 
 #### Retrieve the balance of a smart contract
 
 ```bash
-nil_cli contract balance CONTRACT_ADDRESS
+nil contract balance CONTRACT_ADDRESS
 ```
 
 #### Retrieve the currencies of a smart contract
 
 ```bash
-nil_cli contract currencies CONTRACT_ADDRESS
+nil contract currencies CONTRACT_ADDRESS
 ```
 
 ### Outputs
@@ -306,7 +306,7 @@ No flags.
 ### Example
 
 ```bash
-nil_cli help
+nil help
 ```
 
 ### Output
@@ -315,7 +315,7 @@ nil_cli help
 CLI tool for interacting with the =nil; cluster
 
 Usage:
-  nil_cli [command]
+  nil [command]
 
 Available Commands:
   block       Retrieve a block from the cluster
@@ -332,7 +332,7 @@ Available Commands:
 
 Flags:
   -c, --config string      Path to config file (default "config.yaml")
-  -h, --help               help for nil_cli
+  -h, --help               help for nil
   -l, --log-level string   Log level: trace|debug|info|warn|error|fatal|panic (default "trace")
   -q, --quiet              Quiet mode (print only the result and exit)
   -v, --verbose            Verbose mode (print logs)
@@ -354,13 +354,13 @@ This command is for generating private keys.
 #### Generate a new key from hex
 
 ```bash
-nil_cli keygen fromHex HEX
+nil keygen fromHex HEX
 ```
 
 #### Generating a new key
 
 ```bash
-nil_cli keygen new
+nil keygen new
 ```
 
 ### Output
@@ -386,7 +386,7 @@ No subcommands.
 ### Example
 
 ```bash
-nil_cli message MESSAGE_HASH [--shard-id SHARD_ID; default 1]
+nil message MESSAGE_HASH [--shard-id SHARD_ID; default 1]
 ```
 
 ### Output
@@ -437,19 +437,19 @@ For `create-currency`, `mint-currency`:
 #### Create a new token
 
 ```bash
-nil_cli minter create-currency OWNER_ADDRESS AMOUNT NAME [--withdraw]
+nil minter create-currency OWNER_ADDRESS AMOUNT NAME [--withdraw]
 ```
 
 #### Mint an existign token
 
 ```bash
-nil_cli minter mint-currency OWNER_ADDRESS AMOUNT [--withdraw]
+nil minter mint-currency OWNER_ADDRESS AMOUNT [--withdraw]
 ```
 
 #### Withdraw tokens
 
 ```bash
-nil_cli minter withdraw-currency OWNER_ADDRESS AMOUNT TO_ADDRESS
+nil minter withdraw-currency OWNER_ADDRESS AMOUNT TO_ADDRESS
 ```
 
 ### Outputs
@@ -489,7 +489,7 @@ No subcommands.
 ### Example
 
 ```bash
-nil_cli receipt MESSAGE_HASH [--shard-id SHARD_ID; default 1]
+nil receipt MESSAGE_HASH [--shard-id SHARD_ID; default 1]
 ```
 
 ### Output
@@ -527,19 +527,19 @@ This command is for retrieving system information.
 #### Retrieve the ID of the current chain
 
 ```bash
-nil_cli system chain-id
+nil system chain-id
 ```
 
 #### Retrieve the gas price at the specified shard
 
 ```bash
-nil_cli system gas-price shard-id SHARD_ID
+nil system gas-price shard-id SHARD_ID
 ```
 
 #### Retrieve the list of all execution shards
 
 ```bash
-nil_cli system shards
+nil system shards
 ```
 
 ### Output
@@ -625,43 +625,43 @@ For `send-tokens`:
 #### View the wallet balance
 
 ```bash
-nil_cli wallet balance
+nil wallet balance
 ```
 
 #### Deploy a smart contract
 
 ```bash
-nil_cli wallet deploy path/to/contract.bin [ARGS] [--abi path/to/contract.abi] [--amount AMOUNT] [--currency TOKENS_AMOUNT] [--no-wait] [--salt SALT] [shard-id SHARD_ID]
+nil wallet deploy path/to/contract.bin [ARGS] [--abi path/to/contract.abi] [--amount AMOUNT] [--currency TOKENS_AMOUNT] [--no-wait] [--salt SALT] [shard-id SHARD_ID]
 ```
 
 #### Send tokens to a smart contract
 
 ```bash
-nil_cli send-tokens ADDRESS [--fee-credit FEE_CREDIT] [--no-wait] [--token stringArray]
+nil send-tokens ADDRESS [--fee-credit FEE_CREDIT] [--no-wait] [--token stringArray]
 ```
 
 #### Request a 'top up'
 
 ```bash
-nil_cli wallet top-up AMOUNT
+nil wallet top-up AMOUNT
 ```
 
 #### Retrieve wallet information
 
 ```bash
-nil_cli wallet info
+nil wallet info
 ```
 
 #### Create a new wallet
 
 ```bash
-nil_cli wallet new [--amount AMOUNT] [--salt SALT] [--shard-id SHARD_ID]
+nil wallet new [--amount AMOUNT] [--salt SALT] [--shard-id SHARD_ID]
 ```
 
 #### Send a message to a smart contract
 
 ```bash
-nil_cli wallet send-message ADDRESS BYTECODE | METHOD [ARGS] [--abi path/to/contract.abi] [--amount AMOUNT] [--fee-credit FEE_CREDIT] [--no-wait] [--token TOKENS]
+nil wallet send-message ADDRESS BYTECODE | METHOD [ARGS] [--abi path/to/contract.abi] [--amount AMOUNT] [--fee-credit FEE_CREDIT] [--no-wait] [--token TOKENS]
 ```
 
 ### Outputs

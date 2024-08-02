@@ -11,11 +11,11 @@
             "preLaunchTask": "Run Make"
         },
         {
-            "name": "Launch nil_cli",
+            "name": "Launch nil",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "cmd/nil_cli",
+            "program": "cmd/nil",
             "args": ["keygen", "new"],
             "preLaunchTask": "Run Make"
         }

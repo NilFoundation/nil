@@ -40,13 +40,13 @@ jobs:
       - name: Generate OpenRPC spec for JSON RPC API
         run: nix develop -c make rpcspec
 
-      - name: Upload nil_cli binary as artifact
+      - name: Upload nil binary as artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: nil_cli-linux-x64
+          name: nil-linux-x64
           path: |
-            result/bin/nil_cli
+            result/bin/nil
 
       - name: upload packages to s3
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
@@ -91,10 +91,10 @@ jobs:
           export PATH=$PATH:$(go env GOPATH)/bin
           make
 
-      - name: Upload nil_cli binary as artifact
+      - name: Upload nil binary as artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: nil_cli-darwin-${{ matrix.arch }}
+          name: nil-darwin-${{ matrix.arch }}
           path: |
-            build/bin/nil_cli
+            build/bin/nil

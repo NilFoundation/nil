@@ -20,25 +20,25 @@ The =nil; CLI provides several commands that produce data about key cluster enti
 To view the latest block recorded by shard with `shardId = 1`:
 
 ```bash
-nil_cli block latest --shard-id 1
+nil block latest --shard-id 1
 ```
 
 To call an existing smart contract via the wallet:
 
 ```bash
-nil_cli wallet send-message CONTRACT_ADDRESS METHOD_NAME [ARGS] --abi path/to/contract.abi
+nil wallet send-message CONTRACT_ADDRESS METHOD_NAME [ARGS] --abi path/to/contract.abi
 ```
 
 To read information about the resulting message:
 
 ```bash
-nil_cli message MESSAGE_HASH
+nil message MESSAGE_HASH
 ```
 
 To read the message receipt:
 
 ```bash
-nil_cli receipt MESSAGE_HASH
+nil receipt MESSAGE_HASH
 ```
 
 ## Via the client library

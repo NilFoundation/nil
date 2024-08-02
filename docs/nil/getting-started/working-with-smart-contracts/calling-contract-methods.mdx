@@ -19,14 +19,14 @@ Complete the following tutorials before proceeding.
 To call the `orderProduct()` function inside the retailer contract and trigger an async call:
 
 ```bash
-nil_cli wallet send-tokens RETAILER_ADDRESS 5000000
-nil_cli wallet send-message RETAILER_ADDRESS orderProduct MANUFACTURER_ADDRESS new-product --abi path/to/Retailer.abi
+nil wallet send-tokens RETAILER_ADDRESS 5000000
+nil wallet send-message RETAILER_ADDRESS orderProduct MANUFACTURER_ADDRESS new-product --abi path/to/Retailer.abi
 ```
 
 Make a readonly call to access the value:
 
 ```bash
-nil_cli contract call-readonly MANUFACTURER_ADDRESS getProducts --abi path/to/Manufacturer.abi
+nil contract call-readonly MANUFACTURER_ADDRESS getProducts --abi path/to/Manufacturer.abi
 ```
 
 The CLI should output the decoded values automatically.
