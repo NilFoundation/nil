@@ -256,7 +256,8 @@ func createCollators(cfg *Config, database db.DB, networkManager *network.Manage
 }
 
 func createSyncCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) AbstractCollator {
-	panic("unimplemented")
+	msgPool := msgpool.New(msgpool.DefaultConfig)
+	return collate.NewSyncCollator(msgPool, shard)
 }
 
 func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) *collate.Scheduler {

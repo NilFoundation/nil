@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -37,7 +36,7 @@ type Params struct {
 
 type Scheduler struct {
 	txFabric       db.DB
-	pool           MsgPool
+	pool           msgpool.Pool
 	networkManager *network.Manager
 
 	params Params
@@ -45,7 +44,7 @@ type Scheduler struct {
 	logger zerolog.Logger
 }
 
-func NewScheduler(txFabric db.DB, pool MsgPool, params Params, networkManager *network.Manager) *Scheduler {
+func NewScheduler(txFabric db.DB, pool msgpool.Pool, params Params, networkManager *network.Manager) *Scheduler {
 	return &Scheduler{
 		txFabric:       txFabric,
 		pool:           pool,
@@ -146,7 +145,5 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 }
 
 func (s *Scheduler) GetMsgPool() msgpool.Pool {
-	pool, ok := s.pool.(msgpool.Pool)
-	check.PanicIfNotf(ok, "scheduler pool is not a msgpool.Pool")
-	return pool
+	return s.pool
 }
