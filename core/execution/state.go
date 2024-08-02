@@ -1379,6 +1379,8 @@ func (es *ExecutionState) evmToMessageError(err error) error {
 		return types.NewMessageError(types.MessageStatusInvalidInputLength, err)
 	case errors.Is(err, vm.ErrCrossShardMessage):
 		return types.NewMessageError(types.MessageStatusCrossShardMessage, err)
+	case errors.Is(err, vm.ErrMessageToMainShard):
+		return types.NewMessageError(types.MessageStatusMessageToMainShard, err)
 	}
 	return types.NewMessageError(types.MessageStatusExecution, err)
 }

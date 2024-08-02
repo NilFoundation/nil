@@ -413,6 +413,7 @@ const (
 	MessageStatusCrossShardMessage
 	MessageStatusStopToken
 	MessageStatusForwardingFailed
+	MessageStatusMessageToMainShard
 )
 
 type MessageStatus uint32

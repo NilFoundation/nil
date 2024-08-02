@@ -15,8 +15,8 @@ const (
 	BaseShardId = ShardId(1)
 )
 
-func IsMainShard(shardId ShardId) bool {
-	return shardId == MainShardId
+func (s ShardId) IsMainShard() bool {
+	return s == MainShardId
 }
 
 func (s ShardId) MarshalJSON() ([]byte, error) {
