@@ -145,7 +145,7 @@ func (suite *SuiteDbgContracts) TestGetContract() {
 	})
 
 	suite.Run("proof", func() {
-		proof, err := hexStringsToProof(res.Proof)
+		proof, err := hexBytesToProof(res.Proof)
 		suite.Require().NoError(err)
 
 		verifiedVal, err := mpt.VerifyProof(proof, suite.smcAddr.Hash().Bytes())
@@ -176,13 +176,9 @@ func TestSuiteDbgContracts(t *testing.T) {
 	suite.Run(t, new(SuiteDbgContracts))
 }
 
-func hexStringsToProof(hexed []string) (mpt.MPTProof, error) {
+func hexBytesToProof(hexed []hexutil.Bytes) (mpt.MPTProof, error) {
 	proof := make(mpt.MPTProof, len(hexed))
-	for i, hexStr := range hexed {
-		bytes, err := hexutil.DecodeHex(hexStr)
-		if err != nil {
-			return nil, err
-		}
+	for i, bytes := range hexed {
 		node, err := mpt.DecodeNode(bytes)
 		if err != nil {
 			return nil, err

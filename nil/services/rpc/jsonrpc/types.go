@@ -335,8 +335,11 @@ func NewRPCReceipt(
 // @componentprop Proof proof slice of strings, containing serialized nodes from MPT for proving
 // @componentprop Storage storage slice of key-value pairs of the data in storage
 type DebugRPCContract struct {
-	Proof   []string                                       `json:"proof"`
-	Storage []execution.Entry[common.Hash, *types.Uint256] `json:"storage"`
+	// path, node type, next ref, branches, data
+	Code     hexutil.Bytes                                  `json:"code"`
+	Contract hexutil.Bytes                                  `json:"contract"`
+	Proof    []hexutil.Bytes                                `json:"proof"`
+	Storage  []execution.Entry[common.Hash, *types.Uint256] `json:"storage"`
 }
 
 // @component CallRes CallRes object "Response for eth_call."

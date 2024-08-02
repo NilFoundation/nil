@@ -146,10 +146,14 @@ func (api *DebugAPIImpl) GetContract(ctx context.Context, contractAddr types.Add
 		return nil, nil
 	}
 
-	contractReader := execution.NewDbContractTrieReader(tx, shardId)
-	contractReader.SetRootHash(data.Block().SmartContractsRoot)
-	contract, err := contractReader.Fetch(contractAddr.Hash())
+	contractRawReader := mpt.NewDbReader(tx, shardId, db.ContractTrieTable)
+	contractRawReader.SetRootHash(data.Block().SmartContractsRoot)
+	contractRaw, err := contractRawReader.Get(contractAddr.Hash().Bytes())
 	if err != nil {
+		return nil, err
+	}
+	contract := new(types.SmartContract)
+	if err := contract.UnmarshalSSZ(contractRaw); err != nil {
 		return nil, err
 	}
 
@@ -160,22 +164,25 @@ func (api *DebugAPIImpl) GetContract(ctx context.Context, contractAddr types.Add
 		return nil, err
 	}
 
-	contractRawReader := mpt.NewDbReader(tx, shardId, db.ContractTrieTable)
-	contractRawReader.SetRootHash(data.Block().SmartContractsRoot)
+	code, err := db.ReadCode(tx, shardId, contract.CodeHash)
+	if err != nil {
+		return nil, err
+	}
+
 	proof, err := contractRawReader.CreateProof(contractAddr.Hash().Bytes())
 	if err != nil {
 		return nil, err
 	}
 
-	hexed := make([]string, len(proof))
+	hexed := make([]hexutil.Bytes, len(proof))
 	for i, val := range proof {
 		// Mb make proof follow fastssz.Marshaler interface to use hexify func below?
 		valBytes, err := val.Encode()
 		if err != nil {
 			return nil, err
 		}
-		hexed[i] = hexutil.Encode(valBytes)
+		hexed[i] = valBytes
 	}
 
-	return &DebugRPCContract{Proof: hexed, Storage: entries}, nil
+	return &DebugRPCContract{Code: hexutil.Bytes(code), Contract: contractRaw, Proof: hexed, Storage: entries}, nil
 }
