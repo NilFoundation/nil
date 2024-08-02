@@ -3,19 +3,13 @@ package network
 import (
 	"context"
 
+	"github.com/NilFoundation/nil/common"
 	"github.com/NilFoundation/nil/common/check"
 	"github.com/NilFoundation/nil/common/logging"
-	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/discovery/mdns"
 	"github.com/rs/zerolog"
 )
-
-type Config struct {
-	PrivateKey crypto.PrivKey
-	TcpPort    int
-	QuicPort   int
-	UseMdns    bool
-}
 
 type Manager struct {
 	ctx context.Context
@@ -28,16 +22,6 @@ type Manager struct {
 	logger zerolog.Logger
 }
 
-func (c *Config) Enabled() bool {
-	return c.TcpPort != 0 || c.QuicPort != 0
-}
-
-func GeneratePrivateKey() crypto.PrivKey {
-	res, _, err := crypto.GenerateKeyPair(crypto.Ed25519, -1)
-	check.PanicIfErr(err)
-	return res
-}
-
 func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 	check.PanicIfNot(conf.Enabled())
 
@@ -47,6 +31,9 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	logger.Info().Msgf("Identity: %s", h.ID())
+	logger.Info().Msgf("Listening on addresses:\n%s", common.Join("\n", h.Addrs()...))
 
 	ps, err := newPubSub(ctx, h)
 	if err != nil {
@@ -72,6 +59,19 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 
 func (m *Manager) PubSub() *PubSub {
 	return m.pubSub
+}
+
+func (m *Manager) Connect(ctx context.Context, addr string) (PeerID, error) {
+	m.logger.Debug().Msgf("Connecting to %s", addr)
+
+	addrInfo, err := peer.AddrInfoFromString(addr)
+	if err != nil {
+		return "", err
+	}
+	if err := m.host.Connect(ctx, *addrInfo); err != nil {
+		return "", err
+	}
+	return addrInfo.ID, nil
 }
 
 func (m *Manager) Close() {
