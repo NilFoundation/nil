@@ -186,7 +186,7 @@ func (g *BlockGenerator) addReceipt(execResult *ExecutionResult) {
 		check.PanicIfNot(execResult.Failed())
 
 		g.executionState.DropInMessage()
-		AddFailureReceipt(msgHash, msg.To, execResult.Error)
+		AddFailureReceipt(msgHash, msg.To, execResult)
 
 		g.logger.Warn().Stringer(logging.FieldMessageHash, msgHash).
 			Msg("Encountered unauthenticated failure. Collator must filter out such messages.")

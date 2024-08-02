@@ -157,7 +157,7 @@ func (c *collator) handleMessagesFromPool() ([]*types.Message, error) {
 			// todo: we should run full transactions, because we cannot validate without it
 			// for now, skip VM errors here, they will be caught by the generator
 			if !vm.IsVMError(res.Error) {
-				execution.AddFailureReceipt(hash, msg.To, res.Error)
+				execution.AddFailureReceipt(hash, msg.To, res)
 				return false, nil
 			}
 		}
