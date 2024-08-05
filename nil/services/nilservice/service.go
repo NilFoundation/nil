@@ -2,6 +2,7 @@ package nilservice
 
 import (
 	"context"
+	"fmt"
 	"syscall"
 	"time"
 
@@ -137,7 +138,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 
 		fallthrough
 	case CollatorsOnlyRunMode:
-		collators := createCollators(cfg, database, networkManager)
+		collators := createCollators(ctx, cfg, database, networkManager)
 
 		msgPools = make([]msgpool.Pool, cfg.NShards)
 		for i, collator := range collators {
@@ -237,7 +238,7 @@ type AbstractCollator interface {
 	GetMsgPool() msgpool.Pool
 }
 
-func createCollators(cfg *Config, database db.DB, networkManager *network.Manager) []AbstractCollator {
+func createCollators(ctx context.Context, cfg *Config, database db.DB, networkManager *network.Manager) []AbstractCollator {
 	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
 
 	collators := make([]AbstractCollator, 0, cfg.NShards)
@@ -248,16 +249,24 @@ func createCollators(cfg *Config, database db.DB, networkManager *network.Manage
 		if cfg.IsShardActive(shard) {
 			collator = createActiveCollator(shard, cfg, collatorTickPeriod, database, networkManager)
 		} else {
-			collator = createSyncCollator(shard, cfg, collatorTickPeriod, database, networkManager)
+			var err error
+			collator, err = createSyncCollator(ctx, shard, cfg, database)
+			if err != nil {
+				panic(err)
+			}
 		}
 		collators = append(collators, collator)
 	}
 	return collators
 }
 
-func createSyncCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) AbstractCollator {
+func createSyncCollator(ctx context.Context, shard types.ShardId, cfg *Config, database db.DB) (AbstractCollator, error) {
+	endpoint, ok := cfg.ShardEndpoints[shard.String()]
+	if !ok {
+		return nil, fmt.Errorf("no endpoint for shard %s", shard.String())
+	}
 	msgPool := msgpool.New(msgpool.DefaultConfig)
-	return collate.NewSyncCollator(msgPool, shard)
+	return collate.NewSyncCollator(ctx, msgPool, shard, endpoint, database)
 }
 
 func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) *collate.Scheduler {
