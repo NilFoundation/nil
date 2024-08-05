@@ -5,7 +5,6 @@ tests/__debug*
 .idea
 .vscode
 test.db
-models_bel.ts
 result
 deb-package-nil
 clickhouse
@@ -14,7 +13,6 @@ exporter.yaml
 # compiled solidity contracts
 *.bin
 *.abi
-contracts/compiled
 
 # SSZ encoding files
 *_encoding.go

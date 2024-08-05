@@ -1,0 +1,192 @@
+package http
+
+import (
+	"bytes"
+	"errors"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"testing"
+
+	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/NilFoundation/nil/nil/services/rpc/transport/rpccfg"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// TestCorsHandler makes sure CORS are properly handled on the http server.
+func TestCorsHandler(t *testing.T) {
+	t.Parallel()
+
+	srv := createAndStartServer(t, &httpConfig{CorsAllowedOrigins: []string{"test", "test.com"}})
+	defer srv.stop()
+	u := "http://" + srv.listenAddr()
+
+	resp := rpcRequest(t, u, "origin", "test.com")
+	defer resp.Body.Close()
+	assert.Equal(t, "test.com", resp.Header.Get("Access-Control-Allow-Origin"))
+
+	resp2 := rpcRequest(t, u, "origin", "bad")
+	defer resp2.Body.Close()
+	assert.Equal(t, "", resp2.Header.Get("Access-Control-Allow-Origin"))
+}
+
+// TestVhosts makes sure vhosts is properly handled on the http server.
+func TestVhosts(t *testing.T) {
+	t.Parallel()
+
+	srv := createAndStartServer(t, &httpConfig{Vhosts: []string{"test"}})
+	defer srv.stop()
+	u := "http://" + srv.listenAddr()
+
+	resp := rpcRequest(t, u, "host", "test")
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	resp2 := rpcRequest(t, u, "host", "bad")
+	defer resp2.Body.Close()
+	assert.Equal(t, http.StatusForbidden, resp2.StatusCode)
+}
+
+// TestVhostsAny makes sure vhosts any is properly handled on the http server.
+func TestVhostsAny(t *testing.T) {
+	t.Parallel()
+
+	srv := createAndStartServer(t, &httpConfig{Vhosts: []string{"any"}})
+	defer srv.stop()
+	url := "http://" + srv.listenAddr()
+
+	resp := rpcRequest(t, url, "host", "test")
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	resp2 := rpcRequest(t, url, "host", "bad")
+	defer resp2.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func Test_checkPath(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		req      *http.Request
+		prefix   string
+		expected bool
+	}{
+		{
+			req:      &http.Request{URL: &url.URL{Path: "/test"}},
+			prefix:   "/test",
+			expected: true,
+		},
+		{
+			req:      &http.Request{URL: &url.URL{Path: "/testing"}},
+			prefix:   "/test",
+			expected: true,
+		},
+		{
+			req:      &http.Request{URL: &url.URL{Path: "/"}},
+			prefix:   "/test",
+			expected: false,
+		},
+		{
+			req:      &http.Request{URL: &url.URL{Path: "/fail"}},
+			prefix:   "/test",
+			expected: false,
+		},
+		{
+			req:      &http.Request{URL: &url.URL{Path: "/"}},
+			prefix:   "",
+			expected: true,
+		},
+		{
+			req:      &http.Request{URL: &url.URL{Path: "/fail"}},
+			prefix:   "",
+			expected: false,
+		},
+		{
+			req:      &http.Request{URL: &url.URL{Path: "/"}},
+			prefix:   "/",
+			expected: true,
+		},
+		{
+			req:      &http.Request{URL: &url.URL{Path: "/testing"}},
+			prefix:   "/",
+			expected: true,
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.expected, checkPath(tt.req, tt.prefix)) //nolint:scopelint
+		})
+	}
+}
+
+func createAndStartServer(t *testing.T, conf *httpConfig) *httpServer {
+	t.Helper()
+
+	logger := logging.NewLogger("Test server")
+	srv := newHTTPServer(logger, rpccfg.DefaultHTTPTimeouts)
+	assert.NoError(t, srv.enableRPC(nil, *conf))
+	assert.NoError(t, srv.setListenAddr("localhost", 0))
+	assert.NoError(t, srv.start())
+	return srv
+}
+
+// rpcRequest performs a JSON-RPC request to the given URL.
+func rpcRequest(t *testing.T, url string, extraHeaders ...string) *http.Response {
+	t.Helper()
+
+	// Create the request.
+	body := bytes.NewReader([]byte(`{"jsonrpc":"2.0","id":1,"method":"rpc_modules","params":[]}`))
+	req, err := http.NewRequest(http.MethodPost, url, body)
+	if err != nil {
+		t.Fatal("could not create http request:", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Apply extra headers.
+	require.Zero(t, len(extraHeaders)%2, "odd extraHeaders length")
+	for i := 0; i < len(extraHeaders); i += 2 {
+		key, value := extraHeaders[i], extraHeaders[i+1]
+		if strings.EqualFold(key, "host") {
+			req.Host = value
+		} else {
+			req.Header.Set(key, value)
+		}
+	}
+
+	// Perform the request.
+	t.Logf("checking RPC/HTTP on %s %v", url, extraHeaders)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp
+}
+
+// enableRPC turns on JSON-RPC over HTTP on the server.
+func (h *httpServer) enableRPC(apis []transport.API, config httpConfig) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.rpcAllowed() {
+		return errors.New("JSON-RPC over HTTP is already enabled")
+	}
+
+	// Create RPC server and handler.
+	srv := transport.NewServer(false /* traceRequests */, false /* traceSingleRequest */, h.logger, 0)
+	if err := transport.RegisterApisFromWhitelist(apis, config.Modules, srv, h.logger); err != nil {
+		return err
+	}
+	h.httpConfig = config
+	h.httpHandler.Store(&rpcHandler{
+		Handler: NewHTTPHandlerStack(NewServer(srv), config.CorsAllowedOrigins, config.Vhosts, config.Compression),
+		server:  srv,
+	})
+	return nil
+}

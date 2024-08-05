@@ -24,7 +24,7 @@ test: compile-contracts ssz
 %.cmd:
 	@# Note: $* is replaced by the command name
 	@echo "Building $*"
-	@cd ./cmd/$* && $(GOBUILD) -o $(GOBIN)/$*
+	@cd ./nil/cmd/$* && $(GOBUILD) -o $(GOBIN)/$*
 	@echo "Run \"$(GOBIN)/$*\" to launch $*."
 
 %.runcmd: %.cmd
@@ -32,15 +32,15 @@ test: compile-contracts ssz
 
 $(COMMANDS): %: compile-contracts ssz %.cmd
 
-include core/db/Makefile.inc
-include core/mpt/Makefile.inc
-include core/types/Makefile.inc
+include nil/internal/db/Makefile.inc
+include nil/internal/mpt/Makefile.inc
+include nil/internal/types/Makefile.inc
 
 .PHONY: ssz
 ssz: ssz_db ssz_mpt ssz_types
 
-contracts/compiled/%.bin: $(wildcard contracts/solidity/tests/*.sol) $(wildcard contracts/solidity/*.sol)
-	go generate contracts/generate.go
+contracts/compiled/%.bin: $(wildcard nil/contracts/solidity/tests/*.sol) $(wildcard nil/contracts/solidity/*.sol)
+	go generate nil/contracts/generate.go
 
 compile-contracts: contracts/compiled/Faucet.bin contracts/compiled/Wallet.bin
 
@@ -52,7 +52,7 @@ lint: ssz
 	golangci-lint run
 
 rpcspec:
-	go run cmd/spec_generator/spec_generator.go
+	go run nil/cmd/spec_generator/spec_generator.go
 
 clean:
 	go clean -cache
@@ -61,4 +61,4 @@ clean:
 
 solc:
 	$(eval ARGS ?= --help)
-	@GOPRIVATE="$(GOPRIVATE)" $(GO) run $(GO_FLAGS) tools/solc/bin/main.go $(ARGS)
+	@GOPRIVATE="$(GOPRIVATE)" $(GO) run $(GO_FLAGS) nil/tools/solc/bin/main.go $(ARGS)

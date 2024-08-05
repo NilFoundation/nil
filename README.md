@@ -302,7 +302,7 @@ Another benefit is greater coupling of docs and code. Do not hesitate to adjust 
 To run the spec generator:
 
 ```bash
-cp cmd/spec_generator/spec_generator.go .
+cp nil/cmd/spec_generator/spec_generator.go .
 go run spec_generator.
 rm spec_generator.go
 ```
