@@ -157,14 +157,22 @@ func (c *jsonCodec) RemoteAddr() string {
 	return c.remote
 }
 
-func (c *jsonCodec) Read() (message *Message, err error) {
+func (c *jsonCodec) Read() (messages []*Message, batch bool, err error) {
+	// Decode the next JSON object in the input stream.
 	// This verifies basic syntax, etc.
 	var rawmsg json.RawMessage
 	if err := c.decode(&rawmsg); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	message = parseMessage(rawmsg)
-	return message, nil
+	messages, batch = parseMessage(rawmsg)
+	for i, msg := range messages {
+		if msg == nil {
+			// Message is JSON 'null'. Replace with zero value so it
+			// will be treated like any other invalid message.
+			messages[i] = new(Message)
+		}
+	}
+	return messages, batch, nil
 }
 
 func (c *jsonCodec) WriteJSON(ctx context.Context, v interface{}) error {
@@ -193,14 +201,36 @@ func (c *jsonCodec) Closed() <-chan interface{} {
 	return c.closeCh
 }
 
-// parseMessage parses raw bytes as a (batch of) JSON-RPC message. There are no error
+// parseMessage parses raw bytes as a (batch of) JSON-RPC message(s). There are no error
 // checks in this function because the raw message has already been syntax-checked when it
 // is called. Any non-JSON-RPC messages in the input return the zero value of
 // Message.
-func parseMessage(raw json.RawMessage) *Message {
-	msgs := Message{}
-	_ = json.Unmarshal(raw, &msgs)
-	return &msgs
+func parseMessage(raw json.RawMessage) ([]*Message, bool) {
+	if !isBatch(raw) {
+		msgs := []*Message{{}}
+		_ = json.Unmarshal(raw, &msgs[0])
+		return msgs, false
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	_, _ = dec.Token() // skip '['
+	var msgs []*Message
+	for dec.More() {
+		msgs = append(msgs, new(Message))
+		_ = dec.Decode(&msgs[len(msgs)-1])
+	}
+	return msgs, true
+}
+
+// isBatch returns true when the first non-whitespace characters is '['
+func isBatch(raw json.RawMessage) bool {
+	for _, c := range raw {
+		// skip insignificant whitespace (http://www.ietf.org/rfc/rfc4627.txt)
+		if c == 0x20 || c == 0x09 || c == 0x0a || c == 0x0d {
+			continue
+		}
+		return c == '['
+	}
+	return false
 }
 
 // parsePositionalArguments tries to parse the given args to an array of values with the

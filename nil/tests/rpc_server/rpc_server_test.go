@@ -1,9 +1,12 @@
 package rpctest
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
+	"net/http"
 	"os"
 	"strconv"
 	"testing"
@@ -596,6 +599,28 @@ func (s *SuiteRpc) TestDbApi() {
 	h := common.BytesToHash(hBytes)
 
 	s.Require().Equal(block.Hash, h)
+}
+
+func (s *SuiteRpc) TestBatch() {
+	testcases := map[string]string{
+		"[]": `{"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"empty batch"}}`,
+		`[{"jsonrpc":"2.0","id": 1, "method":"rpc_modules","params":[]}]`:                                                                `[{"jsonrpc":"2.0","id":1,"result":{"db":"1.0","debug":"1.0","eth":"1.0","rpc":"1.0"}}]`,
+		`[{"jsonrpc":"2.0","id": 1, "method":"rpc_modules","params":[]}, {"jsonrpc":"2.0","id": 2, "method":"rpc_modules","params":[]}]`: `[{"jsonrpc":"2.0","id":1,"result":{"db":"1.0","debug":"1.0","eth":"1.0","rpc":"1.0"}}, {"jsonrpc":"2.0","id":2,"result":{"db":"1.0","debug":"1.0","eth":"1.0","rpc":"1.0"}}]`,
+		`[{"jsonrpc":"2.0", "method":"rpc_modules","params":[]}]`:                                                                        `[{"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"invalid request"}}]`,
+	}
+
+	for req, expectedResp := range testcases {
+		req, err := http.NewRequest(http.MethodPost, s.endpoint, bytes.NewBufferString(req))
+		s.Require().NoError(err)
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		s.Require().NoError(err)
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		s.Require().NoError(err)
+		s.JSONEq(expectedResp, string(body))
+	}
 }
 
 func TestSuiteRpc(t *testing.T) {

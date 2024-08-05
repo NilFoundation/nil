@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -30,7 +31,8 @@ type handler struct {
 	conn       JsonWriter      // where responses will be sent
 	logger     zerolog.Logger
 
-	traceRequests bool
+	maxBatchConcurrency uint
+	traceRequests       bool
 
 	// slow requests
 	slowLogThreshold time.Duration
@@ -69,7 +71,7 @@ func HandleError(err error, stream *jsoniter.Stream) {
 	stream.WriteObjectEnd()
 }
 
-func newHandler(connCtx context.Context, conn JsonWriter, reg *serviceRegistry, traceRequests bool, logger zerolog.Logger, rpcSlowLogThreshold time.Duration) *handler {
+func newHandler(connCtx context.Context, conn JsonWriter, reg *serviceRegistry, maxBatchConcurrency uint, traceRequests bool, logger zerolog.Logger, rpcSlowLogThreshold time.Duration) *handler {
 	rootCtx, cancelRoot := context.WithCancel(connCtx)
 
 	h := &handler{
@@ -79,7 +81,8 @@ func newHandler(connCtx context.Context, conn JsonWriter, reg *serviceRegistry, 
 		cancelRoot: cancelRoot,
 		logger:     logger,
 
-		traceRequests: traceRequests,
+		maxBatchConcurrency: maxBatchConcurrency,
+		traceRequests:       traceRequests,
 
 		slowLogThreshold: rpcSlowLogThreshold,
 		slowLogBlacklist: rpccfg.SlowLogBlackList,
@@ -113,6 +116,51 @@ func (h *handler) isRpcMethodNeedsCheck(method string) bool {
 		}
 	}
 	return true
+}
+
+// handleBatch executes all messages in a batch and returns the responses.
+func (h *handler) handleBatch(msgs []*Message) {
+	// Emit error response for empty batches:
+	if len(msgs) == 0 {
+		h.startCallProc(func() {
+			_ = h.conn.WriteJSON(h.rootCtx, errorMessage(&invalidRequestError{"empty batch"}))
+		})
+		return
+	}
+
+	// Process calls on a goroutine because they may block indefinitely:
+	h.startCallProc(func() {
+		// All goroutines will place results right to this array. Because requests order must match reply orders.
+		answers := make([]interface{}, len(msgs))
+		// Bounded parallelism pattern explanation https://blog.golang.org/pipelines#TOC_9.
+		boundedConcurrency := make(chan struct{}, h.maxBatchConcurrency)
+		defer close(boundedConcurrency)
+		wg := sync.WaitGroup{}
+		wg.Add(len(msgs))
+		for i := range msgs {
+			boundedConcurrency <- struct{}{}
+			go func(i int) {
+				defer func() {
+					wg.Done()
+					<-boundedConcurrency
+				}()
+
+				buf := bytes.NewBuffer(nil)
+				stream := jsoniter.NewStream(jsoniter.ConfigDefault, buf, 4096)
+				if res := h.handleCallMsg(h.rootCtx, msgs[i], stream); res != nil {
+					answers[i] = res
+				}
+				_ = stream.Flush()
+				if buf.Len() > 0 && answers[i] == nil {
+					answers[i] = json.RawMessage(buf.Bytes())
+				}
+			}(i)
+		}
+		wg.Wait()
+		if len(answers) > 0 {
+			_ = h.conn.WriteJSON(h.rootCtx, answers)
+		}
+	})
 }
 
 // handleMsg handles a single message.
@@ -248,9 +296,28 @@ func writeNilIfNotPresent(stream *jsoniter.Stream) {
 	} else {
 		hasNil = false
 	}
-	if !hasNil {
-		stream.WriteNil()
+	if hasNil {
+		// not needed
+		return
 	}
+
+	var validJsonEnd bool
+	if len(b) > 0 {
+		// assumption is that api call handlers would write valid json in case of errors
+		// we are not guaranteed that they did write valid json if last elem is "}" or "]"
+		// since we don't check json nested-ness
+		// however appending "null" after "}" or "]" does not help much either
+		lastIdx := len(b) - 1
+		validJsonEnd = b[lastIdx] == '}' || b[lastIdx] == ']'
+	}
+	if validJsonEnd {
+		// not needed
+		return
+	}
+
+	// does not have nil ending
+	// does not have valid json
+	stream.WriteNil()
 }
 
 type idForLog json.RawMessage
