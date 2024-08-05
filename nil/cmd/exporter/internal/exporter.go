@@ -112,7 +112,7 @@ func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 				if len(curBlock.PrevBlock.Bytes()) == 0 {
 					break
 				}
-				curBlock, err = cfg.FetchBlockByHash(shardId, curBlock.PrevBlock)
+				curBlock, err = cfg.FetchBlock(shardId, curBlock.PrevBlock)
 				if err != nil {
 					logger.Error().Err(err).Msg("Failed to fetch block.")
 					break
@@ -173,7 +173,7 @@ func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 
 			logger.Info().Msgf("Fetching shard %s blocks from %d to %d", shardId.String(), startBlockId, nextPresentId)
 			for curBlockId := startBlockId; curBlockId < nextPresentId; curBlockId++ {
-				curBlock, err := cfg.FetchBlockByNumber(shardId, transport.BlockNumber(curBlockId))
+				curBlock, err := cfg.FetchBlock(shardId, transport.BlockNumber(curBlockId))
 				if err != nil {
 					logger.Error().Err(err).Msg("Failed to fetch block.")
 					continue

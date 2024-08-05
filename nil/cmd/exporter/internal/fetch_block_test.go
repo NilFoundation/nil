@@ -30,7 +30,7 @@ func (suite *SuiteFetchBlock) TestFetchBlock() {
 
 	suite.Require().NotNil(fetchedBlock, "Fetched block is nil")
 
-	hashBlock, err := suite.cfg.FetchBlockByHash(types.MainShardId, fetchedBlock.Block.Hash())
+	hashBlock, err := suite.cfg.FetchBlock(types.MainShardId, fetchedBlock.Block.Hash())
 	suite.Require().NoError(err, "Failed to fetch block by hash")
 	suite.Require().NotNil(hashBlock, "Fetched block by hash is nil")
 

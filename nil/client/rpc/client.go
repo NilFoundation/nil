@@ -15,6 +15,7 @@ import (
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
@@ -69,7 +70,51 @@ type Client struct {
 	logger   zerolog.Logger
 }
 
-var _ client.Client = (*Client)(nil)
+type Request struct {
+	Version string `json:"jsonrpc"`
+	Method  string `json:"method"`
+	Params  []any  `json:"params"`
+	Id      uint64 `json:"id"`
+}
+
+func NewRequest(id uint64, method string, params []any) *Request {
+	return &Request{
+		Version: "2.0",
+		Method:  method,
+		Id:      id,
+		Params:  params,
+	}
+}
+
+var (
+	_ client.Client       = (*Client)(nil)
+	_ client.BatchRequest = (*BatchRequestImpl)(nil)
+)
+
+type BatchRequestImpl struct {
+	requests []*Request
+	client   *Client
+}
+
+func (b *BatchRequestImpl) getBlock(shardId types.ShardId, blockId any, fullTx bool, isDebug bool) (uint64, error) {
+	id := len(b.requests)
+
+	r, err := b.client.getBlockRequest(shardId, blockId, fullTx, isDebug)
+	if err != nil {
+		return 0, err
+	}
+
+	b.requests = append(b.requests, r)
+	return uint64(id), nil
+}
+
+func (b *BatchRequestImpl) GetBlock(shardId types.ShardId, blockId any, fullTx bool) (uint64, error) {
+	return b.getBlock(shardId, blockId, fullTx, false)
+}
+
+func (b *BatchRequestImpl) GetDebugBlock(shardId types.ShardId, blockId any, fullTx bool) (uint64, error) {
+	return b.getBlock(shardId, blockId, fullTx, true)
+}
 
 func NewClient(endpoint string, logger zerolog.Logger) *Client {
 	return &Client{
@@ -86,20 +131,75 @@ func NewClientWithDefaultHeaders(endpoint string, logger zerolog.Logger, headers
 	}
 }
 
+func (c *Client) getNextId() uint64 {
+	return c.seqno.Add(1)
+}
+
+func (c *Client) newRequest(method string, params ...any) *Request {
+	return NewRequest(c.getNextId(), method, params)
+}
+
 func (c *Client) call(method string, params ...any) (json.RawMessage, error) {
-	seqno := c.seqno.Add(1)
+	request := c.newRequest(method, params...)
+	return c.performRequest(request)
+}
 
-	request := map[string]any{
-		"jsonrpc": "2.0",
-		"method":  method,
-		"params":  params,
-		"id":      seqno,
-	}
-
+func (c *Client) performRequest(request *Request) (json.RawMessage, error) {
 	requestBody, err := json.Marshal(request)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToMarshalRequest, err)
 	}
+	c.logger.Trace().RawJSON("request", requestBody).Send()
+
+	body, err := c.sendBytes(requestBody)
+	if err != nil {
+		return nil, err
+	}
+
+	var rpcResponse map[string]json.RawMessage
+	if err := json.Unmarshal(body, &rpcResponse); err != nil {
+		c.logger.Debug().Str("response", string(body)).Msg("failed to unmarshal response")
+		return nil, fmt.Errorf("%w: %w", ErrFailedToUnmarshalResponse, err)
+	}
+	c.logger.Trace().RawJSON("response", body).Send()
+
+	if errorMsg, ok := rpcResponse["error"]; ok {
+		return nil, fmt.Errorf("%w: %s", ErrRPCError, errorMsg)
+	}
+
+	return rpcResponse["result"], nil
+}
+
+func (c *Client) performRequests(requests []*Request) ([]json.RawMessage, error) {
+	requestsBody, err := json.Marshal(requests)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToMarshalRequest, err)
+	}
+	c.logger.Trace().RawJSON("requests", requestsBody).Send()
+
+	body, err := c.sendBytes(requestsBody)
+	if err != nil {
+		return nil, err
+	}
+
+	var rpcResponse []map[string]json.RawMessage
+	if err := json.Unmarshal(body, &rpcResponse); err != nil {
+		c.logger.Debug().Str("response", string(body)).Msg("failed to unmarshal response")
+		return nil, fmt.Errorf("%w: %w", ErrFailedToUnmarshalResponse, err)
+	}
+	c.logger.Trace().RawJSON("response", body).Send()
+
+	results := make([]json.RawMessage, len(rpcResponse))
+	for i, resp := range rpcResponse {
+		if errorMsg, ok := resp["error"]; ok {
+			return nil, fmt.Errorf("%w: %s (%d)", ErrRPCError, errorMsg, i)
+		}
+		results[i] = resp["result"]
+	}
+	return results, nil
+}
+
+func (c *Client) sendBytes(requestBody []byte) (json.RawMessage, error) {
 	c.logger.Trace().RawJSON("request", requestBody).Send()
 
 	req, err := http.NewRequest(http.MethodPost, c.endpoint, bytes.NewBuffer(requestBody))
@@ -126,19 +226,7 @@ func (c *Client) call(method string, params ...any) (json.RawMessage, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%w: %d: %s", ErrUnexpectedStatusCode, resp.StatusCode, body)
 	}
-
-	var rpcResponse map[string]json.RawMessage
-	if err := json.Unmarshal(body, &rpcResponse); err != nil {
-		c.logger.Debug().Str("response", string(body)).Msg("failed to unmarshal response")
-		return nil, fmt.Errorf("%w: %w", ErrFailedToUnmarshalResponse, err)
-	}
-	c.logger.Trace().RawJSON("response", body).Send()
-
-	if errorMsg, ok := rpcResponse["error"]; ok {
-		return nil, fmt.Errorf("%w: %s", ErrRPCError, errorMsg)
-	}
-
-	return rpcResponse["result"], nil
+	return body, nil
 }
 
 func (c *Client) RawCall(method string, params ...any) (json.RawMessage, error) {
@@ -164,35 +252,38 @@ func (c *Client) GetCode(addr types.Address, blockId any) (types.Code, error) {
 	return hexutil.FromHex(codeHex), nil
 }
 
-func (c *Client) GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error) {
+func (c *Client) getBlockRequest(shardId types.ShardId, blockId any, fullTx bool, isDebug bool) (*Request, error) {
 	blockNrOrHash, err := transport.AsBlockReference(blockId)
 	if err != nil {
 		return nil, err
 	}
 
+	var request *Request
 	if blockNrOrHash.BlockHash != nil {
-		return c.getBlockByHash(shardId, *blockNrOrHash.BlockHash, fullTx)
+		m := Eth_getBlockByHash
+		if isDebug {
+			m = Debug_getBlockByHash
+		}
+		request = c.newRequest(m, shardId, *blockNrOrHash.BlockHash, fullTx)
 	}
 	if blockNrOrHash.BlockNumber != nil {
-		return c.getBlockByNumber(shardId, *blockNrOrHash.BlockNumber, fullTx)
+		m := Eth_getBlockByNumber
+		if isDebug {
+			m = Debug_getBlockByNumber
+		}
+		request = c.newRequest(m, shardId, *blockNrOrHash.BlockNumber, fullTx)
 	}
-	if assert.Enable {
-		panic("Unreachable")
-	}
-
-	return nil, nil
+	check.PanicIfNot(request != nil)
+	return request, nil
 }
 
-func (c *Client) getBlockByHash(shardId types.ShardId, hash common.Hash, fullTx bool) (*jsonrpc.RPCBlock, error) {
-	res, err := c.call(Eth_getBlockByHash, shardId, hash, fullTx)
+func (c *Client) GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error) {
+	request, err := c.getBlockRequest(shardId, blockId, fullTx, false)
 	if err != nil {
 		return nil, err
 	}
-	return toRPCBlock(res)
-}
 
-func (c *Client) getBlockByNumber(shardId types.ShardId, num transport.BlockNumber, fullTx bool) (*jsonrpc.RPCBlock, error) {
-	res, err := c.call(Eth_getBlockByNumber, shardId, num, fullTx)
+	res, err := c.performRequest(request)
 	if err != nil {
 		return nil, err
 	}
@@ -208,37 +299,16 @@ func toRPCBlock(raw json.RawMessage) (*jsonrpc.RPCBlock, error) {
 }
 
 func (c *Client) GetDebugBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.HexedDebugRPCBlock, error) {
-	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	request, err := c.getBlockRequest(shardId, blockId, fullTx, true)
 	if err != nil {
 		return nil, err
 	}
 
-	if blockNrOrHash.BlockHash != nil {
-		return c.getRawBlockByHash(shardId, *blockNrOrHash.BlockHash, fullTx)
-	}
-	if blockNrOrHash.BlockNumber != nil {
-		return c.getRawBlockByNumber(shardId, *blockNrOrHash.BlockNumber, fullTx)
-	}
-	if assert.Enable {
-		panic("Unreachable")
-	}
-
-	return nil, nil
-}
-
-func (c *Client) getRawBlockByHash(shardId types.ShardId, hash common.Hash, fullTx bool) (*jsonrpc.HexedDebugRPCBlock, error) {
-	res, err := c.call(Debug_getBlockByHash, shardId, hash, fullTx)
+	res, err := c.performRequest(request)
 	if err != nil {
 		return nil, err
 	}
-	return toRawBlock(res)
-}
 
-func (c *Client) getRawBlockByNumber(shardId types.ShardId, num transport.BlockNumber, fullTx bool) (*jsonrpc.HexedDebugRPCBlock, error) {
-	res, err := c.call(Debug_getBlockByNumber, shardId, num, fullTx)
-	if err != nil {
-		return nil, err
-	}
 	return toRawBlock(res)
 }
 
@@ -632,4 +702,44 @@ func (c *Client) DbExists(tableName db.TableName, key []byte) (bool, error) {
 
 func (c *Client) DbExistsInShard(shardId types.ShardId, tableName db.ShardedTableName, key []byte) (bool, error) {
 	return callDbAPI[bool](c, Db_existsInShard, shardId, tableName, key)
+}
+
+func (c *Client) CreateBatchRequest() client.BatchRequest {
+	return &BatchRequestImpl{
+		requests: make([]*Request, 0),
+		client:   c,
+	}
+}
+
+func (c *Client) BatchCall(req client.BatchRequest) ([]any, error) {
+	r, ok := req.(*BatchRequestImpl)
+	check.PanicIfNot(ok)
+
+	responses, err := c.performRequests(r.requests)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]any, len(responses))
+	for i, resp := range responses {
+		method := r.requests[i].Method
+		switch method {
+		case Eth_getBlockByHash, Eth_getBlockByNumber:
+			block, err := toRPCBlock(resp)
+			if err != nil {
+				return nil, err
+			}
+			result[i] = block
+		case Debug_getBlockByHash, Debug_getBlockByNumber:
+			block, err := toRawBlock(resp)
+			if err != nil {
+				return nil, err
+			}
+			result[i] = block
+		default:
+			result[i] = resp
+		}
+	}
+
+	return result, nil
 }
