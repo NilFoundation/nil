@@ -60,9 +60,9 @@ import "path/to/Nil.sol";
 
 With the library imported, use the `asyncCall()` function in the smart contract code to send a message to another contract deployed either on the same shard or on a different shard. The message will be processed asynchronously: it will spawn a message, and whatever function was called via the message will be executed when the message itself is processed.
 
-To read more about what is included in the Solidity library, [**read this guide**](../tools/sol-library/func-modifiers).
+To read more about what is included in the Solidity library, [**read this guide**](tools/sol-library/func-modifiers.mdx).
 
-[**Follow this explanation**](../core-concepts/shards-parallel-execution#async-execution) to learn more about the theory behind async execution, or [**complete this tutorial**](./essentials/handling-async-execution) on handling async calls.
+[**Follow this explanation**](../core-concepts/shards-parallel-execution.mdx#async-execution) to learn more about the theory behind async execution, or [**complete this tutorial**](essentials/handling-async-execution.mdx) on handling async calls.
 
 ## =nil; CLI
 
@@ -74,9 +74,9 @@ The CLI is distributed as a standalone binary. To install it:
 curl -fsSL https://github.com/NilFoundation/nil_cli/raw/master/install.sh | bash
 ```
 
-Initial setup is required for the =nil; CLI to be able to interact with the cluster. [**Learn more about configuring the =nil; CLI.**](../tools/nil-cli/usage)
+Initial setup is required for the =nil; CLI to be able to interact with the cluster. [**Learn more about configuring the =nil; CLI.**](tools/nil-cli/usage.mdx)
 
-[**The 'Reference' section**](../reference/cli-reference) contains a full list of commands that can be used via the =nil; CLI.
+[**The 'Reference' section**](reference/cli-reference.mdx) contains a full list of commands that can be used via the =nil; CLI.
 
 :::info
 
@@ -116,7 +116,7 @@ When working with `Nil.js`, make sure that all hardcoded addresses are lowercase
 
 :::
 
-[**The 'Reference' section**](../reference/client/index.mdx) contains descriptions of all essential classes and functions.
+[**The 'Reference' section**](reference/client/index.mdx) contains descriptions of all essential classes and functions.
 
 ## Hardhat plugin
 
@@ -139,11 +139,11 @@ To install the plugin:
   </TabItem>
 </Tabs>
 
-[**Learn more about using the =nil; Hardhat plugin**](../tools/hardhat-plugin/usage.mdx).
+[**Learn more about using the =nil; Hardhat plugin**](tools/hardhat-plugin/usage.mdx).
 
 :::tip
 
-Using the =nil; Hardhat plugin requires [**creating a wallet**](./nil-101).
+Using the =nil; Hardhat plugin requires [**creating a wallet**](nil-101.mdx).
 
 :::
 
@@ -163,5 +163,5 @@ Information in the block explorer may update with a slight delay compared to the
 
 :::
 
-[**Access the =nil; block explorer**](https://explore.nil.foundation/) and [**learn about its usage**](../tools/block-explorer/usage).
+[**Access the =nil; block explorer**](https://explore.nil.foundation/) and [**learn about its usage**](tools/block-explorer/usage.mdx).
 

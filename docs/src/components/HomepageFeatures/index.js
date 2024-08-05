@@ -9,10 +9,10 @@ const HOMEPAGE_HEADER_STRING = '=nil; Documentation';
 const HOMEPAGE_HEADER_SUBTITLE = '=nil; is a sharded blockchain that resolves Ethereum scalability issues via zkSharding.';
 
 const CARDS = <HomepageCardSection>
-  <Card icon={<img src={Nil101} />} id='nil101' title='=nil; 101' description='Learn how to perform essential operations on =nil;' to='./nil/getting-started/nil-101' />
-  <Card icon={<img src={Essentials} />} id='essentials' title='Essentials' description='Dive into the technical intricacies of =nil;' to='./nil/getting-started/essentials/creating-a-wallet' />
-  <Card icon={<img src={SmartContracts} />} id='smart_contracts' title='Tutorials' description='Write, deploy, and call smart contracts' to='./nil/getting-started/working-with-smart-contracts/writing-a-contract' />
-  <Card icon={<img src={CLI} />} id='cli' title='=nil; tools' description='Configure and use the key developer tools' to='./nil/tools/nil-cli/usage' />
+  <Card icon={<img src={Nil101} />} id='nil101' title='=nil; 101' description='Learn how to perform essential operations on =nil;' to='https://docs.nil.foundation/nil/getting-started/nil-101' />
+  <Card icon={<img src={Essentials} />} id='essentials' title='Essentials' description='Dive into the technical intricacies of =nil;' to='https://docs.nil.foundation/nil/getting-started/essentials/creating-a-wallet' />
+  <Card icon={<img src={SmartContracts} />} id='smart_contracts' title='Tutorials' description='Write, deploy, and call smart contracts' to='https://docs.nil.foundation/nil/getting-started/working-with-smart-contracts/writing-a-contract' />
+  <Card icon={<img src={CLI} />} id='cli' title='=nil; tools' description='Configure and use the key developer tools' to='https://docs.nil.foundation/nil/tools/nil-cli/usage' />
 </HomepageCardSection>
 
 export default function HomepageNilProducts() {

@@ -33,7 +33,7 @@ As implied by their name, execution shards process transactions.
 
 Each shard is allocated with a subset of accounts from the global state. The shard is responsible for executing transactions made to and from these accounts. Consensus is handled by a committee of randomly selected validators.
 
-[**Learn more about execution shards**](./core-concepts/shards-parallel-execution#execution-shards).
+[**Learn more about execution shards**](core-concepts/shards-parallel-execution.mdx#execution-shards).
 
 :::info[Validator rotation]
 
@@ -47,10 +47,10 @@ Instead of handling cross-shard communication via bridges (which are often insec
 
 Each execution shard is tasked with surveying other execution shards and retrieving necessary transactions. A transaction is necessary for a shard if the shard holds the account that the transaction calls. Blocks within a shard are considered invalid unless they include all necessary messages. 
 
-[**Learn more about cross-shard communication**](./core-concepts/shards-parallel-execution#message-passing-checks) or read [**our primer**](./getting-started/essentials/handling-async-execution.mdx) on async execution.
+[**Learn more about cross-shard communication**](core-concepts/shards-parallel-execution.mdx#message-passing-checks) or read [**our primer**](getting-started/essentials/handling-async-execution.mdx) on async execution.
 
 ## Contract placement
 
 =nil; also allows participants to request for two or more accounts to be placed on the same shard.
 
-This ensures that execution speeds remain high but may raise gas fees across the affected shard. [**Learn more about contract placement and its benefits**](./specification/contract-co-location).
+This ensures that execution speeds remain high but may raise gas fees across the affected shard. [**Learn more about contract placement and its benefits**](specification/contract-co-location.mdx).

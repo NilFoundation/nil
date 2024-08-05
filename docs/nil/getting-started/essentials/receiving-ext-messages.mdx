@@ -4,7 +4,7 @@ This tutorial explains how exactly a contract can accept external messages.
 
 ## `verifyExternal()`
 
-The contract receiving [**an external message**](../../core-concepts/shards-parallel-execution##internal-vs-external-messages) must implement an additional function so that this call is processed. Unless this function is present, a contract cannot accept external messages. The function signature:
+The contract receiving [**an external message**](core-concepts/shards-parallel-execution.mdx##internal-vs-external-messages) must implement an additional function so that this call is processed. Unless this function is present, a contract cannot accept external messages. The function signature:
 
 ```solidity showLineNumbers
 function verifyExternal(

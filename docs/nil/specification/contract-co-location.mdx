@@ -2,17 +2,17 @@
 
 ## Definition
 
-[**Cross-shard communications**](../core-concepts/shards-parallel-execution#message-passing-checks) are a built-in feature of the =nil; protocol ensuring horizontal scalability with no fragmentation.
+[**Cross-shard communications**](core-concepts/shards-parallel-execution.mdx#message-passing-checks) are a built-in feature of the =nil; protocol ensuring horizontal scalability with no fragmentation.
 
 However, =nil; makes it possible to request that two accounts are located on the same shard. In this case, interaction between these accounts does not require cross-shard communications.
 
-In plain terms, this request changes the value stored under the account's address in [**the mapping of accounts and shards**](../core-concepts/accounts) stored in the consensus shard. 
+In plain terms, this request changes the value stored under the account's address in [**the mapping of accounts and shards**](core-concepts/accounts.mdx) stored in the consensus shard. 
 
 :::note[Explanation]
 
 When two contracts (Contract 1 and Contract 2) are placed on the same shards, communications between them can occur synchronously without spawning messages. However, if Contract 1 and Contract 2 are located on different shards, communications between them will always be asynchronous. Async calls between contracts spawn additional messages, and their execution times may vary.
 
-[**Learn more about async calls**](../core-concepts/shards-parallel-execution#async-execution).
+[**Learn more about async calls**](core-concepts/shards-parallel-execution.mdx#async-execution).
 
 :::
 

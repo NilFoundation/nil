@@ -2,11 +2,28 @@
 
 This tutorial acts as a 'primer' for working with =nil;. It explains how to perform essential actions with the cluster: creating a new wallet, deploying a contract, and calling a method inside this contract.
 
-:::info
 
-Before completing this tutorial, learn how to [**configure the =nil; CLI**](../tools/nil-cli/usage).
+## Set up the =nil; CLI
 
-:::
+The =nil; CLI is an easy-to-use tool for interacting with the cluster. 
+
+To install the CLI:
+
+```bash
+curl -fsSL https://github.com/NilFoundation/nil_cli/raw/master/install.sh | bash
+```
+
+To generate a new private key and set inside the CLI config:
+
+```bash
+nil_cli keygen new
+```
+
+To point the CLI toward the RPC endpoint:
+
+```bash
+nil_cli config set rpc_endpoint NIL_ENDPOINT
+```
 
 ## Create a new wallet
 
@@ -47,7 +64,7 @@ nil_cli wallet info
 
 ### Advanced tutorials
 
-* [**Creating a wallet**](./essentials/creating-a-wallet)
+* [**Creating a wallet**](essentials/creating-a-wallet.mdx)
 
 ## Deploy a smart contract
 
@@ -112,9 +129,9 @@ nil_cli contract call-readonly INCREMENTER_ADDRESS getValue --abi ./Incrementer/
 
 ### Advanced tutorials
 
-* [**Reading and writing to =nil;**](./essentials/reading-writing-info)
-* [**Writing a smart contract**](./working-with-smart-contracts/writing-a-contract)
-* [**Deploying a contract**](./working-with-smart-contracts/deploying-a-contract)
+* [**Reading and writing to =nil;**](essentials/reading-writing-info.mdx)
+* [**Writing a smart contract**](working-with-smart-contracts/writing-a-contract.mdx)
+* [**Deploying a contract**](working-with-smart-contracts/deploying-a-contract.mdx)
 
 ## Make a cross-shard call
 
@@ -187,8 +204,8 @@ nil_cli contract call-readonly INCREMENTER_ADDRESS getValue --abi ./Incrementer/
 
 ### Advanced tutorials
 
-* [**Handling async execution**](./essentials/handling-async-execution)
-* [**Calling methods inside a contract**](./working-with-smart-contracts/calling-contract-methods)
+* [**Handling async execution**](essentials/handling-async-execution.mdx)
+* [**Calling methods inside a contract**](working-with-smart-contracts/calling-contract-methods.mdx)
 
 ## Tokens and multi-currency
 
@@ -231,4 +248,4 @@ Balance: 50000 CurrencyId=CURRENCY_ID
 
 ### Advanced tutorials
 
-* [**Tokens and multi-currency support**](./essentials/tokens-multi-currency)
+* [**Tokens and multi-currency support**](essentials/tokens-multi-currency.mdx)

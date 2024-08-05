@@ -6,9 +6,9 @@ This tutorial explains how to create smart contracts that take full advantage of
 
 Complete the following tutorials before proceeding.
 
-* [**Creating a wallet**](../essentials/creating-a-wallet)
-* [**Handling async execution**](../essentials/handling-async-execution)
-* [**Receiving external messages**](../essentials/receiving-ext-messages)
+* [**Creating a wallet**](getting-started/essentials/creating-a-wallet.mdx)
+* [**Handling async execution**](getting-started/essentials/handling-async-execution.mdx)
+* [**Receiving external messages**](getting-started/essentials/receiving-ext-messages.mdx)
 
 ## Specification
 
@@ -18,8 +18,8 @@ Contract 1 is a retailer. The contract can call a special 'manufacturer' contrac
 
 Contract 2 is the manufacturer. It has the following features:
 
-* It can [**accept external messages and verify them**](../essentials/receiving-ext-messages)
-* It will [**limit what messages can call**](../../tools/sol-library/func-modifiers) some of its functions
+* It can [**accept external messages and verify them**](getting-started/essentials/receiving-ext-messages.mdx)
+* It will [**limit what messages can call**](tools/sol-library/func-modifiers.mdx) some of its functions
 
 ## Creating the first contract
 
@@ -231,4 +231,4 @@ Compile Contract 2 with:
 solc ./Manufacturer.sol --bin --abi -o ./Manufacturer
 ```
 
-After compiling both contracts, they should be [**ready for deployment**](./deploying-a-contract)!
+After compiling both contracts, they should be [**ready for deployment**](deploying-a-contract.mdx)!
