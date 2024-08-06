@@ -160,7 +160,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			curBalance, err = s.client.GetBalance(callerAddr, transport.LatestBlockNumber)
 			s.Require().NoError(err)
 			return curBalance.Uint64() > balance
-		}, time.Minute, 200*time.Millisecond)
+		}, ReceiptWaitTimeout, 200*time.Millisecond)
 		return curBalance
 	}
 
@@ -263,7 +263,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.Require().NoError(err)
 
 			callArgs := &jsonrpc.CallArgs{
-				From:      callerAddr,
+				From:      &callerAddr,
 				Data:      callData,
 				To:        callerAddr,
 				FeeCredit: s.gasToValue(10000),
@@ -343,7 +343,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	s.Require().NoError(err)
 
 	callArgs := &jsonrpc.CallArgs{
-		From:      walletAddr,
+		From:      &walletAddr,
 		Data:      calldata,
 		To:        walletAddr,
 		FeeCredit: s.gasToValue(10000),
@@ -397,7 +397,7 @@ func (s *SuiteRpc) TestChainCall() {
 	getCallData := contracts.NewCounterGetCallData(s.T())
 
 	callArgs := &jsonrpc.CallArgs{
-		From:      addrCallee,
+		From:      &addrCallee,
 		To:        addrCallee,
 		FeeCredit: s.gasToValue(100000000000),
 	}

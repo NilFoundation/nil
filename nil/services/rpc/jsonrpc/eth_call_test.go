@@ -87,7 +87,7 @@ func (s *SuiteEthCall) TestSmcCall() {
 	to := s.simple
 	callArgsData := hexutil.Bytes(calldata)
 	args := CallArgs{
-		From:      s.from,
+		From:      &s.from,
 		Data:      callArgsData,
 		To:        to,
 		FeeCredit: types.GasToValue(10_000),
@@ -129,7 +129,7 @@ func (s *SuiteEthCall) TestChainCall() {
 	to := s.simple
 	callArgsData := hexutil.Bytes(getCalldata)
 	args := CallArgs{
-		From:      s.from,
+		From:      &s.from,
 		Data:      callArgsData,
 		To:        to,
 		FeeCredit: types.GasToValue(10_000),

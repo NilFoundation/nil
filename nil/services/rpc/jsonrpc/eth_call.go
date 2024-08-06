@@ -82,7 +82,7 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash t
 	defer tx.Rollback()
 
 	timer := common.NewTimer()
-	shardId := args.From.ShardId()
+	shardId := args.To.ShardId()
 
 	mainBlock, err := api.fetchBlockByNumberOrHash(tx, types.MainShardId, mainblockNrOrHash)
 	if mainBlock == nil || err != nil {
@@ -122,16 +122,18 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash t
 		ChainId:   types.DefaultChainId,
 		Seqno:     args.Seqno,
 		FeeCredit: args.FeeCredit,
-		From:      args.From,
 		To:        args.To,
 		Value:     args.Value,
 		Data:      types.Code(args.Data),
+	}
+	if args.From != nil {
+		msg.From = *args.From
 	}
 
 	if as, err := es.GetAccount(args.To); err != nil {
 		return nil, err
 	} else if as == nil {
-		msg.Flags = types.NewMessageFlags(types.MessageFlagDeploy)
+		msg.Flags.SetBit(types.MessageFlagDeploy)
 	}
 
 	if msg.IsDeploy() {
