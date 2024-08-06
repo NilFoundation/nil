@@ -621,6 +621,26 @@ func (s *SuiteRpc) TestBatch() {
 		s.Require().NoError(err)
 		s.JSONEq(expectedResp, string(body))
 	}
+
+	var err error
+	batch := s.client.CreateBatchRequest()
+
+	_, err = batch.GetBlock(types.MainShardId, "latest", false)
+	s.Require().NoError(err)
+	_, err = batch.GetDebugBlock(types.BaseShardId, "latest", false)
+	s.Require().NoError(err)
+
+	result, err := s.client.BatchCall(batch)
+	s.Require().NoError(err)
+	s.Require().Len(result, 2)
+
+	b1, ok := result[0].(*jsonrpc.RPCBlock)
+	s.Require().True(ok)
+	s.Equal(types.MainShardId, b1.ShardId)
+
+	b2, ok := result[1].(*jsonrpc.HexedDebugRPCBlock)
+	s.Require().True(ok)
+	s.NotEmpty(b2.Content)
 }
 
 func TestSuiteRpc(t *testing.T) {

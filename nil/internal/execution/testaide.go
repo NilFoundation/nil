@@ -29,10 +29,10 @@ func GenerateZeroState(t *testing.T, ctx context.Context,
 
 func GenerateBlockFromMessages(t *testing.T, ctx context.Context,
 	shardId types.ShardId, blockId types.BlockNumber, prevBlock common.Hash,
-	txFabric db.DB, msgs ...*types.Message,
+	txFabric db.DB, childChainBlocks map[types.ShardId]common.Hash, msgs ...*types.Message,
 ) common.Hash {
 	t.Helper()
-	return generateBlockFromMessages(t, ctx, true, shardId, blockId, prevBlock, txFabric, msgs...)
+	return generateBlockFromMessages(t, ctx, true, shardId, blockId, prevBlock, txFabric, childChainBlocks, msgs...)
 }
 
 func GenerateBlockFromMessagesWithoutExecution(t *testing.T, ctx context.Context,
@@ -40,12 +40,12 @@ func GenerateBlockFromMessagesWithoutExecution(t *testing.T, ctx context.Context
 	txFabric db.DB, msgs ...*types.Message,
 ) common.Hash {
 	t.Helper()
-	return generateBlockFromMessages(t, ctx, false, shardId, blockId, prevBlock, txFabric, msgs...)
+	return generateBlockFromMessages(t, ctx, false, shardId, blockId, prevBlock, txFabric, nil, msgs...)
 }
 
 func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 	shardId types.ShardId, blockId types.BlockNumber, prevBlock common.Hash,
-	txFabric db.DB, msgs ...*types.Message,
+	txFabric db.DB, childChainBlocks map[types.ShardId]common.Hash, msgs ...*types.Message,
 ) common.Hash {
 	t.Helper()
 
@@ -80,6 +80,8 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 
 		es.AddReceipt(execResult)
 	}
+
+	es.ChildChainBlocks = childChainBlocks
 
 	blockHash, err := es.Commit(blockId)
 	require.NoError(t, err)

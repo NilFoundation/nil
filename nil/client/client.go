@@ -9,6 +9,11 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 )
 
+type BatchRequest interface {
+	GetBlock(shardId types.ShardId, blockId any, fullTx bool) (uint64, error)
+	GetDebugBlock(shardId types.ShardId, blockId any, fullTx bool) (uint64, error)
+}
+
 // Client defines the interface for a client
 // Note: This interface is designed for JSON-RPC. If you need to extend support
 // for other protocols like WebSocket or gRPC in the future, you might need to
@@ -19,6 +24,9 @@ type Client interface {
 	// RawCall sends a request to the server with the given method and parameters,
 	// and returns the response as json.RawMessage, or an error if the call fails
 	RawCall(method string, params ...any) (json.RawMessage, error)
+
+	CreateBatchRequest() BatchRequest
+	BatchCall(BatchRequest) ([]any, error)
 
 	Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error)
 	GetCode(addr types.Address, blockId any) (types.Code, error)

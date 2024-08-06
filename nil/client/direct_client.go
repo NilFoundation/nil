@@ -371,3 +371,11 @@ func (c *DirectClient) DbExists(tableName db.TableName, key []byte) (bool, error
 func (c *DirectClient) DbExistsInShard(shardId types.ShardId, tableName db.ShardedTableName, key []byte) (bool, error) {
 	return c.dbApi.ExistsInShard(c.ctx, shardId, tableName, key)
 }
+
+func (c *DirectClient) CreateBatchRequest() BatchRequest {
+	panic("Not supported")
+}
+
+func (c *DirectClient) BatchCall(BatchRequest) ([]any, error) {
+	panic("Not supported")
+}

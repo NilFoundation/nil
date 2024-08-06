@@ -74,7 +74,7 @@ func calculateStateChange(newEs, oldEs *execution.ExecutionState) (StateOverride
 }
 
 // Call implements eth_call. Executes a new message call immediately without creating a transaction on the block chain.
-func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash transport.BlockNumberOrHash, overrides *StateOverrides) (*CallRes, error) {
+func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash transport.BlockNumberOrHash, overrides *StateOverrides) (*CallRes, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
@@ -84,9 +84,27 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, blockNrOrHash trans
 	timer := common.NewTimer()
 	shardId := args.From.ShardId()
 
-	hash, err := extractBlockHash(tx, shardId, blockNrOrHash)
+	mainBlock, err := api.fetchBlockByNumberOrHash(tx, types.MainShardId, mainblockNrOrHash)
+	if mainBlock == nil || err != nil {
+		return nil, err
+	}
+
+	treeShards := execution.NewDbShardBlocksTrieReader(tx, types.MainShardId, mainBlock.Id)
+	treeShards.SetRootHash(mainBlock.ChildBlocksRootHash)
+	entries, err := treeShards.Entries()
 	if err != nil {
 		return nil, err
+	}
+
+	var hash common.Hash
+	for _, e := range entries {
+		if e.Key == shardId {
+			hash = *e.Val
+		}
+	}
+
+	if hash == common.EmptyHash {
+		return nil, nil
 	}
 
 	es, err := execution.NewROExecutionState(tx, shardId, hash, timer, 1)

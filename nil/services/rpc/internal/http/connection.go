@@ -2,14 +2,11 @@ package http
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -32,73 +29,6 @@ type (
 
 // https://www.jsonrpc.org/historical/json-rpc-over-http.html#id13
 var acceptedContentTypes = []string{contentType, "application/json-rpc", "application/jsonrequest"}
-
-type httpConn struct {
-	client    *http.Client
-	url       string
-	closeOnce sync.Once
-	closeCh   chan interface{}
-	mu        sync.Mutex // protects headers
-	headers   http.Header
-}
-
-// httpConn is treated specially by Client.
-func (hc *httpConn) WriteJSON(context.Context, interface{}) error {
-	panic("writeJSON called on httpConn")
-}
-
-func (hc *httpConn) RemoteAddr() string {
-	return hc.url
-}
-
-func (hc *httpConn) Read() ([]*transport.Message, bool, error) {
-	<-hc.closeCh
-	return nil, false, io.EOF
-}
-
-func (hc *httpConn) Close() {
-	hc.closeOnce.Do(func() { close(hc.closeCh) })
-}
-
-func (hc *httpConn) Closed() <-chan interface{} {
-	return hc.closeCh
-}
-
-func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) ([]byte, error) {
-	body, err := json.Marshal(msg)
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, hc.url, io.NopCloser(bytes.NewReader(body)))
-	if err != nil {
-		return nil, err
-	}
-	req.ContentLength = int64(len(body))
-
-	// set headers
-	hc.mu.Lock()
-	req.Header = hc.headers.Clone()
-	hc.mu.Unlock()
-
-	// do request
-	resp, err := hc.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	// read the response body
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("%s: %s", resp.Status, string(respBody))
-	}
-
-	return respBody, nil
-}
 
 // httpServerConn turns a HTTP connection into a Conn.
 type httpServerConn struct {
