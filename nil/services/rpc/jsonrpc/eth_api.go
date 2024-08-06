@@ -271,11 +271,11 @@ type EthAPI interface {
 		@description Implements eth_call.
 		@tags [Calls]
 		@param args CallArgs
-		@param blockNrOrHash BlockNumberOrHash
+		@param mainBlockNrOrHash BlockNumberOrHash
 		@param overrides StateOverrides
 		@returns CallRes CallRes
 	*/
-	Call(ctx context.Context, args CallArgs, blockNrOrHash transport.BlockNumberOrHash, overrides *StateOverrides) (*CallRes, error)
+	Call(ctx context.Context, args CallArgs, mainBlockNrOrHash transport.BlockNumberOrHash, overrides *StateOverrides) (*CallRes, error)
 
 	/*
 		@name ChainId

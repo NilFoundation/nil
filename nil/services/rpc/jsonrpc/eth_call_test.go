@@ -30,6 +30,8 @@ type SuiteEthCall struct {
 	simple        types.Address
 }
 
+var latestBlockId = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
+
 func (s *SuiteEthCall) unpackGetValue(data []byte) uint64 {
 	s.T().Helper()
 
@@ -58,7 +60,10 @@ func (s *SuiteEthCall) SetupSuite() {
 		shardId, s.from, 0)
 	s.simple = m.To
 
-	s.lastBlockHash = execution.GenerateBlockFromMessages(s.T(), ctx, shardId, 0, s.lastBlockHash, s.db, m)
+	s.lastBlockHash = execution.GenerateBlockFromMessages(s.T(), ctx, shardId, 0, s.lastBlockHash, s.db, nil, m)
+
+	execution.GenerateBlockFromMessages(s.T(), ctx, types.MainShardId, 0, common.EmptyHash, s.db,
+		map[types.ShardId]common.Hash{shardId: s.lastBlockHash})
 
 	pool := msgpool.New(msgpool.DefaultConfig)
 	s.Require().NotNil(pool)
@@ -87,7 +92,7 @@ func (s *SuiteEthCall) TestSmcCall() {
 		To:        to,
 		FeeCredit: types.GasToValue(10_000),
 	}
-	res, err := s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash}, nil)
+	res, err := s.api.Call(ctx, args, latestBlockId, nil)
 	s.Require().NoError(err)
 	s.EqualValues(0x2a, s.unpackGetValue(res.Data))
 
@@ -106,7 +111,7 @@ func (s *SuiteEthCall) TestSmcCall() {
 	payload := types.BuildDeployPayload(common.EmptyHash[:], common.EmptyHash)
 	args.To = types.CreateAddress(0, payload)
 	args.Data = payload.Bytes()
-	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash}, nil)
+	res, err = s.api.Call(ctx, args, latestBlockId, nil)
 	s.Require().ErrorIs(err, execution.ErrDeployToMainShard)
 	s.Require().Nil(res)
 }
@@ -129,12 +134,12 @@ func (s *SuiteEthCall) TestChainCall() {
 		To:        to,
 		FeeCredit: types.GasToValue(10_000),
 	}
-	res, err := s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash}, nil)
+	res, err := s.api.Call(ctx, args, latestBlockId, nil)
 	s.Require().NoError(err)
 	s.EqualValues(0x2a, s.unpackGetValue(res.Data))
 
 	args.Data = setCalldata
-	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash}, nil)
+	res, err = s.api.Call(ctx, args, latestBlockId, nil)
 	s.Require().NoError(err)
 	s.Empty(res.Data)
 	s.Len(res.StateOverrides, 2)
@@ -145,7 +150,7 @@ func (s *SuiteEthCall) TestChainCall() {
 	s.Nil(res.StateOverrides[s.simple].Balance)
 
 	args.Data = getCalldata
-	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockHash: &s.lastBlockHash}, &res.StateOverrides)
+	res, err = s.api.Call(ctx, args, latestBlockId, &res.StateOverrides)
 	s.Require().NoError(err)
 	s.EqualValues(0x7b, s.unpackGetValue(res.Data))
 }
