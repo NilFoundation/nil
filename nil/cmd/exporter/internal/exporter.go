@@ -88,7 +88,7 @@ func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 				continue
 			}
 
-			topBlock, err := cfg.FetchLastBlock(shardId)
+			topBlock, err := cfg.FetchBlock(shardId, "latest")
 			if err != nil {
 				logger.Error().Err(err).Msg("Failed to fetch last block.")
 				continue
@@ -114,7 +114,7 @@ func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 				}
 				curBlock, err = cfg.FetchBlock(shardId, curBlock.PrevBlock)
 				if err != nil {
-					logger.Error().Err(err).Msg("Failed to fetch block.")
+					logger.Error().Err(err).Msg("Failed to fetch block")
 					break
 				}
 			}
@@ -172,13 +172,20 @@ func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 			}
 
 			logger.Info().Msgf("Fetching shard %s blocks from %d to %d", shardId.String(), startBlockId, nextPresentId)
-			for curBlockId := startBlockId; curBlockId < nextPresentId; curBlockId++ {
-				curBlock, err := cfg.FetchBlock(shardId, transport.BlockNumber(curBlockId))
+			const batchSize = 10
+			for curBlockId := startBlockId; curBlockId < nextPresentId; curBlockId += batchSize {
+				batchEndId := curBlockId + batchSize
+				if batchEndId > nextPresentId {
+					batchEndId = nextPresentId
+				}
+				blocks, err := cfg.FetchBlocks(shardId, curBlockId, batchEndId)
 				if err != nil {
-					logger.Error().Err(err).Msg("Failed to fetch block.")
+					logger.Error().Err(err).Msg("Failed to fetch blocks")
 					continue
 				}
-				cfg.BlocksChan <- &BlockWithShardId{curBlock, shardId}
+				for _, b := range blocks {
+					cfg.BlocksChan <- &BlockWithShardId{b, shardId}
+				}
 				curExportRound = newExportRound
 			}
 		}
