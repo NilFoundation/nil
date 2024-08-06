@@ -133,7 +133,6 @@ func (s *Service) CallContract(
 	contract types.Address, feeCredit types.Value, calldata []byte, overrides *jsonrpc.StateOverrides,
 ) (*jsonrpc.CallRes, error) {
 	callArgs := &jsonrpc.CallArgs{
-		From:      &contract,
 		Data:      calldata,
 		To:        contract,
 		FeeCredit: feeCredit,

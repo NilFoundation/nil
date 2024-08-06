@@ -397,7 +397,6 @@ func (s *SuiteRpc) TestChainCall() {
 	getCallData := contracts.NewCounterGetCallData(s.T())
 
 	callArgs := &jsonrpc.CallArgs{
-		From:      &addrCallee,
 		To:        addrCallee,
 		FeeCredit: s.gasToValue(100000000000),
 	}

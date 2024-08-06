@@ -54,13 +54,17 @@ func (s *SuiteEthCall) SetupSuite() {
 	s.contracts, err = solc.CompileSource("../../../internal/execution/testdata/call.sol")
 	s.Require().NoError(err)
 
-	s.from = types.GenerateRandomAddress(shardId)
+	m1 := execution.NewDeployMessage(types.BuildDeployPayload(hexutil.FromHex(s.contracts["Caller"].Code), common.EmptyHash),
+		shardId, types.GenerateRandomAddress(shardId), 0, types.NewValueFromUint64(100_000_000))
 
-	m := execution.NewDeployMessage(types.BuildDeployPayload(hexutil.FromHex(s.contracts["SimpleContract"].Code), common.EmptyHash),
-		shardId, s.from, 0)
-	s.simple = m.To
+	s.from = m1.To
 
-	s.lastBlockHash = execution.GenerateBlockFromMessages(s.T(), ctx, shardId, 0, s.lastBlockHash, s.db, nil, m)
+	m2 := execution.NewDeployMessage(types.BuildDeployPayload(hexutil.FromHex(s.contracts["SimpleContract"].Code), common.EmptyHash),
+		shardId, s.from, 0, types.Value{})
+
+	s.simple = m2.To
+
+	s.lastBlockHash = execution.GenerateBlockFromMessages(s.T(), ctx, shardId, 0, s.lastBlockHash, s.db, nil, m1, m2)
 
 	execution.GenerateBlockFromMessages(s.T(), ctx, types.MainShardId, 0, common.EmptyHash, s.db,
 		map[types.ShardId]common.Hash{shardId: s.lastBlockHash})
@@ -107,13 +111,12 @@ func (s *SuiteEthCall) TestSmcCall() {
 	_, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num}, nil)
 	s.Require().ErrorIs(err, vm.ErrOutOfGas)
 
-	// Call with invalid arguments
-	payload := types.BuildDeployPayload(common.EmptyHash[:], common.EmptyHash)
-	args.To = types.CreateAddress(0, payload)
-	args.Data = payload.Bytes()
-	res, err = s.api.Call(ctx, args, latestBlockId, nil)
-	s.Require().ErrorIs(err, execution.ErrDeployToMainShard)
-	s.Require().Nil(res)
+	// Unknown "from"
+	args.FeeCredit = types.GasToValue(10_000)
+	unknownAddr := types.GenerateRandomAddress(shardId)
+	args.From = &unknownAddr
+	_, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num}, nil)
+	s.Require().ErrorIs(err, ErrFromAccNotFound)
 }
 
 func (s *SuiteEthCall) TestChainCall() {
@@ -129,7 +132,6 @@ func (s *SuiteEthCall) TestChainCall() {
 	to := s.simple
 	callArgsData := hexutil.Bytes(getCalldata)
 	args := CallArgs{
-		From:      &s.from,
 		Data:      callArgsData,
 		To:        to,
 		FeeCredit: types.GasToValue(10_000),
@@ -142,10 +144,7 @@ func (s *SuiteEthCall) TestChainCall() {
 	res, err = s.api.Call(ctx, args, latestBlockId, nil)
 	s.Require().NoError(err)
 	s.Empty(res.Data)
-	s.Len(res.StateOverrides, 2)
-	s.Nil(res.StateOverrides[s.from].StateDiff)
-	s.NotNil(res.StateOverrides[s.from].Balance)
-
+	s.Len(res.StateOverrides, 1)
 	s.NotNil(res.StateOverrides[s.simple].StateDiff)
 	s.Nil(res.StateOverrides[s.simple].Balance)
 

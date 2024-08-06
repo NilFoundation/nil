@@ -12,7 +12,7 @@ import (
 
 var sharedLogger = logging.NewLogger("execution")
 
-type payer interface {
+type Payer interface {
 	fmt.Stringer
 	CanPay(types.Value) bool
 	SubBalance(types.Value)
@@ -69,6 +69,13 @@ func (m SimPayer) String() string {
 	return "simulator"
 }
 
+func NewAccountPayer(account *AccountState, message *types.Message) accountPayer {
+	return accountPayer{
+		account: account,
+		message: message,
+	}
+}
+
 type accountPayer struct {
 	account *AccountState
 	message *types.Message
@@ -92,7 +99,7 @@ func (a accountPayer) String() string {
 	return fmt.Sprintf("account %v", a.message.From.Hex())
 }
 
-func buyGas(payer payer, message *types.Message) error {
+func buyGas(payer Payer, message *types.Message) error {
 	if !payer.CanPay(message.FeeCredit) {
 		return fmt.Errorf("%w: %s can't pay %s", ErrInsufficientFunds, payer, message.FeeCredit)
 	}
@@ -100,7 +107,7 @@ func buyGas(payer payer, message *types.Message) error {
 	return nil
 }
 
-func refundGas(payer payer, gasRemaining types.Value) {
+func refundGas(payer Payer, gasRemaining types.Value) {
 	if gasRemaining.IsZero() {
 		return
 	}

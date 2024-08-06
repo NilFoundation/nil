@@ -126,8 +126,19 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash t
 		Value:     args.Value,
 		Data:      types.Code(args.Data),
 	}
+
+	var fromAs *execution.AccountState
 	if args.From != nil {
 		msg.From = *args.From
+		// msg.Flags.SetBit(types.MessageFlagInternal) // TODO: execution hangs if enabled
+
+		if fromAs, err = es.GetAccount(*args.From); err != nil {
+			return nil, err
+		} else if fromAs == nil {
+			return nil, ErrFromAccNotFound
+		}
+	} else {
+		msg.From = msg.To
 	}
 
 	if as, err := es.GetAccount(args.To); err != nil {
@@ -142,8 +153,15 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash t
 		}
 	}
 
+	var payer execution.Payer
+	if msg.IsInternal() {
+		payer = execution.NewAccountPayer(fromAs, msg)
+	} else {
+		payer = &execution.SimPayer{}
+	}
+
 	es.AddInMessage(msg)
-	res := es.HandleMessage(ctx, msg, execution.SimPayer{})
+	res := es.HandleMessage(ctx, msg, payer)
 	if res.IsFatal() {
 		return nil, res.FatalError
 	}

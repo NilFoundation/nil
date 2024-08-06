@@ -821,7 +821,7 @@ func (es *ExecutionState) sendBounceMessage(msg *types.Message, execResult *Exec
 	return true, nil
 }
 
-func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message, payer payer) *ExecutionResult {
+func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message, payer Payer) *ExecutionResult {
 	if err := buyGas(payer, msg); err != nil {
 		return NewExecutionResult().SetError(types.NewMessageError(types.MessageStatusBuyGas, err))
 	}

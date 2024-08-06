@@ -231,7 +231,6 @@ func (s *RpcSuite) CallGetter(addr types.Address, callData []byte, blockId any) 
 	log.Debug().Str("contract", addr.String()).Uint64("seqno", uint64(seqno)).Msg("sending external message getter")
 
 	callArgs := &jsonrpc.CallArgs{
-		From:      &addr,
 		Data:      callData,
 		To:        addr,
 		FeeCredit: s.gasToValue(100_000_000),
