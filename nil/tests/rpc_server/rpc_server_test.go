@@ -3,7 +3,6 @@ package rpctest
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"math/big"
 	"net/http"
@@ -294,24 +293,41 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	pk, err := crypto.GenerateKey()
 	s.Require().NoError(err)
 
-	pub := crypto.CompressPubkey(&pk.PublicKey)
-	walletCode := contracts.PrepareDefaultWalletForOwnerCode(pub)
-	deployCode := types.BuildDeployPayload(walletCode, common.EmptyHash)
+	var walletAddr, counterAddr types.Address
+	var hash common.Hash
 
-	dstShardId := types.ShardId(2)
-	hash, address, err := s.client.DeployContract(
-		dstShardId, types.MainWalletAddress, deployCode, types.NewValueFromUint64(500_000), execution.MainPrivateKey,
-	)
-	s.Require().NoError(err)
+	callerShardId := types.ShardId(2)
+	calleeShardId := types.ShardId(4)
 
-	receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), hash)
-	s.Require().True(receipt.Success)
-	s.Require().True(receipt.OutReceipts[0].Success)
-	fmt.Println(address)
+	s.Run("Deploy wallet", func() {
+		pub := crypto.CompressPubkey(&pk.PublicKey)
+		walletCode := contracts.PrepareDefaultWalletForOwnerCode(pub)
+		deployCode := types.BuildDeployPayload(walletCode, common.EmptyHash)
+
+		hash, walletAddr, err = s.client.DeployContract(
+			callerShardId, types.MainWalletAddress, deployCode, types.NewValueFromUint64(500_000), execution.MainPrivateKey,
+		)
+		s.Require().NoError(err)
+		receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), hash)
+		s.Require().True(receipt.Success)
+		s.Require().True(receipt.OutReceipts[0].Success)
+	})
+
+	s.Run("Deploy counter", func() {
+		deployCode := contracts.CounterDeployPayload(s.T())
+
+		hash, counterAddr, err = s.client.DeployContract(
+			calleeShardId, types.MainWalletAddress, deployCode, types.Value{}, execution.MainPrivateKey,
+		)
+		s.Require().NoError(err)
+		receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), hash)
+		s.Require().True(receipt.Success)
+		s.Require().True(receipt.OutReceipts[0].Success)
+	})
 
 	intMsg := &types.InternalMessagePayload{
-		Data:        []byte("check"),
-		To:          address,
+		Data:        contracts.NewCounterAddCallData(s.T(), 1),
+		To:          counterAddr,
 		FeeCredit:   types.NewValueFromUint64(100000),
 		ForwardKind: types.ForwardKindNone,
 		Kind:        types.ExecutionMessageKind,
@@ -323,14 +339,14 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	calldata, err := contracts.NewCallData(contracts.NameWallet, "send", intMsgData)
 	s.Require().NoError(err)
 
-	callerSeqno, err := s.client.GetTransactionCount(types.MainWalletAddress, "latest")
+	callerSeqno, err := s.client.GetTransactionCount(walletAddr, "latest")
 	s.Require().NoError(err)
 
 	callArgs := &jsonrpc.CallArgs{
-		From:      types.MainWalletAddress,
+		From:      walletAddr,
 		Data:      calldata,
-		To:        types.MainWalletAddress,
-		FeeCredit: s.gasToValue(100000000000),
+		To:        walletAddr,
+		FeeCredit: s.gasToValue(10000),
 		Seqno:     callerSeqno,
 	}
 
@@ -340,17 +356,21 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	s.Require().Len(res.OutMessages, 1)
 
 	msg := res.OutMessages[0]
-	s.Equal(types.MainWalletAddress, msg.From)
-	s.Equal(address, msg.To)
+	s.Equal(walletAddr, msg.From)
+	s.Equal(counterAddr, msg.To)
 	s.NotEmpty(msg.Data)
 
-	override := &jsonrpc.StateOverrides{types.MainWalletAddress: jsonrpc.Contract{Balance: &types.Value{}}}
+	override := &jsonrpc.StateOverrides{
+		walletAddr: jsonrpc.Contract{Balance: &types.Value{}},
+	}
 	res, err = s.client.Call(callArgs, "latest", override)
 	s.T().Logf("Call res : %v, err: %v", res, err)
 	s.Require().Error(err)
 
 	val := types.NewValueFromUint64(100000)
-	override = &jsonrpc.StateOverrides{types.MainWalletAddress: jsonrpc.Contract{Balance: &val}}
+	override = &jsonrpc.StateOverrides{
+		walletAddr: jsonrpc.Contract{Balance: &val},
+	}
 	res, err = s.client.Call(callArgs, "latest", override)
 	s.T().Logf("Call res : %v, err: %v", res, err)
 	s.Require().NoError(err)

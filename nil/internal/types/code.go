@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 )
 
 type Code []byte
@@ -35,4 +36,9 @@ func (c Code) Hex() string {
 
 func (c Code) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + c.Hex() + `"`), nil
+}
+
+func (c *Code) UnmarshalJSON(input []byte) error {
+	b := (*hexutil.Bytes)(c)
+	return b.UnmarshalJSON(input)
 }
