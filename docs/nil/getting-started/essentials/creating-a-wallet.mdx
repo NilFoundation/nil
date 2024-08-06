@@ -24,7 +24,7 @@ Funds sent to an address without a deployed contract are safe, and another party
 
 Because any smart contract can be a wallet, there is a distinction between pre-built and custom wallets. 
 
-A pre-built wallet is provided as part of =nil;. Such a wallet includes essential wallet functionalities as well as pre-defined constructor bytecode. The =nil; developer tools provide several ways of deploying pre-built wallets such as the `nil_cli wallet new` =nil; CLI command.
+A pre-built wallet is provided as part of =nil;. Such a wallet includes essential wallet functionalities as well as pre-defined constructor bytecode. The =nil; developer tools provide several ways of deploying pre-built wallets such as the `nil wallet new` =nil; CLI command.
 
 :::info[Pre-built wallets]
 
@@ -47,7 +47,7 @@ A custom wallet is any smart contract written by a user. This contract can suppo
 The =nil; CLI offers a quick and convenient way to create a new wallet:
 
 ```bash
-nil_cli wallet new
+nil wallet new
 ```
 
 This will produce the following response:
@@ -60,7 +60,7 @@ New wallet address: NEW_WALLET_ADDRESS
 This wallet essentially acts as a typical EOA: it supports basic asset management and authentication operations. The wallet should also be initialized with an initial balance (which is also seen in the initial command response). Send the following request to check this:
 
 ```bash
-nil_cli wallet balance
+nil wallet balance
 ```
 
 :::tip

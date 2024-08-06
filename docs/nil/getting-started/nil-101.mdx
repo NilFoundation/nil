@@ -34,7 +34,7 @@ In =nil; a wallet is just a smart contract that can handle payments. There are n
 To create a new wallet:
 
 ```bash
-nil_cli wallet new
+nil wallet new
 ```
 
 Expected response:
@@ -47,19 +47,19 @@ Contract address: WALLET_ADDRESS
 To check the wallet bytecode:
 
 ```bash
-nil_cli contract code WALLET_ADDRESS
+nil contract code WALLET_ADDRESS
 ```
 
 To request a 'top up':
 
 ```bash
-nil_cli wallet top-up AMOUNT
+nil wallet top-up AMOUNT
 ```
 
 To see the wallet address and its public key:
 
 ```bash
-nil_cli wallet info
+nil wallet info
 ```
 
 ### Advanced tutorials
@@ -105,7 +105,7 @@ solc -o ./Incrementer --bin --abi ./Incrementer.sol
 Deploy a contract with the =nil; CLI:
 
 ```bash
-nil_cli wallet deploy ./Incrementer/Incrementer.bin
+nil wallet deploy ./Incrementer/Incrementer.bin
 ```
 
 Expected output:
@@ -118,13 +118,13 @@ Transaction hash: TRANSACTION_HASH (shard 1)
 Call the `increment()` function:
 
 ```bash
-nil_cli wallet send-message INCREMENTER_ADDRESS increment --abi ./Incrementer/Incrementer.abi
+nil wallet send-message INCREMENTER_ADDRESS increment --abi ./Incrementer/Incrementer.abi
 ```
 
 Retrieve the result:
 
 ```bash
-nil_cli contract call-readonly INCREMENTER_ADDRESS getValue --abi ./Incrementer/Incrementer.abi
+nil contract call-readonly INCREMENTER_ADDRESS getValue --abi ./Incrementer/Incrementer.abi
 ```
 
 ### Advanced tutorials
@@ -177,7 +177,7 @@ Compile it and deploy it to Shard 2:
 
 ```bash
 solc -o ./Caller --bin --abi ./Caller.sol 
-nil_cli wallet deploy ./Caller/Caller.bin --shard-id 2
+nil wallet deploy ./Caller/Caller.bin --shard-id 2
 ```
 
 Expected output:
@@ -192,14 +192,14 @@ Note that `CALLER_ADDRESS` starts with `0x0002`, which indicates that `Caller` i
 Send tokens to `Caller` and call the `call()` function:
 
 ```
-nil_cli wallet send-tokens CALLER_ADDRESS 3000000
-nil_cli wallet send-message CALLER_ADDRESS call INCREMENTER_ADDRESS --abi ./Caller/Caller.abi
+nil wallet send-tokens CALLER_ADDRESS 3000000
+nil wallet send-message CALLER_ADDRESS call INCREMENTER_ADDRESS --abi ./Caller/Caller.abi
 ```
 
 Retrieve the result:
 
 ```bash
-nil_cli contract call-readonly INCREMENTER_ADDRESS getValue --abi ./Incrementer/Incrementer.abi
+nil contract call-readonly INCREMENTER_ADDRESS getValue --abi ./Incrementer/Incrementer.abi
 ```
 
 ### Advanced tutorials
@@ -224,19 +224,19 @@ Non-owners cannot perform any operations with a custom currency.
 Create a new wallet:
 
 ```bash
-nil_cli wallet new --salt 2
+nil wallet new --salt 2
 ```
 
 Create a new currency and withdraw it:
 
 ```bash
-nil_cli minter create-currency NEW_WALLET_ADDRESS 50000 new-currency --withdraw
+nil minter create-currency NEW_WALLET_ADDRESS 50000 new-currency --withdraw
 ```
 
 Check the currencies of the wallet:
 
 ```bash
-nil_cli contract currencies NEW_WALLET_ADDRESS
+nil contract currencies NEW_WALLET_ADDRESS
 ```
 
 Expected output:

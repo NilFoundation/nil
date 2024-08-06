@@ -46,7 +46,7 @@ To run the load generator:
 To access the =nil; CLI:
 
 ```bash
-./build/bin/nil_cli
+./build/bin/nil
 ```
 
 ### Running tests
@@ -109,14 +109,14 @@ The =nil; CLI requires initial setup before being able to interact with the clus
 To create the config file if it does not already exist:
 
 ```bash
-./build/bin/nil_cli config init
+./build/bin/nil config init
 ```
 
 To configure the CLI:
 
 ```bash
-./build/bin/nil_cli config set rpc_endpoint NIL_ENDPOINT
-./build/bin/nil_cli keygen new
+./build/bin/nil config set rpc_endpoint NIL_ENDPOINT
+./build/bin/nil keygen new
 ```
 
 This will update the CLI configuration file to include the RPC endpoint and the private key
@@ -137,7 +137,7 @@ The easisest way to create a new wallet is to use the =nil; CLI after configurin
 To create a new wallet **on the base shard**:
 
 ```bash
-./build/bin/nil_cli wallet new
+./build/bin/nil wallet new
 ```
 
 ### Deploying a smart contract
@@ -155,15 +155,15 @@ The docs contain [a more detailed tutorial about the different means of contract
 To deploy the contract through the wallet:
 
 ```bash
-./build/bin/nil_cli wallet deploy ./SimpleStorage.bin --abi ./SimpleStorage.abi
+./build/bin/nil wallet deploy ./SimpleStorage.bin --abi ./SimpleStorage.abi
 ```
 
 To deploy the contract through an external message:
 
 ```bash
-./build/bin/nil_cli contract address ./SimpleStorage.bin
-./build/bin/nil_cli wallet send-tokens ADDRESS 50000000
-./build/bin/nil_cli contract deploy ./SimpleStorage.bin
+./build/bin/nil contract address ./SimpleStorage.bin
+./build/bin/nil wallet send-tokens ADDRESS 50000000
+./build/bin/nil contract deploy ./SimpleStorage.bin
 ```
 
 ### Calling a smart contract
@@ -177,7 +177,7 @@ The docs contain [a more detailed tutorial on calling smart contract methods](ht
 To call the method via the wallet:
 
 ```bash
-./build/bin/nil_cli wallet send-message ADDRESS increment --abi ./SimpleStorage.abi
+./build/bin/nil wallet send-message ADDRESS increment --abi ./SimpleStorage.abi
 ```
 
 ### Tokens and multi-currency support

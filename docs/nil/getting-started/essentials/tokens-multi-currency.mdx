@@ -27,19 +27,19 @@ When a currency is created, it is assigned an ID derived from the address of the
 To create a new currency and immediately withdraw it to the address of the owner:
 
 ```bash
-nil_cli minter create-currency OWNER_ADDRESS AMOUNT NAME --withdraw
+nil minter create-currency OWNER_ADDRESS AMOUNT NAME --withdraw
 ```
 
 To mint a currency:
 
 ```bash
-nil_cli minter create-currency OWNER_ADDRESS AMOUNT
+nil minter create-currency OWNER_ADDRESS AMOUNT
 ```
 
 To send an existing currency (with some amount already minted) from a minter to another contract:
 
 ```bash
-nil_cli minter withdraw-currency OWNER_ADDRESS AMOUNT RECEIVER_ADDRESS
+nil minter withdraw-currency OWNER_ADDRESS AMOUNT RECEIVER_ADDRESS
 ```
 
 ### Via the client library
@@ -132,32 +132,32 @@ This example creates a wallet that stores three currencies: the default token, a
 Create two new wallets (Wallet 1 and Wallet 2):
 
 ```bash
-nil_cli wallet new
-nil_cli wallet new --salt 1
+nil wallet new
+nil wallet new --salt 1
 ```
 
 Create a new currency for Wallet 1 and withdraw it:
 
 ```bash
-nil_cli minter create-currency WALLET_ONE_ADDRESS 50000 token --withdraw
+nil minter create-currency WALLET_ONE_ADDRESS 50000 token --withdraw
 ```
 
 Create a new currency for Wallet 2 and keep it in the minter:
 
 ```bash
-nil_cli minter create-currency WALLET_TWO_ADDRESS 30000 another-token
+nil minter create-currency WALLET_TWO_ADDRESS 30000 another-token
 ```
 
 Withdraw the second currency to Wallet 1:
 
 ```bash
-nil_cli minter withdraw-currency WALLET_TWO_ADDRESS 15000 WALLET_ONE_ADDRESS
+nil minter withdraw-currency WALLET_TWO_ADDRESS 15000 WALLET_ONE_ADDRESS
 ```
 
 Check the currencies for Wallet 1:
 
 ```bash
-nil_cli contract currencies WALLET_ONE_ADDRESS
+nil contract currencies WALLET_ONE_ADDRESS
 ```
 
 The following response should appear:
@@ -171,7 +171,7 @@ Balance: 15000 CurrencyId=[CURRENCY_ID_TWO]
 Check the balance of Wallet 1 in default tokens:
 
 ```bash
-nil_cli contract balance WALLET_ONE_ADDRESS
+nil contract balance WALLET_ONE_ADDRESS
 ```
 
 ```bash

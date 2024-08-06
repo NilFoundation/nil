@@ -82,7 +82,7 @@ func (s *Service) WaitForReceipt(shardId types.ShardId, mshHash common.Hash) (*j
 
 		debug := s.logger.Debug()
 		if debug == nil {
-			s.logger.Info().Msg("To view full receipts, run with debug log level or use `nil_cli receipt`.")
+			s.logger.Info().Msg("To view full receipts, run with debug log level or use `nil receipt`.")
 		} else {
 			debug.Msg(string(receiptDataJSON))
 		}

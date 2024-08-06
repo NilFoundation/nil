@@ -23,11 +23,11 @@ stdenv.mkDerivation rec {
   dontConfigure = true;
 
   buildPhase = ''
-    nohup nil run > nil.log 2>&1 & echo $! > nil_pid
+    nohup nild run > nild.log 2>&1 & echo $! > nild_pid
     bun run test:unit
     bun run test:integration --cache=false
     bun run build
-    kill `cat nil_pid` && rm nil_pid
+    kill `cat nild_pid` && rm nild_pid
     echo "tests finished successfully"
   '';
 

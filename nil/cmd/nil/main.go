@@ -1,179 +1,206 @@
 package main
 
 import (
-	"context"
+	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"os"
-	"time"
+	"reflect"
 
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/block"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/contract"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/keygen"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/message"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/minter"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/receipt"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/system"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/version"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/wallet"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/collate"
-	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/internal/readthroughdb"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/nilservice"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
+type RootCommand struct {
+	baseCmd  *cobra.Command
+	config   common.Config
+	cfgFile  string
+	logLevel string
+	verbose  bool
+}
+
+var logger = logging.NewLogger("root")
+
+var noConfigCmd = map[string]struct{}{
+	"help":             {},
+	"keygen":           {},
+	"completion":       {},
+	"__complete":       {},
+	"__completeNoDesc": {},
+	"config":           {},
+	"version":          {},
+}
+
 func main() {
-	logger := logging.NewLogger("nil")
+	var rootCmd *RootCommand
 
-	cfg, dbOpts := parseArgs()
+	rootCmd = &RootCommand{
+		baseCmd: &cobra.Command{
+			Use:   "nil",
+			Short: "CLI tool for interacting with the =nil; cluster",
+			PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+				if !rootCmd.verbose {
+					zerolog.SetGlobalLevel(zerolog.Disabled)
+				} else {
+					logLevel, err := zerolog.ParseLevel(rootCmd.logLevel)
+					check.PanicIfErr(err)
+					zerolog.SetGlobalLevel(logLevel)
+				}
 
-	database, err := openDb(dbOpts.Path, dbOpts.AllowDrop, logger)
-	check.PanicIfErr(err)
+				// Set the config file for all commands because some commands can write something to it.
+				// E.g. "keygen" command writes a private key to the config file (and creates if it doesn't exist)
+				common.SetConfigFile(rootCmd.cfgFile)
 
-	if len(dbOpts.DbAddr) != 0 {
-		database, err = readthroughdb.NewReadThroughWithEndpoint(context.Background(), dbOpts.DbAddr, database, transport.BlockNumber(dbOpts.StartBlock))
-		check.PanicIfErr(err)
-	}
+				// Traverse up to find the top-level command
+				for cmd.HasParent() && cmd.Parent() != rootCmd.baseCmd {
+					cmd = cmd.Parent()
+				}
 
-	exitCode := nilservice.Run(context.Background(), cfg, database, nil,
-		func(ctx context.Context) error {
-			return database.LogGC(ctx, dbOpts.DiscardRatio, dbOpts.GcFrequency)
-		})
-
-	database.Close()
-	os.Exit(exitCode)
-}
-
-func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
-	rootCmd := &cobra.Command{
-		Use:           "nil [global flags] [command]",
-		Short:         "nil cluster app",
-		SilenceUsage:  true,
-		SilenceErrors: true,
-	}
-
-	runMode := nilservice.NormalRunMode
-
-	dbPath := rootCmd.PersistentFlags().String("db-path", "test.db", "path to database")
-	dbDiscardRatio := rootCmd.PersistentFlags().Float64("db-discard-ratio", 0.5, "discard ratio for badger GC")
-	dbGcFrequency := rootCmd.PersistentFlags().Duration("db-gc-interval", time.Hour, "frequency for badger GC")
-	gasPriceScale := rootCmd.PersistentFlags().Float64("gas-price-scale", 0, "gas price scale factor for each transaction")
-	gasBasePrice := rootCmd.PersistentFlags().Uint64("gas-base-price", 10, "base gas price for each transaction")
-	logLevel := rootCmd.PersistentFlags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
-	port := rootCmd.PersistentFlags().Int("port", 8529, "http port for rpc server")
-	adminSocket := rootCmd.PersistentFlags().String("admin-socket-path", "", "unix socket path to start admin server on (disabled if empty)}")
-	dbAddr := rootCmd.PersistentFlags().String("read-through-db-addr", "", "address of the read-through database server. If provided, the local node will be run in read-through mode.")
-	startBlock := rootCmd.PersistentFlags().Int64("read-through-start-block", int64(transport.LatestBlockNumber), "mainshard start block number for read-through mode, latest block by default")
-
-	runCmd := &cobra.Command{
-		Use:   "run",
-		Short: "Run nil application server",
-		Run: func(cmd *cobra.Command, args []string) {
-			runMode = nilservice.NormalRunMode
+				if _, withoutConfig := noConfigCmd[cmd.Name()]; withoutConfig {
+					return nil
+				}
+				if err := rootCmd.loadConfig(); err != nil {
+					return err
+				}
+				if err := rootCmd.validateConfig(); err != nil {
+					return err
+				}
+				common.InitRpcClient(&rootCmd.config, logger)
+				return nil
+			},
+			SilenceUsage:  true,
+			SilenceErrors: true,
 		},
 	}
-	nShards := runCmd.Flags().Int("nshards", 5, "number of shardchains")
-	allowDropDb := runCmd.Flags().Bool("allow-db-clear", false, "allow to clear database in case of outdated version")
 
-	// network
-	tcpPort := runCmd.Flags().Int("tcp-port", 0, "tcp port for network")
-	quicPort := runCmd.Flags().Int("quic-port", 0, "quic udp port for network")
-	useMdns := runCmd.Flags().Bool("use-mdns", false, "use mDNS for discovery (works only in the local network)")
+	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.cfgFile, "config", "c", common.DefaultConfigPath, "Path to config file")
+	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.logLevel, "log-level", "l", "info", "Log level: trace|debug|info|warn|error|fatal|panic")
+	rootCmd.baseCmd.PersistentFlags().BoolVarP(
+		&config.Quiet,
+		"quiet",
+		"q",
+		false,
+		"Quiet mode (print only the result and exit)",
+	)
+	rootCmd.baseCmd.PersistentFlags().BoolVarP(
+		&rootCmd.verbose,
+		"verbose",
+		"v",
+		false,
+		"Verbose mode (print logs)",
+	)
 
-	replayCmd := &cobra.Command{
-		Use:   "replay-block",
-		Short: "Start server in single-shard mode to replay particular block",
-		Run: func(cmd *cobra.Command, args []string) {
-			runMode = nilservice.BlockReplayRunMode
-		},
-	}
-	replayBlockId := replayCmd.Flags().Uint64("block-id", 1, "block id to replay")
-	replayShardId := replayCmd.Flags().Uint64("shard-id", 1, "shard id to replay block from")
-
-	rootCmd.AddCommand(runCmd, replayCmd)
-
-	f := rootCmd.HelpFunc()
-	rootCmd.SetHelpFunc(func(c *cobra.Command, s []string) {
-		f(c, s)
-		os.Exit(0)
-	})
-
-	check.PanicIfErr(rootCmd.Execute())
-
-	logging.SetupGlobalLogger(*logLevel)
-
-	dbOpts := &db.BadgerDBOptions{
-		Path:         *dbPath,
-		DiscardRatio: *dbDiscardRatio,
-		GcFrequency:  *dbGcFrequency,
-		AllowDrop:    *allowDropDb,
-		DbAddr:       *dbAddr,
-		StartBlock:   *startBlock,
-	}
-
-	cfg := &nilservice.Config{
-		NShards:          *nShards,
-		HttpPort:         *port,
-		Libp2pTcpPort:    *tcpPort,
-		Libp2pQuicPort:   *quicPort,
-		UseMdns:          *useMdns,
-		AdminSocketPath:  *adminSocket,
-		Topology:         collate.TrivialShardTopologyId,
-		MainKeysOutPath:  "keys.yaml",
-		GracefulShutdown: true,
-		GasPriceScale:    *gasPriceScale,
-		GasBasePrice:     *gasBasePrice,
-		RunMode:          runMode,
-		ReplayBlockId:    types.BlockNumber(*replayBlockId),
-		ReplayShardId:    types.ShardId(*replayShardId),
-	}
-
-	return cfg, dbOpts
+	rootCmd.registerSubCommands()
+	rootCmd.Execute()
 }
 
-func openDb(dbPath string, allowDrop bool, logger zerolog.Logger) (db.DB, error) {
-	dbExists := true
-	if _, err := os.Open(dbPath); err != nil {
-		if !os.IsNotExist(err) {
-			logger.Error().Err(err).Msg("Error opening db path")
+// registerSubCommands adds all subcommands to the root command
+func (rc *RootCommand) registerSubCommands() {
+	rc.baseCmd.AddCommand(
+		block.GetCommand(&rc.config),
+		config.GetCommand(&rc.cfgFile, &rc.config),
+		contract.GetCommand(&rc.config),
+		keygen.GetCommand(),
+		message.GetCommand(&rc.config),
+		minter.GetCommand(&rc.config),
+		receipt.GetCommand(&rc.config),
+		system.GetCommand(&rc.config),
+		version.GetCommand(),
+		wallet.GetCommand(&rc.config),
+	)
+}
+
+func decodePrivateKey(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+	if f.Kind() == reflect.String && t == reflect.TypeOf(&ecdsa.PrivateKey{}) {
+		s, _ := data.(string)
+		return crypto.HexToECDSA(s)
+	}
+	return data, nil
+}
+
+func decodeAddress(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+	if f.Kind() == reflect.String && t == reflect.TypeOf(types.Address{}) {
+		s, _ := data.(string)
+		var res types.Address
+		if err := res.UnmarshalText([]byte(s)); err != nil {
 			return nil, err
 		}
-		dbExists = false
+		return res, nil
+	}
+	return data, nil
+}
+
+func updateDecoderConfig(config *mapstructure.DecoderConfig) {
+	config.DecodeHook = mapstructure.ComposeDecodeHookFunc(
+		config.DecodeHook,
+		decodePrivateKey,
+		decodeAddress,
+	)
+}
+
+// loadConfig loads the configuration from the config file
+func (rc *RootCommand) loadConfig() error {
+	err := viper.ReadInConfig()
+
+	// Create file if it doesn't exist
+	if errors.As(err, new(viper.ConfigFileNotFoundError)) {
+		logger.Info().Msg("Config file not found. Creating a new one...")
+
+		path, errCfg := common.InitDefaultConfig(rc.cfgFile)
+		if errCfg != nil {
+			logger.Error().Err(err).Msg("Failed to create config")
+			return err
+		}
+
+		logger.Info().Msgf("Config file created successfully at %s", path)
+		logger.Info().Msgf("set via `%s config set <option> <value>` or via config file", os.Args[0])
+		return nil
 	}
 
-	// each shard will interact with DB via this client
-	badger, err := db.NewBadgerDb(dbPath)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	tx, err := badger.CreateRwTx(context.Background())
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	logger.Info().Msg("Checking scheme format...")
-	isVersionOutdated, err := db.IsVersionOutdated(tx)
-	if err != nil {
-		return nil, err
+	if err := viper.UnmarshalKey("nil", &rc.config, updateDecoderConfig); err != nil {
+		return fmt.Errorf("unable to decode config: %w", err)
 	}
 
-	if isVersionOutdated {
-		if !allowDrop {
-			return nil, errors.New("database schema is outdated; remove database or use --allow-db-clear")
-		}
+	logger.Debug().Msg("Configuration loaded successfully")
+	return nil
+}
 
-		logger.Info().Msg("Clearing database from old data...")
-		if err := badger.DropAll(); err != nil {
-			return nil, err
-		}
+// validateConfig perform some simple configuration validation
+func (rc *RootCommand) validateConfig() error {
+	if rc.config.RPCEndpoint == "" {
+		logger.Info().Msg("RPCEndpoint is missing in config")
+		logger.Info().Msgf("set via `%s config set rpc_endpoint <endpoint>` or via config file", os.Args[0])
+		return fmt.Errorf("%q is missing in config", common.RPCEndpointField)
 	}
+	return nil
+}
 
-	if !dbExists || isVersionOutdated {
-		if err := db.WriteVersionInfo(tx, types.NewVersionInfo()); err != nil {
-			return nil, err
-		}
-		if err := tx.Commit(); err != nil {
-			return nil, err
-		}
+// Execute runs the root command and handles any errors
+func (rc *RootCommand) Execute() {
+	if err := rc.baseCmd.Execute(); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+
+		os.Exit(1)
 	}
-
-	return badger, nil
 }
