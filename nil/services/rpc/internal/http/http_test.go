@@ -1,17 +1,19 @@
 package http
 
 import (
-	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 
+	"github.com/NilFoundation/nil/nil/client"
+	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/rs/zerolog"
 )
+
+var _ client.Client = (*rpc.Client)(nil)
 
 // largeRespService generates arbitrary-size JSON responses.
 type largeRespService struct {
@@ -20,35 +22,6 @@ type largeRespService struct {
 
 func (x largeRespService) LargeResp() string {
 	return strings.Repeat("x", x.length)
-}
-
-// dialHTTPWithClient creates a new RPC client that connects to an RPC server over HTTP
-// using the provided HTTP Client.
-func dialHTTPWithClient(endpoint string, client *http.Client, logger zerolog.Logger) (*Client, error) {
-	// Sanity check URL, so we don't end up with a client that will fail every request.
-	_, err := url.Parse(endpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	initctx := context.Background()
-	headers := make(http.Header, 2)
-	headers.Set("Accept", contentType)
-	headers.Set("Content-Type", contentType)
-	return NewClient(initctx, func(context.Context) (transport.ServerCodec, error) {
-		hc := &httpConn{
-			client:  client,
-			headers: headers,
-			url:     endpoint,
-			closeCh: make(chan interface{}),
-		}
-		return hc, nil
-	}, logger)
-}
-
-// dialHTTP creates a new RPC client that connects to an RPC server over HTTP.
-func dialHTTP(endpoint string, logger zerolog.Logger) (*Client, error) {
-	return dialHTTPWithClient(endpoint, new(http.Client), logger)
 }
 
 func confirmStatusCode(t *testing.T, got, want int) {
@@ -155,17 +128,16 @@ func TestHTTPRespBodyUnlimited(t *testing.T) {
 	ts := httptest.NewServer(NewServer(s))
 	defer ts.Close()
 
-	c, err := dialHTTP(ts.URL, logger)
+	c := rpc.NewClient(ts.URL, logger)
+	r, err := c.RawCall("test_largeResp")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Close()
-
-	var r string
-	if err := c.Call(&r, "test_largeResp"); err != nil {
+	var str string
+	if err := json.Unmarshal(r, &str); err != nil {
 		t.Fatal(err)
 	}
-	if len(r) != respLength {
+	if len(str) != respLength {
 		t.Fatalf("response has wrong length %d, want %d", len(r), respLength)
 	}
 }
