@@ -25,16 +25,15 @@ type SuiteFetchBlock struct {
 }
 
 func (suite *SuiteFetchBlock) TestFetchBlock() {
-	fetchedBlock, err := suite.cfg.FetchLastBlock(types.MainShardId)
+	fetchedBlock, err := suite.cfg.FetchBlock(types.MainShardId, "latest")
 	suite.Require().NoError(err, "Failed to fetch last block")
 
 	suite.Require().NotNil(fetchedBlock, "Fetched block is nil")
 
-	hashBlock, err := suite.cfg.FetchBlockByHash(types.MainShardId, fetchedBlock.Block.Hash())
+	blocks, err := suite.cfg.FetchBlocks(types.MainShardId, fetchedBlock.Block.Id, fetchedBlock.Block.Id+1)
 	suite.Require().NoError(err, "Failed to fetch block by hash")
-	suite.Require().NotNil(hashBlock, "Fetched block by hash is nil")
-
-	suite.Require().Equal(fetchedBlock, hashBlock)
+	suite.Require().Len(blocks, 1, "Fetched one block")
+	suite.Require().Equal(fetchedBlock, blocks[0])
 }
 
 func (suite *SuiteFetchBlock) TestFetchShardIdList() {
