@@ -350,6 +350,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 		Seqno:     callerSeqno,
 	}
 
+	// Without override
 	res, err := s.client.Call(callArgs, "latest", nil)
 	s.T().Logf("Call res : %v, err: %v", res, err)
 	s.Require().NoError(err)
@@ -360,16 +361,28 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	s.Equal(counterAddr, msg.To)
 	s.NotEmpty(msg.Data)
 
+	// Override for "insufficient balance for transfer
 	override := &jsonrpc.StateOverrides{
 		walletAddr: jsonrpc.Contract{Balance: &types.Value{}},
 	}
 	res, err = s.client.Call(callArgs, "latest", override)
 	s.T().Logf("Call res : %v, err: %v", res, err)
-	s.Require().Error(err)
+	s.Require().ErrorContains(err, "insufficient balance for transfer")
 
+	// Override with good balance
 	val := types.NewValueFromUint64(100000)
 	override = &jsonrpc.StateOverrides{
 		walletAddr: jsonrpc.Contract{Balance: &val},
+	}
+	res, err = s.client.Call(callArgs, "latest", override)
+	s.T().Logf("Call res : %v, err: %v", res, err)
+	s.Require().NoError(err)
+	s.Require().Len(res.OutMessages, 1)
+
+	// Override several shards
+	override = &jsonrpc.StateOverrides{
+		walletAddr:              jsonrpc.Contract{Balance: &val},
+		types.MainWalletAddress: jsonrpc.Contract{Balance: &val},
 	}
 	res, err = s.client.Call(callArgs, "latest", override)
 	s.T().Logf("Call res : %v, err: %v", res, err)
