@@ -1,3 +1,0 @@
-# compiled solidity contracts
-!compiled/*.bin
-!compiled/*.abi
