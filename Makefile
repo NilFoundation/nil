@@ -6,9 +6,9 @@ GIT_COMMIT = $(shell git rev-parse --short HEAD)
 GIT_TAG = $(shell git describe --tags 2>/dev/null || echo "0.1.0")
 GIT_REVISION = $(shell git rev-list --count HEAD)
 
-GO_FLAGS = -ldflags "-X '${PACKAGE}/common/version.gitCommit=$(GIT_COMMIT)' \
-		     -X '${PACKAGE}/common/version.gitTag=$(GIT_TAG)' \
-		     -X '${PACKAGE}/common/version.gitRevision=$(GIT_REVISION)'"
+GO_FLAGS = -ldflags "-X '${PACKAGE}/nil/common/version.gitCommit=$(GIT_COMMIT)' \
+		     -X '${PACKAGE}/nil/common/version.gitTag=$(GIT_TAG)' \
+		     -X '${PACKAGE}/nil/common/version.gitRevision=$(GIT_REVISION)'"
 GOBUILD = GOPRIVATE="$(GOPRIVATE)" $(GO) build $(GO_FLAGS)
 GO_DBG_BUILD = GOPRIVATE="$(GOPRIVATE)" $(GO) build -tags $(BUILD_TAGS),debug,assert -gcflags=all="-N -l"  # see delve docs
 GOTEST = GOPRIVATE="$(GOPRIVATE)" GODEBUG=cgocheck=0 $(GO) test -tags $(BUILD_TAGS),debug,assert,test $(GO_FLAGS) ./... -p 2
