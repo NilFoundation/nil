@@ -9,10 +9,11 @@ import (
 type PeerID = peer.ID
 
 type Config struct {
-	PrivateKey *ecdsa.PrivateKey
-	TcpPort    int
-	QuicPort   int
-	UseMdns    bool
+	PrivateKey  *ecdsa.PrivateKey
+	IPV4Address string
+	TcpPort     int
+	QuicPort    int
+	UseMdns     bool
 }
 
 func (c *Config) Enabled() bool {

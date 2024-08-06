@@ -24,6 +24,11 @@ func newHost(conf *Config, logger zerolog.Logger) (Host, error) {
 		return nil, err
 	}
 
+	addr := conf.IPV4Address
+	if addr == "" {
+		addr = "0.0.0.0"
+	}
+
 	options := []libp2p.Option{
 		libp2p.Security(noise.ID, noise.New),
 		libp2p.ConnectionManager(connMgr),
@@ -40,7 +45,7 @@ func newHost(conf *Config, logger zerolog.Logger) (Host, error) {
 
 	if conf.TcpPort != 0 {
 		options = append(options,
-			libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", conf.TcpPort)),
+			libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/%s/tcp/%d", addr, conf.TcpPort)),
 			libp2p.Transport(tcp.NewTCPTransport),
 		)
 
@@ -51,7 +56,7 @@ func newHost(conf *Config, logger zerolog.Logger) (Host, error) {
 
 	if conf.QuicPort != 0 {
 		options = append(options,
-			libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/udp/%d/quic", conf.QuicPort)),
+			libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/%s/udp/%d/quic", addr, conf.QuicPort)),
 			libp2p.Transport(quic.NewTransport),
 		)
 
