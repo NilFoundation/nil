@@ -51,9 +51,9 @@ func (hc *httpConn) RemoteAddr() string {
 	return hc.url
 }
 
-func (hc *httpConn) Read() (*transport.Message, error) {
+func (hc *httpConn) Read() ([]*transport.Message, bool, error) {
 	<-hc.closeCh
-	return nil, io.EOF
+	return nil, false, io.EOF
 }
 
 func (hc *httpConn) Close() {
