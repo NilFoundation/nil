@@ -96,26 +96,42 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash t
 		return nil, err
 	}
 
-	var hash common.Hash
+	shardIdToHash := make(map[types.ShardId]common.Hash)
+	shardIdToEs := make(map[types.ShardId]*execution.ExecutionState)
+
 	for _, e := range entries {
-		if e.Key == shardId {
-			hash = *e.Val
+		shardIdToHash[e.Key] = *e.Val
+	}
+
+	getShardExecutionState := func(shardId types.ShardId) (*execution.ExecutionState, error) {
+		es, exists := shardIdToEs[shardId]
+		if exists {
+			return es, nil
 		}
-	}
 
-	if hash == common.EmptyHash {
-		return nil, nil
-	}
+		hash, exists := shardIdToHash[shardId]
+		if !exists {
+			return nil, ErrShardNotFound
+		}
 
-	es, err := execution.NewROExecutionState(tx, shardId, hash, timer, 1)
-	if err != nil {
-		return nil, err
-	}
-
-	if overrides != nil {
-		if err := overrides.Override(es); err != nil {
+		es, err := execution.NewROExecutionState(tx, shardId, hash, timer, 1)
+		if err != nil {
 			return nil, err
 		}
+
+		if overrides != nil {
+			if err := overrides.Override(es); err != nil {
+				return nil, err
+			}
+		}
+
+		shardIdToEs[shardId] = es
+		return es, nil
+	}
+
+	es, err := getShardExecutionState(shardId)
+	if err != nil {
+		return nil, err
 	}
 
 	msg := &types.Message{
@@ -130,7 +146,7 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash t
 	var fromAs *execution.AccountState
 	if args.From != nil {
 		msg.From = *args.From
-		// msg.Flags.SetBit(types.MessageFlagInternal) // TODO: execution hangs if enabled
+		msg.Flags.SetBit(types.MessageFlagInternal)
 
 		if fromAs, err = es.GetAccount(*args.From); err != nil {
 			return nil, err
@@ -157,33 +173,81 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash t
 	if msg.IsInternal() {
 		payer = execution.NewAccountPayer(fromAs, msg)
 	} else {
-		payer = &execution.SimPayer{}
+		payer = execution.NewMessagePayer(msg, es)
 	}
 
 	es.AddInMessage(msg)
 	res := es.HandleMessage(ctx, msg, payer)
-	if res.IsFatal() {
-		return nil, res.FatalError
+
+	result := &CallRes{
+		Data:      res.ReturnData,
+		CoinsUsed: res.CoinsUsed,
 	}
-	if res.Error != nil {
-		return nil, res.Error.Unwrap()
+
+	if res.Failed() {
+		result.Error = res.GetError().Error()
+		return result, nil
 	}
-	outMessages := es.OutMessages[msg.Hash()]
+
+	var handleOutMessages func(outMsgs []*types.OutboundMessage) ([]*OutMessage, error)
+	handleOutMessages = func(outMsgs []*types.OutboundMessage) ([]*OutMessage, error) {
+		outMessages := make([]*OutMessage, len(outMsgs))
+
+		for i, outMsg := range outMsgs {
+			msg := outMsg.Message
+
+			es, err := getShardExecutionState(msg.To.ShardId())
+			if err != nil {
+				return nil, err
+			}
+
+			es.AddInMessage(msg)
+			payer := execution.NewMessagePayer(msg, es)
+			execRes := es.HandleMessage(ctx, msg, payer)
+
+			outMessages[i] = &OutMessage{
+				Message:   outMsg,
+				Data:      execRes.ReturnData,
+				CoinsUsed: execRes.CoinsUsed,
+			}
+
+			if !execRes.Failed() {
+				outMessages[i].OutMessages, err = handleOutMessages(es.OutMessages[msg.Hash()])
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				outMessages[i].Error = execRes.GetError().Error()
+			}
+		}
+
+		return outMessages, nil
+	}
+
+	execOutMessages := es.OutMessages[msg.Hash()]
+	outMessages, err := handleOutMessages(execOutMessages)
+	if err != nil {
+		return nil, err
+	}
 
 	// Calculate state diff between original state and result
-	esOld, err := execution.NewROExecutionState(tx, shardId, hash, timer, 1)
-	if err != nil {
-		return nil, err
-	}
-	stateOverrides, err := calculateStateChange(es, esOld)
-	if err != nil {
-		return nil, err
+	stateOverrides := make(StateOverrides)
+	for shardId, esNew := range shardIdToEs {
+		hash := shardIdToHash[shardId]
+		esOld, err := execution.NewROExecutionState(tx, shardId, hash, timer, 1)
+		if err != nil {
+			return nil, err
+		}
+		shardStateOverrides, err := calculateStateChange(esNew, esOld)
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range shardStateOverrides {
+			stateOverrides[k] = v
+		}
 	}
 
-	return &CallRes{
-		Data:           res.ReturnData,
-		CoinsUsed:      res.CoinsUsed,
-		OutMessages:    outMessages,
-		StateOverrides: stateOverrides,
-	}, nil
+	result.OutMessages = outMessages
+	result.StateOverrides = stateOverrides
+	return result, nil
 }

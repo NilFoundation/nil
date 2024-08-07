@@ -342,14 +342,30 @@ type DebugRPCContract struct {
 	Storage  []execution.Entry[common.Hash, *types.Uint256] `json:"storage"`
 }
 
-// @component CallRes CallRes object "Response for eth_call."
-// @componentprop Data data string true "Result of VM execution."
+// @component OutMessage outMessage object "Outbound message produced by eth_call and result of its execution."
+// @componentprop Message message object true "Message data"
+// @componentprop Data data string false "Result of VM execution."
 // @componentprop CoinsUsed coinsUsed string true "The amount of coins spent on the message."
-// @componentprop OutMessages outMessages array true "Outbound messages produced by the message."
-// @componentprop StateOverrides stateOverrides object true "Updated contracts state."
+// @componentprop OutMessages outMessages array false "Outbound messages produced by eth_call and result of its execution."
+// @componentprop Error error string false "Error produced by the message."
+type OutMessage struct {
+	Message     *types.OutboundMessage `json:"message"`
+	Data        hexutil.Bytes          `json:"data,omitempty"`
+	CoinsUsed   types.Value            `json:"coinsUsed"`
+	OutMessages []*OutMessage          `json:"outMessages,omitempty"`
+	Error       string                 `json:"error,omitempty"`
+}
+
+// @component CallRes callRes object "Response for eth_call."
+// @componentprop Data data string false "Result of VM execution."
+// @componentprop CoinsUsed coinsUsed string true "The amount of coins spent on the message."
+// @componentprop OutMessages outMessages array false "Outbound messages produced by the message."
+// @componentprop Error error string false "Error produced during the call."
+// @componentprop StateOverrides stateOverrides object false "Updated contracts state."
 type CallRes struct {
-	Data           hexutil.Bytes            `json:"data"`
-	CoinsUsed      types.Value              `json:"coinsUsed"`
-	OutMessages    []*types.OutboundMessage `json:"outMessages,omitempty"`
-	StateOverrides StateOverrides           `json:"stateOverrides,omitempty"`
+	Data           hexutil.Bytes  `json:"data,omitempty"`
+	CoinsUsed      types.Value    `json:"coinsUsed"`
+	OutMessages    []*OutMessage  `json:"outMessages,omitempty"`
+	Error          string         `json:"error,omitempty"`
+	StateOverrides StateOverrides `json:"stateOverrides,omitempty"`
 }

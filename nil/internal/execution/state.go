@@ -154,6 +154,16 @@ func (e *ExecutionResult) IsFatal() bool {
 	return e.FatalError != nil
 }
 
+func (e *ExecutionResult) GetError() error {
+	if e.FatalError != nil {
+		return e.FatalError
+	}
+	if e.Error != nil {
+		return e.Error.Unwrap()
+	}
+	return nil
+}
+
 type revision struct {
 	id           int
 	journalIndex int

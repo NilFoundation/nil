@@ -108,8 +108,9 @@ func (s *SuiteEthCall) TestSmcCall() {
 
 	// Out of gas
 	args.FeeCredit = types.GasToValue(0)
-	_, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num}, nil)
-	s.Require().ErrorIs(err, vm.ErrOutOfGas)
+	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num}, nil)
+	s.Require().NoError(err)
+	s.Require().Contains(res.Error, vm.ErrOutOfGas.Error())
 
 	// Unknown "from"
 	args.FeeCredit = types.GasToValue(10_000)

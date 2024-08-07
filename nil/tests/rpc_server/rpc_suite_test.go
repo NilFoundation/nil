@@ -222,7 +222,7 @@ func (s *RpcSuite) sendMessageViaWalletNoCheck(addrWallet types.Address, addrTo 
 	return receipt
 }
 
-func (s *RpcSuite) CallGetter(addr types.Address, callData []byte, blockId any) []byte {
+func (s *RpcSuite) CallGetter(addr types.Address, callData []byte, blockId any, overrides *jsonrpc.StateOverrides) []byte {
 	s.T().Helper()
 
 	seqno, err := s.client.GetTransactionCount(addr, blockId)
@@ -236,7 +236,7 @@ func (s *RpcSuite) CallGetter(addr types.Address, callData []byte, blockId any) 
 		FeeCredit: s.gasToValue(100_000_000),
 		Seqno:     seqno,
 	}
-	res, err := s.client.Call(callArgs, blockId, nil)
+	res, err := s.client.Call(callArgs, blockId, overrides)
 	s.Require().NoError(err)
 	return res.Data
 }

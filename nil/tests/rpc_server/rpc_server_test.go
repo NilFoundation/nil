@@ -263,7 +263,6 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.Require().NoError(err)
 
 			callArgs := &jsonrpc.CallArgs{
-				From:      &callerAddr,
 				Data:      callData,
 				To:        callerAddr,
 				FeeCredit: s.gasToValue(10000),
@@ -305,7 +304,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 		deployCode := types.BuildDeployPayload(walletCode, common.EmptyHash)
 
 		hash, walletAddr, err = s.client.DeployContract(
-			callerShardId, types.MainWalletAddress, deployCode, types.NewValueFromUint64(500_000), execution.MainPrivateKey,
+			callerShardId, types.MainWalletAddress, deployCode, types.NewValueFromUint64(10_000_000), execution.MainPrivateKey,
 		)
 		s.Require().NoError(err)
 		receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), hash)
@@ -328,7 +327,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	intMsg := &types.InternalMessagePayload{
 		Data:        contracts.NewCounterAddCallData(s.T(), 1),
 		To:          counterAddr,
-		FeeCredit:   types.NewValueFromUint64(100000),
+		FeeCredit:   types.NewValueFromUint64(5_000_000),
 		ForwardKind: types.ForwardKindNone,
 		Kind:        types.ExecutionMessageKind,
 	}
@@ -343,10 +342,9 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	s.Require().NoError(err)
 
 	callArgs := &jsonrpc.CallArgs{
-		From:      &walletAddr,
 		Data:      calldata,
 		To:        walletAddr,
-		FeeCredit: s.gasToValue(10000),
+		FeeCredit: s.gasToValue(4_000_000),
 		Seqno:     callerSeqno,
 	}
 
@@ -355,31 +353,48 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	s.T().Logf("Call res : %v, err: %v", res, err)
 	s.Require().NoError(err)
 	s.Require().Len(res.OutMessages, 1)
+	s.Require().Empty(res.Error)
 
 	msg := res.OutMessages[0]
-	s.Equal(walletAddr, msg.From)
-	s.Equal(counterAddr, msg.To)
-	s.NotEmpty(msg.Data)
+	s.Equal(walletAddr, msg.Message.From)
+	s.Equal(counterAddr, msg.Message.To)
+	s.False(msg.CoinsUsed.IsZero())
+	s.Empty(msg.Data, "Result of message execution is empty")
+	s.NotEmpty(msg.Message.Data, "Message payload is not empty")
+	s.Require().Empty(msg.Error)
 
-	// Override for "insufficient balance for transfer
+	s.Len(msg.OutMessages, 1)
+	s.True(msg.Message.IsInternal())
+
+	s.Require().Len(res.StateOverrides, 2)
+
+	walletState := res.StateOverrides[walletAddr]
+	s.Empty(walletState.State)
+	s.Empty(walletState.StateDiff)
+	s.NotEmpty(walletState.Balance)
+
+	counterState := res.StateOverrides[counterAddr]
+	s.Empty(counterState.State)
+	s.NotEmpty(counterState.StateDiff)
+	s.Empty(counterState.Balance)
+
+	getRes := s.CallGetter(counterAddr, contracts.NewCounterGetCallData(s.T()), "latest", nil)
+	s.EqualValues(0, contracts.GetCounterValue(s.T(), getRes))
+
+	getRes = s.CallGetter(counterAddr, contracts.NewCounterGetCallData(s.T()), "latest", &res.StateOverrides)
+	s.EqualValues(1, contracts.GetCounterValue(s.T(), getRes))
+
+	// Override for "insufficient balance for transfer"
 	override := &jsonrpc.StateOverrides{
 		walletAddr: jsonrpc.Contract{Balance: &types.Value{}},
 	}
 	res, err = s.client.Call(callArgs, "latest", override)
 	s.T().Logf("Call res : %v, err: %v", res, err)
-	s.Require().ErrorContains(err, "insufficient balance for transfer")
-
-	// Override with good balance
-	val := types.NewValueFromUint64(100000)
-	override = &jsonrpc.StateOverrides{
-		walletAddr: jsonrpc.Contract{Balance: &val},
-	}
-	res, err = s.client.Call(callArgs, "latest", override)
-	s.T().Logf("Call res : %v, err: %v", res, err)
 	s.Require().NoError(err)
-	s.Require().Len(res.OutMessages, 1)
+	s.Require().EqualError(vm.ErrInsufficientBalance, res.Error)
 
 	// Override several shards
+	val := types.NewValueFromUint64(50_000_000)
 	override = &jsonrpc.StateOverrides{
 		walletAddr:              jsonrpc.Contract{Balance: &val},
 		types.MainWalletAddress: jsonrpc.Contract{Balance: &val},
@@ -407,28 +422,22 @@ func (s *SuiteRpc) TestChainCall() {
 	s.Contains(res.StateOverrides, addrCallee)
 	s.NotEmpty(res.StateOverrides[addrCallee].Code)
 
-	callArgs.Data = getCallData
-	res, err = s.client.Call(callArgs, "latest", &res.StateOverrides)
-	s.Require().NoError(err)
-	s.EqualValues(0, contracts.GetCounterValue(s.T(), res.Data), "Initial value should be 0")
+	resData := s.CallGetter(addrCallee, getCallData, "latest", &res.StateOverrides)
+	s.EqualValues(0, contracts.GetCounterValue(s.T(), resData), "Initial value should be 0")
 
 	callArgs.Data = addCallData
 	res, err = s.client.Call(callArgs, "latest", &res.StateOverrides)
 	s.Require().NoError(err, "No errors during the first addition")
 
-	callArgs.Data = getCallData
-	res, err = s.client.Call(callArgs, "latest", &res.StateOverrides)
-	s.Require().NoError(err)
-	s.EqualValues(11, contracts.GetCounterValue(s.T(), res.Data), "Updated value is 11")
+	resData = s.CallGetter(addrCallee, getCallData, "latest", &res.StateOverrides)
+	s.EqualValues(11, contracts.GetCounterValue(s.T(), resData), "Updated value is 11")
 
 	callArgs.Data = addCallData
 	res, err = s.client.Call(callArgs, "latest", &res.StateOverrides)
 	s.Require().NoError(err, "No errors during the second addition")
 
-	callArgs.Data = getCallData
-	res, err = s.client.Call(callArgs, "latest", &res.StateOverrides)
-	s.Require().NoError(err)
-	s.EqualValues(22, contracts.GetCounterValue(s.T(), res.Data), "Final value after two additions is 22")
+	resData = s.CallGetter(addrCallee, getCallData, "latest", &res.StateOverrides)
+	s.EqualValues(22, contracts.GetCounterValue(s.T(), resData), "Final value after two additions is 22")
 }
 
 func (s *SuiteRpc) TestRpcApiModules() {
@@ -695,20 +704,20 @@ func (s *SuiteRpc) TestAddressCalculation() {
 	// Test `Nil.getPoseidonHash()` library method
 	calldata, err := abi.Pack("getPoseidonHash", data)
 	s.Require().NoError(err)
-	resHash := s.CallGetter(addr, calldata, "latest")
+	resHash := s.CallGetter(addr, calldata, "latest", nil)
 	s.Require().Equal(refHash[:], resHash)
 
 	// Test `Nil.createAddress()` library method
 	calldata, err = abi.Pack("createAddress", big.NewInt(int64(shardId)), []byte(code), big.NewInt(0).SetBytes(salt))
 	s.Require().NoError(err)
-	resAddress := s.CallGetter(addr, calldata, "latest")
+	resAddress := s.CallGetter(addr, calldata, "latest", nil)
 	s.Require().Equal(address, types.BytesToAddress(resAddress))
 
 	// Test `Nil.createAddress2()` library method
 	calldata, err = abi.Pack("createAddress2", big.NewInt(int64(shardId)), address, big.NewInt(0).SetBytes(salt),
 		big.NewInt(0).SetBytes(codeHash))
 	s.Require().NoError(err)
-	resAddress = s.CallGetter(addr, calldata, "latest")
+	resAddress = s.CallGetter(addr, calldata, "latest", nil)
 	s.Require().Equal(address2, types.BytesToAddress(resAddress))
 }
 
