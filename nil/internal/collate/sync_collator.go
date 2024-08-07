@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
@@ -113,6 +114,15 @@ func (s *syncCollator) fetchBlock(ctx context.Context) {
 		s.logger.Error().Err(err).Msg("Failed to write block")
 		return
 	}
+	msgRoot, err := s.saveMessages(tx, data.OutMessages)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to save messages")
+		return
+	}
+	if msgRoot != data.Block.OutMessagesRoot {
+		s.logger.Error().Msgf("Out messages root mismatch: expected %x, got %x", data.Block.OutMessagesRoot, msgRoot)
+		return
+	}
 	blockHash := data.Block.Hash()
 	err = db.WriteLastBlockHash(tx, s.shard, blockHash)
 	if err != nil {
@@ -126,6 +136,16 @@ func (s *syncCollator) fetchBlock(ctx context.Context) {
 	s.lastBlockNumber = transport.BlockNumber(data.Block.Id)
 	s.lastBlockHash = blockHash
 	s.logger.Info().Msgf("Block %d is written", s.lastBlockNumber)
+}
+
+func (s *syncCollator) saveMessages(tx db.RwTx, messages []*types.Message) (common.Hash, error) {
+	messageTree := execution.NewDbMessageTrie(tx, s.shard)
+	for outMsgIndex, msg := range messages {
+		if err := messageTree.Update(types.MessageIndex(outMsgIndex), msg); err != nil {
+			return common.EmptyHash, err
+		}
+	}
+	return messageTree.RootHash(), nil
 }
 
 func (s *syncCollator) GetMsgPool() msgpool.Pool {
