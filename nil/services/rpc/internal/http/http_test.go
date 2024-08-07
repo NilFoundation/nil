@@ -1,40 +1,27 @@
 package http
 
 import (
-	"encoding/json"
+	"context"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/NilFoundation/nil/nil/client"
-	"github.com/NilFoundation/nil/nil/client/rpc"
-	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/stretchr/testify/require"
 )
-
-var _ client.Client = (*rpc.Client)(nil)
-
-// largeRespService generates arbitrary-size JSON responses.
-type largeRespService struct {
-	length int
-}
-
-func (x largeRespService) LargeResp() string {
-	return strings.Repeat("x", x.length)
-}
 
 func confirmStatusCode(t *testing.T, got, want int) {
 	t.Helper()
-	if got == want {
-		return
-	}
-	if gotName := http.StatusText(got); len(gotName) > 0 {
-		if wantName := http.StatusText(want); len(wantName) > 0 {
-			t.Fatalf("response status code: got %d (%s), want %d (%s)", got, gotName, want, wantName)
+	statusToStr := func(code int) string {
+		if name := http.StatusText(code); len(name) > 0 {
+			return fmt.Sprintf("%d (%s)", code, name)
 		}
+		return strconv.Itoa(code)
 	}
-	t.Fatalf("response status code: got %d, want %d", got, want)
+	require.Equalf(t, want, got, "response status code: got %s, want %s", statusToStr(got), statusToStr(want))
 }
 
 func confirmRequestValidationCode(t *testing.T, method, contentType, body string, expectedStatusCode int) {
@@ -43,13 +30,12 @@ func confirmRequestValidationCode(t *testing.T, method, contentType, body string
 	if len(contentType) > 0 {
 		request.Header.Set("Content-Type", contentType)
 	}
-	code, err := validateRequest(request)
+	s := &Server{contentType: contentType, acceptedContentTypes: []string{contentType}}
+	code, err := s.validateRequest(request)
 	if code == 0 {
-		if err != nil {
-			t.Errorf("validation: got error %v, expected nil", err)
-		}
-	} else if err == nil {
-		t.Errorf("validation: code %d: got nil, expected error", code)
+		require.NoError(t, err)
+	} else {
+		require.Errorf(t, err, "code %d", code)
 	}
 	confirmStatusCode(t, code, expectedStatusCode)
 }
@@ -57,21 +43,21 @@ func confirmRequestValidationCode(t *testing.T, method, contentType, body string
 func TestHTTPErrorResponseWithDelete(t *testing.T) {
 	t.Parallel()
 
-	confirmRequestValidationCode(t, http.MethodDelete, contentType, "", http.StatusMethodNotAllowed)
+	confirmRequestValidationCode(t, http.MethodDelete, applicationJsonContentType, "", http.StatusMethodNotAllowed)
 }
 
 func TestHTTPErrorResponseWithPut(t *testing.T) {
 	t.Parallel()
 
-	confirmRequestValidationCode(t, http.MethodPut, contentType, "", http.StatusMethodNotAllowed)
+	confirmRequestValidationCode(t, http.MethodPut, applicationJsonContentType, "", http.StatusMethodNotAllowed)
 }
 
 func TestHTTPErrorResponseWithMaxContentLength(t *testing.T) {
 	t.Parallel()
 
-	body := make([]rune, maxRequestContentLength+1)
+	body := make([]rune, MaxRequestContentLength+1)
 	confirmRequestValidationCode(t,
-		http.MethodPost, contentType, string(body), http.StatusRequestEntityTooLarge)
+		http.MethodPost, applicationJsonContentType, string(body), http.StatusRequestEntityTooLarge)
 }
 
 func TestHTTPErrorResponseWithEmptyContentType(t *testing.T) {
@@ -83,26 +69,40 @@ func TestHTTPErrorResponseWithEmptyContentType(t *testing.T) {
 func TestHTTPErrorResponseWithValidRequest(t *testing.T) {
 	t.Parallel()
 
-	confirmRequestValidationCode(t, http.MethodPost, contentType, "", 0)
+	confirmRequestValidationCode(t, http.MethodPost, applicationJsonContentType, "", 0)
 }
+
+type stubServer struct {
+	t *testing.T
+
+	response  []byte
+	wasCalled bool
+}
+
+func (s *stubServer) ServeSingleRequest(ctx context.Context, r *http.Request, w http.ResponseWriter) {
+	l, err := w.Write(s.response)
+	require.NoError(s.t, err)
+	require.Len(s.t, s.response, l)
+
+	s.wasCalled = true
+}
+
+func (s *stubServer) Stop() {}
 
 func confirmHTTPRequestYieldsStatusCode(t *testing.T, method, contentType, body string, expectedStatusCode int) {
 	t.Helper()
-	s := &transport.Server{}
-	ts := httptest.NewServer(NewServer(s))
+	s := &stubServer{t: t}
+	ts := httptest.NewServer(NewServer(s, plantTextContentType, []string{plantTextContentType}))
 	defer ts.Close()
 
-	request, err := http.NewRequest(method, ts.URL, strings.NewReader(body))
-	if err != nil {
-		t.Fatalf("failed to create a valid HTTP request: %v", err)
-	}
+	request, err := http.NewRequest(method, ts.URL+"?dummy", strings.NewReader(body))
+	require.NoError(t, err, "failed to create a valid HTTP request")
 	if len(contentType) > 0 {
 		request.Header.Set("Content-Type", contentType)
 	}
 	resp, err := http.DefaultClient.Do(request)
-	if err != nil {
-		t.Fatalf("request failed: %v", err)
-	}
+	require.NoError(t, err, "request failed")
+	require.True(t, s.wasCalled)
 	defer resp.Body.Close()
 	confirmStatusCode(t, resp.StatusCode, expectedStatusCode)
 }
@@ -113,31 +113,25 @@ func TestHTTPResponseWithEmptyGet(t *testing.T) {
 	confirmHTTPRequestYieldsStatusCode(t, http.MethodGet, "", "", http.StatusOK)
 }
 
-// This checks that maxRequestContentLength is not applied to the response of a request.
+// This checks that MaxRequestContentLength is not applied to the response of a request.
 func TestHTTPRespBodyUnlimited(t *testing.T) {
 	t.Parallel()
 
-	logger := logging.NewLogger("Test server")
-	const respLength = maxRequestContentLength * 3
+	const respLength = MaxRequestContentLength * 3
+	response := []byte(strings.Repeat("x", respLength))
 
-	s := transport.NewServer(false /* traceRequests */, false /* debugSingleRequests */, logger, 100)
-	defer s.Stop()
-	if err := s.RegisterName("test", largeRespService{respLength}); err != nil {
-		t.Fatal(err)
-	}
-	ts := httptest.NewServer(NewServer(s))
+	s := &stubServer{t: t, response: response}
+	ts := httptest.NewServer(NewServer(s, plantTextContentType, []string{plantTextContentType}))
 	defer ts.Close()
 
-	c := rpc.NewClient(ts.URL, logger)
-	r, err := c.RawCall("test_largeResp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var str string
-	if err := json.Unmarshal(r, &str); err != nil {
-		t.Fatal(err)
-	}
-	if len(str) != respLength {
-		t.Fatalf("response has wrong length %d, want %d", len(r), respLength)
-	}
+	request, err := http.NewRequest(http.MethodGet, ts.URL+"?dummy", strings.NewReader(""))
+	require.NoError(t, err, "failed to create a valid HTTP request")
+	request.Header.Set("Content-Type", plantTextContentType)
+	resp, err := http.DefaultClient.Do(request)
+	require.NoError(t, err, "request failed")
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.True(t, s.wasCalled)
+	require.Len(t, body, respLength, "response has wrong length")
 }

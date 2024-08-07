@@ -32,7 +32,7 @@ func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []
 		HttpPort:          cfg.HttpPort,
 		HttpCompression:   true,
 		TraceRequests:     true,
-		HTTPTimeouts:      rpccfg.DefaultHTTPTimeouts,
+		HTTPTimeouts:      httpcfg.DefaultHTTPTimeouts,
 	}
 
 	base := jsonrpc.NewBaseApi(rpccfg.DefaultEvmCallTimeout)

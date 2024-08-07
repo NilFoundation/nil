@@ -1,14 +1,20 @@
 package transport
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"sync/atomic"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/check"
+	nil_http "github.com/NilFoundation/nil/nil/services/rpc/internal/http"
 	mapset "github.com/deckarep/golang-set"
 	"github.com/rs/zerolog"
 )
@@ -57,9 +63,46 @@ func (s *Server) SetBatchLimit(limit int) {
 	s.batchLimit = limit
 }
 
+func newHTTPServerConn(r *http.Request, w http.ResponseWriter) ServerCodec {
+	conn := &nil_http.HttpServerConn{Writer: w, Request: r}
+	// if the request is a GET request, and the body is empty, we turn the request into fake json rpc request, see below
+	// https://www.jsonrpc.org/historical/json-rpc-over-http.html#encoded-parameters
+	// we however allow for non base64 encoded parameters to be passed
+	if r.Method == http.MethodGet && r.ContentLength == 0 {
+		// default id 1
+		id := `1`
+		idUp := r.URL.Query().Get("id")
+		if idUp != "" {
+			id = idUp
+		}
+		methodUp := r.URL.Query().Get("method")
+		params, _ := url.QueryUnescape(r.URL.Query().Get("params"))
+		param := []byte(params)
+		if pb, err := base64.URLEncoding.DecodeString(params); err == nil {
+			param = pb
+		}
+
+		buf := new(bytes.Buffer)
+		check.PanicIfErr(json.NewEncoder(buf).Encode(Message{
+			ID:     json.RawMessage(id),
+			Method: methodUp,
+			Params: param,
+		}))
+
+		conn.Reader = buf
+	} else {
+		// It's a POST request or whatever, so process it like normal.
+		conn.Reader = io.LimitReader(r.Body, nil_http.MaxRequestContentLength)
+	}
+	return NewCodec(conn)
+}
+
 // ServeSingleRequest reads and processes a single RPC request from the given codec. This
 // is used to serve HTTP connections.
-func (s *Server) ServeSingleRequest(ctx context.Context, codec ServerCodec) {
+func (s *Server) ServeSingleRequest(ctx context.Context, r *http.Request, w http.ResponseWriter) { // codec ServerCodec) {
+	codec := newHTTPServerConn(r, w)
+	defer codec.Close()
+
 	// Don't serve if the server is stopped.
 	if atomic.LoadInt32(&s.run) == 0 {
 		return
