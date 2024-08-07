@@ -27,12 +27,14 @@ func NewVersionInfo() *VersionInfo {
 	for _, curStruct := range SchemesInsideDb {
 		v := reflect.ValueOf(curStruct)
 		for i := range v.NumField() {
-			name := v.Type().Field(i).Name
+			t := v.Type()
+			res = append(res, common.PoseidonHash([]byte(t.String())).Bytes()...)
+
+			name := t.Field(i).Name
 			res = append(res, common.PoseidonHash([]byte(name)).Bytes()...)
 
-			value := v.Field(i).Interface()
-			valueStr := fmt.Sprintf("%v", value)
-			res = append(res, common.PoseidonHash([]byte(valueStr)).Bytes()...)
+			value := fmt.Sprintf("%v", v.Field(i).Interface())
+			res = append(res, common.PoseidonHash([]byte(value)).Bytes()...)
 		}
 	}
 	return &VersionInfo{Version: common.PoseidonHash(res)}
