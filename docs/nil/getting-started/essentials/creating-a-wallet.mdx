@@ -111,7 +111,8 @@ const wallet = new WalletV1({
   client,
   signer,
 });
-const walletAddress = await wallet.getAddressHex();
+
+const walletAddress = wallet.getAddressHex();
 
 await faucet.withdrawToWithRetry(walletAddress, 100000n);
 

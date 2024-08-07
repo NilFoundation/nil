@@ -8,6 +8,7 @@ import { themes as prismThemes } from 'prism-react-renderer';
 
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import remarkCodeSnippets from 'remark-code-snippets';
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -46,7 +47,7 @@ const config = {
           path: "nil",
           routeBasePath: "nil",
           sidebarPath: require.resolve("./sidebar-nil.js"),
-          remarkPlugins: [remarkMath],
+          remarkPlugins: [remarkMath, remarkCodeSnippets],
           rehypePlugins: [rehypeKatex],
           openrpc: {
             openrpcDocument: process.env.OPENRPC_JSON,

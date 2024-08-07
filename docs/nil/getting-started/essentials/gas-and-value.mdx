@@ -1,0 +1,660 @@
+# Gas and value
+
+This tutorial defines how =nil; treats gas and message value. 
+
+## Definition 
+
+In nil;, every message has two fields responsible for handling gas and value:
+
+* `FeeCredit`
+* `Value`
+
+`FeeCredit` contains the amount of =nil; base tokens to be paid for message execution. This is different from regular Ethereum in that there is no base fee or the premium fee. Instead, `FeeCredit` is the gas limit (the maximum possible amount of gas the message sender is willing to pay) multiplied by the possible gas price within a specific shard.
+
+:::info
+
+`FeeCredit` is an estimate created by the message sender rather than a precisely calculated message execution fee.
+
+:::
+
+`Value` is the amount of tokens to be transferred to the address where the message is sent. These tokens are not used for message execution and, instead, are debited to the receiving address.
+
+:::info
+
+If a message is made to a non-payable function, and `Value` is not zero, execution will be reverted as the contract will not be able to accept the transferred tokens. 
+
+:::
+
+## Basic example
+
+This Nil.js example sends a message from the user's wallet to another contract. It estimates the gas price to be `10n` and is willing to pay for a maximum of `100_000n` units of gas. 
+
+```typescript showLineNumbers
+const hash = await wallet.sendMessage({
+  to: CONTRACT_ADDRESS,
+  value: 0n,
+  bounceTo: BOUNCE_ADDRESS,
+  feeCredit: 100_000n * 10n,
+  data: encodeFunctionData({
+    abi: CONTRACT_ABI,
+    functionName: "func_name()",
+    args: [ARGS],
+  }),
+});
+```
+
+If the receiver contract has a payable function, the wallet would be able to send the following message.
+
+```typescript showLineNumbers
+const hash = await wallet.sendMessage({
+  to: CONTRACT_ADDRESS,
+  value: 5_000_000n,
+  bounceTo: BOUNCE_ADDRESS,
+  feeCredit: 100_000n * 10n,
+  data: encodeFunctionData({
+    abi: CONTRACT_ABI,
+    functionName: "payable_func_name()",
+    args: [ARGS],
+  }),
+});
+```
+
+## Gas forwarding
+
+Gas forwarding applies to cases where an async call to one contract triggers a chain of async calls to other contracts:
+
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#5e5e5e',
+      'mainBkg': '#5e5e5e',
+      'background': '#5e5e5e',
+      'primaryTextColor': '#fff',
+      'primaryBorderColor': '#fff',
+      'lineColor': '#b0aca2',
+      'secondaryColor': '#000',
+      'noteTextColor': '#fff',
+      'tertiaryColor': '#696969',
+      'textColor': '#fff',
+      'tertiaryTextColor': '#fff',
+      'noteBkgColor': '#000'
+    }
+  }
+}%%
+flowchart LR
+    WL([Wallet])
+    CA([Contract A])
+    CB([Contract B])
+    CC([Contract C])
+    subgraph Shard 1
+      WL
+    end
+    subgraph Shard 2
+      CA
+    end
+    subgraph Shard 3
+      CB
+    end
+    subgraph Shard 4
+      CC
+    end
+    WL -->|Async call to Contract A|CA
+    CA --> |Call execution|CA
+    CA -->|Async call to Contract B|CB
+    CA -->|Async call to Contract C|CC
+```
+
+Consider this flow:
+
+* The wallet sets `FeeCredit` to `500_000` and asynchronously calls Contract A
+* The message is executed for `200_000`, leaving `300_000` tokens unused
+* As part of executing the initial message from the wallet, Contract A must send async calls to Contract B and Contract C requiring at least `150_000` and `350_000` `FeeCredit`, respectively
+* Contract A must decide how it will pay for these calls
+
+=nil; provides five possible options on how Contract A can handle forwarding tokens for executing subsequent calls. These options are set via the `uint8 forwardKind` argument when using `asyncCall()`:
+
+```solidity showLineNumbers
+function asyncCall(
+    ...
+    address bounceTo,
+    uint feeCredit,
+    uint8 forwardKind,
+    ...
+)
+```
+
+### No gas forwarding
+
+The wallet can set some `FeeCredit` and send some tokens to Contract A:
+
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#5e5e5e',
+      'mainBkg': '#5e5e5e',
+      'background': '#5e5e5e',
+      'primaryTextColor': '#fff',
+      'primaryBorderColor': '#fff',
+      'lineColor': '#b0aca2',
+      'secondaryColor': '#000',
+      'noteTextColor': '#fff',
+      'tertiaryColor': '#696969',
+      'textColor': '#fff',
+      'tertiaryTextColor': '#fff',
+      'noteBkgColor': '#000'
+    }
+  }
+}%%
+flowchart LR
+    WL([Wallet])
+    CA([Contract A])
+    CAB([Balance = 500_000])
+    CAG([FeeCredit = 0])
+    CB([Contract B])
+    CC([Contract C])
+    subgraph Shard 1
+      WL
+    end
+    subgraph Shard 2
+      CA
+      CAG
+      CAB
+    end
+    subgraph Shard 3
+      CB
+    end
+    subgraph Shard 4
+      CC
+    end
+    WL -- "`Async call to Contract A
+    **FeeCredit = 200_000**
+    **Value = 500_000**`" --> CA
+    CAG --> |Call execution for 100_000n tokens|CAG
+    CAB -- "`Async call to Contract B
+    **FeeCredit = 150_000**
+    `" --> CB
+    CAB -- "`Async call to Contract C
+    **FeeCredit = 350_000**
+    `" --> CC
+```
+
+In the above flow:
+
+* The wallet sets `FeeCredit` to `200_000` and asynchronously calls Contract A. The wallet also sends `500_000` tokens as `Value`
+* The message is executed for `100_000`, leaving another `100_000` of `FeeCredit` available
+* Instead of forwarding the leftover `FeeCredit`, Contract A pays for async calls to Contract B and Contract C from its balance
+
+This is how Contract A calls Contract B:
+
+```solidity showLineNumbers
+function callContractB(
+    Nil.asyncCall(
+        CONTRACT_B_ADDRESS,
+        ...
+        150000,
+        Nil.FORWARD_NONE,
+        ...
+    );
+)
+```
+
+And Contract C:
+
+```solidity showLineNumbers
+function callContractC(
+    Nil.asyncCall(
+        CONTRACT_C_ADDRESS,
+        ...
+        350000,
+        Nil.FORWARD_NONE,
+        ...
+    );
+)
+```
+
+### Forwarding by absolute value
+
+The wallet only sets `FeeCredit` and does not send any tokens to Contract A:
+
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#5e5e5e',
+      'mainBkg': '#5e5e5e',
+      'background': '#5e5e5e',
+      'primaryTextColor': '#fff',
+      'primaryBorderColor': '#fff',
+      'lineColor': '#b0aca2',
+      'secondaryColor': '#000',
+      'noteTextColor': '#fff',
+      'tertiaryColor': '#696969',
+      'textColor': '#fff',
+      'tertiaryTextColor': '#fff',
+      'noteBkgColor': '#000'
+    }
+  }
+}%%
+flowchart LR
+    WL([Wallet])
+    CA([Contract A])
+    CAB([Balance = 0])
+    CAG([FeeCredit = 500_000])
+    CB([Contract B])
+    CC([Contract C])
+    subgraph Shard 1
+      WL
+    end
+    subgraph Shard 2
+      CA
+      CAG
+      CAB
+    end
+    subgraph Shard 3
+      CB
+    end
+    subgraph Shard 4
+      CC
+    end
+    WL -- "`Async call to Contract A
+    **FeeCredit = 600_000**
+    **Value = 0**`" --> CA
+    CAG --> |Call execution for 100_000n tokens|CAG
+    CAG -- "`Async call to Contract B
+    **FeeCredit = 150_000**
+    `" --> CB
+    CAG -- "`Async call to Contract C
+    **FeeCredit = 350_000**
+    `" --> CC
+```
+
+In the above flow:
+
+* The wallet sets `FeeCredit` to `600_000` and asynchronously calls Contract A. No tokens are sent to Contract A directly
+* The message is executed for `100_000`, leaving another `500_000` of `FeeCredit` available
+* Contract A forwards the leftover `FeeCredit` to pay for execution of Contract B (`150_000`) and Contract C (`350_000`)
+
+Here is how Contract A calls Contract B:
+
+```solidity showLineNumbers
+function callContractB(
+    Nil.asyncCall(
+        CONTRACT_B_ADDRESS,
+        ...
+        150000,
+        Nil.FORWARD_VALUE,
+        ...
+    );
+)
+```
+
+And Contract C:
+
+```solidity showLineNumbers
+function callContractC(
+    Nil.asyncCall(
+        CONTRACT_C_ADDRESS,
+        ...
+        350000,
+        Nil.FORWARD_VALUE,
+        ...
+    );
+)
+```
+
+### Forwarding by percentage
+
+Similarly to forwarding by value, the wallet only sets `FeeCredit` and does not send any tokens to Contract A:
+
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#5e5e5e',
+      'mainBkg': '#5e5e5e',
+      'background': '#5e5e5e',
+      'primaryTextColor': '#fff',
+      'primaryBorderColor': '#fff',
+      'lineColor': '#b0aca2',
+      'secondaryColor': '#000',
+      'noteTextColor': '#fff',
+      'tertiaryColor': '#696969',
+      'textColor': '#fff',
+      'tertiaryTextColor': '#fff',
+      'noteBkgColor': '#000'
+    }
+  }
+}%%
+flowchart LR
+    WL([Wallet])
+    CA([Contract A])
+    CAB([Balance = 0])
+    CAG([FeeCredit = 500_000])
+    CB([Contract B])
+    CC([Contract C])
+    subgraph Shard 1
+      WL
+    end
+    subgraph Shard 2
+      CA
+      CAG
+      CAB
+    end
+    subgraph Shard 3
+      CB
+    end
+    subgraph Shard 4
+      CC
+    end
+    WL -- "`Async call to Contract A
+    **FeeCredit = 600_000**
+    **Value = 0**`" --> CA
+    CAG --> |Call execution for 100_000 tokens|CAG
+    CAG -- "`Async call to Contract B
+    **FeeCredit = 150_000**
+    `" --> CB
+    CAG -- "`Async call to Contract C
+    **FeeCredit = 350_000**
+    `" --> CC
+```
+
+The basic flow is also similar to forwarding by value:
+
+* The wallet sets `FeeCredit` to `600_000` and asynchronously calls Contract A. No tokens are sent to Contract A directly
+* The message is executed for `100_000`, leaving another `500_000` of `FeeCredit` available
+* Contract A forwards the leftover `FeeCredit` to pay for execution of Contract B (`150_000`) and Contract C (`500_000`)
+
+There is one major difference between forwarding by percentage and forwarding by value, and it is in how Contract A calls other contracts. Contract B:
+
+```solidity showLineNumbers
+function callContractB(
+    Nil.asyncCall(
+        CONTRACT_B_ADDRESS,
+        ...
+        30,
+        Nil.FORWARD_PERCENTAGE,
+        ...
+    );
+)
+```
+
+Contract C:
+
+```solidity showLineNumbers
+function callContractC(
+    Nil.asyncCall(
+        CONTRACT_C_ADDRESS,
+        ...
+        70,
+        Nil.FORWARD_PERCENTAGE,
+        ...
+    );
+)
+```
+
+Instead of specifying absolute values in the `feeCredit` argument, Contract A sets percentages of the leftover `FeeCredit` it sends to Contract B and Contract C.
+
+### Forwarding by equal split
+
+:::info
+
+Forwarding by equal split is the default option if the `forwardKind` argument is not specified when calling `asyncCall()`.
+
+:::
+
+The wallet only sets `FeeCredit` and does not send any tokens to Contract A:
+
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#5e5e5e',
+      'mainBkg': '#5e5e5e',
+      'background': '#5e5e5e',
+      'primaryTextColor': '#fff',
+      'primaryBorderColor': '#fff',
+      'lineColor': '#b0aca2',
+      'secondaryColor': '#000',
+      'noteTextColor': '#fff',
+      'tertiaryColor': '#696969',
+      'textColor': '#fff',
+      'tertiaryTextColor': '#fff',
+      'noteBkgColor': '#000'
+    }
+  }
+}%%
+flowchart LR
+    WL([Wallet])
+    CA([Contract A])
+    CAB([Balance = 0])
+    CAG([FeeCredit = 500_000])
+    CB([Contract B])
+    CC([Contract C])
+    subgraph Shard 1
+      WL
+    end
+    subgraph Shard 2
+      CA
+      CAG
+      CAB
+    end
+    subgraph Shard 3
+      CB
+    end
+    subgraph Shard 4
+      CC
+    end
+    WL -- "`Async call to Contract A
+    **FeeCredit = 600_000**
+    **Value = 0**`" --> CA
+    CAG --> |Call execution for 100_000 tokens|CAG
+    CAG -- "`Async call to Contract B
+    **FeeCredit = 250_000**
+    `" --> CB
+    CAG -- "`Async call to Contract C
+    **FeeCredit = 250_000**
+    `" --> CC
+```
+
+
+In the above flow:
+
+* The wallet sets `FeeCredit` to `600_000` and asynchronously calls Contract A. No tokens are sent to Contract A directly
+* The message is executed for `100_000`, leaving another `500_000` of `FeeCredit` available
+* Contract A forwards the leftover `FeeCredit` to pay for execution of Contract B (`250_000`) and Contract C (`250_000`)
+
+Note that Contract A splits the leftover `FeeCredit` equally between Contract B and Contract C. Here is how it calls Contract B:
+
+```solidity showLineNumbers
+function callContractB(
+    Nil.asyncCall(
+        CONTRACT_B_ADDRESS,
+        ...
+        Nil.FORWARD_REMAINING,
+        ...
+    );
+)
+```
+
+Contract C:
+
+```solidity showLineNumbers
+function callContractC(
+    Nil.asyncCall(
+        CONTRACT_C_ADDRESS,
+        ...
+        Nil.FORWARD_PERCENTAGE,
+        ...
+    );
+)
+```
+
+The `feeCredit` argument is not specified in both uses of `asyncCall()`. As `FORWARD_PERCENTAGE` is the default option, it can be omitted as well.
+
+### Mixed forwarding
+
+Contract A can also specify several different types of forwarding when calling other contracts:
+
+```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#5e5e5e',
+      'mainBkg': '#5e5e5e',
+      'background': '#5e5e5e',
+      'primaryTextColor': '#fff',
+      'primaryBorderColor': '#fff',
+      'lineColor': '#b0aca2',
+      'secondaryColor': '#000',
+      'noteTextColor': '#fff',
+      'tertiaryColor': '#696969',
+      'textColor': '#fff',
+      'tertiaryTextColor': '#fff',
+      'noteBkgColor': '#000'
+    }
+  }
+}%%
+flowchart LR
+    WL([Wallet])
+    CA([Contract A])
+    CAB([Balance = 300_000])
+    CAG([FeeCredit = 500_000])
+    CB([Contract B])
+    CC([Contract C])
+    CD([Contract D])
+    CE([Contract E])
+    CF([Contract F])
+    subgraph Shard 1
+      WL
+    end
+    subgraph Shard 2
+      CA
+      CAG
+      CAB
+    end
+    subgraph Shard 3
+      CB
+    end
+    subgraph Shard 4
+      CC
+    end
+    subgraph Shard 5
+      CD
+      CE
+      CF
+    end
+    WL -- "`Async call to Contract A
+    **FeeCredit = 1_000_000**
+    **Value = 300_000**`" --> CA
+    CAG --> |Call execution for 100_000 tokens|CAG
+    CAB -- "`Async call to Contract B
+    **FeeCredit = 300_000**
+    `" --> CB
+    CAG -- "`Async call to Contract C
+    **FeeCredit = 350_000**
+    `" --> CC
+    CAG -- "`Async call to Contract D
+    **FeeCredit = 300_000**
+    `" --> CD
+    CAG -- "`Async call to Contract E
+    **FeeCredit = 150_000**
+    `" --> CE
+    CAG -- "`Async call to Contract F
+    **FeeCredit = 150_000**
+    `" --> CF
+```
+
+In the above flow:
+
+* The wallet sets `FeeCredit` to `1_000_000` and asynchronously calls Contract A. The wallet also sends `300_000` to the balance of Contract A
+* The message is executed for `100_000`, leaving another `900_000` of `FeeCredit` available
+* Contract A sends its balance to pay for execution of Contract B (`300_000`), no gas is forwarded
+* Contract A forwards some of its leftover gas to pay for execution of Contract C (`350_000`), gas is forwarded by absolute value
+* Contract A forwards some of its leftover gas to pay for the execution of Contract D (`300_000`), gas is forwarded by percentage
+* Contract A forwards the remaining gas by equal split to Contract E and Contract F
+
+:::info[Order of forwarding]
+
+When percentage forwarding is used in mixed forwarding, it is calculated first. For example, if there is `900_000` leftover `FeeCredit` and `300_000` is forwarded by value to other contracts while 30% is forwarded by percentage, 30% would still equal `300_000`. 
+
+Conversely, equal split forwarding is always calculated last. In the above example, only `300_000` leftover `FeeCredit` will be left after calculating value and percentage forwarding. This amount will be split equally among the remaining contracts to be called.
+
+:::
+
+Here is how Contract A calls Contract B:
+
+```solidity showLineNumbers
+function callContractB(
+    Nil.asyncCall(
+        CONTRACT_B_ADDRESS,
+        ...
+        300000,
+        Nil.FORWARD_NONE,
+        ...
+    );
+)
+```
+
+Contract C:
+
+```solidity showLineNumbers
+function callContractC(
+    Nil.asyncCall(
+        CONTRACT_C_ADDRESS,
+        ...
+        350000,
+        Nil.FORWARD_VALUE,
+        ...
+    );
+)
+```
+
+Contract D:
+
+```solidity showLineNumbers
+function callContractD(
+    Nil.asyncCall(
+        CONTRACT_D_ADDRESS,
+        ...
+        30,
+        Nil.FORWARD_PERCENTAGE,
+        ...
+    );
+)
+```
+
+Contract E:
+
+```solidity showLineNumbers
+function callContractE(
+    Nil.asyncCall(
+        CONTRACT_E_ADDRESS,
+        ...
+        Nil.FORWARD_REMAINING,
+        ...
+    );
+)
+```
+
+Contract F:
+
+```solidity showLineNumbers
+function callContractF(
+    Nil.asyncCall(
+        CONTRACT_F_ADDRESS,
+        ...
+        Nil.FORWARD_REMAINING,
+        ...
+    );
+)
+```
+
+

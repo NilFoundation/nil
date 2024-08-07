@@ -61,8 +61,8 @@ import {
 
 const hashMessage = await wallet.sendMessage({
   to: MINTER_ADDRESS,
-  gas: 1_000_000n,
-  value: 100_000_000n,
+  feeCredit: 1_000_000n,
+  value: 0n,
   data: encodeFunctionData({
     abi: MINTER_ABI,
     functionName: "create",
@@ -86,8 +86,8 @@ import { encodeFunctionData } from "viem";
 
 const hashMessage = await wallet.sendMessage({
   to: MINTER_ADDRESS,
-  gas: 1_000_000n,
-  value: 100_000_000n,
+  feeCredit: 1_000_000n,
+  value: 0n,
   data: encodeFunctionData({
     abi: MINTER_ABI,
     functionName: "mint",
@@ -111,8 +111,8 @@ import { encodeFunctionData } from "viem";
 
 const hashMessage = await wallet.sendMessage({
   to: MINTER_ADDRESS,
-  gas: 1_000_000n,
-  value: 100_000_000n,
+  feeCredit: 1_000_000n,
+  value: 0n,
   data: encodeFunctionData({
     abi: MINTER_ABI,
     functionName: "withdraw",
@@ -226,8 +226,8 @@ Create a new currency for Wallet 1 and withdraw it:
 ```ts showLineNumbers
 const currencyCreationMessage = await wallet.sendMessage({
   to: MINTER_ADDRESS,
-  gas: 500_000n,
-  value: 100_000_000n,
+  feeCredit: 1_000_000n,
+  value: 0n,
   data: encodeFunctionData({
     abi: MINTER_ABI,
     functionName: "create",
@@ -243,8 +243,8 @@ Create a new currency for Wallet 2 and send it to Wallet 1:
 ```ts showLineNumbers
 const currencyCreationMessageTwo = await walletTwo.sendMessage({
   to: MINTER_ADDRESS,
-  gas: 500_000n,
-  value: 100_000_000n,
+  feeCredit: 1_000_000n,
+  value: 0n,
   data: encodeFunctionData({
     abi: MINTER_ABI,
     functionName: "create",

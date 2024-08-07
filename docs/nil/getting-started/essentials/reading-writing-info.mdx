@@ -77,8 +77,8 @@ const data = encodeFunctionData({
 const messageHash = await wallet.sendMessage({
     to: '{CONTRACT_ADDRESS}',
     data: data,
-    value: 1000000n,
-    gas: 100000n
+    value: 100_000n,
+    feeCredit: 1_000_000n
 });
 
 await waitTillCompleted(client, 1, messageHash);

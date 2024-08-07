@@ -1,0 +1,1302 @@
+{
+  "components": {
+    "schemas": {
+      "Address": {
+        "title": "address",
+        "type": "string",
+        "description": "The address of the account or contract."
+      },
+      "Balance": {
+        "title": "balance",
+        "type": "integer",
+        "description": "The balance of the account."
+      },
+      "BlockHash": {
+        "title": "hash",
+        "type": "string",
+        "description": "The hash of the block whose information is requested."
+      },
+      "BlockNumber": {
+        "title": "blockNumber",
+        "type": "integer",
+        "description": "The number of the block whose information is requested."
+      },
+      "BlockNumberOrHash": {
+        "title": "blockNumberOrHash",
+        "type": "object",
+        "description": "The number/hash of the block.",
+        "properties": {
+          "BlockHash": {
+            "title": "blockHash",
+            "type": "string",
+            "description": "(Optional) The hash of the block. Either this or BlockNumber is required."
+          },
+          "BlockNumber": {
+            "title": "blockNumber",
+            "type": "integer",
+            "description": "(Optional) The number of the block. Either this or BlockHash is required."
+          },
+          "RequireCanonical": {
+            "title": "requireCanonical",
+            "type": "boolean",
+            "description": "The flag that determines whether the block must be a part of the canonical chain."
+          }
+        },
+        "required": [
+          "RequireCanonical"
+        ]
+      },
+      "BlockShardId": {
+        "title": "shardId",
+        "type": "integer",
+        "description": "The ID of the shard where the block was generated."
+      },
+      "CallArgs": {
+        "title": "callArgs",
+        "type": "object",
+        "description": "The arguments for the message call.",
+        "properties": {
+          "Data": {
+            "title": "data",
+            "type": "string",
+            "description": "The encoded bytecode of the message."
+          },
+          "From": {
+            "title": "from",
+            "type": "string",
+            "description": "The address from which the message must be called."
+          },
+          "GasLimit": {
+            "title": "gasLimit",
+            "type": "string",
+            "description": "The gas limit for the message."
+          },
+          "GasPrice": {
+            "title": "gasPrice",
+            "type": "string",
+            "description": "The gas price for the message."
+          },
+          "Input": {
+            "title": "input",
+            "type": "string",
+            "description": "The message input."
+          },
+          "Seqno": {
+            "title": "seqno",
+            "type": "integer",
+            "description": "The sequence number of the message."
+          },
+          "Value": {
+            "title": "value",
+            "type": "integer",
+            "description": "The message value."
+          }
+        },
+        "required": [
+          "From",
+          "GasLimit",
+          "Value",
+          "Seqno",
+          "Data"
+        ]
+      },
+      "ChainId": {
+        "title": "chainId",
+        "type": "integer",
+        "description": "The chain ID of the network."
+      },
+      "ContractBytecode": {
+        "title": "contractBytecode",
+        "type": "string",
+        "description": "The bytecode of the contract."
+      },
+      "Encoded": {
+        "title": "encoded",
+        "type": "string",
+        "description": "The encoded bytecode of the message."
+      },
+      "FilterChanges": {
+        "title": "filterChanges",
+        "type": "array",
+        "description": "The array of logs, block headers or pending transactions that have occurred since the last poll of the filter."
+      },
+      "FilterId": {
+        "title": "id",
+        "type": "string",
+        "description": "The ID of the filter."
+      },
+      "FilterLogs": {
+        "title": "filterLogs",
+        "type": "array",
+        "description": "The array of logs that have been recorded since the last poll of the filter."
+      },
+      "FilterQuery": {
+        "title": "filterQuery",
+        "type": "object",
+        "description": "The query structure of the filter.",
+        "properties": {
+          "Addresses": {
+            "title": "addresses",
+            "type": "array",
+            "description": "The addresses of the accounts/contracts the logs for whose events should be retrieved by the filter."
+          },
+          "BlockHash": {
+            "title": "blockHash",
+            "type": "string",
+            "description": "The hash of the blocks whose logs should be retrieved by the filter."
+          },
+          "FromBlock": {
+            "title": "fromBlock",
+            "type": "integer",
+            "description": "The beginning of the range of the blocks whose logs should be retrieved by the filter."
+          },
+          "ToBlock": {
+            "title": "toBlock",
+            "type": "integer",
+            "description": "The end of the range of the blocks whose logs should be retrieved by the filter."
+          },
+          "Topics": {
+            "title": "topics",
+            "type": "array",
+            "description": "The topics of the events whose lgos should be retrieved by the filter."
+          }
+        },
+        "required": [
+          "Addresses",
+          "Topics"
+        ]
+      },
+      "FullTx": {
+        "title": "fullTx",
+        "type": "boolean",
+        "description": "The flag that determines whether full transaction information is returned in the output."
+      },
+      "GasPrice": {
+        "title": "gasPrice",
+        "type": "integer",
+        "description": "The current gas price in the given shard."
+      },
+      "GasShardId": {
+        "title": "shardId",
+        "type": "integer",
+        "description": "The ID of the shard whose gas price is requested."
+      },
+      "IsDeleted": {
+        "title": "isDeleted",
+        "type": "boolean",
+        "description": "The flag that shows whether the filter has been successfully deleted."
+      },
+      "MessageBytecode": {
+        "title": "code",
+        "type": "string",
+        "description": "The bytecode of the requested message."
+      },
+      "MessageHash": {
+        "title": "hash",
+        "type": "string",
+        "description": "The hash of the message."
+      },
+      "MessageIndex": {
+        "title": "index",
+        "type": "integer",
+        "description": "The index of the message whose information is requested."
+      },
+      "MessageShardId": {
+        "title": "shardId",
+        "type": "integer",
+        "description": "The ID of the shard where the message was recorded."
+      },
+      "PollFilterId": {
+        "title": "id",
+        "type": "string",
+        "description": "The ID of the filter that should be polled."
+      },
+      "RPCBlock": {
+        "title": "rpcBlock",
+        "type": "object",
+        "description": "The block whose information was requested.",
+        "properties": {
+          "Hash": {
+            "title": "hash",
+            "type": "string",
+            "description": "The hash of the block."
+          },
+          "Messages": {
+            "title": "messages",
+            "type": "array",
+            "description": "The messages included in the block."
+          },
+          "Number": {
+            "title": "number",
+            "type": "integer",
+            "description": "The block number."
+          },
+          "ParentHash": {
+            "title": "parentHash",
+            "type": "string",
+            "description": "The hash of the parent block."
+          },
+          "ReceiptsRoot": {
+            "title": "receiptsRoot",
+            "type": "string",
+            "description": "The root of the block receipts."
+          },
+          "ShardId": {
+            "title": "shardId",
+            "type": "integer",
+            "description": "The ID of the shard where the block was generated."
+          }
+        },
+        "required": [
+          "Hash",
+          "Messages",
+          "Number",
+          "ParentHash",
+          "ReceiptsRoot",
+          "ShardId"
+        ]
+      },
+      "RPCInMessage": {
+        "title": "rpcInMessage",
+        "type": "object",
+        "description": "The message whose information is requested.",
+        "properties": {
+          "BlockHash": {
+            "title": "blockHash",
+            "type": "string",
+            "description": "The hash of the block containing the message."
+          },
+          "BlockNumber": {
+            "title": "blockNumber",
+            "type": "integer",
+            "description": "The number of the block containin the message."
+          },
+          "ChainId": {
+            "title": "chainId",
+            "type": "integer",
+            "description": "The number of the chain containing the message."
+          },
+          "Currency": {
+            "title": "value",
+            "type": "array",
+            "description": "Currency values."
+          },
+          "From": {
+            "title": "from",
+            "type": "string",
+            "description": "The address from where the message was sent."
+          },
+          "GasLimit": {
+            "title": "gasLimit",
+            "type": "string",
+            "description": "The gas limit for the message."
+          },
+          "GasPrice": {
+            "title": "gasPrice",
+            "type": "string",
+            "description": "The gas price paid for the message."
+          },
+          "GasUsed": {
+            "title": "gasUsed",
+            "type": "string",
+            "description": "The amount of gas spent on the message."
+          },
+          "Hash": {
+            "title": "hash",
+            "type": "string",
+            "description": "The message hash."
+          },
+          "Index": {
+            "title": "index",
+            "type": "string",
+            "description": "The message index."
+          },
+          "Seqno": {
+            "title": "seqno",
+            "type": "string",
+            "description": "The sequence number of the message."
+          },
+          "Signature": {
+            "title": "signature",
+            "type": "string",
+            "description": "The message signature."
+          },
+          "Success": {
+            "title": "success",
+            "type": "boolean",
+            "description": "The flag that shows whether the message was successful."
+          },
+          "To": {
+            "title": "to",
+            "type": "string",
+            "description": "The address where the message was sent."
+          },
+          "Value": {
+            "title": "value",
+            "type": "string",
+            "description": "The message value."
+          }
+        },
+        "required": [
+          "BlockHash",
+          "BlockNumber",
+          "ChainId",
+          "From",
+          "GasLimit",
+          "GasPrice",
+          "GasUsed",
+          "Hash",
+          "Index",
+          "Seqno",
+          "Signature",
+          "Success",
+          "To",
+          "Value",
+          "Currency"
+        ]
+      },
+      "RPCReceipt": {
+        "title": "rpcReceipt",
+        "type": "object",
+        "description": "The receipt whose structure is requested.",
+        "properties": {
+          "BlockHash": {
+            "title": "blockHash",
+            "type": "string",
+            "description": "The hash of the block containing the message whose receipt is requested."
+          },
+          "BlockNumber": {
+            "title": "blockNumber",
+            "type": "integer",
+            "description": "The number of the block containin the message whose receipt is requested."
+          },
+          "Bloom": {
+            "title": "bloom",
+            "type": "string",
+            "description": "The receipt bloom filter."
+          },
+          "ContractAddress": {
+            "title": "contractAddress",
+            "type": "string",
+            "description": "The address of the contract that has originated the message whose receipt is requested."
+          },
+          "ErrorMessage": {
+            "title": "errorMessage",
+            "type": "string",
+            "description": "The error in case the message processing was unsuccessful."
+          },
+          "GasUsed": {
+            "title": "gasUsed",
+            "type": "string",
+            "description": "The amount of gas spent on the message whose receipt is requested."
+          },
+          "Logs": {
+            "title": "logs",
+            "type": "array",
+            "description": "The logs attached to the receipt."
+          },
+          "MessageHash": {
+            "title": "messageHash",
+            "type": "string",
+            "description": "The hash of the message whose receipt is requested."
+          },
+          "MessageIndex": {
+            "title": "messageIndex",
+            "type": "integer",
+            "description": "The index of the message whose receipt is requested."
+          },
+          "OutMsgIndex": {
+            "title": "outMsgIndex",
+            "type": "integer",
+            "description": "The index of the outgoing message whose receipt is requested."
+          },
+          "OutMsgNum": {
+            "title": "outMsgNum",
+            "type": "integer",
+            "description": "The number of the outgoing messages whose receipt is requested."
+          },
+          "OutReceipts": {
+            "title": "outputReceipts",
+            "type": "array",
+            "description": "Receipts of the outgoing messages. Set to nil for messages that have not yet been processed."
+          },
+          "Success": {
+            "title": "success",
+            "type": "boolean",
+            "description": "The flag that shows whether the message was successful."
+          },
+          "Temporary": {
+            "title": "temporary",
+            "type": "boolean",
+            "description": "The flag that shows whether the message is temporary."
+          }
+        },
+        "required": [
+          "BlockHash",
+          "BlockNumber",
+          "Bloom",
+          "ContractAddress",
+          "GasUsed",
+          "Logs",
+          "MessageHash",
+          "MessageIndex",
+          "OutMsgIndex",
+          "OutMsgNum",
+          "OutReceipts",
+          "Success"
+        ]
+      },
+      "ReturnedValue": {
+        "title": "returnedValue",
+        "type": "string",
+        "description": "The returned value of the executed contract."
+      },
+      "ShardIds": {
+        "title": "shardIds",
+        "type": "array",
+        "description": "The array of shard IDs."
+      },
+      "TransactionCount": {
+        "title": "transactionCount",
+        "type": "integer",
+        "description": "The transaction count of the account."
+      },
+      "TransactionNumber": {
+        "title": "transactionNumber",
+        "type": "integer",
+        "description": "The number of transactions contained within the block."
+      },
+      "UninstallFilterId": {
+        "title": "id",
+        "type": "string",
+        "description": "The ID of the filter that should be uninstalled."
+      }
+    },
+    "tags": {
+      "Accounts": {
+        "description": "Methods for interacting with accounts.",
+        "name": "Accounts"
+      },
+      "Blocks": {
+        "description": "Methods for interacting with blocks.",
+        "name": "Blocks"
+      },
+      "Calls": {
+        "description": "Methods for calling messages.",
+        "name": "Sending"
+      },
+      "Filters": {
+        "description": "Methods for interacting with filters.",
+        "name": "Filters"
+      },
+      "Messages": {
+        "description": "Methods for interacting with messages.",
+        "name": "Messages"
+      },
+      "Receipts": {
+        "description": "Methods for interacting with receipts.",
+        "name": "Receipts"
+      },
+      "Shards": {
+        "description": "Methods for interacting with shards.",
+        "name": "Shards"
+      },
+      "System": {
+        "description": "System methods.",
+        "name": "System"
+      },
+      "Transactions": {
+        "description": "Methods for interacting with transactions.",
+        "name": "Transactions"
+      }
+    }
+  },
+  "info": {
+    "description": "This section lists the JSON-RPC methods exposed by the =nil; RPC node.",
+    "title": "JSON-RPC API",
+    "version": "1.0.0"
+  },
+  "methods": [
+    {
+      "name": "GetBlockByNumber",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Blocks"
+        }
+      ],
+      "summary": "Returns information about a block with the given number.",
+      "description": "Implements eth_getBlockByNumber.",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/BlockShardId"
+          }
+        },
+        {
+          "name": "blockNumber",
+          "schema": {
+            "$ref": "#/components/schemas/BlockNumber"
+          }
+        },
+        {
+          "name": "fullTx",
+          "schema": {
+            "$ref": "#/components/schemas/FullTx"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "rpcBlock",
+        "schema": {
+          "$ref": "#/components/schemas/RPCBlock"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetBlockByHash",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Blocks"
+        }
+      ],
+      "summary": "Returns information about a block with the given hash.",
+      "description": "Implements eth_getBlockByHash.",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/BlockShardId"
+          }
+        },
+        {
+          "name": "hash",
+          "schema": {
+            "$ref": "#/components/schemas/BlockHash"
+          }
+        },
+        {
+          "name": "fullTx",
+          "schema": {
+            "$ref": "#/components/schemas/FullTx"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "rpcBlock",
+        "schema": {
+          "$ref": "#/components/schemas/RPCBlock"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetBlockTransactionCountByNumber",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Blocks"
+        }
+      ],
+      "summary": "Returns the total number of transactions recorded in the block with the given number.",
+      "description": "Implements eth_getBlockTransactionCountByNumber.",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/BlockShardId"
+          }
+        },
+        {
+          "name": "number",
+          "schema": {
+            "$ref": "#/components/schemas/BlockNumber"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "transactionNumber",
+        "schema": {
+          "$ref": "#/components/schemas/TransactionNumber"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetBlockTransactionCountByHash",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Blocks"
+        }
+      ],
+      "summary": "Returns the total number of transactions recorded in the block with the given hash.",
+      "description": "Implements eth_getBlockTransactionCountByHash.",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/BlockShardId"
+          }
+        },
+        {
+          "name": "hash",
+          "schema": {
+            "$ref": "#/components/schemas/BlockHash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "transactionNumber",
+        "schema": {
+          "$ref": "#/components/schemas/TransactionNumber"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetInMessageByHash",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Messages"
+        }
+      ],
+      "summary": "Returns the structure of the internal message with the given hash.",
+      "description": "",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/MessageShardId"
+          }
+        },
+        {
+          "name": "hash",
+          "schema": {
+            "$ref": "#/components/schemas/MessageHash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "rpcInMessage",
+        "schema": {
+          "$ref": "#/components/schemas/RPCInMessage"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetInMessageByBlockHashAndIndex",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Messages"
+        }
+      ],
+      "summary": "Returns the structure of the internal message with the given index and contained within the block with the given hash.",
+      "description": "",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/MessageShardId"
+          }
+        },
+        {
+          "name": "hash",
+          "schema": {
+            "$ref": "#/components/schemas/BlockHash"
+          }
+        },
+        {
+          "name": "index",
+          "schema": {
+            "$ref": "#/components/schemas/MessageIndex"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "rpcInMessage",
+        "schema": {
+          "$ref": "#/components/schemas/RPCInMessage"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetInMessageByBlockNumberAndIndex",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Messages"
+        }
+      ],
+      "summary": "Returns the structure of the internal message with the given index and contained within the block with the given number.",
+      "description": "",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/MessageShardId"
+          }
+        },
+        {
+          "name": "number",
+          "schema": {
+            "$ref": "#/components/schemas/BlockNumber"
+          }
+        },
+        {
+          "name": "index",
+          "schema": {
+            "$ref": "#/components/schemas/MessageIndex"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "rpcInMessage",
+        "schema": {
+          "$ref": "#/components/schemas/RPCInMessage"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetRawInMessageByBlockNumberAndIndex",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Messages"
+        }
+      ],
+      "summary": "Returns the bytecode of the internal message with the given index and contained within the block with the given number.",
+      "description": "",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/MessageShardId"
+          }
+        },
+        {
+          "name": "number",
+          "schema": {
+            "$ref": "#/components/schemas/BlockNumber"
+          }
+        },
+        {
+          "name": "index",
+          "schema": {
+            "$ref": "#/components/schemas/MessageIndex"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "messageBytecode",
+        "schema": {
+          "$ref": "#/components/schemas/MessageBytecode"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetRawInMessageByBlockHashAndIndex",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Messages"
+        }
+      ],
+      "summary": "Returns the bytecode of the internal message with the given index and contained within the block with the given hash.",
+      "description": "",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/MessageShardId"
+          }
+        },
+        {
+          "name": "hash",
+          "schema": {
+            "$ref": "#/components/schemas/BlockHash"
+          }
+        },
+        {
+          "name": "index",
+          "schema": {
+            "$ref": "#/components/schemas/MessageIndex"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "messageBytecode",
+        "schema": {
+          "$ref": "#/components/schemas/MessageBytecode"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetRawInMessageByHash",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Messages"
+        }
+      ],
+      "summary": "Returns the bytecode of the internal message with the given hash.",
+      "description": "",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/MessageShardId"
+          }
+        },
+        {
+          "name": "hash",
+          "schema": {
+            "$ref": "#/components/schemas/MessageHash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "messageBytecode",
+        "schema": {
+          "$ref": "#/components/schemas/MessageBytecode"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetInMessageReceipt",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Receipts"
+        }
+      ],
+      "summary": "Returns the receipt for the message with the given hash.",
+      "description": "",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/MessageShardId"
+          }
+        },
+        {
+          "name": "hash",
+          "schema": {
+            "$ref": "#/components/schemas/MessageHash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "rpcReceipt",
+        "schema": {
+          "$ref": "#/components/schemas/RPCReceipt"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetBalance",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Accounts"
+        }
+      ],
+      "summary": "Returns the balance of the account with the given address and at the given block.",
+      "description": "Implements eth_getBalance.",
+      "params": [
+        {
+          "name": "address",
+          "schema": {
+            "$ref": "#/components/schemas/Address"
+          }
+        },
+        {
+          "name": "blockNumberOrHash",
+          "schema": {
+            "$ref": "#/components/schemas/BlockNumberOrHash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "balance",
+        "schema": {
+          "$ref": "#/components/schemas/Balance"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GasPrice",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Transactions"
+        }
+      ],
+      "summary": "Returns the current gas price in the network.",
+      "description": "Implements eth_gasPrice.",
+      "params": [
+        {
+          "name": "shardId",
+          "schema": {
+            "$ref": "#/components/schemas/GasShardId"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "gasPrice",
+        "schema": {
+          "$ref": "#/components/schemas/GasPrice"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetTransactionCount",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Accounts"
+        }
+      ],
+      "summary": "Returns the transaction count of the account with the given address and at the given block.",
+      "description": "Implements eth_getTransactionCount.",
+      "params": [
+        {
+          "name": "address",
+          "schema": {
+            "$ref": "#/components/schemas/Address"
+          }
+        },
+        {
+          "name": "blockNumberOrHash",
+          "schema": {
+            "$ref": "#/components/schemas/BlockNumberOrHash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "transactionCount",
+        "schema": {
+          "$ref": "#/components/schemas/TransactionCount"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetCode",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Accounts"
+        }
+      ],
+      "summary": "Returns the bytecode of the contract with the given address and at the given block.",
+      "description": "Implements eth_getCode.",
+      "params": [
+        {
+          "name": "address",
+          "schema": {
+            "$ref": "#/components/schemas/Address"
+          }
+        },
+        {
+          "name": "blockNumberOrHash",
+          "schema": {
+            "$ref": "#/components/schemas/BlockNumberOrHash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "contractBytecode",
+        "schema": {
+          "$ref": "#/components/schemas/ContractBytecode"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "SendRawTransaction",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Transactions"
+        }
+      ],
+      "summary": "Creates a new message or creates a contract for a previously signed message.",
+      "description": "Implements eth_sendRawTransaction.",
+      "params": [
+        {
+          "name": "encoded",
+          "schema": {
+            "$ref": "#/components/schemas/Encoded"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "hash",
+        "schema": {
+          "$ref": "#/components/schemas/MessageHash"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "NewFilter",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Filters"
+        }
+      ],
+      "summary": "Creates a new filter.",
+      "description": "",
+      "params": [
+        {
+          "name": "query",
+          "schema": {
+            "$ref": "#/components/schemas/FilterQuery"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "filterId",
+        "schema": {
+          "$ref": "#/components/schemas/FilterId"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "NewPendingTransactionFilter",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Filters"
+        }
+      ],
+      "summary": "Creates a new pending transactions filter.",
+      "description": "Implements eth_newPendingTransactionFilter.",
+      "params": [],
+      "errors": [],
+      "result": {
+        "name": "filterId",
+        "schema": {
+          "$ref": "#/components/schemas/FilterId"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "NewBlockFilter",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Filters"
+        }
+      ],
+      "summary": "Creates a new block filter.",
+      "description": "Implements eth_newBlockFilter.",
+      "params": [],
+      "errors": [],
+      "result": {
+        "name": "filterId",
+        "schema": {
+          "$ref": "#/components/schemas/FilterId"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "UninstallFilter",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Filters"
+        }
+      ],
+      "summary": "Uninstalls the filter with the given id.",
+      "description": "Implements eth_uninstallFilter.",
+      "params": [
+        {
+          "name": "id",
+          "schema": {
+            "$ref": "#/components/schemas/UninstallFilterId"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "isDeleted",
+        "schema": {
+          "$ref": "#/components/schemas/IsDeleted"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetFilterChanges",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Filters"
+        }
+      ],
+      "summary": "Polls the filter with the given id for all changes.",
+      "description": "Implements eth_getFilterChanges.",
+      "params": [
+        {
+          "name": "id",
+          "schema": {
+            "$ref": "#/components/schemas/PollFilterId"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "filterChanges",
+        "schema": {
+          "$ref": "#/components/schemas/FilterChanges"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetFilterLogs",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Filters"
+        }
+      ],
+      "summary": "Polls the filter with the given id for logs.",
+      "description": "Implements eth_getFilterLogs.",
+      "params": [
+        {
+          "name": "id",
+          "schema": {
+            "$ref": "#/components/schemas/PollFilterId"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "filterLogs",
+        "schema": {
+          "$ref": "#/components/schemas/FilterLogs"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetShardsIdList",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Shards"
+        }
+      ],
+      "summary": "Retrieves a list of IDs of all shards.",
+      "description": "",
+      "params": [],
+      "errors": [],
+      "result": {
+        "name": "shardIds",
+        "schema": {
+          "$ref": "#/components/schemas/ShardIds"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "Call",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Calls"
+        }
+      ],
+      "summary": "Executes a new message call immediately without creating a transaction.",
+      "description": "Implements eth_call.",
+      "params": [
+        {
+          "name": "args",
+          "schema": {
+            "$ref": "#/components/schemas/CallArgs"
+          }
+        },
+        {
+          "name": "blockNrOrHash",
+          "schema": {
+            "$ref": "#/components/schemas/BlockNumberOrHash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "returnedValue",
+        "schema": {
+          "$ref": "#/components/schemas/ReturnedValue"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "ChainId",
+      "tags": [
+        {
+          "$ref": "#/components/tags/System"
+        }
+      ],
+      "summary": "Returns the chain ID of the current network.",
+      "description": "Implements eth_chainId.",
+      "params": [],
+      "errors": [],
+      "result": {
+        "name": "chainId",
+        "schema": {
+          "$ref": "#/components/schemas/ChainId"
+        }
+      },
+      "examples": []
+    },
+    {
+      "name": "GetCurrencies",
+      "tags": [
+        {
+          "$ref": "#/components/tags/Accounts"
+        }
+      ],
+      "summary": "Returns the currency balances of the account with the given address and at the given block.",
+      "description": "Implements eth_getCurrencies.",
+      "params": [
+        {
+          "name": "address",
+          "schema": {
+            "$ref": "#/components/schemas/Address"
+          }
+        },
+        {
+          "name": "blockNumberOrHash",
+          "schema": {
+            "$ref": "#/components/schemas/BlockNumberOrHash"
+          }
+        }
+      ],
+      "errors": [],
+      "result": {
+        "name": "balance",
+        "schema": {
+          "$ref": "#/components/schemas/Balance"
+        }
+      },
+      "examples": []
+    }
+  ],
+  "openrpc": "1.2.4"
+}

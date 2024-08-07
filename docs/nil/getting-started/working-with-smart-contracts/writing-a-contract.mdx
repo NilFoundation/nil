@@ -36,13 +36,14 @@ contract Retailer {
 
     receive() external payable {}
 
-    function orderProduct(address dst, string calldata name) public payable {
+    function orderProduct(address dst, string calldata name) public {
         dst.asyncCall(
             msg.sender,
             msg.sender,
-            100000,
+            1_000_000,
+            Nil.FORWARD_VALUE,
             false,
-            100000 * 10,
+            0,
             abi.encodeWithSignature("createProduct(string)", name)
         );
     }
@@ -55,8 +56,6 @@ contract Retailer {
     }
 }
 ```
-
-As the gas price in =nil; is static and always equals 10, the async call message must have a `value` that is at least ten times larger than the gas fee. 
 
 ## Creating the second contract
 
@@ -118,7 +117,7 @@ Last but not least, Contract 2 can produce new products (but only via an interna
 ```solidity showLineNumbers
 function createProduct(
         string calldata productName
-    ) public payable onlyInternal returns (bool) {
+    ) public onlyInternal returns (bool) {
         if (msg.sender == retailerContractAddress) {
             products[nextProductId] = Product(nextProductId, productName);
             nextProductId++;
@@ -183,7 +182,7 @@ contract Manufacturer is NilBase {
 
     function createProduct(
         string calldata productName
-    ) public payable onlyInternal returns (bool) {
+    ) public onlyInternal returns (bool) {
         if (msg.sender == retailerContractAddress) {
             products[nextProductId] = Product(nextProductId, productName);
             nextProductId++;

@@ -11,11 +11,12 @@ function asyncCall(
         address dst,
         address refundTo,
         address bounceTo,
-        uint gas,
+        uint feeCredit,
+        uint8 forwardKind,
         bool deploy,
         uint value,
         bytes memory callData
-    ) internal returns(bool)
+    ) internal returns(bool) 
 ```
 
 Alternative signature for calling a contract with custom currencies:
@@ -25,10 +26,22 @@ function asyncCall(
         address dst,
         address refundTo,
         address bounceTo,
-        uint gas,
+        uint feeCredit,
+        uint8 forwardKind,
         bool deploy,
         uint value,
         Token[] memory tokens,
+        bytes memory callData
+    )
+```
+
+A concise signature:
+
+```solidity showLineNumbers
+    function asyncCall(
+        address dst,
+        address bounceTo,
+        uint value,
         bytes memory callData
     ) internal returns(bool)
 ```
@@ -53,7 +66,7 @@ The function verifies if the given message signature is valid for the provided `
 
 ## `SEND_MESSAGE`
 
-`SEND_MESSAGE` is the pre-compile used in the `sendMsg()` function:
+`SEND_MESSAGE` is the pre-compile used in the `sendMessage()` function:
 
 ```solidity showLineNumbers
 function sendMessage(uint g, bytes memory message) internal
@@ -70,6 +83,22 @@ function isInternalMessage() internal view returns (bool)
 ```
 
 The function is called as part of [**the `onlyInternal` and `onlyExternal` function modifiers**](func-modifiers.mdx) to check if a given message is internal.
+
+## `SEND_CURRENCY_SYNC`
+
+This precompile is used in the `syncCall()` function: 
+
+```solidity showLineNumbers
+function syncCall(
+        address dst,
+        uint gas,
+        uint value,
+        Token[] memory tokens,
+        bytes memory callData
+    ) internal returns(bool, bytes memory)
+```
+
+The function calls a smart contract synchronously and, if needed, sends custom tokens.
 
 ## `MINT_CURRENCY`
 
@@ -100,3 +129,13 @@ function msgTokens() internal returns(Token[] memory)
 ```
 
 The function returns the list of tokens for the current message.
+
+## `GET_GAS_PRICE`
+
+`GET_GAS_PRICE` is used in the `getGasPrice()` function:
+
+``` showLineNumbers
+function getGasPrice(address addr) internal returns(uint256)
+```
+
+The function returns the current gas price at the shard where the specified address is located.

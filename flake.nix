@@ -9,7 +9,24 @@
   outputs = { self, nixpkgs, flake-utils }:
     (flake-utils.lib.eachDefaultSystem (system:
       let pkgs = import nixpkgs { inherit system; };
-
+#      node-modules = pkgs.mkYarnPackage {
+#          name = "node-modules";
+#          src = ./docs;
+#        };
+#      docs = pkgs.stdenv.mkDerivation {
+#          name = "nildocs";
+#          src = ./docs;
+#          buildInputs = [pkgs.yarn node-modules];
+#          buildPhase = ''
+#            ln -s ${node-modules}/node_modules ./docs/node_modules
+#            ${pkgs.yarn}/bin/yarn build
+#          '';
+#          installPhase =  ''
+#          mkdir $out
+#          mv dist $out/lib
+#          '';
+#
+#        };
       in rec {
         packages = rec {
           nil = (pkgs.callPackage ./nil.nix { src_repo = self; });

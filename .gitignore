@@ -30,6 +30,9 @@ nil/cmd/nil/nil
 # stringer generated files
 *_string.go
 
+
+*/openrpc.json
+
 */node_modules
 /docs/build
 
@@ -52,3 +55,4 @@ yarn-error.log*
 /.husky
 
 */reference/client
+

@@ -19,8 +19,8 @@ Complete the following tutorials before proceeding.
 To call the `orderProduct()` function inside the retailer contract and trigger an async call:
 
 ```bash
-nil wallet send-tokens RETAILER_ADDRESS 5000000
-nil wallet send-message RETAILER_ADDRESS orderProduct MANUFACTURER_ADDRESS new-product --abi path/to/Retailer.abi
+nil_cli wallet send-tokens RETAILER_ADDRESS 5000000
+nil_cli wallet send-message RETAILER_ADDRESS orderProduct MANUFACTURER_ADDRESS new-product --abi path/to/Retailer.abi --fee-credit 2000000
 ```
 
 Make a readonly call to access the value:
@@ -47,8 +47,7 @@ const hashProduct = await wallet.sendMessage({
     functionName: "orderProduct",
     args: [addressM, "another-product"],
   }),
-  gas: 100000n,
-  value: 1000000n,
+  feeCredit: 3_000_000n,
 });
 
 await waitTillCompleted(client, 1, hashProduct);

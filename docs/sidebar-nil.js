@@ -69,7 +69,12 @@ export default {
                             type: 'doc',
                             label: 'Handling async execution',
                             id: 'getting-started/essentials/handling-async-execution'
-                        }
+                        },
+                        {
+                            type: 'doc',
+                            label: 'Gas and value',
+                            id: 'getting-started/essentials/gas-and-value'
+                        },
                     ]
                 },
                 {
