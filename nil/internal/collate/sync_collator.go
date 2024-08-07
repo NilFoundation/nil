@@ -13,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/msgpool"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
 )
@@ -81,17 +82,30 @@ func (s *syncCollator) Run(ctx context.Context) error {
 }
 
 func (s *syncCollator) fetchBlock(ctx context.Context) {
-	s.logger.Info().Msg("Fetching next block")
-	block, err := s.client.GetDebugBlock(s.shard, s.lastBlockNumber+1, true)
-	if err != nil || block == nil {
-		s.logger.Error().Err(err).Msg("Failed to fetch block")
-		return
+	for {
+		s.logger.Debug().Msg("Fetching next block")
+		block, err := s.client.GetDebugBlock(s.shard, s.lastBlockNumber+1, true)
+		if err != nil {
+			s.logger.Error().Err(err).Msg("Failed to fetch block")
+			return
+		}
+		if block == nil {
+			s.logger.Debug().Msg("No new block")
+			return
+		}
+		if err = s.saveBlock(ctx, block); err != nil {
+			s.logger.Error().Err(err).Msg("Failed to save block")
+			return
+		}
 	}
+}
+
+func (s *syncCollator) saveBlock(ctx context.Context, block *jsonrpc.HexedDebugRPCBlock) error {
 	s.logger.Trace().Msgf("Fetched block: %s", block)
 	data, err := block.DecodeHexAndSSZ()
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to decode block data from hexed SSZ")
-		return
+		return err
 	}
 	if data.Block.PrevBlock != s.lastBlockHash {
 		s.logger.Error().Msgf(
@@ -106,36 +120,37 @@ func (s *syncCollator) fetchBlock(ctx context.Context) {
 	tx, err := s.db.CreateRwTx(ctx)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to create rw tx")
-		return
+		return err
 	}
 	defer tx.Rollback()
 	err = db.WriteBlock(tx, s.shard, data.Block)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to write block")
-		return
+		return err
 	}
 	msgRoot, err := s.saveMessages(tx, data.OutMessages)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to save messages")
-		return
+		return err
 	}
 	if msgRoot != data.Block.OutMessagesRoot {
 		s.logger.Error().Msgf("Out messages root mismatch: expected %x, got %x", data.Block.OutMessagesRoot, msgRoot)
-		return
+		return errors.New("out messages root mismatch")
 	}
 	blockHash := data.Block.Hash()
 	err = db.WriteLastBlockHash(tx, s.shard, blockHash)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to write last block hash")
-		return
+		return err
 	}
 	if err := tx.Commit(); err != nil {
 		s.logger.Error().Err(err).Msg("Failed to commit tx")
-		return
+		return err
 	}
 	s.lastBlockNumber = transport.BlockNumber(data.Block.Id)
 	s.lastBlockHash = blockHash
 	s.logger.Info().Msgf("Block %d is written", s.lastBlockNumber)
+	return nil
 }
 
 func (s *syncCollator) saveMessages(tx db.RwTx, messages []*types.Message) (common.Hash, error) {
