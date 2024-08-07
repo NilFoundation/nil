@@ -22,9 +22,9 @@ async function prepareDeployment(
     shardId:
       context.hre.config.shardId ?? shardNumber(context.wallet.getAddressHex()),
     bytecode: hexStringToUint8Array(params[0].data),
-    args: [bytesToHex(context.wallet.pubkey)],
     salt: BigInt(Math.floor(Math.random() * 100000)),
     feeCredit: context.feeCredit,
+    value: params[0].value !== undefined ? BigInt(params[0].value) : 0n,
   });
   if (context.debug) {
     console.log(`Response deployment ${JSON.stringify(deployed)}`);
@@ -51,7 +51,7 @@ async function handleDirectTransaction(
   const hash = await context.wallet.sendMessage({
     to: hexStringToUint8Array(params[0].to),
     feeCredit: context.directTxFeeCredit ?? 1000000n,
-    value: context.directTxValue ?? 82309960n,
+    value: params[0].value !== undefined ? BigInt(params[0].value) : 0n,
     data: hexStringToUint8Array(params[0].data),
   });
   if (context.debug) {

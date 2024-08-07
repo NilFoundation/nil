@@ -432,7 +432,7 @@ export class WalletV1 {
       };
     } else {
       invariant(
-        abi || args,
+          !(abi || args),
         "ABI and args should be provided together or not provided at all.",
       );
       deployData = {

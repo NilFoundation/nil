@@ -47,13 +47,38 @@ function adaptResult(result: any): any {
     return result;
   }
 
-  result.gasPrice = "10";
-  result.gas = result.gasUsed;
+  // Ensure hash is a string
+  if (typeof result.hash !== "string") {
+    result.hash = String(result.hash);
+  }
+
+  // Ensure blockNumber is a string or null
+  if (typeof result.blockNumber !== "string" && result.blockNumber !== null) {
+    result.blockNumber = String(result.blockNumber);
+  }
+
+  // Ensure blockHash is a string or null
+  if (typeof result.blockHash !== "string" && result.blockHash !== null) {
+    result.blockHash = String(result.blockHash);
+  }
+
+  // Ensure gasPrice is a string or ensure maxFeePerGas and maxPriorityFeePerGas are strings
+  if ("maxFeePerGas" in result) {
+    if (typeof result.maxFeePerGas !== "string") {
+      result.maxFeePerGas = String(result.maxFeePerGas);
+    }
+    if (typeof result.maxPriorityFeePerGas !== "string") {
+      result.maxPriorityFeePerGas = String(result.maxPriorityFeePerGas);
+    }
+  }
 
   if (result.signature === "0x") {
     // Hardhat wants a signature, so we'll give it a fake one.
     result.signature = `0x${"00".repeat(64)}`;
   }
+
+  result.gasPrice = "10";
+  result.gas = result.gasUsed;
 
   result.nonce = result.seqno;
   return result;

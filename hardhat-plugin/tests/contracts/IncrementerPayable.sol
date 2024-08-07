@@ -3,12 +3,14 @@ pragma solidity ^0.8.0;
 
 import "./nil/Nil.sol";
 
-contract Incrementer is NilBase {
+contract IncrementerPayable is NilBase {
     uint256 private value;
 
     event ValueChanged(uint256 newValue);
 
-    function increment() public onlyInternal {
+    constructor() payable {}
+
+    function increment() public onlyInternal payable{
         value += 1;
         emit ValueChanged(value);
     }
