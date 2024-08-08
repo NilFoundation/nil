@@ -8,9 +8,13 @@ describe("Currency contract", () => {
     let client: any;
 
     before(async () => {
+        if (!process.env.NIL_RPC_ENDPOINT) {
+            throw new Error('NIL_RPC_ENDPOINT is not defined');
+        }
+
         client = new PublicClient({
             transport: new HttpTransport({
-                endpoint: "http://127.0.0.1:8529",
+                endpoint: process.env.NIL_RPC_ENDPOINT,
             }),
             shardId: 1,
         });
