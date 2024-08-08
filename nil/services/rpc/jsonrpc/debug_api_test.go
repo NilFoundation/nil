@@ -28,25 +28,41 @@ func TestDebugGetBlock(t *testing.T) {
 	require.NoError(t, err)
 	defer database.Close()
 
+	tx, err := database.CreateRwTx(ctx)
+	require.NoError(t, err)
+	defer tx.Rollback()
+
+	msg := &types.Message{Seqno: 0}
+	errStr := "test error"
+	inMessageTree := execution.NewDbMessageTrie(tx, types.MainShardId)
+	require.NoError(t, inMessageTree.Update(types.MessageIndex(0), msg))
+	require.NoError(t, db.WriteError(tx, msg.Hash(), errStr))
+
+	blockWithErrors := &types.Block{
+		Id:                 258,
+		PrevBlock:          common.EmptyHash,
+		SmartContractsRoot: common.EmptyHash,
+		InMessagesRoot:     inMessageTree.RootHash(),
+	}
+
 	block := &types.Block{
 		Id:                 259,
 		PrevBlock:          common.EmptyHash,
 		SmartContractsRoot: common.EmptyHash,
 	}
 
-	hexBytes, err := block.MarshalSSZ()
-	require.NoError(t, err)
-	blockHex := hexutil.Encode(hexBytes)
+	var blockHex string
+	for _, b := range []*types.Block{blockWithErrors, block} {
+		hexBytes, err := b.MarshalSSZ()
+		require.NoError(t, err)
+		blockHex = hexutil.Encode(hexBytes)
 
-	tx, err := database.CreateRwTx(ctx)
-	require.NoError(t, err)
-	defer tx.Rollback()
+		err = db.WriteBlock(tx, types.MainShardId, b)
+		require.NoError(t, err)
 
-	err = db.WriteBlock(tx, types.MainShardId, block)
-	require.NoError(t, err)
-
-	_, err = execution.PostprocessBlock(tx, types.MainShardId, types.NewValueFromUint64(10), 0, block.Hash())
-	require.NoError(t, err)
+		_, err = execution.PostprocessBlock(tx, types.MainShardId, types.NewValueFromUint64(10), 0, b.Hash())
+		require.NoError(t, err)
+	}
 
 	err = tx.Commit()
 	require.NoError(t, err)
@@ -70,6 +86,12 @@ func TestDebugGetBlock(t *testing.T) {
 	// When: Get nonexistent block
 	_, err = api.GetBlockByNumber(ctx, types.MainShardId, transport.BlockNumber(block.Id+1), false)
 	require.ErrorIs(t, err, db.ErrKeyNotFound)
+
+	// When: Get existing block with additional data
+	res3, err := api.GetBlockByNumber(ctx, types.MainShardId, transport.BlockNumber(blockWithErrors.Id), true)
+	require.NoError(t, err)
+	require.Len(t, res3.Errors, 1)
+	require.Equal(t, errStr, res3.Errors[msg.Hash()])
 }
 
 type SuiteDbgContracts struct {

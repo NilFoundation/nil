@@ -104,6 +104,7 @@ func (api *DebugAPIImpl) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash 
 		block.InMessages = data.InMessages()
 		block.OutMessages = data.OutMessages()
 		block.Receipts = data.Receipts()
+		block.Errors = make(map[common.Hash]string)
 		for _, message := range block.InMessages {
 			msgHash := message.Hash()
 			errMsg, err := db.ReadError(tx, msgHash)
