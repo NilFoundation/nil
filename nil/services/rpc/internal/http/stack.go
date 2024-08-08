@@ -12,14 +12,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport/rpccfg"
+	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
 	"github.com/gorilla/handlers"
 	"github.com/rs/zerolog"
 )
 
-// httpConfig is the JSON-RPC/HTTP configuration.
-type httpConfig struct {
+// HttpConfig is the HTTP configuration.
+type HttpConfig struct {
 	Modules            []string
 	CorsAllowedOrigins []string
 	Vhosts             []string
@@ -27,21 +26,25 @@ type httpConfig struct {
 	prefix             string // path prefix on which to mount http handler
 }
 
+type ServerStopper interface {
+	Stop()
+}
+
 type rpcHandler struct {
 	http.Handler
-	server *transport.Server
+	serverStopper ServerStopper
 }
 
 type httpServer struct {
 	logger   zerolog.Logger
-	timeouts rpccfg.HTTPTimeouts
+	timeouts httpcfg.HTTPTimeouts
 
 	mu       sync.Mutex
 	server   *http.Server
 	listener net.Listener // non-nil when server is running
 
 	// HTTP RPC handler things.
-	httpConfig  httpConfig
+	httpConfig  HttpConfig
 	httpHandler atomic.Value // *rpcHandler
 
 	// These are set by setListenAddr.
@@ -52,7 +55,7 @@ type httpServer struct {
 	handlerNames map[string]string
 }
 
-func newHTTPServer(logger zerolog.Logger, timeouts rpccfg.HTTPTimeouts) *httpServer {
+func newHTTPServer(logger zerolog.Logger, timeouts httpcfg.HTTPTimeouts) *httpServer {
 	h := &httpServer{logger: logger, timeouts: timeouts, handlerNames: make(map[string]string)}
 
 	h.httpHandler.Store((*rpcHandler)(nil))
@@ -96,7 +99,7 @@ func (h *httpServer) start() error {
 
 	// Initialize the server.
 	h.server = &http.Server{Handler: h, ReadHeaderTimeout: 10 * time.Second}
-	if h.timeouts != (rpccfg.HTTPTimeouts{}) {
+	if h.timeouts != (httpcfg.HTTPTimeouts{}) {
 		CheckTimeouts(&h.timeouts)
 		h.server.ReadTimeout = h.timeouts.ReadTimeout
 		h.server.WriteTimeout = h.timeouts.WriteTimeout
@@ -185,7 +188,7 @@ func (h *httpServer) doStop() {
 	httpHandler, ok := h.httpHandler.Load().(*rpcHandler)
 	if ok && httpHandler != nil {
 		h.httpHandler.Store((*rpcHandler)(nil))
-		httpHandler.server.Stop()
+		httpHandler.serverStopper.Stop()
 	}
 	_ = h.server.Shutdown(context.Background())
 	_ = h.listener.Close()
@@ -201,12 +204,12 @@ func (h *httpServer) disableRPC() bool {
 	handler, ok := h.httpHandler.Load().(*rpcHandler)
 	if ok && handler != nil {
 		h.httpHandler.Store((*rpcHandler)(nil))
-		handler.server.Stop()
+		handler.serverStopper.Stop()
 	}
 	return handler != nil
 }
 
-// rpcAllowed returns true when JSON-RPC over HTTP is enabled.
+// rpcAllowed returns true when RPC over HTTP is enabled.
 func (h *httpServer) rpcAllowed() bool {
 	handler, ok := h.httpHandler.Load().(*rpcHandler)
 	return ok && handler != nil
@@ -253,7 +256,7 @@ func NewHTTPHandlerStack(srv http.Handler, cors []string, vhosts []string, compr
 	return handler
 }
 
-// ServeHTTP serves JSON-RPC requests over HTTP, implements http.Handler
+// ServeHTTP serves RPC requests over HTTP, implements http.Handler
 func (h *virtualHostHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// if r.Host is not set, we can continue serving since a browser would set the Host header
 	if r.Host == "" {

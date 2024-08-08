@@ -8,28 +8,36 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 )
 
+type SingleRequestServer interface {
+	ServeSingleRequest(ctx context.Context, r *http.Request, w http.ResponseWriter)
+}
+
 type Server struct {
-	s *transport.Server
+	s                    SingleRequestServer
+	contentType          string
+	acceptedContentTypes []string
 }
 
 var _ http.Handler = (*Server)(nil)
 
-func NewServer(s *transport.Server) *Server {
-	return &Server{s: s}
+func NewServer(s SingleRequestServer, contentType string, acceptedContentTypes []string) *Server {
+	return &Server{
+		s:                    s,
+		contentType:          contentType,
+		acceptedContentTypes: acceptedContentTypes,
+	}
 }
 
-// ServeHTTP serves JSON-RPC requests over HTTP.
+// ServeHTTP serves RPC requests over HTTP.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Permit dumb empty requests for remote health-checks (AWS)
 	if r.Method == http.MethodGet && r.ContentLength == 0 && r.URL.RawQuery == "" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	if code, err := validateRequest(r); err != nil {
+	if code, err := s.validateRequest(r); err != nil {
 		http.Error(w, err.Error(), code)
 		return
 	}
@@ -47,20 +55,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx = context.WithValue(ctx, originCtxKey{}, origin)
 	}
 
-	w.Header().Set("Content-Type", contentType)
-	codec := newHTTPServerConn(r, w)
-	defer codec.Close()
-	s.s.ServeSingleRequest(ctx, codec)
+	w.Header().Set("Content-Type", s.contentType)
+	// TODO: pass HttpServerConn?
+	s.s.ServeSingleRequest(ctx, r, w)
 }
 
 // validateRequest returns a non-zero response code and error message if the
 // request is invalid.
-func validateRequest(r *http.Request) (int, error) {
+func (s *Server) validateRequest(r *http.Request) (int, error) {
 	if r.Method == http.MethodPut || r.Method == http.MethodDelete {
 		return http.StatusMethodNotAllowed, errors.New("method not allowed")
 	}
-	if r.ContentLength > maxRequestContentLength {
-		err := fmt.Errorf("content length too large (%d>%d)", r.ContentLength, maxRequestContentLength)
+	if r.ContentLength > MaxRequestContentLength {
+		err := fmt.Errorf("content length too large (%d>%d)", r.ContentLength, MaxRequestContentLength)
 		return http.StatusRequestEntityTooLarge, err
 	}
 	// Allow OPTIONS and GET (regardless of content-type)
@@ -92,13 +99,13 @@ func validateRequest(r *http.Request) (int, error) {
 
 	// Check content-type
 	if mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err == nil {
-		for _, accepted := range acceptedContentTypes {
+		for _, accepted := range s.acceptedContentTypes {
 			if accepted == mt {
 				return 0, nil
 			}
 		}
 	}
 	// Invalid content-type
-	err := fmt.Errorf("invalid content type, only %s is supported", contentType)
+	err := fmt.Errorf("invalid content type, only %s is supported", s.contentType)
 	return http.StatusUnsupportedMediaType, err
 }

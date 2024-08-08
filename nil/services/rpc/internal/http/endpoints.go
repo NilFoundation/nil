@@ -11,7 +11,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport/rpccfg"
+	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -20,7 +20,7 @@ import (
 var ErrStopped = errors.New("stopped")
 
 type HttpEndpointConfig struct {
-	Timeouts rpccfg.HTTPTimeouts
+	Timeouts httpcfg.HTTPTimeouts
 }
 
 // StartHTTPEndpoint starts the HTTP RPC endpoint.
@@ -76,17 +76,17 @@ func isIgnoredHttpServerError(serveErr error) bool {
 }
 
 // CheckTimeouts ensures that timeout values are meaningful
-func CheckTimeouts(timeouts *rpccfg.HTTPTimeouts) {
+func CheckTimeouts(timeouts *httpcfg.HTTPTimeouts) {
 	if timeouts.ReadTimeout < time.Second {
-		log.Warn().Str("provided", timeouts.WriteTimeout.String()).Str("updated", rpccfg.DefaultHTTPTimeouts.WriteTimeout.String()).Msg("Sanitizing invalid HTTP read timeout")
-		timeouts.ReadTimeout = rpccfg.DefaultHTTPTimeouts.ReadTimeout
+		log.Warn().Str("provided", timeouts.WriteTimeout.String()).Str("updated", httpcfg.DefaultHTTPTimeouts.WriteTimeout.String()).Msg("Sanitizing invalid HTTP read timeout")
+		timeouts.ReadTimeout = httpcfg.DefaultHTTPTimeouts.ReadTimeout
 	}
 	if timeouts.WriteTimeout < time.Second {
-		log.Warn().Str("provided", timeouts.WriteTimeout.String()).Str("updated", rpccfg.DefaultHTTPTimeouts.WriteTimeout.String()).Msg("Sanitizing invalid HTTP write timeout")
-		timeouts.WriteTimeout = rpccfg.DefaultHTTPTimeouts.WriteTimeout
+		log.Warn().Str("provided", timeouts.WriteTimeout.String()).Str("updated", httpcfg.DefaultHTTPTimeouts.WriteTimeout.String()).Msg("Sanitizing invalid HTTP write timeout")
+		timeouts.WriteTimeout = httpcfg.DefaultHTTPTimeouts.WriteTimeout
 	}
 	if timeouts.IdleTimeout < time.Second {
-		log.Warn().Str("provided", timeouts.IdleTimeout.String()).Str("updated", rpccfg.DefaultHTTPTimeouts.IdleTimeout.String()).Msg("Sanitizing invalid HTTP idle timeout")
-		timeouts.IdleTimeout = rpccfg.DefaultHTTPTimeouts.IdleTimeout
+		log.Warn().Str("provided", timeouts.IdleTimeout.String()).Str("updated", httpcfg.DefaultHTTPTimeouts.IdleTimeout.String()).Msg("Sanitizing invalid HTTP idle timeout")
+		timeouts.IdleTimeout = httpcfg.DefaultHTTPTimeouts.IdleTimeout
 	}
 }
