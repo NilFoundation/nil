@@ -25,12 +25,13 @@ type syncCollator struct {
 	endpoint string
 	client   client.Client
 	db       db.DB
+	tick     time.Duration
 
 	lastBlockNumber transport.BlockNumber
 	lastBlockHash   common.Hash
 }
 
-func NewSyncCollator(ctx context.Context, msgPool msgpool.Pool, shard types.ShardId, endpoint string, db db.DB) (*syncCollator, error) {
+func NewSyncCollator(ctx context.Context, msgPool msgpool.Pool, shard types.ShardId, endpoint string, tick time.Duration, db db.DB) (*syncCollator, error) {
 	logger := logging.NewLogger("collator").With().Stringer(logging.FieldShardId, shard).Logger()
 	s := syncCollator{
 		msgPool:  msgPool,
@@ -39,6 +40,7 @@ func NewSyncCollator(ctx context.Context, msgPool msgpool.Pool, shard types.Shar
 		endpoint: endpoint,
 		client:   rpc_client.NewClient(endpoint, logger),
 		db:       db,
+		tick:     tick,
 	}
 	err := s.readLastBlockNumber(ctx)
 	if err != nil {
@@ -75,13 +77,13 @@ func (s *syncCollator) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			s.logger.Info().Msg("Sync collator is terminated")
 			return nil
-		case <-time.After(2 * time.Second):
-			s.fetchBlock(ctx)
+		case <-time.After(s.tick):
+			s.fetchBlocks(ctx)
 		}
 	}
 }
 
-func (s *syncCollator) fetchBlock(ctx context.Context) {
+func (s *syncCollator) fetchBlocks(ctx context.Context) {
 	for {
 		s.logger.Debug().Msg("Fetching next block")
 		block, err := s.client.GetDebugBlock(s.shard, s.lastBlockNumber+1, true)
