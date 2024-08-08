@@ -104,6 +104,25 @@ func (s *SuiteCli) TestReadContract() {
 	s.Equal("0x", res)
 }
 
+func (s *SuiteCli) compileIncrementerAndSaveToFile(binFileName string, abiFileName string) {
+	s.T().Helper()
+
+	contractData, err := solc.CompileSource(common.GetAbsolutePath("./contracts/increment.sol"))
+	s.Require().NoError(err)
+
+	if len(binFileName) > 0 {
+		err = os.WriteFile(binFileName, []byte(contractData["Incrementer"].Code), 0o600)
+		s.Require().NoError(err)
+	}
+
+	if len(abiFileName) > 0 {
+		abiData, err := json.Marshal(contractData["Incrementer"].Info.AbiDefinition)
+		s.Require().NoError(err)
+		err = os.WriteFile(abiFileName, abiData, 0o600)
+		s.Require().NoError(err)
+	}
+}
+
 func (s *SuiteCli) TestContract() {
 	wallet := types.MainWalletAddress
 
@@ -322,18 +341,7 @@ func (s *SuiteCli) TestCliWallet() {
 
 	binFileName := dir + "/Incrementer.bin"
 	abiFileName := dir + "/Incrementer.abi"
-	s.Run("Compile contract", func() {
-		contractData, err := solc.CompileSource(common.GetAbsolutePath("./contracts/increment.sol"))
-		s.Require().NoError(err)
-
-		err = os.WriteFile(binFileName, []byte(contractData["Incrementer"].Code), 0o600)
-		s.Require().NoError(err)
-
-		abiData, err := json.Marshal(contractData["Incrementer"].Info.AbiDefinition)
-		s.Require().NoError(err)
-		err = os.WriteFile(abiFileName, abiData, 0o600)
-		s.Require().NoError(err)
-	})
+	s.compileIncrementerAndSaveToFile(binFileName, abiFileName)
 
 	var addr types.Address
 	s.Run("Get contract address", func() {
@@ -365,6 +373,23 @@ func (s *SuiteCli) TestCliWallet() {
 	s.Run("Call read-only 'get' function of contract once again", func() {
 		res := s.runCli("-c", cfgPath, "contract", "call-readonly", addr.String(), "get", "--abi", abiFileName)
 		s.Contains(res, "uint256: 123322")
+	})
+}
+
+func (s *SuiteCli) TestCliAbi() {
+	dir := s.T().TempDir()
+
+	abiFileName := dir + "/Incrementer.abi"
+	s.compileIncrementerAndSaveToFile("", abiFileName)
+
+	s.Run("Encode", func() {
+		res := s.runCli("abi", "encode", "get", "--path", abiFileName)
+		s.Equal("0x6d4ce63c", strings.TrimSpace(res))
+	})
+
+	s.Run("Decode", func() {
+		res := s.runCli("abi", "decode", "get", "0x000000000000000000000000000000000000000000000000000000000001e1ba", "--path", abiFileName)
+		s.Equal("uint256: 123322", strings.TrimSpace(res))
 	})
 }
 

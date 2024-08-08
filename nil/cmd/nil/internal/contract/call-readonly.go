@@ -1,7 +1,6 @@
 package contract
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/spf13/cobra"
 )
 
@@ -88,17 +86,7 @@ func runCallReadonly(_ *cobra.Command, args []string, cfg *common.Config) error 
 		return err
 	}
 
-	abiFile, err := os.ReadFile(params.abiPath)
-	if err != nil {
-		return err
-	}
-
-	abi, err := abi.JSON(bytes.NewReader(abiFile))
-	if err != nil {
-		return err
-	}
-
-	obj, err := abi.Unpack(args[1], res.Data)
+	outputs, err := common.CalldataToArgs(params.abiPath, args[1], res.Data)
 	if err != nil {
 		return err
 	}
@@ -114,7 +102,7 @@ func runCallReadonly(_ *cobra.Command, args []string, cfg *common.Config) error 
 		}
 	}
 
-	if len(abi.Methods[args[1]].Outputs) == 0 {
+	if len(outputs) == 0 {
 		fmt.Println("Success, no result")
 		return nil
 	}
@@ -122,8 +110,8 @@ func runCallReadonly(_ *cobra.Command, args []string, cfg *common.Config) error 
 	if !config.Quiet {
 		fmt.Println("Success, result:")
 	}
-	for i, output := range abi.Methods[args[1]].Outputs {
-		fmt.Printf("%s: %v\n", output.Type, obj[i])
+	for _, output := range outputs {
+		fmt.Printf("%s: %v\n", output.Type, output.Value)
 	}
 
 	return nil

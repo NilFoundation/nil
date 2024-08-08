@@ -2,6 +2,7 @@ package common
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -126,6 +127,37 @@ func ArgsToCalldata(abiPath string, method string, args []string) ([]byte, error
 		return nil, fmt.Errorf("failed to pack method call: %w", err)
 	}
 	return calldata, nil
+}
+
+type ArgValue struct {
+	Type  abi.Type
+	Value any
+}
+
+func CalldataToArgs(abiPath string, method string, data []byte) ([]*ArgValue, error) {
+	abiFile, err := os.ReadFile(abiPath)
+	if err != nil {
+		return nil, err
+	}
+
+	abi, err := abi.JSON(bytes.NewReader(abiFile))
+	if err != nil {
+		return nil, err
+	}
+
+	obj, err := abi.Unpack(method, data)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]*ArgValue, len(abi.Methods[method].Outputs))
+	for i, output := range abi.Methods[method].Outputs {
+		results[i] = &ArgValue{
+			Type:  output.Type,
+			Value: obj[i],
+		}
+	}
+	return results, nil
 }
 
 func ReadBytecode(filename string, abiPath string, args []string) (types.Code, error) {
