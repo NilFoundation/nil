@@ -1,0 +1,75 @@
+package abi
+
+import (
+	"fmt"
+
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
+	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/spf13/cobra"
+)
+
+const pathFlag = "path"
+
+func GetCommand() *cobra.Command {
+	abiCmd := &cobra.Command{
+		Use:          "abi",
+		Short:        "Abi encoding/decoding",
+		SilenceUsage: true,
+	}
+
+	var path string
+
+	encodeCmd := &cobra.Command{
+		Use:          "encode [method] [args...]",
+		Short:        "Enconde contract call",
+		Args:         cobra.MinimumNArgs(1),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			data, err := common.ArgsToCalldata(path, args[0], args[1:])
+			if err != nil {
+				return err
+			}
+
+			fmt.Println(hexutil.Encode(data))
+			return nil
+		},
+	}
+
+	decodeCmd := &cobra.Command{
+		Use:          "decode [method] [data]",
+		Short:        "Decode contract call result",
+		Args:         cobra.MinimumNArgs(2),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			data, err := hexutil.DecodeHex(args[1])
+			if err != nil {
+				return err
+			}
+
+			outputs, err := common.CalldataToArgs(path, args[0], data)
+			if err != nil {
+				return err
+			}
+
+			for _, output := range outputs {
+				fmt.Printf("%s: %v\n", output.Type, output.Value)
+			}
+
+			return nil
+		},
+	}
+
+	abiCmd.PersistentFlags().StringVar(
+		&path,
+		pathFlag,
+		"",
+		"Path to ABI file",
+	)
+	check.PanicIfErr(abiCmd.MarkPersistentFlagRequired(pathFlag))
+
+	abiCmd.AddCommand(encodeCmd)
+	abiCmd.AddCommand(decodeCmd)
+
+	return abiCmd
+}

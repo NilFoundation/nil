@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/block"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
@@ -39,12 +40,13 @@ type RootCommand struct {
 var logger = logging.NewLogger("root")
 
 var noConfigCmd = map[string]struct{}{
+	"abi":              {},
+	"config":           {},
 	"help":             {},
 	"keygen":           {},
 	"completion":       {},
 	"__complete":       {},
 	"__completeNoDesc": {},
-	"config":           {},
 	"version":          {},
 }
 
@@ -114,6 +116,7 @@ func main() {
 // registerSubCommands adds all subcommands to the root command
 func (rc *RootCommand) registerSubCommands() {
 	rc.baseCmd.AddCommand(
+		abi.GetCommand(),
 		block.GetCommand(&rc.config),
 		config.GetCommand(&rc.cfgFile, &rc.config),
 		contract.GetCommand(&rc.config),
