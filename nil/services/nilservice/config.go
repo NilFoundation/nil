@@ -14,6 +14,8 @@ const (
 
 type Config struct {
 	NShards              int
+	RunOnlyShard         types.ShardId
+	ShardEndpoints       map[string]string
 	HttpPort             int
 	AdminSocketPath      string
 	Topology             string
@@ -32,4 +34,11 @@ type Config struct {
 	Libp2pTcpPort  int
 	Libp2pQuicPort int
 	UseMdns        bool
+}
+
+func (c *Config) IsShardActive(shardId types.ShardId) bool {
+	if shardId == types.MainShardId { // Main shard is always active
+		return true
+	}
+	return c.RunOnlyShard == 0 || c.RunOnlyShard == shardId
 }

@@ -2,6 +2,7 @@ package nilservice
 
 import (
 	"context"
+	"fmt"
 	"syscall"
 	"time"
 
@@ -137,7 +138,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 
 		fallthrough
 	case CollatorsOnlyRunMode:
-		collators := createCollators(cfg, database, networkManager)
+		collators := createCollators(ctx, cfg, database, networkManager)
 
 		msgPools = make([]msgpool.Pool, cfg.NShards)
 		for i, collator := range collators {
@@ -232,34 +233,63 @@ func createNetworkManager(ctx context.Context, cfg *Config) (*network.Manager, e
 	return network.NewManager(ctx, networkConfig)
 }
 
-func createCollators(cfg *Config, database db.DB, networkManager *network.Manager) []*collate.Scheduler {
+type AbstractCollator interface {
+	Run(ctx context.Context) error
+	GetMsgPool() msgpool.Pool
+}
+
+func createCollators(ctx context.Context, cfg *Config, database db.DB, networkManager *network.Manager) []AbstractCollator {
 	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
 
-	collators := make([]*collate.Scheduler, 0, cfg.NShards)
+	collators := make([]AbstractCollator, 0, cfg.NShards)
 
 	for i := range cfg.NShards {
-		msgPool := msgpool.New(msgpool.DefaultConfig)
-		collatorCfg := collate.Params{
-			BlockGeneratorParams: execution.BlockGeneratorParams{
-				ShardId:       types.ShardId(i),
-				NShards:       cfg.NShards,
-				TraceEVM:      cfg.TraceEVM,
-				Timer:         common.NewTimer(),
-				GasBasePrice:  types.NewValueFromUint64(cfg.GasBasePrice),
-				GasPriceScale: cfg.GasPriceScale,
-			},
-			CollatorTickPeriod: collatorTickPeriod,
-			Timeout:            collatorTickPeriod,
-			ZeroState:          execution.DefaultZeroStateConfig,
-			MainKeysOutPath:    cfg.MainKeysOutPath,
-			Topology:           collate.GetShardTopologyById(cfg.Topology),
+		var collator AbstractCollator
+		shard := types.ShardId(i)
+		if cfg.IsShardActive(shard) {
+			collator = createActiveCollator(shard, cfg, collatorTickPeriod, database, networkManager)
+		} else {
+			var err error
+			collator, err = createSyncCollator(ctx, shard, cfg, collatorTickPeriod, database)
+			if err != nil {
+				panic(err)
+			}
 		}
-		if len(cfg.ZeroState) != 0 {
-			collatorCfg.ZeroState = cfg.ZeroState
-		}
-
-		collator := collate.NewScheduler(database, msgPool, collatorCfg, networkManager)
 		collators = append(collators, collator)
 	}
 	return collators
+}
+
+func createSyncCollator(ctx context.Context, shard types.ShardId, cfg *Config, tick time.Duration, database db.DB) (AbstractCollator, error) {
+	endpoint, ok := cfg.ShardEndpoints[shard.String()]
+	if !ok {
+		return nil, fmt.Errorf("no endpoint for shard %s", shard.String())
+	}
+	msgPool := msgpool.New(msgpool.DefaultConfig)
+	return collate.NewSyncCollator(ctx, msgPool, shard, endpoint, tick, database)
+}
+
+func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) *collate.Scheduler {
+	msgPool := msgpool.New(msgpool.DefaultConfig)
+	collatorCfg := collate.Params{
+		BlockGeneratorParams: execution.BlockGeneratorParams{
+			ShardId:       shard,
+			NShards:       cfg.NShards,
+			TraceEVM:      cfg.TraceEVM,
+			Timer:         common.NewTimer(),
+			GasBasePrice:  types.NewValueFromUint64(cfg.GasBasePrice),
+			GasPriceScale: cfg.GasPriceScale,
+		},
+		CollatorTickPeriod: collatorTickPeriod,
+		Timeout:            collatorTickPeriod,
+		ZeroState:          execution.DefaultZeroStateConfig,
+		MainKeysOutPath:    cfg.MainKeysOutPath,
+		Topology:           collate.GetShardTopologyById(cfg.Topology),
+	}
+	if len(cfg.ZeroState) != 0 {
+		collatorCfg.ZeroState = cfg.ZeroState
+	}
+
+	collator := collate.NewScheduler(database, msgPool, collatorCfg, networkManager)
+	return collator
 }

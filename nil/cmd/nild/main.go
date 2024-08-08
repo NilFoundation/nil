@@ -69,6 +69,8 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 		},
 	}
 	nShards := runCmd.Flags().Int("nshards", 5, "number of shardchains")
+	runOnlyShard := runCmd.Flags().Uint("run-only-shard", 0, "run only specified shard")
+	shardEndpoints := runCmd.Flags().StringToString("shard-endpoints", nil, "shard endpoints (e.g. 1=localhost:31337,2=localhost:31338)")
 	allowDropDb := runCmd.Flags().Bool("allow-db-clear", false, "allow to clear database in case of outdated version")
 
 	// network
@@ -109,6 +111,8 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 
 	cfg := &nilservice.Config{
 		NShards:          *nShards,
+		RunOnlyShard:     types.ShardId(*runOnlyShard),
+		ShardEndpoints:   *shardEndpoints,
 		HttpPort:         *port,
 		Libp2pTcpPort:    *tcpPort,
 		Libp2pQuicPort:   *quicPort,
