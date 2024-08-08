@@ -7,10 +7,14 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/mitchellh/mapstructure"
+	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 )
 
@@ -120,4 +124,78 @@ func PatchConfig(delta map[string]any, force bool) error {
 func SetConfigFile(cfgFile string) {
 	viper.SetConfigType("ini")
 	viper.SetConfigFile(cfgFile)
+}
+
+func decodePrivateKey(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+	if f.Kind() == reflect.String && t == reflect.TypeOf(&ecdsa.PrivateKey{}) {
+		s, _ := data.(string)
+		return crypto.HexToECDSA(s)
+	}
+	return data, nil
+}
+
+func decodeAddress(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+	if f.Kind() == reflect.String && t == reflect.TypeOf(types.Address{}) {
+		s, _ := data.(string)
+		var res types.Address
+		if err := res.UnmarshalText([]byte(s)); err != nil {
+			return nil, err
+		}
+		return res, nil
+	}
+	return data, nil
+}
+
+func updateDecoderConfig(config *mapstructure.DecoderConfig) {
+	config.DecodeHook = mapstructure.ComposeDecodeHookFunc(
+		config.DecodeHook,
+		decodePrivateKey,
+		decodeAddress,
+	)
+}
+
+// LoadConfig loads the configuration from the config file
+func LoadConfig(cfgFilePath string, logger zerolog.Logger) (*Config, error) {
+	err := viper.ReadInConfig()
+
+	// Create file if it doesn't exist
+	if errors.As(err, new(viper.ConfigFileNotFoundError)) {
+		logger.Info().Msg("Config file not found. Creating a new one...")
+
+		path, errCfg := InitDefaultConfig(cfgFilePath)
+		if errCfg != nil {
+			logger.Error().Err(err).Msg("Failed to create config")
+			return nil, err
+		}
+
+		logger.Info().Msgf("Config file created successfully at %s", path)
+		logger.Info().Msgf("set via `%s config set <option> <value>` or via config file", os.Args[0])
+		return &Config{}, nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	config := Config{}
+	if err := viper.UnmarshalKey("nil", &config, updateDecoderConfig); err != nil {
+		return nil, fmt.Errorf("unable to decode config: %w", err)
+	}
+
+	if err := validateConfig(&config, logger); err != nil {
+		return nil, err
+	}
+
+	logger.Debug().Msg("Configuration loaded successfully")
+	return &config, nil
+}
+
+// validateConfig perform some simple configuration validation
+func validateConfig(config *Config, logger zerolog.Logger) error {
+	if config.RPCEndpoint == "" {
+		logger.Info().Msg("RPCEndpoint is missing in config")
+		logger.Info().Msgf("set via `%s config set rpc_endpoint <endpoint>` or via config file", os.Args[0])
+		return fmt.Errorf("%q is missing in config", RPCEndpointField)
+	}
+	return nil
 }

@@ -34,6 +34,24 @@ func (k MessageKind) String() string {
 	panic("unknown MessageKind")
 }
 
+func (k *MessageKind) Set(input string) error {
+	switch input {
+	case "execution", "ExecutionMessageKind":
+		*k = ExecutionMessageKind
+	case "deploy", "DeployMessageKind":
+		*k = DeployMessageKind
+	case "refund", "RefundMessageKind":
+		*k = RefundMessageKind
+	default:
+		return fmt.Errorf("unknown MessageKind: %s", input)
+	}
+	return nil
+}
+
+func (k MessageKind) Type() string {
+	return "MessageKind"
+}
+
 type Seqno uint64
 
 func (seqno Seqno) Uint64() uint64 {
@@ -85,6 +103,40 @@ const (
 	ForwardKindValue
 	ForwardKindNone
 )
+
+func (k ForwardKind) String() string {
+	switch k {
+	case ForwardKindRemaining:
+		return "ForwardKindRemaining"
+	case ForwardKindPercentage:
+		return "ForwardKindPercentage"
+	case ForwardKindValue:
+		return "ForwardKindValue"
+	case ForwardKindNone:
+		return "ForwardKindNone"
+	}
+	panic("unknown ForwardKind")
+}
+
+func (k *ForwardKind) Set(input string) error {
+	switch input {
+	case "remaining", "ForwardKindRemaining":
+		*k = ForwardKindRemaining
+	case "percentage", "ForwardKindPercentage":
+		*k = ForwardKindPercentage
+	case "value", "ForwardKindValue":
+		*k = ForwardKindValue
+	case "none", "ForwardKindNone":
+		*k = ForwardKindNone
+	default:
+		return fmt.Errorf("unknown ForwardKind: %s", input)
+	}
+	return nil
+}
+
+func (k ForwardKind) Type() string {
+	return "ForwardKind"
+}
 
 type Message struct {
 	Flags     MessageFlags      `json:"flags" ch:"flags"`
