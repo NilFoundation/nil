@@ -53,6 +53,13 @@ func GetCallReadonlyCommand(cfg *common.Config) *cobra.Command {
 		"Output state overrides",
 	)
 
+	cmd.Flags().BoolVar(
+		&params.withDetails,
+		withDetailsFlag,
+		false,
+		"Show coins used and outbound messages",
+	)
+
 	return cmd
 }
 
@@ -104,14 +111,25 @@ func runCallReadonly(_ *cobra.Command, args []string, cfg *common.Config) error 
 
 	if len(outputs) == 0 {
 		fmt.Println("Success, no result")
-		return nil
+	} else {
+		if !config.Quiet {
+			fmt.Println("Success, result:")
+		}
+		for _, output := range outputs {
+			fmt.Printf("%s: %v\n", output.Type, output.Value)
+		}
 	}
 
-	if !config.Quiet {
-		fmt.Println("Success, result:")
-	}
-	for _, output := range outputs {
-		fmt.Printf("%s: %v\n", output.Type, output.Value)
+	if params.withDetails {
+		fmt.Printf("Coins used: %s\n", res.CoinsUsed)
+		if len(res.OutMessages) > 0 {
+			fmt.Println("Outbound messages:")
+			messagesStr, err := json.MarshalIndent(res.OutMessages, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(messagesStr))
+		}
 	}
 
 	return nil
