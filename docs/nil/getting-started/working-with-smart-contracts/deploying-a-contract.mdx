@@ -149,33 +149,33 @@ A new address is always calculated based on the bytecode of the contract constru
 First, calulate the address of the retailer contract and send funds to this address:
 
 ```bash
-nil_cli contract address ./Retailer/Retailer.bin --salt SALT --shard-id 1
-nil_cli wallet send-tokens RETAILER_ADDRESS AMOUNT
+nil contract address ./Retailer/Retailer.bin --salt SALT --shard-id 1
+nil wallet send-tokens RETAILER_ADDRESS AMOUNT
 ```
 
 Then, deploy the retailer contract while providing the same `SALT`:
 
 ```bash
-nil_cli contract deploy ./Retailer/Retailer.bin --salt SALT --shard-id 1
+nil contract deploy ./Retailer/Retailer.bin --salt SALT --shard-id 1
 ```
 
 Retrieve the public key assigned to the wallet:
 
 ```bash
-nil_cli wallet info
+nil wallet info
 ```
 
 Calculate the address of the manufacturer contract and send funds to it:
 
 ```bash
-nil_cli contract address ./Manufacturer/Manufacturer.bin PUBKEY RETAILER_ADDRESS --salt SALT --shard-id 2 --abi ./Manufacturer/Manufacturer.abi
-nil_cli wallet send-tokens MANUFACTURER_ADDRESS AMOUNT
+nil contract address ./Manufacturer/Manufacturer.bin PUBKEY RETAILER_ADDRESS --salt SALT --shard-id 2 --abi ./Manufacturer/Manufacturer.abi
+nil wallet send-tokens MANUFACTURER_ADDRESS AMOUNT
 ```
 
 Deploy the manufacturer contract:
 
 ```bash
-nil_cli contract deploy ./Manufacturer/Manufacturer.bin PUBKEY RETAILER_ADDRESS --salt SALT --shard-id 2 --abi ./Manufacturer/Manufacturer.abi
+nil contract deploy ./Manufacturer/Manufacturer.bin PUBKEY RETAILER_ADDRESS --salt SALT --shard-id 2 --abi ./Manufacturer/Manufacturer.abi
 ```
 
 ### Via the client library

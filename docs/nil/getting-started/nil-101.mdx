@@ -193,8 +193,8 @@ Note that `CALLER_ADDRESS` starts with `0x0002`, which indicates that `Caller` i
 Send tokens to `Caller` and call the `call()` function:
 
 ```
-nil_cli wallet send-tokens CALLER_ADDRESS 3000000
-nil_cli wallet send-message CALLER_ADDRESS call INCREMENTER_ADDRESS --abi ./Caller/Caller.abi
+nil wallet send-tokens CALLER_ADDRESS 3000000
+nil wallet send-message CALLER_ADDRESS call INCREMENTER_ADDRESS --abi ./Caller/Caller.abi
 ```
 
 Retrieve the result:
