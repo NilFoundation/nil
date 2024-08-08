@@ -30,7 +30,15 @@ import Explorer from '@site/static/img/nil/nil-icons/explorer.png'
 * **Modularity**. =nil; acts as an execution layer while using Ethereum for data availability and consensus.
 * **Verifiable security**. The entire =nil; network can be verified with a single zero-knowledge proof attesting to the correctness of all shards.
 
-The design of =nil; transcends the typical monolithic vs. modular discourse as it emphasizes horizontal scalability above all else. =nil; scales out beyond the constraints of a single machine's processing power, by leveraging zkSharding, a new type of sharding architecture. In zkSharding, execution shards produce zero-knowledge proofs (ZKPs) verifying intra-shard state transitions while the state of the cluster is managed by a designated consensus shard. The consensus shard is responsible for synchronizing execution shards and producing a 'master' ZKP that is sent to Ethereum for global state verification.
+The design of =nil; transcends the typical monolithic vs. modular discourse as it emphasizes horizontal scalability above all else. =nil; scales out beyond the constraints of a single machine's processing power, by leveraging zkSharding, a new type of sharding architecture. 
+
+In zkSharding, message processing is delegated to execution shards which contain small partitions of the overall state. Execution shards are managed by the main shard while a special sync committee handles data availability. The sync committee is also responsible for producing zero-knowledge proofs (ZKPs) verifying intra-shard state transitions.
+
+:::info[Contract deployment]
+
+In =nil; it is only possible to deploy smart contracts on execution shards. The main shard exists for synchronization purposes only.
+
+:::
 
 =nil; offers an effective strategy for scaling Ethereum while avoiding the limitations typically associated with the modular approach such as state and liquidity fragmentation.
 

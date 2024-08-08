@@ -9,24 +9,22 @@ This tutorial provides a brief theoretical and practical primer on async executi
 Consider a smart contract with the following code:
 
 ```sol showLineNumbers
-import "./nil.sol";
+import "./Nil.sol";
 
 contract Caller {
 
     using Nil for address; 
 
-    event CallCompleted(address indexed dst)
+    event CallCompleted(address indexed dst);
 
     function call(address dst) public payable {
-        dst.asyncCall(address(0), address(0), gasleft(), false, msg.value, abi.encodeWithSignature("funcName"));
+        dst.asyncCall(address(0), address(0), 500000, false, msg.value, abi.encodeWithSignature("funcName"));
         emit CallCompleted(dst);
     }
 }
 ```
 
 The `asyncCall()` function makes it possible for the contract to call a function in another smart contract regardless of the shard where this contract is located. There are no additional actions required for making async calls: simply adding `asyncCall()` and specifying its arguments is sufficient.
-
-It is recommended to use the `payable` modifier for the function that calls `asyncCall()` and the function that is called by an async call. If there is a discrepancy between the message value and how much gas needs to be purchased for executing the message and the function being called is not `payable`, the message will fail. If the function is `payable`, the contract will simply purchase gas and if there is any remainder, credit it to its balance.
 
 :::info
 
@@ -42,7 +40,7 @@ To initiate an async call, the 'caller' contract must have sufficient funds to p
 
 :::info[Async calls on the same shard]
 
-`asyncCall()` works even if the contract with the specified address is located on the same shard. The mechanism remains exactly the same as with cross-shard communications: the function will produce a new message, and the requested function in another contract will be executed whenever said message is processed by the shard. 
+`asyncCall()` works even if the contract with the specified address is located on the same shard. The mechanism remains exactly the same as with cross-shard communications: the function will produce a new message, and the requested function in another contract will be executed whenever said message is processed by the shard. This usually occurs within the space of two-three blocks.
 
 :::
 
@@ -66,13 +64,19 @@ Contract 1 has the following structure:
 import "./Nil.sol";
 
 contract Caller {
-
-    using Nil for address; 
+    using Nil for address;
 
     function call(address dst) public payable {
-        dst.asyncCall(address(0), address(0), gasleft(), false, msg.value, abi.encodeWithSignature("increment()"));
+        dst.asyncCall(
+            address(0),
+            address(0),
+            500000,
+            2,
+            false,
+            msg.value,
+            abi.encodeWithSignature("increment()")
+        );
     }
-
 }
 ```
 
@@ -85,7 +89,7 @@ contract Receiver {
 
     uint256 private value;
 
-    function increment() payable public {
+    function increment() public {
         value += 1;
     }
 
@@ -137,15 +141,31 @@ Contract 2 acts as a validator for escrow resolution:
 import "./Nil.sol";
 
 contract Validator {
-    
     using Nil for address;
 
-    function verify(address participantOne, address participantTwo) public payable {
+    function verify(
+        address participantOne,
+        address participantTwo
+    ) public payable {
         if (participantOne != participantTwo) {
-            Nil.asyncCall(msg.sender, address(0), address(0), 100000, false, 1000000, abi.encodeWithSignature("resolve(address, address)", participantOne, participantTwo));
+            Nil.asyncCall(
+                msg.sender,
+                address(0),
+                address(0),
+                100000,
+                1,
+                false,
+                msg.value,
+                abi.encodeWithSignature(
+                    "resolve(address, address)",
+                    participantOne,
+                    participantTwo
+                )
+            );
         }
     }
 }
+
 ```
 
 Contract 2 triggers the `resolve()` function within Contract 1 as a callback but only if the escrow participants are two distinct addresses.

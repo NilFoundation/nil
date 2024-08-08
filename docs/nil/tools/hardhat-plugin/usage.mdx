@@ -40,3 +40,13 @@ After deployment, interact with the contract:
 ```bash
 npx hardhat increment --network nil --contract CONTRACT_ADDRESS
 ```
+
+:::info[Fee credit]
+
+The Hardhat plugin has a hardcoded default fee credit that should be enough for most messages. To override this value, specify the `feeCredit` property in `hardhat.config.ts`:
+
+```ts showLineNumbers
+feeCredit: 500000
+```
+
+:::
