@@ -47,6 +47,10 @@ contract TokensTest is NilBase {
         require(!fail, "Test for failed transaction");
     }
 
+    function checkTokenBalance(address addr, uint256 id, uint256 balance) public {
+        require(Nil.tokensBalance(addr, id) == balance, "Balance mismatch");
+    }
+
     function verifyExternal(uint256, bytes calldata) external pure returns (bool) {
         return true;
     }

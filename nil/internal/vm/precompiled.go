@@ -509,10 +509,6 @@ func (c *currencyBalance) RequiredGas([]byte) uint64 {
 func (a *currencyBalance) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	res := make([]byte, 32)
 
-	if caller.Address() != types.MinterAddress {
-		return res, nil
-	}
-
 	// Unpack arguments, skipping the first 4 bytes (function selector)
 	args, err := getPrecompiledMethod("precompileGetCurrencyBalance").Inputs.Unpack(input[4:])
 	if err != nil {
@@ -535,6 +531,8 @@ func (a *currencyBalance) Run(state StateDBReadOnly, input []byte, value *uint25
 	}
 	if addr == types.EmptyAddress {
 		addr = caller.Address()
+	} else if addr.ShardId() != caller.Address().ShardId() {
+		return nil, fmt.Errorf("%w: currencyBalance: cross shard is not allowed", ErrExecutionReverted)
 	}
 
 	var currencyId types.CurrencyId

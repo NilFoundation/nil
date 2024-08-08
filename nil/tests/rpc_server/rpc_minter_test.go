@@ -209,6 +209,13 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 			s.Require().NoError(err)
 			s.Require().Len(currencies, 1)
 			s.Equal(types.NewValueFromUint64(40), currencies[currency1.idStr])
+
+			// Cross-shard `Nil.tokensBalance` should fail
+			s.Require().NotEqual(s.testAddress1_0.ShardId(), s.walletAddress2.ShardId())
+			data, err := s.abiTest.Pack("checkTokenBalance", s.walletAddress2, currency1.idInt, big.NewInt(40))
+			s.Require().NoError(err)
+			receipt = s.sendExternalMessageNoCheck(data, s.testAddress1_0)
+			s.Require().False(receipt.Success)
 		})
 	})
 
@@ -377,6 +384,12 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 			currencies, err := s.client.GetCurrencies(s.testAddress1_0, "latest")
 			s.Require().NoError(err)
 			s.Equal(types.NewValueFromUint64(1_000_000-5000), currencies[currencyTest1.idStr])
+
+			// Check balance via `Nil.tokensBalance` Solidity method
+			data, err := s.abiTest.Pack("checkTokenBalance", types.EmptyAddress, currencyTest1.idInt, big.NewInt(1_000_000-5000))
+			s.Require().NoError(err)
+			receipt := s.sendExternalMessageNoCheck(data, s.testAddress1_0)
+			s.Require().True(receipt.Success)
 		})
 
 		s.Run("Check currency is credited to testAddress1_1", func() {
