@@ -643,6 +643,43 @@ func (s *SuiteRpc) TestBatch() {
 	s.NotEmpty(b2.Content)
 }
 
+func (s *SuiteRpc) TestAddressCalculation() {
+	code, err := contracts.GetCode(contracts.NameTest)
+	s.Require().NoError(err)
+	abi, err := contracts.GetAbi(contracts.NameTest)
+	s.Require().NoError(err)
+
+	data := s.getRandomBytes(65)
+	refHash := common.PoseidonHash(data)
+	salt := s.getRandomBytes(32)
+	shardId := types.ShardId(2)
+	address := types.CreateAddress(shardId, types.BuildDeployPayload(code, common.BytesToHash(salt)))
+	address2 := types.CreateAddressForCreate2(address, code, common.BytesToHash(salt))
+	codeHash := common.PoseidonHash(code).Bytes()
+
+	addr, receipt := s.deployContractViaMainWallet(2, types.BuildDeployPayload(code, common.EmptyHash), defaultContractValue)
+	s.Require().True(receipt.OutReceipts[0].Success)
+
+	// Test `Nil.getPoseidonHash()` library method
+	calldata, err := abi.Pack("getPoseidonHash", data)
+	s.Require().NoError(err)
+	resHash := s.CallGetter(addr, calldata, "latest")
+	s.Require().Equal(refHash[:], resHash)
+
+	// Test `Nil.createAddress()` library method
+	calldata, err = abi.Pack("createAddress", big.NewInt(int64(shardId)), []byte(code), big.NewInt(0).SetBytes(salt))
+	s.Require().NoError(err)
+	resAddress := s.CallGetter(addr, calldata, "latest")
+	s.Require().Equal(address, types.BytesToAddress(resAddress))
+
+	// Test `Nil.createAddress2()` library method
+	calldata, err = abi.Pack("createAddress2", big.NewInt(int64(shardId)), address, big.NewInt(0).SetBytes(salt),
+		big.NewInt(0).SetBytes(codeHash))
+	s.Require().NoError(err)
+	resAddress = s.CallGetter(addr, calldata, "latest")
+	s.Require().Equal(address2, types.BytesToAddress(resAddress))
+}
+
 func TestSuiteRpc(t *testing.T) {
 	t.Parallel()
 

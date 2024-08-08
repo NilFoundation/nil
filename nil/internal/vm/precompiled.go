@@ -75,6 +75,7 @@ var (
 	SendTokensAddress      = types.BytesToAddress([]byte{0xd2})
 	MessageTokensAddress   = types.BytesToAddress([]byte{0xd3})
 	GetGasPriceAddress     = types.BytesToAddress([]byte{0xd4})
+	PoseidonHashAddress    = types.BytesToAddress([]byte{0xd5})
 )
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -110,6 +111,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	SendTokensAddress:      &sendCurrencySync{},
 	MessageTokensAddress:   &getMessageTokens{},
 	GetGasPriceAddress:     &getGasPrice{},
+	PoseidonHashAddress:    &poseidonHash{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -653,4 +655,32 @@ func (c *getGasPrice) Run(state StateDBReadOnly, input []byte, value *uint256.In
 	}
 
 	return res, nil
+}
+
+type poseidonHash struct{}
+
+var _ PrecompiledContract = (*poseidonHash)(nil)
+
+func (c *poseidonHash) RequiredGas([]byte) uint64 {
+	return 10
+}
+
+func (c *poseidonHash) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	method := getPrecompiledMethod("precompileGetPoseidonHash")
+
+	args, err := method.Inputs.Unpack(input[4:])
+	if err != nil {
+		return nil, err
+	}
+	if len(args) != 1 {
+		return nil, errors.New("precompileGetPoseidonHash: invalid number of arguments")
+	}
+
+	// Get `data` argument
+	data, ok := args[0].([]byte)
+	if !ok {
+		return nil, errors.New("data is not a []byte")
+	}
+
+	return common.PoseidonHash(data).Bytes(), nil
 }

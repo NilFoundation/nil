@@ -3,6 +3,7 @@ package rpctest
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -233,7 +234,7 @@ func (s *RpcSuite) CallGetter(addr types.Address, callData []byte, blockId any) 
 		From:      addr,
 		Data:      callData,
 		To:        addr,
-		FeeCredit: s.gasToValue(10000),
+		FeeCredit: s.gasToValue(100_000_000),
 		Seqno:     seqno,
 	}
 	res, err := s.client.Call(callArgs, blockId, nil)
@@ -355,6 +356,14 @@ func (s *RpcSuite) analyzeReceipt(receipt *jsonrpc.RPCReceipt, namesMap map[type
 	res := make(ReceiptInfo)
 	s.analyzeReceiptRec(receipt, res, namesMap)
 	return res
+}
+
+func (s *RpcSuite) getRandomBytes(size int) []byte {
+	s.T().Helper()
+	data := make([]byte, size)
+	_, err := rand.Read(data)
+	s.Require().NoError(err)
+	return data
 }
 
 // analyzeReceiptRec is a recursive function that analyzes the receipt and fills the receipt info.

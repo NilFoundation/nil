@@ -11,6 +11,7 @@ library Nil {
     address private constant SEND_CURRENCY_SYNC = address(0xd2);
     address private constant GET_MESSAGE_TOKENS = address(0xd3);
     address private constant GET_GAS_PRICE = address(0xd4);
+    address private constant GET_POSEIDON_HASH = address(0xd5);
 
     address payable public constant MINTER_ADDRESS = payable(address(0x0001222222222222222222222222222222222222));
 
@@ -174,6 +175,26 @@ library Nil {
     function getGasPrice(address addr) internal returns(uint256) {
         return Precompile(GET_GAS_PRICE).precompileGetGasPrice(getShardId(addr));
     }
+
+    function createAddress(uint shardId, bytes memory code, uint256 salt) internal returns(address) {
+        require(shardId < 0xffff, "Shard id is too big");
+        uint160 addr = uint160(uint256(getPoseidonHash(abi.encodePacked(code, salt))));
+        addr &= 0xffffffffffffffffffffffffffffffffffff;
+        addr |= uint160(shardId) << (18 * 8);
+        return address(addr);
+    }
+
+    function createAddress2(uint shardId, address sender, uint256 salt, uint256 codeHash) internal returns(address) {
+        require(shardId < 0xffff, "Shard id is too big");
+        uint160 addr = uint160(uint256(getPoseidonHash(abi.encodePacked(bytes1(0xff), sender, salt, codeHash))));
+        addr &= 0xffffffffffffffffffffffffffffffffffff;
+        addr |= uint160(shardId) << (18 * 8);
+        return address(addr);
+    }
+
+    function getPoseidonHash(bytes memory data) internal returns(uint256) {
+        return Precompile(GET_POSEIDON_HASH).precompileGetPoseidonHash(data);
+    }
 }
 
 // NilBase is a base contract that provides modifiers for checking the type of message (internal or external).
@@ -209,6 +230,7 @@ contract Precompile {
     function precompileSendTokens(address, Nil.Token[] memory) public returns(bool) {}
     function precompileGetMessageTokens() public returns(Nil.Token[] memory) {}
     function precompileGetGasPrice(uint id) public returns(uint256) {}
+    function precompileGetPoseidonHash(bytes memory data) public returns(uint256) {}
 }
 
 abstract contract NilBounceable is NilBase {
