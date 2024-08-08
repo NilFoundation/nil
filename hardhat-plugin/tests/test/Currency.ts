@@ -30,14 +30,41 @@ describe("Currency contract", () => {
         const tokens = await client.getCurrencies(currencyAddress, "latest");
         console.log("Tokens:", tokens);
         let found = false;
-        for (const [tokenId, balance] of Object.entries(tokens)) {
-            console.log(`Token ID: ${tokenId}, Balance: ${balance}`);
+        let tokenId;
+        for (const [id, balance] of Object.entries(tokens)) {
+            console.log(`Token ID: ${id}, Balance: ${balance}`);
             if (balance === 1000n) {
+                tokenId= id;
                 found = true;
                 break;
             }
         }
         expect(found).to.be.true;
+        found = false;
 
+        // Deploy destination contract (e.g., IncrementerPayable)
+        const { deployedContract: destination, contractAddress: destinationAddr } = await deployNilContract("IncrementerPayable", []);
+        console.log("Destination contract deployed at:", destinationAddr);
+
+        // Call the transfer method on the Currency contract
+        const transferAmount = 500;
+        await currency.transfer(destinationAddr, tokenId, transferAmount);
+
+        // Fetch and print the currency balance again to verify transfer
+        const updatedTokens = await client.getCurrencies(currencyAddress, "latest");
+        console.log("Updated Tokens:", updatedTokens);
+
+        // Check if the destination contract received the tokens (assuming it has a method to fetch balance)
+        const destinationTokens = await client.getCurrencies(destinationAddr, "latest");
+        console.log("Destination Tokens:", destinationTokens);
+
+        for (const [id, balance] of Object.entries(destinationTokens)) {
+            console.log(`Token ID: ${id}, Balance: ${balance}`);
+            if (balance === 500n) {
+                found = true;
+                break;
+            }
+        }
+        expect(found).to.be.true;
     });
 });

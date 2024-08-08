@@ -9,6 +9,7 @@ contract IncrementerPayable is NilBase {
     event ValueChanged(uint256 newValue);
 
     constructor() payable {}
+    receive() external payable {}
 
     function increment() public onlyInternal payable{
         value += 1;
