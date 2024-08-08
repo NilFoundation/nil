@@ -1,8 +1,4 @@
-# Handling differences between Ethereum and =nil;
-
-This guide outlines the key incompatibilities between =nil; and Ethereum, and suggests ways for handling them when interacting with the cluster.
-
-## Opcode compatibility
+# Opcode differences between Ethereum and =nil;
 
 =nil; uses the same opcodes with the same signatures as the EVM. However, as =nil; supports cross-shard communications, the actions that some EVM opcodes may perform inside the cluster may differ from their behavior on L1.
 

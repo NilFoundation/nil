@@ -203,7 +203,7 @@ export default {
                     items: [
                         {
                             type: 'doc',
-                            label: 'Key differences between Ethereum and =nil;',
+                            label: 'Opcode compatibility between Ethereum and =nil;',
                             id: 'guides/architecture/ethereum-nil-diffs'
                         },
                     ]

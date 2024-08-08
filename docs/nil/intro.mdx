@@ -42,6 +42,19 @@ In =nil; it is only possible to deploy smart contracts on execution shards. The 
 
 =nil; offers an effective strategy for scaling Ethereum while avoiding the limitations typically associated with the modular approach such as state and liquidity fragmentation.
 
+# Key differences between =nil; and Ethereum
+
+The following table summarizes how =nil; differs from Ethereum.
+
+| Area | =nil; | Ethereum |
+|:--:|:--:|:--:|
+| State | State is partitioned between individual shards responsible for message execution | State is not partitioned |
+| Execution | Support of async message execution | Only sync message execution |
+| Accounts | All accounts are smart contracts, no EOAs  | Separation of EOAs and contract accounts |
+| Deployment | Support of internal and external deployment without requiring an EOA | An EOA or a smart contract are required for deployment  |
+| RPC | Custom RPC loosely modeled after the Ethereum RPC | The original Ethereum RPC |
+| Currency and tokens | One native token used to pay for execution; contracts can create and be debited in custom currencies | One native token, support of multiple token standards  |
+
 ## Structure of the documentation
 
 ### Introduction
