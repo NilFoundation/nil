@@ -77,8 +77,9 @@ const config = {
         useCodeBlocks: true,
         parametersFormat: "htmlTable",
         entryPoints: [
-          process.env.NILJS_SRC
+          process.env.NILJS_SRC + "/src/index.ts"
         ],
+        tsconfig: process.env.NILJS_SRC + "/tsconfig.json",
         skipErrorChecking: true,
         sidebar: {
           "autoConfiguration": true,
