@@ -3,7 +3,7 @@
 stdenv.mkDerivation rec {
   name = "nil.js";
   pname = "niljs";
-  src = ./packages/niljs;
+  src = ./niljs;
 
   buildInputs = [ bun ];
 
@@ -33,8 +33,10 @@ stdenv.mkDerivation rec {
 
   installPhase = ''
     mkdir -p $out
-    touch $out/dummy
-    mkdir -p $out/src
-    cp -r $src/* $out/src
+    mkdir -p $out/dist
+    cp -r package.json $out
+    cp -r package-lock.json $out
+    cp -r src $out
+    cp -r dist/* $out/dist
   '';
 }

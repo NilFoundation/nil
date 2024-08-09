@@ -6,7 +6,7 @@ stdenv.mkDerivation rec {
 
   npmDeps = fetchNpmDeps {
     inherit src;
-    hash = "sha256-+ufc0TIW68Rm4F/zSzcGZpKY8Yv5QY4HTrAaXFxSRlE=";
+    hash = "sha256-8X/Q45kueTJN9S+6nC5QJV6ROnxUaUbrZDepb0WTdy8=";
   };
 
   NODE_PATH = "$npmDeps";
@@ -21,6 +21,9 @@ stdenv.mkDerivation rec {
 
   buildPhase = ''
     echo "run npm test in build phase when hardhat tests are ready"
+    npm link ${niljs}
+    npm run build
+    npm test
   '';
 
   installPhase = ''

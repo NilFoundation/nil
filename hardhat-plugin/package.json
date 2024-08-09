@@ -14,24 +14,29 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "rimraf dist && tsc -p tsconfig.json",
-    "lint": "biome check src",
-    "lint:fix": "biome check --write src"
+    "lint": "biome check src test",
+    "lint:fix": "biome check --write src",
+    "test": "npx hardhat test --network nil"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@nilfoundation/niljs": "file:../packages/niljs",
+    "@nilfoundation/niljs": "file:../niljs",
     "ethers": "^6.12.1",
     "hardhat": "^2.22.4",
     "viem": "^2.16.3"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.6",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@biomejs/biome": "1.8.2",
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.0.0",
     "rimraf": "^5.0.7",
-    "typescript": "^5.5.2"
+    "typescript": "^5.5.2",
+    "dotenv": "^16.4.5",
+    "ts-node": "^10.9.2"
   },
   "publishConfig": {
     "access": "public",
