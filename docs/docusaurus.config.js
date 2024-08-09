@@ -8,7 +8,7 @@ import { themes as prismThemes } from 'prism-react-renderer';
 
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import remarkCodeSnippets from 'remark-code-snippets';
+import remarkCodeSnippets from 'nil-remark-code-snippets';
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
