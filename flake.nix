@@ -32,6 +32,7 @@
           nil = (pkgs.callPackage ./nil.nix { src_repo = self; });
           niljs = (pkgs.callPackage ./niljs.nix { nil = nil; });
           nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; });
+          nilhardhat = (pkgs.callPackage ./nilhardhat.nix { nil = nil; });
           default = nil;
         };
         checks = rec {
@@ -42,10 +43,10 @@
           });
           niljs = (pkgs.callPackage ./niljs.nix { nil = nil; });
           nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; });
-          nil-hardhat-tests = (pkgs.callPackage ./nilhardhat.nix { nil = nil; });
+          nilhardhat = (pkgs.callPackage ./nilhardhat.nix { nil = nil; });
           default = pkgs.symlinkJoin {
             name = "all";
-            paths = [ nil niljs nildocs nil-hardhat-tests ];
+            paths = [ nil niljs nildocs nilhardhat ];
           };
         };
         bundlers = rec {
