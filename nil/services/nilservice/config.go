@@ -1,6 +1,7 @@
 package nilservice
 
 import (
+	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
@@ -34,6 +35,8 @@ type Config struct {
 	Libp2pTcpPort  int
 	Libp2pQuicPort int
 	UseMdns        bool
+
+	Telemetry *telemetry.Config
 }
 
 func (c *Config) IsShardActive(shardId types.ShardId) bool {
