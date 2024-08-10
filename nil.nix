@@ -12,7 +12,8 @@ in buildGoModule rec {
     make compile-contracts ssz rpcspec
   '';
 
-  src = src_repo;
+  src = lib.sourceByRegex ./. ["Makefile" "go.mod" "go.sum" "^nil(/.*)?$"];
+
   # to obtain run `nix build` with vendorHash = "";
   vendorHash = "sha256-nJ+r8hVYuyULtW6YOV5E77+MlB0cZZDKO919DB0nVk4=";
   hardeningDisable = [ "all" ];

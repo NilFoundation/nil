@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
+//startContract
 pragma solidity ^0.8.0;
 
-contract Incrementer {
+contract Counter {
     uint256 private value;
 
     event ValueChanged(uint256 newValue);
@@ -15,3 +16,5 @@ contract Incrementer {
         return value;
     }
 }
+
+//endContract

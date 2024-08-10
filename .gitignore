@@ -54,5 +54,5 @@ yarn-error.log*
 /.github
 /.husky
 
-*/reference/client
+docs/reference/client
 

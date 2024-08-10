@@ -13039,6 +13039,14 @@ nice-try@^1.0.4:
   resolved "https://registry.yarnpkg.com/nice-try/-/nice-try-1.0.5.tgz#a3378a7696ce7d223e88fc9b764bd7ef1089e366"
   integrity sha512-1nh45deeb5olNY7eX82BkPO7SSxR5SSYJiPTrTdFUVYwAl8CKMA5N9PjTYkHiRjisVcxcQ1HXdLhx2qxxJzLNQ==
 
+nil-remark-code-snippets@^1.2.4:
+  version "1.2.4"
+  resolved "https://registry.yarnpkg.com/nil-remark-code-snippets/-/nil-remark-code-snippets-1.2.4.tgz#07cde8e9efb3f1dbf79a650460dee76337e2ebd3"
+  integrity sha512-shb43rQRniTVaGQfpEfkZpZkC0ZxJvEW3TDU4Yg6nIYnsJbSAMmDf0xcHPPendItsSb1lCNyAiMzVoPqFmO9ow==
+  dependencies:
+    unified "^9.2.1"
+    unist-util-visit "^2.0.1"
+
 no-case@^3.0.4:
   version "3.0.4"
   resolved "https://registry.yarnpkg.com/no-case/-/no-case-3.0.4.tgz#d361fd5c9800f558551a8369fc0dcd4662b6124d"
@@ -15471,14 +15479,6 @@ relateurl@^0.2.7:
   version "0.2.7"
   resolved "https://registry.yarnpkg.com/relateurl/-/relateurl-0.2.7.tgz#54dbf377e51440aca90a4cd274600d3ff2d888a9"
   integrity sha512-G08Dxvm4iDN3MLM0EsP62EDV9IuhXPR6blNz6Utcp7zyV3tr4HVNINt6MpaRWbxoOHT3Q7YN2P+jaHX8vUbgog==
-
-remark-code-snippets@^1.1.0:
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/remark-code-snippets/-/remark-code-snippets-1.1.0.tgz#0281a526e69ed26628dc580af63adee4db30f859"
-  integrity sha512-c1ZpTTXc1XlsNwBFQ5GkcmXfvPRFPx5ETsxcgFONNq3xPeIjwtlBXLR00ZN2F3eR9qLpRvclU4adYzmPHP9ndQ==
-  dependencies:
-    unified "^9.2.1"
-    unist-util-visit "^2.0.1"
 
 remark-directive@^3.0.0:
   version "3.0.0"

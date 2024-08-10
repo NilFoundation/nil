@@ -2,13 +2,27 @@ package logging
 
 import (
 	"fmt"
+	"log/syslog"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/term"
+)
+
+var (
+	// syslogWriter is shared across all syslog loggers
+	syslogWriter *syslog.Writer
+
+	// syslogWriterInit must be called before syslogWriter use
+	syslogWriterInit = sync.OnceFunc(func() {
+		var err error
+		syslogWriter, err = syslog.New(syslog.LOG_INFO, "nild")
+		check.PanicIfErr(err)
+	})
 )
 
 func SetupGlobalLogger(level string) {
@@ -49,25 +63,32 @@ func makeComponentFormatter(noColor bool) zerolog.Formatter {
 	}
 }
 
-func NewSimpleLogger() zerolog.Logger {
-	noColor := os.Getenv("NO_COLOR") != "" || !term.IsTerminal(int(os.Stdout.Fd()))
-	return zerolog.New(zerolog.ConsoleWriter{
-		Out:        os.Stderr,
-		TimeFormat: time.TimeOnly,
-		PartsOrder: []string{
-			zerolog.TimestampFieldName,
-			zerolog.LevelFieldName,
-			zerolog.MessageFieldName,
-		},
-		FormatFieldValue: makeComponentFormatter(noColor),
-		NoColor:          noColor,
-	}).
-		With().
+// isSystemd returns true if the process is running under systemd
+func isSystemd() bool {
+	return os.Getenv("INVOCATION_ID") != ""
+}
+
+func NewLogger(component string) zerolog.Logger {
+	var logger zerolog.Logger
+	if isSystemd() {
+		logger = newSystemdLogger()
+	} else {
+		logger = newConsoleLogger()
+	}
+
+	return logger.With().
+		Str(FieldComponent, component).
+		Caller().
 		Timestamp().
 		Logger()
 }
 
-func NewLogger(component string) zerolog.Logger {
+func newSystemdLogger() zerolog.Logger {
+	syslogWriterInit()
+	return zerolog.New(zerolog.SyslogLevelWriter(syslogWriter))
+}
+
+func newConsoleLogger() zerolog.Logger {
 	noColor := os.Getenv("NO_COLOR") != "" || !term.IsTerminal(int(os.Stdout.Fd()))
 	return zerolog.New(zerolog.ConsoleWriter{
 		Out:        os.Stderr,
@@ -82,10 +103,5 @@ func NewLogger(component string) zerolog.Logger {
 		FieldsExclude:    []string{FieldComponent},
 		FormatFieldValue: makeComponentFormatter(noColor),
 		NoColor:          noColor,
-	}).
-		With().
-		Str(FieldComponent, component).
-		Caller().
-		Timestamp().
-		Logger()
+	})
 }

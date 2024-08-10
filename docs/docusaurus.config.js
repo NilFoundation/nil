@@ -8,7 +8,7 @@ import { themes as prismThemes } from 'prism-react-renderer';
 
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import remarkCodeSnippets from 'remark-code-snippets';
+import remarkCodeSnippets from 'nil-remark-code-snippets';
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -77,8 +77,9 @@ const config = {
         useCodeBlocks: true,
         parametersFormat: "htmlTable",
         entryPoints: [
-          process.env.NILJS_SRC
+          process.env.NILJS_SRC + "/src/index.ts"
         ],
+        tsconfig: process.env.NILJS_SRC + "/tsconfig.json",
         skipErrorChecking: true,
         sidebar: {
           "autoConfiguration": true,
