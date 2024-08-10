@@ -12,7 +12,7 @@ import (
 
 var sharedLogger = logging.NewLogger("execution")
 
-type payer interface {
+type Payer interface {
 	fmt.Stringer
 	CanPay(types.Value) bool
 	SubBalance(types.Value)
@@ -21,8 +21,14 @@ type payer interface {
 
 type messagePayer struct {
 	message *types.Message
-	gas     types.Gas
 	es      *ExecutionState
+}
+
+func NewMessagePayer(message *types.Message, es *ExecutionState) messagePayer {
+	return messagePayer{
+		message: message,
+		es:      es,
+	}
 }
 
 func (m messagePayer) CanPay(amount types.Value) bool {
@@ -52,21 +58,11 @@ func (m messagePayer) String() string {
 	return "message"
 }
 
-/* Public dummy payer implementation to be used with eth_call (simulator purposes). */
-type SimPayer struct{}
-
-func (m SimPayer) CanPay(amount types.Value) bool {
-	return true
-}
-
-func (m SimPayer) SubBalance(_ types.Value) {
-}
-
-func (m SimPayer) AddBalance(delta types.Value) {
-}
-
-func (m SimPayer) String() string {
-	return "simulator"
+func NewAccountPayer(account *AccountState, message *types.Message) accountPayer {
+	return accountPayer{
+		account: account,
+		message: message,
+	}
 }
 
 type accountPayer struct {
@@ -92,7 +88,7 @@ func (a accountPayer) String() string {
 	return fmt.Sprintf("account %v", a.message.From.Hex())
 }
 
-func buyGas(payer payer, message *types.Message) error {
+func buyGas(payer Payer, message *types.Message) error {
 	if !payer.CanPay(message.FeeCredit) {
 		return fmt.Errorf("%w: %s can't pay %s", ErrInsufficientFunds, payer, message.FeeCredit)
 	}
@@ -100,7 +96,7 @@ func buyGas(payer payer, message *types.Message) error {
 	return nil
 }
 
-func refundGas(payer payer, gasRemaining types.Value) {
+func refundGas(payer Payer, gasRemaining types.Value) {
 	if gasRemaining.IsZero() {
 		return
 	}

@@ -145,7 +145,7 @@ func (s *CollatorTestSuite) TestCollator() {
 	})
 
 	s.Run("Deploy", func() {
-		m := execution.NewDeployMessage(contracts.CounterDeployPayload(s.T()), shardId, to, 0)
+		m := execution.NewDeployMessage(contracts.CounterDeployPayload(s.T()), shardId, to, 0, types.Value{})
 		m.Flags.ClearBit(types.MessageFlagInternal)
 		s.Equal(to, m.To)
 		pool.Msgs = []*types.Message{m}

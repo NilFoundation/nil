@@ -98,7 +98,7 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 }
 
 func NewDeployMessage(payload types.DeployPayload,
-	shardId types.ShardId, from types.Address, seqno types.Seqno,
+	shardId types.ShardId, from types.Address, seqno types.Seqno, value types.Value,
 ) *types.Message {
 	gasCredit := types.Gas(100_000).ToValue(types.DefaultGasPrice)
 	return &types.Message{
@@ -108,6 +108,7 @@ func NewDeployMessage(payload types.DeployPayload,
 		Seqno:     seqno,
 		FeeCredit: gasCredit,
 		To:        types.CreateAddress(shardId, payload),
+		Value:     value,
 	}
 }
 
@@ -127,7 +128,7 @@ func Deploy(t *testing.T, ctx context.Context, es *ExecutionState,
 ) types.Address {
 	t.Helper()
 
-	msg := NewDeployMessage(payload, shardId, from, seqno)
+	msg := NewDeployMessage(payload, shardId, from, seqno, types.Value{})
 	es.AddInMessage(msg)
 	execResult := es.HandleDeployMessage(ctx, msg)
 	require.False(t, execResult.Failed())

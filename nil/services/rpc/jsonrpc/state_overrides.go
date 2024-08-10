@@ -30,6 +30,10 @@ type StateOverrides map[types.Address]Contract
 
 func (overrides *StateOverrides) Override(state *execution.ExecutionState) error {
 	for addr, account := range *overrides {
+		if addr.ShardId() != state.ShardId {
+			continue
+		}
+
 		// Override contract seqno.
 		if account.Seqno != nil {
 			if err := state.SetSeqno(addr, *account.Seqno); err != nil {

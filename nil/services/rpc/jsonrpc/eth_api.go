@@ -273,7 +273,7 @@ type EthAPI interface {
 		@param args CallArgs
 		@param mainBlockNrOrHash BlockNumberOrHash
 		@param overrides StateOverrides
-		@returns CallRes CallRes
+		@returns callRes CallRes
 	*/
 	Call(ctx context.Context, args CallArgs, mainBlockNrOrHash transport.BlockNumberOrHash, overrides *StateOverrides) (*CallRes, error)
 
@@ -339,7 +339,7 @@ func NewEthAPI(ctx context.Context, base *BaseAPI, db db.ReadOnlyDB, pools []msg
 
 func (api *APIImpl) checkShard(shardId types.ShardId) error {
 	if int(shardId) >= len(api.msgPools) {
-		return fmt.Errorf("shard %v doesn't exist", shardId)
+		return fmt.Errorf("%w (%d)", ErrShardNotFound, shardId)
 	}
 	return nil
 }

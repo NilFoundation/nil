@@ -155,7 +155,7 @@ func (g *BlockGenerator) handleInternalInMessage(msg *types.Message) *ExecutionR
 		return NewExecutionResult().SetError(types.NewMessageError(types.MessageStatusValidation, err))
 	}
 
-	return g.executionState.HandleMessage(g.ctx, msg, messagePayer{msg, msg.FeeCredit.ToGas(g.executionState.GasPrice), g.executionState})
+	return g.executionState.HandleMessage(g.ctx, msg, NewMessagePayer(msg, g.executionState))
 }
 
 func (g *BlockGenerator) handleExternalMessage(msg *types.Message) *ExecutionResult {
@@ -169,7 +169,7 @@ func (g *BlockGenerator) handleExternalMessage(msg *types.Message) *ExecutionRes
 	// Validation cached the account.
 	check.PanicIfErr(err)
 
-	res := g.executionState.HandleMessage(g.ctx, msg, accountPayer{acc, msg})
+	res := g.executionState.HandleMessage(g.ctx, msg, NewAccountPayer(acc, msg))
 	res.CoinsUsed = res.CoinsUsed.Add(verifyResult.CoinsUsed)
 	return res
 }

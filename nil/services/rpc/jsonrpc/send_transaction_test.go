@@ -92,7 +92,7 @@ func (suite *SuiteSendTransaction) TestInvalidShard() {
 	suite.Require().NoError(err)
 
 	_, err = suite.api.SendRawTransaction(context.Background(), data)
-	suite.Require().EqualError(err, "shard 1234 doesn't exist")
+	suite.Require().ErrorIs(err, ErrShardNotFound)
 }
 
 func TestSuiteSendTransaction(t *testing.T) {
