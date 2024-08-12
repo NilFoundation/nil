@@ -16,6 +16,7 @@ type Manager struct {
 
 	host   Host
 	pubSub *PubSub
+	dht    *DHT
 
 	mdnsService mdns.Service
 
@@ -41,6 +42,11 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 		return nil, err
 	}
 
+	dht, err := NewDHT(ctx, h, conf, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	var ms mdns.Service
 	if conf.UseMdns {
 		ms, err = setupMdnsDiscovery(ctx, h)
@@ -53,6 +59,7 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 		ctx:         ctx,
 		host:        h,
 		pubSub:      ps,
+		dht:         dht,
 		mdnsService: ms,
 		logger:      logger,
 	}, nil
@@ -79,6 +86,12 @@ func (m *Manager) Close() {
 	if m.mdnsService != nil {
 		if err := m.mdnsService.Close(); err != nil {
 			m.logError(err, "Error closing mDNS service")
+		}
+	}
+
+	if m.dht != nil {
+		if err := m.dht.Close(); err != nil {
+			m.logError(err, "Error closing DHT")
 		}
 	}
 

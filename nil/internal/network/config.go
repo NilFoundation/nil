@@ -13,7 +13,11 @@ type Config struct {
 	IPV4Address string
 	TcpPort     int
 	QuicPort    int
-	UseMdns     bool
+
+	UseMdns bool
+
+	DHTEnabled        bool
+	DHTBootstrapPeers []string
 }
 
 func (c *Config) Enabled() bool {
