@@ -80,6 +80,10 @@ func TestIterate(t *testing.T) {
 	t.Parallel()
 
 	trie := CreateMerklePatriciaTrie(t)
+	// Check iteration on the empty trie
+	for range trie.Iterate() {
+	}
+
 	keys := [][]byte{[]byte("do"), []byte("dog"), []byte("doge"), []byte("horse")}
 	values := [][]byte{[]byte("verb"), []byte("puppy"), []byte("coin"), []byte("stallion")}
 
@@ -242,4 +246,22 @@ func TestProof(t *testing.T) {
 		require.ErrorIs(t, err, db.ErrKeyNotFound)
 		assert.Empty(t, valFromProof)
 	}
+}
+
+func TestSmallRootHash(t *testing.T) {
+	t.Parallel()
+
+	holder := make(map[string][]byte)
+
+	trie := NewMPT(NewMapSetter(holder), NewReader(NewMapGetter(holder)))
+	key := []byte("key")
+	value := []byte("value")
+
+	require.NoError(t, trie.Set(key, value))
+	assert.Equal(t, value, getValue(t, trie, key))
+
+	trie2 := NewMPT(NewMapSetter(holder), NewReader(NewMapGetter(holder)))
+	trie2.SetRootHash(trie.RootHash())
+
+	assert.Equal(t, value, getValue(t, trie2, key))
 }

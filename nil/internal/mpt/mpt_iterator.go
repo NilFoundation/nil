@@ -33,6 +33,8 @@ func (m *Reader) Iterate() []MptIteratorKey {
 			iter(node.NextRef, path)
 		}
 	}
-	iter(m.root, newPath(nil, 0))
+	if m.root.IsValid() {
+		iter(m.root, newPath(nil, 0))
+	}
 	return out
 }
