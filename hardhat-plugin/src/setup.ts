@@ -114,7 +114,7 @@ export async function setupWalletAndClient(
     originalSend,
     originalRequest,
     isRequest: false,
-    feeCredit: BigInt(hre.config.feeCredit ?? 1_000_000),
+    feeCredit: BigInt(hre.config.feeCredit ?? 5_000_000),
     directTxValue: hre.config.directTxValue
       ? BigInt(hre.config.directTxValue)
       : undefined,
