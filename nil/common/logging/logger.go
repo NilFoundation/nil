@@ -20,7 +20,7 @@ var (
 	// syslogWriterInit must be called before syslogWriter use
 	syslogWriterInit = sync.OnceFunc(func() {
 		var err error
-		syslogWriter, err = syslog.New(syslog.LOG_INFO, "nild")
+		syslogWriter, err = syslog.New(syslog.LOG_INFO, os.Args[0])
 		check.PanicIfErr(err)
 	})
 )

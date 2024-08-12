@@ -7,12 +7,14 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
+	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/admin"
 	"github.com/NilFoundation/nil/nil/services/msgpool"
@@ -97,6 +99,12 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	defer cancel()
 
 	logger := logging.NewLogger("nil")
+
+	if err := telemetry.Init(ctx, cfg.Telemetry); err != nil {
+		logger.Error().Err(err).Msg("Failed to initialize telemetry")
+		return 1
+	}
+	defer telemetry.Shutdown(ctx)
 
 	funcs := make([]concurrent.Func, 0, cfg.NShards+2+len(workers))
 	if cfg.GracefulShutdown {
@@ -245,16 +253,14 @@ func createCollators(ctx context.Context, cfg *Config, database db.DB, networkMa
 
 	for i := range cfg.NShards {
 		var collator AbstractCollator
+		var err error
 		shard := types.ShardId(i)
 		if cfg.IsShardActive(shard) {
-			collator = createActiveCollator(shard, cfg, collatorTickPeriod, database, networkManager)
+			collator, err = createActiveCollator(shard, cfg, collatorTickPeriod, database, networkManager)
 		} else {
-			var err error
 			collator, err = createSyncCollator(ctx, shard, cfg, collatorTickPeriod, database)
-			if err != nil {
-				panic(err)
-			}
 		}
+		check.PanicIfErr(err)
 		collators = append(collators, collator)
 	}
 	return collators
@@ -269,7 +275,7 @@ func createSyncCollator(ctx context.Context, shard types.ShardId, cfg *Config, t
 	return collate.NewSyncCollator(ctx, msgPool, shard, endpoint, tick, database)
 }
 
-func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) *collate.Scheduler {
+func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) (*collate.Scheduler, error) {
 	msgPool := msgpool.New(msgpool.DefaultConfig)
 	collatorCfg := collate.Params{
 		BlockGeneratorParams: execution.BlockGeneratorParams{
@@ -290,6 +296,5 @@ func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod t
 		collatorCfg.ZeroState = cfg.ZeroState
 	}
 
-	collator := collate.NewScheduler(database, msgPool, collatorCfg, networkManager)
-	return collator
+	return collate.NewScheduler(database, msgPool, collatorCfg, networkManager)
 }
