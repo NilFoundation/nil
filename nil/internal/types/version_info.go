@@ -2,9 +2,10 @@ package types
 
 import (
 	"fmt"
+	"reflect"
+
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
-	"reflect"
 )
 
 type VersionInfo struct {
