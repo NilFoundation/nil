@@ -25,17 +25,18 @@ type Manager struct {
 func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 	check.PanicIfNot(conf.Enabled())
 
-	logger := logging.NewLogger("network")
-
-	h, err := newHost(conf, logger)
+	h, err := newHost(conf)
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Info().Msgf("Identity: %s", h.ID())
-	logger.Info().Msgf("Listening on addresses:\n%s", common.Join("\n", h.Addrs()...))
+	logger := logging.NewLogger("network").With().
+		Stringer(logging.FieldP2PIdentity, h.ID()).
+		Logger()
 
-	ps, err := newPubSub(ctx, h)
+	logger.Info().Msgf("Listening on addresses:\n%s\n", common.Join("\n", h.Addrs()...))
+
+	ps, err := newPubSub(ctx, h, logger)
 	if err != nil {
 		return nil, err
 	}

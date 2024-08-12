@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -12,13 +11,12 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/security/noise"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
-	"github.com/rs/zerolog"
 )
 
 type Host = host.Host
 
 // newHost creates a new libp2p host. It must be closed after use.
-func newHost(conf *Config, logger zerolog.Logger) (Host, error) {
+func newHost(conf *Config) (Host, error) {
 	connMgr, err := connmgr.NewConnManager(100, 400, connmgr.WithGracePeriod(time.Minute))
 	if err != nil {
 		return nil, err
@@ -48,10 +46,6 @@ func newHost(conf *Config, logger zerolog.Logger) (Host, error) {
 			libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/%s/tcp/%d", addr, conf.TcpPort)),
 			libp2p.Transport(tcp.NewTCPTransport),
 		)
-
-		logger.Info().
-			Int(logging.FieldTcpPort, conf.TcpPort).
-			Msg("Listening on TCP...")
 	}
 
 	if conf.QuicPort != 0 {
@@ -59,10 +53,6 @@ func newHost(conf *Config, logger zerolog.Logger) (Host, error) {
 			libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/%s/udp/%d/quic", addr, conf.QuicPort)),
 			libp2p.Transport(quic.NewTransport),
 		)
-
-		logger.Info().
-			Int(logging.FieldQuicPort, conf.QuicPort).
-			Msg("Listening on QUIC...")
 	}
 
 	return libp2p.New(options...)
