@@ -5,8 +5,6 @@ import (
 	"runtime"
 	"strings"
 	"text/template"
-
-	"github.com/NilFoundation/nil/nil/common/check"
 )
 
 var (
@@ -26,9 +24,15 @@ func BuildVersionString(appTitle string) string {
 		ver = unknownVersion
 	}
 
-	parts := strings.SplitN(ver, "-", 2)
-	check.PanicIfNot(len(parts) > 0)
+	parts := strings.Split(ver, "-")
+
+	// Tag can be in default format (e.g. "0.1.0") or
+	// in a prefixed format (e.g. "nil_cli-2024.07.04").
+	// For the second case first part should be skipped.
 	ver = parts[0]
+	if strings.HasPrefix(ver, "nil") {
+		ver = parts[1]
+	}
 
 	return formatVersion(versionTmpl, map[string]string{
 		"Title":    appTitle,
