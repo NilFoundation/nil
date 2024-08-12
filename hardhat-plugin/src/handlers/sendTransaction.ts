@@ -50,7 +50,7 @@ async function handleDirectTransaction(
 ): Promise<any> {
   const hash = await context.wallet.sendMessage({
     to: hexStringToUint8Array(params[0].to),
-    feeCredit: context.directTxFeeCredit ?? 1000000n,
+    feeCredit: context.directTxFeeCredit ?? 10000000n,
     value: params[0].value !== undefined ? BigInt(params[0].value) : 0n,
     data: hexStringToUint8Array(params[0].data),
   });

@@ -34,7 +34,7 @@ extendEnvironment((hre) => {
 
 export interface NilHardhatUserConfig extends HardhatUserConfig {
   walletAddress?: string;
-  gasLimit?: number;
+  feeCredit?: number;
   shardId?: number;
   directTxGasLimit?: number;
   directTxValue?: number;
