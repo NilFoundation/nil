@@ -80,6 +80,12 @@ func IsVersionOutdated(tx RoTx) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
+	hashPrevVersion := common.HexToHash("0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")
+	prevVersion := types.VersionInfo{Version: hashPrevVersion}
+	if reflect.DeepEqual(dbVersion, prevVersion) {
+		return false, nil
+	}
 	return !reflect.DeepEqual(dbVersion, types.NewVersionInfo()), nil
 }
 
