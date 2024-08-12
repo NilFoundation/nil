@@ -1,0 +1,139 @@
+package rpctest
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"strconv"
+	"sync"
+	"testing"
+
+	"github.com/NilFoundation/nil/nil/client"
+	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
+	"github.com/NilFoundation/nil/nil/internal/collate"
+	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/nilservice"
+	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/suite"
+)
+
+type shard struct {
+	id   types.ShardId
+	db   db.DB
+	port int
+
+	client   client.Client
+	endpoint string
+}
+
+type SuiteSplitShard struct {
+	suite.Suite
+
+	context   context.Context
+	ctxCancel context.CancelFunc
+	wg        sync.WaitGroup
+
+	dbInit func() db.DB
+
+	shards []shard
+}
+
+func (s *SuiteSplitShard) cancel() {
+	s.T().Helper()
+
+	s.ctxCancel()
+	s.wg.Wait()
+	for _, shard := range s.shards {
+		shard.db.Close()
+	}
+}
+
+func (s *SuiteSplitShard) start(cfg *nilservice.Config) {
+	s.T().Helper()
+	s.context, s.ctxCancel = context.WithCancel(context.Background())
+
+	if s.dbInit == nil {
+		s.dbInit = func() db.DB {
+			db, err := db.NewBadgerDbInMemory()
+			s.Require().NoError(err)
+			return db
+		}
+	}
+
+	ports := make([]int, cfg.NShards-1)
+	portmap := make(map[string]string)
+	for i := range ports {
+		// shard 1 runs on cfg.HttpPort + 1, etc.
+		shardId := i + 1
+		port := cfg.HttpPort + shardId
+		shard := shard{
+			id:       types.ShardId(shardId),
+			db:       s.dbInit(),
+			port:     port,
+			endpoint: fmt.Sprintf("http://127.0.0.1:%d", port),
+		}
+		shard.client = rpc_client.NewClient(shard.endpoint, zerolog.New(os.Stderr))
+		portmap[strconv.Itoa(shardId)] = shard.endpoint
+		s.shards = append(s.shards, shard)
+	}
+	for i := range ports {
+		s.wg.Add(1)
+		go func() {
+			shardConfig := nilservice.Config{
+				NShards:              cfg.NShards,
+				RunOnlyShard:         s.shards[i].id,
+				HttpPort:             s.shards[i].port,
+				Topology:             cfg.Topology,
+				CollatorTickPeriodMs: cfg.CollatorTickPeriodMs,
+				GasBasePrice:         cfg.GasBasePrice,
+				ShardEndpoints:       portmap,
+			}
+			nilservice.Run(s.context, &shardConfig, s.shards[i].db, nil)
+			s.wg.Done()
+		}()
+	}
+	s.waitZerostate()
+}
+
+func (s *SuiteSplitShard) waitZerostate() {
+	s.T().Helper()
+	for i := range s.shards {
+		shard := &s.shards[i]
+		s.Require().Eventually(func() bool {
+			block, err := shard.client.GetBlock(shard.id, transport.BlockNumber(0), false)
+			return err == nil && block != nil
+		}, ZeroStateWaitTimeout*10, ZeroStatePollInterval*10)
+	}
+}
+
+func (s *SuiteSplitShard) SetupSuite() {
+	s.start(&nilservice.Config{
+		NShards:              3,
+		HttpPort:             8539,
+		Topology:             collate.TrivialShardTopologyId,
+		CollatorTickPeriodMs: 100,
+		GasBasePrice:         10,
+	})
+}
+
+func (s *SuiteSplitShard) TearDownSuite() {
+	s.cancel()
+}
+
+func (s *SuiteSplitShard) TestBasic() {
+	// get latest blocks from all shards
+	for i := range s.shards {
+		shard := &s.shards[i]
+		block, err := shard.client.GetBlock(types.ShardId(i+1), "latest", false)
+		s.Require().NoError(err)
+		s.Require().NotNil(block)
+	}
+}
+
+func TestExampleTestSuite(t *testing.T) {
+	t.Parallel()
+
+	suite.Run(t, new(SuiteSplitShard))
+}
