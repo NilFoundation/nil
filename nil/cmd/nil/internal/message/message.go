@@ -14,16 +14,20 @@ import (
 
 var logger = logging.NewLogger("messageCommand")
 
-func GetCommand(cfg *common.Config) *cobra.Command {
+func GetCommand(cfgPath *string) *cobra.Command {
 	serverCmd := &cobra.Command{
-		Use:          "message [hash]",
-		Short:        "Retrieve a message from the cluster",
-		Args:         cobra.ExactArgs(1),
-		RunE:         runCommand,
+		Use:   "message [hash]",
+		Short: "Retrieve a message from the cluster",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runCommand(cfgPath, args)
+		},
 		SilenceUsage: true,
 	}
 
 	setFlags(serverCmd)
+
+	serverCmd.AddCommand(GetInternalMessageCommand())
 
 	return serverCmd
 }
@@ -36,7 +40,13 @@ func setFlags(cmd *cobra.Command) {
 	)
 }
 
-func runCommand(_ *cobra.Command, args []string) error {
+func runCommand(cfgPath *string, args []string) error {
+	cfg, err := common.LoadConfig(*cfgPath, logger)
+	if err != nil {
+		return err
+	}
+	common.InitRpcClient(cfg, logger)
+
 	service := cliservice.NewService(common.GetRpcClient(), nil)
 
 	var hash libcommon.Hash

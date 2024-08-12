@@ -1,11 +1,8 @@
 package main
 
 import (
-	"crypto/ecdsa"
-	"errors"
 	"fmt"
 	"os"
-	"reflect"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/block"
@@ -21,12 +18,8 @@ import (
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/wallet"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 type RootCommand struct {
@@ -47,6 +40,7 @@ var noConfigCmd = map[string]struct{}{
 	"completion":       {},
 	"__complete":       {},
 	"__completeNoDesc": {},
+	"message":          {},
 	"version":          {},
 }
 
@@ -78,13 +72,14 @@ func main() {
 				if _, withoutConfig := noConfigCmd[cmd.Name()]; withoutConfig {
 					return nil
 				}
-				if err := rootCmd.loadConfig(); err != nil {
+
+				var err error
+				cfg, err := common.LoadConfig(rootCmd.cfgFile, logger)
+				if err != nil {
 					return err
 				}
-				if err := rootCmd.validateConfig(); err != nil {
-					return err
-				}
-				common.InitRpcClient(&rootCmd.config, logger)
+				rootCmd.config = *cfg
+				common.InitRpcClient(cfg, logger)
 				return nil
 			},
 			SilenceUsage:  true,
@@ -121,82 +116,13 @@ func (rc *RootCommand) registerSubCommands() {
 		config.GetCommand(&rc.cfgFile, &rc.config),
 		contract.GetCommand(&rc.config),
 		keygen.GetCommand(),
-		message.GetCommand(&rc.config),
+		message.GetCommand(&rc.cfgFile),
 		minter.GetCommand(&rc.config),
 		receipt.GetCommand(&rc.config),
 		system.GetCommand(&rc.config),
 		version.GetCommand(),
 		wallet.GetCommand(&rc.config),
 	)
-}
-
-func decodePrivateKey(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
-	if f.Kind() == reflect.String && t == reflect.TypeOf(&ecdsa.PrivateKey{}) {
-		s, _ := data.(string)
-		return crypto.HexToECDSA(s)
-	}
-	return data, nil
-}
-
-func decodeAddress(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
-	if f.Kind() == reflect.String && t == reflect.TypeOf(types.Address{}) {
-		s, _ := data.(string)
-		var res types.Address
-		if err := res.UnmarshalText([]byte(s)); err != nil {
-			return nil, err
-		}
-		return res, nil
-	}
-	return data, nil
-}
-
-func updateDecoderConfig(config *mapstructure.DecoderConfig) {
-	config.DecodeHook = mapstructure.ComposeDecodeHookFunc(
-		config.DecodeHook,
-		decodePrivateKey,
-		decodeAddress,
-	)
-}
-
-// loadConfig loads the configuration from the config file
-func (rc *RootCommand) loadConfig() error {
-	err := viper.ReadInConfig()
-
-	// Create file if it doesn't exist
-	if errors.As(err, new(viper.ConfigFileNotFoundError)) {
-		logger.Info().Msg("Config file not found. Creating a new one...")
-
-		path, errCfg := common.InitDefaultConfig(rc.cfgFile)
-		if errCfg != nil {
-			logger.Error().Err(err).Msg("Failed to create config")
-			return err
-		}
-
-		logger.Info().Msgf("Config file created successfully at %s", path)
-		logger.Info().Msgf("set via `%s config set <option> <value>` or via config file", os.Args[0])
-		return nil
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed to read config file: %w", err)
-	}
-
-	if err := viper.UnmarshalKey("nil", &rc.config, updateDecoderConfig); err != nil {
-		return fmt.Errorf("unable to decode config: %w", err)
-	}
-
-	logger.Debug().Msg("Configuration loaded successfully")
-	return nil
-}
-
-// validateConfig perform some simple configuration validation
-func (rc *RootCommand) validateConfig() error {
-	if rc.config.RPCEndpoint == "" {
-		logger.Info().Msg("RPCEndpoint is missing in config")
-		logger.Info().Msgf("set via `%s config set rpc_endpoint <endpoint>` or via config file", os.Args[0])
-		return fmt.Errorf("%q is missing in config", common.RPCEndpointField)
-	}
-	return nil
 }
 
 // Execute runs the root command and handles any errors

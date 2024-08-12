@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/NilFoundation/nil/nil/client"
@@ -259,7 +260,7 @@ func (s *RpcSuite) runCliNoCheck(args ...string) (string, error) {
 	cmd := exec.Command("go", args...)
 
 	data, err := cmd.CombinedOutput()
-	return string(data), err
+	return strings.TrimSpace(string(data)), err
 }
 
 func (s *RpcSuite) loadContract(path string, name string) (types.Code, abi.ABI) {

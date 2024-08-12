@@ -346,13 +346,25 @@ func (s *SuiteCli) TestCliWallet() {
 	var addr types.Address
 	s.Run("Get contract address", func() {
 		res := s.runCli("-c", cfgPath, "contract", "address", dir+"/Incrementer.bin", "123321", "--abi", abiFileName, "-q")
-		s.Require().NoError(addr.Set(strings.TrimSpace(res)))
+		s.Require().NoError(addr.Set(res))
 	})
 
+	res = s.runCli("-c", cfgPath, "wallet", "deploy", dir+"/Incrementer.bin", "123321", "--abi", abiFileName)
 	s.Run("Deploy contract", func() {
-		res := s.runCli("-c", cfgPath, "wallet", "deploy", dir+"/Incrementer.bin", "123321", "--abi", abiFileName)
 		s.Contains(res, "Contract address")
 		s.Contains(res, strings.ToLower(addr.String()))
+	})
+
+	s.Run("Check deploy message result and receipt", func() {
+		hash := strings.TrimPrefix(res, "Message hash: ")[:66]
+
+		res = s.runCli("-c", cfgPath, "message", hash)
+		s.Contains(res, "Message data:")
+		s.Contains(res, "\"success\": true")
+
+		res = s.runCli("-c", cfgPath, "receipt", hash)
+		s.Contains(res, "Receipt data:")
+		s.Contains(res, "\"success\": true")
 	})
 
 	s.Run("Check contract code", func() {
@@ -384,13 +396,34 @@ func (s *SuiteCli) TestCliAbi() {
 
 	s.Run("Encode", func() {
 		res := s.runCli("abi", "encode", "get", "--path", abiFileName)
-		s.Equal("0x6d4ce63c", strings.TrimSpace(res))
+		s.Equal("0x6d4ce63c", res)
 	})
 
 	s.Run("Decode", func() {
 		res := s.runCli("abi", "decode", "get", "0x000000000000000000000000000000000000000000000000000000000001e1ba", "--path", abiFileName)
-		s.Equal("uint256: 123322", strings.TrimSpace(res))
+		s.Equal("uint256: 123322", res)
 	})
+}
+
+func (s *SuiteCli) TestCliEncodeInternalMessage() {
+	dir := s.T().TempDir()
+
+	abiFileName := dir + "/Incrementer.abi"
+	s.compileIncrementerAndSaveToFile("", abiFileName)
+
+	calldata := s.runCli("abi", "encode", "get", "--path", abiFileName)
+	s.Equal("0x6d4ce63c", calldata)
+
+	addr := "0x00041945255839dcbd3001fd5e6abe9ee970a797"
+	res := s.runCli("message", "encode-internal", "--to", addr, "--data", calldata, "--fee-credit", "5000000")
+
+	expected := "0x0000404b4c0000000000000000000000000000000000000000000000000000000000030000000000000000041945255839dcbd3001fd5e6abe9ee970a797000000000000000000000000000000000000000000000000000000000000000000000000000000008e00000000000000000000000000000000000000000000000000000000000000000000008e0000006d4ce63c"
+	s.Contains(res, "\"feeCredit\": \"5000000\"")
+	s.Contains(res, "\"forwardKind\": 3")
+	s.Contains(res, "Result: "+expected)
+
+	res = s.runCli("message", "encode-internal", "--to", addr, "--data", calldata, "--fee-credit", "5000000", "-q")
+	s.Equal(expected, res)
 }
 
 func (s *SuiteCli) TestCliConfig() {
