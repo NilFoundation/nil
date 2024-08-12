@@ -731,8 +731,10 @@ func (es *ExecutionState) AddInMessage(message *types.Message) {
 
 func (es *ExecutionState) DropInMessage() {
 	es.InMessages = es.InMessages[:len(es.InMessages)-1]
-	if len(es.InMessages) > 0 {
-		es.InMessageHash = es.InMessages[len(es.InMessages)-1].Hash()
+	es.InMessageHashes = es.InMessageHashes[:len(es.InMessageHashes)-1]
+	check.PanicIfNotf(len(es.InMessages) == len(es.InMessageHashes), "InMessages and InMessageHashes should have the same length")
+	if len(es.InMessageHashes) > 0 {
+		es.InMessageHash = es.InMessageHashes[len(es.InMessages)-1]
 	} else {
 		es.InMessageHash = common.EmptyHash
 	}
