@@ -2,15 +2,9 @@
 
 pragma solidity ^0.8.9;
 
-import "../Nil.sol";
-import "../Minter.sol";
+import "../NilCurrencyBase.sol";
 
-contract TokensTest is NilBase {
-
-    function createToken(uint256 amount, string memory name) onlyExternal public {
-        bool success = Minter(Nil.MINTER_ADDRESS).create(amount, address(0), name, address(this));
-        require(success, "Create token failed");
-    }
+contract TokensTest is NilCurrencyBase {
 
     // Perform sync call to send tokens to the destination address. Without calling any function.
     function testSendTokensSync(address dst, uint256 amount, bool fail) onlyExternal public {
@@ -48,7 +42,7 @@ contract TokensTest is NilBase {
     }
 
     function checkTokenBalance(address addr, uint256 id, uint256 balance) public {
-        require(Nil.tokensBalance(addr, id) == balance, "Balance mismatch");
+        require(Nil.currencyBalance(addr, id) == balance, "Balance mismatch");
     }
 
     function verifyExternal(uint256, bytes calldata) external pure returns (bool) {
@@ -56,4 +50,22 @@ contract TokensTest is NilBase {
     }
 
     receive() payable external {}
+}
+
+contract TokensTestNoExternalAccess is NilCurrencyBase {
+    function setCurrencyName(string memory) onlyExternal view override public {
+        revert("Not allowed");
+    }
+
+    function mintCurrency(uint256) onlyExternal view override public {
+        revert("Not allowed");
+    }
+
+    function sendCurrency(address, uint256, uint256) onlyExternal view override public {
+        revert("Not allowed");
+    }
+
+    function verifyExternal(uint256, bytes calldata) external pure returns (bool) {
+        return true;
+    }
 }

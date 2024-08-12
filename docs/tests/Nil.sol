@@ -12,8 +12,6 @@ library Nil {
     address private constant GET_MESSAGE_TOKENS = address(0xd3);
     address private constant GET_GAS_PRICE = address(0xd4);
 
-    address payable public constant MINTER_ADDRESS = payable(address(0x0001222222222222222222222222222222222222));
-
     // The following constants specify from where and how the gas should be taken during async call.
     // Forwarding values are calculated in the following order: FORWARD_VALUE, FORWARD_PERCENTAGE, FORWARD_REMAINING.
     //
