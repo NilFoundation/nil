@@ -21,8 +21,6 @@ func MintCurrencyCommand(cfg *common.Config) *cobra.Command {
 		SilenceUsage: true,
 	}
 
-	cmd.Flags().BoolVar(&params.withdraw, withdrawFlag, false, "Withdraw minted currency to the wallet/contract")
-
 	return cmd
 }
 
@@ -39,7 +37,7 @@ func runMintCurrency(_ *cobra.Command, args []string, cfg *common.Config) error 
 		return err
 	}
 
-	txHash, err := service.CurrencyMint(address, amount, params.withdraw)
+	txHash, err := service.CurrencyMint(address, amount)
 	if err != nil {
 		return err
 	}

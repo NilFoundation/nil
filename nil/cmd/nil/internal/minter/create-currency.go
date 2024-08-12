@@ -21,8 +21,6 @@ func CreateCurrencyCommand(cfg *common.Config) *cobra.Command {
 		SilenceUsage: true,
 	}
 
-	cmd.Flags().BoolVar(&params.withdraw, withdrawFlag, false, "Withdraw created currency to the wallet/contract")
-
 	return cmd
 }
 
@@ -41,7 +39,7 @@ func runCreateCurrency(_ *cobra.Command, args []string, cfg *common.Config) erro
 
 	name := args[2]
 
-	currencyId, err := service.CurrencyCreate(address, amount, name, params.withdraw)
+	currencyId, err := service.CurrencyCreate(address, amount, name)
 	if err != nil {
 		return err
 	}

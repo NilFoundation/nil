@@ -467,30 +467,24 @@ func (c *mintCurrency) RequiredGas([]byte) uint64 {
 func (c *mintCurrency) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	res := make([]byte, 32)
 
-	if caller.Address() != types.MinterAddress {
-		return res, nil
-	}
-
 	args, err := getPrecompiledMethod("precompileMintCurrency").Inputs.Unpack(input[4:])
 	if err != nil {
 		return nil, err
 	}
-	if len(args) != 2 {
+	if len(args) != 1 {
 		return nil, errors.New("precompileMintCurrency: invalid number of arguments")
 	}
 
-	currencyIdBig, ok1 := args[0].(*big.Int)
-	amountBig, ok2 := args[1].(*big.Int)
-	if !ok1 || !ok2 {
-		return nil, errors.New("currencyId or amount is not a big.Int")
+	amountBig, ok := args[0].(*big.Int)
+	if !ok {
+		return nil, errors.New("amount is not a big.Int")
 	}
 	amount, overflow := types.NewValueFromBig(amountBig)
 	if overflow {
 		log.Logger.Warn().Msgf("amount overflow: %v", amountBig)
 	}
 
-	var currencyId types.CurrencyId
-	currencyIdBig.FillBytes(currencyId[:])
+	currencyId := types.CurrencyId(caller.Address().Hash())
 
 	if err = state.AddCurrency(caller.Address(), currencyId, amount); err != nil {
 		return nil, err

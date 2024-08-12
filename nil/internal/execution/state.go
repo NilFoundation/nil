@@ -1239,11 +1239,11 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 
 	ret, leftOverGas, err := es.evm.StaticCall((vm.AccountRef)(account.address), account.address, calldata, gasCreditLimit.Uint64())
 	if err != nil {
-		msgErr := types.NewMessageError(types.MessageStatusExecution, err)
+		msgErr := types.NewMessageError(types.MessageStatusExternalVerificationFailed, err)
 		return NewExecutionResult().SetError(msgErr)
 	}
 	if !bytes.Equal(ret, common.LeftPadBytes([]byte{1}, 32)) {
-		return NewExecutionResult().SetError(types.NewMessageError(types.MessageStatusExecution, ErrExternalMsgVerification))
+		return NewExecutionResult().SetError(types.NewMessageError(types.MessageStatusExternalVerificationFailed, ErrExternalMsgVerification))
 	}
 	res := NewExecutionResult()
 	spentGas := gasCreditLimit.Sub(types.Gas(leftOverGas))

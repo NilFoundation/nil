@@ -11,11 +11,12 @@ import (
 )
 
 const (
-	NameCounter      = "tests/Counter"
-	NameMessageCheck = "tests/MessageCheck"
-	NameSender       = "tests/Sender"
-	NameTest         = "tests/Test"
-	NameTokensTest   = "tests/TokensTest"
+	NameCounter                    = "tests/Counter"
+	NameMessageCheck               = "tests/MessageCheck"
+	NameSender                     = "tests/Sender"
+	NameTest                       = "tests/Test"
+	NameTokensTest                 = "tests/TokensTest"
+	NameTokensTestNoExternalAccess = "tests/TokensTestNoExternalAccess"
 )
 
 func CounterDeployPayload(t *testing.T) types.DeployPayload {

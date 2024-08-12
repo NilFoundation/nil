@@ -162,10 +162,12 @@ func (s *RpcSuite) deployContractViaMainWallet(shardId types.ShardId, payload ty
 	return s.deployContractViaWallet(types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
 }
 
-func (s *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey, calldata []byte, value types.Value) *jsonrpc.RPCReceipt {
+func (s *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey,
+	calldata []byte,
+) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	txHash, err := s.client.SendMessageViaWallet(addrFrom, calldata, s.gasToValue(10_000_000), value,
+	txHash, err := s.client.SendMessageViaWallet(addrFrom, calldata, s.gasToValue(10_000_000), types.NewZeroValue(),
 		[]types.CurrencyBalance{}, addrTo, key)
 	s.Require().NoError(err)
 
@@ -285,6 +287,13 @@ func (s *RpcSuite) AbiPack(abi *abi.ABI, name string, args ...any) []byte {
 	data, err := abi.Pack(name, args...)
 	s.Require().NoError(err)
 	return data
+}
+
+func (s *RpcSuite) AbiUnpack(abi *abi.ABI, name string, data []byte) []interface{} {
+	s.T().Helper()
+	res, err := abi.Unpack(name, data)
+	s.Require().NoError(err)
+	return res
 }
 
 func (s *RpcSuite) gasToValue(gas uint64) types.Value {

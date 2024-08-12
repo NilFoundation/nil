@@ -60,12 +60,9 @@ type Client interface {
 	// GetCurrencies retrieves the contract currencies at the given address
 	GetCurrencies(address types.Address, blockId any) (types.CurrenciesMap, error)
 
-	// CurrencyMint creates currency for the contract
-	CurrencyCreate(contractAddr types.Address, amount types.Value, name string, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error)
-
-	// CurrencyWithdraw transfers currency to the contract
-	CurrencyWithdraw(contractAddr types.Address, amount types.Value, toAddr types.Address, pk *ecdsa.PrivateKey) (common.Hash, error)
+	// SetCurrencyName sets currency name
+	SetCurrencyName(contractAddr types.Address, name string, pk *ecdsa.PrivateKey) (common.Hash, error)
 
 	// CurrencyMint mints currency for the contract
-	CurrencyMint(contractAddr types.Address, amount types.Value, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error)
+	CurrencyMint(contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey) (common.Hash, error)
 }

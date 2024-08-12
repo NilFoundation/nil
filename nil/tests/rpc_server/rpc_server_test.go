@@ -140,7 +140,7 @@ func (s *SuiteRpc) TestRpcContract() {
 	calldata, err := abi.Pack("increment")
 	s.Require().NoError(err)
 
-	receipt = s.sendMessageViaWallet(types.MainWalletAddress, addr, execution.MainPrivateKey, calldata, types.Value{})
+	receipt = s.sendMessageViaWallet(types.MainWalletAddress, addr, execution.MainPrivateKey, calldata)
 	s.Require().True(receipt.OutReceipts[0].Success)
 }
 

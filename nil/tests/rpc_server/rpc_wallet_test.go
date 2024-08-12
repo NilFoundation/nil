@@ -47,7 +47,7 @@ func (s *SuiteWalletRpc) TestWallet() {
 
 	s.Run("Call", func() {
 		receipt := s.sendMessageViaWallet(types.MainWalletAddress, addrCallee, execution.MainPrivateKey,
-			contracts.NewCounterAddCallData(s.T(), 11), types.Value{})
+			contracts.NewCounterAddCallData(s.T(), 11))
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})
 

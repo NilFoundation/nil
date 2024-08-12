@@ -466,6 +466,7 @@ const (
 	MessageStatusStopToken
 	MessageStatusForwardingFailed
 	MessageStatusMessageToMainShard
+	MessageStatusExternalVerificationFailed
 )
 
 type MessageStatus uint32

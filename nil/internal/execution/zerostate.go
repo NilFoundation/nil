@@ -40,18 +40,12 @@ contracts:
   value: 100000000000000
   contract: Wallet
   ctorArgs: [{{ .MainPublicKey }}]
-- name: Minter
-  address: {{ .MinterAddress }}
-  value: 0
-  contract: Minter
-  ctorArgs: [{{ .MainPublicKey }}]
 `
 
 	DefaultZeroStateConfig, err = common.ParseTemplate(zerostate, map[string]interface{}{
 		"FaucetAddress":     types.FaucetAddress.Hex(),
 		"MainWalletAddress": types.MainWalletAddress.Hex(),
 		"MainPublicKey":     hexutil.Encode(MainPublicKey),
-		"MinterAddress":     types.MinterAddress.Hex(),
 	})
 	check.PanicIfErr(err)
 }

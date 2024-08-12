@@ -3,8 +3,6 @@ import {
   Faucet,
   HttpTransport,
   LocalECDSAKeySigner,
-  MINTER_ABI,
-  MINTER_ADDRESS,
   PublicClient,
   WalletV1,
   bytesToHex,
@@ -45,17 +43,30 @@ console.log("Wallet deployed successfully");
 console.log("walletAddress", walletAddress);
 
 const hashMessage = await wallet.sendMessage({
-  to: MINTER_ADDRESS,
+  to: walletAddress,
   gas: 1_000_000n * 10n,
-  value: 100_000_000n,
+  value: 0,
   data: encodeFunctionData({
-    abi: MINTER_ABI,
-    functionName: "create",
-    args: [100_000_000n, walletAddress, "MY_TOKEN", walletAddress],
+    abi: WalletV1.abi,
+    functionName: "setCurrencyName",
+    args: ["MY_TOKEN"],
   }),
 });
 
 await waitTillCompleted(client, 1, hashMessage);
+
+const hashMessage2 = await wallet.sendMessage({
+  to: walletAddress,
+  gas: 1_000_000n * 10n,
+  value: 0,
+  data: encodeFunctionData({
+    abi: WalletV1.abi,
+    functionName: "mintCurrency",
+    args: [100_000_000n],
+  }),
+});
+
+await waitTillCompleted(client, 1, hashMessage2);
 
 const n = hexToBigInt(walletAddress);
 
