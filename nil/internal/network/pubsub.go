@@ -10,6 +10,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
+const subscriptionChannelSize = 100
+
 type PubSub struct {
 	impl *pubsub.PubSub
 
@@ -26,7 +28,7 @@ type Subscription struct {
 }
 
 // newPubSub creates a new PubSub instance. It must be closed after use.
-func newPubSub(ctx context.Context, h Host) (*PubSub, error) {
+func newPubSub(ctx context.Context, h Host, logger zerolog.Logger) (*PubSub, error) {
 	impl, err := pubsub.NewGossipSub(ctx, h)
 	if err != nil {
 		return nil, err
@@ -35,7 +37,9 @@ func newPubSub(ctx context.Context, h Host) (*PubSub, error) {
 	return &PubSub{
 		impl:   impl,
 		topics: make(map[string]*pubsub.Topic),
-		logger: logging.NewLogger("pubsub"),
+		logger: logger.With().
+			Str(logging.FieldComponent, "pub-sub").
+			Logger(),
 	}, nil
 }
 
@@ -67,6 +71,11 @@ func (ps *PubSub) Publish(ctx context.Context, topic string, data []byte) error 
 
 // Subscribe subscribes to the given topic. The subscription must be closed after use.
 func (ps *PubSub) Subscribe(topic string) (*Subscription, error) {
+	logger := ps.logger.With().
+		Str(logging.FieldComponent, "sub").
+		Str(logging.FieldTopic, topic).
+		Logger()
+
 	t, err := ps.getTopic(topic)
 	if err != nil {
 		return nil, err
@@ -77,13 +86,10 @@ func (ps *PubSub) Subscribe(topic string) (*Subscription, error) {
 		return nil, err
 	}
 
-	ps.logger.Debug().Str(logging.FieldTopic, topic).Msg("Subscribed to topic")
-
+	logger.Debug().Msg("Subscribed to topic")
 	return &Subscription{
-		impl: impl,
-		logger: logging.NewLogger("sub").With().
-			Str(logging.FieldTopic, topic).
-			Logger(),
+		impl:   impl,
+		logger: logger,
 	}, nil
 }
 
@@ -107,7 +113,7 @@ func (ps *PubSub) getTopic(topic string) (*pubsub.Topic, error) {
 }
 
 func (s *Subscription) Start(ctx context.Context) (chan []byte, error) {
-	msgCh := make(chan []byte)
+	msgCh := make(chan []byte, subscriptionChannelSize)
 
 	go func() {
 		s.logger.Debug().Msg("Starting subscription loop...")
@@ -119,9 +125,15 @@ func (s *Subscription) Start(ctx context.Context) (chan []byte, error) {
 					s.logger.Debug().Err(err).Msg("Closing subscription loop due to context cancellation")
 					break
 				}
+				if errors.Is(err, pubsub.ErrSubscriptionCancelled) {
+					s.logger.Debug().Err(err).Msg("Quitting subscription loop")
+					break
+				}
 				s.logger.Error().Err(err).Msg("Error reading message")
 				continue
 			}
+
+			s.logger.Trace().Msg("Received message")
 
 			msgCh <- msg.Data
 		}
