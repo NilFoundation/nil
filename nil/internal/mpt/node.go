@@ -24,6 +24,7 @@ func (r *Reference) IsValid() bool {
 
 type Node interface {
 	Encode() ([]byte, error)
+	// partial path from parent node to the current
 	Path() *Path
 	SetData(data []byte) error
 	Data() []byte

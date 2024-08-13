@@ -1,115 +1,230 @@
 package mpt
 
 import (
+	"bytes"
 	"errors"
 
+	ssz "github.com/NilFoundation/fastssz"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
-type MPTProof []Node
+type MPTOperation uint32
 
-// Creates Sparse MPT from slice of Nodes. It could be used to get values by keys of any Node
-// included into the proof.
-func (p MPTProof) CreateMerklePatriciaTrie() (*MerklePatriciaTrie, error) {
-	if len(p) == 0 {
-		return nil, errors.New("empty proof")
-	}
+const (
+	ReadMPTOperation MPTOperation = iota
+	SetMPTOperation
+	DeleteMPTOperation
+)
 
-	holder := make(map[string][]byte)
-	mpt := NewMPT(NewMapSetter(holder), NewReader(NewMapGetter(holder)))
-	rootKey, err := mpt.storeNode(p[0])
-	if err != nil {
-		return nil, err
-	}
-	mpt.root = rootKey
-
-	for _, node := range p[1:] {
-		// storeNode computes hash of the node for each insertion, thus, successful following Get operation
-		//   will indicate the validiy of the proof
-		_, err = mpt.storeNode(node)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return mpt, nil
+type Proof struct {
+	operation MPTOperation
+	key       []byte
+	// path from root to the node with max matching to key prefix
+	// if key is presented in the MPT this'll be simply path to corresponding node
+	pathToNode []Node
 }
 
-// CreateProof constructs a merkle proof for key. The result contains all nodes
-// on the path to the value at key. The value itself is also included in the last
-// node and can be retrieved by verifying the proof.
-//
-// If the trie does not contain a value for key, the returned proof contains all
-// nodes of the longest existing prefix of the key (at least the root node), ending
-// with the node that proves the absence of the key.
-func (m *Reader) CreateProof(key []byte) (MPTProof, error) {
-	if m.root == nil {
-		// TODO: use error from MPT pkg?
-		return nil, db.ErrKeyNotFound
+func BuildProof(tree *Reader, key []byte, op MPTOperation) (Proof, error) {
+	if len(key) > maxRawKeyLen {
+		key = common.PoseidonHash(key).Bytes()
 	}
+	p := Proof{operation: op, key: key}
+
+	if path, err := getMaxMatchingRoute(tree, key); err != nil {
+		return p, err
+	} else {
+		p.pathToNode = path
+	}
+
+	return p, nil
+}
+
+/*
+verifies the merkle proof for read operation
+@value: an actual value returned by read. should be nil for read that finished with ErrKeyNotFound
+@rootHash: hash of MPT after the operation
+*/
+func (p *Proof) VerifyRead(key []byte, value []byte, rootHash common.Hash) (bool, error) {
 	if len(key) > maxRawKeyLen {
 		key = poseidon.Sum(key)
 	}
-	path := newPath(key, 0)
-
-	proof, err := m.extendProof(m.root, *path, nil)
-	if err != nil {
-		return nil, err
+	if p.operation != ReadMPTOperation || !bytes.Equal(p.key, key) {
+		return false, nil
 	}
 
-	return proof, nil
+	mpt, err := unwrapMpt(p)
+	if err != nil {
+		return false, err
+	}
+
+	// first check that the tree root is the same as given
+	if !rootHash.Uint256().Eq(mpt.RootHash().Uint256()) {
+		return false, nil
+	}
+
+	val, err := mpt.Get(p.key)
+
+	if len(value) != 0 {
+		// read op was successful and returned some value
+		// now we need to check that the proof contains the same value
+		return bytes.Equal(val, value), nil
+	}
+
+	// otherwise read op finished with ErrKeyNotFound
+	// check that we also don't have this key in our tree
+	return errors.Is(err, db.ErrKeyNotFound), nil
 }
 
-// Traverses the trie appending current node to proof slice. Almost the copy of get(...) method
-func (m *Reader) extendProof(nodeRef Reference, path Path, proof MPTProof) (MPTProof, error) {
-	node, err := m.getNode(nodeRef)
+/*
+verifies the merkle proof for delete operation
+@deleted: whether key was actually removed
+@rootHash: root hash of the original MPT
+@newRootHash: root hash of MPT after the operation
+*/
+func (p *Proof) VerifyDelete(key []byte, deleted bool, rootHash, newRootHash common.Hash) (bool, error) {
+	if len(key) > maxRawKeyLen {
+		key = poseidon.Sum(key)
+	}
+	if p.operation != DeleteMPTOperation || !bytes.Equal(p.key, key) {
+		return false, nil
+	}
+
+	mpt, err := unwrapMpt(p)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
-	proof = append(proof, node)
-
-	// If the path is empty, our travel is over. Main `get` method will check if this node has a value.
-	if path.Size() == 0 {
-		return proof, nil
+	if !rootHash.Uint256().Eq(mpt.RootHash().Uint256()) {
+		return false, nil
 	}
 
-	switch node := node.(type) {
-	case *LeafNode:
-		// If we've found a leaf, it's either the leaf we're looking for or wrong leaf.
-		if node.Path().Equal(&path) {
-			return proof, nil
-		}
-
-	case *ExtensionNode:
-		// If we've found an extension, we need to go deeper.
-		if path.StartsWith(node.Path()) {
-			restPath := path.Consume(node.Path().Size())
-			return m.extendProof(node.NextRef, *restPath, proof)
-		}
-
-	case *BranchNode:
-		// If we've found a branch node, go to the appropriate branch.
-		branch := node.Branches[path.At(0)]
-		if len(branch) > 0 {
-			return m.extendProof(branch, *path.Consume(1), proof)
-		}
-
-	default:
-		panic("Invalid node")
+	err = mpt.Delete(key)
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		return false, err
 	}
 
-	// TODO: use error from MPT pkg?
-	return nil, db.ErrKeyNotFound
+	// now check that the tree root after deletion is the same as given in proof
+	if !newRootHash.Uint256().Eq(mpt.RootHash().Uint256()) {
+		return false, nil
+	}
+
+	return deleted == (err == nil), nil
 }
 
-// VerifyProof checks existence of the key in a merkle proof. Returns the value for
-// the key stored in the proof.
-func VerifyProof(proof MPTProof, key []byte) ([]byte, error) {
-	mpt, err := proof.CreateMerklePatriciaTrie()
-	if err != nil {
-		return nil, err
+/*
+verifies the merkle proof for set operation
+@rootHash: root hash of the original MPT
+@newRootHash: root hash of MPT after the operation
+*/
+func (p *Proof) VerifySet(key []byte, value []byte, rootHash, newRootHash common.Hash) (bool, error) {
+	if len(key) > maxRawKeyLen {
+		key = poseidon.Sum(key)
+	}
+	if p.operation != SetMPTOperation || !bytes.Equal(p.key, key) {
+		return false, nil
 	}
 
-	return mpt.Get(key)
+	mpt, err := unwrapMpt(p)
+	if err != nil {
+		return false, err
+	}
+
+	if !rootHash.Uint256().Eq(mpt.RootHash().Uint256()) {
+		return false, nil
+	}
+
+	// first modify the original tree
+	if err := mpt.Set(p.key, value); err != nil {
+		return false, err
+	}
+
+	// now check that the tree root after modification is the same as given in proof
+	return newRootHash.Uint256().Eq(mpt.RootHash().Uint256()), nil
+}
+
+func unwrapMpt(p *Proof) (*MerklePatriciaTrie, error) {
+	holder := make(map[string][]byte)
+	mpt := NewMPT(NewMapSetter(holder), NewReader(NewMapGetter(holder)))
+
+	for i, node := range p.pathToNode {
+		if nodeRef, err := mpt.storeNode(node); err != nil {
+			return nil, err
+		} else if i == 0 {
+			mpt.root = nodeRef
+		}
+	}
+
+	return mpt, nil
+}
+
+func getMaxMatchingRoute(tree *Reader, key []byte) ([]Node, error) {
+	if tree.root == nil {
+		return []Node{}, nil
+	}
+
+	nodes := make([]Node, 0)
+	_, err := tree.descendWithCallback(tree.root, *newPath(key, 0), func(n Node) {
+		nodes = append(nodes, n)
+	})
+	if errors.Is(err, db.ErrKeyNotFound) {
+		err = nil
+	}
+
+	return nodes, err
+}
+
+func (p *Proof) Encode() ([]byte, error) {
+	if len(p.key) > maxRawKeyLen || len(p.pathToNode) >= (1<<8) {
+		return nil, ssz.ErrListTooBig
+	}
+
+	buf := make([]byte, 0)
+	buf = ssz.MarshalUint32(buf, uint32(p.operation))
+
+	buf = ssz.MarshalUint8(buf, uint8(len(p.key)))
+	buf = append(buf, p.key...)
+
+	buf = ssz.MarshalUint8(buf, uint8(len(p.pathToNode)))
+	for i := range p.pathToNode {
+		node, err := p.pathToNode[i].Encode()
+		if err != nil {
+			return nil, err
+		}
+		buf = ssz.MarshalUint32(buf, uint32(len(node)))
+		buf = append(buf, node...)
+	}
+
+	return buf, nil
+}
+
+func DecodeProof(data []byte) (Proof, error) {
+	// here we deserialize proof from the data piece by piece
+	// and each time advance the offset on correct amount of bytes
+
+	p := Proof{}
+	p.operation = MPTOperation(ssz.UnmarshallUint32(data))
+	data = data[4:]
+
+	keyLen := ssz.UnmarshallUint8(data)
+	p.key = data[1 : 1+keyLen]
+	data = data[1+keyLen:]
+
+	pathLen := ssz.UnmarshallUint8(data)
+	data = data[1:]
+
+	for range pathLen {
+		nodeLen := ssz.UnmarshallUint32(data)
+
+		node, err := DecodeNode(data[4 : 4+nodeLen])
+		if err != nil {
+			return p, err
+		}
+
+		p.pathToNode = append(p.pathToNode, node)
+		data = data[4+nodeLen:]
+	}
+
+	return p, nil
 }

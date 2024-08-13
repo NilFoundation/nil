@@ -332,13 +332,13 @@ func NewRPCReceipt(
 }
 
 // @component DebugRPCContract debugRpcContract object "The debug contract whose structure is requested."
-// @componentprop Proof proof slice of strings, containing serialized nodes from MPT for proving
+// @componentprop Proof serialized data for MPT access operation proving
 // @componentprop Storage storage slice of key-value pairs of the data in storage
 type DebugRPCContract struct {
 	// path, node type, next ref, branches, data
 	Code     hexutil.Bytes                                  `json:"code"`
 	Contract hexutil.Bytes                                  `json:"contract"`
-	Proof    []hexutil.Bytes                                `json:"proof"`
+	Proof    hexutil.Bytes                                  `json:"proof"`
 	Storage  []execution.Entry[common.Hash, *types.Uint256] `json:"storage"`
 }
 

@@ -46,7 +46,6 @@ func (m *Reader) RootHash() common.Hash {
 
 func (m *Reader) Get(key []byte) (ret []byte, err error) {
 	if m.root == nil {
-		// TODO: use error from MPT pkg?
 		return nil, db.ErrKeyNotFound
 	}
 	if len(key) > maxRawKeyLen {
@@ -172,7 +171,6 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction
 		if path.Equal(node.Path()) {
 			return daDeleted, noInfo, nil
 		}
-		// TODO: use error from MPT pkg?
 		return daUnknown, noInfo, db.ErrKeyNotFound
 
 	case *ExtensionNode:
@@ -183,7 +181,6 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction
 		// 3. The next node was a useless branch. Then we have to update our node depending on the next node type.
 
 		if !path.StartsWith(node.Path()) {
-			// TODO: use error from MPT pkg?
 			return daUnknown, noInfo, db.ErrKeyNotFound
 		}
 		action, info, err := m.delete(node.NextRef, path.Consume(node.Path().Size()))
@@ -229,7 +226,7 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction
 				newNode = newExtensionNode(path, info.ref)
 
 			default:
-				panic("Invalid node")
+				panic("Invalid node type")
 			}
 
 			newReference, err := m.storeNode(newNode)
@@ -267,7 +264,6 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction
 		// Decide if we need to remove the value of this node or go deeper.
 		switch {
 		case path.Empty() && len(node.Value) == 0:
-			// TODO: use error from MPT pkg?
 			return daUnknown, noInfo, db.ErrKeyNotFound
 		case path.Empty() && len(node.Value) != 0:
 			node.Value = []byte{}
@@ -277,7 +273,6 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction
 			idx = path.At(0)
 
 			if len(node.Branches[idx]) == 0 {
-				// TODO: use error from MPT pkg?
 				return daUnknown, noInfo, db.ErrKeyNotFound
 			}
 
@@ -390,9 +385,17 @@ func (m *MerklePatriciaTrie) buildNewNodeFromLastBranch(branches *[BranchesNum]R
 }
 
 func (m *Reader) get(nodeRef Reference, path Path) (Node, error) {
+	return m.descendWithCallback(nodeRef, path, nil)
+}
+
+func (m *Reader) descendWithCallback(nodeRef Reference, path Path, cb func(Node)) (Node, error) {
 	node, err := m.getNode(nodeRef)
 	if err != nil {
 		return nil, err
+	}
+
+	if cb != nil {
+		cb(node)
 	}
 
 	// If the path is empty, our travel is over. Main `get` method will check if this node has a value.
@@ -410,18 +413,17 @@ func (m *Reader) get(nodeRef Reference, path Path) (Node, error) {
 		// If we've found an extension, we need to go deeper.
 		if path.StartsWith(node.Path()) {
 			restPath := path.Consume(node.Path().Size())
-			return m.get(node.NextRef, *restPath)
+			return m.descendWithCallback(node.NextRef, *restPath, cb)
 		}
 
 	case *BranchNode:
 		// If we've found a branch node, go to the appropriate branch.
 		branch := node.Branches[path.At(0)]
 		if len(branch) > 0 {
-			return m.get(branch, *path.Consume(1))
+			return m.descendWithCallback(branch, *path.Consume(1), cb)
 		}
 	}
 
-	// TODO: use error from MPT pkg?
 	return nil, db.ErrKeyNotFound
 }
 

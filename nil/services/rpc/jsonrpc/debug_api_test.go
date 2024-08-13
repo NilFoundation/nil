@@ -167,12 +167,6 @@ func (suite *SuiteDbgContracts) TestGetContract() {
 	})
 
 	suite.Run("proof", func() {
-		proof, err := hexBytesToProof(res.Proof)
-		suite.Require().NoError(err)
-
-		verifiedVal, err := mpt.VerifyProof(proof, suite.smcAddr.Hash().Bytes())
-		suite.Require().NoError(err)
-
 		tx, err := suite.debugApi.db.CreateRoTx(ctx)
 		suite.Require().NoError(err)
 		defer tx.Rollback()
@@ -188,7 +182,13 @@ func (suite *SuiteDbgContracts) TestGetContract() {
 
 		expectedContract, err := contractRawReader.Get(suite.smcAddr.Hash().Bytes())
 		suite.Require().NoError(err)
-		suite.Require().Equal(expectedContract, verifiedVal)
+
+		proof, err := mpt.DecodeProof(res.Proof)
+		suite.Require().NoError(err)
+
+		ok, err := proof.VerifyRead(suite.smcAddr.Hash().Bytes(), expectedContract, data.Block().SmartContractsRoot)
+		suite.Require().NoError(err)
+		suite.Require().True(ok)
 	})
 }
 
@@ -196,16 +196,4 @@ func TestSuiteDbgContracts(t *testing.T) {
 	t.Parallel()
 
 	suite.Run(t, new(SuiteDbgContracts))
-}
-
-func hexBytesToProof(hexed []hexutil.Bytes) (mpt.MPTProof, error) {
-	proof := make(mpt.MPTProof, len(hexed))
-	for i, bytes := range hexed {
-		node, err := mpt.DecodeNode(bytes)
-		if err != nil {
-			return nil, err
-		}
-		proof[i] = node
-	}
-	return proof, nil
 }

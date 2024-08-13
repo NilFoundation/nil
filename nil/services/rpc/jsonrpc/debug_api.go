@@ -170,20 +170,15 @@ func (api *DebugAPIImpl) GetContract(ctx context.Context, contractAddr types.Add
 		return nil, err
 	}
 
-	proof, err := contractRawReader.CreateProof(contractAddr.Hash().Bytes())
+	proof, err := mpt.BuildProof(contractRawReader, contractAddr.Hash().Bytes(), mpt.ReadMPTOperation)
 	if err != nil {
 		return nil, err
 	}
 
-	hexed := make([]hexutil.Bytes, len(proof))
-	for i, val := range proof {
-		// Mb make proof follow fastssz.Marshaler interface to use hexify func below?
-		valBytes, err := val.Encode()
-		if err != nil {
-			return nil, err
-		}
-		hexed[i] = valBytes
+	encodedProof, err := proof.Encode()
+	if err != nil {
+		return nil, err
 	}
 
-	return &DebugRPCContract{Code: hexutil.Bytes(code), Contract: contractRaw, Proof: hexed, Storage: entries}, nil
+	return &DebugRPCContract{Code: hexutil.Bytes(code), Contract: contractRaw, Proof: hexutil.Bytes(encodedProof), Storage: entries}, nil
 }
