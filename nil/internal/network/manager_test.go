@@ -2,10 +2,17 @@ package network
 
 import (
 	"context"
+	"slices"
 	"testing"
+	"time"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/stretchr/testify/suite"
 )
+
+func address(m *Manager) string {
+	return m.host.Addrs()[0].String() + "/p2p/" + m.host.ID().String()
+}
 
 type networkSuite struct {
 	suite.Suite
@@ -27,6 +34,7 @@ func (s *networkSuite) TearDownTest() {
 func (s *networkSuite) newManagerWithBaseConfig(conf *Config) *Manager {
 	s.T().Helper()
 
+	conf = common.CopyPtr(conf)
 	if conf.IPV4Address == "" {
 		conf.IPV4Address = "127.0.0.1"
 	}
@@ -50,9 +58,17 @@ func (s *networkSuite) newManager() *Manager {
 func (s *networkSuite) connectManagers(m1, m2 *Manager) {
 	s.T().Helper()
 
-	id, err := m1.Connect(s.context, m2.host.Addrs()[0].String()+"/p2p/"+m2.host.ID().String())
+	id, err := m1.Connect(s.context, address(m2))
 	s.Require().NoError(err)
 	s.Equal(m2.host.ID(), id)
+}
+
+func (s *networkSuite) waitForPeer(m *Manager, id PeerID) {
+	s.T().Helper()
+
+	s.Eventually(func() bool {
+		return slices.Contains(m.host.Peerstore().Peers(), id)
+	}, 10*time.Second, 100*time.Millisecond)
 }
 
 type ManagerSuite struct {
