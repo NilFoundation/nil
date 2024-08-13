@@ -325,8 +325,8 @@ func (c *DirectClient) RawCall(method string, params ...any) (json.RawMessage, e
 	panic("Not supported")
 }
 
-func (c *DirectClient) CurrencyCreate(contractAddr types.Address, amount types.Value, name string, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error) {
-	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, "createToken", amount.ToBig(), name, withdraw)
+func (c *DirectClient) SetCurrencyName(contractAddr types.Address, name string, pk *ecdsa.PrivateKey) (common.Hash, error) {
+	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, "setCurrencyName", name)
 	if err != nil {
 		return common.EmptyHash, err
 	}
@@ -334,17 +334,8 @@ func (c *DirectClient) CurrencyCreate(contractAddr types.Address, amount types.V
 	return c.SendExternalMessage(data, contractAddr, pk)
 }
 
-func (c *DirectClient) CurrencyWithdraw(contractAddr types.Address, amount types.Value, toAddr types.Address, pk *ecdsa.PrivateKey) (common.Hash, error) {
-	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, "withdrawToken", amount.ToBig(), toAddr)
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	return c.SendExternalMessage(data, contractAddr, pk)
-}
-
-func (c *DirectClient) CurrencyMint(contractAddr types.Address, amount types.Value, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error) {
-	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, "mintToken", amount.ToBig(), withdraw)
+func (c *DirectClient) CurrencyMint(contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey) (common.Hash, error) {
+	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, "mintCurrency", amount.ToBig())
 	if err != nil {
 		return common.EmptyHash, err
 	}

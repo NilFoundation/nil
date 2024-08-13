@@ -44,6 +44,7 @@ type RpcSuite struct {
 	client    client.Client
 	shardsNum int
 	endpoint  string
+	tmpDir    string
 }
 
 func init() {
@@ -162,10 +163,12 @@ func (s *RpcSuite) deployContractViaMainWallet(shardId types.ShardId, payload ty
 	return s.deployContractViaWallet(types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
 }
 
-func (s *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey, calldata []byte, value types.Value) *jsonrpc.RPCReceipt {
+func (s *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey,
+	calldata []byte,
+) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	txHash, err := s.client.SendMessageViaWallet(addrFrom, calldata, s.gasToValue(10_000_000), value,
+	txHash, err := s.client.SendMessageViaWallet(addrFrom, calldata, s.gasToValue(10_000_000), types.NewZeroValue(),
 		[]types.CurrencyBalance{}, addrTo, key)
 	s.Require().NoError(err)
 
@@ -253,12 +256,20 @@ func (s *RpcSuite) runCli(args ...string) string {
 func (s *RpcSuite) runCliNoCheck(args ...string) (string, error) {
 	s.T().Helper()
 
-	mainPath, err := filepath.Abs("../../cmd/nil/main.go")
-	s.Require().NoError(err)
+	if s.tmpDir == "" {
+		s.tmpDir = s.T().TempDir()
+	}
 
-	args = append([]string{"run", mainPath}, args...)
-	cmd := exec.Command("go", args...)
+	binPath := s.tmpDir + "/nil.bin"
+	if _, err := os.Stat(binPath); err != nil {
+		mainPath, err := filepath.Abs("../../cmd/nil/main.go")
+		s.Require().NoError(err)
 
+		cmd := exec.Command("go", "build", "-o", binPath, mainPath)
+		s.NoError(cmd.Run())
+	}
+
+	cmd := exec.Command(binPath, args...)
 	data, err := cmd.CombinedOutput()
 	return strings.TrimSpace(string(data)), err
 }
@@ -285,6 +296,13 @@ func (s *RpcSuite) AbiPack(abi *abi.ABI, name string, args ...any) []byte {
 	data, err := abi.Pack(name, args...)
 	s.Require().NoError(err)
 	return data
+}
+
+func (s *RpcSuite) AbiUnpack(abi *abi.ABI, name string, data []byte) []interface{} {
+	s.T().Helper()
+	res, err := abi.Unpack(name, data)
+	s.Require().NoError(err)
+	return res
 }
 
 func (s *RpcSuite) gasToValue(gas uint64) types.Value {

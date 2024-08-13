@@ -51,7 +51,7 @@ func (s *SuitGasPrice) TestGasBehaviour() {
 	s.Run("IncreaseGasCost", func() {
 		for i := range 10 {
 			receipt := s.sendMessageViaWallet(types.MainWalletAddress, addrCallee, execution.MainPrivateKey,
-				contracts.NewCounterAddCallData(s.T(), int32(i)), types.Value{})
+				contracts.NewCounterAddCallData(s.T(), int32(i)))
 			s.Require().True(receipt.OutReceipts[0].Success)
 		}
 		increasedGasPrice, err := s.client.GasPrice(shardId)

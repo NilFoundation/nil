@@ -50,7 +50,6 @@ type BranchNode struct {
 
 func newLeafNode(path *Path, data []byte) *LeafNode {
 	node := &LeafNode{NodeBase{*path}, data}
-	node.NodePath.IsLeaf = true
 	return node
 }
 

@@ -150,17 +150,35 @@ It is only possible to perform sync calls within the confines of one shard.
 
 =nil; provides a multi-currency mechanism. A contract can be the owner of one custom currency, and owners can freely send custom currencies to other contracts. As a result, the balance of a given contract may contain standard tokens, and several custom tokens created by other contracts.
 
-To create a currency and withdraw it:
+There is no need to create currency, it exists for each account by default. But it has no name and zero value.
+To set the name of the currency for a wallet:
 
 ```ts
 const hashMessage = await wallet.sendMessage({
-  to: MINTER_ADDRESS,
+  to: walletAddress,
   gas: 1_000_000n,
   value: 100_000_000n,
   data: encodeFunctionData({
     abi: MINTER_ABI,
-    functionName: "create",
-    args: [100_000_000n, walletAddress, "MY_TOKEN", walletAddress],
+    functionName: "setCurrenctName",
+    args: ["MY_TOKEN"],
+  }),
+});
+
+await waitTillCompleted(client, 1, hashMessage);
+```
+
+To mint 1000 tokens of the currency:
+
+```ts
+const hashMessage = await wallet.sendMessage({
+  to: walletAddress,
+  gas: 1_000_000n,
+  value: 100_000_000n,
+  data: encodeFunctionData({
+    abi: MINTER_ABI,
+    functionName: "mintCurrency",
+    args: [1000n],
   }),
 });
 

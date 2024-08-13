@@ -88,7 +88,7 @@ func (s *SuiteReadThroughDb) TestBasic() {
 
 	s.Run("Increment", func() {
 		receipt = s.server.sendMessageViaWallet(types.MainWalletAddress, addrCallee, execution.MainPrivateKey,
-			contracts.NewCounterAddCallData(s.T(), value), types.Value{})
+			contracts.NewCounterAddCallData(s.T(), value))
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})
 
@@ -102,7 +102,7 @@ func (s *SuiteReadThroughDb) TestBasic() {
 
 	s.Run("IncrementCache", func() {
 		receipt := s.cache.sendMessageViaWallet(types.MainWalletAddress, addrCallee, execution.MainPrivateKey,
-			contracts.NewCounterAddCallData(s.T(), value), types.Value{})
+			contracts.NewCounterAddCallData(s.T(), value))
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})
 
@@ -135,7 +135,7 @@ func (s *SuiteReadThroughDb) TestIsolation() {
 	value := int32(5)
 	s.Run("Increment", func() {
 		receipt = s.server.sendMessageViaWallet(types.MainWalletAddress, addrCallee, execution.MainPrivateKey,
-			contracts.NewCounterAddCallData(s.T(), value), types.Value{})
+			contracts.NewCounterAddCallData(s.T(), value))
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})
 

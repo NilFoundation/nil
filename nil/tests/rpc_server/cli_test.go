@@ -262,7 +262,7 @@ func (s *SuiteCli) TestCurrency() {
 	wallet := types.MainWalletAddress
 	value := types.NewValueFromUint64(12345)
 
-	_, err := s.cli.CurrencyCreate(wallet, value, "token1", true)
+	_, err := s.cli.CurrencyCreate(wallet, value, "token1")
 	s.Require().NoError(err)
 	cur, err := s.cli.GetCurrencies(wallet)
 	s.Require().NoError(err)
@@ -273,9 +273,7 @@ func (s *SuiteCli) TestCurrency() {
 	s.Require().True(ok)
 	s.Require().Equal(value, val)
 
-	_, err = s.cli.CurrencyMint(wallet, value, false)
-	s.Require().NoError(err)
-	_, err = s.cli.CurrencyWithdraw(wallet, value, wallet)
+	_, err = s.cli.CurrencyMint(wallet, value)
 	s.Require().NoError(err)
 	cur, err = s.cli.GetCurrencies(wallet)
 	s.Require().NoError(err)
@@ -385,6 +383,17 @@ func (s *SuiteCli) TestCliWallet() {
 	s.Run("Call read-only 'get' function of contract once again", func() {
 		res := s.runCli("-c", cfgPath, "contract", "call-readonly", addr.String(), "get", "--abi", abiFileName)
 		s.Contains(res, "uint256: 123322")
+	})
+
+	overridesFile := dir + "/overrides.json"
+	s.Run("Call read-only via the wallet", func() {
+		res := s.runCli("-c", cfgPath, "wallet", "call-readonly", addr.String(), "increment", "--abi", abiFileName, "--out-overrides", overridesFile)
+		s.Contains(res, "Success, no result")
+	})
+
+	s.Run("Call read-only via the wallet", func() {
+		res := s.runCli("-c", cfgPath, "wallet", "call-readonly", addr.String(), "get", "--abi", abiFileName, "--in-overrides", overridesFile)
+		s.Contains(res, "uint256: 123323")
 	})
 }
 

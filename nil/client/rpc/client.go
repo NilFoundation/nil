@@ -643,8 +643,8 @@ func (c *Client) Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrp
 	return res, nil
 }
 
-func (c *Client) CurrencyCreate(contractAddr types.Address, amount types.Value, name string, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error) {
-	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, "createToken", amount.ToBig(), name, withdraw)
+func (c *Client) SetCurrencyName(contractAddr types.Address, name string, pk *ecdsa.PrivateKey) (common.Hash, error) {
+	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, "setCurrencyName", name)
 	if err != nil {
 		return common.EmptyHash, err
 	}
@@ -652,17 +652,8 @@ func (c *Client) CurrencyCreate(contractAddr types.Address, amount types.Value, 
 	return c.SendExternalMessage(data, contractAddr, pk)
 }
 
-func (c *Client) CurrencyWithdraw(contractAddr types.Address, amount types.Value, toAddr types.Address, pk *ecdsa.PrivateKey) (common.Hash, error) {
-	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, "withdrawToken", amount.ToBig(), toAddr)
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	return c.SendExternalMessage(data, contractAddr, pk)
-}
-
-func (c *Client) CurrencyMint(contractAddr types.Address, amount types.Value, withdraw bool, pk *ecdsa.PrivateKey) (common.Hash, error) {
-	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, "mintToken", amount.ToBig(), withdraw)
+func (c *Client) CurrencyMint(contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey) (common.Hash, error) {
+	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, "mintCurrency", amount.ToBig())
 	if err != nil {
 		return common.EmptyHash, err
 	}

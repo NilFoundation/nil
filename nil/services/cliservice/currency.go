@@ -20,38 +20,32 @@ func (s *Service) handleCurrencyTx(txHash common.Hash, contractAddr types.Addres
 	return nil
 }
 
-func (s *Service) CurrencyCreate(contractAddr types.Address, amount types.Value, name string, withdraw bool) (*types.CurrencyId, error) {
-	txHash, err := s.client.CurrencyCreate(contractAddr, amount, name, withdraw, s.privateKey)
+func (s *Service) CurrencyCreate(contractAddr types.Address, amount types.Value, name string) (*types.CurrencyId, error) {
+	txHash, err := s.client.SetCurrencyName(contractAddr, name, s.privateKey)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to send create transaction")
+		s.logger.Error().Err(err).Msg("Failed to send setCurrencyName transaction")
 		return nil, err
 	}
-
 	if err = s.handleCurrencyTx(txHash, contractAddr); err != nil {
 		return nil, err
 	}
+
+	txHash, err = s.client.CurrencyMint(contractAddr, amount, s.privateKey)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to send minCurrency transaction")
+		return nil, err
+	}
+	if err = s.handleCurrencyTx(txHash, contractAddr); err != nil {
+		return nil, err
+	}
+
 	currencyId := types.CurrencyIdForAddress(contractAddr)
 	s.logger.Info().Stringer(logging.FieldCurrencyId, common.BytesToHash(currencyId[:])).Msgf("Created %v:%v", name, amount)
 	return currencyId, nil
 }
 
-func (s *Service) CurrencyWithdraw(contractAddr types.Address, amount types.Value, toAddr types.Address) (common.Hash, error) {
-	txHash, err := s.client.CurrencyWithdraw(contractAddr, amount, toAddr, s.privateKey)
-	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to send transfer transaction")
-		return common.EmptyHash, err
-	}
-
-	if err = s.handleCurrencyTx(txHash, contractAddr); err != nil {
-		return common.EmptyHash, err
-	}
-	currencyId := types.CurrencyIdForAddress(contractAddr)
-	s.logger.Info().Stringer(logging.FieldCurrencyId, common.BytesToHash(currencyId[:])).Msgf("Transferred %v to %v", amount, toAddr)
-	return txHash, err
-}
-
-func (s *Service) CurrencyMint(contractAddr types.Address, amount types.Value, withdraw bool) (common.Hash, error) {
-	txHash, err := s.client.CurrencyMint(contractAddr, amount, withdraw, s.privateKey)
+func (s *Service) CurrencyMint(contractAddr types.Address, amount types.Value) (common.Hash, error) {
+	txHash, err := s.client.CurrencyMint(contractAddr, amount, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send transfer transaction")
 		return common.EmptyHash, err

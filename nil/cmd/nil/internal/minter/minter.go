@@ -13,7 +13,6 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 
 	serverCmd.AddCommand(CreateCurrencyCommand(cfg))
 	serverCmd.AddCommand(MintCurrencyCommand(cfg))
-	serverCmd.AddCommand(WithdrawCurrencyCommand(cfg))
 
 	return serverCmd
 }

@@ -13,9 +13,8 @@ import (
 
 const (
 	NameWallet          = "Wallet"
-	NameMinter          = "Minter"
 	NameFaucet          = "Faucet"
-	NamePrecompile      = "Precompile"
+	NamePrecompile      = "__Precompile__"
 	NameNilCurrencyBase = "NilCurrencyBase"
 	NameNilBounceable   = "NilBounceable"
 )

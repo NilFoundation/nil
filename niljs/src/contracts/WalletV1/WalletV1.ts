@@ -378,6 +378,42 @@ export class WalletV1 {
     return bytesToHex(hash);
   }
 
+  async setCurrencyName(name: string) {
+
+    const callData = encodeFunctionData({
+      abi: WalletAbi,
+      functionName: "setCurrencyName",
+      args: [
+        name
+      ],
+    });
+
+    const { hash } = await this.requestToWallet({
+      data: hexToBytes(callData),
+      deploy: false,
+    });
+
+    return bytesToHex(hash);
+  }
+
+  async mintCurrency(amount: bigint) {
+
+    const callData = encodeFunctionData({
+      abi: WalletAbi,
+      functionName: "mintCurrency",
+      args: [
+        amount
+      ],
+    });
+
+    const { hash } = await this.requestToWallet({
+      data: hexToBytes(callData),
+      deploy: false,
+    });
+
+    return bytesToHex(hash);
+  }
+
   /**
    * Send a raw signed message via the wallet.
    *

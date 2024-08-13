@@ -1,12 +1,12 @@
-{ stdenv, fetchFromGitHub, fetchNpmDeps, npmHooks, nodejs, nil }:
+{ lib, stdenv, fetchFromGitHub, fetchNpmDeps, npmHooks, nodejs, nil }:
 
 stdenv.mkDerivation rec {
   name = "nil-hardhat-plugin";
-  src = ./hardhat-plugin;
+  src = lib.sourceByRegex ./. ["package.json" "package-lock.json" "^hardhat-plugin(/.*)?$" "^niljs(/.*)?$"];
 
   npmDeps = fetchNpmDeps {
     inherit src;
-    hash = "sha256-+ufc0TIW68Rm4F/zSzcGZpKY8Yv5QY4HTrAaXFxSRlE=";
+    hash = "sha256-sRoOnUpqeCC9bdwmlxGor5WZrqzMVCV8wbyMcTIKbXg=";
   };
 
   NODE_PATH = "$npmDeps";
@@ -20,7 +20,11 @@ stdenv.mkDerivation rec {
   dontConfigure = true;
 
   buildPhase = ''
-    echo "run npm test in build phase when hardhat tests are ready"
+    (cd niljs; npm run build)
+    cd hardhat-plugin
+    npm run build
+    # uncomment when tests are fixed
+    # npm test
   '';
 
   installPhase = ''
