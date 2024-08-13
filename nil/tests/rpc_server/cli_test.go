@@ -384,6 +384,17 @@ func (s *SuiteCli) TestCliWallet() {
 		res := s.runCli("-c", cfgPath, "contract", "call-readonly", addr.String(), "get", "--abi", abiFileName)
 		s.Contains(res, "uint256: 123322")
 	})
+
+	overridesFile := dir + "/overrides.json"
+	s.Run("Call read-only via the wallet", func() {
+		res := s.runCli("-c", cfgPath, "wallet", "call-readonly", addr.String(), "increment", "--abi", abiFileName, "--out-overrides", overridesFile)
+		s.Contains(res, "Success, no result")
+	})
+
+	s.Run("Call read-only via the wallet", func() {
+		res := s.runCli("-c", cfgPath, "wallet", "call-readonly", addr.String(), "get", "--abi", abiFileName, "--in-overrides", overridesFile)
+		s.Contains(res, "uint256: 123323")
+	})
 }
 
 func (s *SuiteCli) TestCliAbi() {
