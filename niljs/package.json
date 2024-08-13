@@ -40,8 +40,6 @@
   "license": "MIT",
   "devDependencies": {
     "@biomejs/biome": "^1.8.1",
-    "@lavamoat/allow-scripts": "^3.0.4",
-    "@lavamoat/preinstall-always-fail": "^2.0.0",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@vitest/coverage-v8": "^1.6.0",
     "rimraf": "^5.0.7",
@@ -72,12 +70,5 @@
     "nil",
     "blockchain",
     "client"
-  ],
-  "lavamoat": {
-    "allowScripts": {
-      "@lavamoat/preinstall-always-fail": false,
-      "rollup-plugin-esbuild>esbuild": true,
-      "@biomejs/biome": true
-    }
-  }
+  ]
 }
