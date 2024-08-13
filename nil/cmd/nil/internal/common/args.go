@@ -19,13 +19,13 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 )
 
-func PrepareArgs(abiPath string, args []string) ([]byte, error) {
+func PrepareArgs(abiPath string, calldataOrMethod string, args []string) ([]byte, error) {
 	var calldata []byte
-	if strings.HasPrefix(args[0], "0x") && abiPath == "" {
-		calldata = hexutil.FromHex(args[0])
+	if strings.HasPrefix(calldataOrMethod, "0x") && abiPath == "" {
+		calldata = hexutil.FromHex(calldataOrMethod)
 	} else {
 		var err error
-		calldata, err = ArgsToCalldata(abiPath, args[0], args[1:])
+		calldata, err = ArgsToCalldata(abiPath, calldataOrMethod, args)
 		if err != nil {
 			return nil, err
 		}

@@ -57,7 +57,7 @@ func runSendExternalMessage(_ *cobra.Command, args []string, cfg *common.Config)
 		return fmt.Errorf("invalid address: %w", err)
 	}
 
-	calldata, err := common.PrepareArgs(params.abiPath, args[1:])
+	calldata, err := common.PrepareArgs(params.abiPath, args[1], args[2:])
 	if err != nil {
 		return err
 	}

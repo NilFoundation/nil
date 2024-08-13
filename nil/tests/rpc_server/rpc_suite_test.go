@@ -44,6 +44,7 @@ type RpcSuite struct {
 	client    client.Client
 	shardsNum int
 	endpoint  string
+	tmpDir    string
 }
 
 func init() {
@@ -255,12 +256,20 @@ func (s *RpcSuite) runCli(args ...string) string {
 func (s *RpcSuite) runCliNoCheck(args ...string) (string, error) {
 	s.T().Helper()
 
-	mainPath, err := filepath.Abs("../../cmd/nil/main.go")
-	s.Require().NoError(err)
+	if s.tmpDir == "" {
+		s.tmpDir = s.T().TempDir()
+	}
 
-	args = append([]string{"run", mainPath}, args...)
-	cmd := exec.Command("go", args...)
+	binPath := s.tmpDir + "/nil.bin"
+	if _, err := os.Stat(binPath); err != nil {
+		mainPath, err := filepath.Abs("../../cmd/nil/main.go")
+		s.Require().NoError(err)
 
+		cmd := exec.Command("go", "build", "-o", binPath, mainPath)
+		s.NoError(cmd.Run())
+	}
+
+	cmd := exec.Command(binPath, args...)
 	data, err := cmd.CombinedOutput()
 	return strings.TrimSpace(string(data)), err
 }
