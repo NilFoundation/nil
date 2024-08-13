@@ -139,12 +139,14 @@ func (s *syncCollator) saveBlock(ctx context.Context, block *jsonrpc.HexedDebugR
 		s.logger.Error().Msgf("Out messages root mismatch: expected %x, got %x", data.Block.OutMessagesRoot, msgRoot)
 		return errors.New("out messages root mismatch")
 	}
+
 	blockHash := data.Block.Hash()
-	err = db.WriteLastBlockHash(tx, s.shard, blockHash)
+	_, err = execution.PostprocessBlock(tx, s.shard, data.Block.GasPrice, 1, blockHash)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to write last block hash")
+		s.logger.Error().Err(err).Msg("Failed to update indexes")
 		return err
 	}
+
 	if err := tx.Commit(); err != nil {
 		s.logger.Error().Err(err).Msg("Failed to commit tx")
 		return err
