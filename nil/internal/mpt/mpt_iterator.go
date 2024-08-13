@@ -19,7 +19,7 @@ func (m *Reader) Iterate() []MptIteratorKey {
 		}
 		data := node.Data()
 		if len(data) > 0 {
-			out = append(out, MptIteratorKey{Key: path.data, Value: data})
+			out = append(out, MptIteratorKey{Key: path.Data, Value: data})
 		}
 		switch node := node.(type) {
 		case *BranchNode:
