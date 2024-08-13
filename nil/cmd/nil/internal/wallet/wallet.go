@@ -42,6 +42,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 	serverCmd.AddCommand(SendTokensCommand(cfg))
 	serverCmd.AddCommand(TopUpCommand(cfg))
 	serverCmd.AddCommand(NewCommand(cfg))
+	serverCmd.AddCommand(CallReadonlyCommand(cfg))
 
 	return serverCmd
 }

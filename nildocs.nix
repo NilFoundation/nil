@@ -31,7 +31,7 @@ stdenv.mkDerivation rec {
   buildPhase = ''
     runHook preBuild
 
-    export NILJS_SRC=${./packages/niljs}
+    export NILJS_SRC=${./niljs}
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
     export NODE_OPTIONS=--openssl-legacy-provider
     yarn --offline build

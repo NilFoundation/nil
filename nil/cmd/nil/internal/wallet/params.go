@@ -5,13 +5,16 @@ import (
 )
 
 const (
-	abiFlag       = "abi"
-	amountFlag    = "amount"
-	noWaitFlag    = "no-wait"
-	saltFlag      = "salt"
-	shardIdFlag   = "shard-id"
-	feeCreditFlag = "fee-credit"
-	tokenFlag     = "token"
+	abiFlag          = "abi"
+	amountFlag       = "amount"
+	noWaitFlag       = "no-wait"
+	saltFlag         = "salt"
+	shardIdFlag      = "shard-id"
+	feeCreditFlag    = "fee-credit"
+	tokenFlag        = "token"
+	inOverridesFlag  = "in-overrides"
+	outOverridesFlag = "out-overrides"
+	withDetailsFlag  = "with-details"
 )
 
 var params = &walletParams{}
@@ -26,4 +29,7 @@ type walletParams struct {
 	feeCredit         types.Value
 	currency          types.Value
 	currencies        []string
+	inOverridesPath   string
+	outOverridesPath  string
+	withDetails       bool
 }

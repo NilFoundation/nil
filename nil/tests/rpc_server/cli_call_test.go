@@ -125,7 +125,7 @@ func (s *SuiteCliTestCall) TestCliCall() {
 	s.testResult(res, "Success, result:", "uint32: 123")
 }
 
-func TestCLiCall(t *testing.T) {
+func TestCliCall(t *testing.T) {
 	t.Parallel()
 
 	suite.Run(t, new(SuiteCliTestCall))

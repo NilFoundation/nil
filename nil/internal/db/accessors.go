@@ -80,6 +80,12 @@ func IsVersionOutdated(tx RoTx) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
+	// TODO: This is a temporary solution. We need to implement a proper versioning system. For now, we just compare the hash of the previous compatible version.
+	hashPrevVersion := common.HexToHash("0x0ac1220af66c6d700e4e8f176a27cdb68486238d5dde6ee542a2b3b4ae814640")
+	if dbVersion.Version == hashPrevVersion {
+		return false, nil
+	}
 	return !reflect.DeepEqual(dbVersion, types.NewVersionInfo()), nil
 }
 

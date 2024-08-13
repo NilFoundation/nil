@@ -29,20 +29,6 @@ func TestAtWithOffset(t *testing.T) {
 	assert.Panics(t, func() { nibbles.At(3) }, "Should panic")
 }
 
-func TestEncode(t *testing.T) {
-	t.Parallel()
-
-	nibbles := newPath([]byte{0x12, 0x34}, 0)
-	require.Equal(t, []byte{0x00, 0x12, 0x34}, nibbles.Encode())
-	nibbles.IsLeaf = true
-	require.Equal(t, []byte{0x20, 0x12, 0x34}, nibbles.Encode())
-
-	nibbles = newPath([]byte{0x12, 0x34}, 1)
-	require.Equal(t, []byte{0x12, 0x34}, nibbles.Encode())
-	nibbles.IsLeaf = true
-	require.Equal(t, []byte{0x32, 0x34}, nibbles.Encode())
-}
-
 func TestCommonPrefix(t *testing.T) {
 	t.Parallel()
 

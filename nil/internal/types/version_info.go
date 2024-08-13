@@ -1,6 +1,9 @@
 package types
 
 import (
+	"fmt"
+	"reflect"
+
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 )
@@ -15,14 +18,24 @@ var (
 	_ fastssz.Unmarshaler = new(VersionInfo)
 )
 
-var SchemesInsideDb = []common.Hash{new(SmartContract).Hash(), new(Block).Hash(), new(Message).Hash()}
+var SchemesInsideDb = []any{SmartContract{}, Block{}, Message{}, ExternalMessage{}, InternalMessagePayload{}}
 
 const SchemeVersionInfoKey = "SchemeVersionInfo"
 
 func NewVersionInfo() *VersionInfo {
 	var res []byte
-	for _, hash := range SchemesInsideDb {
-		res = append(res, hash.Bytes()...)
+	for _, curStruct := range SchemesInsideDb {
+		v := reflect.ValueOf(curStruct)
+		for i := range v.NumField() {
+			t := v.Type()
+			res = append(res, common.PoseidonHash([]byte(t.String())).Bytes()...)
+
+			name := t.Field(i).Name
+			res = append(res, common.PoseidonHash([]byte(name)).Bytes()...)
+
+			value := fmt.Sprintf("%v", v.Field(i).Interface())
+			res = append(res, common.PoseidonHash([]byte(value)).Bytes()...)
+		}
 	}
 	return &VersionInfo{Version: common.PoseidonHash(res)}
 }
