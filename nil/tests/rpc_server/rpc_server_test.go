@@ -13,6 +13,7 @@ import (
 
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -263,7 +264,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.Require().NoError(err)
 
 			callArgs := &jsonrpc.CallArgs{
-				Data:      callData,
+				Data:      (*hexutil.Bytes)(&callData),
 				To:        callerAddr,
 				FeeCredit: s.gasToValue(10000),
 				Seqno:     callerSeqno,
@@ -342,7 +343,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	s.Require().NoError(err)
 
 	callArgs := &jsonrpc.CallArgs{
-		Data:      calldata,
+		Data:      (*hexutil.Bytes)(&calldata),
 		To:        walletAddr,
 		FeeCredit: s.gasToValue(4_000_000),
 		Seqno:     callerSeqno,
@@ -407,7 +408,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 
 func (s *SuiteRpc) TestChainCall() {
 	addrCallee := contracts.CounterAddress(s.T(), types.ShardId(3))
-	deployPayload := contracts.CounterDeployPayload(s.T())
+	deployPayload := contracts.CounterDeployPayload(s.T()).Bytes()
 	addCallData := contracts.NewCounterAddCallData(s.T(), 11)
 	getCallData := contracts.NewCounterGetCallData(s.T())
 
@@ -416,7 +417,8 @@ func (s *SuiteRpc) TestChainCall() {
 		FeeCredit: s.gasToValue(100000000000),
 	}
 
-	callArgs.Data = deployPayload.Bytes()
+	callArgs.Data = (*hexutil.Bytes)(&deployPayload)
+	callArgs.Flags = types.NewMessageFlags(types.MessageFlagDeploy)
 	res, err := s.client.Call(callArgs, "latest", nil)
 	s.Require().NoError(err, "Deployment should be successful")
 	s.Contains(res.StateOverrides, addrCallee)
@@ -425,14 +427,15 @@ func (s *SuiteRpc) TestChainCall() {
 	resData := s.CallGetter(addrCallee, getCallData, "latest", &res.StateOverrides)
 	s.EqualValues(0, contracts.GetCounterValue(s.T(), resData), "Initial value should be 0")
 
-	callArgs.Data = addCallData
+	callArgs.Data = (*hexutil.Bytes)(&addCallData)
+	callArgs.Flags = types.NewMessageFlags()
 	res, err = s.client.Call(callArgs, "latest", &res.StateOverrides)
 	s.Require().NoError(err, "No errors during the first addition")
 
 	resData = s.CallGetter(addrCallee, getCallData, "latest", &res.StateOverrides)
 	s.EqualValues(11, contracts.GetCounterValue(s.T(), resData), "Updated value is 11")
 
-	callArgs.Data = addCallData
+	callArgs.Data = (*hexutil.Bytes)(&addCallData)
 	res, err = s.client.Call(callArgs, "latest", &res.StateOverrides)
 	s.Require().NoError(err, "No errors during the second addition")
 

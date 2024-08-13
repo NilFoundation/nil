@@ -81,8 +81,13 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash t
 	}
 	defer tx.Rollback()
 
+	msg, err := args.toMessage()
+	if err != nil {
+		return nil, err
+	}
+
 	timer := common.NewTimer()
-	shardId := args.To.ShardId()
+	shardId := msg.To.ShardId()
 
 	mainBlock, err := api.fetchBlockByNumberOrHash(tx, types.MainShardId, mainblockNrOrHash)
 	if mainBlock == nil || err != nil {
@@ -134,35 +139,6 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash t
 		return nil, err
 	}
 
-	msg := &types.Message{
-		ChainId:   types.DefaultChainId,
-		Seqno:     args.Seqno,
-		FeeCredit: args.FeeCredit,
-		To:        args.To,
-		Value:     args.Value,
-		Data:      types.Code(args.Data),
-	}
-
-	var fromAs *execution.AccountState
-	if args.From != nil {
-		msg.From = *args.From
-		msg.Flags.SetBit(types.MessageFlagInternal)
-
-		if fromAs, err = es.GetAccount(*args.From); err != nil {
-			return nil, err
-		} else if fromAs == nil {
-			return nil, ErrFromAccNotFound
-		}
-	} else {
-		msg.From = msg.To
-	}
-
-	if as, err := es.GetAccount(args.To); err != nil {
-		return nil, err
-	} else if as == nil {
-		msg.Flags.SetBit(types.MessageFlagDeploy)
-	}
-
 	if msg.IsDeploy() {
 		if err := execution.ValidateDeployMessage(msg); err != nil {
 			return nil, err
@@ -171,6 +147,12 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash t
 
 	var payer execution.Payer
 	if msg.IsInternal() {
+		var fromAs *execution.AccountState
+		if fromAs, err = es.GetAccount(*args.From); err != nil {
+			return nil, err
+		} else if fromAs == nil {
+			return nil, ErrFromAccNotFound
+		}
 		payer = execution.NewAccountPayer(fromAs, msg)
 	} else {
 		payer = execution.NewMessagePayer(msg, es)
