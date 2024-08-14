@@ -15,12 +15,12 @@ curl -fsSL https://github.com/NilFoundation/nil_cli/raw/master/install.sh | bash
 
 To generate a new private key and set inside the CLI config:
 
-```bash file=../../tests/nil-101.test.js start=startKeygen end=endKeygen
+```bash file=../../tests/nil-101.test.mjs start=startKeygen end=endKeygen
 ```
 
 To point the CLI toward the RPC endpoint:
 
-```bash file=../../tests/nil-101.test.js start=startEndpoint end=endEndpoint
+```bash file=../../tests/nil-101.test.mjs start=startEndpoint end=endEndpoint
 ```
 
 ## Create a new wallet
@@ -31,7 +31,7 @@ In =nil; a wallet is just a smart contract that can handle payments. There are n
 
 To create a new wallet:
 
-```bash file=../../tests/nil-101.test.js start=startWallet end=endWallet
+```bash file=../../tests/nil-101.test.mjs start=startWallet end=endWallet
 ```
 
 Expected response:
@@ -49,12 +49,12 @@ nil contract code WALLET_ADDRESS
 
 To request a 'top up':
 
-```bash file=../../tests/nil-101.test.js start=startTopup end=endTopup
+```bash file=../../tests/nil-101.test.mjs start=startTopup end=endTopup
 ```
 
 To see the wallet address and its public key:
 
-```bash file=../../tests/nil-101.test.js start=startInfo end=endInfo
+```bash file=../../tests/nil-101.test.mjs start=startInfo end=endInfo
 ```
 
 ### Advanced tutorials
@@ -76,12 +76,12 @@ Create a new contract containing this code:
 
 Compile the contract:
 
-```bash file=../../tests/nil-101.test.js start=startCompilation end=endCompilation
+```bash file=../../tests/nil-101.test.mjs start=startCompilation end=endCompilation
 ```
 
 Deploy a contract with the =nil; CLI:
 
-```bash file=../../tests/nil-101.test.js start=startDeploy end=endDeploy
+```bash file=../../tests/nil-101.test.mjs start=startDeploy end=endDeploy
 
 ```
 
@@ -94,12 +94,12 @@ Transaction hash: TRANSACTION_HASH (shard 1)
 
 Call the `increment()` function:
 
-```bash file=../../tests/nil-101.test.js start=startIncrement end=endIncrement
+```bash file=../../tests/nil-101.test.mjs start=startIncrement end=endIncrement
 ```
 
 Retrieve the result:
 
-```bash file=../../tests/nil-101.test.js start=start_CallToIncrementer end=end_CallToIncrementer
+```bash file=../../tests/nil-101.test.mjs start=start_CallToIncrementer end=end_CallToIncrementer
 ```
 
 ### Advanced tutorials
@@ -122,10 +122,10 @@ Create a new contract with the following code:
 
 Compile it and deploy it to Shard 2:
 
-```bash file=../../tests/nil-101.test.js start=startCallerCompilation end=endCallerCompilation
+```bash file=../../tests/nil-101.test.mjs start=startCallerCompilation end=endCallerCompilation
 ```
 
-```bash file=../../tests/nil-101.test.js start=start_CallerDeploy end=end_CallerDeploy
+```bash file=../../tests/nil-101.test.mjs start=start_CallerDeploy end=end_CallerDeploy
 ```
 
 Expected output:
@@ -139,15 +139,15 @@ Note that `CALLER_ADDRESS` starts with `0x0002`, which indicates that `Caller` i
 
 Send tokens to `Caller` and call the `call()` function:
 
-```bash file=../../tests/nil-101.test.js start=start_SendTokensToCaller end=end_SendTokensToCaller
+```bash file=../../tests/nil-101.test.mjs start=start_SendTokensToCaller end=end_SendTokensToCaller
 ```
 
-```bash file=../../tests/nil-101.test.js start=startMessageFromCallerToIncrementer end=endMessageFromCallerToIncrementer
+```bash file=../../tests/nil-101.test.mjs start=startMessageFromCallerToIncrementer end=endMessageFromCallerToIncrementer
 ```
 
 Retrieve the result:
 
-```bash file=../../tests/nil-101.test.js start=start_CallToIncrementer end=end_CallToIncrementer
+```bash file=../../tests/nil-101.test.mjs start=start_CallToIncrementer end=end_CallToIncrementer
 ```
 
 ### Advanced tutorials
@@ -171,18 +171,18 @@ Non-owners cannot perform any operations with a custom currency.
 
 Create a new wallet:
 
-```bash file=../../tests/nil-101.test.js start=startNewWalletDeploy end=endNewWalletDeploy
+```bash file=../../tests/nil-101.test.mjs start=startNewWalletDeploy end=endNewWalletDeploy
 ```
 
 Create a new currency and withdraw it:
 
-```bash file=../../tests/nil-101.test.js start=startMintWithdrawCurrency end=endMintWithdrawCurrency
+```bash file=../../tests/nil-101.test.mjs start=startMintWithdrawCurrency end=endMintWithdrawCurrency
 
 ```
 
 Check the currencies of the wallet:
 
-```bash file=../../tests/nil-101.test.js start=startCurrenciesCheck end=endCurrenciesCheck
+```bash file=../../tests/nil-101.test.mjs start=startCurrenciesCheck end=endCurrenciesCheck
 ```
 
 Expected output:

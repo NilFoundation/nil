@@ -8,7 +8,7 @@ stdenv.mkDerivation rec {
 
   offlineCache = fetchYarnDeps {
     yarnLock = "${src}/yarn.lock";
-    hash = "sha256-L5ZBHcSoUbS/gehDnCAPvTm4wrOpgfFq+vkqhKF4KqE=";
+    hash = "sha256-if6zV9YTMq+x9Qzn7FqNxgivRvd7f+4lipAu6KPqjjE=";
   };
 
   NODE_PATH = "$npmDeps";

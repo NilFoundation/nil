@@ -31,7 +31,7 @@ func (s *SuiteReadThroughDb) SetupTest() {
 
 	s.cfg = &nilservice.Config{
 		NShards:              5,
-		HttpPort:             8510,
+		HttpPort:             8610,
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
