@@ -345,7 +345,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	callArgs := &jsonrpc.CallArgs{
 		Data:      (*hexutil.Bytes)(&calldata),
 		To:        walletAddr,
-		FeeCredit: s.gasToValue(4_000_000),
+		FeeCredit: types.NewValueFromUint64(4_000_000),
 		Seqno:     callerSeqno,
 	}
 

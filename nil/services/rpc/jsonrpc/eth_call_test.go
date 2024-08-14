@@ -113,12 +113,13 @@ func (s *SuiteEthCall) TestSmcCall() {
 	s.Require().NoError(err)
 	s.Require().Contains(res.Error, vm.ErrOutOfGas.Error())
 
-	// Unknown "from"
+	// Unknown "to"
 	args.FeeCredit = types.GasToValue(10_000)
-	unknownAddr := types.GenerateRandomAddress(shardId)
-	args.From = &unknownAddr
-	_, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num}, nil)
-	s.Require().ErrorIs(err, ErrFromAccNotFound)
+	args.To = types.GenerateRandomAddress(types.BaseShardId)
+	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num}, nil)
+	s.Require().NoError(err)
+	s.Require().Empty(res.Error)
+	s.Require().Empty(res.Data)
 }
 
 func (s *SuiteEthCall) TestChainCall() {

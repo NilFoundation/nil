@@ -242,6 +242,7 @@ func (s *RpcSuite) CallGetter(addr types.Address, calldata []byte, blockId any, 
 	}
 	res, err := s.client.Call(callArgs, blockId, overrides)
 	s.Require().NoError(err)
+	s.Require().Empty(res.Error)
 	return res.Data
 }
 
