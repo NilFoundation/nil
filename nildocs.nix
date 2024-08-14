@@ -39,6 +39,10 @@ stdenv.mkDerivation rec {
     runHook postBuild
   '';
 
+  shellHook = ''
+    export NILJS_SRC=${./niljs}
+  '';
+
   installPhase = ''
     runHook preInstall
 
