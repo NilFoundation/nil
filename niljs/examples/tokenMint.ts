@@ -6,6 +6,7 @@ import {
   PublicClient,
   WalletV1,
   bytesToHex,
+  convertEthToWei,
   generateRandomPrivateKey,
   hexToBigInt,
   waitTillCompleted,
@@ -34,7 +35,12 @@ const wallet = new WalletV1({
   signer,
 });
 const walletAddress = await wallet.getAddressHex();
-await faucet.withdrawToWithRetry(walletAddress, 1_000_000_000_000n);
+const faucetHash = await faucet.withdrawTo(
+  walletAddress,
+  convertEthToWei(0.1),
+);
+
+await waitTillCompleted(client, 1, bytesToHex(faucetHash));
 
 await wallet.selfDeploy(true);
 // biome-ignore lint/nursery/noConsole: <explanation>
@@ -44,8 +50,8 @@ console.log("walletAddress", walletAddress);
 
 const hashMessage = await wallet.sendMessage({
   to: walletAddress,
-  gas: 1_000_000n * 10n,
-  value: 0,
+  feeCredit: 1_000_000n * 10n,
+  value: 0n,
   data: encodeFunctionData({
     abi: WalletV1.abi,
     functionName: "setCurrencyName",
@@ -57,8 +63,8 @@ await waitTillCompleted(client, 1, hashMessage);
 
 const hashMessage2 = await wallet.sendMessage({
   to: walletAddress,
-  gas: 1_000_000n * 10n,
-  value: 0,
+  feeCredit: 1_000_000n * 10n,
+  value: 0n,
   data: encodeFunctionData({
     abi: WalletV1.abi,
     functionName: "mintCurrency",
@@ -83,7 +89,7 @@ const anotherAddress = WalletV1.calculateWalletAddress({
 const sendHash = await wallet.sendMessage({
   to: anotherAddress,
   value: 10_000_000n,
-  gas: 100_000n * 10n,
+  feeCredit: 100_000n * 10n,
   tokens: [
     {
       id: n,

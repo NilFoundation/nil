@@ -5,8 +5,10 @@ import {
   PublicClient,
   WalletV1,
   bytesToHex,
+  convertEthToWei,
   externalDeploymentMessage,
   generateRandomPrivateKey,
+  waitTillCompleted,
 } from "../src";
 
 const client = new PublicClient({
@@ -39,7 +41,12 @@ const addr = bytesToHex(deploymentMessage.to);
 // biome-ignore lint/nursery/noConsole: <explanation>
 console.log("walletAddress", addr);
 
-await faucet.withdrawToWithRetry(addr, 100000n);
+const faucetHash = await faucet.withdrawTo(
+  addr,
+  convertEthToWei(0.1),
+);
+
+await waitTillCompleted(client, 1, bytesToHex(faucetHash));
 
 await deploymentMessage.send(client);
 

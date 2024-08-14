@@ -61,7 +61,7 @@ const { address, hash } = await wallet.deployContract({
   abi: abi,
   args: [bytesToHex(pubkey), walletAddress],
   value: 10000000n,
-  gas: 1000000n * 10n,
+  feeCredit: 1000000n * 10n,
   salt: 400n,
   shardId: 1,
 });

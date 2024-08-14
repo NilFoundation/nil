@@ -67,7 +67,7 @@ const hash = await wallet.sendMessage({
   to: anotherWallet.getAddressHex(),
   value: 10_000_000n,
   bounceTo: bounceAddress,
-  gas: 100_000n * 10n,
+  feeCredit: 100_000n * 10n,
   data: encodeFunctionData({
     abi: WalletV1.abi,
     functionName: "syncCall",

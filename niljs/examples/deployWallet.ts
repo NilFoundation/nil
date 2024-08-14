@@ -5,7 +5,9 @@ import {
   PublicClient,
   WalletV1,
   bytesToHex,
+  convertEthToWei,
   generateRandomPrivateKey,
+  waitTillCompleted,
 } from "../src";
 
 const client = new PublicClient({
@@ -30,12 +32,17 @@ const wallet = new WalletV1({
   client,
   signer,
 });
-const walletAddress = await wallet.getAddressHex();
+const walletAddress = wallet.getAddressHex();
 
 // biome-ignore lint/nursery/noConsole: <explanation>
 console.log("walletAddress", walletAddress);
 
-await faucet.withdrawToWithRetry(walletAddress, 100000n);
+const faucetHash = await faucet.withdrawTo(
+  walletAddress,
+  convertEthToWei(0.1),
+);
+
+await waitTillCompleted(client, 1, bytesToHex(faucetHash));
 await wallet.selfDeploy(true);
 
 const code = await client.getCode(walletAddress, "latest");

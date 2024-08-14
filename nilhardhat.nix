@@ -6,7 +6,7 @@ stdenv.mkDerivation rec {
 
   npmDeps = fetchNpmDeps {
     inherit src;
-    hash = "sha256-sRoOnUpqeCC9bdwmlxGor5WZrqzMVCV8wbyMcTIKbXg=";
+    hash = "sha256-A0HLSEW/dQAg24MpDDTH3dczH6J61SkQz5cb8MKI4RM=";
   };
 
   NODE_PATH = "$npmDeps";

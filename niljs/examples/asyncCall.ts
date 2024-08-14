@@ -52,7 +52,7 @@ const anotherAddress = WalletV1.calculateWalletAddress({
 const hash = await wallet.sendMessage({
   to: anotherAddress,
   value: 10_000_000n,
-  gas: 100_000n,
+  feeCredit: 100_000n,
 });
 
 await waitTillCompleted(client, 1, hash);
