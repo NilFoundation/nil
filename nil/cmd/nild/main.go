@@ -80,14 +80,7 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 	useMdns := runCmd.Flags().Bool("use-mdns", false, "use mDNS for discovery (works only in the local network)")
 
 	// telemetry
-	traceExportStdout := runCmd.Flags().Bool("trace-export-stdout", false, "export traces to stdout")
-	traceExportGrpc := runCmd.Flags().Bool("trace-export-grpc", false, "export traces via grpc")
-	traceSamplingRate := runCmd.Flags().Float64("trace-sample-rate", 0, "trace sampling rate, from 0 to 1; 0 to disable tracing, 1 to sample all traces")
-	metricExportStdout := runCmd.Flags().Bool("metric-export-stdout", false, "export metrics to stdout")
 	metricExportGrpc := runCmd.Flags().Bool("metric-export-grpc", false, "export metrics via grpc")
-
-	runCmd.MarkFlagsMutuallyExclusive("trace-export-stdout", "trace-export-grpc")
-	runCmd.MarkFlagsMutuallyExclusive("metric-export-stdout", "metric-export-grpc")
 
 	replayCmd := &cobra.Command{
 		Use:   "replay-block",
@@ -121,18 +114,10 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 	}
 
 	telemetryConfig := &telemetry.Config{
-		ServiceName:       os.Args[0],
-		TraceSamplingRate: *traceSamplingRate,
-	}
-	if *traceExportGrpc {
-		telemetryConfig.TraceExportOption = telemetry.ExportOptionGrpc
-	} else if *traceExportStdout {
-		telemetryConfig.TraceExportOption = telemetry.ExportOptionStdout
+		ServiceName: os.Args[0],
 	}
 	if *metricExportGrpc {
 		telemetryConfig.MetricExportOption = telemetry.ExportOptionGrpc
-	} else if *metricExportStdout {
-		telemetryConfig.MetricExportOption = telemetry.ExportOptionStdout
 	}
 
 	cfg := &nilservice.Config{
