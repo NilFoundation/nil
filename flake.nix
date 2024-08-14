@@ -29,7 +29,7 @@
 #        };
       in rec {
         packages = rec {
-          nil = (pkgs.callPackage ./nil.nix { src_repo = self; });
+          nil = (pkgs.callPackage ./nil.nix { src_repo = self; buildGoModule = pkgs.buildGo123Module; });
           niljs = (pkgs.callPackage ./niljs.nix { nil = nil; });
           nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; });
           nilhardhat = (pkgs.callPackage ./nilhardhat.nix { nil = nil; });

@@ -130,7 +130,7 @@ func (db *badgerDB) LogGC(ctx context.Context, discardRation float64, gcFrequenc
 			var err error
 			for ; err == nil; err = db.db.RunValueLogGC(discardRation) {
 			}
-			if !errors.Is(badger.ErrNoRewrite, err) {
+			if !errors.Is(err, badger.ErrNoRewrite) {
 				log.Error().Err(err).Msg("Error during badger LogGC")
 				return err
 			}
