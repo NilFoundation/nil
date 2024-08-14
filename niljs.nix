@@ -1,11 +1,9 @@
-{ lib, stdenv, bun, fetchFromGitHub, fetchNpmDeps, npmHooks, nodejs, nil }:
+{ lib, stdenv, fetchFromGitHub, fetchNpmDeps, npmHooks, nodejs, nil }:
 
 stdenv.mkDerivation rec {
   name = "nil.js";
   pname = "niljs";
   src = lib.sourceByRegex ./. ["package.json" "package-lock.json" "^niljs(/.*)?$"];
-
-  buildInputs = [ bun ];
 
   npmDeps = fetchNpmDeps {
     inherit src;
@@ -25,10 +23,10 @@ stdenv.mkDerivation rec {
   buildPhase = ''
     cd niljs
     nohup nild run > nild.log 2>&1 & echo $! > nild_pid
-    bun run test:unit
-    bun run test:integration --cache=false
-    bun run test:examples
-    bun run build
+    npm run test:unit
+    npm run test:integration --cache=false
+    npm run test:examples
+    npm run build
     kill `cat nild_pid` && rm nild_pid
     echo "tests finished successfully"
   '';

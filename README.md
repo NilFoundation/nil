@@ -84,7 +84,7 @@ cd /path/to/local/copy/of/nil.js
 npmConfigHook
 ```
 
-After that we can work with nil.js, e.g. run tests `bunx vitest run -c test/vitest.integration.config.ts --cache=false`.
+After that we can work with nil.js, e.g. run tests `npm run test:unit`.
 
 ## Unique features
 
