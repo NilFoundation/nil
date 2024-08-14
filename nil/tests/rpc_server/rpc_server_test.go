@@ -349,61 +349,64 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 		Seqno:     callerSeqno,
 	}
 
-	// Without override
-	res, err := s.client.Call(callArgs, "latest", nil)
-	s.T().Logf("Call res : %v, err: %v", res, err)
-	s.Require().NoError(err)
-	s.Require().Len(res.OutMessages, 1)
-	s.Require().Empty(res.Error)
+	s.Run("Call without override", func() {
+		res, err := s.client.Call(callArgs, "latest", nil)
+		s.T().Logf("Call res : %v, err: %v", res, err)
+		s.Require().NoError(err)
+		s.Require().Len(res.OutMessages, 1)
+		s.Require().Empty(res.Error)
 
-	msg := res.OutMessages[0]
-	s.Equal(walletAddr, msg.Message.From)
-	s.Equal(counterAddr, msg.Message.To)
-	s.False(msg.CoinsUsed.IsZero())
-	s.Empty(msg.Data, "Result of message execution is empty")
-	s.NotEmpty(msg.Message.Data, "Message payload is not empty")
-	s.Require().Empty(msg.Error)
+		msg := res.OutMessages[0]
+		s.Equal(walletAddr, msg.Message.From)
+		s.Equal(counterAddr, msg.Message.To)
+		s.False(msg.CoinsUsed.IsZero())
+		s.Empty(msg.Data, "Result of message execution is empty")
+		s.NotEmpty(msg.Message.Data, "Message payload is not empty")
+		s.Require().Empty(msg.Error)
 
-	s.Len(msg.OutMessages, 1)
-	s.True(msg.Message.IsInternal())
+		s.Len(msg.OutMessages, 1)
+		s.True(msg.Message.IsInternal())
 
-	s.Require().Len(res.StateOverrides, 2)
+		s.Require().Len(res.StateOverrides, 2)
 
-	walletState := res.StateOverrides[walletAddr]
-	s.Empty(walletState.State)
-	s.Empty(walletState.StateDiff)
-	s.NotEmpty(walletState.Balance)
+		walletState := res.StateOverrides[walletAddr]
+		s.Empty(walletState.State)
+		s.Empty(walletState.StateDiff)
+		s.NotEmpty(walletState.Balance)
 
-	counterState := res.StateOverrides[counterAddr]
-	s.Empty(counterState.State)
-	s.NotEmpty(counterState.StateDiff)
-	s.Empty(counterState.Balance)
+		counterState := res.StateOverrides[counterAddr]
+		s.Empty(counterState.State)
+		s.NotEmpty(counterState.StateDiff)
+		s.Empty(counterState.Balance)
 
-	getRes := s.CallGetter(counterAddr, contracts.NewCounterGetCallData(s.T()), "latest", nil)
-	s.EqualValues(0, contracts.GetCounterValue(s.T(), getRes))
+		getRes := s.CallGetter(counterAddr, contracts.NewCounterGetCallData(s.T()), "latest", nil)
+		s.EqualValues(0, contracts.GetCounterValue(s.T(), getRes))
 
-	getRes = s.CallGetter(counterAddr, contracts.NewCounterGetCallData(s.T()), "latest", &res.StateOverrides)
-	s.EqualValues(1, contracts.GetCounterValue(s.T(), getRes))
+		getRes = s.CallGetter(counterAddr, contracts.NewCounterGetCallData(s.T()), "latest", &res.StateOverrides)
+		s.EqualValues(1, contracts.GetCounterValue(s.T(), getRes))
+	})
 
-	// Override for "insufficient balance for transfer"
-	override := &jsonrpc.StateOverrides{
-		walletAddr: jsonrpc.Contract{Balance: &types.Value{}},
-	}
-	res, err = s.client.Call(callArgs, "latest", override)
-	s.T().Logf("Call res : %v, err: %v", res, err)
-	s.Require().NoError(err)
-	s.Require().EqualError(vm.ErrInsufficientBalance, res.Error)
+	s.Run("Override for \"insufficient balance for transfer\"", func() {
+		override := &jsonrpc.StateOverrides{
+			walletAddr: jsonrpc.Contract{Balance: &types.Value{}},
+		}
+		res, err := s.client.Call(callArgs, "latest", override)
+		s.T().Logf("Call res : %v, err: %v", res, err)
+		s.Require().NoError(err)
+		s.Require().EqualError(vm.ErrInsufficientBalance, res.Error)
+	})
 
-	// Override several shards
-	val := types.NewValueFromUint64(50_000_000)
-	override = &jsonrpc.StateOverrides{
-		walletAddr:              jsonrpc.Contract{Balance: &val},
-		types.MainWalletAddress: jsonrpc.Contract{Balance: &val},
-	}
-	res, err = s.client.Call(callArgs, "latest", override)
-	s.T().Logf("Call res : %v, err: %v", res, err)
-	s.Require().NoError(err)
-	s.Require().Len(res.OutMessages, 1)
+	s.Run("Override several shards", func() {
+		val := types.NewValueFromUint64(50_000_000)
+		override := &jsonrpc.StateOverrides{
+			walletAddr:              jsonrpc.Contract{Balance: &val},
+			types.MainWalletAddress: jsonrpc.Contract{Balance: &val},
+		}
+		res, err := s.client.Call(callArgs, "latest", override)
+		s.T().Logf("Call res : %v, err: %v", res, err)
+		s.Require().NoError(err)
+		s.Require().Len(res.OutMessages, 1)
+	})
 }
 
 func (s *SuiteRpc) TestChainCall() {
