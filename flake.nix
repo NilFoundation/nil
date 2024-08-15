@@ -38,6 +38,7 @@
         checks = rec {
           nil = (pkgs.callPackage ./nil.nix {
             src_repo = self;
+            buildGoModule = pkgs.buildGo123Module;
             enableRaceDetector = true;
             enableTesting = true;
           });
