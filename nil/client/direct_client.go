@@ -16,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
 )
@@ -35,7 +36,7 @@ func NewEthClient(ctx context.Context, wg *sync.WaitGroup, db db.ReadOnlyDB, msg
 	if err != nil {
 		return nil, err
 	}
-	debugApi := jsonrpc.NewDebugAPI(db, logger)
+	debugApi := jsonrpc.NewDebugAPI(rawapi.NewLocalApi(db), db, logger)
 	dbApi := jsonrpc.NewDbAPI(db, logger)
 
 	wg.Add(1)

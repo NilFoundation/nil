@@ -4,7 +4,7 @@ import (
 	ssz "github.com/NilFoundation/fastssz"
 )
 
-type SSZEncodedData []byte
+type SSZEncodedData = []byte
 
 func EncodeContainer[T ssz.Marshaler](container []T) ([]SSZEncodedData, error) {
 	result := make([]SSZEncodedData, 0, len(container))
@@ -26,9 +26,9 @@ func DecodeContainer[
 	},
 ](dataContainer []SSZEncodedData) ([]*S, error) {
 	result := make([]*S, 0, len(dataContainer))
-	for _, hexData := range dataContainer {
+	for _, sszData := range dataContainer {
 		decoded := new(S)
-		if err := T(decoded).UnmarshalSSZ(hexData); err != nil {
+		if err := T(decoded).UnmarshalSSZ(sszData); err != nil {
 			return []*S{}, err
 		}
 		result = append(result, decoded)

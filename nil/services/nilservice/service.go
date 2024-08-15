@@ -22,10 +22,11 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 )
 
-func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []msgpool.Pool) error {
+func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.Api, db db.ReadOnlyDB, pools []msgpool.Pool) error {
 	logger := logging.NewLogger("RPC")
 
 	addr := cfg.HttpUrl
@@ -48,7 +49,7 @@ func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []
 	}
 	defer ethImpl.Shutdown()
 
-	debugImpl := jsonrpc.NewDebugAPI(db, logger)
+	debugImpl := jsonrpc.NewDebugAPI(rawApi, db, logger)
 	dbImpl := jsonrpc.NewDbAPI(db, logger)
 
 	apiList := []transport.API{
@@ -188,7 +189,12 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 
 	if cfg.RunMode != CollatorsOnlyRunMode {
 		funcs = append(funcs, func(ctx context.Context) error {
-			if err := startRpcServer(ctx, cfg, database, msgPools); err != nil {
+			rawApi := rawapi.NewLocalApi(database)
+			if networkManager != nil {
+				rawapi.SetRawApiRequestHandler(ctx, rawApi, networkManager)
+			}
+
+			if err := startRpcServer(ctx, cfg, rawApi, database, msgPools); err != nil {
 				logger.Error().Err(err).Msg("RPC server goroutine failed")
 				return err
 			}

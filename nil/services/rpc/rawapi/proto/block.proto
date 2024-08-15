@@ -1,0 +1,43 @@
+syntax = "proto3";
+package rawapi;
+
+option go_package = "/pb";
+
+message Hash {
+  fixed64 p0 = 1;
+  fixed64 p1 = 2;
+  fixed64 p2 = 3;
+  fixed64 p3 = 4;
+}
+
+message BlockReference {
+  Hash hash = 1;
+  int64 blockIdentifier = 2;
+  uint32 flags = 3;
+}
+
+message BlockRequest {
+  BlockReference reference = 2;
+  uint32 shardId = 1;
+}
+
+message Error {
+  string message = 1;
+}
+
+message RawBlock {
+  bytes blockSSZ = 1;
+
+  // Additional extracted related data
+  repeated bytes inMessagesSSZ = 2;
+  repeated bytes outMessagesSSZ = 3;
+  repeated bytes receiptsSSZ = 4;
+  map<string, Error> errors = 5;
+}
+
+message RawBlockResponse {
+  oneof result {
+    Error error = 1;
+    RawBlock data = 2;
+  }
+}

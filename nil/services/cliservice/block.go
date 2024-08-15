@@ -162,7 +162,7 @@ Block #{{ .block.Id }} [{{ .color.bold }}{{ .block.Hash }}{{ .color.reset }}] @ 
     {{- end }}
     {{- with index .block.Errors .message.Hash }}
     {{ $color.yellow }}Error: {{ $color.red}}{{ . }}{{ $color.reset}}
-	{{- end }}
+    {{- end }}
     Flags: {{ .message.Flags }}
     RefundTo: {{ .message.RefundTo }}
     BounceTo: {{ .message.BounceTo }}
@@ -172,7 +172,7 @@ Block #{{ .block.Id }} [{{ .color.bold }}{{ .block.Hash }}{{ .color.reset }}] @ 
     {{- with .message.Currency }}
   ▼ Currency:{{ range . }}
       {{ .Currency }}: {{ .Balance }}
-	{{- end }}{{ end }}
+    {{- end }}{{ end }}
     Data: {{ formatData .message.Data }}{{ with .message.Signature }}
     Signature: {{ . }}{{ end }}`
 
