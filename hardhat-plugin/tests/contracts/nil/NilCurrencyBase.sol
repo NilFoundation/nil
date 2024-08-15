@@ -79,7 +79,7 @@ abstract contract NilCurrencyBase is NilBase {
      * @param amount The amount of currency to mint.
      */
     function mintCurrencyInternal(uint256 amount) internal {
-        bool success = Precompile(Nil.MINT_CURRENCY).precompileMintCurrency(amount);
+        bool success = __Precompile__(Nil.MINT_CURRENCY).precompileMintCurrency(amount);
         require(success, "Mint failed");
         totalSupply += amount;
     }
