@@ -480,6 +480,7 @@ const (
 	MessageStatusForwardingFailed
 	MessageStatusMessageToMainShard
 	MessageStatusExternalVerificationFailed
+	MessageStatusInvalidMessage
 )
 
 type MessageStatus uint32
