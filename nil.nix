@@ -2,6 +2,7 @@
 , enableTesting ? false, solc, clickhouse, go-tools, gotools, golangci-lint
 , gofumpt, gci, delve, gopls }:
 let inherit (lib) optional;
+    overrideBuildGoModule = pkg: pkg.override { buildGoModule = buildGoModule; };
 in buildGoModule rec {
   name = "nil";
   pname = "nil";
@@ -28,13 +29,13 @@ in buildGoModule rec {
   nativeBuildInputs = [
     solc
     clickhouse
-    gotools
-    go-tools
-    gopls
-    golangci-lint
-    gofumpt
-    gci
-    delve
+    (overrideBuildGoModule gotools)
+    (overrideBuildGoModule go-tools)
+    (overrideBuildGoModule gopls)
+    (overrideBuildGoModule golangci-lint)
+    (overrideBuildGoModule gofumpt)
+    (overrideBuildGoModule gci)
+    (overrideBuildGoModule delve)
   ];
 
   rev = src_repo.shortRev or src_repo.dirtyShortRev or "unknown";
