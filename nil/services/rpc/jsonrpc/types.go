@@ -133,6 +133,7 @@ type RPCBlock struct {
 	ChildBlocks    []common.Hash     `json:"childBlocks"`
 	MainChainHash  common.Hash       `json:"mainChainHash"`
 	DbTimestamp    uint64            `json:"dbTimestamp"`
+	GasPrice       types.Value       `json:"gasPrice"`
 }
 
 type HexedDebugRPCBlock struct {
@@ -311,6 +312,7 @@ func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*
 		ChildBlocks:    childBlocks,
 		MainChainHash:  block.MainChainHash,
 		DbTimestamp:    dbTimestamp,
+		GasPrice:       block.GasPrice,
 	}, nil
 }
 
