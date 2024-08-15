@@ -224,7 +224,7 @@ func getPrecompiledMethod(methodName string) abi.Method {
 func (c *sendRawMessage) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	payload := new(types.InternalMessagePayload)
 	if err := payload.UnmarshalSSZ(input); err != nil {
-		return nil, err
+		return nil, types.NewMessageError(types.MessageStatusInvalidMessage, err)
 	}
 
 	if payload.To.ShardId().IsMainShard() {

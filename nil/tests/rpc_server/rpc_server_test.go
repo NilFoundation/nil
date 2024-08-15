@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	ssz "github.com/NilFoundation/fastssz"
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
@@ -575,6 +576,21 @@ func (s *SuiteRpc) TestEmptyDeployPayload() {
 	receipt := s.waitForReceipt(wallet.ShardId(), hash)
 	s.Require().True(receipt.Success)
 	s.Require().False(receipt.OutReceipts[0].Success)
+}
+
+func (s *SuiteRpc) TestInvalidMessageExternalDeployment() {
+	calldataExt, err := contracts.NewCallData(contracts.NameWallet, "send", []byte{0x0, 0x1, 0x2, 0x3})
+	s.Require().NoError(err)
+
+	wallet := types.MainWalletAddress
+	hash, err := s.client.SendExternalMessage(calldataExt, wallet, execution.MainPrivateKey)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(hash)
+
+	receipt := s.waitForReceipt(wallet.ShardId(), hash)
+	s.Require().False(receipt.Success)
+	s.Require().Equal(types.MessageStatusInvalidMessage.String(), receipt.Status)
+	s.Require().Equal(ssz.ErrSize.Error(), receipt.ErrorMessage)
 }
 
 func (s *SuiteRpc) TestRpcError() {
