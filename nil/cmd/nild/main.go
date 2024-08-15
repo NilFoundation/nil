@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/profiling"
 	"github.com/NilFoundation/nil/nil/internal/readthroughdb"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -23,6 +24,8 @@ func main() {
 	logger := logging.NewLogger("nild")
 
 	cfg, dbOpts := parseArgs()
+
+	profiling.Start(profiling.DefaultPort)
 
 	database, err := openDb(dbOpts.Path, dbOpts.AllowDrop, logger)
 	check.PanicIfErr(err)
