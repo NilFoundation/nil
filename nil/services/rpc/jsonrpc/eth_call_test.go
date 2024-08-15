@@ -91,8 +91,9 @@ func (s *SuiteEthCall) TestSmcCall() {
 	to := s.simple
 	callArgsData := hexutil.Bytes(calldata)
 	args := CallArgs{
+		Flags:     types.NewMessageFlags(types.MessageFlagInternal),
 		From:      &s.from,
-		Data:      callArgsData,
+		Data:      &callArgsData,
 		To:        to,
 		FeeCredit: types.GasToValue(10_000),
 	}
@@ -112,12 +113,13 @@ func (s *SuiteEthCall) TestSmcCall() {
 	s.Require().NoError(err)
 	s.Require().Contains(res.Error, vm.ErrOutOfGas.Error())
 
-	// Unknown "from"
+	// Unknown "to"
 	args.FeeCredit = types.GasToValue(10_000)
-	unknownAddr := types.GenerateRandomAddress(shardId)
-	args.From = &unknownAddr
-	_, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num}, nil)
-	s.Require().ErrorIs(err, ErrFromAccNotFound)
+	args.To = types.GenerateRandomAddress(types.BaseShardId)
+	res, err = s.api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &num}, nil)
+	s.Require().NoError(err)
+	s.Require().Empty(res.Error)
+	s.Require().Empty(res.Data)
 }
 
 func (s *SuiteEthCall) TestChainCall() {
@@ -131,9 +133,10 @@ func (s *SuiteEthCall) TestChainCall() {
 	s.Require().NoError(err)
 
 	to := s.simple
-	callArgsData := hexutil.Bytes(getCalldata)
+	getData := hexutil.Bytes(getCalldata)
+	setData := hexutil.Bytes(setCalldata)
 	args := CallArgs{
-		Data:      callArgsData,
+		Data:      &getData,
 		To:        to,
 		FeeCredit: types.GasToValue(10_000),
 	}
@@ -141,7 +144,7 @@ func (s *SuiteEthCall) TestChainCall() {
 	s.Require().NoError(err)
 	s.EqualValues(0x2a, s.unpackGetValue(res.Data))
 
-	args.Data = setCalldata
+	args.Data = &setData
 	res, err = s.api.Call(ctx, args, latestBlockId, nil)
 	s.Require().NoError(err)
 	s.Empty(res.Data)
@@ -149,7 +152,7 @@ func (s *SuiteEthCall) TestChainCall() {
 	s.NotNil(res.StateOverrides[s.simple].StateDiff)
 	s.Nil(res.StateOverrides[s.simple].Balance)
 
-	args.Data = getCalldata
+	args.Data = &getData
 	res, err = s.api.Call(ctx, args, latestBlockId, &res.StateOverrides)
 	s.Require().NoError(err)
 	s.EqualValues(0x7b, s.unpackGetValue(res.Data))

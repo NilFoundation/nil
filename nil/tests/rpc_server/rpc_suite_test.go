@@ -226,7 +226,7 @@ func (s *RpcSuite) sendMessageViaWalletNoCheck(addrWallet types.Address, addrTo 
 	return receipt
 }
 
-func (s *RpcSuite) CallGetter(addr types.Address, callData []byte, blockId any, overrides *jsonrpc.StateOverrides) []byte {
+func (s *RpcSuite) CallGetter(addr types.Address, calldata []byte, blockId any, overrides *jsonrpc.StateOverrides) []byte {
 	s.T().Helper()
 
 	seqno, err := s.client.GetTransactionCount(addr, blockId)
@@ -235,13 +235,14 @@ func (s *RpcSuite) CallGetter(addr types.Address, callData []byte, blockId any, 
 	log.Debug().Str("contract", addr.String()).Uint64("seqno", uint64(seqno)).Msg("sending external message getter")
 
 	callArgs := &jsonrpc.CallArgs{
-		Data:      callData,
+		Data:      (*hexutil.Bytes)(&calldata),
 		To:        addr,
 		FeeCredit: s.gasToValue(100_000_000),
 		Seqno:     seqno,
 	}
 	res, err := s.client.Call(callArgs, blockId, overrides)
 	s.Require().NoError(err)
+	s.Require().Empty(res.Error)
 	return res.Data
 }
 
