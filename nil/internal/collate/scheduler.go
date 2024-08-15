@@ -42,17 +42,13 @@ type Scheduler struct {
 
 	params Params
 
-	tracer   telemetry.Tracer
-	meter    telemetry.Meter
 	measurer *telemetry.Measurer
 	logger   zerolog.Logger
 }
 
 func NewScheduler(txFabric db.DB, pool msgpool.Pool, params Params, networkManager *network.Manager) (*Scheduler, error) {
 	const name = "github.com/NilFoundation/nil/nil/internal/collate"
-
-	meter := telemetry.NewMeter(name)
-	measurer, err := telemetry.NewMeasurer(meter, "collate")
+	measurer, err := telemetry.NewMeasurer(telemetry.NewMeter(name), "collate")
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +58,6 @@ func NewScheduler(txFabric db.DB, pool msgpool.Pool, params Params, networkManag
 		pool:           pool,
 		networkManager: networkManager,
 		params:         params,
-		tracer:         telemetry.NewTracer(name),
-		meter:          meter,
 		measurer:       measurer,
 		logger: logging.NewLogger("collator").With().
 			Stringer(logging.FieldShardId, params.ShardId).
@@ -97,9 +91,6 @@ func (s *Scheduler) Run(ctx context.Context) error {
 func (s *Scheduler) generateZeroState(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, s.params.Timeout)
 	defer cancel()
-
-	ctx, span := s.tracer.Start(ctx, "generateZeroState")
-	defer span.End()
 
 	roTx, err := s.txFabric.CreateRoTx(ctx)
 	if err != nil {
@@ -140,9 +131,6 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 
 	s.measurer.Restart()
 	defer s.measurer.Measure(ctx)
-
-	ctx, span := s.tracer.Start(ctx, "doCollate")
-	defer span.End()
 
 	collator := newCollator(s.params, s.params.Topology, s.pool, s.logger)
 	proposal, err := collator.GenerateProposal(ctx, s.txFabric)

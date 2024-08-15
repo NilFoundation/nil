@@ -7,7 +7,6 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 )
 
@@ -26,8 +25,6 @@ func InitMetrics(ctx context.Context, config *Config) error {
 	case ExportOptionNone:
 		// no metrics
 		return nil
-	case ExportOptionStdout:
-		exporter, err = newMetricStdoutExporter()
 	case ExportOptionGrpc:
 		exporter, err = newMetricGrpcExporter(ctx)
 	default:
@@ -55,10 +52,6 @@ func ShutdownMetrics(ctx context.Context) {
 	}
 	// nothing to do with the error
 	_ = mp.Shutdown(ctx)
-}
-
-func newMetricStdoutExporter() (sdkmetric.Exporter, error) {
-	return stdoutmetric.New(stdoutmetric.WithPrettyPrint())
 }
 
 func newMetricGrpcExporter(ctx context.Context) (sdkmetric.Exporter, error) {
