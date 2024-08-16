@@ -168,9 +168,8 @@ func (c *Client) performRequest(request *Request) (json.RawMessage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToMarshalRequest, err)
 	}
-	c.logger.Trace().RawJSON("request", requestBody).Send()
 
-	body, err := c.sendBytes(requestBody)
+	body, err := c.PlainTextCall(requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -194,9 +193,8 @@ func (c *Client) performRequests(requests []*Request) ([]json.RawMessage, error)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToMarshalRequest, err)
 	}
-	c.logger.Trace().RawJSON("requests", requestsBody).Send()
 
-	body, err := c.sendBytes(requestsBody)
+	body, err := c.PlainTextCall(requestsBody)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +216,7 @@ func (c *Client) performRequests(requests []*Request) ([]json.RawMessage, error)
 	return results, nil
 }
 
-func (c *Client) sendBytes(requestBody []byte) (json.RawMessage, error) {
+func (c *Client) PlainTextCall(requestBody []byte) (json.RawMessage, error) {
 	c.logger.Trace().RawJSON("request", requestBody).Send()
 
 	req, err := http.NewRequest(http.MethodPost, c.endpoint, bytes.NewBuffer(requestBody))

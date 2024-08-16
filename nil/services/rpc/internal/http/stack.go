@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -92,7 +93,13 @@ func (h *httpServer) listenAddr() string {
 func (h *httpServer) listen() (net.Listener, error) {
 	if strings.HasPrefix(h.endpoint, "unix://") {
 		socketPath := strings.TrimPrefix(h.endpoint, "unix://")
-		if err := os.RemoveAll(socketPath); err != nil {
+
+		socketDir := filepath.Dir(socketPath)
+		if err := os.MkdirAll(socketDir, os.ModePerm); err != nil {
+			return nil, fmt.Errorf("failed to create directory for Unix socket: %w", err)
+		}
+
+		if err := os.Remove(socketPath); err != nil && !os.IsNotExist(err) {
 			return nil, fmt.Errorf("failed to remove existing Unix socket: %w", err)
 		}
 		return net.Listen("unix", socketPath)

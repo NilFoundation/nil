@@ -2,8 +2,6 @@ package internal
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 	"testing"
 	"time"
 
@@ -13,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
+	rpctest "github.com/NilFoundation/nil/nil/tests/rpc_server"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -25,22 +24,22 @@ type SuiteFetchBlock struct {
 	cancel  context.CancelFunc
 }
 
-func (suite *SuiteFetchBlock) TestFetchBlock() {
-	fetchedBlock, err := suite.cfg.FetchBlock(types.MainShardId, "latest")
-	suite.Require().NoError(err, "Failed to fetch last block")
+func (s *SuiteFetchBlock) TestFetchBlock() {
+	fetchedBlock, err := s.cfg.FetchBlock(types.MainShardId, "latest")
+	s.Require().NoError(err, "Failed to fetch last block")
 
-	suite.Require().NotNil(fetchedBlock, "Fetched block is nil")
+	s.Require().NotNil(fetchedBlock, "Fetched block is nil")
 
-	blocks, err := suite.cfg.FetchBlocks(types.MainShardId, fetchedBlock.Block.Id, fetchedBlock.Block.Id+1)
-	suite.Require().NoError(err, "Failed to fetch block by hash")
-	suite.Require().Len(blocks, 1, "Fetched one block")
-	suite.Require().Equal(fetchedBlock, blocks[0])
+	blocks, err := s.cfg.FetchBlocks(types.MainShardId, fetchedBlock.Block.Id, fetchedBlock.Block.Id+1)
+	s.Require().NoError(err, "Failed to fetch block by hash")
+	s.Require().Len(blocks, 1, "Fetched one block")
+	s.Require().Equal(fetchedBlock, blocks[0])
 }
 
-func (suite *SuiteFetchBlock) TestFetchShardIdList() {
-	shardIds, err := suite.cfg.FetchShards()
-	suite.Require().NoError(err, "Failed to fetch shard ids")
-	suite.Require().Len(shardIds, suite.nShards-1, "Shard ids length is not equal to expected")
+func (s *SuiteFetchBlock) TestFetchShardIdList() {
+	shardIds, err := s.cfg.FetchShards()
+	s.Require().NoError(err, "Failed to fetch shard ids")
+	s.Require().Len(shardIds, s.nShards-1, "Shard ids length is not equal to expected")
 }
 
 func TestSuiteFetchBlock(t *testing.T) {
@@ -49,32 +48,31 @@ func TestSuiteFetchBlock(t *testing.T) {
 	suite.Run(t, new(SuiteFetchBlock))
 }
 
-func (suite *SuiteFetchBlock) SetupSuite() {
-	suite.context, suite.cancel = context.WithCancel(context.Background())
-	suite.nShards = 4
-	port := 8531
+func (s *SuiteFetchBlock) SetupSuite() {
+	s.context, s.cancel = context.WithCancel(context.Background())
+	s.nShards = 4
 
-	url := "http://127.0.0.1:" + strconv.Itoa(port)
+	url := rpctest.GetSockPath(s.T())
 	logger := logging.NewLogger("test_exporter")
-	suite.cfg = Cfg{
+	s.cfg = Cfg{
 		Client: rpc.NewClient(url, logger),
 	}
 
 	database, err := db.NewBadgerDbInMemory()
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
 	cfg := &nilservice.Config{
-		NShards:              suite.nShards,
-		HttpUrl:              fmt.Sprintf("tcp://127.0.0.1:%d", port),
+		NShards:              s.nShards,
+		HttpUrl:              url,
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
 	}
-	go nilservice.Run(suite.context, cfg, database, nil)
+	go nilservice.Run(s.context, cfg, database, nil)
 
 	time.Sleep(time.Second) // To be sure that server is started
 }
 
-func (suite *SuiteFetchBlock) TearDownSuite() {
-	suite.cancel()
+func (s *SuiteFetchBlock) TearDownSuite() {
+	s.cancel()
 }

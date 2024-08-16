@@ -23,31 +23,14 @@ type SuiteCliTestCall struct {
 	testAddress  types.Address
 	cfgPath      string
 	tmpPath      string
-	port         int
 }
 
 func (s *SuiteCliTestCall) SetupSuite() {
 	var err error
 
-	s.port = 8543
 	s.shardsNum = 2
 	s.tmpPath = s.T().TempDir()
 	s.cfgPath = s.tmpPath + "/config.ini"
-
-	iniDataTmpl := `[nil]
-rpc_endpoint = http://127.0.0.1:{{ .Port }}
-private_key = {{ .PrivateKey }}
-address = {{ .Address }}
-`
-	iniData, err := common.ParseTemplate(iniDataTmpl, map[string]interface{}{
-		"Port":       s.port,
-		"PrivateKey": nilcrypto.PrivateKeyToEthereumFormat(execution.MainPrivateKey),
-		"Address":    types.MainWalletAddress.Hex(),
-	})
-	s.Require().NoError(err)
-
-	err = os.WriteFile(s.cfgPath, []byte(iniData), 0o600)
-	s.Require().NoError(err)
 
 	s.testAddress, err = contracts.CalculateAddress(contracts.NameTest, 1, []byte{1})
 	s.Require().NoError(err)
@@ -62,9 +45,10 @@ contracts:
 }
 
 func (s *SuiteCliTestCall) SetupTest() {
+	HttpUrl := GetSockPath(s.T())
 	s.start(&nilservice.Config{
 		NShards:              s.shardsNum,
-		HttpUrl:              fmt.Sprintf("tcp://127.0.0.1:%d", s.port),
+		HttpUrl:              HttpUrl,
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            s.zerostateCfg,
 		CollatorTickPeriodMs: 100,
@@ -72,6 +56,21 @@ func (s *SuiteCliTestCall) SetupTest() {
 		GasPriceScale:        0,
 		GasBasePrice:         10,
 	})
+
+	iniDataTmpl := `[nil]
+rpc_endpoint = {{ .HttpUrl }}
+private_key = {{ .PrivateKey }}
+address = {{ .Address }}
+`
+	iniData, err := common.ParseTemplate(iniDataTmpl, map[string]interface{}{
+		"HttpUrl":    HttpUrl,
+		"PrivateKey": nilcrypto.PrivateKeyToEthereumFormat(execution.MainPrivateKey),
+		"Address":    types.MainWalletAddress.Hex(),
+	})
+	s.Require().NoError(err)
+
+	err = os.WriteFile(s.cfgPath, []byte(iniData), 0o600)
+	s.Require().NoError(err)
 }
 
 func (s *SuiteCliTestCall) TearDownTest() {

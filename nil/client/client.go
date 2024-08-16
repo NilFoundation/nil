@@ -25,6 +25,10 @@ type Client interface {
 	// and returns the response as json.RawMessage, or an error if the call fails
 	RawCall(method string, params ...any) (json.RawMessage, error)
 
+	// PlainTextCall sends request as is and returns raw output.
+	// Function is useful mainly for testing purposes.
+	PlainTextCall(requestBody []byte) (json.RawMessage, error)
+
 	CreateBatchRequest() BatchRequest
 	BatchCall(BatchRequest) ([]any, error)
 

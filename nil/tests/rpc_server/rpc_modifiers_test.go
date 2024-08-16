@@ -54,7 +54,7 @@ contracts:
 
 	s.start(&nilservice.Config{
 		NShards:              4,
-		HttpUrl:              "tcp://127.0.0.1:8532",
+		HttpUrl:              GetSockPath(s.T()),
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            zerostate,
 		CollatorTickPeriodMs: 100,

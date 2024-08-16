@@ -21,7 +21,7 @@ type SuiteWalletRpc struct {
 func (s *SuiteWalletRpc) SetupSuite() {
 	s.start(&nilservice.Config{
 		NShards:              4,
-		HttpUrl:              "http://127.0.0.1:8533",
+		HttpUrl:              GetSockPath(s.T()),
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            execution.DefaultZeroStateConfig,
 		CollatorTickPeriodMs: 100,
