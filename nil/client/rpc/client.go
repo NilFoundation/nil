@@ -2,11 +2,13 @@ package rpc
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -117,18 +119,35 @@ func (b *BatchRequestImpl) GetDebugBlock(shardId types.ShardId, blockId any, ful
 }
 
 func NewClient(endpoint string, logger zerolog.Logger) *Client {
-	return &Client{
-		endpoint: endpoint,
-		logger:   logger,
-	}
+	return NewClientWithDefaultHeaders(endpoint, logger, nil)
 }
 
 func NewClientWithDefaultHeaders(endpoint string, logger zerolog.Logger, headers map[string]string) *Client {
-	return &Client{
+	c := &Client{
 		endpoint: endpoint,
 		logger:   logger,
 		headers:  headers,
 	}
+
+	if strings.HasPrefix(endpoint, "unix://") {
+		socketPath := strings.TrimPrefix(endpoint, "unix://")
+		if socketPath == "" {
+			return nil
+		}
+		c.endpoint = "http://unix"
+		c.client = http.Client{
+			Transport: &http.Transport{
+				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+					return net.Dial("unix", socketPath)
+				},
+			},
+		}
+	} else if strings.HasPrefix(endpoint, "tcp://") {
+		endpoint := "http://" + strings.TrimPrefix(endpoint, "tcp://")
+		c.endpoint = endpoint
+	}
+
+	return c
 }
 
 func (c *Client) getNextId() uint64 {

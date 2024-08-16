@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -88,6 +89,18 @@ func (h *httpServer) listenAddr() string {
 	return h.endpoint
 }
 
+func (h *httpServer) listen() (net.Listener, error) {
+	if strings.HasPrefix(h.endpoint, "unix://") {
+		socketPath := strings.TrimPrefix(h.endpoint, "unix://")
+		if err := os.RemoveAll(socketPath); err != nil {
+			return nil, fmt.Errorf("failed to remove existing Unix socket: %w", err)
+		}
+		return net.Listen("unix", socketPath)
+	} else {
+		return net.Listen("tcp", h.endpoint)
+	}
+}
+
 // start starts the HTTP server if it is enabled and not already running.
 func (h *httpServer) start() error {
 	h.mu.Lock()
@@ -107,7 +120,7 @@ func (h *httpServer) start() error {
 	}
 
 	// Start the server.
-	listener, err := net.Listen("tcp", h.endpoint)
+	listener, err := h.listen()
 	if err != nil {
 		// If the server fails to start, we need to clear out the RPC
 		// configuration, so they can be configured another time.
