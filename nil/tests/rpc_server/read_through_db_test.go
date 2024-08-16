@@ -1,6 +1,7 @@
 package rpctest
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -21,6 +22,7 @@ type SuiteReadThroughDb struct {
 
 	server RpcSuite
 	cache  RpcSuite
+	port   int
 
 	cfg *nilservice.Config
 }
@@ -28,10 +30,11 @@ type SuiteReadThroughDb struct {
 func (s *SuiteReadThroughDb) SetupTest() {
 	s.server.SetT(s.T())
 	s.cache.SetT(s.T())
+	s.port = 8610
 
 	s.cfg = &nilservice.Config{
 		NShards:              5,
-		HttpPort:             8610,
+		HttpUrl:              fmt.Sprintf("tcp://127.0.0.1:%d", s.port),
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
@@ -56,7 +59,8 @@ func (s *SuiteReadThroughDb) initCache() {
 		return db
 	}
 
-	s.cfg.HttpPort += 1
+	s.port += 1
+	s.cfg.HttpUrl = fmt.Sprintf("tcp://127.0.0.1:%d", s.port)
 	s.cache.start(s.cfg)
 }
 

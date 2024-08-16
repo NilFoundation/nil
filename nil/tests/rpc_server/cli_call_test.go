@@ -64,7 +64,7 @@ contracts:
 func (s *SuiteCliTestCall) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards:              s.shardsNum,
-		HttpPort:             s.port,
+		HttpUrl:              fmt.Sprintf("tcp://127.0.0.1:%d", s.port),
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            s.zerostateCfg,
 		CollatorTickPeriodMs: 100,

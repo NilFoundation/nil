@@ -98,7 +98,7 @@ contracts:
 func (s *SuiteEconomy) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards:              s.shardsNum,
-		HttpPort:             8537,
+		HttpUrl:              "tcp://127.0.0.1:8537",
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            s.zerostateCfg,
 		CollatorTickPeriodMs: 300,

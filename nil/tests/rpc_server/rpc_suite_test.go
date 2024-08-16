@@ -83,7 +83,7 @@ func (s *RpcSuite) start(cfg *nilservice.Config) {
 		s.Require().NoError(err)
 		s.client = client
 	} else {
-		s.endpoint = fmt.Sprintf("http://127.0.0.1:%d", cfg.HttpPort)
+		s.endpoint = strings.Replace(cfg.HttpUrl, "tcp://", "http://", 1)
 		s.client = rpc_client.NewClient(s.endpoint, zerolog.New(os.Stderr))
 	}
 

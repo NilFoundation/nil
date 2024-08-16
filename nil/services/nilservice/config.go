@@ -17,7 +17,7 @@ type Config struct {
 	NShards              int
 	RunOnlyShard         types.ShardId
 	ShardEndpoints       map[string]string
-	HttpPort             int
+	HttpUrl              string
 	AdminSocketPath      string
 	Topology             string
 	ZeroState            string

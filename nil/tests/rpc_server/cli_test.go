@@ -30,7 +30,7 @@ type SuiteCli struct {
 func (s *SuiteCli) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards:              5,
-		HttpPort:             8542,
+		HttpUrl:              "tcp://127.0.0.1:8542",
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,

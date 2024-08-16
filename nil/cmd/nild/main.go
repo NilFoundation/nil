@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
@@ -127,7 +128,7 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 		NShards:          *nShards,
 		RunOnlyShard:     types.ShardId(*runOnlyShard),
 		ShardEndpoints:   *shardEndpoints,
-		HttpPort:         *port,
+		HttpUrl:          fmt.Sprintf("tcp://127.0.0.1:%d", *port),
 		Libp2pTcpPort:    *tcpPort,
 		Libp2pQuicPort:   *quicPort,
 		UseMdns:          *useMdns,

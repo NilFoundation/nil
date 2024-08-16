@@ -42,7 +42,7 @@ type SuiteBlockReplay struct {
 func (s *SuiteBlockReplay) SetupSuite() {
 	s.cfg = &nilservice.Config{
 		NShards:              4,
-		HttpPort:             8544,
+		HttpUrl:              "tcp://127.0.0.1:8544",
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            execution.DefaultZeroStateConfig,
 		CollatorTickPeriodMs: 100,

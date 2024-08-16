@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -64,7 +65,7 @@ func (suite *SuiteFetchBlock) SetupSuite() {
 
 	cfg := &nilservice.Config{
 		NShards:              suite.nShards,
-		HttpPort:             port,
+		HttpUrl:              fmt.Sprintf("tcp://127.0.0.1:%d", port),
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,

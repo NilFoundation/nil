@@ -19,7 +19,7 @@ type SuiteReadThrough struct {
 func (s *SuiteReadThrough) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards:              5,
-		HttpPort:             8539,
+		HttpUrl:              "tcp://127.0.0.1:8539",
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
