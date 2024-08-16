@@ -152,6 +152,5 @@ func (s *SuiteReadThroughDb) TestIsolation() {
 func TestSuiteReadThroughDb(t *testing.T) {
 	t.Parallel()
 
-	// These tests flap on Github. Run them when the issue is resolved.
-	// suite.Run(t, new(SuiteReadThroughDb))
+	suite.Run(t, new(SuiteReadThroughDb))
 }
