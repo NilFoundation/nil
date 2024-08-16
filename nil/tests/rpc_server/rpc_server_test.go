@@ -11,8 +11,10 @@ import (
 	"testing"
 	"time"
 
+	ssz "github.com/NilFoundation/fastssz"
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -263,7 +265,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.Require().NoError(err)
 
 			callArgs := &jsonrpc.CallArgs{
-				Data:      callData,
+				Data:      (*hexutil.Bytes)(&callData),
 				To:        callerAddr,
 				FeeCredit: s.gasToValue(10000),
 				Seqno:     callerSeqno,
@@ -342,72 +344,163 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	s.Require().NoError(err)
 
 	callArgs := &jsonrpc.CallArgs{
-		Data:      calldata,
+		Data:      (*hexutil.Bytes)(&calldata),
 		To:        walletAddr,
-		FeeCredit: s.gasToValue(4_000_000),
+		FeeCredit: types.NewValueFromUint64(4_000_000),
 		Seqno:     callerSeqno,
 	}
 
-	// Without override
-	res, err := s.client.Call(callArgs, "latest", nil)
-	s.T().Logf("Call res : %v, err: %v", res, err)
-	s.Require().NoError(err)
-	s.Require().Len(res.OutMessages, 1)
-	s.Require().Empty(res.Error)
+	s.Run("Call without override", func() {
+		res, err := s.client.Call(callArgs, "latest", nil)
+		s.Require().NoError(err)
+		s.Require().Empty(res.Error)
+		s.Require().Len(res.OutMessages, 1)
 
-	msg := res.OutMessages[0]
-	s.Equal(walletAddr, msg.Message.From)
-	s.Equal(counterAddr, msg.Message.To)
-	s.False(msg.CoinsUsed.IsZero())
-	s.Empty(msg.Data, "Result of message execution is empty")
-	s.NotEmpty(msg.Message.Data, "Message payload is not empty")
-	s.Require().Empty(msg.Error)
+		msg := res.OutMessages[0]
+		s.Equal(walletAddr, msg.Message.From)
+		s.Equal(counterAddr, msg.Message.To)
+		s.False(msg.CoinsUsed.IsZero())
+		s.Empty(msg.Data, "Result of message execution is empty")
+		s.NotEmpty(msg.Message.Data, "Message payload is not empty")
+		s.Require().Empty(msg.Error)
 
-	s.Len(msg.OutMessages, 1)
-	s.True(msg.Message.IsInternal())
+		s.Len(msg.OutMessages, 1)
+		s.True(msg.Message.IsInternal())
 
-	s.Require().Len(res.StateOverrides, 2)
+		s.Require().Len(res.StateOverrides, 2)
 
-	walletState := res.StateOverrides[walletAddr]
-	s.Empty(walletState.State)
-	s.Empty(walletState.StateDiff)
-	s.NotEmpty(walletState.Balance)
+		walletState := res.StateOverrides[walletAddr]
+		s.Empty(walletState.State)
+		s.Empty(walletState.StateDiff)
+		s.NotEmpty(walletState.Balance)
 
-	counterState := res.StateOverrides[counterAddr]
-	s.Empty(counterState.State)
-	s.NotEmpty(counterState.StateDiff)
-	s.Empty(counterState.Balance)
+		counterState := res.StateOverrides[counterAddr]
+		s.Empty(counterState.State)
+		s.NotEmpty(counterState.StateDiff)
+		s.Empty(counterState.Balance)
 
-	getRes := s.CallGetter(counterAddr, contracts.NewCounterGetCallData(s.T()), "latest", nil)
-	s.EqualValues(0, contracts.GetCounterValue(s.T(), getRes))
+		getRes := s.CallGetter(counterAddr, contracts.NewCounterGetCallData(s.T()), "latest", nil)
+		s.EqualValues(0, contracts.GetCounterValue(s.T(), getRes))
 
-	getRes = s.CallGetter(counterAddr, contracts.NewCounterGetCallData(s.T()), "latest", &res.StateOverrides)
-	s.EqualValues(1, contracts.GetCounterValue(s.T(), getRes))
+		getRes = s.CallGetter(counterAddr, contracts.NewCounterGetCallData(s.T()), "latest", &res.StateOverrides)
+		s.EqualValues(1, contracts.GetCounterValue(s.T(), getRes))
+	})
 
-	// Override for "insufficient balance for transfer"
-	override := &jsonrpc.StateOverrides{
-		walletAddr: jsonrpc.Contract{Balance: &types.Value{}},
+	s.Run("Override for \"insufficient balance for transfer\"", func() {
+		override := &jsonrpc.StateOverrides{
+			walletAddr: jsonrpc.Contract{Balance: &types.Value{}},
+		}
+		res, err := s.client.Call(callArgs, "latest", override)
+		s.Require().NoError(err)
+		s.Require().EqualError(vm.ErrInsufficientBalance, res.Error)
+	})
+
+	s.Run("Override several shards", func() {
+		val := types.NewValueFromUint64(50_000_000)
+		override := &jsonrpc.StateOverrides{
+			walletAddr:              jsonrpc.Contract{Balance: &val},
+			types.MainWalletAddress: jsonrpc.Contract{Balance: &val},
+		}
+		res, err := s.client.Call(callArgs, "latest", override)
+		s.Require().NoError(err)
+		s.Require().Empty(res.Error)
+		s.Require().Len(res.OutMessages, 1)
+	})
+
+	intMsg = &types.InternalMessagePayload{
+		Data:        contracts.NewCounterAddCallData(s.T(), 5),
+		To:          counterAddr,
+		FeeCredit:   types.NewValueFromUint64(5_000_000),
+		ForwardKind: types.ForwardKindNone,
+		Kind:        types.ExecutionMessageKind,
 	}
-	res, err = s.client.Call(callArgs, "latest", override)
-	s.T().Logf("Call res : %v, err: %v", res, err)
-	s.Require().NoError(err)
-	s.Require().EqualError(vm.ErrInsufficientBalance, res.Error)
 
-	// Override several shards
-	val := types.NewValueFromUint64(50_000_000)
-	override = &jsonrpc.StateOverrides{
-		walletAddr:              jsonrpc.Contract{Balance: &val},
-		types.MainWalletAddress: jsonrpc.Contract{Balance: &val},
-	}
-	res, err = s.client.Call(callArgs, "latest", override)
-	s.T().Logf("Call res : %v, err: %v", res, err)
+	intBytecode, err := intMsg.MarshalSSZ()
 	s.Require().NoError(err)
-	s.Require().Len(res.OutMessages, 1)
+
+	extPayload, err := contracts.NewCallData(contracts.NameWallet, "send", intBytecode)
+	s.Require().NoError(err)
+
+	s.Run("Send raw external message", func() {
+		extMsg := &types.ExternalMessage{
+			To:    walletAddr,
+			Data:  extPayload,
+			Seqno: callerSeqno,
+			Kind:  types.ExecutionMessageKind,
+		}
+
+		extBytecode, err := extMsg.MarshalSSZ()
+		s.Require().NoError(err)
+
+		callArgs := &jsonrpc.CallArgs{
+			Message:   (*hexutil.Bytes)(&extBytecode),
+			FeeCredit: types.NewValueFromUint64(5_000_000),
+		}
+
+		res, err := s.client.Call(callArgs, "latest", nil)
+		s.Require().NoError(err)
+		s.Require().Empty(res.Error)
+		s.Require().Len(res.OutMessages, 1)
+
+		getRes := s.CallGetter(counterAddr, contracts.NewCounterGetCallData(s.T()), "latest", &res.StateOverrides)
+		s.EqualValues(5, contracts.GetCounterValue(s.T(), getRes))
+	})
+
+	s.Run("Send raw internal message", func() {
+		callArgs := &jsonrpc.CallArgs{
+			Message: (*hexutil.Bytes)(&intBytecode),
+			From:    &walletAddr,
+			Seqno:   callerSeqno,
+		}
+
+		res, err := s.client.Call(callArgs, "latest", nil)
+		s.Require().NoError(err)
+		s.Require().Empty(res.Error)
+		s.Require().Empty(res.OutMessages)
+
+		getRes := s.CallGetter(counterAddr, contracts.NewCounterGetCallData(s.T()), "latest", &res.StateOverrides)
+		s.EqualValues(5, contracts.GetCounterValue(s.T(), getRes))
+	})
+
+	s.Run("Send raw message", func() {
+		msg := &types.Message{
+			To:        walletAddr,
+			From:      walletAddr,
+			Data:      extPayload,
+			Seqno:     callerSeqno,
+			FeeCredit: types.NewValueFromUint64(5_000_000),
+		}
+
+		msgBytecode, err := msg.MarshalSSZ()
+		s.Require().NoError(err)
+
+		callArgs := &jsonrpc.CallArgs{
+			Message: (*hexutil.Bytes)(&msgBytecode),
+		}
+
+		res, err := s.client.Call(callArgs, "latest", nil)
+		s.Require().NoError(err)
+		s.Require().Empty(res.Error)
+		s.Require().Len(res.OutMessages, 1)
+
+		getRes := s.CallGetter(counterAddr, contracts.NewCounterGetCallData(s.T()), "latest", &res.StateOverrides)
+		s.EqualValues(5, contracts.GetCounterValue(s.T(), getRes))
+	})
+
+	s.Run("Send invalid message", func() {
+		invalidMsg := hexutil.Bytes([]byte{0x1, 0x2, 0x3})
+		callArgs := &jsonrpc.CallArgs{
+			Message: &invalidMsg,
+		}
+
+		_, err := s.client.Call(callArgs, "latest", nil)
+		s.Require().ErrorContains(err, jsonrpc.ErrInvalidMessage.Error())
+	})
 }
 
 func (s *SuiteRpc) TestChainCall() {
 	addrCallee := contracts.CounterAddress(s.T(), types.ShardId(3))
-	deployPayload := contracts.CounterDeployPayload(s.T())
+	deployPayload := contracts.CounterDeployPayload(s.T()).Bytes()
 	addCallData := contracts.NewCounterAddCallData(s.T(), 11)
 	getCallData := contracts.NewCounterGetCallData(s.T())
 
@@ -416,7 +509,8 @@ func (s *SuiteRpc) TestChainCall() {
 		FeeCredit: s.gasToValue(100000000000),
 	}
 
-	callArgs.Data = deployPayload.Bytes()
+	callArgs.Data = (*hexutil.Bytes)(&deployPayload)
+	callArgs.Flags = types.NewMessageFlags(types.MessageFlagDeploy)
 	res, err := s.client.Call(callArgs, "latest", nil)
 	s.Require().NoError(err, "Deployment should be successful")
 	s.Contains(res.StateOverrides, addrCallee)
@@ -425,14 +519,15 @@ func (s *SuiteRpc) TestChainCall() {
 	resData := s.CallGetter(addrCallee, getCallData, "latest", &res.StateOverrides)
 	s.EqualValues(0, contracts.GetCounterValue(s.T(), resData), "Initial value should be 0")
 
-	callArgs.Data = addCallData
+	callArgs.Data = (*hexutil.Bytes)(&addCallData)
+	callArgs.Flags = types.NewMessageFlags()
 	res, err = s.client.Call(callArgs, "latest", &res.StateOverrides)
 	s.Require().NoError(err, "No errors during the first addition")
 
 	resData = s.CallGetter(addrCallee, getCallData, "latest", &res.StateOverrides)
 	s.EqualValues(11, contracts.GetCounterValue(s.T(), resData), "Updated value is 11")
 
-	callArgs.Data = addCallData
+	callArgs.Data = (*hexutil.Bytes)(&addCallData)
 	res, err = s.client.Call(callArgs, "latest", &res.StateOverrides)
 	s.Require().NoError(err, "No errors during the second addition")
 
@@ -481,6 +576,21 @@ func (s *SuiteRpc) TestEmptyDeployPayload() {
 	receipt := s.waitForReceipt(wallet.ShardId(), hash)
 	s.Require().True(receipt.Success)
 	s.Require().False(receipt.OutReceipts[0].Success)
+}
+
+func (s *SuiteRpc) TestInvalidMessageExternalDeployment() {
+	calldataExt, err := contracts.NewCallData(contracts.NameWallet, "send", []byte{0x0, 0x1, 0x2, 0x3})
+	s.Require().NoError(err)
+
+	wallet := types.MainWalletAddress
+	hash, err := s.client.SendExternalMessage(calldataExt, wallet, execution.MainPrivateKey)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(hash)
+
+	receipt := s.waitForReceipt(wallet.ShardId(), hash)
+	s.Require().False(receipt.Success)
+	s.Require().Equal(types.MessageStatusInvalidMessage.String(), receipt.Status)
+	s.Require().Equal(ssz.ErrSize.Error(), receipt.ErrorMessage)
 }
 
 func (s *SuiteRpc) TestRpcError() {

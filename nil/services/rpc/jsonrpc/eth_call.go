@@ -73,6 +73,47 @@ func calculateStateChange(newEs, oldEs *execution.ExecutionState) (StateOverride
 	return stateOverrides, nil
 }
 
+func (api *APIImpl) handleOutMessages(
+	ctx context.Context,
+	outMsgs []*types.OutboundMessage,
+	mainblockNum transport.BlockNumber,
+	overrides *StateOverrides,
+) ([]*OutMessage, error) {
+	outMessages := make([]*OutMessage, len(outMsgs))
+
+	for i, outMsg := range outMsgs {
+		raw, err := outMsg.Message.MarshalSSZ()
+		if err != nil {
+			return nil, err
+		}
+
+		args := CallArgs{
+			Message: (*hexutil.Bytes)(&raw),
+		}
+
+		res, err := api.Call(ctx, args, transport.BlockNumberOrHash{BlockNumber: &mainblockNum}, overrides)
+		if err != nil {
+			return nil, err
+		}
+
+		outMessages[i] = &OutMessage{
+			Message:     outMsg,
+			Data:        res.Data,
+			CoinsUsed:   res.CoinsUsed,
+			OutMessages: res.OutMessages,
+			Error:       res.Error,
+		}
+
+		if overrides != nil {
+			for k, v := range res.StateOverrides {
+				(*overrides)[k] = v
+			}
+		}
+	}
+
+	return outMessages, nil
+}
+
 // Call implements eth_call. Executes a new message call immediately without creating a transaction on the block chain.
 func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash transport.BlockNumberOrHash, overrides *StateOverrides) (*CallRes, error) {
 	tx, err := api.db.CreateRoTx(ctx)
@@ -81,8 +122,13 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash t
 	}
 	defer tx.Rollback()
 
+	msg, err := args.toMessage()
+	if err != nil {
+		return nil, err
+	}
+
 	timer := common.NewTimer()
-	shardId := args.To.ShardId()
+	shardId := msg.To.ShardId()
 
 	mainBlock, err := api.fetchBlockByNumberOrHash(tx, types.MainShardId, mainblockNrOrHash)
 	if mainBlock == nil || err != nil {
@@ -97,70 +143,24 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash t
 	}
 
 	shardIdToHash := make(map[types.ShardId]common.Hash)
-	shardIdToEs := make(map[types.ShardId]*execution.ExecutionState)
-
 	for _, e := range entries {
 		shardIdToHash[e.Key] = *e.Val
 	}
 
-	getShardExecutionState := func(shardId types.ShardId) (*execution.ExecutionState, error) {
-		es, exists := shardIdToEs[shardId]
-		if exists {
-			return es, nil
-		}
-
-		hash, exists := shardIdToHash[shardId]
-		if !exists {
-			return nil, ErrShardNotFound
-		}
-
-		es, err := execution.NewROExecutionState(tx, shardId, hash, timer, 1)
-		if err != nil {
-			return nil, err
-		}
-
-		if overrides != nil {
-			if err := overrides.Override(es); err != nil {
-				return nil, err
-			}
-		}
-
-		shardIdToEs[shardId] = es
-		return es, nil
+	hash, exists := shardIdToHash[shardId]
+	if !exists {
+		return nil, ErrShardNotFound
 	}
 
-	es, err := getShardExecutionState(shardId)
+	es, err := execution.NewROExecutionState(tx, shardId, hash, timer, 1)
 	if err != nil {
 		return nil, err
 	}
 
-	msg := &types.Message{
-		ChainId:   types.DefaultChainId,
-		Seqno:     args.Seqno,
-		FeeCredit: args.FeeCredit,
-		To:        args.To,
-		Value:     args.Value,
-		Data:      types.Code(args.Data),
-	}
-
-	var fromAs *execution.AccountState
-	if args.From != nil {
-		msg.From = *args.From
-		msg.Flags.SetBit(types.MessageFlagInternal)
-
-		if fromAs, err = es.GetAccount(*args.From); err != nil {
+	if overrides != nil {
+		if err := overrides.Override(es); err != nil {
 			return nil, err
-		} else if fromAs == nil {
-			return nil, ErrFromAccNotFound
 		}
-	} else {
-		msg.From = msg.To
-	}
-
-	if as, err := es.GetAccount(args.To); err != nil {
-		return nil, err
-	} else if as == nil {
-		msg.Flags.SetBit(types.MessageFlagDeploy)
 	}
 
 	if msg.IsDeploy() {
@@ -170,10 +170,19 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash t
 	}
 
 	var payer execution.Payer
-	if msg.IsInternal() {
-		payer = execution.NewAccountPayer(fromAs, msg)
-	} else {
+	if args.Message == nil || msg.IsInternal() {
+		// "args.Message == nil" mean that it's a root message
+		// and we don't want to withdraw any payment for it.
+		// Because it's quite useful for read-only methods.
 		payer = execution.NewMessagePayer(msg, es)
+	} else {
+		var toAs *execution.AccountState
+		if toAs, err = es.GetAccount(msg.To); err != nil {
+			return nil, err
+		} else if toAs == nil {
+			return nil, ErrToAccNotFound
+		}
+		payer = execution.NewAccountPayer(toAs, msg)
 	}
 
 	es.AddInMessage(msg)
@@ -189,62 +198,24 @@ func (api *APIImpl) Call(ctx context.Context, args CallArgs, mainblockNrOrHash t
 		return result, nil
 	}
 
-	var handleOutMessages func(outMsgs []*types.OutboundMessage) ([]*OutMessage, error)
-	handleOutMessages = func(outMsgs []*types.OutboundMessage) ([]*OutMessage, error) {
-		outMessages := make([]*OutMessage, len(outMsgs))
-
-		for i, outMsg := range outMsgs {
-			msg := outMsg.Message
-
-			es, err := getShardExecutionState(msg.To.ShardId())
-			if err != nil {
-				return nil, err
-			}
-
-			es.AddInMessage(msg)
-			payer := execution.NewMessagePayer(msg, es)
-			execRes := es.HandleMessage(ctx, msg, payer)
-
-			outMessages[i] = &OutMessage{
-				Message:   outMsg,
-				Data:      execRes.ReturnData,
-				CoinsUsed: execRes.CoinsUsed,
-			}
-
-			if !execRes.Failed() {
-				outMessages[i].OutMessages, err = handleOutMessages(es.OutMessages[msg.Hash()])
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				outMessages[i].Error = execRes.GetError().Error()
-			}
-		}
-
-		return outMessages, nil
+	esOld, err := execution.NewROExecutionState(tx, shardId, hash, timer, 1)
+	if err != nil {
+		return nil, err
 	}
-
-	execOutMessages := es.OutMessages[msg.Hash()]
-	outMessages, err := handleOutMessages(execOutMessages)
+	stateOverrides, err := calculateStateChange(es, esOld)
 	if err != nil {
 		return nil, err
 	}
 
-	// Calculate state diff between original state and result
-	stateOverrides := make(StateOverrides)
-	for shardId, esNew := range shardIdToEs {
-		hash := shardIdToHash[shardId]
-		esOld, err := execution.NewROExecutionState(tx, shardId, hash, timer, 1)
-		if err != nil {
-			return nil, err
-		}
-		shardStateOverrides, err := calculateStateChange(esNew, esOld)
-		if err != nil {
-			return nil, err
-		}
-		for k, v := range shardStateOverrides {
-			stateOverrides[k] = v
-		}
+	execOutMessages := es.OutMessages[msg.Hash()]
+	outMessages, err := api.handleOutMessages(
+		ctx,
+		execOutMessages,
+		transport.BlockNumber(mainBlock.Id),
+		&stateOverrides,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	result.OutMessages = outMessages

@@ -331,6 +331,19 @@ func (m *ExternalMessage) SigningHash() (common.Hash, error) {
 	return common.PoseidonSSZ(&messageDigest)
 }
 
+func (m ExternalMessage) ToMessage(feeCredit Value) *Message {
+	return &Message{
+		Flags:     MessageFlagsFromKind(false, m.Kind),
+		To:        m.To,
+		From:      m.To,
+		ChainId:   m.ChainId,
+		Seqno:     m.Seqno,
+		Data:      m.Data,
+		Signature: m.AuthData,
+		FeeCredit: feeCredit,
+	}
+}
+
 func (m *Message) SigningHash() (common.Hash, error) {
 	messageDigest := messageDigest{
 		Flags:   m.Flags,
@@ -467,6 +480,7 @@ const (
 	MessageStatusForwardingFailed
 	MessageStatusMessageToMainShard
 	MessageStatusExternalVerificationFailed
+	MessageStatusInvalidMessage
 )
 
 type MessageStatus uint32
