@@ -10,11 +10,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 )
 
-// PublicKeySize is the expected length of the PublicKey (in bytes)
-const PublicKeySize = 33
-
-var EmptyPublicKey [PublicKeySize]byte
-
 type SmartContract struct {
 	Address      Address
 	Initialised  bool
@@ -24,7 +19,6 @@ type SmartContract struct {
 	CodeHash     common.Hash
 	Seqno        Seqno
 	ExtSeqno     Seqno
-	PublicKey    [PublicKeySize]byte
 }
 
 type CurrencyId common.Hash

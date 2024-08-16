@@ -13,7 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 )
 
-// GetInMessageByHash implements eth_getTransactioByHash. Returns the message structure
+// GetInMessageByHash implements eth_getTransactionByHash. Returns the message structure
 func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*RPCInMessage, error) {
 	if err := api.checkShard(shardId); err != nil {
 		return nil, err
