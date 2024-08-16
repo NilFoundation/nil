@@ -2,27 +2,14 @@ package logging
 
 import (
 	"fmt"
-	"log/syslog"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/journald"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/term"
-)
-
-var (
-	// syslogWriter is shared across all syslog loggers
-	syslogWriter *syslog.Writer
-
-	// syslogWriterInit must be called before syslogWriter use
-	syslogWriterInit = sync.OnceFunc(func() {
-		var err error
-		syslogWriter, err = syslog.New(syslog.LOG_INFO, os.Args[0])
-		check.PanicIfErr(err)
-	})
 )
 
 func SetupGlobalLogger(level string) {
@@ -71,7 +58,7 @@ func isSystemd() bool {
 func NewLogger(component string) zerolog.Logger {
 	var logger zerolog.Logger
 	if isSystemd() {
-		logger = newSystemdLogger()
+		logger = newJournalDLogger()
 	} else {
 		logger = newConsoleLogger()
 	}
@@ -83,9 +70,8 @@ func NewLogger(component string) zerolog.Logger {
 		Logger()
 }
 
-func newSystemdLogger() zerolog.Logger {
-	syslogWriterInit()
-	return zerolog.New(zerolog.SyslogLevelWriter(syslogWriter))
+func newJournalDLogger() zerolog.Logger {
+	return zerolog.New(journald.NewJournalDWriter())
 }
 
 func newConsoleLogger() zerolog.Logger {
