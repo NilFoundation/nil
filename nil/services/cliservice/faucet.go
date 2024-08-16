@@ -35,9 +35,9 @@ func collectFailedReceipts(dst []*jsonrpc.RPCReceipt, receipt *jsonrpc.RPCReceip
 	return dst
 }
 
-func (s *Service) WaitForReceipt(shardId types.ShardId, mshHash common.Hash) (*jsonrpc.RPCReceipt, error) {
+func (s *Service) WaitForReceipt(shardId types.ShardId, msgHash common.Hash) (*jsonrpc.RPCReceipt, error) {
 	receipt, err := concurrent.WaitFor(context.Background(), ReceiptWaitFor, ReceiptWaitTick, func(ctx context.Context) (*jsonrpc.RPCReceipt, error) {
-		receipt, err := s.client.GetInMessageReceipt(shardId, mshHash)
+		receipt, err := s.client.GetInMessageReceipt(shardId, msgHash)
 		if err != nil {
 			return nil, err
 		}
