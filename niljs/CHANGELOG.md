@@ -1,5 +1,15 @@
 # niljs
 
+## 0.12.0
+
+### Minor Changes
+
+- [#110](https://github.com/NilFoundation/nil.js/pull/110) [`2dffb16`](https://github.com/NilFoundation/nil.js/commit/2dffb1649692849a8ecd7c790f092961c81f56dd) Thanks [@ukorvl](https://github.com/ukorvl)! - Update wallet bytecode
+
+### Patch Changes
+
+- [#110](https://github.com/NilFoundation/nil.js/pull/110) [`2dffb16`](https://github.com/NilFoundation/nil.js/commit/2dffb1649692849a8ecd7c790f092961c81f56dd) Thanks [@ukorvl](https://github.com/ukorvl)! - Update deploy contract logic for Wallet
+
 ## 0.11.1
 
 ### Patch Changes
