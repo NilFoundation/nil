@@ -1,15 +1,14 @@
 package network
 
 import (
-	"crypto/ecdsa"
-
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 type PeerID = peer.ID
 
 type Config struct {
-	PrivateKey  *ecdsa.PrivateKey
+	PrivateKey PrivateKey
+
 	IPV4Address string
 	TcpPort     int
 	QuicPort    int

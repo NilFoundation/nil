@@ -1,6 +1,7 @@
 package nilservice
 
 import (
+	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
@@ -22,6 +23,7 @@ type Config struct {
 	Topology             string
 	ZeroState            string
 	MainKeysOutPath      string
+	NetworkKeysPath      string
 	CollatorTickPeriodMs uint32
 	GracefulShutdown     bool
 	TraceEVM             bool
@@ -31,11 +33,7 @@ type Config struct {
 	ReplayBlockId        types.BlockNumber
 	ReplayShardId        types.ShardId
 
-	// network
-	Libp2pTcpPort  int
-	Libp2pQuicPort int
-	UseMdns        bool
-
+	Network   *network.Config
 	Telemetry *telemetry.Config
 }
 

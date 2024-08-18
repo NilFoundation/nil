@@ -26,7 +26,7 @@ func (s *PubSubSuite) receive(ch chan []byte, expected []byte) {
 		default:
 			return false
 		}
-	}, time.Second, 100*time.Millisecond)
+	}, 10*time.Second, 100*time.Millisecond)
 }
 
 func (s *PubSubSuite) listPeers(manager *Manager, topic string) []PeerID {

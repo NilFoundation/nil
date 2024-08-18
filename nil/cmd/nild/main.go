@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/profiling"
 	"github.com/NilFoundation/nil/nil/internal/readthroughdb"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
@@ -82,6 +83,11 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 	tcpPort := runCmd.Flags().Int("tcp-port", 0, "tcp port for network")
 	quicPort := runCmd.Flags().Int("quic-port", 0, "quic udp port for network")
 	useMdns := runCmd.Flags().Bool("use-mdns", false, "use mDNS for discovery (works only in the local network)")
+	withDiscovery := runCmd.Flags().Bool("with-discovery", false, "enable discovery (with Kademlia DHT)")
+	discoveryBootstrapPeers := runCmd.Flags().StringSlice("discovery-bootstrap-peers", nil, "bootstrap peers for discovery")
+	keysPath := runCmd.Flags().String("keys-path", "network-keys.yaml", "path to write keys")
+
+	check.PanicIfErr(runCmd.Flags().SetAnnotation("discovery-bootstrap-peers", cobra.BashCompOneRequiredFlag, []string{"with-discovery"}))
 
 	// telemetry
 	metricExportGrpc := runCmd.Flags().Bool("metric-export-grpc", false, "export metrics via grpc")
@@ -124,23 +130,30 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 		telemetryConfig.MetricExportOption = telemetry.ExportOptionGrpc
 	}
 
+	networkConfig := &network.Config{
+		TcpPort:           *tcpPort,
+		QuicPort:          *quicPort,
+		UseMdns:           *useMdns,
+		DHTEnabled:        *withDiscovery,
+		DHTBootstrapPeers: *discoveryBootstrapPeers,
+	}
+
 	cfg := &nilservice.Config{
 		NShards:          *nShards,
 		RunOnlyShard:     types.ShardId(*runOnlyShard),
 		ShardEndpoints:   *shardEndpoints,
 		HttpUrl:          fmt.Sprintf("tcp://127.0.0.1:%d", *port),
-		Libp2pTcpPort:    *tcpPort,
-		Libp2pQuicPort:   *quicPort,
-		UseMdns:          *useMdns,
 		AdminSocketPath:  *adminSocket,
 		Topology:         collate.TrivialShardTopologyId,
 		MainKeysOutPath:  "keys.yaml",
+		NetworkKeysPath:  *keysPath,
 		GracefulShutdown: true,
 		GasPriceScale:    *gasPriceScale,
 		GasBasePrice:     *gasBasePrice,
 		RunMode:          runMode,
 		ReplayBlockId:    types.BlockNumber(*replayBlockId),
 		ReplayShardId:    types.ShardId(*replayShardId),
+		Network:          networkConfig,
 		Telemetry:        telemetryConfig,
 	}
 
