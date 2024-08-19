@@ -12,7 +12,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 // Addr is the expected length of the address (in bytes)
@@ -87,7 +86,7 @@ func (a Address) Hash() common.Hash { return common.BytesToHash(a[:]) }
 
 // Hex returns an EIP55-compliant hex string representation of the address.
 func (a Address) Hex() string {
-	return string(a.checksumHex())
+	return string(a.hex())
 }
 
 func (a Address) Equal(b Address) bool {
@@ -103,26 +102,6 @@ func (a Address) String() string {
 	return a.Hex()
 }
 
-func (a *Address) checksumHex() []byte {
-	buf := a.hex()
-
-	// compute checksum
-	hash := poseidon.Sum(buf[2:])
-
-	for i := 2; i < len(buf); i++ {
-		hashByte := hash[(i-2)/2]
-		if i%2 == 0 {
-			hashByte >>= 4
-		} else {
-			hashByte &= 0xf
-		}
-		if buf[i] > '9' && hashByte > 7 {
-			buf[i] -= 32
-		}
-	}
-	return buf
-}
-
 func (a Address) hex() []byte {
 	var buf [len(a)*2 + 2]byte
 	copy(buf[:2], "0x")
@@ -135,11 +114,11 @@ func (a Address) hex() []byte {
 func (a Address) Format(s fmt.State, c rune) {
 	switch c {
 	case 'v', 's':
-		_, _ = s.Write(a.checksumHex())
+		_, _ = s.Write(a.hex())
 	case 'q':
 		q := []byte{'"'}
 		_, _ = s.Write(q)
-		_, _ = s.Write(a.checksumHex())
+		_, _ = s.Write(a.hex())
 		_, _ = s.Write(q)
 	case 'x', 'X':
 		// %x disables the checksum.

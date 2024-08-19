@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -71,4 +72,18 @@ func TestCreateRandomAddressShardId(t *testing.T) {
 
 	assert.Equal(t, shardId1, addr1.ShardId())
 	assert.Equal(t, shardId2, addr2.ShardId())
+}
+
+func TestAddressFormat(t *testing.T) {
+	t.Parallel()
+
+	addr := HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e71")
+	assert.Equal(t, "0x0002f09ec9f5cca264eba822bb887f5c900c6e71", fmt.Sprintf("%v", addr))
+	assert.Equal(t, "0x0002f09ec9f5cca264eba822bb887f5c900c6e71", fmt.Sprintf("%s", addr))
+	assert.Equal(t, "\"0x0002f09ec9f5cca264eba822bb887f5c900c6e71\"", fmt.Sprintf("%q", addr))
+	assert.Equal(t, "0002f09ec9f5cca264eba822bb887f5c900c6e71", fmt.Sprintf("%x", addr))
+	assert.Equal(t, "0002F09EC9F5CCA264EBA822BB887F5C900C6E71", fmt.Sprintf("%X", addr))
+	assert.Equal(t, "[0 2 240 158 201 245 204 162 100 235 168 34 187 136 127 92 144 12 110 113]", fmt.Sprintf("%d", addr))
+	assert.EqualValues(t, "0x0002f09ec9f5cca264eba822bb887f5c900c6e71", addr.hex())
+	assert.Equal(t, "0x0002f09ec9f5cca264eba822bb887f5c900c6e71", addr.String())
 }
