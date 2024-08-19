@@ -54,6 +54,6 @@ yarn-error.log*
 /.github
 /.husky
 
-docs/reference/client
+/docs/nil/reference/client
 
 node_modules

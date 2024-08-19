@@ -1,14 +1,14 @@
-{ stdenv, yarn, fixup-yarn-lock, nodejs, nil, openssl, fetchYarnDeps}:
+{ lib, stdenv, nodePackages, npmHooks, nodejs, nil, openssl, fetchNpmDeps, autoconf, automake, libtool }:
 
 stdenv.mkDerivation rec {
   name = "nil.docs";
   pname = "nildocs";
-  src = ./docs;
-  buildInputs = [ nodejs yarn openssl ] ;
+  src = lib.sourceByRegex ./. ["package.json" "package-lock.json" "^docs(/.*)?$"];
+  buildInputs = [ nodejs npmHooks.npmConfigHook openssl ] ;
 
-  offlineCache = fetchYarnDeps {
-    yarnLock = "${src}/yarn.lock";
-    hash = "sha256-if6zV9YTMq+x9Qzn7FqNxgivRvd7f+4lipAu6KPqjjE=";
+  npmDeps = fetchNpmDeps {
+    inherit src;
+    hash = "sha256-+KfATAYbBW5SMrrul08mZ1A04WuPIjOA7IurDDP17d0=";
   };
 
   NODE_PATH = "$npmDeps";
@@ -16,26 +16,29 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [
     nodejs
     nil
-    yarn
-    fixup-yarn-lock
+    npmHooks.npmConfigHook
+    autoconf
+    automake
+    libtool
   ];
+
+  dontConfigure = true;
 
   postPatch = ''
       export HOME=$NIX_BUILD_TOP/fake_home
-      yarn config --offline set yarn-offline-mirror $offlineCache
-      fixup-yarn-lock yarn.lock
-      yarn install --offline --frozen-lockfile --ignore-scripts --no-progress --non-interactive
       patchShebangs node_modules/
     '';
 
   buildPhase = ''
+    patchShebangs hardhat-plugin/node_modules
     runHook preBuild
 
     export NILJS_SRC=${./niljs}
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
     export NODE_OPTIONS=--openssl-legacy-provider
-    yarn --offline build
+    npm run build --legacy-peer-deps --workspaces
 
+    cd docs
     runHook postBuild
   '';
 

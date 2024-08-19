@@ -1,20 +1,16 @@
 {
-  "name": "nil-monorepo",
-  "private": true,
-  "version": "1.0.0",
-  "workspaces": [
-    "niljs",
-    "hardhat-plugin"
-  ],
-  "scripts": {
-    "lint": "npm run lint --workspaces --if-present",
-    "lint:fix": "npm run lint:fix --workspaces --if-present",
-    "build": "npm run build -w=frontend",
-    "start": "npm run start -w=backend"
-  },
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "dependencies": {
-  }
+	"name": "nil-monorepo",
+	"private": true,
+	"version": "1.0.0",
+	"workspaces": ["niljs", "hardhat-plugin", "docs"],
+	"scripts": {
+		"lint": "npm run lint --workspaces --if-present",
+		"lint:fix": "npm run lint:fix --workspaces --if-present",
+		"build": "npm run build -w=frontend",
+		"start": "npm run start -w=backend"
+	},
+	"author": "",
+	"license": "ISC",
+	"description": "",
+	"dependencies": {}
 }
