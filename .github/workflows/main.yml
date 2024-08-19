@@ -82,6 +82,7 @@ jobs:
 
       - name: Install Golang and solc
         run: |
+          brew update
           brew tap ethereum/ethereum
           brew install go solidity
           go install golang.org/x/tools/cmd/stringer@latest

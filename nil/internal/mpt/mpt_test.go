@@ -91,9 +91,9 @@ func TestIterate(t *testing.T) {
 	}
 
 	i := 0
-	for _, kv := range trie.Iterate() {
-		require.Equal(t, kv.Key, keys[i])
-		require.Equal(t, kv.Value, values[i])
+	for k, v := range trie.Iterate() {
+		require.Equal(t, k, keys[i])
+		require.Equal(t, v, values[i])
 		i += 1
 	}
 	require.Len(t, keys, i)

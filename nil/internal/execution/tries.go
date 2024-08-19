@@ -207,16 +207,15 @@ func (m *BaseMPTReader[K, V, VPtr]) Fetch(key K) (VPtr, error) {
 }
 
 func (m *BaseMPTReader[K, V, VPtr]) Entries() ([]Entry[K, VPtr], error) {
-	kvs := m.Iterate()
-	res := make([]Entry[K, VPtr], 0, len(kvs))
-	for _, kv := range kvs {
-		k, err := m.keyFromBytes(kv.Key)
+	res := make([]Entry[K, VPtr], 0)
+	for key, value := range m.Iterate() {
+		k, err := m.keyFromBytes(key)
 		if err != nil {
 			return nil, err
 		}
 
 		v := m.newV()
-		if err := v.UnmarshalSSZ(kv.Value); err != nil {
+		if err := v.UnmarshalSSZ(value); err != nil {
 			return nil, err
 		}
 
@@ -226,10 +225,9 @@ func (m *BaseMPTReader[K, V, VPtr]) Entries() ([]Entry[K, VPtr], error) {
 }
 
 func (m *BaseMPTReader[K, V, VPtr]) Keys() ([]K, error) {
-	kvs := m.Iterate()
-	res := make([]K, 0, len(kvs))
-	for _, kv := range kvs {
-		k, err := m.keyFromBytes(kv.Key)
+	res := make([]K, 0)
+	for key := range m.Iterate() {
+		k, err := m.keyFromBytes(key)
 		if err != nil {
 			return nil, err
 		}
@@ -239,11 +237,10 @@ func (m *BaseMPTReader[K, V, VPtr]) Keys() ([]K, error) {
 }
 
 func (m *BaseMPTReader[K, V, VPtr]) Values() ([]VPtr, error) {
-	kvs := m.Iterate()
-	res := make([]VPtr, 0, len(kvs))
-	for _, kv := range kvs {
+	res := make([]VPtr, 0)
+	for _, value := range m.Iterate() {
 		v := m.newV()
-		if err := v.UnmarshalSSZ(kv.Value); err != nil {
+		if err := v.UnmarshalSSZ(value); err != nil {
 			return nil, err
 		}
 		res = append(res, v)

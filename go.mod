@@ -1,6 +1,6 @@
 module github.com/NilFoundation/nil
 
-go 1.22
+go 1.23
 
 require (
 	github.com/google/btree v1.1.2
