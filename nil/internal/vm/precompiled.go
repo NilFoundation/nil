@@ -76,6 +76,7 @@ var (
 	MessageTokensAddress   = types.BytesToAddress([]byte{0xd3})
 	GetGasPriceAddress     = types.BytesToAddress([]byte{0xd4})
 	PoseidonHashAddress    = types.BytesToAddress([]byte{0xd5})
+	AwaitCallAddress       = types.BytesToAddress([]byte{0xd6})
 )
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -112,6 +113,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	MessageTokensAddress:   &getMessageTokens{},
 	GetGasPriceAddress:     &getGasPrice{},
 	PoseidonHashAddress:    &poseidonHash{},
+	AwaitCallAddress:       &awaitCall{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -245,7 +247,7 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, value *uint256.Int, ca
 
 	log.Logger.Debug().Msgf("sendRawMessage to: %s\n", payload.To.Hex())
 
-	_, err := state.AddOutInternal(caller.Address(), payload)
+	_, err := state.AddOutMessage(caller.Address(), payload)
 
 	return nil, err
 }
@@ -259,7 +261,7 @@ func (c *asyncCall) RequiredGas([]byte) uint64 {
 func convertGethAddress(addrGeth any) (types.Address, error) {
 	dstGo, ok := addrGeth.(eth_common.Address)
 	if !ok {
-		return types.EmptyAddress, fmt.Errorf("dst is not a common.Address: %v", addrGeth)
+		return types.EmptyAddress, fmt.Errorf("address is not a common.Address: %v", addrGeth)
 	}
 	return types.BytesToAddress(dstGo.Bytes()), nil
 }
@@ -398,9 +400,65 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	res = make([]byte, 32)
 	res[31] = 1
 
-	_, err = state.AddOutInternal(caller.Address(), &payload)
+	_, err = state.AddOutMessage(caller.Address(), &payload)
 
 	return res, err
+}
+
+type awaitCall struct{}
+
+func (c *awaitCall) RequiredGas([]byte) uint64 {
+	return 5000
+}
+
+func (a *awaitCall) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	res := make([]byte, 32)
+
+	method := getPrecompiledMethod("precompileAwaitCall")
+
+	// Unpack arguments, skipping the first 4 bytes (function selector)
+	args, err := method.Inputs.Unpack(input[4:])
+	if err != nil {
+		log.Logger.Error().Err(err).Msg("precompileAwaitCall pack failed")
+		return res, nil
+	}
+	if len(args) != 2 {
+		return res, errors.New("precompileAwaitCall: invalid number of arguments")
+	}
+
+	// Get `dst` argument
+	dst, err := convertGethAddress(args[0])
+	if err != nil {
+		log.Logger.Error().Msgf("dst unpack failed: %s", err)
+		return res, nil
+	}
+
+	// Get `callData` argument
+	callData, ok := args[1].([]byte)
+	if !ok {
+		log.Logger.Error().Msgf("callData is not a bytes: %T", args[1])
+		return res, nil
+	}
+
+	// Internal is required for the message
+	payload := types.InternalMessagePayload{
+		Kind:        types.ExecutionMessageKind,
+		FeeCredit:   types.NewZeroValue(),
+		ForwardKind: types.ForwardKindRemaining,
+		Value:       types.NewValue(value),
+		Currency:    nil,
+		To:          dst,
+		RefundTo:    state.GetInMessage().To,
+		BounceTo:    state.GetInMessage().To,
+		Data:        callData,
+	}
+
+	if _, err = state.AddOutRequestMessage(caller.Address(), &payload); err != nil {
+		log.Logger.Error().Msgf("AddOutRequestMessage failed: %s", err)
+		return res, nil
+	}
+
+	return nil, nil
 }
 
 type verifySignature struct{}

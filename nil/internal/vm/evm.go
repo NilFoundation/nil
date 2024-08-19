@@ -92,7 +92,7 @@ type EVM struct {
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
 // only ever be used *once*.
-func NewEVM(blockContext *BlockContext, statedb StateDB, origin types.Address) *EVM {
+func NewEVM(blockContext *BlockContext, statedb StateDB, origin types.Address, state *EvmRestoreData) *EVM {
 	evm := &EVM{
 		Context: blockContext,
 		StateDB: statedb,
@@ -102,7 +102,7 @@ func NewEVM(blockContext *BlockContext, statedb StateDB, origin types.Address) *
 		},
 		chainConfig: &params.ChainConfig{ChainID: big.NewInt(1)},
 	}
-	evm.interpreter = NewEVMInterpreter(evm)
+	evm.interpreter = NewEVMInterpreter(evm, state)
 	return evm
 }
 
@@ -549,4 +549,8 @@ func (evm *EVM) GetDepth() int {
 
 func (evm *EVM) SetCurrencyTransfer(tokens []types.CurrencyBalance) {
 	evm.currencyTransfer = tokens
+}
+
+func (evm *EVM) StopAndDumpState() {
+	evm.interpreter.stopAndDumpState = true
 }

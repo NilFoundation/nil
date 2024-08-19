@@ -36,6 +36,10 @@ type AccountState struct {
 	ExtSeqno     types.Seqno
 	StorageTree  *StorageTrie
 	CurrencyTree *CurrencyTrie
+	// AsyncContextTree is a trie that stores the context for each request sent from this account.
+	AsyncContextTree *AsyncContextTrie
+	// requestId is a current request id. It is used to generate unique number for each request.
+	requestId uint64
 
 	State Storage
 
@@ -49,6 +53,12 @@ type AccountState struct {
 	// object was previously existent and is being deployed as a contract within
 	// the current transaction.
 	newContract bool
+}
+
+// FetchRequestId returns unique request id.
+func (as *AccountState) FetchRequestId() uint64 {
+	as.requestId += 1
+	return as.requestId
 }
 
 func (as *AccountState) empty() bool {
@@ -239,13 +249,15 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 	}
 
 	acc := &types.SmartContract{
-		Address:      as.address,
-		Balance:      as.Balance,
-		StorageRoot:  as.StorageTree.RootHash(),
-		CurrencyRoot: as.CurrencyTree.RootHash(),
-		CodeHash:     as.CodeHash,
-		ExtSeqno:     as.ExtSeqno,
-		Seqno:        as.Seqno,
+		Address:          as.address,
+		Balance:          as.Balance,
+		StorageRoot:      as.StorageTree.RootHash(),
+		CurrencyRoot:     as.CurrencyTree.RootHash(),
+		AsyncContextRoot: as.AsyncContextTree.RootHash(),
+		CodeHash:         as.CodeHash,
+		ExtSeqno:         as.ExtSeqno,
+		Seqno:            as.Seqno,
+		RequestId:        as.requestId,
 	}
 
 	if err := db.WriteCode(as.Tx, as.address.ShardId(), as.Code); err != nil {

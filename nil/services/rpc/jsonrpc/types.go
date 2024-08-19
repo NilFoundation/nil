@@ -97,6 +97,7 @@ func (args CallArgs) toMessage() (*types.Message, error) {
 type RPCInMessage struct {
 	Flags       types.MessageFlags      `json:"flags"`
 	Success     bool                    `json:"success"`
+	RequestId   uint64                  `json:"requestId"`
 	Data        hexutil.Bytes           `json:"data"`
 	BlockHash   common.Hash             `json:"blockHash"`
 	BlockNumber types.BlockNumber       `json:"blockNumber"`
@@ -246,6 +247,18 @@ func (re *RPCReceipt) IsComplete() bool {
 	return true
 }
 
+func (re *RPCReceipt) AllSuccess() bool {
+	if !re.Success {
+		return false
+	}
+	for _, receipt := range re.OutReceipts {
+		if !receipt.AllSuccess() {
+			return false
+		}
+	}
+	return true
+}
+
 func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types.MessageIndex, block *types.Block) (*RPCInMessage, error) {
 	hash := message.Hash()
 	if receipt == nil || hash != receipt.MsgHash {
@@ -255,6 +268,7 @@ func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types
 	result := &RPCInMessage{
 		Flags:       message.Flags,
 		Success:     receipt.Success,
+		RequestId:   message.RequestId,
 		Data:        hexutil.Bytes(message.Data),
 		BlockHash:   block.Hash(),
 		BlockNumber: block.Id,

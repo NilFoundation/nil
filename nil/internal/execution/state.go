@@ -3,6 +3,7 @@ package execution
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
@@ -92,6 +93,9 @@ type ExecutionState struct {
 	evm *vm.EVM
 
 	gasPriceScale float64
+
+	// wasSentRequest is true if the VM execution ended with sending a request message
+	wasSentRequest bool
 }
 
 type ExecutionResult struct {
@@ -181,10 +185,11 @@ func NewAccountState(es *ExecutionState, addr types.Address, account *types.Smar
 	shardId := addr.ShardId()
 
 	accountState := &AccountState{
-		db:           es,
-		address:      addr,
-		CurrencyTree: NewDbCurrencyTrie(es.tx, shardId),
-		StorageTree:  NewDbStorageTrie(es.tx, shardId),
+		db:               es,
+		address:          addr,
+		CurrencyTree:     NewDbCurrencyTrie(es.tx, shardId),
+		StorageTree:      NewDbStorageTrie(es.tx, shardId),
+		AsyncContextTree: NewDbAsyncContextTrie(es.tx, shardId),
 
 		Tx:    es.tx,
 		State: make(Storage),
@@ -195,6 +200,7 @@ func NewAccountState(es *ExecutionState, addr types.Address, account *types.Smar
 		accountState.CurrencyTree.SetRootHash(account.CurrencyRoot)
 		accountState.StorageTree.SetRootHash(account.StorageRoot)
 		accountState.CodeHash = account.CodeHash
+		accountState.AsyncContextTree.SetRootHash(account.AsyncContextRoot)
 		var err error
 		accountState.Code, err = db.ReadCode(es.tx, shardId, account.CodeHash)
 		if err != nil {
@@ -202,6 +208,7 @@ func NewAccountState(es *ExecutionState, addr types.Address, account *types.Smar
 		}
 		accountState.ExtSeqno = account.ExtSeqno
 		accountState.Seqno = account.Seqno
+		accountState.requestId = account.RequestId
 	}
 
 	return accountState, nil
@@ -329,12 +336,12 @@ func (es *ExecutionState) GetAccount(addr types.Address) (*AccountState, error) 
 		return nil, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetAccount failed: %w", err)
 	}
 
 	acc, err = NewAccountState(es, addr, data)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("NewAccountState failed: %w", err)
 	}
 	es.Accounts[addr] = acc
 	return acc, nil
@@ -530,7 +537,7 @@ func (es *ExecutionState) SetInitState(addr types.Address, message *types.Messag
 	}
 	acc.Seqno = message.Seqno
 
-	if err := es.newVm(message.IsInternal(), message.From); err != nil {
+	if err := es.newVm(message.IsInternal(), message.From, nil); err != nil {
 		return err
 	}
 	defer es.resetVm()
@@ -745,7 +752,37 @@ func (es *ExecutionState) AppendOutMessageForTx(txId common.Hash, msg *types.Mes
 	es.OutMessages[txId] = append(es.OutMessages[txId], outMsg)
 }
 
-func (es *ExecutionState) AddOutInternal(caller types.Address, payload *types.InternalMessagePayload) (*types.Message, error) {
+func (es *ExecutionState) AddOutRequestMessage(caller types.Address, payload *types.InternalMessagePayload) (*types.Message, error) {
+	msg, err := es.AddOutMessage(caller, payload)
+	if err != nil {
+		return nil, err
+	}
+
+	acc, err := es.GetAccount(caller)
+	check.PanicIfErr(err)
+
+	msg.RequestId = acc.FetchRequestId()
+
+	// If inbound message is also a request, we need to add a new record to the request chain.
+	inMsg := es.GetInMessage()
+	if inMsg.IsRequest() {
+		msg.RequestChain = make([]*types.AsyncRequestInfo, len(es.GetInMessage().RequestChain)+1)
+		copy(msg.RequestChain, inMsg.RequestChain)
+		msg.RequestChain[len(inMsg.RequestChain)] = &types.AsyncRequestInfo{
+			Id:     inMsg.RequestId,
+			Caller: inMsg.From,
+		}
+	}
+
+	es.wasSentRequest = true
+
+	// Stop vm execution and save its state after the current instruction (call of precompile) is finished.
+	es.evm.StopAndDumpState()
+
+	return msg, nil
+}
+
+func (es *ExecutionState) AddOutMessage(caller types.Address, payload *types.InternalMessagePayload) (*types.Message, error) {
 	seqno, err := es.GetSeqno(caller)
 	if err != nil {
 		return nil, err
@@ -826,11 +863,47 @@ func (es *ExecutionState) sendBounceMessage(msg *types.Message, execResult *Exec
 		Data:      data,
 		FeeCredit: toReturn,
 	}
-	if _, err = es.AddOutInternal(msg.To, bounceMsg); err != nil {
+	if _, err = es.AddOutMessage(msg.To, bounceMsg); err != nil {
 		return false, err
 	}
 	logger.Debug().Stringer(logging.FieldMessageFrom, msg.To).Stringer(logging.FieldMessageTo, msg.BounceTo).Msg("Bounce message sent")
 	return true, nil
+}
+
+func (es *ExecutionState) SendResponseMessage(msg *types.Message, res *ExecutionResult) error {
+	asyncResponsePayload := types.AsyncResponsePayload{
+		Success:    !res.Failed(),
+		ReturnData: res.ReturnData,
+	}
+	data, err := asyncResponsePayload.MarshalSSZ()
+	if err != nil {
+		return err
+	}
+
+	responsePayload := &types.InternalMessagePayload{
+		Kind:        types.ResponseMessageKind,
+		ForwardKind: types.ForwardKindRemaining,
+		Data:        data,
+	}
+
+	responseMsg, err := es.AddOutMessage(msg.To, responsePayload)
+	if err != nil {
+		return err
+	}
+
+	if msg.IsRequest() {
+		responseMsg.To = msg.From
+		responseMsg.RequestId = msg.RequestId
+		responseMsg.RequestChain = msg.RequestChain
+	} else {
+		// We are processing a response message with requests chain. So get pending request from the chain and send
+		// response to it.
+		check.PanicIfNotf(msg.IsResponse(), "Message should be response")
+		responseMsg.To = msg.RequestChain[len(msg.RequestChain)-1].Caller
+		responseMsg.RequestId = msg.RequestChain[len(msg.RequestChain)-1].Id
+		responseMsg.RequestChain = msg.RequestChain[:len(msg.RequestChain)-1]
+	}
+	return nil
 }
 
 func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message, payer Payer) *ExecutionResult {
@@ -850,8 +923,23 @@ func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message,
 	default:
 		res = es.HandleExecutionMessage(ctx, msg)
 	}
+	if msg.IsRequest() {
+		if !es.wasSentRequest {
+			if err := es.SendResponseMessage(msg, res); err != nil {
+				return NewExecutionResult().SetFatal(fmt.Errorf("SendResponseMessage failed: %w\n", err))
+			}
+		}
+	} else if msg.IsResponse() {
+		if len(msg.RequestChain) > 0 {
+			// There is pending requests in the chain, so we need to send response to them.
+			if err := es.SendResponseMessage(msg, res); err != nil {
+				return NewExecutionResult().SetFatal(fmt.Errorf("SendResponseMessage failed: %w\n", err))
+			}
+		}
+	}
 	bounced := false
-	if res.Error != nil {
+	// We don't need bounce message for request, because it will be sent within the response message.
+	if res.Error != nil && !msg.IsRequest() {
 		revString := decodeRevertMessage(res.ReturnData)
 		if revString != "" {
 			res.Error.Inner = fmt.Errorf("%w: %s", res.Error, revString)
@@ -900,7 +988,7 @@ func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.
 		Stringer(logging.FieldShardId, es.ShardId).
 		Msg("Handling deploy message...")
 
-	if err := es.newVm(message.IsInternal(), message.From); err != nil {
+	if err := es.newVm(message.IsInternal(), message.From, nil); err != nil {
 		return NewExecutionResult().SetFatal(err)
 	}
 	defer es.resetVm()
@@ -927,7 +1015,36 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	logger.Debug().
 		Stringer(logging.FieldMessageTo, addr).
 		Msg("Handling execution message...")
-	if err := es.newVm(message.IsInternal(), message.From); err != nil {
+
+	caller := (vm.AccountRef)(message.From)
+
+	// Restore VM state and unpack return data from the response message.
+	var restoreState *vm.EvmRestoreData
+	if message.IsResponse() {
+		check.PanicIfNot(message.RequestId != 0)
+		acc, err := es.GetAccount(addr)
+		if err != nil {
+			return NewExecutionResult().SetFatal(err)
+		}
+		key := make([]byte, 8)
+		binary.BigEndian.PutUint64(key, message.RequestId)
+		context, err := acc.AsyncContextTree.Fetch(types.MessageIndex(message.RequestId))
+		if err != nil {
+			return NewExecutionResult().SetFatal(fmt.Errorf("failed to get async context: %w", err))
+		}
+		restoreState = new(vm.EvmRestoreData)
+		if err = restoreState.EvmState.UnmarshalSSZ(context.Data); err != nil {
+			return NewExecutionResult().SetFatal(fmt.Errorf("context unmarshal failed: %w", err))
+		}
+
+		responsePayload := new(types.AsyncResponsePayload)
+		if err := responsePayload.UnmarshalSSZ(message.Data); err != nil {
+			return NewExecutionResult().SetFatal(fmt.Errorf("AsyncResponsePayload unmarshal failed: %w", err))
+		}
+		restoreState.ReturnData = responsePayload.ReturnData
+		restoreState.Result = responsePayload.Success
+	}
+	if err := es.newVm(message.IsInternal(), message.From, restoreState); err != nil {
 		return NewExecutionResult().SetFatal(err)
 	}
 	defer es.resetVm()
@@ -950,7 +1067,7 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 
 	es.evm.SetCurrencyTransfer(message.Currency)
 	gas := message.FeeCredit.ToGas(es.GasPrice)
-	ret, leftOver, err := es.evm.Call((vm.AccountRef)(message.From), addr, message.Data, gas.Uint64(), message.Value.Int())
+	ret, leftOver, err := es.evm.Call(caller, addr, message.Data, gas.Uint64(), message.Value.Int())
 
 	return NewExecutionResult().
 		SetMsgErrorOrFatal(es.evmToMessageError(err)).
@@ -1225,7 +1342,7 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 	}
 	calldata := append(methodSelector, argData...) //nolint:gocritic
 
-	if err := es.newVm(message.IsInternal(), message.From); err != nil {
+	if err := es.newVm(message.IsInternal(), message.From, nil); err != nil {
 		return NewExecutionResult().SetFatal(fmt.Errorf("newVm failed: %w", err))
 	}
 	defer es.resetVm()
@@ -1335,12 +1452,35 @@ func (es *ExecutionState) SetCurrencyTransfer(currencies []types.CurrencyBalance
 	es.evm.SetCurrencyTransfer(currencies)
 }
 
-func (es *ExecutionState) newVm(internal bool, origin types.Address) error {
+func (es *ExecutionState) SaveVmState(state *types.EvmState) error {
+	outMessages := es.OutMessages[es.InMessageHash]
+	check.PanicIfNot(len(outMessages) > 0)
+
+	outMsg := outMessages[len(outMessages)-1]
+	check.PanicIfNot(outMsg.RequestId != 0)
+
+	data, err := state.MarshalSSZ()
+	if err != nil {
+		return err
+	}
+
+	acc, err := es.GetAccount(es.GetInMessage().To)
+	check.PanicIfErr(err)
+
+	logger.Debug().Int("size", len(data)).Msg("Save vm state")
+
+	if err := acc.AsyncContextTree.Update(types.MessageIndex(outMsg.RequestId), &types.AsyncContext{Data: data}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (es *ExecutionState) newVm(internal bool, origin types.Address, state *vm.EvmRestoreData) error {
 	blockContext, err := NewEVMBlockContext(es)
 	if err != nil {
 		return err
 	}
-	es.evm = vm.NewEVM(blockContext, es, origin)
+	es.evm = vm.NewEVM(blockContext, es, origin, state)
 	es.evm.IsAsyncCall = internal
 	return nil
 }

@@ -20,6 +20,7 @@ const (
 	ExecutionMessageKind MessageKind = iota
 	DeployMessageKind
 	RefundMessageKind
+	ResponseMessageKind
 )
 
 func (k MessageKind) String() string {
@@ -30,6 +31,8 @@ func (k MessageKind) String() string {
 		return "DeployMessageKind"
 	case RefundMessageKind:
 		return "RefundMessageKind"
+	case ResponseMessageKind:
+		return "ResponseMessageKind"
 	}
 	panic("unknown MessageKind")
 }
@@ -42,6 +45,8 @@ func (k *MessageKind) Set(input string) error {
 		*k = DeployMessageKind
 	case "refund", "RefundMessageKind":
 		*k = RefundMessageKind
+	case "response", "ResponseMessageKind":
+		*k = ResponseMessageKind
 	default:
 		return fmt.Errorf("unknown MessageKind: %s", input)
 	}
@@ -93,6 +98,7 @@ const (
 	MessageFlagDeploy
 	MessageFlagRefund
 	MessageFlagBounce
+	MessageFlagResponse
 )
 
 type ForwardKind uint64
@@ -139,17 +145,19 @@ func (k ForwardKind) Type() string {
 }
 
 type Message struct {
-	Flags     MessageFlags      `json:"flags" ch:"flags"`
-	ChainId   ChainId           `json:"chainId" ch:"chainId"`
-	Seqno     Seqno             `json:"seqno,omitempty" ch:"seqno"`
-	FeeCredit Value             `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
-	From      Address           `json:"from,omitempty" ch:"from"`
-	To        Address           `json:"to,omitempty" ch:"to"`
-	RefundTo  Address           `json:"refundTo,omitempty" ch:"refundTo"`
-	BounceTo  Address           `json:"bounceTo,omitempty" ch:"bounceTo"`
-	Value     Value             `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Currency  []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
-	Data      Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	Flags        MessageFlags        `json:"flags" ch:"flags"`
+	ChainId      ChainId             `json:"chainId" ch:"chainId"`
+	Seqno        Seqno               `json:"seqno,omitempty" ch:"seqno"`
+	FeeCredit    Value               `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
+	From         Address             `json:"from,omitempty" ch:"from"`
+	To           Address             `json:"to,omitempty" ch:"to"`
+	RefundTo     Address             `json:"refundTo,omitempty" ch:"refundTo"`
+	BounceTo     Address             `json:"bounceTo,omitempty" ch:"bounceTo"`
+	Value        Value               `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Currency     []CurrencyBalance   `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
+	Data         Code                `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	RequestId    uint64              `json:"requestId,omitempty" ch:"request_id"`
+	RequestChain []*AsyncRequestInfo `json:"response,omitempty" ch:"response" ssz-max:"4096"`
 	// This field should always be at the end of the structure for easy signing
 	Signature Signature `json:"signature,omitempty" ch:"signature" ssz-max:"256"`
 }
@@ -179,6 +187,7 @@ type InternalMessagePayload struct {
 	Currency    []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
 	Value       Value             `json:"value,omitempty" ch:"value" ssz-size:"32"`
 	Data        Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	RequestId   uint64            `json:"requestId,omitempty" ch:"request_id"`
 }
 
 type messageDigest struct {
@@ -187,6 +196,32 @@ type messageDigest struct {
 	ChainId ChainId
 	Seqno   Seqno
 	Data    Code `ssz-max:"24576"`
+}
+
+// EvmState contains EVM data to be saved/restored during await request.
+type EvmState struct {
+	Memory []byte `ssz-max:"10000000"`
+	Stack  []byte `ssz-max:"32768"`
+	Pc     uint64
+}
+
+// AsyncRequestInfo contains information about the incomplete request, that is a request which waits for response to a
+// nested request.
+type AsyncRequestInfo struct {
+	Id     uint64  `json:"id"`
+	Caller Address `json:"caller"`
+}
+
+// AsyncResponsePayload contains data returned in the response.
+type AsyncResponsePayload struct {
+	Success    bool
+	ReturnData []byte `ssz-max:"10000000"`
+}
+
+// AsyncContext contains context of the request. For await requests it contains VM state, which will be restored upon
+// the response. For callback requests it contains captured variables(not implemented yet).
+type AsyncContext struct {
+	Data []byte `ssz-max:"10000000"`
 }
 
 // interfaces
@@ -200,10 +235,11 @@ var (
 
 func NewEmptyMessage() *Message {
 	return &Message{
-		Value:     NewValueFromUint64(0),
-		FeeCredit: NewValueFromUint64(0),
-		Currency:  make([]CurrencyBalance, 0),
-		Signature: make(Signature, 0),
+		Value:        NewValueFromUint64(0),
+		FeeCredit:    NewValueFromUint64(0),
+		Currency:     make([]CurrencyBalance, 0),
+		Signature:    make(Signature, 0),
+		RequestChain: make([]*AsyncRequestInfo, 0),
 	}
 }
 
@@ -258,11 +294,14 @@ func (m *Message) VerifyFlags() error {
 		if m.IsBounce() {
 			num++
 		}
-		if num > 1 {
-			return errors.New("internal message cannot be deploy, refund or bounce at the same time")
+		if m.IsRequestOrResponse() {
+			num++
 		}
-	} else if m.IsRefund() || m.IsBounce() {
-		return errors.New("external message cannot be bounce or refund")
+		if num > 1 {
+			return errors.New("internal message cannot be deploy, refund, bounce or async at the same time")
+		}
+	} else if m.IsRefund() || m.IsBounce() || m.IsRequestOrResponse() {
+		return errors.New("external message cannot be bounce, refund or async")
 	}
 	return nil
 }
@@ -291,6 +330,18 @@ func (m *Message) IsRefund() bool {
 	return m.Flags.GetBit(MessageFlagRefund)
 }
 
+func (m *Message) IsResponse() bool {
+	return m.Flags.GetBit(MessageFlagResponse)
+}
+
+func (m *Message) IsRequest() bool {
+	return m.IsRequestOrResponse() && !m.IsResponse()
+}
+
+func (m *Message) IsRequestOrResponse() bool {
+	return m.RequestId != 0
+}
+
 func (m *InternalMessagePayload) ToMessage(from Address, seqno Seqno) *Message {
 	msg := &Message{
 		Flags:     MessageFlagsFromKind(true, m.Kind),
@@ -302,6 +353,7 @@ func (m *InternalMessagePayload) ToMessage(from Address, seqno Seqno) *Message {
 		Currency:  m.Currency,
 		Data:      m.Data,
 		FeeCredit: m.FeeCredit,
+		RequestId: m.RequestId,
 		Seqno:     seqno,
 	}
 	if m.Bounce {
@@ -382,6 +434,8 @@ func MessageFlagsFromKind(internal bool, kind MessageKind) MessageFlags {
 		flags = append(flags, MessageFlagDeploy)
 	case RefundMessageKind:
 		flags = append(flags, MessageFlagRefund)
+	case ResponseMessageKind:
+		flags = append(flags, MessageFlagResponse)
 	case ExecutionMessageKind: // do nothing
 	}
 	return NewMessageFlags(flags...)
@@ -403,6 +457,9 @@ func (m MessageFlags) String() string {
 	if m.GetBit(MessageFlagBounce) {
 		res += ", Bounce"
 	}
+	if m.GetBit(MessageFlagResponse) {
+		res += ", Response"
+	}
 	return res
 }
 
@@ -421,6 +478,9 @@ func (m MessageFlags) MarshalJSON() ([]byte, error) {
 	}
 	if m.GetBit(MessageFlagBounce) {
 		res += ", \"Bounce\""
+	}
+	if m.GetBit(MessageFlagResponse) {
+		res += ", \"Response\""
 	}
 	return []byte(fmt.Sprintf("[%s]", res)), nil
 }
@@ -441,6 +501,8 @@ func (m *MessageFlags) UnmarshalJSON(data []byte) error {
 			m.SetBit(MessageFlagRefund)
 		case "Bounce":
 			m.SetBit(MessageFlagBounce)
+		case "Response":
+			m.SetBit(MessageFlagResponse)
 		}
 	}
 	return nil

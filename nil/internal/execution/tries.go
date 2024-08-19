@@ -33,19 +33,21 @@ type BaseMPT[K any, V any, VPtr MPTValue[V]] struct {
 }
 
 type (
-	ContractTrie    = BaseMPT[common.Hash, types.SmartContract, *types.SmartContract]
-	MessageTrie     = BaseMPT[types.MessageIndex, types.Message, *types.Message]
-	ReceiptTrie     = BaseMPT[types.MessageIndex, types.Receipt, *types.Receipt]
-	StorageTrie     = BaseMPT[common.Hash, types.Uint256, *types.Uint256]
-	CurrencyTrie    = BaseMPT[types.CurrencyId, types.Value, *types.Value]
-	ShardBlocksTrie = BaseMPT[types.ShardId, common.Hash, *common.Hash]
+	ContractTrie     = BaseMPT[common.Hash, types.SmartContract, *types.SmartContract]
+	MessageTrie      = BaseMPT[types.MessageIndex, types.Message, *types.Message]
+	ReceiptTrie      = BaseMPT[types.MessageIndex, types.Receipt, *types.Receipt]
+	StorageTrie      = BaseMPT[common.Hash, types.Uint256, *types.Uint256]
+	CurrencyTrie     = BaseMPT[types.CurrencyId, types.Value, *types.Value]
+	ShardBlocksTrie  = BaseMPT[types.ShardId, common.Hash, *common.Hash]
+	AsyncContextTrie = BaseMPT[types.MessageIndex, types.AsyncContext, *types.AsyncContext]
 
-	ContractTrieReader    = BaseMPTReader[common.Hash, types.SmartContract, *types.SmartContract]
-	MessageTrieReader     = BaseMPTReader[types.MessageIndex, types.Message, *types.Message]
-	ReceiptTrieReader     = BaseMPTReader[types.MessageIndex, types.Receipt, *types.Receipt]
-	StorageTrieReader     = BaseMPTReader[common.Hash, types.Uint256, *types.Uint256]
-	CurrencyTrieReader    = BaseMPTReader[types.CurrencyId, types.Value, *types.Value]
-	ShardBlocksTrieReader = BaseMPTReader[types.ShardId, common.Hash, *common.Hash]
+	ContractTrieReader     = BaseMPTReader[common.Hash, types.SmartContract, *types.SmartContract]
+	MessageTrieReader      = BaseMPTReader[types.MessageIndex, types.Message, *types.Message]
+	ReceiptTrieReader      = BaseMPTReader[types.MessageIndex, types.Receipt, *types.Receipt]
+	StorageTrieReader      = BaseMPTReader[common.Hash, types.Uint256, *types.Uint256]
+	CurrencyTrieReader     = BaseMPTReader[types.CurrencyId, types.Value, *types.Value]
+	ShardBlocksTrieReader  = BaseMPTReader[types.ShardId, common.Hash, *common.Hash]
+	AsyncContextTrieReader = BaseMPTReader[types.MessageIndex, types.AsyncContext, *types.AsyncContext]
 )
 
 func NewContractTrieReader(parent *mpt.Reader) *ContractTrieReader {
@@ -77,6 +79,14 @@ func NewStorageTrieReader(parent *mpt.Reader) *StorageTrieReader {
 		parent,
 		func(k common.Hash) []byte { return k.Bytes() },
 		func(bs []byte) (common.Hash, error) { return common.BytesToHash(bs), nil },
+	}
+}
+
+func NewAsyncContextTrieReader(parent *mpt.Reader) *AsyncContextTrieReader {
+	return &AsyncContextTrieReader{
+		parent,
+		func(k types.MessageIndex) []byte { return k.Bytes() },
+		func(bs []byte) (types.MessageIndex, error) { return types.BytesToMessageIndex(bs), nil },
 	}
 }
 
@@ -124,6 +134,13 @@ func NewReceiptTrie(parent *mpt.MerklePatriciaTrie) *ReceiptTrie {
 func NewStorageTrie(parent *mpt.MerklePatriciaTrie) *StorageTrie {
 	return &StorageTrie{
 		BaseMPTReader: NewStorageTrieReader(parent.Reader),
+		rwTrie:        parent,
+	}
+}
+
+func NewAsyncContextTrie(parent *mpt.MerklePatriciaTrie) *AsyncContextTrie {
+	return &AsyncContextTrie{
+		BaseMPTReader: NewAsyncContextTrieReader(parent.Reader),
 		rwTrie:        parent,
 	}
 }
@@ -180,6 +197,10 @@ func NewDbReceiptTrie(tx db.RwTx, shardId types.ShardId) *ReceiptTrie {
 
 func NewDbStorageTrie(tx db.RwTx, shardId types.ShardId) *StorageTrie {
 	return NewStorageTrie(mpt.NewDbMPT(tx, shardId, db.StorageTrieTable))
+}
+
+func NewDbAsyncContextTrie(tx db.RwTx, shardId types.ShardId) *AsyncContextTrie {
+	return NewAsyncContextTrie(mpt.NewDbMPT(tx, shardId, db.AsyncCallContextTable))
 }
 
 func NewDbCurrencyTrie(tx db.RwTx, shardId types.ShardId) *CurrencyTrie {

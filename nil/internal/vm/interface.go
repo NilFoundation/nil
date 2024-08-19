@@ -78,14 +78,20 @@ type StateDB interface {
 
 	AddLog(*types.Log)
 
-	// add internal out message for current transaction
-	AddOutInternal(caller types.Address, payload *types.InternalMessagePayload) (*types.Message, error)
+	// AddOutMessage adds internal out message for current transaction
+	AddOutMessage(caller types.Address, payload *types.InternalMessagePayload) (*types.Message, error)
+
+	// AddOutRequestMessage adds outbound request message for current transaction
+	AddOutRequestMessage(caller types.Address, payload *types.InternalMessagePayload) (*types.Message, error)
 
 	// Get current message
 	GetInMessage() *types.Message
 
 	// Get execution context shard id
 	GetShardID() types.ShardId
+
+	// SaveVmState saves current VM state
+	SaveVmState(state *types.EvmState) error
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

@@ -48,7 +48,7 @@ type RpcSuite struct {
 }
 
 func init() {
-	logging.SetupGlobalLogger("debug")
+	logging.SetupGlobalLogger("info")
 }
 
 func (s *RpcSuite) start(cfg *nilservice.Config) {
@@ -440,6 +440,25 @@ func (s *RpcSuite) analyzeReceiptRec(receipt *jsonrpc.RPCReceipt, valuesMap Rece
 	for _, outReceipt := range receipt.OutReceipts {
 		s.analyzeReceiptRec(outReceipt, valuesMap, namesMap)
 	}
+}
+
+func (s *RpcSuite) checkBalance(infoMap ReceiptInfo, balance types.Value, accounts []types.Address) types.Value {
+	s.T().Helper()
+
+	newBalance := types.NewZeroValue()
+
+	for _, addr := range accounts {
+		newBalance = newBalance.Add(s.getBalance(addr))
+	}
+
+	newRealBalance := newBalance
+
+	for _, info := range infoMap {
+		newBalance = newBalance.Add(info.ValueUsed)
+	}
+	s.Require().Equal(balance, newBalance)
+
+	return newRealBalance
 }
 
 func getContractInfo(addr types.Address, valuesMap ReceiptInfo) *ContractInfo {

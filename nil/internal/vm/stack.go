@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -82,4 +83,24 @@ func (st *Stack) peek() *uint256.Int {
 // Back returns the n'th item in stack
 func (st *Stack) Back(n int) *uint256.Int {
 	return &st.data[st.len()-n-1]
+}
+
+func (st *Stack) CopyToBytes() []byte {
+	res := make([]byte, 0, len(st.data)*32)
+	for i := range len(st.data) {
+		data := st.data[i].Bytes32()
+		res = append(res, data[:]...)
+	}
+	return res
+}
+
+func (st *Stack) FromBytes(data []byte) error {
+	if len(data)%32 != 0 {
+		return errors.New("stack data length is not a multiple of 32")
+	}
+	st.data = make([]uint256.Int, 0, len(data)/32)
+	for i := 0; i < len(data); i += 32 {
+		st.data = append(st.data, *uint256.NewInt(0).SetBytes(data[i : i+32]))
+	}
+	return nil
 }

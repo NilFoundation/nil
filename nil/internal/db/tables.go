@@ -36,6 +36,8 @@ const (
 	ErrorByMessageHashTable = TableName("ErrorByMessageHash")
 
 	SchemeVersionTable = TableName("SchemeVersion")
+
+	AsyncCallContextTable = ShardedTableName("AsyncCallContext")
 )
 
 func ShardTableName(tableName ShardedTableName, shardId types.ShardId) TableName {

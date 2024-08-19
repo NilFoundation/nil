@@ -45,7 +45,7 @@ func (m messagePayer) AddBalance(delta types.Value) {
 		return
 	}
 
-	if _, err := m.es.AddOutInternal(m.message.To, &types.InternalMessagePayload{
+	if _, err := m.es.AddOutMessage(m.message.To, &types.InternalMessagePayload{
 		Kind:  types.RefundMessageKind,
 		To:    m.message.RefundTo,
 		Value: delta,

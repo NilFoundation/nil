@@ -1,7 +1,6 @@
 package rpctest
 
 import (
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -656,8 +655,6 @@ func (s *SuiteEconomy) checkBalance(infoMap ReceiptInfo, balance types.Value) ty
 		Add(s.getBalance(s.walletAddress))
 
 	newRealBalance := newBalance
-
-	fmt.Printf("newRealBalance: %v\n", newRealBalance)
 
 	for _, info := range infoMap {
 		newBalance = newBalance.Add(info.ValueUsed)

@@ -10,14 +10,16 @@ import (
 )
 
 type SmartContract struct {
-	Address      Address
-	Initialised  bool
-	Balance      Value `ssz-size:"32"`
-	CurrencyRoot common.Hash
-	StorageRoot  common.Hash
-	CodeHash     common.Hash
-	Seqno        Seqno
-	ExtSeqno     Seqno
+	Address          Address
+	Initialised      bool
+	Balance          Value `ssz-size:"32"`
+	CurrencyRoot     common.Hash
+	StorageRoot      common.Hash
+	CodeHash         common.Hash
+	AsyncContextRoot common.Hash
+	Seqno            Seqno
+	ExtSeqno         Seqno
+	RequestId        uint64
 }
 
 type CurrencyId common.Hash
