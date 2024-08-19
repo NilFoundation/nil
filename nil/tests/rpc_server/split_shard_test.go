@@ -2,9 +2,7 @@ package rpctest
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"strconv"
 	"sync"
 	"testing"
 
@@ -20,9 +18,9 @@ import (
 )
 
 type shard struct {
-	id   types.ShardId
-	db   db.DB
-	port int
+	id  types.ShardId
+	db  db.DB
+	url string
 
 	client   client.Client
 	endpoint string
@@ -62,29 +60,27 @@ func (s *SuiteSplitShard) start(cfg *nilservice.Config) {
 		}
 	}
 
-	ports := make([]int, cfg.NShards-1)
 	portmap := make(map[string]string)
-	for i := range ports {
-		// shard 1 runs on cfg.HttpPort + 1, etc.
-		shardId := i + 1
-		port := cfg.HttpPort + shardId
+	for i := range cfg.NShards - 1 {
+		shardId := types.ShardId(i + 1)
+		url := GetSockPathIdx(s.T(), i)
 		shard := shard{
-			id:       types.ShardId(shardId),
+			id:       shardId,
 			db:       s.dbInit(),
-			port:     port,
-			endpoint: fmt.Sprintf("http://127.0.0.1:%d", port),
+			url:      url,
+			endpoint: url,
 		}
 		shard.client = rpc_client.NewClient(shard.endpoint, zerolog.New(os.Stderr))
-		portmap[strconv.Itoa(shardId)] = shard.endpoint
+		portmap[shardId.String()] = shard.endpoint
 		s.shards = append(s.shards, shard)
 	}
-	for i := range ports {
+	for i := range cfg.NShards - 1 {
 		s.wg.Add(1)
 		go func() {
 			shardConfig := nilservice.Config{
 				NShards:              cfg.NShards,
 				RunOnlyShard:         s.shards[i].id,
-				HttpPort:             s.shards[i].port,
+				HttpUrl:              s.shards[i].url,
 				Topology:             cfg.Topology,
 				CollatorTickPeriodMs: cfg.CollatorTickPeriodMs,
 				GasBasePrice:         cfg.GasBasePrice,
@@ -111,7 +107,6 @@ func (s *SuiteSplitShard) waitZerostate() {
 func (s *SuiteSplitShard) SetupSuite() {
 	s.start(&nilservice.Config{
 		NShards:              3,
-		HttpPort:             8539,
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,

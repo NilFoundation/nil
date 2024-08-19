@@ -98,7 +98,7 @@ contracts:
 func (s *SuiteMultiCurrencyRpc) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards:              s.shardsNum,
-		HttpPort:             8534,
+		HttpUrl:              GetSockPath(s.T()),
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            s.zerostateCfg,
 		CollatorTickPeriodMs: 100,

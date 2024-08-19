@@ -20,7 +20,7 @@ type SuitGasPrice struct {
 func (s *SuitGasPrice) SetupSuite() {
 	s.start(&nilservice.Config{
 		NShards:              4,
-		HttpPort:             8535,
+		HttpUrl:              GetSockPath(s.T()),
 		Topology:             collate.TrivialShardTopologyId,
 		ZeroState:            execution.DefaultZeroStateConfig,
 		CollatorTickPeriodMs: 100,

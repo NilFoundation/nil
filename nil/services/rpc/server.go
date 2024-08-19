@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net"
+	net_http "net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -48,16 +50,21 @@ func startRegularRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []t
 		return fmt.Errorf("could not start register RPC apis: %w", err)
 	}
 
-	httpHandler := http.NewHTTPHandlerStack(
-		http.NewServer(srv, rpccfg.ContentType, rpccfg.AcceptedContentTypes),
-		cfg.HttpCORSDomain,
-		cfg.HttpVirtualHost,
-		cfg.HttpCompression)
-
 	httpEndpoint := "tcp://" + net.JoinHostPort(cfg.HttpListenAddress, strconv.Itoa(cfg.HttpPort))
 	if cfg.HttpURL != "" {
 		httpEndpoint = cfg.HttpURL
 	}
+
+	basicHttpSrv := http.NewServer(srv, rpccfg.ContentType, rpccfg.AcceptedContentTypes)
+	var httpHandler net_http.Handler = basicHttpSrv
+	if !strings.HasPrefix(httpEndpoint, "unix://") {
+		httpHandler = http.NewHTTPHandlerStack(
+			basicHttpSrv,
+			cfg.HttpCORSDomain,
+			cfg.HttpVirtualHost,
+			cfg.HttpCompression)
+	}
+
 	listener, httpAddr, err := http.StartHTTPEndpoint(httpEndpoint, &http.HttpEndpointConfig{
 		Timeouts: cfg.HTTPTimeouts,
 	}, httpHandler)

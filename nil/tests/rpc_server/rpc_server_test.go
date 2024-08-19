@@ -1,11 +1,8 @@
 package rpctest
 
 import (
-	"bytes"
 	"encoding/json"
-	"io"
 	"math/big"
-	"net/http"
 	"os"
 	"strconv"
 	"testing"
@@ -37,7 +34,7 @@ type SuiteRpc struct {
 func (s *SuiteRpc) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards:              5,
-		HttpPort:             8530,
+		HttpUrl:              GetSockPath(s.T()),
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
@@ -761,14 +758,7 @@ func (s *SuiteRpc) TestBatch() {
 	}
 
 	for req, expectedResp := range testcases {
-		req, err := http.NewRequest(http.MethodPost, s.endpoint, bytes.NewBufferString(req))
-		s.Require().NoError(err)
-		req.Header.Set("Content-Type", "application/json")
-		resp, err := http.DefaultClient.Do(req)
-		s.Require().NoError(err)
-		defer resp.Body.Close()
-
-		body, err := io.ReadAll(resp.Body)
+		body, err := s.client.PlainTextCall([]byte(req))
 		s.Require().NoError(err)
 		s.JSONEq(expectedResp, string(body))
 	}

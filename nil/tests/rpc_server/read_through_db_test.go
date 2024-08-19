@@ -21,6 +21,7 @@ type SuiteReadThroughDb struct {
 
 	server RpcSuite
 	cache  RpcSuite
+	num    int
 
 	cfg *nilservice.Config
 }
@@ -28,10 +29,11 @@ type SuiteReadThroughDb struct {
 func (s *SuiteReadThroughDb) SetupTest() {
 	s.server.SetT(s.T())
 	s.cache.SetT(s.T())
+	s.num = 0
 
 	s.cfg = &nilservice.Config{
 		NShards:              5,
-		HttpPort:             8610,
+		HttpUrl:              GetSockPathIdx(s.T(), s.num),
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
@@ -56,7 +58,8 @@ func (s *SuiteReadThroughDb) initCache() {
 		return db
 	}
 
-	s.cfg.HttpPort += 1
+	s.num += 1
+	s.cfg.HttpUrl = GetSockPathIdx(s.T(), s.num)
 	s.cache.start(s.cfg)
 }
 
@@ -149,6 +152,5 @@ func (s *SuiteReadThroughDb) TestIsolation() {
 func TestSuiteReadThroughDb(t *testing.T) {
 	t.Parallel()
 
-	// These tests flap on Github. Run them when the issue is resolved.
-	// suite.Run(t, new(SuiteReadThroughDb))
+	suite.Run(t, new(SuiteReadThroughDb))
 }

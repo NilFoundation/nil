@@ -29,12 +29,11 @@ func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []
 	logger := logging.NewLogger("RPC")
 
 	httpConfig := &httpcfg.HttpCfg{
-		Enabled:           true,
-		HttpListenAddress: "127.0.0.1",
-		HttpPort:          cfg.HttpPort,
-		HttpCompression:   true,
-		TraceRequests:     true,
-		HTTPTimeouts:      httpcfg.DefaultHTTPTimeouts,
+		Enabled:         true,
+		HttpURL:         cfg.HttpUrl,
+		HttpCompression: true,
+		TraceRequests:   true,
+		HTTPTimeouts:    httpcfg.DefaultHTTPTimeouts,
 	}
 
 	base := jsonrpc.NewBaseApi(rpccfg.DefaultEvmCallTimeout)

@@ -370,3 +370,7 @@ func (c *DirectClient) CreateBatchRequest() BatchRequest {
 func (c *DirectClient) BatchCall(BatchRequest) ([]any, error) {
 	panic("Not supported")
 }
+
+func (c *DirectClient) PlainTextCall(requestBody []byte) (json.RawMessage, error) {
+	panic("Not supported")
+}
