@@ -229,15 +229,17 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 }
 
 func createNetworkManager(ctx context.Context, cfg *Config) (*network.Manager, error) {
-	networkConfig := &network.Config{
-		TcpPort:  cfg.Libp2pTcpPort,
-		QuicPort: cfg.Libp2pQuicPort,
-		UseMdns:  cfg.UseMdns,
-	}
-	if !networkConfig.Enabled() {
+	if cfg.Network == nil || !cfg.Network.Enabled() {
 		return nil, nil
 	}
-	return network.NewManager(ctx, networkConfig)
+
+	privKey, err := network.LoadOrGenerateKeys(cfg.NetworkKeysPath)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg.Network.PrivateKey = privKey
+	return network.NewManager(ctx, cfg.Network)
 }
 
 type AbstractCollator interface {

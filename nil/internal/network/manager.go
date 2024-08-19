@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/network/internal"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/discovery/mdns"
 	"github.com/rs/zerolog"
@@ -24,14 +24,20 @@ type Manager struct {
 }
 
 func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
-	check.PanicIfNot(conf.Enabled())
+	if !conf.Enabled() {
+		return nil, ErrNetworkDisabled
+	}
+
+	if conf.PrivateKey == nil {
+		return nil, ErrPrivateKeyMissing
+	}
 
 	h, err := newHost(conf)
 	if err != nil {
 		return nil, err
 	}
 
-	logger := logging.NewLogger("network").With().
+	logger := internal.Logger.With().
 		Stringer(logging.FieldP2PIdentity, h.ID()).
 		Logger()
 

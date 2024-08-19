@@ -21,7 +21,7 @@ exporter.yaml
 # CLI config file
 config.yaml
 # CLI keys file
-keys.yaml
+*keys.yaml
 
 # Local build files
 nil/cmd/nild/nild

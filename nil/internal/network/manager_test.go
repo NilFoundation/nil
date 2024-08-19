@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/network/internal"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -43,6 +44,11 @@ func (s *networkSuite) newManagerWithBaseConfig(conf *Config) *Manager {
 		s.port++
 		conf.TcpPort = s.port
 	}
+	if conf.PrivateKey == nil {
+		privateKey, err := internal.GeneratePrivateKey()
+		s.Require().NoError(err)
+		conf.PrivateKey = privateKey
+	}
 
 	m, err := NewManager(s.context, conf)
 	s.Require().NoError(err)
@@ -61,6 +67,8 @@ func (s *networkSuite) connectManagers(m1, m2 *Manager) {
 	id, err := m1.Connect(s.context, address(m2))
 	s.Require().NoError(err)
 	s.Equal(m2.host.ID(), id)
+
+	s.waitForPeer(m2, m1.host.ID())
 }
 
 func (s *networkSuite) waitForPeer(m *Manager, id PeerID) {
@@ -81,12 +89,30 @@ func (s *ManagerSuite) SetupSuite() {
 
 func (s *ManagerSuite) TestNewManager() {
 	s.Run("EmptyConfig", func() {
-		emptyConfig := new(Config)
+		emptyConfig := &Config{}
 		s.Require().False(emptyConfig.Enabled())
-		s.Require().Panics(func() {
-			_, _ = NewManager(s.context, emptyConfig)
-		})
+
+		_, err := NewManager(s.context, emptyConfig)
+		s.Require().ErrorIs(err, ErrNetworkDisabled)
 	})
+
+	s.Run("NoPrivateKey", func() {
+		_, err := NewManager(s.context, &Config{
+			TcpPort: 1234,
+		})
+		s.Require().ErrorIs(err, ErrPrivateKeyMissing)
+	})
+}
+
+func (s *ManagerSuite) TestPrivateKey() {
+	privateKey, err := internal.GeneratePrivateKey()
+	s.Require().NoError(err)
+	m := s.newManagerWithBaseConfig(&Config{
+		PrivateKey: privateKey,
+	})
+	defer m.Close()
+
+	s.Equal(privateKey, m.host.Peerstore().PrivKey(m.host.ID()))
 }
 
 func (s *ManagerSuite) TestReqResp() {
