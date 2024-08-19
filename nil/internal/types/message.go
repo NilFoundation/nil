@@ -211,9 +211,7 @@ func (m *Message) Hash() common.Hash {
 	if m.IsExternal() {
 		return m.toExternal().Hash()
 	}
-	h, err := common.PoseidonSSZ(m)
-	check.PanicIfErr(err)
-	return h
+	return common.MustPoseidonSSZ(m)
 }
 
 func (m *Message) Sign(key *ecdsa.PrivateKey) error {
@@ -314,9 +312,7 @@ func (m *InternalMessagePayload) ToMessage(from Address, seqno Seqno) *Message {
 }
 
 func (m *ExternalMessage) Hash() common.Hash {
-	h, err := common.PoseidonSSZ(m)
-	check.PanicIfErr(err)
-	return h
+	return common.MustPoseidonSSZ(m)
 }
 
 func (m *ExternalMessage) SigningHash() (common.Hash, error) {

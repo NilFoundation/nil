@@ -9,6 +9,7 @@ import (
 	"reflect"
 
 	ssz "github.com/NilFoundation/fastssz"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/holiman/uint256"
 	"github.com/iden3/go-iden3-crypto/poseidon"
@@ -36,6 +37,20 @@ func PoseidonHash(b []byte) Hash {
 		return EmptyHash
 	}
 	return BytesToHash(poseidon.Sum(b))
+}
+
+func PoseidonSSZ(data ssz.Marshaler) (Hash, error) {
+	buf, err := data.MarshalSSZ()
+	if err != nil {
+		return EmptyHash, err
+	}
+	return PoseidonHash(buf), nil
+}
+
+func MustPoseidonSSZ(data ssz.Marshaler) Hash {
+	h, err := PoseidonSSZ(data)
+	check.PanicIfErr(err)
+	return h
 }
 
 // CastToHash - sets b to hash

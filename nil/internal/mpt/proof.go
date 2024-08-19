@@ -28,7 +28,7 @@ type Proof struct {
 
 func BuildProof(tree *Reader, key []byte, op MPTOperation) (Proof, error) {
 	if len(key) > maxRawKeyLen {
-		key = common.PoseidonHash(key).Bytes()
+		key = poseidon.Sum(key)
 	}
 	p := Proof{operation: op, key: key}
 

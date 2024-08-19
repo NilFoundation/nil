@@ -6,7 +6,6 @@ import (
 
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 )
 
@@ -58,9 +57,7 @@ var (
 )
 
 func (s *SmartContract) Hash() common.Hash {
-	h, err := common.PoseidonSSZ(s)
-	check.PanicIfErr(err)
-	return h
+	return common.MustPoseidonSSZ(s)
 }
 
 type CurrenciesMap = map[string]Value

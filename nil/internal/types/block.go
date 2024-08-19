@@ -6,7 +6,6 @@ import (
 
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/ssz"
 )
@@ -63,9 +62,7 @@ var (
 )
 
 func (b *Block) Hash() common.Hash {
-	h, err := common.PoseidonSSZ(b)
-	check.PanicIfErr(err)
-	return h
+	return common.MustPoseidonSSZ(b)
 }
 
 func (b *Block) ToHexedSSZ() (string, error) {

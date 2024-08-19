@@ -35,7 +35,7 @@ func TestSszBlock(t *testing.T) {
 	h, err := common.PoseidonSSZ(&block2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("26a78fddb70d11488c794c28798f37c3a9f81d0fbf1e55ec82deedb80695b139")
+	h2, err := hex.DecodeString("297d02093a5af284faad98c43384e554e343f4decba1cbf5249cea3940d6e519")
 	require.NoError(t, err)
 
 	require.Equal(t, common.BytesToHash(h2), common.BytesToHash(h[:]))
@@ -69,7 +69,7 @@ func TestSszMessage(t *testing.T) {
 	h, err := common.PoseidonSSZ(&message2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("0b50bb53a22731d288523d520f7f30e2379f42a65ff2c91ac235d64ab4555253")
+	h2, err := hex.DecodeString("22bb48ecf898d06d01401fb89d25540bfe0db0ce76bac8425bb5aa815f7f8fe0")
 	require.NoError(t, err)
 
 	require.Equal(t, common.BytesToHash(h2), h)
@@ -104,7 +104,7 @@ func TestSszSmc(t *testing.T) {
 	h, err := common.PoseidonSSZ(&smc2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("2b05b5758e49f4ccad042c19db27ebc563ee775169e7e0c03c712a74eeb2a9f9")
+	h2, err := hex.DecodeString("1d4f6771eec45123f5357e56f9ee035a40e6c3ed41ac524bc5958c0fa5bf1966")
 	require.NoError(t, err)
 
 	require.Equal(t, common.BytesToHash(h2), common.BytesToHash(h[:]))

@@ -2,7 +2,6 @@ package types
 
 import (
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/check"
 )
 
 type Receipts []*Receipt
@@ -30,7 +29,5 @@ func (r *Receipt) LogsNum() int {
 }
 
 func (r *Receipt) Hash() common.Hash {
-	h, err := common.PoseidonSSZ(r)
-	check.PanicIfErr(err)
-	return h
+	return common.MustPoseidonSSZ(r)
 }
