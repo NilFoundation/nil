@@ -72,6 +72,10 @@ afterAll(async () => {
     await exec(`rm -rf ./tests/${CONFIG_FILE_NAME}`);
 });
 
+afterAll(async () => {
+    await exec(`rm -rf ./tests/${CONFIG_FILE_NAME}`);
+});
+
 describe.sequential('initial usage CLI tests', () => {
     test.sequential('minter creates a currency and withdraws it', async () => {
         //startBasicCreateCurrencyCommand
