@@ -61,6 +61,45 @@ func (as *AccountState) FetchRequestId() uint64 {
 	return as.requestId
 }
 
+func NewAccountStateReader(account *AccountState) *AccountStateReader {
+	return &AccountStateReader{
+		CurrencyTrieReader: account.CurrencyTree.BaseMPTReader,
+	}
+}
+
+func NewAccountState(es *ExecutionState, addr types.Address, account *types.SmartContract) (*AccountState, error) {
+	shardId := addr.ShardId()
+
+	accountState := &AccountState{
+		db:               es,
+		address:          addr,
+		CurrencyTree:     NewDbCurrencyTrie(es.tx, shardId),
+		StorageTree:      NewDbStorageTrie(es.tx, shardId),
+		AsyncContextTree: NewDbAsyncContextTrie(es.tx, shardId),
+
+		Tx:    es.tx,
+		State: make(Storage),
+	}
+
+	if account != nil {
+		accountState.Balance = account.Balance
+		accountState.CurrencyTree.SetRootHash(account.CurrencyRoot)
+		accountState.StorageTree.SetRootHash(account.StorageRoot)
+		accountState.CodeHash = account.CodeHash
+		accountState.AsyncContextTree.SetRootHash(account.AsyncContextRoot)
+		var err error
+		accountState.Code, err = db.ReadCode(es.tx, shardId, account.CodeHash)
+		if err != nil {
+			return nil, err
+		}
+		accountState.ExtSeqno = account.ExtSeqno
+		accountState.Seqno = account.Seqno
+		accountState.requestId = account.RequestId
+	}
+
+	return accountState, nil
+}
+
 func (as *AccountState) empty() bool {
 	return as.Seqno == 0 && as.Balance.IsZero() && len(as.Code) == 0
 }
