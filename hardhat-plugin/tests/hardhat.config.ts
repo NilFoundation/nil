@@ -7,7 +7,7 @@ import type { NilHardhatUserConfig } from "../src";
 dotenv.config();
 
 const config: NilHardhatUserConfig = {
-  solidity: "0.8.24",
+  solidity: "0.8.26",
   ignition: {
     requiredConfirmations: 1,
   },

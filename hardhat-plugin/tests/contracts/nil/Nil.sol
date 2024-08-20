@@ -110,8 +110,8 @@ library Nil {
     function sendMessage(uint g, bytes memory message) internal {
         uint message_size = message.length;
         assembly {
-        // Call precompiled contract.
-        // Arguments: gas, precompiled address, value, input, input size, output, output size
+            // Call precompiled contract.
+            // Arguments: gas, precompiled address, value, input, input size, output, output size
             if iszero(call(g, SEND_MESSAGE, 0, add(message, 32), message_size, 0, 0)) {
                 revert(0, 0)
             }
