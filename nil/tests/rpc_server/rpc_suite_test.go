@@ -138,8 +138,8 @@ func (s *RpcSuite) deployContractViaWallet(
 	s.T().Helper()
 
 	contractAddr := types.CreateAddress(shardId, payload)
-	txHash, err := s.client.SendMessageViaWallet(addrFrom, types.Code{}, s.gasToValue(100_000), s.gasToValue(100_000),
-		initialAmount, []types.CurrencyBalance{}, contractAddr, key)
+	txHash, err := s.client.SendMessageViaWallet(addrFrom, types.Code{}, s.gasToValue(100_000), types.Value{}, initialAmount,
+		[]types.CurrencyBalance{}, contractAddr, key)
 	s.Require().NoError(err)
 	receipt := s.waitForReceipt(addrFrom.ShardId(), txHash)
 	s.Require().True(receipt.Success)
@@ -168,7 +168,7 @@ func (s *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Add
 ) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	txHash, err := s.client.SendMessageViaWallet(addrFrom, calldata, s.gasToValue(100_000), s.gasToValue(10_000_000),
+	txHash, err := s.client.SendMessageViaWallet(addrFrom, calldata, s.gasToValue(100_000), s.gasToValue(100_000),
 		types.NewZeroValue(), []types.CurrencyBalance{}, addrTo, key)
 	s.Require().NoError(err)
 

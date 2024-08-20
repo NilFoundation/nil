@@ -254,6 +254,14 @@ func (c *DirectClient) Call(args *jsonrpc.CallArgs, blockId any, stateOverride *
 	return c.ethApi.Call(c.ctx, *args, transport.BlockNumberOrHash(blockNrOrHash), stateOverride)
 }
 
+func (c *DirectClient) EstimateFee(args *jsonrpc.CallArgs, blockId any) (types.Value, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return types.Value{}, err
+	}
+	return c.ethApi.EstimateFee(c.ctx, *args, transport.BlockNumberOrHash(blockNrOrHash))
+}
+
 func (c *DirectClient) RawCall(method string, params ...any) (json.RawMessage, error) {
 	panic("Not supported")
 }

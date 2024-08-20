@@ -45,18 +45,7 @@ func (s *SuiteFaucet) createWalletViaFaucet(ownerPrivateKey *ecdsa.PrivateKey, v
 	callData, err := contracts.NewCallData(contracts.NameFaucet, "createWallet", ownerPublicKey, salt, big.NewInt(value))
 	s.Require().NoError(err)
 
-	seqno, err := s.client.GetTransactionCount(types.FaucetAddress, "pending")
-	s.Require().NoError(err)
-
-	msgExternal := &types.ExternalMessage{
-		Seqno:     seqno,
-		To:        types.FaucetAddress,
-		Data:      callData,
-		Kind:      types.ExecutionMessageKind,
-		FeeCredit: s.gasToValue(200_000),
-	}
-
-	resHash, err := s.client.SendMessage(msgExternal)
+	resHash, err := s.client.SendExternalMessage(callData, types.FaucetAddress, nil, types.Value{})
 	s.Require().NoError(err)
 
 	res := s.waitForReceipt(types.BaseShardId, resHash)

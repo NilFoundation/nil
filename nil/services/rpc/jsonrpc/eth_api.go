@@ -278,6 +278,17 @@ type EthAPI interface {
 	Call(ctx context.Context, args CallArgs, mainBlockNrOrHash transport.BlockNumberOrHash, overrides *StateOverrides) (*CallRes, error)
 
 	/*
+		@name EstimateFee
+		@summary Executes a new message call and returns recommended feeCredit.
+		@description Implements eth_estimateGas.
+		@tags [Calls]
+		@param args CallArgs
+		@param mainBlockNrOrHash BlockNumberOrHash
+		@returns feeEstimation Value
+	*/
+	EstimateFee(ctx context.Context, args CallArgs, mainBlockNrOrHash transport.BlockNumberOrHash) (types.Value, error)
+
+	/*
 		@name ChainId
 		@summary Returns the chain ID of the current network.
 		@description Implements eth_chainId.

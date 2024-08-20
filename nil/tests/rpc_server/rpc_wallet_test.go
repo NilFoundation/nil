@@ -55,12 +55,12 @@ func (s *SuiteWalletRpc) TestWallet() {
 		seqno, err := s.client.GetTransactionCount(addrCallee, "pending")
 		s.Require().NoError(err)
 
-		resHash, err := s.client.SendMessage(&types.ExternalMessage{
-			Data:      contracts.NewCounterGetCallData(s.T()),
-			Seqno:     seqno,
-			To:        addrCallee,
-			FeeCredit: s.gasToValue(100_000),
-		})
+		resHash, err := s.client.SendExternalMessage(
+			contracts.NewCounterGetCallData(s.T()),
+			addrCallee,
+			nil,
+			types.Value{},
+		)
 		s.Require().NoError(err)
 
 		receipt := s.waitForReceipt(addrCallee.ShardId(), resHash)

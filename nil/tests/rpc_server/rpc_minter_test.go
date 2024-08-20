@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/internal/vm"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/holiman/uint256"
@@ -198,7 +199,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 	s.Run("Send from Wallet1 to Wallet2 via asyncCall", func() {
 		receipt := s.sendMessageViaWalletNoCheck(s.walletAddress1, s.walletAddress2, execution.MainPrivateKey, nil,
-			s.gasToValue(100_000), types.NewValueFromUint64(2_000_000),
+			types.Value{}, types.Value{},
 			[]types.CurrencyBalance{{Currency: *currency1.id, Balance: types.NewValueFromUint64(50)}})
 		s.Require().True(receipt.Success)
 		s.Require().True(receipt.OutReceipts[0].Success)
@@ -246,7 +247,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	s.Run("Send 1-st and 2-nd currencies from Wallet2 to Wallet3 (same shard)", func() {
 		s.Require().Equal(s.walletAddress2.ShardId(), s.walletAddress3.ShardId())
 		receipt := s.sendMessageViaWalletNoCheck(s.walletAddress2, s.walletAddress3, execution.MainPrivateKey, nil,
-			s.gasToValue(1_000_000), types.NewValueFromUint64(2_000_000),
+			types.Value{}, types.Value{},
 			[]types.CurrencyBalance{
 				{Currency: *currency1.id, Balance: types.NewValueFromUint64(10)},
 				{Currency: *currency2.id, Balance: types.NewValueFromUint64(500)},
@@ -271,9 +272,10 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 	s.Run("Fail to send insufficient amount of 1st currency", func() {
 		receipt := s.sendMessageViaWalletNoCheck(s.walletAddress2, s.walletAddress3, execution.MainPrivateKey, nil,
-			s.gasToValue(1_000_000), types.NewValueFromUint64(2_000_000),
+			types.Value{}, types.Value{},
 			[]types.CurrencyBalance{{Currency: *currency1.id, Balance: types.NewValueFromUint64(700)}})
 		s.Require().False(receipt.Success)
+		s.Require().Contains(receipt.ErrorMessage, vm.ErrInsufficientBalance.Error())
 
 		s.Run("Check currency is not sent", func() {
 			currencies, err := s.client.GetCurrencies(s.walletAddress2, "latest")
