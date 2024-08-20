@@ -1,0 +1,82 @@
+# Create the swap contract
+
+The swap contract needs to do the following:
+
+* Accept swap requests
+* Match swap requests and exchange tokens
+* Handle excess tokens and send them back to wallets located on different shards
+
+## Contract definition
+
+```solidity showLineNumbers
+
+pragma solidity ^0.8.26;
+
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
+
+/**
+ * @title SwapMatch
+ * @author =nil; Foundation
+ * @notice The contract matches swap requests and performs token swaps.
+ * On a successful match, the desired tokens are sent to the swap originators.
+ * The contract also calculates token excesses and sends them back on a successful match.
+ */
+contract SwapMatch is NilBase {}
+```
+
+## Structs and properties
+
+The contract contains the following structs and properties:
+
+```solidity showLineNumbers file=../../../tests/SwapMatch.sol start=startContractStructsAndProperties end=endContractStructsAndProperties
+```
+
+* The `Swap` struct stores data about a token exchange that has been processed successfuly. It shows both parties that participated in the swap as well as information about the associated tokens
+* The `SwapRequest` struct represents a single request for a token exchange coming from one wallet (`initiator`). It contains the token the wallet wants to exchange as well as the ID of the desired token and its amount
+* The `swaps` and `swapRequests` maps store recorded swaps and swap requests using the current counter values as keys
+
+## Contract events
+
+The contract emits the following events
+
+```solidity showLineNumbers file=../../../tests/SwapMatch.sol start=startContractEvents end=endContractEvents
+```
+
+## Placing swap requests
+
+Wallets can place new swap requests by calling this function:
+
+```solidity showLineNumbers file=../../../tests/SwapMatch.sol start=startPlaceSwapRequest end=endPlaceSwapRequest
+```
+
+The function initializes a new `SwapRequest` and increases the swap request counter. It also starts the matching process.
+
+## Matching swap requests
+
+The contract matches swap requests using this function:
+
+```solidity showLineNumbers file=../../../tests/SwapMatch.sol start=startMatchSwapRequests end=endMatchSwapRequests
+```
+
+The function iterates over all recorded swap requests and finds a suitable partner for the new swap request. This is done based on four conditions:
+
+* The 'candidate' swap request must not be matched yet
+* The 'candidate' swap request must contain at least the same amount of tokens as desired in the swap request being matched
+* The 'candidate' swap request is asking for the same token as provided in the swap request being matched
+* The swap request being matched can provide at least the same amount of tokens as desired by the 'candidate' swap request
+
+If all conditions are satisfied, the contract begins sending tokens. It also initializes a new `Swap` object and updates the relevant map and counter. 
+
+## Sending tokens and handling excesses
+
+The contract sends tokens and makes sure that both parties in a swap receive back any 'excess' tokens that could not be exchanged:
+
+```solidity showLineNumbers file=../../../tests/SwapMatch.sol start=startSendTokensAndProcessExcess end=endSendTokensAndProcessExcess
+```
+
+The function calculates the possible token excesses:
+
+* The difference between the amount of tokens desired by the matched swap request and the new swap request
+* The difference between the amount of tokens desired by the new swap request and the matched swap request
+
+The tokens are transformed into token arrays and sent to the originators of swap requests using `Nil.asyncCall()`. All refunds are also sent to these addresses. 
