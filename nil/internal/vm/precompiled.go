@@ -226,7 +226,8 @@ func getPrecompiledMethod(methodName string) abi.Method {
 func (c *sendRawMessage) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	payload := new(types.InternalMessagePayload)
 	if err := payload.UnmarshalSSZ(input); err != nil {
-		return nil, types.NewMessageError(types.MessageStatusInvalidMessage, err)
+		return []byte("sendRawMessage: unmarshal message failed"),
+			types.NewMessageError(types.MessageStatusInvalidMessage, err)
 	}
 
 	if payload.To.ShardId().IsMainShard() {
@@ -234,18 +235,16 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, value *uint256.Int, ca
 	}
 
 	if err := withdrawFunds(state, caller.Address(), payload.Value); err != nil {
-		return nil, err
+		return []byte("sendRawMessage: withdraw value failed"), err
 	}
 
 	if err := withdrawFunds(state, caller.Address(), payload.FeeCredit); err != nil {
-		return nil, err
+		return []byte("sendRawMessage: withdraw FeeCredit failed"), err
 	}
 
 	// TODO: We should consider non-refundable messages
 	setRefundTo(&payload.RefundTo, state.GetInMessage())
 	setBounceTo(&payload.BounceTo, state.GetInMessage())
-
-	log.Logger.Debug().Msgf("sendRawMessage to: %s\n", payload.To.Hex())
 
 	_, err := state.AddOutMessage(caller.Address(), payload)
 
@@ -258,12 +257,10 @@ func (c *asyncCall) RequiredGas([]byte) uint64 {
 	return ForwardFee
 }
 
-func convertGethAddress(addrGeth any) (types.Address, error) {
+func convertGethAddress(addrGeth any) types.Address {
 	dstGo, ok := addrGeth.(eth_common.Address)
-	if !ok {
-		return types.EmptyAddress, fmt.Errorf("address is not a common.Address: %v", addrGeth)
-	}
-	return types.BytesToAddress(dstGo.Bytes()), nil
+	check.PanicIfNotf(ok, "asyncCall failed: argument is not an address")
+	return types.BytesToAddress(dstGo.Bytes())
 }
 
 func extractCurrencies(arg any) ([]types.CurrencyBalance, error) {
@@ -288,77 +285,52 @@ func extractCurrencies(arg any) ([]types.CurrencyBalance, error) {
 }
 
 func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) (res []byte, err error) {
-	res = make([]byte, 32)
+	if len(input) < 4 {
+		return []byte("asyncCall failed: too short calldata"), ErrPrecompileReverted
+	}
 
 	// Unpack arguments, skipping the first 4 bytes (function selector)
 	args, err := getPrecompiledMethod("precompileAsyncCall").Inputs.Unpack(input[4:])
 	if err != nil {
-		log.Logger.Error().Err(err).Msg("precompileAsyncCall pack failed")
-		return res, nil
+		return []byte("asyncCall failed: cannot unpack input"), ErrPrecompileReverted
 	}
 	if len(args) != 8 {
-		return res, errors.New("precompileAsyncCall: invalid number of arguments")
+		return []byte("asyncCall failed: wrong number of arguments"), ErrPrecompileReverted
 	}
 
 	// Get `isDeploy` argument
 	deploy, ok := args[0].(bool)
-	if !ok {
-		log.Logger.Error().Msg("deploy is not a bool")
-		return res, nil
-	}
+	check.PanicIfNotf(ok, "isDeploy is not a bool: %v", args[0])
 
 	// Get `forwardKind` argument
 	forwardKind, ok := args[1].(uint8)
-	if !ok {
-		log.Logger.Error().Msgf("forwardKind is not an uint8: %T", args[1])
-		return res, nil
-	}
+	check.PanicIfNotf(ok, "asyncCall failed: forwardKind argument is not an uint8")
 
 	// Get `dst` argument
-	dst, err := convertGethAddress(args[2])
-	if err != nil {
-		log.Logger.Error().Err(err).Msgf("dst is not an address: %T", args[2])
-		return res, nil
-	}
+	dst := convertGethAddress(args[2])
 
 	// Get `refundTo` argument
-	refundTo, err := convertGethAddress(args[3])
-	if err != nil {
-		log.Logger.Error().Err(err).Msgf("refundTo is not an address: %T", args[3])
-		return res, nil
-	}
+	refundTo := convertGethAddress(args[3])
 
 	// Get `bounceTo` argument
-	bounceTo, err := convertGethAddress(args[4])
-	if err != nil {
-		log.Logger.Error().Err(err).Msgf("bounceTo is not an address: %T", args[4])
-		return res, nil
-	}
+	bounceTo := convertGethAddress(args[4])
 
 	// Get `messageGas` argument
 	messageGasBig, ok := args[5].(*big.Int)
-	if !ok {
-		log.Logger.Error().Msgf("messageGas is not a big.Int: %T", args[5])
-		return res, nil
-	}
+	check.PanicIfNotf(ok, "asyncCall failed: messageGas argument is not big.Int")
 	messageGas, overflow := types.NewValueFromBig(messageGasBig)
-	if overflow {
-		log.Logger.Error().Msgf("messageGas overflow: %v", messageGasBig)
-		return res, nil
-	}
+	check.PanicIfNotf(!overflow, "asyncCall failed: unexpected overflow in messageGas")
 
 	// Get `currencies` argument, which is a slice of `CurrencyBalance`
 	currencies, err := extractCurrencies(args[6])
 	if err != nil {
 		log.Logger.Error().Err(err).Msgf("currencies is not a slice of CurrencyBalance: %T", args[6])
-		return res, nil
+		return nil, ErrPrecompileReverted
 	}
 
 	// Get `input` argument
-	if input, ok = args[7].([]byte); !ok {
-		log.Logger.Error().Msg("input is not a byte slice")
-		return res, nil
-	}
+	input, ok = args[7].([]byte)
+	check.PanicIfNotf(ok, "asyncCall failed: input is not a byte slice")
 
 	var kind types.MessageKind
 	if deploy {
@@ -368,17 +340,17 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	}
 
 	if dst.ShardId().IsMainShard() {
-		return nil, ErrMessageToMainShard
+		return []byte("asyncCall failed: attempt to send message to main shard"), ErrMessageToMainShard
 	}
 
 	if forwardKind == types.ForwardKindNone {
 		if err := withdrawFunds(state, caller.Address(), messageGas); err != nil {
-			return res, err
+			return []byte("asyncCall failed: withdrawFunds failed"), err
 		}
 	}
 
 	if err := withdrawFunds(state, caller.Address(), types.NewValue(value)); err != nil {
-		return res, err
+		return []byte("asyncCall failed: withdrawFunds failed"), err
 	}
 
 	// TODO: We should consider non-refundable messages
@@ -412,33 +384,23 @@ func (c *awaitCall) RequiredGas([]byte) uint64 {
 }
 
 func (a *awaitCall) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
-	res := make([]byte, 32)
-
 	method := getPrecompiledMethod("precompileAwaitCall")
 
 	// Unpack arguments, skipping the first 4 bytes (function selector)
 	args, err := method.Inputs.Unpack(input[4:])
 	if err != nil {
-		log.Logger.Error().Err(err).Msg("precompileAwaitCall pack failed")
-		return res, nil
+		return []byte("awaitCall failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}
 	if len(args) != 2 {
-		return res, errors.New("precompileAwaitCall: invalid number of arguments")
+		return []byte("awaitCall failed: invalid number of arguments"), ErrPrecompileReverted
 	}
 
 	// Get `dst` argument
-	dst, err := convertGethAddress(args[0])
-	if err != nil {
-		log.Logger.Error().Msgf("dst unpack failed: %s", err)
-		return res, nil
-	}
+	dst := convertGethAddress(args[0])
 
 	// Get `callData` argument
 	callData, ok := args[1].([]byte)
-	if !ok {
-		log.Logger.Error().Msgf("callData is not a bytes: %T", args[1])
-		return res, nil
-	}
+	check.PanicIfNotf(ok, "awaitCall failed: callData is not a bytes")
 
 	// Internal is required for the message
 	payload := types.InternalMessagePayload{
@@ -455,7 +417,7 @@ func (a *awaitCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 
 	if _, err = state.AddOutRequestMessage(caller.Address(), &payload); err != nil {
 		log.Logger.Error().Msgf("AddOutRequestMessage failed: %s", err)
-		return res, nil
+		return []byte("awaitCall failed: cannot add request to StateDB"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}
 
 	return nil, nil
@@ -527,25 +489,21 @@ func (c *mintCurrency) Run(state StateDB, input []byte, value *uint256.Int, call
 
 	args, err := getPrecompiledMethod("precompileMintCurrency").Inputs.Unpack(input[4:])
 	if err != nil {
-		return nil, err
+		return []byte("mintCurrency failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}
 	if len(args) != 1 {
-		return nil, errors.New("precompileMintCurrency: invalid number of arguments")
+		return []byte("mintCurrency failed: invalid number of arguments"), ErrPrecompileReverted
 	}
 
 	amountBig, ok := args[0].(*big.Int)
-	if !ok {
-		return nil, errors.New("amount is not a big.Int")
-	}
-	amount, overflow := types.NewValueFromBig(amountBig)
-	if overflow {
-		log.Logger.Warn().Msgf("amount overflow: %v", amountBig)
-	}
+	check.PanicIfNotf(ok, "mintCurrency failed: amountBig is not a big.Int: %v", args[0])
+	amount := types.NewValueFromBigMust(amountBig)
 
 	currencyId := types.CurrencyId(caller.Address().Hash())
 
 	if err = state.AddCurrency(caller.Address(), currencyId, amount); err != nil {
-		return nil, err
+		return []byte("mintCurrency failed: invalid number of arguments"),
+			fmt.Errorf("%w: AddCurrency failed: %w", ErrPrecompileReverted, err)
 	}
 
 	// Set return data to boolean `true` value
@@ -566,27 +524,22 @@ func (a *currencyBalance) Run(state StateDBReadOnly, input []byte, value *uint25
 	// Unpack arguments, skipping the first 4 bytes (function selector)
 	args, err := getPrecompiledMethod("precompileGetCurrencyBalance").Inputs.Unpack(input[4:])
 	if err != nil {
-		return nil, err
+		return []byte("currencyBalance failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}
 	if len(args) != 2 {
-		return nil, errors.New("precompileGetCurrencyBalance: invalid number of arguments")
+		return []byte("currencyBalance failed: invalid number of arguments"), ErrPrecompileReverted
 	}
 
 	// Get `id` argument
 	currencyIdBig, ok := args[0].(*big.Int)
-	if !ok {
-		return nil, errors.New("currencyId is not a big.Int")
-	}
+	check.PanicIfNotf(ok, "currencyBalance failed: currencyId is not a big.Int: %v", args[0])
 
 	// Get `addr` argument
-	addr, err := convertGethAddress(args[1])
-	if err != nil {
-		return nil, err
-	}
+	addr := convertGethAddress(args[1])
 	if addr == types.EmptyAddress {
 		addr = caller.Address()
 	} else if addr.ShardId() != caller.Address().ShardId() {
-		return nil, fmt.Errorf("%w: currencyBalance: cross shard is not allowed", ErrExecutionReverted)
+		return []byte("currencyBalance failed: cross shard is not allowed"), ErrPrecompileReverted
 	}
 
 	var currencyId types.CurrencyId
@@ -614,17 +567,14 @@ func (c *sendCurrencySync) Run(state StateDB, input []byte, value *uint256.Int, 
 	// Unpack arguments, skipping the first 4 bytes (function selector)
 	args, err := getPrecompiledMethod("precompileSendTokens").Inputs.Unpack(input[4:])
 	if err != nil {
-		return nil, err
+		return []byte("sendCurrencySync failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}
 	if len(args) != 2 {
-		return nil, errors.New("precompileSendTokens: invalid number of arguments")
+		return []byte("sendCurrencySync failed: invalid number of arguments"), ErrPrecompileReverted
 	}
 
 	// Get destination address
-	addr, err := convertGethAddress(args[0])
-	if err != nil {
-		return nil, err
-	}
+	addr := convertGethAddress(args[0])
 	if caller.Address().ShardId() != addr.ShardId() {
 		return nil, fmt.Errorf("sendCurrencySync: %w: %s -> %s",
 			ErrCrossShardMessage, caller.Address().ShardId(), addr.ShardId())
@@ -633,7 +583,8 @@ func (c *sendCurrencySync) Run(state StateDB, input []byte, value *uint256.Int, 
 	// Get currencies
 	currencies, err := extractCurrencies(args[1])
 	if err != nil {
-		return nil, err
+		return []byte("sendCurrencySync failed: currencies array is not valid"),
+			fmt.Errorf("%w: currencies array is not valid: %w", ErrPrecompileReverted, err)
 	}
 
 	state.SetCurrencyTransfer(currencies)
@@ -662,7 +613,7 @@ func (c *getMessageTokens) Run(state StateDBReadOnly, input []byte, value *uint2
 
 	res, err := getPrecompiledMethod("precompileGetMessageTokens").Outputs.Pack(abiCurrencies)
 	if err != nil {
-		return nil, err
+		return []byte("getMessageTokens failed: cannot pack result"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}
 
 	return res, nil
@@ -681,29 +632,28 @@ func (c *getGasPrice) Run(state StateDBReadOnly, input []byte, value *uint256.In
 
 	args, err := method.Inputs.Unpack(input[4:])
 	if err != nil {
-		return nil, err
+		return []byte("getGasPrice failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}
 	if len(args) != 1 {
-		return nil, errors.New("precompileGetGasPrice: invalid number of arguments")
+		return []byte("getGasPrice failed: invalid number of arguments"), ErrPrecompileReverted
 	}
 
 	// Get `shardId` argument
 	shardId, ok := args[0].(*big.Int)
-	if !ok {
-		return nil, errors.New("shardId is not a big.Int")
-	}
+	check.PanicIfNotf(ok, "getGasPrice failed: shardId is not a big.Int: %v", args[0])
 	if !shardId.IsUint64() {
-		return nil, errors.New("shardId is too big")
+		return []byte("getGasPrice failed: shardId is too big"), fmt.Errorf("%w: shardId is too big", ErrPrecompileReverted)
 	}
 
 	gasPrice, err := state.GetGasPrice(types.ShardId(shardId.Uint64()))
 	if err != nil {
-		return nil, err
+		return []byte("getGasPrice failed: stateDb returns error"),
+			fmt.Errorf("%w: stateDb returns error: %w", ErrPrecompileReverted, err)
 	}
 
 	res, err := method.Outputs.Pack(gasPrice.ToBig())
 	if err != nil {
-		return nil, err
+		return []byte("getGasPrice failed: cannot pack result"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}
 
 	return res, nil
@@ -722,17 +672,15 @@ func (c *poseidonHash) Run(state StateDBReadOnly, input []byte, value *uint256.I
 
 	args, err := method.Inputs.Unpack(input[4:])
 	if err != nil {
-		return nil, err
+		return []byte("poseidonHash failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}
 	if len(args) != 1 {
-		return nil, errors.New("precompileGetPoseidonHash: invalid number of arguments")
+		return []byte("poseidonHash failed: invalid number of arguments"), ErrPrecompileReverted
 	}
 
 	// Get `data` argument
 	data, ok := args[0].([]byte)
-	if !ok {
-		return nil, errors.New("data is not a []byte")
-	}
+	check.PanicIfNotf(ok, "poseidonHash failed: data is not a bytes: %v", args[0])
 
 	return common.PoseidonHash(data).Bytes(), nil
 }
