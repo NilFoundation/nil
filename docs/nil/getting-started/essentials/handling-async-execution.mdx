@@ -89,16 +89,20 @@ Whenever the `call()` function is called inside Contract 1, a new outgoing messa
 
 ### Callback pattern
 
-In this pattern, Contract 1 calls a function inside Contract 2 that makes an async call back to Contract 1.
+In this pattern, Contract 1 defines a special callback function and then uses the `sendRequest()` method to perform an async request to another shard. Whenever the request executes, a response message is sent back to the caller. The callback function is then executed and the response value can be retrieved via the `responseData` argument.
 
-Contract 1 acts as a simple escrow mechanism:
+:::tip
+
+When using `sendRequest()`, the contract can continue execution without having to wait for the response. There are also no manipulations with the contract state in contrast to `awaitCall()`. This makes `sendRequest()` much cheaper compared to `awaitCall()`.
+
+:::
+
+Contract 1 acts as a simple escrow mechanism. The `submitForVerification()` function accepts the address of the validator and the addresses of the escrow participants. The function then sends a request to the validator while assigning `resolve()` as the callback. Whenever the validator processes the request, Contract 1 can retrieve the returned data.
 
 ```solidity showLineNumbers file=../../../tests/Escrow.sol start=startEscrow end=endEscrow
 ```
 
-Contract 2 acts as a validator for escrow resolution:
+Contract 2 acts as the validator for escrow resolution:
 
 ```solidity showLineNumbers file=../../../tests/Validator.sol start=startValidator end=endValidator
 ```
-
-Contract 2 triggers the `resolve()` function within Contract 1 as a callback but only if the escrow participants are two distinct addresses.

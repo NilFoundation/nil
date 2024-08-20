@@ -3,7 +3,7 @@
 //startCallerAsync
 pragma solidity ^0.8.9;
 
-import "./Nil.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract CallerAsync {
     using Nil for address;

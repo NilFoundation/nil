@@ -3,7 +3,7 @@
 //startAwaiterContract
 pragma solidity ^0.8.11;
 
-import "./Nil.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract Awaiter {
     using Nil for address;

@@ -3,13 +3,16 @@
 	"version": "0.1.1",
 	"description": "Nil smart-contracts implementations",
 	"sideEffects": false,
-	"files": ["contracts", "artifacts"],
+	"files": [
+		"contracts",
+		"artifacts"
+	],
 	"engines": {
 		"node": ">=14"
 	},
 	"scripts": {
 		"compile": "node ./scripts/compile.js",
-    "prepublish": "npm run compile"
+		"prepublish": "npm run compile"
 	},
 	"author": "=nil; Foundation",
 	"license": "Apache-2.0",
@@ -17,9 +20,16 @@
 		"access": "public",
 		"registry": "https://registry.npmjs.org/"
 	},
-	"keywords": ["nil", "blockchain", "contracts"],
+	"keywords": [
+		"nil",
+		"blockchain",
+		"contracts"
+	],
 	"devDependencies": {
 		"rimraf": "^6.0.1",
 		"solc": "^0.8.26"
+	},
+	"dependencies": {
+		
 	}
 }
