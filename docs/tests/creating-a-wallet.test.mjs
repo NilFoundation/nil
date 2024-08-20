@@ -11,15 +11,15 @@ import { expect, describe, test, it, beforeEach, testOnly } from "vitest";
 
 const RPC_ENDPOINT = "https://api.devnet.nil.foundation/api/nil_user/TEK83KSDZH58AIK9PCYSNU4G86DU55I9/";
 
-const util = require('util');
-const exec = util.promisify(require('child_process').exec);
+const util = require('node:util');
+const exec = util.promisify(require('node:child_process').exec);
 
-let SALT = BigInt(Math.floor(Math.random() * 10000));
+const SALT = BigInt(Math.floor(Math.random() * 10000));
 
 const KEYGEN_COMMAND = 'nil keygen new';
 
 //startWallet
-let WALLET_CREATION_COMMAND = `nil wallet new --salt ${SALT}`;
+const WALLET_CREATION_COMMAND = `nil wallet new --salt ${SALT}`;
 //endWallet
 
 

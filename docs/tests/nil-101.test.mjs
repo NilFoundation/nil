@@ -1,30 +1,34 @@
-const RPC_ENDPOINT = "https://api.devnet.nil.foundation/api/nil_user/TEK83KSDZH58AIK9PCYSNU4G86DU55I9/";
+import { RPC_GLOBAL } from './globals';
 
-import { expect, describe, test, it, beforeEach } from "vitest";
+import { expect, describe, test, it, beforeEach, beforeAll, afterAll } from "vitest";
 
-const util = require('util');
-const exec = util.promisify(require('child_process').exec);
+const util = require('node:util');
+const exec = util.promisify(require('node:child_process').exec);
 
 let salt = BigInt(Math.floor(Math.random() * 10000));
 
+const RPC_ENDPOINT = RPC_GLOBAL;
+
+const CONFIG_FLAG = '--config ./tests/tempConfigNil101.ini';
+
 //startKeygen
-const KEYGEN_COMMAND = 'nil keygen new';
+const KEYGEN_COMMAND = `nil keygen new ${CONFIG_FLAG}`;
 //endKeygen
 
 //startEndpoint
-const RPC_COMMAND = `nil config set rpc_endpoint '${RPC_ENDPOINT}'`;
+const RPC_COMMAND = `nil config set rpc_endpoint ${RPC_ENDPOINT} ${CONFIG_FLAG}`;
 //endEndpoint
 
 //startWallet
-const WALLET_CREATION_COMMAND = 'nil wallet new';
+const WALLET_CREATION_COMMAND = `nil wallet new ${CONFIG_FLAG}`;
 //endWallet
 
 //startTopup
-const WALLET_TOP_UP_COMMAND = 'nil wallet top-up 1000000';
+const WALLET_TOP_UP_COMMAND = `nil wallet top-up 1000000 ${CONFIG_FLAG}`;
 //endTopup
 
 //startInfo
-const WALLET_INFO_COMMAND = 'nil wallet info';
+const WALLET_INFO_COMMAND = `nil wallet info ${CONFIG_FLAG}`;
 //endInfo
 
 //startCompilation
@@ -32,7 +36,7 @@ const COUNTER_COMPILATION_COMMAND = 'solc -o ./tests/Counter --bin --abi ./tests
 //endCompilation
 
 //startDeploy
-const COUNTER_DEPLOYMENT_COMMAND = `nil wallet deploy ./tests/Counter/Counter.bin --salt ${salt}`;
+const COUNTER_DEPLOYMENT_COMMAND = `nil wallet deploy ./tests/Counter/Counter.bin --salt ${salt} ${CONFIG_FLAG}`;
 //endDeploy
 
 let COUNTER_ADDRESS;
@@ -42,16 +46,24 @@ const CALLER_COMPILATION_COMMAND = 'solc -o ./tests/Caller --bin --abi ./tests/C
 //endCallerCompilation
 
 //start_CallerDeploy
-const CALLER_DEPLOYMENT_COMMAND = `nil wallet deploy ./tests/Caller/Caller.bin --shard-id 2 --salt ${salt}`;
+const CALLER_DEPLOYMENT_COMMAND = `nil wallet deploy ./tests/Caller/Caller.bin --shard-id 2 --salt ${salt} ${CONFIG_FLAG}`;
 //end_CallerDeploy
 
 let CALLER_ADDRESS;
 
 //startNewWalletDeploy
-const NEW_WALLET_COMMAND = `nil wallet new --salt ${salt}`;
+const NEW_WALLET_COMMAND = `nil wallet new --salt ${salt} ${CONFIG_FLAG}`;
 //endNewWalletDeploy
 
 let NEW_WALLET_ADDRESS;
+
+beforeAll(async () => {
+    await exec(`nil config init ${CONFIG_FLAG}`);
+});
+
+afterAll(async () => {
+    await exec('rm -rf ./tests/tempConfigNil101.ini');
+});
 
 describe.sequential('initial wallet setup tests', () => {
     test.sequential('keygen generation works via CLI', async () => {
@@ -69,6 +81,7 @@ describe.sequential('initial wallet setup tests', () => {
     test.sequential('wallet creation command creates a wallet', async () => {
         const pattern = /New wallet address/;
         const { stdout, stderr } = await exec(WALLET_CREATION_COMMAND);
+        console.log(stdout);
         expect(stdout).toMatch(pattern);
     }, 10000);
 
@@ -80,9 +93,13 @@ describe.sequential('initial wallet setup tests', () => {
 });
 
 describe.sequential('incrementer tests', () => {
+    beforeEach(() => {
+        salt = BigInt(Math.floor(Math.random() * 10000));
+    });
     test.sequential('wallet info command supplies info', async () => {
         const pattern = /Wallet address/;
         const { stdout, stderr } = await exec(WALLET_INFO_COMMAND);
+        console.log(stdout);
         expect(stdout).toMatch(pattern);
     });
 
@@ -91,14 +108,16 @@ describe.sequential('incrementer tests', () => {
         const addressPattern = /0x[a-fA-F0-9]{40}/g;
         await exec(COUNTER_COMPILATION_COMMAND);
         const { stdout, stderr } = await exec(COUNTER_DEPLOYMENT_COMMAND);
+        console.log(stdout);
+        console.log(stderr);
         expect(stdout).toMatch(pattern);
-        let addressMatches = stdout.match(addressPattern);
+        const addressMatches = stdout.match(addressPattern);
         COUNTER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
     }, 20000);
 
     test.sequential('execution of increment produces a message', async () => {
         //startIncrement
-        const COUNTER_INCREMENT_COMMAND = `nil wallet send-message ${COUNTER_ADDRESS} increment --abi ./tests/Counter/Counter.abi`;
+        const COUNTER_INCREMENT_COMMAND = `nil wallet send-message ${COUNTER_ADDRESS} increment --abi ./tests/Counter/Counter.abi ${CONFIG_FLAG}`;
         //endIncrement
         const pattern = /Message hash:/;
         const { stdout, stderr } = await exec(COUNTER_INCREMENT_COMMAND);
@@ -108,7 +127,7 @@ describe.sequential('incrementer tests', () => {
 
     test.sequential('call to incrementer returns the correct value', async () => {
         //start_CallToIncrementer
-        const COUNTER_CALL_READONLY_COMMAND = `nil contract call-readonly ${COUNTER_ADDRESS} getValue --abi ./tests/Counter/Counter.abi`;
+        const COUNTER_CALL_READONLY_COMMAND = `nil contract call-readonly ${COUNTER_ADDRESS} getValue --abi ./tests/Counter/Counter.abi ${CONFIG_FLAG}`;
         //end_CallToIncrementer
         const { stdout, stderr } = await exec(COUNTER_CALL_READONLY_COMMAND);
 
@@ -122,24 +141,27 @@ describe.sequential('incrementer tests', () => {
 });
 
 describe.sequential("caller tests", () => {
+    beforeEach(() => {
+        salt = BigInt(Math.floor(Math.random() * 10000));
+    });
     test.sequential('deploy of caller works successfully', async () => {
         const pattern = /Contract address:/;
         const addressPattern = /Contract address:\s*(0x[a-fA-F0-9]{40})/;
         await exec(CALLER_COMPILATION_COMMAND);
         const { stdout, stderr } = await exec(CALLER_DEPLOYMENT_COMMAND);
         expect(stdout).toMatch(pattern);
-        let addressMatches = stdout.match(addressPattern);
+        const addressMatches = stdout.match(addressPattern);
         CALLER_ADDRESS = addressMatches && addressMatches.length > 0 ? addressMatches[1] : null;
         expect(CALLER_ADDRESS).not.toBeNull();
     }, 20000);
 
     test.sequential('caller can call incrementer successfully', async () => {
         //start_SendTokensToCaller
-        const SEND_TOKENS_COMMAND = `nil wallet send-tokens ${CALLER_ADDRESS} 300000`;
+        const SEND_TOKENS_COMMAND = `nil wallet send-tokens ${CALLER_ADDRESS} 300000 ${CONFIG_FLAG}`;
         //end_SendTokensToCaller
 
         //startMessageFromCallerToIncrementer
-        const SEND_FROM_CALLER_COMMAND = `nil wallet send-message ${CALLER_ADDRESS} call ${COUNTER_ADDRESS} --abi ./tests/Caller/Caller.abi`;
+        const SEND_FROM_CALLER_COMMAND = `nil wallet send-message ${CALLER_ADDRESS} call ${COUNTER_ADDRESS} --abi ./tests/Caller/Caller.abi ${CONFIG_FLAG}`;
         //endMessageFromCallerToIncrementer
 
         await exec(SEND_TOKENS_COMMAND);
@@ -147,9 +169,10 @@ describe.sequential("caller tests", () => {
         const { stdout, stderr } = await exec(SEND_FROM_CALLER_COMMAND);
         expect(stdout).toMatch(pattern);
 
-        const COUNTER_CALL_READONLY_COMMAND_POST_CALLER = `nil contract call-readonly ${COUNTER_ADDRESS} getValue --abi ./tests/Counter/Counter.abi`;
+        const COUNTER_CALL_READONLY_COMMAND_POST_CALLER = `nil contract call-readonly ${COUNTER_ADDRESS} getValue --abi ./tests/Counter/Counter.abi ${CONFIG_FLAG}`;
 
-        let stdoutCall, stderrCall;
+        let stdoutCall;
+        let stderrCall;
 
         try {
             for (let attempt = 0; attempt < 5; attempt++) {
@@ -189,7 +212,7 @@ describe.sequential('tokens tests', () => {
         const { stdout, stderr } = await exec(NEW_WALLET_COMMAND);
         expect(stdout).toMatch(pattern);
         const addressPattern = /New wallet address:\s*(0x[a-fA-F0-9]{40})/;
-        let addressMatches = stdout.match(addressPattern);
+        const addressMatches = stdout.match(addressPattern);
         NEW_WALLET_ADDRESS = addressMatches && addressMatches.length > 0 ? addressMatches[1] : null;
     }, 20000);
 
@@ -197,13 +220,13 @@ describe.sequential('tokens tests', () => {
         const pattern = /50000/;
 
         //startMintWithdrawCurrency
-        const MINT_WITHDRAW_CURRENCY_COMMAND = `nil minter create-currency ${NEW_WALLET_ADDRESS} 50000 new-currency --withdraw`;
+        const MINT_WITHDRAW_CURRENCY_COMMAND = `nil minter create-currency ${NEW_WALLET_ADDRESS} 50000 new-currency --withdraw ${CONFIG_FLAG}`;
         //endMintWithdrawCurrency
 
         await exec(MINT_WITHDRAW_CURRENCY_COMMAND);
 
         //startCurrenciesCheck
-        const CURRENCIES_COMMAND = `nil contract currencies ${NEW_WALLET_ADDRESS}`;
+        const CURRENCIES_COMMAND = `nil contract currencies ${NEW_WALLET_ADDRESS} ${CONFIG_FLAG}`;
         //endCurrenciesCheck
 
         const { stdout, stderr } = await exec(CURRENCIES_COMMAND);

@@ -16,12 +16,12 @@ const {
 
 import { encodeFunctionData } from "viem";
 
-const util = require('util');
-const exec = util.promisify(require('child_process').exec);
+const util = require('node:util');
+const exec = util.promisify(require('node:child_process').exec);
 const RPC_ENDPOINT = "https://api.devnet.nil.foundation/api/nil_user/TEK83KSDZH58AIK9PCYSNU4G86DU55I9/";
 
 const NAME = 'newToken';
-let SALT = BigInt(Math.floor(Math.random() * 10000));
+const SALT = BigInt(Math.floor(Math.random() * 10000));
 
 const AMOUNT = 5000;
 const WALLET_ADDRESS_PATTERN = /0x[a-fA-F0-9]{40}/;
@@ -57,7 +57,7 @@ describe.sequential('initial usage CLI tests', () => {
 
         const { stdout, stderr } = await exec(CREATE_CURRENCY_AND_WITHDRAW_COMMAND);
         expect(stdout).toMatch(CREATED_CURRENCY_PATTERN);
-        const CURRENCIES_COMMAND_OWNER = CURRENCIES_COMMAND + ` ${OWNER_ADDRESS}`;
+        const CURRENCIES_COMMAND_OWNER = `${CURRENCIES_COMMAND} ${OWNER_ADDRESS}`;
         const { stdoutResult, stderrResult } = await exec(CURRENCIES_COMMAND_OWNER);
         expect(stdoutResult).toBeDefined;
     }, 20000);
@@ -154,7 +154,7 @@ describe.sequential('basic Nil.js usage tests', async () => {
         //Tenth
 
         tokens = await client.getCurrencies(walletAddress, "latest");
-        let newAmount = tokens[Object.keys(tokens)[0]];
+        const newAmount = tokens[Object.keys(tokens)[0]];
         expect(newAmount > previousAmount).toBe(true);
 
         const hashMessageMintOther = await wallet.sendMessage({

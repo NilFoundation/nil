@@ -1,0 +1,1 @@
+export const RPC_GLOBAL = 'https://api.devnet.nil.foundation/api/nil_user/TEK83KSDZH58AIK9PCYSNU4G86DU55I9/';
