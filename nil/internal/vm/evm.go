@@ -88,6 +88,8 @@ type EVM struct {
 	// currencyTransfer holds the currencis that will be transferred in next Call opcode.
 	// Main usage is a transfer currency through regular EVM Call opcode in Nil Solidity library(syncCall function).
 	currencyTransfer []types.CurrencyBalance
+
+	RevertReason error
 }
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
@@ -179,7 +181,11 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 	// Additionally, when we're in homestead, this also counts for code storage gas errors.
 	if runErr != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
-		if !errors.Is(runErr, ErrExecutionReverted) {
+		if errors.Is(runErr, ErrExecutionReverted) {
+			if evm.RevertReason != nil {
+				runErr = evm.RevertReason
+			}
+		} else {
 			if evm.Config.Tracer != nil && evm.Config.Tracer.OnGasChange != nil {
 				evm.Config.Tracer.OnGasChange(gas, 0, tracing.GasChangeCallFailedExecution)
 			}

@@ -524,6 +524,7 @@ const (
 	MessageStatusDepth
 	MessageStatusContractAddressCollision
 	MessageStatusExecutionReverted
+	MessageStatusPrecompileReverted
 	MessageStatusMaxCodeSizeExceeded
 	MessageStatusMaxInitCodeSizeExceeded
 	MessageStatusInvalidJump

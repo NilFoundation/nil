@@ -18,6 +18,7 @@ const (
 	NameTokensTest                 = "tests/TokensTest"
 	NameTokensTestNoExternalAccess = "tests/TokensTestNoExternalAccess"
 	NameAwaitTest                  = "tests/AwaitTest"
+	NamePrecompilesTest            = "tests/PrecompilesTest"
 )
 
 func CounterDeployPayload(t *testing.T) types.DeployPayload {

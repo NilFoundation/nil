@@ -40,9 +40,9 @@ library Nil {
         address bounceTo,
         uint value,
         bytes memory callData
-    ) internal returns(bool) {
+    ) internal {
         Token[] memory tokens;
-        return asyncCall(dst, address(0), bounceTo, 0, FORWARD_REMAINING, false, value, tokens, callData);
+        asyncCall(dst, address(0), bounceTo, 0, FORWARD_REMAINING, false, value, tokens, callData);
     }
 
     // awaitCall makes an asynchronous call to `dst` contract and waits for the result.
@@ -63,9 +63,9 @@ library Nil {
         bool deploy,
         uint value,
         bytes memory callData
-    ) internal returns(bool) {
+    ) internal {
         Token[] memory tokens;
-        return asyncCall(dst, refundTo, bounceTo, feeCredit, forwardKind, deploy, value, tokens, callData);
+        asyncCall(dst, refundTo, bounceTo, feeCredit, forwardKind, deploy, value, tokens, callData);
     }
 
     // asyncCall makes an asynchronous call to `dst` contract.
@@ -79,10 +79,9 @@ library Nil {
         uint value,
         Token[] memory tokens,
         bytes memory callData
-    ) internal returns(bool) {
-        bool success = __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(deploy, forwardKind, dst, refundTo,
+    ) internal {
+        __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(deploy, forwardKind, dst, refundTo,
             bounceTo, feeCredit, tokens, callData);
-        return success;
     }
 
     // asyncCall makes an asynchronous call to `dst` contract.

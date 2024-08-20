@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -413,6 +414,117 @@ func (suite *SuiteExecutionState) TestMessageStatus() {
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.Equal(types.MessageStatusMessageToMainShard, res.Error.Status)
 		suite.ErrorIs(res.Error.Inner, vm.ErrMessageToMainShard)
+	})
+}
+
+func (suite *SuiteExecutionState) TestPrecompiles() {
+	shardId := types.ShardId(1)
+
+	tx, err := suite.db.CreateRwTx(suite.ctx)
+	suite.Require().NoError(err)
+	defer tx.Rollback()
+	var testAddr types.Address
+
+	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0), 1)
+	suite.Require().NoError(err)
+
+	suite.Run("Deploy", func() {
+		code, err := contracts.GetCode(contracts.NamePrecompilesTest)
+		suite.Require().NoError(err)
+		testAddr = Deploy(suite.T(), suite.ctx, es, types.BuildDeployPayload(code, common.EmptyHash), shardId, types.Address{}, 0)
+	})
+
+	abi, err := contracts.GetAbi(contracts.NamePrecompilesTest)
+	suite.Require().NoError(err)
+
+	msg := &types.Message{
+		Flags:     types.NewMessageFlags(types.MessageFlagInternal),
+		From:      testAddr,
+		To:        testAddr,
+		Seqno:     1,
+		FeeCredit: toGasCredit(1_000_000),
+	}
+
+	suite.Run("testAsyncCall: success", func() {
+		msg.Data, err = abi.Pack("testAsyncCall", testAddr, types.EmptyAddress, types.EmptyAddress, big.NewInt(0),
+			uint8(types.ForwardKindNone), false, big.NewInt(0), []byte{})
+		suite.Require().NoError(err)
+		res := es.HandleExecutionMessage(suite.ctx, msg)
+		suite.False(res.Failed())
+	})
+
+	suite.Run("testAsyncCall: Send to main shard", func() {
+		msg.Data, err = abi.Pack("testAsyncCall", types.EmptyAddress, types.EmptyAddress, types.EmptyAddress, big.NewInt(0),
+			uint8(types.ForwardKindNone), false, big.NewInt(0), []byte{1, 2, 3, 4})
+		suite.Require().NoError(err)
+
+		res := es.HandleExecutionMessage(suite.ctx, msg)
+		suite.True(res.Failed())
+		suite.Equal(types.MessageStatusMessageToMainShard, res.Error.Status)
+	})
+
+	suite.Run("testAsyncCall: withdrawFunds failed", func() {
+		msg.Data, err = abi.Pack("testAsyncCall", testAddr, types.EmptyAddress, types.EmptyAddress, big.NewInt(0),
+			uint8(types.ForwardKindNone), false, big.NewInt(1_000_000_000_000_000), []byte{1, 2, 3, 4})
+		suite.Require().NoError(err)
+		res := es.HandleExecutionMessage(suite.ctx, msg)
+		suite.True(res.Failed())
+		suite.Equal(types.MessageStatusInsufficientBalance, res.Error.Status)
+	})
+
+	payload := &types.InternalMessagePayload{
+		To: testAddr,
+	}
+
+	suite.Run("testSendRawMsg: invalid message", func() {
+		msg.Data, err = abi.Pack("testSendRawMsg", big.NewInt(1000), []byte{1, 2})
+		suite.Require().NoError(err)
+		res := es.HandleExecutionMessage(suite.ctx, msg)
+		suite.True(res.Failed())
+		suite.Equal(types.MessageStatusInvalidMessage, res.Error.Status)
+	})
+
+	suite.Run("testSendRawMsg: send to main shard", func() {
+		payload.To = types.GenerateRandomAddress(0)
+		data, err := payload.MarshalSSZ()
+		suite.Require().NoError(err)
+		msg.Data, err = abi.Pack("testSendRawMsg", big.NewInt(1000), data)
+		suite.Require().NoError(err)
+		res := es.HandleExecutionMessage(suite.ctx, msg)
+		suite.True(res.Failed())
+		suite.Equal(types.MessageStatusMessageToMainShard, res.Error.Status)
+		payload.To = testAddr
+	})
+
+	suite.Run("testSendRawMsg: withdraw value failed", func() {
+		payload.Value = types.NewValueFromUint64(1_000_000_000_000_000)
+		data, err := payload.MarshalSSZ()
+		suite.Require().NoError(err)
+		msg.Data, err = abi.Pack("testSendRawMsg", big.NewInt(1000), data)
+		suite.Require().NoError(err)
+		res := es.HandleExecutionMessage(suite.ctx, msg)
+		suite.True(res.Failed())
+		suite.Equal(types.MessageStatusInsufficientBalance, res.Error.Status)
+	})
+
+	suite.Run("testSendRawMsg: withdraw feeCredit failed", func() {
+		payload.Value = types.NewZeroValue()
+		payload.FeeCredit = types.NewValueFromUint64(1_000_000_000_000_000)
+		data, err := payload.MarshalSSZ()
+		suite.Require().NoError(err)
+		msg.Data, err = abi.Pack("testSendRawMsg", big.NewInt(1000), data)
+		suite.Require().NoError(err)
+		res := es.HandleExecutionMessage(suite.ctx, msg)
+		suite.True(res.Failed())
+		suite.Equal(types.MessageStatusInsufficientBalance, res.Error.Status)
+	})
+
+	suite.Run("testCurrencyBalance: success", func() {
+		msg.Data, err = abi.Pack("testCurrencyBalance", types.GenerateRandomAddress(0), big.NewInt(10))
+		suite.Require().NoError(err)
+		res := es.HandleExecutionMessage(suite.ctx, msg)
+		suite.True(res.Failed())
+		suite.Equal(types.MessageStatusPrecompileReverted, res.Error.Status)
 	})
 }
 

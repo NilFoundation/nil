@@ -689,6 +689,8 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byt
 	var temp uint256.Int
 	if err == nil {
 		temp.SetOne()
+	} else {
+		interpreter.evm.RevertReason = err
 	}
 	stack.push(&temp)
 	if err == nil || errors.Is(err, ErrExecutionReverted) {
@@ -698,7 +700,7 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byt
 	scope.Contract.RefundGas(returnGas, interpreter.evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 
 	interpreter.returnData = ret
-	return ret, err
+	return ret, nil
 }
 
 func opCallCode(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {

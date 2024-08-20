@@ -38,8 +38,7 @@ contract Test is NilBase {
     }
 
     function proxyCall(address dst, uint gas, uint value, address refundTo, address bounceTo, bytes calldata callData) public payable {
-        bool success = Nil.asyncCall(dst, refundTo, bounceTo, gas, Nil.FORWARD_REMAINING, false, value, callData);
-        require(success, "Call failed");
+        Nil.asyncCall(dst, refundTo, bounceTo, gas, Nil.FORWARD_REMAINING, false, value, callData);
     }
 
     struct AsyncCallArgs {
@@ -53,9 +52,8 @@ contract Test is NilBase {
     function testForwarding(AsyncCallArgs[] memory messages) public payable {
         for (uint i = 0; i < messages.length; i++) {
             AsyncCallArgs memory message = messages[i];
-            bool success = Nil.asyncCall(message.addr, message.refundTo, address(this), message.feeCredit,
-                message.forwardKind, false, 0, message.callData);
-            require(success, "Call failed");
+            Nil.asyncCall(message.addr, message.refundTo, address(this), message.feeCredit, message.forwardKind, false,
+                0, message.callData);
         }
     }
 
