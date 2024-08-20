@@ -46,6 +46,7 @@
 		"react-tooltip": "^5.27.1",
 		"rehype-katex": "7",
 		"remark-math": "6",
+		"solc": "^0.8.26",
 		"styletron-engine-atomic": "^1.6.2",
 		"styletron-react": "^6.1.1",
 		"ts-jest": "^29.2.4",

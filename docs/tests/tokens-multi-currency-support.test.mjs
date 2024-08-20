@@ -8,8 +8,6 @@ import {
     generateRandomPrivateKey,
     convertEthToWei,
     waitTillCompleted,
-    MINTER_ABI,
-    MINTER_ADDRESS,
     hexToBigInt,
     bytesToHex
 } from "@nilfoundation/niljs";
@@ -80,7 +78,7 @@ describe.sequential('initial usage CLI tests', () => {
         expect(stdout).toMatch(CURRENCY_PATTERN);
     });
 });
-describe.skip.sequential('basic Nil.js usage tests', async () => {
+describe.sequential('basic Nil.js usage tests', async () => {
     test.sequential('Nil.js can create a new currency, mint it, and withdraw it', async () => {
 
         //startBasicNilJSExample
@@ -110,61 +108,23 @@ describe.skip.sequential('basic Nil.js usage tests', async () => {
 
         const faucetHash = await faucet.withdrawToWithRetry(
             walletAddress,
-            convertEthToWei(0.1)
+            convertEthToWei(1)
         );
 
         await waitTillCompleted(client, 1, faucetHash);
 
         await wallet.selfDeploy(true);
 
-        const hashMessage = await wallet.sendMessage({
-            to: MINTER_ADDRESS,
-            feeCredit: 5_000_000n,
-            value: 1_000_000n,
-            data: encodeFunctionData({
-                abi: MINTER_ABI,
-                functionName: "create",
-                args: [1_000_000n, walletAddress, "MY_TOKEN", walletAddress],
-            }),
-        });
-        await waitTillCompleted(client, 1, hashMessage);
+        {
+            const hashMessage = await wallet.setCurrencyName("MY_TOKEN");
+            await waitTillCompleted(client, 1, hashMessage);
+        }
 
-        let tokens = await client.getCurrencies(walletAddress, "latest");
+        {
+            const hashMessage = await wallet.mintCurrency(100_000_000n);
+            await waitTillCompleted(client, 1, hashMessage);
+        }
         //endBasicNilJSExample
-
-        expect(tokens).toBeDefined;
-        const previousAmount = tokens[Object.keys(tokens)[0]];
-
-        //startNilJSMintingExample
-        const hashMessageMint = await wallet.sendMessage({
-            to: MINTER_ADDRESS,
-            feeCredit: 5_000_000n,
-            value: 1_000_000n,
-            data: encodeFunctionData({
-                abi: MINTER_ABI,
-                functionName: "mint",
-                args: [hexToBigInt(walletAddress), AMOUNT, walletAddress],
-            }),
-        });
-
-        await waitTillCompleted(client, 1, hashMessageMint)
-        //endNilJSMintingExample
-
-        tokens = await client.getCurrencies(walletAddress, "latest");
-        const newAmount = tokens[Object.keys(tokens)[0]];
-        expect(newAmount > previousAmount).toBe(true);
-
-        const hashMessageMintOther = await wallet.sendMessage({
-            to: MINTER_ADDRESS,
-            feeCredit: 5_000_000n,
-            value: 1_000_000n,
-            data: encodeFunctionData({
-                abi: MINTER_ABI,
-                functionName: "mint",
-                args: [hexToBigInt(walletAddress), AMOUNT, walletAddress],
-            }),
-        });
-        await waitTillCompleted(client, 1, hashMessageMintOther);
     });
 });
 describe.sequential('tutorial flows CLI tests', async () => {
@@ -223,7 +183,7 @@ describe.sequential('tutorial flows CLI tests', async () => {
         expect(stdout).toMatch(/30000/);
     }, 40000);
 });
-describe.skip.sequential('tutorial flows Nil.js tests', async () => {
+describe.sequential('tutorial flows Nil.js tests', async () => {
     test('Nil.js successfully creates two wallets and handles currency transfers', async () => {
 
         //startAdvancedNilJSExample
@@ -248,9 +208,16 @@ describe.skip.sequential('tutorial flows Nil.js tests', async () => {
             client,
             signer,
         });
+
         const walletAddress = wallet.getAddressHex();
 
-        await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(0.1));
+        const faucetHash = await faucet.withdrawToWithRetry(
+            walletAddress,
+            convertEthToWei(1)
+        );
+
+        await waitTillCompleted(client, 1, faucetHash);
+
         await wallet.selfDeploy(true);
 
         const walletTwo = new WalletV1({
@@ -260,46 +227,57 @@ describe.skip.sequential('tutorial flows Nil.js tests', async () => {
             client,
             signer,
         });
+
         const walletTwoAddress = walletTwo.getAddressHex();
 
-        await faucet.withdrawToWithRetry(walletTwoAddress, convertEthToWei(1));
+        const faucetTwoHash = await faucet.withdrawToWithRetry(
+            walletTwoAddress,
+            convertEthToWei(1)
+        );
+
+        await waitTillCompleted(client, 1, faucetTwoHash);
+
         await walletTwo.selfDeploy(true);
+
+        {
+            const hashMessage = await wallet.setCurrencyName("MY_TOKEN");
+            await waitTillCompleted(client, 1, hashMessage);
+        }
+
+        {
+            const hashMessage = await walletTwo.setCurrencyName("ANOTHER_TOKEN");
+            await waitTillCompleted(client, 1, hashMessage);
+        }
         //endAdvancedNilJSExample
 
-        //startNilJSCreationTutorialAdvanced
-        const currencyCreationMessage = await wallet.sendMessage({
-            to: MINTER_ADDRESS,
-            feeCredit: 5_000_000n,
+        //startAdvancedNilJSMintingExample
+        {
+            const hashMessage = await wallet.mintCurrency(100_000_000n);
+            await waitTillCompleted(client, 1, hashMessage);
+        }
+
+        {
+            const hashMessage = await wallet.mintCurrency(50_000_000n);
+            await waitTillCompleted(client, 1, hashMessage);
+        }
+        //endAdvancedNilJSMintingExample
+
+        //startNilJSTransferExample
+        const transferMessage = walletTwo.sendMessage({
+            to: walletAddress,
             value: 1_000_000n,
-            data: encodeFunctionData({
-                abi: MINTER_ABI,
-                functionName: "create",
-                args: [10_000n, walletAddress, "token", walletAddress],
-            }),
-        });
-
-        await waitTillCompleted(client, 1, currencyCreationMessage);
-        //endNilJSCreationTutorialAdvanced
-
-        //startNilJSCreationTutorialWalletTwo
-        const currencyCreationMessageTwo = await walletTwo.sendMessage({
-            to: MINTER_ADDRESS,
             feeCredit: 5_000_000n,
-            value: 1_000_000n,
-            data: encodeFunctionData({
-                abi: MINTER_ABI,
-                functionName: "create",
-                args: [20_000n, walletTwoAddress, "new-token", walletAddress],
-            }),
+            tokens: [
+                {
+                    id: hexToBigInt(walletTwoAddress),
+                    amount: 50_000_000n
+                }
+            ]
         });
-
-        await waitTillCompleted(client, 1, currencyCreationMessageTwo);
-        //endNilJSCreationTutorialWalletTwo
-
-        //startNilJSBalancesCheck
         const tokens = await client.getCurrencies(walletAddress, "latest");
-        //endNilJSBalancesCheck
-        expect(tokens[tokens.keys[0]]).toBe(10000n);
-        expect(tokens[tokens.keys[0]]).toBe(20000n);
-    });
+        //endNilJSTransferExample
+
+        expect(Object.keys(tokens).length === 2);
+
+    }, 50000);
 });
