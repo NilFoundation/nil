@@ -1,4 +1,5 @@
-{ lib, stdenv, fetchFromGitHub, fetchNpmDeps, npmHooks, nodejs, nil }:
+{ lib, stdenv, fetchFromGitHub, fetchNpmDeps, npmHooks, nodejs, nil
+, enableTesting ? false }:
 
 stdenv.mkDerivation rec {
   name = "nil-hardhat-plugin";
@@ -34,9 +35,15 @@ stdenv.mkDerivation rec {
     (cd niljs; npm run build)
     cd hardhat-plugin
     npm run build
+  '';
 
-    # starts nild and runs tests
+  doCheck = enableTesting;
+
+  checkPhase = ''
+    echo "Installing soljson"
     bash install_soljson.sh ${soljson}
+
+    echo "Running tests"
     bash run_tests.sh
   '';
 
