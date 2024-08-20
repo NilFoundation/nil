@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -19,14 +18,12 @@ type SuitGasPrice struct {
 
 func (s *SuitGasPrice) SetupSuite() {
 	s.start(&nilservice.Config{
-		NShards:              4,
-		HttpUrl:              GetSockPath(s.T()),
-		Topology:             collate.TrivialShardTopologyId,
-		ZeroState:            execution.DefaultZeroStateConfig,
-		CollatorTickPeriodMs: 100,
-		GasPriceScale:        15,
-		GasBasePrice:         10,
-		RunMode:              nilservice.CollatorsOnlyRunMode,
+		NShards:       4,
+		HttpUrl:       GetSockPath(s.T()),
+		ZeroStateYaml: execution.DefaultZeroStateConfig,
+		GasPriceScale: 15,
+		GasBasePrice:  10,
+		RunMode:       nilservice.CollatorsOnlyRunMode,
 	})
 }
 
@@ -49,9 +46,9 @@ func (s *SuitGasPrice) TestGasBehaviour() {
 	})
 
 	s.Run("IncreaseGasCost", func() {
-		for i := range 10 {
+		for i := range int32(10) {
 			receipt := s.sendMessageViaWallet(types.MainWalletAddress, addrCallee, execution.MainPrivateKey,
-				contracts.NewCounterAddCallData(s.T(), int32(i)))
+				contracts.NewCounterAddCallData(s.T(), i))
 			s.Require().True(receipt.OutReceipts[0].Success)
 		}
 		increasedGasPrice, err := s.client.GasPrice(shardId)

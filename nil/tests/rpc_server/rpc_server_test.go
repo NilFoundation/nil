@@ -12,7 +12,7 @@ import (
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/internal/collate"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -21,7 +21,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
@@ -33,11 +32,8 @@ type SuiteRpc struct {
 
 func (s *SuiteRpc) SetupTest() {
 	s.start(&nilservice.Config{
-		NShards:              5,
-		HttpUrl:              GetSockPath(s.T()),
-		Topology:             collate.TrivialShardTopologyId,
-		CollatorTickPeriodMs: 100,
-		GasBasePrice:         10,
+		NShards: 5,
+		HttpUrl: GetSockPath(s.T()),
 	})
 }
 
@@ -172,7 +168,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 
 		s.Run("FailedDeploy", func() {
 			// no account at address to pay for the message
-			hash, _, err := s.client.DeployExternal(shardId, types.BuildDeployPayload(calleeCode, common.EmptyHash))
+			hash, _, err := s.client.DeployExternal(shardId, types.BuildDeployPayload(calleeCode, common.EmptyHash), s.gasToValue(100_000))
 			s.Require().NoError(err)
 
 			receipt := s.waitForReceipt(shardId, hash)
@@ -219,12 +215,13 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 
 		var hash common.Hash
 		makeCall := func() {
-			callerSeqno, err := s.client.GetTransactionCount(callerAddr, "latest")
+			callerSeqno, err := s.client.GetTransactionCount(callerAddr, "pending")
 			s.Require().NoError(err)
 			callCallerMethod := &types.ExternalMessage{
-				Seqno: callerSeqno,
-				To:    callerAddr,
-				Data:  callData,
+				Seqno:     callerSeqno,
+				To:        callerAddr,
+				Data:      callData,
+				FeeCredit: s.gasToValue(100_000),
 			}
 			s.Require().NoError(callCallerMethod.Sign(execution.MainPrivateKey))
 			hash = s.sendRawTransaction(callCallerMethod)
@@ -258,7 +255,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			callData, err := callerAbi.Pack(getBounceErrName)
 			s.Require().NoError(err)
 
-			callerSeqno, err := s.client.GetTransactionCount(callerAddr, "latest")
+			callerSeqno, err := s.client.GetTransactionCount(callerAddr, "pending")
 			s.Require().NoError(err)
 
 			callArgs := &jsonrpc.CallArgs{
@@ -318,15 +315,30 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 			calleeShardId, types.MainWalletAddress, deployCode, types.Value{}, execution.MainPrivateKey,
 		)
 		s.Require().NoError(err)
-		receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), hash)
+		receipt := s.waitIncludedInMain(types.MainWalletAddress.ShardId(), hash)
 		s.Require().True(receipt.Success)
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})
 
+	addCalldata := contracts.NewCounterAddCallData(s.T(), 1)
+
+	var intMsgEstimation types.Value
+	s.Run("Estimate internal message fee", func() {
+		callArgs := &jsonrpc.CallArgs{
+			Data:  (*hexutil.Bytes)(&addCalldata),
+			To:    counterAddr,
+			Flags: types.NewMessageFlags(types.MessageFlagInternal),
+		}
+
+		intMsgEstimation, err = s.client.EstimateFee(callArgs, "latest")
+		s.Require().NoError(err)
+		s.Positive(intMsgEstimation.Uint64())
+	})
+
 	intMsg := &types.InternalMessagePayload{
-		Data:        contracts.NewCounterAddCallData(s.T(), 1),
+		Data:        addCalldata,
 		To:          counterAddr,
-		FeeCredit:   types.NewValueFromUint64(5_000_000),
+		FeeCredit:   intMsgEstimation,
 		ForwardKind: types.ForwardKindNone,
 		Kind:        types.ExecutionMessageKind,
 	}
@@ -337,17 +349,26 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	calldata, err := contracts.NewCallData(contracts.NameWallet, "send", intMsgData)
 	s.Require().NoError(err)
 
-	callerSeqno, err := s.client.GetTransactionCount(walletAddr, "latest")
+	callerSeqno, err := s.client.GetTransactionCount(walletAddr, "pending")
 	s.Require().NoError(err)
 
 	callArgs := &jsonrpc.CallArgs{
-		Data:      (*hexutil.Bytes)(&calldata),
-		To:        walletAddr,
-		FeeCredit: types.NewValueFromUint64(4_000_000),
-		Seqno:     callerSeqno,
+		Data:  (*hexutil.Bytes)(&calldata),
+		To:    walletAddr,
+		Seqno: callerSeqno,
 	}
 
+	var estimation types.Value
+	s.Run("Estimate external message fee", func() {
+		callArgs.FeeCredit = intMsgEstimation
+		estimation, err = s.client.EstimateFee(callArgs, "latest")
+		s.Require().NoError(err)
+		s.Positive(estimation.Uint64())
+	})
+
 	s.Run("Call without override", func() {
+		callArgs.FeeCredit = estimation
+
 		res, err := s.client.Call(callArgs, "latest", nil)
 		s.Require().NoError(err)
 		s.Require().Empty(res.Error)
@@ -384,6 +405,8 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	})
 
 	s.Run("Override for \"insufficient balance for transfer\"", func() {
+		callArgs.FeeCredit = estimation
+
 		override := &jsonrpc.StateOverrides{
 			walletAddr: jsonrpc.Contract{Balance: &types.Value{}},
 		}
@@ -393,6 +416,8 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	})
 
 	s.Run("Override several shards", func() {
+		callArgs.FeeCredit = estimation
+
 		val := types.NewValueFromUint64(50_000_000)
 		override := &jsonrpc.StateOverrides{
 			walletAddr:              jsonrpc.Contract{Balance: &val},
@@ -420,10 +445,11 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 
 	s.Run("Send raw external message", func() {
 		extMsg := &types.ExternalMessage{
-			To:    walletAddr,
-			Data:  extPayload,
-			Seqno: callerSeqno,
-			Kind:  types.ExecutionMessageKind,
+			To:        walletAddr,
+			Data:      extPayload,
+			Seqno:     callerSeqno,
+			Kind:      types.ExecutionMessageKind,
+			FeeCredit: s.gasToValue(100_000),
 		}
 
 		extBytecode, err := extMsg.MarshalSSZ()
@@ -580,7 +606,7 @@ func (s *SuiteRpc) TestInvalidMessageExternalDeployment() {
 	s.Require().NoError(err)
 
 	wallet := types.MainWalletAddress
-	hash, err := s.client.SendExternalMessage(calldataExt, wallet, execution.MainPrivateKey)
+	hash, err := s.client.SendExternalMessage(calldataExt, wallet, execution.MainPrivateKey, s.gasToValue(100_000))
 	s.Require().NoError(err)
 	s.Require().NotEmpty(hash)
 
@@ -656,7 +682,7 @@ func (s *SuiteRpc) TestNoOutMessagesIfFailure() {
 	calldata, err := abi.Pack("testFailedAsyncCall", addr, int32(0))
 	s.Require().NoError(err)
 
-	txhash, err := s.client.SendExternalMessage(calldata, addr, nil)
+	txhash, err := s.client.SendExternalMessage(calldata, addr, nil, s.gasToValue(100_000))
 	s.Require().NoError(err)
 	receipt = s.waitForReceipt(addr.ShardId(), txhash)
 	s.Require().False(receipt.Success)
@@ -668,7 +694,7 @@ func (s *SuiteRpc) TestNoOutMessagesIfFailure() {
 	calldata, err = abi.Pack("testFailedAsyncCall", addr, int32(10))
 	s.Require().NoError(err)
 
-	txhash, err = s.client.SendExternalMessage(calldata, addr, nil)
+	txhash, err = s.client.SendExternalMessage(calldata, addr, nil, s.gasToValue(100_000))
 	s.Require().NoError(err)
 	receipt = s.waitForReceipt(addr.ShardId(), txhash)
 	s.Require().True(receipt.Success)

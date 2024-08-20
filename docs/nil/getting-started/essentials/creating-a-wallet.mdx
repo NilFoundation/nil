@@ -81,3 +81,17 @@ The `Nil.js` client library exposes the `WalletV1` class that allows for quickly
 ```
 
 This example initializes a new wallet, provides it with a `Signer` and requests a 'top up' to the wallet address. The wallet is then deployed.
+
+:::tip[Seqno]
+
+When using the client library, `seqno` defaults to `0` for every message sent via the wallet. If too many messages are sent at the same time with this `seqno`, they will fail. To avoid this issue, set the `seqno` manually whenever using the wallet:
+
+```ts showLineNumbers
+wallet.sendMessage({
+    ...
+    seqno: SEQNO,
+    ...
+})
+```
+
+:::

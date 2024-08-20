@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -20,13 +19,10 @@ type SuiteWalletRpc struct {
 
 func (s *SuiteWalletRpc) SetupSuite() {
 	s.start(&nilservice.Config{
-		NShards:              4,
-		HttpUrl:              GetSockPath(s.T()),
-		Topology:             collate.TrivialShardTopologyId,
-		ZeroState:            execution.DefaultZeroStateConfig,
-		CollatorTickPeriodMs: 100,
-		GasBasePrice:         10,
-		RunMode:              nilservice.CollatorsOnlyRunMode,
+		NShards:       4,
+		HttpUrl:       GetSockPath(s.T()),
+		ZeroStateYaml: execution.DefaultZeroStateConfig,
+		RunMode:       nilservice.CollatorsOnlyRunMode,
 	})
 }
 
@@ -52,20 +48,21 @@ func (s *SuiteWalletRpc) TestWallet() {
 	})
 
 	s.Run("Check", func() {
-		seqno, err := s.client.GetTransactionCount(addrCallee, "latest")
+		seqno, err := s.client.GetTransactionCount(addrCallee, "pending")
 		s.Require().NoError(err)
 
-		resHash, err := s.client.SendMessage(&types.ExternalMessage{
-			Data:  contracts.NewCounterGetCallData(s.T()),
-			Seqno: seqno,
-			To:    addrCallee,
-		})
+		resHash, err := s.client.SendExternalMessage(
+			contracts.NewCounterGetCallData(s.T()),
+			addrCallee,
+			nil,
+			types.Value{},
+		)
 		s.Require().NoError(err)
 
 		receipt := s.waitForReceipt(addrCallee.ShardId(), resHash)
 		s.Require().True(receipt.Success)
 
-		newSeqno, err := s.client.GetTransactionCount(addrCallee, "latest")
+		newSeqno, err := s.client.GetTransactionCount(addrCallee, "pending")
 		s.Require().NoError(err)
 		s.Equal(seqno+1, newSeqno)
 	})

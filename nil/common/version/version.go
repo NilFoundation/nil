@@ -2,15 +2,25 @@ package version
 
 import (
 	"bytes"
+	"regexp"
 	"runtime"
 	"strings"
 	"text/template"
 )
 
-var (
+type versionInfo struct {
 	gitTag      string
-	gitCommit   string
 	gitRevision string
+	gitCommit   string
+}
+
+var (
+	// This random string will be binary-patched to contain real version.
+	// This is done in order to not stamp the commit hash on build and
+	// thus not needlessly thrash the cache. Instead, this string will
+	// be replaced on package-build time.
+	versionMagic     string = "qm5h7IEa3ahXUgsPknK8bwWulPEmpgMWSaQSaOUa"
+	versionInfoCache versionInfo
 )
 
 const (
@@ -18,8 +28,24 @@ const (
 	unknownVersion  string = "<unknown>"
 )
 
+func GetVersionInfo() versionInfo {
+	if versionInfoCache.gitRevision == "" {
+		// If the versionMagic string has been patched with something that looks like a version
+		// then use it. Otherwise initialize the version with some sane default.
+		re := regexp.MustCompile(`(\d+\.\d+\.\d+)-(\d+)-([a-f0-9]+)`)
+		matches := re.FindStringSubmatch(versionMagic)
+
+		if len(matches) == 0 {
+			versionInfoCache = versionInfo{gitTag: "0.1.0", gitRevision: "1", gitCommit: "<unknown>"}
+		} else {
+			versionInfoCache = versionInfo{gitTag: matches[1], gitRevision: matches[2], gitCommit: matches[3]}
+		}
+	}
+	return versionInfoCache
+}
+
 func BuildVersionString(appTitle string) string {
-	ver := gitTag
+	ver := GetVersionInfo().gitTag
 	if ver == "" {
 		ver = unknownVersion
 	}
@@ -39,16 +65,16 @@ func BuildVersionString(appTitle string) string {
 		"Version":  ver,
 		"OS":       runtime.GOOS,
 		"Arch":     runtime.GOARCH,
-		"Commit":   gitCommit,
+		"Commit":   GetVersionInfo().gitCommit,
 		"Revision": GetGitRevision(),
 	})
 }
 
 func GetGitRevision() string {
-	if gitRevision == "" {
+	if GetVersionInfo().gitRevision == "" {
 		return unknownRevision
 	}
-	return gitRevision
+	return GetVersionInfo().gitRevision
 }
 
 func getTemplatedStr(text *string, obj interface{}) (string, error) {
@@ -76,6 +102,6 @@ func formatVersion(template string, templateArgs map[string]string) string {
 
 var versionTmpl = `{{ .Title }}
  Version:	{{ .Version }}
- OS/Arch: 	{{ .OS }}/{{ .Arch }}
+ OS/Arch:	{{ .OS }}/{{ .Arch }}
  Git commit:	{{ .Commit }}
  Revision:	{{ .Revision }}`

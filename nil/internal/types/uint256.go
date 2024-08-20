@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding"
 	"encoding/json"
+	"math/big"
 
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
@@ -55,6 +56,14 @@ func (u *Uint256) safeInt() *uint256.Int {
 		return &uint256.Int{}
 	}
 	return (*uint256.Int)(u)
+}
+
+func (u *Uint256) ToBig() *big.Int {
+	return (*uint256.Int)(u).ToBig()
+}
+
+func (u *Uint256) SetFromBig(b *big.Int) bool {
+	return (*uint256.Int)(u).SetFromBig(b)
 }
 
 // MarshalSSZ ssz marshals the Uint256 object

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
@@ -23,12 +22,9 @@ type SuiteFaucet struct {
 
 func (s *SuiteFaucet) SetupTest() {
 	s.start(&nilservice.Config{
-		NShards:              5,
-		HttpUrl:              GetSockPath(s.T()),
-		Topology:             collate.TrivialShardTopologyId,
-		CollatorTickPeriodMs: 100,
-		GasBasePrice:         10,
-		RunMode:              nilservice.CollatorsOnlyRunMode,
+		NShards: 5,
+		HttpUrl: GetSockPath(s.T()),
+		RunMode: nilservice.CollatorsOnlyRunMode,
 	})
 }
 
@@ -45,17 +41,7 @@ func (s *SuiteFaucet) createWalletViaFaucet(ownerPrivateKey *ecdsa.PrivateKey, v
 	callData, err := contracts.NewCallData(contracts.NameFaucet, "createWallet", ownerPublicKey, salt, big.NewInt(value))
 	s.Require().NoError(err)
 
-	seqno, err := s.client.GetTransactionCount(types.FaucetAddress, "latest")
-	s.Require().NoError(err)
-
-	msgExternal := &types.ExternalMessage{
-		Seqno: seqno,
-		To:    types.FaucetAddress,
-		Data:  callData,
-		Kind:  types.ExecutionMessageKind,
-	}
-
-	resHash, err := s.client.SendMessage(msgExternal)
+	resHash, err := s.client.SendExternalMessage(callData, types.FaucetAddress, nil, types.Value{})
 	s.Require().NoError(err)
 
 	res := s.waitForReceipt(types.BaseShardId, resHash)
@@ -101,7 +87,7 @@ func (s *SuiteFaucet) TestDeployContractViaFaucet() {
 		s.Require().True(r.Success)
 	}
 
-	msgHash, receiptContractAddress, err := s.client.DeployExternal(walletAddr.ShardId(), code)
+	msgHash, receiptContractAddress, err := s.client.DeployExternal(walletAddr.ShardId(), code, types.GasToValue(100_000))
 	s.Require().NoError(err)
 	s.Require().Equal(walletAddr, receiptContractAddress)
 	receipt = s.waitForReceipt(walletAddr.ShardId(), msgHash)

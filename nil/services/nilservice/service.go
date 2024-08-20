@@ -3,6 +3,7 @@ package nilservice
 import (
 	"context"
 	"fmt"
+	"os/signal"
 	"syscall"
 	"time"
 
@@ -28,9 +29,14 @@ import (
 func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []msgpool.Pool) error {
 	logger := logging.NewLogger("RPC")
 
+	addr := cfg.HttpUrl
+	if addr == "" {
+		addr = fmt.Sprintf("tcp://127.0.0.1:%d", cfg.RPCPort)
+	}
+
 	httpConfig := &httpcfg.HttpCfg{
 		Enabled:         true,
-		HttpURL:         cfg.HttpUrl,
+		HttpURL:         addr,
 		HttpCompression: true,
 		TraceRequests:   true,
 		HTTPTimeouts:    httpcfg.DefaultHTTPTimeouts,
@@ -94,8 +100,11 @@ type ServiceInterop struct {
 //
 // It returns a value suitable for os.Exit().
 func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- ServiceInterop, workers ...concurrent.Func) int {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	if cfg.GracefulShutdown {
+		signalCtx, cancel := signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
+		defer cancel()
+		ctx = signalCtx
+	}
 
 	logger := logging.NewLogger("nil")
 
@@ -105,15 +114,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	}
 	defer telemetry.Shutdown(ctx)
 
-	funcs := make([]concurrent.Func, 0, cfg.NShards+2+len(workers))
-	if cfg.GracefulShutdown {
-		funcs = []concurrent.Func{
-			func(ctx context.Context) error {
-				concurrent.OnSignal(ctx, cancel, syscall.SIGTERM, syscall.SIGINT)
-				return nil
-			},
-		}
-	}
+	funcs := make([]concurrent.Func, 0, int(cfg.NShards)+2+len(workers))
 
 	if cfg.CollatorTickPeriodMs == 0 {
 		cfg.CollatorTickPeriodMs = defaultCollatorTickPeriodMs
@@ -164,7 +165,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	case BlockReplayRunMode:
 		replayer := collate.NewReplayScheduler(database, collate.ReplayParams{
 			BlockGeneratorParams: execution.BlockGeneratorParams{
-				ShardId:       cfg.ReplayShardId,
+				ShardId:       cfg.Replay.ShardId,
 				NShards:       cfg.NShards,
 				TraceEVM:      cfg.TraceEVM,
 				Timer:         common.NewTimer(),
@@ -172,21 +173,21 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 				GasPriceScale: cfg.GasPriceScale,
 			},
 			Timeout:           time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs),
-			ReplayBlockNumber: cfg.ReplayBlockId,
+			ReplayBlockNumber: cfg.Replay.BlockId,
 		})
 
 		funcs = append(funcs, func(ctx context.Context) error {
 			if err := replayer.Run(ctx); err != nil {
 				logger.Error().
 					Err(err).
-					Stringer(logging.FieldShardId, cfg.ReplayShardId).
+					Stringer(logging.FieldShardId, cfg.Replay.ShardId).
 					Msg("Replayer goroutine failed")
 				return err
 			}
 			return nil
 		})
 
-		msgPools = make([]msgpool.Pool, uint(cfg.ReplayShardId)+1)
+		msgPools = make([]msgpool.Pool, uint(cfg.Replay.ShardId)+1)
 	default:
 		panic("unsupported run mode")
 	}
@@ -290,11 +291,12 @@ func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod t
 		CollatorTickPeriod: collatorTickPeriod,
 		Timeout:            collatorTickPeriod,
 		ZeroState:          execution.DefaultZeroStateConfig,
+		ZeroStateConfig:    cfg.ZeroState,
 		MainKeysOutPath:    cfg.MainKeysOutPath,
 		Topology:           collate.GetShardTopologyById(cfg.Topology),
 	}
-	if len(cfg.ZeroState) != 0 {
-		collatorCfg.ZeroState = cfg.ZeroState
+	if len(cfg.ZeroStateYaml) != 0 {
+		collatorCfg.ZeroState = cfg.ZeroStateYaml
 	}
 
 	return collate.NewScheduler(database, msgPool, collatorCfg, networkManager)

@@ -41,7 +41,7 @@ func (suite *SuiteMsgPool) TestAdd() {
 
 	msg1 := newMessage(address, 0, 123)
 
-	// Send message for the first time - OK
+	// Send the message for the first time - OK
 	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg1})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
@@ -51,6 +51,27 @@ func (suite *SuiteMsgPool) TestAdd() {
 	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg1})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{DuplicateHash}, reasons)
+	suite.Equal(1, suite.pool.MessageCount())
+
+	// Send the same message with higher fee - OK
+	msg2 := msg1
+	msg2.FeeCredit = msg2.FeeCredit.Add64(1)
+	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg2})
+	suite.Require().NoError(err)
+	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
+	suite.Equal(1, suite.pool.MessageCount())
+
+	// Send a different message with the same seqno - NotReplaced
+	msg3 := msg1
+	// Force the message to be different
+	msg3.Data = append(msg3.Data, 0x01)
+	suite.Require().NotEqual(msg1.Hash(), msg3.Hash())
+	// Add a higher fee (otherwise, no replacement can be expected anyway)
+	msg3.FeeCredit = msg3.FeeCredit.Add64(1)
+
+	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg3})
+	suite.Require().NoError(err)
+	suite.Require().Equal([]DiscardReason{NotReplaced}, reasons)
 	suite.Equal(1, suite.pool.MessageCount())
 
 	// Add a message with higher seqno to the same receiver
@@ -145,8 +166,9 @@ func (suite *SuiteMsgPool) TestSeqnoFromAddress() {
 	suite.Require().True(inPool)
 	suite.Require().EqualValues(0, seqno)
 
-	msg.Seqno++
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg})
+	nextMsg := msg
+	nextMsg.Seqno++
+	reasons, err = suite.pool.Add(ctx, []*types.Message{&nextMsg})
 	suite.Require().NoError(err)
 	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
 

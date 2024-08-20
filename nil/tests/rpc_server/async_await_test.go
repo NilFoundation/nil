@@ -5,13 +5,12 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/internal/collate"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -89,12 +88,9 @@ contracts:
 
 func (s *SuiteAsyncAwait) SetupTest() {
 	s.start(&nilservice.Config{
-		NShards:              s.shardsNum,
-		Topology:             collate.TrivialShardTopologyId,
-		ZeroState:            s.zerostateCfg,
-		CollatorTickPeriodMs: 100,
-		GasBasePrice:         10,
-		RunMode:              nilservice.CollatorsOnlyRunMode,
+		NShards:       s.shardsNum,
+		ZeroStateYaml: s.zerostateCfg,
+		RunMode:       nilservice.CollatorsOnlyRunMode,
 	})
 }
 

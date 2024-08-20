@@ -11,7 +11,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -29,11 +28,8 @@ type SuiteCli struct {
 
 func (s *SuiteCli) SetupTest() {
 	s.start(&nilservice.Config{
-		NShards:              5,
-		HttpUrl:              GetSockPath(s.T()),
-		Topology:             collate.TrivialShardTopologyId,
-		CollatorTickPeriodMs: 100,
-		GasBasePrice:         10,
+		NShards: 5,
+		HttpUrl: GetSockPath(s.T()),
 	})
 
 	s.cli = cliservice.NewService(s.client, execution.MainPrivateKey)
@@ -132,9 +128,8 @@ func (s *SuiteCli) TestContract() {
 	txHash, addr, err := s.cli.DeployContractViaWallet(wallet.ShardId()+1, wallet, deployCode, types.Value{})
 	s.Require().NoError(err)
 
-	receipt := s.waitForReceipt(wallet.ShardId(), txHash)
-	s.Require().True(receipt.Success)
-	s.Require().True(receipt.OutReceipts[0].Success)
+	receipt := s.waitIncludedInMain(wallet.ShardId(), txHash)
+	s.Require().True(receipt.AllSuccess())
 
 	getCalldata, err := abi.Pack("get")
 	s.Require().NoError(err)
@@ -148,10 +143,10 @@ func (s *SuiteCli) TestContract() {
 	calldata, err := abi.Pack("increment")
 	s.Require().NoError(err)
 
-	txHash, err = s.cli.RunContract(wallet, calldata, s.gasToValue(100_000), types.Value{}, nil, addr)
+	txHash, err = s.cli.RunContract(wallet, calldata, types.Value{}, types.Value{}, types.Value{}, nil, addr)
 	s.Require().NoError(err)
 
-	receipt = s.waitForReceipt(wallet.ShardId(), txHash)
+	receipt = s.waitIncludedInMain(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -178,10 +173,10 @@ func (s *SuiteCli) TestContract() {
 	balanceBefore, err := s.cli.GetBalance(addr)
 	s.Require().NoError(err)
 
-	txHash, err = s.cli.RunContract(wallet, nil, s.gasToValue(100_000), types.NewValueFromUint64(100), nil, addr)
+	txHash, err = s.cli.RunContract(wallet, nil, types.Value{}, types.Value{}, types.NewValueFromUint64(100), nil, addr)
 	s.Require().NoError(err)
 
-	receipt = s.waitForReceipt(wallet.ShardId(), txHash)
+	receipt = s.waitIncludedInMain(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -226,7 +221,7 @@ func (s *SuiteCli) TestSendExternalMessage() {
 	txHash, addr, err := s.cli.DeployContractViaWallet(types.BaseShardId, wallet, deployCode, types.NewValueFromUint64(10_000_000))
 	s.Require().NoError(err)
 
-	receipt := s.waitForReceipt(wallet.ShardId(), txHash)
+	receipt := s.waitIncludedInMain(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -249,7 +244,7 @@ func (s *SuiteCli) TestSendExternalMessage() {
 	txHash, err = s.cli.SendExternalMessage(calldata, addr, true)
 	s.Require().NoError(err)
 
-	receipt = s.waitForReceipt(addr.ShardId(), txHash)
+	receipt = s.waitIncludedInMain(addr.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 
 	// Get updated value
@@ -318,7 +313,7 @@ func (s *SuiteCli) TestCliWallet() {
 	s.Run("Deploy new wallet", func() {
 		res, err := s.runCliNoCheck("-c", cfgPath, "wallet", "new")
 		s.Require().Error(err)
-		s.Contains(res, "Error: Private key is not specified in config")
+		s.Contains(res, "Error: private_key not specified in config")
 	})
 
 	res := s.runCli("-c", cfgPath, "keygen", "new")
@@ -329,7 +324,7 @@ func (s *SuiteCli) TestCliWallet() {
 	s.Run("Address not specified", func() {
 		res, err := s.runCliNoCheck("-c", cfgPath, "wallet", "info")
 		s.Require().Error(err)
-		s.Contains(res, "Error: Valid wallet address is not specified in config")
+		s.Contains(res, "Error: address not specified in config")
 	})
 
 	s.Run("Deploy new wallet", func() {

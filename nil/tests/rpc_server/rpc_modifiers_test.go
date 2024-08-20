@@ -6,12 +6,11 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/internal/collate"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/crypto"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -53,13 +52,10 @@ contracts:
 `, s.walletAddr.Hex(), hexutil.Encode(s.walletPublicKey), s.testAddr)
 
 	s.start(&nilservice.Config{
-		NShards:              4,
-		HttpUrl:              GetSockPath(s.T()),
-		Topology:             collate.TrivialShardTopologyId,
-		ZeroState:            zerostate,
-		CollatorTickPeriodMs: 100,
-		GasBasePrice:         10,
-		RunMode:              nilservice.CollatorsOnlyRunMode,
+		NShards:       4,
+		HttpUrl:       GetSockPath(s.T()),
+		ZeroStateYaml: zerostate,
+		RunMode:       nilservice.CollatorsOnlyRunMode,
 	})
 }
 
@@ -71,13 +67,14 @@ func (s *SuiteModifiersRpc) TestInternalIncorrect() {
 	internalFuncCalldata, err := s.abi.Pack("internalFunc")
 	s.Require().NoError(err)
 
-	seqno, err := s.client.GetTransactionCount(s.testAddr, "latest")
+	seqno, err := s.client.GetTransactionCount(s.testAddr, "pending")
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
-		Seqno: seqno,
-		Data:  internalFuncCalldata,
-		To:    s.testAddr,
+		Seqno:     seqno,
+		Data:      internalFuncCalldata,
+		To:        s.testAddr,
+		FeeCredit: s.gasToValue(100_000),
 	}
 	s.Require().NoError(messageToSend.Sign(s.walletPrivateKey))
 	msgHash, err := s.client.SendMessage(messageToSend)
@@ -99,13 +96,14 @@ func (s *SuiteModifiersRpc) TestExternalCorrect() {
 	internalFuncCalldata, err := s.abi.Pack("externalFunc")
 	s.Require().NoError(err)
 
-	seqno, err := s.client.GetTransactionCount(s.testAddr, "latest")
+	seqno, err := s.client.GetTransactionCount(s.testAddr, "pending")
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
-		Seqno: seqno,
-		Data:  internalFuncCalldata,
-		To:    s.testAddr,
+		Seqno:     seqno,
+		Data:      internalFuncCalldata,
+		To:        s.testAddr,
+		FeeCredit: s.gasToValue(100_000),
 	}
 	s.Require().NoError(messageToSend.Sign(s.walletPrivateKey))
 	msgHash, err := s.client.SendMessage(messageToSend)
@@ -127,13 +125,14 @@ func (s *SuiteModifiersRpc) TestExternalSyncCall() {
 	internalFuncCalldata, err := s.abi.Pack("callExternal", s.testAddr)
 	s.Require().NoError(err)
 
-	seqno, err := s.client.GetTransactionCount(s.testAddr, "latest")
+	seqno, err := s.client.GetTransactionCount(s.testAddr, "pending")
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
-		Seqno: seqno,
-		Data:  internalFuncCalldata,
-		To:    s.testAddr,
+		Seqno:     seqno,
+		Data:      internalFuncCalldata,
+		To:        s.testAddr,
+		FeeCredit: s.gasToValue(100_000),
 	}
 	msgHash, err := s.client.SendMessage(messageToSend)
 	s.Require().NoError(err)
@@ -146,13 +145,14 @@ func (s *SuiteModifiersRpc) TestInternalSyncCall() {
 	internalFuncCalldata, err := s.abi.Pack("callInternal", s.testAddr)
 	s.Require().NoError(err)
 
-	seqno, err := s.client.GetTransactionCount(s.testAddr, "latest")
+	seqno, err := s.client.GetTransactionCount(s.testAddr, "pending")
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
-		Seqno: seqno,
-		Data:  internalFuncCalldata,
-		To:    s.testAddr,
+		Seqno:     seqno,
+		Data:      internalFuncCalldata,
+		To:        s.testAddr,
+		FeeCredit: s.gasToValue(100_000),
 	}
 	msgHash, err := s.client.SendMessage(messageToSend)
 	s.Require().NoError(err)

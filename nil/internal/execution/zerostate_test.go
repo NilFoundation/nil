@@ -8,11 +8,11 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/tools/solc"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common/compiler"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -114,19 +114,19 @@ config:
 `
 	state, err = NewExecutionState(tx, 0, common.EmptyHash, common.NewTestTimer(0), 1)
 	require.NoError(t, err)
-	err = state.GenerateZeroState(configYaml)
+	err = state.GenerateZeroStateYaml(configYaml)
 	require.NoError(t, err)
 	require.Equal(t, 0, state.GasPrice.Cmp(types.NewValueFromUint64(1)))
 
 	state, err = NewExecutionState(tx, 1, common.EmptyHash, common.NewTestTimer(0), 1)
 	require.NoError(t, err)
-	err = state.GenerateZeroState(configYaml)
+	err = state.GenerateZeroStateYaml(configYaml)
 	require.NoError(t, err)
 	require.Equal(t, 0, state.GasPrice.Cmp(types.NewValueFromUint64(2)))
 
 	state, err = NewExecutionState(tx, 2, common.EmptyHash, common.NewTestTimer(0), 1)
 	require.NoError(t, err)
-	err = state.GenerateZeroState(configYaml)
+	err = state.GenerateZeroStateYaml(configYaml)
 	require.NoError(t, err)
 	require.Equal(t, 0, state.GasPrice.Cmp(types.NewValueFromUint64(3)))
 
@@ -145,7 +145,7 @@ contracts:
 `, walletAddr.Hex())
 	state, err = NewExecutionState(tx, types.MainShardId, common.EmptyHash, common.NewTestTimer(0), 1)
 	require.NoError(t, err)
-	err = state.GenerateZeroState(configYaml)
+	err = state.GenerateZeroStateYaml(configYaml)
 	require.NoError(t, err)
 	require.Equal(t, types.DefaultGasPrice, state.GasPrice)
 
@@ -170,7 +170,7 @@ contracts:
 `
 	state, err = NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0), 1)
 	require.NoError(t, err)
-	err = state.GenerateZeroState(configYaml2)
+	err = state.GenerateZeroStateYaml(configYaml2)
 	require.Error(t, err)
 
 	// Test only one contract should deployed in specific shard
@@ -188,7 +188,7 @@ contracts:
 `, walletAddr.Hex())
 	state, err = NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0), 1)
 	require.NoError(t, err)
-	err = state.GenerateZeroState(configYaml3)
+	err = state.GenerateZeroStateYaml(configYaml3)
 	require.NoError(t, err)
 
 	faucetAddr = types.CreateAddress(types.BaseShardId, types.BuildDeployPayload(faucetCode, common.EmptyHash))

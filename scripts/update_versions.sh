@@ -3,8 +3,8 @@
 # simple script to fetch last version of `replication-adapter-lib` repo
 # and correctly substitute hashes in `nil.nix`
 
-green_col=`tput setaf 2`
-reset_col=`tput sgr0`
+green_col=$(tput setaf 2)
+reset_col=$(tput sgr0)
 
 sed -i '' 's/^\([^a-z]*vendorHash = \)".*";/\1"";/g' nil.nix
 

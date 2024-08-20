@@ -118,6 +118,11 @@ export default {
                             type: 'doc',
                             label: 'Usage',
                             id: 'tools/nil-cli/usage'
+                        },
+                        {
+                            type: 'doc',
+                            label: 'Error handling',
+                            id: 'tools/nil-cli/error-handling'
                         }
                     ]
                 },

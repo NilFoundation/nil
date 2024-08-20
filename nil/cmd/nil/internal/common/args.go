@@ -14,9 +14,8 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	eth_common "github.com/ethereum/go-ethereum/common"
 )
 
 func PrepareArgs(abiPath string, calldataOrMethod string, args []string) ([]byte, error) {
@@ -68,7 +67,7 @@ func parseCallArgument(arg string, tp abi.Type) (any, error) {
 		}
 		val.SetBool(valBool)
 	case abi.AddressTy:
-		var address eth_common.Address
+		var address types.Address
 		if err := address.UnmarshalText([]byte(arg)); err != nil {
 			return nil, fmt.Errorf("failed to parse address argument: %w", err)
 		}

@@ -7,8 +7,8 @@ import (
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/contracts"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 )
 
 const (
@@ -17,6 +17,7 @@ const (
 	NamePrecompile      = "__Precompile__"
 	NameNilCurrencyBase = "NilCurrencyBase"
 	NameNilBounceable   = "NilBounceable"
+	NameNilConfigAbi    = "NilConfigAbi"
 )
 
 var (

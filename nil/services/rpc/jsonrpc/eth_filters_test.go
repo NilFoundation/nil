@@ -25,6 +25,11 @@ type SuiteEthFilters struct {
 	shardId types.ShardId
 }
 
+const (
+	ManagerWaitTimeout  = 2000 * time.Millisecond
+	ManagerPollInterval = 200 * time.Millisecond
+)
+
 func (s *SuiteEthFilters) SetupTest() {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	var err error
@@ -112,12 +117,12 @@ func (s *SuiteEthFilters) TestLogs() {
 	s.Require().NoError(db.WriteLastBlockHash(tx, types.MainShardId, block.Hash()))
 	s.Require().NoError(tx.Commit())
 
-	// Wait a bit so the filters detect new block
-	time.Sleep(500 * time.Millisecond)
-
-	logs, err := s.api.GetFilterChanges(s.ctx, id1)
-	s.Require().NoError(err)
-	s.Require().Len(logs, 2)
+	var logs []any
+	s.Require().Eventually(func() bool {
+		logs, err = s.api.GetFilterChanges(s.ctx, id1)
+		s.Require().NoError(err)
+		return len(logs) == 2
+	}, ManagerWaitTimeout, ManagerPollInterval)
 
 	log0, ok := logs[0].(*RPCLog)
 	s.Require().True(ok)
@@ -162,13 +167,13 @@ func (s *SuiteEthFilters) TestBlocks() {
 	s.Require().NoError(db.WriteLastBlockHash(tx, types.MainShardId, block1.Hash()))
 	s.Require().NoError(tx.Commit())
 
-	// Wait some time, so filters manager processes new blocks
-	time.Sleep(200 * time.Millisecond)
-
 	// id1 filter should see 1 block
-	blocks, err = s.api.GetFilterChanges(s.ctx, id1)
-	s.Require().NoError(err)
-	s.Require().Len(blocks, 1)
+	s.Require().Eventually(func() bool {
+		blocks, err = s.api.GetFilterChanges(s.ctx, id1)
+		s.Require().NoError(err)
+		return len(blocks) == 1
+	}, ManagerWaitTimeout, ManagerPollInterval)
+
 	s.Require().IsType(&types.Block{}, blocks[0])
 	block, ok := blocks[0].(*types.Block)
 	s.Require().True(ok)
@@ -193,24 +198,27 @@ func (s *SuiteEthFilters) TestBlocks() {
 	s.Require().NoError(db.WriteLastBlockHash(tx, types.MainShardId, block4.Hash()))
 	s.Require().NoError(tx.Commit())
 
-	// Wait some time, so filters manager processes new blocks
-	time.Sleep(200 * time.Millisecond)
-
 	// Both filters should see these blocks
-	for _, id := range []string{id1, id2} {
-		blocks, err = s.api.GetFilterChanges(s.ctx, id)
-		s.Require().NoError(err)
-		s.Require().Len(blocks, 3)
-		block, ok = blocks[0].(*types.Block)
-		s.Require().True(ok)
-		s.Require().Equal(block.Id, block4.Id)
-		block, ok = blocks[1].(*types.Block)
-		s.Require().True(ok)
-		s.Require().Equal(block.Id, block3.Id)
-		block, ok = blocks[2].(*types.Block)
-		s.Require().True(ok)
-		s.Require().Equal(block.Id, block2.Id)
-	}
+	s.Require().Eventually(func() bool {
+		for _, id := range []string{id1, id2} {
+			blocks, err = s.api.GetFilterChanges(s.ctx, id)
+			s.Require().NoError(err)
+			if len(blocks) != 3 {
+				return false
+			}
+			s.Require().Len(blocks, 3)
+			block, ok = blocks[0].(*types.Block)
+			s.Require().True(ok)
+			s.Require().Equal(block.Id, block4.Id)
+			block, ok = blocks[1].(*types.Block)
+			s.Require().True(ok)
+			s.Require().Equal(block.Id, block3.Id)
+			block, ok = blocks[2].(*types.Block)
+			s.Require().True(ok)
+			s.Require().Equal(block.Id, block2.Id)
+		}
+		return true
+	}, ManagerWaitTimeout, ManagerPollInterval)
 
 	// Uninstall id1 block filter
 	deleted, err := s.api.UninstallFilter(s.ctx, id1)
@@ -234,13 +242,12 @@ func (s *SuiteEthFilters) TestBlocks() {
 	s.Require().NoError(db.WriteLastBlockHash(tx, types.MainShardId, block6.Hash()))
 	s.Require().NoError(tx.Commit())
 
-	// Wait some time, so filters manager processes new blocks
-	time.Sleep(200 * time.Millisecond)
-
 	// id1 is deleted, expect error
-	blocks, err = s.api.GetFilterChanges(s.ctx, id1)
-	s.Require().Error(err)
-	s.Require().Empty(blocks)
+	s.Require().Eventually(func() bool {
+		blocks, err = s.api.GetFilterChanges(s.ctx, id1)
+		s.Require().Error(err)
+		return len(blocks) == 0
+	}, ManagerWaitTimeout, ManagerPollInterval)
 
 	// Expect two blocks for id2
 	blocks, err = s.api.GetFilterChanges(s.ctx, id2)

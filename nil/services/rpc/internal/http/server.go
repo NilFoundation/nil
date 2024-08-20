@@ -89,7 +89,7 @@ func (s *Server) validateRequest(r *http.Request) (int, error) {
 		if hasVersion {
 			num, err := strconv.Atoi(version)
 			if err == nil && num > 0 {
-				if num < minSupportedRevision {
+				if num < minSupportedRevision && num != 1 {
 					err := fmt.Errorf("specified revision %d, minimum supported is %d", num, minSupportedRevision)
 					return http.StatusUpgradeRequired, err
 				}

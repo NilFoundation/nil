@@ -19,12 +19,18 @@ type badgerDB struct {
 }
 
 type BadgerDBOptions struct {
-	Path         string
-	DiscardRatio float64
-	GcFrequency  time.Duration
-	AllowDrop    bool
-	DbAddr       string
-	StartBlock   int64
+	Path         string        `yaml:"path"`
+	DiscardRatio float64       `yaml:"gcDiscardRatio"`
+	GcFrequency  time.Duration `yaml:"gcFrequency"`
+	AllowDrop    bool          `yaml:"allowDrop"`
+}
+
+func NewDefaultBadgerDBOptions() *BadgerDBOptions {
+	return &BadgerDBOptions{
+		Path:         "test.db",
+		DiscardRatio: 0.5,
+		GcFrequency:  time.Hour,
+	}
 }
 
 type BadgerRoTx struct {

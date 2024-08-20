@@ -1,0 +1,141 @@
+# Error handling
+
+This page details how to address the common errors that may be thrown when interacting with =nil;. These errors are either not present in Ethereum or the circumstances when they are thrown differ from Ethereum.
+
+There are two ways the =nil; CLI can display errors:
+
+* As direct responses from the RPC node appearing in the command output
+* In message receipts
+
+If an error is thrown by the RPC node, the =nil; CLI will output the error code and the error description:
+
+```bash
+failed to send message: rpc error: {"code":-32000,"message":"message status: not replaced"} 
+```
+
+If an error is thrown by the cluster, use the `nil receipt HASH --shard-id SHARD_ID` command to see its description in the message receipt:
+
+```json
+{
+    ...
+    "errorMessage": "execution reverted: Insufficient balance"
+    ...
+}
+```
+
+## Message status: not replaced
+
+The `"message status: not replaced"` error is thrown when two messages with the same `seqno` and made to the same contract are sent to the message pool.
+
+To resolve the error:
+
+* When using the CLI manually: retry the operation after several seconds
+* When using the CLI in a pipeline or a script: add mandatory delays between CLI commands
+
+## Execution reverted
+
+The `"execution reverted"` error is thrown when the execution of a message encounters an issue and cannot be continued further.
+
+The most probable causes of the error: 
+
+* There is a `require()` statement in a contract that the message data fails to pass
+* A function with [**an `onlyInternal` or an `onlyExternal` modifier**](tools/sol-library/func-modifiers.mdx) is called with an incorrect message type
+* Any kind of internal contract logic is not being executed correctly
+* A message with a non-zero `value` is attempting to call a function not marked as `payable`
+
+To resolve the error:
+
+* Double-check the contract logic and, if possible, remove unnecessary `require()` statements
+* Ensure that the correct `FORWARD_KIND` is used in async calls, which should guarantee that contracts can pay [**for chains of two or more async calls**](getting-started/essentials/gas-and-value.mdx)
+* Remove `onlyInternal` or `onlyExternal` modifiers and rerun the message chain
+* Make sure that messages with a non-zero `value` only call `payable` functions
+
+## Invalid payload
+
+The `"invalid payload"` error is thrown when the message payload cannot be parsed by the RPC node. This usually occurs if the payload has an incorrect size.
+
+To resolve the error:
+
+* Double-check the contract ABI and make sure that the way the message data is encoded matches it
+
+## Failed to pack method call
+
+The `"failed to pack method call"` error is thrown when the message inputs do not match the contract ABI. 
+
+The most probable causes of the error:
+
+* The method that the message is trying to call does not exist
+* An incorrect number of arguments is passed in the message
+* Arguments of the wrong type are passed in the message
+
+The error will specify the exact reason when it is thrown.
+
+To resolve the error:
+
+* Check that the correct ABI is used in the call
+* Look for any typos in the method name that is used in the call
+* Ensure that the correct number of arguments are passed in the message
+* Change the argument types to match the ABI
+
+## KEY not specified in config
+
+The `"KEY not specified in config" error is thrown when the CLI configuration file lacks one of the following keys:
+
+* `rpc_endpoint`
+* `private_key`
+* `address`
+
+To resolve the error, execute the following command(s) depending on which key is missing:
+
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startKeygen end=endKeygen
+```
+
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startWalletCreationCommand end=endWalletCreationCommand
+```
+
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startEndpoint end=endEndpoint
+```
+
+## Out of gas
+
+The `"out of gas"` error is thrown when the message cannot pay for its own execution.
+
+To resolve the error:
+
+* Assign a higher `feeCredit` to the message
+* If the error is thrown during a chain of async calls, [**adjust the `FORWARD_KIND` used in the chain**](getting-started/essentials/gas-and-value.mdx)
+
+## Contract address collision
+
+The `"contract address collision"` error is thrown when there is an attempt to deploy a contract to an address that is already occupied.
+
+To resolve the error:
+
+* Pass a different `SALT` to the contract deployment message
+* Deploy the contract on a different shard
+
+## External message verification failed
+
+The `"external message verification failed"` error is thrown when an external message cannot pass the verification check in the `verifyExternal()` function of the contract that this message calls. For example, this error appears when attempting to send a message via a wallet while using the wrong keypair for this wallet.
+
+To resolve this error:
+
+* Double-check the contents of the =nil; CLI config file and ensure that the file contains the correct private key
+* Check the verification logic inside the `verifyExternal()` function of the contract being called and adjust the message accordingly
+
+## Attempt to deploy to main shard from non-system wallet
+
+The `"attempt to deploy to main shard from non-system wallet"` error is thrown when a smart contract makes a deploy request to the main shard. Deployments to the main shard are prohibited.
+
+To resolve the error:
+
+* Specify a different `--shard-id` when making the deployment request
+
+## Message fee forwarding failed
+
+The `"message fee forwarding failed"` error is thrown when there is an issue with [**gas forwarding**](getting-started/essentials/gas-and-value.mdx) across several contracts.
+
+To resolve the error:
+
+* Trace the chain of async calls and, if necessary, change the `FORWARD_KIND` used in the contracts being called
+* Increase the `feeCredit` used in async call chains

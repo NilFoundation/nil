@@ -583,9 +583,9 @@ In the above flow:
 
 :::info[Order of forwarding]
 
-When percentage forwarding is used in mixed forwarding, it is calculated first. For example, if there is `900_000` leftover `FeeCredit` and `300_000` is forwarded by value to other contracts while 30% is forwarded by percentage, 30% would still equal `300_000`. 
+When value and percentage forwarding are used in mixed forwarding, value forwarding calculated first. For example, if there is `900_000` leftover `FeeCredit` and `300_000` is forwarded by value to other contracts while 30% is forwarded by percentage, thia 30% would equal `200_000` instead of `300_000`. 
 
-Conversely, equal split forwarding is always calculated last. In the above example, only `300_000` leftover `FeeCredit` will be left after calculating value and percentage forwarding. This amount will be split equally among the remaining contracts to be called.
+Conversely, equal split forwarding is always calculated last. In the above example, only `400_000` leftover `FeeCredit` will be left after calculating value and percentage forwarding. This amount will be split equally among the remaining contracts to be called.
 
 :::
 

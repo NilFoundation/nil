@@ -103,14 +103,14 @@ func TestInsertGetLots(t *testing.T) {
 	t.Parallel()
 
 	trie := CreateMerklePatriciaTrie(t)
-	const size = 100
+	const size uint32 = 100
 
 	var keys [size][]byte
 	var values [size][]byte
 	for i := range size {
 		n := rand.Uint64() //nolint:gosec
 		keys[i] = binary.LittleEndian.AppendUint64(keys[i], n)
-		values[i] = binary.LittleEndian.AppendUint32(values[i], uint32(i))
+		values[i] = binary.LittleEndian.AppendUint32(values[i], i)
 	}
 
 	for i, key := range keys {
@@ -168,7 +168,7 @@ func TestDeleteLots(t *testing.T) {
 	t.Parallel()
 
 	trie := CreateMerklePatriciaTrie(t)
-	const size = 100
+	const size uint32 = 100
 
 	require.Equal(t, trie.RootHash(), common.EmptyHash)
 
@@ -176,7 +176,7 @@ func TestDeleteLots(t *testing.T) {
 	var values [size][]byte
 	for i := range size {
 		keys[i] = binary.LittleEndian.AppendUint64(keys[i], rand.Uint64()) //nolint:gosec
-		values[i] = binary.LittleEndian.AppendUint32(values[i], uint32(i))
+		values[i] = binary.LittleEndian.AppendUint32(values[i], i)
 	}
 
 	for i, key := range keys {

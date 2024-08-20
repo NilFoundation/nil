@@ -7,10 +7,11 @@ This tutorial explains how exactly a contract can accept external messages.
 The contract receiving [**an external message**](core-concepts/shards-parallel-execution.mdx##internal-vs-external-messages) must implement an additional function so that this call is processed. Unless this function is present, a contract cannot accept external messages. The function signature:
 
 ```solidity showLineNumbers
-function verifyExternal(
-        uint256 hash, 
-        bytes calldata authData 
-    ) external view returns (bool)
+ function validateSignature(
+        bytes memory pubkey,
+        uint256 hash,
+        bytes memory signature
+    ) internal view returns (bool)
 ```
 
 The purpose of the function is to limit who can call the receiver contract via an external message. Its body can hold any logic for checking the message signature.
@@ -27,19 +28,6 @@ As the receiving contract is charged with paying for external messages, the `ver
 
 This example contains a simple mechanism for verifying `authData`:
 
-```solidity showLineNumbers
-import "./Nil.sol";
-contract Receiver {
-    bytes pubkey;
-
-    constructor(bytes memory _pubkey, ) payable {
-        pubkey = _pubkey;
-    }
-
-    function verifyExternal(uint256 hash, bytes memory authData) external view returns (bool) {
-        return Nil.validateSignature(pubkey, messageHash, authData);
-    }
-
-}
+```solidity showLineNumbers file=../../../tests/Receiver.sol start=startReceiverContract end=endReceiverContract
 ```
 

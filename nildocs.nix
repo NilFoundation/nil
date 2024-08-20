@@ -1,17 +1,22 @@
-{ lib, stdenv, nodePackages, npmHooks, nodejs, nil, openssl, fetchNpmDeps, autoconf, automake, libtool }:
+{ lib, stdenv, npmHooks, nodejs, nil, openssl, fetchNpmDeps, callPackage, autoconf, automake, libtool, solc, enableTesting ? false }:
 
 stdenv.mkDerivation rec {
   name = "nil.docs";
   pname = "nildocs";
-  src = lib.sourceByRegex ./. ["package.json" "package-lock.json" "^docs(/.*)?$"];
-  buildInputs = [ nodejs npmHooks.npmConfigHook openssl ] ;
+  src = lib.sourceByRegex ./. [
+    "package.json"
+    "package-lock.json"
+    "^docs(/.*)?$"
+    "^niljs(/.*)?$"
+  ];
 
-  npmDeps = fetchNpmDeps {
-    inherit src;
-    hash = "sha256-+KfATAYbBW5SMrrul08mZ1A04WuPIjOA7IurDDP17d0=";
-  };
+  npmDeps = (callPackage ./npmdeps.nix { });
 
   NODE_PATH = "$npmDeps";
+
+  buildInputs = [
+    openssl
+  ];
 
   nativeBuildInputs = [
     nodejs
@@ -20,26 +25,30 @@ stdenv.mkDerivation rec {
     autoconf
     automake
     libtool
+    solc
   ];
 
   dontConfigure = true;
 
-  postPatch = ''
-      export HOME=$NIX_BUILD_TOP/fake_home
-      patchShebangs node_modules/
-    '';
-
   buildPhase = ''
-    patchShebangs hardhat-plugin/node_modules
-    runHook preBuild
+    patchShebangs docs/node_modules
+    patchShebangs niljs/node_modules
+    (cd niljs; npm run build)
 
     export NILJS_SRC=${./niljs}
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
     export NODE_OPTIONS=--openssl-legacy-provider
-    npm run build --legacy-peer-deps --workspaces
 
     cd docs
-    runHook postBuild
+    npm run build
+  '';
+
+  doCheck = enableTesting;
+
+  checkPhase = ''
+    echo "Runnig tests..."
+    bash run_tests.sh
+    echo "Tests passed"
   '';
 
   shellHook = ''
@@ -47,11 +56,6 @@ stdenv.mkDerivation rec {
   '';
 
   installPhase = ''
-    runHook preInstall
-
     mv build $out
-
-    runHook postInstall
   '';
-
 }

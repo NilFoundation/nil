@@ -15,8 +15,10 @@ import (
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
@@ -96,6 +98,8 @@ type ExecutionState struct {
 
 	// wasSentRequest is true if the VM execution ended with sending a request message
 	wasSentRequest bool
+
+	configAccessor *config.ConfigAccessor
 }
 
 type ExecutionResult struct {
@@ -175,45 +179,6 @@ type revision struct {
 
 var _ vm.StateDB = new(ExecutionState)
 
-func NewAccountStateReader(account *AccountState) *AccountStateReader {
-	return &AccountStateReader{
-		CurrencyTrieReader: account.CurrencyTree.BaseMPTReader,
-	}
-}
-
-func NewAccountState(es *ExecutionState, addr types.Address, account *types.SmartContract) (*AccountState, error) {
-	shardId := addr.ShardId()
-
-	accountState := &AccountState{
-		db:               es,
-		address:          addr,
-		CurrencyTree:     NewDbCurrencyTrie(es.tx, shardId),
-		StorageTree:      NewDbStorageTrie(es.tx, shardId),
-		AsyncContextTree: NewDbAsyncContextTrie(es.tx, shardId),
-
-		Tx:    es.tx,
-		State: make(Storage),
-	}
-
-	if account != nil {
-		accountState.Balance = account.Balance
-		accountState.CurrencyTree.SetRootHash(account.CurrencyRoot)
-		accountState.StorageTree.SetRootHash(account.StorageRoot)
-		accountState.CodeHash = account.CodeHash
-		accountState.AsyncContextTree.SetRootHash(account.AsyncContextRoot)
-		var err error
-		accountState.Code, err = db.ReadCode(es.tx, shardId, account.CodeHash)
-		if err != nil {
-			return nil, err
-		}
-		accountState.ExtSeqno = account.ExtSeqno
-		accountState.Seqno = account.Seqno
-		accountState.requestId = account.RequestId
-	}
-
-	return accountState, nil
-}
-
 // NewEVMBlockContext creates a new context for use in the EVM.
 func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
 	header, err := db.ReadBlock(es.tx, es.ShardId, es.PrevBlock)
@@ -282,6 +247,7 @@ func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash,
 
 		gasPriceScale: gasPriceScale,
 	}
+
 	return res, res.initTries()
 }
 
@@ -308,6 +274,43 @@ func NewExecutionStateForShard(tx db.RwTx, shardId types.ShardId, timer common.T
 		return nil, fmt.Errorf("failed getting last block: %w", err)
 	}
 	return NewExecutionState(tx, shardId, hash, timer, gasPriceScale)
+}
+
+func (es *ExecutionState) GetConfigAccessor() *config.ConfigAccessor {
+	if es.configAccessor == nil {
+		err := es.initConfigAccessor()
+		check.PanicIfErr(err)
+	}
+	return es.configAccessor
+}
+
+// initConfigAccessor inits config accessor for the current state.
+func (es *ExecutionState) initConfigAccessor() error {
+	configTree := mpt.NewDbMPT(es.tx, types.MainShardId, db.ConfigTrieTable)
+
+	var mainChainBlock *types.Block
+	var err error
+
+	if es.ShardId == types.MainShardId {
+		mainChainBlock, err = db.ReadLastBlock(es.tx, es.ShardId)
+		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+			return err
+		}
+		if mainChainBlock != nil {
+			configTree.SetRootHash(mainChainBlock.ConfigRoot)
+		}
+	} else {
+		sa, err := es.Accessor.Access(es.tx, types.MainShardId).GetBlock().ByHash(es.MainChainHash)
+		if err != nil {
+			return err
+		}
+		mainChainBlock = sa.Block()
+		configTree.SetRootHash(mainChainBlock.ConfigRoot)
+	}
+
+	es.configAccessor = config.NewConfigAccessorFromMpt(configTree, es.ShardId)
+
+	return nil
 }
 
 func (es *ExecutionState) GetReceipt(msgIndex types.MessageIndex) (*types.Receipt, error) {
@@ -653,10 +656,6 @@ func (es *ExecutionState) SetExtSeqno(addr types.Address, seqno types.Seqno) err
 	}
 	acc.SetExtSeqno(seqno)
 	return nil
-}
-
-func (es *ExecutionState) SetMainChainHash(hash common.Hash) {
-	es.MainChainHash = hash
 }
 
 func (es *ExecutionState) SetShardHash(shardId types.ShardId, hash common.Hash) {
@@ -1216,6 +1215,18 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		Timestamp: 0,
 	}
 
+	if es.ShardId == types.MainShardId {
+		if es.configAccessor != nil {
+			block.ConfigRoot = es.configAccessor.GetRootHash()
+		} else {
+			// If we didn't touch `ConfigTree` it means that we don't have any changes in config.
+			// So, just copy it from the previous block.
+			prevBlock, err := db.ReadBlock(es.tx, es.ShardId, es.PrevBlock)
+			check.PanicIfErr(err)
+			block.ConfigRoot = prevBlock.ConfigRoot
+		}
+	}
+
 	if TraceBlocksEnabled {
 		blocksTracer.Trace(es, &block)
 	}
@@ -1533,6 +1544,8 @@ func (es *ExecutionState) evmToMessageError(err error) error {
 		return types.NewMessageError(types.MessageStatusCrossShardMessage, err)
 	case errors.Is(err, vm.ErrMessageToMainShard):
 		return types.NewMessageError(types.MessageStatusMessageToMainShard, err)
+	case errors.Is(err, vm.ErrPrecompileReverted):
+		return types.NewMessageError(types.MessageStatusPrecompileReverted, err)
 	}
 	return types.NewMessageError(types.MessageStatusExecution, err)
 }

@@ -18,15 +18,15 @@ Complete the following tutorials before proceeding.
 
 To call the `orderProduct()` function inside the retailer contract and trigger an async call:
 
-```bash
-nil wallet send-tokens RETAILER_ADDRESS 5000000
-nil wallet send-message RETAILER_ADDRESS orderProduct MANUFACTURER_ADDRESS new-product --abi path/to/Retailer.abi --fee-credit 2000000
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startSendTokensCommand end=endSendTokensCommand
+```
+
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startRetailerCallManufacturer end=endRetailerCallManufacturer
 ```
 
 Make a readonly call to access the value:
 
-```bash
-nil contract call-readonly MANUFACTURER_ADDRESS getProducts --abi path/to/Manufacturer.abi
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startCallToManufacturerCommand end=endCallToManufacturerCommand
 ```
 
 The CLI should output the decoded values automatically.
@@ -35,55 +35,12 @@ The CLI should output the decoded values automatically.
 
 To send funds to the retailer product and call the `orderProduct` method:
 
-```ts showLineNumbers
-const hashFunds = await faucet.withdrawToWithRetry(addressR, 5_000_000n);
-
-await waitTillCompleted(client, 1, hashFunds);
-
-const hashProduct = await wallet.sendMessage({
-  to: addressR,
-  data: encodeFunctionData({
-    abi: RETAILER_ABI as Abi,
-    functionName: "orderProduct",
-    args: [addressM, "another-product"],
-  }),
-  feeCredit: 3_000_000n,
-});
-
-await waitTillCompleted(client, 1, hashProduct);
-
-console.log("Product created!");
+```ts showLineNumbers file=../../../tests/working-with-smart-contracts-niljs.test.mjs start=startRetailerSendsMessageToManufacturer end=endRetailerSendsMessageToManufacturer
 ```
 
 To receive and decode the currently created products:
 
-```ts showLineNumbers
-import {
-  decodeFunctionResult,
-  encodeFunctionData,
-} from "viem";
-
-const resultsCall = await client.call(
-  {
-    from: addrM,
-    to: addrM,
-    data: encodeFunctionData({
-      abi: MANUFACTURER_ABI as Abi,
-      functionName: "getProducts",
-      args: [],
-    }),
-  },
-  "latest",
-);
-
-console.log(
-  "getProducts",
-  decodeFunctionResult({
-    abi: MANUFACTURER_ABI as Abi,
-    functionName: "getProducts",
-    data: resultsCall,
-  }),
-);
+```ts showLineNumbers file=../../../tests/working-with-smart-contracts-niljs.test.mjs start=startRetailerRetrievesTheResult end=endRetailerRetrievesTheResult 
 ```
 
 ## Using external messages
@@ -98,60 +55,12 @@ In the retailer contract, the `orderProduct()` function cannot be called externa
 
 To order a new product using the retailer:
 
-```ts showLineNumbers
-const orderMessage = new ExternalMessageEnvelope({
-  isDeploy: false,
-  to: hexToBytes(RETAILER_ADDRESS),
-  chainId,
-  seqno: await client.getMessageCount(RETAILER_ADDRESS, "latest"),
-  data: hexToBytes(
-    encodeFunctionData({
-      abi: RETAILER_ABI as Abi,
-      functionName: "orderProduct",
-      args: [addrM, "new-product"],
-    }),
-  ),
-  authData: new Uint8Array(0),
-});
-
-const encodedOrderMessage = orderMessage.encode();
-
-const orderMessageHash = await client.sendRawMessage(
-  bytesToHex(encodedOrderMessage),
-);
-
-await waitTillCompleted(client, 1, orderMessageHash);
+```ts showLineNumbers file=../../../tests/working-with-smart-contracts-niljs.test.mjs start=startExternalSendMessageToRetailer end=endExternalSendMessageToRetailer
 ```
 
 To receive and decode the currently created products:
 
-```ts showLineNumbers
-import {
-  decodeFunctionResult,
-  encodeFunctionData,
-} from "viem";
-
-const resultsCall = await client.call(
-  {
-    from: addrM,
-    to: addrM,
-    data: encodeFunctionData({
-      abi: MANUFACTURER_ABI as Abi,
-      functionName: "getProducts",
-      args: [],
-    }),
-  },
-  "latest",
-);
-
-console.log(
-  "getProducts",
-  decodeFunctionResult({
-    abi: MANUFACTURER_ABI as Abi,
-    functionName: "getProducts",
-    data: resultsCall,
-  }),
-);
+```ts showLineNumbers file=../../../tests/working-with-smart-contracts-niljs.test.mjs start=startRetailerRetrievesTheResult end=endRetailerRetrievesTheResult 
 ```
 
 ## Via the Hardhat plugin

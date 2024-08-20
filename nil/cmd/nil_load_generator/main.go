@@ -10,7 +10,6 @@ import (
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -18,11 +17,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"
-)
-
-const (
-	IncrementContractCode = `0x6080604052348015600e575f80fd5b506101498061001c5f395ff3fe608060405234801561000f575f80fd5b5060043610610034575f3560e01c80636d4ce63c14610038578063d09de08a14610056575b5f80fd5b610040610060565b60405161004d919061009a565b60405180910390f35b61005e610068565b005b5f8054905090565b60015f8082825461007991906100e0565b92505081905550565b5f819050919050565b61009481610082565b82525050565b5f6020820190506100ad5f83018461008b565b92915050565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52601160045260245ffd5b5f6100ea82610082565b91506100f583610082565b925082820190508082111561010d5761010c6100b3565b5b9291505056fea264697066735822122017563c6eae8ec11268139f122ea07e70216c9c1c8827f4360d0170f2187491a464736f6c63430008190033`
-	IncrementCalldata     = `0xd09de08a`
 )
 
 func RandomPermutation(n, amount uint64) ([]uint64, error) {
@@ -45,6 +39,24 @@ func RandomPermutation(n, amount uint64) ([]uint64, error) {
 
 func main() {
 	logger := logging.NewLogger("nil_load_generator")
+
+	incrementContractCode, err := contracts.GetCode("tests/Counter")
+	if err != nil {
+		logger.Err(err).Send()
+		panic("Counter code is not found")
+	}
+
+	abi, err := contracts.GetAbi("tests/Counter")
+	if err != nil {
+		logger.Err(err).Send()
+		panic("Counter ABI is not found")
+	}
+
+	incrementCalldata, err := abi.Pack("add", int32(11))
+	if err != nil {
+		logger.Err(err).Send()
+		panic("Failed to create counter calldata")
+	}
 
 	rootCmd := &cobra.Command{
 		Use:   "nil_loadgen",
@@ -84,7 +96,7 @@ func main() {
 	}
 
 	for _, shardId := range shardIdList {
-		txHashCaller, addr, err := client.DeployContract(shardId, wallets[0], types.BuildDeployPayload(hexutil.FromHex(IncrementContractCode), common.EmptyHash), types.Value{}, privateKeys[0])
+		txHashCaller, addr, err := client.DeployContract(shardId, wallets[0], types.BuildDeployPayload(incrementContractCode, common.EmptyHash), types.Value{}, privateKeys[0])
 		if err != nil {
 			logger.Error().Err(err).Msg("Error during deploy contract, maybe contract already deployed")
 		}
@@ -111,8 +123,8 @@ func main() {
 				defer wg.Done()
 				var hash common.Hash
 				for _, addr := range addrToCall {
-					hash, err = client.SendMessageViaWallet(wallet, hexutil.FromHex(IncrementCalldata),
-						types.Gas(100_000).ToValue(types.DefaultGasPrice), types.Value{}, []types.CurrencyBalance{},
+					hash, err = client.SendMessageViaWallet(wallet, incrementCalldata,
+						types.GasToValue(100_000), types.GasToValue(100_000), types.Value{}, []types.CurrencyBalance{},
 						contractsCall[addr],
 						privateKeys[i])
 					if err != nil {

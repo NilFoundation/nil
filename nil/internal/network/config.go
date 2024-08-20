@@ -7,16 +7,20 @@ import (
 type PeerID = peer.ID
 
 type Config struct {
-	PrivateKey PrivateKey
+	PrivateKey PrivateKey `yaml:"-"`
 
-	IPV4Address string
-	TcpPort     int
-	QuicPort    int
+	IPV4Address string `yaml:"-"`
+	TcpPort     int    `yaml:"tcpPort"`
+	QuicPort    int    `yaml:"quicPort"`
 
-	UseMdns bool
+	UseMdns bool `yaml:"useMdns"`
 
-	DHTEnabled        bool
-	DHTBootstrapPeers []string
+	DHTEnabled        bool     `yaml:"dhtEnabled"`
+	DHTBootstrapPeers []string `yaml:"dhtBootstrapPeers"`
+}
+
+func NewDefaultConfig() *Config {
+	return &Config{}
 }
 
 func (c *Config) Enabled() bool {

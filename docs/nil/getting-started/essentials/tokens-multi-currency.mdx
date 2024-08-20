@@ -26,17 +26,10 @@ When a currency is created, it is assigned an ID derived from the address of the
 
 To create a new currency and immediately withdraw it to the address of the owner:
 
-```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=First end=Second
+```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startBasicCreateCurrencyCommand end=endBasicCreateCurrencyCommand
 ```
 
-To create a currency and mint it:
-
-```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=Third end=Fourth
-```
-
-To send an existing currency (with some amount already minted) from a minter to another contract:
-
-```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=Fifth end=Sixth
+```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startBasicWithdrawCurrencyCommand end=endBasicWithdrawCurrencyCommand
 ```
 
 ### Via the client library
@@ -49,12 +42,7 @@ To get the ID of a currency, simply call the `hexToBigInt()` function on the own
 
 To create a new currency and withdraw it:
 
-```ts file=../../../tests/tokens-multi-currency-support.test.mjs start=Seventh end=Eigth
-```
-
-To mint a currency and withdraw it:
-
-```ts file=../../../tests/tokens-multi-currency-support.test.mjs start=Ninth end=Tenth
+```ts file=../../../tests/tokens-multi-currency-support.test.mjs start=startBasicNilJSExample end=endBasicNilJSExample
 ```
 
 
@@ -64,32 +52,32 @@ This example creates a wallet that stores three currencies: the default token, a
 
 ### Via the CLI
 
-Create two new wallets (Wallet 1 and Wallet 2):
+Create a new wallet:
 
-```bash ts file=../../../tests/tokens-multi-currency-support.test.mjs start=startWalletCreation end=endWalletCreation
+```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startWalletCreation end=endWalletCreation
 ```
 
-```bash ts file=../../../tests/tokens-multi-currency-support.test.mjs start=startSaltWalletCreation end=endSaltWalletCreation
+Create a new currency with the new wallet as its owner and withdraw it:
+
+```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startCurrencyOneCreationCommand end=endCurrencyOneCreationCommand
 ```
 
-Create a new currency for Wallet 1 and withdraw it:
-
-```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=Eleventh end=Twelfth
+```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startCurrencyOneWithdrawalCommand end=endCurrencyOneWithdrawalCommand
 ```
 
-Create a new currency for Wallet 2 and keep it in the minter:
+Create another currency with another smart contract as its owner:
 
-```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=Thirteenth end=Fourteenth
+```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startCurrencyTwoCreationCommand end=endCurrencyTwoCreationCommand
 ```
 
-Withdraw the second currency to Wallet 1:
+Withdraw the new currency back to the wallet:
 
-```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=Eighteenth end=Nineteenth
+```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startCurrencyTwoWithdrawalCommand end=endCurrencyTwoWithdrawalCommand
 ```
 
-Check the currencies for Wallet 1:
+Check the wallet currencies:
 
-```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=Fifteenth end=Sixteenth
+```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startWalletCurrenciesCommand end=endWalletCurrenciesCommand
 ```
 
 The following response should appear:
@@ -97,37 +85,23 @@ The following response should appear:
 ```bash
 Contract currencies:
 Balance: 50000 CurrencyId=[CURRENCY_ID_ONE]
-Balance: 15000 CurrencyId=[CURRENCY_ID_TWO]
-```
-
-Check the balance of Wallet 1 in default tokens:
-
-```bash
-nil contract balance WALLET_ONE_ADDRESS
-```
-
-```bash
-Contract balance: BALANCE
+Balance: 30000 CurrencyId=[CURRENCY_ID_TWO]
 ```
 
 ### Via the client library
 
 Create two new wallets:
 
-```ts showLineNumbers file=../../../tests/tokens-multi-currency-support.test.mjs start=Twentieth end=Twentyfirst
+```ts showLineNumbers file=../../../tests/tokens-multi-currency-support.test.mjs start=startAdvancedNilJSExample end=endAdvancedNilJSExample
 ```
 
 Create a new currency for Wallet 1 and withdraw it:
 
-```ts showLineNumbers file=../../../tests/tokens-multi-currency-support.test.mjs start=Twentysecond end=Twentythird
+```ts showLineNumbers file=../../../tests/tokens-multi-currency-support.test.mjs start=startAdvancedNilJSMintingExample end=endAdvancedNilJSMintingExample
 ```
 
 Create a new currency for Wallet 2 and send it to Wallet 1:
 
-```ts showLineNumbers file=../../../tests/tokens-multi-currency-support.test.mjs start=Twentyfourth end=Twentyfifth
+```ts showLineNumbers file=../../../tests/tokens-multi-currency-support.test.mjs start=startNilJSTransferExample end=endNilJSTransferExample
 ```
 
-Check the currencies for Wallet 1:
-
-```ts showLineNumbers file=../../../tests/tokens-multi-currency-support.test.mjs start=Twentysixth end=Twentyseventh
-```

@@ -32,11 +32,13 @@ func (suite *SuiteSendTransaction) SetupSuite() {
 	suite.db, err = db.NewBadgerDbInMemory()
 	suite.Require().NoError(err)
 
+	mainBlockHash := execution.GenerateZeroState(suite.T(), ctx, types.MainShardId, suite.db)
+
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	es, err := execution.NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0), 1)
+	es, err := execution.NewExecutionState(tx, shardId, mainBlockHash, common.NewTestTimer(0), 1)
 	suite.Require().NoError(err)
 
 	suite.smcAddr = types.CreateAddress(shardId, types.BuildDeployPayload([]byte("1234"), common.EmptyHash))

@@ -1,0 +1,72 @@
+## nild example config
+## Default values are set.
+
+#nShards: 5
+
+## Running shard settings
+#runOnlyShard: 0
+#shardEndpoints:
+
+## RPC settings
+#rpcPort: 8529
+
+## Admin settings
+## Example: /var/lib/nil/admin_socket
+#adminSocket: ""
+
+## Keys settings
+#mainKeysPath: "keys.yaml"
+#networkKeysPath: "network-keys.yaml"
+
+## Gas settings
+#gasPriceScale: 0.0
+#gasBasePrice: 10
+
+## Zero-state settings
+## TODO: describe zero-state settings
+#zeroState:
+
+## Network settings
+#network:
+  ## If all ports are zero (default), the network will not be started
+  #tcpPort: 0
+  #quicPort: 0
+
+  ## MDNS can only be used for discovery in local networks, e.g., in tests
+  #useMdns: false
+
+  ## DHT is the main discovery mechanism
+  #dhtEnabled: false
+  ## Peer addresses should be strings formatted as `/ip4/IP/tcp/PORT/p2p/IDENTITY`
+  #dhtBootstrapPeers: []
+
+## Telemetry settings
+#telemetry:
+  ## Service name will default to the binary name if not set.
+  ## It is recommended not to change the default value.
+  #serviceName: ""
+  ## If set to true, the metrics service will be started.
+  ## Metrics will be exported to the default OTLP gRPC collector.
+  #exportMetrics: false
+
+## Replay mode-only settings.
+## They will be ignored in other modes.
+#replay:
+  #blockId: 1
+  #shardId: 1
+
+## Database settings
+#db:
+  ## Path to the database directory
+  #path: "test.db"
+  ## If set to true, the database will be cleared on startup.
+  #allowDrop: false
+  ## GC settings
+  #gcDiscardRatio: 0.5
+  #gcFrequency: 1h
+
+## Read-through mode configuration
+## TODO: description
+#readThrough
+  #sourceAddr: ""
+  #startBlock: latest

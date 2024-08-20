@@ -3,9 +3,14 @@ package client
 import (
 	"crypto/ecdsa"
 	"encoding/json"
+	"fmt"
+	"strings"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 )
 
@@ -32,6 +37,7 @@ type Client interface {
 	CreateBatchRequest() BatchRequest
 	BatchCall(BatchRequest) ([]any, error)
 
+	EstimateFee(args *jsonrpc.CallArgs, blockId any) (types.Value, error)
 	Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error)
 	GetCode(addr types.Address, blockId any) (types.Code, error)
 	GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error)
@@ -50,13 +56,13 @@ type Client interface {
 	DeployContract(
 		shardId types.ShardId, walletAddress types.Address, payload types.DeployPayload, value types.Value, pk *ecdsa.PrivateKey,
 	) (common.Hash, types.Address, error)
-	DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload) (common.Hash, types.Address, error)
+	DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload, feeCredit types.Value) (common.Hash, types.Address, error)
 	SendMessageViaWallet(
-		walletAddress types.Address, bytecode types.Code, feeCredit types.Value, value types.Value,
+		walletAddress types.Address, bytecode types.Code, externalFeeCredit, internalFeeCredit, value types.Value,
 		currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
 	) (common.Hash, error)
 	SendExternalMessage(
-		bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey,
+		bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, feeCredit types.Value,
 	) (common.Hash, error)
 
 	TopUpViaFaucet(contractAddress types.Address, amount types.Value) (common.Hash, error)
@@ -69,4 +75,154 @@ type Client interface {
 
 	// CurrencyMint mints currency for the contract
 	CurrencyMint(contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey) (common.Hash, error)
+}
+
+func EstimateFeeInternal(c Client, msg *types.InternalMessagePayload, blockId any) (types.Value, error) {
+	var flags types.MessageFlags
+	if msg.Kind == types.DeployMessageKind {
+		flags = types.NewMessageFlags(types.MessageFlagInternal, types.MessageFlagDeploy)
+	} else {
+		flags = types.NewMessageFlags(types.MessageFlagInternal)
+	}
+
+	args := &jsonrpc.CallArgs{
+		Data:  (*hexutil.Bytes)(&msg.Data),
+		To:    msg.To,
+		Flags: flags,
+		Value: msg.Value,
+	}
+
+	return c.EstimateFee(args, blockId)
+}
+
+func EstimateFeeExternal(c Client, msg *types.ExternalMessage, blockId any) (types.Value, error) {
+	var flags types.MessageFlags
+	if msg.Kind == types.DeployMessageKind {
+		flags = types.NewMessageFlags(types.MessageFlagDeploy)
+	}
+
+	args := &jsonrpc.CallArgs{
+		Data:  (*hexutil.Bytes)(&msg.Data),
+		To:    msg.To,
+		Flags: flags,
+		Seqno: msg.Seqno,
+	}
+
+	return c.EstimateFee(args, blockId)
+}
+
+func SendExternalMessage(
+	c Client, bytecode types.Code, contractAddress types.Address,
+	pk *ecdsa.PrivateKey, feeCredit types.Value, isDeploy bool, withRetry bool,
+) (common.Hash, error) {
+	var kind types.MessageKind
+	if isDeploy {
+		kind = types.DeployMessageKind
+	} else {
+		kind = types.ExecutionMessageKind
+	}
+
+	// Get the sequence number for the wallet
+	seqno, err := c.GetTransactionCount(contractAddress, "pending")
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	// Create the message with the bytecode to run
+	extMsg := &types.ExternalMessage{
+		To:        contractAddress,
+		Data:      bytecode,
+		Seqno:     seqno,
+		Kind:      kind,
+		FeeCredit: feeCredit,
+	}
+
+	if feeCredit.IsZero() {
+		var err error
+		if feeCredit, err = EstimateFeeExternal(c, extMsg, "latest"); err != nil {
+			return common.EmptyHash, err
+		}
+	}
+	extMsg.FeeCredit = feeCredit
+
+	if withRetry {
+		return sendExternalMessageWithSeqnoRetry(c, extMsg, pk)
+	}
+
+	if pk != nil {
+		err = extMsg.Sign(pk)
+		if err != nil {
+			return common.EmptyHash, err
+		}
+	}
+
+	return c.SendMessage(extMsg)
+}
+
+// sendExternalMessageWithSeqnoRetry tries to send an external message increasing seqno if needed.
+// Can be used to ensure sending messages to common contracts like Faucet.
+func sendExternalMessageWithSeqnoRetry(c Client, msg *types.ExternalMessage, pk *ecdsa.PrivateKey) (common.Hash, error) {
+	var err error
+	for range 20 {
+		if pk != nil {
+			if err := msg.Sign(pk); err != nil {
+				return common.EmptyHash, err
+			}
+		}
+
+		var txHash common.Hash
+		txHash, err = c.SendMessage(msg)
+		if err == nil {
+			return txHash, nil
+		}
+		if !strings.Contains(err.Error(), msgpool.NotReplaced.String()) &&
+			!strings.Contains(err.Error(), msgpool.SeqnoTooLow.String()) {
+			return common.EmptyHash, err
+		}
+
+		msg.Seqno++
+	}
+	return common.EmptyHash, fmt.Errorf("failed to send message in 20 retries, getting %w", err)
+}
+
+func SendMessageViaWallet(
+	c Client, walletAddress types.Address, bytecode types.Code, externalFeeCredit, internalFeeCredit, value types.Value,
+	currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
+) (common.Hash, error) {
+	var kind types.MessageKind
+	if isDeploy {
+		kind = types.DeployMessageKind
+	} else {
+		kind = types.ExecutionMessageKind
+	}
+
+	intMsg := &types.InternalMessagePayload{
+		Data:        bytecode,
+		To:          contractAddress,
+		Value:       value,
+		FeeCredit:   internalFeeCredit,
+		ForwardKind: types.ForwardKindNone,
+		Currency:    currencies,
+		Kind:        kind,
+	}
+
+	if internalFeeCredit.IsZero() {
+		var err error
+		if internalFeeCredit, err = EstimateFeeInternal(c, intMsg, "latest"); err != nil {
+			return common.EmptyHash, err
+		}
+	}
+	intMsg.FeeCredit = internalFeeCredit
+
+	intMsgData, err := intMsg.MarshalSSZ()
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	calldataExt, err := contracts.NewCallData(contracts.NameWallet, "send", intMsgData)
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	return c.SendExternalMessage(calldataExt, walletAddress, pk, externalFeeCredit)
 }

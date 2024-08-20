@@ -30,12 +30,31 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 	var receipt *types.Receipt
 	var gasPrice types.Value
 
+	includedInMain := false
+
 	if block != nil {
 		receipt, err = getBlockEntity[*types.Receipt](tx, shardId, db.ReceiptTrieTable, block.ReceiptsRoot, indexes.MessageIndex.Bytes())
 		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 			return nil, err
 		}
 		gasPrice = block.GasPrice
+
+		// Check if the message is included in the main chain
+		if mainBlock, err := db.ReadLastBlock(tx, types.MainShardId); err == nil {
+			if shardId.IsMainShard() {
+				includedInMain = mainBlock.Id >= block.Id
+			} else {
+				treeShards := execution.NewDbShardBlocksTrieReader(tx, types.MainShardId, mainBlock.Id)
+				treeShards.SetRootHash(mainBlock.ChildBlocksRootHash)
+				hashBytes, err := treeShards.Get(shardId.Bytes())
+				if err == nil {
+					hash := common.BytesToHash(hashBytes)
+					if lastBlock, err := db.ReadBlock(tx, shardId, hash); err == nil {
+						includedInMain = lastBlock.Id >= block.Id
+					}
+				}
+			}
+		}
 	} else {
 		gasPrice = types.DefaultGasPrice
 	}
@@ -83,6 +102,9 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 		}
 	}
 
-	return NewRPCReceipt(shardId, block, indexes.MessageIndex, receipt, outMessages, outReceipts, cachedReceipt, errMsg,
-		gasPrice), nil
+	res := NewRPCReceipt(shardId, block, indexes.MessageIndex, receipt, outMessages, outReceipts, cachedReceipt, errMsg,
+		gasPrice)
+	res.IncludedInMain = includedInMain
+
+	return res, nil
 }

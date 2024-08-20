@@ -69,3 +69,18 @@ func WaitFor[T any](ctx context.Context, timeout, tick time.Duration, f func(ctx
 func Run(ctx context.Context, fs ...Func) error {
 	return RunWithTimeout(ctx, 0, fs...)
 }
+
+// RunTickerLoop runs a loop that executes a function at regular intervals
+func RunTickerLoop(ctx context.Context, interval time.Duration, onTick func(context.Context)) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			onTick(ctx)
+		case <-ctx.Done():
+			return
+		}
+	}
+}

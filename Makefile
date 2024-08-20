@@ -2,18 +2,13 @@ GO ?= go
 GOBIN = $(CURDIR)/build/bin
 GOPRIVATE = github.com/NilFoundation
 PACKAGE = github.com/NilFoundation/nil
-GIT_COMMIT = $(shell git rev-parse --short HEAD)
-GIT_TAG = $(shell git describe --tags 2>/dev/null || echo "0.1.0")
-GIT_REVISION = $(shell git rev-list --count HEAD)
 
-GO_FLAGS = -ldflags "-X '${PACKAGE}/nil/common/version.gitCommit=$(GIT_COMMIT)' \
-		     -X '${PACKAGE}/nil/common/version.gitTag=$(GIT_TAG)' \
-		     -X '${PACKAGE}/nil/common/version.gitRevision=$(GIT_REVISION)'"
+GO_FLAGS =
 GOBUILD = GOPRIVATE="$(GOPRIVATE)" $(GO) build $(GO_FLAGS)
 GO_DBG_BUILD = GOPRIVATE="$(GOPRIVATE)" $(GO) build -tags $(BUILD_TAGS),debug,assert -gcflags=all="-N -l"  # see delve docs
 GOTEST = GOPRIVATE="$(GOPRIVATE)" GODEBUG=cgocheck=0 $(GO) test -tags $(BUILD_TAGS),debug,assert,test $(GO_FLAGS) ./... -p 2
 
-COMMANDS += nild nil nil_load_generator exporter
+COMMANDS += nild nil nil_load_generator exporter sync_committee
 
 all: $(COMMANDS)
 
@@ -35,9 +30,10 @@ $(COMMANDS): %: compile-contracts ssz %.cmd
 include nil/internal/db/Makefile.inc
 include nil/internal/mpt/Makefile.inc
 include nil/internal/types/Makefile.inc
+include nil/internal/config/Makefile.inc
 
 .PHONY: ssz
-ssz: ssz_db ssz_mpt ssz_types
+ssz: ssz_db ssz_mpt ssz_types ssz_config
 
 contracts/compiled/%.bin: $(wildcard nil/contracts/solidity/tests/*.sol) $(wildcard nil/contracts/solidity/*.sol)
 	go generate nil/contracts/generate.go

@@ -24,8 +24,7 @@ contract TokensTest is NilCurrencyBase {
     function testCallWithTokensAsync(address dst, Nil.Token[] memory tokens) onlyExternal public {
         bytes memory callData = abi.encodeCall(this.testMessageTokens, tokens);
         uint256 gas = gasleft() * tx.gasprice;
-        bool success = Nil.asyncCall(dst, address(0), address(0), gas, Nil.FORWARD_NONE, false, 0, tokens, callData);
-        require(success, "Async call failed");
+        Nil.asyncCall(dst, address(0), address(0), gas, Nil.FORWARD_NONE, false, 0, tokens, callData);
     }
 
     function testMessageTokens(Nil.Token[] memory tokens) payable public {
@@ -41,7 +40,7 @@ contract TokensTest is NilCurrencyBase {
         require(!fail, "Test for failed transaction");
     }
 
-    function checkTokenBalance(address addr, uint256 id, uint256 balance) public {
+    function checkTokenBalance(address addr, uint256 id, uint256 balance) public view {
         require(Nil.currencyBalance(addr, id) == balance, "Balance mismatch");
     }
 

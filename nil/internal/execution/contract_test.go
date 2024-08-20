@@ -200,7 +200,7 @@ func TestDelegate(t *testing.T) {
 		FeeCredit: toGasCredit(10000),
 	}
 	res = state.HandleExecutionMessage(ctx, callMessage)
-	require.ErrorAs(t, res.Error, new(vm.VMError))
+	require.False(t, res.Failed())
 }
 
 func TestAsyncCall(t *testing.T) {

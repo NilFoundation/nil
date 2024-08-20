@@ -6,13 +6,12 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/internal/collate"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -98,11 +97,8 @@ func (s *SuiteEconomy) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards:              s.shardsNum,
 		HttpUrl:              GetSockPath(s.T()),
-		Topology:             collate.TrivialShardTopologyId,
-		ZeroState:            s.zerostateCfg,
+		ZeroStateYaml:        s.zerostateCfg,
 		CollatorTickPeriodMs: 300,
-		GasPriceScale:        0,
-		GasBasePrice:         10,
 		RunMode:              nilservice.CollatorsOnlyRunMode,
 	})
 }

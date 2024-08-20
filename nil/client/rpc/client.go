@@ -19,7 +19,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -38,6 +37,8 @@ var (
 )
 
 const (
+	Eth_call                             = "eth_call"
+	Eth_estimateFee                      = "eth_estimateFee"
 	Eth_getCode                          = "eth_getCode"
 	Eth_getBlockByHash                   = "eth_getBlockByHash"
 	Eth_getBlockByNumber                 = "eth_getBlockByNumber"
@@ -527,111 +528,31 @@ func (c *Client) DeployContract(
 	shardId types.ShardId, walletAddress types.Address, payload types.DeployPayload, value types.Value, pk *ecdsa.PrivateKey,
 ) (common.Hash, types.Address, error) {
 	contractAddr := types.CreateAddress(shardId, payload)
-	txHash, err := c.sendMessageViaWallet(walletAddress, payload.Bytes(), types.GasToValue(100_000), value,
-		[]types.CurrencyBalance{}, contractAddr, pk, true)
+	txHash, err := client.SendMessageViaWallet(c, walletAddress, payload.Bytes(), types.GasToValue(100_000), types.GasToValue(100_000),
+		value, []types.CurrencyBalance{}, contractAddr, pk, true)
 	if err != nil {
 		return common.EmptyHash, types.EmptyAddress, err
 	}
 	return txHash, contractAddr, nil
 }
 
-func (c *Client) DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload) (common.Hash, types.Address, error) {
+func (c *Client) DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload, feeCredit types.Value) (common.Hash, types.Address, error) {
 	address := types.CreateAddress(shardId, deployPayload)
-	msgHash, err := c.sendExternalMessage(deployPayload.Bytes(), address, nil, true)
+	msgHash, err := client.SendExternalMessage(c, deployPayload.Bytes(), address, nil, feeCredit, true, false)
 	return msgHash, address, err
 }
 
 func (c *Client) SendMessageViaWallet(
-	walletAddress types.Address, bytecode types.Code, feeCredit types.Value, value types.Value,
+	walletAddress types.Address, bytecode types.Code, externalFeeCredit, internalFeeCredit, value types.Value,
 	currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
 ) (common.Hash, error) {
-	return c.sendMessageViaWallet(walletAddress, bytecode, feeCredit, value, currencies, contractAddress, pk, false)
-}
-
-// RunContract runs bytecode on the specified contract address
-func (c *Client) sendMessageViaWallet(
-	walletAddress types.Address, bytecode types.Code, feeCredit types.Value, value types.Value,
-	currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
-) (common.Hash, error) {
-	var kind types.MessageKind
-	if isDeploy {
-		kind = types.DeployMessageKind
-	} else {
-		kind = types.ExecutionMessageKind
-	}
-
-	intMsg := &types.InternalMessagePayload{
-		Data:        bytecode,
-		To:          contractAddress,
-		Value:       value,
-		FeeCredit:   feeCredit,
-		ForwardKind: types.ForwardKindNone,
-		Currency:    currencies,
-		Kind:        kind,
-	}
-
-	intMsgData, err := intMsg.MarshalSSZ()
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	calldataExt, err := contracts.NewCallData(contracts.NameWallet, "send", intMsgData)
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	return c.SendExternalMessage(calldataExt, walletAddress, pk)
+	return client.SendMessageViaWallet(c, walletAddress, bytecode, externalFeeCredit, internalFeeCredit, value, currencies, contractAddress, pk, false)
 }
 
 func (c *Client) SendExternalMessage(
-	bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey,
+	bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, feeCredit types.Value,
 ) (common.Hash, error) {
-	return c.sendExternalMessage(bytecode, contractAddress, pk, false)
-}
-
-func (c *Client) sendExternalMessage(
-	bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
-) (common.Hash, error) {
-	var kind types.MessageKind
-	if isDeploy {
-		kind = types.DeployMessageKind
-	} else {
-		kind = types.ExecutionMessageKind
-	}
-
-	// Get the sequence number for the wallet
-	seqno, err := c.GetTransactionCount(contractAddress, "latest")
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	c.logger.Debug().
-		Str(logging.FieldAccountAddress, contractAddress.String()).
-		Uint64(logging.FieldAccountSeqno, uint64(seqno)).
-		Msg("sending external message")
-
-	// Create the message with the bytecode to run
-	extMsg := &types.ExternalMessage{
-		To:    contractAddress,
-		Data:  bytecode,
-		Seqno: seqno,
-		Kind:  kind,
-	}
-
-	// Sign the message with the private key
-	if pk != nil {
-		err = extMsg.Sign(pk)
-		if err != nil {
-			return common.EmptyHash, err
-		}
-	}
-
-	// Send the raw transaction
-	txHash, err := c.SendMessage(extMsg)
-	if err != nil {
-		return common.EmptyHash, err
-	}
-	return txHash, nil
+	return client.SendExternalMessage(c, bytecode, contractAddress, pk, feeCredit, false, false)
 }
 
 func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount types.Value) (common.Hash, error) {
@@ -639,7 +560,7 @@ func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount types.Valu
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	return c.SendExternalMessage(callData, types.FaucetAddress, nil)
+	return client.SendExternalMessage(c, callData, types.FaucetAddress, nil, types.GasToValue(100_000), false, true)
 }
 
 func (c *Client) Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error) {
@@ -648,7 +569,7 @@ func (c *Client) Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrp
 		return nil, err
 	}
 
-	raw, err := c.call("eth_call", args, blockNrOrHash, stateOverride)
+	raw, err := c.call(Eth_call, args, blockNrOrHash, stateOverride)
 	if err != nil {
 		return nil, err
 	}
@@ -660,13 +581,31 @@ func (c *Client) Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrp
 	return res, nil
 }
 
+func (c *Client) EstimateFee(args *jsonrpc.CallArgs, blockId any) (types.Value, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return types.Value{}, err
+	}
+
+	raw, err := c.call(Eth_estimateFee, args, blockNrOrHash)
+	if err != nil {
+		return types.Value{}, err
+	}
+
+	var res types.Value
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return types.Value{}, err
+	}
+	return res, nil
+}
+
 func (c *Client) SetCurrencyName(contractAddr types.Address, name string, pk *ecdsa.PrivateKey) (common.Hash, error) {
 	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, "setCurrencyName", name)
 	if err != nil {
 		return common.EmptyHash, err
 	}
 
-	return c.SendExternalMessage(data, contractAddr, pk)
+	return c.SendExternalMessage(data, contractAddr, pk, types.GasToValue(100_000))
 }
 
 func (c *Client) CurrencyMint(contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey) (common.Hash, error) {
@@ -675,7 +614,7 @@ func (c *Client) CurrencyMint(contractAddr types.Address, amount types.Value, pk
 		return common.EmptyHash, err
 	}
 
-	return c.SendExternalMessage(data, contractAddr, pk)
+	return c.SendExternalMessage(data, contractAddr, pk, types.GasToValue(100_000))
 }
 
 func callDbAPI[T any](c *Client, method string, params ...any) (T, error) {

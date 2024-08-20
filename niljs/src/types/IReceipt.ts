@@ -18,6 +18,7 @@ type IReceipt = {
   outMessages: Hex[] | null;
   outputReceipts: (IReceipt | null)[] | null;
   shardId: number;
+  includedInMain: boolean;
 };
 
 type ProcessedReceipt = Omit<

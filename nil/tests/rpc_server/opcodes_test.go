@@ -6,7 +6,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -60,14 +59,10 @@ contracts:
 	s.Require().NoError(err)
 
 	s.start(&nilservice.Config{
-		NShards:              4,
-		HttpUrl:              GetSockPath(s.T()),
-		Topology:             collate.TrivialShardTopologyId,
-		ZeroState:            zerostate,
-		CollatorTickPeriodMs: 100,
-		GasPriceScale:        15,
-		GasBasePrice:         10,
-		RunMode:              nilservice.CollatorsOnlyRunMode,
+		NShards:       4,
+		HttpUrl:       GetSockPath(s.T()),
+		ZeroStateYaml: zerostate,
+		RunMode:       nilservice.CollatorsOnlyRunMode,
 	})
 }
 
@@ -93,7 +88,7 @@ func (s *SuitOpcodes) TestSend() {
 		callData, err := contracts.NewCallData(contracts.NameSender, "send", s.walletAddress1, big.NewInt(100500))
 		s.Require().NoError(err)
 
-		msgHash, err := s.client.SendExternalMessage(callData, s.senderAddress1, nil)
+		msgHash, err := s.client.SendExternalMessage(callData, s.senderAddress1, nil, s.gasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.waitForReceipt(s.senderAddress1.ShardId(), msgHash)
 		s.Require().NotNil(receipt)
@@ -107,7 +102,7 @@ func (s *SuitOpcodes) TestSend() {
 		callData, err := contracts.NewCallData(contracts.NameSender, "send", s.walletAddress2, big.NewInt(100500))
 		s.Require().NoError(err)
 
-		msgHash, err := s.client.SendExternalMessage(callData, s.senderAddress1, nil)
+		msgHash, err := s.client.SendExternalMessage(callData, s.senderAddress1, nil, s.gasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.waitForReceipt(s.senderAddress1.ShardId(), msgHash)
 		s.Require().NotNil(receipt)

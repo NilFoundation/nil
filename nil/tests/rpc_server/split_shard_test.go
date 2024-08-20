@@ -8,7 +8,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/client"
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
@@ -63,7 +62,7 @@ func (s *SuiteSplitShard) start(cfg *nilservice.Config) {
 	portmap := make(map[string]string)
 	for i := range cfg.NShards - 1 {
 		shardId := types.ShardId(i + 1)
-		url := GetSockPathIdx(s.T(), i)
+		url := GetSockPathIdx(s.T(), int(i))
 		shard := shard{
 			id:       shardId,
 			db:       s.dbInit(),
@@ -74,6 +73,8 @@ func (s *SuiteSplitShard) start(cfg *nilservice.Config) {
 		portmap[shardId.String()] = shard.endpoint
 		s.shards = append(s.shards, shard)
 	}
+
+	PatchConfigWithTestDefaults(cfg)
 	for i := range cfg.NShards - 1 {
 		s.wg.Add(1)
 		go func() {
@@ -106,10 +107,7 @@ func (s *SuiteSplitShard) waitZerostate() {
 
 func (s *SuiteSplitShard) SetupSuite() {
 	s.start(&nilservice.Config{
-		NShards:              3,
-		Topology:             collate.TrivialShardTopologyId,
-		CollatorTickPeriodMs: 100,
-		GasBasePrice:         10,
+		NShards: 3,
 	})
 }
 

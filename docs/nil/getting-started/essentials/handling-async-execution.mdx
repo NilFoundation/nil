@@ -8,20 +8,7 @@ This tutorial provides a brief theoretical and practical primer on async executi
 
 Consider a smart contract with the following code:
 
-```sol showLineNumbers
-import "./Nil.sol";
-
-contract Caller {
-
-    using Nil for address; 
-
-    event CallCompleted(address indexed dst);
-
-    function call(address dst) public payable {
-        dst.asyncCall(address(0), address(0), 500000, false, msg.value, abi.encodeWithSignature("funcName"));
-        emit CallCompleted(dst);
-    }
-}
+```sol showLineNumbers file=../../../tests/CallerAsync.sol start=startCallerAsync end=endCallerAsync
 ```
 
 The `asyncCall()` function makes it possible for the contract to call a function in another smart contract regardless of the shard where this contract is located. There are no additional actions required for making async calls: simply adding `asyncCall()` and specifying its arguments is sufficient.
@@ -60,44 +47,12 @@ In this pattern, Contract 1 simply calls a function in Contract 2 without receiv
 
 Contract 1 has the following structure:
 
-```solidity showLineNumbers
-import "./Nil.sol";
-
-contract Caller {
-    using Nil for address;
-
-    function call(address dst) public payable {
-        dst.asyncCall(
-            address(0),
-            address(0),
-            500000,
-            2,
-            false,
-            msg.value,
-            abi.encodeWithSignature("increment()")
-        );
-    }
-}
+```solidity showLineNumbers file=../../../tests/CallerAsyncBasicPattern.sol start=startCallerAsyncBasicPattern end=endCallerAsyncBasicPattern
 ```
 
 Contract 2 has the following structure:
 
-```solidity showLineNumbers
-import "./Nil.sol";
-
-contract Receiver {
-
-    uint256 private value;
-
-    function increment() public {
-        value += 1;
-    }
-
-    function getValue() public view returns (uint256) {
-        return value;
-    }
-
-}
+```solidity showLineNumbers file=../../../tests/Counter.sol start=startContract end=endContract
 ```
 
 Whenever the `call()` function is called inside Contract 1, a new outgoing message is spawned. When Shard 2 picks up this message and processes it, Contract 2 calls its `increment()` function. After `getValue()` is called, the result should display the total number of times the `call()` function was executed by Contract 1.
@@ -108,64 +63,12 @@ In this pattern, Contract 1 calls a function inside Contract 2 that makes an asy
 
 Contract 1 acts as a simple escrow mechanism:
 
-```solidity showLineNumbers
-import "./Nil.sol";
-
-contract Escrow {
-
-    using Nil for address; 
-    mapping (address => uint256) private deposits;
-
-    function deposit() public payable {
-        deposits[msg.sender] += msg.value;
-    }
-
-    function submitForVerification(address dst, address participantOne, address participantTwo) public payable {
-        dst.asyncCall(address(0), address(0), 100000, false, 1000000, abi.encodeWithSignature("verify(address, address)", participantOne, participantTwo));
-    }
-
-    function resolve(address participantOne, address participantTwo) public payable {
-        deposits[participantOne] -= msg.value;
-        deposits[participantTwo] += msg.value;
-    }
-
-    function verifyExternal(uint256 messageHash, bytes calldata authData) external view returns (bool) {
-        return true;
-    }
-}
+```solidity showLineNumbers file=../../../tests/Escrow.sol start=startEscrow end=endEscrow
 ```
 
 Contract 2 acts as a validator for escrow resolution:
 
-```solidity showLineNumbers
-import "./Nil.sol";
-
-contract Validator {
-    using Nil for address;
-
-    function verify(
-        address participantOne,
-        address participantTwo
-    ) public payable {
-        if (participantOne != participantTwo) {
-            Nil.asyncCall(
-                msg.sender,
-                address(0),
-                address(0),
-                100000,
-                1,
-                false,
-                msg.value,
-                abi.encodeWithSignature(
-                    "resolve(address, address)",
-                    participantOne,
-                    participantTwo
-                )
-            );
-        }
-    }
-}
-
+```solidity showLineNumbers file=../../../tests/Validator.sol start=startValidator end=endValidator
 ```
 
 Contract 2 triggers the `resolve()` function within Contract 1 as a callback but only if the escrow participants are two distinct addresses.

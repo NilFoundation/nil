@@ -27,20 +27,17 @@ The contract constructor has to be set as `payable` to support internal deployme
 
 To deploy Contract 1 via the =nil; CLI:
 
-```bash
-nil wallet deploy ./Retailer/Retailer.bin --abi ./Retailer/Retailer.abi
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startRetailerDeploymentCommand end=endRetailerDeploymentCommand
 ```
 
 Take note of the address for Contract 1. To retrieve the wallet public key:
 
-```bash
-nil wallet info
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startWalletInfoCommand end=endWalletInfoCommand
 ```
 
 To deploy Contract 2 with the given public key and the address of the retailer contract:
 
-```bash
-nil wallet deploy ./Manufacturer/Manufacturer.bin PUBKEY ADDRESS --abi ./Manufacturer/Manufacturer.abi --shard-id 2
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startManufacturerDeploymentCommand end=endManufacturerDeploymentCommand
 ```
 
 This will make sure that `Manufacturer` and `Retailer` are on different shards.
@@ -57,79 +54,12 @@ The contract ABI can be copy-pasted from the `./abi` file and then cast into the
 
 To deploy the retailer contract:
 
-```ts showLineNumbers
-import { bytesToHex, type Abi } from "viem";
-import {
-  Faucet,
-  LocalECDSAKeySigner,
-  HttpTransport,
-  PublicClient,
-  generateRandomPrivateKey,
-  WalletV1,
-  waitTillCompleted,
-} from "@nilfoundation/niljs";
-
-const client = new PublicClient({
-  transport: new HttpTransport({
-    endpoint: "{NIL_ENDPOINT}",
-  }),
-  shardId: 1,
-});
-const faucet = new Faucet(client);
-
-const signer = new LocalECDSAKeySigner({
-  privateKey: generateRandomPrivateKey(),
-});
-
-const pubkey = await signer.getPublicKey();
-
-const wallet = new WalletV1({
-  pubkey: pubkey,
-  salt: BigInt(Math.floor(Math.random() * 10000)),
-  shardId: 1,
-  client,
-  signer,
-});
-const walletAddress = await wallet.getAddressHex();
-
-console.log("walletAddress", walletAddress);
-
-const faucetHash = await faucet.withdrawToWithRetry(walletAddress, 9_000_000n);
-
-await waitTillCompleted(client, 1, faucetHash);
-await wallet.selfDeploy(true);
-
-const { address: addressR, hash: hashR } = await wallet.deployContract({
-  bytecode: RETAILER_BYTECODE,
-  value: 0n,
-  feeCredit: 5_000_000n,
-  salt: BigInt(Math.floor(Math.random() * 10000)),
-  shardId: 1,
-  abi: RETAILER_ABI as Abi,
-  args: [],
-});
-
-await waitTillCompleted(client, 1, hashR);
-
-console.log(`Retailer address: ${addressR}`);
+```ts showLineNumbers file=../../../tests/working-with-smart-contracts-niljs.test.mjs start=startInternalDeployOfRetailer end=endInternalDeployOfRetailer
 ```
 
 To deploy the manufacturer contract:
 
-```ts showLineNumbers
-const { address: addressM, hash: hashM } = await wallet.deployContract({
-  bytecode: MANUFACTURER_BYTECODE,
-  value: 0n,
-  feeCredit: 10000000n,
-  salt: BigInt(Math.floor(Math.random() * 10000)),
-  shardId: 2,
-  abi: MANUFACTURER_ABI as Abi,
-  args: [bytesToHex(PUBKEY), RETAILER_ADDRESS],
-});
-
-await waitTillCompleted(client, 1, hashM);
-
-console.log(`Manufcaturer address: ${addressM}`);
+```ts showLineNumbers file=../../../tests/working-with-smart-contracts-niljs.test.mjs start=startInternalDeployOfManufacturer end=endInternalDeployOfManufacturer
 ```
 
 ## External deployment
@@ -148,34 +78,33 @@ A new address is always calculated based on the bytecode of the contract constru
 
 First, calulate the address of the retailer contract and send funds to this address:
 
-```bash
-nil contract address ./Retailer/Retailer.bin --salt SALT --shard-id 1
-nil wallet send-tokens RETAILER_ADDRESS AMOUNT
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startExternalRetailerAddressCommand end=endExternalRetailerAddressCommand
+```
+
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startSendTokensToRetailerForExternalDeployment end=endSendTokensToRetailerForExternalDeployment
 ```
 
 Then, deploy the retailer contract while providing the same `SALT`:
 
-```bash
-nil contract deploy ./Retailer/Retailer.bin --salt SALT --shard-id 1
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startRetailerExternalDeploymentCommand end=endRetailerExternalDeploymentCommand
 ```
 
 Retrieve the public key assigned to the wallet:
 
-```bash
-nil wallet info
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startWalletInfoCommand end=endWalletInfoCommand
 ```
 
 Calculate the address of the manufacturer contract and send funds to it:
 
-```bash
-nil contract address ./Manufacturer/Manufacturer.bin PUBKEY RETAILER_ADDRESS --salt SALT --shard-id 2 --abi ./Manufacturer/Manufacturer.abi
-nil wallet send-tokens MANUFACTURER_ADDRESS AMOUNT
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startExternalManufacturerAddressCommand end=endExternalManufacturerAddressCommand
+```
+
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startSendTokensToManufacturerForExternalDeploymentCommand end=endSendTokensToManufacturerForExternalDeploymentCommand
 ```
 
 Deploy the manufacturer contract:
 
-```bash
-nil contract deploy ./Manufacturer/Manufacturer.bin PUBKEY RETAILER_ADDRESS --salt SALT --shard-id 2 --abi ./Manufacturer/Manufacturer.abi
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startManufacturerExternalDeploymentCommand end=endManufacturerExternalDeploymentCommand
 ```
 
 ### Via the client library
@@ -190,85 +119,12 @@ The contract ABI can be copy-pasted from the `./abi` file and then cast into the
 
 To deploy the retailer contract:
 
-```typescript showLineNumbers
-
-import { bytesToHex } from "viem";
-import {
-  Faucet,
-  HttpTransport,
-  LocalECDSAKeySigner,
-  PublicClient,
-  externalDeploymentMessage,
-  generateRandomPrivateKey,
-  waitTillCompleted,
-} from "@nilfoundation/niljs";
-import type { Abi } from "abitype";
-
-const client = new PublicClient({
-  transport: new HttpTransport({
-    endpoint: "{NIL_ENDPOINT}",
-  }),
-  shardId: 1,
-});
-
-const signer = new LocalECDSAKeySigner({
-  privateKey: generateRandomPrivateKey(),
-});
-
-const pubkey = await signer.getPublicKey();
-
-const faucet = new Faucet(client);
-
-const chainId = await client.chainId();
-
-const deploymentMessageRetailer = externalDeploymentMessage(
-  {
-    salt: BigInt(Math.floor(Math.random() * 10000)),
-    shard: 1,
-    bytecode: RETAILER_BYTECODEE,
-  },
-  chainId,
-);
-const addrR = bytesToHex(deploymentMessageRetailer.to);
-console.log("Retailer address: ", addrR);
-
-const faucetHash = await faucet.withdrawToWithRetry(addrR, convertEthToWei(1));
-const receipts = await waitTillCompleted(client, 1, faucetHash);
-
-const hash = await deploymentMessageRetailer.send(client);
-
-await waitTillCompleted(client, 1, hash);
-
-console.log("Retailer deployed successfully");
+```ts showLineNumbers file=../../../tests/working-with-smart-contracts-niljs.test.mjs start=startExternalDeployOfRetailer end=endExternalDeployOfRetailer
 ```
 
 To deploy the manufacturer contract:
 
-```ts showLineNumbers
-const deploymentMessageManufacturer = externalDeploymentMessage(
-  {
-    salt: BigInt(Math.floor(Math.random() * 10000)),
-    shard: 2,
-    bytecode: MANUFACTURER_BYTECODE,
-    abi: MANUFACTURER_ABI as Abi,
-    args: [bytesToHex(PUBKEY), RETAILER_ADDRESS],
-  },
-  chainId,
-);
-
-const addrM = bytesToHex(deploymentMessageManufacturer.to);
-console.log("Manufacturer address: ", addrM);
-
-const faucetHashM = await faucet.withdrawToWithRetry(addrM, convertEthToWei(1));
-const receiptsM = await waitTillCompleted(client, 1, faucetHashM);
-
-console.log(receiptsM);
-
-const hashM = await deploymentMessageManufacturer.send(client);
-
-await waitTillCompleted(client, 2, hashM);
-
-console.log("Manufacturer deployed successfully");
+```ts showLineNumbers file=../../../tests/working-with-smart-contracts-niljs.test.mjs start=startExternalDeployOfManufacturer end=endExternalDeployOfManufacturer
 ```
 
 ## Hardhat deployment

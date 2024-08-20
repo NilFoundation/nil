@@ -3,7 +3,6 @@ package rpctest
 import (
 	"testing"
 
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/readthroughdb"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
@@ -18,11 +17,8 @@ type SuiteReadThrough struct {
 
 func (s *SuiteReadThrough) SetupTest() {
 	s.start(&nilservice.Config{
-		NShards:              5,
-		HttpUrl:              GetSockPath(s.T()),
-		Topology:             collate.TrivialShardTopologyId,
-		CollatorTickPeriodMs: 100,
-		GasBasePrice:         10,
+		NShards: 5,
+		HttpUrl: GetSockPath(s.T()),
 	})
 	inDb, err := db.NewBadgerDbInMemory()
 	s.Require().NoError(err)

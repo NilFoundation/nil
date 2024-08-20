@@ -21,3 +21,15 @@ func GetLegacyKeccak256() hash.Hash {
 	return h
 }
 func ReturnLegacyKeccak256(h hash.Hash) { cryptoPool.Put(h) }
+
+// Keccak256Hash calculates and returns the Keccak256 hash of the input data,
+// converting it to an internal Hash data structure.
+func Keccak256Hash(data ...[]byte) Hash {
+	sha := GetLegacyKeccak256()
+	for _, b := range data {
+		sha.Write(b)
+	}
+	h := sha.Sum(nil)
+	ReturnLegacyKeccak256(sha)
+	return BytesToHash(h)
+}

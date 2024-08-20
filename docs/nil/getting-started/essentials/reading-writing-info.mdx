@@ -13,8 +13,7 @@ The =nil; CLI provides several commands that produce data about key cluster enti
 
 To view the latest block recorded by shard with `shardId = 1`:
 
-```bash
-nil block latest --shard-id 1
+```bash file=../../../tests/reading-and-writing.test.mjs start=startLatestBlock end=endLatestBlock
 ```
 
 To call an existing smart contract via the wallet:
@@ -25,14 +24,12 @@ nil wallet send-message CONTRACT_ADDRESS METHOD_NAME [ARGS] --abi path/to/contra
 
 To read information about the resulting message:
 
-```bash
-nil message MESSAGE_HASH
+```bash file=../../../tests/reading-and-writing.test.mjs start=startMessageRead end=endMessageRead
 ```
 
 To read the message receipt:
 
-```bash
-nil receipt MESSAGE_HASH
+```bash file=../../../tests/reading-and-writing.test.mjs start=startReceiptRead end=endReceiptRead
 ```
 
 ## Via the client library

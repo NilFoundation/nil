@@ -30,6 +30,7 @@ type Params struct {
 	Timeout            time.Duration
 
 	ZeroState       string
+	ZeroStateConfig *execution.ZeroStateConfig
 	MainKeysOutPath string
 
 	Topology ShardTopology
@@ -117,7 +118,7 @@ func (s *Scheduler) generateZeroState(ctx context.Context) error {
 	}
 	defer gen.Rollback()
 
-	block, err := gen.GenerateZeroState(s.params.ZeroState)
+	block, err := gen.GenerateZeroState(s.params.ZeroState, s.params.ZeroStateConfig)
 	if err != nil {
 		return err
 	}

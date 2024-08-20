@@ -42,6 +42,7 @@ var (
 	ErrInsufficientBalance      = VMError{"insufficient balance for transfer"}
 	ErrContractAddressCollision = VMError{"contract address collision"}
 	ErrExecutionReverted        = VMError{"execution reverted"}
+	ErrPrecompileReverted       = VMError{"precompiled contract reverted"}
 	ErrMaxCodeSizeExceeded      = VMError{"max code size exceeded"}
 	ErrMaxInitCodeSizeExceeded  = VMError{"max initcode size exceeded"}
 	ErrInvalidJump              = VMError{"invalid jump destination"}

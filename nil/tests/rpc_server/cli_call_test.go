@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	nilcrypto "github.com/NilFoundation/nil/nil/internal/crypto"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -47,14 +46,9 @@ contracts:
 func (s *SuiteCliTestCall) SetupTest() {
 	HttpUrl := GetSockPath(s.T())
 	s.start(&nilservice.Config{
-		NShards:              s.shardsNum,
-		HttpUrl:              HttpUrl,
-		Topology:             collate.TrivialShardTopologyId,
-		ZeroState:            s.zerostateCfg,
-		CollatorTickPeriodMs: 100,
-		GracefulShutdown:     false,
-		GasPriceScale:        0,
-		GasBasePrice:         10,
+		NShards:       s.shardsNum,
+		HttpUrl:       HttpUrl,
+		ZeroStateYaml: s.zerostateCfg,
 	})
 
 	iniDataTmpl := `[nil]

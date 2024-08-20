@@ -18,6 +18,16 @@ func (bn BlockNumber) Uint64() uint64 {
 
 func (bn BlockNumber) String() string { return strconv.FormatUint(bn.Uint64(), 10) }
 func (bn BlockNumber) Bytes() []byte  { return []byte(bn.String()) }
+func (bn BlockNumber) Type() string   { return "BlockNumber" }
+
+func (bn *BlockNumber) Set(s string) error {
+	v, err := strconv.ParseUint(s, 0, 64)
+	if err != nil {
+		return err
+	}
+	*bn = BlockNumber(v)
+	return nil
+}
 
 type Block struct {
 	Id                 BlockNumber `json:"id" ch:"id"`
@@ -33,6 +43,7 @@ type Block struct {
 	ReceiptsRoot        common.Hash  `json:"receiptsRoot" ch:"receipts_root"`
 	ChildBlocksRootHash common.Hash  `json:"childBlocksRootHash" ch:"child_blocks_root_hash"`
 	MainChainHash       common.Hash  `json:"mainChainHash" ch:"main_chain_hash"`
+	ConfigRoot          common.Hash  `json:"configRoot" ch:"config_root"`
 	LogsBloom           Bloom        `json:"logsBloom" ch:"logs_bloom"`
 	Timestamp           uint64       `json:"timestamp" ch:"timestamp"`
 	GasPrice            Value        `json:"gasPrice" ch:"gas_price"`
