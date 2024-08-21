@@ -6,11 +6,13 @@ library Nil {
     address private constant ASYNC_CALL = address(0xfd);
     address public constant VERIFY_SIGNATURE = address(0xfe);
     address public constant IS_INTERNAL_MESSAGE = address(0xff);
-    address private constant MINT_CURRENCY = address(0xd0);
+    address public constant MINT_CURRENCY = address(0xd0);
     address private constant GET_CURRENCY_BALANCE = address(0xd1);
     address private constant SEND_CURRENCY_SYNC = address(0xd2);
     address private constant GET_MESSAGE_TOKENS = address(0xd3);
     address private constant GET_GAS_PRICE = address(0xd4);
+    address private constant GET_POSEIDON_HASH = address(0xd5);
+    address private constant AWAIT_CALL = address(0xd6);
 
     // The following constants specify from where and how the gas should be taken during async call.
     // Forwarding values are calculated in the following order: FORWARD_VALUE, FORWARD_PERCENTAGE, FORWARD_REMAINING.
@@ -38,9 +40,17 @@ library Nil {
         address bounceTo,
         uint value,
         bytes memory callData
-    ) internal returns(bool) {
+    ) internal {
         Token[] memory tokens;
-        return asyncCall(dst, address(0), bounceTo, 0, FORWARD_REMAINING, false, value, tokens, callData);
+        asyncCall(dst, address(0), bounceTo, 0, FORWARD_REMAINING, false, value, tokens, callData);
+    }
+
+    // awaitCall makes an asynchronous call to `dst` contract and waits for the result.
+    function awaitCall(
+        address dst,
+        bytes memory callData
+    ) internal returns(bytes memory, bool) {
+        return __Precompile__(AWAIT_CALL).precompileAwaitCall(dst, callData);
     }
 
     // asyncCall makes an asynchronous call to `dst` contract.
@@ -53,9 +63,9 @@ library Nil {
         bool deploy,
         uint value,
         bytes memory callData
-    ) internal returns(bool) {
+    ) internal {
         Token[] memory tokens;
-        return asyncCall(dst, refundTo, bounceTo, feeCredit, forwardKind, deploy, value, tokens, callData);
+        asyncCall(dst, refundTo, bounceTo, feeCredit, forwardKind, deploy, value, tokens, callData);
     }
 
     // asyncCall makes an asynchronous call to `dst` contract.
@@ -69,10 +79,9 @@ library Nil {
         uint value,
         Token[] memory tokens,
         bytes memory callData
-    ) internal returns(bool) {
-        bool success = Precompile(ASYNC_CALL).precompileAsyncCall{value: value}(deploy, forwardKind, dst, refundTo,
+    ) internal {
+        __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(deploy, forwardKind, dst, refundTo,
             bounceTo, feeCredit, tokens, callData);
-        return success;
     }
 
     // asyncCall makes an asynchronous call to `dst` contract.
@@ -86,7 +95,7 @@ library Nil {
         Token[] memory tokens,
         bytes memory callData
     ) internal returns(bool) {
-        bool success = Precompile(ASYNC_CALL).precompileAsyncCall{value: value}(deploy, FORWARD_NONE, dst, refundTo,
+        bool success = __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(deploy, FORWARD_NONE, dst, refundTo,
             bounceTo, feeCredit, tokens, callData);
         return success;
     }
@@ -99,7 +108,7 @@ library Nil {
         bytes memory callData
     ) internal returns(bool, bytes memory) {
         if (tokens.length > 0) {
-            Precompile(SEND_CURRENCY_SYNC).precompileSendTokens(dst, tokens);
+            __Precompile__(SEND_CURRENCY_SYNC).precompileSendTokens(dst, tokens);
         }
         (bool success, bytes memory returnData) = dst.call{gas: gas, value: value}(callData);
         return (success, returnData);
@@ -142,20 +151,14 @@ library Nil {
         return result;
     }
 
-    // mintCurrency mints a token with a given id and amount. Can be called only by the special minter contract.
-    // Returns `true` if the minting was successful.
-    function mintToken(uint256 id, uint256 amount) internal returns(bool) {
-        return Precompile(MINT_CURRENCY).precompileMintCurrency(id, amount);
-    }
-
     // getCurrencyBalance returns the balance of a token with a given id for a given address.
-    function tokensBalance(address addr, uint256 id) internal returns(uint256) {
-        return Precompile(GET_CURRENCY_BALANCE).precompileGetCurrencyBalance(id, addr);
+    function currencyBalance(address addr, uint256 id) internal returns(uint256) {
+        return __Precompile__(GET_CURRENCY_BALANCE).precompileGetCurrencyBalance(id, addr);
     }
 
     // msgTokens returns tokens from the current message.
     function msgTokens() internal returns(Token[] memory) {
-        return Precompile(GET_MESSAGE_TOKENS).precompileGetMessageTokens();
+        return __Precompile__(GET_MESSAGE_TOKENS).precompileGetMessageTokens();
     }
 
     // getShardId returns shard id for a given address.
@@ -170,7 +173,27 @@ library Nil {
     // the message will be processed; and `price_growth_factor` is the maximum value by which gas can grow per block.
     // TODO: add `getEstimatedGasPrice` method, which implements the above formula.
     function getGasPrice(address addr) internal returns(uint256) {
-        return Precompile(GET_GAS_PRICE).precompileGetGasPrice(getShardId(addr));
+        return __Precompile__(GET_GAS_PRICE).precompileGetGasPrice(getShardId(addr));
+    }
+
+    function createAddress(uint shardId, bytes memory code, uint256 salt) internal returns(address) {
+        require(shardId < 0xffff, "Shard id is too big");
+        uint160 addr = uint160(uint256(getPoseidonHash(abi.encodePacked(code, salt))));
+        addr &= 0xffffffffffffffffffffffffffffffffffff;
+        addr |= uint160(shardId) << (18 * 8);
+        return address(addr);
+    }
+
+    function createAddress2(uint shardId, address sender, uint256 salt, uint256 codeHash) internal returns(address) {
+        require(shardId < 0xffff, "Shard id is too big");
+        uint160 addr = uint160(uint256(getPoseidonHash(abi.encodePacked(bytes1(0xff), sender, salt, codeHash))));
+        addr &= 0xffffffffffffffffffffffffffffffffffff;
+        addr |= uint160(shardId) << (18 * 8);
+        return address(addr);
+    }
+
+    function getPoseidonHash(bytes memory data) internal returns(uint256) {
+        return __Precompile__(GET_POSEIDON_HASH).precompileGetPoseidonHash(data);
     }
 }
 
@@ -198,17 +221,18 @@ contract NilBase {
     }
 }
 
-// Precompile is a contract that provides stubs for precompiled contract calls.
-// NOTE: Function should always return value, otherwise Solidity will check contract existence by EXTCODESIZE opcode
-contract Precompile {
-    function precompileMintCurrency(uint256 id, uint256 amount) public returns(bool) {}
+abstract contract NilBounceable is NilBase {
+    function bounce(string calldata err) virtual payable external;
+}
+
+// WARNING: User should never use this contract directly.
+contract __Precompile__ {
+    function precompileMintCurrency(uint256 amount) public returns(bool) {}
     function precompileGetCurrencyBalance(uint256 id, address addr) public returns(uint256) {}
     function precompileAsyncCall(bool, uint8, address, address, address, uint, Nil.Token[] memory, bytes memory) public payable returns(bool) {}
+    function precompileAwaitCall(address, bytes memory) public payable returns(bytes memory, bool) {}
     function precompileSendTokens(address, Nil.Token[] memory) public returns(bool) {}
     function precompileGetMessageTokens() public returns(Nil.Token[] memory) {}
     function precompileGetGasPrice(uint id) public returns(uint256) {}
-}
-
-abstract contract NilBounceable is NilBase {
-    function bounce(string calldata err) virtual payable external;
+    function precompileGetPoseidonHash(bytes memory data) public returns(uint256) {}
 }

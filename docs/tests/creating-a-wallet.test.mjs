@@ -1,34 +1,48 @@
-const {
+import { RPC_GLOBAL, NIL_GLOBAL } from './globals';
+
+import {
     Faucet,
     HttpTransport,
     LocalECDSAKeySigner,
     PublicClient,
     WalletV1,
     generateRandomPrivateKey,
-    convertEthToWei
-} = require("@nilfoundation/niljs");
-import { expect, describe, test, it, beforeEach, testOnly } from "vitest";
+    waitTillCompleted,
+    bytesToHex
+} from '@nilfoundation/niljs';
 
-const RPC_ENDPOINT = "https://api.devnet.nil.foundation/api/nil_user/TEK83KSDZH58AIK9PCYSNU4G86DU55I9/";
+const RPC_ENDPOINT = RPC_GLOBAL;
+const CONFIG_FILE_NAME = 'tempConfigCreatingAWallet.ini'
 
-const util = require('util');
-const exec = util.promisify(require('child_process').exec);
+const util = require('node:util');
+const exec = util.promisify(require('node:child_process').exec);
 
-let SALT = BigInt(Math.floor(Math.random() * 10000));
+const SALT = BigInt(Math.floor(Math.random() * 10000));
 
-const KEYGEN_COMMAND = 'nil keygen new';
+const CONFIG_FLAG = `--config ./tests/${CONFIG_FILE_NAME}`;
+
+const CONFIG_COMMAND = `${NIL_GLOBAL} config init ${CONFIG_FLAG}`;
+const RPC_COMMAND = `${NIL_GLOBAL} config set rpc_endpoint ${RPC_ENDPOINT} ${CONFIG_FLAG}`;
+const KEYGEN_COMMAND = `${NIL_GLOBAL} keygen new ${CONFIG_FLAG}`;
 
 //startWallet
-let WALLET_CREATION_COMMAND = `nil wallet new --salt ${SALT}`;
+const WALLET_CREATION_COMMAND = `${NIL_GLOBAL} wallet new --salt ${SALT} ${CONFIG_FLAG}`;
 //endWallet
 
-
 //startBalance
-const WALLET_BALANCE_COMMAND = 'nil wallet balance';
+const WALLET_BALANCE_COMMAND = `${NIL_GLOBAL} wallet balance ${CONFIG_FLAG}`;
 //endBalance
 
+beforeAll(async () => {
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    await exec(CONFIG_COMMAND);
+    await exec(KEYGEN_COMMAND);
+    await exec(RPC_COMMAND);
+});
 
-const WALLET_TOP_UP_COMMAND = 'nil wallet top-up 1000000';
+afterAll(async () => {
+    await exec(`rm -rf ./tests/${CONFIG_FILE_NAME}`);
+});
 
 describe.sequential('initial CLI tests', () => {
     test.sequential('wallet creation command creates a wallet', async () => {
@@ -36,13 +50,13 @@ describe.sequential('initial CLI tests', () => {
         await exec(KEYGEN_COMMAND);
         const { stdout, stderr } = await exec(WALLET_CREATION_COMMAND);
         expect(stdout).toMatch(pattern);
-    }, 20000);
+    });
 
     test.sequential('wallet balance command returns balance', async () => {
         const pattern = /Wallet balance/;
         const { stdout, stderr } = await exec(WALLET_BALANCE_COMMAND);
         expect(stdout).toMatch(pattern);
-    }, 20000);
+    });
 });
 
 describe.sequential('niljs test', () => {
@@ -62,25 +76,30 @@ describe.sequential('niljs test', () => {
         });
 
         const pubkey = await signer.getPublicKey();
+
         const wallet = new WalletV1({
             pubkey: pubkey,
-            salt: SALT,
-            shardId: 1,
             client,
             signer,
+            shardId: 1,
+            salt: SALT,
         });
 
         const walletAddress = wallet.getAddressHex();
 
-        await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
+        const fundingWallet = await faucet.withdrawToWithRetry(
+            walletAddress,
+            300_000_000n,
+        );
 
         await wallet.selfDeploy(true);
+
         //endNilJSWalletCreation
         expect(walletAddress).toBeDefined();
         const walletCode = await client.getCode(walletAddress, "latest");
         expect(walletCode).toBeDefined();
         expect(walletCode.length).toBeGreaterThan(10);
-    }, 20000);
+    });
 });
 
 

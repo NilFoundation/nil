@@ -1,5 +1,5 @@
-import { beforeAll, describe, expect, test } from "vitest";
-const {
+import { RPC_GLOBAL, NIL_GLOBAL } from './globals';
+import {
     Faucet,
     HttpTransport,
     LocalECDSAKeySigner,
@@ -12,76 +12,89 @@ const {
     MINTER_ADDRESS,
     hexToBigInt,
     bytesToHex
-} = require("@nilfoundation/niljs");
+} from "@nilfoundation/niljs";
 
 import { encodeFunctionData } from "viem";
 
-const util = require('util');
-const exec = util.promisify(require('child_process').exec);
-const RPC_ENDPOINT = "https://api.devnet.nil.foundation/api/nil_user/TEK83KSDZH58AIK9PCYSNU4G86DU55I9/";
+const util = require('node:util');
+const exec = util.promisify(require('node:child_process').exec);
+
+const RPC_ENDPOINT = RPC_GLOBAL
+const CONFIG_FILE_NAME = 'tempConfigTokensMCCSupport.ini';
 
 const NAME = 'newToken';
-let SALT = BigInt(Math.floor(Math.random() * 10000));
+const SALT = BigInt(Math.floor(Math.random() * 10000));
 
 const AMOUNT = 5000;
 const WALLET_ADDRESS_PATTERN = /0x[a-fA-F0-9]{40}/;
 const CREATED_CURRENCY_PATTERN = /Created Currency ID:/;
 const CURRENCY_WITHDRAWN_PATTERN = /Withdraw 5000 amount of currency/;
 
-const RPC_COMMAND = `nil config set rpc_endpoint ${RPC_ENDPOINT}`;
-const KEYGEN_COMMAND = 'nil keygen new';
+const CONFIG_FLAG = `--config ./tests/${CONFIG_FILE_NAME}`;
+
+const CONFIG_COMMAND = `${NIL_GLOBAL} config init ${CONFIG_FLAG}`;
+const RPC_COMMAND = `${NIL_GLOBAL} config set rpc_endpoint ${RPC_ENDPOINT} ${CONFIG_FLAG}`;
+const KEYGEN_COMMAND = `${NIL_GLOBAL} keygen new ${CONFIG_FLAG}`;
 //startWalletCreation
-const WALLET_CREATION_COMMAND = 'nil wallet new';
+const WALLET_CREATION_COMMAND = `${NIL_GLOBAL} wallet new ${CONFIG_FLAG}`;
 //endWalletCreation
-const CURRENCIES_COMMAND = 'nil contract currencies';
+const CURRENCIES_COMMAND = `${NIL_GLOBAL} contract currencies ${CONFIG_FLAG}`;
 //startSaltWalletCreation
-const WALLET_CREATION_COMMAND_WITH_SALT = `nil wallet new --salt ${SALT}`;
+const WALLET_CREATION_COMMAND_WITH_SALT = `${NIL_GLOBAL} wallet new --salt ${SALT} ${CONFIG_FLAG}`;
 //endSaltWalletCreation
 
 let OWNER_ADDRESS;
 let WALLET_ONE_ADDRESS;
 let WALLET_TWO_ADDRESS;
+
 beforeAll(async () => {
-    await exec(RPC_COMMAND);
+    await new Promise(resolve => setTimeout(resolve, 10000));
+    await exec(CONFIG_COMMAND);
     await exec(KEYGEN_COMMAND);
+    await exec(RPC_COMMAND);
     const { stdout, stderr } = await exec(WALLET_CREATION_COMMAND);
     OWNER_ADDRESS = stdout.match(WALLET_ADDRESS_PATTERN)[0];
 });
+
+afterAll(async () => {
+    await exec(`rm -rf ./tests/${CONFIG_FILE_NAME}`);
+});
+
 
 describe.sequential('initial usage CLI tests', () => {
     test.sequential('minter creates a currency and withdraws it', async () => {
 
         //First
-        const CREATE_CURRENCY_AND_WITHDRAW_COMMAND = `nil minter create-currency ${OWNER_ADDRESS} ${AMOUNT} ${NAME} --withdraw`;
+        const CREATE_CURRENCY_AND_WITHDRAW_COMMAND = `${NIL_GLOBAL} minter create-currency ${OWNER_ADDRESS} ${AMOUNT} ${NAME} --withdraw ${CONFIG_FLAG}`;
         //Second
 
         const { stdout, stderr } = await exec(CREATE_CURRENCY_AND_WITHDRAW_COMMAND);
         expect(stdout).toMatch(CREATED_CURRENCY_PATTERN);
-        const CURRENCIES_COMMAND_OWNER = CURRENCIES_COMMAND + ` ${OWNER_ADDRESS}`;
+        const CURRENCIES_COMMAND_OWNER = `${CURRENCIES_COMMAND} ${OWNER_ADDRESS} ${CONFIG_FLAG}`;
         const { stdoutResult, stderrResult } = await exec(CURRENCIES_COMMAND_OWNER);
         expect(stdoutResult).toBeDefined;
-    }, 20000);
+    });
 
     test.sequential('minter creates a currency', async () => {
 
         //Third
-        const CREATE_CURRENCY_COMMAND = `nil minter create-currency ${OWNER_ADDRESS} ${AMOUNT} ${NAME}`;
+        const CREATE_CURRENCY_COMMAND = `${NIL_GLOBAL} minter create-currency ${OWNER_ADDRESS} ${AMOUNT} ${NAME} ${CONFIG_FLAG}`;
         //Fourth
 
         const { stdout, stderr } = await exec(CREATE_CURRENCY_COMMAND);
         expect(stdout).toMatch(CREATED_CURRENCY_PATTERN);
-    }, 20000);
+    });
     test.sequential('minter withdraws an existing currency', async () => {
-        const CREATE_CURRENCY_COMMAND = `nil minter create-currency ${OWNER_ADDRESS} 100000 newestToken`;
+        const CREATE_CURRENCY_COMMAND = `${NIL_GLOBAL} minter create-currency ${OWNER_ADDRESS} 100000 newestToken ${CONFIG_FLAG}`;
         await exec(CREATE_CURRENCY_COMMAND);
 
         //Fifth
-        const WITHDRAW_EXISTING_CURRENCY_COMMAND = `nil minter withdraw-currency ${OWNER_ADDRESS} ${AMOUNT} ${OWNER_ADDRESS}`;
+        const WITHDRAW_EXISTING_CURRENCY_COMMAND = `${NIL_GLOBAL} minter withdraw-currency ${OWNER_ADDRESS} ${AMOUNT} ${OWNER_ADDRESS} ${CONFIG_FLAG}`;
         //Sixth
 
         const { stdout, stderr } = await exec(WITHDRAW_EXISTING_CURRENCY_COMMAND);
         expect(stdout).toMatch(CURRENCY_WITHDRAWN_PATTERN);
-    }, 20000);
+    });
 });
 describe.sequential('basic Nil.js usage tests', async () => {
     test.sequential('Nil.js can create a new currency, mint it, and withdraw it', async () => {
@@ -113,7 +126,7 @@ describe.sequential('basic Nil.js usage tests', async () => {
 
         const faucetHash = await faucet.withdrawToWithRetry(
             walletAddress,
-            convertEthToWei(1),
+            convertEthToWei(0.1)
         );
 
         await waitTillCompleted(client, 1, faucetHash);
@@ -154,7 +167,7 @@ describe.sequential('basic Nil.js usage tests', async () => {
         //Tenth
 
         tokens = await client.getCurrencies(walletAddress, "latest");
-        let newAmount = tokens[Object.keys(tokens)[0]];
+        const newAmount = tokens[Object.keys(tokens)[0]];
         expect(newAmount > previousAmount).toBe(true);
 
         const hashMessageMintOther = await wallet.sendMessage({
@@ -168,7 +181,7 @@ describe.sequential('basic Nil.js usage tests', async () => {
             }),
         });
         await waitTillCompleted(client, 1, hashMessageMintOther);
-    }, 30000);
+    });
 });
 describe.sequential('tutorial flows CLI tests', async () => {
     test.sequential('the CLI creates two new wallets', async () => {
@@ -180,40 +193,36 @@ describe.sequential('tutorial flows CLI tests', async () => {
         ({ stdout, stderr } = await exec(WALLET_CREATION_COMMAND_WITH_SALT));
         expect(stdout).toMatch(WALLET_ADDRESS_PATTERN);
         WALLET_TWO_ADDRESS = stdout.match(WALLET_ADDRESS_PATTERN);
-    }, 20000);
+    });
     test.sequential('the CLI creates new tokens and withdraws one of them', async () => {
 
         //Eleventh
-        const FIRST_CURRENCY_CREATION_COMMAND = `nil minter create-currency ${WALLET_ONE_ADDRESS} 50000 token --withdraw`;
+        const FIRST_CURRENCY_CREATION_COMMAND = `${NIL_GLOBAL} minter create-currency ${WALLET_ONE_ADDRESS} 50000 token --withdraw ${CONFIG_FLAG}`;
         //Twelfth
 
         //Thirteenth
-        const SECOND_CURRENCY_CREATION_COMMAND = `nil minter create-currency ${WALLET_TWO_ADDRESS} 30000 newToken`;
+        const SECOND_CURRENCY_CREATION_COMMAND = `${NIL_GLOBAL} minter create-currency ${WALLET_TWO_ADDRESS} 30000 newToken ${CONFIG_FLAG}`;
         //Fourteenth
-
-        console.log(WALLET_ONE_ADDRESS);
         let { stdout, stderr } = await exec(FIRST_CURRENCY_CREATION_COMMAND);
         expect(stdout).toMatch(CREATED_CURRENCY_PATTERN);
         ({ stdout, stderr } = await exec(SECOND_CURRENCY_CREATION_COMMAND));
         expect(stdout, stderr).toMatch(CREATED_CURRENCY_PATTERN);
         //Fifteenth
-        const CURRENCIES_CHECK_COMMAND = `nil contract currencies ${WALLET_ONE_ADDRESS}`;
+        const CURRENCIES_CHECK_COMMAND = `${NIL_GLOBAL} contract currencies ${WALLET_ONE_ADDRESS} ${CONFIG_FLAG}`;
         //Sixteenth
         ({ stdout, stderr } = await exec(CURRENCIES_CHECK_COMMAND));
-        console.log(stdout);
-    }, 20000);
+    });
     test.sequential('the CLI withdraws a currency, and balances are updated correctly', async () => {
 
         //Eighteenth
-        const SECOND_CURRENCY_WITHDRAWAL_COMMAND = `nil minter withdraw-currency ${WALLET_TWO_ADDRESS} 15000 ${WALLET_ONE_ADDRESS}`;
+        const SECOND_CURRENCY_WITHDRAWAL_COMMAND = `${NIL_GLOBAL} minter withdraw-currency ${WALLET_TWO_ADDRESS} 15000 ${WALLET_ONE_ADDRESS} ${CONFIG_FLAG}`;
         //Nineteenth
 
         let { stdout, stderr } = await exec(SECOND_CURRENCY_WITHDRAWAL_COMMAND);
         expect(stdout).toBeDefined;
-        const CURRENCIES_CHECK_COMMAND = `nil contract currencies ${WALLET_ONE_ADDRESS}`;
+        const CURRENCIES_CHECK_COMMAND = `${NIL_GLOBAL} contract currencies ${WALLET_ONE_ADDRESS}`;
         ({ stdout, stderr } = await exec(CURRENCIES_CHECK_COMMAND));
         expect(stdout).toBeDefined;
-        console.log(stdout);
         const FIRST_CURRENCY_PATTERN = /50000/;
         const SECOND_CURRENCY_PATTERN = /15000/;
         expect(stdout).toMatch(FIRST_CURRENCY_PATTERN);
@@ -247,7 +256,7 @@ describe.sequential('tutorial flows Nil.js tests', async () => {
         });
         const walletAddress = wallet.getAddressHex();
 
-        await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
+        await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(0.1));
         await wallet.selfDeploy(true);
 
         const walletTwo = new WalletV1({
@@ -298,5 +307,5 @@ describe.sequential('tutorial flows Nil.js tests', async () => {
         //Twentyseventh
         expect(tokens[tokens.keys[0]]).toBe(10000n);
         expect(tokens[tokens.keys[0]]).toBe(20000n);
-    }, 40000);
+    });
 });

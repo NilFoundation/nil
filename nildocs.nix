@@ -1,4 +1,4 @@
-{ lib, stdenv, nodePackages, npmHooks, nodejs, nil, openssl, fetchNpmDeps, autoconf, automake, libtool }:
+{ lib, stdenv, npmHooks, nodejs, nil, openssl, fetchNpmDeps, autoconf, automake, libtool }:
 
 stdenv.mkDerivation rec {
   name = "nil.docs";
@@ -8,7 +8,7 @@ stdenv.mkDerivation rec {
 
   npmDeps = fetchNpmDeps {
     inherit src;
-    hash = "sha256-+KfATAYbBW5SMrrul08mZ1A04WuPIjOA7IurDDP17d0=";
+    hash = "sha256-zhXhpGiwKfe6/4/p7F8ccHqsmj4Cq68xpShIILWfydw=";
   };
 
   NODE_PATH = "$npmDeps";
@@ -19,7 +19,7 @@ stdenv.mkDerivation rec {
     npmHooks.npmConfigHook
     autoconf
     automake
-    libtool
+    libtool  
   ];
 
   dontConfigure = true;

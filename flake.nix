@@ -4,34 +4,19 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    nil-released.url = "github:NilFoundation/nil?rev=8f57aa19f88af84bb14a640a4c571c0f1610a2af";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, nil-released }:
     (flake-utils.lib.eachDefaultSystem (system:
-      let pkgs = import nixpkgs { inherit system; };
-#      node-modules = pkgs.mkYarnPackage {
-#          name = "node-modules";
-#          src = ./docs;
-#        };
-#      docs = pkgs.stdenv.mkDerivation {
-#          name = "nildocs";
-#          src = ./docs;
-#          buildInputs = [pkgs.yarn node-modules];
-#          buildPhase = ''
-#            ln -s ${node-modules}/node_modules ./docs/node_modules
-#            ${pkgs.yarn}/bin/yarn build
-#          '';
-#          installPhase =  ''
-#          mkdir $out
-#          mv dist $out/lib
-#          '';
-#
-#        };
+      let 
+        pkgs = import nixpkgs { inherit system; };
+        nild = nil-released.packages.${system}.nil;
       in rec {
         packages = rec {
           nil = (pkgs.callPackage ./nil.nix { src_repo = self; buildGoModule = pkgs.buildGo123Module; });
           niljs = (pkgs.callPackage ./niljs.nix { nil = nil; });
-          nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; });
+          nildocs = (pkgs.callPackage ./nildocs.nix { nil = nild; });
           nilhardhat = (pkgs.callPackage ./nilhardhat.nix { nil = nil; });
           default = nil;
         };
