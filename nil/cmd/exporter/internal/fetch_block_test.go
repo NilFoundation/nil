@@ -18,7 +18,7 @@ import (
 type SuiteFetchBlock struct {
 	suite.Suite
 
-	nShards int
+	nShards uint32
 	cfg     Cfg
 	context context.Context
 	cancel  context.CancelFunc
@@ -39,7 +39,7 @@ func (s *SuiteFetchBlock) TestFetchBlock() {
 func (s *SuiteFetchBlock) TestFetchShardIdList() {
 	shardIds, err := s.cfg.FetchShards()
 	s.Require().NoError(err, "Failed to fetch shard ids")
-	s.Require().Len(shardIds, s.nShards-1, "Shard ids length is not equal to expected")
+	s.Require().Len(shardIds, int(s.nShards-1), "Shard ids length is not equal to expected")
 }
 
 func TestSuiteFetchBlock(t *testing.T) {

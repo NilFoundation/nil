@@ -59,7 +59,7 @@ func BytesToShardId(b []byte) ShardId {
 }
 
 func ParseShardIdFromString(s string) (ShardId, error) {
-	id, err := strconv.ParseUint(s, 10, 32)
+	id, err := strconv.ParseInt(s, 10, 32)
 	if err != nil {
 		return 0, err
 	}

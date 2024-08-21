@@ -42,7 +42,7 @@ type RpcSuite struct {
 	db     db.DB
 
 	client    client.Client
-	shardsNum int
+	shardsNum uint32
 	endpoint  string
 	tmpDir    string
 }

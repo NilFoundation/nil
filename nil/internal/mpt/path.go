@@ -19,8 +19,8 @@ type PathAccessor interface {
 	At(idx int) int
 }
 
-func newPath(data []byte, offset int) *Path {
-	return &Path{data, uint32(offset)}
+func newPath(data []byte, offset uint32) *Path {
+	return &Path{data, offset}
 }
 
 func (path *Path) Size() int {
@@ -93,7 +93,7 @@ func createNew[T PathAccessor](path T, length int) *Path {
 		pos += 2
 	}
 
-	var offset int
+	var offset uint32
 	if isOddLen {
 		offset = 1
 	} else {

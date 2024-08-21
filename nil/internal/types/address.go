@@ -59,12 +59,10 @@ func HexToAddress(s string) Address {
 // If s is larger than `AddrSize - ShardIdSize`, it will panic.
 func ShardAndHexToAddress(shardId ShardId, s string) Address {
 	addr := HexToAddress(s)
-	check.PanicIfNotf(ShardIdSize == 2, "please adjust shard id size")
-	check.PanicIfNotf(shardId <= 65535, "too big shard id")
 	if addr[0] != 0 || addr[1] != 0 {
 		panic("incorrect address length")
 	}
-	binary.BigEndian.PutUint16(addr[:], uint16(shardId))
+	appendShardId(addr[:], shardId)
 	return addr
 }
 
@@ -156,7 +154,8 @@ func (a *Address) UnmarshalText(input []byte) error {
 }
 
 func appendShardId(bytes []byte, shardId ShardId) []byte {
-	check.PanicIfNot(shardId <= math.MaxUint16)
+	check.PanicIfNotf(ShardIdSize == 2, "please adjust shard id size")
+	check.PanicIfNotf(shardId <= math.MaxUint16, "too big shard id")
 
 	binary.BigEndian.PutUint16(bytes, uint16(shardId))
 	return bytes

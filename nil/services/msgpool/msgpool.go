@@ -150,7 +150,7 @@ func (p *MsgPool) addLocked(msg *types.Message) DiscardReason {
 		p.discardLocked(found, ReplacedByHigherTip)
 	}
 
-	if p.queue.Size() >= int(p.cfg.Size) {
+	if uint64(p.queue.Size()) >= p.cfg.Size {
 		return PoolOverflow
 	}
 

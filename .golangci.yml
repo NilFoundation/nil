@@ -15,7 +15,6 @@ linters:
     - errname
     - errorlint
     - exhaustive
-    - exportloopref
     - fatcontext
     - forcetypeassert
     - gci
@@ -66,6 +65,10 @@ linters:
 linters-settings:
   testifylint:
     enable-all: true
+
+  gosec:
+    excludes:
+      - G115
 
 issues:
   exclude-dirs:

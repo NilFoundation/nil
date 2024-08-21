@@ -236,11 +236,11 @@ func (abi *ABI) MethodById(sigdata []byte) (*Method, error) {
 		return nil, fmt.Errorf("data too short (%d bytes) for abi method lookup", len(sigdata))
 	}
 	for _, method := range abi.Methods {
-		if bytes.Equal(method.ID, sigdata[:4]) {
+		if bytes.Equal(method.ID, sigdata[:4]) { //nolint: gosec
 			return &method, nil
 		}
 	}
-	return nil, fmt.Errorf("no method with id: %#x", sigdata[:4])
+	return nil, fmt.Errorf("no method with id: %#x", sigdata[:4]) //nolint: gosec
 }
 
 // EventByID looks an event up by its topic hash in the
