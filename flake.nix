@@ -44,7 +44,10 @@
           });
           niljs = (pkgs.callPackage ./niljs.nix { nil = nil; });
           nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; });
-          nilhardhat = (pkgs.callPackage ./nilhardhat.nix { nil = nil; });
+          nilhardhat = (pkgs.callPackage ./nilhardhat.nix {
+            nil = nil;
+            enableTesting = true;
+          });
           default = pkgs.symlinkJoin {
             name = "all";
             paths = [ nil niljs nildocs nilhardhat ];
