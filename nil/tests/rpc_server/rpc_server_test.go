@@ -222,9 +222,10 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			callerSeqno, err := s.client.GetTransactionCount(callerAddr, "latest")
 			s.Require().NoError(err)
 			callCallerMethod := &types.ExternalMessage{
-				Seqno: callerSeqno,
-				To:    callerAddr,
-				Data:  callData,
+				Seqno:     callerSeqno,
+				To:        callerAddr,
+				Data:      callData,
+				FeeCredit: s.gasToValue(100_000),
 			}
 			s.Require().NoError(callCallerMethod.Sign(execution.MainPrivateKey))
 			hash = s.sendRawTransaction(callCallerMethod)
@@ -420,10 +421,11 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 
 	s.Run("Send raw external message", func() {
 		extMsg := &types.ExternalMessage{
-			To:    walletAddr,
-			Data:  extPayload,
-			Seqno: callerSeqno,
-			Kind:  types.ExecutionMessageKind,
+			To:        walletAddr,
+			Data:      extPayload,
+			Seqno:     callerSeqno,
+			Kind:      types.ExecutionMessageKind,
+			FeeCredit: types.GasToValue(100_000),
 		}
 
 		extBytecode, err := extMsg.MarshalSSZ()

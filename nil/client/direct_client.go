@@ -283,10 +283,11 @@ func (c *DirectClient) sendExternalMessage(
 
 	// Create the message with the bytecode to run
 	extMsg := &types.ExternalMessage{
-		To:    contractAddress,
-		Data:  bytecode,
-		Seqno: seqno,
-		Kind:  kind,
+		To:        contractAddress,
+		Data:      bytecode,
+		Seqno:     seqno,
+		Kind:      kind,
+		FeeCredit: types.GasToValue(500_000),
 	}
 
 	// Sign the message with the private key

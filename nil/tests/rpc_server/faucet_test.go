@@ -49,10 +49,11 @@ func (s *SuiteFaucet) createWalletViaFaucet(ownerPrivateKey *ecdsa.PrivateKey, v
 	s.Require().NoError(err)
 
 	msgExternal := &types.ExternalMessage{
-		Seqno: seqno,
-		To:    types.FaucetAddress,
-		Data:  callData,
-		Kind:  types.ExecutionMessageKind,
+		Seqno:     seqno,
+		To:        types.FaucetAddress,
+		Data:      callData,
+		Kind:      types.ExecutionMessageKind,
+		FeeCredit: types.GasToValue(100_000),
 	}
 
 	resHash, err := s.client.SendMessage(msgExternal)

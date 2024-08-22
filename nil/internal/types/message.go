@@ -168,12 +168,13 @@ type OutboundMessage struct {
 }
 
 type ExternalMessage struct {
-	Kind     MessageKind `json:"kind,omitempty" ch:"kind"`
-	To       Address     `json:"to,omitempty" ch:"to"`
-	ChainId  ChainId     `json:"chainId" ch:"chainId"`
-	Seqno    Seqno       `json:"seqno,omitempty" ch:"seqno"`
-	Data     Code        `json:"data,omitempty" ch:"data" ssz-max:"24576"`
-	AuthData Signature   `json:"authData,omitempty" ch:"auth_data" ssz-max:"256"`
+	Kind      MessageKind `json:"kind,omitempty" ch:"kind"`
+	FeeCredit Value       `json:"feeCredit,omitempty" ch:"fee_credit"`
+	To        Address     `json:"to,omitempty" ch:"to"`
+	ChainId   ChainId     `json:"chainId" ch:"chainId"`
+	Seqno     Seqno       `json:"seqno,omitempty" ch:"seqno"`
+	Data      Code        `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	AuthData  Signature   `json:"authData,omitempty" ch:"auth_data" ssz-max:"256"`
 }
 
 type InternalMessagePayload struct {
@@ -273,12 +274,13 @@ func (m *Message) toExternal() *ExternalMessage {
 		kind = ExecutionMessageKind
 	}
 	return &ExternalMessage{
-		Kind:     kind,
-		To:       m.To,
-		ChainId:  m.ChainId,
-		Seqno:    m.Seqno,
-		Data:     m.Data,
-		AuthData: m.Signature,
+		Kind:      kind,
+		FeeCredit: m.FeeCredit,
+		To:        m.To,
+		ChainId:   m.ChainId,
+		Seqno:     m.Seqno,
+		Data:      m.Data,
+		AuthData:  m.Signature,
 	}
 }
 
@@ -379,7 +381,7 @@ func (m *ExternalMessage) SigningHash() (common.Hash, error) {
 	return common.PoseidonSSZ(&messageDigest)
 }
 
-func (m ExternalMessage) ToMessage(feeCredit Value) *Message {
+func (m ExternalMessage) ToMessage() *Message {
 	return &Message{
 		Flags:     MessageFlagsFromKind(false, m.Kind),
 		To:        m.To,
@@ -388,7 +390,7 @@ func (m ExternalMessage) ToMessage(feeCredit Value) *Message {
 		Seqno:     m.Seqno,
 		Data:      m.Data,
 		Signature: m.AuthData,
-		FeeCredit: feeCredit,
+		FeeCredit: m.FeeCredit,
 	}
 }
 
