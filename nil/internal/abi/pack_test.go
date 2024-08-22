@@ -34,6 +34,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/stretchr/testify/require"
 )
 
 // TestPack tests the general pack/unpack tests in packing_test.go
@@ -219,4 +220,64 @@ func TestPackNumber(t *testing.T) {
 			t.Errorf("test %d: pack mismatch: have %x, want %x", i, packed, tt.packed)
 		}
 	}
+}
+
+func TestPackUint256(t *testing.T) { //nolint:tparallel
+	t.Parallel()
+
+	type Uint256Struct struct {
+		Number types.Uint256
+	}
+
+	abiJsonStr := `[{
+		"inputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "Number",
+						"type": "uint256"
+					}
+				],
+				"name": "param",
+				"type": "tuple"
+			}
+		],
+		"name": "test",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "Number",
+				"type": "uint256"
+			}
+		],
+		"type": "function"
+    }]`
+	inAbi, err := JSON(strings.NewReader(abiJsonStr))
+	require.NoError(t, err)
+
+	uStruct := Uint256Struct{*types.NewUint256(123)}
+	data, err := inAbi.Pack("test", &uStruct)
+	require.NoError(t, err)
+
+	t.Run("Unpack Uint256", func(t *testing.T) { //nolint:paralleltest
+		unpacked, err := inAbi.Unpack("test", data[4:])
+		require.NoError(t, err)
+
+		u := ConvertType(unpacked[0], new(types.Uint256))
+		num, ok := u.(*types.Uint256)
+		require.True(t, ok)
+		require.Equal(t, uStruct.Number, *num)
+	})
+
+	t.Run("Unpack Uint256Struct", func(t *testing.T) { //nolint:paralleltest
+		unpacked, err := inAbi.Methods["test"].Inputs.Unpack(data[4:])
+		require.NoError(t, err)
+
+		as := ConvertType(unpacked[0], new(Uint256Struct))
+		obj, ok := as.(*Uint256Struct)
+		require.True(t, ok)
+
+		require.Equal(t, uStruct.Number, obj.Number)
+	})
 }

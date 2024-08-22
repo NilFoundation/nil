@@ -25,6 +25,8 @@ import (
 	"math/big"
 	"reflect"
 	"strings"
+
+	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
 // ConvertType converts an interface of a runtime type into a interface of the
@@ -103,6 +105,21 @@ func mustArrayToByteSlice(value reflect.Value) reflect.Value {
 // strict ruleset as bare `reflect` does.
 func set(dst, src reflect.Value) error {
 	dstType, srcType := dst.Type(), src.Type()
+
+	// Convert big.Int to Uint256
+	if _, ok := dst.Interface().(types.Uint256); ok {
+		u := types.NewUint256(0)
+		big, ok := src.Interface().(*big.Int)
+		if !ok {
+			return errors.New("abi: cannot unmarshal non big.Int into Uint256")
+		}
+		if overflow := u.SetFromBig(big); overflow {
+			return errors.New("abi: overflow when unmarshalling big.Int into Uint256")
+		}
+		src = reflect.ValueOf(*u)
+		srcType = src.Type()
+	}
+
 	switch {
 	case dstType.Kind() == reflect.Interface && dst.Elem().IsValid():
 		return set(dst.Elem(), src)
