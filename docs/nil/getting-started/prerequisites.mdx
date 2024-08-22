@@ -124,6 +124,8 @@ When working with `Nil.js`, make sure that all hardcoded addresses are in lowerc
 
 However, it is still possible to use Hardhat with =nil; by installing `nil-hardhat-plugin`. This plugin ensures compatibility between the convenience and familiarity of Hardhat and the unique architecture of =nil;. 
 
+The plugin uses `ignition` and `ethers` to handle contract deployment and interactions with the cluster. It is also possible to use other combinations of packages (such as `ignition` and `viem`) to extend `nil-hardhat-plugin`. Note that the use of these additional packages may cause instability in how the plugin operates. 
+
 To install the plugin:
 
 <Tabs groupId='packageSystem'>
