@@ -1,6 +1,7 @@
 package nilservice
 
 import (
+	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
@@ -16,27 +17,69 @@ const (
 )
 
 type Config struct {
-	NShards              uint32
-	RunOnlyShard         types.ShardId
-	ShardEndpoints       map[string]string
-	HttpUrl              string
-	AdminSocketPath      string
-	Topology             string
-	ZeroStateYaml        string
-	ZeroState            *execution.ZeroStateConfig
-	MainKeysOutPath      string
-	NetworkKeysPath      string
-	CollatorTickPeriodMs uint32
-	GracefulShutdown     bool
-	TraceEVM             bool
-	GasPriceScale        float64
-	GasBasePrice         uint64
-	RunMode              RunMode
-	ReplayBlockId        types.BlockNumber
-	ReplayShardId        types.ShardId
+	// Set by the command line
+	RunMode RunMode `yaml:"-"`
 
-	Network   *network.Config
-	Telemetry *telemetry.Config
+	// Shard configuration
+	NShards        uint32            `yaml:"nShards"`
+	RunOnlyShard   types.ShardId     `yaml:"runOnlyShard"`
+	ShardEndpoints map[string]string `yaml:"shardEndpoints"`
+
+	// RPC
+	RPCPort int `yaml:"rpcPort"`
+
+	// Admin
+	AdminSocketPath string `yaml:"adminSocketPath"`
+
+	// Keys
+	MainKeysOutPath string `yaml:"mainKeysOutPath"`
+	NetworkKeysPath string `yaml:"networkKeysPath"`
+
+	// Gas
+	GasPriceScale float64 `yaml:"gasPriceScale"`
+	GasBasePrice  uint64  `yaml:"gasBasePrice"`
+
+	// Block replay
+	ReplayBlockId types.BlockNumber `yaml:"replayBlockId"`
+	ReplayShardId types.ShardId     `yaml:"replayShardId"`
+
+	// HttpUrl is calculated from RPCPort
+	HttpUrl string `yaml:"-"`
+
+	// Test-only
+	GracefulShutdown     bool   `yaml:"-"`
+	TraceEVM             bool   `yaml:"-"`
+	CollatorTickPeriodMs uint32 `yaml:"-"`
+	Topology             string `yaml:"-"`
+	ZeroStateYaml        string `yaml:"-"`
+
+	// Sub-configs
+	ZeroState *execution.ZeroStateConfig `yaml:"zeroState"`
+	Network   *network.Config            `yaml:"network"`
+	Telemetry *telemetry.Config          `yaml:"telemetry"`
+}
+
+func NewDefaultConfig() *Config {
+	return &Config{
+		RunMode: NormalRunMode,
+
+		NShards:         5,
+		RPCPort:         8529,
+		MainKeysOutPath: "keys.yaml",
+		NetworkKeysPath: "network-keys.yaml",
+
+		GasPriceScale: 0.0,
+		GasBasePrice:  10,
+
+		ReplayBlockId: 1,
+		ReplayShardId: 1,
+
+		GracefulShutdown: true,
+		Topology:         collate.TrivialShardTopologyId,
+
+		Network:   network.NewDefaultConfig(),
+		Telemetry: telemetry.NewDefaultConfig(),
+	}
 }
 
 func (c *Config) IsShardActive(shardId types.ShardId) bool {
