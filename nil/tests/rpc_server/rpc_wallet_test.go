@@ -56,9 +56,10 @@ func (s *SuiteWalletRpc) TestWallet() {
 		s.Require().NoError(err)
 
 		resHash, err := s.client.SendMessage(&types.ExternalMessage{
-			Data:  contracts.NewCounterGetCallData(s.T()),
-			Seqno: seqno,
-			To:    addrCallee,
+			Data:      contracts.NewCounterGetCallData(s.T()),
+			Seqno:     seqno,
+			To:        addrCallee,
+			FeeCredit: s.gasToValue(100_000),
 		})
 		s.Require().NoError(err)
 

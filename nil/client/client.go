@@ -50,13 +50,13 @@ type Client interface {
 	DeployContract(
 		shardId types.ShardId, walletAddress types.Address, payload types.DeployPayload, value types.Value, pk *ecdsa.PrivateKey,
 	) (common.Hash, types.Address, error)
-	DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload) (common.Hash, types.Address, error)
+	DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload, feeCredit types.Value) (common.Hash, types.Address, error)
 	SendMessageViaWallet(
-		walletAddress types.Address, bytecode types.Code, feeCredit types.Value, value types.Value,
-		currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
+		walletAddress types.Address, bytecode types.Code, externalFeeCredit, internalFeeCredit types.Value,
+		value types.Value, currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
 	) (common.Hash, error)
 	SendExternalMessage(
-		bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey,
+		bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, feeCredit types.Value,
 	) (common.Hash, error)
 
 	TopUpViaFaucet(contractAddress types.Address, amount types.Value) (common.Hash, error)
