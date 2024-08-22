@@ -148,7 +148,7 @@ func (s *SuiteCli) TestContract() {
 	calldata, err := abi.Pack("increment")
 	s.Require().NoError(err)
 
-	txHash, err = s.cli.RunContract(wallet, calldata, s.gasToValue(100_000), types.Value{}, nil, addr)
+	txHash, err = s.cli.RunContract(wallet, calldata, s.gasToValue(100_000), s.gasToValue(100_000), types.Value{}, nil, addr)
 	s.Require().NoError(err)
 
 	receipt = s.waitForReceipt(wallet.ShardId(), txHash)
@@ -178,7 +178,7 @@ func (s *SuiteCli) TestContract() {
 	balanceBefore, err := s.cli.GetBalance(addr)
 	s.Require().NoError(err)
 
-	txHash, err = s.cli.RunContract(wallet, nil, s.gasToValue(100_000), types.NewValueFromUint64(100), nil, addr)
+	txHash, err = s.cli.RunContract(wallet, nil, s.gasToValue(100_000), s.gasToValue(100_000), types.NewValueFromUint64(100), nil, addr)
 	s.Require().NoError(err)
 
 	receipt = s.waitForReceipt(wallet.ShardId(), txHash)

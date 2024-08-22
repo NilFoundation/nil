@@ -78,7 +78,7 @@ func (s *SuiteModifiersRpc) TestInternalIncorrect() {
 		Seqno:     seqno,
 		Data:      internalFuncCalldata,
 		To:        s.testAddr,
-		FeeCredit: types.GasToValue(100_000),
+		FeeCredit: s.gasToValue(100_000),
 	}
 	s.Require().NoError(messageToSend.Sign(s.walletPrivateKey))
 	msgHash, err := s.client.SendMessage(messageToSend)
@@ -107,7 +107,7 @@ func (s *SuiteModifiersRpc) TestExternalCorrect() {
 		Seqno:     seqno,
 		Data:      internalFuncCalldata,
 		To:        s.testAddr,
-		FeeCredit: types.GasToValue(100_000),
+		FeeCredit: s.gasToValue(100_000),
 	}
 	s.Require().NoError(messageToSend.Sign(s.walletPrivateKey))
 	msgHash, err := s.client.SendMessage(messageToSend)
@@ -136,7 +136,7 @@ func (s *SuiteModifiersRpc) TestExternalSyncCall() {
 		Seqno:     seqno,
 		Data:      internalFuncCalldata,
 		To:        s.testAddr,
-		FeeCredit: types.GasToValue(100_000),
+		FeeCredit: s.gasToValue(100_000),
 	}
 	msgHash, err := s.client.SendMessage(messageToSend)
 	s.Require().NoError(err)
@@ -156,7 +156,7 @@ func (s *SuiteModifiersRpc) TestInternalSyncCall() {
 		Seqno:     seqno,
 		Data:      internalFuncCalldata,
 		To:        s.testAddr,
-		FeeCredit: types.GasToValue(100_000),
+		FeeCredit: s.gasToValue(100_000),
 	}
 	msgHash, err := s.client.SendMessage(messageToSend)
 	s.Require().NoError(err)

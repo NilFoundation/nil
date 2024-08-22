@@ -169,7 +169,7 @@ type OutboundMessage struct {
 
 type ExternalMessage struct {
 	Kind      MessageKind `json:"kind,omitempty" ch:"kind"`
-	FeeCredit Value       `json:"feeCredit,omitempty" ch:"fee_credit"`
+	FeeCredit Value       `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
 	To        Address     `json:"to,omitempty" ch:"to"`
 	ChainId   ChainId     `json:"chainId" ch:"chainId"`
 	Seqno     Seqno       `json:"seqno,omitempty" ch:"seqno"`
@@ -180,7 +180,7 @@ type ExternalMessage struct {
 type InternalMessagePayload struct {
 	Kind        MessageKind       `json:"kind,omitempty" ch:"kind"`
 	Bounce      bool              `json:"bounce,omitempty" ch:"bounce"`
-	FeeCredit   Value             `json:"feeCredit,omitempty" ch:"fee_credit"`
+	FeeCredit   Value             `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
 	ForwardKind ForwardKind       `json:"forwardKind,omitempty" ch:"forward_kind"`
 	To          Address           `json:"to,omitempty" ch:"to"`
 	RefundTo    Address           `json:"refundTo,omitempty" ch:"refundTo"`
@@ -192,11 +192,12 @@ type InternalMessagePayload struct {
 }
 
 type messageDigest struct {
-	Flags   MessageFlags
-	To      Address
-	ChainId ChainId
-	Seqno   Seqno
-	Data    Code `ssz-max:"24576"`
+	Flags     MessageFlags
+	FeeCredit Value `ssz-size:"32"`
+	To        Address
+	ChainId   ChainId
+	Seqno     Seqno
+	Data      Code `ssz-max:"24576"`
 }
 
 // EvmState contains EVM data to be saved/restored during await request.
@@ -371,11 +372,12 @@ func (m *ExternalMessage) Hash() common.Hash {
 
 func (m *ExternalMessage) SigningHash() (common.Hash, error) {
 	messageDigest := messageDigest{
-		Flags:   MessageFlagsFromKind(false, m.Kind),
-		Seqno:   m.Seqno,
-		To:      m.To,
-		Data:    m.Data,
-		ChainId: m.ChainId,
+		Flags:     MessageFlagsFromKind(false, m.Kind),
+		FeeCredit: m.FeeCredit,
+		Seqno:     m.Seqno,
+		To:        m.To,
+		Data:      m.Data,
+		ChainId:   m.ChainId,
 	}
 
 	return common.PoseidonSSZ(&messageDigest)
@@ -396,11 +398,12 @@ func (m ExternalMessage) ToMessage() *Message {
 
 func (m *Message) SigningHash() (common.Hash, error) {
 	messageDigest := messageDigest{
-		Flags:   m.Flags,
-		Seqno:   m.Seqno,
-		To:      m.To,
-		Data:    m.Data,
-		ChainId: m.ChainId,
+		Flags:     m.Flags,
+		FeeCredit: m.FeeCredit,
+		Seqno:     m.Seqno,
+		To:        m.To,
+		Data:      m.Data,
+		ChainId:   m.ChainId,
 	}
 
 	return common.PoseidonSSZ(&messageDigest)

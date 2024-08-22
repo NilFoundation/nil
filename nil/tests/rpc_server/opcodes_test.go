@@ -93,7 +93,7 @@ func (s *SuitOpcodes) TestSend() {
 		callData, err := contracts.NewCallData(contracts.NameSender, "send", s.walletAddress1, big.NewInt(100500))
 		s.Require().NoError(err)
 
-		msgHash, err := s.client.SendExternalMessage(callData, s.senderAddress1, nil)
+		msgHash, err := s.client.SendExternalMessage(callData, s.senderAddress1, nil, s.gasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.waitForReceipt(s.senderAddress1.ShardId(), msgHash)
 		s.Require().NotNil(receipt)
@@ -107,7 +107,7 @@ func (s *SuitOpcodes) TestSend() {
 		callData, err := contracts.NewCallData(contracts.NameSender, "send", s.walletAddress2, big.NewInt(100500))
 		s.Require().NoError(err)
 
-		msgHash, err := s.client.SendExternalMessage(callData, s.senderAddress1, nil)
+		msgHash, err := s.client.SendExternalMessage(callData, s.senderAddress1, nil, s.gasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.waitForReceipt(s.senderAddress1.ShardId(), msgHash)
 		s.Require().NotNil(receipt)

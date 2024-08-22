@@ -59,7 +59,7 @@ func (s *SuiteWalletRpc) TestWallet() {
 			Data:      contracts.NewCounterGetCallData(s.T()),
 			Seqno:     seqno,
 			To:        addrCallee,
-			FeeCredit: types.GasToValue(100_000),
+			FeeCredit: s.gasToValue(100_000),
 		})
 		s.Require().NoError(err)
 

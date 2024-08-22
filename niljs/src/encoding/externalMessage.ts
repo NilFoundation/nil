@@ -86,6 +86,7 @@ export class ExternalMessageEnvelope {
    */
   public encode(): Uint8Array {
     return SszSignedMessageSchema.serialize({
+      feeCredit: 50000000n,
       seqno: this.seqno,
       chainId: this.chainId,
       to: this.to,
@@ -113,6 +114,7 @@ export class ExternalMessageEnvelope {
   public signingHash(): Uint8Array {
     // print all the fields
     const raw = SszMessageSchema.serialize({
+      feeCredit: 50000000n,
       seqno: this.seqno,
       chainId: this.chainId,
       to: this.to,
@@ -138,6 +140,7 @@ export class ExternalMessageEnvelope {
   }> {
     const signature = await this.sign(signer);
     const raw = SszSignedMessageSchema.serialize({
+      feeCredit: 50000000n,
       seqno: this.seqno,
       chainId: this.chainId,
       to: this.to,

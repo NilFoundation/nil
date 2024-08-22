@@ -172,7 +172,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 
 		s.Run("FailedDeploy", func() {
 			// no account at address to pay for the message
-			hash, _, err := s.client.DeployExternal(shardId, types.BuildDeployPayload(calleeCode, common.EmptyHash))
+			hash, _, err := s.client.DeployExternal(shardId, types.BuildDeployPayload(calleeCode, common.EmptyHash), s.gasToValue(100_000))
 			s.Require().NoError(err)
 
 			receipt := s.waitForReceipt(shardId, hash)
@@ -425,7 +425,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 			Data:      extPayload,
 			Seqno:     callerSeqno,
 			Kind:      types.ExecutionMessageKind,
-			FeeCredit: types.GasToValue(100_000),
+			FeeCredit: s.gasToValue(100_000),
 		}
 
 		extBytecode, err := extMsg.MarshalSSZ()
@@ -582,7 +582,7 @@ func (s *SuiteRpc) TestInvalidMessageExternalDeployment() {
 	s.Require().NoError(err)
 
 	wallet := types.MainWalletAddress
-	hash, err := s.client.SendExternalMessage(calldataExt, wallet, execution.MainPrivateKey)
+	hash, err := s.client.SendExternalMessage(calldataExt, wallet, execution.MainPrivateKey, s.gasToValue(100_000))
 	s.Require().NoError(err)
 	s.Require().NotEmpty(hash)
 
@@ -658,7 +658,7 @@ func (s *SuiteRpc) TestNoOutMessagesIfFailure() {
 	calldata, err := abi.Pack("testFailedAsyncCall", addr, int32(0))
 	s.Require().NoError(err)
 
-	txhash, err := s.client.SendExternalMessage(calldata, addr, nil)
+	txhash, err := s.client.SendExternalMessage(calldata, addr, nil, s.gasToValue(100_000))
 	s.Require().NoError(err)
 	receipt = s.waitForReceipt(addr.ShardId(), txhash)
 	s.Require().False(receipt.Success)
@@ -670,7 +670,7 @@ func (s *SuiteRpc) TestNoOutMessagesIfFailure() {
 	calldata, err = abi.Pack("testFailedAsyncCall", addr, int32(10))
 	s.Require().NoError(err)
 
-	txhash, err = s.client.SendExternalMessage(calldata, addr, nil)
+	txhash, err = s.client.SendExternalMessage(calldata, addr, nil, s.gasToValue(100_000))
 	s.Require().NoError(err)
 	receipt = s.waitForReceipt(addr.ShardId(), txhash)
 	s.Require().True(receipt.Success)

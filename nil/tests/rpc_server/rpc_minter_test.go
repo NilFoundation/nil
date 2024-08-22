@@ -304,7 +304,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 			[]types.CurrencyBalanceAbiCompatible{{Currency: currencyTest1.idInt, Balance: uint256.NewInt(5000).ToBig()}})
 		s.Require().NoError(err)
 
-		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil)
+		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil, s.gasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.waitForReceipt(s.testAddress1_0.ShardId(), hash)
 		s.Require().True(receipt.Success)
@@ -336,7 +336,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 			})
 		s.Require().NoError(err)
 
-		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil)
+		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil, s.gasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.waitForReceipt(s.testAddress1_0.ShardId(), hash)
 		s.Require().False(receipt.Success)
@@ -359,7 +359,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 			[]types.CurrencyBalanceAbiCompatible{{Currency: currencyTest1.idInt, Balance: uint256.NewInt(5000).ToBig()}})
 		s.Require().NoError(err)
 
-		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil)
+		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil, s.gasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.waitForReceipt(s.testAddress1_0.ShardId(), hash)
 		s.Require().True(receipt.Success)
@@ -387,7 +387,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 			})
 		s.Require().NoError(err)
 
-		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil)
+		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil, s.gasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.waitForReceipt(s.testAddress1_0.ShardId(), hash)
 		s.Require().False(receipt.Success)
@@ -413,7 +413,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		data, err := s.abiTest.Pack("testSendTokensSync", s.testAddress1_1, big.NewInt(5000), false)
 		s.Require().NoError(err)
 
-		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil)
+		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil, s.gasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.waitForReceipt(s.testAddress1_0.ShardId(), hash)
 		s.Require().True(receipt.Success)
@@ -437,7 +437,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		data, err := s.abiTest.Pack("testSendTokensSync", s.testAddress1_1, big.NewInt(5000), true)
 		s.Require().NoError(err)
 
-		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil)
+		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil, s.gasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.waitForReceipt(s.testAddress1_0.ShardId(), hash)
 		s.Require().False(receipt.Success)
@@ -461,7 +461,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		data, err := s.abiTest.Pack("testSendTokensSync", s.walletAddress3, big.NewInt(5000), false)
 		s.Require().NoError(err)
 
-		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil)
+		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil, s.gasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.waitForReceipt(s.testAddress1_0.ShardId(), hash)
 		s.Require().False(receipt.Success)
