@@ -113,6 +113,7 @@ export class ExternalMessageEnvelope {
   public signingHash(): Uint8Array {
     // print all the fields
     const raw = SszMessageSchema.serialize({
+      feeCredit: 50000000n,
       seqno: this.seqno,
       chainId: this.chainId,
       to: this.to,

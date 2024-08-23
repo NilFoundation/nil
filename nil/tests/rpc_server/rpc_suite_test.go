@@ -18,6 +18,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -25,7 +26,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/tools/solc"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/suite"
@@ -138,8 +138,8 @@ func (s *RpcSuite) deployContractViaWallet(
 	s.T().Helper()
 
 	contractAddr := types.CreateAddress(shardId, payload)
-	txHash, err := s.client.SendMessageViaWallet(addrFrom, types.Code{}, s.gasToValue(100_000), initialAmount,
-		[]types.CurrencyBalance{}, contractAddr, key)
+	txHash, err := s.client.SendMessageViaWallet(addrFrom, types.Code{}, s.gasToValue(100_000), s.gasToValue(100_000),
+		initialAmount, []types.CurrencyBalance{}, contractAddr, key)
 	s.Require().NoError(err)
 	receipt := s.waitForReceipt(addrFrom.ShardId(), txHash)
 	s.Require().True(receipt.Success)
@@ -168,8 +168,8 @@ func (s *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Add
 ) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	txHash, err := s.client.SendMessageViaWallet(addrFrom, calldata, s.gasToValue(10_000_000), types.NewZeroValue(),
-		[]types.CurrencyBalance{}, addrTo, key)
+	txHash, err := s.client.SendMessageViaWallet(addrFrom, calldata, s.gasToValue(100_000), s.gasToValue(10_000_000),
+		types.NewZeroValue(), []types.CurrencyBalance{}, addrTo, key)
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceipt(addrFrom.ShardId(), txHash)
@@ -195,7 +195,7 @@ func (s *RpcSuite) sendExternalMessage(bytecode types.Code, contractAddress type
 func (s *RpcSuite) sendExternalMessageNoCheck(bytecode types.Code, contractAddress types.Address) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	txHash, err := s.client.SendExternalMessage(bytecode, contractAddress, execution.MainPrivateKey)
+	txHash, err := s.client.SendExternalMessage(bytecode, contractAddress, execution.MainPrivateKey, s.gasToValue(500_000))
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceipt(contractAddress.ShardId(), txHash)
@@ -205,13 +205,13 @@ func (s *RpcSuite) sendExternalMessageNoCheck(bytecode types.Code, contractAddre
 
 // sendMessageViaWalletNoCheck sends a message via a wallet contract. Doesn't require the receipt be successful.
 func (s *RpcSuite) sendMessageViaWalletNoCheck(addrWallet types.Address, addrTo types.Address, key *ecdsa.PrivateKey,
-	calldata []byte, feeCredit types.Value, value types.Value, currencies []types.CurrencyBalance,
+	calldata []byte, feeCredit, value types.Value, currencies []types.CurrencyBalance,
 ) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
 	// Send the raw transaction
-	txHash, err := s.client.SendMessageViaWallet(addrWallet, calldata, feeCredit, value, currencies,
-		addrTo, key)
+	txHash, err := s.client.SendMessageViaWallet(addrWallet, calldata, s.gasToValue(100_000), feeCredit,
+		value, currencies, addrTo, key)
 	s.Require().NoError(err)
 
 	receipt := s.waitForReceipt(addrWallet.ShardId(), txHash)

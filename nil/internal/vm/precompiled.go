@@ -25,10 +25,10 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
@@ -257,12 +257,6 @@ func (c *asyncCall) RequiredGas([]byte) uint64 {
 	return ForwardFee
 }
 
-func convertGethAddress(addrGeth any) types.Address {
-	dstGo, ok := addrGeth.(eth_common.Address)
-	check.PanicIfNotf(ok, "asyncCall failed: argument is not an address")
-	return types.BytesToAddress(dstGo.Bytes())
-}
-
 func extractCurrencies(arg any) ([]types.CurrencyBalance, error) {
 	slice := reflect.ValueOf(arg)
 	currencies := make([]types.CurrencyBalance, slice.Len())
@@ -307,13 +301,16 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	check.PanicIfNotf(ok, "asyncCall failed: forwardKind argument is not an uint8")
 
 	// Get `dst` argument
-	dst := convertGethAddress(args[2])
+	dst, ok := args[2].(types.Address)
+	check.PanicIfNotf(ok, "asyncCall failed: dst argument is not an address")
 
 	// Get `refundTo` argument
-	refundTo := convertGethAddress(args[3])
+	refundTo, ok := args[3].(types.Address)
+	check.PanicIfNotf(ok, "asyncCall failed: refundTo argument is not an address")
 
 	// Get `bounceTo` argument
-	bounceTo := convertGethAddress(args[4])
+	bounceTo, ok := args[4].(types.Address)
+	check.PanicIfNotf(ok, "asyncCall failed: bounceTo argument is not an address")
 
 	// Get `messageGas` argument
 	messageGasBig, ok := args[5].(*big.Int)
@@ -396,7 +393,8 @@ func (a *awaitCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	}
 
 	// Get `dst` argument
-	dst := convertGethAddress(args[0])
+	dst, ok := args[0].(types.Address)
+	check.PanicIfNotf(ok, "awaitCall failed: dst argument is not an address")
 
 	// Get `callData` argument
 	callData, ok := args[1].([]byte)
@@ -535,7 +533,9 @@ func (a *currencyBalance) Run(state StateDBReadOnly, input []byte, value *uint25
 	check.PanicIfNotf(ok, "currencyBalance failed: currencyId is not a big.Int: %v", args[0])
 
 	// Get `addr` argument
-	addr := convertGethAddress(args[1])
+	addr, ok := args[1].(types.Address)
+	check.PanicIfNotf(ok, "currencyBalance failed: addr argument is not an address")
+
 	if addr == types.EmptyAddress {
 		addr = caller.Address()
 	} else if addr.ShardId() != caller.Address().ShardId() {
@@ -574,7 +574,9 @@ func (c *sendCurrencySync) Run(state StateDB, input []byte, value *uint256.Int, 
 	}
 
 	// Get destination address
-	addr := convertGethAddress(args[0])
+	addr, ok := args[0].(types.Address)
+	check.PanicIfNotf(ok, "sendCurrencySync failed: addr argument is not an address")
+
 	if caller.Address().ShardId() != addr.ShardId() {
 		return nil, fmt.Errorf("sendCurrencySync: %w: %s -> %s",
 			ErrCrossShardMessage, caller.Address().ShardId(), addr.ShardId())

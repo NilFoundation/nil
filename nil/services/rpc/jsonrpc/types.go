@@ -43,7 +43,7 @@ func (args CallArgs) toMessage() (*types.Message, error) {
 		// Try to decode external message
 		var extMsg types.ExternalMessage
 		if err := extMsg.UnmarshalSSZ(*args.Message); err == nil {
-			return extMsg.ToMessage(args.FeeCredit), nil
+			return extMsg.ToMessage(), nil
 		}
 
 		// Try to decode internal message payload

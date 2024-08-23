@@ -6,12 +6,12 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/crypto"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -75,9 +75,10 @@ func (s *SuiteModifiersRpc) TestInternalIncorrect() {
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
-		Seqno: seqno,
-		Data:  internalFuncCalldata,
-		To:    s.testAddr,
+		Seqno:     seqno,
+		Data:      internalFuncCalldata,
+		To:        s.testAddr,
+		FeeCredit: s.gasToValue(100_000),
 	}
 	s.Require().NoError(messageToSend.Sign(s.walletPrivateKey))
 	msgHash, err := s.client.SendMessage(messageToSend)
@@ -103,9 +104,10 @@ func (s *SuiteModifiersRpc) TestExternalCorrect() {
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
-		Seqno: seqno,
-		Data:  internalFuncCalldata,
-		To:    s.testAddr,
+		Seqno:     seqno,
+		Data:      internalFuncCalldata,
+		To:        s.testAddr,
+		FeeCredit: s.gasToValue(100_000),
 	}
 	s.Require().NoError(messageToSend.Sign(s.walletPrivateKey))
 	msgHash, err := s.client.SendMessage(messageToSend)
@@ -131,9 +133,10 @@ func (s *SuiteModifiersRpc) TestExternalSyncCall() {
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
-		Seqno: seqno,
-		Data:  internalFuncCalldata,
-		To:    s.testAddr,
+		Seqno:     seqno,
+		Data:      internalFuncCalldata,
+		To:        s.testAddr,
+		FeeCredit: s.gasToValue(100_000),
 	}
 	msgHash, err := s.client.SendMessage(messageToSend)
 	s.Require().NoError(err)
@@ -150,9 +153,10 @@ func (s *SuiteModifiersRpc) TestInternalSyncCall() {
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
-		Seqno: seqno,
-		Data:  internalFuncCalldata,
-		To:    s.testAddr,
+		Seqno:     seqno,
+		Data:      internalFuncCalldata,
+		To:        s.testAddr,
+		FeeCredit: s.gasToValue(100_000),
 	}
 	msgHash, err := s.client.SendMessage(messageToSend)
 	s.Require().NoError(err)

@@ -9,7 +9,7 @@
 
   outputs = { self, nixpkgs, flake-utils, nil-released }:
     (flake-utils.lib.eachDefaultSystem (system:
-      let 
+      let
         pkgs = import nixpkgs { inherit system; };
         nild = nil-released.packages.${system}.nil;
       in rec {

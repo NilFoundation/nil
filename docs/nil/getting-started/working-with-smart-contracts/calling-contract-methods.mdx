@@ -18,15 +18,15 @@ Complete the following tutorials before proceeding.
 
 To call the `orderProduct()` function inside the retailer contract and trigger an async call:
 
-```bash
-nil wallet send-tokens RETAILER_ADDRESS 5000000
-nil wallet send-message RETAILER_ADDRESS orderProduct MANUFACTURER_ADDRESS new-product --abi path/to/Retailer.abi --fee-credit 2000000
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startSendTokensCommand end=endSendTokensCommand
+```
+
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startRetailerCallManufacturer end=endRetailerCallManufacturer
 ```
 
 Make a readonly call to access the value:
 
-```bash
-nil contract call-readonly MANUFACTURER_ADDRESS getProducts --abi path/to/Manufacturer.abi
+```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startCallToManufacturerCommand end=endCallToManufacturerCommand
 ```
 
 The CLI should output the decoded values automatically.

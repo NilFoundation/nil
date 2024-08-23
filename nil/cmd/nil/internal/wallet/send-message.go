@@ -77,7 +77,7 @@ func runSend(_ *cobra.Command, args []string, cfg *common.Config) error {
 		return err
 	}
 
-	msgHash, err := service.RunContract(cfg.Address, calldata, params.feeCredit, params.amount, currencies, address)
+	msgHash, err := service.RunContract(cfg.Address, calldata, types.GasToValue(100_000), params.feeCredit, params.amount, currencies, address)
 	if err != nil {
 		return err
 	}

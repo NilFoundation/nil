@@ -1,7 +1,5 @@
 import { RPC_GLOBAL, NIL_GLOBAL } from './globals';
 
-import { expect, describe, test, it, beforeEach, beforeAll, afterAll } from "vitest";
-
 const util = require('node:util');
 const exec = util.promisify(require('node:child_process').exec);
 
@@ -82,6 +80,7 @@ describe.sequential('initial wallet setup tests', () => {
     test.sequential('wallet creation command creates a wallet', async () => {
         const pattern = /New wallet address/;
         const { stdout, stderr } = await exec(WALLET_CREATION_COMMAND);
+        console.log(stdout);
         expect(stdout).toMatch(pattern);
     });
 
@@ -99,6 +98,7 @@ describe.sequential('incrementer tests', () => {
     test.sequential('wallet info command supplies info', async () => {
         const pattern = /Wallet address/;
         const { stdout, stderr } = await exec(WALLET_INFO_COMMAND);
+        console.log(stdout);
         expect(stdout).toMatch(pattern);
     });
 
@@ -107,6 +107,8 @@ describe.sequential('incrementer tests', () => {
         const addressPattern = /0x[a-fA-F0-9]{40}/g;
         await exec(COUNTER_COMPILATION_COMMAND);
         const { stdout, stderr } = await exec(COUNTER_DEPLOYMENT_COMMAND);
+        console.log(stdout);
+        console.log(stderr);
         expect(stdout).toMatch(pattern);
         const addressMatches = stdout.match(addressPattern);
         COUNTER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;

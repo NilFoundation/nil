@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/ethereum/go-ethereum/common/compiler"
 )
 
