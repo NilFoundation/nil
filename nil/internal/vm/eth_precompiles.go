@@ -36,7 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/blake2b"
 	"github.com/ethereum/go-ethereum/crypto/bn256"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
-	"golang.org/x/crypto/ripemd160" //nolint:staticcheck
+	"golang.org/x/crypto/ripemd160" //nolint:staticcheck,gosec
 )
 
 // ecrecover implemented as a native contract.
@@ -105,7 +105,7 @@ func (c *ripemd160hash) RequiredGas(input []byte) uint64 {
 }
 
 func (c *ripemd160hash) Run(input []byte) ([]byte, error) {
-	ripemd := ripemd160.New()
+	ripemd := ripemd160.New() //nolint:gosec
 	ripemd.Write(input)
 	return common.LeftPadBytes(ripemd.Sum(nil), 32), nil
 }

@@ -13,7 +13,7 @@ import (
 
 type BlockGeneratorParams struct {
 	ShardId       types.ShardId
-	NShards       int
+	NShards       uint32
 	TraceEVM      bool
 	Timer         common.Timer
 	GasBasePrice  types.Value
@@ -45,7 +45,7 @@ func (p *Proposal) IsEmpty() bool {
 	return len(p.InMsgs) == 0 && len(p.OutMsgs) == 0
 }
 
-func NewBlockGeneratorParams(shardId types.ShardId, nShards int, gasBasePrice types.Value, gasPriceScale float64) BlockGeneratorParams {
+func NewBlockGeneratorParams(shardId types.ShardId, nShards uint32, gasBasePrice types.Value, gasPriceScale float64) BlockGeneratorParams {
 	return BlockGeneratorParams{
 		ShardId:       shardId,
 		NShards:       nShards,

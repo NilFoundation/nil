@@ -8,7 +8,7 @@ import (
 
 type ShardTopology interface {
 	// returns list of neighbor shard ids
-	GetNeighbors(id types.ShardId, nShards int, includeSelf bool) []types.ShardId
+	GetNeighbors(id types.ShardId, nShards uint32, includeSelf bool) []types.ShardId
 
 	// returns whether we need to propagate message from `from` shard to `dest` shard via `cur` shard
 	ShouldPropagateMsg(from types.ShardId, cur types.ShardId, dest types.ShardId) bool
@@ -18,7 +18,7 @@ type NeighbouringShardTopology struct{}
 
 var neighbouringShardTopology ShardTopology = new(NeighbouringShardTopology)
 
-func (*NeighbouringShardTopology) GetNeighbors(id types.ShardId, nShards int, includeSelf bool) []types.ShardId {
+func (*NeighbouringShardTopology) GetNeighbors(id types.ShardId, nShards uint32, includeSelf bool) []types.ShardId {
 	var leftId, rightId types.ShardId
 	if id > 0 {
 		leftId = id - 1
@@ -49,7 +49,7 @@ type TrivialShardTopology struct{}
 
 var trivialShardTopology ShardTopology = new(TrivialShardTopology)
 
-func (*TrivialShardTopology) GetNeighbors(id types.ShardId, nShards int, includeSelf bool) []types.ShardId {
+func (*TrivialShardTopology) GetNeighbors(id types.ShardId, nShards uint32, includeSelf bool) []types.ShardId {
 	nb := make([]types.ShardId, 0, nShards)
 	for i := range types.ShardId(nShards) {
 		if i != id || includeSelf {

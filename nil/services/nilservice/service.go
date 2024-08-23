@@ -105,7 +105,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	}
 	defer telemetry.Shutdown(ctx)
 
-	funcs := make([]concurrent.Func, 0, cfg.NShards+2+len(workers))
+	funcs := make([]concurrent.Func, 0, int(cfg.NShards)+2+len(workers))
 	if cfg.GracefulShutdown {
 		funcs = []concurrent.Func{
 			func(ctx context.Context) error {

@@ -63,7 +63,7 @@ func (s *SuiteSplitShard) start(cfg *nilservice.Config) {
 	portmap := make(map[string]string)
 	for i := range cfg.NShards - 1 {
 		shardId := types.ShardId(i + 1)
-		url := GetSockPathIdx(s.T(), i)
+		url := GetSockPathIdx(s.T(), int(i))
 		shard := shard{
 			id:       shardId,
 			db:       s.dbInit(),

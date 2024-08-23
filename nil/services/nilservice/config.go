@@ -15,7 +15,7 @@ const (
 )
 
 type Config struct {
-	NShards              int
+	NShards              uint32
 	RunOnlyShard         types.ShardId
 	ShardEndpoints       map[string]string
 	HttpUrl              string
