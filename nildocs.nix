@@ -1,4 +1,5 @@
-{ lib, stdenv, npmHooks, nodejs, nil, openssl, fetchNpmDeps, autoconf, automake, libtool }:
+{ lib, stdenv, npmHooks, nodejs, nil, openssl, fetchNpmDeps, autoconf, automake, libtool
+, enableTesting ? false }:
 
 stdenv.mkDerivation rec {
   name = "nil.docs";
@@ -19,19 +20,18 @@ stdenv.mkDerivation rec {
     npmHooks.npmConfigHook
     autoconf
     automake
-    libtool  
+    libtool
   ];
 
   dontConfigure = true;
 
   postPatch = ''
-      export HOME=$NIX_BUILD_TOP/fake_home
-      patchShebangs node_modules/
-    '';
+    export HOME=$NIX_BUILD_TOP/fake_home
+    patchShebangs node_modules/
+  '';
 
   buildPhase = ''
     patchShebangs hardhat-plugin/node_modules
-    runHook preBuild
 
     export NILJS_SRC=${./niljs}
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
@@ -39,7 +39,12 @@ stdenv.mkDerivation rec {
     npm run build --legacy-peer-deps --workspaces
 
     cd docs
-    runHook postBuild
+  '';
+
+  doCheck = enableTesting;
+
+  checkPhase = ''
+    echo "Run tests here"
   '';
 
   shellHook = ''
@@ -47,11 +52,6 @@ stdenv.mkDerivation rec {
   '';
 
   installPhase = ''
-    runHook preInstall
-
     mv build $out
-
-    runHook postInstall
   '';
-
 }

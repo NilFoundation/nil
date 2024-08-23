@@ -15,9 +15,9 @@
       in rec {
         packages = rec {
           nil = (pkgs.callPackage ./nil.nix { src_repo = self; buildGoModule = pkgs.buildGo123Module; });
-          niljs = (pkgs.callPackage ./niljs.nix { nil = nil; });
+          niljs = (pkgs.callPackage ./niljs.nix {});
           nildocs = (pkgs.callPackage ./nildocs.nix { nil = nild; });
-          nilhardhat = (pkgs.callPackage ./nilhardhat.nix { nil = nil; });
+          nilhardhat = (pkgs.callPackage ./nilhardhat.nix {});
           default = nil;
         };
         checks = rec {
@@ -27,8 +27,14 @@
             enableRaceDetector = true;
             enableTesting = true;
           });
-          niljs = (pkgs.callPackage ./niljs.nix { nil = nil; });
-          nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; });
+          niljs = (pkgs.callPackage ./niljs.nix {
+            nil = nil;
+            enableTesting = true;
+          });
+          nildocs = (pkgs.callPackage ./nildocs.nix {
+            nil = nil;
+            enableTesting = true;
+          });
           nilhardhat = (pkgs.callPackage ./nilhardhat.nix {
             nil = nil;
             enableTesting = true;
