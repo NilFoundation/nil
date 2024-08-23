@@ -48,7 +48,7 @@ func (suite *SuiteEthBlock) SetupSuite() {
 
 	suite.api, err = NewEthAPI(suite.ctx,
 		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db,
-		[]msgpool.Pool{msgpool.New(msgpool.DefaultConfig)}, logging.NewLogger("Test"))
+		[]msgpool.Pool{msgpool.New(msgpool.DefaultConfig)}, true, logging.NewLogger("Test"))
 	suite.Require().NoError(err)
 }
 
@@ -156,7 +156,7 @@ func TestGetBlockByNumberOnEmptyBase(t *testing.T) {
 
 	ctx := context.Background()
 	api, err := NewEthAPI(ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), d, []msgpool.Pool{pool}, logging.NewLogger("Test"))
+		NewBaseApi(rpccfg.DefaultEvmCallTimeout), d, []msgpool.Pool{pool}, true, logging.NewLogger("Test"))
 	require.NoError(t, err)
 
 	_, err = api.GetBlockByNumber(ctx, shardId, transport.EarliestBlockNumber, false)

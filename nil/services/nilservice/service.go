@@ -44,7 +44,8 @@ func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []
 
 	base := jsonrpc.NewBaseApi(rpccfg.DefaultEvmCallTimeout)
 
-	ethImpl, err := jsonrpc.NewEthAPI(ctx, base, db, pools, logger)
+	pollBlocksForLogs := (cfg.RunMode == NormalRunMode)
+	ethImpl, err := jsonrpc.NewEthAPI(ctx, base, db, pools, pollBlocksForLogs, logger)
 	if err != nil {
 		return err
 	}
@@ -172,8 +173,9 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 				GasBasePrice:  types.NewValueFromUint64(cfg.GasBasePrice),
 				GasPriceScale: cfg.GasPriceScale,
 			},
-			Timeout:           time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs),
-			ReplayBlockNumber: cfg.Replay.BlockId,
+			Timeout:          time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs),
+			ReplayFirstBlock: cfg.Replay.BlockIdFirst,
+			ReplayLastBlock:  cfg.Replay.BlockIdLast,
 		})
 
 		funcs = append(funcs, func(ctx context.Context) error {

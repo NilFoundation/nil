@@ -154,6 +154,10 @@ func (bn BlockNumber) Uint64() uint64 {
 	return uint64(bn)
 }
 
+func (bn BlockNumber) IsSpecial() bool {
+	return bn < 0
+}
+
 func (bn BlockNumber) BlockNumber() types.BlockNumber {
 	if bn < 0 {
 		panic(fmt.Sprintf("A special value of BlockNumber is used as a real value: %d", bn))

@@ -20,8 +20,8 @@ import (
 )
 
 type readThroughOptions struct {
-	SourceAddr string                `yaml:"sourceAddr"`
-	StartBlock transport.BlockNumber `yaml:"startBlock"`
+	SourceAddr      string                `yaml:"sourceAddr"`
+	ForkMainAtBlock transport.BlockNumber `yaml:"forkMainAtBlock"`
 }
 
 type config struct {
@@ -42,7 +42,7 @@ func main() {
 	check.PanicIfErr(err)
 
 	if len(cfg.ReadThrough.SourceAddr) != 0 {
-		database, err = readthroughdb.NewReadThroughWithEndpoint(context.Background(), cfg.ReadThrough.SourceAddr, database, cfg.ReadThrough.StartBlock)
+		database, err = readthroughdb.NewReadThroughWithEndpoint(context.Background(), cfg.ReadThrough.SourceAddr, database, cfg.ReadThrough.ForkMainAtBlock)
 		check.PanicIfErr(err)
 	}
 
@@ -60,7 +60,7 @@ func loadConfig() (*config, error) {
 		Config: nilservice.NewDefaultConfig(),
 		DB:     db.NewDefaultBadgerDBOptions(),
 		ReadThrough: &readThroughOptions{
-			StartBlock: transport.LatestBlockNumber,
+			ForkMainAtBlock: transport.LatestBlockNumber,
 		},
 	}
 	name := ""
@@ -117,7 +117,7 @@ func parseArgs() *config {
 	rootCmd.PersistentFlags().IntVar(&cfg.RPCPort, "port", cfg.RPCPort, "http port for rpc server")
 	rootCmd.PersistentFlags().StringVar(&cfg.AdminSocketPath, "admin-socket-path", cfg.AdminSocketPath, "unix socket path to start admin server on (disabled if empty)}")
 	rootCmd.PersistentFlags().StringVar(&cfg.ReadThrough.SourceAddr, "read-through-db-addr", cfg.ReadThrough.SourceAddr, "address of the read-through database server. If provided, the local node will be run in read-through mode.")
-	rootCmd.PersistentFlags().Var(&cfg.ReadThrough.StartBlock, "read-through-start-block", "mainshard start block number for read-through mode, latest block by default")
+	rootCmd.PersistentFlags().Var(&cfg.ReadThrough.ForkMainAtBlock, "read-through-fork-main-at-block", "all blocks generated later than this MainChain block won't be fetched; latest block by default")
 
 	runCmd := &cobra.Command{
 		Use:   "run",
@@ -152,7 +152,8 @@ func parseArgs() *config {
 			cfg.RunMode = nilservice.BlockReplayRunMode
 		},
 	}
-	replayCmd.Flags().Var(&cfg.Replay.BlockId, "block-id", "block id to replay")
+	replayCmd.Flags().Var(&cfg.Replay.BlockIdFirst, "first-block", "first block id to replay")
+	replayCmd.Flags().Var(&cfg.Replay.BlockIdLast, "last-block", "last block id to replay")
 	replayCmd.Flags().Var(&cfg.Replay.ShardId, "shard-id", "shard id to replay block from")
 
 	rootCmd.AddCommand(runCmd, replayCmd)
@@ -166,6 +167,10 @@ func parseArgs() *config {
 	check.PanicIfErr(rootCmd.Execute())
 
 	logging.SetupGlobalLogger(*logLevel)
+
+	if cfg.Replay.BlockIdLast == 0 {
+		cfg.Replay.BlockIdLast = cfg.Replay.BlockIdFirst
+	}
 
 	return cfg
 }

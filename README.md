@@ -88,7 +88,7 @@ After that we can work with nil.js, e.g. run tests `npm run test:unit`.
 
 ## Unique features
 
-=nil; boasts several unique features making it distinct from Ethereum and other L2s. 
+=nil; boasts several unique features making it distinct from Ethereum and other L2s.
 
 * [Structurally distinct external and internal messages](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/core-concepts/shards-parallel-execution#internal-vs-external-messages)
 * [Async execution](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/core-concepts/shards-parallel-execution#async-execution)
@@ -96,7 +96,7 @@ After that we can work with nil.js, e.g. run tests `npm run test:unit`.
 
 ## Tools
 
-To interact with the cluster, =nil; supplies several developer tools. 
+To interact with the cluster, =nil; supplies several developer tools.
 
 * The =nil; CLI (provided in this repository)
 * [The `Nil.js` client library](https://github.com/nilFoundation/nil.js)
@@ -191,7 +191,7 @@ In the case of external deployment, funds have to be set for the intended addres
 
 [Learn more about the payment structure during external deployment](https://docs-nil-foundation-git-nil-ethcc-nilfoundation.vercel.app/nil/getting-started/working-with-smart-contracts/deploying-a-contract#external-deployment).
 
-=nil; also has a multi-currency mechanism. All accounts (smart contracts) can contain any number of arbitrary currencies as a Merkle trie root. Currency creation is dedicated to a special precompiled contract (the minter), and anyone can request the creation of new currencies. 
+=nil; also has a multi-currency mechanism. All accounts (smart contracts) can contain any number of arbitrary currencies as a Merkle trie root. Currency creation is dedicated to a special precompiled contract (the minter), and anyone can request the creation of new currencies.
 
 **NB**: the currency owner is recorded during creation, and only messages from the owner are processed for the currency. A contract can only be the owner of one currency.
 
@@ -339,4 +339,21 @@ Create a platform-agnostic deb package:
 
 ```
 nix bundle --bundler . .#nil
+```
+
+## Debugging
+
+### Block replay
+
+If you want to reproduce execution of some particular block in the past you can start nil server in a block-replay mode. By default only one block is being replayed and afterwards execution stops, but replaying block range is supported as well
+```bash
+nild --db-path ./database replay-block --first-block 123 --last-block 125 --shard-id 1 --log-level trace
+
+```
+
+
+Keeping in mind that production database usually not the smallest one you might want to fetch only needed records (instead of fully copying it). In order to do this you need to use read-through mode which will attach to the running node and pull needed data from there
+Note that in this mode DB fetches only blocks until some point (which is called fork-point). Later blocks won't be fetched from the node. So typically you'll need to put a big value of `fork-at-block` (e.g. `latest`) and run your replay in the following way:
+```bash
+nild --read-through-db-addr $RPC_ENDPOINT --read-through-fork-main-at-block 50 replay-block --first-block 20 --last-block 30 --shard-id 1 --log-level trace
 ```

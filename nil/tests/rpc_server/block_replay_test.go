@@ -68,8 +68,9 @@ func (s *SuiteBlockReplay) restartReplayMode(shardId types.ShardId, blockNumber 
 
 	s.cfg.RunMode = nilservice.BlockReplayRunMode
 	s.cfg.Replay = &nilservice.ReplayConfig{
-		ShardId: shardId,
-		BlockId: blockNumber,
+		ShardId:      shardId,
+		BlockIdFirst: blockNumber,
+		BlockIdLast:  blockNumber + 1,
 	}
 
 	s.dbInit = func() db.DB {
@@ -119,11 +120,10 @@ func (s *SuiteBlockReplay) TestBlockReplay() {
 			block, err := s.client.GetBlock(types.BaseShardId, "latest", false)
 			s.Require().NoError(err)
 			newLatestBlock = block
-			return block != nil && block.Number < latestBlock.Number
+			return block != nil && block.Number < latestBlock.Number && block.Number > blockToReplay.Number
 		}, ReceiptWaitTimeout, ReceiptPollInterval)
 
-		s.Require().LessOrEqual(blockToReplay.Number-1, newLatestBlock.Number)
-		s.Require().LessOrEqual(newLatestBlock.Number, blockToReplay.Number)
+		s.Require().LessOrEqual(newLatestBlock.Number, blockToReplay.Number+1)
 	})
 
 	s.Run("Replay interacts with DB", func() {

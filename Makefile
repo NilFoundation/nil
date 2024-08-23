@@ -16,7 +16,7 @@ all: $(COMMANDS)
 test: compile-contracts ssz
 	$(GOTEST) $(CMDARGS)
 
-%.cmd:
+%.cmd: ssz
 	@# Note: $* is replaced by the command name
 	@echo "Building $*"
 	@cd ./nil/cmd/$* && $(GOBUILD) -o $(GOBIN)/$*
