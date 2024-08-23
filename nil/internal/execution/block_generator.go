@@ -92,10 +92,14 @@ func (g *BlockGenerator) Rollback() {
 	g.rwTx.Rollback()
 }
 
-func (g *BlockGenerator) GenerateZeroState(zeroState string) (*types.Block, error) {
+func (g *BlockGenerator) GenerateZeroState(zeroStateYaml string, config *ZeroStateConfig) (*types.Block, error) {
 	g.logger.Info().Msg("Generating zero-state...")
 
-	if err := g.executionState.GenerateZeroState(zeroState); err != nil {
+	if config != nil {
+		if err := g.executionState.GenerateZeroState(config); err != nil {
+			return nil, err
+		}
+	} else if err := g.executionState.GenerateZeroStateYaml(zeroStateYaml); err != nil {
 		return nil, err
 	}
 
@@ -109,6 +113,8 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal) (*types.Block, error)
 	}
 
 	g.executionState.UpdateGasPrice()
+
+	g.executionState.MainChainHash = proposal.MainChainHash
 
 	var res *ExecutionResult
 
@@ -130,7 +136,6 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal) (*types.Block, error)
 		g.executionState.AppendOutMessageForTx(common.EmptyHash, msg)
 	}
 
-	g.executionState.MainChainHash = proposal.MainChainHash
 	g.executionState.ChildChainBlocks = proposal.ShardHashes
 
 	if err := db.WriteCollatorState(g.rwTx, g.params.ShardId, proposal.CollatorState); err != nil {

@@ -36,14 +36,14 @@ func (suite *SuiteEthBlock) SetupSuite() {
 	suite.db, err = db.NewBadgerDbInMemory()
 	suite.Require().NoError(err)
 
-	suite.lastBlockHash = common.EmptyHash
-	for i := range types.BlockNumber(2) {
+	suite.lastBlockHash = execution.GenerateZeroState(suite.T(), suite.ctx, types.MainShardId, suite.db)
+	for i := 1; i < int(types.BlockNumber(2)); i++ {
 		msgs := make([]*types.Message, 0, i)
 		for j := range i {
 			msgs = append(msgs, &types.Message{Data: types.Code(strconv.FormatUint(uint64(j), 10))})
 		}
 		suite.lastBlockHash = execution.GenerateBlockFromMessagesWithoutExecution(suite.T(), suite.ctx,
-			shardId, i, suite.lastBlockHash, suite.db, msgs...)
+			shardId, types.BlockNumber(i), suite.lastBlockHash, suite.db, msgs...)
 	}
 
 	suite.api, err = NewEthAPI(suite.ctx,

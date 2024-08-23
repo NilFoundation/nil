@@ -99,7 +99,7 @@ func (s *SuiteEconomy) SetupTest() {
 		NShards:              s.shardsNum,
 		HttpUrl:              GetSockPath(s.T()),
 		Topology:             collate.TrivialShardTopologyId,
-		ZeroState:            s.zerostateCfg,
+		ZeroStateYaml:        s.zerostateCfg,
 		CollatorTickPeriodMs: 300,
 		GasPriceScale:        0,
 		GasBasePrice:         10,

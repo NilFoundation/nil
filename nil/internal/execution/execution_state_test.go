@@ -209,7 +209,7 @@ func newState(t *testing.T) *ExecutionState {
 	state, err := NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0), 1)
 	require.NoError(t, err)
 
-	err = state.GenerateZeroState(DefaultZeroStateConfig)
+	err = state.GenerateZeroStateYaml(DefaultZeroStateConfig)
 	require.NoError(t, err)
 	return state
 }
@@ -549,7 +549,7 @@ contracts:
 
 	gen, err := NewBlockGenerator(ctx, params, database)
 	require.NoError(b, err)
-	_, err = gen.GenerateZeroState(zerostateCfg)
+	_, err = gen.GenerateZeroState(zerostateCfg, nil)
 	require.NoError(b, err)
 
 	msg := types.NewEmptyMessage()

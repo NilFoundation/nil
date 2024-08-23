@@ -13,6 +13,7 @@ library Nil {
     address private constant GET_GAS_PRICE = address(0xd4);
     address private constant GET_POSEIDON_HASH = address(0xd5);
     address private constant AWAIT_CALL = address(0xd6);
+    address private constant CONFIG_PARAM = address(0xd7);
 
     // The following constants specify from where and how the gas should be taken during async call.
     // Forwarding values are calculated in the following order: FORWARD_VALUE, FORWARD_PERCENTAGE, FORWARD_REMAINING.
@@ -195,6 +196,47 @@ library Nil {
     function getPoseidonHash(bytes memory data) internal returns(uint256) {
         return __Precompile__(GET_POSEIDON_HASH).precompileGetPoseidonHash(data);
     }
+
+    function setConfigParam(string memory name, bytes memory data) internal {
+        __Precompile__(CONFIG_PARAM).precompileConfigParam(true, name, data);
+    }
+
+    function getConfigParam(string memory name) internal returns(bytes memory) {
+        return __Precompile__(CONFIG_PARAM).precompileConfigParam(false, name, bytes(""));
+    }
+
+    struct ValidatorInfo {
+        uint8[33] PublicKey;
+        address WithdrawalAddress;
+    }
+
+    struct ParamValidators {
+        ValidatorInfo[] list;
+    }
+
+    struct ParamGasPrice {
+        uint256 gasPriceScale;
+    }
+
+    function setValidators(ParamValidators memory validators) internal {
+        bytes memory data = abi.encode(validators);
+        setConfigParam("curr_validators", data);
+    }
+
+    function getValidators() internal returns(ParamValidators memory) {
+        bytes memory data = getConfigParam("curr_validators");
+        return abi.decode(data, (ParamValidators));
+    }
+
+    function setParamGasPrice(ParamGasPrice memory param) internal {
+        bytes memory data = abi.encode(param);
+        setConfigParam("gas_price", data);
+    }
+
+    function getParamGasPrice() internal returns(ParamGasPrice memory) {
+        bytes memory data = getConfigParam("gas_price");
+        return abi.decode(data, (ParamGasPrice));
+    }
 }
 
 // NilBase is a base contract that provides modifiers for checking the type of message (internal or external).
@@ -235,4 +277,10 @@ contract __Precompile__ {
     function precompileGetMessageTokens() public returns(Nil.Token[] memory) {}
     function precompileGetGasPrice(uint id) public returns(uint256) {}
     function precompileGetPoseidonHash(bytes memory data) public returns(uint256) {}
+    function precompileConfigParam(bool isSet, string calldata name, bytes calldata data) public returns(bytes memory) {}
+}
+
+contract NilConfigAbi {
+    function curr_validators(Nil.ParamValidators memory) public {}
+    function gas_price(Nil.ParamGasPrice memory) public {}
 }

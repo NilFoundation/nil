@@ -35,9 +35,10 @@ $(COMMANDS): %: compile-contracts ssz %.cmd
 include nil/internal/db/Makefile.inc
 include nil/internal/mpt/Makefile.inc
 include nil/internal/types/Makefile.inc
+include nil/internal/config/Makefile.inc
 
 .PHONY: ssz
-ssz: ssz_db ssz_mpt ssz_types
+ssz: ssz_db ssz_mpt ssz_types ssz_config
 
 contracts/compiled/%.bin: $(wildcard nil/contracts/solidity/tests/*.sol) $(wildcard nil/contracts/solidity/*.sol)
 	go generate nil/contracts/generate.go

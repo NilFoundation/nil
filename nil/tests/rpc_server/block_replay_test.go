@@ -44,7 +44,7 @@ func (s *SuiteBlockReplay) SetupSuite() {
 		NShards:              4,
 		HttpUrl:              GetSockPath(s.T()),
 		Topology:             collate.TrivialShardTopologyId,
-		ZeroState:            execution.DefaultZeroStateConfig,
+		ZeroStateYaml:        execution.DefaultZeroStateConfig,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
 		RunMode:              nilservice.NormalRunMode,

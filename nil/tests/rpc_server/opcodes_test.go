@@ -63,7 +63,7 @@ contracts:
 		NShards:              4,
 		HttpUrl:              GetSockPath(s.T()),
 		Topology:             collate.TrivialShardTopologyId,
-		ZeroState:            zerostate,
+		ZeroStateYaml:        zerostate,
 		CollatorTickPeriodMs: 100,
 		GasPriceScale:        15,
 		GasBasePrice:         10,

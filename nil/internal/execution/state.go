@@ -15,8 +15,10 @@ import (
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
@@ -96,6 +98,8 @@ type ExecutionState struct {
 
 	// wasSentRequest is true if the VM execution ended with sending a request message
 	wasSentRequest bool
+
+	configAccessor *config.ConfigAccessor
 }
 
 type ExecutionResult struct {
@@ -243,6 +247,7 @@ func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash,
 
 		gasPriceScale: gasPriceScale,
 	}
+
 	return res, res.initTries()
 }
 
@@ -269,6 +274,43 @@ func NewExecutionStateForShard(tx db.RwTx, shardId types.ShardId, timer common.T
 		return nil, fmt.Errorf("failed getting last block: %w", err)
 	}
 	return NewExecutionState(tx, shardId, hash, timer, gasPriceScale)
+}
+
+func (es *ExecutionState) GetConfigAccessor() *config.ConfigAccessor {
+	if es.configAccessor == nil {
+		err := es.initConfigAccessor()
+		check.PanicIfErr(err)
+	}
+	return es.configAccessor
+}
+
+// initConfigAccessor inits config accessor for the current state.
+func (es *ExecutionState) initConfigAccessor() error {
+	configTree := mpt.NewDbMPT(es.tx, types.MainShardId, db.ConfigTrieTable)
+
+	var mainChainBlock *types.Block
+	var err error
+
+	if es.ShardId == types.MainShardId {
+		mainChainBlock, err = db.ReadLastBlock(es.tx, es.ShardId)
+		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+			return err
+		}
+		if mainChainBlock != nil {
+			configTree.SetRootHash(mainChainBlock.ConfigRoot)
+		}
+	} else {
+		sa, err := es.Accessor.Access(es.tx, types.MainShardId).GetBlock().ByHash(es.MainChainHash)
+		if err != nil {
+			return err
+		}
+		mainChainBlock = sa.Block()
+		configTree.SetRootHash(mainChainBlock.ConfigRoot)
+	}
+
+	es.configAccessor = config.NewConfigAccessorFromMpt(configTree, es.ShardId)
+
+	return nil
 }
 
 func (es *ExecutionState) GetReceipt(msgIndex types.MessageIndex) (*types.Receipt, error) {
@@ -614,10 +656,6 @@ func (es *ExecutionState) SetExtSeqno(addr types.Address, seqno types.Seqno) err
 	}
 	acc.SetExtSeqno(seqno)
 	return nil
-}
-
-func (es *ExecutionState) SetMainChainHash(hash common.Hash) {
-	es.MainChainHash = hash
 }
 
 func (es *ExecutionState) SetShardHash(shardId types.ShardId, hash common.Hash) {
@@ -1175,6 +1213,18 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		GasPrice:            es.GasPrice,
 		// TODO(@klonD90): remove this field after changing explorer
 		Timestamp: 0,
+	}
+
+	if es.ShardId == types.MainShardId {
+		if es.configAccessor != nil {
+			block.ConfigRoot = es.configAccessor.GetRootHash()
+		} else {
+			// If we didn't touch `ConfigTree` it means that we don't have any changes in config.
+			// So, just copy it from the previous block.
+			prevBlock, err := db.ReadBlock(es.tx, es.ShardId, es.PrevBlock)
+			check.PanicIfErr(err)
+			block.ConfigRoot = prevBlock.ConfigRoot
+		}
 	}
 
 	if TraceBlocksEnabled {

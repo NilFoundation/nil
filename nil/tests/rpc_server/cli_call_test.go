@@ -50,7 +50,7 @@ func (s *SuiteCliTestCall) SetupTest() {
 		NShards:              s.shardsNum,
 		HttpUrl:              HttpUrl,
 		Topology:             collate.TrivialShardTopologyId,
-		ZeroState:            s.zerostateCfg,
+		ZeroStateYaml:        s.zerostateCfg,
 		CollatorTickPeriodMs: 100,
 		GracefulShutdown:     false,
 		GasPriceScale:        0,

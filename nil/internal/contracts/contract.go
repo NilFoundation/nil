@@ -17,6 +17,7 @@ const (
 	NamePrecompile      = "__Precompile__"
 	NameNilCurrencyBase = "NilCurrencyBase"
 	NameNilBounceable   = "NilBounceable"
+	NameNilConfigAbi    = "NilConfigAbi"
 )
 
 var (

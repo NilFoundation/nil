@@ -33,6 +33,7 @@ type Block struct {
 	ReceiptsRoot        common.Hash  `json:"receiptsRoot" ch:"receipts_root"`
 	ChildBlocksRootHash common.Hash  `json:"childBlocksRootHash" ch:"child_blocks_root_hash"`
 	MainChainHash       common.Hash  `json:"mainChainHash" ch:"main_chain_hash"`
+	ConfigRoot          common.Hash  `json:"configRoot" ch:"config_root"`
 	LogsBloom           Bloom        `json:"logsBloom" ch:"logs_bloom"`
 	Timestamp           uint64       `json:"timestamp" ch:"timestamp"`
 	GasPrice            Value        `json:"gasPrice" ch:"gas_price"`

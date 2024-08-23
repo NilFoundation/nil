@@ -54,6 +54,8 @@ func (s *SuiteEthCall) SetupSuite() {
 	s.contracts, err = solc.CompileSource("../../../internal/execution/testdata/call.sol")
 	s.Require().NoError(err)
 
+	mainBlockHash := execution.GenerateZeroState(s.T(), ctx, types.MainShardId, s.db)
+
 	m1 := execution.NewDeployMessage(types.BuildDeployPayload(hexutil.FromHex(s.contracts["Caller"].Code), common.EmptyHash),
 		shardId, types.GenerateRandomAddress(shardId), 0, types.NewValueFromUint64(100_000_000))
 
@@ -66,7 +68,7 @@ func (s *SuiteEthCall) SetupSuite() {
 
 	s.lastBlockHash = execution.GenerateBlockFromMessages(s.T(), ctx, shardId, 0, s.lastBlockHash, s.db, nil, m1, m2)
 
-	execution.GenerateBlockFromMessages(s.T(), ctx, types.MainShardId, 0, common.EmptyHash, s.db,
+	execution.GenerateBlockFromMessages(s.T(), ctx, types.MainShardId, 0, mainBlockHash, s.db,
 		map[types.ShardId]common.Hash{shardId: s.lastBlockHash})
 
 	pool := msgpool.New(msgpool.DefaultConfig)

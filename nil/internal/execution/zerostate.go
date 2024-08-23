@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	nilcrypto "github.com/NilFoundation/nil/nil/internal/crypto"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -46,6 +47,7 @@ contracts:
 		"FaucetAddress":     types.FaucetAddress.Hex(),
 		"MainWalletAddress": types.MainWalletAddress.Hex(),
 		"MainPublicKey":     hexutil.Encode(MainPublicKey),
+		"MainWalletPubKey":  hexutil.Encode(MainPublicKey),
 	})
 	check.PanicIfErr(err)
 }
@@ -65,7 +67,9 @@ type MainKeys struct {
 }
 
 type ConfigParams struct {
-	GasPrices []int `yaml:"gasPrices"`
+	GasPrices  []int                  `yaml:"gasPrices"`
+	Validators config.ParamValidators `yaml:"validators,omitempty"`
+	GasPrice   config.ParamGasPrice   `yaml:"gasPrice"`
 }
 
 type ZeroStateConfig struct {
@@ -132,20 +136,36 @@ func ParseZeroStateConfig(configYaml string) (*ZeroStateConfig, error) {
 	return &config, err
 }
 
-func (es *ExecutionState) GenerateZeroState(configYaml string) error {
+func (es *ExecutionState) GenerateZeroStateYaml(configYaml string) error {
 	config, err := ParseZeroStateConfig(configYaml)
 	if err != nil {
 		return err
 	}
+	return es.GenerateZeroState(config)
+}
 
-	if config.ConfigParams.GasPrices != nil {
-		check.PanicIfNot(len(config.ConfigParams.GasPrices) > int(es.ShardId))
-		es.GasPrice = types.NewValueFromUint64(uint64(config.ConfigParams.GasPrices[es.ShardId]))
+func (es *ExecutionState) GenerateZeroState(stateConfig *ZeroStateConfig) error {
+	var err error
+
+	if es.ShardId == types.MainShardId {
+		err = es.GetConfigAccessor().SetParamValidators(&stateConfig.ConfigParams.Validators)
+		if err != nil {
+			return err
+		}
+		err = es.GetConfigAccessor().SetParamGasPrice(&stateConfig.ConfigParams.GasPrice)
+		if err != nil {
+			return err
+		}
+	}
+
+	if stateConfig.ConfigParams.GasPrices != nil {
+		check.PanicIfNot(len(stateConfig.ConfigParams.GasPrices) > int(es.ShardId))
+		es.GasPrice = types.NewValueFromUint64(uint64(stateConfig.ConfigParams.GasPrices[es.ShardId]))
 	} else {
 		es.GasPrice = types.DefaultGasPrice
 	}
 
-	for _, contract := range config.Contracts {
+	for _, contract := range stateConfig.Contracts {
 		code, err := contracts.GetCode(contract.Contract)
 		if err != nil {
 			return err
@@ -179,12 +199,12 @@ func (es *ExecutionState) GenerateZeroState(configYaml string) error {
 					return fmt.Errorf("unknown constructor argument string pattern: %s", arg)
 				}
 			default:
-				return fmt.Errorf("unsupported constructor argument type: %T", arg)
+				args = append(args, arg)
 			}
 		}
 		argsPacked, err := abi.Pack("", args...)
 		if err != nil {
-			return err
+			return fmt.Errorf("[ZeroState] ctorArgs pack failed: %w", err)
 		}
 		code = append(code, argsPacked...)
 

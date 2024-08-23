@@ -100,7 +100,7 @@ func (s *SuiteMultiCurrencyRpc) SetupTest() {
 		NShards:              s.shardsNum,
 		HttpUrl:              GetSockPath(s.T()),
 		Topology:             collate.TrivialShardTopologyId,
-		ZeroState:            s.zerostateCfg,
+		ZeroStateYaml:        s.zerostateCfg,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
 		RunMode:              nilservice.CollatorsOnlyRunMode,

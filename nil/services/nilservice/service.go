@@ -290,11 +290,12 @@ func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod t
 		CollatorTickPeriod: collatorTickPeriod,
 		Timeout:            collatorTickPeriod,
 		ZeroState:          execution.DefaultZeroStateConfig,
+		ZeroStateConfig:    cfg.ZeroState,
 		MainKeysOutPath:    cfg.MainKeysOutPath,
 		Topology:           collate.GetShardTopologyById(cfg.Topology),
 	}
-	if len(cfg.ZeroState) != 0 {
-		collatorCfg.ZeroState = cfg.ZeroState
+	if len(cfg.ZeroStateYaml) != 0 {
+		collatorCfg.ZeroState = cfg.ZeroStateYaml
 	}
 
 	return collate.NewScheduler(database, msgPool, collatorCfg, networkManager)

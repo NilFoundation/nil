@@ -91,7 +91,7 @@ func (s *SuiteAsyncAwait) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards:              s.shardsNum,
 		Topology:             collate.TrivialShardTopologyId,
-		ZeroState:            s.zerostateCfg,
+		ZeroStateYaml:        s.zerostateCfg,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
 		RunMode:              nilservice.CollatorsOnlyRunMode,

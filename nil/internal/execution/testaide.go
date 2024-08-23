@@ -14,7 +14,7 @@ import (
 
 func GenerateZeroState(t *testing.T, ctx context.Context,
 	shardId types.ShardId, txFabric db.DB,
-) {
+) common.Hash {
 	t.Helper()
 
 	g, err := NewBlockGenerator(ctx,
@@ -22,9 +22,10 @@ func GenerateZeroState(t *testing.T, ctx context.Context,
 		txFabric)
 	require.NoError(t, err)
 	defer g.Rollback()
-	block, err := g.GenerateZeroState(DefaultZeroStateConfig)
+	block, err := g.GenerateZeroState(DefaultZeroStateConfig, nil)
 	require.NoError(t, err)
 	require.NotNil(t, block)
+	return block.Hash()
 }
 
 func GenerateBlockFromMessages(t *testing.T, ctx context.Context,

@@ -1,6 +1,7 @@
 package nilservice
 
 import (
+	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -21,7 +22,8 @@ type Config struct {
 	HttpUrl              string
 	AdminSocketPath      string
 	Topology             string
-	ZeroState            string
+	ZeroStateYaml        string
+	ZeroState            *execution.ZeroStateConfig
 	MainKeysOutPath      string
 	NetworkKeysPath      string
 	CollatorTickPeriodMs uint32

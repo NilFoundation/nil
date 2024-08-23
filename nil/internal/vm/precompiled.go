@@ -77,6 +77,7 @@ var (
 	GetGasPriceAddress     = types.BytesToAddress([]byte{0xd4})
 	PoseidonHashAddress    = types.BytesToAddress([]byte{0xd5})
 	AwaitCallAddress       = types.BytesToAddress([]byte{0xd6})
+	ConfigParamAddress     = types.BytesToAddress([]byte{0xd7})
 )
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -114,6 +115,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	GetGasPriceAddress:     &getGasPrice{},
 	PoseidonHashAddress:    &poseidonHash{},
 	AwaitCallAddress:       &awaitCall{},
+	ConfigParamAddress:     &configParam{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -219,7 +221,7 @@ func getPrecompiledMethod(methodName string) abi.Method {
 	a, err := contracts.GetAbi(contracts.NamePrecompile)
 	check.PanicIfErr(err)
 	method, ok := a.Methods[methodName]
-	check.PanicIfNot(ok)
+	check.PanicIfNotf(ok, "method %s not found", methodName)
 	return method
 }
 
@@ -685,4 +687,65 @@ func (c *poseidonHash) Run(state StateDBReadOnly, input []byte, value *uint256.I
 	check.PanicIfNotf(ok, "poseidonHash failed: data is not a bytes: %v", args[0])
 
 	return common.PoseidonHash(data).Bytes(), nil
+}
+
+type configParam struct{}
+
+var _ PrecompiledContract = (*configParam)(nil)
+
+func (c *configParam) RequiredGas([]byte) uint64 {
+	return 10
+}
+
+func (c *configParam) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	method := getPrecompiledMethod("precompileConfigParam")
+
+	args, err := method.Inputs.Unpack(input[4:])
+	if err != nil {
+		return nil, err
+	}
+	if len(args) != 3 {
+		return nil, errors.New("precompileConfigParam: invalid number of arguments")
+	}
+
+	// Get `isSet` argument
+	isSet, ok := args[0].(bool)
+	check.PanicIfNotf(ok, "configParam failed: isSet is not a bool")
+
+	// Get `name` argument
+	name, ok := args[1].(string)
+	check.PanicIfNotf(ok, "configParam failed: name is not a string")
+
+	cfgAccessor := state.GetConfigAccessor()
+
+	if isSet {
+		// Get `data` argument
+		data, ok := args[2].([]byte)
+		check.PanicIfNotf(ok, "configParam failed: data is not a []byte")
+
+		params, err := cfgAccessor.UnpackSolidity(name, data)
+		if err != nil {
+			return nil, fmt.Errorf("%w: precompileConfigParam failed to UnpackSolidity: %w", ErrPrecompileReverted, err)
+		}
+
+		if !state.GetShardID().IsMainShard() {
+			return nil, fmt.Errorf("%w: only contracts on master shard can change config parameters", ErrPrecompileReverted)
+		}
+
+		if err = cfgAccessor.SetParam(name, params); err != nil {
+			return nil, fmt.Errorf("%w: precompileConfigParam failed to set param: %w", ErrPrecompileReverted, err)
+		}
+
+		return method.Outputs.Pack([]byte{})
+	}
+	params, err := cfgAccessor.GetParam(name)
+	if err != nil {
+		return nil, fmt.Errorf("%w: precompileConfigParam failed to get param: %w", ErrPrecompileReverted, err)
+	}
+	data, err := cfgAccessor.PackSolidity(name, params)
+	if err != nil {
+		return nil, fmt.Errorf("%w: precompileConfigParam failed to PackSolidity: %w", ErrPrecompileReverted, err)
+	}
+
+	return method.Outputs.Pack(data)
 }
