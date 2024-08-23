@@ -3,6 +3,7 @@ package nilservice
 import (
 	"context"
 	"fmt"
+	"os/signal"
 	"syscall"
 	"time"
 
@@ -94,8 +95,11 @@ type ServiceInterop struct {
 //
 // It returns a value suitable for os.Exit().
 func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- ServiceInterop, workers ...concurrent.Func) int {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	if cfg.GracefulShutdown {
+		signalCtx, cancel := signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
+		defer cancel()
+		ctx = signalCtx
+	}
 
 	logger := logging.NewLogger("nil")
 
@@ -106,14 +110,6 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	defer telemetry.Shutdown(ctx)
 
 	funcs := make([]concurrent.Func, 0, int(cfg.NShards)+2+len(workers))
-	if cfg.GracefulShutdown {
-		funcs = []concurrent.Func{
-			func(ctx context.Context) error {
-				concurrent.OnSignal(ctx, cancel, syscall.SIGTERM, syscall.SIGINT)
-				return nil
-			},
-		}
-	}
 
 	if cfg.CollatorTickPeriodMs == 0 {
 		cfg.CollatorTickPeriodMs = defaultCollatorTickPeriodMs
