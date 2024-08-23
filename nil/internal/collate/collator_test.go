@@ -35,7 +35,7 @@ func (s *CollatorTestSuite) TearDownTest() {
 
 func (s *CollatorTestSuite) TestCollator() {
 	shardId := types.BaseShardId
-	nShards := 2
+	nShards := uint32(2)
 	gasPrice := types.NewValueFromUint64(10)
 	from := types.MainWalletAddress
 	to := contracts.CounterAddress(s.T(), shardId)
@@ -219,12 +219,12 @@ func (s *CollatorTestSuite) checkSeqno(shardId types.ShardId) {
 	s.Require().NoError(err)
 
 	check := func(msgs []*types.Message) {
-		seqno := -1
+		if len(msgs) == 0 {
+			return
+		}
+		seqno := msgs[0].Seqno
 		for _, m := range msgs {
-			if seqno == -1 {
-				seqno = int(m.Seqno)
-			}
-			s.Require().Equal(seqno, int(m.Seqno))
+			s.Require().Equal(seqno, m.Seqno)
 			seqno += 1
 		}
 	}

@@ -74,8 +74,8 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 			runMode = nilservice.NormalRunMode
 		},
 	}
-	nShards := runCmd.Flags().Int("nshards", 5, "number of shardchains")
-	runOnlyShard := runCmd.Flags().Uint("run-only-shard", 0, "run only specified shard")
+	nShards := runCmd.Flags().Uint32("nshards", 5, "number of shardchains")
+	runOnlyShard := runCmd.Flags().Uint32("run-only-shard", 0, "run only specified shard")
 	shardEndpoints := runCmd.Flags().StringToString("shard-endpoints", nil, "shard endpoints (e.g. 1=localhost:31337,2=localhost:31338)")
 	allowDropDb := runCmd.Flags().Bool("allow-db-clear", false, "allow to clear database in case of outdated version")
 
@@ -100,7 +100,7 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 		},
 	}
 	replayBlockId := replayCmd.Flags().Uint64("block-id", 1, "block id to replay")
-	replayShardId := replayCmd.Flags().Uint64("shard-id", 1, "shard id to replay block from")
+	replayShardId := replayCmd.Flags().Uint16("shard-id", 1, "shard id to replay block from")
 
 	rootCmd.AddCommand(runCmd, replayCmd)
 
