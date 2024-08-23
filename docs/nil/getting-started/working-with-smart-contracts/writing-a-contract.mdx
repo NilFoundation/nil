@@ -25,36 +25,7 @@ Contract 2 is the manufacturer. It has the following features:
 
 The `Retailer` contract (Contract 1) orders products by performing an async call to the specified address of the manufacturer contract:
 
-```solidity showLineNumbers
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-import "./Nil.sol";
-
-contract Retailer {
-    using Nil for address;
-
-    receive() external payable {}
-
-    function orderProduct(address dst, string calldata name) public {
-        dst.asyncCall(
-            msg.sender,
-            msg.sender,
-            1_000_000,
-            Nil.FORWARD_VALUE,
-            false,
-            0,
-            abi.encodeWithSignature("createProduct(string)", name)
-        );
-    }
-
-    function verifyExternal(
-        uint256 hash,
-        bytes memory _authData
-    ) external view returns (bool) {
-        return true;
-    }
-}
+```solidity showLineNumbers file=../../../tests/Retailer.sol start=startRetailerContract end=endRetailerContract
 ```
 
 ## Creating the second contract
@@ -150,84 +121,19 @@ function getProducts()
 
 Here is the full code of Contract 2:
 
-```solidity showLineNumbers
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-import "./Nil.sol";
-
-contract Manufacturer is NilBase {
-    using Nil for address;
-
-    bytes pubkey;
-    address retailerContractAddress;
-
-    receive() external payable {}
-
-    constructor(
-        bytes memory pubkeyOne,
-        address _retailerContractAddress
-    ) payable {
-        pubkey = pubkeyOne;
-        retailerContractAddress = _retailerContractAddress;
-    }
-
-    struct Product {
-        uint id;
-        string name;
-    }
-
-    mapping(uint => Product) public products;
-    uint public nextProductId;
-
-    function createProduct(
-        string calldata productName
-    ) public onlyInternal returns (bool) {
-        if (msg.sender == retailerContractAddress) {
-            products[nextProductId] = Product(nextProductId, productName);
-            nextProductId++;
-            return true;
-        }
-        return false;
-    }
-
-    function verifyExternal(
-        uint256 hash,
-        bytes calldata signature
-    ) external view returns (bool) {
-        return Nil.validateSignature(pubkey, hash, signature);
-    }
-
-    function getProducts()
-        public
-        view
-        returns (uint[] memory, string[] memory)
-    {
-        uint[] memory ids = new uint[](nextProductId);
-        string[] memory names = new string[](nextProductId);
-
-        for (uint i = 0; i < nextProductId; i++) {
-            Product storage product = products[i];
-            ids[i] = product.id;
-            names[i] = product.name;
-        }
-
-        return (ids, names);
-    }
-}
+```solidity showLineNumbers file=../../../tests/Manufacturer.sol start=startManufacturerContract end=endManufacturerContract
 ```
+
 ## Compiling the contracts
 
 Compile Contract 1 with:
 
-```bash
-solc ./Retailer.sol --bin --abi -o ./Retailer
+```bash showLineNumbers file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startRetailerCompilation end=endRetailerCompilation
 ```
 
 Compile Contract 2 with:
 
-```bash
-solc ./Manufacturer.sol --bin --abi -o ./Manufacturer
+```bash showLineNumbers file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startManufacturerCompilation end=endManufacturerCompilation
 ```
 
 After compiling both contracts, they should be [**ready for deployment**](deploying-a-contract.mdx)!
