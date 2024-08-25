@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/json"
+	"sync"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
@@ -29,13 +30,20 @@ type DirectClient struct {
 
 var _ Client = (*DirectClient)(nil)
 
-func NewEthClient(ctx context.Context, db db.ReadOnlyDB, msgPools []msgpool.Pool, logger zerolog.Logger) (*DirectClient, error) {
+func NewEthClient(ctx context.Context, wg *sync.WaitGroup, db db.ReadOnlyDB, msgPools []msgpool.Pool, logger zerolog.Logger) (*DirectClient, error) {
 	ethApi, err := jsonrpc.NewEthAPI(ctx, nil, db, msgPools, logger)
 	if err != nil {
 		return nil, err
 	}
 	debugApi := jsonrpc.NewDebugAPI(nil, db, logger)
 	dbApi := jsonrpc.NewDbAPI(db, logger)
+
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		<-ctx.Done()
+		ethApi.Shutdown()
+		wg.Done()
+	}(wg)
 
 	c := &DirectClient{
 		ethApi:   ethApi,
