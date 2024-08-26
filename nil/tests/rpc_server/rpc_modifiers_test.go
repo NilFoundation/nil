@@ -71,7 +71,7 @@ func (s *SuiteModifiersRpc) TestInternalIncorrect() {
 	internalFuncCalldata, err := s.abi.Pack("internalFunc")
 	s.Require().NoError(err)
 
-	seqno, err := s.client.GetTransactionCount(s.testAddr, "latest")
+	seqno, err := s.client.GetTransactionCount(s.testAddr, "pending")
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
@@ -100,7 +100,7 @@ func (s *SuiteModifiersRpc) TestExternalCorrect() {
 	internalFuncCalldata, err := s.abi.Pack("externalFunc")
 	s.Require().NoError(err)
 
-	seqno, err := s.client.GetTransactionCount(s.testAddr, "latest")
+	seqno, err := s.client.GetTransactionCount(s.testAddr, "pending")
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
@@ -129,7 +129,7 @@ func (s *SuiteModifiersRpc) TestExternalSyncCall() {
 	internalFuncCalldata, err := s.abi.Pack("callExternal", s.testAddr)
 	s.Require().NoError(err)
 
-	seqno, err := s.client.GetTransactionCount(s.testAddr, "latest")
+	seqno, err := s.client.GetTransactionCount(s.testAddr, "pending")
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
@@ -149,7 +149,7 @@ func (s *SuiteModifiersRpc) TestInternalSyncCall() {
 	internalFuncCalldata, err := s.abi.Pack("callInternal", s.testAddr)
 	s.Require().NoError(err)
 
-	seqno, err := s.client.GetTransactionCount(s.testAddr, "latest")
+	seqno, err := s.client.GetTransactionCount(s.testAddr, "pending")
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
