@@ -212,7 +212,7 @@ func (c *DirectClient) DeployContract(
 	shardId types.ShardId, walletAddress types.Address, payload types.DeployPayload, value types.Value, pk *ecdsa.PrivateKey,
 ) (common.Hash, types.Address, error) {
 	contractAddr := types.CreateAddress(shardId, payload)
-	txHash, err := c.sendMessageViaWallet(walletAddress, payload.Bytes(), types.GasToValue(100_000), types.GasToValue(100_000), value, []types.CurrencyBalance{}, contractAddr, pk, true)
+	txHash, err := SendMessageViaWallet(c, walletAddress, payload.Bytes(), types.GasToValue(100_000), types.GasToValue(100_000), value, []types.CurrencyBalance{}, contractAddr, pk, true)
 	if err != nil {
 		return common.EmptyHash, types.EmptyAddress, err
 	}
@@ -221,7 +221,7 @@ func (c *DirectClient) DeployContract(
 
 func (c *DirectClient) DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload, feeCredit types.Value) (common.Hash, types.Address, error) {
 	address := types.CreateAddress(shardId, deployPayload)
-	msgHash, err := c.sendExternalMessage(deployPayload.Bytes(), address, nil, feeCredit, true)
+	msgHash, err := SendExternalMessage(c, deployPayload.Bytes(), address, nil, feeCredit, true, nil)
 	return msgHash, address, err
 }
 
@@ -229,89 +229,13 @@ func (c *DirectClient) SendMessageViaWallet(
 	walletAddress types.Address, bytecode types.Code, externalFeeCredit, internalFeeCredit, value types.Value,
 	currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
 ) (common.Hash, error) {
-	return c.sendMessageViaWallet(walletAddress, bytecode, externalFeeCredit, internalFeeCredit, value, currencies, contractAddress, pk, false)
-}
-
-// RunContract runs bytecode on the specified contract address
-func (c *DirectClient) sendMessageViaWallet(
-	walletAddress types.Address, bytecode types.Code, externalFeeCredit, internalFeeCredit, value types.Value,
-	currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
-) (common.Hash, error) {
-	var kind types.MessageKind
-	if isDeploy {
-		kind = types.DeployMessageKind
-	} else {
-		kind = types.ExecutionMessageKind
-	}
-
-	intMsg := &types.InternalMessagePayload{
-		Data:        bytecode,
-		To:          contractAddress,
-		Value:       value,
-		FeeCredit:   internalFeeCredit,
-		ForwardKind: types.ForwardKindNone,
-		Currency:    currencies,
-		Kind:        kind,
-	}
-
-	intMsgData, err := intMsg.MarshalSSZ()
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	calldataExt, err := contracts.NewCallData(contracts.NameWallet, "send", intMsgData)
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	return c.SendExternalMessage(calldataExt, walletAddress, pk, externalFeeCredit)
+	return SendMessageViaWallet(c, walletAddress, bytecode, externalFeeCredit, internalFeeCredit, value, currencies, contractAddress, pk, false)
 }
 
 func (c *DirectClient) SendExternalMessage(
 	bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, feeCredit types.Value,
 ) (common.Hash, error) {
-	return c.sendExternalMessage(bytecode, contractAddress, pk, feeCredit, false)
-}
-
-func (c *DirectClient) sendExternalMessage(
-	bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, feeCredit types.Value, isDeploy bool,
-) (common.Hash, error) {
-	var kind types.MessageKind
-	if isDeploy {
-		kind = types.DeployMessageKind
-	} else {
-		kind = types.ExecutionMessageKind
-	}
-
-	// Get the sequence number for the wallet
-	seqno, err := c.GetTransactionCount(contractAddress, "latest")
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	// Create the message with the bytecode to run
-	extMsg := &types.ExternalMessage{
-		To:        contractAddress,
-		Data:      bytecode,
-		Seqno:     seqno,
-		Kind:      kind,
-		FeeCredit: feeCredit,
-	}
-
-	// Sign the message with the private key
-	if pk != nil {
-		err = extMsg.Sign(pk)
-		if err != nil {
-			return common.EmptyHash, err
-		}
-	}
-
-	// Send the raw transaction
-	txHash, err := c.SendMessage(extMsg)
-	if err != nil {
-		return common.EmptyHash, err
-	}
-	return txHash, nil
+	return SendExternalMessage(c, bytecode, contractAddress, pk, feeCredit, false, nil)
 }
 
 func (c *DirectClient) TopUpViaFaucet(contractAddress types.Address, amount types.Value) (common.Hash, error) {
