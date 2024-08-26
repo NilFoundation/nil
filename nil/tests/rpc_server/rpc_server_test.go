@@ -219,7 +219,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 
 		var hash common.Hash
 		makeCall := func() {
-			callerSeqno, err := s.client.GetTransactionCount(callerAddr, "latest")
+			callerSeqno, err := s.client.GetTransactionCount(callerAddr, "pending")
 			s.Require().NoError(err)
 			callCallerMethod := &types.ExternalMessage{
 				Seqno:     callerSeqno,
@@ -259,7 +259,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			callData, err := callerAbi.Pack(getBounceErrName)
 			s.Require().NoError(err)
 
-			callerSeqno, err := s.client.GetTransactionCount(callerAddr, "latest")
+			callerSeqno, err := s.client.GetTransactionCount(callerAddr, "pending")
 			s.Require().NoError(err)
 
 			callArgs := &jsonrpc.CallArgs{
@@ -338,7 +338,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	calldata, err := contracts.NewCallData(contracts.NameWallet, "send", intMsgData)
 	s.Require().NoError(err)
 
-	callerSeqno, err := s.client.GetTransactionCount(walletAddr, "latest")
+	callerSeqno, err := s.client.GetTransactionCount(walletAddr, "pending")
 	s.Require().NoError(err)
 
 	callArgs := &jsonrpc.CallArgs{

@@ -87,7 +87,7 @@ func SendExternalMessage(
 	}
 
 	// Get the sequence number for the wallet
-	seqno, err := c.GetTransactionCount(contractAddress, "latest")
+	seqno, err := c.GetTransactionCount(contractAddress, "pending")
 	if err != nil {
 		return common.EmptyHash, err
 	}

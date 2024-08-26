@@ -52,7 +52,7 @@ func (s *SuiteWalletRpc) TestWallet() {
 	})
 
 	s.Run("Check", func() {
-		seqno, err := s.client.GetTransactionCount(addrCallee, "latest")
+		seqno, err := s.client.GetTransactionCount(addrCallee, "pending")
 		s.Require().NoError(err)
 
 		resHash, err := s.client.SendMessage(&types.ExternalMessage{
@@ -66,7 +66,7 @@ func (s *SuiteWalletRpc) TestWallet() {
 		receipt := s.waitForReceipt(addrCallee.ShardId(), resHash)
 		s.Require().True(receipt.Success)
 
-		newSeqno, err := s.client.GetTransactionCount(addrCallee, "latest")
+		newSeqno, err := s.client.GetTransactionCount(addrCallee, "pending")
 		s.Require().NoError(err)
 		s.Equal(seqno+1, newSeqno)
 	})

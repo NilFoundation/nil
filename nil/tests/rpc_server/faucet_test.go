@@ -45,7 +45,7 @@ func (s *SuiteFaucet) createWalletViaFaucet(ownerPrivateKey *ecdsa.PrivateKey, v
 	callData, err := contracts.NewCallData(contracts.NameFaucet, "createWallet", ownerPublicKey, salt, big.NewInt(value))
 	s.Require().NoError(err)
 
-	seqno, err := s.client.GetTransactionCount(types.FaucetAddress, "latest")
+	seqno, err := s.client.GetTransactionCount(types.FaucetAddress, "pending")
 	s.Require().NoError(err)
 
 	msgExternal := &types.ExternalMessage{
