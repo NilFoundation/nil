@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 
@@ -46,11 +45,17 @@ func main() {
 
 func loadConfig() (*nilservice.Config, error) {
 	cfg := nilservice.NewDefaultConfig()
+	name := ""
 
-	configFileName := flag.String("config", "", "")
-	flag.Parse()
+	// We need to load config before parsing arguments (it changes global state).
+	// Let's search arguments explicitly.
+	for i, f := range os.Args[:len(os.Args)-1] {
+		if f == "--config" {
+			name = os.Args[i+1]
+			break
+		}
+	}
 
-	name := *configFileName
 	if name == "" {
 		return cfg, nil
 	}
