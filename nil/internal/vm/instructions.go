@@ -768,7 +768,32 @@ func opDelegateCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext
 }
 
 func opStaticCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
-	return opDelegateCall(pc, interpreter, scope)
+	// Pop gas. The actual gas is in interpreter.evm.callGasTemp.
+	stack := scope.Stack
+	// We use it as a temporary value
+	temp := stack.pop()
+	gas := interpreter.evm.callGasTemp
+	// Pop other call parameters.
+	addr, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
+	toAddr := types.Address(addr.Bytes20())
+	// Get arguments from the memory.
+	args := scope.Memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
+
+	ret, returnGas, err := interpreter.evm.StaticCall(scope.Contract, toAddr, args, gas)
+	if err != nil {
+		temp.Clear()
+	} else {
+		temp.SetOne()
+	}
+	stack.push(&temp)
+	if err == nil || errors.Is(err, ErrExecutionReverted) {
+		scope.Memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+	}
+
+	scope.Contract.RefundGas(returnGas, interpreter.evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
+
+	interpreter.returnData = ret
+	return ret, nil
 }
 
 func opReturn(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {

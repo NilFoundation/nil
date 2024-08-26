@@ -326,14 +326,6 @@ func (evm *EVM) StaticCall(caller ContractRef, addr types.Address, input []byte,
 	// We could change this, but for now it's left for legacy reasons
 	snapshot := evm.StateDB.Snapshot()
 
-	// We do an AddBalance of zero here, just in order to trigger a touch.
-	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
-	// but is the correct thing to do and matters on other networks, in tests, and potential
-	// future scenarios
-	if err := evm.StateDB.AddBalance(addr, types.Value{}, tracing.BalanceChangeTouchAccount); err != nil {
-		return nil, gas, err
-	}
-
 	var ret []byte
 	var runErr error
 	if p, isPrecompile := evm.precompile(addr); isPrecompile {

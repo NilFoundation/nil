@@ -32,8 +32,8 @@ contract ProxyContract {
         require(!success, "Static calls shouldn't write state");
     }
 
-    function getValue(address delegateAddress) public view returns (uint256) {
-        (bool success, bytes memory result) = delegateAddress.staticcall(
+    function getValue(address delegateAddress) public returns (uint256) {
+        (bool success, bytes memory result) = delegateAddress.delegatecall(
             abi.encodeWithSignature("getValue()")
         );
         require(success, "Static call failed");

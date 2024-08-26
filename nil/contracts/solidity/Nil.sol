@@ -95,10 +95,9 @@ library Nil {
         uint value,
         Token[] memory tokens,
         bytes memory callData
-    ) internal returns(bool) {
-        bool success = __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(deploy, FORWARD_NONE, dst, refundTo,
+    ) internal {
+        __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(deploy, FORWARD_NONE, dst, refundTo,
             bounceTo, feeCredit, tokens, callData);
-        return success;
     }
 
     function syncCall(
