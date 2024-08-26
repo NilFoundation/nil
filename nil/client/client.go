@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/rs/zerolog"
 )
 
 type BatchRequest interface {
@@ -52,8 +55,8 @@ type Client interface {
 	) (common.Hash, types.Address, error)
 	DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload, feeCredit types.Value) (common.Hash, types.Address, error)
 	SendMessageViaWallet(
-		walletAddress types.Address, bytecode types.Code, externalFeeCredit, internalFeeCredit types.Value,
-		value types.Value, currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
+		walletAddress types.Address, bytecode types.Code, externalFeeCredit, internalFeeCredit, value types.Value,
+		currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
 	) (common.Hash, error)
 	SendExternalMessage(
 		bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, feeCredit types.Value,
@@ -69,4 +72,87 @@ type Client interface {
 
 	// CurrencyMint mints currency for the contract
 	CurrencyMint(contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey) (common.Hash, error)
+}
+
+func SendExternalMessage(
+	c Client, bytecode types.Code, contractAddress types.Address,
+	pk *ecdsa.PrivateKey, feeCredit types.Value, isDeploy bool, logger *zerolog.Logger,
+) (common.Hash, error) {
+	var kind types.MessageKind
+	if isDeploy {
+		kind = types.DeployMessageKind
+	} else {
+		kind = types.ExecutionMessageKind
+	}
+
+	// Get the sequence number for the wallet
+	seqno, err := c.GetTransactionCount(contractAddress, "latest")
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	if logger != nil {
+		logger.Debug().
+			Str(logging.FieldAccountAddress, contractAddress.String()).
+			Uint64(logging.FieldAccountSeqno, uint64(seqno)).
+			Msg("sending external message")
+	}
+
+	// Create the message with the bytecode to run
+	extMsg := &types.ExternalMessage{
+		To:        contractAddress,
+		Data:      bytecode,
+		Seqno:     seqno,
+		Kind:      kind,
+		FeeCredit: feeCredit,
+	}
+
+	// Sign the message with the private key
+	if pk != nil {
+		err = extMsg.Sign(pk)
+		if err != nil {
+			return common.EmptyHash, err
+		}
+	}
+
+	// Send the raw transaction
+	txHash, err := c.SendMessage(extMsg)
+	if err != nil {
+		return common.EmptyHash, err
+	}
+	return txHash, nil
+}
+
+func SendMessageViaWallet(
+	c Client, walletAddress types.Address, bytecode types.Code, externalFeeCredit, internalFeeCredit, value types.Value,
+	currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
+) (common.Hash, error) {
+	var kind types.MessageKind
+	if isDeploy {
+		kind = types.DeployMessageKind
+	} else {
+		kind = types.ExecutionMessageKind
+	}
+
+	intMsg := &types.InternalMessagePayload{
+		Data:        bytecode,
+		To:          contractAddress,
+		Value:       value,
+		FeeCredit:   internalFeeCredit,
+		ForwardKind: types.ForwardKindNone,
+		Currency:    currencies,
+		Kind:        kind,
+	}
+
+	intMsgData, err := intMsg.MarshalSSZ()
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	calldataExt, err := contracts.NewCallData(contracts.NameWallet, "send", intMsgData)
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	return c.SendExternalMessage(calldataExt, walletAddress, pk, externalFeeCredit)
 }
