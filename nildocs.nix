@@ -1,11 +1,14 @@
-{ lib, stdenv, npmHooks, nodejs, nil, openssl, fetchNpmDeps, autoconf, automake, libtool
-, enableTesting ? false }:
+{ lib, stdenv, npmHooks, nodejs, nil, openssl, fetchNpmDeps, autoconf, automake, libtool, solc, enableTesting ? false}:
 
 stdenv.mkDerivation rec {
   name = "nil.docs";
   pname = "nildocs";
-  src = lib.sourceByRegex ./. ["package.json" "package-lock.json" "^docs(/.*)?$"];
-  buildInputs = [ nodejs npmHooks.npmConfigHook openssl ] ;
+  src = lib.sourceByRegex ./. [
+    "package.json"
+    "package-lock.json"
+    "^docs(/.*)?$"
+    "^niljs(/.*)?$"
+  ];
 
   npmDeps = fetchNpmDeps {
     inherit src;
@@ -14,6 +17,10 @@ stdenv.mkDerivation rec {
 
   NODE_PATH = "$npmDeps";
 
+  buildInputs = [
+    openssl
+  ];
+
   nativeBuildInputs = [
     nodejs
     nil
@@ -21,24 +28,20 @@ stdenv.mkDerivation rec {
     autoconf
     automake
     libtool
+    solc
   ];
 
   dontConfigure = true;
 
-  postPatch = ''
-    export HOME=$NIX_BUILD_TOP/fake_home
-    patchShebangs node_modules/
-  '';
-
   buildPhase = ''
-    patchShebangs hardhat-plugin/node_modules
+    (cd niljs; npm run build)
 
     export NILJS_SRC=${./niljs}
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
     export NODE_OPTIONS=--openssl-legacy-provider
-    npm run build --legacy-peer-deps --workspaces
 
     cd docs
+    npm run build
   '';
 
   doCheck = enableTesting;

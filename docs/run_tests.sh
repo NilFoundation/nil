@@ -20,11 +20,7 @@ trap_with_arg 'stop' EXIT SIGINT SIGTERM SIGHUP
 rm -f config.ini
 rm -rf test.db
 
-make
-
 nild run > nild.log 2>&1 &
 sleep 2
-
-cd docs
 
 CI=true npm run test:useNilD

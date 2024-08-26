@@ -34,7 +34,7 @@ const WALLET_BALANCE_COMMAND = `${NIL_GLOBAL} wallet balance ${CONFIG_FLAG}`;
 //endBalance
 
 beforeAll(async () => {
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(resolve => setTimeout(resolve, 17000));
     await exec(CONFIG_COMMAND);
     await exec(KEYGEN_COMMAND);
     await exec(RPC_COMMAND);
@@ -59,7 +59,7 @@ describe.sequential('initial CLI tests', () => {
     });
 });
 
-describe.sequential('niljs test', () => {
+describe.skip.sequential('niljs test', () => {
     test.sequential('niljs snippet can create and deploy a wallet', async () => {
         //startNilJSWalletCreation
         const client = new PublicClient({

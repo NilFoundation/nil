@@ -19,7 +19,7 @@ const WALLET_CREATION_COMMAND = `${NIL_GLOBAL} wallet new --salt ${SALT} ${CONFI
 //endWallet
 
 //startLatestBlock
-const RETRIEVE_LATEST_BLOCK_COMMAND = `${NIL_GLOBAL} block latest --shard-id 1`;
+const RETRIEVE_LATEST_BLOCK_COMMAND = `${NIL_GLOBAL} block latest --shard-id 1 ${CONFIG_FLAG}`;
 //endLatestBlock
 
 const COUNTER_COMPILATION_COMMAND = 'solc -o ./tests/Counter --bin --abi ./tests/Counter.sol --overwrite';
@@ -28,7 +28,6 @@ const COUNTER_DEPLOYMENT_COMMAND = `${NIL_GLOBAL} wallet deploy ./tests/Counter/
 let CONTRACT_ADDRESS;
 
 beforeAll(async () => {
-    await new Promise(resolve => setTimeout(resolve, 12000));
     await exec(CONFIG_COMMAND);
     await exec(KEYGEN_COMMAND);
     await exec(RPC_COMMAND);
@@ -55,12 +54,12 @@ describe.sequential('CLI tests', async () => {
         expect(stdout).toBeDefined;
         const HASH = stdout.match(hashPattern)[0];
         //startMessageRead
-        const READ_MESSAGE_COMMAND = `${NIL_GLOBAL} message ${HASH}`;
+        const READ_MESSAGE_COMMAND = `${NIL_GLOBAL} message ${HASH} ${CONFIG_FLAG}`;
         //endMessageRead
         ({ stdout, stderr } = await exec(READ_MESSAGE_COMMAND));
         expect(stdout).toBeDefined;
         //startReceiptRead
-        const READ_RECEIPT_COMMAND = `${NIL_GLOBAL} receipt ${HASH}`;
+        const READ_RECEIPT_COMMAND = `${NIL_GLOBAL} receipt ${HASH} ${CONFIG_FLAG}`;
         //endReceiptRead
         ({ stdout, stderr } = await exec(READ_RECEIPT_COMMAND));
         expect(stdout).toBeDefined;

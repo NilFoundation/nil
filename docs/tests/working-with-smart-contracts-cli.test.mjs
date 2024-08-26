@@ -46,7 +46,6 @@ let RETAILER_ADDRESS;
 let PUBKEY;
 
 beforeAll(async () => {
-    await new Promise(resolve => setTimeout(resolve, 12000));
     await exec(CONFIG_COMMAND);
     await exec(KEYGEN_COMMAND);
     await exec(RPC_COMMAND);
@@ -76,7 +75,6 @@ describe.sequential('CLI deployment tests', async () => {
         //endRetailerDeploymentCommand
         let { stdout, stderr } = await exec(RETAILER_DEPLOYMENT_COMMAND);
         expect(stdout).toMatch(pattern);
-        console.log(stdout);
         const addressMatches = stdout.match(addressPattern);
         RETAILER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
 
@@ -90,7 +88,6 @@ describe.sequential('CLI deployment tests', async () => {
         ({ stdout, stderr } = await exec(MANUFACTURER_DEPLOYMENT_COMMAND));
         const addressMatchesManufacturer = stdout.match(addressPattern);
         MANUFACTURER_ADDRESS = addressMatchesManufacturer.length > 1 ? addressMatchesManufacturer[1] : null;
-        console.log(stdout);
 
     });
     test.sequential('internal deploy, the Retailer can call the Manufacturer successfully', async () => {
@@ -106,6 +103,8 @@ describe.sequential('CLI deployment tests', async () => {
 
         let { stdout, stderr } = await exec(RETAILER_CALL_MANUFACTURER_COMMAND);
         expect(stdout).toBeDefined;
+
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
         //startCallToManufacturerCommand
         const CALL_TO_MANUFACTURER_COMMAND = `${NIL_GLOBAL} contract call-readonly ${MANUFACTURER_ADDRESS} getProducts --abi ./tests/Manufacturer/Manufacturer.abi ${CONFIG_FLAG}`;
@@ -126,7 +125,6 @@ describe.sequential('CLI deployment tests', async () => {
         //endExternalRetailerAddressCommand
 
         let { stdout, stderr } = await exec(RETAILER_ADDRESS_COMMAND);
-        console.log(stdout);
         expect(stdout).toMatch(addressPattern);
         let addressMatches = stdout.match(addressPattern);
         RETAILER_ADDRESS = addressMatches[0];
@@ -146,10 +144,9 @@ describe.sequential('CLI deployment tests', async () => {
         ({ stdout, stderr } = await exec(RETAILER_EXTERNAL_DEPLOYMENT_COMMAND));
         expect(stdout).toBeDefined;
         expect(stdout).toMatch(pattern);
-        console.log(stdout);
 
         //startExternalManufacturerAddressCommand
-        const MANUFACTURER_ADDRESS_COMMAND = `${NIL_GLOBAL} contract address ./tests/Manufacturer.sol ${PUBKEY} ${RETAILER_ADDRESSq} --shard-id 2 --salt ${salt} ${CONFIG_FLAG} --abi ./tests/Manufacturer/Manufacturer.abi`;
+        const MANUFACTURER_ADDRESS_COMMAND = `${NIL_GLOBAL} contract address ./tests/Manufacturer.sol ${PUBKEY} ${RETAILER_ADDRESS} --shard-id 2 --salt ${salt} ${CONFIG_FLAG} --abi ./tests/Manufacturer/Manufacturer.abi`;
         //endExternalManufacturerAddressCommand
 
         ({ stdout, stderr } = await exec(MANUFACTURER_ADDRESS_COMMAND));
@@ -169,6 +166,5 @@ describe.sequential('CLI deployment tests', async () => {
         ({ stdout, stderr } = await exec(MANUFACTURER_EXTERNAL_DEPLOYMENT_COMMAND));
         expect(stdout).toBeDefined;
         expect(stdout).toMatch(pattern);
-        console.log(stdout);
     });
 });

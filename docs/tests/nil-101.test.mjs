@@ -80,7 +80,6 @@ describe.sequential('initial wallet setup tests', () => {
     test.sequential('wallet creation command creates a wallet', async () => {
         const pattern = /New wallet address/;
         const { stdout, stderr } = await exec(WALLET_CREATION_COMMAND);
-        console.log(stdout);
         expect(stdout).toMatch(pattern);
     });
 
@@ -98,7 +97,6 @@ describe.sequential('incrementer tests', () => {
     test.sequential('wallet info command supplies info', async () => {
         const pattern = /Wallet address/;
         const { stdout, stderr } = await exec(WALLET_INFO_COMMAND);
-        console.log(stdout);
         expect(stdout).toMatch(pattern);
     });
 
@@ -107,8 +105,6 @@ describe.sequential('incrementer tests', () => {
         const addressPattern = /0x[a-fA-F0-9]{40}/g;
         await exec(COUNTER_COMPILATION_COMMAND);
         const { stdout, stderr } = await exec(COUNTER_DEPLOYMENT_COMMAND);
-        console.log(stdout);
-        console.log(stderr);
         expect(stdout).toMatch(pattern);
         const addressMatches = stdout.match(addressPattern);
         COUNTER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
@@ -218,11 +214,15 @@ describe.sequential('tokens tests', () => {
     test.sequential('a new currency is created and withdrawn successfully', async () => {
         const pattern = /50000/;
 
-        //startMintWithdrawCurrency
-        const MINT_WITHDRAW_CURRENCY_COMMAND = `${NIL_GLOBAL} minter create-currency ${NEW_WALLET_ADDRESS} 50000 new-currency --withdraw ${CONFIG_FLAG}`;
-        //endMintWithdrawCurrency
+        //startMintCurrency
+        const MINT_CURRENCY_COMMAND = `${NIL_GLOBAL} minter create-currency ${NEW_WALLET_ADDRESS} 50000 new-currency ${CONFIG_FLAG}`;
+        //endMintCurrency
 
-        await exec(MINT_WITHDRAW_CURRENCY_COMMAND);
+        //startWithdrawCurrency
+        const WITHDRAW_CURRENCY_COMMAND = `${NIL_GLOBAL} minter withdraw-currency ${NEW_WALLET_ADDRESS} 50000 ${NEW_WALLET_ADDRESS} ${CONFIG_FLAG}`;
+        //endWithdrawCurrency
+        await exec(MINT_CURRENCY_COMMAND);
+        await exec(WITHDRAW_CURRENCY_COMMAND);
 
         //startCurrenciesCheck
         const CURRENCIES_COMMAND = `${NIL_GLOBAL} contract currencies ${NEW_WALLET_ADDRESS} ${CONFIG_FLAG}`;
