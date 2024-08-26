@@ -537,7 +537,7 @@ func (c *Client) DeployContract(
 
 func (c *Client) DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload, feeCredit types.Value) (common.Hash, types.Address, error) {
 	address := types.CreateAddress(shardId, deployPayload)
-	msgHash, err := client.SendExternalMessage(c, deployPayload.Bytes(), address, nil, feeCredit, true, &c.logger)
+	msgHash, err := client.SendExternalMessage(c, deployPayload.Bytes(), address, nil, feeCredit, true, false)
 	return msgHash, address, err
 }
 
@@ -551,7 +551,7 @@ func (c *Client) SendMessageViaWallet(
 func (c *Client) SendExternalMessage(
 	bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, feeCredit types.Value,
 ) (common.Hash, error) {
-	return client.SendExternalMessage(c, bytecode, contractAddress, pk, feeCredit, false, &c.logger)
+	return client.SendExternalMessage(c, bytecode, contractAddress, pk, feeCredit, false, false)
 }
 
 func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount types.Value) (common.Hash, error) {
@@ -559,7 +559,7 @@ func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount types.Valu
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	return c.SendExternalMessage(callData, types.FaucetAddress, nil, types.GasToValue(100_000))
+	return client.SendExternalMessage(c, callData, types.FaucetAddress, nil, types.GasToValue(100_000), false, true)
 }
 
 func (c *Client) Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error) {

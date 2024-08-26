@@ -3,13 +3,14 @@ package client
 import (
 	"crypto/ecdsa"
 	"encoding/json"
+	"fmt"
+	"strings"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
-	"github.com/rs/zerolog"
 )
 
 type BatchRequest interface {
@@ -76,7 +77,7 @@ type Client interface {
 
 func SendExternalMessage(
 	c Client, bytecode types.Code, contractAddress types.Address,
-	pk *ecdsa.PrivateKey, feeCredit types.Value, isDeploy bool, logger *zerolog.Logger,
+	pk *ecdsa.PrivateKey, feeCredit types.Value, isDeploy bool, withRetry bool,
 ) (common.Hash, error) {
 	var kind types.MessageKind
 	if isDeploy {
@@ -91,13 +92,6 @@ func SendExternalMessage(
 		return common.EmptyHash, err
 	}
 
-	if logger != nil {
-		logger.Debug().
-			Str(logging.FieldAccountAddress, contractAddress.String()).
-			Uint64(logging.FieldAccountSeqno, uint64(seqno)).
-			Msg("sending external message")
-	}
-
 	// Create the message with the bytecode to run
 	extMsg := &types.ExternalMessage{
 		To:        contractAddress,
@@ -107,7 +101,10 @@ func SendExternalMessage(
 		FeeCredit: feeCredit,
 	}
 
-	// Sign the message with the private key
+	if withRetry {
+		return sendExternalMessageWithSeqnoRetry(c, extMsg, pk)
+	}
+
 	if pk != nil {
 		err = extMsg.Sign(pk)
 		if err != nil {
@@ -115,12 +112,27 @@ func SendExternalMessage(
 		}
 	}
 
-	// Send the raw transaction
-	txHash, err := c.SendMessage(extMsg)
-	if err != nil {
-		return common.EmptyHash, err
+	return c.SendMessage(extMsg)
+}
+
+// sendExternalMessageWithSeqnoRetry tries to send an external message increasing seqno if needed.
+// Can be used to ensure sending messages to common contracts like Faucet.
+func sendExternalMessageWithSeqnoRetry(c Client, msg *types.ExternalMessage, pk *ecdsa.PrivateKey) (common.Hash, error) {
+	for range 10 {
+		if pk != nil {
+			if err := msg.Sign(pk); err != nil {
+				return common.EmptyHash, err
+			}
+		}
+
+		txHash, err := c.SendMessage(msg)
+		if err == nil || !strings.Contains(err.Error(), msgpool.NotReplaced.String()) {
+			return txHash, err
+		}
+
+		msg.Seqno++
 	}
-	return txHash, nil
+	return common.EmptyHash, fmt.Errorf("failed to send message in 10 retries, getting %s", msgpool.NotReplaced)
 }
 
 func SendMessageViaWallet(
