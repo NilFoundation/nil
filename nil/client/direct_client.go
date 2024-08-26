@@ -221,7 +221,7 @@ func (c *DirectClient) DeployContract(
 
 func (c *DirectClient) DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload, feeCredit types.Value) (common.Hash, types.Address, error) {
 	address := types.CreateAddress(shardId, deployPayload)
-	msgHash, err := SendExternalMessage(c, deployPayload.Bytes(), address, nil, feeCredit, true, nil)
+	msgHash, err := SendExternalMessage(c, deployPayload.Bytes(), address, nil, feeCredit, true, false)
 	return msgHash, address, err
 }
 
@@ -235,7 +235,7 @@ func (c *DirectClient) SendMessageViaWallet(
 func (c *DirectClient) SendExternalMessage(
 	bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, feeCredit types.Value,
 ) (common.Hash, error) {
-	return SendExternalMessage(c, bytecode, contractAddress, pk, feeCredit, false, nil)
+	return SendExternalMessage(c, bytecode, contractAddress, pk, feeCredit, false, false)
 }
 
 func (c *DirectClient) TopUpViaFaucet(contractAddress types.Address, amount types.Value) (common.Hash, error) {
