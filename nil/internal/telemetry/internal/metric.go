@@ -13,24 +13,12 @@ import (
 const metricExportInterval = 10 * time.Second
 
 func InitMetrics(ctx context.Context, config *Config) error {
-	if config == nil {
+	if config == nil || !config.ExportMetrics {
 		// no metrics
 		return nil
 	}
 
-	var exporter sdkmetric.Exporter
-	var err error
-
-	switch config.MetricExportOption {
-	case ExportOptionNone:
-		// no metrics
-		return nil
-	case ExportOptionGrpc:
-		exporter, err = newMetricGrpcExporter(ctx)
-	default:
-		return fmt.Errorf("unknown metric export option: %d", config.MetricExportOption)
-	}
-
+	exporter, err := newMetricGrpcExporter(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to initialize exporter: %w", err)
 	}

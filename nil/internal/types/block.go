@@ -18,6 +18,16 @@ func (bn BlockNumber) Uint64() uint64 {
 
 func (bn BlockNumber) String() string { return strconv.FormatUint(bn.Uint64(), 10) }
 func (bn BlockNumber) Bytes() []byte  { return []byte(bn.String()) }
+func (bn BlockNumber) Type() string   { return "BlockNumber" }
+
+func (bn *BlockNumber) Set(s string) error {
+	v, err := strconv.ParseUint(s, 0, 64)
+	if err != nil {
+		return err
+	}
+	*bn = BlockNumber(v)
+	return nil
+}
 
 type Block struct {
 	Id                 BlockNumber `json:"id" ch:"id"`

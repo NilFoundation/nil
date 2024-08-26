@@ -29,9 +29,14 @@ import (
 func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []msgpool.Pool) error {
 	logger := logging.NewLogger("RPC")
 
+	addr := cfg.HttpUrl
+	if addr == "" {
+		addr = fmt.Sprintf("tcp://127.0.0.1:%d", cfg.RPCPort)
+	}
+
 	httpConfig := &httpcfg.HttpCfg{
 		Enabled:         true,
-		HttpURL:         cfg.HttpUrl,
+		HttpURL:         addr,
 		HttpCompression: true,
 		TraceRequests:   true,
 		HTTPTimeouts:    httpcfg.DefaultHTTPTimeouts,

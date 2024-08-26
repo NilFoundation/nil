@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"os"
 
 	"github.com/NilFoundation/nil/nil/internal/telemetry/internal"
 	"go.opentelemetry.io/otel"
@@ -9,16 +10,16 @@ import (
 )
 
 type (
-	Config       = internal.Config
-	ExportOption = internal.ExportOption
+	Config = internal.Config
 
 	Meter = metric.Meter
 )
 
-const (
-	ExportOptionNone = internal.ExportOptionNone
-	ExportOptionGrpc = internal.ExportOptionGrpc
-)
+func NewDefaultConfig() *Config {
+	return &Config{
+		ServiceName: os.Args[0],
+	}
+}
 
 func Init(ctx context.Context, config *Config) error {
 	if err := internal.InitMetrics(ctx, config); err != nil {
