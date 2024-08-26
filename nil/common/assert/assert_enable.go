@@ -3,7 +3,6 @@
 package assert
 
 import (
-	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -27,15 +26,8 @@ func (l *txLedger) TxOnStart(stack []byte) TxFinishCb {
 }
 
 func (l *txLedger) CheckLeakyTransactions() {
-	var leakyTxStak []byte
-	l.runningTxs.Range(func(k uint64, v []byte) error {
-		leakyTxStak = v
-		// return error to exit from range loop
-		return errors.New("")
-	})
-
-	if len(leakyTxStak) > 0 {
-		panic(fmt.Sprintf("Transaction wasn't terminated:\n%s", leakyTxStak))
+	for _, v := range l.runningTxs.Iterate() {
+		panic(fmt.Sprintf("Transaction wasn't terminated:\n%s", v))
 	}
 }
 
