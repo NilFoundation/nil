@@ -193,9 +193,22 @@ func LoadConfig(cfgFilePath string, logger zerolog.Logger) (*Config, error) {
 // validateConfig perform some simple configuration validation
 func validateConfig(config *Config, logger zerolog.Logger) error {
 	if config.RPCEndpoint == "" {
-		logger.Info().Msg("RPCEndpoint is missing in config")
-		logger.Info().Msgf("set via `%s config set rpc_endpoint <endpoint>` or via config file", os.Args[0])
-		return fmt.Errorf("%q is missing in config", RPCEndpointField)
+		return MissingKeyError(RPCEndpointField, logger)
 	}
 	return nil
+}
+
+var generateCommands = map[string]string{
+	PrivateKeyField: "keygen",
+	AddressField:    "wallet new",
+}
+
+func MissingKeyError(key string, logger zerolog.Logger) error {
+	logger.Info().Msgf("%s not specified in config.\nRun `%s config set %s <value>` or set via config file.", key, os.Args[0], key)
+
+	if cmd, ok := generateCommands[key]; ok {
+		logger.Info().Msgf("You can also run `%s %s` to generate a new one.", os.Args[0], cmd)
+	}
+
+	return fmt.Errorf("%s not specified in config", key)
 }

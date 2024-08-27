@@ -1,13 +1,13 @@
 package wallet
 
 import (
-	"errors"
-	"os"
-
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/spf13/cobra"
 )
+
+var logger = logging.NewLogger("wallet")
 
 func GetCommand(cfg *common.Config) *cobra.Command {
 	var serverCmd *cobra.Command
@@ -24,12 +24,10 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 				}
 			}
 			if cfg.PrivateKey == nil {
-				logger.Info().Msgf("No private key specified in config. Run `%s keygen` command to generate one.", os.Args[0])
-				return errors.New("Private key is not specified in config")
+				return common.MissingKeyError(common.PrivateKeyField, logger)
 			}
 			if cfg.Address == types.EmptyAddress && cmd.Name() != "new" {
-				logger.Info().Msgf("Valid wallet address is not specified in config. Run `%s config set address <address>` command to set.", os.Args[0])
-				return errors.New("Valid wallet address is not specified in config")
+				return common.MissingKeyError(common.AddressField, logger)
 			}
 			return nil
 		},
