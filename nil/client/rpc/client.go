@@ -38,6 +38,7 @@ var (
 
 const (
 	Eth_call                             = "eth_call"
+	Eth_estimateFee                      = "eth_estimateFee"
 	Eth_getCode                          = "eth_getCode"
 	Eth_getBlockByHash                   = "eth_getBlockByHash"
 	Eth_getBlockByNumber                 = "eth_getBlockByNumber"
@@ -576,6 +577,24 @@ func (c *Client) Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrp
 	var res *jsonrpc.CallRes
 	if err := json.Unmarshal(raw, &res); err != nil {
 		return nil, err
+	}
+	return res, nil
+}
+
+func (c *Client) EstimateFee(args *jsonrpc.CallArgs, blockId any) (types.Value, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return types.Value{}, err
+	}
+
+	raw, err := c.call(Eth_estimateFee, args, blockNrOrHash)
+	if err != nil {
+		return types.Value{}, err
+	}
+
+	var res types.Value
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return types.Value{}, err
 	}
 	return res, nil
 }

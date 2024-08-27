@@ -59,8 +59,16 @@ func (v Value) Mul(other Value) Value {
 	return NewValue(uint256.NewInt(0).Mul(v.Int(), other.Int()))
 }
 
+func (v Value) Mul64(other uint64) Value {
+	return v.Mul(NewValueFromUint64(other))
+}
+
 func (v Value) Div(other Value) Value {
 	return NewValue(uint256.NewInt(0).Div(v.Int(), other.Int()))
+}
+
+func (v Value) Div64(other uint64) Value {
+	return v.Div(NewValueFromUint64(other))
 }
 
 func (v Value) AddOverflow(other Value) (Value, bool) {

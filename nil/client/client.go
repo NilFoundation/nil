@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/msgpool"
@@ -36,6 +37,7 @@ type Client interface {
 	CreateBatchRequest() BatchRequest
 	BatchCall(BatchRequest) ([]any, error)
 
+	EstimateFee(args *jsonrpc.CallArgs, blockId any) (types.Value, error)
 	Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error)
 	GetCode(addr types.Address, blockId any) (types.Code, error)
 	GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error)
@@ -75,6 +77,40 @@ type Client interface {
 	CurrencyMint(contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey) (common.Hash, error)
 }
 
+func EstimateFeeInternal(c Client, msg *types.InternalMessagePayload, blockId any) (types.Value, error) {
+	var flags types.MessageFlags
+	if msg.Kind == types.DeployMessageKind {
+		flags = types.NewMessageFlags(types.MessageFlagInternal, types.MessageFlagDeploy)
+	} else {
+		flags = types.NewMessageFlags(types.MessageFlagInternal)
+	}
+
+	args := &jsonrpc.CallArgs{
+		Data:  (*hexutil.Bytes)(&msg.Data),
+		To:    msg.To,
+		Flags: flags,
+		Value: msg.Value,
+	}
+
+	return c.EstimateFee(args, blockId)
+}
+
+func EstimateFeeExternal(c Client, msg *types.ExternalMessage, blockId any) (types.Value, error) {
+	var flags types.MessageFlags
+	if msg.Kind == types.DeployMessageKind {
+		flags = types.NewMessageFlags(types.MessageFlagDeploy)
+	}
+
+	args := &jsonrpc.CallArgs{
+		Data:  (*hexutil.Bytes)(&msg.Data),
+		To:    msg.To,
+		Flags: flags,
+		Seqno: msg.Seqno,
+	}
+
+	return c.EstimateFee(args, blockId)
+}
+
 func SendExternalMessage(
 	c Client, bytecode types.Code, contractAddress types.Address,
 	pk *ecdsa.PrivateKey, feeCredit types.Value, isDeploy bool, withRetry bool,
@@ -100,6 +136,14 @@ func SendExternalMessage(
 		Kind:      kind,
 		FeeCredit: feeCredit,
 	}
+
+	if feeCredit.IsZero() {
+		var err error
+		if feeCredit, err = EstimateFeeExternal(c, extMsg, "latest"); err != nil {
+			return common.EmptyHash, err
+		}
+	}
+	extMsg.FeeCredit = feeCredit
 
 	if withRetry {
 		return sendExternalMessageWithSeqnoRetry(c, extMsg, pk)
@@ -161,6 +205,14 @@ func SendMessageViaWallet(
 		Currency:    currencies,
 		Kind:        kind,
 	}
+
+	if internalFeeCredit.IsZero() {
+		var err error
+		if internalFeeCredit, err = EstimateFeeInternal(c, intMsg, "latest"); err != nil {
+			return common.EmptyHash, err
+		}
+	}
+	intMsg.FeeCredit = internalFeeCredit
 
 	intMsgData, err := intMsg.MarshalSSZ()
 	if err != nil {

@@ -14,6 +14,7 @@ package jsonrpc
 // @component MessageBytecode code string "The bytecode of the requested message."
 // @component Encoded encoded string "The encoded bytecode of the message."
 // @component FilterQuery filterQuery object "The query structure of the filter."
+// @component Value value integer "Amount of coins."
 // @componentprop BlockHash blockHash string false "The hash of the blocks whose logs should be retrieved by the filter."
 // @componentprop FromBlock fromBlock integer false "The beginning of the range of the blocks whose logs should be retrieved by the filter."
 // @componentprop ToBlock toBlock integer false "The end of the range of the blocks whose logs should be retrieved by the filter."

@@ -324,10 +324,25 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})
 
+	addCalldata := contracts.NewCounterAddCallData(s.T(), 1)
+
+	var intMsgEstimation types.Value
+	s.Run("Estimate internal message fee", func() {
+		callArgs := &jsonrpc.CallArgs{
+			Data:  (*hexutil.Bytes)(&addCalldata),
+			To:    counterAddr,
+			Flags: types.NewMessageFlags(types.MessageFlagInternal),
+		}
+
+		intMsgEstimation, err = s.client.EstimateFee(callArgs, "latest")
+		s.Require().NoError(err)
+		s.Positive(intMsgEstimation.Uint64())
+	})
+
 	intMsg := &types.InternalMessagePayload{
-		Data:        contracts.NewCounterAddCallData(s.T(), 1),
+		Data:        addCalldata,
 		To:          counterAddr,
-		FeeCredit:   types.NewValueFromUint64(5_000_000),
+		FeeCredit:   intMsgEstimation,
 		ForwardKind: types.ForwardKindNone,
 		Kind:        types.ExecutionMessageKind,
 	}
@@ -342,13 +357,22 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	s.Require().NoError(err)
 
 	callArgs := &jsonrpc.CallArgs{
-		Data:      (*hexutil.Bytes)(&calldata),
-		To:        walletAddr,
-		FeeCredit: types.NewValueFromUint64(4_000_000),
-		Seqno:     callerSeqno,
+		Data:  (*hexutil.Bytes)(&calldata),
+		To:    walletAddr,
+		Seqno: callerSeqno,
 	}
 
+	var estimation types.Value
+	s.Run("Estimate external message fee", func() {
+		callArgs.FeeCredit = intMsgEstimation
+		estimation, err = s.client.EstimateFee(callArgs, "latest")
+		s.Require().NoError(err)
+		s.Positive(estimation.Uint64())
+	})
+
 	s.Run("Call without override", func() {
+		callArgs.FeeCredit = estimation
+
 		res, err := s.client.Call(callArgs, "latest", nil)
 		s.Require().NoError(err)
 		s.Require().Empty(res.Error)
@@ -385,6 +409,8 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	})
 
 	s.Run("Override for \"insufficient balance for transfer\"", func() {
+		callArgs.FeeCredit = estimation
+
 		override := &jsonrpc.StateOverrides{
 			walletAddr: jsonrpc.Contract{Balance: &types.Value{}},
 		}
@@ -394,6 +420,8 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	})
 
 	s.Run("Override several shards", func() {
+		callArgs.FeeCredit = estimation
+
 		val := types.NewValueFromUint64(50_000_000)
 		override := &jsonrpc.StateOverrides{
 			walletAddr:              jsonrpc.Contract{Balance: &val},
