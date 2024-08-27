@@ -1,74 +1,56 @@
 import { expect } from "chai";
 import "@nomicfoundation/hardhat-ethers";
 import { deployNilContract } from "../src/deployUtil";
-import { PublicClient, HttpTransport } from "@nilfoundation/niljs";
+import { ethers } from "hardhat";
 
 describe("Currency contract", () => {
-    let currencyAddress: string;
-    let client: any;
+    it("Should deploy, transfer currency, and verify balances", async () => {
+        // Initialize values for testing
+        const initialSupply = 10000;
 
-    before(async () => {
-        if (!process.env.NIL_RPC_ENDPOINT) {
-            throw new Error('NIL_RPC_ENDPOINT is not defined');
-        }
+        // Deploy the Currency contract with initial supply and name
+        const {
+            deployedContract: currencyBase,
+            contractAddress: currencyBaseAddr
+        } = await deployNilContract("Currency", [initialSupply]);
+        console.log("Currency deployed at:", currencyBaseAddr);
 
-        client = new PublicClient({
-            transport: new HttpTransport({
-                endpoint: process.env.NIL_RPC_ENDPOINT,
-            }),
-            shardId: 1,
-        });
-    });
+        const balance = await currencyBase.getOwnCurrencyBalance();
+        console.log("Currency balance:", balance.toString());
+        expect(balance).to.equal(initialSupply);
 
-    it("Should create a currency and fetch balance", async () => {
-        // Deploy Currency contract
-        const { deployedContract: currency, contractAddress: currencyAddr } = await deployNilContract("Currency", ["TestCurrency"]);
-        currencyAddress = currencyAddr;
-        console.log("Currency deployed at:", currencyAddress);
+        // Fetch and verify the currency ID
+        const currencyId = await currencyBase.getCurrencyId();
+        console.log("Currency ID:", currencyId);
 
-        // Call the create method on the Currency contract
-        const amount = 1000;
-        await currency.create(amount);
+        // Calculate the expected Currency ID manually
+        const expectedCurrencyId = BigInt(currencyBaseAddr.toLowerCase()) & BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+        console.log("Expected Currency ID:", expectedCurrencyId.toString());
 
-        // Fetch and print the currency balance using nil.js
-        const tokens = await client.getCurrencies(currencyAddress, "latest");
-        console.log("Tokens:", tokens);
-        let found = false;
-        let tokenId;
-        for (const [id, balance] of Object.entries(tokens)) {
-            console.log(`Token ID: ${id}, Balance: ${balance}`);
-            if (balance === 1000n) {
-                tokenId= id;
-                found = true;
-                break;
-            }
-        }
-        expect(found).to.be.true;
-        found = false;
+        // Compare the expected and actual currency IDs
+        expect(currencyId.toString()).to.equal(expectedCurrencyId.toString());
 
-        // Deploy destination contract (e.g., IncrementerPayable)
-        const { deployedContract: destination, contractAddress: destinationAddr } = await deployNilContract("IncrementerPayable", []);
-        console.log("Destination contract deployed at:", destinationAddr);
+        // Deploy the IncrementerPayable contract
+        const { deployedContract: incrementer, contractAddress: incrementerAddr } = await deployNilContract("IncrementerPayable", []);
+        console.log("IncrementerPayable deployed at:", incrementerAddr);
 
-        // Call the transfer method on the Currency contract
+        // Transfer currency from the Currency contract to the IncrementerPayable contract
         const transferAmount = 500;
-        await currency.transfer(destinationAddr, tokenId, transferAmount);
+        await currencyBase.transferCurrency(incrementerAddr, currencyId, transferAmount);
 
-        // Fetch and print the currency balance again to verify transfer
-        const updatedTokens = await client.getCurrencies(currencyAddress, "latest");
-        console.log("Updated Tokens:", updatedTokens);
+        // After the transfer, verify that the balance in the Currency contract has decreased
+        const updatedBalance = await currencyBase.getOwnCurrencyBalance();
+        console.log("Updated Currency balance:", updatedBalance.toString());
+        expect(updatedBalance).to.equal(initialSupply - transferAmount);
 
-        // Check if the destination contract received the tokens (assuming it has a method to fetch balance)
-        const destinationTokens = await client.getCurrencies(destinationAddr, "latest");
-        console.log("Destination Tokens:", destinationTokens);
+        // Fetch and verify that the total supply remains unchanged
+        const totalSupply = await currencyBase.getCurrencyTotalSupply();
+        console.log("Total Supply:", totalSupply.toString());
+        expect(totalSupply).to.equal(initialSupply);
 
-        for (const [id, balance] of Object.entries(destinationTokens)) {
-            console.log(`Token ID: ${id}, Balance: ${balance}`);
-            if (balance === 500n) {
-                found = true;
-                break;
-            }
-        }
-        expect(found).to.be.true;
+        // Verify the balance of the IncrementerPayable contract using getCurrencyBalanceOf
+        const incrementerBalance = await currencyBase.getCurrencyBalanceOf(incrementerAddr);
+        console.log("IncrementerPayable balance:", incrementerBalance.toString());
+        expect(incrementerBalance).to.equal(transferAmount);
     });
 });
