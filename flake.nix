@@ -4,19 +4,17 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    nil-released.url = "github:NilFoundation/nil?rev=8f57aa19f88af84bb14a640a4c571c0f1610a2af";
   };
 
-  outputs = { self, nixpkgs, flake-utils, nil-released }:
+  outputs = { self, nixpkgs, flake-utils }:
     (flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        nild = nil-released.packages.${system}.nil;
       in rec {
         packages = rec {
           nil = (pkgs.callPackage ./nil.nix { src_repo = self; buildGoModule = pkgs.buildGo123Module; });
           niljs = (pkgs.callPackage ./niljs.nix {});
-          nildocs = (pkgs.callPackage ./nildocs.nix { nil = nild; });
+          nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; enableTesting = true; });
           nilhardhat = (pkgs.callPackage ./nilhardhat.nix {});
           default = nil;
         };

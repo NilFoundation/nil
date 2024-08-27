@@ -34,6 +34,7 @@ stdenv.mkDerivation rec {
   dontConfigure = true;
 
   buildPhase = ''
+    patchShebangs docs/node_modules
     (cd niljs; npm run build)
 
     export NILJS_SRC=${./niljs}
@@ -47,7 +48,9 @@ stdenv.mkDerivation rec {
   doCheck = enableTesting;
 
   checkPhase = ''
-    echo "Run tests here"
+    echo "Runnig tests..."
+    bash run_tests.sh
+    echo "Tests passed"
   '';
 
   shellHook = ''

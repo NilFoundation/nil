@@ -118,21 +118,27 @@ func SendExternalMessage(
 // sendExternalMessageWithSeqnoRetry tries to send an external message increasing seqno if needed.
 // Can be used to ensure sending messages to common contracts like Faucet.
 func sendExternalMessageWithSeqnoRetry(c Client, msg *types.ExternalMessage, pk *ecdsa.PrivateKey) (common.Hash, error) {
-	for range 10 {
+	var err error
+	for range 20 {
 		if pk != nil {
 			if err := msg.Sign(pk); err != nil {
 				return common.EmptyHash, err
 			}
 		}
 
-		txHash, err := c.SendMessage(msg)
-		if err == nil || !strings.Contains(err.Error(), msgpool.NotReplaced.String()) {
-			return txHash, err
+		var txHash common.Hash
+		txHash, err = c.SendMessage(msg)
+		if err == nil {
+			return txHash, nil
+		}
+		if !strings.Contains(err.Error(), msgpool.NotReplaced.String()) &&
+			!strings.Contains(err.Error(), msgpool.SeqnoTooLow.String()) {
+			return common.EmptyHash, err
 		}
 
 		msg.Seqno++
 	}
-	return common.EmptyHash, fmt.Errorf("failed to send message in 10 retries, getting %s", msgpool.NotReplaced)
+	return common.EmptyHash, fmt.Errorf("failed to send message in 20 retries, getting %w", err)
 }
 
 func SendMessageViaWallet(

@@ -34,7 +34,6 @@ const WALLET_BALANCE_COMMAND = `${NIL_GLOBAL} wallet balance ${CONFIG_FLAG}`;
 //endBalance
 
 beforeAll(async () => {
-    await new Promise(resolve => setTimeout(resolve, 17000));
     await exec(CONFIG_COMMAND);
     await exec(KEYGEN_COMMAND);
     await exec(RPC_COMMAND);
