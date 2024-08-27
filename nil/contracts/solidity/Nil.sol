@@ -152,7 +152,7 @@ library Nil {
     }
 
     // getCurrencyBalance returns the balance of a token with a given id for a given address.
-    function currencyBalance(address addr, uint256 id) internal returns(uint256) {
+    function currencyBalance(address addr, uint256 id) internal view returns(uint256) {
         return __Precompile__(GET_CURRENCY_BALANCE).precompileGetCurrencyBalance(id, addr);
     }
 
@@ -269,7 +269,7 @@ abstract contract NilBounceable is NilBase {
 // WARNING: User should never use this contract directly.
 contract __Precompile__ {
     function precompileMintCurrency(uint256 amount) public returns(bool) {}
-    function precompileGetCurrencyBalance(uint256 id, address addr) public returns(uint256) {}
+    function precompileGetCurrencyBalance(uint256 id, address addr) public view returns(uint256) {}
     function precompileAsyncCall(bool, uint8, address, address, address, uint, Nil.Token[] memory, bytes memory) public payable returns(bool) {}
     function precompileAwaitCall(address, bytes memory) public payable returns(bytes memory, bool) {}
     function precompileSendTokens(address, Nil.Token[] memory) public returns(bool) {}

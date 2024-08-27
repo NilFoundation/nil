@@ -27,7 +27,7 @@ abstract contract NilCurrencyBase is NilBase {
      * @dev Returns the balance of the currency owned by this contract.
      * @return The balance of the currency owned by this contract.
      */
-    function getOwnCurrencyBalance() public returns(uint256) {
+    function getOwnCurrencyBalance() public view returns(uint256) {
         return Nil.currencyBalance(address(this), getCurrencyId());
     }
 
@@ -94,5 +94,14 @@ abstract contract NilCurrencyBase is NilBase {
         Nil.Token[] memory tokens_ = new Nil.Token[](1);
         tokens_[0] = Nil.Token(currencyId, amount);
         Nil.asyncCall(to, address(0), address(0), 0, Nil.FORWARD_REMAINING, false, 0, tokens_, "");
+    }
+
+    /**
+  * @dev Returns the balance of the currency for a given address.
+     * @param account The address to check the balance for.
+     * @return The balance of the currency for the given address.
+     */
+    function getCurrencyBalanceOf(address account) public view returns(uint256) {
+        return Nil.currencyBalance(account, getCurrencyId());
     }
 }
