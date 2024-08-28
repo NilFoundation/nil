@@ -58,7 +58,7 @@ describe.sequential('initial CLI tests', () => {
     });
 });
 
-describe.skip.sequential('niljs test', () => {
+describe.sequential('niljs test', () => {
     test.sequential('niljs snippet can create and deploy a wallet', async () => {
         //startNilJSWalletCreation
         const client = new PublicClient({

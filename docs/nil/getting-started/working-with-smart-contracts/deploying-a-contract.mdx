@@ -54,79 +54,12 @@ The contract ABI can be copy-pasted from the `./abi` file and then cast into the
 
 To deploy the retailer contract:
 
-```ts showLineNumbers
-import { bytesToHex, type Abi } from "viem";
-import {
-  Faucet,
-  LocalECDSAKeySigner,
-  HttpTransport,
-  PublicClient,
-  generateRandomPrivateKey,
-  WalletV1,
-  waitTillCompleted,
-} from "@nilfoundation/niljs";
-
-const client = new PublicClient({
-  transport: new HttpTransport({
-    endpoint: "{NIL_ENDPOINT}",
-  }),
-  shardId: 1,
-});
-const faucet = new Faucet(client);
-
-const signer = new LocalECDSAKeySigner({
-  privateKey: generateRandomPrivateKey(),
-});
-
-const pubkey = await signer.getPublicKey();
-
-const wallet = new WalletV1({
-  pubkey: pubkey,
-  salt: BigInt(Math.floor(Math.random() * 10000)),
-  shardId: 1,
-  client,
-  signer,
-});
-const walletAddress = await wallet.getAddressHex();
-
-console.log("walletAddress", walletAddress);
-
-const faucetHash = await faucet.withdrawToWithRetry(walletAddress, 9_000_000n);
-
-await waitTillCompleted(client, 1, faucetHash);
-await wallet.selfDeploy(true);
-
-const { address: addressR, hash: hashR } = await wallet.deployContract({
-  bytecode: RETAILER_BYTECODE,
-  value: 0n,
-  feeCredit: 5_000_000n,
-  salt: BigInt(Math.floor(Math.random() * 10000)),
-  shardId: 1,
-  abi: RETAILER_ABI as Abi,
-  args: [],
-});
-
-await waitTillCompleted(client, 1, hashR);
-
-console.log(`Retailer address: ${addressR}`);
+```ts showLineNumbers file=../../../tests/working-with-smart-contracts-niljs.test.mjs start=startInternalDeployOfRetailer end=endInternalDeployOfRetailer
 ```
 
 To deploy the manufacturer contract:
 
-```ts showLineNumbers
-const { address: addressM, hash: hashM } = await wallet.deployContract({
-  bytecode: MANUFACTURER_BYTECODE,
-  value: 0n,
-  feeCredit: 10000000n,
-  salt: BigInt(Math.floor(Math.random() * 10000)),
-  shardId: 2,
-  abi: MANUFACTURER_ABI as Abi,
-  args: [bytesToHex(PUBKEY), RETAILER_ADDRESS],
-});
-
-await waitTillCompleted(client, 1, hashM);
-
-console.log(`Manufcaturer address: ${addressM}`);
+```ts showLineNumbers file=../../../tests/working-with-smart-contracts-niljs.test.mjs start=startInternalDeployOfManufacturer end=endInternalDeployOfManufacturer
 ```
 
 ## External deployment
@@ -186,85 +119,12 @@ The contract ABI can be copy-pasted from the `./abi` file and then cast into the
 
 To deploy the retailer contract:
 
-```typescript showLineNumbers
-
-import { bytesToHex } from "viem";
-import {
-  Faucet,
-  HttpTransport,
-  LocalECDSAKeySigner,
-  PublicClient,
-  externalDeploymentMessage,
-  generateRandomPrivateKey,
-  waitTillCompleted,
-} from "@nilfoundation/niljs";
-import type { Abi } from "abitype";
-
-const client = new PublicClient({
-  transport: new HttpTransport({
-    endpoint: "{NIL_ENDPOINT}",
-  }),
-  shardId: 1,
-});
-
-const signer = new LocalECDSAKeySigner({
-  privateKey: generateRandomPrivateKey(),
-});
-
-const pubkey = await signer.getPublicKey();
-
-const faucet = new Faucet(client);
-
-const chainId = await client.chainId();
-
-const deploymentMessageRetailer = externalDeploymentMessage(
-  {
-    salt: BigInt(Math.floor(Math.random() * 10000)),
-    shard: 1,
-    bytecode: RETAILER_BYTECODEE,
-  },
-  chainId,
-);
-const addrR = bytesToHex(deploymentMessageRetailer.to);
-console.log("Retailer address: ", addrR);
-
-const faucetHash = await faucet.withdrawToWithRetry(addrR, convertEthToWei(1));
-const receipts = await waitTillCompleted(client, 1, faucetHash);
-
-const hash = await deploymentMessageRetailer.send(client);
-
-await waitTillCompleted(client, 1, hash);
-
-console.log("Retailer deployed successfully");
+```ts showLineNumbers file=../../../tests/working-with-smart-contracts-niljs.test.mjs start=startExternalDeployOfRetailer end=endExternalDeployOfRetailer
 ```
 
 To deploy the manufacturer contract:
 
-```ts showLineNumbers
-const deploymentMessageManufacturer = externalDeploymentMessage(
-  {
-    salt: BigInt(Math.floor(Math.random() * 10000)),
-    shard: 2,
-    bytecode: MANUFACTURER_BYTECODE,
-    abi: MANUFACTURER_ABI as Abi,
-    args: [bytesToHex(PUBKEY), RETAILER_ADDRESS],
-  },
-  chainId,
-);
-
-const addrM = bytesToHex(deploymentMessageManufacturer.to);
-console.log("Manufacturer address: ", addrM);
-
-const faucetHashM = await faucet.withdrawToWithRetry(addrM, convertEthToWei(1));
-const receiptsM = await waitTillCompleted(client, 1, faucetHashM);
-
-console.log(receiptsM);
-
-const hashM = await deploymentMessageManufacturer.send(client);
-
-await waitTillCompleted(client, 2, hashM);
-
-console.log("Manufacturer deployed successfully");
+```ts showLineNumbers file=../../../tests/working-with-smart-contracts-niljs.test.mjs start=startExternalDeployOfManufacturer end=endExternalDeployOfManufacturer
 ```
 
 ## Hardhat deployment
