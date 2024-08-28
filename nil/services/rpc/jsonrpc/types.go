@@ -211,6 +211,7 @@ func EncodeBlockWithRawExtractedData(block *types.BlockWithRawExtractedData) (*H
 type RPCReceipt struct {
 	Success         bool               `json:"success"`
 	Status          string             `json:"status"`
+	IncludedInMain  bool               `json:"includedInMain"`
 	GasUsed         types.Gas          `json:"gasUsed"`
 	Forwarded       types.Value        `json:"forwarded"`
 	GasPrice        types.Value        `json:"gasPrice"`
@@ -253,6 +254,22 @@ func (re *RPCReceipt) AllSuccess() bool {
 	}
 	for _, receipt := range re.OutReceipts {
 		if !receipt.AllSuccess() {
+			return false
+		}
+	}
+	return true
+}
+
+// IsCommitted returns true if the receipt is complete and its block is included in the main chain.
+func (re *RPCReceipt) IsCommitted() bool {
+	if re == nil || len(re.OutReceipts) != len(re.OutMessages) {
+		return false
+	}
+	if !re.IncludedInMain {
+		return false
+	}
+	for _, receipt := range re.OutReceipts {
+		if !receipt.IsCommitted() {
 			return false
 		}
 	}
