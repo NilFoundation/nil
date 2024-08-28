@@ -32,6 +32,7 @@ stdenv.mkDerivation rec {
 
   buildPhase = ''
     patchShebangs docs/node_modules
+    patchShebangs niljs/node_modules
     (cd niljs; npm run build)
 
     export NILJS_SRC=${./niljs}

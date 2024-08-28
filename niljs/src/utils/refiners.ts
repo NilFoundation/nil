@@ -1,6 +1,9 @@
 import invariant from "tiny-invariant";
-import { hexToBytes } from "../index.js";
 import { addHexPrefix } from "./hex.js";
+import type {Abi} from "abitype";
+import {encodeFunctionData} from "viem";
+import {hexToBytes, bytesToHex} from "../encoding/index.js";
+import type {Hex} from "../types/index.js";
 
 const refineSalt = (salt: Uint8Array | bigint): Uint8Array => {
   if (typeof salt === "bigint") {
@@ -24,4 +27,30 @@ const refineCompressedPublicKey = (
   return res;
 };
 
-export { refineSalt, refineCompressedPublicKey };
+const refineFunctionHexData = ({
+  data,
+  abi,
+  functionName,
+  args,
+}: {
+  data?: Uint8Array | Hex;
+  abi?: Abi;
+  functionName?: string;
+  args?: unknown[];
+}): Hex => {
+  if (!data && !abi) {
+    return "0x";
+  }
+  invariant(!(data && (abi)), "ABI and data cannot be provided together");
+  if (data) {
+    return typeof data === "string" ? data : bytesToHex(data);
+  }
+  invariant(abi && functionName, "ABI and functionName is required");
+  return encodeFunctionData({
+    abi,
+    functionName,
+    args: args || [],
+  });
+}
+
+export { refineSalt, refineCompressedPublicKey, refineFunctionHexData };

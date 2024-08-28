@@ -2,6 +2,7 @@ import type { Abi, Address } from "abitype";
 import type { ISigner, PublicClient } from "../../../index.js";
 import type { Token } from "../../../types/Token.js";
 import type { Hex } from "../../../types/index.js";
+import type {XOR} from "ts-essentials";
 
 type WaletV1BaseConfig = {
   pubkey: Uint8Array | Hex;
@@ -39,12 +40,7 @@ export type CallParams = {
   value: bigint;
 };
 
-/**
- * Represents the params for sending a message.
- *
- * @typedef {SendMessageParams}
- */
-export type SendMessageParams = {
+export type SendBaseMessageParams = {
   to: Address | Uint8Array;
   refundTo?: Address | Uint8Array;
   bounceTo?: Address | Uint8Array;
@@ -57,18 +53,49 @@ export type SendMessageParams = {
   chainId?: number;
 };
 
+export type SendDataMessageParams = SendBaseMessageParams & {
+  data?: Uint8Array | Hex;
+}
+
+export type SendAbiMessageParams = SendBaseMessageParams & {
+  abi: Abi;
+  functionName: string;
+  args?: unknown[];
+}
+
+/**
+ * Represents the params for sending a message.
+ *
+ * @typedef {SendMessageParams}
+ */
+export type SendMessageParams = XOR<SendDataMessageParams, SendAbiMessageParams>
+
+
+
+export type SendSyncBaseMessageParams = {
+  to: Address | Uint8Array;
+  value: bigint;
+  gas: bigint;
+  seqno?: number;
+};
+
+export type SendSyncDataMessageParams = SendSyncBaseMessageParams & {
+  data?: Uint8Array | Hex;
+}
+
+export type SendSyncAbiMessageParams = SendSyncBaseMessageParams & {
+  abi: Abi;
+  functionName: string;
+  args?: unknown[];
+}
+
 /**
  * Represents the params for sending a message synchronously.
  *
  * @typedef {SendSyncMessageParams}
  */
-export type SendSyncMessageParams = {
-  to: Address | Uint8Array;
-  data?: Uint8Array | Hex;
-  value: bigint;
-  gas: bigint;
-  seqno?: number;
-};
+export type SendSyncMessageParams = XOR<SendSyncDataMessageParams, SendSyncAbiMessageParams>
+
 
 /**
  * Represents the params for making a request to the wallet.

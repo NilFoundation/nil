@@ -47,6 +47,7 @@
     "rollup-plugin-dts": "^6.1.0",
     "rollup-plugin-esbuild": "^6.1.1",
     "rollup-plugin-filesize": "^10.0.0",
+    "ts-essentials": "^10.0.2",
     "tsx": "^4.17.0",
     "typescript": "^5.4.5",
     "vitest": "^1.6.0"

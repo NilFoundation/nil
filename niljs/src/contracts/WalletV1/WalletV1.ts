@@ -9,7 +9,7 @@ import { toHex } from "../../encoding/toHex.js";
 import type { ISigner } from "../../signers/index.js";
 import type { IDeployData } from "../../types/IDeployData.js";
 import { getShardIdFromAddress, refineAddress } from "../../utils/address.js";
-import { refineCompressedPublicKey, refineSalt } from "../../utils/refiners.js";
+import {refineCompressedPublicKey, refineFunctionHexData, refineSalt} from "../../utils/refiners.js";
 import { code } from "./Wallet-bin.js";
 import WalletAbi from "./Wallet.abi.json";
 import type {
@@ -19,6 +19,7 @@ import type {
   SendSyncMessageParams,
   WalletV1Config,
 } from "./types/index.js";
+import type {Hex} from "../../types/index.js";
 
 /**
  * WalletV1 is a class used for performing operations on the cluster that require authentication.
@@ -314,6 +315,9 @@ export class WalletV1 {
    * @param {SendMessageParams} param0.bounceTo The address where the message value should be refunded in case of failure.
    * @param {SendMessageParams} param0.tokens The tokens to be sent with the message.
    * @param {SendMessageParams} param0.data The message bytecode.
+   * @param {SendMessageParams} param0.abi The message abi for encoding.
+   * @param {SendMessageParams} param0.functionName The message function name for abi.
+   * @param {SendMessageParams} param0.args The message args name for abi.
    * @param {SendMessageParams} param0.deploy The flag that determines whether the message is a deploy message.
    * @param {SendMessageParams} param0.seqno The message sequence number.
    * @param {SendMessageParams} param0.feeCredit The message fee credit for processing message on receiving shard.
@@ -337,6 +341,9 @@ export class WalletV1 {
     refundTo,
     bounceTo,
     data,
+    abi,
+    functionName,
+    args,
     deploy,
     seqno,
     feeCredit,
@@ -347,11 +354,7 @@ export class WalletV1 {
     const hexTo = bytesToHex(refineAddress(to));
     const hexRefundTo = bytesToHex(refineAddress(refundTo ?? this.address));
     const hexBounceTo = bytesToHex(refineAddress(bounceTo ?? this.address));
-    const hexData = data
-      ? data instanceof Uint8Array
-        ? bytesToHex(data)
-        : data
-      : "0x";
+    const hexData = refineFunctionHexData({ data, abi, functionName, args });
 
     const callData = encodeFunctionData({
       abi: WalletAbi,
@@ -504,6 +507,9 @@ export class WalletV1 {
    * @param {SendSyncMessageParams} param0 The object representing the message params.
    * @param {SendSyncMessageParams} param0.to The address where the message should be sent.
    * @param {SendSyncMessageParams} param0.data The message bytecode.
+   * @param {SendSyncMessageParams} param0.abi The message abi.
+   * @param {SendSyncMessageParams} param0.functionName The message function name for abi.
+   * @param {SendSyncMessageParams} param0.args The message args for abi.
    * @param {SendMessageParams} param0.seqno The message sequence number.
    * @param {SendMessageParams} param0.gas The message gas.
    * @param {SendMessageParams} param0.value The message value.
@@ -523,16 +529,15 @@ export class WalletV1 {
   async syncSendMessage({
     to,
     data,
+    abi,
+    functionName,
+    args,
     seqno,
     gas,
     value,
   }: SendSyncMessageParams) {
     const hexTo = bytesToHex(refineAddress(to));
-    const hexData = data
-      ? data instanceof Uint8Array
-        ? bytesToHex(data)
-        : data
-      : "0x";
+    const hexData = refineFunctionHexData({ data, abi, functionName, args });
 
     const callData = encodeFunctionData({
       abi: WalletAbi,
