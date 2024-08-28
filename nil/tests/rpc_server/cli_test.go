@@ -317,7 +317,7 @@ func (s *SuiteCli) TestCliWallet() {
 	s.Run("Deploy new wallet", func() {
 		res, err := s.runCliNoCheck("-c", cfgPath, "wallet", "new")
 		s.Require().Error(err)
-		s.Contains(res, "Error: Private key is not specified in config")
+		s.Contains(res, "Error: private_key not specified in config")
 	})
 
 	res := s.runCli("-c", cfgPath, "keygen", "new")
@@ -328,7 +328,7 @@ func (s *SuiteCli) TestCliWallet() {
 	s.Run("Address not specified", func() {
 		res, err := s.runCliNoCheck("-c", cfgPath, "wallet", "info")
 		s.Require().Error(err)
-		s.Contains(res, "Error: Valid wallet address is not specified in config")
+		s.Contains(res, "Error: address not specified in config")
 	})
 
 	s.Run("Deploy new wallet", func() {

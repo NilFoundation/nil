@@ -6,13 +6,10 @@ import (
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/spf13/cobra"
 )
-
-var logger = logging.NewLogger("walletNewCommand")
 
 var defaultNewWalletAmount = types.NewValueFromUint64(100_000_000)
 
