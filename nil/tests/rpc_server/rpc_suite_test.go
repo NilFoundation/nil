@@ -19,6 +19,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/abi"
+	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -51,6 +52,18 @@ func init() {
 	logging.SetupGlobalLogger("info")
 }
 
+func PatchConfigWithTestDefaults(cfg *nilservice.Config) {
+	if cfg.Topology == "" {
+		cfg.Topology = collate.TrivialShardTopologyId
+	}
+	if cfg.CollatorTickPeriodMs == 0 {
+		cfg.CollatorTickPeriodMs = 100
+	}
+	if cfg.GasBasePrice == 0 {
+		cfg.GasBasePrice = 10
+	}
+}
+
 func (s *RpcSuite) start(cfg *nilservice.Config) {
 	s.T().Helper()
 
@@ -70,6 +83,8 @@ func (s *RpcSuite) start(cfg *nilservice.Config) {
 	if cfg.RunMode == nilservice.CollatorsOnlyRunMode {
 		serviceInterop = make(chan nilservice.ServiceInterop, 1)
 	}
+
+	PatchConfigWithTestDefaults(cfg)
 
 	s.wg.Add(1)
 	go func() {
@@ -91,7 +106,7 @@ func (s *RpcSuite) start(cfg *nilservice.Config) {
 		s.waitZerostate()
 	} else {
 		s.Require().Eventually(func() bool {
-			block, err := s.client.GetBlock(cfg.ReplayShardId, "latest", false)
+			block, err := s.client.GetBlock(cfg.Replay.ShardId, "latest", false)
 			return err == nil && block != nil
 		}, ZeroStateWaitTimeout, ZeroStatePollInterval)
 	}

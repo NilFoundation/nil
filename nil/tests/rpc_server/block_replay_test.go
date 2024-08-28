@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -41,13 +40,10 @@ type SuiteBlockReplay struct {
 
 func (s *SuiteBlockReplay) SetupSuite() {
 	s.cfg = &nilservice.Config{
-		NShards:              4,
-		HttpUrl:              GetSockPath(s.T()),
-		Topology:             collate.TrivialShardTopologyId,
-		ZeroStateYaml:        execution.DefaultZeroStateConfig,
-		CollatorTickPeriodMs: 100,
-		GasBasePrice:         10,
-		RunMode:              nilservice.NormalRunMode,
+		NShards:       4,
+		HttpUrl:       GetSockPath(s.T()),
+		ZeroStateYaml: execution.DefaultZeroStateConfig,
+		RunMode:       nilservice.NormalRunMode,
 	}
 
 	s.dbInit = func() db.DB {
@@ -71,8 +67,10 @@ func (s *SuiteBlockReplay) restartReplayMode(shardId types.ShardId, blockNumber 
 	rwTxCount = curDb.rwTxCount.Load()
 
 	s.cfg.RunMode = nilservice.BlockReplayRunMode
-	s.cfg.ReplayShardId = shardId
-	s.cfg.ReplayBlockId = blockNumber
+	s.cfg.Replay = &nilservice.ReplayConfig{
+		ShardId: shardId,
+		BlockId: blockNumber,
+	}
 
 	s.dbInit = func() db.DB {
 		return s.db

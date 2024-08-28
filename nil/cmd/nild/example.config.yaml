@@ -15,17 +15,12 @@
 #adminSocket: ""
 
 ## Keys settings
-#mainKeysOutPath: "keys.yaml"
+#mainKeysPath: "keys.yaml"
 #networkKeysPath: "network-keys.yaml"
 
 ## Gas settings
 #gasPriceScale: 0.0
 #gasBasePrice: 10
-
-## Replay mode-only settings.
-## They will be ignored in other modes.
-#replayBlockId: 1
-#replayShardId: 1
 
 ## Zero-state settings
 ## TODO: describe zero-state settings
@@ -37,7 +32,7 @@
   #tcpPort: 0
   #quicPort: 0
 
-  ## MDNS can only be used for discovery in local networks, e.g. in tests
+  ## MDNS can only be used for discovery in local networks, e.g., in tests
   #useMdns: false
 
   ## DHT is the main discovery mechanism
@@ -53,3 +48,25 @@
   ## If set to true, the metrics service will be started.
   ## Metrics will be exported to the default OTLP gRPC collector.
   #exportMetrics: false
+
+## Replay mode-only settings.
+## They will be ignored in other modes.
+#replay:
+  #blockId: 1
+  #shardId: 1
+
+## Database settings
+#db:
+  ## Path to the database directory
+  #path: "test.db"
+  ## If set to true, the database will be cleared on startup.
+  #allowDrop: false
+  ## GC settings
+  #gcDiscardRatio: 0.5
+  #gcFrequency: 1h
+
+## Read-through mode configuration
+## TODO: description
+#readThrough
+  #sourceAddr: ""
+  #startBlock: latest

@@ -20,11 +20,9 @@ type badgerDB struct {
 
 type BadgerDBOptions struct {
 	Path         string        `yaml:"path"`
-	DiscardRatio float64       `yaml:"discardRatio"`
+	DiscardRatio float64       `yaml:"gcDiscardRatio"`
 	GcFrequency  time.Duration `yaml:"gcFrequency"`
 	AllowDrop    bool          `yaml:"allowDrop"`
-	DbAddr       string        `yaml:"dbAddr"`
-	StartBlock   int64         `yaml:"startBlock"`
 }
 
 func NewDefaultBadgerDBOptions() *BadgerDBOptions {
@@ -32,7 +30,6 @@ func NewDefaultBadgerDBOptions() *BadgerDBOptions {
 		Path:         "test.db",
 		DiscardRatio: 0.5,
 		GcFrequency:  time.Hour,
-		StartBlock:   int64(-1), // corresponds to the latest block
 	}
 }
 

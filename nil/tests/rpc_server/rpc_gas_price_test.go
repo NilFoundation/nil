@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -19,14 +18,12 @@ type SuitGasPrice struct {
 
 func (s *SuitGasPrice) SetupSuite() {
 	s.start(&nilservice.Config{
-		NShards:              4,
-		HttpUrl:              GetSockPath(s.T()),
-		Topology:             collate.TrivialShardTopologyId,
-		ZeroStateYaml:        execution.DefaultZeroStateConfig,
-		CollatorTickPeriodMs: 100,
-		GasPriceScale:        15,
-		GasBasePrice:         10,
-		RunMode:              nilservice.CollatorsOnlyRunMode,
+		NShards:       4,
+		HttpUrl:       GetSockPath(s.T()),
+		ZeroStateYaml: execution.DefaultZeroStateConfig,
+		GasPriceScale: 15,
+		GasBasePrice:  10,
+		RunMode:       nilservice.CollatorsOnlyRunMode,
 	})
 }
 

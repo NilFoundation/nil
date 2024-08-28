@@ -84,13 +84,13 @@ var (
 	EarliestBlock       = EarliestBlockNumber.AsBlockReference()
 )
 
-// UnmarshalJSON parses the given JSON fragment into a BlockNumber. It supports:
+// UnmarshalText parses the given string into a BlockNumber. It supports:
 // - "latest", "earliest", "pending", "safe", or "finalized" as string arguments
 // - the block number
 // Returned errors:
 // - an invalid block number error when the given argument isn't a known strings
 // - an out of range error when the given block number is either too little or too large
-func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
+func (bn *BlockNumber) UnmarshalText(data []byte) error {
 	input := strings.TrimSpace(string(data))
 	if len(input) >= 2 && input[0] == '"' && input[len(input)-1] == '"' {
 		input = input[1 : len(input)-1]
@@ -163,6 +163,14 @@ func (bn BlockNumber) BlockNumber() types.BlockNumber {
 
 func (bn BlockNumber) String() string {
 	return bn.string(10)
+}
+
+func (bn *BlockNumber) Set(s string) error {
+	return bn.UnmarshalText([]byte(s))
+}
+
+func (bn BlockNumber) Type() string {
+	return "BlockNumber"
 }
 
 func (bn BlockNumber) AsBlockReference() BlockReference {

@@ -165,7 +165,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	case BlockReplayRunMode:
 		replayer := collate.NewReplayScheduler(database, collate.ReplayParams{
 			BlockGeneratorParams: execution.BlockGeneratorParams{
-				ShardId:       cfg.ReplayShardId,
+				ShardId:       cfg.Replay.ShardId,
 				NShards:       cfg.NShards,
 				TraceEVM:      cfg.TraceEVM,
 				Timer:         common.NewTimer(),
@@ -173,21 +173,21 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 				GasPriceScale: cfg.GasPriceScale,
 			},
 			Timeout:           time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs),
-			ReplayBlockNumber: cfg.ReplayBlockId,
+			ReplayBlockNumber: cfg.Replay.BlockId,
 		})
 
 		funcs = append(funcs, func(ctx context.Context) error {
 			if err := replayer.Run(ctx); err != nil {
 				logger.Error().
 					Err(err).
-					Stringer(logging.FieldShardId, cfg.ReplayShardId).
+					Stringer(logging.FieldShardId, cfg.Replay.ShardId).
 					Msg("Replayer goroutine failed")
 				return err
 			}
 			return nil
 		})
 
-		msgPools = make([]msgpool.Pool, uint(cfg.ReplayShardId)+1)
+		msgPools = make([]msgpool.Pool, uint(cfg.Replay.ShardId)+1)
 	default:
 		panic("unsupported run mode")
 	}

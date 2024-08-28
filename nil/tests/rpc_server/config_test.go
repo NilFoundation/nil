@@ -94,13 +94,9 @@ func (s *SuiteConfigParams) TestConfigReadWriteValidators() {
 		},
 	}
 	s.start(&nilservice.Config{
-		NShards:              s.shardsNum,
-		Topology:             collate.TrivialShardTopologyId,
-		ZeroState:            &cfg,
-		CollatorTickPeriodMs: 100,
-		GasPriceScale:        0,
-		GasBasePrice:         10,
-		RunMode:              nilservice.CollatorsOnlyRunMode,
+		NShards:   s.shardsNum,
+		ZeroState: &cfg,
+		RunMode:   nilservice.CollatorsOnlyRunMode,
 	})
 
 	var (

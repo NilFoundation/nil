@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -22,12 +21,9 @@ func (s *SuiteRegression) SetupSuite() {
 
 func (s *SuiteRegression) SetupTest() {
 	s.start(&nilservice.Config{
-		NShards:              s.shardsNum,
-		HttpUrl:              GetSockPath(s.T()),
-		Topology:             collate.TrivialShardTopologyId,
-		CollatorTickPeriodMs: 100,
-		GasBasePrice:         10,
-		RunMode:              nilservice.CollatorsOnlyRunMode,
+		NShards: s.shardsNum,
+		HttpUrl: GetSockPath(s.T()),
+		RunMode: nilservice.CollatorsOnlyRunMode,
 	})
 }
 

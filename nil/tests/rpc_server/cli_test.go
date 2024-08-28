@@ -11,7 +11,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -29,11 +28,8 @@ type SuiteCli struct {
 
 func (s *SuiteCli) SetupTest() {
 	s.start(&nilservice.Config{
-		NShards:              5,
-		HttpUrl:              GetSockPath(s.T()),
-		Topology:             collate.TrivialShardTopologyId,
-		CollatorTickPeriodMs: 100,
-		GasBasePrice:         10,
+		NShards: 5,
+		HttpUrl: GetSockPath(s.T()),
 	})
 
 	s.cli = cliservice.NewService(s.client, execution.MainPrivateKey)
