@@ -133,16 +133,27 @@ func (p *MsgPool) getLocked(hash common.Hash) *types.Message {
 	return nil
 }
 
+func shouldReplace(existing, candidate *types.Message) bool {
+	if candidate.FeeCredit.Cmp(existing.FeeCredit) <= 0 {
+		return false
+	}
+
+	// Discard the previous message if it is the same but at a lower fee
+	existingFee := existing.FeeCredit
+	existing.FeeCredit = candidate.FeeCredit
+	defer func() {
+		existing.FeeCredit = existingFee
+	}()
+
+	return bytes.Equal(existing.Hash().Bytes(), candidate.Hash().Bytes())
+}
+
 func (p *MsgPool) addLocked(msg *types.Message) DiscardReason {
-	// Insert to pending pool, if pool doesn't have txn with the same Nonce and bigger Tip
+	// Insert to pending pool, if pool doesn't have a txn with the same dst and seqno.
+	// If pool has a txn with the same dst and seqno, only fee bump is possible; otherwise NotReplaced is returned.
 	found := p.all.get(msg.To, msg.Seqno)
 	if found != nil {
-		// Discard Message with lower fee (TODO: do we need it?)
-		if found.Value.Cmp(msg.Value) >= 0 {
-			// TODO: Currently this condition can't be true because "Value" affects hash
-			if bytes.Equal(found.Hash().Bytes(), msg.Hash().Bytes()) {
-				return NotSet
-			}
+		if !shouldReplace(found, msg) {
 			return NotReplaced
 		}
 
