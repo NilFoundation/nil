@@ -17,22 +17,29 @@ export const waitTillCompleted = async (
   client: PublicClient,
   shardId: number,
   hash: Hex,
+  options?: { waitTillMainShard?: boolean, interval?: number }
 ) => {
+  const interval = options?.interval || 1000;
+  const waitTillMainShard = options?.waitTillMainShard || true;
   const receipts: ProcessedReceipt[] = [];
   const hashes: [number, Hex][] = [[shardId, hash]];
   let cur = 0;
   while (cur !== hashes.length) {
     const [shardId, hash] = hashes[cur];
     const receipt = await client.getMessageReceiptByHash(hash, shardId);
-    if (
-      !receipt ||
-      (receipt.outMessages !== null &&
-        receipt.outputReceipts &&
+    if (!receipt) {
+        await new Promise((resolve) => setTimeout(resolve, interval));
+        continue;
+    }
+    if (receipt.outMessages !== null && receipt.outputReceipts &&
         receipt.outputReceipts.filter((x) => x !== null).length !==
-          receipt.outMessages.length)
-    ) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      continue;
+        receipt.outMessages.length) {
+        await new Promise((resolve) => setTimeout(resolve, interval));
+        continue;
+    }
+    if (waitTillMainShard && receipt.shardId !== 0 && !receipt.includedInMain) {
+        await new Promise((resolve) => setTimeout(resolve, interval));
+        continue;
     }
     cur++;
     receipts.push(receipt);

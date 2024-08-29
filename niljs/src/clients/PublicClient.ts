@@ -9,13 +9,15 @@ import { BlockNotFoundError } from "../errors/block.js";
 import { type Hex, assertIsValidShardId } from "../index.js";
 import type { IAddress } from "../signers/types/IAddress.js";
 import type { Block, BlockTag } from "../types/Block.js";
-import type { CallArgs } from "../types/CallArgs.js";
+import type {CallArgs, CallRes, ContractOverride} from "../types/CallArgs.js";
 import type { IReceipt, ProcessedReceipt } from "../types/IReceipt.js";
 import type { ProcessedMessage } from "../types/ProcessedMessage.js";
 import type { RPCMessage } from "../types/RPCMessage.js";
 import { addHexPrefix } from "../utils/hex.js";
 import { BaseClient } from "./BaseClient.js";
 import type { IPublicClientConfig } from "./types/ClientConfigs.js";
+import type {Address} from "abitype";
+import {decodeFunctionResult, encodeFunctionData} from "viem";
 
 /**
  * PublicClient is a class that allows for interacting with the network via the JSON-RPC API.
@@ -427,25 +429,50 @@ class PublicClient extends BaseClient {
    * @param callArgs.to The address of the receiver.
    * @param callArgs.data The data to be sent.
    * @param callArgs.value The value to be sent.
-   * @param callArgs.gasLimit The gas limit.
+   * @param callArgs.feeCredit The fee credit.
    * @param blockNumberOrHash The number/hash of the block.
+   * @param overrides The overrides of state for chain call.
    */
-  public async call(callArgs: CallArgs, blockNumberOrHash: Hex | BlockTag) {
+  public async call(callArgs: CallArgs, blockNumberOrHash: Hex | BlockTag, overrides?: Record<Address, ContractOverride>) {
+    let data: Hex;
+    if (callArgs.abi) {
+     data = encodeFunctionData({
+         abi: callArgs.abi,
+         functionName: callArgs.functionName,
+         args: callArgs.args || [],
+     });
+    } else {
+      data = typeof callArgs.data === "string" ? callArgs.data : addHexPrefix(bytesToHex(callArgs.data));
+    }
     const sendData = {
-      from: callArgs.from,
+      from: callArgs.from || undefined,
       to: callArgs.to,
-      data:
-        typeof callArgs.data === "string"
-          ? callArgs.data
-          : addHexPrefix(bytesToHex(callArgs.data)),
+      data: data,
       value: toHex(callArgs.value || 0n),
-      gasLimit: (callArgs.gasLimit || 5_000_000n).toString(10),
+      feeCredit: (callArgs.feeCredit || 5_000_000n).toString(10),
     };
 
-    const res = await this.request<`0x${string}`>({
+    const params: unknown[]  = [sendData, blockNumberOrHash];
+    if (overrides) {
+      params.push(overrides);
+    }
+
+    const res = await this.request<CallRes>({
       method: "eth_call",
-      params: [sendData, blockNumberOrHash],
+      params,
     });
+
+    if (callArgs.abi) {
+      const result = decodeFunctionResult({
+        abi: callArgs.abi,
+        functionName: callArgs.functionName,
+        data: res.data,
+      })
+      return {
+        ...res,
+        decodedData: result,
+      };
+    }
 
     return res;
   }
