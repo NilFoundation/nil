@@ -41,8 +41,9 @@ type AccountState struct {
 	// requestId is a current request id. It is used to generate unique number for each request.
 	requestId uint64
 
-	State        Storage
-	AsyncContext map[types.MessageIndex]*types.AsyncContext
+	State               Storage
+	AsyncContext        map[types.MessageIndex]*types.AsyncContext
+	AsyncContextRemoved []types.MessageIndex
 
 	// Flag whether the account was marked as self-destructed. The self-destructed
 	// account is still accessible in the scope of same transaction.
@@ -227,14 +228,19 @@ func (as *AccountState) SetCode(codeHash common.Hash, code []byte) {
 }
 
 func (as *AccountState) SetAsyncContext(index types.MessageIndex, ctx *types.AsyncContext) {
+	as.db.journal.append(asyncContextChange{
+		account:   &as.address,
+		requestId: index,
+	})
 	as.AsyncContext[index] = ctx
 }
 
-func (as *AccountState) GetAsyncContext(index types.MessageIndex) (*types.AsyncContext, error) {
+func (as *AccountState) GetAndRemoveAsyncContext(index types.MessageIndex) (*types.AsyncContext, error) {
 	ctx, exists := as.AsyncContext[index]
 	if exists {
 		return ctx, nil
 	}
+	as.AsyncContextRemoved = append(as.AsyncContextRemoved, index)
 	return as.AsyncContextTree.Fetch(index)
 }
 
@@ -303,6 +309,12 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 
 	for k, v := range as.AsyncContext {
 		if err := as.AsyncContextTree.Update(k, v); err != nil {
+			return nil, err
+		}
+	}
+
+	for _, k := range as.AsyncContextRemoved {
+		if err := as.AsyncContextTree.Delete(k); err != nil {
 			return nil, err
 		}
 	}

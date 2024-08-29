@@ -83,7 +83,7 @@ type StateDB interface {
 	AddOutMessage(caller types.Address, payload *types.InternalMessagePayload) (*types.Message, error)
 
 	// AddOutRequestMessage adds outbound request message for current transaction
-	AddOutRequestMessage(caller types.Address, payload *types.InternalMessagePayload) (*types.Message, error)
+	AddOutRequestMessage(caller types.Address, payload *types.InternalMessagePayload, isAwait bool) (*types.Message, error)
 
 	// Get current message
 	GetInMessage() *types.Message

@@ -14,6 +14,7 @@ library Nil {
     address private constant GET_POSEIDON_HASH = address(0xd5);
     address private constant AWAIT_CALL = address(0xd6);
     address private constant CONFIG_PARAM = address(0xd7);
+    address private constant SEND_REQUEST = address(0xd8);
 
     // The following constants specify from where and how the gas should be taken during async call.
     // Forwarding values are calculated in the following order: FORWARD_VALUE, FORWARD_PERCENTAGE, FORWARD_REMAINING.
@@ -112,6 +113,15 @@ library Nil {
         }
         (bool success, bytes memory returnData) = dst.call{gas: gas, value: value}(callData);
         return (success, returnData);
+    }
+
+    function sendRequest(
+        address dst,
+        uint256 value,
+        bytes memory context,
+        bytes memory callData
+    ) internal {
+        __Precompile__(SEND_REQUEST).precompileSendRequest{value: value}(dst, context, callData);
     }
 
     // Send raw internal message using a special precompiled contract
@@ -272,6 +282,7 @@ contract __Precompile__ {
     function precompileGetCurrencyBalance(uint256 id, address addr) public view returns(uint256) {}
     function precompileAsyncCall(bool, uint8, address, address, address, uint, Nil.Token[] memory, bytes memory) public payable returns(bool) {}
     function precompileAwaitCall(address, bytes memory) public payable returns(bytes memory, bool) {}
+    function precompileSendRequest(address, bytes memory, bytes memory) public payable returns(bool) {}
     function precompileSendTokens(address, Nil.Token[] memory) public returns(bool) {}
     function precompileGetMessageTokens() public returns(Nil.Token[] memory) {}
     function precompileGetGasPrice(uint id) public returns(uint256) {}

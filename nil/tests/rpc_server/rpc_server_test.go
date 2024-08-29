@@ -580,11 +580,11 @@ func (s *SuiteRpc) TestAsyncAwaitCall() {
 	})
 
 	s.Run("Deploy await", func() {
-		dpAwait := contracts.GetDeployPayload(s.T(), contracts.NameAwaitTest)
+		dpAwait := contracts.GetDeployPayload(s.T(), contracts.NameRequestResponseTest)
 		addrAwait, _ = s.deployContractViaMainWallet(types.BaseShardId, dpAwait, defaultContractValue)
 	})
 
-	abiAwait, err := contracts.GetAbi(contracts.NameAwaitTest)
+	abiAwait, err := contracts.GetAbi(contracts.NameRequestResponseTest)
 	s.Require().NoError(err)
 
 	data := s.AbiPack(abiAwait, "sumCounters", []types.Address{addrCounter})

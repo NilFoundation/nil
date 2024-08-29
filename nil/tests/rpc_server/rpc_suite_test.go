@@ -49,7 +49,7 @@ type RpcSuite struct {
 }
 
 func init() {
-	logging.SetupGlobalLogger("info")
+	logging.SetupGlobalLogger("debug")
 }
 
 func PatchConfigWithTestDefaults(cfg *nilservice.Config) {
@@ -199,11 +199,11 @@ func (s *RpcSuite) sendMessageViaWallet(addrFrom types.Address, addrTo types.Add
 ) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	txHash, err := s.client.SendMessageViaWallet(addrFrom, calldata, s.gasToValue(100_000), s.gasToValue(100_000),
+	txHash, err := s.client.SendMessageViaWallet(addrFrom, calldata, s.gasToValue(500_000), s.gasToValue(500_000),
 		types.NewZeroValue(), []types.CurrencyBalance{}, addrTo, key)
 	s.Require().NoError(err)
 
-	receipt := s.waitForReceipt(addrFrom.ShardId(), txHash)
+	receipt := s.waitIncludedInMain(addrFrom.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().Equal("Success", receipt.Status)
 	s.Require().Len(receipt.OutReceipts, 1)
@@ -323,6 +323,24 @@ func (s *RpcSuite) getBalance(address types.Address) types.Value {
 	return balance
 }
 
+func (s *RpcSuite) GetContract(address types.Address) *types.SmartContract {
+	s.T().Helper()
+
+	tx, err := s.db.CreateRwTx(s.context)
+	s.Require().NoError(err)
+	defer tx.Rollback()
+
+	block, err := db.ReadLastBlock(tx, address.ShardId())
+	s.Require().NoError(err)
+
+	contractTree := execution.NewDbContractTrie(tx, address.ShardId())
+	contractTree.SetRootHash(block.SmartContractsRoot)
+
+	contract, err := contractTree.Fetch(address.Hash())
+	s.Require().NoError(err)
+	return contract
+}
+
 func (s *RpcSuite) AbiPack(abi *abi.ABI, name string, args ...any) []byte {
 	s.T().Helper()
 	data, err := abi.Pack(name, args...)
@@ -335,6 +353,18 @@ func (s *RpcSuite) AbiUnpack(abi *abi.ABI, name string, data []byte) []interface
 	res, err := abi.Unpack(name, data)
 	s.Require().NoError(err)
 	return res
+}
+
+func CheckContractValueEqual[T any](s *RpcSuite, inAbi *abi.ABI, address types.Address, name string, value T) {
+	s.T().Helper()
+
+	data := s.AbiPack(inAbi, name)
+	data = s.CallGetter(address, data, "latest", nil)
+	nameRes, err := inAbi.Unpack(name, data)
+	s.Require().NoError(err)
+	gotValue, ok := nameRes[0].(T)
+	s.Require().True(ok)
+	s.Require().Equal(value, gotValue)
 }
 
 func (s *RpcSuite) gasToValue(gas uint64) types.Value {
