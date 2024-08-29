@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -32,11 +31,8 @@ func (s *SuiteReadThroughDb) SetupTest() {
 	s.num = 0
 
 	s.cfg = &nilservice.Config{
-		NShards:              5,
-		HttpUrl:              GetSockPathIdx(s.T(), s.num),
-		Topology:             collate.TrivialShardTopologyId,
-		CollatorTickPeriodMs: 100,
-		GasBasePrice:         10,
+		NShards: 5,
+		HttpUrl: GetSockPathIdx(s.T(), s.num),
 	}
 
 	s.server.start(s.cfg)

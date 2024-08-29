@@ -19,38 +19,56 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type readThroughOptions struct {
+	SourceAddr string                `yaml:"sourceAddr"`
+	StartBlock transport.BlockNumber `yaml:"startBlock"`
+}
+
+type config struct {
+	*nilservice.Config `yaml:",inline"`
+
+	DB          *db.BadgerDBOptions `yaml:"db"`
+	ReadThrough *readThroughOptions `yaml:"readThrough"`
+}
+
 func main() {
 	logger := logging.NewLogger("nild")
 
-	cfg, dbOpts := parseArgs()
+	cfg := parseArgs()
 
 	profiling.Start(profiling.DefaultPort)
 
-	database, err := openDb(dbOpts.Path, dbOpts.AllowDrop, logger)
+	database, err := openDb(cfg.DB.Path, cfg.DB.AllowDrop, logger)
 	check.PanicIfErr(err)
 
-	if len(dbOpts.DbAddr) != 0 {
-		database, err = readthroughdb.NewReadThroughWithEndpoint(context.Background(), dbOpts.DbAddr, database, transport.BlockNumber(dbOpts.StartBlock))
+	if len(cfg.ReadThrough.SourceAddr) != 0 {
+		database, err = readthroughdb.NewReadThroughWithEndpoint(context.Background(), cfg.ReadThrough.SourceAddr, database, cfg.ReadThrough.StartBlock)
 		check.PanicIfErr(err)
 	}
 
-	exitCode := nilservice.Run(context.Background(), cfg, database, nil,
+	exitCode := nilservice.Run(context.Background(), cfg.Config, database, nil,
 		func(ctx context.Context) error {
-			return database.LogGC(ctx, dbOpts.DiscardRatio, dbOpts.GcFrequency)
+			return database.LogGC(ctx, cfg.DB.DiscardRatio, cfg.DB.GcFrequency)
 		})
 
 	database.Close()
 	os.Exit(exitCode)
 }
 
-func loadConfig() (*nilservice.Config, error) {
-	cfg := nilservice.NewDefaultConfig()
+func loadConfig() (*config, error) {
+	cfg := &config{
+		Config: nilservice.NewDefaultConfig(),
+		DB:     db.NewDefaultBadgerDBOptions(),
+		ReadThrough: &readThroughOptions{
+			StartBlock: transport.LatestBlockNumber,
+		},
+	}
 	name := ""
 
 	// We need to load config before parsing arguments (it changes global state).
 	// Let's search arguments explicitly.
 	for i, f := range os.Args[:len(os.Args)-1] {
-		if f == "--config" {
+		if f == "--config" || f == "-c" {
 			name = os.Args[i+1]
 			break
 		}
@@ -70,14 +88,16 @@ func loadConfig() (*nilservice.Config, error) {
 		return nil, fmt.Errorf("can't parse config %s: %w", name, err)
 	}
 
+	if cfg.DB == nil {
+		cfg.DB = db.NewDefaultBadgerDBOptions()
+	}
+
 	return cfg, nil
 }
 
-func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
+func parseArgs() *config {
 	cfg, err := loadConfig()
 	check.PanicIfErr(err)
-
-	dbOpts := db.NewDefaultBadgerDBOptions()
 
 	rootCmd := &cobra.Command{
 		Use:           "nild [global flags] [command]",
@@ -86,18 +106,18 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 		SilenceErrors: true,
 	}
 
-	logLevel := rootCmd.PersistentFlags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
-	rootCmd.PersistentFlags().String("config", "", "config file (none by default)")
+	logLevel := rootCmd.PersistentFlags().StringP("log-level", "l", "info", "log level: trace|debug|info|warn|error|fatal|panic")
+	rootCmd.PersistentFlags().StringP("config", "c", "", "config file (none by default)")
 
-	rootCmd.PersistentFlags().StringVar(&dbOpts.Path, "db-path", dbOpts.Path, "path to database")
-	rootCmd.PersistentFlags().Float64Var(&dbOpts.DiscardRatio, "db-discard-ratio", dbOpts.DiscardRatio, "discard ratio for badger GC")
-	rootCmd.PersistentFlags().DurationVar(&dbOpts.GcFrequency, "db-gc-interval", dbOpts.GcFrequency, "frequency for badger GC")
+	rootCmd.PersistentFlags().StringVar(&cfg.DB.Path, "db-path", cfg.DB.Path, "path to database")
+	rootCmd.PersistentFlags().Float64Var(&cfg.DB.DiscardRatio, "db-discard-ratio", cfg.DB.DiscardRatio, "discard ratio for badger GC")
+	rootCmd.PersistentFlags().DurationVar(&cfg.DB.GcFrequency, "db-gc-interval", cfg.DB.GcFrequency, "frequency for badger GC")
 	rootCmd.PersistentFlags().Float64Var(&cfg.GasPriceScale, "gas-price-scale", cfg.GasPriceScale, "gas price scale factor for each transaction")
 	rootCmd.PersistentFlags().Uint64Var(&cfg.GasBasePrice, "gas-base-price", cfg.GasBasePrice, "base gas price for each transaction")
 	rootCmd.PersistentFlags().IntVar(&cfg.RPCPort, "port", cfg.RPCPort, "http port for rpc server")
 	rootCmd.PersistentFlags().StringVar(&cfg.AdminSocketPath, "admin-socket-path", cfg.AdminSocketPath, "unix socket path to start admin server on (disabled if empty)}")
-	rootCmd.PersistentFlags().StringVar(&dbOpts.DbAddr, "read-through-db-addr", dbOpts.DbAddr, "address of the read-through database server. If provided, the local node will be run in read-through mode.")
-	rootCmd.PersistentFlags().Int64Var(&dbOpts.StartBlock, "read-through-start-block", dbOpts.StartBlock, "mainshard start block number for read-through mode, latest block by default")
+	rootCmd.PersistentFlags().StringVar(&cfg.ReadThrough.SourceAddr, "read-through-db-addr", cfg.ReadThrough.SourceAddr, "address of the read-through database server. If provided, the local node will be run in read-through mode.")
+	rootCmd.PersistentFlags().Var(&cfg.ReadThrough.StartBlock, "read-through-start-block", "mainshard start block number for read-through mode, latest block by default")
 
 	runCmd := &cobra.Command{
 		Use:   "run",
@@ -109,7 +129,7 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 	runCmd.Flags().Uint32Var(&cfg.NShards, "nshards", cfg.NShards, "number of shardchains")
 	runCmd.Flags().Var(&cfg.RunOnlyShard, "run-only-shard", "run only specified shard")
 	runCmd.Flags().StringToStringVar(&cfg.ShardEndpoints, "shard-endpoints", cfg.ShardEndpoints, "shard endpoints (e.g. 1=localhost:31337,2=localhost:31338)")
-	runCmd.Flags().BoolVar(&dbOpts.AllowDrop, "allow-db-clear", dbOpts.AllowDrop, "allow to clear database in case of outdated version")
+	runCmd.Flags().BoolVar(&cfg.DB.AllowDrop, "allow-db-clear", cfg.DB.AllowDrop, "allow to clear database in case of outdated version")
 
 	// network
 	runCmd.Flags().IntVar(&cfg.Network.TcpPort, "tcp-port", cfg.Network.TcpPort, "tcp port for network")
@@ -132,8 +152,8 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 			cfg.RunMode = nilservice.BlockReplayRunMode
 		},
 	}
-	replayCmd.Flags().Var(&cfg.ReplayBlockId, "block-id", "block id to replay")
-	replayCmd.Flags().Var(&cfg.ReplayShardId, "shard-id", "shard id to replay block from")
+	replayCmd.Flags().Var(&cfg.Replay.BlockId, "block-id", "block id to replay")
+	replayCmd.Flags().Var(&cfg.Replay.ShardId, "shard-id", "shard id to replay block from")
 
 	rootCmd.AddCommand(runCmd, replayCmd)
 
@@ -147,7 +167,7 @@ func parseArgs() (*nilservice.Config, *db.BadgerDBOptions) {
 
 	logging.SetupGlobalLogger(*logLevel)
 
-	return cfg, dbOpts
+	return cfg
 }
 
 func openDb(dbPath string, allowDrop bool, logger zerolog.Logger) (db.DB, error) {

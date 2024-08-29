@@ -29,19 +29,14 @@ type Config struct {
 	RPCPort int `yaml:"rpcPort"`
 
 	// Admin
-	AdminSocketPath string `yaml:"adminSocketPath"`
+	AdminSocketPath string `yaml:"adminSocket"`
 
 	// Keys
-	MainKeysOutPath string `yaml:"mainKeysOutPath"`
+	MainKeysOutPath string `yaml:"mainKeysPath"`
 	NetworkKeysPath string `yaml:"networkKeysPath"`
 
-	// Gas
 	GasPriceScale float64 `yaml:"gasPriceScale"`
 	GasBasePrice  uint64  `yaml:"gasBasePrice"`
-
-	// Block replay
-	ReplayBlockId types.BlockNumber `yaml:"replayBlockId"`
-	ReplayShardId types.ShardId     `yaml:"replayShardId"`
 
 	// HttpUrl is calculated from RPCPort
 	HttpUrl string `yaml:"-"`
@@ -54,9 +49,10 @@ type Config struct {
 	ZeroStateYaml        string `yaml:"-"`
 
 	// Sub-configs
-	ZeroState *execution.ZeroStateConfig `yaml:"zeroState"`
 	Network   *network.Config            `yaml:"network"`
 	Telemetry *telemetry.Config          `yaml:"telemetry"`
+	ZeroState *execution.ZeroStateConfig `yaml:"zeroState"`
+	Replay    *ReplayConfig              `yaml:"replay"`
 }
 
 func NewDefaultConfig() *Config {
@@ -71,14 +67,24 @@ func NewDefaultConfig() *Config {
 		GasPriceScale: 0.0,
 		GasBasePrice:  10,
 
-		ReplayBlockId: 1,
-		ReplayShardId: 1,
-
 		GracefulShutdown: true,
 		Topology:         collate.TrivialShardTopologyId,
 
 		Network:   network.NewDefaultConfig(),
 		Telemetry: telemetry.NewDefaultConfig(),
+		Replay:    NewDefaultReplayConfig(),
+	}
+}
+
+type ReplayConfig struct {
+	BlockId types.BlockNumber `yaml:"blockId"`
+	ShardId types.ShardId     `yaml:"shardId"`
+}
+
+func NewDefaultReplayConfig() *ReplayConfig {
+	return &ReplayConfig{
+		BlockId: 1,
+		ShardId: 1,
 	}
 }
 
