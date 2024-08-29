@@ -2,6 +2,7 @@
 , stdenv
 , fetchFromGitHub
 , fetchNpmDeps
+, callPackage
 , npmHooks
 , nodejs
 , nil
@@ -13,10 +14,7 @@ stdenv.mkDerivation rec {
   pname = "niljs";
   src = lib.sourceByRegex ./. [ "package.json" "package-lock.json" "^niljs(/.*)?$" ];
 
-  npmDeps = fetchNpmDeps {
-    inherit src;
-    hash = "sha256-b4fjrq6rhg+6PR0ZVjtMzSNIEsW8npjZ8yeThIcIxZk=";
-  };
+  npmDeps = (callPackage ./npmdeps.nix { });
 
   NODE_PATH = "$npmDeps";
 

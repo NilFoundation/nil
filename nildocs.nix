@@ -1,4 +1,4 @@
-{ lib, stdenv, npmHooks, nodejs, nil, openssl, fetchNpmDeps, autoconf, automake, libtool, solc, enableTesting ? false }:
+{ lib, stdenv, npmHooks, nodejs, nil, openssl, fetchNpmDeps, callPackage, autoconf, automake, libtool, solc, enableTesting ? false }:
 
 stdenv.mkDerivation rec {
   name = "nil.docs";
@@ -10,10 +10,7 @@ stdenv.mkDerivation rec {
     "^niljs(/.*)?$"
   ];
 
-  npmDeps = fetchNpmDeps {
-    inherit src;
-    hash = "sha256-b4fjrq6rhg+6PR0ZVjtMzSNIEsW8npjZ8yeThIcIxZk=";
-  };
+  npmDeps = (callPackage ./npmdeps.nix { });
 
   NODE_PATH = "$npmDeps";
 
