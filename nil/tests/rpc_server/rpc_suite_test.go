@@ -105,7 +105,7 @@ func (s *RpcSuite) cancel() {
 	s.db.Close()
 }
 
-func (s *RpcSuite) waitForReceipt(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
+func (s *RpcSuite) waitForReceiptCommon(shardId types.ShardId, hash common.Hash, check func(*jsonrpc.RPCReceipt) bool) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
 	var receipt *jsonrpc.RPCReceipt
@@ -113,12 +113,28 @@ func (s *RpcSuite) waitForReceipt(shardId types.ShardId, hash common.Hash) *json
 	s.Require().Eventually(func() bool {
 		receipt, err = s.client.GetInMessageReceipt(shardId, hash)
 		s.Require().NoError(err)
-		return receipt.IsComplete()
+		return check(receipt)
 	}, ReceiptWaitTimeout, ReceiptPollInterval)
 
 	s.Equal(hash, receipt.MsgHash)
 
 	return receipt
+}
+
+func (s *RpcSuite) waitForReceipt(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
+	s.T().Helper()
+
+	return s.waitForReceiptCommon(shardId, hash, func(receipt *jsonrpc.RPCReceipt) bool {
+		return receipt.IsComplete()
+	})
+}
+
+func (s *RpcSuite) waitIncludedInMain(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
+	s.T().Helper()
+
+	return s.waitForReceiptCommon(shardId, hash, func(receipt *jsonrpc.RPCReceipt) bool {
+		return receipt.IsCommitted()
+	})
 }
 
 func (s *RpcSuite) waitZerostate() {
@@ -150,7 +166,7 @@ func (s *RpcSuite) deployContractViaWallet(
 	s.Require().NoError(err)
 	s.Require().Equal(contractAddr, addr)
 
-	receipt = s.waitForReceipt(addrFrom.ShardId(), txHash)
+	receipt = s.waitIncludedInMain(addrFrom.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().Equal("Success", receipt.Status)
 	s.Require().Len(receipt.OutReceipts, 1)
@@ -198,7 +214,7 @@ func (s *RpcSuite) sendExternalMessageNoCheck(bytecode types.Code, contractAddre
 	txHash, err := s.client.SendExternalMessage(bytecode, contractAddress, execution.MainPrivateKey, s.gasToValue(500_000))
 	s.Require().NoError(err)
 
-	receipt := s.waitForReceipt(contractAddress.ShardId(), txHash)
+	receipt := s.waitIncludedInMain(contractAddress.ShardId(), txHash)
 
 	return receipt
 }
@@ -214,7 +230,7 @@ func (s *RpcSuite) sendMessageViaWalletNoCheck(addrWallet types.Address, addrTo 
 		value, currencies, addrTo, key)
 	s.Require().NoError(err)
 
-	receipt := s.waitForReceipt(addrWallet.ShardId(), txHash)
+	receipt := s.waitIncludedInMain(addrWallet.ShardId(), txHash)
 	// We don't check the receipt for success here, as it can be failed on purpose
 	if receipt.Success {
 		// But if it is successful, we expect exactly one out receipt

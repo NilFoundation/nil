@@ -132,7 +132,7 @@ func (s *SuiteCli) TestContract() {
 	txHash, addr, err := s.cli.DeployContractViaWallet(wallet.ShardId()+1, wallet, deployCode, types.Value{})
 	s.Require().NoError(err)
 
-	receipt := s.waitForReceipt(wallet.ShardId(), txHash)
+	receipt := s.waitIncludedInMain(wallet.ShardId(), txHash)
 	s.Require().True(receipt.AllSuccess())
 
 	getCalldata, err := abi.Pack("get")
@@ -150,7 +150,7 @@ func (s *SuiteCli) TestContract() {
 	txHash, err = s.cli.RunContract(wallet, calldata, types.Value{}, types.Value{}, types.Value{}, nil, addr)
 	s.Require().NoError(err)
 
-	receipt = s.waitForReceipt(wallet.ShardId(), txHash)
+	receipt = s.waitIncludedInMain(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -180,7 +180,7 @@ func (s *SuiteCli) TestContract() {
 	txHash, err = s.cli.RunContract(wallet, nil, types.Value{}, types.Value{}, types.NewValueFromUint64(100), nil, addr)
 	s.Require().NoError(err)
 
-	receipt = s.waitForReceipt(wallet.ShardId(), txHash)
+	receipt = s.waitIncludedInMain(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -225,7 +225,7 @@ func (s *SuiteCli) TestSendExternalMessage() {
 	txHash, addr, err := s.cli.DeployContractViaWallet(types.BaseShardId, wallet, deployCode, types.NewValueFromUint64(10_000_000))
 	s.Require().NoError(err)
 
-	receipt := s.waitForReceipt(wallet.ShardId(), txHash)
+	receipt := s.waitIncludedInMain(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -248,7 +248,7 @@ func (s *SuiteCli) TestSendExternalMessage() {
 	txHash, err = s.cli.SendExternalMessage(calldata, addr, true)
 	s.Require().NoError(err)
 
-	receipt = s.waitForReceipt(addr.ShardId(), txHash)
+	receipt = s.waitIncludedInMain(addr.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 
 	// Get updated value
