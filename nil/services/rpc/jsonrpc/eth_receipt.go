@@ -41,13 +41,17 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 
 		// Check if the message is included in the main chain
 		if mainBlock, err := db.ReadLastBlock(tx, types.MainShardId); err == nil {
-			treeShards := execution.NewDbShardBlocksTrieReader(tx, types.MainShardId, mainBlock.Id)
-			treeShards.SetRootHash(mainBlock.ChildBlocksRootHash)
-			hashBytes, err := treeShards.Get(shardId.Bytes())
-			if err == nil {
-				hash := common.BytesToHash(hashBytes)
-				if lastBlock, err := db.ReadBlock(tx, shardId, hash); err == nil {
-					includedInMain = lastBlock.Id >= block.Id
+			if shardId.IsMainShard() {
+				includedInMain = mainBlock.Id >= block.Id
+			} else {
+				treeShards := execution.NewDbShardBlocksTrieReader(tx, types.MainShardId, mainBlock.Id)
+				treeShards.SetRootHash(mainBlock.ChildBlocksRootHash)
+				hashBytes, err := treeShards.Get(shardId.Bytes())
+				if err == nil {
+					hash := common.BytesToHash(hashBytes)
+					if lastBlock, err := db.ReadBlock(tx, shardId, hash); err == nil {
+						includedInMain = lastBlock.Id >= block.Id
+					}
 				}
 			}
 		}

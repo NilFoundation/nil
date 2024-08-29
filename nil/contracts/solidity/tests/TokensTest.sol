@@ -40,7 +40,7 @@ contract TokensTest is NilCurrencyBase {
         require(!fail, "Test for failed transaction");
     }
 
-    function checkTokenBalance(address addr, uint256 id, uint256 balance) public {
+    function checkTokenBalance(address addr, uint256 id, uint256 balance) public view {
         require(Nil.currencyBalance(addr, id) == balance, "Balance mismatch");
     }
 

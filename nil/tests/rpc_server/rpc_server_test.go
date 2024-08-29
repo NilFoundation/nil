@@ -319,7 +319,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 			calleeShardId, types.MainWalletAddress, deployCode, types.Value{}, execution.MainPrivateKey,
 		)
 		s.Require().NoError(err)
-		receipt := s.waitForReceipt(types.MainWalletAddress.ShardId(), hash)
+		receipt := s.waitIncludedInMain(types.MainWalletAddress.ShardId(), hash)
 		s.Require().True(receipt.Success)
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})
