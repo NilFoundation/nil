@@ -2,6 +2,7 @@
 , stdenv
 , fetchFromGitHub
 , fetchNpmDeps
+, callPackage
 , npmHooks
 , nodejs
 , nil
@@ -23,10 +24,7 @@ stdenv.mkDerivation rec {
     sha256 = "1mhww44ni55yfcyn4hjql2hwnvag40p78kac7jjw2g2jdwwyb1fv";
   };
 
-  npmDeps = fetchNpmDeps {
-    inherit src;
-    hash = "sha256-b4fjrq6rhg+6PR0ZVjtMzSNIEsW8npjZ8yeThIcIxZk=";
-  };
+  npmDeps = (callPackage ./npmdeps.nix { });
 
   NODE_PATH = "$npmDeps";
 
