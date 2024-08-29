@@ -4,20 +4,20 @@ set -e
 FILE_NAME="soljson-v0.8.26+commit.8a97fa7a.js"
 
 install() {
-  CACHE_DIR=$1
-  PLATFORM=$2
-  DIR=$CACHE_DIR/hardhat-nodejs/compilers-v2
+    CACHE_DIR=$1
+    PLATFORM=$2
+    DIR=$CACHE_DIR/hardhat-nodejs/compilers-v2
 
-  PLATFORM_DIR=$DIR/$PLATFORM
-  mkdir -p "$PLATFORM_DIR"
-  cp list.json "$PLATFORM_DIR"
-  touch "$PLATFORM_DIR"/$FILE_NAME
-  touch "$PLATFORM_DIR"/$FILE_NAME.does.not.work
+    PLATFORM_DIR=$DIR/$PLATFORM
+    mkdir -p "$PLATFORM_DIR"
+    cp list.json "$PLATFORM_DIR"
+    touch "$PLATFORM_DIR"/$FILE_NAME
+    touch "$PLATFORM_DIR"/$FILE_NAME.does.not.work
 
-  WASM_DIR=$DIR/wasm
-  mkdir -p "$WASM_DIR"
-  cp list.json "$WASM_DIR"
-  cp "$3" "$WASM_DIR"/$FILE_NAME
+    WASM_DIR=$DIR/wasm
+    mkdir -p "$WASM_DIR"
+    cp list.json "$WASM_DIR"
+    cp "$3" "$WASM_DIR"/$FILE_NAME
 }
 
 SRC=$1

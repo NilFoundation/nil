@@ -1,9 +1,22 @@
-{ lib, stdenv, buildGoModule, enableRaceDetector ? false
-, enableTesting ? false, solc, clickhouse, go-tools, gotools, golangci-lint
-, gofumpt, gci, delve, gopls }:
+{ lib
+, stdenv
+, buildGoModule
+, enableRaceDetector ? false
+, enableTesting ? false
+, solc
+, clickhouse
+, go-tools
+, gotools
+, golangci-lint
+, gofumpt
+, gci
+, delve
+, gopls
+}:
 let inherit (lib) optional;
-    overrideBuildGoModule = pkg: pkg.override { buildGoModule = buildGoModule; };
-in buildGoModule rec {
+  overrideBuildGoModule = pkg: pkg.override { buildGoModule = buildGoModule; };
+in
+buildGoModule rec {
   name = "nil";
   pname = "nil";
 
@@ -11,7 +24,7 @@ in buildGoModule rec {
     make compile-contracts ssz rpcspec
   '';
 
-  src = lib.sourceByRegex ./. ["Makefile" "go.mod" "go.sum" "^nil(/.*)?$"];
+  src = lib.sourceByRegex ./. [ "Makefile" "go.mod" "go.sum" "^nil(/.*)?$" ];
 
   # to obtain run `nix build` with vendorHash = "";
   vendorHash = "sha256-9TqPL+gIlHKewZC4Lu5UGitGSsP6a0dCr/QVSY10Nzw=";

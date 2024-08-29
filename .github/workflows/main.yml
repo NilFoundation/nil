@@ -23,6 +23,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Run formatters
+        run: |
+          ./scripts/sh_format_all.sh -n -c
+          ./scripts/nix_format_all.sh -n -c
+
       - name: compile contracts
         run: nix develop -c make compile-contracts
 
@@ -37,9 +42,6 @@ jobs:
 
       - name: build
         run: nix build -L
-
-      - name: Generate OpenRPC spec for JSON RPC API
-        run: nix develop -c make rpcspec
 
       - name: Upload nil binary as artifact
         if: github.event_name == 'workflow_dispatch'

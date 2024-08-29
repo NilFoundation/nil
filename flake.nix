@@ -10,13 +10,15 @@
     (flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-      in rec {
+      in
+      rec {
         packages = rec {
           nil = (pkgs.callPackage ./nil.nix { buildGoModule = pkgs.buildGo123Module; });
-          niljs = (pkgs.callPackage ./niljs.nix {});
+          niljs = (pkgs.callPackage ./niljs.nix { });
           nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; enableTesting = true; });
-          nilhardhat = (pkgs.callPackage ./nilhardhat.nix {});
+          nilhardhat = (pkgs.callPackage ./nilhardhat.nix { });
           default = nil;
+          formatters = (pkgs.callPackage ./formatters.nix { });
         };
         checks = rec {
           nil = (pkgs.callPackage ./nil.nix {
@@ -48,33 +50,33 @@
             version = "0.1.0-${toString revCount}";
             versionFull = "${version}-${rev}";
           in
-            rec {
-              deb = pkg:
-                pkgs.stdenv.mkDerivation {
-                  name = "deb-package-${pkg.pname}";
-                  buildInputs = [ pkgs.fpm ];
+          rec {
+            deb = pkg:
+              pkgs.stdenv.mkDerivation {
+                name = "deb-package-${pkg.pname}";
+                buildInputs = [ pkgs.fpm ];
 
-                  unpackPhase = "true";
-                  buildPhase = ''
-                    export HOME=$PWD
-                    mkdir -p ./usr
-                    mkdir -p ./usr/share/${packages.nildocs.pname}
-                    cp -r ${pkg}/bin ./usr/
-                    cp -r ${pkg}/share ./usr/
-                    cp -r ${packages.nildocs.outPath}/* ./usr/share/${packages.nildocs.pname}
-                    chmod -R u+rw,g+r,o+r ./usr
-                    chmod -R u+rwx,g+rx,o+rx ./usr/bin
-                    chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.nildocs.pname}
-                    bash ${./scripts/binary_patch_version.sh} ./usr/bin/nild ${versionFull}
-                    bash ${./scripts/binary_patch_version.sh} ./usr/bin/nil ${versionFull}
-                    ${pkgs.fpm}/bin/fpm -s dir -t deb --name ${pkg.pname} -v ${version} --deb-use-file-permissions usr
-                  '';
-                  installPhase = ''
-                    mkdir -p $out
-                    cp -r *.deb $out
-                  '';
-                };
-              default = deb;
-            };
+                unpackPhase = "true";
+                buildPhase = ''
+                  export HOME=$PWD
+                  mkdir -p ./usr
+                  mkdir -p ./usr/share/${packages.nildocs.pname}
+                  cp -r ${pkg}/bin ./usr/
+                  cp -r ${pkg}/share ./usr/
+                  cp -r ${packages.nildocs.outPath}/* ./usr/share/${packages.nildocs.pname}
+                  chmod -R u+rw,g+r,o+r ./usr
+                  chmod -R u+rwx,g+rx,o+rx ./usr/bin
+                  chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.nildocs.pname}
+                  bash ${./scripts/binary_patch_version.sh} ./usr/bin/nild ${versionFull}
+                  bash ${./scripts/binary_patch_version.sh} ./usr/bin/nil ${versionFull}
+                  ${pkgs.fpm}/bin/fpm -s dir -t deb --name ${pkg.pname} -v ${version} --deb-use-file-permissions usr
+                '';
+                installPhase = ''
+                  mkdir -p $out
+                  cp -r *.deb $out
+                '';
+              };
+            default = deb;
+          };
       }));
 }

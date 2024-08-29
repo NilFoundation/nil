@@ -1,10 +1,17 @@
-{ lib, stdenv, fetchFromGitHub, fetchNpmDeps, npmHooks, nodejs, nil
-, enableTesting ? false }:
+{ lib
+, stdenv
+, fetchFromGitHub
+, fetchNpmDeps
+, npmHooks
+, nodejs
+, nil
+, enableTesting ? false
+}:
 
 stdenv.mkDerivation rec {
   name = "nil.js";
   pname = "niljs";
-  src = lib.sourceByRegex ./. ["package.json" "package-lock.json" "^niljs(/.*)?$"];
+  src = lib.sourceByRegex ./. [ "package.json" "package-lock.json" "^niljs(/.*)?$" ];
 
   npmDeps = fetchNpmDeps {
     inherit src;

@@ -7,13 +7,13 @@ VERSION="$2"
 VERSION_LEN=${#VERSION}
 
 if [ ! -f "$FILE_TO_PATCH" ]; then
-	echo "ERROR: File doesn't exist: $FILE_TO_PATCH"
-	exit 1
+    echo "ERROR: File doesn't exist: $FILE_TO_PATCH"
+    exit 1
 fi
 
 if [ "$VERSION_LEN" -gt 40 ]; then
-	echo "ERROR: Version is longer than 40 characters: " $VERSION
-	exit 1
+    echo "ERROR: Version is longer than 40 characters: " $VERSION
+    exit 1
 fi
 
 PADDED_VERSION="$(printf "%-40s" $VERSION)"

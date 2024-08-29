@@ -1,4 +1,4 @@
-{ lib, stdenv, npmHooks, nodejs, nil, openssl, fetchNpmDeps, autoconf, automake, libtool, solc, enableTesting ? false}:
+{ lib, stdenv, npmHooks, nodejs, nil, openssl, fetchNpmDeps, autoconf, automake, libtool, solc, enableTesting ? false }:
 
 stdenv.mkDerivation rec {
   name = "nil.docs";

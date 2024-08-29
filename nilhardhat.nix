@@ -1,5 +1,12 @@
-{ lib, stdenv, fetchFromGitHub, fetchNpmDeps, npmHooks, nodejs, nil
-, enableTesting ? false }:
+{ lib
+, stdenv
+, fetchFromGitHub
+, fetchNpmDeps
+, npmHooks
+, nodejs
+, nil
+, enableTesting ? false
+}:
 
 stdenv.mkDerivation rec {
   name = "nil-hardhat-plugin";
@@ -8,11 +15,12 @@ stdenv.mkDerivation rec {
     "package-lock.json"
     "^hardhat-plugin(/.*)?$"
     "^niljs(/.*)?$"
-    "^nil/contracts/solidity(/.*)?$"];
+    "^nil/contracts/solidity(/.*)?$"
+  ];
 
   soljson = builtins.fetchurl {
-      url = "https://binaries.soliditylang.org/wasm/soljson-v0.8.26+commit.8a97fa7a.js";
-      sha256 = "1mhww44ni55yfcyn4hjql2hwnvag40p78kac7jjw2g2jdwwyb1fv";
+    url = "https://binaries.soliditylang.org/wasm/soljson-v0.8.26+commit.8a97fa7a.js";
+    sha256 = "1mhww44ni55yfcyn4hjql2hwnvag40p78kac7jjw2g2jdwwyb1fv";
   };
 
   npmDeps = fetchNpmDeps {
