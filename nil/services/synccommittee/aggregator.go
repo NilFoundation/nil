@@ -73,7 +73,7 @@ func (agg *Aggregator) fetchLatestBlocks(shardIdList []types.ShardId) (map[types
 func (agg *Aggregator) proofThresholdMet() bool {
 	lastProvedBlkNum := agg.storage.GetLastProvedBlockNum(types.MainShardId)
 	lastFetchedBlockNum := agg.storage.GetLastFetchedBlockNum(types.MainShardId)
-	return lastProvedBlkNum != lastFetchedBlockNum
+	return lastProvedBlkNum < lastFetchedBlockNum
 }
 
 // updateLastProvedBlockNumForAllShards updates the last proved block number for all shards to their respective last fetched block number
@@ -117,7 +117,7 @@ func (agg *Aggregator) sendProof() error {
 		Stringer("newStateRoot", newStateRoot).
 		Int64("blkCount", int64(lastFetchedBlockNum-lastProvedBlockNum)).
 		Int64("transactionsCount", int64(len(transactions))).Msg("send proof")
-	err := agg.proposer.sendProof(provedStateRoot, newStateRoot, transactions)
+	err := agg.proposer.SendProof(provedStateRoot, newStateRoot, transactions)
 	if err != nil {
 		return fmt.Errorf("failed send proof: %w", err)
 	}

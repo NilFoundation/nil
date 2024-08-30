@@ -3,6 +3,7 @@ package synccommittee
 import (
 	"sync"
 
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 )
@@ -15,13 +16,12 @@ type BlockStorage struct {
 }
 
 type prunedTransaction struct {
-	flags   types.MessageFlags
-	chainId types.ChainId
-	seqno   types.Seqno
-	from    types.Address
-	to      types.Address
-	value   types.Value
-	data    types.Code
+	flags types.MessageFlags
+	seqno hexutil.Uint64
+	from  types.Address
+	to    types.Address
+	value types.Value
+	data  hexutil.Bytes
 }
 
 func NewBlockStorage() *BlockStorage {
@@ -109,15 +109,14 @@ func (bs *BlockStorage) GetTransactionsByBlocksRange(shardId types.ShardId, from
 	for i := from; i < to; i++ {
 		if block := bs.GetBlock(shardId, i); block != nil {
 			for _, msg_any := range block.Messages {
-				if msg, success := msg_any.(types.Message); success {
+				if msg, success := msg_any.(jsonrpc.RPCInMessage); success {
 					t := &prunedTransaction{
-						flags:   msg.Flags,
-						chainId: msg.ChainId,
-						seqno:   msg.Seqno,
-						from:    msg.From,
-						to:      msg.To,
-						value:   msg.Value,
-						data:    msg.Data,
+						flags: msg.Flags,
+						seqno: msg.Seqno,
+						from:  msg.From,
+						to:    msg.To,
+						value: msg.Value,
+						data:  msg.Data,
 					}
 					transactions = append(transactions, t)
 				}
