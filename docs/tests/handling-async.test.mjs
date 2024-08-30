@@ -69,7 +69,7 @@ describe.sequential('compilation tests', async () => {
 });
 
 describe.sequential('Awaiter tests', async () => {
-    test.skip.sequential('compilation and deployment of Awaiter is successful', async () => {
+    test.sequential('compilation and deployment of Awaiter is successful', async () => {
         const AWAITER_COMPILATION_COMMAND = 'solc -o ./tests/Awaiter --bin --abi ./tests/Awaiter.sol --overwrite';
         let { stdout, stderr } = await exec(AWAITER_COMPILATION_COMMAND);
         expect(stdout).toMatch(SUCCESSFUL_EXECUTION_PATTERN);
@@ -77,10 +77,10 @@ describe.sequential('Awaiter tests', async () => {
         expect(stdout).toMatch(pattern);
         const addressMatches = stdout.match(addressPattern);
         AWAITER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
-        await exec(`${NIL_GLOBAL} wallet send-tokens ${AWAITER_ADDRESS} 50000000`);
+        await exec(`${NIL_GLOBAL} wallet send-tokens ${AWAITER_ADDRESS} 5000000 ${CONFIG_FLAG}`);
     });
 
-    test.skip.sequential('Awaiter can call Counter successfully', async () => {
+    test.sequential('Awaiter can call Counter successfully', async () => {
 
         await exec(COUNTER_COMPILATION_COMMAND);
         let { stdout, stderr } = await exec(COUNTER_DEPLOYMENT_COMMAND);
@@ -99,8 +99,3 @@ describe.sequential('Awaiter tests', async () => {
         expect(receivedOutput).toBe(expectedOutput);
     });
 });
-
-
-
-
-

@@ -558,6 +558,58 @@ func (s *SuiteRpc) TestChainCall() {
 	s.EqualValues(22, contracts.GetCounterValue(s.T(), resData), "Final value after two additions is 22")
 }
 
+func (s *SuiteRpc) TestAsyncAwaitCall() {
+	var addrCounter, addrAwait types.Address
+	s.Run("Deploy counter", func() {
+		dpCounter := contracts.CounterDeployPayload(s.T())
+		addrCounter, _ = s.deployContractViaMainWallet(types.BaseShardId, dpCounter, types.Value{})
+
+		addCalldata := contracts.NewCounterAddCallData(s.T(), 123)
+		getCalldata := contracts.NewCounterGetCallData(s.T())
+		receipt := s.sendMessageViaWallet(types.MainWalletAddress, addrCounter, execution.MainPrivateKey, addCalldata)
+		s.Require().True(receipt.IsCommitted())
+
+		getCallArgs := &jsonrpc.CallArgs{
+			To:        addrCounter,
+			FeeCredit: s.gasToValue(10_000_000),
+			Data:      (*hexutil.Bytes)(&getCalldata),
+		}
+		res, err := s.client.Call(getCallArgs, "latest", nil)
+		s.Require().NoError(err)
+		s.Require().EqualValues(123, contracts.GetCounterValue(s.T(), res.Data))
+	})
+
+	s.Run("Deploy await", func() {
+		dpAwait := contracts.GetDeployPayload(s.T(), contracts.NameAwaitTest)
+		addrAwait, _ = s.deployContractViaMainWallet(types.BaseShardId, dpAwait, defaultContractValue)
+	})
+
+	abiAwait, err := contracts.GetAbi(contracts.NameAwaitTest)
+	s.Require().NoError(err)
+
+	data := s.AbiPack(abiAwait, "sumCounters", []types.Address{addrCounter})
+	receipt := s.sendExternalMessageNoCheck(data, addrAwait)
+	s.Require().True(receipt.AllSuccess())
+
+	callArgs := &jsonrpc.CallArgs{
+		To:        addrAwait,
+		FeeCredit: s.gasToValue(10_000_000),
+		Data:      (*hexutil.Bytes)(&data),
+	}
+	res, err := s.client.Call(callArgs, "latest", nil)
+	s.Require().NoError(err)
+	s.Nil(res.Data)
+
+	data = s.AbiPack(abiAwait, "get")
+	callArgs.Data = (*hexutil.Bytes)(&data)
+
+	res, err = s.client.Call(callArgs, "latest", nil)
+	s.Require().NoError(err)
+	value := s.AbiUnpack(abiAwait, "get", res.Data)
+	s.Require().Len(value, 1)
+	s.Require().EqualValues(123, value[0])
+}
+
 func (s *SuiteRpc) TestRpcApiModules() {
 	res, err := s.client.RawCall("rpc_modules")
 	s.Require().NoError(err)
