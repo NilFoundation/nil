@@ -9,8 +9,7 @@ import {
     convertEthToWei,
     waitTillCompleted,
     hexToBigInt,
-    bytesToHex,
-    toHex,
+    bytesToHex
 } from "@nilfoundation/niljs";
 
 import { encodeFunctionData } from "viem";
@@ -56,6 +55,10 @@ beforeAll(async () => {
     const { stdout, stderr } = await exec(WALLET_CREATION_COMMAND);
     OWNER_ADDRESS = stdout.match(WALLET_ADDRESS_PATTERN)[0];
 }, 20000);
+
+afterAll(async () => {
+    await exec(`rm -rf ./tests/${CONFIG_FILE_NAME}`);
+});
 
 afterAll(async () => {
     await exec(`rm -rf ./tests/${CONFIG_FILE_NAME}`);
@@ -142,6 +145,8 @@ describe.sequential('tutorial flows CLI tests', async () => {
         const { stdout, stderr } = await exec(WALLET_CREATION_COMMAND_WITH_SALT);
         expect(stdout).toMatch(WALLET_ADDRESS_PATTERN);
         WALLET_ADDRESS = stdout.match(WALLET_ADDRESS_PATTERN)[0];
+        console.log(WALLET_ADDRESS);
+
     });
     test.skip.sequential('the CLI creates new tokens', async () => {
         const addressPattern = /0x[a-fA-F0-9]{40}/g;

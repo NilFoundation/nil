@@ -54,22 +54,6 @@ library Nil {
         return __Precompile__(AWAIT_CALL).precompileAwaitCall(dst, callData);
     }
 
-    // awaitCall makes an asynchronous call to `dst` contract and waits for the result.
-    function awaitCall(
-        address dst,
-        bytes memory callData
-    ) internal returns(bytes memory, bool) {
-        return __Precompile__(AWAIT_CALL).precompileAwaitCall(dst, callData);
-    }
-
-    // awaitCall makes an asynchronous call to `dst` contract and waits for the result.
-    function awaitCall(
-        address dst,
-        bytes memory callData
-    ) internal returns(bytes memory, bool) {
-        return __Precompile__(AWAIT_CALL).precompileAwaitCall(dst, callData);
-    }
-
     // asyncCall makes an asynchronous call to `dst` contract.
     function asyncCall(
         address dst,
