@@ -99,8 +99,3 @@ describe.sequential('Awaiter tests', async () => {
         expect(receivedOutput).toBe(expectedOutput);
     });
 });
-
-
-
-
-

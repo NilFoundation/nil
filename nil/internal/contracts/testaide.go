@@ -22,12 +22,18 @@ const (
 	NameConfigTest                 = "tests/ConfigTest"
 )
 
+func GetDeployPayload(t *testing.T, name string) types.DeployPayload {
+	t.Helper()
+
+	code, err := GetCode(name)
+	require.NoError(t, err)
+	return types.BuildDeployPayload(code, common.EmptyHash)
+}
+
 func CounterDeployPayload(t *testing.T) types.DeployPayload {
 	t.Helper()
 
-	code, err := GetCode(NameCounter)
-	require.NoError(t, err)
-	return types.BuildDeployPayload(code, common.EmptyHash)
+	return GetDeployPayload(t, NameCounter)
 }
 
 func CounterAddress(t *testing.T, shardId types.ShardId) types.Address {
@@ -39,9 +45,7 @@ func CounterAddress(t *testing.T, shardId types.ShardId) types.Address {
 func FaucetDeployPayload(t *testing.T) types.DeployPayload {
 	t.Helper()
 
-	code, err := GetCode(NameFaucet)
-	require.NoError(t, err)
-	return types.BuildDeployPayload(code, common.EmptyHash)
+	return GetDeployPayload(t, NameFaucet)
 }
 
 func WalletAddress(t *testing.T, shardId types.ShardId, salt, pubKey []byte) types.Address {
