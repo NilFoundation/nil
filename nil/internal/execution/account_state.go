@@ -41,7 +41,8 @@ type AccountState struct {
 	// requestId is a current request id. It is used to generate unique number for each request.
 	requestId uint64
 
-	State Storage
+	State        Storage
+	AsyncContext map[types.MessageIndex]*types.AsyncContext
 
 	// Flag whether the account was marked as self-destructed. The self-destructed
 	// account is still accessible in the scope of same transaction.
@@ -77,8 +78,9 @@ func NewAccountState(es *ExecutionState, addr types.Address, account *types.Smar
 		StorageTree:      NewDbStorageTrie(es.tx, shardId),
 		AsyncContextTree: NewDbAsyncContextTrie(es.tx, shardId),
 
-		Tx:    es.tx,
-		State: make(Storage),
+		Tx:           es.tx,
+		State:        make(Storage),
+		AsyncContext: make(map[types.MessageIndex]*types.AsyncContext),
 	}
 
 	if account != nil {
@@ -224,6 +226,18 @@ func (as *AccountState) SetCode(codeHash common.Hash, code []byte) {
 	as.setCode(codeHash, code)
 }
 
+func (as *AccountState) SetAsyncContext(index types.MessageIndex, ctx *types.AsyncContext) {
+	as.AsyncContext[index] = ctx
+}
+
+func (as *AccountState) GetAsyncContext(index types.MessageIndex) (*types.AsyncContext, error) {
+	ctx, exists := as.AsyncContext[index]
+	if exists {
+		return ctx, nil
+	}
+	return as.AsyncContextTree.Fetch(index)
+}
+
 func (as *AccountState) setCode(codeHash common.Hash, code []byte) {
 	as.Code = code
 	as.CodeHash = common.Hash(codeHash[:])
@@ -283,6 +297,12 @@ func (as *AccountState) GetCommittedState(key common.Hash) (common.Hash, error) 
 func (as *AccountState) Commit() (*types.SmartContract, error) {
 	for k, v := range as.State {
 		if err := as.StorageTree.Update(k, (*types.Uint256)(v.Uint256())); err != nil {
+			return nil, err
+		}
+	}
+
+	for k, v := range as.AsyncContext {
+		if err := as.AsyncContextTree.Update(k, v); err != nil {
 			return nil, err
 		}
 	}
