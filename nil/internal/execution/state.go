@@ -1027,7 +1027,7 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 		}
 		key := make([]byte, 8)
 		binary.BigEndian.PutUint64(key, message.RequestId)
-		context, err := acc.AsyncContextTree.Fetch(types.MessageIndex(message.RequestId))
+		context, err := acc.GetAsyncContext(types.MessageIndex(message.RequestId))
 		if err != nil {
 			return NewExecutionResult().SetFatal(fmt.Errorf("failed to get async context: %w", err))
 		}
@@ -1480,9 +1480,7 @@ func (es *ExecutionState) SaveVmState(state *types.EvmState) error {
 
 	logger.Debug().Int("size", len(data)).Msg("Save vm state")
 
-	if err := acc.AsyncContextTree.Update(types.MessageIndex(outMsg.RequestId), &types.AsyncContext{Data: data}); err != nil {
-		return err
-	}
+	acc.SetAsyncContext(types.MessageIndex(outMsg.RequestId), &types.AsyncContext{Data: data})
 	return nil
 }
 
