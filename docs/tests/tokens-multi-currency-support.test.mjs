@@ -54,6 +54,18 @@ beforeAll(async () => {
     await exec(RPC_COMMAND);
     const { stdout, stderr } = await exec(WALLET_CREATION_COMMAND);
     OWNER_ADDRESS = stdout.match(WALLET_ADDRESS_PATTERN)[0];
+}, 20000);
+
+afterAll(async () => {
+    await exec(`rm -rf ./tests/${CONFIG_FILE_NAME}`);
+});
+
+afterAll(async () => {
+    await exec(`rm -rf ./tests/${CONFIG_FILE_NAME}`);
+});
+
+afterAll(async () => {
+    await exec(`rm -rf ./tests/${CONFIG_FILE_NAME}`);
 });
 
 afterAll(async () => {

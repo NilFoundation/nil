@@ -232,4 +232,3 @@ describe.sequential('tokens tests', () => {
         expect(stdout).toMatch(pattern);
     });
 });
-

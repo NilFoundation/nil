@@ -21,9 +21,9 @@ const KEYGEN_COMMAND = `${NIL_GLOBAL} keygen new ${CONFIG_FLAG}`;
 const RPC_COMMAND = `${NIL_GLOBAL} config set rpc_endpoint ${RPC_ENDPOINT} ${CONFIG_FLAG}`;
 //endEndpoint
 
-//startWallet
+//startWalletCreationCommand
 const WALLET_CREATION_COMMAND = `${NIL_GLOBAL} wallet new ${CONFIG_FLAG}`;
-//endWallet
+//endWalletCreationCommand
 
 //startWalletInfoCommand
 const WALLET_INFO_COMMAND = `${NIL_GLOBAL} wallet info ${CONFIG_FLAG}`;

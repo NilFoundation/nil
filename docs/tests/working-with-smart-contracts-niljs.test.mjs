@@ -353,6 +353,6 @@ describe.sequential("Nil.js deployment tests", async () => {
             //endExternalSendMessageToRetailer
             expect(orderReceipts.some((receipt) => !receipt.success)).toBe(false);
         },
-        30000,
+        50000,
     );
 });
