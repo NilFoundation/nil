@@ -77,14 +77,15 @@ func NewDefaultConfig() *Config {
 }
 
 type ReplayConfig struct {
-	BlockId types.BlockNumber `yaml:"blockId"`
-	ShardId types.ShardId     `yaml:"shardId"`
+	BlockIdFirst types.BlockNumber `yaml:"blockIdFirst"`
+	BlockIdLast  types.BlockNumber `yaml:"blockIdLast"`
+	ShardId      types.ShardId     `yaml:"shardId"`
 }
 
 func NewDefaultReplayConfig() *ReplayConfig {
 	return &ReplayConfig{
-		BlockId: 1,
-		ShardId: 1,
+		BlockIdFirst: 1,
+		ShardId:      1,
 	}
 }
 

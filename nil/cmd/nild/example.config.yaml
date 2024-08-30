@@ -52,7 +52,8 @@
 ## Replay mode-only settings.
 ## They will be ignored in other modes.
 #replay:
-  #blockId: 1
+  #blockIdFirst: 1
+  #blockIdLast: 2
   #shardId: 1
 
 ## Database settings
@@ -69,4 +70,4 @@
 ## TODO: description
 #readThrough
   #sourceAddr: ""
-  #startBlock: latest
+  #forkMainAtBlock: latest

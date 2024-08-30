@@ -332,7 +332,7 @@ type APIImpl struct {
 }
 
 // NewEthAPI returns APIImpl instance
-func NewEthAPI(ctx context.Context, base *BaseAPI, db db.ReadOnlyDB, pools []msgpool.Pool, logger zerolog.Logger) (*APIImpl, error) {
+func NewEthAPI(ctx context.Context, base *BaseAPI, db db.ReadOnlyDB, pools []msgpool.Pool, pollBlocksForLogs bool, logger zerolog.Logger) (*APIImpl, error) {
 	accessor, err := execution.NewStateAccessor()
 	if err != nil {
 		return nil, err
@@ -344,7 +344,7 @@ func NewEthAPI(ctx context.Context, base *BaseAPI, db db.ReadOnlyDB, pools []msg
 		logger:   logger,
 		accessor: accessor,
 	}
-	api.logs = NewLogsAggregator(ctx, db)
+	api.logs = NewLogsAggregator(ctx, db, pollBlocksForLogs)
 	return api, nil
 }
 

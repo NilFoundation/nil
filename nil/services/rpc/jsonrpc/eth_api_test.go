@@ -26,7 +26,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 	require.NotNil(t, pool)
 
 	api, err := NewEthAPI(ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), badger, []msgpool.Pool{pool}, logging.NewLogger("Test"))
+		NewBaseApi(rpccfg.DefaultEvmCallTimeout), badger, []msgpool.Pool{pool}, true, logging.NewLogger("Test"))
 	require.NoError(t, err)
 
 	// Call GetBlockByNumber for transaction which is not in the database

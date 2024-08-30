@@ -192,7 +192,11 @@ func NewReadThroughDbWithMasterChain(ctx context.Context, client client.Client, 
 	if err != nil {
 		return nil, err
 	}
-	check.PanicIfNot(block.Number != types.BlockNumber(masterBlockNumber))
+	if masterBlockNumber.IsSpecial() {
+		check.PanicIfNotf(block != nil, "failed to fetch block %v from MC", masterBlockNumber)
+	} else {
+		check.PanicIfNotf(block != nil && block.Number == masterBlockNumber.BlockNumber(), "failed to fetch block %v from MC", masterBlockNumber)
+	}
 
 	tx, err := cacheDb.CreateRwTx(ctx)
 	if err != nil {
