@@ -11,6 +11,8 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
@@ -19,130 +21,186 @@ type SyncCommitteeTestSuite struct {
 	suite.Suite
 
 	nShards       uint32
-	database      db.DB
 	syncCommittee *SyncCommittee
-	cancel        context.CancelFunc
+	nilCancel     context.CancelFunc
 	doneChan      chan interface{} // to track when nilservice has finished
-	rpcURL        string
+	ctx           context.Context
+	nilDb         db.DB
+	scDb          db.DB
+}
+
+func (s *SyncCommitteeTestSuite) waitZerostrate(endpoint string) {
+	s.T().Helper()
+	client := rpc.NewClient(endpoint, zerolog.Nop())
+	const (
+		zeroStateWaitTimeout  = 5 * time.Second
+		zeroStatePollInterval = time.Second
+	)
+	for i := range s.nShards {
+		s.Require().Eventually(func() bool {
+			block, err := client.GetBlock(types.ShardId(i), transport.BlockNumber(0), false)
+			return err == nil && block != nil
+		}, zeroStateWaitTimeout, zeroStatePollInterval)
+	}
 }
 
 func (s *SyncCommitteeTestSuite) SetupSuite() {
 	s.nShards = 4
+	s.ctx = context.Background()
 
-	s.rpcURL = rpctest.GetSockPath(s.T())
+	url := rpctest.GetSockPath(s.T())
 
 	var err error
-	s.database, err = db.NewBadgerDbInMemory()
+	s.nilDb, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 
 	// Setup nilservice
 	nilserviceCfg := &nilservice.Config{
 		NShards:              s.nShards,
-		HttpUrl:              s.rpcURL,
+		HttpUrl:              url,
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
 		GasBasePrice:         10,
 	}
 	var nilContext context.Context
-	nilContext, s.cancel = context.WithCancel(context.Background())
+	nilContext, s.nilCancel = context.WithCancel(context.Background())
 	s.doneChan = make(chan interface{})
 	go func() {
-		nilservice.Run(nilContext, nilserviceCfg, s.database, nil)
+		nilservice.Run(nilContext, nilserviceCfg, s.nilDb, nil)
 		s.doneChan <- nil
 	}()
 
-	client := rpc.NewClient(s.rpcURL, zerolog.Nop())
+	s.waitZerostrate(url)
 
-	s.Require().Eventually(func() bool {
-		shardIdList, err := client.GetShardIdList()
-		return err == nil && len(shardIdList) > 0
-	}, 5*time.Second, 200*time.Millisecond)
-}
-
-func (s *SyncCommitteeTestSuite) TearDownSuite() {
-	s.cancel()
-	<-s.doneChan // Wait for nilservice to shutdown
-	s.database.Close()
-}
-
-func (s *SyncCommitteeTestSuite) SetupTest() {
-	// for each test we recreate synccommittee so storage would be empty
 	cfg := &Config{
-		RpcEndpoint:      s.rpcURL,
+		RpcEndpoint:      url,
 		PollingDelay:     time.Second,
 		GracefulShutdown: true,
 	}
 
-	var err error
-	s.syncCommittee, err = New(cfg, s.database)
+	s.scDb, err = db.NewBadgerDbInMemory()
+	s.Require().NoError(err)
+	s.syncCommittee, err = New(cfg, s.scDb)
 	s.Require().NoError(err)
 }
 
-func (s *SyncCommitteeTestSuite) TestNew() {
-	s.Require().NotNil(s.syncCommittee)
-	s.Require().Equal(s.database, s.syncCommittee.database)
-	s.Require().NotNil(s.syncCommittee.logger)
-	s.Require().NotNil(s.syncCommittee.client)
-	s.Require().NotNil(s.syncCommittee.aggregator)
+func (s *SyncCommitteeTestSuite) TearDownSuite() {
+	s.nilCancel()
+	<-s.doneChan // Wait for nilservice to shutdown
+	s.nilDb.Close()
+	s.scDb.Close()
+}
+
+func (s *SyncCommitteeTestSuite) SetupTest() {
+	err := s.scDb.DropAll()
+	s.Require().NoError(err)
+}
+
+func (s *SyncCommitteeTestSuite) TestProofThresholdMet() {
+	// Case 1: Threshold not met
+	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
+		err := s.syncCommittee.aggregator.blockStorage.SetLastProvedBlockNum(s.ctx, shardId, 100)
+		s.Require().NoError(err)
+	}
+	err := s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, types.MainShardId, 100, &jsonrpc.RPCBlock{Number: 100})
+	s.Require().NoError(err)
+	proofThresholdMet, err := s.syncCommittee.aggregator.proofThresholdMet(s.ctx)
+	s.Require().NoError(err)
+	s.Require().False(proofThresholdMet)
+
+	// Case 2: Threshold met
+	err = s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, types.MainShardId, 101, &jsonrpc.RPCBlock{Number: 101})
+	s.Require().NoError(err)
+
+	proofThresholdMet, err = s.syncCommittee.aggregator.proofThresholdMet(s.ctx)
+	s.Require().NoError(err)
+	s.Require().True(proofThresholdMet)
+}
+
+func (s *SyncCommitteeTestSuite) TestCreateProofTasks() {
+	err := s.syncCommittee.aggregator.blockStorage.SetLastProvedBlockNum(s.ctx, types.MainShardId, 100)
+	s.Require().NoError(err)
+	err = s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, types.MainShardId, types.BlockNumber(101), &jsonrpc.RPCBlock{Number: 101})
+	s.Require().NoError(err)
+	err = s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, types.MainShardId, types.BlockNumber(102), &jsonrpc.RPCBlock{Number: 102})
+	s.Require().NoError(err)
+
+	err = s.syncCommittee.aggregator.createProofTasks(s.ctx, &jsonrpc.RPCBlock{Number: 102})
+	s.Require().NoError(err)
+
+	lastProvedBlkNum, err := s.syncCommittee.aggregator.blockStorage.GetLastProvedBlockNum(s.ctx, types.MainShardId)
+	s.Require().NoError(err)
+	s.Require().Equal(types.BlockNumber(100), lastProvedBlkNum)
+}
+
+func (s *SyncCommitteeTestSuite) TestUpdateLastProvedBlockNumForAllShards() {
+	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
+		blockNum := types.BlockNumber(100 + int64(shardId))
+		err := s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, shardId, blockNum, &jsonrpc.RPCBlock{Number: blockNum})
+		s.Require().NoError(err)
+	}
+
+	err := s.syncCommittee.aggregator.updateLastProvedBlockNumForAllShards(s.ctx)
+	s.Require().NoError(err)
+
+	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
+		blockNum := types.BlockNumber(100 + int64(shardId))
+		lastProvedBlkNum, err := s.syncCommittee.aggregator.blockStorage.GetLastProvedBlockNum(s.ctx, shardId)
+		s.Require().NoError(err)
+		s.Require().Equal(blockNum, lastProvedBlkNum)
+	}
+}
+
+func (s *SyncCommitteeTestSuite) waitForAllShardsToProcess() {
+	for i := range s.nShards {
+		shardId := types.ShardId(i)
+		s.Require().Eventually(
+			func() bool {
+				lastFetchedBlockNum, err := s.syncCommittee.aggregator.blockStorage.GetLastFetchedBlockNum(context.Background(), shardId)
+				if err != nil || lastFetchedBlockNum == 0 {
+					return false
+				}
+				lastProvedBlockNum, err := s.syncCommittee.aggregator.blockStorage.GetLastProvedBlockNum(context.Background(), shardId)
+				if err != nil || lastProvedBlockNum == 0 {
+					return false
+				}
+				return true
+			},
+			5*time.Second,
+			100*time.Millisecond,
+		)
+	}
 }
 
 func (s *SyncCommitteeTestSuite) TestProcessingLoop() {
-	// Set up initial state
-	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
-		s.syncCommittee.aggregator.blockStorage.SetLastProvedBlockNum(shardId, 0)
-	}
-
 	// Run processing loop for a short time
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
 	defer cancel()
 
+	errCh := make(chan error)
 	go func() {
-		err := s.syncCommittee.processingLoop(ctx)
-		s.NoError(err)
+		errCh <- s.syncCommittee.processingLoop(ctx)
 	}()
 
-	s.Require().Eventually(
-		func() bool {
-			for id := range s.nShards {
-				shardId := types.ShardId(id)
-				lastFetchedBlockNum := s.syncCommittee.aggregator.blockStorage.GetLastFetchedBlockNum(shardId)
-				if lastFetchedBlockNum == 0 {
-					return false
-				}
-				lastProvedBlockNum := s.syncCommittee.aggregator.blockStorage.GetLastProvedBlockNum(shardId)
-				if lastProvedBlockNum == 0 {
-					return false
-				}
-			}
-			return true
-		},
-		5*time.Second,
-		100*time.Millisecond,
-	)
+	s.waitForAllShardsToProcess()
+
+	cancel() // to avoid waiting without reason
+	s.Require().NoError(<-errCh)
 }
 
 func (s *SyncCommitteeTestSuite) TestRun() {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
+	defer cancel()
 
+	errCh := make(chan error)
 	go func() {
-		err := s.syncCommittee.Run(ctx)
-		s.NoError(err)
+		errCh <- s.syncCommittee.Run(ctx)
 	}()
 
-	s.Require().Eventually(
-		func() bool {
-			for id := range s.nShards {
-				shardId := types.ShardId(id)
-				lastFetchedBlockNum := s.syncCommittee.aggregator.blockStorage.GetLastFetchedBlockNum(shardId)
-				if lastFetchedBlockNum == 0 {
-					return false
-				}
-			}
-			return true
-		},
-		5*time.Second,
-		100*time.Millisecond,
-	)
+	s.waitForAllShardsToProcess()
+
+	cancel() // to avoid waiting without reason
+	s.Require().NoError(<-errCh)
 }
 
 func TestSyncCommitteeTestSuite(t *testing.T) {

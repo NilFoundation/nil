@@ -29,12 +29,16 @@ type SyncCommittee struct {
 
 func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	logger := logging.NewLogger("sync_committee")
+	metrics, err := NewMetricsHandler("github.com/NilFoundation/nil/nil/services/sync_committee")
+	if err != nil {
+		return nil, err
+	}
 
 	client := rpc.NewClient(cfg.RpcEndpoint, logger)
 
 	proposer := NewProposer("", logger)
 
-	aggregator, err := NewAggregator(client, logger, proposer, database)
+	aggregator, err := NewAggregator(client, proposer, database, logger, metrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}
