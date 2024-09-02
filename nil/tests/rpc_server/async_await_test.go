@@ -1,6 +1,7 @@
 package rpctest
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -30,9 +31,9 @@ func (s *SuiteAsyncAwait) SetupSuite() {
 	s.shardsNum = 4
 
 	var err error
-	s.testAddress0, err = contracts.CalculateAddress(contracts.NameAwaitTest, 1, []byte{1})
+	s.testAddress0, err = contracts.CalculateAddress(contracts.NameRequestResponseTest, 1, []byte{1})
 	s.Require().NoError(err)
-	s.testAddress1, err = contracts.CalculateAddress(contracts.NameAwaitTest, 2, []byte{2})
+	s.testAddress1, err = contracts.CalculateAddress(contracts.NameRequestResponseTest, 2, []byte{2})
 	s.Require().NoError(err)
 	s.counterAddress0, err = contracts.CalculateAddress(contracts.NameCounter, 1, []byte{1})
 	s.Require().NoError(err)
@@ -45,7 +46,7 @@ func (s *SuiteAsyncAwait) SetupSuite() {
 	s.accounts = append(s.accounts, s.counterAddress0)
 	s.accounts = append(s.accounts, s.counterAddress1)
 
-	s.abiTest, err = contracts.GetAbi(contracts.NameAwaitTest)
+	s.abiTest, err = contracts.GetAbi(contracts.NameRequestResponseTest)
 	s.Require().NoError(err)
 
 	s.abiCounter, err = contracts.GetAbi(contracts.NameCounter)
@@ -61,11 +62,11 @@ contracts:
 - name: Test0
   address: {{ .TestAddress0 }}
   value: 100000000000000
-  contract: tests/AwaitTest
+  contract: tests/RequestResponseTest
 - name: Test1
   address: {{ .TestAddress1 }}
-  value: 100000000000000
-  contract: tests/AwaitTest
+  value: 0
+  contract: tests/RequestResponseTest
 - name: Counter0
   address: {{ .CounterAddress0 }}
   value: 100000000000000
@@ -232,11 +233,105 @@ func (s *SuiteAsyncAwait) TestSumCountersNested() {
 	s.Require().Equal(int32(33), value)
 }
 
-func (s *SuiteAsyncAwait) TestTestNoneZeroCallDepth() {
+func (s *SuiteAsyncAwait) TestNoneZeroCallDepth() {
 	data := s.AbiPack(s.abiTest, "testNoneZeroCallDepth", s.testAddress0)
 	receipt := s.sendExternalMessageNoCheck(data, s.testAddress0)
 	s.Require().False(receipt.AllSuccess())
 	s.Require().Equal("PrecompileReverted", receipt.Status)
+}
+
+func (s *SuiteAsyncAwait) TestRequestResponse() {
+	var info ReceiptInfo
+
+	s.Run("Add to counter", func() {
+		data := s.AbiPack(s.abiCounter, "add", int32(123))
+		receipt := s.sendExternalMessageNoCheck(data, s.counterAddress0)
+		s.Require().True(receipt.AllSuccess())
+	})
+
+	initialBalance := s.UpdateBalance()
+
+	s.Run("Call Counter.get", func() {
+		intContext := big.NewInt(456)
+		strContext := "Hello World"
+
+		data := s.AbiPack(s.abiTest, "requestCounterGet", s.counterAddress0, intContext, strContext)
+		receipt := s.sendExternalMessageNoCheck(data, s.testAddress0)
+		s.Require().True(receipt.AllSuccess())
+
+		CheckContractValueEqual(&s.RpcSuite, s.abiTest, s.testAddress0, "counterValue", int32(123))
+		CheckContractValueEqual(&s.RpcSuite, s.abiTest, s.testAddress0, "intValue", intContext)
+		CheckContractValueEqual(&s.RpcSuite, s.abiTest, s.testAddress0, "strValue", "Hello World")
+
+		info = s.analyzeReceipt(receipt, map[types.Address]string{})
+		initialBalance = s.checkBalance(info, initialBalance, s.accounts)
+		s.checkAsyncContextEmpty(s.testAddress0)
+	})
+
+	s.Run("Call Counter.add", func() {
+		data := s.AbiPack(s.abiTest, "requestCounterAdd", s.counterAddress0, int32(100))
+		receipt := s.sendExternalMessageNoCheck(data, s.testAddress0)
+		s.Require().True(receipt.AllSuccess())
+
+		CheckContractValueEqual(&s.RpcSuite, s.abiCounter, s.counterAddress0, "get", int32(223))
+
+		info = s.analyzeReceipt(receipt, map[types.Address]string{})
+		initialBalance = s.checkBalance(info, initialBalance, s.accounts)
+		s.checkAsyncContextEmpty(s.testAddress0)
+	})
+
+	s.Run("Test failed request with value", func() {
+		data := s.AbiPack(s.abiTest, "requestCheckFail", s.testAddress1, true)
+		receipt := s.sendExternalMessageNoCheck(data, s.testAddress0)
+		s.Require().False(receipt.AllSuccess())
+		s.Require().Len(receipt.OutReceipts, 1)
+		requestReceipt := receipt.OutReceipts[0]
+		s.Require().Len(requestReceipt.OutReceipts, 1)
+		responseReceipt := requestReceipt.OutReceipts[0]
+
+		s.Require().False(requestReceipt.Success)
+		s.Require().Equal("ExecutionReverted", requestReceipt.Status)
+		s.Require().True(responseReceipt.Success)
+
+		info = s.analyzeReceipt(receipt, map[types.Address]string{})
+		initialBalance = s.checkBalance(info, initialBalance, s.accounts)
+		s.checkAsyncContextEmpty(s.testAddress0)
+	})
+
+	s.Run("In case of fail, context trie should not be changed", func() {
+		data := s.AbiPack(s.abiTest, "failDuringRequestSending", s.counterAddress0)
+		receipt := s.sendExternalMessageNoCheck(data, s.testAddress0)
+		s.Require().False(receipt.AllSuccess())
+
+		info = s.analyzeReceipt(receipt, map[types.Address]string{})
+		initialBalance = s.checkBalance(info, initialBalance, s.accounts)
+		s.checkAsyncContextEmpty(s.testAddress0)
+	})
+
+	// TODO: support
+	// s.Run("Out of gas response", func() {
+	//	data := s.AbiPack(s.abiTest, "requestOutOfGasFailure", s.testAddress1)
+	//	receipt := s.sendExternalMessageNoCheck(data, s.testAddress0)
+	//	s.Require().False(receipt.AllSuccess())
+	//	s.Require().Len(receipt.OutReceipts, 1)
+	//	requestReceipt := receipt.OutReceipts[0]
+	//	s.Require().Len(requestReceipt.OutReceipts, 1)
+	//	responseReceipt := requestReceipt.OutReceipts[0]
+	//
+	//	s.Require().False(requestReceipt.Success)
+	//	s.Require().Equal("OutOfGas", requestReceipt.Status)
+	//	s.Require().True(responseReceipt.Success)
+	//	info = s.analyzeReceipt(receipt, map[types.Address]string{})
+	//	initialBalance = s.checkBalance(info, initialBalance, s.accounts)
+	//	s.checkAsyncContextEmpty(s.testAddress0)
+	// })
+}
+
+func (s *SuiteAsyncAwait) checkAsyncContextEmpty(address types.Address) {
+	s.T().Helper()
+
+	contract := s.GetContract(address)
+	s.Require().Equal(common.EmptyHash, contract.AsyncContextRoot)
 }
 
 func TestAsyncAwait(t *testing.T) {

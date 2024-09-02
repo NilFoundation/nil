@@ -278,3 +278,8 @@ func (m *BaseMPT[K, V, VPtr]) Update(key K, value VPtr) error {
 
 	return m.rwTrie.Set(k, v)
 }
+
+func (m *BaseMPT[K, V, VPtr]) Delete(key K) error {
+	k := m.keyToBytes(key)
+	return m.rwTrie.Delete(k)
+}

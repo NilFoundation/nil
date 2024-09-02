@@ -108,6 +108,10 @@ type (
 		msgHash common.Hash
 		index   int
 	}
+	asyncContextChange struct {
+		account   *types.Address
+		requestId types.MessageIndex
+	}
 )
 
 func (ch createObjectChange) revert(s *ExecutionState) {
@@ -205,4 +209,12 @@ func (ch outMessagesChange) revert(s *ExecutionState) {
 	check.PanicIfNot(ch.index == len(outMessages)-1)
 
 	s.OutMessages[ch.msgHash] = outMessages[:ch.index]
+}
+
+func (ch asyncContextChange) revert(s *ExecutionState) {
+	account, err := s.GetAccount(*ch.account)
+	check.PanicIfErr(err)
+	if account != nil {
+		delete(account.AsyncContext, ch.requestId)
+	}
 }

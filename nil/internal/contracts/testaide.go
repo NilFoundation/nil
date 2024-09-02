@@ -17,7 +17,7 @@ const (
 	NameTest                       = "tests/Test"
 	NameTokensTest                 = "tests/TokensTest"
 	NameTokensTestNoExternalAccess = "tests/TokensTestNoExternalAccess"
-	NameAwaitTest                  = "tests/AwaitTest"
+	NameRequestResponseTest        = "tests/RequestResponseTest"
 	NamePrecompilesTest            = "tests/PrecompilesTest"
 	NameConfigTest                 = "tests/ConfigTest"
 )

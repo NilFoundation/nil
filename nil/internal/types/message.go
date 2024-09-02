@@ -178,17 +178,18 @@ type ExternalMessage struct {
 }
 
 type InternalMessagePayload struct {
-	Kind        MessageKind       `json:"kind,omitempty" ch:"kind"`
-	Bounce      bool              `json:"bounce,omitempty" ch:"bounce"`
-	FeeCredit   Value             `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
-	ForwardKind ForwardKind       `json:"forwardKind,omitempty" ch:"forward_kind"`
-	To          Address           `json:"to,omitempty" ch:"to"`
-	RefundTo    Address           `json:"refundTo,omitempty" ch:"refundTo"`
-	BounceTo    Address           `json:"bounceTo,omitempty" ch:"bounceTo"`
-	Currency    []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
-	Value       Value             `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Data        Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
-	RequestId   uint64            `json:"requestId,omitempty" ch:"request_id"`
+	Kind           MessageKind       `json:"kind,omitempty" ch:"kind"`
+	Bounce         bool              `json:"bounce,omitempty" ch:"bounce"`
+	FeeCredit      Value             `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
+	ForwardKind    ForwardKind       `json:"forwardKind,omitempty" ch:"forward_kind"`
+	To             Address           `json:"to,omitempty" ch:"to"`
+	RefundTo       Address           `json:"refundTo,omitempty" ch:"refundTo"`
+	BounceTo       Address           `json:"bounceTo,omitempty" ch:"bounceTo"`
+	Currency       []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
+	Value          Value             `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Data           Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	RequestId      uint64            `json:"requestId,omitempty" ch:"request_id"`
+	RequestContext Code              `json:"context,omitempty" ch:"context" ssz-max:"24576"`
 }
 
 type messageDigest struct {
@@ -223,7 +224,8 @@ type AsyncResponsePayload struct {
 // AsyncContext contains context of the request. For await requests it contains VM state, which will be restored upon
 // the response. For callback requests it contains captured variables(not implemented yet).
 type AsyncContext struct {
-	Data []byte `ssz-max:"10000000"`
+	IsAwait bool
+	Data    []byte `ssz-max:"10000000"`
 }
 
 // interfaces

@@ -83,6 +83,7 @@ var (
 	PoseidonHashAddress    = types.BytesToAddress([]byte{0xd5})
 	AwaitCallAddress       = types.BytesToAddress([]byte{0xd6})
 	ConfigParamAddress     = types.BytesToAddress([]byte{0xd7})
+	SendRequestAddress     = types.BytesToAddress([]byte{0xd8})
 )
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -121,6 +122,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	PoseidonHashAddress:    &poseidonHash{},
 	AwaitCallAddress:       &awaitCall{},
 	ConfigParamAddress:     &configParam{},
+	SendRequestAddress:     &sendRequest{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -178,9 +180,8 @@ func (c *sendRawMessage) RequiredGas([]byte) uint64 {
 }
 
 func setRefundTo(refundTo *types.Address, msg *types.Message) {
-	if msg == nil {
-		return
-	}
+	check.PanicIfNotf(msg != nil, "message is nil")
+
 	if *refundTo == types.EmptyAddress {
 		if msg.RefundTo == types.EmptyAddress {
 			*refundTo = msg.From
@@ -424,17 +425,78 @@ func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller Contr
 		Value:       types.NewValue(value),
 		Currency:    nil,
 		To:          dst,
-		RefundTo:    state.GetInMessage().To,
 		BounceTo:    state.GetInMessage().To,
 		Data:        callData,
 	}
 
-	if _, err = state.AddOutRequestMessage(caller.Address(), &payload); err != nil {
+	setRefundTo(&payload.RefundTo, state.GetInMessage())
+
+	if _, err = state.AddOutRequestMessage(caller.Address(), &payload, true); err != nil {
 		log.Logger.Error().Msgf("AddOutRequestMessage failed: %s", err)
 		return []byte("awaitCall failed: cannot add request to StateDB"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}
 
 	return nil, nil
+}
+
+type sendRequest struct{}
+
+func (c *sendRequest) RequiredGas([]byte) uint64 {
+	return 5000
+}
+
+func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	method := getPrecompiledMethod("precompileSendRequest")
+
+	// Unpack arguments, skipping the first 4 bytes (function selector)
+	args, err := method.Inputs.Unpack(input[4:])
+	if err != nil {
+		return []byte("sendRequest failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
+	}
+	if len(args) != 3 {
+		return []byte("sendRequest failed: invalid number of arguments"), ErrPrecompileReverted
+	}
+
+	// Get `dst` argument
+	dst, ok := args[0].(types.Address)
+	check.PanicIfNotf(ok, "sendRequest failed: dst argument is not an address")
+
+	// Get `context` argument
+	context, ok := args[1].([]byte)
+	check.PanicIfNotf(ok, "sendRequest failed: context is not a bytes")
+
+	// Get `callData` argument
+	callData, ok := args[2].([]byte)
+	check.PanicIfNotf(ok, "sendRequest failed: callData is not a bytes")
+
+	if err := withdrawFunds(state, caller.Address(), types.NewValue(value)); err != nil {
+		return []byte("sendRequest failed: withdrawFunds failed"), err
+	}
+
+	// Internal is required for the message
+	payload := types.InternalMessagePayload{
+		Kind:           types.ExecutionMessageKind,
+		FeeCredit:      types.NewZeroValue(),
+		ForwardKind:    types.ForwardKindRemaining,
+		Value:          types.NewValue(value),
+		Currency:       nil,
+		To:             dst,
+		BounceTo:       state.GetInMessage().To,
+		Data:           callData,
+		RequestContext: context,
+	}
+
+	setRefundTo(&payload.RefundTo, state.GetInMessage())
+
+	if _, err = state.AddOutRequestMessage(caller.Address(), &payload, false); err != nil {
+		log.Logger.Error().Msgf("AddOutRequestMessage failed: %s", err)
+		return []byte("sendRequest failed: cannot add request to StateDB"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
+	}
+
+	res := make([]byte, 32)
+	res[31] = 1
+
+	return res, nil
 }
 
 type verifySignature struct{}

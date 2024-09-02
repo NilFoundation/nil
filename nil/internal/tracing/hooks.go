@@ -252,6 +252,9 @@ const (
 
 	// BalanceDecreaseVerifyExternal is decreased when verifying external message via verifyExternal contract call.
 	BalanceDecreaseVerifyExternal BalanceChangeReason = 17
+
+	// BalanceResponseMessageSupplement is decreased when there is not enough gas for response message.
+	BalanceResponseMessageSupplement BalanceChangeReason = 18
 )
 
 // generate fmt.Stringer implementation for BalanceChangeReason
@@ -293,6 +296,8 @@ func (bcr BalanceChangeReason) String() string {
 		return "BalanceDecreasePrecompile"
 	case BalanceDecreaseVerifyExternal:
 		return "BalanceDecreaseVerifyExternal"
+	case BalanceResponseMessageSupplement:
+		return "BalanceResponseMessageSupplement"
 	default:
 		return fmt.Sprintf("Unknown BalanceChangeReason: %d", bcr)
 	}
