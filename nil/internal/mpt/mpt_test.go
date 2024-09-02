@@ -2,13 +2,42 @@ package mpt
 
 import (
 	"encoding/binary"
-	"math/rand"
+	rand "math/rand/v2"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type kvPair struct {
+	key   []byte
+	value []byte
+}
+
+func newRandGen() *rand.Rand {
+	seed := [32]byte{10: 42, 20: 123}
+	gen := rand.New(rand.NewChaCha8(seed)) //nolint:gosec
+	return gen
+}
+
+func generateTestCase(gen *rand.Rand, numOps int, minKeyLen, maxKeyLen int, alphabet string) []kvPair {
+	res := make([]kvPair, 0, numOps)
+
+	for range numOps {
+		keySize := minKeyLen + gen.IntN(maxKeyLen-minKeyLen+1)
+		key := []byte{}
+		for range keySize {
+			char := alphabet[gen.IntN(len(alphabet))]
+			key = append(key, char)
+		}
+		value := make([]byte, 8)
+		binary.LittleEndian.PutUint64(value, gen.Uint64())
+		res = append(res, kvPair{key, value})
+	}
+
+	return res
+}
 
 func getValue(t *testing.T, trie *MerklePatriciaTrie, key []byte) []byte {
 	t.Helper()
@@ -233,4 +262,128 @@ func TestSmallRootHash(t *testing.T) {
 	trie2.SetRootHash(trie.RootHash())
 
 	assert.Equal(t, value, getValue(t, trie2, key))
+}
+
+func TestInsertBatch(t *testing.T) {
+	t.Parallel()
+
+	gen := newRandGen()
+	// pick short alphabet and short keys to increase key collisions count
+	treeOps := generateTestCase(gen, 1000, 1, 8, "abcdefgh")
+
+	trie := CreateMerklePatriciaTrie(t)
+	trieBatch := CreateMerklePatriciaTrie(t)
+
+	checkTreesEqual := func(t *testing.T) {
+		t.Helper()
+
+		data := make(map[string]uint64)
+		dataBatch := make(map[string]uint64)
+
+		for k, v := range trie.Iterate() {
+			data[string(k)] = binary.LittleEndian.Uint64(v)
+		}
+		for k, v := range trieBatch.Iterate() {
+			dataBatch[string(k)] = binary.LittleEndian.Uint64(v)
+		}
+
+		require.Equal(t, data, dataBatch)
+	}
+
+	keys := make([][]byte, 0, len(treeOps))
+	values := make([][]byte, 0, len(treeOps))
+
+	for _, kv := range treeOps {
+		require.NoError(t, trie.Set(kv.key, kv.value))
+
+		keys = append(keys, kv.key)
+		values = append(values, kv.value)
+	}
+	require.NoError(t, trieBatch.SetBatch(keys, values))
+
+	checkTreesEqual(t)
+
+	// increase each value by 1
+	for i, kv := range treeOps {
+		v := binary.LittleEndian.Uint64(kv.value) + 1
+		binary.LittleEndian.PutUint64(values[i], v)
+		require.NoError(t, trie.Set(kv.key, values[i]))
+	}
+	require.NoError(t, trieBatch.SetBatch(keys, values))
+
+	checkTreesEqual(t)
+
+	// now generate some new insertions
+	treeOps = generateTestCase(gen, 1000, 1, 8, "abcdefgh")
+	for i, kv := range treeOps {
+		require.NoError(t, trie.Set(kv.key, kv.value))
+
+		keys[i] = kv.key
+		values[i] = kv.value
+	}
+	require.NoError(t, trieBatch.SetBatch(keys, values))
+
+	checkTreesEqual(t)
+}
+
+func BenchmarkTreeInsertions(b *testing.B) {
+	b.Run("simple insert", func(b *testing.B) {
+		holder := make(map[string][]byte)
+		trie := NewMPT(NewMapSetter(holder), NewReader(NewMapGetter(holder)))
+		gen := newRandGen()
+
+		// long keys and alphabet to increase key uniqueness
+		treeOps := generateTestCase(gen, b.N, 5, 32, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+		for _, kv := range treeOps {
+			require.NoError(b, trie.Set(kv.key, kv.value))
+		}
+
+		// update each key with new value
+		for _, kv := range treeOps {
+			value := binary.LittleEndian.Uint64(kv.value)
+			binary.LittleEndian.PutUint64(kv.value, value+1)
+			require.NoError(b, trie.Set(kv.key, kv.value))
+		}
+
+		// and insert some new keys
+		for _, kv := range generateTestCase(gen, b.N, 2, 16, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") {
+			require.NoError(b, trie.Set(kv.key, kv.value))
+		}
+	})
+
+	b.Run("batch insert", func(b *testing.B) {
+		holder := make(map[string][]byte)
+		trie := NewMPT(NewMapSetter(holder), NewReader(NewMapGetter(holder)))
+		gen := newRandGen()
+
+		// long keys and alphabet to increase key uniqueness
+		treeOps := generateTestCase(gen, b.N, 5, 32, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+		keys := make([][]byte, 0, len(treeOps))
+		values := make([][]byte, 0, len(treeOps))
+
+		uniq := map[string]struct{}{}
+		for _, kv := range treeOps {
+			uniq[string(kv.key)] = struct{}{}
+			keys = append(keys, kv.key)
+			values = append(values, kv.value)
+		}
+		require.Greater(b, len(uniq), 90.0*len(keys)/100)
+
+		require.NoError(b, trie.SetBatch(keys, values))
+
+		// update each key with new value
+		for i := range values {
+			v := binary.LittleEndian.Uint64(values[i]) + 1
+			binary.LittleEndian.PutUint64(values[i], v)
+		}
+		require.NoError(b, trie.SetBatch(keys, values))
+
+		// and insert some new keys
+		for i, kv := range generateTestCase(gen, b.N, 2, 16, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") {
+			keys[i] = kv.key
+			values[i] = kv.value
+		}
+		require.NoError(b, trie.SetBatch(keys, values))
+	})
 }

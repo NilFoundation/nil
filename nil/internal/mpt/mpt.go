@@ -5,6 +5,7 @@ import (
 
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/iden3/go-iden3-crypto/poseidon"
@@ -68,6 +69,47 @@ func (m *MerklePatriciaTrie) Set(key []byte, value []byte) error {
 
 	path := newPath(key, 0)
 	root, err := m.set(m.root, *path, value)
+	if err != nil {
+		return err
+	}
+	m.root = root
+
+	// We always save short root node in the storage, because `RootHash()` widens root to 32 bytes.
+	// So next time we want to read the root node, it will be 32-bytes width and thus will be fetched from the storage.
+	if len(m.root) < 32 {
+		if err := m.setter.Set(m.RootHash().Bytes(), m.root); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// keys order is important: if any key is presented several times only last modification will be applied
+func (m *MerklePatriciaTrie) SetBatch(keys [][]byte, values [][]byte) error {
+	if len(keys) != len(values) || len(keys) == 0 {
+		return ErrInvalidArgSize
+	}
+
+	paths := make([]*Path, 0)
+	vals := make([][]byte, 0)
+
+	keyToIndex := make(map[string]int)
+	for i := range keys {
+		k := keys[i]
+		if len(k) > maxRawKeyLen {
+			k = poseidon.Sum(k)
+		}
+		if idx, ok := keyToIndex[string(k)]; ok {
+			vals[idx] = values[i]
+		} else {
+			keyToIndex[string(k)] = len(paths)
+			paths = append(paths, newPath(k, 0))
+			vals = append(vals, values[i])
+		}
+	}
+
+	root, err := m.setBatch(m.root, paths, vals)
 	if err != nil {
 		return err
 	}
@@ -427,6 +469,173 @@ func (m *Reader) descendWithCallback(nodeRef Reference, path Path, cb func(Node)
 	return nil, db.ErrKeyNotFound
 }
 
+func (m *MerklePatriciaTrie) setBatch(nodeRef Reference, paths []*Path, values [][]byte) (Reference, error) {
+	if len(paths) != len(values) || len(paths) == 0 {
+		return nil, ErrInvalidArgSize
+	}
+
+	commonPrefix := CommonPrefix(paths)
+
+	if !nodeRef.IsValid() {
+		// We have only one value so store it in a LeafNode
+		if len(paths) == 1 {
+			return m.storeNode(newLeafNode(paths[0], values[0]))
+		}
+
+		for _, p := range paths {
+			p.Consume(commonPrefix.Size())
+		}
+
+		// Create branch node to split paths
+		branchReference, err := m.createBranchNodeFromBatch(paths, values, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		// If common part isn't empty, we have to create an extension node before branch node
+		// Otherwise, we need just branch node
+		if commonPrefix.Size() != 0 {
+			return m.storeNode(newExtensionNode(commonPrefix, branchReference))
+		}
+
+		return branchReference, nil
+	}
+
+	node, err := m.getNode(nodeRef)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		node = newLeafNode(paths[0], nil)
+		err = nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	switch node := node.(type) {
+	case *LeafNode:
+		// If we're updating the leaf, there are 2 possible ways:
+		// 1. We have only one key and the node path is equal to the rest of the key. Then we should just update the value of this leaf
+		// 2. We have at least 2 distinct keys. In that keys we need to split the node into several branches
+
+		// We have only one key to update and it's the same as stored in the node. So just update the node value
+		if len(paths) == 1 && node.Path().Equal(paths[0]) {
+			if err := node.SetData(values[0]); err != nil {
+				return nil, err
+			}
+			return m.storeNode(node)
+		}
+
+		// Otherwise we need to split the node
+
+		// First check whether cur node will be replaced by some key from the batch
+		equalFound := false
+		for _, p := range paths {
+			if p.Equal(node.Path()) {
+				equalFound = true
+				break
+			}
+		}
+		if !equalFound {
+			paths = append(paths, node.Path())
+			values = append(values, node.Data())
+			commonPrefix = commonPrefix.CommonPrefix(node.Path())
+		}
+
+		// Cut off the common part
+		for _, p := range paths {
+			p.Consume(commonPrefix.Size())
+		}
+
+		// Create branch node to split paths
+		branchReference, err := m.createBranchNodeFromBatch(paths, values, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		// If common part isn't empty, we have to create an extension node before branch node
+		// Otherwise, we need just branch node
+		if commonPrefix.Size() > 0 {
+			return m.storeNode(newExtensionNode(commonPrefix, branchReference))
+		}
+		return branchReference, nil
+
+	case *ExtensionNode:
+		// If we're updating an extension, there are 2 possible ways:
+		// 1. All the keys start with the extension node's path. Then we just go ahead and all the work will be done there
+		// 2. At least one key doesn't start with extension node's path. Then we have to split extension node
+
+		if commonPrefix.StartsWith(node.Path()) {
+			// Cut off the common part
+			for _, p := range paths {
+				p.Consume(node.Path().Size())
+			}
+
+			// And go ahead
+			nextReference, err := m.setBatch(node.NextRef, paths, values)
+			if err != nil {
+				return nil, err
+			}
+
+			return m.storeNode(newExtensionNode(node.Path(), nextReference))
+		}
+
+		// Split extension node.
+
+		// Find the common part of the key and extension's path.
+		commonPrefix = commonPrefix.CommonPrefix(node.Path())
+
+		// Cut off the common part.
+		node.Path().Consume(commonPrefix.Size())
+		for _, p := range paths {
+			p.Consume(commonPrefix.Size())
+		}
+
+		branchReference, err := m.createBranchNodeFromBatch(paths, values, node.Path(), node.NextRef)
+		if err != nil {
+			return nil, err
+		}
+
+		// If common part isn't empty, we have to create an extension node before branch node.
+		// Otherwise, we need just branch node.
+		if commonPrefix.Size() > 0 {
+			return m.storeNode(newExtensionNode(commonPrefix, branchReference))
+		}
+		return branchReference, nil
+
+	case *BranchNode:
+		// For a branch node we just need to forward all keys into appropriate branches
+		// Also if any path is empty we need to update value of this particular branch node
+		var pathGroups [BranchesNum][]*Path
+		var valueGroups [BranchesNum][][]byte
+
+		for i := range paths {
+			if paths[i].Size() == 0 {
+				node.Value = values[i]
+			} else {
+				idx := paths[i].At(0)
+				pathGroups[idx] = append(pathGroups[idx], paths[i].Consume(1))
+				valueGroups[idx] = append(valueGroups[idx], values[i])
+			}
+		}
+
+		for i := range BranchesNum {
+			if len(pathGroups[i]) == 0 {
+				continue
+			}
+
+			newRef, err := m.setBatch(node.Branches[i], pathGroups[i], valueGroups[i])
+			if err != nil {
+				return nil, err
+			}
+			node.Branches[i] = newRef
+		}
+
+		return m.storeNode(node)
+	}
+
+	panic("Unexpected node type")
+}
+
+// TODO: replace `set` impl with `setBatch` call after ensuring its correctness
 func (m *MerklePatriciaTrie) set(nodeRef Reference, path Path, value []byte) (Reference, error) {
 	if !nodeRef.IsValid() {
 		return m.storeNode(newLeafNode(&path, value))
@@ -548,6 +757,49 @@ func (m *MerklePatriciaTrie) set(nodeRef Reference, path Path, value []byte) (Re
 	panic("Unexpected Node kind")
 }
 
+// Creates a branch node from list of keys / values. Returns a reference to created node.
+// If extension path is non-empty, first store extRef in appropriate branch
+func (m *MerklePatriciaTrie) createBranchNodeFromBatch(paths []*Path, values [][]byte, extPath *Path, extRef Reference) (Reference, error) {
+	if len(paths) == 0 || len(paths) != len(values) {
+		return nil, ErrInvalidArgSize
+	}
+	branches := [BranchesNum]Reference{}
+	var branchValue []byte
+
+	var pathGroups [BranchesNum][]*Path
+	var valueGroups [BranchesNum][][]byte
+
+	for i := range paths {
+		if paths[i].Size() == 0 {
+			// actually we don't need to check for key uniqueness here
+			// because it was checked earlier
+			branchValue = values[i]
+		} else {
+			idx := paths[i].At(0)
+			pathGroups[idx] = append(pathGroups[idx], paths[i].Consume(1))
+			valueGroups[idx] = append(valueGroups[idx], values[i])
+		}
+	}
+
+	if extPath != nil {
+		m.createBranchExtension(extPath, extRef, &branches)
+	}
+
+	for i := range BranchesNum {
+		if len(pathGroups[i]) == 0 {
+			continue
+		}
+
+		newRef, err := m.setBatch(branches[i], pathGroups[i], valueGroups[i])
+		if err != nil {
+			return nil, err
+		}
+		branches[i] = newRef
+	}
+
+	return m.storeNode(newBranchNode(&branches, branchValue))
+}
+
 // Creates a branch node with up to two leaves and maybe value. Returns a reference to created node.
 func (m *MerklePatriciaTrie) createBranchNode(lhsPath *Path, lhsVal []byte, rhsPath *Path, rhsVal []byte) (Reference, error) {
 	if lhsPath.Size() == 0 && rhsPath.Size() == 0 {
@@ -572,9 +824,7 @@ func (m *MerklePatriciaTrie) createBranchLeaf(path *Path, value []byte, branches
 	if path.Size() > 0 {
 		idx := path.At(0)
 		leaf, err := m.storeNode(newLeafNode(path.Consume(1), value))
-		if err != nil {
-			panic(err)
-		}
+		check.PanicIfErr(err)
 		branches[idx] = leaf
 	}
 }
@@ -582,17 +832,14 @@ func (m *MerklePatriciaTrie) createBranchLeaf(path *Path, value []byte, branches
 // If needed, creates an extension node and stores reference in appropriate branch.
 // Otherwise, just stores provided reference.
 func (m *MerklePatriciaTrie) createBranchExtension(path *Path, nextRef Reference, branches *[BranchesNum]Reference) {
-	if path.Size() == 0 {
-		panic("Path for extension node should contain at least one nibble")
-	}
+	check.PanicIfNotf(path.Size() > 0, "Path for extension node should contain at least one nibble")
+
 	if path.Size() == 1 {
 		branches[path.At(0)] = nextRef
 	} else {
 		idx := path.At(0)
 		reference, err := m.storeNode(newExtensionNode(path.Consume(1), nextRef))
-		if err != nil {
-			panic("Store node failed")
-		}
+		check.PanicIfErr(err)
 		branches[idx] = reference
 	}
 }
