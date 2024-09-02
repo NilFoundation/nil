@@ -232,6 +232,13 @@ func (s *SuiteAsyncAwait) TestSumCountersNested() {
 	s.Require().Equal(int32(33), value)
 }
 
+func (s *SuiteAsyncAwait) TestTestNoneZeroCallDepth() {
+	data := s.AbiPack(s.abiTest, "testNoneZeroCallDepth", s.testAddress0)
+	receipt := s.sendExternalMessageNoCheck(data, s.testAddress0)
+	s.Require().False(receipt.AllSuccess())
+	s.Require().Equal("PrecompileReverted", receipt.Status)
+}
+
 func TestAsyncAwait(t *testing.T) {
 	t.Parallel()
 
