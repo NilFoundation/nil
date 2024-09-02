@@ -13,7 +13,9 @@ In nil;, every message has two fields responsible for handling gas and value:
 
 :::info
 
-`FeeCredit` is an estimate created by the message sender rather than a precisely calculated message execution fee.
+`FeeCredit` is an estimate created by the message sender rather than a precisely calculated message execution fee. To evaluate whether a given fee credit would be enough to make a call, use the `nil wallet call-readonly ADDRESS` command while providing the `--with-details` flag.
+
+Note that this command may sometimes produce the `"out of gas"` response which should not be considered an error. To estimate gas in a different way, use the `eth_estimateFee` JSON-RPC method.
 
 :::
 

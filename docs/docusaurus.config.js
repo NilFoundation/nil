@@ -141,6 +141,11 @@ const config = {
               to: '/nil/intro'
             },
             {
+              label: 'Migration guides',
+              position: 'left',
+              to: 'nil/migration-guides/september-2024-release'
+            },
+            {
               type: 'dropdown',
               label: 'Developer tools',
               position: 'right',

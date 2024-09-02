@@ -575,6 +575,7 @@ This command is for interacting with wallets.
 | Subcommand | Definition |
 |:--:|:--|
 | `balance` | Retrieves the balance of the wallet specified in the =nil; CLI config. |
+| `call-readonly` | Performs a read-only 'dry run' call to the specified address. |
 | `deploy` | Deploys a smart contract via the wallet.  |
 | `info` | Retrives the wallet's address and the public key.  |
 | `new` | Create a new wallet. |
@@ -583,6 +584,16 @@ This command is for interacting with wallets.
 | `top-up` | Request a 'top up' from the faucet. |
 
 ### Flags
+
+For `call-readonly`:
+
+| Flag | Definition |
+|:--:|:--|
+| `--abi string` | Specify the path to the `.abi` file for the contract. |
+| `--fee-credit Uint256` | Set the call fee credit. |
+| `--in-overrides string` | Set the input state overrides. |
+| `--out-overrides string` | Set the output state overrides. |
+| `--with-details` | Define whether the output should show the tokens used and outbound messages.  |
 
 For `deploy`:
 
@@ -629,6 +640,12 @@ For `send-tokens`:
 nil wallet balance
 ```
 
+#### Perform a read-only call
+
+```bash
+nil wallet call-readonly ADDRESS [--abi path/to/contract.abi] [--fee-credit FEE_CREDIT] [--in-overrides IN_OVERRIDES] [--out-overrides OUT_OVERRIDES] [--with-details]
+```
+
 #### Deploy a smart contract
 
 ```bash
@@ -671,6 +688,13 @@ nil wallet send-message ADDRESS BYTECODE | METHOD [ARGS] [--abi path/to/contract
 
 ```bash
 Contract balance: BALANCE
+```
+
+#### Performing a read-only call
+
+```bash
+STATUS, result:
+TYPE: VALUE
 ```
 
 #### Deploying a smart contract
