@@ -30,7 +30,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 
 	proposer := NewProposer("", logger)
 
-	aggregator, err := NewAggregator(client, logger, proposer)
+	aggregator, err := NewAggregator(client, logger, proposer, database)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}

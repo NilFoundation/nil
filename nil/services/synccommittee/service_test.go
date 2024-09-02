@@ -89,7 +89,7 @@ func (s *SyncCommitteeTestSuite) TestNew() {
 func (s *SyncCommitteeTestSuite) TestProcessingLoop() {
 	// Set up initial state
 	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
-		s.syncCommittee.aggregator.storage.SetLastProvedBlockNum(shardId, 0)
+		s.syncCommittee.aggregator.blockStorage.SetLastProvedBlockNum(shardId, 0)
 	}
 
 	// Run processing loop for a short time
@@ -103,10 +103,10 @@ func (s *SyncCommitteeTestSuite) TestProcessingLoop() {
 
 	// Check that blocks were processed
 	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
-		lastFetchedBlockNum := s.syncCommittee.aggregator.storage.GetLastFetchedBlockNum(shardId)
+		lastFetchedBlockNum := s.syncCommittee.aggregator.blockStorage.GetLastFetchedBlockNum(shardId)
 		s.Require().Greater(lastFetchedBlockNum, types.BlockNumber(0))
 
-		lastProvedBlockNum := s.syncCommittee.aggregator.storage.GetLastProvedBlockNum(shardId)
+		lastProvedBlockNum := s.syncCommittee.aggregator.blockStorage.GetLastProvedBlockNum(shardId)
 		s.Require().Greater(lastProvedBlockNum, types.BlockNumber(0))
 	}
 }
@@ -129,7 +129,7 @@ func (s *SyncCommitteeTestSuite) TestRun() {
 
 	// Check that processing occurred
 	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
-		lastFetchedBlockNum := s.syncCommittee.aggregator.storage.GetLastFetchedBlockNum(shardId)
+		lastFetchedBlockNum := s.syncCommittee.aggregator.blockStorage.GetLastFetchedBlockNum(shardId)
 		s.Require().Greater(lastFetchedBlockNum, types.BlockNumber(0))
 	}
 }

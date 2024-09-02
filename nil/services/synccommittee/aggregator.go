@@ -6,6 +6,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
@@ -17,25 +18,27 @@ const (
 )
 
 type Aggregator struct {
-	logger   zerolog.Logger
-	client   *rpc.Client
-	storage  *BlockStorage
-	proposer *Proposer
-	metrics  *MetricsHandler
+	logger       zerolog.Logger
+	client       *rpc.Client
+	blockStorage *BlockStorage
+	taskStorage  ProverTaskStorage
+	proposer     *Proposer
+	metrics      *MetricsHandler
 }
 
-func NewAggregator(client *rpc.Client, logger zerolog.Logger, proposer *Proposer) (*Aggregator, error) {
+func NewAggregator(client *rpc.Client, logger zerolog.Logger, proposer *Proposer, database db.DB) (*Aggregator, error) {
 	metrics, err := NewMetricsHandler("github.com/NilFoundation/nil/nil/services/sync_committee")
 	if err != nil {
 		return nil, err
 	}
 
 	return &Aggregator{
-		logger:   logger,
-		client:   client,
-		storage:  NewBlockStorage(),
-		proposer: proposer,
-		metrics:  metrics,
+		logger:       logger,
+		client:       client,
+		blockStorage: NewBlockStorage(),
+		taskStorage:  NewTaskStorage(database),
+		proposer:     proposer,
+		metrics:      metrics,
 	}, nil
 }
 
@@ -75,8 +78,8 @@ func (agg *Aggregator) fetchLatestBlocks(shardIdList []types.ShardId) (map[types
 }
 
 func (agg *Aggregator) proofThresholdMet() bool {
-	lastProvedBlkNum := agg.storage.GetLastProvedBlockNum(types.MainShardId)
-	lastFetchedBlockNum := agg.storage.GetLastFetchedBlockNum(types.MainShardId)
+	lastProvedBlkNum := agg.blockStorage.GetLastProvedBlockNum(types.MainShardId)
+	lastFetchedBlockNum := agg.blockStorage.GetLastFetchedBlockNum(types.MainShardId)
 	return lastProvedBlkNum < lastFetchedBlockNum
 }
 
@@ -89,9 +92,9 @@ func (agg *Aggregator) updateLastProvedBlockNumForAllShards() error {
 	}
 
 	for _, shardId := range shardIdList {
-		lastFetchedBlockNum := agg.storage.GetLastFetchedBlockNum(shardId)
+		lastFetchedBlockNum := agg.blockStorage.GetLastFetchedBlockNum(shardId)
 		if lastFetchedBlockNum != 0 {
-			agg.storage.SetLastProvedBlockNum(shardId, lastFetchedBlockNum)
+			agg.blockStorage.SetLastProvedBlockNum(shardId, lastFetchedBlockNum)
 		} else {
 			agg.logger.Warn().
 				Stringer(logging.FieldShardId, shardId).
@@ -103,19 +106,19 @@ func (agg *Aggregator) updateLastProvedBlockNumForAllShards() error {
 
 // Ask proposual send proof to L1
 func (agg *Aggregator) sendProof() error {
-	lastProvedBlockNum := agg.storage.GetLastProvedBlockNum(types.MainShardId)
-	lastFetchedBlockNum := agg.storage.GetLastFetchedBlockNum(types.MainShardId)
-	lastProvedBlock := agg.storage.GetBlock(types.MainShardId, lastProvedBlockNum)
+	lastProvedBlockNum := agg.blockStorage.GetLastProvedBlockNum(types.MainShardId)
+	lastFetchedBlockNum := agg.blockStorage.GetLastFetchedBlockNum(types.MainShardId)
+	lastProvedBlock := agg.blockStorage.GetBlock(types.MainShardId, lastProvedBlockNum)
 	if lastProvedBlock == nil {
 		return fmt.Errorf("failed to get last proved block: %d", lastProvedBlockNum)
 	}
-	lastFetchedBlock := agg.storage.GetBlock(types.MainShardId, lastFetchedBlockNum)
+	lastFetchedBlock := agg.blockStorage.GetBlock(types.MainShardId, lastFetchedBlockNum)
 	if lastFetchedBlock == nil {
 		return fmt.Errorf("failed to get last fetched block: %d", lastFetchedBlockNum)
 	}
 	provedStateRoot := lastProvedBlock.ChildBlocksRootHash
 	newStateRoot := lastFetchedBlock.ChildBlocksRootHash
-	transactions := agg.storage.GetTransactionsByBlocksRange(types.MainShardId, lastProvedBlockNum, lastFetchedBlockNum)
+	transactions := agg.blockStorage.GetTransactionsByBlocksRange(types.MainShardId, lastProvedBlockNum, lastFetchedBlockNum)
 	agg.logger.Info().
 		Stringer("provedStateRoot", provedStateRoot).
 		Stringer("newStateRoot", newStateRoot).
@@ -136,8 +139,8 @@ func (agg *Aggregator) createProofTasks(ctx context.Context, blockForProof *json
 		return
 	}
 	// For testnet we create proofs only for main shard blocks
-	lastProvedBlockNum := agg.storage.GetLastProvedBlockNum(types.MainShardId)
-	lastFetchedBlockNum := agg.storage.GetLastFetchedBlockNum(types.MainShardId)
+	lastProvedBlockNum := agg.blockStorage.GetLastProvedBlockNum(types.MainShardId)
+	lastFetchedBlockNum := agg.blockStorage.GetLastFetchedBlockNum(types.MainShardId)
 	if lastProvedBlockNum >= blockForProof.Number || lastFetchedBlockNum >= blockForProof.Number {
 		agg.logger.Debug().Stringer(logging.FieldShardId, types.MainShardId).Int64("targetBlockNum", int64(blockForProof.Number)).Int64("lastFetchedBlockNum", int64(lastFetchedBlockNum)).Int64("lastProvedBlockNum", int64(lastProvedBlockNum)).Msg("skip create proof tasks, because the last fetched block already proved")
 		return
@@ -151,7 +154,7 @@ func (agg *Aggregator) createProofTasks(ctx context.Context, blockForProof *json
 
 // validateAndProcessBlock checks the validity of a block and stores it if valid.
 func (agg *Aggregator) validateAndProcessBlock(ctx context.Context, block *jsonrpc.RPCBlock) error {
-	prevBlock := agg.storage.GetBlock(block.ShardId, block.Number-1)
+	prevBlock := agg.blockStorage.GetBlock(block.ShardId, block.Number-1)
 	if prevBlock != nil && prevBlock.Hash != block.ParentHash {
 		return fmt.Errorf("block hash mismatch for block %d", block.Number)
 	}
@@ -159,7 +162,7 @@ func (agg *Aggregator) validateAndProcessBlock(ctx context.Context, block *jsonr
 	// Start genetating proof during collection blocks
 	agg.createProofTasks(ctx, block)
 
-	agg.storage.SetBlock(block)
+	agg.blockStorage.SetBlock(block)
 	return nil
 }
 
@@ -230,7 +233,7 @@ func (agg *Aggregator) ProcessNewBlocks(ctx context.Context) error {
 			agg.metrics.RecordError(ctx)
 			return err
 		}
-		agg.storage.CleanupStorage()
+		agg.blockStorage.CleanupStorage()
 	}
 
 	return nil
@@ -239,10 +242,10 @@ func (agg *Aggregator) ProcessNewBlocks(ctx context.Context) error {
 // processShardBlocks handles the processing of new blocks for a specific shard.
 // It fetches new blocks, updates the storage, and records relevant metrics.
 func (agg *Aggregator) processShardBlocks(ctx context.Context, shardId types.ShardId, latestBlockNum types.BlockNumber) error {
-	lastFetchedBlockNum := agg.storage.GetLastFetchedBlockNum(shardId)
+	lastFetchedBlockNum := agg.blockStorage.GetLastFetchedBlockNum(shardId)
 	switch {
 	case lastFetchedBlockNum == 0:
-		agg.storage.SetLastProvedBlockNum(shardId, latestBlockNum)
+		agg.blockStorage.SetLastProvedBlockNum(shardId, latestBlockNum)
 		if err := agg.fetchAndProcessBlocks(ctx, shardId, latestBlockNum, latestBlockNum); err != nil {
 			return err
 		}

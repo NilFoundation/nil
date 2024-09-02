@@ -1,7 +1,7 @@
 package synccommittee
 
 import (
-	"sync"
+	"strconv"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -13,7 +13,7 @@ type ProverTaskType uint8
 const (
 	GenerateAssignment ProverTaskType = iota
 	Preprocess
-	PartialProof
+	PartialProve
 	AggregatedFRI
 	FRIConsistencyChecks
 	MergeProof
@@ -31,39 +31,53 @@ const (
 // Unique ID of a task, serves as a key in DB
 type ProverTaskId uint32
 
+const InvalidProverTaskId ProverTaskId = 0
+
+func (id ProverTaskId) String() string { return strconv.FormatUint(uint64(id), 10) }
+func (id ProverTaskId) Bytes() []byte  { return []byte(id.String()) }
+
 // Task results can have different types
 type ProverResultType uint8
 
 const (
-	AssignmentTable ProverResultType = iota
-	IntermediateProof
-	FRIConsistencyProof
+	PreprocessedCommonData ProverResultType = iota
+	Preprocessed
+	PartialProof
+	Commitment
+	CommitmentPoly
+	CommitmentState
+	PartialAggregatedFriProof
+	Challenges
+	FriConsistencyProof
 	FinalProof
 )
 
 type ProverId uint32
 
+const UnknownProverId ProverId = 0
+
 // Prover returns this struct as task result
 type ProverTaskResult struct {
-	Type   ProverResultType
-	TaskId ProverTaskId
-	Err    error
-	Sender ProverId
-	Data   []byte
+	Type        ProverResultType
+	TaskId      ProverTaskId
+	Err         error
+	Sender      ProverId
+	DataAddress string
 }
 
 // Task contains all the necessary data for a prover to perform computation
 type ProverTask struct {
-	Id           ProverTaskId
-	BatchNum     uint32
-	BlockNum     types.BlockNumber
-	TaskType     ProverTaskType
-	CircuitType  CircuitType
-	Dependencies []ProverTaskResult
+	Id            ProverTaskId
+	BatchNum      uint32
+	BlockNum      types.BlockNumber
+	TaskType      ProverTaskType
+	CircuitType   CircuitType
+	Dependencies  map[ProverTaskId]ProverTaskResult
+	DependencyNum uint8
 }
 
 func (t *ProverTask) AddDependencyResult(res ProverTaskResult) {
-	t.Dependencies = append(t.Dependencies, res)
+	t.Dependencies[res.TaskId] = res
 }
 
 type ProverTaskStatus uint8
@@ -95,19 +109,3 @@ func HigherPriority(t1 ProverTask, t2 ProverTask) bool {
 	}
 	return t1.TaskType < t2.TaskType
 }
-
-// Declarations below will be moved into ProverTaskStorage
-
-// BadgerDB tables, ProverTaskId will be used as a key
-const (
-	TaskEntriesTable         = "TaskEntries"
-	ReadyToExecuteTasksTable = "ReadyToExecute"
-)
-
-// Provers write results into this channel.
-// Then the separate goroutine collects results and updates task status
-var ResultChannel chan ProverTaskResult
-
-// Both TaskEntries and ReadyToExecute tables must be guarded by a mutex,
-// since we have multiple actors: observer, provers, and result handler
-var ProverTaskMutex sync.Mutex

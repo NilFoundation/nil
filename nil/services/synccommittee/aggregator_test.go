@@ -69,8 +69,9 @@ func (s *AggregatorTestSuite) TearDownSuite() {
 }
 
 func (s *AggregatorTestSuite) SetupTest() {
-	var err error
-	s.aggregator, err = NewAggregator(s.client, s.logger, NewProposer("", s.logger))
+	db, err := db.NewBadgerDbInMemory()
+	s.Require().NoError(err)
+	s.aggregator, err = NewAggregator(s.client, s.logger, NewProposer("", s.logger), db)
 	s.Require().NoError(err)
 }
 
@@ -80,7 +81,7 @@ func (s *AggregatorTestSuite) TestProcessNewBlocks() {
 
 	// Check if blocks were fetched and stored for each shard
 	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
-		lastFetchedBlockNum := s.aggregator.storage.GetLastFetchedBlockNum(shardId)
+		lastFetchedBlockNum := s.aggregator.blockStorage.GetLastFetchedBlockNum(shardId)
 		s.Require().Greater(lastFetchedBlockNum, types.BlockNumber(0))
 	}
 }
@@ -99,7 +100,7 @@ func (s *AggregatorTestSuite) TestFetchAndStoreBlocks() {
 
 		// Check if blocks were stored
 		for blockNum := types.BlockNumber(0); blockNum <= latestBlockForShardNumber; blockNum++ {
-			block := s.aggregator.storage.GetBlock(shardId, blockNum)
+			block := s.aggregator.blockStorage.GetBlock(shardId, blockNum)
 			s.Require().NotNil(block)
 			s.Require().Equal(blockNum, block.Number)
 		}
@@ -122,7 +123,7 @@ func (s *AggregatorTestSuite) TestValidateAndStoreBlock() {
 		s.Require().NoError(err)
 
 		// Check if the block was stored
-		storedBlock := s.aggregator.storage.GetBlock(shardId, latestBlock.Number)
+		storedBlock := s.aggregator.blockStorage.GetBlock(shardId, latestBlock.Number)
 		s.Require().NotNil(storedBlock)
 		s.Require().Equal(latestBlock.Number, storedBlock.Number)
 		s.Require().Equal(latestBlock.Hash, storedBlock.Hash)
@@ -140,8 +141,8 @@ func (s *AggregatorTestSuite) TestValidateAndStoreBlockMismatch() {
 	block2 := jsonrpc.RPCBlock{ShardId: types.MainShardId, Number: 1, ParentHash: common.HexToHash("2")}
 
 	// Store blocks
-	s.aggregator.storage.SetBlock(&block1)
-	s.aggregator.storage.SetBlock(&block2)
+	s.aggregator.blockStorage.SetBlock(&block1)
+	s.aggregator.blockStorage.SetBlock(&block2)
 
 	// Try to validate and store the second block
 	err := s.aggregator.validateAndProcessBlock(context.Background(), &block2)
@@ -151,19 +152,19 @@ func (s *AggregatorTestSuite) TestValidateAndStoreBlockMismatch() {
 
 func (s *AggregatorTestSuite) TestProofThresholdMet() {
 	// Case 1: Threshold not met
-	s.aggregator.storage.SetLastProvedBlockNum(types.MainShardId, 100)
-	s.aggregator.storage.SetBlock(&jsonrpc.RPCBlock{ShardId: types.MainShardId, Number: 100})
+	s.aggregator.blockStorage.SetLastProvedBlockNum(types.MainShardId, 100)
+	s.aggregator.blockStorage.SetBlock(&jsonrpc.RPCBlock{ShardId: types.MainShardId, Number: 100})
 	s.Require().False(s.aggregator.proofThresholdMet())
 
 	// Case 2: Threshold met
-	s.aggregator.storage.SetBlock(&jsonrpc.RPCBlock{ShardId: types.MainShardId, Number: 101})
+	s.aggregator.blockStorage.SetBlock(&jsonrpc.RPCBlock{ShardId: types.MainShardId, Number: 101})
 	s.Require().True(s.aggregator.proofThresholdMet())
 }
 
 func (s *AggregatorTestSuite) TestUpdateLastProvedBlockNumForAllShards() {
 	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
 		blockNum := types.BlockNumber(200 + int64(shardId))
-		s.aggregator.storage.SetBlock(&jsonrpc.RPCBlock{ShardId: shardId, Number: blockNum})
+		s.aggregator.blockStorage.SetBlock(&jsonrpc.RPCBlock{ShardId: shardId, Number: blockNum})
 	}
 
 	err := s.aggregator.updateLastProvedBlockNumForAllShards()
@@ -171,7 +172,7 @@ func (s *AggregatorTestSuite) TestUpdateLastProvedBlockNumForAllShards() {
 
 	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
 		blockNum := types.BlockNumber(200 + int64(shardId))
-		s.Require().Equal(blockNum, s.aggregator.storage.GetLastProvedBlockNum(shardId))
+		s.Require().Equal(blockNum, s.aggregator.blockStorage.GetLastProvedBlockNum(shardId))
 	}
 }
 
