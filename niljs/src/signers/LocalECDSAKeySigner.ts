@@ -11,7 +11,7 @@ import type { ILocalKeySignerConfig } from "./types/ILocalKeySignerConfig.js";
 import type { ISigner } from "./types/ISigner.js";
 
 /**
- * LocalKeySigner is a class that allows for signing data with the private key.
+ * The LocalKeySigner is a class that allows for signing data with the private key.
  * It uses the secp256k1 curve implementation by the @noble/curves/secp256k1 library.
  * @example
  * import {

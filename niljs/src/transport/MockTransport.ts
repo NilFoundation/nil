@@ -2,7 +2,7 @@ import type { RequestArguments } from "@open-rpc/client-js/build/ClientInterface
 import type { ITransport } from "./types/ITransport.js";
 
 /**
- * MockTransport using for testing purposes.
+ * The MockTransport is a transport class for testing purposes.
  *
  * @class MockTransport
  * @typedef {MockTransport}
@@ -14,7 +14,7 @@ class MockTransport implements ITransport {
    * Creates an instance of MockTransport.
    *
    * @constructor
-   * @param {function} handler testing handler.
+   * @param {function} handler The testing handler.
    */
   constructor(handler: (args: RequestArguments) => unknown) {
     this.handler = handler;
@@ -47,7 +47,7 @@ class MockTransport implements ITransport {
    *
    * @public
    */
-  public closeConnection(): void {}
+  public closeConnection(): void { }
 }
 
 export { MockTransport };

@@ -9,15 +9,15 @@ import { BlockNotFoundError } from "../errors/block.js";
 import { type Hex, assertIsValidShardId } from "../index.js";
 import type { IAddress } from "../signers/types/IAddress.js";
 import type { Block, BlockTag } from "../types/Block.js";
-import type {CallArgs, CallRes, ContractOverride} from "../types/CallArgs.js";
+import type { CallArgs, CallRes, ContractOverride } from "../types/CallArgs.js";
 import type { IReceipt, ProcessedReceipt } from "../types/IReceipt.js";
 import type { ProcessedMessage } from "../types/ProcessedMessage.js";
 import type { RPCMessage } from "../types/RPCMessage.js";
 import { addHexPrefix } from "../utils/hex.js";
 import { BaseClient } from "./BaseClient.js";
 import type { IPublicClientConfig } from "./types/ClientConfigs.js";
-import type {Address} from "abitype";
-import {decodeFunctionResult, encodeFunctionData} from "viem";
+import type { Address } from "abitype";
+import { decodeFunctionResult, encodeFunctionData } from "viem";
 
 /**
  * PublicClient is a class that allows for interacting with the network via the JSON-RPC API.
@@ -28,7 +28,7 @@ import {decodeFunctionResult, encodeFunctionData} from "viem";
  *
  * const client = new PublicClient({
  *   transport: new HttpTransport({
- *     endpoint: "http://127.0.0.1:8529",
+ *     endpoint: RPC_ENDPOINT,
  *   }),
  *   shardId: 1,
  * });
@@ -56,12 +56,12 @@ class PublicClient extends BaseClient {
    *
    * const client = new PublicClient({
    *   transport: new HttpTransport({
-   *     endpoint: "http://127.0.0.1:8529",
+   *     endpoint: RPC_ENDPOINT,
    *   }),
    *   shardId: 1,
    * });
    *
-   * const block = await client.getBlockByHash(0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08);
+   * const block = await client.getBlockByHash(HASH);
    */
   public async getBlockByHash(
     hash: Hex,
@@ -93,7 +93,7 @@ class PublicClient extends BaseClient {
    import { PublicClient } from '@nilfoundation/niljs';
    *
    * const client = new PublicClient({
-   *  endpoint: 'http://127.0.0.1:8529'
+   *  endpoint: RPC_ENDPOINT
    * })
    *
    * const block = await client.getBlockByNumber(1);
@@ -126,7 +126,7 @@ class PublicClient extends BaseClient {
    * import { PublicClient } from '@nilfoundation/niljs';
    *
    * const client = new PublicClient({
-   *  endpoint: 'http://127.0.0.1:8529'
+   *  endpoint: RPC_ENDPOINT
    * })
    *
    * const count = await client.getBlockMessageCountByNumber(1);
@@ -155,10 +155,10 @@ class PublicClient extends BaseClient {
    * import { PublicClient } from '@nilfoundation/niljs';
    *
    * const client = new PublicClient({
-   *  endpoint: 'http://127.0.0.1:8529'
+   *  endpoint: RPC_ENDPOINT
    * })
    *
-   * const count = await client.getBlockMessageCountByHash(Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]));
+   * const count = await client.getBlockMessageCountByHash(HASH);
    */
   public async getBlockMessageCountByHash(hash: Hex, shardId = this.shardId) {
     assertIsValidShardId(shardId);
@@ -181,10 +181,10 @@ class PublicClient extends BaseClient {
    * import { PublicClient } from '@nilfoundation/niljs';
    *
    * const client = new PublicClient({
-   *  endpoint: 'http://127.0.0.1:8529'
+   *  endpoint: RPC_ENDPOINT
    * })
    *
-   * const code = await client.getCode(Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]), 'latest');
+   * const code = await client.getCode(ADDRESS, 'latest');
    */
   public async getCode(address: IAddress, blockNumberOrHash?: Hex | BlockTag) {
     const res = await this.request<`0x${string}`>({
@@ -204,10 +204,10 @@ class PublicClient extends BaseClient {
    * import { PublicClient } from '@nilfoundation/niljs';
    *
    * const client = new PublicClient({
-   *  endpoint: 'http://127.0.0.1:8529'
+   *  endpoint: RPC_ENDPOINT
    * })
    *
-   * const count = await client.getMessageCount(Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]), 'latest');
+   * const count = await client.getMessageCount(ADDRESS, 'latest');
    *
    */
   public async getMessageCount(
@@ -231,10 +231,10 @@ class PublicClient extends BaseClient {
    * import { PublicClient } from '@nilfoundation/niljs';
    *
    * const client = new PublicClient({
-   *  endpoint: 'http://127.0.0.1:8529'
+   *  endpoint: RPC_ENDPOINT
    * })
    *
-   * const balance = await client.getBalance(Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]), 'latest');
+   * const balance = await client.getBalance(ADDRESS, 'latest');
    */
   public async getBalance(
     address: IAddress,
@@ -250,17 +250,17 @@ class PublicClient extends BaseClient {
 
   /**
    * Returns the structure of the internal message with the given hash.
-   * @param hash - The hash of the message.
-   * @param shardId - The ID of the shard where the message was recorded.
+   * @param hash The hash of the message.
+   * @param shardId The ID of the shard where the message was recorded.
    * @returns The message whose information is requested.
    * @example
    * import { PublicClient } from '@nilfoundation/niljs';
    *
    * const client = new PublicClient({
-   *  endpoint: 'http://127.0.0.1:8529'
+   *  endpoint: RPC_ENDPOINT
    * })
    *
-   * const message = await client.getMessageByHash(Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]));
+   * const message = await client.getMessageByHash(HASH);
    */
   public async getMessageByHash(
     hash: Hex,
@@ -285,17 +285,17 @@ class PublicClient extends BaseClient {
 
   /**
    * Returns the receipt for the message with the given hash.
-   * @param hash - The hash of the message.
-   * @param shardId - The ID of the shard where the message was recorded.
+   * @param hash The hash of the message.
+   * @param shardId The ID of the shard where the message was recorded.
    * @returns The receipt whose structure is requested.
    * @example
    * import { PublicClient } from '@nilfoundation/niljs';
    *
    * const client = new PublicClient({
-   * endpoint: 'http://127.0.0.1:8529'
+   * endpoint: RPC_ENDPOINT
    * })
    *
-   * const receipt = await client.getMessageReceiptByHash(1, Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]));
+   * const receipt = await client.getMessageReceiptByHash(1, HASH);
    */
   public async getMessageReceiptByHash(
     hash: Hex,
@@ -337,16 +337,16 @@ class PublicClient extends BaseClient {
 
   /**
    * Creates a new message or creates a contract for a previously signed message.
-   * @param message - The encoded bytecode of the message.
+   * @param message The encoded bytecode of the message.
    * @returns The hash of the message.
    * @example
    * import { PublicClient } from '@nilfoundation/niljs';
    *
    * const client = new PublicClient({
-   *  endpoint: 'http://127.0.0.1:8529'
+   *  endpoint: RPC_ENDPOINT
    * })
    *
-   * const message = Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+   * const message = Uint8Array.from(ARRAY);
    */
   public async sendRawMessage(message: `0x${string}` | Uint8Array) {
     const res = await this.request<Hex>({
@@ -398,8 +398,8 @@ class PublicClient extends BaseClient {
   }
 
   /**
-   * Returns all tokens by the given address.
-   * @param address The address of the account.
+   * Returns all tokens at the given address.
+   * @param address The address whose information is requested.
    * @param blockNumberOrHash The number/hash of the block.
    * @returns The list of tokens.
    */
@@ -423,7 +423,7 @@ class PublicClient extends BaseClient {
   }
 
   /**
-   * Returns the result of the call.
+   * Performs a call to the specified address.
    * @param callArgs The arguments for the call.
    * @param callArgs.from The address of the sender.
    * @param callArgs.to The address of the receiver.
@@ -431,18 +431,25 @@ class PublicClient extends BaseClient {
    * @param callArgs.value The value to be sent.
    * @param callArgs.feeCredit The fee credit.
    * @param blockNumberOrHash The number/hash of the block.
-   * @param overrides The overrides of state for chain call.
+   * @param overrides The overrides of state for the chain call.
    */
-  public async call(callArgs: CallArgs, blockNumberOrHash: Hex | BlockTag, overrides?: Record<Address, ContractOverride>) {
+  public async call(
+    callArgs: CallArgs,
+    blockNumberOrHash: Hex | BlockTag,
+    overrides?: Record<Address, ContractOverride>,
+  ) {
     let data: Hex;
     if (callArgs.abi) {
-     data = encodeFunctionData({
-         abi: callArgs.abi,
-         functionName: callArgs.functionName,
-         args: callArgs.args || [],
-     });
+      data = encodeFunctionData({
+        abi: callArgs.abi,
+        functionName: callArgs.functionName,
+        args: callArgs.args || [],
+      });
     } else {
-      data = typeof callArgs.data === "string" ? callArgs.data : addHexPrefix(bytesToHex(callArgs.data));
+      data =
+        typeof callArgs.data === "string"
+          ? callArgs.data
+          : addHexPrefix(bytesToHex(callArgs.data));
     }
     const sendData = {
       from: callArgs.from || undefined,
@@ -452,7 +459,7 @@ class PublicClient extends BaseClient {
       feeCredit: (callArgs.feeCredit || 5_000_000n).toString(10),
     };
 
-    const params: unknown[]  = [sendData, blockNumberOrHash];
+    const params: unknown[] = [sendData, blockNumberOrHash];
     if (overrides) {
       params.push(overrides);
     }
@@ -467,7 +474,7 @@ class PublicClient extends BaseClient {
         abi: callArgs.abi,
         functionName: callArgs.functionName,
         data: res.data,
-      })
+      });
       return {
         ...res,
         decodedData: result,

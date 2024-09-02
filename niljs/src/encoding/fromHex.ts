@@ -3,8 +3,8 @@ import type { Hex } from "../index.js";
 import { addHexPrefix, removeHexPrefix } from "../utils/hex.js";
 
 /**
- * Convert a character code to a base16 number.
- * @param charCode - The character code to convert.
+ * Converts a character code to a base16 number.
+ * @param charCode The character code to convert.
  * @returns The base16 representation of the input.
  */
 const charCodeToBase16 = (charCode: number): number | undefined => {
@@ -21,8 +21,8 @@ const charCodeToBase16 = (charCode: number): number | undefined => {
 };
 
 /**
- * Convert a hex string to a number.
- * @param hex - The hex string to convert.
+ * Converts a hex string to a number.
+ * @param hex The hex string to convert.
  * @returns The number representation of the input.
  */
 const hexToNumber = (hex: Hex): number => {
@@ -30,14 +30,20 @@ const hexToNumber = (hex: Hex): number => {
 };
 
 /**
- * Convert a hex string to a bigint.
- * @param hex - The hex string to convert.
+ * Converts a hex string to a bigint.
+ * @param hex The hex string to convert.
  * @returns The bigint representation of the input.
  */
 const hexToBigInt = (hex: Hex): bigint => {
   return BigInt(addHexPrefix(hex));
 };
 
+/**
+ * Converts a hex string to a byte array.
+ *
+ * @param {Hex} hex The hex string to convert.
+ * @returns {Uint8Array} The byte array representation of the input.
+ */
 const hexToBytes = (hex: Hex): Uint8Array => {
   let hexString = hex.slice(2);
   if (hexString.length % 2) {
@@ -52,8 +58,7 @@ const hexToBytes = (hex: Hex): Uint8Array => {
     const nibbleRight = charCodeToBase16(hexString.charCodeAt(j++));
     if (nibbleLeft === undefined || nibbleRight === undefined) {
       throw new BaseError(
-        `Invalid byte sequence ("${hexString[j - 2]}${
-          hexString[j - 1]
+        `Invalid byte sequence ("${hexString[j - 2]}${hexString[j - 1]
         }" in "${hexString}").`,
       );
     }

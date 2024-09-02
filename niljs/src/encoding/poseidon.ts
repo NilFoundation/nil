@@ -14,7 +14,7 @@ if (
 
 /**
  * Creates the Poseidon hash of the given bytes.
- * @param byes - The bytes to hash.
+ * @param byes The bytes to hash.
  * @returns The Poseidon hash.
  */
 const poseidonHash = (bytes: Uint8Array) => {
