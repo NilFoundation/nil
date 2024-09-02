@@ -123,7 +123,7 @@ func (s *Scheduler) generateZeroState(ctx context.Context) error {
 		return err
 	}
 
-	return PublishBlock(ctx, s.networkManager, s.params.ShardId, block)
+	return PublishBlock(ctx, s.networkManager, s.params.ShardId, &Block{Block: block})
 }
 
 func (s *Scheduler) doCollate(ctx context.Context) error {
@@ -145,7 +145,7 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 	}
 	defer gen.Rollback()
 
-	block, err := gen.GenerateBlock(proposal)
+	block, outs, err := gen.GenerateBlock(proposal)
 	if err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 		s.logger.Warn().Err(err).Msgf("Failed to remove %d committed messages from pool", len(proposal.RemoveFromPool))
 	}
 
-	return PublishBlock(ctx, s.networkManager, s.params.ShardId, block)
+	return PublishBlock(ctx, s.networkManager, s.params.ShardId, &Block{Block: block, OutMessages: outs})
 }
 
 func (s *Scheduler) GetMsgPool() msgpool.Pool {

@@ -134,15 +134,6 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		}
 		if networkManager != nil {
 			defer networkManager.Close()
-
-			// todo: listen to select shards only
-			shardsToListen := make([]types.ShardId, cfg.NShards)
-			for i := range cfg.NShards {
-				shardsToListen[i] = types.ShardId(i)
-			}
-			funcs = append(funcs, func(ctx context.Context) error {
-				return collate.StartBlockListeners(ctx, networkManager, database, shardsToListen)
-			})
 		}
 
 		fallthrough
@@ -252,6 +243,8 @@ type AbstractCollator interface {
 
 func createCollators(ctx context.Context, cfg *Config, database db.DB, networkManager *network.Manager) []AbstractCollator {
 	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
+	// syncer will pull blocks actively if no blocks appear for 5 rounds
+	syncerTimeout := 5 * collatorTickPeriod
 
 	collators := make([]AbstractCollator, 0, cfg.NShards)
 
@@ -262,7 +255,7 @@ func createCollators(ctx context.Context, cfg *Config, database db.DB, networkMa
 		if cfg.IsShardActive(shard) {
 			collator, err = createActiveCollator(shard, cfg, collatorTickPeriod, database, networkManager)
 		} else {
-			collator, err = createSyncCollator(ctx, shard, cfg, collatorTickPeriod, database)
+			collator, err = createSyncCollator(ctx, shard, cfg, syncerTimeout, database, networkManager)
 		}
 		check.PanicIfErr(err)
 		collators = append(collators, collator)
@@ -270,13 +263,15 @@ func createCollators(ctx context.Context, cfg *Config, database db.DB, networkMa
 	return collators
 }
 
-func createSyncCollator(ctx context.Context, shard types.ShardId, cfg *Config, tick time.Duration, database db.DB) (AbstractCollator, error) {
+func createSyncCollator(ctx context.Context, shard types.ShardId, cfg *Config, tick time.Duration,
+	database db.DB, networkManager *network.Manager,
+) (AbstractCollator, error) {
 	endpoint, ok := cfg.ShardEndpoints[shard.String()]
 	if !ok {
 		return nil, fmt.Errorf("no endpoint for shard %s", shard.String())
 	}
 	msgPool := msgpool.New(msgpool.DefaultConfig)
-	return collate.NewSyncCollator(ctx, msgPool, shard, endpoint, tick, database)
+	return collate.NewSyncCollator(ctx, msgPool, shard, endpoint, tick, database, networkManager)
 }
 
 func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) (*collate.Scheduler, error) {

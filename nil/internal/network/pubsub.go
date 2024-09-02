@@ -112,7 +112,7 @@ func (ps *PubSub) getTopic(topic string) (*pubsub.Topic, error) {
 	return t, nil
 }
 
-func (s *Subscription) Start(ctx context.Context) (chan []byte, error) {
+func (s *Subscription) Start(ctx context.Context) (<-chan []byte, error) {
 	msgCh := make(chan []byte, subscriptionChannelSize)
 
 	go func() {
