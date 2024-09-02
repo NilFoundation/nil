@@ -71,4 +71,8 @@ contract AwaitTest {
         require(success, "awaitCall failed");
         return abi.decode(returnData, (int32));
     }
+
+    function testNoneZeroCallDepth(address addr) public {
+        AwaitTest(addr).awaitGet(address(this));
+    }
 }

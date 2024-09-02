@@ -57,6 +57,11 @@ type ReadWritePrecompiledContract interface {
 	Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error)
 }
 
+type EvmAccessedPrecompiledContract interface {
+	// Run runs the precompiled contract
+	Run(evm *EVM, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error)
+}
+
 type SimplePrecompiledContract interface {
 	// RequiredPrice calculates the contract gas use
 	RequiredGas(input []byte) uint64
@@ -123,7 +128,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 // - the returned bytes,
 // - the _remaining_ gas,
 // - any error that occurred
-func RunPrecompiledContract(p PrecompiledContract, state StateDB, input []byte, suppliedGas uint64,
+func RunPrecompiledContract(p PrecompiledContract, evm *EVM, input []byte, suppliedGas uint64,
 	logger *tracing.Hooks, value *uint256.Int, caller ContractRef, readOnly bool,
 ) (ret []byte, remainingGas uint64, err error) {
 	gasCost := p.RequiredGas(input)
@@ -136,13 +141,15 @@ func RunPrecompiledContract(p PrecompiledContract, state StateDB, input []byte, 
 	suppliedGas -= gasCost
 	switch p := p.(type) {
 	case ReadOnlyPrecompiledContract:
-		ret, err = p.Run(StateDBReadOnly(state), input, value, caller)
+		ret, err = p.Run(StateDBReadOnly(evm.StateDB), input, value, caller)
 	case ReadWritePrecompiledContract:
 		if readOnly {
 			err = ErrWriteProtection
 		} else {
-			ret, err = p.Run(state, input, value, caller)
+			ret, err = p.Run(evm.StateDB, input, value, caller)
 		}
+	case EvmAccessedPrecompiledContract:
+		ret, err = p.Run(evm, input, value, caller)
 	default:
 		err = ErrUnexpectedType
 	}
@@ -382,7 +389,14 @@ func (c *awaitCall) RequiredGas([]byte) uint64 {
 	return 5000
 }
 
-func (a *awaitCall) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	state := evm.StateDB
+
+	// Only top level functions are allowed to use awaitCall
+	if evm.GetDepth() > 1 {
+		return nil, fmt.Errorf("%w: awaitCall can be used only from top level function", ErrPrecompileReverted)
+	}
+
 	method := getPrecompiledMethod("precompileAwaitCall")
 
 	// Unpack arguments, skipping the first 4 bytes (function selector)
