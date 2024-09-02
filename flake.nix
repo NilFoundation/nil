@@ -9,6 +9,10 @@
   outputs = { self, nixpkgs, flake-utils }:
     (flake-utils.lib.eachDefaultSystem (system:
       let
+        revCount = self.revCount or self.dirtyRevCount or 1;
+        rev = self.shortRev or self.dirtyShortRev or "unknown";
+        version = "0.1.0-${toString revCount}";
+        versionFull = "${version}-${rev}";
         pkgs = import nixpkgs { inherit system; };
       in
       rec {
@@ -19,6 +23,7 @@
           nilhardhat = (pkgs.callPackage ./nilhardhat.nix { });
           default = nil;
           formatters = (pkgs.callPackage ./formatters.nix { });
+          nilcli = (pkgs.callPackage ./nilcli.nix { nil = nil; versionFull = versionFull; });
         };
         checks = rec {
           nil = (pkgs.callPackage ./nil.nix {
@@ -44,12 +49,6 @@
           };
         };
         bundlers =
-          let
-            revCount = self.revCount or self.dirtyRevCount or 1;
-            rev = self.shortRev or self.dirtyShortRev or "unknown";
-            version = "0.1.0-${toString revCount}";
-            versionFull = "${version}-${rev}";
-          in
           rec {
             deb = pkg:
               pkgs.stdenv.mkDerivation {

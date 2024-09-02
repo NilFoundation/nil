@@ -13,10 +13,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ensure_cluster_builds_linux:
+  nix_check:
+    name: Test - ${{ matrix.check }}
+    runs-on: ["self-hosted", "aws_autoscaling"]
+    strategy:
+      matrix:
+        check: ["nil", "nildocs", "nilhardhat", "niljs"]
+    steps:
+      - name: checkout local actions
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: run check
+        run: nix build .#checks.x86_64-linux.${{matrix.check}} -L
+
+  build_artifacts:
+    name: Build artifacts
     runs-on: ["self-hosted", "aws_autoscaling"]
     environment: prod
-    name: Linux CI
     steps:
       - name: checkout local actions
         uses: actions/checkout@v3
@@ -36,9 +51,6 @@ jobs:
 
       - name: golangci-lint
         run: nix develop -c golangci-lint run
-
-      - name: run tests with race detector
-        run: nix flake check -L
 
       - name: build
         run: nix build -L
@@ -67,6 +79,8 @@ jobs:
           mkrepo s3://nil-deb-repo/ubuntu
 
   ensure_cluster_builds_macos:
+    # This job is disabled because we are out of build credits for OS X machines
+    if: false
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
