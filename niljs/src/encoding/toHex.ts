@@ -6,8 +6,8 @@ const hexes = Array.from({ length: 256 }, (_, i) =>
 );
 
 /**
- * Convert a string to a hex string.
- * @param str - The input string to convert.
+ * Converts a string to a hex string.
+ * @param str The input string to convert.
  * @returns The hex string representation of the input.
  */
 const stringToHex = (str: string): Hex => {
@@ -21,8 +21,8 @@ const stringToHex = (str: string): Hex => {
 };
 
 /**
- * Convert bytes to a hex string.
- * @param bytes - The bytes to convert.
+ * Converts bytes to a hex string.
+ * @param bytes The bytes to convert.
  * @returns The hex string representation of the input.
  */
 const bytesToHex = (bytes: Uint8Array): Hex => {
@@ -36,8 +36,8 @@ const bytesToHex = (bytes: Uint8Array): Hex => {
 };
 
 /**
- * Convert an unsigned number to a hex string.
- * @param num - The number to convert.
+ * Converts an unsigned number to a hex string.
+ * @param num The number to convert.
  * @returns The hex string representation of the input.
  */
 const numberToHex = (num: number | bigint): Hex => {
@@ -60,8 +60,8 @@ const numberToHex = (num: number | bigint): Hex => {
 };
 
 /**
- * Convert a string, number, bigint, boolean, or ByteArrayType to a hex string.
- * @param value - The input to convert.
+ * Converts a string, number, bigint, boolean, or ByteArrayType to a hex string.
+ * @param value The input to convert.
  * @returns The hex string representation of the input.
  */
 const toHex = <T extends string | Uint8Array | boolean | bigint | number>(

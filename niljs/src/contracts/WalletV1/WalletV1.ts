@@ -9,7 +9,11 @@ import { toHex } from "../../encoding/toHex.js";
 import type { ISigner } from "../../signers/index.js";
 import type { IDeployData } from "../../types/IDeployData.js";
 import { getShardIdFromAddress, refineAddress } from "../../utils/address.js";
-import {refineCompressedPublicKey, refineFunctionHexData, refineSalt} from "../../utils/refiners.js";
+import {
+  refineCompressedPublicKey,
+  refineFunctionHexData,
+  refineSalt,
+} from "../../utils/refiners.js";
 import { code } from "./Wallet-bin.js";
 import WalletAbi from "./Wallet.abi.json";
 import type {
@@ -19,7 +23,7 @@ import type {
   SendSyncMessageParams,
   WalletV1Config,
 } from "./types/index.js";
-import type {Hex} from "../../types/index.js";
+import type { Hex } from "../../types/index.js";
 
 /**
  * WalletV1 is a class used for performing operations on the cluster that require authentication.
@@ -161,10 +165,10 @@ export class WalletV1 {
     this.address = address
       ? refineAddress(address)
       : WalletV1.calculateWalletAddress({
-          pubKey: this.pubkey,
-          shardId,
-          salt,
-        });
+        pubKey: this.pubkey,
+        shardId,
+        salt,
+      });
     if (salt) {
       this.salt = refineSalt(salt);
     }
@@ -197,7 +201,7 @@ export class WalletV1 {
      } from '@nilfoundation/niljs';
    * const client = new PublicClient({
        transport: new HttpTransport({
-         endpoint: "http://127.0.0.1:8529",
+         endpoint: RPC_ENDPOINT,
        }),
        shardId: 1,
      });
@@ -288,7 +292,7 @@ export class WalletV1 {
   ): Promise<{ raw: Uint8Array; hash: Uint8Array }> {
     const [seqno, chainId] = await Promise.all([
       requestParams.seqno ??
-        this.client.getMessageCount(this.getAddressHex(), "latest"),
+      this.client.getMessageCount(this.getAddressHex(), "latest"),
       requestParams.chainId ?? this.client.chainId(),
     ]);
     const encodedMessage = await externalMessageEncode(
@@ -381,14 +385,21 @@ export class WalletV1 {
     return bytesToHex(hash);
   }
 
+  /**
+   * Sets the name of the custom currency that the wallet can own and mint.
+   *
+   * @async
+   * @param {string} The name of the custom currency.
+   * @returns {unknown} The message hash.
+   * @example
+   * const hashMessage = await wallet.setCurrencyName("MY_TOKEN");
+   * await waitTillCompleted(client, 1, hashMessage);
+   */
   async setCurrencyName(name: string) {
-
     const callData = encodeFunctionData({
       abi: WalletAbi,
       functionName: "setCurrencyName",
-      args: [
-        name
-      ],
+      args: [name],
     });
 
     const { hash } = await this.requestToWallet({
@@ -399,14 +410,22 @@ export class WalletV1 {
     return bytesToHex(hash);
   }
 
+  /**
+   * Mints the currency that the wallet owns and withdraws it to the wallet.
+   * {@link setCurrencyName} has to be called first before minting a currency.
+   *
+   * @async
+   * @param {bigint} The amount to mint.
+   * @returns {unknown} The message hash.
+   * @example
+   * const hashMessage = await wallet.mintCurrency(mintCount);
+   * await waitTillCompleted(client, 1, hashMessage);
+   */
   async mintCurrency(amount: bigint) {
-
     const callData = encodeFunctionData({
       abi: WalletAbi,
       functionName: "mintCurrency",
-      args: [
-        amount
-      ],
+      args: [amount],
     });
 
     const { hash } = await this.requestToWallet({
@@ -471,7 +490,7 @@ export class WalletV1 {
       };
     } else {
       invariant(
-          !(abi || args),
+        !(abi || args),
         "ABI and args should be provided together or not provided at all.",
       );
       deployData = {
@@ -501,7 +520,7 @@ export class WalletV1 {
   }
 
   /**
-   * Send a message synchronously via the wallet.
+   * Creates a new message and performs a synchronous call to the specified address.
    *
    * @async
    * @param {SendSyncMessageParams} param0 The object representing the message params.

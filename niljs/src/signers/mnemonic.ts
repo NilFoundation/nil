@@ -5,7 +5,7 @@ import type { IPrivateKey } from "./index.js";
 
 /**
  * Generate the private key from the mnemonic phrase.
- * @param mnemonic The ,nemonic phrase to generate the private key from.
+ * @param mnemonic The mnemonic phrase to generate the private key from.
  * @param password The password to generate the private key.
  * @returns The private key.
  */

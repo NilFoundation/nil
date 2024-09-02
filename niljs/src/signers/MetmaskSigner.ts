@@ -2,7 +2,7 @@ import invariant from "tiny-invariant";
 import type { ISigner } from "./types/ISigner.js";
 
 /**
- * MetaMaskSigner is a class that allows for signing data using MetaMask.
+ * The MetaMaskSigner is a class that allows for signing data using MetaMask.
  * This signer can only be used inside a browser.
  * @example
  * import { MetaMaskSigner } from '@nilfoundation/niljs';

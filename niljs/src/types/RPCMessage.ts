@@ -1,5 +1,11 @@
 import type { Hex } from "./Hex.js";
 
+/**
+ * The structure representing a JSON-RPC message.
+ *
+ * @export
+ * @typedef {RPCMessage}
+ */
 export type RPCMessage = {
   success: boolean;
   data: Hex;

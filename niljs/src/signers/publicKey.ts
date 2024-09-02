@@ -26,9 +26,9 @@ const getPublicKey = (privateKey: IPrivateKey, isCompressed = false): Hex => {
 
 /**
  * Returns the address from the public key.
- * @param publicKey - Public key in hex format
- * @param shardId - Shard id
- * @returns Address in hex format
+ * @param publicKey The public key in hex format
+ * @param shardId The ID of the shard where the address is located.
+ * @returns The address in hex format.
  */
 const getAddressFromPublicKey = (publicKey: Hex, shardId: number): IAddress => {
   assertIsValidShardId(shardId);

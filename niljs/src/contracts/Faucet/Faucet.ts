@@ -7,21 +7,21 @@ import { waitTillCompleted } from "../../utils/receipt.js";
 import FaucetAbi from "./Faucet.abi.json";
 
 /**
- * Faucet is a special contract that is used to top up other contracts in the =nil; devnet.
+ * The Faucet is a special contract that is used to top up other contracts in the =nil; devnet.
  *
  * @class Faucet
  * @typedef {Faucet}
  */
 export class Faucet {
   /**
-   * The const address of the faucet contract.
+   * The const address of the Faucet contract.
    *
    * @static
    * @type {"0x000100000000000000000000000000000FA00CE7"}
    */
   static address = "0x000100000000000000000000000000000FA00CE7" as const;
   /**
-   * The client to be used with the faucet contract.
+   * The client to be used with the Faucet contract.
    *
    * @private
    * @type {PublicClient}
