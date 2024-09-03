@@ -20,9 +20,9 @@ type badgerDB struct {
 
 type BadgerDBOptions struct {
 	Path         string        `yaml:"path"`
-	DiscardRatio float64       `yaml:"gcDiscardRatio"`
-	GcFrequency  time.Duration `yaml:"gcFrequency"`
-	AllowDrop    bool          `yaml:"allowDrop"`
+	DiscardRatio float64       `yaml:"gcDiscardRatio,omitempty"`
+	GcFrequency  time.Duration `yaml:"gcFrequency,omitempty"`
+	AllowDrop    bool          `yaml:"allowDrop,omitempty"`
 }
 
 func NewDefaultBadgerDBOptions() *BadgerDBOptions {

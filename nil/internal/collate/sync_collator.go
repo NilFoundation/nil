@@ -148,7 +148,12 @@ func (s *syncCollator) processTopicMessage(ctx context.Context, data []byte) (bo
 	}
 
 	if block.PrevBlock != s.lastBlockHash {
-		panic(fmt.Errorf("prev block hash mismatch: expected %x, got %x", s.lastBlockHash, block.PrevBlock))
+		msg := fmt.Sprintf("Prev block hash mismatch: expected %x, got %x", s.lastBlockHash, block.PrevBlock)
+		s.logger.Error().
+			Stringer(logging.FieldBlockNumber, block.Id).
+			Stringer(logging.FieldBlockHash, block.Hash()).
+			Msg(msg)
+		panic(msg)
 	}
 
 	if err := s.saveBlock(ctx, b); err != nil {

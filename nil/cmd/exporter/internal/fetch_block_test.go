@@ -7,7 +7,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
@@ -61,13 +60,10 @@ func (s *SuiteFetchBlock) SetupSuite() {
 	database, err := db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 
-	cfg := &nilservice.Config{
-		NShards:              s.nShards,
-		HttpUrl:              url,
-		Topology:             collate.TrivialShardTopologyId,
-		CollatorTickPeriodMs: 100,
-		GasBasePrice:         10,
-	}
+	cfg := nilservice.NewDefaultConfig()
+	cfg.NShards = s.nShards
+	cfg.HttpUrl = url
+	cfg.CollatorTickPeriodMs = 100
 	go nilservice.Run(s.context, cfg, database, nil)
 
 	time.Sleep(time.Second) // To be sure that server is started
