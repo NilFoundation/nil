@@ -165,7 +165,7 @@ func getMaxMatchingRoute(tree *Reader, key []byte) ([]Node, error) {
 	}
 
 	nodes := make([]Node, 0)
-	_, err := tree.descendWithCallback(tree.root, *newPath(key, 0), func(n Node) {
+	_, err := tree.descendWithCallback(tree.root, *newPath(key, false), func(n Node) {
 		nodes = append(nodes, n)
 	})
 	if errors.Is(err, db.ErrKeyNotFound) {
