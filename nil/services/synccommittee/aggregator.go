@@ -12,6 +12,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
+const (
+	MaxBloksPerShard = uint64(10)
+)
+
 type Aggregator struct {
 	logger   zerolog.Logger
 	client   *rpc.Client
@@ -20,7 +24,7 @@ type Aggregator struct {
 	metrics  *MetricsHandler
 }
 
-func NewAggregator(client *rpc.Client, logger zerolog.Logger) (*Aggregator, error) {
+func NewAggregator(client *rpc.Client, logger zerolog.Logger, proposer *Proposer) (*Aggregator, error) {
 	metrics, err := NewMetricsHandler("github.com/NilFoundation/nil/nil/services/sync_committee")
 	if err != nil {
 		return nil, err
@@ -30,7 +34,7 @@ func NewAggregator(client *rpc.Client, logger zerolog.Logger) (*Aggregator, erro
 		logger:   logger,
 		client:   client,
 		storage:  NewBlockStorage(),
-		proposer: NewProposer("", logger),
+		proposer: proposer,
 		metrics:  metrics,
 	}, nil
 }
@@ -117,6 +121,7 @@ func (agg *Aggregator) sendProof() error {
 		Stringer("newStateRoot", newStateRoot).
 		Int64("blkCount", int64(lastFetchedBlockNum-lastProvedBlockNum)).
 		Int64("transactionsCount", int64(len(transactions))).Msg("send proof")
+	// temporary soluton for check Proposer, actually should be called from TaskScheduler ater generate proof
 	err := agg.proposer.SendProof(provedStateRoot, newStateRoot, transactions)
 	if err != nil {
 		return fmt.Errorf("failed send proof: %w", err)
@@ -144,8 +149,8 @@ func (agg *Aggregator) createProofTasks(ctx context.Context, blockForProof *json
 	agg.metrics.RecordBlocksInTasks(ctx, 1)
 }
 
-// validateAndStoreBlock checks the validity of a block and stores it if valid.
-func (agg *Aggregator) validateAndStoreBlock(ctx context.Context, block *jsonrpc.RPCBlock) error {
+// validateAndProcessBlock checks the validity of a block and stores it if valid.
+func (agg *Aggregator) validateAndProcessBlock(ctx context.Context, block *jsonrpc.RPCBlock) error {
 	prevBlock := agg.storage.GetBlock(block.ShardId, block.Number-1)
 	if prevBlock != nil && prevBlock.Hash != block.ParentHash {
 		return fmt.Errorf("block hash mismatch for block %d", block.Number)
@@ -158,8 +163,8 @@ func (agg *Aggregator) validateAndStoreBlock(ctx context.Context, block *jsonrpc
 	return nil
 }
 
-// fetchAndStoreBlocks retrieves a range of blocks for a specific shard and stores them.
-func (agg *Aggregator) fetchAndStoreBlocks(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber) error {
+// fetchAndProcessBlocks retrieves a range of blocks for a specific shard and stores them.
+func (agg *Aggregator) fetchAndProcessBlocks(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber) error {
 	batch := agg.client.CreateBatchRequest()
 	for i := from; i <= to; i++ {
 		if _, err := batch.GetBlock(shardId, transport.BlockNumber(i), true); err != nil {
@@ -179,7 +184,7 @@ func (agg *Aggregator) fetchAndStoreBlocks(ctx context.Context, shardId types.Sh
 		if !ok {
 			return fmt.Errorf("invalid type for BatchCall result, expected *jsonrpc.RPCBlock. Shard %d", shardId)
 		}
-		if err := agg.validateAndStoreBlock(ctx, block); err != nil {
+		if err := agg.validateAndProcessBlock(ctx, block); err != nil {
 			agg.logger.Warn().Err(err).Stringer(logging.FieldShardId, shardId).Stringer(logging.FieldBlockNumber, block.Number).Msg("error validating and storing block")
 		}
 	}
@@ -238,14 +243,14 @@ func (agg *Aggregator) processShardBlocks(ctx context.Context, shardId types.Sha
 	switch {
 	case lastFetchedBlockNum == 0:
 		agg.storage.SetLastProvedBlockNum(shardId, latestBlockNum)
-		if err := agg.fetchAndStoreBlocks(ctx, shardId, latestBlockNum, latestBlockNum); err != nil {
+		if err := agg.fetchAndProcessBlocks(ctx, shardId, latestBlockNum, latestBlockNum); err != nil {
 			return err
 		}
 		agg.metrics.RecordBlocksFetched(ctx, 1)
 
 	case latestBlockNum > lastFetchedBlockNum:
 		blocksFetched := latestBlockNum - lastFetchedBlockNum
-		if err := agg.fetchAndStoreBlocks(ctx, shardId, lastFetchedBlockNum+1, latestBlockNum); err != nil {
+		if err := agg.fetchAndProcessBlocks(ctx, shardId, lastFetchedBlockNum+1, latestBlockNum); err != nil {
 			return err
 		}
 		agg.metrics.RecordBlocksFetched(ctx, int64(blocksFetched))

@@ -70,7 +70,7 @@ func (s *AggregatorTestSuite) TearDownSuite() {
 
 func (s *AggregatorTestSuite) SetupTest() {
 	var err error
-	s.aggregator, err = NewAggregator(s.client, s.logger)
+	s.aggregator, err = NewAggregator(s.client, s.logger, NewProposer("", s.logger))
 	s.Require().NoError(err)
 }
 
@@ -94,7 +94,7 @@ func (s *AggregatorTestSuite) TestFetchAndStoreBlocks() {
 
 	for _, shardId := range shardIdList {
 		latestBlockForShardNumber := latestBlocks[shardId].Number
-		err := s.aggregator.fetchAndStoreBlocks(context.Background(), shardId, 0, latestBlockForShardNumber)
+		err := s.aggregator.fetchAndProcessBlocks(context.Background(), shardId, 0, latestBlockForShardNumber)
 		s.Require().NoError(err)
 
 		// Check if blocks were stored
@@ -118,7 +118,7 @@ func (s *AggregatorTestSuite) TestValidateAndStoreBlock() {
 		s.Require().NotNil(latestBlock)
 
 		// Validate and store the block
-		err = s.aggregator.validateAndStoreBlock(context.Background(), latestBlock)
+		err = s.aggregator.validateAndProcessBlock(context.Background(), latestBlock)
 		s.Require().NoError(err)
 
 		// Check if the block was stored
@@ -144,7 +144,7 @@ func (s *AggregatorTestSuite) TestValidateAndStoreBlockMismatch() {
 	s.aggregator.storage.SetBlock(&block2)
 
 	// Try to validate and store the second block
-	err := s.aggregator.validateAndStoreBlock(context.Background(), &block2)
+	err := s.aggregator.validateAndProcessBlock(context.Background(), &block2)
 	s.Require().Error(err)
 	s.Require().Contains(err.Error(), "block hash mismatch")
 }

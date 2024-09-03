@@ -19,6 +19,7 @@ type SyncCommittee struct {
 	database   db.DB
 	logger     zerolog.Logger
 	client     *rpc.Client
+	proposer   *Proposer
 	aggregator *Aggregator
 }
 
@@ -27,7 +28,9 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 
 	client := rpc.NewClient(cfg.RpcEndpoint, logger)
 
-	aggregator, err := NewAggregator(client, logger)
+	proposer := NewProposer("", logger)
+
+	aggregator, err := NewAggregator(client, logger, proposer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}
@@ -37,6 +40,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		database:   database,
 		logger:     logger,
 		client:     client,
+		proposer:   proposer,
 		aggregator: aggregator,
 	}
 
