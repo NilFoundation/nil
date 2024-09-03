@@ -1,6 +1,6 @@
 {
   "name": "@nilfoundation/hardhat-plugin",
-  "version": "0.12.2",
+  "version": "0.13.0",
   "description": "Custom Hardhat plugin to enable seamless deployment and interaction with applications within =nil;",
   "repository": {
     "type": "git",
@@ -22,7 +22,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@nilfoundation/niljs": "^0.12.0",
+    "@nilfoundation/niljs": "^0.13.0",
     "ethers": "^6.12.1",
     "hardhat": "^2.22.4",
     "viem": "^2.16.3"
