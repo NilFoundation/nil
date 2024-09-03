@@ -70,7 +70,7 @@ const config = {
     'docusaurus-plugin-goatcounter'
     ,
     [
-      'docusaurus-plugin-typedoc',
+      'nil-docusaurus-plugin-typedoc',
       {
         out: "./nil/reference/client",
         outputFileStrategy: "members",

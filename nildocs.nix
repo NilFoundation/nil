@@ -37,8 +37,6 @@ stdenv.mkDerivation rec {
 
     export NILJS_SRC=${./niljs}
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
-    export NODE_OPTIONS=--openssl-legacy-provider
-
     cd docs
     npm run build
   '';
