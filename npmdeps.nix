@@ -13,5 +13,5 @@ in
       ./niljs/package.json
     ];
   };
-  hash = "sha256-YoLNsOrAESBsDipBg+P+dXPO9jefPAK9G1IqW4WGFJw=";
+  hash = "sha256-ZmubuxjnM5HrbFWmdpEnX1cYXXGEq1yG0ZHuzkHOBrE=";
 })
