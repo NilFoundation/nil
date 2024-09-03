@@ -34,6 +34,7 @@ stdenv.mkDerivation rec {
   doCheck = enableTesting;
 
   checkPhase = ''
+    patchShebangs node_modules
     npm run test:unit
 
     nohup nild run > nild.log 2>&1 & echo $! > nild_pid
