@@ -103,10 +103,11 @@ func (g *BlockGenerator) GenerateZeroState(zeroStateYaml string, config *ZeroSta
 		return nil, err
 	}
 
-	return g.finalize(0)
+	b, _, err := g.finalize(0)
+	return b, err
 }
 
-func (g *BlockGenerator) GenerateBlock(proposal *Proposal) (*types.Block, error) {
+func (g *BlockGenerator) GenerateBlock(proposal *Proposal) (*types.Block, []*types.Message, error) {
 	if g.executionState.PrevBlock != proposal.PrevBlockHash {
 		// This shouldn't happen currently, because a new block cannot appear between collator and block generator calls.
 		panic("Proposed previous block hash doesn't match the current state.")
@@ -126,7 +127,7 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal) (*types.Block, error)
 			res = g.handleExternalMessage(msg)
 		}
 		if res.FatalError != nil {
-			return nil, res.FatalError
+			return nil, nil, res.FatalError
 		}
 		g.addReceipt(res)
 	}
@@ -139,7 +140,7 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal) (*types.Block, error)
 	g.executionState.ChildChainBlocks = proposal.ShardHashes
 
 	if err := db.WriteCollatorState(g.rwTx, g.params.ShardId, proposal.CollatorState); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return g.finalize(proposal.PrevBlockId + 1)
@@ -209,35 +210,42 @@ func (g *BlockGenerator) addReceipt(execResult *ExecutionResult) {
 	}
 }
 
-func (g *BlockGenerator) finalize(blockId types.BlockNumber) (*types.Block, error) {
+func (g *BlockGenerator) finalize(blockId types.BlockNumber) (*types.Block, []*types.Message, error) {
 	blockHash, err := g.executionState.Commit(blockId)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	block, err := PostprocessBlock(g.rwTx, g.params.ShardId, g.params.GasBasePrice, g.params.GasPriceScale, blockHash)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	ts, err := g.rwTx.CommitWithTs()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// TODO: We should perform block commit and timestamp write atomically.
 	tx, err := g.txFabric.CreateRwTx(g.ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err := db.WriteBlockTimestamp(tx, g.params.ShardId, blockHash, uint64(ts)); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return block, nil
+	var outs []*types.Message
+	for _, msgs := range g.executionState.OutMessages {
+		for _, msg := range msgs {
+			outs = append(outs, msg.Message)
+		}
+	}
+
+	return block, outs, nil
 }

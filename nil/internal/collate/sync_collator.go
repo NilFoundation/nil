@@ -2,7 +2,10 @@ package collate
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"math"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/client"
@@ -11,42 +14,58 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
+	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
 )
 
 type syncCollator struct {
-	msgPool  msgpool.Pool
-	logger   zerolog.Logger
-	shard    types.ShardId
-	endpoint string
-	client   client.Client
-	db       db.DB
-	tick     time.Duration
+	// todo: remove
+	msgPool msgpool.Pool
+	client  client.Client
 
-	lastBlockNumber transport.BlockNumber
+	shard types.ShardId
+
+	// Syncer will actively pull blocks if no new blocks appear in the topic for this duration.
+	timeout time.Duration
+
+	db             db.DB
+	networkManager *network.Manager
+
+	logger zerolog.Logger
+
+	lastBlockNumber types.BlockNumber
 	lastBlockHash   common.Hash
 }
 
-func NewSyncCollator(ctx context.Context, msgPool msgpool.Pool, shard types.ShardId, endpoint string, tick time.Duration, db db.DB) (*syncCollator, error) {
-	logger := logging.NewLogger("collator").With().Stringer(logging.FieldShardId, shard).Logger()
-	s := syncCollator{
-		msgPool:  msgPool,
-		logger:   logger,
-		shard:    shard,
-		endpoint: endpoint,
-		client:   rpc_client.NewClient(endpoint, logger),
-		db:       db,
-		tick:     tick,
+func NewSyncCollator(ctx context.Context, msgPool msgpool.Pool,
+	shard types.ShardId, endpoint string, timeout time.Duration,
+	db db.DB, networkManager *network.Manager,
+) (*syncCollator, error) {
+	logger := logging.NewLogger("sync").With().Stringer(logging.FieldShardId, shard).Logger()
+	s := &syncCollator{
+		msgPool:         msgPool,
+		client:          rpc_client.NewClient(endpoint, logger),
+		shard:           shard,
+		timeout:         timeout,
+		db:              db,
+		networkManager:  networkManager,
+		logger:          logger,
+		lastBlockNumber: types.BlockNumber(math.MaxUint64),
 	}
 	err := s.readLastBlockNumber(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read last block number: %w", err)
 	}
-	return &s, nil
+
+	s.logger.Debug().
+		Stringer(logging.FieldBlockHash, s.lastBlockHash).
+		Uint64(logging.FieldBlockNumber, s.lastBlockNumber.Uint64()).
+		Msgf("Initialized sync collator at starting block")
+
+	return s, nil
 }
 
 func (s *syncCollator) readLastBlockNumber(ctx context.Context) error {
@@ -57,36 +76,92 @@ func (s *syncCollator) readLastBlockNumber(ctx context.Context) error {
 	defer rotx.Rollback()
 	lastBlock, err := db.ReadLastBlock(rotx, s.shard)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		s.logger.Error().Err(err).Msg("Failed to read last block")
 		return err
 	}
 	if err == nil {
-		s.lastBlockNumber = transport.BlockNumber(lastBlock.Id)
+		s.lastBlockNumber = lastBlock.Id
 		s.lastBlockHash = lastBlock.Hash()
-	} else {
-		s.lastBlockNumber = transport.BlockNumber(-1)
 	}
-	s.logger.Info().Stringer("hash", s.lastBlockHash).Uint64("number", s.lastBlockNumber.Uint64()).Msgf("Last block")
 	return nil
 }
 
 func (s *syncCollator) Run(ctx context.Context) error {
 	s.logger.Info().Msg("Starting sync")
+
+	var ch <-chan []byte
+
+	if s.networkManager == nil {
+		// todo: network must be on
+		// make dummy channel for now
+		c := make(chan []byte)
+		defer close(c)
+		ch = c
+	} else {
+		sub, err := s.networkManager.PubSub().Subscribe(topicShardBlocks(s.shard))
+		if err != nil {
+			return err
+		}
+		defer sub.Close()
+
+		ch, err = sub.Start(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
 			s.logger.Info().Msg("Sync collator is terminated")
 			return nil
-		case <-time.After(s.tick):
+		case data := <-ch:
+			saved, err := s.processTopicMessage(ctx, data)
+			if err != nil {
+				s.logger.Error().Err(err).Msg("Failed to process topic message")
+			}
+			if !saved {
+				s.fetchBlocks(ctx)
+			}
+		case <-time.After(s.timeout):
 			s.fetchBlocks(ctx)
 		}
 	}
 }
 
+func (s *syncCollator) processTopicMessage(ctx context.Context, data []byte) (bool, error) {
+	b := &Block{}
+	if err := json.Unmarshal(data, b); err != nil {
+		return false, err
+	}
+
+	block := b.Block
+	s.logger.Debug().
+		Stringer(logging.FieldBlockNumber, block.Id).
+		Stringer(logging.FieldBlockHash, block.Hash()).
+		Msg("Received block")
+
+	if block.Id != s.lastBlockNumber+1 {
+		s.logger.Debug().
+			Stringer(logging.FieldBlockNumber, block.Id).
+			Msgf("Received block is out of order with the last block %d", s.lastBlockNumber)
+		return false, nil
+	}
+
+	if block.PrevBlock != s.lastBlockHash {
+		panic(fmt.Errorf("prev block hash mismatch: expected %x, got %x", s.lastBlockHash, block.PrevBlock))
+	}
+
+	if err := s.saveBlock(ctx, b); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 func (s *syncCollator) fetchBlocks(ctx context.Context) {
 	for {
 		s.logger.Debug().Msg("Fetching next block")
-		block, err := s.client.GetDebugBlock(s.shard, s.lastBlockNumber+1, true)
+		block, err := s.client.GetDebugBlock(s.shard, uint64(s.lastBlockNumber+1), true)
 		if err != nil {
 			s.logger.Error().Err(err).Msg("Failed to fetch block")
 			return
@@ -95,14 +170,14 @@ func (s *syncCollator) fetchBlocks(ctx context.Context) {
 			s.logger.Debug().Msg("No new block")
 			return
 		}
-		if err = s.saveBlock(ctx, block); err != nil {
+		if err := s.saveDebugBlock(ctx, block); err != nil {
 			s.logger.Error().Err(err).Msg("Failed to save block")
 			return
 		}
 	}
 }
 
-func (s *syncCollator) saveBlock(ctx context.Context, block *jsonrpc.HexedDebugRPCBlock) error {
+func (s *syncCollator) saveDebugBlock(ctx context.Context, block *jsonrpc.HexedDebugRPCBlock) error {
 	s.logger.Trace().Msgf("Fetched block: %s", block)
 	data, err := block.DecodeHexAndSSZ()
 	if err != nil {
@@ -114,46 +189,55 @@ func (s *syncCollator) saveBlock(ctx context.Context, block *jsonrpc.HexedDebugR
 			"Prev block hash mismatch: expected %x, got %x", s.lastBlockHash, data.Block.PrevBlock)
 		panic("prev block hash mismatch")
 	}
-	if data.Block.Id != types.BlockNumber(s.lastBlockNumber+1) {
+	if data.Block.Id != s.lastBlockNumber+1 {
 		s.logger.Error().Msgf(
 			"Block number mismatch: expected %d, got %d", s.lastBlockNumber+1, data.Block.Id)
 		panic("block number mismatch")
 	}
+
+	return s.saveBlock(ctx, &Block{
+		Block:       data.Block,
+		OutMessages: data.OutMessages,
+	})
+}
+
+func (s *syncCollator) saveBlock(ctx context.Context, block *Block) error {
 	tx, err := s.db.CreateRwTx(ctx)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to create rw tx")
 		return err
 	}
 	defer tx.Rollback()
-	err = db.WriteBlock(tx, s.shard, data.Block)
-	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to write block")
+
+	if err := db.WriteBlock(tx, s.shard, block.Block); err != nil {
 		return err
 	}
-	msgRoot, err := s.saveMessages(tx, data.OutMessages)
+
+	msgRoot, err := s.saveMessages(tx, block.OutMessages)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to save messages")
 		return err
 	}
-	if msgRoot != data.Block.OutMessagesRoot {
-		s.logger.Error().Msgf("Out messages root mismatch: expected %x, got %x", data.Block.OutMessagesRoot, msgRoot)
+
+	if msgRoot != block.Block.OutMessagesRoot {
 		return errors.New("out messages root mismatch")
 	}
 
-	blockHash := data.Block.Hash()
-	_, err = execution.PostprocessBlock(tx, s.shard, data.Block.GasPrice, 1, blockHash)
+	blockHash := block.Block.Hash()
+	_, err = execution.PostprocessBlock(tx, s.shard, block.Block.GasPrice, 1, blockHash)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to update indexes")
 		return err
 	}
 
 	if err := tx.Commit(); err != nil {
-		s.logger.Error().Err(err).Msg("Failed to commit tx")
 		return err
 	}
-	s.lastBlockNumber = transport.BlockNumber(data.Block.Id)
+
+	s.lastBlockNumber = block.Block.Id
 	s.lastBlockHash = blockHash
-	s.logger.Info().Msgf("Block %d is written", s.lastBlockNumber)
+
+	s.logger.Debug().
+		Stringer(logging.FieldBlockNumber, s.lastBlockNumber).
+		Msg("Block written")
+
 	return nil
 }
 
