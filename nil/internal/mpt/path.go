@@ -136,3 +136,19 @@ func (path *Path) Combine(other *Path) *Path {
 	c := Chained{path, other}
 	return createNew(&c, c.Size())
 }
+
+func CommonPrefix(paths []*Path) *Path {
+	if len(paths) == 0 {
+		return nil
+	}
+
+	prefix := newPath(paths[0].Data, paths[0].Offset)
+	for _, p := range paths[1:] {
+		prefix = prefix.CommonPrefix(p)
+		if prefix.Size() == 0 {
+			break
+		}
+	}
+
+	return prefix
+}
