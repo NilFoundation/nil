@@ -27,7 +27,7 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Byte
 	}
 
 	msg := extMsg.ToMessage()
-	reason, err := api.msgPools[shardId].Add(ctx, []*types.Message{msg})
+	reason, err := api.msgPools[shardId].Add(ctx, msg)
 	if err != nil {
 		return common.Hash{}, err
 	}

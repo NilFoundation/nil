@@ -6,13 +6,10 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/NilFoundation/nil/nil/services/rpc/filters"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport/rpccfg"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -36,12 +33,7 @@ func (s *SuiteEthFilters) SetupTest() {
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 
-	pool := msgpool.New(msgpool.DefaultConfig)
-	s.Require().NotNil(pool)
-
-	s.api, err = NewEthAPI(s.ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), s.db, []msgpool.Pool{pool}, true, logging.NewLogger("Test"))
-	s.Require().NoError(err)
+	s.api = NewTestEthAPI(s.T(), s.ctx, s.db, 1)
 }
 
 func (s *SuiteEthFilters) TearDownTest() {

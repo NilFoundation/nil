@@ -7,6 +7,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -332,7 +333,7 @@ type APIImpl struct {
 }
 
 // NewEthAPI returns APIImpl instance
-func NewEthAPI(ctx context.Context, base *BaseAPI, db db.ReadOnlyDB, pools []msgpool.Pool, pollBlocksForLogs bool, logger zerolog.Logger) (*APIImpl, error) {
+func NewEthAPI(ctx context.Context, base *BaseAPI, db db.ReadOnlyDB, pools []msgpool.Pool, pollBlocksForLogs bool) (*APIImpl, error) {
 	accessor, err := execution.NewStateAccessor()
 	if err != nil {
 		return nil, err
@@ -341,7 +342,7 @@ func NewEthAPI(ctx context.Context, base *BaseAPI, db db.ReadOnlyDB, pools []msg
 		BaseAPI:  base,
 		db:       db,
 		msgPools: pools,
-		logger:   logger,
+		logger:   logging.NewLogger("eth-api"),
 		accessor: accessor,
 	}
 	api.logs = NewLogsAggregator(ctx, db, pollBlocksForLogs)

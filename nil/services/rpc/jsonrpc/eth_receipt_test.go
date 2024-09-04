@@ -4,12 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/msgpool"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport/rpccfg"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -28,12 +25,7 @@ func (suite *SuiteEthReceipt) SetupSuite() {
 	suite.db, err = db.NewBadgerDbInMemory()
 	suite.Require().NoError(err)
 
-	pool := msgpool.New(msgpool.DefaultConfig)
-	suite.Require().NotNil(pool)
-
-	suite.api, err = NewEthAPI(ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool, pool}, true, logging.NewLogger("Test"))
-	suite.Require().NoError(err)
+	suite.api = NewTestEthAPI(suite.T(), ctx, suite.db, 2)
 
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Require().NoError(err)

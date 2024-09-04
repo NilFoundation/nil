@@ -5,12 +5,9 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/msgpool"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport/rpccfg"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -33,12 +30,7 @@ func (s *SuiteEthMessage) SetupSuite() {
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 
-	pool := msgpool.New(msgpool.DefaultConfig)
-	s.Require().NotNil(pool)
-
-	s.api, err = NewEthAPI(s.ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), s.db, []msgpool.Pool{pool, pool}, true, logging.NewLogger("Test"))
-	s.Require().NoError(err)
+	s.api = NewTestEthAPI(s.T(), s.ctx, s.db, 2)
 
 	tx, err := s.db.CreateRwTx(s.ctx)
 	s.Require().NoError(err)
