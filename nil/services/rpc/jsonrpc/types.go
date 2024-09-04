@@ -124,17 +124,18 @@ type RPCInMessage struct {
 // @componentprop ReceiptsRoot receiptsRoot string true "The root of the block receipts."
 // @componentprop ShardId shardId integer true "The ID of the shard where the block was generated."
 type RPCBlock struct {
-	Number         types.BlockNumber `json:"number"`
-	Hash           common.Hash       `json:"hash"`
-	ParentHash     common.Hash       `json:"parentHash"`
-	InMessagesRoot common.Hash       `json:"inMessagesRoot"`
-	ReceiptsRoot   common.Hash       `json:"receiptsRoot"`
-	ShardId        types.ShardId     `json:"shardId"`
-	Messages       []any             `json:"messages"`
-	ChildBlocks    []common.Hash     `json:"childBlocks"`
-	MainChainHash  common.Hash       `json:"mainChainHash"`
-	DbTimestamp    uint64            `json:"dbTimestamp"`
-	GasPrice       types.Value       `json:"gasPrice"`
+	Number              types.BlockNumber `json:"number"`
+	Hash                common.Hash       `json:"hash"`
+	ParentHash          common.Hash       `json:"parentHash"`
+	InMessagesRoot      common.Hash       `json:"inMessagesRoot"`
+	ReceiptsRoot        common.Hash       `json:"receiptsRoot"`
+	ChildBlocksRootHash common.Hash       `json:"childBlocksRootHash"`
+	ShardId             types.ShardId     `json:"shardId"`
+	Messages            []any             `json:"messages"`
+	ChildBlocks         []common.Hash     `json:"childBlocks"`
+	MainChainHash       common.Hash       `json:"mainChainHash"`
+	DbTimestamp         uint64            `json:"dbTimestamp"`
+	GasPrice            types.Value       `json:"gasPrice"`
 }
 
 type HexedDebugRPCBlock struct {
@@ -333,17 +334,18 @@ func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*
 	}
 
 	return &RPCBlock{
-		Number:         block.Id,
-		Hash:           block.Hash(),
-		ParentHash:     block.PrevBlock,
-		InMessagesRoot: block.InMessagesRoot,
-		ReceiptsRoot:   block.ReceiptsRoot,
-		ShardId:        shardId,
-		Messages:       messagesRes,
-		ChildBlocks:    childBlocks,
-		MainChainHash:  block.MainChainHash,
-		DbTimestamp:    dbTimestamp,
-		GasPrice:       block.GasPrice,
+		Number:              block.Id,
+		Hash:                block.Hash(),
+		ParentHash:          block.PrevBlock,
+		InMessagesRoot:      block.InMessagesRoot,
+		ReceiptsRoot:        block.ReceiptsRoot,
+		ChildBlocksRootHash: block.ChildBlocksRootHash,
+		ShardId:             shardId,
+		Messages:            messagesRes,
+		ChildBlocks:         childBlocks,
+		MainChainHash:       block.MainChainHash,
+		DbTimestamp:         dbTimestamp,
+		GasPrice:            block.GasPrice,
 	}, nil
 }
 
