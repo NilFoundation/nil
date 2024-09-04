@@ -1,0 +1,11 @@
+artifacts
+
+.env
+
+logs
+*.log
+npm-debug.log*
+
+*.tgz
+
+node_modules

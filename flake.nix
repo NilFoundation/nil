@@ -24,6 +24,7 @@
           default = nil;
           formatters = (pkgs.callPackage ./formatters.nix { });
           nilcli = (pkgs.callPackage ./nilcli.nix { nil = nil; versionFull = versionFull; });
+          nilsmartcontracts = (pkgs.callPackage ./nilsmartcontracts.nix { });
         };
         checks = rec {
           nil = (pkgs.callPackage ./nil.nix {
@@ -40,6 +41,10 @@
             enableTesting = true;
           });
           nilhardhat = (pkgs.callPackage ./nilhardhat.nix {
+            nil = nil;
+            enableTesting = true;
+          });
+          nilsmartcontracts = (pkgs.callPackage ./nilsmartcontracts.nix {
             nil = nil;
             enableTesting = true;
           });

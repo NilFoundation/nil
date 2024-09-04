@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Type definitions for nil network rpc api",
   "sideEffects": false,
+  "engines": {
+    "node": ">=14"
+  },
   "types": "./dist/index.d.ts",
   "files": [
     "dist"
