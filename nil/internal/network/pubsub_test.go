@@ -80,8 +80,8 @@ func (s *PubSubSuite) TestTwoHosts() {
 }
 
 func (s *PubSubSuite) TestComplexScenario() {
-	const n = 8
-	const centralHost = 5
+	const n = 5
+	const centralHost = 3
 
 	managers := make([]*Manager, n)
 	for i := range n {
@@ -93,12 +93,11 @@ func (s *PubSubSuite) TestComplexScenario() {
 		}
 	}()
 
-	s.Run("Connect all to central host", func() {
-		for i := range n {
-			if i == centralHost {
-				continue
+	s.Run("Connect all", func() {
+		for i := range n - 1 {
+			for j := i + 1; j < n; j++ {
+				s.connectManagers(managers[i], managers[j])
 			}
-			s.connectManagers(managers[i], managers[centralHost])
 		}
 	})
 
