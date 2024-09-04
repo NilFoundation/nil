@@ -4,7 +4,7 @@ import { ExternalMessageEnvelope } from "../../encoding/externalMessage.js";
 import { hexToBytes } from "../../index.js";
 import { getShardIdFromAddress } from "../../utils/address.js";
 import { waitTillCompleted } from "../../utils/receipt.js";
-import FaucetAbi from "./Faucet.abi.json";
+import FaucetCompiled from "@nilfoundation/smart-contracts/artifacts/Faucet.json"
 
 /**
  * The Faucet is a special contract that is used to top up other contracts in the =nil; devnet.
@@ -54,7 +54,7 @@ export class Faucet {
       this.client.chainId(),
     ]);
     const calldata = encodeFunctionData({
-      abi: FaucetAbi,
+      abi: FaucetCompiled.abi,
       functionName: "withdrawTo",
       args: [address.toLowerCase(), value],
     });
@@ -93,7 +93,7 @@ export class Faucet {
           this.client.chainId(),
         ]);
         const calldata = encodeFunctionData({
-          abi: FaucetAbi,
+          abi: FaucetCompiled.abi,
           functionName: "withdrawTo",
           args: [address.toLowerCase(), value],
         });

@@ -8,6 +8,7 @@ stdenv.mkDerivation rec {
     "package-lock.json"
     "^docs(/.*)?$"
     "^niljs(/.*)?$"
+    "^smart-contracts(/.*)?$"
   ];
 
   npmDeps = (callPackage ./npmdeps.nix { });
@@ -33,6 +34,7 @@ stdenv.mkDerivation rec {
   buildPhase = ''
     patchShebangs docs/node_modules
     patchShebangs niljs/node_modules
+    (cd smart-contracts; npm run compile)
     (cd niljs; npm run build)
 
     export NILJS_SRC=${./niljs}

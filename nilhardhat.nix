@@ -18,6 +18,7 @@ stdenv.mkDerivation rec {
     "^niljs(/.*)?$"
     "^nil/contracts/solidity(/.*)?$"
     "^hardhat-examples(/.*)?$"
+    "^smart-contracts(/.*)?$"
   ];
 
   soljson = builtins.fetchurl {
@@ -39,6 +40,7 @@ stdenv.mkDerivation rec {
 
   buildPhase = ''
     patchShebangs hardhat-plugin/node_modules
+    (cd smart-contracts; npm run compile)
     (cd niljs; npm run build)
     cd hardhat-plugin
     npm run build

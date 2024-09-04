@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./nil/Nil.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract Incrementer is NilBase {
     uint256 private value;
