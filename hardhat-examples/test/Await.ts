@@ -8,7 +8,9 @@ describe("Caller and Incrementer contract interaction", () => {
     let callerAddress: string;
     let incrementerAddress: string;
 
-    it("Should deploy Caller with shardId 2, deploy Incrementer with shardId 1, and call incrementer from caller", async () => {
+  it("Should deploy Caller with shardId 2, deploy Incrementer with shardId 1, and call incrementer from caller using await", async function() {
+        this.timeout(120000);
+
         // Set shardId to 2
         hre.config.shardId = 2;
         // Deploy Caller contract
@@ -30,11 +32,6 @@ describe("Caller and Incrementer contract interaction", () => {
 
         // Call the Caller contract's call method with the Incrementer address
         await awaiter.call(incrementerAddress);
-
-        // TODO: Currently, there is a bug in the implementation where nil.js is not waiting for all receipts.
-        // This is a temporary workaround to ensure that the necessary receipts are processed before continuing
-        // Once the fix is merged, this workaround can be removed
-        await new Promise(resolve => setTimeout(resolve, 3000));
 
         let value = await awaiter.result();
         console.log("returned value: ", value)

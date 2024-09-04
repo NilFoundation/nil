@@ -35,5 +35,7 @@ echo "Rpc endpoint: $NIL_RPC_ENDPOINT"
 echo "Private key: $PRIVATE_KEY"
 echo "Wallet addr: $WALLET_ADDR"
 
-cd tests
+# Update to reflect the new directory structure
+# Move to the directory where the script is located
+cd $(dirname "$0")
 CI=true npx hardhat test --network nil test/*.ts
