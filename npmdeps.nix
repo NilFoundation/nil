@@ -11,7 +11,8 @@ in
       ./docs/package.json
       ./hardhat-plugin/package.json
       ./niljs/package.json
+      ./smart-contracts/package.json
     ];
   };
-  hash = "sha256-FPZIRrE5L98t8xrapJvil8WWfw6vvDcdabH30WwVD+w=";
+  hash = "sha256-swm3hgJ3VMLokMTXXQEdGQwOMukOx69lXVeesxNt2wQ=";
 })
