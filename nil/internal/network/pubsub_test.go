@@ -46,8 +46,7 @@ func (s *PubSubSuite) TestSingleHost() {
 	s.Require().NoError(err)
 	defer sub.Close()
 
-	ch, err := sub.Start(s.context)
-	s.Require().NoError(err)
+	ch := sub.Start(s.context)
 
 	msg := []byte("hello")
 	err = manager.PubSub().Publish(s.context, topic, msg)
@@ -62,7 +61,7 @@ func (s *PubSubSuite) TestTwoHosts() {
 	m2 := s.newManager()
 	defer m2.Close()
 
-	s.connectManagers(m1, m2)
+	ConnectManagers(s.T(), m1, m2)
 
 	const topic = "test"
 	msg := []byte("hello")
@@ -70,7 +69,7 @@ func (s *PubSubSuite) TestTwoHosts() {
 	sub, err := m1.PubSub().Subscribe(topic)
 	s.Require().NoError(err)
 	defer sub.Close()
-	ch, err := sub.Start(s.context)
+	ch := sub.Start(s.context)
 	s.Require().NoError(err)
 
 	err = m2.PubSub().Publish(s.context, topic, msg)
@@ -94,11 +93,7 @@ func (s *PubSubSuite) TestComplexScenario() {
 	}()
 
 	s.Run("Connect all", func() {
-		for i := range n - 1 {
-			for j := i + 1; j < n; j++ {
-				s.connectManagers(managers[i], managers[j])
-			}
-		}
+		ConnectAllManagers(s.T(), managers...)
 	})
 
 	const topic1 = "test1"
@@ -121,7 +116,7 @@ func (s *PubSubSuite) TestComplexScenario() {
 			s.Require().NoError(err)
 			topic1Subs[i] = sub
 
-			topic1Channels[i], err = topic1Subs[i].Start(s.context)
+			topic1Channels[i] = topic1Subs[i].Start(s.context)
 			s.Require().NoError(err)
 		}
 	})
@@ -189,8 +184,7 @@ func (s *PubSubSuite) TestComplexScenario() {
 		})
 
 		s.Run("Receive from topic 2", func() {
-			ch, err := sub.Start(s.context)
-			s.Require().NoError(err)
+			ch := sub.Start(s.context)
 			s.receive(ch, msg)
 		})
 	})

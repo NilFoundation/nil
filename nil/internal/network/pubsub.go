@@ -57,6 +57,18 @@ func (ps *PubSub) Close() error {
 	return errors.Join(errs...)
 }
 
+func (ps *PubSub) Topics() []string {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	topics := make([]string, 0, len(ps.topics))
+	for topic := range ps.topics {
+		topics = append(topics, topic)
+	}
+
+	return topics
+}
+
 // Publish publishes a message to the given topic.
 func (ps *PubSub) Publish(ctx context.Context, topic string, data []byte) error {
 	ps.logger.Trace().Str(logging.FieldTopic, topic).Msg("Publishing message...")
@@ -112,7 +124,7 @@ func (ps *PubSub) getTopic(topic string) (*pubsub.Topic, error) {
 	return t, nil
 }
 
-func (s *Subscription) Start(ctx context.Context) (<-chan []byte, error) {
+func (s *Subscription) Start(ctx context.Context) <-chan []byte {
 	msgCh := make(chan []byte, subscriptionChannelSize)
 
 	go func() {
@@ -143,7 +155,7 @@ func (s *Subscription) Start(ctx context.Context) (<-chan []byte, error) {
 		s.logger.Debug().Msg("Subscription loop closed.")
 	}()
 
-	return msgCh, nil
+	return msgCh
 }
 
 func (s *Subscription) Close() {

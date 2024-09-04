@@ -125,10 +125,7 @@ func (s *syncCollator) Run(ctx context.Context) error {
 		}
 		defer sub.Close()
 
-		ch, err = sub.Start(ctx)
-		if err != nil {
-			return err
-		}
+		ch = sub.Start(ctx)
 	}
 
 	for {

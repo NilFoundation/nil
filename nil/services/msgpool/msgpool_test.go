@@ -2,9 +2,12 @@ package msgpool
 
 import (
 	"context"
+	"slices"
 	"testing"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/stretchr/testify/suite"
 )
@@ -18,9 +21,10 @@ type SuiteMsgPool struct {
 	pool *MsgPool
 }
 
-func newMessage(to types.Address, seqno types.Seqno, fee uint64) *types.Message {
+func newMessage(seqno types.Seqno, fee uint64) *types.Message {
+	address := types.ShardAndHexToAddress(0, "deadbeef")
 	return &types.Message{
-		To:    to,
+		To:    address,
 		Value: types.NewValueFromUint64(fee),
 		Seqno: seqno,
 	}
@@ -28,26 +32,35 @@ func newMessage(to types.Address, seqno types.Seqno, fee uint64) *types.Message 
 
 func (s *SuiteMsgPool) SetupTest() {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
-	s.pool = New(NewConfig(0))
+
+	var err error
+	s.pool, err = New(s.ctx, NewConfig(0), nil)
+	s.Require().NoError(err)
 }
 
 func (s *SuiteMsgPool) TearDownTest() {
 	s.cancel()
 }
 
-func (s *SuiteMsgPool) addMessagesSuccessfully(msg ...*types.Message) {
+func (s *SuiteMsgPool) addMessagesToPoolSuccessfully(pool Pool, msg ...*types.Message) {
 	s.T().Helper()
 
-	count := s.pool.MessageCount()
+	count := pool.MessageCount()
 
-	reasons, err := s.pool.Add(s.ctx, msg...)
+	reasons, err := pool.Add(s.ctx, msg...)
 	s.Require().NoError(err)
 	s.Require().Len(reasons, len(msg))
 	for _, reason := range reasons {
 		s.Equal(NotSet, reason)
 	}
 
-	s.Equal(count+len(msg), s.pool.MessageCount())
+	s.Equal(count+len(msg), pool.MessageCount())
+}
+
+func (s *SuiteMsgPool) addMessagesSuccessfully(msg ...*types.Message) {
+	s.T().Helper()
+
+	s.addMessagesToPoolSuccessfully(s.pool, msg...)
 }
 
 func (s *SuiteMsgPool) addMessageWithDiscardReason(msg *types.Message, reason DiscardReason) {
@@ -63,9 +76,12 @@ func (s *SuiteMsgPool) addMessageWithDiscardReason(msg *types.Message, reason Di
 }
 
 func (s *SuiteMsgPool) TestAdd() {
-	address := types.HexToAddress("deadbeef")
+	wrongShardMsg := newMessage(0, 123)
+	wrongShardMsg.To = types.ShardAndHexToAddress(1, "deadbeef")
+	_, err := s.pool.Add(s.ctx, wrongShardMsg)
+	s.Require().Error(err)
 
-	msg1 := newMessage(address, 0, 123)
+	msg1 := newMessage(0, 123)
 
 	// Send the message for the first time - OK
 	s.addMessagesSuccessfully(msg1)
@@ -93,27 +109,26 @@ func (s *SuiteMsgPool) TestAdd() {
 
 	// Add a message with higher seqno to the same receiver
 	s.addMessagesSuccessfully(
-		newMessage(address, 1, 124))
+		newMessage(1, 124))
 
 	// Add a message with lower seqno to the same receiver - SeqnoTooLow
 	s.addMessageWithDiscardReason(
-		newMessage(address, 0, 124), SeqnoTooLow)
+		newMessage(0, 124), SeqnoTooLow)
 
-	// Add a message with higher seqno to new receiver
-	s.addMessagesSuccessfully(
-		newMessage(types.HexToAddress("deadbeef02"), 1, 124))
+	// Add a message with higher seqno to a new receiver
+	otherAddressMsg := newMessage(1, 124)
+	otherAddressMsg.To = types.ShardAndHexToAddress(0, "deadbeef01")
+	s.addMessagesSuccessfully(otherAddressMsg)
 }
 
 func (s *SuiteMsgPool) TestAddOverflow() {
 	s.pool.cfg.Size = 1
 
-	address := types.HexToAddress("deadbeef")
-
 	s.addMessagesSuccessfully(
-		newMessage(address, 0, 123))
+		newMessage(0, 123))
 
 	s.addMessageWithDiscardReason(
-		newMessage(address, 1, 123), PoolOverflow)
+		newMessage(1, 123), PoolOverflow)
 }
 
 func (s *SuiteMsgPool) TestStarted() {
@@ -121,9 +136,7 @@ func (s *SuiteMsgPool) TestStarted() {
 }
 
 func (s *SuiteMsgPool) TestIdHashKnownGet() {
-	address := types.HexToAddress("deadbeef01")
-
-	msg := newMessage(address, 0, 123)
+	msg := newMessage(0, 123)
 	s.addMessagesSuccessfully(msg)
 
 	has, err := s.pool.IdHashKnown(msg.Hash())
@@ -144,15 +157,14 @@ func (s *SuiteMsgPool) TestIdHashKnownGet() {
 }
 
 func (s *SuiteMsgPool) TestSeqnoFromAddress() {
-	address := types.HexToAddress("deadbeef02")
+	msg := newMessage(0, 123)
 
-	_, inPool := s.pool.SeqnoToAddress(address)
+	_, inPool := s.pool.SeqnoToAddress(msg.To)
 	s.Require().False(inPool)
 
-	msg := newMessage(address, 0, 123)
 	s.addMessagesSuccessfully(msg)
 
-	seqno, inPool := s.pool.SeqnoToAddress(address)
+	seqno, inPool := s.pool.SeqnoToAddress(msg.To)
 	s.Require().True(inPool)
 	s.Require().EqualValues(0, seqno)
 
@@ -160,7 +172,7 @@ func (s *SuiteMsgPool) TestSeqnoFromAddress() {
 	nextMsg.Seqno++
 	s.addMessagesSuccessfully(nextMsg)
 
-	seqno, inPool = s.pool.SeqnoToAddress(address)
+	seqno, inPool = s.pool.SeqnoToAddress(msg.To)
 	s.Require().True(inPool)
 	s.Require().EqualValues(1, seqno)
 
@@ -169,14 +181,18 @@ func (s *SuiteMsgPool) TestSeqnoFromAddress() {
 }
 
 func (s *SuiteMsgPool) TestPeek() {
-	address1 := types.HexToAddress("deadbeef01")
-	address2 := types.HexToAddress("deadbeef02")
+	address2 := types.ShardAndHexToAddress(0, "deadbeef02")
+
+	msg21 := newMessage(0, 123)
+	msg21.To = address2
+	msg22 := newMessage(1, 123)
+	msg22.To = address2
 
 	s.addMessagesSuccessfully(
-		newMessage(address1, 0, 123),
-		newMessage(address1, 1, 123),
-		newMessage(address2, 0, 123),
-		newMessage(address2, 1, 123))
+		newMessage(0, 123),
+		newMessage(1, 123),
+		msg21,
+		msg22)
 
 	msgs, err := s.pool.Peek(s.ctx, 1)
 	s.Require().NoError(err)
@@ -192,27 +208,54 @@ func (s *SuiteMsgPool) TestPeek() {
 }
 
 func (s *SuiteMsgPool) TestOnNewBlock() {
-	address1 := types.HexToAddress("deadbeef01")
-	address2 := types.HexToAddress("deadbeef02")
+	address2 := types.ShardAndHexToAddress(0, "deadbeef02")
 
-	msg1_1 := newMessage(address1, 0, 123)
-	msg1_2 := newMessage(address1, 1, 123)
+	msg11 := newMessage(0, 123)
+	msg12 := newMessage(1, 123)
 
-	msg2_1 := newMessage(address2, 0, 123)
-	msg2_2 := newMessage(address2, 1, 123)
+	msg21 := newMessage(0, 123)
+	msg21.To = address2
+	msg22 := newMessage(1, 123)
+	msg22.To = address2
 
-	s.addMessagesSuccessfully(msg1_1, msg1_2, msg2_1, msg2_2)
+	s.addMessagesSuccessfully(msg11, msg12, msg21, msg22)
 
 	// TODO: Ideally we need to do that via execution state
-	err := s.pool.OnCommitted(s.ctx, []*types.Message{msg1_1, msg1_2, msg2_1})
+	err := s.pool.OnCommitted(s.ctx, []*types.Message{msg11, msg12, msg21})
 	s.Require().NoError(err)
 
 	// After commit Peek should return only one message
 	messages, err := s.pool.Peek(s.ctx, 10)
 	s.Require().NoError(err)
 	s.Require().Len(messages, 1)
-	s.Equal(msg2_2, messages[0])
+	s.Equal(msg22, messages[0])
 	s.Equal(1, s.pool.MessageCount())
+}
+
+func (s *SuiteMsgPool) TestNetwork() {
+	nms := network.NewTestManagers(s.T(), s.ctx, 2)
+
+	pool1, err := New(s.ctx, NewConfig(0), nms[0])
+	s.Require().NoError(err)
+	pool2, err := New(s.ctx, NewConfig(0), nms[1])
+	s.Require().NoError(err)
+
+	// Ensure that both nodes have subscribed, so that they will exchange this info on the following connect.
+	s.Require().Eventually(func() bool {
+		return slices.Contains(nms[0].PubSub().Topics(), topicPendingMessages(0)) &&
+			slices.Contains(nms[1].PubSub().Topics(), topicPendingMessages(0))
+	}, 1*time.Second, 50*time.Millisecond)
+
+	network.ConnectManagers(s.T(), nms[0], nms[1])
+
+	msg := newMessage(0, 123)
+	s.addMessagesToPoolSuccessfully(pool1, msg)
+
+	s.Eventually(func() bool {
+		has, err := pool2.IdHashKnown(msg.Hash())
+		s.Require().NoError(err)
+		return has
+	}, 10*time.Second, 100*time.Millisecond)
 }
 
 func TestSuiteMsgpool(t *testing.T) {

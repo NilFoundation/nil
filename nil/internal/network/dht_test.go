@@ -27,12 +27,12 @@ func (s *DHTSuite) TestTwoHosts() {
 	m1 := s.newManagerWithBaseConfig(conf)
 	defer m1.Close()
 
-	conf.DHTBootstrapPeers = []string{address(m1)}
+	conf.DHTBootstrapPeers = []string{CalcAddress(m1)}
 	m2 := s.newManagerWithBaseConfig(conf)
 	defer m2.Close()
 
-	s.waitForPeer(m1, m2.host.ID())
-	s.waitForPeer(m2, m1.host.ID())
+	WaitForPeer(s.T(), m1, m2.host.ID())
+	WaitForPeer(s.T(), m2, m1.host.ID())
 }
 
 func TestDHT(t *testing.T) {

@@ -250,7 +250,7 @@ func createCollators(ctx context.Context, cfg *Config, database db.DB, networkMa
 		var err error
 		shard := types.ShardId(i)
 		if cfg.IsShardActive(shard) {
-			collator, err = createActiveCollator(shard, cfg, collatorTickPeriod, database, networkManager)
+			collator, err = createActiveCollator(ctx, shard, cfg, collatorTickPeriod, database, networkManager)
 		} else {
 			collator, err = createSyncCollator(ctx, shard, cfg, syncerTimeout, database, networkManager)
 		}
@@ -267,12 +267,21 @@ func createSyncCollator(ctx context.Context, shard types.ShardId, cfg *Config, t
 	if !ok {
 		return nil, fmt.Errorf("no endpoint for shard %s", shard)
 	}
-	msgPool := msgpool.New(msgpool.NewConfig(shard))
+
+	msgPool, err := msgpool.New(ctx, msgpool.NewConfig(shard), networkManager)
+	if err != nil {
+		return nil, err
+	}
+
 	return collate.NewSyncCollator(ctx, msgPool, shard, endpoint, tick, database, networkManager, cfg.BootstrapPeer)
 }
 
-func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) (*collate.Scheduler, error) {
-	msgPool := msgpool.New(msgpool.NewConfig(shard))
+func createActiveCollator(ctx context.Context, shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) (*collate.Scheduler, error) {
+	msgPool, err := msgpool.New(ctx, msgpool.NewConfig(shard), networkManager)
+	if err != nil {
+		return nil, err
+	}
+
 	collatorCfg := collate.Params{
 		BlockGeneratorParams: execution.BlockGeneratorParams{
 			ShardId:       shard,
