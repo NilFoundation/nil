@@ -4,3 +4,10 @@ dist/
 /artifacts/
 /typechain-types/
 /ignition/deployments/
+
+# Local configuration files
+config.ini
+nild.log
+
+# Test database
+test.db/

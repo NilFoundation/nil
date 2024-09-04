@@ -17,6 +17,7 @@ stdenv.mkDerivation rec {
     "^hardhat-plugin(/.*)?$"
     "^niljs(/.*)?$"
     "^nil/contracts/solidity(/.*)?$"
+    "^hardhat-examples(/.*)?$"
   ];
 
   soljson = builtins.fetchurl {
@@ -46,6 +47,8 @@ stdenv.mkDerivation rec {
   doCheck = enableTesting;
 
   checkPhase = ''
+    cd ../hardhat-examples
+
     echo "Installing soljson"
     bash install_soljson.sh ${soljson}
 

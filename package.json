@@ -2,7 +2,7 @@
 	"name": "nil-monorepo",
 	"private": true,
 	"version": "1.0.0",
-	"workspaces": ["niljs", "hardhat-plugin", "docs", "smart-contracts"],
+	"workspaces": ["niljs", "hardhat-plugin", "hardhat-examples", "docs", "smart-contracts"],
 	"scripts": {
 		"lint": "npm run lint --workspaces --if-present",
 		"lint:fix": "npm run lint:fix --workspaces --if-present"
