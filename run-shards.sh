@@ -1,16 +1,14 @@
-#!/bin/sh -efx
-mkdir -p shard1 shard2
-PORT1=31337
-PORT2=31338
+#!/bin/sh -ef
+mkdir -p shard0 shard1 shard2
+PORTS=(31337 31338 31339)
 
-pushd shard1
-../build/bin/nild run --nshards 3 --run-only-shard 1 --port $PORT1 \
-    --shard-endpoints 2=http://127.0.0.1:$PORT2 &
-popd
+ENDPOINTS="0=http://127.0.0.1:${PORTS[0]},1=http://127.0.0.1:${PORTS[1]},2=http://127.0.0.1:${PORTS[2]}"
 
-pushd shard2
-../build/bin/nild run --nshards 3 --run-only-shard 2 --port $PORT2 \
-    --shard-endpoints 1=http://127.0.0.1:$PORT1 &
-popd
+for SH in 0 1 2; do
+    pushd shard$SH
+    ../build/bin/nild run --nshards 3 --my-shard $SH --port ${PORTS[$SH]} \
+        --shard-endpoints "$ENDPOINTS" &
+    popd
+done
 
 wait

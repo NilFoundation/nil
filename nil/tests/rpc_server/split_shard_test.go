@@ -60,8 +60,8 @@ func (s *SuiteSplitShard) start(cfg *nilservice.Config) {
 	}
 
 	portmap := make(map[string]string)
-	for i := range cfg.NShards - 1 {
-		shardId := types.ShardId(i + 1)
+	for i := range cfg.NShards {
+		shardId := types.ShardId(i)
 		url := GetSockPathIdx(s.T(), int(i))
 		shard := shard{
 			id:       shardId,
@@ -75,12 +75,13 @@ func (s *SuiteSplitShard) start(cfg *nilservice.Config) {
 	}
 
 	PatchConfigWithTestDefaults(cfg)
-	for i := range cfg.NShards - 1 {
+	for i := range cfg.NShards {
 		s.wg.Add(1)
 		go func() {
 			shardConfig := nilservice.Config{
 				NShards:              cfg.NShards,
-				RunOnlyShard:         s.shards[i].id,
+				MyShard:              s.shards[i].id,
+				SplitShards:          true,
 				HttpUrl:              s.shards[i].url,
 				Topology:             cfg.Topology,
 				CollatorTickPeriodMs: cfg.CollatorTickPeriodMs,
