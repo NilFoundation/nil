@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
+	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
@@ -98,7 +99,7 @@ contracts:
 func (s *SuiteMultiCurrencyRpc) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards:       s.shardsNum,
-		HttpUrl:       GetSockPath(s.T()),
+		HttpUrl:       rpc.GetSockPath(s.T()),
 		ZeroStateYaml: s.zerostateCfg,
 		RunMode:       nilservice.CollatorsOnlyRunMode,
 	})

@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
+	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/suite"
@@ -20,7 +21,7 @@ type SuiteWalletRpc struct {
 func (s *SuiteWalletRpc) SetupSuite() {
 	s.start(&nilservice.Config{
 		NShards:       4,
-		HttpUrl:       GetSockPath(s.T()),
+		HttpUrl:       rpc.GetSockPath(s.T()),
 		ZeroStateYaml: execution.DefaultZeroStateConfig,
 		RunMode:       nilservice.CollatorsOnlyRunMode,
 	})

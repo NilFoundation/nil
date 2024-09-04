@@ -19,6 +19,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
+	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -33,7 +34,7 @@ type SuiteRpc struct {
 func (s *SuiteRpc) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards: 5,
-		HttpUrl: GetSockPath(s.T()),
+		HttpUrl: rpc.GetSockPath(s.T()),
 	})
 }
 

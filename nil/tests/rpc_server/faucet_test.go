@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
+	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
@@ -23,7 +24,7 @@ type SuiteFaucet struct {
 func (s *SuiteFaucet) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards: 5,
-		HttpUrl: GetSockPath(s.T()),
+		HttpUrl: rpc.GetSockPath(s.T()),
 		RunMode: nilservice.CollatorsOnlyRunMode,
 	})
 }

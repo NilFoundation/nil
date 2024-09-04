@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/readthroughdb"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
+	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/stretchr/testify/suite"
@@ -32,7 +33,7 @@ func (s *SuiteReadThroughDb) SetupTest() {
 
 	s.cfg = &nilservice.Config{
 		NShards: 5,
-		HttpUrl: GetSockPathIdx(s.T(), s.num),
+		HttpUrl: rpc.GetSockPathIdx(s.T(), s.num),
 	}
 
 	s.server.start(s.cfg)
@@ -55,7 +56,7 @@ func (s *SuiteReadThroughDb) initCache() {
 	}
 
 	s.num += 1
-	s.cfg.HttpUrl = GetSockPathIdx(s.T(), s.num)
+	s.cfg.HttpUrl = rpc.GetSockPathIdx(s.T(), s.num)
 	s.cache.start(s.cfg)
 }
 

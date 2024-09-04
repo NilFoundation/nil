@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
+	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/stretchr/testify/suite"
 )
@@ -41,7 +42,7 @@ type SuiteBlockReplay struct {
 func (s *SuiteBlockReplay) SetupSuite() {
 	s.cfg = &nilservice.Config{
 		NShards:       4,
-		HttpUrl:       GetSockPath(s.T()),
+		HttpUrl:       rpc.GetSockPath(s.T()),
 		ZeroStateYaml: execution.DefaultZeroStateConfig,
 		RunMode:       nilservice.NormalRunMode,
 	}

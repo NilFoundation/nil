@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/crypto"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
+	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -53,7 +54,7 @@ contracts:
 
 	s.start(&nilservice.Config{
 		NShards:       4,
-		HttpUrl:       GetSockPath(s.T()),
+		HttpUrl:       rpc.GetSockPath(s.T()),
 		ZeroStateYaml: zerostate,
 		RunMode:       nilservice.CollatorsOnlyRunMode,
 	})
