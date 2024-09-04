@@ -22,7 +22,8 @@ type Config struct {
 
 	// Shard configuration
 	NShards        uint32            `yaml:"nShards"`
-	RunOnlyShard   types.ShardId     `yaml:"runOnlyShard"`
+	MyShard        types.ShardId     `yaml:"myShard"`
+	SplitShards    bool              `yaml:"splitShards"`
 	ShardEndpoints map[string]string `yaml:"shardEndpoints"`
 
 	// RPC
@@ -90,8 +91,5 @@ func NewDefaultReplayConfig() *ReplayConfig {
 }
 
 func (c *Config) IsShardActive(shardId types.ShardId) bool {
-	if shardId == types.MainShardId { // Main shard is always active
-		return true
-	}
-	return c.RunOnlyShard == 0 || c.RunOnlyShard == shardId
+	return !c.SplitShards || c.MyShard == shardId
 }

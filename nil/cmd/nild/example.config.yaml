@@ -4,7 +4,8 @@
 #nShards: 5
 
 ## Running shard settings
-#runOnlyShard: 0
+#splitShards: false
+#myShard: 0
 #shardEndpoints:
 
 ## RPC settings
