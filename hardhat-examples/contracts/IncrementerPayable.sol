@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./nil/NilCurrencyBase.sol";
+import "@nilfoundation/smart-contracts/contracts/NilCurrencyBase.sol";
+
 contract IncrementerPayable is NilCurrencyBase {
     uint256 private value;
 

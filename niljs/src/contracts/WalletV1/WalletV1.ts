@@ -14,8 +14,7 @@ import {
   refineFunctionHexData,
   refineSalt,
 } from "../../utils/refiners.js";
-import { code } from "./Wallet-bin.js";
-import WalletAbi from "./Wallet.abi.json";
+import Wallet from "@nilfoundation/smart-contracts/artifacts/Wallet.json";
 import type {
   DeployParams,
   RequestParams,
@@ -23,7 +22,7 @@ import type {
   SendSyncMessageParams,
   WalletV1Config,
 } from "./types/index.js";
-import type { Hex } from "../../types/index.js";
+import { addHexPrefix } from "../../index.js";
 
 /**
  * WalletV1 is a class used for performing operations on the cluster that require authentication.
@@ -38,14 +37,14 @@ export class WalletV1 {
    * @static
    * @type {*}
    */
-  static code = hexToBytes(code);
+  static code = hexToBytes(addHexPrefix(Wallet.evm.bytecode.object));
   /**
    * The wallet ABI.
    *
    * @static
    * @type {Abi}
    */
-  static abi = WalletAbi as Abi;
+  static abi = Wallet.abi as Abi;
 
   /**
    * Calculates the address of the new wallet.
@@ -89,7 +88,7 @@ export class WalletV1 {
     salt: Uint8Array | bigint;
   }) {
     const { address } = prepareDeployPart({
-      abi: WalletAbi as Abi,
+      abi: Wallet.abi as Abi,
       bytecode: WalletV1.code,
       args: [bytesToHex(pubKey)],
       salt: salt,
@@ -242,7 +241,7 @@ export class WalletV1 {
     invariant(balance > 0n, "Insufficient balance");
 
     const { data } = prepareDeployPart({
-      abi: WalletAbi as Abi,
+      abi: Wallet.abi as Abi,
       bytecode: WalletV1.code,
       args: [bytesToHex(this.pubkey)],
       salt: this.salt,
@@ -361,7 +360,7 @@ export class WalletV1 {
     const hexData = refineFunctionHexData({ data, abi, functionName, args });
 
     const callData = encodeFunctionData({
-      abi: WalletAbi,
+      abi: Wallet.abi,
       functionName: "asyncCall",
       args: [
         hexTo,
@@ -397,7 +396,7 @@ export class WalletV1 {
    */
   async setCurrencyName(name: string) {
     const callData = encodeFunctionData({
-      abi: WalletAbi,
+      abi: Wallet.abi,
       functionName: "setCurrencyName",
       args: [name],
     });
@@ -423,7 +422,7 @@ export class WalletV1 {
    */
   async mintCurrency(amount: bigint) {
     const callData = encodeFunctionData({
-      abi: WalletAbi,
+      abi: Wallet.abi,
       functionName: "mintCurrency",
       args: [amount],
     });
@@ -559,7 +558,7 @@ export class WalletV1 {
     const hexData = refineFunctionHexData({ data, abi, functionName, args });
 
     const callData = encodeFunctionData({
-      abi: WalletAbi,
+      abi: Wallet.abi,
       functionName: "syncCall",
       args: [hexTo, gas, value, hexData],
     });

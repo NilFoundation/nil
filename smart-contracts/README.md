@@ -29,14 +29,14 @@ npm install @nilfoundation/smart-contracts
 To use the package, import the smart-contracts in your project:
 
 ```typescript
-import Wallet_compiled from 'node_modules/@nilfoundation/smart-contracts/dist/artifacts/Wallet.json';
+import Wallet_compiled from '@nilfoundation/smart-contracts/artifacts/Wallet.json';
 const wallet_bytecode = `0x${Wallet_compiled.evm.bytecode.object}`
 ```
 
 ```solidity
 pragma solidity ^0.8.0;
 
-import "@nilfoundation/contracts/Wallet.sol";
+import "@nilfoundation/smart-contracts/contracts/Wallet.sol";
 ```
 
 ## License
@@ -44,4 +44,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgements
 This project is supported by the [NIL Foundation](https://nil.foundation/).
-```

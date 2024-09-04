@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "./nil/Nil.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract Caller {
     using Nil for address;

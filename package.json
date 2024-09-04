@@ -5,7 +5,8 @@
 	"workspaces": ["niljs", "hardhat-plugin", "hardhat-examples", "docs", "smart-contracts"],
 	"scripts": {
 		"lint": "npm run lint --workspaces --if-present",
-		"lint:fix": "npm run lint:fix --workspaces --if-present"
+		"lint:fix": "npm run lint:fix --workspaces --if-present",
+    "install:clean": "rm -rf package-lock.json && rm -rf node_modules && rm -rf */node_modules && rm -rf */package-lock.json && npm i"
 	},
 	"author": "",
 	"license": "ISC",

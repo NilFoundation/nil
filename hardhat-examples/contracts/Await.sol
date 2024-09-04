@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.11;
 
-import "./nil/Nil.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract Await {
     using Nil for address;
@@ -21,4 +21,3 @@ contract Await {
         result = abi.decode(temp, (uint256));
     }
 }
-

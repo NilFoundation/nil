@@ -12,7 +12,7 @@
 stdenv.mkDerivation rec {
   name = "nil.js";
   pname = "niljs";
-  src = lib.sourceByRegex ./. [ "package.json" "package-lock.json" "^niljs(/.*)?$" ];
+  src = lib.sourceByRegex ./. [ "package.json" "package-lock.json" "^niljs(/.*)?$" "^smart-contracts(/.*)?$" ];
 
   npmDeps = (callPackage ./npmdeps.nix { });
 
@@ -27,6 +27,7 @@ stdenv.mkDerivation rec {
   dontConfigure = true;
 
   buildPhase = ''
+    (cd smart-contracts; npm run compile)
     cd niljs
     npm run build
   '';
