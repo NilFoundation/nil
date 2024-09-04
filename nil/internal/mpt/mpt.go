@@ -52,7 +52,7 @@ func (m *Reader) Get(key []byte) (ret []byte, err error) {
 	if len(key) > maxRawKeyLen {
 		key = poseidon.Sum(key)
 	}
-	path := newPath(key, 0)
+	path := newPath(key, false)
 
 	node, err := m.get(m.root, *path)
 	if err != nil {
@@ -67,7 +67,7 @@ func (m *MerklePatriciaTrie) Set(key []byte, value []byte) error {
 		key = poseidon.Sum(key)
 	}
 
-	path := newPath(key, 0)
+	path := newPath(key, false)
 	root, err := m.set(m.root, *path, value)
 	if err != nil {
 		return err
@@ -104,7 +104,7 @@ func (m *MerklePatriciaTrie) SetBatch(keys [][]byte, values [][]byte) error {
 			vals[idx] = values[i]
 		} else {
 			keyToIndex[string(k)] = len(paths)
-			paths = append(paths, newPath(k, 0))
+			paths = append(paths, newPath(k, false))
 			vals = append(vals, values[i])
 		}
 	}
@@ -133,7 +133,7 @@ func (m *MerklePatriciaTrie) Delete(key []byte) error {
 	if len(key) > maxRawKeyLen {
 		key = poseidon.Sum(key)
 	}
-	path := newPath(key, 0)
+	path := newPath(key, false)
 
 	action, info, err := m.delete(m.root, path)
 	if err != nil {
@@ -338,7 +338,7 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction
 			case validBranches == 0 && len(node.Data()) == 0:
 				return daDeleted, noInfo, nil
 			case validBranches == 0 && len(node.Data()) != 0:
-				path = newPath([]byte{}, 0)
+				path = newPath([]byte{}, false)
 				reference, err := m.storeNode(newLeafNode(path, node.Data()))
 				if err != nil {
 					return daUnknown, noInfo, err
@@ -396,7 +396,7 @@ func (m *MerklePatriciaTrie) buildNewNodeFromLastBranch(branches *[BranchesNum]R
 	}
 
 	// Path in leaf will contain one nibble (at this step).
-	prefixNibble := newPath([]byte{byte(idx)}, 1)
+	prefixNibble := newPath([]byte{byte(idx)}, true)
 	child, err := m.getNode(branches[idx])
 	if err != nil {
 		return daUnknown, noInfo, err

@@ -1,6 +1,8 @@
 package mpt
 
-import "iter"
+import (
+	"iter"
+)
 
 func (m *Reader) Iterate() iter.Seq2[[]byte, []byte] {
 	type Yield = func([]byte, []byte) bool
@@ -17,6 +19,8 @@ func (m *Reader) Iterate() iter.Seq2[[]byte, []byte] {
 			}
 			data := node.Data()
 			if len(data) > 0 {
+				// note: even though we access path.Data directly here is ok
+				// cause every key in the mpt is []byte, i.e. it consists of even number of nibbles
 				if !yield(path.Data, data) {
 					return
 				}
@@ -25,7 +29,7 @@ func (m *Reader) Iterate() iter.Seq2[[]byte, []byte] {
 			case *BranchNode:
 				for i, br := range node.Branches {
 					if len(br) > 0 {
-						iter(br, path.Combine(newPath([]byte{byte(i)}, 1)))
+						iter(br, path.Combine(newPath([]byte{byte(i)}, true)))
 					}
 				}
 				return
@@ -34,7 +38,7 @@ func (m *Reader) Iterate() iter.Seq2[[]byte, []byte] {
 			}
 		}
 		if m.root.IsValid() {
-			iter(m.root, newPath(nil, 0))
+			iter(m.root, newPath(nil, false))
 		}
 	}
 }

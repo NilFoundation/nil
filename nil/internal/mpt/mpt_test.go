@@ -288,6 +288,7 @@ func TestInsertBatch(t *testing.T) {
 		}
 
 		require.Equal(t, data, dataBatch)
+		require.Equal(t, trie.RootHash(), trieBatch.RootHash())
 	}
 
 	keys := make([][]byte, 0, len(treeOps))

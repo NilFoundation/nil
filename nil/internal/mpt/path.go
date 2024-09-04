@@ -2,11 +2,16 @@ package mpt
 
 import (
 	ssz "github.com/NilFoundation/fastssz"
+	"github.com/NilFoundation/nil/nil/common/check"
 )
 
 type Path struct {
-	Data   []byte `ssz-max:"100000"`
-	Offset uint32
+	Data []byte `ssz-max:"100000"`
+	// whether path starts from 1st nibble
+	Shifted bool
+	// we can't store FirstNibble as part of Data
+	// https://github.com/NilFoundation/nil/pull/836#discussion_r1743673490
+	FirstNibble uint8
 }
 
 var (
@@ -19,12 +24,20 @@ type PathAccessor interface {
 	At(idx int) int
 }
 
-func newPath(data []byte, offset uint32) *Path {
-	return &Path{data, offset}
+func newPath(data []byte, shifted bool) *Path {
+	if shifted {
+		check.PanicIfNot(len(data) > 0)
+		return &Path{Data: data[1:], Shifted: true, FirstNibble: data[0] & 0x0F} //nolint:gosec
+	}
+	return &Path{Data: data}
 }
 
 func (path *Path) Size() int {
-	return len(path.Data)*2 - int(path.Offset)
+	size := 2 * len(path.Data)
+	if path.Shifted {
+		size++
+	}
+	return size
 }
 
 func (path *Path) Empty() bool {
@@ -60,7 +73,14 @@ func (path *Path) StartsWith(other *Path) bool {
 }
 
 func (path *Path) At(idx int) int {
-	idx += int(path.Offset)
+	if path.Shifted {
+		// first nibble is stored in a separate field
+		if idx == 0 {
+			return int(path.FirstNibble)
+		}
+		idx--
+	}
+
 	nibbleIdx := idx % 2
 
 	b := int(path.Data[idx/2])
@@ -72,8 +92,25 @@ func (path *Path) At(idx int) int {
 	return b & 0x0F
 }
 
-func (path *Path) Consume(amount int) *Path {
-	path.Offset += uint32(amount)
+func (path *Path) Consume(offset int) *Path {
+	if offset == 0 {
+		return path
+	}
+	if path.Shifted {
+		// first nibble is stored in a separate field
+		offset--
+	}
+
+	path.Data = path.Data[offset/2:]
+
+	if offset%2 == 1 {
+		path.Shifted = true
+		path.FirstNibble = path.Data[0] & 0x0F
+		path.Data = path.Data[1:]
+	} else {
+		path.Shifted = false
+		path.FirstNibble = 0
+	}
 	return path
 }
 
@@ -93,14 +130,7 @@ func createNew[T PathAccessor](path T, length int) *Path {
 		pos += 2
 	}
 
-	var offset uint32
-	if isOddLen {
-		offset = 1
-	} else {
-		offset = 0
-	}
-
-	return newPath(data, offset)
+	return newPath(data, isOddLen)
 }
 
 func (path *Path) CommonPrefix(other *Path) *Path {
@@ -142,7 +172,7 @@ func CommonPrefix(paths []*Path) *Path {
 		return nil
 	}
 
-	prefix := newPath(paths[0].Data, paths[0].Offset)
+	prefix := paths[0]
 	for _, p := range paths[1:] {
 		prefix = prefix.CommonPrefix(p)
 		if prefix.Size() == 0 {
