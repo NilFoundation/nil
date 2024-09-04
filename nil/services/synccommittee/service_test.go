@@ -96,42 +96,53 @@ func (s *SyncCommitteeTestSuite) TestProcessingLoop() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	go s.syncCommittee.processingLoop(ctx)
+	go func() {
+		err := s.syncCommittee.processingLoop(ctx)
+		s.NoError(err)
+	}()
 
-	// Wait for processing to occur
-	time.Sleep(time.Second * 5)
-
-	// Check that blocks were processed
-	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
-		lastFetchedBlockNum := s.syncCommittee.aggregator.blockStorage.GetLastFetchedBlockNum(shardId)
-		s.Require().Greater(lastFetchedBlockNum, types.BlockNumber(0))
-
-		lastProvedBlockNum := s.syncCommittee.aggregator.blockStorage.GetLastProvedBlockNum(shardId)
-		s.Require().Greater(lastProvedBlockNum, types.BlockNumber(0))
-	}
+	s.Require().Eventually(
+		func() bool {
+			for id := range s.nShards {
+				shardId := types.ShardId(id)
+				lastFetchedBlockNum := s.syncCommittee.aggregator.blockStorage.GetLastFetchedBlockNum(shardId)
+				if lastFetchedBlockNum == 0 {
+					return false
+				}
+				lastProvedBlockNum := s.syncCommittee.aggregator.blockStorage.GetLastProvedBlockNum(shardId)
+				if lastProvedBlockNum == 0 {
+					return false
+				}
+			}
+			return true
+		},
+		5*time.Second,
+		100*time.Millisecond,
+	)
 }
 
 func (s *SyncCommitteeTestSuite) TestRun() {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	ctx := context.Background()
 
-	errChan := make(chan error)
 	go func() {
-		errChan <- s.syncCommittee.Run(ctx)
+		err := s.syncCommittee.Run(ctx)
+		s.NoError(err)
 	}()
 
-	select {
-	case err := <-errChan:
-		s.Require().NoError(err)
-	case <-ctx.Done():
-		// Run completed without error
-	}
-
-	// Check that processing occurred
-	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
-		lastFetchedBlockNum := s.syncCommittee.aggregator.blockStorage.GetLastFetchedBlockNum(shardId)
-		s.Require().Greater(lastFetchedBlockNum, types.BlockNumber(0))
-	}
+	s.Require().Eventually(
+		func() bool {
+			for id := range s.nShards {
+				shardId := types.ShardId(id)
+				lastFetchedBlockNum := s.syncCommittee.aggregator.blockStorage.GetLastFetchedBlockNum(shardId)
+				if lastFetchedBlockNum == 0 {
+					return false
+				}
+			}
+			return true
+		},
+		5*time.Second,
+		100*time.Millisecond,
+	)
 }
 
 func TestSyncCommitteeTestSuite(t *testing.T) {
