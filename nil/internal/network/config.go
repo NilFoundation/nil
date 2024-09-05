@@ -10,13 +10,13 @@ type Config struct {
 	PrivateKey PrivateKey `yaml:"-"`
 
 	IPV4Address string `yaml:"-"`
-	TcpPort     int    `yaml:"tcpPort"`
-	QuicPort    int    `yaml:"quicPort"`
+	TcpPort     int    `yaml:"tcpPort,omitempty"`
+	QuicPort    int    `yaml:"quicPort,omitempty"`
 
-	UseMdns bool `yaml:"useMdns"`
+	UseMdns bool `yaml:"useMdns,omitempty"`
 
-	DHTEnabled        bool     `yaml:"dhtEnabled"`
-	DHTBootstrapPeers []string `yaml:"dhtBootstrapPeers"`
+	DHTEnabled        bool     `yaml:"dhtEnabled,omitempty"`
+	DHTBootstrapPeers []string `yaml:"dhtBootstrapPeers,omitempty"`
 }
 
 func NewDefaultConfig() *Config {

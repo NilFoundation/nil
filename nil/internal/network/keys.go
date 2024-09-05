@@ -19,33 +19,37 @@ type PrivateKey = libp2pcrypto.PrivKey
 // If the file exists but the keys are invalid, an error is returned.
 func LoadOrGenerateKeys(fileName string) (PrivateKey, error) {
 	_, err := os.Stat(fileName)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	if err == nil {
-		privKey, pubKey, id, err := internal.LoadKeys(fileName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load keys: %w", err)
-		}
-
-		if !privKey.GetPublic().Equals(pubKey) {
-			return nil, ErrPublicKeyMismatch
-		}
-
-		identity, err := peer.IDFromPublicKey(pubKey)
-		if err != nil {
+	if err != nil {
+		if !os.IsNotExist(err) {
 			return nil, err
 		}
-		if id != identity {
-			return nil, ErrIdentityMismatch
-		}
 
-		internal.Logger.Info().Msgf("Loaded network keys from %s", fileName)
-
-		return privKey, nil
+		return GenerateAndDumpKeys(fileName)
 	}
 
+	privKey, pubKey, id, err := internal.LoadKeys(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load keys: %w", err)
+	}
+
+	if !privKey.GetPublic().Equals(pubKey) {
+		return nil, ErrPublicKeyMismatch
+	}
+
+	identity, err := peer.IDFromPublicKey(pubKey)
+	if err != nil {
+		return nil, err
+	}
+	if id != identity {
+		return nil, ErrIdentityMismatch
+	}
+
+	internal.Logger.Info().Msgf("Loaded network keys from %s", fileName)
+
+	return privKey, nil
+}
+
+func GenerateAndDumpKeys(fileName string) (PrivateKey, error) {
 	privKey, err := internal.GeneratePrivateKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate keys: %w", err)

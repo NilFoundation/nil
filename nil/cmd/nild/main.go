@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/NilFoundation/nil/nil/cmd/nild/nildconfig"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -18,18 +19,6 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
-
-type readThroughOptions struct {
-	SourceAddr      string                `yaml:"sourceAddr"`
-	ForkMainAtBlock transport.BlockNumber `yaml:"forkMainAtBlock"`
-}
-
-type config struct {
-	*nilservice.Config `yaml:",inline"`
-
-	DB          *db.BadgerDBOptions `yaml:"db"`
-	ReadThrough *readThroughOptions `yaml:"readThrough"`
-}
 
 func main() {
 	logger := logging.NewLogger("nild")
@@ -55,11 +44,11 @@ func main() {
 	os.Exit(exitCode)
 }
 
-func loadConfig() (*config, error) {
-	cfg := &config{
+func loadConfig() (*nildconfig.Config, error) {
+	cfg := &nildconfig.Config{
 		Config: nilservice.NewDefaultConfig(),
 		DB:     db.NewDefaultBadgerDBOptions(),
-		ReadThrough: &readThroughOptions{
+		ReadThrough: &nildconfig.ReadThroughOptions{
 			ForkMainAtBlock: transport.LatestBlockNumber,
 		},
 	}
@@ -95,7 +84,7 @@ func loadConfig() (*config, error) {
 	return cfg, nil
 }
 
-func parseArgs() *config {
+func parseArgs() *nildconfig.Config {
 	cfg, err := loadConfig()
 	check.PanicIfErr(err)
 

@@ -21,23 +21,23 @@ type Config struct {
 	RunMode RunMode `yaml:"-"`
 
 	// Shard configuration
-	NShards        uint32            `yaml:"nShards"`
-	MyShard        types.ShardId     `yaml:"myShard"`
-	SplitShards    bool              `yaml:"splitShards"`
-	ShardEndpoints map[string]string `yaml:"shardEndpoints"`
+	NShards        uint32            `yaml:"nShards,omitempty"`
+	MyShard        types.ShardId     `yaml:"myShard,omitempty"`
+	SplitShards    bool              `yaml:"splitShards,omitempty"`
+	ShardEndpoints map[string]string `yaml:"shardEndpoints,omitempty"`
 
 	// RPC
-	RPCPort int `yaml:"rpcPort"`
+	RPCPort int `yaml:"rpcPort,omitempty"`
 
 	// Admin
-	AdminSocketPath string `yaml:"adminSocket"`
+	AdminSocketPath string `yaml:"adminSocket,omitempty"`
 
 	// Keys
-	MainKeysOutPath string `yaml:"mainKeysPath"`
-	NetworkKeysPath string `yaml:"networkKeysPath"`
+	MainKeysOutPath string `yaml:"mainKeysPath,omitempty"`
+	NetworkKeysPath string `yaml:"networkKeysPath,omitempty"`
 
-	GasPriceScale float64 `yaml:"gasPriceScale"`
-	GasBasePrice  uint64  `yaml:"gasBasePrice"`
+	GasPriceScale float64 `yaml:"gasPriceScale,omitempty"`
+	GasBasePrice  uint64  `yaml:"gasBasePrice,omitempty"`
 
 	// HttpUrl is calculated from RPCPort
 	HttpUrl string `yaml:"-"`
@@ -50,10 +50,10 @@ type Config struct {
 	ZeroStateYaml        string `yaml:"-"`
 
 	// Sub-configs
-	Network   *network.Config            `yaml:"network"`
-	Telemetry *telemetry.Config          `yaml:"telemetry"`
-	ZeroState *execution.ZeroStateConfig `yaml:"zeroState"`
-	Replay    *ReplayConfig              `yaml:"replay"`
+	Network   *network.Config            `yaml:"network,omitempty"`
+	Telemetry *telemetry.Config          `yaml:"telemetry,omitempty"`
+	ZeroState *execution.ZeroStateConfig `yaml:"zeroState,omitempty"`
+	Replay    *ReplayConfig              `yaml:"replay,omitempty"`
 }
 
 func NewDefaultConfig() *Config {
