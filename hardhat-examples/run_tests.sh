@@ -23,7 +23,7 @@ rm -f config.ini
 rm -rf test.db
 
 # Start nild in background (will be auto-killed on exit)
-nild run >nild.log 2>&1 &
+nild run --collator-tick-ms=100 >nild.log 2>&1 &
 sleep 2
 
 export NIL_RPC_ENDPOINT=http://127.0.0.1:8529

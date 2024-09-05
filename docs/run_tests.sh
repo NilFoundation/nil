@@ -21,7 +21,7 @@ trap_with_arg 'stop' EXIT SIGINT SIGTERM SIGHUP
 rm -f config.ini
 rm -rf test.db
 
-nild run >nild.log 2>&1 &
+nild run --collator-tick-ms=100 >nild.log 2>&1 &
 sleep 2
 
 CI=true npm run test:useNilD

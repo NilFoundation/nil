@@ -17,7 +17,7 @@
       in
       rec {
         packages = rec {
-          nil = (pkgs.callPackage ./nil.nix { buildGoModule = pkgs.buildGo123Module; });
+          nil = (pkgs.callPackage ./nil.nix { });
           niljs = (pkgs.callPackage ./niljs.nix { });
           nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; });
           nilhardhat = (pkgs.callPackage ./nilhardhat.nix { });
@@ -28,26 +28,21 @@
         };
         checks = rec {
           nil = (pkgs.callPackage ./nil.nix {
-            buildGoModule = pkgs.buildGo123Module;
             enableRaceDetector = true;
             enableTesting = true;
           });
           niljs = (pkgs.callPackage ./niljs.nix {
-            nil = nil;
+            nil = packages.nil;
             enableTesting = true;
           });
           nildocs = (pkgs.callPackage ./nildocs.nix {
-            nil = nil;
+            nil = packages.nil;
             enableTesting = true;
           });
           nilhardhat = (pkgs.callPackage ./nilhardhat.nix {
-            nil = nil;
+            nil = packages.nil;
             enableTesting = true;
           });
-          default = pkgs.symlinkJoin {
-            name = "all";
-            paths = [ nil niljs nildocs nilhardhat ];
-          };
         };
         bundlers =
           rec {

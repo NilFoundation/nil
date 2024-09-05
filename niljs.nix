@@ -38,7 +38,7 @@ stdenv.mkDerivation rec {
     patchShebangs node_modules
     npm run test:unit
 
-    nohup nild run > nild.log 2>&1 & echo $! > nild_pid
+    nohup nild run --collator-tick-ms=100 > nild.log 2>&1 & echo $! > nild_pid
     npm run test:integration --cache=false
     npm run test:examples
     npm run lint:types
