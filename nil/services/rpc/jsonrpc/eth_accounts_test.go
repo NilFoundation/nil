@@ -6,13 +6,10 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport/rpccfg"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/suite"
 )
@@ -73,12 +70,7 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	err = tx.Commit()
 	suite.Require().NoError(err)
 
-	pool := msgpool.New(msgpool.DefaultConfig)
-	suite.Require().NotNil(pool)
-
-	suite.api, err = NewEthAPI(ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, []msgpool.Pool{pool, pool}, true, logging.NewLogger("Test"))
-	suite.Require().NoError(err)
+	suite.api = NewTestEthAPI(suite.T(), ctx, suite.db, 2)
 }
 
 func (suite *SuiteEthAccounts) TearDownSuite() {

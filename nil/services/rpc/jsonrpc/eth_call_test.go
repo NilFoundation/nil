@@ -7,14 +7,11 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
-	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport/rpccfg"
 	"github.com/NilFoundation/nil/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/common/compiler"
 	"github.com/stretchr/testify/suite"
@@ -71,12 +68,7 @@ func (s *SuiteEthCall) SetupSuite() {
 	execution.GenerateBlockFromMessages(s.T(), ctx, types.MainShardId, 0, mainBlockHash, s.db,
 		map[types.ShardId]common.Hash{shardId: s.lastBlockHash})
 
-	pool := msgpool.New(msgpool.DefaultConfig)
-	s.Require().NotNil(pool)
-
-	s.api, err = NewEthAPI(ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), s.db, []msgpool.Pool{pool}, true, logging.NewLogger("Test"))
-	s.Require().NoError(err)
+	s.api = NewTestEthAPI(s.T(), ctx, s.db, 1)
 }
 
 func (s *SuiteEthCall) TearDownSuite() {

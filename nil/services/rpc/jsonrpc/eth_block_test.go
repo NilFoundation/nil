@@ -7,13 +7,10 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport/rpccfg"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -46,10 +43,7 @@ func (suite *SuiteEthBlock) SetupSuite() {
 			shardId, types.BlockNumber(i), suite.lastBlockHash, suite.db, msgs...)
 	}
 
-	suite.api, err = NewEthAPI(suite.ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db,
-		[]msgpool.Pool{msgpool.New(msgpool.DefaultConfig)}, true, logging.NewLogger("Test"))
-	suite.Require().NoError(err)
+	suite.api = NewTestEthAPI(suite.T(), suite.ctx, suite.db, 1)
 }
 
 func (suite *SuiteEthBlock) TearDownSuite() {
@@ -151,13 +145,8 @@ func TestGetBlockByNumberOnEmptyBase(t *testing.T) {
 	d, err := db.NewBadgerDbInMemory()
 	require.NoError(t, err)
 
-	pool := msgpool.New(msgpool.DefaultConfig)
-	require.NotNil(t, pool)
-
 	ctx := context.Background()
-	api, err := NewEthAPI(ctx,
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), d, []msgpool.Pool{pool}, true, logging.NewLogger("Test"))
-	require.NoError(t, err)
+	api := NewTestEthAPI(t, ctx, d, 1)
 
 	_, err = api.GetBlockByNumber(ctx, shardId, transport.EarliestBlockNumber, false)
 	require.ErrorIs(t, err, db.ErrKeyNotFound)

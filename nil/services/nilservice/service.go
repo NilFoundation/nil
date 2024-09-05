@@ -44,8 +44,8 @@ func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []
 
 	base := jsonrpc.NewBaseApi(rpccfg.DefaultEvmCallTimeout)
 
-	pollBlocksForLogs := (cfg.RunMode == NormalRunMode)
-	ethImpl, err := jsonrpc.NewEthAPI(ctx, base, db, pools, pollBlocksForLogs, logger)
+	pollBlocksForLogs := cfg.RunMode == NormalRunMode
+	ethImpl, err := jsonrpc.NewEthAPI(ctx, base, db, pools, pollBlocksForLogs)
 	if err != nil {
 		return err
 	}
@@ -268,14 +268,14 @@ func createSyncCollator(ctx context.Context, shard types.ShardId, cfg *Config, t
 ) (AbstractCollator, error) {
 	endpoint, ok := cfg.ShardEndpoints[shard.String()]
 	if !ok {
-		return nil, fmt.Errorf("no endpoint for shard %s", shard.String())
+		return nil, fmt.Errorf("no endpoint for shard %s", shard)
 	}
-	msgPool := msgpool.New(msgpool.DefaultConfig)
+	msgPool := msgpool.New(msgpool.NewConfig(shard))
 	return collate.NewSyncCollator(ctx, msgPool, shard, endpoint, tick, database, networkManager)
 }
 
 func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) (*collate.Scheduler, error) {
-	msgPool := msgpool.New(msgpool.DefaultConfig)
+	msgPool := msgpool.New(msgpool.NewConfig(shard))
 	collatorCfg := collate.Params{
 		BlockGeneratorParams: execution.BlockGeneratorParams{
 			ShardId:       shard,

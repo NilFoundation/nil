@@ -2,14 +2,22 @@ package msgpool
 
 import (
 	"fmt"
+
+	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
+const defaultPoolSize = 10000
+
 type Config struct {
-	Size uint64
+	ShardId types.ShardId
+	Size    uint64
 }
 
-var DefaultConfig = Config{
-	Size: 10000,
+func NewConfig(shardId types.ShardId) Config {
+	return Config{
+		ShardId: shardId,
+		Size:    defaultPoolSize,
+	}
 }
 
 type DiscardReason uint8

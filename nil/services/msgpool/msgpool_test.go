@@ -3,7 +3,6 @@ package msgpool
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -13,176 +12,186 @@ import (
 type SuiteMsgPool struct {
 	suite.Suite
 
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	pool *MsgPool
 }
 
-func newMessage(to types.Address, seqno types.Seqno, fee uint64) types.Message {
-	return types.Message{
+func newMessage(to types.Address, seqno types.Seqno, fee uint64) *types.Message {
+	return &types.Message{
 		To:    to,
 		Value: types.NewValueFromUint64(fee),
-		Data:  types.Code(""),
 		Seqno: seqno,
 	}
 }
 
-func (suite *SuiteMsgPool) BeforeTest(suiteName, testName string) {
-	suite.pool = New(DefaultConfig)
-	suite.Require().NotNil(suite.pool)
-	suite.Equal(0, suite.pool.MessageCount())
+func (s *SuiteMsgPool) SetupTest() {
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	s.pool = New(NewConfig(0))
 }
 
-func (suite *SuiteMsgPool) TestAdd() {
-	suite.Equal(0, suite.pool.MessageCount())
+func (s *SuiteMsgPool) TearDownTest() {
+	s.cancel()
+}
 
-	ctx := context.Background()
+func (s *SuiteMsgPool) addMessagesSuccessfully(msg ...*types.Message) {
+	s.T().Helper()
 
+	count := s.pool.MessageCount()
+
+	reasons, err := s.pool.Add(s.ctx, msg...)
+	s.Require().NoError(err)
+	s.Require().Len(reasons, len(msg))
+	for _, reason := range reasons {
+		s.Equal(NotSet, reason)
+	}
+
+	s.Equal(count+len(msg), s.pool.MessageCount())
+}
+
+func (s *SuiteMsgPool) addMessageWithDiscardReason(msg *types.Message, reason DiscardReason) {
+	s.T().Helper()
+
+	count := s.pool.MessageCount()
+
+	reasons, err := s.pool.Add(s.ctx, msg)
+	s.Require().NoError(err)
+	s.Equal([]DiscardReason{reason}, reasons)
+
+	s.Equal(count, s.pool.MessageCount())
+}
+
+func (s *SuiteMsgPool) TestAdd() {
 	address := types.HexToAddress("deadbeef")
-	suite.Require().NotEqual(types.Address{}, address)
 
 	msg1 := newMessage(address, 0, 123)
 
 	// Send the message for the first time - OK
-	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg1})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
-	suite.Equal(1, suite.pool.MessageCount())
+	s.addMessagesSuccessfully(msg1)
 
 	// Send message once again - Duplicate hash
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg1})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{DuplicateHash}, reasons)
-	suite.Equal(1, suite.pool.MessageCount())
+	s.addMessageWithDiscardReason(msg1, DuplicateHash)
 
 	// Send the same message with higher fee - OK
-	msg2 := msg1
+	// Doesn't use the same helper because here message count doesn't change
+	msg2 := common.CopyPtr(msg1)
 	msg2.FeeCredit = msg2.FeeCredit.Add64(1)
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg2})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
-	suite.Equal(1, suite.pool.MessageCount())
+	reasons, err := s.pool.Add(s.ctx, msg2)
+	s.Require().NoError(err)
+	s.Require().Equal([]DiscardReason{NotSet}, reasons)
+	s.Equal(1, s.pool.MessageCount())
 
 	// Send a different message with the same seqno - NotReplaced
-	msg3 := msg1
+	msg3 := common.CopyPtr(msg1)
 	// Force the message to be different
 	msg3.Data = append(msg3.Data, 0x01)
-	suite.Require().NotEqual(msg1.Hash(), msg3.Hash())
+	s.Require().NotEqual(msg1.Hash(), msg3.Hash())
 	// Add a higher fee (otherwise, no replacement can be expected anyway)
 	msg3.FeeCredit = msg3.FeeCredit.Add64(1)
-
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg3})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{NotReplaced}, reasons)
-	suite.Equal(1, suite.pool.MessageCount())
+	s.addMessageWithDiscardReason(msg3, NotReplaced)
 
 	// Add a message with higher seqno to the same receiver
-	msg4 := newMessage(address, 1, 124)
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg4})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
-	suite.Equal(2, suite.pool.MessageCount())
+	s.addMessagesSuccessfully(
+		newMessage(address, 1, 124))
 
 	// Add a message with lower seqno to the same receiver - SeqnoTooLow
-	msg5 := newMessage(address, 0, 124)
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg5})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{SeqnoTooLow}, reasons)
-	suite.Equal(2, suite.pool.MessageCount())
+	s.addMessageWithDiscardReason(
+		newMessage(address, 0, 124), SeqnoTooLow)
 
 	// Add a message with higher seqno to new receiver
-	msg6 := newMessage(types.HexToAddress("deadbeef02"), 1, 124)
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg6})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
-	suite.Equal(3, suite.pool.MessageCount())
+	s.addMessagesSuccessfully(
+		newMessage(types.HexToAddress("deadbeef02"), 1, 124))
 }
 
-func (suite *SuiteMsgPool) TestAddOverflow() {
-	ctx := context.Background()
-
-	suite.pool.cfg.Size = 1
+func (s *SuiteMsgPool) TestAddOverflow() {
+	s.pool.cfg.Size = 1
 
 	address := types.HexToAddress("deadbeef")
-	suite.Require().NotEqual(types.Address{}, address)
 
-	msg1 := newMessage(address, 0, 123)
-	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg1})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
+	s.addMessagesSuccessfully(
+		newMessage(address, 0, 123))
 
-	msg2 := newMessage(address, 1, 123)
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&msg2})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{PoolOverflow}, reasons)
+	s.addMessageWithDiscardReason(
+		newMessage(address, 1, 123), PoolOverflow)
 }
 
-func (suite *SuiteMsgPool) TestStarted() {
-	suite.True(suite.pool.Started())
+func (s *SuiteMsgPool) TestStarted() {
+	s.True(s.pool.Started())
 }
 
-func (suite *SuiteMsgPool) TestIdHashKnownGet() {
-	ctx := context.Background()
-
+func (s *SuiteMsgPool) TestIdHashKnownGet() {
 	address := types.HexToAddress("deadbeef01")
-	suite.Require().NotEqual(types.Address{}, address)
 
 	msg := newMessage(address, 0, 123)
-	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
+	s.addMessagesSuccessfully(msg)
 
-	has, err := suite.pool.IdHashKnown(msg.Hash())
-	suite.Require().NoError(err)
-	suite.Require().True(has)
+	has, err := s.pool.IdHashKnown(msg.Hash())
+	s.Require().NoError(err)
+	s.True(has)
 
-	poolMsg, err := suite.pool.Get(msg.Hash())
-	suite.Require().NoError(err)
-	suite.Require().NotNil(poolMsg)
-	suite.Equal(msg, *poolMsg)
+	poolMsg, err := s.pool.Get(msg.Hash())
+	s.Require().NoError(err)
+	s.Equal(poolMsg, msg)
 
-	has, err = suite.pool.IdHashKnown(common.BytesToHash([]byte("abcd")))
-	suite.Require().NoError(err)
-	suite.Require().False(has)
+	has, err = s.pool.IdHashKnown(common.BytesToHash([]byte("abcd")))
+	s.Require().NoError(err)
+	s.False(has)
 
-	poolMsg, err = suite.pool.Get(common.BytesToHash([]byte("abcd")))
-	suite.Require().NoError(err)
-	suite.Require().Nil(poolMsg)
+	poolMsg, err = s.pool.Get(common.BytesToHash([]byte("abcd")))
+	s.Require().NoError(err)
+	s.Nil(poolMsg)
 }
 
-func (suite *SuiteMsgPool) TestSeqnoFromAddress() {
-	ctx := context.Background()
-
+func (s *SuiteMsgPool) TestSeqnoFromAddress() {
 	address := types.HexToAddress("deadbeef02")
-	suite.Require().NotEqual(types.Address{}, address)
 
-	_, inPool := suite.pool.SeqnoToAddress(address)
-	suite.Require().False(inPool)
+	_, inPool := s.pool.SeqnoToAddress(address)
+	s.Require().False(inPool)
 
 	msg := newMessage(address, 0, 123)
-	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
+	s.addMessagesSuccessfully(msg)
 
-	seqno, inPool := suite.pool.SeqnoToAddress(address)
-	suite.Require().True(inPool)
-	suite.Require().EqualValues(0, seqno)
+	seqno, inPool := s.pool.SeqnoToAddress(address)
+	s.Require().True(inPool)
+	s.Require().EqualValues(0, seqno)
 
-	nextMsg := msg
+	nextMsg := common.CopyPtr(msg)
 	nextMsg.Seqno++
-	reasons, err = suite.pool.Add(ctx, []*types.Message{&nextMsg})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{NotSet}, reasons)
+	s.addMessagesSuccessfully(nextMsg)
 
-	seqno, inPool = suite.pool.SeqnoToAddress(address)
-	suite.Require().True(inPool)
-	suite.Require().EqualValues(1, seqno)
+	seqno, inPool = s.pool.SeqnoToAddress(address)
+	s.Require().True(inPool)
+	s.Require().EqualValues(1, seqno)
 
-	_, inPool = suite.pool.SeqnoToAddress(types.BytesToAddress([]byte("abcd")))
-	suite.Require().False(inPool)
+	_, inPool = s.pool.SeqnoToAddress(types.BytesToAddress([]byte("abcd")))
+	s.Require().False(inPool)
 }
 
-func (suite *SuiteMsgPool) TestPeek() {
-	ctx := context.Background()
+func (s *SuiteMsgPool) TestPeek() {
+	address1 := types.HexToAddress("deadbeef01")
+	address2 := types.HexToAddress("deadbeef02")
 
+	s.addMessagesSuccessfully(
+		newMessage(address1, 0, 123),
+		newMessage(address1, 1, 123),
+		newMessage(address2, 0, 123),
+		newMessage(address2, 1, 123))
+
+	msgs, err := s.pool.Peek(s.ctx, 1)
+	s.Require().NoError(err)
+	s.Len(msgs, 1)
+
+	msgs, err = s.pool.Peek(s.ctx, 4)
+	s.Require().NoError(err)
+	s.Len(msgs, 4)
+
+	msgs, err = s.pool.Peek(s.ctx, 10)
+	s.Require().NoError(err)
+	s.Len(msgs, 4)
+}
+
+func (s *SuiteMsgPool) TestOnNewBlock() {
 	address1 := types.HexToAddress("deadbeef01")
 	address2 := types.HexToAddress("deadbeef02")
 
@@ -192,55 +201,18 @@ func (suite *SuiteMsgPool) TestPeek() {
 	msg2_1 := newMessage(address2, 0, 123)
 	msg2_2 := newMessage(address2, 1, 123)
 
-	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg1_1, &msg1_2, &msg2_1, &msg2_2})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{NotSet, NotSet, NotSet, NotSet}, reasons)
-	suite.Equal(4, suite.pool.MessageCount())
-
-	msgs, err := suite.pool.Peek(ctx, 1)
-	suite.Require().NoError(err)
-	suite.Require().Len(msgs, 1)
-
-	msgs, err = suite.pool.Peek(ctx, 4)
-	suite.Require().NoError(err)
-	suite.Require().Len(msgs, 4)
-
-	msgs, err = suite.pool.Peek(ctx, 10)
-	suite.Require().NoError(err)
-	suite.Require().Len(msgs, 4)
-
-	suite.Equal(4, suite.pool.MessageCount())
-}
-
-func (suite *SuiteMsgPool) TestOnNewBlock() {
-	ctx := context.Background()
-
-	address1 := types.HexToAddress("deadbeef01")
-	address2 := types.HexToAddress("deadbeef02")
-
-	msg1_1 := newMessage(address1, 0, 123)
-	msg1_2 := newMessage(address1, 1, 123)
-
-	msg2_1 := newMessage(address2, 0, 123)
-	msg2_2 := newMessage(address2, 1, 123)
-
-	reasons, err := suite.pool.Add(ctx, []*types.Message{&msg1_1, &msg1_2, &msg2_1, &msg2_2})
-	suite.Require().NoError(err)
-	suite.Require().Equal([]DiscardReason{NotSet, NotSet, NotSet, NotSet}, reasons)
-	suite.Equal(4, suite.pool.MessageCount())
+	s.addMessagesSuccessfully(msg1_1, msg1_2, msg2_1, msg2_2)
 
 	// TODO: Ideally we need to do that via execution state
-	err = suite.pool.OnCommitted(ctx, []*types.Message{&msg1_1, &msg1_2, &msg2_1})
-	suite.Require().NoError(err)
-
-	time.Sleep(100 * time.Millisecond)
+	err := s.pool.OnCommitted(s.ctx, []*types.Message{msg1_1, msg1_2, msg2_1})
+	s.Require().NoError(err)
 
 	// After commit Peek should return only one message
-	messages, err := suite.pool.Peek(ctx, 10)
-	suite.Require().NoError(err)
-	suite.Require().Len(messages, 1)
-	suite.Require().Equal([]*types.Message{&msg2_2}, messages)
-	suite.Equal(1, suite.pool.MessageCount())
+	messages, err := s.pool.Peek(s.ctx, 10)
+	s.Require().NoError(err)
+	s.Require().Len(messages, 1)
+	s.Equal(msg2_2, messages[0])
+	s.Equal(1, s.pool.MessageCount())
 }
 
 func TestSuiteMsgpool(t *testing.T) {

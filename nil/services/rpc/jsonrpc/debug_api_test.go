@@ -11,7 +11,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport/rpccfg"
 	"github.com/rs/zerolog/log"
@@ -134,9 +133,6 @@ func (suite *SuiteDbgContracts) SetupSuite() {
 
 	err = tx.Commit()
 	suite.Require().NoError(err)
-
-	pool := msgpool.New(msgpool.DefaultConfig)
-	suite.Require().NotNil(pool)
 
 	suite.debugApi = NewDebugAPI(
 		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, logging.NewLogger("Test"))
