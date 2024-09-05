@@ -271,7 +271,7 @@ func createSyncCollator(ctx context.Context, shard types.ShardId, cfg *Config, t
 		return nil, fmt.Errorf("no endpoint for shard %s", shard)
 	}
 	msgPool := msgpool.New(msgpool.NewConfig(shard))
-	return collate.NewSyncCollator(ctx, msgPool, shard, endpoint, tick, database, networkManager)
+	return collate.NewSyncCollator(ctx, msgPool, shard, endpoint, tick, database, networkManager, cfg.BootstrapPeer)
 }
 
 func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) (*collate.Scheduler, error) {

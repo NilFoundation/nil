@@ -33,9 +33,7 @@ func (m *Manager) NewStream(ctx context.Context, peerId PeerID, protocolId Proto
 func (m *Manager) SetStreamHandler(protocolId ProtocolID, handler StreamHandler) {
 	m.logger.Debug().Msgf("Setting stream handler for protocol %s", protocolId)
 
-	m.host.SetStreamHandler(protocolId, func(stream network.Stream) {
-		handler(stream)
-	})
+	m.host.SetStreamHandler(protocolId, handler)
 }
 
 func (m *Manager) SendRequestAndGetResponse(ctx context.Context, peerId PeerID, protocolId ProtocolID, request []byte) ([]byte, error) {

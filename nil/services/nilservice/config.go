@@ -27,7 +27,8 @@ type Config struct {
 	ShardEndpoints map[string]string `yaml:"shardEndpoints,omitempty"`
 
 	// RPC
-	RPCPort int `yaml:"rpcPort,omitempty"`
+	RPCPort       int    `yaml:"rpcPort,omitempty"`
+	BootstrapPeer string `yaml:"bootstrapPeer,omitempty"`
 
 	// Admin
 	AdminSocketPath string `yaml:"adminSocket,omitempty"`

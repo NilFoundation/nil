@@ -1,6 +1,7 @@
 package db
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
@@ -145,6 +146,7 @@ func ValidateBlock(s *suite.Suite, d DB) {
 
 	tx, err := d.CreateRwTx(ctx)
 	s.Require().NoError(err)
+	defer tx.Rollback()
 
 	block := types.Block{
 		Id:                 1,
@@ -249,7 +251,7 @@ func (suite *SuiteBadgerDb) TestValidateTransaction() {
 	ValidateTransaction(&suite.Suite, suite.db)
 }
 
-func (suite *SuiteBadgerDb) TesValidateBlock() {
+func (suite *SuiteBadgerDb) TestValidateBlock() {
 	ValidateBlock(&suite.Suite, suite.db)
 }
 
@@ -475,6 +477,65 @@ func (s *SuiteBadgerDb) TestTimestamps() {
 
 		s.Require().NoError(tx.Put("tbl", []byte("foo"), []byte("bar2")))
 		s.Require().NoError(tx.Commit())
+	})
+}
+
+func (s *SuiteBadgerDb) TestStreamLoad() {
+	s.fillData("t")
+
+	s.Run("dump and load all data", func() {
+		var buf bytes.Buffer
+		err := s.db.Stream(s.ctx, func([]byte) bool { return true }, &buf)
+		s.Require().NoError(err)
+
+		newDb, err := NewBadgerDbInMemory()
+		s.Require().NoError(err)
+		defer newDb.Close()
+
+		err = newDb.Fetch(s.ctx, &buf)
+		s.Require().NoError(err)
+
+		tx, err := newDb.CreateRoTx(s.ctx)
+		s.Require().NoError(err)
+		defer tx.Rollback()
+
+		v, err := tx.Get("t", []byte("key0"))
+		s.Require().NoError(err)
+		s.EqualValues("value0.1", v)
+
+		v, err = tx.Get("tgarbage", []byte("key0"))
+		s.Require().NoError(err)
+		s.EqualValues("value0.3", v)
+	})
+
+	s.Run("dump and load with filter", func() {
+		var buf bytes.Buffer
+		err := s.db.Stream(s.ctx, func(b []byte) bool {
+			return bytes.HasPrefix(b, []byte("t:"))
+		}, &buf)
+		s.Require().NoError(err)
+
+		newDb, err := NewBadgerDbInMemory()
+		s.Require().NoError(err)
+		defer newDb.Close()
+
+		err = newDb.Fetch(s.ctx, &buf)
+		s.Require().NoError(err)
+
+		tx, err := newDb.CreateRoTx(s.ctx)
+		s.Require().NoError(err)
+		defer tx.Rollback()
+
+		_, err = tx.Get("tgarbage", []byte("key0"))
+		s.Require().ErrorIs(err, ErrKeyNotFound)
+
+		v, err := tx.Get("t", []byte("key0"))
+		s.Require().NoError(err)
+		s.EqualValues("value0.1", v)
+
+		v, err = tx.Get("t", []byte("key1"))
+		s.Require().NoError(err)
+		s.EqualValues("value1.1", v)
 	})
 }
 

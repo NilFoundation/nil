@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/client"
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -33,6 +34,7 @@ type syncCollator struct {
 
 	db             db.DB
 	networkManager *network.Manager
+	bootstrapPeer  string
 
 	logger zerolog.Logger
 
@@ -42,7 +44,7 @@ type syncCollator struct {
 
 func NewSyncCollator(ctx context.Context, msgPool msgpool.Pool,
 	shard types.ShardId, endpoint string, timeout time.Duration,
-	db db.DB, networkManager *network.Manager,
+	db db.DB, networkManager *network.Manager, bootstrapPeer string,
 ) (*syncCollator, error) {
 	logger := logging.NewLogger("sync").With().Stringer(logging.FieldShardId, shard).Logger()
 	s := &syncCollator{
@@ -52,18 +54,10 @@ func NewSyncCollator(ctx context.Context, msgPool msgpool.Pool,
 		timeout:         timeout,
 		db:              db,
 		networkManager:  networkManager,
+		bootstrapPeer:   bootstrapPeer,
 		logger:          logger,
 		lastBlockNumber: types.BlockNumber(math.MaxUint64),
 	}
-	err := s.readLastBlockNumber(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read last block number: %w", err)
-	}
-
-	s.logger.Debug().
-		Stringer(logging.FieldBlockHash, s.lastBlockHash).
-		Uint64(logging.FieldBlockNumber, s.lastBlockNumber.Uint64()).
-		Msgf("Initialized sync collator at starting block")
 
 	return s, nil
 }
@@ -85,7 +79,35 @@ func (s *syncCollator) readLastBlockNumber(ctx context.Context) error {
 	return nil
 }
 
+func (s *syncCollator) snapIsRequired(ctx context.Context) bool {
+	rotx, err := s.db.CreateRoTx(ctx)
+	check.PanicIfErr(err)
+	defer rotx.Rollback()
+
+	_, err = db.ReadLastBlock(rotx, s.shard)
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		check.PanicIfErr(err)
+	}
+	return err != nil
+}
+
 func (s *syncCollator) Run(ctx context.Context) error {
+	if s.snapIsRequired(ctx) {
+		if err := FetchSnapshot(ctx, s.networkManager, s.bootstrapPeer, s.shard, s.db); err != nil {
+			return fmt.Errorf("failed to fetch snapshot: %w", err)
+		}
+	}
+
+	err := s.readLastBlockNumber(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to read last block number: %w", err)
+	}
+
+	s.logger.Debug().
+		Stringer(logging.FieldBlockHash, s.lastBlockHash).
+		Uint64(logging.FieldBlockNumber, s.lastBlockNumber.Uint64()).
+		Msgf("Initialized sync collator at starting block")
+
 	s.logger.Info().Msg("Starting sync")
 
 	var ch <-chan []byte

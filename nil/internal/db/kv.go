@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -49,6 +50,7 @@ type Iter interface {
 type ReadOnlyDB interface {
 	CreateRoTx(ctx context.Context) (RoTx, error)
 	CreateRoTxAt(ctx context.Context, ts Timestamp) (RoTx, error)
+	Stream(ctx context.Context, keyFilter func([]byte) bool, writer io.Writer) error
 }
 
 type DB interface {
@@ -58,6 +60,7 @@ type DB interface {
 
 	DropAll() error
 	LogGC(ctx context.Context, discardRation float64, gcFrequency time.Duration) error
+	Fetch(_ context.Context, reader io.Reader) error
 	Close()
 }
 

@@ -12,33 +12,28 @@ type TableName string
 type ShardedTableName string
 
 const (
-	blockTable = ShardedTableName("Blocks")
-
-	codeTable = ShardedTableName("Code")
-
-	ContractTrieTable    = ShardedTableName("ContractTrie")
-	StorageTrieTable     = ShardedTableName("StorageTrie")
+	blockTable           = ShardedTableName("Blocks")
+	blockTimestampTable  = ShardedTableName("BlockTimestamp")
+	codeTable            = ShardedTableName("Code")
 	shardBlocksTrieTable = ShardedTableName("ShardBlocksTrie")
-	MessageTrieTable     = ShardedTableName("MessageTrie")
-	ReceiptTrieTable     = ShardedTableName("ReceiptTrie")
-	CurrencyTrieTable    = ShardedTableName("CurrencyTrie")
-	ConfigTrieTable      = ShardedTableName("ConfigTrie")
 
-	contractTable = ShardedTableName("Contract")
-
-	GasPerShardTable                         = TableName("GasPerShard")
-	LastBlockTable                           = TableName("LastBlock")
-	CollatorStateTable                       = TableName("CollatorState")
+	ContractTrieTable                        = ShardedTableName("ContractTrie")
+	StorageTrieTable                         = ShardedTableName("StorageTrie")
+	MessageTrieTable                         = ShardedTableName("MessageTrie")
+	ReceiptTrieTable                         = ShardedTableName("ReceiptTrie")
+	CurrencyTrieTable                        = ShardedTableName("CurrencyTrie")
+	ConfigTrieTable                          = ShardedTableName("ConfigTrie")
+	ContractTable                            = ShardedTableName("Contract")
 	BlockHashByNumberIndex                   = ShardedTableName("BlockHashByNumber")
 	BlockHashAndInMessageIndexByMessageHash  = ShardedTableName("BlockHashAndInMessageIndexByMessageHash")
 	BlockHashAndOutMessageIndexByMessageHash = ShardedTableName("BlockHashAndOutMessageIndexByMessageHash")
-	BlockTimestampTable                      = ShardedTableName("BlockTimestamp")
+	AsyncCallContextTable                    = ShardedTableName("AsyncCallContext")
 
-	ErrorByMessageHashTable = TableName("ErrorByMessageHash")
-
-	SchemeVersionTable = TableName("SchemeVersion")
-
-	AsyncCallContextTable = ShardedTableName("AsyncCallContext")
+	gasPerShardTable        = TableName("GasPerShard")
+	collatorStateTable      = TableName("CollatorState")
+	errorByMessageHashTable = TableName("ErrorByMessageHash")
+	schemeVersionTable      = TableName("SchemeVersion")
+	LastBlockTable          = TableName("LastBlock")
 )
 
 func ShardTableName(tableName ShardedTableName, shardId types.ShardId) TableName {
@@ -47,6 +42,56 @@ func ShardTableName(tableName ShardedTableName, shardId types.ShardId) TableName
 
 func ShardBlocksTrieTableName(blockId types.BlockNumber) ShardedTableName {
 	return ShardedTableName(fmt.Sprintf("%s%d", shardBlocksTrieTable, blockId))
+}
+
+func CreateKeyFromShardTableChecker(shardId types.ShardId) func([]byte) bool {
+	shardTableNames := []ShardedTableName{
+		blockTable,
+		blockTimestampTable,
+		codeTable,
+		shardBlocksTrieTable,
+
+		ContractTrieTable,
+		StorageTrieTable,
+		MessageTrieTable,
+		ReceiptTrieTable,
+		CurrencyTrieTable,
+		ConfigTrieTable,
+		ContractTable,
+		BlockHashByNumberIndex,
+		BlockHashAndInMessageIndexByMessageHash,
+		BlockHashAndOutMessageIndexByMessageHash,
+		AsyncCallContextTable,
+	}
+
+	shardTables := make([]TableName, len(shardTableNames))
+	for i, t := range shardTableNames {
+		shardTables[i] = ShardTableName(t, shardId)
+	}
+
+	systemTables := []TableName{
+		LastBlockTable,
+		gasPerShardTable,
+		collatorStateTable,
+	}
+
+	systemKeys := make(map[string]struct{})
+	for _, t := range systemTables {
+		k := MakeKey(t, shardId.Bytes())
+		systemKeys[string(k)] = struct{}{}
+	}
+
+	return func(key []byte) bool {
+		for _, shardedTable := range shardTables {
+			if IsKeyFromTable(shardedTable, key) {
+				return true
+			}
+			if _, exists := systemKeys[string(key)]; exists {
+				return true
+			}
+		}
+		return false
+	}
 }
 
 type BlockHashAndMessageIndex struct {

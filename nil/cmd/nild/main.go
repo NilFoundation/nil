@@ -104,6 +104,7 @@ func parseArgs() *nildconfig.Config {
 	rootCmd.PersistentFlags().Float64Var(&cfg.GasPriceScale, "gas-price-scale", cfg.GasPriceScale, "gas price scale factor for each transaction")
 	rootCmd.PersistentFlags().Uint64Var(&cfg.GasBasePrice, "gas-base-price", cfg.GasBasePrice, "base gas price for each transaction")
 	rootCmd.PersistentFlags().IntVar(&cfg.RPCPort, "port", cfg.RPCPort, "http port for rpc server")
+	rootCmd.PersistentFlags().StringVar(&cfg.BootstrapPeer, "bootstrap-peer", cfg.BootstrapPeer, "peer for snapshot fetching")
 	rootCmd.PersistentFlags().StringVar(&cfg.AdminSocketPath, "admin-socket-path", cfg.AdminSocketPath, "unix socket path to start admin server on (disabled if empty)}")
 	rootCmd.PersistentFlags().StringVar(&cfg.ReadThrough.SourceAddr, "read-through-db-addr", cfg.ReadThrough.SourceAddr, "address of the read-through database server. If provided, the local node will be run in read-through mode.")
 	rootCmd.PersistentFlags().Var(&cfg.ReadThrough.ForkMainAtBlock, "read-through-fork-main-at-block", "all blocks generated later than this MainChain block won't be fetched; latest block by default")

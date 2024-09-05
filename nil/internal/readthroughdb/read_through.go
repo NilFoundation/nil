@@ -3,6 +3,7 @@ package readthroughdb
 import (
 	"context"
 	"errors"
+	"io"
 	"sync"
 	"time"
 
@@ -145,6 +146,14 @@ func (tx *RoTx) Rollback() {
 
 func (db *ReadThroughDb) Close() {
 	db.db.Close()
+}
+
+func (db *ReadThroughDb) Stream(ctx context.Context, keyFilter func([]byte) bool, writer io.Writer) error {
+	panic("Not supported")
+}
+
+func (db *ReadThroughDb) Fetch(ctx context.Context, reader io.Reader) error {
+	panic("Not supported")
 }
 
 func (db *ReadThroughDb) DropAll() error {
