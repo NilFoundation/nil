@@ -22,7 +22,6 @@ type DebugAPI interface {
 }
 
 type DebugAPIImpl struct {
-	*BaseAPI
 	db       db.ReadOnlyDB
 	logger   zerolog.Logger
 	accessor *execution.StateAccessor
@@ -30,10 +29,9 @@ type DebugAPIImpl struct {
 
 var _ DebugAPI = &DebugAPIImpl{}
 
-func NewDebugAPI(base *BaseAPI, db db.ReadOnlyDB, logger zerolog.Logger) *DebugAPIImpl {
+func NewDebugAPI(db db.ReadOnlyDB, logger zerolog.Logger) *DebugAPIImpl {
 	accessor, _ := execution.NewStateAccessor()
 	return &DebugAPIImpl{
-		BaseAPI:  base,
 		db:       db,
 		logger:   logger,
 		accessor: accessor,

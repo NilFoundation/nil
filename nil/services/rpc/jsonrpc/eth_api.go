@@ -3,7 +3,6 @@ package jsonrpc
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
@@ -310,20 +309,8 @@ type EthAPI interface {
 	GetCurrencies(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (map[string]*hexutil.Big, error)
 }
 
-type BaseAPI struct {
-	evmCallTimeout time.Duration
-}
-
-func NewBaseApi(evmCallTimeout time.Duration) *BaseAPI {
-	return &BaseAPI{
-		evmCallTimeout: evmCallTimeout,
-	}
-}
-
 // APIImpl is implementation of the EthAPI interface based on remote Db access
 type APIImpl struct {
-	*BaseAPI
-
 	accessor *execution.StateAccessor
 
 	db       db.ReadOnlyDB
@@ -333,13 +320,12 @@ type APIImpl struct {
 }
 
 // NewEthAPI returns APIImpl instance
-func NewEthAPI(ctx context.Context, base *BaseAPI, db db.ReadOnlyDB, pools []msgpool.Pool, pollBlocksForLogs bool) (*APIImpl, error) {
+func NewEthAPI(ctx context.Context, db db.ReadOnlyDB, pools []msgpool.Pool, pollBlocksForLogs bool) (*APIImpl, error) {
 	accessor, err := execution.NewStateAccessor()
 	if err != nil {
 		return nil, err
 	}
 	api := &APIImpl{
-		BaseAPI:  base,
 		db:       db,
 		msgPools: pools,
 		logger:   logging.NewLogger("eth-api"),

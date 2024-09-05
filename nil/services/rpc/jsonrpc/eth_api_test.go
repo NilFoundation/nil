@@ -8,7 +8,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport/rpccfg"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,7 +23,7 @@ func NewPools(n int) []msgpool.Pool {
 func NewTestEthAPI(t *testing.T, ctx context.Context, db db.DB, nShards int) *APIImpl {
 	t.Helper()
 
-	api, err := NewEthAPI(ctx, NewBaseApi(rpccfg.DefaultEvmCallTimeout), db, NewPools(nShards), true)
+	api, err := NewEthAPI(ctx, db, NewPools(nShards), true)
 	require.NoError(t, err)
 	return api
 }

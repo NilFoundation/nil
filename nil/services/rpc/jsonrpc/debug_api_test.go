@@ -12,7 +12,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport/rpccfg"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -66,8 +65,7 @@ func TestDebugGetBlock(t *testing.T) {
 	err = tx.Commit()
 	require.NoError(t, err)
 
-	base := NewBaseApi(0)
-	api := NewDebugAPI(base, database, log.Logger)
+	api := NewDebugAPI(database, log.Logger)
 
 	// When: Get the latest block
 	res1, err := api.GetBlockByNumber(ctx, types.MainShardId, transport.LatestBlockNumber, false)
@@ -134,8 +132,7 @@ func (suite *SuiteDbgContracts) SetupSuite() {
 	err = tx.Commit()
 	suite.Require().NoError(err)
 
-	suite.debugApi = NewDebugAPI(
-		NewBaseApi(rpccfg.DefaultEvmCallTimeout), suite.db, logging.NewLogger("Test"))
+	suite.debugApi = NewDebugAPI(suite.db, logging.NewLogger("Test"))
 	suite.Require().NoError(err)
 }
 
