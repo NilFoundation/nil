@@ -145,6 +145,24 @@ func (s *Service) CallContract(
 	return res, nil
 }
 
+// EstimateFee returns recommended fee for the call
+func (s *Service) EstimateFee(
+	contract types.Address, calldata []byte, flags types.MessageFlags, value types.Value,
+) (types.Value, error) {
+	callArgs := &jsonrpc.CallArgs{
+		Flags: flags,
+		To:    contract,
+		Value: value,
+		Data:  (*hexutil.Bytes)(&calldata),
+	}
+
+	res, err := s.client.EstimateFee(callArgs, "latest")
+	if err != nil {
+		return types.Value{}, err
+	}
+	return res, nil
+}
+
 func (s *Service) ContractAddress(shardId types.ShardId, salt types.Uint256, bytecode []byte) types.Address {
 	deployPayload := types.BuildDeployPayload(bytecode, common.Hash(salt.Bytes32()))
 	return types.CreateAddress(shardId, deployPayload)

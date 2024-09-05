@@ -41,19 +41,19 @@ func setFlags(cmd *cobra.Command) {
 		"Specify the shard id to interact with",
 	)
 
-	params.new_wallet_amount = defaultNewWalletAmount
+	params.newWalletAmount = defaultNewWalletAmount
 	cmd.Flags().Var(
-		&params.new_wallet_amount,
+		&params.newWalletAmount,
 		amountFlag,
 		"Start balance (capped at 10'000'000). Deployment fee will be subtracted",
 	)
 }
 
 func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
-	amount := params.new_wallet_amount
+	amount := params.newWalletAmount
 	if amount.Cmp(defaultNewWalletAmount) > 0 {
 		logger.Warn().
-			Msgf("Specified balance (%s) is greater than a limit (%s). Decrease it.", &params.new_wallet_amount, defaultNewWalletAmount)
+			Msgf("Specified balance (%s) is greater than a limit (%s). Decrease it.", &params.newWalletAmount, defaultNewWalletAmount)
 		amount = defaultNewWalletAmount
 	}
 

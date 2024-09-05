@@ -336,16 +336,15 @@ func (s *SuiteCli) TestCliWallet() {
 	abiFileName := dir + "/Incrementer.abi"
 	s.compileIncrementerAndSaveToFile(binFileName, abiFileName)
 
-	var addr types.Address
+	var addr string
 	s.Run("Get contract address", func() {
-		res := s.runCli("-c", cfgPath, "contract", "address", dir+"/Incrementer.bin", "123321", "--abi", abiFileName, "-q")
-		s.Require().NoError(addr.Set(res))
+		addr = s.runCli("-c", cfgPath, "contract", "address", dir+"/Incrementer.bin", "123321", "--abi", abiFileName, "-q")
 	})
 
 	res = s.runCli("-c", cfgPath, "wallet", "deploy", dir+"/Incrementer.bin", "123321", "--abi", abiFileName)
 	s.Run("Deploy contract", func() {
 		s.Contains(res, "Contract address")
-		s.Contains(res, strings.ToLower(addr.String()))
+		s.Contains(res, addr)
 	})
 
 	s.Run("Check deploy message result and receipt", func() {
@@ -361,33 +360,52 @@ func (s *SuiteCli) TestCliWallet() {
 	})
 
 	s.Run("Check contract code", func() {
-		res := s.runCli("-c", cfgPath, "contract", "code", addr.String())
+		res := s.runCli("-c", cfgPath, "contract", "code", addr)
 		s.Contains(res, "Contract code: 0x6080")
 	})
 
 	s.Run("Call read-only 'get' function of contract", func() {
-		res := s.runCli("-c", cfgPath, "contract", "call-readonly", addr.String(), "get", "--abi", abiFileName)
+		res := s.runCli("-c", cfgPath, "contract", "call-readonly", addr, "get", "--abi", abiFileName)
 		s.Contains(res, "uint256: 123321")
 	})
 
+	s.Run("Estimate fee", func() {
+		isNum := func(str string) {
+			s.T().Helper()
+			_, err := strconv.ParseUint(str, 0, 64)
+			s.Require().NoError(err)
+		}
+
+		resExt := s.runCli("-c", cfgPath, "contract", "estimate-fee", addr, "increment", "--abi", abiFileName, "-q")
+		isNum(resExt)
+
+		resInt := s.runCli("-c", cfgPath, "contract", "estimate-fee", addr, "increment", "--abi", abiFileName, "-q", "--internal")
+		isNum(resInt)
+
+		res := s.runCli("-c", cfgPath, "wallet", "estimate-fee", addr, "increment", "--abi", abiFileName, "-q")
+		parts := strings.Split(res, "\n")
+		s.Len(parts, 2)
+		s.Equal(resInt, parts[1])
+	})
+
 	s.Run("Call 'increment' function of contract", func() {
-		res := s.runCli("-c", cfgPath, "wallet", "send-message", addr.String(), "increment", "--abi", abiFileName)
+		res := s.runCli("-c", cfgPath, "wallet", "send-message", addr, "increment", "--abi", abiFileName)
 		s.Contains(res, "Message hash")
 	})
 
 	s.Run("Call read-only 'get' function of contract once again", func() {
-		res := s.runCli("-c", cfgPath, "contract", "call-readonly", addr.String(), "get", "--abi", abiFileName)
+		res := s.runCli("-c", cfgPath, "contract", "call-readonly", addr, "get", "--abi", abiFileName)
 		s.Contains(res, "uint256: 123322")
 	})
 
 	overridesFile := dir + "/overrides.json"
 	s.Run("Call read-only via the wallet", func() {
-		res := s.runCli("-c", cfgPath, "wallet", "call-readonly", addr.String(), "increment", "--abi", abiFileName, "--out-overrides", overridesFile)
+		res := s.runCli("-c", cfgPath, "wallet", "call-readonly", addr, "increment", "--abi", abiFileName, "--out-overrides", overridesFile)
 		s.Contains(res, "Success, no result")
 	})
 
 	s.Run("Call read-only via the wallet", func() {
-		res := s.runCli("-c", cfgPath, "wallet", "call-readonly", addr.String(), "get", "--abi", abiFileName, "--in-overrides", overridesFile)
+		res := s.runCli("-c", cfgPath, "wallet", "call-readonly", addr, "get", "--abi", abiFileName, "--in-overrides", overridesFile)
 		s.Contains(res, "uint256: 123323")
 	})
 }

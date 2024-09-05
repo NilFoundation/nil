@@ -11,6 +11,8 @@ const (
 	saltFlag         = "salt"
 	shardIdFlag      = "shard-id"
 	feeCreditFlag    = "fee-credit"
+	valueFlag        = "value"
+	deployFlag       = "deploy"
 	tokenFlag        = "token"
 	inOverridesFlag  = "in-overrides"
 	outOverridesFlag = "out-overrides"
@@ -20,16 +22,18 @@ const (
 var params = &walletParams{}
 
 type walletParams struct {
-	abiPath           string
-	amount            types.Value
-	new_wallet_amount types.Value
-	noWait            bool
-	salt              types.Uint256
-	shardId           types.ShardId
-	feeCredit         types.Value
-	currency          types.Value
-	currencies        []string
-	inOverridesPath   string
-	outOverridesPath  string
-	withDetails       bool
+	abiPath          string
+	amount           types.Value
+	deploy           bool
+	newWalletAmount  types.Value
+	noWait           bool
+	salt             types.Uint256
+	shardId          types.ShardId
+	feeCredit        types.Value
+	value            types.Value
+	currency         types.Value
+	currencies       []string
+	inOverridesPath  string
+	outOverridesPath string
+	withDetails      bool
 }

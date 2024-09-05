@@ -41,6 +41,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 	serverCmd.AddCommand(TopUpCommand(cfg))
 	serverCmd.AddCommand(NewCommand(cfg))
 	serverCmd.AddCommand(CallReadonlyCommand(cfg))
+	serverCmd.AddCommand(GetEstimateFeeCommand(cfg))
 
 	return serverCmd
 }
