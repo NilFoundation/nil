@@ -31,11 +31,11 @@ type DirectClient struct {
 var _ Client = (*DirectClient)(nil)
 
 func NewEthClient(ctx context.Context, wg *sync.WaitGroup, db db.ReadOnlyDB, msgPools []msgpool.Pool, logger zerolog.Logger) (*DirectClient, error) {
-	ethApi, err := jsonrpc.NewEthAPI(ctx, nil, db, msgPools, true)
+	ethApi, err := jsonrpc.NewEthAPI(ctx, db, msgPools, true)
 	if err != nil {
 		return nil, err
 	}
-	debugApi := jsonrpc.NewDebugAPI(nil, db, logger)
+	debugApi := jsonrpc.NewDebugAPI(db, logger)
 	dbApi := jsonrpc.NewDbAPI(db, logger)
 
 	wg.Add(1)

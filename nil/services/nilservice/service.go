@@ -23,7 +23,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport/rpccfg"
 )
 
 func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []msgpool.Pool) error {
@@ -42,16 +41,14 @@ func startRpcServer(ctx context.Context, cfg *Config, db db.ReadOnlyDB, pools []
 		HTTPTimeouts:    httpcfg.DefaultHTTPTimeouts,
 	}
 
-	base := jsonrpc.NewBaseApi(rpccfg.DefaultEvmCallTimeout)
-
 	pollBlocksForLogs := cfg.RunMode == NormalRunMode
-	ethImpl, err := jsonrpc.NewEthAPI(ctx, base, db, pools, pollBlocksForLogs)
+	ethImpl, err := jsonrpc.NewEthAPI(ctx, db, pools, pollBlocksForLogs)
 	if err != nil {
 		return err
 	}
 	defer ethImpl.Shutdown()
 
-	debugImpl := jsonrpc.NewDebugAPI(base, db, logger)
+	debugImpl := jsonrpc.NewDebugAPI(db, logger)
 	dbImpl := jsonrpc.NewDbAPI(db, logger)
 
 	apiList := []transport.API{
