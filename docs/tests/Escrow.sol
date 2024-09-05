@@ -3,7 +3,7 @@
 //startEscrow
 pragma solidity ^0.8.9;
 
-import "./Nil.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract Escrow {
     using Nil for address;
@@ -14,31 +14,27 @@ contract Escrow {
     }
 
     function submitForVerification(
-        address dst,
+        address validator,
         address participantOne,
         address participantTwo
     ) public payable {
-        dst.asyncCall(
-            address(0),
-            address(0),
-            100000,
-            Nil.FORWARD_NONE,
-            false,
-            1000000,
-            abi.encodeWithSignature(
-                "verify(address, address)",
-                participantOne,
-                participantTwo
-            )
-        );
+        bytes memory context = abi.encodeWithSelector(this.resolve.selector, participantOne, participantTwo, msg.value);
+        bytes memory callData = abi.encodeWithSignature("validate(address, address)", participantOne, participantTwo);
+        Nil.sendRequest(validator, 0, context, callData);
     }
 
     function resolve(
-        address participantOne,
-        address participantTwo
+        bool success, 
+        bytes memory returnData,
+        bytes memory context
     ) public payable {
-        deposits[participantOne] -= msg.value;
-        deposits[participantTwo] += msg.value;
+      require(success, "Request failed!");
+      (address participantOne, address participantTwo, uint256 value) = abi.decode(context, (address, address, uint256));
+      bool isValidated = abi.decode(returnData, (bool));
+      if (isValidated) {
+        deposits[participantOne] -= value;
+        deposits[participantTwo] += value;
+      }
     }
 
     function verifyExternal(

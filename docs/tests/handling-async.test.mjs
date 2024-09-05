@@ -1,4 +1,4 @@
-import { RPC_GLOBAL, NIL_GLOBAL } from './globals';
+import { RPC_GLOBAL, NIL_GLOBAL, NODE_MODULES } from './globals';
 const SALT = BigInt(Math.floor(Math.random() * 10000));
 
 const RPC_ENDPOINT = RPC_GLOBAL;
@@ -14,7 +14,7 @@ const RPC_COMMAND = `${NIL_GLOBAL} config set rpc_endpoint ${RPC_ENDPOINT} ${CON
 
 const WALLET_CREATION_COMMAND = `${NIL_GLOBAL} wallet new ${CONFIG_FLAG} --salt ${SALT}`;
 
-const COUNTER_COMPILATION_COMMAND = 'solc -o ./tests/Counter --bin --abi ./tests/Counter.sol --overwrite';
+const COUNTER_COMPILATION_COMMAND = `solc -o ./tests/Counter --bin --abi ./tests/Counter.sol --overwrite ${NODE_MODULES}`;
 
 const COUNTER_DEPLOYMENT_COMMAND = `${NIL_GLOBAL} wallet deploy ./tests/Counter/Counter.bin --salt ${SALT} ${CONFIG_FLAG}`;
 
@@ -31,71 +31,71 @@ let AWAITER_ADDRESS;
 
 
 beforeAll(async () => {
-    await exec(CONFIG_COMMAND);
-    await exec(KEYGEN_COMMAND);
-    await exec(RPC_COMMAND);
-    await exec(WALLET_CREATION_COMMAND);
+  await exec(CONFIG_COMMAND);
+  await exec(KEYGEN_COMMAND);
+  await exec(RPC_COMMAND);
+  await exec(WALLET_CREATION_COMMAND);
 });
 
 afterAll(async () => {
-    await exec(`rm -rf ./tests/${CONFIG_FILE_NAME}`);
+  await exec(`rm -rf ./tests/${CONFIG_FILE_NAME}`);
 });
 
 describe.sequential('compilation tests', async () => {
-    test.sequential('the CallerAsync contract is compiled successfully', async () => {
-        const CALLER_ASYNC_COMPILATION_COMMAND = 'solc -o ./tests/CallerAsync --bin --abi ./tests/CallerAsync.sol --overwrite';
-        const { stdout, stderr } = await exec(CALLER_ASYNC_COMPILATION_COMMAND);
-        expect(stdout).toMatch(SUCCESSFUL_EXECUTION_PATTERN);
-    });
+  test.sequential('the CallerAsync contract is compiled successfully', async () => {
+    const CALLER_ASYNC_COMPILATION_COMMAND = `solc -o ./tests/CallerAsync --bin --abi ./tests/CallerAsync.sol --overwrite ${NODE_MODULES}`;
+    const { stdout, stderr } = await exec(CALLER_ASYNC_COMPILATION_COMMAND);
+    expect(stdout).toMatch(SUCCESSFUL_EXECUTION_PATTERN);
+  });
 
-    test.sequential('the CallerAsyncBasicPattern contract is compiled successfully', async () => {
-        const CALLER_ASYNC_BP_COMPILATION_COMMAND = 'solc -o ./tests/CallerAsyncBasicPattern --bin --abi ./tests/CallerAsyncBasicPattern.sol  --overwrite';
-        const { stdout, stderr } = await exec(CALLER_ASYNC_BP_COMPILATION_COMMAND);
-        expect(stdout).toMatch(SUCCESSFUL_EXECUTION_PATTERN);
-    });
+  test.sequential('the CallerAsyncBasicPattern contract is compiled successfully', async () => {
+    const CALLER_ASYNC_BP_COMPILATION_COMMAND = `solc -o ./tests/CallerAsyncBasicPattern --bin --abi ./tests/CallerAsyncBasicPattern.sol  --overwrite ${NODE_MODULES}`;
+    const { stdout, stderr } = await exec(CALLER_ASYNC_BP_COMPILATION_COMMAND);
+    expect(stdout).toMatch(SUCCESSFUL_EXECUTION_PATTERN);
+  });
 
-    test.sequential('the Escrow contract is compiled successfully', async () => {
-        const ESCROW_SUCCESSFUL_PATTERN = /Function state mutability can be restricted to pure/;
-        const ESCROW_COMPILATION_COMMAND = 'solc -o ./tests/Escrow --bin --abi ./tests/Escrow.sol  --overwrite';
-        const { stdout, stderr } = await exec(ESCROW_COMPILATION_COMMAND);
-        expect(stderr).toMatch(ESCROW_SUCCESSFUL_PATTERN);
-    });
+  test.sequential('the Escrow contract is compiled successfully', async () => {
+    const ESCROW_SUCCESSFUL_PATTERN = /Function state mutability can be restricted to pure/;
+    const ESCROW_COMPILATION_COMMAND = `solc -o ./tests/Escrow --bin --abi ./tests/Escrow.sol  --overwrite ${NODE_MODULES}`;
+    const { stdout, stderr } = await exec(ESCROW_COMPILATION_COMMAND);
+    expect(stderr).toMatch(ESCROW_SUCCESSFUL_PATTERN);
+  });
 
-    test.sequential('the Validator contract is compiled successfully', async () => {
-        const VALIDATOR_COMPILATION_COMMAND = 'solc -o ./tests/Validator --bin --abi ./tests/Validator.sol  --overwrite';
-        const { stdout, stderr } = await exec(VALIDATOR_COMPILATION_COMMAND);
-        expect(stdout).toMatch(SUCCESSFUL_EXECUTION_PATTERN);
-    });
+  test.sequential('the Validator contract is compiled successfully', async () => {
+    const VALIDATOR_COMPILATION_COMMAND = `solc -o ./tests/Validator --bin --abi ./tests/Validator.sol  --overwrite ${NODE_MODULES}`;
+    const { stdout, stderr } = await exec(VALIDATOR_COMPILATION_COMMAND);
+    expect(stderr).toMatch(/Function state mutability/);
+  });
 });
 
 describe.sequential('Awaiter tests', async () => {
-    test.sequential('compilation and deployment of Awaiter is successful', async () => {
-        const AWAITER_COMPILATION_COMMAND = 'solc -o ./tests/Awaiter --bin --abi ./tests/Awaiter.sol --overwrite';
-        let { stdout, stderr } = await exec(AWAITER_COMPILATION_COMMAND);
-        expect(stdout).toMatch(SUCCESSFUL_EXECUTION_PATTERN);
-        ({ stdout, stderr } = await exec(`${NIL_GLOBAL} wallet deploy ./tests/Awaiter/Awaiter.bin --abi ./tests/Awaiter/Awaiter.abi --shard-id 2 ${CONFIG_FLAG} --salt ${SALT}`));
-        expect(stdout).toMatch(pattern);
-        const addressMatches = stdout.match(addressPattern);
-        AWAITER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
-        await exec(`${NIL_GLOBAL} wallet send-tokens ${AWAITER_ADDRESS} 5000000 ${CONFIG_FLAG}`);
-    });
+  test.sequential('compilation and deployment of Awaiter is successful', async () => {
+    const AWAITER_COMPILATION_COMMAND = `solc -o ./tests/Awaiter --bin --abi ./tests/Awaiter.sol --overwrite ${NODE_MODULES}`;
+    let { stdout, stderr } = await exec(AWAITER_COMPILATION_COMMAND);
+    expect(stdout).toMatch(SUCCESSFUL_EXECUTION_PATTERN);
+    ({ stdout, stderr } = await exec(`${NIL_GLOBAL} wallet deploy ./tests/Awaiter/Awaiter.bin --abi ./tests/Awaiter/Awaiter.abi --shard-id 2 ${CONFIG_FLAG} --salt ${SALT}`));
+    expect(stdout).toMatch(pattern);
+    const addressMatches = stdout.match(addressPattern);
+    AWAITER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
+    await exec(`${NIL_GLOBAL} wallet send-tokens ${AWAITER_ADDRESS} 5000000 ${CONFIG_FLAG}`);
+  });
 
-    test.sequential('Awaiter can call Counter successfully', async () => {
+  test.sequential('Awaiter can call Counter successfully', async () => {
 
-        await exec(COUNTER_COMPILATION_COMMAND);
-        let { stdout, stderr } = await exec(COUNTER_DEPLOYMENT_COMMAND);
-        expect(stdout).toMatch(pattern);
-        const addressMatches = stdout.match(addressPattern);
-        COUNTER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
+    await exec(COUNTER_COMPILATION_COMMAND);
+    let { stdout, stderr } = await exec(COUNTER_DEPLOYMENT_COMMAND);
+    expect(stdout).toMatch(pattern);
+    const addressMatches = stdout.match(addressPattern);
+    COUNTER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
 
-        await exec(`${NIL_GLOBAL} wallet send-message ${AWAITER_ADDRESS} call ${COUNTER_ADDRESS} --abi ./tests/Awaiter/Awaiter.abi ${CONFIG_FLAG}`);
+    await exec(`${NIL_GLOBAL} wallet send-message ${AWAITER_ADDRESS} call ${COUNTER_ADDRESS} --abi ./tests/Awaiter/Awaiter.abi ${CONFIG_FLAG}`);
 
-        ({ stdout, stderr } = await exec(`${NIL_GLOBAL} contract call-readonly ${AWAITER_ADDRESS} getResult --abi ./tests/Awaiter/Awaiter.abi ${CONFIG_FLAG}`));
-        const normalize = str => str.replace(/\r\n/g, '\n').trim();
+    ({ stdout, stderr } = await exec(`${NIL_GLOBAL} contract call-readonly ${AWAITER_ADDRESS} getResult --abi ./tests/Awaiter/Awaiter.abi ${CONFIG_FLAG}`));
+    const normalize = str => str.replace(/\r\n/g, '\n').trim();
 
-        const expectedOutput = "Success, result:\nuint256: 0";
-        const receivedOutput = normalize(stdout);
+    const expectedOutput = "Success, result:\nuint256: 0";
+    const receivedOutput = normalize(stdout);
 
-        expect(receivedOutput).toBe(expectedOutput);
-    });
+    expect(receivedOutput).toBe(expectedOutput);
+  });
 });

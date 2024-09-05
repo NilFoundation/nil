@@ -3,7 +3,7 @@
 //startManufacturerContract
 pragma solidity ^0.8.0;
 
-import "./Nil.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract Manufacturer is NilBase {
     using Nil for address;
