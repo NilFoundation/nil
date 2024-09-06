@@ -301,16 +301,12 @@ func (as *AccountState) GetCommittedState(key common.Hash) (common.Hash, error) 
 }
 
 func (as *AccountState) Commit() (*types.SmartContract, error) {
-	for k, v := range as.State {
-		if err := as.StorageTree.Update(k, (*types.Uint256)(v.Uint256())); err != nil {
-			return nil, err
-		}
+	if err := UpdateFromMap(as.StorageTree, as.State, func(v common.Hash) *types.Uint256 { return (*types.Uint256)(v.Uint256()) }); err != nil {
+		return nil, err
 	}
 
-	for k, v := range as.AsyncContext {
-		if err := as.AsyncContextTree.Update(k, v); err != nil {
-			return nil, err
-		}
+	if err := UpdateFromMap(as.AsyncContextTree, as.AsyncContext, nil); err != nil {
+		return nil, err
 	}
 
 	for _, k := range as.AsyncContextRemoved {

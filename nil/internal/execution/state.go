@@ -1159,48 +1159,57 @@ func (es *ExecutionState) AddReceipt(execResult *ExecutionResult) {
 }
 
 func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error) {
+	keys := make([]common.Hash, 0, len(es.Accounts))
+	values := make([]*types.SmartContract, 0, len(es.Accounts))
 	for k, acc := range es.Accounts {
 		v, err := acc.Commit()
 		if err != nil {
 			return common.EmptyHash, err
 		}
 
-		kHash := k.Hash()
-		if err = es.ContractTree.Update(kHash, v); err != nil {
-			return common.EmptyHash, err
-		}
+		keys = append(keys, k.Hash())
+		values = append(values, v)
+	}
+	if err := es.ContractTree.UpdateBatch(keys, values); err != nil {
+		return common.EmptyHash, err
 	}
 
 	treeShardsRootHash := common.EmptyHash
 	if len(es.ChildChainBlocks) > 0 {
 		treeShards := NewDbShardBlocksTrie(es.tx, es.ShardId, blockId)
-		for k, hash := range es.ChildChainBlocks {
-			if err := treeShards.Update(k, &hash); err != nil {
-				return common.EmptyHash, err
-			}
+		if err := UpdateFromMap(treeShards, es.ChildChainBlocks, func(v common.Hash) *common.Hash { return &v }); err != nil {
+			return common.EmptyHash, err
 		}
 		treeShardsRootHash = treeShards.RootHash()
 	}
 
-	var outMsgIndex types.MessageIndex
+	outMsgKeys := make([]types.MessageIndex, 0)
+	outMsgValues := make([]*types.Message, 0)
+
+	inMsgKeys := make([]types.MessageIndex, 0)
+	inMsgValues := make([]*types.Message, 0)
+
 	for i, msg := range es.InMessages {
-		if err := es.InMessageTree.Update(types.MessageIndex(i), msg); err != nil {
-			return common.EmptyHash, err
-		}
+		inMsgKeys = append(inMsgKeys, types.MessageIndex(i))
+		inMsgValues = append(inMsgValues, msg)
+
 		// Put all outbound messages into the trie
 		for _, m := range es.OutMessages[es.InMessageHashes[i]] {
-			if err := es.OutMessageTree.Update(outMsgIndex, m.Message); err != nil {
-				return common.EmptyHash, err
-			}
-			outMsgIndex++
+			outMsgKeys = append(outMsgKeys, types.MessageIndex(len(outMsgKeys)))
+			outMsgValues = append(outMsgValues, m.Message)
 		}
 	}
 	// Put all outbound messages transmitted over the topology into the trie
 	for _, m := range es.OutMessages[common.EmptyHash] {
-		if err := es.OutMessageTree.Update(outMsgIndex, m.Message); err != nil {
-			return common.EmptyHash, err
-		}
-		outMsgIndex++
+		outMsgKeys = append(outMsgKeys, types.MessageIndex(len(outMsgKeys)))
+		outMsgValues = append(outMsgValues, m.Message)
+	}
+
+	if err := es.InMessageTree.UpdateBatch(inMsgKeys, inMsgValues); err != nil {
+		return common.EmptyHash, err
+	}
+	if err := es.OutMessageTree.UpdateBatch(outMsgKeys, outMsgValues); err != nil {
+		return common.EmptyHash, err
 	}
 
 	if assert.Enable {
@@ -1232,16 +1241,20 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 	}
 
 	// Update receipts trie
+	receiptKeys := make([]types.MessageIndex, 0, len(es.Receipts))
+	receiptValues := make([]*types.Receipt, 0, len(es.Receipts))
 	msgStart := 0
 	for i, r := range es.Receipts {
 		msgHash := es.InMessageHashes[i]
 		r.OutMsgIndex = uint32(msgStart)
 		r.OutMsgNum = uint32(len(es.OutMessages[msgHash]))
 
-		if err := es.ReceiptTree.Update(types.MessageIndex(i), r); err != nil {
-			return common.EmptyHash, err
-		}
+		receiptKeys = append(receiptKeys, types.MessageIndex(i))
+		receiptValues = append(receiptValues, r)
 		msgStart += len(es.OutMessages[msgHash])
+	}
+	if err := es.ReceiptTree.UpdateBatch(receiptKeys, receiptValues); err != nil {
+		return common.EmptyHash, err
 	}
 
 	block := types.Block{
@@ -1250,7 +1263,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		SmartContractsRoot:  es.ContractTree.RootHash(),
 		InMessagesRoot:      es.InMessageTree.RootHash(),
 		OutMessagesRoot:     es.OutMessageTree.RootHash(),
-		OutMessagesNum:      outMsgIndex,
+		OutMessagesNum:      types.MessageIndex(len(outMsgKeys)),
 		ReceiptsRoot:        es.ReceiptTree.RootHash(),
 		ChildBlocksRootHash: treeShardsRootHash,
 		MainChainHash:       es.MainChainHash,

@@ -3,6 +3,7 @@ package execution
 import (
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -277,6 +278,53 @@ func (m *BaseMPT[K, V, VPtr]) Update(key K, value VPtr) error {
 	}
 
 	return m.rwTrie.Set(k, v)
+}
+
+func (m *BaseMPT[K, V, VPtr]) UpdateBatch(keys []K, values []VPtr) error {
+	if len(keys) == 0 && len(values) == 0 {
+		return nil
+	}
+	k := make([][]byte, 0, len(keys))
+	v := make([][]byte, 0, len(values))
+	for _, key := range keys {
+		k = append(k, m.keyToBytes(key))
+	}
+	for _, value := range values {
+		if val, err := value.MarshalSSZ(); err != nil {
+			return err
+		} else {
+			v = append(v, val)
+		}
+	}
+	return m.rwTrie.SetBatch(k, v)
+}
+
+func UpdateFromMap[K comparable, MV any, V any, VPtr MPTValue[V]](m *BaseMPT[K, V, VPtr], data map[K]MV, extract func(MV) VPtr) error {
+	if len(data) == 0 {
+		return nil
+	}
+	keys := make([][]byte, 0, len(data))
+	values := make([][]byte, 0, len(data))
+	for k, v := range data {
+		keys = append(keys, m.keyToBytes(k))
+		if extract != nil {
+			if val, err := extract(v).MarshalSSZ(); err != nil {
+				return err
+			} else {
+				values = append(values, val)
+			}
+		} else {
+			v, ok := any(v).(VPtr)
+			check.PanicIfNot(ok)
+
+			if val, err := v.MarshalSSZ(); err != nil {
+				return err
+			} else {
+				values = append(values, val)
+			}
+		}
+	}
+	return m.rwTrie.SetBatch(keys, values)
 }
 
 func (m *BaseMPT[K, V, VPtr]) Delete(key K) error {
