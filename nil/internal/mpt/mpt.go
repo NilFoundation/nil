@@ -63,26 +63,7 @@ func (m *Reader) Get(key []byte) (ret []byte, err error) {
 }
 
 func (m *MerklePatriciaTrie) Set(key []byte, value []byte) error {
-	if len(key) > maxRawKeyLen {
-		key = poseidon.Sum(key)
-	}
-
-	path := newPath(key, false)
-	root, err := m.set(m.root, *path, value)
-	if err != nil {
-		return err
-	}
-	m.root = root
-
-	// We always save short root node in the storage, because `RootHash()` widens root to 32 bytes.
-	// So next time we want to read the root node, it will be 32-bytes width and thus will be fetched from the storage.
-	if len(m.root) < 32 {
-		if err := m.setter.Set(m.RootHash().Bytes(), m.root); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return m.SetBatch([][]byte{key}, [][]byte{value})
 }
 
 // keys order is important: if any key is presented several times only last modification will be applied
@@ -635,128 +616,6 @@ func (m *MerklePatriciaTrie) setBatch(nodeRef Reference, paths []*Path, values [
 	panic("Unexpected node type")
 }
 
-// TODO: replace `set` impl with `setBatch` call after ensuring its correctness
-func (m *MerklePatriciaTrie) set(nodeRef Reference, path Path, value []byte) (Reference, error) {
-	if !nodeRef.IsValid() {
-		return m.storeNode(newLeafNode(&path, value))
-	}
-
-	node, err := m.getNode(nodeRef)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		node = newLeafNode(&path, []byte{})
-		err = nil
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	switch node := node.(type) {
-	case *LeafNode:
-		// If we're updating the leaf, there are 2 possible ways:
-		// 1. the path is equal to the rest of the key. Then we should just update the value of this leaf.
-		// 2. path differs. Then we should split this node into several nodes.
-
-		if node.Path().Equal(&path) {
-			// The path is the same. Just change the value.
-			if err := node.SetData(value); err != nil {
-				return nil, err
-			}
-			return m.storeNode(node)
-		}
-
-		// If we are here, we have to split the node.
-
-		// Find the common part of the key and leaf's path.
-		commonPrefix := path.CommonPrefix(node.Path())
-
-		// Cut off the common part.
-		path.Consume(commonPrefix.Size())
-		node.Path().Consume(commonPrefix.Size())
-
-		// Create branch node to split paths.
-		branchReference, err := m.createBranchNode(&path, value, node.Path(), node.Data())
-		if err != nil {
-			return nil, err
-		}
-
-		// If common part isn't empty, we have to create an extension node before branch node.
-		// Otherwise, we need just branch node.
-		if commonPrefix.Size() != 0 {
-			return m.storeNode(newExtensionNode(commonPrefix, branchReference))
-		}
-		return branchReference, nil
-
-	case *ExtensionNode:
-		// If we're updating an extension, there are 2 possible ways:
-		// 1. Key starts with the extension node's path. Then we just go ahead and all the work will be done there.
-		// 2. Key doesn't start with extension node's path. Then we have to split extension node.
-
-		if path.StartsWith(node.Path()) {
-			// Just go ahead.
-			newReference, err := m.set(node.NextRef, *path.Consume(node.Path().Size()), value)
-			if err != nil {
-				return nil, err
-			}
-			return m.storeNode(newExtensionNode(node.Path(), newReference))
-		}
-
-		// Split extension node.
-
-		// Find the common part of the key and extension's path.
-		commonPrefix := path.CommonPrefix(node.Path())
-
-		// Cut off the common part.
-		path.Consume(commonPrefix.Size())
-		node.Path().Consume(commonPrefix.Size())
-
-		// Create an empty branch node. It may have or have not the value depending on the length
-		// of the rest of the key.
-		branches := [BranchesNum]Reference{}
-		var branchValue []byte
-		if path.Size() == 0 {
-			branchValue = value
-		}
-
-		// If needed, create a leaf branch for the value we're inserting.
-		m.createBranchLeaf(&path, value, &branches)
-		// If needed, create an extension node for the rest of the extension's path.
-		m.createBranchExtension(node.Path(), node.NextRef, &branches)
-
-		branchReference, err := m.storeNode(newBranchNode(&branches, branchValue))
-		if err != nil {
-			return nil, err
-		}
-
-		// If common part isn't empty, we have to create an extension node before branch node.
-		// Otherwise, we need just branch node.
-		if commonPrefix.Size() != 0 {
-			return m.storeNode(newExtensionNode(commonPrefix, branchReference))
-		}
-		return branchReference, nil
-
-	case *BranchNode:
-		// For branch node, things are easy.
-		// 1. If the key is empty, store the value in this node.
-		// 2. If the key isn't empty, call `_update` with the appropriate branch reference.
-
-		if path.Size() == 0 {
-			return m.storeNode(newBranchNode(&node.Branches, value))
-		}
-
-		idx := path.At(0)
-		newReference, err := m.set(node.Branches[idx], *path.Consume(1), value)
-		if err != nil {
-			return nil, err
-		}
-
-		node.Branches[idx] = newReference
-
-		return m.storeNode(node)
-	}
-
-	panic("Unexpected Node kind")
-}
-
 // Creates a branch node from list of keys / values. Returns a reference to created node.
 // If extension path is non-empty, first store extRef in appropriate branch
 func (m *MerklePatriciaTrie) createBranchNodeFromBatch(paths []*Path, values [][]byte, extPath *Path, extRef Reference) (Reference, error) {
@@ -798,35 +657,6 @@ func (m *MerklePatriciaTrie) createBranchNodeFromBatch(paths []*Path, values [][
 	}
 
 	return m.storeNode(newBranchNode(&branches, branchValue))
-}
-
-// Creates a branch node with up to two leaves and maybe value. Returns a reference to created node.
-func (m *MerklePatriciaTrie) createBranchNode(lhsPath *Path, lhsVal []byte, rhsPath *Path, rhsVal []byte) (Reference, error) {
-	if lhsPath.Size() == 0 && rhsPath.Size() == 0 {
-		return nil, ErrInvalidAction
-	}
-
-	branches := [BranchesNum]Reference{}
-	var branchValue []byte = nil
-	if lhsPath.Size() == 0 {
-		branchValue = lhsVal
-	} else if rhsPath.Size() == 0 {
-		branchValue = rhsVal
-	}
-	m.createBranchLeaf(lhsPath, lhsVal, &branches)
-	m.createBranchLeaf(rhsPath, rhsVal, &branches)
-
-	return m.storeNode(newBranchNode(&branches, branchValue))
-}
-
-// If path isn't empty, creates leaf node and stores reference in appropriate branch.
-func (m *MerklePatriciaTrie) createBranchLeaf(path *Path, value []byte, branches *[BranchesNum]Reference) {
-	if path.Size() > 0 {
-		idx := path.At(0)
-		leaf, err := m.storeNode(newLeafNode(path.Consume(1), value))
-		check.PanicIfErr(err)
-		branches[idx] = leaf
-	}
 }
 
 // If needed, creates an extension node and stores reference in appropriate branch.

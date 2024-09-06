@@ -267,10 +267,12 @@ func (s *syncCollator) saveBlock(ctx context.Context, block *Block) error {
 
 func (s *syncCollator) saveMessages(tx db.RwTx, messages []*types.Message) (common.Hash, error) {
 	messageTree := execution.NewDbMessageTrie(tx, s.shard)
-	for outMsgIndex, msg := range messages {
-		if err := messageTree.Update(types.MessageIndex(outMsgIndex), msg); err != nil {
-			return common.EmptyHash, err
-		}
+	indexes := make([]types.MessageIndex, len(messages))
+	for i := range len(messages) {
+		indexes[i] = types.MessageIndex(i)
+	}
+	if err := messageTree.UpdateBatch(indexes, messages); err != nil {
+		return common.EmptyHash, err
 	}
 	return messageTree.RootHash(), nil
 }
