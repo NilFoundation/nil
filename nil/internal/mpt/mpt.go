@@ -659,35 +659,6 @@ func (m *MerklePatriciaTrie) createBranchNodeFromBatch(paths []*Path, values [][
 	return m.storeNode(newBranchNode(&branches, branchValue))
 }
 
-// Creates a branch node with up to two leaves and maybe value. Returns a reference to created node.
-func (m *MerklePatriciaTrie) createBranchNode(lhsPath *Path, lhsVal []byte, rhsPath *Path, rhsVal []byte) (Reference, error) {
-	if lhsPath.Size() == 0 && rhsPath.Size() == 0 {
-		return nil, ErrInvalidAction
-	}
-
-	branches := [BranchesNum]Reference{}
-	var branchValue []byte = nil
-	if lhsPath.Size() == 0 {
-		branchValue = lhsVal
-	} else if rhsPath.Size() == 0 {
-		branchValue = rhsVal
-	}
-	m.createBranchLeaf(lhsPath, lhsVal, &branches)
-	m.createBranchLeaf(rhsPath, rhsVal, &branches)
-
-	return m.storeNode(newBranchNode(&branches, branchValue))
-}
-
-// If path isn't empty, creates leaf node and stores reference in appropriate branch.
-func (m *MerklePatriciaTrie) createBranchLeaf(path *Path, value []byte, branches *[BranchesNum]Reference) {
-	if path.Size() > 0 {
-		idx := path.At(0)
-		leaf, err := m.storeNode(newLeafNode(path.Consume(1), value))
-		check.PanicIfErr(err)
-		branches[idx] = leaf
-	}
-}
-
 // If needed, creates an extension node and stores reference in appropriate branch.
 // Otherwise, just stores provided reference.
 func (m *MerklePatriciaTrie) createBranchExtension(path *Path, nextRef Reference, branches *[BranchesNum]Reference) {
