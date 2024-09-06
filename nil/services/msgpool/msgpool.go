@@ -3,11 +3,14 @@ package msgpool
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"sync"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/rs/zerolog"
 )
@@ -29,6 +32,8 @@ type MsgPool struct {
 	started bool
 	cfg     Config
 
+	networkManager *network.Manager
+
 	lock sync.Mutex
 
 	byHash map[string]*types.Message // hash => msg : only those records not committed to db yet
@@ -37,26 +42,99 @@ type MsgPool struct {
 	logger zerolog.Logger
 }
 
-func New(cfg Config) *MsgPool {
-	logger := logging.NewLogger("msgpool")
-	return &MsgPool{
+func New(ctx context.Context, cfg Config, networkManager *network.Manager) (*MsgPool, error) {
+	logger := logging.NewLogger("msgpool").With().
+		Stringer(logging.FieldShardId, cfg.ShardId).
+		Logger()
+
+	res := &MsgPool{
 		started: true,
 		cfg:     cfg,
+
+		networkManager: networkManager,
 
 		byHash: map[string]*types.Message{},
 		all:    NewBySenderAndSeqno(logger),
 		queue:  NewMessageQueue(),
 		logger: logger,
 	}
+
+	if networkManager == nil {
+		// we don't always want to run the network (e.g., in tests)
+		return res, nil
+	}
+
+	sub, err := networkManager.PubSub().Subscribe(topicPendingMessages(cfg.ShardId))
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		res.listen(ctx, sub)
+	}()
+
+	return res, nil
+}
+
+func (p *MsgPool) listen(ctx context.Context, sub *network.Subscription) {
+	defer sub.Close()
+
+	for m := range sub.Start(ctx) {
+		var msg types.Message
+		if err := json.Unmarshal(m, &msg); err != nil {
+			p.logger.Error().Err(err).
+				Msg("Failed to unmarshal message from network")
+			continue
+		}
+
+		reasons, err := p.add(&msg)
+		if err != nil {
+			p.logger.Error().Err(err).
+				Stringer(logging.FieldMessageHash, msg.Hash()).
+				Msg("Failed to add message from network")
+			return
+		}
+
+		if reasons[0] != NotSet {
+			p.logger.Debug().
+				Stringer(logging.FieldMessageHash, msg.Hash()).
+				Msgf("Discarded message from network with reason %s", reasons[0])
+		}
+	}
 }
 
 func (p *MsgPool) Add(ctx context.Context, msgs ...*types.Message) ([]DiscardReason, error) {
+	reasons, err := p.add(msgs...)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, msg := range msgs {
+		if reasons[i] != NotSet {
+			continue
+		}
+
+		if err := PublishPendingMessage(ctx, p.networkManager, p.cfg.ShardId, msg); err != nil {
+			p.logger.Error().Err(err).
+				Stringer(logging.FieldMessageHash, msg.Hash()).
+				Msg("Failed to publish message to network")
+		}
+	}
+
+	return reasons, nil
+}
+
+func (p *MsgPool) add(msgs ...*types.Message) ([]DiscardReason, error) {
 	discardReasons := make([]DiscardReason, len(msgs))
 
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
 	for i, msg := range msgs {
+		if msg.To.ShardId() != p.cfg.ShardId {
+			return nil, fmt.Errorf("message shard id %d does not match pool shard id %d", msg.To.ShardId(), p.cfg.ShardId)
+		}
+
 		if reason, ok := p.validateMsg(msg); !ok {
 			discardReasons[i] = reason
 			continue

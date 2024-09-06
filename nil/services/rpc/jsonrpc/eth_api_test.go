@@ -11,10 +11,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func NewPools(n int) []msgpool.Pool {
+func NewPools(t *testing.T, ctx context.Context, n int) []msgpool.Pool {
+	t.Helper()
+
 	pools := make([]msgpool.Pool, n)
 	for i := range pools {
-		pools[i] = msgpool.New(msgpool.NewConfig(types.ShardId(i)))
+		pool, err := msgpool.New(ctx, msgpool.NewConfig(types.ShardId(i)), nil)
+		require.NoError(t, err)
+		pools[i] = pool
 	}
 
 	return pools
@@ -23,7 +27,7 @@ func NewPools(n int) []msgpool.Pool {
 func NewTestEthAPI(t *testing.T, ctx context.Context, db db.DB, nShards int) *APIImpl {
 	t.Helper()
 
-	api, err := NewEthAPI(ctx, db, NewPools(nShards), true)
+	api, err := NewEthAPI(ctx, db, NewPools(t, ctx, nShards), true)
 	require.NoError(t, err)
 	return api
 }

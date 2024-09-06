@@ -2,18 +2,12 @@ package network
 
 import (
 	"context"
-	"slices"
 	"testing"
-	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/network/internal"
 	"github.com/stretchr/testify/suite"
 )
-
-func address(m *Manager) string {
-	return m.host.Addrs()[0].String() + "/p2p/" + m.host.ID().String()
-}
 
 type networkSuite struct {
 	suite.Suite
@@ -36,47 +30,19 @@ func (s *networkSuite) newManagerWithBaseConfig(conf *Config) *Manager {
 	s.T().Helper()
 
 	conf = common.CopyPtr(conf)
-	if conf.IPV4Address == "" {
-		conf.IPV4Address = "127.0.0.1"
-	}
 	if conf.TcpPort == 0 {
 		s.Require().Positive(s.port)
 		s.port++
 		conf.TcpPort = s.port
 	}
-	if conf.PrivateKey == nil {
-		privateKey, err := internal.GeneratePrivateKey()
-		s.Require().NoError(err)
-		conf.PrivateKey = privateKey
-	}
 
-	m, err := NewManager(s.context, conf)
-	s.Require().NoError(err)
-	return m
+	return NewTestManagerWithBaseConfig(s.T(), s.context, conf)
 }
 
 func (s *networkSuite) newManager() *Manager {
 	s.T().Helper()
 
 	return s.newManagerWithBaseConfig(&Config{})
-}
-
-func (s *networkSuite) connectManagers(m1, m2 *Manager) {
-	s.T().Helper()
-
-	id, err := m1.Connect(s.context, address(m2))
-	s.Require().NoError(err)
-	s.Equal(m2.host.ID(), id)
-
-	s.waitForPeer(m2, m1.host.ID())
-}
-
-func (s *networkSuite) waitForPeer(m *Manager, id PeerID) {
-	s.T().Helper()
-
-	s.Eventually(func() bool {
-		return slices.Contains(m.host.Peerstore().Peers(), id)
-	}, 10*time.Second, 100*time.Millisecond)
 }
 
 type ManagerSuite struct {
@@ -126,7 +92,7 @@ func (s *ManagerSuite) TestReqResp() {
 	response := []byte("world")
 
 	s.Run("Connect", func() {
-		s.connectManagers(m1, m2)
+		ConnectManagers(s.T(), m1, m2)
 	})
 
 	s.Run("Handle", func() {
