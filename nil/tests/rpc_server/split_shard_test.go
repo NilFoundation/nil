@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
+	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
@@ -62,7 +63,7 @@ func (s *SuiteSplitShard) start(cfg *nilservice.Config) {
 	portmap := make(map[string]string)
 	for i := range cfg.NShards {
 		shardId := types.ShardId(i)
-		url := GetSockPathIdx(s.T(), int(i))
+		url := rpc.GetSockPathIdx(s.T(), int(i))
 		shard := shard{
 			id:       shardId,
 			db:       s.dbInit(),

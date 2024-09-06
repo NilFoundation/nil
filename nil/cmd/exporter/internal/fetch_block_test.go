@@ -10,7 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
-	rpctest "github.com/NilFoundation/nil/nil/tests/rpc_server"
+	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/stretchr/testify/suite"
 )
 

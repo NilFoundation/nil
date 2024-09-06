@@ -25,7 +25,6 @@ import (
 //	h.handleMsg(message)
 type handler struct {
 	reg        *serviceRegistry
-	callWG     sync.WaitGroup  // pending call goroutines
 	rootCtx    context.Context // canceled by close()
 	cancelRoot func()          // cancel function for rootCtx
 	conn       JsonWriter      // where responses will be sent
@@ -122,74 +121,52 @@ func (h *handler) isRpcMethodNeedsCheck(method string) bool {
 func (h *handler) handleBatch(msgs []*Message) {
 	// Emit error response for empty batches:
 	if len(msgs) == 0 {
-		h.startCallProc(func() {
-			_ = h.conn.WriteJSON(h.rootCtx, errorMessage(&invalidRequestError{"empty batch"}))
-		})
+		_ = h.conn.WriteJSON(h.rootCtx, errorMessage(&invalidRequestError{"empty batch"}))
 		return
 	}
 
 	// Process calls on a goroutine because they may block indefinitely:
-	h.startCallProc(func() {
-		// All goroutines will place results right to this array. Because requests order must match reply orders.
-		answers := make([]interface{}, len(msgs))
-		// Bounded parallelism pattern explanation https://blog.golang.org/pipelines#TOC_9.
-		boundedConcurrency := make(chan struct{}, h.maxBatchConcurrency)
-		defer close(boundedConcurrency)
-		wg := sync.WaitGroup{}
-		wg.Add(len(msgs))
-		for i := range msgs {
-			boundedConcurrency <- struct{}{}
-			go func(i int) {
-				defer func() {
-					wg.Done()
-					<-boundedConcurrency
-				}()
+	// All goroutines will place results right to this array. Because requests order must match reply orders.
+	answers := make([]interface{}, len(msgs))
+	// Bounded parallelism pattern explanation https://blog.golang.org/pipelines#TOC_9.
+	boundedConcurrency := make(chan struct{}, h.maxBatchConcurrency)
+	defer close(boundedConcurrency)
+	wg := sync.WaitGroup{}
+	wg.Add(len(msgs))
+	for i := range msgs {
+		boundedConcurrency <- struct{}{}
+		go func(i int) {
+			defer func() {
+				wg.Done()
+				<-boundedConcurrency
+			}()
 
-				buf := bytes.NewBuffer(nil)
-				stream := jsoniter.NewStream(jsoniter.ConfigDefault, buf, 4096)
-				if res := h.handleCallMsg(h.rootCtx, msgs[i], stream); res != nil {
-					answers[i] = res
-				}
-				_ = stream.Flush()
-				if buf.Len() > 0 && answers[i] == nil {
-					answers[i] = json.RawMessage(buf.Bytes())
-				}
-			}(i)
-		}
-		wg.Wait()
-		if len(answers) > 0 {
-			_ = h.conn.WriteJSON(h.rootCtx, answers)
-		}
-	})
+			buf := bytes.NewBuffer(nil)
+			stream := jsoniter.NewStream(jsoniter.ConfigDefault, buf, 4096)
+			if res := h.handleCallMsg(h.rootCtx, msgs[i], stream); res != nil {
+				answers[i] = res
+			}
+			_ = stream.Flush()
+			if buf.Len() > 0 && answers[i] == nil {
+				answers[i] = json.RawMessage(buf.Bytes())
+			}
+		}(i)
+	}
+	wg.Wait()
+	if len(answers) > 0 {
+		_ = h.conn.WriteJSON(h.rootCtx, answers)
+	}
 }
 
 // handleMsg handles a single message.
 func (h *handler) handleMsg(msg *Message) {
-	h.startCallProc(func() {
-		stream := jsoniter.NewStream(jsoniter.ConfigDefault, nil, 4096)
-		answer := h.handleCallMsg(h.rootCtx, msg, stream)
-		if answer != nil {
-			buffer, _ := json.Marshal(answer)
-			_, _ = stream.Write(buffer)
-		}
-		_ = h.conn.WriteJSON(h.rootCtx, json.RawMessage(stream.Buffer()))
-	})
-}
-
-// close cancels all requests except for inflightReq and waits for
-// call goroutines to shut down.
-func (h *handler) close() {
-	h.cancelRoot()
-	h.callWG.Wait()
-}
-
-// startCallProc runs fn in a new goroutine and starts tracking it in the h.calls wait group.
-func (h *handler) startCallProc(fn func()) {
-	h.callWG.Add(1)
-	go func() {
-		defer h.callWG.Done()
-		fn()
-	}()
+	stream := jsoniter.NewStream(jsoniter.ConfigDefault, nil, 4096)
+	answer := h.handleCallMsg(h.rootCtx, msg, stream)
+	if answer != nil {
+		buffer, _ := json.Marshal(answer) //nolint: errchkjson
+		_, _ = stream.Write(buffer)
+	}
+	_ = h.conn.WriteJSON(h.rootCtx, json.RawMessage(stream.Buffer()))
 }
 
 // handleCallMsg executes a call message and returns the answer.

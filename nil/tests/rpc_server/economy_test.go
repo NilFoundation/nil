@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
+	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/stretchr/testify/suite"
 )
@@ -96,7 +97,7 @@ contracts:
 func (s *SuiteEconomy) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards:              s.shardsNum,
-		HttpUrl:              GetSockPath(s.T()),
+		HttpUrl:              rpc.GetSockPath(s.T()),
 		ZeroStateYaml:        s.zerostateCfg,
 		CollatorTickPeriodMs: 300,
 		RunMode:              nilservice.CollatorsOnlyRunMode,

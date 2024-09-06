@@ -109,7 +109,6 @@ func (s *Server) ServeSingleRequest(ctx context.Context, r *http.Request, w http
 	}
 
 	h := newHandler(ctx, codec, &s.services, s.batchConcurrency, s.traceRequests, s.logger, s.rpcSlowLogThreshold)
-	defer h.close()
 
 	reqs, batch, err := codec.Read()
 	if err != nil {

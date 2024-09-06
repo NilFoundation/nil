@@ -1,4 +1,6 @@
-package rpctest
+//go:build test
+
+package rpc
 
 import (
 	"fmt"

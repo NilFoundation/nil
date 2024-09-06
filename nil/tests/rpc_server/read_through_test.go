@@ -6,6 +6,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/readthroughdb"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
+	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -18,7 +19,7 @@ type SuiteReadThrough struct {
 func (s *SuiteReadThrough) SetupTest() {
 	s.start(&nilservice.Config{
 		NShards: 5,
-		HttpUrl: GetSockPath(s.T()),
+		HttpUrl: rpc.GetSockPath(s.T()),
 	})
 	inDb, err := db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
