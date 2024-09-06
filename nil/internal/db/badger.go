@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"runtime"
 	"time"
 
@@ -59,6 +60,10 @@ var (
 
 func MakeKey(table TableName, key []byte) []byte {
 	return append([]byte(table+":"), key...)
+}
+
+func IsKeyFromTable(table TableName, fullKey []byte) bool {
+	return bytes.HasPrefix(fullKey, []byte(table+":"))
 }
 
 func NewBadgerDb(pathToDb string) (*badgerDB, error) {
@@ -124,6 +129,27 @@ func (db *badgerDB) createRwTx(_ context.Context, txn *badger.Txn) (RwTx, error)
 
 func (db *badgerDB) CreateRwTx(ctx context.Context) (RwTx, error) {
 	return db.createRwTx(ctx, db.db.NewTransaction(true))
+}
+
+func (db *badgerDB) Stream(
+	ctx context.Context, keyFilter func([]byte) bool, writer io.Writer,
+) error {
+	stream := db.db.NewStream()
+	stream.NumGo = 4
+	stream.ChooseKey = func(item *badger.Item) bool {
+		return keyFilter(item.Key())
+	}
+
+	_, err := stream.Backup(writer, 0)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (db *badgerDB) Fetch(_ context.Context, reader io.Reader) error {
+	const maxPendingWrites = 256
+	return db.db.Load(reader, maxPendingWrites)
 }
 
 func (db *badgerDB) LogGC(ctx context.Context, discardRation float64, gcFrequency time.Duration) error {

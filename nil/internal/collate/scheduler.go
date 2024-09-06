@@ -74,6 +74,11 @@ func (s *Scheduler) Run(ctx context.Context) error {
 		return err
 	}
 
+	// Enable handler for snapshot relaying
+	if err := SetBootstrapHandler(ctx, s.networkManager, s.params.ShardId, s.txFabric); err != nil {
+		return err
+	}
+
 	ticker := time.NewTicker(s.params.CollatorTickPeriod)
 	defer ticker.Stop()
 	for {

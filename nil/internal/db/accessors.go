@@ -53,7 +53,7 @@ func writeEncodable[
 }
 
 func ReadVersionInfo(tx RoTx) (*types.VersionInfo, error) {
-	rawVersionInfo, err := tx.Get(SchemeVersionTable, []byte(types.SchemeVersionInfoKey))
+	rawVersionInfo, err := tx.Get(schemeVersionTable, []byte(types.SchemeVersionInfoKey))
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func WriteVersionInfo(tx RwTx, version *types.VersionInfo) error {
 	if err != nil {
 		return err
 	}
-	return tx.Put(SchemeVersionTable, []byte(types.SchemeVersionInfoKey), rawVersionInfo)
+	return tx.Put(schemeVersionTable, []byte(types.SchemeVersionInfoKey), rawVersionInfo)
 }
 
 func IsVersionOutdated(tx RoTx) (bool, error) {
@@ -98,7 +98,7 @@ func ReadLastBlock(tx RoTx, shardId types.ShardId) (*types.Block, error) {
 
 func ReadCollatorState(tx RoTx, shardId types.ShardId) (types.CollatorState, error) {
 	res := types.CollatorState{}
-	buf, err := tx.Get(CollatorStateTable, shardId.Bytes())
+	buf, err := tx.Get(collatorStateTable, shardId.Bytes())
 	if err != nil {
 		return res, err
 	}
@@ -114,7 +114,7 @@ func WriteCollatorState(tx RwTx, shardId types.ShardId, state types.CollatorStat
 	if err != nil {
 		return err
 	}
-	return tx.Put(CollatorStateTable, shardId.Bytes(), value)
+	return tx.Put(collatorStateTable, shardId.Bytes(), value)
 }
 
 func ReadLastBlockHash(tx RoTx, shardId types.ShardId) (common.Hash, error) {
@@ -129,11 +129,11 @@ func WriteLastBlockHash(tx RwTx, shardId types.ShardId, hash common.Hash) error 
 func WriteBlockTimestamp(tx RwTx, shardId types.ShardId, blockHash common.Hash, timestamp uint64) error {
 	value := make([]byte, 8)
 	binary.LittleEndian.PutUint64(value, timestamp)
-	return tx.PutToShard(shardId, BlockTimestampTable, blockHash.Bytes(), value)
+	return tx.PutToShard(shardId, blockTimestampTable, blockHash.Bytes(), value)
 }
 
 func ReadBlockTimestamp(tx RoTx, shardId types.ShardId, blockHash common.Hash) (uint64, error) {
-	value, err := tx.GetFromShard(shardId, BlockTimestampTable, blockHash.Bytes())
+	value, err := tx.GetFromShard(shardId, blockTimestampTable, blockHash.Bytes())
 	if err != nil {
 		return 0, err
 	}
@@ -141,7 +141,7 @@ func ReadBlockTimestamp(tx RoTx, shardId types.ShardId, blockHash common.Hash) (
 }
 
 func ReadGasPerShard(tx RoTx, shardId types.ShardId) (types.Value, error) {
-	b, err := tx.Get(GasPerShardTable, shardId.Bytes())
+	b, err := tx.Get(gasPerShardTable, shardId.Bytes())
 	if err != nil {
 		return types.Value{}, err
 	}
@@ -149,7 +149,7 @@ func ReadGasPerShard(tx RoTx, shardId types.ShardId) (types.Value, error) {
 }
 
 func WriteGasPerShard(tx RwTx, shardId types.ShardId, value types.Value) error {
-	return tx.Put(GasPerShardTable, shardId.Bytes(), value.Bytes())
+	return tx.Put(gasPerShardTable, shardId.Bytes(), value.Bytes())
 }
 
 func WriteBlock(tx RwTx, shardId types.ShardId, block *types.Block) error {
@@ -157,11 +157,11 @@ func WriteBlock(tx RwTx, shardId types.ShardId, block *types.Block) error {
 }
 
 func WriteError(tx RwTx, msgHash common.Hash, errMsg string) error {
-	return tx.Put(ErrorByMessageHashTable, msgHash.Bytes(), []byte(errMsg))
+	return tx.Put(errorByMessageHashTable, msgHash.Bytes(), []byte(errMsg))
 }
 
 func ReadError(tx RoTx, msgHash common.Hash) (string, error) {
-	res, err := tx.Get(ErrorByMessageHashTable, msgHash.Bytes())
+	res, err := tx.Get(errorByMessageHashTable, msgHash.Bytes())
 	if err != nil {
 		return "", err
 	}
@@ -169,11 +169,11 @@ func ReadError(tx RoTx, msgHash common.Hash) (string, error) {
 }
 
 func ReadContract(tx RoTx, shardId types.ShardId, hash common.Hash) (*types.SmartContract, error) {
-	return readDecodable[types.SmartContract, *types.SmartContract](tx, contractTable, shardId, hash)
+	return readDecodable[types.SmartContract, *types.SmartContract](tx, ContractTable, shardId, hash)
 }
 
 func WriteContract(tx RwTx, shardId types.ShardId, contract *types.SmartContract) error {
-	return writeEncodable(tx, contractTable, shardId, contract)
+	return writeEncodable(tx, ContractTable, shardId, contract)
 }
 
 func WriteCode(tx RwTx, shardId types.ShardId, code types.Code) error {
