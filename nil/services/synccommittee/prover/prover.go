@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/math"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
 )
 
@@ -27,24 +28,29 @@ func DefaultConfig() *Config {
 }
 
 type Prover struct {
-	nonceId  api.ProverNonceId
-	config   Config
-	observer api.TaskObserver
-	handler  TaskHandler
-	logger   zerolog.Logger
+	nonceId        types.ProverId
+	config         Config
+	requestHandler api.TaskRequestHandler
+	handler        TaskHandler
+	logger         zerolog.Logger
 }
 
-func NewProver(config *Config, observer api.TaskObserver, handler TaskHandler, logger zerolog.Logger) (*Prover, error) {
+func NewProver(
+	config *Config,
+	requestHandler api.TaskRequestHandler,
+	handler TaskHandler,
+	logger zerolog.Logger,
+) (*Prover, error) {
 	nonceId, err := generateProverNonceId()
 	if err != nil {
 		return nil, err
 	}
 	return &Prover{
-		nonceId:  *nonceId,
-		config:   *config,
-		observer: observer,
-		handler:  handler,
-		logger:   logger,
+		nonceId:        *nonceId,
+		config:         *config,
+		requestHandler: requestHandler,
+		handler:        handler,
+		logger:         logger,
 	}, nil
 }
 
@@ -63,7 +69,7 @@ func (p *Prover) Run(ctx context.Context) error {
 
 func (p *Prover) fetchAndHandleTask(ctx context.Context) error {
 	taskRequest := api.NewTaskRequest(p.nonceId)
-	task, err := p.observer.GetTask(ctx, taskRequest)
+	task, err := p.requestHandler.GetTask(ctx, taskRequest)
 	if err != nil {
 		return err
 	}
@@ -74,26 +80,25 @@ func (p *Prover) fetchAndHandleTask(ctx context.Context) error {
 	}
 
 	p.logger.Debug().Msgf("executing task with id=%d", task.Id)
-	handleError := p.handler.HandleTask(ctx, task)
+	handleResult, err := p.handler.HandleTask(ctx, task)
 
-	var taskStatus api.ProverTaskStatus
-	if handleError == nil {
+	var taskResult types.ProverTaskResult
+	if err == nil {
 		p.logger.Debug().Msgf("execution of task with id=%d is successfully completed", task.Id)
-		taskStatus = api.Done
+		taskResult = types.SuccessTaskResult(task.Id, p.nonceId, handleResult.Type, handleResult.DataAddress)
 	} else {
-		p.logger.Error().Err(handleError).Msg("error handling task")
-		taskStatus = api.Failed
+		p.logger.Error().Err(err).Msg("error handling task")
+		taskResult = types.FailureTaskResult(task.Id, p.nonceId, err)
 	}
 
-	statusUpdateRequest := api.NewTaskStatusUpdateRequest(p.nonceId, task.Id, taskStatus)
-	return p.observer.UpdateTaskStatus(ctx, statusUpdateRequest)
+	return p.requestHandler.SetTaskResult(ctx, &taskResult)
 }
 
-func generateProverNonceId() (*api.ProverNonceId, error) {
+func generateProverNonceId() (*types.ProverId, error) {
 	bigInt, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt32))
 	if err != nil {
 		return nil, err
 	}
-	nonceId := api.ProverNonceId(uint32(bigInt.Uint64()))
+	nonceId := types.ProverId(uint32(bigInt.Uint64()))
 	return &nonceId, nil
 }

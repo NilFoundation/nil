@@ -1,4 +1,4 @@
-package synccommittee
+package types
 
 import (
 	"strconv"
@@ -58,22 +58,48 @@ const UnknownProverId ProverId = 0
 
 // Prover returns this struct as task result
 type ProverTaskResult struct {
-	Type        ProverResultType
-	TaskId      ProverTaskId
-	Err         error
-	Sender      ProverId
-	DataAddress string
+	Type        ProverResultType `json:"type"`
+	TaskId      ProverTaskId     `json:"taskId"`
+	Err         error            `json:"err"`
+	Sender      ProverId         `json:"sender"`
+	DataAddress string           `json:"dataAddress"`
+}
+
+func SuccessTaskResult(
+	taskId ProverTaskId,
+	sender ProverId,
+	resultType ProverResultType,
+	dataAddress string,
+) ProverTaskResult {
+	return ProverTaskResult{
+		Type:        resultType,
+		TaskId:      taskId,
+		Sender:      sender,
+		DataAddress: dataAddress,
+	}
+}
+
+func FailureTaskResult(
+	taskId ProverTaskId,
+	sender ProverId,
+	err error,
+) ProverTaskResult {
+	return ProverTaskResult{
+		TaskId: taskId,
+		Sender: sender,
+		Err:    err,
+	}
 }
 
 // Task contains all the necessary data for a prover to perform computation
 type ProverTask struct {
-	Id            ProverTaskId
-	BatchNum      uint32
-	BlockNum      types.BlockNumber
-	TaskType      ProverTaskType
-	CircuitType   CircuitType
-	Dependencies  map[ProverTaskId]ProverTaskResult
-	DependencyNum uint8
+	Id            ProverTaskId                      `json:"id"`
+	BatchNum      uint32                            `json:"batchNum"`
+	BlockNum      types.BlockNumber                 `json:"blockNum"`
+	TaskType      ProverTaskType                    `json:"taskType"`
+	CircuitType   CircuitType                       `json:"circuitType"`
+	Dependencies  map[ProverTaskId]ProverTaskResult `json:"dependencies"`
+	DependencyNum uint8                             `json:"dependencyNum"`
 }
 
 func (t *ProverTask) AddDependencyResult(res ProverTaskResult) {

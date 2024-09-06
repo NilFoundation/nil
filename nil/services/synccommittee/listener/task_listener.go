@@ -15,20 +15,20 @@ type TaskListenerConfig struct {
 }
 
 type TaskListener struct {
-	config       *TaskListenerConfig
-	taskObserver api.TaskObserver
-	logger       zerolog.Logger
+	config         *TaskListenerConfig
+	requestHandler api.TaskRequestHandler
+	logger         zerolog.Logger
 }
 
 func NewTaskListener(
 	config *TaskListenerConfig,
-	taskObserver api.TaskObserver,
+	requestHandler api.TaskRequestHandler,
 	logger zerolog.Logger,
 ) *TaskListener {
 	return &TaskListener{
-		config:       config,
-		taskObserver: taskObserver,
-		logger:       logger,
+		config:         config,
+		requestHandler: requestHandler,
+		logger:         logger,
 	}
 }
 
@@ -43,9 +43,9 @@ func (l *TaskListener) Run(context context.Context) error {
 
 	apiList := []transport.API{
 		{
-			Namespace: api.TaskObserverNamespace,
+			Namespace: api.TaskRequestHandlerNamespace,
 			Public:    true,
-			Service:   l.taskObserver,
+			Service:   l.requestHandler,
 			Version:   "1.0",
 		},
 	}

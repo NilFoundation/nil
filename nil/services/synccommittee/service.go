@@ -41,7 +41,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 
 	taskListener := listener.NewTaskListener(
 		&listener.TaskListenerConfig{HttpEndpoint: cfg.OwnRpcEndpoint},
-		listener.NewTaskObserver(),
+		listener.NewTaskRequestHandler(),
 		logger,
 	)
 
@@ -72,7 +72,7 @@ func initializeProvers(cfg *Config, logger zerolog.Logger) (*[]prover.Prover, er
 	for i := range cfg.ProversCount {
 		localProver, err := prover.NewProver(
 			proverConfig,
-			prover.NewRemoteTaskObserver(cfg.OwnRpcEndpoint, logger),
+			prover.NewTaskRequestRpcClient(cfg.OwnRpcEndpoint, logger),
 			prover.NewTaskHandler(logger),
 			logger,
 		)

@@ -17,7 +17,7 @@ func (s *TestSuite) Test_Prover_Handles_Tasks() {
 	for range 3 {
 		task, err := listener.GenerateTask()
 		s.Require().NoError(err)
-		s.targetObserver.AddTask(task)
+		s.targetHandler.AddTask(task)
 	}
 
 	go func() {
@@ -27,7 +27,7 @@ func (s *TestSuite) Test_Prover_Handles_Tasks() {
 
 	s.Require().Eventually(
 		func() bool {
-			for _, value := range *s.targetObserver.GetAllEntries() {
+			for _, value := range *s.targetHandler.GetAllEntries() {
 				if value.ProverId == nil || *(value.ProverId) != s.prover.nonceId {
 					return false
 				}

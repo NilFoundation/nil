@@ -11,20 +11,20 @@ import (
 
 type TestSuite struct {
 	suite.Suite
-	context        context.Context
-	cancellation   context.CancelFunc
-	prover         *Prover
-	targetObserver *listener.MockTaskObserver
+	context       context.Context
+	cancellation  context.CancelFunc
+	prover        *Prover
+	targetHandler *listener.TaskRequestHandlerMock
 }
 
 func (s *TestSuite) SetupTest() {
 	s.context, s.cancellation = context.WithCancel(context.Background())
-	s.targetObserver = listener.NewMockTaskObserver()
+	s.targetHandler = listener.NewTaskRequestHandlerMock()
 	proverConfig := Config{
 		TaskPollingInterval: 10 * time.Millisecond,
 	}
 	logger := logging.NewLogger("prover-test")
-	newProver, err := NewProver(&proverConfig, s.targetObserver, NewTaskHandler(logger), logger)
+	newProver, err := NewProver(&proverConfig, s.targetHandler, NewTaskHandler(logger), logger)
 	s.Require().NoError(err)
 	s.prover = newProver
 }

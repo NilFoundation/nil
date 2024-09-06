@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -14,8 +15,8 @@ type TaskStorageSuite struct {
 	ts  ProverTaskStorage
 	ctx context.Context
 
-	baseTask      ProverTask
-	baseTaskEntry ProverTaskEntry
+	baseTask      types.ProverTask
+	baseTaskEntry types.ProverTaskEntry
 }
 
 func (s *TaskStorageSuite) SetupSuite() {
@@ -24,20 +25,20 @@ func (s *TaskStorageSuite) SetupSuite() {
 	s.ts = NewTaskStorage(db)
 	s.ctx = context.Background()
 
-	s.baseTask = ProverTask{
+	s.baseTask = types.ProverTask{
 		Id:            1,
 		BatchNum:      1,
 		BlockNum:      1,
-		TaskType:      Preprocess,
-		CircuitType:   Bytecode,
-		Dependencies:  make(map[ProverTaskId]ProverTaskResult),
+		TaskType:      types.Preprocess,
+		CircuitType:   types.Bytecode,
+		Dependencies:  make(map[types.ProverTaskId]types.ProverTaskResult),
 		DependencyNum: 0,
 	}
-	s.baseTaskEntry = ProverTaskEntry{
+	s.baseTaskEntry = types.ProverTaskEntry{
 		Task:     s.baseTask,
 		Created:  time.Now(),
 		Modified: time.Now(),
-		Status:   WaitingForProver,
+		Status:   types.WaitingForProver,
 	}
 }
 
@@ -66,7 +67,7 @@ func (s *TaskStorageSuite) TestAddRemove() {
 func (s *TaskStorageSuite) TestReschedule() {
 	runningTaskEntry := s.baseTaskEntry
 	runningTaskEntry.Task.Id = 5
-	runningTaskEntry.Status = Running
+	runningTaskEntry.Status = types.Running
 	err := s.ts.AddTaskEntry(s.ctx, runningTaskEntry)
 	s.Require().NoError(err)
 
@@ -93,24 +94,24 @@ func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	lowerPriorityEntry := s.baseTaskEntry
 	lowerPriorityEntry.Task.Id = 11
 	lowerPriorityEntry.Task.BlockNum = 222
-	lowerPriorityEntry.Status = WaitingForInput
+	lowerPriorityEntry.Status = types.WaitingForInput
 	lowerPriorityEntry.Task.DependencyNum = 1
 
 	higherPriorityEntry := s.baseTaskEntry
 	higherPriorityEntry.Task.Id = 12
 	higherPriorityEntry.Task.BlockNum = 14
-	higherPriorityEntry.Status = WaitingForInput
+	higherPriorityEntry.Status = types.WaitingForInput
 	higherPriorityEntry.Task.DependencyNum = 1
 
 	// Initialize two corresponding dependencies for them which are running
 	dependency1 := s.baseTaskEntry
 	dependency1.Task.Id = 13
-	dependency1.PendingDeps = []ProverTaskId{lowerPriorityEntry.Task.Id}
-	dependency1.Status = Running
+	dependency1.PendingDeps = []types.ProverTaskId{lowerPriorityEntry.Task.Id}
+	dependency1.Status = types.Running
 	dependency2 := s.baseTaskEntry
-	dependency2.PendingDeps = []ProverTaskId{higherPriorityEntry.Task.Id}
+	dependency2.PendingDeps = []types.ProverTaskId{higherPriorityEntry.Task.Id}
 	dependency2.Task.Id = 14
-	dependency2.Status = Running
+	dependency2.Status = types.Running
 	err := s.ts.AddTaskEntry(s.ctx, lowerPriorityEntry)
 	s.Require().NoError(err)
 	err = s.ts.AddTaskEntry(s.ctx, higherPriorityEntry)
@@ -126,14 +127,14 @@ func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	s.Nil(task)
 
 	// Make lower priority task ready for execution
-	err = s.ts.ProcessTaskResult(s.ctx, ProverTaskResult{TaskId: dependency1.Task.Id})
+	err = s.ts.ProcessTaskResult(s.ctx, types.ProverTaskResult{TaskId: dependency1.Task.Id})
 	s.Require().NoError(err)
 	task, err = s.ts.RequestTaskToExecute(s.ctx, 88)
 	s.Require().NoError(err)
 	s.Equal(task.Id, lowerPriorityEntry.Task.Id)
 
 	// Make higher priority task ready and reschedule the lower one
-	err = s.ts.ProcessTaskResult(s.ctx, ProverTaskResult{TaskId: dependency2.Task.Id})
+	err = s.ts.ProcessTaskResult(s.ctx, types.ProverTaskResult{TaskId: dependency2.Task.Id})
 	s.Require().NoError(err)
 	s.Require().NoError(s.ts.RescheduleTask(s.ctx, lowerPriorityEntry.Task.Id))
 
