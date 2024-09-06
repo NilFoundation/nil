@@ -1,5 +1,5 @@
 import { PublicClient } from "../../clients/index.js";
-import { generateRandomPrivateKey } from "../../index.js";
+import { generateRandomPrivateKey, type WalletV1Config } from "../../index.js";
 import { LocalECDSAKeySigner } from "../../signers/LocalECDSAKeySigner.js";
 import { MockTransport } from "../../transport/MockTransport.js";
 import { WalletV1 } from "./WalletV1.js";
@@ -19,11 +19,12 @@ const client = new PublicClient({
 
 test("Wallet creation test with salt and no salt", async ({ expect }) => {
   describe("empty wallet creation", () => {
-    expect(() => new WalletV1({})).toThrowError();
+    expect(() => new WalletV1({} as WalletV1Config)).toThrowError();
   });
   describe("wallet creation with address and salt", () => {
     expect(
       () =>
+        // @ts-ignore - Testing invalid input
         new WalletV1({
           pubkey: pubkey,
           salt: 100n,
