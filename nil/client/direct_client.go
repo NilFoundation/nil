@@ -103,6 +103,14 @@ func (c *DirectClient) GetDebugBlock(shardId types.ShardId, blockId any, fullTx 
 	return nil, nil
 }
 
+func (c *DirectClient) GetDebugBlocksRange(shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*types.BlockWithExtractedData, error) {
+	panic("Not supported")
+}
+
+func (c *DirectClient) GetBlocksRange(shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*jsonrpc.RPCBlock, error) {
+	panic("Not supported")
+}
+
 func (c *DirectClient) SendMessage(msg *types.ExternalMessage) (common.Hash, error) {
 	data, err := msg.MarshalSSZ()
 	if err != nil {
