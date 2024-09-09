@@ -12,11 +12,14 @@ COMMANDS += nild nil nil_load_generator exporter sync_committee
 
 all: $(COMMANDS)
 
+.PHONY: generated
+generated: ssz pb compile-contracts
+
 .PHONY: test
-test: compile-contracts ssz
+test: generated
 	$(GOTEST) $(CMDARGS)
 
-%.cmd: ssz
+%.cmd: ssz pb
 	@# Note: $* is replaced by the command name
 	@echo "Building $*"
 	@cd ./nil/cmd/$* && $(GOBUILD) -o $(GOBIN)/$*
@@ -25,22 +28,26 @@ test: compile-contracts ssz
 %.runcmd: %.cmd
 	@$(GOBIN)/$* $(CMDARGS)
 
-$(COMMANDS): %: compile-contracts ssz %.cmd
+$(COMMANDS): %: generated %.cmd
 
 include nil/internal/db/Makefile.inc
 include nil/internal/mpt/Makefile.inc
 include nil/internal/types/Makefile.inc
 include nil/internal/config/Makefile.inc
+include nil/services/rpc/rawapi/proto/Makefile.inc
 
 .PHONY: ssz
 ssz: ssz_db ssz_mpt ssz_types ssz_config
+
+.PHONY: pb
+pb: pb_rawapi
 
 contracts/compiled/%.bin: $(wildcard nil/contracts/solidity/tests/*.sol) $(wildcard nil/contracts/solidity/*.sol)
 	go generate nil/contracts/generate.go
 
 compile-contracts: contracts/compiled/Faucet.bin contracts/compiled/Wallet.bin
 
-lint: compile-contracts ssz
+lint: generated
 	GOPROXY= go mod tidy
 	GOPROXY= go mod vendor
 	gofumpt -l -w .
