@@ -81,7 +81,9 @@ func (s *AggregatorTestSuite) SetupSuite() {
 	metrics, err := NewMetricsHandler("github.com/NilFoundation/nil/nil/services/sync_committee")
 	s.Require().NoError(err)
 	s.storage = NewBlockStorage(s.scDb)
-	s.aggregator, err = NewAggregator(s.client, NewProposer("", logger), s.scDb, zerolog.Nop(), metrics)
+	proposer, err := NewProposer(L1Endpoint, ChainId, PrivateKey, ContractAddress, logger)
+	s.Require().NoError(err)
+	s.aggregator, err = NewAggregator(s.client, proposer, s.scDb, zerolog.Nop(), metrics)
 	s.Require().NoError(err)
 }
 
