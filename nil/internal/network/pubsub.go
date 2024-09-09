@@ -105,6 +105,15 @@ func (ps *PubSub) Subscribe(topic string) (*Subscription, error) {
 	}, nil
 }
 
+func (ps *PubSub) ListPeers(topic string) []PeerID {
+	t, err := ps.getTopic(topic)
+	if err != nil {
+		return nil
+	}
+
+	return t.ListPeers()
+}
+
 func (ps *PubSub) getTopic(topic string) (*pubsub.Topic, error) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()

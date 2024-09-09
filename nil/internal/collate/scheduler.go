@@ -75,9 +75,10 @@ func (s *Scheduler) Run(ctx context.Context) error {
 	}
 
 	// Enable handler for snapshot relaying
-	if err := SetBootstrapHandler(ctx, s.networkManager, s.params.ShardId, s.txFabric); err != nil {
-		return err
-	}
+	SetBootstrapHandler(ctx, s.networkManager, s.params.ShardId, s.txFabric)
+
+	// Enable handler for block relaying
+	SetRequestHandler(ctx, s.networkManager, s.params.ShardId, s.txFabric)
 
 	ticker := time.NewTicker(s.params.CollatorTickPeriod)
 	defer ticker.Stop()
@@ -85,7 +86,11 @@ func (s *Scheduler) Run(ctx context.Context) error {
 		select {
 		case <-ticker.C:
 			if err := s.doCollate(ctx); err != nil {
-				return err
+				if ctx.Err() != nil {
+					s.logger.Info().Msg("Stopping collation...")
+					return nil
+				}
+				s.logger.Error().Err(err).Msg("Failed to collate")
 			}
 		case <-ctx.Done():
 			s.logger.Info().Msg("Stopping collation...")

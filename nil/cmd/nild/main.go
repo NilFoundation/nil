@@ -119,7 +119,6 @@ func parseArgs() *nildconfig.Config {
 	runCmd.Flags().Uint32Var(&cfg.NShards, "nshards", cfg.NShards, "number of shardchains")
 	runCmd.Flags().Var(&cfg.MyShard, "my-shard", "run only specified shard")
 	runCmd.Flags().BoolVar(&cfg.SplitShards, "split-shards", false, "run each shard in separate process")
-	runCmd.Flags().StringToStringVar(&cfg.ShardEndpoints, "shard-endpoints", cfg.ShardEndpoints, "shard endpoints (e.g. 1=localhost:31337,2=localhost:31338)")
 	runCmd.Flags().BoolVar(&cfg.DB.AllowDrop, "allow-db-clear", cfg.DB.AllowDrop, "allow to clear database in case of outdated version")
 
 	// network

@@ -224,12 +224,15 @@ func createNetworkManager(ctx context.Context, cfg *Config) (*network.Manager, e
 		return nil, nil
 	}
 
-	privKey, err := network.LoadOrGenerateKeys(cfg.NetworkKeysPath)
-	if err != nil {
-		return nil, err
+	if cfg.Network.PrivateKey == nil {
+		privKey, err := network.LoadOrGenerateKeys(cfg.NetworkKeysPath)
+		if err != nil {
+			return nil, err
+		}
+
+		cfg.Network.PrivateKey = privKey
 	}
 
-	cfg.Network.PrivateKey = privKey
 	return network.NewManager(ctx, cfg.Network)
 }
 
@@ -263,17 +266,12 @@ func createCollators(ctx context.Context, cfg *Config, database db.DB, networkMa
 func createSyncCollator(ctx context.Context, shard types.ShardId, cfg *Config, tick time.Duration,
 	database db.DB, networkManager *network.Manager,
 ) (AbstractCollator, error) {
-	endpoint, ok := cfg.ShardEndpoints[shard.String()]
-	if !ok {
-		return nil, fmt.Errorf("no endpoint for shard %s", shard)
-	}
-
 	msgPool, err := msgpool.New(ctx, msgpool.NewConfig(shard), networkManager)
 	if err != nil {
 		return nil, err
 	}
 
-	return collate.NewSyncCollator(ctx, msgPool, shard, endpoint, tick, database, networkManager, cfg.BootstrapPeer)
+	return collate.NewSyncCollator(ctx, msgPool, shard, tick, database, networkManager, cfg.BootstrapPeer)
 }
 
 func createActiveCollator(ctx context.Context, shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) (*collate.Scheduler, error) {
