@@ -16,7 +16,6 @@ stdenv.mkDerivation rec {
     "package-lock.json"
     "^hardhat-plugin(/.*)?$"
     "^niljs(/.*)?$"
-    "^nil/contracts/solidity(/.*)?$"
     "^hardhat-examples(/.*)?$"
     "^smart-contracts(/.*)?$"
   ];

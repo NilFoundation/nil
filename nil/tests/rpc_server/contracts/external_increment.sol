@@ -1,6 +1,6 @@
 pragma solidity ^0.8.0;
 
-import "../../../contracts/solidity/Nil.sol";
+import "../../../../smart-contracts/contracts/Nil.sol";
 
 contract ExternalIncrementer is NilBase {
     uint256 private value;

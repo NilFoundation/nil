@@ -19,7 +19,7 @@
         packages = rec {
           nil = (pkgs.callPackage ./nil.nix { buildGoModule = pkgs.buildGo123Module; });
           niljs = (pkgs.callPackage ./niljs.nix { });
-          nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; enableTesting = true; });
+          nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; });
           nilhardhat = (pkgs.callPackage ./nilhardhat.nix { });
           default = nil;
           formatters = (pkgs.callPackage ./formatters.nix { });
@@ -41,10 +41,6 @@
             enableTesting = true;
           });
           nilhardhat = (pkgs.callPackage ./nilhardhat.nix {
-            nil = nil;
-            enableTesting = true;
-          });
-          nilsmartcontracts = (pkgs.callPackage ./nilsmartcontracts.nix {
             nil = nil;
             enableTesting = true;
           });

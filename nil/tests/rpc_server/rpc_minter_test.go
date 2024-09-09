@@ -1,6 +1,7 @@
 package rpctest
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -150,29 +151,37 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		})
 	})
 
-	s.Run("Mint currency", func() {
-		data, err := s.abiWallet.Pack("mintCurrency", big.NewInt(250))
-		s.Require().NoError(err)
+	checkManageCurrency := func(method string, arg int64, balance int64) {
+		s.T().Helper()
 
-		receipt := s.sendExternalMessageNoCheck(data, s.walletAddress1)
-		s.Require().True(receipt.Success)
-
-		s.Run("Check currency is minted", func() {
-			currencies, err := s.client.GetCurrencies(s.walletAddress1, "latest")
+		s.Run(method+" currency", func() {
+			data, err := s.abiWallet.Pack(method+"Currency", big.NewInt(arg))
 			s.Require().NoError(err)
-			s.Require().Len(currencies, 1)
-			s.Equal(types.NewValueFromUint64(350), currencies[currency1.idStr])
-		})
 
-		s.Run("Check currency total supply", func() {
-			data := s.AbiPack(s.abiWallet, "getCurrencyTotalSupply")
-			data = s.CallGetter(s.walletAddress1, data, "latest", nil)
-			results := s.AbiUnpack(s.abiWallet, "getCurrencyTotalSupply", data)
-			totalSupply, ok := results[0].(*big.Int)
-			s.Require().True(ok)
-			s.Require().Equal(big.NewInt(350), totalSupply)
+			receipt := s.sendExternalMessageNoCheck(data, s.walletAddress1)
+			s.Require().True(receipt.Success)
+
+			s.Run(fmt.Sprintf("Check currency is %sed", method), func() {
+				currencies, err := s.client.GetCurrencies(s.walletAddress1, "latest")
+				s.Require().NoError(err)
+				s.Require().Len(currencies, 1)
+				s.Equal(types.NewValueFromUint64(uint64(balance)), currencies[currency1.idStr])
+			})
+
+			s.Run("Check currency total supply", func() {
+				data := s.AbiPack(s.abiWallet, "getCurrencyTotalSupply")
+				data = s.CallGetter(s.walletAddress1, data, "latest", nil)
+				results := s.AbiUnpack(s.abiWallet, "getCurrencyTotalSupply", data)
+				totalSupply, ok := results[0].(*big.Int)
+				s.Require().True(ok)
+				s.Require().Equal(big.NewInt(balance), totalSupply)
+			})
 		})
-	})
+	}
+
+	checkManageCurrency("mint", 350, 450)
+
+	checkManageCurrency("burn", 100, 350)
 
 	s.Run("Transfer currency via sendCurrency", func() {
 		data := s.AbiPack(s.abiWallet, "sendCurrency", s.walletAddress2, currency1.idInt, big.NewInt(100))
