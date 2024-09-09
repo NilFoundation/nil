@@ -38,9 +38,9 @@ func createShardBootstrapHandler(ctx context.Context, shardId types.ShardId, dat
 }
 
 // Set handler that streams DB data via libp2p.
-func SetBootstrapHandler(ctx context.Context, nm *network.Manager, shardId types.ShardId, db db.DB) error {
+func SetBootstrapHandler(ctx context.Context, nm *network.Manager, shardId types.ShardId, db db.DB) {
 	if nm == nil {
-		return nil
+		return
 	}
 
 	logger := logging.NewLogger("bootstrap").With().Stringer(logging.FieldShardId, shardId).Logger()
@@ -51,8 +51,6 @@ func SetBootstrapHandler(ctx context.Context, nm *network.Manager, shardId types
 	)
 
 	logger.Info().Msg("Enable bootstrap endpoint")
-
-	return nil
 }
 
 func fetchShardSnap(ctx context.Context, nm *network.Manager, peerId network.PeerID, shardId types.ShardId, db db.DB, logger zerolog.Logger) error {

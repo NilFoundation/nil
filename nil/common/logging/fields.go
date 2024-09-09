@@ -18,6 +18,7 @@ const (
 	FieldP2PIdentity = "p2pIdentity"
 	FieldPeerId      = "peerId"
 	FieldTopic       = "topic"
+	FieldProtocolID  = "protocolId"
 	FieldTcpPort     = "tcpPort"
 	FieldQuicPort    = "quicPort"
 

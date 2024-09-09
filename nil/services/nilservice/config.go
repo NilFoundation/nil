@@ -21,10 +21,9 @@ type Config struct {
 	RunMode RunMode `yaml:"-"`
 
 	// Shard configuration
-	NShards        uint32            `yaml:"nShards,omitempty"`
-	MyShard        types.ShardId     `yaml:"myShard,omitempty"`
-	SplitShards    bool              `yaml:"splitShards,omitempty"`
-	ShardEndpoints map[string]string `yaml:"shardEndpoints,omitempty"`
+	NShards     uint32        `yaml:"nShards,omitempty"`
+	MyShard     types.ShardId `yaml:"myShard,omitempty"`
+	SplitShards bool          `yaml:"splitShards,omitempty"`
 
 	// RPC
 	RPCPort       int    `yaml:"rpcPort,omitempty"`

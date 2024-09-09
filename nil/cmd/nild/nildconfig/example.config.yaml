@@ -6,7 +6,6 @@
 ## Running shard settings
 #splitShards: false
 #myShard: 0
-#shardEndpoints:
 
 ## RPC settings
 #rpcPort: 8529

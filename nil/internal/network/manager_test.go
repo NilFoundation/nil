@@ -96,7 +96,7 @@ func (s *ManagerSuite) TestReqResp() {
 	})
 
 	s.Run("Handle", func() {
-		m2.SetRequestHandler(protocol, func(_ context.Context, msg []byte) ([]byte, error) {
+		m2.SetRequestHandler(s.context, protocol, func(_ context.Context, msg []byte) ([]byte, error) {
 			s.Equal(request, msg)
 			return response, nil
 		})

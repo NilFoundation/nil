@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/client"
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc"
@@ -22,8 +23,7 @@ type shard struct {
 	db  db.DB
 	url string
 
-	client   client.Client
-	endpoint string
+	client client.Client
 }
 
 type SuiteSplitShard struct {
@@ -60,18 +60,17 @@ func (s *SuiteSplitShard) start(cfg *nilservice.Config) {
 		}
 	}
 
-	portmap := make(map[string]string)
+	networkConfigs := network.GenerateConfigs(s.T(), cfg.NShards)
+
 	for i := range cfg.NShards {
 		shardId := types.ShardId(i)
 		url := rpc.GetSockPathIdx(s.T(), int(i))
 		shard := shard{
-			id:       shardId,
-			db:       s.dbInit(),
-			url:      url,
-			endpoint: url,
+			id:  shardId,
+			db:  s.dbInit(),
+			url: url,
 		}
-		shard.client = rpc_client.NewClient(shard.endpoint, zerolog.New(os.Stderr))
-		portmap[shardId.String()] = shard.endpoint
+		shard.client = rpc_client.NewClient(shard.url, zerolog.New(os.Stderr))
 		s.shards = append(s.shards, shard)
 	}
 
@@ -87,7 +86,7 @@ func (s *SuiteSplitShard) start(cfg *nilservice.Config) {
 				Topology:             cfg.Topology,
 				CollatorTickPeriodMs: cfg.CollatorTickPeriodMs,
 				GasBasePrice:         cfg.GasBasePrice,
-				ShardEndpoints:       portmap,
+				Network:              networkConfigs[i],
 			}
 			nilservice.Run(s.context, &shardConfig, s.shards[i].db, nil)
 			s.wg.Done()
@@ -103,13 +102,14 @@ func (s *SuiteSplitShard) waitZerostate() {
 		s.Require().Eventually(func() bool {
 			block, err := shard.client.GetBlock(shard.id, transport.BlockNumber(0), false)
 			return err == nil && block != nil
-		}, ZeroStateWaitTimeout*10, ZeroStatePollInterval*10)
+		}, ZeroStateWaitTimeout, ZeroStatePollInterval)
 	}
 }
 
 func (s *SuiteSplitShard) SetupSuite() {
 	s.start(&nilservice.Config{
-		NShards: 3,
+		NShards:              3,
+		CollatorTickPeriodMs: 1000,
 	})
 }
 

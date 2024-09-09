@@ -4,12 +4,14 @@ package network
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/network/internal"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -79,4 +81,30 @@ func WaitForPeer(t *testing.T, m *Manager, id PeerID) {
 	require.Eventually(t, func() bool {
 		return slices.Contains(m.host.Peerstore().Peers(), id)
 	}, 10*time.Second, 100*time.Millisecond)
+}
+
+func GenerateConfigs(t *testing.T, n uint32) []*Config {
+	t.Helper()
+
+	configs := make([]*Config, n)
+	addresses := make([]string, n)
+	for i := range n {
+		key, err := internal.GeneratePrivateKey()
+		require.NoError(t, err)
+
+		id, err := peer.IDFromPublicKey(key.GetPublic())
+		require.NoError(t, err)
+
+		port := int(10000 + i)
+		addresses[i] = fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/p2p/%s", port, id)
+
+		configs[i] = &Config{
+			PrivateKey:        key,
+			TcpPort:           port,
+			DHTEnabled:        true,
+			DHTBootstrapPeers: addresses,
+		}
+	}
+
+	return configs
 }

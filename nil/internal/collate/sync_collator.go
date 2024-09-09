@@ -8,8 +8,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/client"
-	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -18,16 +16,16 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/msgpool"
-	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/multiformats/go-multistream"
 	"github.com/rs/zerolog"
 )
 
 type syncCollator struct {
 	// todo: remove
 	msgPool msgpool.Pool
-	client  client.Client
 
 	shard types.ShardId
+	topic string
 
 	// Syncer will actively pull blocks if no new blocks appear in the topic for this duration.
 	timeout time.Duration
@@ -43,19 +41,18 @@ type syncCollator struct {
 }
 
 func NewSyncCollator(ctx context.Context, msgPool msgpool.Pool,
-	shard types.ShardId, endpoint string, timeout time.Duration,
+	shard types.ShardId, timeout time.Duration,
 	db db.DB, networkManager *network.Manager, bootstrapPeer string,
 ) (*syncCollator, error) {
-	logger := logging.NewLogger("sync").With().Stringer(logging.FieldShardId, shard).Logger()
 	s := &syncCollator{
 		msgPool:         msgPool,
-		client:          rpc_client.NewClient(endpoint, logger),
 		shard:           shard,
+		topic:           topicShardBlocks(shard),
 		timeout:         timeout,
 		db:              db,
 		networkManager:  networkManager,
 		bootstrapPeer:   bootstrapPeer,
-		logger:          logger,
+		logger:          logging.NewLogger("sync").With().Stringer(logging.FieldShardId, shard).Logger(),
 		lastBlockNumber: types.BlockNumber(math.MaxUint64),
 	}
 
@@ -110,28 +107,17 @@ func (s *syncCollator) Run(ctx context.Context) error {
 
 	s.logger.Info().Msg("Starting sync")
 
-	var ch <-chan []byte
-
-	if s.networkManager == nil {
-		// todo: network must be on
-		// make dummy channel for now
-		c := make(chan []byte)
-		defer close(c)
-		ch = c
-	} else {
-		sub, err := s.networkManager.PubSub().Subscribe(topicShardBlocks(s.shard))
-		if err != nil {
-			return err
-		}
-		defer sub.Close()
-
-		ch = sub.Start(ctx)
+	sub, err := s.networkManager.PubSub().Subscribe(s.topic)
+	if err != nil {
+		return err
 	}
+	defer sub.Close()
 
+	ch := sub.Start(ctx)
 	for {
 		select {
 		case <-ctx.Done():
-			s.logger.Info().Msg("Sync collator is terminated")
+			s.logger.Debug().Msg("Sync collator is terminated")
 			return nil
 		case data := <-ch:
 			saved, err := s.processTopicMessage(ctx, data)
@@ -142,6 +128,8 @@ func (s *syncCollator) Run(ctx context.Context) error {
 				s.fetchBlocks(ctx)
 			}
 		case <-time.After(s.timeout):
+			s.logger.Debug().Msgf("No new block in the topic for %s, pulling blocks actively", s.timeout)
+
 			s.fetchBlocks(ctx)
 		}
 	}
@@ -163,6 +151,8 @@ func (s *syncCollator) processTopicMessage(ctx context.Context, data []byte) (bo
 		s.logger.Debug().
 			Stringer(logging.FieldBlockNumber, block.Id).
 			Msgf("Received block is out of order with the last block %d", s.lastBlockNumber)
+
+		// todo: queue the block for later processing
 		return false, nil
 	}
 
@@ -175,7 +165,7 @@ func (s *syncCollator) processTopicMessage(ctx context.Context, data []byte) (bo
 		panic(msg)
 	}
 
-	if err := s.saveBlock(ctx, b); err != nil {
+	if err := s.saveBlocks(ctx, []*Block{b}); err != nil {
 		return false, err
 	}
 
@@ -183,72 +173,87 @@ func (s *syncCollator) processTopicMessage(ctx context.Context, data []byte) (bo
 }
 
 func (s *syncCollator) fetchBlocks(ctx context.Context) {
+	// todo: fetch blocks until the queue (see todo above) is empty
 	for {
 		s.logger.Debug().Msg("Fetching next block")
-		block, err := s.client.GetDebugBlock(s.shard, uint64(s.lastBlockNumber+1), true)
+
+		blocks, err := s.fetchBlocksRange(ctx)
 		if err != nil {
 			s.logger.Error().Err(err).Msg("Failed to fetch block")
 			return
 		}
-		if block == nil {
-			s.logger.Debug().Msg("No new block")
+		if len(blocks) == 0 {
+			s.logger.Debug().Msg("No new blocks to fetch")
 			return
 		}
-		if err := s.saveDebugBlock(ctx, block); err != nil {
-			s.logger.Error().Err(err).Msg("Failed to save block")
+		if err := s.saveBlocks(ctx, blocks); err != nil {
+			s.logger.Error().Err(err).Msg("Failed to save blocks")
 			return
 		}
 	}
 }
 
-func (s *syncCollator) saveDebugBlock(ctx context.Context, block *jsonrpc.HexedDebugRPCBlock) error {
-	s.logger.Trace().Msgf("Fetched block: %s", block)
-	data, err := block.DecodeHexAndSSZ()
-	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to decode block data from hexed SSZ")
-		return err
-	}
-	if data.Block.PrevBlock != s.lastBlockHash {
-		s.logger.Error().Msgf(
-			"Prev block hash mismatch: expected %x, got %x", s.lastBlockHash, data.Block.PrevBlock)
-		panic("prev block hash mismatch")
-	}
-	if data.Block.Id != s.lastBlockNumber+1 {
-		s.logger.Error().Msgf(
-			"Block number mismatch: expected %d, got %d", s.lastBlockNumber+1, data.Block.Id)
-		panic("block number mismatch")
+func (s *syncCollator) fetchBlocksRange(ctx context.Context) ([]*Block, error) {
+	peers := ListPeers(s.networkManager, s.shard)
+
+	if len(peers) == 0 {
+		s.logger.Warn().Msg("No peers to fetch block from")
+		return nil, nil
 	}
 
-	return s.saveBlock(ctx, &Block{
-		Block:       data.Block,
-		OutMessages: data.OutMessages,
-	})
+	s.logger.Debug().Msgf("Found %d peers to fetch block from:\n%v", len(peers), peers)
+
+	for _, p := range peers {
+		s.logger.Debug().Msgf("Requesting block %d from peer %s", s.lastBlockNumber+1, p)
+
+		const count = 100
+		blocks, err := RequestBlocks(ctx, s.networkManager, p, s.shard, s.lastBlockNumber+1, count)
+		if err == nil {
+			return blocks, nil
+		}
+
+		if errors.As(err, &multistream.ErrNotSupported[network.ProtocolID]{}) {
+			s.logger.Debug().Err(err).Msgf("Peer %s does not support the block protocol with our shard", p)
+		} else {
+			s.logger.Warn().Err(err).Msgf("Failed to request block from peer %s", p)
+		}
+	}
+
+	return nil, nil
 }
 
-func (s *syncCollator) saveBlock(ctx context.Context, block *Block) error {
+func (s *syncCollator) saveBlocks(ctx context.Context, blocks []*Block) error {
+	if len(blocks) == 0 {
+		return nil
+	}
+
 	tx, err := s.db.CreateRwTx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	if err := db.WriteBlock(tx, s.shard, block.Block); err != nil {
-		return err
-	}
+	var blockHash common.Hash
+	var block *Block
+	for _, block = range blocks {
+		if err := db.WriteBlock(tx, s.shard, block.Block); err != nil {
+			return err
+		}
 
-	msgRoot, err := s.saveMessages(tx, block.OutMessages)
-	if err != nil {
-		return err
-	}
+		msgRoot, err := s.saveMessages(tx, block.OutMessages)
+		if err != nil {
+			return err
+		}
 
-	if msgRoot != block.Block.OutMessagesRoot {
-		return errors.New("out messages root mismatch")
-	}
+		if msgRoot != block.Block.OutMessagesRoot {
+			return errors.New("out messages root mismatch")
+		}
 
-	blockHash := block.Block.Hash()
-	_, err = execution.PostprocessBlock(tx, s.shard, block.Block.GasPrice, 1, blockHash)
-	if err != nil {
-		return err
+		blockHash = block.Block.Hash()
+		_, err = execution.PostprocessBlock(tx, s.shard, block.Block.GasPrice, 1, blockHash)
+		if err != nil {
+			return err
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -260,7 +265,7 @@ func (s *syncCollator) saveBlock(ctx context.Context, block *Block) error {
 
 	s.logger.Debug().
 		Stringer(logging.FieldBlockNumber, s.lastBlockNumber).
-		Msg("Block written")
+		Msg("Blocks written")
 
 	return nil
 }

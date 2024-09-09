@@ -2,11 +2,14 @@ package network
 
 import (
 	"context"
+	"slices"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/network/internal"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/peerstore"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/discovery/mdns"
 	"github.com/rs/zerolog"
 )
@@ -43,6 +46,15 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 
 	logger.Info().Msgf("Listening on addresses:\n%s\n", common.Join("\n", h.Addrs()...))
 
+	for _, p := range conf.DHTBootstrapPeers {
+		peerInfo, err := peer.AddrInfoFromString(p)
+		if err != nil {
+			return nil, err
+		}
+
+		h.Peerstore().AddAddrs(peerInfo.ID, peerInfo.Addrs, peerstore.AddressTTL)
+	}
+
 	ps, err := newPubSub(ctx, h, logger)
 	if err != nil {
 		return nil, err
@@ -73,6 +85,26 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 
 func (m *Manager) PubSub() *PubSub {
 	return m.pubSub
+}
+
+func (m *Manager) AllKnownPeers() []peer.ID {
+	return slices.DeleteFunc(m.host.Peerstore().PeersWithAddrs(), func(i PeerID) bool {
+		return m.host.ID() == i
+	})
+}
+
+func (m *Manager) GetPeersForProtocol(pid protocol.ID) []peer.ID {
+	var peersForProtocol []peer.ID
+	peers := m.host.Network().Peers()
+
+	for _, p := range peers {
+		supportedProtocols, err := m.host.Peerstore().SupportsProtocols(p, pid)
+		if err == nil && len(supportedProtocols) > 0 {
+			peersForProtocol = append(peersForProtocol, p)
+		}
+	}
+
+	return peersForProtocol
 }
 
 func (m *Manager) Connect(ctx context.Context, addr string) (PeerID, error) {

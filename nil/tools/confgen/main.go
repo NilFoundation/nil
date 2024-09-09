@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strconv"
 
 	"github.com/NilFoundation/nil/nil/cmd/nild/nildconfig"
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -37,7 +36,6 @@ func do(nShards uint, dir string) error {
 	logger.Info().Msgf("Generating %d configs in %s", nShards, dir)
 
 	configs := make([]*nildconfig.Config, nShards)
-	shardEndpoints := make(map[string]string, nShards)
 	peerAddresses := make([]string, nShards)
 
 	for i := range nShards {
@@ -51,7 +49,6 @@ func do(nShards uint, dir string) error {
 				NShards:         uint32(nShards),
 				MyShard:         types.ShardId(i),
 				SplitShards:     true,
-				ShardEndpoints:  shardEndpoints,
 				MainKeysOutPath: mainKeysFileName,
 				NetworkKeysPath: networkKeysFileName,
 				RPCPort:         9000 + int(i),
@@ -76,7 +73,6 @@ func do(nShards uint, dir string) error {
 		}
 
 		peerAddresses[i] = fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/p2p/%s", cfg.Network.TcpPort, peerId)
-		shardEndpoints[strconv.FormatUint(uint64(i), 10)] = fmt.Sprintf("http://127.0.0.1:%d", cfg.RPCPort)
 
 		configs[i] = cfg
 	}

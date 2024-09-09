@@ -5,6 +5,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
@@ -57,14 +58,18 @@ func (m *Manager) SendRequestAndGetResponse(ctx context.Context, peerId PeerID, 
 	return io.ReadAll(stream)
 }
 
-func (m *Manager) SetRequestHandler(protocolId ProtocolID, handler RequestHandler) {
-	m.logger.Debug().Msgf("Setting request handler for protocol %s", protocolId)
+func (m *Manager) SetRequestHandler(ctx context.Context, protocolId ProtocolID, handler RequestHandler) {
+	logger := m.logger.With().Str(logging.FieldProtocolID, string(protocolId)).Logger()
+
+	logger.Debug().Msg("Setting request handler...")
 
 	m.host.SetStreamHandler(protocolId, func(stream network.Stream) {
 		defer stream.Close()
 
-		ctx, cancel := context.WithTimeout(m.ctx, responseTimeout)
+		ctx, cancel := context.WithTimeout(ctx, responseTimeout)
 		defer cancel()
+
+		m.logger.Trace().Msgf("Handling request %s...", stream.ID())
 
 		if err := stream.SetDeadline(time.Now().Add(responseTimeout)); err != nil {
 			m.logError(err, "failed to set deadline for stream")
@@ -87,5 +92,7 @@ func (m *Manager) SetRequestHandler(protocolId ProtocolID, handler RequestHandle
 			m.logError(err, "failed to write response")
 			return
 		}
+
+		m.logger.Trace().Msgf("Handled request %s", stream.ID())
 	})
 }
