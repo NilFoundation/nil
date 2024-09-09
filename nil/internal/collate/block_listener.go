@@ -2,25 +2,21 @@ package collate
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/internal/collate/pb"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"google.golang.org/protobuf/proto"
 )
 
 type Block struct {
 	Block       *types.Block     `json:"block"`
 	OutMessages []*types.Message `json:"outMessages,omitempty"`
-}
-
-type BlockRequest struct {
-	BlockNumber types.BlockNumber `json:"blockNumber"`
-	Count       int               `json:"count"`
 }
 
 func topicShardBlocks(shardId types.ShardId) string {
@@ -48,35 +44,125 @@ func PublishBlock(ctx context.Context, networkManager *network.Manager, shardId 
 		return nil
 	}
 
-	data, err := json.Marshal(block)
+	pbBlock, err := marshalBlockSSZ(block.Block, block.OutMessages)
+	if err != nil {
+		return err
+	}
+	data, err := proto.Marshal(pbBlock)
 	if err != nil {
 		return fmt.Errorf("failed to marshal block: %w", err)
 	}
-
 	return networkManager.PubSub().Publish(ctx, topicShardBlocks(shardId), data)
 }
 
 func RequestBlocks(ctx context.Context, networkManager *network.Manager, peerID network.PeerID,
-	shardId types.ShardId, blockNumber types.BlockNumber, count int,
+	shardId types.ShardId, blockNumber types.BlockNumber, count uint8,
 ) ([]*Block, error) {
-	req, err := json.Marshal(&BlockRequest{BlockNumber: blockNumber, Count: count})
+	req, err := proto.Marshal(&pb.BlockRequest{Id: int64(blockNumber), Count: uint32(count)})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal blocks request: %w", err)
 	}
+
 	resp, err := networkManager.SendRequestAndGetResponse(ctx, peerID, protocolShardBlock(shardId), req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to request blocks: %w", err)
 	}
 
-	if len(resp) == 0 {
-		return nil, nil
+	var pbBlocks pb.Blocks
+	if err := proto.Unmarshal(resp, &pbBlocks); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal blocks: %w", err)
+	}
+	return unmarshalBlocksSSZ(&pbBlocks)
+}
+
+func getBlocksRange(
+	ctx context.Context, shardId types.ShardId, accessor *execution.StateAccessor, database db.DB, startId types.BlockNumber, count uint8,
+) ([]*types.Block, [][]*types.Message, error) {
+	tx, err := database.CreateRoTx(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer tx.Rollback()
+
+	blocks := make([]*types.Block, 0, count)
+	outMessages := make([][]*types.Message, 0, count)
+	for i := range count {
+		resp, err := accessor.Access(tx, shardId).
+			GetBlock().
+			WithOutMessages().
+			ByNumber(startId + types.BlockNumber(i))
+		if err != nil {
+			if !errors.Is(err, db.ErrKeyNotFound) {
+				return nil, nil, err
+			}
+			break
+		}
+		blocks = append(blocks, resp.Block())
+		outMessages = append(outMessages, resp.OutMessages())
 	}
 
-	var blocks []*Block
-	if err := json.Unmarshal(resp, &blocks); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal block: %w", err)
+	return blocks, outMessages, nil
+}
+
+func marshalBlockSSZ(block *types.Block, outMsgs []*types.Message) (*pb.Block, error) {
+	blockSSZ, err := block.MarshalSSZ()
+	if err != nil {
+		return nil, err
 	}
 
+	pbOutMsgs := make([][]byte, len(outMsgs))
+	for i, msg := range outMsgs {
+		pbOutMsgs[i], err = msg.MarshalSSZ()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &pb.Block{
+		BlockSSZ:       blockSSZ,
+		OutMessagesSSZ: pbOutMsgs,
+	}, nil
+}
+
+func marshalBlocksSSZ(blocks []*types.Block, outMsgs [][]*types.Message) ([]*pb.Block, error) {
+	pbBlocks := make([]*pb.Block, len(blocks))
+
+	var err error
+	for i, block := range blocks {
+		pbBlocks[i], err = marshalBlockSSZ(block, outMsgs[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return pbBlocks, nil
+}
+
+func unmarshalBlockSSZ(pbBlock *pb.Block) (*Block, error) {
+	result := &Block{
+		Block:       new(types.Block),
+		OutMessages: make([]*types.Message, len(pbBlock.OutMessagesSSZ)),
+	}
+	if err := result.Block.UnmarshalSSZ(pbBlock.BlockSSZ); err != nil {
+		return nil, err
+	}
+	for i, rawMsg := range pbBlock.OutMessagesSSZ {
+		result.OutMessages[i] = new(types.Message)
+		if err := result.OutMessages[i].UnmarshalSSZ(rawMsg); err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+func unmarshalBlocksSSZ(pbBlocks *pb.Blocks) ([]*Block, error) {
+	blocks := make([]*Block, len(pbBlocks.Blocks))
+	var err error
+	for i, pbBlock := range pbBlocks.Blocks {
+		blocks[i], err = unmarshalBlockSSZ(pbBlock)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return blocks, nil
 }
 
@@ -90,36 +176,29 @@ func SetRequestHandler(ctx context.Context, networkManager *network.Manager, sha
 	accessor, err := execution.NewStateAccessor()
 	check.PanicIfErr(err)
 
-	const maxBlockRequestCount = 100
-	networkManager.SetRequestHandler(ctx, protocolShardBlock(shardId), func(ctx context.Context, req []byte) ([]byte, error) {
-		var blockReq BlockRequest
-		if err := json.Unmarshal(req, &blockReq); err != nil {
+	handler := func(ctx context.Context, req []byte) ([]byte, error) {
+		var blockReq pb.BlockRequest
+		if err := proto.Unmarshal(req, &blockReq); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal block request: %w", err)
 		}
-		if blockReq.Count <= 0 || maxBlockRequestCount > blockReq.Count {
+
+		const maxBlockRequestCount = 100
+		if maxBlockRequestCount > blockReq.Count {
 			return nil, fmt.Errorf("invalid block request count: %d", blockReq.Count)
 		}
 
-		tx, err := database.CreateRoTx(ctx)
+		blocks, outMsgs, err := getBlocksRange(
+			ctx, shardId, accessor, database, types.BlockNumber(blockReq.Id), uint8(blockReq.Count))
 		if err != nil {
 			return nil, err
 		}
-		defer tx.Rollback()
 
-		blocks := make([]*Block, 0, blockReq.Count)
-		for i := range blockReq.Count {
-			resp, err := accessor.Access(tx, shardId).
-				GetBlock().
-				WithOutMessages().
-				ByNumber(blockReq.BlockNumber + types.BlockNumber(i))
-			if err != nil {
-				if !errors.Is(err, db.ErrKeyNotFound) {
-					return nil, err
-				}
-				break
-			}
-			blocks = append(blocks, &Block{Block: resp.Block(), OutMessages: resp.OutMessages()})
+		pbBlocks, err := marshalBlocksSSZ(blocks, outMsgs)
+		if err != nil {
+			return nil, err
 		}
-		return json.Marshal(blocks)
-	})
+		return proto.Marshal(&pb.Blocks{Blocks: pbBlocks})
+	}
+
+	networkManager.SetRequestHandler(ctx, protocolShardBlock(shardId), handler)
 }

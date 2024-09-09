@@ -29,7 +29,7 @@ buildGoModule rec {
   src = lib.sourceByRegex ./. [ "Makefile" "go.mod" "go.sum" "^nil(/.*)?$" "^smart-contracts(/.*)?$" ];
 
   # to obtain run `nix build` with vendorHash = "";
-  vendorHash = "sha256-M8+B5IPXaXjQWfXOudfqSiy/SjjVTYZ8TgmM/4Emeu8=";
+  vendorHash = "sha256-MJmqzOj+PmhifxYG3U3lT+Ocvwwl3vdz1wCy0ykqfdM=";
   hardeningDisable = [ "all" ];
 
   postInstall = ''
