@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/Masterminds/semver/v3"
 )
 
 type SingleRequestServer interface {
@@ -21,6 +23,8 @@ type Server struct {
 }
 
 var _ http.Handler = (*Server)(nil)
+
+var parsedMinSupportedNiljsVersion, _ = semver.NewVersion(minSupportedNiljsVersion)
 
 func NewServer(s SingleRequestServer, contentType string, acceptedContentTypes []string) *Server {
 	return &Server{
@@ -75,17 +79,10 @@ func (s *Server) validateRequest(r *http.Request) (int, error) {
 		return 0, nil
 	}
 
-	// User-Agent is supported by server
+	// CLI is supported by server
 	ua := r.Header.Get("User-Agent")
-	if ua != "" {
-		var uaPrefix string
-		if strings.HasPrefix(ua, "nil-cli") {
-			uaPrefix = "nil-cli/"
-		} else if strings.HasPrefix(ua, "niljs") {
-			uaPrefix = "niljs/"
-		}
-
-		version, hasVersion := strings.CutPrefix(ua, uaPrefix)
+	if ua != "" && strings.HasPrefix(ua, "nil-cli") {
+		version, hasVersion := strings.CutPrefix(ua, "nil-cli/")
 		if hasVersion {
 			num, err := strconv.Atoi(version)
 			if err == nil && num > 0 {
@@ -93,6 +90,18 @@ func (s *Server) validateRequest(r *http.Request) (int, error) {
 					err := fmt.Errorf("specified revision %d, minimum supported is %d", num, minSupportedRevision)
 					return http.StatusUpgradeRequired, err
 				}
+			}
+		}
+	}
+
+	// Niljs is supported by server
+	header := r.Header.Get("Client-Version")
+	if header != "" {
+		version, err := semver.NewVersion(header)
+		if err == nil {
+			if version.LessThan(parsedMinSupportedNiljsVersion) {
+				err := fmt.Errorf("specified niljs version %s, minimum supported is %s", version, minSupportedNiljsVersion)
+				return http.StatusUpgradeRequired, err
 			}
 		}
 	}

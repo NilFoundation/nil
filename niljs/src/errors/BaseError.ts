@@ -1,3 +1,5 @@
+import { version } from "../version.js";
+
 /**
  * The interface for the parameters of the BaseError constructor.
  */
@@ -45,6 +47,10 @@ class BaseError extends Error {
    * @type {?string}
    */
   public docsPath?: string;
+  /**
+   * The version of the client.
+   */
+  public version?: string;
 
   /**
    * Creates an instance of BaseError.
@@ -55,6 +61,7 @@ class BaseError extends Error {
    * @param {boolean} [param0.isOperational=true] The flag that determines whether the error is operational.
    * @param {*} param0.cause The error cause.
    * @param {string} param0.docsPath The path to the documentation of this error.
+   * @param {string} param0.version The version of the client.
    */
   constructor(
     message?: string,
@@ -65,6 +72,7 @@ class BaseError extends Error {
     this.isOperational = isOperational;
     this.cause = cause;
     this.docsPath = docsPath;
+    this.version = version;
 
     this.message = `${message ?? "An error occured"}
       Name: ${this.name}`;
@@ -72,6 +80,11 @@ class BaseError extends Error {
     if (docsPath) {
       this.message = `${this.message}
       Docs: see \${this.docsPath}`;
+    }
+
+    if (version) {
+      this.message = `${this.message}
+      Version of the client: ${this.version}`;
     }
 
     // This line is needed to make the instanceof operator work correctly with custom errors in TypeScript

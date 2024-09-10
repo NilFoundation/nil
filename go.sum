@@ -12,6 +12,8 @@ github.com/ClickHouse/ch-go v0.61.5 h1:zwR8QbYI0tsMiEcze/uIMK+Tz1D3XZXLdNrlaOpeE
 github.com/ClickHouse/ch-go v0.61.5/go.mod h1:s1LJW/F/LcFs5HJnuogFMta50kKDO0lf9zzfrbl0RQg=
 github.com/ClickHouse/clickhouse-go/v2 v2.27.1 h1:cSUewKnQ2XWvCNpCV0WRAQGvShElJ1Qyb6nDq8GId/I=
 github.com/ClickHouse/clickhouse-go/v2 v2.27.1/go.mod h1:XvcaX7ai9T9si83rZ0cB3y2upq9AYMwdj16Trqm+sPg=
+github.com/Masterminds/semver/v3 v3.3.0 h1:B8LGeaivUe71a5qox1ICM/JLl0NqZSW5CHyL+hmvYS0=
+github.com/Masterminds/semver/v3 v3.3.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/NilFoundation/badger/v4 v4.2.0-3 h1:wVYIgLSDu2WHbuu3vU9HAW+Vx6iph+8+hJLwe51dqXc=
 github.com/NilFoundation/badger/v4 v4.2.0-3/go.mod h1:Lqq7lE48J11/tL4fTHJK5KTK7MuYaVZ8Bh27m9reUw8=
 github.com/NilFoundation/fastssz v0.1.5-0.20240704114733-181ec7eaa983 h1:NekD6dyP5d/UqrWSdexRBCq2vlImPjtexdvCQgwdc60=

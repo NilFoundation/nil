@@ -621,7 +621,7 @@ func (s *SuiteRpc) TestRpcApiModules() {
 	s.Equal("1.0", data["rpc"])
 }
 
-func (s *SuiteRpc) TestUnsupportedClientVersion() {
+func (s *SuiteRpc) TestUnsupportedCliVersion() {
 	logger := zerolog.New(os.Stderr)
 	s.Run("Unsupported version", func() {
 		client := rpc_client.NewClientWithDefaultHeaders(s.endpoint, logger, map[string]string{"User-Agent": "nil-cli/12"})
@@ -637,6 +637,21 @@ func (s *SuiteRpc) TestUnsupportedClientVersion() {
 
 	s.Run("Valid revision", func() {
 		client := rpc_client.NewClientWithDefaultHeaders(s.endpoint, logger, map[string]string{"User-Agent": "nil-cli/10000000"})
+		_, err := client.ChainId()
+		s.Require().NoError(err)
+	})
+}
+
+func (s *SuiteRpc) TestUnsupportedNiljsVersion() {
+	logger := zerolog.New(os.Stderr)
+	s.Run("Unsupported version", func() {
+		client := rpc_client.NewClientWithDefaultHeaders(s.endpoint, logger, map[string]string{"Client-Version": "0.0.1"})
+		_, err := client.ChainId()
+		s.Require().ErrorContains(err, "unexpected status code: 426: specified niljs version 0.0.1, minimum supported is")
+	})
+
+	s.Run("Valid version", func() {
+		client := rpc_client.NewClientWithDefaultHeaders(s.endpoint, logger, map[string]string{"Client-Version": "2.0.0"})
 		_, err := client.ChainId()
 		s.Require().NoError(err)
 	})

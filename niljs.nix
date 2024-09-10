@@ -41,6 +41,7 @@ stdenv.mkDerivation rec {
     nohup nild run > nild.log 2>&1 & echo $! > nild_pid
     npm run test:integration --cache=false
     npm run test:examples
+    npm run lint:types
     kill `cat nild_pid` && rm nild_pid
 
     echo "tests finished successfully"
