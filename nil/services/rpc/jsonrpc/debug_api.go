@@ -59,18 +59,28 @@ func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.Sha
 	} else {
 		blockReference = rawapi.BlockNumberAsBlockReference(types.BlockNumber(number))
 	}
-	blockSSZ, err := api.rawApi.GetFullBlockData(ctx, shardId, blockReference)
-	if err != nil {
-		return nil, err
-	}
-	return EncodeBlockWithRawExtractedData(blockSSZ)
+	return api.getBlockByReference(ctx, shardId, blockReference, withMessages)
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
 func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (*HexedDebugRPCBlock, error) {
-	blockData, err := api.rawApi.GetFullBlockData(ctx, shardId, rawapi.BlockHashAsBlockReference(hash))
-	if err != nil {
-		return nil, err
+	return api.getBlockByReference(ctx, shardId, rawapi.BlockHashAsBlockReference(hash), withMessages)
+}
+
+func (api *DebugAPIImpl) getBlockByReference(ctx context.Context, shardId types.ShardId, blockReference rawapi.BlockReference, withMessages bool) (*HexedDebugRPCBlock, error) {
+	var blockData *types.BlockWithRawExtractedData
+	var err error
+	if withMessages {
+		blockData, err = api.rawApi.GetFullBlockData(ctx, shardId, blockReference)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		blockHeader, err := api.rawApi.GetBlockHeader(ctx, shardId, blockReference)
+		if err != nil {
+			return nil, err
+		}
+		blockData = &types.BlockWithRawExtractedData{Block: blockHeader}
 	}
 	return EncodeBlockWithRawExtractedData(blockData)
 }
