@@ -88,8 +88,14 @@ func TestDebugGetBlock(t *testing.T) {
 	// When: Get existing block with additional data
 	res3, err := api.GetBlockByNumber(ctx, types.MainShardId, transport.BlockNumber(blockWithErrors.Id), true)
 	require.NoError(t, err)
+	require.Len(t, res3.InMessages, 1)
 	require.Len(t, res3.Errors, 1)
 	require.Equal(t, errStr, res3.Errors[msg.Hash()])
+
+	// When: Get existing block without additional data
+	res4, err := api.GetBlockByNumber(ctx, types.MainShardId, transport.BlockNumber(blockWithErrors.Id), false)
+	require.NoError(t, err)
+	require.Empty(t, res4.InMessages)
 }
 
 type SuiteDbgContracts struct {
