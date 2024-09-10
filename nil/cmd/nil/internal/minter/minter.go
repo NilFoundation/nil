@@ -12,7 +12,8 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 	}
 
 	serverCmd.AddCommand(CreateCurrencyCommand(cfg))
-	serverCmd.AddCommand(MintCurrencyCommand(cfg))
+	serverCmd.AddCommand(ChangeCurrencyAmountCommand(cfg, true))
+	serverCmd.AddCommand(ChangeCurrencyAmountCommand(cfg, false))
 
 	return serverCmd
 }

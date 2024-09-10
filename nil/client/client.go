@@ -73,8 +73,8 @@ type Client interface {
 	// SetCurrencyName sets currency name
 	SetCurrencyName(contractAddr types.Address, name string, pk *ecdsa.PrivateKey) (common.Hash, error)
 
-	// CurrencyMint mints currency for the contract
-	CurrencyMint(contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey) (common.Hash, error)
+	// ChangeCurrencyAmount mints / burns currency for the contract
+	ChangeCurrencyAmount(contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey, mint bool) (common.Hash, error)
 }
 
 func EstimateFeeInternal(c Client, msg *types.InternalMessagePayload, blockId any) (types.Value, error) {

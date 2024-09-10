@@ -608,8 +608,12 @@ func (c *Client) SetCurrencyName(contractAddr types.Address, name string, pk *ec
 	return c.SendExternalMessage(data, contractAddr, pk, types.GasToValue(100_000))
 }
 
-func (c *Client) CurrencyMint(contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey) (common.Hash, error) {
-	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, "mintCurrency", amount.ToBig())
+func (c *Client) ChangeCurrencyAmount(contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey, mint bool) (common.Hash, error) {
+	method := "mintCurrency"
+	if !mint {
+		method = "burnCurrency"
+	}
+	data, err := contracts.NewCallData(contracts.NameNilCurrencyBase, method, amount.ToBig())
 	if err != nil {
 		return common.EmptyHash, err
 	}
