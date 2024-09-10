@@ -1,0 +1,18 @@
+syntax = "proto3";
+package collate;
+
+option go_package = "/pb";
+
+message BlockRequest {
+  int64 id = 1;
+  uint32 count = 2;
+}
+
+message Block {
+  bytes blockSSZ = 1;
+  repeated bytes outMessagesSSZ = 3;
+}
+
+message Blocks {
+  repeated Block blocks = 1;
+}

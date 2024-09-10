@@ -77,7 +77,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 	// Enable handler for snapshot relaying
 	SetBootstrapHandler(ctx, s.networkManager, s.params.ShardId, s.txFabric)
 
-	// Enable handler for block relaying
+	// Enable handler for blocks relaying
 	SetRequestHandler(ctx, s.networkManager, s.params.ShardId, s.txFabric)
 
 	ticker := time.NewTicker(s.params.CollatorTickPeriod)

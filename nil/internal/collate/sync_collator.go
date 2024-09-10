@@ -2,7 +2,6 @@ package collate
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -11,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/collate/pb"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
@@ -18,6 +18,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/multiformats/go-multistream"
 	"github.com/rs/zerolog"
+	"google.golang.org/protobuf/proto"
 )
 
 type syncCollator struct {
@@ -136,8 +137,12 @@ func (s *syncCollator) Run(ctx context.Context) error {
 }
 
 func (s *syncCollator) processTopicMessage(ctx context.Context, data []byte) (bool, error) {
-	b := &Block{}
-	if err := json.Unmarshal(data, b); err != nil {
+	var pbBlock pb.Block
+	if err := proto.Unmarshal(data, &pbBlock); err != nil {
+		return false, err
+	}
+	b, err := unmarshalBlockSSZ(&pbBlock)
+	if err != nil {
 		return false, err
 	}
 
