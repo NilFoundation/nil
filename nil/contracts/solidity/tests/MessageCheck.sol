@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.9;
 
-import "../../../../smart-contracts/contracts/Nil.sol";
+import "../lib/Nil.sol";
 
 contract MessageCheck is NilBase {
 
