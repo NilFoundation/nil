@@ -75,7 +75,7 @@ var (
 	AsyncCallAddress       = types.BytesToAddress([]byte{0xfd})
 	VerifySignatureAddress = types.BytesToAddress([]byte{0xfe})
 	CheckIsInternalAddress = types.BytesToAddress([]byte{0xff})
-	MintCurrencyAddress    = types.BytesToAddress([]byte{0xd0})
+	ManageCurrencyAddress  = types.BytesToAddress([]byte{0xd0})
 	CurrencyBalanceAddress = types.BytesToAddress([]byte{0xd1})
 	SendTokensAddress      = types.BytesToAddress([]byte{0xd2})
 	MessageTokensAddress   = types.BytesToAddress([]byte{0xd3})
@@ -114,7 +114,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	AsyncCallAddress:       &asyncCall{},
 	VerifySignatureAddress: &simple{&verifySignature{}},
 	CheckIsInternalAddress: &checkIsInternal{},
-	MintCurrencyAddress:    &mintCurrency{},
+	ManageCurrencyAddress:  &manageCurrency{},
 	CurrencyBalanceAddress: &currencyBalance{},
 	SendTokensAddress:      &sendCurrencySync{},
 	MessageTokensAddress:   &getMessageTokens{},
@@ -554,32 +554,43 @@ func (a *checkIsInternal) Run(state StateDBReadOnly, input []byte, value *uint25
 	return res, nil
 }
 
-type mintCurrency struct{}
+type manageCurrency struct{}
 
-func (c *mintCurrency) RequiredGas([]byte) uint64 {
+func (c *manageCurrency) RequiredGas([]byte) uint64 {
 	return 10
 }
 
-func (c *mintCurrency) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+func (c *manageCurrency) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	res := make([]byte, 32)
 
-	args, err := getPrecompiledMethod("precompileMintCurrency").Inputs.Unpack(input[4:])
+	args, err := getPrecompiledMethod("precompileManageCurrency").Inputs.Unpack(input[4:])
 	if err != nil {
-		return []byte("mintCurrency failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
+		return []byte("manageCurrency failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}
-	if len(args) != 1 {
-		return []byte("mintCurrency failed: invalid number of arguments"), ErrPrecompileReverted
+	if len(args) != 2 {
+		return []byte("manageCurrency failed: invalid number of arguments"), ErrPrecompileReverted
 	}
 
 	amountBig, ok := args[0].(*big.Int)
-	check.PanicIfNotf(ok, "mintCurrency failed: amountBig is not a big.Int: %v", args[0])
+	check.PanicIfNotf(ok, "manageCurrency failed: `amountBig` is not a big.Int: %v", args[0])
 	amount := types.NewValueFromBigMust(amountBig)
+
+	mint, ok := args[1].(bool)
+	check.PanicIfNotf(ok, "manageCurrency failed: `mint` is not a bool: %v", args[1])
 
 	currencyId := types.CurrencyId(caller.Address().Hash())
 
-	if err = state.AddCurrency(caller.Address(), currencyId, amount); err != nil {
-		return []byte("mintCurrency failed: invalid number of arguments"),
-			fmt.Errorf("%w: AddCurrency failed: %w", ErrPrecompileReverted, err)
+	action := state.AddCurrency
+	if !mint {
+		action = state.SubCurrency
+	}
+
+	if err = action(caller.Address(), currencyId, amount); err != nil {
+		actionName := "AddCurrency"
+		if !mint {
+			actionName = "SubCurrency"
+		}
+		return []byte("manageCurrency failed"), fmt.Errorf("%w: %s failed: %w", ErrPrecompileReverted, actionName, err)
 	}
 
 	// Set return data to boolean `true` value

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "../Nil.sol";
+import "../lib/Nil.sol";
 import "./Counter.sol";
 
 contract RequestResponseTest {

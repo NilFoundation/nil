@@ -24,7 +24,7 @@ buildGoModule rec {
     make compile-contracts ssz rpcspec
   '';
 
-  src = lib.sourceByRegex ./. [ "Makefile" "go.mod" "go.sum" "^nil(/.*)?$" ];
+  src = lib.sourceByRegex ./. [ "Makefile" "go.mod" "go.sum" "^nil(/.*)?$" "^smart-contracts(/.*)?$" ];
 
   # to obtain run `nix build` with vendorHash = "";
   vendorHash = "sha256-M8+B5IPXaXjQWfXOudfqSiy/SjjVTYZ8TgmM/4Emeu8=";

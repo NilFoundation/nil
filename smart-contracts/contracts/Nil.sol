@@ -6,7 +6,7 @@ library Nil {
     address private constant ASYNC_CALL = address(0xfd);
     address public constant VERIFY_SIGNATURE = address(0xfe);
     address public constant IS_INTERNAL_MESSAGE = address(0xff);
-    address public constant MINT_CURRENCY = address(0xd0);
+    address public constant MANAGE_CURRENCY = address(0xd0);
     address private constant GET_CURRENCY_BALANCE = address(0xd1);
     address private constant SEND_CURRENCY_SYNC = address(0xd2);
     address private constant GET_MESSAGE_TOKENS = address(0xd3);
@@ -278,7 +278,8 @@ abstract contract NilBounceable is NilBase {
 
 // WARNING: User should never use this contract directly.
 contract __Precompile__ {
-    function precompileMintCurrency(uint256 amount) public returns(bool) {}
+    // if mint flag is set to false, currency will be burned instead
+    function precompileManageCurrency(uint256 amount, bool mint) public returns(bool) {}
     function precompileGetCurrencyBalance(uint256 id, address addr) public view returns(uint256) {}
     function precompileAsyncCall(bool, uint8, address, address, address, uint, Nil.Token[] memory, bytes memory) public payable returns(bool) {}
     function precompileAwaitCall(address, bytes memory) public payable returns(bytes memory, bool) {}

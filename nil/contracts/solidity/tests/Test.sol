@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "../Nil.sol";
+import "../lib/Nil.sol";
 
 // Common test contract. Can be used in any test.
 contract Test is NilBase {

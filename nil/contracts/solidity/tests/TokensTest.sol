@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.9;
 
-import "../NilCurrencyBase.sol";
+import "../lib/NilCurrencyBase.sol";
 
 contract TokensTest is NilCurrencyBase {
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "../Nil.sol";
+import "../lib/Nil.sol";
 
 // Bug was in the `STATICCALL` opcode, it was executed as a `DELEGATECALL`. Thus, `value = 42` isn't read via getValue().
 

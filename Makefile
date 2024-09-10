@@ -40,7 +40,7 @@ contracts/compiled/%.bin: $(wildcard nil/contracts/solidity/tests/*.sol) $(wildc
 
 compile-contracts: contracts/compiled/Faucet.bin contracts/compiled/Wallet.bin
 
-lint: ssz
+lint: compile-contracts ssz
 	GOPROXY= go mod tidy
 	GOPROXY= go mod vendor
 	gofumpt -l -w .
