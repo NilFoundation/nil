@@ -18,6 +18,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 	serverCmd.AddCommand(GetCallReadonlyCommand(cfg))
 	serverCmd.AddCommand(GetDeployCommand(cfg))
 	serverCmd.AddCommand(GetSendExternalMessageCommand(cfg))
+	serverCmd.AddCommand(GetEstimateFeeCommand(cfg))
 
 	return serverCmd
 }
