@@ -148,7 +148,7 @@ type HexedDebugRPCBlock struct {
 
 func (b *HexedDebugRPCBlock) EncodeHex(block *types.BlockWithRawExtractedData) error {
 	var err error
-	b.Content, err = block.ToHexedSSZ()
+	b.Content, err = block.Block.ToHexedSSZ()
 	if err != nil {
 		return err
 	}

@@ -43,11 +43,8 @@ jobs:
           ./scripts/sh_format_all.sh -n -c
           ./scripts/nix_format_all.sh -n -c
 
-      - name: compile contracts
-        run: nix develop -c make compile-contracts
-
-      - name: SSZ generation
-        run: nix develop -c make ssz
+      - name: Generate required go files
+        run: nix develop -c make generated
 
       - name: golangci-lint
         run: nix develop -c golangci-lint run
@@ -99,8 +96,9 @@ jobs:
         run: |
           brew update
           brew tap ethereum/ethereum
-          brew install go solidity
+          brew install go solidity protobuf
           go install golang.org/x/tools/cmd/stringer@latest
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 
       - name: build binaries
         run: |

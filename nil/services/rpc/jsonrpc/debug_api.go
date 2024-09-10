@@ -2,7 +2,6 @@ package jsonrpc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -11,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
 )
@@ -25,100 +25,54 @@ type DebugAPIImpl struct {
 	db       db.ReadOnlyDB
 	logger   zerolog.Logger
 	accessor *execution.StateAccessor
+	rawApi   rawapi.Api
 }
 
 var _ DebugAPI = &DebugAPIImpl{}
 
-func NewDebugAPI(db db.ReadOnlyDB, logger zerolog.Logger) *DebugAPIImpl {
+func NewDebugAPI(rawApi rawapi.Api, db db.ReadOnlyDB, logger zerolog.Logger) *DebugAPIImpl {
 	accessor, _ := execution.NewStateAccessor()
 	return &DebugAPIImpl{
 		db:       db,
 		logger:   logger,
 		accessor: accessor,
+		rawApi:   rawApi,
 	}
 }
 
 // GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
 func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withMessages bool) (*HexedDebugRPCBlock, error) {
-	tx, err := api.db.CreateRoTx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	if number == transport.LatestBlockNumber {
-		hash, err := db.ReadLastBlockHash(tx, shardId)
-		if err != nil {
-			return nil, err
+	var blockReference rawapi.BlockReference
+	if number <= 0 {
+		switch number {
+		case transport.LatestBlockNumber:
+			blockReference = rawapi.NamedBlockIdentifierAsBlockReference(rawapi.LatestBlock)
+		case transport.EarliestBlockNumber:
+			blockReference = rawapi.NamedBlockIdentifierAsBlockReference(rawapi.EarliestBlock)
+		case transport.LatestExecutedBlockNumber:
+		case transport.FinalizedBlockNumber:
+		case transport.SafeBlockNumber:
+		case transport.PendingBlockNumber:
+		default:
+			return nil, fmt.Errorf("not supported special block number %s", number)
 		}
-
-		return api.getBlockByHash(tx, shardId, hash, withMessages)
+	} else {
+		blockReference = rawapi.BlockNumberAsBlockReference(types.BlockNumber(number))
 	}
-
-	blockHash, err := db.ReadBlockHashByNumber(tx, shardId, number.BlockNumber())
+	blockSSZ, err := api.rawApi.GetFullBlockData(ctx, shardId, blockReference)
 	if err != nil {
 		return nil, err
 	}
-	return api.getBlockByHash(tx, shardId, blockHash, withMessages)
+	return EncodeBlockWithRawExtractedData(blockSSZ)
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
 func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (*HexedDebugRPCBlock, error) {
-	tx, err := api.db.CreateRoTx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	return api.getBlockByHash(tx, shardId, hash, withMessages)
-}
-
-func (api *DebugAPIImpl) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash common.Hash, withMessages bool) (*HexedDebugRPCBlock, error) {
-	accessor := api.accessor.Access(tx, shardId).GetBlock()
-	if withMessages {
-		accessor = accessor.WithInMessages().WithOutMessages().WithReceipts()
-	}
-
-	data, err := accessor.ByHash(hash)
+	blockData, err := api.rawApi.GetFullBlockData(ctx, shardId, rawapi.BlockHashAsBlockReference(hash))
 	if err != nil {
 		return nil, err
 	}
-
-	if data.Block() == nil {
-		return nil, nil
-	}
-
-	blockHash := data.Block().Hash()
-	if blockHash != hash {
-		return nil, fmt.Errorf("block hash mismatch: expected %x, got %x", hash, blockHash)
-	}
-
-	block := &types.BlockWithExtractedData{
-		Block: data.Block(),
-	}
-
-	if withMessages {
-		// TODO: StateAccessor without decoding
-		block.InMessages = data.InMessages()
-		block.OutMessages = data.OutMessages()
-		block.Receipts = data.Receipts()
-		block.Errors = make(map[common.Hash]string)
-		for _, message := range block.InMessages {
-			msgHash := message.Hash()
-			errMsg, err := db.ReadError(tx, msgHash)
-			if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-				return nil, err
-			}
-			if len(errMsg) > 0 {
-				block.Errors[msgHash] = errMsg
-			}
-		}
-	}
-	b, err := block.EncodeSSZ()
-	if err != nil {
-		return nil, err
-	}
-	return EncodeBlockWithRawExtractedData(b)
+	return EncodeBlockWithRawExtractedData(blockData)
 }
 
 func (api *DebugAPIImpl) GetContract(ctx context.Context, contractAddr types.Address, blockNrOrHash transport.BlockNumberOrHash) (*DebugRPCContract, error) {

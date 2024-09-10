@@ -17,6 +17,9 @@ exporter.yaml
 # SSZ encoding files
 *_encoding.go
 
+# Protobuf generated files
+*.pb.go
+
 .run
 # CLI config file
 config.yaml

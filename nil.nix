@@ -12,6 +12,8 @@
 , gci
 , delve
 , gopls
+, protoc-gen-go
+, protobuf
 }:
 let inherit (lib) optional;
   overrideBuildGoModule = pkg: pkg.override { buildGoModule = buildGoModule; };
@@ -21,7 +23,7 @@ buildGoModule rec {
   pname = "nil";
 
   preBuild = ''
-    make compile-contracts ssz rpcspec
+    make generated rpcspec
   '';
 
   src = lib.sourceByRegex ./. [ "Makefile" "go.mod" "go.sum" "^nil(/.*)?$" "^smart-contracts(/.*)?$" ];
@@ -40,6 +42,7 @@ buildGoModule rec {
   nativeBuildInputs = [
     solc
     clickhouse
+    protobuf
     (overrideBuildGoModule gotools)
     (overrideBuildGoModule go-tools)
     (overrideBuildGoModule gopls)
@@ -47,6 +50,7 @@ buildGoModule rec {
     (overrideBuildGoModule gofumpt)
     (overrideBuildGoModule gci)
     (overrideBuildGoModule delve)
+    (overrideBuildGoModule protoc-gen-go)
   ];
 
   packageName = "github.com/NilFoundation/nil";
