@@ -37,7 +37,8 @@ block, msgs := data.Block, data.InMessages
 ...
 */
 type StateAccessor struct {
-	cache *accessorCache
+	cache    *accessorCache
+	rawCache *rawAccessorCache
 }
 
 func NewStateAccessor() (*StateAccessor, error) {
@@ -46,41 +47,25 @@ func NewStateAccessor() (*StateAccessor, error) {
 		inMessagesLRUSize  = 32
 		outMessagesLRUSize = 32
 		receiptsLRUSize    = 32
-		childBlocksLRUSize = 32
 	)
 
-	blocksLRU, err := lru.New[common.Hash, *types.Block](blocksLRUSize)
-	if err != nil {
-		return nil, err
-	}
-	outMessagesLRU, err := lru.New[common.Hash, []*types.Message](outMessagesLRUSize)
-	if err != nil {
-		return nil, err
-	}
-	inMessagesLRU, err := lru.New[common.Hash, []*types.Message](inMessagesLRUSize)
-	if err != nil {
-		return nil, err
-	}
-	receiptsLRU, err := lru.New[common.Hash, []*types.Receipt](receiptsLRUSize)
-	if err != nil {
-		return nil, err
-	}
-	childBlocksLRU, err := lru.New[common.Hash, []*common.Hash](childBlocksLRUSize)
-	if err != nil {
-		return nil, err
-	}
-
-	return &StateAccessor{&accessorCache{
-		blocksLRU:      blocksLRU,
-		inMessagesLRU:  inMessagesLRU,
-		outMessagesLRU: outMessagesLRU,
-		receiptsLRU:    receiptsLRU,
-		childBlocksLRU: childBlocksLRU,
-	}}, nil
+	return &StateAccessor{
+		cache:    newAccessorCache(blocksLRUSize, inMessagesLRUSize, outMessagesLRUSize, receiptsLRUSize),
+		rawCache: newRawAccessorCache(blocksLRUSize, inMessagesLRUSize, outMessagesLRUSize, receiptsLRUSize),
+	}, nil
 }
 
 func (s *StateAccessor) Access(tx db.RoTx, shardId types.ShardId) *shardAccessor {
-	return &shardAccessor{cache: s.cache, tx: tx, shardId: shardId}
+	return &shardAccessor{s.RawAccess(tx, shardId)}
+}
+
+func (s *StateAccessor) RawAccess(tx db.RoTx, shardId types.ShardId) *rawShardAccessor {
+	return &rawShardAccessor{
+		cache:    s.cache,
+		rawCache: s.rawCache,
+		tx:       tx,
+		shardId:  shardId,
+	}
 }
 
 type accessorCache struct {
@@ -88,22 +73,64 @@ type accessorCache struct {
 	inMessagesLRU  *lru.Cache[common.Hash, []*types.Message]
 	outMessagesLRU *lru.Cache[common.Hash, []*types.Message]
 	receiptsLRU    *lru.Cache[common.Hash, []*types.Receipt]
-	childBlocksLRU *lru.Cache[common.Hash, []*common.Hash]
+}
+
+func newAccessorCache(blocksLRUSize, outMessagesLRUSize, inMessagesLRUSize, receiptsLRUSize int) *accessorCache {
+	blocksLRU, err := lru.New[common.Hash, *types.Block](blocksLRUSize)
+	check.PanicIfErr(err)
+
+	outMessagesLRU, err := lru.New[common.Hash, []*types.Message](outMessagesLRUSize)
+	check.PanicIfErr(err)
+
+	inMessagesLRU, err := lru.New[common.Hash, []*types.Message](inMessagesLRUSize)
+	check.PanicIfErr(err)
+
+	receiptsLRU, err := lru.New[common.Hash, []*types.Receipt](receiptsLRUSize)
+	check.PanicIfErr(err)
+
+	return &accessorCache{
+		blocksLRU:      blocksLRU,
+		inMessagesLRU:  inMessagesLRU,
+		outMessagesLRU: outMessagesLRU,
+		receiptsLRU:    receiptsLRU,
+	}
+}
+
+type rawAccessorCache struct {
+	blocksLRU      *lru.Cache[common.Hash, []byte]
+	inMessagesLRU  *lru.Cache[common.Hash, [][]byte]
+	outMessagesLRU *lru.Cache[common.Hash, [][]byte]
+	receiptsLRU    *lru.Cache[common.Hash, [][]byte]
+}
+
+func newRawAccessorCache(blocksLRUSize, outMessagesLRUSize, inMessagesLRUSize, receiptsLRUSize int) *rawAccessorCache {
+	blocksLRU, err := lru.New[common.Hash, []byte](blocksLRUSize)
+	check.PanicIfErr(err)
+
+	outMessagesLRU, err := lru.New[common.Hash, [][]byte](outMessagesLRUSize)
+	check.PanicIfErr(err)
+
+	inMessagesLRU, err := lru.New[common.Hash, [][]byte](inMessagesLRUSize)
+	check.PanicIfErr(err)
+
+	receiptsLRU, err := lru.New[common.Hash, [][]byte](receiptsLRUSize)
+	check.PanicIfErr(err)
+
+	return &rawAccessorCache{
+		blocksLRU:      blocksLRU,
+		inMessagesLRU:  inMessagesLRU,
+		outMessagesLRU: outMessagesLRU,
+		receiptsLRU:    receiptsLRU,
+	}
 }
 
 type shardAccessor struct {
-	cache   *accessorCache
-	tx      db.RoTx
-	shardId types.ShardId
+	*rawShardAccessor
 }
 
-func collectBlockEntities[
-	T interface {
-		~*S
-		ssz.Unmarshaler
-	},
-	S any,
-](block common.Hash, sa *shardAccessor, cache *lru.Cache[common.Hash, []*S], tableName db.ShardedTableName, rootHash common.Hash, res *fieldAccessor[[]*S]) error {
+func collectSszBlockEntities(
+	block common.Hash, sa *rawShardAccessor, cache *lru.Cache[common.Hash, [][]byte], tableName db.ShardedTableName, rootHash common.Hash, res *fieldAccessor[[][]byte],
+) error {
 	if items, ok := cache.Get(block); ok {
 		*res = initWith(items)
 		return nil
@@ -112,12 +139,10 @@ func collectBlockEntities[
 	root := mpt.NewDbReader(sa.tx, sa.shardId, tableName)
 	root.SetRootHash(rootHash)
 
-	items := make([]*S, 0, 1024)
-	var index uint64
+	items := make([][]byte, 0, 1024)
+	var index types.MessageIndex
 	for {
-		k := ssz.MarshalUint64(nil, index)
-
-		entity, err := mpt.GetEntity[T](root, k)
+		entity, err := root.Get(index.Bytes())
 		if errors.Is(err, db.ErrKeyNotFound) {
 			break
 		} else if err != nil {
@@ -132,6 +157,32 @@ func collectBlockEntities[
 	return nil
 }
 
+func unmashalSszEntities[
+	T interface {
+		~*S
+		ssz.Unmarshaler
+	},
+	S any,
+](block common.Hash, raw [][]byte, cache *lru.Cache[common.Hash, []*S], res *fieldAccessor[[]*S]) error {
+	if items, ok := cache.Get(block); ok {
+		*res = initWith(items)
+		return nil
+	}
+
+	items := make([]*S, len(raw))
+	for i, bin := range raw {
+		var entity S
+		if err := T(&entity).UnmarshalSSZ(bin); err != nil {
+			return err
+		}
+		items[i] = &entity
+	}
+
+	*res = initWith(items)
+	cache.Add(block, items)
+	return nil
+}
+
 func (s *shardAccessor) mptReader(tableName db.ShardedTableName, rootHash common.Hash) *mpt.Reader {
 	res := mpt.NewDbReader(s.tx, s.shardId, tableName)
 	res.SetRootHash(rootHash)
@@ -139,7 +190,7 @@ func (s *shardAccessor) mptReader(tableName db.ShardedTableName, rootHash common
 }
 
 func (s *shardAccessor) GetBlock() blockAccessor {
-	return blockAccessor{shardAccessor: s}
+	return blockAccessor{rawBlockAccessor{rawShardAccessor: s.rawShardAccessor}}
 }
 
 func (s *shardAccessor) GetInMessage() inMessageAccessor {
@@ -148,6 +199,185 @@ func (s *shardAccessor) GetInMessage() inMessageAccessor {
 
 func (s *shardAccessor) GetOutMessage() outMessageAccessor {
 	return outMessageAccessor{shardAccessor: s}
+}
+
+//////// raw block accessor //////////
+
+type rawShardAccessor struct {
+	cache    *accessorCache
+	rawCache *rawAccessorCache
+	tx       db.RoTx
+	shardId  types.ShardId
+}
+
+func (s *rawShardAccessor) GetBlock() rawBlockAccessor {
+	return rawBlockAccessor{rawShardAccessor: s}
+}
+
+type rawBlockAccessorResult struct {
+	block       fieldAccessor[[]byte]
+	inMessages  fieldAccessor[[][]byte]
+	outMessages fieldAccessor[[][]byte]
+	receipts    fieldAccessor[[][]byte]
+	childBlocks fieldAccessor[[]common.Hash]
+	dbTimestamp fieldAccessor[uint64]
+}
+
+func (r rawBlockAccessorResult) Block() []byte {
+	return r.block()
+}
+
+func (r rawBlockAccessorResult) InMessages() [][]byte {
+	return r.inMessages()
+}
+
+func (r rawBlockAccessorResult) OutMessages() [][]byte {
+	return r.outMessages()
+}
+
+func (r rawBlockAccessorResult) Receipts() [][]byte {
+	return r.receipts()
+}
+
+func (r rawBlockAccessorResult) ChildBlocks() []common.Hash {
+	return r.childBlocks()
+}
+
+func (r rawBlockAccessorResult) DbTimestamp() uint64 {
+	return r.dbTimestamp()
+}
+
+type rawBlockAccessor struct {
+	rawShardAccessor *rawShardAccessor
+	withInMessages   bool
+	withOutMessages  bool
+	withReceipts     bool
+	withChildBlocks  bool
+	withDbTimestamp  bool
+}
+
+func (b rawBlockAccessor) WithChildBlocks() rawBlockAccessor {
+	b.withChildBlocks = true
+	return b
+}
+
+func (b rawBlockAccessor) WithInMessages() rawBlockAccessor {
+	b.withInMessages = true
+	return b
+}
+
+func (b rawBlockAccessor) WithOutMessages() rawBlockAccessor {
+	b.withOutMessages = true
+	return b
+}
+
+func (b rawBlockAccessor) WithReceipts() rawBlockAccessor {
+	b.withReceipts = true
+	return b
+}
+
+func (b rawBlockAccessor) WithDbTimestamp() rawBlockAccessor {
+	b.withDbTimestamp = true
+	return b
+}
+
+func (b rawBlockAccessor) decodeBlock(hash common.Hash, data []byte) (*types.Block, error) {
+	sa := b.rawShardAccessor
+	block, ok := sa.cache.blocksLRU.Get(hash)
+	if !ok {
+		block = &types.Block{}
+		if err := block.UnmarshalSSZ(data); err != nil {
+			return nil, err
+		}
+		sa.cache.blocksLRU.Add(hash, block)
+	}
+	return block, nil
+}
+
+func (b rawBlockAccessor) ByHash(hash common.Hash) (rawBlockAccessorResult, error) {
+	sa := b.rawShardAccessor
+
+	// Extract raw block
+	rawBlock, ok := sa.rawCache.blocksLRU.Get(hash)
+	if !ok {
+		var err error
+		rawBlock, err = db.ReadBlockSSZ(sa.tx, sa.shardId, hash)
+		if err != nil {
+			return rawBlockAccessorResult{}, err
+		}
+		sa.rawCache.blocksLRU.Add(hash, rawBlock)
+	}
+
+	// We need to decode some block data anyway
+	block, err := b.decodeBlock(hash, rawBlock)
+	if err != nil {
+		return rawBlockAccessorResult{}, err
+	}
+
+	res := rawBlockAccessorResult{
+		block:       initWith(rawBlock),
+		inMessages:  notInitialized[[][]byte]("InMessages"),
+		outMessages: notInitialized[[][]byte]("OutMessages"),
+		receipts:    notInitialized[[][]byte]("Receipts"),
+		childBlocks: notInitialized[[]common.Hash]("ChildBlocks"),
+		dbTimestamp: notInitialized[uint64]("DbTimestamp"),
+	}
+
+	if b.withInMessages {
+		if err := collectSszBlockEntities(hash, sa, sa.rawCache.inMessagesLRU, db.MessageTrieTable, block.InMessagesRoot, &res.inMessages); err != nil {
+			return rawBlockAccessorResult{}, err
+		}
+	}
+
+	if b.withOutMessages {
+		if err := collectSszBlockEntities(hash, sa, sa.rawCache.outMessagesLRU, db.MessageTrieTable, block.OutMessagesRoot, &res.outMessages); err != nil {
+			return rawBlockAccessorResult{}, err
+		}
+	}
+
+	if b.withReceipts {
+		if err := collectSszBlockEntities(hash, sa, sa.rawCache.receiptsLRU, db.ReceiptTrieTable, block.ReceiptsRoot, &res.receipts); err != nil {
+			return rawBlockAccessorResult{}, err
+		}
+	}
+
+	if b.withChildBlocks {
+		treeShards := NewDbShardBlocksTrieReader(sa.tx, sa.shardId, block.Id)
+		treeShards.SetRootHash(block.ChildBlocksRootHash)
+		valuePtrs, err := treeShards.Values()
+		if err != nil {
+			return rawBlockAccessorResult{}, err
+		}
+
+		values := make([]common.Hash, 0, len(valuePtrs))
+		for _, ptr := range valuePtrs {
+			values = append(values, *ptr)
+		}
+		res.childBlocks = initWith(values)
+	}
+
+	if b.withDbTimestamp {
+		ts, err := db.ReadBlockTimestamp(sa.tx, sa.shardId, hash)
+		// This is needed for old blocks that don't have their timestamp stored
+		if errors.Is(err, db.ErrKeyNotFound) {
+			ts = types.InvalidDbTimestamp
+		} else if err != nil {
+			return rawBlockAccessorResult{}, err
+		}
+
+		res.dbTimestamp = initWith(ts)
+	}
+
+	return res, nil
+}
+
+func (b rawBlockAccessor) ByNumber(num types.BlockNumber) (rawBlockAccessorResult, error) {
+	sa := b.rawShardAccessor
+	hash, err := db.ReadBlockHashByNumber(sa.tx, sa.shardId, num)
+	if err != nil {
+		return rawBlockAccessorResult{}, err
+	}
+	return b.ByHash(hash)
 }
 
 //////// block accessor //////////
@@ -186,48 +416,40 @@ func (r blockAccessorResult) DbTimestamp() uint64 {
 }
 
 type blockAccessor struct {
-	shardAccessor   *shardAccessor
-	withInMessages  bool
-	withOutMessages bool
-	withReceipts    bool
-	withChildBlocks bool
-	withDbTimestamp bool
+	rawBlockAccessor
 }
 
 func (b blockAccessor) WithChildBlocks() blockAccessor {
-	b.withChildBlocks = true
-	return b
+	return blockAccessor{b.rawBlockAccessor.WithChildBlocks()}
 }
 
 func (b blockAccessor) WithInMessages() blockAccessor {
-	b.withInMessages = true
-	return b
+	return blockAccessor{b.rawBlockAccessor.WithInMessages()}
 }
 
 func (b blockAccessor) WithOutMessages() blockAccessor {
-	b.withOutMessages = true
-	return b
+	return blockAccessor{b.rawBlockAccessor.WithOutMessages()}
 }
 
 func (b blockAccessor) WithReceipts() blockAccessor {
-	b.withReceipts = true
-	return b
+	return blockAccessor{b.rawBlockAccessor.WithReceipts()}
 }
 
 func (b blockAccessor) WithDbTimestamp() blockAccessor {
-	b.withDbTimestamp = true
-	return b
+	return blockAccessor{b.rawBlockAccessor.WithDbTimestamp()}
 }
 
 func (b blockAccessor) ByHash(hash common.Hash) (blockAccessorResult, error) {
-	sa := b.shardAccessor
-	block, ok := sa.cache.blocksLRU.Get(hash)
-	if !ok {
-		var err error
-		block, err = db.ReadBlock(sa.tx, b.shardAccessor.shardId, hash)
-		if err != nil {
-			return blockAccessorResult{}, err
-		}
+	sa := b.rawBlockAccessor.rawShardAccessor
+
+	raw, err := b.rawBlockAccessor.ByHash(hash)
+	if err != nil {
+		return blockAccessorResult{}, err
+	}
+
+	block, err := b.decodeBlock(hash, raw.Block())
+	if err != nil {
+		return blockAccessorResult{}, err
 	}
 
 	res := blockAccessorResult{
@@ -239,58 +461,38 @@ func (b blockAccessor) ByHash(hash common.Hash) (blockAccessorResult, error) {
 		dbTimestamp: notInitialized[uint64]("DbTimestamp"),
 	}
 
-	sa.cache.blocksLRU.Add(hash, block)
-
 	if b.withInMessages {
-		if err := collectBlockEntities[*types.Message](hash, sa, sa.cache.inMessagesLRU, db.MessageTrieTable, block.InMessagesRoot, &res.inMessages); err != nil {
+		if err := unmashalSszEntities[*types.Message](hash, raw.InMessages(), sa.cache.inMessagesLRU, &res.inMessages); err != nil {
 			return blockAccessorResult{}, err
 		}
 	}
 
 	if b.withOutMessages {
-		if err := collectBlockEntities[*types.Message](hash, sa, sa.cache.outMessagesLRU, db.MessageTrieTable, block.OutMessagesRoot, &res.outMessages); err != nil {
+		if err := unmashalSszEntities[*types.Message](hash, raw.OutMessages(), sa.cache.outMessagesLRU, &res.outMessages); err != nil {
 			return blockAccessorResult{}, err
 		}
 	}
 
 	if b.withReceipts {
-		if err := collectBlockEntities[*types.Receipt](hash, sa, sa.cache.receiptsLRU, db.ReceiptTrieTable, block.ReceiptsRoot, &res.receipts); err != nil {
+		if err := unmashalSszEntities[*types.Receipt](hash, raw.Receipts(), sa.cache.receiptsLRU, &res.receipts); err != nil {
 			return blockAccessorResult{}, err
 		}
 	}
 
 	if b.withChildBlocks {
-		treeShards := NewDbShardBlocksTrieReader(sa.tx, sa.shardId, block.Id)
-		treeShards.SetRootHash(block.ChildBlocksRootHash)
-		valuePtrs, err := treeShards.Values()
-		if err != nil {
-			return blockAccessorResult{}, err
-		}
-
-		values := make([]common.Hash, 0, len(valuePtrs))
-		for _, ptr := range valuePtrs {
-			values = append(values, *ptr)
-		}
-		res.childBlocks = initWith(values)
+		res.childBlocks = initWith(raw.ChildBlocks())
 	}
 
 	if b.withDbTimestamp {
-		ts, err := db.ReadBlockTimestamp(sa.tx, sa.shardId, hash)
-		// This is needed for old blocks that don't have their timestamp stored
-		if errors.Is(err, db.ErrKeyNotFound) {
-			ts = types.InvalidDbTimestamp
-		} else if err != nil {
-			return blockAccessorResult{}, err
-		}
-
-		res.dbTimestamp = initWith(ts)
+		res.dbTimestamp = initWith(raw.DbTimestamp())
 	}
 
 	return res, nil
 }
 
 func (b blockAccessor) ByNumber(num types.BlockNumber) (blockAccessorResult, error) {
-	hash, err := db.ReadBlockHashByNumber(b.shardAccessor.tx, b.shardAccessor.shardId, num)
+	sa := b.rawBlockAccessor.rawShardAccessor
+	hash, err := db.ReadBlockHashByNumber(sa.tx, sa.shardId, num)
 	if err != nil {
 		return blockAccessorResult{}, err
 	}
