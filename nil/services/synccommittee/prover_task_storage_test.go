@@ -127,14 +127,20 @@ func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	s.Nil(task)
 
 	// Make lower priority task ready for execution
-	err = s.ts.ProcessTaskResult(s.ctx, types.ProverTaskResult{TaskId: dependency1.Task.Id})
+	err = s.ts.ProcessTaskResult(
+		s.ctx,
+		types.SuccessTaskResult(dependency1.Task.Id, dependency1.Owner, types.Commitment, "1A2B"),
+	)
 	s.Require().NoError(err)
 	task, err = s.ts.RequestTaskToExecute(s.ctx, 88)
 	s.Require().NoError(err)
 	s.Equal(task.Id, lowerPriorityEntry.Task.Id)
 
 	// Make higher priority task ready and reschedule the lower one
-	err = s.ts.ProcessTaskResult(s.ctx, types.ProverTaskResult{TaskId: dependency2.Task.Id})
+	err = s.ts.ProcessTaskResult(
+		s.ctx,
+		types.SuccessTaskResult(dependency2.Task.Id, dependency2.Owner, types.FriConsistencyProof, "3C4D"),
+	)
 	s.Require().NoError(err)
 	s.Require().NoError(s.ts.RescheduleTask(s.ctx, lowerPriorityEntry.Task.Id))
 

@@ -173,7 +173,7 @@ func (st *proverTaskStorage) ProcessTaskResult(ctx context.Context, res types.Pr
 	if err != nil {
 		return err
 	}
-	if res.Err != nil {
+	if !res.IsSuccess {
 		entry.Modified = time.Now()
 		entry.Status = types.Failed
 		if err = tx.Commit(); err != nil {

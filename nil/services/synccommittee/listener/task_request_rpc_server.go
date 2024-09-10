@@ -8,11 +8,11 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type TaskRequestHandlerImpl struct {
+type TaskRequestRpcServer struct {
 	logger zerolog.Logger
 }
 
-func (o TaskRequestHandlerImpl) GetTask(_ context.Context, request *api.TaskRequest) (*types.ProverTask, error) {
+func (o TaskRequestRpcServer) GetTask(_ context.Context, request *api.TaskRequest) (*types.ProverTask, error) {
 	o.logger.Debug().Msgf("received task request from prover node id=%d", request.ProverId)
 	// TODO: will be implemented in https://www.notion.so/nilfoundation/Task-scheduler-4c3db841d14d474f9dddf42a79cdfda0?pvs=4
 	return &types.ProverTask{
@@ -26,12 +26,12 @@ func (o TaskRequestHandlerImpl) GetTask(_ context.Context, request *api.TaskRequ
 	}, nil
 }
 
-func (o TaskRequestHandlerImpl) SetTaskResult(_ context.Context, result *types.ProverTaskResult) error {
+func (o TaskRequestRpcServer) SetTaskResult(_ context.Context, result *types.ProverTaskResult) error {
 	o.logger.Debug().Msgf("status of task with id %d is updated to %d", result.TaskId, result.Type)
 	// TODO: will be implemented in https://www.notion.so/nilfoundation/Task-scheduler-4c3db841d14d474f9dddf42a79cdfda0?pvs=4
 	return nil
 }
 
-func NewTaskRequestHandler() api.TaskRequestHandler {
-	return &TaskRequestHandlerImpl{}
+func NewTaskRequestRpcServer() api.TaskRequestHandler {
+	return &TaskRequestRpcServer{}
 }

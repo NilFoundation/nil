@@ -27,12 +27,12 @@ func (r *TaskRequestRpcClient) GetTask(_ context.Context, request *api.TaskReque
 		return nil, err
 	}
 
-	var proverTask types.ProverTask
+	var proverTask *types.ProverTask
 	if err = json.Unmarshal(response, &proverTask); err != nil {
 		return nil, err
 	}
 
-	return &proverTask, nil
+	return proverTask, nil
 }
 
 func (r *TaskRequestRpcClient) SetTaskResult(_ context.Context, result *types.ProverTaskResult) error {

@@ -13,7 +13,7 @@ COMMANDS += nild nil nil_load_generator exporter sync_committee
 all: $(COMMANDS)
 
 .PHONY: generated
-generated: ssz pb compile-contracts
+generated: ssz pb compile-contracts generate_mocks
 
 .PHONY: test
 test: generated
@@ -36,6 +36,8 @@ include nil/internal/types/Makefile.inc
 include nil/internal/config/Makefile.inc
 include nil/internal/collate/proto/Makefile.inc
 include nil/services/rpc/rawapi/proto/Makefile.inc
+
+include nil/services/synccommittee/Makefile.inc
 
 .PHONY: ssz
 ssz: ssz_db ssz_mpt ssz_types ssz_config

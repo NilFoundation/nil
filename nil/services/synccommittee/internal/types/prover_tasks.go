@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -60,7 +61,8 @@ const UnknownProverId ProverId = 0
 type ProverTaskResult struct {
 	Type        ProverResultType `json:"type"`
 	TaskId      ProverTaskId     `json:"taskId"`
-	Err         error            `json:"err"`
+	IsSuccess   bool             `json:"isSuccess"`
+	ErrorText   string           `json:"errorText"`
 	Sender      ProverId         `json:"sender"`
 	DataAddress string           `json:"dataAddress"`
 }
@@ -72,9 +74,10 @@ func SuccessTaskResult(
 	dataAddress string,
 ) ProverTaskResult {
 	return ProverTaskResult{
-		Type:        resultType,
 		TaskId:      taskId,
+		IsSuccess:   true,
 		Sender:      sender,
+		Type:        resultType,
 		DataAddress: dataAddress,
 	}
 }
@@ -85,9 +88,10 @@ func FailureTaskResult(
 	err error,
 ) ProverTaskResult {
 	return ProverTaskResult{
-		TaskId: taskId,
-		Sender: sender,
-		Err:    err,
+		TaskId:    taskId,
+		Sender:    sender,
+		IsSuccess: false,
+		ErrorText: fmt.Sprintf("failed to generate proof: %v", err),
 	}
 }
 
