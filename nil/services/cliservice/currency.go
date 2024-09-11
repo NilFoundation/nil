@@ -30,7 +30,7 @@ func (s *Service) CurrencyCreate(contractAddr types.Address, amount types.Value,
 		return nil, err
 	}
 
-	txHash, err = s.client.CurrencyMint(contractAddr, amount, s.privateKey)
+	txHash, err = s.client.ChangeCurrencyAmount(contractAddr, amount, s.privateKey, true /* mint */)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send minCurrency transaction")
 		return nil, err
@@ -44,10 +44,10 @@ func (s *Service) CurrencyCreate(contractAddr types.Address, amount types.Value,
 	return currencyId, nil
 }
 
-func (s *Service) CurrencyMint(contractAddr types.Address, amount types.Value) (common.Hash, error) {
-	txHash, err := s.client.CurrencyMint(contractAddr, amount, s.privateKey)
+func (s *Service) ChangeCurrencyAmount(contractAddr types.Address, amount types.Value, mint bool) (common.Hash, error) {
+	txHash, err := s.client.ChangeCurrencyAmount(contractAddr, amount, s.privateKey, mint)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to send transfer transaction")
+		s.logger.Error().Err(err).Msg("Failed to send transaction for currency amount change")
 		return common.EmptyHash, err
 	}
 
@@ -55,6 +55,10 @@ func (s *Service) CurrencyMint(contractAddr types.Address, amount types.Value) (
 		return common.EmptyHash, err
 	}
 	currencyId := types.CurrencyIdForAddress(contractAddr)
-	s.logger.Info().Stringer(logging.FieldCurrencyId, common.BytesToHash(currencyId[:])).Msgf("Minted %v", amount)
+	operation := "Minted"
+	if !mint {
+		operation = "Burned"
+	}
+	s.logger.Info().Stringer(logging.FieldCurrencyId, common.BytesToHash(currencyId[:])).Msgf("%s %v", operation, amount)
 	return txHash, nil
 }

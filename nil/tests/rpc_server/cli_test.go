@@ -258,6 +258,7 @@ func (s *SuiteCli) TestCurrency() {
 	wallet := types.MainWalletAddress
 	value := types.NewValueFromUint64(12345)
 
+	// create currency
 	_, err := s.cli.CurrencyCreate(wallet, value, "token1")
 	s.Require().NoError(err)
 	cur, err := s.cli.GetCurrencies(wallet)
@@ -269,7 +270,8 @@ func (s *SuiteCli) TestCurrency() {
 	s.Require().True(ok)
 	s.Require().Equal(value, val)
 
-	_, err = s.cli.CurrencyMint(wallet, value)
+	// mint
+	_, err = s.cli.ChangeCurrencyAmount(wallet, value, true)
 	s.Require().NoError(err)
 	cur, err = s.cli.GetCurrencies(wallet)
 	s.Require().NoError(err)
@@ -278,6 +280,17 @@ func (s *SuiteCli) TestCurrency() {
 	val, ok = cur[currencyId]
 	s.Require().True(ok)
 	s.Require().Equal(2*value.Uint64(), val.Uint64())
+
+	// burn
+	_, err = s.cli.ChangeCurrencyAmount(wallet, types.NewValueFromUint64(2*value.Uint64()), false)
+	s.Require().NoError(err)
+	cur, err = s.cli.GetCurrencies(wallet)
+	s.Require().NoError(err)
+	s.Require().Len(cur, 1)
+
+	val, ok = cur[currencyId]
+	s.Require().True(ok)
+	s.Require().Equal(uint64(0), val.Uint64())
 }
 
 func (s *SuiteCli) TestCallCliHelp() {

@@ -421,9 +421,32 @@ export class WalletV1 {
    * await waitTillCompleted(client, 1, hashMessage);
    */
   async mintCurrency(amount: bigint) {
+    return await this.changeCurrencyAmount(amount, true);
+  }
+
+  /**
+   * Burns the currency that the wallet owns.
+   *
+   * @async
+   * @param {bigint} The amount to burn.
+   * @returns {unknown} The message hash.
+   * @example
+   * const hashMessage = await wallet.burnCurrency(burnCurrency);
+   * await waitTillCompleted(client, 1, hashMessage);
+   */
+  async burnCurrency(amount: bigint) {
+    return await this.changeCurrencyAmount(amount, false);
+  }
+
+  private async changeCurrencyAmount(amount: bigint, mint: boolean) {
+    let method = "burnCurrency";
+    if (mint) {
+      method = "mintCurrency";
+    }
+
     const callData = encodeFunctionData({
       abi: Wallet.abi,
-      functionName: "mintCurrency",
+      functionName: method,
       args: [amount],
     });
 
