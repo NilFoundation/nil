@@ -23,7 +23,7 @@ func (cfg *Cfg) FetchBlock(shardId types.ShardId, blockId any) (*types.BlockWith
 	if latestBlock == nil {
 		return nil, ErrBlockNotFound
 	}
-	return latestBlock.DecodeHexAndSSZ()
+	return latestBlock.DecodeSSZ()
 }
 
 func (cfg *Cfg) FetchShards() ([]types.ShardId, error) {

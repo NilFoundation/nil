@@ -737,18 +737,12 @@ func (s *SuiteRpc) TestRpcDebugModules() {
 	res, err := s.client.GetDebugBlock(types.BaseShardId, "latest", false)
 	s.Require().NoError(err)
 
-	block, err := res.DecodeHexAndSSZ()
+	block, err := res.DecodeSSZ()
 	s.Require().NoError(err)
 
 	s.Require().NotEmpty(block.Id)
 	s.Require().NotEqual(common.EmptyHash, block.Block.Hash())
 	s.Require().NotEmpty(res.Content)
-
-	sliceContent := res.Content
-	// check if the string starts with 0x prefix
-	s.Require().Equal("0x", sliceContent[:2])
-	// print resp to see the result
-	s.T().Logf("resp: %v", res)
 
 	fullRes, err := s.client.GetDebugBlock(types.BaseShardId, "latest", true)
 	s.Require().NoError(err)
@@ -895,7 +889,7 @@ func (s *SuiteRpc) TestBatch() {
 	s.Require().True(ok)
 	s.Equal(types.MainShardId, b1.ShardId)
 
-	b2, ok := result[1].(*jsonrpc.HexedDebugRPCBlock)
+	b2, ok := result[1].(*jsonrpc.DebugRPCBlock)
 	s.Require().True(ok)
 	s.NotEmpty(b2.Content)
 }

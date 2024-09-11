@@ -37,7 +37,7 @@ func (s *Service) FetchDebugBlock(shardId types.ShardId, blockId any, jsonOutput
 		return nil, err
 	}
 
-	block, err := hexedBlock.DecodeHexAndSSZ()
+	block, err := hexedBlock.DecodeSSZ()
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to decode block data from hexed SSZ")
 		return nil, err

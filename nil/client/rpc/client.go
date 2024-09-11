@@ -320,7 +320,7 @@ func toRPCBlock(raw json.RawMessage) (*jsonrpc.RPCBlock, error) {
 	return block, nil
 }
 
-func (c *Client) GetDebugBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.HexedDebugRPCBlock, error) {
+func (c *Client) GetDebugBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.DebugRPCBlock, error) {
 	request, err := c.getBlockRequest(shardId, blockId, fullTx, true)
 	if err != nil {
 		return nil, err
@@ -334,8 +334,8 @@ func (c *Client) GetDebugBlock(shardId types.ShardId, blockId any, fullTx bool) 
 	return toRawBlock(res)
 }
 
-func toRawBlock(raw json.RawMessage) (*jsonrpc.HexedDebugRPCBlock, error) {
-	var blockInfo *jsonrpc.HexedDebugRPCBlock
+func toRawBlock(raw json.RawMessage) (*jsonrpc.DebugRPCBlock, error) {
+	var blockInfo *jsonrpc.DebugRPCBlock
 	if err := json.Unmarshal(raw, &blockInfo); err != nil {
 		return nil, err
 	}
@@ -746,9 +746,9 @@ func (c *Client) GetDebugBlocksRange(shardId types.ShardId, from, to types.Block
 
 	result := make([]*types.BlockWithExtractedData, len(rawBlocks))
 	for i, raw := range rawBlocks {
-		block, ok := raw.(*jsonrpc.HexedDebugRPCBlock)
+		block, ok := raw.(*jsonrpc.DebugRPCBlock)
 		check.PanicIfNot(ok)
-		result[i], err = block.DecodeHexAndSSZ()
+		result[i], err = block.DecodeSSZ()
 		if err != nil {
 			return nil, err
 		}

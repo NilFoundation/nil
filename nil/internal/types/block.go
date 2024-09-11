@@ -6,7 +6,6 @@ import (
 
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/ssz"
 )
 
@@ -74,26 +73,6 @@ var (
 
 func (b *Block) Hash() common.Hash {
 	return common.MustPoseidonSSZ(b)
-}
-
-func (b *Block) ToHexedSSZ() (string, error) {
-	content, err := b.MarshalSSZ()
-	if err != nil {
-		return "", err
-	}
-	return hexutil.Encode(content), nil
-}
-
-func (b *Block) FromHexedSSZ(hexData string) error {
-	return b.UnmarshalSSZ(hexutil.FromHex(hexData))
-}
-
-func BlockFromHexedSSZ(hexData string) (*Block, error) {
-	block := new(Block)
-	if err := block.FromHexedSSZ(hexData); err != nil {
-		return nil, err
-	}
-	return block, nil
 }
 
 func (b *BlockWithRawExtractedData) DecodeSSZ() (*BlockWithExtractedData, error) {

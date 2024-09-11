@@ -138,55 +138,52 @@ type RPCBlock struct {
 	GasPrice            types.Value       `json:"gasPrice"`
 }
 
-type HexedDebugRPCBlock struct {
-	Content     string                 `json:"content"`
-	InMessages  []string               `json:"inMessages"`
-	OutMessages []string               `json:"outMessages"`
-	Receipts    []string               `json:"receipts"`
+type DebugRPCBlock struct {
+	Content     hexutil.Bytes          `json:"content"`
+	InMessages  []hexutil.Bytes        `json:"inMessages"`
+	OutMessages []hexutil.Bytes        `json:"outMessages"`
+	Receipts    []hexutil.Bytes        `json:"receipts"`
 	Errors      map[common.Hash]string `json:"errors"`
 }
 
-func (b *HexedDebugRPCBlock) EncodeHex(block *types.BlockWithRawExtractedData) error {
+func (b *DebugRPCBlock) Encode(block *types.BlockWithRawExtractedData) error {
 	var err error
-	b.Content, err = block.Block.ToHexedSSZ()
+	b.Content, err = block.Block.MarshalSSZ()
 	if err != nil {
 		return err
 	}
-	b.InMessages = hexutil.EncodeSSZEncodedDataContainer(block.InMessages)
-	b.OutMessages = hexutil.EncodeSSZEncodedDataContainer(block.OutMessages)
-	b.Receipts = hexutil.EncodeSSZEncodedDataContainer(block.Receipts)
+	b.InMessages = hexutil.FromBytesSlice(block.InMessages)
+	b.OutMessages = hexutil.FromBytesSlice(block.OutMessages)
+	b.Receipts = hexutil.FromBytesSlice(block.Receipts)
 	b.Errors = block.Errors
 	return nil
 }
 
-func (b *HexedDebugRPCBlock) DecodeHex() (*types.BlockWithRawExtractedData, error) {
-	block, err := types.BlockFromHexedSSZ(b.Content)
-	if err != nil {
+func (b *DebugRPCBlock) Decode() (*types.BlockWithRawExtractedData, error) {
+	block := &types.Block{}
+	if err := block.UnmarshalSSZ(b.Content); err != nil {
 		return nil, err
 	}
-	inMessages := hexutil.DecodeSSZEncodedDataContainer(b.InMessages)
-	outMessages := hexutil.DecodeSSZEncodedDataContainer(b.OutMessages)
-	receipts := hexutil.DecodeSSZEncodedDataContainer(b.Receipts)
 	return &types.BlockWithRawExtractedData{
 		Block:       block,
-		InMessages:  inMessages,
-		OutMessages: outMessages,
-		Receipts:    receipts,
+		InMessages:  hexutil.ToBytesSlice(b.InMessages),
+		OutMessages: hexutil.ToBytesSlice(b.OutMessages),
+		Receipts:    hexutil.ToBytesSlice(b.Receipts),
 		Errors:      b.Errors,
 	}, nil
 }
 
-func (b *HexedDebugRPCBlock) DecodeHexAndSSZ() (*types.BlockWithExtractedData, error) {
-	block, err := b.DecodeHex()
+func (b *DebugRPCBlock) DecodeSSZ() (*types.BlockWithExtractedData, error) {
+	block, err := b.Decode()
 	if err != nil {
 		return nil, err
 	}
 	return block.DecodeSSZ()
 }
 
-func EncodeBlockWithRawExtractedData(block *types.BlockWithRawExtractedData) (*HexedDebugRPCBlock, error) {
-	b := new(HexedDebugRPCBlock)
-	if err := b.EncodeHex(block); err != nil {
+func EncodeBlockWithRawExtractedData(block *types.BlockWithRawExtractedData) (*DebugRPCBlock, error) {
+	b := &DebugRPCBlock{}
+	if err := b.Encode(block); err != nil {
 		return nil, err
 	}
 	return b, nil

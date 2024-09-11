@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -50,11 +49,10 @@ func TestDebugGetBlock(t *testing.T) {
 		SmartContractsRoot: common.EmptyHash,
 	}
 
-	var blockHex string
+	var hexBytes []byte
 	for _, b := range []*types.Block{blockWithErrors, block} {
-		hexBytes, err := b.MarshalSSZ()
+		hexBytes, err = b.MarshalSSZ()
 		require.NoError(t, err)
-		blockHex = hexutil.Encode(hexBytes)
 
 		hash := b.Hash()
 		err = db.WriteBlock(tx, types.MainShardId, hash, b)
@@ -74,7 +72,7 @@ func TestDebugGetBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	content := res1.Content
-	require.Equal(t, blockHex, content)
+	require.EqualValues(t, hexBytes, content)
 
 	// When: Get existing block
 	res2, err := api.GetBlockByNumber(ctx, types.MainShardId, transport.BlockNumber(block.Id), false)
