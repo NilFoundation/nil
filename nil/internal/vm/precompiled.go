@@ -453,7 +453,7 @@ func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, calle
 	if err != nil {
 		return []byte("sendRequest failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}
-	if len(args) != 3 {
+	if len(args) != 4 {
 		return []byte("sendRequest failed: invalid number of arguments"), ErrPrecompileReverted
 	}
 
@@ -461,12 +461,19 @@ func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, calle
 	dst, ok := args[0].(types.Address)
 	check.PanicIfNotf(ok, "sendRequest failed: dst argument is not an address")
 
+	// Get `currencies` argument, which is a slice of `CurrencyBalance`
+	currencies, err := extractCurrencies(args[1])
+	if err != nil {
+		log.Logger.Error().Err(err).Msg("currencies is not a slice of CurrencyBalance")
+		return nil, ErrPrecompileReverted
+	}
+
 	// Get `context` argument
-	context, ok := args[1].([]byte)
+	context, ok := args[2].([]byte)
 	check.PanicIfNotf(ok, "sendRequest failed: context is not a bytes")
 
 	// Get `callData` argument
-	callData, ok := args[2].([]byte)
+	callData, ok := args[3].([]byte)
 	check.PanicIfNotf(ok, "sendRequest failed: callData is not a bytes")
 
 	if err := withdrawFunds(state, caller.Address(), types.NewValue(value)); err != nil {
@@ -479,7 +486,7 @@ func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, calle
 		FeeCredit:      types.NewZeroValue(),
 		ForwardKind:    types.ForwardKindRemaining,
 		Value:          types.NewValue(value),
-		Currency:       nil,
+		Currency:       currencies,
 		To:             dst,
 		BounceTo:       state.GetInMessage().To,
 		Data:           callData,
