@@ -75,8 +75,6 @@ func TestMessages_ExtractCommitHash(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -121,8 +119,6 @@ func TestMessages_ExtractProposal(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -167,8 +163,6 @@ func TestMessages_ExtractProposalHash(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -215,8 +209,6 @@ func TestMessages_ExtractRCC(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -261,8 +253,6 @@ func TestMessages_ExtractPrepareHash(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -310,8 +300,6 @@ func TestMessages_ExtractLatestPC(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -356,8 +344,6 @@ func TestMessages_ExtractLPPB(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -410,8 +396,6 @@ func TestMessages_HasUniqueSenders(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -495,8 +479,6 @@ func TestMessages_HaveSameProposalHash(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -586,8 +568,6 @@ func TestMessages_AllHaveLowerRond(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -653,8 +633,6 @@ func TestMessages_AllHaveSameHeight(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 

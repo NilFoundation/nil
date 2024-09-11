@@ -149,7 +149,8 @@ func HaveSameProposalHash(messages []*proto.Message) bool {
 			extractedHash = ExtractProposalHash(message)
 		case proto.MessageType_PREPARE:
 			extractedHash = ExtractPrepareHash(message)
-		default:
+		case proto.MessageType_COMMIT:
+		case proto.MessageType_ROUND_CHANGE:
 			return false
 		}
 

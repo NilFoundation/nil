@@ -17,7 +17,7 @@ func generateRandomMessages(
 ) []*proto.Message {
 	messages := make([]*proto.Message, 0)
 
-	for index := 0; index < count; index++ {
+	for index := range count {
 		for _, messageType := range messageTypes {
 			message := &proto.Message{
 				From: []byte(strconv.Itoa(index)),
@@ -45,6 +45,7 @@ func generateRandomMessages(
 						CommittedSeal: nil,
 					},
 				}
+			case proto.MessageType_ROUND_CHANGE:
 			}
 
 			messages = append(messages, message)
@@ -212,7 +213,6 @@ func TestMessages_GetValidMessagesMessage(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			// Add the initial message set

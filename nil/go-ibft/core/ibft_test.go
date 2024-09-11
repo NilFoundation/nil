@@ -50,7 +50,7 @@ func commitHashMatches(commitHash []byte, message *proto.Message) bool {
 func generateMessages(count uint64, messageType proto.MessageType) []*proto.Message {
 	messages := make([]*proto.Message, count)
 
-	for index := uint64(0); index < count; index++ {
+	for index := range count {
 		message := &proto.Message{
 			View: &proto.View{
 				Height: 0,
@@ -117,7 +117,8 @@ func appendProposalHash(messages []*proto.Message, proposalHash []byte) {
 			payload := pData.PrepareData
 
 			payload.ProposalHash = proposalHash
-		default:
+		case proto.MessageType_COMMIT:
+		case proto.MessageType_ROUND_CHANGE:
 		}
 	}
 }
@@ -131,7 +132,7 @@ func setRoundForMessages(messages []*proto.Message, round uint64) {
 func generateSeals(count int) [][]byte {
 	seals := make([][]byte, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		seals[i] = []byte("committed seal")
 	}
 
@@ -211,6 +212,8 @@ func generateFilledRCMessages(
 
 // TestRunNewRound_Proposer checks that the node functions
 // correctly as the proposer for a block
+//
+//nolint:maintidx // TODO: refactor this test
 func TestRunNewRound_Proposer(t *testing.T) {
 	t.Parallel()
 
@@ -312,7 +315,8 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						multicastedPreprepare = message
 					case proto.MessageType_PREPARE:
 						multicastedPrepare = message
-					default:
+					case proto.MessageType_COMMIT:
+					case proto.MessageType_ROUND_CHANGE:
 					}
 				}}
 				backend = mockBackend{
@@ -468,7 +472,8 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						multicastedPreprepare = message
 					case proto.MessageType_PREPARE:
 						multicastedPrepare = message
-					default:
+					case proto.MessageType_COMMIT:
+					case proto.MessageType_ROUND_CHANGE:
 					}
 				}}
 				backend = mockBackend{
@@ -733,8 +738,6 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1131,7 +1134,6 @@ func TestIBFT_IsAcceptableMessage(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1320,8 +1322,6 @@ func TestIBFT_FutureProposal(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1424,6 +1424,8 @@ func TestIBFT_FutureProposal(t *testing.T) {
 
 // TestIBFT_ValidPC validates that prepared certificates
 // are verified correctly
+//
+//nolint:maintidx // TODO: refactor this test
 func TestIBFT_ValidPC(t *testing.T) {
 	t.Parallel()
 
@@ -2171,6 +2173,7 @@ func TestIBFT_WatchForFutureRCC(t *testing.T) {
 // TestState_String makes sure the string representation
 // of states is correct
 func TestState_String(t *testing.T) {
+	t.Parallel()
 	stringMap := map[stateType]string{
 		newRound: "new round",
 		prepare:  "prepare",

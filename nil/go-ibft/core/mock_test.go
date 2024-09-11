@@ -313,7 +313,7 @@ func newMockCluster(
 	nodes := make([]*IBFT, numNodes)
 	nodeCtxs := make([]mockNodeContext, numNodes)
 
-	for index := 0; index < int(numNodes); index++ {
+	for index := range int(numNodes) {
 		var (
 			logger    = &mockLogger{}
 			transport = &mockTransport{}

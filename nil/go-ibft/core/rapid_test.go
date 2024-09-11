@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -31,7 +30,7 @@ func newMockInsertedProposals(numNodes uint64) *mockInsertedProposals {
 	}
 
 	// Initialize the proposal insertion map, used for lookups
-	for i := uint64(0); i < numNodes; i++ {
+	for i := range numNodes {
 		m.proposals[i] = make(map[uint64][]byte)
 	}
 
@@ -155,8 +154,7 @@ func TestProperty_AllHonestNodes(t *testing.T) {
 		backendCallbackMap := make(map[int]backendConfigCallback)
 		transportCallbackMap := make(map[int]transportConfigCallback)
 
-		for i := 0; i < int(numNodes); i++ {
-			i := i
+		for i := range int(numNodes) {
 			backendCallbackMap[i] = func(backend *mockBackend) {
 				commonBackendCallback(backend, i)
 			}
@@ -179,7 +177,7 @@ func TestProperty_AllHonestNodes(t *testing.T) {
 		}
 
 		// Run the sequence up until a certain height
-		for height := uint64(0); height < desiredHeight; height++ {
+		for height := range desiredHeight {
 			// Start the main run loops
 			cluster.runSequence(height)
 
@@ -208,7 +206,7 @@ func getByzantineNodes(
 	gen := rapid.SampledFrom(set)
 	byzantineNodes := make(map[string]struct{})
 
-	for i := 0; i < int(numNodes); i++ {
+	for i := range int(numNodes) {
 		byzantineNodes[string(gen.Example(i))] = struct{}{}
 	}
 
@@ -348,8 +346,7 @@ func TestProperty_MajorityHonestNodes(t *testing.T) {
 		backendCallbackMap := make(map[int]backendConfigCallback)
 		transportCallbackMap := make(map[int]transportConfigCallback)
 
-		for i := 0; i < int(numNodes); i++ {
-			i := i
+		for i := range int(numNodes) {
 			backendCallbackMap[i] = func(backend *mockBackend) {
 				commonBackendCallback(backend, i)
 			}
@@ -376,7 +373,7 @@ func TestProperty_MajorityHonestNodes(t *testing.T) {
 		}
 
 		// Run the sequence up until a certain height
-		for height := uint64(0); height < desiredHeight; height++ {
+		for height := range desiredHeight {
 			// Start the main run loops
 			cluster.runSequence(height)
 
@@ -384,10 +381,8 @@ func TestProperty_MajorityHonestNodes(t *testing.T) {
 			ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*5)
 			if err := cluster.awaitNCompletions(ctx, int64(quorum(numNodes))); err != nil {
 				t.Fatalf(
-					fmt.Sprintf(
-						"unable to wait for nodes to complete, %v",
-						err,
-					),
+					"unable to wait for nodes to complete, %v",
+					err,
 				)
 			}
 

@@ -27,7 +27,7 @@ func TestEventManager_SubscribeCancel(t *testing.T) {
 	defer em.close()
 
 	// Create the subscriptions
-	for i := 0; i < numSubscriptions; i++ {
+	for i := range numSubscriptions {
 		subscriptions[i] = em.subscribe(baseDetails)
 
 		// Check that the number is up-to-date
@@ -84,7 +84,7 @@ func TestEventManager_SubscribeClose(t *testing.T) {
 	em := newEventManager()
 
 	// Create the subscriptions
-	for i := 0; i < numSubscriptions; i++ {
+	for i := range numSubscriptions {
 		subscriptions[i] = em.subscribe(baseDetails)
 
 		// Check that the number is up-to-date

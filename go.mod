@@ -24,6 +24,7 @@ require (
 	github.com/matryer/moq v0.5.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/multiformats/go-multistream v0.5.0
+	github.com/rs/xid v1.5.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	go.opentelemetry.io/otel v1.29.0
@@ -33,6 +34,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.29.0
 	golang.org/x/exp v0.0.0-20240808152545-0cdaa3abc0fa
 	google.golang.org/protobuf v1.34.2
+	pgregory.net/rapid v1.1.0
 )
 
 require (
