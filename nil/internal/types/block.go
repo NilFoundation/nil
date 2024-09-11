@@ -80,15 +80,15 @@ func (b *RawBlockWithExtractedData) DecodeSSZ() (*BlockWithExtractedData, error)
 	if err := block.UnmarshalSSZ(b.Block); err != nil {
 		return nil, err
 	}
-	inMessages, err := ssz.DecodeContainer[Message, *Message](b.InMessages)
+	inMessages, err := ssz.DecodeContainer[*Message](b.InMessages)
 	if err != nil {
 		return nil, err
 	}
-	outMessages, err := ssz.DecodeContainer[Message, *Message](b.OutMessages)
+	outMessages, err := ssz.DecodeContainer[*Message](b.OutMessages)
 	if err != nil {
 		return nil, err
 	}
-	receipts, err := ssz.DecodeContainer[Receipt, *Receipt](b.Receipts)
+	receipts, err := ssz.DecodeContainer[*Receipt](b.Receipts)
 	if err != nil {
 		return nil, err
 	}

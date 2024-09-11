@@ -109,7 +109,7 @@ func (api *LocalApi) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash comm
 
 		// Need to decode messages to get its hashes because external message hash
 		// calculated in a bit different way (not just Hash(SSZ)).
-		messages, err := ssz.DecodeContainer[types.Message, *types.Message](result.InMessages)
+		messages, err := ssz.DecodeContainer[*types.Message](result.InMessages)
 		if err != nil {
 			return nil, err
 		}

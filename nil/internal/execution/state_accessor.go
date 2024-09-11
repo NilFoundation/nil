@@ -7,6 +7,7 @@ import (
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
+	nilssz "github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -164,22 +165,17 @@ func unmashalSszEntities[
 	},
 	S any,
 ](block common.Hash, raw [][]byte, cache *lru.Cache[common.Hash, []*S], res *fieldAccessor[[]*S]) error {
-	if items, ok := cache.Get(block); ok {
-		*res = initWith(items)
-		return nil
-	}
-
-	items := make([]*S, len(raw))
-	for i, bin := range raw {
-		var entity S
-		if err := T(&entity).UnmarshalSSZ(bin); err != nil {
+	items, ok := cache.Get(block)
+	if !ok {
+		var err error
+		items, err = nilssz.DecodeContainer[T](raw)
+		if err != nil {
 			return err
 		}
-		items[i] = &entity
+		cache.Add(block, items)
 	}
 
 	*res = initWith(items)
-	cache.Add(block, items)
 	return nil
 }
 

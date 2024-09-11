@@ -19,11 +19,11 @@ func EncodeContainer[T ssz.Marshaler](container []T) ([]SSZEncodedData, error) {
 }
 
 func DecodeContainer[
-	S any,
 	T interface {
 		~*S
 		ssz.Unmarshaler
 	},
+	S any,
 ](dataContainer []SSZEncodedData) ([]*S, error) {
 	result := make([]*S, 0, len(dataContainer))
 	for _, sszData := range dataContainer {

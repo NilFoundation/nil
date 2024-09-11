@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/collate/pb"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -125,20 +126,18 @@ func marshalBlockSSZ(block *types.Block, outMsgs []*types.Message) (*pb.Block, e
 }
 
 func unmarshalBlockSSZ(pbBlock *pb.Block) (*Block, error) {
-	result := &Block{
-		Block:       new(types.Block),
-		OutMessages: make([]*types.Message, len(pbBlock.OutMessagesSSZ)),
-	}
-	if err := result.Block.UnmarshalSSZ(pbBlock.BlockSSZ); err != nil {
+	block := &types.Block{}
+	if err := block.UnmarshalSSZ(pbBlock.BlockSSZ); err != nil {
 		return nil, err
 	}
-	for i, rawMsg := range pbBlock.OutMessagesSSZ {
-		result.OutMessages[i] = new(types.Message)
-		if err := result.OutMessages[i].UnmarshalSSZ(rawMsg); err != nil {
-			return nil, err
-		}
+	messages, err := ssz.DecodeContainer[*types.Message](pbBlock.OutMessagesSSZ)
+	if err != nil {
+		return nil, err
 	}
-	return result, nil
+	return &Block{
+		Block:       block,
+		OutMessages: messages,
+	}, nil
 }
 
 func unmarshalBlocksSSZ(pbBlocks *pb.Blocks) ([]*Block, error) {
