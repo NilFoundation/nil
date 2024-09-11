@@ -482,6 +482,21 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	})
 }
 
+func (s *SuiteMultiCurrencyRpc) TestCurrencyViaCall() {
+	// Check that it's possible to call some function via eth_call
+	// that works with currencies without crashes/errors.
+
+	data := s.AbiPack(s.abiWallet, "mintCurrency", big.NewInt(100))
+	res, err := s.client.Call(&jsonrpc.CallArgs{
+		To:        s.walletAddress1,
+		Data:      (*hexutil.Bytes)(&data),
+		FeeCredit: types.NewValueFromUint64(1000000),
+	}, "latest", nil)
+	s.Require().NoError(err)
+	s.Require().Empty(res.Error)
+	s.Require().Positive(res.CoinsUsed.Uint64())
+}
+
 func (s *SuiteMultiCurrencyRpc) TestBounce() {
 	var (
 		data       []byte

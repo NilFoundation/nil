@@ -44,6 +44,7 @@ type AccountState struct {
 	State               Storage
 	AsyncContext        map[types.MessageIndex]*types.AsyncContext
 	AsyncContextRemoved []types.MessageIndex
+	Currencies          map[types.CurrencyId]types.Value
 
 	// Flag whether the account was marked as self-destructed. The self-destructed
 	// account is still accessible in the scope of same transaction.
@@ -82,6 +83,7 @@ func NewAccountState(es *ExecutionState, addr types.Address, account *types.Smar
 		Tx:           es.tx,
 		State:        make(Storage),
 		AsyncContext: make(map[types.MessageIndex]*types.AsyncContext),
+		Currencies:   make(map[types.CurrencyId]types.Value),
 	}
 
 	if account != nil {
@@ -168,10 +170,7 @@ func (as *AccountState) setBalance(amount types.Value) {
 }
 
 func (as *AccountState) SetCurrencyBalance(id types.CurrencyId, amount types.Value) {
-	prev, err := as.CurrencyTree.Fetch(id)
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		panic(err)
-	}
+	prev := as.GetCurrencyBalance(id)
 	change := currencyChange{
 		account: &as.address,
 		id:      id,
@@ -184,7 +183,7 @@ func (as *AccountState) SetCurrencyBalance(id types.CurrencyId, amount types.Val
 }
 
 func (as *AccountState) setCurrencyBalance(id types.CurrencyId, amount types.Value) {
-	check.PanicIfErr(as.CurrencyTree.Update(id, &amount))
+	as.Currencies[id] = amount
 	logger.Debug().
 		Stringer("address", as.address).
 		Hex("id", id[:]).
@@ -192,13 +191,21 @@ func (as *AccountState) setCurrencyBalance(id types.CurrencyId, amount types.Val
 		Msg("Set balance currency")
 }
 
-func (as *AccountState) GetCurrencyBalance(id types.CurrencyId) types.Value {
-	res, err := as.CurrencyTree.Fetch(id)
+func (as *AccountState) GetCurrencyBalance(id types.CurrencyId) *types.Value {
+	if value, exists := as.Currencies[id]; exists {
+		return &value
+	}
+
+	prev, err := as.CurrencyTree.Fetch(id)
 	if errors.Is(err, db.ErrKeyNotFound) {
-		return types.Value{}
+		return nil
 	}
 	check.PanicIfErr(err)
-	return *res
+
+	if prev != nil {
+		as.Currencies[id] = *prev
+	}
+	return prev
 }
 
 func (as *AccountState) SetSeqno(seqno types.Seqno) {
@@ -313,6 +320,10 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 		if err := as.AsyncContextTree.Delete(k); err != nil {
 			return nil, err
 		}
+	}
+
+	if err := UpdateFromMap(as.CurrencyTree, as.Currencies, func(val types.Value) *types.Value { return &val }); err != nil {
+		return nil, err
 	}
 
 	acc := &types.SmartContract{

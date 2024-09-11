@@ -15,6 +15,7 @@ require (
 )
 
 require (
+	github.com/Masterminds/semver/v3 v3.3.0
 	github.com/consensys/gnark-crypto v0.12.1
 	github.com/libp2p/go-libp2p v0.36.3
 	github.com/libp2p/go-libp2p-kad-dht v0.26.1
@@ -44,7 +45,6 @@ require (
 
 require (
 	github.com/ClickHouse/ch-go v0.61.5 // indirect
-	github.com/Masterminds/semver/v3 v3.3.0 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
