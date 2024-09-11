@@ -2,7 +2,9 @@ package network
 
 import (
 	"context"
+	"errors"
 	"io"
+	"runtime/debug"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -69,30 +71,41 @@ func (m *Manager) SetRequestHandler(ctx context.Context, protocolId ProtocolID, 
 		ctx, cancel := context.WithTimeout(ctx, responseTimeout)
 		defer cancel()
 
-		m.logger.Trace().Msgf("Handling request %s...", stream.ID())
+		logger.Trace().Msgf("Handling request %s...", stream.ID())
 
 		if err := stream.SetDeadline(time.Now().Add(responseTimeout)); err != nil {
-			m.logError(err, "failed to set deadline for stream")
+			m.logErrorWithLogger(logger, err, "Failed to set deadline for stream")
 			return
 		}
 
 		request, err := io.ReadAll(stream)
 		if err != nil {
-			m.logError(err, "failed to read request")
+			m.logErrorWithLogger(logger, err, "Failed to read request")
 			return
 		}
 
-		response, err := handler(ctx, request)
+		var response []byte
+		err = func() (errRes error) {
+			defer func() {
+				if err := recover(); err != nil {
+					logger.Error().Msgf("Request handler crashed: %v. Stack:\n%s", err, string(debug.Stack()))
+					errRes = errors.New("method handler crashed")
+				}
+			}()
+
+			response, err = handler(ctx, request)
+			return err
+		}()
 		if err != nil {
-			m.logError(err, "failed to handle request")
+			m.logErrorWithLogger(logger, err, "Failed to handle request")
 			return
 		}
 
 		if _, err := stream.Write(response); err != nil {
-			m.logError(err, "failed to write response")
+			m.logErrorWithLogger(logger, err, "Failed to write response")
 			return
 		}
 
-		m.logger.Trace().Msgf("Handled request %s", stream.ID())
+		logger.Trace().Msgf("Handled request %s", stream.ID())
 	})
 }

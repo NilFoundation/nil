@@ -143,10 +143,14 @@ func (m *Manager) Close() {
 }
 
 func (m *Manager) logError(err error, msg string) {
+	m.logErrorWithLogger(m.logger, err, msg)
+}
+
+func (m *Manager) logErrorWithLogger(logger zerolog.Logger, err error, msg string) {
 	if m.ctx.Err() != nil {
 		// If we're already closing, no need to log errors.
 		return
 	}
 
-	m.logger.Error().Err(err).Msg(msg)
+	logger.Error().Err(err).Msg(msg)
 }

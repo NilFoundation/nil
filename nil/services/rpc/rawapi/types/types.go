@@ -1,4 +1,4 @@
-package rawapi
+package rawapitypes
 
 import (
 	"github.com/NilFoundation/nil/nil/common"

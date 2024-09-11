@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
+	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
 )
@@ -42,13 +43,13 @@ func NewDebugAPI(rawApi rawapi.Api, db db.ReadOnlyDB, logger zerolog.Logger) *De
 
 // GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
 func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withMessages bool) (*DebugRPCBlock, error) {
-	var blockReference rawapi.BlockReference
+	var blockReference rawapitypes.BlockReference
 	if number <= 0 {
 		switch number {
 		case transport.LatestBlockNumber:
-			blockReference = rawapi.NamedBlockIdentifierAsBlockReference(rawapi.LatestBlock)
+			blockReference = rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock)
 		case transport.EarliestBlockNumber:
-			blockReference = rawapi.NamedBlockIdentifierAsBlockReference(rawapi.EarliestBlock)
+			blockReference = rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.EarliestBlock)
 		case transport.LatestExecutedBlockNumber:
 		case transport.FinalizedBlockNumber:
 		case transport.SafeBlockNumber:
@@ -57,17 +58,17 @@ func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.Sha
 			return nil, fmt.Errorf("not supported special block number %s", number)
 		}
 	} else {
-		blockReference = rawapi.BlockNumberAsBlockReference(types.BlockNumber(number))
+		blockReference = rawapitypes.BlockNumberAsBlockReference(types.BlockNumber(number))
 	}
 	return api.getBlockByReference(ctx, shardId, blockReference, withMessages)
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
 func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (*DebugRPCBlock, error) {
-	return api.getBlockByReference(ctx, shardId, rawapi.BlockHashAsBlockReference(hash), withMessages)
+	return api.getBlockByReference(ctx, shardId, rawapitypes.BlockHashAsBlockReference(hash), withMessages)
 }
 
-func (api *DebugAPIImpl) getBlockByReference(ctx context.Context, shardId types.ShardId, blockReference rawapi.BlockReference, withMessages bool) (*DebugRPCBlock, error) {
+func (api *DebugAPIImpl) getBlockByReference(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference, withMessages bool) (*DebugRPCBlock, error) {
 	var blockData *types.RawBlockWithExtractedData
 	var err error
 	if withMessages {
