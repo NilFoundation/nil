@@ -815,6 +815,9 @@ func (es *ExecutionState) AddOutMessage(caller types.Address, payload *types.Int
 		}
 		for _, currency := range msg.Currency {
 			balance := acc.GetCurrencyBalance(currency.Currency)
+			if balance == nil {
+				balance = &types.Value{}
+			}
 			if balance.Cmp(currency.Balance) < 0 {
 				return nil, fmt.Errorf("%w: %s < %s, currency %s",
 					vm.ErrInsufficientBalance, balance, currency.Balance, currency.Currency)
@@ -1453,6 +1456,9 @@ func (es *ExecutionState) AddCurrency(addr types.Address, currencyId types.Curre
 	}
 
 	balance := acc.GetCurrencyBalance(currencyId)
+	if balance == nil {
+		balance = &types.Value{}
+	}
 	newBalance := balance.Add(amount)
 	// Amount can be negative(currency burning). So, if the new balance is negative, set it to 0
 	if newBalance.Cmp(types.Value{}) < 0 {
@@ -1479,6 +1485,9 @@ func (es *ExecutionState) SubCurrency(addr types.Address, currencyId types.Curre
 	}
 
 	balance := acc.GetCurrencyBalance(currencyId)
+	if balance == nil {
+		balance = &types.Value{}
+	}
 	if balance.Cmp(amount) < 0 {
 		return fmt.Errorf("%w: %s < %s, currency %s",
 			vm.ErrInsufficientBalance, balance, amount, currencyId)
