@@ -1,6 +1,7 @@
-package synccommittee
+package types
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -58,22 +59,51 @@ const UnknownProverId ProverId = 0
 
 // Prover returns this struct as task result
 type ProverTaskResult struct {
-	Type        ProverResultType
-	TaskId      ProverTaskId
-	Err         error
-	Sender      ProverId
-	DataAddress string
+	Type        ProverResultType `json:"type"`
+	TaskId      ProverTaskId     `json:"taskId"`
+	IsSuccess   bool             `json:"isSuccess"`
+	ErrorText   string           `json:"errorText"`
+	Sender      ProverId         `json:"sender"`
+	DataAddress string           `json:"dataAddress"`
+}
+
+func SuccessTaskResult(
+	taskId ProverTaskId,
+	sender ProverId,
+	resultType ProverResultType,
+	dataAddress string,
+) ProverTaskResult {
+	return ProverTaskResult{
+		TaskId:      taskId,
+		IsSuccess:   true,
+		Sender:      sender,
+		Type:        resultType,
+		DataAddress: dataAddress,
+	}
+}
+
+func FailureTaskResult(
+	taskId ProverTaskId,
+	sender ProverId,
+	err error,
+) ProverTaskResult {
+	return ProverTaskResult{
+		TaskId:    taskId,
+		Sender:    sender,
+		IsSuccess: false,
+		ErrorText: fmt.Sprintf("failed to generate proof: %v", err),
+	}
 }
 
 // Task contains all the necessary data for a prover to perform computation
 type ProverTask struct {
-	Id            ProverTaskId
-	BatchNum      uint32
-	BlockNum      types.BlockNumber
-	TaskType      ProverTaskType
-	CircuitType   CircuitType
-	Dependencies  map[ProverTaskId]ProverTaskResult
-	DependencyNum uint8
+	Id            ProverTaskId                      `json:"id"`
+	BatchNum      uint32                            `json:"batchNum"`
+	BlockNum      types.BlockNumber                 `json:"blockNum"`
+	TaskType      ProverTaskType                    `json:"taskType"`
+	CircuitType   CircuitType                       `json:"circuitType"`
+	Dependencies  map[ProverTaskId]ProverTaskResult `json:"dependencies"`
+	DependencyNum uint8                             `json:"dependencyNum"`
 }
 
 func (t *ProverTask) AddDependencyResult(res ProverTaskResult) {

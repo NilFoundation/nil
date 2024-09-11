@@ -123,6 +123,10 @@ func NewClient(endpoint string, logger zerolog.Logger) *Client {
 	return NewClientWithDefaultHeaders(endpoint, logger, nil)
 }
 
+func NewRawClient(endpoint string, logger zerolog.Logger) client.RawClient {
+	return NewClient(endpoint, logger)
+}
+
 func NewClientWithDefaultHeaders(endpoint string, logger zerolog.Logger, headers map[string]string) *Client {
 	c := &Client{
 		endpoint: endpoint,

@@ -2,7 +2,6 @@ package client
 
 import (
 	"crypto/ecdsa"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -24,15 +23,8 @@ type BatchRequest interface {
 // for other protocols like WebSocket or gRPC in the future, you might need to
 // change or extend this interface to accommodate those protocols.
 type Client interface {
+	RawClient
 	DbClient
-
-	// RawCall sends a request to the server with the given method and parameters,
-	// and returns the response as json.RawMessage, or an error if the call fails
-	RawCall(method string, params ...any) (json.RawMessage, error)
-
-	// PlainTextCall sends request as is and returns raw output.
-	// Function is useful mainly for testing purposes.
-	PlainTextCall(requestBody []byte) (json.RawMessage, error)
 
 	CreateBatchRequest() BatchRequest
 	BatchCall(BatchRequest) ([]any, error)

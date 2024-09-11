@@ -11,16 +11,20 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/listener"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/prover"
 	"github.com/rs/zerolog"
 )
 
 type SyncCommittee struct {
-	cfg        *Config
-	database   db.DB
-	logger     zerolog.Logger
-	client     *rpc.Client
-	proposer   *Proposer
-	aggregator *Aggregator
+	cfg          *Config
+	database     db.DB
+	logger       zerolog.Logger
+	client       *rpc.Client
+	proposer     *Proposer
+	aggregator   *Aggregator
+	taskListener *listener.TaskListener
+	provers      *[]prover.Prover // At this point provers are embedded into sync committee
 }
 
 func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
@@ -35,16 +39,50 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}
 
+	taskListener := listener.NewTaskListener(
+		&listener.TaskListenerConfig{HttpEndpoint: cfg.OwnRpcEndpoint},
+		listener.NewTaskRequestRpcServer(),
+		logger,
+	)
+
+	provers, err := initializeProvers(cfg, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	s := &SyncCommittee{
-		cfg:        cfg,
-		database:   database,
-		logger:     logger,
-		client:     client,
-		proposer:   proposer,
-		aggregator: aggregator,
+		cfg:          cfg,
+		database:     database,
+		logger:       logger,
+		client:       client,
+		proposer:     proposer,
+		aggregator:   aggregator,
+		taskListener: taskListener,
+		provers:      provers,
 	}
 
 	return s, nil
+}
+
+func initializeProvers(cfg *Config, logger zerolog.Logger) (*[]prover.Prover, error) {
+	proverConfig := prover.DefaultConfig()
+
+	provers := make([]prover.Prover, cfg.ProversCount)
+
+	for i := range cfg.ProversCount {
+		localProver, err := prover.NewProver(
+			proverConfig,
+			prover.NewTaskRequestRpcClient(cfg.OwnRpcEndpoint, logger),
+			prover.NewTaskHandler(logger),
+			logger,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create local prover: %w", err)
+		}
+		provers[i] = *localProver
+	}
+
+	return &provers, nil
 }
 
 func (s *SyncCommittee) Run(ctx context.Context) error {
@@ -63,14 +101,25 @@ func (s *SyncCommittee) Run(ctx context.Context) error {
 		ctx = signalCtx
 	}
 
-	s.logger.Info().Msg("starting sync committee service processing loop")
-	s.processingLoop(ctx)
-	s.logger.Info().Msg("sync committee service processing loop stopped")
+	functions := []concurrent.Func{
+		s.processingLoop,
+		s.taskListener.Run,
+	}
+
+	for _, proverWorker := range *s.provers {
+		functions = append(functions, proverWorker.Run)
+	}
+
+	if err := concurrent.Run(ctx, functions...); err != nil {
+		s.logger.Error().Err(err).Msg("app encountered an error and will be terminated")
+	}
 
 	return nil
 }
 
-func (s *SyncCommittee) processingLoop(ctx context.Context) {
+func (s *SyncCommittee) processingLoop(ctx context.Context) error {
+	s.logger.Info().Msg("starting sync committee service processing loop")
+
 	concurrent.RunTickerLoop(ctx, s.cfg.PollingDelay,
 		func(ctx context.Context) {
 			if err := s.aggregator.ProcessNewBlocks(ctx); err != nil {
@@ -79,4 +128,7 @@ func (s *SyncCommittee) processingLoop(ctx context.Context) {
 			}
 		},
 	)
+
+	s.logger.Info().Msg("sync committee service processing loop stopped")
+	return nil
 }
