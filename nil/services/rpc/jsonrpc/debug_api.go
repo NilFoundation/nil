@@ -68,7 +68,7 @@ func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.Shard
 }
 
 func (api *DebugAPIImpl) getBlockByReference(ctx context.Context, shardId types.ShardId, blockReference rawapi.BlockReference, withMessages bool) (*DebugRPCBlock, error) {
-	var blockData *types.BlockWithRawExtractedData
+	var blockData *types.RawBlockWithExtractedData
 	var err error
 	if withMessages {
 		blockData, err = api.rawApi.GetFullBlockData(ctx, shardId, blockReference)
@@ -80,9 +80,9 @@ func (api *DebugAPIImpl) getBlockByReference(ctx context.Context, shardId types.
 		if err != nil {
 			return nil, err
 		}
-		blockData = &types.BlockWithRawExtractedData{Block: blockHeader}
+		blockData = &types.RawBlockWithExtractedData{Block: blockHeader}
 	}
-	return EncodeBlockWithRawExtractedData(blockData)
+	return EncodeRawBlockWithExtractedData(blockData)
 }
 
 func (api *DebugAPIImpl) GetContract(ctx context.Context, contractAddr types.Address, blockNrOrHash transport.BlockNumberOrHash) (*DebugRPCContract, error) {

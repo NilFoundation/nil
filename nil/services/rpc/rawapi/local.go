@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -29,7 +30,7 @@ func NewLocalApi(db db.ReadOnlyDB) *LocalApi {
 	}
 }
 
-func (api *LocalApi) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (*types.Block, error) {
+func (api *LocalApi) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (ssz.SSZEncodedData, error) {
 	block, err := api.getBlockByReference(ctx, shardId, blockReference, false)
 	if err != nil {
 		return nil, err
@@ -37,11 +38,11 @@ func (api *LocalApi) GetBlockHeader(ctx context.Context, shardId types.ShardId, 
 	return block.Block, nil
 }
 
-func (api *LocalApi) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (*types.BlockWithRawExtractedData, error) {
+func (api *LocalApi) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (*types.RawBlockWithExtractedData, error) {
 	return api.getBlockByReference(ctx, shardId, blockReference, true)
 }
 
-func (api *LocalApi) getBlockByReference(ctx context.Context, shardId types.ShardId, blockReference BlockReference, withMessages bool) (*types.BlockWithRawExtractedData, error) {
+func (api *LocalApi) getBlockByReference(ctx context.Context, shardId types.ShardId, blockReference BlockReference, withMessages bool) (*types.RawBlockWithExtractedData, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
@@ -76,7 +77,7 @@ func (api *LocalApi) getBlockHashByReference(tx db.RoTx, shardId types.ShardId, 
 	}
 }
 
-func (api *LocalApi) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash common.Hash, withMessages bool) (*types.BlockWithRawExtractedData, error) {
+func (api *LocalApi) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash common.Hash, withMessages bool) (*types.RawBlockWithExtractedData, error) {
 	accessor := api.accessor.Access(tx, shardId).GetBlock()
 	if withMessages {
 		accessor = accessor.WithInMessages().WithOutMessages().WithReceipts()

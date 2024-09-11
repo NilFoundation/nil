@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi/pb"
@@ -28,7 +29,7 @@ func NewNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manag
 	}, nil
 }
 
-func (api *NetworkRawApiAccessor) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (*types.Block, error) {
+func (api *NetworkRawApiAccessor) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (ssz.SSZEncodedData, error) {
 	requestBody, err := proto.Marshal(makePbBlockRequest(shardId, blockReference))
 	if err != nil {
 		return nil, err
@@ -51,7 +52,7 @@ func (api *NetworkRawApiAccessor) GetBlockHeader(ctx context.Context, shardId ty
 	return fullBlockData.Block, nil
 }
 
-func (api *NetworkRawApiAccessor) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (*types.BlockWithRawExtractedData, error) {
+func (api *NetworkRawApiAccessor) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (*types.RawBlockWithExtractedData, error) {
 	requestBody, err := proto.Marshal(makePbBlockRequest(shardId, blockReference))
 	if err != nil {
 		return nil, err
@@ -70,7 +71,7 @@ func (api *NetworkRawApiAccessor) GetFullBlockData(ctx context.Context, shardId 
 	return fromPbRawBlockWithExtraDataResponse(&blockPb)
 }
 
-func fromPbRawBlockWithExtraDataResponse(response *pb.RawBlockResponse) (*types.BlockWithRawExtractedData, error) {
+func fromPbRawBlockWithExtraDataResponse(response *pb.RawBlockResponse) (*types.RawBlockWithExtractedData, error) {
 	switch response.Result.(type) {
 	case *pb.RawBlockResponse_Error:
 		return nil, fromPbError(response.GetError())
@@ -81,13 +82,9 @@ func fromPbRawBlockWithExtraDataResponse(response *pb.RawBlockResponse) (*types.
 	}
 }
 
-func fromPbRawBlockWithExtraData(pbBlock *pb.RawBlock) (*types.BlockWithRawExtractedData, error) {
-	var block types.Block
-	if err := block.UnmarshalSSZ(pbBlock.BlockSSZ); err != nil {
-		return nil, err
-	}
-	return &types.BlockWithRawExtractedData{
-		Block:       &block,
+func fromPbRawBlockWithExtraData(pbBlock *pb.RawBlock) (*types.RawBlockWithExtractedData, error) {
+	return &types.RawBlockWithExtractedData{
+		Block:       pbBlock.BlockSSZ,
 		InMessages:  pbBlock.InMessagesSSZ,
 		OutMessages: pbBlock.OutMessagesSSZ,
 		Receipts:    pbBlock.ReceiptsSSZ,

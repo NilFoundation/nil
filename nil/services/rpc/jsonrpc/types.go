@@ -146,12 +146,8 @@ type DebugRPCBlock struct {
 	Errors      map[common.Hash]string `json:"errors"`
 }
 
-func (b *DebugRPCBlock) Encode(block *types.BlockWithRawExtractedData) error {
-	var err error
-	b.Content, err = block.Block.MarshalSSZ()
-	if err != nil {
-		return err
-	}
+func (b *DebugRPCBlock) Encode(block *types.RawBlockWithExtractedData) error {
+	b.Content = block.Block
 	b.InMessages = hexutil.FromBytesSlice(block.InMessages)
 	b.OutMessages = hexutil.FromBytesSlice(block.OutMessages)
 	b.Receipts = hexutil.FromBytesSlice(block.Receipts)
@@ -159,13 +155,9 @@ func (b *DebugRPCBlock) Encode(block *types.BlockWithRawExtractedData) error {
 	return nil
 }
 
-func (b *DebugRPCBlock) Decode() (*types.BlockWithRawExtractedData, error) {
-	block := &types.Block{}
-	if err := block.UnmarshalSSZ(b.Content); err != nil {
-		return nil, err
-	}
-	return &types.BlockWithRawExtractedData{
-		Block:       block,
+func (b *DebugRPCBlock) Decode() (*types.RawBlockWithExtractedData, error) {
+	return &types.RawBlockWithExtractedData{
+		Block:       b.Content,
 		InMessages:  hexutil.ToBytesSlice(b.InMessages),
 		OutMessages: hexutil.ToBytesSlice(b.OutMessages),
 		Receipts:    hexutil.ToBytesSlice(b.Receipts),
@@ -181,7 +173,7 @@ func (b *DebugRPCBlock) DecodeSSZ() (*types.BlockWithExtractedData, error) {
 	return block.DecodeSSZ()
 }
 
-func EncodeBlockWithRawExtractedData(block *types.BlockWithRawExtractedData) (*DebugRPCBlock, error) {
+func EncodeRawBlockWithExtractedData(block *types.RawBlockWithExtractedData) (*DebugRPCBlock, error) {
 	b := &DebugRPCBlock{}
 	if err := b.Encode(block); err != nil {
 		return nil, err

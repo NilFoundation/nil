@@ -48,8 +48,8 @@ type Block struct {
 	GasPrice            Value        `json:"gasPrice" ch:"gas_price"`
 }
 
-type BlockWithRawExtractedData struct {
-	*Block
+type RawBlockWithExtractedData struct {
+	Block       ssz.SSZEncodedData
 	InMessages  []ssz.SSZEncodedData
 	OutMessages []ssz.SSZEncodedData
 	Receipts    []ssz.SSZEncodedData
@@ -75,7 +75,11 @@ func (b *Block) Hash() common.Hash {
 	return common.MustPoseidonSSZ(b)
 }
 
-func (b *BlockWithRawExtractedData) DecodeSSZ() (*BlockWithExtractedData, error) {
+func (b *RawBlockWithExtractedData) DecodeSSZ() (*BlockWithExtractedData, error) {
+	block := &Block{}
+	if err := block.UnmarshalSSZ(b.Block); err != nil {
+		return nil, err
+	}
 	inMessages, err := ssz.DecodeContainer[Message, *Message](b.InMessages)
 	if err != nil {
 		return nil, err
@@ -89,7 +93,7 @@ func (b *BlockWithRawExtractedData) DecodeSSZ() (*BlockWithExtractedData, error)
 		return nil, err
 	}
 	return &BlockWithExtractedData{
-		Block:       b.Block,
+		Block:       block,
 		InMessages:  inMessages,
 		OutMessages: outMessages,
 		Receipts:    receipts,
@@ -97,7 +101,11 @@ func (b *BlockWithRawExtractedData) DecodeSSZ() (*BlockWithExtractedData, error)
 	}, nil
 }
 
-func (b *BlockWithExtractedData) EncodeSSZ() (*BlockWithRawExtractedData, error) {
+func (b *BlockWithExtractedData) EncodeSSZ() (*RawBlockWithExtractedData, error) {
+	block, err := b.Block.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
 	inMessages, err := ssz.EncodeContainer(b.InMessages)
 	if err != nil {
 		return nil, err
@@ -110,8 +118,8 @@ func (b *BlockWithExtractedData) EncodeSSZ() (*BlockWithRawExtractedData, error)
 	if err != nil {
 		return nil, err
 	}
-	return &BlockWithRawExtractedData{
-		Block:       b.Block,
+	return &RawBlockWithExtractedData{
+		Block:       block,
 		InMessages:  inMessages,
 		OutMessages: outMessages,
 		Receipts:    receipts,

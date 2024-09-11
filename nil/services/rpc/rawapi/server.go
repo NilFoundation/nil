@@ -22,7 +22,7 @@ func SetRawApiRequestHandler(ctx context.Context, api Api, manager *network.Mana
 		if err != nil {
 			return proto.Marshal(toPbRawBlockResponseError(err))
 		}
-		return proto.Marshal(toPbRawBlockResponse(&types.BlockWithRawExtractedData{Block: block}))
+		return proto.Marshal(toPbRawBlockResponse(&types.RawBlockWithExtractedData{Block: block}))
 	})
 
 	manager.SetRequestHandler(ctx, "get_full_block_data", func(ctx context.Context, request []byte) ([]byte, error) {
@@ -40,30 +40,20 @@ func SetRawApiRequestHandler(ctx context.Context, api Api, manager *network.Mana
 	})
 }
 
-func toPbRawBlock(block *types.BlockWithRawExtractedData) (*pb.RawBlock, error) {
-	blockSSZ, err := block.Block.MarshalSSZ()
-	if err != nil {
-		return nil, err
-	}
-
+func toPbRawBlock(block *types.RawBlockWithExtractedData) *pb.RawBlock {
 	return &pb.RawBlock{
-		BlockSSZ:       blockSSZ,
+		BlockSSZ:       block.Block,
 		InMessagesSSZ:  block.InMessages,
 		OutMessagesSSZ: block.OutMessages,
 		ReceiptsSSZ:    block.Receipts,
 		Errors:         toPbErrorMap(block.Errors),
-	}, nil
+	}
 }
 
-func toPbRawBlockResponse(block *types.BlockWithRawExtractedData) *pb.RawBlockResponse {
-	data, err := toPbRawBlock(block)
-	if err != nil {
-		return toPbRawBlockResponseError(err)
-	}
-
+func toPbRawBlockResponse(block *types.RawBlockWithExtractedData) *pb.RawBlockResponse {
 	return &pb.RawBlockResponse{
 		Result: &pb.RawBlockResponse_Data{
-			Data: data,
+			Data: toPbRawBlock(block),
 		},
 	}
 }
