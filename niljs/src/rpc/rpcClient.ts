@@ -1,4 +1,5 @@
 import { Client, HTTPTransport, RequestManager } from "@open-rpc/client-js";
+import { version } from "../version.js";
 
 /**
  * Creates a new RPC client to interact with the network using the RPC API.
@@ -7,9 +8,14 @@ import { Client, HTTPTransport, RequestManager } from "@open-rpc/client-js";
  * @example const client = createRPCClient(RPC_ENDPOINT);
  */
 const createRPCClient = (endpoint: string) => {
-  const transport = new HTTPTransport(endpoint);
-  const requestManager = new RequestManager([transport]);
-  return new Client(requestManager);
+	const transport = new HTTPTransport(endpoint, {
+		headers: {
+			"Client-Version": version,
+		},
+	});
+
+	const requestManager = new RequestManager([transport]);
+	return new Client(requestManager);
 };
 
 export { createRPCClient };
