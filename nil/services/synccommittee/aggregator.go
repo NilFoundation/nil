@@ -9,7 +9,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
 )
 
@@ -168,25 +167,15 @@ func (agg *Aggregator) validateAndProcessBlock(ctx context.Context, block *jsonr
 
 // fetchAndProcessBlocks retrieves a range of blocks for a specific shard and stores them.
 func (agg *Aggregator) fetchAndProcessBlocks(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber) error {
-	batch := agg.client.CreateBatchRequest()
-	for i := from; i <= to; i++ {
-		if _, err := batch.GetBlock(shardId, transport.BlockNumber(i), true); err != nil {
-			return fmt.Errorf("error creating block request for shard %d, block %d: %w", shardId, i, err)
-		}
-	}
-
-	results, err := agg.client.BatchCall(batch)
+	const batchSize = 20
+	results, err := agg.client.GetBlocksRange(shardId, from, to+1, true, batchSize)
 	if err != nil {
 		return fmt.Errorf("error fetching blocks from shard %d: %w", shardId, err)
 	}
 
 	agg.logger.Debug().Int64("blkCount", int64(len(results))).Stringer(logging.FieldShardId, shardId).Msg("fetching blocks range")
 
-	for _, result := range results {
-		block, ok := result.(*jsonrpc.RPCBlock)
-		if !ok {
-			return fmt.Errorf("invalid type for BatchCall result, expected *jsonrpc.RPCBlock. Shard %d", shardId)
-		}
+	for _, block := range results {
 		if err := agg.validateAndProcessBlock(ctx, block); err != nil {
 			agg.logger.Warn().Err(err).Stringer(logging.FieldShardId, shardId).Stringer(logging.FieldBlockNumber, block.Number).Msg("error validating and storing block")
 		}

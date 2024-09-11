@@ -694,3 +694,75 @@ func (c *Client) BatchCall(req client.BatchRequest) ([]any, error) {
 
 	return result, nil
 }
+
+func (c *Client) fetchBlocksBatch(shardId types.ShardId, from, to types.BlockNumber, fullTx bool, isDebug bool) ([]any, error) {
+	batch := c.CreateBatchRequest()
+
+	for i := from; i < to; i++ {
+		var err error
+		if isDebug {
+			_, err = batch.GetDebugBlock(shardId, transport.BlockNumber(i), fullTx)
+		} else {
+			_, err = batch.GetBlock(shardId, transport.BlockNumber(i), fullTx)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return c.BatchCall(batch)
+}
+
+func (c *Client) getBlocksRange(shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int, isDebug bool) ([]any, error) {
+	if from >= to {
+		return nil, nil
+	}
+
+	result := make([]any, 0)
+	for curBlockId := from; curBlockId < to; curBlockId += types.BlockNumber(batchSize) {
+		batchEndId := curBlockId + types.BlockNumber(batchSize)
+		if batchEndId > to {
+			batchEndId = to
+		}
+
+		blocks, err := c.fetchBlocksBatch(shardId, curBlockId, batchEndId, fullTx, isDebug)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, blocks...)
+	}
+	return result, nil
+}
+
+func (c *Client) GetDebugBlocksRange(shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*types.BlockWithExtractedData, error) {
+	rawBlocks, err := c.getBlocksRange(shardId, from, to, fullTx, batchSize, true)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*types.BlockWithExtractedData, len(rawBlocks))
+	for i, raw := range rawBlocks {
+		block, ok := raw.(*jsonrpc.HexedDebugRPCBlock)
+		check.PanicIfNot(ok)
+		result[i], err = block.DecodeHexAndSSZ()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+func (c *Client) GetBlocksRange(shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*jsonrpc.RPCBlock, error) {
+	rawBlocks, err := c.getBlocksRange(shardId, from, to, fullTx, batchSize, false)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*jsonrpc.RPCBlock, len(rawBlocks))
+	for i, raw := range rawBlocks {
+		var ok bool
+		result[i], ok = raw.(*jsonrpc.RPCBlock)
+		check.PanicIfNot(ok)
+	}
+	return result, nil
+}
