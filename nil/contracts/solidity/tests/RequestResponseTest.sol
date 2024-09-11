@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "../lib/Nil.sol";
+import "../lib/NilCurrencyBase.sol";
 import "./Counter.sol";
 
-contract RequestResponseTest {
+contract RequestResponseTest is NilCurrencyBase {
     int32 public value;
     int32 public counterValue;
     uint public intValue;
@@ -152,6 +152,25 @@ contract RequestResponseTest {
         while (true) {
             counterValue++;
         }
+    }
+
+    /**
+     * Test currency sending.
+     */
+    function requestSendCurrency(address addr, uint256 amount) public {
+        bytes memory context = abi.encodeWithSelector(this.responseSendCurrency.selector, uint(11111));
+        bytes memory callData = abi.encodeWithSignature("get()");
+        Nil.Token[] memory tokens = new Nil.Token[](1);
+        uint256 id = uint256(uint160(address(this)));
+        tokens[0] = Nil.Token(id, amount);
+        Nil.sendRequest(addr, 0, tokens, context, callData);
+    }
+
+    function responseSendCurrency(bool success, bytes memory /*returnData*/, bytes memory context) public payable {
+        require(success, "Request should be successful");
+        (uint ctxValue) = abi.decode(context, (uint));
+        require(ctxValue == uint(11111), "Context value should be the same");
+        require(Nil.msgTokens().length == 0, "Tokens should be empty");
     }
 
     /**

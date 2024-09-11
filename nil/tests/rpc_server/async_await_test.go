@@ -308,6 +308,36 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 		s.checkAsyncContextEmpty(s.testAddress0)
 	})
 
+	s.Run("Send currency", func() {
+		data := s.AbiPack(s.abiTest, "mintCurrency", big.NewInt(1_000_000))
+		receipt := s.sendExternalMessageNoCheck(data, s.testAddress0)
+		s.Require().True(receipt.AllSuccess())
+
+		info = s.analyzeReceipt(receipt, map[types.Address]string{})
+		initialBalance = s.checkBalance(info, initialBalance, s.accounts)
+		s.checkAsyncContextEmpty(s.testAddress0)
+
+		data = s.AbiPack(s.abiTest, "requestSendCurrency", s.counterAddress0, big.NewInt(400_000))
+		receipt = s.sendExternalMessageNoCheck(data, s.testAddress0)
+		s.Require().True(receipt.AllSuccess())
+
+		info = s.analyzeReceipt(receipt, map[types.Address]string{})
+		initialBalance = s.checkBalance(info, initialBalance, s.accounts)
+		s.checkAsyncContextEmpty(s.testAddress0)
+
+		currencyId := hexutil.ToHexNoLeadingZeroes(s.testAddress0.Bytes())
+
+		currencies, err := s.client.GetCurrencies(s.testAddress0, "latest")
+		s.Require().NoError(err)
+		s.Require().Len(currencies, 1)
+		s.Equal(types.NewValueFromUint64(600_000), currencies[currencyId])
+
+		currencies, err = s.client.GetCurrencies(s.counterAddress0, "latest")
+		s.Require().NoError(err)
+		s.Require().Len(currencies, 1)
+		s.Equal(types.NewValueFromUint64(400_000), currencies[currencyId])
+	})
+
 	// TODO: support
 	// s.Run("Out of gas response", func() {
 	//	data := s.AbiPack(s.abiTest, "requestOutOfGasFailure", s.testAddress1)

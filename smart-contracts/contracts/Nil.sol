@@ -121,7 +121,18 @@ library Nil {
         bytes memory context,
         bytes memory callData
     ) internal {
-        __Precompile__(SEND_REQUEST).precompileSendRequest{value: value}(dst, context, callData);
+        Token[] memory tokens;
+        __Precompile__(SEND_REQUEST).precompileSendRequest{value: value}(dst, tokens, context, callData);
+    }
+
+    function sendRequest(
+        address dst,
+        uint256 value,
+        Token[] memory tokens,
+        bytes memory context,
+        bytes memory callData
+    ) internal {
+        __Precompile__(SEND_REQUEST).precompileSendRequest{value: value}(dst, tokens, context, callData);
     }
 
     // Send raw internal message using a special precompiled contract
@@ -283,7 +294,7 @@ contract __Precompile__ {
     function precompileGetCurrencyBalance(uint256 id, address addr) public view returns(uint256) {}
     function precompileAsyncCall(bool, uint8, address, address, address, uint, Nil.Token[] memory, bytes memory) public payable returns(bool) {}
     function precompileAwaitCall(address, bytes memory) public payable returns(bytes memory, bool) {}
-    function precompileSendRequest(address, bytes memory, bytes memory) public payable returns(bool) {}
+    function precompileSendRequest(address, Nil.Token[] memory, bytes memory, bytes memory) public payable returns(bool) {}
     function precompileSendTokens(address, Nil.Token[] memory) public returns(bool) {}
     function precompileGetMessageTokens() public returns(Nil.Token[] memory) {}
     function precompileGetGasPrice(uint id) public returns(uint256) {}
