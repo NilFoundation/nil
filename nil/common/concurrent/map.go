@@ -1,6 +1,10 @@
 package concurrent
 
-import "sync"
+import (
+	sync "sync"
+
+	iter "iter"
+)
 
 type Map[K comparable, T any] struct {
 	m  map[K]T
@@ -46,15 +50,17 @@ func (m *Map[K, T]) DoAndStore(k K, fn func(t T, ok bool) T) (after T, ok bool) 
 	})
 }
 
-func (m *Map[K, T]) Range(fn func(k K, v T) error) error {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	for k, v := range m.m {
-		if err := fn(k, v); err != nil {
-			return err
+func (m *Map[K, T]) Iterate() iter.Seq2[K, T] {
+	type Yield = func(K, T) bool
+	return func(yield Yield) {
+		m.mu.RLock()
+		defer m.mu.RUnlock()
+		for k, v := range m.m {
+			if !yield(k, v) {
+				return
+			}
 		}
 	}
-	return nil
 }
 
 func (m *Map[K, T]) Delete(k K) (t T, deleted bool) {
