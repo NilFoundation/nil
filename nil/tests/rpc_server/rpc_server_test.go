@@ -163,10 +163,6 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 	checkForShard := func(shardId types.ShardId) {
 		s.T().Helper()
 
-		prevBalance, err := s.client.GetBalance(callerAddr, transport.LatestBlockNumber)
-		s.Require().NoError(err)
-		var callValue uint64 = 10_000_000
-
 		s.Run("FailedDeploy", func() {
 			// no account at address to pay for the message
 			hash, _, err := s.client.DeployExternal(shardId, types.BuildDeployPayload(calleeCode, common.EmptyHash), s.gasToValue(100_000))
@@ -187,6 +183,10 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.Require().True(receipt.OutReceipts[0].Success)
 		})
 
+		prevBalance, err := s.client.GetBalance(callerAddr, transport.LatestBlockNumber)
+		s.Require().NoError(err)
+		var feeCredit uint64 = 100_000
+		var callValue uint64 = 2_000_000
 		var callData []byte
 
 		generateAddCallData := func(val int32) {
@@ -200,7 +200,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 				RefundTo:  callerAddr,
 				BounceTo:  callerAddr,
 				Value:     types.NewValueFromUint64(callValue),
-				FeeCredit: s.gasToValue(100_000),
+				FeeCredit: s.gasToValue(feeCredit),
 			}
 			callData, err = messageToSend.MarshalSSZ()
 			s.Require().NoError(err)
@@ -210,10 +210,6 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.Require().NoError(err)
 		}
 
-		s.Run("GenerateCallData", func() {
-			generateAddCallData(123)
-		})
-
 		var hash common.Hash
 		makeCall := func() {
 			callerSeqno, err := s.client.GetTransactionCount(callerAddr, "pending")
@@ -222,14 +218,17 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 				Seqno:     callerSeqno,
 				To:        callerAddr,
 				Data:      callData,
-				FeeCredit: s.gasToValue(100_000),
+				FeeCredit: s.gasToValue(feeCredit),
 			}
 			s.Require().NoError(callCallerMethod.Sign(execution.MainPrivateKey))
 			hash = s.sendRawTransaction(callCallerMethod)
 		}
 
+		s.Run("GenerateCallData", func() {
+			generateAddCallData(123)
+		})
 		s.Run("MakeCall", makeCall)
-
+		extMessageVerificationFee := uint64(8350)
 		s.Run("Check", func() {
 			receipt = s.waitForReceipt(callerAddr.ShardId(), hash)
 			s.Require().True(receipt.Success)
@@ -238,9 +237,16 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.Require().NoError(err)
 			s.Require().Greater(prevBalance.Uint64(), balance.Uint64())
 			s.T().Logf("Spent %v nil", prevBalance.Uint64()-balance.Uint64())
+			// here we spent:
+			// - `callValue`, cause we attach that amount of value to internal cross-shard message
+			// - `gasToValue(feeCredit)`, cause we buy that amount of gas to send cross-shard message
+			// - `gasToValue(feeCredit)`, cause it's set in our ExternalMessage
+			// - some amount to verify the ext message. depends on current implementation
+			minimalExpectedBalance := prevBalance.Uint64() - 2*s.gasToValue(feeCredit).Uint64() - callValue - extMessageVerificationFee
+			s.Require().GreaterOrEqual(balance.Uint64(), minimalExpectedBalance)
 
 			// we should get some non-zero refund
-			prevBalance = waitTilBalanceAtLeast(prevBalance.Uint64() - callValue)
+			prevBalance = waitTilBalanceAtLeast(minimalExpectedBalance)
 		})
 
 		s.Run("GenerateCallDataBounce", func() {
@@ -265,14 +271,30 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 				FeeCredit: s.gasToValue(10000),
 				Seqno:     callerSeqno,
 			}
+
 			res, err := s.client.Call(callArgs, "latest", nil)
 			s.T().Logf("Call res : %v, err: %v", res, err)
 			s.Require().NoError(err)
 			var bounceErr string
 			s.Require().NoError(callerAbi.UnpackIntoInterface(&bounceErr, getBounceErrName, res.Data))
-			s.Require().Equal(vm.ErrExecutionReverted.Error(), bounceErr)
+			s.Require().Equal(vm.ErrExecutionReverted.Error()+": Value must be non-zero", bounceErr)
 
-			waitTilBalanceAtLeast(prevBalance.Uint64() - callValue)
+			s.Require().Len(receipt.OutMessages, 1)
+			receipt = s.waitForReceipt(calleeAddr.ShardId(), receipt.OutMessages[0])
+			s.Require().False(receipt.Success)
+			s.Require().Len(receipt.Logs, 1)
+			msg, err := receipt.Logs[0].Data.MarshalText()
+			s.Require().NoError(err)
+			msgText, err := hexutil.Decode(string(msg))
+			s.Require().NoError(err)
+			s.Require().Contains(string(msgText), "execution started")
+
+			// here we spent:
+			// - `callValue`, cause we attach that amount of value to internal cross-shard message
+			// - `gasToValue(feeCredit)`, cause we buy that amount of gas to send cross-shard message
+			// - `gasToValue(feeCredit)`, cause it's set in our ExternalMessage
+			// - some amount to verify the ext message. depends on current implementation
+			waitTilBalanceAtLeast(prevBalance.Uint64() - 2*s.gasToValue(feeCredit).Uint64() - callValue - extMessageVerificationFee)
 		})
 	}
 

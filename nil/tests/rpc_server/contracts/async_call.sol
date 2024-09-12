@@ -5,10 +5,12 @@ import "../../../contracts/solidity/lib/Nil.sol";
 
 contract Callee {
     int32 value;
+    event LogInfo(string message);
 
     constructor() payable {}
 
-    function add(int32 val) public returns (int32) {
+    function add(int32 val) public payable returns (int32) {
+        emit LogInfo("execution started");
         require(val != 0, "Value must be non-zero");
         value += val;
         return value;

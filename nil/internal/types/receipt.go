@@ -20,14 +20,6 @@ type Receipt struct {
 	ContractAddress Address     `json:"contractAddress"`
 }
 
-func (r *Receipt) AddLog(log *Log) {
-	r.Logs = append(r.Logs, log)
-}
-
-func (r *Receipt) LogsNum() int {
-	return len(r.Logs)
-}
-
 func (r *Receipt) Hash() common.Hash {
 	return common.MustPoseidonSSZ(r)
 }
