@@ -13,7 +13,7 @@ func topicPendingMessages(shardId types.ShardId) string {
 	return fmt.Sprintf("nil/shard/%s/pending-messages", shardId)
 }
 
-func PublishPendingMessage(ctx context.Context, networkManager *network.Manager, shardId types.ShardId, msg *types.Message) error {
+func PublishPendingMessage(ctx context.Context, networkManager *network.Manager, shardId types.ShardId, msg *metaMsg) error {
 	if networkManager == nil {
 		// we don't always want to run the network (e.g., in tests)
 		return nil

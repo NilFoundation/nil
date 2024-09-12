@@ -18,14 +18,14 @@ import (
 //   - All senders stored inside 1 large BTree - because iterate over 1 BTree is faster than over map[senderId]BTree
 //   - sortByNonce used as non-pointer wrapper - because iterate over BTree of pointers is 2x slower
 type ByReceiverAndSeqno struct {
-	tree       *btree.BTreeG[*types.Message]
-	search     *types.Message
+	tree       *btree.BTreeG[*metaMsg]
+	search     *metaMsg
 	toMsgCount map[types.Address]int // count of receiver's msgs in the pool - may differ from seqno
 
 	logger zerolog.Logger
 }
 
-func sortBySeqnoLess(a, b *types.Message) bool {
+func sortBySeqnoLess(a, b *metaMsg) bool {
 	fromCmp := bytes.Compare(a.To.Bytes(), b.To.Bytes())
 	if fromCmp != 0 {
 		return fromCmp == -1 // a < b
@@ -36,7 +36,7 @@ func sortBySeqnoLess(a, b *types.Message) bool {
 func NewBySenderAndSeqno(logger zerolog.Logger) *ByReceiverAndSeqno {
 	return &ByReceiverAndSeqno{
 		tree:       btree.NewG(32, sortBySeqnoLess),
-		search:     &types.Message{},
+		search:     &metaMsg{Message: &types.Message{}},
 		toMsgCount: map[types.Address]int{},
 		logger:     logger,
 	}
@@ -47,8 +47,8 @@ func (b *ByReceiverAndSeqno) seqno(to types.Address) (seqno types.Seqno, ok bool
 	s.To = to
 	s.Seqno = math.MaxUint64
 
-	b.tree.DescendLessOrEqual(s, func(msg *types.Message) bool {
-		if bytes.Equal(msg.To.Bytes(), to.Bytes()) {
+	b.tree.DescendLessOrEqual(s, func(msg *metaMsg) bool {
+		if msg.To.Equal(to) {
 			seqno = msg.Seqno
 			ok = true
 		}
@@ -57,30 +57,18 @@ func (b *ByReceiverAndSeqno) seqno(to types.Address) (seqno types.Seqno, ok bool
 	return seqno, ok
 }
 
-func (b *ByReceiverAndSeqno) ascendAll(f func(*types.Message) bool) { //nolint:unused
-	b.tree.Ascend(func(mt *types.Message) bool {
-		return f(mt)
+func (b *ByReceiverAndSeqno) ascendAll(f func(*metaMsg) bool) { //nolint:unused
+	b.tree.Ascend(func(mm *metaMsg) bool {
+		return f(mm)
 	})
 }
 
-func (b *ByReceiverAndSeqno) ascend(to types.Address, f func(*types.Message) bool) {
+func (b *ByReceiverAndSeqno) ascend(to types.Address, f func(*metaMsg) bool) {
 	s := b.search
 	s.To = to
 	s.Seqno = 0
-	b.tree.AscendGreaterOrEqual(s, func(msg *types.Message) bool {
-		if !bytes.Equal(msg.To.Bytes(), to.Bytes()) {
-			return false
-		}
-		return f(msg)
-	})
-}
-
-func (b *ByReceiverAndSeqno) descend(to types.Address, f func(*types.Message) bool) { //nolint:unused
-	s := b.search
-	s.To = to
-	s.Seqno = math.MaxUint64
-	b.tree.DescendLessOrEqual(s, func(msg *types.Message) bool {
-		if !bytes.Equal(msg.To.Bytes(), to.Bytes()) {
+	b.tree.AscendGreaterOrEqual(s, func(msg *metaMsg) bool {
+		if !msg.To.Equal(to) {
 			return false
 		}
 		return f(msg)
@@ -93,14 +81,14 @@ func (b *ByReceiverAndSeqno) count(to types.Address) int { //nolint:unused
 
 func (b *ByReceiverAndSeqno) hasTxs(to types.Address) bool { //nolint:unused
 	has := false
-	b.ascend(to, func(*types.Message) bool {
+	b.ascend(to, func(*metaMsg) bool {
 		has = true
 		return false
 	})
 	return has
 }
 
-func (b *ByReceiverAndSeqno) get(to types.Address, seqno types.Seqno) *types.Message {
+func (b *ByReceiverAndSeqno) get(to types.Address, seqno types.Seqno) *metaMsg {
 	s := b.search
 	s.To = to
 	s.Seqno = seqno
@@ -110,21 +98,21 @@ func (b *ByReceiverAndSeqno) get(to types.Address, seqno types.Seqno) *types.Mes
 	return nil
 }
 
-func (b *ByReceiverAndSeqno) has(mt *types.Message) bool { //nolint:unused
+func (b *ByReceiverAndSeqno) has(mt *metaMsg) bool { //nolint:unused
 	return b.tree.Has(mt)
 }
 
-func (b *ByReceiverAndSeqno) logTrace(msg *types.Message, logMsg string) {
+func (b *ByReceiverAndSeqno) logTrace(msg *metaMsg, format string, args ...any) {
 	b.logger.Trace().
-		Stringer(logging.FieldMessageHash, msg.Hash()).
+		Stringer(logging.FieldMessageHash, msg.hash).
 		Stringer(logging.FieldMessageTo, msg.To).
 		Uint64(logging.FieldMessageSeqno, msg.Seqno.Uint64()).
-		Msg(logMsg)
+		Msgf(format, args...)
 }
 
-func (b *ByReceiverAndSeqno) delete(msg *types.Message, reason DiscardReason) {
+func (b *ByReceiverAndSeqno) delete(msg *metaMsg, reason DiscardReason) {
 	if _, ok := b.tree.Delete(msg); ok {
-		b.logTrace(msg, "Deleted msg: "+reason.String())
+		b.logTrace(msg, "Deleted msg: %s", reason)
 
 		to := msg.To
 		count := b.toMsgCount[to]
@@ -136,7 +124,7 @@ func (b *ByReceiverAndSeqno) delete(msg *types.Message, reason DiscardReason) {
 	}
 }
 
-func (b *ByReceiverAndSeqno) replaceOrInsert(msg *types.Message) *types.Message {
+func (b *ByReceiverAndSeqno) replaceOrInsert(msg *metaMsg) *metaMsg {
 	it, ok := b.tree.ReplaceOrInsert(msg)
 	if ok {
 		b.logTrace(msg, "Replaced msg by seqno.")

@@ -28,6 +28,18 @@ type Pool interface {
 	Get(hash common.Hash) (*types.Message, error)
 }
 
+type metaMsg struct {
+	*types.Message
+	hash common.Hash
+}
+
+func newMetaMsg(msg *types.Message) *metaMsg {
+	return &metaMsg{
+		Message: msg,
+		hash:    msg.Hash(),
+	}
+}
+
 type MsgPool struct {
 	started bool
 	cfg     Config
@@ -36,8 +48,8 @@ type MsgPool struct {
 
 	lock sync.Mutex
 
-	byHash map[string]*types.Message // hash => msg : only those records not committed to db yet
-	all    *ByReceiverAndSeqno       // from => (sorted map of msg seqno => *msg)
+	byHash map[string]*metaMsg // hash => msg : only those records not committed to db yet
+	all    *ByReceiverAndSeqno // from => (sorted map of msg seqno => *msg)
 	queue  *MsgQueue
 	logger zerolog.Logger
 }
@@ -53,7 +65,7 @@ func New(ctx context.Context, cfg Config, networkManager *network.Manager) (*Msg
 
 		networkManager: networkManager,
 
-		byHash: map[string]*types.Message{},
+		byHash: map[string]*metaMsg{},
 		all:    NewBySenderAndSeqno(logger),
 		queue:  NewMessageQueue(),
 		logger: logger,
@@ -80,43 +92,49 @@ func (p *MsgPool) listen(ctx context.Context, sub *network.Subscription) {
 	defer sub.Close()
 
 	for m := range sub.Start(ctx) {
-		var msg types.Message
-		if err := json.Unmarshal(m, &msg); err != nil {
+		msg := &types.Message{}
+		if err := json.Unmarshal(m, msg); err != nil {
 			p.logger.Error().Err(err).
 				Msg("Failed to unmarshal message from network")
 			continue
 		}
 
-		reasons, err := p.add(&msg)
+		mm := newMetaMsg(msg)
+		reasons, err := p.add(mm)
 		if err != nil {
 			p.logger.Error().Err(err).
-				Stringer(logging.FieldMessageHash, msg.Hash()).
+				Stringer(logging.FieldMessageHash, mm.hash).
 				Msg("Failed to add message from network")
 			return
 		}
 
 		if reasons[0] != NotSet {
 			p.logger.Debug().
-				Stringer(logging.FieldMessageHash, msg.Hash()).
+				Stringer(logging.FieldMessageHash, mm.hash).
 				Msgf("Discarded message from network with reason %s", reasons[0])
 		}
 	}
 }
 
 func (p *MsgPool) Add(ctx context.Context, msgs ...*types.Message) ([]DiscardReason, error) {
-	reasons, err := p.add(msgs...)
+	mms := make([]*metaMsg, len(msgs))
+	for i, msg := range msgs {
+		mms[i] = newMetaMsg(msg)
+	}
+
+	reasons, err := p.add(mms...)
 	if err != nil {
 		return nil, err
 	}
 
-	for i, msg := range msgs {
+	for i, mm := range mms {
 		if reasons[i] != NotSet {
 			continue
 		}
 
-		if err := PublishPendingMessage(ctx, p.networkManager, p.cfg.ShardId, msg); err != nil {
+		if err := PublishPendingMessage(ctx, p.networkManager, p.cfg.ShardId, mm); err != nil {
 			p.logger.Error().Err(err).
-				Stringer(logging.FieldMessageHash, msg.Hash()).
+				Stringer(logging.FieldMessageHash, mm.hash).
 				Msg("Failed to publish message to network")
 		}
 	}
@@ -124,7 +142,7 @@ func (p *MsgPool) Add(ctx context.Context, msgs ...*types.Message) ([]DiscardRea
 	return reasons, nil
 }
 
-func (p *MsgPool) add(msgs ...*types.Message) ([]DiscardReason, error) {
+func (p *MsgPool) add(msgs ...*metaMsg) ([]DiscardReason, error) {
 	discardReasons := make([]DiscardReason, len(msgs))
 
 	p.lock.Lock()
@@ -140,7 +158,7 @@ func (p *MsgPool) add(msgs ...*types.Message) ([]DiscardReason, error) {
 			continue
 		}
 
-		if _, ok := p.byHash[string(msg.Hash().Bytes())]; ok {
+		if _, ok := p.byHash[string(msg.hash.Bytes())]; ok {
 			discardReasons[i] = DuplicateHash
 			continue
 		}
@@ -152,7 +170,7 @@ func (p *MsgPool) add(msgs ...*types.Message) ([]DiscardReason, error) {
 		discardReasons[i] = NotSet // unnecessary
 		p.logger.Debug().
 			Uint64(logging.FieldShardId, uint64(msg.To.ShardId())).
-			Stringer(logging.FieldMessageHash, msg.Hash()).
+			Stringer(logging.FieldMessageHash, msg.hash).
 			Stringer(logging.FieldMessageTo, msg.To).
 			Msg("Added new message.")
 	}
@@ -160,12 +178,12 @@ func (p *MsgPool) add(msgs ...*types.Message) ([]DiscardReason, error) {
 	return discardReasons, nil
 }
 
-func (p *MsgPool) validateMsg(msg *types.Message) (DiscardReason, bool) {
+func (p *MsgPool) validateMsg(msg *metaMsg) (DiscardReason, bool) {
 	seqno, has := p.all.seqno(msg.To)
 	if has && seqno > msg.Seqno {
 		p.logger.Debug().
 			Uint64(logging.FieldShardId, uint64(msg.To.ShardId())).
-			Stringer(logging.FieldMessageHash, msg.Hash()).
+			Stringer(logging.FieldMessageHash, msg.hash).
 			Uint64(logging.FieldAccountSeqno, seqno.Uint64()).
 			Uint64(logging.FieldMessageSeqno, msg.Seqno.Uint64()).
 			Msg("Seqno too low.")
@@ -200,10 +218,14 @@ func (p *MsgPool) SeqnoToAddress(addr types.Address) (seqno types.Seqno, inPool 
 func (p *MsgPool) Get(hash common.Hash) (*types.Message, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	return p.getLocked(hash), nil
+	msg := p.getLocked(hash)
+	if msg == nil {
+		return nil, nil
+	}
+	return msg.Message, nil
 }
 
-func (p *MsgPool) getLocked(hash common.Hash) *types.Message {
+func (p *MsgPool) getLocked(hash common.Hash) *metaMsg {
 	msg, ok := p.byHash[string(hash.Bytes())]
 	if ok {
 		return msg
@@ -211,7 +233,7 @@ func (p *MsgPool) getLocked(hash common.Hash) *types.Message {
 	return nil
 }
 
-func shouldReplace(existing, candidate *types.Message) bool {
+func shouldReplace(existing, candidate *metaMsg) bool {
 	if candidate.FeeCredit.Cmp(existing.FeeCredit) <= 0 {
 		return false
 	}
@@ -223,10 +245,10 @@ func shouldReplace(existing, candidate *types.Message) bool {
 		existing.FeeCredit = existingFee
 	}()
 
-	return bytes.Equal(existing.Hash().Bytes(), candidate.Hash().Bytes())
+	return bytes.Equal(existing.Hash().Bytes(), candidate.hash.Bytes())
 }
 
-func (p *MsgPool) addLocked(msg *types.Message) DiscardReason {
+func (p *MsgPool) addLocked(msg *metaMsg) DiscardReason {
 	// Insert to pending pool, if pool doesn't have a txn with the same dst and seqno.
 	// If pool has a txn with the same dst and seqno, only fee bump is possible; otherwise NotReplaced is returned.
 	found := p.all.get(msg.To, msg.Seqno)
@@ -243,7 +265,7 @@ func (p *MsgPool) addLocked(msg *types.Message) DiscardReason {
 		return PoolOverflow
 	}
 
-	hashStr := string(msg.Hash().Bytes())
+	hashStr := string(msg.hash.Bytes())
 	p.byHash[hashStr] = msg
 
 	replaced := p.all.replaceOrInsert(msg)
@@ -255,11 +277,10 @@ func (p *MsgPool) addLocked(msg *types.Message) DiscardReason {
 
 // dropping transaction from all sub-structures and from db
 // Important: don't call it while iterating by "all"
-func (p *MsgPool) discardLocked(msg *types.Message, reason DiscardReason) {
-	hashStr := string(msg.Hash().Bytes())
+func (p *MsgPool) discardLocked(mm *metaMsg, reason DiscardReason) {
+	hashStr := string(mm.hash.Bytes())
 	delete(p.byHash, hashStr)
-	// p.deletedTxs = append(p.deletedTxs, mt)
-	p.all.delete(msg, reason)
+	p.all.delete(mm, reason)
 }
 
 func (p *MsgPool) OnCommitted(_ context.Context, committed []*types.Message) (err error) {
@@ -285,12 +306,12 @@ func (p *MsgPool) removeCommitted(bySeqno *ByReceiverAndSeqno, msgs []*types.Mes
 		}
 	}
 
-	var toDel []*types.Message // can't delete items while iterate them
+	var toDel []*metaMsg // can't delete items while iterate them
 
 	discarded := 0
 
 	for senderID, seqno := range seqnosToRemove {
-		bySeqno.ascend(senderID, func(msg *types.Message) bool {
+		bySeqno.ascend(senderID, func(msg *metaMsg) bool {
 			if msg.Seqno > seqno {
 				p.logger.Trace().
 					Uint64(logging.FieldShardId, uint64(msg.To.ShardId())).
@@ -303,7 +324,7 @@ func (p *MsgPool) removeCommitted(bySeqno *ByReceiverAndSeqno, msgs []*types.Mes
 
 			p.logger.Trace().
 				Uint64(logging.FieldShardId, uint64(msg.To.ShardId())).
-				Stringer(logging.FieldMessageHash, msg.Hash()).
+				Stringer(logging.FieldMessageHash, msg.hash).
 				Stringer(logging.FieldMessageTo, msg.To).
 				Uint64(logging.FieldMessageSeqno, msg.Seqno.Uint64()).
 				Msg("Remove committed.")
@@ -334,7 +355,12 @@ func (p *MsgPool) Peek(ctx context.Context, n int) ([]*types.Message, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	return p.queue.Peek(n), nil
+	mms := p.queue.Peek(n)
+	msgs := make([]*types.Message, len(mms))
+	for i, mm := range mms {
+		msgs[i] = mm.Message
+	}
+	return msgs, nil
 }
 
 func (p *MsgPool) MessageCount() int {
