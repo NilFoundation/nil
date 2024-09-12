@@ -39,7 +39,7 @@ func (api *NetworkRawApiAccessor) GetBlockHeader(ctx context.Context, shardId ty
 		return nil, err
 	}
 
-	responseBody, err := api.networkManager.SendRequestAndGetResponse(ctx, api.serverPeerId, "getBlockHeader", requestBody)
+	responseBody, err := api.networkManager.SendRequestAndGetResponse(ctx, api.serverPeerId, "rawapi/GetBlockHeader", requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (api *NetworkRawApiAccessor) GetFullBlockData(ctx context.Context, shardId 
 		return nil, err
 	}
 
-	responseBody, err := api.networkManager.SendRequestAndGetResponse(ctx, api.serverPeerId, "getFullBlockData", requestBody)
+	responseBody, err := api.networkManager.SendRequestAndGetResponse(ctx, api.serverPeerId, "rawapi/GetFullBlockData", requestBody)
 	if err != nil {
 		return nil, err
 	}

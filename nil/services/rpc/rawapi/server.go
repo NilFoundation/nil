@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"unicode"
 
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/network"
@@ -19,8 +18,8 @@ var ErrRequestHandlerCreation = errors.New("failed to create request handler")
 // NetworkTransportProtocol is a helper interface for associating the argument and result types of Api methods
 // with their Protobuf representations.
 type NetworkTransportProtocol interface {
-	GetBlockHeader(ctx context.Context, request pb.BlockRequest) pb.RawBlockResponse
-	GetFullBlockData(ctx context.Context, request pb.BlockRequest) pb.RawFullBlockResponse
+	GetBlockHeader(request pb.BlockRequest) pb.RawBlockResponse
+	GetFullBlockData(request pb.BlockRequest) pb.RawFullBlockResponse
 }
 
 // Iterating through the NetworkTransportProtocol methods, we look for API methods with appropriate names.
@@ -32,16 +31,20 @@ type NetworkTransportProtocol interface {
 //     (the second is always an error)
 //
 // All type checks are performed at the stage of preparing request handlers.
-func SetRawApiRequestHandlers(ctx context.Context, localApi Api, manager *network.Manager, logger zerolog.Logger) error {
-	ifaceT := reflect.TypeOf((*NetworkTransportProtocol)(nil)).Elem()
+func SetRawApiRequestHandlers(ctx context.Context, api Api, manager *network.Manager, logger zerolog.Logger) error {
+	protocolInterfaceType := reflect.TypeOf((*NetworkTransportProtocol)(nil)).Elem()
+	return setRawApiRequestHandlers(ctx, protocolInterfaceType, api, "rawapi", manager, logger)
+}
+
+func setRawApiRequestHandlers(ctx context.Context, protocolInterfaceType reflect.Type, api interface{}, apiName string, manager *network.Manager, logger zerolog.Logger) error {
 	requestHandlers := make(map[network.ProtocolID]network.RequestHandler)
-	for m := range ifaceT.NumMethod() {
-		method := ifaceT.Method(m)
+	for m := range protocolInterfaceType.NumMethod() {
+		method := protocolInterfaceType.Method(m)
 		if method.PkgPath != "" {
 			continue // method isn't exported
 		}
-		name := formatName(method.Name)
-		handler, err := makeRequestHandler(method, localApi, logger)
+		name := network.ProtocolID(apiName + "/" + method.Name)
+		handler, err := makeRequestHandler(method, api, logger)
 		if err != nil {
 			return err
 		}
@@ -53,26 +56,18 @@ func SetRawApiRequestHandlers(ctx context.Context, localApi Api, manager *networ
 	return nil
 }
 
-func formatName(name string) network.ProtocolID {
-	ret := []rune(name)
-	if len(ret) > 0 {
-		ret[0] = unicode.ToLower(ret[0])
-	}
-	return network.ProtocolID(ret)
-}
-
 type ErrorResponseCreator func(err error) []byte
 
-func makeRequestHandler(method reflect.Method, localApi Api, logger zerolog.Logger) (network.RequestHandler, error) {
+func makeRequestHandler(method reflect.Method, api interface{}, logger zerolog.Logger) (network.RequestHandler, error) {
 	logger = logger.With().Str("method", method.Name).Logger()
 
-	apiMethodType, ok := reflect.TypeOf(localApi).MethodByName(method.Name)
+	apiMethodType, ok := reflect.TypeOf(api).MethodByName(method.Name)
 	if !ok {
 		logger.Error().Msg("Corresponding method not found in API")
 		return nil, ErrRequestHandlerCreation
 	}
 
-	pbRequestType := method.Type.In(1)
+	pbRequestType := method.Type.In(0)
 	pbResponseType := method.Type.Out(0)
 
 	unpackProtoMessage, err := obtainAndValidateRequestUnpackMethod(apiMethodType, pbRequestType)
@@ -101,7 +96,7 @@ func makeRequestHandler(method reflect.Method, localApi Api, logger zerolog.Logg
 			return errorResponseCreator(err), nil
 		}
 
-		apiArguments := []reflect.Value{reflect.ValueOf(localApi), reflect.ValueOf(ctx)}
+		apiArguments := []reflect.Value{reflect.ValueOf(api), reflect.ValueOf(ctx)}
 		apiArguments = append(apiArguments, unpackedArguments...)
 		apiCallResults := apiMethodType.Func.Call(apiArguments)
 
@@ -134,6 +129,10 @@ func obtainAndValidateRequestUnpackMethod(apiMethod reflect.Method, pbRequestTyp
 	apiMethodArgumentsCount := apiMethodType.NumIn() - apiMethodSkipArgumentCount
 	if apiMethodArgumentsCount != unpackProtoMessageType.NumOut()-1 { // cut off error
 		return reflect.Method{}, fmt.Errorf("API method %s requires %d arguments, but %s.%s returns %d arguments, including the error", apiMethod.Name, apiMethodArgumentsCount, pbRequestType, methodName, unpackProtoMessageType.NumOut())
+	}
+
+	if !apiMethodType.In(1).Implements(reflect.TypeOf((*context.Context)(nil)).Elem()) {
+		return reflect.Method{}, fmt.Errorf("first argument of API method %s must be context.Context", apiMethod.Name)
 	}
 
 	for i := range apiMethodArgumentsCount {
