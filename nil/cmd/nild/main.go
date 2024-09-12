@@ -130,6 +130,8 @@ func parseArgs() *nildconfig.Config {
 
 	runCmd.Flags().StringVar(&cfg.NetworkKeysPath, "keys-path", cfg.NetworkKeysPath, "path to write keys")
 
+	runCmd.Flags().Uint32Var(&cfg.CollatorTickPeriodMs, "collator-tick-ms", cfg.CollatorTickPeriodMs, "collator tick period in milliseconds")
+
 	check.PanicIfErr(runCmd.Flags().SetAnnotation("discovery-bootstrap-peers", cobra.BashCompOneRequiredFlag, []string{"with-discovery"}))
 
 	// telemetry

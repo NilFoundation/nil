@@ -1,6 +1,6 @@
 { lib
 , stdenv
-, buildGoModule
+, buildGo123Module
 , enableRaceDetector ? false
 , enableTesting ? false
 , solc
@@ -16,9 +16,9 @@
 , protobuf
 }:
 let inherit (lib) optional;
-  overrideBuildGoModule = pkg: pkg.override { buildGoModule = buildGoModule; };
+  overrideBuildGoModule = pkg: pkg.override { buildGoModule = buildGo123Module; };
 in
-buildGoModule rec {
+buildGo123Module rec {
   name = "nil";
   pname = "nil";
 
