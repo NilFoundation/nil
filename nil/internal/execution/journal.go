@@ -6,6 +6,10 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
+const (
+	doNotRevertLogsFeatureEnabled = true
+)
+
 // journalEntry is a modification entry in the state change journal that can be
 // reverted on demand.
 type journalEntry interface {
@@ -95,6 +99,7 @@ type (
 	refundChange struct {
 		prev uint64
 	}
+
 	addLogChange struct {
 		txhash common.Hash
 	}
@@ -188,6 +193,9 @@ func (ch refundChange) revert(s *ExecutionState) {
 }
 
 func (ch addLogChange) revert(s *ExecutionState) {
+	if doNotRevertLogsFeatureEnabled {
+		return
+	}
 	logs := s.Logs[ch.txhash]
 	if len(logs) == 1 {
 		delete(s.Logs, ch.txhash)
