@@ -16,11 +16,22 @@ import (
 
 var ErrRequestHandlerCreation = errors.New("failed to create request handler")
 
+// NetworkTransportProtocol is a helper interface for associating the argument and result types of Api methods
+// with their Protobuf representations.
 type NetworkTransportProtocol interface {
 	GetBlockHeader(ctx context.Context, request pb.BlockRequest) pb.RawBlockResponse
 	GetFullBlockData(ctx context.Context, request pb.BlockRequest) pb.RawFullBlockResponse
 }
 
+// Iterating through the NetworkTransportProtocol methods, we look for API methods with appropriate names.
+// Next we check that the PackProtoMessage/UnpackProtoMessage functions are defined for the Protobuf request and response types.
+// In this case, the following conditions are met:
+//   - The set of output parameters of the UnpackProtoMessage function, up to the context and error,
+//     coincides with the set of arguments of the corresponding API method
+//   - The PackProtoMessage method of the response type accepts two arguments returned by the corresponding API method
+//     (the second is always an error)
+//
+// All type checks are performed at the stage of preparing request handlers.
 func SetRawApiRequestHandlers(ctx context.Context, localApi Api, manager *network.Manager, logger zerolog.Logger) error {
 	ifaceT := reflect.TypeOf((*NetworkTransportProtocol)(nil)).Elem()
 	requestHandlers := make(map[network.ProtocolID]network.RequestHandler)
