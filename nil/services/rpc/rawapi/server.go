@@ -50,6 +50,8 @@ func formatName(name string) network.ProtocolID {
 	return network.ProtocolID(ret)
 }
 
+type ErrorResponseCreator func(err error) []byte
+
 func makeRequestHandler(method reflect.Method, localApi Api, logger zerolog.Logger) (network.RequestHandler, error) {
 	logger = logger.With().Str("method", method.Name).Logger()
 
@@ -68,8 +70,7 @@ func makeRequestHandler(method reflect.Method, localApi Api, logger zerolog.Logg
 		return nil, ErrRequestHandlerCreation
 	}
 
-	// TODO: extract error creator from pbResponseType and use when it's possible
-	packProtoMessage, err := obtainAndValidateResponsePackMethod(apiMethodType, pbResponseType)
+	packProtoMessage, errorResponseCreator, err := obtainAndValidateResponsePackMethod(apiMethodType, pbResponseType)
 	if err != nil {
 		logger.Error().Err(err).Send()
 		return nil, ErrRequestHandlerCreation
@@ -78,33 +79,28 @@ func makeRequestHandler(method reflect.Method, localApi Api, logger zerolog.Logg
 	return func(ctx context.Context, request []byte) (_ []byte, errRes error) {
 		pbRequestValuePtr := reflect.New(pbRequestType)
 		message, ok := pbRequestValuePtr.Interface().(proto.Message)
-		if !ok {
-			return nil, fmt.Errorf("failed to create proto message %s", pbRequestType)
-		}
-		err := proto.Unmarshal(request, message)
-		if err != nil {
-			return nil, err
+		// Should never happen, so we don't use errorResponseCreator.
+		check.PanicIfNotf(ok, "failed to create proto message %s", pbRequestType)
+		if err := proto.Unmarshal(request, message); err != nil {
+			return errorResponseCreator(err), nil
 		}
 
 		unpackedArguments, err := callMethodWithLastOutputError(unpackProtoMessage.Func, []reflect.Value{pbRequestValuePtr})
 		if err != nil {
-			return nil, err
+			return errorResponseCreator(err), nil
 		}
+
 		apiArguments := []reflect.Value{reflect.ValueOf(localApi), reflect.ValueOf(ctx)}
 		apiArguments = append(apiArguments, unpackedArguments...)
-
 		apiCallResults := apiMethodType.Func.Call(apiArguments)
 
 		pbResponseValuePtr := reflect.New(pbResponseType)
-		_, err = callMethodWithLastOutputError(packProtoMessage.Func, append([]reflect.Value{pbResponseValuePtr}, apiCallResults...))
-		if err != nil {
-			return nil, err
+		if _, err = callMethodWithLastOutputError(packProtoMessage.Func, append([]reflect.Value{pbResponseValuePtr}, apiCallResults...)); err != nil {
+			return errorResponseCreator(err), nil
 		}
-
 		message, ok = pbResponseValuePtr.Interface().(proto.Message)
-		if !ok {
-			return nil, fmt.Errorf("failed to create proto message %s", pbResponseType)
-		}
+		// Should never happen, so we don't use errorResponseCreator.
+		check.PanicIfNotf(ok, "failed to create proto message %s", pbResponseType)
 		return proto.Marshal(message)
 	}, nil
 }
@@ -139,41 +135,55 @@ func obtainAndValidateRequestUnpackMethod(apiMethod reflect.Method, pbRequestTyp
 	return unpackProtoMessage, nil
 }
 
-func obtainAndValidateResponsePackMethod(apiMethod reflect.Method, pbResponseType reflect.Type) (reflect.Method, error) {
+func obtainAndValidateResponsePackMethod(apiMethod reflect.Method, pbResponseType reflect.Type) (reflect.Method, ErrorResponseCreator, error) {
 	const methodName = "PackProtoMessage"
 	packProtoMessage, ok := reflect.PointerTo(pbResponseType).MethodByName("PackProtoMessage")
 	if !ok {
-		return reflect.Method{}, fmt.Errorf("method %s not found in %s", methodName, pbResponseType)
+		return reflect.Method{}, nil, fmt.Errorf("method %s not found in %s", methodName, pbResponseType)
 	}
 
 	apiMethodType := apiMethod.Type
 	packProtoMessageType := packProtoMessage.Type
 
 	if apiMethodType.NumOut() != 2 {
-		return reflect.Method{}, fmt.Errorf("API method %s must return exactly 2 values, but returned %d", apiMethod.Name, apiMethodType.NumOut())
+		return reflect.Method{}, nil, fmt.Errorf("API method %s must return exactly 2 values, but returned %d", apiMethod.Name, apiMethodType.NumOut())
 	}
 	if !isErrorType(apiMethodType.Out(1)) {
-		return reflect.Method{}, fmt.Errorf("second output argument of API method %s must be error", apiMethod.Name)
+		return reflect.Method{}, nil, fmt.Errorf("second output argument of API method %s must be error", apiMethod.Name)
 	}
 
 	if packProtoMessageType.NumIn()-1 != 2 { // -1 for receiver
-		return reflect.Method{}, fmt.Errorf("%s must accept exactly 2 arguments, but accepted %d", methodName, packProtoMessageType.NumIn()-1)
+		return reflect.Method{}, nil, fmt.Errorf("%s must accept exactly 2 arguments, but accepted %d", methodName, packProtoMessageType.NumIn()-1)
 	}
 	if !isErrorType(packProtoMessageType.In(2)) {
-		return reflect.Method{}, fmt.Errorf("last argument of %s must be error", methodName)
+		return reflect.Method{}, nil, fmt.Errorf("last argument of %s must be error", methodName)
 	}
 
 	if packProtoMessageType.NumOut() != 1 {
-		return reflect.Method{}, fmt.Errorf("%s must return exactly 1 value, but returned %d", methodName, packProtoMessageType.NumOut())
+		return reflect.Method{}, nil, fmt.Errorf("%s must return exactly 1 value, but returned %d", methodName, packProtoMessageType.NumOut())
 	}
 	if !isLastOutputError(packProtoMessage) {
-		return reflect.Method{}, fmt.Errorf("%s of type %s must return error", methodName, pbResponseType.Name())
+		return reflect.Method{}, nil, fmt.Errorf("%s of type %s must return error", methodName, pbResponseType.Name())
 	}
 
 	if apiMethodType.Out(0) != packProtoMessageType.In(1) {
-		return reflect.Method{}, fmt.Errorf("API method outputs %s type, but %s expects %s", apiMethodType.Out(0), methodName, packProtoMessageType.In(0))
+		return reflect.Method{}, nil, fmt.Errorf("API method outputs %s type, but %s expects %s", apiMethodType.Out(0), methodName, packProtoMessageType.In(1))
 	}
-	return packProtoMessage, nil
+	outType := apiMethodType.Out(0)
+
+	errorResponseCreator := func(err error) []byte {
+		pbResponse := reflect.New(pbResponseType)
+		_, err = callMethodWithLastOutputError(packProtoMessage.Func, []reflect.Value{pbResponse, reflect.New(outType).Elem(), reflect.ValueOf(err)})
+		check.PanicIfErr(err)
+
+		message, ok := pbResponse.Interface().(proto.Message)
+		check.PanicIfNotf(ok, "failed to create proto message %s", pbResponseType)
+		response, err := proto.Marshal(message)
+		check.PanicIfErr(err)
+		return response
+	}
+
+	return packProtoMessage, errorResponseCreator, nil
 }
 
 func isErrorType(t reflect.Type) bool {
