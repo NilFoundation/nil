@@ -1,36 +1,75 @@
-package synccommittee
+package storage
 
 import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/NilFoundation/badger/v4"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
+	"github.com/rs/zerolog"
 )
 
-// BadgerDB tables, ProverTaskId is used as a key
+// TaskEntriesTable BadgerDB tables, ProverTaskId is used as a key
 const (
 	TaskEntriesTable = "TaskEntries"
 )
 
-// Interface for storing and accessing tasks from DB
+// ProverTaskStorage Interface for storing and accessing tasks from DB
 type ProverTaskStorage interface {
+	// AddSingleTaskEntry Store new task entry into DB
 	AddSingleTaskEntry(ctx context.Context, entry types.ProverTaskEntry) error
+
+	// AddTaskEntries Store set of task entries as a single transaction
 	AddTaskEntries(ctx context.Context, tasks []*types.ProverTaskEntry) error
+
+	// RemoveTaskEntry Delete existing task entry from DB
 	RemoveTaskEntry(ctx context.Context, id types.ProverTaskId) error
+
+	// RequestTaskToExecute Find task with no dependencies and higher priority and assign it to prover
 	RequestTaskToExecute(ctx context.Context, executor types.ProverId) (*types.ProverTask, error)
+
+	// ProcessTaskResult Check task result, update dependencies in case of success
 	ProcessTaskResult(ctx context.Context, res types.ProverTaskResult) error
-	RescheduleTask(ctx context.Context, id types.ProverTaskId) error
-}
-type proverTaskStorage struct {
-	database db.DB
+
+	// RescheduleHangingTasks Identify tasks that exceed execution timeout and reschedule them to be re-executed
+	RescheduleHangingTasks(ctx context.Context, currentTime time.Time, taskExecutionTimeout time.Duration) error
 }
 
-func NewTaskStorage(db db.DB) ProverTaskStorage {
-	return &proverTaskStorage{database: db}
+type proverTaskStorage struct {
+	database    db.DB
+	retryRunner common.RetryRunner
+	logger      zerolog.Logger
+}
+
+func NewTaskStorage(db db.DB, logger zerolog.Logger) ProverTaskStorage {
+	retryRunner := common.NewRetryRunner(
+		common.RetryConfig{
+			ShouldRetry: func(err error) bool {
+				return errors.Is(err, badger.ErrConflict)
+			},
+			NextDelay: func(_ uint32) time.Duration {
+				delay, err := common.RandomDelay(20*time.Millisecond, 100*time.Millisecond)
+				if err != nil {
+					logger.Error().Err(err).Msg("failed to generate task storage retry delay")
+					return 100 * time.Millisecond
+				}
+				return *delay
+			},
+		},
+		logger,
+	)
+
+	return &proverTaskStorage{
+		database:    db,
+		retryRunner: retryRunner,
+		logger:      logger,
+	}
 }
 
 // Helper to get and decode task entry from DB
@@ -61,8 +100,13 @@ func putTaskEntry(tx db.RwTx, entry *types.ProverTaskEntry) error {
 	return nil
 }
 
-// Store new task entry into DB
 func (st *proverTaskStorage) AddSingleTaskEntry(ctx context.Context, entry types.ProverTaskEntry) error {
+	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
+		return st.addSingleTaskEntryImpl(ctx, entry)
+	})
+}
+
+func (st *proverTaskStorage) addSingleTaskEntryImpl(ctx context.Context, entry types.ProverTaskEntry) error {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -78,8 +122,13 @@ func (st *proverTaskStorage) AddSingleTaskEntry(ctx context.Context, entry types
 	return nil
 }
 
-// Store set of task entries as a single transaction
 func (st *proverTaskStorage) AddTaskEntries(ctx context.Context, tasks []*types.ProverTaskEntry) error {
+	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
+		return st.addTaskEntriesImpl(ctx, tasks)
+	})
+}
+
+func (st *proverTaskStorage) addTaskEntriesImpl(ctx context.Context, tasks []*types.ProverTaskEntry) error {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -94,8 +143,14 @@ func (st *proverTaskStorage) AddTaskEntries(ctx context.Context, tasks []*types.
 	return tx.Commit()
 }
 
-// Delete existing task entry from DB
 func (st *proverTaskStorage) RemoveTaskEntry(ctx context.Context, id types.ProverTaskId) error {
+	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
+		return st.removeTaskEntryImpl(ctx, id)
+	})
+}
+
+// Delete existing task entry from DB
+func (st *proverTaskStorage) removeTaskEntryImpl(ctx context.Context, id types.ProverTaskId) error {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -121,35 +176,32 @@ func updateTaskStatus(tx db.RwTx, id types.ProverTaskId, newStatus types.ProverT
 }
 
 // Helper to find available task with higher priority
-func findHigherPriorityTask(tx db.RwTx) (*types.ProverTask, error) {
+func findHigherPriorityTask(tx db.RoTx) (*types.ProverTask, error) {
 	var res *types.ProverTask = nil
-	iter, err := tx.Range(TaskEntriesTable, nil, nil)
-	if err != nil {
-		return res, err
-	}
-	defer iter.Close()
 
-	// Iterate over DB and check for status and priority of entries
-	for iter.HasNext() {
-		key, val, err := iter.Next()
-		if err != nil {
-			return nil, err
-		}
-		entry := &types.ProverTaskEntry{}
-		if err = gob.NewDecoder(bytes.NewBuffer(val)).Decode(&entry); err != nil {
-			return nil, fmt.Errorf("failed to decode task with id %v: %w", string(key), err)
-		}
+	err := iterateOverTaskEntries(tx, func(entry *types.ProverTaskEntry) error {
 		if entry.Status == types.WaitingForProver {
 			if res == nil || types.HigherPriority(entry.Task, *res) {
 				res = &entry.Task
 			}
 		}
-	}
-	return res, nil
+		return nil
+	})
+
+	return res, err
 }
 
-// Find task with no dependencies and higher priority and assign it to prover
 func (st *proverTaskStorage) RequestTaskToExecute(ctx context.Context, executor types.ProverId) (*types.ProverTask, error) {
+	var task *types.ProverTask
+	err := st.retryRunner.Do(ctx, func(ctx context.Context) error {
+		var err error
+		task, err = st.requestTaskToExecuteImpl(ctx, executor)
+		return err
+	})
+	return task, err
+}
+
+func (st *proverTaskStorage) requestTaskToExecuteImpl(ctx context.Context, executor types.ProverId) (*types.ProverTask, error) {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return nil, err
@@ -174,8 +226,13 @@ func (st *proverTaskStorage) RequestTaskToExecute(ctx context.Context, executor 
 	return resultTask, nil
 }
 
-// Check task result, update dependencies in case of success
 func (st *proverTaskStorage) ProcessTaskResult(ctx context.Context, res types.ProverTaskResult) error {
+	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
+		return st.processTaskResultImpl(ctx, res)
+	})
+}
+
+func (st *proverTaskStorage) processTaskResultImpl(ctx context.Context, res types.ProverTaskResult) error {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -185,6 +242,12 @@ func (st *proverTaskStorage) ProcessTaskResult(ctx context.Context, res types.Pr
 	// First we check the result and set status to failed if unsuccessful
 	entry, err := extractTaskEntry(tx, res.TaskId)
 	if err != nil {
+		// ErrKeyNotFound is not considered an error because of possible re-invocations
+		if errors.Is(err, db.ErrKeyNotFound) {
+			st.logger.Warn().Err(err).Interface("taskId", res.TaskId).Msg("Task entry was not found")
+			return nil
+		}
+
 		return err
 	}
 	if !res.IsSuccess {
@@ -225,18 +288,72 @@ func (st *proverTaskStorage) ProcessTaskResult(ctx context.Context, res types.Pr
 	return nil
 }
 
-// Make task available for prover requests
-func (st *proverTaskStorage) RescheduleTask(ctx context.Context, id types.ProverTaskId) error {
+func (st *proverTaskStorage) RescheduleHangingTasks(ctx context.Context, currentTime time.Time, taskExecutionTimeout time.Duration) error {
+	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
+		return st.rescheduleHangingTasksImpl(ctx, currentTime, taskExecutionTimeout)
+	})
+}
+
+func (st *proverTaskStorage) rescheduleHangingTasksImpl(
+	ctx context.Context,
+	currentTime time.Time,
+	taskExecutionTimeout time.Duration,
+) error {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if err = updateTaskStatus(tx, id, types.WaitingForProver, types.UnknownProverId); err != nil {
+
+	err = iterateOverTaskEntries(tx, func(entry *types.ProverTaskEntry) error {
+		if entry.Status != types.Running {
+			return nil
+		}
+
+		executionTime := currentTime.Sub(entry.Modified)
+		if executionTime <= taskExecutionTimeout {
+			return nil
+		}
+
+		st.logger.Warn().
+			Interface("taskId", entry.Task.Id).
+			Interface("proverId", entry.Owner).
+			Dur("executionTime", executionTime).
+			Msg("Task execution timeout, rescheduling")
+
+		entry.Modified = time.Now()
+		entry.Status = types.WaitingForProver
+		entry.Owner = types.UnknownProverId
+		return putTaskEntry(tx, entry)
+	})
+	if err != nil {
 		return err
 	}
-	if err = tx.Commit(); err != nil {
+
+	return tx.Commit()
+}
+
+func iterateOverTaskEntries(tx db.RoTx, action func(entry *types.ProverTaskEntry) error) error {
+	iter, err := tx.Range(TaskEntriesTable, nil, nil)
+	if err != nil {
 		return err
 	}
+	defer iter.Close()
+
+	for iter.HasNext() {
+		key, val, err := iter.Next()
+		if err != nil {
+			return err
+		}
+		entry := &types.ProverTaskEntry{}
+		if err = gob.NewDecoder(bytes.NewBuffer(val)).Decode(&entry); err != nil {
+			return fmt.Errorf("failed to decode task with id %v: %w", string(key), err)
+		}
+		err = action(entry)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

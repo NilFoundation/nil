@@ -15,6 +15,7 @@ import (
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
@@ -25,7 +26,7 @@ type AggregatorTestSuite struct {
 
 	nShards    uint32
 	client     *rpc.Client
-	storage    *BlockStorage
+	storage    *storage.BlockStorage
 	aggregator *Aggregator
 	nilDb      db.DB
 	scDb       db.DB
@@ -82,10 +83,17 @@ func (s *AggregatorTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 	metrics, err := NewMetricsHandler("github.com/NilFoundation/nil/nil/services/sync_committee")
 	s.Require().NoError(err)
-	s.storage = NewBlockStorage(s.scDb)
+	s.storage = storage.NewBlockStorage(s.scDb)
 	proposer, err := NewProposer(L1Endpoint, ChainId, PrivateKey, ContractAddress, logger)
 	s.Require().NoError(err)
-	s.aggregator, err = NewAggregator(s.client, proposer, s.scDb, zerolog.Nop(), metrics)
+	s.aggregator, err = NewAggregator(
+		s.client,
+		proposer,
+		storage.NewBlockStorage(s.scDb),
+		storage.NewTaskStorage(s.scDb, logger),
+		logger,
+		metrics,
+	)
 	s.Require().NoError(err)
 }
 

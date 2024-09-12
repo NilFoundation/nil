@@ -2,12 +2,10 @@ package listener
 
 import (
 	"context"
-	"crypto/rand"
-	"math"
-	"math/big"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/prover"
 	"github.com/stretchr/testify/suite"
@@ -68,8 +66,10 @@ func newTaskRequestHandlerMock() *api.TaskRequestHandlerMock {
 }
 
 var (
-	firstProverId  = types.ProverId(1)
-	secondProverId = types.ProverId(2)
+	firstProverId          = types.ProverId(1)
+	secondProverId         = types.ProverId(2)
+	firstDependencyTaskId  = types.NewProverTaskId()
+	secondDependencyTaskId = types.NewProverTaskId()
 )
 
 var tasksForProvers = map[types.ProverId]*types.ProverTask{
@@ -89,27 +89,19 @@ var tasksForProvers = map[types.ProverId]*types.ProverTask{
 		TaskType:    types.AggregatedFRI,
 		CircuitType: types.ReadWrite,
 		Dependencies: map[types.ProverTaskId]types.ProverTaskResult{
-			types.NewProverTaskId(): types.SuccessTaskResult(
-				types.NewProverTaskId(),
-				randomProverId(),
+			firstDependencyTaskId: types.SuccessTaskResult(
+				firstDependencyTaskId,
+				testaide.GenerateRandomProverId(),
 				types.FinalProof,
 				"2B3C4D5E",
 			),
-			types.NewProverTaskId(): types.SuccessTaskResult(
-				types.NewProverTaskId(),
-				randomProverId(),
+			secondDependencyTaskId: types.SuccessTaskResult(
+				secondDependencyTaskId,
+				testaide.GenerateRandomProverId(),
 				types.Commitment,
 				"3C4D5E6F",
 			),
 		},
 		DependencyNum: 2,
 	},
-}
-
-func randomProverId() types.ProverId {
-	bigInt, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt32))
-	if err != nil {
-		panic(err)
-	}
-	return types.ProverId(uint32(bigInt.Uint64()))
 }

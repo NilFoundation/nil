@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/stretchr/testify/suite"
 )
@@ -22,7 +23,7 @@ func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_GetTask() {
 	}{
 		{"returns task without deps", firstProverId},
 		{"returns task with deps", secondProverId},
-		{"returns nil", randomProverId()},
+		{"returns nil", testaide.GenerateRandomProverId()},
 	}
 
 	for _, testCase := range testCases {
@@ -53,15 +54,15 @@ func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_UpdateTaskStatus()
 	}{
 		{
 			"success result FinalProof",
-			types.SuccessTaskResult(types.NewProverTaskId(), randomProverId(), types.FinalProof, "1A2B3C4D"),
+			types.SuccessTaskResult(types.NewProverTaskId(), testaide.GenerateRandomProverId(), types.FinalProof, "1A2B3C4D"),
 		},
 		{
 			"success result Commitment",
-			types.SuccessTaskResult(types.NewProverTaskId(), randomProverId(), types.Commitment, "1A2B3C4D"),
+			types.SuccessTaskResult(types.NewProverTaskId(), testaide.GenerateRandomProverId(), types.Commitment, "1A2B3C4D"),
 		},
 		{
 			"failure result",
-			types.FailureTaskResult(types.NewProverTaskId(), randomProverId(), errors.New("something went wrong")),
+			types.FailureTaskResult(types.NewProverTaskId(), testaide.GenerateRandomProverId(), errors.New("something went wrong")),
 		},
 	}
 

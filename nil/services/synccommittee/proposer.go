@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -113,7 +114,7 @@ func (p *Proposer) encodeTransaction(transaction *types.Transaction) (string, er
 	return hexutil.Encode(encodedTransaction), nil
 }
 
-func (p *Proposer) SendProof(provedStateRoot, newStateRoot common.Hash, transactions []*prunedTransaction) error {
+func (p *Proposer) SendProof(provedStateRoot, newStateRoot common.Hash, transactions []*storage.PrunedTransaction) error {
 	p.logger.Debug().Int64("seqno", int64(p.seqno.Load())).Int64("transactionsCount", int64(len(transactions))).Msg("skip processing transactions")
 
 	signedTx, err := p.createUpdateStateTransaction(provedStateRoot, newStateRoot)
