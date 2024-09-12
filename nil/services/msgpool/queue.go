@@ -1,24 +1,18 @@
 package msgpool
 
-import (
-	"bytes"
-
-	"github.com/NilFoundation/nil/nil/internal/types"
-)
-
 type MsgQueue struct {
-	data []*types.Message
+	data []*metaMsg
 }
 
 func NewMessageQueue() *MsgQueue {
 	return &MsgQueue{}
 }
 
-func (q *MsgQueue) Push(msg *types.Message) {
+func (q *MsgQueue) Push(msg *metaMsg) {
 	q.data = append(q.data, msg)
 }
 
-func (q *MsgQueue) Peek(n int) []*types.Message {
+func (q *MsgQueue) Peek(n int) []*metaMsg {
 	if len(q.data) < n {
 		n = len(q.data)
 	}
@@ -29,9 +23,9 @@ func (q *MsgQueue) Size() int {
 	return len(q.data)
 }
 
-func (q *MsgQueue) Remove(msg *types.Message) bool {
+func (q *MsgQueue) Remove(msg *metaMsg) bool {
 	for i, elem := range q.data {
-		if elem.Seqno == msg.Seqno && bytes.Equal(elem.From.Bytes(), msg.From.Bytes()) {
+		if elem.Seqno == msg.Seqno && elem.From.Equal(msg.From) {
 			q.data = append(q.data[:i], q.data[i+1:]...)
 			return true
 		}
