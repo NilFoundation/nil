@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -262,4 +263,37 @@ func TestSuiteMsgpool(t *testing.T) {
 	t.Parallel()
 
 	suite.Run(t, new(SuiteMsgPool))
+}
+
+func BenchmarkMsgPoolAdd(b *testing.B) {
+	shardId := types.ShardId(0)
+	ctx := context.Background()
+	pool, err := New(ctx, NewConfig(shardId), nil)
+	if err != nil {
+		b.Fatalf("Failed to create message pool: %s", err)
+	}
+
+	pool.cfg.Size = uint64(b.N)
+	zerolog.SetGlobalLevel(zerolog.Disabled)
+
+	msgs := make([]*types.Message, b.N)
+	var addr types.Address
+	for i := 0; i < b.N; i++ {
+		if i%2 == 0 {
+			addr = types.GenerateRandomAddress(shardId)
+		}
+		msgs[i] = &types.Message{
+			Seqno: types.Seqno(i),
+			To:    addr,
+		}
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = pool.Add(ctx, msgs[i])
+		if err != nil {
+			b.Fatalf("Failed to add message to pool: %s", err)
+		}
+	}
 }
