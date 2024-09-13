@@ -37,6 +37,22 @@ func RandomPermutation(n, amount uint64) ([]uint64, error) {
 	return arr[:amount], nil
 }
 
+func TopUpBalance(service *cliservice.Service, wallets []types.Address) error {
+	for _, wallet := range wallets {
+		balance, err := service.GetBalance(wallet)
+		if err != nil {
+			return err
+		}
+		if balance.Uint64() < 1_000_000 {
+			err := service.TopUpViaFaucet(wallet, types.NewValueFromUint64(1_000_000))
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func main() {
 	logger := logging.NewLogger("nil_load_generator")
 
@@ -65,6 +81,7 @@ func main() {
 
 	rpcEndpoint := rootCmd.Flags().String("endpoint", "http://127.0.0.1:8529/", "rpc endpoint")
 	contractCallDelay := rootCmd.Flags().Duration("delay", 500*time.Millisecond, "delay between contracts call")
+	checkBalanceFrequency := rootCmd.Flags().Uint32("check-balance", 10, "frequency of balance check in iterations")
 
 	check.PanicIfErr(rootCmd.Execute())
 
@@ -107,6 +124,7 @@ func main() {
 		contractsCall = append(contractsCall, addr)
 	}
 
+	checkBalanceCounterDownInt := int(*checkBalanceFrequency)
 	for {
 		var wg sync.WaitGroup
 		for i, wallet := range wallets {
@@ -138,6 +156,14 @@ func main() {
 			}()
 		}
 		wg.Wait()
+		checkBalanceCounterDownInt -= 1
+		if checkBalanceCounterDownInt == 0 {
+			err := TopUpBalance(service, wallets)
+			if err != nil {
+				logger.Error().Err(err).Msg("Error during top up balance")
+			}
+			checkBalanceCounterDownInt = int(*checkBalanceFrequency)
+		}
 		logger.Info().Msg("Iteration done")
 		time.Sleep(*contractCallDelay)
 	}

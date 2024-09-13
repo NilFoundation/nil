@@ -184,12 +184,7 @@ func (s *SuiteCli) TestContract() {
 	balanceAfter, err := s.cli.GetBalance(addr)
 	s.Require().NoError(err)
 
-	b1, err := strconv.ParseInt(balanceBefore, 10, 64)
-	s.Require().NoError(err)
-	b2, err := strconv.ParseInt(balanceAfter, 10, 64)
-	s.Require().NoError(err)
-
-	s.EqualValues(100, b2-b1)
+	s.EqualValues(uint64(100), balanceAfter.Uint64()-balanceBefore.Uint64())
 }
 
 func (s *SuiteCli) testNewWalletOnShard(shardId types.ShardId) {
@@ -228,7 +223,7 @@ func (s *SuiteCli) TestSendExternalMessage() {
 
 	balance, err := s.cli.GetBalance(addr)
 	s.Require().NoError(err)
-	s.Equal("10000000", balance)
+	s.Equal(uint64(10000000), balance.Uint64())
 
 	getCalldata, err := abi.Pack("get")
 	s.Require().NoError(err)
