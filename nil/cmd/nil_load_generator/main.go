@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"math/big"
-	"strconv"
 	"sync"
 	"time"
 
@@ -44,11 +43,7 @@ func TopUpBalance(service *cliservice.Service, wallets []types.Address) error {
 		if err != nil {
 			return err
 		}
-		balanceUint64, err := strconv.ParseUint(balance, 10, 64)
-		if err != nil {
-			return err
-		}
-		if balanceUint64 < 1_000_000 {
+		if balance.Uint64() < 1_000_000 {
 			err := service.TopUpViaFaucet(wallet, types.NewValueFromUint64(1_000_000))
 			if err != nil {
 				return err
@@ -86,7 +81,7 @@ func main() {
 
 	rpcEndpoint := rootCmd.Flags().String("endpoint", "http://127.0.0.1:8529/", "rpc endpoint")
 	contractCallDelay := rootCmd.Flags().Duration("delay", 500*time.Millisecond, "delay between contracts call")
-	checkBalanceFrequency := rootCmd.Flags().Duration("check-balance", 10, "frequency of balance check in iterations")
+	checkBalanceFrequency := rootCmd.Flags().Uint32("check-balance", 10, "frequency of balance check in iterations")
 
 	check.PanicIfErr(rootCmd.Execute())
 

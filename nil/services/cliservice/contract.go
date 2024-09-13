@@ -23,15 +23,15 @@ func (s *Service) GetCode(contractAddress types.Address) (string, error) {
 }
 
 // GetBalance retrieves the contract balance at the given address
-func (s *Service) GetBalance(contractAddress types.Address) (string, error) {
+func (s *Service) GetBalance(contractAddress types.Address) (types.Value, error) {
 	balance, err := s.client.GetBalance(contractAddress, "latest")
 	if err != nil {
 		s.logger.Error().Err(err).Str(logging.FieldRpcMethod, rpc.Eth_getBalance).Msg("Failed to get contract balance")
-		return "", err
+		return types.Value{}, err
 	}
 
 	s.logger.Info().Msgf("Contract balance: %s", balance)
-	return balance.String(), nil
+	return balance, nil
 }
 
 // GetInfo returns wallet's address and public key
