@@ -58,6 +58,7 @@ require (
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/jonboulle/clockwork v0.5.0
 	github.com/klauspost/compress v1.18.0
+	github.com/mailru/easyjson v0.9.1-0.20250111192808-fe2707c07ac0
 	github.com/prometheus/client_golang v1.21.1
 	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/viper v1.20.0
@@ -138,6 +139,7 @@ require (
 	github.com/ipld/go-ipld-prime v0.21.0 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jbenet/go-temp-err-catcher v0.1.0 // indirect
+	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/koron/go-ssdp v0.0.5 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
@@ -270,6 +272,7 @@ require (
 tool (
 	github.com/NilFoundation/fastssz/sszgen
 	github.com/ethereum/go-ethereum/cmd/abigen
+	github.com/mailru/easyjson
 	github.com/matryer/moq
 	gvisor.dev/gvisor/tools/checklocks/cmd/checklocks
 )

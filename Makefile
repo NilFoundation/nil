@@ -24,7 +24,7 @@ get_bin_name = $(if $(filter $(1)=%,$(BINARY_NAMES)),$(patsubst $(1)=%,%,$(filte
 all: $(COMMANDS)
 
 .PHONY: generated
-generated: ssz pb compile-contracts generate_mocks sync_committee_targets
+generated: ssz pb compile-contracts json generate_mocks sync_committee_targets
 
 .PHONY: test
 test: generated
@@ -48,9 +48,14 @@ include nil/internal/mpt/Makefile.inc
 include nil/internal/types/Makefile.inc
 include nil/internal/config/Makefile.inc
 include nil/internal/execution/Makefile.inc
+include nil/services/rpc/jsonrpc/Makefile.inc
+include nil/services/rpc/transport/Makefile.inc
 include nil/services/rpc/rawapi/proto/Makefile.inc
 include nil/go-ibft/messages/proto/Makefile.inc
 include nil/Makefile.inc
+
+.PHONY: json
+json: json_rpc_types json_transport_types
 
 .PHONY: ssz
 ssz: ssz_sszx ssz_db ssz_mpt ssz_types ssz_config ssz_execution
