@@ -213,7 +213,7 @@ func (m *FiltersManager) processBlocksRange(filter *Filter) error {
 	if filter.query.ToBlock != nil {
 		lastBlockNum = filter.query.ToBlock.Uint64()
 	} else {
-		lastBlock, err := db.ReadLastBlock(tx, m.shardId)
+		lastBlock, _, err := db.ReadLastBlock(tx, m.shardId)
 		if err != nil {
 			return err
 		}

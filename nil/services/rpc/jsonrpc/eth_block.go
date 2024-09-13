@@ -25,11 +25,11 @@ func getBlockHashByNumber(
 	case transport.PendingBlockNumber:
 		return common.EmptyHash, errNotImplemented
 	case transport.LatestBlockNumber:
-		lastBlock, err := db.ReadLastBlock(tx, shardId)
+		lastBlockHash, err := db.ReadLastBlockHash(tx, shardId)
 		if err != nil {
 			return common.EmptyHash, err
 		}
-		requestedBlockNumber = lastBlock.Id
+		return lastBlockHash, nil
 	case transport.EarliestBlockNumber:
 		requestedBlockNumber = types.BlockNumber(0)
 	default:

@@ -293,7 +293,7 @@ func (es *ExecutionState) initConfigAccessor() error {
 	var err error
 
 	if es.ShardId == types.MainShardId {
-		mainChainBlock, err = db.ReadLastBlock(es.tx, es.ShardId)
+		mainChainBlock, _, err = db.ReadLastBlock(es.tx, es.ShardId)
 		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 			return err
 		}
@@ -1298,8 +1298,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 	}
 
 	blockHash := block.Hash()
-
-	err := db.WriteBlock(es.tx, es.ShardId, &block)
+	err := db.WriteBlock(es.tx, es.ShardId, blockHash, &block)
 	if err != nil {
 		return common.EmptyHash, err
 	}

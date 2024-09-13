@@ -66,13 +66,13 @@ func (s *syncCollator) readLastBlockNumber(ctx context.Context) error {
 		return err
 	}
 	defer rotx.Rollback()
-	lastBlock, err := db.ReadLastBlock(rotx, s.shard)
+	lastBlock, lastBlockHash, err := db.ReadLastBlock(rotx, s.shard)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return err
 	}
 	if err == nil {
 		s.lastBlockNumber = lastBlock.Id
-		s.lastBlockHash = lastBlock.Hash()
+		s.lastBlockHash = lastBlockHash
 	}
 	return nil
 }
@@ -82,7 +82,7 @@ func (s *syncCollator) snapIsRequired(ctx context.Context) bool {
 	check.PanicIfErr(err)
 	defer rotx.Rollback()
 
-	_, err = db.ReadLastBlock(rotx, s.shard)
+	_, _, err = db.ReadLastBlock(rotx, s.shard)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		check.PanicIfErr(err)
 	}
@@ -241,7 +241,8 @@ func (s *syncCollator) saveBlocks(ctx context.Context, blocks []*Block) error {
 	var blockHash common.Hash
 	var block *Block
 	for _, block = range blocks {
-		if err := db.WriteBlock(tx, s.shard, block.Block); err != nil {
+		blockHash = block.Block.Hash()
+		if err := db.WriteBlock(tx, s.shard, blockHash, block.Block); err != nil {
 			return err
 		}
 
@@ -254,7 +255,6 @@ func (s *syncCollator) saveBlocks(ctx context.Context, blocks []*Block) error {
 			return errors.New("out messages root mismatch")
 		}
 
-		blockHash = block.Block.Hash()
 		_, err = execution.PostprocessBlock(tx, s.shard, block.Block.GasPrice, 1, blockHash)
 		if err != nil {
 			return err

@@ -286,32 +286,36 @@ func (s *SuiteFilters) TestBlocksRange() {
 		Id:           0,
 		ReceiptsRoot: receiptsMpt.RootHash(),
 	}
-	s.Require().NoError(db.WriteBlock(tx, 0, &block))
-	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, block.Hash())
+	blockHash := block.Hash()
+	s.Require().NoError(db.WriteBlock(tx, 0, blockHash, &block))
+	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, blockHash)
 	s.Require().NoError(err)
 
 	block = types.Block{
 		Id:           1,
 		ReceiptsRoot: receiptsMpt.RootHash(),
 	}
-	s.Require().NoError(db.WriteBlock(tx, 0, &block))
-	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, block.Hash())
+	blockHash = block.Hash()
+	s.Require().NoError(db.WriteBlock(tx, 0, blockHash, &block))
+	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, blockHash)
 	s.Require().NoError(err)
 
 	block = types.Block{
 		Id:           2,
 		ReceiptsRoot: receiptsMpt.RootHash(),
 	}
-	s.Require().NoError(db.WriteBlock(tx, 0, &block))
-	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, block.Hash())
+	blockHash = block.Hash()
+	s.Require().NoError(db.WriteBlock(tx, 0, blockHash, &block))
+	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, blockHash)
 	s.Require().NoError(err)
 
 	block = types.Block{
 		Id:           3,
 		ReceiptsRoot: receiptsMpt.RootHash(),
 	}
-	s.Require().NoError(db.WriteBlock(tx, 0, &block))
-	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, block.Hash())
+	blockHash = block.Hash()
+	s.Require().NoError(db.WriteBlock(tx, 0, blockHash, &block))
+	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, blockHash)
 	s.Require().NoError(err)
 	s.Require().NoError(tx.Commit())
 
@@ -370,8 +374,9 @@ func (s *SuiteFilters) TestBlocksRange() {
 		Id:           4,
 		ReceiptsRoot: receiptsMpt.RootHash(),
 	}
-	s.Require().NoError(db.WriteBlock(tx, 0, &block))
-	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, block.Hash())
+	blockHash = block.Hash()
+	s.Require().NoError(db.WriteBlock(tx, 0, blockHash, &block))
+	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, blockHash)
 	s.Require().NoError(err)
 	s.Require().NoError(tx.Commit())
 

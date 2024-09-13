@@ -40,7 +40,7 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 		gasPrice = block.GasPrice
 
 		// Check if the message is included in the main chain
-		if mainBlock, err := db.ReadLastBlock(tx, types.MainShardId); err == nil {
+		if mainBlock, _, err := db.ReadLastBlock(tx, types.MainShardId); err == nil {
 			if shardId.IsMainShard() {
 				includedInMain = mainBlock.Id >= block.Id
 			} else {

@@ -104,9 +104,9 @@ func (s *SuiteEthFilters) TestLogs() {
 	block := types.Block{
 		ReceiptsRoot: receiptsMpt.RootHash(),
 	}
-
-	s.Require().NoError(db.WriteBlock(tx, s.shardId, &block))
-	s.Require().NoError(db.WriteLastBlockHash(tx, types.MainShardId, block.Hash()))
+	blockHash := block.Hash()
+	s.Require().NoError(db.WriteBlock(tx, s.shardId, blockHash, &block))
+	s.Require().NoError(db.WriteLastBlockHash(tx, types.MainShardId, blockHash))
 	s.Require().NoError(tx.Commit())
 
 	var logs []any
@@ -155,8 +155,9 @@ func (s *SuiteEthFilters) TestBlocks() {
 	block1 := types.Block{Id: 1}
 
 	// Add one block
-	s.Require().NoError(db.WriteBlock(tx, shardId, &block1))
-	s.Require().NoError(db.WriteLastBlockHash(tx, types.MainShardId, block1.Hash()))
+	blockHash := block1.Hash()
+	s.Require().NoError(db.WriteBlock(tx, shardId, blockHash, &block1))
+	s.Require().NoError(db.WriteLastBlockHash(tx, types.MainShardId, blockHash))
 	s.Require().NoError(tx.Commit())
 
 	// id1 filter should see 1 block
@@ -184,9 +185,9 @@ func (s *SuiteEthFilters) TestBlocks() {
 	block2 := types.Block{Id: 2, PrevBlock: block1.Hash()}
 	block3 := types.Block{Id: 3, PrevBlock: block2.Hash()}
 	block4 := types.Block{Id: 4, PrevBlock: block3.Hash()}
-	s.Require().NoError(db.WriteBlock(tx, shardId, &block2))
-	s.Require().NoError(db.WriteBlock(tx, shardId, &block3))
-	s.Require().NoError(db.WriteBlock(tx, shardId, &block4))
+	s.Require().NoError(db.WriteBlock(tx, shardId, block2.Hash(), &block2))
+	s.Require().NoError(db.WriteBlock(tx, shardId, block3.Hash(), &block3))
+	s.Require().NoError(db.WriteBlock(tx, shardId, block4.Hash(), &block4))
 	s.Require().NoError(db.WriteLastBlockHash(tx, types.MainShardId, block4.Hash()))
 	s.Require().NoError(tx.Commit())
 
@@ -229,8 +230,8 @@ func (s *SuiteEthFilters) TestBlocks() {
 	// Add another two blocks
 	block5 := types.Block{Id: 5, PrevBlock: block4.Hash()}
 	block6 := types.Block{Id: 6, PrevBlock: block5.Hash()}
-	s.Require().NoError(db.WriteBlock(tx, shardId, &block5))
-	s.Require().NoError(db.WriteBlock(tx, shardId, &block6))
+	s.Require().NoError(db.WriteBlock(tx, shardId, block5.Hash(), &block5))
+	s.Require().NoError(db.WriteBlock(tx, shardId, block6.Hash(), &block6))
 	s.Require().NoError(db.WriteLastBlockHash(tx, types.MainShardId, block6.Hash()))
 	s.Require().NoError(tx.Commit())
 

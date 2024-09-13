@@ -330,7 +330,7 @@ func (s *RpcSuite) GetContract(address types.Address) *types.SmartContract {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	block, err := db.ReadLastBlock(tx, address.ShardId())
+	block, _, err := db.ReadLastBlock(tx, address.ShardId())
 	s.Require().NoError(err)
 
 	contractTree := execution.NewDbContractTrie(tx, address.ShardId())

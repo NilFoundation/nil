@@ -25,8 +25,9 @@ func writeTestBlock(t *testing.T, tx db.RwTx, shardId types.ShardId, blockNumber
 		ChildBlocksRootHash: common.EmptyHash,
 		MainChainHash:       common.EmptyHash,
 	}
-	require.NoError(t, db.WriteBlock(tx, types.BaseShardId, &block))
-	return block.Hash()
+	hash := block.Hash()
+	require.NoError(t, db.WriteBlock(tx, types.BaseShardId, hash, &block))
+	return hash
 }
 
 func writeMessages(t *testing.T, tx db.RwTx, shardId types.ShardId, messages []*types.Message) *execution.MessageTrie {
