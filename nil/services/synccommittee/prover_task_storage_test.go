@@ -26,7 +26,7 @@ func (s *TaskStorageSuite) SetupSuite() {
 	s.ctx = context.Background()
 
 	s.baseTask = types.ProverTask{
-		Id:            1,
+		Id:            types.NewProverTaskId(),
 		BatchNum:      1,
 		BlockNum:      1,
 		TaskType:      types.Preprocess,
@@ -44,12 +44,12 @@ func (s *TaskStorageSuite) SetupSuite() {
 
 func (s *TaskStorageSuite) TestAddRemove() {
 	modifiedEntry := s.baseTaskEntry
-	modifiedEntry.Task.Id = 2
+	modifiedEntry.Task.Id = types.NewProverTaskId()
 	modifiedEntry.Task.BatchNum = 8
 
-	err := s.ts.AddTaskEntry(s.ctx, s.baseTaskEntry)
+	err := s.ts.AddSingleTaskEntry(s.ctx, s.baseTaskEntry)
 	s.Require().NoError(err)
-	err = s.ts.AddTaskEntry(s.ctx, modifiedEntry)
+	err = s.ts.AddSingleTaskEntry(s.ctx, modifiedEntry)
 	s.Require().NoError(err)
 
 	err = s.ts.RemoveTaskEntry(s.ctx, s.baseTask.Id)
@@ -66,9 +66,9 @@ func (s *TaskStorageSuite) TestAddRemove() {
 
 func (s *TaskStorageSuite) TestReschedule() {
 	runningTaskEntry := s.baseTaskEntry
-	runningTaskEntry.Task.Id = 5
+	runningTaskEntry.Task.Id = types.NewProverTaskId()
 	runningTaskEntry.Status = types.Running
-	err := s.ts.AddTaskEntry(s.ctx, runningTaskEntry)
+	err := s.ts.AddSingleTaskEntry(s.ctx, runningTaskEntry)
 	s.Require().NoError(err)
 
 	// Trying to request task for proving must give nothing,
@@ -92,33 +92,33 @@ func (s *TaskStorageSuite) TestReschedule() {
 func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	// Initialize two tasks waiting for input
 	lowerPriorityEntry := s.baseTaskEntry
-	lowerPriorityEntry.Task.Id = 11
+	lowerPriorityEntry.Task.Id = types.NewProverTaskId()
 	lowerPriorityEntry.Task.BlockNum = 222
 	lowerPriorityEntry.Status = types.WaitingForInput
 	lowerPriorityEntry.Task.DependencyNum = 1
 
 	higherPriorityEntry := s.baseTaskEntry
-	higherPriorityEntry.Task.Id = 12
+	higherPriorityEntry.Task.Id = types.NewProverTaskId()
 	higherPriorityEntry.Task.BlockNum = 14
 	higherPriorityEntry.Status = types.WaitingForInput
 	higherPriorityEntry.Task.DependencyNum = 1
 
 	// Initialize two corresponding dependencies for them which are running
 	dependency1 := s.baseTaskEntry
-	dependency1.Task.Id = 13
+	dependency1.Task.Id = types.NewProverTaskId()
 	dependency1.PendingDeps = []types.ProverTaskId{lowerPriorityEntry.Task.Id}
 	dependency1.Status = types.Running
 	dependency2 := s.baseTaskEntry
 	dependency2.PendingDeps = []types.ProverTaskId{higherPriorityEntry.Task.Id}
-	dependency2.Task.Id = 14
+	dependency2.Task.Id = types.NewProverTaskId()
 	dependency2.Status = types.Running
-	err := s.ts.AddTaskEntry(s.ctx, lowerPriorityEntry)
+	err := s.ts.AddSingleTaskEntry(s.ctx, lowerPriorityEntry)
 	s.Require().NoError(err)
-	err = s.ts.AddTaskEntry(s.ctx, higherPriorityEntry)
+	err = s.ts.AddSingleTaskEntry(s.ctx, higherPriorityEntry)
 	s.Require().NoError(err)
-	err = s.ts.AddTaskEntry(s.ctx, dependency1)
+	err = s.ts.AddSingleTaskEntry(s.ctx, dependency1)
 	s.Require().NoError(err)
-	err = s.ts.AddTaskEntry(s.ctx, dependency2)
+	err = s.ts.AddSingleTaskEntry(s.ctx, dependency2)
 	s.Require().NoError(err)
 
 	// No available tasks for prover at this point

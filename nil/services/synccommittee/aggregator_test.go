@@ -10,10 +10,12 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/internal/types"
+	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
@@ -41,7 +43,7 @@ func (s *AggregatorTestSuite) waitTwoBlocks(endpoint string) {
 	)
 	for i := range s.nShards {
 		s.Require().Eventually(func() bool {
-			block, err := client.GetBlock(types.ShardId(i), transport.BlockNumber(1), false)
+			block, err := client.GetBlock(coreTypes.ShardId(i), transport.BlockNumber(1), false)
 			return err == nil && block != nil
 		}, waitTimeout, pollInterval)
 	}
@@ -102,10 +104,10 @@ func (s *AggregatorTestSuite) TestProcessNewBlocks() {
 	s.Require().NoError(err)
 
 	// Check if blocks were fetched and stored for each shard
-	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
+	for shardId := coreTypes.ShardId(0); shardId < coreTypes.ShardId(s.nShards); shardId++ {
 		lastFetchedBlockNum, err := s.storage.GetLastFetchedBlockNum(s.ctx, shardId)
 		s.Require().NoError(err)
-		s.Require().Greater(lastFetchedBlockNum, types.BlockNumber(0))
+		s.Require().Greater(lastFetchedBlockNum, coreTypes.BlockNumber(0))
 	}
 }
 
@@ -196,6 +198,77 @@ func (s *AggregatorTestSuite) TestValidateAndStoreBlockMismatch() {
 		s.Require().Error(err)
 		s.ErrorIs(err, ErrBlockHashMismatch)
 	}
+}
+
+// Ensure that we have available task of certain type, or no tasks available
+func requestTask(s *AggregatorTestSuite, available bool, expectedType types.ProverTaskType) *types.ProverTask {
+	t, err := s.aggregator.taskStorage.RequestTaskToExecute(s.ctx, 99)
+	s.Require().NoError(err)
+	if !available {
+		s.Require().Nil(t)
+		return nil
+	}
+	s.Require().NotNil(t)
+	s.Equal(expectedType, t.TaskType)
+	return t
+}
+
+// Set result for task
+func completeTask(s *AggregatorTestSuite, id types.ProverTaskId) {
+	result := types.ProverTaskResult{TaskId: id, IsSuccess: true}
+	err := s.aggregator.taskStorage.ProcessTaskResult(s.ctx, result)
+	s.Require().NoError(err)
+}
+
+func (s *AggregatorTestSuite) TestCreateProofTasks() {
+	// We should not create tasks for a block from non-main shard
+	someShardBlock := jsonrpc.RPCBlock{ShardId: 4, Number: 8}
+	err := s.aggregator.createProofTasks(s.ctx, &someShardBlock)
+	s.Require().NoError(err)
+	t, err := s.aggregator.taskStorage.RequestTaskToExecute(s.ctx, 99)
+	s.Require().NoError(err)
+	s.Require().Nil(t)
+
+	mainShardBlock := jsonrpc.RPCBlock{ShardId: coreTypes.MainShardId, Number: 8}
+	// Set some preceding last proved block number to avoid an error
+	err = s.aggregator.blockStorage.SetLastProvedBlockNum(s.ctx, coreTypes.MainShardId, 0)
+	s.Require().NoError(err)
+	err = s.aggregator.createProofTasks(s.ctx, &mainShardBlock)
+	s.Require().NoError(err)
+	// Extract 4 top-level tasks
+	var ids [4]types.ProverTaskId
+	for i := range 4 {
+		ids[i] = requestTask(s, true, types.PartialProve).Id
+	}
+
+	// // Right now all remaining tasks should wait for dependencies
+	requestTask(s, false, types.AggregatedFRI)
+
+	// Pass results for partial proof tasks
+	for _, id := range ids {
+		completeTask(s, id)
+	}
+
+	// // Now only aggregate FRI task is available
+	aggFRITask := requestTask(s, true, types.AggregatedFRI)
+	requestTask(s, false, types.FRIConsistencyChecks)
+
+	// // After completition of aggregate FRI task we have FRI consistency check tasks available
+	completeTask(s, aggFRITask.Id)
+	for i := range 4 {
+		ids[i] = requestTask(s, true, types.FRIConsistencyChecks).Id
+	}
+	requestTask(s, false, types.MergeProof)
+
+	// // The only one waiting for dependencies is merge proof task
+	for _, id := range ids {
+		completeTask(s, id)
+	}
+	mpt := requestTask(s, true, types.MergeProof)
+	completeTask(s, mpt.Id)
+
+	// // No more tasks for the block
+	requestTask(s, false, types.PartialProve)
 }
 
 func TestAggregatorTestSuite(t *testing.T) {

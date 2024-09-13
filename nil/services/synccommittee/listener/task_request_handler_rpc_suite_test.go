@@ -74,7 +74,7 @@ var (
 
 var tasksForProvers = map[types.ProverId]*types.ProverTask{
 	firstProverId: {
-		Id:            randomTaskId(),
+		Id:            types.NewProverTaskId(),
 		BatchNum:      1,
 		BlockNum:      1,
 		TaskType:      types.Preprocess,
@@ -83,20 +83,20 @@ var tasksForProvers = map[types.ProverId]*types.ProverTask{
 		DependencyNum: 0,
 	},
 	secondProverId: {
-		Id:          randomTaskId(),
+		Id:          types.NewProverTaskId(),
 		BatchNum:    1234,
 		BlockNum:    10,
 		TaskType:    types.AggregatedFRI,
 		CircuitType: types.ReadWrite,
 		Dependencies: map[types.ProverTaskId]types.ProverTaskResult{
-			types.ProverTaskId(10): types.SuccessTaskResult(
-				types.ProverTaskId(10),
+			types.NewProverTaskId(): types.SuccessTaskResult(
+				types.NewProverTaskId(),
 				randomProverId(),
 				types.FinalProof,
 				"2B3C4D5E",
 			),
-			types.ProverTaskId(20): types.SuccessTaskResult(
-				types.ProverTaskId(20),
+			types.NewProverTaskId(): types.SuccessTaskResult(
+				types.NewProverTaskId(),
 				randomProverId(),
 				types.Commitment,
 				"3C4D5E6F",
@@ -104,14 +104,6 @@ var tasksForProvers = map[types.ProverId]*types.ProverTask{
 		},
 		DependencyNum: 2,
 	},
-}
-
-func randomTaskId() types.ProverTaskId {
-	bigInt, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt32))
-	if err != nil {
-		panic(err)
-	}
-	return types.ProverTaskId(uint32(bigInt.Uint64()))
 }
 
 func randomProverId() types.ProverId {

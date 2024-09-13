@@ -18,7 +18,8 @@ const (
 
 // Interface for storing and accessing tasks from DB
 type ProverTaskStorage interface {
-	AddTaskEntry(ctx context.Context, entry types.ProverTaskEntry) error
+	AddSingleTaskEntry(ctx context.Context, entry types.ProverTaskEntry) error
+	AddTaskEntries(ctx context.Context, tasks []*types.ProverTaskEntry) error
 	RemoveTaskEntry(ctx context.Context, id types.ProverTaskId) error
 	RequestTaskToExecute(ctx context.Context, executor types.ProverId) (*types.ProverTask, error)
 	ProcessTaskResult(ctx context.Context, res types.ProverTaskResult) error
@@ -61,7 +62,7 @@ func putTaskEntry(tx db.RwTx, entry *types.ProverTaskEntry) error {
 }
 
 // Store new task entry into DB
-func (st *proverTaskStorage) AddTaskEntry(ctx context.Context, entry types.ProverTaskEntry) error {
+func (st *proverTaskStorage) AddSingleTaskEntry(ctx context.Context, entry types.ProverTaskEntry) error {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -77,6 +78,22 @@ func (st *proverTaskStorage) AddTaskEntry(ctx context.Context, entry types.Prove
 	return nil
 }
 
+// Store set of task entries as a single transaction
+func (st *proverTaskStorage) AddTaskEntries(ctx context.Context, tasks []*types.ProverTaskEntry) error {
+	tx, err := st.database.CreateRwTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, entry := range tasks {
+		err = putTaskEntry(tx, entry)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 // Delete existing task entry from DB
 func (st *proverTaskStorage) RemoveTaskEntry(ctx context.Context, id types.ProverTaskId) error {
 	tx, err := st.database.CreateRwTx(ctx)
@@ -88,10 +105,7 @@ func (st *proverTaskStorage) RemoveTaskEntry(ctx context.Context, id types.Prove
 	if err != nil {
 		return err
 	}
-	if err = tx.Commit(); err != nil {
-		return err
-	}
-	return nil
+	return tx.Commit()
 }
 
 // Helper to update task status when it's ready to be executed or needs to be rescheduled
