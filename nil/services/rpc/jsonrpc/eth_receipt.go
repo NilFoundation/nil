@@ -49,8 +49,8 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 				hashBytes, err := treeShards.Get(shardId.Bytes())
 				if err == nil {
 					hash := common.BytesToHash(hashBytes)
-					if lastBlock, err := db.ReadBlock(tx, shardId, hash); err == nil {
-						includedInMain = lastBlock.Id >= block.Id
+					if last, err := api.accessor.Access(tx, shardId).GetBlock().ByHash(hash); err == nil {
+						includedInMain = last.Block().Id >= block.Id
 					}
 				}
 			}
@@ -82,23 +82,18 @@ func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.Shard
 
 	if receipt.OutMsgNum != 0 {
 		outReceipts = make([]*RPCReceipt, 0, receipt.OutMsgNum)
-
 		for i := receipt.OutMsgIndex; i < receipt.OutMsgIndex+receipt.OutMsgNum; i++ {
-			sa, err := execution.NewStateAccessor()
+			res, err := api.accessor.Access(tx, shardId).GetOutMessage().ByIndex(types.MessageIndex(i), block)
 			if err != nil {
 				return nil, err
 			}
-
-			res, err := sa.Access(tx, shardId).GetOutMessage().ByIndex(types.MessageIndex(i), block)
-			if err != nil {
-				return nil, err
-			}
-			r, err := api.GetInMessageReceipt(ctx, res.Message().To.ShardId(), res.Message().Hash())
+			msgHash := res.Message().Hash()
+			r, err := api.GetInMessageReceipt(ctx, res.Message().To.ShardId(), msgHash)
 			if err != nil {
 				return nil, err
 			}
 			outReceipts = append(outReceipts, r)
-			outMessages = append(outMessages, res.Message().Hash())
+			outMessages = append(outMessages, msgHash)
 		}
 	}
 

@@ -338,7 +338,7 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 		RequestId:        as.requestId,
 	}
 
-	if err := db.WriteCode(as.Tx, as.address.ShardId(), as.Code); err != nil {
+	if err := db.WriteCode(as.Tx, as.address.ShardId(), as.CodeHash, as.Code); err != nil {
 		return nil, err
 	}
 

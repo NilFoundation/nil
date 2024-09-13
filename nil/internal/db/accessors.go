@@ -188,8 +188,8 @@ func WriteContract(tx RwTx, shardId types.ShardId, contract *types.SmartContract
 	return writeEncodable(tx, ContractTable, shardId, contract)
 }
 
-func WriteCode(tx RwTx, shardId types.ShardId, code types.Code) error {
-	return tx.PutToShard(shardId, codeTable, code.Hash().Bytes(), code[:])
+func WriteCode(tx RwTx, shardId types.ShardId, hash common.Hash, code types.Code) error {
+	return tx.PutToShard(shardId, codeTable, hash.Bytes(), code[:])
 }
 
 func ReadCode(tx RoTx, shardId types.ShardId, hash common.Hash) (types.Code, error) {

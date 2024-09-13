@@ -86,14 +86,15 @@ func (suite *SuiteExecutionState) TestExecState() {
 	})
 
 	suite.Run("CheckMessages", func() {
-		block, err := db.ReadBlock(tx, shardId, blockHash)
+		data, err := es.shardAccessor.GetBlock().ByHash(blockHash)
 		suite.Require().NoError(err)
-		suite.Require().NotNil(block)
+		suite.Require().NotNil(data)
+		suite.Require().NotNil(data.Block())
 
 		messagesRoot := NewDbMessageTrieReader(tx, es.ShardId)
-		messagesRoot.SetRootHash(block.InMessagesRoot)
+		messagesRoot.SetRootHash(data.Block().InMessagesRoot)
 		receiptsRoot := NewDbReceiptTrieReader(tx, es.ShardId)
-		receiptsRoot.SetRootHash(block.ReceiptsRoot)
+		receiptsRoot.SetRootHash(data.Block().ReceiptsRoot)
 
 		var messageIndex types.MessageIndex
 		for {
