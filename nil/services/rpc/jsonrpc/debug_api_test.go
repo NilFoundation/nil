@@ -56,10 +56,11 @@ func TestDebugGetBlock(t *testing.T) {
 		require.NoError(t, err)
 		blockHex = hexutil.Encode(hexBytes)
 
-		err = db.WriteBlock(tx, types.MainShardId, b)
+		hash := b.Hash()
+		err = db.WriteBlock(tx, types.MainShardId, hash, b)
 		require.NoError(t, err)
 
-		_, err = execution.PostprocessBlock(tx, types.MainShardId, types.NewValueFromUint64(10), 0, b.Hash())
+		_, err = execution.PostprocessBlock(tx, types.MainShardId, types.NewValueFromUint64(10), 0, hash)
 		require.NoError(t, err)
 	}
 

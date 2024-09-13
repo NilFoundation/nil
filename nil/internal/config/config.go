@@ -162,7 +162,7 @@ func getConfigTrie(tx db.RwTx, shardId types.ShardId, hash *common.Hash) (*mpt.M
 
 	if shardId == types.MainShardId {
 		if lastBlock {
-			mainChainBlock, err = db.ReadLastBlock(tx, shardId)
+			mainChainBlock, _, err = db.ReadLastBlock(tx, shardId)
 			if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 				return nil, err
 			}
@@ -175,7 +175,7 @@ func getConfigTrie(tx db.RwTx, shardId types.ShardId, hash *common.Hash) (*mpt.M
 	} else {
 		var block *types.Block
 		if lastBlock {
-			block, err = db.ReadLastBlock(tx, shardId)
+			block, _, err = db.ReadLastBlock(tx, shardId)
 			if err != nil {
 				return nil, err
 			}

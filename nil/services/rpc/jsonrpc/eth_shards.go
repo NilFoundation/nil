@@ -15,7 +15,7 @@ func (api *APIImpl) GetShardIdList(ctx context.Context) ([]types.ShardId, error)
 	}
 	defer tx.Rollback()
 
-	block, err := db.ReadLastBlock(tx, types.MainShardId)
+	block, _, err := db.ReadLastBlock(tx, types.MainShardId)
 	if err != nil {
 		return nil, err
 	}

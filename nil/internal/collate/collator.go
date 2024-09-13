@@ -88,7 +88,7 @@ func (c *collator) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 }
 
 func (c *collator) fetchPrevBlock() error {
-	b, err := db.ReadLastBlock(c.roTx, c.params.ShardId)
+	b, hash, err := db.ReadLastBlock(c.roTx, c.params.ShardId)
 	if err != nil {
 		if errors.Is(err, db.ErrKeyNotFound) {
 			return nil
@@ -97,7 +97,7 @@ func (c *collator) fetchPrevBlock() error {
 	}
 
 	c.proposal.PrevBlockId = b.Id
-	c.proposal.PrevBlockHash = b.Hash()
+	c.proposal.PrevBlockHash = hash
 	return nil
 }
 
@@ -204,7 +204,7 @@ func (c *collator) handleMessagesFromNeighbors() error {
 		neighbor := &state.Neighbors[position]
 
 		var lastBlockNumber types.BlockNumber
-		lastBlock, err := db.ReadLastBlock(c.roTx, neighborId)
+		lastBlock, _, err := db.ReadLastBlock(c.roTx, neighborId)
 		if !errors.Is(err, db.ErrKeyNotFound) {
 			if err != nil {
 				return err

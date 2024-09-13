@@ -12,11 +12,11 @@ import (
 
 // todo: return errors
 func readDecodable[
-	S any,
 	T interface {
 		~*S
 		fastssz.Unmarshaler
 	},
+	S any,
 ](tx RoTx, table ShardedTableName, shardId types.ShardId, hash common.Hash) (*S, error) {
 	data, err := tx.GetFromShard(shardId, table, hash.Bytes())
 	if err != nil {
@@ -49,7 +49,15 @@ func writeEncodable[
 		common.Hashable
 	},
 ](tx RwTx, tableName ShardedTableName, shardId types.ShardId, obj T) error {
-	return writeRawKeyEncodable(tx, tableName, shardId, obj.Hash().Bytes(), obj)
+	return writeEncodableWithHash(tx, tableName, shardId, obj.Hash(), obj)
+}
+
+func writeEncodableWithHash[
+	T interface {
+		fastssz.Marshaler
+	},
+](tx RwTx, tableName ShardedTableName, shardId types.ShardId, hash common.Hash, obj T) error {
+	return writeRawKeyEncodable(tx, tableName, shardId, hash.Bytes(), obj)
 }
 
 func ReadVersionInfo(tx RoTx) (*types.VersionInfo, error) {
@@ -85,15 +93,19 @@ func IsVersionOutdated(tx RoTx) (bool, error) {
 }
 
 func ReadBlock(tx RoTx, shardId types.ShardId, hash common.Hash) (*types.Block, error) {
-	return readDecodable[types.Block, *types.Block](tx, blockTable, shardId, hash)
+	return readDecodable[*types.Block](tx, blockTable, shardId, hash)
 }
 
-func ReadLastBlock(tx RoTx, shardId types.ShardId) (*types.Block, error) {
+func ReadLastBlock(tx RoTx, shardId types.ShardId) (*types.Block, common.Hash, error) {
 	hash, err := ReadLastBlockHash(tx, shardId)
 	if err != nil {
-		return nil, err
+		return nil, common.EmptyHash, err
 	}
-	return readDecodable[types.Block, *types.Block](tx, blockTable, shardId, hash)
+	b, err := readDecodable[*types.Block](tx, blockTable, shardId, hash)
+	if err != nil {
+		return nil, common.EmptyHash, err
+	}
+	return b, hash, nil
 }
 
 func ReadCollatorState(tx RoTx, shardId types.ShardId) (types.CollatorState, error) {
@@ -152,8 +164,8 @@ func WriteGasPerShard(tx RwTx, shardId types.ShardId, value types.Value) error {
 	return tx.Put(gasPerShardTable, shardId.Bytes(), value.Bytes())
 }
 
-func WriteBlock(tx RwTx, shardId types.ShardId, block *types.Block) error {
-	return writeEncodable(tx, blockTable, shardId, block)
+func WriteBlock(tx RwTx, shardId types.ShardId, hash common.Hash, block *types.Block) error {
+	return writeEncodableWithHash(tx, blockTable, shardId, hash, block)
 }
 
 func WriteError(tx RwTx, msgHash common.Hash, errMsg string) error {
@@ -169,7 +181,7 @@ func ReadError(tx RoTx, msgHash common.Hash) (string, error) {
 }
 
 func ReadContract(tx RoTx, shardId types.ShardId, hash common.Hash) (*types.SmartContract, error) {
-	return readDecodable[types.SmartContract, *types.SmartContract](tx, ContractTable, shardId, hash)
+	return readDecodable[*types.SmartContract](tx, ContractTable, shardId, hash)
 }
 
 func WriteContract(tx RwTx, shardId types.ShardId, contract *types.SmartContract) error {
