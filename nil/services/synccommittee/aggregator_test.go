@@ -13,7 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
-	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
@@ -23,22 +23,38 @@ type AggregatorTestSuite struct {
 
 	nShards    uint32
 	client     *rpc.Client
-	logger     zerolog.Logger
+	storage    *BlockStorage
 	aggregator *Aggregator
-	db         db.DB
-	cancel     context.CancelFunc
+	nilDb      db.DB
+	scDb       db.DB
+	nilCancel  context.CancelFunc
+	ctx        context.Context
 	doneChan   chan interface{} // to track when nilservice has finished
+}
+
+func (s *AggregatorTestSuite) waitTwoBlocks(endpoint string) {
+	s.T().Helper()
+	client := rpc.NewClient(endpoint, zerolog.Nop())
+	const (
+		waitTimeout  = 5 * time.Second
+		pollInterval = time.Second
+	)
+	for i := range s.nShards {
+		s.Require().Eventually(func() bool {
+			block, err := client.GetBlock(types.ShardId(i), transport.BlockNumber(1), false)
+			return err == nil && block != nil
+		}, waitTimeout, pollInterval)
+	}
 }
 
 func (s *AggregatorTestSuite) SetupSuite() {
 	s.nShards = 4
+	s.ctx = context.Background()
 
 	url := rpctest.GetSockPath(s.T())
-	s.logger = logging.NewLogger("test_aggregator")
 
-	s.client = rpc.NewClient(url, s.logger)
 	var err error
-	s.db, err = db.NewBadgerDbInMemory()
+	s.nilDb, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 
 	nilserviceCfg := &nilservice.Config{
@@ -49,29 +65,35 @@ func (s *AggregatorTestSuite) SetupSuite() {
 		GasBasePrice:         10,
 	}
 	var nilContext context.Context
-	nilContext, s.cancel = context.WithCancel(context.Background())
+	nilContext, s.nilCancel = context.WithCancel(context.Background())
 	s.doneChan = make(chan interface{})
 	go func() {
-		nilservice.Run(nilContext, nilserviceCfg, s.db, nil)
+		nilservice.Run(nilContext, nilserviceCfg, s.nilDb, nil)
 		s.doneChan <- nil
 	}()
 
-	s.Require().Eventually(func() bool {
-		shardIdList, err := s.client.GetShardIdList()
-		return err == nil && len(shardIdList) > 0
-	}, 5*time.Second, 200*time.Millisecond)
+	s.waitTwoBlocks(url)
+
+	logger := logging.NewLogger("test_block_aggregator")
+	s.client = rpc.NewClient(url, logger)
+	s.scDb, err = db.NewBadgerDbInMemory()
+	s.Require().NoError(err)
+	metrics, err := NewMetricsHandler("github.com/NilFoundation/nil/nil/services/sync_committee")
+	s.Require().NoError(err)
+	s.storage = NewBlockStorage(s.scDb)
+	s.aggregator, err = NewAggregator(s.client, NewProposer("", logger), s.scDb, zerolog.Nop(), metrics)
+	s.Require().NoError(err)
 }
 
 func (s *AggregatorTestSuite) TearDownSuite() {
-	s.cancel()
+	s.nilCancel()
 	<-s.doneChan // Wait for nilservice to shutdown
-	s.db.Close()
+	s.nilDb.Close()
+	s.scDb.Close()
 }
 
 func (s *AggregatorTestSuite) SetupTest() {
-	db, err := db.NewBadgerDbInMemory()
-	s.Require().NoError(err)
-	s.aggregator, err = NewAggregator(s.client, s.logger, NewProposer("", s.logger), db)
+	err := s.scDb.DropAll()
 	s.Require().NoError(err)
 }
 
@@ -81,12 +103,13 @@ func (s *AggregatorTestSuite) TestProcessNewBlocks() {
 
 	// Check if blocks were fetched and stored for each shard
 	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
-		lastFetchedBlockNum := s.aggregator.blockStorage.GetLastFetchedBlockNum(shardId)
+		lastFetchedBlockNum, err := s.storage.GetLastFetchedBlockNum(s.ctx, shardId)
+		s.Require().NoError(err)
 		s.Require().Greater(lastFetchedBlockNum, types.BlockNumber(0))
 	}
 }
 
-func (s *AggregatorTestSuite) TestFetchAndStoreBlocks() {
+func (s *AggregatorTestSuite) TestFetchAndProcessBlocks() {
 	shardIdList, err := s.aggregator.getShardIdList()
 	s.Require().NoError(err)
 
@@ -94,20 +117,20 @@ func (s *AggregatorTestSuite) TestFetchAndStoreBlocks() {
 	s.Require().NoError(err)
 
 	for _, shardId := range shardIdList {
-		latestBlockForShardNumber := latestBlocks[shardId].Number
-		err := s.aggregator.fetchAndProcessBlocks(context.Background(), shardId, 0, latestBlockForShardNumber)
+		latestBlockForShard := latestBlocks[shardId].Number
+		err := s.aggregator.fetchAndProcessBlocks(s.ctx, shardId, 0, latestBlockForShard)
 		s.Require().NoError(err)
 
 		// Check if blocks were stored
-		for blockNum := types.BlockNumber(0); blockNum <= latestBlockForShardNumber; blockNum++ {
-			block := s.aggregator.blockStorage.GetBlock(shardId, blockNum)
-			s.Require().NotNil(block)
-			s.Require().Equal(blockNum, block.Number)
+		for blkNum := range latestBlockForShard {
+			block, err := s.aggregator.blockStorage.GetBlock(s.ctx, shardId, blkNum)
+			s.Require().NoError(err)
+			s.Require().Equal(blkNum, block.Number)
 		}
 	}
 }
 
-func (s *AggregatorTestSuite) TestValidateAndStoreBlock() {
+func (s *AggregatorTestSuite) TestValidateAndProcessBlock() {
 	shardIdList, err := s.aggregator.getShardIdList()
 	s.Require().NoError(err)
 
@@ -118,61 +141,60 @@ func (s *AggregatorTestSuite) TestValidateAndStoreBlock() {
 		latestBlock := latestBlocks[shardId]
 		s.Require().NotNil(latestBlock)
 
+		// Fetch the latest block
+		block, err := s.client.GetBlock(shardId, transport.BlockNumber(latestBlock.Number), false)
+		s.Require().NoError(err)
+		s.Require().NotNil(block)
+
+		// In common execution flow this is called at processShardBlocks now, but we need to add
+		// fetching the last proved block from chain
+		err = s.aggregator.blockStorage.SetLastProvedBlockNum(s.ctx, shardId, block.Number-1)
+		s.Require().NoError(err)
+
 		// Validate and store the block
-		err = s.aggregator.validateAndProcessBlock(context.Background(), latestBlock)
+		err = s.aggregator.validateAndProcessBlock(context.Background(), block)
 		s.Require().NoError(err)
 
 		// Check if the block was stored
-		storedBlock := s.aggregator.blockStorage.GetBlock(shardId, latestBlock.Number)
+		storedBlock, err := s.storage.GetBlock(s.ctx, shardId, block.Number)
+		s.Require().NoError(err)
 		s.Require().NotNil(storedBlock)
-		s.Require().Equal(latestBlock.Number, storedBlock.Number)
-		s.Require().Equal(latestBlock.Hash, storedBlock.Hash)
-
-		// Check tasks for provers
-		// if shardId == types.MainShardId {
-		// TODO add check when it was impelmented
-		// }
+		s.Require().Equal(block.Number, storedBlock.Number)
+		s.Require().Equal(block.Hash, storedBlock.Hash)
 	}
 }
 
 func (s *AggregatorTestSuite) TestValidateAndStoreBlockMismatch() {
-	block1 := jsonrpc.RPCBlock{ShardId: types.MainShardId, Number: 0, Hash: common.HexToHash("1")}
-	// Set wrong parent hash
-	block2 := jsonrpc.RPCBlock{ShardId: types.MainShardId, Number: 1, ParentHash: common.HexToHash("2")}
-
-	// Store blocks
-	s.aggregator.blockStorage.SetBlock(&block1)
-	s.aggregator.blockStorage.SetBlock(&block2)
-
-	// Try to validate and store the second block
-	err := s.aggregator.validateAndProcessBlock(context.Background(), &block2)
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "block hash mismatch")
-}
-
-func (s *AggregatorTestSuite) TestProofThresholdMet() {
-	// Case 1: Threshold not met
-	s.aggregator.blockStorage.SetLastProvedBlockNum(types.MainShardId, 100)
-	s.aggregator.blockStorage.SetBlock(&jsonrpc.RPCBlock{ShardId: types.MainShardId, Number: 100})
-	s.Require().False(s.aggregator.proofThresholdMet())
-
-	// Case 2: Threshold met
-	s.aggregator.blockStorage.SetBlock(&jsonrpc.RPCBlock{ShardId: types.MainShardId, Number: 101})
-	s.Require().True(s.aggregator.proofThresholdMet())
-}
-
-func (s *AggregatorTestSuite) TestUpdateLastProvedBlockNumForAllShards() {
-	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
-		blockNum := types.BlockNumber(200 + int64(shardId))
-		s.aggregator.blockStorage.SetBlock(&jsonrpc.RPCBlock{ShardId: shardId, Number: blockNum})
-	}
-
-	err := s.aggregator.updateLastProvedBlockNumForAllShards()
+	shardIdList, err := s.aggregator.getShardIdList()
 	s.Require().NoError(err)
 
-	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
-		blockNum := types.BlockNumber(200 + int64(shardId))
-		s.Require().Equal(blockNum, s.aggregator.blockStorage.GetLastProvedBlockNum(shardId))
+	latestBlocks, err := s.aggregator.fetchLatestBlocks(shardIdList)
+	s.Require().NoError(err)
+
+	for _, shardId := range shardIdList {
+		latestBlock := latestBlocks[shardId]
+		s.Require().NotNil(latestBlock)
+
+		// Fetch two consecutive blocks
+		block1, err := s.client.GetBlock(shardId, transport.BlockNumber(latestBlock.Number-1), false)
+		s.Require().NoError(err)
+		s.Require().NotNil(block1)
+
+		block2, err := s.client.GetBlock(shardId, transport.BlockNumber(latestBlock.Number), false)
+		s.Require().NoError(err)
+		s.Require().NotNil(block2)
+
+		// Store the first block
+		err = s.storage.SetBlock(s.ctx, shardId, block1.Number, block1)
+		s.Require().NoError(err)
+
+		// Modify the parent hash of the second block to create a mismatch
+		block2.ParentHash = common.EmptyHash
+
+		// Try to validate and store the second block
+		err = s.aggregator.validateAndProcessBlock(s.ctx, block2)
+		s.Require().Error(err)
+		s.ErrorIs(err, ErrBlockHashMismatch)
 	}
 }
 

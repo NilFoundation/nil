@@ -1,167 +1,130 @@
 package synccommittee
 
 import (
+	"context"
 	"testing"
 
-	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestNewBlockStorage(t *testing.T) {
-	t.Parallel()
-	bs := NewBlockStorage()
-	if bs == nil {
-		t.Fatal("NewBlockStorage returned nil")
-	}
-	if bs.blocksStorage == nil {
-		t.Error("blocksStorage map not initialized")
-	}
-	if bs.lastFetchedBlockNumPerShard == nil {
-		t.Error("lastFetchedBlockNumPerShard map not initialized")
-	}
-	if bs.lastProvedBlockNumPerShard == nil {
-		t.Error("lastProvedBlockNumPerShard map not initialized")
-	}
+type BlockStorageTestSuite struct {
+	suite.Suite
+
+	db  db.DB
+	ctx context.Context
+	bs  *BlockStorage
 }
 
-func TestGetSetBlock(t *testing.T) {
-	t.Parallel()
-	bs := NewBlockStorage()
-	shardId := types.MainShardId
+func (s *BlockStorageTestSuite) SetupSuite() {
+	var err error
+	s.db, err = db.NewBadgerDbInMemory()
+	s.Require().NoError(err)
+	s.bs = NewBlockStorage(s.db)
+}
+
+func (s *BlockStorageTestSuite) SetupTest() {
+	err := s.db.DropAll()
+	s.Require().NoError(err)
+}
+
+func (s *BlockStorageTestSuite) TestGetSetBlock() {
+	shardId := types.ShardId(1)
 	blockNumber := types.BlockNumber(10)
-	block := &jsonrpc.RPCBlock{Number: blockNumber, ShardId: shardId}
+	block := &jsonrpc.RPCBlock{Number: blockNumber}
 
 	// Test SetBlock
-	bs.SetBlock(block)
+	err := s.bs.SetBlock(s.ctx, shardId, blockNumber, block)
+	s.Require().NoError(err)
 
 	// Test GetBlock
-	retrievedBlock := bs.GetBlock(shardId, blockNumber)
-	if retrievedBlock != block {
-		t.Errorf("GetBlock returned incorrect block. Expected %v, got %v", block, retrievedBlock)
-	}
+	retrievedBlock, err := s.bs.GetBlock(s.ctx, shardId, blockNumber)
+	s.Require().NoError(err)
+	s.Require().Equal(block.Number, retrievedBlock.Number)
 
 	// Test GetBlock for non-existent block
-	nonExistentBlock := bs.GetBlock(shardId, blockNumber+1)
-	if nonExistentBlock != nil {
-		t.Errorf("GetBlock returned non-nil for non-existent block. Got %v", nonExistentBlock)
-	}
+	nonExistentBlock, err := s.bs.GetBlock(s.ctx, shardId, blockNumber+1)
+	s.Require().NoError(err)
+	s.Require().Nil(nonExistentBlock)
 }
 
-func TestGetSetLastFetchedBlockNum(t *testing.T) {
-	t.Parallel()
-	bs := NewBlockStorage()
-	shardId := types.MainShardId
-	block1 := &jsonrpc.RPCBlock{Number: 10, ShardId: shardId}
-	block2 := &jsonrpc.RPCBlock{Number: 20, ShardId: shardId}
+func (s *BlockStorageTestSuite) TestGetLastFetchedBlock() {
+	shardId := types.ShardId(1)
+	block1 := &jsonrpc.RPCBlock{Number: 10}
+	block2 := &jsonrpc.RPCBlock{Number: 20}
 
-	bs.SetBlock(block1)
-	bs.SetBlock(block2)
+	err := s.bs.SetBlock(s.ctx, shardId, block1.Number, block1)
+	s.Require().NoError(err)
+	err = s.bs.SetBlock(s.ctx, shardId, block2.Number, block2)
+	s.Require().NoError(err)
 
-	// Test GetLastFetchedBlock
-	lastFetchedBlockNum := bs.GetLastFetchedBlockNum(shardId)
-	if lastFetchedBlockNum != block2.Number {
-		t.Errorf("GetLastFetchedBlock returned incorrect block. Expected %d, got %d", block2.Number, lastFetchedBlockNum)
-	}
-
-	// Test SetLastFetchedBlockNum
-	bs.SetLastFetchedBlockNum(shardId, block1.Number)
-
-	lastFetchedBlockNum = bs.GetLastFetchedBlockNum(shardId)
-	if lastFetchedBlockNum != block1.Number {
-		t.Errorf("GetLastFetchedBlock returned incorrect block. Expected %d, got %d", block1.Number, lastFetchedBlockNum)
-	}
+	lastFetchedNum, err := s.bs.GetLastFetchedBlockNum(s.ctx, shardId)
+	s.Require().NoError(err)
+	s.Require().Equal(block2.Number, lastFetchedNum)
 }
 
-func TestGetSetLastProvedBlockNum(t *testing.T) {
-	t.Parallel()
-	bs := NewBlockStorage()
-	shardId := types.MainShardId
+func (s *BlockStorageTestSuite) TestGetSetLastProvedBlockNum() {
+	shardId := types.ShardId(1)
 	blockNum := types.BlockNumber(100)
 
-	bs.SetLastProvedBlockNum(shardId, blockNum)
-	lastProved := bs.GetLastProvedBlockNum(shardId)
-
-	if lastProved != blockNum {
-		t.Errorf("GetLastProvedBlockNum returned incorrect number. Expected %d, got %d", blockNum, lastProved)
-	}
+	err := s.bs.SetLastProvedBlockNum(s.ctx, shardId, blockNum)
+	s.Require().NoError(err)
+	lastProved, err := s.bs.GetLastProvedBlockNum(s.ctx, shardId)
+	s.Require().NoError(err)
+	s.Require().Equal(blockNum, lastProved)
 }
 
-func TestGetBlocksRange(t *testing.T) {
-	t.Parallel()
-	bs := NewBlockStorage()
-	shardId := types.MainShardId
+func (s *BlockStorageTestSuite) TestGetBlocksRange() {
+	shardId := types.ShardId(1)
 	for i := types.BlockNumber(1); i <= 10; i++ {
-		bs.SetBlock(&jsonrpc.RPCBlock{Number: i, ShardId: shardId})
+		err := s.bs.SetBlock(s.ctx, shardId, i, &jsonrpc.RPCBlock{Number: i})
+		s.Require().NoError(err)
 	}
 
-	blocks := bs.GetBlocksRange(shardId, 3, 8)
-	if len(blocks) != 5 {
-		t.Errorf("GetBlocksRange returned incorrect number of blocks. Expected 5, got %d", len(blocks))
-	}
+	blocks, err := s.bs.GetBlocksRange(s.ctx, shardId, 3, 8)
+	s.Require().NoError(err)
+	s.Require().Len(blocks, 5)
 
 	for i, block := range blocks {
 		expectedNumber := types.BlockNumber(i + 3)
-		if block.Number != expectedNumber {
-			t.Errorf("Block at index %d has incorrect number. Expected %d, got %d", i, expectedNumber, block.Number)
-		}
+		s.Require().Equal(expectedNumber, block.Number)
 	}
 
 	// Test empty range
-	emptyBlocks := bs.GetBlocksRange(shardId, 11, 15)
-	if len(emptyBlocks) != 0 {
-		t.Errorf("GetBlocksRange returned non-empty slice for empty range. Got %d blocks", len(emptyBlocks))
+	emptyBlocks, err := s.bs.GetBlocksRange(s.ctx, shardId, 11, 15)
+	s.Require().NoError(err)
+	s.Require().Empty(emptyBlocks)
+}
+
+func (s *BlockStorageTestSuite) TestCleanupStorage() {
+	const shardId = types.ShardId(1)
+	const totalBlocks = 10
+	for i := range types.BlockNumber(totalBlocks) {
+		err := s.bs.SetBlock(s.ctx, shardId, i, &jsonrpc.RPCBlock{Number: i})
+		s.Require().NoError(err)
+	}
+
+	const lastProvedBlkNum = 5
+	err := s.bs.SetLastProvedBlockNum(s.ctx, shardId, lastProvedBlkNum)
+	s.Require().NoError(err)
+	err = s.bs.CleanupStorage(s.ctx)
+	s.Require().NoError(err)
+
+	for blkNum := range types.BlockNumber(totalBlocks) {
+		block, err := s.bs.GetBlock(s.ctx, shardId, blkNum)
+		s.Require().NoError(err)
+		if blkNum < 5 && block != nil {
+			s.Failf("Block left after cleanup", "blkNum: %d", blkNum)
+		} else if blkNum >= 5 && block == nil {
+			s.Failf("Block should not have been cleaned up, but it doesn't exist", "blkNum: %d", blkNum)
+		}
 	}
 }
 
-func TestGetTransactionsByBlocksRange(t *testing.T) {
+func TestBlockStorageTestSuite(t *testing.T) {
 	t.Parallel()
-	bs := NewBlockStorage()
-	shardId := types.MainShardId
-	for i := types.BlockNumber(1); i <= 10; i++ {
-		message := jsonrpc.RPCInMessage{Seqno: hexutil.Uint64(i)}
-		messages := make([]any, 1)
-		messages[0] = message
-		block := jsonrpc.RPCBlock{Number: i, ShardId: shardId, Messages: messages}
-		bs.SetBlock(&block)
-	}
 
-	transactions := bs.GetTransactionsByBlocksRange(shardId, 3, 8)
-	if len(transactions) != 5 {
-		t.Errorf("GetTransactionsByBlocksRange returned incorrect number of transactions. Expected 5, got %d", len(transactions))
-	}
-
-	for i, transaction := range transactions {
-		expectedSeqno := hexutil.Uint64(i + 3)
-		if transaction.seqno != expectedSeqno {
-			t.Errorf("transaction at index %d has incorrect seqno. Expected %d, got %d", i, expectedSeqno, transaction.seqno)
-		}
-	}
-
-	// Test empty range
-	emptyTransactions := bs.GetTransactionsByBlocksRange(shardId, 11, 15)
-	if len(emptyTransactions) != 0 {
-		t.Errorf("GetTransactionsByBlocksRange returned non-empty slice for empty range. Got %d transactions", len(emptyTransactions))
-	}
-}
-
-func TestCleanupStorage(t *testing.T) {
-	t.Parallel()
-	bs := NewBlockStorage()
-	shardId := types.MainShardId
-	for i := types.BlockNumber(1); i <= 10; i++ {
-		bs.SetBlock(&jsonrpc.RPCBlock{Number: i, ShardId: shardId})
-	}
-
-	bs.SetLastProvedBlockNum(shardId, 5)
-	bs.CleanupStorage()
-
-	for i := types.BlockNumber(1); i <= 10; i++ {
-		block := bs.GetBlock(shardId, i)
-		if i < 5 && block != nil {
-			t.Errorf("Block %d should have been cleaned up, but it still exists", i)
-		} else if i >= 5 && block == nil {
-			t.Errorf("Block %d should not have been cleaned up, but it doesn't exist", i)
-		}
-	}
+	suite.Run(t, new(BlockStorageTestSuite))
 }

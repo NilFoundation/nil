@@ -277,8 +277,9 @@ func (it *BadgerIter) HasNext() bool {
 }
 
 func (it *BadgerIter) Next() ([]byte, []byte, error) {
+	defer it.iter.Next() // Item() result is only valid until it.Next() gets called
 	item := it.iter.Item()
-	it.iter.Next()
+	// *Copy methods prevent from deadlocks during iteration with updates, not sure if they are required here
 	key := item.KeyCopy(nil)
 	value, err := item.ValueCopy(nil)
 	if err != nil {
