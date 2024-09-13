@@ -1,3 +1,5 @@
+import PGButton from '@theme/PGButton';
+
 # =nil; 101
 
 This tutorial acts as a 'primer' for working with =nil;. It explains how to perform essential actions with the cluster: creating a new wallet, deploying a contract, and calling a method inside this contract.
@@ -74,6 +76,8 @@ Create a new contract containing this code:
 ```solidity showLineNumbers file=../../tests/Counter.sol start=startContract end=endContract
 ```
 
+<PGButton name="Counter.sol"/>
+
 Compile the contract:
 
 ```bash file=../../tests/nil-101.test.mjs start=startCompilation end=endCompilation
@@ -119,6 +123,8 @@ Create a new contract with the following code:
 
 ```solidity showLineNumbers file=../../tests/Caller.sol start=startContract end=endContract
 ```
+
+<PGButton name="Caller.sol"/>
 
 Compile it and deploy it to Shard 2:
 
