@@ -90,7 +90,8 @@ type ExecutionState struct {
 	// If true, log every instruction execution.
 	TraceVm bool
 
-	Accessor *StateAccessor
+	shardAccessor *shardAccessor
+	mainAccessor  *shardAccessor
 
 	// Pointer to currently executed VM
 	evm *vm.EVM
@@ -182,13 +183,15 @@ var _ vm.StateDB = new(ExecutionState)
 
 // NewEVMBlockContext creates a new context for use in the EVM.
 func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
-	header, err := db.ReadBlock(es.tx, es.ShardId, es.PrevBlock)
+	data, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, err
 	}
 
 	lastBlockId := uint64(0)
-	if header != nil {
+	var header *types.Block
+	if err == nil {
+		header = data.Block()
 		lastBlockId = header.Id.Uint64()
 	}
 	return &vm.BlockContext{
@@ -210,13 +213,16 @@ func NewROExecutionStateForShard(tx db.RoTx, shardId types.ShardId, timer common
 }
 
 func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash, timer common.Timer, gasPriceScale float64) (*ExecutionState, error) {
-	accessor, err := NewStateAccessor()
+	stateAccessor, err := NewStateAccessor()
 	if err != nil {
 		return nil, err
 	}
+	shardAccessor := stateAccessor.Access(tx, shardId)
+	mainAccessor := stateAccessor.Access(tx, types.MainShardId)
+
 	var gasPrice types.Value
 	if blockHash != common.EmptyHash {
-		block, err := accessor.Access(tx, shardId).GetBlock().ByHash(blockHash)
+		block, err := shardAccessor.GetBlock().ByHash(blockHash)
 		if err != nil {
 			return nil, err
 		}
@@ -244,7 +250,8 @@ func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash,
 		journal:          newJournal(),
 		transientStorage: newTransientStorage(),
 
-		Accessor: accessor,
+		shardAccessor: shardAccessor,
+		mainAccessor:  mainAccessor,
 
 		gasPriceScale: gasPriceScale,
 	}
@@ -253,7 +260,7 @@ func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash,
 }
 
 func (es *ExecutionState) initTries() error {
-	block, err := db.ReadBlock(es.tx, es.ShardId, es.PrevBlock)
+	data, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return err
 	}
@@ -262,8 +269,8 @@ func (es *ExecutionState) initTries() error {
 	es.InMessageTree = NewDbMessageTrie(es.tx, es.ShardId)
 	es.OutMessageTree = NewDbMessageTrie(es.tx, es.ShardId)
 	es.ReceiptTree = NewDbReceiptTrie(es.tx, es.ShardId)
-	if block != nil {
-		es.ContractTree.SetRootHash(block.SmartContractsRoot)
+	if err == nil {
+		es.ContractTree.SetRootHash(data.Block().SmartContractsRoot)
 	}
 
 	return nil
@@ -301,7 +308,7 @@ func (es *ExecutionState) initConfigAccessor() error {
 			configTree.SetRootHash(mainChainBlock.ConfigRoot)
 		}
 	} else {
-		sa, err := es.Accessor.Access(es.tx, types.MainShardId).GetBlock().ByHash(es.MainChainHash)
+		sa, err := es.mainAccessor.GetBlock().ByHash(es.MainChainHash)
 		if err != nil {
 			return err
 		}
@@ -1281,9 +1288,9 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		} else {
 			// If we didn't touch `ConfigTree` it means that we don't have any changes in config.
 			// So, just copy it from the previous block.
-			prevBlock, err := db.ReadBlock(es.tx, es.ShardId, es.PrevBlock)
+			prev, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
 			check.PanicIfErr(err)
-			block.ConfigRoot = prevBlock.ConfigRoot
+			block.ConfigRoot = prev.Block().ConfigRoot
 		}
 	}
 
@@ -1615,7 +1622,7 @@ func (es *ExecutionState) evmToMessageError(err error) error {
 }
 
 func (es *ExecutionState) UpdateGasPrice() {
-	block, err := db.ReadBlock(es.tx, es.ShardId, es.PrevBlock)
+	data, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
 	if err != nil {
 		// If we can't read the previous block, we don't change the gas price
 		es.GasPrice = types.DefaultGasPrice
@@ -1623,12 +1630,12 @@ func (es *ExecutionState) UpdateGasPrice() {
 		return
 	}
 
-	es.GasPrice = block.GasPrice
+	es.GasPrice = data.Block().GasPrice
 
 	decreasePerBlock := types.NewValueFromUint64(1)
 	maxGasPrice := types.NewValueFromUint64(100)
 
-	gasIncrease := uint64(math.Ceil(float64(block.OutMessagesNum) * es.gasPriceScale))
+	gasIncrease := uint64(math.Ceil(float64(data.Block().OutMessagesNum) * es.gasPriceScale))
 	var overflow bool
 	es.GasPrice, overflow = es.GasPrice.AddOverflow(types.NewValueFromUint64(gasIncrease))
 	// Check if new gas price is less than the current one (overflow case) or greater than the max allowed
