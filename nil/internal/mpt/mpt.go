@@ -686,7 +686,7 @@ func (m *MerklePatriciaTrie) storeNode(node Node) (Reference, error) {
 
 	key := poseidon.Sum(data)
 	if len(key) != 32 {
-		key = common.BytesToHash(poseidon.Sum(data)).Bytes()
+		key = common.BytesToHash(key).Bytes()
 	}
 	if err := m.setter.Set(key, data); err != nil {
 		return nil, err

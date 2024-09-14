@@ -46,15 +46,6 @@ func writeRawKeyEncodable[
 func writeEncodable[
 	T interface {
 		fastssz.Marshaler
-		common.Hashable
-	},
-](tx RwTx, tableName ShardedTableName, shardId types.ShardId, obj T) error {
-	return writeEncodableWithHash(tx, tableName, shardId, obj.Hash(), obj)
-}
-
-func writeEncodableWithHash[
-	T interface {
-		fastssz.Marshaler
 	},
 ](tx RwTx, tableName ShardedTableName, shardId types.ShardId, hash common.Hash, obj T) error {
 	return writeRawKeyEncodable(tx, tableName, shardId, hash.Bytes(), obj)
@@ -165,7 +156,7 @@ func WriteGasPerShard(tx RwTx, shardId types.ShardId, value types.Value) error {
 }
 
 func WriteBlock(tx RwTx, shardId types.ShardId, hash common.Hash, block *types.Block) error {
-	return writeEncodableWithHash(tx, blockTable, shardId, hash, block)
+	return writeEncodable(tx, blockTable, shardId, hash, block)
 }
 
 func WriteError(tx RwTx, msgHash common.Hash, errMsg string) error {
@@ -178,14 +169,6 @@ func ReadError(tx RoTx, msgHash common.Hash) (string, error) {
 		return "", err
 	}
 	return string(res), nil
-}
-
-func ReadContract(tx RoTx, shardId types.ShardId, hash common.Hash) (*types.SmartContract, error) {
-	return readDecodable[*types.SmartContract](tx, ContractTable, shardId, hash)
-}
-
-func WriteContract(tx RwTx, shardId types.ShardId, contract *types.SmartContract) error {
-	return writeEncodable(tx, ContractTable, shardId, contract)
 }
 
 func WriteCode(tx RwTx, shardId types.ShardId, hash common.Hash, code types.Code) error {
