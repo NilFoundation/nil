@@ -3,7 +3,6 @@ package msgpool
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -93,7 +92,7 @@ func (p *MsgPool) listen(ctx context.Context, sub *network.Subscription) {
 
 	for m := range sub.Start(ctx) {
 		msg := &types.Message{}
-		if err := json.Unmarshal(m, msg); err != nil {
+		if err := msg.UnmarshalSSZ(m); err != nil {
 			p.logger.Error().Err(err).
 				Msg("Failed to unmarshal message from network")
 			continue
@@ -105,7 +104,7 @@ func (p *MsgPool) listen(ctx context.Context, sub *network.Subscription) {
 			p.logger.Error().Err(err).
 				Stringer(logging.FieldMessageHash, mm.hash).
 				Msg("Failed to add message from network")
-			return
+			continue
 		}
 
 		if reasons[0] != NotSet {

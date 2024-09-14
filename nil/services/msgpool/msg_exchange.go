@@ -2,7 +2,6 @@ package msgpool
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/internal/network"
@@ -19,7 +18,7 @@ func PublishPendingMessage(ctx context.Context, networkManager *network.Manager,
 		return nil
 	}
 
-	data, err := json.Marshal(msg)
+	data, err := msg.MarshalSSZ()
 	if err != nil {
 		return fmt.Errorf("failed to marshal msg: %w", err)
 	}
