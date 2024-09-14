@@ -186,7 +186,7 @@ func (api *APIImpl) call(
 		payer = execution.NewAccountPayer(toAs, msg)
 	}
 
-	es.AddInMessage(msg)
+	msgHash := es.AddInMessage(msg)
 	res := es.HandleMessage(ctx, msg, payer)
 
 	result := &CallRes{
@@ -208,7 +208,7 @@ func (api *APIImpl) call(
 		return nil, types.Value{}, err
 	}
 
-	execOutMessages := es.OutMessages[msg.Hash()]
+	execOutMessages := es.OutMessages[msgHash]
 	outMessages, err := api.handleOutMessages(
 		ctx,
 		execOutMessages,

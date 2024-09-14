@@ -736,11 +736,12 @@ func (es *ExecutionState) ContractExists(address types.Address) (bool, error) {
 		(storageRoot != common.EmptyHash), nil // non-empty storage
 }
 
-func (es *ExecutionState) AddInMessage(message *types.Message) {
+func (es *ExecutionState) AddInMessage(message *types.Message) common.Hash {
 	// We store a copy of the message, because the original message will be modified.
 	es.InMessages = append(es.InMessages, common.CopyPtr(message))
 	es.InMessageHash = message.Hash()
 	es.InMessageHashes = append(es.InMessageHashes, es.InMessageHash)
+	return es.InMessageHash
 }
 
 func (es *ExecutionState) DropInMessage() {

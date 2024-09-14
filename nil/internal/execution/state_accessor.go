@@ -6,6 +6,7 @@ import (
 
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
@@ -352,7 +353,9 @@ func baseGetMsgByHash(sa *shardAccessor, incoming bool, hash common.Hash) (messa
 	if err != nil {
 		return messageAccessorResult{}, err
 	}
-	check.PanicIfNot(data.Message() == nil || data.Message().Hash() == hash)
+	if assert.Enable {
+		check.PanicIfNot(data.Message() == nil || data.Message().Hash() == hash)
+	}
 	return data, nil
 }
 
