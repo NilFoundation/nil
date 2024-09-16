@@ -9,7 +9,7 @@ type PeerID = peer.ID
 type Config struct {
 	PrivateKey PrivateKey `yaml:"-"`
 
-	IPV4Address string `yaml:"-"`
+	IPV4Address string `yaml:"ipv4,omitempty"`
 	TcpPort     int    `yaml:"tcpPort,omitempty"`
 	QuicPort    int    `yaml:"quicPort,omitempty"`
 
