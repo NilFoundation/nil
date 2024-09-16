@@ -20,6 +20,11 @@ const (
 	TaskEntriesTable = "TaskEntries"
 )
 
+var (
+	ErrTaskInvalidStatus = errors.New("task has invalid status")
+	ErrTaskWrongProver   = errors.New("task belongs to another prover")
+)
+
 // ProverTaskStorage Interface for storing and accessing tasks from DB
 type ProverTaskStorage interface {
 	// AddSingleTaskEntry Store new task entry into DB
@@ -250,6 +255,11 @@ func (st *proverTaskStorage) processTaskResultImpl(ctx context.Context, res type
 
 		return err
 	}
+
+	if err := st.validateTaskResult(*entry, res); err != nil {
+		return err
+	}
+
 	if !res.IsSuccess {
 		entry.Modified = time.Now()
 		entry.Status = types.Failed
@@ -260,7 +270,11 @@ func (st *proverTaskStorage) processTaskResultImpl(ctx context.Context, res type
 	}
 
 	// We don't keep finished tasks in DB
-	// TODO: maybe add some logging here
+	st.logger.Debug().
+		Interface("taskId", res.TaskId).
+		Interface("requestSenderId", res.Sender).
+		Msg("Task execution is completed, removing it from the storage")
+
 	err = tx.Delete(TaskEntriesTable, res.TaskId.Bytes())
 	if err != nil {
 		return err
@@ -285,6 +299,20 @@ func (st *proverTaskStorage) processTaskResultImpl(ctx context.Context, res type
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (st *proverTaskStorage) validateTaskResult(entry types.ProverTaskEntry, res types.ProverTaskResult) error {
+	const errFormat = "failed to process task result, taskId=%v, taskStatus=%v, taskOwner=%v, requestSenderId=%v: %w"
+
+	if entry.Owner != res.Sender {
+		return fmt.Errorf(errFormat, entry.Task.Id, entry.Status, entry.Owner, res.Sender, ErrTaskWrongProver)
+	}
+
+	if entry.Status != types.Running {
+		return fmt.Errorf(errFormat, entry.Task.Id, entry.Status, entry.Owner, res.Sender, ErrTaskInvalidStatus)
+	}
+
 	return nil
 }
 
