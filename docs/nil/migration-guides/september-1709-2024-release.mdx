@@ -1,0 +1,68 @@
+# Release 17.09.2024: migration guide
+
+This release of =nil; adds several improvements to developer tools and futher simplifies working with custom currencies.
+
+## Summary of key changes
+
+* The =nil; CLI can now be used to estimate gas
+* The cluster supports burning custom currencies
+* The `sendRequest()` function in `Nil.sol` supports sending custom currencies
+* Whenever a contract fails, logs that have been written prior to the failure point are not reverted. This should make debugging easier
+
+## Migration of smart contracts
+
+* Add custom currencies to `sendRequest()`
+
+The `sendRequest()` function now has one more signature:
+
+```solidity showLineNumbers
+function sendRequest(
+      address dst,
+      uint256 value,
+      Token[] memory tokens,
+      bytes memory context,
+      bytes memory callData
+  ) internal {}
+```
+
+If the contract logic permits it, attach custom currencies to `sendRequest()`. On the side of the receiving contract, modify the function being called so that it processes the received tokens.
+
+## Migration of the =nil; CLI
+
+* Estimate fees before sending messages
+
+The =nil; CLI now includes the `estimate-fee` command whose purpose is to evaluate how much gas would be spent by sending a specific message.
+
+Use the command as follows:
+
+```bash
+nil wallet estimate-fee ADDRESS FUNC_NAME [ARGS] --abi path/to/abi
+```
+
+* Burn custom currencies
+
+The CLI also supports burning custom currencies:
+
+```bash
+nil minter burn-currency ADDRESS AMOUNT
+```
+
+If necessary, add this logic to existing scripts using the =nil; CLI to reduce the total supply of a custom currency.
+
+## Migration of `Nil.js` scripts
+
+* Burn custom currencies
+
+Inside `Nil.js`, `WalletV1` now exposes a new method for burning custom currencies:
+
+```ts showLineNumbers
+const amount = 50_000n;
+const hashMessage = await wallet.burnCurrency(amount);
+await waitTillCompleted(client, 1, hashMessage);
+```
+
+Modify existing `Nil.js` scripts to reduce the total supply of custom currencies owned by various wallets.
+
+## Migration of Hardhat scripts
+
+No specific changes have to be made to existing Hardhat scripts.

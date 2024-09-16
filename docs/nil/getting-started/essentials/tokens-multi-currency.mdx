@@ -24,12 +24,22 @@ When a currency is created, it is assigned an ID derived from the address of the
 
 ### Via the CLI
 
-To create a new currency and immediately withdraw it to the address of the owner:
+To create a new currency and withdraw it to the address of the owner:
 
 ```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startBasicCreateCurrencyCommand end=endBasicCreateCurrencyCommand
 ```
 
 ```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startBasicWithdrawCurrencyCommand end=endBasicWithdrawCurrencyCommand
+```
+
+To mint an existing currency (which automatically withdraws it to the owner):
+
+```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startMintExistingCurrencyCommand end=endMintExistingCurrencyCommand
+```
+
+To burn an existing currency (the supply is automatically reduced at the address of the owner):
+
+```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startBurnExistingCurrencyCommand end=endBurnExistingCurrencyCommand
 ```
 
 ### Via the client library
@@ -43,6 +53,11 @@ To get the ID of a currency, simply call the `hexToBigInt()` function on the own
 To create a new currency and withdraw it:
 
 ```ts file=../../../tests/tokens-multi-currency-support.test.mjs start=startBasicNilJSExample end=endBasicNilJSExample
+```
+
+To burn an existing currency:
+
+```ts file=../../../tests/tokens-multi-currency-support.test.mjs start=startNilJSBurningExample end=endNilJSBurningExample
 ```
 
 

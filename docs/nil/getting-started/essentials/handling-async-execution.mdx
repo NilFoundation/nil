@@ -97,6 +97,22 @@ When using `sendRequest()`, the contract can continue execution without having t
 
 :::
 
+:::tip
+
+The `sendRequest()` function also has an additional signature that allows for sending custom currencies to contracts while performing requests:
+
+```solidity showLineNumbers
+function sendRequest(
+      address dst,
+      uint256 value,
+      Token[] memory tokens,
+      bytes memory context,
+      bytes memory callData
+  ) internal {}
+```
+
+:::
+
 Contract 1 acts as a simple escrow mechanism. The `submitForVerification()` function accepts the address of the validator and the addresses of the escrow participants. The function then sends a request to the validator while assigning `resolve()` as the callback. Whenever the validator processes the request, Contract 1 can retrieve the returned data.
 
 ```solidity showLineNumbers file=../../../tests/Escrow.sol start=startEscrow end=endEscrow

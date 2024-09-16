@@ -83,7 +83,7 @@ afterAll(async () => {
 
 
 describe.sequential('initial usage CLI tests', () => {
-  test.sequential('minter creates a currency and withdraws it', async () => {
+  test.sequential('CLI creates a currency and withdraws it', async () => {
     //startBasicCreateCurrencyCommand
     const CREATE_CURRENCY_COMMAND = `${NIL_GLOBAL} minter create-currency ${OWNER_ADDRESS} ${AMOUNT} ${NAME} ${CONFIG_FLAG}`;
     //endBasicCreateCurrencyCommand
@@ -99,9 +99,34 @@ describe.sequential('initial usage CLI tests', () => {
     const CURRENCY_PATTERN = /5000/;
     expect(stdout).toMatch(CURRENCY_PATTERN);
   });
+
+  test.sequential('CLI mints an existing currency', async () => {
+    //startMintExistingCurrencyCommand
+    const MINT_EXISTING_CURRENCY_COMMAND = `${NIL_GLOBAL} minter mint-currency ${OWNER_ADDRESS} 50000 ${CONFIG_FLAG}`;
+    //endMintExistingCurrencyCommand
+    let { stdout, stderr } = await exec(MINT_EXISTING_CURRENCY_COMMAND);
+    expect(stdout).toBeDefined();
+    ({ stdout, stderr } = await exec(`${NIL_GLOBAL} contract currencies ${OWNER_ADDRESS} ${CONFIG_FLAG}`));
+    expect(stdout).toBeDefined();
+    expect(stdout).toMatch(/55000/);
+  });
+
+
+
+  test.sequential('CLI burns an existing currency', async () => {
+    const AMOUNT = 50000;
+    //startBurnExistingCurrencyCommand
+    const BURN_EXISTING_CURRENCY_COMMAND = `${NIL_GLOBAL} minter burn-currency ${OWNER_ADDRESS} ${AMOUNT} ${CONFIG_FLAG}`;
+    //endBurnExistingCurrencyCommand
+    let { stdout, stderr } = await exec(BURN_EXISTING_CURRENCY_COMMAND);
+    expect(stdout).toBeDefined();
+    ({ stdout, stderr } = await exec(`${NIL_GLOBAL} contract currencies ${OWNER_ADDRESS} ${CONFIG_FLAG}`));
+    expect(stdout).toBeDefined();
+    expect(stdout).toMatch(/5000/);
+  });
 });
 describe.sequential('basic Nil.js usage tests', async () => {
-  test.sequential('Nil.js can create a new currency, mint it, and withdraw it', async () => {
+  test.sequential('Nil.js can create a new currency, mint it, withdraw it, and burn it', async () => {
 
     //startBasicNilJSExample
     const client = new PublicClient({
@@ -147,7 +172,21 @@ describe.sequential('basic Nil.js usage tests', async () => {
       await waitTillCompleted(client, 1, hashMessage);
     }
     //endBasicNilJSExample
-  });
+
+    //startNilJSBurningExample
+    {
+      const hashMessage = await wallet.burnCurrency(50_000_000n);
+      await waitTillCompleted(client, 1, hashMessage);
+    }
+    //endNilJSBurningExample
+
+    const tokens = await client.getCurrencies(walletAddress, "latest");
+
+
+    expect(Object.keys(tokens).length === 1);
+    expect(Object.values(tokens)[0] === 50_000_000n);
+
+  }, 40000);
 });
 describe.sequential('tutorial flows CLI tests', async () => {
   test.sequential('the CLI creates a new wallet', async () => {
