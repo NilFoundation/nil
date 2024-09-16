@@ -6,7 +6,6 @@ import (
 
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/ssz"
 )
 
@@ -49,8 +48,8 @@ type Block struct {
 	GasPrice            Value        `json:"gasPrice" ch:"gas_price"`
 }
 
-type BlockWithRawExtractedData struct {
-	*Block
+type RawBlockWithExtractedData struct {
+	Block       ssz.SSZEncodedData
 	InMessages  []ssz.SSZEncodedData
 	OutMessages []ssz.SSZEncodedData
 	Receipts    []ssz.SSZEncodedData
@@ -76,41 +75,25 @@ func (b *Block) Hash() common.Hash {
 	return common.MustPoseidonSSZ(b)
 }
 
-func (b *Block) ToHexedSSZ() (string, error) {
-	content, err := b.MarshalSSZ()
-	if err != nil {
-		return "", err
-	}
-	return hexutil.Encode(content), nil
-}
-
-func (b *Block) FromHexedSSZ(hexData string) error {
-	return b.UnmarshalSSZ(hexutil.FromHex(hexData))
-}
-
-func BlockFromHexedSSZ(hexData string) (*Block, error) {
-	block := new(Block)
-	if err := block.FromHexedSSZ(hexData); err != nil {
+func (b *RawBlockWithExtractedData) DecodeSSZ() (*BlockWithExtractedData, error) {
+	block := &Block{}
+	if err := block.UnmarshalSSZ(b.Block); err != nil {
 		return nil, err
 	}
-	return block, nil
-}
-
-func (b *BlockWithRawExtractedData) DecodeSSZ() (*BlockWithExtractedData, error) {
-	inMessages, err := ssz.DecodeContainer[Message, *Message](b.InMessages)
+	inMessages, err := ssz.DecodeContainer[*Message](b.InMessages)
 	if err != nil {
 		return nil, err
 	}
-	outMessages, err := ssz.DecodeContainer[Message, *Message](b.OutMessages)
+	outMessages, err := ssz.DecodeContainer[*Message](b.OutMessages)
 	if err != nil {
 		return nil, err
 	}
-	receipts, err := ssz.DecodeContainer[Receipt, *Receipt](b.Receipts)
+	receipts, err := ssz.DecodeContainer[*Receipt](b.Receipts)
 	if err != nil {
 		return nil, err
 	}
 	return &BlockWithExtractedData{
-		Block:       b.Block,
+		Block:       block,
 		InMessages:  inMessages,
 		OutMessages: outMessages,
 		Receipts:    receipts,
@@ -118,7 +101,11 @@ func (b *BlockWithRawExtractedData) DecodeSSZ() (*BlockWithExtractedData, error)
 	}, nil
 }
 
-func (b *BlockWithExtractedData) EncodeSSZ() (*BlockWithRawExtractedData, error) {
+func (b *BlockWithExtractedData) EncodeSSZ() (*RawBlockWithExtractedData, error) {
+	block, err := b.Block.MarshalSSZ()
+	if err != nil {
+		return nil, err
+	}
 	inMessages, err := ssz.EncodeContainer(b.InMessages)
 	if err != nil {
 		return nil, err
@@ -131,8 +118,8 @@ func (b *BlockWithExtractedData) EncodeSSZ() (*BlockWithRawExtractedData, error)
 	if err != nil {
 		return nil, err
 	}
-	return &BlockWithRawExtractedData{
-		Block:       b.Block,
+	return &RawBlockWithExtractedData{
+		Block:       block,
 		InMessages:  inMessages,
 		OutMessages: outMessages,
 		Receipts:    receipts,

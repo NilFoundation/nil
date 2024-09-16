@@ -87,6 +87,10 @@ func ReadBlock(tx RoTx, shardId types.ShardId, hash common.Hash) (*types.Block, 
 	return readDecodable[*types.Block](tx, blockTable, shardId, hash)
 }
 
+func ReadBlockSSZ(tx RoTx, shardId types.ShardId, hash common.Hash) ([]byte, error) {
+	return tx.GetFromShard(shardId, blockTable, hash.Bytes())
+}
+
 func ReadLastBlock(tx RoTx, shardId types.ShardId) (*types.Block, common.Hash, error) {
 	hash, err := ReadLastBlockHash(tx, shardId)
 	if err != nil {

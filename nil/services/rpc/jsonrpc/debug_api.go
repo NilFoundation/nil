@@ -16,8 +16,8 @@ import (
 )
 
 type DebugAPI interface {
-	GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withMessages bool) (*HexedDebugRPCBlock, error)
-	GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (*HexedDebugRPCBlock, error)
+	GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withMessages bool) (*DebugRPCBlock, error)
+	GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (*DebugRPCBlock, error)
 	GetContract(ctx context.Context, contractAddr types.Address, blockNrOrHash transport.BlockNumberOrHash) (*DebugRPCContract, error)
 }
 
@@ -41,7 +41,7 @@ func NewDebugAPI(rawApi rawapi.Api, db db.ReadOnlyDB, logger zerolog.Logger) *De
 }
 
 // GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
-func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withMessages bool) (*HexedDebugRPCBlock, error) {
+func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withMessages bool) (*DebugRPCBlock, error) {
 	var blockReference rawapi.BlockReference
 	if number <= 0 {
 		switch number {
@@ -63,12 +63,12 @@ func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.Sha
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
-func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (*HexedDebugRPCBlock, error) {
+func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (*DebugRPCBlock, error) {
 	return api.getBlockByReference(ctx, shardId, rawapi.BlockHashAsBlockReference(hash), withMessages)
 }
 
-func (api *DebugAPIImpl) getBlockByReference(ctx context.Context, shardId types.ShardId, blockReference rawapi.BlockReference, withMessages bool) (*HexedDebugRPCBlock, error) {
-	var blockData *types.BlockWithRawExtractedData
+func (api *DebugAPIImpl) getBlockByReference(ctx context.Context, shardId types.ShardId, blockReference rawapi.BlockReference, withMessages bool) (*DebugRPCBlock, error) {
+	var blockData *types.RawBlockWithExtractedData
 	var err error
 	if withMessages {
 		blockData, err = api.rawApi.GetFullBlockData(ctx, shardId, blockReference)
@@ -80,9 +80,9 @@ func (api *DebugAPIImpl) getBlockByReference(ctx context.Context, shardId types.
 		if err != nil {
 			return nil, err
 		}
-		blockData = &types.BlockWithRawExtractedData{Block: blockHeader}
+		blockData = &types.RawBlockWithExtractedData{Block: blockHeader}
 	}
-	return EncodeBlockWithRawExtractedData(blockData)
+	return EncodeRawBlockWithExtractedData(blockData)
 }
 
 func (api *DebugAPIImpl) GetContract(ctx context.Context, contractAddr types.Address, blockNrOrHash transport.BlockNumberOrHash) (*DebugRPCContract, error) {

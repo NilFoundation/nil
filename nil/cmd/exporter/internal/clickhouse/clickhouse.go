@@ -305,7 +305,7 @@ func setupSchemeForClickhouse(ctx context.Context, conn driver.Conn) error {
 
 type blockWithSSZ struct {
 	decoded    *internal.BlockWithShardId
-	sszEncoded *types.BlockWithRawExtractedData
+	sszEncoded *types.RawBlockWithExtractedData
 }
 
 type receiptWithSSZ struct {

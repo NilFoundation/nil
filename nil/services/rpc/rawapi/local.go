@@ -3,9 +3,11 @@ package rawapi
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/assert"
+	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -29,7 +31,7 @@ func NewLocalApi(db db.ReadOnlyDB) *LocalApi {
 	}
 }
 
-func (api *LocalApi) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (*types.Block, error) {
+func (api *LocalApi) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (ssz.SSZEncodedData, error) {
 	block, err := api.getBlockByReference(ctx, shardId, blockReference, false)
 	if err != nil {
 		return nil, err
@@ -37,11 +39,11 @@ func (api *LocalApi) GetBlockHeader(ctx context.Context, shardId types.ShardId, 
 	return block.Block, nil
 }
 
-func (api *LocalApi) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (*types.BlockWithRawExtractedData, error) {
+func (api *LocalApi) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (*types.RawBlockWithExtractedData, error) {
 	return api.getBlockByReference(ctx, shardId, blockReference, true)
 }
 
-func (api *LocalApi) getBlockByReference(ctx context.Context, shardId types.ShardId, blockReference BlockReference, withMessages bool) (*types.BlockWithRawExtractedData, error) {
+func (api *LocalApi) getBlockByReference(ctx context.Context, shardId types.ShardId, blockReference BlockReference, withMessages bool) (*types.RawBlockWithExtractedData, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
@@ -76,8 +78,8 @@ func (api *LocalApi) getBlockHashByReference(tx db.RoTx, shardId types.ShardId, 
 	}
 }
 
-func (api *LocalApi) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash common.Hash, withMessages bool) (*types.BlockWithRawExtractedData, error) {
-	accessor := api.accessor.Access(tx, shardId).GetBlock()
+func (api *LocalApi) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash common.Hash, withMessages bool) (*types.RawBlockWithExtractedData, error) {
+	accessor := api.accessor.RawAccess(tx, shardId).GetBlock()
 	if withMessages {
 		accessor = accessor.WithInMessages().WithOutMessages().WithReceipts()
 	}
@@ -91,31 +93,36 @@ func (api *LocalApi) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash comm
 		return nil, nil
 	}
 
-	blockHash := data.Block().Hash()
-	if blockHash != hash {
-		return nil, fmt.Errorf("block hash mismatch: expected %x, got %x", hash, blockHash)
+	if assert.Enable {
+		blockHash := common.PoseidonHash(data.Block())
+		check.PanicIfNotf(blockHash == hash, "block hash mismatch: %s != %s", blockHash, hash)
 	}
 
-	block := &types.BlockWithExtractedData{
+	result := &types.RawBlockWithExtractedData{
 		Block: data.Block(),
 	}
-
 	if withMessages {
-		// TODO: StateAccessor without decoding
-		block.InMessages = data.InMessages()
-		block.OutMessages = data.OutMessages()
-		block.Receipts = data.Receipts()
-		block.Errors = make(map[common.Hash]string)
-		for _, message := range block.InMessages {
+		result.InMessages = data.InMessages()
+		result.OutMessages = data.OutMessages()
+		result.Receipts = data.Receipts()
+		result.Errors = make(map[common.Hash]string)
+
+		// Need to decode messages to get its hashes because external message hash
+		// calculated in a bit different way (not just Hash(SSZ)).
+		messages, err := ssz.DecodeContainer[*types.Message](result.InMessages)
+		if err != nil {
+			return nil, err
+		}
+		for _, message := range messages {
 			msgHash := message.Hash()
 			errMsg, err := db.ReadError(tx, msgHash)
 			if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 				return nil, err
 			}
 			if len(errMsg) > 0 {
-				block.Errors[msgHash] = errMsg
+				result.Errors[msgHash] = errMsg
 			}
 		}
 	}
-	return block.EncodeSSZ()
+	return result, nil
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/collate/pb"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -77,17 +78,17 @@ func RequestBlocks(ctx context.Context, networkManager *network.Manager, peerID 
 
 func getBlocksRange(
 	ctx context.Context, shardId types.ShardId, accessor *execution.StateAccessor, database db.DB, startId types.BlockNumber, count uint8,
-) ([]*types.Block, [][]*types.Message, error) {
+) ([][]byte, [][][]byte, error) {
 	tx, err := database.CreateRoTx(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 	defer tx.Rollback()
 
-	blocks := make([]*types.Block, 0, count)
-	outMessages := make([][]*types.Message, 0, count)
+	blocks := make([][]byte, 0, count)
+	outMessages := make([][][]byte, 0, count)
 	for i := range count {
-		resp, err := accessor.Access(tx, shardId).
+		resp, err := accessor.RawAccess(tx, shardId).
 			GetBlock().
 			WithOutMessages().
 			ByNumber(startId + types.BlockNumber(i))
@@ -124,34 +125,19 @@ func marshalBlockSSZ(block *types.Block, outMsgs []*types.Message) (*pb.Block, e
 	}, nil
 }
 
-func marshalBlocksSSZ(blocks []*types.Block, outMsgs [][]*types.Message) ([]*pb.Block, error) {
-	pbBlocks := make([]*pb.Block, len(blocks))
-
-	var err error
-	for i, block := range blocks {
-		pbBlocks[i], err = marshalBlockSSZ(block, outMsgs[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return pbBlocks, nil
-}
-
 func unmarshalBlockSSZ(pbBlock *pb.Block) (*Block, error) {
-	result := &Block{
-		Block:       new(types.Block),
-		OutMessages: make([]*types.Message, len(pbBlock.OutMessagesSSZ)),
-	}
-	if err := result.Block.UnmarshalSSZ(pbBlock.BlockSSZ); err != nil {
+	block := &types.Block{}
+	if err := block.UnmarshalSSZ(pbBlock.BlockSSZ); err != nil {
 		return nil, err
 	}
-	for i, rawMsg := range pbBlock.OutMessagesSSZ {
-		result.OutMessages[i] = new(types.Message)
-		if err := result.OutMessages[i].UnmarshalSSZ(rawMsg); err != nil {
-			return nil, err
-		}
+	messages, err := ssz.DecodeContainer[*types.Message](pbBlock.OutMessagesSSZ)
+	if err != nil {
+		return nil, err
 	}
-	return result, nil
+	return &Block{
+		Block:       block,
+		OutMessages: messages,
+	}, nil
 }
 
 func unmarshalBlocksSSZ(pbBlocks *pb.Blocks) ([]*Block, error) {
@@ -193,9 +179,12 @@ func SetRequestHandler(ctx context.Context, networkManager *network.Manager, sha
 			return nil, err
 		}
 
-		pbBlocks, err := marshalBlocksSSZ(blocks, outMsgs)
-		if err != nil {
-			return nil, err
+		pbBlocks := make([]*pb.Block, len(blocks))
+		for i, block := range blocks {
+			pbBlocks[i] = &pb.Block{
+				BlockSSZ:       block,
+				OutMessagesSSZ: outMsgs[i],
+			}
 		}
 		return proto.Marshal(&pb.Blocks{Blocks: pbBlocks})
 	}

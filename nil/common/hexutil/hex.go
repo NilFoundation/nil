@@ -5,7 +5,6 @@ import (
 	"math/big"
 
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/common/ssz"
 )
 
 func MustDecodeHex(in string) []byte {
@@ -62,18 +61,18 @@ func ToHexNoLeadingZeroes(b []byte) string {
 	return "0x" + g.Text(16)
 }
 
-func EncodeSSZEncodedDataContainer(data []ssz.SSZEncodedData) []string {
-	result := make([]string, len(data))
-	for i, d := range data {
-		result[i] = Encode(d)
+func ToBytesSlice(data []Bytes) [][]byte {
+	result := make([][]byte, len(data))
+	for i, v := range data {
+		result[i] = []byte(v)
 	}
 	return result
 }
 
-func DecodeSSZEncodedDataContainer(data []string) []ssz.SSZEncodedData {
-	result := make([]ssz.SSZEncodedData, len(data))
-	for i, d := range data {
-		result[i] = FromHex(d)
+func FromBytesSlice(data [][]byte) []Bytes {
+	result := make([]Bytes, len(data))
+	for i, v := range data {
+		result[i] = Bytes(v)
 	}
 	return result
 }
