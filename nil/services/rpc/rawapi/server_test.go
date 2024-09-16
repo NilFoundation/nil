@@ -100,7 +100,7 @@ func (s *ApiServerTestSuite) TestWrongApis() {
 		api := a
 		s.Run(reflect.TypeOf(api).String(), func() {
 			err := setRawApiRequestHandlers(s.ctx, protocolInterfaceType, api, "testapi", s.serverNetworkManager, s.logger)
-			s.Require().Error(err)
+			s.Require().ErrorIs(err, ErrRequestHandlerCreation)
 		})
 	}
 }

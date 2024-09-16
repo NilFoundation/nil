@@ -110,7 +110,7 @@ func (br *BlockReference) PackProtoMessage(blockReference rawapitypes.BlockRefer
 func (br *BlockRequest) UnpackProtoMessage() (types.ShardId, rawapitypes.BlockReference, error) {
 	ref, err := br.Reference.UnpackProtoMessage()
 	if err != nil {
-		return types.MainShardId, rawapitypes.BlockReference{}, err
+		return types.ShardId(0), rawapitypes.BlockReference{}, err
 	}
 	return types.ShardId(br.ShardId), ref, nil
 }
@@ -136,7 +136,7 @@ func (e *Error) PackProtoMessage(err error) {
 func packErrorMap(errors map[common.Hash]string) map[string]*Error {
 	result := make(map[string]*Error, len(errors))
 	for key, value := range errors {
-		result[key.Hex()] = &Error{Message: value}
+		result[string(key.Bytes())] = &Error{Message: value}
 	}
 	return result
 }
@@ -144,7 +144,7 @@ func packErrorMap(errors map[common.Hash]string) map[string]*Error {
 func unpackErrorMap(pbErrors map[string]*Error) map[common.Hash]string {
 	result := make(map[common.Hash]string, len(pbErrors))
 	for key, value := range pbErrors {
-		result[common.HexToHash(key)] = value.Message
+		result[common.BytesToHash([]byte(key))] = value.Message
 	}
 	return result
 }

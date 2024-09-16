@@ -82,7 +82,7 @@ func makeRequestHandler(method reflect.Method, api interface{}, logger zerolog.L
 		return nil, ErrRequestHandlerCreation
 	}
 
-	return func(ctx context.Context, request []byte) (_ []byte, errRes error) {
+	return func(ctx context.Context, request []byte) ([]byte, error) {
 		pbRequestValuePtr := reflect.New(pbRequestType)
 		message, ok := pbRequestValuePtr.Interface().(proto.Message)
 		// Should never happen, so we don't use errorResponseCreator.
