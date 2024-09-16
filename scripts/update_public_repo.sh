@@ -1,14 +1,16 @@
 #!/bin/bash
 
 if [ -n "$1" ]; then
-  case "$1" in
-      -n) CMD="nix develop .#update_public_repo -c ";
-          shift
-          ;;
-      *) echo "Unexpected option $1, for nix develop use -n.";
-         exit 1
-         ;;
-  esac
+    case "$1" in
+    -n)
+        CMD="nix develop .#update_public_repo -c "
+        shift
+        ;;
+    *)
+        echo "Unexpected option $1, for nix develop use -n."
+        exit 1
+        ;;
+    esac
 fi
 
 CUR_REPO=$(git remote get-url origin)
@@ -17,8 +19,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-
-if [ -z "$CMD" ] && ! git filter-repo --help > /dev/null 2>&1; then
+if [ -z "$CMD" ] && ! git filter-repo --help >/dev/null 2>&1; then
     echo "Error: git filter-repo is not installed locally."
     echo "Please install git filter-repo before running this script or use -n for nix develop."
     exit 1
