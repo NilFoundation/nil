@@ -43,19 +43,19 @@ func NewTestManager(t *testing.T, ctx context.Context) *Manager {
 	return NewTestManagerWithBaseConfig(t, ctx, &Config{})
 }
 
-func NewTestManagers(t *testing.T, ctx context.Context, n int) []*Manager {
+func NewTestManagers(t *testing.T, ctx context.Context, initialTcpPort int, n int) []*Manager {
 	t.Helper()
 
 	managers := make([]*Manager, n)
 	cfg := &Config{}
 	for i := range n {
-		cfg.TcpPort = 9000 + i
+		cfg.TcpPort = initialTcpPort + i
 		managers[i] = NewTestManagerWithBaseConfig(t, ctx, cfg)
 	}
 	return managers
 }
 
-func ConnectManagers(t *testing.T, m1, m2 *Manager) {
+func ConnectManagers(t *testing.T, m1, m2 *Manager) (PeerID, PeerID) {
 	t.Helper()
 
 	id, err := m1.Connect(m1.ctx, CalcAddress(m2))
@@ -63,6 +63,7 @@ func ConnectManagers(t *testing.T, m1, m2 *Manager) {
 	require.Equal(t, m2.host.ID(), id)
 
 	WaitForPeer(t, m2, m1.host.ID())
+	return m1.host.ID(), m2.host.ID()
 }
 
 func ConnectAllManagers(t *testing.T, managers ...*Manager) {

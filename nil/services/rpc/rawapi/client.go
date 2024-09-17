@@ -2,12 +2,12 @@ package rawapi
 
 import (
 	"context"
-	"errors"
 
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi/pb"
+	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -29,36 +29,17 @@ func NewNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manag
 	}, nil
 }
 
-func (api *NetworkRawApiAccessor) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (ssz.SSZEncodedData, error) {
-	requestBody, err := proto.Marshal(makePbBlockRequest(shardId, blockReference))
+func (api *NetworkRawApiAccessor) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
+	blockRequest := &pb.BlockRequest{}
+	if err := blockRequest.PackProtoMessage(shardId, blockReference); err != nil {
+		return nil, err
+	}
+	requestBody, err := proto.Marshal(blockRequest)
 	if err != nil {
 		return nil, err
 	}
 
-	responseBody, err := api.networkManager.SendRequestAndGetResponse(ctx, api.serverPeerId, "get_block_header", requestBody)
-	if err != nil {
-		return nil, err
-	}
-
-	var blockPb pb.RawBlockResponse
-	err = proto.Unmarshal(responseBody, &blockPb)
-	if err != nil {
-		return nil, err
-	}
-	fullBlockData, err := fromPbRawBlockWithExtraDataResponse(&blockPb)
-	if err != nil {
-		return nil, err
-	}
-	return fullBlockData.Block, nil
-}
-
-func (api *NetworkRawApiAccessor) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (*types.RawBlockWithExtractedData, error) {
-	requestBody, err := proto.Marshal(makePbBlockRequest(shardId, blockReference))
-	if err != nil {
-		return nil, err
-	}
-
-	responseBody, err := api.networkManager.SendRequestAndGetResponse(ctx, api.serverPeerId, "get_full_block_data", requestBody)
+	responseBody, err := api.networkManager.SendRequestAndGetResponse(ctx, api.serverPeerId, "rawapi/GetBlockHeader", requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -68,26 +49,32 @@ func (api *NetworkRawApiAccessor) GetFullBlockData(ctx context.Context, shardId 
 	if err != nil {
 		return nil, err
 	}
-	return fromPbRawBlockWithExtraDataResponse(&blockPb)
-}
-
-func fromPbRawBlockWithExtraDataResponse(response *pb.RawBlockResponse) (*types.RawBlockWithExtractedData, error) {
-	switch response.Result.(type) {
-	case *pb.RawBlockResponse_Error:
-		return nil, fromPbError(response.GetError())
-	case *pb.RawBlockResponse_Data:
-		return fromPbRawBlockWithExtraData(response.GetData())
-	default:
-		return nil, errors.New("unexpected response")
+	fullBlockData, err := blockPb.UnpackProtoMessage()
+	if err != nil {
+		return nil, err
 	}
+	return fullBlockData, nil
 }
 
-func fromPbRawBlockWithExtraData(pbBlock *pb.RawBlock) (*types.RawBlockWithExtractedData, error) {
-	return &types.RawBlockWithExtractedData{
-		Block:       pbBlock.BlockSSZ,
-		InMessages:  pbBlock.InMessagesSSZ,
-		OutMessages: pbBlock.OutMessagesSSZ,
-		Receipts:    pbBlock.ReceiptsSSZ,
-		Errors:      fromPbErrorMap(pbBlock.Errors),
-	}, nil
+func (api *NetworkRawApiAccessor) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
+	blockRequest := &pb.BlockRequest{}
+	if err := blockRequest.PackProtoMessage(shardId, blockReference); err != nil {
+		return nil, err
+	}
+	requestBody, err := proto.Marshal(blockRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	responseBody, err := api.networkManager.SendRequestAndGetResponse(ctx, api.serverPeerId, "rawapi/GetFullBlockData", requestBody)
+	if err != nil {
+		return nil, err
+	}
+
+	var blockPb pb.RawFullBlockResponse
+	err = proto.Unmarshal(responseBody, &blockPb)
+	if err != nil {
+		return nil, err
+	}
+	return blockPb.UnpackProtoMessage()
 }

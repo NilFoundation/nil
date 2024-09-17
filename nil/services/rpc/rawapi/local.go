@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 )
 
 type LocalApi struct {
@@ -31,7 +32,7 @@ func NewLocalApi(db db.ReadOnlyDB) *LocalApi {
 	}
 }
 
-func (api *LocalApi) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (ssz.SSZEncodedData, error) {
+func (api *LocalApi) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
 	block, err := api.getBlockByReference(ctx, shardId, blockReference, false)
 	if err != nil {
 		return nil, err
@@ -39,11 +40,11 @@ func (api *LocalApi) GetBlockHeader(ctx context.Context, shardId types.ShardId, 
 	return block.Block, nil
 }
 
-func (api *LocalApi) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference BlockReference) (*types.RawBlockWithExtractedData, error) {
+func (api *LocalApi) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
 	return api.getBlockByReference(ctx, shardId, blockReference, true)
 }
 
-func (api *LocalApi) getBlockByReference(ctx context.Context, shardId types.ShardId, blockReference BlockReference, withMessages bool) (*types.RawBlockWithExtractedData, error) {
+func (api *LocalApi) getBlockByReference(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference, withMessages bool) (*types.RawBlockWithExtractedData, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
@@ -58,20 +59,20 @@ func (api *LocalApi) getBlockByReference(ctx context.Context, shardId types.Shar
 	return api.getBlockByHash(tx, shardId, blockHash, withMessages)
 }
 
-func (api *LocalApi) getBlockHashByReference(tx db.RoTx, shardId types.ShardId, blockReference BlockReference) (common.Hash, error) {
+func (api *LocalApi) getBlockHashByReference(tx db.RoTx, shardId types.ShardId, blockReference rawapitypes.BlockReference) (common.Hash, error) {
 	switch blockReference.Type() {
-	case NumberBlockReference:
+	case rawapitypes.NumberBlockReference:
 		return db.ReadBlockHashByNumber(tx, shardId, types.BlockNumber(blockReference.Number()))
-	case NamedBlockIdentifierReference:
+	case rawapitypes.NamedBlockIdentifierReference:
 		switch blockReference.NamedBlockIdentifier() {
-		case EarliestBlock:
+		case rawapitypes.EarliestBlock:
 			return db.ReadBlockHashByNumber(tx, shardId, 0)
-		case LatestBlock:
+		case rawapitypes.LatestBlock:
 			return db.ReadLastBlockHash(tx, shardId)
 		default:
 			return common.Hash{}, errors.New("unknown named block identifier")
 		}
-	case HashBlockReference:
+	case rawapitypes.HashBlockReference:
 		return blockReference.Hash(), nil
 	default:
 		return common.Hash{}, errors.New("unknown block reference type")
