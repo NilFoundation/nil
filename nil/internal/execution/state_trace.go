@@ -44,6 +44,45 @@ func (bt *BlocksTracer) Close() error {
 	return bt.file.Close()
 }
 
+func (bt *BlocksTracer) PrintMessage(msg *types.Message) {
+	bt.printf("hash: %s\n", msg.Hash().Hex())
+	bt.printf("flags: %v\n", msg.Flags)
+	bt.printf("seqno: %d\n", msg.Seqno)
+	bt.printf("from: %s\n", msg.From.Hex())
+	bt.printf("to: %s\n", msg.To.Hex())
+	bt.printf("refundTo: %s\n", msg.RefundTo.Hex())
+	bt.printf("bounceTo: %s\n", msg.BounceTo.Hex())
+	bt.printf("value: %s\n", msg.Value)
+	bt.printf("fee: %s\n", msg.FeeCredit)
+	if msg.IsRequestOrResponse() {
+		bt.printf("requestId: %d\n", msg.RequestId)
+	}
+	if len(msg.RequestChain) > 0 {
+		bt.printf("requestChain: [")
+		for i, req := range msg.RequestChain {
+			if i > 0 {
+				fmt.Fprintf(bt.file, ", %d", req.Id)
+			} else {
+				fmt.Fprintf(bt.file, "%d", req.Id)
+			}
+		}
+		fmt.Fprintln(bt.file, "]")
+	}
+	if len(msg.Data) < 1024 {
+		bt.printf("data: %s\n", hexutil.Encode(msg.Data))
+	} else {
+		bt.printf("data_size: %d\n", len(msg.Data))
+	}
+	if len(msg.Currency) > 0 {
+		bt.printf("currency:\n")
+		for _, curr := range msg.Currency {
+			bt.withIndent(func(t *BlocksTracer) {
+				bt.printf("%s:%s\n", hexutil.Encode(curr.Currency[:]), curr.Balance.String())
+			})
+		}
+	}
+}
+
 func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 	bt.lock.Lock()
 	defer bt.lock.Unlock()
@@ -57,36 +96,6 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 
 	if !printEmptyBlocks && len(es.InMessages) == 0 {
 		return
-	}
-	printMessage := func(msg *types.Message) {
-		bt.printf("hash: %s\n", msg.Hash().Hex())
-		bt.printf("flags: %v\n", msg.Flags)
-		bt.printf("seqno: %d\n", msg.Seqno)
-		bt.printf("from: %s\n", msg.From.Hex())
-		bt.printf("to: %s\n", msg.To.Hex())
-		bt.printf("refundTo: %s\n", msg.RefundTo.Hex())
-		bt.printf("bounceTo: %s\n", msg.BounceTo.Hex())
-		bt.printf("value: %s\n", msg.Value.String())
-		bt.printf("fee: %s\n", msg.FeeCredit.String())
-		if msg.IsRequestOrResponse() {
-			bt.printf("requestId: %d\n", msg.RequestId)
-		}
-		if len(msg.RequestChain) > 0 {
-			bt.printf("requestChain: %v\n", msg.RequestChain)
-		}
-		if len(msg.Data) < 1024 {
-			bt.printf("data: %s\n", hexutil.Encode(msg.Data))
-		} else {
-			bt.printf("data_size: %d\n", len(msg.Data))
-		}
-		if len(msg.Currency) > 0 {
-			bt.printf("currency:\n")
-			for _, curr := range msg.Currency {
-				bt.withIndent(func(t *BlocksTracer) {
-					bt.printf("%s:%s\n", hexutil.Encode(curr.Currency[:]), curr.Balance.String())
-				})
-			}
-		}
 	}
 
 	bt.printf("-\n")
@@ -103,7 +112,7 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 					bt.printf("%d:\n", i)
 
 					bt.withIndent(func(t *BlocksTracer) {
-						printMessage(msg)
+						bt.PrintMessage(msg)
 						bt.printf("receipt:\n")
 						receipt := es.Receipts[i]
 
@@ -125,7 +134,7 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 								for j, outMsg := range outMessages {
 									bt.printf("%d:\n", j)
 									bt.withIndent(func(t *BlocksTracer) {
-										printMessage(outMsg.Message)
+										bt.PrintMessage(outMsg.Message)
 									})
 								}
 							})
