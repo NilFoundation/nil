@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,8 +14,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 )
-
-var tcpPort int32 = 9000
 
 func CalcAddress(m *Manager) string {
 	return m.host.Addrs()[0].String() + "/p2p/" + m.host.ID().String()
@@ -46,14 +43,13 @@ func NewTestManager(t *testing.T, ctx context.Context) *Manager {
 	return NewTestManagerWithBaseConfig(t, ctx, &Config{})
 }
 
-func NewTestManagers(t *testing.T, ctx context.Context, n int) []*Manager {
+func NewTestManagers(t *testing.T, ctx context.Context, initialTcpPort int, n int) []*Manager {
 	t.Helper()
 
 	managers := make([]*Manager, n)
 	cfg := &Config{}
 	for i := range n {
-		cfg.TcpPort = int(atomic.LoadInt32(&tcpPort))
-		atomic.AddInt32(&tcpPort, 1)
+		cfg.TcpPort = initialTcpPort + i
 		managers[i] = NewTestManagerWithBaseConfig(t, ctx, cfg)
 	}
 	return managers

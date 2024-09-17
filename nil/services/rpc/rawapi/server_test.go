@@ -3,6 +3,7 @@ package rawapi
 import (
 	"context"
 	"reflect"
+	"sync/atomic"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -15,6 +16,8 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/protobuf/proto"
 )
+
+var initialTcpPort atomic.Int32
 
 type testApi struct {
 	handler func(types.ShardId) (ssz.SSZEncodedData, error)
@@ -41,10 +44,11 @@ type ApiServerTestSuite struct {
 func (s *ApiServerTestSuite) SetupSuite() {
 	s.ctx = context.Background()
 	s.logger = logging.NewLogger("Test")
+	initialTcpPort.CompareAndSwap(0, 9010)
 }
 
 func (s *ApiServerTestSuite) SetupTest() {
-	networkManagers := network.NewTestManagers(s.T(), s.ctx, 2)
+	networkManagers := network.NewTestManagers(s.T(), s.ctx, int(initialTcpPort.Add(2)), 2)
 	s.clientNetworkManager = networkManagers[0]
 	s.serverNetworkManager = networkManagers[1]
 	_, s.serverPeerId = network.ConnectManagers(s.T(), s.clientNetworkManager, s.serverNetworkManager)
