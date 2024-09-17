@@ -23,6 +23,7 @@
           nilhardhat = (pkgs.callPackage ./nilhardhat.nix { });
           default = nil;
           formatters = (pkgs.callPackage ./formatters.nix { });
+          update_public_repo = (pkgs.callPackage ./update_public_repo.nix { });
           nilcli = (pkgs.callPackage ./nilcli.nix { nil = nil; versionFull = versionFull; });
           nilsmartcontracts = (pkgs.callPackage ./nilsmartcontracts.nix { });
         };
