@@ -46,7 +46,7 @@ buildGo123Module rec {
     (overrideBuildGoModule gotools)
     (overrideBuildGoModule go-tools)
     (overrideBuildGoModule gopls)
-    (overrideBuildGoModule golangci-lint)
+    golangci-lint
     (overrideBuildGoModule gofumpt)
     (overrideBuildGoModule gci)
     (overrideBuildGoModule delve)
