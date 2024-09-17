@@ -337,8 +337,14 @@ func (agg *Aggregator) processShardBlocks(ctx context.Context, shardId coreTypes
 	switch {
 	case errors.Is(err, db.ErrKeyNotFound):
 		// If there is no such shard info in db, we need to init it
-		// TODO: fetch last proved block num from chain
-		if err := agg.blockStorage.SetLastProvedBlockNum(ctx, shardId, latestBlockNum-1); err != nil {
+		block, err := agg.client.GetBlock(shardId, int(latestBlockNum-1), true)
+		if err != nil {
+			return fmt.Errorf("error fetching block %d from shard %d: %w", latestBlockNum-1, shardId, err)
+		}
+		if err = agg.blockStorage.SetBlock(ctx, shardId, block.Number, block); err != nil {
+			return err
+		}
+		if err = agg.blockStorage.SetLastProvedBlockNum(ctx, shardId, latestBlockNum-1); err != nil {
 			return err
 		}
 		if err = agg.fetchAndProcessBlocks(ctx, shardId, latestBlockNum, latestBlockNum); err != nil {

@@ -73,9 +73,13 @@ func (s *SyncCommitteeTestSuite) SetupSuite() {
 	s.waitZerostrate(url)
 
 	cfg := &Config{
-		RpcEndpoint:      url,
-		PollingDelay:     time.Second,
-		GracefulShutdown: true,
+		RpcEndpoint:       url,
+		PollingDelay:      time.Second,
+		GracefulShutdown:  true,
+		L1Endpoint:        "http://rpc2.sepolia.org",
+		L1ChainId:         "11155111",
+		PrivateKey:        "0000000000000000000000000000000000000000000000000000000000000001",
+		L1ContractAddress: "0xB8E280a085c87Ed91dd6605480DD2DE9EC3699b4",
 	}
 
 	s.scDb, err = db.NewBadgerDbInMemory()

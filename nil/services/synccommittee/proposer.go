@@ -1,77 +1,137 @@
 package synccommittee
 
 import (
-	"bytes"
 	"fmt"
+	"math/big"
+	"strings"
 	"sync/atomic"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/internal/abi"
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rs/zerolog"
 )
 
 const (
-	SepoliaChainId = uint64(0)
-	DefaultGas     = uint64(2000)
+	MaxPriorityFeePerGas = int64(51331911220)
+	MaxFeePerGas         = int64(153995733660)
+	DefaultGas           = uint64(500000)
 )
 
-// @component UpdateStateTransaction UpdateStateTransaction object "The transaction for update state on L1."
-// @componentprop chainId "The L1 chain id."
-// @componentprop data "The data of transaction: proved state root, new state root."
-// @componentprop value "The transer value, allways 0."
-// @componentprop nonce "The nonce of transaction."
-// @componentprop gas "The default gas value."
-type UpdateStateTransaction struct {
-	ChainId uint64      `json:"chainId"`
-	Data    []byte      `json:"data"`
-	Value   types.Value `json:"value"`
-	Nonce   uint64      `json:"nonce"`
-	Gas     uint64      `json:"gas"`
-}
+const abiJson = `
+[
+	{
+		"type" : "function",
+		"name" : "proofBatch",
+		"inputs" : [
+			{"name":"_prevStateRoot","type":"bytes32"},
+			{"name":"_newStateRoot","type":"bytes32"},
+			{"name":"_blobProof","type":"bytes"},
+			{"name":"_batchIndexInBlobStorage","type":"uint256"}
+        ]
+    }
+]`
 
 type Proposer struct {
-	l1EndPoint string
-	client     *rpc.Client
-	seqno      atomic.Uint64
-	logger     zerolog.Logger
+	l1EndPoint      string
+	client          *rpc.Client
+	seqno           atomic.Uint64
+	chainId         *big.Int
+	privKey         string
+	contractAddress string
+	logger          zerolog.Logger
 }
 
-func NewProposer(endpoint string, logger zerolog.Logger) *Proposer {
+func NewProposer(endpoint string, chainIdStr string, privKey string, contractAddress string, logger zerolog.Logger) (*Proposer, error) {
 	client := rpc.NewClient(endpoint, logger)
 
-	return &Proposer{
-		client:     client,
-		l1EndPoint: endpoint,
-		logger:     logger,
+	chainId, ok := new(big.Int).SetString(chainIdStr, 10)
+	if !ok {
+		return nil, fmt.Errorf("wrong chainId: %s", chainIdStr)
 	}
+	return &Proposer{
+		client:          client,
+		l1EndPoint:      endpoint,
+		chainId:         chainId,
+		privKey:         privKey,
+		contractAddress: contractAddress,
+		logger:          logger,
+	}, nil
 }
 
-func (p *Proposer) createStateUpdateTransaction(provedStateRoot, newStateRoot common.Hash) (*UpdateStateTransaction, error) {
+func (p *Proposer) createUpdateStateTransaction(provedStateRoot, newStateRoot common.Hash) (*types.Transaction, error) {
 	if provedStateRoot.Empty() || newStateRoot.Empty() {
 		return nil, fmt.Errorf("empty hash for state update transaction %d", p.seqno.Load())
 	}
-	functionSelector := make([]byte, 4)
-	functionSelector[0] = 1
-	functionSelector[1] = 2
-	functionSelector[2] = 3
-	functionSelector[3] = 4
-	data := bytes.Join([][]byte{functionSelector, provedStateRoot.Bytes(), newStateRoot.Bytes()}, nil)
-	return &UpdateStateTransaction{
-		ChainId: SepoliaChainId,
-		Data:    data,
-		Value:   types.NewValueFromUint64(0),
-		Nonce:   p.seqno.Load(),
-		Gas:     DefaultGas,
-	}, nil
+
+	abi, err := abi.JSON(strings.NewReader(abiJson))
+	if err != nil {
+		return nil, err
+	}
+
+	proof := make([]byte, 0)
+	data, err := abi.Pack("proofBatch", provedStateRoot, newStateRoot, proof, big.NewInt(0))
+	if err != nil {
+		return nil, err
+	}
+
+	L1ContractAddress := ethcommon.HexToAddress(p.contractAddress)
+	transaction := types.NewTx(&types.DynamicFeeTx{
+		ChainID:   p.chainId,
+		Nonce:     p.seqno.Load(),
+		GasTipCap: big.NewInt(MaxPriorityFeePerGas),
+		GasFeeCap: big.NewInt(MaxFeePerGas),
+		Gas:       DefaultGas,
+		To:        &L1ContractAddress,
+		Value:     big.NewInt(0),
+		Data:      data,
+	})
+
+	privateKey, err := crypto.HexToECDSA(p.privKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode private key %w", err)
+	}
+
+	signedTx, err := types.SignTx(transaction, types.NewCancunSigner(p.chainId), privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign transaction %w", err)
+	}
+
+	return signedTx, nil
+}
+
+func (p *Proposer) encodeTransaction(transaction *types.Transaction) (string, error) {
+	encodedTransaction, err := transaction.MarshalBinary()
+	if err != nil {
+		return "", fmt.Errorf("failed to encode StateUpdateTransaction: %w", err)
+	}
+
+	return hexutil.Encode(encodedTransaction), nil
 }
 
 func (p *Proposer) SendProof(provedStateRoot, newStateRoot common.Hash, transactions []*prunedTransaction) error {
 	p.logger.Debug().Int64("seqno", int64(p.seqno.Load())).Int64("transactionsCount", int64(len(transactions))).Msg("skip processing transactions")
-	// call UpdateState L1 contract
-	_, err := p.client.RawCall("eth_sendRawTransaction", p.seqno.Load(), provedStateRoot, newStateRoot, transactions)
+
+	signedTx, err := p.createUpdateStateTransaction(provedStateRoot, newStateRoot)
 	if err != nil {
-		// TODO return err after enable endpoint
+		return fmt.Errorf("failed create StateUpdateTransaction %w", err)
+	}
+
+	encodedTransactionStr, err := p.encodeTransaction(signedTx)
+	if err != nil {
+		return fmt.Errorf("failed encode StateUpdateTransaction %w", err)
+	}
+
+	p.logger.Debug().Msg(encodedTransactionStr)
+
+	// call UpdateState L1 contract
+	_, err = p.client.RawCall("eth_sendRawTransaction", encodedTransactionStr)
+	if err != nil {
+		// TODO return error after enable local L1 endpoint
 		p.logger.Error().Err(err).Msg("failed update state on L1 request")
 	}
 	p.seqno.Add(1)

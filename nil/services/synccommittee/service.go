@@ -36,7 +36,10 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 
 	client := rpc.NewClient(cfg.RpcEndpoint, logger)
 
-	proposer := NewProposer("", logger)
+	proposer, err := NewProposer(cfg.L1Endpoint, cfg.L1ChainId, cfg.PrivateKey, cfg.L1ContractAddress, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create proposer: %w", err)
+	}
 
 	aggregator, err := NewAggregator(client, proposer, database, logger, metrics)
 	if err != nil {
