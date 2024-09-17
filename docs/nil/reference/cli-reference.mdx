@@ -189,6 +189,7 @@ This command is for reading contract information and for interacting with smart 
 | `code` | Retrieves the smart contract bytecode.  |
 | `currencies` | Retrieves the currencies mapping of the smart contract.  |
 | `deploy` | Deploys the smart contract. |
+| `estimate-fee` | Estimates the gas needed to execute the given message. |
 
 ### Flags
 
@@ -216,6 +217,15 @@ For `deploy`:
 | `--salt Uint256` | Arbitrary salt. |
 | `--shard-id ShardId` | The ID of the shard where the contract is located/could be located.|
 
+For `estimate-fee`:
+
+| Flag | Definition |
+|:--:|:--|
+| `--abi string` | Specify the path to the `.abi` file for the contract. |
+| `--value Uint256` | Set the amount of tokens to send to the contract. |
+| `--deploy` | Define whether the message should be treated as a deployment message. | 
+| `--internal` | Define whether the gas should be estimated for an internal message. |
+
 ### Examples
 
 #### Calculate the smart contract address
@@ -234,6 +244,12 @@ nil contract call-readonly CONTRACT_ADDRESS CALLDATA | METHOD_NAME [--abi path/t
 
 ```bash
 nil contract deploy path/to/contract.bin [--abi path/to/contract.abi] [--no-wait] [--salt SALT] [--shard-id SHARD_ID; default 1]
+```
+
+#### Estimate a fee
+
+```bash
+nil contract estimate-fee ADDRESS FUNC_NAME [ARGS] [--abi path/to/contract.abi] [--deploy] [--internal] [--value AMOUNT]
 ```
 
 #### Retrieve the code of a smart contract
@@ -577,6 +593,7 @@ This command is for interacting with wallets.
 | `balance` | Retrieves the balance of the wallet specified in the =nil; CLI config. |
 | `call-readonly` | Performs a read-only 'dry run' call to the specified address. |
 | `deploy` | Deploys a smart contract via the wallet.  |
+| `estimate-fee` | Estimates the fee for sending the specified message. |
 | `info` | Retrives the wallet's address and the public key.  |
 | `new` | Create a new wallet. |
 | `send-message` | Send a message to a deployed smart contract via the wallet. |
@@ -605,6 +622,14 @@ For `deploy`:
 | `--no-wait` | Define whether the command should wait for the message receipt. |
 | `--salt Uint256` | Set the salt for the deployment message. |
 | `--shard-id ShardId` | Specify the shard where the contract should be deployed. |
+
+For `estimate-fee`
+
+| Flag | Definition |
+|:--:|:--|
+| `--abi string` | Specify the path to the `.abi` file for the contract. |
+| `--value Uint256` | Set the amount of tokens to send to the contract. |
+| `--deploy` | Define whether the message should be treated as a deployment message. | 
 
 For `new`:
 
@@ -650,6 +675,12 @@ nil wallet call-readonly ADDRESS [--abi path/to/contract.abi] [--fee-credit FEE_
 
 ```bash
 nil wallet deploy path/to/contract.bin [ARGS] [--abi path/to/contract.abi] [--amount AMOUNT] [--currency TOKENS_AMOUNT] [--no-wait] [--salt SALT] [shard-id SHARD_ID]
+```
+
+### Estimate a message fee
+
+```bash
+nil wallet estimate-fee ADDRESS FUNC_NAME [ARGS] [--abi path/to/contract.abi] [--deploy] [--value AMOUNT]
 ```
 
 #### Send tokens to a smart contract
@@ -702,6 +733,13 @@ TYPE: VALUE
 ```bash
 Contract address: ADDRESS
 Transaction hash: TRANSACTION_HASH
+```
+
+#### Estimating a message fee
+
+```bash
+Estimated external message fee: AMOUNT
+Estimated internal message fee: AMOUNT
 ```
 
 #### Creating a new wallet
