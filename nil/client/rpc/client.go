@@ -532,7 +532,7 @@ func (c *Client) DeployContract(
 	shardId types.ShardId, walletAddress types.Address, payload types.DeployPayload, value types.Value, pk *ecdsa.PrivateKey,
 ) (common.Hash, types.Address, error) {
 	contractAddr := types.CreateAddress(shardId, payload)
-	txHash, err := client.SendMessageViaWallet(c, walletAddress, payload.Bytes(), types.GasToValue(100_000), types.GasToValue(100_000),
+	txHash, err := client.SendMessageViaWallet(c, walletAddress, payload.Bytes(), types.GasToValue(100_000),
 		value, []types.CurrencyBalance{}, contractAddr, pk, true)
 	if err != nil {
 		return common.EmptyHash, types.EmptyAddress, err
@@ -547,10 +547,10 @@ func (c *Client) DeployExternal(shardId types.ShardId, deployPayload types.Deplo
 }
 
 func (c *Client) SendMessageViaWallet(
-	walletAddress types.Address, bytecode types.Code, externalFeeCredit, internalFeeCredit, value types.Value,
+	walletAddress types.Address, bytecode types.Code, feeCredit, value types.Value,
 	currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
 ) (common.Hash, error) {
-	return client.SendMessageViaWallet(c, walletAddress, bytecode, externalFeeCredit, internalFeeCredit, value, currencies, contractAddress, pk, false)
+	return client.SendMessageViaWallet(c, walletAddress, bytecode, feeCredit, value, currencies, contractAddress, pk, false)
 }
 
 func (c *Client) SendExternalMessage(

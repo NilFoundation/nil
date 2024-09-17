@@ -142,7 +142,7 @@ func main() {
 				var hash common.Hash
 				for _, addr := range addrToCall {
 					hash, err = client.SendMessageViaWallet(wallet, incrementCalldata,
-						types.GasToValue(100_000), types.GasToValue(100_000), types.Value{}, []types.CurrencyBalance{},
+						types.GasToValue(200_000), types.Value{}, []types.CurrencyBalance{},
 						contractsCall[addr],
 						privateKeys[i])
 					if err != nil {

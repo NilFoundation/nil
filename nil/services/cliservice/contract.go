@@ -64,11 +64,10 @@ func (s *Service) GetCurrencies(contractAddress types.Address) (types.Currencies
 }
 
 // RunContract runs bytecode on the specified contract address
-func (s *Service) RunContract(wallet types.Address, bytecode []byte, externalFeeCredit, internalFeeCredit, value types.Value,
+func (s *Service) RunContract(wallet types.Address, bytecode []byte, feeCredit, value types.Value,
 	currencies []types.CurrencyBalance, contract types.Address,
 ) (common.Hash, error) {
-	txHash, err := s.client.SendMessageViaWallet(wallet, bytecode, externalFeeCredit, internalFeeCredit,
-		value, currencies, contract, s.privateKey)
+	txHash, err := s.client.SendMessageViaWallet(wallet, bytecode, feeCredit, value, currencies, contract, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
 		return common.EmptyHash, err
