@@ -1,9 +1,8 @@
 package concurrent
 
 import (
-	sync "sync"
-
 	iter "iter"
+	sync "sync"
 )
 
 type Map[K comparable, T any] struct {

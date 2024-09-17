@@ -115,7 +115,7 @@ func TestIterate(t *testing.T) {
 	keys := [][]byte{[]byte("do"), []byte("dog"), []byte("doge"), []byte("horse")}
 	values := [][]byte{[]byte("verb"), []byte("puppy"), []byte("coin"), []byte("stallion")}
 
-	for i := range len(keys) {
+	for i := range keys {
 		require.NoError(t, trie.Set(keys[i], values[i]))
 	}
 

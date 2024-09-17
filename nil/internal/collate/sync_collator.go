@@ -278,7 +278,7 @@ func (s *syncCollator) saveBlocks(ctx context.Context, blocks []*Block) error {
 func (s *syncCollator) saveMessages(tx db.RwTx, messages []*types.Message) (common.Hash, error) {
 	messageTree := execution.NewDbMessageTrie(tx, s.shard)
 	indexes := make([]types.MessageIndex, len(messages))
-	for i := range len(messages) {
+	for i := range messages {
 		indexes[i] = types.MessageIndex(i)
 	}
 	if err := messageTree.UpdateBatch(indexes, messages); err != nil {
