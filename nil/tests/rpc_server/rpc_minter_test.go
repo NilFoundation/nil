@@ -278,7 +278,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 	s.Run("Fail to send insufficient amount of 1st currency", func() {
 		receipt := s.sendMessageViaWalletNoCheck(s.walletAddress2, s.walletAddress3, execution.MainPrivateKey, nil,
-			types.Value{}, types.Value{},
+			types.NewValueFromUint64(100_000), types.Value{},
 			[]types.CurrencyBalance{{Currency: *currency1.id, Balance: types.NewValueFromUint64(700)}})
 		s.Require().False(receipt.Success)
 		s.Require().Contains(receipt.ErrorMessage, vm.ErrInsufficientBalance.Error())

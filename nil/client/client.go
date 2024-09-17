@@ -52,7 +52,7 @@ type Client interface {
 	) (common.Hash, types.Address, error)
 	DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload, feeCredit types.Value) (common.Hash, types.Address, error)
 	SendMessageViaWallet(
-		walletAddress types.Address, bytecode types.Code, externalFeeCredit, internalFeeCredit, value types.Value,
+		walletAddress types.Address, bytecode types.Code, feeCredit, value types.Value,
 		currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
 	) (common.Hash, error)
 	SendExternalMessage(
@@ -69,24 +69,6 @@ type Client interface {
 
 	// ChangeCurrencyAmount mints / burns currency for the contract
 	ChangeCurrencyAmount(contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey, mint bool) (common.Hash, error)
-}
-
-func EstimateFeeInternal(c Client, msg *types.InternalMessagePayload, blockId any) (types.Value, error) {
-	var flags types.MessageFlags
-	if msg.Kind == types.DeployMessageKind {
-		flags = types.NewMessageFlags(types.MessageFlagInternal, types.MessageFlagDeploy)
-	} else {
-		flags = types.NewMessageFlags(types.MessageFlagInternal)
-	}
-
-	args := &jsonrpc.CallArgs{
-		Data:  (*hexutil.Bytes)(&msg.Data),
-		To:    msg.To,
-		Flags: flags,
-		Value: msg.Value,
-	}
-
-	return c.EstimateFee(args, blockId)
 }
 
 func EstimateFeeExternal(c Client, msg *types.ExternalMessage, blockId any) (types.Value, error) {
@@ -180,7 +162,7 @@ func sendExternalMessageWithSeqnoRetry(c Client, msg *types.ExternalMessage, pk 
 }
 
 func SendMessageViaWallet(
-	c Client, walletAddress types.Address, bytecode types.Code, externalFeeCredit, internalFeeCredit, value types.Value,
+	c Client, walletAddress types.Address, bytecode types.Code, feeCredit, value types.Value,
 	currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
 ) (common.Hash, error) {
 	var kind types.MessageKind
@@ -194,19 +176,10 @@ func SendMessageViaWallet(
 		Data:        bytecode,
 		To:          contractAddress,
 		Value:       value,
-		FeeCredit:   internalFeeCredit,
-		ForwardKind: types.ForwardKindNone,
+		ForwardKind: types.ForwardKindRemaining,
 		Currency:    currencies,
 		Kind:        kind,
 	}
-
-	if internalFeeCredit.IsZero() {
-		var err error
-		if internalFeeCredit, err = EstimateFeeInternal(c, intMsg, "latest"); err != nil {
-			return common.EmptyHash, err
-		}
-	}
-	intMsg.FeeCredit = internalFeeCredit
 
 	intMsgData, err := intMsg.MarshalSSZ()
 	if err != nil {
@@ -218,5 +191,5 @@ func SendMessageViaWallet(
 		return common.EmptyHash, err
 	}
 
-	return c.SendExternalMessage(calldataExt, walletAddress, pk, externalFeeCredit)
+	return c.SendExternalMessage(calldataExt, walletAddress, pk, feeCredit)
 }
