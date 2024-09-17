@@ -2,10 +2,10 @@ package types
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/google/uuid"
 )
 
 // Prover tasks have different types, it affects task input and priority
@@ -30,12 +30,27 @@ const (
 )
 
 // Unique ID of a task, serves as a key in DB
-type ProverTaskId uint32
+type ProverTaskId uuid.UUID
 
-const InvalidProverTaskId ProverTaskId = 0
-
-func (id ProverTaskId) String() string { return strconv.FormatUint(uint64(id), 10) }
+func NewProverTaskId() ProverTaskId    { return ProverTaskId(uuid.New()) }
+func (id ProverTaskId) String() string { return uuid.UUID(id).String() }
 func (id ProverTaskId) Bytes() []byte  { return []byte(id.String()) }
+
+// MarshalText implements the encoding.TextMarshaler interface for ProverTaskId.
+func (t ProverTaskId) MarshalText() ([]byte, error) {
+	uuidValue := uuid.UUID(t)
+	return []byte(uuidValue.String()), nil
+}
+
+// UnmarshalText implements the encoding.TextUnmarshaler interface for ProverTaskId.
+func (t *ProverTaskId) UnmarshalText(data []byte) error {
+	uuidValue, err := uuid.Parse(string(data))
+	if err != nil {
+		return err
+	}
+	*t = ProverTaskId(uuidValue)
+	return nil
+}
 
 // Task results can have different types
 type ProverResultType uint8
@@ -138,4 +153,76 @@ func HigherPriority(t1 ProverTask, t2 ProverTask) bool {
 		return t1.BlockNum < t2.BlockNum
 	}
 	return t1.TaskType < t2.TaskType
+}
+
+func NewPartialProveTaskEntry(batchNum uint32, blockNum types.BlockNumber, circuitType CircuitType) *ProverTaskEntry {
+	task := ProverTask{
+		Id:            NewProverTaskId(),
+		BatchNum:      batchNum,
+		BlockNum:      blockNum,
+		TaskType:      PartialProve,
+		CircuitType:   circuitType,
+		Dependencies:  make(map[ProverTaskId]ProverTaskResult),
+		DependencyNum: 0,
+	}
+	return &ProverTaskEntry{
+		Task:     task,
+		Created:  time.Now(),
+		Modified: time.Now(),
+		Status:   WaitingForProver,
+	}
+}
+
+func NewAggregateFRITaskEntry(batchNum uint32, blockNum types.BlockNumber) *ProverTaskEntry {
+	aggFRITask := ProverTask{
+		Id:            NewProverTaskId(),
+		BatchNum:      batchNum,
+		BlockNum:      blockNum,
+		TaskType:      AggregatedFRI,
+		DependencyNum: 4,
+		Dependencies:  make(map[ProverTaskId]ProverTaskResult),
+	}
+
+	return &ProverTaskEntry{
+		Task:     aggFRITask,
+		Created:  time.Now(),
+		Modified: time.Now(),
+		Status:   WaitingForInput,
+	}
+}
+
+func NewFRIConsistencyCheckTaskEntry(batchNum uint32, blockNum types.BlockNumber, circuitType CircuitType) *ProverTaskEntry {
+	task := ProverTask{
+		Id:            NewProverTaskId(),
+		BatchNum:      batchNum,
+		BlockNum:      blockNum,
+		TaskType:      FRIConsistencyChecks,
+		CircuitType:   circuitType,
+		Dependencies:  make(map[ProverTaskId]ProverTaskResult),
+		DependencyNum: 2, // aggregate FRI and corresponding partial proof
+	}
+	return &ProverTaskEntry{
+		Task:     task,
+		Created:  time.Now(),
+		Modified: time.Now(),
+		Status:   WaitingForInput,
+	}
+}
+
+func NewMergeProofTaskEntry(batchNum uint32, blockNum types.BlockNumber) *ProverTaskEntry {
+	mergeProofTask := ProverTask{
+		Id:            NewProverTaskId(),
+		BatchNum:      batchNum,
+		BlockNum:      blockNum,
+		TaskType:      MergeProof,
+		DependencyNum: 9, // agg FRI + 4 partial proofs + 4 FRI consistency checks
+		Dependencies:  make(map[ProverTaskId]ProverTaskResult),
+	}
+
+	return &ProverTaskEntry{
+		Task:     mergeProofTask,
+		Created:  time.Now(),
+		Modified: time.Now(),
+		Status:   WaitingForInput,
+	}
 }

@@ -16,7 +16,7 @@ func (o TaskRequestRpcServer) GetTask(_ context.Context, request *api.TaskReques
 	o.logger.Debug().Msgf("received task request from prover node id=%d", request.ProverId)
 	// TODO: will be implemented in https://www.notion.so/nilfoundation/Task-scheduler-4c3db841d14d474f9dddf42a79cdfda0?pvs=4
 	return &types.ProverTask{
-		Id:            1,
+		Id:            types.NewProverTaskId(),
 		BatchNum:      1,
 		BlockNum:      1,
 		TaskType:      types.Preprocess,

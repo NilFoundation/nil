@@ -35,12 +35,10 @@ func (s *TestSuite) TearDownTest() {
 }
 
 func newTaskRequestHandlerMock() *api.TaskRequestHandlerMock {
-	taskId := types.ProverTaskId(0)
 	return &api.TaskRequestHandlerMock{
 		GetTaskFunc: func(_ context.Context, request *api.TaskRequest) (*types.ProverTask, error) {
-			taskId++
 			return &types.ProverTask{
-				Id:            taskId,
+				Id:            types.NewProverTaskId(),
 				BatchNum:      1,
 				BlockNum:      1,
 				TaskType:      types.Preprocess,
