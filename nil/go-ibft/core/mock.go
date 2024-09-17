@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -479,5 +480,113 @@ func (m *mockCluster) areAllNodesOnRound(round uint64) bool {
 func (m *mockCluster) setBaseTimeout(timeout time.Duration) {
 	for _, node := range m.nodes {
 		node.baseRoundTimeout = timeout
+	}
+}
+
+// generateNodeAddresses generates dummy node addresses
+func generateNodeAddresses(count uint64) [][]byte {
+	addresses := make([][]byte, count)
+
+	for index := range addresses {
+		addresses[index] = []byte(fmt.Sprintf("node %d", index))
+	}
+
+	return addresses
+}
+
+// buildBasicPreprepareMessage builds a simple preprepare message
+func buildBasicPreprepareMessage(
+	proposal []byte,
+	proposalHash []byte,
+	certificate *proto.RoundChangeCertificate,
+	from []byte,
+	view *proto.View,
+) *proto.Message {
+	return &proto.Message{
+		View: view,
+		From: from,
+		Type: proto.MessageType_PREPREPARE,
+		Payload: &proto.Message_PreprepareData{
+			PreprepareData: &proto.PrePrepareMessage{
+				Proposal:     proposal,
+				Certificate:  certificate,
+				ProposalHash: proposalHash,
+			},
+		},
+	}
+}
+
+// buildBasicPrepareMessage builds a simple prepare message
+func buildBasicPrepareMessage(
+	proposalHash,
+	from []byte,
+	view *proto.View,
+) *proto.Message {
+	return &proto.Message{
+		View: view,
+		From: from,
+		Type: proto.MessageType_PREPARE,
+		Payload: &proto.Message_PrepareData{
+			PrepareData: &proto.PrepareMessage{
+				ProposalHash: proposalHash,
+			},
+		},
+	}
+}
+
+// buildBasicCommitMessage builds a simple commit message
+func buildBasicCommitMessage(
+	proposalHash,
+	committedSeal,
+	from []byte,
+	view *proto.View,
+) *proto.Message {
+	return &proto.Message{
+		View: view,
+		From: from,
+		Type: proto.MessageType_COMMIT,
+		Payload: &proto.Message_CommitData{
+			CommitData: &proto.CommitMessage{
+				ProposalHash:  proposalHash,
+				CommittedSeal: committedSeal,
+			},
+		},
+	}
+}
+
+// buildBasicRoundChangeMessage builds a simple round change message
+func buildBasicRoundChangeMessage(
+	proposal []byte,
+	certificate *proto.PreparedCertificate,
+	view *proto.View,
+	from []byte,
+) *proto.Message {
+	return &proto.Message{
+		View: view,
+		From: from,
+		Type: proto.MessageType_ROUND_CHANGE,
+		Payload: &proto.Message_RoundChangeData{
+			RoundChangeData: &proto.RoundChangeMessage{
+				LastPreparedProposedBlock: proposal,
+				LatestPreparedCertificate: certificate,
+			},
+		},
+	}
+}
+
+// maxFaulty returns the maximum number of allowed
+// faulty nodes
+func maxFaulty(nodeCount uint64) uint64 {
+	return (nodeCount - 1) / 3
+}
+
+// quorum returns the minimum number of
+// required nodes to reach quorum
+func quorum(numNodes uint64) uint64 {
+	switch maxFaulty(numNodes) {
+	case 0:
+		return numNodes
+	default:
+		return uint64(math.Ceil(2 * float64(numNodes) / 3))
 	}
 }
