@@ -1,12 +1,9 @@
 {
 	"name": "@nilfoundation/smart-contracts",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Nil smart-contracts implementations",
 	"sideEffects": false,
-	"files": [
-		"contracts",
-		"artifacts"
-	],
+	"files": ["contracts", "artifacts"],
 	"engines": {
 		"node": ">=14"
 	},
@@ -20,16 +17,10 @@
 		"access": "public",
 		"registry": "https://registry.npmjs.org/"
 	},
-	"keywords": [
-		"nil",
-		"blockchain",
-		"contracts"
-	],
+	"keywords": ["nil", "blockchain", "contracts"],
 	"devDependencies": {
 		"rimraf": "^6.0.1",
 		"solc": "^0.8.26"
 	},
-	"dependencies": {
-		
-	}
+	"dependencies": {}
 }

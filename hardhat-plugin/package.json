@@ -1,49 +1,47 @@
 {
-  "name": "@nilfoundation/hardhat-plugin",
-  "version": "0.13.0",
-  "description": "Custom Hardhat plugin to enable seamless deployment and interaction with applications within =nil;",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/NilFoundation/nil-hardhat-plugin"
-  },
-  "homepage": "https://github.com/NilFoundation/nil-hardhat-plugin#readme",
-  "bugs": {
-    "url": "https://github.com/NilFoundation/nil-hardhat-plugin/issues"
-  },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "scripts": {
-    "build": "rimraf dist && tsc -p tsconfig.json",
-    "lint": "biome check src test",
-    "lint:fix": "biome check --write src",
-    "test": "npx hardhat test --network nil"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@nilfoundation/niljs": "^0.13.0",
-    "ethers": "^6.12.1",
-    "hardhat": "^2.22.4",
-    "viem": "^2.16.3"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "1.8.2",
-    "@nomicfoundation/hardhat-ethers": "^3.0.6",
-    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "dotenv": "^16.4.5",
-    "rimraf": "^5.0.7",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.5.2"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
-  },
-  "files": [
-    "dist"
-  ],
-  "simple-git-hooks": {
-    "pre-commit": "npm run lint"
-  }
+	"name": "@nilfoundation/hardhat-plugin",
+	"version": "0.14.0",
+	"description": "Custom Hardhat plugin to enable seamless deployment and interaction with applications within =nil;",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/NilFoundation/nil-hardhat-plugin"
+	},
+	"homepage": "https://github.com/NilFoundation/nil-hardhat-plugin#readme",
+	"bugs": {
+		"url": "https://github.com/NilFoundation/nil-hardhat-plugin/issues"
+	},
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"scripts": {
+		"build": "rimraf dist && tsc -p tsconfig.json",
+		"lint": "biome check src test",
+		"lint:fix": "biome check --write src",
+		"test": "npx hardhat test --network nil"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"@nilfoundation/niljs": "^0.14.0",
+		"ethers": "^6.12.1",
+		"hardhat": "^2.22.4",
+		"viem": "^2.16.3"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "1.8.2",
+		"@nomicfoundation/hardhat-ethers": "^3.0.6",
+		"@nomicfoundation/hardhat-toolbox": "^5.0.0",
+		"dotenv": "^16.4.5",
+		"rimraf": "^5.0.7",
+		"ts-node": "^10.9.2",
+		"typescript": "^5.5.2"
+	},
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org/"
+	},
+	"files": ["dist"],
+	"simple-git-hooks": {
+		"pre-commit": "npm run lint"
+	}
 }
