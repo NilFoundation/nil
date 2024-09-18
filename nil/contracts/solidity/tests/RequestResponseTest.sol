@@ -67,6 +67,34 @@ contract RequestResponseTest is NilCurrencyBase {
     }
 
     /**
+     * Test fibonacci implementation via awaitCall.
+     * Here we have two awaitCall in a row, so it should be properly handled by the system.
+     */
+    function fibonacci(int32 n) public {
+        value = fibonacciRec(n);
+    }
+
+    function fibonacciRec(int32 n) public returns(int32) {
+        if (n <= 1) {
+            return n;
+        }
+        bytes memory returnData;
+        bytes memory callData;
+        bool success;
+        callData = abi.encodeWithSignature("fibonacciRec(int32)", n - 1);
+        (returnData, success) = Nil.awaitCall(address(this), callData);
+        require(success, "awaitCall 1 failed");
+        int32 a = abi.decode(returnData, (int32));
+
+        callData = abi.encodeWithSignature("fibonacciRec(int32)", n - 2);
+        (returnData, success) = Nil.awaitCall(address(this), callData);
+        require(success, "awaitCall 2 failed");
+        int32 b = abi.decode(returnData, (int32));
+
+        return a + b;
+    }
+
+    /**
      * Test nested sum of counters via awaitCall.
      */
     function sumCountersNested(address[] memory tests, address[] memory counters) public {

@@ -780,6 +780,10 @@ func (es *ExecutionState) AddOutRequestMessage(caller types.Address, payload *ty
 			Id:     inMsg.RequestId,
 			Caller: inMsg.From,
 		}
+	} else if len(inMsg.RequestChain) != 0 {
+		// If inbound message is a response, we need to copy the request chain from it.
+		check.PanicIfNot(inMsg.IsResponse())
+		msg.RequestChain = inMsg.RequestChain
 	}
 
 	if isAwait {
@@ -943,6 +947,7 @@ func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message,
 	default:
 		res = es.HandleExecutionMessage(ctx, msg)
 	}
+	responseWasSent := false
 	bounced := false
 	if msg.IsRequest() {
 		if !es.wasSentRequest {
@@ -950,17 +955,18 @@ func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message,
 				return NewExecutionResult().SetFatal(fmt.Errorf("SendResponseMessage failed: %w\n", err))
 			}
 			bounced = true
+			responseWasSent = true
 		}
-	} else if msg.IsResponse() {
-		if len(msg.RequestChain) > 0 {
-			// There is pending requests in the chain, so we need to send response to them.
-			if err := es.SendResponseMessage(msg, res); err != nil {
-				return NewExecutionResult().SetFatal(fmt.Errorf("SendResponseMessage failed: %w\n", err))
-			}
+	} else if msg.IsResponse() && !es.wasSentRequest && len(msg.RequestChain) > 0 {
+		// There is pending requests in the chain, so we need to send response to them.
+		// But we don't send response if a new request was sent during the execution.
+		if err := es.SendResponseMessage(msg, res); err != nil {
+			return NewExecutionResult().SetFatal(fmt.Errorf("SendResponseMessage failed: %w\n", err))
 		}
+		responseWasSent = true
 	}
 	// We don't need bounce message for request, because it will be sent within the response message.
-	if res.Error != nil && !msg.IsRequest() {
+	if res.Error != nil && !responseWasSent {
 		revString := decodeRevertMessage(res.ReturnData)
 		if revString != "" {
 			res.Error.Inner = fmt.Errorf("%w: %s", res.Error, revString)
