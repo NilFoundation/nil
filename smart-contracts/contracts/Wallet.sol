@@ -38,7 +38,7 @@ contract Wallet is NilCurrencyBase {
      * @param message The raw message to send.
      */
     function send(bytes calldata message) onlyExternal public {
-        Nil.sendMessage(gasleft(), message);
+        Nil.sendMessage(message);
     }
 
     /**

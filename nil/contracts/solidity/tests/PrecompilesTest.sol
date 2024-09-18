@@ -19,9 +19,8 @@ contract PrecompilesTest is NilBase {
     }
 
     function testSendRawMsg(
-        uint gas,
         bytes memory callData) public {
-        Nil.sendMessage(gas, callData);
+        Nil.sendMessage(callData);
     }
 
     function testCurrencyBalance(address addr, uint currencyId) public view returns(uint) {

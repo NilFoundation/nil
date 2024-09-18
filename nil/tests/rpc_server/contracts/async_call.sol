@@ -37,7 +37,7 @@ contract Caller is NilBounceable {
     }
 
     function sendMessage(bytes calldata message) public payable {
-        Nil.sendMessage(gasleft() * tx.gasprice, message);
+        Nil.sendMessage(message);
     }
 
     function verifyExternal(

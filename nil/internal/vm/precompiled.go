@@ -256,8 +256,10 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, value *uint256.Int, ca
 		return []byte("sendRawMessage: withdraw value failed"), err
 	}
 
-	if err := withdrawFunds(state, caller.Address(), payload.FeeCredit); err != nil {
-		return []byte("sendRawMessage: withdraw FeeCredit failed"), err
+	if payload.ForwardKind == types.ForwardKindNone {
+		if err := withdrawFunds(state, caller.Address(), payload.FeeCredit); err != nil {
+			return []byte("sendRawMessage: withdraw FeeCredit failed"), err
+		}
 	}
 
 	// TODO: We should consider non-refundable messages
