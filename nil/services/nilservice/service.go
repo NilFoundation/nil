@@ -188,21 +188,25 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	}
 
 	if cfg.RunMode != CollatorsOnlyRunMode {
-		funcs = append(funcs, func(ctx context.Context) error {
-			rawApi := rawapi.NewLocalApi(database)
-			if networkManager != nil {
+		rawApi := rawapi.NewLocalApi(database)
+		if networkManager != nil {
+			funcs = append(funcs, func(ctx context.Context) error {
 				if err := rawapi.SetRawApiRequestHandlers(ctx, rawApi, networkManager, logger); err != nil {
 					logger.Error().Err(err).Msg("Failed to set raw API request handler")
 					return err
 				}
-			}
-
-			if err := startRpcServer(ctx, cfg, rawApi, database, msgPools); err != nil {
-				logger.Error().Err(err).Msg("RPC server goroutine failed")
-				return err
-			}
-			return nil
-		})
+				return nil
+			})
+		}
+		if cfg.RPCPort != 0 || cfg.HttpUrl != "" {
+			funcs = append(funcs, func(ctx context.Context) error {
+				if err := startRpcServer(ctx, cfg, rawApi, database, msgPools); err != nil {
+					logger.Error().Err(err).Msg("RPC server goroutine failed")
+					return err
+				}
+				return nil
+			})
+		}
 
 		funcs = append(funcs, func(ctx context.Context) error {
 			if err := startAdminServer(ctx, cfg); err != nil {

@@ -61,7 +61,6 @@ func NewDefaultConfig() *Config {
 		RunMode: NormalRunMode,
 
 		NShards:         5,
-		RPCPort:         8529,
 		MainKeysOutPath: "keys.yaml",
 		NetworkKeysPath: "network-keys.yaml",
 
