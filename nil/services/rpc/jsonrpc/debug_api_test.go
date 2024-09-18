@@ -65,7 +65,11 @@ func TestDebugGetBlock(t *testing.T) {
 	err = tx.Commit()
 	require.NoError(t, err)
 
-	api := NewDebugAPI(rawapi.NewLocalApi(database), database, log.Logger)
+	localShardApis := map[types.ShardId]*rawapi.LocalShardApi{
+		types.MainShardId: rawapi.NewLocalShardApi(types.MainShardId, database),
+	}
+	localApi := rawapi.NewLocalApi(localShardApis)
+	api := NewDebugAPI(localApi, database, log.Logger)
 
 	// When: Get the latest block
 	res1, err := api.GetBlockByNumber(ctx, types.MainShardId, transport.LatestBlockNumber, false)
@@ -138,7 +142,11 @@ func (suite *SuiteDbgContracts) SetupSuite() {
 	err = tx.Commit()
 	suite.Require().NoError(err)
 
-	suite.debugApi = NewDebugAPI(rawapi.NewLocalApi(suite.db), suite.db, logging.NewLogger("Test"))
+	localShardApis := map[types.ShardId]*rawapi.LocalShardApi{
+		shardId: rawapi.NewLocalShardApi(shardId, suite.db),
+	}
+	localApi := rawapi.NewLocalApi(localShardApis)
+	suite.debugApi = NewDebugAPI(localApi, suite.db, logging.NewLogger("Test"))
 	suite.Require().NoError(err)
 }
 

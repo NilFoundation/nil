@@ -38,8 +38,8 @@ func newGeneratedApiClient(networkManager *network.Manager, serverPeerId network
 	}, nil
 }
 
-func (api *generatedApiClient) TestMethod(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	return sendRequestAndGetResponse[ssz.SSZEncodedData](api.apiCodec, api.networkManager, api.serverPeerId, "testapi", "TestMethod", ctx, shardId, blockReference)
+func (api *generatedApiClient) TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
+	return sendRequestAndGetResponse[ssz.SSZEncodedData](api.apiCodec, api.networkManager, api.serverPeerId, "testapi", "TestMethod", ctx, blockReference)
 }
 
 func (s *ApiClientTestSuite) SetupSuite() {
@@ -54,32 +54,33 @@ func (s *ApiClientTestSuite) SetupTest() {
 	s.Require().NoError(err)
 }
 
-func (s *ApiClientTestSuite) doRequest(shardId types.ShardId) (ssz.SSZEncodedData, error) {
-	return s.apiClient.TestMethod(s.ctx, shardId, rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock))
+func (s *ApiClientTestSuite) doRequest() (ssz.SSZEncodedData, error) {
+	return s.apiClient.TestMethod(s.ctx, rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock))
 }
 
 func (s *ApiClientTestSuite) TestValidResponse() {
-	lastCallShardId := new(types.ShardId)
+	var index types.MessageIndex
 	s.serverNetworkManager.SetRequestHandler(s.ctx, "testapi/TestMethod", func(ctx context.Context, request []byte) ([]byte, error) {
 		var blockRequest pb.BlockRequest
 		s.Require().NoError(proto.Unmarshal(request, &blockRequest))
-		*lastCallShardId = types.ShardId(blockRequest.GetShardId())
 
+		index += 1
 		response := &pb.RawBlockResponse{
 			Result: &pb.RawBlockResponse_Data{
 				Data: &pb.RawBlock{
-					BlockSSZ: (*lastCallShardId * 2).Bytes(),
+					BlockSSZ: index.Bytes(),
 				},
 			},
 		}
+		index += 1
 		resp, err := proto.Marshal(response)
 		return resp, err
 	})
 
-	response, err := s.doRequest(types.ShardId(123))
+	response, err := s.doRequest()
 	s.Require().NoError(err)
-	s.Require().Equal(types.ShardId(123), *lastCallShardId)
-	s.Require().Equal(types.ShardId(246), types.BytesToShardId(response))
+	s.Require().EqualValues(2, index)
+	s.Require().EqualValues(1, types.BytesToMessageIndex(response))
 }
 
 func (s *ApiClientTestSuite) TestInvalidResponse() {
@@ -89,7 +90,7 @@ func (s *ApiClientTestSuite) TestInvalidResponse() {
 		return nil, nil
 	})
 
-	_, err := s.doRequest(types.ShardId(123))
+	_, err := s.doRequest()
 	s.Require().ErrorContains(err, "unexpected response")
 }
 
@@ -108,7 +109,7 @@ func (s *ApiClientTestSuite) TestErrorResponse() {
 		return resp, err
 	})
 
-	_, err := s.doRequest(types.ShardId(123))
+	_, err := s.doRequest()
 	s.Require().ErrorContains(err, "Test error")
 }
 

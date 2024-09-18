@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common/ssz"
-	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi/pb"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/stretchr/testify/require"
@@ -18,43 +17,43 @@ type compatibleNetworkTransportProtocol interface {
 
 type compatibleApi struct{}
 
-func (t *compatibleApi) TestMethod(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
+func (t *compatibleApi) TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
 	return nil, nil
 }
 
 type apiWithOtherMethod struct{}
 
-func (api *apiWithOtherMethod) OtherMethod(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
+func (api *apiWithOtherMethod) OtherMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
 	return nil, nil
 }
 
 type apiWithWrongMethodArguments struct{}
 
-func (api *apiWithWrongMethodArguments) TestMethod(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference, extraArg int) (ssz.SSZEncodedData, error) {
+func (api *apiWithWrongMethodArguments) TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference, extraArg int) (ssz.SSZEncodedData, error) {
 	return nil, nil
 }
 
 type apiWithWrongContextMethodArgument struct{}
 
-func (api *apiWithWrongContextMethodArgument) TestMethod(notContextArgument int, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
+func (api *apiWithWrongContextMethodArgument) TestMethod(notContextArgument int, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
 	return nil, nil
 }
 
 type apiWithWrongMethodReturn struct{}
 
-func (api *apiWithWrongMethodReturn) TestMethod(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (int, error) {
+func (api *apiWithWrongMethodReturn) TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (int, error) {
 	return 0, nil
 }
 
 type apiWithPointerInsteadOfValueMethodReturn struct{}
 
-func (api *apiWithPointerInsteadOfValueMethodReturn) TestMethod(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*ssz.SSZEncodedData, error) {
+func (api *apiWithPointerInsteadOfValueMethodReturn) TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (*ssz.SSZEncodedData, error) {
 	return &ssz.SSZEncodedData{}, nil
 }
 
 type apiWithWrongErrorTypeReturn struct{}
 
-func (api *apiWithWrongErrorTypeReturn) TestMethod(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, int) {
+func (api *apiWithWrongErrorTypeReturn) TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, int) {
 	return nil, 0
 }
 
@@ -65,7 +64,7 @@ func TestApisCompatibility(t *testing.T) {
 
 	incompatibleApis := map[interface{}]string{
 		&apiWithOtherMethod{}:                       "method OtherMethod not found in rawapi.compatibleNetworkTransportProtocol",
-		&apiWithWrongMethodArguments{}:              "API method TestMethod requires 3 arguments, but pb.BlockRequest.PackProtoMessage accepts 3 arguments",
+		&apiWithWrongMethodArguments{}:              "API method TestMethod requires 2 arguments, but pb.BlockRequest.PackProtoMessage accepts 1 arguments",
 		&apiWithWrongContextMethodArgument{}:        "first argument of API method TestMethod must be context.Context",
 		&apiWithWrongMethodReturn{}:                 "API method outputs int type, but PackProtoMessage expects []uint8",
 		&apiWithPointerInsteadOfValueMethodReturn{}: "API method outputs *[]uint8 type, but PackProtoMessage expects []uint8",

@@ -102,6 +102,35 @@ type ServiceInterop struct {
 	MsgPools []msgpool.Pool
 }
 
+func getRawApi(ctx context.Context, cfg *Config, networkManager *network.Manager, database db.DB) (rawapi.Api, map[types.ShardId]*rawapi.LocalShardApi, error) {
+	var rawApi rawapi.Api
+
+	shardApis := make(map[types.ShardId]*rawapi.LocalShardApi)
+	switch cfg.RunMode {
+	case NormalRunMode, BlockReplayRunMode:
+		for shardId := range types.ShardId(cfg.NShards) {
+			shardApis[shardId] = rawapi.NewLocalShardApi(shardId, database)
+		}
+		rawApi = rawapi.NewLocalApi(shardApis)
+	case ArchiveRunMode:
+		for _, shardId := range cfg.MyShards {
+			shardApis[types.ShardId(shardId)] = rawapi.NewLocalShardApi(types.ShardId(shardId), database)
+		}
+		rawApi = rawapi.NewLocalApi(shardApis)
+	case RpcRunMode:
+		var err error
+		rawApi, err = rawapi.NewNetworkRawApiAccessor(ctx, networkManager, cfg.BootstrapPeer)
+		if err != nil {
+			return nil, nil, err
+		}
+	case CollatorsOnlyRunMode:
+		break
+	default:
+		panic("unsupported run mode for raw API")
+	}
+	return rawApi, shardApis, nil
+}
+
 // Run starts message pools and collators for given shards, creates a single RPC server for all shards.
 // It waits until one of the events:
 //   - all goroutines finish successfully,
@@ -140,13 +169,10 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		defer networkManager.Close()
 	}
 
-	var rawApi rawapi.Api
-
 	switch cfg.RunMode {
 	case NormalRunMode:
 		fallthrough
 	case CollatorsOnlyRunMode:
-		rawApi = rawapi.NewLocalApi(database)
 		collators := createCollators(ctx, cfg, database, networkManager)
 
 		msgPools = make([]msgpool.Pool, cfg.NShards)
@@ -195,7 +221,6 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 			})
 		}
 	case BlockReplayRunMode:
-		rawApi = rawapi.NewLocalApi(database)
 		replayer := collate.NewReplayScheduler(database, collate.ReplayParams{
 			BlockGeneratorParams: execution.BlockGeneratorParams{
 				ShardId:       cfg.Replay.ShardId,
@@ -223,9 +248,8 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 
 		msgPools = make([]msgpool.Pool, uint(cfg.Replay.ShardId)+1)
 	case RpcRunMode:
-		rawApi, err = rawapi.NewNetworkRawApiAccessor(ctx, networkManager, cfg.BootstrapPeer)
-		if err != nil {
-			logger.Error().Err(err).Msg("Failed to create raw API accessor")
+		if networkManager == nil {
+			logger.Error().Msg("Failed to start rpc node without network configuration")
 			return 1
 		}
 	default:
@@ -234,6 +258,20 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 
 	if interop != nil {
 		interop <- ServiceInterop{MsgPools: msgPools}
+	}
+
+	funcs = append(funcs, func(ctx context.Context) error {
+		if err := startAdminServer(ctx, cfg); err != nil {
+			logger.Error().Err(err).Msg("Admin server goroutine failed")
+			return err
+		}
+		return nil
+	})
+
+	rawApi, shardApis, err := getRawApi(ctx, cfg, networkManager, database)
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to create raw API")
+		return 1
 	}
 
 	if (cfg.RPCPort != 0 || cfg.HttpUrl != "") && rawApi != nil {
@@ -246,23 +284,17 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		})
 	}
 
-	funcs = append(funcs, func(ctx context.Context) error {
-		if err := startAdminServer(ctx, cfg); err != nil {
-			logger.Error().Err(err).Msg("Admin server goroutine failed")
-			return err
-		}
-		return nil
-	})
-
 	if cfg.RunMode != CollatorsOnlyRunMode && cfg.RunMode != RpcRunMode {
 		if networkManager != nil {
-			funcs = append(funcs, func(ctx context.Context) error {
-				if err := rawapi.SetRawApiRequestHandlers(ctx, rawApi, networkManager, logger); err != nil {
-					logger.Error().Err(err).Msg("Failed to set raw API request handler")
-					return err
-				}
-				return nil
-			})
+			for shardId, api := range shardApis {
+				funcs = append(funcs, func(ctx context.Context) error {
+					if err := rawapi.SetRawApiRequestHandlers(ctx, shardId, api, networkManager, logger); err != nil {
+						logger.Error().Err(err).Stringer(logging.FieldShardId, shardId).Msg("Failed to set raw API request handler")
+						return err
+					}
+					return nil
+				})
+			}
 		}
 
 		funcs = append(funcs, workers...)

@@ -184,7 +184,7 @@ func filtered[T any](seq iter.Seq[T], filter func(T) bool) iter.Seq[T] {
 
 func checkTransportMethodSignatureAndExtractPbTypes(transportApiType reflect.Type, method reflect.Method) (reflect.Type, reflect.Type, error) {
 	if method.Type.NumIn() != 1 {
-		return nil, nil, fmt.Errorf("method %s.%s must have exactly 1 argument", transportApiType.Name(), method.Name)
+		return nil, nil, fmt.Errorf("method %s.%s must have exactly 1 argument, got: %d", transportApiType.Name(), method.Name, method.Type.NumIn())
 	}
 	if method.Type.NumOut() != 1 {
 		return nil, nil, fmt.Errorf("method %s.%s must have exactly 1 return value", transportApiType.Name(), method.Name)
@@ -244,7 +244,7 @@ func obtainAndValidateRequestConversionMethods(apiMethod reflect.Method, pbReque
 	unpackProtoMessageResultCount := unpackProtoMessageType.NumOut() - unpackProtoMessageSkipResultCount
 
 	if apiMethodArgumentsCount != packProtoMessageArgumentCount {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("API method %s requires %d arguments, but %s.%s accepts %d arguments", apiMethod.Name, apiMethodArgumentsCount, pbRequestType, packMethodName, packProtoMessageType.NumIn())
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf("API method %s requires %d arguments, but %s.%s accepts %d arguments", apiMethod.Name, apiMethodArgumentsCount, pbRequestType, packMethodName, packProtoMessageArgumentCount)
 	}
 	if apiMethodArgumentsCount != unpackProtoMessageResultCount {
 		return reflect.Method{}, reflect.Method{}, fmt.Errorf("API method %s requires %d arguments, but %s.%s returns %d arguments, including the error", apiMethod.Name, apiMethodArgumentsCount, pbRequestType, unpackMethodName, unpackProtoMessageType.NumOut())

@@ -43,11 +43,11 @@ func (s *RawApiTestSuite) SetupTest() {
 }
 
 type testApi struct {
-	handler func(types.ShardId) (ssz.SSZEncodedData, error)
+	handler func() (ssz.SSZEncodedData, error)
 }
 
-func (t *testApi) TestMethod(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	return t.handler(shardId)
+func (t *testApi) TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
+	return t.handler()
 }
 
 type testNetworkTransportProtocol interface {
@@ -73,11 +73,10 @@ func (s *ApiServerTestSuite) SetupTest() {
 	s.Require().NoError(err)
 }
 
-func (s *ApiServerTestSuite) makeValidLatestBlockRequest(shardId types.ShardId) []byte {
+func (s *ApiServerTestSuite) makeValidLatestBlockRequest() []byte {
 	s.T().Helper()
 
 	request := &pb.BlockRequest{
-		ShardId: uint32(shardId),
 		Reference: &pb.BlockReference{
 			Reference: &pb.BlockReference_NamedBlockReference{
 				NamedBlockReference: pb.NamedBlockReference_LatestBlock,
@@ -93,7 +92,6 @@ func (s *ApiServerTestSuite) makeInvalidBlockRequest() []byte {
 	s.T().Helper()
 
 	request := &pb.BlockRequest{
-		ShardId:   123,
 		Reference: &pb.BlockReference{}, // No oneof field option selected
 	}
 	requestBytes, err := proto.Marshal(request)
@@ -102,29 +100,29 @@ func (s *ApiServerTestSuite) makeInvalidBlockRequest() []byte {
 }
 
 func (s *ApiServerTestSuite) TestValidResponse() {
-	lastCallShardId := new(types.ShardId)
-	s.api.handler = func(shardId types.ShardId) (ssz.SSZEncodedData, error) {
-		*lastCallShardId = shardId
-		return (shardId * 2).Bytes(), nil
+	var index types.MessageIndex
+	s.api.handler = func() (ssz.SSZEncodedData, error) {
+		index += 1
+		return index.Bytes(), nil
 	}
 
-	request := s.makeValidLatestBlockRequest(123)
+	request := s.makeValidLatestBlockRequest()
 	response, err := s.clientNetworkManager.SendRequestAndGetResponse(s.ctx, s.serverPeerId, "testapi/TestMethod", request)
 	s.Require().NoError(err)
-	s.Require().Equal(types.ShardId(123), *lastCallShardId)
+	s.Require().EqualValues(1, index)
 
 	var pbResponse pb.RawBlockResponse
 	err = proto.Unmarshal(response, &pbResponse)
 	s.Require().NoError(err)
-	s.Require().EqualValues(246, types.BytesToShardId(pbResponse.GetData().BlockSSZ))
+	s.Require().EqualValues(1, types.BytesToMessageIndex(pbResponse.GetData().BlockSSZ))
 }
 
 func (s *ApiServerTestSuite) TestNilResponse() {
-	s.api.handler = func(shardId types.ShardId) (ssz.SSZEncodedData, error) {
+	s.api.handler = func() (ssz.SSZEncodedData, error) {
 		return nil, nil
 	}
 
-	request := s.makeValidLatestBlockRequest(123)
+	request := s.makeValidLatestBlockRequest()
 	response, err := s.clientNetworkManager.SendRequestAndGetResponse(s.ctx, s.serverPeerId, "testapi/TestMethod", request)
 	s.Require().NoError(err)
 
@@ -136,7 +134,7 @@ func (s *ApiServerTestSuite) TestNilResponse() {
 }
 
 func (s *ApiServerTestSuite) TestInvalidSchemaRequest() {
-	s.api.handler = func(shardId types.ShardId) (ssz.SSZEncodedData, error) {
+	s.api.handler = func() (ssz.SSZEncodedData, error) {
 		return ssz.SSZEncodedData{}, nil
 	}
 
@@ -151,7 +149,7 @@ func (s *ApiServerTestSuite) TestInvalidSchemaRequest() {
 }
 
 func (s *ApiServerTestSuite) TestInvalidDataRequest() {
-	s.api.handler = func(shardId types.ShardId) (ssz.SSZEncodedData, error) {
+	s.api.handler = func() (ssz.SSZEncodedData, error) {
 		return ssz.SSZEncodedData{}, nil
 	}
 
@@ -167,11 +165,11 @@ func (s *ApiServerTestSuite) TestInvalidDataRequest() {
 }
 
 func (s *ApiServerTestSuite) TestHandlerPanic() {
-	s.api.handler = func(shardId types.ShardId) (ssz.SSZEncodedData, error) {
+	s.api.handler = func() (ssz.SSZEncodedData, error) {
 		panic("test panic")
 	}
 
-	request := s.makeValidLatestBlockRequest(123)
+	request := s.makeValidLatestBlockRequest()
 	response, err := s.clientNetworkManager.SendRequestAndGetResponse(s.ctx, s.serverPeerId, "testapi/TestMethod", request)
 	s.Require().NoError(err)
 
