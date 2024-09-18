@@ -218,6 +218,33 @@ func (s *SuiteAsyncAwait) TestFibonacci() {
 	s.Require().Equal(int32(8), value)
 }
 
+func (s *SuiteAsyncAwait) TestTwoRequests() {
+	var (
+		data    []byte
+		receipt *jsonrpc.RPCReceipt
+	)
+
+	data = s.AbiPack(s.abiCounter, "add", int32(11))
+	receipt = s.sendExternalMessageNoCheck(data, s.counterAddress0)
+	s.Require().True(receipt.AllSuccess())
+
+	data = s.AbiPack(s.abiCounter, "add", int32(456))
+	receipt = s.sendExternalMessageNoCheck(data, s.counterAddress1)
+	s.Require().True(receipt.AllSuccess())
+
+	data = s.AbiPack(s.abiTest, "makeTwoRequests", s.counterAddress0, s.counterAddress1)
+	receipt = s.sendExternalMessageNoCheck(data, s.testAddress0)
+	s.Require().True(receipt.AllSuccess())
+
+	data = s.AbiPack(s.abiTest, "value")
+	data = s.CallGetter(s.testAddress0, data, "latest", nil)
+	nameRes, err := s.abiTest.Unpack("value", data)
+	s.Require().NoError(err)
+	value, ok := nameRes[0].(int32)
+	s.Require().True(ok)
+	s.Require().EqualValues(11+456, value)
+}
+
 func (s *SuiteAsyncAwait) TestSumCountersNested() {
 	var (
 		data    []byte

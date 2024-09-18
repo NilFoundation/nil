@@ -233,6 +233,14 @@ func getPrecompiledMethod(methodName string) abi.Method {
 	return method
 }
 
+// getBytesArgCopy returns a copy of the byte slice argument.
+// It is needed because `abi.Unpack` unpack []byte arguments as a slice pointing inside the input calldata.
+func getBytesArgCopy(arg any) []byte {
+	bytes, ok := arg.([]byte)
+	check.PanicIfNotf(ok, "argument is not a byte slice")
+	return slices.Clone(bytes)
+}
+
 func (c *sendRawMessage) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	payload := new(types.InternalMessagePayload)
 	if err := payload.UnmarshalSSZ(input); err != nil {
@@ -336,8 +344,7 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	}
 
 	// Get `input` argument
-	input, ok = args[7].([]byte)
-	check.PanicIfNotf(ok, "asyncCall failed: input is not a byte slice")
+	input = getBytesArgCopy(args[7])
 
 	var kind types.MessageKind
 	if deploy {
@@ -374,7 +381,7 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 		To:          dst,
 		RefundTo:    refundTo,
 		BounceTo:    bounceTo,
-		Data:        slices.Clone(input),
+		Data:        input,
 	}
 	res = make([]byte, 32)
 	res[31] = 1
@@ -414,8 +421,7 @@ func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller Contr
 	check.PanicIfNotf(ok, "awaitCall failed: dst argument is not an address")
 
 	// Get `callData` argument
-	callData, ok := args[1].([]byte)
-	check.PanicIfNotf(ok, "awaitCall failed: callData is not a bytes")
+	callData := getBytesArgCopy(args[1])
 
 	// Internal is required for the message
 	payload := types.InternalMessagePayload{
@@ -469,12 +475,10 @@ func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, calle
 	}
 
 	// Get `context` argument
-	context, ok := args[2].([]byte)
-	check.PanicIfNotf(ok, "sendRequest failed: context is not a bytes")
+	context := getBytesArgCopy(args[2])
 
 	// Get `callData` argument
-	callData, ok := args[3].([]byte)
-	check.PanicIfNotf(ok, "sendRequest failed: callData is not a bytes")
+	callData := getBytesArgCopy(args[3])
 
 	if err := withdrawFunds(state, caller.Address(), types.NewValue(value)); err != nil {
 		return []byte("sendRequest failed: withdrawFunds failed"), err

@@ -217,4 +217,19 @@ contract RequestResponseTest is NilCurrencyBase {
     function testNoneZeroCallDepth(address addr) public {
         RequestResponseTest(addr).awaitGet(address(this));
     }
+
+    /**
+     * Test two consecutive requests.
+     */
+    function makeTwoRequests(address addr1, address addr2) public {
+        bytes memory context = abi.encodeWithSelector(this.makeTwoRequestsResponse.selector);
+        bytes memory callData = abi.encodeWithSignature("get()");
+        Nil.sendRequest(addr1, 0, context, callData);
+        Nil.sendRequest(addr2, 0, context, callData);
+    }
+
+    function makeTwoRequestsResponse(bool success, bytes memory returnData, bytes memory /*context*/) public {
+        require(success, "Request failed");
+        value += abi.decode(returnData, (int32));
+    }
 }
