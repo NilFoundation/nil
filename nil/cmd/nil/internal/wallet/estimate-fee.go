@@ -42,23 +42,15 @@ func runEstimateFee(args []string, cfg *common.Config) error {
 		return err
 	}
 
-	msgFlags := types.NewMessageFlags(types.MessageFlagInternal)
 	kind := types.ExecutionMessageKind
 	if params.deploy {
-		msgFlags.SetBit(types.MessageFlagDeploy)
 		kind = types.DeployMessageKind
-	}
-
-	internalValue, err := service.EstimateFee(address, calldata, msgFlags, params.value)
-	if err != nil {
-		return err
 	}
 
 	intMsg := &types.InternalMessagePayload{
 		Data:        calldata,
 		To:          address,
-		FeeCredit:   internalValue,
-		ForwardKind: types.ForwardKindNone,
+		ForwardKind: types.ForwardKindRemaining,
 		Kind:        kind,
 		Value:       params.value,
 	}
@@ -73,20 +65,15 @@ func runEstimateFee(args []string, cfg *common.Config) error {
 		return err
 	}
 
-	externalValue, err := service.EstimateFee(cfg.Address, walletCalldata, types.MessageFlags{}, types.Value{})
+	value, err := service.EstimateFee(cfg.Address, walletCalldata, types.MessageFlags{}, types.Value{})
 	if err != nil {
 		return err
 	}
 
 	if !config.Quiet {
-		fmt.Print("Estimated external message fee: ")
+		fmt.Print("Estimated fee: ")
 	}
-	fmt.Println(externalValue)
-
-	if !config.Quiet {
-		fmt.Print("Estimated internal message fee: ")
-	}
-	fmt.Println(internalValue)
+	fmt.Println(value)
 
 	return nil
 }

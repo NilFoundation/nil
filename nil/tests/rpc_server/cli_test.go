@@ -391,10 +391,8 @@ func (s *SuiteCli) TestCliWallet() {
 		resInt := s.runCli("-c", cfgPath, "contract", "estimate-fee", addr, "increment", "--abi", abiFileName, "-q", "--internal")
 		isNum(resInt)
 
-		res := s.runCli("-c", cfgPath, "wallet", "estimate-fee", addr, "increment", "--abi", abiFileName, "-q")
-		parts := strings.Split(res, "\n")
-		s.Len(parts, 2)
-		s.Equal(resInt, parts[1])
+		resWallet := s.runCli("-c", cfgPath, "wallet", "estimate-fee", addr, "increment", "--abi", abiFileName, "-q")
+		isNum(resWallet)
 	})
 
 	s.Run("Call 'increment' function of contract", func() {
