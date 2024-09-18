@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -348,4 +349,61 @@ func (s *TaskStorageSuite) Test_ProcessTaskResult_Concurrently() {
 	task, err := s.ts.RequestTaskToExecute(s.ctx, proverId)
 	s.Require().NoError(err)
 	s.Require().Nil(task)
+}
+
+func (s *TaskStorageSuite) Test_ProcessTaskResult_InvalidStateChange() {
+	testCases := []struct {
+		name      string
+		oldStatus types.ProverTaskStatus
+	}{
+		{"WaitingForInput", types.WaitingForInput},
+		{"WaitingForProver", types.WaitingForProver},
+		{"Failed", types.Failed},
+	}
+
+	for _, testCase := range testCases {
+		s.Run(testCase.name+"_TrySetSuccess", func() {
+			s.tryToChangeStatus(testCase.oldStatus, true, false, ErrTaskInvalidStatus)
+		})
+		s.Run(testCase.name+"_TrySetFailure", func() {
+			s.tryToChangeStatus(testCase.oldStatus, false, false, ErrTaskInvalidStatus)
+		})
+	}
+}
+
+func (s *TaskStorageSuite) Test_ProcessTaskResult_WrongProver() {
+	s.Run("TrySetSuccess", func() {
+		s.tryToChangeStatus(types.Running, true, true, ErrTaskWrongProver)
+	})
+	s.Run("TrySetFailure", func() {
+		s.tryToChangeStatus(types.Running, false, true, ErrTaskWrongProver)
+	})
+}
+
+func (s *TaskStorageSuite) tryToChangeStatus(
+	oldStatus types.ProverTaskStatus,
+	trySetSuccess bool,
+	useDifferentProverId bool,
+	expectedError error,
+) {
+	s.T().Helper()
+
+	proverId := testaide.GenerateRandomProverId()
+	taskEntry := testaide.GenerateTaskEntry(time.Now(), oldStatus, proverId)
+	err := s.ts.AddSingleTaskEntry(s.ctx, *taskEntry)
+	s.Require().NoError(err)
+
+	if useDifferentProverId {
+		proverId = testaide.GenerateRandomProverId()
+	}
+
+	var taskResult types.ProverTaskResult
+	if trySetSuccess {
+		taskResult = types.SuccessTaskResult(taskEntry.Task.Id, proverId, types.Commitment, "1A2B")
+	} else {
+		taskResult = types.FailureTaskResult(taskEntry.Task.Id, proverId, errors.New("some error"))
+	}
+
+	err = s.ts.ProcessTaskResult(s.ctx, taskResult)
+	s.Require().ErrorIs(err, expectedError)
 }
