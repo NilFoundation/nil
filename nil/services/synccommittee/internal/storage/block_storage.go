@@ -1,4 +1,4 @@
-package synccommittee
+package storage
 
 import (
 	"context"
@@ -22,7 +22,7 @@ type BlockStorage struct {
 	db db.DB
 }
 
-type prunedTransaction struct {
+type PrunedTransaction struct {
 	flags types.MessageFlags
 	seqno hexutil.Uint64
 	from  types.Address
@@ -189,17 +189,17 @@ func (bs *BlockStorage) GetBlocksRange(ctx context.Context, shardId types.ShardI
 	return blocks, nil
 }
 
-func (bs *BlockStorage) GetTransactionsByBlocksRange(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber) ([]*prunedTransaction, error) {
+func (bs *BlockStorage) GetTransactionsByBlocksRange(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber) ([]*PrunedTransaction, error) {
 	blocks, err := bs.GetBlocksRange(ctx, shardId, from, to)
 	if err != nil {
 		return nil, err
 	}
 
-	var transactions []*prunedTransaction
+	var transactions []*PrunedTransaction
 	for _, block := range blocks {
 		for _, msg_any := range block.Messages {
 			if msg, success := msg_any.(jsonrpc.RPCInMessage); success {
-				t := &prunedTransaction{
+				t := &PrunedTransaction{
 					flags: msg.Flags,
 					seqno: msg.Seqno,
 					from:  msg.From,

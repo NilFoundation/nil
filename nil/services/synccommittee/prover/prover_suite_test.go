@@ -6,6 +6,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/stretchr/testify/suite"
 )
@@ -37,15 +38,8 @@ func (s *TestSuite) TearDownTest() {
 func newTaskRequestHandlerMock() *api.TaskRequestHandlerMock {
 	return &api.TaskRequestHandlerMock{
 		GetTaskFunc: func(_ context.Context, request *api.TaskRequest) (*types.ProverTask, error) {
-			return &types.ProverTask{
-				Id:            types.NewProverTaskId(),
-				BatchNum:      1,
-				BlockNum:      1,
-				TaskType:      types.Preprocess,
-				CircuitType:   types.Bytecode,
-				Dependencies:  make(map[types.ProverTaskId]types.ProverTaskResult),
-				DependencyNum: 0,
-			}, nil
+			task := testaide.GenerateTask()
+			return &task, nil
 		},
 		SetTaskResultFunc: func(ctx context.Context, result *types.ProverTaskResult) error {
 			return nil

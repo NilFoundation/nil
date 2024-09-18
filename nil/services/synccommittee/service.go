@@ -11,8 +11,10 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/listener"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/prover"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/scheduler"
 	"github.com/rs/zerolog"
 )
 
@@ -24,6 +26,7 @@ type SyncCommittee struct {
 	proposer     *Proposer
 	aggregator   *Aggregator
 	taskListener *listener.TaskListener
+	scheduler    scheduler.TaskScheduler
 	provers      *[]prover.Prover // At this point provers are embedded into sync committee
 }
 
@@ -41,14 +44,19 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		return nil, fmt.Errorf("failed to create proposer: %w", err)
 	}
 
-	aggregator, err := NewAggregator(client, proposer, database, logger, metrics)
+	blockStorage := storage.NewBlockStorage(database)
+	taskStorage := storage.NewTaskStorage(database, logger)
+
+	aggregator, err := NewAggregator(client, proposer, blockStorage, taskStorage, logger, metrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}
 
+	taskScheduler := scheduler.NewTaskScheduler(taskStorage, logger)
+
 	taskListener := listener.NewTaskListener(
 		&listener.TaskListenerConfig{HttpEndpoint: cfg.OwnRpcEndpoint},
-		listener.NewTaskRequestRpcServer(),
+		taskScheduler,
 		logger,
 	)
 
@@ -65,6 +73,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		proposer:     proposer,
 		aggregator:   aggregator,
 		taskListener: taskListener,
+		scheduler:    taskScheduler,
 		provers:      provers,
 	}
 
@@ -111,6 +120,7 @@ func (s *SyncCommittee) Run(ctx context.Context) error {
 	functions := []concurrent.Func{
 		s.processingLoop,
 		s.taskListener.Run,
+		s.scheduler.Run,
 	}
 
 	for _, proverWorker := range *s.provers {

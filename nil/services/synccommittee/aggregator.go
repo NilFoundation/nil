@@ -13,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
 )
@@ -24,18 +25,25 @@ const (
 type Aggregator struct {
 	logger       zerolog.Logger
 	client       *rpc.Client
-	blockStorage *BlockStorage
-	taskStorage  ProverTaskStorage
+	blockStorage *storage.BlockStorage
+	taskStorage  storage.ProverTaskStorage
 	proposer     *Proposer
 	metrics      *MetricsHandler
 }
 
-func NewAggregator(client *rpc.Client, proposer *Proposer, database db.DB, logger zerolog.Logger, metrics *MetricsHandler) (*Aggregator, error) {
+func NewAggregator(
+	client *rpc.Client,
+	proposer *Proposer,
+	blockStorage *storage.BlockStorage,
+	taskStorage storage.ProverTaskStorage,
+	logger zerolog.Logger,
+	metrics *MetricsHandler,
+) (*Aggregator, error) {
 	return &Aggregator{
 		logger:       logger,
 		client:       client,
-		blockStorage: NewBlockStorage(database),
-		taskStorage:  NewTaskStorage(database),
+		blockStorage: blockStorage,
+		taskStorage:  taskStorage,
 		proposer:     proposer,
 		metrics:      metrics,
 	}, nil

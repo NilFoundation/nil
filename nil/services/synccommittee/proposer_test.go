@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,7 +57,7 @@ func TestSendProof(t *testing.T) {
 
 	provedStateRoot := common.IntToHash(10)
 	newStateRoot := common.IntToHash(11)
-	transactions := make([]*prunedTransaction, 0)
+	transactions := make([]*storage.PrunedTransaction, 0)
 	err = p.SendProof(provedStateRoot, newStateRoot, transactions)
 	require.NoError(t, err)
 }

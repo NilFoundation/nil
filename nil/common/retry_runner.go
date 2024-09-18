@@ -1,0 +1,71 @@
+package common
+
+import (
+	"context"
+	"crypto/rand"
+	"fmt"
+	"math/big"
+	"time"
+
+	"github.com/rs/zerolog"
+)
+
+type RetryConfig struct {
+	ShouldRetry func(err error) bool
+	NextDelay   func(attemptNumber uint32) time.Duration
+}
+
+type RetryRunner struct {
+	config RetryConfig
+	logger zerolog.Logger
+}
+
+func NewRetryRunner(config RetryConfig, logger zerolog.Logger) RetryRunner {
+	return RetryRunner{
+		config: config,
+		logger: logger,
+	}
+}
+
+func (r *RetryRunner) Do(ctx context.Context, action func(ctx context.Context) error) error {
+	attemptNumber := uint32(0)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			err := action(ctx)
+
+			if err == nil || !r.config.ShouldRetry(err) {
+				return err
+			}
+
+			delay := r.config.NextDelay(attemptNumber)
+			r.logger.Warn().Err(err).Msgf("operation failed, retrying in %s", delay)
+
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(delay):
+				break
+			}
+
+			attemptNumber++
+		}
+	}
+}
+
+func RandomDelay(minDelay, maxDelay time.Duration) (*time.Duration, error) {
+	if minDelay > maxDelay {
+		return nil, fmt.Errorf("minDelay %s > maxDelay %s", minDelay, maxDelay)
+	}
+
+	maxDelta := big.NewInt(int64(maxDelay - minDelay + 1))
+	randomDelta, err := rand.Int(rand.Reader, maxDelta)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate random delay: %w", err)
+	}
+
+	delay := minDelay + time.Duration(randomDelta.Int64())
+	return &delay, nil
+}
