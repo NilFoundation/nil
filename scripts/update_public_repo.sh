@@ -31,10 +31,12 @@ process_repo() {
     TARGET_URL=$2
 
     WORK_DIR=$(mktemp -d)
+    CUR_DIR=$(pwd)
     bash -c "$CMD git clone $CUR_REPO $WORK_DIR/$TARGET_PATH && cd $WORK_DIR/$TARGET_PATH && git filter-repo --path $TARGET_PATH --path-rename $TARGET_PATH/:"
+    cd $WORK_DIR/$TARGET_PATH
     git remote add target "$TARGET_URL"
     git push target main
-
+    cd $CUR_DIR
     rm -rf "$WORK_DIR"
 }
 
