@@ -16,8 +16,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// EthAPI is a collection of functions that are exposed in the
-type EthAPI interface {
+type EthAPIRo interface {
 	/*
 		@name GetBlockByNumber
 		@summary Returns information about a block with the given number.
@@ -189,16 +188,6 @@ type EthAPI interface {
 	GetCode(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error)
 
 	/*
-		@name SendRawTransaction
-		@summary Creates a new message or creates a contract for a previously signed message.
-		@description Implements eth_sendRawTransaction.
-		@tags [Transactions]
-		@param encoded Encoded
-		@returns hash MessageHash
-	*/
-	SendRawTransaction(ctx context.Context, encoded hexutil.Bytes) (common.Hash, error)
-
-	/*
 		@name NewFilter
 		@summary Creates a new filter.
 		@description
@@ -307,6 +296,21 @@ type EthAPI interface {
 		@returns balance Balance of all currencies
 	*/
 	GetCurrencies(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (map[string]*hexutil.Big, error)
+}
+
+// EthAPI is a collection of functions that are exposed in the JSON-RPC API.
+type EthAPI interface {
+	EthAPIRo
+
+	/*
+		@name SendRawTransaction
+		@summary Creates a new message or creates a contract for a previously signed message.
+		@description Implements eth_sendRawTransaction.
+		@tags [Transactions]
+		@param encoded Encoded
+		@returns hash MessageHash
+	*/
+	SendRawTransaction(ctx context.Context, encoded hexutil.Bytes) (common.Hash, error)
 }
 
 // APIImpl is implementation of the EthAPI interface based on remote Db access

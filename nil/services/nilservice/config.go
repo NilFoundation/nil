@@ -14,6 +14,7 @@ const (
 	NormalRunMode RunMode = iota
 	CollatorsOnlyRunMode
 	BlockReplayRunMode
+	ArchiveRunMode
 )
 
 type Config struct {

@@ -22,9 +22,6 @@ import (
 )
 
 type syncCollator struct {
-	// todo: remove
-	msgPool msgpool.Pool
-
 	shard types.ShardId
 	topic string
 
@@ -41,12 +38,11 @@ type syncCollator struct {
 	lastBlockHash   common.Hash
 }
 
-func NewSyncCollator(ctx context.Context, msgPool msgpool.Pool,
+func NewSyncCollator(ctx context.Context,
 	shard types.ShardId, timeout time.Duration,
 	db db.DB, networkManager *network.Manager, bootstrapPeer string,
 ) (*syncCollator, error) {
 	s := &syncCollator{
-		msgPool:         msgPool,
 		shard:           shard,
 		topic:           topicShardBlocks(shard),
 		timeout:         timeout,
@@ -288,5 +284,5 @@ func (s *syncCollator) saveMessages(tx db.RwTx, messages []*types.Message) (comm
 }
 
 func (s *syncCollator) GetMsgPool() msgpool.Pool {
-	return s.msgPool
+	return nil
 }
