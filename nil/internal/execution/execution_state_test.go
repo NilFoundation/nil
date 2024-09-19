@@ -478,7 +478,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 	}
 
 	suite.Run("testSendRawMsg: invalid message", func() {
-		msg.Data, err = abi.Pack("testSendRawMsg", big.NewInt(1000), []byte{1, 2})
+		msg.Data, err = abi.Pack("testSendRawMsg", []byte{1, 2})
 		suite.Require().NoError(err)
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
@@ -489,7 +489,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		payload.To = types.GenerateRandomAddress(0)
 		data, err := payload.MarshalSSZ()
 		suite.Require().NoError(err)
-		msg.Data, err = abi.Pack("testSendRawMsg", big.NewInt(1000), data)
+		msg.Data, err = abi.Pack("testSendRawMsg", data)
 		suite.Require().NoError(err)
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
@@ -501,7 +501,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		payload.Value = types.NewValueFromUint64(1_000_000_000_000_000)
 		data, err := payload.MarshalSSZ()
 		suite.Require().NoError(err)
-		msg.Data, err = abi.Pack("testSendRawMsg", big.NewInt(1000), data)
+		msg.Data, err = abi.Pack("testSendRawMsg", data)
 		suite.Require().NoError(err)
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
@@ -511,9 +511,10 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 	suite.Run("testSendRawMsg: withdraw feeCredit failed", func() {
 		payload.Value = types.NewZeroValue()
 		payload.FeeCredit = types.NewValueFromUint64(1_000_000_000_000_000)
+		payload.ForwardKind = types.ForwardKindNone
 		data, err := payload.MarshalSSZ()
 		suite.Require().NoError(err)
-		msg.Data, err = abi.Pack("testSendRawMsg", big.NewInt(1000), data)
+		msg.Data, err = abi.Pack("testSendRawMsg", data)
 		suite.Require().NoError(err)
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())

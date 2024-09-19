@@ -57,6 +57,10 @@ contract Test is NilBase {
         }
     }
 
+    function testForwardingInSendRawMessage(bytes memory message) public payable {
+        Nil.sendMessage(message);
+    }
+
     function stub(uint n) public payable {
         emit stubCalled(uint32(n));
     }

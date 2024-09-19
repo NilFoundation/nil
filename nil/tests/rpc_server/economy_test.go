@@ -608,6 +608,49 @@ func (s *SuiteEconomy) TestGasForwarding() { //nolint
 	s.checkBalance(info, initialBalance)
 }
 
+// TestGasForwardingInSendMessage checks that gas forwarding works correctly in sendMessage.
+func (s *SuiteEconomy) TestGasForwardingInSendMessage() {
+	initialBalance := s.getBalance(s.testAddress1).
+		Add(s.getBalance(s.testAddress2)).
+		Add(s.getBalance(s.testAddress3)).
+		Add(s.getBalance(s.testAddress4)).
+		Add(s.getBalance(s.walletAddress))
+
+	runTest := func(feeCredit types.Value, forwardKind types.ForwardKind) {
+		intMsg := &types.InternalMessagePayload{
+			Data:        s.AbiPack(s.abiTest, "stub", big.NewInt(1)),
+			To:          s.testAddress2,
+			FeeCredit:   feeCredit,
+			ForwardKind: forwardKind,
+		}
+		intMsgData, err := intMsg.MarshalSSZ()
+		s.Require().NoError(err)
+
+		data := s.AbiPack(s.abiTest, "testForwardingInSendRawMessage", intMsgData)
+		receipt := s.sendExternalMessage(data, s.testAddress1)
+		info := s.analyzeReceipt(receipt, s.namesMap)
+		s.Require().True(info.AllSuccess())
+		s.Require().True(info.ContainsOnly(s.testAddress1, s.testAddress2))
+		initialBalance = s.checkBalance(info, initialBalance)
+	}
+
+	s.Run("Test ForwardKindRemaining", func() {
+		runTest(types.NewValueFromUint64(123456), types.ForwardKindRemaining)
+	})
+
+	s.Run("Test ForwardKindPercentage", func() {
+		runTest(types.NewValueFromUint64(65), types.ForwardKindPercentage)
+	})
+
+	s.Run("Test ForwardKindValue", func() {
+		runTest(types.NewValueFromUint64(100000), types.ForwardKindValue)
+	})
+
+	s.Run("Test ForwardKindNone", func() {
+		runTest(types.NewValueFromUint64(100000), types.ForwardKindNone)
+	})
+}
+
 // TestForwardKindMatch checks that types.ForwardKind matches to forward kinds from `Nil.sol`
 func (s *SuiteEconomy) TestForwardKindMatch() {
 	var data []byte
