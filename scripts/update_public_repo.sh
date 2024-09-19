@@ -61,4 +61,3 @@ for repo in "${repos[@]}"; do
     # Echo completion message
     echo "Finished processing repository: $repo_name"
 done
-
