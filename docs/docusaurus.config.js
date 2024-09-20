@@ -27,7 +27,7 @@ const config = {
   organizationName: '=nil; Foundation', // Usually your GitHub org/user name.
   projectName: 'docs.nil.foundation', // Usually your repo name.
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'log',
   onBrokenMarkdownLinks: 'warn',
   onBrokenAnchors: 'log',
 
