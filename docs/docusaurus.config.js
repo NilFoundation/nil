@@ -141,6 +141,11 @@ const config = {
               to: '/nil/intro'
             },
             {
+              label: 'Cookbook',
+              position: 'left',
+              to: '/nil/cookbook'
+            },
+            {
               label: 'Migration guides',
               position: 'left',
               to: 'nil/migration-guides/september-1709-2024-release'

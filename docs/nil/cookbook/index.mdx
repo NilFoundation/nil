@@ -1,0 +1,17 @@
+import {CookbookCard, CookbookCardSection, CookbookBadges} from '@site/src/components/CookbookCardSection';
+
+# Create a swap contract and custom tokens
+
+This series of recipes show how to create a swap contract that can reliably exchange one custom currency with another even if the contracts representing these currencies are located on different shards. 
+
+The swap contract adopts order book-like mechanics by matching swap requests from different wallets. When requests are matched, the contract processes them and takes care of any excess tokens by sending them back to the request originators.
+
+<CookbookCardSection>
+  <CookbookCard badges={[CookbookBadges[0]]} tag={{
+    label: "8 min read",
+  }} id='swap1' title='Design the swap contract' description='' to='./swap/create-swap-contract'
+  />
+  <CookbookCard badges={[CookbookBadges[2]]} tag={{
+    label: "7 min read",
+  }} id='swap2' title='Deploy and test the swap contract' description='' to='./swap/deploy-test-swap'/>
+</CookbookCardSection>

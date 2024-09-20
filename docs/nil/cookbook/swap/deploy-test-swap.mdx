@@ -1,0 +1,52 @@
+# Deploy and test the swap contract
+
+This test of the `SwapMatch` contract does the follows:
+
+* Creates two new wallets 
+* Deploys the contract
+* Mints two currencies for these wallets
+* Places two swap requests (one from Wallet 1 and another from Wallet 2)
+* Evaluates whether the swap requests were matched and if excesses were returned correctly
+
+## Create two new wallets
+
+```js showLineNumbers file=../../../tests/cookbook-swap.test.mjs start=startTwoNewWalletsDeploy end=endTwoNewWalletsDeploy
+```
+
+## Deploy the contract
+
+```js showLineNumbers file=../../../tests/cookbook-swap.test.mjs start=startDeploymentOfSwapMatch end=endDeploymentOfSwapMatch
+```
+
+## Mint two new currencies
+
+```js showLineNumbers file=../../../tests/cookbook-swap.test.mjs start=startCurrencyCreation end=endCurrencyCreation
+```
+
+## Place the first swap request
+
+```js showLineNumbers file=../../../tests/cookbook-swap.test.mjs start=startFirstSendRequest end=endFirstSendRequest
+```
+
+## Place the second swap request
+
+```js showLineNumbers file=../../../tests/cookbook-swap.test.mjs start=startSecondSendRequest end=endSecondSendRequest
+```
+
+## Check the token amounts
+
+```js showLineNumbers file=../../../tests/cookbook-swap.test.mjs start=startFinalChecks end=endFinalChecks
+```
+
+Expected output:
+
+```
+Wallet 1 tokens:  {
+  TOKEN_ONE_ID: 90000000n,
+  TOKEN_TWO_ID: 20000000n
+}
+Wallet 2 tokens:  {
+  TOKEN_ONE_ID: 10000000n,
+  TOKEN_TWO_ID: 80000000n
+}
+```

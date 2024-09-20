@@ -47,7 +47,7 @@ func PublishBlock(ctx context.Context, networkManager *network.Manager, shardId 
 
 	pbBlock, err := marshalBlockSSZ(block.Block, block.OutMessages)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal block: %w", err)
 	}
 	data, err := proto.Marshal(pbBlock)
 	if err != nil {

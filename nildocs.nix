@@ -53,6 +53,7 @@ stdenv.mkDerivation rec {
 
   shellHook = ''
     export NILJS_SRC=${./niljs}
+    export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
   '';
 
   installPhase = ''
