@@ -4,7 +4,7 @@ vendor
 tests/__debug*
 .idea
 .vscode
-test.db
+*test.db
 cometa.db
 result
 deb-package-nil

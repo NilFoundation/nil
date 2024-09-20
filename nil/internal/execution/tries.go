@@ -16,8 +16,8 @@ type MPTValue[S any] interface {
 }
 
 type Entry[K, V any] struct {
-	Key K
-	Val V
+	Key K `json:"k"`
+	Val V `json:"v"`
 }
 
 type BaseMPTReader[K any, V any, VPtr MPTValue[V]] struct {

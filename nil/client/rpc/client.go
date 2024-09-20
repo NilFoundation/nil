@@ -21,6 +21,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
@@ -56,6 +57,7 @@ const (
 	Eth_chainId                          = "eth_chainId"
 	Debug_getBlockByHash                 = "debug_getBlockByHash"
 	Debug_getBlockByNumber               = "debug_getBlockByNumber"
+	Debug_getContract                    = "debug_getContract"
 )
 
 const (
@@ -780,4 +782,54 @@ func (c *Client) GetBlocksRange(shardId types.ShardId, from, to types.BlockNumbe
 		check.PanicIfNot(ok)
 	}
 	return result, nil
+}
+
+type DeserializedDebugRPCContract struct {
+	Contract       types.SmartContract
+	ExistenceProof mpt.Proof
+	Code           types.Code
+	StorageEntries map[common.Hash]types.Uint256
+}
+
+func deserializeDebugRPCContract(debugRPCContract *jsonrpc.DebugRPCContract) (*DeserializedDebugRPCContract, error) {
+	contract := new(types.SmartContract)
+	if err := contract.UnmarshalSSZ(debugRPCContract.Contract); err != nil {
+		return nil, err
+	}
+
+	existenceProof, err := mpt.DecodeProof(debugRPCContract.Proof)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DeserializedDebugRPCContract{
+		Contract:       *contract,
+		ExistenceProof: existenceProof,
+		Code:           types.Code(debugRPCContract.Code),
+		StorageEntries: debugRPCContract.Storage,
+	}, nil
+}
+
+func (c *Client) GetDebugContract(contractAddr types.Address, blockId any) (*DeserializedDebugRPCContract, error) {
+	blockRef, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return nil, err
+	}
+
+	request := c.newRequest(Debug_getContract, contractAddr, blockRef)
+	res, err := c.performRequest(request)
+	if err != nil {
+		return nil, err
+	}
+
+	var DebugRPCContract *jsonrpc.DebugRPCContract
+	if err := json.Unmarshal(res, &DebugRPCContract); err != nil {
+		return nil, err
+	}
+
+	if DebugRPCContract == nil {
+		return nil, nil
+	}
+
+	return deserializeDebugRPCContract(DebugRPCContract)
 }

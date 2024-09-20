@@ -14,12 +14,14 @@ import (
 
 type Config struct {
 	ProofProviderRpcEndpoint string
+	NilRpcEndpoint           string
 	Telemetry                *telemetry.Config
 }
 
 func NewDefaultConfig() *Config {
 	return &Config{
 		ProofProviderRpcEndpoint: "tcp://127.0.0.1:8531",
+		NilRpcEndpoint:           "tcp://127.0.0.1:8529",
 		Telemetry: &telemetry.Config{
 			ServiceName: "prover",
 		},
