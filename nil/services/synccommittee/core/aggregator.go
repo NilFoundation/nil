@@ -1,4 +1,4 @@
-package synccommittee
+package core
 
 import (
 	"context"
@@ -16,10 +16,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
-)
-
-const (
-	MaxBloksPerShard = uint64(10)
 )
 
 type Aggregator struct {
@@ -153,7 +149,7 @@ func (agg *Aggregator) sendProof(ctx context.Context) error {
 		Stringer("newStateRoot", newStateRoot).
 		Int64("blkCount", int64(lastFetchedBlockNum-lastProvedBlockNum)).
 		Int64("transactionsCount", int64(len(transactions))).Msg("send proof")
-	// temporary soluton for check Proposer, actually should be called from TaskScheduler ater generate proof
+	// temporary solution for check Proposer, actually should be called from TaskScheduler after generate proof
 	err = agg.proposer.SendProof(provedStateRoot, newStateRoot, transactions)
 	if err != nil {
 		return fmt.Errorf("failed send proof: %w", err)
@@ -161,7 +157,7 @@ func (agg *Aggregator) sendProof(ctx context.Context) error {
 	return nil
 }
 
-var circuitTypes [4]types.CircuitType = [...]types.CircuitType{types.Bytecode, types.MPT, types.ReadWrite, types.ZKEVM}
+var circuitTypes = [...]types.CircuitType{types.Bytecode, types.MPT, types.ReadWrite, types.ZKEVM}
 
 func prepareTasksForBlock(blockNumber coreTypes.BlockNumber) []*types.ProverTaskEntry {
 	taskEntries := make(map[types.ProverTaskId]*types.ProverTaskEntry)
@@ -260,7 +256,7 @@ func (agg *Aggregator) validateAndProcessBlock(ctx context.Context, block *jsonr
 		return err
 	}
 
-	// Start genetating proof during blocks fetching
+	// Start generating proof during blocks fetching
 	return agg.createProofTasks(ctx, block)
 }
 
@@ -286,7 +282,7 @@ func (agg *Aggregator) fetchAndProcessBlocks(ctx context.Context, shardId coreTy
 	return nil
 }
 
-// processNewBlocks fetches and processes new blocks for all shards.
+// ProcessNewBlocks fetches and processes new blocks for all shards.
 // It handles the overall flow of block synchronization and proof creation.
 func (agg *Aggregator) ProcessNewBlocks(ctx context.Context) error {
 	agg.metrics.StartProcessingMeasurment()

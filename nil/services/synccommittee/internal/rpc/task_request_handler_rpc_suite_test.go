@@ -1,4 +1,4 @@
-package listener
+package rpc
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/prover"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -29,7 +28,7 @@ func (s *TaskRequestHandlerTestSuite) SetupSuite() {
 		s.NoError(err)
 	}()
 
-	s.clientHandler = prover.NewTaskRequestRpcClient(
+	s.clientHandler = NewTaskRequestRpcClient(
 		listenerHttpEndpoint,
 		logging.NewLogger("task-request-rpc-client"),
 	)
@@ -47,7 +46,7 @@ func runTaskListener(ctx context.Context, httpEndpoint string, handler api.TaskR
 	taskListener := NewTaskListener(
 		&TaskListenerConfig{HttpEndpoint: httpEndpoint},
 		handler,
-		logging.NewLogger("sync-committee-task-listener"),
+		logging.NewLogger("sync-committee-task-rpc"),
 	)
 
 	return taskListener.Run(ctx)
