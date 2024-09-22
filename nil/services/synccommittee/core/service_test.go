@@ -1,4 +1,4 @@
-package synccommittee
+package core
 
 import (
 	"context"

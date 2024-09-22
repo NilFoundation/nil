@@ -1,4 +1,4 @@
-package prover
+package rpc
 
 import (
 	"context"

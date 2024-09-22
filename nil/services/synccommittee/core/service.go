@@ -1,4 +1,4 @@
-package synccommittee
+package core
 
 import (
 	"context"
@@ -6,15 +6,15 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/NilFoundation/nil/nil/client/rpc"
+	nilrpc "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/listener"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/prover"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/scheduler"
 	"github.com/rs/zerolog"
 )
 
@@ -22,10 +22,10 @@ type SyncCommittee struct {
 	cfg          *Config
 	database     db.DB
 	logger       zerolog.Logger
-	client       *rpc.Client
+	client       *nilrpc.Client
 	proposer     *Proposer
 	aggregator   *Aggregator
-	taskListener *listener.TaskListener
+	taskListener *rpc.TaskListener
 	scheduler    scheduler.TaskScheduler
 	provers      *[]prover.Prover // At this point provers are embedded into sync committee
 }
@@ -37,7 +37,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		return nil, err
 	}
 
-	client := rpc.NewClient(cfg.RpcEndpoint, logger)
+	client := nilrpc.NewClient(cfg.RpcEndpoint, logger)
 
 	proposer, err := NewProposer(cfg.L1Endpoint, cfg.L1ChainId, cfg.PrivateKey, cfg.L1ContractAddress, logger)
 	if err != nil {
@@ -54,8 +54,8 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 
 	taskScheduler := scheduler.NewTaskScheduler(taskStorage, logger)
 
-	taskListener := listener.NewTaskListener(
-		&listener.TaskListenerConfig{HttpEndpoint: cfg.OwnRpcEndpoint},
+	taskListener := rpc.NewTaskListener(
+		&rpc.TaskListenerConfig{HttpEndpoint: cfg.OwnRpcEndpoint},
 		taskScheduler,
 		logger,
 	)
@@ -88,7 +88,7 @@ func initializeProvers(cfg *Config, logger zerolog.Logger) (*[]prover.Prover, er
 	for i := range cfg.ProversCount {
 		localProver, err := prover.NewProver(
 			proverConfig,
-			prover.NewTaskRequestRpcClient(cfg.OwnRpcEndpoint, logger),
+			rpc.NewTaskRequestRpcClient(cfg.OwnRpcEndpoint, logger),
 			prover.NewTaskHandler(logger),
 			logger,
 		)

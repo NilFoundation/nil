@@ -11,7 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/profiling"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
-	"github.com/NilFoundation/nil/nil/services/synccommittee"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +25,7 @@ func execute() error {
 		Short: "Run nil sync committee node",
 	}
 
-	cfg := &synccommittee.Config{
+	cfg := &core.Config{
 		Telemetry: &telemetry.Config{
 			ServiceName: "sync_committee",
 		},
@@ -47,7 +47,7 @@ func execute() error {
 	return rootCmd.Execute()
 }
 
-func addFlags(cmd *cobra.Command, cfg *synccommittee.Config, dbPath *string) {
+func addFlags(cmd *cobra.Command, cfg *core.Config, dbPath *string) {
 	cmd.Flags().StringVar(&cfg.RpcEndpoint, "endpoint", "http://127.0.0.1:8529/", "rpc endpoint")
 	cmd.Flags().StringVar(&cfg.OwnRpcEndpoint, "own-endpoint", "http://127.0.0.1:8530/", "own rpc server endpoint")
 	cmd.Flags().Uint16Var(&cfg.ProversCount, "provers-count", 0, "number of concurrent prover workers")
@@ -63,7 +63,7 @@ func addFlags(cmd *cobra.Command, cfg *synccommittee.Config, dbPath *string) {
 	}
 }
 
-func run(cfg *synccommittee.Config, dbPath string) error {
+func run(cfg *core.Config, dbPath string) error {
 	profiling.Start(profiling.DefaultPort)
 
 	database, err := openDB(dbPath)
@@ -72,7 +72,7 @@ func run(cfg *synccommittee.Config, dbPath string) error {
 	}
 	defer database.Close()
 
-	service, err := synccommittee.New(cfg, database)
+	service, err := core.New(cfg, database)
 	if err != nil {
 		return fmt.Errorf("can't create sync committee service: %w", err)
 	}
