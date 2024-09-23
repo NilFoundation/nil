@@ -1,4 +1,4 @@
-package prover
+package executor
 
 import (
 	"context"
@@ -27,34 +27,43 @@ func DefaultConfig() *Config {
 	}
 }
 
-type Prover struct {
-	nonceId        types.ProverId
+type TaskExecutor interface {
+	Id() types.TaskExecutorId
+	Run(ctx context.Context) error
+}
+
+func New(
+	config *Config,
+	requestHandler api.TaskRequestHandler,
+	taskHandler TaskHandler,
+	logger zerolog.Logger,
+) (TaskExecutor, error) {
+	nonceId, err := generateNonceId()
+	if err != nil {
+		return nil, err
+	}
+	return &taskExecutorImpl{
+		nonceId:        *nonceId,
+		config:         *config,
+		requestHandler: requestHandler,
+		handler:        taskHandler,
+		logger:         logger,
+	}, nil
+}
+
+type taskExecutorImpl struct {
+	nonceId        types.TaskExecutorId
 	config         Config
 	requestHandler api.TaskRequestHandler
 	handler        TaskHandler
 	logger         zerolog.Logger
 }
 
-func NewProver(
-	config *Config,
-	requestHandler api.TaskRequestHandler,
-	handler TaskHandler,
-	logger zerolog.Logger,
-) (*Prover, error) {
-	nonceId, err := generateProverNonceId()
-	if err != nil {
-		return nil, err
-	}
-	return &Prover{
-		nonceId:        *nonceId,
-		config:         *config,
-		requestHandler: requestHandler,
-		handler:        handler,
-		logger:         logger,
-	}, nil
+func (p *taskExecutorImpl) Id() types.TaskExecutorId {
+	return p.nonceId
 }
 
-func (p *Prover) Run(ctx context.Context) error {
+func (p *taskExecutorImpl) Run(ctx context.Context) error {
 	concurrent.RunTickerLoop(
 		ctx,
 		p.config.TaskPollingInterval,
@@ -67,7 +76,7 @@ func (p *Prover) Run(ctx context.Context) error {
 	return nil
 }
 
-func (p *Prover) fetchAndHandleTask(ctx context.Context) error {
+func (p *taskExecutorImpl) fetchAndHandleTask(ctx context.Context) error {
 	taskRequest := api.NewTaskRequest(p.nonceId)
 	task, err := p.requestHandler.GetTask(ctx, taskRequest)
 	if err != nil {
@@ -82,7 +91,7 @@ func (p *Prover) fetchAndHandleTask(ctx context.Context) error {
 	p.logger.Debug().Msgf("executing task with id=%d", task.Id)
 	handleResult, err := p.handler.HandleTask(ctx, task)
 
-	var taskResult types.ProverTaskResult
+	var taskResult types.TaskResult
 	if err == nil {
 		p.logger.Debug().Msgf("execution of task with id=%d is successfully completed", task.Id)
 		taskResult = types.SuccessTaskResult(task.Id, p.nonceId, handleResult.Type, handleResult.DataAddress)
@@ -94,11 +103,11 @@ func (p *Prover) fetchAndHandleTask(ctx context.Context) error {
 	return p.requestHandler.SetTaskResult(ctx, &taskResult)
 }
 
-func generateProverNonceId() (*types.ProverId, error) {
+func generateNonceId() (*types.TaskExecutorId, error) {
 	bigInt, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt32))
 	if err != nil {
 		return nil, err
 	}
-	nonceId := types.ProverId(uint32(bigInt.Uint64()))
+	nonceId := types.TaskExecutorId(uint32(bigInt.Uint64()))
 	return &nonceId, nil
 }

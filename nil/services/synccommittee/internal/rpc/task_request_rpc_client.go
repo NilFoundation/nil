@@ -35,7 +35,7 @@ func (r *TaskRequestRpcClient) GetTask(_ context.Context, request *api.TaskReque
 	return proverTask, nil
 }
 
-func (r *TaskRequestRpcClient) SetTaskResult(_ context.Context, result *types.ProverTaskResult) error {
+func (r *TaskRequestRpcClient) SetTaskResult(_ context.Context, result *types.TaskResult) error {
 	_, err := r.client.RawCall(api.TaskRequestHandlerSetTaskResult, result)
 	return err
 }

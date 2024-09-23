@@ -11,7 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
 
-func GenerateTaskEntry(modifiedAt time.Time, status types.ProverTaskStatus, owner types.ProverId) *types.ProverTaskEntry {
+func GenerateTaskEntry(modifiedAt time.Time, status types.ProverTaskStatus, owner types.TaskExecutorId) *types.ProverTaskEntry {
 	return &types.ProverTaskEntry{
 		Task:     GenerateTask(),
 		Created:  modifiedAt.Add(-1 * time.Hour),
@@ -28,15 +28,15 @@ func GenerateTask() types.ProverTask {
 		BlockNum:      1,
 		TaskType:      types.Preprocess,
 		CircuitType:   types.Bytecode,
-		Dependencies:  make(map[types.ProverTaskId]types.ProverTaskResult),
+		Dependencies:  make(map[types.ProverTaskId]types.TaskResult),
 		DependencyNum: 0,
 	}
 }
 
-func GenerateRandomProverId() types.ProverId {
+func GenerateRandomProverId() types.TaskExecutorId {
 	bigInt, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt32))
 	if err != nil {
 		panic(err)
 	}
-	return types.ProverId(uint32(bigInt.Uint64()))
+	return types.TaskExecutorId(uint32(bigInt.Uint64()))
 }

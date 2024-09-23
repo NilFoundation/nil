@@ -44,13 +44,13 @@ type taskSchedulerImpl struct {
 }
 
 func (s *taskSchedulerImpl) GetTask(ctx context.Context, request *api.TaskRequest) (*types.ProverTask, error) {
-	s.logger.Debug().Interface("proverId", request.ProverId).Msg("received new task request")
+	s.logger.Debug().Interface("proverId", request.ExecutorId).Msg("received new task request")
 
-	task, err := s.storage.RequestTaskToExecute(ctx, request.ProverId)
+	task, err := s.storage.RequestTaskToExecute(ctx, request.ExecutorId)
 	if err != nil {
 		s.logger.Error().
 			Err(err).
-			Interface("proverId", request.ProverId).
+			Interface("proverId", request.ExecutorId).
 			Msg("failed to request task to execute")
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (s *taskSchedulerImpl) GetTask(ctx context.Context, request *api.TaskReques
 	return task, nil
 }
 
-func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.ProverTaskResult) error {
+func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.TaskResult) error {
 	s.logger.Debug().
 		Interface("proverId", result.Sender).
 		Interface("taskId", result.TaskId).

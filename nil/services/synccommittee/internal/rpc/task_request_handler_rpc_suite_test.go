@@ -55,30 +55,30 @@ func runTaskListener(ctx context.Context, httpEndpoint string, handler api.TaskR
 func newTaskRequestHandlerMock() *api.TaskRequestHandlerMock {
 	return &api.TaskRequestHandlerMock{
 		GetTaskFunc: func(_ context.Context, request *api.TaskRequest) (*types.ProverTask, error) {
-			predefinedTask := tasksForProvers[request.ProverId]
+			predefinedTask := tasksForProvers[request.ExecutorId]
 			return predefinedTask, nil
 		},
-		SetTaskResultFunc: func(ctx context.Context, result *types.ProverTaskResult) error {
+		SetTaskResultFunc: func(ctx context.Context, result *types.TaskResult) error {
 			return nil
 		},
 	}
 }
 
 var (
-	firstProverId          = types.ProverId(1)
-	secondProverId         = types.ProverId(2)
+	firstProverId          = types.TaskExecutorId(1)
+	secondProverId         = types.TaskExecutorId(2)
 	firstDependencyTaskId  = types.NewProverTaskId()
 	secondDependencyTaskId = types.NewProverTaskId()
 )
 
-var tasksForProvers = map[types.ProverId]*types.ProverTask{
+var tasksForProvers = map[types.TaskExecutorId]*types.ProverTask{
 	firstProverId: {
 		Id:            types.NewProverTaskId(),
 		BatchNum:      1,
 		BlockNum:      1,
 		TaskType:      types.Preprocess,
 		CircuitType:   types.Bytecode,
-		Dependencies:  make(map[types.ProverTaskId]types.ProverTaskResult),
+		Dependencies:  make(map[types.ProverTaskId]types.TaskResult),
 		DependencyNum: 0,
 	},
 	secondProverId: {
@@ -87,7 +87,7 @@ var tasksForProvers = map[types.ProverId]*types.ProverTask{
 		BlockNum:    10,
 		TaskType:    types.AggregatedFRI,
 		CircuitType: types.ReadWrite,
-		Dependencies: map[types.ProverTaskId]types.ProverTaskResult{
+		Dependencies: map[types.ProverTaskId]types.TaskResult{
 			firstDependencyTaskId: types.SuccessTaskResult(
 				firstDependencyTaskId,
 				testaide.GenerateRandomProverId(),

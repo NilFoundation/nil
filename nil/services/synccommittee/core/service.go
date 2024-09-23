@@ -14,7 +14,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/prover"
 	"github.com/rs/zerolog"
 )
 
@@ -27,7 +26,6 @@ type SyncCommittee struct {
 	aggregator   *Aggregator
 	taskListener *rpc.TaskListener
 	scheduler    scheduler.TaskScheduler
-	provers      *[]prover.Prover // At this point provers are embedded into sync committee
 }
 
 func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
@@ -61,11 +59,6 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		logger,
 	)
 
-	provers, err := initializeProvers(cfg, logger)
-	if err != nil {
-		return nil, err
-	}
-
 	s := &SyncCommittee{
 		cfg:          cfg,
 		database:     database,
@@ -75,31 +68,9 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		aggregator:   aggregator,
 		taskListener: taskListener,
 		scheduler:    taskScheduler,
-		provers:      provers,
 	}
 
 	return s, nil
-}
-
-func initializeProvers(cfg *Config, logger zerolog.Logger) (*[]prover.Prover, error) {
-	proverConfig := prover.DefaultConfig()
-
-	provers := make([]prover.Prover, cfg.ProversCount)
-
-	for i := range cfg.ProversCount {
-		localProver, err := prover.NewProver(
-			proverConfig,
-			rpc.NewTaskRequestRpcClient(cfg.OwnRpcEndpoint, logger),
-			prover.NewTaskHandler(logger),
-			logger,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create local prover: %w", err)
-		}
-		provers[i] = *localProver
-	}
-
-	return &provers, nil
 }
 
 func (s *SyncCommittee) Run(ctx context.Context) error {
@@ -122,10 +93,6 @@ func (s *SyncCommittee) Run(ctx context.Context) error {
 		s.processingLoop,
 		s.taskListener.Run,
 		s.scheduler.Run,
-	}
-
-	for _, proverWorker := range *s.provers {
-		functions = append(functions, proverWorker.Run)
 	}
 
 	if err := concurrent.Run(ctx, functions...); err != nil {

@@ -13,14 +13,14 @@ const (
 )
 
 type TaskRequest struct {
-	ProverId types.ProverId `json:"proverId"`
+	ExecutorId types.TaskExecutorId `json:"proverId"`
 }
 
-func NewTaskRequest(proverId types.ProverId) *TaskRequest {
-	return &TaskRequest{ProverId: proverId}
+func NewTaskRequest(executorId types.TaskExecutorId) *TaskRequest {
+	return &TaskRequest{ExecutorId: executorId}
 }
 
 type TaskRequestHandler interface {
 	GetTask(context context.Context, request *TaskRequest) (*types.ProverTask, error)
-	SetTaskResult(context context.Context, result *types.ProverTaskResult) error
+	SetTaskResult(context context.Context, result *types.TaskResult) error
 }

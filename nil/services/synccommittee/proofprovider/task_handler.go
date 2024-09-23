@@ -1,4 +1,4 @@
-package prover
+package proofprovider
 
 import (
 	"context"
@@ -14,12 +14,12 @@ type taskHandlerImpl struct {
 }
 
 func (h taskHandlerImpl) HandleTask(_ context.Context, _ *types.ProverTask) (executor.TaskHandleResult, error) {
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
 	result := executor.TaskHandleResult{Type: types.FinalProof}
 	h.logger.Debug().Msg("task handled")
 	return result, nil
 }
 
-func _(logger zerolog.Logger) executor.TaskHandler {
+func newTaskHandler(logger zerolog.Logger) executor.TaskHandler {
 	return &taskHandlerImpl{logger: logger}
 }

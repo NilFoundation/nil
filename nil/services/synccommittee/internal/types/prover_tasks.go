@@ -68,27 +68,27 @@ const (
 	FinalProof
 )
 
-type ProverId uint32
+type TaskExecutorId uint32
 
-const UnknownProverId ProverId = 0
+const UnknownProverId TaskExecutorId = 0
 
 // Prover returns this struct as task result
-type ProverTaskResult struct {
+type TaskResult struct {
 	Type        ProverResultType `json:"type"`
 	TaskId      ProverTaskId     `json:"taskId"`
 	IsSuccess   bool             `json:"isSuccess"`
 	ErrorText   string           `json:"errorText"`
-	Sender      ProverId         `json:"sender"`
+	Sender      TaskExecutorId   `json:"sender"`
 	DataAddress string           `json:"dataAddress"`
 }
 
 func SuccessTaskResult(
 	taskId ProverTaskId,
-	sender ProverId,
+	sender TaskExecutorId,
 	resultType ProverResultType,
 	dataAddress string,
-) ProverTaskResult {
-	return ProverTaskResult{
+) TaskResult {
+	return TaskResult{
 		TaskId:      taskId,
 		IsSuccess:   true,
 		Sender:      sender,
@@ -99,10 +99,10 @@ func SuccessTaskResult(
 
 func FailureTaskResult(
 	taskId ProverTaskId,
-	sender ProverId,
+	sender TaskExecutorId,
 	err error,
-) ProverTaskResult {
-	return ProverTaskResult{
+) TaskResult {
+	return TaskResult{
 		TaskId:    taskId,
 		Sender:    sender,
 		IsSuccess: false,
@@ -112,16 +112,16 @@ func FailureTaskResult(
 
 // Task contains all the necessary data for a prover to perform computation
 type ProverTask struct {
-	Id            ProverTaskId                      `json:"id"`
-	BatchNum      uint32                            `json:"batchNum"`
-	BlockNum      types.BlockNumber                 `json:"blockNum"`
-	TaskType      ProverTaskType                    `json:"taskType"`
-	CircuitType   CircuitType                       `json:"circuitType"`
-	Dependencies  map[ProverTaskId]ProverTaskResult `json:"dependencies"`
-	DependencyNum uint8                             `json:"dependencyNum"`
+	Id            ProverTaskId                `json:"id"`
+	BatchNum      uint32                      `json:"batchNum"`
+	BlockNum      types.BlockNumber           `json:"blockNum"`
+	TaskType      ProverTaskType              `json:"taskType"`
+	CircuitType   CircuitType                 `json:"circuitType"`
+	Dependencies  map[ProverTaskId]TaskResult `json:"dependencies"`
+	DependencyNum uint8                       `json:"dependencyNum"`
 }
 
-func (t *ProverTask) AddDependencyResult(res ProverTaskResult) {
+func (t *ProverTask) AddDependencyResult(res TaskResult) {
 	t.Dependencies[res.TaskId] = res
 }
 
@@ -140,7 +140,7 @@ type ProverTaskEntry struct {
 	PendingDeps []ProverTaskId
 	Created     time.Time
 	Modified    time.Time
-	Owner       ProverId
+	Owner       TaskExecutorId
 	Status      ProverTaskStatus
 }
 
@@ -162,7 +162,7 @@ func NewPartialProveTaskEntry(batchNum uint32, blockNum types.BlockNumber, circu
 		BlockNum:      blockNum,
 		TaskType:      PartialProve,
 		CircuitType:   circuitType,
-		Dependencies:  make(map[ProverTaskId]ProverTaskResult),
+		Dependencies:  make(map[ProverTaskId]TaskResult),
 		DependencyNum: 0,
 	}
 	return &ProverTaskEntry{
@@ -180,7 +180,7 @@ func NewAggregateFRITaskEntry(batchNum uint32, blockNum types.BlockNumber) *Prov
 		BlockNum:      blockNum,
 		TaskType:      AggregatedFRI,
 		DependencyNum: 4,
-		Dependencies:  make(map[ProverTaskId]ProverTaskResult),
+		Dependencies:  make(map[ProverTaskId]TaskResult),
 	}
 
 	return &ProverTaskEntry{
@@ -198,7 +198,7 @@ func NewFRIConsistencyCheckTaskEntry(batchNum uint32, blockNum types.BlockNumber
 		BlockNum:      blockNum,
 		TaskType:      FRIConsistencyChecks,
 		CircuitType:   circuitType,
-		Dependencies:  make(map[ProverTaskId]ProverTaskResult),
+		Dependencies:  make(map[ProverTaskId]TaskResult),
 		DependencyNum: 2, // aggregate FRI and corresponding partial proof
 	}
 	return &ProverTaskEntry{
@@ -216,7 +216,7 @@ func NewMergeProofTaskEntry(batchNum uint32, blockNum types.BlockNumber) *Prover
 		BlockNum:      blockNum,
 		TaskType:      MergeProof,
 		DependencyNum: 9, // agg FRI + 4 partial proofs + 4 FRI consistency checks
-		Dependencies:  make(map[ProverTaskId]ProverTaskResult),
+		Dependencies:  make(map[ProverTaskId]TaskResult),
 	}
 
 	return &ProverTaskEntry{

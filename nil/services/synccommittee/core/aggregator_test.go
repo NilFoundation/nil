@@ -212,7 +212,7 @@ func (s *AggregatorTestSuite) TestValidateAndStoreBlockMismatch() {
 }
 
 // Ensure that we have available task of certain type, or no tasks available
-func requestTask(s *AggregatorTestSuite, executor types.ProverId, available bool, expectedType types.ProverTaskType) *types.ProverTask {
+func requestTask(s *AggregatorTestSuite, executor types.TaskExecutorId, available bool, expectedType types.ProverTaskType) *types.ProverTask {
 	t, err := s.aggregator.taskStorage.RequestTaskToExecute(s.ctx, executor)
 	s.Require().NoError(err)
 	if !available {
@@ -225,8 +225,8 @@ func requestTask(s *AggregatorTestSuite, executor types.ProverId, available bool
 }
 
 // Set result for task
-func completeTask(s *AggregatorTestSuite, sender types.ProverId, id types.ProverTaskId) {
-	result := types.ProverTaskResult{TaskId: id, IsSuccess: true, Sender: sender}
+func completeTask(s *AggregatorTestSuite, sender types.TaskExecutorId, id types.ProverTaskId) {
+	result := types.TaskResult{TaskId: id, IsSuccess: true, Sender: sender}
 	err := s.aggregator.taskStorage.ProcessTaskResult(s.ctx, result)
 	s.Require().NoError(err)
 }

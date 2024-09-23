@@ -19,7 +19,7 @@ func TestTaskRequestHandlerSuite(t *testing.T) {
 func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_GetTask() {
 	testCases := []struct {
 		name     string
-		proverId types.ProverId
+		proverId types.TaskExecutorId
 	}{
 		{"returns task without deps", firstProverId},
 		{"returns task with deps", secondProverId},
@@ -33,7 +33,7 @@ func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_GetTask() {
 	}
 }
 
-func (s *TaskRequestHandlerTestSuite) testGetTask(proverId types.ProverId) {
+func (s *TaskRequestHandlerTestSuite) testGetTask(proverId types.TaskExecutorId) {
 	s.T().Helper()
 
 	request := api.NewTaskRequest(proverId)
@@ -50,7 +50,7 @@ func (s *TaskRequestHandlerTestSuite) testGetTask(proverId types.ProverId) {
 func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_UpdateTaskStatus() {
 	testCases := []struct {
 		name   string
-		result types.ProverTaskResult
+		result types.TaskResult
 	}{
 		{
 			"success result FinalProof",
@@ -73,7 +73,7 @@ func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_UpdateTaskStatus()
 	}
 }
 
-func (s *TaskRequestHandlerTestSuite) testSetTaskStatus(resultToSend types.ProverTaskResult) {
+func (s *TaskRequestHandlerTestSuite) testSetTaskStatus(resultToSend types.TaskResult) {
 	s.T().Helper()
 
 	err := s.clientHandler.SetTaskResult(s.context, &resultToSend)

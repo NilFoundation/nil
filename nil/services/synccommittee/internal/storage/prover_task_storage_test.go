@@ -48,7 +48,7 @@ func (s *TaskStorageSuite) SetupSuite() {
 		BlockNum:      1,
 		TaskType:      types.Preprocess,
 		CircuitType:   types.Bytecode,
-		Dependencies:  make(map[types.ProverTaskId]types.ProverTaskResult),
+		Dependencies:  make(map[types.ProverTaskId]types.TaskResult),
 		DependencyNum: 0,
 	}
 	s.baseTaskEntry = types.ProverTaskEntry{
@@ -397,7 +397,7 @@ func (s *TaskStorageSuite) tryToChangeStatus(
 		proverId = testaide.GenerateRandomProverId()
 	}
 
-	var taskResult types.ProverTaskResult
+	var taskResult types.TaskResult
 	if trySetSuccess {
 		taskResult = types.SuccessTaskResult(taskEntry.Task.Id, proverId, types.Commitment, "1A2B")
 	} else {

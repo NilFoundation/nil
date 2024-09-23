@@ -1,4 +1,4 @@
-package prover
+package executor
 
 import (
 	"testing"
@@ -8,18 +8,18 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestProverSuite(t *testing.T) {
+func TestTaskExecutorSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(TestSuite))
 }
 
-func (s *TestSuite) Test_Prover_Handles_Tasks() {
+func (s *TestSuite) Test_TaskExecutor_Executes_Tasks() {
 	go func() {
-		err := s.prover.Run(s.context)
+		err := s.taskExecutor.Run(s.context)
 		s.NoError(err)
 	}()
 
-	expectedTaskRequest := api.NewTaskRequest(s.prover.nonceId)
+	expectedTaskRequest := api.NewTaskRequest(s.taskExecutor.Id())
 	const tasksThreshold = 3
 
 	s.Require().Eventually(
@@ -30,7 +30,7 @@ func (s *TestSuite) Test_Prover_Handles_Tasks() {
 			}
 
 			for _, call := range getTaskCalls {
-				s.Require().Equal(expectedTaskRequest, call.Request, "prover should have passed its id to the target handler")
+				s.Require().Equal(expectedTaskRequest, call.Request, "Task executor should have passed its id to the target handler")
 			}
 
 			return true
@@ -47,7 +47,7 @@ func (s *TestSuite) Test_Prover_Handles_Tasks() {
 			}
 
 			for _, call := range setTaskResultCalls {
-				s.Require().Equal(s.prover.nonceId, call.Result.Sender, "prover should have passed its id in the result")
+				s.Require().Equal(s.taskExecutor.Id(), call.Result.Sender, "Task executor should have passed its id in the result")
 			}
 
 			return true

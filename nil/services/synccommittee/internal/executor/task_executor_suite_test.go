@@ -1,4 +1,4 @@
-package prover
+package executor
 
 import (
 	"context"
@@ -15,7 +15,7 @@ type TestSuite struct {
 	suite.Suite
 	context       context.Context
 	cancellation  context.CancelFunc
-	prover        *Prover
+	taskExecutor  TaskExecutor
 	targetHandler *api.TaskRequestHandlerMock
 }
 
@@ -25,10 +25,10 @@ func (s *TestSuite) SetupTest() {
 	proverConfig := Config{
 		TaskPollingInterval: 10 * time.Millisecond,
 	}
-	logger := logging.NewLogger("prover-test")
-	newProver, err := NewProver(&proverConfig, s.targetHandler, NewTaskHandler(logger), logger)
+	logger := logging.NewLogger("taskExecutor-test")
+	taskExecutor, err := New(&proverConfig, s.targetHandler, &taskHandler{}, logger)
 	s.Require().NoError(err)
-	s.prover = newProver
+	s.taskExecutor = taskExecutor
 }
 
 func (s *TestSuite) TearDownTest() {
@@ -41,8 +41,14 @@ func newTaskRequestHandlerMock() *api.TaskRequestHandlerMock {
 			task := testaide.GenerateTask()
 			return &task, nil
 		},
-		SetTaskResultFunc: func(ctx context.Context, result *types.ProverTaskResult) error {
+		SetTaskResultFunc: func(ctx context.Context, result *types.TaskResult) error {
 			return nil
 		},
 	}
+}
+
+type taskHandler struct{}
+
+func (h *taskHandler) HandleTask(_ context.Context, _ *types.ProverTask) (TaskHandleResult, error) {
+	return TaskHandleResult{Type: types.FinalProof}, nil
 }

@@ -37,10 +37,10 @@ type ProverTaskStorage interface {
 	RemoveTaskEntry(ctx context.Context, id types.ProverTaskId) error
 
 	// RequestTaskToExecute Find task with no dependencies and higher priority and assign it to prover
-	RequestTaskToExecute(ctx context.Context, executor types.ProverId) (*types.ProverTask, error)
+	RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.ProverTask, error)
 
 	// ProcessTaskResult Check task result, update dependencies in case of success
-	ProcessTaskResult(ctx context.Context, res types.ProverTaskResult) error
+	ProcessTaskResult(ctx context.Context, res types.TaskResult) error
 
 	// RescheduleHangingTasks Identify tasks that exceed execution timeout and reschedule them to be re-executed
 	RescheduleHangingTasks(ctx context.Context, currentTime time.Time, taskExecutionTimeout time.Duration) error
@@ -169,7 +169,7 @@ func (st *proverTaskStorage) removeTaskEntryImpl(ctx context.Context, id types.P
 }
 
 // Helper to update task status when it's ready to be executed or needs to be rescheduled
-func updateTaskStatus(tx db.RwTx, id types.ProverTaskId, newStatus types.ProverTaskStatus, newOwner types.ProverId) error {
+func updateTaskStatus(tx db.RwTx, id types.ProverTaskId, newStatus types.ProverTaskStatus, newOwner types.TaskExecutorId) error {
 	entry, err := extractTaskEntry(tx, id)
 	if err != nil {
 		return err
@@ -196,7 +196,7 @@ func findHigherPriorityTask(tx db.RoTx) (*types.ProverTask, error) {
 	return res, err
 }
 
-func (st *proverTaskStorage) RequestTaskToExecute(ctx context.Context, executor types.ProverId) (*types.ProverTask, error) {
+func (st *proverTaskStorage) RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.ProverTask, error) {
 	var task *types.ProverTask
 	err := st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		var err error
@@ -206,7 +206,7 @@ func (st *proverTaskStorage) RequestTaskToExecute(ctx context.Context, executor 
 	return task, err
 }
 
-func (st *proverTaskStorage) requestTaskToExecuteImpl(ctx context.Context, executor types.ProverId) (*types.ProverTask, error) {
+func (st *proverTaskStorage) requestTaskToExecuteImpl(ctx context.Context, executor types.TaskExecutorId) (*types.ProverTask, error) {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return nil, err
@@ -231,13 +231,13 @@ func (st *proverTaskStorage) requestTaskToExecuteImpl(ctx context.Context, execu
 	return resultTask, nil
 }
 
-func (st *proverTaskStorage) ProcessTaskResult(ctx context.Context, res types.ProverTaskResult) error {
+func (st *proverTaskStorage) ProcessTaskResult(ctx context.Context, res types.TaskResult) error {
 	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return st.processTaskResultImpl(ctx, res)
 	})
 }
 
-func (st *proverTaskStorage) processTaskResultImpl(ctx context.Context, res types.ProverTaskResult) error {
+func (st *proverTaskStorage) processTaskResultImpl(ctx context.Context, res types.TaskResult) error {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -302,7 +302,7 @@ func (st *proverTaskStorage) processTaskResultImpl(ctx context.Context, res type
 	return nil
 }
 
-func (st *proverTaskStorage) validateTaskResult(entry types.ProverTaskEntry, res types.ProverTaskResult) error {
+func (st *proverTaskStorage) validateTaskResult(entry types.ProverTaskEntry, res types.TaskResult) error {
 	const errFormat = "failed to process task result, taskId=%v, taskStatus=%v, taskOwner=%v, requestSenderId=%v: %w"
 
 	if entry.Owner != res.Sender {
