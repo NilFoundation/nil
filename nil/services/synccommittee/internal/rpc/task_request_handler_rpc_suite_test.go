@@ -76,7 +76,7 @@ var (
 var tasksForExecutors = map[types.TaskExecutorId]*types.Task{
 	firstExecutorId: {
 		Id:            types.NewTaskId(),
-		BatchNum:      1,
+		BatchId:       types.NewBatchId(),
 		ShardId:       coreTypes.MainShardId,
 		BlockNum:      1,
 		BlockHash:     common.EmptyHash,
@@ -87,7 +87,7 @@ var tasksForExecutors = map[types.TaskExecutorId]*types.Task{
 	},
 	secondExecutorId: {
 		Id:          types.NewTaskId(),
-		BatchNum:    1234,
+		BatchId:     types.NewBatchId(),
 		BlockNum:    10,
 		TaskType:    types.AggregatedFRI,
 		CircuitType: types.ReadWrite,
@@ -97,12 +97,14 @@ var tasksForExecutors = map[types.TaskExecutorId]*types.Task{
 				testaide.GenerateRandomExecutorId(),
 				types.MergeProof,
 				types.TaskResultAddresses{},
+				types.TaskResultData{},
 			),
 			secondDependencyTaskId: types.SuccessProverTaskResult(
 				secondDependencyTaskId,
 				testaide.GenerateRandomExecutorId(),
 				types.PartialProve,
 				types.TaskResultAddresses{},
+				types.TaskResultData{},
 			),
 		},
 		DependencyNum: 2,

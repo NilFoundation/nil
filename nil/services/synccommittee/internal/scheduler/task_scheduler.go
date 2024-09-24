@@ -66,7 +66,7 @@ func (s *taskSchedulerImpl) GetTask(ctx context.Context, request *api.TaskReques
 			Interface("executorId", request.ExecutorId).
 			Interface("taskId", task.Id).
 			Interface("taskType", task.TaskType).
-			Interface("batchNum", task.BatchNum).
+			Interface("batchId", task.BatchId).
 			Interface("shardId", task.ShardId).
 			Interface("blockHash", task.BlockHash).
 			Msg("task successfully requested from the storage")

@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
 )
 
@@ -24,6 +25,8 @@ const (
 	stateRootTable db.TableName = "state_root"
 	// nextToProposeTable stores parent's hash of the next block to propose (single value). Key: mainShardKey, Value: common.Hash.
 	nextToProposeTable db.TableName = "next_to_propose_parent_hash"
+	// batchIdTable stores batch number of the main chain blocks. Key: common.Hash, Value: common.Hash.
+	batchIdTable db.TableName = "batch_id"
 )
 
 var mainShardKey = makeShardKey(types.MainShardId)
@@ -71,11 +74,15 @@ type BlockStorage interface {
 
 	SetBlock(ctx context.Context, shardId types.ShardId, blockNumber types.BlockNumber, block *jsonrpc.RPCBlock) error
 
-	SetBlockAsProved(ctx context.Context, blockHash common.Hash) error
+	SetBlockAsProved(ctx context.Context, shardId types.ShardId, blockHash common.Hash) error
 
-	SetBlockAsProposed(ctx context.Context, blockHash common.Hash) error
+	SetBlockAsProposed(ctx context.Context, shardId types.ShardId, blockHash common.Hash) error
 
 	TryGetNextProposalData(ctx context.Context) (*ProposalData, error)
+
+	GetBatchId(ctx context.Context, block *jsonrpc.RPCBlock) (scTypes.BatchId, error)
+
+	IsBatchCompleted(ctx context.Context, block *jsonrpc.RPCBlock) (bool, error)
 }
 
 type blockStorage struct {
@@ -145,13 +152,7 @@ func (bs *blockStorage) GetLastFetchedBlockNum(ctx context.Context, shardId type
 	return lastFetchedBlockNum, nil
 }
 
-func (bs *blockStorage) GetBlock(ctx context.Context, shardId types.ShardId, blockNumber types.BlockNumber) (*jsonrpc.RPCBlock, error) {
-	tx, err := bs.db.CreateRoTx(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
+func (bs *blockStorage) getBlockTx(tx db.RoTx, shardId types.ShardId, blockNumber types.BlockNumber) (*jsonrpc.RPCBlock, error) {
 	key := makeBlockKey(shardId, blockNumber)
 	value, err := tx.Get(blocksTable, key)
 	if err != nil {
@@ -167,6 +168,16 @@ func (bs *blockStorage) GetBlock(ctx context.Context, shardId types.ShardId, blo
 	}
 
 	return &entry.Block, nil
+}
+
+func (bs *blockStorage) GetBlock(ctx context.Context, shardId types.ShardId, blockNumber types.BlockNumber) (*jsonrpc.RPCBlock, error) {
+	tx, err := bs.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	return bs.getBlockTx(tx, shardId, blockNumber)
 }
 
 func (bs *blockStorage) SetBlock(ctx context.Context, shardId types.ShardId, blockNumber types.BlockNumber, block *jsonrpc.RPCBlock) error {
@@ -193,6 +204,23 @@ func (bs *blockStorage) SetBlock(ctx context.Context, shardId types.ShardId, blo
 		return err
 	}
 
+	// Update batch number if necessary
+	mainHash := block.MainChainHash
+	if mainHash == common.EmptyHash {
+		mainHash = block.Hash
+	}
+	_, err = bs.getBatchIdTx(tx, mainHash)
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		return err
+	}
+	if errors.Is(err, db.ErrKeyNotFound) {
+		batchId := scTypes.NewBatchId()
+		err = bs.setBatchIdTx(tx, mainHash, batchId)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Update last fetched block if necessary
 	lastFetchedBlockNum, err := bs.getLastFetchedBlockNumTx(tx, shardId)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
@@ -213,7 +241,6 @@ func (bs *blockStorage) setProposeParentHash(tx db.RwTx, block *jsonrpc.RPCBlock
 	if block.ShardId != types.MainShardId {
 		return nil
 	}
-
 	parentHash, err := bs.getParentOfNextToPropose(tx)
 	if err != nil {
 		return err
@@ -226,21 +253,22 @@ func (bs *blockStorage) setProposeParentHash(tx db.RwTx, block *jsonrpc.RPCBlock
 		return fmt.Errorf("block with hash=%s has empty parent hash", block.Hash.String())
 	}
 
-	bs.logger.Debug().
+	bs.logger.Info().
 		Stringer("blockHash", block.Hash).
 		Stringer("parentHash", block.ParentHash).
 		Msg("block parent hash is not set, updating it")
 
+	// Aggregate task for the first block from main shard may neve be executed, bue to missed blocks from execution shards
 	return bs.setParentOfNextToPropose(tx, block.ParentHash)
 }
 
-func (bs *blockStorage) SetBlockAsProved(ctx context.Context, blockHash common.Hash) error {
+func (bs *blockStorage) SetBlockAsProved(ctx context.Context, shardId types.ShardId, blockHash common.Hash) error {
 	return bs.retryRunner.Do(ctx, func(ctx context.Context) error {
-		return bs.setBlockAsProvedImpl(ctx, blockHash)
+		return bs.setBlockAsProvedImpl(ctx, shardId, blockHash)
 	})
 }
 
-func (bs *blockStorage) setBlockAsProvedImpl(ctx context.Context, blockHash common.Hash) error {
+func (bs *blockStorage) setBlockAsProvedImpl(ctx context.Context, shardId types.ShardId, blockHash common.Hash) error {
 	if blockHash.Empty() {
 		return errors.New("block hash is empty")
 	}
@@ -251,7 +279,7 @@ func (bs *blockStorage) setBlockAsProvedImpl(ctx context.Context, blockHash comm
 	}
 	defer tx.Rollback()
 
-	entry, err := bs.getBlockByHash(tx, blockHash)
+	entry, err := bs.getBlockByHash(tx, shardId, blockHash)
 	if err != nil {
 		return err
 	}
@@ -271,7 +299,78 @@ func (bs *blockStorage) setBlockAsProvedImpl(ctx context.Context, blockHash comm
 	if err != nil {
 		return err
 	}
+
 	return tx.Commit()
+}
+
+func (bs *blockStorage) setBatchIdTx(tx db.RwTx, blockHash common.Hash, batchId scTypes.BatchId) error {
+	value := batchId.Bytes()
+	return tx.Put(batchIdTable, makeHashKey(blockHash), value)
+}
+
+func (bs *blockStorage) getBatchIdTx(tx db.RoTx, blockHash common.Hash) (scTypes.BatchId, error) {
+	value, err := tx.Get(batchIdTable, makeHashKey(blockHash))
+	if err != nil {
+		return scTypes.EmptyBatchId, err
+	}
+	var batchId scTypes.BatchId
+	err = batchId.UnmarshalText(value)
+	if err != nil {
+		return scTypes.EmptyBatchId, err
+	}
+	return batchId, nil
+}
+
+func (bs *blockStorage) GetBatchId(ctx context.Context, block *jsonrpc.RPCBlock) (scTypes.BatchId, error) {
+	if block == nil {
+		return scTypes.EmptyBatchId, errors.New("block is empty")
+	}
+
+	tx, err := bs.db.CreateRoTx(ctx)
+	if err != nil {
+		return scTypes.EmptyBatchId, err
+	}
+	defer tx.Rollback()
+
+	mainHash := block.MainChainHash
+	if mainHash == common.EmptyHash {
+		mainHash = block.Hash
+	}
+
+	batchId, err := bs.getBatchIdTx(tx, mainHash)
+	if err != nil {
+		return batchId, err
+	}
+	return batchId, nil
+}
+
+func (bs *blockStorage) isBatchCompletedTx(tx db.RoTx, blockHashes []common.Hash) (bool, error) {
+	for i, blockHash := range blockHashes {
+		shardId := types.ShardId(i + 1)
+		entry, err := bs.getBlockByHash(tx, shardId, blockHash)
+		if err != nil || entry == nil {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+func (bs *blockStorage) IsBatchCompleted(ctx context.Context, block *jsonrpc.RPCBlock) (bool, error) {
+	if block == nil {
+		return false, nil
+	}
+
+	if block.ShardId != types.MainShardId {
+		return false, nil
+	}
+
+	tx, err := bs.db.CreateRoTx(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+
+	return bs.isBatchCompletedTx(tx, block.ChildBlocks)
 }
 
 func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalData, error) {
@@ -293,6 +392,7 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 	if err != nil {
 		return nil, err
 	}
+
 	if parentHash == nil {
 		bs.logger.Debug().Msg("block parent hash is not set")
 		return nil, nil
@@ -334,13 +434,13 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 	}, nil
 }
 
-func (bs *blockStorage) SetBlockAsProposed(ctx context.Context, blockHash common.Hash) error {
+func (bs *blockStorage) SetBlockAsProposed(ctx context.Context, shardId types.ShardId, blockHash common.Hash) error {
 	return bs.retryRunner.Do(ctx, func(ctx context.Context) error {
-		return bs.setBlockAsProposedImpl(ctx, blockHash)
+		return bs.setBlockAsProposedImpl(ctx, shardId, blockHash)
 	})
 }
 
-func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, blockHash common.Hash) error {
+func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, shardId types.ShardId, blockHash common.Hash) error {
 	if blockHash.Empty() {
 		return errors.New("block hash is empty")
 	}
@@ -351,7 +451,7 @@ func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, blockHash co
 	}
 	defer tx.Rollback()
 
-	mainShardEntry, err := bs.getBlockByHash(tx, blockHash)
+	mainShardEntry, err := bs.getBlockByHash(tx, shardId, blockHash)
 	if err != nil {
 		return err
 	}
@@ -486,13 +586,17 @@ func makeShardKey(shardId types.ShardId) []byte {
 	return key
 }
 
-func (bs *blockStorage) getBlockByHash(tx db.RoTx, blockHash common.Hash) (*blockEntry, error) {
+func makeHashKey(hash common.Hash) []byte {
+	return hash.Bytes()
+}
+
+func (bs *blockStorage) getBlockByHash(tx db.RoTx, shardId types.ShardId, blockHash common.Hash) (*blockEntry, error) {
 	// todo: refactor after switching to hash-based keys
 	// https://www.notion.so/nilfoundation/Out-of-order-block-number-f549ca82b2db4a0d9ef71bdde5c878b0?pvs=4
 
 	var target *blockEntry
 	err := iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
-		if entry.Block.Hash != blockHash {
+		if entry.Block.Hash != blockHash || entry.Block.ShardId != shardId {
 			return true, nil
 		}
 

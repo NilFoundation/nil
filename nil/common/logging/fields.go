@@ -34,6 +34,7 @@ const (
 
 	FieldBlockHash   = "blockHash"
 	FieldBlockNumber = "blockNumber"
+	FieldBatchId     = "batchId"
 
 	FieldCurrencyId = "CurrencyId"
 )

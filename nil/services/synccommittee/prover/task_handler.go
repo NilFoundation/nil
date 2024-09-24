@@ -38,8 +38,9 @@ type taskHandlerConfig struct {
 }
 
 type commandDescription struct {
-	runCommand     *exec.Cmd
-	expectedResult types.TaskResultAddresses
+	runCommand            *exec.Cmd
+	expectedResult        types.TaskResultAddresses
+	binaryExpectedResults types.TaskResultData
 }
 
 func circuitTypeToArg(ct types.CircuitType) string {
@@ -310,8 +311,35 @@ func (h *taskHandler) makeMergeProofCommand(task *types.Task) commandDescription
 
 	allArgs := slices.Concat(stage, partialProofs, LPCChecks, aggFRI, outArg)
 	return commandDescription{
-		runCommand:     exec.Command(binary, allArgs...),
-		expectedResult: types.TaskResultAddresses{types.FinalProof: outFile},
+		runCommand:            exec.Command(binary, allArgs...),
+		expectedResult:        types.TaskResultAddresses{types.FinalProof: outFile},
+		binaryExpectedResults: task.BlockHash.Bytes(),
+	}
+}
+
+func (h *taskHandler) makeAggregateProofCommand(task *types.Task) commandDescription {
+	binary := h.config.ProofProducerBinary
+	stage := []string{"--stage=\"aggregate-proofs\""}
+	var cmd exec.Cmd
+	blockProofFiles, err := collectDependencyFiles(task, types.MergeProof, types.FinalProof)
+	if err != nil {
+		cmd.Err = err
+		return commandDescription{runCommand: &cmd}
+	}
+	blockProofs := append([]string{"--block-proof"}, blockProofFiles...)
+
+	outFile := fmt.Sprintf("aggregated-proof.%v.%v", task.ShardId, task.BlockHash.String())
+	outArg := []string{fmt.Sprintf("--proof=\"%v\"", filepath.Join(h.config.OutDir, outFile))}
+
+	allArgs := slices.Concat(stage, blockProofs, outArg)
+	var aggregatedProof []byte
+	for _, dependency := range task.Dependencies {
+		aggregatedProof = append(aggregatedProof, dependency.Data...)
+	}
+	return commandDescription{
+		runCommand:            exec.Command(binary, allArgs...),
+		expectedResult:        types.TaskResultAddresses{types.AggregatedProof: outFile},
+		binaryExpectedResults: aggregatedProof,
 	}
 }
 
@@ -329,6 +357,8 @@ func (h *taskHandler) makeCommandForTask(task *types.Task) commandDescription {
 		return h.makeConsistencyCheckCommand(task)
 	case types.MergeProof:
 		return h.makeMergeProofCommand(task)
+	case types.AggregateProofs:
+		return h.makeAggregateProofCommand(task)
 	case types.ProofBlock:
 		var cmd exec.Cmd
 		cmd.Err = errors.New("ProofBlock task type is not supposed to be encountered in prover task handler for task " + task.Id.String() +
@@ -361,7 +391,7 @@ func (h *taskHandler) Handle(ctx context.Context, executorId types.TaskExecutorI
 	desc.runCommand.Stderr = &stderr
 	cmdString := strings.Join(desc.runCommand.Args, " ")
 	startTime := time.Now()
-	h.logger.Info().Msgf("Start task %v with id %v for prove block %v from shard %d in batch %d by command %v", task.TaskType.String(), task.Id.String(), task.BlockHash.String(), task.ShardId, task.BatchNum, cmdString)
+	h.logger.Info().Msgf("Start task %v with id %v for prove block %v from shard %d in batch %d by command %v", task.TaskType.String(), task.Id.String(), task.BlockHash.String(), task.ShardId, task.BatchId, cmdString)
 	err := desc.runCommand.Run()
 	if err != nil {
 		taskResult := types.FailureProverTaskResult(task.Id, executorId, fmt.Errorf("task execution failed: %w", err))
@@ -370,6 +400,6 @@ func (h *taskHandler) Handle(ctx context.Context, executorId types.TaskExecutorI
 		return h.requestHandler.SetTaskResult(ctx, &taskResult)
 	}
 	h.logger.Info().Msgf("Task with id %v finished after %s", task.Id.String(), time.Since(startTime))
-	taskResult := types.SuccessProverTaskResult(task.Id, executorId, task.TaskType, desc.expectedResult)
+	taskResult := types.SuccessProverTaskResult(task.Id, executorId, task.TaskType, desc.expectedResult, desc.binaryExpectedResults)
 	return h.requestHandler.SetTaskResult(ctx, &taskResult)
 }

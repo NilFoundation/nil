@@ -54,11 +54,11 @@ func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_UpdateTaskStatus()
 	}{
 		{
 			"success result FinalProof",
-			types.SuccessProverTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), types.MergeProof, types.TaskResultAddresses{}),
+			types.SuccessProverTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), types.MergeProof, types.TaskResultAddresses{}, types.TaskResultData{}),
 		},
 		{
 			"success result Commitment",
-			types.SuccessProverTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), types.MergeProof, types.TaskResultAddresses{}),
+			types.SuccessProverTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), types.MergeProof, types.TaskResultAddresses{}, types.TaskResultData{}),
 		},
 		{
 			"failure result",

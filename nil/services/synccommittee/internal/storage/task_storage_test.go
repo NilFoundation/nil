@@ -46,7 +46,7 @@ func (s *TaskStorageSuite) SetupSuite() {
 
 	s.baseTask = types.Task{
 		Id:            types.NewTaskId(),
-		BatchNum:      1,
+		BatchId:       types.NewBatchId(),
 		ShardId:       coreTypes.MainShardId,
 		BlockNum:      1,
 		BlockHash:     common.EmptyHash,
@@ -71,7 +71,7 @@ func (s *TaskStorageSuite) TearDownTest() {
 func (s *TaskStorageSuite) TestAddRemove() {
 	modifiedEntry := s.baseTaskEntry
 	modifiedEntry.Task.Id = types.NewTaskId()
-	modifiedEntry.Task.BatchNum = 8
+	modifiedEntry.Task.BatchId = types.NewBatchId()
 
 	err := s.ts.AddSingleTaskEntry(s.ctx, s.baseTaskEntry)
 	s.Require().NoError(err)
@@ -122,7 +122,7 @@ func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	// Make lower priority task ready for execution
 	err = s.ts.ProcessTaskResult(
 		s.ctx,
-		types.SuccessProverTaskResult(dependency1.Task.Id, dependency1.Owner, types.PartialProve, types.TaskResultAddresses{}),
+		types.SuccessProverTaskResult(dependency1.Task.Id, dependency1.Owner, types.PartialProve, types.TaskResultAddresses{}, types.TaskResultData{}),
 	)
 	s.Require().NoError(err)
 	task, err = s.ts.RequestTaskToExecute(s.ctx, 88)
@@ -132,7 +132,7 @@ func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	// Make higher priority task ready
 	err = s.ts.ProcessTaskResult(
 		s.ctx,
-		types.SuccessProverTaskResult(dependency2.Task.Id, dependency2.Owner, types.PartialProve, types.TaskResultAddresses{}),
+		types.SuccessProverTaskResult(dependency2.Task.Id, dependency2.Owner, types.PartialProve, types.TaskResultAddresses{}, types.TaskResultData{}),
 	)
 	s.Require().NoError(err)
 
@@ -341,7 +341,7 @@ func (s *TaskStorageSuite) Test_ProcessTaskResult_Concurrently() {
 			defer waitGroup.Done()
 			err := s.ts.ProcessTaskResult(
 				s.ctx,
-				types.SuccessProverTaskResult(runningEntry.Task.Id, executorId, types.PartialProve, types.TaskResultAddresses{}),
+				types.SuccessProverTaskResult(runningEntry.Task.Id, executorId, types.PartialProve, types.TaskResultAddresses{}, types.TaskResultData{}),
 			)
 			s.NoError(err)
 		}()
@@ -403,7 +403,7 @@ func (s *TaskStorageSuite) tryToChangeStatus(
 
 	var taskResult types.TaskResult
 	if trySetSuccess {
-		taskResult = types.SuccessProverTaskResult(taskEntry.Task.Id, executorId, types.PartialProve, types.TaskResultAddresses{})
+		taskResult = types.SuccessProverTaskResult(taskEntry.Task.Id, executorId, types.PartialProve, types.TaskResultAddresses{}, types.TaskResultData{})
 	} else {
 		taskResult = types.FailureProverTaskResult(taskEntry.Task.Id, executorId, errors.New("some error"))
 	}

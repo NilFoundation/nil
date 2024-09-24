@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -70,6 +71,45 @@ func (s *BlockStorageTestSuite) TestGetSetBlock() {
 	s.Require().Nil(nonExistentBlock)
 }
 
+func (s *BlockStorageTestSuite) TestIsBatchCompleted() {
+	mainBlock := testaide.GenerateExecutionShardBlock(testaide.RandomHash())
+	mainBlock.ShardId = types.MainShardId
+	mainBlock.ChildBlocks = make([]common.Hash, 1)
+
+	err := s.bs.SetBlock(s.ctx, mainBlock.ShardId, mainBlock.Number, mainBlock)
+	s.Require().NoError(err)
+
+	block := testaide.GenerateExecutionShardBlock(testaide.RandomHash())
+	block.ShardId = types.ShardId(1)
+	block.MainChainHash = mainBlock.Hash
+
+	mainBlock.ChildBlocks[0] = block.Hash
+
+	err = s.bs.SetBlock(s.ctx, block.ShardId, block.Number, block)
+	s.Require().NoError(err)
+
+	res, err := s.bs.IsBatchCompleted(s.ctx, mainBlock)
+	s.Require().NoError(err)
+	s.Require().True(res)
+}
+
+func (s *BlockStorageTestSuite) TestGetSetBatchId() {
+	shardId := types.MainShardId
+	blockNumber := types.BlockNumber(10)
+	block := testaide.GenerateExecutionShardBlock(testaide.RandomHash())
+	block.ShardId = shardId
+	block.Number = blockNumber
+
+	// set BatchId
+	err := s.bs.SetBlock(s.ctx, shardId, block.Number, block)
+	s.Require().NoError(err)
+
+	// Test GetBatchId
+	batchId, err := s.bs.GetBatchId(s.ctx, block)
+	s.Require().NoError(err)
+	s.Require().NotNil(batchId)
+}
+
 func (s *BlockStorageTestSuite) TestGetLastFetchedBlock() {
 	shardId := types.ShardId(1)
 	block1 := testaide.GenerateExecutionShardBlock(testaide.RandomHash())
@@ -90,7 +130,7 @@ func (s *BlockStorageTestSuite) TestGetLastFetchedBlock() {
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProved_DoesNotExist() {
 	hash := testaide.RandomHash()
-	err := s.bs.SetBlockAsProved(s.ctx, hash)
+	err := s.bs.SetBlockAsProved(s.ctx, types.MainShardId, hash)
 	s.Require().Errorf(err, "block with hash=%s is not found", hash.String())
 }
 
@@ -106,13 +146,13 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProved() {
 		s.Require().NoError(err)
 	}
 
-	err := s.bs.SetBlockAsProved(s.ctx, hash)
+	err := s.bs.SetBlockAsProved(s.ctx, types.MainShardId, hash)
 	s.Require().NoError(err)
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProposed_DoesNotExist() {
 	hash := testaide.RandomHash()
-	err := s.bs.SetBlockAsProposed(s.ctx, hash)
+	err := s.bs.SetBlockAsProposed(s.ctx, types.MainShardId, hash)
 	s.Require().Errorf(err, "block with hash=%s is not found", hash.String())
 }
 
@@ -121,7 +161,7 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_IsNotProved() {
 	err := s.bs.SetBlock(s.ctx, types.MainShardId, block.Number, block)
 	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProposed(s.ctx, block.Hash)
+	err = s.bs.SetBlockAsProposed(s.ctx, block.ShardId, block.Hash)
 	s.Require().Errorf(err, "block with hash=%s is not proved", block.Hash.String())
 }
 
@@ -131,10 +171,10 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_ParentHashMismatch() {
 	err := s.bs.SetBlock(s.ctx, previousMainBlock.ShardId, previousMainBlock.Number, previousMainBlock)
 	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProved(s.ctx, previousMainBlock.Hash)
+	err = s.bs.SetBlockAsProved(s.ctx, previousMainBlock.ShardId, previousMainBlock.Hash)
 	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProposed(s.ctx, previousMainBlock.Hash)
+	err = s.bs.SetBlockAsProposed(s.ctx, previousMainBlock.ShardId, previousMainBlock.Hash)
 	s.Require().NoError(err)
 
 	newMainBlock := testaide.GenerateMainShardBlock()
@@ -142,10 +182,10 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_ParentHashMismatch() {
 	err = s.bs.SetBlock(s.ctx, newMainBlock.ShardId, newMainBlock.Number, newMainBlock)
 	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProved(s.ctx, newMainBlock.Hash)
+	err = s.bs.SetBlockAsProved(s.ctx, newMainBlock.ShardId, newMainBlock.Hash)
 	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProposed(s.ctx, newMainBlock.Hash)
+	err = s.bs.SetBlockAsProposed(s.ctx, newMainBlock.ShardId, newMainBlock.Hash)
 	s.Require().ErrorContains(err, "is not equal to the stored value")
 }
 
@@ -168,10 +208,10 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_WithExecutionShardBlocks(
 		s.Require().NoError(err)
 	}
 
-	err := s.bs.SetBlockAsProved(s.ctx, mainBlock.Hash)
+	err := s.bs.SetBlockAsProved(s.ctx, mainBlock.ShardId, mainBlock.Hash)
 	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProposed(s.ctx, mainBlock.Hash)
+	err = s.bs.SetBlockAsProposed(s.ctx, mainBlock.ShardId, mainBlock.Hash)
 	s.Require().NoError(err)
 
 	for _, block := range append(executionShardBlocks, mainBlock) {
@@ -235,7 +275,7 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Collect_Transactions(
 		s.Require().NoError(err)
 	}
 
-	err = s.bs.SetBlockAsProved(s.ctx, mainBlock.Hash)
+	err = s.bs.SetBlockAsProved(s.ctx, mainBlock.ShardId, mainBlock.Hash)
 	s.Require().NoError(err)
 
 	data, err := s.bs.TryGetNextProposalData(s.ctx)
@@ -263,7 +303,7 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Concurrently() {
 	// concurrently set blocks as proved
 	for _, block := range mainShardBlocks {
 		go func() {
-			err := s.bs.SetBlockAsProved(s.ctx, block.Hash)
+			err := s.bs.SetBlockAsProved(s.ctx, block.ShardId, block.Hash)
 			s.NoError(err, "failed to set block as proved")
 			waitGroup.Done()
 		}()
@@ -289,7 +329,7 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Concurrently() {
 				}
 
 				receivedData = append(receivedData, data)
-				err = s.bs.SetBlockAsProposed(s.ctx, data.MainShardBlockHash)
+				err = s.bs.SetBlockAsProposed(s.ctx, types.MainShardId, data.MainShardBlockHash)
 				s.NoError(err, "failed to set block as proposed")
 			}
 		}

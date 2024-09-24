@@ -24,19 +24,27 @@ func newTaskHandler(taskStorage storage.TaskStorage, logger zerolog.Logger) api.
 }
 
 func (h *taskHandler) Handle(ctx context.Context, _ types.TaskExecutorId, task *types.Task) error {
-	if task.TaskType != types.ProofBlock {
+	if (task.TaskType != types.ProofBlock) && (task.TaskType != types.AggregateProofs) {
 		return types.UnexpectedTaskType(task)
 	}
 
-	h.logger.Info().Msgf("Create tasks for prove block %v from shard %d in batch %d, prove block task id %v", task.BlockHash, task.ShardId, task.BatchNum, task.Id.String())
+	h.logger.Info().Msgf("Create tasks %v, blockHash %v from shard %d in batch %d, task id %v", task.TaskType.String(), task.BlockHash, task.ShardId, task.BatchId, task.Id.String())
 
-	blockTasks := prepareTasksForBlock(task)
+	if task.TaskType == types.ProofBlock {
+		blockTasks := prepareTasksForBlock(task)
 
-	for _, taskEntry := range blockTasks {
-		taskEntry.Task.ParentTaskId = &task.Id
+		for _, taskEntry := range blockTasks {
+			taskEntry.Task.ParentTaskId = &task.Id
+		}
+
+		return h.taskStorage.AddTaskEntries(ctx, blockTasks)
+	} else {
+		aggregateTaskEntry := types.NewAggregateBlockProofsTaskEntry(task.BatchId, task.ShardId, task.BlockNum, task.BlockHash, task.DependencyNum)
+		aggregateTaskEntry.Task.Dependencies = task.Dependencies
+		aggregateTaskEntry.Task.ParentTaskId = &task.Id
+		aggregateTaskEntry.Status = types.WaitingForExecutor
+		return h.taskStorage.AddSingleTaskEntry(ctx, *aggregateTaskEntry)
 	}
-
-	return h.taskStorage.AddTaskEntries(ctx, blockTasks)
 }
 
 var circuitTypes = [...]types.CircuitType{types.Bytecode, types.MPT, types.ReadWrite, types.ZKEVM}
@@ -47,39 +55,39 @@ func prepareTasksForBlock(providerTask *types.Task) []*types.TaskEntry {
 	// Create partial proof tasks (top level, no dependencies)
 	partialProofTasks := make(map[types.CircuitType]types.TaskId)
 	for _, ct := range circuitTypes {
-		partialProveTaskEntry := types.NewPartialProveTaskEntry(0, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct)
+		partialProveTaskEntry := types.NewPartialProveTaskEntry(providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct)
 		taskEntries[partialProveTaskEntry.Task.Id] = partialProveTaskEntry
 		partialProofTasks[ct] = partialProveTaskEntry.Task.Id
 	}
 
 	// aggregate challenge task depends on all the previous tasks
-	aggChallengeTaskEntry := types.NewAggregateChallengeTaskEntry(0, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash)
+	aggChallengeTaskEntry := types.NewAggregateChallengeTaskEntry(providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash)
 	aggChallengeTaskID := aggChallengeTaskEntry.Task.Id
 	taskEntries[aggChallengeTaskID] = aggChallengeTaskEntry
 
 	// Second level of circuit-dependent tasks
 	combinedQTasks := make(map[types.CircuitType]types.TaskId)
 	for _, ct := range circuitTypes {
-		combinedQTaskEntry := types.NewCombinedQTaskEntry(0, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct)
+		combinedQTaskEntry := types.NewCombinedQTaskEntry(providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct)
 		taskEntries[combinedQTaskEntry.Task.Id] = combinedQTaskEntry
 		combinedQTasks[ct] = combinedQTaskEntry.Task.Id
 	}
 
 	// aggregate FRI task depends on all the previous tasks
-	aggFRITaskEntry := types.NewAggregateFRITaskEntry(0, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash)
+	aggFRITaskEntry := types.NewAggregateFRITaskEntry(providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash)
 	aggFRITaskID := aggFRITaskEntry.Task.Id
 	taskEntries[aggFRITaskID] = aggFRITaskEntry
 
 	// Third level of circuit-dependent tasks
 	consistencyCheckTasks := make(map[types.CircuitType]types.TaskId)
 	for _, ct := range circuitTypes {
-		taskEntry := types.NewFRIConsistencyCheckTaskEntry(0, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct)
+		taskEntry := types.NewFRIConsistencyCheckTaskEntry(providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct)
 		consistencyCheckTasks[ct] = taskEntry.Task.Id
 		taskEntries[taskEntry.Task.Id] = taskEntry
 	}
 
 	// Final task, depends on partial proofs, aggregate FRI and consistency checks
-	mergeProofTaskEntry := types.NewMergeProofTaskEntry(0, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash)
+	mergeProofTaskEntry := types.NewMergeProofTaskEntry(providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash)
 	mergeProofTaskId := mergeProofTaskEntry.Task.Id
 	taskEntries[mergeProofTaskId] = mergeProofTaskEntry
 
