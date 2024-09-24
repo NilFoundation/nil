@@ -55,7 +55,7 @@ type taskStorage struct {
 func NewTaskStorage(db db.DB, logger zerolog.Logger) TaskStorage {
 	retryRunner := common.NewRetryRunner(
 		common.RetryConfig{
-			ShouldRetry: func(err error) bool {
+			ShouldRetry: func(_ uint32, err error) bool {
 				return errors.Is(err, badger.ErrConflict)
 			},
 			NextDelay: func(_ uint32) time.Duration {

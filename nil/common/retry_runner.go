@@ -11,7 +11,7 @@ import (
 )
 
 type RetryConfig struct {
-	ShouldRetry func(err error) bool
+	ShouldRetry func(attemptNumber uint32, err error) bool
 	NextDelay   func(attemptNumber uint32) time.Duration
 }
 
@@ -34,9 +34,10 @@ func (r *RetryRunner) Do(ctx context.Context, action func(ctx context.Context) e
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+			attemptNumber++
 			err := action(ctx)
 
-			if err == nil || !r.config.ShouldRetry(err) {
+			if err == nil || !r.config.ShouldRetry(attemptNumber, err) {
 				return err
 			}
 
@@ -49,8 +50,6 @@ func (r *RetryRunner) Do(ctx context.Context, action func(ctx context.Context) e
 			case <-time.After(delay):
 				break
 			}
-
-			attemptNumber++
 		}
 	}
 }

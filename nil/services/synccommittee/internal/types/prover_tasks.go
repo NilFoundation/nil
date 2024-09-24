@@ -13,6 +13,7 @@ type TaskType uint8
 
 const (
 	_ TaskType = iota
+	ProofBlock
 	GenerateAssignment
 	Preprocess
 	PartialProve
@@ -158,6 +159,22 @@ func HigherPriority(t1 Task, t2 Task) bool {
 		return t1.BlockNum < t2.BlockNum
 	}
 	return t1.TaskType < t2.TaskType
+}
+
+func NewBlockProofTaskEntry(blockNum types.BlockNumber) *TaskEntry {
+	task := Task{
+		Id:            NewTaskId(),
+		BlockNum:      blockNum,
+		TaskType:      ProofBlock,
+		Dependencies:  make(map[TaskId]TaskResult),
+		DependencyNum: 0,
+	}
+	return &TaskEntry{
+		Task:     task,
+		Created:  time.Now(),
+		Modified: time.Now(),
+		Status:   WaitingForExecutor,
+	}
 }
 
 func NewPartialProveTaskEntry(batchNum uint32, blockNum types.BlockNumber, circuitType CircuitType) *TaskEntry {

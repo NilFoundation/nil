@@ -29,7 +29,7 @@ type TaskScheduler interface {
 	Run(ctx context.Context) error
 }
 
-func NewTaskScheduler(taskStorage storage.TaskStorage, logger zerolog.Logger) TaskScheduler {
+func New(taskStorage storage.TaskStorage, logger zerolog.Logger) TaskScheduler {
 	return &taskSchedulerImpl{
 		storage: taskStorage,
 		config:  DefaultConfig(),
