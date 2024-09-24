@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi/pb"
 	"github.com/rs/zerolog"
@@ -29,24 +30,17 @@ func setRawApiRequestHandlers(ctx context.Context, protocolInterfaceType reflect
 	codec, err := newApiCodec(reflect.ValueOf(api).Type(), protocolInterfaceType)
 	if err != nil {
 		logger.Err(err).Send()
-		return ErrRequestHandlerCreation // TODO: separate error
+		return ErrRequestHandlerCreation
 	}
 
 	apiValue := reflect.ValueOf(api)
 	for method := range filtered(iterMethods(apiValue.Type()), isExportedMethod) {
 		methodName := method.Name
 		methodCodec, ok := (*codec)[methodName]
-		if !ok {
-			logger.Warn().Str("method", methodName).Msg("Appropriate codec is not found")
-			return err
-		}
+		check.PanicIfNotf(ok, "Appropriate codec is not found for method %s", methodName)
 
 		name := network.ProtocolID(apiName + "/" + methodName)
-		handler, err := makeRequestHandler(apiValue.MethodByName(methodName), methodCodec, logger)
-		if err != nil {
-			return err
-		}
-		requestHandlers[name] = handler
+		requestHandlers[name] = makeRequestHandler(apiValue.MethodByName(methodName), methodCodec)
 	}
 	for name, handler := range requestHandlers {
 		manager.SetRequestHandler(ctx, name, handler)
@@ -54,8 +48,7 @@ func setRawApiRequestHandlers(ctx context.Context, protocolInterfaceType reflect
 	return nil
 }
 
-func makeRequestHandler(apiMethod reflect.Value, codec *methodCodec, logger zerolog.Logger) (network.RequestHandler, error) {
-	logger = logger.With().Str("method", apiMethod.Type().Name()).Logger()
+func makeRequestHandler(apiMethod reflect.Value, codec *methodCodec) network.RequestHandler {
 	return func(ctx context.Context, request []byte) ([]byte, error) {
 		unpackedArguments, err := codec.unpackRequest(request)
 		if err != nil {
@@ -67,5 +60,5 @@ func makeRequestHandler(apiMethod reflect.Value, codec *methodCodec, logger zero
 		apiCallResults := apiMethod.Call(apiArguments)
 
 		return codec.packResponse(apiCallResults...)
-	}, nil
+	}
 }
