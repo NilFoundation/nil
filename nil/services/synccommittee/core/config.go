@@ -16,6 +16,7 @@ type Config struct {
 	L1ChainId         string
 	PrivateKey        string
 	L1ContractAddress string
+	SelfAddress       string
 
 	Telemetry *telemetry.Config
 }

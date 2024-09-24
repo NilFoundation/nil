@@ -53,6 +53,10 @@ func addFlags(cmd *cobra.Command, cfg *core.Config, dbPath *string) {
 	cmd.Flags().Uint16Var(&cfg.ProversCount, "provers-count", 0, "number of concurrent prover workers")
 	cmd.Flags().DurationVar(&cfg.PollingDelay, "polling-delay", 500*time.Millisecond, "delay between new block polling")
 	cmd.Flags().StringVar(dbPath, "db-path", "sync_committee.db", "path to database")
+	cmd.Flags().StringVar(&cfg.L1Endpoint, "l1-endpoint", "http://rpc2.sepolia.org", "L1 endpoint")
+	cmd.Flags().StringVar(&cfg.L1ChainId, "l1-chain-id", "11155111", "L1 chain id")
+	cmd.Flags().StringVar(&cfg.PrivateKey, "private-key", "0000000000000000000000000000000000000000000000000000000000000001", "L1 account private key")
+	cmd.Flags().StringVar(&cfg.L1ContractAddress, "l1-contract-address", "0xB8E280a085c87Ed91dd6605480DD2DE9EC3699b4", "L1 update state contract address")
 	logLevel := cmd.Flags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
 
 	// Telemetry flags
