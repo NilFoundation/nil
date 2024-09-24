@@ -54,7 +54,11 @@ func (s *ApiServerTestSuite) SetupTest() {
 	_, s.serverPeerId = network.ConnectManagers(s.T(), s.clientNetworkManager, s.serverNetworkManager)
 }
 
-type ApiWithoutTestMethod struct{}
+type ApiWithOtherMethod struct{}
+
+func (api *ApiWithOtherMethod) OtherMethod(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
+	return nil, nil
+}
 
 type ApiWithWrongMethodArguments struct{}
 
@@ -86,13 +90,13 @@ func (api *ApiWithWrongErrorTypeReturn) TestMethod(ctx context.Context, shardId 
 	return nil, 0
 }
 
-func (s *ApiServerTestSuite) TestWrongApis() {
+func (s *ApiServerTestSuite) TestIncompatibleApis() {
 	s.T().Parallel()
 
 	protocolInterfaceType := reflect.TypeOf((*testNetworkTransportProtocol)(nil)).Elem()
 
 	wrongApis := []interface{}{
-		&ApiWithoutTestMethod{},
+		&ApiWithOtherMethod{},
 		&ApiWithWrongMethodArguments{},
 		&ApiWithWrongContextMethodArgument{},
 		&ApiWithWrongMethodReturn{},
