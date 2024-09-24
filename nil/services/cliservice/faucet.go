@@ -86,7 +86,6 @@ func (s *Service) WaitForReceipt(shardId types.ShardId, msgHash common.Hash) (*j
 		} else {
 			debug.Str(logging.FieldFullMessage, string(receiptDataJSON)).Send()
 		}
-		return nil, nil
 	}
 	return receipt, nil
 }
