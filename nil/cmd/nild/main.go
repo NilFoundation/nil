@@ -100,7 +100,7 @@ func addTelemetryFlags(fset *pflag.FlagSet, cfg *nildconfig.Config) {
 }
 
 func addBasicFlags(fset *pflag.FlagSet, cfg *nildconfig.Config) {
-	fset.Var(&cfg.MyShard, "my-shard", "run only specified shard")
+	fset.UintSliceVar(&cfg.MyShards, "my-shards", cfg.MyShards, "run only specified shard(s)")
 	fset.BoolVar(&cfg.DB.AllowDrop, "allow-db-clear", cfg.DB.AllowDrop, "allow to clear database in case of outdated version")
 	fset.Uint32Var(&cfg.CollatorTickPeriodMs, "collator-tick-ms", cfg.CollatorTickPeriodMs, "collator tick period in milliseconds")
 }

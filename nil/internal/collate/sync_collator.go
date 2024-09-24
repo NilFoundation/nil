@@ -38,8 +38,7 @@ type syncCollator struct {
 	lastBlockHash   common.Hash
 }
 
-func NewSyncCollator(ctx context.Context,
-	shard types.ShardId, timeout time.Duration,
+func NewSyncCollator(ctx context.Context, shard types.ShardId, timeout time.Duration,
 	db db.DB, networkManager *network.Manager, bootstrapPeer string,
 ) (*syncCollator, error) {
 	s := &syncCollator{

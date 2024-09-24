@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/signal"
+	"slices"
 	"syscall"
 	"time"
 
@@ -165,9 +166,12 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 			return 1
 		}
 
-		nodeShards := []types.ShardId{types.MainShardId}
-		if !cfg.MyShard.IsMainShard() {
-			nodeShards = append(nodeShards, cfg.MyShard)
+		nodeShards := make([]types.ShardId, 0, len(cfg.MyShards)+1)
+		for _, shardId := range cfg.MyShards {
+			nodeShards = append(nodeShards, types.ShardId(shardId))
+		}
+		if slices.Contains(nodeShards, types.MainShardId) {
+			nodeShards = append(nodeShards, types.MainShardId)
 		}
 
 		collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
