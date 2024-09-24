@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/stretchr/testify/suite"
@@ -45,8 +47,10 @@ func (s *TaskStorageSuite) SetupSuite() {
 	s.baseTask = types.Task{
 		Id:            types.NewTaskId(),
 		BatchNum:      1,
+		ShardId:       coreTypes.MainShardId,
 		BlockNum:      1,
-		TaskType:      types.Preprocess,
+		BlockHash:     common.EmptyHash,
+		TaskType:      types.PartialProve,
 		CircuitType:   types.Bytecode,
 		Dependencies:  make(map[types.TaskId]types.TaskResult),
 		DependencyNum: 0,
@@ -118,7 +122,7 @@ func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	// Make lower priority task ready for execution
 	err = s.ts.ProcessTaskResult(
 		s.ctx,
-		types.SuccessProverTaskResult(dependency1.Task.Id, dependency1.Owner, types.Commitment, "1A2B"),
+		types.SuccessProverTaskResult(dependency1.Task.Id, dependency1.Owner, types.PartialProve, types.TaskResultFiles{}),
 	)
 	s.Require().NoError(err)
 	task, err = s.ts.RequestTaskToExecute(s.ctx, 88)
@@ -128,7 +132,7 @@ func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	// Make higher priority task ready
 	err = s.ts.ProcessTaskResult(
 		s.ctx,
-		types.SuccessProverTaskResult(dependency2.Task.Id, dependency2.Owner, types.FriConsistencyProof, "3C4D"),
+		types.SuccessProverTaskResult(dependency2.Task.Id, dependency2.Owner, types.PartialProve, types.TaskResultFiles{}),
 	)
 	s.Require().NoError(err)
 
@@ -337,7 +341,7 @@ func (s *TaskStorageSuite) Test_ProcessTaskResult_Concurrently() {
 			defer waitGroup.Done()
 			err := s.ts.ProcessTaskResult(
 				s.ctx,
-				types.SuccessProverTaskResult(runningEntry.Task.Id, executorId, types.Commitment, "1A2B"),
+				types.SuccessProverTaskResult(runningEntry.Task.Id, executorId, types.PartialProve, types.TaskResultFiles{}),
 			)
 			s.NoError(err)
 		}()
@@ -399,7 +403,7 @@ func (s *TaskStorageSuite) tryToChangeStatus(
 
 	var taskResult types.TaskResult
 	if trySetSuccess {
-		taskResult = types.SuccessProverTaskResult(taskEntry.Task.Id, executorId, types.Commitment, "1A2B")
+		taskResult = types.SuccessProverTaskResult(taskEntry.Task.Id, executorId, types.PartialProve, types.TaskResultFiles{})
 	} else {
 		taskResult = types.FailureProverTaskResult(taskEntry.Task.Id, executorId, errors.New("some error"))
 	}
