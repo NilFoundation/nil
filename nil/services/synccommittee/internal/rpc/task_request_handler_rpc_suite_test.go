@@ -54,8 +54,8 @@ func runTaskListener(ctx context.Context, httpEndpoint string, handler api.TaskR
 
 func newTaskRequestHandlerMock() *api.TaskRequestHandlerMock {
 	return &api.TaskRequestHandlerMock{
-		GetTaskFunc: func(_ context.Context, request *api.TaskRequest) (*types.ProverTask, error) {
-			predefinedTask := tasksForProvers[request.ExecutorId]
+		GetTaskFunc: func(_ context.Context, request *api.TaskRequest) (*types.Task, error) {
+			predefinedTask := tasksForExecutors[request.ExecutorId]
 			return predefinedTask, nil
 		},
 		SetTaskResultFunc: func(ctx context.Context, result *types.TaskResult) error {
@@ -65,38 +65,38 @@ func newTaskRequestHandlerMock() *api.TaskRequestHandlerMock {
 }
 
 var (
-	firstProverId          = types.TaskExecutorId(1)
-	secondProverId         = types.TaskExecutorId(2)
-	firstDependencyTaskId  = types.NewProverTaskId()
-	secondDependencyTaskId = types.NewProverTaskId()
+	firstExecutorId        = types.TaskExecutorId(1)
+	secondExecutorId       = types.TaskExecutorId(2)
+	firstDependencyTaskId  = types.NewTaskId()
+	secondDependencyTaskId = types.NewTaskId()
 )
 
-var tasksForProvers = map[types.TaskExecutorId]*types.ProverTask{
-	firstProverId: {
-		Id:            types.NewProverTaskId(),
+var tasksForExecutors = map[types.TaskExecutorId]*types.Task{
+	firstExecutorId: {
+		Id:            types.NewTaskId(),
 		BatchNum:      1,
 		BlockNum:      1,
 		TaskType:      types.Preprocess,
 		CircuitType:   types.Bytecode,
-		Dependencies:  make(map[types.ProverTaskId]types.TaskResult),
+		Dependencies:  make(map[types.TaskId]types.TaskResult),
 		DependencyNum: 0,
 	},
-	secondProverId: {
-		Id:          types.NewProverTaskId(),
+	secondExecutorId: {
+		Id:          types.NewTaskId(),
 		BatchNum:    1234,
 		BlockNum:    10,
 		TaskType:    types.AggregatedFRI,
 		CircuitType: types.ReadWrite,
-		Dependencies: map[types.ProverTaskId]types.TaskResult{
+		Dependencies: map[types.TaskId]types.TaskResult{
 			firstDependencyTaskId: types.SuccessTaskResult(
 				firstDependencyTaskId,
-				testaide.GenerateRandomProverId(),
+				testaide.GenerateRandomExecutorId(),
 				types.FinalProof,
 				"2B3C4D5E",
 			),
 			secondDependencyTaskId: types.SuccessTaskResult(
 				secondDependencyTaskId,
-				testaide.GenerateRandomProverId(),
+				testaide.GenerateRandomExecutorId(),
 				types.Commitment,
 				"3C4D5E6F",
 			),

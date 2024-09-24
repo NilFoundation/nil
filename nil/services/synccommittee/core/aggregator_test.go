@@ -212,7 +212,7 @@ func (s *AggregatorTestSuite) TestValidateAndStoreBlockMismatch() {
 }
 
 // Ensure that we have available task of certain type, or no tasks available
-func requestTask(s *AggregatorTestSuite, executor types.TaskExecutorId, available bool, expectedType types.ProverTaskType) *types.ProverTask {
+func requestTask(s *AggregatorTestSuite, executor types.TaskExecutorId, available bool, expectedType types.TaskType) *types.Task {
 	t, err := s.aggregator.taskStorage.RequestTaskToExecute(s.ctx, executor)
 	s.Require().NoError(err)
 	if !available {
@@ -225,7 +225,7 @@ func requestTask(s *AggregatorTestSuite, executor types.TaskExecutorId, availabl
 }
 
 // Set result for task
-func completeTask(s *AggregatorTestSuite, sender types.TaskExecutorId, id types.ProverTaskId) {
+func completeTask(s *AggregatorTestSuite, sender types.TaskExecutorId, id types.TaskId) {
 	result := types.TaskResult{TaskId: id, IsSuccess: true, Sender: sender}
 	err := s.aggregator.taskStorage.ProcessTaskResult(s.ctx, result)
 	s.Require().NoError(err)
@@ -247,10 +247,10 @@ func (s *AggregatorTestSuite) TestCreateProofTasks() {
 	err = s.aggregator.createProofTasks(s.ctx, &mainShardBlock)
 	s.Require().NoError(err)
 
-	executor := testaide.GenerateRandomProverId()
+	executor := testaide.GenerateRandomExecutorId()
 
 	// Extract 4 top-level tasks
-	var ids [4]types.ProverTaskId
+	var ids [4]types.TaskId
 	for i := range 4 {
 		ids[i] = requestTask(s, executor, true, types.PartialProve).Id
 	}

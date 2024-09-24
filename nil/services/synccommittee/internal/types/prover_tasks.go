@@ -8,11 +8,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// Prover tasks have different types, it affects task input and priority
-type ProverTaskType uint8
+// TaskType Tasks have different types, it affects task input and priority
+type TaskType uint8
 
 const (
-	GenerateAssignment ProverTaskType = iota
+	_ TaskType = iota
+	GenerateAssignment
 	Preprocess
 	PartialProve
 	AggregatedFRI
@@ -29,26 +30,26 @@ const (
 	ZKEVM
 )
 
-// Unique ID of a task, serves as a key in DB
-type ProverTaskId uuid.UUID
+// TaskId Unique ID of a task, serves as a key in DB
+type TaskId uuid.UUID
 
-func NewProverTaskId() ProverTaskId    { return ProverTaskId(uuid.New()) }
-func (id ProverTaskId) String() string { return uuid.UUID(id).String() }
-func (id ProverTaskId) Bytes() []byte  { return []byte(id.String()) }
+func NewTaskId() TaskId          { return TaskId(uuid.New()) }
+func (id TaskId) String() string { return uuid.UUID(id).String() }
+func (id TaskId) Bytes() []byte  { return []byte(id.String()) }
 
-// MarshalText implements the encoding.TextMarshaler interface for ProverTaskId.
-func (t ProverTaskId) MarshalText() ([]byte, error) {
+// MarshalText implements the encoding.TextMarshller interface for TaskId.
+func (t TaskId) MarshalText() ([]byte, error) {
 	uuidValue := uuid.UUID(t)
 	return []byte(uuidValue.String()), nil
 }
 
-// UnmarshalText implements the encoding.TextUnmarshaler interface for ProverTaskId.
-func (t *ProverTaskId) UnmarshalText(data []byte) error {
+// UnmarshalText implements the encoding.TextUnmarshaler interface for TaskId.
+func (t *TaskId) UnmarshalText(data []byte) error {
 	uuidValue, err := uuid.Parse(string(data))
 	if err != nil {
 		return err
 	}
-	*t = ProverTaskId(uuidValue)
+	*t = TaskId(uuidValue)
 	return nil
 }
 
@@ -56,7 +57,8 @@ func (t *ProverTaskId) UnmarshalText(data []byte) error {
 type ProverResultType uint8
 
 const (
-	PreprocessedCommonData ProverResultType = iota
+	_ ProverResultType = iota
+	PreprocessedCommonData
 	Preprocessed
 	PartialProof
 	Commitment
@@ -70,12 +72,15 @@ const (
 
 type TaskExecutorId uint32
 
-const UnknownProverId TaskExecutorId = 0
+const UnknownExecutorId TaskExecutorId = 0
 
-// Prover returns this struct as task result
+// todo: declare separate task types for ProofProvider and Prover
+// https://www.notion.so/nilfoundation/Generic-Tasks-in-SyncCommittee-10ac614852608028b7ffcfd910deeef7?pvs=4
+
+// TaskResult Prover returns this struct as task result
 type TaskResult struct {
 	Type        ProverResultType `json:"type"`
-	TaskId      ProverTaskId     `json:"taskId"`
+	TaskId      TaskId           `json:"taskId"`
 	IsSuccess   bool             `json:"isSuccess"`
 	ErrorText   string           `json:"errorText"`
 	Sender      TaskExecutorId   `json:"sender"`
@@ -83,7 +88,7 @@ type TaskResult struct {
 }
 
 func SuccessTaskResult(
-	taskId ProverTaskId,
+	taskId TaskId,
 	sender TaskExecutorId,
 	resultType ProverResultType,
 	dataAddress string,
@@ -98,7 +103,7 @@ func SuccessTaskResult(
 }
 
 func FailureTaskResult(
-	taskId ProverTaskId,
+	taskId TaskId,
 	sender TaskExecutorId,
 	err error,
 ) TaskResult {
@@ -110,42 +115,42 @@ func FailureTaskResult(
 	}
 }
 
-// Task contains all the necessary data for a prover to perform computation
-type ProverTask struct {
-	Id            ProverTaskId                `json:"id"`
-	BatchNum      uint32                      `json:"batchNum"`
-	BlockNum      types.BlockNumber           `json:"blockNum"`
-	TaskType      ProverTaskType              `json:"taskType"`
-	CircuitType   CircuitType                 `json:"circuitType"`
-	Dependencies  map[ProverTaskId]TaskResult `json:"dependencies"`
-	DependencyNum uint8                       `json:"dependencyNum"`
+// Task contains all the necessary data for either Prover or ProofProvider to perform computation
+type Task struct {
+	Id            TaskId                `json:"id"`
+	BatchNum      uint32                `json:"batchNum"`
+	BlockNum      types.BlockNumber     `json:"blockNum"`
+	TaskType      TaskType              `json:"taskType"`
+	CircuitType   CircuitType           `json:"circuitType"`
+	Dependencies  map[TaskId]TaskResult `json:"dependencies"`
+	DependencyNum uint8                 `json:"dependencyNum"`
 }
 
-func (t *ProverTask) AddDependencyResult(res TaskResult) {
+func (t *Task) AddDependencyResult(res TaskResult) {
 	t.Dependencies[res.TaskId] = res
 }
 
-type ProverTaskStatus uint8
+type TaskStatus uint8
 
 const (
-	WaitingForInput ProverTaskStatus = iota
-	WaitingForProver
+	WaitingForInput TaskStatus = iota
+	WaitingForExecutor
 	Running
 	Failed
 )
 
-// This is a wrapper for task to hold metadata like task status and dependencies
-type ProverTaskEntry struct {
-	Task        ProverTask
-	PendingDeps []ProverTaskId
+// TaskEntry Wrapper for task to hold metadata like task status and dependencies
+type TaskEntry struct {
+	Task        Task
+	PendingDeps []TaskId
 	Created     time.Time
 	Modified    time.Time
 	Owner       TaskExecutorId
-	Status      ProverTaskStatus
+	Status      TaskStatus
 }
 
-// Priority comparator for tasks
-func HigherPriority(t1 ProverTask, t2 ProverTask) bool {
+// HigherPriority Priority comparator for tasks
+func HigherPriority(t1 Task, t2 Task) bool {
 	if t1.BatchNum != t2.BatchNum {
 		return t1.BatchNum < t2.BatchNum
 	}
@@ -155,35 +160,35 @@ func HigherPriority(t1 ProverTask, t2 ProverTask) bool {
 	return t1.TaskType < t2.TaskType
 }
 
-func NewPartialProveTaskEntry(batchNum uint32, blockNum types.BlockNumber, circuitType CircuitType) *ProverTaskEntry {
-	task := ProverTask{
-		Id:            NewProverTaskId(),
+func NewPartialProveTaskEntry(batchNum uint32, blockNum types.BlockNumber, circuitType CircuitType) *TaskEntry {
+	task := Task{
+		Id:            NewTaskId(),
 		BatchNum:      batchNum,
 		BlockNum:      blockNum,
 		TaskType:      PartialProve,
 		CircuitType:   circuitType,
-		Dependencies:  make(map[ProverTaskId]TaskResult),
+		Dependencies:  make(map[TaskId]TaskResult),
 		DependencyNum: 0,
 	}
-	return &ProverTaskEntry{
+	return &TaskEntry{
 		Task:     task,
 		Created:  time.Now(),
 		Modified: time.Now(),
-		Status:   WaitingForProver,
+		Status:   WaitingForExecutor,
 	}
 }
 
-func NewAggregateFRITaskEntry(batchNum uint32, blockNum types.BlockNumber) *ProverTaskEntry {
-	aggFRITask := ProverTask{
-		Id:            NewProverTaskId(),
+func NewAggregateFRITaskEntry(batchNum uint32, blockNum types.BlockNumber) *TaskEntry {
+	aggFRITask := Task{
+		Id:            NewTaskId(),
 		BatchNum:      batchNum,
 		BlockNum:      blockNum,
 		TaskType:      AggregatedFRI,
 		DependencyNum: 4,
-		Dependencies:  make(map[ProverTaskId]TaskResult),
+		Dependencies:  make(map[TaskId]TaskResult),
 	}
 
-	return &ProverTaskEntry{
+	return &TaskEntry{
 		Task:     aggFRITask,
 		Created:  time.Now(),
 		Modified: time.Now(),
@@ -191,17 +196,17 @@ func NewAggregateFRITaskEntry(batchNum uint32, blockNum types.BlockNumber) *Prov
 	}
 }
 
-func NewFRIConsistencyCheckTaskEntry(batchNum uint32, blockNum types.BlockNumber, circuitType CircuitType) *ProverTaskEntry {
-	task := ProverTask{
-		Id:            NewProverTaskId(),
+func NewFRIConsistencyCheckTaskEntry(batchNum uint32, blockNum types.BlockNumber, circuitType CircuitType) *TaskEntry {
+	task := Task{
+		Id:            NewTaskId(),
 		BatchNum:      batchNum,
 		BlockNum:      blockNum,
 		TaskType:      FRIConsistencyChecks,
 		CircuitType:   circuitType,
-		Dependencies:  make(map[ProverTaskId]TaskResult),
+		Dependencies:  make(map[TaskId]TaskResult),
 		DependencyNum: 2, // aggregate FRI and corresponding partial proof
 	}
-	return &ProverTaskEntry{
+	return &TaskEntry{
 		Task:     task,
 		Created:  time.Now(),
 		Modified: time.Now(),
@@ -209,17 +214,17 @@ func NewFRIConsistencyCheckTaskEntry(batchNum uint32, blockNum types.BlockNumber
 	}
 }
 
-func NewMergeProofTaskEntry(batchNum uint32, blockNum types.BlockNumber) *ProverTaskEntry {
-	mergeProofTask := ProverTask{
-		Id:            NewProverTaskId(),
+func NewMergeProofTaskEntry(batchNum uint32, blockNum types.BlockNumber) *TaskEntry {
+	mergeProofTask := Task{
+		Id:            NewTaskId(),
 		BatchNum:      batchNum,
 		BlockNum:      blockNum,
 		TaskType:      MergeProof,
 		DependencyNum: 9, // agg FRI + 4 partial proofs + 4 FRI consistency checks
-		Dependencies:  make(map[ProverTaskId]TaskResult),
+		Dependencies:  make(map[TaskId]TaskResult),
 	}
 
-	return &ProverTaskEntry{
+	return &TaskEntry{
 		Task:     mergeProofTask,
 		Created:  time.Now(),
 		Modified: time.Now(),

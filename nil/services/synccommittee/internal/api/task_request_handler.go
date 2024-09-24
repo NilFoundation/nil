@@ -13,7 +13,7 @@ const (
 )
 
 type TaskRequest struct {
-	ExecutorId types.TaskExecutorId `json:"proverId"`
+	ExecutorId types.TaskExecutorId `json:"executorId"`
 }
 
 func NewTaskRequest(executorId types.TaskExecutorId) *TaskRequest {
@@ -21,6 +21,6 @@ func NewTaskRequest(executorId types.TaskExecutorId) *TaskRequest {
 }
 
 type TaskRequestHandler interface {
-	GetTask(context context.Context, request *TaskRequest) (*types.ProverTask, error)
+	GetTask(context context.Context, request *TaskRequest) (*types.Task, error)
 	SetTaskResult(context context.Context, result *types.TaskResult) error
 }

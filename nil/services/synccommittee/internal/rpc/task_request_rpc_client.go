@@ -21,18 +21,18 @@ func NewTaskRequestRpcClient(syncCommitteeApiEndpoint string, logger zerolog.Log
 	}
 }
 
-func (r *TaskRequestRpcClient) GetTask(_ context.Context, request *api.TaskRequest) (*types.ProverTask, error) {
+func (r *TaskRequestRpcClient) GetTask(_ context.Context, request *api.TaskRequest) (*types.Task, error) {
 	response, err := r.client.RawCall(api.TaskRequestHandlerGetTask, request)
 	if err != nil {
 		return nil, err
 	}
 
-	var proverTask *types.ProverTask
-	if err = json.Unmarshal(response, &proverTask); err != nil {
+	var task *types.Task
+	if err = json.Unmarshal(response, &task); err != nil {
 		return nil, err
 	}
 
-	return proverTask, nil
+	return task, nil
 }
 
 func (r *TaskRequestRpcClient) SetTaskResult(_ context.Context, result *types.TaskResult) error {

@@ -15,29 +15,29 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// TaskEntriesTable BadgerDB tables, ProverTaskId is used as a key
+// TaskEntriesTable BadgerDB tables, TaskId is used as a key
 const (
 	TaskEntriesTable = "TaskEntries"
 )
 
 var (
 	ErrTaskInvalidStatus = errors.New("task has invalid status")
-	ErrTaskWrongProver   = errors.New("task belongs to another prover")
+	ErrTaskWrongExecutor = errors.New("task belongs to another executor")
 )
 
-// ProverTaskStorage Interface for storing and accessing tasks from DB
-type ProverTaskStorage interface {
+// TaskStorage Interface for storing and accessing tasks from DB
+type TaskStorage interface {
 	// AddSingleTaskEntry Store new task entry into DB
-	AddSingleTaskEntry(ctx context.Context, entry types.ProverTaskEntry) error
+	AddSingleTaskEntry(ctx context.Context, entry types.TaskEntry) error
 
 	// AddTaskEntries Store set of task entries as a single transaction
-	AddTaskEntries(ctx context.Context, tasks []*types.ProverTaskEntry) error
+	AddTaskEntries(ctx context.Context, tasks []*types.TaskEntry) error
 
 	// RemoveTaskEntry Delete existing task entry from DB
-	RemoveTaskEntry(ctx context.Context, id types.ProverTaskId) error
+	RemoveTaskEntry(ctx context.Context, id types.TaskId) error
 
-	// RequestTaskToExecute Find task with no dependencies and higher priority and assign it to prover
-	RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.ProverTask, error)
+	// RequestTaskToExecute Find task with no dependencies and higher priority and assign it to the executor
+	RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.Task, error)
 
 	// ProcessTaskResult Check task result, update dependencies in case of success
 	ProcessTaskResult(ctx context.Context, res types.TaskResult) error
@@ -46,13 +46,13 @@ type ProverTaskStorage interface {
 	RescheduleHangingTasks(ctx context.Context, currentTime time.Time, taskExecutionTimeout time.Duration) error
 }
 
-type proverTaskStorage struct {
+type taskStorage struct {
 	database    db.DB
 	retryRunner common.RetryRunner
 	logger      zerolog.Logger
 }
 
-func NewTaskStorage(db db.DB, logger zerolog.Logger) ProverTaskStorage {
+func NewTaskStorage(db db.DB, logger zerolog.Logger) TaskStorage {
 	retryRunner := common.NewRetryRunner(
 		common.RetryConfig{
 			ShouldRetry: func(err error) bool {
@@ -70,7 +70,7 @@ func NewTaskStorage(db db.DB, logger zerolog.Logger) ProverTaskStorage {
 		logger,
 	)
 
-	return &proverTaskStorage{
+	return &taskStorage{
 		database:    db,
 		retryRunner: retryRunner,
 		logger:      logger,
@@ -78,13 +78,13 @@ func NewTaskStorage(db db.DB, logger zerolog.Logger) ProverTaskStorage {
 }
 
 // Helper to get and decode task entry from DB
-func extractTaskEntry(tx db.RwTx, id types.ProverTaskId) (*types.ProverTaskEntry, error) {
+func extractTaskEntry(tx db.RwTx, id types.TaskId) (*types.TaskEntry, error) {
 	encoded, err := tx.Get(TaskEntriesTable, id.Bytes())
 	if err != nil {
 		return nil, err
 	}
 
-	entry := &types.ProverTaskEntry{}
+	entry := &types.TaskEntry{}
 	if err = gob.NewDecoder(bytes.NewBuffer(encoded)).Decode(&entry); err != nil {
 		return nil, fmt.Errorf("failed to decode task with id %v: %w", id, err)
 	}
@@ -92,7 +92,7 @@ func extractTaskEntry(tx db.RwTx, id types.ProverTaskId) (*types.ProverTaskEntry
 }
 
 // Helper to encode and put task entry into DB
-func putTaskEntry(tx db.RwTx, entry *types.ProverTaskEntry) error {
+func putTaskEntry(tx db.RwTx, entry *types.TaskEntry) error {
 	var inputBuffer bytes.Buffer
 	err := gob.NewEncoder(&inputBuffer).Encode(entry)
 	if err != nil {
@@ -105,13 +105,13 @@ func putTaskEntry(tx db.RwTx, entry *types.ProverTaskEntry) error {
 	return nil
 }
 
-func (st *proverTaskStorage) AddSingleTaskEntry(ctx context.Context, entry types.ProverTaskEntry) error {
+func (st *taskStorage) AddSingleTaskEntry(ctx context.Context, entry types.TaskEntry) error {
 	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return st.addSingleTaskEntryImpl(ctx, entry)
 	})
 }
 
-func (st *proverTaskStorage) addSingleTaskEntryImpl(ctx context.Context, entry types.ProverTaskEntry) error {
+func (st *taskStorage) addSingleTaskEntryImpl(ctx context.Context, entry types.TaskEntry) error {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -127,13 +127,13 @@ func (st *proverTaskStorage) addSingleTaskEntryImpl(ctx context.Context, entry t
 	return nil
 }
 
-func (st *proverTaskStorage) AddTaskEntries(ctx context.Context, tasks []*types.ProverTaskEntry) error {
+func (st *taskStorage) AddTaskEntries(ctx context.Context, tasks []*types.TaskEntry) error {
 	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return st.addTaskEntriesImpl(ctx, tasks)
 	})
 }
 
-func (st *proverTaskStorage) addTaskEntriesImpl(ctx context.Context, tasks []*types.ProverTaskEntry) error {
+func (st *taskStorage) addTaskEntriesImpl(ctx context.Context, tasks []*types.TaskEntry) error {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -148,14 +148,14 @@ func (st *proverTaskStorage) addTaskEntriesImpl(ctx context.Context, tasks []*ty
 	return tx.Commit()
 }
 
-func (st *proverTaskStorage) RemoveTaskEntry(ctx context.Context, id types.ProverTaskId) error {
+func (st *taskStorage) RemoveTaskEntry(ctx context.Context, id types.TaskId) error {
 	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return st.removeTaskEntryImpl(ctx, id)
 	})
 }
 
 // Delete existing task entry from DB
-func (st *proverTaskStorage) removeTaskEntryImpl(ctx context.Context, id types.ProverTaskId) error {
+func (st *taskStorage) removeTaskEntryImpl(ctx context.Context, id types.TaskId) error {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -169,7 +169,7 @@ func (st *proverTaskStorage) removeTaskEntryImpl(ctx context.Context, id types.P
 }
 
 // Helper to update task status when it's ready to be executed or needs to be rescheduled
-func updateTaskStatus(tx db.RwTx, id types.ProverTaskId, newStatus types.ProverTaskStatus, newOwner types.TaskExecutorId) error {
+func updateTaskStatus(tx db.RwTx, id types.TaskId, newStatus types.TaskStatus, newOwner types.TaskExecutorId) error {
 	entry, err := extractTaskEntry(tx, id)
 	if err != nil {
 		return err
@@ -181,11 +181,11 @@ func updateTaskStatus(tx db.RwTx, id types.ProverTaskId, newStatus types.ProverT
 }
 
 // Helper to find available task with higher priority
-func findHigherPriorityTask(tx db.RoTx) (*types.ProverTask, error) {
-	var res *types.ProverTask = nil
+func findHigherPriorityTask(tx db.RoTx) (*types.Task, error) {
+	var res *types.Task = nil
 
-	err := iterateOverTaskEntries(tx, func(entry *types.ProverTaskEntry) error {
-		if entry.Status == types.WaitingForProver {
+	err := iterateOverTaskEntries(tx, func(entry *types.TaskEntry) error {
+		if entry.Status == types.WaitingForExecutor {
 			if res == nil || types.HigherPriority(entry.Task, *res) {
 				res = &entry.Task
 			}
@@ -196,8 +196,8 @@ func findHigherPriorityTask(tx db.RoTx) (*types.ProverTask, error) {
 	return res, err
 }
 
-func (st *proverTaskStorage) RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.ProverTask, error) {
-	var task *types.ProverTask
+func (st *taskStorage) RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.Task, error) {
+	var task *types.Task
 	err := st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		var err error
 		task, err = st.requestTaskToExecuteImpl(ctx, executor)
@@ -206,7 +206,7 @@ func (st *proverTaskStorage) RequestTaskToExecute(ctx context.Context, executor 
 	return task, err
 }
 
-func (st *proverTaskStorage) requestTaskToExecuteImpl(ctx context.Context, executor types.TaskExecutorId) (*types.ProverTask, error) {
+func (st *taskStorage) requestTaskToExecuteImpl(ctx context.Context, executor types.TaskExecutorId) (*types.Task, error) {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return nil, err
@@ -231,13 +231,13 @@ func (st *proverTaskStorage) requestTaskToExecuteImpl(ctx context.Context, execu
 	return resultTask, nil
 }
 
-func (st *proverTaskStorage) ProcessTaskResult(ctx context.Context, res types.TaskResult) error {
+func (st *taskStorage) ProcessTaskResult(ctx context.Context, res types.TaskResult) error {
 	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return st.processTaskResultImpl(ctx, res)
 	})
 }
 
-func (st *proverTaskStorage) processTaskResultImpl(ctx context.Context, res types.TaskResult) error {
+func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.TaskResult) error {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -289,7 +289,7 @@ func (st *proverTaskStorage) processTaskResultImpl(ctx context.Context, res type
 		depEntry.Task.AddDependencyResult(res)
 		depEntry.Modified = time.Now()
 		if len(depEntry.Task.Dependencies) == int(depEntry.Task.DependencyNum) {
-			depEntry.Status = types.WaitingForProver
+			depEntry.Status = types.WaitingForExecutor
 		}
 		err = putTaskEntry(tx, depEntry)
 		if err != nil {
@@ -302,11 +302,11 @@ func (st *proverTaskStorage) processTaskResultImpl(ctx context.Context, res type
 	return nil
 }
 
-func (st *proverTaskStorage) validateTaskResult(entry types.ProverTaskEntry, res types.TaskResult) error {
+func (st *taskStorage) validateTaskResult(entry types.TaskEntry, res types.TaskResult) error {
 	const errFormat = "failed to process task result, taskId=%v, taskStatus=%v, taskOwner=%v, requestSenderId=%v: %w"
 
 	if entry.Owner != res.Sender {
-		return fmt.Errorf(errFormat, entry.Task.Id, entry.Status, entry.Owner, res.Sender, ErrTaskWrongProver)
+		return fmt.Errorf(errFormat, entry.Task.Id, entry.Status, entry.Owner, res.Sender, ErrTaskWrongExecutor)
 	}
 
 	if entry.Status != types.Running {
@@ -316,13 +316,13 @@ func (st *proverTaskStorage) validateTaskResult(entry types.ProverTaskEntry, res
 	return nil
 }
 
-func (st *proverTaskStorage) RescheduleHangingTasks(ctx context.Context, currentTime time.Time, taskExecutionTimeout time.Duration) error {
+func (st *taskStorage) RescheduleHangingTasks(ctx context.Context, currentTime time.Time, taskExecutionTimeout time.Duration) error {
 	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return st.rescheduleHangingTasksImpl(ctx, currentTime, taskExecutionTimeout)
 	})
 }
 
-func (st *proverTaskStorage) rescheduleHangingTasksImpl(
+func (st *taskStorage) rescheduleHangingTasksImpl(
 	ctx context.Context,
 	currentTime time.Time,
 	taskExecutionTimeout time.Duration,
@@ -333,7 +333,7 @@ func (st *proverTaskStorage) rescheduleHangingTasksImpl(
 	}
 	defer tx.Rollback()
 
-	err = iterateOverTaskEntries(tx, func(entry *types.ProverTaskEntry) error {
+	err = iterateOverTaskEntries(tx, func(entry *types.TaskEntry) error {
 		if entry.Status != types.Running {
 			return nil
 		}
@@ -345,13 +345,13 @@ func (st *proverTaskStorage) rescheduleHangingTasksImpl(
 
 		st.logger.Warn().
 			Interface("taskId", entry.Task.Id).
-			Interface("proverId", entry.Owner).
+			Interface("executorId", entry.Owner).
 			Dur("executionTime", executionTime).
 			Msg("Task execution timeout, rescheduling")
 
 		entry.Modified = time.Now()
-		entry.Status = types.WaitingForProver
-		entry.Owner = types.UnknownProverId
+		entry.Status = types.WaitingForExecutor
+		entry.Owner = types.UnknownExecutorId
 		return putTaskEntry(tx, entry)
 	})
 	if err != nil {
@@ -361,7 +361,7 @@ func (st *proverTaskStorage) rescheduleHangingTasksImpl(
 	return tx.Commit()
 }
 
-func iterateOverTaskEntries(tx db.RoTx, action func(entry *types.ProverTaskEntry) error) error {
+func iterateOverTaskEntries(tx db.RoTx, action func(entry *types.TaskEntry) error) error {
 	iter, err := tx.Range(TaskEntriesTable, nil, nil)
 	if err != nil {
 		return err
@@ -373,7 +373,7 @@ func iterateOverTaskEntries(tx db.RoTx, action func(entry *types.ProverTaskEntry
 		if err != nil {
 			return err
 		}
-		entry := &types.ProverTaskEntry{}
+		entry := &types.TaskEntry{}
 		if err = gob.NewDecoder(bytes.NewBuffer(val)).Decode(&entry); err != nil {
 			return fmt.Errorf("failed to decode task with id %v: %w", string(key), err)
 		}

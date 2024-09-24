@@ -13,7 +13,7 @@ type taskHandlerImpl struct {
 	logger zerolog.Logger
 }
 
-func (h taskHandlerImpl) HandleTask(_ context.Context, _ *types.ProverTask) (executor.TaskHandleResult, error) {
+func (h taskHandlerImpl) HandleTask(_ context.Context, _ *types.Task) (executor.TaskHandleResult, error) {
 	time.Sleep(100 * time.Millisecond)
 	result := executor.TaskHandleResult{Type: types.FinalProof}
 	h.logger.Debug().Msg("task handled")

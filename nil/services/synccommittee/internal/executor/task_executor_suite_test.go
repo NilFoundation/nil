@@ -22,11 +22,11 @@ type TestSuite struct {
 func (s *TestSuite) SetupTest() {
 	s.context, s.cancellation = context.WithCancel(context.Background())
 	s.targetHandler = newTaskRequestHandlerMock()
-	proverConfig := Config{
+	config := Config{
 		TaskPollingInterval: 10 * time.Millisecond,
 	}
 	logger := logging.NewLogger("taskExecutor-test")
-	taskExecutor, err := New(&proverConfig, s.targetHandler, &taskHandler{}, logger)
+	taskExecutor, err := New(&config, s.targetHandler, &taskHandler{}, logger)
 	s.Require().NoError(err)
 	s.taskExecutor = taskExecutor
 }
@@ -37,7 +37,7 @@ func (s *TestSuite) TearDownTest() {
 
 func newTaskRequestHandlerMock() *api.TaskRequestHandlerMock {
 	return &api.TaskRequestHandlerMock{
-		GetTaskFunc: func(_ context.Context, request *api.TaskRequest) (*types.ProverTask, error) {
+		GetTaskFunc: func(_ context.Context, request *api.TaskRequest) (*types.Task, error) {
 			task := testaide.GenerateTask()
 			return &task, nil
 		},
@@ -49,6 +49,6 @@ func newTaskRequestHandlerMock() *api.TaskRequestHandlerMock {
 
 type taskHandler struct{}
 
-func (h *taskHandler) HandleTask(_ context.Context, _ *types.ProverTask) (TaskHandleResult, error) {
+func (h *taskHandler) HandleTask(_ context.Context, _ *types.Task) (TaskHandleResult, error) {
 	return TaskHandleResult{Type: types.FinalProof}, nil
 }

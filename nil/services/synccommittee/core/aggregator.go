@@ -22,7 +22,7 @@ type Aggregator struct {
 	logger       zerolog.Logger
 	client       *rpc.Client
 	blockStorage *storage.BlockStorage
-	taskStorage  storage.ProverTaskStorage
+	taskStorage  storage.TaskStorage
 	proposer     *Proposer
 	metrics      *MetricsHandler
 }
@@ -31,7 +31,7 @@ func NewAggregator(
 	client *rpc.Client,
 	proposer *Proposer,
 	blockStorage *storage.BlockStorage,
-	taskStorage storage.ProverTaskStorage,
+	taskStorage storage.TaskStorage,
 	logger zerolog.Logger,
 	metrics *MetricsHandler,
 ) (*Aggregator, error) {
@@ -159,11 +159,11 @@ func (agg *Aggregator) sendProof(ctx context.Context) error {
 
 var circuitTypes = [...]types.CircuitType{types.Bytecode, types.MPT, types.ReadWrite, types.ZKEVM}
 
-func prepareTasksForBlock(blockNumber coreTypes.BlockNumber) []*types.ProverTaskEntry {
-	taskEntries := make(map[types.ProverTaskId]*types.ProverTaskEntry)
+func prepareTasksForBlock(blockNumber coreTypes.BlockNumber) []*types.TaskEntry {
+	taskEntries := make(map[types.TaskId]*types.TaskEntry)
 
 	// Create partial proof tasks (top level, no dependencies)
-	partialProofTasks := make(map[types.CircuitType]types.ProverTaskId)
+	partialProofTasks := make(map[types.CircuitType]types.TaskId)
 	for _, ct := range circuitTypes {
 		partialProveTaskEntry := types.NewPartialProveTaskEntry(0, blockNumber, ct)
 		taskEntries[partialProveTaskEntry.Task.Id] = partialProveTaskEntry
@@ -176,7 +176,7 @@ func prepareTasksForBlock(blockNumber coreTypes.BlockNumber) []*types.ProverTask
 	taskEntries[aggFRITaskID] = aggFRITaskEntry
 
 	// Second level of circuit-dependent tasks
-	consistencyCheckTasks := make(map[types.CircuitType]types.ProverTaskId)
+	consistencyCheckTasks := make(map[types.CircuitType]types.TaskId)
 	for _, ct := range circuitTypes {
 		taskEntry := types.NewFRIConsistencyCheckTaskEntry(0, blockNumber, ct)
 		consistencyCheckTasks[ct] = taskEntry.Task.Id

@@ -29,7 +29,7 @@ type TaskScheduler interface {
 	Run(ctx context.Context) error
 }
 
-func NewTaskScheduler(taskStorage storage.ProverTaskStorage, logger zerolog.Logger) TaskScheduler {
+func NewTaskScheduler(taskStorage storage.TaskStorage, logger zerolog.Logger) TaskScheduler {
 	return &taskSchedulerImpl{
 		storage: taskStorage,
 		config:  DefaultConfig(),
@@ -38,19 +38,19 @@ func NewTaskScheduler(taskStorage storage.ProverTaskStorage, logger zerolog.Logg
 }
 
 type taskSchedulerImpl struct {
-	storage storage.ProverTaskStorage
+	storage storage.TaskStorage
 	config  Config
 	logger  zerolog.Logger
 }
 
-func (s *taskSchedulerImpl) GetTask(ctx context.Context, request *api.TaskRequest) (*types.ProverTask, error) {
-	s.logger.Debug().Interface("proverId", request.ExecutorId).Msg("received new task request")
+func (s *taskSchedulerImpl) GetTask(ctx context.Context, request *api.TaskRequest) (*types.Task, error) {
+	s.logger.Debug().Interface("executorId", request.ExecutorId).Msg("received new task request")
 
 	task, err := s.storage.RequestTaskToExecute(ctx, request.ExecutorId)
 	if err != nil {
 		s.logger.Error().
 			Err(err).
-			Interface("proverId", request.ExecutorId).
+			Interface("executorId", request.ExecutorId).
 			Msg("failed to request task to execute")
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (s *taskSchedulerImpl) GetTask(ctx context.Context, request *api.TaskReques
 
 func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.TaskResult) error {
 	s.logger.Debug().
-		Interface("proverId", result.Sender).
+		Interface("executorId", result.Sender).
 		Interface("taskId", result.TaskId).
 		Interface("resultType", result.Type).
 		Msgf("received task result update")
@@ -69,7 +69,7 @@ func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.Tas
 	if err != nil {
 		s.logger.Error().
 			Err(err).
-			Interface("proverId", result.Sender).
+			Interface("executorId", result.Sender).
 			Interface("taskId", result.TaskId).
 			Msgf("failed to process task result")
 	}

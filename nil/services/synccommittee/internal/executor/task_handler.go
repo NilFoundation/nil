@@ -12,5 +12,5 @@ type TaskHandleResult struct {
 }
 
 type TaskHandler interface {
-	HandleTask(ctx context.Context, task *types.ProverTask) (TaskHandleResult, error)
+	HandleTask(ctx context.Context, task *types.Task) (TaskHandleResult, error)
 }
