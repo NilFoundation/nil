@@ -15,9 +15,9 @@ type TaskRequestRpcClient struct {
 	client client.RawClient
 }
 
-func NewTaskRequestRpcClient(syncCommitteeApiEndpoint string, logger zerolog.Logger) *TaskRequestRpcClient {
+func NewTaskRequestRpcClient(apiEndpoint string, logger zerolog.Logger) *TaskRequestRpcClient {
 	return &TaskRequestRpcClient{
-		client: rpc.NewRawClient(syncCommitteeApiEndpoint, logger),
+		client: rpc.NewRawClient(apiEndpoint, logger),
 	}
 }
 

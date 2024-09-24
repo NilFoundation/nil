@@ -2,24 +2,24 @@ package prover
 
 import (
 	"context"
-	"time"
 
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
-	"github.com/rs/zerolog"
 )
 
-type taskHandlerImpl struct {
-	logger zerolog.Logger
+type taskHandler struct {
+	requestHandler api.TaskRequestHandler
 }
 
-func (h taskHandlerImpl) HandleTask(_ context.Context, _ *types.Task) (executor.TaskHandleResult, error) {
-	time.Sleep(100 * time.Millisecond)
-	result := executor.TaskHandleResult{Type: types.FinalProof}
-	h.logger.Debug().Msg("task handled")
-	return result, nil
+func newTaskHandler(requestHandler api.TaskRequestHandler) executor.TaskHandler {
+	return &taskHandler{
+		requestHandler: requestHandler,
+	}
 }
 
-func _(logger zerolog.Logger) executor.TaskHandler {
-	return &taskHandlerImpl{logger: logger}
+func (h *taskHandler) Handle(ctx context.Context, executorId types.TaskExecutorId, task *types.Task) error {
+	// todo: implement actual task handling
+	taskResult := types.SuccessTaskResult(task.Id, executorId, types.PartialProof, "1A2B")
+	return h.requestHandler.SetTaskResult(ctx, &taskResult)
 }

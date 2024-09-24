@@ -13,20 +13,23 @@ import (
 
 type TestSuite struct {
 	suite.Suite
-	context       context.Context
-	cancellation  context.CancelFunc
-	taskExecutor  TaskExecutor
-	targetHandler *api.TaskRequestHandlerMock
+	context        context.Context
+	cancellation   context.CancelFunc
+	taskExecutor   TaskExecutor
+	requestHandler *api.TaskRequestHandlerMock
+	taskHandler    *TaskHandlerMock
 }
 
 func (s *TestSuite) SetupTest() {
 	s.context, s.cancellation = context.WithCancel(context.Background())
-	s.targetHandler = newTaskRequestHandlerMock()
+	s.requestHandler = newTaskRequestHandlerMock()
+	s.taskHandler = &TaskHandlerMock{}
+
 	config := Config{
 		TaskPollingInterval: 10 * time.Millisecond,
 	}
 	logger := logging.NewLogger("taskExecutor-test")
-	taskExecutor, err := New(&config, s.targetHandler, &taskHandler{}, logger)
+	taskExecutor, err := New(&config, s.requestHandler, s.taskHandler, logger)
 	s.Require().NoError(err)
 	s.taskExecutor = taskExecutor
 }
@@ -45,10 +48,4 @@ func newTaskRequestHandlerMock() *api.TaskRequestHandlerMock {
 			return nil
 		},
 	}
-}
-
-type taskHandler struct{}
-
-func (h *taskHandler) HandleTask(_ context.Context, _ *types.Task) (TaskHandleResult, error) {
-	return TaskHandleResult{Type: types.FinalProof}, nil
 }

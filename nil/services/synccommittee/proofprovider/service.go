@@ -36,7 +36,7 @@ func New(config Config, logger zerolog.Logger) (*ProofProvider, error) {
 	taskExecutor, err := executor.New(
 		executor.DefaultConfig(),
 		rpc.NewTaskRequestRpcClient(config.SyncCommitteeRpcEndpoint, logger),
-		newTaskHandler(logger),
+		newTaskHandler(),
 		logger,
 	)
 	if err != nil {

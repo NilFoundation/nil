@@ -20,11 +20,11 @@ func (s *TestSuite) Test_TaskExecutor_Executes_Tasks() {
 	}()
 
 	expectedTaskRequest := api.NewTaskRequest(s.taskExecutor.Id())
-	const tasksThreshold = 3
+	const tasksThreshold = 5
 
 	s.Require().Eventually(
 		func() bool {
-			getTaskCalls := s.targetHandler.GetTaskCalls()
+			getTaskCalls := s.requestHandler.GetTaskCalls()
 			if len(getTaskCalls) < tasksThreshold {
 				return false
 			}
@@ -41,13 +41,13 @@ func (s *TestSuite) Test_TaskExecutor_Executes_Tasks() {
 
 	s.Require().Eventually(
 		func() bool {
-			setTaskResultCalls := s.targetHandler.SetTaskResultCalls()
-			if len(setTaskResultCalls) < tasksThreshold {
+			taskHandleCalls := s.taskHandler.HandleCalls()
+			if len(taskHandleCalls) < tasksThreshold {
 				return false
 			}
 
-			for _, call := range setTaskResultCalls {
-				s.Require().Equal(s.taskExecutor.Id(), call.Result.Sender, "Task executor should have passed its id in the result")
+			for _, call := range taskHandleCalls {
+				s.Require().Equal(s.taskExecutor.Id(), call.ExecutorId, "Task executor should have passed its id in the result")
 			}
 
 			return true

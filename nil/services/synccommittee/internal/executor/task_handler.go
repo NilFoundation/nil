@@ -6,11 +6,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
 
-type TaskHandleResult struct {
-	Type        types.ProverResultType
-	DataAddress string
-}
-
 type TaskHandler interface {
-	HandleTask(ctx context.Context, task *types.Task) (TaskHandleResult, error)
+	Handle(ctx context.Context, executorId types.TaskExecutorId, task *types.Task) error
 }

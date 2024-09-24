@@ -2,24 +2,18 @@ package proofprovider
 
 import (
 	"context"
-	"time"
 
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
-	"github.com/rs/zerolog"
 )
 
-type taskHandlerImpl struct {
-	logger zerolog.Logger
+type taskHandler struct{}
+
+func newTaskHandler() executor.TaskHandler {
+	return &taskHandler{}
 }
 
-func (h taskHandlerImpl) HandleTask(_ context.Context, _ *types.Task) (executor.TaskHandleResult, error) {
-	time.Sleep(1000 * time.Millisecond)
-	result := executor.TaskHandleResult{Type: types.FinalProof}
-	h.logger.Debug().Msg("task handled")
-	return result, nil
-}
-
-func newTaskHandler(logger zerolog.Logger) executor.TaskHandler {
-	return &taskHandlerImpl{logger: logger}
+func (h *taskHandler) Handle(ctx context.Context, executorId types.TaskExecutorId, task *types.Task) error {
+	// todo
+	panic("not implemented")
 }

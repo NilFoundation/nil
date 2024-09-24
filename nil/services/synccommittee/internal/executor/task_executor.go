@@ -46,7 +46,7 @@ func New(
 		nonceId:        *nonceId,
 		config:         *config,
 		requestHandler: requestHandler,
-		handler:        taskHandler,
+		taskHandler:    taskHandler,
 		logger:         logger,
 	}, nil
 }
@@ -55,7 +55,7 @@ type taskExecutorImpl struct {
 	nonceId        types.TaskExecutorId
 	config         Config
 	requestHandler api.TaskRequestHandler
-	handler        TaskHandler
+	taskHandler    TaskHandler
 	logger         zerolog.Logger
 }
 
@@ -88,19 +88,16 @@ func (p *taskExecutorImpl) fetchAndHandleTask(ctx context.Context) error {
 		return nil
 	}
 
-	p.logger.Debug().Msgf("executing task with id=%d", task.Id)
-	handleResult, err := p.handler.HandleTask(ctx, task)
+	p.logger.Debug().Msgf("executing task with id=%s", task.Id)
+	err = p.taskHandler.Handle(ctx, p.nonceId, task)
 
-	var taskResult types.TaskResult
 	if err == nil {
-		p.logger.Debug().Msgf("execution of task with id=%d is successfully completed", task.Id)
-		taskResult = types.SuccessTaskResult(task.Id, p.nonceId, handleResult.Type, handleResult.DataAddress)
+		p.logger.Debug().Msgf("execution of task with id=%s is successfully completed", task.Id)
 	} else {
 		p.logger.Error().Err(err).Msg("error handling task")
-		taskResult = types.FailureTaskResult(task.Id, p.nonceId, err)
 	}
 
-	return p.requestHandler.SetTaskResult(ctx, &taskResult)
+	return err
 }
 
 func generateNonceId() (*types.TaskExecutorId, error) {
