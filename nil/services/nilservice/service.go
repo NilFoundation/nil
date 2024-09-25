@@ -26,6 +26,9 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 )
 
+// syncer will pull blocks actively if no blocks appear for 5 rounds
+const syncTimeoutFactor = 5
+
 func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.Api, db db.ReadOnlyDB, pools []msgpool.Pool) error {
 	logger := logging.NewLogger("RPC")
 
@@ -52,11 +55,18 @@ func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.Api, db db.R
 	debugImpl := jsonrpc.NewDebugAPI(rawApi, db, logger)
 	dbImpl := jsonrpc.NewDbAPI(db, logger)
 
+	var ethApiService any
+	if cfg.RunMode == NormalRunMode {
+		ethApiService = jsonrpc.EthAPI(ethImpl)
+	} else {
+		ethApiService = jsonrpc.EthAPIRo(ethImpl)
+	}
+
 	apiList := []transport.API{
 		{
 			Namespace: "eth",
 			Public:    true,
-			Service:   jsonrpc.EthAPI(ethImpl),
+			Service:   ethApiService,
 			Version:   "1.0",
 		},
 		{
@@ -120,20 +130,17 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	}
 
 	var msgPools []msgpool.Pool
-	var networkManager *network.Manager
-	var err error
+	networkManager, err := createNetworkManager(ctx, cfg)
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to create network manager")
+		return 1
+	}
+	if networkManager != nil {
+		defer networkManager.Close()
+	}
 
 	switch cfg.RunMode {
 	case NormalRunMode:
-		networkManager, err = createNetworkManager(ctx, cfg)
-		if err != nil {
-			logger.Error().Err(err).Msg("Failed to create network manager")
-			return 1
-		}
-		if networkManager != nil {
-			defer networkManager.Close()
-		}
-
 		fallthrough
 	case CollatorsOnlyRunMode:
 		collators := createCollators(ctx, cfg, database, networkManager)
@@ -146,6 +153,34 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 					logger.Error().
 						Err(err).
 						Stringer(logging.FieldShardId, types.ShardId(i)).
+						Msg("Collator goroutine failed")
+					return err
+				}
+				return nil
+			})
+		}
+	case ArchiveRunMode:
+		if networkManager == nil {
+			logger.Error().Msg("Failed to start archive node without network configuration")
+			return 1
+		}
+
+		nodeShards := []types.ShardId{types.MainShardId}
+		if !cfg.MyShard.IsMainShard() {
+			nodeShards = append(nodeShards, cfg.MyShard)
+		}
+
+		collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
+		syncerTimeout := syncTimeoutFactor * collatorTickPeriod
+
+		for _, shardId := range nodeShards {
+			collator, err := createSyncCollator(ctx, shardId, cfg, syncerTimeout, database, networkManager)
+			check.PanicIfErr(err)
+			funcs = append(funcs, func(ctx context.Context) error {
+				if err := collator.Run(ctx); err != nil {
+					logger.Error().
+						Err(err).
+						Stringer(logging.FieldShardId, shardId).
 						Msg("Collator goroutine failed")
 					return err
 				}
@@ -187,21 +222,24 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		interop <- ServiceInterop{MsgPools: msgPools}
 	}
 
-	if cfg.RunMode != CollatorsOnlyRunMode {
-		rawApi := rawapi.NewLocalApi(database)
-		if networkManager != nil {
+	rawApi := rawapi.NewLocalApi(database)
+	if cfg.RunMode == NormalRunMode || cfg.RunMode == BlockReplayRunMode {
+		if cfg.RPCPort != 0 || cfg.HttpUrl != "" {
 			funcs = append(funcs, func(ctx context.Context) error {
-				if err := rawapi.SetRawApiRequestHandlers(ctx, rawApi, networkManager, logger); err != nil {
-					logger.Error().Err(err).Msg("Failed to set raw API request handler")
+				if err := startRpcServer(ctx, cfg, rawApi, database, msgPools); err != nil {
+					logger.Error().Err(err).Msg("RPC server goroutine failed")
 					return err
 				}
 				return nil
 			})
 		}
-		if cfg.RPCPort != 0 || cfg.HttpUrl != "" {
+	}
+
+	if cfg.RunMode != CollatorsOnlyRunMode {
+		if networkManager != nil {
 			funcs = append(funcs, func(ctx context.Context) error {
-				if err := startRpcServer(ctx, cfg, rawApi, database, msgPools); err != nil {
-					logger.Error().Err(err).Msg("RPC server goroutine failed")
+				if err := rawapi.SetRawApiRequestHandlers(ctx, rawApi, networkManager, logger); err != nil {
+					logger.Error().Err(err).Msg("Failed to set raw API request handler")
 					return err
 				}
 				return nil
@@ -256,22 +294,19 @@ type AbstractCollator interface {
 
 func createCollators(ctx context.Context, cfg *Config, database db.DB, networkManager *network.Manager) []AbstractCollator {
 	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
-	// syncer will pull blocks actively if no blocks appear for 5 rounds
-	syncerTimeout := 5 * collatorTickPeriod
+	syncerTimeout := syncTimeoutFactor * collatorTickPeriod
 
-	collators := make([]AbstractCollator, 0, cfg.NShards)
+	collators := make([]AbstractCollator, cfg.NShards)
 
 	for i := range cfg.NShards {
-		var collator AbstractCollator
 		var err error
 		shard := types.ShardId(i)
 		if cfg.IsShardActive(shard) {
-			collator, err = createActiveCollator(ctx, shard, cfg, collatorTickPeriod, database, networkManager)
+			collators[i], err = createActiveCollator(ctx, shard, cfg, collatorTickPeriod, database, networkManager)
 		} else {
-			collator, err = createSyncCollator(ctx, shard, cfg, syncerTimeout, database, networkManager)
+			collators[i], err = createSyncCollator(ctx, shard, cfg, syncerTimeout, database, networkManager)
 		}
 		check.PanicIfErr(err)
-		collators = append(collators, collator)
 	}
 	return collators
 }
@@ -279,12 +314,7 @@ func createCollators(ctx context.Context, cfg *Config, database db.DB, networkMa
 func createSyncCollator(ctx context.Context, shard types.ShardId, cfg *Config, tick time.Duration,
 	database db.DB, networkManager *network.Manager,
 ) (AbstractCollator, error) {
-	msgPool, err := msgpool.New(ctx, msgpool.NewConfig(shard), networkManager)
-	if err != nil {
-		return nil, err
-	}
-
-	return collate.NewSyncCollator(ctx, msgPool, shard, tick, database, networkManager, cfg.BootstrapPeer)
+	return collate.NewSyncCollator(ctx, shard, tick, database, networkManager, cfg.BootstrapPeer)
 }
 
 func createActiveCollator(ctx context.Context, shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) (*collate.Scheduler, error) {

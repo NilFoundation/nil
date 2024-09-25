@@ -17,6 +17,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
 )
 
@@ -84,6 +85,26 @@ func loadConfig() (*nildconfig.Config, error) {
 	return cfg, nil
 }
 
+func addNetworkFlags(fset *pflag.FlagSet, cfg *nildconfig.Config) {
+	fset.IntVar(&cfg.Network.TcpPort, "tcp-port", cfg.Network.TcpPort, "tcp port for network")
+	fset.IntVar(&cfg.Network.QuicPort, "quic-port", cfg.Network.QuicPort, "udp port for network")
+	fset.BoolVar(&cfg.Network.UseMdns, "use-mdns", cfg.Network.UseMdns, "use mDNS for discovery (works only in the local network)")
+	fset.BoolVar(&cfg.Network.DHTEnabled, "with-discovery", cfg.Network.DHTEnabled, "enable discovery (with Kademlia DHT)")
+	fset.StringSliceVar(&cfg.Network.DHTBootstrapPeers, "discovery-bootstrap-peers", cfg.Network.DHTBootstrapPeers, "bootstrap peers for discovery")
+	fset.StringVar(&cfg.NetworkKeysPath, "keys-path", cfg.NetworkKeysPath, "path to write keys")
+	check.PanicIfErr(fset.SetAnnotation("discovery-bootstrap-peers", cobra.BashCompOneRequiredFlag, []string{"with-discovery"}))
+}
+
+func addTelemetryFlags(fset *pflag.FlagSet, cfg *nildconfig.Config) {
+	fset.BoolVar(&cfg.Telemetry.ExportMetrics, "metrics", cfg.Telemetry.ExportMetrics, "export metrics via grpc")
+}
+
+func addBasicFlags(fset *pflag.FlagSet, cfg *nildconfig.Config) {
+	fset.Var(&cfg.MyShard, "my-shard", "run only specified shard")
+	fset.BoolVar(&cfg.DB.AllowDrop, "allow-db-clear", cfg.DB.AllowDrop, "allow to clear database in case of outdated version")
+	fset.Uint32Var(&cfg.CollatorTickPeriodMs, "collator-tick-ms", cfg.CollatorTickPeriodMs, "collator tick period in milliseconds")
+}
+
 func parseArgs() *nildconfig.Config {
 	cfg, err := loadConfig()
 	check.PanicIfErr(err)
@@ -121,25 +142,11 @@ func parseArgs() *nildconfig.Config {
 		},
 	}
 	runCmd.Flags().Uint32Var(&cfg.NShards, "nshards", cfg.NShards, "number of shardchains")
-	runCmd.Flags().Var(&cfg.MyShard, "my-shard", "run only specified shard")
 	runCmd.Flags().BoolVar(&cfg.SplitShards, "split-shards", false, "run each shard in separate process")
-	runCmd.Flags().BoolVar(&cfg.DB.AllowDrop, "allow-db-clear", cfg.DB.AllowDrop, "allow to clear database in case of outdated version")
 
-	// network
-	runCmd.Flags().IntVar(&cfg.Network.TcpPort, "tcp-port", cfg.Network.TcpPort, "tcp port for network")
-	runCmd.Flags().IntVar(&cfg.Network.QuicPort, "quic-port", cfg.Network.QuicPort, "udp port for network")
-	runCmd.Flags().BoolVar(&cfg.Network.UseMdns, "use-mdns", cfg.Network.UseMdns, "use mDNS for discovery (works only in the local network)")
-	runCmd.Flags().BoolVar(&cfg.Network.DHTEnabled, "with-discovery", cfg.Network.DHTEnabled, "enable discovery (with Kademlia DHT)")
-	runCmd.Flags().StringSliceVar(&cfg.Network.DHTBootstrapPeers, "discovery-bootstrap-peers", cfg.Network.DHTBootstrapPeers, "bootstrap peers for discovery")
-
-	runCmd.Flags().StringVar(&cfg.NetworkKeysPath, "keys-path", cfg.NetworkKeysPath, "path to write keys")
-
-	runCmd.Flags().Uint32Var(&cfg.CollatorTickPeriodMs, "collator-tick-ms", cfg.CollatorTickPeriodMs, "collator tick period in milliseconds")
-
-	check.PanicIfErr(runCmd.Flags().SetAnnotation("discovery-bootstrap-peers", cobra.BashCompOneRequiredFlag, []string{"with-discovery"}))
-
-	// telemetry
-	runCmd.Flags().BoolVar(&cfg.Telemetry.ExportMetrics, "metrics", cfg.Telemetry.ExportMetrics, "export metrics via grpc")
+	addBasicFlags(runCmd.Flags(), cfg)
+	addNetworkFlags(runCmd.Flags(), cfg)
+	addTelemetryFlags(runCmd.Flags(), cfg)
 
 	replayCmd := &cobra.Command{
 		Use:   "replay-block",
@@ -152,7 +159,19 @@ func parseArgs() *nildconfig.Config {
 	replayCmd.Flags().Var(&cfg.Replay.BlockIdLast, "last-block", "last block id to replay")
 	replayCmd.Flags().Var(&cfg.Replay.ShardId, "shard-id", "shard id to replay block from")
 
-	rootCmd.AddCommand(runCmd, replayCmd)
+	archiveCmd := &cobra.Command{
+		Use:   "archive",
+		Short: "Run nil application server",
+		Run: func(cmd *cobra.Command, args []string) {
+			cfg.RunMode = nilservice.ArchiveRunMode
+		},
+	}
+
+	addBasicFlags(archiveCmd.Flags(), cfg)
+	addNetworkFlags(archiveCmd.Flags(), cfg)
+	addTelemetryFlags(archiveCmd.Flags(), cfg)
+
+	rootCmd.AddCommand(runCmd, replayCmd, archiveCmd)
 
 	f := rootCmd.HelpFunc()
 	rootCmd.SetHelpFunc(func(c *cobra.Command, s []string) {
