@@ -48,6 +48,14 @@ contract TokensTest is NilCurrencyBase {
         return true;
     }
 
+    event tokenBalance(uint256 balance);
+    event tokenMsgBalance(uint256 balance);
+
+    function checkIncomingToken(uint id) payable public {
+        emit tokenMsgBalance(Nil.msgTokens()[0].amount);
+        emit tokenBalance(Nil.currencyBalance(address(this), id));
+    }
+
     receive() payable external {}
 }
 

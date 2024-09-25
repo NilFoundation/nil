@@ -12,10 +12,17 @@ import (
 )
 
 type AccountStateReader struct {
+	// Currencies is a pointer to map of currency in Account. This map holds currency that is changed during execution.
+	Currencies *map[types.CurrencyId]types.Value
+	// CurrencyTrieReader is a reader for currency from the storage. If Currencies doesn't have some currency, it will
+	// be fetched from CurrencyTrieReader.
 	CurrencyTrieReader *CurrencyTrieReader
 }
 
 func (asr *AccountStateReader) GetCurrencyBalance(id types.CurrencyId) types.Value {
+	if res, ok := (*asr.Currencies)[id]; ok {
+		return res
+	}
 	res, err := asr.CurrencyTrieReader.Fetch(id)
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return types.Value{}
@@ -44,7 +51,8 @@ type AccountState struct {
 	State               Storage
 	AsyncContext        map[types.MessageIndex]*types.AsyncContext
 	AsyncContextRemoved []types.MessageIndex
-	Currencies          map[types.CurrencyId]types.Value
+	// Currencies holds the currency changed during execution. If execution fails, these changes will be dropped.
+	Currencies map[types.CurrencyId]types.Value
 
 	// Flag whether the account was marked as self-destructed. The self-destructed
 	// account is still accessible in the scope of same transaction.
@@ -66,6 +74,7 @@ func (as *AccountState) FetchRequestId() uint64 {
 
 func NewAccountStateReader(account *AccountState) *AccountStateReader {
 	return &AccountStateReader{
+		Currencies:         &account.Currencies,
 		CurrencyTrieReader: account.CurrencyTree.BaseMPTReader,
 	}
 }

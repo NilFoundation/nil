@@ -530,6 +530,49 @@ func (s *SuiteMultiCurrencyRpc) TestBounce() {
 	s.Require().Equal(types.NewValueFromUint64(1_000_000), currencies[currencyWallet1.idStr])
 }
 
+func (s *SuiteMultiCurrencyRpc) TestIncomingBalance() {
+	var (
+		data    []byte
+		receipt *jsonrpc.RPCReceipt
+		err     error
+	)
+
+	currencyWallet1 := CreateTokenId(&s.walletAddress1)
+
+	checkBalance := func(msgTokens *big.Int, accTokens *big.Int, receipt *jsonrpc.RPCReceipt) {
+		a, err := s.abiTest.Events["tokenMsgBalance"].Inputs.Unpack(receipt.Logs[0].Data)
+		s.Require().NoError(err)
+		res, ok := a[0].(*big.Int)
+		s.Require().True(ok)
+		s.Require().Equal(*msgTokens, *res)
+
+		a, err = s.abiTest.Events["tokenBalance"].Inputs.Unpack(receipt.Logs[1].Data)
+		s.Require().NoError(err)
+		res, ok = a[0].(*big.Int)
+		s.Require().True(ok)
+		s.Require().Equal(*accTokens, *res)
+	}
+
+	s.createCurrencyForTestContract(currencyWallet1, types.NewValueFromUint64(1_000_000), "wallet1")
+
+	data, err = s.abiTest.Pack("checkIncomingToken", currencyWallet1.idInt)
+	s.Require().NoError(err)
+
+	receipt = s.sendMessageViaWalletNoCheck(s.walletAddress1, s.testAddress1_0, execution.MainPrivateKey, data,
+		s.gasToValue(100_000), types.NewValueFromUint64(2_000_000),
+		[]types.CurrencyBalance{{Currency: *currencyWallet1.id, Balance: types.NewValueFromUint64(100)}})
+	s.Require().True(receipt.AllSuccess())
+
+	checkBalance(big.NewInt(100), big.NewInt(100), receipt.OutReceipts[0])
+
+	receipt = s.sendMessageViaWalletNoCheck(s.walletAddress1, s.testAddress1_0, execution.MainPrivateKey, data,
+		s.gasToValue(100_000), types.NewValueFromUint64(2_000_000),
+		[]types.CurrencyBalance{{Currency: *currencyWallet1.id, Balance: types.NewValueFromUint64(20_000)}})
+	s.Require().True(receipt.AllSuccess())
+
+	checkBalance(big.NewInt(20_000), big.NewInt(20_100), receipt.OutReceipts[0])
+}
+
 // NameTokensTestNoExternalAccess contract has no external access to currency
 func (s *SuiteMultiCurrencyRpc) TestNoExternalAccess() {
 	abiTest, err := contracts.GetAbi(contracts.NameTokensTestNoExternalAccess)
