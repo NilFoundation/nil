@@ -64,16 +64,12 @@ func (s *CollatorTestSuite) TestCollator() {
 		execution.GenerateZeroState(s.T(), s.ctx, shardId, s.db)
 	})
 
-	// This values depends on the current implementation (precompiled contract, opcode gas prices).
-	actualMsgGas := types.Gas(12984)
-
 	// These parameters can be adjusted for test purposes. The rest is calculated.
 	gasLimit := types.Gas(100_000)
 	sentValue := types.NewValueFromUint64(2_000_000)
 
 	balance := s.getBalance(shardId, from)
 	reserveForGas := gasLimit.ToValue(gasPrice)
-	actualMsgPrice := actualMsgGas.ToValue(gasPrice)
 	msgValue := sentValue
 	m1 := execution.NewExecutionMessage(from, from, 0, contracts.NewWalletSendCallData(s.T(), types.Code{},
 		gasLimit, msgValue, []types.CurrencyBalance{}, to, types.ExecutionMessageKind))
@@ -85,8 +81,8 @@ func (s *CollatorTestSuite) TestCollator() {
 		pool.Msgs = []*types.Message{m1, m2}
 
 		proposal := generateBlock()
-		s.checkReceipt(shardId, m1)
-		s.checkReceipt(shardId, m2)
+		r1 := s.checkReceipt(shardId, m1)
+		r2 := s.checkReceipt(shardId, m2)
 		s.Equal(pool.Msgs, proposal.InMsgs)
 		s.Equal(pool.Msgs, proposal.RemoveFromPool)
 
@@ -94,8 +90,8 @@ func (s *CollatorTestSuite) TestCollator() {
 
 		// Each message subtracts its value + actual gas used from the balance.
 		balance = balance.
-			Sub(msgValue).Sub(actualMsgPrice).Sub(gasLimit.ToValue(gasPrice)).
-			Sub(msgValue).Sub(actualMsgPrice).Sub(gasLimit.ToValue(gasPrice))
+			Sub(msgValue).Sub(r1.GasUsed.ToValue(gasPrice)).Sub(gasLimit.ToValue(gasPrice)).
+			Sub(msgValue).Sub(r2.GasUsed.ToValue(gasPrice)).Sub(gasLimit.ToValue(gasPrice))
 		s.Equal(balance, s.getBalance(shardId, from))
 		s.Equal(types.Value{}, s.getBalance(shardId, to))
 	}
@@ -233,7 +229,7 @@ func (s *CollatorTestSuite) checkSeqno(shardId types.ShardId) {
 	check(block.OutMessages())
 }
 
-func (s *CollatorTestSuite) checkReceipt(shardId types.ShardId, m *types.Message) {
+func (s *CollatorTestSuite) checkReceipt(shardId types.ShardId, m *types.Message) *types.Receipt {
 	s.T().Helper()
 
 	tx, err := s.db.CreateRoTx(s.ctx)
@@ -251,6 +247,7 @@ func (s *CollatorTestSuite) checkReceipt(shardId types.ShardId, m *types.Message
 	receipt, err := receiptsTrie.Fetch(msgData.Index())
 	s.Require().NoError(err)
 	s.Equal(m.Hash(), receipt.MsgHash)
+	return receipt
 }
 
 func TestCollator(t *testing.T) {
