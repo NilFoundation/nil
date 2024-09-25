@@ -54,15 +54,15 @@ func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_UpdateTaskStatus()
 	}{
 		{
 			"success result FinalProof",
-			types.SuccessTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), types.FinalProof, "1A2B3C4D"),
+			types.SuccessProverTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), types.FinalProof, "1A2B3C4D"),
 		},
 		{
 			"success result Commitment",
-			types.SuccessTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), types.Commitment, "1A2B3C4D"),
+			types.SuccessProverTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), types.Commitment, "1A2B3C4D"),
 		},
 		{
 			"failure result",
-			types.FailureTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), errors.New("something went wrong")),
+			types.FailureProverTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), errors.New("something went wrong")),
 		},
 	}
 

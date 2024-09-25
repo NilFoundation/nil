@@ -130,7 +130,7 @@ func (s *SyncCommitteeTestSuite) TestCreateProofTasks() {
 	err = s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, types.MainShardId, types.BlockNumber(102), &jsonrpc.RPCBlock{Number: 102})
 	s.Require().NoError(err)
 
-	err = s.syncCommittee.aggregator.createProofTasks(s.ctx, &jsonrpc.RPCBlock{Number: 102})
+	err = s.syncCommittee.aggregator.createProofTask(s.ctx, &jsonrpc.RPCBlock{Number: 102})
 	s.Require().NoError(err)
 
 	lastProvedBlkNum, err := s.syncCommittee.aggregator.blockStorage.GetLastProvedBlockNum(s.ctx, types.MainShardId)

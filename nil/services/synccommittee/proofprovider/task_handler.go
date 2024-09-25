@@ -2,7 +2,6 @@ package proofprovider
 
 import (
 	"context"
-	"log"
 	"maps"
 	"slices"
 
@@ -24,10 +23,15 @@ func newTaskHandler(taskStorage storage.TaskStorage) executor.TaskHandler {
 
 func (h *taskHandler) Handle(ctx context.Context, _ types.TaskExecutorId, task *types.Task) error {
 	if task.TaskType != types.ProofBlock {
-		log.Panicf("received task (id=%s) with unexpected type %d", task.Id, task.TaskType)
+		return types.UnexpectedTaskType(task)
 	}
 
 	blockTasks := prepareTasksForBlock(task.BlockNum)
+
+	for _, taskEntry := range blockTasks {
+		taskEntry.Task.ParentTaskId = &task.Id
+	}
+
 	return h.taskStorage.AddTaskEntries(ctx, blockTasks)
 }
 

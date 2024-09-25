@@ -118,7 +118,7 @@ func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	// Make lower priority task ready for execution
 	err = s.ts.ProcessTaskResult(
 		s.ctx,
-		types.SuccessTaskResult(dependency1.Task.Id, dependency1.Owner, types.Commitment, "1A2B"),
+		types.SuccessProverTaskResult(dependency1.Task.Id, dependency1.Owner, types.Commitment, "1A2B"),
 	)
 	s.Require().NoError(err)
 	task, err = s.ts.RequestTaskToExecute(s.ctx, 88)
@@ -128,7 +128,7 @@ func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	// Make higher priority task ready
 	err = s.ts.ProcessTaskResult(
 		s.ctx,
-		types.SuccessTaskResult(dependency2.Task.Id, dependency2.Owner, types.FriConsistencyProof, "3C4D"),
+		types.SuccessProverTaskResult(dependency2.Task.Id, dependency2.Owner, types.FriConsistencyProof, "3C4D"),
 	)
 	s.Require().NoError(err)
 
@@ -337,7 +337,7 @@ func (s *TaskStorageSuite) Test_ProcessTaskResult_Concurrently() {
 			defer waitGroup.Done()
 			err := s.ts.ProcessTaskResult(
 				s.ctx,
-				types.SuccessTaskResult(runningEntry.Task.Id, executorId, types.Commitment, "1A2B"),
+				types.SuccessProverTaskResult(runningEntry.Task.Id, executorId, types.Commitment, "1A2B"),
 			)
 			s.NoError(err)
 		}()
@@ -399,9 +399,9 @@ func (s *TaskStorageSuite) tryToChangeStatus(
 
 	var taskResult types.TaskResult
 	if trySetSuccess {
-		taskResult = types.SuccessTaskResult(taskEntry.Task.Id, executorId, types.Commitment, "1A2B")
+		taskResult = types.SuccessProverTaskResult(taskEntry.Task.Id, executorId, types.Commitment, "1A2B")
 	} else {
-		taskResult = types.FailureTaskResult(taskEntry.Task.Id, executorId, errors.New("some error"))
+		taskResult = types.FailureProverTaskResult(taskEntry.Task.Id, executorId, errors.New("some error"))
 	}
 
 	err = s.ts.ProcessTaskResult(s.ctx, taskResult)

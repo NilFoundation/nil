@@ -88,7 +88,31 @@ type TaskResult struct {
 	DataAddress string           `json:"dataAddress"`
 }
 
-func SuccessTaskResult(
+func SuccessProviderTaskResult(
+	taskId TaskId,
+	proofProviderId TaskExecutorId,
+) TaskResult {
+	return TaskResult{
+		TaskId:    taskId,
+		IsSuccess: true,
+		Sender:    proofProviderId,
+	}
+}
+
+func FailureProviderTaskResult(
+	taskId TaskId,
+	proofProviderId TaskExecutorId,
+	err error,
+) TaskResult {
+	return TaskResult{
+		TaskId:    taskId,
+		IsSuccess: false,
+		Sender:    proofProviderId,
+		ErrorText: fmt.Sprintf("failed to proof block: %v", err),
+	}
+}
+
+func SuccessProverTaskResult(
 	taskId TaskId,
 	sender TaskExecutorId,
 	resultType ProverResultType,
@@ -103,7 +127,7 @@ func SuccessTaskResult(
 	}
 }
 
-func FailureTaskResult(
+func FailureProverTaskResult(
 	taskId TaskId,
 	sender TaskExecutorId,
 	err error,
@@ -123,12 +147,17 @@ type Task struct {
 	BlockNum      types.BlockNumber     `json:"blockNum"`
 	TaskType      TaskType              `json:"taskType"`
 	CircuitType   CircuitType           `json:"circuitType"`
+	ParentTaskId  *TaskId               `json:"parentTaskId"`
 	Dependencies  map[TaskId]TaskResult `json:"dependencies"`
 	DependencyNum uint8                 `json:"dependencyNum"`
 }
 
 func (t *Task) AddDependencyResult(res TaskResult) {
 	t.Dependencies[res.TaskId] = res
+}
+
+func EmptyDependencies() map[TaskId]TaskResult {
+	return make(map[TaskId]TaskResult)
 }
 
 type TaskStatus uint8
@@ -166,7 +195,7 @@ func NewBlockProofTaskEntry(blockNum types.BlockNumber) *TaskEntry {
 		Id:            NewTaskId(),
 		BlockNum:      blockNum,
 		TaskType:      ProofBlock,
-		Dependencies:  make(map[TaskId]TaskResult),
+		Dependencies:  EmptyDependencies(),
 		DependencyNum: 0,
 	}
 	return &TaskEntry{
@@ -184,7 +213,7 @@ func NewPartialProveTaskEntry(batchNum uint32, blockNum types.BlockNumber, circu
 		BlockNum:      blockNum,
 		TaskType:      PartialProve,
 		CircuitType:   circuitType,
-		Dependencies:  make(map[TaskId]TaskResult),
+		Dependencies:  EmptyDependencies(),
 		DependencyNum: 0,
 	}
 	return &TaskEntry{
@@ -202,7 +231,7 @@ func NewAggregateFRITaskEntry(batchNum uint32, blockNum types.BlockNumber) *Task
 		BlockNum:      blockNum,
 		TaskType:      AggregatedFRI,
 		DependencyNum: 4,
-		Dependencies:  make(map[TaskId]TaskResult),
+		Dependencies:  EmptyDependencies(),
 	}
 
 	return &TaskEntry{
@@ -220,7 +249,7 @@ func NewFRIConsistencyCheckTaskEntry(batchNum uint32, blockNum types.BlockNumber
 		BlockNum:      blockNum,
 		TaskType:      FRIConsistencyChecks,
 		CircuitType:   circuitType,
-		Dependencies:  make(map[TaskId]TaskResult),
+		Dependencies:  EmptyDependencies(),
 		DependencyNum: 2, // aggregate FRI and corresponding partial proof
 	}
 	return &TaskEntry{
@@ -238,7 +267,7 @@ func NewMergeProofTaskEntry(batchNum uint32, blockNum types.BlockNumber) *TaskEn
 		BlockNum:      blockNum,
 		TaskType:      MergeProof,
 		DependencyNum: 9, // agg FRI + 4 partial proofs + 4 FRI consistency checks
-		Dependencies:  make(map[TaskId]TaskResult),
+		Dependencies:  EmptyDependencies(),
 	}
 
 	return &TaskEntry{

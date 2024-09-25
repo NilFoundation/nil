@@ -33,6 +33,9 @@ type TaskStorage interface {
 	// AddTaskEntries Store set of task entries as a single transaction
 	AddTaskEntries(ctx context.Context, tasks []*types.TaskEntry) error
 
+	// TryGetTaskEntry Retrieve a task entry by its id. In case if task does not exist, method returns nil
+	TryGetTaskEntry(ctx context.Context, id types.TaskId) (*types.TaskEntry, error)
+
 	// RemoveTaskEntry Delete existing task entry from DB
 	RemoveTaskEntry(ctx context.Context, id types.TaskId) error
 
@@ -78,7 +81,7 @@ func NewTaskStorage(db db.DB, logger zerolog.Logger) TaskStorage {
 }
 
 // Helper to get and decode task entry from DB
-func extractTaskEntry(tx db.RwTx, id types.TaskId) (*types.TaskEntry, error) {
+func extractTaskEntry(tx db.RoTx, id types.TaskId) (*types.TaskEntry, error) {
 	encoded, err := tx.Get(TaskEntriesTable, id.Bytes())
 	if err != nil {
 		return nil, err
@@ -146,6 +149,21 @@ func (st *taskStorage) addTaskEntriesImpl(ctx context.Context, tasks []*types.Ta
 		}
 	}
 	return tx.Commit()
+}
+
+func (st *taskStorage) TryGetTaskEntry(ctx context.Context, id types.TaskId) (*types.TaskEntry, error) {
+	tx, err := st.database.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	entry, err := extractTaskEntry(tx, id)
+
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return nil, nil
+	}
+
+	return entry, err
 }
 
 func (st *taskStorage) RemoveTaskEntry(ctx context.Context, id types.TaskId) error {

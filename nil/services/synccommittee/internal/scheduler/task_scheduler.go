@@ -29,18 +29,20 @@ type TaskScheduler interface {
 	Run(ctx context.Context) error
 }
 
-func New(taskStorage storage.TaskStorage, logger zerolog.Logger) TaskScheduler {
+func New(taskStorage storage.TaskStorage, stateHandler TaskStateChangeHandler, logger zerolog.Logger) TaskScheduler {
 	return &taskSchedulerImpl{
-		storage: taskStorage,
-		config:  DefaultConfig(),
-		logger:  logger,
+		storage:      taskStorage,
+		stateHandler: stateHandler,
+		config:       DefaultConfig(),
+		logger:       logger,
 	}
 }
 
 type taskSchedulerImpl struct {
-	storage storage.TaskStorage
-	config  Config
-	logger  zerolog.Logger
+	storage      storage.TaskStorage
+	stateHandler TaskStateChangeHandler
+	config       Config
+	logger       zerolog.Logger
 }
 
 func (s *taskSchedulerImpl) GetTask(ctx context.Context, request *api.TaskRequest) (*types.Task, error) {
@@ -65,16 +67,37 @@ func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.Tas
 		Interface("resultType", result.Type).
 		Msgf("received task result update")
 
-	err := s.storage.ProcessTaskResult(ctx, *result)
+	entry, err := s.storage.TryGetTaskEntry(ctx, result.TaskId)
 	if err != nil {
-		s.logger.Error().
-			Err(err).
+		s.logError(err, result)
+		return err
+	}
+
+	if entry == nil {
+		s.logger.Warn().
 			Interface("executorId", result.Sender).
 			Interface("taskId", result.TaskId).
-			Msgf("failed to process task result")
+			Msgf("task result update for unknown task id")
+		return nil
+	}
+
+	if err = s.stateHandler.OnTaskTerminated(ctx, &entry.Task, result); err != nil {
+		s.logError(err, result)
+	}
+
+	if err = s.storage.ProcessTaskResult(ctx, *result); err != nil {
+		s.logError(err, result)
 	}
 
 	return err
+}
+
+func (s *taskSchedulerImpl) logError(err error, result *types.TaskResult) {
+	s.logger.Error().
+		Err(err).
+		Interface("executorId", result.Sender).
+		Interface("taskId", result.TaskId).
+		Msgf("failed to process task result")
 }
 
 func (s *taskSchedulerImpl) Run(ctx context.Context) error {

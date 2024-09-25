@@ -22,13 +22,17 @@ func GenerateTaskEntry(modifiedAt time.Time, status types.TaskStatus, owner type
 }
 
 func GenerateTask() types.Task {
+	return GenerateTaskOfType(types.Preprocess)
+}
+
+func GenerateTaskOfType(taskType types.TaskType) types.Task {
 	return types.Task{
 		Id:            types.NewTaskId(),
 		BatchNum:      1,
 		BlockNum:      1,
-		TaskType:      types.Preprocess,
+		TaskType:      taskType,
 		CircuitType:   types.Bytecode,
-		Dependencies:  make(map[types.TaskId]types.TaskResult),
+		Dependencies:  types.EmptyDependencies(),
 		DependencyNum: 0,
 	}
 }

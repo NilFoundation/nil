@@ -88,13 +88,13 @@ var tasksForExecutors = map[types.TaskExecutorId]*types.Task{
 		TaskType:    types.AggregatedFRI,
 		CircuitType: types.ReadWrite,
 		Dependencies: map[types.TaskId]types.TaskResult{
-			firstDependencyTaskId: types.SuccessTaskResult(
+			firstDependencyTaskId: types.SuccessProverTaskResult(
 				firstDependencyTaskId,
 				testaide.GenerateRandomExecutorId(),
 				types.FinalProof,
 				"2B3C4D5E",
 			),
-			secondDependencyTaskId: types.SuccessTaskResult(
+			secondDependencyTaskId: types.SuccessProverTaskResult(
 				secondDependencyTaskId,
 				testaide.GenerateRandomExecutorId(),
 				types.Commitment,

@@ -155,8 +155,8 @@ func (agg *Aggregator) sendProof(ctx context.Context) error {
 	return nil
 }
 
-// createProofTasks generates proof tasks for the main shard blocks.
-func (agg *Aggregator) createProofTasks(ctx context.Context, blockForProof *jsonrpc.RPCBlock) error {
+// createProofTask generates proof tasks for the main shard blocks.
+func (agg *Aggregator) createProofTask(ctx context.Context, blockForProof *jsonrpc.RPCBlock) error {
 	if blockForProof.ShardId != coreTypes.MainShardId {
 		agg.logger.Debug().Stringer(logging.FieldShardId, blockForProof.ShardId).Msg("skip create proof tasks for not main shard")
 		return nil
@@ -203,7 +203,7 @@ func (agg *Aggregator) validateAndProcessBlock(ctx context.Context, block *jsonr
 	}
 
 	// Start generating proof during blocks fetching
-	return agg.createProofTasks(ctx, block)
+	return agg.createProofTask(ctx, block)
 }
 
 // fetchAndProcessBlocks retrieves a range of blocks for a specific shard, stores them, creates proof tasks

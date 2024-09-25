@@ -51,7 +51,11 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}
 
-	taskScheduler := scheduler.New(taskStorage, logger)
+	taskScheduler := scheduler.New(
+		taskStorage,
+		newTaskStateChangeHandler(logger),
+		logger,
+	)
 
 	taskListener := rpc.NewTaskListener(
 		&rpc.TaskListenerConfig{HttpEndpoint: cfg.OwnRpcEndpoint},

@@ -1,0 +1,143 @@
+package proofprovider
+
+import (
+	"context"
+	"testing"
+
+	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/db"
+	nilTypes "github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
+	"github.com/stretchr/testify/suite"
+)
+
+type TaskHandlerTestSuite struct {
+	suite.Suite
+	context      context.Context
+	cancellation context.CancelFunc
+	database     db.DB
+	taskStorage  storage.TaskStorage
+	taskHandler  executor.TaskHandler
+}
+
+func (s *TaskHandlerTestSuite) SetupSuite() {
+	s.context, s.cancellation = context.WithCancel(context.Background())
+
+	var err error
+	s.database, err = db.NewBadgerDbInMemory()
+	s.Require().NoError(err)
+
+	logger := logging.NewLogger("task-handler-test-suite")
+	s.taskStorage = storage.NewTaskStorage(s.database, logger)
+
+	s.taskHandler = newTaskHandler(s.taskStorage)
+}
+
+func TestTaskHandlerSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(TaskHandlerTestSuite))
+}
+
+func (s *TaskHandlerTestSuite) SetupTest() {
+	err := s.database.DropAll()
+	s.Require().NoError(err)
+}
+
+func (s *TaskHandlerTestSuite) TearDownSuite() {
+	s.cancellation()
+}
+
+func (s *TaskHandlerTestSuite) TestReturnErrorOnUnexpectedTaskType() {
+	testCases := []struct {
+		name     string
+		taskType types.TaskType
+	}{
+		{name: "PartialProve", taskType: types.PartialProve},
+		{name: "FRIConsistencyChecks", taskType: types.FRIConsistencyChecks},
+		{name: "MergeProof", taskType: types.MergeProof},
+		{name: "AggregatedFRI", taskType: types.AggregatedFRI},
+	}
+
+	executorId := testaide.GenerateRandomExecutorId()
+
+	for _, testCase := range testCases {
+		s.Run(testCase.name, func() {
+			task := testaide.GenerateTaskOfType(testCase.taskType)
+			err := s.taskHandler.Handle(s.context, executorId, &task)
+			s.Require().ErrorIs(
+				err,
+				types.ErrUnexpectedTaskType,
+				"taskHandler should have returned ErrUnexpectedTaskType on task of type %d", testCase.taskType,
+			)
+		})
+	}
+}
+
+func (s *TaskHandlerTestSuite) TestHandleBlockProofTask() {
+	executorId := testaide.GenerateRandomExecutorId()
+	blockNumber := nilTypes.BlockNumber(uint64(100))
+	taskEntry := types.NewBlockProofTaskEntry(blockNumber)
+
+	err := s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
+	s.Require().NoError(err, "taskHandler.Handle returned an error")
+
+	// Extract 4 top-level tasks
+	var ids [4]types.TaskId
+	for i := range 4 {
+		ids[i] = s.requestTask(executorId, true, types.PartialProve).Id
+	}
+
+	// Right now all remaining tasks should wait for dependencies
+	s.requestTask(executorId, false, types.AggregatedFRI)
+
+	// Pass results for partial proof tasks
+	for _, id := range ids {
+		s.completeTask(executorId, id)
+	}
+
+	// Now only aggregate FRI task is available
+	aggFRITask := s.requestTask(executorId, true, types.AggregatedFRI)
+	s.requestTask(executorId, false, types.FRIConsistencyChecks)
+
+	// After completion of aggregate FRI task we have FRI consistency check tasks available
+	s.completeTask(executorId, aggFRITask.Id)
+	for i := range 4 {
+		ids[i] = s.requestTask(executorId, true, types.FRIConsistencyChecks).Id
+	}
+	s.requestTask(executorId, false, types.MergeProof)
+
+	// The only one waiting for dependencies is merge proof task
+	for _, id := range ids {
+		s.completeTask(executorId, id)
+	}
+	mpt := s.requestTask(executorId, true, types.MergeProof)
+	s.completeTask(executorId, mpt.Id)
+
+	// No more tasks for the block
+	s.requestTask(executorId, false, types.PartialProve)
+}
+
+// Ensure that we have available task of certain type, or no tasks available
+func (s *TaskHandlerTestSuite) requestTask(executorId types.TaskExecutorId, available bool, expectedType types.TaskType) *types.Task {
+	s.T().Helper()
+	t, err := s.taskStorage.RequestTaskToExecute(s.context, executorId)
+	s.Require().NoError(err)
+	if !available {
+		s.Require().Nil(t)
+		return nil
+	}
+	s.Require().NotNil(t)
+	s.Equal(expectedType, t.TaskType)
+	return t
+}
+
+// Set result for task
+func (s *TaskHandlerTestSuite) completeTask(sender types.TaskExecutorId, id types.TaskId) {
+	s.T().Helper()
+	result := types.TaskResult{TaskId: id, IsSuccess: true, Sender: sender}
+	err := s.taskStorage.ProcessTaskResult(s.context, result)
+	s.Require().NoError(err)
+}

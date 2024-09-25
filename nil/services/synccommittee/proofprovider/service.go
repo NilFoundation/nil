@@ -33,11 +33,12 @@ func New(config Config, logger zerolog.Logger) (*ProofProvider, error) {
 		return nil, err
 	}
 
+	taskRpcClient := rpc.NewTaskRequestRpcClient(config.SyncCommitteeRpcEndpoint, logger)
 	taskStorage := storage.NewTaskStorage(database, logger)
 
 	taskExecutor, err := executor.New(
 		executor.DefaultConfig(),
-		rpc.NewTaskRequestRpcClient(config.SyncCommitteeRpcEndpoint, logger),
+		taskRpcClient,
 		newTaskHandler(taskStorage),
 		logger,
 	)
@@ -45,7 +46,11 @@ func New(config Config, logger zerolog.Logger) (*ProofProvider, error) {
 		return nil, err
 	}
 
-	taskScheduler := scheduler.New(taskStorage, logger)
+	taskScheduler := scheduler.New(
+		taskStorage,
+		newTaskStateChangeHandler(taskRpcClient, taskExecutor.Id(), logger),
+		logger,
+	)
 
 	taskListener := rpc.NewTaskListener(
 		&rpc.TaskListenerConfig{HttpEndpoint: config.OwnRpcEndpoint}, taskScheduler, logger,
