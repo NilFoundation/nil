@@ -22,7 +22,7 @@ type Config struct {
 
 	// Shard configuration
 	NShards     uint32        `yaml:"nShards,omitempty"`
-	MyShard     types.ShardId `yaml:"myShard,omitempty"`
+	MyShard     types.ShardId `yaml:"myShard"`
 	SplitShards bool          `yaml:"splitShards,omitempty"`
 
 	// RPC
@@ -60,6 +60,7 @@ func NewDefaultConfig() *Config {
 	return &Config{
 		RunMode: NormalRunMode,
 
+		MyShard:         types.InvalidShardId,
 		NShards:         5,
 		MainKeysOutPath: "keys.yaml",
 		NetworkKeysPath: "network-keys.yaml",

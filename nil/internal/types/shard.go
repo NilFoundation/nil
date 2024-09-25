@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"math"
 	"strconv"
 
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -11,8 +12,9 @@ import (
 type ShardId uint32
 
 const (
-	MainShardId = ShardId(0)
-	BaseShardId = ShardId(1)
+	MainShardId    = ShardId(0)
+	BaseShardId    = ShardId(1)
+	InvalidShardId = ShardId(math.MaxUint32)
 )
 
 func (s ShardId) IsMainShard() bool {
