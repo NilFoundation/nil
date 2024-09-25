@@ -1,6 +1,6 @@
 # Handling async execution
 
-To support [**cross-shard communication**](principles.mdx#cross-shard-communication), =nil; supports smart contracts making async calls to one another directly in Solidity code. 
+To support [**cross-shard communication**](principles.mdx#cross-shard-communication), =nil; supports smart contracts making async calls to one another directly in Solidity code.
 
 This tutorial provides a brief theoretical and practical primer on async execution, and gives suggestions on how this feature can be integrated into an application.
 
@@ -33,7 +33,7 @@ To initiate an async call, the 'caller' contract must have sufficient funds to p
 
 ## Retreiving values
 
-The [**`Nil.sol` extension library**](getting-started/prerequisites.mdx#solidity-library) also exposes the `awaitCall()` function. 
+The [**`Nil.sol` extension library**](getting-started/prerequisites.mdx#solidity-library) also exposes the `awaitCall()` function.
 
 The function allows for calling another smart contract asynchronously and retrieving the result of the call. This is useful if the contract logic needs to mimick the typical `async`/`await` flow prevalent in programming languages other than Solidity. Note that the feature is currently experimental and may change in future releases.
 
@@ -73,7 +73,7 @@ There are two possible patterns for cross-shard communication between Contract 1
 
 ### Calling a contract on another shard
 
-In this pattern, Contract 1 simply calls a function in Contract 2 without receiving a result. 
+In this pattern, Contract 1 simply calls a function in Contract 2 without receiving a result.
 
 Contract 1 has the following structure:
 
@@ -99,10 +99,10 @@ When using `sendRequest()`, the contract can continue execution without having t
 
 :::tip
 
-The `sendRequest()` function also has an additional signature that allows for sending custom currencies to contracts while performing requests:
+The `sendRequest()` also has an additional signature that allows for sending custom currencies to contracts while performing requests:
 
 ```solidity showLineNumbers
-function sendRequest(
+function sendRequestWithTokens(
       address dst,
       uint256 value,
       Token[] memory tokens,

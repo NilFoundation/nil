@@ -26,6 +26,7 @@ const (
 	FieldMessageSeqno = "msgSeqno"
 	FieldMessageFrom  = "msgFrom"
 	FieldMessageTo    = "msgTo"
+	FieldMessageFlags = "msgFlags"
 	FieldFullMessage  = "msg"
 
 	FieldAccountAddress = "accountAddress"

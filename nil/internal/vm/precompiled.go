@@ -39,6 +39,14 @@ func init() {
 	check.PanicIfNot(eth_common.AddressLength == types.AddrSize)
 }
 
+func extractUintParam(arg any, methodName, paramName string) types.Value {
+	valueBig, ok := arg.(*big.Int)
+	check.PanicIfNotf(ok, "%s failed: `%s` argument is not big.Int", methodName, paramName)
+	value, overflow := types.NewValueFromBig(valueBig)
+	check.PanicIfNotf(!overflow, "%s failed: unexpected overflow in `%s`", methodName, paramName)
+	return value
+}
+
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
 // requires a deterministic gas count based on the input size of the Run method of the
 // contract.
@@ -172,8 +180,11 @@ func (a *simple) Run(_ StateDBReadOnly /* state */, input []byte, _ *uint256.Int
 
 type sendRawMessage struct{}
 
-// TODO: Make this dynamically calculated based on the network conditions and current shard gas price
-const ForwardFee uint64 = 1_000
+const (
+	// TODO: Make this dynamically calculated based on the network conditions and current shard gas price
+	ForwardFee                   uint64    = 1_000
+	MinGasReserveForAsyncRequest types.Gas = 50_000
+)
 
 func (c *sendRawMessage) RequiredGas([]byte) uint64 {
 	return ForwardFee
@@ -235,9 +246,9 @@ func getPrecompiledMethod(methodName string) abi.Method {
 
 // getBytesArgCopy returns a copy of the byte slice argument.
 // It is needed because `abi.Unpack` unpack []byte arguments as a slice pointing inside the input calldata.
-func getBytesArgCopy(arg any) []byte {
+func getBytesArgCopy(arg any, methodName, paramName string) []byte {
 	bytes, ok := arg.([]byte)
-	check.PanicIfNotf(ok, "argument is not a byte slice")
+	check.PanicIfNotf(ok, "%s failed: `%s` is not a byte slice", methodName, paramName)
 	return slices.Clone(bytes)
 }
 
@@ -332,11 +343,8 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	bounceTo, ok := args[4].(types.Address)
 	check.PanicIfNotf(ok, "asyncCall failed: bounceTo argument is not an address")
 
-	// Get `messageGas` argument
-	messageGasBig, ok := args[5].(*big.Int)
-	check.PanicIfNotf(ok, "asyncCall failed: messageGas argument is not big.Int")
-	messageGas, overflow := types.NewValueFromBig(messageGasBig)
-	check.PanicIfNotf(!overflow, "asyncCall failed: unexpected overflow in messageGas")
+	// Get `feeCredit` argument
+	feeCredit := extractUintParam(args[5], "asyncCall", "feeCredit")
 
 	// Get `currencies` argument, which is a slice of `CurrencyBalance`
 	currencies, err := extractCurrencies(args[6])
@@ -346,7 +354,7 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	}
 
 	// Get `input` argument
-	input = getBytesArgCopy(args[7])
+	input = getBytesArgCopy(args[7], "asyncCall", "input")
 
 	var kind types.MessageKind
 	if deploy {
@@ -360,7 +368,7 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	}
 
 	if forwardKind == types.ForwardKindNone {
-		if err := withdrawFunds(state, caller.Address(), messageGas); err != nil {
+		if err := withdrawFunds(state, caller.Address(), feeCredit); err != nil {
 			return []byte("asyncCall failed: withdrawFunds failed"), err
 		}
 	}
@@ -376,7 +384,7 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	// Internal is required for the message
 	payload := types.InternalMessagePayload{
 		Kind:        kind,
-		FeeCredit:   messageGas,
+		FeeCredit:   feeCredit,
 		ForwardKind: types.ForwardKind(forwardKind),
 		Value:       types.NewValue(value),
 		Currency:    currencies,
@@ -393,10 +401,30 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	return res, err
 }
 
+func estimateGasForAsyncRequest(input []byte, precompile string, argnum, argtotal int) uint64 {
+	// when running `awaitCall` / `sendRequest` the caller specifies exact amount of gas they want to reserve
+	// later this gas will be used for processing of response for particular request
+	method := getPrecompiledMethod(precompile)
+
+	// particular const value will be adjusted later
+	baseFee := 4000 + ForwardFee
+
+	// Unpack arguments, skipping the first 4 bytes (function selector)
+	args, err := method.Inputs.Unpack(input[4:])
+	// We don't need to tackle somehow any unpacking errors, cause running the contract with
+	// wrong argument will fail anyway (inside `Run` function)
+	if err != nil || len(args) != argtotal {
+		return baseFee
+	}
+
+	responseProcessingGas := extractUintParam(args[argnum], precompile, "responseProcessingGas")
+	return baseFee + responseProcessingGas.Uint64()
+}
+
 type awaitCall struct{}
 
-func (c *awaitCall) RequiredGas([]byte) uint64 {
-	return 5000
+func (c *awaitCall) RequiredGas(input []byte) uint64 {
+	return estimateGasForAsyncRequest(input, "precompileAwaitCall", 1, 3)
 }
 
 func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
@@ -414,7 +442,7 @@ func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller Contr
 	if err != nil {
 		return []byte("awaitCall failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}
-	if len(args) != 2 {
+	if len(args) != 3 {
 		return []byte("awaitCall failed: invalid number of arguments"), ErrPrecompileReverted
 	}
 
@@ -422,8 +450,15 @@ func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller Contr
 	dst, ok := args[0].(types.Address)
 	check.PanicIfNotf(ok, "awaitCall failed: dst argument is not an address")
 
+	// Get `responseProcessingGas` argument
+	responseProcessingGas := types.Gas(extractUintParam(args[1], "awaitCall", "responseProcessingGas").Uint64())
+	if responseProcessingGas < MinGasReserveForAsyncRequest {
+		log.Logger.Error().Msgf("awaitCall failed: responseProcessingGas is too low (%d)", responseProcessingGas)
+		return []byte("awaitCall failed: responseProcessingGas is too low"), ErrPrecompileReverted
+	}
+
 	// Get `callData` argument
-	callData := getBytesArgCopy(args[1])
+	callData := getBytesArgCopy(args[2], "awaitCall", "callData")
 
 	// Internal is required for the message
 	payload := types.InternalMessagePayload{
@@ -439,7 +474,7 @@ func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller Contr
 
 	setRefundTo(&payload.RefundTo, state.GetInMessage())
 
-	if _, err = state.AddOutRequestMessage(caller.Address(), &payload, true); err != nil {
+	if _, err = state.AddOutRequestMessage(caller.Address(), &payload, responseProcessingGas, true); err != nil {
 		log.Logger.Error().Msgf("AddOutRequestMessage failed: %s", err)
 		return []byte("awaitCall failed: cannot add request to StateDB"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}
@@ -449,8 +484,8 @@ func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller Contr
 
 type sendRequest struct{}
 
-func (c *sendRequest) RequiredGas([]byte) uint64 {
-	return 5000
+func (c *sendRequest) RequiredGas(input []byte) uint64 {
+	return estimateGasForAsyncRequest(input, "precompileSendRequest", 2, 5)
 }
 
 func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
@@ -461,7 +496,7 @@ func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, calle
 	if err != nil {
 		return []byte("sendRequest failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}
-	if len(args) != 4 {
+	if len(args) != 5 {
 		return []byte("sendRequest failed: invalid number of arguments"), ErrPrecompileReverted
 	}
 
@@ -476,11 +511,18 @@ func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, calle
 		return nil, ErrPrecompileReverted
 	}
 
+	// Get `responseProcessingGas` argument
+	responseProcessingGas := types.Gas(extractUintParam(args[2], "sendRequest", "responseProcessingGas").Uint64())
+	if responseProcessingGas < MinGasReserveForAsyncRequest {
+		log.Logger.Error().Msgf("sendRequest failed: responseProcessingGas is too low (%d)", responseProcessingGas)
+		return []byte("sendRequest failed: responseProcessingGas is too low"), ErrPrecompileReverted
+	}
+
 	// Get `context` argument
-	context := getBytesArgCopy(args[2])
+	context := getBytesArgCopy(args[3], "sendRequest", "context")
 
 	// Get `callData` argument
-	callData := getBytesArgCopy(args[3])
+	callData := getBytesArgCopy(args[4], "sendRequest", "callData")
 
 	if err := withdrawFunds(state, caller.Address(), types.NewValue(value)); err != nil {
 		return []byte("sendRequest failed: withdrawFunds failed"), err
@@ -501,7 +543,7 @@ func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, calle
 
 	setRefundTo(&payload.RefundTo, state.GetInMessage())
 
-	if _, err = state.AddOutRequestMessage(caller.Address(), &payload, false); err != nil {
+	if _, err = state.AddOutRequestMessage(caller.Address(), &payload, responseProcessingGas, false); err != nil {
 		log.Logger.Error().Msgf("AddOutRequestMessage failed: %s", err)
 		return []byte("sendRequest failed: cannot add request to StateDB"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}

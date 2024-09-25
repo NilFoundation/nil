@@ -549,6 +549,7 @@ func (evm *EVM) SetCurrencyTransfer(tokens []types.CurrencyBalance) {
 	evm.currencyTransfer = tokens
 }
 
-func (evm *EVM) StopAndDumpState() {
+func (evm *EVM) StopAndDumpState(continuationGasCredit types.Gas) {
 	evm.interpreter.stopAndDumpState = true
+	evm.interpreter.continuationGasCredit = continuationGasCredit
 }

@@ -77,7 +77,8 @@ type EVMInterpreter struct {
 	evm   *EVM
 	table *JumpTable
 	// stopAndDumpState indicates that Interpreter should stop after current instruction and dump the state.
-	stopAndDumpState bool
+	stopAndDumpState      bool
+	continuationGasCredit types.Gas
 	// restoredState is the state to restore the EVM from a specific point of execution.
 	restoredState *EvmRestoreData
 
@@ -252,7 +253,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 				Stack:  callContext.Stack.CopyToBytes(),
 				Pc:     pc + 1,
 			}
-			if err = in.evm.StateDB.SaveVmState(&state); err != nil {
+			if err = in.evm.StateDB.SaveVmState(&state, in.continuationGasCredit); err != nil {
 				return nil, err
 			}
 			break

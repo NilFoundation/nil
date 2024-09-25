@@ -20,11 +20,11 @@ contract Escrow {
     ) public payable {
         bytes memory context = abi.encodeWithSelector(this.resolve.selector, participantOne, participantTwo, msg.value);
         bytes memory callData = abi.encodeWithSignature("validate(address, address)", participantOne, participantTwo);
-        Nil.sendRequest(validator, 0, context, callData);
+        Nil.sendRequest(validator, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
     }
 
     function resolve(
-        bool success, 
+        bool success,
         bytes memory returnData,
         bytes memory context
     ) public payable {

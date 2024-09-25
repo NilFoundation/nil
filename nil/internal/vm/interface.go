@@ -83,7 +83,12 @@ type StateDB interface {
 	AddOutMessage(caller types.Address, payload *types.InternalMessagePayload) (*types.Message, error)
 
 	// AddOutRequestMessage adds outbound request message for current transaction
-	AddOutRequestMessage(caller types.Address, payload *types.InternalMessagePayload, isAwait bool) (*types.Message, error)
+	AddOutRequestMessage(
+		caller types.Address,
+		payload *types.InternalMessagePayload,
+		responseProcessingGas types.Gas,
+		isAwait bool,
+	) (*types.Message, error)
 
 	// Get current message
 	GetInMessage() *types.Message
@@ -92,7 +97,7 @@ type StateDB interface {
 	GetShardID() types.ShardId
 
 	// SaveVmState saves current VM state
-	SaveVmState(state *types.EvmState) error
+	SaveVmState(state *types.EvmState, continuationGasCredit types.Gas) error
 
 	GetConfigAccessor() *config.ConfigAccessor
 }

@@ -28,6 +28,8 @@ library Nil {
     uint8 public constant FORWARD_VALUE = 2;
     // Do not forward gas from inbound message, take gas from the account instead.
     uint8 public constant FORWARD_NONE = 3;
+    // Minimal amount of gas reserved by AWAIT_CALL / SEND_REQUEST
+    uint public constant ASYNC_REQUEST_MIN_GAS = 50_000;
 
     // Token is a struct that represents a token with an id and amount.
     struct Token {
@@ -45,14 +47,6 @@ library Nil {
     ) internal {
         Token[] memory tokens;
         asyncCall(dst, address(0), bounceTo, 0, FORWARD_REMAINING, false, value, tokens, callData);
-    }
-
-    // awaitCall makes an asynchronous call to `dst` contract and waits for the result.
-    function awaitCall(
-        address dst,
-        bytes memory callData
-    ) internal returns(bytes memory, bool) {
-        return __Precompile__(AWAIT_CALL).precompileAwaitCall(dst, callData);
     }
 
     // asyncCall makes an asynchronous call to `dst` contract.
@@ -115,24 +109,40 @@ library Nil {
         return (success, returnData);
     }
 
+    // awaitCall makes an asynchronous call to `dst` contract and waits for the result.
+    //
+    // `responseProcessingGas` amount of gas is being bought and reserved to process the response
+    //  should be >= `ASYNC_REQUEST_MIN_GAS` to make a call, otherwise `sendRequest` will fail
+    function awaitCall(
+        address dst,
+        uint responseProcessingGas,
+        bytes memory callData
+    ) internal returns(bytes memory, bool) {
+        return __Precompile__(AWAIT_CALL).precompileAwaitCall(dst, responseProcessingGas, callData);
+    }
+
+    // `responseProcessingGas` amount of gas is being bought and reserved to process the response
+    //  should be >= `ASYNC_REQUEST_MIN_GAS` to make a call, otherwise `sendRequest` will fail
     function sendRequest(
         address dst,
         uint256 value,
+        uint responseProcessingGas,
         bytes memory context,
         bytes memory callData
     ) internal {
         Token[] memory tokens;
-        __Precompile__(SEND_REQUEST).precompileSendRequest{value: value}(dst, tokens, context, callData);
+        __Precompile__(SEND_REQUEST).precompileSendRequest{value: value}(dst, tokens, responseProcessingGas, context, callData);
     }
 
-    function sendRequest(
+    function sendRequestWithTokens(
         address dst,
         uint256 value,
         Token[] memory tokens,
+        uint responseProcessingGas,
         bytes memory context,
         bytes memory callData
     ) internal {
-        __Precompile__(SEND_REQUEST).precompileSendRequest{value: value}(dst, tokens, context, callData);
+        __Precompile__(SEND_REQUEST).precompileSendRequest{value: value}(dst, tokens, responseProcessingGas, context, callData);
     }
 
     // Send raw internal message using a special precompiled contract
@@ -293,8 +303,8 @@ contract __Precompile__ {
     function precompileManageCurrency(uint256 amount, bool mint) public returns(bool) {}
     function precompileGetCurrencyBalance(uint256 id, address addr) public view returns(uint256) {}
     function precompileAsyncCall(bool, uint8, address, address, address, uint, Nil.Token[] memory, bytes memory) public payable returns(bool) {}
-    function precompileAwaitCall(address, bytes memory) public payable returns(bytes memory, bool) {}
-    function precompileSendRequest(address, Nil.Token[] memory, bytes memory, bytes memory) public payable returns(bool) {}
+    function precompileAwaitCall(address, uint, bytes memory) public payable returns(bytes memory, bool) {}
+    function precompileSendRequest(address, Nil.Token[] memory, uint, bytes memory, bytes memory) public payable returns(bool) {}
     function precompileSendTokens(address, Nil.Token[] memory) public returns(bool) {}
     function precompileGetMessageTokens() public returns(Nil.Token[] memory) {}
     function precompileGetGasPrice(uint id) public returns(uint256) {}
