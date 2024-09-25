@@ -15,6 +15,7 @@ contract Awaiter {
         bool ok;
         (temp, ok) = Nil.awaitCall(
             dst,
+            Nil.ASYNC_REQUEST_MIN_GAS,
             abi.encodeWithSignature("getValue()")
         );
 

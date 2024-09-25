@@ -23,7 +23,7 @@ contract RequestResponseTest is NilCurrencyBase {
         for (uint i = 0; i < counters.length; i++) {
             bytes memory callData = abi.encodeWithSignature("get()");
 
-            (bytes memory returnData, bool success) = Nil.awaitCall(counters[i], callData);
+            (bytes memory returnData, bool success) = Nil.awaitCall(counters[i], 60_000, callData);
 
             require(success, "awaitCall failed");
             int32 counterVal = abi.decode(returnData, (int32));
@@ -40,7 +40,7 @@ contract RequestResponseTest is NilCurrencyBase {
      */
     function callFailed(address addr, bool fail) public {
         bytes memory callData = abi.encodeWithSignature("checkFail(bool)", fail);
-        (, bool success) = Nil.awaitCall(addr, callData);
+        (, bool success) = Nil.awaitCall(addr, Nil.ASYNC_REQUEST_MIN_GAS, callData);
         emit awaitCallResult(success);
     }
 
@@ -60,7 +60,7 @@ contract RequestResponseTest is NilCurrencyBase {
             return 1;
         }
         bytes memory callData = abi.encodeWithSignature("factorialRec(int32)", n - 1);
-        (bytes memory returnData, bool success) = Nil.awaitCall(address(this), callData);
+        (bytes memory returnData, bool success) = Nil.awaitCall(address(this), Nil.ASYNC_REQUEST_MIN_GAS, callData);
         require(success, "awaitCall failed");
         int32 prev = abi.decode(returnData, (int32));
         return n * prev;
@@ -82,12 +82,12 @@ contract RequestResponseTest is NilCurrencyBase {
         bytes memory callData;
         bool success;
         callData = abi.encodeWithSignature("fibonacciRec(int32)", n - 1);
-        (returnData, success) = Nil.awaitCall(address(this), callData);
+        (returnData, success) = Nil.awaitCall(address(this), Nil.ASYNC_REQUEST_MIN_GAS, callData);
         require(success, "awaitCall 1 failed");
         int32 a = abi.decode(returnData, (int32));
 
         callData = abi.encodeWithSignature("fibonacciRec(int32)", n - 2);
-        (returnData, success) = Nil.awaitCall(address(this), callData);
+        (returnData, success) = Nil.awaitCall(address(this), Nil.ASYNC_REQUEST_MIN_GAS, callData);
         require(success, "awaitCall 2 failed");
         int32 b = abi.decode(returnData, (int32));
 
@@ -100,7 +100,7 @@ contract RequestResponseTest is NilCurrencyBase {
     function sumCountersNested(address[] memory tests, address[] memory counters) public {
         for (uint i = 0; i < tests.length; i++) {
             bytes memory callData = abi.encodeWithSignature("awaitGet(address)", counters[i]);
-            (bytes memory returnData, bool success) = Nil.awaitCall(tests[i], callData);
+            (bytes memory returnData, bool success) = Nil.awaitCall(tests[i], Nil.ASYNC_REQUEST_MIN_GAS, callData);
 
             require(success, "awaitCall failed");
             int32 counterVal = abi.decode(returnData, (int32));
@@ -110,7 +110,7 @@ contract RequestResponseTest is NilCurrencyBase {
 
     function awaitGet(address counter) public returns(int32) {
         bytes memory callData = abi.encodeWithSignature("get()");
-        (bytes memory returnData, bool success) = Nil.awaitCall(counter, callData);
+        (bytes memory returnData, bool success) = Nil.awaitCall(counter, Nil.ASYNC_REQUEST_MIN_GAS, callData);
         require(success, "awaitCall failed");
         return abi.decode(returnData, (int32));
     }
@@ -121,7 +121,7 @@ contract RequestResponseTest is NilCurrencyBase {
     function requestCounterGet(address counter, uint intContext, string memory strContext) public {
         bytes memory context = abi.encodeWithSelector(this.responseCounterGet.selector, intContext, strContext);
         bytes memory callData = abi.encodeWithSignature("get()");
-        Nil.sendRequest(counter, 0, context, callData);
+        Nil.sendRequest(counter, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
     }
 
     function responseCounterGet(bool success, bytes memory returnData, bytes memory context) public {
@@ -136,7 +136,7 @@ contract RequestResponseTest is NilCurrencyBase {
     function requestCounterAdd(address counter, int32 valueToAdd) public {
         bytes memory context = abi.encodeWithSelector(this.responseCounterAdd.selector);
         bytes memory callData = abi.encodeWithSignature("add(int32)", valueToAdd);
-        Nil.sendRequest(counter, 0, context, callData);
+        Nil.sendRequest(counter, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
     }
 
     function responseCounterAdd(bool success, bytes memory returnData, bytes memory context) public pure {
@@ -151,7 +151,7 @@ contract RequestResponseTest is NilCurrencyBase {
     function requestCheckFail(address addr, bool fail) public {
         bytes memory context = abi.encodeWithSelector(this.responseCheckFail.selector, uint(11111));
         bytes memory callData = abi.encodeWithSignature("checkFail(bool)", fail);
-        Nil.sendRequest(addr, 1000000000, context, callData);
+        Nil.sendRequest(addr, 1000000000, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
     }
 
     function responseCheckFail(bool success, bytes memory /*returnData*/, bytes memory context) public payable {
@@ -166,7 +166,7 @@ contract RequestResponseTest is NilCurrencyBase {
     function requestOutOfGasFailure(address counter) public {
         bytes memory context = abi.encodeWithSelector(this.responseOutOfGasFailure.selector, uint(1234567890));
         bytes memory callData = abi.encodeWithSignature("outOfGasFailure()");
-        Nil.sendRequest(counter, 0, context, callData);
+        Nil.sendRequest(counter, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
     }
 
     function responseOutOfGasFailure(bool success, bytes memory returnData, bytes memory context) public pure {
@@ -191,7 +191,7 @@ contract RequestResponseTest is NilCurrencyBase {
         Nil.Token[] memory tokens = new Nil.Token[](1);
         uint256 id = uint256(uint160(address(this)));
         tokens[0] = Nil.Token(id, amount);
-        Nil.sendRequest(addr, 0, tokens, context, callData);
+        Nil.sendRequestWithTokens(addr, 0, tokens, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
     }
 
     function responseSendCurrency(bool success, bytes memory /*returnData*/, bytes memory context) public payable {
@@ -207,7 +207,7 @@ contract RequestResponseTest is NilCurrencyBase {
     function failDuringRequestSending(address counter) public {
         bytes memory context = abi.encodeWithSelector(this.responseCounterGet.selector, intValue, strValue);
         bytes memory callData = abi.encodeWithSignature("get()");
-        Nil.sendRequest(counter, 0, context, callData);
+        Nil.sendRequest(counter, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
         require(false, "Expect fail");
     }
 
@@ -224,8 +224,8 @@ contract RequestResponseTest is NilCurrencyBase {
     function makeTwoRequests(address addr1, address addr2) public {
         bytes memory context = abi.encodeWithSelector(this.makeTwoRequestsResponse.selector);
         bytes memory callData = abi.encodeWithSignature("get()");
-        Nil.sendRequest(addr1, 0, context, callData);
-        Nil.sendRequest(addr2, 0, context, callData);
+        Nil.sendRequest(addr1, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
+        Nil.sendRequest(addr2, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
     }
 
     function makeTwoRequestsResponse(bool success, bytes memory returnData, bytes memory /*context*/) public {

@@ -760,7 +760,12 @@ func (es *ExecutionState) AppendOutMessageForTx(txId common.Hash, msg *types.Mes
 	es.OutMessages[txId] = append(es.OutMessages[txId], outMsg)
 }
 
-func (es *ExecutionState) AddOutRequestMessage(caller types.Address, payload *types.InternalMessagePayload, isAwait bool) (*types.Message, error) {
+func (es *ExecutionState) AddOutRequestMessage(
+	caller types.Address,
+	payload *types.InternalMessagePayload,
+	responseProcessingGas types.Gas,
+	isAwait bool,
+) (*types.Message, error) {
 	msg, err := es.AddOutMessage(caller, payload)
 	if err != nil {
 		return nil, err
@@ -789,9 +794,13 @@ func (es *ExecutionState) AddOutRequestMessage(caller types.Address, payload *ty
 	if isAwait {
 		es.wasSentRequest = true
 		// Stop vm execution and save its state after the current instruction (call of precompile) is finished.
-		es.evm.StopAndDumpState()
+		es.evm.StopAndDumpState(responseProcessingGas)
 	} else {
-		context := &types.AsyncContext{IsAwait: false, Data: payload.RequestContext}
+		context := &types.AsyncContext{
+			IsAwait:               false,
+			Data:                  payload.RequestContext,
+			ResponseProcessingGas: responseProcessingGas,
+		}
 		acc.SetAsyncContext(types.MessageIndex(msg.RequestId), context)
 	}
 
@@ -905,6 +914,8 @@ func (es *ExecutionState) SendResponseMessage(msg *types.Message, res *Execution
 		Data:        data,
 	}
 
+	// TODO: need to pay for response here
+	// we pay for mem during VM execution, so likely big response isn't a problem
 	responseMsg, err := es.AddOutMessage(msg.To, responsePayload)
 	if err != nil {
 		return err
@@ -1060,6 +1071,8 @@ func (es *ExecutionState) TryProcessResponse(message *types.Message) ([]byte, *v
 		return nil, nil, NewExecutionResult().SetFatal(fmt.Errorf("AsyncResponsePayload unmarshal failed: %w", err))
 	}
 
+	message.FeeCredit = message.FeeCredit.Add(context.ResponseProcessingGas.ToValue(es.GasPrice))
+
 	if context.IsAwait {
 		// Restore VM state from the context
 		restoreState = new(vm.EvmRestoreData)
@@ -1095,6 +1108,7 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	addr := message.To
 	logger.Debug().
 		Stringer(logging.FieldMessageTo, addr).
+		Stringer(logging.FieldMessageFlags, message.Flags).
 		Msg("Handling execution message...")
 
 	caller := (vm.AccountRef)(message.From)
@@ -1542,7 +1556,7 @@ func (es *ExecutionState) SetCurrencyTransfer(currencies []types.CurrencyBalance
 	es.evm.SetCurrencyTransfer(currencies)
 }
 
-func (es *ExecutionState) SaveVmState(state *types.EvmState) error {
+func (es *ExecutionState) SaveVmState(state *types.EvmState, continuationGasCredit types.Gas) error {
 	outMessages := es.OutMessages[es.InMessageHash]
 	check.PanicIfNot(len(outMessages) > 0)
 
@@ -1559,7 +1573,7 @@ func (es *ExecutionState) SaveVmState(state *types.EvmState) error {
 
 	logger.Debug().Int("size", len(data)).Msg("Save vm state")
 
-	context := &types.AsyncContext{IsAwait: true, Data: data}
+	context := &types.AsyncContext{IsAwait: true, Data: data, ResponseProcessingGas: continuationGasCredit}
 	acc.SetAsyncContext(types.MessageIndex(outMsg.RequestId), context)
 	return nil
 }

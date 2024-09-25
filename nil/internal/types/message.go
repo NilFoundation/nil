@@ -145,19 +145,22 @@ func (k ForwardKind) Type() string {
 }
 
 type Message struct {
-	Flags        MessageFlags        `json:"flags" ch:"flags"`
-	ChainId      ChainId             `json:"chainId" ch:"chainId"`
-	Seqno        Seqno               `json:"seqno,omitempty" ch:"seqno"`
-	FeeCredit    Value               `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
-	From         Address             `json:"from,omitempty" ch:"from"`
-	To           Address             `json:"to,omitempty" ch:"to"`
-	RefundTo     Address             `json:"refundTo,omitempty" ch:"refundTo"`
-	BounceTo     Address             `json:"bounceTo,omitempty" ch:"bounceTo"`
-	Value        Value               `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Currency     []CurrencyBalance   `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
-	Data         Code                `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	Flags     MessageFlags      `json:"flags" ch:"flags"`
+	ChainId   ChainId           `json:"chainId" ch:"chainId"`
+	Seqno     Seqno             `json:"seqno,omitempty" ch:"seqno"`
+	FeeCredit Value             `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
+	From      Address           `json:"from,omitempty" ch:"from"`
+	To        Address           `json:"to,omitempty" ch:"to"`
+	RefundTo  Address           `json:"refundTo,omitempty" ch:"refundTo"`
+	BounceTo  Address           `json:"bounceTo,omitempty" ch:"bounceTo"`
+	Value     Value             `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Currency  []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
+	Data      Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+
+	// These fields are needed for async requests
 	RequestId    uint64              `json:"requestId,omitempty" ch:"request_id"`
 	RequestChain []*AsyncRequestInfo `json:"response,omitempty" ch:"response" ssz-max:"4096"`
+
 	// This field should always be at the end of the structure for easy signing
 	Signature Signature `json:"signature,omitempty" ch:"signature" ssz-max:"256"`
 }
@@ -224,8 +227,9 @@ type AsyncResponsePayload struct {
 // AsyncContext contains context of the request. For await requests it contains VM state, which will be restored upon
 // the response. For callback requests it contains captured variables(not implemented yet).
 type AsyncContext struct {
-	IsAwait bool
-	Data    []byte `ssz-max:"10000000"`
+	IsAwait               bool
+	Data                  []byte `ssz-max:"10000000"`
+	ResponseProcessingGas Gas
 }
 
 // interfaces

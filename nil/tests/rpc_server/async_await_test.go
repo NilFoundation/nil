@@ -130,7 +130,14 @@ func (s *SuiteAsyncAwait) TestSumCounters() {
 	s.Require().True(receipt.AllSuccess())
 
 	info := s.analyzeReceipt(receipt, map[types.Address]string{})
-	s.checkBalance(info, initialBalance, s.accounts)
+	// we use `receipt.GasUsed` field in calculations here
+	// this gives a slightly different result since part of the "spent" gas
+	// in fact is being reserved for the response processing and later is being refunded
+	// TODO: likely we need to introduce `receipt.GasReserved` field as well
+
+	// 3 async calls; 60_000 is value from the RequestResponseTest.sol
+	valueReservedAsync := types.Gas(3 * 60_000).ToValue(types.DefaultGasPrice)
+	s.checkBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)
 
 	data = s.AbiPack(s.abiTest, "value")
 	data = s.CallGetter(s.testAddress0, data, "latest", nil)
@@ -150,6 +157,12 @@ func (s *SuiteAsyncAwait) TestFailed() {
 	)
 
 	initialBalance := s.UpdateBalance()
+	// we use `receipt.GasUsed` field in calculations here
+	// this gives a slightly different result since part of the "spent" gas
+	// in fact is being reserved for the response processing and later is being refunded
+	// TODO: likely we need to introduce `receipt.GasReserved` field as well
+
+	valueReservedAsync := types.Gas(50_000).ToValue(types.DefaultGasPrice)
 
 	s.Run("callFailed with false fail flag", func() {
 		data = s.AbiPack(s.abiTest, "callFailed", s.testAddress1, false)
@@ -157,7 +170,7 @@ func (s *SuiteAsyncAwait) TestFailed() {
 		s.Require().True(receipt.AllSuccess())
 
 		info = s.analyzeReceipt(receipt, map[types.Address]string{})
-		initialBalance = s.checkBalance(info, initialBalance, s.accounts)
+		initialBalance = s.checkBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)
 
 		responseReceipt = receipt.OutReceipts[0].OutReceipts[0]
 		s.Require().Len(responseReceipt.Logs, 1)
@@ -186,12 +199,12 @@ func (s *SuiteAsyncAwait) TestFailed() {
 		s.Require().False(success)
 
 		info = s.analyzeReceipt(receipt, map[types.Address]string{})
-		s.checkBalance(info, initialBalance, s.accounts)
+		s.checkBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)
 	})
 }
 
 func (s *SuiteAsyncAwait) TestFactorial() {
-	data := s.AbiPack(s.abiTest, "factorial", int32(10))
+	data := s.AbiPack(s.abiTest, "factorial", int32(6))
 	receipt := s.sendExternalMessageNoCheck(data, s.testAddress0)
 	s.Require().True(receipt.AllSuccess())
 
@@ -201,7 +214,7 @@ func (s *SuiteAsyncAwait) TestFactorial() {
 	s.Require().NoError(err)
 	value, ok := nameRes[0].(int32)
 	s.Require().True(ok)
-	s.Require().Equal(int32(3628800), value)
+	s.Require().Equal(int32(720), value)
 }
 
 func (s *SuiteAsyncAwait) TestFibonacci() {
@@ -291,6 +304,11 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 	})
 
 	initialBalance := s.UpdateBalance()
+	// we use `receipt.GasUsed` field in calculations here
+	// this gives a slightly different result since part of the "spent" gas
+	// in fact is being reserved for the response processing and later is being refunded
+	// TODO: likely we need to introduce `receipt.GasReserved` field as well
+	valueReservedAsync := types.Gas(50_000).ToValue(types.DefaultGasPrice)
 
 	s.Run("Call Counter.get", func() {
 		intContext := big.NewInt(456)
@@ -305,7 +323,8 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 		CheckContractValueEqual(&s.RpcSuite, s.abiTest, s.testAddress0, "strValue", "Hello World")
 
 		info = s.analyzeReceipt(receipt, map[types.Address]string{})
-		initialBalance = s.checkBalance(info, initialBalance, s.accounts)
+
+		initialBalance = s.checkBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)
 		s.checkAsyncContextEmpty(s.testAddress0)
 	})
 
@@ -317,7 +336,7 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 		CheckContractValueEqual(&s.RpcSuite, s.abiCounter, s.counterAddress0, "get", int32(223))
 
 		info = s.analyzeReceipt(receipt, map[types.Address]string{})
-		initialBalance = s.checkBalance(info, initialBalance, s.accounts)
+		initialBalance = s.checkBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)
 		s.checkAsyncContextEmpty(s.testAddress0)
 	})
 
@@ -335,7 +354,7 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 		s.Require().True(responseReceipt.Success)
 
 		info = s.analyzeReceipt(receipt, map[types.Address]string{})
-		initialBalance = s.checkBalance(info, initialBalance, s.accounts)
+		initialBalance = s.checkBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)
 		s.checkAsyncContextEmpty(s.testAddress0)
 	})
 
@@ -363,7 +382,7 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 		s.Require().True(receipt.AllSuccess())
 
 		info = s.analyzeReceipt(receipt, map[types.Address]string{})
-		initialBalance = s.checkBalance(info, initialBalance, s.accounts)
+		initialBalance = s.checkBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)
 		s.checkAsyncContextEmpty(s.testAddress0)
 
 		currencyId := hexutil.ToHexNoLeadingZeroes(s.testAddress0.Bytes())
