@@ -1530,6 +1530,11 @@ func (es *ExecutionState) GetCurrencies(addr types.Address) map[types.CurrencyId
 		}
 		res[c.Currency] = c.Balance
 	}
+	// If some currency was changed during execution, we need to set it to the result. It will probably rewrite values
+	// fetched from the storage above.
+	for id, balance := range *acc.Currencies {
+		res[id] = balance
+	}
 
 	return res
 }
