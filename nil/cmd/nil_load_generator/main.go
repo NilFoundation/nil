@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"math/big"
@@ -8,11 +9,13 @@ import (
 	"time"
 
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
+	"github.com/NilFoundation/nil/nil/cmd/nil_load_generator/metrics"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
+	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -37,15 +40,18 @@ func RandomPermutation(n, amount uint64) ([]uint64, error) {
 	return arr[:amount], nil
 }
 
-func TopUpBalance(service *cliservice.Service, wallets []types.Address) error {
+func TopUpBalance(ctx context.Context, service *cliservice.Service, wallets []types.Address, mh *metrics.MetricsHandler) error {
+	topUpAmount := uint64(500_000_000)
 	for _, wallet := range wallets {
 		balance, err := service.GetBalance(wallet)
 		if err != nil {
 			return err
 		}
-		if balance.Uint64() < 1_000_000 {
-			err := service.TopUpViaFaucet(wallet, types.NewValueFromUint64(1_000_000))
-			if err != nil {
+		if balance.Uint64() < topUpAmount {
+			if err := service.TopUpViaFaucet(wallet, types.NewValueFromUint64(topUpAmount)); err != nil {
+				return err
+			}
+			if err := HandleWalletBalanceMetrics(ctx, service, mh, wallet, topUpAmount); err != nil {
 				return err
 			}
 		}
@@ -53,8 +59,72 @@ func TopUpBalance(service *cliservice.Service, wallets []types.Address) error {
 	return nil
 }
 
+func HandleWalletBalanceMetrics(ctx context.Context, service *cliservice.Service, mh *metrics.MetricsHandler, wallet types.Address, approxAmount uint64) error {
+	balance, err := service.GetBalance(wallet)
+	if err != nil {
+		return err
+	}
+
+	// Update the wallet balance in the metrics handler
+	mh.SetCurrentWalletBalance(ctx, balance.Uint64(), wallet)
+	mh.SetCurrentApproxWalletBalance(ctx, approxAmount, wallet)
+
+	return nil
+}
+
+func createWallets(ctx context.Context, service *cliservice.Service, shardIds []types.ShardId, mh *metrics.MetricsHandler) ([]types.Address, []*ecdsa.PrivateKey, error) {
+	privateKeys := make([]*ecdsa.PrivateKey, 0)
+	wallets := make([]types.Address, 0)
+	for _, shardId := range shardIds {
+		ownerPrivateKey, err := crypto.GenerateKey()
+		if err != nil {
+			return nil, nil, err
+		}
+		walletAddr, err := service.CreateWallet(shardId, types.NewUint256(0), types.NewValueFromUint64(1_000_000_000), &ownerPrivateKey.PublicKey)
+		if err != nil {
+			walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(&ownerPrivateKey.PublicKey))
+			walletAddr = service.ContractAddress(shardId, *types.NewUint256(0), walletCode)
+		}
+		balance, err := service.GetBalance(walletAddr)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := HandleWalletBalanceMetrics(ctx, service, mh, walletAddr, balance.Uint64()); err != nil {
+			return nil, nil, err
+		}
+		wallets = append(wallets, walletAddr)
+		privateKeys = append(privateKeys, ownerPrivateKey)
+	}
+	return wallets, privateKeys, nil
+}
+
+func deployContracts(ctx context.Context, client *rpc_client.Client, wallets []types.Address, privateKeys []*ecdsa.PrivateKey, incrementContractCode []byte, mh *metrics.MetricsHandler) ([]types.Address, error) {
+	contractsCall := make([]types.Address, 0)
+	for i, wallet := range wallets {
+		service := cliservice.NewService(client, privateKeys[i])
+
+		txHashCaller, addr, err := service.DeployContractViaWallet(wallet.ShardId(), wallet, types.BuildDeployPayload(incrementContractCode, wallet.Hash()), types.Value{})
+		if err != nil {
+			return nil, err
+		}
+		receipt, err := service.WaitForReceipt(wallet.ShardId(), txHashCaller)
+		if err != nil {
+			return nil, err
+		}
+		if receipt.AllSuccess() {
+			if err := HandleWalletBalanceMetrics(ctx, service, mh, wallet, -receipt.GasUsed.Uint64()*receipt.GasPrice.Uint64()); err != nil {
+				return nil, err
+			}
+		}
+		contractsCall = append(contractsCall, addr)
+	}
+	return contractsCall, nil
+}
+
 func main() {
-	logger := logging.NewLogger("nil_load_generator")
+	componentName := "nil_load_generator"
+	logger := logging.NewLogger(componentName)
+	ctx := context.Background()
 
 	incrementContractCode, err := contracts.GetCode("tests/Counter")
 	if err != nil {
@@ -75,53 +145,50 @@ func main() {
 	}
 
 	rootCmd := &cobra.Command{
-		Use:   "nil_loadgen",
+		Use:   componentName,
 		Short: "Run nil load generator",
 	}
 
 	rpcEndpoint := rootCmd.Flags().String("endpoint", "http://127.0.0.1:8529/", "rpc endpoint")
 	contractCallDelay := rootCmd.Flags().Duration("delay", 500*time.Millisecond, "delay between contracts call")
-	checkBalanceFrequency := rootCmd.Flags().Uint32("check-balance", 10, "frequency of balance check in iterations")
+	checkBalanceFrequency := rootCmd.Flags().Uint32("check-balance", 1, "frequency of balance check in iterations")
+	exportMetrics := rootCmd.Flags().Bool("metrics", false, "export metrics via grpc")
 
 	check.PanicIfErr(rootCmd.Execute())
+
+	if err := telemetry.Init(ctx, &telemetry.Config{ServiceName: componentName, ExportMetrics: *exportMetrics}); err != nil {
+		logger.Err(err).Send()
+		panic("Can't init telemetry")
+	}
+	defer telemetry.Shutdown(ctx)
+	mh, err := metrics.NewMetricsHandler(componentName)
+	if err != nil {
+		logger.Err(err).Send()
+		panic("Can't init metrics handler")
+	}
 
 	client := rpc_client.NewClient(*rpcEndpoint, logger)
 	service := cliservice.NewService(client, execution.MainPrivateKey)
 
 	shardIdList, err := client.GetShardIdList()
-	nShards := len(shardIdList)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("Can't get shards number")
+		mh.RecordError(ctx)
+		logger.Err(err).Send()
+		panic("Can't get shards number")
 	}
-	privateKeys := make([]*ecdsa.PrivateKey, 0)
-	wallets := make([]types.Address, 0)
-	contractsCall := make([]types.Address, 0)
-	for _, shardId := range shardIdList {
-		ownerPrivateKey, err := crypto.GenerateKey()
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Can't generate private key")
-		}
-		walletAddr, err := service.CreateWallet(shardId, types.NewUint256(0), types.NewValueFromUint64(1_000_000_000), &ownerPrivateKey.PublicKey)
-		if err != nil {
-			logger.Error().Err(err).Msg("Can't create wallet")
-			walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(&ownerPrivateKey.PublicKey))
-			walletAddr = service.ContractAddress(shardId, *types.NewUint256(0), walletCode)
-			logger.Info().Msg("Using already created wallet")
-		}
-		wallets = append(wallets, walletAddr)
-		privateKeys = append(privateKeys, ownerPrivateKey)
+	nShards := len(shardIdList)
+
+	wallets, privateKeys, err := createWallets(ctx, service, shardIdList, mh)
+	if err != nil {
+		logger.Err(err).Send()
+		panic("Can't create wallets")
 	}
 
-	for _, shardId := range shardIdList {
-		txHashCaller, addr, err := client.DeployContract(shardId, wallets[0], types.BuildDeployPayload(incrementContractCode, common.EmptyHash), types.Value{}, privateKeys[0])
-		if err != nil {
-			logger.Error().Err(err).Msg("Error during deploy contract, maybe contract already deployed")
-		}
-		_, err = service.WaitForReceipt(wallets[0].ShardId(), txHashCaller)
-		if err != nil {
-			logger.Error().Err(err).Msg("Can't get receipt for contract. Maybe duplicate contract deploy")
-		}
-		contractsCall = append(contractsCall, addr)
+	contractsCall, err := deployContracts(ctx, client, wallets, privateKeys, incrementContractCode, mh)
+	if err != nil {
+		mh.RecordError(ctx)
+		logger.Err(err).Send()
+		panic("Failed to deploy contracts")
 	}
 
 	checkBalanceCounterDownInt := int(*checkBalanceFrequency)
@@ -130,12 +197,15 @@ func main() {
 		for i, wallet := range wallets {
 			numberCalls, err := rand.Int(rand.Reader, big.NewInt(int64(len(contractsCall))))
 			if err != nil {
+				mh.RecordError(ctx)
 				logger.Error().Err(err).Msg("Error during get random calls number")
 			}
 			addrToCall, err := RandomPermutation(uint64(nShards-1), numberCalls.Uint64())
 			if err != nil {
+				mh.RecordError(ctx)
 				logger.Error().Err(err).Msg("Error during get random contract address")
 			}
+
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -146,20 +216,28 @@ func main() {
 						contractsCall[addr],
 						privateKeys[i])
 					if err != nil {
+						mh.RecordError(ctx)
 						logger.Error().Err(err).Msg("Error during contract call")
 					}
-					_, err = service.WaitForReceipt(wallet.ShardId(), hash)
+					receipt, err := service.WaitForReceipt(wallet.ShardId(), hash)
 					if err != nil {
+						mh.RecordError(ctx)
 						logger.Error().Err(err).Msg("Can't get receipt for contract")
 					}
+					if err := HandleWalletBalanceMetrics(ctx, service, mh, wallet, -receipt.GasUsed.Uint64()*receipt.GasPrice.Uint64()); err != nil {
+						mh.RecordError(ctx)
+						logger.Error().Err(err).Msg("Can't get balance")
+					}
+					mh.RecordFromToCall(ctx, types.ShardId(i+1), types.ShardId(addr+1))
 				}
 			}()
 		}
 		wg.Wait()
-		checkBalanceCounterDownInt -= 1
+
+		checkBalanceCounterDownInt--
 		if checkBalanceCounterDownInt == 0 {
-			err := TopUpBalance(service, wallets)
-			if err != nil {
+			if err := TopUpBalance(ctx, service, wallets, mh); err != nil {
+				mh.RecordError(ctx)
 				logger.Error().Err(err).Msg("Error during top up balance")
 			}
 			checkBalanceCounterDownInt = int(*checkBalanceFrequency)

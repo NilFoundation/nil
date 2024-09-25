@@ -43,7 +43,7 @@ func ShutdownMetrics(ctx context.Context) {
 }
 
 func newMetricGrpcExporter(ctx context.Context) (sdkmetric.Exporter, error) {
-	return otlpmetricgrpc.New(ctx)
+	return otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithInsecure())
 }
 
 func newMeterProvider(exporter sdkmetric.Exporter, config *Config) (*sdkmetric.MeterProvider, error) {
