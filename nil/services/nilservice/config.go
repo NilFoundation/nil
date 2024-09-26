@@ -1,6 +1,8 @@
 package nilservice
 
 import (
+	"slices"
+
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
@@ -22,9 +24,9 @@ type Config struct {
 	RunMode RunMode `yaml:"-"`
 
 	// Shard configuration
-	NShards     uint32        `yaml:"nShards,omitempty"`
-	MyShard     types.ShardId `yaml:"myShard"`
-	SplitShards bool          `yaml:"splitShards,omitempty"`
+	NShards     uint32 `yaml:"nShards,omitempty"`
+	MyShards    []uint `yaml:"myShards,omitempty"`
+	SplitShards bool   `yaml:"splitShards,omitempty"`
 
 	// RPC
 	RPCPort       int    `yaml:"rpcPort,omitempty"`
@@ -61,7 +63,7 @@ func NewDefaultConfig() *Config {
 	return &Config{
 		RunMode: NormalRunMode,
 
-		MyShard:         types.InvalidShardId,
+		MyShards:        []uint{},
 		NShards:         5,
 		MainKeysOutPath: "keys.yaml",
 		NetworkKeysPath: "network-keys.yaml",
@@ -92,5 +94,5 @@ func NewDefaultReplayConfig() *ReplayConfig {
 }
 
 func (c *Config) IsShardActive(shardId types.ShardId) bool {
-	return !c.SplitShards || c.MyShard == shardId
+	return !c.SplitShards || slices.Contains(c.MyShards, uint(shardId))
 }

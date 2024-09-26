@@ -11,7 +11,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/network"
-	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"gopkg.in/yaml.v3"
@@ -47,7 +46,7 @@ func do(nShards uint, dir string) error {
 		cfg := &nildconfig.Config{
 			Config: &nilservice.Config{
 				NShards:         uint32(nShards),
-				MyShard:         types.ShardId(i),
+				MyShards:        []uint{i},
 				SplitShards:     true,
 				MainKeysOutPath: mainKeysFileName,
 				NetworkKeysPath: networkKeysFileName,
@@ -89,7 +88,7 @@ func do(nShards uint, dir string) error {
 		}
 
 		logger.Info().
-			Stringer(logging.FieldShardId, c.MyShard).
+			Uint(logging.FieldShardId, c.MyShards[0]).
 			Msgf("Config for written to %s", name)
 	}
 

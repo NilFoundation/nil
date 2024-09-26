@@ -80,7 +80,7 @@ func (s *SuiteSplitShard) start(cfg *nilservice.Config) {
 		go func() {
 			shardConfig := nilservice.Config{
 				NShards:              cfg.NShards,
-				MyShard:              s.shards[i].id,
+				MyShards:             []uint{uint(s.shards[i].id)},
 				SplitShards:          true,
 				HttpUrl:              s.shards[i].url,
 				Topology:             cfg.Topology,
