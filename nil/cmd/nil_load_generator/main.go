@@ -42,7 +42,7 @@ func RandomPermutation(n, amount uint64) ([]uint64, error) {
 }
 
 func TopUpBalance(service *cliservice.Service, wallets []types.Address, mh *metrics.MetricsHandler) error {
-	topUpAmount := uint64(500_000_000)
+	const topUpAmount = uint64(500_000_000)
 	for _, wallet := range wallets {
 		balance, err := service.GetBalance(wallet)
 		if err != nil {
@@ -133,7 +133,6 @@ func deployContracts(client *rpc_client.Client, wallets []types.Address, private
 func main() {
 	componentName := "nil_load_generator"
 	logger := logging.NewLogger(componentName)
-	ctx := context.Background()
 
 	incrementContractCode, err := contracts.GetCode("tests/Counter")
 	if err != nil {
@@ -165,11 +164,12 @@ func main() {
 
 	check.PanicIfErr(rootCmd.Execute())
 
-	if err := telemetry.Init(ctx, &telemetry.Config{ServiceName: componentName, ExportMetrics: *exportMetrics}); err != nil {
+	if err := telemetry.Init(context.Background(), &telemetry.Config{ServiceName: componentName, ExportMetrics: *exportMetrics}); err != nil {
 		logger.Err(err).Send()
 		panic("Can't init telemetry")
 	}
-	defer telemetry.Shutdown(ctx)
+	defer telemetry.Shutdown(context.Background())
+
 	mh, err := metrics.NewMetricsHandler(componentName)
 	if err != nil {
 		logger.Err(err).Send()
@@ -181,7 +181,7 @@ func main() {
 
 	shardIdList, err := client.GetShardIdList()
 	if err != nil {
-		mh.RecordError(ctx)
+		mh.RecordError(context.Background())
 		logger.Err(err).Send()
 		panic("Can't get shards number")
 	}
@@ -195,7 +195,7 @@ func main() {
 
 	contractsCall, err := deployContracts(client, wallets, privateKeys, incrementContractCode, mh)
 	if err != nil {
-		mh.RecordError(ctx)
+		mh.RecordError(context.Background())
 		logger.Err(err).Send()
 		panic("Failed to deploy contracts")
 	}
@@ -206,12 +206,12 @@ func main() {
 		for i, wallet := range wallets {
 			numberCalls, err := rand.Int(rand.Reader, big.NewInt(int64(len(contractsCall))))
 			if err != nil {
-				mh.RecordError(ctx)
+				mh.RecordError(context.Background())
 				logger.Error().Err(err).Msg("Error during get random calls number")
 			}
 			addrToCall, err := RandomPermutation(uint64(nShards-1), numberCalls.Uint64())
 			if err != nil {
-				mh.RecordError(ctx)
+				mh.RecordError(context.Background())
 				logger.Error().Err(err).Msg("Error during get random contract address")
 			}
 
@@ -225,20 +225,20 @@ func main() {
 						contractsCall[addr],
 						privateKeys[i])
 					if err != nil {
-						mh.RecordError(ctx)
+						mh.RecordError(context.Background())
 						logger.Error().Err(err).Msg("Error during contract call")
 					}
 					receipt, err := service.WaitForReceipt(wallet.ShardId(), hash)
 					if err != nil {
-						mh.RecordError(ctx)
+						mh.RecordError(context.Background())
 						logger.Error().Err(err).Msg("Can't get receipt for contract")
 					}
 					valueUsed := GetValueUsed(receipt)
 					if err := HandleWalletBalanceMetrics(service, mh, wallet, -valueUsed.Uint64()); err != nil {
-						mh.RecordError(ctx)
+						mh.RecordError(context.Background())
 						logger.Error().Err(err).Msg("Can't get balance")
 					}
-					mh.RecordFromToCall(ctx, types.ShardId(i+1), types.ShardId(addr+1))
+					mh.RecordFromToCall(context.Background(), int64(i+1), int64(addr+1))
 				}
 			}()
 		}
@@ -247,7 +247,7 @@ func main() {
 		checkBalanceCounterDownInt--
 		if checkBalanceCounterDownInt == 0 {
 			if err := TopUpBalance(service, wallets, mh); err != nil {
-				mh.RecordError(ctx)
+				mh.RecordError(context.Background())
 				logger.Error().Err(err).Msg("Error during top up balance")
 			}
 			checkBalanceCounterDownInt = int(*checkBalanceFrequency)

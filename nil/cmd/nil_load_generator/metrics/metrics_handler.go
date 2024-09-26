@@ -74,8 +74,8 @@ func (mh *MetricsHandler) initMetrics(name string, meter metric.Meter) error {
 	return nil
 }
 
-func (mh *MetricsHandler) RecordFromToCall(ctx context.Context, shardFrom, shardTo types.ShardId) {
-	mh.totalFromToCalls.Add(ctx, 1, mh.attributes, metric.WithAttributes(attribute.String("from", shardFrom.String()), attribute.String("to", shardTo.String())))
+func (mh *MetricsHandler) RecordFromToCall(ctx context.Context, shardFrom, shardTo int64) {
+	mh.totalFromToCalls.Add(ctx, 1, mh.attributes, metric.WithAttributes(attribute.Int64("from", shardFrom), attribute.Int64("to", shardTo)))
 }
 
 func (mh *MetricsHandler) RecordError(ctx context.Context) {
