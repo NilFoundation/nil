@@ -2,8 +2,10 @@ package proofprovider
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common/concurrent"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
@@ -27,11 +29,13 @@ type ProofProvider struct {
 	logger        zerolog.Logger
 }
 
-func New(config Config, logger zerolog.Logger) (*ProofProvider, error) {
+func New(config Config) (*ProofProvider, error) {
 	database, err := db.NewBadgerDb(config.DbPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
+
+	logger := logging.NewLogger("proof_provider")
 
 	taskRpcClient := rpc.NewTaskRequestRpcClient(config.SyncCommitteeRpcEndpoint, logger)
 	taskStorage := storage.NewTaskStorage(database, logger)

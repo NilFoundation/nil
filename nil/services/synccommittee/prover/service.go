@@ -3,6 +3,7 @@ package prover
 import (
 	"context"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
 	"github.com/rs/zerolog"
@@ -17,10 +18,9 @@ type Prover struct {
 	logger       zerolog.Logger
 }
 
-func New(
-	config Config,
-	logger zerolog.Logger,
-) (*Prover, error) {
+func New(config Config) (*Prover, error) {
+	logger := logging.NewLogger("prover")
+
 	taskRpcClient := rpc.NewTaskRequestRpcClient(config.ProofProviderRpcEndpoint, logger)
 
 	taskExecutor, err := executor.New(
