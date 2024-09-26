@@ -15,7 +15,7 @@ type BlockStorageTestSuite struct {
 
 	db  db.DB
 	ctx context.Context
-	bs  *BlockStorage
+	bs  BlockStorage
 }
 
 func (s *BlockStorageTestSuite) SetupSuite() {

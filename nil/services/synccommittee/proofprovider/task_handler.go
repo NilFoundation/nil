@@ -6,7 +6,7 @@ import (
 	"slices"
 
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
@@ -15,7 +15,7 @@ type taskHandler struct {
 	taskStorage storage.TaskStorage
 }
 
-func newTaskHandler(taskStorage storage.TaskStorage) executor.TaskHandler {
+func newTaskHandler(taskStorage storage.TaskStorage) api.TaskHandler {
 	return &taskHandler{
 		taskStorage: taskStorage,
 	}

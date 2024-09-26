@@ -54,7 +54,7 @@ func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_UpdateTaskStatus()
 	}{
 		{
 			"success result FinalProof",
-			types.SuccessProverTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), types.FinalProof, "1A2B3C4D"),
+			types.SuccessProverTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), types.FinalProof, "1A2B3C4D", "5E6F7G8H"),
 		},
 		{
 			"success result Commitment",

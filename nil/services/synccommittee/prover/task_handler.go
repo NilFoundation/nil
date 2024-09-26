@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
 
@@ -12,7 +11,7 @@ type taskHandler struct {
 	requestHandler api.TaskRequestHandler
 }
 
-func newTaskHandler(requestHandler api.TaskRequestHandler) executor.TaskHandler {
+func newTaskHandler(requestHandler api.TaskRequestHandler) api.TaskHandler {
 	return &taskHandler{
 		requestHandler: requestHandler,
 	}

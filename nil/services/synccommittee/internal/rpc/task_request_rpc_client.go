@@ -13,11 +13,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-const (
-	maxRetryCount = 5
-	initialDelay  = 100 * time.Millisecond
-)
-
 type TaskRequestRpcClient struct {
 	client      client.RawClient
 	retryRunner common.RetryRunner
@@ -26,16 +21,8 @@ type TaskRequestRpcClient struct {
 func NewTaskRequestRpcClient(apiEndpoint string, logger zerolog.Logger) *TaskRequestRpcClient {
 	retryRunner := common.NewRetryRunner(
 		common.RetryConfig{
-			ShouldRetry: func(attemptNumber uint32, _ error) bool {
-				return attemptNumber < maxRetryCount
-			},
-			NextDelay: func(attemptNumber uint32) time.Duration {
-				result := time.Duration(1)
-				for range attemptNumber {
-					result *= initialDelay
-				}
-				return result
-			},
+			ShouldRetry: common.LimitRetries(5),
+			NextDelay:   common.ExponentialDelay(100*time.Millisecond, time.Second),
 		},
 		logger,
 	)

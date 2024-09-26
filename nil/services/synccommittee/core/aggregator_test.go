@@ -24,7 +24,7 @@ type AggregatorTestSuite struct {
 
 	nShards    uint32
 	client     *rpc.Client
-	storage    *storage.BlockStorage
+	storage    storage.BlockStorage
 	aggregator *Aggregator
 	nilDb      db.DB
 	scDb       db.DB
@@ -82,11 +82,9 @@ func (s *AggregatorTestSuite) SetupSuite() {
 	metrics, err := NewMetricsHandler("github.com/NilFoundation/nil/nil/services/sync_committee")
 	s.Require().NoError(err)
 	s.storage = storage.NewBlockStorage(s.scDb)
-	proposer, err := NewProposer(DefaultProposerParams(), logger)
 	s.Require().NoError(err)
 	s.aggregator, err = NewAggregator(
 		s.client,
-		proposer,
 		storage.NewBlockStorage(s.scDb),
 		storage.NewTaskStorage(s.scDb, logger),
 		logger,

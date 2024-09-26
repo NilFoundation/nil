@@ -35,7 +35,7 @@ type TaskExecutor interface {
 func New(
 	config *Config,
 	requestHandler api.TaskRequestHandler,
-	taskHandler TaskHandler,
+	taskHandler api.TaskHandler,
 	logger zerolog.Logger,
 ) (TaskExecutor, error) {
 	nonceId, err := generateNonceId()
@@ -55,7 +55,7 @@ type taskExecutorImpl struct {
 	nonceId        types.TaskExecutorId
 	config         Config
 	requestHandler api.TaskRequestHandler
-	taskHandler    TaskHandler
+	taskHandler    api.TaskHandler
 	logger         zerolog.Logger
 }
 

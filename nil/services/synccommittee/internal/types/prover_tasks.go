@@ -80,12 +80,12 @@ const UnknownExecutorId TaskExecutorId = 0
 
 // TaskResult Prover returns this struct as task result
 type TaskResult struct {
-	Type        ProverResultType `json:"type"`
-	TaskId      TaskId           `json:"taskId"`
-	IsSuccess   bool             `json:"isSuccess"`
-	ErrorText   string           `json:"errorText"`
-	Sender      TaskExecutorId   `json:"sender"`
-	DataAddress string           `json:"dataAddress"`
+	Type          ProverResultType `json:"type"`
+	TaskId        TaskId           `json:"taskId"`
+	IsSuccess     bool             `json:"isSuccess"`
+	ErrorText     string           `json:"errorText"`
+	Sender        TaskExecutorId   `json:"sender"`
+	DataAddresses []string         `json:"dataAddresses"`
 }
 
 func SuccessProviderTaskResult(
@@ -116,14 +116,14 @@ func SuccessProverTaskResult(
 	taskId TaskId,
 	sender TaskExecutorId,
 	resultType ProverResultType,
-	dataAddress string,
+	dataAddresses ...string,
 ) TaskResult {
 	return TaskResult{
-		TaskId:      taskId,
-		IsSuccess:   true,
-		Sender:      sender,
-		Type:        resultType,
-		DataAddress: dataAddress,
+		TaskId:        taskId,
+		IsSuccess:     true,
+		Sender:        sender,
+		Type:          resultType,
+		DataAddresses: dataAddresses,
 	}
 }
 
@@ -133,10 +133,11 @@ func FailureProverTaskResult(
 	err error,
 ) TaskResult {
 	return TaskResult{
-		TaskId:    taskId,
-		Sender:    sender,
-		IsSuccess: false,
-		ErrorText: fmt.Sprintf("failed to generate proof: %v", err),
+		TaskId:        taskId,
+		Sender:        sender,
+		DataAddresses: []string{},
+		IsSuccess:     false,
+		ErrorText:     fmt.Sprintf("failed to generate proof: %v", err),
 	}
 }
 

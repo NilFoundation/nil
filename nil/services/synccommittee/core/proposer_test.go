@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"math/big"
 	"testing"
 
@@ -23,7 +24,7 @@ const (
 func TestCreateUpdateStateTransaction(t *testing.T) {
 	t.Parallel()
 
-	p, err := NewProposer(DefaultProposerParams(), logging.NewLogger("sync_committee_aggregator_test"))
+	p, err := newProposer(DefaultProposerParams(), logging.NewLogger("sync_committee_aggregator_test"))
 	require.NoError(t, err)
 
 	provedStateRoot := common.IntToHash(10)
@@ -50,12 +51,12 @@ func TestCreateUpdateStateTransaction(t *testing.T) {
 func TestSendProof(t *testing.T) {
 	t.Parallel()
 
-	p, err := NewProposer(DefaultProposerParams(), logging.NewLogger("sync_committee_aggregator_test"))
+	p, err := newProposer(DefaultProposerParams(), logging.NewLogger("sync_committee_aggregator_test"))
 	require.NoError(t, err)
 
 	provedStateRoot := common.IntToHash(10)
 	newStateRoot := common.IntToHash(11)
 	transactions := make([]*storage.PrunedTransaction, 0)
-	err = p.SendProof(provedStateRoot, newStateRoot, transactions)
+	err = p.SendProof(context.Background(), provedStateRoot, newStateRoot, transactions)
 	require.NoError(t, err)
 }

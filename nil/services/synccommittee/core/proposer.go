@@ -1,12 +1,14 @@
 package core
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
@@ -68,7 +70,11 @@ const abiLatestProvedStateRootJson = `
 	}
 ]`
 
-type Proposer struct {
+type Proposer interface {
+	SendProof(ctx context.Context, provedStateRoot, newStateRoot common.Hash, transactions []*storage.PrunedTransaction) error
+}
+
+type proposerImpl struct {
 	l1EndPoint            string
 	client                *rpc.Client
 	seqno                 atomic.Uint64
@@ -76,6 +82,8 @@ type Proposer struct {
 	privKey               string
 	contractAddress       string
 	latestProvedStateRoot common.Hash
+
+	retryRunner           common.RetryRunner
 	logger                zerolog.Logger
 }
 
@@ -97,7 +105,7 @@ func DefaultProposerParams() ProposerParams {
 	}
 }
 
-func NewProposer(params ProposerParams, logger zerolog.Logger) (*Proposer, error) {
+func newProposer(params ProposerParams, logger zerolog.Logger) (*proposerImpl, error) {
 	client := rpc.NewClient(params.endpoint, logger)
 
 	chainId, ok := new(big.Int).SetString(params.chainId, 10)
@@ -119,17 +127,26 @@ func NewProposer(params ProposerParams, logger zerolog.Logger) (*Proposer, error
 
 	logger.Debug().Int64("seqno", int64(nonceValue)).Msg("initialize proposer, latestProvedStateRoot = " + latestProvedStateRoot.String())
 
-	p := Proposer{
+	retryRunner := common.NewRetryRunner(
+		common.RetryConfig{
+			ShouldRetry: common.LimitRetries(5),
+			NextDelay:   common.ExponentialDelay(100*time.Millisecond, time.Second),
+		},
+		logger,
+	)
+
+	p := proposerImpl{
 		client:                client,
 		l1EndPoint:            params.endpoint,
 		chainId:               chainId,
 		privKey:               params.privKey,
 		contractAddress:       params.contractAddress,
 		latestProvedStateRoot: latestProvedStateRoot,
+		retryRunner:           retryRunner,
 		logger:                logger,
 	}
 	p.seqno.Add(nonceValue)
-	return &p, nil
+	return p, nil
 }
 
 func getLatestProvedStateRoot(selfAddress string, contractAddress string, client *rpc.Client) (common.Hash, error) {
@@ -205,7 +222,7 @@ func getCurrentNonce(selfAddress string, client *rpc.Client) (uint64, error) {
 	return (uint64)(nonceValue), nil
 }
 
-func (p *Proposer) createUpdateStateTransaction(provedStateRoot, newStateRoot common.Hash) (*types.Transaction, error) {
+func (p *proposerImpl) createUpdateStateTransaction(provedStateRoot, newStateRoot common.Hash) (*types.Transaction, error) {
 	if provedStateRoot.Empty() || newStateRoot.Empty() {
 		return nil, fmt.Errorf("empty hash for state update transaction %d", p.seqno.Load())
 	}
@@ -246,7 +263,7 @@ func (p *Proposer) createUpdateStateTransaction(provedStateRoot, newStateRoot co
 	return signedTx, nil
 }
 
-func (p *Proposer) encodeTransaction(transaction *types.Transaction) (string, error) {
+func (p *proposerImpl) encodeTransaction(transaction *types.Transaction) (string, error) {
 	encodedTransaction, err := transaction.MarshalBinary()
 	if err != nil {
 		return "", fmt.Errorf("failed to encode StateUpdateTransaction: %w", err)
@@ -255,7 +272,7 @@ func (p *Proposer) encodeTransaction(transaction *types.Transaction) (string, er
 	return hexutil.Encode(encodedTransaction), nil
 }
 
-func (p *Proposer) SendProof(provedStateRoot, newStateRoot common.Hash, transactions []*storage.PrunedTransaction) error {
+func (p *proposerImpl) SendProof(ctx context.Context, provedStateRoot, newStateRoot common.Hash, transactions []*storage.PrunedTransaction) error {
 	p.logger.Debug().Int64("seqno", int64(p.seqno.Load())).Int64("transactionsCount", int64(len(transactions))).Msg("skip processing transactions")
 
 	signedTx, err := p.createUpdateStateTransaction(provedStateRoot, newStateRoot)
@@ -271,7 +288,10 @@ func (p *Proposer) SendProof(provedStateRoot, newStateRoot common.Hash, transact
 	p.logger.Debug().Msg(encodedTransactionStr)
 
 	// call UpdateState L1 contract
-	_, err = p.client.RawCall("eth_sendRawTransaction", encodedTransactionStr)
+	err = p.retryRunner.Do(ctx, func(context.Context) error {
+		_, err := p.client.RawCall("eth_sendRawTransaction", encodedTransactionStr)
+		return err
+	})
 	if err != nil {
 		// TODO return error after enable local L1 endpoint
 		p.logger.Error().Err(err).Msg("failed update state on L1 request")

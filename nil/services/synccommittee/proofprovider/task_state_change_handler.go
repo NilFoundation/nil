@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
 )
@@ -23,7 +22,7 @@ func newTaskStateChangeHandler(
 	requestHandler api.TaskRequestHandler,
 	currentExecutorId types.TaskExecutorId,
 	logger zerolog.Logger,
-) scheduler.TaskStateChangeHandler {
+) api.TaskStateChangeHandler {
 	return &taskStateChangeHandler{
 		requestHandler:    requestHandler,
 		currentExecutorId: currentExecutorId,

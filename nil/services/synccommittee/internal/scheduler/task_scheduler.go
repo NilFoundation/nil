@@ -29,7 +29,7 @@ type TaskScheduler interface {
 	Run(ctx context.Context) error
 }
 
-func New(taskStorage storage.TaskStorage, stateHandler TaskStateChangeHandler, logger zerolog.Logger) TaskScheduler {
+func New(taskStorage storage.TaskStorage, stateHandler api.TaskStateChangeHandler, logger zerolog.Logger) TaskScheduler {
 	return &taskSchedulerImpl{
 		storage:      taskStorage,
 		stateHandler: stateHandler,
@@ -40,7 +40,7 @@ func New(taskStorage storage.TaskStorage, stateHandler TaskStateChangeHandler, l
 
 type taskSchedulerImpl struct {
 	storage      storage.TaskStorage
-	stateHandler TaskStateChangeHandler
+	stateHandler api.TaskStateChangeHandler
 	config       Config
 	logger       zerolog.Logger
 }
@@ -89,11 +89,11 @@ func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.Tas
 		s.logError(err, result)
 	}
 
-	return err
+	return nil
 }
 
 func (s *taskSchedulerImpl) logError(err error, result *types.TaskResult) {
-	s.logger.Error().
+	s.logger.
 		Err(err).
 		Interface("executorId", result.Sender).
 		Interface("taskId", result.TaskId).

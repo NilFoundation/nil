@@ -7,7 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	nilTypes "github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -20,7 +20,7 @@ type TaskHandlerTestSuite struct {
 	cancellation context.CancelFunc
 	database     db.DB
 	taskStorage  storage.TaskStorage
-	taskHandler  executor.TaskHandler
+	taskHandler  api.TaskHandler
 }
 
 func (s *TaskHandlerTestSuite) SetupSuite() {

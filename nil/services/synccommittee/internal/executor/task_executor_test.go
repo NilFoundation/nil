@@ -18,13 +18,13 @@ type TestSuite struct {
 	cancellation   context.CancelFunc
 	taskExecutor   TaskExecutor
 	requestHandler *api.TaskRequestHandlerMock
-	taskHandler    *TaskHandlerMock
+	taskHandler    *api.TaskHandlerMock
 }
 
 func (s *TestSuite) SetupTest() {
 	s.context, s.cancellation = context.WithCancel(context.Background())
 	s.requestHandler = newTaskRequestHandlerMock()
-	s.taskHandler = &TaskHandlerMock{}
+	s.taskHandler = &api.TaskHandlerMock{}
 
 	config := Config{
 		TaskPollingInterval: 10 * time.Millisecond,

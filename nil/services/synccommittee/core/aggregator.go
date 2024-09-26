@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
@@ -19,16 +18,14 @@ import (
 type Aggregator struct {
 	logger       zerolog.Logger
 	client       *rpc.Client
-	blockStorage *storage.BlockStorage
+	blockStorage storage.BlockStorage
 	taskStorage  storage.TaskStorage
-	proposer     *Proposer
 	metrics      *MetricsHandler
 }
 
 func NewAggregator(
 	client *rpc.Client,
-	proposer *Proposer,
-	blockStorage *storage.BlockStorage,
+	blockStorage storage.BlockStorage,
 	taskStorage storage.TaskStorage,
 	logger zerolog.Logger,
 	metrics *MetricsHandler,
@@ -38,7 +35,6 @@ func NewAggregator(
 		client:       client,
 		blockStorage: blockStorage,
 		taskStorage:  taskStorage,
-		proposer:     proposer,
 		metrics:      metrics,
 	}, nil
 }
@@ -76,83 +72,6 @@ func (agg *Aggregator) fetchLatestBlocks(shardIdList []coreTypes.ShardId) (map[c
 	}
 
 	return latestBlocks, nil
-}
-
-func (agg *Aggregator) proofThresholdMet(ctx context.Context) (bool, error) {
-	lastProvedBlockNum, err := agg.blockStorage.GetLastProvedBlockNum(ctx, coreTypes.MainShardId)
-	if err != nil {
-		return false, err
-	}
-	lastFetchedBlockNum, err := agg.blockStorage.GetLastFetchedBlockNum(ctx, coreTypes.MainShardId)
-	if err != nil {
-		return false, err
-	}
-	return lastProvedBlockNum < lastFetchedBlockNum, nil
-}
-
-// updateLastProvedBlockNumForAllShards updates the last proved block number for all shards to their respective last fetched block number
-// so they will be cleaned from the storage afterwards. This is temp solution while we have dummy proof creation.
-func (agg *Aggregator) updateLastProvedBlockNumForAllShards(ctx context.Context) error {
-	shardIdList, err := agg.getShardIdList()
-	if err != nil {
-		return fmt.Errorf("failed to get shard list for updating last proved block numbers: %w", err)
-	}
-
-	for _, shardId := range shardIdList {
-		lastFetchedBlockNum, err := agg.blockStorage.GetLastFetchedBlockNum(ctx, shardId)
-		if err != nil {
-			if errors.Is(err, db.ErrKeyNotFound) {
-				agg.logger.Info().Stringer(logging.FieldShardId, shardId).Msg("there are no fetched blocks yet, no last proved num will be set")
-				continue
-			}
-			return err
-		}
-		if err := agg.blockStorage.SetLastProvedBlockNum(ctx, shardId, lastFetchedBlockNum); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Ask proposer to send proof to L1
-func (agg *Aggregator) sendProof(ctx context.Context) error {
-	lastProvedBlockNum, err := agg.blockStorage.GetLastProvedBlockNum(ctx, coreTypes.MainShardId)
-	if err != nil {
-		return err
-	}
-	lastFetchedBlockNum, err := agg.blockStorage.GetLastFetchedBlockNum(ctx, coreTypes.MainShardId)
-	if err != nil {
-		return err
-	}
-	lastProvedBlock, err := agg.blockStorage.GetBlock(ctx, coreTypes.MainShardId, lastProvedBlockNum)
-	if err != nil {
-		return err
-	}
-	lastFetchedBlock, err := agg.blockStorage.GetBlock(ctx, coreTypes.MainShardId, lastFetchedBlockNum)
-	if err != nil {
-		return err
-	}
-	var provedStateRoot common.Hash
-	if lastProvedBlock != nil {
-		provedStateRoot = lastProvedBlock.ChildBlocksRootHash
-	}
-	newStateRoot := lastFetchedBlock.ChildBlocksRootHash
-	transactions, err := agg.blockStorage.GetTransactionsByBlocksRange(ctx, coreTypes.MainShardId, lastProvedBlockNum, lastFetchedBlockNum)
-	if err != nil {
-		return err
-	}
-
-	agg.logger.Info().
-		Stringer("provedStateRoot", provedStateRoot).
-		Stringer("newStateRoot", newStateRoot).
-		Int64("blkCount", int64(lastFetchedBlockNum-lastProvedBlockNum)).
-		Int64("transactionsCount", int64(len(transactions))).Msg("send proof")
-	// temporary solution for check Proposer, actually should be called from TaskScheduler after generate proof
-	err = agg.proposer.SendProof(provedStateRoot, newStateRoot, transactions)
-	if err != nil {
-		return fmt.Errorf("failed send proof: %w", err)
-	}
-	return nil
 }
 
 // createProofTask generates proof tasks for the main shard blocks.
@@ -250,26 +169,6 @@ func (agg *Aggregator) ProcessNewBlocks(ctx context.Context) error {
 		if err := agg.processShardBlocks(ctx, shardId, latestBlock.Number); err != nil {
 			agg.metrics.RecordError(ctx)
 			return fmt.Errorf("error processing blocks from shard %d: %w", shardId, err)
-		}
-	}
-	proofThresholdMet, err := agg.proofThresholdMet(ctx)
-	if err != nil {
-		return err
-	}
-	if proofThresholdMet {
-		// Should be called from TaskScheduler, now added here just for check Proposal
-		if err = agg.sendProof(ctx); err != nil {
-			agg.metrics.RecordError(ctx)
-			return err
-		}
-		// Update last proved block number for all shards and clean the storage
-		if err = agg.updateLastProvedBlockNumForAllShards(ctx); err != nil {
-			agg.metrics.RecordError(ctx)
-			return err
-		}
-		if err = agg.blockStorage.CleanupStorage(ctx); err != nil {
-			agg.metrics.RecordError(ctx)
-			return err
 		}
 	}
 

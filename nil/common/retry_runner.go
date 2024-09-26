@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"log"
 	"math/big"
 	"time"
 
@@ -51,6 +52,30 @@ func (r *RetryRunner) Do(ctx context.Context, action func(ctx context.Context) e
 				break
 			}
 		}
+	}
+}
+
+func LimitRetries(maxRetries uint32) func(attemptNumber uint32, err error) bool {
+	return func(attemptNumber uint32, _ error) bool {
+		return attemptNumber < maxRetries
+	}
+}
+
+func ExponentialDelay(baseDelay, maxDelay time.Duration) func(attemptNumber uint32) time.Duration {
+	if baseDelay > maxDelay {
+		log.Panicf("baseDelay %s > maxDelay %s", baseDelay, maxDelay)
+	}
+
+	return func(attemptNumber uint32) time.Duration {
+		result := time.Duration(1)
+		for range attemptNumber {
+			result *= baseDelay
+			if result >= maxDelay {
+				result = maxDelay
+				break
+			}
+		}
+		return result
 	}
 }
 

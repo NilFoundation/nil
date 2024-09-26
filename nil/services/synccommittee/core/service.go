@@ -22,7 +22,7 @@ type SyncCommittee struct {
 	database     db.DB
 	logger       zerolog.Logger
 	client       *nilrpc.Client
-	proposer     *Proposer
+	proposer     Proposer
 	aggregator   *Aggregator
 	taskListener *rpc.TaskListener
 	scheduler    scheduler.TaskScheduler
@@ -37,8 +37,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 
 	client := nilrpc.NewClient(cfg.RpcEndpoint, logger)
 
-	proposerParams := ProposerParams{cfg.L1Endpoint, cfg.L1ChainId, cfg.PrivateKey, cfg.L1ContractAddress, cfg.SelfAddress}
-	proposer, err := NewProposer(proposerParams, logger)
+	proposer, err := NewProposer(cfg.L1Endpoint, cfg.L1ChainId, cfg.PrivateKey, cfg.L1ContractAddress, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create proposer: %w", err)
 	}
@@ -46,14 +45,20 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	blockStorage := storage.NewBlockStorage(database)
 	taskStorage := storage.NewTaskStorage(database, logger)
 
-	aggregator, err := NewAggregator(client, proposer, blockStorage, taskStorage, logger, metrics)
+	aggregator, err := NewAggregator(client, blockStorage, taskStorage, logger, metrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}
 
+	proposerParams := ProposerParams{cfg.L1Endpoint, cfg.L1ChainId, cfg.PrivateKey, cfg.L1ContractAddress, cfg.SelfAddress}
+	proposer, err := newProposer(proposerParams, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create proposer: %w", err)
+	}
+
 	taskScheduler := scheduler.New(
 		taskStorage,
-		newTaskStateChangeHandler(logger),
+		newTaskStateChangeHandler(proposer, blockStorage, logger),
 		logger,
 	)
 
