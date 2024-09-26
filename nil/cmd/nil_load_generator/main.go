@@ -23,13 +23,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func RandomPermutation(n, amount uint64) ([]uint64, error) {
-	arr := make([]uint64, n)
-	for i := range n {
-		arr[i] = i
-	}
-
-	for i := n - 1; i > 0; i-- {
+func RandomPermutation(shardIdList []types.ShardId, amount uint64) ([]types.ShardId, error) {
+	arr := shardIdList
+	for i := len(arr) - 1; i > 0; i-- {
 		jBig, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
 		if err != nil {
 			return nil, err
@@ -37,7 +33,6 @@ func RandomPermutation(n, amount uint64) ([]uint64, error) {
 		j := jBig.Uint64()
 		arr[i], arr[j] = arr[j], arr[i]
 	}
-
 	return arr[:amount], nil
 }
 
@@ -63,7 +58,7 @@ func TopUpBalance(service *cliservice.Service, wallets []types.Address, mh *metr
 func GetValueUsed(receipt *jsonrpc.RPCReceipt) types.Value {
 	res := receipt.GasUsed.ToValue(receipt.GasPrice)
 	for _, outReceipt := range receipt.OutReceipts {
-		res.Add(GetValueUsed(outReceipt))
+		res = res.Add(GetValueUsed(outReceipt))
 	}
 	return res
 }
@@ -75,8 +70,8 @@ func HandleWalletBalanceMetrics(service *cliservice.Service, mh *metrics.Metrics
 	}
 
 	// Update the wallet balance in the metrics handler
-	mh.SetCurrentWalletBalance(context.Background(), balance.Uint64(), wallet)
-	mh.SetCurrentApproxWalletBalance(context.Background(), approxAmount, wallet)
+	mh.SetCurrentWalletBalance(balance.Uint64(), wallet)
+	mh.SetCurrentApproxWalletBalance(approxAmount, wallet)
 
 	return nil
 }
@@ -107,8 +102,8 @@ func createWallets(service *cliservice.Service, shardIds []types.ShardId, mh *me
 	return wallets, privateKeys, nil
 }
 
-func deployContracts(client *rpc_client.Client, wallets []types.Address, privateKeys []*ecdsa.PrivateKey, incrementContractCode []byte, mh *metrics.MetricsHandler) ([]types.Address, error) {
-	contractsCall := make([]types.Address, 0)
+func deployContracts(client *rpc_client.Client, wallets []types.Address, privateKeys []*ecdsa.PrivateKey, incrementContractCode []byte, mh *metrics.MetricsHandler) (map[types.ShardId]types.Address, error) {
+	contractsCall := make(map[types.ShardId]types.Address)
 	for i, wallet := range wallets {
 		service := cliservice.NewService(client, privateKeys[i])
 
@@ -125,7 +120,7 @@ func deployContracts(client *rpc_client.Client, wallets []types.Address, private
 		if err := HandleWalletBalanceMetrics(service, mh, wallet, -valueUsed.Uint64()); err != nil {
 			return nil, err
 		}
-		contractsCall = append(contractsCall, addr)
+		contractsCall[wallet.ShardId()] = addr
 	}
 	return contractsCall, nil
 }
@@ -181,11 +176,10 @@ func main() {
 
 	shardIdList, err := client.GetShardIdList()
 	if err != nil {
-		mh.RecordError(context.Background())
+		mh.RecordError()
 		logger.Err(err).Send()
 		panic("Can't get shards number")
 	}
-	nShards := len(shardIdList)
 
 	wallets, privateKeys, err := createWallets(service, shardIdList, mh)
 	if err != nil {
@@ -193,9 +187,9 @@ func main() {
 		panic("Can't create wallets")
 	}
 
-	contractsCall, err := deployContracts(client, wallets, privateKeys, incrementContractCode, mh)
+	contractsAddr, err := deployContracts(client, wallets, privateKeys, incrementContractCode, mh)
 	if err != nil {
-		mh.RecordError(context.Background())
+		mh.RecordError()
 		logger.Err(err).Send()
 		panic("Failed to deploy contracts")
 	}
@@ -204,14 +198,14 @@ func main() {
 	for {
 		var wg sync.WaitGroup
 		for i, wallet := range wallets {
-			numberCalls, err := rand.Int(rand.Reader, big.NewInt(int64(len(contractsCall))))
+			numberCalls, err := rand.Int(rand.Reader, big.NewInt(int64(len(contractsAddr))))
 			if err != nil {
-				mh.RecordError(context.Background())
+				mh.RecordError()
 				logger.Error().Err(err).Msg("Error during get random calls number")
 			}
-			addrToCall, err := RandomPermutation(uint64(nShards-1), numberCalls.Uint64())
+			shardsToCall, err := RandomPermutation(shardIdList, numberCalls.Uint64())
 			if err != nil {
-				mh.RecordError(context.Background())
+				mh.RecordError()
 				logger.Error().Err(err).Msg("Error during get random contract address")
 			}
 
@@ -219,26 +213,37 @@ func main() {
 			go func() {
 				defer wg.Done()
 				var hash common.Hash
-				for _, addr := range addrToCall {
+				for _, shardToCall := range shardsToCall {
+					// todo: remove
+					balanceBefore, _ := service.GetBalance(wallet)
+					//
+
 					hash, err = client.SendMessageViaWallet(wallet, incrementCalldata,
 						types.GasToValue(200_000), types.Value{}, []types.CurrencyBalance{},
-						contractsCall[addr],
+						contractsAddr[shardToCall],
 						privateKeys[i])
 					if err != nil {
-						mh.RecordError(context.Background())
+						mh.RecordError()
 						logger.Error().Err(err).Msg("Error during contract call")
 					}
 					receipt, err := service.WaitForReceipt(wallet.ShardId(), hash)
 					if err != nil {
-						mh.RecordError(context.Background())
+						mh.RecordError()
 						logger.Error().Err(err).Msg("Can't get receipt for contract")
 					}
 					valueUsed := GetValueUsed(receipt)
+					// todo: remove
+					balanceAfter, _ := service.GetBalance(wallet)
+					if balanceBefore.Uint64()-balanceAfter.Uint64() != valueUsed.Uint64() {
+						x := 5
+						_ = x
+					}
+					//
 					if err := HandleWalletBalanceMetrics(service, mh, wallet, -valueUsed.Uint64()); err != nil {
-						mh.RecordError(context.Background())
+						mh.RecordError()
 						logger.Error().Err(err).Msg("Can't get balance")
 					}
-					mh.RecordFromToCall(context.Background(), int64(i+1), int64(addr+1))
+					mh.RecordFromToCall(int64(i+1), int64(shardToCall))
 				}
 			}()
 		}
@@ -247,7 +252,7 @@ func main() {
 		checkBalanceCounterDownInt--
 		if checkBalanceCounterDownInt == 0 {
 			if err := TopUpBalance(service, wallets, mh); err != nil {
-				mh.RecordError(context.Background())
+				mh.RecordError()
 				logger.Error().Err(err).Msg("Error during top up balance")
 			}
 			checkBalanceCounterDownInt = int(*checkBalanceFrequency)

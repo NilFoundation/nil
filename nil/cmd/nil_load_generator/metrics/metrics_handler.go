@@ -74,18 +74,18 @@ func (mh *MetricsHandler) initMetrics(name string, meter metric.Meter) error {
 	return nil
 }
 
-func (mh *MetricsHandler) RecordFromToCall(ctx context.Context, shardFrom, shardTo int64) {
-	mh.totalFromToCalls.Add(ctx, 1, mh.attributes, metric.WithAttributes(attribute.Int64("from", shardFrom), attribute.Int64("to", shardTo)))
+func (mh *MetricsHandler) RecordFromToCall(shardFrom, shardTo int64) {
+	mh.totalFromToCalls.Add(context.Background(), 1, mh.attributes, metric.WithAttributes(attribute.Int64("from", shardFrom), attribute.Int64("to", shardTo)))
 }
 
-func (mh *MetricsHandler) RecordError(ctx context.Context) {
-	mh.totalErrorsEncountered.Add(ctx, 1, mh.attributes)
+func (mh *MetricsHandler) RecordError() {
+	mh.totalErrorsEncountered.Add(context.Background(), 1, mh.attributes)
 }
 
-func (mh *MetricsHandler) SetCurrentWalletBalance(ctx context.Context, balance uint64, wallet types.Address) {
-	mh.currentWalletBalance.Record(ctx, int64(balance), mh.attributes, metric.WithAttributes(attribute.Stringer("wallet", wallet)))
+func (mh *MetricsHandler) SetCurrentWalletBalance(balance uint64, wallet types.Address) {
+	mh.currentWalletBalance.Record(context.Background(), int64(balance), mh.attributes, metric.WithAttributes(attribute.Stringer("wallet", wallet)))
 }
 
-func (mh *MetricsHandler) SetCurrentApproxWalletBalance(ctx context.Context, balance uint64, wallet types.Address) {
-	mh.currentApproxWalletBalance.Add(ctx, int64(balance), mh.attributes, metric.WithAttributes(attribute.Stringer("wallet", wallet)))
+func (mh *MetricsHandler) SetCurrentApproxWalletBalance(balance uint64, wallet types.Address) {
+	mh.currentApproxWalletBalance.Add(context.Background(), int64(balance), mh.attributes, metric.WithAttributes(attribute.Stringer("wallet", wallet)))
 }
