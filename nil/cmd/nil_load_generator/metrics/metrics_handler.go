@@ -83,9 +83,9 @@ func (mh *MetricsHandler) RecordError(ctx context.Context) {
 }
 
 func (mh *MetricsHandler) SetCurrentWalletBalance(ctx context.Context, balance uint64, wallet types.Address) {
-	mh.currentWalletBalance.Record(ctx, int64(balance), mh.attributes, metric.WithAttributes(attribute.String("wallet", wallet.String())))
+	mh.currentWalletBalance.Record(ctx, int64(balance), mh.attributes, metric.WithAttributes(attribute.Stringer("wallet", wallet)))
 }
 
 func (mh *MetricsHandler) SetCurrentApproxWalletBalance(ctx context.Context, balance uint64, wallet types.Address) {
-	mh.currentApproxWalletBalance.Add(ctx, int64(balance), mh.attributes, metric.WithAttributes(attribute.String("wallet", wallet.String())))
+	mh.currentApproxWalletBalance.Add(ctx, int64(balance), mh.attributes, metric.WithAttributes(attribute.Stringer("wallet", wallet)))
 }

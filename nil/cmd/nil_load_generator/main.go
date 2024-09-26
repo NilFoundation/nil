@@ -159,7 +159,7 @@ func main() {
 
 	rpcEndpoint := rootCmd.Flags().String("endpoint", "http://127.0.0.1:8529/", "rpc endpoint")
 	contractCallDelay := rootCmd.Flags().Duration("delay", 500*time.Millisecond, "delay between contracts call")
-	checkBalanceFrequency := rootCmd.Flags().Uint32("check-balance", 1, "frequency of balance check in iterations")
+	checkBalanceFrequency := rootCmd.Flags().Uint32("check-balance", 10, "frequency of balance check in iterations")
 	exportMetrics := rootCmd.Flags().Bool("metrics", false, "export metrics via grpc")
 
 	check.PanicIfErr(rootCmd.Execute())
