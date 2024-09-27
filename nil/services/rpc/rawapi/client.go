@@ -22,11 +22,15 @@ type NetworkRawApiAccessor struct {
 var _ Api = (*NetworkRawApiAccessor)(nil)
 
 func NewNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manager, serverAddress string) (*NetworkRawApiAccessor, error) {
+	return newNetworkRawApiAccessor(ctx, networkManager, serverAddress, reflect.TypeOf(&NetworkRawApiAccessor{}), reflect.TypeFor[NetworkTransportProtocol]())
+}
+
+func newNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manager, serverAddress string, apiType, transportType reflect.Type) (*NetworkRawApiAccessor, error) {
 	serverPeerId, err := networkManager.Connect(ctx, serverAddress)
 	if err != nil {
 		return nil, err
 	}
-	codec, err := newApiCodec(reflect.TypeOf(&NetworkRawApiAccessor{}), reflect.TypeFor[NetworkTransportProtocol]())
+	codec, err := newApiCodec(apiType, transportType)
 	if err != nil {
 		return nil, err
 	}
@@ -49,11 +53,11 @@ func (api *NetworkRawApiAccessor) GetFullBlockData(ctx context.Context, shardId 
 func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](api *NetworkRawApiAccessor, ctx context.Context, args ...any) (ResponseType, error) {
 	callerMethodName := extractCallerMethodName(2)
 	check.PanicIfNotf(callerMethodName != "", "Method name not found")
-	return sendRequestAndGetResponse[ResponseType](api, callerMethodName, ctx, args...)
+	return sendRequestAndGetResponse[ResponseType](api.codec, api.networkManager, api.serverPeerId, "rawapi", callerMethodName, ctx, args...)
 }
 
-func sendRequestAndGetResponse[ResponseType any](api *NetworkRawApiAccessor, methodName string, ctx context.Context, args ...any) (ResponseType, error) {
-	codec, ok := (*api.codec)[methodName]
+func sendRequestAndGetResponse[ResponseType any](apiCodec *apiCodec, networkManager *network.Manager, serverPeerId network.PeerID, apiName string, methodName string, ctx context.Context, args ...any) (ResponseType, error) {
+	codec, ok := (*apiCodec)[methodName]
 	check.PanicIfNotf(ok, "Codec for method %s not found", methodName)
 
 	var response ResponseType
@@ -62,7 +66,7 @@ func sendRequestAndGetResponse[ResponseType any](api *NetworkRawApiAccessor, met
 		return response, err
 	}
 
-	responseBody, err := api.networkManager.SendRequestAndGetResponse(ctx, api.serverPeerId, network.ProtocolID("rawapi/"+codec.methodName), requestBody)
+	responseBody, err := networkManager.SendRequestAndGetResponse(ctx, serverPeerId, network.ProtocolID(apiName+"/"+codec.methodName), requestBody)
 	if err != nil {
 		return response, err
 	}
