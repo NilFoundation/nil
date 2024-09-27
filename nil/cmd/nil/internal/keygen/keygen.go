@@ -30,7 +30,10 @@ func GetCommand() *cobra.Command {
 		SilenceUsage: true,
 	}
 
-	keygenCmd.AddCommand(NewCommand(keygen))
-	keygenCmd.AddCommand(FromHexCommand(keygen))
+	keygenCmd.AddCommand(
+		NewCommand(keygen),
+		FromHexCommand(keygen),
+		NewP2pCommand(keygen),
+	)
 	return keygenCmd
 }

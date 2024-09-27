@@ -311,6 +311,12 @@ func (s *SuiteCli) TestCallCliBasic() {
 	s.Contains(res, block.Hash.String())
 }
 
+func (s *SuiteCli) TestCliP2pKeygen() {
+	res := s.runCli("keygen", "new-p2p", "-q")
+	lines := strings.Split(res, "\n")
+	s.Require().Len(lines, 3)
+}
+
 func (s *SuiteCli) TestCliWallet() {
 	dir := s.T().TempDir()
 
