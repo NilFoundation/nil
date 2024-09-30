@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/internal/network/internal"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +26,7 @@ func NewTestManagerWithBaseConfig(t *testing.T, ctx context.Context, conf *Confi
 		conf.IPV4Address = "127.0.0.1"
 	}
 	if conf.PrivateKey == nil {
-		privateKey, err := internal.GeneratePrivateKey()
+		privateKey, err := GeneratePrivateKey()
 		require.NoError(t, err)
 		conf.PrivateKey = privateKey
 	}
@@ -90,7 +89,7 @@ func GenerateConfigs(t *testing.T, n uint32) []*Config {
 	configs := make([]*Config, n)
 	addresses := make([]string, n)
 	for i := range n {
-		key, err := internal.GeneratePrivateKey()
+		key, err := GeneratePrivateKey()
 		require.NoError(t, err)
 
 		id, err := peer.IDFromPublicKey(key.GetPublic())

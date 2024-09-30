@@ -1,6 +1,7 @@
 package network
 
 import (
+	"crypto/rand"
 	"fmt"
 	"os"
 
@@ -49,8 +50,17 @@ func LoadOrGenerateKeys(fileName string) (PrivateKey, error) {
 	return privKey, nil
 }
 
+// GeneratePrivateKey generates a new ECDSA private key with the secp256k1 curve.
+// ecdsa package is not used because secp256k1 is not supported by the x509 package.
+// (x509 is used by the standard library to encode and decode keys.)
+// libp2p provides its own (un)marshaling functions for secp256k1 keys.
+func GeneratePrivateKey() (libp2pcrypto.PrivKey, error) {
+	res, _, err := libp2pcrypto.GenerateSecp256k1Key(rand.Reader)
+	return res, err
+}
+
 func GenerateAndDumpKeys(fileName string) (PrivateKey, error) {
-	privKey, err := internal.GeneratePrivateKey()
+	privKey, err := GeneratePrivateKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate keys: %w", err)
 	}
@@ -62,4 +72,8 @@ func GenerateAndDumpKeys(fileName string) (PrivateKey, error) {
 	internal.Logger.Info().Msgf("Saved network keys to %s", fileName)
 
 	return privKey, nil
+}
+
+func SerializeKeys(privKey libp2pcrypto.PrivKey) ([]byte, []byte, peer.ID, error) {
+	return internal.SerializeKeys(privKey)
 }

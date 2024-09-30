@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"crypto/rand"
 	"os"
 
 	"github.com/NilFoundation/nil/nil/common/hexutil"
@@ -10,34 +9,34 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// GeneratePrivateKey generates a new ECDSA private key with the secp256k1 curve.
-// ecdsa package is not used because secp256k1 is not supported by the x509 package.
-// (x509 is used by the standard library to encode and decode keys.)
-// libp2p provides its own (un)marshaling functions for secp256k1 keys.
-func GeneratePrivateKey() (crypto.PrivKey, error) {
-	res, _, err := crypto.GenerateSecp256k1Key(rand.Reader)
-	return res, err
-}
-
 type dumpedKeys struct {
 	PrivateKey hexutil.Bytes `yaml:"privateKey"`
 	PublicKey  hexutil.Bytes `yaml:"publicKey"`
 	Identity   string        `yaml:"identity"`
 }
 
-func DumpKeys(privKey crypto.PrivKey, fileName string) error {
+func SerializeKeys(privKey crypto.PrivKey) ([]byte, []byte, peer.ID, error) {
 	privKeyBytes, err := crypto.MarshalPrivateKey(privKey)
 	if err != nil {
-		return err
+		return nil, nil, "", err
 	}
 
 	pubKey := privKey.GetPublic()
 	pubKeyBytes, err := crypto.MarshalPublicKey(pubKey)
 	if err != nil {
-		return err
+		return nil, nil, "", err
 	}
 
 	identity, err := peer.IDFromPublicKey(pubKey)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	return privKeyBytes, pubKeyBytes, identity, nil
+}
+
+func DumpKeys(privKey crypto.PrivKey, fileName string) error {
+	privKeyBytes, pubKeyBytes, identity, err := SerializeKeys(privKey)
 	if err != nil {
 		return err
 	}

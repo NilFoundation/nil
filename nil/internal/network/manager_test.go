@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/internal/network/internal"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -71,7 +70,7 @@ func (s *ManagerSuite) TestNewManager() {
 }
 
 func (s *ManagerSuite) TestPrivateKey() {
-	privateKey, err := internal.GeneratePrivateKey()
+	privateKey, err := GeneratePrivateKey()
 	s.Require().NoError(err)
 	m := s.newManagerWithBaseConfig(&Config{
 		PrivateKey: privateKey,
