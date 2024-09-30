@@ -154,11 +154,18 @@ func (s *RpcSuite) waitIncludedInMain(shardId types.ShardId, hash common.Hash) *
 
 func (s *RpcSuite) waitZerostate() {
 	s.T().Helper()
+
+	s.waitZerostateFunc(func(i uint32) bool {
+		block, err := s.client.GetBlock(types.ShardId(i), transport.BlockNumber(0), false)
+		return err == nil && block != nil
+	})
+}
+
+func (s *RpcSuite) waitZerostateFunc(fun func(i uint32) bool) {
+	s.T().Helper()
+
 	for i := range s.shardsNum {
-		s.Require().Eventually(func() bool {
-			block, err := s.client.GetBlock(types.ShardId(i), transport.BlockNumber(0), false)
-			return err == nil && block != nil
-		}, ZeroStateWaitTimeout, ZeroStatePollInterval)
+		s.Require().Eventually(func() bool { return fun(i) }, ZeroStateWaitTimeout, ZeroStatePollInterval)
 	}
 }
 
@@ -352,6 +359,15 @@ func (s *RpcSuite) AbiUnpack(abi *abi.ABI, name string, data []byte) []interface
 	res, err := abi.Unpack(name, data)
 	s.Require().NoError(err)
 	return res
+}
+
+func (s *RpcSuite) prepareDefaultDeployPayload(abi abi.ABI, code []byte, args ...any) types.DeployPayload {
+	s.T().Helper()
+
+	constructor, err := abi.Pack("", args...)
+	s.Require().NoError(err)
+	code = append(code, constructor...)
+	return types.BuildDeployPayload(code, common.EmptyHash)
 }
 
 func CheckContractValueEqual[T any](s *RpcSuite, inAbi *abi.ABI, address types.Address, name string, value T) {

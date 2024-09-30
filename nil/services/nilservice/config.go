@@ -17,6 +17,7 @@ const (
 	CollatorsOnlyRunMode
 	BlockReplayRunMode
 	ArchiveRunMode
+	RpcRunMode
 )
 
 type Config struct {

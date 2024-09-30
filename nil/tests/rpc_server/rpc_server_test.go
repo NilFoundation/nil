@@ -12,7 +12,6 @@ import (
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -107,15 +106,6 @@ func (s *SuiteRpc) TestRpcBasic() {
 	msg, err := s.client.GetInMessageByHash(types.BaseShardId, someRandomMissingBlock)
 	s.Require().NoError(err)
 	s.Require().Nil(msg)
-}
-
-func (s *RpcSuite) prepareDefaultDeployPayload(abi abi.ABI, code []byte, args ...any) types.DeployPayload {
-	s.T().Helper()
-
-	constructor, err := abi.Pack("", args...)
-	s.Require().NoError(err)
-	code = append(code, constructor...)
-	return types.BuildDeployPayload(code, common.EmptyHash)
 }
 
 var defaultContractValue = types.NewValueFromUint64(50_000_000)
