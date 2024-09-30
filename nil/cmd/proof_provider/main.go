@@ -40,8 +40,8 @@ func execute() error {
 }
 
 func addFlags(cmd *cobra.Command, cfg *proofprovider.Config) {
-	cmd.Flags().StringVar(&cfg.SyncCommitteeRpcEndpoint, "sync-committee-endpoint", "tcp://127.0.0.1:8530/", "sync committee rpc endpoint")
-	cmd.Flags().StringVar(&cfg.OwnRpcEndpoint, "own-endpoint", "tcp://127.0.0.1:8531/", "own rpc server endpoint")
+	cmd.Flags().StringVar(&cfg.SyncCommitteeRpcEndpoint, "sync-committee-endpoint", "tcp://127.0.0.1:8530", "sync committee rpc endpoint")
+	cmd.Flags().StringVar(&cfg.OwnRpcEndpoint, "own-endpoint", "tcp://127.0.0.1:8531", "own rpc server endpoint")
 	cmd.Flags().StringVar(&cfg.DbPath, "db-path", "proof_provider.db", "path to database")
 	logLevel := cmd.Flags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
 

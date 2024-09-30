@@ -40,7 +40,7 @@ func execute() error {
 }
 
 func addFlags(cmd *cobra.Command, cfg *prover.Config) {
-	cmd.Flags().StringVar(&cfg.ProofProviderRpcEndpoint, "proof-provider-endpoint", "tcp://127.0.0.1:8531/", "proof provider rpc endpoint")
+	cmd.Flags().StringVar(&cfg.ProofProviderRpcEndpoint, "proof-provider-endpoint", "tcp://127.0.0.1:8531", "proof provider rpc endpoint")
 	logLevel := cmd.Flags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
 
 	cmd.PreRun = func(cmd *cobra.Command, args []string) {

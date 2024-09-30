@@ -48,8 +48,8 @@ func execute() error {
 }
 
 func addFlags(cmd *cobra.Command, cfg *core.Config, dbPath *string) {
-	cmd.Flags().StringVar(&cfg.RpcEndpoint, "endpoint", "http://127.0.0.1:8529/", "rpc endpoint")
-	cmd.Flags().StringVar(&cfg.OwnRpcEndpoint, "own-endpoint", "http://127.0.0.1:8530/", "own rpc server endpoint")
+	cmd.Flags().StringVar(&cfg.RpcEndpoint, "endpoint", "tcp://127.0.0.1:8529", "rpc endpoint")
+	cmd.Flags().StringVar(&cfg.OwnRpcEndpoint, "own-endpoint", "tcp://127.0.0.1:8530", "own rpc server endpoint")
 	cmd.Flags().DurationVar(&cfg.PollingDelay, "polling-delay", 500*time.Millisecond, "delay between new block polling")
 	cmd.Flags().StringVar(dbPath, "db-path", "sync_committee.db", "path to database")
 	cmd.Flags().StringVar(&cfg.L1Endpoint, "l1-endpoint", "http://rpc2.sepolia.org", "L1 endpoint")

@@ -18,14 +18,13 @@ import (
 )
 
 type SyncCommittee struct {
-	cfg          *Config
-	database     db.DB
-	logger       zerolog.Logger
-	client       *nilrpc.Client
-	proposer     Proposer
-	aggregator   *Aggregator
-	taskListener *rpc.TaskListener
-	scheduler    scheduler.TaskScheduler
+	cfg           *Config
+	database      db.DB
+	logger        zerolog.Logger
+	client        *nilrpc.Client
+	aggregator    *Aggregator
+	taskListener  *rpc.TaskListener
+	taskScheduler scheduler.TaskScheduler
 }
 
 func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
@@ -36,11 +35,6 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	}
 
 	client := nilrpc.NewClient(cfg.RpcEndpoint, logger)
-
-	proposer, err := NewProposer(cfg.L1Endpoint, cfg.L1ChainId, cfg.PrivateKey, cfg.L1ContractAddress, logger)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create proposer: %w", err)
-	}
 
 	blockStorage := storage.NewBlockStorage(database)
 	taskStorage := storage.NewTaskStorage(database, logger)
@@ -69,14 +63,13 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	)
 
 	s := &SyncCommittee{
-		cfg:          cfg,
-		database:     database,
-		logger:       logger,
-		client:       client,
-		proposer:     proposer,
-		aggregator:   aggregator,
-		taskListener: taskListener,
-		scheduler:    taskScheduler,
+		cfg:           cfg,
+		database:      database,
+		logger:        logger,
+		client:        client,
+		aggregator:    aggregator,
+		taskListener:  taskListener,
+		taskScheduler: taskScheduler,
 	}
 
 	return s, nil
@@ -101,7 +94,7 @@ func (s *SyncCommittee) Run(ctx context.Context) error {
 	functions := []concurrent.Func{
 		s.processingLoop,
 		s.taskListener.Run,
-		s.scheduler.Run,
+		s.taskScheduler.Run,
 	}
 
 	if err := concurrent.Run(ctx, functions...); err != nil {

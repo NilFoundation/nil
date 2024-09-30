@@ -83,8 +83,8 @@ type proposerImpl struct {
 	contractAddress       string
 	latestProvedStateRoot common.Hash
 
-	retryRunner           common.RetryRunner
-	logger                zerolog.Logger
+	retryRunner common.RetryRunner
+	logger      zerolog.Logger
 }
 
 type ProposerParams struct {
@@ -146,7 +146,7 @@ func newProposer(params ProposerParams, logger zerolog.Logger) (*proposerImpl, e
 		logger:                logger,
 	}
 	p.seqno.Add(nonceValue)
-	return p, nil
+	return &p, nil
 }
 
 func getLatestProvedStateRoot(selfAddress string, contractAddress string, client *rpc.Client) (common.Hash, error) {

@@ -2,6 +2,8 @@ package scheduler
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/concurrent"
@@ -10,6 +12,8 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
 )
+
+var ErrFailedToProcessTaskResult = errors.New("failed to process task result")
 
 type Config struct {
 	taskCheckInterval    time.Duration
@@ -57,6 +61,19 @@ func (s *taskSchedulerImpl) GetTask(ctx context.Context, request *api.TaskReques
 		return nil, err
 	}
 
+	if task != nil {
+		s.logger.Debug().
+			Interface("executorId", request.ExecutorId).
+			Interface("taskId", task.Id).
+			Interface("taskType", task.TaskType).
+			Msg("task successfully requested from the storage")
+	} else {
+		s.logger.Debug().
+			Interface("executorId", request.ExecutorId).
+			Interface("taskId", nil).
+			Msg("no tasks available for execution")
+	}
+
 	return task, nil
 }
 
@@ -77,16 +94,18 @@ func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.Tas
 		s.logger.Warn().
 			Interface("executorId", result.Sender).
 			Interface("taskId", result.TaskId).
-			Msgf("task result update for unknown task id")
+			Msgf("received task result update for unknown task id")
 		return nil
 	}
 
 	if err = s.stateHandler.OnTaskTerminated(ctx, &entry.Task, result); err != nil {
 		s.logError(err, result)
+		return fmt.Errorf("%w: %w", ErrFailedToProcessTaskResult, err)
 	}
 
 	if err = s.storage.ProcessTaskResult(ctx, *result); err != nil {
 		s.logError(err, result)
+		return fmt.Errorf("%w: %w", ErrFailedToProcessTaskResult, err)
 	}
 
 	return nil
@@ -97,7 +116,7 @@ func (s *taskSchedulerImpl) logError(err error, result *types.TaskResult) {
 		Err(err).
 		Interface("executorId", result.Sender).
 		Interface("taskId", result.TaskId).
-		Msgf("failed to process task result")
+		Msg(ErrFailedToProcessTaskResult.Error())
 }
 
 func (s *taskSchedulerImpl) Run(ctx context.Context) error {
