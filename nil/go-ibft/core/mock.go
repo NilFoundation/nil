@@ -299,8 +299,6 @@ type (
 )
 
 // newMockCluster creates a new IBFT cluster
-//
-//nolint:unparam // Logger callback currently not used
 func newMockCluster(
 	numNodes uint64,
 	backendCallbackMap map[int]backendConfigCallback,
@@ -466,7 +464,7 @@ func (m *mockCluster) pushMessage(message *proto.Message) {
 
 // areAllNodesOnRound checks to make sure all nodes
 // are on the same specified round
-func (m *mockCluster) areAllNodesOnRound(round uint64) bool {
+func (m *mockCluster) areAllNodesOnRound(round uint64) bool { //nolint:unused
 	for _, node := range m.nodes {
 		if node.state.getRound() != round {
 			return false
