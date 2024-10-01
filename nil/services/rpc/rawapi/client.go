@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/network"
@@ -16,7 +17,7 @@ import (
 type NetworkRawApiAccessor struct {
 	networkManager *network.Manager
 	serverPeerId   network.PeerID
-	codec          *apiCodec
+	codec          apiCodec
 }
 
 var _ Api = (*NetworkRawApiAccessor)(nil)
@@ -43,21 +44,24 @@ func newNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manag
 }
 
 func (api *NetworkRawApiAccessor) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	return sendRequestAndGetResponseWithCallerMethodName[ssz.SSZEncodedData](api, ctx, shardId, blockReference)
+	return sendRequestAndGetResponseWithCallerMethodName[ssz.SSZEncodedData](ctx, api, "GetBlockHeader", shardId, blockReference)
 }
 
 func (api *NetworkRawApiAccessor) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
-	return sendRequestAndGetResponseWithCallerMethodName[*types.RawBlockWithExtractedData](api, ctx, shardId, blockReference)
+	return sendRequestAndGetResponseWithCallerMethodName[*types.RawBlockWithExtractedData](ctx, api, "GetFullBlockData", shardId, blockReference)
 }
 
-func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](api *NetworkRawApiAccessor, ctx context.Context, args ...any) (ResponseType, error) {
-	callerMethodName := extractCallerMethodName(2)
-	check.PanicIfNotf(callerMethodName != "", "Method name not found")
-	return sendRequestAndGetResponse[ResponseType](api.codec, api.networkManager, api.serverPeerId, "rawapi", callerMethodName, ctx, args...)
+func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkRawApiAccessor, methodName string, args ...any) (ResponseType, error) {
+	if assert.Enable {
+		callerMethodName := extractCallerMethodName(2)
+		check.PanicIfNotf(callerMethodName != "", "Method name not found")
+		check.PanicIfNotf(callerMethodName == methodName, "Method name mismatch: %s != %s", callerMethodName, methodName)
+	}
+	return sendRequestAndGetResponse[ResponseType](api.codec, api.networkManager, api.serverPeerId, "rawapi", methodName, ctx, args...)
 }
 
-func sendRequestAndGetResponse[ResponseType any](apiCodec *apiCodec, networkManager *network.Manager, serverPeerId network.PeerID, apiName string, methodName string, ctx context.Context, args ...any) (ResponseType, error) {
-	codec, ok := (*apiCodec)[methodName]
+func sendRequestAndGetResponse[ResponseType any](apiCodec apiCodec, networkManager *network.Manager, serverPeerId network.PeerID, apiName string, methodName string, ctx context.Context, args ...any) (ResponseType, error) {
+	codec, ok := apiCodec[methodName]
 	check.PanicIfNotf(ok, "Codec for method %s not found", methodName)
 
 	var response ResponseType

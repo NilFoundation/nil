@@ -36,7 +36,7 @@ func setRawApiRequestHandlers(ctx context.Context, protocolInterfaceType reflect
 	apiValue := reflect.ValueOf(api)
 	for method := range filtered(iterMethods(apiValue.Type()), isExportedMethod) {
 		methodName := method.Name
-		methodCodec, ok := (*codec)[methodName]
+		methodCodec, ok := codec[methodName]
 		check.PanicIfNotf(ok, "Appropriate codec is not found for method %s", methodName)
 
 		name := network.ProtocolID(apiName + "/" + methodName)

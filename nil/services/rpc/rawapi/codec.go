@@ -116,8 +116,8 @@ type apiCodec map[string]*methodCodec
 //   - The UnpackProtoMessage method of the response type returns the same type as the corresponding API method and error
 //
 // If any of the conditions are not met, an error is returned.
-func newApiCodec(api, transport reflect.Type) (*apiCodec, error) {
-	apiCodec := (*apiCodec)(&map[string]*methodCodec{})
+func newApiCodec(api, transport reflect.Type) (apiCodec, error) {
+	apiCodec := make(apiCodec)
 	for apiMethod := range filtered(iterMethods(api), isExportedMethod) {
 		if err := checkApiMethodSignature(apiMethod); err != nil {
 			return nil, err
@@ -140,7 +140,7 @@ func newApiCodec(api, transport reflect.Type) (*apiCodec, error) {
 			return nil, err
 		}
 
-		(*apiCodec)[apiMethod.Name] = &methodCodec{
+		apiCodec[apiMethod.Name] = &methodCodec{
 			methodName:           apiMethod.Name,
 			apiMethodResultType:  apiMethod.Type.Out(0),
 			pbRequestType:        pbRequestType,
@@ -166,7 +166,7 @@ func iterMethods(t reflect.Type) iter.Seq[reflect.Method] {
 }
 
 func isExportedMethod(m reflect.Method) bool {
-	return m.PkgPath == ""
+	return m.IsExported()
 }
 
 func filtered[T any](seq iter.Seq[T], filter func(T) bool) iter.Seq[T] {

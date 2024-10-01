@@ -15,7 +15,7 @@ import (
 )
 
 type generatedApiClient struct {
-	apiCodec       *apiCodec
+	apiCodec       apiCodec
 	networkManager *network.Manager
 	serverPeerId   network.PeerID
 }
