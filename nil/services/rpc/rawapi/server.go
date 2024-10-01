@@ -3,10 +3,12 @@ package rawapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/network"
+	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi/pb"
 	"github.com/rs/zerolog"
 )
@@ -20,9 +22,10 @@ type NetworkTransportProtocol interface {
 	GetFullBlockData(request pb.BlockRequest) pb.RawFullBlockResponse
 }
 
-func SetRawApiRequestHandlers(ctx context.Context, api Api, manager *network.Manager, logger zerolog.Logger) error {
+func SetRawApiRequestHandlers(ctx context.Context, shardId types.ShardId, api ShardApi, manager *network.Manager, logger zerolog.Logger) error {
 	protocolInterfaceType := reflect.TypeOf((*NetworkTransportProtocol)(nil)).Elem()
-	return setRawApiRequestHandlers(ctx, protocolInterfaceType, api, "rawapi", manager, logger)
+	prefix := fmt.Sprintf("/shard/%d/rawapi", shardId)
+	return setRawApiRequestHandlers(ctx, protocolInterfaceType, api, prefix, manager, logger)
 }
 
 func setRawApiRequestHandlers(ctx context.Context, protocolInterfaceType reflect.Type, api interface{}, apiName string, manager *network.Manager, logger zerolog.Logger) error {

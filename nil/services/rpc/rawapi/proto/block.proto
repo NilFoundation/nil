@@ -25,7 +25,6 @@ message BlockReference {
 
 message BlockRequest {
   BlockReference reference = 2;
-  uint32 shardId = 1;
 }
 
 message Error {

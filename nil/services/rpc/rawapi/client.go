@@ -2,6 +2,7 @@ package rawapi
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"runtime"
 	"strings"
@@ -14,19 +15,37 @@ import (
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 )
 
-type NetworkRawApiAccessor struct {
+type NetworkRawApiAccessorImpl struct {
 	networkManager *network.Manager
 	serverPeerId   network.PeerID
 	codec          apiCodec
 }
 
-var _ Api = (*NetworkRawApiAccessor)(nil)
+var _ ShardApi = (*NetworkRawApiAccessorImpl)(nil)
 
-func NewNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manager, serverAddress string) (*NetworkRawApiAccessor, error) {
-	return newNetworkRawApiAccessor(ctx, networkManager, serverAddress, reflect.TypeOf(&NetworkRawApiAccessor{}), reflect.TypeFor[NetworkTransportProtocol]())
+type NetworkRawApiAccessor struct {
+	impl *NetworkRawApiAccessorImpl
 }
 
-func newNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manager, serverAddress string, apiType, transportType reflect.Type) (*NetworkRawApiAccessor, error) {
+var _ Api = (*NetworkRawApiAccessor)(nil)
+
+func (api *NetworkRawApiAccessorImpl) GetBlockHeader(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
+	return nil, nil
+}
+
+func (api *NetworkRawApiAccessorImpl) GetFullBlockData(ctx context.Context, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
+	return nil, nil
+}
+
+func NewNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manager, serverAddress string) (*NetworkRawApiAccessor, error) {
+	impl, err := newNetworkRawApiAccessor(ctx, networkManager, serverAddress, reflect.TypeOf(&NetworkRawApiAccessorImpl{}), reflect.TypeFor[NetworkTransportProtocol]())
+	if err != nil {
+		return nil, err
+	}
+	return &NetworkRawApiAccessor{impl}, nil
+}
+
+func newNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manager, serverAddress string, apiType, transportType reflect.Type) (*NetworkRawApiAccessorImpl, error) {
 	serverPeerId, err := networkManager.Connect(ctx, serverAddress)
 	if err != nil {
 		return nil, err
@@ -36,7 +55,7 @@ func newNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manag
 		return nil, err
 	}
 
-	return &NetworkRawApiAccessor{
+	return &NetworkRawApiAccessorImpl{
 		networkManager: networkManager,
 		serverPeerId:   serverPeerId,
 		codec:          codec,
@@ -44,20 +63,21 @@ func newNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manag
 }
 
 func (api *NetworkRawApiAccessor) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	return sendRequestAndGetResponseWithCallerMethodName[ssz.SSZEncodedData](ctx, api, "GetBlockHeader", shardId, blockReference)
+	return sendRequestAndGetResponseWithCallerMethodName[ssz.SSZEncodedData](ctx, api.impl, shardId, "GetBlockHeader", blockReference)
 }
 
 func (api *NetworkRawApiAccessor) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
-	return sendRequestAndGetResponseWithCallerMethodName[*types.RawBlockWithExtractedData](ctx, api, "GetFullBlockData", shardId, blockReference)
+	return sendRequestAndGetResponseWithCallerMethodName[*types.RawBlockWithExtractedData](ctx, api.impl, shardId, "GetFullBlockData", blockReference)
 }
 
-func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkRawApiAccessor, methodName string, args ...any) (ResponseType, error) {
+func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkRawApiAccessorImpl, shardId types.ShardId, methodName string, args ...any) (ResponseType, error) {
 	if assert.Enable {
 		callerMethodName := extractCallerMethodName(2)
 		check.PanicIfNotf(callerMethodName != "", "Method name not found")
 		check.PanicIfNotf(callerMethodName == methodName, "Method name mismatch: %s != %s", callerMethodName, methodName)
 	}
-	return sendRequestAndGetResponse[ResponseType](api.codec, api.networkManager, api.serverPeerId, "rawapi", methodName, ctx, args...)
+	protocol := fmt.Sprintf("/shard/%d/rawapi", shardId)
+	return sendRequestAndGetResponse[ResponseType](api.codec, api.networkManager, api.serverPeerId, protocol, methodName, ctx, args...)
 }
 
 func sendRequestAndGetResponse[ResponseType any](apiCodec apiCodec, networkManager *network.Manager, serverPeerId network.PeerID, apiName string, methodName string, ctx context.Context, args ...any) (ResponseType, error) {

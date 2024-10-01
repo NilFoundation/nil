@@ -14,61 +14,63 @@ import (
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 )
 
-type LocalApi struct {
+type LocalShardApi struct {
 	db       db.ReadOnlyDB
 	accessor *execution.StateAccessor
+	ShardId  types.ShardId
 }
 
-var _ Api = (*LocalApi)(nil)
+var _ ShardApi = (*LocalShardApi)(nil)
 
-func NewLocalApi(db db.ReadOnlyDB) *LocalApi {
+func NewLocalShardApi(shardId types.ShardId, db db.ReadOnlyDB) *LocalShardApi {
 	stateAccessor, err := execution.NewStateAccessor()
 	if err != nil {
 		return nil
 	}
-	return &LocalApi{
+	return &LocalShardApi{
 		db:       db,
 		accessor: stateAccessor,
+		ShardId:  shardId,
 	}
 }
 
-func (api *LocalApi) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	block, err := api.getBlockByReference(ctx, shardId, blockReference, false)
+func (api *LocalShardApi) GetBlockHeader(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
+	block, err := api.getBlockByReference(ctx, blockReference, false)
 	if err != nil {
 		return nil, err
 	}
 	return block.Block, nil
 }
 
-func (api *LocalApi) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
-	return api.getBlockByReference(ctx, shardId, blockReference, true)
+func (api *LocalShardApi) GetFullBlockData(ctx context.Context, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
+	return api.getBlockByReference(ctx, blockReference, true)
 }
 
-func (api *LocalApi) getBlockByReference(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference, withMessages bool) (*types.RawBlockWithExtractedData, error) {
+func (api *LocalShardApi) getBlockByReference(ctx context.Context, blockReference rawapitypes.BlockReference, withMessages bool) (*types.RawBlockWithExtractedData, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	blockHash, err := api.getBlockHashByReference(tx, shardId, blockReference)
+	blockHash, err := api.getBlockHashByReference(tx, blockReference)
 	if err != nil {
 		return nil, err
 	}
 
-	return api.getBlockByHash(tx, shardId, blockHash, withMessages)
+	return api.getBlockByHash(tx, blockHash, withMessages)
 }
 
-func (api *LocalApi) getBlockHashByReference(tx db.RoTx, shardId types.ShardId, blockReference rawapitypes.BlockReference) (common.Hash, error) {
+func (api *LocalShardApi) getBlockHashByReference(tx db.RoTx, blockReference rawapitypes.BlockReference) (common.Hash, error) {
 	switch blockReference.Type() {
 	case rawapitypes.NumberBlockReference:
-		return db.ReadBlockHashByNumber(tx, shardId, types.BlockNumber(blockReference.Number()))
+		return db.ReadBlockHashByNumber(tx, api.ShardId, types.BlockNumber(blockReference.Number()))
 	case rawapitypes.NamedBlockIdentifierReference:
 		switch blockReference.NamedBlockIdentifier() {
 		case rawapitypes.EarliestBlock:
-			return db.ReadBlockHashByNumber(tx, shardId, 0)
+			return db.ReadBlockHashByNumber(tx, api.ShardId, 0)
 		case rawapitypes.LatestBlock:
-			return db.ReadLastBlockHash(tx, shardId)
+			return db.ReadLastBlockHash(tx, api.ShardId)
 		default:
 			return common.Hash{}, errors.New("unknown named block identifier")
 		}
@@ -79,8 +81,8 @@ func (api *LocalApi) getBlockHashByReference(tx db.RoTx, shardId types.ShardId, 
 	}
 }
 
-func (api *LocalApi) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash common.Hash, withMessages bool) (*types.RawBlockWithExtractedData, error) {
-	accessor := api.accessor.RawAccess(tx, shardId).GetBlock()
+func (api *LocalShardApi) getBlockByHash(tx db.RoTx, hash common.Hash, withMessages bool) (*types.RawBlockWithExtractedData, error) {
+	accessor := api.accessor.RawAccess(tx, api.ShardId).GetBlock()
 	if withMessages {
 		accessor = accessor.WithInMessages().WithOutMessages().WithReceipts()
 	}
@@ -126,4 +128,34 @@ func (api *LocalApi) getBlockByHash(tx db.RoTx, shardId types.ShardId, hash comm
 		}
 	}
 	return result, nil
+}
+
+type LocalApi struct {
+	apis map[types.ShardId]*LocalShardApi
+}
+
+var _ Api = (*LocalApi)(nil)
+
+func NewLocalApi(apis map[types.ShardId]*LocalShardApi) *LocalApi {
+	return &LocalApi{
+		apis: apis,
+	}
+}
+
+var errShardNotFound = errors.New("shard API not found")
+
+func (api *LocalApi) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
+	shardApi, ok := api.apis[shardId]
+	if !ok {
+		return nil, errShardNotFound
+	}
+	return shardApi.GetBlockHeader(ctx, blockReference)
+}
+
+func (api *LocalApi) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
+	shardApi, ok := api.apis[shardId]
+	if !ok {
+		return nil, errShardNotFound
+	}
+	return shardApi.GetFullBlockData(ctx, blockReference)
 }

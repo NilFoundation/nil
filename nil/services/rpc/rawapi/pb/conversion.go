@@ -107,16 +107,15 @@ func (br *BlockReference) PackProtoMessage(blockReference rawapitypes.BlockRefer
 
 // BlockRequest converters
 
-func (br *BlockRequest) UnpackProtoMessage() (types.ShardId, rawapitypes.BlockReference, error) {
+func (br *BlockRequest) UnpackProtoMessage() (rawapitypes.BlockReference, error) {
 	ref, err := br.Reference.UnpackProtoMessage()
 	if err != nil {
-		return types.ShardId(0), rawapitypes.BlockReference{}, err
+		return rawapitypes.BlockReference{}, err
 	}
-	return types.ShardId(br.ShardId), ref, nil
+	return ref, nil
 }
 
-func (br *BlockRequest) PackProtoMessage(shardId types.ShardId, blockReference rawapitypes.BlockReference) error {
-	br.ShardId = uint32(shardId)
+func (br *BlockRequest) PackProtoMessage(blockReference rawapitypes.BlockReference) error {
 	br.Reference = &BlockReference{}
 	return br.Reference.PackProtoMessage(blockReference)
 }
