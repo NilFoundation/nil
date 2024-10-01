@@ -19,6 +19,29 @@ import (
 
 var initialTcpPort atomic.Int32
 
+type RawApiTestSuite struct {
+	suite.Suite
+
+	ctx                  context.Context
+	logger               zerolog.Logger
+	serverNetworkManager *network.Manager
+	clientNetworkManager *network.Manager
+	serverPeerId         network.PeerID
+}
+
+func (s *RawApiTestSuite) SetupSuite() {
+	s.ctx = context.Background()
+	s.logger = logging.NewLogger("Test")
+	initialTcpPort.CompareAndSwap(0, 9010)
+}
+
+func (s *RawApiTestSuite) SetupTest() {
+	networkManagers := network.NewTestManagers(s.T(), s.ctx, int(initialTcpPort.Add(2)), 2)
+	s.clientNetworkManager = networkManagers[0]
+	s.serverNetworkManager = networkManagers[1]
+	_, s.serverPeerId = network.ConnectManagers(s.T(), s.clientNetworkManager, s.serverNetworkManager)
+}
+
 type testApi struct {
 	handler func(types.ShardId) (ssz.SSZEncodedData, error)
 }
@@ -32,96 +55,17 @@ type testNetworkTransportProtocol interface {
 }
 
 type ApiServerTestSuite struct {
-	suite.Suite
+	RawApiTestSuite
 
-	ctx                  context.Context
-	logger               zerolog.Logger
-	serverNetworkManager *network.Manager
-	clientNetworkManager *network.Manager
-	serverPeerId         network.PeerID
-}
-
-func (s *ApiServerTestSuite) SetupSuite() {
-	s.ctx = context.Background()
-	s.logger = logging.NewLogger("Test")
-	initialTcpPort.CompareAndSwap(0, 9010)
-}
-
-func (s *ApiServerTestSuite) SetupTest() {
-	networkManagers := network.NewTestManagers(s.T(), s.ctx, int(initialTcpPort.Add(2)), 2)
-	s.clientNetworkManager = networkManagers[0]
-	s.serverNetworkManager = networkManagers[1]
-	_, s.serverPeerId = network.ConnectManagers(s.T(), s.clientNetworkManager, s.serverNetworkManager)
-}
-
-type ApiWithoutTestMethod struct{}
-
-type ApiWithWrongMethodArguments struct{}
-
-func (api *ApiWithWrongMethodArguments) TestMethod(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference, extraArg int) (ssz.SSZEncodedData, error) {
-	return nil, nil
-}
-
-type ApiWithWrongContextMethodArgument struct{}
-
-func (api *ApiWithWrongContextMethodArgument) TestMethod(notContextArgument int, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	return nil, nil
-}
-
-type ApiWithWrongMethodReturn struct{}
-
-func (api *ApiWithWrongMethodReturn) TestMethod(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (int, error) {
-	return 0, nil
-}
-
-type ApiWithPointerInsteadOfValueMethodReturn struct{}
-
-func (api *ApiWithPointerInsteadOfValueMethodReturn) TestMethod(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*ssz.SSZEncodedData, error) {
-	return &ssz.SSZEncodedData{}, nil
-}
-
-type ApiWithWrongErrorTypeReturn struct{}
-
-func (api *ApiWithWrongErrorTypeReturn) TestMethod(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, int) {
-	return nil, 0
-}
-
-func (s *ApiServerTestSuite) TestWrongApis() {
-	s.T().Parallel()
-
-	protocolInterfaceType := reflect.TypeOf((*testNetworkTransportProtocol)(nil)).Elem()
-
-	wrongApis := []interface{}{
-		&ApiWithoutTestMethod{},
-		&ApiWithWrongMethodArguments{},
-		&ApiWithWrongContextMethodArgument{},
-		&ApiWithWrongMethodReturn{},
-		&ApiWithPointerInsteadOfValueMethodReturn{},
-		&ApiWithWrongErrorTypeReturn{},
-	}
-
-	for _, a := range wrongApis {
-		api := a
-		s.Run(reflect.TypeOf(api).String(), func() {
-			err := setRawApiRequestHandlers(s.ctx, protocolInterfaceType, api, "testapi", s.serverNetworkManager, s.logger)
-			s.Require().ErrorIs(err, ErrRequestHandlerCreation)
-		})
-	}
-}
-
-func TestApiServer(t *testing.T) {
-	t.Parallel()
-
-	suite.Run(t, new(ApiServerTestSuite))
-}
-
-type ApiServerResponsesTestSuite struct {
-	ApiServerTestSuite
 	api *testApi
 }
 
-func (s *ApiServerResponsesTestSuite) SetupTest() {
-	s.ApiServerTestSuite.SetupTest()
+func (s *ApiServerTestSuite) SetupSuite() {
+	s.RawApiTestSuite.SetupSuite()
+}
+
+func (s *ApiServerTestSuite) SetupTest() {
+	s.RawApiTestSuite.SetupTest()
 
 	protocolInterfaceType := reflect.TypeOf((*testNetworkTransportProtocol)(nil)).Elem()
 	s.api = &testApi{}
@@ -129,7 +73,7 @@ func (s *ApiServerResponsesTestSuite) SetupTest() {
 	s.Require().NoError(err)
 }
 
-func (s *ApiServerResponsesTestSuite) makeValidLatestBlockRequest(shardId types.ShardId) []byte {
+func (s *ApiServerTestSuite) makeValidLatestBlockRequest(shardId types.ShardId) []byte {
 	s.T().Helper()
 
 	request := &pb.BlockRequest{
@@ -145,7 +89,7 @@ func (s *ApiServerResponsesTestSuite) makeValidLatestBlockRequest(shardId types.
 	return requestBytes
 }
 
-func (s *ApiServerResponsesTestSuite) makeInvalidBlockRequest() []byte {
+func (s *ApiServerTestSuite) makeInvalidBlockRequest() []byte {
 	s.T().Helper()
 
 	request := &pb.BlockRequest{
@@ -157,7 +101,7 @@ func (s *ApiServerResponsesTestSuite) makeInvalidBlockRequest() []byte {
 	return requestBytes
 }
 
-func (s *ApiServerResponsesTestSuite) TestValidResponse() {
+func (s *ApiServerTestSuite) TestValidResponse() {
 	lastCallShardId := new(types.ShardId)
 	s.api.handler = func(shardId types.ShardId) (ssz.SSZEncodedData, error) {
 		*lastCallShardId = shardId
@@ -175,7 +119,7 @@ func (s *ApiServerResponsesTestSuite) TestValidResponse() {
 	s.Require().EqualValues(246, types.BytesToShardId(pbResponse.GetData().BlockSSZ))
 }
 
-func (s *ApiServerResponsesTestSuite) TestNilResponse() {
+func (s *ApiServerTestSuite) TestNilResponse() {
 	s.api.handler = func(shardId types.ShardId) (ssz.SSZEncodedData, error) {
 		return nil, nil
 	}
@@ -191,7 +135,7 @@ func (s *ApiServerResponsesTestSuite) TestNilResponse() {
 	s.Require().Equal("block should not be nil", pbResponse.GetError().Message)
 }
 
-func (s *ApiServerResponsesTestSuite) TestInvalidSchemaRequest() {
+func (s *ApiServerTestSuite) TestInvalidSchemaRequest() {
 	s.api.handler = func(shardId types.ShardId) (ssz.SSZEncodedData, error) {
 		return ssz.SSZEncodedData{}, nil
 	}
@@ -206,7 +150,7 @@ func (s *ApiServerResponsesTestSuite) TestInvalidSchemaRequest() {
 	s.Require().Contains(pbResponse.GetError().Message, "cannot parse invalid wire-format data")
 }
 
-func (s *ApiServerResponsesTestSuite) TestInvalidDataRequest() {
+func (s *ApiServerTestSuite) TestInvalidDataRequest() {
 	s.api.handler = func(shardId types.ShardId) (ssz.SSZEncodedData, error) {
 		return ssz.SSZEncodedData{}, nil
 	}
@@ -222,7 +166,7 @@ func (s *ApiServerResponsesTestSuite) TestInvalidDataRequest() {
 	s.Require().Equal("unexpected block reference type", pbResponse.GetError().Message)
 }
 
-func (s *ApiServerResponsesTestSuite) TestHandlerPanic() {
+func (s *ApiServerTestSuite) TestHandlerPanic() {
 	s.api.handler = func(shardId types.ShardId) (ssz.SSZEncodedData, error) {
 		panic("test panic")
 	}
@@ -237,5 +181,5 @@ func (s *ApiServerResponsesTestSuite) TestHandlerPanic() {
 func TestApiServerResponses(t *testing.T) {
 	t.Parallel()
 
-	suite.Run(t, new(ApiServerResponsesTestSuite))
+	suite.Run(t, new(ApiServerTestSuite))
 }

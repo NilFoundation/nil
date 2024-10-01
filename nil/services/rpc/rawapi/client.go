@@ -2,79 +2,92 @@ package rawapi
 
 import (
 	"context"
+	"reflect"
+	"runtime"
+	"strings"
 
+	"github.com/NilFoundation/nil/nil/common/assert"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/rpc/rawapi/pb"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
-	"google.golang.org/protobuf/proto"
 )
 
 type NetworkRawApiAccessor struct {
 	networkManager *network.Manager
 	serverPeerId   network.PeerID
+	codec          apiCodec
 }
 
 var _ Api = (*NetworkRawApiAccessor)(nil)
 
 func NewNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manager, serverAddress string) (*NetworkRawApiAccessor, error) {
+	return newNetworkRawApiAccessor(ctx, networkManager, serverAddress, reflect.TypeOf(&NetworkRawApiAccessor{}), reflect.TypeFor[NetworkTransportProtocol]())
+}
+
+func newNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manager, serverAddress string, apiType, transportType reflect.Type) (*NetworkRawApiAccessor, error) {
 	serverPeerId, err := networkManager.Connect(ctx, serverAddress)
 	if err != nil {
 		return nil, err
 	}
+	codec, err := newApiCodec(apiType, transportType)
+	if err != nil {
+		return nil, err
+	}
+
 	return &NetworkRawApiAccessor{
 		networkManager: networkManager,
 		serverPeerId:   serverPeerId,
+		codec:          codec,
 	}, nil
 }
 
 func (api *NetworkRawApiAccessor) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	blockRequest := &pb.BlockRequest{}
-	if err := blockRequest.PackProtoMessage(shardId, blockReference); err != nil {
-		return nil, err
-	}
-	requestBody, err := proto.Marshal(blockRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	responseBody, err := api.networkManager.SendRequestAndGetResponse(ctx, api.serverPeerId, "rawapi/GetBlockHeader", requestBody)
-	if err != nil {
-		return nil, err
-	}
-
-	var blockPb pb.RawBlockResponse
-	err = proto.Unmarshal(responseBody, &blockPb)
-	if err != nil {
-		return nil, err
-	}
-	fullBlockData, err := blockPb.UnpackProtoMessage()
-	if err != nil {
-		return nil, err
-	}
-	return fullBlockData, nil
+	return sendRequestAndGetResponseWithCallerMethodName[ssz.SSZEncodedData](ctx, api, "GetBlockHeader", shardId, blockReference)
 }
 
 func (api *NetworkRawApiAccessor) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
-	blockRequest := &pb.BlockRequest{}
-	if err := blockRequest.PackProtoMessage(shardId, blockReference); err != nil {
-		return nil, err
+	return sendRequestAndGetResponseWithCallerMethodName[*types.RawBlockWithExtractedData](ctx, api, "GetFullBlockData", shardId, blockReference)
+}
+
+func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkRawApiAccessor, methodName string, args ...any) (ResponseType, error) {
+	if assert.Enable {
+		callerMethodName := extractCallerMethodName(2)
+		check.PanicIfNotf(callerMethodName != "", "Method name not found")
+		check.PanicIfNotf(callerMethodName == methodName, "Method name mismatch: %s != %s", callerMethodName, methodName)
 	}
-	requestBody, err := proto.Marshal(blockRequest)
+	return sendRequestAndGetResponse[ResponseType](api.codec, api.networkManager, api.serverPeerId, "rawapi", methodName, ctx, args...)
+}
+
+func sendRequestAndGetResponse[ResponseType any](apiCodec apiCodec, networkManager *network.Manager, serverPeerId network.PeerID, apiName string, methodName string, ctx context.Context, args ...any) (ResponseType, error) {
+	codec, ok := apiCodec[methodName]
+	check.PanicIfNotf(ok, "Codec for method %s not found", methodName)
+
+	var response ResponseType
+	requestBody, err := codec.packRequest(args...)
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 
-	responseBody, err := api.networkManager.SendRequestAndGetResponse(ctx, api.serverPeerId, "rawapi/GetFullBlockData", requestBody)
+	responseBody, err := networkManager.SendRequestAndGetResponse(ctx, serverPeerId, network.ProtocolID(apiName+"/"+codec.methodName), requestBody)
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 
-	var blockPb pb.RawFullBlockResponse
-	err = proto.Unmarshal(responseBody, &blockPb)
-	if err != nil {
-		return nil, err
+	return unpackResponse[ResponseType](codec, responseBody)
+}
+
+func extractCallerMethodName(skip int) string {
+	pc, _, _, ok := runtime.Caller(skip)
+	if !ok {
+		return ""
 	}
-	return blockPb.UnpackProtoMessage()
+	fn := runtime.FuncForPC(pc)
+	fullMethodName := fn.Name()
+	parts := strings.Split(fullMethodName, ".")
+	if len(parts) == 0 {
+		return ""
+	}
+	return parts[len(parts)-1]
 }
