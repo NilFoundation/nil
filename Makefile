@@ -8,7 +8,7 @@ GOBUILD = GOPRIVATE="$(GOPRIVATE)" $(GO) build $(GO_FLAGS)
 GO_DBG_BUILD = GOPRIVATE="$(GOPRIVATE)" $(GO) build -tags $(BUILD_TAGS),debug,assert -gcflags=all="-N -l"  # see delve docs
 GOTEST = GOPRIVATE="$(GOPRIVATE)" GODEBUG=cgocheck=0 $(GO) test -tags $(BUILD_TAGS),debug,assert,test $(GO_FLAGS) ./... -p 2
 
-COMMANDS += nild nilrpcd nil nil_load_generator exporter sync_committee
+COMMANDS += nild nil nil_load_generator exporter sync_committee
 
 all: $(COMMANDS)
 
@@ -19,7 +19,7 @@ generated: ssz pb compile-contracts generate_mocks
 test: generated
 	$(GOTEST) $(CMDARGS)
 
-%.cmd: ssz pb
+%.cmd: generated
 	@# Note: $* is replaced by the command name
 	@echo "Building $*"
 	@cd ./nil/cmd/$* && $(GOBUILD) -o $(GOBIN)/$*

@@ -83,27 +83,32 @@ func WaitForPeer(t *testing.T, m *Manager, id PeerID) {
 	}, 10*time.Second, 100*time.Millisecond)
 }
 
+func GenerateConfig(t *testing.T, port int) (*Config, string) {
+	t.Helper()
+
+	key, err := GeneratePrivateKey()
+	require.NoError(t, err)
+
+	id, err := peer.IDFromPublicKey(key.GetPublic())
+	require.NoError(t, err)
+
+	address := fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/p2p/%s", port, id)
+
+	return &Config{
+		PrivateKey: key,
+		TcpPort:    port,
+		DHTEnabled: true,
+	}, address
+}
+
 func GenerateConfigs(t *testing.T, n uint32) []*Config {
 	t.Helper()
 
 	configs := make([]*Config, n)
 	addresses := make([]string, n)
 	for i := range n {
-		key, err := GeneratePrivateKey()
-		require.NoError(t, err)
-
-		id, err := peer.IDFromPublicKey(key.GetPublic())
-		require.NoError(t, err)
-
-		port := int(10000 + i)
-		addresses[i] = fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/p2p/%s", port, id)
-
-		configs[i] = &Config{
-			PrivateKey:        key,
-			TcpPort:           port,
-			DHTEnabled:        true,
-			DHTBootstrapPeers: addresses,
-		}
+		configs[i], addresses[i] = GenerateConfig(t, int(10000+i))
+		configs[i].DHTBootstrapPeers = addresses
 	}
 
 	return configs

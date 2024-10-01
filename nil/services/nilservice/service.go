@@ -140,10 +140,13 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		defer networkManager.Close()
 	}
 
+	var rawApi rawapi.Api
+
 	switch cfg.RunMode {
 	case NormalRunMode:
 		fallthrough
 	case CollatorsOnlyRunMode:
+		rawApi = rawapi.NewLocalApi(database)
 		collators := createCollators(ctx, cfg, database, networkManager)
 
 		msgPools = make([]msgpool.Pool, cfg.NShards)
@@ -192,6 +195,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 			})
 		}
 	case BlockReplayRunMode:
+		rawApi = rawapi.NewLocalApi(database)
 		replayer := collate.NewReplayScheduler(database, collate.ReplayParams{
 			BlockGeneratorParams: execution.BlockGeneratorParams{
 				ShardId:       cfg.Replay.ShardId,
@@ -218,6 +222,12 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		})
 
 		msgPools = make([]msgpool.Pool, uint(cfg.Replay.ShardId)+1)
+	case RpcRunMode:
+		rawApi, err = rawapi.NewNetworkRawApiAccessor(ctx, networkManager, cfg.BootstrapPeer)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to create raw API accessor")
+			return 1
+		}
 	default:
 		panic("unsupported run mode")
 	}
@@ -226,20 +236,25 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		interop <- ServiceInterop{MsgPools: msgPools}
 	}
 
-	rawApi := rawapi.NewLocalApi(database)
-	if cfg.RunMode == NormalRunMode || cfg.RunMode == BlockReplayRunMode {
-		if cfg.RPCPort != 0 || cfg.HttpUrl != "" {
-			funcs = append(funcs, func(ctx context.Context) error {
-				if err := startRpcServer(ctx, cfg, rawApi, database, msgPools); err != nil {
-					logger.Error().Err(err).Msg("RPC server goroutine failed")
-					return err
-				}
-				return nil
-			})
-		}
+	if (cfg.RPCPort != 0 || cfg.HttpUrl != "") && rawApi != nil {
+		funcs = append(funcs, func(ctx context.Context) error {
+			if err := startRpcServer(ctx, cfg, rawApi, database, msgPools); err != nil {
+				logger.Error().Err(err).Msg("RPC server goroutine failed")
+				return err
+			}
+			return nil
+		})
 	}
 
-	if cfg.RunMode != CollatorsOnlyRunMode {
+	funcs = append(funcs, func(ctx context.Context) error {
+		if err := startAdminServer(ctx, cfg); err != nil {
+			logger.Error().Err(err).Msg("Admin server goroutine failed")
+			return err
+		}
+		return nil
+	})
+
+	if cfg.RunMode != CollatorsOnlyRunMode && cfg.RunMode != RpcRunMode {
 		if networkManager != nil {
 			funcs = append(funcs, func(ctx context.Context) error {
 				if err := rawapi.SetRawApiRequestHandlers(ctx, rawApi, networkManager, logger); err != nil {
@@ -249,14 +264,6 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 				return nil
 			})
 		}
-
-		funcs = append(funcs, func(ctx context.Context) error {
-			if err := startAdminServer(ctx, cfg); err != nil {
-				logger.Error().Err(err).Msg("Admin server goroutine failed")
-				return err
-			}
-			return nil
-		})
 
 		funcs = append(funcs, workers...)
 
