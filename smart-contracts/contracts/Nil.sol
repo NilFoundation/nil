@@ -45,8 +45,7 @@ library Nil {
         uint value,
         bytes memory callData
     ) internal {
-        Token[] memory tokens;
-        asyncCall(dst, address(0), bounceTo, 0, FORWARD_REMAINING, false, value, tokens, callData);
+        asyncCall(dst, address(0), bounceTo, 0, FORWARD_REMAINING, false, value, callData);
     }
 
     // asyncCall makes an asynchronous call to `dst` contract.
@@ -61,11 +60,11 @@ library Nil {
         bytes memory callData
     ) internal {
         Token[] memory tokens;
-        asyncCall(dst, refundTo, bounceTo, feeCredit, forwardKind, deploy, value, tokens, callData);
+        asyncCallWithTokens(dst, refundTo, bounceTo, feeCredit, forwardKind, deploy, value, tokens, callData);
     }
 
-    // asyncCall makes an asynchronous call to `dst` contract.
-    function asyncCall(
+    // asyncCallWithTokens makes an asynchronous call to `dst` contract with native currency tokens attached
+    function asyncCallWithTokens(
         address dst,
         address refundTo,
         address bounceTo,
@@ -77,21 +76,6 @@ library Nil {
         bytes memory callData
     ) internal {
         __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(deploy, forwardKind, dst, refundTo,
-            bounceTo, feeCredit, tokens, callData);
-    }
-
-    // asyncCall makes an asynchronous call to `dst` contract.
-    function asyncCall(
-        address dst,
-        address refundTo,
-        address bounceTo,
-        uint feeCredit,
-        bool deploy,
-        uint value,
-        Token[] memory tokens,
-        bytes memory callData
-    ) internal {
-        __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(deploy, FORWARD_NONE, dst, refundTo,
             bounceTo, feeCredit, tokens, callData);
     }
 

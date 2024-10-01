@@ -16,13 +16,13 @@ function asyncCall(
         bool deploy,
         uint value,
         bytes memory callData
-    ) internal returns(bool) 
+    ) internal returns(bool)
 ```
 
 Alternative signature for calling a contract with custom currencies:
 
 ```solidity showLineNumbers
-function asyncCall(
+function asyncCallWithTokens(
         address dst,
         address refundTo,
         address bounceTo,
@@ -86,7 +86,7 @@ The function is called as part of [**the `onlyInternal` and `onlyExternal` funct
 
 ## `SEND_CURRENCY_SYNC`
 
-This precompile is used in the `syncCall()` function: 
+This precompile is used in the `syncCall()` function:
 
 ```solidity showLineNumbers
 function syncCall(
@@ -108,7 +108,7 @@ The function calls a smart contract synchronously and, if needed, sends custom t
 function mintToken(uint256 id, uint256 amount) internal returns(bool)
 ```
 
-The function mints the custom token with the given `id`. 
+The function mints the custom token with the given `id`.
 
 ## `GET_CURRENCY_BALANCE`
 

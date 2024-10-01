@@ -61,7 +61,7 @@ contract Wallet is NilCurrencyBase {
         Nil.Token[] memory tokens,
         uint value,
         bytes calldata callData) onlyExternal public {
-        Nil.asyncCall(dst, refundTo, bounceTo, feeCredit, Nil.FORWARD_NONE, deploy, value, tokens, callData);
+        Nil.asyncCallWithTokens(dst, refundTo, bounceTo, feeCredit, Nil.FORWARD_NONE, deploy, value, tokens, callData);
     }
 
     /**

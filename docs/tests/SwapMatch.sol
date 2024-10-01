@@ -44,31 +44,31 @@ contract SwapMatch is NilBase {
   /**
    * @notice A map of all existing swap requests.
    */
-  mapping(uint256 => SwapRequest) public swapRequests; 
-  
+  mapping(uint256 => SwapRequest) public swapRequests;
+
 
   /**
    * @dev Counters for swaps and swap requests.
    */
   uint256 private swapCounter = 0;
   uint256 private swapRequestCounter = 0;
-  
+
   //endContractStructsAndProperties
-  
+
   //startContractEvents
 
   //Events that are emitted at various stages of the swap process.
   event NewSwapRequest(
-    uint256 indexed swapRequestNumber, 
+    uint256 indexed swapRequestNumber,
     address indexed);
   event NewSwap(
-    uint256 indexed swapNumber, 
-    address indexed, 
+    uint256 indexed swapNumber,
+    address indexed,
     address indexed);
 
   event SwapFinalized(
-    uint256 indexed swapNumber, 
-    address indexed, 
+    uint256 indexed swapNumber,
+    address indexed,
     address indexed);
 
   //endContractEvents
@@ -141,7 +141,7 @@ contract SwapMatch is NilBase {
 
         //On a successful match, begin sending the tokens
         sendTokensAndProcessExcess(
-          swapRequest, 
+          swapRequest,
           possibleCandidate,
           tokensPaidToSwapOriginator,
           tokensPaidToMatchedSwapOriginator
@@ -182,7 +182,7 @@ contract SwapMatch is NilBase {
    * @param tokensPaidToMatchedSwapOriginator The tokens paid to the originator of the matched swap request.
    */
   function sendTokensAndProcessExcess(
-    SwapRequest memory swapRequest, 
+    SwapRequest memory swapRequest,
     SwapRequest memory matchedSwapRequest,
     Nil.Token memory tokensPaidToSwapOriginator,
     Nil.Token memory tokensPaidToMatchedSwapOriginator
@@ -191,7 +191,7 @@ contract SwapMatch is NilBase {
       uint256 excessToSwapOriginator = swapRequest.token.amount - matchedSwapRequest.desiredSecondTokenAmount;
       uint256 excessToMatchedSwapOriginator = matchedSwapRequest.token.amount - swapRequest.desiredSecondTokenAmount;
 
-      
+
       //Create two arrays of Nil.Token storing the desired amounts and excesses
       Nil.Token[] memory firstTokens = new Nil.Token[](2);
       firstTokens[0].id = tokensPaidToSwapOriginator.id;
@@ -205,7 +205,7 @@ contract SwapMatch is NilBase {
       secondTokens[1].amount = excessToMatchedSwapOriginator;
 
       //Perform two async calls delivering the tokens
-      Nil.asyncCall(
+      Nil.asyncCallWithTokens(
         swapRequest.initiator,
         swapRequest.initiator,
         address(this),
@@ -216,7 +216,7 @@ contract SwapMatch is NilBase {
         firstTokens,
         ""
       );
-      Nil.asyncCall(
+      Nil.asyncCallWithTokens(
         matchedSwapRequest.initiator,
         matchedSwapRequest.initiator,
         address(this),
