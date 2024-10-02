@@ -39,7 +39,8 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 
 	client := nilrpc.NewClient(cfg.RpcEndpoint, logger)
 
-	proposer, err := NewProposer(cfg.L1Endpoint, cfg.L1ChainId, cfg.PrivateKey, cfg.L1ContractAddress, logger)
+	proposerParams := ProposerParams{cfg.L1Endpoint, cfg.L1ChainId, cfg.PrivateKey, cfg.L1ContractAddress, cfg.SelfAddress}
+	proposer, err := NewProposer(proposerParams, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create proposer: %w", err)
 	}
