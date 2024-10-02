@@ -4,11 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
-	"slices"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
@@ -21,17 +18,15 @@ import (
 type Aggregator struct {
 	logger       zerolog.Logger
 	client       *rpc.Client
-	blockStorage *storage.BlockStorage
-	taskStorage  storage.ProverTaskStorage
-	proposer     *Proposer
+	blockStorage storage.BlockStorage
+	taskStorage  storage.TaskStorage
 	metrics      *MetricsHandler
 }
 
 func NewAggregator(
 	client *rpc.Client,
-	proposer *Proposer,
-	blockStorage *storage.BlockStorage,
-	taskStorage storage.ProverTaskStorage,
+	blockStorage storage.BlockStorage,
+	taskStorage storage.TaskStorage,
 	logger zerolog.Logger,
 	metrics *MetricsHandler,
 ) (*Aggregator, error) {
@@ -40,7 +35,6 @@ func NewAggregator(
 		client:       client,
 		blockStorage: blockStorage,
 		taskStorage:  taskStorage,
-		proposer:     proposer,
 		metrics:      metrics,
 	}, nil
 }
@@ -80,137 +74,8 @@ func (agg *Aggregator) fetchLatestBlocks(shardIdList []coreTypes.ShardId) (map[c
 	return latestBlocks, nil
 }
 
-func (agg *Aggregator) proofThresholdMet(ctx context.Context) (bool, error) {
-	lastProvedBlockNum, err := agg.blockStorage.GetLastProvedBlockNum(ctx, coreTypes.MainShardId)
-	if err != nil {
-		return false, err
-	}
-	lastFetchedBlockNum, err := agg.blockStorage.GetLastFetchedBlockNum(ctx, coreTypes.MainShardId)
-	if err != nil {
-		return false, err
-	}
-	return lastProvedBlockNum < lastFetchedBlockNum, nil
-}
-
-// updateLastProvedBlockNumForAllShards updates the last proved block number for all shards to their respective last fetched block number
-// so they will be cleaned from the storage afterwards. This is temp solution while we have dummy proof creation.
-func (agg *Aggregator) updateLastProvedBlockNumForAllShards(ctx context.Context) error {
-	shardIdList, err := agg.getShardIdList()
-	if err != nil {
-		return fmt.Errorf("failed to get shard list for updating last proved block numbers: %w", err)
-	}
-
-	for _, shardId := range shardIdList {
-		lastFetchedBlockNum, err := agg.blockStorage.GetLastFetchedBlockNum(ctx, shardId)
-		if err != nil {
-			if errors.Is(err, db.ErrKeyNotFound) {
-				agg.logger.Info().Stringer(logging.FieldShardId, shardId).Msg("there are no fetched blocks yet, no last proved num will be set")
-				continue
-			}
-			return err
-		}
-		if err := agg.blockStorage.SetLastProvedBlockNum(ctx, shardId, lastFetchedBlockNum); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Ask proposer to send proof to L1
-func (agg *Aggregator) sendProof(ctx context.Context) error {
-	lastProvedBlockNum, err := agg.blockStorage.GetLastProvedBlockNum(ctx, coreTypes.MainShardId)
-	if err != nil {
-		return err
-	}
-	lastFetchedBlockNum, err := agg.blockStorage.GetLastFetchedBlockNum(ctx, coreTypes.MainShardId)
-	if err != nil {
-		return err
-	}
-	lastProvedBlock, err := agg.blockStorage.GetBlock(ctx, coreTypes.MainShardId, lastProvedBlockNum)
-	if err != nil {
-		return err
-	}
-	lastFetchedBlock, err := agg.blockStorage.GetBlock(ctx, coreTypes.MainShardId, lastFetchedBlockNum)
-	if err != nil {
-		return err
-	}
-	var provedStateRoot common.Hash
-	if lastProvedBlock != nil {
-		provedStateRoot = lastProvedBlock.ChildBlocksRootHash
-	}
-	newStateRoot := lastFetchedBlock.ChildBlocksRootHash
-	transactions, err := agg.blockStorage.GetTransactionsByBlocksRange(ctx, coreTypes.MainShardId, lastProvedBlockNum, lastFetchedBlockNum)
-	if err != nil {
-		return err
-	}
-
-	agg.logger.Info().
-		Stringer("provedStateRoot", provedStateRoot).
-		Stringer("newStateRoot", newStateRoot).
-		Int64("blkCount", int64(lastFetchedBlockNum-lastProvedBlockNum)).
-		Int64("transactionsCount", int64(len(transactions))).Msg("send proof")
-	// temporary solution for check Proposer, actually should be called from TaskScheduler after generate proof
-	err = agg.proposer.SendProof(provedStateRoot, newStateRoot, transactions)
-	if err != nil {
-		return fmt.Errorf("failed send proof: %w", err)
-	}
-	return nil
-}
-
-var circuitTypes = [...]types.CircuitType{types.Bytecode, types.MPT, types.ReadWrite, types.ZKEVM}
-
-func prepareTasksForBlock(blockNumber coreTypes.BlockNumber) []*types.ProverTaskEntry {
-	taskEntries := make(map[types.ProverTaskId]*types.ProverTaskEntry)
-
-	// Create partial proof tasks (top level, no dependencies)
-	partialProofTasks := make(map[types.CircuitType]types.ProverTaskId)
-	for _, ct := range circuitTypes {
-		partialProveTaskEntry := types.NewPartialProveTaskEntry(0, blockNumber, ct)
-		taskEntries[partialProveTaskEntry.Task.Id] = partialProveTaskEntry
-		partialProofTasks[ct] = partialProveTaskEntry.Task.Id
-	}
-
-	// aggregate FRI task depends on all the previous tasks
-	aggFRITaskEntry := types.NewAggregateFRITaskEntry(0, blockNumber)
-	aggFRITaskID := aggFRITaskEntry.Task.Id
-	taskEntries[aggFRITaskID] = aggFRITaskEntry
-
-	// Second level of circuit-dependent tasks
-	consistencyCheckTasks := make(map[types.CircuitType]types.ProverTaskId)
-	for _, ct := range circuitTypes {
-		taskEntry := types.NewFRIConsistencyCheckTaskEntry(0, blockNumber, ct)
-		consistencyCheckTasks[ct] = taskEntry.Task.Id
-		taskEntries[taskEntry.Task.Id] = taskEntry
-	}
-
-	// Final task, depends on all the previous ones
-	mergeProofTaskEntry := types.NewMergeProofTaskEntry(0, blockNumber)
-	mergeProofTaskId := mergeProofTaskEntry.Task.Id
-	taskEntries[mergeProofTaskId] = mergeProofTaskEntry
-
-	// Set pending dependencies
-
-	// Partial proof results go to all other levels of tasks
-	for ct, id := range partialProofTasks {
-		ppEntry := taskEntries[id]
-		ppEntry.PendingDeps = append(ppEntry.PendingDeps, aggFRITaskID, consistencyCheckTasks[ct], mergeProofTaskId)
-	}
-
-	for _, id := range consistencyCheckTasks {
-		ccEntry := taskEntries[id]
-		// consistency check task result goes to merge proof task
-		ccEntry.PendingDeps = append(ccEntry.PendingDeps, mergeProofTaskId)
-		// aggregate FRI task result goes to all consistency check tasks
-		aggFRITaskEntry.PendingDeps = append(aggFRITaskEntry.PendingDeps, id)
-	}
-
-	// Also aggregate FRI task result must be forwarded to merge proof task
-	aggFRITaskEntry.PendingDeps = append(aggFRITaskEntry.PendingDeps, mergeProofTaskId)
-	return slices.Collect(maps.Values(taskEntries))
-}
-
-// createProofTasks generates proof tasks for the main shard blocks.
-func (agg *Aggregator) createProofTasks(ctx context.Context, blockForProof *jsonrpc.RPCBlock) error {
+// createProofTask generates proof tasks for the main shard blocks.
+func (agg *Aggregator) createProofTask(ctx context.Context, blockForProof *jsonrpc.RPCBlock) error {
 	if blockForProof.ShardId != coreTypes.MainShardId {
 		agg.logger.Debug().Stringer(logging.FieldShardId, blockForProof.ShardId).Msg("skip create proof tasks for not main shard")
 		return nil
@@ -229,8 +94,8 @@ func (agg *Aggregator) createProofTasks(ctx context.Context, blockForProof *json
 		return nil
 	}
 
-	blockTasks := prepareTasksForBlock(blockForProof.Number)
-	if err := agg.taskStorage.AddTaskEntries(ctx, blockTasks); err != nil {
+	proofProviderTask := types.NewBlockProofTaskEntry(blockForProof.Number)
+	if err := agg.taskStorage.AddSingleTaskEntry(ctx, *proofProviderTask); err != nil {
 		return err
 	}
 
@@ -257,7 +122,7 @@ func (agg *Aggregator) validateAndProcessBlock(ctx context.Context, block *jsonr
 	}
 
 	// Start generating proof during blocks fetching
-	return agg.createProofTasks(ctx, block)
+	return agg.createProofTask(ctx, block)
 }
 
 // fetchAndProcessBlocks retrieves a range of blocks for a specific shard, stores them, creates proof tasks
@@ -304,26 +169,6 @@ func (agg *Aggregator) ProcessNewBlocks(ctx context.Context) error {
 		if err := agg.processShardBlocks(ctx, shardId, latestBlock.Number); err != nil {
 			agg.metrics.RecordError(ctx)
 			return fmt.Errorf("error processing blocks from shard %d: %w", shardId, err)
-		}
-	}
-	proofThresholdMet, err := agg.proofThresholdMet(ctx)
-	if err != nil {
-		return err
-	}
-	if proofThresholdMet {
-		// Should be called from TaskScheduler, now added here just for check Proposal
-		if err = agg.sendProof(ctx); err != nil {
-			agg.metrics.RecordError(ctx)
-			return err
-		}
-		// Update last proved block number for all shards and clean the storage
-		if err = agg.updateLastProvedBlockNumForAllShards(ctx); err != nil {
-			agg.metrics.RecordError(ctx)
-			return err
-		}
-		if err = agg.blockStorage.CleanupStorage(ctx); err != nil {
-			agg.metrics.RecordError(ctx)
-			return err
 		}
 	}
 

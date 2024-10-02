@@ -18,51 +18,51 @@ func TestTaskRequestHandlerSuite(t *testing.T) {
 
 func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_GetTask() {
 	testCases := []struct {
-		name     string
-		proverId types.ProverId
+		name       string
+		executorId types.TaskExecutorId
 	}{
-		{"returns task without deps", firstProverId},
-		{"returns task with deps", secondProverId},
-		{"returns nil", testaide.GenerateRandomProverId()},
+		{"returns task without deps", firstExecutorId},
+		{"returns task with deps", secondExecutorId},
+		{"returns nil", testaide.GenerateRandomExecutorId()},
 	}
 
 	for _, testCase := range testCases {
 		s.Run(testCase.name, func() {
-			s.testGetTask(testCase.proverId)
+			s.testGetTask(testCase.executorId)
 		})
 	}
 }
 
-func (s *TaskRequestHandlerTestSuite) testGetTask(proverId types.ProverId) {
+func (s *TaskRequestHandlerTestSuite) testGetTask(executorId types.TaskExecutorId) {
 	s.T().Helper()
 
-	request := api.NewTaskRequest(proverId)
+	request := api.NewTaskRequest(executorId)
 	receivedTask, err := s.clientHandler.GetTask(s.context, request)
 	s.Require().NoError(err)
 	getTaskCalls := s.targetHandler.GetTaskCalls()
 	s.Require().Len(getTaskCalls, 1, "expected one call to GetTask")
 	s.Require().Equal(request, getTaskCalls[0].Request)
 
-	expectedTask := tasksForProvers[proverId]
+	expectedTask := tasksForExecutors[executorId]
 	s.Equal(expectedTask, receivedTask)
 }
 
 func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_UpdateTaskStatus() {
 	testCases := []struct {
 		name   string
-		result types.ProverTaskResult
+		result types.TaskResult
 	}{
 		{
 			"success result FinalProof",
-			types.SuccessTaskResult(types.NewProverTaskId(), testaide.GenerateRandomProverId(), types.FinalProof, "1A2B3C4D"),
+			types.SuccessProverTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), types.FinalProof, "1A2B3C4D", "5E6F7G8H"),
 		},
 		{
 			"success result Commitment",
-			types.SuccessTaskResult(types.NewProverTaskId(), testaide.GenerateRandomProverId(), types.Commitment, "1A2B3C4D"),
+			types.SuccessProverTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), types.Commitment, "1A2B3C4D"),
 		},
 		{
 			"failure result",
-			types.FailureTaskResult(types.NewProverTaskId(), testaide.GenerateRandomProverId(), errors.New("something went wrong")),
+			types.FailureProverTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), errors.New("something went wrong")),
 		},
 	}
 
@@ -73,7 +73,7 @@ func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_UpdateTaskStatus()
 	}
 }
 
-func (s *TaskRequestHandlerTestSuite) testSetTaskStatus(resultToSend types.ProverTaskResult) {
+func (s *TaskRequestHandlerTestSuite) testSetTaskStatus(resultToSend types.TaskResult) {
 	s.T().Helper()
 
 	err := s.clientHandler.SetTaskResult(s.context, &resultToSend)

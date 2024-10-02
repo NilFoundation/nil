@@ -14,20 +14,17 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/prover"
 	"github.com/rs/zerolog"
 )
 
 type SyncCommittee struct {
-	cfg          *Config
-	database     db.DB
-	logger       zerolog.Logger
-	client       *nilrpc.Client
-	proposer     *Proposer
-	aggregator   *Aggregator
-	taskListener *rpc.TaskListener
-	scheduler    scheduler.TaskScheduler
-	provers      *[]prover.Prover // At this point provers are embedded into sync committee
+	cfg           *Config
+	database      db.DB
+	logger        zerolog.Logger
+	client        *nilrpc.Client
+	aggregator    *Aggregator
+	taskListener  *rpc.TaskListener
+	taskScheduler scheduler.TaskScheduler
 }
 
 func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
@@ -39,21 +36,25 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 
 	client := nilrpc.NewClient(cfg.RpcEndpoint, logger)
 
-	proposerParams := ProposerParams{cfg.L1Endpoint, cfg.L1ChainId, cfg.PrivateKey, cfg.L1ContractAddress, cfg.SelfAddress}
-	proposer, err := NewProposer(proposerParams, logger)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create proposer: %w", err)
-	}
-
 	blockStorage := storage.NewBlockStorage(database)
 	taskStorage := storage.NewTaskStorage(database, logger)
 
-	aggregator, err := NewAggregator(client, proposer, blockStorage, taskStorage, logger, metrics)
+	aggregator, err := NewAggregator(client, blockStorage, taskStorage, logger, metrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}
 
-	taskScheduler := scheduler.NewTaskScheduler(taskStorage, logger)
+	proposerParams := ProposerParams{cfg.L1Endpoint, cfg.L1ChainId, cfg.PrivateKey, cfg.L1ContractAddress, cfg.SelfAddress}
+	proposer, err := newProposer(proposerParams, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create proposer: %w", err)
+	}
+
+	taskScheduler := scheduler.New(
+		taskStorage,
+		newTaskStateChangeHandler(proposer, blockStorage, logger),
+		logger,
+	)
 
 	taskListener := rpc.NewTaskListener(
 		&rpc.TaskListenerConfig{HttpEndpoint: cfg.OwnRpcEndpoint},
@@ -61,45 +62,17 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		logger,
 	)
 
-	provers, err := initializeProvers(cfg, logger)
-	if err != nil {
-		return nil, err
-	}
-
 	s := &SyncCommittee{
-		cfg:          cfg,
-		database:     database,
-		logger:       logger,
-		client:       client,
-		proposer:     proposer,
-		aggregator:   aggregator,
-		taskListener: taskListener,
-		scheduler:    taskScheduler,
-		provers:      provers,
+		cfg:           cfg,
+		database:      database,
+		logger:        logger,
+		client:        client,
+		aggregator:    aggregator,
+		taskListener:  taskListener,
+		taskScheduler: taskScheduler,
 	}
 
 	return s, nil
-}
-
-func initializeProvers(cfg *Config, logger zerolog.Logger) (*[]prover.Prover, error) {
-	proverConfig := prover.DefaultConfig()
-
-	provers := make([]prover.Prover, cfg.ProversCount)
-
-	for i := range cfg.ProversCount {
-		localProver, err := prover.NewProver(
-			proverConfig,
-			rpc.NewTaskRequestRpcClient(cfg.OwnRpcEndpoint, logger),
-			prover.NewTaskHandler(logger),
-			logger,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create local prover: %w", err)
-		}
-		provers[i] = *localProver
-	}
-
-	return &provers, nil
 }
 
 func (s *SyncCommittee) Run(ctx context.Context) error {
@@ -121,11 +94,7 @@ func (s *SyncCommittee) Run(ctx context.Context) error {
 	functions := []concurrent.Func{
 		s.processingLoop,
 		s.taskListener.Run,
-		s.scheduler.Run,
-	}
-
-	for _, proverWorker := range *s.provers {
-		functions = append(functions, proverWorker.Run)
+		s.taskScheduler.Run,
 	}
 
 	if err := concurrent.Run(ctx, functions...); err != nil {

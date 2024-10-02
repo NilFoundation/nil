@@ -2,31 +2,27 @@ package prover
 
 import (
 	"context"
-	"time"
 
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
-	"github.com/rs/zerolog"
 )
 
-type TaskHandleResult struct {
-	Type        types.ProverResultType
-	DataAddress string
+type taskHandler struct {
+	requestHandler api.TaskRequestHandler
 }
 
-type TaskHandler interface {
-	HandleTask(ctx context.Context, task *types.ProverTask) (TaskHandleResult, error)
+func newTaskHandler(requestHandler api.TaskRequestHandler) api.TaskHandler {
+	return &taskHandler{
+		requestHandler: requestHandler,
+	}
 }
 
-type TaskHandlerImpl struct {
-	logger zerolog.Logger
-}
+func (h *taskHandler) Handle(ctx context.Context, executorId types.TaskExecutorId, task *types.Task) error {
+	if task.TaskType == types.ProofBlock {
+		return types.UnexpectedTaskType(task)
+	}
 
-func (d TaskHandlerImpl) HandleTask(_ context.Context, _ *types.ProverTask) (TaskHandleResult, error) {
-	time.Sleep(100 * time.Millisecond)
-	result := TaskHandleResult{Type: types.FinalProof}
-	return result, nil
-}
-
-func NewTaskHandler(logger zerolog.Logger) TaskHandler {
-	return &TaskHandlerImpl{logger: logger}
+	// todo: implement actual task handling
+	taskResult := types.SuccessProverTaskResult(task.Id, executorId, types.PartialProof, "1A2B")
+	return h.requestHandler.SetTaskResult(ctx, &taskResult)
 }

@@ -101,27 +101,6 @@ func (s *SyncCommitteeTestSuite) SetupTest() {
 	s.Require().NoError(err)
 }
 
-func (s *SyncCommitteeTestSuite) TestProofThresholdMet() {
-	// Case 1: Threshold not met
-	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
-		err := s.syncCommittee.aggregator.blockStorage.SetLastProvedBlockNum(s.ctx, shardId, 100)
-		s.Require().NoError(err)
-	}
-	err := s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, types.MainShardId, 100, &jsonrpc.RPCBlock{Number: 100})
-	s.Require().NoError(err)
-	proofThresholdMet, err := s.syncCommittee.aggregator.proofThresholdMet(s.ctx)
-	s.Require().NoError(err)
-	s.Require().False(proofThresholdMet)
-
-	// Case 2: Threshold met
-	err = s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, types.MainShardId, 101, &jsonrpc.RPCBlock{Number: 101})
-	s.Require().NoError(err)
-
-	proofThresholdMet, err = s.syncCommittee.aggregator.proofThresholdMet(s.ctx)
-	s.Require().NoError(err)
-	s.Require().True(proofThresholdMet)
-}
-
 func (s *SyncCommitteeTestSuite) TestCreateProofTasks() {
 	err := s.syncCommittee.aggregator.blockStorage.SetLastProvedBlockNum(s.ctx, types.MainShardId, 100)
 	s.Require().NoError(err)
@@ -130,30 +109,12 @@ func (s *SyncCommitteeTestSuite) TestCreateProofTasks() {
 	err = s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, types.MainShardId, types.BlockNumber(102), &jsonrpc.RPCBlock{Number: 102})
 	s.Require().NoError(err)
 
-	err = s.syncCommittee.aggregator.createProofTasks(s.ctx, &jsonrpc.RPCBlock{Number: 102})
+	err = s.syncCommittee.aggregator.createProofTask(s.ctx, &jsonrpc.RPCBlock{Number: 102})
 	s.Require().NoError(err)
 
 	lastProvedBlkNum, err := s.syncCommittee.aggregator.blockStorage.GetLastProvedBlockNum(s.ctx, types.MainShardId)
 	s.Require().NoError(err)
 	s.Require().Equal(types.BlockNumber(100), lastProvedBlkNum)
-}
-
-func (s *SyncCommitteeTestSuite) TestUpdateLastProvedBlockNumForAllShards() {
-	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
-		blockNum := types.BlockNumber(100 + int64(shardId))
-		err := s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, shardId, blockNum, &jsonrpc.RPCBlock{Number: blockNum})
-		s.Require().NoError(err)
-	}
-
-	err := s.syncCommittee.aggregator.updateLastProvedBlockNumForAllShards(s.ctx)
-	s.Require().NoError(err)
-
-	for shardId := types.ShardId(0); shardId < types.ShardId(s.nShards); shardId++ {
-		blockNum := types.BlockNumber(100 + int64(shardId))
-		lastProvedBlkNum, err := s.syncCommittee.aggregator.blockStorage.GetLastProvedBlockNum(s.ctx, shardId)
-		s.Require().NoError(err)
-		s.Require().Equal(blockNum, lastProvedBlkNum)
-	}
 }
 
 func (s *SyncCommitteeTestSuite) waitForAllShardsToProcess() {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"log"
 	"math/big"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 )
 
 type RetryConfig struct {
-	ShouldRetry func(err error) bool
+	ShouldRetry func(attemptNumber uint32, err error) bool
 	NextDelay   func(attemptNumber uint32) time.Duration
 }
 
@@ -34,9 +35,10 @@ func (r *RetryRunner) Do(ctx context.Context, action func(ctx context.Context) e
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+			attemptNumber++
 			err := action(ctx)
 
-			if err == nil || !r.config.ShouldRetry(err) {
+			if err == nil || !r.config.ShouldRetry(attemptNumber, err) {
 				return err
 			}
 
@@ -49,9 +51,31 @@ func (r *RetryRunner) Do(ctx context.Context, action func(ctx context.Context) e
 			case <-time.After(delay):
 				break
 			}
-
-			attemptNumber++
 		}
+	}
+}
+
+func LimitRetries(maxRetries uint32) func(attemptNumber uint32, err error) bool {
+	return func(attemptNumber uint32, _ error) bool {
+		return attemptNumber < maxRetries
+	}
+}
+
+func ExponentialDelay(baseDelay, maxDelay time.Duration) func(attemptNumber uint32) time.Duration {
+	if baseDelay > maxDelay {
+		log.Panicf("baseDelay %s > maxDelay %s", baseDelay, maxDelay)
+	}
+
+	return func(attemptNumber uint32) time.Duration {
+		result := time.Duration(1)
+		for range attemptNumber {
+			result *= baseDelay
+			if result >= maxDelay {
+				result = maxDelay
+				break
+			}
+		}
+		return result
 	}
 }
 

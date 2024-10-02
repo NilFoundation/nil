@@ -11,7 +11,6 @@ type Config struct {
 	OwnRpcEndpoint    string
 	PollingDelay      time.Duration
 	GracefulShutdown  bool
-	ProversCount      uint16
 	L1Endpoint        string
 	L1ChainId         string
 	PrivateKey        string
