@@ -11,8 +11,8 @@ const HOMEPAGE_HEADER_SUBTITLE = '=nil; is a sharded blockchain that resolves Et
 const CARDS = <HomepageCardSection>
   <Card icon={<img src={Nil101} />} id='nil101' title='=nil; 101' description='Learn how to perform essential operations on =nil;' to='https://docs.nil.foundation/nil/getting-started/nil-101' />
   <Card icon={<img src={Essentials} />} id='essentials' title='Essentials' description='Dive into the technical intricacies of =nil;' to='https://docs.nil.foundation/nil/getting-started/essentials/creating-a-wallet' />
-  <Card icon={<img src={SmartContracts} />} id='smart_contracts' title='Tutorials' description='Write, deploy, and call smart contracts' to='https://docs.nil.foundation/nil/getting-started/working-with-smart-contracts/writing-a-contract' />
-  <Card icon={<img src={CLI} />} id='cli' title='=nil; tools' description='Configure and use the key developer tools' to='https://docs.nil.foundation/nil/tools/nil-cli/usage' />
+  <Card icon={<img src={SmartContracts} />} id='guides' title='Guides' description='Explore advanced concepts and explanations' to='https://docs.nil.foundation/nil/guides/app-migration' />
+  <Card icon={<img src={CLI} />} id='cookbook' title='Cookbook' description='Access canonical examples of dApps' to='https://docs.nil.foundation/nil/cookbook' />
 </HomepageCardSection>
 
 export default function HomepageNilProducts() {

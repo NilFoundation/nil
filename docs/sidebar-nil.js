@@ -94,6 +94,32 @@ export default {
     },
     {
       type: 'category',
+      label: 'Guides',
+      collapsed: true,
+      collapsible: true,
+      items: [
+        {
+          type: 'doc',
+          label: 'Migrating existing dApps to =nil;',
+          id: 'guides/app-migration'
+        },
+        {
+          type: 'category',
+          label: 'Architecture',
+          collapsed: true,
+          collapsible: true,
+          items: [
+            {
+              type: 'doc',
+              label: 'Opcode compatibility between Ethereum and =nil;',
+              id: 'guides/architecture/ethereum-nil-diffs'
+            },
+          ]
+        }
+      ]
+    },
+    {
+      type: 'category',
       label: 'Tools',
       collapsed: false,
       collapsible: true,
@@ -182,27 +208,6 @@ export default {
           label: 'Shards and parallelized execution',
           id: 'core-concepts/shards-parallel-execution',
         },
-      ]
-    },
-    {
-      type: 'category',
-      label: 'Guides',
-      collapsed: true,
-      collapsible: true,
-      items: [
-        {
-          type: 'category',
-          label: 'Architecture',
-          collapsed: true,
-          collapsible: true,
-          items: [
-            {
-              type: 'doc',
-              label: 'Opcode compatibility between Ethereum and =nil;',
-              id: 'guides/architecture/ethereum-nil-diffs'
-            },
-          ]
-        }
       ]
     },
     {
