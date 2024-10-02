@@ -32,16 +32,16 @@ type DirectClient struct {
 var _ Client = (*DirectClient)(nil)
 
 func NewEthClient(ctx context.Context, wg *sync.WaitGroup, db db.ReadOnlyDB, msgPools []msgpool.Pool, logger zerolog.Logger) (*DirectClient, error) {
-	ethApi, err := jsonrpc.NewEthAPI(ctx, db, msgPools, true)
-	if err != nil {
-		return nil, err
-	}
-
 	localShardApis := make(map[types.ShardId]*rawapi.LocalShardApi)
 	for i := range msgPools {
 		localShardApis[types.ShardId(i)] = rawapi.NewLocalShardApi(types.ShardId(i), db)
 	}
 	localApi := rawapi.NewLocalApi(localShardApis)
+
+	ethApi, err := jsonrpc.NewEthAPI(ctx, localApi, db, msgPools, true)
+	if err != nil {
+		return nil, err
+	}
 
 	debugApi := jsonrpc.NewDebugAPI(localApi, db, logger)
 	dbApi := jsonrpc.NewDbAPI(db, logger)

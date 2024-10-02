@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 )
 
@@ -58,29 +59,49 @@ func (api *APIImpl) fetchBlockByNumberOrHash(tx db.RoTx, shardId types.ShardId, 
 	}
 }
 
-func (api *APIImpl) getBlockByNumberOrHash(
-	ctx context.Context, shardId types.ShardId, numOrHash transport.BlockNumberOrHash, fullTx bool,
-) (*RPCBlock, error) {
-	data, err := api.getBlockWithEntities(ctx, shardId, numOrHash)
-	if err != nil || data.Block == nil {
+func sszToRPCBlock(shardId types.ShardId, raw *types.RawBlockWithExtractedData, fullTx bool) (*RPCBlock, error) {
+	data, err := raw.DecodeSSZ()
+	if err != nil {
 		return nil, err
 	}
 
-	return NewRPCBlock(shardId, data, fullTx)
+	block := &BlockWithEntities{
+		Block:       data.Block,
+		Receipts:    data.Receipts,
+		InMessages:  data.InMessages,
+		ChildBlocks: data.ChildBlocks,
+		DbTimestamp: data.DbTimestamp,
+	}
+	return NewRPCBlock(shardId, block, fullTx)
 }
 
 // GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
-func (api *APIImpl) GetBlockByNumber(
-	ctx context.Context, shardId types.ShardId, number transport.BlockNumber, fullTx bool,
-) (*RPCBlock, error) {
-	return api.getBlockByNumberOrHash(ctx, shardId, transport.BlockNumberOrHash{BlockNumber: &number}, fullTx)
+func (api *APIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, fullTx bool) (*RPCBlock, error) {
+	if number < transport.LatestBlockNumber {
+		return nil, errNotImplemented
+	}
+
+	var ref rawapitypes.BlockReference
+	if number <= 0 {
+		ref = rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.NamedBlockIdentifier(number))
+	} else {
+		ref = rawapitypes.BlockNumberAsBlockReference(types.BlockNumber(number))
+	}
+
+	res, err := api.rawapi.GetFullBlockData(ctx, shardId, ref)
+	if err != nil {
+		return nil, err
+	}
+	return sszToRPCBlock(shardId, res, fullTx)
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
-func (api *APIImpl) GetBlockByHash(
-	ctx context.Context, shardId types.ShardId, hash common.Hash, fullTx bool,
-) (*RPCBlock, error) {
-	return api.getBlockByNumberOrHash(ctx, shardId, transport.BlockNumberOrHash{BlockHash: &hash}, fullTx)
+func (api *APIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, fullTx bool) (*RPCBlock, error) {
+	res, err := api.rawapi.GetFullBlockData(ctx, shardId, rawapitypes.BlockHashAsBlockReference(hash))
+	if err != nil {
+		return nil, err
+	}
+	return sszToRPCBlock(shardId, res, fullTx)
 }
 
 func (api *APIImpl) getBlockTransactionCountByNumberOrHash(

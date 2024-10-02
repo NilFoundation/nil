@@ -49,6 +49,8 @@ message RawFullBlock {
   repeated bytes outMessagesSSZ = 3;
   repeated bytes receiptsSSZ = 4;
   map<string, Error> errors = 5;
+  repeated Hash childBlocks = 6;
+  uint64 dbTimestamp = 7;
 }
 
 message RawFullBlockResponse {
