@@ -24,8 +24,8 @@ func New(config Config) (*Prover, error) {
 	taskRpcClient := rpc.NewTaskRequestRpcClient(config.ProofProviderRpcEndpoint, logger)
 
 	defaultTaskHandlerConfig := taskHandlerConfig{
-		AssignerBinary:      "assigner",
-		ProofProducerBinary: "proof-producer-multithreaded",
+		AssignerBinary:      "echo",
+		ProofProducerBinary: "echo",
 		OutDir:              "/root/out",
 	}
 

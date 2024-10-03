@@ -94,7 +94,7 @@ func (agg *Aggregator) createProofTask(ctx context.Context, blockForProof *jsonr
 		return nil
 	}
 
-	proofProviderTask := types.NewBlockProofTaskEntry(blockForProof.ShardId, blockForProof.Number)
+	proofProviderTask := types.NewBlockProofTaskEntry(blockForProof.ShardId, blockForProof.Number, blockForProof.Hash)
 	if err := agg.taskStorage.AddSingleTaskEntry(ctx, *proofProviderTask); err != nil {
 		return err
 	}

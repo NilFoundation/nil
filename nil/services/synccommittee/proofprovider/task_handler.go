@@ -8,15 +8,18 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
+	"github.com/rs/zerolog"
 )
 
 type taskHandler struct {
 	taskStorage storage.TaskStorage
+	logger      zerolog.Logger
 }
 
-func newTaskHandler(taskStorage storage.TaskStorage) api.TaskHandler {
+func newTaskHandler(taskStorage storage.TaskStorage, logger zerolog.Logger) api.TaskHandler {
 	return &taskHandler{
 		taskStorage: taskStorage,
+		logger:      logger,
 	}
 }
 
@@ -24,6 +27,8 @@ func (h *taskHandler) Handle(ctx context.Context, _ types.TaskExecutorId, task *
 	if task.TaskType != types.ProofBlock {
 		return types.UnexpectedTaskType(task)
 	}
+
+	h.logger.Info().Msgf("Create tasks for prove block %v from shard %d in batch %d, prove block task id %v", task.BlockHash, task.ShardId, task.BatchNum, task.Id.String())
 
 	blockTasks := prepareTasksForBlock(task)
 

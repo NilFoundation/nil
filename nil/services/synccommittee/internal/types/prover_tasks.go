@@ -24,16 +24,38 @@ const (
 	MergeProof
 )
 
+func (typeId TaskType) String() string {
+	switch typeId {
+	case ProofBlock:
+		return "ProofBlock"
+	case PartialProve:
+		return "PartialProve"
+	case AggregatedChallenge:
+		return "AggregatedChallenge"
+	case CombinedQ:
+		return "CombinedQ"
+	case AggregatedFRI:
+		return "AggregatedFRI"
+	case FRIConsistencyChecks:
+		return "FRIConsistencyChecks"
+	case MergeProof:
+		return "MergeProof"
+	default:
+		return "UnknownTaskType"
+	}
+}
+
 type CircuitType uint8
 
 const (
-	Bytecode CircuitType = iota
+	None CircuitType = iota
+	Bytecode
 	ReadWrite
 	MPT
 	ZKEVM
-)
 
-const CircuitAmount uint8 = 4
+	CircuitAmount uint8 = iota - 1
+)
 
 // TaskId Unique ID of a task, serves as a key in DB
 type TaskId uuid.UUID
@@ -76,23 +98,52 @@ const (
 	FinalProof
 )
 
+func (resultId ProverResultType) String() string {
+	switch resultId {
+	case PartialProof:
+		return "PartialProof"
+	case CommitmentState:
+		return "CommitmentState"
+	case PartialProofChallenges:
+		return "PartialProofChallenges"
+	case AssignmentTableDescription:
+		return "AssignmentTableDescription"
+	case AggregatedChallenges:
+		return "AggregatedChallenges"
+	case CombinedQPolynomial:
+		return "CombinedQPolynomial"
+	case AggregatedFRIProof:
+		return "AggregatedFRIProof"
+	case ProofOfWork:
+		return "ProofOfWork"
+	case ConsistencyCheckChallenges:
+		return "ConsistencyCheckChallenges"
+	case LPCConsistencyCheckProof:
+		return "LPCConsistencyCheckProof"
+	case FinalProof:
+		return "FinalProof"
+	default:
+		return "UnknownProverResultType"
+	}
+}
+
 type TaskExecutorId uint32
 
 const UnknownExecutorId TaskExecutorId = 0
 
-type TaskResultFiles map[ProverResultType]string
+type TaskResultAddresses map[ProverResultType]string
 
 // todo: declare separate task types for ProofProvider and Prover
 // https://www.notion.so/nilfoundation/Generic-Tasks-in-SyncCommittee-10ac614852608028b7ffcfd910deeef7?pvs=4
 
 // TaskResult Prover returns this struct as task result
 type TaskResult struct {
-	TaskId        TaskId          `json:"taskId"`
-	Type          TaskType        `json:"type"`
-	IsSuccess     bool            `json:"isSuccess"`
-	ErrorText     string          `json:"errorText"`
-	Sender        TaskExecutorId  `json:"sender"`
-	DataAddresses TaskResultFiles `json:"dataAddresses"`
+	TaskId        TaskId              `json:"taskId"`
+	Type          TaskType            `json:"type"`
+	IsSuccess     bool                `json:"isSuccess"`
+	ErrorText     string              `json:"errorText"`
+	Sender        TaskExecutorId      `json:"sender"`
+	DataAddresses TaskResultAddresses `json:"dataAddresses"`
 }
 
 func SuccessProviderTaskResult(
@@ -123,7 +174,7 @@ func SuccessProverTaskResult(
 	taskId TaskId,
 	sender TaskExecutorId,
 	taskType TaskType,
-	dataAddresses TaskResultFiles,
+	dataAddresses TaskResultAddresses,
 ) TaskResult {
 	return TaskResult{
 		TaskId:        taskId,
@@ -142,7 +193,7 @@ func FailureProverTaskResult(
 	return TaskResult{
 		TaskId:        taskId,
 		Sender:        sender,
-		DataAddresses: TaskResultFiles{},
+		DataAddresses: TaskResultAddresses{},
 		IsSuccess:     false,
 		ErrorText:     fmt.Sprintf("failed to generate proof: %v", err),
 	}
@@ -200,10 +251,13 @@ func HigherPriority(t1 Task, t2 Task) bool {
 	return t1.TaskType < t2.TaskType
 }
 
-func NewBlockProofTaskEntry(shardId coreTypes.ShardId, blockNum types.BlockNumber) *TaskEntry {
+func NewBlockProofTaskEntry(shardId coreTypes.ShardId, blockNum types.BlockNumber, blockHash common.Hash) *TaskEntry {
 	task := Task{
 		Id:            NewTaskId(),
+		BatchNum:      0,
+		ShardId:       shardId,
 		BlockNum:      blockNum,
+		BlockHash:     blockHash,
 		TaskType:      ProofBlock,
 		Dependencies:  EmptyDependencies(),
 		DependencyNum: 0,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
@@ -33,7 +34,7 @@ func (s *TaskHandlerTestSuite) SetupSuite() {
 	logger := logging.NewLogger("task-handler-test-suite")
 	s.taskStorage = storage.NewTaskStorage(s.database, logger)
 
-	s.taskHandler = newTaskHandler(s.taskStorage)
+	s.taskHandler = newTaskHandler(s.taskStorage, logger)
 }
 
 func TestTaskHandlerSuite(t *testing.T) {
@@ -80,7 +81,8 @@ func (s *TaskHandlerTestSuite) TestHandleBlockProofTask() {
 	executorId := testaide.GenerateRandomExecutorId()
 	shardId := coreTypes.MainShardId
 	blockNumber := coreTypes.BlockNumber(uint64(100))
-	taskEntry := types.NewBlockProofTaskEntry(shardId, blockNumber)
+	blockHash := common.IntToHash(1)
+	taskEntry := types.NewBlockProofTaskEntry(shardId, blockNumber, blockHash)
 
 	err := s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
 	s.Require().NoError(err, "taskHandler.Handle returned an error")

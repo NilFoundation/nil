@@ -56,6 +56,7 @@ func addFlags(cmd *cobra.Command, cfg *core.Config, dbPath *string) {
 	cmd.Flags().StringVar(&cfg.L1ChainId, "l1-chain-id", "11155111", "L1 chain id")
 	cmd.Flags().StringVar(&cfg.PrivateKey, "private-key", "0000000000000000000000000000000000000000000000000000000000000001", "L1 account private key")
 	cmd.Flags().StringVar(&cfg.L1ContractAddress, "l1-contract-address", "0xB8E280a085c87Ed91dd6605480DD2DE9EC3699b4", "L1 update state contract address")
+	cmd.Flags().StringVar(&cfg.SelfAddress, "l1-account-address", "0x7A2f4530b5901AD1547AE892Bafe54c5201D1206", "L1 self account address")
 	logLevel := cmd.Flags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
 
 	// Telemetry flags

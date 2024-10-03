@@ -79,6 +79,11 @@ func (h taskStateChangeHandler) sendProof(
 	if err != nil {
 		return err
 	}
+
+	if provedBlock == nil {
+		return fmt.Errorf("Can't get proved block %d from shard %d", currentProvedBlockNum, shardId)
+	}
+
 	var provedStateRoot common.Hash
 	if lastProvedBlock != nil {
 		provedStateRoot = lastProvedBlock.ChildBlocksRootHash

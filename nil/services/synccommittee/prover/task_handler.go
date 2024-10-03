@@ -3,10 +3,12 @@ package prover
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,11 +39,13 @@ type taskHandlerConfig struct {
 
 type commandDescription struct {
 	runCommand     *exec.Cmd
-	expectedResult types.TaskResultFiles
+	expectedResult types.TaskResultAddresses
 }
 
 func circuitTypeToArg(ct types.CircuitType) string {
 	switch ct {
+	case types.None:
+		return "none"
 	case types.Bytecode:
 		return "bytecode"
 	case types.MPT:
@@ -57,6 +61,8 @@ func circuitTypeToArg(ct types.CircuitType) string {
 
 func circuitIdx(ct types.CircuitType) uint8 {
 	switch ct {
+	case types.None:
+		return 0
 	case types.Bytecode:
 		return 1
 	case types.ReadWrite:
@@ -70,18 +76,25 @@ func circuitIdx(ct types.CircuitType) uint8 {
 	}
 }
 
-func collectDependencyFiles(task *types.Task, taskType types.TaskType, resultType types.ProverResultType) []string {
+func collectDependencyFiles(task *types.Task, dependencyType types.TaskType, resultType types.ProverResultType) ([]string, error) {
 	depFiles := []string{}
 	for _, res := range task.Dependencies {
-		if res.Type == taskType {
+		if res.Type == dependencyType {
 			path, ok := res.DataAddresses[resultType]
 			if !ok {
-				panic("Inconsistent task")
+				return depFiles, errors.New("Inconsistent task " + task.Id.String() +
+					", dependencyType " + dependencyType.String() + " has no expected result " + resultType.String())
 			}
 			depFiles = append(depFiles, path)
 		}
 	}
-	return depFiles
+	return depFiles, nil
+}
+
+func insufficientTaskInputMsg(task *types.Task, dependencyType string, expected int, actual int) string {
+	return "Insufficient input for task " + task.Id.String() +
+		" type " + task.TaskType.String() + "on " + dependencyType + "dependency: expected " + strconv.Itoa(expected) +
+		" actual " + strconv.Itoa(actual)
 }
 
 func (h *taskHandler) makePartialProofTaskCommand(task *types.Task) commandDescription {
@@ -91,7 +104,7 @@ func (h *taskHandler) makePartialProofTaskCommand(task *types.Task) commandDescr
 	circuit := []string{"--target-circuits", circuitTypeToArg(task.CircuitType)}
 	allArgs := slices.Concat(blockData, outDir, circuit)
 	cmd := exec.Command(binary, allArgs...)
-	resFiles := make(types.TaskResultFiles)
+	resFiles := make(types.TaskResultAddresses)
 	filePostfix := fmt.Sprintf(".%v.%v.%v", circuitIdx(task.CircuitType), task.ShardId, task.BlockHash.String())
 	resFiles[types.PartialProofChallenges] = filepath.Join(h.config.OutDir, "challenge"+filePostfix)
 	resFiles[types.AssignmentTableDescription] = filepath.Join(h.config.OutDir, "assignment_table_description"+filePostfix)
@@ -103,33 +116,49 @@ func (h *taskHandler) makePartialProofTaskCommand(task *types.Task) commandDescr
 func (h *taskHandler) makeAggregateChallengesTaskCommand(task *types.Task) commandDescription {
 	binary := h.config.ProofProducerBinary
 	stage := []string{"--stage=\"generate-aggregated-challenge\""}
-	inputFiles := collectDependencyFiles(task, types.PartialProve, types.PartialProofChallenges)
+	var cmd exec.Cmd
+	inputFiles, err := collectDependencyFiles(task, types.PartialProve, types.PartialProofChallenges)
+	if err != nil {
+		cmd.Err = err
+		return commandDescription{runCommand: &cmd}
+	}
 	if len(inputFiles) != int(types.CircuitAmount) {
-		panic("Insufficient input for task")
+		cmd.Err = errors.New(insufficientTaskInputMsg(task, "PartialProofChallenges", int(types.CircuitAmount), len(inputFiles)))
+		return commandDescription{runCommand: &cmd}
 	}
 	inputs := append([]string{"--input-challenge-files"}, inputFiles...)
 	outFile := fmt.Sprintf("aggregated_challenges.%v.%v", task.ShardId, task.BlockHash.String())
 	outArg := []string{fmt.Sprintf("--aggregated-challenge-file=\"%v\"", filepath.Join(h.config.OutDir, outFile))}
 	allArgs := slices.Concat(stage, inputs, outArg)
-	cmd := exec.Command(binary, allArgs...)
 	return commandDescription{
-		runCommand:     cmd,
-		expectedResult: types.TaskResultFiles{types.AggregatedChallenges: outFile},
+		runCommand:     exec.Command(binary, allArgs...),
+		expectedResult: types.TaskResultAddresses{types.AggregatedChallenges: outFile},
 	}
 }
 
 func (h *taskHandler) makeCombinedQCommand(task *types.Task) commandDescription {
 	binary := h.config.ProofProducerBinary
 	stage := []string{"--stage=\"compute-combined-Q\""}
-	commitmentStateFile := collectDependencyFiles(task, types.PartialProve, types.CommitmentState)
+	var cmd exec.Cmd
+	commitmentStateFile, err := collectDependencyFiles(task, types.PartialProve, types.CommitmentState)
+	if err != nil {
+		cmd.Err = err
+		return commandDescription{runCommand: &cmd}
+	}
 	if len(commitmentStateFile) != 1 {
-		panic("Insufficient input for task")
+		cmd.Err = errors.New(insufficientTaskInputMsg(task, "CommitmentState", 1, len(commitmentStateFile)))
+		return commandDescription{runCommand: &cmd}
 	}
 	commitmentState := []string{fmt.Sprintf("--commitment-state-file=\"%v\"", commitmentStateFile[0])}
 
-	aggChallengesFile := collectDependencyFiles(task, types.AggregatedChallenge, types.AggregatedChallenges)
+	aggChallengesFile, err := collectDependencyFiles(task, types.AggregatedChallenge, types.AggregatedChallenges)
+	if err != nil {
+		cmd.Err = err
+		return commandDescription{runCommand: &cmd}
+	}
 	if len(aggChallengesFile) != 1 {
-		panic("Insufficient input for task")
+		cmd.Err = errors.New(insufficientTaskInputMsg(task, "AggregatedChallenges", 1, len(aggChallengesFile)))
+		return commandDescription{runCommand: &cmd}
 	}
 	aggregateChallenges := []string{fmt.Sprintf("--aggregated-challenge-file=\"%v\"", aggChallengesFile[0])}
 
@@ -138,35 +167,50 @@ func (h *taskHandler) makeCombinedQCommand(task *types.Task) commandDescription 
 	outArg := []string{fmt.Sprintf("--combined-Q-polynomial-file=\"%v\"", filepath.Join(h.config.OutDir, outFile))}
 
 	allArgs := slices.Concat(stage, commitmentState, aggregateChallenges, startingPower, outArg)
-	cmd := exec.Command(binary, allArgs...)
 	return commandDescription{
-		runCommand:     cmd,
-		expectedResult: types.TaskResultFiles{types.CombinedQPolynomial: outFile},
+		runCommand:     exec.Command(binary, allArgs...),
+		expectedResult: types.TaskResultAddresses{types.CombinedQPolynomial: outFile},
 	}
 }
 
 func (h *taskHandler) makeAggregateFRICommand(task *types.Task) commandDescription {
 	binary := h.config.ProofProducerBinary
 	stage := []string{"--stage=\"aggregated-FRI\""}
-	assignmentTableFile := collectDependencyFiles(task, types.PartialProve, types.AssignmentTableDescription)
-	if len(assignmentTableFile) != 1 {
-		panic("Insufficient input for task")
+	var cmd exec.Cmd
+	assignmentTableFile, err := collectDependencyFiles(task, types.PartialProve, types.AssignmentTableDescription)
+	if err != nil {
+		cmd.Err = err
+		return commandDescription{runCommand: &cmd}
+	}
+	if len(assignmentTableFile) != int(types.CircuitAmount) {
+		cmd.Err = errors.New(insufficientTaskInputMsg(task, "AssignmentTableDescription", int(types.CircuitAmount), len(assignmentTableFile)))
+		return commandDescription{runCommand: &cmd}
 	}
 	assignmentTable := []string{fmt.Sprintf("--assignment-description-file=\"%v\"", assignmentTableFile[0])}
 
-	aggChallengeFile := collectDependencyFiles(task, types.AggregatedChallenge, types.AggregatedChallenges)
+	aggChallengeFile, err := collectDependencyFiles(task, types.AggregatedChallenge, types.AggregatedChallenges)
+	if err != nil {
+		cmd.Err = err
+		return commandDescription{runCommand: &cmd}
+	}
 	if len(aggChallengeFile) != 1 {
-		panic("Insufficient input for task")
+		cmd.Err = errors.New(insufficientTaskInputMsg(task, "AggregatedChallenges", 1, len(aggChallengeFile)))
+		return commandDescription{runCommand: &cmd}
 	}
 	aggregatedChallenge := []string{fmt.Sprintf("--aggregated-challenge-file=\"%v\"", aggChallengeFile[0])}
 
-	combinedQFiles := collectDependencyFiles(task, types.CombinedQ, types.CombinedQPolynomial)
+	combinedQFiles, err := collectDependencyFiles(task, types.CombinedQ, types.CombinedQPolynomial)
+	if err != nil {
+		cmd.Err = err
+		return commandDescription{runCommand: &cmd}
+	}
 	if len(combinedQFiles) != int(types.CircuitAmount) {
-		panic("Insufficient input for task")
+		cmd.Err = errors.New(insufficientTaskInputMsg(task, "CombinedQPolynomial", int(types.CircuitAmount), len(combinedQFiles)))
+		return commandDescription{runCommand: &cmd}
 	}
 	combinedQ := append([]string{"--input-combined-Q-polynomial-files"}, combinedQFiles...)
 
-	resFiles := make(types.TaskResultFiles)
+	resFiles := make(types.TaskResultAddresses)
 	filePostfix := fmt.Sprintf(".%v.%v", task.ShardId, task.BlockHash.String())
 	resFiles[types.AggregatedFRIProof] = filepath.Join(h.config.OutDir, "aggregated_FRI_proof"+filePostfix)
 	resFiles[types.ProofOfWork] = filepath.Join(h.config.OutDir, "POW"+filePostfix)
@@ -176,26 +220,41 @@ func (h *taskHandler) makeAggregateFRICommand(task *types.Task) commandDescripti
 	POW := []string{fmt.Sprintf("--proof-of-work-file=\"%v\"", resFiles[types.ProofOfWork])}
 	consistencyChallenges := []string{fmt.Sprintf("--consistency-checks-challenges-file=\"%v\"", resFiles[types.ConsistencyCheckChallenges])}
 	allArgs := slices.Concat(stage, assignmentTable, aggregatedChallenge, combinedQ, aggFRI, POW, consistencyChallenges)
-	cmd := exec.Command(binary, allArgs...)
-	return commandDescription{runCommand: cmd, expectedResult: resFiles}
+	return commandDescription{runCommand: exec.Command(binary, allArgs...), expectedResult: resFiles}
 }
 
 func (h *taskHandler) makeConsistencyCheckCommand(task *types.Task) commandDescription {
 	binary := h.config.ProofProducerBinary
 	stage := []string{"--stage=\"consistency-checks\""}
-	commitmentStateFile := collectDependencyFiles(task, types.PartialProve, types.CommitmentState)
+	var cmd exec.Cmd
+	commitmentStateFile, err := collectDependencyFiles(task, types.PartialProve, types.CommitmentState)
+	if err != nil {
+		cmd.Err = err
+		return commandDescription{runCommand: &cmd}
+	}
 	if len(commitmentStateFile) != 1 {
-		panic("Insufficient input for a task")
+		cmd.Err = errors.New(insufficientTaskInputMsg(task, "CommitmentState", 1, len(commitmentStateFile)))
+		return commandDescription{runCommand: &cmd}
 	}
 	commitmentState := []string{fmt.Sprintf("--commitment-state-file=\"%v\"", commitmentStateFile)}
-	combinedQFile := collectDependencyFiles(task, types.CombinedQ, types.CombinedQPolynomial)
+	combinedQFile, err := collectDependencyFiles(task, types.CombinedQ, types.CombinedQPolynomial)
+	if err != nil {
+		cmd.Err = err
+		return commandDescription{runCommand: &cmd}
+	}
 	if len(combinedQFile) != 1 {
-		panic("Insufficient input for task")
+		cmd.Err = errors.New(insufficientTaskInputMsg(task, "CombinedQPolynomial", 1, len(combinedQFile)))
+		return commandDescription{runCommand: &cmd}
 	}
 	combinedQ := []string{fmt.Sprintf("--combined-Q-polynomial-file=\"%v\"", combinedQFile)}
-	consistencyChallengeFiles := collectDependencyFiles(task, types.AggregatedFRI, types.ConsistencyCheckChallenges)
+	consistencyChallengeFiles, err := collectDependencyFiles(task, types.AggregatedFRI, types.ConsistencyCheckChallenges)
+	if err != nil {
+		cmd.Err = err
+		return commandDescription{runCommand: &cmd}
+	}
 	if len(consistencyChallengeFiles) != 1 {
-		panic("Insufficient input for task")
+		cmd.Err = errors.New(insufficientTaskInputMsg(task, "ConsistencyCheckChallenges", 1, len(consistencyChallengeFiles)))
+		return commandDescription{runCommand: &cmd}
 	}
 	consistencyChallenges := []string{fmt.Sprintf("--consistency-checks-challenges-file=\"%v\"", consistencyChallengeFiles)}
 
@@ -203,31 +262,46 @@ func (h *taskHandler) makeConsistencyCheckCommand(task *types.Task) commandDescr
 	outArg := []string{fmt.Sprintf("--proof=\"%v\"", filepath.Join(h.config.OutDir, outFile))}
 
 	allArgs := slices.Concat(stage, commitmentState, combinedQ, consistencyChallenges, outArg)
-	cmd := exec.Command(binary, allArgs...)
 	return commandDescription{
-		runCommand:     cmd,
-		expectedResult: types.TaskResultFiles{types.LPCConsistencyCheckProof: outFile},
+		runCommand:     exec.Command(binary, allArgs...),
+		expectedResult: types.TaskResultAddresses{types.LPCConsistencyCheckProof: outFile},
 	}
 }
 
 func (h *taskHandler) makeMergeProofCommand(task *types.Task) commandDescription {
 	binary := h.config.ProofProducerBinary
 	stage := []string{"--stage=\"merge-proofs\""}
-	partialProofFiles := collectDependencyFiles(task, types.PartialProve, types.PartialProof)
+	var cmd exec.Cmd
+	partialProofFiles, err := collectDependencyFiles(task, types.PartialProve, types.PartialProof)
+	if err != nil {
+		cmd.Err = err
+		return commandDescription{runCommand: &cmd}
+	}
 	if len(partialProofFiles) != int(types.CircuitAmount) {
-		panic("Insufficient input for task")
+		cmd.Err = errors.New(insufficientTaskInputMsg(task, "PartialProof", int(types.CircuitAmount), len(partialProofFiles)))
+		return commandDescription{runCommand: &cmd}
 	}
 	partialProofs := append([]string{"--partial-proof"}, partialProofFiles...)
 
-	LPCCheckFiles := collectDependencyFiles(task, types.FRIConsistencyChecks, types.LPCConsistencyCheckProof)
+	LPCCheckFiles, err := collectDependencyFiles(task, types.FRIConsistencyChecks, types.LPCConsistencyCheckProof)
+	if err != nil {
+		cmd.Err = err
+		return commandDescription{runCommand: &cmd}
+	}
 	if len(LPCCheckFiles) != int(types.CircuitAmount) {
-		panic("Insufficient input for task")
+		cmd.Err = errors.New(insufficientTaskInputMsg(task, "LPCConsistencyCheckProof", int(types.CircuitAmount), len(LPCCheckFiles)))
+		return commandDescription{runCommand: &cmd}
 	}
 	LPCChecks := append([]string{"--initial-proof"}, LPCCheckFiles...)
 
-	aggFRIFile := collectDependencyFiles(task, types.AggregatedFRI, types.AggregatedFRIProof)
+	aggFRIFile, err := collectDependencyFiles(task, types.AggregatedFRI, types.AggregatedFRIProof)
+	if err != nil {
+		cmd.Err = err
+		return commandDescription{runCommand: &cmd}
+	}
 	if len(aggFRIFile) != 1 {
-		panic("Insufficient input for task")
+		cmd.Err = errors.New(insufficientTaskInputMsg(task, "AggregatedFRIProof", int(types.CircuitAmount), len(aggFRIFile)))
+		return commandDescription{runCommand: &cmd}
 	}
 	aggFRI := []string{fmt.Sprintf("--aggregated-FRI-proof=\"%v\"", aggFRIFile)}
 
@@ -235,10 +309,9 @@ func (h *taskHandler) makeMergeProofCommand(task *types.Task) commandDescription
 	outArg := []string{fmt.Sprintf("--proof=\"%v\"", filepath.Join(h.config.OutDir, outFile))}
 
 	allArgs := slices.Concat(stage, partialProofs, LPCChecks, aggFRI, outArg)
-	cmd := exec.Command(binary, allArgs...)
 	return commandDescription{
-		runCommand:     cmd,
-		expectedResult: types.TaskResultFiles{types.FinalProof: outFile},
+		runCommand:     exec.Command(binary, allArgs...),
+		expectedResult: types.TaskResultAddresses{types.FinalProof: outFile},
 	}
 }
 
@@ -257,18 +330,30 @@ func (h *taskHandler) makeCommandForTask(task *types.Task) commandDescription {
 	case types.MergeProof:
 		return h.makeMergeProofCommand(task)
 	case types.ProofBlock:
-		panic("ProofBlock task type is not supposed to be encountered in prover task handler")
+		var cmd exec.Cmd
+		cmd.Err = errors.New("ProofBlock task type is not supposed to be encountered in prover task handler for task " + task.Id.String() +
+			" type " + task.TaskType.String())
+		return commandDescription{runCommand: &cmd}
+	default:
+		var cmd exec.Cmd
+		cmd.Err = errors.New("Unknown type for task " + task.Id.String() +
+			" type " + task.TaskType.String())
+		return commandDescription{runCommand: &cmd}
 	}
-	panic("Unhandled task type")
 }
 
 func (h *taskHandler) Handle(ctx context.Context, executorId types.TaskExecutorId, task *types.Task) error {
 	if task.TaskType == types.ProofBlock {
-		return types.UnexpectedTaskType(task)
+		err := types.UnexpectedTaskType(task)
+		taskResult := types.FailureProverTaskResult(task.Id, executorId, fmt.Errorf("failed to create command for task: %w", err))
+		h.logger.Error().Msgf("failed to create command for task with id=%s: %v", task.Id, err)
+		return h.requestHandler.SetTaskResult(ctx, &taskResult)
 	}
 	desc := h.makeCommandForTask(task)
 	if desc.runCommand.Err != nil {
-		return desc.runCommand.Err
+		taskResult := types.FailureProverTaskResult(task.Id, executorId, fmt.Errorf("failed to create command for task: %w", desc.runCommand.Err))
+		h.logger.Error().Msgf("failed to create command for task with id=%s: %v", task.Id, desc.runCommand.Err)
+		return h.requestHandler.SetTaskResult(ctx, &taskResult)
 	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -276,12 +361,13 @@ func (h *taskHandler) Handle(ctx context.Context, executorId types.TaskExecutorI
 	desc.runCommand.Stderr = &stderr
 	cmdString := strings.Join(desc.runCommand.Args, " ")
 	startTime := time.Now()
-	h.logger.Info().Msgf("Start task with id %v by command %v", task.Id.String(), cmdString)
+	h.logger.Info().Msgf("Start task %v with id %v for prove block %v from shard %d in batch %d by command %v", task.TaskType.String(), task.Id.String(), task.BlockHash.String(), task.ShardId, task.BatchNum, cmdString)
 	err := desc.runCommand.Run()
 	if err != nil {
-		h.logger.Info().Msgf("Task with id %v failed", task.Id.String())
-		h.logger.Info().Msgf("Task execution stderr:\n%v\n", stderr.String())
-		return err
+		taskResult := types.FailureProverTaskResult(task.Id, executorId, fmt.Errorf("task execution failed: %w", err))
+		h.logger.Error().Msgf("Task with id %v failed", task.Id.String())
+		h.logger.Error().Msgf("Task execution stderr:\n%v\n", stderr.String())
+		return h.requestHandler.SetTaskResult(ctx, &taskResult)
 	}
 	h.logger.Info().Msgf("Task with id %v finished after %s", task.Id.String(), time.Since(startTime))
 	taskResult := types.SuccessProverTaskResult(task.Id, executorId, task.TaskType, desc.expectedResult)
