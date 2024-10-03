@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/NilFoundation/nil/nil/services/rpc/filters"
+	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
 )
@@ -321,10 +322,16 @@ type APIImpl struct {
 	msgPools []msgpool.Pool
 	logs     *LogsAggregator
 	logger   zerolog.Logger
+	rawapi   rawapi.Api
 }
 
+var (
+	_ EthAPI   = (*APIImpl)(nil)
+	_ EthAPIRo = (*APIImpl)(nil)
+)
+
 // NewEthAPI returns APIImpl instance
-func NewEthAPI(ctx context.Context, db db.ReadOnlyDB, pools []msgpool.Pool, pollBlocksForLogs bool) (*APIImpl, error) {
+func NewEthAPI(ctx context.Context, rawapi rawapi.Api, db db.ReadOnlyDB, pools []msgpool.Pool, pollBlocksForLogs bool) (*APIImpl, error) {
 	accessor, err := execution.NewStateAccessor()
 	if err != nil {
 		return nil, err
@@ -334,6 +341,7 @@ func NewEthAPI(ctx context.Context, db db.ReadOnlyDB, pools []msgpool.Pool, poll
 		msgPools: pools,
 		logger:   logging.NewLogger("eth-api"),
 		accessor: accessor,
+		rawapi:   rawapi,
 	}
 	api.logs = NewLogsAggregator(ctx, db, pollBlocksForLogs)
 	return api, nil

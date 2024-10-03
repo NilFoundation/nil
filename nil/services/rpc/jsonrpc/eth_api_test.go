@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/msgpool"
+	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +28,13 @@ func NewPools(t *testing.T, ctx context.Context, n int) []msgpool.Pool {
 func NewTestEthAPI(t *testing.T, ctx context.Context, db db.DB, nShards int) *APIImpl {
 	t.Helper()
 
-	api, err := NewEthAPI(ctx, db, NewPools(t, ctx, nShards), true)
+	shardApis := make(map[types.ShardId]*rawapi.LocalShardApi)
+	for shardId := range types.ShardId(nShards) {
+		shardApis[shardId] = rawapi.NewLocalShardApi(shardId, db)
+	}
+	rawApi := rawapi.NewLocalApi(shardApis)
+
+	api, err := NewEthAPI(ctx, rawApi, db, NewPools(t, ctx, nShards), true)
 	require.NoError(t, err)
 	return api
 }

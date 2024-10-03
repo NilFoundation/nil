@@ -47,14 +47,11 @@ func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.Api, db db.R
 	}
 
 	pollBlocksForLogs := cfg.RunMode == NormalRunMode
-	ethImpl, err := jsonrpc.NewEthAPI(ctx, db, pools, pollBlocksForLogs)
+	ethImpl, err := jsonrpc.NewEthAPI(ctx, rawApi, db, pools, pollBlocksForLogs)
 	if err != nil {
 		return err
 	}
 	defer ethImpl.Shutdown()
-
-	debugImpl := jsonrpc.NewDebugAPI(rawApi, db, logger)
-	dbImpl := jsonrpc.NewDbAPI(db, logger)
 
 	var ethApiService any
 	if cfg.RunMode == NormalRunMode {
@@ -62,6 +59,9 @@ func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.Api, db db.R
 	} else {
 		ethApiService = jsonrpc.EthAPIRo(ethImpl)
 	}
+
+	debugImpl := jsonrpc.NewDebugAPI(rawApi, db, logger)
+	dbImpl := jsonrpc.NewDbAPI(db, logger)
 
 	apiList := []transport.API{
 		{
@@ -76,12 +76,15 @@ func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.Api, db db.R
 			Service:   jsonrpc.DebugAPI(debugImpl),
 			Version:   "1.0",
 		},
-		{
+	}
+
+	if cfg.RunMode == NormalRunMode {
+		apiList = append(apiList, transport.API{
 			Namespace: "db",
 			Public:    true,
 			Service:   jsonrpc.DbAPI(dbImpl),
 			Version:   "1.0",
-		},
+		})
 	}
 
 	return rpc.StartRpcServer(ctx, httpConfig, apiList, logger)

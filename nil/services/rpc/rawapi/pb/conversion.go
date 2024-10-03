@@ -209,23 +209,45 @@ func (rb *RawFullBlock) PackProtoMessage(block *types.RawBlockWithExtractedData)
 	if block == nil {
 		return errors.New("block should not be nil")
 	}
+
+	childBlocks := make([]*Hash, len(block.ChildBlocks))
+	for i, hash := range block.ChildBlocks {
+		childBlocks[i] = &Hash{}
+		if err := childBlocks[i].PackProtoMessage(hash); err != nil {
+			return err
+		}
+	}
+
 	*rb = RawFullBlock{
 		BlockSSZ:       block.Block,
 		InMessagesSSZ:  block.InMessages,
 		OutMessagesSSZ: block.OutMessages,
 		ReceiptsSSZ:    block.Receipts,
 		Errors:         packErrorMap(block.Errors),
+		ChildBlocks:    childBlocks,
+		DbTimestamp:    block.DbTimestamp,
 	}
 	return nil
 }
 
 func (rb *RawFullBlock) UnpackProtoMessage() (*types.RawBlockWithExtractedData, error) {
+	childBlocks := make([]common.Hash, len(rb.ChildBlocks))
+	for i, hash := range rb.ChildBlocks {
+		h, err := hash.UnpackProtoMessage()
+		if err != nil {
+			return nil, err
+		}
+		childBlocks[i] = h
+	}
+
 	return &types.RawBlockWithExtractedData{
 		Block:       rb.BlockSSZ,
 		InMessages:  rb.InMessagesSSZ,
 		OutMessages: rb.OutMessagesSSZ,
 		Receipts:    rb.ReceiptsSSZ,
 		Errors:      unpackErrorMap(rb.Errors),
+		ChildBlocks: childBlocks,
+		DbTimestamp: rb.DbTimestamp,
 	}, nil
 }
 

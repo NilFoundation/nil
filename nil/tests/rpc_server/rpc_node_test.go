@@ -69,10 +69,30 @@ func (s *SuiteRpcNode) TearDownTest() {
 	s.cancel()
 }
 
+func (s *SuiteRpcNode) TestGetDebugBlock() {
+	debugBlock, err := s.client.GetDebugBlock(types.BaseShardId, "latest", true)
+	s.Require().NoError(err)
+	s.NotNil(debugBlock)
+
+	debugBlock, err = s.client.GetDebugBlock(types.BaseShardId, 0x1, true)
+	s.Require().NoError(err)
+	s.NotNil(debugBlock)
+}
+
 func (s *SuiteRpcNode) TestGetBlock() {
-	block, err := s.client.GetDebugBlock(types.BaseShardId, "latest", true)
+	block, err := s.client.GetBlock(types.BaseShardId, "latest", true)
 	s.Require().NoError(err)
 	s.NotNil(block)
+
+	block, err = s.client.GetBlock(types.BaseShardId, 0x1, true)
+	s.Require().NoError(err)
+	s.NotNil(block)
+
+	block, err = s.client.GetBlock(types.MainShardId, 0x1, true)
+	s.Require().NoError(err)
+	s.Require().NotNil(block)
+	s.NotEmpty(block.ChildBlocks)
+	s.Positive(block.DbTimestamp)
 }
 
 func TestSuiteRpcNode(t *testing.T) {

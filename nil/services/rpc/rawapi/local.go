@@ -84,7 +84,7 @@ func (api *LocalShardApi) getBlockHashByReference(tx db.RoTx, blockReference raw
 func (api *LocalShardApi) getBlockByHash(tx db.RoTx, hash common.Hash, withMessages bool) (*types.RawBlockWithExtractedData, error) {
 	accessor := api.accessor.RawAccess(tx, api.ShardId).GetBlock()
 	if withMessages {
-		accessor = accessor.WithInMessages().WithOutMessages().WithReceipts()
+		accessor = accessor.WithInMessages().WithOutMessages().WithReceipts().WithChildBlocks().WithDbTimestamp()
 	}
 
 	data, err := accessor.ByHash(hash)
@@ -109,6 +109,8 @@ func (api *LocalShardApi) getBlockByHash(tx db.RoTx, hash common.Hash, withMessa
 		result.OutMessages = data.OutMessages()
 		result.Receipts = data.Receipts()
 		result.Errors = make(map[common.Hash]string)
+		result.ChildBlocks = data.ChildBlocks()
+		result.DbTimestamp = data.DbTimestamp()
 
 		// Need to decode messages to get its hashes because external message hash
 		// calculated in a bit different way (not just Hash(SSZ)).

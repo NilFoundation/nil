@@ -54,6 +54,8 @@ type RawBlockWithExtractedData struct {
 	OutMessages []ssz.SSZEncodedData
 	Receipts    []ssz.SSZEncodedData
 	Errors      map[common.Hash]string
+	ChildBlocks []common.Hash
+	DbTimestamp uint64
 }
 
 type BlockWithExtractedData struct {
@@ -62,6 +64,8 @@ type BlockWithExtractedData struct {
 	OutMessages []*Message             `json:"outMessages"`
 	Receipts    []*Receipt             `json:"receipts"`
 	Errors      map[common.Hash]string `json:"errors,omitempty"`
+	ChildBlocks []common.Hash          `json:"childBlocks"`
+	DbTimestamp uint64                 `json:"dbTimestamp"`
 }
 
 // interfaces
@@ -98,6 +102,8 @@ func (b *RawBlockWithExtractedData) DecodeSSZ() (*BlockWithExtractedData, error)
 		OutMessages: outMessages,
 		Receipts:    receipts,
 		Errors:      b.Errors,
+		ChildBlocks: b.ChildBlocks,
+		DbTimestamp: b.DbTimestamp,
 	}, nil
 }
 
@@ -124,6 +130,8 @@ func (b *BlockWithExtractedData) EncodeSSZ() (*RawBlockWithExtractedData, error)
 		OutMessages: outMessages,
 		Receipts:    receipts,
 		Errors:      b.Errors,
+		ChildBlocks: b.ChildBlocks,
+		DbTimestamp: b.DbTimestamp,
 	}, nil
 }
 
