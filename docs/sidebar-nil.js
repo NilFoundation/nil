@@ -11,16 +11,6 @@ export default {
           label: 'Overview',
           id: 'intro',
         },
-        {
-          type: 'doc',
-          label: 'Thesis',
-          id: 'thesis'
-        },
-        {
-          type: 'doc',
-          label: 'Principles',
-          id: 'principles'
-        }
       ]
     },
     {
@@ -248,6 +238,11 @@ export default {
       collapsed: true,
       collapsible: true,
       items: [
+        {
+          type: 'doc',
+          label: 'Principles',
+          id: 'specification/principles'
+        },
         {
           type: 'doc',
           label: 'Finality',
