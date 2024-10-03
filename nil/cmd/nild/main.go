@@ -142,7 +142,7 @@ func parseArgs() *nildconfig.Config {
 		},
 	}
 	runCmd.Flags().Uint32Var(&cfg.NShards, "nshards", cfg.NShards, "number of shardchains")
-	runCmd.Flags().BoolVar(&cfg.SplitShards, "split-shards", false, "run each shard in separate process")
+	runCmd.Flags().BoolVar(&cfg.SplitShards, "split-shards", cfg.SplitShards, "run each shard in separate process")
 
 	addBasicFlags(runCmd.Flags(), cfg)
 	addNetworkFlags(runCmd.Flags(), cfg)
