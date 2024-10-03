@@ -2,7 +2,6 @@ package jsonrpc
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
@@ -104,29 +103,31 @@ func (api *APIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, h
 	return sszToRPCBlock(shardId, res, fullTx)
 }
 
-func (api *APIImpl) getBlockTransactionCountByNumberOrHash(
-	ctx context.Context, shardId types.ShardId, numOrHash transport.BlockNumberOrHash,
-) (hexutil.Uint, error) {
-	data, err := api.getBlockWithEntities(ctx, shardId, numOrHash)
-	if err != nil {
-		return 0, err
-	}
-
-	return hexutil.Uint(len(data.InMessages)), nil
-}
-
 // GetBlockTransactionCountByNumber implements eth_getBlockTransactionCountByNumber. Returns the number of transactions in a block given the block's block number.
 func (api *APIImpl) GetBlockTransactionCountByNumber(
 	ctx context.Context, shardId types.ShardId, number transport.BlockNumber,
 ) (hexutil.Uint, error) {
-	return api.getBlockTransactionCountByNumberOrHash(ctx, shardId, transport.BlockNumberOrHash{BlockNumber: &number})
+	if number < transport.LatestBlockNumber {
+		return 0, errNotImplemented
+	}
+
+	var ref rawapitypes.BlockReference
+	if number <= 0 {
+		ref = rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.NamedBlockIdentifier(number))
+	} else {
+		ref = rawapitypes.BlockNumberAsBlockReference(types.BlockNumber(number))
+	}
+
+	res, err := api.rawapi.GetBlockTransactionCount(ctx, shardId, ref)
+	return hexutil.Uint(res), err
 }
 
 // GetBlockTransactionCountByHash implements eth_getBlockTransactionCountByHash. Returns the number of transactions in a block given the block's block hash.
 func (api *APIImpl) GetBlockTransactionCountByHash(
 	ctx context.Context, shardId types.ShardId, hash common.Hash,
 ) (hexutil.Uint, error) {
-	return api.getBlockTransactionCountByNumberOrHash(ctx, shardId, transport.BlockNumberOrHash{BlockHash: &hash})
+	res, err := api.rawapi.GetBlockTransactionCount(ctx, shardId, rawapitypes.BlockHashAsBlockReference(hash))
+	return hexutil.Uint(res), err
 }
 
 type BlockWithEntities struct {
@@ -135,43 +136,4 @@ type BlockWithEntities struct {
 	InMessages  []*types.Message
 	ChildBlocks []common.Hash
 	DbTimestamp uint64
-}
-
-func (api *APIImpl) getBlockWithEntities(
-	ctx context.Context, shardId types.ShardId, numOrHash transport.BlockNumberOrHash) (
-	*BlockWithEntities, error,
-) {
-	if err := api.checkShard(shardId); err != nil {
-		return nil, err
-	}
-
-	tx, err := api.db.CreateRoTx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	hash, err := extractBlockHash(tx, shardId, numOrHash)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := api.accessor.Access(tx, shardId).
-		GetBlock().
-		WithReceipts().
-		WithInMessages().
-		WithChildBlocks().
-		WithDbTimestamp().
-		ByHash(hash)
-	if err != nil {
-		return nil, err
-	}
-
-	return &BlockWithEntities{
-		Block:       data.Block(),
-		Receipts:    data.Receipts(),
-		InMessages:  data.InMessages(),
-		ChildBlocks: data.ChildBlocks(),
-		DbTimestamp: data.DbTimestamp(),
-	}, nil
 }

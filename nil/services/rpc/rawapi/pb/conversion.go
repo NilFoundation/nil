@@ -126,8 +126,9 @@ func (e *Error) UnpackProtoMessage() error {
 	return errors.New(e.Message)
 }
 
-func (e *Error) PackProtoMessage(err error) {
+func (e *Error) PackProtoMessage(err error) *Error {
 	e.Message = err.Error()
+	return e
 }
 
 // Map of Errors converters
@@ -176,9 +177,7 @@ func (br *RawBlockResponse) PackProtoMessage(block ssz.SSZEncodedData, err error
 }
 
 func (br *RawBlockResponse) fromError(err error) {
-	e := &Error{}
-	e.PackProtoMessage(err)
-	br.Result = &RawBlockResponse_Error{Error: e}
+	br.Result = &RawBlockResponse_Error{Error: new(Error).PackProtoMessage(err)}
 }
 
 func (br *RawBlockResponse) fromData(data ssz.SSZEncodedData) {
@@ -263,9 +262,7 @@ func (br *RawFullBlockResponse) PackProtoMessage(block *types.RawBlockWithExtrac
 }
 
 func (br *RawFullBlockResponse) fromError(err error) {
-	var e Error
-	e.PackProtoMessage(err)
-	br.Result = &RawFullBlockResponse_Error{Error: &e}
+	br.Result = &RawFullBlockResponse_Error{Error: new(Error).PackProtoMessage(err)}
 }
 
 func (br *RawFullBlockResponse) fromData(data *types.RawBlockWithExtractedData) {
@@ -287,5 +284,25 @@ func (br *RawFullBlockResponse) UnpackProtoMessage() (*types.RawBlockWithExtract
 
 	default:
 		return nil, errors.New("unexpected response type")
+	}
+}
+
+// Uint64Response converters
+func (br *Uint64Response) PackProtoMessage(count uint64, err error) error {
+	br.Result = &Uint64Response_Count{Count: count}
+	if err != nil {
+		br.Result = &Uint64Response_Error{Error: new(Error).PackProtoMessage(err)}
+	}
+	return nil
+}
+
+func (br *Uint64Response) UnpackProtoMessage() (uint64, error) {
+	switch br.Result.(type) {
+	case *Uint64Response_Error:
+		return 0, br.GetError().UnpackProtoMessage()
+	case *Uint64Response_Count:
+		return br.GetCount(), nil
+	default:
+		return 0, errors.New("unexpected response type")
 	}
 }

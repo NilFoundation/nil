@@ -20,6 +20,7 @@ var ErrRequestHandlerCreation = errors.New("failed to create request handler")
 type NetworkTransportProtocol interface {
 	GetBlockHeader(request pb.BlockRequest) pb.RawBlockResponse
 	GetFullBlockData(request pb.BlockRequest) pb.RawFullBlockResponse
+	GetBlockTransactionCount(request pb.BlockRequest) pb.Uint64Response
 }
 
 func SetRawApiRequestHandlers(ctx context.Context, shardId types.ShardId, api ShardApi, manager *network.Manager, logger zerolog.Logger) error {

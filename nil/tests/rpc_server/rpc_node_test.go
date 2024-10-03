@@ -2,6 +2,7 @@ package rpctest
 
 import (
 	"context"
+	"math"
 	"os"
 	"testing"
 
@@ -93,6 +94,23 @@ func (s *SuiteRpcNode) TestGetBlock() {
 	s.Require().NotNil(block)
 	s.NotEmpty(block.ChildBlocks)
 	s.Positive(block.DbTimestamp)
+}
+
+func (s *SuiteRpcNode) TestGetBlockTransactionCount() {
+	count, err := s.client.GetBlockTransactionCount(types.BaseShardId, "latest")
+	s.Require().NoError(err)
+	s.Zero(count)
+
+	count, err = s.client.GetBlockTransactionCount(types.BaseShardId, 0x1)
+	s.Require().NoError(err)
+	s.Zero(count)
+
+	count, err = s.client.GetBlockTransactionCount(types.MainShardId, 0x1)
+	s.Require().NoError(err)
+	s.Zero(count)
+
+	_, err = s.client.GetBlockTransactionCount(types.MainShardId, math.MaxUint32)
+	s.Require().ErrorContains(err, db.ErrKeyNotFound.Error())
 }
 
 func TestSuiteRpcNode(t *testing.T) {

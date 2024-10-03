@@ -46,6 +46,14 @@ func (api *LocalShardApi) GetFullBlockData(ctx context.Context, blockReference r
 	return api.getBlockByReference(ctx, blockReference, true)
 }
 
+func (api *LocalShardApi) GetBlockTransactionCount(ctx context.Context, blockReference rawapitypes.BlockReference) (uint64, error) {
+	res, err := api.getBlockByReference(ctx, blockReference, true)
+	if err != nil {
+		return 0, err
+	}
+	return uint64(len(res.InMessages)), nil
+}
+
 func (api *LocalShardApi) getBlockByReference(ctx context.Context, blockReference rawapitypes.BlockReference, withMessages bool) (*types.RawBlockWithExtractedData, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
@@ -160,4 +168,12 @@ func (api *LocalApi) GetFullBlockData(ctx context.Context, shardId types.ShardId
 		return nil, errShardNotFound
 	}
 	return shardApi.GetFullBlockData(ctx, blockReference)
+}
+
+func (api *LocalApi) GetBlockTransactionCount(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (uint64, error) {
+	shardApi, ok := api.apis[shardId]
+	if !ok {
+		return 0, errShardNotFound
+	}
+	return shardApi.GetBlockTransactionCount(ctx, blockReference)
 }
