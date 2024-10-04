@@ -3,6 +3,7 @@ package rawapi
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
@@ -10,9 +11,12 @@ import (
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
+	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 )
+
+var errBlockNotFound = errors.New("block not found")
 
 type LocalShardApi struct {
 	db       db.ReadOnlyDB
@@ -35,7 +39,13 @@ func NewLocalShardApi(shardId types.ShardId, db db.ReadOnlyDB) (*LocalShardApi, 
 }
 
 func (api *LocalShardApi) GetBlockHeader(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	block, err := api.getBlockByReference(ctx, blockReference, false)
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	block, err := api.getBlockByReference(tx, blockReference, false)
 	if err != nil {
 		return nil, err
 	}
@@ -43,24 +53,75 @@ func (api *LocalShardApi) GetBlockHeader(ctx context.Context, blockReference raw
 }
 
 func (api *LocalShardApi) GetFullBlockData(ctx context.Context, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
-	return api.getBlockByReference(ctx, blockReference, true)
-}
-
-func (api *LocalShardApi) GetBlockTransactionCount(ctx context.Context, blockReference rawapitypes.BlockReference) (uint64, error) {
-	res, err := api.getBlockByReference(ctx, blockReference, true)
-	if err != nil {
-		return 0, err
-	}
-	return uint64(len(res.InMessages)), nil
-}
-
-func (api *LocalShardApi) getBlockByReference(ctx context.Context, blockReference rawapitypes.BlockReference, withMessages bool) (*types.RawBlockWithExtractedData, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
+	return api.getBlockByReference(tx, blockReference, true)
+}
+
+func (api *LocalShardApi) GetBlockTransactionCount(ctx context.Context, blockReference rawapitypes.BlockReference) (uint64, error) {
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	res, err := api.getBlockByReference(tx, blockReference, true)
+	if err != nil {
+		return 0, err
+	}
+	return uint64(len(res.InMessages)), nil
+}
+
+func (api *LocalShardApi) GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error) {
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return types.Value{}, fmt.Errorf("cannot open tx to find account: %w", err)
+	}
+	defer tx.Rollback()
+
+	acc, err := api.getSmartContract(tx, address.ShardId(), address, blockReference)
+	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return types.Value{}, nil
+		}
+		return types.Value{}, err
+	}
+	return acc.Balance, nil
+}
+
+func (api *LocalShardApi) getSmartContract(tx db.RoTx, shardId types.ShardId, address types.Address, blockReference rawapitypes.BlockReference) (*types.SmartContract, error) {
+	rawBlock, err := api.getBlockByReference(tx, blockReference, false)
+	if err != nil {
+		return nil, err
+	}
+	if rawBlock == nil {
+		return nil, errBlockNotFound
+	}
+	var block types.Block
+	if err := block.UnmarshalSSZ(rawBlock.Block); err != nil {
+		return nil, err
+	}
+
+	root := mpt.NewDbReader(tx, shardId, db.ContractTrieTable)
+	root.SetRootHash(block.SmartContractsRoot)
+	contractRaw, err := root.Get(address.Hash().Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	contract := new(types.SmartContract)
+	if err := contract.UnmarshalSSZ(contractRaw); err != nil {
+		return nil, err
+	}
+
+	return contract, nil
+}
+
+func (api *LocalShardApi) getBlockByReference(tx db.RoTx, blockReference rawapitypes.BlockReference, withMessages bool) (*types.RawBlockWithExtractedData, error) {
 	blockHash, err := api.getBlockHashByReference(tx, blockReference)
 	if err != nil {
 		return nil, err

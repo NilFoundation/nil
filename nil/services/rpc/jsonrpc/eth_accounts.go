@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 )
 
@@ -41,25 +42,11 @@ func (api *APIImpl) getSmartContract(tx db.RoTx, address types.Address, blockNrO
 
 // GetBalance implements eth_getBalance. Returns the balance of an account for a given address.
 func (api *APIImpl) GetBalance(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error) {
-	shardId := address.ShardId()
-	if err := api.checkShard(shardId); err != nil {
+	balance, err := api.rawapi.GetBalance(ctx, address, toBlockReference(blockNrOrHash))
+	if err != nil {
 		return nil, err
 	}
-
-	tx, err := api.db.CreateRoTx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open tx to find account: %w", err)
-	}
-	defer tx.Rollback()
-
-	acc, err := api.getSmartContract(tx, address, blockNrOrHash)
-	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			return hexutil.NewBigFromInt64(0), nil
-		}
-		return nil, err
-	}
-	return hexutil.NewBig(acc.Balance.ToBig()), nil
+	return hexutil.NewBig(balance.ToBig()), nil
 }
 
 // GetCurrencies implements eth_getCurrencies. Returns the balance of all currencies of account for a given address.
@@ -158,4 +145,19 @@ func (api *APIImpl) GetCode(ctx context.Context, address types.Address, blockNrO
 		return nil, err
 	}
 	return hexutil.Bytes(code), nil
+}
+
+func toBlockReference(blockNrOrHash transport.BlockNumberOrHash) rawapitypes.BlockReference {
+	var ref rawapitypes.BlockReference
+	if number, ok := blockNrOrHash.Number(); ok {
+		if number <= 0 {
+			ref = rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.NamedBlockIdentifier(number))
+		} else {
+			ref = rawapitypes.BlockNumberAsBlockReference(types.BlockNumber(number))
+		}
+	} else {
+		hash, _ := blockNrOrHash.Hash()
+		ref = rawapitypes.BlockHashAsBlockReference(hash)
+	}
+	return ref
 }

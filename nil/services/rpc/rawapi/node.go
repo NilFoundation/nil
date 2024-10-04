@@ -46,3 +46,11 @@ func (api *NodeRawApi) GetBlockTransactionCount(ctx context.Context, shardId typ
 	}
 	return shardApi.GetBlockTransactionCount(ctx, blockReference)
 }
+
+func (api *NodeRawApi) GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error) {
+	shardApi, ok := api.Apis[address.ShardId()]
+	if !ok {
+		return types.Value{}, errShardNotFound
+	}
+	return shardApi.GetBalance(ctx, address, blockReference)
+}

@@ -84,6 +84,16 @@ func (s *SuiteRpcNode) TestGetDebugBlock() {
 	s.NotNil(debugBlock)
 }
 
+func (s *SuiteRpcNode) TestGetBalance() {
+	balance, err := s.client.GetBalance(types.FaucetAddress, "latest")
+	s.Require().NoError(err)
+	s.NotNil(balance)
+
+	balance, err = s.client.GetBalance(types.FaucetAddress, 0x1)
+	s.Require().NoError(err)
+	s.NotNil(balance)
+}
+
 func (s *SuiteRpcNode) TestGetBlock() {
 	block, err := s.client.GetBlock(types.BaseShardId, "latest", true)
 	s.Require().NoError(err)
