@@ -24,10 +24,11 @@ type NetworkRawApiAccessorImpl struct {
 var _ ShardApi = (*NetworkRawApiAccessorImpl)(nil)
 
 type NetworkRawApiAccessor struct {
-	impl *NetworkRawApiAccessorImpl
+	impl    *NetworkRawApiAccessorImpl
+	shardId types.ShardId
 }
 
-var _ Api = (*NetworkRawApiAccessor)(nil)
+var _ ShardApi = (*NetworkRawApiAccessor)(nil)
 
 func (api *NetworkRawApiAccessorImpl) GetBlockHeader(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
 	return nil, nil
@@ -41,12 +42,15 @@ func (api *NetworkRawApiAccessorImpl) GetBlockTransactionCount(ctx context.Conte
 	return 0, nil
 }
 
-func NewNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manager, serverAddress string) (*NetworkRawApiAccessor, error) {
+func NewNetworkRawApiAccessor(ctx context.Context, shardId types.ShardId, networkManager *network.Manager, serverAddress string) (*NetworkRawApiAccessor, error) {
 	impl, err := newNetworkRawApiAccessor(ctx, networkManager, serverAddress, reflect.TypeOf(&NetworkRawApiAccessorImpl{}), reflect.TypeFor[NetworkTransportProtocol]())
 	if err != nil {
 		return nil, err
 	}
-	return &NetworkRawApiAccessor{impl}, nil
+	return &NetworkRawApiAccessor{
+		impl:    impl,
+		shardId: shardId,
+	}, nil
 }
 
 func newNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manager, serverAddress string, apiType, transportType reflect.Type) (*NetworkRawApiAccessorImpl, error) {
@@ -66,16 +70,16 @@ func newNetworkRawApiAccessor(ctx context.Context, networkManager *network.Manag
 	}, nil
 }
 
-func (api *NetworkRawApiAccessor) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	return sendRequestAndGetResponseWithCallerMethodName[ssz.SSZEncodedData](ctx, api.impl, shardId, "GetBlockHeader", blockReference)
+func (api *NetworkRawApiAccessor) GetBlockHeader(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[ssz.SSZEncodedData](ctx, api.impl, api.shardId, "GetBlockHeader", blockReference)
 }
 
-func (api *NetworkRawApiAccessor) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
-	return sendRequestAndGetResponseWithCallerMethodName[*types.RawBlockWithExtractedData](ctx, api.impl, shardId, "GetFullBlockData", blockReference)
+func (api *NetworkRawApiAccessor) GetFullBlockData(ctx context.Context, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[*types.RawBlockWithExtractedData](ctx, api.impl, api.shardId, "GetFullBlockData", blockReference)
 }
 
-func (api *NetworkRawApiAccessor) GetBlockTransactionCount(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (uint64, error) {
-	return sendRequestAndGetResponseWithCallerMethodName[uint64](ctx, api.impl, shardId, "GetBlockTransactionCount", blockReference)
+func (api *NetworkRawApiAccessor) GetBlockTransactionCount(ctx context.Context, blockReference rawapitypes.BlockReference) (uint64, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[uint64](ctx, api.impl, api.shardId, "GetBlockTransactionCount", blockReference)
 }
 
 func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkRawApiAccessorImpl, shardId types.ShardId, methodName string, args ...any) (ResponseType, error) {
