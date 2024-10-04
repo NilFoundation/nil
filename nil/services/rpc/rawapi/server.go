@@ -21,6 +21,7 @@ type NetworkTransportProtocol interface {
 	GetBlockHeader(request pb.BlockRequest) pb.RawBlockResponse
 	GetFullBlockData(request pb.BlockRequest) pb.RawFullBlockResponse
 	GetBlockTransactionCount(request pb.BlockRequest) pb.Uint64Response
+	GetBalance(request pb.AccountRequest) pb.BalanceResponse
 }
 
 func SetRawApiRequestHandlers(ctx context.Context, shardId types.ShardId, api ShardApi, manager *network.Manager, logger zerolog.Logger) error {

@@ -1,8 +1,8 @@
 package pb
 
 import (
+	"encoding/binary"
 	"errors"
-
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -24,6 +24,20 @@ func (h *Hash) PackProtoMessage(hash common.Hash) error {
 	h.P2 = u256[2]
 	h.P3 = u256[3]
 	return nil
+}
+
+// Uint256 converters
+
+func (u *Uint256) UnpackProtoMessage() types.Uint256 {
+	return types.Uint256([4]uint64{u.P0, u.P1, u.P2, u.P3})
+}
+
+func (u *Uint256) PackProtoMessage(u256 types.Uint256) *Uint256 {
+	u.P0 = u256[0]
+	u.P1 = u256[1]
+	u.P2 = u256[2]
+	u.P3 = u256[3]
+	return u
 }
 
 // BlockReference converters
@@ -118,6 +132,37 @@ func (br *BlockRequest) UnpackProtoMessage() (rawapitypes.BlockReference, error)
 func (br *BlockRequest) PackProtoMessage(blockReference rawapitypes.BlockReference) error {
 	br.Reference = &BlockReference{}
 	return br.Reference.PackProtoMessage(blockReference)
+}
+
+// AccountRequest
+
+func (ar *AccountRequest) UnpackProtoMessage() (types.Address, rawapitypes.BlockReference, error) {
+	blockReference, err := ar.BlockReference.UnpackProtoMessage()
+	if err != nil {
+		return types.EmptyAddress, rawapitypes.BlockReference{}, err
+	}
+
+	var bytes [20]byte
+	binary.BigEndian.PutUint32(bytes[:4], ar.Address.P0)
+	binary.BigEndian.PutUint32(bytes[4:8], ar.Address.P1)
+	binary.BigEndian.PutUint32(bytes[8:12], ar.Address.P2)
+	binary.BigEndian.PutUint32(bytes[12:16], ar.Address.P3)
+	binary.BigEndian.PutUint32(bytes[16:20], ar.Address.P4)
+
+	return types.BytesToAddress(bytes[:]), blockReference, nil
+}
+
+func (ar *AccountRequest) PackProtoMessage(address types.Address, blockReference rawapitypes.BlockReference) error {
+	ar.Address = &Address{
+		P0: binary.BigEndian.Uint32(address[:4]),
+		P1: binary.BigEndian.Uint32(address[4:8]),
+		P2: binary.BigEndian.Uint32(address[8:12]),
+		P3: binary.BigEndian.Uint32(address[12:16]),
+		P4: binary.BigEndian.Uint32(address[16:20]),
+	}
+
+	ar.BlockReference = &BlockReference{}
+	return ar.BlockReference.PackProtoMessage(blockReference)
 }
 
 // Error converters
@@ -304,5 +349,29 @@ func (br *Uint64Response) UnpackProtoMessage() (uint64, error) {
 		return br.GetCount(), nil
 	default:
 		return 0, errors.New("unexpected response type")
+	}
+}
+
+func (br *BalanceResponse) PackProtoMessage(balance types.Value, err error) error {
+	if err != nil {
+		br.Result = &BalanceResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+
+	br.Result = &BalanceResponse_Data{Data: new(Uint256).PackProtoMessage(*balance.Uint256)}
+	return nil
+}
+
+func (br *BalanceResponse) UnpackProtoMessage() (types.Value, error) {
+	switch br.Result.(type) {
+	case *BalanceResponse_Error:
+		return types.Value{}, br.GetError().UnpackProtoMessage()
+
+	case *BalanceResponse_Data:
+		u256 := br.GetData().UnpackProtoMessage()
+		return types.Value{Uint256: &u256}, nil
+
+	default:
+		return types.Value{}, errors.New("unexpected response type")
 	}
 }

@@ -42,6 +42,10 @@ func (api *NetworkRawApiAccessorImpl) GetBlockTransactionCount(ctx context.Conte
 	return 0, nil
 }
 
+func (api *NetworkRawApiAccessorImpl) GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error) {
+	return types.Value{}, nil
+}
+
 func NewNetworkRawApiAccessor(ctx context.Context, shardId types.ShardId, networkManager *network.Manager, serverAddress string) (*NetworkRawApiAccessor, error) {
 	impl, err := newNetworkRawApiAccessor(ctx, networkManager, serverAddress, reflect.TypeOf(&NetworkRawApiAccessorImpl{}), reflect.TypeFor[NetworkTransportProtocol]())
 	if err != nil {
@@ -80,6 +84,10 @@ func (api *NetworkRawApiAccessor) GetFullBlockData(ctx context.Context, blockRef
 
 func (api *NetworkRawApiAccessor) GetBlockTransactionCount(ctx context.Context, blockReference rawapitypes.BlockReference) (uint64, error) {
 	return sendRequestAndGetResponseWithCallerMethodName[uint64](ctx, api.impl, api.shardId, "GetBlockTransactionCount", blockReference)
+}
+
+func (api *NetworkRawApiAccessor) GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[types.Value](ctx, api.impl, api.shardId, "GetBalance", address, blockReference)
 }
 
 func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkRawApiAccessorImpl, shardId types.ShardId, methodName string, args ...any) (ResponseType, error) {
