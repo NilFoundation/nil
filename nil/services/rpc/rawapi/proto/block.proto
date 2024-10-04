@@ -4,19 +4,15 @@ package rawapi;
 option go_package = "/pb";
 
 // 256 bits
-message Hash {
+message Uint256 {
   fixed64 p0 = 1;
   fixed64 p1 = 2;
   fixed64 p2 = 3;
   fixed64 p3 = 4;
 }
 
-// 256 bits
-message Uint256 {
-  fixed64 p0 = 1;
-  fixed64 p1 = 2;
-  fixed64 p2 = 3;
-  fixed64 p3 = 4;
+message Hash {
+  Uint256 data = 1;
 }
 
 // 20 bytes
