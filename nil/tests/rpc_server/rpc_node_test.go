@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"testing"
+	"time"
 
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -52,6 +53,9 @@ func (s *SuiteRpcNode) SetupTest() {
 		nilservice.Run(s.context, validatorCfg, s.db, nil)
 		s.wg.Done()
 	}()
+
+	// TODO: wait be sure that validator is ready
+	time.Sleep(time.Second)
 
 	go func() {
 		nilservice.Run(s.context, rpcCfg, nil, nil)

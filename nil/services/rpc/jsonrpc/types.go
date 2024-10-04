@@ -266,7 +266,10 @@ func (re *RPCReceipt) IsCommitted() bool {
 	return true
 }
 
-func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types.MessageIndex, block *types.Block) (*RPCInMessage, error) {
+func NewRPCInMessage(
+	message *types.Message, receipt *types.Receipt, index types.MessageIndex,
+	blockHash common.Hash, blockId types.BlockNumber,
+) (*RPCInMessage, error) {
 	hash := message.Hash()
 	if receipt == nil || hash != receipt.MsgHash {
 		return nil, errors.New("msg and receipt are not compatible")
@@ -277,8 +280,8 @@ func NewRPCInMessage(message *types.Message, receipt *types.Receipt, index types
 		Success:     receipt.Success,
 		RequestId:   message.RequestId,
 		Data:        hexutil.Bytes(message.Data),
-		BlockHash:   block.Hash(),
-		BlockNumber: block.Id,
+		BlockHash:   blockHash,
+		BlockNumber: blockId,
 		From:        message.From,
 		GasUsed:     receipt.GasUsed,
 		FeeCredit:   message.FeeCredit,
@@ -309,9 +312,11 @@ func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*
 
 	messagesRes := make([]any, len(messages))
 	var err error
+	blockHash := block.Hash()
+	blockId := block.Id
 	if fullTx {
 		for i, m := range messages {
-			messagesRes[i], err = NewRPCInMessage(m, receipts[i], types.MessageIndex(i), block)
+			messagesRes[i], err = NewRPCInMessage(m, receipts[i], types.MessageIndex(i), blockHash, blockId)
 			if err != nil {
 				return nil, err
 			}
@@ -323,8 +328,8 @@ func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*
 	}
 
 	return &RPCBlock{
-		Number:              block.Id,
-		Hash:                block.Hash(),
+		Number:              blockId,
+		Hash:                blockHash,
 		ParentHash:          block.PrevBlock,
 		InMessagesRoot:      block.InMessagesRoot,
 		ReceiptsRoot:        block.ReceiptsRoot,
