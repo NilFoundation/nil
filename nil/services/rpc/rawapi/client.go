@@ -15,20 +15,20 @@ import (
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 )
 
-type NetworkRawApiAccessor struct {
+type NetworkShardApiAccessor struct {
 	networkManager *network.Manager
 	serverPeerId   network.PeerID
 	codec          apiCodec
 	shardId        types.ShardId
 }
 
-var _ ShardApi = (*NetworkRawApiAccessor)(nil)
+var _ ShardApi = (*NetworkShardApiAccessor)(nil)
 
-func NewNetworkRawApiAccessor(ctx context.Context, shardId types.ShardId, networkManager *network.Manager, serverAddress string) (*NetworkRawApiAccessor, error) {
-	return newNetworkRawApiAccessor(ctx, shardId, networkManager, serverAddress, reflect.TypeFor[*NetworkRawApiAccessor](), reflect.TypeFor[NetworkTransportProtocol]())
+func NewNetworkRawApiAccessor(ctx context.Context, shardId types.ShardId, networkManager *network.Manager, serverAddress string) (*NetworkShardApiAccessor, error) {
+	return newNetworkRawApiAccessor(ctx, shardId, networkManager, serverAddress, reflect.TypeFor[*NetworkShardApiAccessor](), reflect.TypeFor[NetworkTransportProtocol]())
 }
 
-func newNetworkRawApiAccessor(ctx context.Context, shardId types.ShardId, networkManager *network.Manager, serverAddress string, apiType, transportType reflect.Type) (*NetworkRawApiAccessor, error) {
+func newNetworkRawApiAccessor(ctx context.Context, shardId types.ShardId, networkManager *network.Manager, serverAddress string, apiType, transportType reflect.Type) (*NetworkShardApiAccessor, error) {
 	serverPeerId, err := networkManager.Connect(ctx, serverAddress)
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func newNetworkRawApiAccessor(ctx context.Context, shardId types.ShardId, networ
 		return nil, err
 	}
 
-	return &NetworkRawApiAccessor{
+	return &NetworkShardApiAccessor{
 		networkManager: networkManager,
 		serverPeerId:   serverPeerId,
 		codec:          codec,
@@ -46,23 +46,23 @@ func newNetworkRawApiAccessor(ctx context.Context, shardId types.ShardId, networ
 	}, nil
 }
 
-func (api *NetworkRawApiAccessor) GetBlockHeader(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
+func (api *NetworkShardApiAccessor) GetBlockHeader(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
 	return sendRequestAndGetResponseWithCallerMethodName[ssz.SSZEncodedData](ctx, api, "GetBlockHeader", blockReference)
 }
 
-func (api *NetworkRawApiAccessor) GetFullBlockData(ctx context.Context, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
+func (api *NetworkShardApiAccessor) GetFullBlockData(ctx context.Context, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
 	return sendRequestAndGetResponseWithCallerMethodName[*types.RawBlockWithExtractedData](ctx, api, "GetFullBlockData", blockReference)
 }
 
-func (api *NetworkRawApiAccessor) GetBlockTransactionCount(ctx context.Context, blockReference rawapitypes.BlockReference) (uint64, error) {
+func (api *NetworkShardApiAccessor) GetBlockTransactionCount(ctx context.Context, blockReference rawapitypes.BlockReference) (uint64, error) {
 	return sendRequestAndGetResponseWithCallerMethodName[uint64](ctx, api, "GetBlockTransactionCount", blockReference)
 }
 
-func (api *NetworkRawApiAccessor) GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error) {
+func (api *NetworkShardApiAccessor) GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error) {
 	return sendRequestAndGetResponseWithCallerMethodName[types.Value](ctx, api, "GetBalance", address, blockReference)
 }
 
-func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkRawApiAccessor, methodName string, args ...any) (ResponseType, error) {
+func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkShardApiAccessor, methodName string, args ...any) (ResponseType, error) {
 	if assert.Enable {
 		callerMethodName := extractCallerMethodName(2)
 		check.PanicIfNotf(callerMethodName != "", "Method name not found")

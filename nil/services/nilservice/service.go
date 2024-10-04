@@ -30,7 +30,7 @@ import (
 // syncer will pull blocks actively if no blocks appear for 5 rounds
 const syncTimeoutFactor = 5
 
-func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.Api, db db.ReadOnlyDB, pools []msgpool.Pool) error {
+func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db db.ReadOnlyDB, pools []msgpool.Pool) error {
 	logger := logging.NewLogger("RPC")
 
 	addr := cfg.HttpUrl
@@ -105,7 +105,7 @@ type ServiceInterop struct {
 	MsgPools []msgpool.Pool
 }
 
-func getRawApi(ctx context.Context, cfg *Config, networkManager *network.Manager, database db.DB) (*rawapi.NodeRawApi, error) {
+func getRawApi(ctx context.Context, cfg *Config, networkManager *network.Manager, database db.DB) (*rawapi.NodeApiOverShardApis, error) {
 	var err error
 
 	var myShards []uint
@@ -135,7 +135,7 @@ func getRawApi(ctx context.Context, cfg *Config, networkManager *network.Manager
 			return nil, err
 		}
 	}
-	rawApi := rawapi.NewNodeRawApi(shardApis)
+	rawApi := rawapi.NewNodeApiOverShardApis(shardApis)
 	return rawApi, nil
 }
 

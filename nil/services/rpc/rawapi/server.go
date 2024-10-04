@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var ErrRequestHandlerCreation = errors.New("failed to create request handler")
+var errRequestHandlerCreation = errors.New("failed to create request handler")
 
 // NetworkTransportProtocol is a helper interface for associating the argument and result types of Api methods
 // with their Protobuf representations.
@@ -35,7 +35,7 @@ func setRawApiRequestHandlers(ctx context.Context, protocolInterfaceType reflect
 	codec, err := newApiCodec(reflect.ValueOf(api).Type(), protocolInterfaceType)
 	if err != nil {
 		logger.Err(err).Send()
-		return ErrRequestHandlerCreation
+		return errRequestHandlerCreation
 	}
 
 	apiValue := reflect.ValueOf(api)

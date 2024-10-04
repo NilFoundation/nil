@@ -322,7 +322,7 @@ type APIImpl struct {
 	msgPools []msgpool.Pool
 	logs     *LogsAggregator
 	logger   zerolog.Logger
-	rawapi   rawapi.Api
+	rawapi   rawapi.NodeApi
 }
 
 var (
@@ -331,7 +331,7 @@ var (
 )
 
 // NewEthAPI returns APIImpl instance
-func NewEthAPI(ctx context.Context, rawapi rawapi.Api, db db.ReadOnlyDB, pools []msgpool.Pool, pollBlocksForLogs bool) (*APIImpl, error) {
+func NewEthAPI(ctx context.Context, rawapi rawapi.NodeApi, db db.ReadOnlyDB, pools []msgpool.Pool, pollBlocksForLogs bool) (*APIImpl, error) {
 	accessor, err := execution.NewStateAccessor()
 	if err != nil {
 		return nil, err

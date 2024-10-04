@@ -9,21 +9,21 @@ import (
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 )
 
-type NodeRawApi struct {
+type NodeApiOverShardApis struct {
 	Apis map[types.ShardId]ShardApi
 }
 
-var _ Api = (*NodeRawApi)(nil)
+var _ NodeApi = (*NodeApiOverShardApis)(nil)
 
-func NewNodeRawApi(apis map[types.ShardId]ShardApi) *NodeRawApi {
-	return &NodeRawApi{
+func NewNodeApiOverShardApis(apis map[types.ShardId]ShardApi) *NodeApiOverShardApis {
+	return &NodeApiOverShardApis{
 		Apis: apis,
 	}
 }
 
 var errShardNotFound = errors.New("shard API not found")
 
-func (api *NodeRawApi) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
+func (api *NodeApiOverShardApis) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
 	shardApi, ok := api.Apis[shardId]
 	if !ok {
 		return nil, errShardNotFound
@@ -31,7 +31,7 @@ func (api *NodeRawApi) GetBlockHeader(ctx context.Context, shardId types.ShardId
 	return shardApi.GetBlockHeader(ctx, blockReference)
 }
 
-func (api *NodeRawApi) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
+func (api *NodeApiOverShardApis) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
 	shardApi, ok := api.Apis[shardId]
 	if !ok {
 		return nil, errShardNotFound
@@ -39,7 +39,7 @@ func (api *NodeRawApi) GetFullBlockData(ctx context.Context, shardId types.Shard
 	return shardApi.GetFullBlockData(ctx, blockReference)
 }
 
-func (api *NodeRawApi) GetBlockTransactionCount(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (uint64, error) {
+func (api *NodeApiOverShardApis) GetBlockTransactionCount(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (uint64, error) {
 	shardApi, ok := api.Apis[shardId]
 	if !ok {
 		return 0, errShardNotFound
@@ -47,7 +47,7 @@ func (api *NodeRawApi) GetBlockTransactionCount(ctx context.Context, shardId typ
 	return shardApi.GetBlockTransactionCount(ctx, blockReference)
 }
 
-func (api *NodeRawApi) GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error) {
+func (api *NodeApiOverShardApis) GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error) {
 	shardApi, ok := api.Apis[address.ShardId()]
 	if !ok {
 		return types.Value{}, errShardNotFound

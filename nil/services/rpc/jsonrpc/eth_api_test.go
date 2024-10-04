@@ -34,7 +34,7 @@ func NewTestEthAPI(t *testing.T, ctx context.Context, db db.DB, nShards int) *AP
 		shardApis[shardId], err = rawapi.NewLocalShardApi(shardId, db)
 		require.NoError(t, err)
 	}
-	rawApi := rawapi.NewNodeRawApi(shardApis)
+	rawApi := rawapi.NewNodeApiOverShardApis(shardApis)
 
 	api, err := NewEthAPI(ctx, rawApi, db, NewPools(t, ctx, nShards), true)
 	require.NoError(t, err)

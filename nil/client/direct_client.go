@@ -40,7 +40,7 @@ func NewEthClient(ctx context.Context, wg *sync.WaitGroup, db db.ReadOnlyDB, msg
 			return nil, err
 		}
 	}
-	localApi := rawapi.NewNodeRawApi(localShardApis)
+	localApi := rawapi.NewNodeApiOverShardApis(localShardApis)
 
 	ethApi, err := jsonrpc.NewEthAPI(ctx, localApi, db, msgPools, true)
 	if err != nil {
