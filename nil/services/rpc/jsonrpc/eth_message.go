@@ -29,7 +29,7 @@ func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardI
 	if err != nil {
 		return nil, err
 	}
-	return NewRPCInMessage(data.Message(), data.Receipt(), data.Index(), data.Block())
+	return NewRPCInMessage(data.Message(), data.Receipt(), data.Index(), data.Block().Hash(), data.Block().Id)
 }
 
 func (api *APIImpl) getInMessageByBlockNumberOrHashAndIndex(ctx context.Context, shardId types.ShardId,
@@ -55,7 +55,7 @@ func (api *APIImpl) getInMessageByBlockNumberOrHashAndIndex(ctx context.Context,
 		return nil, err
 	}
 
-	return NewRPCInMessage(msg, receipt, types.MessageIndex(index), block)
+	return NewRPCInMessage(msg, receipt, types.MessageIndex(index), block.Hash(), block.Id)
 }
 
 func (api *APIImpl) GetInMessageByBlockHashAndIndex(

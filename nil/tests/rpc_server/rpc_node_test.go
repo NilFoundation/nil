@@ -2,8 +2,10 @@ package rpctest
 
 import (
 	"context"
+	"math"
 	"os"
 	"testing"
+	"time"
 
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -52,6 +54,9 @@ func (s *SuiteRpcNode) SetupTest() {
 		s.wg.Done()
 	}()
 
+	// TODO: wait be sure that validator is ready
+	time.Sleep(time.Second)
+
 	go func() {
 		nilservice.Run(s.context, rpcCfg, nil, nil)
 		s.wg.Done()
@@ -93,6 +98,23 @@ func (s *SuiteRpcNode) TestGetBlock() {
 	s.Require().NotNil(block)
 	s.NotEmpty(block.ChildBlocks)
 	s.Positive(block.DbTimestamp)
+}
+
+func (s *SuiteRpcNode) TestGetBlockTransactionCount() {
+	count, err := s.client.GetBlockTransactionCount(types.BaseShardId, "latest")
+	s.Require().NoError(err)
+	s.Zero(count)
+
+	count, err = s.client.GetBlockTransactionCount(types.BaseShardId, 0x1)
+	s.Require().NoError(err)
+	s.Zero(count)
+
+	count, err = s.client.GetBlockTransactionCount(types.MainShardId, 0x1)
+	s.Require().NoError(err)
+	s.Zero(count)
+
+	_, err = s.client.GetBlockTransactionCount(types.MainShardId, math.MaxUint32)
+	s.Require().ErrorContains(err, db.ErrKeyNotFound.Error())
 }
 
 func TestSuiteRpcNode(t *testing.T) {
