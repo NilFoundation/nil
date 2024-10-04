@@ -22,16 +22,16 @@ type LocalShardApi struct {
 
 var _ ShardApi = (*LocalShardApi)(nil)
 
-func NewLocalShardApi(shardId types.ShardId, db db.ReadOnlyDB) *LocalShardApi {
+func NewLocalShardApi(shardId types.ShardId, db db.ReadOnlyDB) (*LocalShardApi, error) {
 	stateAccessor, err := execution.NewStateAccessor()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	return &LocalShardApi{
 		db:       db,
 		accessor: stateAccessor,
 		ShardId:  shardId,
-	}
+	}, nil
 }
 
 func (api *LocalShardApi) GetBlockHeader(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
@@ -138,42 +138,4 @@ func (api *LocalShardApi) getBlockByHash(tx db.RoTx, hash common.Hash, withMessa
 		}
 	}
 	return result, nil
-}
-
-type LocalApi struct {
-	apis map[types.ShardId]*LocalShardApi
-}
-
-var _ Api = (*LocalApi)(nil)
-
-func NewLocalApi(apis map[types.ShardId]*LocalShardApi) *LocalApi {
-	return &LocalApi{
-		apis: apis,
-	}
-}
-
-var errShardNotFound = errors.New("shard API not found")
-
-func (api *LocalApi) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	shardApi, ok := api.apis[shardId]
-	if !ok {
-		return nil, errShardNotFound
-	}
-	return shardApi.GetBlockHeader(ctx, blockReference)
-}
-
-func (api *LocalApi) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
-	shardApi, ok := api.apis[shardId]
-	if !ok {
-		return nil, errShardNotFound
-	}
-	return shardApi.GetFullBlockData(ctx, blockReference)
-}
-
-func (api *LocalApi) GetBlockTransactionCount(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (uint64, error) {
-	shardApi, ok := api.apis[shardId]
-	if !ok {
-		return 0, errShardNotFound
-	}
-	return shardApi.GetBlockTransactionCount(ctx, blockReference)
 }
