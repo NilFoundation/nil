@@ -16,7 +16,8 @@
 		"build": "rimraf dist && tsc -p tsconfig.json",
 		"lint": "biome check src test",
 		"lint:fix": "biome check --write src",
-		"test": "npx hardhat test --network nil"
+		"test": "npx hardhat test --network nil",
+    "publish": "npm run build && npm publish"
 	},
 	"keywords": [],
 	"author": "",
