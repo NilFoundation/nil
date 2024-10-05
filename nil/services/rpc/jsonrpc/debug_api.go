@@ -26,12 +26,12 @@ type DebugAPIImpl struct {
 	db       db.ReadOnlyDB
 	logger   zerolog.Logger
 	accessor *execution.StateAccessor
-	rawApi   rawapi.Api
+	rawApi   rawapi.NodeApi
 }
 
 var _ DebugAPI = &DebugAPIImpl{}
 
-func NewDebugAPI(rawApi rawapi.Api, db db.ReadOnlyDB, logger zerolog.Logger) *DebugAPIImpl {
+func NewDebugAPI(rawApi rawapi.NodeApi, db db.ReadOnlyDB, logger zerolog.Logger) *DebugAPIImpl {
 	accessor, _ := execution.NewStateAccessor()
 	return &DebugAPIImpl{
 		db:       db,

@@ -71,7 +71,7 @@ func TestDebugGetBlock(t *testing.T) {
 	localShardApis := map[types.ShardId]rawapi.ShardApi{
 		types.MainShardId: mainShardApi,
 	}
-	localApi := rawapi.NewNodeRawApi(localShardApis)
+	localApi := rawapi.NewNodeApiOverShardApis(localShardApis)
 	api := NewDebugAPI(localApi, database, log.Logger)
 
 	// When: Get the latest block
@@ -151,7 +151,7 @@ func (suite *SuiteDbgContracts) SetupSuite() {
 	localShardApis := map[types.ShardId]rawapi.ShardApi{
 		shardId: shardApi,
 	}
-	localApi := rawapi.NewNodeRawApi(localShardApis)
+	localApi := rawapi.NewNodeApiOverShardApis(localShardApis)
 	suite.debugApi = NewDebugAPI(localApi, suite.db, logging.NewLogger("Test"))
 	suite.Require().NoError(err)
 }
