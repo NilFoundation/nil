@@ -36,7 +36,8 @@
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",
 		"lint:types": "tsc --noEmit -p tsconfig.json",
-		"scripts": "npx --no-install allow-scripts"
+		"scripts": "npx --no-install allow-scripts",
+    "publish": "npm run build && npm publish"
 	},
 	"license": "MIT",
 	"devDependencies": {
