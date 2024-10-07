@@ -62,6 +62,14 @@ func (api *NetworkShardApiAccessor) GetBalance(ctx context.Context, address type
 	return sendRequestAndGetResponseWithCallerMethodName[types.Value](ctx, api, "GetBalance", address, blockReference)
 }
 
+func (api *NetworkShardApiAccessor) GetCode(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Code, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[types.Code](ctx, api, "GetCode", address, blockReference)
+}
+
+func (api *NetworkShardApiAccessor) GetCurrencies(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (map[types.CurrencyId]types.Value, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[map[types.CurrencyId]types.Value](ctx, api, "GetCurrencies", address, blockReference)
+}
+
 func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkShardApiAccessor, methodName string, args ...any) (ResponseType, error) {
 	if assert.Enable {
 		callerMethodName := extractCallerMethodName(2)

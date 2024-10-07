@@ -84,16 +84,6 @@ func (s *SuiteRpcNode) TestGetDebugBlock() {
 	s.NotNil(debugBlock)
 }
 
-func (s *SuiteRpcNode) TestGetBalance() {
-	balance, err := s.client.GetBalance(types.FaucetAddress, "latest")
-	s.Require().NoError(err)
-	s.NotNil(balance)
-
-	balance, err = s.client.GetBalance(types.FaucetAddress, 0x1)
-	s.Require().NoError(err)
-	s.NotNil(balance)
-}
-
 func (s *SuiteRpcNode) TestGetBlock() {
 	block, err := s.client.GetBlock(types.BaseShardId, "latest", true)
 	s.Require().NoError(err)
@@ -125,6 +115,36 @@ func (s *SuiteRpcNode) TestGetBlockTransactionCount() {
 
 	_, err = s.client.GetBlockTransactionCount(types.MainShardId, math.MaxUint32)
 	s.Require().ErrorContains(err, db.ErrKeyNotFound.Error())
+}
+
+func (s *SuiteRpcNode) TestGetBalance() {
+	balance, err := s.client.GetBalance(types.FaucetAddress, "latest")
+	s.Require().NoError(err)
+	s.NotNil(balance)
+
+	balance, err = s.client.GetBalance(types.FaucetAddress, 0x1)
+	s.Require().NoError(err)
+	s.NotNil(balance)
+}
+
+func (s *SuiteRpcNode) TestGetCode() {
+	code, err := s.client.GetCode(types.FaucetAddress, "latest")
+	s.Require().NoError(err)
+	s.NotNil(code)
+
+	code, err = s.client.GetCode(types.FaucetAddress, 0x1)
+	s.Require().NoError(err)
+	s.NotNil(code)
+}
+
+func (s *SuiteRpcNode) TestGetCurrencies() {
+	currencies, err := s.client.GetCurrencies(types.FaucetAddress, "latest")
+	s.Require().NoError(err)
+	s.NotNil(currencies)
+
+	currencies, err = s.client.GetCurrencies(types.FaucetAddress, 0x1)
+	s.Require().NoError(err)
+	s.NotNil(currencies)
 }
 
 func TestSuiteRpcNode(t *testing.T) {

@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
@@ -13,13 +16,18 @@ import (
 var errBlockNotFound = errors.New("block not found")
 
 func (api *LocalShardApi) GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error) {
+	shardId := address.ShardId()
+	if shardId != api.ShardId {
+		return types.Value{}, fmt.Errorf("address is not in the shard %d", api.ShardId)
+	}
+
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return types.Value{}, fmt.Errorf("cannot open tx to find account: %w", err)
 	}
 	defer tx.Rollback()
 
-	acc, err := api.getSmartContract(tx, address.ShardId(), address, blockReference)
+	acc, err := api.getSmartContract(tx, address, blockReference)
 	if err != nil {
 		if errors.Is(err, db.ErrKeyNotFound) {
 			return types.Value{}, nil
@@ -29,7 +37,69 @@ func (api *LocalShardApi) GetBalance(ctx context.Context, address types.Address,
 	return acc.Balance, nil
 }
 
-func (api *LocalShardApi) getSmartContract(tx db.RoTx, shardId types.ShardId, address types.Address, blockReference rawapitypes.BlockReference) (*types.SmartContract, error) {
+func (api *LocalShardApi) GetCode(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Code, error) {
+	shardId := address.ShardId()
+	if shardId != api.ShardId {
+		return types.Code{}, fmt.Errorf("address is not in the shard %d", api.ShardId)
+	}
+
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open tx to find account: %w", err)
+	}
+	defer tx.Rollback()
+
+	acc, err := api.getSmartContract(tx, address, blockReference)
+	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	code, err := db.ReadCode(tx, shardId, acc.CodeHash)
+	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return code, nil
+}
+
+func (api *LocalShardApi) GetCurrencies(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (map[types.CurrencyId]types.Value, error) {
+	shardId := address.ShardId()
+	if shardId != api.ShardId {
+		return nil, fmt.Errorf("address is not in the shard %d", api.ShardId)
+	}
+
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open tx to find account: %w", err)
+	}
+	defer tx.Rollback()
+
+	acc, err := api.getSmartContract(tx, address, blockReference)
+	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	currencyReader := execution.NewDbCurrencyTrieReader(tx, shardId)
+	currencyReader.SetRootHash(acc.CurrencyRoot)
+	entries, err := currencyReader.Entries()
+	if err != nil {
+		return nil, err
+	}
+
+	return common.SliceToMap(entries, func(_ int, kv execution.Entry[types.CurrencyId, *types.Value]) (types.CurrencyId, types.Value) {
+		return kv.Key, *kv.Val
+	}), nil
+}
+
+func (api *LocalShardApi) getSmartContract(tx db.RoTx, address types.Address, blockReference rawapitypes.BlockReference) (*types.SmartContract, error) {
 	rawBlock, err := api.getBlockByReference(tx, blockReference, false)
 	if err != nil {
 		return nil, err
@@ -42,7 +112,7 @@ func (api *LocalShardApi) getSmartContract(tx db.RoTx, shardId types.ShardId, ad
 		return nil, err
 	}
 
-	root := mpt.NewDbReader(tx, shardId, db.ContractTrieTable)
+	root := mpt.NewDbReader(tx, api.ShardId, db.ContractTrieTable)
 	root.SetRootHash(block.SmartContractsRoot)
 	contractRaw, err := root.Get(address.Hash().Bytes())
 	if err != nil {
