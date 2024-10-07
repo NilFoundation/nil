@@ -54,3 +54,19 @@ func (api *NodeApiOverShardApis) GetBalance(ctx context.Context, address types.A
 	}
 	return shardApi.GetBalance(ctx, address, blockReference)
 }
+
+func (api *NodeApiOverShardApis) GetCode(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Code, error) {
+	shardApi, ok := api.Apis[address.ShardId()]
+	if !ok {
+		return types.Code{}, errShardNotFound
+	}
+	return shardApi.GetCode(ctx, address, blockReference)
+}
+
+func (api *NodeApiOverShardApis) GetCurrencies(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (map[types.CurrencyId]types.Value, error) {
+	shardApi, ok := api.Apis[address.ShardId()]
+	if !ok {
+		return map[types.CurrencyId]types.Value{}, errShardNotFound
+	}
+	return shardApi.GetCurrencies(ctx, address, blockReference)
+}

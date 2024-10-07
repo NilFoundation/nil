@@ -357,3 +357,58 @@ func (br *BalanceResponse) UnpackProtoMessage() (types.Value, error) {
 		return types.Value{}, errors.New("unexpected response type")
 	}
 }
+
+// CodeResponse converters
+func (br *CodeResponse) PackProtoMessage(code types.Code, err error) error {
+	if err != nil {
+		br.Result = &CodeResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+
+	br.Result = &CodeResponse_Data{Data: code}
+	return nil
+}
+
+func (br *CodeResponse) UnpackProtoMessage() (types.Code, error) {
+	switch br.Result.(type) {
+	case *CodeResponse_Error:
+		return nil, br.GetError().UnpackProtoMessage()
+
+	case *CodeResponse_Data:
+		return br.GetData(), nil
+	}
+	return nil, errors.New("unexpected response type")
+}
+
+// CurrencyResponse converters
+func (cr *CurrenciesResponse) PackProtoMessage(currencies map[types.CurrencyId]types.Value, err error) error {
+	if err != nil {
+		cr.Result = &CurrenciesResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+
+	result := Currencies{Data: make(map[string]*Uint256)}
+	for k, v := range currencies {
+		result.Data[k.String()] = new(Uint256).PackProtoMessage(*v.Uint256)
+	}
+	cr.Result = &CurrenciesResponse_Data{Data: &result}
+	return nil
+}
+
+func (cr *CurrenciesResponse) UnpackProtoMessage() (map[types.CurrencyId]types.Value, error) {
+	switch cr.Result.(type) {
+	case *CurrenciesResponse_Error:
+		return nil, cr.GetError().UnpackProtoMessage()
+
+	case *CurrenciesResponse_Data:
+		data := cr.GetData().Data
+		result := make(map[types.CurrencyId]types.Value, len(data))
+		for k, v := range data {
+			currencyId := types.CurrencyId(common.HexToHash(k))
+			u256 := v.UnpackProtoMessage()
+			result[currencyId] = types.Value{Uint256: &u256}
+		}
+		return result, nil
+	}
+	return nil, errors.New("unexpected response type")
+}

@@ -10,8 +10,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type ErrorResponseCreator func(err error) []byte
-
 type methodCodec struct {
 	methodName           string
 	apiMethodResultType  reflect.Type
@@ -283,7 +281,7 @@ func obtainAndValidateResponseConversionMethods(apiMethod reflect.Method, pbResp
 	unpackProtoMessageType := unpackProtoMessage.Type
 
 	if packProtoMessageType.NumIn()-1 != 2 {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("%s must accept exactly 2 arguments, but accepted %d", packMethodName, packProtoMessageType.NumIn())
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf("%s must accept exactly 2 arguments, but accepted %d", packMethodName, packProtoMessageType.NumIn()-1)
 	}
 	if !isErrorType(packProtoMessageType.In(2)) {
 		return reflect.Method{}, reflect.Method{}, fmt.Errorf("last argument of %s must be error", packMethodName)

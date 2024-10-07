@@ -8,7 +8,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
@@ -51,34 +50,12 @@ func (api *APIImpl) GetBalance(ctx context.Context, address types.Address, block
 
 // GetCurrencies implements eth_getCurrencies. Returns the balance of all currencies of account for a given address.
 func (api *APIImpl) GetCurrencies(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (map[string]*hexutil.Big, error) {
-	shardId := address.ShardId()
-	if err := api.checkShard(shardId); err != nil {
-		return nil, err
-	}
-
-	tx, err := api.db.CreateRoTx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open tx to find account: %w", err)
-	}
-	defer tx.Rollback()
-
-	acc, err := api.getSmartContract(tx, address, blockNrOrHash)
-	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	currencyReader := execution.NewDbCurrencyTrieReader(tx, shardId)
-	currencyReader.SetRootHash(acc.CurrencyRoot)
-	entries, err := currencyReader.Entries()
+	currencies, err := api.rawapi.GetCurrencies(ctx, address, toBlockReference(blockNrOrHash))
 	if err != nil {
 		return nil, err
 	}
-
-	return common.SliceToMap(entries, func(_ int, kv execution.Entry[types.CurrencyId, *types.Value]) (string, *hexutil.Big) {
-		return hexutil.ToHexNoLeadingZeroes(kv.Key[:]), hexutil.NewBig(kv.Val.ToBig())
+	return common.TransformMap(currencies, func(k types.CurrencyId, v types.Value) (string, *hexutil.Big) {
+		return hexutil.ToHexNoLeadingZeroes(k[:]), hexutil.NewBig(v.ToBig())
 	}), nil
 }
 
@@ -118,30 +95,8 @@ func (api *APIImpl) GetTransactionCount(ctx context.Context, address types.Addre
 
 // GetCode implements eth_getCode. Returns the byte code at a given address (if it's a smart contract).
 func (api *APIImpl) GetCode(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error) {
-	shardId := address.ShardId()
-	if err := api.checkShard(shardId); err != nil {
-		return nil, err
-	}
-
-	tx, err := api.db.CreateRoTx(ctx)
+	code, err := api.rawapi.GetCode(ctx, address, toBlockReference(blockNrOrHash))
 	if err != nil {
-		return nil, fmt.Errorf("cannot open tx to find account: %w", err)
-	}
-	defer tx.Rollback()
-
-	acc, err := api.getSmartContract(tx, address, blockNrOrHash)
-	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	code, err := db.ReadCode(tx, shardId, acc.CodeHash)
-	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			return nil, nil
-		}
 		return nil, err
 	}
 	return hexutil.Bytes(code), nil
