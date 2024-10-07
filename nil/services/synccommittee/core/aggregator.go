@@ -80,19 +80,6 @@ func (agg *Aggregator) createProofTask(ctx context.Context, blockForProof *jsonr
 		agg.logger.Debug().Stringer(logging.FieldShardId, blockForProof.ShardId).Msg("skip create proof tasks for not main shard")
 		return nil
 	}
-	// For testnet we create proofs only for main shard blocks
-	lastProvedBlockNum, err := agg.blockStorage.GetLastProvedBlockNum(ctx, coreTypes.MainShardId)
-	if err != nil {
-		return err
-	}
-	if blockForProof.Number <= lastProvedBlockNum {
-		agg.logger.Debug().
-			Stringer(logging.FieldShardId, coreTypes.MainShardId).
-			Int64("targetBlockNum", int64(blockForProof.Number)).
-			Int64("lastProvedBlockNum", int64(lastProvedBlockNum)).
-			Msg("skip create proof tasks, because the last fetched block already proved")
-		return nil
-	}
 
 	proofProviderTask := types.NewBlockProofTaskEntry(blockForProof.ShardId, blockForProof.Number, blockForProof.Hash)
 	if err := agg.taskStorage.AddSingleTaskEntry(ctx, *proofProviderTask); err != nil {
@@ -191,9 +178,6 @@ func (agg *Aggregator) processShardBlocks(ctx context.Context, shardId coreTypes
 			return fmt.Errorf("error fetching block %d from shard %d: %w", latestBlockNum-1, shardId, err)
 		}
 		if err = agg.blockStorage.SetBlock(ctx, shardId, block.Number, block); err != nil {
-			return err
-		}
-		if err = agg.blockStorage.SetLastProvedBlockNum(ctx, shardId, latestBlockNum-1); err != nil {
 			return err
 		}
 		if err = agg.fetchAndProcessBlocks(ctx, shardId, latestBlockNum, latestBlockNum); err != nil {

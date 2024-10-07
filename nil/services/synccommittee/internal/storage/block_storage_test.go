@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -65,40 +66,20 @@ func (s *BlockStorageTestSuite) TestGetLastFetchedBlock() {
 	s.Require().Equal(block2.Number, lastFetchedNum)
 }
 
-func (s *BlockStorageTestSuite) TestGetSetLastProvedBlockNum() {
-	shardId := types.ShardId(1)
-	blockNum := types.BlockNumber(100)
+func (s *BlockStorageTestSuite) TestSetBlockAsProved() {
+	hash := testaide.GenerateRandomBlockHash()
 
-	err := s.bs.SetLastProvedBlockNum(s.ctx, shardId, blockNum)
-	s.Require().NoError(err)
-	lastProved, err := s.bs.GetLastProvedBlockNum(s.ctx, shardId)
-	s.Require().NoError(err)
-	s.Require().Equal(blockNum, lastProved)
-}
-
-func (s *BlockStorageTestSuite) TestCleanupStorage() {
-	const shardId = types.ShardId(1)
-	const totalBlocks = 10
-	for i := range types.BlockNumber(totalBlocks) {
-		err := s.bs.SetBlock(s.ctx, shardId, i, &jsonrpc.RPCBlock{Number: i})
+	for _, block := range []*jsonrpc.RPCBlock{
+		{Number: 10, Hash: hash},
+		{Number: 11, Hash: testaide.GenerateRandomBlockHash()},
+		{Number: 12, Hash: testaide.GenerateRandomBlockHash()},
+	} {
+		err := s.bs.SetBlock(s.ctx, types.MainShardId, block.Number, block)
 		s.Require().NoError(err)
 	}
 
-	const lastProvedBlkNum = 5
-	err := s.bs.SetLastProvedBlockNum(s.ctx, shardId, lastProvedBlkNum)
+	err := s.bs.SetBlockAsProved(s.ctx, hash)
 	s.Require().NoError(err)
-	err = s.bs.CleanupStorage(s.ctx)
-	s.Require().NoError(err)
-
-	for blkNum := range types.BlockNumber(totalBlocks) {
-		block, err := s.bs.GetBlock(s.ctx, shardId, blkNum)
-		s.Require().NoError(err)
-		if blkNum < 5 && block != nil {
-			s.Failf("Block left after cleanup", "blkNum: %d", blkNum)
-		} else if blkNum >= 5 && block == nil {
-			s.Failf("Block should not have been cleaned up, but it doesn't exist", "blkNum: %d", blkNum)
-		}
-	}
 }
 
 func TestBlockStorageTestSuite(t *testing.T) {

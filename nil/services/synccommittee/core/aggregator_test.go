@@ -154,11 +154,6 @@ func (s *AggregatorTestSuite) TestValidateAndProcessBlock() {
 		s.Require().NoError(err)
 		s.Require().NotNil(block)
 
-		// In common execution flow this is called at processShardBlocks now, but we need to add
-		// fetching the last proved block from chain
-		err = s.aggregator.blockStorage.SetLastProvedBlockNum(s.ctx, shardId, block.Number-1)
-		s.Require().NoError(err)
-
 		// Validate and store the block
 		err = s.aggregator.validateAndProcessBlock(context.Background(), block)
 		s.Require().NoError(err)
