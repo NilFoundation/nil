@@ -1,6 +1,6 @@
 # Handling async execution
 
-To support [**cross-shard communication**](principles.mdx#cross-shard-communication), =nil; supports smart contracts making async calls to one another directly in Solidity code.
+To support [**cross-shard communication**](../../specification/principles.mdx#cross-shard-communication), =nil; supports smart contracts making async calls to one another directly in Solidity code.
 
 This tutorial provides a brief theoretical and practical primer on async execution, and gives suggestions on how this feature can be integrated into an application.
 
@@ -62,6 +62,12 @@ The processing of sending a request message using `awaitCall` and receiving a re
 
 :::
 
+:::info
+
+As its second argument, `awaitCall()` accepts the amount of gas that will be reserved instantly and will later be used to process the received response.
+
+:::
+
 ## Examples
 
 Consider two contracts deployed on two different shards in =nil;:
@@ -97,19 +103,9 @@ When using `sendRequest()`, the contract can continue execution without having t
 
 :::
 
-:::tip
+:::info
 
-The `sendRequest()` also has an additional signature that allows for sending custom currencies to contracts while performing requests:
-
-```solidity showLineNumbers
-function sendRequestWithTokens(
-      address dst,
-      uint256 value,
-      Token[] memory tokens,
-      bytes memory context,
-      bytes memory callData
-  ) internal {}
-```
+As its third argument, `sendRequest()` accepts the amount of gas that will be reserved instantly and will later be used to process the execution of the callback function.
 
 :::
 
