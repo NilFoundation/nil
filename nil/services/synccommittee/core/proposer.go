@@ -14,9 +14,9 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 	"github.com/rs/zerolog"
@@ -71,7 +71,7 @@ const abiLatestProvedStateRootJson = `
 ]`
 
 type Proposer interface {
-	SendProof(ctx context.Context, provedStateRoot, newStateRoot common.Hash, transactions []*storage.PrunedTransaction) error
+	SendProof(ctx context.Context, provedStateRoot, newStateRoot common.Hash, transactions *[]types.PrunedTransaction) error
 }
 
 type proposerImpl struct {
@@ -225,7 +225,7 @@ func getCurrentNonce(selfAddress string, client *rpc.Client) (uint64, error) {
 	return (uint64)(nonceValue), nil
 }
 
-func (p *proposerImpl) createUpdateStateTransaction(provedStateRoot, newStateRoot common.Hash) (*types.Transaction, error) {
+func (p *proposerImpl) createUpdateStateTransaction(provedStateRoot, newStateRoot common.Hash) (*ethTypes.Transaction, error) {
 	if provedStateRoot.Empty() || newStateRoot.Empty() {
 		return nil, fmt.Errorf("empty hash for state update transaction %d", p.seqno.Load())
 	}
@@ -242,7 +242,7 @@ func (p *proposerImpl) createUpdateStateTransaction(provedStateRoot, newStateRoo
 	}
 
 	L1ContractAddress := ethcommon.HexToAddress(p.contractAddress)
-	transaction := types.NewTx(&types.DynamicFeeTx{
+	transaction := ethTypes.NewTx(&ethTypes.DynamicFeeTx{
 		ChainID:   p.chainId,
 		Nonce:     p.seqno.Load(),
 		GasTipCap: big.NewInt(MaxPriorityFeePerGas),
@@ -258,7 +258,7 @@ func (p *proposerImpl) createUpdateStateTransaction(provedStateRoot, newStateRoo
 		return nil, fmt.Errorf("failed to encode private key %w", err)
 	}
 
-	signedTx, err := types.SignTx(transaction, types.NewCancunSigner(p.chainId), privateKey)
+	signedTx, err := ethTypes.SignTx(transaction, ethTypes.NewCancunSigner(p.chainId), privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign transaction %w", err)
 	}
@@ -266,7 +266,7 @@ func (p *proposerImpl) createUpdateStateTransaction(provedStateRoot, newStateRoo
 	return signedTx, nil
 }
 
-func (p *proposerImpl) encodeTransaction(transaction *types.Transaction) (string, error) {
+func (p *proposerImpl) encodeTransaction(transaction *ethTypes.Transaction) (string, error) {
 	encodedTransaction, err := transaction.MarshalBinary()
 	if err != nil {
 		return "", fmt.Errorf("failed to encode StateUpdateTransaction: %w", err)
@@ -275,8 +275,8 @@ func (p *proposerImpl) encodeTransaction(transaction *types.Transaction) (string
 	return hexutil.Encode(encodedTransaction), nil
 }
 
-func (p *proposerImpl) SendProof(ctx context.Context, provedStateRoot, newStateRoot common.Hash, transactions []*storage.PrunedTransaction) error {
-	p.logger.Debug().Int64("seqno", int64(p.seqno.Load())).Int64("transactionsCount", int64(len(transactions))).Msg("skip processing transactions")
+func (p *proposerImpl) SendProof(ctx context.Context, provedStateRoot, newStateRoot common.Hash, transactions *[]types.PrunedTransaction) error {
+	p.logger.Debug().Int64("seqno", int64(p.seqno.Load())).Int64("transactionsCount", int64(len(*transactions))).Msg("skip processing transactions")
 
 	signedTx, err := p.createUpdateStateTransaction(provedStateRoot, newStateRoot)
 	if err != nil {

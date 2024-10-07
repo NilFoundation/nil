@@ -6,16 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 )
 
 const (
-	BlockTableName       db.TableName = "blocks"
-	LastFetchedTableName db.TableName = "last_fetched"
-	LastProvedTableName  db.TableName = "last_proved"
+	blockTableName       db.TableName = "blocks"
+	lastFetchedTableName db.TableName = "last_fetched"
+	lastProvedTableName  db.TableName = "last_proved"
 )
 
 type BlockStorage interface {
@@ -29,24 +28,11 @@ type BlockStorage interface {
 
 	SetLastProvedBlockNum(ctx context.Context, shardId types.ShardId, blockNum types.BlockNumber) error
 
-	GetBlocksRange(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber) ([]*jsonrpc.RPCBlock, error)
-
-	GetTransactionsByBlocksRange(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber) ([]*PrunedTransaction, error)
-
 	CleanupStorage(ctx context.Context) error
 }
 
 type blockStorage struct {
 	db db.DB
-}
-
-type PrunedTransaction struct {
-	flags types.MessageFlags
-	seqno hexutil.Uint64
-	from  types.Address
-	to    types.Address
-	value types.Value
-	data  hexutil.Bytes
 }
 
 func NewBlockStorage(database db.DB) BlockStorage {
@@ -63,7 +49,7 @@ func (bs *blockStorage) GetBlock(ctx context.Context, shardId types.ShardId, blo
 	defer tx.Rollback()
 
 	key := makeBlockKey(shardId, blockNumber)
-	value, err := tx.Get(BlockTableName, key)
+	value, err := tx.Get(blockTableName, key)
 	if err != nil {
 		if errors.Is(err, db.ErrKeyNotFound) {
 			return nil, nil
@@ -93,7 +79,7 @@ func (bs *blockStorage) SetBlock(ctx context.Context, shardId types.ShardId, blo
 		return err
 	}
 
-	err = tx.Put(BlockTableName, key, value)
+	err = tx.Put(blockTableName, key, value)
 	if err != nil {
 		return err
 	}
@@ -106,7 +92,7 @@ func (bs *blockStorage) SetBlock(ctx context.Context, shardId types.ShardId, blo
 	if errors.Is(err, db.ErrKeyNotFound) || block.Number > lastFetchedBlockNum {
 		blockNumberValue := make([]byte, 8)
 		binary.LittleEndian.PutUint64(blockNumberValue, uint64(blockNumber))
-		if err = tx.Put(LastFetchedTableName, makeShardKey(shardId), blockNumberValue); err != nil {
+		if err = tx.Put(lastFetchedTableName, makeShardKey(shardId), blockNumberValue); err != nil {
 			return err
 		}
 	}
@@ -130,7 +116,7 @@ func (bs *blockStorage) GetLastFetchedBlockNum(ctx context.Context, shardId type
 }
 
 func (bs *blockStorage) getLastFetchedBlockNumTx(tx db.RoTx, shardId types.ShardId) (types.BlockNumber, error) {
-	value, err := tx.Get(LastFetchedTableName, makeShardKey(shardId))
+	value, err := tx.Get(lastFetchedTableName, makeShardKey(shardId))
 	if err != nil {
 		return 0, err
 	}
@@ -145,7 +131,7 @@ func (bs *blockStorage) GetLastProvedBlockNum(ctx context.Context, shardId types
 	}
 	defer tx.Rollback()
 
-	value, err := tx.Get(LastProvedTableName, makeShardKey(shardId))
+	value, err := tx.Get(lastProvedTableName, makeShardKey(shardId))
 	if err != nil {
 		return 0, err
 	}
@@ -163,7 +149,7 @@ func (bs *blockStorage) SetLastProvedBlockNum(ctx context.Context, shardId types
 	value := make([]byte, 8)
 	binary.LittleEndian.PutUint64(value, uint64(blockNum))
 
-	err = tx.Put(LastProvedTableName, makeShardKey(shardId), value)
+	err = tx.Put(lastProvedTableName, makeShardKey(shardId), value)
 	if err != nil {
 		return err
 	}
@@ -171,14 +157,14 @@ func (bs *blockStorage) SetLastProvedBlockNum(ctx context.Context, shardId types
 	return tx.Commit()
 }
 
-func (bs *blockStorage) GetBlocksRange(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber) ([]*jsonrpc.RPCBlock, error) {
+func (bs *blockStorage) getBlocksRange(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber) ([]*jsonrpc.RPCBlock, error) {
 	tx, err := bs.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	iter, err := tx.Range(BlockTableName, makeBlockKey(shardId, from), makeBlockKey(shardId, to-1))
+	iter, err := tx.Range(blockTableName, makeBlockKey(shardId, from), makeBlockKey(shardId, to-1))
 	if err != nil {
 		return nil, err
 	}
@@ -206,29 +192,6 @@ func (bs *blockStorage) GetBlocksRange(ctx context.Context, shardId types.ShardI
 	return blocks, nil
 }
 
-func (bs *blockStorage) GetTransactionsByBlocksRange(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber) ([]*PrunedTransaction, error) {
-	blocks, err := bs.GetBlocksRange(ctx, shardId, from, to)
-	if err != nil {
-		return nil, err
-	}
-
-	var transactions []*PrunedTransaction
-	for _, block := range blocks {
-		for _, msg := range block.Messages {
-			t := &PrunedTransaction{
-				flags: msg.Flags,
-				seqno: msg.Seqno,
-				from:  msg.From,
-				to:    msg.To,
-				value: msg.Value,
-				data:  msg.Data,
-			}
-			transactions = append(transactions, t)
-		}
-	}
-	return transactions, nil
-}
-
 func (bs *blockStorage) CleanupStorage(ctx context.Context) error {
 	tx, err := bs.db.CreateRwTx(ctx)
 	if err != nil {
@@ -236,7 +199,7 @@ func (bs *blockStorage) CleanupStorage(ctx context.Context) error {
 	}
 	defer tx.Rollback()
 
-	iter, err := tx.Range(BlockTableName, nil, nil)
+	iter, err := tx.Range(blockTableName, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -255,7 +218,7 @@ func (bs *blockStorage) CleanupStorage(ctx context.Context) error {
 		}
 
 		if blockNum < lastProvedNum {
-			err = tx.Delete(BlockTableName, key)
+			err = tx.Delete(blockTableName, key)
 			if err != nil {
 				return err
 			}

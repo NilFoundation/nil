@@ -76,28 +76,6 @@ func (s *BlockStorageTestSuite) TestGetSetLastProvedBlockNum() {
 	s.Require().Equal(blockNum, lastProved)
 }
 
-func (s *BlockStorageTestSuite) TestGetBlocksRange() {
-	shardId := types.ShardId(1)
-	for i := types.BlockNumber(1); i <= 10; i++ {
-		err := s.bs.SetBlock(s.ctx, shardId, i, &jsonrpc.RPCBlock{Number: i})
-		s.Require().NoError(err)
-	}
-
-	blocks, err := s.bs.GetBlocksRange(s.ctx, shardId, 3, 8)
-	s.Require().NoError(err)
-	s.Require().Len(blocks, 5)
-
-	for i, block := range blocks {
-		expectedNumber := types.BlockNumber(i + 3)
-		s.Require().Equal(expectedNumber, block.Number)
-	}
-
-	// Test empty range
-	emptyBlocks, err := s.bs.GetBlocksRange(s.ctx, shardId, 11, 15)
-	s.Require().NoError(err)
-	s.Require().Empty(emptyBlocks)
-}
-
 func (s *BlockStorageTestSuite) TestCleanupStorage() {
 	const shardId = types.ShardId(1)
 	const totalBlocks = 10

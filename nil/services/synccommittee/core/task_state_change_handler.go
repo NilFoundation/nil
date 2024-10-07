@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	nilTypes "github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -46,13 +47,11 @@ func (h taskStateChangeHandler) OnTaskTerminated(ctx context.Context, task *type
 		return types.ErrBlockProofTaskFailed
 	}
 
-	const shardId = nilTypes.MainShardId
-
-	if err := h.sendProof(ctx, shardId, task.BlockNum); err != nil {
+	if err := h.sendProof(ctx, task.ShardId, task.BlockNum); err != nil {
 		return err
 	}
 
-	if err := h.blockStorage.SetLastProvedBlockNum(ctx, shardId, task.BlockNum); err != nil {
+	if err := h.blockStorage.SetLastProvedBlockNum(ctx, task.ShardId, task.BlockNum); err != nil {
 		return err
 	}
 
@@ -63,7 +62,7 @@ func (h taskStateChangeHandler) OnTaskTerminated(ctx context.Context, task *type
 func (h taskStateChangeHandler) sendProof(
 	ctx context.Context,
 	shardId nilTypes.ShardId,
-	currentProvedBlockNum nilTypes.BlockNumber,
+	blockNumber nilTypes.BlockNumber,
 ) error {
 	lastProvedBlockNum, err := h.blockStorage.GetLastProvedBlockNum(ctx, shardId)
 	if err != nil {
@@ -75,36 +74,54 @@ func (h taskStateChangeHandler) sendProof(
 		return err
 	}
 
-	provedBlock, err := h.blockStorage.GetBlock(ctx, shardId, currentProvedBlockNum)
+	provedBlock, err := h.blockStorage.GetBlock(ctx, shardId, blockNumber)
 	if err != nil {
 		return err
 	}
 
 	if provedBlock == nil {
-		return fmt.Errorf("Can't get proved block %d from shard %d", currentProvedBlockNum, shardId)
+		return fmt.Errorf("can't get proved block %d from shard %d", blockNumber, shardId)
 	}
 
-	var provedStateRoot common.Hash
+	var oldStateRoot common.Hash
 	if lastProvedBlock != nil {
-		provedStateRoot = lastProvedBlock.ChildBlocksRootHash
+		oldStateRoot = lastProvedBlock.ChildBlocksRootHash
 	}
 	newStateRoot := provedBlock.ChildBlocksRootHash
-	transactions, err := h.blockStorage.GetTransactionsByBlocksRange(ctx, shardId, lastProvedBlockNum, currentProvedBlockNum)
-	if err != nil {
-		return err
-	}
+	transactions := extractTransactions(*provedBlock)
 
 	h.logger.Info().
-		Stringer("provedStateRoot", provedStateRoot).
+		Stringer("oldStateRoot", oldStateRoot).
 		Stringer("newStateRoot", newStateRoot).
-		Int64("blocksCount", int64(currentProvedBlockNum-lastProvedBlockNum)).
-		Int64("transactionsCount", int64(len(transactions))).
+		Int64("blocksCount", int64(blockNumber-lastProvedBlockNum)).
+		Int64("transactionsCount", int64(len(*transactions))).
 		Msg("sending proof to the L1")
 
-	err = h.proposer.SendProof(ctx, provedStateRoot, newStateRoot, transactions)
+	err = h.proposer.SendProof(ctx, oldStateRoot, newStateRoot, transactions)
 	if err != nil {
 		return fmt.Errorf("failed to send proof: %w", err)
 	}
 
 	return nil
+}
+
+func extractTransactions(block jsonrpc.RPCBlock) *[]types.PrunedTransaction {
+	var transactions []types.PrunedTransaction
+	for _, message := range block.Messages {
+		rpcInMessage, success := message.(jsonrpc.RPCInMessage)
+		if !success {
+			continue
+		}
+
+		t := types.PrunedTransaction{
+			Flags: rpcInMessage.Flags,
+			Seqno: rpcInMessage.Seqno,
+			From:  rpcInMessage.From,
+			To:    rpcInMessage.To,
+			Value: rpcInMessage.Value,
+			Data:  rpcInMessage.Data,
+		}
+		transactions = append(transactions, t)
+	}
+	return &transactions
 }
