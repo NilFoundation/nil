@@ -69,7 +69,7 @@ func (s *ApiServerTestSuite) SetupTest() {
 
 	protocolInterfaceType := reflect.TypeOf((*testNetworkTransportProtocol)(nil)).Elem()
 	s.api = &testApi{}
-	err := setRawApiRequestHandlers(s.ctx, protocolInterfaceType, s.api, "testapi", s.serverNetworkManager, s.logger)
+	err := setRawApiRequestHandlers(s.ctx, protocolInterfaceType, s.api, types.BaseShardId, "testapi", s.serverNetworkManager, s.logger)
 	s.Require().NoError(err)
 }
 
@@ -107,7 +107,7 @@ func (s *ApiServerTestSuite) TestValidResponse() {
 	}
 
 	request := s.makeValidLatestBlockRequest()
-	response, err := s.clientNetworkManager.SendRequestAndGetResponse(s.ctx, s.serverPeerId, "testapi/TestMethod", request)
+	response, err := s.clientNetworkManager.SendRequestAndGetResponse(s.ctx, s.serverPeerId, "/shard/1/testapi/TestMethod", request)
 	s.Require().NoError(err)
 	s.Require().EqualValues(1, index)
 
@@ -123,7 +123,7 @@ func (s *ApiServerTestSuite) TestNilResponse() {
 	}
 
 	request := s.makeValidLatestBlockRequest()
-	response, err := s.clientNetworkManager.SendRequestAndGetResponse(s.ctx, s.serverPeerId, "testapi/TestMethod", request)
+	response, err := s.clientNetworkManager.SendRequestAndGetResponse(s.ctx, s.serverPeerId, "/shard/1/testapi/TestMethod", request)
 	s.Require().NoError(err)
 
 	var pbResponse pb.RawBlockResponse
@@ -138,7 +138,7 @@ func (s *ApiServerTestSuite) TestInvalidSchemaRequest() {
 		return ssz.SSZEncodedData{}, nil
 	}
 
-	response, err := s.clientNetworkManager.SendRequestAndGetResponse(s.ctx, s.serverPeerId, "testapi/TestMethod", []byte("invalid request"))
+	response, err := s.clientNetworkManager.SendRequestAndGetResponse(s.ctx, s.serverPeerId, "/shard/1/testapi/TestMethod", []byte("invalid request"))
 	s.Require().NoError(err)
 
 	var pbResponse pb.RawBlockResponse
@@ -154,7 +154,7 @@ func (s *ApiServerTestSuite) TestInvalidDataRequest() {
 	}
 
 	request := s.makeInvalidBlockRequest()
-	response, err := s.clientNetworkManager.SendRequestAndGetResponse(s.ctx, s.serverPeerId, "testapi/TestMethod", request)
+	response, err := s.clientNetworkManager.SendRequestAndGetResponse(s.ctx, s.serverPeerId, "/shard/1/testapi/TestMethod", request)
 	s.Require().NoError(err)
 
 	var pbResponse pb.RawBlockResponse
@@ -170,7 +170,7 @@ func (s *ApiServerTestSuite) TestHandlerPanic() {
 	}
 
 	request := s.makeValidLatestBlockRequest()
-	response, err := s.clientNetworkManager.SendRequestAndGetResponse(s.ctx, s.serverPeerId, "testapi/TestMethod", request)
+	response, err := s.clientNetworkManager.SendRequestAndGetResponse(s.ctx, s.serverPeerId, "/shard/1/testapi/TestMethod", request)
 	s.Require().NoError(err)
 
 	s.Require().Empty(response)

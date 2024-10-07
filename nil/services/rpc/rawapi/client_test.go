@@ -39,7 +39,7 @@ func newGeneratedApiClient(networkManager *network.Manager, serverPeerId network
 }
 
 func (api *generatedApiClient) TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	return sendRequestAndGetResponse[ssz.SSZEncodedData](api.apiCodec, api.networkManager, api.serverPeerId, "testapi", "TestMethod", ctx, blockReference)
+	return sendRequestAndGetResponse[ssz.SSZEncodedData](api.apiCodec, api.networkManager, api.serverPeerId, types.BaseShardId, "testapi", "TestMethod", ctx, blockReference)
 }
 
 func (s *ApiClientTestSuite) SetupSuite() {
@@ -60,7 +60,7 @@ func (s *ApiClientTestSuite) doRequest() (ssz.SSZEncodedData, error) {
 
 func (s *ApiClientTestSuite) TestValidResponse() {
 	var index types.MessageIndex
-	s.serverNetworkManager.SetRequestHandler(s.ctx, "testapi/TestMethod", func(ctx context.Context, request []byte) ([]byte, error) {
+	s.serverNetworkManager.SetRequestHandler(s.ctx, "/shard/1/testapi/TestMethod", func(ctx context.Context, request []byte) ([]byte, error) {
 		var blockRequest pb.BlockRequest
 		s.Require().NoError(proto.Unmarshal(request, &blockRequest))
 
@@ -85,7 +85,7 @@ func (s *ApiClientTestSuite) TestValidResponse() {
 
 func (s *ApiClientTestSuite) TestInvalidResponse() {
 	requestHandlerCalled := new(bool)
-	s.serverNetworkManager.SetRequestHandler(s.ctx, "testapi/TestMethod", func(ctx context.Context, request []byte) ([]byte, error) {
+	s.serverNetworkManager.SetRequestHandler(s.ctx, "/shard/1/testapi/TestMethod", func(ctx context.Context, request []byte) ([]byte, error) {
 		*requestHandlerCalled = true
 		return nil, nil
 	})
@@ -96,7 +96,7 @@ func (s *ApiClientTestSuite) TestInvalidResponse() {
 
 func (s *ApiClientTestSuite) TestErrorResponse() {
 	requestHandlerCalled := new(bool)
-	s.serverNetworkManager.SetRequestHandler(s.ctx, "testapi/TestMethod", func(ctx context.Context, request []byte) ([]byte, error) {
+	s.serverNetworkManager.SetRequestHandler(s.ctx, "/shard/1/testapi/TestMethod", func(ctx context.Context, request []byte) ([]byte, error) {
 		*requestHandlerCalled = true
 		response := &pb.RawBlockResponse{
 			Result: &pb.RawBlockResponse_Error{

@@ -26,11 +26,10 @@ type NetworkTransportProtocol interface {
 
 func SetRawApiRequestHandlers(ctx context.Context, shardId types.ShardId, api ShardApi, manager *network.Manager, logger zerolog.Logger) error {
 	protocolInterfaceType := reflect.TypeOf((*NetworkTransportProtocol)(nil)).Elem()
-	prefix := fmt.Sprintf("/shard/%d/rawapi", shardId)
-	return setRawApiRequestHandlers(ctx, protocolInterfaceType, api, prefix, manager, logger)
+	return setRawApiRequestHandlers(ctx, protocolInterfaceType, api, shardId, "rawapi", manager, logger)
 }
 
-func setRawApiRequestHandlers(ctx context.Context, protocolInterfaceType reflect.Type, api interface{}, apiName string, manager *network.Manager, logger zerolog.Logger) error {
+func setRawApiRequestHandlers(ctx context.Context, protocolInterfaceType reflect.Type, api interface{}, shardId types.ShardId, apiName string, manager *network.Manager, logger zerolog.Logger) error {
 	requestHandlers := make(map[network.ProtocolID]network.RequestHandler)
 	codec, err := newApiCodec(reflect.ValueOf(api).Type(), protocolInterfaceType)
 	if err != nil {
@@ -44,8 +43,8 @@ func setRawApiRequestHandlers(ctx context.Context, protocolInterfaceType reflect
 		methodCodec, ok := codec[methodName]
 		check.PanicIfNotf(ok, "Appropriate codec is not found for method %s", methodName)
 
-		name := network.ProtocolID(apiName + "/" + methodName)
-		requestHandlers[name] = makeRequestHandler(apiValue.MethodByName(methodName), methodCodec)
+		protocol := network.ProtocolID(fmt.Sprintf("/shard/%d/%s/%s", shardId, apiName, methodName))
+		requestHandlers[protocol] = makeRequestHandler(apiValue.MethodByName(methodName), methodCodec)
 	}
 	for name, handler := range requestHandlers {
 		manager.SetRequestHandler(ctx, name, handler)

@@ -68,11 +68,10 @@ func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context
 		check.PanicIfNotf(callerMethodName != "", "Method name not found")
 		check.PanicIfNotf(callerMethodName == methodName, "Method name mismatch: %s != %s", callerMethodName, methodName)
 	}
-	protocol := fmt.Sprintf("/shard/%d/rawapi", api.shardId)
-	return sendRequestAndGetResponse[ResponseType](api.codec, api.networkManager, api.serverPeerId, protocol, methodName, ctx, args...)
+	return sendRequestAndGetResponse[ResponseType](api.codec, api.networkManager, api.serverPeerId, api.shardId, "rawapi", methodName, ctx, args...)
 }
 
-func sendRequestAndGetResponse[ResponseType any](apiCodec apiCodec, networkManager *network.Manager, serverPeerId network.PeerID, apiName string, methodName string, ctx context.Context, args ...any) (ResponseType, error) {
+func sendRequestAndGetResponse[ResponseType any](apiCodec apiCodec, networkManager *network.Manager, serverPeerId network.PeerID, shardId types.ShardId, apiName string, methodName string, ctx context.Context, args ...any) (ResponseType, error) {
 	codec, ok := apiCodec[methodName]
 	check.PanicIfNotf(ok, "Codec for method %s not found", methodName)
 
@@ -82,7 +81,8 @@ func sendRequestAndGetResponse[ResponseType any](apiCodec apiCodec, networkManag
 		return response, err
 	}
 
-	responseBody, err := networkManager.SendRequestAndGetResponse(ctx, serverPeerId, network.ProtocolID(apiName+"/"+codec.methodName), requestBody)
+	protocol := network.ProtocolID(fmt.Sprintf("/shard/%d/%s/%s", shardId, apiName, methodName))
+	responseBody, err := networkManager.SendRequestAndGetResponse(ctx, serverPeerId, protocol, requestBody)
 	if err != nil {
 		return response, err
 	}
