@@ -24,27 +24,6 @@ const (
 	MergeProof
 )
 
-func (typeId TaskType) String() string {
-	switch typeId {
-	case ProofBlock:
-		return "ProofBlock"
-	case PartialProve:
-		return "PartialProve"
-	case AggregatedChallenge:
-		return "AggregatedChallenge"
-	case CombinedQ:
-		return "CombinedQ"
-	case AggregatedFRI:
-		return "AggregatedFRI"
-	case FRIConsistencyChecks:
-		return "FRIConsistencyChecks"
-	case MergeProof:
-		return "MergeProof"
-	default:
-		return "UnknownTaskType"
-	}
-}
-
 type CircuitType uint8
 
 const (
@@ -97,35 +76,6 @@ const (
 	LPCConsistencyCheckProof
 	FinalProof
 )
-
-func (resultId ProverResultType) String() string {
-	switch resultId {
-	case PartialProof:
-		return "PartialProof"
-	case CommitmentState:
-		return "CommitmentState"
-	case PartialProofChallenges:
-		return "PartialProofChallenges"
-	case AssignmentTableDescription:
-		return "AssignmentTableDescription"
-	case AggregatedChallenges:
-		return "AggregatedChallenges"
-	case CombinedQPolynomial:
-		return "CombinedQPolynomial"
-	case AggregatedFRIProof:
-		return "AggregatedFRIProof"
-	case ProofOfWork:
-		return "ProofOfWork"
-	case ConsistencyCheckChallenges:
-		return "ConsistencyCheckChallenges"
-	case LPCConsistencyCheckProof:
-		return "LPCConsistencyCheckProof"
-	case FinalProof:
-		return "FinalProof"
-	default:
-		return "UnknownProverResultType"
-	}
-}
 
 type TaskExecutorId uint32
 

@@ -13,7 +13,7 @@ COMMANDS += nild nil nil_load_generator exporter sync_committee proof_provider p
 all: $(COMMANDS)
 
 .PHONY: generated
-generated: ssz pb compile-contracts generate_mocks
+generated: ssz pb compile-contracts generate_mocks synccommittee_types
 
 .PHONY: test
 test: generated
