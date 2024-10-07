@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	blockTableName       db.TableName = "blocks"
-	lastFetchedTableName db.TableName = "last_fetched"
+	blockTableName        db.TableName = "blocks"
+	lastFetchedTableName  db.TableName = "last_fetched"
+	lastProposedTableName db.TableName = "last_proposed"
 )
 
 type blockEntry struct {
@@ -31,6 +32,10 @@ type BlockStorage interface {
 	SetBlockAsProved(ctx context.Context, blockHash common.Hash) error
 
 	GetLastFetchedBlockNum(ctx context.Context, shardId types.ShardId) (types.BlockNumber, error)
+
+	TryGetNextBlockToPropose(ctx context.Context) (*jsonrpc.RPCBlock, error)
+
+	SetBlockAsProposed(ctx context.Context, blockHash common.Hash) error
 }
 
 type blockStorage struct {
@@ -109,31 +114,23 @@ func (bs *blockStorage) SetBlockAsProved(ctx context.Context, blockHash common.H
 	}
 	defer tx.Rollback()
 
-	// todo: refactor after switching to hash-based keys
-	// https://www.notion.so/nilfoundation/Out-of-order-block-number-f549ca82b2db4a0d9ef71bdde5c878b0?pvs=4
-
-	var target *blockEntry
-	err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
-		if entry.Block.Hash != blockHash {
-			return true, nil
-		}
-
-		target = entry
-		return false, nil
-	})
-
+	entry, err := bs.getBlockByHash(tx, blockHash)
 	if err != nil {
 		return err
 	}
 
-	if target == nil {
+	if entry == nil {
 		return fmt.Errorf("block with hash=%s is not found", blockHash.String())
 	}
 
-	target.IsProved = true
-	key := makeBlockKey(target.Block.ShardId, target.Block.Number)
-	value, err := encodeEntry(target)
-	return tx.Put(blockTableName, key, value)
+	entry.IsProved = true
+	key := makeBlockKey(entry.Block.ShardId, entry.Block.Number)
+	value, err := encodeEntry(entry)
+	err = tx.Put(blockTableName, key, value)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (bs *blockStorage) GetLastFetchedBlockNum(ctx context.Context, shardId types.ShardId) (types.BlockNumber, error) {
@@ -149,6 +146,123 @@ func (bs *blockStorage) GetLastFetchedBlockNum(ctx context.Context, shardId type
 	}
 
 	return lastFetchedBlockNum, nil
+}
+
+func (bs *blockStorage) TryGetNextBlockToPropose(ctx context.Context) (*jsonrpc.RPCBlock, error) {
+	tx, err := bs.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	lastProposedBlockHash, err := bs.getLastProposedBlockHash(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	if lastProposedBlockHash != nil {
+		var target *blockEntry
+		err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
+			if isValidProposalCandidate(entry, lastProposedBlockHash) {
+				target = entry
+				return false, nil
+			}
+			return true, nil
+		})
+		return &target.Block, err
+	}
+
+	// todo: scan proved blocks
+	return nil, nil
+}
+
+func isValidProposalCandidate(entry *blockEntry, lastProposedBlockHash *common.Hash) bool {
+	return entry.Block.ShardId == types.MainShardId &&
+		entry.IsProved &&
+		entry.Block.ParentHash == *lastProposedBlockHash
+}
+
+func (bs *blockStorage) getLastProposedBlockHash(tx db.RoTx) (*common.Hash, error) {
+	hashBytes, err := tx.Get(lastProposedTableName, makeShardKey(types.MainShardId))
+
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	hash := common.BytesToHash(hashBytes)
+	return &hash, nil
+}
+
+func (bs *blockStorage) SetBlockAsProposed(ctx context.Context, blockHash common.Hash) error {
+	tx, err := bs.db.CreateRwTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	mainShardEntry, err := bs.getBlockByHash(tx, blockHash)
+	if err != nil {
+		return err
+	}
+
+	if err := bs.validateMainShardEntry(tx, mainShardEntry, blockHash); err != nil {
+		return err
+	}
+
+	err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
+		if entry.Block.MainChainHash != mainShardEntry.Block.Hash {
+			return true, nil
+		}
+
+		err := tx.Delete(blockTableName, makeBlockKey(entry.Block.ShardId, entry.Block.Number))
+		return true, err
+	})
+	if err != nil {
+		return err
+	}
+
+	err = tx.Delete(blockTableName, makeBlockKey(mainShardEntry.Block.ShardId, mainShardEntry.Block.Number))
+	if err != nil {
+		return err
+	}
+
+	err = tx.Put(lastProposedTableName, makeShardKey(types.MainShardId), blockHash.Bytes())
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (bs *blockStorage) validateMainShardEntry(tx db.RwTx, entry *blockEntry, blockHash common.Hash) error {
+	if entry == nil {
+		return fmt.Errorf("block with hash=%s is not found", blockHash.String())
+	}
+
+	if entry.Block.ShardId != types.MainShardId {
+		return fmt.Errorf("block with hash=%s is not from main shard", blockHash.String())
+	}
+
+	if !entry.IsProved {
+		return fmt.Errorf("block with hash=%s is not proved", blockHash.String())
+	}
+
+	lastProposedBlockHash, err := bs.getLastProposedBlockHash(tx)
+	if err != nil {
+		return err
+	}
+	if lastProposedBlockHash != nil && *lastProposedBlockHash != entry.Block.ParentHash {
+		return fmt.Errorf(
+			"last proposed block hash=%s is not equal to the parent's block hash=%s",
+			lastProposedBlockHash.String(),
+			entry.Block.ParentHash.String(),
+		)
+	}
+	return nil
 }
 
 func (bs *blockStorage) getLastFetchedBlockNumTx(tx db.RoTx, shardId types.ShardId) (types.BlockNumber, error) {
@@ -171,6 +285,26 @@ func makeShardKey(shardId types.ShardId) []byte {
 	key := make([]byte, 8)
 	binary.LittleEndian.PutUint64(key, uint64(shardId))
 	return key
+}
+
+func (bs *blockStorage) getBlockByHash(tx db.RoTx, blockHash common.Hash) (*blockEntry, error) {
+	// todo: refactor after switching to hash-based keys
+	// https://www.notion.so/nilfoundation/Out-of-order-block-number-f549ca82b2db4a0d9ef71bdde5c878b0?pvs=4
+
+	var target *blockEntry
+	err := iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
+		if entry.Block.Hash != blockHash {
+			return true, nil
+		}
+
+		target = entry
+		return false, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return target, nil
 }
 
 func iterateOverEntries(tx db.RoTx, action func(entry *blockEntry) (shouldContinue bool, err error)) error {
