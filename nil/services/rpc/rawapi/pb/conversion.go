@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
+	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
 
 // Hash converters
@@ -411,4 +412,26 @@ func (cr *CurrenciesResponse) UnpackProtoMessage() (map[types.CurrencyId]types.V
 		return result, nil
 	}
 	return nil, errors.New("unexpected response type")
+}
+
+func (cr *CallRequest) PackProtoMessage(
+	args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+) error {
+	cr.Args = &CallArgs{}
+	cr.MainBlockNrOrHash = &BlockReference{}
+	cr.StateOverrides = &StateOverrides{}
+	cr.EmptyMessageIsRoot = false
+	return nil
+}
+
+func (cr *CallRequest) UnpackProtoMessage() (rpctypes.CallArgs, rawapitypes.BlockReference, *rpctypes.StateOverrides, bool, error) {
+	return rpctypes.CallArgs{}, rawapitypes.BlockReference{}, &rpctypes.StateOverrides{}, false, nil
+}
+
+func (cr *CallResponse) PackProtoMessage(args *rpctypes.CallResWithGasPrice, err error) error {
+	return nil
+}
+
+func (cr *CallResponse) UnpackProtoMessage() (*rpctypes.CallResWithGasPrice, error) {
+	return nil, nil
 }

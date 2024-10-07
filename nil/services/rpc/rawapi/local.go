@@ -10,6 +10,8 @@ type LocalShardApi struct {
 	db       db.ReadOnlyDB
 	accessor *execution.StateAccessor
 	ShardId  types.ShardId
+
+	nodeApi NodeApi
 }
 
 var _ ShardApi = (*LocalShardApi)(nil)
@@ -24,4 +26,8 @@ func NewLocalShardApi(shardId types.ShardId, db db.ReadOnlyDB) (*LocalShardApi, 
 		accessor: stateAccessor,
 		ShardId:  shardId,
 	}, nil
+}
+
+func (api *LocalShardApi) setNodeApi(nodeApi NodeApi) {
+	api.nodeApi = nodeApi
 }

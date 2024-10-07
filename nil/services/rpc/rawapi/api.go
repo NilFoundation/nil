@@ -6,6 +6,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
+	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
 
 type NodeApi interface {
@@ -16,6 +17,9 @@ type NodeApi interface {
 	GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error)
 	GetCode(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Code, error)
 	GetCurrencies(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (map[types.CurrencyId]types.Value, error)
+	Call(
+		ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+	) (*rpctypes.CallResWithGasPrice, error)
 }
 
 type ShardApi interface {
@@ -26,4 +30,8 @@ type ShardApi interface {
 	GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error)
 	GetCode(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Code, error)
 	GetCurrencies(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (map[types.CurrencyId]types.Value, error)
+
+	Call(
+		ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+	) (*rpctypes.CallResWithGasPrice, error)
 }
