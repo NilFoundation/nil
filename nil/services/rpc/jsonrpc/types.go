@@ -12,7 +12,7 @@ import (
 )
 
 // @component CallArgs callArgs object "The arguments for the message call."
-// @componentprop Flags flags array true "The array of message flags."
+// @componentprop Flags flags string true "The array of message flags."
 // @componentprop From from string false "The address from which the message must be called."
 // @componentprop FeeCredit feeCredit string true "The fee credit for the message."
 // @componentprop Value value integer false "The message value."
@@ -90,7 +90,7 @@ func (args CallArgs) toMessage() (*types.Message, error) {
 // @componentprop Seqno seqno string true "The sequence number of the message."
 // @componentprop Signature signature string true "The message signature."
 // @componentprop Success success boolean true "The flag that shows whether the message was successful."
-// @componentprop Flags flags array true "The array of message flags."
+// @componentprop Flags flags string true "The array of message flags."
 // @componentprop To to string true "The address where the message was sent."
 // @componentprop Value value string true "The message value."
 // @componentprop Currency value array true "Currency values."
