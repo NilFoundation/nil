@@ -71,7 +71,7 @@ func Run(ctx context.Context, fs ...Func) error {
 }
 
 // RunTickerLoop runs a loop that executes a function at regular intervals
-func RunTickerLoop(ctx context.Context, interval time.Duration, onTick func(context.Context)) {
+func RunTickerLoop(ctx context.Context, interval time.Duration, onTick func(context.Context)) error {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -80,7 +80,7 @@ func RunTickerLoop(ctx context.Context, interval time.Duration, onTick func(cont
 		case <-ticker.C:
 			onTick(ctx)
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		}
 	}
 }

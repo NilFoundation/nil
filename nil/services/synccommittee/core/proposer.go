@@ -12,8 +12,11 @@ import (
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -71,41 +74,45 @@ const abiLatestProvedStateRootJson = `
 ]`
 
 type Proposer interface {
-	SendProof(ctx context.Context, provedStateRoot, newStateRoot common.Hash, transactions *[]types.PrunedTransaction) error
+	Run(ctx context.Context) error
+
+	// sendProof(ctx context.Context, provedStateRoot, newStateRoot common.Hash, transactions *[]types.PrunedTransaction) error
 }
 
 type proposerImpl struct {
-	l1EndPoint            string
-	client                *rpc.Client
-	seqno                 atomic.Uint64
-	chainId               *big.Int
-	privKey               string
-	contractAddress       string
-	latestProvedStateRoot common.Hash
-
-	retryRunner common.RetryRunner
-	logger      zerolog.Logger
+	client       *rpc.Client
+	blockStorage storage.BlockStorage
+	seqno        atomic.Uint64
+	chainId      *big.Int
+	privKey      string
+	params       ProposerParams
+	retryRunner  common.RetryRunner
+	logger       zerolog.Logger
 }
 
+const DefaultProposingInterval = 10 * time.Second
+
 type ProposerParams struct {
-	endpoint        string
-	chainId         string
-	privKey         string
-	contractAddress string
-	selfAddress     string
+	endpoint          string
+	chainId           string
+	privKey           string
+	contractAddress   string
+	selfAddress       string
+	proposingInterval time.Duration
 }
 
 func DefaultProposerParams() ProposerParams {
 	return ProposerParams{
-		endpoint:        "http://rpc2.sepolia.org",
-		chainId:         "11155111",
-		privKey:         "0000000000000000000000000000000000000000000000000000000000000001",
-		contractAddress: "0xB8E280a085c87Ed91dd6605480DD2DE9EC3699b4",
-		selfAddress:     "0x7A2f4530b5901AD1547AE892Bafe54c5201D1206",
+		endpoint:          "http://rpc2.sepolia.org",
+		chainId:           "11155111",
+		privKey:           "0000000000000000000000000000000000000000000000000000000000000001",
+		contractAddress:   "0xB8E280a085c87Ed91dd6605480DD2DE9EC3699b4",
+		selfAddress:       "0x7A2f4530b5901AD1547AE892Bafe54c5201D1206",
+		proposingInterval: DefaultProposingInterval,
 	}
 }
 
-func newProposer(params ProposerParams, logger zerolog.Logger) (*proposerImpl, error) {
+func newProposer(params ProposerParams, blockStorage storage.BlockStorage, logger zerolog.Logger) (*proposerImpl, error) {
 	client := rpc.NewClient(params.endpoint, logger)
 
 	chainId, ok := new(big.Int).SetString(params.chainId, 10)
@@ -136,20 +143,87 @@ func newProposer(params ProposerParams, logger zerolog.Logger) (*proposerImpl, e
 	)
 
 	p := proposerImpl{
-		client:                client,
-		l1EndPoint:            params.endpoint,
-		chainId:               chainId,
-		privKey:               params.privKey,
-		contractAddress:       params.contractAddress,
-		latestProvedStateRoot: latestProvedStateRoot,
-		retryRunner:           retryRunner,
-		logger:                logger,
+		client:       client,
+		blockStorage: blockStorage,
+		chainId:      chainId,
+		privKey:      params.privKey,
+		params:       params,
+		retryRunner:  retryRunner,
+		logger:       logger,
 	}
 	p.seqno.Add(nonceValue)
 
 	p.logger.Info().Msgf("\nUse L1 endpoint %v\nChainId %v\nL1Contract address %v\nLatestProvedStateRoot %s\nNonce %d",
 		p.l1EndPoint, params.chainId, p.contractAddress, latestProvedStateRoot, p.seqno.Load())
 	return &p, nil
+}
+
+func (p *proposerImpl) Run(ctx context.Context) error {
+	return concurrent.RunTickerLoop(ctx, p.params.proposingInterval,
+		func(ctx context.Context) {
+			if err := p.proposeNextBlockProof(ctx); err != nil {
+				p.logger.Error().Err(err).Msg("error during proved blocks proposing")
+				return
+			}
+		},
+	)
+}
+
+func (p *proposerImpl) proposeNextBlockProof(ctx context.Context) error {
+	blocksToPropose, err := p.blockStorage.TryGetNextBlocksToPropose(ctx)
+	if err != nil {
+		return fmt.Errorf("failed get next block to propose: %w", err)
+	}
+	if blocksToPropose == nil {
+		p.logger.Debug().Msg("no block to propose")
+		return nil
+	}
+
+	transactions := extractTransactions(blocksToPropose.MainShardBlock)
+	for _, executionShardBlock := range blocksToPropose.ExecutionShardBlocks {
+		transactions = append(transactions, extractTransactions(executionShardBlock)...)
+	}
+
+	p.logger.Debug().Msgf(
+		"proposing block with hash=%s, txCount=%d", blocksToPropose.MainShardBlock.Hash.String(), len(transactions),
+	)
+
+	// todo
+	oldStateRoot := common.Hash{}
+
+	err = p.sendProof(ctx, oldStateRoot, blocksToPropose.MainShardBlock.ChildBlocksRootHash, &transactions)
+	if err != nil {
+		return fmt.Errorf("failed to send proof to L1 for block with hash=%s: %w", blocksToPropose.MainShardBlock.Hash, err)
+	}
+
+	err = p.blockStorage.SetBlockAsProposed(ctx, blocksToPropose.MainShardBlock.Hash)
+	if err != nil {
+		return fmt.Errorf(
+			"failed set block with hash=%s as proposed: %w", blocksToPropose.MainShardBlock.Hash, err,
+		)
+	}
+	return nil
+}
+
+func extractTransactions(block jsonrpc.RPCBlock) []types.PrunedTransaction {
+	var transactions []types.PrunedTransaction
+	for _, message := range block.Messages {
+		rpcInMessage, success := message.(jsonrpc.RPCInMessage)
+		if !success {
+			continue
+		}
+
+		t := types.PrunedTransaction{
+			Flags: rpcInMessage.Flags,
+			Seqno: rpcInMessage.Seqno,
+			From:  rpcInMessage.From,
+			To:    rpcInMessage.To,
+			Value: rpcInMessage.Value,
+			Data:  rpcInMessage.Data,
+		}
+		transactions = append(transactions, t)
+	}
+	return transactions
 }
 
 func getLatestProvedStateRoot(selfAddress string, contractAddress string, client *rpc.Client) (common.Hash, error) {
@@ -241,7 +315,7 @@ func (p *proposerImpl) createUpdateStateTransaction(provedStateRoot, newStateRoo
 		return nil, err
 	}
 
-	L1ContractAddress := ethcommon.HexToAddress(p.contractAddress)
+	L1ContractAddress := ethcommon.HexToAddress(p.params.contractAddress)
 	transaction := ethTypes.NewTx(&ethTypes.DynamicFeeTx{
 		ChainID:   p.chainId,
 		Nonce:     p.seqno.Load(),
@@ -275,10 +349,10 @@ func (p *proposerImpl) encodeTransaction(transaction *ethTypes.Transaction) (str
 	return hexutil.Encode(encodedTransaction), nil
 }
 
-func (p *proposerImpl) SendProof(ctx context.Context, provedStateRoot, newStateRoot common.Hash, transactions *[]types.PrunedTransaction) error {
+func (p *proposerImpl) sendProof(ctx context.Context, oldStateRoot, newStateRoot common.Hash, transactions *[]types.PrunedTransaction) error {
 	p.logger.Debug().Int64("seqno", int64(p.seqno.Load())).Int64("transactionsCount", int64(len(*transactions))).Msg("skip processing transactions")
 
-	signedTx, err := p.createUpdateStateTransaction(provedStateRoot, newStateRoot)
+	signedTx, err := p.createUpdateStateTransaction(oldStateRoot, newStateRoot)
 	if err != nil {
 		return fmt.Errorf("failed create StateUpdateTransaction %w", err)
 	}

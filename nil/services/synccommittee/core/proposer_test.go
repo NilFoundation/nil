@@ -9,6 +9,8 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
@@ -21,11 +23,18 @@ const (
 	FunctionSelector = "0x6af78c5c"
 )
 
+func newTestProposer(t *testing.T) *proposerImpl {
+	database, err := db.NewBadgerDbInMemory()
+	require.NoError(t, err)
+	blockStorage := storage.NewBlockStorage(database)
+	proposer, err := newProposer(DefaultProposerParams(), blockStorage, logging.NewLogger("sync_committee_aggregator_test"))
+	return proposer
+}
+
 func TestCreateUpdateStateTransaction(t *testing.T) {
 	t.Parallel()
 
-	p, err := newProposer(DefaultProposerParams(), logging.NewLogger("sync_committee_aggregator_test"))
-	require.NoError(t, err)
+	p := newTestProposer(t)
 
 	provedStateRoot := common.IntToHash(10)
 	newStateRoot := common.IntToHash(11)
@@ -51,12 +60,11 @@ func TestCreateUpdateStateTransaction(t *testing.T) {
 func TestSendProof(t *testing.T) {
 	t.Parallel()
 
-	p, err := newProposer(DefaultProposerParams(), logging.NewLogger("sync_committee_aggregator_test"))
-	require.NoError(t, err)
+	p := newTestProposer(t)
 
 	provedStateRoot := common.IntToHash(10)
 	newStateRoot := common.IntToHash(11)
 	transactions := make([]types.PrunedTransaction, 0)
-	err = p.SendProof(context.Background(), provedStateRoot, newStateRoot, &transactions)
+	err := p.sendProof(context.Background(), provedStateRoot, newStateRoot, &transactions)
 	require.NoError(t, err)
 }

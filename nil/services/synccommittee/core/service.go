@@ -45,8 +45,10 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}
 
-	proposerParams := ProposerParams{cfg.L1Endpoint, cfg.L1ChainId, cfg.PrivateKey, cfg.L1ContractAddress, cfg.SelfAddress}
-	proposer, err := newProposer(proposerParams, logger)
+	proposerParams := ProposerParams{
+		cfg.L1Endpoint, cfg.L1ChainId, cfg.PrivateKey, cfg.L1ContractAddress, cfg.SelfAddress, DefaultProposingInterval,
+	}
+	proposer, err := newProposer(proposerParams, blockStorage, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create proposer: %w", err)
 	}
@@ -108,7 +110,7 @@ func (s *SyncCommittee) Run(ctx context.Context) error {
 func (s *SyncCommittee) processingLoop(ctx context.Context) error {
 	s.logger.Info().Msg("starting sync committee service processing loop")
 
-	concurrent.RunTickerLoop(ctx, s.cfg.PollingDelay,
+	err := concurrent.RunTickerLoop(ctx, s.cfg.PollingDelay,
 		func(ctx context.Context) {
 			if err := s.aggregator.ProcessNewBlocks(ctx); err != nil {
 				s.logger.Error().Err(err).Msg("error during processing new blocks")
@@ -117,6 +119,6 @@ func (s *SyncCommittee) processingLoop(ctx context.Context) error {
 		},
 	)
 
-	s.logger.Info().Msg("sync committee service processing loop stopped")
-	return nil
+	s.logger.Info().Err(err).Msg("sync committee service processing loop stopped")
+	return err
 }
