@@ -32,6 +32,7 @@ func (s *SuiteRpcNode) SetupTest() {
 
 	validatorNetCfg, validatorAddr := network.GenerateConfig(s.T(), 11001)
 	rpcNetCfg, _ := network.GenerateConfig(s.T(), 11002)
+	rpcNetCfg.DHTBootstrapPeers = []string{validatorAddr}
 
 	validatorCfg := &nilservice.Config{
 		NShards: s.shardsNum,

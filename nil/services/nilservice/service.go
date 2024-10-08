@@ -105,7 +105,7 @@ type ServiceInterop struct {
 	MsgPools []msgpool.Pool
 }
 
-func getRawApi(ctx context.Context, cfg *Config, networkManager *network.Manager, database db.DB) (*rawapi.NodeApiOverShardApis, error) {
+func getRawApi(cfg *Config, networkManager *network.Manager, database db.DB) (*rawapi.NodeApiOverShardApis, error) {
 	var err error
 
 	var myShards []uint
@@ -129,7 +129,7 @@ func getRawApi(ctx context.Context, cfg *Config, networkManager *network.Manager
 		if slices.Contains(myShards, uint(shardId)) {
 			shardApis[shardId], err = rawapi.NewLocalShardApi(shardId, database)
 		} else {
-			shardApis[shardId], err = rawapi.NewNetworkRawApiAccessor(ctx, shardId, networkManager, cfg.BootstrapPeer)
+			shardApis[shardId], err = rawapi.NewNetworkRawApiAccessor(shardId, networkManager)
 		}
 		if err != nil {
 			return nil, err
@@ -276,7 +276,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		return nil
 	})
 
-	rawApi, err := getRawApi(ctx, cfg, networkManager, database)
+	rawApi, err := getRawApi(cfg, networkManager, database)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to create raw API")
 		return 1

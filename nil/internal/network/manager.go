@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"slices"
+	"strings"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -105,6 +106,29 @@ func (m *Manager) GetPeersForProtocol(pid protocol.ID) []peer.ID {
 	}
 
 	return peersForProtocol
+}
+
+func (m *Manager) GetPeersForProtocolPrefix(prefix string) []peer.ID {
+	if len(prefix) == 0 || prefix[len(prefix)-1] != '/' {
+		m.logger.Error().Msgf("Invalid protocol prefix: %s. It should be a string ending with '/'", prefix)
+		return nil
+	}
+
+	var peersForProtocolPrefix []peer.ID
+	peers := m.host.Network().Peers()
+
+	for _, p := range peers {
+		supportedProtocols, err := m.host.Peerstore().GetProtocols(p)
+		if err == nil && len(supportedProtocols) > 0 {
+			for _, sp := range supportedProtocols {
+				if strings.HasPrefix(string(sp), prefix) {
+					peersForProtocolPrefix = append(peersForProtocolPrefix, p)
+					break
+				}
+			}
+		}
+	}
+	return peersForProtocolPrefix
 }
 
 func (m *Manager) Connect(ctx context.Context, addr string) (PeerID, error) {
