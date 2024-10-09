@@ -3,11 +3,11 @@
 	"private": true,
 	"version": "1.0.0",
 	"workspaces": [
+    "smart-contracts",
 		"niljs",
 		"hardhat-plugin",
 		"hardhat-examples",
-		"docs",
-		"smart-contracts"
+		"docs"
 	],
 	"scripts": {
 		"lint": "npm run lint --workspaces --if-present",
