@@ -5,6 +5,7 @@ tests/__debug*
 .idea
 .vscode
 test.db
+cometa.db
 result
 deb-package-nil
 clickhouse

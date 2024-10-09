@@ -120,6 +120,7 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 							bt.printf("success: %t\n", receipt.Success)
 							if !receipt.Success {
 								bt.printf("status: %s\n", receipt.Status.String())
+								bt.printf("pc: %d\n", receipt.FailedPc)
 							}
 							bt.printf("gas_used: %d\n", receipt.GasUsed)
 							bt.printf("msg_hash: %s\n", receipt.MsgHash.Hex())
