@@ -12,18 +12,15 @@ import (
 )
 
 type taskStateChangeHandler struct {
-	proposer     Proposer
 	blockStorage storage.BlockStorage
 	logger       zerolog.Logger
 }
 
 func newTaskStateChangeHandler(
-	proposer Proposer,
 	blockStorage storage.BlockStorage,
 	logger zerolog.Logger,
 ) api.TaskStateChangeHandler {
 	return &taskStateChangeHandler{
-		proposer:     proposer,
 		blockStorage: blockStorage,
 		logger:       logger,
 	}

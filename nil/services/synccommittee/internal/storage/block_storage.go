@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
@@ -27,10 +28,20 @@ type blockEntry struct {
 	IsProved bool
 }
 
+type PrunedTransaction struct {
+	Flags types.MessageFlags
+	Seqno hexutil.Uint64
+	From  types.Address
+	To    types.Address
+	Value types.Value
+	Data  hexutil.Bytes
+}
+
 type ProposalData struct {
-	MainShardBlock         jsonrpc.RPCBlock
-	ExecutionShardBlocks   []jsonrpc.RPCBlock
-	CurrentProvedStateRoot common.Hash
+	MainShardBlockHash common.Hash
+	Transactions       []PrunedTransaction
+	OldProvedStateRoot common.Hash
+	NewProvedStateRoot common.Hash
 }
 
 type BlockStorage interface {
@@ -44,11 +55,11 @@ type BlockStorage interface {
 
 	SetBlockAsProved(ctx context.Context, blockHash common.Hash) error
 
+	SetBlockAsProposed(ctx context.Context, blockHash common.Hash) error
+
 	GetLastFetchedBlockNum(ctx context.Context, shardId types.ShardId) (types.BlockNumber, error)
 
 	TryGetNextProposalData(ctx context.Context) (*ProposalData, error)
-
-	SetBlockAsProposed(ctx context.Context, mainShardBlockHash common.Hash) error
 }
 
 type blockStorage struct {
@@ -208,8 +219,8 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 		return nil, err
 	}
 
+	var mainShardEntry *blockEntry
 	if lastProposedBlockHash != nil {
-		var mainShardEntry *blockEntry
 		err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
 			if isValidProposalCandidate(entry, lastProposedBlockHash) {
 				mainShardEntry = entry
@@ -217,30 +228,57 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 			}
 			return true, nil
 		})
-		if err != nil {
-			return nil, err
-		}
-
-		var executionShardBlocks []jsonrpc.RPCBlock
-		err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
-			if isExecutionShardBlock(entry, *lastProposedBlockHash) {
-				executionShardBlocks = append(executionShardBlocks, entry.Block)
-			}
-			return true, nil
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		return &ProposalData{
-			MainShardBlock:         mainShardEntry.Block,
-			ExecutionShardBlocks:   executionShardBlocks,
-			CurrentProvedStateRoot: *currentProvedStateRoot,
-		}, nil
+	} else {
+		// todo
 	}
 
-	// todo: scan proved blocks
-	return nil, nil
+	if err != nil {
+		return nil, err
+	}
+
+	if mainShardEntry == nil {
+		return nil, nil
+	}
+
+	transactions := extractTransactions(mainShardEntry.Block)
+
+	err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
+		if isExecutionShardBlock(entry, *lastProposedBlockHash) {
+			transactions = append(transactions, extractTransactions(entry.Block)...)
+		}
+		return true, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &ProposalData{
+		MainShardBlockHash: mainShardEntry.Block.Hash,
+		Transactions:       transactions,
+		OldProvedStateRoot: *currentProvedStateRoot,
+		NewProvedStateRoot: mainShardEntry.Block.ChildBlocksRootHash,
+	}, nil
+}
+
+func extractTransactions(block jsonrpc.RPCBlock) []PrunedTransaction {
+	var transactions []PrunedTransaction
+	for _, message := range block.Messages {
+		rpcInMessage, success := message.(jsonrpc.RPCInMessage)
+		if !success {
+			continue
+		}
+
+		t := PrunedTransaction{
+			Flags: rpcInMessage.Flags,
+			Seqno: rpcInMessage.Seqno,
+			From:  rpcInMessage.From,
+			To:    rpcInMessage.To,
+			Value: rpcInMessage.Value,
+			Data:  rpcInMessage.Data,
+		}
+		transactions = append(transactions, t)
+	}
+	return transactions
 }
 
 func isValidProposalCandidate(entry *blockEntry, lastProposedBlockHash *common.Hash) bool {
@@ -277,24 +315,24 @@ func (bs *blockStorage) getLastProposedBlockHash(tx db.RoTx) (*common.Hash, erro
 	return &hash, nil
 }
 
-func (bs *blockStorage) SetBlockAsProposed(ctx context.Context, mainShardBlockHash common.Hash) error {
+func (bs *blockStorage) SetBlockAsProposed(ctx context.Context, blockHash common.Hash) error {
 	tx, err := bs.db.CreateRwTx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	mainShardEntry, err := bs.getBlockByHash(tx, mainShardBlockHash)
+	mainShardEntry, err := bs.getBlockByHash(tx, blockHash)
 	if err != nil {
 		return err
 	}
 
-	if err := bs.validateMainShardEntry(tx, mainShardEntry, mainShardBlockHash); err != nil {
+	if err := bs.validateMainShardEntry(tx, mainShardEntry, blockHash); err != nil {
 		return err
 	}
 
 	err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
-		if !isExecutionShardBlock(entry, mainShardBlockHash) {
+		if !isExecutionShardBlock(entry, blockHash) {
 			return true, nil
 		}
 
@@ -315,7 +353,7 @@ func (bs *blockStorage) SetBlockAsProposed(ctx context.Context, mainShardBlockHa
 		return err
 	}
 
-	err = tx.Put(lastProposedTableName, mainShardKey, mainShardBlockHash.Bytes())
+	err = tx.Put(lastProposedTableName, mainShardKey, blockHash.Bytes())
 	if err != nil {
 		return err
 	}
@@ -327,7 +365,7 @@ func isExecutionShardBlock(entry *blockEntry, mainShardBlockHash common.Hash) bo
 	return entry.Block.ShardId != types.MainShardId && entry.Block.ParentHash == mainShardBlockHash
 }
 
-func (bs *blockStorage) validateMainShardEntry(tx db.RwTx, entry *blockEntry, blockHash common.Hash) error {
+func (bs *blockStorage) validateMainShardEntry(tx db.RoTx, entry *blockEntry, blockHash common.Hash) error {
 	if entry == nil {
 		return fmt.Errorf("block with hash=%s is not found", blockHash.String())
 	}

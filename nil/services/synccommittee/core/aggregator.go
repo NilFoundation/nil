@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
+	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
@@ -21,6 +23,7 @@ type Aggregator struct {
 	blockStorage storage.BlockStorage
 	taskStorage  storage.TaskStorage
 	metrics      *MetricsHandler
+	pollingDelay time.Duration
 }
 
 func NewAggregator(
@@ -29,6 +32,7 @@ func NewAggregator(
 	taskStorage storage.TaskStorage,
 	logger zerolog.Logger,
 	metrics *MetricsHandler,
+	pollingDelay time.Duration,
 ) (*Aggregator, error) {
 	return &Aggregator{
 		logger:       logger,
@@ -36,7 +40,24 @@ func NewAggregator(
 		blockStorage: blockStorage,
 		taskStorage:  taskStorage,
 		metrics:      metrics,
+		pollingDelay: pollingDelay,
 	}, nil
+}
+
+func (agg *Aggregator) Run(ctx context.Context) error {
+	agg.logger.Info().Msg("starting blocks fetching")
+
+	err := concurrent.RunTickerLoop(ctx, agg.pollingDelay,
+		func(ctx context.Context) {
+			if err := agg.processNewBlocks(ctx); err != nil {
+				agg.logger.Error().Err(err).Msg("error during processing new blocks")
+				return
+			}
+		},
+	)
+
+	agg.logger.Info().Err(err).Msg("blocks fetching stopped")
+	return err
 }
 
 // getShardIdList retrieves the list of all shard IDs, including the main shard.
@@ -134,9 +155,9 @@ func (agg *Aggregator) fetchAndProcessBlocks(ctx context.Context, shardId coreTy
 	return nil
 }
 
-// ProcessNewBlocks fetches and processes new blocks for all shards.
+// processNewBlocks fetches and processes new blocks for all shards.
 // It handles the overall flow of block synchronization and proof creation.
-func (agg *Aggregator) ProcessNewBlocks(ctx context.Context) error {
+func (agg *Aggregator) processNewBlocks(ctx context.Context) error {
 	agg.metrics.StartProcessingMeasurment()
 	defer agg.metrics.EndProcessingMeasurment(ctx)
 

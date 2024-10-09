@@ -17,14 +17,16 @@ import (
 	"github.com/rs/zerolog"
 )
 
+type Worker interface {
+	Run(ctx context.Context) error
+}
+
 type SyncCommittee struct {
-	cfg           *Config
-	database      db.DB
-	logger        zerolog.Logger
-	client        *nilrpc.Client
-	aggregator    *Aggregator
-	taskListener  *rpc.TaskListener
-	taskScheduler scheduler.TaskScheduler
+	cfg      *Config
+	database db.DB
+	logger   zerolog.Logger
+	client   *nilrpc.Client
+	workers  []Worker
 }
 
 func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
@@ -40,7 +42,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	blockStorage := storage.NewBlockStorage(database)
 	taskStorage := storage.NewTaskStorage(database, logger)
 
-	aggregator, err := NewAggregator(client, blockStorage, taskStorage, logger, metrics)
+	aggregator, err := NewAggregator(client, blockStorage, taskStorage, logger, metrics, cfg.PollingDelay)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}
@@ -48,14 +50,14 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	proposerParams := ProposerParams{
 		cfg.L1Endpoint, cfg.L1ChainId, cfg.PrivateKey, cfg.L1ContractAddress, cfg.SelfAddress, DefaultProposingInterval,
 	}
-	proposer, err := newProposer(proposerParams, blockStorage, logger)
+	proposer, err := NewProposer(proposerParams, blockStorage, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create proposer: %w", err)
 	}
 
 	taskScheduler := scheduler.New(
 		taskStorage,
-		newTaskStateChangeHandler(proposer, blockStorage, logger),
+		newTaskStateChangeHandler(blockStorage, logger),
 		logger,
 	)
 
@@ -66,13 +68,11 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	)
 
 	s := &SyncCommittee{
-		cfg:           cfg,
-		database:      database,
-		logger:        logger,
-		client:        client,
-		aggregator:    aggregator,
-		taskListener:  taskListener,
-		taskScheduler: taskScheduler,
+		cfg:      cfg,
+		database: database,
+		logger:   logger,
+		client:   client,
+		workers:  []Worker{proposer, aggregator, taskScheduler, taskListener},
 	}
 
 	return s, nil
@@ -94,10 +94,9 @@ func (s *SyncCommittee) Run(ctx context.Context) error {
 		ctx = signalCtx
 	}
 
-	functions := []concurrent.Func{
-		s.processingLoop,
-		s.taskListener.Run,
-		s.taskScheduler.Run,
+	var functions []concurrent.Func
+	for _, worker := range s.workers {
+		functions = append(functions, worker.Run)
 	}
 
 	if err := concurrent.Run(ctx, functions...); err != nil {
@@ -105,20 +104,4 @@ func (s *SyncCommittee) Run(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (s *SyncCommittee) processingLoop(ctx context.Context) error {
-	s.logger.Info().Msg("starting sync committee service processing loop")
-
-	err := concurrent.RunTickerLoop(ctx, s.cfg.PollingDelay,
-		func(ctx context.Context) {
-			if err := s.aggregator.ProcessNewBlocks(ctx); err != nil {
-				s.logger.Error().Err(err).Msg("error during processing new blocks")
-				return
-			}
-		},
-	)
-
-	s.logger.Info().Err(err).Msg("sync committee service processing loop stopped")
-	return err
 }

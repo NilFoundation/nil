@@ -2,7 +2,6 @@ package core
 
 import (
 	"bytes"
-	"context"
 	"math/big"
 	"testing"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,11 +21,11 @@ const (
 	FunctionSelector = "0x6af78c5c"
 )
 
-func newTestProposer(t *testing.T) *proposerImpl {
+func newTestProposer(t *testing.T) *Proposer {
 	database, err := db.NewBadgerDbInMemory()
 	require.NoError(t, err)
 	blockStorage := storage.NewBlockStorage(database)
-	proposer, err := newProposer(DefaultProposerParams(), blockStorage, logging.NewLogger("sync_committee_aggregator_test"))
+	proposer, err := NewProposer(DefaultProposerParams(), blockStorage, logging.NewLogger("sync_committee_aggregator_test"))
 	return proposer
 }
 
@@ -55,16 +53,4 @@ func TestCreateUpdateStateTransaction(t *testing.T) {
 	assert.True(t, bytes.Contains(updateStateTransaction.Data(), functionSelector))
 	assert.True(t, bytes.Contains(updateStateTransaction.Data(), provedStateRoot.Bytes()))
 	assert.True(t, bytes.Contains(updateStateTransaction.Data(), newStateRoot.Bytes()))
-}
-
-func TestSendProof(t *testing.T) {
-	t.Parallel()
-
-	p := newTestProposer(t)
-
-	provedStateRoot := common.IntToHash(10)
-	newStateRoot := common.IntToHash(11)
-	transactions := make([]types.PrunedTransaction, 0)
-	err := p.sendProof(context.Background(), provedStateRoot, newStateRoot, &transactions)
-	require.NoError(t, err)
 }

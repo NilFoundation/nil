@@ -89,6 +89,7 @@ func (s *AggregatorTestSuite) SetupSuite() {
 		storage.NewTaskStorage(s.scDb, logger),
 		logger,
 		metrics,
+		time.Second,
 	)
 	s.Require().NoError(err)
 }
@@ -106,7 +107,7 @@ func (s *AggregatorTestSuite) SetupTest() {
 }
 
 func (s *AggregatorTestSuite) TestProcessNewBlocks() {
-	err := s.aggregator.ProcessNewBlocks(context.Background())
+	err := s.aggregator.processNewBlocks(context.Background())
 	s.Require().NoError(err)
 
 	// Check if blocks were fetched and stored for each shard

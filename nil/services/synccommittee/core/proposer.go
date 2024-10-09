@@ -15,9 +15,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
-	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -73,18 +71,11 @@ const abiLatestProvedStateRootJson = `
 	}
 ]`
 
-type Proposer interface {
-	Run(ctx context.Context) error
-
-	// sendProof(ctx context.Context, provedStateRoot, newStateRoot common.Hash, transactions *[]types.PrunedTransaction) error
-}
-
-type proposerImpl struct {
+type Proposer struct {
 	client       *rpc.Client
 	blockStorage storage.BlockStorage
 	seqno        atomic.Uint64
 	chainId      *big.Int
-	privKey      string
 	params       ProposerParams
 	retryRunner  common.RetryRunner
 	logger       zerolog.Logger
@@ -112,7 +103,7 @@ func DefaultProposerParams() ProposerParams {
 	}
 }
 
-func newProposer(params ProposerParams, blockStorage storage.BlockStorage, logger zerolog.Logger) (*proposerImpl, error) {
+func NewProposer(params ProposerParams, blockStorage storage.BlockStorage, logger zerolog.Logger) (*Proposer, error) {
 	client := rpc.NewClient(params.endpoint, logger)
 
 	chainId, ok := new(big.Int).SetString(params.chainId, 10)
@@ -134,11 +125,10 @@ func newProposer(params ProposerParams, blockStorage storage.BlockStorage, logge
 		logger,
 	)
 
-	p := proposerImpl{
+	p := Proposer{
 		client:       client,
 		blockStorage: blockStorage,
 		chainId:      chainId,
-		privKey:      params.privKey,
 		params:       params,
 		retryRunner:  retryRunner,
 		logger:       logger,
@@ -150,7 +140,7 @@ func newProposer(params ProposerParams, blockStorage storage.BlockStorage, logge
 	return &p, nil
 }
 
-func (p *proposerImpl) Run(ctx context.Context) error {
+func (p *Proposer) Run(ctx context.Context) error {
 	isInitialized, err := p.blockStorage.ProvedStateRootIsInitialized(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to check if proved state root is initialized: %w", err)
@@ -171,7 +161,7 @@ func (p *proposerImpl) Run(ctx context.Context) error {
 
 	return concurrent.RunTickerLoop(ctx, p.params.proposingInterval,
 		func(ctx context.Context) {
-			if err := p.proposeNextBlockProof(ctx); err != nil {
+			if err := p.proposeNextBlock(ctx); err != nil {
 				p.logger.Error().Err(err).Msg("error during proved blocks proposing")
 				return
 			}
@@ -179,61 +169,29 @@ func (p *proposerImpl) Run(ctx context.Context) error {
 	)
 }
 
-func (p *proposerImpl) proposeNextBlockProof(ctx context.Context) error {
-	proposalData, err := p.blockStorage.TryGetNextProposalData(ctx)
+func (p *Proposer) proposeNextBlock(ctx context.Context) error {
+	data, err := p.blockStorage.TryGetNextProposalData(ctx)
 	if err != nil {
 		return fmt.Errorf("failed get next block to propose: %w", err)
 	}
-	if proposalData == nil {
+	if data == nil {
 		p.logger.Debug().Msg("no block to propose")
 		return nil
 	}
 
-	transactions := extractTransactions(proposalData.MainShardBlock)
-	for _, executionShardBlock := range proposalData.ExecutionShardBlocks {
-		transactions = append(transactions, extractTransactions(executionShardBlock)...)
+	err = p.sendProof(ctx, data)
+	if err != nil {
+		return fmt.Errorf("failed to send proof to L1 for block with hash=%s: %w", data.MainShardBlockHash, err)
 	}
 
-	p.logger.Debug().Msgf(
-		"proposing block with hash=%s, txCount=%d", proposalData.MainShardBlock.Hash.String(), len(transactions),
-	)
-
-	err = p.sendProof(ctx, proposalData.CurrentProvedStateRoot, proposalData.MainShardBlock.ChildBlocksRootHash, &transactions)
+	err = p.blockStorage.SetBlockAsProposed(ctx, data.MainShardBlockHash)
 	if err != nil {
-		return fmt.Errorf("failed to send proof to L1 for block with hash=%s: %w", proposalData.MainShardBlock.Hash, err)
-	}
-
-	err = p.blockStorage.SetBlockAsProposed(ctx, proposalData.MainShardBlock.Hash)
-	if err != nil {
-		return fmt.Errorf(
-			"failed set block with hash=%s as proposed: %w", proposalData.MainShardBlock.Hash, err,
-		)
+		return fmt.Errorf("failed set block with hash=%s as proposed: %w", data.MainShardBlockHash, err)
 	}
 	return nil
 }
 
-func extractTransactions(block jsonrpc.RPCBlock) []types.PrunedTransaction {
-	var transactions []types.PrunedTransaction
-	for _, message := range block.Messages {
-		rpcInMessage, success := message.(jsonrpc.RPCInMessage)
-		if !success {
-			continue
-		}
-
-		t := types.PrunedTransaction{
-			Flags: rpcInMessage.Flags,
-			Seqno: rpcInMessage.Seqno,
-			From:  rpcInMessage.From,
-			To:    rpcInMessage.To,
-			Value: rpcInMessage.Value,
-			Data:  rpcInMessage.Data,
-		}
-		transactions = append(transactions, t)
-	}
-	return transactions
-}
-
-func (p *proposerImpl) getLatestProvedStateRoot(ctx context.Context) (common.Hash, error) {
+func (p *Proposer) getLatestProvedStateRoot(ctx context.Context) (common.Hash, error) {
 	// get finalizedBatchIndex
 	finalizedBatchIndexAbi, err := abi.JSON(strings.NewReader(abiFinalizedBatchIndexJson))
 	if err != nil {
@@ -315,7 +273,7 @@ func getCurrentNonce(selfAddress string, client *rpc.Client) (uint64, error) {
 	return (uint64)(nonceValue), nil
 }
 
-func (p *proposerImpl) createUpdateStateTransaction(provedStateRoot, newStateRoot common.Hash) (*ethTypes.Transaction, error) {
+func (p *Proposer) createUpdateStateTransaction(provedStateRoot, newStateRoot common.Hash) (*ethTypes.Transaction, error) {
 	if provedStateRoot.Empty() || newStateRoot.Empty() {
 		return nil, fmt.Errorf("empty hash for state update transaction %d", p.seqno.Load())
 	}
@@ -343,7 +301,7 @@ func (p *proposerImpl) createUpdateStateTransaction(provedStateRoot, newStateRoo
 		Data:      data,
 	})
 
-	privateKey, err := crypto.HexToECDSA(p.privKey)
+	privateKey, err := crypto.HexToECDSA(p.params.privKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode private key %w", err)
 	}
@@ -356,7 +314,7 @@ func (p *proposerImpl) createUpdateStateTransaction(provedStateRoot, newStateRoo
 	return signedTx, nil
 }
 
-func (p *proposerImpl) encodeTransaction(transaction *ethTypes.Transaction) (string, error) {
+func (p *Proposer) encodeTransaction(transaction *ethTypes.Transaction) (string, error) {
 	encodedTransaction, err := transaction.MarshalBinary()
 	if err != nil {
 		return "", fmt.Errorf("failed to encode StateUpdateTransaction: %w", err)
@@ -365,10 +323,14 @@ func (p *proposerImpl) encodeTransaction(transaction *ethTypes.Transaction) (str
 	return hexutil.Encode(encodedTransaction), nil
 }
 
-func (p *proposerImpl) sendProof(ctx context.Context, oldStateRoot, newStateRoot common.Hash, transactions *[]types.PrunedTransaction) error {
-	p.logger.Debug().Int64("seqno", int64(p.seqno.Load())).Int64("transactionsCount", int64(len(*transactions))).Msg("skip processing transactions")
+func (p *Proposer) sendProof(ctx context.Context, data *storage.ProposalData) error {
+	p.logger.Debug().
+		Str("blockHash", data.MainShardBlockHash.String()).
+		Int64("seqno", int64(p.seqno.Load())).
+		Int("txCount", len(data.Transactions)).
+		Msgf("sending proof to L1")
 
-	signedTx, err := p.createUpdateStateTransaction(oldStateRoot, newStateRoot)
+	signedTx, err := p.createUpdateStateTransaction(data.OldProvedStateRoot, data.NewProvedStateRoot)
 	if err != nil {
 		return fmt.Errorf("failed create StateUpdateTransaction %w", err)
 	}
