@@ -1471,7 +1471,7 @@ func (es *ExecutionState) AddCurrency(addr types.Address, currencyId types.Curre
 	logger.Debug().
 		Stringer("addr", addr).
 		Stringer("amount", amount).
-		Stringer("id", common.Hash(currencyId)).
+		Stringer("id", currencyId).
 		Msg("Add currency")
 
 	acc, err := es.GetAccount(addr)
@@ -1500,7 +1500,7 @@ func (es *ExecutionState) SubCurrency(addr types.Address, currencyId types.Curre
 	logger.Debug().
 		Stringer("addr", addr).
 		Stringer("amount", amount).
-		Stringer("id", common.Hash(currencyId)).
+		Stringer("id", currencyId).
 		Msg("Sub currency")
 
 	acc, err := es.GetAccount(addr)

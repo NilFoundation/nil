@@ -23,12 +23,8 @@ describe("Currency contract", () => {
         const currencyId = await currencyBase.getCurrencyId();
         console.log("Currency ID:", currencyId);
 
-        // Calculate the expected Currency ID manually
-        const expectedCurrencyId = BigInt(currencyBaseAddr.toLowerCase()) & BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
-        console.log("Expected Currency ID:", expectedCurrencyId.toString());
-
         // Compare the expected and actual currency IDs
-        expect(currencyId.toString()).to.equal(expectedCurrencyId.toString());
+        expect(currencyId.toString()).to.equal(currencyBaseAddr.toString());
 
         // Deploy the IncrementerPayable contract
         const { deployedContract: incrementer, contractAddress: incrementerAddr } = await deployNilContract("IncrementerPayable", []);

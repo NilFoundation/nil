@@ -404,7 +404,7 @@ func (cr *CurrenciesResponse) UnpackProtoMessage() (map[types.CurrencyId]types.V
 		data := cr.GetData().Data
 		result := make(map[types.CurrencyId]types.Value, len(data))
 		for k, v := range data {
-			currencyId := types.CurrencyId(common.HexToHash(k))
+			currencyId := types.CurrencyId(types.HexToAddress(k))
 			u256 := v.UnpackProtoMessage()
 			result[currencyId] = types.Value{Uint256: &u256}
 		}

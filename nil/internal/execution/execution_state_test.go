@@ -522,7 +522,8 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 	})
 
 	suite.Run("testCurrencyBalance: success", func() {
-		msg.Data, err = abi.Pack("testCurrencyBalance", types.GenerateRandomAddress(0), big.NewInt(10))
+		msg.Data, err = abi.Pack("testCurrencyBalance", types.GenerateRandomAddress(0),
+			types.CurrencyId(types.HexToAddress("0x0a")))
 		suite.Require().NoError(err)
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())

@@ -74,8 +74,6 @@ const hashMessage2 = await wallet.sendMessage({
 
 await waitTillCompleted(client, 1, hashMessage2);
 
-const n = hexToBigInt(walletAddress);
-
 const tokens = await client.getCurrencies(walletAddress, "latest");
 // biome-ignore lint/nursery/noConsole: <explanation>
 console.log("tokens", tokens);
@@ -92,7 +90,7 @@ const sendHash = await wallet.sendMessage({
   feeCredit: 100_000n * 10n,
   tokens: [
     {
-      id: n,
+      id: walletAddress,
       amount: 100_00n,
     },
   ],

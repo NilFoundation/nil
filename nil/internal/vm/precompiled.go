@@ -293,12 +293,11 @@ func extractCurrencies(arg any) ([]types.CurrencyBalance, error) {
 	currencies := make([]types.CurrencyBalance, slice.Len())
 	for i := range slice.Len() {
 		elem := slice.Index(i)
-		id, ok := elem.FieldByIndex([]int{0}).Interface().(*big.Int)
+		currencyId, ok := elem.FieldByIndex([]int{0}).Interface().(types.Address)
 		if !ok {
-			return nil, errors.New("currencyId is not a big.Int")
+			return nil, errors.New("currencyId is not an Address type")
 		}
-		currencyId, _ := uint256.FromBig(id)
-		currencies[i].Currency = currencyId.Bytes32()
+		currencies[i].Currency = types.CurrencyId(currencyId)
 
 		balanceBig, ok := elem.FieldByIndex([]int{1}).Interface().(*big.Int)
 		if !ok {
@@ -633,7 +632,7 @@ func (c *manageCurrency) Run(state StateDB, input []byte, value *uint256.Int, ca
 	mint, ok := args[1].(bool)
 	check.PanicIfNotf(ok, "manageCurrency failed: `mint` is not a bool: %v", args[1])
 
-	currencyId := types.CurrencyId(caller.Address().Hash())
+	currencyId := types.CurrencyId(caller.Address())
 
 	action := state.AddCurrency
 	if !mint {
@@ -673,8 +672,8 @@ func (a *currencyBalance) Run(state StateDBReadOnly, input []byte, value *uint25
 	}
 
 	// Get `id` argument
-	currencyIdBig, ok := args[0].(*big.Int)
-	check.PanicIfNotf(ok, "currencyBalance failed: currencyId is not a big.Int: %v", args[0])
+	currencyId, ok := args[0].(types.Address)
+	check.PanicIfNotf(ok, "currencyBalance failed: currencyId is not an Address: %v", args[0])
 
 	// Get `addr` argument
 	addr, ok := args[1].(types.Address)
@@ -686,11 +685,8 @@ func (a *currencyBalance) Run(state StateDBReadOnly, input []byte, value *uint25
 		return []byte("currencyBalance failed: cross shard is not allowed"), ErrPrecompileReverted
 	}
 
-	var currencyId types.CurrencyId
-	currencyIdBig.FillBytes(currencyId[:])
-
 	currencies := state.GetCurrencies(addr)
-	r, ok := currencies[currencyId]
+	r, ok := currencies[types.CurrencyId(currencyId)]
 	if ok {
 		b := r.Bytes32()
 		return b[:], nil
@@ -751,13 +747,7 @@ func (c *getMessageTokens) RequiredGas([]byte) uint64 {
 
 func (c *getMessageTokens) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	callerCurrencies := caller.Currency()
-	abiCurrencies := make([]types.CurrencyBalanceAbiCompatible, len(callerCurrencies))
-	for i, c := range callerCurrencies {
-		abiCurrencies[i].Currency = new(big.Int).SetBytes(c.Currency[:])
-		abiCurrencies[i].Balance = c.Balance.ToBig()
-	}
-
-	res, err := getPrecompiledMethod("precompileGetMessageTokens").Outputs.Pack(abiCurrencies)
+	res, err := getPrecompiledMethod("precompileGetMessageTokens").Outputs.Pack(callerCurrencies)
 	if err != nil {
 		return []byte("getMessageTokens failed: cannot pack result"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
 	}

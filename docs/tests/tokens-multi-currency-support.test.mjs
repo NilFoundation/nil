@@ -330,7 +330,7 @@ describe.sequential('tutorial flows Nil.js tests', async () => {
       feeCredit: 5_000_000n,
       tokens: [
         {
-          id: hexToBigInt(walletTwoAddress),
+          id: walletTwoAddress,
           amount: 50_000_000n
         }
       ]

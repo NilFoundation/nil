@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -205,7 +204,7 @@ func ParseCurrencies(params []string) ([]types.CurrencyBalance, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid currency id %s, can't parse hex: %w", curAndBalance[0], err)
 		}
-		currencyId := types.CurrencyId(common.BytesToHash(currencyBytes))
+		currencyId := types.CurrencyId(types.BytesToAddress(currencyBytes))
 		var balance types.Value
 		if err := balance.Set(curAndBalance[1]); err != nil {
 			return nil, fmt.Errorf("invalid balance %s: %w", curAndBalance[1], err)
