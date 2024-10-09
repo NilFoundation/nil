@@ -16,20 +16,28 @@ import (
 const (
 	blockTableName        db.TableName = "blocks"
 	lastFetchedTableName  db.TableName = "last_fetched"
+	stateRootTableName    db.TableName = "state_root"
 	lastProposedTableName db.TableName = "last_proposed"
 )
+
+var mainShardKey = makeShardKey(types.MainShardId)
 
 type blockEntry struct {
 	Block    jsonrpc.RPCBlock
 	IsProved bool
 }
 
-type BlocksToPropose struct {
-	MainShardBlock       jsonrpc.RPCBlock
-	ExecutionShardBlocks []jsonrpc.RPCBlock
+type ProposalData struct {
+	MainShardBlock         jsonrpc.RPCBlock
+	ExecutionShardBlocks   []jsonrpc.RPCBlock
+	CurrentProvedStateRoot common.Hash
 }
 
 type BlockStorage interface {
+	ProvedStateRootIsInitialized(ctx context.Context) (*bool, error)
+
+	SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error
+
 	GetBlock(ctx context.Context, shardId types.ShardId, blockNumber types.BlockNumber) (*jsonrpc.RPCBlock, error)
 
 	SetBlock(ctx context.Context, shardId types.ShardId, blockNumber types.BlockNumber, block *jsonrpc.RPCBlock) error
@@ -38,7 +46,7 @@ type BlockStorage interface {
 
 	GetLastFetchedBlockNum(ctx context.Context, shardId types.ShardId) (types.BlockNumber, error)
 
-	TryGetNextBlocksToPropose(ctx context.Context) (*BlocksToPropose, error)
+	TryGetNextProposalData(ctx context.Context) (*ProposalData, error)
 
 	SetBlockAsProposed(ctx context.Context, mainShardBlockHash common.Hash) error
 }
@@ -51,6 +59,36 @@ func NewBlockStorage(database db.DB) BlockStorage {
 	return &blockStorage{
 		db: database,
 	}
+}
+
+func (bs *blockStorage) ProvedStateRootIsInitialized(ctx context.Context) (*bool, error) {
+	tx, err := bs.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	exists, err := tx.Exists(stateRootTableName, mainShardKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return &exists, nil
+}
+
+func (bs *blockStorage) SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error {
+	tx, err := bs.db.CreateRwTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	err = tx.Put(stateRootTableName, mainShardKey, stateRoot.Bytes())
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (bs *blockStorage) GetBlock(ctx context.Context, shardId types.ShardId, blockNumber types.BlockNumber) (*jsonrpc.RPCBlock, error) {
@@ -153,12 +191,17 @@ func (bs *blockStorage) GetLastFetchedBlockNum(ctx context.Context, shardId type
 	return lastFetchedBlockNum, nil
 }
 
-func (bs *blockStorage) TryGetNextBlocksToPropose(ctx context.Context) (*BlocksToPropose, error) {
+func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalData, error) {
 	tx, err := bs.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
+
+	currentProvedStateRoot, err := bs.getCurrentProvedStateRoot(tx)
+	if err != nil {
+		return nil, err
+	}
 
 	lastProposedBlockHash, err := bs.getLastProposedBlockHash(tx)
 	if err != nil {
@@ -189,9 +232,10 @@ func (bs *blockStorage) TryGetNextBlocksToPropose(ctx context.Context) (*BlocksT
 			return nil, err
 		}
 
-		return &BlocksToPropose{
-			MainShardBlock:       mainShardEntry.Block,
-			ExecutionShardBlocks: executionShardBlocks,
+		return &ProposalData{
+			MainShardBlock:         mainShardEntry.Block,
+			ExecutionShardBlocks:   executionShardBlocks,
+			CurrentProvedStateRoot: *currentProvedStateRoot,
 		}, nil
 	}
 
@@ -205,8 +249,21 @@ func isValidProposalCandidate(entry *blockEntry, lastProposedBlockHash *common.H
 		entry.Block.ParentHash == *lastProposedBlockHash
 }
 
+func (bs *blockStorage) getCurrentProvedStateRoot(tx db.RoTx) (*common.Hash, error) {
+	hashBytes, err := tx.Get(stateRootTableName, mainShardKey)
+	if errors.Is(db.ErrKeyNotFound, err) {
+		return nil, errors.New("proved state root was not initialized")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	hash := common.BytesToHash(hashBytes)
+	return &hash, nil
+}
+
 func (bs *blockStorage) getLastProposedBlockHash(tx db.RoTx) (*common.Hash, error) {
-	hashBytes, err := tx.Get(lastProposedTableName, makeShardKey(types.MainShardId))
+	hashBytes, err := tx.Get(lastProposedTableName, mainShardKey)
 
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return nil, nil
@@ -253,7 +310,12 @@ func (bs *blockStorage) SetBlockAsProposed(ctx context.Context, mainShardBlockHa
 		return err
 	}
 
-	err = tx.Put(lastProposedTableName, makeShardKey(types.MainShardId), mainShardBlockHash.Bytes())
+	err = tx.Put(stateRootTableName, mainShardKey, mainShardEntry.Block.ChildBlocksRootHash.Bytes())
+	if err != nil {
+		return err
+	}
+
+	err = tx.Put(lastProposedTableName, mainShardKey, mainShardBlockHash.Bytes())
 	if err != nil {
 		return err
 	}

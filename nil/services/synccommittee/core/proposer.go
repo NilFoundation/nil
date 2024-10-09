@@ -126,14 +126,6 @@ func newProposer(params ProposerParams, blockStorage storage.BlockStorage, logge
 		logger.Error().Err(err).Msg("failed get current contract nonce, set 0")
 	}
 
-	latestProvedStateRoot, err := getLatestProvedStateRoot(params.selfAddress, params.contractAddress, client)
-	if err != nil {
-		// TODO return error after enable local L1 endpoint
-		logger.Error().Err(err).Msg("failed get current contract state root, set 0")
-	}
-
-	logger.Debug().Int64("seqno", int64(nonceValue)).Msg("initialize proposer, latestProvedStateRoot = " + latestProvedStateRoot.String())
-
 	retryRunner := common.NewRetryRunner(
 		common.RetryConfig{
 			ShouldRetry: common.LimitRetries(5),
@@ -159,6 +151,24 @@ func newProposer(params ProposerParams, blockStorage storage.BlockStorage, logge
 }
 
 func (p *proposerImpl) Run(ctx context.Context) error {
+	isInitialized, err := p.blockStorage.ProvedStateRootIsInitialized(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to check if proved state root is initialized: %w", err)
+	}
+
+	if !*isInitialized {
+		latestProvedStateRoot, err := p.getLatestProvedStateRoot(ctx)
+		if err != nil {
+			// TODO return error after enable local L1 endpoint
+			p.logger.Error().Err(err).Msg("failed get current contract state root, set 0")
+		}
+
+		p.logger.Debug().
+			Uint64("seqno", p.seqno.Load()).
+			Str("latestProvedStateRoot", latestProvedStateRoot.String()).
+			Msg("proposer is initialized")
+	}
+
 	return concurrent.RunTickerLoop(ctx, p.params.proposingInterval,
 		func(ctx context.Context) {
 			if err := p.proposeNextBlockProof(ctx); err != nil {
@@ -170,36 +180,33 @@ func (p *proposerImpl) Run(ctx context.Context) error {
 }
 
 func (p *proposerImpl) proposeNextBlockProof(ctx context.Context) error {
-	blocksToPropose, err := p.blockStorage.TryGetNextBlocksToPropose(ctx)
+	proposalData, err := p.blockStorage.TryGetNextProposalData(ctx)
 	if err != nil {
 		return fmt.Errorf("failed get next block to propose: %w", err)
 	}
-	if blocksToPropose == nil {
+	if proposalData == nil {
 		p.logger.Debug().Msg("no block to propose")
 		return nil
 	}
 
-	transactions := extractTransactions(blocksToPropose.MainShardBlock)
-	for _, executionShardBlock := range blocksToPropose.ExecutionShardBlocks {
+	transactions := extractTransactions(proposalData.MainShardBlock)
+	for _, executionShardBlock := range proposalData.ExecutionShardBlocks {
 		transactions = append(transactions, extractTransactions(executionShardBlock)...)
 	}
 
 	p.logger.Debug().Msgf(
-		"proposing block with hash=%s, txCount=%d", blocksToPropose.MainShardBlock.Hash.String(), len(transactions),
+		"proposing block with hash=%s, txCount=%d", proposalData.MainShardBlock.Hash.String(), len(transactions),
 	)
 
-	// todo
-	oldStateRoot := common.Hash{}
-
-	err = p.sendProof(ctx, oldStateRoot, blocksToPropose.MainShardBlock.ChildBlocksRootHash, &transactions)
+	err = p.sendProof(ctx, proposalData.CurrentProvedStateRoot, proposalData.MainShardBlock.ChildBlocksRootHash, &transactions)
 	if err != nil {
-		return fmt.Errorf("failed to send proof to L1 for block with hash=%s: %w", blocksToPropose.MainShardBlock.Hash, err)
+		return fmt.Errorf("failed to send proof to L1 for block with hash=%s: %w", proposalData.MainShardBlock.Hash, err)
 	}
 
-	err = p.blockStorage.SetBlockAsProposed(ctx, blocksToPropose.MainShardBlock.Hash)
+	err = p.blockStorage.SetBlockAsProposed(ctx, proposalData.MainShardBlock.Hash)
 	if err != nil {
 		return fmt.Errorf(
-			"failed set block with hash=%s as proposed: %w", blocksToPropose.MainShardBlock.Hash, err,
+			"failed set block with hash=%s as proposed: %w", proposalData.MainShardBlock.Hash, err,
 		)
 	}
 	return nil
@@ -226,7 +233,7 @@ func extractTransactions(block jsonrpc.RPCBlock) []types.PrunedTransaction {
 	return transactions
 }
 
-func getLatestProvedStateRoot(selfAddress string, contractAddress string, client *rpc.Client) (common.Hash, error) {
+func (p *proposerImpl) getLatestProvedStateRoot(ctx context.Context) (common.Hash, error) {
 	// get finalizedBatchIndex
 	finalizedBatchIndexAbi, err := abi.JSON(strings.NewReader(abiFinalizedBatchIndexJson))
 	if err != nil {
@@ -240,19 +247,23 @@ func getLatestProvedStateRoot(selfAddress string, contractAddress string, client
 
 	valueStr := hexutil.EncodeBig(big.NewInt(0))
 	msg := make(map[string]string)
-	msg["from"] = selfAddress
-	msg["to"] = contractAddress
+	msg["from"] = p.params.selfAddress
+	msg["to"] = p.params.contractAddress
 	msg["gas"] = "0xc350"
 	msg["gasPrice"] = "0x9184e72a000"
 	msg["value"] = valueStr
 	msg["data"] = hexutil.Encode(finalizedBatchIndexData)
 
-	res, err := client.RawCall("eth_call", msg, "latest")
+	var response json.RawMessage
+	err = p.retryRunner.Do(ctx, func(ctx context.Context) error {
+		response, err = p.client.RawCall("eth_call", msg, "latest")
+		return err
+	})
 	if err != nil {
 		return common.EmptyHash, fmt.Errorf("failed send eth_call for get finalizedBatchIndex: %w", err)
 	}
 	var finalizedBatchIndexStr string
-	if err = json.Unmarshal(res, &finalizedBatchIndexStr); err != nil {
+	if err = json.Unmarshal(response, &finalizedBatchIndexStr); err != nil {
 		return common.EmptyHash, fmt.Errorf("failed unmarshal finalizedBatchIndex: %w", err)
 	}
 
@@ -279,7 +290,12 @@ func getLatestProvedStateRoot(selfAddress string, contractAddress string, client
 	}
 
 	msg["data"] = hexutil.Encode(latestProvedStateRootData)
-	latestProvedStateRoot, err := client.RawCall("eth_call", msg, "latest")
+
+	var latestProvedStateRoot json.RawMessage
+	err = p.retryRunner.Do(ctx, func(ctx context.Context) error {
+		latestProvedStateRoot, err = p.client.RawCall("eth_call", msg, "latest")
+		return err
+	})
 	if err != nil {
 		return common.EmptyHash, fmt.Errorf("failed send eth_call for getting the latest proved state root: %w", err)
 	}
@@ -304,13 +320,13 @@ func (p *proposerImpl) createUpdateStateTransaction(provedStateRoot, newStateRoo
 		return nil, fmt.Errorf("empty hash for state update transaction %d", p.seqno.Load())
 	}
 
-	abi, err := abi.JSON(strings.NewReader(abiJson))
+	abiInterface, err := abi.JSON(strings.NewReader(abiJson))
 	if err != nil {
 		return nil, err
 	}
 
 	proof := make([]byte, 0)
-	data, err := abi.Pack("proofBatch", provedStateRoot, newStateRoot, proof, big.NewInt(0))
+	data, err := abiInterface.Pack("proofBatch", provedStateRoot, newStateRoot, proof, big.NewInt(0))
 	if err != nil {
 		return nil, err
 	}
