@@ -57,18 +57,14 @@ func TestOpcodes(t *testing.T) {
 		require.NoError(t, state.SetBalance(address, types.NewValueFromUint64(1_000_000_000)))
 		code := slices.Clone(codeTemplate)
 
-		for j := range 50 {
+		for range 50 {
 			position := rnd.Int() % len(code)
 			code[position] = byte(rnd.Int() % 256)
 
 			require.NoError(t, state.SetCode(address, code))
 
 			require.NoError(t, state.newVm(true, address, nil))
-			_, _, err := state.evm.Call(
-				vm.AccountRef(address), address, nil, 100000, new(uint256.Int))
-			if err != nil {
-				t.Log("error at iteration", i, j)
-			}
+			_, _, _ = state.evm.Call(vm.AccountRef(address), address, nil, 100000, new(uint256.Int))
 		}
 		_, err := state.Commit(types.BlockNumber(i))
 		require.NoError(t, err)

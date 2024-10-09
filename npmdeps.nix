@@ -15,5 +15,5 @@ in
       ./smart-contracts/package.json
     ];
   };
-  hash = "sha256-td4N88meNuxmm61cTclR9kRrC8Vs59V4E2Aslnrifvs=";
+  hash = "sha256-+ZtRiDJ6WQXbcDC7+h4GVLmKbDTrwvq2Mzxx3OMSVNE=";
 })

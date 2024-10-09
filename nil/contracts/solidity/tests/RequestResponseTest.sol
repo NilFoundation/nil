@@ -189,7 +189,7 @@ contract RequestResponseTest is NilCurrencyBase {
         bytes memory context = abi.encodeWithSelector(this.responseSendCurrency.selector, uint(11111));
         bytes memory callData = abi.encodeWithSignature("get()");
         Nil.Token[] memory tokens = new Nil.Token[](1);
-        uint256 id = uint256(uint160(address(this)));
+        CurrencyId id = CurrencyId.wrap(address(this));
         tokens[0] = Nil.Token(id, amount);
         Nil.sendRequestWithTokens(addr, 0, tokens, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
     }

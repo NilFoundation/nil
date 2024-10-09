@@ -23,7 +23,7 @@ contract PrecompilesTest is NilBase {
         Nil.sendMessage(callData);
     }
 
-    function testCurrencyBalance(address addr, uint currencyId) public view returns(uint) {
+    function testCurrencyBalance(address addr, CurrencyId currencyId) public view returns(uint) {
         return Nil.currencyBalance(addr, currencyId);
     }
 }

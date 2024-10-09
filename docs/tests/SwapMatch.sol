@@ -19,8 +19,8 @@ contract SwapMatch is NilBase {
   struct Swap {
     address firstParty;
     address secondParty;
-    uint256 firstTokenId;
-    uint256 secondTokenId;
+    CurrencyId firstTokenId;
+    CurrencyId secondTokenId;
     uint256 firstTokenExchanged;
     uint256 secondTokenExchanged;
   }
@@ -31,7 +31,7 @@ contract SwapMatch is NilBase {
   struct SwapRequest {
     address initiator;
     Nil.Token token;
-    uint256 secondTokenId;
+    CurrencyId secondTokenId;
     uint256 desiredSecondTokenAmount;
     bool isMatched;
   }
@@ -83,7 +83,7 @@ contract SwapMatch is NilBase {
    */
   function placeSwapRequest(
     uint256 _desiredSecondTokenAmount,
-    uint256 _secondTokenId
+    CurrencyId _secondTokenId
     ) public {
       //Create a new swap request
       SwapRequest memory newSwapRequest = SwapRequest({

@@ -1,3 +1,5 @@
+import type {Address} from "abitype";
+
 /**
  * The structure representing a custom currency.
  *
@@ -5,6 +7,6 @@
  * @typedef {Token}
  */
 export type Token = {
-  id: bigint;
+  id: Address;
   amount: bigint;
 };

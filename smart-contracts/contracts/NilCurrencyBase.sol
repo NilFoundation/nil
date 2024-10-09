@@ -35,8 +35,8 @@ abstract contract NilCurrencyBase is NilBase {
      * @dev Returns the unique identifier of the currency owned by this contract.
      * @return The unique identifier of the currency owned by this contract.
      */
-    function getCurrencyId() public view returns(uint256) {
-        return uint256(uint160(address(this)));
+    function getCurrencyId() public view returns(CurrencyId) {
+        return CurrencyId.wrap(address(this));
     }
 
     /**
@@ -78,7 +78,7 @@ abstract contract NilCurrencyBase is NilBase {
      * It is wrapper over `sendCurrencyInternal` method to provide access to the owner of the account.
      * @param amount The amount of currency to mint.
      */
-    function sendCurrency(address to, uint256 currencyId, uint256 amount) onlyExternal virtual public {
+    function sendCurrency(address to, CurrencyId currencyId, uint256 amount) onlyExternal virtual public {
         sendCurrencyInternal(to, currencyId, amount);
     }
 
@@ -111,7 +111,7 @@ abstract contract NilCurrencyBase is NilBase {
      * @param currencyId ID of the currency to send.
      * @param amount The amount of currency to send.
      */
-    function sendCurrencyInternal(address to, uint256 currencyId, uint256 amount) internal {
+    function sendCurrencyInternal(address to, CurrencyId currencyId, uint256 amount) internal {
         Nil.Token[] memory tokens_ = new Nil.Token[](1);
         tokens_[0] = Nil.Token(currencyId, amount);
         Nil.asyncCallWithTokens(to, address(0), address(0), 0, Nil.FORWARD_REMAINING, false, 0, tokens_, "");
