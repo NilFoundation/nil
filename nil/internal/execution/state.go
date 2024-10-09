@@ -110,6 +110,7 @@ type ExecutionResult struct {
 	FatalError     error
 	CoinsUsed      types.Value
 	CoinsForwarded types.Value
+	DebugInfo      *vm.DebugInfo
 }
 
 func NewExecutionResult() *ExecutionResult {
@@ -149,6 +150,11 @@ func (e *ExecutionResult) SetForwarded(value types.Value) *ExecutionResult {
 
 func (e *ExecutionResult) SetReturnData(data []byte) *ExecutionResult {
 	e.ReturnData = data
+	return e
+}
+
+func (e *ExecutionResult) SetDebugInfo(debugInfo *vm.DebugInfo) *ExecutionResult {
+	e.DebugInfo = debugInfo
 	return e
 }
 
@@ -1146,7 +1152,7 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	return NewExecutionResult().
 		SetMsgErrorOrFatal(es.evmToMessageError(err)).
 		SetUsed((gas - types.Gas(leftOver)).ToValue(es.GasPrice)).
-		SetReturnData(ret)
+		SetReturnData(ret).SetDebugInfo(es.evm.DebugInfo)
 }
 
 // decodeRevertMessage decodes the revert message from the EVM revert data
@@ -1185,6 +1191,10 @@ func (es *ExecutionState) AddReceipt(execResult *ExecutionResult) {
 	}
 	if execResult.Failed() {
 		es.Errors[es.InMessageHash] = execResult.Error
+		if execResult.DebugInfo != nil {
+			check.PanicIfNot(execResult.DebugInfo.Pc <= math.MaxUint32)
+			r.FailedPc = uint32(execResult.DebugInfo.Pc)
+		}
 	}
 	es.Receipts = append(es.Receipts, r)
 }

@@ -13,6 +13,8 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 )
 
+//go:generate go run github.com/matryer/moq -out client_generated_mock.go -rm -stub -with-resets . Client
+
 type BatchRequest interface {
 	GetBlock(shardId types.ShardId, blockId any, fullTx bool) (uint64, error)
 	GetDebugBlock(shardId types.ShardId, blockId any, fullTx bool) (uint64, error)

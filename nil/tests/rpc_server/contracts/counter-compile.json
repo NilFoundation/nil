@@ -1,0 +1,12 @@
+{
+  "contractName": "Counter.sol:Counter",
+  "compilerVersion": "0.8.21",
+  "settings": {
+    "evmVersion": "london"
+  },
+  "sources": {
+    "Counter.sol": {
+      "urls": ["../../contracts/solidity/tests/Counter.sol"]
+    }
+  }
+}

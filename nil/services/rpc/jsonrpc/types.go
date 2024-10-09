@@ -201,6 +201,7 @@ func EncodeRawBlockWithExtractedData(block *types.RawBlockWithExtractedData) (*D
 type RPCReceipt struct {
 	Success         bool               `json:"success"`
 	Status          string             `json:"status"`
+	FailedPc        uint               `json:"failedPc"`
 	IncludedInMain  bool               `json:"includedInMain"`
 	GasUsed         types.Gas          `json:"gasUsed"`
 	Forwarded       types.Value        `json:"forwarded"`
@@ -380,6 +381,7 @@ func NewRPCReceipt(
 	res := &RPCReceipt{
 		Success:         receipt.Success,
 		Status:          receipt.Status.String(),
+		FailedPc:        uint(receipt.FailedPc),
 		GasUsed:         receipt.GasUsed,
 		Forwarded:       receipt.Forwarded,
 		GasPrice:        gasPrice,

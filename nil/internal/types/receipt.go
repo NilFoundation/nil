@@ -15,6 +15,7 @@ type Receipt struct {
 	Logs        []*Log        `json:"logs" ssz-max:"1000"`
 	OutMsgIndex uint32        `json:"outMsgIndex"`
 	OutMsgNum   uint32        `json:"outMsgNum"`
+	FailedPc    uint32        `json:"failedPc"`
 
 	MsgHash         common.Hash `json:"messageHash"`
 	ContractAddress Address     `json:"contractAddress"`

@@ -24,12 +24,15 @@ buildGo123Module rec {
 
   preBuild = ''
     make generated rpcspec
+    export HOME="$TMPDIR"
+    mkdir -p ~/.gsolc-select/artifacts/solc-0.8.21
+    ln -f -s ${solc}/bin/solc ~/.gsolc-select/artifacts/solc-0.8.21/solc-0.8.21
   '';
 
   src = lib.sourceByRegex ./. [ "Makefile" "go.mod" "go.sum" "^nil(/.*)?$" "^smart-contracts(/.*)?$" ];
 
   # to obtain run `nix build` with vendorHash = "";
-  vendorHash = "sha256-LEGg8/SK0Bx45ugZjzUnIjWmqw52E28b+msY5N14LeA=";
+  vendorHash = "sha256-WMPoZfyarAcPCZb8enqFLMDRtgOxQr44zlXE4pKrfbc=";
   hardeningDisable = [ "all" ];
 
   postInstall = ''
@@ -65,5 +68,7 @@ buildGo123Module rec {
     export GOCACHE=/tmp/${vendorHash}/go-cache
     export GOMODCACHE=/tmp/${vendorHash}/go/mod/cache
     chmod -R u+w vendor
+    mkdir -p ~/.solc-select/artifacts/solc-0.8.21
+    ln -f -s ${solc}/bin/solc ~/.solc-select/artifacts/solc-0.8.21/solc-0.8.21
   '';
 }
