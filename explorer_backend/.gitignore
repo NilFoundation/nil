@@ -1,0 +1,15 @@
+*.abi
+*.bin
+*.tvc
+*.boc
+deploy.json
+send.json
+key.json
+*.cpp
+*.log
+*.txt
+*.sqlite
+.env
+.env.*
+
+database.db
