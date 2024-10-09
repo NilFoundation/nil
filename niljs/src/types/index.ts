@@ -7,3 +7,4 @@ export * from "./IDeployData.js";
 export * from "./window.js";
 export * from "./ExternalMessage.js";
 export * from "./Hex.js";
+export * from './Token.js';
