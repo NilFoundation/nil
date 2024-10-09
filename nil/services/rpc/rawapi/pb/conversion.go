@@ -5,6 +5,8 @@ import (
 	"errors"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
@@ -126,31 +128,36 @@ func (br *BlockRequest) PackProtoMessage(blockReference rawapitypes.BlockReferen
 
 // AccountRequest
 
+func (a *Address) UnpackProtoMessage() types.Address {
+	var bytes [20]byte
+	binary.BigEndian.PutUint32(bytes[:4], a.P0)
+	binary.BigEndian.PutUint32(bytes[4:8], a.P1)
+	binary.BigEndian.PutUint32(bytes[8:12], a.P2)
+	binary.BigEndian.PutUint32(bytes[12:16], a.P3)
+	binary.BigEndian.PutUint32(bytes[16:20], a.P4)
+	return types.BytesToAddress(bytes[:])
+}
+
 func (ar *AccountRequest) UnpackProtoMessage() (types.Address, rawapitypes.BlockReference, error) {
 	blockReference, err := ar.BlockReference.UnpackProtoMessage()
 	if err != nil {
 		return types.EmptyAddress, rawapitypes.BlockReference{}, err
 	}
 
-	var bytes [20]byte
-	binary.BigEndian.PutUint32(bytes[:4], ar.Address.P0)
-	binary.BigEndian.PutUint32(bytes[4:8], ar.Address.P1)
-	binary.BigEndian.PutUint32(bytes[8:12], ar.Address.P2)
-	binary.BigEndian.PutUint32(bytes[12:16], ar.Address.P3)
-	binary.BigEndian.PutUint32(bytes[16:20], ar.Address.P4)
+	return ar.Address.UnpackProtoMessage(), blockReference, nil
+}
 
-	return types.BytesToAddress(bytes[:]), blockReference, nil
+func (a *Address) PackProtoMessage(address types.Address) *Address {
+	a.P0 = binary.BigEndian.Uint32(address[:4])
+	a.P1 = binary.BigEndian.Uint32(address[4:8])
+	a.P2 = binary.BigEndian.Uint32(address[8:12])
+	a.P3 = binary.BigEndian.Uint32(address[12:16])
+	a.P4 = binary.BigEndian.Uint32(address[16:20])
+	return a
 }
 
 func (ar *AccountRequest) PackProtoMessage(address types.Address, blockReference rawapitypes.BlockReference) error {
-	ar.Address = &Address{
-		P0: binary.BigEndian.Uint32(address[:4]),
-		P1: binary.BigEndian.Uint32(address[4:8]),
-		P2: binary.BigEndian.Uint32(address[8:12]),
-		P3: binary.BigEndian.Uint32(address[12:16]),
-		P4: binary.BigEndian.Uint32(address[16:20]),
-	}
-
+	ar.Address = new(Address).PackProtoMessage(address)
 	ar.BlockReference = &BlockReference{}
 	return ar.BlockReference.PackProtoMessage(blockReference)
 }
@@ -414,24 +421,252 @@ func (cr *CurrenciesResponse) UnpackProtoMessage() (map[types.CurrencyId]types.V
 	return nil, errors.New("unexpected response type")
 }
 
+func (c *Contract) PackProtoMessage(contract rpctypes.Contract) *Contract {
+	if contract.Seqno != nil {
+		c.Seqno = (*uint64)(contract.Seqno)
+	}
+	if contract.ExtSeqno != nil {
+		c.ExtSeqno = (*uint64)(contract.ExtSeqno)
+	}
+	if contract.Code != nil {
+		c.Code = *contract.Code
+	}
+	if contract.Balance != nil {
+		c.Balance = new(Uint256).PackProtoMessage(*contract.Balance.Uint256)
+	}
+	if contract.State != nil {
+		c.State = make(map[string]*Hash)
+		for k, v := range *contract.State {
+			c.State[k.Hex()] = new(Hash).PackProtoMessage(v)
+		}
+	}
+	if contract.StateDiff != nil {
+		c.StateDiff = make(map[string]*Hash)
+		for k, v := range *contract.StateDiff {
+			c.StateDiff[k.Hex()] = new(Hash).PackProtoMessage(v)
+		}
+	}
+	return c
+}
+
+func (a *CallArgs) PackProtoMessage(args rpctypes.CallArgs) *CallArgs {
+	a.Flags = uint32(args.Flags.Bits)
+	if args.From != nil {
+		a.From = new(Address).PackProtoMessage(*args.From)
+	}
+	a.To = new(Address).PackProtoMessage(args.To)
+	a.FeeCredit = new(Uint256).PackProtoMessage(*args.FeeCredit.Uint256)
+	a.Value = new(Uint256).PackProtoMessage(*args.Value.Uint256)
+	a.Seqno = args.Seqno.Uint64()
+	if args.Data != nil {
+		a.Data = *args.Data
+	}
+	if args.Message != nil {
+		a.Message = *args.Message
+	}
+	a.ChainId = uint64(args.ChainId)
+	return a
+}
+
+func (o *StateOverrides) PackProtoMessage(overrides *rpctypes.StateOverrides) *StateOverrides {
+	if overrides != nil {
+		o.Overrides = make(map[string]*Contract)
+		for k, v := range *overrides {
+			o.Overrides[k.Hex()] = new(Contract).PackProtoMessage(v)
+		}
+	}
+	return o
+}
+
 func (cr *CallRequest) PackProtoMessage(
 	args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
 ) error {
-	cr.Args = &CallArgs{}
+	cr.Args = new(CallArgs).PackProtoMessage(args)
+
 	cr.MainBlockNrOrHash = &BlockReference{}
-	cr.StateOverrides = &StateOverrides{}
-	cr.EmptyMessageIsRoot = false
+	if err := cr.MainBlockNrOrHash.PackProtoMessage(mainBlockNrOrHash); err != nil {
+		return err
+	}
+
+	if overrides != nil {
+		cr.StateOverrides = new(StateOverrides).PackProtoMessage(overrides)
+	}
+
+	cr.EmptyMessageIsRoot = emptyMessageIsRoot
 	return nil
 }
 
+func (cr *CallArgs) UnpackProtoMessage() rpctypes.CallArgs {
+	args := rpctypes.CallArgs{}
+	args.Flags = types.MessageFlags{BitFlags: types.BitFlags[uint8]{Bits: uint8(cr.Flags)}}
+	if cr.From != nil {
+		a := cr.From.UnpackProtoMessage()
+		args.From = &a
+	}
+	args.To = cr.To.UnpackProtoMessage()
+
+	fc := cr.FeeCredit.UnpackProtoMessage()
+	args.FeeCredit = types.Value{Uint256: &fc}
+
+	v := cr.Value.UnpackProtoMessage()
+	args.Value = types.Value{Uint256: &v}
+
+	args.Seqno = types.Seqno(cr.Seqno)
+
+	if cr.Data != nil {
+		args.Data = (*hexutil.Bytes)(&cr.Data)
+	}
+
+	if cr.Message != nil {
+		args.Message = (*hexutil.Bytes)(&cr.Message)
+	}
+
+	args.ChainId = types.ChainId(cr.ChainId)
+	return args
+}
+
+func (cr *Contract) UnpackProtoMessage() rpctypes.Contract {
+	c := rpctypes.Contract{}
+
+	c.Seqno = (*types.Seqno)(cr.Seqno)
+	c.ExtSeqno = (*types.Seqno)(cr.ExtSeqno)
+
+	if len(cr.Code) > 0 {
+		c.Code = (*hexutil.Bytes)(&cr.Code)
+	}
+
+	if cr.Balance != nil {
+		v := cr.Balance.UnpackProtoMessage()
+		c.Balance = &types.Value{Uint256: &v}
+	}
+
+	if len(cr.State) > 0 {
+		m := make(map[common.Hash]common.Hash)
+		for k, v := range cr.State {
+			m[common.HexToHash(k)] = v.UnpackProtoMessage()
+		}
+		c.State = &m
+	}
+
+	if len(cr.StateDiff) > 0 {
+		m := make(map[common.Hash]common.Hash)
+		for k, v := range cr.StateDiff {
+			m[common.HexToHash(k)] = v.UnpackProtoMessage()
+		}
+		c.StateDiff = &m
+	}
+
+	return c
+}
+
+func (cr *StateOverrides) UnpackProtoMessage() *rpctypes.StateOverrides {
+	if cr == nil {
+		return nil
+	}
+
+	args := make(rpctypes.StateOverrides)
+	for k, v := range cr.Overrides {
+		args[types.HexToAddress(k)] = v.UnpackProtoMessage()
+	}
+	return &args
+}
+
 func (cr *CallRequest) UnpackProtoMessage() (rpctypes.CallArgs, rawapitypes.BlockReference, *rpctypes.StateOverrides, bool, error) {
-	return rpctypes.CallArgs{}, rawapitypes.BlockReference{}, &rpctypes.StateOverrides{}, false, nil
+	br, err := cr.MainBlockNrOrHash.UnpackProtoMessage()
+	if err != nil {
+		return rpctypes.CallArgs{}, rawapitypes.BlockReference{}, nil, false, err
+	}
+	return cr.Args.UnpackProtoMessage(), br, cr.StateOverrides.UnpackProtoMessage(), cr.EmptyMessageIsRoot, nil
+}
+
+func (m *OutMessage) PackProtoMessage(msg *rpctypes.OutMessage) *OutMessage {
+	out := &OutMessage{
+		MessageSSZ:  msg.MessageSSZ,
+		ForwardKind: uint64(msg.ForwardKind),
+		Data:        msg.Data,
+		CoinsUsed:   new(Uint256).PackProtoMessage(*msg.CoinsUsed.Uint256),
+		Error:       msg.Error,
+	}
+
+	if len(msg.OutMessages) > 0 {
+		out.OutMessages = make([]*OutMessage, len(msg.OutMessages))
+		for i, outMsg := range msg.OutMessages {
+			out.OutMessages[i] = new(OutMessage).PackProtoMessage(outMsg)
+		}
+	}
+
+	return out
+}
+
+func (m *OutMessage) UnpackProtoMessage() *rpctypes.OutMessage {
+	coinsUsed := m.CoinsUsed.UnpackProtoMessage()
+
+	msg := &rpctypes.OutMessage{
+		MessageSSZ:  m.MessageSSZ,
+		ForwardKind: types.ForwardKind(m.ForwardKind),
+		Data:        m.Data,
+		CoinsUsed:   types.Value{Uint256: &coinsUsed},
+		Error:       m.Error,
+	}
+
+	if len(m.OutMessages) > 0 {
+		msg.OutMessages = make([]*rpctypes.OutMessage, len(m.OutMessages))
+		for i, outMsg := range m.OutMessages {
+			msg.OutMessages[i] = outMsg.UnpackProtoMessage()
+		}
+	}
+	return msg
 }
 
 func (cr *CallResponse) PackProtoMessage(args *rpctypes.CallResWithGasPrice, err error) error {
+	if err != nil {
+		cr.Result = &CallResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+
+	res := &CallResult{}
+	res.Data = args.Data
+	res.CoinsUsed = new(Uint256).PackProtoMessage(*args.CoinsUsed.Uint256)
+
+	res.OutMessages = make([]*OutMessage, len(args.OutMessages))
+	for i, outMsg := range res.OutMessages {
+		res.OutMessages[i] = outMsg.PackProtoMessage(args.OutMessages[i])
+	}
+
+	if len(args.Error) > 0 {
+		res.Error = &Error{Message: args.Error}
+	}
+	if args.StateOverrides != nil {
+		res.StateOverrides = new(StateOverrides).PackProtoMessage(&args.StateOverrides)
+	}
+
+	res.GasPrice = new(Uint256).PackProtoMessage(*args.GasPrice.Uint256)
+
+	cr.Result = &CallResponse_Data{Data: res}
 	return nil
 }
 
 func (cr *CallResponse) UnpackProtoMessage() (*rpctypes.CallResWithGasPrice, error) {
-	return nil, nil
+	if err := cr.GetError(); err != nil {
+		return nil, err.UnpackProtoMessage()
+	}
+
+	data := cr.GetData()
+	check.PanicIfNot(data != nil)
+
+	res := &rpctypes.CallResWithGasPrice{}
+	res.Data = data.Data
+
+	value := data.CoinsUsed.UnpackProtoMessage()
+	res.CoinsUsed = types.Value{Uint256: &value}
+
+	res.OutMessages = make([]*rpctypes.OutMessage, len(data.OutMessages))
+	for i, outMsg := range data.OutMessages {
+		res.OutMessages[i] = outMsg.UnpackProtoMessage()
+	}
+
+	gp := data.GasPrice.UnpackProtoMessage()
+	res.GasPrice = types.Value{Uint256: &gp}
+
+	return res, nil
 }

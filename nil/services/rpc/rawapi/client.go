@@ -68,7 +68,7 @@ func (api *NetworkShardApiAccessor) GetCurrencies(ctx context.Context, address t
 func (api *NetworkShardApiAccessor) Call(
 	ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
 ) (*rpctypes.CallResWithGasPrice, error) {
-	panic("not implemented")
+	return sendRequestAndGetResponseWithCallerMethodName[*rpctypes.CallResWithGasPrice](ctx, api, "Call", args, mainBlockNrOrHash, overrides, emptyMessageIsRoot)
 }
 
 func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkShardApiAccessor, methodName string, args ...any) (ResponseType, error) {

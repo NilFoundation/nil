@@ -178,9 +178,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	}
 
 	switch cfg.RunMode {
-	case NormalRunMode:
-		fallthrough
-	case CollatorsOnlyRunMode:
+	case NormalRunMode, CollatorsOnlyRunMode:
 		collators := createCollators(ctx, cfg, database, networkManager)
 
 		msgPools = make([]msgpool.Pool, cfg.NShards)
