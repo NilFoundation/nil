@@ -71,6 +71,10 @@ func (api *NetworkShardApiAccessor) Call(
 	return sendRequestAndGetResponseWithCallerMethodName[*rpctypes.CallResWithGasPrice](ctx, api, "Call", args, mainBlockNrOrHash, overrides, emptyMessageIsRoot)
 }
 
+func (api *NetworkShardApiAccessor) GetInMessage(ctx context.Context, request rawapitypes.MessageRequest) (*rawapitypes.MessageInfo, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[*rawapitypes.MessageInfo](ctx, api, "GetInMessage", request)
+}
+
 func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkShardApiAccessor, methodName string, args ...any) (ResponseType, error) {
 	if assert.Enable {
 		callerMethodName := extractCallerMethodName(2)

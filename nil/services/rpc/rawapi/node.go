@@ -75,7 +75,7 @@ func (api *NodeApiOverShardApis) GetCode(ctx context.Context, address types.Addr
 func (api *NodeApiOverShardApis) GetCurrencies(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (map[types.CurrencyId]types.Value, error) {
 	shardApi, ok := api.Apis[address.ShardId()]
 	if !ok {
-		return map[types.CurrencyId]types.Value{}, errShardNotFound
+		return nil, errShardNotFound
 	}
 	return shardApi.GetCurrencies(ctx, address, blockReference)
 }
@@ -88,4 +88,12 @@ func (api *NodeApiOverShardApis) Call(
 		return nil, errShardNotFound
 	}
 	return shardApi.Call(ctx, args, mainBlockNrOrHash, overrides, emptyMessageIsRoot)
+}
+
+func (api *NodeApiOverShardApis) GetInMessage(ctx context.Context, shardId types.ShardId, request rawapitypes.MessageRequest) (*rawapitypes.MessageInfo, error) {
+	shardApi, ok := api.Apis[shardId]
+	if !ok {
+		return nil, errShardNotFound
+	}
+	return shardApi.GetInMessage(ctx, request)
 }
