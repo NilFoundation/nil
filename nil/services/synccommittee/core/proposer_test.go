@@ -24,8 +24,9 @@ const (
 func newTestProposer(t *testing.T) *Proposer {
 	database, err := db.NewBadgerDbInMemory()
 	require.NoError(t, err)
-	blockStorage := storage.NewBlockStorage(database)
-	proposer, err := NewProposer(DefaultProposerParams(), blockStorage, logging.NewLogger("sync_committee_aggregator_test"))
+	logger := logging.NewLogger("sync_committee_aggregator_test")
+	blockStorage := storage.NewBlockStorage(database, logger)
+	proposer, err := NewProposer(DefaultProposerParams(), blockStorage, logger)
 	return proposer
 }
 

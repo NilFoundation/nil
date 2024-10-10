@@ -39,7 +39,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	logger.Info().Msgf("Use RPC endpoint %v", cfg.RpcEndpoint)
 	client := nilrpc.NewClient(cfg.RpcEndpoint, logger)
 
-	blockStorage := storage.NewBlockStorage(database)
+	blockStorage := storage.NewBlockStorage(database, logger)
 	taskStorage := storage.NewTaskStorage(database, logger)
 
 	aggregator, err := NewAggregator(client, blockStorage, taskStorage, logger, metrics, cfg.PollingDelay)

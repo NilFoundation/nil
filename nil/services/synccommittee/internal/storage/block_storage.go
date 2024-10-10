@@ -12,13 +12,14 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/rs/zerolog"
 )
 
 const (
-	blockTableName        db.TableName = "blocks"
-	lastFetchedTableName  db.TableName = "last_fetched"
-	stateRootTableName    db.TableName = "state_root"
-	lastProposedTableName db.TableName = "last_proposed"
+	blockTableName               db.TableName = "blocks"
+	lastFetchedTableName         db.TableName = "last_fetched"
+	stateRootTableName           db.TableName = "state_root"
+	nextToProposeParentTableName db.TableName = "next_to_propose_parent_hash"
 )
 
 var mainShardKey = makeShardKey(types.MainShardId)
@@ -49,6 +50,8 @@ type BlockStorage interface {
 
 	SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error
 
+	GetLastFetchedBlockNum(ctx context.Context, shardId types.ShardId) (types.BlockNumber, error)
+
 	GetBlock(ctx context.Context, shardId types.ShardId, blockNumber types.BlockNumber) (*jsonrpc.RPCBlock, error)
 
 	SetBlock(ctx context.Context, shardId types.ShardId, blockNumber types.BlockNumber, block *jsonrpc.RPCBlock) error
@@ -57,18 +60,18 @@ type BlockStorage interface {
 
 	SetBlockAsProposed(ctx context.Context, blockHash common.Hash) error
 
-	GetLastFetchedBlockNum(ctx context.Context, shardId types.ShardId) (types.BlockNumber, error)
-
 	TryGetNextProposalData(ctx context.Context) (*ProposalData, error)
 }
 
 type blockStorage struct {
-	db db.DB
+	db     db.DB
+	logger zerolog.Logger
 }
 
-func NewBlockStorage(database db.DB) BlockStorage {
+func NewBlockStorage(database db.DB, logger zerolog.Logger) BlockStorage {
 	return &blockStorage{
-		db: database,
+		db:     database,
+		logger: logger,
 	}
 }
 
@@ -100,6 +103,21 @@ func (bs *blockStorage) SetProvedStateRoot(ctx context.Context, stateRoot common
 	}
 
 	return tx.Commit()
+}
+
+func (bs *blockStorage) GetLastFetchedBlockNum(ctx context.Context, shardId types.ShardId) (types.BlockNumber, error) {
+	tx, err := bs.db.CreateRoTx(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	lastFetchedBlockNum, err := bs.getLastFetchedBlockNumTx(tx, shardId)
+	if err != nil {
+		return 0, err
+	}
+
+	return lastFetchedBlockNum, nil
 }
 
 func (bs *blockStorage) GetBlock(ctx context.Context, shardId types.ShardId, blockNumber types.BlockNumber) (*jsonrpc.RPCBlock, error) {
@@ -145,6 +163,11 @@ func (bs *blockStorage) SetBlock(ctx context.Context, shardId types.ShardId, blo
 		return err
 	}
 
+	err = bs.setProposeParentHash(tx, block)
+	if err != nil {
+		return err
+	}
+
 	// Update last fetched block if necessary
 	lastFetchedBlockNum, err := bs.getLastFetchedBlockNumTx(tx, shardId)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
@@ -159,6 +182,27 @@ func (bs *blockStorage) SetBlock(ctx context.Context, shardId types.ShardId, blo
 	}
 
 	return tx.Commit()
+}
+
+func (bs *blockStorage) setProposeParentHash(tx db.RwTx, block *jsonrpc.RPCBlock) error {
+	if block.ShardId != types.MainShardId {
+		return nil
+	}
+
+	parentHash, err := bs.getParentOfNextToPropose(tx)
+	if err != nil {
+		return err
+	}
+	if parentHash != nil {
+		return nil
+	}
+
+	bs.logger.Debug().
+		Str("blockHash", block.Hash.String()).
+		Str("parentHash", block.ParentHash.String()).
+		Msg("block parent hash is not set, updating it")
+
+	return bs.setParentOfNextToPropose(tx, block.ParentHash)
 }
 
 func (bs *blockStorage) SetBlockAsProved(ctx context.Context, blockHash common.Hash) error {
@@ -187,21 +231,6 @@ func (bs *blockStorage) SetBlockAsProved(ctx context.Context, blockHash common.H
 	return tx.Commit()
 }
 
-func (bs *blockStorage) GetLastFetchedBlockNum(ctx context.Context, shardId types.ShardId) (types.BlockNumber, error) {
-	tx, err := bs.db.CreateRoTx(ctx)
-	if err != nil {
-		return 0, err
-	}
-	defer tx.Rollback()
-
-	lastFetchedBlockNum, err := bs.getLastFetchedBlockNumTx(tx, shardId)
-	if err != nil {
-		return 0, err
-	}
-
-	return lastFetchedBlockNum, nil
-}
-
 func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalData, error) {
 	tx, err := bs.db.CreateRoTx(ctx)
 	if err != nil {
@@ -214,36 +243,35 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 		return nil, err
 	}
 
-	lastProposedBlockHash, err := bs.getLastProposedBlockHash(tx)
+	parentHash, err := bs.getParentOfNextToPropose(tx)
 	if err != nil {
 		return nil, err
+	}
+	if parentHash == nil {
+		bs.logger.Debug().Msg("block parent hash is not set")
+		return nil, nil
 	}
 
 	var mainShardEntry *blockEntry
-	if lastProposedBlockHash != nil {
-		err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
-			if isValidProposalCandidate(entry, lastProposedBlockHash) {
-				mainShardEntry = entry
-				return false, nil
-			}
-			return true, nil
-		})
-	} else {
-		// todo
-	}
-
+	err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
+		if isValidProposalCandidate(entry, parentHash) {
+			mainShardEntry = entry
+			return false, nil
+		}
+		return true, nil
+	})
 	if err != nil {
 		return nil, err
 	}
-
 	if mainShardEntry == nil {
+		bs.logger.Debug().Str("parentHash", parentHash.String()).Msg("no proved main shard block found")
 		return nil, nil
 	}
 
 	transactions := extractTransactions(mainShardEntry.Block)
 
 	err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
-		if isExecutionShardBlock(entry, *lastProposedBlockHash) {
+		if isExecutionShardBlock(entry, *parentHash) {
 			transactions = append(transactions, extractTransactions(entry.Block)...)
 		}
 		return true, nil
@@ -300,19 +328,29 @@ func (bs *blockStorage) getCurrentProvedStateRoot(tx db.RoTx) (*common.Hash, err
 	return &hash, nil
 }
 
-func (bs *blockStorage) getLastProposedBlockHash(tx db.RoTx) (*common.Hash, error) {
-	hashBytes, err := tx.Get(lastProposedTableName, mainShardKey)
+// getParentOfNextToPropose retrieves parent's hash of the next block to propose
+func (bs *blockStorage) getParentOfNextToPropose(tx db.RoTx) (*common.Hash, error) {
+	hashBytes, err := tx.Get(nextToProposeParentTableName, mainShardKey)
 
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return nil, nil
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get next to propose parent hash: %w", err)
 	}
 
 	hash := common.BytesToHash(hashBytes)
 	return &hash, nil
+}
+
+// setParentOfNextToPropose sets parent's hash of the next block to propose
+func (bs *blockStorage) setParentOfNextToPropose(tx db.RwTx, hash common.Hash) error {
+	err := tx.Put(nextToProposeParentTableName, mainShardKey, hash.Bytes())
+	if err != nil {
+		return fmt.Errorf("failed to put next to propose parent hash: %w", err)
+	}
+	return nil
 }
 
 func (bs *blockStorage) SetBlockAsProposed(ctx context.Context, blockHash common.Hash) error {
@@ -350,10 +388,10 @@ func (bs *blockStorage) SetBlockAsProposed(ctx context.Context, blockHash common
 
 	err = tx.Put(stateRootTableName, mainShardKey, mainShardEntry.Block.ChildBlocksRootHash.Bytes())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to put state root: %w", err)
 	}
 
-	err = tx.Put(lastProposedTableName, mainShardKey, blockHash.Bytes())
+	err = bs.setParentOfNextToPropose(tx, blockHash)
 	if err != nil {
 		return err
 	}
@@ -362,7 +400,7 @@ func (bs *blockStorage) SetBlockAsProposed(ctx context.Context, blockHash common
 }
 
 func isExecutionShardBlock(entry *blockEntry, mainShardBlockHash common.Hash) bool {
-	return entry.Block.ShardId != types.MainShardId && entry.Block.ParentHash == mainShardBlockHash
+	return entry.Block.ShardId != types.MainShardId && entry.Block.MainChainHash == mainShardBlockHash
 }
 
 func (bs *blockStorage) validateMainShardEntry(tx db.RoTx, entry *blockEntry, blockHash common.Hash) error {
@@ -378,15 +416,19 @@ func (bs *blockStorage) validateMainShardEntry(tx db.RoTx, entry *blockEntry, bl
 		return fmt.Errorf("block with hash=%s is not proved", blockHash.String())
 	}
 
-	lastProposedBlockHash, err := bs.getLastProposedBlockHash(tx)
+	parentHash, err := bs.getParentOfNextToPropose(tx)
 	if err != nil {
 		return err
 	}
-	if lastProposedBlockHash != nil && *lastProposedBlockHash != entry.Block.ParentHash {
+	if parentHash == nil {
+		return fmt.Errorf("next to propose parent hash is not set")
+	}
+
+	if *parentHash != entry.Block.ParentHash {
 		return fmt.Errorf(
-			"last proposed block hash=%s is not equal to the parent's block hash=%s",
-			lastProposedBlockHash.String(),
+			"parent's block hash=%s is not equal to the stored value=%s",
 			entry.Block.ParentHash.String(),
+			parentHash.String(),
 		)
 	}
 	return nil

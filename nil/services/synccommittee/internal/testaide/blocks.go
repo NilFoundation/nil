@@ -11,7 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 )
 
-func RandomBlockHash() common.Hash {
+func RandomHash() common.Hash {
 	randomBytes := make([]byte, 32)
 	_, err := rand.Read(randomBytes)
 	if err != nil {
@@ -30,5 +30,5 @@ func RandomBlockNum() types.BlockNumber {
 }
 
 func GenerateMainShardBlock() *jsonrpc.RPCBlock {
-	return &jsonrpc.RPCBlock{Number: RandomBlockNum(), ShardId: types.MainShardId, Hash: RandomBlockHash()}
+	return &jsonrpc.RPCBlock{Number: RandomBlockNum(), ShardId: types.MainShardId, Hash: RandomHash()}
 }
