@@ -3,7 +3,9 @@ package rpc
 import (
 	"context"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -75,8 +77,10 @@ var tasksForExecutors = map[types.TaskExecutorId]*types.Task{
 	firstExecutorId: {
 		Id:            types.NewTaskId(),
 		BatchNum:      1,
+		ShardId:       coreTypes.MainShardId,
 		BlockNum:      1,
-		TaskType:      types.Preprocess,
+		BlockHash:     common.EmptyHash,
+		TaskType:      types.PartialProve,
 		CircuitType:   types.Bytecode,
 		Dependencies:  make(map[types.TaskId]types.TaskResult),
 		DependencyNum: 0,
@@ -91,14 +95,14 @@ var tasksForExecutors = map[types.TaskExecutorId]*types.Task{
 			firstDependencyTaskId: types.SuccessProverTaskResult(
 				firstDependencyTaskId,
 				testaide.GenerateRandomExecutorId(),
-				types.FinalProof,
-				"2B3C4D5E",
+				types.MergeProof,
+				types.TaskResultAddresses{},
 			),
 			secondDependencyTaskId: types.SuccessProverTaskResult(
 				secondDependencyTaskId,
 				testaide.GenerateRandomExecutorId(),
-				types.Commitment,
-				"3C4D5E6F",
+				types.PartialProve,
+				types.TaskResultAddresses{},
 			),
 		},
 		DependencyNum: 2,

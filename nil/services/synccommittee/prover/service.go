@@ -23,10 +23,16 @@ func New(config Config) (*Prover, error) {
 
 	taskRpcClient := rpc.NewTaskRequestRpcClient(config.ProofProviderRpcEndpoint, logger)
 
+	defaultTaskHandlerConfig := taskHandlerConfig{
+		AssignerBinary:      "echo",
+		ProofProducerBinary: "echo",
+		OutDir:              "/root/out",
+	}
+
 	taskExecutor, err := executor.New(
 		executor.DefaultConfig(),
 		taskRpcClient,
-		newTaskHandler(taskRpcClient),
+		newTaskHandler(taskRpcClient, logger, defaultTaskHandlerConfig),
 		logger,
 	)
 	if err != nil {

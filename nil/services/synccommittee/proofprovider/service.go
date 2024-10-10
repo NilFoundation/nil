@@ -43,7 +43,7 @@ func New(config Config) (*ProofProvider, error) {
 	taskExecutor, err := executor.New(
 		executor.DefaultConfig(),
 		taskRpcClient,
-		newTaskHandler(taskStorage),
+		newTaskHandler(taskStorage, logger),
 		logger,
 	)
 	if err != nil {

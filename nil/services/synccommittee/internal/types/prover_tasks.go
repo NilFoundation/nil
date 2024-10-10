@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/google/uuid"
 )
 
@@ -14,9 +16,9 @@ type TaskType uint8
 const (
 	_ TaskType = iota
 	ProofBlock
-	GenerateAssignment
-	Preprocess
 	PartialProve
+	AggregatedChallenge
+	CombinedQ
 	AggregatedFRI
 	FRIConsistencyChecks
 	MergeProof
@@ -25,10 +27,13 @@ const (
 type CircuitType uint8
 
 const (
-	Bytecode CircuitType = iota
+	None CircuitType = iota
+	Bytecode
 	ReadWrite
 	MPT
 	ZKEVM
+
+	CircuitAmount uint8 = iota - 1
 )
 
 // TaskId Unique ID of a task, serves as a key in DB
@@ -59,15 +64,16 @@ type ProverResultType uint8
 
 const (
 	_ ProverResultType = iota
-	PreprocessedCommonData
-	Preprocessed
 	PartialProof
-	Commitment
-	CommitmentPoly
 	CommitmentState
-	PartialAggregatedFriProof
-	Challenges
-	FriConsistencyProof
+	PartialProofChallenges
+	AssignmentTableDescription
+	AggregatedChallenges
+	CombinedQPolynomial
+	AggregatedFRIProof
+	ProofOfWork
+	ConsistencyCheckChallenges
+	LPCConsistencyCheckProof
 	FinalProof
 )
 
@@ -75,17 +81,19 @@ type TaskExecutorId uint32
 
 const UnknownExecutorId TaskExecutorId = 0
 
+type TaskResultAddresses map[ProverResultType]string
+
 // todo: declare separate task types for ProofProvider and Prover
 // https://www.notion.so/nilfoundation/Generic-Tasks-in-SyncCommittee-10ac614852608028b7ffcfd910deeef7?pvs=4
 
 // TaskResult Prover returns this struct as task result
 type TaskResult struct {
-	Type          ProverResultType `json:"type"`
-	TaskId        TaskId           `json:"taskId"`
-	IsSuccess     bool             `json:"isSuccess"`
-	ErrorText     string           `json:"errorText"`
-	Sender        TaskExecutorId   `json:"sender"`
-	DataAddresses []string         `json:"dataAddresses"`
+	TaskId        TaskId              `json:"taskId"`
+	Type          TaskType            `json:"type"`
+	IsSuccess     bool                `json:"isSuccess"`
+	ErrorText     string              `json:"errorText"`
+	Sender        TaskExecutorId      `json:"sender"`
+	DataAddresses TaskResultAddresses `json:"dataAddresses"`
 }
 
 func SuccessProviderTaskResult(
@@ -115,14 +123,14 @@ func FailureProviderTaskResult(
 func SuccessProverTaskResult(
 	taskId TaskId,
 	sender TaskExecutorId,
-	resultType ProverResultType,
-	dataAddresses ...string,
+	taskType TaskType,
+	dataAddresses TaskResultAddresses,
 ) TaskResult {
 	return TaskResult{
 		TaskId:        taskId,
 		IsSuccess:     true,
 		Sender:        sender,
-		Type:          resultType,
+		Type:          taskType,
 		DataAddresses: dataAddresses,
 	}
 }
@@ -135,7 +143,7 @@ func FailureProverTaskResult(
 	return TaskResult{
 		TaskId:        taskId,
 		Sender:        sender,
-		DataAddresses: []string{},
+		DataAddresses: TaskResultAddresses{},
 		IsSuccess:     false,
 		ErrorText:     fmt.Sprintf("failed to generate proof: %v", err),
 	}
@@ -145,7 +153,9 @@ func FailureProverTaskResult(
 type Task struct {
 	Id            TaskId                `json:"id"`
 	BatchNum      uint32                `json:"batchNum"`
+	ShardId       types.ShardId         `json:"shardId"`
 	BlockNum      types.BlockNumber     `json:"blockNum"`
+	BlockHash     common.Hash           `json:"blockHash"`
 	TaskType      TaskType              `json:"taskType"`
 	CircuitType   CircuitType           `json:"circuitType"`
 	ParentTaskId  *TaskId               `json:"parentTaskId"`
@@ -191,10 +201,13 @@ func HigherPriority(t1 Task, t2 Task) bool {
 	return t1.TaskType < t2.TaskType
 }
 
-func NewBlockProofTaskEntry(blockNum types.BlockNumber) *TaskEntry {
+func NewBlockProofTaskEntry(shardId coreTypes.ShardId, blockNum types.BlockNumber, blockHash common.Hash) *TaskEntry {
 	task := Task{
 		Id:            NewTaskId(),
+		BatchNum:      0,
+		ShardId:       shardId,
 		BlockNum:      blockNum,
+		BlockHash:     blockHash,
 		TaskType:      ProofBlock,
 		Dependencies:  EmptyDependencies(),
 		DependencyNum: 0,
@@ -207,11 +220,19 @@ func NewBlockProofTaskEntry(blockNum types.BlockNumber) *TaskEntry {
 	}
 }
 
-func NewPartialProveTaskEntry(batchNum uint32, blockNum types.BlockNumber, circuitType CircuitType) *TaskEntry {
+func NewPartialProveTaskEntry(
+	batchNum uint32,
+	shardId types.ShardId,
+	blockNum types.BlockNumber,
+	blockHash common.Hash,
+	circuitType CircuitType,
+) *TaskEntry {
 	task := Task{
 		Id:            NewTaskId(),
 		BatchNum:      batchNum,
+		ShardId:       shardId,
 		BlockNum:      blockNum,
+		BlockHash:     blockHash,
 		TaskType:      PartialProve,
 		CircuitType:   circuitType,
 		Dependencies:  EmptyDependencies(),
@@ -225,13 +246,71 @@ func NewPartialProveTaskEntry(batchNum uint32, blockNum types.BlockNumber, circu
 	}
 }
 
-func NewAggregateFRITaskEntry(batchNum uint32, blockNum types.BlockNumber) *TaskEntry {
+func NewAggregateChallengeTaskEntry(
+	batchNum uint32,
+	shardId types.ShardId,
+	blockNum types.BlockNumber,
+	blockHash common.Hash,
+) *TaskEntry {
+	aggChallengeTask := Task{
+		Id:            NewTaskId(),
+		BatchNum:      batchNum,
+		ShardId:       shardId,
+		BlockNum:      blockNum,
+		BlockHash:     blockHash,
+		TaskType:      AggregatedChallenge,
+		DependencyNum: CircuitAmount,
+		Dependencies:  EmptyDependencies(),
+	}
+
+	return &TaskEntry{
+		Task:     aggChallengeTask,
+		Created:  time.Now(),
+		Modified: time.Now(),
+		Status:   WaitingForInput,
+	}
+}
+
+func NewCombinedQTaskEntry(
+	batchNum uint32,
+	shardId types.ShardId,
+	blockNum types.BlockNumber,
+	blockHash common.Hash,
+	circuitType CircuitType,
+) *TaskEntry {
+	combinedQTask := Task{
+		Id:            NewTaskId(),
+		BatchNum:      batchNum,
+		ShardId:       shardId,
+		BlockNum:      blockNum,
+		BlockHash:     blockHash,
+		TaskType:      CombinedQ,
+		DependencyNum: 2, // partial prove of corresponding circuit plus agg challenges
+		Dependencies:  EmptyDependencies(),
+	}
+
+	return &TaskEntry{
+		Task:     combinedQTask,
+		Created:  time.Now(),
+		Modified: time.Now(),
+		Status:   WaitingForInput,
+	}
+}
+
+func NewAggregateFRITaskEntry(
+	batchNum uint32,
+	shardId types.ShardId,
+	blockNum types.BlockNumber,
+	blockHash common.Hash,
+) *TaskEntry {
 	aggFRITask := Task{
 		Id:            NewTaskId(),
 		BatchNum:      batchNum,
+		ShardId:       shardId,
 		BlockNum:      blockNum,
+		BlockHash:     blockHash,
 		TaskType:      AggregatedFRI,
-		DependencyNum: 4,
+		DependencyNum: CircuitAmount*2 + 1, // all the partial proofs, combinedQ and agg challenges
 		Dependencies:  EmptyDependencies(),
 	}
 
@@ -243,15 +322,23 @@ func NewAggregateFRITaskEntry(batchNum uint32, blockNum types.BlockNumber) *Task
 	}
 }
 
-func NewFRIConsistencyCheckTaskEntry(batchNum uint32, blockNum types.BlockNumber, circuitType CircuitType) *TaskEntry {
+func NewFRIConsistencyCheckTaskEntry(
+	batchNum uint32,
+	shardId types.ShardId,
+	blockNum types.BlockNumber,
+	blockHash common.Hash,
+	circuitType CircuitType,
+) *TaskEntry {
 	task := Task{
 		Id:            NewTaskId(),
 		BatchNum:      batchNum,
+		ShardId:       shardId,
 		BlockNum:      blockNum,
+		BlockHash:     blockHash,
 		TaskType:      FRIConsistencyChecks,
 		CircuitType:   circuitType,
 		Dependencies:  EmptyDependencies(),
-		DependencyNum: 2, // aggregate FRI and corresponding partial proof
+		DependencyNum: 3, // aggregate FRI and corresponding partial proof and combinedQ
 	}
 	return &TaskEntry{
 		Task:     task,
@@ -261,13 +348,20 @@ func NewFRIConsistencyCheckTaskEntry(batchNum uint32, blockNum types.BlockNumber
 	}
 }
 
-func NewMergeProofTaskEntry(batchNum uint32, blockNum types.BlockNumber) *TaskEntry {
+func NewMergeProofTaskEntry(
+	batchNum uint32,
+	shardId types.ShardId,
+	blockNum types.BlockNumber,
+	blockHash common.Hash,
+) *TaskEntry {
 	mergeProofTask := Task{
 		Id:            NewTaskId(),
 		BatchNum:      batchNum,
+		ShardId:       shardId,
 		BlockNum:      blockNum,
+		BlockHash:     blockHash,
 		TaskType:      MergeProof,
-		DependencyNum: 9, // agg FRI + 4 partial proofs + 4 FRI consistency checks
+		DependencyNum: 1 + CircuitAmount*2, // agg FRI + 4 partial proofs + 4 FRI consistency checks
 		Dependencies:  EmptyDependencies(),
 	}
 

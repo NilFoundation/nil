@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
-	nilTypes "github.com/NilFoundation/nil/nil/internal/types"
+	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
@@ -33,7 +34,7 @@ func (s *TaskHandlerTestSuite) SetupSuite() {
 	logger := logging.NewLogger("task-handler-test-suite")
 	s.taskStorage = storage.NewTaskStorage(s.database, logger)
 
-	s.taskHandler = newTaskHandler(s.taskStorage)
+	s.taskHandler = newTaskHandler(s.taskStorage, logger)
 }
 
 func TestTaskHandlerSuite(t *testing.T) {
@@ -78,22 +79,40 @@ func (s *TaskHandlerTestSuite) TestReturnErrorOnUnexpectedTaskType() {
 
 func (s *TaskHandlerTestSuite) TestHandleBlockProofTask() {
 	executorId := testaide.GenerateRandomExecutorId()
-	blockNumber := nilTypes.BlockNumber(uint64(100))
-	taskEntry := types.NewBlockProofTaskEntry(blockNumber)
+	shardId := coreTypes.MainShardId
+	blockNumber := coreTypes.BlockNumber(uint64(100))
+	blockHash := common.IntToHash(1)
+	taskEntry := types.NewBlockProofTaskEntry(shardId, blockNumber, blockHash)
 
 	err := s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
 	s.Require().NoError(err, "taskHandler.Handle returned an error")
 
 	// Extract 4 top-level tasks
-	var ids [4]types.TaskId
-	for i := range 4 {
+	var ids [types.CircuitAmount]types.TaskId
+	for i := range types.CircuitAmount {
 		ids[i] = s.requestTask(executorId, true, types.PartialProve).Id
 	}
 
 	// Right now all remaining tasks should wait for dependencies
-	s.requestTask(executorId, false, types.AggregatedFRI)
+	s.requestTask(executorId, false, types.AggregatedChallenge)
 
 	// Pass results for partial proof tasks
+	for _, id := range ids {
+		s.completeTask(executorId, id)
+	}
+
+	// Now only aggregate challenge task is available
+	aggChallengeTask := s.requestTask(executorId, true, types.AggregatedChallenge)
+	s.requestTask(executorId, false, types.CombinedQ)
+
+	// After completion of aggregate challenge task we have combined Q tasks available
+	s.completeTask(executorId, aggChallengeTask.Id)
+	for i := range types.CircuitAmount {
+		ids[i] = s.requestTask(executorId, true, types.CombinedQ).Id
+	}
+	s.requestTask(executorId, false, types.AggregatedFRI)
+
+	// Pass results for combined Q tasks
 	for _, id := range ids {
 		s.completeTask(executorId, id)
 	}
@@ -104,7 +123,7 @@ func (s *TaskHandlerTestSuite) TestHandleBlockProofTask() {
 
 	// After completion of aggregate FRI task we have FRI consistency check tasks available
 	s.completeTask(executorId, aggFRITask.Id)
-	for i := range 4 {
+	for i := range types.CircuitAmount {
 		ids[i] = s.requestTask(executorId, true, types.FRIConsistencyChecks).Id
 	}
 	s.requestTask(executorId, false, types.MergeProof)
