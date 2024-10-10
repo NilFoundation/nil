@@ -24,9 +24,7 @@ func NewNodeApiOverShardApis(apis map[types.ShardId]ShardApi) *NodeApiOverShardA
 	}
 
 	for _, api := range apis {
-		if shardApi, ok := api.(*LocalShardApi); ok {
-			shardApi.setNodeApi(nodeApi)
-		}
+		api.setNodeApi(nodeApi)
 	}
 
 	return nodeApi
