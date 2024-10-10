@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func NewPools(t *testing.T, ctx context.Context, n int) []msgpool.Pool {
+func NewPools(t *testing.T, ctx context.Context, n int) map[types.ShardId]msgpool.Pool {
 	t.Helper()
 
-	pools := make([]msgpool.Pool, n)
-	for i := range pools {
-		pool, err := msgpool.New(ctx, msgpool.NewConfig(types.ShardId(i)), nil)
+	pools := make(map[types.ShardId]msgpool.Pool, n)
+	for i := range types.ShardId(n) {
+		pool, err := msgpool.New(ctx, msgpool.NewConfig(i), nil)
 		require.NoError(t, err)
 		pools[i] = pool
 	}

@@ -173,7 +173,7 @@ type EthAPIRo interface {
 		@param blockNumberOrHash BlockNumberOrHash
 		@returns transactionCount TransactionCount
 	*/
-	GetTransactionCount(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Uint64, error)
+	GetTransactionCount(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Uint64, error)
 
 	/*
 		@name GetCode

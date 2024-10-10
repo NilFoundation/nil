@@ -98,9 +98,9 @@ func (s *RpcSuite) start(cfg *nilservice.Config) {
 
 	if cfg.RunMode == nilservice.CollatorsOnlyRunMode {
 		service := <-serviceInterop
-		client, err := client.NewEthClient(s.context, &s.wg, s.db, service.MsgPools, zerolog.New(os.Stderr))
+		c, err := client.NewEthClient(s.context, &s.wg, s.db, types.ShardId(s.shardsNum), service.MsgPools, zerolog.New(os.Stderr))
 		s.Require().NoError(err)
-		s.client = client
+		s.client = c
 	} else {
 		s.endpoint = strings.Replace(cfg.HttpUrl, "tcp://", "http://", 1)
 		s.cometaEndpoint = strings.Replace(rpc.GetSockPathIdx(s.T(), 1), "tcp://", "http://", 1)

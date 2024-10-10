@@ -103,17 +103,17 @@ const defaultCollatorTickPeriodMs = 2000
 
 // used to access started service from outside of `Run` call
 type ServiceInterop struct {
-	MsgPools []msgpool.Pool
+	MsgPools map[types.ShardId]msgpool.Pool
 }
 
-func getRawApi(cfg *Config, networkManager *network.Manager, database db.DB, msgPools []msgpool.Pool) (*rawapi.NodeApiOverShardApis, error) {
+func getRawApi(cfg *Config, networkManager *network.Manager, database db.DB, msgPools map[types.ShardId]msgpool.Pool) (*rawapi.NodeApiOverShardApis, error) {
 	var myShards []uint
 	switch cfg.RunMode {
 	case BlockReplayRunMode:
-		msgPools = make([]msgpool.Pool, cfg.NShards)
+		msgPools = nil
 		fallthrough
 	case NormalRunMode, ArchiveRunMode:
-		myShards = append(myShards, cfg.GetMyShards()...)
+		myShards = cfg.GetMyShards()
 	case RpcRunMode:
 		break
 	case CollatorsOnlyRunMode:
@@ -191,7 +191,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		cfg.CollatorTickPeriodMs = defaultCollatorTickPeriodMs
 	}
 
-	var msgPools []msgpool.Pool
+	var msgPools map[types.ShardId]msgpool.Pool
 	networkManager, err := createNetworkManager(ctx, cfg)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to create network manager")
@@ -203,11 +203,14 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 
 	switch cfg.RunMode {
 	case NormalRunMode, CollatorsOnlyRunMode:
-		collators := createCollators(ctx, cfg, database, networkManager)
+		var collators []AbstractCollator
+		collators, msgPools, err = createCollators(ctx, cfg, database, networkManager)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to create collators")
+			return 1
+		}
 
-		msgPools = make([]msgpool.Pool, cfg.NShards)
 		for i, collator := range collators {
-			msgPools[i] = collator.GetMsgPool()
 			funcs = append(funcs, func(ctx context.Context) error {
 				if err := collator.Run(ctx); err != nil {
 					logger.Error().
@@ -275,8 +278,6 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 			}
 			return nil
 		})
-
-		msgPools = make([]msgpool.Pool, uint(cfg.Replay.ShardId)+1)
 	case RpcRunMode:
 		if networkManager == nil {
 			logger.Error().Msg("Failed to start rpc node without network configuration")
@@ -352,28 +353,41 @@ func createNetworkManager(ctx context.Context, cfg *Config) (*network.Manager, e
 	return network.NewManager(ctx, cfg.Network)
 }
 
+// todo: get rid of it via separating syncers and collators
 type AbstractCollator interface {
 	Run(ctx context.Context) error
-	GetMsgPool() msgpool.Pool
 }
 
-func createCollators(ctx context.Context, cfg *Config, database db.DB, networkManager *network.Manager) []AbstractCollator {
+func createCollators(ctx context.Context, cfg *Config, database db.DB, networkManager *network.Manager) ([]AbstractCollator, map[types.ShardId]msgpool.Pool, error) {
 	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
 	syncerTimeout := syncTimeoutFactor * collatorTickPeriod
 
 	collators := make([]AbstractCollator, cfg.NShards)
+	pools := make(map[types.ShardId]msgpool.Pool)
 
 	for i := range cfg.NShards {
-		var err error
 		shard := types.ShardId(i)
 		if cfg.IsShardActive(shard) {
-			collators[i], err = createActiveCollator(ctx, shard, cfg, collatorTickPeriod, database, networkManager)
+			msgPool, err := msgpool.New(ctx, msgpool.NewConfig(shard), networkManager)
+			if err != nil {
+				return nil, nil, err
+			}
+			collator, err := createActiveCollator(shard, cfg, collatorTickPeriod, database, networkManager, msgPool)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			pools[shard] = msgPool
+			collators[i] = collator
 		} else {
-			collators[i], err = createSyncCollator(ctx, shard, cfg, syncerTimeout, database, networkManager)
+			collator, err := createSyncCollator(ctx, shard, cfg, syncerTimeout, database, networkManager)
+			if err != nil {
+				return nil, nil, err
+			}
+			collators[i] = collator
 		}
-		check.PanicIfErr(err)
 	}
-	return collators
+	return collators, pools, nil
 }
 
 func createSyncCollator(ctx context.Context, shard types.ShardId, cfg *Config, tick time.Duration,
@@ -382,12 +396,7 @@ func createSyncCollator(ctx context.Context, shard types.ShardId, cfg *Config, t
 	return collate.NewSyncCollator(ctx, shard, tick, database, networkManager, cfg.BootstrapPeer)
 }
 
-func createActiveCollator(ctx context.Context, shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager) (*collate.Scheduler, error) {
-	msgPool, err := msgpool.New(ctx, msgpool.NewConfig(shard), networkManager)
-	if err != nil {
-		return nil, err
-	}
-
+func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager, msgPool msgpool.Pool) (*collate.Scheduler, error) {
 	collatorCfg := collate.Params{
 		BlockGeneratorParams: execution.BlockGeneratorParams{
 			ShardId:       shard,

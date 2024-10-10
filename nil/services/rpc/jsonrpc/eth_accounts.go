@@ -32,12 +32,12 @@ func (api *APIImpl) GetCurrencies(ctx context.Context, address types.Address, bl
 }
 
 // GetTransactionCount implements eth_getTransactionCount. Returns the number of transactions sent from an address (the nonce / seqno).
-func (api *APIImpl) GetTransactionCount(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Uint64, error) {
+func (api *APIImpl) GetTransactionCount(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Uint64, error) {
 	value, err := api.rawapi.GetMessageCount(ctx, address, toBlockReference(blockNrOrHash))
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	return (*hexutil.Uint64)(&value), nil
+	return hexutil.Uint64(value), nil
 }
 
 // GetCode implements eth_getCode. Returns the byte code at a given address (if it's a smart contract).
