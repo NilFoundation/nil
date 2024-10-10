@@ -670,3 +670,116 @@ func (cr *CallResponse) UnpackProtoMessage() (*rpctypes.CallResWithGasPrice, err
 
 	return res, nil
 }
+
+// Message converters
+func (r *MessageResponse) PackProtoMessage(info *rawapitypes.MessageInfo, err error) error {
+	if err != nil {
+		r.Result = &MessageResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+	r.Result = &MessageResponse_Data{
+		Data: &MessageInfo{
+			MessageSSZ: info.MessageSSZ,
+			ReceiptSSZ: info.ReceiptSSZ,
+			Index:      uint64(info.Index),
+			BlockHash:  new(Hash).PackProtoMessage(info.BlockHash),
+			BlockId:    uint64(info.BlockId),
+		},
+	}
+	return nil
+}
+
+func (r *MessageResponse) UnpackProtoMessage() (*rawapitypes.MessageInfo, error) {
+	switch r.Result.(type) {
+	case *MessageResponse_Error:
+		return nil, r.GetError().UnpackProtoMessage()
+	case *MessageResponse_Data:
+		data := r.GetData()
+		return &rawapitypes.MessageInfo{
+			MessageSSZ: data.MessageSSZ,
+			ReceiptSSZ: data.ReceiptSSZ,
+			Index:      types.MessageIndex(data.Index),
+			BlockHash:  data.BlockHash.UnpackProtoMessage(),
+			BlockId:    types.BlockNumber(data.BlockId),
+		}, nil
+	}
+	return nil, errors.New("unexpected response type")
+}
+
+func (r *MessageRequestByBlockRefAndIndex) PackProtoMessage(ref rawapitypes.BlockReference, index types.MessageIndex) error {
+	r.BlockRef = &BlockReference{}
+	if err := r.BlockRef.PackProtoMessage(ref); err != nil {
+		return err
+	}
+	r.Index = uint64(index)
+	return nil
+}
+
+func (r *MessageRequestByBlockRefAndIndex) UnpackProtoMessage() (rawapitypes.BlockReference, types.MessageIndex, error) {
+	ref, err := r.BlockRef.UnpackProtoMessage()
+	if err != nil {
+		return rawapitypes.BlockReference{}, 0, err
+	}
+	return ref, types.MessageIndex(r.Index), nil
+}
+
+func (r *MessageRequestByHash) PackProtoMessage(hash common.Hash) error {
+	r.Hash = new(Hash).PackProtoMessage(hash)
+	return nil
+}
+
+func (r *MessageRequestByHash) UnpackProtoMessage() (common.Hash, error) {
+	return r.Hash.UnpackProtoMessage(), nil
+}
+
+func (r *MessageRequest) PackProtoMessage(request rawapitypes.MessageRequest) error {
+	if request.ByHash != nil {
+		byHash := &MessageRequestByHash{}
+		if err := byHash.PackProtoMessage(request.ByHash.Hash); err != nil {
+			return err
+		}
+		r.Request = &MessageRequest_ByHash{
+			ByHash: byHash,
+		}
+	} else {
+		byBlockRefAndIndex := &MessageRequestByBlockRefAndIndex{}
+		if err := byBlockRefAndIndex.PackProtoMessage(
+			request.ByBlockRefAndIndex.BlockRef,
+			request.ByBlockRefAndIndex.Index,
+		); err != nil {
+			return err
+		}
+		r.Request = &MessageRequest_ByBlockRefAndIndex{
+			ByBlockRefAndIndex: byBlockRefAndIndex,
+		}
+	}
+	return nil
+}
+
+func (r *MessageRequest) UnpackProtoMessage() (rawapitypes.MessageRequest, error) {
+	byHash := r.GetByHash()
+	if byHash != nil {
+		hash, err := byHash.UnpackProtoMessage()
+		if err != nil {
+			return rawapitypes.MessageRequest{}, err
+		}
+		return rawapitypes.MessageRequest{
+			ByHash: &rawapitypes.MessageRequestByHash{Hash: hash},
+		}, nil
+	}
+
+	byBlockRefAndIndex := r.GetByBlockRefAndIndex()
+	if byBlockRefAndIndex != nil {
+		ref, index, err := byBlockRefAndIndex.UnpackProtoMessage()
+		if err != nil {
+			return rawapitypes.MessageRequest{}, err
+		}
+		return rawapitypes.MessageRequest{
+			ByBlockRefAndIndex: &rawapitypes.MessageRequestByBlockRefAndIndex{
+				BlockRef: ref,
+				Index:    index,
+			},
+		}, nil
+	}
+	return rawapitypes.MessageRequest{}, errors.New("unexpected request type")
+}

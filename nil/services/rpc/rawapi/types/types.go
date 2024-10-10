@@ -78,3 +78,25 @@ func BlockNumberAsBlockReference(number types.BlockNumber) BlockReference {
 func NamedBlockIdentifierAsBlockReference(identifier NamedBlockIdentifier) BlockReference {
 	return BlockReference{blockIdentifier: blockIdentifier(identifier), flags: uint32(NamedBlockIdentifierReference)}
 }
+
+type MessageInfo struct {
+	MessageSSZ []byte
+	ReceiptSSZ []byte
+	Index      types.MessageIndex
+	BlockHash  common.Hash
+	BlockId    types.BlockNumber
+}
+
+type MessageRequestByBlockRefAndIndex struct {
+	BlockRef BlockReference
+	Index    types.MessageIndex
+}
+
+type MessageRequestByHash struct {
+	Hash common.Hash
+}
+
+type MessageRequest struct {
+	ByBlockRefAndIndex *MessageRequestByBlockRefAndIndex
+	ByHash             *MessageRequestByHash
+}

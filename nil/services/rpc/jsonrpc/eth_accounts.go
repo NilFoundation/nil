@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
@@ -102,17 +103,21 @@ func (api *APIImpl) GetCode(ctx context.Context, address types.Address, blockNrO
 	return hexutil.Bytes(code), nil
 }
 
-func toBlockReference(blockNrOrHash transport.BlockNumberOrHash) rawapitypes.BlockReference {
+func blockNrToBlockReference(num transport.BlockNumber) rawapitypes.BlockReference {
 	var ref rawapitypes.BlockReference
-	if number, ok := blockNrOrHash.Number(); ok {
-		if number <= 0 {
-			ref = rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.NamedBlockIdentifier(number))
-		} else {
-			ref = rawapitypes.BlockNumberAsBlockReference(types.BlockNumber(number))
-		}
+	if num <= 0 {
+		ref = rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.NamedBlockIdentifier(num))
 	} else {
-		hash, _ := blockNrOrHash.Hash()
-		ref = rawapitypes.BlockHashAsBlockReference(hash)
+		ref = rawapitypes.BlockNumberAsBlockReference(types.BlockNumber(num))
 	}
 	return ref
+}
+
+func toBlockReference(blockNrOrHash transport.BlockNumberOrHash) rawapitypes.BlockReference {
+	if number, ok := blockNrOrHash.Number(); ok {
+		return blockNrToBlockReference(number)
+	}
+	hash, ok := blockNrOrHash.Hash()
+	check.PanicIfNot(ok)
+	return rawapitypes.BlockHashAsBlockReference(hash)
 }

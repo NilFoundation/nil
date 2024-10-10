@@ -13,3 +13,34 @@ message OutMessage {
   repeated OutMessage outMessages = 5;
   string error = 6;
 }
+
+message MessageInfo {
+  bytes messageSSZ = 1;
+  bytes receiptSSZ = 2;
+  uint64 index = 3;
+  Hash blockHash = 4;
+  uint64 blockId = 5;
+}
+
+message MessageRequestByHash {
+  Hash hash = 1;
+}
+
+message MessageRequestByBlockRefAndIndex {
+  BlockReference blockRef = 1;
+  uint64 index = 2;
+}
+
+message MessageRequest {
+  oneof request {
+    MessageRequestByHash byHash = 1;
+    MessageRequestByBlockRefAndIndex byBlockRefAndIndex = 2;
+  }
+}
+
+message MessageResponse {
+  oneof result {
+    Error error = 1;
+    MessageInfo data = 2;
+  }
+}
