@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
+	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
 
 type NodeApiOverShardApis struct {
@@ -16,9 +17,17 @@ type NodeApiOverShardApis struct {
 var _ NodeApi = (*NodeApiOverShardApis)(nil)
 
 func NewNodeApiOverShardApis(apis map[types.ShardId]ShardApi) *NodeApiOverShardApis {
-	return &NodeApiOverShardApis{
+	nodeApi := &NodeApiOverShardApis{
 		Apis: apis,
 	}
+
+	for _, api := range apis {
+		if shardApi, ok := api.(*LocalShardApi); ok {
+			shardApi.setNodeApi(nodeApi)
+		}
+	}
+
+	return nodeApi
 }
 
 var errShardNotFound = errors.New("shard API not found")
@@ -69,4 +78,14 @@ func (api *NodeApiOverShardApis) GetCurrencies(ctx context.Context, address type
 		return map[types.CurrencyId]types.Value{}, errShardNotFound
 	}
 	return shardApi.GetCurrencies(ctx, address, blockReference)
+}
+
+func (api *NodeApiOverShardApis) Call(
+	ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+) (*rpctypes.CallResWithGasPrice, error) {
+	shardApi, ok := api.Apis[args.To.ShardId()]
+	if !ok {
+		return nil, errShardNotFound
+	}
+	return shardApi.Call(ctx, args, mainBlockNrOrHash, overrides, emptyMessageIsRoot)
 }

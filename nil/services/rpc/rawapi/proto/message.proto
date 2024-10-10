@@ -1,0 +1,15 @@
+syntax = "proto3";
+package rawapi;
+
+option go_package = "/pb";
+
+import "nil/services/rpc/rawapi/proto/block.proto";
+
+message OutMessage {
+  bytes messageSSZ = 1;
+  uint64 forwardKind = 2;
+  bytes data = 3;
+  Uint256 coinsUsed = 4;
+  repeated OutMessage outMessages = 5;
+  string error = 6;
+}

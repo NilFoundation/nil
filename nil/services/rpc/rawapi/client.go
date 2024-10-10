@@ -13,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
+	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
 
 type NetworkShardApiAccessor struct {
@@ -62,6 +63,12 @@ func (api *NetworkShardApiAccessor) GetCode(ctx context.Context, address types.A
 
 func (api *NetworkShardApiAccessor) GetCurrencies(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (map[types.CurrencyId]types.Value, error) {
 	return sendRequestAndGetResponseWithCallerMethodName[map[types.CurrencyId]types.Value](ctx, api, "GetCurrencies", address, blockReference)
+}
+
+func (api *NetworkShardApiAccessor) Call(
+	ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+) (*rpctypes.CallResWithGasPrice, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[*rpctypes.CallResWithGasPrice](ctx, api, "Call", args, mainBlockNrOrHash, overrides, emptyMessageIsRoot)
 }
 
 func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkShardApiAccessor, methodName string, args ...any) (ResponseType, error) {

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"regexp"
 	"strings"
@@ -58,14 +59,12 @@ func main() {
 func generate_spec() error {
 	componentsFromAPI := generateComponentsFromFile("nil/services/rpc/jsonrpc/doc.go")
 	componentsFromTypes := generateComponentsFromFile("nil/services/rpc/jsonrpc/types.go")
+	componentsFromRpcTypes := generateComponentsFromFile("nil/services/rpc/types/types.go")
 	components := make(map[string]Component)
 
-	for k, v := range componentsFromTypes {
-		components[k] = v
-	}
-	for k, v := range componentsFromAPI {
-		components[k] = v
-	}
+	maps.Insert(components, maps.All(componentsFromTypes))
+	maps.Insert(components, maps.All(componentsFromAPI))
+	maps.Insert(components, maps.All(componentsFromRpcTypes))
 
 	methods := generateMethodsFromFile("nil/services/rpc/jsonrpc/eth_api.go")
 	openrpcSpec := map[string]interface{}{
