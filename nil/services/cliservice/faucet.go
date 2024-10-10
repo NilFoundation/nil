@@ -99,8 +99,8 @@ func (e MessageHashMismatchError) Error() string {
 	return fmt.Sprintf("Unexpected message hash %s, expected %s", e.actual, e.expected)
 }
 
-func (s *Service) TopUpViaFaucet(contractAddress types.Address, amount types.Value) error {
-	msgHash, err := s.client.TopUpViaFaucet(contractAddress, amount)
+func (s *Service) TopUpViaFaucet(contractAddressFrom, contractAddressTo types.Address, amount types.Value) error {
+	msgHash, err := s.client.TopUpViaFaucet(contractAddressFrom, contractAddressTo, amount)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func (s *Service) TopUpViaFaucet(contractAddress types.Address, amount types.Val
 		return err
 	}
 
-	s.logger.Info().Msgf("Contract %s balance is topped up by %s", contractAddress, amount)
+	s.logger.Info().Msgf("Contract %s balance is topped up by %s on behalf of %s", contractAddressTo, amount, contractAddressFrom)
 	return nil
 }
 
@@ -128,7 +128,7 @@ func (s *Service) CreateWallet(shardId types.ShardId, salt *types.Uint256, balan
 
 	// NOTE: we deploy wallet code with ext message
 	// in current implementation this costs 629_160
-	err = s.TopUpViaFaucet(walletAddress, balance)
+	err = s.TopUpViaFaucet(types.FaucetAddress, walletAddress, balance)
 	if err != nil {
 		return types.EmptyAddress, err
 	}

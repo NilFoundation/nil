@@ -36,7 +36,7 @@ func runTopUp(_ *cobra.Command, args []string, cfg *common.Config) error {
 		return err
 	}
 
-	if err := service.TopUpViaFaucet(cfg.Address, amount); err != nil {
+	if err := service.TopUpViaFaucet(types.FaucetAddress, cfg.Address, amount); err != nil {
 		return err
 	}
 

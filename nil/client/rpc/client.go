@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"net/http"
 	"strconv"
@@ -49,6 +50,7 @@ const (
 	Eth_getBlockTransactionCountByNumber = "eth_getBlockTransactionCountByNumber"
 	Eth_getBlockTransactionCountByHash   = "eth_getBlockTransactionCountByHash"
 	Eth_getBalance                       = "eth_getBalance"
+	Eth_topUpViaFaucet                   = "eth_topUpViaFaucet"
 	Eth_getCurrencies                    = "eth_getCurrencies"
 	Eth_getShardIdList                   = "eth_getShardIdList"
 	Eth_gasPrice                         = "eth_gasPrice"
@@ -559,8 +561,14 @@ func (c *Client) SendExternalMessage(
 	return client.SendExternalMessage(c, bytecode, contractAddress, pk, feeCredit, false, false)
 }
 
-func (c *Client) TopUpViaFaucet(contractAddress types.Address, amount types.Value) (common.Hash, error) {
-	callData, err := contracts.NewCallData(contracts.NameFaucet, "withdrawTo", contractAddress, amount.ToBig())
+func (c *Client) TopUpViaFaucet(contractAddressFrom, contractAddressTo types.Address, amount types.Value) (common.Hash, error) {
+	var callData []byte
+	var err error
+	if contractAddressFrom == types.FaucetAddress {
+		callData, err = contracts.NewCallData(contracts.NameFaucet, "withdrawTo", contractAddressFrom, amount.ToBig())
+	} else {
+		callData, err = contracts.NewCallData(contracts.NameFaucet, "withdrawCurrencyTo", contractAddressFrom, contractAddressTo, new(big.Int).SetBytes(contractAddressFrom.Bytes()), amount.ToBig())
+	}
 	if err != nil {
 		return common.EmptyHash, err
 	}

@@ -2,6 +2,7 @@ package rpctest
 
 import (
 	"crypto/ecdsa"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"math/big"
 	"testing"
 
@@ -80,7 +81,7 @@ func (s *SuiteFaucet) TestDeployContractViaFaucet() {
 
 	code := types.BuildDeployPayload(walletCode, common.EmptyHash)
 	walletAddr := types.CreateAddress(types.FaucetAddress.ShardId(), code)
-	msgHash, err := s.client.TopUpViaFaucet(walletAddr, value)
+	msgHash, err := s.client.TopUpViaFaucet(types.FaucetAddress, walletAddr, value)
 	s.Require().NoError(err)
 	receipt := s.waitForReceipt(walletAddr.ShardId(), msgHash)
 	s.Require().True(receipt.Success)
@@ -127,7 +128,7 @@ func (s *SuiteFaucet) TestTopUpViaFaucet() {
 		s.Require().NoError(err)
 		s.Require().NotEmpty(code)
 
-		mshHash, err := s.client.TopUpViaFaucet(address, types.NewValueFromUint64(value))
+		mshHash, err := s.client.TopUpViaFaucet(types.FaucetAddress, address, types.NewValueFromUint64(value))
 		s.Require().NoError(err)
 		receipt = s.waitForReceipt(address.ShardId(), mshHash)
 		s.Require().NotNil(receipt)
@@ -160,6 +161,39 @@ func (s *SuiteFaucet) TestTopUpViaFaucet() {
 	s.Run("Top up over limit", func() {
 		testTopUp(balance2, value3, balance3, float64(balance3)*0.2)
 	})
+}
+
+func (s *SuiteFaucet) TestTopUpCurrencyViaFaucet() {
+	pk, err := crypto.GenerateKey()
+	s.Require().NoError(err)
+	pubKey := crypto.CompressPubkey(&pk.PublicKey)
+	walletCode := contracts.PrepareDefaultWalletForOwnerCode(pubKey)
+
+	address, receipt := s.deployContractViaMainWallet(types.BaseShardId, types.BuildDeployPayload(walletCode, common.EmptyHash), types.Value{})
+	receipt = s.waitForReceipt(types.MainWalletAddress.ShardId(), receipt.MsgHash)
+	s.Require().NotNil(receipt)
+	s.Require().True(receipt.Success)
+
+	value := types.NewValueFromUint64(1000)
+	addressesFrom := []types.Address{types.EthWalletAddress, types.UsdtWalletAddress, types.BtcWalletAddress, types.MainWalletAddress}
+	for _, addressFrom := range addressesFrom {
+		mshHash, err := s.client.TopUpViaFaucet(addressFrom, address, value)
+		s.Require().NoError(err)
+		receipt = s.waitForReceipt(address.ShardId(), mshHash)
+		s.Require().NotNil(receipt)
+		s.Require().True(receipt.Success)
+		for _, r := range receipt.OutReceipts {
+			s.Require().True(r.Success)
+		}
+	}
+	currencies, err := s.client.GetCurrencies(address, transport.LatestBlockNumber)
+	s.Require().NoError(err)
+	s.Require().Len(currencies, 3)
+	for _, addr := range addressesFrom {
+		curValue, ok := currencies[hexutil.ToHexNoLeadingZeroes(addr.Bytes())]
+		s.Require().True(ok)
+		s.Require().Equal(value.Uint64(), curValue.Uint64())
+	}
 }
 
 func TestSuiteFaucet(t *testing.T) {

@@ -189,6 +189,18 @@ type EthAPIRo interface {
 	GetCode(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error)
 
 	/*
+		@name TopUpViaFaucet
+		@summary Tops up the balance of the contractAddressTo using the faucet contract.
+		@description
+		@tags [Transactions]
+		@param contractAddressFrom Address
+		@param contractAddressTo Address
+		@param amount Value
+		@returns hash MessageHash
+	*/
+	TopUpViaFaucet(ctx context.Context, contractAddressFrom, contractAddressTo types.Address, amount types.Value) (common.Hash, error)
+
+	/*
 		@name NewFilter
 		@summary Creates a new filter.
 		@description

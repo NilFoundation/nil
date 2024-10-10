@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/json"
+	"math/big"
 	"sync"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -259,8 +260,14 @@ func (c *DirectClient) SendExternalMessage(
 	return SendExternalMessage(c, bytecode, contractAddress, pk, feeCredit, false, false)
 }
 
-func (c *DirectClient) TopUpViaFaucet(contractAddress types.Address, amount types.Value) (common.Hash, error) {
-	callData, err := contracts.NewCallData(contracts.NameFaucet, "withdrawTo", contractAddress, amount.ToBig())
+func (c *DirectClient) TopUpViaFaucet(contractAddressFrom, contractAddressTo types.Address, amount types.Value) (common.Hash, error) {
+	var callData []byte
+	var err error
+	if contractAddressFrom == types.FaucetAddress {
+		callData, err = contracts.NewCallData(contracts.NameFaucet, "withdrawTo", contractAddressFrom, amount.ToBig())
+	} else {
+		callData, err = contracts.NewCallData(contracts.NameFaucet, "withdrawCurrencyTo", contractAddressFrom, contractAddressTo, new(big.Int).SetBytes(contractAddressFrom.Bytes()), amount.ToBig())
+	}
 	if err != nil {
 		return common.EmptyHash, err
 	}

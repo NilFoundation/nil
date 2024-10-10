@@ -3,6 +3,7 @@ package execution
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
 	"os"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -40,7 +41,22 @@ contracts:
   address: {{ .MainWalletAddress }}
   value: 100000000000000
   contract: Wallet
-  ctorArgs: [{{ .MainPublicKey }}]
+  ctorArgs: [{{ .MainPublicKey }}, 0, "", "EmptyAddress"]
+- name: TokenEthWallet
+  address: {{ .EthWalletAddress }}
+  value: 100000000000000
+  contract: Wallet
+  ctorArgs: [{{ .MainPublicKey }}, 100000000000000, "ETH", "FaucetAddress"]
+- name: TokenUsdtWallet
+  address: {{ .UsdtWalletAddress }}
+  value: 100000000000000
+  contract: Wallet
+  ctorArgs: [{{ .MainPublicKey }}, 100000000000000, "USDT", "FaucetAddress"]
+- name: TokenBtcWallet
+  address: {{ .BtcWalletAddress }}
+  value: 100000000000000
+  contract: Wallet
+  ctorArgs: [{{ .MainPublicKey }}, 100000000000000, "BTC", "FaucetAddress"]
 `
 
 	DefaultZeroStateConfig, err = common.ParseTemplate(zerostate, map[string]interface{}{
@@ -48,6 +64,9 @@ contracts:
 		"MainWalletAddress": types.MainWalletAddress.Hex(),
 		"MainPublicKey":     hexutil.Encode(MainPublicKey),
 		"MainWalletPubKey":  hexutil.Encode(MainPublicKey),
+		"EthWalletAddress":  types.EthWalletAddress.Hex(),
+		"UsdtWalletAddress": types.UsdtWalletAddress.Hex(),
+		"BtcWalletAddress":  types.BtcWalletAddress.Hex(),
 	})
 	check.PanicIfErr(err)
 }
@@ -193,15 +212,22 @@ func (es *ExecutionState) GenerateZeroState(stateConfig *ZeroStateConfig) error 
 				switch {
 				case arg == "MainPublicKey":
 					args = append(args, MainPublicKey)
-				case arg[:2] == "0x":
+				case arg == "FaucetAddress":
+					args = append(args, types.FaucetAddress)
+				case arg == "EmptyAddress":
+					args = append(args, types.EmptyAddress)
+				case len(arg) > 2 && arg[:2] == "0x":
 					args = append(args, hexutil.FromHex(arg))
 				default:
-					return fmt.Errorf("unknown constructor argument string pattern: %s", arg)
+					args = append(args, arg)
 				}
+			case int:
+				args = append(args, big.NewInt(int64(arg)))
 			default:
 				args = append(args, arg)
 			}
 		}
+
 		argsPacked, err := abi.Pack("", args...)
 		if err != nil {
 			return fmt.Errorf("[ZeroState] ctorArgs pack failed: %w", err)

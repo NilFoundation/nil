@@ -553,7 +553,7 @@ func (es *ExecutionState) SetInitState(addr types.Address, message *types.Messag
 	}
 	defer es.resetVm()
 
-	_, deployAddr, _, err := es.evm.Deploy(addr, vm.AccountRef{}, message.Data, uint64(100000) /* gas */, uint256.NewInt(0))
+	_, deployAddr, _, err := es.evm.Deploy(addr, vm.AccountRef{}, message.Data, uint64(200000) /* gas */, uint256.NewInt(0))
 	if err != nil {
 		return err
 	}
