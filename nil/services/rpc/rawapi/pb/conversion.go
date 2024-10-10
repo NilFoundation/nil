@@ -348,6 +348,9 @@ func (br *BalanceResponse) PackProtoMessage(balance types.Value, err error) erro
 		return nil
 	}
 
+	if balance.Uint256 == nil {
+		balance.Uint256 = new(types.Uint256)
+	}
 	br.Result = &BalanceResponse_Data{Data: new(Uint256).PackProtoMessage(*balance.Uint256)}
 	return nil
 }
@@ -432,7 +435,11 @@ func (c *Contract) PackProtoMessage(contract rpctypes.Contract) *Contract {
 		c.Code = *contract.Code
 	}
 	if contract.Balance != nil {
-		c.Balance = new(Uint256).PackProtoMessage(*contract.Balance.Uint256)
+		balance := new(Uint256)
+		if contract.Balance.Uint256 != nil {
+			balance.PackProtoMessage(*contract.Balance.Uint256)
+		}
+		c.Balance = balance
 	}
 	if contract.State != nil {
 		c.State = make(map[string]*Hash)
@@ -455,8 +462,12 @@ func (a *CallArgs) PackProtoMessage(args rpctypes.CallArgs) *CallArgs {
 		a.From = new(Address).PackProtoMessage(*args.From)
 	}
 	a.To = new(Address).PackProtoMessage(args.To)
-	a.FeeCredit = new(Uint256).PackProtoMessage(*args.FeeCredit.Uint256)
-	a.Value = new(Uint256).PackProtoMessage(*args.Value.Uint256)
+	if args.FeeCredit.Uint256 != nil {
+		a.FeeCredit = new(Uint256).PackProtoMessage(*args.FeeCredit.Uint256)
+	}
+	if args.Value.Uint256 != nil {
+		a.Value = new(Uint256).PackProtoMessage(*args.Value.Uint256)
+	}
 	a.Seqno = args.Seqno.Uint64()
 	if args.Data != nil {
 		a.Data = *args.Data
@@ -505,11 +516,15 @@ func (cr *CallArgs) UnpackProtoMessage() rpctypes.CallArgs {
 	}
 	args.To = cr.To.UnpackProtoMessage()
 
-	fc := cr.FeeCredit.UnpackProtoMessage()
-	args.FeeCredit = types.Value{Uint256: &fc}
+	if cr.FeeCredit != nil {
+		fc := cr.FeeCredit.UnpackProtoMessage()
+		args.FeeCredit = types.Value{Uint256: &fc}
+	}
 
-	v := cr.Value.UnpackProtoMessage()
-	args.Value = types.Value{Uint256: &v}
+	if cr.Value != nil {
+		v := cr.Value.UnpackProtoMessage()
+		args.Value = types.Value{Uint256: &v}
+	}
 
 	args.Seqno = types.Seqno(cr.Seqno)
 
@@ -580,11 +595,16 @@ func (cr *CallRequest) UnpackProtoMessage() (rpctypes.CallArgs, rawapitypes.Bloc
 }
 
 func (m *OutMessage) PackProtoMessage(msg *rpctypes.OutMessage) *OutMessage {
+	coinsUsed := new(Uint256)
+	if msg.CoinsUsed.Uint256 != nil {
+		coinsUsed.PackProtoMessage(*msg.CoinsUsed.Uint256)
+	}
+
 	out := &OutMessage{
 		MessageSSZ:  msg.MessageSSZ,
 		ForwardKind: uint64(msg.ForwardKind),
 		Data:        msg.Data,
-		CoinsUsed:   new(Uint256).PackProtoMessage(*msg.CoinsUsed.Uint256),
+		CoinsUsed:   coinsUsed,
 		Error:       msg.Error,
 	}
 
@@ -599,14 +619,16 @@ func (m *OutMessage) PackProtoMessage(msg *rpctypes.OutMessage) *OutMessage {
 }
 
 func (m *OutMessage) UnpackProtoMessage() *rpctypes.OutMessage {
-	coinsUsed := m.CoinsUsed.UnpackProtoMessage()
-
 	msg := &rpctypes.OutMessage{
 		MessageSSZ:  m.MessageSSZ,
 		ForwardKind: types.ForwardKind(m.ForwardKind),
 		Data:        m.Data,
-		CoinsUsed:   types.Value{Uint256: &coinsUsed},
 		Error:       m.Error,
+	}
+
+	if m.CoinsUsed != nil {
+		coinsUsed := m.CoinsUsed.UnpackProtoMessage()
+		msg.CoinsUsed = types.Value{Uint256: &coinsUsed}
 	}
 
 	if len(m.OutMessages) > 0 {
@@ -626,7 +648,10 @@ func (cr *CallResponse) PackProtoMessage(args *rpctypes.CallResWithGasPrice, err
 
 	res := &CallResult{}
 	res.Data = args.Data
-	res.CoinsUsed = new(Uint256).PackProtoMessage(*args.CoinsUsed.Uint256)
+
+	if args.CoinsUsed.Uint256 != nil {
+		res.CoinsUsed = new(Uint256).PackProtoMessage(*args.CoinsUsed.Uint256)
+	}
 
 	res.OutMessages = make([]*OutMessage, len(args.OutMessages))
 	for i, outMsg := range res.OutMessages {
@@ -640,7 +665,9 @@ func (cr *CallResponse) PackProtoMessage(args *rpctypes.CallResWithGasPrice, err
 		res.StateOverrides = new(StateOverrides).PackProtoMessage(&args.StateOverrides)
 	}
 
-	res.GasPrice = new(Uint256).PackProtoMessage(*args.GasPrice.Uint256)
+	if args.GasPrice.Uint256 != nil {
+		res.GasPrice = new(Uint256).PackProtoMessage(*args.GasPrice.Uint256)
+	}
 
 	cr.Result = &CallResponse_Data{Data: res}
 	return nil
@@ -657,16 +684,28 @@ func (cr *CallResponse) UnpackProtoMessage() (*rpctypes.CallResWithGasPrice, err
 	res := &rpctypes.CallResWithGasPrice{}
 	res.Data = data.Data
 
-	value := data.CoinsUsed.UnpackProtoMessage()
-	res.CoinsUsed = types.Value{Uint256: &value}
+	if data.CoinsUsed != nil {
+		value := data.CoinsUsed.UnpackProtoMessage()
+		res.CoinsUsed = types.Value{Uint256: &value}
+	}
 
 	res.OutMessages = make([]*rpctypes.OutMessage, len(data.OutMessages))
 	for i, outMsg := range data.OutMessages {
 		res.OutMessages[i] = outMsg.UnpackProtoMessage()
 	}
 
-	gp := data.GasPrice.UnpackProtoMessage()
-	res.GasPrice = types.Value{Uint256: &gp}
+	if data.StateOverrides != nil {
+		res.StateOverrides = *data.StateOverrides.UnpackProtoMessage()
+	}
+
+	if data.Error != nil {
+		res.Error = data.Error.Message
+	}
+
+	if data.GasPrice != nil {
+		gp := data.GasPrice.UnpackProtoMessage()
+		res.GasPrice = types.Value{Uint256: &gp}
+	}
 
 	return res, nil
 }
