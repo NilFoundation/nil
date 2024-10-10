@@ -4,10 +4,12 @@
 	"version": "1.0.0",
 	"workspaces": [
     "smart-contracts",
-		"niljs",
-		"hardhat-plugin",
-		"hardhat-examples",
-		"docs"
+    "niljs",
+    "hardhat-plugin",
+    "hardhat-examples",
+    "docs",
+    "explorer_frontend",
+    "explorer_backend"
 	],
 	"scripts": {
 		"lint": "npm run lint --workspaces --if-present",
