@@ -118,13 +118,13 @@ func (suite *SuiteEthAccounts) TestGetCode() {
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 	res, err = suite.api.GetCode(ctx, types.GenerateRandomAddress(types.BaseShardId), blockNum)
 	suite.Require().NoError(err)
-	suite.Nil(res)
+	suite.Empty(res)
 
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
 	res, err = suite.api.GetCode(ctx, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
-	suite.Nil(res)
+	suite.Empty(res)
 }
 
 func (suite *SuiteEthAccounts) TestGetSeqno() {

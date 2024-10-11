@@ -114,8 +114,9 @@ func (s *SuiteRpcNode) TestGetBlockTransactionCount() {
 	s.Require().NoError(err)
 	s.Zero(count)
 
-	_, err = s.client.GetBlockTransactionCount(types.MainShardId, math.MaxUint32)
-	s.Require().ErrorContains(err, db.ErrKeyNotFound.Error())
+	count, err = s.client.GetBlockTransactionCount(types.MainShardId, math.MaxUint32)
+	s.Require().NoError(err)
+	s.Zero(count)
 }
 
 func (s *SuiteRpcNode) TestGetBalance() {

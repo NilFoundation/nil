@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/ssz"
+	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
@@ -165,6 +166,9 @@ func (ar *AccountRequest) PackProtoMessage(address types.Address, blockReference
 // Error converters
 
 func (e *Error) UnpackProtoMessage() error {
+	if e.Message == db.ErrKeyNotFound.Error() {
+		return db.ErrKeyNotFound
+	}
 	return errors.New(e.Message)
 }
 
