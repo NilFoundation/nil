@@ -4,11 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
@@ -117,33 +114,4 @@ func (api *APIImpl) GetRawInMessageByHash(ctx context.Context, shardId types.Sha
 		return nil, err
 	}
 	return res.MessageSSZ, nil
-}
-
-func (api *APIImpl) getBlockAndInMessageIndexByMessageHash(tx db.RoTx, shardId types.ShardId, hash common.Hash) (*types.Block, db.BlockHashAndMessageIndex, error) {
-	var index db.BlockHashAndMessageIndex
-	value, err := tx.GetFromShard(shardId, db.BlockHashAndInMessageIndexByMessageHash, hash.Bytes())
-	if err != nil {
-		return nil, index, err
-	}
-	if err := index.UnmarshalSSZ(value); err != nil {
-		return nil, index, err
-	}
-
-	data, err := api.accessor.Access(tx, shardId).GetBlock().ByHash(index.BlockHash)
-	if err != nil {
-		return nil, db.BlockHashAndMessageIndex{}, err
-	}
-	return data.Block(), index, nil
-}
-
-func getBlockEntity[
-	T interface {
-		~*S
-		fastssz.Unmarshaler
-	},
-	S any,
-](tx db.RoTx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash, entityKey []byte) (*S, error) {
-	root := mpt.NewDbReader(tx, shardId, tableName)
-	root.SetRootHash(rootHash)
-	return mpt.GetEntity[T](root, entityKey)
 }

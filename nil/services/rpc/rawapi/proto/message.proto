@@ -44,3 +44,24 @@ message MessageResponse {
     MessageInfo data = 2;
   }
 }
+
+message ReceiptInfo {
+  uint64 shardId = 1;
+  bytes receiptSSZ = 2;
+  uint64 index = 3;
+  Hash blockHash = 4;
+  uint64 blockId = 5;
+  repeated Hash outMessages = 6;
+  repeated ReceiptInfo outReceipts = 7;
+  bool includedInMain = 8;
+  Error errorMessage = 9;
+  Uint256 gasPrice = 10;
+  bool temporary = 11;
+}
+
+message ReceiptResponse {
+  oneof result {
+    Error error = 1;
+    ReceiptInfo data = 2;
+  }
+}
