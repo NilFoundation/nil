@@ -17,16 +17,16 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type Worker interface {
-	Run(ctx context.Context) error
-}
-
 type SyncCommittee struct {
 	cfg      *Config
 	database db.DB
 	logger   zerolog.Logger
 	client   *nilrpc.Client
-	workers  []Worker
+
+	proposer      *Proposer
+	aggregator    *Aggregator
+	taskListener  *rpc.TaskListener
+	taskScheduler scheduler.TaskScheduler
 }
 
 func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
@@ -72,7 +72,11 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		database: database,
 		logger:   logger,
 		client:   client,
-		workers:  []Worker{proposer, aggregator, taskScheduler, taskListener},
+
+		proposer:      proposer,
+		aggregator:    aggregator,
+		taskListener:  taskListener,
+		taskScheduler: taskScheduler,
 	}
 
 	return s, nil
@@ -94,9 +98,11 @@ func (s *SyncCommittee) Run(ctx context.Context) error {
 		ctx = signalCtx
 	}
 
-	var functions []concurrent.Func
-	for _, worker := range s.workers {
-		functions = append(functions, worker.Run)
+	functions := []concurrent.Func{
+		s.proposer.Run,
+		s.aggregator.Run,
+		s.taskListener.Run,
+		s.taskScheduler.Run,
 	}
 
 	if err := concurrent.Run(ctx, functions...); err != nil {

@@ -47,7 +47,7 @@ func NewAggregator(
 func (agg *Aggregator) Run(ctx context.Context) error {
 	agg.logger.Info().Msg("starting blocks fetching")
 
-	err := concurrent.RunTickerLoop(ctx, agg.pollingDelay,
+	concurrent.RunTickerLoop(ctx, agg.pollingDelay,
 		func(ctx context.Context) {
 			if err := agg.processNewBlocks(ctx); err != nil {
 				agg.logger.Error().Err(err).Msg("error during processing new blocks")
@@ -56,8 +56,8 @@ func (agg *Aggregator) Run(ctx context.Context) error {
 		},
 	)
 
-	agg.logger.Info().Err(err).Msg("blocks fetching stopped")
-	return err
+	agg.logger.Info().Msg("blocks fetching stopped")
+	return nil
 }
 
 // getShardIdList retrieves the list of all shard IDs, including the main shard.

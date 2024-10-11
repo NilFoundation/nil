@@ -125,11 +125,13 @@ func (s *taskSchedulerImpl) logError(err error, result *types.TaskResult) {
 func (s *taskSchedulerImpl) Run(ctx context.Context) error {
 	s.logger.Info().Msg("starting task scheduler worker")
 
-	return concurrent.RunTickerLoop(ctx, s.config.taskCheckInterval, func(ctx context.Context) {
+	concurrent.RunTickerLoop(ctx, s.config.taskCheckInterval, func(ctx context.Context) {
 		currentTime := time.Now()
 		err := s.storage.RescheduleHangingTasks(ctx, currentTime, s.config.taskExecutionTimeout)
 		if err != nil {
 			s.logger.Error().Err(err).Msg("failed to reschedule hanging tasks")
 		}
 	})
+
+	return nil
 }

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/NilFoundation/badger/v4"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -56,26 +55,9 @@ type taskStorage struct {
 }
 
 func NewTaskStorage(db db.DB, logger zerolog.Logger) TaskStorage {
-	retryRunner := common.NewRetryRunner(
-		common.RetryConfig{
-			ShouldRetry: func(_ uint32, err error) bool {
-				return errors.Is(err, badger.ErrConflict)
-			},
-			NextDelay: func(_ uint32) time.Duration {
-				delay, err := common.RandomDelay(20*time.Millisecond, 100*time.Millisecond)
-				if err != nil {
-					logger.Error().Err(err).Msg("failed to generate task storage retry delay")
-					return 100 * time.Millisecond
-				}
-				return *delay
-			},
-		},
-		logger,
-	)
-
 	return &taskStorage{
 		database:    db,
-		retryRunner: retryRunner,
+		retryRunner: badgerRetryRunner(logger),
 		logger:      logger,
 	}
 }

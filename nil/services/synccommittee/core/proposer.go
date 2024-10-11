@@ -159,7 +159,7 @@ func (p *Proposer) Run(ctx context.Context) error {
 			Msg("proposer is initialized")
 	}
 
-	return concurrent.RunTickerLoop(ctx, p.params.proposingInterval,
+	concurrent.RunTickerLoop(ctx, p.params.proposingInterval,
 		func(ctx context.Context) {
 			if err := p.proposeNextBlock(ctx); err != nil {
 				p.logger.Error().Err(err).Msg("error during proved blocks proposing")
@@ -167,6 +167,8 @@ func (p *Proposer) Run(ctx context.Context) error {
 			}
 		},
 	)
+
+	return nil
 }
 
 func (p *Proposer) proposeNextBlock(ctx context.Context) error {

@@ -64,7 +64,7 @@ func (p *taskExecutorImpl) Id() types.TaskExecutorId {
 }
 
 func (p *taskExecutorImpl) Run(ctx context.Context) error {
-	return concurrent.RunTickerLoop(
+	concurrent.RunTickerLoop(
 		ctx,
 		p.config.TaskPollingInterval,
 		func(ctx context.Context) {
@@ -73,6 +73,8 @@ func (p *taskExecutorImpl) Run(ctx context.Context) error {
 			}
 		},
 	)
+
+	return nil
 }
 
 func (p *taskExecutorImpl) fetchAndHandleTask(ctx context.Context) error {

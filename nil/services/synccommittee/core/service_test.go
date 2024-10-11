@@ -13,6 +13,7 @@ import (
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
@@ -102,35 +103,27 @@ func (s *SyncCommitteeTestSuite) SetupTest() {
 }
 
 func (s *SyncCommitteeTestSuite) TestCreateProofTasks() {
-	err := s.syncCommittee.aggregator.blockStorage.SetLastProvedBlockNum(s.ctx, types.MainShardId, 100)
+	fstMainBlock := testaide.GenerateMainShardBlock()
+	err := s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, fstMainBlock.ShardId, fstMainBlock.Number, fstMainBlock)
 	s.Require().NoError(err)
-	err = s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, types.MainShardId, types.BlockNumber(101), &jsonrpc.RPCBlock{Number: 101})
-	s.Require().NoError(err)
-	err = s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, types.MainShardId, types.BlockNumber(102), &jsonrpc.RPCBlock{Number: 102})
+
+	sndMainBlock := testaide.GenerateMainShardBlock()
+	sndMainBlock.Number = fstMainBlock.Number + 1
+	err = s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, sndMainBlock.ShardId, sndMainBlock.Number, sndMainBlock)
 	s.Require().NoError(err)
 
 	err = s.syncCommittee.aggregator.createProofTask(s.ctx, &jsonrpc.RPCBlock{Number: 102})
 	s.Require().NoError(err)
-
-	lastProvedBlkNum, err := s.syncCommittee.aggregator.blockStorage.GetLastProvedBlockNum(s.ctx, types.MainShardId)
-	s.Require().NoError(err)
-	s.Require().Equal(types.BlockNumber(100), lastProvedBlkNum)
 }
 
 func (s *SyncCommitteeTestSuite) waitForAllShardsToProcess() {
+	s.T().Helper()
 	for i := range s.nShards {
 		shardId := types.ShardId(i)
 		s.Require().Eventually(
 			func() bool {
 				lastFetchedBlockNum, err := s.syncCommittee.aggregator.blockStorage.GetLastFetchedBlockNum(context.Background(), shardId)
-				if err != nil || lastFetchedBlockNum == 0 {
-					return false
-				}
-				lastProvedBlockNum, err := s.syncCommittee.aggregator.blockStorage.GetLastProvedBlockNum(context.Background(), shardId)
-				if err != nil || lastProvedBlockNum == 0 {
-					return false
-				}
-				return true
+				return err == nil && lastFetchedBlockNum > 0
 			},
 			5*time.Second,
 			100*time.Millisecond,
@@ -145,7 +138,7 @@ func (s *SyncCommitteeTestSuite) TestProcessingLoop() {
 
 	errCh := make(chan error)
 	go func() {
-		errCh <- s.syncCommittee.processingLoop(ctx)
+		errCh <- s.syncCommittee.aggregator.Run(ctx)
 	}()
 
 	s.waitForAllShardsToProcess()

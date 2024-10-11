@@ -22,11 +22,13 @@ const (
 )
 
 func newTestProposer(t *testing.T) *Proposer {
+	t.Helper()
 	database, err := db.NewBadgerDbInMemory()
 	require.NoError(t, err)
 	logger := logging.NewLogger("sync_committee_aggregator_test")
 	blockStorage := storage.NewBlockStorage(database, logger)
 	proposer, err := NewProposer(DefaultProposerParams(), blockStorage, logger)
+	require.NoError(t, err)
 	return proposer
 }
 

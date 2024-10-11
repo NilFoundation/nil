@@ -4,25 +4,28 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
 
 type BlockStorageTestSuite struct {
 	suite.Suite
 
-	db  db.DB
-	ctx context.Context
-	bs  BlockStorage
+	db           db.DB
+	ctx          context.Context
+	cancellation context.CancelFunc
+	bs           BlockStorage
 }
 
 func (s *BlockStorageTestSuite) SetupSuite() {
+	s.ctx, s.cancellation = context.WithCancel(context.Background())
+
 	var err error
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
@@ -35,6 +38,10 @@ func (s *BlockStorageTestSuite) SetupTest() {
 	s.Require().NoError(err)
 }
 
+func (s *BlockStorageTestSuite) TearDownSuite() {
+	s.cancellation()
+}
+
 func TestBlockStorageTestSuite(t *testing.T) {
 	t.Parallel()
 
@@ -44,7 +51,9 @@ func TestBlockStorageTestSuite(t *testing.T) {
 func (s *BlockStorageTestSuite) TestGetSetBlock() {
 	shardId := types.ShardId(1)
 	blockNumber := types.BlockNumber(10)
-	block := &jsonrpc.RPCBlock{Number: blockNumber}
+	block := testaide.GenerateExecutionShardBlock(testaide.RandomHash())
+	block.ShardId = shardId
+	block.Number = blockNumber
 
 	// Test SetBlock
 	err := s.bs.SetBlock(s.ctx, shardId, blockNumber, block)
@@ -63,8 +72,11 @@ func (s *BlockStorageTestSuite) TestGetSetBlock() {
 
 func (s *BlockStorageTestSuite) TestGetLastFetchedBlock() {
 	shardId := types.ShardId(1)
-	block1 := &jsonrpc.RPCBlock{Number: 10}
-	block2 := &jsonrpc.RPCBlock{Number: 20}
+	block1 := testaide.GenerateExecutionShardBlock(testaide.RandomHash())
+	block1.ShardId = shardId
+	block2 := testaide.GenerateExecutionShardBlock(testaide.RandomHash())
+	block2.ShardId = shardId
+	block2.Number = block1.Number + 1
 
 	err := s.bs.SetBlock(s.ctx, shardId, block1.Number, block1)
 	s.Require().NoError(err)
@@ -86,9 +98,9 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProved() {
 	hash := testaide.RandomHash()
 
 	for _, block := range []*jsonrpc.RPCBlock{
-		{Number: 10, Hash: hash},
-		{Number: 11, Hash: testaide.RandomHash()},
-		{Number: 12, Hash: testaide.RandomHash()},
+		{Number: 10, ParentHash: testaide.RandomHash(), Hash: hash},
+		{Number: 11, ParentHash: testaide.RandomHash(), Hash: testaide.RandomHash()},
+		{Number: 12, ParentHash: testaide.RandomHash(), Hash: testaide.RandomHash()},
 	} {
 		err := s.bs.SetBlock(s.ctx, types.MainShardId, block.Number, block)
 		s.Require().NoError(err)
@@ -105,7 +117,7 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_DoesNotExist() {
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProposed_IsNotProved() {
-	block := &jsonrpc.RPCBlock{Number: 10, Hash: testaide.RandomHash()}
+	block := testaide.GenerateMainShardBlock()
 	err := s.bs.SetBlock(s.ctx, types.MainShardId, block.Number, block)
 	s.Require().NoError(err)
 
@@ -115,7 +127,10 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_IsNotProved() {
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProposed_ParentHashMismatch() {
 	previousMainBlock := testaide.GenerateMainShardBlock()
+
 	err := s.bs.SetBlock(s.ctx, previousMainBlock.ShardId, previousMainBlock.Number, previousMainBlock)
+	s.Require().NoError(err)
+
 	err = s.bs.SetBlockAsProved(s.ctx, previousMainBlock.Hash)
 	s.Require().NoError(err)
 
@@ -123,7 +138,10 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_ParentHashMismatch() {
 	s.Require().NoError(err)
 
 	newMainBlock := testaide.GenerateMainShardBlock()
+
 	err = s.bs.SetBlock(s.ctx, newMainBlock.ShardId, newMainBlock.Number, newMainBlock)
+	s.Require().NoError(err)
+
 	err = s.bs.SetBlockAsProved(s.ctx, newMainBlock.Hash)
 	s.Require().NoError(err)
 
@@ -134,10 +152,11 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_ParentHashMismatch() {
 func (s *BlockStorageTestSuite) TestSetBlockAsProposed_WithExecutionShardBlocks() {
 	mainBlock := testaide.GenerateMainShardBlock()
 
-	executionShardBlocks := []*jsonrpc.RPCBlock{
-		{Number: testaide.RandomBlockNum(), ShardId: 1, Hash: testaide.RandomHash(), MainChainHash: mainBlock.Hash},
-		{Number: testaide.RandomBlockNum(), ShardId: 2, Hash: testaide.RandomHash(), MainChainHash: mainBlock.Hash},
-		{Number: testaide.RandomBlockNum(), ShardId: 3, Hash: testaide.RandomHash(), MainChainHash: mainBlock.Hash},
+	const blocksCount = 3
+	executionShardBlocks := make([]*jsonrpc.RPCBlock, 0, blocksCount)
+	for range blocksCount {
+		nextBlock := testaide.GenerateExecutionShardBlock(mainBlock.Hash)
+		executionShardBlocks = append(executionShardBlocks, nextBlock)
 	}
 
 	someOtherBlock := &jsonrpc.RPCBlock{
@@ -194,77 +213,21 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_NoProvedMainShardBloc
 	s.Require().NoError(err)
 }
 
-func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Concurrently() {
-	initialStateRoot := testaide.RandomHash()
-	err := s.bs.SetProvedStateRoot(s.ctx, initialStateRoot)
-	s.Require().NoError(err)
-
-	const blocksCount = 10
-
-	var mainShardBlocks []jsonrpc.RPCBlock
-	for range blocksCount {
-		nextBlock := testaide.GenerateMainShardBlock()
-		if len(mainShardBlocks) > 0 {
-			nextBlock.ParentHash = mainShardBlocks[len(mainShardBlocks)-1].Hash
-		}
-	}
-
-	for _, block := range mainShardBlocks {
-		err := s.bs.SetBlock(s.ctx, block.ShardId, block.Number, &block)
-		s.Require().NoError(err)
-	}
-
-	waitGroup := sync.WaitGroup{}
-	waitGroup.Add(blocksCount + 1)
-
-	// set blocks as proved in random order
-	for _, block := range mainShardBlocks {
-		go func() {
-			err = s.bs.SetBlockAsProved(s.ctx, block.Hash)
-			s.NoError(err)
-			waitGroup.Done()
-		}()
-	}
-
-	go func() {
-		for idx, block := range mainShardBlocks {
-			data, err := s.bs.TryGetNextProposalData(s.ctx)
-			s.NoError(err)
-			s.Equal(block.Hash, data.MainShardBlockHash)
-
-			if idx == 0 {
-				s.Equal(initialStateRoot, data.OldProvedStateRoot)
-			} else {
-				s.Equal(mainShardBlocks[idx-1].Hash, data.OldProvedStateRoot)
-			}
-
-			s.Equal(block.ChildBlocksRootHash, data.NewProvedStateRoot)
-		}
-		waitGroup.Done()
-	}()
-
-	waitGroup.Wait()
-}
-
-// todo: complete test implementation
-
 func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Collect_Transactions() {
-	mainBlock := testaide.GenerateMainShardBlock()
-	mainBlock.Messages = []any{
-		jsonrpc.RPCInMessage{
-			Flags: types.MessageFlags{},
-			Seqno: 10,
-			From:  types.EmptyAddress,
-			To:    types.EmptyAddress,
-			Value: types.NewValue(uint256.NewInt(1000)),
-			Data:  []byte{10, 20, 30, 40},
-		},
-	}
+	err := s.bs.SetProvedStateRoot(s.ctx, testaide.RandomHash())
+	s.Require().NoError(err, "failed to set initial state root")
 
-	executionShardBlocks := []*jsonrpc.RPCBlock{
-		{Number: testaide.RandomBlockNum(), ShardId: 1, Hash: testaide.RandomHash(), MainChainHash: mainBlock.Hash},
-		{Number: testaide.RandomBlockNum(), ShardId: 2, Hash: testaide.RandomHash(), MainChainHash: mainBlock.Hash},
-		{Number: testaide.RandomBlockNum(), ShardId: 3, Hash: testaide.RandomHash(), MainChainHash: mainBlock.Hash},
+	var expectedTxCount int
+	mainBlock := testaide.GenerateMainShardBlock()
+	expectedTxCount += len(mainBlock.Messages)
+
+	const blocksCount = 3
+	executionShardBlocks := make([]*jsonrpc.RPCBlock, 0, blocksCount)
+
+	for range blocksCount {
+		block := testaide.GenerateExecutionShardBlock(mainBlock.Hash)
+		executionShardBlocks = append(executionShardBlocks, block)
+		expectedTxCount += len(block.Messages)
 	}
 
 	for _, block := range append(executionShardBlocks, mainBlock) {
@@ -272,11 +235,100 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Collect_Transactions(
 		s.Require().NoError(err)
 	}
 
-	err := s.bs.SetBlockAsProved(s.ctx, mainBlock.Hash)
+	err = s.bs.SetBlockAsProved(s.ctx, mainBlock.Hash)
 	s.Require().NoError(err)
 
 	data, err := s.bs.TryGetNextProposalData(s.ctx)
 	s.Require().NoError(err)
 	s.Require().NotNil(data)
-	s.Require().Len(data.Transactions, 0)
+	s.Require().Len(data.Transactions, expectedTxCount)
+}
+
+func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Concurrently() {
+	initialStateRoot := testaide.RandomHash()
+	err := s.bs.SetProvedStateRoot(s.ctx, initialStateRoot)
+	s.Require().NoError(err, "failed to set initial state root")
+
+	const blocksCount = 10
+	mainShardBlocks := generateMainShardBlocks(blocksCount)
+
+	for _, block := range mainShardBlocks {
+		err := s.bs.SetBlock(s.ctx, block.ShardId, block.Number, &block)
+		s.Require().NoError(err, "failed to set block")
+	}
+
+	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(blocksCount + 1)
+
+	// concurrently set blocks as proved
+	for _, block := range mainShardBlocks {
+		go func() {
+			err := s.bs.SetBlockAsProved(s.ctx, block.Hash)
+			s.NoError(err, "failed to set block as proved")
+			waitGroup.Done()
+		}()
+	}
+
+	receiveTimeout := time.After(time.Second * 3)
+	var receivedData []*ProposalData
+	go func() {
+		// poll all blocks data from the storage
+		for {
+			if len(receivedData) == blocksCount {
+				break
+			}
+			select {
+			case <-receiveTimeout:
+				s.Fail("proposal data receive timeout exceeded")
+				waitGroup.Done()
+			default:
+				data, err := s.bs.TryGetNextProposalData(s.ctx)
+				s.NoError(err, "failed to get next proposal data")
+				if data == nil {
+					continue
+				}
+
+				receivedData = append(receivedData, data)
+				err = s.bs.SetBlockAsProposed(s.ctx, data.MainShardBlockHash)
+				s.NoError(err, "failed to set block as proposed")
+			}
+		}
+		waitGroup.Done()
+	}()
+
+	waitGroup.Wait()
+
+	msg := func(field string) string {
+		return field + " is not equal to the expected value"
+	}
+
+	// check that data was received in correct order
+	for idx := range blocksCount {
+		block := mainShardBlocks[idx]
+		data := receivedData[idx]
+
+		s.Equal(block.Hash, data.MainShardBlockHash, msg("MainShardBlockHash"))
+		s.Len(data.Transactions, len(block.Messages), msg("Transactions count"))
+		s.Equal(block.ChildBlocksRootHash, data.NewProvedStateRoot, msg("NewProvedStateRoot"))
+
+		if idx == 0 {
+			s.Equal(initialStateRoot, data.OldProvedStateRoot, msg("OldProvedStateRoot"))
+		} else {
+			s.Equal(mainShardBlocks[idx-1].ChildBlocksRootHash, data.OldProvedStateRoot, msg("OldProvedStateRoot"))
+		}
+	}
+}
+
+func generateMainShardBlocks(blocksCount int) []jsonrpc.RPCBlock {
+	mainShardBlocks := make([]jsonrpc.RPCBlock, 0, blocksCount)
+	for range blocksCount {
+		nextBlock := testaide.GenerateMainShardBlock()
+		if len(mainShardBlocks) > 0 {
+			nextBlock.ParentHash = mainShardBlocks[len(mainShardBlocks)-1].Hash
+		} else {
+			nextBlock.ParentHash = testaide.RandomHash()
+		}
+		mainShardBlocks = append(mainShardBlocks, *nextBlock)
+	}
+	return mainShardBlocks
 }

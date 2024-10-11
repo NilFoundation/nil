@@ -16,17 +16,17 @@ import (
 )
 
 const (
-	blockTableName               db.TableName = "blocks"
-	lastFetchedTableName         db.TableName = "last_fetched"
-	stateRootTableName           db.TableName = "state_root"
-	nextToProposeParentTableName db.TableName = "next_to_propose_parent_hash"
+	blockTableName         db.TableName = "blocks"
+	lastFetchedTableName   db.TableName = "last_fetched"
+	stateRootTableName     db.TableName = "state_root"
+	nextToProposeTableName db.TableName = "next_to_propose_parent_hash"
 )
 
 var mainShardKey = makeShardKey(types.MainShardId)
 
 type blockEntry struct {
-	Block    jsonrpc.RPCBlock
-	IsProved bool
+	Block    jsonrpc.RPCBlock `json:"block"`
+	IsProved bool             `json:"isProved"`
 }
 
 type PrunedTransaction struct {
@@ -64,14 +64,16 @@ type BlockStorage interface {
 }
 
 type blockStorage struct {
-	db     db.DB
-	logger zerolog.Logger
+	db          db.DB
+	retryRunner common.RetryRunner
+	logger      zerolog.Logger
 }
 
 func NewBlockStorage(database db.DB, logger zerolog.Logger) BlockStorage {
 	return &blockStorage{
-		db:     database,
-		logger: logger,
+		db:          database,
+		retryRunner: badgerRetryRunner(logger),
+		logger:      logger,
 	}
 }
 
@@ -91,6 +93,10 @@ func (bs *blockStorage) ProvedStateRootIsInitialized(ctx context.Context) (*bool
 }
 
 func (bs *blockStorage) SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error {
+	if stateRoot.Empty() {
+		return errors.New("state root hash is empty")
+	}
+
 	tx, err := bs.db.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -193,8 +199,12 @@ func (bs *blockStorage) setProposeParentHash(tx db.RwTx, block *jsonrpc.RPCBlock
 	if err != nil {
 		return err
 	}
-	if parentHash != nil {
+	if parentHash != nil && !parentHash.Empty() {
 		return nil
+	}
+
+	if block.Number > 0 && block.ParentHash.Empty() {
+		return fmt.Errorf("block with hash=%s has empty parent hash", block.Hash.String())
 	}
 
 	bs.logger.Debug().
@@ -206,6 +216,16 @@ func (bs *blockStorage) setProposeParentHash(tx db.RwTx, block *jsonrpc.RPCBlock
 }
 
 func (bs *blockStorage) SetBlockAsProved(ctx context.Context, blockHash common.Hash) error {
+	return bs.retryRunner.Do(ctx, func(ctx context.Context) error {
+		return bs.setBlockAsProvedImpl(ctx, blockHash)
+	})
+}
+
+func (bs *blockStorage) setBlockAsProvedImpl(ctx context.Context, blockHash common.Hash) error {
+	if blockHash.Empty() {
+		return errors.New("block hash is empty")
+	}
+
 	tx, err := bs.db.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -224,6 +244,10 @@ func (bs *blockStorage) SetBlockAsProved(ctx context.Context, blockHash common.H
 	entry.IsProved = true
 	key := makeBlockKey(entry.Block.ShardId, entry.Block.Number)
 	value, err := encodeEntry(entry)
+	if err != nil {
+		return err
+	}
+
 	err = tx.Put(blockTableName, key, value)
 	if err != nil {
 		return err
@@ -247,7 +271,7 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 	if err != nil {
 		return nil, err
 	}
-	if parentHash == nil {
+	if parentHash == nil || parentHash.Empty() {
 		bs.logger.Debug().Msg("block parent hash is not set")
 		return nil, nil
 	}
@@ -268,11 +292,18 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 		return nil, nil
 	}
 
-	transactions := extractTransactions(mainShardEntry.Block)
+	transactions, err := extractTransactions(mainShardEntry.Block)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract transactions: %w", err)
+	}
 
 	err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
-		if isExecutionShardBlock(entry, *parentHash) {
-			transactions = append(transactions, extractTransactions(entry.Block)...)
+		if isExecutionShardBlock(entry, mainShardEntry.Block.Hash) {
+			blockTransactions, err := extractTransactions(entry.Block)
+			if err != nil {
+				return false, fmt.Errorf("failed to extract transactions: %w", err)
+			}
+			transactions = append(transactions, blockTransactions...)
 		}
 		return true, nil
 	})
@@ -288,72 +319,17 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 	}, nil
 }
 
-func extractTransactions(block jsonrpc.RPCBlock) []PrunedTransaction {
-	var transactions []PrunedTransaction
-	for _, message := range block.Messages {
-		rpcInMessage, success := message.(jsonrpc.RPCInMessage)
-		if !success {
-			continue
-		}
-
-		t := PrunedTransaction{
-			Flags: rpcInMessage.Flags,
-			Seqno: rpcInMessage.Seqno,
-			From:  rpcInMessage.From,
-			To:    rpcInMessage.To,
-			Value: rpcInMessage.Value,
-			Data:  rpcInMessage.Data,
-		}
-		transactions = append(transactions, t)
-	}
-	return transactions
-}
-
-func isValidProposalCandidate(entry *blockEntry, lastProposedBlockHash *common.Hash) bool {
-	return entry.Block.ShardId == types.MainShardId &&
-		entry.IsProved &&
-		entry.Block.ParentHash == *lastProposedBlockHash
-}
-
-func (bs *blockStorage) getCurrentProvedStateRoot(tx db.RoTx) (*common.Hash, error) {
-	hashBytes, err := tx.Get(stateRootTableName, mainShardKey)
-	if errors.Is(db.ErrKeyNotFound, err) {
-		return nil, errors.New("proved state root was not initialized")
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	hash := common.BytesToHash(hashBytes)
-	return &hash, nil
-}
-
-// getParentOfNextToPropose retrieves parent's hash of the next block to propose
-func (bs *blockStorage) getParentOfNextToPropose(tx db.RoTx) (*common.Hash, error) {
-	hashBytes, err := tx.Get(nextToProposeParentTableName, mainShardKey)
-
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get next to propose parent hash: %w", err)
-	}
-
-	hash := common.BytesToHash(hashBytes)
-	return &hash, nil
-}
-
-// setParentOfNextToPropose sets parent's hash of the next block to propose
-func (bs *blockStorage) setParentOfNextToPropose(tx db.RwTx, hash common.Hash) error {
-	err := tx.Put(nextToProposeParentTableName, mainShardKey, hash.Bytes())
-	if err != nil {
-		return fmt.Errorf("failed to put next to propose parent hash: %w", err)
-	}
-	return nil
-}
-
 func (bs *blockStorage) SetBlockAsProposed(ctx context.Context, blockHash common.Hash) error {
+	return bs.retryRunner.Do(ctx, func(ctx context.Context) error {
+		return bs.setBlockAsProposedImpl(ctx, blockHash)
+	})
+}
+
+func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, blockHash common.Hash) error {
+	if blockHash.Empty() {
+		return errors.New("block hash is empty")
+	}
+
 	tx, err := bs.db.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -399,6 +375,113 @@ func (bs *blockStorage) SetBlockAsProposed(ctx context.Context, blockHash common
 	return tx.Commit()
 }
 
+func extractTransactions(block jsonrpc.RPCBlock) ([]PrunedTransaction, error) {
+	transactions := make([]PrunedTransaction, len(block.Messages))
+
+	for idx, message := range block.Messages {
+		rpcInMessage, ok := message.(map[string]any)
+		if !ok {
+			return nil, errors.New("failed to cast message to map")
+		}
+
+		seqnoStr, ok := rpcInMessage["seqno"].(string)
+		if !ok {
+			return nil, errors.New("failed to cast seqno to string")
+		}
+
+		var seqno hexutil.Uint64
+		err := seqno.UnmarshalText([]byte(seqnoStr))
+		if err != nil {
+			return nil, err
+		}
+
+		valueStr, ok := rpcInMessage["value"].(string)
+		if !ok {
+			return nil, errors.New("failed to cast value to string")
+		}
+
+		var value types.Value
+		err = value.Set(valueStr)
+		if err != nil {
+			return nil, err
+		}
+
+		dataStr, ok := rpcInMessage["data"].(string)
+		if !ok {
+			return nil, errors.New("failed to cast data to string")
+		}
+
+		var data hexutil.Bytes
+		err = data.Set(dataStr)
+		if err != nil {
+			return nil, err
+		}
+
+		fromStr, ok := rpcInMessage["from"].(string)
+		if !ok {
+			return nil, errors.New("failed to cast from to string")
+		}
+
+		toStr, ok := rpcInMessage["to"].(string)
+		if !ok {
+			return nil, errors.New("failed to cast to to string")
+		}
+
+		transactions[idx] = PrunedTransaction{
+			Seqno: seqno,
+			From:  types.HexToAddress(fromStr),
+			To:    types.HexToAddress(toStr),
+			Value: value,
+			Data:  data,
+		}
+	}
+	return transactions, nil
+}
+
+func isValidProposalCandidate(entry *blockEntry, parentHash *common.Hash) bool {
+	return entry.Block.ShardId == types.MainShardId &&
+		entry.IsProved &&
+		entry.Block.ParentHash == *parentHash
+}
+
+func (bs *blockStorage) getCurrentProvedStateRoot(tx db.RoTx) (*common.Hash, error) {
+	hashBytes, err := tx.Get(stateRootTableName, mainShardKey)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return nil, errors.New("proved state root was not initialized")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	hash := common.BytesToHash(hashBytes)
+	return &hash, nil
+}
+
+// getParentOfNextToPropose retrieves parent's hash of the next block to propose
+func (bs *blockStorage) getParentOfNextToPropose(tx db.RoTx) (*common.Hash, error) {
+	hashBytes, err := tx.Get(nextToProposeTableName, mainShardKey)
+
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get next to propose parent hash: %w", err)
+	}
+
+	hash := common.BytesToHash(hashBytes)
+	return &hash, nil
+}
+
+// setParentOfNextToPropose sets parent's hash of the next block to propose
+func (bs *blockStorage) setParentOfNextToPropose(tx db.RwTx, hash common.Hash) error {
+	err := tx.Put(nextToProposeTableName, mainShardKey, hash.Bytes())
+	if err != nil {
+		return fmt.Errorf("failed to put next to propose parent hash: %w", err)
+	}
+	return nil
+}
+
 func isExecutionShardBlock(entry *blockEntry, mainShardBlockHash common.Hash) bool {
 	return entry.Block.ShardId != types.MainShardId && entry.Block.MainChainHash == mainShardBlockHash
 }
@@ -421,7 +504,7 @@ func (bs *blockStorage) validateMainShardEntry(tx db.RoTx, entry *blockEntry, bl
 		return err
 	}
 	if parentHash == nil {
-		return fmt.Errorf("next to propose parent hash is not set")
+		return errors.New("next to propose parent hash is not set")
 	}
 
 	if *parentHash != entry.Block.ParentHash {
@@ -517,5 +600,6 @@ func unmarshallEntry(key *[]byte, val *[]byte) (*blockEntry, error) {
 	if err := json.Unmarshal(*val, entry); err != nil {
 		return nil, fmt.Errorf("failed to unmarshall block entry with id %v: %w", string(*key), err)
 	}
+
 	return entry, nil
 }
