@@ -291,7 +291,7 @@ func (s *SuiteAsyncAwait) TestNoneZeroCallDepth() {
 	data := s.AbiPack(s.abiTest, "testNoneZeroCallDepth", s.testAddress0)
 	receipt := s.sendExternalMessageNoCheck(data, s.testAddress0)
 	s.Require().False(receipt.AllSuccess())
-	s.Require().Equal("PrecompileReverted", receipt.Status)
+	s.Require().Equal("AwaitCallCalledFromNotTopLevel", receipt.Status)
 }
 
 func (s *SuiteAsyncAwait) TestRequestResponse() {
@@ -415,6 +415,13 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 	//	initialBalance = s.checkBalance(info, initialBalance, s.accounts)
 	//	s.checkAsyncContextEmpty(s.testAddress0)
 	// })
+}
+
+func (s *SuiteAsyncAwait) TestOnlyResponse() {
+	data := s.AbiPack(s.abiTest, "responseCounterAdd", true, []byte{}, []byte{})
+	receipt := s.sendExternalMessageNoCheck(data, s.testAddress0)
+	s.Require().False(receipt.Success)
+	s.Require().Equal("OnlyResponseCheckFailed", receipt.Status)
 }
 
 func (s *SuiteAsyncAwait) checkAsyncContextEmpty(address types.Address) {

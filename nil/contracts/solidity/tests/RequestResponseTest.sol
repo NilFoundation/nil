@@ -139,7 +139,7 @@ contract RequestResponseTest is NilCurrencyBase {
         Nil.sendRequest(counter, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
     }
 
-    function responseCounterAdd(bool success, bytes memory returnData, bytes memory context) public pure {
+    function responseCounterAdd(bool success, bytes memory returnData, bytes memory context) public view onlyResponse {
         require(success, "Request failed");
         require(context.length == 0, "Context should be empty");
         require(returnData.length == 0, "returnData should be empty");
