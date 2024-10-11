@@ -104,6 +104,11 @@ export default {
           id: 'guides/app-migration'
         },
         {
+          type: 'doc',
+          label: 'Adapting design patterns',
+          id: 'guides/design-patterns'
+        },
+        {
           type: 'category',
           label: 'Architecture',
           collapsed: true,
