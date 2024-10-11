@@ -268,9 +268,6 @@ func (c *DirectClient) TopUpViaFaucet(faucetAddress, contractAddressTo types.Add
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	if err != nil {
-		return common.EmptyHash, err
-	}
 	return c.SendExternalMessage(callData, faucetAddress, nil, types.GasToValue(100_000))
 }
 

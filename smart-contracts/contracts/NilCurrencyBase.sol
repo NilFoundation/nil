@@ -118,7 +118,7 @@ abstract contract NilCurrencyBase is NilBase {
     }
 
     /**
-    * @dev Returns the balance of the currency for a given address.
+     * @dev Returns the balance of the currency for a given address.
      * @param account The address to check the balance for.
      * @return The balance of the currency for the given address.
      */

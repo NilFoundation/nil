@@ -44,7 +44,7 @@ func TopUpBalance(service *cliservice.Service, wallets []types.Address, mh *metr
 			return err
 		}
 		if balance.Uint64() < topUpAmount {
-			if err := service.TopUpViaFaucet(wallet, types.NewValueFromUint64(topUpAmount)); err != nil {
+			if err := service.TopUpViaFaucet(types.FaucetAddress, wallet, types.NewValueFromUint64(topUpAmount)); err != nil {
 				return err
 			}
 			if err := HandleWalletBalanceMetrics(service, mh, wallet, topUpAmount); err != nil {

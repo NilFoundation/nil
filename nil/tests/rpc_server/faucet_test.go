@@ -2,11 +2,11 @@ package rpctest
 
 import (
 	"crypto/ecdsa"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"math/big"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"

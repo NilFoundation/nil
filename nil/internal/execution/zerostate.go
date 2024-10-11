@@ -3,7 +3,6 @@ package execution
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"math/big"
 	"os"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -209,17 +208,11 @@ func (es *ExecutionState) GenerateZeroState(stateConfig *ZeroStateConfig) error 
 				switch {
 				case arg == "MainPublicKey":
 					args = append(args, MainPublicKey)
-				case arg == "FaucetAddress":
-					args = append(args, types.FaucetAddress)
-				case arg == "EmptyAddress":
-					args = append(args, types.EmptyAddress)
-				case len(arg) > 2 && arg[:2] == "0x":
+				case arg[:2] == "0x":
 					args = append(args, hexutil.FromHex(arg))
 				default:
-					args = append(args, arg)
+					return fmt.Errorf("unknown constructor argument string pattern: %s", arg)
 				}
-			case int:
-				args = append(args, big.NewInt(int64(arg)))
 			default:
 				args = append(args, arg)
 			}

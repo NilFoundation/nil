@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
