@@ -40,7 +40,9 @@ export const Code = () => {
       });
       return diagnostics;
     };
-    return [solidity, ...basicSetup(), linter(solidityLinter)];
+    return [solidity, ...basicSetup({
+      lineNumbers: !isMobile,
+    }), linter(solidityLinter)];
   }, [errors]);
 
   const noCode = code.trim().length === 0;
