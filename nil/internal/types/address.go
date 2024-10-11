@@ -27,9 +27,9 @@ var (
 	EmptyAddress      = Address{}
 	MainWalletAddress = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111111")
 	FaucetAddress     = ShardAndHexToAddress(BaseShardId, "00000000000000000000000000000FA00CE7")
-	EthWalletAddress  = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111112")
-	UsdtWalletAddress = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111113")
-	BtcWalletAddress  = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111114")
+	EthFaucetAddress  = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111112")
+	UsdtFaucetAddress = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111113")
+	BtcFaucetAddress  = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111114")
 )
 
 // BytesToAddress returns Address with value b.

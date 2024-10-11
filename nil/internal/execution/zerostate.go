@@ -41,22 +41,19 @@ contracts:
   address: {{ .MainWalletAddress }}
   value: 100000000000000
   contract: Wallet
-  ctorArgs: [{{ .MainPublicKey }}, 0, "", "EmptyAddress"]
-- name: TokenEthWallet
-  address: {{ .EthWalletAddress }}
+  ctorArgs: [{{ .MainPublicKey }}]
+- name: EthFaucet
+  address: {{ .EthFaucetAddress }}
   value: 100000000000000
-  contract: Wallet
-  ctorArgs: [{{ .MainPublicKey }}, 100000000000000, "ETH", "FaucetAddress"]
-- name: TokenUsdtWallet
-  address: {{ .UsdtWalletAddress }}
+  contract: FaucetCurrency
+- name: UsdtFaucet
+  address: {{ .UsdtFaucetAddress }}
   value: 100000000000000
-  contract: Wallet
-  ctorArgs: [{{ .MainPublicKey }}, 100000000000000, "USDT", "FaucetAddress"]
-- name: TokenBtcWallet
-  address: {{ .BtcWalletAddress }}
+  contract: FaucetCurrency
+- name: BtcFaucet
+  address: {{ .BtcFaucetAddress }}
   value: 100000000000000
-  contract: Wallet
-  ctorArgs: [{{ .MainPublicKey }}, 100000000000000, "BTC", "FaucetAddress"]
+  contract: FaucetCurrency
 `
 
 	DefaultZeroStateConfig, err = common.ParseTemplate(zerostate, map[string]interface{}{
@@ -64,9 +61,9 @@ contracts:
 		"MainWalletAddress": types.MainWalletAddress.Hex(),
 		"MainPublicKey":     hexutil.Encode(MainPublicKey),
 		"MainWalletPubKey":  hexutil.Encode(MainPublicKey),
-		"EthWalletAddress":  types.EthWalletAddress.Hex(),
-		"UsdtWalletAddress": types.UsdtWalletAddress.Hex(),
-		"BtcWalletAddress":  types.BtcWalletAddress.Hex(),
+		"EthFaucetAddress":  types.EthFaucetAddress.Hex(),
+		"UsdtFaucetAddress": types.UsdtFaucetAddress.Hex(),
+		"BtcFaucetAddress":  types.BtcFaucetAddress.Hex(),
 	})
 	check.PanicIfErr(err)
 }

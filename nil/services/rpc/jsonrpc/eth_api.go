@@ -198,7 +198,7 @@ type EthAPIRo interface {
 		@param amount Value
 		@returns hash MessageHash
 	*/
-	TopUpViaFaucet(ctx context.Context, contractAddressFrom, contractAddressTo types.Address, amount types.Value) (common.Hash, error)
+	TopUpViaFaucet(ctx context.Context, faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error)
 
 	/*
 		@name NewFilter

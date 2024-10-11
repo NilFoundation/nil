@@ -14,7 +14,6 @@ import "./Nil.sol";
 abstract contract NilCurrencyBase is NilBase {
     uint totalSupply;
     string tokenName;
-    address additionalOwner;
 
     /**
      * @dev Returns the total supply of the currency.
@@ -49,27 +48,11 @@ abstract contract NilCurrencyBase is NilBase {
     }
 
     /**
-     * @dev Returns the additional owner of the currency.
-     * @return The additional owner of the currency.
-     */
-    function getCurrencyAdditionalOwner() public view returns(address) {
-        return additionalOwner;
-    }
-
-    /**
      * @dev Set the name of the currency.
      * @param name The name of the currency.
      */
     function setCurrencyName(string memory name) onlyExternal virtual public {
         tokenName = name;
-    }
-
-    /**
-     * @dev Set the additional owner of the currency.
-     * @param owner The additional owner of the currency.
-     */
-    function setCurrencyAdditionalOwner(address owner) onlyExternal virtual public {
-        additionalOwner = owner;
     }
 
     /**
@@ -96,17 +79,6 @@ abstract contract NilCurrencyBase is NilBase {
      * @param amount The amount of currency to mint.
      */
     function sendCurrency(address to, uint256 currencyId, uint256 amount) onlyExternal virtual public {
-        sendCurrencyInternal(to, currencyId, amount);
-    }
-
-    /**
-     * @dev Sends a specified amount of arbitrary currency to a given address.
-     * This method is only accessible by the additional owner of the currency and allows to mint and send currency.
-     * @param amount The amount of currency to mint.
-     */
-    function sendCurrencyOwner(address to, uint256 currencyId, uint256 amount) virtual public {
-        require(msg.sender == additionalOwner, "Only additional owner can send currency");
-        mintCurrencyInternal(amount);
         sendCurrencyInternal(to, currencyId, amount);
     }
 

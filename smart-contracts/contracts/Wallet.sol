@@ -26,17 +26,11 @@ contract Wallet is NilCurrencyBase {
     function bounce(string calldata err) external payable {}
 
     /**
-     * @dev Constructor to initialize the wallet with a public key and currency parameters.
+     * @dev Constructor to initialize the wallet with a public key.
      * @param _pubkey The public key to initialize the wallet with.
-     * @param _totalSupply The total supply of the currency.
-     * @param _tokenName The name of the token.
-     * @param _additionalOwner The address of the additional owner.
      */
-    constructor(bytes memory _pubkey, uint _totalSupply, string memory _tokenName, address _additionalOwner) payable {
+    constructor(bytes memory _pubkey) payable {
         pubkey = _pubkey;
-        totalSupply = _totalSupply;
-        tokenName = _tokenName;
-        additionalOwner = _additionalOwner;
     }
 
     /**

@@ -99,8 +99,8 @@ func (e MessageHashMismatchError) Error() string {
 	return fmt.Sprintf("Unexpected message hash %s, expected %s", e.actual, e.expected)
 }
 
-func (s *Service) TopUpViaFaucet(contractAddressFrom, contractAddressTo types.Address, amount types.Value) error {
-	msgHash, err := s.client.TopUpViaFaucet(contractAddressFrom, contractAddressTo, amount)
+func (s *Service) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address, amount types.Value) error {
+	msgHash, err := s.client.TopUpViaFaucet(faucetAddress, contractAddressTo, amount)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func (s *Service) TopUpViaFaucet(contractAddressFrom, contractAddressTo types.Ad
 		return err
 	}
 
-	s.logger.Info().Msgf("Contract %s balance is topped up by %s on behalf of %s", contractAddressTo, amount, contractAddressFrom)
+	s.logger.Info().Msgf("Contract %s balance is topped up by %s on behalf of %s", contractAddressTo, amount, faucetAddress)
 	return nil
 }
 

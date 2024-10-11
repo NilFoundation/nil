@@ -77,40 +77,8 @@ contract Faucet {
         emit Send(addr, value);
     }
 
-//    function withdrawCurrencyTo(address src, address dst, uint256 currencyId, uint256 value) public {
-////        bytes memory callData = abi.encodeWithSignature("sendCurrency(address,uint256,uint256)", dst, currencyId, value);
-////        src.call(callData);
-//
-////        value = acquire(addr, value);
-////        uint feeCredit = 100_000 * tx.gasprice;
-////        Nil.asyncCall(
-////            src,
-////            address(this) /* refundTo */,
-////            address(this) /* bounceTo */,
-////            feeCredit,
-////            Nil.FORWARD_NONE,
-////            false /* deploy */,
-////            value,
-////            callData);
-////        emit Send(addr, value);
-////
-//        Nil.awaitCall(
-//            src,
-//            Nil.ASYNC_REQUEST_MIN_GAS,
-//            abi.encodeWithSignature("sendCurrency(address,uint256,uint256)", dst, currencyId, value, value)
-//        );
-//    }
-
-    function withdrawCurrencyTo(address src, address dst, uint256 currencyId, uint256 value) public {
-        Nil.awaitCall(
-            src,
-            Nil.ASYNC_REQUEST_MIN_GAS,
-            abi.encodeWithSignature("sendCurrencyOwner(address,uint256,uint256)", dst, currencyId, value)
-        );
-    }
-
     function createWallet(bytes memory ownerPubkey, bytes32 salt, uint256 value) external returns (address) {
-        Wallet wallet = new Wallet{salt: salt}(ownerPubkey, value, "Nil", msg.sender);
+        Wallet wallet = new Wallet{salt: salt}(ownerPubkey);
         address addr = address(wallet);
         emit Deploy(addr);
 
@@ -119,5 +87,20 @@ contract Faucet {
         emit Send(addr, value);
 
         return addr;
+    }
+}
+
+contract FaucetCurrency is NilCurrencyBase {
+    event Send(address addr, uint256 value);
+
+    function verifyExternal(uint256, bytes calldata) external pure returns (bool) {
+        return true;
+    }
+
+    function withdrawTo(address payable addr, uint256 value) public {
+        mintCurrencyInternal(value);
+        sendCurrencyInternal(addr, getCurrencyId(), value);
+
+        emit Send(addr, value);
     }
 }

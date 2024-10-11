@@ -175,9 +175,9 @@ func (s *SuiteFaucet) TestTopUpCurrencyViaFaucet() {
 	s.Require().True(receipt.Success)
 
 	value := types.NewValueFromUint64(1000)
-	addressesFrom := []types.Address{types.EthWalletAddress, types.UsdtWalletAddress, types.BtcWalletAddress, types.MainWalletAddress}
-	for _, addressFrom := range addressesFrom {
-		mshHash, err := s.client.TopUpViaFaucet(addressFrom, address, value)
+	faucetsAddr := []types.Address{types.EthFaucetAddress, types.UsdtFaucetAddress, types.BtcFaucetAddress}
+	for _, faucet := range faucetsAddr {
+		mshHash, err := s.client.TopUpViaFaucet(faucet, address, value)
 		s.Require().NoError(err)
 		receipt = s.waitForReceipt(address.ShardId(), mshHash)
 		s.Require().NotNil(receipt)
@@ -189,8 +189,8 @@ func (s *SuiteFaucet) TestTopUpCurrencyViaFaucet() {
 	currencies, err := s.client.GetCurrencies(address, transport.LatestBlockNumber)
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 3)
-	for _, addr := range addressesFrom {
-		curValue, ok := currencies[hexutil.ToHexNoLeadingZeroes(addr.Bytes())]
+	for _, faucet := range faucetsAddr {
+		curValue, ok := currencies[hexutil.ToHexNoLeadingZeroes(faucet.Bytes())]
 		s.Require().True(ok)
 		s.Require().Equal(value.Uint64(), curValue.Uint64())
 	}

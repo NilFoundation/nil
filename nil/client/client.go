@@ -59,7 +59,7 @@ type Client interface {
 		bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, feeCredit types.Value,
 	) (common.Hash, error)
 
-	TopUpViaFaucet(contractAddressFrom, contractAddressTo types.Address, amount types.Value) (common.Hash, error)
+	TopUpViaFaucet(faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error)
 
 	// GetCurrencies retrieves the contract currencies at the given address
 	GetCurrencies(address types.Address, blockId any) (types.CurrenciesMap, error)

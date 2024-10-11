@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/big"
 	"net"
 	"net/http"
 	"strconv"
@@ -561,18 +560,16 @@ func (c *Client) SendExternalMessage(
 	return client.SendExternalMessage(c, bytecode, contractAddress, pk, feeCredit, false, false)
 }
 
-func (c *Client) TopUpViaFaucet(contractAddressFrom, contractAddressTo types.Address, amount types.Value) (common.Hash, error) {
-	var callData []byte
-	var err error
-	if contractAddressFrom == types.FaucetAddress {
-		callData, err = contracts.NewCallData(contracts.NameFaucet, "withdrawTo", contractAddressFrom, amount.ToBig())
-	} else {
-		callData, err = contracts.NewCallData(contracts.NameFaucet, "withdrawCurrencyTo", contractAddressFrom, contractAddressTo, new(big.Int).SetBytes(contractAddressFrom.Bytes()), amount.ToBig())
+func (c *Client) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error) {
+	contractName := contracts.NameFaucet
+	if faucetAddress != types.FaucetAddress {
+		contractName = contracts.NameFaucetCurrency
 	}
+	callData, err := contracts.NewCallData(contractName, "withdrawTo", contractAddressTo, amount.ToBig())
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	return client.SendExternalMessage(c, callData, types.FaucetAddress, nil, types.GasToValue(100_000), false, true)
+	return client.SendExternalMessage(c, callData, faucetAddress, nil, types.GasToValue(100_000), false, true)
 }
 
 func (c *Client) Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error) {
