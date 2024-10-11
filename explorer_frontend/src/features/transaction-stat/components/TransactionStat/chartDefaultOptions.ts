@@ -15,6 +15,7 @@ export const getChartDefaultOptions = (timeInterval: TimeInterval): DeepPartial<
       color: "transparent",
     },
     textColor: COLORS.gray400,
+    attributionLogo: false,
   },
   localization: {
     timeFormatter: getTimeFormatter(timeInterval),
