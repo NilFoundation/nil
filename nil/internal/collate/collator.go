@@ -9,7 +9,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/internal/vm"
 	"github.com/rs/zerolog"
 )
 
@@ -156,7 +155,7 @@ func (c *collator) handleMessagesFromPool() ([]*types.Message, error) {
 		} else if res.Error != nil {
 			// todo: we should run full transactions, because we cannot validate without it
 			// for now, skip VM errors here, they will be caught by the generator
-			if !vm.IsVMError(res.Error) {
+			if !types.IsVmError(res.Error) {
 				execution.AddFailureReceipt(hash, msg.To, res)
 				return false, nil
 			}

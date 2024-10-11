@@ -84,7 +84,7 @@ func TestDebugBlockToText(t *testing.T) {
 
 	receipt1 := &types.Receipt{
 		Success:         true,
-		Status:          types.MessageStatusSuccess,
+		Status:          types.ErrorSuccess,
 		GasUsed:         1000,
 		Bloom:           types.Bloom{},
 		Logs:            []*types.Log{},
@@ -96,7 +96,7 @@ func TestDebugBlockToText(t *testing.T) {
 
 	receipt2 := &types.Receipt{
 		Success:         false,
-		Status:          types.MessageStatusExecutionReverted,
+		Status:          types.ErrorExecutionReverted,
 		GasUsed:         1500,
 		Bloom:           types.Bloom{},
 		Logs:            []*types.Log{},

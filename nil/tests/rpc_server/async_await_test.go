@@ -291,7 +291,7 @@ func (s *SuiteAsyncAwait) TestNoneZeroCallDepth() {
 	data := s.AbiPack(s.abiTest, "testNoneZeroCallDepth", s.testAddress0)
 	receipt := s.sendExternalMessageNoCheck(data, s.testAddress0)
 	s.Require().False(receipt.AllSuccess())
-	s.Require().Equal("PrecompileReverted", receipt.Status)
+	s.Require().Equal("AwaitCallCalledFromNotTopLevel", receipt.Status)
 }
 
 func (s *SuiteAsyncAwait) TestRequestResponse() {
