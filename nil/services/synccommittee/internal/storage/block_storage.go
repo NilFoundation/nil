@@ -46,7 +46,7 @@ type ProposalData struct {
 }
 
 type BlockStorage interface {
-	ProvedStateRootIsInitialized(ctx context.Context) (*bool, error)
+	TryGetProvedStateRoot(ctx context.Context) (*common.Hash, error)
 
 	SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error
 
@@ -77,19 +77,27 @@ func NewBlockStorage(database db.DB, logger zerolog.Logger) BlockStorage {
 	}
 }
 
-func (bs *blockStorage) ProvedStateRootIsInitialized(ctx context.Context) (*bool, error) {
+func (bs *blockStorage) TryGetProvedStateRoot(ctx context.Context) (*common.Hash, error) {
 	tx, err := bs.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	exists, err := tx.Exists(stateRootTableName, mainShardKey)
+	return bs.getProvedStateRoot(tx)
+}
+
+func (bs *blockStorage) getProvedStateRoot(tx db.RoTx) (*common.Hash, error) {
+	hashBytes, err := tx.Get(stateRootTableName, mainShardKey)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	return &exists, nil
+	hash := common.BytesToHash(hashBytes)
+	return &hash, nil
 }
 
 func (bs *blockStorage) SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error {
@@ -262,9 +270,12 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 	}
 	defer tx.Rollback()
 
-	currentProvedStateRoot, err := bs.getCurrentProvedStateRoot(tx)
+	currentProvedStateRoot, err := bs.getProvedStateRoot(tx)
 	if err != nil {
 		return nil, err
+	}
+	if currentProvedStateRoot == nil {
+		return nil, errors.New("proved state root was not initialized")
 	}
 
 	parentHash, err := bs.getParentOfNextToPropose(tx)
@@ -442,19 +453,6 @@ func isValidProposalCandidate(entry *blockEntry, parentHash *common.Hash) bool {
 	return entry.Block.ShardId == types.MainShardId &&
 		entry.IsProved &&
 		entry.Block.ParentHash == *parentHash
-}
-
-func (bs *blockStorage) getCurrentProvedStateRoot(tx db.RoTx) (*common.Hash, error) {
-	hashBytes, err := tx.Get(stateRootTableName, mainShardKey)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, errors.New("proved state root was not initialized")
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	hash := common.BytesToHash(hashBytes)
-	return &hash, nil
 }
 
 // getParentOfNextToPropose retrieves parent's hash of the next block to propose

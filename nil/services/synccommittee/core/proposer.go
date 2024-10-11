@@ -141,22 +141,14 @@ func NewProposer(params ProposerParams, blockStorage storage.BlockStorage, logge
 }
 
 func (p *Proposer) Run(ctx context.Context) error {
-	isInitialized, err := p.blockStorage.ProvedStateRootIsInitialized(ctx)
+	shouldResetStorage, err := p.initializeProvedStateRoot(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to check if proved state root is initialized: %w", err)
+		return err
 	}
 
-	if !*isInitialized {
-		latestProvedStateRoot, err := p.getLatestProvedStateRoot(ctx)
-		if err != nil {
-			// TODO return error after enable local L1 endpoint
-			p.logger.Error().Err(err).Msg("failed get current contract state root, set 0")
-		}
-
-		p.logger.Debug().
-			Uint64("seqno", p.seqno.Load()).
-			Str("latestProvedStateRoot", latestProvedStateRoot.String()).
-			Msg("proposer is initialized")
+	if shouldResetStorage {
+		p.logger.Warn().Msg("resetting TaskStorage and BlockStorage")
+		// todo: reset TaskStorage and BlockStorage before starting Aggregator, TaskScheduler and TaskListener
 	}
 
 	concurrent.RunTickerLoop(ctx, p.params.proposingInterval,
@@ -169,6 +161,48 @@ func (p *Proposer) Run(ctx context.Context) error {
 	)
 
 	return nil
+}
+
+func (p *Proposer) initializeProvedStateRoot(ctx context.Context) (shouldResetStorage bool, err error) {
+	storedStateRoot, err := p.blockStorage.TryGetProvedStateRoot(ctx)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if proved state root is initialized: %w", err)
+	}
+
+	latestStateRoot, err := p.getLatestProvedStateRoot(ctx)
+	if err != nil {
+		// TODO return error after enable local L1 endpoint
+		p.logger.Error().Err(err).Msg("failed get current contract state root, set 0")
+	}
+
+	switch {
+	case storedStateRoot == nil:
+		p.logger.Info().
+			Str("latestStateRoot", latestStateRoot.String()).
+			Msg("proved state root is not initialized, value from L1 will be used")
+	case *storedStateRoot != latestStateRoot:
+		p.logger.Warn().
+			Uint64("seqno", p.seqno.Load()).
+			Str("storedStateRoot", storedStateRoot.String()).
+			Str("latestStateRoot", latestStateRoot.String()).
+			Msg("proved state root value is invalid, local storage will be reset")
+		shouldResetStorage = true
+	default:
+		p.logger.Info().Str("stateRoot", storedStateRoot.String()).Msg("proved state root value is valid")
+	}
+
+	if storedStateRoot == nil || *storedStateRoot != latestStateRoot {
+		err = p.blockStorage.SetProvedStateRoot(ctx, latestStateRoot)
+		if err != nil {
+			return false, fmt.Errorf("failed set proved state root: %w", err)
+		}
+	}
+
+	p.logger.Debug().
+		Uint64("seqno", p.seqno.Load()).
+		Str("stateRoot", latestStateRoot.String()).
+		Msg("proposer is initialized")
+	return shouldResetStorage, nil
 }
 
 func (p *Proposer) proposeNextBlock(ctx context.Context) error {
