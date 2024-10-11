@@ -1424,6 +1424,10 @@ func (es *ExecutionState) IsInternalMessage() bool {
 	return es.GetInMessage().IsInternal() || es.evm.GetDepth() > 1
 }
 
+func (es *ExecutionState) GetMessageFlags() types.MessageFlags {
+	return es.GetInMessage().Flags
+}
+
 func (es *ExecutionState) GetInMessage() *types.Message {
 	if len(es.InMessages) == 0 {
 		return nil

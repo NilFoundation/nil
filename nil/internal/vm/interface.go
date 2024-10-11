@@ -14,6 +14,8 @@ type StateDBReadOnly interface {
 	// Synchronous calls inside one contract are also considered internal.
 	IsInternalMessage() bool
 
+	GetMessageFlags() types.MessageFlags
+
 	GetCurrencies(types.Address) map[types.CurrencyId]types.Value
 	GetGasPrice(types.ShardId) (types.Value, error)
 }

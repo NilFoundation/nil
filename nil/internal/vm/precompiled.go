@@ -92,6 +92,7 @@ var (
 	AwaitCallAddress       = types.BytesToAddress([]byte{0xd6})
 	ConfigParamAddress     = types.BytesToAddress([]byte{0xd7})
 	SendRequestAddress     = types.BytesToAddress([]byte{0xd8})
+	CheckIsResponseAddress = types.BytesToAddress([]byte{0xd9})
 )
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -131,6 +132,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	AwaitCallAddress:       &awaitCall{},
 	ConfigParamAddress:     &configParam{},
 	SendRequestAddress:     &sendRequest{},
+	CheckIsResponseAddress: &checkIsResponse{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -603,6 +605,23 @@ func (a *checkIsInternal) Run(state StateDBReadOnly, input []byte, value *uint25
 	if state.IsInternalMessage() {
 		res[31] = 1
 	}
+
+	return res, nil
+}
+
+type checkIsResponse struct{}
+
+func (c *checkIsResponse) RequiredGas([]byte) uint64 {
+	return 10
+}
+
+func (a *checkIsResponse) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if !state.GetMessageFlags().IsResponse() {
+		return nil, types.NewVmError(types.ErrorOnlyResponseCheckFailed)
+	}
+
+	res := make([]byte, 32)
+	res[31] = 1
 
 	return res, nil
 }

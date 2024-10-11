@@ -31,6 +31,7 @@ library Nil {
     address private constant AWAIT_CALL = address(0xd6);
     address private constant CONFIG_PARAM = address(0xd7);
     address private constant SEND_REQUEST = address(0xd8);
+    address public constant IS_RESPONSE_MESSAGE = address(0xd9);
 
     // The following constants specify from where and how the gas should be taken during async call.
     // Forwarding values are calculated in the following order: FORWARD_VALUE, FORWARD_PERCENTAGE, FORWARD_REMAINING.
@@ -271,13 +272,26 @@ library Nil {
 
 // NilBase is a base contract that provides modifiers for checking the type of message (internal or external).
 contract NilBase {
-    // onlyInternal checks that method was invoked from internal message.
+    /**
+     * @dev Modifier to check that the method was invoked from a response message.
+     */
+    modifier onlyResponse() {
+        (bool success,/* bytes memory returnData*/) = Nil.IS_RESPONSE_MESSAGE.staticcall(bytes(""));
+        require(success, "IS_RESPONSE_MESSAGE call failed");
+        _;
+    }
+
+    /**
+     * @dev Modifier to check that the method was invoked from an internal message.
+     */
     modifier onlyInternal() {
         require(isInternalMessage(), "Trying to call internal function with external message");
         _;
     }
 
-    // onlyExternal checks that method was invoked from external message.
+    /**
+     * @dev Modifier to check that the method was invoked from an external message.
+     */
     modifier onlyExternal() {
         require(!isInternalMessage(), "Trying to call external function with internal message");
         _;

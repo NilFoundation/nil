@@ -417,6 +417,13 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 	// })
 }
 
+func (s *SuiteAsyncAwait) TestOnlyResponse() {
+	data := s.AbiPack(s.abiTest, "responseCounterAdd", true, []byte{}, []byte{})
+	receipt := s.sendExternalMessageNoCheck(data, s.testAddress0)
+	s.Require().False(receipt.Success)
+	s.Require().Equal("OnlyResponseCheckFailed", receipt.Status)
+}
+
 func (s *SuiteAsyncAwait) checkAsyncContextEmpty(address types.Address) {
 	s.T().Helper()
 
