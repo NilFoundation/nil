@@ -217,7 +217,6 @@ func (es *ExecutionState) GenerateZeroState(stateConfig *ZeroStateConfig) error 
 				args = append(args, arg)
 			}
 		}
-
 		argsPacked, err := abi.Pack("", args...)
 		if err != nil {
 			return fmt.Errorf("[ZeroState] ctorArgs pack failed: %w", err)
