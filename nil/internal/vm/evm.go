@@ -90,6 +90,12 @@ type EVM struct {
 	currencyTransfer []types.CurrencyBalance
 
 	RevertReason error
+
+	DebugInfo *DebugInfo
+}
+
+type DebugInfo struct {
+	Pc uint64
 }
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should

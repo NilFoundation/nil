@@ -6,9 +6,11 @@ import (
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/block"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/cometa"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/contract"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/debug"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/keygen"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/message"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/minter"
@@ -122,6 +124,8 @@ func (rc *RootCommand) registerSubCommands() {
 		system.GetCommand(&rc.config),
 		version.GetCommand(),
 		wallet.GetCommand(&rc.config),
+		debug.GetCommand(),
+		cometa.GetCommand(),
 	)
 }
 

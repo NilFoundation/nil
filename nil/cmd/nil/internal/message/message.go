@@ -55,7 +55,7 @@ func runCommand(cfgPath *string, args []string) error {
 	}
 
 	if hash != libcommon.EmptyHash {
-		msgDataJson, err := service.FetchMessageByHash(params.shardId, hash)
+		msgDataJson, err := service.FetchMessageByHashJson(params.shardId, hash)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to fetch message")
 			return err

@@ -46,7 +46,7 @@ func runCommand(_ *cobra.Command, args []string) error {
 	}
 
 	if hash != libcommon.EmptyHash {
-		receipt, err := service.FetchReceiptByHash(params.shardId, hash)
+		receipt, err := service.FetchReceiptByHashJson(params.shardId, hash)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to fetch receipt")
 			return err

@@ -158,7 +158,7 @@ func (g *BlockGenerator) validateInternalMessage(message *types.Message) error {
 func (g *BlockGenerator) handleInternalInMessage(msg *types.Message) *ExecutionResult {
 	if err := g.validateInternalMessage(msg); err != nil {
 		g.logger.Warn().Err(err).Msg("Invalid internal message")
-		return NewExecutionResult().SetError(types.NewMessageError(types.MessageStatusValidation, err))
+		return NewExecutionResult().SetError(types.KeepOrWrapError(types.ErrorValidation, err))
 	}
 
 	return g.executionState.HandleMessage(g.ctx, msg, NewMessagePayer(msg, g.executionState))

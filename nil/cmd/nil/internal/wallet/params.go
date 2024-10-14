@@ -17,6 +17,7 @@ const (
 	inOverridesFlag  = "in-overrides"
 	outOverridesFlag = "out-overrides"
 	withDetailsFlag  = "with-details"
+	compileInput     = "compile-input"
 )
 
 var params = &walletParams{}
@@ -36,4 +37,5 @@ type walletParams struct {
 	inOverridesPath  string
 	outOverridesPath string
 	withDetails      bool
+	compileInput     string
 }

@@ -48,7 +48,7 @@ func execute() error {
 }
 
 func addFlags(cmd *cobra.Command, cfg *core.Config, dbPath *string) {
-	cmd.Flags().StringVar(&cfg.RpcEndpoint, "endpoint", "tcp://127.0.0.1:8529", "rpc endpoint")
+	cmd.Flags().StringVar(&cfg.RpcEndpoint, "endpoint", "https://api.devnet.nil.foundation/api/nil_user/TEK83KSDZH58AIK9PCYSNU4G86DU55I9", "rpc endpoint")
 	cmd.Flags().StringVar(&cfg.OwnRpcEndpoint, "own-endpoint", "tcp://127.0.0.1:8530", "own rpc server endpoint")
 	cmd.Flags().DurationVar(&cfg.PollingDelay, "polling-delay", 500*time.Millisecond, "delay between new block polling")
 	cmd.Flags().StringVar(dbPath, "db-path", "sync_committee.db", "path to database")
@@ -56,6 +56,7 @@ func addFlags(cmd *cobra.Command, cfg *core.Config, dbPath *string) {
 	cmd.Flags().StringVar(&cfg.L1ChainId, "l1-chain-id", "11155111", "L1 chain id")
 	cmd.Flags().StringVar(&cfg.PrivateKey, "private-key", "0000000000000000000000000000000000000000000000000000000000000001", "L1 account private key")
 	cmd.Flags().StringVar(&cfg.L1ContractAddress, "l1-contract-address", "0xB8E280a085c87Ed91dd6605480DD2DE9EC3699b4", "L1 update state contract address")
+	cmd.Flags().StringVar(&cfg.SelfAddress, "l1-account-address", "0x7A2f4530b5901AD1547AE892Bafe54c5201D1206", "L1 self account address")
 	logLevel := cmd.Flags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
 
 	// Telemetry flags

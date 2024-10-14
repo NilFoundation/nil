@@ -341,14 +341,23 @@ func (b rawBlockAccessor) ByHash(hash common.Hash) (rawBlockAccessorResult, erro
 	if b.withChildBlocks {
 		treeShards := NewDbShardBlocksTrieReader(sa.tx, sa.shardId, block.Id)
 		treeShards.SetRootHash(block.ChildBlocksRootHash)
-		valuePtrs, err := treeShards.Values()
-		if err != nil {
-			return rawBlockAccessorResult{}, err
+
+		shards := make(map[types.ShardId]common.Hash)
+		for key, value := range treeShards.Iterate() {
+			var shardId types.ShardId
+			var hash common.Hash
+
+			shardId, err = types.ParseShardIdFromString(string(key))
+			if err != nil {
+				return rawBlockAccessorResult{}, err
+			}
+			hash.SetBytes(value)
+			shards[shardId] = hash
 		}
 
-		values := make([]common.Hash, 0, len(valuePtrs))
-		for _, ptr := range valuePtrs {
-			values = append(values, *ptr)
+		values := make([]common.Hash, len(shards))
+		for key, value := range shards {
+			values[key-1] = value // shard numbers since 1
 		}
 		res.childBlocks = initWith(values)
 	}

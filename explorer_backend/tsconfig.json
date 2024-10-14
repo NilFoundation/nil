@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "types": ["jest", "node"],
+    "target": "ES2019",
+    "module": "esnext",
+    "declaration": true,
+    "preserveSymlinks": true,
+    "outDir": "dist",
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "downlevelIteration": true,
+    "noImplicitAny": false,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "moduleResolution": "Node",
+    "forceConsistentCasingInFileNames": true,
+    "allowSyntheticDefaultImports": true,
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "lib": ["ESNext"],
+    "declarationMap": true,
+    "composite": true,
+    "sourceMap": true,
+    "alwaysStrict": true,
+    "allowImportingTsExtensions": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "ts-node": {
+    "esm": true
+  },
+  "exclude": ["node_modules"],
+  "include": ["src/**/*"],
+}

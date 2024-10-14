@@ -3,9 +3,11 @@ package rawapi
 import (
 	"context"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
+	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
 
 type NodeApi interface {
@@ -13,9 +15,15 @@ type NodeApi interface {
 	GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error)
 	GetBlockTransactionCount(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (uint64, error)
 
+	GetInMessage(ctx context.Context, shardId types.ShardId, messageRequest rawapitypes.MessageRequest) (*rawapitypes.MessageInfo, error)
+	GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*rawapitypes.ReceiptInfo, error)
+
 	GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error)
 	GetCode(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Code, error)
 	GetCurrencies(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (map[types.CurrencyId]types.Value, error)
+	Call(
+		ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+	) (*rpctypes.CallResWithGasPrice, error)
 }
 
 type ShardApi interface {
@@ -23,7 +31,14 @@ type ShardApi interface {
 	GetFullBlockData(ctx context.Context, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error)
 	GetBlockTransactionCount(ctx context.Context, blockReference rawapitypes.BlockReference) (uint64, error)
 
+	GetInMessage(ctx context.Context, messageRequest rawapitypes.MessageRequest) (*rawapitypes.MessageInfo, error)
+	GetInMessageReceipt(ctx context.Context, hash common.Hash) (*rawapitypes.ReceiptInfo, error)
+
 	GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error)
 	GetCode(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Code, error)
 	GetCurrencies(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (map[types.CurrencyId]types.Value, error)
+
+	Call(
+		ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+	) (*rpctypes.CallResWithGasPrice, error)
 }

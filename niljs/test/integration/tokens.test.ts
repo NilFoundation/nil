@@ -79,7 +79,7 @@ test("mint and transfer tokens", async () => {
     feeCredit: 100_000n * gasPriceOnShard2,
     tokens: [
       {
-        id: n,
+        id: walletAddress,
         amount: transferCount,
       },
     ],

@@ -148,7 +148,7 @@ const config = {
             {
               label: 'Migration guides',
               position: 'left',
-              to: 'nil/migration-guides/september-1709-2024-release'
+              to: 'nil/migration-guides/october-0110-2024-release'
             },
             {
               type: 'dropdown',

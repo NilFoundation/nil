@@ -15,7 +15,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -184,7 +183,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 	checkManageCurrency("burn", 100, 350)
 
 	s.Run("Transfer currency via sendCurrency", func() {
-		data := s.AbiPack(s.abiWallet, "sendCurrency", s.walletAddress2, currency1.idInt, big.NewInt(100))
+		data := s.AbiPack(s.abiWallet, "sendCurrency", s.walletAddress2, *currency1.id, big.NewInt(100))
 
 		receipt := s.sendExternalMessage(data, s.walletAddress1)
 		s.Require().True(receipt.Success)
@@ -223,7 +222,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 			// Cross-shard `Nil.currencyBalance` should fail
 			s.Require().NotEqual(s.testAddress1_0.ShardId(), s.walletAddress2.ShardId())
-			data := s.AbiPack(s.abiTest, "checkTokenBalance", s.walletAddress2, currency1.idInt, big.NewInt(150))
+			data := s.AbiPack(s.abiTest, "checkTokenBalance", s.walletAddress2, currency1.id, big.NewInt(150))
 			receipt = s.sendExternalMessageNoCheck(data, s.testAddress1_0)
 			s.Require().False(receipt.Success)
 		})
@@ -309,7 +308,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 	s.Run("Call testCallWithTokensSync of testAddress1_0", func() {
 		data, err := s.abiTest.Pack("testCallWithTokensSync", s.testAddress1_1,
-			[]types.CurrencyBalanceAbiCompatible{{Currency: currencyTest1.idInt, Balance: uint256.NewInt(5000).ToBig()}})
+			[]types.CurrencyBalance{{Currency: *currencyTest1.id, Balance: types.NewValueFromUint64(5000)}})
 		s.Require().NoError(err)
 
 		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil, s.gasToValue(100_000))
@@ -323,7 +322,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 			s.Equal(types.NewValueFromUint64(1_000_000-5000), currencies[currencyTest1.idStr])
 
 			// Check balance via `Nil.currencyBalance` Solidity method
-			data, err := s.abiTest.Pack("checkTokenBalance", types.EmptyAddress, currencyTest1.idInt, big.NewInt(1_000_000-5000))
+			data, err := s.abiTest.Pack("checkTokenBalance", types.EmptyAddress, currencyTest1.id, big.NewInt(1_000_000-5000))
 			s.Require().NoError(err)
 			receipt := s.sendExternalMessageNoCheck(data, s.testAddress1_0)
 			s.Require().True(receipt.Success)
@@ -336,11 +335,13 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		})
 	})
 
+	invalidId := types.CurrencyId(types.HexToAddress("0x1234"))
+
 	s.Run("Try to call with non-existent currency", func() {
 		data, err := s.abiTest.Pack("testCallWithTokensSync", s.testAddress1_1,
-			[]types.CurrencyBalanceAbiCompatible{
-				{Currency: currencyTest1.idInt, Balance: uint256.NewInt(5000).ToBig()},
-				{Currency: big.NewInt(0).Add(currencyTest1.idInt, big.NewInt(1)), Balance: uint256.NewInt(1).ToBig()},
+			[]types.CurrencyBalance{
+				{Currency: *currencyTest1.id, Balance: types.NewValueFromUint64(5000)},
+				{Currency: invalidId, Balance: types.NewValueFromUint64(1)},
 			})
 		s.Require().NoError(err)
 
@@ -364,7 +365,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 	s.Run("Call testCallWithTokensAsync of testAddress1_0", func() {
 		data, err := s.abiTest.Pack("testCallWithTokensAsync", s.testAddress1_1,
-			[]types.CurrencyBalanceAbiCompatible{{Currency: currencyTest1.idInt, Balance: uint256.NewInt(5000).ToBig()}})
+			[]types.CurrencyBalance{{Currency: *currencyTest1.id, Balance: types.NewValueFromUint64(5000)}})
 		s.Require().NoError(err)
 
 		hash, err := s.client.SendExternalMessage(data, s.testAddress1_0, nil, s.gasToValue(100_000))
@@ -389,9 +390,9 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 	s.Run("Try to call with non-existent currency", func() {
 		data, err := s.abiTest.Pack("testCallWithTokensAsync", s.testAddress1_1,
-			[]types.CurrencyBalanceAbiCompatible{
-				{Currency: currencyTest1.idInt, Balance: uint256.NewInt(5000).ToBig()},
-				{Currency: big.NewInt(0).Add(currencyTest1.idInt, big.NewInt(1)), Balance: uint256.NewInt(1).ToBig()},
+			[]types.CurrencyBalance{
+				{Currency: *currencyTest1.id, Balance: types.NewValueFromUint64(5000)},
+				{Currency: invalidId, Balance: types.NewValueFromUint64(1)},
 			})
 		s.Require().NoError(err)
 
@@ -555,7 +556,7 @@ func (s *SuiteMultiCurrencyRpc) TestIncomingBalance() {
 
 	s.createCurrencyForTestContract(currencyWallet1, types.NewValueFromUint64(1_000_000), "wallet1")
 
-	data, err = s.abiTest.Pack("checkIncomingToken", currencyWallet1.idInt)
+	data, err = s.abiTest.Pack("checkIncomingToken", *currencyWallet1.id)
 	s.Require().NoError(err)
 
 	receipt = s.sendMessageViaWalletNoCheck(s.walletAddress1, s.testAddress1_0, execution.MainPrivateKey, data,
@@ -590,7 +591,7 @@ func (s *SuiteMultiCurrencyRpc) TestNoExternalAccess() {
 	s.Require().False(receipt.Success)
 	s.Require().Equal("ExecutionReverted", receipt.Status)
 
-	data = s.AbiPack(abiTest, "sendCurrency", s.testAddress1_1, currency.idInt, big.NewInt(100_000))
+	data = s.AbiPack(abiTest, "sendCurrency", s.testAddress1_1, *currency.id, big.NewInt(100_000))
 	receipt = s.sendExternalMessageNoCheck(data, *currency.address)
 	s.Require().False(receipt.Success)
 	s.Require().Equal("ExecutionReverted", receipt.Status)
@@ -634,15 +635,14 @@ type CurrencyId struct {
 	address *types.Address
 	id      *types.CurrencyId
 	idStr   string
-	idInt   *big.Int
 }
 
 func CreateTokenId(address *types.Address) *CurrencyId {
+	id := types.CurrencyId(*address)
 	return &CurrencyId{
 		address: address,
-		id:      types.CurrencyIdForAddress(*address),
+		id:      &id,
 		idStr:   hexutil.ToHexNoLeadingZeroes(address.Bytes()),
-		idInt:   new(big.Int).SetBytes(address.Bytes()),
 	}
 }
 

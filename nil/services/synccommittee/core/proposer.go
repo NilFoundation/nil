@@ -146,6 +146,9 @@ func newProposer(params ProposerParams, logger zerolog.Logger) (*proposerImpl, e
 		logger:                logger,
 	}
 	p.seqno.Add(nonceValue)
+
+	p.logger.Info().Msgf("\nUse L1 endpoint %v\nChainId %v\nL1Contract address %v\nLatestProvedStateRoot %s\nNonce %d",
+		p.l1EndPoint, params.chainId, p.contractAddress, latestProvedStateRoot, p.seqno.Load())
 	return &p, nil
 }
 

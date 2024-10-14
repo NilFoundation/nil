@@ -2,7 +2,6 @@ package types
 
 import (
 	"database/sql/driver"
-	"math/big"
 
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
@@ -22,22 +21,15 @@ type SmartContract struct {
 	RequestId        uint64
 }
 
-type CurrencyId common.Hash
+type CurrencyId Address
 
 func (c CurrencyId) String() string {
-	return common.Hash(c).String()
+	return Address(c).String()
 }
 
 type CurrencyBalance struct {
-	Currency CurrencyId `json:"id" ssz-size:"32" abi:"id"`
+	Currency CurrencyId `json:"id" ssz-size:"20" abi:"id"`
 	Balance  Value      `json:"value" ssz-size:"32" abi:"amount"`
-}
-
-// CurrencyBalanceAbiCompatible is a struct same as CurrencyBalance, but compatible with the eth ABI
-// TODO: merge with CurrencyBalance
-type CurrencyBalanceAbiCompatible struct {
-	Currency *big.Int `abi:"id"`
-	Balance  *big.Int `abi:"amount"`
 }
 
 func (currency CurrencyBalance) Value() (driver.Value, error) {
@@ -45,9 +37,8 @@ func (currency CurrencyBalance) Value() (driver.Value, error) {
 }
 
 func CurrencyIdForAddress(a Address) *CurrencyId {
-	c := new(CurrencyId)
-	copy(c[12:], a.Bytes())
-	return c
+	r := CurrencyId(a)
+	return &r
 }
 
 // interfaces

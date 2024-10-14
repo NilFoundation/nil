@@ -1,6 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+// CurrencyId is a type that represents a unique currency identifier.
+type CurrencyId is address;
+
+using {
+    currencyIdEqual as ==,
+    currencyIdNotEqual as !=
+} for CurrencyId global;
+
+function currencyIdEqual(CurrencyId a, CurrencyId b) pure returns (bool) {
+    return CurrencyId.unwrap(a) == CurrencyId.unwrap(b);
+}
+
+function currencyIdNotEqual(CurrencyId a, CurrencyId b) pure returns (bool) {
+    return CurrencyId.unwrap(a) != CurrencyId.unwrap(b);
+}
+
 library Nil {
     uint private constant SEND_MESSAGE = 0xfc;
     address private constant ASYNC_CALL = address(0xfd);
@@ -15,6 +31,7 @@ library Nil {
     address private constant AWAIT_CALL = address(0xd6);
     address private constant CONFIG_PARAM = address(0xd7);
     address private constant SEND_REQUEST = address(0xd8);
+    address public constant IS_RESPONSE_MESSAGE = address(0xd9);
 
     // The following constants specify from where and how the gas should be taken during async call.
     // Forwarding values are calculated in the following order: FORWARD_VALUE, FORWARD_PERCENTAGE, FORWARD_REMAINING.
@@ -33,7 +50,7 @@ library Nil {
 
     // Token is a struct that represents a token with an id and amount.
     struct Token {
-        uint256 id;
+        CurrencyId id;
         uint256 amount;
     }
 
@@ -167,7 +184,7 @@ library Nil {
     }
 
     // getCurrencyBalance returns the balance of a token with a given id for a given address.
-    function currencyBalance(address addr, uint256 id) internal view returns(uint256) {
+    function currencyBalance(address addr, CurrencyId id) internal view returns(uint256) {
         return __Precompile__(GET_CURRENCY_BALANCE).precompileGetCurrencyBalance(id, addr);
     }
 
@@ -255,13 +272,26 @@ library Nil {
 
 // NilBase is a base contract that provides modifiers for checking the type of message (internal or external).
 contract NilBase {
-    // onlyInternal checks that method was invoked from internal message.
+    /**
+     * @dev Modifier to check that the method was invoked from a response message.
+     */
+    modifier onlyResponse() {
+        (bool success,/* bytes memory returnData*/) = Nil.IS_RESPONSE_MESSAGE.staticcall(bytes(""));
+        require(success, "IS_RESPONSE_MESSAGE call failed");
+        _;
+    }
+
+    /**
+     * @dev Modifier to check that the method was invoked from an internal message.
+     */
     modifier onlyInternal() {
         require(isInternalMessage(), "Trying to call internal function with external message");
         _;
     }
 
-    // onlyExternal checks that method was invoked from external message.
+    /**
+     * @dev Modifier to check that the method was invoked from an external message.
+     */
     modifier onlyExternal() {
         require(!isInternalMessage(), "Trying to call external function with internal message");
         _;
@@ -285,7 +315,7 @@ abstract contract NilBounceable is NilBase {
 contract __Precompile__ {
     // if mint flag is set to false, currency will be burned instead
     function precompileManageCurrency(uint256 amount, bool mint) public returns(bool) {}
-    function precompileGetCurrencyBalance(uint256 id, address addr) public view returns(uint256) {}
+    function precompileGetCurrencyBalance(CurrencyId id, address addr) public view returns(uint256) {}
     function precompileAsyncCall(bool, uint8, address, address, address, uint, Nil.Token[] memory, bytes memory) public payable returns(bool) {}
     function precompileAwaitCall(address, uint, bytes memory) public payable returns(bytes memory, bool) {}
     function precompileSendRequest(address, Nil.Token[] memory, uint, bytes memory, bytes memory) public payable returns(bool) {}

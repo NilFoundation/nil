@@ -61,6 +61,7 @@ func NewEthClient(ctx context.Context, wg *sync.WaitGroup, db db.ReadOnlyDB, msg
 		ethApi:   ethApi,
 		debugApi: debugApi,
 		dbApi:    dbApi,
+		ctx:      ctx,
 	}
 
 	return c, nil

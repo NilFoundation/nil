@@ -1,0 +1,56 @@
+# Release 01.10.2024: migration guide
+
+This release of =nil; fixes several issues and bugs related to async request chaining, `feeCredit` estimations, and gas forwarding.
+
+## Summary of key changes
+
+* The cluster now handles async call chains (two or more async calls following each other) more reliably
+* Several function names in `Nil.sol` have been changed to be more representative of what these functions do
+* `Nil.currencyBalance()` produces more accurate results
+* `Nil.sendRequest()` and `Nil.awaitCall()` require purchasing gas for processing the response, which guarantees that said response will always be executed
+
+## Migration of smart contracts
+
+* Change usage of `sendRequest()` and `awaitCall()`
+
+Both `sendRequest()` and `awaitCall()` have new signatures in the latest release:
+
+```solidity showLineNumbers
+ function sendRequest(
+        address dst,
+        uint256 value,
+        uint responseProcessingGas,
+        bytes memory context,
+        bytes memory callData
+    ) internal {}
+ 
+ function awaitCall(
+        address dst,
+        uint responseProcessingGas,
+        bytes memory callData
+    ) internal returns(bytes memory, bool) {}
+```
+
+The `responseProcessingGas` argument is the amount of gas that has to be reserved for processing the response to `sendRequest()` and `awaitCall()`. The specified amount is immediately purchased when the function is called and is later spent to guarantee that the response is executed correctly.
+
+:::tip
+
+Use the `Nil.ASYNC_REQUEST_MIN_GAS` constant value to reserve the minimum possible amount of gas for processing an async response.
+
+:::
+
+* If needed, change `asyncCall()` and `sendRequest()` to `asyncCallWithTokens()` and `sendRequestWithTokens()`
+
+To reduce enthropy in the function names and their overloads, the variants of `asyncCall()` and `sendRequest()` that sent custom currencies to other contracts have been renamed to `asyncCallWithTokens()` and `sendRequest()` with tokens, respectively. It is now impossible to send custom currencies when using `asyncCall()` and `sendRequest()`.
+
+## Migration of the =nil; CLI
+
+No specific changes have to be made to the =nil; CLI commands.
+
+## Migration of Nil.js scripts
+
+No specific changes have to be made to existing Nil.js scripts.
+
+## Migration of Hardhat scripts
+
+No specific changes have to be made to existing Hardhat scripts.

@@ -106,10 +106,11 @@ type ExecutionState struct {
 
 type ExecutionResult struct {
 	ReturnData     []byte
-	Error          *types.MessageError
+	Error          types.ExecError
 	FatalError     error
 	CoinsUsed      types.Value
 	CoinsForwarded types.Value
+	DebugInfo      *vm.DebugInfo
 }
 
 func NewExecutionResult() *ExecutionResult {
@@ -118,7 +119,7 @@ func NewExecutionResult() *ExecutionResult {
 	}
 }
 
-func (e *ExecutionResult) SetError(err *types.MessageError) *ExecutionResult {
+func (e *ExecutionResult) SetError(err types.ExecError) *ExecutionResult {
 	e.Error = err
 	return e
 }
@@ -129,7 +130,7 @@ func (e *ExecutionResult) SetFatal(err error) *ExecutionResult {
 }
 
 func (e *ExecutionResult) SetMsgErrorOrFatal(err error) *ExecutionResult {
-	if msgErr := (*types.MessageError)(nil); errors.As(err, &msgErr) {
+	if msgErr := (types.ExecError)(nil); errors.As(err, &msgErr) {
 		e.SetError(msgErr)
 	} else {
 		e.SetFatal(err)
@@ -152,6 +153,11 @@ func (e *ExecutionResult) SetReturnData(data []byte) *ExecutionResult {
 	return e
 }
 
+func (e *ExecutionResult) SetDebugInfo(debugInfo *vm.DebugInfo) *ExecutionResult {
+	e.DebugInfo = debugInfo
+	return e
+}
+
 func (e *ExecutionResult) GetLeftOverValue(value types.Value) types.Value {
 	return value.Sub(e.CoinsUsed).Sub(e.CoinsForwarded)
 }
@@ -169,7 +175,7 @@ func (e *ExecutionResult) GetError() error {
 		return e.FatalError
 	}
 	if e.Error != nil {
-		return e.Error.Unwrap()
+		return e.Error
 	}
 	return nil
 }
@@ -943,10 +949,10 @@ func (es *ExecutionState) SendResponseMessage(msg *types.Message, res *Execution
 
 func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message, payer Payer) *ExecutionResult {
 	if err := buyGas(payer, msg); err != nil {
-		return NewExecutionResult().SetError(types.NewMessageError(types.MessageStatusBuyGas, err))
+		return NewExecutionResult().SetError(types.KeepOrWrapError(types.ErrorBuyGas, err))
 	}
 	if err := msg.VerifyFlags(); err != nil {
-		return NewExecutionResult().SetError(types.NewMessageError(types.MessageStatusValidation, err))
+		return NewExecutionResult().SetError(types.KeepOrWrapError(types.ErrorValidation, err))
 	}
 
 	var res *ExecutionResult
@@ -980,7 +986,11 @@ func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message,
 	if res.Error != nil && !responseWasSent {
 		revString := decodeRevertMessage(res.ReturnData)
 		if revString != "" {
-			res.Error.Inner = fmt.Errorf("%w: %s", res.Error, revString)
+			if types.IsVmError(res.Error) {
+				res.Error = types.NewVmVerboseError(res.Error.Code(), revString)
+			} else {
+				res.Error = types.NewVerboseError(res.Error.Code(), revString)
+			}
 		}
 		if msg.IsBounce() {
 			logger.Error().Err(res.Error).Msg("VM returns error during bounce message processing")
@@ -999,7 +1009,7 @@ func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message,
 		var err error
 		if res.CoinsForwarded, err = es.CalculateGasForwarding(availableGas); err != nil {
 			es.RevertToSnapshot(es.revertId)
-			res.Error = types.NewMessageError(types.MessageStatusForwardingFailed, err)
+			res.Error = types.KeepOrWrapError(types.ErrorForwardingFailed, err)
 		}
 	}
 	// Gas is already refunded with the bounce message
@@ -1042,7 +1052,7 @@ func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.
 	}
 
 	return NewExecutionResult().
-		SetMsgErrorOrFatal(es.evmToMessageError(err)).
+		SetMsgErrorOrFatal(err).
 		SetUsed((gas - types.Gas(leftOver)).ToValue(es.GasPrice)).
 		SetReturnData(ret)
 }
@@ -1084,7 +1094,7 @@ func (es *ExecutionState) TryProcessResponse(message *types.Message) ([]byte, *v
 		restoreState.Result = responsePayload.Success
 	} else {
 		if len(context.Data) < 4 {
-			return nil, nil, NewExecutionResult().SetFatal(errors.New("context data is too short"))
+			return nil, nil, NewExecutionResult().SetError(types.NewError(types.ErrorAwaitCallTooShortContextData))
 		}
 		contextData := context.Data[4:]
 		bytesTy, _ := abi.NewType("bytes", "", nil)
@@ -1144,9 +1154,9 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 	ret, leftOver, err := es.evm.Call(caller, addr, callData, gas.Uint64(), message.Value.Int())
 
 	return NewExecutionResult().
-		SetMsgErrorOrFatal(es.evmToMessageError(err)).
+		SetMsgErrorOrFatal(err).
 		SetUsed((gas - types.Gas(leftOver)).ToValue(es.GasPrice)).
-		SetReturnData(ret)
+		SetReturnData(ret).SetDebugInfo(es.evm.DebugInfo)
 }
 
 // decodeRevertMessage decodes the revert message from the EVM revert data
@@ -1169,9 +1179,9 @@ func (es *ExecutionState) HandleRefundMessage(_ context.Context, message *types.
 }
 
 func (es *ExecutionState) AddReceipt(execResult *ExecutionResult) {
-	status := types.MessageStatusSuccess
+	status := types.ErrorSuccess
 	if execResult.Failed() {
-		status = execResult.Error.Status
+		status = execResult.Error.Code()
 	}
 
 	r := &types.Receipt{
@@ -1185,6 +1195,10 @@ func (es *ExecutionState) AddReceipt(execResult *ExecutionResult) {
 	}
 	if execResult.Failed() {
 		es.Errors[es.InMessageHash] = execResult.Error
+		if execResult.DebugInfo != nil {
+			check.PanicIfNot(execResult.DebugInfo.Pc <= math.MaxUint32)
+			r.FailedPc = uint32(execResult.DebugInfo.Pc)
+		}
 	}
 	es.Receipts = append(es.Receipts, r)
 }
@@ -1356,8 +1370,8 @@ func (es *ExecutionState) CalculateGasForwarding(initialAvailValue types.Value) 
 		case types.ForwardKindValue:
 			diff, overflow := availValue.SubOverflow(msg.Message.FeeCredit)
 			if overflow {
-				return types.NewZeroValue(), fmt.Errorf("%w: not enough credit for ForwardKindValue: %v < %v",
-					ErrMsgFeeForwarding, availValue, msg.Message.FeeCredit)
+				err := fmt.Errorf("not enough credit for ForwardKindValue: %v < %v", availValue, msg.Message.FeeCredit)
+				return types.NewZeroValue(), err
 			}
 			availValue = diff
 		case types.ForwardKindPercentage:
@@ -1377,13 +1391,13 @@ func (es *ExecutionState) CalculateGasForwarding(initialAvailValue types.Value) 
 		availValue0 := availValue
 		for _, msg := range percentageFwdMessages {
 			if !msg.FeeCredit.IsUint64() || msg.FeeCredit.Uint64() > 100 {
-				return types.NewZeroValue(), fmt.Errorf("%w: invalid percentage value %v", ErrMsgFeeForwarding, msg.FeeCredit)
+				return types.NewZeroValue(), fmt.Errorf("invalid percentage value %v", msg.FeeCredit)
 			}
 			msg.FeeCredit = availValue0.Mul(msg.FeeCredit).Div(types.NewValueFromUint64(100))
 
 			availValue, overflow = availValue.SubOverflow(msg.Message.FeeCredit)
 			if overflow {
-				return types.NewZeroValue(), fmt.Errorf("%w: sum of percentage is more than 100", ErrMsgFeeForwarding)
+				return types.NewZeroValue(), errors.New("sum of percentage is more than 100")
 			}
 		}
 	}
@@ -1408,6 +1422,10 @@ func (es *ExecutionState) CalculateGasForwarding(initialAvailValue types.Value) 
 func (es *ExecutionState) IsInternalMessage() bool {
 	// If contract calls another contract using EVM's call(depth > 1), we treat it as an internal message.
 	return es.GetInMessage().IsInternal() || es.evm.GetDepth() > 1
+}
+
+func (es *ExecutionState) GetMessageFlags() types.MessageFlags {
+	return es.GetInMessage().Flags
 }
 
 func (es *ExecutionState) GetInMessage() *types.Message {
@@ -1454,11 +1472,11 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 
 	ret, leftOverGas, err := es.evm.StaticCall((vm.AccountRef)(account.address), account.address, calldata, gasCreditLimit.Uint64())
 	if err != nil {
-		msgErr := types.NewMessageError(types.MessageStatusExternalVerificationFailed, err)
+		msgErr := types.KeepOrWrapError(types.ErrorExternalVerificationFailed, err)
 		return NewExecutionResult().SetError(msgErr)
 	}
 	if !bytes.Equal(ret, common.LeftPadBytes([]byte{1}, 32)) {
-		return NewExecutionResult().SetError(types.NewMessageError(types.MessageStatusExternalVerificationFailed, ErrExternalMsgVerification))
+		return NewExecutionResult().SetError(types.NewError(types.ErrorExternalVerificationFailed))
 	}
 	res := NewExecutionResult()
 	spentGas := gasCreditLimit.Sub(types.Gas(leftOverGas))
@@ -1471,7 +1489,7 @@ func (es *ExecutionState) AddCurrency(addr types.Address, currencyId types.Curre
 	logger.Debug().
 		Stringer("addr", addr).
 		Stringer("amount", amount).
-		Stringer("id", common.Hash(currencyId)).
+		Stringer("id", currencyId).
 		Msg("Add currency")
 
 	acc, err := es.GetAccount(addr)
@@ -1500,7 +1518,7 @@ func (es *ExecutionState) SubCurrency(addr types.Address, currencyId types.Curre
 	logger.Debug().
 		Stringer("addr", addr).
 		Stringer("amount", amount).
-		Stringer("id", common.Hash(currencyId)).
+		Stringer("id", currencyId).
 		Msg("Sub currency")
 
 	acc, err := es.GetAccount(addr)
@@ -1599,52 +1617,6 @@ func (es *ExecutionState) SetVm(evm *vm.EVM) {
 
 func (es *ExecutionState) resetVm() {
 	es.evm = nil
-}
-
-func (es *ExecutionState) evmToMessageError(err error) error {
-	if !vm.IsVMError(err) {
-		return err
-	}
-
-	switch {
-	case errors.Is(err, vm.ErrOutOfGas):
-		return types.NewMessageError(types.MessageStatusOutOfGas, err)
-	case errors.Is(err, vm.ErrCodeStoreOutOfGas):
-		return types.NewMessageError(types.MessageStatusCodeStoreOutOfGas, err)
-	case errors.Is(err, vm.ErrDepth):
-		return types.NewMessageError(types.MessageStatusDepth, err)
-	case errors.Is(err, vm.ErrInsufficientBalance):
-		return types.NewMessageError(types.MessageStatusInsufficientBalance, err)
-	case errors.Is(err, vm.ErrContractAddressCollision):
-		return types.NewMessageError(types.MessageStatusContractAddressCollision, err)
-	case errors.Is(err, vm.ErrExecutionReverted):
-		return types.NewMessageError(types.MessageStatusExecutionReverted, err)
-	case errors.Is(err, vm.ErrMaxCodeSizeExceeded):
-		return types.NewMessageError(types.MessageStatusMaxCodeSizeExceeded, err)
-	case errors.Is(err, vm.ErrMaxInitCodeSizeExceeded):
-		return types.NewMessageError(types.MessageStatusMaxInitCodeSizeExceeded, err)
-	case errors.Is(err, vm.ErrInvalidJump):
-		return types.NewMessageError(types.MessageStatusInvalidJump, err)
-	case errors.Is(err, vm.ErrWriteProtection):
-		return types.NewMessageError(types.MessageStatusWriteProtection, err)
-	case errors.Is(err, vm.ErrReturnDataOutOfBounds):
-		return types.NewMessageError(types.MessageStatusReturnDataOutOfBounds, err)
-	case errors.Is(err, vm.ErrGasUintOverflow):
-		return types.NewMessageError(types.MessageStatusGasUintOverflow, err)
-	case errors.Is(err, vm.ErrInvalidCode):
-		return types.NewMessageError(types.MessageStatusInvalidCode, err)
-	case errors.Is(err, vm.ErrNonceUintOverflow):
-		return types.NewMessageError(types.MessageStatusNonceUintOverflow, err)
-	case errors.Is(err, vm.ErrInvalidInputLength):
-		return types.NewMessageError(types.MessageStatusInvalidInputLength, err)
-	case errors.Is(err, vm.ErrCrossShardMessage):
-		return types.NewMessageError(types.MessageStatusCrossShardMessage, err)
-	case errors.Is(err, vm.ErrMessageToMainShard):
-		return types.NewMessageError(types.MessageStatusMessageToMainShard, err)
-	case errors.Is(err, vm.ErrPrecompileReverted):
-		return types.NewMessageError(types.MessageStatusPrecompileReverted, err)
-	}
-	return types.NewMessageError(types.MessageStatusExecution, err)
 }
 
 func (es *ExecutionState) UpdateGasPrice() {

@@ -42,11 +42,11 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 	s.Require().NoError(err)
 	s.Require().NotNil(es)
 
-	validate := func(msg *types.Message) error {
+	validate := func(msg *types.Message) types.ExecError {
 		res := ValidateExternalMessage(es, msg)
 		s.Require().False(res.IsFatal())
 		if res.Failed() {
-			return res.Error.Inner
+			return res.Error
 		}
 		return nil
 	}
@@ -60,13 +60,13 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 		}
 
 		s.Run("NoAccount", func() {
-			s.Require().ErrorIs(validate(msg), ErrNoPayer)
+			s.Require().Equal(types.ErrorNoAccountToPayFees, validate(msg).Code())
 
 			s.Require().NoError(es.CreateAccount(msg.To))
 		})
 
 		s.Run("IncorrectAddress", func() {
-			s.Require().ErrorIs(validate(msg), ErrIncorrectDeploymentAddress)
+			s.Require().Equal(types.ErrorIncorrectDeploymentAddress, validate(msg).Code())
 
 			msg.To = types.CreateAddress(types.BaseShardId, *types.ParseDeployPayload(msg.Data))
 			s.Require().NoError(es.CreateAccount(msg.To))
@@ -79,7 +79,7 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 		s.Run("ContractAlreadyExists", func() {
 			s.Require().NoError(es.SetCode(msg.To, code))
 
-			s.Require().ErrorIs(validate(msg), ErrContractAlreadyExists)
+			s.Require().Equal(types.ErrorContractAlreadyExists, validate(msg).Code())
 		})
 	})
 
@@ -90,13 +90,13 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 		}
 
 		s.Run("NoAccount", func() {
-			s.Require().ErrorIs(validate(msg), ErrNoPayer)
+			s.Require().Equal(types.ErrorNoAccountToPayFees, validate(msg).Code())
 
 			s.Require().NoError(es.CreateAccount(msg.To))
 		})
 
 		s.Run("NoContract", func() {
-			s.Require().ErrorIs(validate(msg), ErrContractDoesNotExist)
+			s.Require().Equal(types.ErrorContractDoesNotExist, validate(msg).Code())
 
 			// contract that always returns "true",
 			// so verifies any message
@@ -117,13 +117,13 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 
 		s.Run("InvalidChain", func() {
 			msg.ChainId = 100500
-			s.Require().ErrorIs(validate(msg), ErrInvalidChainId)
+			s.Require().Equal(types.ErrorInvalidChainId, validate(msg).Code())
 		})
 
 		s.Run("SeqnoGap", func() {
 			msg.ChainId = types.DefaultChainId
 			msg.Seqno = 100
-			s.Require().ErrorIs(validate(msg), ErrSeqnoGap)
+			s.Require().Equal(types.ErrorSeqnoGap, validate(msg).Code())
 		})
 	})
 }
@@ -134,13 +134,13 @@ func (s *MessagesSuite) TestValidateDeployMessage() {
 	}
 
 	// data too short
-	s.Require().ErrorIs(ValidateDeployMessage(msg), ErrInvalidPayload)
+	s.Require().Equal(types.ErrorInvalidPayload, types.GetErrorCode(ValidateDeployMessage(msg)))
 
 	// Deploy to the main shard from base shard - FAIL
 	data := types.BuildDeployPayload([]byte("some-code"), common.EmptyHash)
 	msg.To = types.CreateAddress(types.MainShardId, data)
 	msg.Data = data.Bytes()
-	s.Require().ErrorIs(ValidateDeployMessage(msg), ErrDeployToMainShard)
+	s.Require().Equal(types.ErrorDeployToMainShard, types.GetErrorCode(ValidateDeployMessage(msg)))
 
 	// Deploy to base shard
 	msg.To = types.CreateAddress(types.BaseShardId, data)

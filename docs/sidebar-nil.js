@@ -277,6 +277,11 @@ export default {
   migrationGuides: [
     {
       type: 'doc',
+      label: '02 October 2024 guide',
+      id: 'migration-guides/october-0110-2024-release'
+    },
+    {
+      type: 'doc',
       label: '17 September 2024 guide',
       id: 'migration-guides/september-1709-2024-release'
     },

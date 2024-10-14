@@ -1,0 +1,67 @@
+syntax = "proto3";
+package rawapi;
+
+option go_package = "/pb";
+
+import "nil/services/rpc/rawapi/proto/block.proto";
+
+message OutMessage {
+  bytes messageSSZ = 1;
+  uint64 forwardKind = 2;
+  bytes data = 3;
+  Uint256 coinsUsed = 4;
+  repeated OutMessage outMessages = 5;
+  string error = 6;
+}
+
+message MessageInfo {
+  bytes messageSSZ = 1;
+  bytes receiptSSZ = 2;
+  uint64 index = 3;
+  Hash blockHash = 4;
+  uint64 blockId = 5;
+}
+
+message MessageRequestByHash {
+  Hash hash = 1;
+}
+
+message MessageRequestByBlockRefAndIndex {
+  BlockReference blockRef = 1;
+  uint64 index = 2;
+}
+
+message MessageRequest {
+  oneof request {
+    MessageRequestByHash byHash = 1;
+    MessageRequestByBlockRefAndIndex byBlockRefAndIndex = 2;
+  }
+}
+
+message MessageResponse {
+  oneof result {
+    Error error = 1;
+    MessageInfo data = 2;
+  }
+}
+
+message ReceiptInfo {
+  uint64 shardId = 1;
+  bytes receiptSSZ = 2;
+  uint64 index = 3;
+  Hash blockHash = 4;
+  uint64 blockId = 5;
+  repeated Hash outMessages = 6;
+  repeated ReceiptInfo outReceipts = 7;
+  bool includedInMain = 8;
+  Error errorMessage = 9;
+  Uint256 gasPrice = 10;
+  bool temporary = 11;
+}
+
+message ReceiptResponse {
+  oneof result {
+    Error error = 1;
+    ReceiptInfo data = 2;
+  }
+}

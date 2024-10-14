@@ -34,6 +34,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		return nil, err
 	}
 
+	logger.Info().Msgf("Use RPC endpoint %v", cfg.RpcEndpoint)
 	client := nilrpc.NewClient(cfg.RpcEndpoint, logger)
 
 	blockStorage := storage.NewBlockStorage(database)

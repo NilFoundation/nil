@@ -76,5 +76,42 @@ func BlockNumberAsBlockReference(number types.BlockNumber) BlockReference {
 }
 
 func NamedBlockIdentifierAsBlockReference(identifier NamedBlockIdentifier) BlockReference {
+	check.PanicIfNot(identifier <= 0)
 	return BlockReference{blockIdentifier: blockIdentifier(identifier), flags: uint32(NamedBlockIdentifierReference)}
+}
+
+type MessageInfo struct {
+	MessageSSZ []byte
+	ReceiptSSZ []byte
+	Index      types.MessageIndex
+	BlockHash  common.Hash
+	BlockId    types.BlockNumber
+}
+
+type ReceiptInfo struct {
+	ShardId        types.ShardId
+	ReceiptSSZ     []byte
+	Index          types.MessageIndex
+	BlockHash      common.Hash
+	BlockId        types.BlockNumber
+	OutMessages    []common.Hash
+	OutReceipts    []*ReceiptInfo
+	IncludedInMain bool
+	ErrorMessage   string
+	GasPrice       types.Value
+	Temporary      bool
+}
+
+type MessageRequestByBlockRefAndIndex struct {
+	BlockRef BlockReference
+	Index    types.MessageIndex
+}
+
+type MessageRequestByHash struct {
+	Hash common.Hash
+}
+
+type MessageRequest struct {
+	ByBlockRefAndIndex *MessageRequestByBlockRefAndIndex
+	ByHash             *MessageRequestByHash
 }

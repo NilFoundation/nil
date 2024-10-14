@@ -358,6 +358,7 @@ func TestAccountState(t *testing.T) {
 
 func (suite *SuiteExecutionState) TestMessageStatus() {
 	shardId := types.ShardId(5)
+	var vmErrStub *types.VmError
 
 	tx, err := suite.db.CreateRwTx(suite.ctx)
 	suite.Require().NoError(err)
@@ -386,8 +387,8 @@ func (suite *SuiteExecutionState) TestMessageStatus() {
 			FeeCredit: toGasCredit(0),
 		}
 		res := es.HandleExecutionMessage(suite.ctx, msg)
-		suite.Equal(types.MessageStatusOutOfGas, res.Error.Status)
-		suite.ErrorIs(res.Error.Inner, vm.ErrOutOfGas)
+		suite.Equal(types.ErrorOutOfGas, res.Error.Code())
+		suite.Require().ErrorAs(res.Error, &vmErrStub)
 	})
 
 	suite.Run("ExecuteReverted", func() {
@@ -399,8 +400,8 @@ func (suite *SuiteExecutionState) TestMessageStatus() {
 			FeeCredit: toGasCredit(1_000_000),
 		}
 		res := es.HandleExecutionMessage(suite.ctx, msg)
-		suite.Equal(types.MessageStatusExecutionReverted, res.Error.Status)
-		suite.ErrorIs(res.Error.Inner, vm.ErrExecutionReverted)
+		suite.Equal(types.ErrorExecutionReverted, res.Error.Code())
+		suite.Require().ErrorAs(res.Error, &vmErrStub)
 	})
 
 	suite.Run("CallToMainShard", func() {
@@ -413,8 +414,25 @@ func (suite *SuiteExecutionState) TestMessageStatus() {
 			FeeCredit: toGasCredit(100_000),
 		}
 		res := es.HandleExecutionMessage(suite.ctx, msg)
-		suite.Equal(types.MessageStatusMessageToMainShard, res.Error.Status)
-		suite.ErrorIs(res.Error.Inner, vm.ErrMessageToMainShard)
+		suite.Equal(types.ErrorMessageToMainShard, res.Error.Code())
+		suite.Require().ErrorAs(res.Error, &vmErrStub)
+	})
+
+	suite.Run("Errors with messages", func() {
+		err = vm.StackUnderflowError(0, 1, 2)
+		suite.Require().ErrorAs(err, &vmErrStub)
+		suite.Equal(types.ErrorStackUnderflow, types.GetErrorCode(err))
+		suite.Equal("StackUnderflow: stack:0 < required:1, opcode: MUL", err.Error())
+
+		err = vm.StackOverflowError(1, 0, 2)
+		suite.Require().ErrorAs(err, &vmErrStub)
+		suite.Equal(types.ErrorStackOverflow, types.GetErrorCode(err))
+		suite.Equal("StackOverflow: stack: 1, limit: 0, opcode: MUL", err.Error())
+
+		err = vm.InvalidOpCodeError(4)
+		suite.Require().ErrorAs(err, &vmErrStub)
+		suite.Equal(types.ErrorInvalidOpcode, types.GetErrorCode(err))
+		suite.Equal("InvalidOpcode: invalid opcode: DIV", err.Error())
 	})
 }
 
@@ -461,7 +479,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
-		suite.Equal(types.MessageStatusMessageToMainShard, res.Error.Status)
+		suite.Equal(types.ErrorMessageToMainShard, res.Error.Code())
 	})
 
 	suite.Run("testAsyncCall: withdrawFunds failed", func() {
@@ -470,7 +488,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		suite.Require().NoError(err)
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
-		suite.Equal(types.MessageStatusInsufficientBalance, res.Error.Status)
+		suite.Equal(types.ErrorInsufficientBalance, res.Error.Code())
 	})
 
 	payload := &types.InternalMessagePayload{
@@ -482,7 +500,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		suite.Require().NoError(err)
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
-		suite.Equal(types.MessageStatusInvalidMessage, res.Error.Status)
+		suite.Equal(types.ErrorInvalidMessageInputUnmarshalFailed, res.Error.Code())
 	})
 
 	suite.Run("testSendRawMsg: send to main shard", func() {
@@ -493,7 +511,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		suite.Require().NoError(err)
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
-		suite.Equal(types.MessageStatusMessageToMainShard, res.Error.Status)
+		suite.Equal(types.ErrorMessageToMainShard, res.Error.Code())
 		payload.To = testAddr
 	})
 
@@ -505,7 +523,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		suite.Require().NoError(err)
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
-		suite.Equal(types.MessageStatusInsufficientBalance, res.Error.Status)
+		suite.Equal(types.ErrorInsufficientBalance, res.Error.Code())
 	})
 
 	suite.Run("testSendRawMsg: withdraw feeCredit failed", func() {
@@ -518,15 +536,16 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		suite.Require().NoError(err)
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
-		suite.Equal(types.MessageStatusInsufficientBalance, res.Error.Status)
+		suite.Equal(types.ErrorInsufficientBalance, res.Error.Code())
 	})
 
-	suite.Run("testCurrencyBalance: success", func() {
-		msg.Data, err = abi.Pack("testCurrencyBalance", types.GenerateRandomAddress(0), big.NewInt(10))
+	suite.Run("testCurrencyBalance: cross shard", func() {
+		msg.Data, err = abi.Pack("testCurrencyBalance", types.GenerateRandomAddress(0),
+			types.CurrencyId(types.HexToAddress("0x0a")))
 		suite.Require().NoError(err)
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
-		suite.Equal(types.MessageStatusPrecompileReverted, res.Error.Status)
+		suite.Equal(types.ErrorCrossShardMessage, res.Error.Code())
 	})
 }
 
