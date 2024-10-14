@@ -260,15 +260,7 @@ func (c *DirectClient) SendExternalMessage(
 }
 
 func (c *DirectClient) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error) {
-	contractName := contracts.NameFaucet
-	if faucetAddress != types.FaucetAddress {
-		contractName = contracts.NameFaucetCurrency
-	}
-	callData, err := contracts.NewCallData(contractName, "withdrawTo", contractAddressTo, amount.ToBig())
-	if err != nil {
-		return common.EmptyHash, err
-	}
-	return c.SendExternalMessage(callData, faucetAddress, nil, types.GasToValue(100_000))
+	return c.ethApi.TopUpViaFaucet(c.ctx, faucetAddress, contractAddressTo, amount)
 }
 
 func (c *DirectClient) Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error) {

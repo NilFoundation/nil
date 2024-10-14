@@ -24,7 +24,7 @@ func (api *APIImpl) TopUpViaFaucet(ctx context.Context, faucetAddress, contractA
 		return common.EmptyHash, err
 	}
 	extMsg := &types.ExternalMessage{
-		To:        types.FaucetAddress,
+		To:        faucetAddress,
 		Data:      callData,
 		Seqno:     types.Seqno(seqno.Uint64()),
 		Kind:      types.ExecutionMessageKind,

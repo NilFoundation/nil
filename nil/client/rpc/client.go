@@ -561,15 +561,16 @@ func (c *Client) SendExternalMessage(
 }
 
 func (c *Client) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error) {
-	contractName := contracts.NameFaucet
-	if faucetAddress != types.FaucetAddress {
-		contractName = contracts.NameFaucetCurrency
-	}
-	callData, err := contracts.NewCallData(contractName, "withdrawTo", contractAddressTo, amount.ToBig())
+	res, err := c.call(Eth_topUpViaFaucet, faucetAddress, contractAddressTo, amount)
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	return client.SendExternalMessage(c, callData, faucetAddress, nil, types.GasToValue(100_000), false, true)
+
+	var hash common.Hash
+	if err := json.Unmarshal(res, &hash); err != nil {
+		return common.EmptyHash, err
+	}
+	return hash, nil
 }
 
 func (c *Client) Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error) {
