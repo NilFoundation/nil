@@ -102,20 +102,16 @@ func (suite *SuiteEthBlock) TestGetBlockTransactionCountByHash() {
 func (suite *SuiteEthBlock) TestGetBlockContent() {
 	resNoFullTx, err := suite.api.GetBlockByHash(suite.ctx, shardId, suite.lastBlockHash, false)
 	suite.Require().NoError(err)
-	suite.Len(resNoFullTx.Messages, 1)
+	suite.Len(resNoFullTx.MessageHashes, 1)
+	suite.Empty(resNoFullTx.Messages)
 
 	resFullTx, err := suite.api.GetBlockByHash(suite.ctx, shardId, suite.lastBlockHash, true)
 	suite.Require().NoError(err)
 	suite.Len(resFullTx.Messages, 1)
+	suite.Empty(resFullTx.MessageHashes)
 
-	for i, msgAny := range resFullTx.Messages {
-		msg, ok := msgAny.(*RPCInMessage)
-		suite.Require().True(ok)
-
-		msgHash, ok := resNoFullTx.Messages[i].(common.Hash)
-		suite.Require().True(ok)
-
-		suite.Equal(msgHash, msg.Hash)
+	for i, msg := range resFullTx.Messages {
+		suite.Equal(resNoFullTx.MessageHashes[i], msg.Hash)
 	}
 }
 
