@@ -214,18 +214,16 @@ func (bs *blockStorage) GetTransactionsByBlocksRange(ctx context.Context, shardI
 
 	var transactions []*PrunedTransaction
 	for _, block := range blocks {
-		for _, msg_any := range block.Messages {
-			if msg, success := msg_any.(jsonrpc.RPCInMessage); success {
-				t := &PrunedTransaction{
-					flags: msg.Flags,
-					seqno: msg.Seqno,
-					from:  msg.From,
-					to:    msg.To,
-					value: msg.Value,
-					data:  msg.Data,
-				}
-				transactions = append(transactions, t)
+		for _, msg := range block.Messages {
+			t := &PrunedTransaction{
+				flags: msg.Flags,
+				seqno: msg.Seqno,
+				from:  msg.From,
+				to:    msg.To,
+				value: msg.Value,
+				data:  msg.Data,
 			}
+			transactions = append(transactions, t)
 		}
 	}
 	return transactions, nil

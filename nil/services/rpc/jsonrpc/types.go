@@ -61,6 +61,7 @@ type RPCInMessage struct {
 // @component RPCBlock rpcBlock object "The block whose information was requested."
 // @componentprop Hash hash string true "The hash of the block."
 // @componentprop Messages messages array true "The messages included in the block."
+// @componentprop MessageHashes string array true "The hashes of messages included in the block."
 // @componentprop Number number integer true "The block number."
 // @componentprop ParentHash parentHash string true "The hash of the parent block."
 // @componentprop ReceiptsRoot receiptsRoot string true "The root of the block receipts."
@@ -73,7 +74,8 @@ type RPCBlock struct {
 	ReceiptsRoot        common.Hash       `json:"receiptsRoot"`
 	ChildBlocksRootHash common.Hash       `json:"childBlocksRootHash"`
 	ShardId             types.ShardId     `json:"shardId"`
-	Messages            []any             `json:"messages"`
+	Messages            []*RPCInMessage   `json:"messages,omitempty"`
+	MessageHashes       []common.Hash     `json:"messageHashes,omitempty"`
 	ChildBlocks         []common.Hash     `json:"childBlocks"`
 	MainChainHash       common.Hash       `json:"mainChainHash"`
 	DbTimestamp         uint64            `json:"dbTimestamp"`
@@ -253,20 +255,21 @@ func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*
 		return nil, nil
 	}
 
-	messagesRes := make([]any, len(messages))
-	var err error
+	messagesRes := make([]*RPCInMessage, 0, len(messages))
+	messageHashesRes := make([]common.Hash, 0, len(messages))
 	blockHash := block.Hash()
 	blockId := block.Id
 	if fullTx {
 		for i, m := range messages {
-			messagesRes[i], err = NewRPCInMessage(m, receipts[i], types.MessageIndex(i), blockHash, blockId)
+			msg, err := NewRPCInMessage(m, receipts[i], types.MessageIndex(i), blockHash, blockId)
 			if err != nil {
 				return nil, err
 			}
+			messagesRes = append(messagesRes, msg)
 		}
 	} else {
-		for i, m := range messages {
-			messagesRes[i] = m.Hash()
+		for _, m := range messages {
+			messageHashesRes = append(messageHashesRes, m.Hash())
 		}
 	}
 
@@ -279,6 +282,7 @@ func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*
 		ChildBlocksRootHash: block.ChildBlocksRootHash,
 		ShardId:             shardId,
 		Messages:            messagesRes,
+		MessageHashes:       messageHashesRes,
 		ChildBlocks:         childBlocks,
 		MainChainHash:       block.MainChainHash,
 		DbTimestamp:         dbTimestamp,

@@ -802,7 +802,7 @@ func (s *SuiteRpc) TestRpcBlockContent() {
 		block, err = s.client.GetBlock(types.BaseShardId, "latest", false)
 		s.Require().NoError(err)
 
-		return len(block.Messages) > 0
+		return len(block.MessageHashes) > 0
 	}, 6*time.Second, 50*time.Millisecond)
 
 	block, err = s.client.GetBlock(types.BaseShardId, block.Hash, true)
@@ -810,10 +810,7 @@ func (s *SuiteRpc) TestRpcBlockContent() {
 
 	s.Require().NotNil(block.Hash)
 	s.Require().Len(block.Messages, 1)
-
-	msg, ok := block.Messages[0].(map[string]any)
-	s.Require().True(ok)
-	s.Equal(hash.Hex(), msg["hash"])
+	s.Equal(hash, block.Messages[0].Hash)
 }
 
 func (s *SuiteRpc) TestRpcMessageContent() {
