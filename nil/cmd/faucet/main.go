@@ -41,14 +41,14 @@ func main() {
 }
 
 func processRun(cfg *config) error {
-	addr := fmt.Sprintf("http://127.0.0.1:%d", cfg.port)
-	client := rpc_client.NewClient(addr, logging.NewLogger("faucet"))
+	addr := fmt.Sprintf("tcp://127.0.0.1:%d", cfg.port)
+	client := rpc_client.NewClient(cfg.endpoint, logging.NewLogger("faucet"))
 
 	serviceFaucet, err := faucet.NewService(client)
 	if err != nil {
 		return err
 	}
-	return serviceFaucet.Run(context.Background(), cfg.endpoint)
+	return serviceFaucet.Run(context.Background(), addr)
 }
 
 func parseArgs() *config {
