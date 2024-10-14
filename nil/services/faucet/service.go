@@ -1,0 +1,49 @@
+package faucet
+
+import (
+	"context"
+
+	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
+	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/services/rpc"
+	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
+	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+)
+
+type Service struct {
+	client *rpc_client.Client
+}
+
+func NewService(client *rpc_client.Client) (*Service, error) {
+	return &Service{client: client}, nil
+}
+
+func (s *Service) Run(ctx context.Context, endpoint string) error {
+	err := s.startRpcServer(ctx, endpoint)
+	return err
+}
+
+func (s *Service) startRpcServer(ctx context.Context, endpoint string) error {
+	logger := logging.NewLogger("RPC")
+
+	httpConfig := &httpcfg.HttpCfg{
+		Enabled:         true,
+		HttpURL:         endpoint,
+		HttpCompression: true,
+		TraceRequests:   true,
+		HTTPTimeouts:    httpcfg.DefaultHTTPTimeouts,
+	}
+
+	faucetApi := NewFaucetAPI(ctx, s.client, &logger)
+
+	apiList := []transport.API{
+		{
+			Namespace: "faucet",
+			Public:    true,
+			Service:   FaucetAPI(faucetApi),
+			Version:   "1.0",
+		},
+	}
+
+	return rpc.StartRpcServer(ctx, httpConfig, apiList, logger)
+}
