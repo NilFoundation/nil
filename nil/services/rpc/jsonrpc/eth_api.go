@@ -164,7 +164,7 @@ type EthAPIRo interface {
 		@param shardId GasShardId
 		@returns gasPrice GasPrice
 	*/
-	GasPrice(ctx context.Context, shardId types.ShardId) (*hexutil.Big, error)
+	GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error)
 
 	/*
 		@name GetTransactionCount

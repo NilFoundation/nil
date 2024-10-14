@@ -209,11 +209,7 @@ func (c *DirectClient) GetCurrencies(address types.Address, blockId any) (types.
 }
 
 func (c *DirectClient) GasPrice(shardId types.ShardId) (types.Value, error) {
-	res, err := c.ethApi.GasPrice(c.ctx, shardId)
-	if err != nil {
-		return types.Value{}, err
-	}
-	return types.NewValueFromBigMust(res.ToInt()), nil
+	return c.ethApi.GasPrice(c.ctx, shardId)
 }
 
 func (c *DirectClient) ChainId() (types.ChainId, error) {

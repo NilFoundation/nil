@@ -24,6 +24,8 @@ type NodeApi interface {
 	Call(
 		ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
 	) (*rpctypes.CallResWithGasPrice, error)
+
+	GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error)
 }
 
 type ShardApi interface {
@@ -41,4 +43,6 @@ type ShardApi interface {
 	Call(
 		ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
 	) (*rpctypes.CallResWithGasPrice, error)
+
+	GasPrice(ctx context.Context) (types.Value, error)
 }

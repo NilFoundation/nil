@@ -494,12 +494,12 @@ func (c *Client) GasPrice(shardId types.ShardId) (types.Value, error) {
 		return types.Value{}, err
 	}
 
-	bigVal := &hexutil.Big{}
-	if err := bigVal.UnmarshalJSON(res); err != nil {
+	val := types.Value{}
+	if err := val.UnmarshalJSON(res); err != nil {
 		return types.Value{}, err
 	}
 
-	return types.NewValueFromBigMust(bigVal.ToInt()), nil
+	return val, nil
 }
 
 func (c *Client) ChainId() (types.ChainId, error) {
