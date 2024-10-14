@@ -9,8 +9,11 @@ The =nil; Solidity library provides several function modifiers that simplify the
 
 * `onlyInternal`
 * `onlyExternal`
+* `onlyResponse`
 
 If a function has the `onlyInternal` modifier, it can only be called by another contract regardless of where this contract is located. A function with the `onlyExternal` modifier behaves the opposite way: it must always be called via an external message (e.g., from a user).
+
+The `onlyResponse` modifier limits makes it so a function can only be called as callback function when processing [**the response to `sendRequest()`**](../../getting-started/essentials/handling-async-execution.mdx).
 
 :::info
 
@@ -20,18 +23,20 @@ It is technically possible to call a function marked with `onlyExternal`/`onlyIn
 
 :::tip
 
-To use the `onlyInternal` and `onlyExternal` function modifiers, the contract must use `NilBase` as its base contract.
+To use the `onlyInternal`, `onlyExternal`, and `onlyResponse` function modifiers, the contract must use `NilBase` as its base contract.
 
 :::
 
-## Example
+## Examples
+
+### `onlyInternal` and `onlyExternal`
 
 Consider the below examples that simulate on-chain voting.
 
 Contract 1 is a 'ballot' contract that is deployed for every voter:
 
 ```solidity showLineNumbers
-import "./Nil.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract Ballot is NilBase {
     bytes pubkey;
@@ -39,15 +44,17 @@ contract Ballot is NilBase {
         pubkey = _pubkey;
     }
     function vote(address election, string candidate) external onlyExternal {
-        address refundTo = address(0);
-        int gas = 5000;
+        int feeCredit = 500_000;
         bool deploy = false;
         uint value = 0;
         election.asyncCall(
-            refundTo, gas, deploy, value,
+            address(this), feeCredit, value,
             abi.encodeWithSignature("requestVote(string)", candidate));
     }
-    function verifyExternal(uint256 hash, bytes calldata authData) external view returns (bool) {
+    function verifyExternal(
+        uint256 hash,
+        bytes memory authData
+    ) external view returns (bool) {
         return Nil.validateSignature(pubkey, hash, authData);
     }
 }
@@ -58,7 +65,7 @@ Contract 1 contains the voter's public key. The `vote()` function can only be ca
 Contract 2 records votes:
 
 ```solidity showLineNumbers
-import "./Nil.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract Election {
     using Nil for address; 
@@ -79,3 +86,9 @@ Note that Contract 2 lacks the `verifyExternal()` function and, therefore, canno
 
 Contract 1 makes an async call to Contract 2 requesting vote registration. If the caller is a valid voter, the `votes` map is updated to include the new vote for the specified `candidate`. Careful use of modifiers and the `verifyExternal()` function means that the voting system cannot be abused: votes cannot be requested directly, and additional verification occurs at the level of the election contract.
 
+### `onlyResponse`
+
+The following escrow contract uses `onlyResponse` to limit access to its `resolve()` function:
+
+```solidity showLineNumbers file=../../../tests/Escrow.sol start=startEscrow end=endEscrow
+```

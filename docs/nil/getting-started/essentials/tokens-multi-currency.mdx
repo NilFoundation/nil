@@ -4,9 +4,9 @@ This tutorial explains how =nil; handles tokens and multi-currency operations.
 
 ## Definition
 
-=nil; supplies a basic 'default' currency that is distributed by the `Faucet` contract. 
+=nil; supplies a basic 'default' currency (MZK). 
 
-The network also has a multi-currency mechanism. All accounts (smart contracts) can be paid in any number of arbitrary currencies created either by the account owner or other accounts. Currency creation is dedicated to a special precompiled contract (`Minter`), and anyone can request the creation, minting, and withdrawal of new currencies. 
+The network also has a multi-currency mechanism. All accounts (smart contracts) can be paid in any number of arbitrary currencies created either by the account owner or other accounts. 
 
 :::info
 
@@ -16,7 +16,7 @@ While custom currencies can be transferred between accounts, they cannot be used
 
 :::info
 
-When a currency is created, it is assigned an ID derived from the address of the currency owner. A contract can only be the owner of one currency. While non-owners can transfer different currencies between accounts, they cannot mint any currencies that they do not own.
+A contract can only be the owner of one currency. While non-owners can transfer different currencies between accounts, they cannot mint any currencies that they do not own.
 
 :::
 
@@ -43,12 +43,6 @@ To burn an existing currency (the supply is automatically reduced at the address
 ```
 
 ### Via the client library
-
-:::tip
-
-To get the ID of a currency, simply call the `hexToBigInt()` function on the owner's address.
-
-:::
 
 To create a new currency and withdraw it:
 
@@ -120,3 +114,84 @@ Create a new currency for Wallet 2 and send it to Wallet 1:
 ```ts showLineNumbers file=../../../tests/tokens-multi-currency-support.test.mjs start=startNilJSTransferExample end=endNilJSTransferExample
 ```
 
+## Currency faucet service
+
+The currency faucet is a special service whose main purpose is to distribute default cluster tokens (MZK) that are used to pay for contract deployment and message execution. In addition, the faucet also distributes various pre-set 'mock' currencies such as USDC and BTC.
+
+Each currency faucet resides at a different address. To withdraw a specific currency, simply call the corresponding address using the `faucet_TopUpViaFaucet` method.
+
+### Usage
+
+#### Via JSON-RPC API
+
+The faucet service resides at the `http://api.devnet.nil.foundation/api/faucet/${USERNAME}/${TOKEN}` endpoint.
+
+To see all active faucets:
+
+```bash
+curl -X POST http://api.devnet.nil.foundation/api/faucet/${USERNAME}/${TOKEN} \
+-H "Content-Type: application/json" \
+-d '{"jsonrpc": "2.0", "id": 0, "method": "faucet_getFaucets", "params": []}'
+```
+
+Expected response:
+
+```bash
+{
+  "jsonrpc":"2.0",
+  "id":0,
+  "result":{
+  "BTC":"0x0001111111111111111111111111111111111114",
+  "ETH":"0x0001111111111111111111111111111111111112",
+  "MZK":"0x000100000000000000000000000000000fa00ce7",
+  "USDT":"0x0001111111111111111111111111111111111113"}
+}
+```
+
+To withdraw from a faucet:
+
+```bash
+curl -X POST http://api.devnet.nil.foundation/api/faucet/${USERNAME}/${TOKEN} \
+-H "Content-Type: application/json" \
+-d '{"jsonrpc": "2.0", "id": 0, "method": "faucet_topUpViaFaucet", "params": ["$FAUCET_ADDRESS", "$WALLET_ADDRESS", $AMOUNT]}'
+```
+
+Expected output:
+
+```bash
+{
+  "jsonrpc":"2.0",
+  "id":0,
+  "result": HASH
+}
+```
+
+#### Via the client library
+
+Nil.js offers several 'helper' wrappers designed to simplify work with the faucet service.
+
+To create a new faucet client:
+
+```js showLineNumbers
+const faucetClient = new FaucetClient({
+	transport: new HttpTransport({
+		endpoint: RPC_ENDPOINT,
+	}),
+});
+```
+
+To request a list of all faucets:
+
+```js showLineNumbers
+const faucets = await faucetClient.getAllFaucets();
+```
+
+To request tokens from a faucet:
+
+```js showLineNumbers
+await faucetClient.topUpAndWaitUntilCompletion({
+  walletAddress: WALLET_ADDRESS,
+  FAUCET_ADDRESS,
+  amount: AMOUNT,
+});
+```

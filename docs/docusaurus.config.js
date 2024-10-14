@@ -75,19 +75,6 @@ const config = {
     [
       path.resolve(__dirname, './plugins/nil-playground-plugin'),
       {
-        contracts: {
-          counter: `${process.env.HASHES}/counter.hash.json`,
-          caller: `${process.env.HASHES}/caller.hash.json`,
-          receiver: `${process.env.HASHES}/receiver.hash.json`,
-          callerAsync: `${process.env.HASHES}/callerAsync.hash.json`,
-          callerAsyncBasicPattern: `${process.env.HASHES}/callerAsyncBasicPattern.hash.json`,
-          awaiter: `${process.env.HASHES}/awaiter.hash.json`,
-          escrow: `${process.env.HASHES}/escrow.hash.json`,
-          validator: `${process.env.HASHES}/validator.hash.json`,
-          retailer: `${process.env.HASHES}/retailer.hash.json`,
-          manufacturer: `${process.env.HASHES}/manufacturer.hash.json`,
-          swapMatch: `${process.env.HASHES}/swapMatch.hash.json`
-        }
       }
     ],
     [
@@ -169,7 +156,7 @@ const config = {
             {
               label: 'Migration guides',
               position: 'left',
-              to: 'nil/migration-guides/october-0110-2024-release'
+              to: 'nil/migration-guides/october-1510-2024-release'
             },
             {
               type: 'dropdown',
