@@ -265,6 +265,13 @@ func (s *SuiteAsyncAwait) TestInvalidContext() {
 	s.Require().False(receipt.OutReceipts[0].Success)
 }
 
+func (s *SuiteAsyncAwait) TestInvalidSendRequest() {
+	data := s.AbiPack(s.abiTest, "makeInvalidSendRequest")
+	receipt := s.sendExternalMessageNoCheck(data, s.testAddress0)
+	s.Require().True(receipt.Success)
+	s.Empty(receipt.OutReceipts)
+}
+
 func (s *SuiteAsyncAwait) TestSumCountersNested() {
 	var (
 		data    []byte

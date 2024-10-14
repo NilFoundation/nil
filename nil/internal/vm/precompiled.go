@@ -402,6 +402,10 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 }
 
 func estimateGasForAsyncRequest(input []byte, precompile string, argnum, argtotal int) uint64 {
+	if len(input) < 4 {
+		return 0
+	}
+
 	// when running `awaitCall` / `sendRequest` the caller specifies exact amount of gas they want to reserve
 	// later this gas will be used for processing of response for particular request
 	method := getPrecompiledMethod(precompile)
@@ -428,6 +432,10 @@ func (c *awaitCall) RequiredGas(input []byte) uint64 {
 }
 
 func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	state := evm.StateDB
 
 	// Only top level functions are allowed to use awaitCall
@@ -489,6 +497,10 @@ func (c *sendRequest) RequiredGas(input []byte) uint64 {
 }
 
 func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	method := getPrecompiledMethod("precompileSendRequest")
 
 	// Unpack arguments, skipping the first 4 bytes (function selector)
@@ -633,6 +645,10 @@ func (c *manageCurrency) RequiredGas([]byte) uint64 {
 }
 
 func (c *manageCurrency) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	res := make([]byte, 32)
 
 	args, err := getPrecompiledMethod("precompileManageCurrency").Inputs.Unpack(input[4:])
@@ -678,6 +694,10 @@ func (c *currencyBalance) RequiredGas([]byte) uint64 {
 }
 
 func (a *currencyBalance) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	res := make([]byte, 32)
 
 	// Unpack arguments, skipping the first 4 bytes (function selector)
@@ -722,6 +742,10 @@ func (c *sendCurrencySync) RequiredGas([]byte) uint64 {
 }
 
 func (c *sendCurrencySync) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	// Unpack arguments, skipping the first 4 bytes (function selector)
 	args, err := getPrecompiledMethod("precompileSendTokens").Inputs.Unpack(input[4:])
 	if err != nil {
@@ -781,6 +805,10 @@ func (c *getGasPrice) RequiredGas([]byte) uint64 {
 }
 
 func (c *getGasPrice) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	method := getPrecompiledMethod("precompileGetGasPrice")
 
 	args, err := method.Inputs.Unpack(input[4:])
@@ -820,6 +848,10 @@ func (c *poseidonHash) RequiredGas([]byte) uint64 {
 }
 
 func (c *poseidonHash) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	method := getPrecompiledMethod("precompileGetPoseidonHash")
 
 	args, err := method.Inputs.Unpack(input[4:])
@@ -846,6 +878,10 @@ func (c *configParam) RequiredGas([]byte) uint64 {
 }
 
 func (c *configParam) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	method := getPrecompiledMethod("precompileConfigParam")
 
 	args, err := method.Inputs.Unpack(input[4:])

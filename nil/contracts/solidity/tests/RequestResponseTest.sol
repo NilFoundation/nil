@@ -238,4 +238,11 @@ contract RequestResponseTest is NilCurrencyBase {
         bytes memory callData = new bytes(1);
         Nil.sendRequest(addr1, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
     }
+
+    function makeInvalidSendRequest() public view {
+        assembly {
+            let memPtr := mload(0x40)
+            let success := staticcall(3000, 0xd8, 0, 0, memPtr, 0x20)
+        }
+    }
 }
