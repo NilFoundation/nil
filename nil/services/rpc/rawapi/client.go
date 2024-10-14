@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/ssz"
@@ -73,6 +74,10 @@ func (api *NetworkShardApiAccessor) Call(
 
 func (api *NetworkShardApiAccessor) GetInMessage(ctx context.Context, request rawapitypes.MessageRequest) (*rawapitypes.MessageInfo, error) {
 	return sendRequestAndGetResponseWithCallerMethodName[*rawapitypes.MessageInfo](ctx, api, "GetInMessage", request)
+}
+
+func (api *NetworkShardApiAccessor) GetInMessageReceipt(ctx context.Context, hash common.Hash) (*rawapitypes.ReceiptInfo, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[*rawapitypes.ReceiptInfo](ctx, api, "GetInMessageReceipt", hash)
 }
 
 func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkShardApiAccessor, methodName string, args ...any) (ResponseType, error) {

@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
@@ -9,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
 
@@ -299,23 +301,28 @@ func NewRPCLog(
 	}
 }
 
-func NewRPCReceipt(
-	shardId types.ShardId, block *types.Block, index types.MessageIndex, receipt *types.Receipt,
-	outMessages []common.Hash, outReceipts []*RPCReceipt, temporary bool, errorMessage string, gasPrice types.Value,
-) *RPCReceipt {
-	if receipt == nil {
-		return nil
+func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
+	if info == nil {
+		return nil, nil
 	}
 
-	var blockNumber types.BlockNumber
-	var blockHash common.Hash
-	if block != nil {
-		blockNumber = block.Id
-		blockHash = block.Hash()
+	receipt := &types.Receipt{}
+	if err := receipt.UnmarshalSSZ(info.ReceiptSSZ); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal receipt: %w", err)
 	}
+
 	logs := make([]*RPCLog, len(receipt.Logs))
 	for i, log := range receipt.Logs {
-		logs[i] = NewRPCLog(log, blockNumber)
+		logs[i] = NewRPCLog(log, info.BlockId)
+	}
+
+	outReceipts := make([]*RPCReceipt, len(info.OutReceipts))
+	for i, outReceipt := range info.OutReceipts {
+		var err error
+		outReceipts[i], err = NewRPCReceipt(outReceipt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal %d out receipt: %w", i, err)
+		}
 	}
 
 	res := &RPCReceipt{
@@ -324,18 +331,19 @@ func NewRPCReceipt(
 		FailedPc:        uint(receipt.FailedPc),
 		GasUsed:         receipt.GasUsed,
 		Forwarded:       receipt.Forwarded,
-		GasPrice:        gasPrice,
+		GasPrice:        info.GasPrice,
 		Logs:            logs,
-		OutMessages:     outMessages,
+		OutMessages:     info.OutMessages,
 		OutReceipts:     outReceipts,
 		MsgHash:         receipt.MsgHash,
 		ContractAddress: receipt.ContractAddress,
-		BlockHash:       blockHash,
-		BlockNumber:     blockNumber,
-		MsgIndex:        index,
-		ShardId:         shardId,
-		Temporary:       temporary,
-		ErrorMessage:    errorMessage,
+		BlockHash:       info.BlockHash,
+		BlockNumber:     info.BlockId,
+		MsgIndex:        info.Index,
+		ShardId:         info.ShardId,
+		Temporary:       info.Temporary,
+		ErrorMessage:    info.ErrorMessage,
+		IncludedInMain:  info.IncludedInMain,
 	}
 
 	// Set only non-empty bloom
@@ -347,7 +355,7 @@ func NewRPCReceipt(
 		}
 	}
 
-	return res
+	return res, nil
 }
 
 // @component DebugRPCContract debugRpcContract object "The debug contract whose structure is requested."

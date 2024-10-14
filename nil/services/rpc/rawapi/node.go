@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
@@ -96,4 +97,12 @@ func (api *NodeApiOverShardApis) GetInMessage(ctx context.Context, shardId types
 		return nil, errShardNotFound
 	}
 	return shardApi.GetInMessage(ctx, request)
+}
+
+func (api *NodeApiOverShardApis) GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*rawapitypes.ReceiptInfo, error) {
+	shardApi, ok := api.Apis[shardId]
+	if !ok {
+		return nil, errShardNotFound
+	}
+	return shardApi.GetInMessageReceipt(ctx, hash)
 }

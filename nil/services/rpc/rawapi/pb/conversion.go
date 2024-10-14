@@ -15,14 +15,17 @@ import (
 
 // Hash converters
 
-func (h *Hash) UnpackProtoMessage() common.Hash {
+func (h *Hash) UnpackProtoMessage() (common.Hash, error) {
+	if h == nil {
+		return common.EmptyHash, nil
+	}
 	u256 := h.Data.UnpackProtoMessage()
-	return common.BytesToHash(u256.Bytes())
+	return common.BytesToHash(u256.Bytes()), nil
 }
 
-func (h *Hash) PackProtoMessage(hash common.Hash) *Hash {
+func (h *Hash) PackProtoMessage(hash common.Hash) error {
 	h.Data = new(Uint256).PackProtoMessage(types.Uint256(*hash.Uint256()))
-	return h
+	return nil
 }
 
 // Uint256 converters
@@ -71,8 +74,8 @@ func (nbr *NamedBlockReference) PackProtoMessage(namedBlockIdentifier rawapitype
 func (br *BlockReference) UnpackProtoMessage() (rawapitypes.BlockReference, error) {
 	switch br.Reference.(type) {
 	case *BlockReference_Hash:
-		hash := br.GetHash().UnpackProtoMessage()
-		return rawapitypes.BlockHashAsBlockReference(hash), nil
+		hash, err := br.GetHash().UnpackProtoMessage()
+		return rawapitypes.BlockHashAsBlockReference(hash), err
 
 	case *BlockReference_BlockIdentifier:
 		return rawapitypes.BlockNumberAsBlockReference(types.BlockNumber(br.GetBlockIdentifier())), nil
@@ -93,7 +96,12 @@ func (br *BlockReference) UnpackProtoMessage() (rawapitypes.BlockReference, erro
 func (br *BlockReference) PackProtoMessage(blockReference rawapitypes.BlockReference) error {
 	switch blockReference.Type() {
 	case rawapitypes.HashBlockReference:
-		br.Reference = &BlockReference_Hash{new(Hash).PackProtoMessage(blockReference.Hash())}
+		h := &Hash{}
+		err := h.PackProtoMessage(blockReference.Hash())
+		if err != nil {
+			return err
+		}
+		br.Reference = &BlockReference_Hash{Hash: h}
 
 	case rawapitypes.NumberBlockReference:
 		br.Reference = &BlockReference_BlockIdentifier{uint64(blockReference.Number())}
@@ -253,7 +261,10 @@ func (rb *RawFullBlock) PackProtoMessage(block *types.RawBlockWithExtractedData)
 
 	childBlocks := make([]*Hash, len(block.ChildBlocks))
 	for i, hash := range block.ChildBlocks {
-		childBlocks[i] = new(Hash).PackProtoMessage(hash)
+		childBlocks[i] = new(Hash)
+		if err := childBlocks[i].PackProtoMessage(hash); err != nil {
+			return err
+		}
 	}
 
 	*rb = RawFullBlock{
@@ -268,19 +279,34 @@ func (rb *RawFullBlock) PackProtoMessage(block *types.RawBlockWithExtractedData)
 	return nil
 }
 
-func (rb *RawFullBlock) UnpackProtoMessage() (*types.RawBlockWithExtractedData, error) {
-	childBlocks := make([]common.Hash, len(rb.ChildBlocks))
-	for i, hash := range rb.ChildBlocks {
-		childBlocks[i] = hash.UnpackProtoMessage()
+func unpackHashes(input []*Hash) []common.Hash {
+	hashes := make([]common.Hash, len(input))
+	for i, hash := range input {
+		var err error
+		hashes[i], err = hash.UnpackProtoMessage()
+		check.PanicIfErr(err)
 	}
+	return hashes
+}
 
+func packHashes(input []common.Hash) []*Hash {
+	hashes := make([]*Hash, len(input))
+	for i, hash := range input {
+		hashes[i] = &Hash{}
+		err := hashes[i].PackProtoMessage(hash)
+		check.PanicIfErr(err)
+	}
+	return hashes
+}
+
+func (rb *RawFullBlock) UnpackProtoMessage() (*types.RawBlockWithExtractedData, error) {
 	return &types.RawBlockWithExtractedData{
 		Block:       rb.BlockSSZ,
 		InMessages:  rb.InMessagesSSZ,
 		OutMessages: rb.OutMessagesSSZ,
 		Receipts:    rb.ReceiptsSSZ,
 		Errors:      unpackErrorMap(rb.Errors),
-		ChildBlocks: childBlocks,
+		ChildBlocks: unpackHashes(rb.ChildBlocks),
 		DbTimestamp: rb.DbTimestamp,
 	}, nil
 }
@@ -444,13 +470,17 @@ func (c *Contract) PackProtoMessage(contract rpctypes.Contract) *Contract {
 	if contract.State != nil {
 		c.State = make(map[string]*Hash)
 		for k, v := range *contract.State {
-			c.State[k.Hex()] = new(Hash).PackProtoMessage(v)
+			kHex := k.Hex()
+			c.State[kHex] = &Hash{}
+			check.PanicIfErr(c.State[kHex].PackProtoMessage(v))
 		}
 	}
 	if contract.StateDiff != nil {
 		c.StateDiff = make(map[string]*Hash)
 		for k, v := range *contract.StateDiff {
-			c.StateDiff[k.Hex()] = new(Hash).PackProtoMessage(v)
+			kHex := k.Hex()
+			c.StateDiff[kHex] = &Hash{}
+			check.PanicIfErr(c.StateDiff[kHex].PackProtoMessage(v))
 		}
 	}
 	return c
@@ -558,7 +588,9 @@ func (cr *Contract) UnpackProtoMessage() rpctypes.Contract {
 	if len(cr.State) > 0 {
 		m := make(map[common.Hash]common.Hash)
 		for k, v := range cr.State {
-			m[common.HexToHash(k)] = v.UnpackProtoMessage()
+			var err error
+			m[common.HexToHash(k)], err = v.UnpackProtoMessage()
+			check.PanicIfErr(err)
 		}
 		c.State = &m
 	}
@@ -566,7 +598,9 @@ func (cr *Contract) UnpackProtoMessage() rpctypes.Contract {
 	if len(cr.StateDiff) > 0 {
 		m := make(map[common.Hash]common.Hash)
 		for k, v := range cr.StateDiff {
-			m[common.HexToHash(k)] = v.UnpackProtoMessage()
+			var err error
+			m[common.HexToHash(k)], err = v.UnpackProtoMessage()
+			check.PanicIfErr(err)
 		}
 		c.StateDiff = &m
 	}
@@ -716,12 +750,18 @@ func (r *MessageResponse) PackProtoMessage(info *rawapitypes.MessageInfo, err er
 		r.Result = &MessageResponse_Error{Error: new(Error).PackProtoMessage(err)}
 		return nil
 	}
+
+	var hash Hash
+	if err := hash.PackProtoMessage(info.BlockHash); err != nil {
+		return err
+	}
+
 	r.Result = &MessageResponse_Data{
 		Data: &MessageInfo{
 			MessageSSZ: info.MessageSSZ,
 			ReceiptSSZ: info.ReceiptSSZ,
 			Index:      uint64(info.Index),
-			BlockHash:  new(Hash).PackProtoMessage(info.BlockHash),
+			BlockHash:  &hash,
 			BlockId:    uint64(info.BlockId),
 		},
 	}
@@ -734,11 +774,15 @@ func (r *MessageResponse) UnpackProtoMessage() (*rawapitypes.MessageInfo, error)
 		return nil, r.GetError().UnpackProtoMessage()
 	case *MessageResponse_Data:
 		data := r.GetData()
+		hash, err := data.BlockHash.UnpackProtoMessage()
+		if err != nil {
+			return nil, err
+		}
 		return &rawapitypes.MessageInfo{
 			MessageSSZ: data.MessageSSZ,
 			ReceiptSSZ: data.ReceiptSSZ,
 			Index:      types.MessageIndex(data.Index),
-			BlockHash:  data.BlockHash.UnpackProtoMessage(),
+			BlockHash:  hash,
 			BlockId:    types.BlockNumber(data.BlockId),
 		}, nil
 	}
@@ -763,12 +807,12 @@ func (r *MessageRequestByBlockRefAndIndex) UnpackProtoMessage() (rawapitypes.Blo
 }
 
 func (r *MessageRequestByHash) PackProtoMessage(hash common.Hash) error {
-	r.Hash = new(Hash).PackProtoMessage(hash)
-	return nil
+	r.Hash = &Hash{}
+	return r.Hash.PackProtoMessage(hash)
 }
 
 func (r *MessageRequestByHash) UnpackProtoMessage() (common.Hash, error) {
-	return r.Hash.UnpackProtoMessage(), nil
+	return r.Hash.UnpackProtoMessage()
 }
 
 func (r *MessageRequest) PackProtoMessage(request rawapitypes.MessageRequest) error {
@@ -821,4 +865,104 @@ func (r *MessageRequest) UnpackProtoMessage() (rawapitypes.MessageRequest, error
 		}, nil
 	}
 	return rawapitypes.MessageRequest{}, errors.New("unexpected request type")
+}
+
+// Receipt converters
+func (r *ReceiptInfo) PackProtoMessage(info *rawapitypes.ReceiptInfo) *ReceiptInfo {
+	if info == nil || info.ReceiptSSZ == nil {
+		return nil
+	}
+
+	var outReceipts []*ReceiptInfo
+	if len(info.OutReceipts) > 0 {
+		outReceipts = make([]*ReceiptInfo, len(info.OutReceipts))
+		for i, outReceipt := range info.OutReceipts {
+			if outReceipt != nil {
+				outReceipts[i] = new(ReceiptInfo).PackProtoMessage(outReceipt)
+			}
+		}
+	}
+
+	var gp *Uint256
+	if info.GasPrice.Uint256 != nil {
+		gp = new(Uint256).PackProtoMessage(*info.GasPrice.Uint256)
+	}
+
+	blockHash := &Hash{}
+	check.PanicIfErr(blockHash.PackProtoMessage(info.BlockHash))
+
+	return &ReceiptInfo{
+		ShardId:        uint64(info.ShardId),
+		ReceiptSSZ:     info.ReceiptSSZ,
+		Index:          uint64(info.Index),
+		BlockHash:      blockHash,
+		BlockId:        uint64(info.BlockId),
+		OutMessages:    packHashes(info.OutMessages),
+		OutReceipts:    outReceipts,
+		IncludedInMain: info.IncludedInMain,
+		ErrorMessage:   &Error{Message: info.ErrorMessage},
+		GasPrice:       gp,
+		Temporary:      info.Temporary,
+	}
+}
+
+func (r *ReceiptResponse) PackProtoMessage(info *rawapitypes.ReceiptInfo, err error) error {
+	if err != nil {
+		r.Result = &ReceiptResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+
+	r.Result = &ReceiptResponse_Data{
+		Data: new(ReceiptInfo).PackProtoMessage(info),
+	}
+	return nil
+}
+
+func (r *ReceiptInfo) UnpackProtoMessage() *rawapitypes.ReceiptInfo {
+	if r == nil || r.ReceiptSSZ == nil {
+		return nil
+	}
+
+	var gp types.Value
+	if r.GasPrice != nil {
+		v := r.GasPrice.UnpackProtoMessage()
+		gp = types.Value{Uint256: &v}
+	}
+
+	var outReceipts []*rawapitypes.ReceiptInfo
+	if len(r.OutReceipts) > 0 {
+		outReceipts = make([]*rawapitypes.ReceiptInfo, len(r.OutReceipts))
+		for i, outReceipt := range r.OutReceipts {
+			outReceipts[i] = outReceipt.UnpackProtoMessage()
+		}
+	}
+
+	var errorMessage string
+	if r.ErrorMessage != nil {
+		errorMessage = r.ErrorMessage.Message
+	}
+
+	blockHash, err := r.BlockHash.UnpackProtoMessage()
+	check.PanicIfErr(err)
+	return &rawapitypes.ReceiptInfo{
+		ShardId:        types.ShardId(r.ShardId),
+		ReceiptSSZ:     r.ReceiptSSZ,
+		Index:          types.MessageIndex(r.Index),
+		BlockHash:      blockHash,
+		BlockId:        types.BlockNumber(r.BlockId),
+		OutMessages:    unpackHashes(r.OutMessages),
+		OutReceipts:    outReceipts,
+		IncludedInMain: r.IncludedInMain,
+		ErrorMessage:   errorMessage,
+		GasPrice:       gp,
+		Temporary:      r.Temporary,
+	}
+}
+
+func (r *ReceiptResponse) UnpackProtoMessage() (*rawapitypes.ReceiptInfo, error) {
+	err := r.GetError()
+	if err != nil {
+		return nil, err.UnpackProtoMessage()
+	}
+	return r.GetData().UnpackProtoMessage(), nil
 }
