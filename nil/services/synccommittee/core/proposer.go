@@ -75,7 +75,6 @@ type Proposer struct {
 	client       *rpc.Client
 	blockStorage storage.BlockStorage
 	seqno        atomic.Uint64
-	chainId      *big.Int
 	params       ProposerParams
 	retryRunner  common.RetryRunner
 	logger       zerolog.Logger
@@ -85,7 +84,7 @@ const DefaultProposingInterval = 10 * time.Second
 
 type ProposerParams struct {
 	endpoint          string
-	chainId           string
+	chainId           *big.Int
 	privKey           string
 	contractAddress   string
 	selfAddress       string
@@ -95,7 +94,7 @@ type ProposerParams struct {
 func DefaultProposerParams() ProposerParams {
 	return ProposerParams{
 		endpoint:          "http://rpc2.sepolia.org",
-		chainId:           "11155111",
+		chainId:           big.NewInt(11155111),
 		privKey:           "0000000000000000000000000000000000000000000000000000000000000001",
 		contractAddress:   "0xB8E280a085c87Ed91dd6605480DD2DE9EC3699b4",
 		selfAddress:       "0x7A2f4530b5901AD1547AE892Bafe54c5201D1206",
@@ -105,11 +104,6 @@ func DefaultProposerParams() ProposerParams {
 
 func NewProposer(params ProposerParams, blockStorage storage.BlockStorage, logger zerolog.Logger) (*Proposer, error) {
 	client := rpc.NewClient(params.endpoint, logger)
-
-	chainId, ok := new(big.Int).SetString(params.chainId, 10)
-	if !ok {
-		return nil, fmt.Errorf("wrong chainId: %s", params.chainId)
-	}
 
 	nonceValue, err := getCurrentNonce(params.selfAddress, client)
 	if err != nil {
@@ -128,15 +122,14 @@ func NewProposer(params ProposerParams, blockStorage storage.BlockStorage, logge
 	p := Proposer{
 		client:       client,
 		blockStorage: blockStorage,
-		chainId:      chainId,
 		params:       params,
 		retryRunner:  retryRunner,
 		logger:       logger,
 	}
 	p.seqno.Add(nonceValue)
 
-	p.logger.Info().Msgf("\nUse L1 endpoint %v\nChainId %v\nL1Contract address %v\nLatestProvedStateRoot %s\nNonce %d",
-		p.l1EndPoint, params.chainId, p.contractAddress, latestProvedStateRoot, p.seqno.Load())
+	p.logger.Info().Msgf("\nUse L1 endpoint %v\nChainId %v\nL1Contract address %v\nNonce %d",
+		p.params.endpoint, params.chainId, p.params.contractAddress, p.seqno.Load())
 	return &p, nil
 }
 
@@ -178,17 +171,17 @@ func (p *Proposer) initializeProvedStateRoot(ctx context.Context) (shouldResetSt
 	switch {
 	case storedStateRoot == nil:
 		p.logger.Info().
-			Str("latestStateRoot", latestStateRoot.String()).
+			Stringer("latestStateRoot", latestStateRoot).
 			Msg("proved state root is not initialized, value from L1 will be used")
 	case *storedStateRoot != latestStateRoot:
 		p.logger.Warn().
 			Uint64("seqno", p.seqno.Load()).
-			Str("storedStateRoot", storedStateRoot.String()).
-			Str("latestStateRoot", latestStateRoot.String()).
+			Stringer("storedStateRoot", storedStateRoot).
+			Stringer("latestStateRoot", latestStateRoot).
 			Msg("proved state root value is invalid, local storage will be reset")
 		shouldResetStorage = true
 	default:
-		p.logger.Info().Str("stateRoot", storedStateRoot.String()).Msg("proved state root value is valid")
+		p.logger.Info().Stringer("stateRoot", storedStateRoot).Msg("proved state root value is valid")
 	}
 
 	if storedStateRoot == nil || *storedStateRoot != latestStateRoot {
@@ -198,9 +191,9 @@ func (p *Proposer) initializeProvedStateRoot(ctx context.Context) (shouldResetSt
 		}
 	}
 
-	p.logger.Debug().
+	p.logger.Info().
 		Uint64("seqno", p.seqno.Load()).
-		Str("stateRoot", latestStateRoot.String()).
+		Stringer("stateRoot", latestStateRoot).
 		Msg("proposer is initialized")
 	return shouldResetStorage, nil
 }
@@ -327,7 +320,7 @@ func (p *Proposer) createUpdateStateTransaction(provedStateRoot, newStateRoot co
 
 	L1ContractAddress := ethcommon.HexToAddress(p.params.contractAddress)
 	transaction := ethTypes.NewTx(&ethTypes.DynamicFeeTx{
-		ChainID:   p.chainId,
+		ChainID:   p.params.chainId,
 		Nonce:     p.seqno.Load(),
 		GasTipCap: big.NewInt(MaxPriorityFeePerGas),
 		GasFeeCap: big.NewInt(MaxFeePerGas),
@@ -342,7 +335,7 @@ func (p *Proposer) createUpdateStateTransaction(provedStateRoot, newStateRoot co
 		return nil, fmt.Errorf("failed to encode private key %w", err)
 	}
 
-	signedTx, err := ethTypes.SignTx(transaction, ethTypes.NewCancunSigner(p.chainId), privateKey)
+	signedTx, err := ethTypes.SignTx(transaction, ethTypes.NewCancunSigner(p.params.chainId), privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign transaction %w", err)
 	}
@@ -361,7 +354,7 @@ func (p *Proposer) encodeTransaction(transaction *ethTypes.Transaction) (string,
 
 func (p *Proposer) sendProof(ctx context.Context, data *storage.ProposalData) error {
 	p.logger.Debug().
-		Str("blockHash", data.MainShardBlockHash.String()).
+		Stringer("blockHash", data.MainShardBlockHash).
 		Int64("seqno", int64(p.seqno.Load())).
 		Int("txCount", len(data.Transactions)).
 		Msgf("sending proof to L1")

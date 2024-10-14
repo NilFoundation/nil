@@ -101,10 +101,6 @@ func (bs *blockStorage) getProvedStateRoot(tx db.RoTx) (*common.Hash, error) {
 }
 
 func (bs *blockStorage) SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error {
-	if stateRoot.Empty() {
-		return errors.New("state root hash is empty")
-	}
-
 	tx, err := bs.db.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -207,7 +203,7 @@ func (bs *blockStorage) setProposeParentHash(tx db.RwTx, block *jsonrpc.RPCBlock
 	if err != nil {
 		return err
 	}
-	if parentHash != nil && !parentHash.Empty() {
+	if parentHash != nil {
 		return nil
 	}
 
@@ -216,8 +212,8 @@ func (bs *blockStorage) setProposeParentHash(tx db.RwTx, block *jsonrpc.RPCBlock
 	}
 
 	bs.logger.Debug().
-		Str("blockHash", block.Hash.String()).
-		Str("parentHash", block.ParentHash.String()).
+		Stringer("blockHash", block.Hash).
+		Stringer("parentHash", block.ParentHash).
 		Msg("block parent hash is not set, updating it")
 
 	return bs.setParentOfNextToPropose(tx, block.ParentHash)
@@ -282,7 +278,7 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 	if err != nil {
 		return nil, err
 	}
-	if parentHash == nil || parentHash.Empty() {
+	if parentHash == nil {
 		bs.logger.Debug().Msg("block parent hash is not set")
 		return nil, nil
 	}
@@ -299,7 +295,7 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 		return nil, err
 	}
 	if mainShardEntry == nil {
-		bs.logger.Debug().Str("parentHash", parentHash.String()).Msg("no proved main shard block found")
+		bs.logger.Debug().Stringer("parentHash", parentHash).Msg("no proved main shard block found")
 		return nil, nil
 	}
 
