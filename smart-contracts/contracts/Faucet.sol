@@ -89,3 +89,18 @@ contract Faucet {
         return addr;
     }
 }
+
+contract FaucetCurrency is NilCurrencyBase {
+    event Send(address addr, uint256 value);
+
+    function verifyExternal(uint256, bytes calldata) external pure returns (bool) {
+        return true;
+    }
+
+    function withdrawTo(address payable addr, uint256 value) public {
+        mintCurrencyInternal(value);
+        sendCurrencyInternal(addr, getCurrencyId(), value);
+
+        emit Send(addr, value);
+    }
+}

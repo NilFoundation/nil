@@ -260,12 +260,8 @@ func (c *DirectClient) SendExternalMessage(
 	return SendExternalMessage(c, bytecode, contractAddress, pk, feeCredit, false, false)
 }
 
-func (c *DirectClient) TopUpViaFaucet(contractAddress types.Address, amount types.Value) (common.Hash, error) {
-	callData, err := contracts.NewCallData(contracts.NameFaucet, "withdrawTo", contractAddress, amount.ToBig())
-	if err != nil {
-		return common.EmptyHash, err
-	}
-	return c.SendExternalMessage(callData, types.FaucetAddress, nil, types.GasToValue(100_000))
+func (c *DirectClient) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error) {
+	return c.ethApi.TopUpViaFaucet(c.ctx, faucetAddress, contractAddressTo, amount)
 }
 
 func (c *DirectClient) Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error) {

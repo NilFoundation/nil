@@ -41,6 +41,18 @@ contracts:
   value: 100000000000000
   contract: Wallet
   ctorArgs: [{{ .MainPublicKey }}]
+- name: EthFaucet
+  address: {{ .EthFaucetAddress }}
+  value: 100000000000000
+  contract: FaucetCurrency
+- name: UsdtFaucet
+  address: {{ .UsdtFaucetAddress }}
+  value: 100000000000000
+  contract: FaucetCurrency
+- name: BtcFaucet
+  address: {{ .BtcFaucetAddress }}
+  value: 100000000000000
+  contract: FaucetCurrency
 `
 
 	DefaultZeroStateConfig, err = common.ParseTemplate(zerostate, map[string]interface{}{
@@ -48,6 +60,9 @@ contracts:
 		"MainWalletAddress": types.MainWalletAddress.Hex(),
 		"MainPublicKey":     hexutil.Encode(MainPublicKey),
 		"MainWalletPubKey":  hexutil.Encode(MainPublicKey),
+		"EthFaucetAddress":  types.EthFaucetAddress.Hex(),
+		"UsdtFaucetAddress": types.UsdtFaucetAddress.Hex(),
+		"BtcFaucetAddress":  types.BtcFaucetAddress.Hex(),
 	})
 	check.PanicIfErr(err)
 }
