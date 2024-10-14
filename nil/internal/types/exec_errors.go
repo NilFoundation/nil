@@ -104,6 +104,7 @@ const (
 	ErrorPrecompileConfigGetParamFailed
 	ErrorAwaitCallCalledFromNotTopLevel
 	ErrorAwaitCallTooLowResponseProcessingGas
+	ErrorAwaitCallTooShortContextData
 )
 
 type ExecError interface {

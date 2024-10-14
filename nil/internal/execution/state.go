@@ -1094,7 +1094,7 @@ func (es *ExecutionState) TryProcessResponse(message *types.Message) ([]byte, *v
 		restoreState.Result = responsePayload.Success
 	} else {
 		if len(context.Data) < 4 {
-			return nil, nil, NewExecutionResult().SetFatal(errors.New("context data is too short"))
+			return nil, nil, NewExecutionResult().SetError(types.NewError(types.ErrorAwaitCallTooShortContextData))
 		}
 		contextData := context.Data[4:]
 		bytesTy, _ := abi.NewType("bytes", "", nil)

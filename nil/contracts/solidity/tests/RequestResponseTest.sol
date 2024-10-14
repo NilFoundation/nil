@@ -232,4 +232,10 @@ contract RequestResponseTest is NilCurrencyBase {
         require(success, "Request failed");
         value += abi.decode(returnData, (int32));
     }
+
+    function makeInvalidContext(address addr1) public {
+        bytes memory context = new bytes(1);
+        bytes memory callData = new bytes(1);
+        Nil.sendRequest(addr1, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
+    }
 }
