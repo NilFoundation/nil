@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"math/rand"
 	"slices"
@@ -70,6 +71,31 @@ func TestOpcodes(t *testing.T) {
 		require.NoError(t, err)
 	}
 	for i := range 50 {
+		check(i)
+	}
+}
+
+func TestPrecompiles(t *testing.T) {
+	t.Parallel()
+
+	// Test checks that precompiles are not crashed
+	// if called with an empty input data
+	check := func(i int) {
+		state := newState(t)
+		defer state.tx.Rollback()
+		require.NoError(t, state.newVm(true, types.EmptyAddress, nil))
+
+		callMessage := &types.Message{
+			Flags:     types.NewMessageFlags(types.MessageFlagInternal),
+			FeeCredit: toGasCredit(100_000),
+		}
+		state.AddInMessage(callMessage)
+
+		addr := fmt.Sprintf("%x", i)
+		_, _, _ = state.evm.Call(
+			vm.AccountRef(types.EmptyAddress), types.HexToAddress(addr), nil, 100000, new(uint256.Int))
+	}
+	for i := range 1000 {
 		check(i)
 	}
 }

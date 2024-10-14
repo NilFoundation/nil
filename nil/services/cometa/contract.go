@@ -151,6 +151,9 @@ func (c *Contract) DecodeCallData(calldata []byte) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("method not found in ABI: %s", methodName)
 	}
+	if len(calldata) < 4 {
+		return "", fmt.Errorf("too short calldata: %d", len(calldata))
+	}
 	args, err := method.Inputs.Unpack(calldata[4:])
 	if err != nil {
 		return "", fmt.Errorf("failed to unpack arguments: %w", err)
