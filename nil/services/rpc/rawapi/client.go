@@ -80,6 +80,10 @@ func (api *NetworkShardApiAccessor) GetInMessageReceipt(ctx context.Context, has
 	return sendRequestAndGetResponseWithCallerMethodName[*rawapitypes.ReceiptInfo](ctx, api, "GetInMessageReceipt", hash)
 }
 
+func (api *NetworkShardApiAccessor) GasPrice(ctx context.Context) (types.Value, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[types.Value](ctx, api, "GasPrice")
+}
+
 func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkShardApiAccessor, methodName string, args ...any) (ResponseType, error) {
 	if assert.Enable {
 		callerMethodName := extractCallerMethodName(2)

@@ -149,6 +149,16 @@ func (s *SuiteRpcNode) TestGetCurrencies() {
 	s.NotNil(currencies)
 }
 
+func (s *SuiteRpcNode) TestGasPrice() {
+	value, err := s.client.GasPrice(types.MainShardId)
+	s.Require().NoError(err)
+	s.Positive(value.Uint64())
+
+	value, err = s.client.GasPrice(types.BaseShardId)
+	s.Require().NoError(err)
+	s.Positive(value.Uint64())
+}
+
 func TestSuiteRpcNode(t *testing.T) {
 	t.Parallel()
 

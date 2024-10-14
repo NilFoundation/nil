@@ -970,3 +970,39 @@ func (r *ReceiptResponse) UnpackProtoMessage() (*rawapitypes.ReceiptInfo, error)
 	}
 	return r.GetData().UnpackProtoMessage(), nil
 }
+
+func (r *GasPriceResponse) PackProtoMessage(v types.Value, err error) error {
+	if err != nil {
+		r.Result = &GasPriceResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+
+	value := v.Uint256
+	if value == nil {
+		value = &types.Uint256{}
+	}
+
+	r.Result = &GasPriceResponse_Data{Data: new(Uint256).PackProtoMessage(*value)}
+	return nil
+}
+
+func (r *GasPriceResponse) UnpackProtoMessage() (types.Value, error) {
+	err := r.GetError()
+	if err != nil {
+		return types.Value{}, err.UnpackProtoMessage()
+	}
+	v := r.GetData()
+	if v == nil {
+		return types.NewZeroValue(), nil
+	}
+	uint256 := v.UnpackProtoMessage()
+	return types.Value{Uint256: &uint256}, nil
+}
+
+func (r *GasPriceRequest) PackProtoMessage() error {
+	return nil
+}
+
+func (r *GasPriceRequest) UnpackProtoMessage() error {
+	return nil
+}

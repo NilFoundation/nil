@@ -106,3 +106,11 @@ func (api *NodeApiOverShardApis) GetInMessageReceipt(ctx context.Context, shardI
 	}
 	return shardApi.GetInMessageReceipt(ctx, hash)
 }
+
+func (api *NodeApiOverShardApis) GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error) {
+	shardApi, ok := api.Apis[shardId]
+	if !ok {
+		return types.Value{}, errShardNotFound
+	}
+	return shardApi.GasPrice(ctx)
+}
