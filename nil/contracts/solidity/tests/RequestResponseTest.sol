@@ -139,7 +139,7 @@ contract RequestResponseTest is NilCurrencyBase {
         Nil.sendRequest(counter, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
     }
 
-    function responseCounterAdd(bool success, bytes memory returnData, bytes memory context) public pure {
+    function responseCounterAdd(bool success, bytes memory returnData, bytes memory context) public view onlyResponse {
         require(success, "Request failed");
         require(context.length == 0, "Context should be empty");
         require(returnData.length == 0, "returnData should be empty");
@@ -189,7 +189,7 @@ contract RequestResponseTest is NilCurrencyBase {
         bytes memory context = abi.encodeWithSelector(this.responseSendCurrency.selector, uint(11111));
         bytes memory callData = abi.encodeWithSignature("get()");
         Nil.Token[] memory tokens = new Nil.Token[](1);
-        uint256 id = uint256(uint160(address(this)));
+        CurrencyId id = CurrencyId.wrap(address(this));
         tokens[0] = Nil.Token(id, amount);
         Nil.sendRequestWithTokens(addr, 0, tokens, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
     }
@@ -231,5 +231,18 @@ contract RequestResponseTest is NilCurrencyBase {
     function makeTwoRequestsResponse(bool success, bytes memory returnData, bytes memory /*context*/) public {
         require(success, "Request failed");
         value += abi.decode(returnData, (int32));
+    }
+
+    function makeInvalidContext(address addr1) public {
+        bytes memory context = new bytes(1);
+        bytes memory callData = new bytes(1);
+        Nil.sendRequest(addr1, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
+    }
+
+    function makeInvalidSendRequest() public view {
+        assembly {
+            let memPtr := mload(0x40)
+            let success := staticcall(3000, 0xd8, 0, 0, memPtr, 0x20)
+        }
     }
 }

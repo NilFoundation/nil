@@ -145,7 +145,7 @@ describe.sequential('Nil.js handles the full swap tutorial flow', async () => {
         to: swapMatchAddress,
         tokens: [
           {
-            id: hexToBigInt(walletOneAddress),
+            id: walletOneAddress,
             amount: 30_000_000n
           }
         ],
@@ -153,7 +153,7 @@ describe.sequential('Nil.js handles the full swap tutorial flow', async () => {
         functionName: 'placeSwapRequest',
         args: [
           20_000_000n,
-          hexToBigInt(walletTwoAddress)
+          walletTwoAddress
         ],
         feeCredit: gasPrice * 1_000_000_000n,
 
@@ -170,7 +170,7 @@ describe.sequential('Nil.js handles the full swap tutorial flow', async () => {
         to: swapMatchAddress,
         tokens: [
           {
-            id: hexToBigInt(walletTwoAddress),
+            id: walletTwoAddress,
             amount: 50_000_000n
           }
         ],
@@ -178,7 +178,7 @@ describe.sequential('Nil.js handles the full swap tutorial flow', async () => {
         functionName: 'placeSwapRequest',
         args: [
           10_000_000n,
-          hexToBigInt(walletOneAddress)
+          walletOneAddress
         ],
         feeCredit: gasPrice * 1_000_000_000n,
 

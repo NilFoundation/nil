@@ -1,0 +1,55 @@
+syntax = "proto3";
+package rawapi;
+
+option go_package = "/pb";
+
+import "nil/services/rpc/rawapi/proto/block.proto";
+import "nil/services/rpc/rawapi/proto/message.proto";
+
+message CallArgs {
+  uint32 flags = 1;
+  optional Address from = 2;
+  Address to = 3;
+  Uint256 feeCredit = 4;
+  Uint256 value = 5;
+  uint64 seqno = 6;
+  optional bytes data = 7;
+  optional bytes message = 8;
+  uint64 chainId = 9;
+}
+
+message Contract {
+  optional uint64 seqno = 1;
+  optional uint64 extSeqno = 2;
+  optional bytes code = 3;
+  optional Uint256 balance = 4;
+  map<string, Hash> state = 5;
+  map<string, Hash> stateDiff = 6;
+}
+
+message StateOverrides {
+  map<string, Contract> overrides = 1;
+}
+
+message CallRequest {
+  CallArgs args = 1;
+  BlockReference mainBlockNrOrHash = 2;
+  StateOverrides stateOverrides = 3;
+  bool emptyMessageIsRoot = 4;
+}
+
+message CallResult {
+  bytes data = 1;
+  Uint256 coinsUsed = 2;
+  repeated OutMessage outMessages = 3;
+  Error error = 4;
+  StateOverrides stateOverrides = 5;
+  Uint256 gasPrice = 6;
+}
+
+message CallResponse {
+  oneof result {
+    Error error = 1;
+    CallResult data = 2;
+  }
+}

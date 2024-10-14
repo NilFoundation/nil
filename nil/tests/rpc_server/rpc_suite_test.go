@@ -24,6 +24,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
+	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/tools/solc"
@@ -42,10 +43,11 @@ type RpcSuite struct {
 	dbInit func() db.DB
 	db     db.DB
 
-	client    client.Client
-	shardsNum uint32
-	endpoint  string
-	tmpDir    string
+	client         client.Client
+	shardsNum      uint32
+	endpoint       string
+	cometaEndpoint string
+	tmpDir         string
 }
 
 func init() {
@@ -99,6 +101,7 @@ func (s *RpcSuite) start(cfg *nilservice.Config) {
 		s.client = client
 	} else {
 		s.endpoint = strings.Replace(cfg.HttpUrl, "tcp://", "http://", 1)
+		s.cometaEndpoint = strings.Replace(rpc.GetSockPathIdx(s.T(), 1), "tcp://", "http://", 1)
 		s.client = rpc_client.NewClient(s.endpoint, zerolog.New(os.Stderr))
 	}
 

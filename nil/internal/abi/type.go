@@ -274,9 +274,12 @@ func (t Type) pack(v reflect.Value) ([]byte, error) {
 	// dereference pointer first if it's a pointer
 	v = indirect(v)
 
-	// Convert Uint256 to big.Int because Uint256 is not supported by packer
+	// Convert Uint256 and Value to big.Int because Uint256 is not supported by packer
 	if u256, ok := v.Interface().(types.Uint256); ok {
 		v = reflect.ValueOf(u256.Int().ToBig())
+	}
+	if value, ok := v.Interface().(types.Value); ok {
+		v = reflect.ValueOf(value.Int().ToBig())
 	}
 
 	if err := typeCheck(t, v); err != nil {

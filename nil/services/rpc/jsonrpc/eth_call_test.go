@@ -68,7 +68,7 @@ func (s *SuiteEthCall) SetupSuite() {
 	execution.GenerateBlockFromMessages(s.T(), ctx, types.MainShardId, 0, mainBlockHash, s.db,
 		map[types.ShardId]common.Hash{shardId: s.lastBlockHash})
 
-	s.api = NewTestEthAPI(s.T(), ctx, s.db, 1)
+	s.api = NewTestEthAPI(s.T(), ctx, s.db, 2)
 }
 
 func (s *SuiteEthCall) TearDownSuite() {

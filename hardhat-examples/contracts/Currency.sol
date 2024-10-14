@@ -10,7 +10,7 @@ contract Currency is NilCurrencyBase {
     }
 
     // Public function to call the parent internal function sendCurrencyInternal
-    function transferCurrency(address to, uint256 currencyId, uint256 amount) public {
+    function transferCurrency(address to, CurrencyId currencyId, uint256 amount) public {
         sendCurrencyInternal(to, currencyId, amount);
     }
 }

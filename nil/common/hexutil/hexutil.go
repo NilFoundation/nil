@@ -15,10 +15,10 @@ func Decode(input string) ([]byte, error) {
 	if len(input) == 0 {
 		return nil, ErrEmptyString
 	}
-	if !Has0xPrefix(input) {
-		return nil, ErrMissingPrefix
+	if Has0xPrefix(input) {
+		input = input[2:]
 	}
-	b, err := hex.DecodeString(input[2:])
+	b, err := hex.DecodeString(input)
 	if err != nil {
 		return nil, mapError(err)
 	}

@@ -8,12 +8,12 @@ GOBUILD = GOPRIVATE="$(GOPRIVATE)" $(GO) build $(GO_FLAGS)
 GO_DBG_BUILD = GOPRIVATE="$(GOPRIVATE)" $(GO) build -tags $(BUILD_TAGS),debug,assert -gcflags=all="-N -l"  # see delve docs
 GOTEST = GOPRIVATE="$(GOPRIVATE)" GODEBUG=cgocheck=0 $(GO) test -tags $(BUILD_TAGS),debug,assert,test $(GO_FLAGS) ./... -p 2
 
-COMMANDS += nild nil nil_load_generator exporter sync_committee proof_provider prover faucet
+COMMANDS += nild nil nil_load_generator exporter sync_committee proof_provider prover cometa faucet
 
 all: $(COMMANDS)
 
 .PHONY: generated
-generated: ssz pb compile-contracts generate_mocks
+generated: ssz pb compile-contracts generate_mocks synccommittee_types
 
 .PHONY: test
 test: generated
@@ -37,8 +37,7 @@ include nil/internal/config/Makefile.inc
 include nil/internal/collate/proto/Makefile.inc
 include nil/services/rpc/rawapi/proto/Makefile.inc
 include nil/go-ibft/messages/proto/Makefile.inc
-
-include nil/services/synccommittee/Makefile.inc
+include nil/Makefile.inc
 
 .PHONY: ssz
 ssz: ssz_db ssz_mpt ssz_types ssz_config

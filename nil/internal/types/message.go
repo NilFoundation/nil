@@ -9,7 +9,6 @@ import (
 
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -238,7 +237,6 @@ var (
 	_ common.Hashable = new(ExternalMessage)
 	_ ssz.Marshaler   = new(Message)
 	_ ssz.Unmarshaler = new(Message)
-	_ error           = new(MessageError)
 )
 
 func NewEmptyMessage() *Message {
@@ -324,23 +322,23 @@ func (m *Message) IsExternal() bool {
 }
 
 func (m *Message) IsExecution() bool {
-	return !m.Flags.GetBit(MessageFlagDeploy) && !m.Flags.GetBit(MessageFlagRefund)
+	return !m.Flags.IsDeploy() && !m.Flags.IsRefund()
 }
 
 func (m *Message) IsBounce() bool {
-	return m.Flags.GetBit(MessageFlagBounce)
+	return m.Flags.IsBounce()
 }
 
 func (m *Message) IsDeploy() bool {
-	return m.Flags.GetBit(MessageFlagDeploy)
+	return m.Flags.IsDeploy()
 }
 
 func (m *Message) IsRefund() bool {
-	return m.Flags.GetBit(MessageFlagRefund)
+	return m.Flags.IsRefund()
 }
 
 func (m *Message) IsResponse() bool {
-	return m.Flags.GetBit(MessageFlagResponse)
+	return m.Flags.IsResponse()
 }
 
 func (m *Message) IsRequest() bool {
@@ -454,21 +452,21 @@ func MessageFlagsFromKind(internal bool, kind MessageKind) MessageFlags {
 
 func (m MessageFlags) String() string {
 	var res string
-	if m.GetBit(MessageFlagInternal) {
+	if m.IsInternal() {
 		res += "Internal"
 	} else {
 		res += "External"
 	}
-	if m.GetBit(MessageFlagDeploy) {
+	if m.IsDeploy() {
 		res += ", Deploy"
 	}
-	if m.GetBit(MessageFlagRefund) {
+	if m.IsRefund() {
 		res += ", Refund"
 	}
-	if m.GetBit(MessageFlagBounce) {
+	if m.IsBounce() {
 		res += ", Bounce"
 	}
-	if m.GetBit(MessageFlagResponse) {
+	if m.IsResponse() {
 		res += ", Response"
 	}
 	return res
@@ -476,21 +474,21 @@ func (m MessageFlags) String() string {
 
 func (m MessageFlags) MarshalJSON() ([]byte, error) {
 	var res string
-	if m.GetBit(MessageFlagInternal) {
+	if m.IsInternal() {
 		res += "\"Internal\""
 	} else {
 		res += "\"External\""
 	}
-	if m.GetBit(MessageFlagDeploy) {
+	if m.IsDeploy() {
 		res += ", \"Deploy\""
 	}
-	if m.GetBit(MessageFlagRefund) {
+	if m.IsRefund() {
 		res += ", \"Refund\""
 	}
-	if m.GetBit(MessageFlagBounce) {
+	if m.IsBounce() {
 		res += ", \"Bounce\""
 	}
-	if m.GetBit(MessageFlagResponse) {
+	if m.IsResponse() {
 		res += ", \"Response\""
 	}
 	return []byte(fmt.Sprintf("[%s]", res)), nil
@@ -519,56 +517,22 @@ func (m *MessageFlags) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-const (
-	MessageStatusSuccess MessageStatus = iota
-	// All codes below are considered as errors
-	MessageStatusOther
-	MessageStatusExecution
-	MessageStatusOutOfGas
-	MessageStatusSeqno
-	MessageStatusBounce
-	MessageStatusBuyGas
-	MessageStatusValidation
-	MessageStatusInsufficientBalance
-	MessageStatusNoAccount
-	MessageStatusCodeStoreOutOfGas
-	MessageStatusDepth
-	MessageStatusContractAddressCollision
-	MessageStatusExecutionReverted
-	MessageStatusPrecompileReverted
-	MessageStatusMaxCodeSizeExceeded
-	MessageStatusMaxInitCodeSizeExceeded
-	MessageStatusInvalidJump
-	MessageStatusWriteProtection
-	MessageStatusReturnDataOutOfBounds
-	MessageStatusGasUintOverflow
-	MessageStatusInvalidCode
-	MessageStatusNonceUintOverflow
-	MessageStatusInvalidInputLength
-	MessageStatusCrossShardMessage
-	MessageStatusStopToken
-	MessageStatusForwardingFailed
-	MessageStatusMessageToMainShard
-	MessageStatusExternalVerificationFailed
-	MessageStatusInvalidMessage
-)
-
-type MessageStatus uint32
-
-type MessageError struct {
-	Status MessageStatus
-	Inner  error
+func (m MessageFlags) IsInternal() bool {
+	return m.GetBit(MessageFlagInternal)
 }
 
-func NewMessageError(status MessageStatus, err error) *MessageError {
-	check.PanicIfNot(err != nil)
-	return &MessageError{status, err}
+func (m MessageFlags) IsDeploy() bool {
+	return m.GetBit(MessageFlagDeploy)
 }
 
-func (m *MessageError) Error() string {
-	return m.Inner.Error()
+func (m MessageFlags) IsRefund() bool {
+	return m.GetBit(MessageFlagRefund)
 }
 
-func (m *MessageError) Unwrap() error {
-	return m.Inner
+func (m MessageFlags) IsBounce() bool {
+	return m.GetBit(MessageFlagBounce)
+}
+
+func (m MessageFlags) IsResponse() bool {
+	return m.GetBit(MessageFlagResponse)
 }

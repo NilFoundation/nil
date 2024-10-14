@@ -7,32 +7,29 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
+	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
 
 type NetworkShardApiAccessor struct {
 	networkManager *network.Manager
-	serverPeerId   network.PeerID
 	codec          apiCodec
 	shardId        types.ShardId
 }
 
 var _ ShardApi = (*NetworkShardApiAccessor)(nil)
 
-func NewNetworkRawApiAccessor(ctx context.Context, shardId types.ShardId, networkManager *network.Manager, serverAddress string) (*NetworkShardApiAccessor, error) {
-	return newNetworkRawApiAccessor(ctx, shardId, networkManager, serverAddress, reflect.TypeFor[*NetworkShardApiAccessor](), reflect.TypeFor[NetworkTransportProtocol]())
+func NewNetworkRawApiAccessor(shardId types.ShardId, networkManager *network.Manager) (*NetworkShardApiAccessor, error) {
+	return newNetworkRawApiAccessor(shardId, networkManager, reflect.TypeFor[*NetworkShardApiAccessor](), reflect.TypeFor[NetworkTransportProtocol]())
 }
 
-func newNetworkRawApiAccessor(ctx context.Context, shardId types.ShardId, networkManager *network.Manager, serverAddress string, apiType, transportType reflect.Type) (*NetworkShardApiAccessor, error) {
-	serverPeerId, err := networkManager.Connect(ctx, serverAddress)
-	if err != nil {
-		return nil, err
-	}
+func newNetworkRawApiAccessor(shardId types.ShardId, networkManager *network.Manager, apiType, transportType reflect.Type) (*NetworkShardApiAccessor, error) {
 	codec, err := newApiCodec(apiType, transportType)
 	if err != nil {
 		return nil, err
@@ -40,7 +37,6 @@ func newNetworkRawApiAccessor(ctx context.Context, shardId types.ShardId, networ
 
 	return &NetworkShardApiAccessor{
 		networkManager: networkManager,
-		serverPeerId:   serverPeerId,
 		codec:          codec,
 		shardId:        shardId,
 	}, nil
@@ -70,20 +66,48 @@ func (api *NetworkShardApiAccessor) GetCurrencies(ctx context.Context, address t
 	return sendRequestAndGetResponseWithCallerMethodName[map[types.CurrencyId]types.Value](ctx, api, "GetCurrencies", address, blockReference)
 }
 
+func (api *NetworkShardApiAccessor) Call(
+	ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+) (*rpctypes.CallResWithGasPrice, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[*rpctypes.CallResWithGasPrice](ctx, api, "Call", args, mainBlockNrOrHash, overrides, emptyMessageIsRoot)
+}
+
+func (api *NetworkShardApiAccessor) GetInMessage(ctx context.Context, request rawapitypes.MessageRequest) (*rawapitypes.MessageInfo, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[*rawapitypes.MessageInfo](ctx, api, "GetInMessage", request)
+}
+
+func (api *NetworkShardApiAccessor) GetInMessageReceipt(ctx context.Context, hash common.Hash) (*rawapitypes.ReceiptInfo, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[*rawapitypes.ReceiptInfo](ctx, api, "GetInMessageReceipt", hash)
+}
+
 func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkShardApiAccessor, methodName string, args ...any) (ResponseType, error) {
 	if assert.Enable {
 		callerMethodName := extractCallerMethodName(2)
 		check.PanicIfNotf(callerMethodName != "", "Method name not found")
 		check.PanicIfNotf(callerMethodName == methodName, "Method name mismatch: %s != %s", callerMethodName, methodName)
 	}
-	return sendRequestAndGetResponse[ResponseType](api.codec, api.networkManager, api.serverPeerId, api.shardId, "rawapi", methodName, ctx, args...)
+	return sendRequestAndGetResponse[ResponseType](api.codec, api.networkManager, api.shardId, "rawapi", methodName, ctx, args...)
 }
 
-func sendRequestAndGetResponse[ResponseType any](apiCodec apiCodec, networkManager *network.Manager, serverPeerId network.PeerID, shardId types.ShardId, apiName string, methodName string, ctx context.Context, args ...any) (ResponseType, error) {
+func discoverAppropriatePeer(networkManager *network.Manager, shardId types.ShardId, apiName string) (network.PeerID, error) {
+	peersWithSpecifiedShard := networkManager.GetPeersForProtocolPrefix(fmt.Sprintf("/shard/%d/%s/", shardId, apiName))
+	if len(peersWithSpecifiedShard) == 0 {
+		return "", fmt.Errorf("No peers with shard %d found", shardId)
+	}
+	return peersWithSpecifiedShard[0], nil
+}
+
+func sendRequestAndGetResponse[ResponseType any](apiCodec apiCodec, networkManager *network.Manager, shardId types.ShardId, apiName string, methodName string, ctx context.Context, args ...any) (ResponseType, error) {
 	codec, ok := apiCodec[methodName]
 	check.PanicIfNotf(ok, "Codec for method %s not found", methodName)
 
 	var response ResponseType
+
+	serverPeerId, err := discoverAppropriatePeer(networkManager, shardId, apiName)
+	if err != nil {
+		return response, err
+	}
+
 	requestBody, err := codec.packRequest(args...)
 	if err != nil {
 		return response, err

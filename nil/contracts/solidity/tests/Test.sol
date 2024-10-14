@@ -106,6 +106,50 @@ contract Test is NilBase {
         return Nil.createAddress2(shardId, addr, salt, codeHash);
     }
 
+    // Currently, functions below are used for manual testing of the Cometa service.
+    function callUnknown() public {
+        bytes memory returnData;
+        bool success;
+        bytes memory callData = abi.encodeWithSignature("nonexistent()");
+        (returnData, success) = Nil.awaitCall(address(this), Nil.ASYNC_REQUEST_MIN_GAS, callData);
+        require(success, "awaitCall failed");
+    }
+
+    function twoCalls(address addr1, address addr2) public {
+        bytes memory context = abi.encodeWithSelector(this.responseCounterGet.selector);
+        bytes memory callData = abi.encodeWithSignature("get()");
+        Nil.sendRequest(addr1, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
+        Nil.sendRequest(addr2, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
+    }
+
+    function responseCounterGet(bool success, bytes memory returnData, bytes memory /*context*/) public {
+        require(success, "Request failed");
+        internalValue = uint32(abi.decode(returnData, (int32)));
+    }
+
+    function fibonacciWithFail(int32 n, int32 failN) public returns(int32) {
+        if (n == failN) {
+            revert("Fail because of `n == failN`");
+        }
+        if (n <= 1) {
+            return n;
+        }
+        bytes memory returnData;
+        bytes memory callData;
+        bool success;
+        callData = abi.encodeWithSignature("fibonacciWithFail(int32,int32)", n - 1, failN);
+        (returnData, success) = Nil.awaitCall(address(this), Nil.ASYNC_REQUEST_MIN_GAS, callData);
+        require(success, "awaitCall 1 failed");
+        int32 a = abi.decode(returnData, (int32));
+
+        callData = abi.encodeWithSignature("fibonacciWithFail(int32,int32)", n - 2, failN);
+        (returnData, success) = Nil.awaitCall(address(this), Nil.ASYNC_REQUEST_MIN_GAS, callData);
+        require(success, "awaitCall 2 failed");
+        int32 b = abi.decode(returnData, (int32));
+
+        return a + b;
+    }
+
     function verifyExternal(uint256, bytes calldata) external pure returns (bool) {
         return true;
     }

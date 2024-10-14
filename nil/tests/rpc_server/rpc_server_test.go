@@ -161,8 +161,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			receipt := s.waitForReceipt(shardId, hash)
 			s.False(receipt.Success)
 			s.True(receipt.Temporary)
-			s.NotEqual(types.MessageStatusSuccess.String(), receipt.Status)
-			s.Equal("no account at address to pay fees", receipt.ErrorMessage)
+			s.Equal("NoAccountToPayFees", receipt.Status)
 		})
 
 		var calleeAddr types.Address
@@ -692,8 +691,8 @@ func (s *SuiteRpc) TestInvalidMessageExternalDeployment() {
 
 	receipt := s.waitForReceipt(wallet.ShardId(), hash)
 	s.Require().False(receipt.Success)
-	s.Require().Equal(types.MessageStatusInvalidMessage.String(), receipt.Status)
-	s.Require().Equal(ssz.ErrSize.Error(), receipt.ErrorMessage)
+	s.Require().Equal(types.ErrorInvalidMessageInputUnmarshalFailed.String(), receipt.Status)
+	s.Require().Equal("InvalidMessageInputUnmarshalFailed: "+ssz.ErrSize.Error(), receipt.ErrorMessage)
 }
 
 func (s *SuiteRpc) TestRpcError() {

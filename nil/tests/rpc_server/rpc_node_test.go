@@ -32,6 +32,7 @@ func (s *SuiteRpcNode) SetupTest() {
 
 	validatorNetCfg, validatorAddr := network.GenerateConfig(s.T(), 11001)
 	rpcNetCfg, _ := network.GenerateConfig(s.T(), 11002)
+	rpcNetCfg.DHTBootstrapPeers = []string{validatorAddr}
 
 	validatorCfg := &nilservice.Config{
 		NShards: s.shardsNum,
@@ -113,8 +114,9 @@ func (s *SuiteRpcNode) TestGetBlockTransactionCount() {
 	s.Require().NoError(err)
 	s.Zero(count)
 
-	_, err = s.client.GetBlockTransactionCount(types.MainShardId, math.MaxUint32)
-	s.Require().ErrorContains(err, db.ErrKeyNotFound.Error())
+	count, err = s.client.GetBlockTransactionCount(types.MainShardId, math.MaxUint32)
+	s.Require().NoError(err)
+	s.Zero(count)
 }
 
 func (s *SuiteRpcNode) TestGetBalance() {

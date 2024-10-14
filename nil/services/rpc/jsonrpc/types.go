@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
@@ -9,74 +10,15 @@ import (
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
+	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
 
-// @component CallArgs callArgs object "The arguments for the message call."
-// @componentprop Flags flags array true "The array of message flags."
-// @componentprop From from string false "The address from which the message must be called."
-// @componentprop FeeCredit feeCredit string true "The fee credit for the message."
-// @componentprop Value value integer false "The message value."
-// @componentprop Seqno seqno integer true "The sequence number of the message."
-// @componentprop Data data string false "The encoded calldata."
-// @componentprop Message message string false "The raw encoded input message."
-// @component propr ChainId chainId integer "The chain id."
-type CallArgs struct {
-	Flags     types.MessageFlags `json:"flags,omitempty"`
-	From      *types.Address     `json:"from,omitempty"`
-	To        types.Address      `json:"to"`
-	FeeCredit types.Value        `json:"feeCredit"`
-	Value     types.Value        `json:"value,omitempty"`
-	Seqno     types.Seqno        `json:"seqno"`
-	Data      *hexutil.Bytes     `json:"data,omitempty"`
-	Message   *hexutil.Bytes     `json:"input,omitempty"`
-	ChainId   types.ChainId      `json:"chainId"`
-}
-
-func (args CallArgs) toMessage() (*types.Message, error) {
-	if args.Message != nil {
-		// Try to decode default message
-		msg := &types.Message{}
-		if err := msg.UnmarshalSSZ(*args.Message); err == nil {
-			return msg, nil
-		}
-
-		// Try to decode external message
-		var extMsg types.ExternalMessage
-		if err := extMsg.UnmarshalSSZ(*args.Message); err == nil {
-			return extMsg.ToMessage(), nil
-		}
-
-		// Try to decode internal message payload
-		var intMsg types.InternalMessagePayload
-		if err := intMsg.UnmarshalSSZ(*args.Message); err == nil {
-			var fromAddr types.Address
-			if args.From != nil {
-				fromAddr = *args.From
-			}
-			return intMsg.ToMessage(fromAddr, args.Seqno), nil
-		}
-		return nil, ErrInvalidMessage
-	}
-
-	var data types.Code
-	if args.Data != nil {
-		data = types.Code(*args.Data)
-	}
-	msgFrom := args.To
-	if args.From != nil {
-		msgFrom = *args.From
-	}
-	return &types.Message{
-		Flags:     args.Flags,
-		ChainId:   types.DefaultChainId,
-		Seqno:     args.Seqno,
-		FeeCredit: args.FeeCredit,
-		From:      msgFrom,
-		To:        args.To,
-		Value:     args.Value,
-		Data:      data,
-	}, nil
-}
+type (
+	Contract       = rpctypes.Contract
+	CallArgs       = rpctypes.CallArgs
+	StateOverrides = rpctypes.StateOverrides
+)
 
 // @component RPCInMessage rpcInMessage object "The message whose information is requested."
 // @componentprop BlockHash blockHash string true "The hash of the block containing the message."
@@ -90,7 +32,7 @@ func (args CallArgs) toMessage() (*types.Message, error) {
 // @componentprop Seqno seqno string true "The sequence number of the message."
 // @componentprop Signature signature string true "The message signature."
 // @componentprop Success success boolean true "The flag that shows whether the message was successful."
-// @componentprop Flags flags array true "The array of message flags."
+// @componentprop Flags flags string true "The array of message flags."
 // @componentprop To to string true "The address where the message was sent."
 // @componentprop Value value string true "The message value."
 // @componentprop Currency value array true "Currency values."
@@ -201,6 +143,7 @@ func EncodeRawBlockWithExtractedData(block *types.RawBlockWithExtractedData) (*D
 type RPCReceipt struct {
 	Success         bool               `json:"success"`
 	Status          string             `json:"status"`
+	FailedPc        uint               `json:"failedPc"`
 	IncludedInMain  bool               `json:"includedInMain"`
 	GasUsed         types.Gas          `json:"gasUsed"`
 	Forwarded       types.Value        `json:"forwarded"`
@@ -358,42 +301,49 @@ func NewRPCLog(
 	}
 }
 
-func NewRPCReceipt(
-	shardId types.ShardId, block *types.Block, index types.MessageIndex, receipt *types.Receipt,
-	outMessages []common.Hash, outReceipts []*RPCReceipt, temporary bool, errorMessage string, gasPrice types.Value,
-) *RPCReceipt {
-	if receipt == nil {
-		return nil
+func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
+	if info == nil {
+		return nil, nil
 	}
 
-	var blockNumber types.BlockNumber
-	var blockHash common.Hash
-	if block != nil {
-		blockNumber = block.Id
-		blockHash = block.Hash()
+	receipt := &types.Receipt{}
+	if err := receipt.UnmarshalSSZ(info.ReceiptSSZ); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal receipt: %w", err)
 	}
+
 	logs := make([]*RPCLog, len(receipt.Logs))
 	for i, log := range receipt.Logs {
-		logs[i] = NewRPCLog(log, blockNumber)
+		logs[i] = NewRPCLog(log, info.BlockId)
+	}
+
+	outReceipts := make([]*RPCReceipt, len(info.OutReceipts))
+	for i, outReceipt := range info.OutReceipts {
+		var err error
+		outReceipts[i], err = NewRPCReceipt(outReceipt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal %d out receipt: %w", i, err)
+		}
 	}
 
 	res := &RPCReceipt{
 		Success:         receipt.Success,
 		Status:          receipt.Status.String(),
+		FailedPc:        uint(receipt.FailedPc),
 		GasUsed:         receipt.GasUsed,
 		Forwarded:       receipt.Forwarded,
-		GasPrice:        gasPrice,
+		GasPrice:        info.GasPrice,
 		Logs:            logs,
-		OutMessages:     outMessages,
+		OutMessages:     info.OutMessages,
 		OutReceipts:     outReceipts,
 		MsgHash:         receipt.MsgHash,
 		ContractAddress: receipt.ContractAddress,
-		BlockHash:       blockHash,
-		BlockNumber:     blockNumber,
-		MsgIndex:        index,
-		ShardId:         shardId,
-		Temporary:       temporary,
-		ErrorMessage:    errorMessage,
+		BlockHash:       info.BlockHash,
+		BlockNumber:     info.BlockId,
+		MsgIndex:        info.Index,
+		ShardId:         info.ShardId,
+		Temporary:       info.Temporary,
+		ErrorMessage:    info.ErrorMessage,
+		IncludedInMain:  info.IncludedInMain,
 	}
 
 	// Set only non-empty bloom
@@ -405,7 +355,7 @@ func NewRPCReceipt(
 		}
 	}
 
-	return res
+	return res, nil
 }
 
 // @component DebugRPCContract debugRpcContract object "The debug contract whose structure is requested."
@@ -433,6 +383,37 @@ type OutMessage struct {
 	Error       string                 `json:"error,omitempty"`
 }
 
+func toOutMessages(input []*rpctypes.OutMessage) ([]*OutMessage, error) {
+	if len(input) == 0 {
+		return nil, nil
+	}
+
+	output := make([]*OutMessage, len(input))
+	for i, msg := range input {
+		outMsgs, err := toOutMessages(msg.OutMessages)
+		if err != nil {
+			return nil, err
+		}
+
+		decoded := &types.OutboundMessage{
+			Message:     &types.Message{},
+			ForwardKind: msg.ForwardKind,
+		}
+		if err := decoded.UnmarshalSSZ(msg.MessageSSZ); err != nil {
+			return nil, err
+		}
+
+		output[i] = &OutMessage{
+			Message:     decoded,
+			Data:        msg.Data,
+			CoinsUsed:   msg.CoinsUsed,
+			OutMessages: outMsgs,
+			Error:       msg.Error,
+		}
+	}
+	return output, nil
+}
+
 // @component CallRes callRes object "Response for eth_call."
 // @componentprop Data data string false "Result of VM execution."
 // @componentprop CoinsUsed coinsUsed string true "The amount of coins spent on the message."
@@ -445,4 +426,15 @@ type CallRes struct {
 	OutMessages    []*OutMessage  `json:"outMessages,omitempty"`
 	Error          string         `json:"error,omitempty"`
 	StateOverrides StateOverrides `json:"stateOverrides,omitempty"`
+}
+
+func toCallRes(input *rpctypes.CallResWithGasPrice) (*CallRes, error) {
+	var err error
+	output := &CallRes{}
+	output.Data = input.Data
+	output.CoinsUsed = input.CoinsUsed
+	output.Error = input.Error
+	output.StateOverrides = input.StateOverrides
+	output.OutMessages, err = toOutMessages(input.OutMessages)
+	return output, err
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/network"
@@ -39,7 +40,7 @@ func newGeneratedApiClient(networkManager *network.Manager, serverPeerId network
 }
 
 func (api *generatedApiClient) TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	return sendRequestAndGetResponse[ssz.SSZEncodedData](api.apiCodec, api.networkManager, api.serverPeerId, types.BaseShardId, "testapi", "TestMethod", ctx, blockReference)
+	return sendRequestAndGetResponse[ssz.SSZEncodedData](api.apiCodec, api.networkManager, types.BaseShardId, "testapi", "TestMethod", ctx, blockReference)
 }
 
 func (s *ApiClientTestSuite) SetupSuite() {
@@ -56,6 +57,13 @@ func (s *ApiClientTestSuite) SetupTest() {
 
 func (s *ApiClientTestSuite) doRequest() (ssz.SSZEncodedData, error) {
 	return s.apiClient.TestMethod(s.ctx, rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock))
+}
+
+func (s *ApiClientTestSuite) waitForRequestHandler() {
+	s.T().Helper()
+	s.Eventually(func() bool {
+		return len(s.clientNetworkManager.GetPeersForProtocolPrefix("/shard/1/testapi/")) != 0
+	}, 10*time.Second, 100*time.Millisecond)
 }
 
 func (s *ApiClientTestSuite) TestValidResponse() {
@@ -76,6 +84,7 @@ func (s *ApiClientTestSuite) TestValidResponse() {
 		resp, err := proto.Marshal(response)
 		return resp, err
 	})
+	s.waitForRequestHandler()
 
 	response, err := s.doRequest()
 	s.Require().NoError(err)
@@ -89,6 +98,7 @@ func (s *ApiClientTestSuite) TestInvalidResponse() {
 		*requestHandlerCalled = true
 		return nil, nil
 	})
+	s.waitForRequestHandler()
 
 	_, err := s.doRequest()
 	s.Require().ErrorContains(err, "unexpected response")
@@ -108,6 +118,7 @@ func (s *ApiClientTestSuite) TestErrorResponse() {
 		resp, err := proto.Marshal(response)
 		return resp, err
 	})
+	s.waitForRequestHandler()
 
 	_, err := s.doRequest()
 	s.Require().ErrorContains(err, "Test error")

@@ -10,11 +10,14 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
+	nilcrypto "github.com/NilFoundation/nil/nil/internal/crypto"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
+	"github.com/NilFoundation/nil/nil/services/cometa"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/tools/solc"
@@ -28,6 +31,7 @@ type SuiteCli struct {
 }
 
 func (s *SuiteCli) SetupTest() {
+	s.tmpDir = s.T().TempDir()
 	s.start(&nilservice.Config{
 		NShards: 5,
 		HttpUrl: rpc.GetSockPath(s.T()),
@@ -75,11 +79,11 @@ func (s *SuiteCli) TestCliMessage() {
 	s.Require().NotNil(msg)
 	s.Require().True(msg.Success)
 
-	res, err := s.cli.FetchMessageByHash(types.MainWalletAddress.ShardId(), receipt.MsgHash)
+	res, err := s.cli.FetchMessageByHashJson(types.MainWalletAddress.ShardId(), receipt.MsgHash)
 	s.Require().NoError(err)
 	s.JSONEq(s.toJSON(msg), string(res))
 
-	res, err = s.cli.FetchReceiptByHash(types.MainWalletAddress.ShardId(), receipt.MsgHash)
+	res, err = s.cli.FetchReceiptByHashJson(types.MainWalletAddress.ShardId(), receipt.MsgHash)
 	s.Require().NoError(err)
 	s.JSONEq(s.toJSON(receipt), string(res))
 }
@@ -356,7 +360,9 @@ func (s *SuiteCli) TestCliWallet() {
 		addr = s.runCli("-c", cfgPath, "contract", "address", dir+"/Incrementer.bin", "123321", "--abi", abiFileName, "-q")
 	})
 
-	res = s.runCli("-c", cfgPath, "wallet", "deploy", dir+"/Incrementer.bin", "123321", "--abi", abiFileName)
+	s.createConfigFile()
+
+	res = s.runCliCfg("wallet", "deploy", dir+"/Incrementer.bin", "123321", "--abi", abiFileName)
 	s.Run("Deploy contract", func() {
 		s.Contains(res, "Contract address")
 		s.Contains(res, addr)
@@ -485,6 +491,93 @@ func (s *SuiteCli) TestCliConfig() {
 		res := s.runCli("-c", cfgPath, "config", "show")
 		s.Contains(res, "rpc_endpoint: "+s.endpoint)
 	})
+}
+
+func (s *SuiteCli) TestCliCometa() {
+	com, err := cometa.NewService(s.tmpDir+"/cometa.db", s.client)
+	s.Require().NoError(err)
+	go func() {
+		check.PanicIfErr(com.Run(s.context, s.cometaEndpoint))
+	}()
+	s.createConfigFile()
+	abiFile := "../../contracts/compiled/tests/Counter.abi"
+
+	var address types.Address
+	var msgHash string
+
+	s.Run("Deploy counter", func() {
+		out := s.runCliCfg("wallet", "deploy", "--compile-input", "./contracts/counter-compile.json", "--shard-id", "1")
+		parts := strings.Split(out, "\n")
+		s.Require().Len(parts, 2)
+		parts = strings.Split(parts[1], ": ")
+		s.Require().Len(parts, 2)
+		address = types.HexToAddress(parts[1])
+	})
+
+	s.Run("Get metadata", func() {
+		out := s.runCliCfg("cometa", "info", "--address", address.Hex())
+		s.Contains(out, "Name: Counter.sol:Counter")
+	})
+
+	s.Run("Call Counter.get()", func() {
+		out := s.runCliCfg("wallet", "send-message", address.Hex(), "--abi", abiFile, "--fee-credit", "50000000", "get")
+		parts := strings.Split(out, ": ")
+		s.Require().Len(parts, 2)
+		msgHash = parts[1]
+	})
+
+	s.Run("Debug", func() {
+		out := s.runCliCfg("debug", msgHash)
+		fmt.Println(out)
+		result := parseCometaOutput(out)
+		s.Require().Len(result, 3)
+		s.Require().Equal("unknown", result[0]["Contract"])
+		s.Require().Equal("0x2bb1ae7c", result[0]["CallData"][:10])
+		s.Require().Contains(result[0]["Message"], msgHash)
+		s.Require().Equal("Counter", result[1]["Contract"])
+		s.Require().Equal("get()", result[1]["CallData"])
+		s.Require().Equal("unknown", result[2]["Contract"])
+		s.Contains(out, "Contract   : Counter")
+	})
+}
+
+func parseCometaOutput(out string) []map[string]string {
+	res := make([]map[string]string, 0)
+	var currMsg map[string]string
+	lines := strings.Split(out, "\n")
+	for _, line := range lines {
+		if len(line) == 0 {
+			continue
+		}
+		parts := strings.Split(line, ": ")
+		if strings.Contains(parts[0], "Message") {
+			currMsg = make(map[string]string, 0)
+			res = append(res, currMsg)
+			currMsg["Message"] = strings.TrimSpace(parts[1])
+		} else {
+			currMsg[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		}
+	}
+	return res
+}
+
+func (s *SuiteCli) createConfigFile() {
+	s.T().Helper()
+
+	cfgPath := s.tmpDir + "/config.ini"
+
+	iniData := "[nil]\nrpc_endpoint = " + s.endpoint + "\n"
+	iniData += "cometa_endpoint = " + s.cometaEndpoint + "\n"
+	iniData += "private_key = " + nilcrypto.PrivateKeyToEthereumFormat(execution.MainPrivateKey) + "\n"
+	iniData += "address = 0x0001111111111111111111111111111111111111\n"
+	err := os.WriteFile(cfgPath, []byte(iniData), 0o600)
+	s.Require().NoError(err)
+}
+
+func (s *SuiteCli) runCliCfg(args ...string) string {
+	s.T().Helper()
+	args = append([]string{"-c", s.tmpDir + "/config.ini"}, args...)
+	return s.runCli(args...)
 }
 
 func TestSuiteCli(t *testing.T) {

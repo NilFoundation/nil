@@ -92,6 +92,7 @@ var (
 	AwaitCallAddress       = types.BytesToAddress([]byte{0xd6})
 	ConfigParamAddress     = types.BytesToAddress([]byte{0xd7})
 	SendRequestAddress     = types.BytesToAddress([]byte{0xd8})
+	CheckIsResponseAddress = types.BytesToAddress([]byte{0xd9})
 )
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -131,6 +132,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	AwaitCallAddress:       &awaitCall{},
 	ConfigParamAddress:     &configParam{},
 	SendRequestAddress:     &sendRequest{},
+	CheckIsResponseAddress: &checkIsResponse{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -161,7 +163,7 @@ func RunPrecompiledContract(p PrecompiledContract, evm *EVM, input []byte, suppl
 	case EvmAccessedPrecompiledContract:
 		ret, err = p.Run(evm, input, value, caller)
 	default:
-		err = ErrUnexpectedType
+		err = ErrUnexpectedPrecompileType
 	}
 	return ret, suppliedGas, err
 }
@@ -255,8 +257,7 @@ func getBytesArgCopy(arg any, methodName, paramName string) []byte {
 func (c *sendRawMessage) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	payload := new(types.InternalMessagePayload)
 	if err := payload.UnmarshalSSZ(input); err != nil {
-		return []byte("sendRawMessage: unmarshal message failed"),
-			types.NewMessageError(types.MessageStatusInvalidMessage, err)
+		return nil, types.NewWrapError(types.ErrorInvalidMessageInputUnmarshalFailed, err)
 	}
 
 	if payload.To.ShardId().IsMainShard() {
@@ -293,12 +294,11 @@ func extractCurrencies(arg any) ([]types.CurrencyBalance, error) {
 	currencies := make([]types.CurrencyBalance, slice.Len())
 	for i := range slice.Len() {
 		elem := slice.Index(i)
-		id, ok := elem.FieldByIndex([]int{0}).Interface().(*big.Int)
+		currencyId, ok := elem.FieldByIndex([]int{0}).Interface().(types.Address)
 		if !ok {
-			return nil, errors.New("currencyId is not a big.Int")
+			return nil, errors.New("currencyId is not an Address type")
 		}
-		currencyId, _ := uint256.FromBig(id)
-		currencies[i].Currency = currencyId.Bytes32()
+		currencies[i].Currency = types.CurrencyId(currencyId)
 
 		balanceBig, ok := elem.FieldByIndex([]int{1}).Interface().(*big.Int)
 		if !ok {
@@ -311,16 +311,16 @@ func extractCurrencies(arg any) ([]types.CurrencyBalance, error) {
 
 func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) (res []byte, err error) {
 	if len(input) < 4 {
-		return []byte("asyncCall failed: too short calldata"), ErrPrecompileReverted
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
 	}
 
 	// Unpack arguments, skipping the first 4 bytes (function selector)
 	args, err := getPrecompiledMethod("precompileAsyncCall").Inputs.Unpack(input[4:])
 	if err != nil {
-		return []byte("asyncCall failed: cannot unpack input"), ErrPrecompileReverted
+		return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
 	}
 	if len(args) != 8 {
-		return []byte("asyncCall failed: wrong number of arguments"), ErrPrecompileReverted
+		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
 	}
 
 	// Get `isDeploy` argument
@@ -350,7 +350,7 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	currencies, err := extractCurrencies(args[6])
 	if err != nil {
 		log.Logger.Error().Err(err).Msgf("currencies is not a slice of CurrencyBalance: %T", args[6])
-		return nil, ErrPrecompileReverted
+		return nil, types.NewVmVerboseError(types.ErrorPrecompileInvalidCurrencyArray, err.Error())
 	}
 
 	// Get `input` argument
@@ -402,6 +402,10 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 }
 
 func estimateGasForAsyncRequest(input []byte, precompile string, argnum, argtotal int) uint64 {
+	if len(input) < 4 {
+		return 0
+	}
+
 	// when running `awaitCall` / `sendRequest` the caller specifies exact amount of gas they want to reserve
 	// later this gas will be used for processing of response for particular request
 	method := getPrecompiledMethod(precompile)
@@ -428,11 +432,15 @@ func (c *awaitCall) RequiredGas(input []byte) uint64 {
 }
 
 func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	state := evm.StateDB
 
 	// Only top level functions are allowed to use awaitCall
 	if evm.GetDepth() > 1 {
-		return nil, fmt.Errorf("%w: awaitCall can be used only from top level function", ErrPrecompileReverted)
+		return nil, types.NewVmError(types.ErrorAwaitCallCalledFromNotTopLevel)
 	}
 
 	method := getPrecompiledMethod("precompileAwaitCall")
@@ -440,10 +448,10 @@ func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller Contr
 	// Unpack arguments, skipping the first 4 bytes (function selector)
 	args, err := method.Inputs.Unpack(input[4:])
 	if err != nil {
-		return []byte("awaitCall failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
+		return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
 	}
 	if len(args) != 3 {
-		return []byte("awaitCall failed: invalid number of arguments"), ErrPrecompileReverted
+		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
 	}
 
 	// Get `dst` argument
@@ -454,7 +462,7 @@ func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller Contr
 	responseProcessingGas := types.Gas(extractUintParam(args[1], "awaitCall", "responseProcessingGas").Uint64())
 	if responseProcessingGas < MinGasReserveForAsyncRequest {
 		log.Logger.Error().Msgf("awaitCall failed: responseProcessingGas is too low (%d)", responseProcessingGas)
-		return []byte("awaitCall failed: responseProcessingGas is too low"), ErrPrecompileReverted
+		return nil, types.NewVmError(types.ErrorAwaitCallTooLowResponseProcessingGas)
 	}
 
 	// Get `callData` argument
@@ -476,7 +484,7 @@ func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller Contr
 
 	if _, err = state.AddOutRequestMessage(caller.Address(), &payload, responseProcessingGas, true); err != nil {
 		log.Logger.Error().Msgf("AddOutRequestMessage failed: %s", err)
-		return []byte("awaitCall failed: cannot add request to StateDB"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
+		return nil, types.NewVmVerboseError(types.ErrorPrecompileStateDbReturnedError, err.Error())
 	}
 
 	return nil, nil
@@ -489,15 +497,19 @@ func (c *sendRequest) RequiredGas(input []byte) uint64 {
 }
 
 func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	method := getPrecompiledMethod("precompileSendRequest")
 
 	// Unpack arguments, skipping the first 4 bytes (function selector)
 	args, err := method.Inputs.Unpack(input[4:])
 	if err != nil {
-		return []byte("sendRequest failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
+		return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
 	}
 	if len(args) != 5 {
-		return []byte("sendRequest failed: invalid number of arguments"), ErrPrecompileReverted
+		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
 	}
 
 	// Get `dst` argument
@@ -508,14 +520,14 @@ func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, calle
 	currencies, err := extractCurrencies(args[1])
 	if err != nil {
 		log.Logger.Error().Err(err).Msg("currencies is not a slice of CurrencyBalance")
-		return nil, ErrPrecompileReverted
+		return nil, types.NewVmVerboseError(types.ErrorPrecompileInvalidCurrencyArray, err.Error())
 	}
 
 	// Get `responseProcessingGas` argument
 	responseProcessingGas := types.Gas(extractUintParam(args[2], "sendRequest", "responseProcessingGas").Uint64())
 	if responseProcessingGas < MinGasReserveForAsyncRequest {
 		log.Logger.Error().Msgf("sendRequest failed: responseProcessingGas is too low (%d)", responseProcessingGas)
-		return []byte("sendRequest failed: responseProcessingGas is too low"), ErrPrecompileReverted
+		return nil, types.NewVmError(types.ErrorAwaitCallTooLowResponseProcessingGas)
 	}
 
 	// Get `context` argument
@@ -545,7 +557,7 @@ func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, calle
 
 	if _, err = state.AddOutRequestMessage(caller.Address(), &payload, responseProcessingGas, false); err != nil {
 		log.Logger.Error().Msgf("AddOutRequestMessage failed: %s", err)
-		return []byte("sendRequest failed: cannot add request to StateDB"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
+		return nil, types.NewVmVerboseError(types.ErrorPrecompileStateDbReturnedError, err.Error())
 	}
 
 	res := make([]byte, 32)
@@ -609,6 +621,23 @@ func (a *checkIsInternal) Run(state StateDBReadOnly, input []byte, value *uint25
 	return res, nil
 }
 
+type checkIsResponse struct{}
+
+func (c *checkIsResponse) RequiredGas([]byte) uint64 {
+	return 10
+}
+
+func (a *checkIsResponse) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if !state.GetMessageFlags().IsResponse() {
+		return nil, types.NewVmError(types.ErrorOnlyResponseCheckFailed)
+	}
+
+	res := make([]byte, 32)
+	res[31] = 1
+
+	return res, nil
+}
+
 type manageCurrency struct{}
 
 func (c *manageCurrency) RequiredGas([]byte) uint64 {
@@ -616,14 +645,18 @@ func (c *manageCurrency) RequiredGas([]byte) uint64 {
 }
 
 func (c *manageCurrency) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	res := make([]byte, 32)
 
 	args, err := getPrecompiledMethod("precompileManageCurrency").Inputs.Unpack(input[4:])
 	if err != nil {
-		return []byte("manageCurrency failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
+		return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
 	}
 	if len(args) != 2 {
-		return []byte("manageCurrency failed: invalid number of arguments"), ErrPrecompileReverted
+		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
 	}
 
 	amountBig, ok := args[0].(*big.Int)
@@ -633,7 +666,7 @@ func (c *manageCurrency) Run(state StateDB, input []byte, value *uint256.Int, ca
 	mint, ok := args[1].(bool)
 	check.PanicIfNotf(ok, "manageCurrency failed: `mint` is not a bool: %v", args[1])
 
-	currencyId := types.CurrencyId(caller.Address().Hash())
+	currencyId := types.CurrencyId(caller.Address())
 
 	action := state.AddCurrency
 	if !mint {
@@ -645,7 +678,7 @@ func (c *manageCurrency) Run(state StateDB, input []byte, value *uint256.Int, ca
 		if !mint {
 			actionName = "SubCurrency"
 		}
-		return []byte("manageCurrency failed"), fmt.Errorf("%w: %s failed: %w", ErrPrecompileReverted, actionName, err)
+		return nil, types.NewVmVerboseError(types.ErrorPrecompileWrongNumberOfArguments, fmt.Sprintf("%s failed: %v", actionName, err))
 	}
 
 	// Set return data to boolean `true` value
@@ -661,20 +694,24 @@ func (c *currencyBalance) RequiredGas([]byte) uint64 {
 }
 
 func (a *currencyBalance) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	res := make([]byte, 32)
 
 	// Unpack arguments, skipping the first 4 bytes (function selector)
 	args, err := getPrecompiledMethod("precompileGetCurrencyBalance").Inputs.Unpack(input[4:])
 	if err != nil {
-		return []byte("currencyBalance failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
+		return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
 	}
 	if len(args) != 2 {
-		return []byte("currencyBalance failed: invalid number of arguments"), ErrPrecompileReverted
+		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
 	}
 
 	// Get `id` argument
-	currencyIdBig, ok := args[0].(*big.Int)
-	check.PanicIfNotf(ok, "currencyBalance failed: currencyId is not a big.Int: %v", args[0])
+	currencyId, ok := args[0].(types.Address)
+	check.PanicIfNotf(ok, "currencyBalance failed: currencyId is not an Address: %v", args[0])
 
 	// Get `addr` argument
 	addr, ok := args[1].(types.Address)
@@ -683,14 +720,11 @@ func (a *currencyBalance) Run(state StateDBReadOnly, input []byte, value *uint25
 	if addr == types.EmptyAddress {
 		addr = caller.Address()
 	} else if addr.ShardId() != caller.Address().ShardId() {
-		return []byte("currencyBalance failed: cross shard is not allowed"), ErrPrecompileReverted
+		return nil, types.NewVmVerboseError(types.ErrorCrossShardMessage, "currencyBalance")
 	}
 
-	var currencyId types.CurrencyId
-	currencyIdBig.FillBytes(currencyId[:])
-
 	currencies := state.GetCurrencies(addr)
-	r, ok := currencies[currencyId]
+	r, ok := currencies[types.CurrencyId(currencyId)]
 	if ok {
 		b := r.Bytes32()
 		return b[:], nil
@@ -708,13 +742,17 @@ func (c *sendCurrencySync) RequiredGas([]byte) uint64 {
 }
 
 func (c *sendCurrencySync) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	// Unpack arguments, skipping the first 4 bytes (function selector)
 	args, err := getPrecompiledMethod("precompileSendTokens").Inputs.Unpack(input[4:])
 	if err != nil {
-		return []byte("sendCurrencySync failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
+		return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
 	}
 	if len(args) != 2 {
-		return []byte("sendCurrencySync failed: invalid number of arguments"), ErrPrecompileReverted
+		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
 	}
 
 	// Get destination address
@@ -729,8 +767,7 @@ func (c *sendCurrencySync) Run(state StateDB, input []byte, value *uint256.Int, 
 	// Get currencies
 	currencies, err := extractCurrencies(args[1])
 	if err != nil {
-		return []byte("sendCurrencySync failed: currencies array is not valid"),
-			fmt.Errorf("%w: currencies array is not valid: %w", ErrPrecompileReverted, err)
+		return nil, types.NewVmVerboseError(types.ErrorPrecompileInvalidCurrencyArray, "sendCurrencySync")
 	}
 
 	state.SetCurrencyTransfer(currencies)
@@ -751,15 +788,9 @@ func (c *getMessageTokens) RequiredGas([]byte) uint64 {
 
 func (c *getMessageTokens) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
 	callerCurrencies := caller.Currency()
-	abiCurrencies := make([]types.CurrencyBalanceAbiCompatible, len(callerCurrencies))
-	for i, c := range callerCurrencies {
-		abiCurrencies[i].Currency = new(big.Int).SetBytes(c.Currency[:])
-		abiCurrencies[i].Balance = c.Balance.ToBig()
-	}
-
-	res, err := getPrecompiledMethod("precompileGetMessageTokens").Outputs.Pack(abiCurrencies)
+	res, err := getPrecompiledMethod("precompileGetMessageTokens").Outputs.Pack(callerCurrencies)
 	if err != nil {
-		return []byte("getMessageTokens failed: cannot pack result"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
+		return nil, types.NewVmVerboseError(types.ErrorAbiPackFailed, err.Error())
 	}
 
 	return res, nil
@@ -774,32 +805,35 @@ func (c *getGasPrice) RequiredGas([]byte) uint64 {
 }
 
 func (c *getGasPrice) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	method := getPrecompiledMethod("precompileGetGasPrice")
 
 	args, err := method.Inputs.Unpack(input[4:])
 	if err != nil {
-		return []byte("getGasPrice failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
+		return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
 	}
 	if len(args) != 1 {
-		return []byte("getGasPrice failed: invalid number of arguments"), ErrPrecompileReverted
+		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
 	}
 
 	// Get `shardId` argument
 	shardId, ok := args[0].(*big.Int)
 	check.PanicIfNotf(ok, "getGasPrice failed: shardId is not a big.Int: %v", args[0])
 	if !shardId.IsUint64() {
-		return []byte("getGasPrice failed: shardId is too big"), fmt.Errorf("%w: shardId is too big", ErrPrecompileReverted)
+		return nil, types.NewVmVerboseError(types.ErrorShardIdIsTooBig, "getGasPrice")
 	}
 
 	gasPrice, err := state.GetGasPrice(types.ShardId(shardId.Uint64()))
 	if err != nil {
-		return []byte("getGasPrice failed: stateDb returns error"),
-			fmt.Errorf("%w: stateDb returns error: %w", ErrPrecompileReverted, err)
+		return nil, types.NewVmVerboseError(types.ErrorPrecompileStateDbReturnedError, err.Error())
 	}
 
 	res, err := method.Outputs.Pack(gasPrice.ToBig())
 	if err != nil {
-		return []byte("getGasPrice failed: cannot pack result"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
+		return nil, types.NewVmVerboseError(types.ErrorAbiPackFailed, err.Error())
 	}
 
 	return res, nil
@@ -814,14 +848,18 @@ func (c *poseidonHash) RequiredGas([]byte) uint64 {
 }
 
 func (c *poseidonHash) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	method := getPrecompiledMethod("precompileGetPoseidonHash")
 
 	args, err := method.Inputs.Unpack(input[4:])
 	if err != nil {
-		return []byte("poseidonHash failed: cannot unpack input"), fmt.Errorf("%w: %w", ErrPrecompileReverted, err)
+		return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
 	}
 	if len(args) != 1 {
-		return []byte("poseidonHash failed: invalid number of arguments"), ErrPrecompileReverted
+		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
 	}
 
 	// Get `data` argument
@@ -840,6 +878,10 @@ func (c *configParam) RequiredGas([]byte) uint64 {
 }
 
 func (c *configParam) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
 	method := getPrecompiledMethod("precompileConfigParam")
 
 	args, err := method.Inputs.Unpack(input[4:])
@@ -847,7 +889,7 @@ func (c *configParam) Run(state StateDB, input []byte, value *uint256.Int, calle
 		return nil, err
 	}
 	if len(args) != 3 {
-		return nil, errors.New("precompileConfigParam: invalid number of arguments")
+		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
 	}
 
 	// Get `isSet` argument
@@ -867,26 +909,26 @@ func (c *configParam) Run(state StateDB, input []byte, value *uint256.Int, calle
 
 		params, err := cfgAccessor.UnpackSolidity(name, data)
 		if err != nil {
-			return nil, fmt.Errorf("%w: precompileConfigParam failed to UnpackSolidity: %w", ErrPrecompileReverted, err)
+			return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
 		}
 
 		if !state.GetShardID().IsMainShard() {
-			return nil, fmt.Errorf("%w: only contracts on master shard can change config parameters", ErrPrecompileReverted)
+			return nil, types.NewVmError(types.ErrorOnlyMainShardContractsCanChangeConfig)
 		}
 
 		if err = cfgAccessor.SetParam(name, params); err != nil {
-			return nil, fmt.Errorf("%w: precompileConfigParam failed to set param: %w", ErrPrecompileReverted, err)
+			return nil, types.NewVmVerboseError(types.ErrorPrecompileConfigSetParamFailed, err.Error())
 		}
 
 		return method.Outputs.Pack([]byte{})
 	}
 	params, err := cfgAccessor.GetParam(name)
 	if err != nil {
-		return nil, fmt.Errorf("%w: precompileConfigParam failed to get param: %w", ErrPrecompileReverted, err)
+		return nil, types.NewVmVerboseError(types.ErrorPrecompileConfigGetParamFailed, err.Error())
 	}
 	data, err := cfgAccessor.PackSolidity(name, params)
 	if err != nil {
-		return nil, fmt.Errorf("%w: precompileConfigParam failed to PackSolidity: %w", ErrPrecompileReverted, err)
+		return nil, types.NewVmVerboseError(types.ErrorAbiPackFailed, err.Error())
 	}
 
 	return method.Outputs.Pack(data)

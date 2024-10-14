@@ -18,7 +18,7 @@ var FailureReceiptCache, _ = lru.New[common.Hash, ReceiptWithError](1024)
 func AddFailureReceipt(hash common.Hash, to types.Address, execResult *ExecutionResult) {
 	FailureReceiptCache.Add(hash, ReceiptWithError{
 		Receipt: &types.Receipt{
-			Status:          execResult.Error.Status,
+			Status:          execResult.Error.Code(),
 			Success:         false,
 			MsgHash:         hash,
 			ContractAddress: to,

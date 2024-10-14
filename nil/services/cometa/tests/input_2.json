@@ -1,0 +1,17 @@
+{
+  "contractName": "Test.sol:Foo",
+  "compilerVersion": "0.8.21",
+  "basePath": "internal/tests",
+  "settings": {
+    "evmVersion": "london",
+    "optimizer": {
+      "enabled": true,
+      "runs": 400
+    }
+  },
+  "sources": {
+    "Test.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity >= 0.8.17;\ncontract Foo { constructor() payable {}\n function bar() public pure returns (uint) { return 42; } }\n"
+    }
+  }
+}

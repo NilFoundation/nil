@@ -3,11 +3,14 @@ package wallet
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
+	"github.com/NilFoundation/nil/nil/services/cometa"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +19,7 @@ func DeployCommand(cfg *common.Config) *cobra.Command {
 		Use:   "deploy [path to file] [args...]",
 		Short: "Deploy smart contract",
 		Long:  "Deploy smart contract with specified hex-bytecode from stdin or from file",
-		Args:  cobra.MinimumNArgs(1),
+		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDeploy(cmd, args, cfg)
 		},
@@ -69,6 +72,13 @@ func setDeployFlags(cmd *cobra.Command) {
 		false,
 		"Wait for receipt",
 	)
+
+	cmd.Flags().StringVar(
+		&params.compileInput,
+		compileInput,
+		"",
+		"JSON file with compilation input. Contract will be compiled and deployed on blockchain and cometa",
+	)
 }
 
 func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
@@ -78,6 +88,15 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 
 	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey)
 
+	var cm *cometa.Client
+	if len(params.compileInput) != 0 {
+		cm = common.GetCometaRpcClient()
+	}
+
+	if len(params.compileInput) == 0 && len(cmdArgs) == 0 {
+		return errors.New("at least one arg required(path to bytecode file)")
+	}
+
 	var filename string
 	var args []string
 	if argsCount := len(cmdArgs); argsCount > 0 {
@@ -85,9 +104,25 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 		args = cmdArgs[1:]
 	}
 
-	bytecode, err := common.ReadBytecode(filename, params.abiPath, args)
-	if err != nil {
-		return err
+	var bytecode types.Code
+	var err error
+	var contractData *cometa.ContractData
+
+	if len(params.compileInput) != 0 {
+		data, err := os.ReadFile(params.compileInput)
+		if err != nil {
+			return fmt.Errorf("failed to read input json: %w", err)
+		}
+		contractData, err = cm.CompileContract(string(data))
+		if err != nil {
+			return fmt.Errorf("failed to compile contract: %w", err)
+		}
+		bytecode = contractData.DeployCode
+	} else {
+		bytecode, err = common.ReadBytecode(filename, params.abiPath, args)
+		if err != nil {
+			return err
+		}
 	}
 
 	payload := types.BuildDeployPayload(bytecode, params.salt.Bytes32())
@@ -97,9 +132,23 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 		return err
 	}
 
+	var receipt *jsonrpc.RPCReceipt
 	if !params.noWait {
-		if _, err := service.WaitForReceipt(cfg.Address.ShardId(), msgHash); err != nil {
+		if receipt, err = service.WaitForReceipt(cfg.Address.ShardId(), msgHash); err != nil {
 			return err
+		}
+	} else {
+		if len(params.compileInput) != 0 {
+			return errors.New("no-wait flag can't be used with contract compilation")
+		}
+	}
+	if receipt == nil || !receipt.AllSuccess() {
+		return errors.New("deploy message processing failed")
+	}
+
+	if len(params.compileInput) != 0 {
+		if err = cm.RegisterContract(contractData, contractAddr); err != nil {
+			return fmt.Errorf("failed to register contract: %w", err)
 		}
 	}
 

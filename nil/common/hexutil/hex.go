@@ -36,6 +36,13 @@ func Encode(b []byte) string {
 	return string(enc)
 }
 
+// Encode encodes b as a hex string without 0x prefix.
+func EncodeNo0x(b []byte) string {
+	enc := make([]byte, len(b)*2)
+	hex.Encode(enc, b)
+	return string(enc)
+}
+
 func FromHex(s string) []byte {
 	s = strip0x(s)
 	if len(s)%2 == 1 {

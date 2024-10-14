@@ -9,7 +9,7 @@ contract TokensTest is NilCurrencyBase {
     // Perform sync call to send tokens to the destination address. Without calling any function.
     function testSendTokensSync(address dst, uint256 amount, bool fail) onlyExternal public {
         Nil.Token[] memory tokens = new Nil.Token[](1);
-        uint256 id = uint256(uint160(address(this)));
+        CurrencyId id = CurrencyId.wrap(address(this));
         tokens[0] = Nil.Token(id, amount);
         Nil.syncCall(dst, gasleft(), 0, tokens, "");
         require(!fail, "Test for failed transaction");
@@ -31,7 +31,7 @@ contract TokensTest is NilCurrencyBase {
         Nil.Token[] memory messageTokens = Nil.msgTokens();
         require(messageTokens.length == tokens.length, "Tokens length mismatch");
         for (uint i = 0; i < tokens.length; i++) {
-            require(messageTokens[i].id == tokens[i].id, "Tokens id mismatch");
+            require(CurrencyId.unwrap(messageTokens[i].id) == CurrencyId.unwrap(tokens[i].id), "Tokens id mismatch");
             require(messageTokens[i].amount == tokens[i].amount, "Tokens amount mismatch");
         }
     }
@@ -40,7 +40,7 @@ contract TokensTest is NilCurrencyBase {
         require(!fail, "Test for failed transaction");
     }
 
-    function checkTokenBalance(address addr, uint256 id, uint256 balance) public view {
+    function checkTokenBalance(address addr, CurrencyId id, uint256 balance) public view {
         require(Nil.currencyBalance(addr, id) == balance, "Balance mismatch");
     }
 
@@ -51,7 +51,7 @@ contract TokensTest is NilCurrencyBase {
     event tokenBalance(uint256 balance);
     event tokenMsgBalance(uint256 balance);
 
-    function checkIncomingToken(uint id) payable public {
+    function checkIncomingToken(CurrencyId id) payable public {
         emit tokenMsgBalance(Nil.msgTokens()[0].amount);
         emit tokenBalance(Nil.currencyBalance(address(this), id));
     }
@@ -68,7 +68,7 @@ contract TokensTestNoExternalAccess is NilCurrencyBase {
         revert("Not allowed");
     }
 
-    function sendCurrency(address, uint256, uint256) onlyExternal view override public {
+    function sendCurrency(address, CurrencyId, uint256) onlyExternal view override public {
         revert("Not allowed");
     }
 

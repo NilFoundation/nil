@@ -1,0 +1,22 @@
+{
+  "contractName": "Wallet.sol:Wallet",
+  "compilerVersion": "0.8.21",
+  "settings": {
+    "evmVersion": "london",
+    "optimizer": {
+      "enabled": false,
+      "runs": 200
+    }
+  },
+  "sources": {
+    "Wallet.sol": {
+      "urls": ["../../../contracts/solidity/lib/Wallet.sol"]
+    },
+    "NilCurrencyBase.sol": {
+      "urls": ["../../../contracts/solidity/lib/NilCurrencyBase.sol"]
+    },
+    "Nil.sol": {
+      "urls": ["../../../contracts/solidity/lib/Nil.sol"]
+    }
+  }
+}

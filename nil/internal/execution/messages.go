@@ -1,7 +1,6 @@
 package execution
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -90,7 +89,7 @@ func (a accountPayer) String() string {
 
 func buyGas(payer Payer, message *types.Message) error {
 	if !payer.CanPay(message.FeeCredit) {
-		return fmt.Errorf("%w: %s can't pay %s", ErrInsufficientFunds, payer, message.FeeCredit)
+		return types.NewWrapError(types.ErrorInsufficientFunds, fmt.Errorf("%s can't pay %s", payer, message.FeeCredit))
 	}
 	payer.SubBalance(message.FeeCredit)
 	return nil
@@ -104,19 +103,19 @@ func refundGas(payer Payer, gasRemaining types.Value) {
 	payer.AddBalance(gasRemaining)
 }
 
-func ValidateDeployMessage(message *types.Message) error {
+func ValidateDeployMessage(message *types.Message) types.ExecError {
 	deployPayload := types.ParseDeployPayload(message.Data)
 	if deployPayload == nil {
-		return ErrInvalidPayload
+		return types.NewError(types.ErrorInvalidPayload)
 	}
 
 	shardId := message.To.ShardId()
 	if shardId.IsMainShard() {
-		return ErrDeployToMainShard
+		return types.NewError(types.ErrorDeployToMainShard)
 	}
 
 	if message.To != types.CreateAddress(shardId, *deployPayload) {
-		return ErrIncorrectDeploymentAddress
+		return types.NewError(types.ErrorIncorrectDeploymentAddress)
 	}
 
 	return nil
@@ -126,13 +125,13 @@ func validateExternalDeployMessage(es *ExecutionState, message *types.Message) *
 	check.PanicIfNot(message.IsDeploy())
 
 	if err := ValidateDeployMessage(message); err != nil {
-		return NewExecutionResult().SetError(NewMessageError(err))
+		return NewExecutionResult().SetError(err)
 	}
 
 	if exists, err := es.ContractExists(message.To); err != nil {
 		return NewExecutionResult().SetFatal(err)
 	} else if exists {
-		return NewExecutionResult().SetError(NewMessageError(ErrContractAlreadyExists))
+		return NewExecutionResult().SetError(types.NewError(types.ErrorContractAlreadyExists))
 	}
 
 	return NewExecutionResult()
@@ -146,7 +145,7 @@ func validateExternalExecutionMessage(es *ExecutionState, message *types.Message
 		return NewExecutionResult().SetFatal(err)
 	} else if !exists {
 		if len(message.Data) > 0 && message.Value.IsZero() {
-			return NewExecutionResult().SetError(NewMessageError(ErrContractDoesNotExist))
+			return NewExecutionResult().SetError(types.NewError(types.ErrorContractDoesNotExist))
 		}
 		return NewExecutionResult() // send value
 	}
@@ -154,8 +153,8 @@ func validateExternalExecutionMessage(es *ExecutionState, message *types.Message
 	account, err := es.GetAccount(to)
 	check.PanicIfErr(err)
 	if account.ExtSeqno != message.Seqno {
-		err := fmt.Errorf("%w: account %v != message %v", ErrSeqnoGap, account.ExtSeqno, message.Seqno)
-		return NewExecutionResult().SetError(NewMessageError(err))
+		err = fmt.Errorf("account %v != message %v", account.ExtSeqno, message.Seqno)
+		return NewExecutionResult().SetError(types.NewWrapError(types.ErrorSeqnoGap, err))
 	}
 
 	return es.CallVerifyExternal(message, account)
@@ -165,27 +164,21 @@ func ValidateExternalMessage(es *ExecutionState, message *types.Message) *Execut
 	check.PanicIfNot(message.IsExternal())
 
 	if message.ChainId != types.DefaultChainId {
-		return NewExecutionResult().SetError(NewMessageError(ErrInvalidChainId))
+		return NewExecutionResult().SetError(types.NewError(types.ErrorInvalidChainId))
 	}
 
 	if account, err := es.GetAccount(message.To); err != nil {
-		return NewExecutionResult().SetError(NewMessageError(err))
+		return NewExecutionResult().SetError(types.KeepOrWrapError(types.ErrorNoAccount, err))
 	} else if account == nil {
-		return NewExecutionResult().SetError(NewMessageError(ErrNoPayer))
+		return NewExecutionResult().SetError(types.NewError(types.ErrorNoAccountToPayFees))
 	}
 
 	switch {
 	case message.IsDeploy():
 		return validateExternalDeployMessage(es, message)
 	case message.IsRefund():
-		return NewExecutionResult().SetError(
-			NewMessageError(errors.New("refund message is not allowed in external messages")))
+		return NewExecutionResult().SetError(types.NewError(types.ErrorRefundMessageIsNotAllowedInExternalMessages))
 	default:
 		return validateExternalExecutionMessage(es, message)
 	}
-}
-
-func NewMessageError(err error) *types.MessageError {
-	check.PanicIfNot(err != nil)
-	return types.NewMessageError(types.MessageStatusOther, err)
 }
