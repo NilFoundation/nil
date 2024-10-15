@@ -73,7 +73,7 @@ export const SandboxPage = () => {
                   <Panel
                     className={css({
                       ...expandProperty("borderRadius", "12px"),
-                      overflow: "scroll!important",
+                      overflow: "auto!important",
                     })}
                     minSize={5}
                     defaultSize={25}
