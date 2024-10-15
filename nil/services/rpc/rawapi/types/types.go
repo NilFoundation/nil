@@ -25,6 +25,7 @@ type NamedBlockIdentifier int64
 const (
 	EarliestBlock = NamedBlockIdentifier(0)
 	LatestBlock   = NamedBlockIdentifier(-1)
+	PendingBlock  = NamedBlockIdentifier(-2)
 )
 
 // BlockIdentifier unlike BlockNumber contains special “named” values in the negative range for addressing blocks.

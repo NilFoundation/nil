@@ -29,6 +29,8 @@ type NetworkTransportProtocol interface {
 	GetInMessageReceipt(pb.Hash) pb.ReceiptResponse
 	GasPrice(pb.EmptyRequest) pb.GasPriceResponse
 	GetShardIdList(pb.EmptyRequest) pb.ShardIdListResponse
+	GetMessageCount(pb.AccountRequest) pb.Uint64Response
+	SendMessage(pb.SendMessageRequest) pb.SendMessageResponse
 }
 
 func SetRawApiRequestHandlers(ctx context.Context, shardId types.ShardId, api ShardApi, manager *network.Manager, logger zerolog.Logger) error {

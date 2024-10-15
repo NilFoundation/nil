@@ -49,7 +49,7 @@ func (api *LocalShardApi) GetInMessageReceipt(ctx context.Context, hash common.H
 				includedInMain = mainBlockData.Id >= block.Id
 			} else {
 				if len(rawMainBlock.ChildBlocks) < int(api.ShardId) {
-					return nil, errShardNotFound
+					return nil, ErrShardNotFound
 				}
 				blockHash := rawMainBlock.ChildBlocks[api.ShardId-1]
 				if last, err := api.accessor.Access(tx, api.ShardId).GetBlock().ByHash(blockHash); err == nil {

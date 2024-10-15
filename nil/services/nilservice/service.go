@@ -30,7 +30,7 @@ import (
 // syncer will pull blocks actively if no blocks appear for 5 rounds
 const syncTimeoutFactor = 5
 
-func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db db.ReadOnlyDB, pools []msgpool.Pool) error {
+func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db db.ReadOnlyDB) error {
 	logger := logging.NewLogger("RPC")
 
 	addr := cfg.HttpUrl
@@ -47,7 +47,7 @@ func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db 
 	}
 
 	pollBlocksForLogs := cfg.RunMode == NormalRunMode
-	ethImpl, err := jsonrpc.NewEthAPI(ctx, rawApi, db, pools, pollBlocksForLogs)
+	ethImpl, err := jsonrpc.NewEthAPI(ctx, rawApi, db, pollBlocksForLogs)
 	if err != nil {
 		return err
 	}
@@ -105,12 +105,15 @@ type ServiceInterop struct {
 	MsgPools []msgpool.Pool
 }
 
-func getRawApi(cfg *Config, networkManager *network.Manager, database db.DB) (*rawapi.NodeApiOverShardApis, error) {
+func getRawApi(cfg *Config, networkManager *network.Manager, database db.DB, msgPools []msgpool.Pool) (*rawapi.NodeApiOverShardApis, error) {
 	var err error
 
 	var myShards []uint
 	switch cfg.RunMode {
-	case NormalRunMode, BlockReplayRunMode:
+	case BlockReplayRunMode:
+		msgPools = make([]msgpool.Pool, cfg.NShards)
+		fallthrough
+	case NormalRunMode:
 		for shardId := range cfg.NShards {
 			myShards = append(myShards, uint(shardId))
 		}
@@ -127,7 +130,7 @@ func getRawApi(cfg *Config, networkManager *network.Manager, database db.DB) (*r
 	shardApis := make(map[types.ShardId]rawapi.ShardApi)
 	for shardId := range types.ShardId(cfg.NShards) {
 		if slices.Contains(myShards, uint(shardId)) {
-			shardApis[shardId], err = rawapi.NewLocalShardApi(shardId, database)
+			shardApis[shardId], err = rawapi.NewLocalShardApi(shardId, database, msgPools[shardId])
 		} else {
 			shardApis[shardId], err = rawapi.NewNetworkRawApiAccessor(shardId, networkManager)
 		}
@@ -274,7 +277,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		return nil
 	})
 
-	rawApi, err := getRawApi(cfg, networkManager, database)
+	rawApi, err := getRawApi(cfg, networkManager, database, msgPools)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to create raw API")
 		return 1
@@ -282,7 +285,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 
 	if (cfg.RPCPort != 0 || cfg.HttpUrl != "") && rawApi != nil {
 		funcs = append(funcs, func(ctx context.Context) error {
-			if err := startRpcServer(ctx, cfg, rawApi, database, msgPools); err != nil {
+			if err := startRpcServer(ctx, cfg, rawApi, database); err != nil {
 				logger.Error().Err(err).Msg("RPC server goroutine failed")
 				return err
 			}

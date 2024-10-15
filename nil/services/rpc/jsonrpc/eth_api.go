@@ -2,7 +2,6 @@ package jsonrpc
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
@@ -10,7 +9,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/NilFoundation/nil/nil/services/rpc/filters"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
@@ -330,11 +328,10 @@ type EthAPI interface {
 type APIImpl struct {
 	accessor *execution.StateAccessor
 
-	db       db.ReadOnlyDB
-	msgPools []msgpool.Pool
-	logs     *LogsAggregator
-	logger   zerolog.Logger
-	rawapi   rawapi.NodeApi
+	db     db.ReadOnlyDB
+	logs   *LogsAggregator
+	logger zerolog.Logger
+	rawapi rawapi.NodeApi
 }
 
 var (
@@ -343,27 +340,19 @@ var (
 )
 
 // NewEthAPI returns APIImpl instance
-func NewEthAPI(ctx context.Context, rawapi rawapi.NodeApi, db db.ReadOnlyDB, pools []msgpool.Pool, pollBlocksForLogs bool) (*APIImpl, error) {
+func NewEthAPI(ctx context.Context, rawapi rawapi.NodeApi, db db.ReadOnlyDB, pollBlocksForLogs bool) (*APIImpl, error) {
 	accessor, err := execution.NewStateAccessor()
 	if err != nil {
 		return nil, err
 	}
 	api := &APIImpl{
 		db:       db,
-		msgPools: pools,
 		logger:   logging.NewLogger("eth-api"),
 		accessor: accessor,
 		rawapi:   rawapi,
 	}
 	api.logs = NewLogsAggregator(ctx, db, pollBlocksForLogs)
 	return api, nil
-}
-
-func (api *APIImpl) checkShard(shardId types.ShardId) error {
-	if int(shardId) >= len(api.msgPools) {
-		return fmt.Errorf("%w (%d)", ErrShardNotFound, shardId)
-	}
-	return nil
 }
 
 func (api *APIImpl) Shutdown() {

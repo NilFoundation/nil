@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/msgpool"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
@@ -53,6 +54,9 @@ func (nbr *NamedBlockReference) UnpackProtoMessage() (rawapitypes.NamedBlockIden
 	case NamedBlockReference_LatestBlock:
 		return rawapitypes.LatestBlock, nil
 
+	case NamedBlockReference_PendingBlock:
+		return rawapitypes.PendingBlock, nil
+
 	default:
 		return 0, errors.New("unexpected named block reference type")
 	}
@@ -65,6 +69,9 @@ func (nbr *NamedBlockReference) PackProtoMessage(namedBlockIdentifier rawapitype
 
 	case rawapitypes.LatestBlock:
 		*nbr = NamedBlockReference_LatestBlock
+
+	case rawapitypes.PendingBlock:
+		*nbr = NamedBlockReference_PendingBlock
 
 	default:
 		return errors.New("unexpected named block reference type")
@@ -1041,4 +1048,35 @@ func (sr *ShardIdListResponse) UnpackProtoMessage() ([]types.ShardId, error) {
 		return shardIdList, nil
 	}
 	return nil, errors.New("unexpected response type")
+}
+
+func (r *SendMessageResponse) PackProtoMessage(status msgpool.DiscardReason, err error) error {
+	if err != nil {
+		r.Result = &SendMessageResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+
+	r.Result = &SendMessageResponse_Status{
+		Status: uint32(status),
+	}
+	return nil
+}
+
+func (r *SendMessageResponse) UnpackProtoMessage() (msgpool.DiscardReason, error) {
+	err := r.GetError()
+	if err != nil {
+		return 0, err.UnpackProtoMessage()
+	}
+
+	status := r.GetStatus()
+	return msgpool.DiscardReason(status), nil
+}
+
+func (r *SendMessageRequest) PackProtoMessage(messageSSZ []byte) error {
+	r.MessageSSZ = messageSSZ
+	return nil
+}
+
+func (r *SendMessageRequest) UnpackProtoMessage() ([]byte, error) {
+	return r.MessageSSZ, nil
 }

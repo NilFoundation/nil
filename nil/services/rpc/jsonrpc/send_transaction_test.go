@@ -10,6 +10,8 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/msgpool"
+	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -75,7 +77,7 @@ func (suite *SuiteSendTransaction) TestInvalidChainId() {
 	suite.Require().NoError(err)
 
 	_, err = suite.api.SendRawTransaction(context.Background(), data)
-	suite.Require().ErrorIs(err, errInvalidChainId)
+	suite.Require().ErrorContains(err, msgpool.InvalidChainId.String())
 }
 
 func (suite *SuiteSendTransaction) TestInvalidShard() {
@@ -87,7 +89,7 @@ func (suite *SuiteSendTransaction) TestInvalidShard() {
 	suite.Require().NoError(err)
 
 	_, err = suite.api.SendRawTransaction(context.Background(), data)
-	suite.Require().ErrorIs(err, ErrShardNotFound)
+	suite.Require().ErrorIs(err, rawapi.ErrShardNotFound)
 }
 
 func TestSuiteSendTransaction(t *testing.T) {
