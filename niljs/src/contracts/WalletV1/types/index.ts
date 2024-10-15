@@ -21,17 +21,17 @@ type WalletV1ConfigAddress = WaletV1BaseConfig & {
   salt?: undefined;
   shardId?: undefined;
 };
+
 /**
  * Represents the wallet configuration.
  *
- 
  * @typedef {WalletV1Config}
  */
 export type WalletV1Config = WalletV1ConfigCalculated | WalletV1ConfigAddress;
 /**
  * Represents the message call params.
  *
- 
+
  * @typedef {CallParams}
  */
 export type CallParams = {

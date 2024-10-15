@@ -16,6 +16,7 @@ class BaseClient {
 	 * @type {ITransport}
 	 */
 	protected transport: ITransport;
+
 	/**
 	 * The ID of the shard with which the client needs to interact.
 	 * The shard with this ID will be used in every call made by the client.

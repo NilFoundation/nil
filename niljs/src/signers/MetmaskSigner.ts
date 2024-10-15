@@ -44,7 +44,7 @@ class MetaMaskSigner implements ISigner {
    * @param {Uint8Array} data The input data.
    * @returns {unknown} The signed data.
    */
-  public async sign(data: Uint8Array) {
+  public async sign(_: Uint8Array) {
     // mock signature
     return new Uint8Array(65);
   }
