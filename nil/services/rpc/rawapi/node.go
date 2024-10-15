@@ -114,3 +114,11 @@ func (api *NodeApiOverShardApis) GasPrice(ctx context.Context, shardId types.Sha
 	}
 	return shardApi.GasPrice(ctx)
 }
+
+func (api *NodeApiOverShardApis) GetShardIdList(ctx context.Context) ([]types.ShardId, error) {
+	shardApi, ok := api.Apis[types.MainShardId]
+	if !ok {
+		return nil, errShardNotFound
+	}
+	return shardApi.GetShardIdList(ctx)
+}

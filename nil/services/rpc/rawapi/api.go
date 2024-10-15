@@ -26,6 +26,7 @@ type NodeApi interface {
 	) (*rpctypes.CallResWithGasPrice, error)
 
 	GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error)
+	GetShardIdList(ctx context.Context) ([]types.ShardId, error)
 }
 
 type ShardApi interface {
@@ -45,4 +46,5 @@ type ShardApi interface {
 	) (*rpctypes.CallResWithGasPrice, error)
 
 	GasPrice(ctx context.Context) (types.Value, error)
+	GetShardIdList(ctx context.Context) ([]types.ShardId, error)
 }
