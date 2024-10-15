@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/client"
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
@@ -22,6 +23,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
+	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc"
@@ -113,6 +115,52 @@ func (s *RpcSuite) start(cfg *nilservice.Config) {
 			return err == nil && block != nil
 		}, ZeroStateWaitTimeout, ZeroStatePollInterval)
 	}
+}
+
+func (s *RpcSuite) startWithRPC(cfg *nilservice.Config, validatorPort, rpcPort int) {
+	s.T().Helper()
+
+	var err error
+	s.shardsNum = cfg.NShards
+	s.context, s.ctxCancel = context.WithCancel(context.Background())
+	s.db, err = db.NewBadgerDbInMemory()
+	s.Require().NoError(err)
+
+	validatorNetCfg, validatorAddr := network.GenerateConfig(s.T(), validatorPort)
+	rpcNetCfg, _ := network.GenerateConfig(s.T(), rpcPort)
+	rpcNetCfg.DHTBootstrapPeers = []string{validatorAddr}
+
+	cfg.Network = validatorNetCfg
+	PatchConfigWithTestDefaults(cfg)
+
+	rpcCfg := &nilservice.Config{
+		NShards:       s.shardsNum,
+		Network:       rpcNetCfg,
+		RunMode:       nilservice.RpcRunMode,
+		BootstrapPeer: validatorAddr,
+		HttpUrl:       rpc.GetSockPath(s.T()),
+	}
+
+	s.wg.Add(2)
+	go func() {
+		nilservice.Run(s.context, cfg, s.db, nil)
+		s.wg.Done()
+	}()
+
+	// TODO: wait be sure that validator is ready
+	time.Sleep(time.Second)
+
+	go func() {
+		nilservice.Run(s.context, rpcCfg, nil, nil)
+		s.wg.Done()
+	}()
+
+	s.client = rpc_client.NewClient(rpcCfg.HttpUrl, zerolog.New(os.Stderr))
+
+	s.waitZerostateFunc(func(i uint32) bool {
+		block, err := s.client.GetDebugBlock(types.ShardId(i), transport.BlockNumber(0), false)
+		return err == nil && block != nil
+	})
 }
 
 func (s *RpcSuite) cancel() {

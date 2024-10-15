@@ -67,11 +67,12 @@ const (
 )
 
 type Client struct {
-	endpoint string
-	seqno    atomic.Uint64
-	client   http.Client
-	headers  map[string]string
-	logger   zerolog.Logger
+	endpoint               string
+	seqno                  atomic.Uint64
+	client                 http.Client
+	headers                map[string]string
+	logger                 zerolog.Logger
+	originalServerEndpoint string
 }
 
 type Request struct {
@@ -130,9 +131,10 @@ func NewRawClient(endpoint string, logger zerolog.Logger) client.RawClient {
 
 func NewClientWithDefaultHeaders(endpoint string, logger zerolog.Logger, headers map[string]string) *Client {
 	c := &Client{
-		endpoint: endpoint,
-		logger:   logger,
-		headers:  headers,
+		endpoint:               endpoint,
+		logger:                 logger,
+		headers:                headers,
+		originalServerEndpoint: endpoint,
 	}
 
 	if strings.HasPrefix(endpoint, "unix://") {
@@ -775,4 +777,8 @@ func (c *Client) GetBlocksRange(shardId types.ShardId, from, to types.BlockNumbe
 		check.PanicIfNot(ok)
 	}
 	return result, nil
+}
+
+func (c *Client) GetEndpoint() string {
+	return c.originalServerEndpoint
 }
