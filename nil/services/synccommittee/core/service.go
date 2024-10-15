@@ -53,9 +53,10 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		return nil, fmt.Errorf("invalid L1ChainId: %s", cfg.L1ChainId)
 	}
 	proposerParams := ProposerParams{
-		cfg.L1Endpoint, chainId, cfg.PrivateKey, cfg.L1ContractAddress, cfg.SelfAddress, DefaultProposingInterval,
+		chainId, cfg.PrivateKey, cfg.L1ContractAddress, cfg.SelfAddress, DefaultProposingInterval,
 	}
-	proposer, err := NewProposer(proposerParams, blockStorage, logger)
+	proposerRpcClient := nilrpc.NewRawClient(cfg.L1Endpoint, logger)
+	proposer, err := NewProposer(proposerParams, proposerRpcClient, blockStorage, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create proposer: %w", err)
 	}

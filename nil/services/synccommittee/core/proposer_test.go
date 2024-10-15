@@ -2,58 +2,111 @@ package core
 
 import (
 	"bytes"
-	"math/big"
+	"context"
 	"testing"
 
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	ethcommon "github.com/ethereum/go-ethereum/common"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 const (
-	ChainId          = "11155111"
-	ContractAddress  = "0xB8E280a085c87Ed91dd6605480DD2DE9EC3699b4"
-	FunctionSelector = "0x6af78c5c"
+	functionSelector = "0x6af78c5c"
 )
 
-func newTestProposer(t *testing.T) *Proposer {
-	t.Helper()
-	database, err := db.NewBadgerDbInMemory()
-	require.NoError(t, err)
-	logger := logging.NewLogger("sync_committee_aggregator_test")
-	blockStorage := storage.NewBlockStorage(database, logger)
-	proposer, err := NewProposer(DefaultProposerParams(), blockStorage, logger)
-	require.NoError(t, err)
-	return proposer
+type ProposerTestSuite struct {
+	suite.Suite
+
+	ctx          context.Context
+	cancellation context.CancelFunc
+
+	params        ProposerParams
+	db            db.DB
+	storage       storage.BlockStorage
+	rpcClientMock client.ClientMock
+	proposer      *Proposer
 }
 
-func TestCreateUpdateStateTransaction(t *testing.T) {
+func TestProposerSuite(t *testing.T) {
 	t.Parallel()
+	suite.Run(t, new(ProposerTestSuite))
+}
 
-	p := newTestProposer(t)
+func (s *ProposerTestSuite) SetupSuite() {
+	s.ctx, s.cancellation = context.WithCancel(context.Background())
 
-	provedStateRoot := common.IntToHash(10)
+	var err error
+	s.db, err = db.NewBadgerDbInMemory()
+	s.Require().NoError(err)
+	logger := logging.NewLogger("proposer_test")
+	s.storage = storage.NewBlockStorage(s.db, logger)
+
+	s.params = DefaultProposerParams()
+	s.proposer, err = NewProposer(s.params, &s.rpcClientMock, s.storage, logger)
+	s.Require().NoError(err)
+}
+
+func (s *ProposerTestSuite) SetupTest() {
+	err := s.db.DropAll()
+	s.Require().NoError(err, "failed to clear database in SetUpTest")
+	s.rpcClientMock.ResetCalls()
+}
+
+func (s *ProposerTestSuite) TearDownSuite() {
+	s.cancellation()
+}
+
+func (s *ProposerTestSuite) TestCreateUpdateStateTransaction() {
+	oldStateRoot := common.IntToHash(10)
 	newStateRoot := common.IntToHash(11)
-	updateStateTransaction, err := p.createUpdateStateTransaction(provedStateRoot, newStateRoot)
-	require.NoError(t, err)
 
-	assert.Equal(t, p.seqno.Load(), updateStateTransaction.Nonce())
+	transaction, err := s.proposer.createUpdateStateTransaction(oldStateRoot, newStateRoot)
+	s.Require().NoError(err, "failed to create transaction")
+	s.Require().Equal(s.proposer.seqno.Load(), transaction.Nonce(), "tx nonce is incorrect")
 
-	chainId, ok := new(big.Int).SetString(ChainId, 10)
-	assert.True(t, ok)
-	assert.Equal(t, chainId, updateStateTransaction.ChainId())
+	s.Require().Equal(s.params.chainId, transaction.ChainId(), "tx chainId is incorrect")
+	expectedAddress := ethcommon.HexToAddress(s.params.contractAddress)
+	s.Require().Equal(&expectedAddress, transaction.To(), "tx recipient is incorrect")
 
-	assert.Equal(t, ethcommon.HexToAddress(ContractAddress), *updateStateTransaction.To())
+	functionSelector, err := hexutil.Decode(functionSelector)
+	s.Require().NoError(err)
+	transactionData := transaction.Data()
+	s.Require().True(bytes.Contains(transactionData, functionSelector), "tx data does not contain functionSelector")
+	s.Require().True(bytes.Contains(transactionData, oldStateRoot.Bytes()), "tx data does not contain oldStateRoot")
+	s.Require().True(bytes.Contains(transactionData, newStateRoot.Bytes()), "tx data does not contain newStateRoot")
+}
 
-	// check Data
-	functionSelector, err := hexutil.Decode(FunctionSelector)
-	require.NoError(t, err)
-	assert.True(t, bytes.Contains(updateStateTransaction.Data(), functionSelector))
-	assert.True(t, bytes.Contains(updateStateTransaction.Data(), provedStateRoot.Bytes()))
-	assert.True(t, bytes.Contains(updateStateTransaction.Data(), newStateRoot.Bytes()))
+func (s *ProposerTestSuite) TestSendProof() {
+	data := &storage.ProposalData{
+		MainShardBlockHash: testaide.RandomHash(),
+		Transactions:       generateTransactions(3),
+		OldProvedStateRoot: testaide.RandomHash(),
+		NewProvedStateRoot: testaide.RandomHash(),
+	}
+
+	err := s.proposer.sendProof(s.ctx, data)
+	s.Require().NoError(err, "failed to send proof")
+
+	clientCalls := s.rpcClientMock.RawCallCalls()
+	s.Require().Len(clientCalls, 1, "wrong number of calls to rpc client")
+
+	call := clientCalls[0]
+	s.Require().Equal("eth_sendRawTransaction", call.Method, "wrong method")
+	s.Require().Len(call.Params, 1, "wrong number of passed params")
+	s.Require().IsType("", call.Params[0], "wrong type of params[0]")
+}
+
+func generateTransactions(count int) []storage.PrunedTransaction {
+	transactions := make([]storage.PrunedTransaction, count)
+	for range count {
+		tx := storage.NewTransaction(testaide.GenerateRpcInMessage())
+		transactions = append(transactions, tx)
+	}
+	return transactions
 }

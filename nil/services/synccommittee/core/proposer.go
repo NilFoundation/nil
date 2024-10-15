@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/client/rpc"
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
@@ -39,8 +39,8 @@ const abiJson = `
 			{"name":"_newStateRoot","type":"bytes32"},
 			{"name":"_blobProof","type":"bytes"},
 			{"name":"_batchIndexInBlobStorage","type":"uint256"}
-        ]
-    }
+		]
+	}
 ]`
 
 const abiFinalizedBatchIndexJson = `
@@ -72,7 +72,7 @@ const abiLatestProvedStateRootJson = `
 ]`
 
 type Proposer struct {
-	client       *rpc.Client
+	client       client.RawClient
 	blockStorage storage.BlockStorage
 	seqno        atomic.Uint64
 	params       ProposerParams
@@ -83,7 +83,6 @@ type Proposer struct {
 const DefaultProposingInterval = 10 * time.Second
 
 type ProposerParams struct {
-	endpoint          string
 	chainId           *big.Int
 	privKey           string
 	contractAddress   string
@@ -93,7 +92,6 @@ type ProposerParams struct {
 
 func DefaultProposerParams() ProposerParams {
 	return ProposerParams{
-		endpoint:          "http://rpc2.sepolia.org",
 		chainId:           big.NewInt(11155111),
 		privKey:           "0000000000000000000000000000000000000000000000000000000000000001",
 		contractAddress:   "0xB8E280a085c87Ed91dd6605480DD2DE9EC3699b4",
@@ -102,10 +100,13 @@ func DefaultProposerParams() ProposerParams {
 	}
 }
 
-func NewProposer(params ProposerParams, blockStorage storage.BlockStorage, logger zerolog.Logger) (*Proposer, error) {
-	client := rpc.NewClient(params.endpoint, logger)
-
-	nonceValue, err := getCurrentNonce(params.selfAddress, client)
+func NewProposer(
+	params ProposerParams,
+	rpcClient client.RawClient,
+	blockStorage storage.BlockStorage,
+	logger zerolog.Logger,
+) (*Proposer, error) {
+	nonceValue, err := getCurrentNonce(params.selfAddress, rpcClient)
 	if err != nil {
 		// TODO return error after enable local L1 endpoint
 		logger.Error().Err(err).Msg("failed get current contract nonce, set 0")
@@ -120,7 +121,7 @@ func NewProposer(params ProposerParams, blockStorage storage.BlockStorage, logge
 	)
 
 	p := Proposer{
-		client:       client,
+		client:       rpcClient,
 		blockStorage: blockStorage,
 		params:       params,
 		retryRunner:  retryRunner,
@@ -128,8 +129,10 @@ func NewProposer(params ProposerParams, blockStorage storage.BlockStorage, logge
 	}
 	p.seqno.Add(nonceValue)
 
-	p.logger.Info().Msgf("\nUse L1 endpoint %v\nChainId %v\nL1Contract address %v\nNonce %d",
-		p.params.endpoint, params.chainId, p.params.contractAddress, p.seqno.Load())
+	p.logger.Info().Msgf(
+		"ChainId %v\nL1Contract address %v\nNonce %d",
+		params.chainId, p.params.contractAddress, p.seqno.Load(),
+	)
 	return &p, nil
 }
 
@@ -290,7 +293,7 @@ func (p *Proposer) getLatestProvedStateRoot(ctx context.Context) (common.Hash, e
 	return common.BytesToHash(latestProvedStateRoot), nil
 }
 
-func getCurrentNonce(selfAddress string, client *rpc.Client) (uint64, error) {
+func getCurrentNonce(selfAddress string, client client.RawClient) (uint64, error) {
 	res, err := client.RawCall("eth_getTransactionCount", selfAddress, "latest")
 	if err != nil {
 		return 0, fmt.Errorf("failed send eth_getTransactionCount: %w", err)
@@ -377,8 +380,7 @@ func (p *Proposer) sendProof(ctx context.Context, data *storage.ProposalData) er
 		return err
 	})
 	if err != nil {
-		// TODO return error after enable local L1 endpoint
-		p.logger.Error().Err(err).Msg("failed update state on L1 request")
+		return fmt.Errorf("failed to update state (eth_sendRawTransaction): %w", err)
 	}
 	p.seqno.Add(1)
 	// TODO send bloob with transactions and KZG proof

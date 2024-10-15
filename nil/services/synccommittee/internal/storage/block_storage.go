@@ -42,6 +42,17 @@ type PrunedTransaction struct {
 	Data  hexutil.Bytes
 }
 
+func NewTransaction(message *jsonrpc.RPCInMessage) PrunedTransaction {
+	return PrunedTransaction{
+		Flags: message.Flags,
+		Seqno: message.Seqno,
+		From:  message.From,
+		To:    message.To,
+		Value: message.Value,
+		Data:  message.Data,
+	}
+}
+
 type ProposalData struct {
 	MainShardBlockHash common.Hash
 	Transactions       []PrunedTransaction
@@ -382,14 +393,7 @@ func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, blockHash co
 func extractTransactions(block jsonrpc.RPCBlock) []PrunedTransaction {
 	transactions := make([]PrunedTransaction, len(block.Messages))
 	for idx, message := range block.Messages {
-		transactions[idx] = PrunedTransaction{
-			message.Flags,
-			message.Seqno,
-			message.From,
-			message.To,
-			message.Value,
-			message.Data,
-		}
+		transactions[idx] = NewTransaction(message)
 	}
 	return transactions
 }
