@@ -1,3 +1,5 @@
+import PGButton from '@theme/PGButton';
+
 # Create the swap contract
 
 The swap contract needs to do the following:
@@ -79,4 +81,13 @@ The function calculates the possible token excesses:
 * The difference between the amount of tokens desired by the matched swap request and the new swap request
 * The difference between the amount of tokens desired by the new swap request and the matched swap request
 
-The tokens are transformed into token arrays and sent to the originators of swap requests using `Nil.asyncCall()`. All refunds are also sent to these addresses. 
+The tokens are transformed into token arrays and sent to the originators of swap requests using `Nil.asyncCall()`. All refunds are also sent to these addresses.
+
+## Full contract
+
+Here is the full code of the swap contract:
+
+```showLineNumbers file=../../../tests/SwapMatchPure.sol start=startContract end=endContract
+```
+
+<PGButton name="SwapMatchPure.sol"/>

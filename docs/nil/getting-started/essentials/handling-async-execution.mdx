@@ -1,3 +1,5 @@
+import PGButton from '@theme/PGButton';
+
 # Handling async execution
 
 To support [**cross-shard communication**](../../specification/principles.mdx#cross-shard-communication), =nil; supports smart contracts making async calls to one another directly in Solidity code.
@@ -8,8 +10,10 @@ This tutorial provides a brief theoretical and practical primer on async executi
 
 Consider a smart contract with the following code:
 
-```sol showLineNumbers file=../../../tests/CallerAsync.sol start=startCallerAsync end=endCallerAsync
+```sol showLineNumbers file=../../../tests/CallerAsyncBasicPattern.sol start=startCallerAsyncBasicPattern end=endCallerAsyncBasicPattern
 ```
+
+<PGButton name="CallerAsyncBasicPattern.sol"/>
 
 The `asyncCall()` function makes it possible for the contract to call a function in another smart contract regardless of the shard where this contract is located. There are no additional actions required for making async calls: simply adding `asyncCall()` and specifying its arguments is sufficient.
 
@@ -48,6 +52,8 @@ Consider the following example of an `Awaiter` contract:
 ```solidity showLineNumbers file=../../../tests/Awaiter.sol start=startAwaiterContract end=endAwaiterContract
 ```
 
+<PGButton name="Awaiter.sol"/>
+
 The contract is designed to call [**the`Counter` contract**](getting-started/nil-101.mdx#flow-1) asynchronously and store the returned value inside the `result` variable.
 
 :::info
@@ -83,13 +89,17 @@ In this pattern, Contract 1 simply calls a function in Contract 2 without receiv
 
 Contract 1 has the following structure:
 
-```solidity showLineNumbers file=../../../tests/CallerAsyncBasicPattern.sol start=startCallerAsyncBasicPattern end=endCallerAsyncBasicPattern
+```solidity showLineNumbers file=../../../tests/Caller.sol start=startContract end=endContract
 ```
+
+<PGButton name="Caller.sol"/>
 
 Contract 2 has the following structure:
 
 ```solidity showLineNumbers file=../../../tests/Counter.sol start=startContract end=endContract
 ```
+
+<PGButton name="Counter.sol"/>
 
 Whenever the `call()` function is called inside Contract 1, a new outgoing message is spawned. When Shard 2 picks up this message and processes it, Contract 2 calls its `increment()` function. After `getValue()` is called, the result should display the total number of times the `call()` function was executed by Contract 1.
 
@@ -114,7 +124,11 @@ Contract 1 acts as a simple escrow mechanism. The `submitForVerification()` func
 ```solidity showLineNumbers file=../../../tests/Escrow.sol start=startEscrow end=endEscrow
 ```
 
+<PGButton name="Escrow.sol"/>
+
 Contract 2 acts as the validator for escrow resolution:
 
 ```solidity showLineNumbers file=../../../tests/Validator.sol start=startValidator end=endValidator
 ```
+
+<PGButton name="Validator.sol"/>

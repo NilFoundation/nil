@@ -1,5 +1,6 @@
 { lib, stdenv, npmHooks, nodejs, nil, openssl, fetchNpmDeps, callPackage, autoconf, automake, libtool, solc, enableTesting ? false }:
 
+
 stdenv.mkDerivation rec {
   name = "nil.docs";
   pname = "nildocs";
@@ -36,12 +37,13 @@ stdenv.mkDerivation rec {
     patchShebangs niljs/node_modules
     (cd smart-contracts; npm run compile)
     (cd niljs; npm run build)
-
     export NILJS_SRC=${./niljs}
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
     cd docs
     npm run build
+    
   '';
+
 
   doCheck = enableTesting;
 

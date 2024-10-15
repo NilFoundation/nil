@@ -1,0 +1,37 @@
+[data-theme='light'] .playgroundButton {
+  background-color: #8fc97e;
+  color: #0f0f0f;
+  border-color: #404040;
+  border: 2px solid;
+  border-radius: 5px;
+  padding: 2px 10px 2px 10px;
+  display: flex;
+  width: fit-content;
+  margin-bottom: 15px;
+  cursor: pointer;
+  justify-content: center;
+  vertical-align: middle;
+  align-items: center;
+}
+
+[data-theme='dark'] .playgroundButton {
+  background-color: #8fc97e;
+  color: #0f0f0f;
+  border-color: #666666;
+  border: 2px solid;
+  border-radius: 5px;
+  padding: 2px 10px 2px 10px;
+  display: flex;
+  width: fit-content;
+  margin-bottom: 15px;
+  cursor: pointer;
+  justify-content: center;
+  vertical-align: middle;
+  align-items: center;
+}
+
+
+
+.playgroundButton:hover {
+  background-color: #969696;
+}

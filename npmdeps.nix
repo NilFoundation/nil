@@ -13,7 +13,8 @@ in
       ./niljs/package.json
       ./hardhat-examples/package.json
       ./smart-contracts/package.json
+      ./explorer_backend/package.json
     ];
   };
-  hash = "sha256-AJ186Wfq09oohGAurzue+gnACB1QDk7sLwt2pCtC1Ho=";
+  hash = "sha256-22MetHaaylsU/O9q9F1cNpVJWGUQ1XY8hPIYvcTCCqk=";
 })

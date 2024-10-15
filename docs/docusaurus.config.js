@@ -10,8 +10,11 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import remarkCodeSnippets from 'nil-remark-code-snippets';
 
+import path from 'node:path';
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
+
   title: '=nil; Foundation Documentation Portal',
   tagline: '',
   favicon: 'img/nil-logo.png',
@@ -69,6 +72,24 @@ const config = {
   plugins: [
     'docusaurus-plugin-goatcounter'
     ,
+    [
+      path.resolve(__dirname, './plugins/nil-playground-plugin'),
+      {
+        contracts: {
+          counter: `${process.env.HASHES}/counter.hash.json`,
+          caller: `${process.env.HASHES}/caller.hash.json`,
+          receiver: `${process.env.HASHES}/receiver.hash.json`,
+          callerAsync: `${process.env.HASHES}/callerAsync.hash.json`,
+          callerAsyncBasicPattern: `${process.env.HASHES}/callerAsyncBasicPattern.hash.json`,
+          awaiter: `${process.env.HASHES}/awaiter.hash.json`,
+          escrow: `${process.env.HASHES}/escrow.hash.json`,
+          validator: `${process.env.HASHES}/validator.hash.json`,
+          retailer: `${process.env.HASHES}/retailer.hash.json`,
+          manufacturer: `${process.env.HASHES}/manufacturer.hash.json`,
+          swapMatch: `${process.env.HASHES}/swapMatch.hash.json`
+        }
+      }
+    ],
     [
       'nil-docusaurus-plugin-typedoc',
       {
