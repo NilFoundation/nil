@@ -16,10 +16,14 @@ import (
 )
 
 const (
-	blockTableName         db.TableName = "blocks"
-	lastFetchedTableName   db.TableName = "last_fetched"
-	stateRootTableName     db.TableName = "state_root"
-	nextToProposeTableName db.TableName = "next_to_propose_parent_hash"
+	// blocksTable stores blocks received from the RPC. Key: (types.ShardId, types.BlockNumber), Value: jsonrpc.RPCBlock.
+	blocksTable db.TableName = "blocks"
+	// lastFetchedTable stores numbers of latest fetched blocks. Key: types.ShardId, Value: types.BlockNumber.
+	lastFetchedTable db.TableName = "last_fetched"
+	// stateRootTable stores the latest ProvedStateRoot (single value). Key: mainShardKey, Value: common.Hash.
+	stateRootTable db.TableName = "state_root"
+	// nextToProposeTable stores parent's hash of the next block to propose (single value). Key: mainShardKey, Value: common.Hash.
+	nextToProposeTable db.TableName = "next_to_propose_parent_hash"
 )
 
 var mainShardKey = makeShardKey(types.MainShardId)
@@ -88,7 +92,7 @@ func (bs *blockStorage) TryGetProvedStateRoot(ctx context.Context) (*common.Hash
 }
 
 func (bs *blockStorage) getProvedStateRoot(tx db.RoTx) (*common.Hash, error) {
-	hashBytes, err := tx.Get(stateRootTableName, mainShardKey)
+	hashBytes, err := tx.Get(stateRootTable, mainShardKey)
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return nil, nil
 	}
@@ -107,7 +111,7 @@ func (bs *blockStorage) SetProvedStateRoot(ctx context.Context, stateRoot common
 	}
 	defer tx.Rollback()
 
-	err = tx.Put(stateRootTableName, mainShardKey, stateRoot.Bytes())
+	err = tx.Put(stateRootTable, mainShardKey, stateRoot.Bytes())
 	if err != nil {
 		return err
 	}
@@ -138,7 +142,7 @@ func (bs *blockStorage) GetBlock(ctx context.Context, shardId types.ShardId, blo
 	defer tx.Rollback()
 
 	key := makeBlockKey(shardId, blockNumber)
-	value, err := tx.Get(blockTableName, key)
+	value, err := tx.Get(blocksTable, key)
 	if err != nil {
 		if errors.Is(err, db.ErrKeyNotFound) {
 			return nil, nil
@@ -168,7 +172,7 @@ func (bs *blockStorage) SetBlock(ctx context.Context, shardId types.ShardId, blo
 		return err
 	}
 
-	err = tx.Put(blockTableName, key, value)
+	err = tx.Put(blocksTable, key, value)
 	if err != nil {
 		return err
 	}
@@ -186,7 +190,7 @@ func (bs *blockStorage) SetBlock(ctx context.Context, shardId types.ShardId, blo
 	if errors.Is(err, db.ErrKeyNotFound) || block.Number > lastFetchedBlockNum {
 		blockNumberValue := make([]byte, 8)
 		binary.LittleEndian.PutUint64(blockNumberValue, uint64(blockNumber))
-		if err = tx.Put(lastFetchedTableName, makeShardKey(shardId), blockNumberValue); err != nil {
+		if err = tx.Put(lastFetchedTable, makeShardKey(shardId), blockNumberValue); err != nil {
 			return err
 		}
 	}
@@ -252,7 +256,7 @@ func (bs *blockStorage) setBlockAsProvedImpl(ctx context.Context, blockHash comm
 		return err
 	}
 
-	err = tx.Put(blockTableName, key, value)
+	err = tx.Put(blocksTable, key, value)
 	if err != nil {
 		return err
 	}
@@ -299,17 +303,10 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 		return nil, nil
 	}
 
-	transactions, err := extractTransactions(mainShardEntry.Block)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract transactions: %w", err)
-	}
-
+	transactions := extractTransactions(mainShardEntry.Block)
 	err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
 		if isExecutionShardBlock(entry, mainShardEntry.Block.Hash) {
-			blockTransactions, err := extractTransactions(entry.Block)
-			if err != nil {
-				return false, fmt.Errorf("failed to extract transactions: %w", err)
-			}
+			blockTransactions := extractTransactions(entry.Block)
 			transactions = append(transactions, blockTransactions...)
 		}
 		return true, nil
@@ -357,19 +354,19 @@ func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, blockHash co
 			return true, nil
 		}
 
-		err := tx.Delete(blockTableName, makeBlockKey(entry.Block.ShardId, entry.Block.Number))
+		err := tx.Delete(blocksTable, makeBlockKey(entry.Block.ShardId, entry.Block.Number))
 		return true, err
 	})
 	if err != nil {
 		return err
 	}
 
-	err = tx.Delete(blockTableName, makeBlockKey(mainShardEntry.Block.ShardId, mainShardEntry.Block.Number))
+	err = tx.Delete(blocksTable, makeBlockKey(mainShardEntry.Block.ShardId, mainShardEntry.Block.Number))
 	if err != nil {
 		return err
 	}
 
-	err = tx.Put(stateRootTableName, mainShardKey, mainShardEntry.Block.ChildBlocksRootHash.Bytes())
+	err = tx.Put(stateRootTable, mainShardKey, mainShardEntry.Block.ChildBlocksRootHash.Bytes())
 	if err != nil {
 		return fmt.Errorf("failed to put state root: %w", err)
 	}
@@ -382,67 +379,19 @@ func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, blockHash co
 	return tx.Commit()
 }
 
-func extractTransactions(block jsonrpc.RPCBlock) ([]PrunedTransaction, error) {
+func extractTransactions(block jsonrpc.RPCBlock) []PrunedTransaction {
 	transactions := make([]PrunedTransaction, len(block.Messages))
-
 	for idx, message := range block.Messages {
-		rpcInMessage, ok := message.(map[string]any)
-		if !ok {
-			return nil, errors.New("failed to cast message to map")
-		}
-
-		seqnoStr, ok := rpcInMessage["seqno"].(string)
-		if !ok {
-			return nil, errors.New("failed to cast seqno to string")
-		}
-
-		var seqno hexutil.Uint64
-		err := seqno.UnmarshalText([]byte(seqnoStr))
-		if err != nil {
-			return nil, err
-		}
-
-		valueStr, ok := rpcInMessage["value"].(string)
-		if !ok {
-			return nil, errors.New("failed to cast value to string")
-		}
-
-		var value types.Value
-		err = value.Set(valueStr)
-		if err != nil {
-			return nil, err
-		}
-
-		dataStr, ok := rpcInMessage["data"].(string)
-		if !ok {
-			return nil, errors.New("failed to cast data to string")
-		}
-
-		var data hexutil.Bytes
-		err = data.Set(dataStr)
-		if err != nil {
-			return nil, err
-		}
-
-		fromStr, ok := rpcInMessage["from"].(string)
-		if !ok {
-			return nil, errors.New("failed to cast from to string")
-		}
-
-		toStr, ok := rpcInMessage["to"].(string)
-		if !ok {
-			return nil, errors.New("failed to cast to to string")
-		}
-
 		transactions[idx] = PrunedTransaction{
-			Seqno: seqno,
-			From:  types.HexToAddress(fromStr),
-			To:    types.HexToAddress(toStr),
-			Value: value,
-			Data:  data,
+			message.Flags,
+			message.Seqno,
+			message.From,
+			message.To,
+			message.Value,
+			message.Data,
 		}
 	}
-	return transactions, nil
+	return transactions
 }
 
 func isValidProposalCandidate(entry *blockEntry, parentHash *common.Hash) bool {
@@ -453,7 +402,7 @@ func isValidProposalCandidate(entry *blockEntry, parentHash *common.Hash) bool {
 
 // getParentOfNextToPropose retrieves parent's hash of the next block to propose
 func (bs *blockStorage) getParentOfNextToPropose(tx db.RoTx) (*common.Hash, error) {
-	hashBytes, err := tx.Get(nextToProposeTableName, mainShardKey)
+	hashBytes, err := tx.Get(nextToProposeTable, mainShardKey)
 
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return nil, nil
@@ -469,7 +418,7 @@ func (bs *blockStorage) getParentOfNextToPropose(tx db.RoTx) (*common.Hash, erro
 
 // setParentOfNextToPropose sets parent's hash of the next block to propose
 func (bs *blockStorage) setParentOfNextToPropose(tx db.RwTx, hash common.Hash) error {
-	err := tx.Put(nextToProposeTableName, mainShardKey, hash.Bytes())
+	err := tx.Put(nextToProposeTable, mainShardKey, hash.Bytes())
 	if err != nil {
 		return fmt.Errorf("failed to put next to propose parent hash: %w", err)
 	}
@@ -512,7 +461,7 @@ func (bs *blockStorage) validateMainShardEntry(tx db.RoTx, entry *blockEntry, bl
 }
 
 func (bs *blockStorage) getLastFetchedBlockNumTx(tx db.RoTx, shardId types.ShardId) (types.BlockNumber, error) {
-	value, err := tx.Get(lastFetchedTableName, makeShardKey(shardId))
+	value, err := tx.Get(lastFetchedTable, makeShardKey(shardId))
 	if err != nil {
 		return 0, err
 	}
@@ -554,7 +503,7 @@ func (bs *blockStorage) getBlockByHash(tx db.RoTx, blockHash common.Hash) (*bloc
 }
 
 func iterateOverEntries(tx db.RoTx, action func(entry *blockEntry) (shouldContinue bool, err error)) error {
-	iter, err := tx.Range(blockTableName, nil, nil)
+	iter, err := tx.Range(blocksTable, nil, nil)
 	if err != nil {
 		return err
 	}

@@ -67,21 +67,17 @@ func GenerateExecutionShardBlock(mainShardBlockHash common.Hash) *jsonrpc.RPCBlo
 	}
 }
 
-func generateRpcInMessages(count int) []any {
-	messages := make([]any, count)
+func generateRpcInMessages(count int) []*jsonrpc.RPCInMessage {
+	messages := make([]*jsonrpc.RPCInMessage, count)
 	for i := range count {
-		messages[i] = generateRpcInMessage()
+		messages[i] = &jsonrpc.RPCInMessage{
+			Flags: types.NewMessageFlags(types.MessageFlagInternal, types.MessageFlagRefund),
+			Seqno: 10,
+			From:  types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e71"),
+			To:    types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e72"),
+			Value: types.NewValue(uint256.NewInt(1000)),
+			Data:  []byte{10, 20, 30, 40},
+		}
 	}
 	return messages
-}
-
-func generateRpcInMessage() jsonrpc.RPCInMessage {
-	return jsonrpc.RPCInMessage{
-		Flags: types.NewMessageFlags(types.MessageFlagInternal, types.MessageFlagRefund),
-		Seqno: 10,
-		From:  types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e71"),
-		To:    types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e72"),
-		Value: types.NewValue(uint256.NewInt(1000)),
-		Data:  []byte{10, 20, 30, 40},
-	}
 }
