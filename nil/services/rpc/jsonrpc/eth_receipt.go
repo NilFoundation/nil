@@ -8,10 +8,6 @@ import (
 )
 
 func (api *APIImpl) GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*RPCReceipt, error) {
-	if err := api.checkShard(shardId); err != nil {
-		return nil, err
-	}
-
 	info, err := api.rawapi.GetInMessageReceipt(ctx, shardId, hash)
 	if err != nil {
 		return nil, err

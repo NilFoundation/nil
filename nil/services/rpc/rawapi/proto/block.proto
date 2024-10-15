@@ -27,6 +27,7 @@ message Address {
 enum NamedBlockReference {
   EarliestBlock = 0;
   LatestBlock = -1;
+  PendingBlock = -2;
 }
 
 message BlockReference {
@@ -108,5 +109,16 @@ message CurrenciesResponse {
   oneof result {
     Error error = 1;
     Currencies data = 2;
+  }
+}
+
+message SendMessageRequest {
+  bytes messageSSZ = 1;
+}
+
+message SendMessageResponse {
+  oneof result {
+    Error error = 1;
+    uint32 status = 2;
   }
 }

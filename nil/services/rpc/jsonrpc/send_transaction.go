@@ -14,27 +14,17 @@ import (
 func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Bytes) (common.Hash, error) {
 	var extMsg types.ExternalMessage
 	if err := extMsg.UnmarshalSSZ(encoded); err != nil {
-		return common.Hash{}, fmt.Errorf("failed to decode message: %w", err)
-	}
-
-	if extMsg.ChainId != types.DefaultChainId {
-		return common.Hash{}, errInvalidChainId
+		return common.EmptyHash, fmt.Errorf("failed to decode message: %w", err)
 	}
 
 	shardId := extMsg.To.ShardId()
-	if err := api.checkShard(shardId); err != nil {
-		return common.Hash{}, err
-	}
-
-	msg := extMsg.ToMessage()
-	reason, err := api.msgPools[shardId].Add(ctx, msg)
+	reason, err := api.rawapi.SendMessage(ctx, shardId, []byte(encoded))
 	if err != nil {
-		return common.Hash{}, err
+		return common.EmptyHash, err
 	}
 
-	if reason[0] != msgpool.NotSet {
-		return common.Hash{}, fmt.Errorf("message status: %s", reason[0])
+	if reason != msgpool.NotSet {
+		return common.Hash{}, fmt.Errorf("message status: %s", reason)
 	}
-
-	return msg.Hash(), nil
+	return extMsg.Hash(), nil
 }

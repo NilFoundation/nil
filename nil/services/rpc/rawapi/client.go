@@ -13,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/msgpool"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
@@ -86,6 +87,14 @@ func (api *NetworkShardApiAccessor) GasPrice(ctx context.Context) (types.Value, 
 
 func (api *NetworkShardApiAccessor) GetShardIdList(ctx context.Context) ([]types.ShardId, error) {
 	return sendRequestAndGetResponseWithCallerMethodName[[]types.ShardId](ctx, api, "GetShardIdList")
+}
+
+func (api *NetworkShardApiAccessor) GetMessageCount(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (uint64, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[uint64](ctx, api, "GetMessageCount", address, blockReference)
+}
+
+func (api *NetworkShardApiAccessor) SendMessage(ctx context.Context, message []byte) (msgpool.DiscardReason, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[msgpool.DiscardReason](ctx, api, "SendMessage", message)
 }
 
 func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkShardApiAccessor, methodName string, args ...any) (ResponseType, error) {

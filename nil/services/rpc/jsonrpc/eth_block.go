@@ -46,18 +46,6 @@ func extractBlockHash(tx db.RoTx, shardId types.ShardId, numOrHash transport.Blo
 	return *numOrHash.BlockHash, nil
 }
 
-func (api *APIImpl) fetchBlockByNumberOrHash(tx db.RoTx, shardId types.ShardId, numOrHash transport.BlockNumberOrHash) (*types.Block, error) {
-	hash, err := extractBlockHash(tx, shardId, numOrHash)
-	if err != nil {
-		return nil, err
-	}
-	if data, err := api.accessor.Access(tx, shardId).GetBlock().ByHash(hash); err != nil {
-		return nil, err
-	} else {
-		return data.Block(), nil
-	}
-}
-
 func sszToRPCBlock(shardId types.ShardId, raw *types.RawBlockWithExtractedData, fullTx bool) (*RPCBlock, error) {
 	data, err := raw.DecodeSSZ()
 	if err != nil {
@@ -80,14 +68,7 @@ func (api *APIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId,
 		return nil, errNotImplemented
 	}
 
-	var ref rawapitypes.BlockReference
-	if number <= 0 {
-		ref = rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.NamedBlockIdentifier(number))
-	} else {
-		ref = rawapitypes.BlockNumberAsBlockReference(types.BlockNumber(number))
-	}
-
-	res, err := api.rawapi.GetFullBlockData(ctx, shardId, ref)
+	res, err := api.rawapi.GetFullBlockData(ctx, shardId, blockNrToBlockReference(number))
 	if err != nil {
 		return nil, err
 	}
@@ -110,15 +91,7 @@ func (api *APIImpl) GetBlockTransactionCountByNumber(
 	if number < transport.LatestBlockNumber {
 		return 0, errNotImplemented
 	}
-
-	var ref rawapitypes.BlockReference
-	if number <= 0 {
-		ref = rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.NamedBlockIdentifier(number))
-	} else {
-		ref = rawapitypes.BlockNumberAsBlockReference(types.BlockNumber(number))
-	}
-
-	res, err := api.rawapi.GetBlockTransactionCount(ctx, shardId, ref)
+	res, err := api.rawapi.GetBlockTransactionCount(ctx, shardId, blockNrToBlockReference(number))
 	return hexutil.Uint(res), err
 }
 

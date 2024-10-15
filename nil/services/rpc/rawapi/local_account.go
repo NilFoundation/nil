@@ -126,3 +126,31 @@ func (api *LocalShardApi) getSmartContract(tx db.RoTx, address types.Address, bl
 
 	return contract, nil
 }
+
+func (api *LocalShardApi) GetMessageCount(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (uint64, error) {
+	if blockReference.Type() == rawapitypes.NamedBlockIdentifierReference &&
+		blockReference.NamedBlockIdentifier() == rawapitypes.PendingBlock {
+		seqno, inPool := api.msgpool.SeqnoToAddress(address)
+		if inPool {
+			seqno++
+			return uint64(seqno), nil
+		}
+		// Fallback to latest block if no message in pool
+		blockReference = rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock)
+	}
+
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("cannot open tx to find account: %w", err)
+	}
+	defer tx.Rollback()
+
+	acc, err := api.getSmartContract(tx, address, blockReference)
+	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	return uint64(acc.ExtSeqno), nil
+}

@@ -68,7 +68,7 @@ func (api *LocalShardApi) getBlockHashByReference(tx db.RoTx, blockReference raw
 		switch blockReference.NamedBlockIdentifier() {
 		case rawapitypes.EarliestBlock:
 			return db.ReadBlockHashByNumber(tx, api.ShardId, 0)
-		case rawapitypes.LatestBlock:
+		case rawapitypes.LatestBlock, rawapitypes.PendingBlock:
 			return db.ReadLastBlockHash(tx, api.ShardId)
 		}
 		return common.Hash{}, errors.New("unknown named block identifier")

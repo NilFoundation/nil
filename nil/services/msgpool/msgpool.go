@@ -188,6 +188,11 @@ func (p *MsgPool) validateMsg(msg *metaMsg) (DiscardReason, bool) {
 			Msg("Seqno too low.")
 		return SeqnoTooLow, false
 	}
+
+	if msg.ChainId != types.DefaultChainId {
+		return InvalidChainId, false
+	}
+
 	return NotSet, true
 }
 

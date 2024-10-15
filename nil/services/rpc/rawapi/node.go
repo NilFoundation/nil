@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/msgpool"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
@@ -31,12 +32,12 @@ func NewNodeApiOverShardApis(apis map[types.ShardId]ShardApi) *NodeApiOverShardA
 	return nodeApi
 }
 
-var errShardNotFound = errors.New("shard API not found")
+var ErrShardNotFound = errors.New("shard API not found")
 
 func (api *NodeApiOverShardApis) GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
 	shardApi, ok := api.Apis[shardId]
 	if !ok {
-		return nil, errShardNotFound
+		return nil, ErrShardNotFound
 	}
 	return shardApi.GetBlockHeader(ctx, blockReference)
 }
@@ -44,7 +45,7 @@ func (api *NodeApiOverShardApis) GetBlockHeader(ctx context.Context, shardId typ
 func (api *NodeApiOverShardApis) GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
 	shardApi, ok := api.Apis[shardId]
 	if !ok {
-		return nil, errShardNotFound
+		return nil, ErrShardNotFound
 	}
 	return shardApi.GetFullBlockData(ctx, blockReference)
 }
@@ -52,7 +53,7 @@ func (api *NodeApiOverShardApis) GetFullBlockData(ctx context.Context, shardId t
 func (api *NodeApiOverShardApis) GetBlockTransactionCount(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (uint64, error) {
 	shardApi, ok := api.Apis[shardId]
 	if !ok {
-		return 0, errShardNotFound
+		return 0, ErrShardNotFound
 	}
 	return shardApi.GetBlockTransactionCount(ctx, blockReference)
 }
@@ -60,7 +61,7 @@ func (api *NodeApiOverShardApis) GetBlockTransactionCount(ctx context.Context, s
 func (api *NodeApiOverShardApis) GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error) {
 	shardApi, ok := api.Apis[address.ShardId()]
 	if !ok {
-		return types.Value{}, errShardNotFound
+		return types.Value{}, ErrShardNotFound
 	}
 	return shardApi.GetBalance(ctx, address, blockReference)
 }
@@ -68,7 +69,7 @@ func (api *NodeApiOverShardApis) GetBalance(ctx context.Context, address types.A
 func (api *NodeApiOverShardApis) GetCode(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Code, error) {
 	shardApi, ok := api.Apis[address.ShardId()]
 	if !ok {
-		return types.Code{}, errShardNotFound
+		return types.Code{}, ErrShardNotFound
 	}
 	return shardApi.GetCode(ctx, address, blockReference)
 }
@@ -76,7 +77,7 @@ func (api *NodeApiOverShardApis) GetCode(ctx context.Context, address types.Addr
 func (api *NodeApiOverShardApis) GetCurrencies(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (map[types.CurrencyId]types.Value, error) {
 	shardApi, ok := api.Apis[address.ShardId()]
 	if !ok {
-		return nil, errShardNotFound
+		return nil, ErrShardNotFound
 	}
 	return shardApi.GetCurrencies(ctx, address, blockReference)
 }
@@ -86,7 +87,7 @@ func (api *NodeApiOverShardApis) Call(
 ) (*rpctypes.CallResWithGasPrice, error) {
 	shardApi, ok := api.Apis[args.To.ShardId()]
 	if !ok {
-		return nil, errShardNotFound
+		return nil, ErrShardNotFound
 	}
 	return shardApi.Call(ctx, args, mainBlockNrOrHash, overrides, emptyMessageIsRoot)
 }
@@ -94,7 +95,7 @@ func (api *NodeApiOverShardApis) Call(
 func (api *NodeApiOverShardApis) GetInMessage(ctx context.Context, shardId types.ShardId, request rawapitypes.MessageRequest) (*rawapitypes.MessageInfo, error) {
 	shardApi, ok := api.Apis[shardId]
 	if !ok {
-		return nil, errShardNotFound
+		return nil, ErrShardNotFound
 	}
 	return shardApi.GetInMessage(ctx, request)
 }
@@ -102,7 +103,7 @@ func (api *NodeApiOverShardApis) GetInMessage(ctx context.Context, shardId types
 func (api *NodeApiOverShardApis) GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*rawapitypes.ReceiptInfo, error) {
 	shardApi, ok := api.Apis[shardId]
 	if !ok {
-		return nil, errShardNotFound
+		return nil, ErrShardNotFound
 	}
 	return shardApi.GetInMessageReceipt(ctx, hash)
 }
@@ -110,7 +111,7 @@ func (api *NodeApiOverShardApis) GetInMessageReceipt(ctx context.Context, shardI
 func (api *NodeApiOverShardApis) GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error) {
 	shardApi, ok := api.Apis[shardId]
 	if !ok {
-		return types.Value{}, errShardNotFound
+		return types.Value{}, ErrShardNotFound
 	}
 	return shardApi.GasPrice(ctx)
 }
@@ -118,7 +119,23 @@ func (api *NodeApiOverShardApis) GasPrice(ctx context.Context, shardId types.Sha
 func (api *NodeApiOverShardApis) GetShardIdList(ctx context.Context) ([]types.ShardId, error) {
 	shardApi, ok := api.Apis[types.MainShardId]
 	if !ok {
-		return nil, errShardNotFound
+		return nil, ErrShardNotFound
 	}
 	return shardApi.GetShardIdList(ctx)
+}
+
+func (api *NodeApiOverShardApis) GetMessageCount(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (uint64, error) {
+	shardApi, ok := api.Apis[address.ShardId()]
+	if !ok {
+		return 0, ErrShardNotFound
+	}
+	return shardApi.GetMessageCount(ctx, address, blockReference)
+}
+
+func (api *NodeApiOverShardApis) SendMessage(ctx context.Context, shardId types.ShardId, message []byte) (msgpool.DiscardReason, error) {
+	shardApi, ok := api.Apis[shardId]
+	if !ok {
+		return 0, ErrShardNotFound
+	}
+	return shardApi.SendMessage(ctx, message)
 }

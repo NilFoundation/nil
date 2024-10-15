@@ -6,6 +6,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/msgpool"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
@@ -21,12 +22,16 @@ type NodeApi interface {
 	GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error)
 	GetCode(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Code, error)
 	GetCurrencies(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (map[types.CurrencyId]types.Value, error)
+	GetMessageCount(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (uint64, error)
+
 	Call(
 		ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
 	) (*rpctypes.CallResWithGasPrice, error)
 
 	GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error)
 	GetShardIdList(ctx context.Context) ([]types.ShardId, error)
+
+	SendMessage(ctx context.Context, shardId types.ShardId, message []byte) (msgpool.DiscardReason, error)
 }
 
 type ShardApi interface {
@@ -40,6 +45,7 @@ type ShardApi interface {
 	GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error)
 	GetCode(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Code, error)
 	GetCurrencies(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (map[types.CurrencyId]types.Value, error)
+	GetMessageCount(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (uint64, error)
 
 	Call(
 		ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
@@ -47,4 +53,6 @@ type ShardApi interface {
 
 	GasPrice(ctx context.Context) (types.Value, error)
 	GetShardIdList(ctx context.Context) ([]types.ShardId, error)
+
+	SendMessage(ctx context.Context, message []byte) (msgpool.DiscardReason, error)
 }

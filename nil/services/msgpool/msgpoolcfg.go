@@ -28,6 +28,7 @@ const (
 	AlreadyKnown        DiscardReason = 2
 	Committed           DiscardReason = 3
 	ReplacedByHigherTip DiscardReason = 4
+	InvalidChainId      DiscardReason = 5
 	NegativeValue       DiscardReason = 10 // ensure no one is able to specify a transaction with a negative value.
 	PoolOverflow        DiscardReason = 12
 	SeqnoTooLow         DiscardReason = 18
@@ -47,6 +48,8 @@ func (r DiscardReason) String() string {
 		return "committed"
 	case ReplacedByHigherTip:
 		return "replaced by higher tip"
+	case InvalidChainId:
+		return "invalid chain id"
 	case NotReplaced:
 		return "not replaced"
 	case NegativeValue:
