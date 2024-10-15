@@ -29,6 +29,21 @@ func (s *PubSubSuite) receive(ch <-chan []byte, expected []byte) {
 	}, 10*time.Second, 100*time.Millisecond)
 }
 
+func (s *PubSubSuite) ensureSkipped(sub *Subscription, ch <-chan []byte, curSkippedCounter int) {
+	s.T().Helper()
+
+	s.Eventually(func() bool {
+		return int(sub.Counters().SkippedMessages.Load()) > curSkippedCounter
+	}, 10*time.Second, 100*time.Millisecond)
+
+	// check there are no new messages
+	select {
+	case <-ch:
+		s.Require().Fail("")
+	default:
+	}
+}
+
 func (s *PubSubSuite) listPeers(manager *Manager, topic string) []PeerID {
 	s.T().Helper()
 
@@ -52,7 +67,7 @@ func (s *PubSubSuite) TestSingleHost() {
 	err = manager.PubSub().Publish(s.context, topic, msg)
 	s.Require().NoError(err)
 
-	s.receive(ch, msg)
+	s.ensureSkipped(sub, ch, 0)
 }
 
 func (s *PubSubSuite) TestTwoHosts() {
@@ -97,6 +112,7 @@ func (s *PubSubSuite) TestComplexScenario() {
 	})
 
 	const topic1 = "test1"
+	const topic2 = "test2"
 	const publisher1 = 2
 	const publisher2 = 0
 	s.Require().NotEqual(publisher1, publisher2)
@@ -149,13 +165,16 @@ func (s *PubSubSuite) TestComplexScenario() {
 
 		s.Run("Receive", func() {
 			for i := range n {
-				s.receive(topic1Channels[i], msg1)
+				if i == publisher1 {
+					s.ensureSkipped(topic1Subs[i], topic1Channels[i], 0)
+				} else {
+					s.receive(topic1Channels[i], msg1)
+				}
 			}
 		})
 	})
 
 	s.Run("Topic 2", func() {
-		const topic2 = "test2"
 		const subscriber = centralHost + 1
 		s.Require().NotEqual(topic1, topic2)
 		s.Require().Less(subscriber, n)
@@ -195,7 +214,11 @@ func (s *PubSubSuite) TestComplexScenario() {
 
 		s.Run("Receive", func() {
 			for i := range n {
-				s.receive(topic1Channels[i], msg2)
+				if i == publisher2 {
+					s.ensureSkipped(topic1Subs[i], topic1Channels[i], 0)
+				} else {
+					s.receive(topic1Channels[i], msg2)
+				}
 			}
 		})
 	})

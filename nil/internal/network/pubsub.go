@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -17,14 +18,21 @@ type PubSub struct {
 
 	mu     sync.Mutex
 	topics map[string]*pubsub.Topic
+	self   PeerID
 
 	logger zerolog.Logger
 }
 
+type SubscriptionCounters struct {
+	SkippedMessages atomic.Uint32
+}
+
 type Subscription struct {
 	impl *pubsub.Subscription
+	self PeerID
 
-	logger zerolog.Logger
+	logger   zerolog.Logger
+	counters SubscriptionCounters
 }
 
 // newPubSub creates a new PubSub instance. It must be closed after use.
@@ -37,6 +45,7 @@ func newPubSub(ctx context.Context, h Host, logger zerolog.Logger) (*PubSub, err
 	return &PubSub{
 		impl:   impl,
 		topics: make(map[string]*pubsub.Topic),
+		self:   h.ID(),
 		logger: logger.With().
 			Str(logging.FieldComponent, "pub-sub").
 			Logger(),
@@ -101,6 +110,7 @@ func (ps *PubSub) Subscribe(topic string) (*Subscription, error) {
 	logger.Debug().Msg("Subscribed to topic")
 	return &Subscription{
 		impl:   impl,
+		self:   ps.self,
 		logger: logger,
 	}, nil
 }
@@ -154,6 +164,12 @@ func (s *Subscription) Start(ctx context.Context) <-chan []byte {
 				continue
 			}
 
+			if msg.ReceivedFrom == s.self {
+				s.logger.Trace().Msg("Skip message from self")
+				s.counters.SkippedMessages.Add(1)
+				continue
+			}
+
 			s.logger.Trace().Msg("Received message")
 
 			msgCh <- msg.Data
@@ -165,6 +181,10 @@ func (s *Subscription) Start(ctx context.Context) <-chan []byte {
 	}()
 
 	return msgCh
+}
+
+func (s *Subscription) Counters() *SubscriptionCounters {
+	return &s.counters
 }
 
 func (s *Subscription) Close() {
