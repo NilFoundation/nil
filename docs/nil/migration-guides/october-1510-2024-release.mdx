@@ -1,0 +1,46 @@
+# Release 15.10.2024: migration guide
+
+This release of =nil; adds support of the `onlyResponse` modifier, changes currency IDs to be of the `address` type and launches the currency faucet service.
+
+## Summary of key changes
+
+* The newly added currency faucet service makes it easy to transfer the default token (MZK) as well as various pre-set currencies (e.g., 'mock' implementations BTC or USDT) to any address
+* The `onlyResponse` modifier limits access to callback functions used in `sendRequest()`, making sure they can only be called by the response to a given request
+* `CurrencyId` is a new alias for the `address` type, fully replacing the previous currency IDs which were of the `uin256` type
+
+:::info
+
+[**Read this tutorial**](../getting-started/essentials/tokens-multi-currency.mdx#currency-faucet-service) to learn more about the currency faucet service.
+
+:::
+
+## Migration of smart contracts
+
+* Replace usage of `uint256` in currency IDs with `CurrencyId`
+
+`CurrencyId` is an alias for the `address` type which fully replaces the previous system where currency IDs were of the `uint256` type. To cast a contract address to a `CurrencyId`:
+
+```solidity showLineNumbers
+CurrencyId id = CurrencyId.wrap(address(this));
+```
+
+This change simplifies the management of custom currencies as there is no longer a need to keep track of separate currency addresses and their IDs.
+
+* Mark callback functions with the `onlyResponse` modifier
+
+The `Nil.sol` library now includes [**the `onlyResponse` modifier**](../tools/sol-library/func-modifiers.mdx). After this modifier is applied to a function, said function can only be called by responses that arrive to the requests sent via `sendRequest()`. The modifier protects callback functions from being unfairly executed by malicious parties.
+
+## Migration of the =nil; CLI
+
+No specific changes have to be made to the =nil; CLI commands.
+
+## Migration of Nil.js scripts
+
+The Nil.js client library now supports several useful 'wrappers' designed to simplify work with the faucet service.
+
+[**Read this tutorial**](../getting-started/essentials/tokens-multi-currency.mdx#currency-faucet-service) to learn more or access the [**references for Nil.js to learn more.**](../reference/client/index.mdx).
+
+## Migration of Hardhat scripts
+
+No specific changes have to be made to existing Hardhat scripts.
+

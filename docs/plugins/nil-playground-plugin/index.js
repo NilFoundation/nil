@@ -5,7 +5,6 @@ import { ExecutionRevertedError } from 'viem';
 
 
 export default async function nilPlaygroundPlugin(context, options) {
-  const { contracts } = options;
   return {
     name: 'nil-playground-plugin',
     getThemePath() {

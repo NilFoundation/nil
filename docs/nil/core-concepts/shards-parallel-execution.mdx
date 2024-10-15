@@ -67,8 +67,8 @@ sequenceDiagram
     Note right of S1: Contract 1 is freed and can execute other operations
     S1 --> S2: Shard 2 picks up external messages from its mempool
     S2 ->> S2: Shard 2 picks up internal messages from other shards
-    S2 ->> S2: Shard 2 creates a new block and processes messages
     S2 ->> S2: Contract 2 executes the function<br>that Contract 1 called   
+    S2 ->> S2: Shard 2 creates a new block that includes the picked up messages
 ```
 
 The key stages of this flow are:
