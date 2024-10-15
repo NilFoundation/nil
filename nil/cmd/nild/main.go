@@ -99,9 +99,13 @@ func addTelemetryFlags(fset *pflag.FlagSet, cfg *nildconfig.Config) {
 	fset.BoolVar(&cfg.Telemetry.ExportMetrics, "metrics", cfg.Telemetry.ExportMetrics, "export metrics via grpc")
 }
 
+func addAllowDbClearFlag(fset *pflag.FlagSet, cfg *nildconfig.Config) {
+	fset.BoolVar(&cfg.DB.AllowDrop, "allow-db-clear", cfg.DB.AllowDrop, "allow to clear database in case of outdated version")
+}
+
 func addBasicFlags(fset *pflag.FlagSet, cfg *nildconfig.Config) {
 	fset.UintSliceVar(&cfg.MyShards, "my-shards", cfg.MyShards, "run only specified shard(s)")
-	fset.BoolVar(&cfg.DB.AllowDrop, "allow-db-clear", cfg.DB.AllowDrop, "allow to clear database in case of outdated version")
+	addAllowDbClearFlag(fset, cfg)
 	fset.Uint32Var(&cfg.CollatorTickPeriodMs, "collator-tick-ms", cfg.CollatorTickPeriodMs, "collator tick period in milliseconds")
 }
 
@@ -179,6 +183,7 @@ func parseArgs() *nildconfig.Config {
 		},
 	}
 
+	addAllowDbClearFlag(rpcCmd.Flags(), cfg)
 	addNetworkFlags(rpcCmd.Flags(), cfg)
 	addTelemetryFlags(rpcCmd.Flags(), cfg)
 
