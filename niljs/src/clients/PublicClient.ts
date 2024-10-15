@@ -99,7 +99,7 @@ class PublicClient extends BaseClient {
    * const block = await client.getBlockByNumber(1);
    */
   public async getBlockByNumber(
-    blockNumber: Hex,
+    blockNumber: Hex | BlockTag,
     fullTx = false,
     shardId = this.shardId,
   ) {

@@ -8,7 +8,6 @@ import {
   bytesToHex,
   convertEthToWei,
   generateRandomPrivateKey,
-  hexToBigInt,
   waitTillCompleted,
 } from "../src";
 
