@@ -18,7 +18,15 @@ var (
 	_ fastssz.Unmarshaler = new(VersionInfo)
 )
 
-var SchemesInsideDb = []any{SmartContract{}, Block{}, Message{}, ExternalMessage{}, InternalMessagePayload{}}
+var SchemesInsideDb = []any{
+	SmartContract{},
+	Block{},
+	Message{},
+	ExternalMessage{},
+	InternalMessagePayload{},
+	AsyncContext{},
+	CollatorState{},
+}
 
 const SchemeVersionInfoKey = "SchemeVersionInfo"
 
