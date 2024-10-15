@@ -5,12 +5,23 @@ option go_package = "/pb";
 
 import "nil/services/rpc/rawapi/proto/block.proto";
 
-message GasPriceRequest {
+message EmptyRequest {
 }
 
 message GasPriceResponse {
   oneof result {
     Error error = 1;
     Uint256 data = 2;
+  }
+}
+
+message ShardIdList {
+  repeated uint32 ids = 1;
+}
+
+message ShardIdListResponse {
+  oneof result {
+    Error error = 1;
+    ShardIdList data = 2;
   }
 }

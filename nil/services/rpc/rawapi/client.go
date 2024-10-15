@@ -84,6 +84,10 @@ func (api *NetworkShardApiAccessor) GasPrice(ctx context.Context) (types.Value, 
 	return sendRequestAndGetResponseWithCallerMethodName[types.Value](ctx, api, "GasPrice")
 }
 
+func (api *NetworkShardApiAccessor) GetShardIdList(ctx context.Context) ([]types.ShardId, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[[]types.ShardId](ctx, api, "GetShardIdList")
+}
+
 func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkShardApiAccessor, methodName string, args ...any) (ResponseType, error) {
 	if assert.Enable {
 		callerMethodName := extractCallerMethodName(2)

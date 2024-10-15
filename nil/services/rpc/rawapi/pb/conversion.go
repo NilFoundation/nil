@@ -999,10 +999,46 @@ func (r *GasPriceResponse) UnpackProtoMessage() (types.Value, error) {
 	return types.Value{Uint256: &uint256}, nil
 }
 
-func (r *GasPriceRequest) PackProtoMessage() error {
+func (r *EmptyRequest) PackProtoMessage() error {
 	return nil
 }
 
-func (r *GasPriceRequest) UnpackProtoMessage() error {
+func (r *EmptyRequest) UnpackProtoMessage() error {
 	return nil
+}
+
+func (sr *ShardIdListResponse) PackProtoMessage(shardIdList []types.ShardId, err error) error {
+	if err != nil {
+		sr.Result = &ShardIdListResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+
+	result := &ShardIdList{
+		Ids: make([]uint32, 0, len(shardIdList)),
+	}
+	for _, shardId := range shardIdList {
+		result.Ids = append(result.Ids, uint32(shardId))
+	}
+	sr.Result = &ShardIdListResponse_Data{Data: result}
+	return nil
+}
+
+func (sr *ShardIdListResponse) UnpackProtoMessage() ([]types.ShardId, error) {
+	switch sr.Result.(type) {
+	case *ShardIdListResponse_Error:
+		return nil, sr.GetError().UnpackProtoMessage()
+
+	case *ShardIdListResponse_Data:
+		data := sr.GetData()
+		if data == nil {
+			return nil, errors.New("unexpected response")
+		}
+
+		shardIdList := make([]types.ShardId, 0, len(data.Ids))
+		for _, id := range data.Ids {
+			shardIdList = append(shardIdList, types.ShardId(id))
+		}
+		return shardIdList, nil
+	}
+	return nil, errors.New("unexpected response type")
 }
