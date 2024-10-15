@@ -6,13 +6,13 @@ import (
 	"strings"
 	"testing"
 
+	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	nilcrypto "github.com/NilFoundation/nil/nil/internal/crypto"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
-	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -45,20 +45,22 @@ contracts:
 }
 
 func (s *SuiteCliTestCall) SetupTest() {
-	HttpUrl := rpc.GetSockPath(s.T())
-	s.start(&nilservice.Config{
+	s.startWithRPC(&nilservice.Config{
 		NShards:       s.shardsNum,
-		HttpUrl:       HttpUrl,
+		RunMode:       nilservice.NormalRunMode,
 		ZeroStateYaml: s.zerostateCfg,
-	})
+	}, 11005, 11006)
 
 	iniDataTmpl := `[nil]
 rpc_endpoint = {{ .HttpUrl }}
 private_key = {{ .PrivateKey }}
 address = {{ .Address }}
 `
+	client, ok := s.client.(*rpc_client.Client)
+	s.Require().True(ok)
+
 	iniData, err := common.ParseTemplate(iniDataTmpl, map[string]interface{}{
-		"HttpUrl":    HttpUrl,
+		"HttpUrl":    client.GetEndpoint(),
 		"PrivateKey": nilcrypto.PrivateKeyToEthereumFormat(execution.MainPrivateKey),
 		"Address":    types.MainWalletAddress.Hex(),
 	})
