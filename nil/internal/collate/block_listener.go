@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/ssz"
 	"github.com/NilFoundation/nil/nil/internal/collate/pb"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -159,9 +158,7 @@ func SetRequestHandler(ctx context.Context, networkManager *network.Manager, sha
 	}
 
 	// Sharing accessor between all handlers enables caching.
-	accessor, err := execution.NewStateAccessor()
-	check.PanicIfErr(err)
-
+	accessor := execution.NewStateAccessor()
 	handler := func(ctx context.Context, req []byte) ([]byte, error) {
 		var blockReq pb.BlockRequest
 		if err := proto.Unmarshal(req, &blockReq); err != nil {

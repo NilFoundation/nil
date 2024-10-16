@@ -219,10 +219,7 @@ func NewROExecutionStateForShard(tx db.RoTx, shardId types.ShardId, timer common
 }
 
 func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash, timer common.Timer, gasPriceScale float64) (*ExecutionState, error) {
-	stateAccessor, err := NewStateAccessor()
-	if err != nil {
-		return nil, err
-	}
+	stateAccessor := NewStateAccessor()
 	shardAccessor := stateAccessor.Access(tx, shardId)
 	mainAccessor := stateAccessor.Access(tx, types.MainShardId)
 

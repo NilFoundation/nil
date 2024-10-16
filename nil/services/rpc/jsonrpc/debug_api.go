@@ -32,7 +32,7 @@ type DebugAPIImpl struct {
 var _ DebugAPI = &DebugAPIImpl{}
 
 func NewDebugAPI(rawApi rawapi.NodeApi, db db.ReadOnlyDB, logger zerolog.Logger) *DebugAPIImpl {
-	accessor, _ := execution.NewStateAccessor()
+	accessor := execution.NewStateAccessor()
 	return &DebugAPIImpl{
 		db:       db,
 		logger:   logger,

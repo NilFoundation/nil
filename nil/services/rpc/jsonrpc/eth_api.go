@@ -340,11 +340,8 @@ var (
 )
 
 // NewEthAPI returns APIImpl instance
-func NewEthAPI(ctx context.Context, rawapi rawapi.NodeApi, db db.ReadOnlyDB, pollBlocksForLogs bool) (*APIImpl, error) {
-	accessor, err := execution.NewStateAccessor()
-	if err != nil {
-		return nil, err
-	}
+func NewEthAPI(ctx context.Context, rawapi rawapi.NodeApi, db db.ReadOnlyDB, pollBlocksForLogs bool) *APIImpl {
+	accessor := execution.NewStateAccessor()
 	api := &APIImpl{
 		db:       db,
 		logger:   logging.NewLogger("eth-api"),
@@ -352,7 +349,7 @@ func NewEthAPI(ctx context.Context, rawapi rawapi.NodeApi, db db.ReadOnlyDB, pol
 		rawapi:   rawapi,
 	}
 	api.logs = NewLogsAggregator(ctx, db, pollBlocksForLogs)
-	return api, nil
+	return api
 }
 
 func (api *APIImpl) Shutdown() {

@@ -48,12 +48,11 @@ func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db 
 		HTTPTimeouts:    httpcfg.DefaultHTTPTimeouts,
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
 	pollBlocksForLogs := cfg.RunMode == NormalRunMode
-	ethImpl, err := jsonrpc.NewEthAPI(ctx, rawApi, db, pollBlocksForLogs)
-	if err != nil {
-		return err
-	}
+	ethImpl := jsonrpc.NewEthAPI(ctx, rawApi, db, pollBlocksForLogs)
 	defer ethImpl.Shutdown()
+	defer cancel()
 
 	var ethApiService any
 	if cfg.RunMode == NormalRunMode {
@@ -108,8 +107,6 @@ type ServiceInterop struct {
 }
 
 func getRawApi(cfg *Config, networkManager *network.Manager, database db.DB, msgPools []msgpool.Pool) (*rawapi.NodeApiOverShardApis, error) {
-	var err error
-
 	var myShards []uint
 	switch cfg.RunMode {
 	case BlockReplayRunMode:
@@ -131,12 +128,10 @@ func getRawApi(cfg *Config, networkManager *network.Manager, database db.DB, msg
 
 	shardApis := make(map[types.ShardId]rawapi.ShardApi)
 	for shardId := range types.ShardId(cfg.NShards) {
+		var err error
 		if slices.Contains(myShards, uint(shardId)) {
-			shardApis[shardId], err = rawapi.NewLocalShardApi(shardId, database, msgPools[shardId])
+			shardApis[shardId] = rawapi.NewLocalShardApi(shardId, database, msgPools[shardId])
 			if assert.Enable {
-				if err != nil {
-					return nil, err
-				}
 				shardApis[shardId], err = rawapi.NewLocalRawApiAccessor(shardId, shardApis[shardId].(*rawapi.LocalShardApi))
 			}
 		} else {

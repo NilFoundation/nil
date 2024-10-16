@@ -18,17 +18,14 @@ type LocalShardApi struct {
 
 var _ ShardApi = (*LocalShardApi)(nil)
 
-func NewLocalShardApi(shardId types.ShardId, db db.ReadOnlyDB, msgpool msgpool.Pool) (*LocalShardApi, error) {
-	stateAccessor, err := execution.NewStateAccessor()
-	if err != nil {
-		return nil, err
-	}
+func NewLocalShardApi(shardId types.ShardId, db db.ReadOnlyDB, msgpool msgpool.Pool) *LocalShardApi {
+	stateAccessor := execution.NewStateAccessor()
 	return &LocalShardApi{
 		db:       db,
 		accessor: stateAccessor,
 		ShardId:  shardId,
 		msgpool:  msgpool,
-	}, nil
+	}
 }
 
 func (api *LocalShardApi) setNodeApi(nodeApi NodeApi) {

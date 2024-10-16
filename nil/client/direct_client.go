@@ -36,10 +36,7 @@ func NewEthClient(ctx context.Context, wg *sync.WaitGroup, db db.ReadOnlyDB, msg
 	localShardApis := make(map[types.ShardId]rawapi.ShardApi)
 	for i, pool := range msgPools {
 		shardId := types.ShardId(i)
-		shardApi, err := rawapi.NewLocalShardApi(shardId, db, pool)
-		if err != nil {
-			return nil, err
-		}
+		shardApi := rawapi.NewLocalShardApi(shardId, db, pool)
 		localShardApis[shardId], err = rawapi.NewLocalRawApiAccessor(shardId, shardApi)
 		if err != nil {
 			return nil, err
@@ -47,11 +44,7 @@ func NewEthClient(ctx context.Context, wg *sync.WaitGroup, db db.ReadOnlyDB, msg
 	}
 	localApi := rawapi.NewNodeApiOverShardApis(localShardApis)
 
-	ethApi, err := jsonrpc.NewEthAPI(ctx, localApi, db, true)
-	if err != nil {
-		return nil, err
-	}
-
+	ethApi := jsonrpc.NewEthAPI(ctx, localApi, db, true)
 	debugApi := jsonrpc.NewDebugAPI(localApi, db, logger)
 	dbApi := jsonrpc.NewDbAPI(db, logger)
 
