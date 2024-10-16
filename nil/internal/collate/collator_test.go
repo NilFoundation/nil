@@ -205,9 +205,7 @@ func (s *CollatorTestSuite) checkSeqno(shardId types.ShardId) {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	sa, err := execution.NewStateAccessor()
-	s.Require().NoError(err)
-
+	sa := execution.NewStateAccessor()
 	blockHash, err := db.ReadLastBlockHash(tx, shardId)
 	s.Require().NoError(err)
 
@@ -236,9 +234,7 @@ func (s *CollatorTestSuite) checkReceipt(shardId types.ShardId, m *types.Message
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	sa, err := execution.NewStateAccessor()
-	s.Require().NoError(err)
-
+	sa := execution.NewStateAccessor()
 	msgData, err := sa.Access(tx, m.From.ShardId()).GetInMessage().ByHash(m.Hash())
 	s.Require().NoError(err)
 

@@ -43,7 +43,7 @@ type StateAccessor struct {
 	rawCache *rawAccessorCache
 }
 
-func NewStateAccessor() (*StateAccessor, error) {
+func NewStateAccessor() *StateAccessor {
 	const (
 		blocksLRUSize      = 128 // ~32Mb
 		inMessagesLRUSize  = 32
@@ -54,7 +54,7 @@ func NewStateAccessor() (*StateAccessor, error) {
 	return &StateAccessor{
 		cache:    newAccessorCache(blocksLRUSize, inMessagesLRUSize, outMessagesLRUSize, receiptsLRUSize),
 		rawCache: newRawAccessorCache(blocksLRUSize, inMessagesLRUSize, outMessagesLRUSize, receiptsLRUSize),
-	}, nil
+	}
 }
 
 func (s *StateAccessor) Access(tx db.RoTx, shardId types.ShardId) *shardAccessor {

@@ -65,9 +65,7 @@ func TestDebugGetBlock(t *testing.T) {
 	err = tx.Commit()
 	require.NoError(t, err)
 
-	mainShardApi, err := rawapi.NewLocalShardApi(types.MainShardId, database, nil)
-	require.NoError(t, err)
-
+	mainShardApi := rawapi.NewLocalShardApi(types.MainShardId, database, nil)
 	localShardApis := map[types.ShardId]rawapi.ShardApi{
 		types.MainShardId: mainShardApi,
 	}
@@ -145,9 +143,7 @@ func (suite *SuiteDbgContracts) SetupSuite() {
 	err = tx.Commit()
 	suite.Require().NoError(err)
 
-	shardApi, err := rawapi.NewLocalShardApi(shardId, suite.db, nil)
-	suite.Require().NoError(err)
-
+	shardApi := rawapi.NewLocalShardApi(shardId, suite.db, nil)
 	localShardApis := map[types.ShardId]rawapi.ShardApi{
 		shardId: shardApi,
 	}
