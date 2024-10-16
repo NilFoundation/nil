@@ -56,12 +56,12 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 		h.Peerstore().AddAddrs(peerInfo.ID, peerInfo.Addrs, peerstore.AddressTTL)
 	}
 
-	ps, err := newPubSub(ctx, h, logger)
+	dht, err := NewDHT(ctx, h, conf, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	dht, err := NewDHT(ctx, h, conf, logger)
+	ps, err := newPubSub(ctx, h, logger)
 	if err != nil {
 		return nil, err
 	}
