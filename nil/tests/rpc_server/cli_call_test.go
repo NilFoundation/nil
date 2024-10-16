@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	nilcrypto "github.com/NilFoundation/nil/nil/internal/crypto"
@@ -56,11 +55,9 @@ rpc_endpoint = {{ .HttpUrl }}
 private_key = {{ .PrivateKey }}
 address = {{ .Address }}
 `
-	client, ok := s.client.(*rpc_client.Client)
-	s.Require().True(ok)
 
 	iniData, err := common.ParseTemplate(iniDataTmpl, map[string]interface{}{
-		"HttpUrl":    client.GetEndpoint(),
+		"HttpUrl":    s.endpoint,
 		"PrivateKey": nilcrypto.PrivateKeyToEthereumFormat(execution.MainPrivateKey),
 		"Address":    types.MainWalletAddress.Hex(),
 	})

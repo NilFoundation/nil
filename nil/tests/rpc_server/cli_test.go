@@ -19,7 +19,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/NilFoundation/nil/nil/services/cometa"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
-	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/suite"
@@ -32,10 +31,9 @@ type SuiteCli struct {
 
 func (s *SuiteCli) SetupTest() {
 	s.tmpDir = s.T().TempDir()
-	s.start(&nilservice.Config{
+	s.startWithRPC(&nilservice.Config{
 		NShards: 5,
-		HttpUrl: rpc.GetSockPath(s.T()),
-	})
+	}, 11003, 11004)
 
 	s.cli = cliservice.NewService(s.client, execution.MainPrivateKey)
 	s.Require().NotNil(s.cli)
