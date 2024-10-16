@@ -112,12 +112,8 @@ func getRawApi(cfg *Config, networkManager *network.Manager, database db.DB, msg
 	case BlockReplayRunMode:
 		msgPools = make([]msgpool.Pool, cfg.NShards)
 		fallthrough
-	case NormalRunMode:
-		for shardId := range cfg.NShards {
-			myShards = append(myShards, uint(shardId))
-		}
-	case ArchiveRunMode:
-		myShards = append(myShards, cfg.MyShards...)
+	case NormalRunMode, ArchiveRunMode:
+		myShards = append(myShards, cfg.GetMyShards()...)
 	case RpcRunMode:
 		break
 	case CollatorsOnlyRunMode:

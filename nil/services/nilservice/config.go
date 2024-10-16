@@ -3,6 +3,7 @@ package nilservice
 import (
 	"slices"
 
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
@@ -94,6 +95,22 @@ func NewDefaultReplayConfig() *ReplayConfig {
 	}
 }
 
+func (c *Config) GetMyShards() []uint {
+	if !c.SplitShards {
+		shards := make([]uint, c.NShards)
+		for i := range shards {
+			shards[i] = uint(i)
+		}
+		return shards
+	}
+
+	return c.MyShards
+}
+
 func (c *Config) IsShardActive(shardId types.ShardId) bool {
-	return !c.SplitShards || slices.Contains(c.MyShards, uint(shardId))
+	if !c.SplitShards {
+		check.PanicIfNotf(shardId < types.ShardId(c.NShards), "shardId %d is out of range", shardId)
+		return true
+	}
+	return slices.Contains(c.MyShards, uint(shardId))
 }
