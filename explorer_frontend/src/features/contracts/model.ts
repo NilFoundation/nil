@@ -90,7 +90,7 @@ export const deploySmartContractFx = createEffect<
     feeCredit: convertEthToWei(0.00001),
   });
 
-  await waitTillCompleted(wallet.client, shardId, hash);
+  await waitTillCompleted(wallet.client, wallet.shardId, hash);
 
   return {
     address,
