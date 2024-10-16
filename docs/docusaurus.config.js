@@ -159,6 +159,11 @@ const config = {
               to: 'nil/migration-guides/october-1510-2024-release'
             },
             {
+              label: 'Videos',
+              position: 'left',
+              to: 'nil/vids/uniswap-v2'
+            },
+            {
               type: 'dropdown',
               label: 'Developer tools',
               position: 'right',

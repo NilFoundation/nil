@@ -274,6 +274,13 @@ export default {
 
 
   ],
+  vids: [
+    {
+      type: 'doc',
+      label: 'Uniswap v2 =nil;',
+      id: 'vids/uniswap-v2'
+    }
+  ],
   migrationGuides: [
     {
       type: 'doc',
