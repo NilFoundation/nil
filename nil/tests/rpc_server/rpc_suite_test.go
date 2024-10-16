@@ -156,6 +156,8 @@ func (s *RpcSuite) startWithRPC(cfg *nilservice.Config, validatorPort, rpcPort i
 	}()
 
 	s.client = rpc_client.NewClient(rpcCfg.HttpUrl, zerolog.New(os.Stderr))
+	s.endpoint = rpcCfg.HttpUrl
+	s.cometaEndpoint = strings.Replace(rpc.GetSockPathIdx(s.T(), 1), "tcp://", "http://", 1)
 
 	s.waitZerostateFunc(func(i uint32) bool {
 		block, err := s.client.GetDebugBlock(types.ShardId(i), transport.BlockNumber(0), false)
