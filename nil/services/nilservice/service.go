@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -25,6 +26,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/rs/zerolog"
 )
 
 // syncer will pull blocks actively if no blocks appear for 5 rounds
@@ -131,6 +133,12 @@ func getRawApi(cfg *Config, networkManager *network.Manager, database db.DB, msg
 	for shardId := range types.ShardId(cfg.NShards) {
 		if slices.Contains(myShards, uint(shardId)) {
 			shardApis[shardId], err = rawapi.NewLocalShardApi(shardId, database, msgPools[shardId])
+			if assert.Enable {
+				if err != nil {
+					return nil, err
+				}
+				shardApis[shardId], err = rawapi.NewLocalRawApiAccessor(shardId, shardApis[shardId].(*rawapi.LocalShardApi))
+			}
 		} else {
 			shardApis[shardId], err = rawapi.NewNetworkRawApiAccessor(shardId, networkManager)
 		}
@@ -140,6 +148,28 @@ func getRawApi(cfg *Config, networkManager *network.Manager, database db.DB, msg
 	}
 	rawApi := rawapi.NewNodeApiOverShardApis(shardApis)
 	return rawApi, nil
+}
+
+func setP2pRequestHandlers(ctx context.Context, rawApi *rawapi.NodeApiOverShardApis, networkManager *network.Manager, logger zerolog.Logger) error {
+	if networkManager == nil {
+		return nil
+	}
+	for shardId, api := range rawApi.Apis {
+		var shardApi *rawapi.LocalShardApi
+		switch api := api.(type) {
+		case *rawapi.LocalShardApiAccessor:
+			shardApi = api.RawApi
+		case *rawapi.LocalShardApi:
+			shardApi = api
+		}
+		if shardApi != nil {
+			if err := rawapi.SetRawApiRequestHandlers(ctx, shardId, shardApi, networkManager, logger); err != nil {
+				logger.Error().Err(err).Stringer(logging.FieldShardId, shardId).Msg("Failed to set raw API request handler")
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // Run starts message pools and collators for given shards, creates a single RPC server for all shards.
@@ -294,15 +324,8 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	}
 
 	if cfg.RunMode != CollatorsOnlyRunMode && cfg.RunMode != RpcRunMode {
-		if networkManager != nil {
-			for shardId, api := range rawApi.Apis {
-				if localShardApi, ok := api.(*rawapi.LocalShardApi); ok {
-					if err := rawapi.SetRawApiRequestHandlers(ctx, shardId, localShardApi, networkManager, logger); err != nil {
-						logger.Error().Err(err).Stringer(logging.FieldShardId, shardId).Msg("Failed to set raw API request handler")
-						return 1
-					}
-				}
-			}
+		if err := setP2pRequestHandlers(ctx, rawApi, networkManager, logger); err != nil {
+			return 1
 		}
 
 		funcs = append(funcs, workers...)

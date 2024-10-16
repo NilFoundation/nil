@@ -55,4 +55,6 @@ type ShardApi interface {
 	GetShardIdList(ctx context.Context) ([]types.ShardId, error)
 
 	SendMessage(ctx context.Context, message []byte) (msgpool.DiscardReason, error)
+
+	setNodeApi(nodeApi NodeApi)
 }

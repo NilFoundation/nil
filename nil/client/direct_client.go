@@ -34,8 +34,13 @@ var _ Client = (*DirectClient)(nil)
 func NewEthClient(ctx context.Context, wg *sync.WaitGroup, db db.ReadOnlyDB, msgPools []msgpool.Pool, logger zerolog.Logger) (*DirectClient, error) {
 	var err error
 	localShardApis := make(map[types.ShardId]rawapi.ShardApi)
-	for i := range msgPools {
-		localShardApis[types.ShardId(i)], err = rawapi.NewLocalShardApi(types.ShardId(i), db, msgPools[i])
+	for i, pool := range msgPools {
+		shardId := types.ShardId(i)
+		shardApi, err := rawapi.NewLocalShardApi(shardId, db, pool)
+		if err != nil {
+			return nil, err
+		}
+		localShardApis[shardId], err = rawapi.NewLocalRawApiAccessor(shardId, shardApi)
 		if err != nil {
 			return nil, err
 		}

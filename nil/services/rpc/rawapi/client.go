@@ -97,6 +97,9 @@ func (api *NetworkShardApiAccessor) SendMessage(ctx context.Context, message []b
 	return sendRequestAndGetResponseWithCallerMethodName[msgpool.DiscardReason](ctx, api, "SendMessage", message)
 }
 
+func (api *NetworkShardApiAccessor) setNodeApi(NodeApi) {
+}
+
 func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context.Context, api *NetworkShardApiAccessor, methodName string, args ...any) (ResponseType, error) {
 	if assert.Enable {
 		callerMethodName := extractCallerMethodName(2)

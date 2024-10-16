@@ -38,12 +38,11 @@ func SetRawApiRequestHandlers(ctx context.Context, shardId types.ShardId, api Sh
 	return setRawApiRequestHandlers(ctx, protocolInterfaceType, api, shardId, "rawapi", manager, logger)
 }
 
-func setRawApiRequestHandlers(ctx context.Context, protocolInterfaceType reflect.Type, api interface{}, shardId types.ShardId, apiName string, manager *network.Manager, logger zerolog.Logger) error {
+func getRawApiRequestHandlers(protocolInterfaceType reflect.Type, api any, shardId types.ShardId, apiName string) (map[network.ProtocolID]network.RequestHandler, error) {
 	requestHandlers := make(map[network.ProtocolID]network.RequestHandler)
 	codec, err := newApiCodec(reflect.ValueOf(api).Type(), protocolInterfaceType)
 	if err != nil {
-		logger.Err(err).Send()
-		return errRequestHandlerCreation
+		return nil, errRequestHandlerCreation
 	}
 
 	apiValue := reflect.ValueOf(api)
@@ -54,6 +53,15 @@ func setRawApiRequestHandlers(ctx context.Context, protocolInterfaceType reflect
 
 		protocol := network.ProtocolID(fmt.Sprintf("/shard/%d/%s/%s", shardId, apiName, methodName))
 		requestHandlers[protocol] = makeRequestHandler(apiValue.MethodByName(methodName), methodCodec)
+	}
+	return requestHandlers, nil
+}
+
+func setRawApiRequestHandlers(ctx context.Context, protocolInterfaceType reflect.Type, api any, shardId types.ShardId, apiName string, manager *network.Manager, logger zerolog.Logger) error {
+	requestHandlers, err := getRawApiRequestHandlers(protocolInterfaceType, api, shardId, apiName)
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to create request handlers")
+		return err
 	}
 	for name, handler := range requestHandlers {
 		manager.SetRequestHandler(ctx, name, handler)
