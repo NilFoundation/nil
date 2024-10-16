@@ -81,14 +81,15 @@ func (s *AggregatorTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 	metrics, err := NewMetricsHandler("github.com/NilFoundation/nil/nil/services/sync_committee")
 	s.Require().NoError(err)
-	s.storage = storage.NewBlockStorage(s.scDb)
+	s.storage = storage.NewBlockStorage(s.scDb, logger)
 	s.Require().NoError(err)
 	s.aggregator, err = NewAggregator(
 		s.client,
-		storage.NewBlockStorage(s.scDb),
+		s.storage,
 		storage.NewTaskStorage(s.scDb, logger),
 		logger,
 		metrics,
+		time.Second,
 	)
 	s.Require().NoError(err)
 }
@@ -106,7 +107,7 @@ func (s *AggregatorTestSuite) SetupTest() {
 }
 
 func (s *AggregatorTestSuite) TestProcessNewBlocks() {
-	err := s.aggregator.ProcessNewBlocks(context.Background())
+	err := s.aggregator.processNewBlocks(context.Background())
 	s.Require().NoError(err)
 
 	// Check if blocks were fetched and stored for each shard
@@ -153,11 +154,6 @@ func (s *AggregatorTestSuite) TestValidateAndProcessBlock() {
 		block, err := s.client.GetBlock(shardId, transport.BlockNumber(latestBlock.Number), false)
 		s.Require().NoError(err)
 		s.Require().NotNil(block)
-
-		// In common execution flow this is called at processShardBlocks now, but we need to add
-		// fetching the last proved block from chain
-		err = s.aggregator.blockStorage.SetLastProvedBlockNum(s.ctx, shardId, block.Number-1)
-		s.Require().NoError(err)
 
 		// Validate and store the block
 		err = s.aggregator.validateAndProcessBlock(context.Background(), block)

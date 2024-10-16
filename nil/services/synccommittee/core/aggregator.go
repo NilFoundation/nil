@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
+	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
@@ -21,6 +23,7 @@ type Aggregator struct {
 	blockStorage storage.BlockStorage
 	taskStorage  storage.TaskStorage
 	metrics      *MetricsHandler
+	pollingDelay time.Duration
 }
 
 func NewAggregator(
@@ -29,6 +32,7 @@ func NewAggregator(
 	taskStorage storage.TaskStorage,
 	logger zerolog.Logger,
 	metrics *MetricsHandler,
+	pollingDelay time.Duration,
 ) (*Aggregator, error) {
 	return &Aggregator{
 		logger:       logger,
@@ -36,7 +40,24 @@ func NewAggregator(
 		blockStorage: blockStorage,
 		taskStorage:  taskStorage,
 		metrics:      metrics,
+		pollingDelay: pollingDelay,
 	}, nil
+}
+
+func (agg *Aggregator) Run(ctx context.Context) error {
+	agg.logger.Info().Msg("starting blocks fetching")
+
+	concurrent.RunTickerLoop(ctx, agg.pollingDelay,
+		func(ctx context.Context) {
+			if err := agg.processNewBlocks(ctx); err != nil {
+				agg.logger.Error().Err(err).Msg("error during processing new blocks")
+				return
+			}
+		},
+	)
+
+	agg.logger.Info().Msg("blocks fetching stopped")
+	return nil
 }
 
 // getShardIdList retrieves the list of all shard IDs, including the main shard.
@@ -78,19 +99,6 @@ func (agg *Aggregator) fetchLatestBlocks(shardIdList []coreTypes.ShardId) (map[c
 func (agg *Aggregator) createProofTask(ctx context.Context, blockForProof *jsonrpc.RPCBlock) error {
 	if blockForProof.ShardId != coreTypes.MainShardId {
 		agg.logger.Debug().Stringer(logging.FieldShardId, blockForProof.ShardId).Msg("skip create proof tasks for not main shard")
-		return nil
-	}
-	// For testnet we create proofs only for main shard blocks
-	lastProvedBlockNum, err := agg.blockStorage.GetLastProvedBlockNum(ctx, coreTypes.MainShardId)
-	if err != nil {
-		return err
-	}
-	if blockForProof.Number <= lastProvedBlockNum {
-		agg.logger.Debug().
-			Stringer(logging.FieldShardId, coreTypes.MainShardId).
-			Int64("targetBlockNum", int64(blockForProof.Number)).
-			Int64("lastProvedBlockNum", int64(lastProvedBlockNum)).
-			Msg("skip create proof tasks, because the last fetched block already proved")
 		return nil
 	}
 
@@ -147,9 +155,9 @@ func (agg *Aggregator) fetchAndProcessBlocks(ctx context.Context, shardId coreTy
 	return nil
 }
 
-// ProcessNewBlocks fetches and processes new blocks for all shards.
+// processNewBlocks fetches and processes new blocks for all shards.
 // It handles the overall flow of block synchronization and proof creation.
-func (agg *Aggregator) ProcessNewBlocks(ctx context.Context) error {
+func (agg *Aggregator) processNewBlocks(ctx context.Context) error {
 	agg.metrics.StartProcessingMeasurment()
 	defer agg.metrics.EndProcessingMeasurment(ctx)
 
@@ -191,9 +199,6 @@ func (agg *Aggregator) processShardBlocks(ctx context.Context, shardId coreTypes
 			return fmt.Errorf("error fetching block %d from shard %d: %w", latestBlockNum-1, shardId, err)
 		}
 		if err = agg.blockStorage.SetBlock(ctx, shardId, block.Number, block); err != nil {
-			return err
-		}
-		if err = agg.blockStorage.SetLastProvedBlockNum(ctx, shardId, latestBlockNum-1); err != nil {
 			return err
 		}
 		if err = agg.fetchAndProcessBlocks(ctx, shardId, latestBlockNum, latestBlockNum); err != nil {

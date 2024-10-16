@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"os/signal"
 	"syscall"
 
@@ -18,10 +19,12 @@ import (
 )
 
 type SyncCommittee struct {
-	cfg           *Config
-	database      db.DB
-	logger        zerolog.Logger
-	client        *nilrpc.Client
+	cfg      *Config
+	database db.DB
+	logger   zerolog.Logger
+	client   *nilrpc.Client
+
+	proposer      *Proposer
 	aggregator    *Aggregator
 	taskListener  *rpc.TaskListener
 	taskScheduler scheduler.TaskScheduler
@@ -37,23 +40,30 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	logger.Info().Msgf("Use RPC endpoint %v", cfg.RpcEndpoint)
 	client := nilrpc.NewClient(cfg.RpcEndpoint, logger)
 
-	blockStorage := storage.NewBlockStorage(database)
+	blockStorage := storage.NewBlockStorage(database, logger)
 	taskStorage := storage.NewTaskStorage(database, logger)
 
-	aggregator, err := NewAggregator(client, blockStorage, taskStorage, logger, metrics)
+	aggregator, err := NewAggregator(client, blockStorage, taskStorage, logger, metrics, cfg.PollingDelay)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}
 
-	proposerParams := ProposerParams{cfg.L1Endpoint, cfg.L1ChainId, cfg.PrivateKey, cfg.L1ContractAddress, cfg.SelfAddress}
-	proposer, err := newProposer(proposerParams, logger)
+	chainId, ok := new(big.Int).SetString(cfg.L1ChainId, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid L1ChainId: %s", cfg.L1ChainId)
+	}
+	proposerParams := ProposerParams{
+		chainId, cfg.PrivateKey, cfg.L1ContractAddress, cfg.SelfAddress, DefaultProposingInterval,
+	}
+	proposerRpcClient := nilrpc.NewRawClient(cfg.L1Endpoint, logger)
+	proposer, err := NewProposer(proposerParams, proposerRpcClient, blockStorage, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create proposer: %w", err)
 	}
 
 	taskScheduler := scheduler.New(
 		taskStorage,
-		newTaskStateChangeHandler(proposer, blockStorage, logger),
+		newTaskStateChangeHandler(blockStorage, logger),
 		logger,
 	)
 
@@ -64,10 +74,12 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	)
 
 	s := &SyncCommittee{
-		cfg:           cfg,
-		database:      database,
-		logger:        logger,
-		client:        client,
+		cfg:      cfg,
+		database: database,
+		logger:   logger,
+		client:   client,
+
+		proposer:      proposer,
 		aggregator:    aggregator,
 		taskListener:  taskListener,
 		taskScheduler: taskScheduler,
@@ -93,7 +105,8 @@ func (s *SyncCommittee) Run(ctx context.Context) error {
 	}
 
 	functions := []concurrent.Func{
-		s.processingLoop,
+		s.proposer.Run,
+		s.aggregator.Run,
 		s.taskListener.Run,
 		s.taskScheduler.Run,
 	}
@@ -102,21 +115,5 @@ func (s *SyncCommittee) Run(ctx context.Context) error {
 		s.logger.Error().Err(err).Msg("app encountered an error and will be terminated")
 	}
 
-	return nil
-}
-
-func (s *SyncCommittee) processingLoop(ctx context.Context) error {
-	s.logger.Info().Msg("starting sync committee service processing loop")
-
-	concurrent.RunTickerLoop(ctx, s.cfg.PollingDelay,
-		func(ctx context.Context) {
-			if err := s.aggregator.ProcessNewBlocks(ctx); err != nil {
-				s.logger.Error().Err(err).Msg("error during processing new blocks")
-				return
-			}
-		},
-	)
-
-	s.logger.Info().Msg("sync committee service processing loop stopped")
 	return nil
 }
