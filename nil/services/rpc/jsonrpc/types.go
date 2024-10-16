@@ -80,6 +80,7 @@ type RPCBlock struct {
 	MainChainHash       common.Hash       `json:"mainChainHash"`
 	DbTimestamp         uint64            `json:"dbTimestamp"`
 	GasPrice            types.Value       `json:"gasPrice"`
+	LogsBloom           hexutil.Bytes     `json:"logsBloom,omitempty"`
 }
 
 type DebugRPCBlock struct {
@@ -273,6 +274,15 @@ func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*
 		}
 	}
 
+	// Set only non-empty bloom
+	var bloom hexutil.Bytes
+	for _, b := range block.LogsBloom {
+		if b != 0 {
+			bloom = block.LogsBloom.Bytes()
+			break
+		}
+	}
+
 	return &RPCBlock{
 		Number:              blockId,
 		Hash:                blockHash,
@@ -287,6 +297,7 @@ func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*
 		MainChainHash:       block.MainChainHash,
 		DbTimestamp:         dbTimestamp,
 		GasPrice:            block.GasPrice,
+		LogsBloom:           bloom,
 	}, nil
 }
 

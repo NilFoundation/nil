@@ -1190,6 +1190,8 @@ func (es *ExecutionState) AddReceipt(execResult *ExecutionResult) {
 		Logs:            es.Logs[es.InMessageHash],
 		ContractAddress: es.GetInMessage().To,
 	}
+	r.Bloom = types.CreateBloom(types.Receipts{r})
+
 	if execResult.Failed() {
 		es.Errors[es.InMessageHash] = execResult.Error
 		if execResult.DebugInfo != nil {
@@ -1310,6 +1312,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		ChildBlocksRootHash: treeShardsRootHash,
 		MainChainHash:       es.MainChainHash,
 		GasPrice:            es.GasPrice,
+		LogsBloom:           types.CreateBloom(es.Receipts),
 		// TODO(@klonD90): remove this field after changing explorer
 		Timestamp: 0,
 	}

@@ -917,6 +917,38 @@ func (s *SuiteRpc) TestAddressCalculation() {
 	s.Require().Equal(address2, types.BytesToAddress(resAddress))
 }
 
+func (s *SuiteRpc) TestBloom() {
+	abi, err := contracts.GetAbi(contracts.NameTest)
+	s.Require().NoError(err)
+
+	payload := contracts.GetDeployPayload(s.T(), contracts.NameTest)
+
+	addr, receipt := s.deployContractViaMainWallet(2, payload, defaultContractValue)
+	s.Require().True(receipt.AllSuccess())
+
+	topic1 := types.NewValueFromUint64(12345)
+	topic2 := types.NewValueFromUint64(67890)
+	calldata := s.AbiPack(abi, "emitEvent", topic1, topic2)
+	receipt = s.sendExternalMessage(calldata, addr)
+	s.Require().True(receipt.AllSuccess())
+	s.Require().NotEmpty(receipt.Bloom)
+
+	checkTopics := func(bloom types.Bloom) {
+		b := topic1.Bytes32()
+		s.Require().True(bloom.Test(b[:]))
+		b = topic2.Bytes32()
+		s.Require().True(bloom.Test(b[:]))
+		b = [32]byte{1}
+		s.Require().False(bloom.Test(b[:]))
+	}
+
+	block, err := s.client.GetBlock(addr.ShardId(), receipt.BlockHash, false)
+	s.Require().NoError(err)
+
+	checkTopics(types.BytesToBloom(receipt.Bloom))
+	checkTopics(types.BytesToBloom(block.LogsBloom))
+}
+
 func TestSuiteRpc(t *testing.T) {
 	t.Parallel()
 
