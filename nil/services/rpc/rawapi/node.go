@@ -84,13 +84,13 @@ func (api *NodeApiOverShardApis) GetCurrencies(ctx context.Context, address type
 }
 
 func (api *NodeApiOverShardApis) Call(
-	ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+	ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
 ) (*rpctypes.CallResWithGasPrice, error) {
 	shardApi, ok := api.Apis[args.To.ShardId()]
 	if !ok {
 		return nil, ErrShardNotFound
 	}
-	return shardApi.Call(ctx, args, mainBlockNrOrHash, overrides, emptyMessageIsRoot)
+	return shardApi.Call(ctx, args, mainBlockReferenceOrHashWithChildren, overrides, emptyMessageIsRoot)
 }
 
 func (api *NodeApiOverShardApis) GetInMessage(ctx context.Context, shardId types.ShardId, request rawapitypes.MessageRequest) (*rawapitypes.MessageInfo, error) {
