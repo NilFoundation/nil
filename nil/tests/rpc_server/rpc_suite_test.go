@@ -278,7 +278,6 @@ func (s *RpcSuite) sendExternalMessage(bytecode types.Code, contractAddress type
 
 	s.Require().True(receipt.Success)
 	s.Require().Equal("Success", receipt.Status)
-	s.Require().Len(receipt.OutReceipts, 1)
 
 	return receipt
 }

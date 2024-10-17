@@ -6,8 +6,13 @@ import "../lib/Nil.sol";
 // Common test contract. Can be used in any test.
 contract Test is NilBase {
     event stubCalled(uint32 v);
+    event testEvent(uint indexed a, uint indexed b);
 
     uint32 private internalValue = 0;
+
+    function emitEvent(uint a, uint b) public payable {
+        emit testEvent(a, b);
+    }
 
     function getSum(uint a, uint b) public pure returns(uint) {
         return a + b;
