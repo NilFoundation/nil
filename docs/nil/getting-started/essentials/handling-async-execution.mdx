@@ -52,7 +52,7 @@ Consider the following example of an `Awaiter` contract:
 ```solidity showLineNumbers file=../../../tests/Awaiter.sol start=startAwaiterContract end=endAwaiterContract
 ```
 
-<PGButton name="Awaiter.sol"/>
+<PGButton name="AwaiterCounter.sol"/>
 
 The contract is designed to call [**the`Counter` contract**](getting-started/nil-101.mdx#flow-1) asynchronously and store the returned value inside the `result` variable.
 
@@ -92,14 +92,9 @@ Contract 1 has the following structure:
 ```solidity showLineNumbers file=../../../tests/Caller.sol start=startContract end=endContract
 ```
 
-<PGButton name="Caller.sol"/>
+<PGButton name="CallerCounter.sol"/>
 
-Contract 2 has the following structure:
-
-```solidity showLineNumbers file=../../../tests/Counter.sol start=startContract end=endContract
-```
-
-<PGButton name="Counter.sol"/>
+Contract 2 is [**the`Counter` contract**](getting-started/nil-101.mdx#flow-1).
 
 Whenever the `call()` function is called inside Contract 1, a new outgoing message is spawned. When Shard 2 picks up this message and processes it, Contract 2 calls its `increment()` function. After `getValue()` is called, the result should display the total number of times the `call()` function was executed by Contract 1.
 
@@ -124,11 +119,11 @@ Contract 1 acts as a simple escrow mechanism. The `submitForVerification()` func
 ```solidity showLineNumbers file=../../../tests/Escrow.sol start=startEscrow end=endEscrow
 ```
 
-<PGButton name="Escrow.sol"/>
+<PGButton name="EscrowValidator.sol"/>
 
 Contract 2 acts as the validator for escrow resolution:
 
 ```solidity showLineNumbers file=../../../tests/Validator.sol start=startValidator end=endValidator
 ```
 
-<PGButton name="Validator.sol"/>
+<PGButton name="EscrowValidator.sol"/>
