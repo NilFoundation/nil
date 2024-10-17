@@ -6,8 +6,8 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
-func PostprocessBlock(tx db.RwTx, shardId types.ShardId, defaultGasPrice types.Value, gasPriceScale float64, blockHash common.Hash) (*types.Block, error) {
-	postprocessor, err := newBlockPostprocessor(tx, shardId, defaultGasPrice, gasPriceScale, blockHash)
+func PostprocessBlock(tx db.RwTx, shardId types.ShardId, defaultGasPrice types.Value, blockHash common.Hash) (*types.Block, error) {
+	postprocessor, err := newBlockPostprocessor(tx, shardId, defaultGasPrice, blockHash)
 	if err != nil {
 		return nil, err
 	}
@@ -20,15 +20,14 @@ type blockPostprocessor struct {
 	blockHash       common.Hash
 	block           *types.Block
 	defaultGasPrice types.Value
-	gasPriceScale   float64
 }
 
-func newBlockPostprocessor(tx db.RwTx, shardId types.ShardId, defaultGasPrice types.Value, gasPriceScale float64, blockHash common.Hash) (*blockPostprocessor, error) {
+func newBlockPostprocessor(tx db.RwTx, shardId types.ShardId, defaultGasPrice types.Value, blockHash common.Hash) (*blockPostprocessor, error) {
 	block, err := db.ReadBlock(tx, shardId, blockHash)
 	if err != nil {
 		return nil, err
 	}
-	return &blockPostprocessor{tx, shardId, blockHash, block, defaultGasPrice, gasPriceScale}, nil
+	return &blockPostprocessor{tx, shardId, blockHash, block, defaultGasPrice}, nil
 }
 
 func (pp *blockPostprocessor) Postprocess() error {

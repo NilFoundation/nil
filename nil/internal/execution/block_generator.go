@@ -216,7 +216,7 @@ func (g *BlockGenerator) finalize(blockId types.BlockNumber) (*types.Block, []*t
 		return nil, nil, err
 	}
 
-	block, err := PostprocessBlock(g.rwTx, g.params.ShardId, g.params.GasBasePrice, g.params.GasPriceScale, blockHash)
+	block, err := PostprocessBlock(g.rwTx, g.params.ShardId, g.params.GasBasePrice, blockHash)
 	if err != nil {
 		return nil, nil, err
 	}

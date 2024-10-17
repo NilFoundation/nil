@@ -40,7 +40,7 @@ func (suite *SuiteEthReceipt) SetupSuite() {
 
 	blockHash := writeTestBlock(suite.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Message{&message},
 		[]*types.Receipt{&suite.receipt}, suite.outMessages)
-	_, err = execution.PostprocessBlock(tx, types.BaseShardId, types.NewValueFromUint64(10), 0, blockHash)
+	_, err = execution.PostprocessBlock(tx, types.BaseShardId, types.NewValueFromUint64(10), blockHash)
 	suite.Require().NoError(err)
 
 	err = tx.Commit()

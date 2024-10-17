@@ -58,7 +58,7 @@ func TestDebugGetBlock(t *testing.T) {
 		err = db.WriteBlock(tx, types.MainShardId, hash, b)
 		require.NoError(t, err)
 
-		_, err = execution.PostprocessBlock(tx, types.MainShardId, types.NewValueFromUint64(10), 0, hash)
+		_, err = execution.PostprocessBlock(tx, types.MainShardId, types.NewValueFromUint64(10), hash)
 		require.NoError(t, err)
 	}
 
@@ -136,7 +136,7 @@ func (suite *SuiteDbgContracts) SetupSuite() {
 	suite.Require().NoError(err)
 	suite.blockHash = blockHash
 
-	block, err := execution.PostprocessBlock(tx, shardId, types.NewValueFromUint64(10), 0, blockHash)
+	block, err := execution.PostprocessBlock(tx, shardId, types.NewValueFromUint64(10), blockHash)
 	suite.Require().NotNil(block)
 	suite.Require().NoError(err)
 
