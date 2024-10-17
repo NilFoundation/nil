@@ -10,7 +10,9 @@ message BlockRequest {
 
 message Block {
   bytes blockSSZ = 1;
+  repeated bytes inMessagesSSZ = 2;
   repeated bytes outMessagesSSZ = 3;
+  map<uint32, bytes> shardHashes = 4;
 }
 
 message Blocks {

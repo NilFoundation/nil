@@ -32,7 +32,7 @@ func (s *SuiteCli) SetupTest() {
 	s.tmpDir = s.T().TempDir()
 	s.startWithRPC(&nilservice.Config{
 		NShards: 5,
-	}, 11003, 11004)
+	}, 11003, false)
 
 	s.cli = cliservice.NewService(s.client, execution.MainPrivateKey)
 	s.Require().NotNil(s.cli)

@@ -357,7 +357,7 @@ func (b rawBlockAccessor) ByHash(hash common.Hash) (rawBlockAccessorResult, erro
 
 		values := make([]common.Hash, len(shards))
 		for key, value := range shards {
-			values[key-1] = value // shard numbers since 1
+			values[key-1] = value // the main shard is omitted
 		}
 		res.childBlocks = initWith(values)
 	}

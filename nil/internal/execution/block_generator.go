@@ -27,8 +27,8 @@ type Proposal struct {
 	MainChainHash common.Hash
 	ShardHashes   map[types.ShardId]common.Hash
 
-	InMsgs  []*types.Message
-	OutMsgs []*types.Message
+	InMsgs      []*types.Message
+	ForwardMsgs []*types.Message
 
 	// In the future, collator should remove messages from the pool itself after the consensus on the proposal.
 	// Currently, we need to remove them after the block was committed, or they may be lost.
@@ -42,7 +42,7 @@ func NewEmptyProposal() *Proposal {
 }
 
 func (p *Proposal) IsEmpty() bool {
-	return len(p.InMsgs) == 0 && len(p.OutMsgs) == 0
+	return len(p.InMsgs) == 0 && len(p.ForwardMsgs) == 0
 }
 
 func NewBlockGeneratorParams(shardId types.ShardId, nShards uint32, gasBasePrice types.Value, gasPriceScale float64) BlockGeneratorParams {
@@ -132,8 +132,8 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal) (*types.Block, []*typ
 		g.addReceipt(res)
 	}
 
-	for _, msg := range proposal.OutMsgs {
-		// TODO: add inMsgHash support (do we even need it?)
+	for _, msg := range proposal.ForwardMsgs {
+		// setting all to the same empty hash preserves ordering
 		g.executionState.AppendOutMessageForTx(common.EmptyHash, msg)
 	}
 

@@ -23,8 +23,8 @@ type MsgPool interface {
 type Params struct {
 	execution.BlockGeneratorParams
 
-	MaxInMessagesInBlock  int
-	MaxOutMessagesInBlock int
+	MaxInMessagesInBlock      int
+	MaxForwardMessagesInBlock int
 
 	CollatorTickPeriod time.Duration
 	Timeout            time.Duration
@@ -164,5 +164,10 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 		s.logger.Warn().Err(err).Msgf("Failed to remove %d committed messages from pool", len(proposal.RemoveFromPool))
 	}
 
-	return PublishBlock(ctx, s.networkManager, s.params.ShardId, &Block{Block: block, OutMessages: outs})
+	return PublishBlock(ctx, s.networkManager, s.params.ShardId, &Block{
+		Block:       block,
+		OutMessages: outs,
+		InMessages:  proposal.InMsgs,
+		ShardHashes: proposal.ShardHashes,
+	})
 }

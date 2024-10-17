@@ -10,7 +10,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/collate"
@@ -210,25 +209,14 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 
 	switch cfg.RunMode {
 	case NormalRunMode, CollatorsOnlyRunMode:
-		var collators []AbstractCollator
-		collators, msgPools, err = createCollators(ctx, cfg, database, networkManager)
+		var shardFuncs []concurrent.Func
+		shardFuncs, msgPools, err = createShards(ctx, cfg, database, networkManager, logger)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to create collators")
 			return 1
 		}
 
-		for i, collator := range collators {
-			funcs = append(funcs, func(ctx context.Context) error {
-				if err := collator.Run(ctx); err != nil {
-					logger.Error().
-						Err(err).
-						Stringer(logging.FieldShardId, types.ShardId(i)).
-						Msg("Collator goroutine failed")
-					return err
-				}
-				return nil
-			})
-		}
+		funcs = append(funcs, shardFuncs...)
 	case ArchiveRunMode:
 		if networkManager == nil {
 			logger.Error().Msg("Failed to start archive node without network configuration")
@@ -239,7 +227,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		for _, shardId := range cfg.MyShards {
 			nodeShards = append(nodeShards, types.ShardId(shardId))
 		}
-		if slices.Contains(nodeShards, types.MainShardId) {
+		if !slices.Contains(nodeShards, types.MainShardId) {
 			nodeShards = append(nodeShards, types.MainShardId)
 		}
 
@@ -247,10 +235,15 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		syncerTimeout := syncTimeoutFactor * collatorTickPeriod
 
 		for _, shardId := range nodeShards {
-			collator, err := createSyncCollator(ctx, shardId, cfg, syncerTimeout, database, networkManager)
-			check.PanicIfErr(err)
+			syncer := collate.NewSyncer(collate.SyncerConfig{
+				ShardId:              shardId,
+				Timeout:              syncerTimeout,
+				BootstrapPeer:        cfg.BootstrapPeer,
+				ReplayBlocks:         true,
+				BlockGeneratorParams: cfg.BlockGeneratorParams(shardId),
+			}, database, networkManager)
 			funcs = append(funcs, func(ctx context.Context) error {
-				if err := collator.Run(ctx); err != nil {
+				if err := syncer.Run(ctx); err != nil {
 					logger.Error().
 						Err(err).
 						Stringer(logging.FieldShardId, shardId).
@@ -262,17 +255,10 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		}
 	case BlockReplayRunMode:
 		replayer := collate.NewReplayScheduler(database, collate.ReplayParams{
-			BlockGeneratorParams: execution.BlockGeneratorParams{
-				ShardId:       cfg.Replay.ShardId,
-				NShards:       cfg.NShards,
-				TraceEVM:      cfg.TraceEVM,
-				Timer:         common.NewTimer(),
-				GasBasePrice:  types.NewValueFromUint64(cfg.GasBasePrice),
-				GasPriceScale: cfg.GasPriceScale,
-			},
-			Timeout:          time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs),
-			ReplayFirstBlock: cfg.Replay.BlockIdFirst,
-			ReplayLastBlock:  cfg.Replay.BlockIdLast,
+			BlockGeneratorParams: cfg.BlockGeneratorParams(cfg.Replay.ShardId),
+			Timeout:              time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs),
+			ReplayFirstBlock:     cfg.Replay.BlockIdFirst,
+			ReplayLastBlock:      cfg.Replay.BlockIdLast,
 		})
 
 		funcs = append(funcs, func(ctx context.Context) error {
@@ -361,16 +347,15 @@ func createNetworkManager(ctx context.Context, cfg *Config) (*network.Manager, e
 	return network.NewManager(ctx, cfg.Network)
 }
 
-// todo: get rid of it via separating syncers and collators
-type AbstractCollator interface {
-	Run(ctx context.Context) error
-}
-
-func createCollators(ctx context.Context, cfg *Config, database db.DB, networkManager *network.Manager) ([]AbstractCollator, map[types.ShardId]msgpool.Pool, error) {
+func createShards(
+	ctx context.Context, cfg *Config,
+	database db.DB, networkManager *network.Manager,
+	logger zerolog.Logger,
+) ([]concurrent.Func, map[types.ShardId]msgpool.Pool, error) {
 	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
 	syncerTimeout := syncTimeoutFactor * collatorTickPeriod
 
-	collators := make([]AbstractCollator, cfg.NShards)
+	funcs := make([]concurrent.Func, cfg.NShards)
 	pools := make(map[types.ShardId]msgpool.Pool)
 
 	for i := range cfg.NShards {
@@ -386,22 +371,37 @@ func createCollators(ctx context.Context, cfg *Config, database db.DB, networkMa
 			}
 
 			pools[shard] = msgPool
-			collators[i] = collator
-		} else {
-			collator, err := createSyncCollator(ctx, shard, cfg, syncerTimeout, database, networkManager)
-			if err != nil {
-				return nil, nil, err
+			funcs[i] = func(ctx context.Context) error {
+				if err := collator.Run(ctx); err != nil {
+					logger.Error().
+						Err(err).
+						Stringer(logging.FieldShardId, shard).
+						Msg("Collator goroutine failed")
+					return err
+				}
+				return nil
 			}
-			collators[i] = collator
+		} else {
+			syncer := collate.NewSyncer(collate.SyncerConfig{
+				ShardId:       shard,
+				Timeout:       syncerTimeout,
+				BootstrapPeer: cfg.BootstrapPeer,
+			}, database, networkManager)
+
+			funcs[i] = func(ctx context.Context) error {
+				if err := syncer.Run(ctx); err != nil {
+					logger.Error().
+						Err(err).
+						Stringer(logging.FieldShardId, shard).
+						Msg("Syncer goroutine failed")
+					return err
+				}
+				return nil
+			}
 		}
 	}
-	return collators, pools, nil
-}
 
-func createSyncCollator(ctx context.Context, shard types.ShardId, cfg *Config, tick time.Duration,
-	database db.DB, networkManager *network.Manager,
-) (AbstractCollator, error) {
-	return collate.NewSyncCollator(ctx, shard, tick, database, networkManager, cfg.BootstrapPeer)
+	return funcs, pools, nil
 }
 
 func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager, msgPool msgpool.Pool) (*collate.Scheduler, error) {
