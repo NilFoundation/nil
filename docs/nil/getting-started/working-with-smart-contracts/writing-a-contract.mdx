@@ -31,7 +31,7 @@ The `Retailer` contract (Contract 1) orders products by performing an async call
 ```solidity showLineNumbers file=../../../tests/Retailer.sol start=startRetailerContract end=endRetailerContract
 ```
 
-<PGButton name="Retailer.sol"/>
+<PGButton name="RetailerManufacturer.sol"/>
 
 ## Creating the second contract
 
@@ -40,7 +40,7 @@ Contract 2 has some basic architecture in place representing products:
 ```solidity showLineNumbers
 pragma solidity ^0.8.0;
 
-import "./Nil.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract Manufacturer {
     using Nil for address;
@@ -129,7 +129,7 @@ Here is the full code of Contract 2:
 ```solidity showLineNumbers file=../../../tests/Manufacturer.sol start=startManufacturerContract end=endManufacturerContract
 ```
 
-<PGButton name="Manufacturer.sol"/>
+<PGButton name="RetailerManufacturer.sol"/>
 
 ## Compiling the contracts
 
