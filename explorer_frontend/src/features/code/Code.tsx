@@ -42,6 +42,7 @@ export const Code = () => {
 	]);
 	const [css] = useStyletron();
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
 	const codemirrorExtensions = useMemo<Extension[]>(() => {
 		const solidityLinter = (view: EditorView) => {
 			const diagnostics: Diagnostic[] = errors.map((error) => {
@@ -109,7 +110,17 @@ export const Code = () => {
 				})}
 			>
 				{fetchingCodeSnippet ? (
-					<Spinner />
+					<div
+						className={css({
+							display: "flex",
+							justifyContent: "center",
+							alignItems: "center",
+							width: "100%",
+							height: "100%",
+						})}
+					>
+						<Spinner />
+					</div>
 				) : (
 					<CodeField
 						extensions={codemirrorExtensions}
