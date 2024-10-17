@@ -1006,14 +1006,6 @@ func (r *GasPriceResponse) UnpackProtoMessage() (types.Value, error) {
 	return types.Value{Uint256: &uint256}, nil
 }
 
-func (r *EmptyRequest) PackProtoMessage() error {
-	return nil
-}
-
-func (r *EmptyRequest) UnpackProtoMessage() error {
-	return nil
-}
-
 func (sr *ShardIdListResponse) PackProtoMessage(shardIdList []types.ShardId, err error) error {
 	if err != nil {
 		sr.Result = &ShardIdListResponse_Error{Error: new(Error).PackProtoMessage(err)}

@@ -75,3 +75,43 @@ func TestApisCompatibility(t *testing.T) {
 		})
 	}
 }
+
+type noArgsNetworkTransportProtocol interface {
+	TestMethod() pb.RawBlockResponse
+}
+
+type noArgsApi interface {
+	TestMethod(ctx context.Context) (ssz.SSZEncodedData, error)
+}
+
+type noArgsApiWithoutCtx interface {
+	TestMethod() (ssz.SSZEncodedData, error)
+}
+
+func TestApisNoArgs(t *testing.T) {
+	t.Parallel()
+
+	protocolInterfaceType := reflect.TypeFor[noArgsNetworkTransportProtocol]()
+	goodApiType := reflect.TypeFor[noArgsApi]()
+	t.Run(goodApiType.String(), func(t *testing.T) {
+		t.Parallel()
+
+		_, err := newApiCodec(goodApiType, protocolInterfaceType)
+		require.NoError(t, err)
+	})
+
+	incompatibleApis := map[reflect.Type]string{
+		reflect.TypeFor[noArgsApiWithoutCtx](): "API method TestMethod must have at least one argument",
+	}
+
+	for a, e := range incompatibleApis {
+		api := a
+		errStr := e
+		t.Run(reflect.TypeOf(api).String(), func(t *testing.T) {
+			t.Parallel()
+
+			_, err := newApiCodec(api, protocolInterfaceType)
+			require.ErrorContains(t, err, errStr)
+		})
+	}
+}

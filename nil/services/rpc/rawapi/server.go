@@ -25,8 +25,8 @@ type NetworkTransportProtocolRo interface {
 	Call(pb.CallRequest) pb.CallResponse
 	GetInMessage(pb.MessageRequest) pb.MessageResponse
 	GetInMessageReceipt(pb.Hash) pb.ReceiptResponse
-	GasPrice(pb.EmptyRequest) pb.GasPriceResponse
-	GetShardIdList(pb.EmptyRequest) pb.ShardIdListResponse
+	GasPrice() pb.GasPriceResponse
+	GetShardIdList() pb.ShardIdListResponse
 	GetMessageCount(pb.AccountRequest) pb.Uint64Response
 }
 
