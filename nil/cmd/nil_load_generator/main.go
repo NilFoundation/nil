@@ -84,7 +84,7 @@ func createWallets(service *cliservice.Service, shardIds []types.ShardId, mh *me
 		if err != nil {
 			return nil, nil, err
 		}
-		walletAddr, err := service.CreateWallet(shardId, types.NewUint256(0), types.NewValueFromUint64(1_000_000_000), &ownerPrivateKey.PublicKey)
+		walletAddr, err := service.CreateWallet(shardId, types.NewUint256(0), types.NewValueFromUint64(1_000_000_000), types.Value{}, &ownerPrivateKey.PublicKey)
 		if err != nil {
 			walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(&ownerPrivateKey.PublicKey))
 			walletAddr = service.ContractAddress(shardId, *types.NewUint256(0), walletCode)

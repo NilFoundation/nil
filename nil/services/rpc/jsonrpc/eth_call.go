@@ -3,6 +3,7 @@ package jsonrpc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -55,7 +56,7 @@ func (api *APIImplRo) EstimateFee(ctx context.Context, args CallArgs, mainBlockN
 		// Root message considered here as external since we anyway override contract balance.
 		res, err := api.rawapi.Call(ctx, args, blockRef, stateOverrides, false)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to estimate call fee: %s", err.Error())
 		}
 
 		if res.Error != "" {

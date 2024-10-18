@@ -55,6 +55,12 @@ func setDeployFlags(cmd *cobra.Command) {
 		false,
 		"Wait for receipt",
 	)
+
+	cmd.Flags().Var(
+		&params.feeCredit,
+		feeCreditFlag,
+		"Deployment fee credit. If 0 will be estimated automatically",
+	)
 }
 
 func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
@@ -74,7 +80,7 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 
 	payload := types.BuildDeployPayload(bytecode, libcommon.Hash(params.salt.Bytes32()))
 
-	msgHash, addr, err := service.DeployContractExternal(params.shardId, payload)
+	msgHash, addr, err := service.DeployContractExternal(params.shardId, payload, params.feeCredit)
 	if err != nil {
 		return err
 	}

@@ -114,7 +114,13 @@ func (s *Service) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address,
 	return nil
 }
 
-func (s *Service) CreateWallet(shardId types.ShardId, salt *types.Uint256, balance types.Value, pubKey *ecdsa.PublicKey) (types.Address, error) {
+func (s *Service) CreateWallet(
+	shardId types.ShardId,
+	salt *types.Uint256,
+	balance types.Value,
+	feeCredit types.Value,
+	pubKey *ecdsa.PublicKey,
+) (types.Address, error) {
 	walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(pubKey))
 	walletAddress := s.ContractAddress(shardId, *salt, walletCode)
 
@@ -134,7 +140,7 @@ func (s *Service) CreateWallet(shardId types.ShardId, salt *types.Uint256, balan
 	}
 
 	deployPayload := types.BuildDeployPayload(walletCode, common.Hash(salt.Bytes32()))
-	msgHash, addr, err := s.DeployContractExternal(shardId, deployPayload)
+	msgHash, addr, err := s.DeployContractExternal(shardId, deployPayload, feeCredit)
 	if err != nil {
 		return types.EmptyAddress, err
 	}
@@ -145,6 +151,9 @@ func (s *Service) CreateWallet(shardId types.ShardId, salt *types.Uint256, balan
 	}
 	if !res.IsComplete() {
 		return types.EmptyAddress, errors.New("deploy message processing failed")
+	}
+	if !res.AllSuccess() {
+		return types.EmptyAddress, fmt.Errorf("deploy message processing failed: %s", res.ErrorMessage)
 	}
 	return addr, nil
 }

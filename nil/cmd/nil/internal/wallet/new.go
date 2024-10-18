@@ -41,6 +41,12 @@ func setFlags(cmd *cobra.Command) {
 		"Specify the shard id to interact with",
 	)
 
+	cmd.Flags().Var(
+		&params.feeCredit,
+		feeCreditFlag,
+		"Fee credit for wallet creation. If 0 will be estimated automatically",
+	)
+
 	params.newWalletAmount = defaultNewWalletAmount
 	cmd.Flags().Var(
 		&params.newWalletAmount,
@@ -59,7 +65,7 @@ func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
 
 	srv := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey)
 	check.PanicIfNotf(cfg.PrivateKey != nil, "Private key doesn't set in config")
-	walletAddress, err := srv.CreateWallet(params.shardId, &params.salt, amount, &cfg.PrivateKey.PublicKey)
+	walletAddress, err := srv.CreateWallet(params.shardId, &params.salt, amount, params.feeCredit, &cfg.PrivateKey.PublicKey)
 	if err != nil {
 		return err
 	}
