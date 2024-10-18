@@ -113,8 +113,8 @@ func (s *Service) DeployContractViaWallet(shardId types.ShardId, wallet types.Ad
 }
 
 // DeployContractExternal deploys a new smart contract with the given bytecode via external message
-func (s *Service) DeployContractExternal(shardId types.ShardId, payload types.DeployPayload) (common.Hash, types.Address, error) {
-	txHash, contractAddr, err := s.client.DeployExternal(shardId, payload, types.Value{})
+func (s *Service) DeployContractExternal(shardId types.ShardId, payload types.DeployPayload, feeCredit types.Value) (common.Hash, types.Address, error) {
+	txHash, contractAddr, err := s.client.DeployExternal(shardId, payload, feeCredit)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
 		return common.EmptyHash, types.EmptyAddress, err
