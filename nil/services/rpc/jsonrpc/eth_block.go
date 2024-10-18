@@ -63,7 +63,7 @@ func sszToRPCBlock(shardId types.ShardId, raw *types.RawBlockWithExtractedData, 
 }
 
 // GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
-func (api *APIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, fullTx bool) (*RPCBlock, error) {
+func (api *APIImplRo) GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, fullTx bool) (*RPCBlock, error) {
 	if number < transport.LatestBlockNumber {
 		return nil, errNotImplemented
 	}
@@ -76,7 +76,7 @@ func (api *APIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId,
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
-func (api *APIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, fullTx bool) (*RPCBlock, error) {
+func (api *APIImplRo) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, fullTx bool) (*RPCBlock, error) {
 	res, err := api.rawapi.GetFullBlockData(ctx, shardId, rawapitypes.BlockHashAsBlockReference(hash))
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func (api *APIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, h
 }
 
 // GetBlockTransactionCountByNumber implements eth_getBlockTransactionCountByNumber. Returns the number of transactions in a block given the block's block number.
-func (api *APIImpl) GetBlockTransactionCountByNumber(
+func (api *APIImplRo) GetBlockTransactionCountByNumber(
 	ctx context.Context, shardId types.ShardId, number transport.BlockNumber,
 ) (hexutil.Uint, error) {
 	if number < transport.LatestBlockNumber {
@@ -96,7 +96,7 @@ func (api *APIImpl) GetBlockTransactionCountByNumber(
 }
 
 // GetBlockTransactionCountByHash implements eth_getBlockTransactionCountByHash. Returns the number of transactions in a block given the block's block hash.
-func (api *APIImpl) GetBlockTransactionCountByHash(
+func (api *APIImplRo) GetBlockTransactionCountByHash(
 	ctx context.Context, shardId types.ShardId, hash common.Hash,
 ) (hexutil.Uint, error) {
 	res, err := api.rawapi.GetBlockTransactionCount(ctx, shardId, rawapitypes.BlockHashAsBlockReference(hash))

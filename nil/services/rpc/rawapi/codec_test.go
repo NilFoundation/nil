@@ -63,7 +63,6 @@ func TestApisCompatibility(t *testing.T) {
 	protocolInterfaceType := reflect.TypeOf((*compatibleNetworkTransportProtocol)(nil)).Elem()
 
 	incompatibleApis := map[interface{}]string{
-		&apiWithOtherMethod{}:                       "method OtherMethod not found in rawapi.compatibleNetworkTransportProtocol",
 		&apiWithWrongMethodArguments{}:              "API method TestMethod requires 2 arguments, but pb.BlockRequest.PackProtoMessage accepts 1 arguments",
 		&apiWithWrongContextMethodArgument{}:        "first argument of API method TestMethod must be context.Context",
 		&apiWithWrongMethodReturn{}:                 "API method outputs int type, but PackProtoMessage expects []uint8",
@@ -73,7 +72,15 @@ func TestApisCompatibility(t *testing.T) {
 
 	goodApiType := reflect.TypeOf(&compatibleApi{})
 	t.Run(goodApiType.String(), func(t *testing.T) {
+		t.Parallel()
 		_, err := newApiCodec(goodApiType, protocolInterfaceType)
+		require.NoError(t, err)
+	})
+
+	goodApiTypeWithOtherMethod := reflect.TypeOf(&apiWithOtherMethod{})
+	t.Run(goodApiType.String(), func(t *testing.T) {
+		t.Parallel()
+		_, err := newApiCodec(goodApiTypeWithOtherMethod, protocolInterfaceType)
 		require.NoError(t, err)
 	})
 

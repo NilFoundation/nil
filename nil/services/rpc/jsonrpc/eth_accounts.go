@@ -12,7 +12,7 @@ import (
 )
 
 // GetBalance implements eth_getBalance. Returns the balance of an account for a given address.
-func (api *APIImpl) GetBalance(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error) {
+func (api *APIImplRo) GetBalance(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error) {
 	balance, err := api.rawapi.GetBalance(ctx, address, toBlockReference(blockNrOrHash))
 	if err != nil {
 		return nil, err
@@ -21,7 +21,7 @@ func (api *APIImpl) GetBalance(ctx context.Context, address types.Address, block
 }
 
 // GetCurrencies implements eth_getCurrencies. Returns the balance of all currencies of account for a given address.
-func (api *APIImpl) GetCurrencies(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (map[string]*hexutil.Big, error) {
+func (api *APIImplRo) GetCurrencies(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (map[string]*hexutil.Big, error) {
 	currencies, err := api.rawapi.GetCurrencies(ctx, address, toBlockReference(blockNrOrHash))
 	if err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func (api *APIImpl) GetCurrencies(ctx context.Context, address types.Address, bl
 }
 
 // GetTransactionCount implements eth_getTransactionCount. Returns the number of transactions sent from an address (the nonce / seqno).
-func (api *APIImpl) GetTransactionCount(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Uint64, error) {
+func (api *APIImplRo) GetTransactionCount(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Uint64, error) {
 	value, err := api.rawapi.GetMessageCount(ctx, address, toBlockReference(blockNrOrHash))
 	if err != nil {
 		return 0, err
@@ -41,7 +41,7 @@ func (api *APIImpl) GetTransactionCount(ctx context.Context, address types.Addre
 }
 
 // GetCode implements eth_getCode. Returns the byte code at a given address (if it's a smart contract).
-func (api *APIImpl) GetCode(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error) {
+func (api *APIImplRo) GetCode(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error) {
 	code, err := api.rawapi.GetCode(ctx, address, toBlockReference(blockNrOrHash))
 	if err != nil {
 		return nil, err

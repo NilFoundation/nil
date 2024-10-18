@@ -20,7 +20,10 @@ type LocalShardApiAccessor struct {
 	shardId types.ShardId
 }
 
-var _ ShardApi = (*LocalShardApiAccessor)(nil)
+var (
+	_ ShardApiRo = (*LocalShardApiAccessor)(nil)
+	_ ShardApi   = (*LocalShardApiAccessor)(nil)
+)
 
 func NewLocalRawApiAccessor(shardId types.ShardId, rawapi *LocalShardApi) (*LocalShardApiAccessor, error) {
 	return newLocalRawApiAccessor(shardId, rawapi, reflect.TypeFor[*LocalShardApiAccessor](), reflect.TypeFor[NetworkTransportProtocol]())

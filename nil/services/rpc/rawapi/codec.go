@@ -123,7 +123,7 @@ func newApiCodec(api, transport reflect.Type) (apiCodec, error) {
 
 		transportMethod, ok := transport.MethodByName(apiMethod.Name)
 		if !ok {
-			return nil, fmt.Errorf("method %s not found in %s", apiMethod.Name, transport)
+			continue
 		}
 		pbRequestType, pbResponseType, err := checkTransportMethodSignatureAndExtractPbTypes(transport, transportMethod)
 		if err != nil {

@@ -11,7 +11,7 @@ import (
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
 
-type NodeApi interface {
+type NodeApiRo interface {
 	GetBlockHeader(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error)
 	GetFullBlockData(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error)
 	GetBlockTransactionCount(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference) (uint64, error)
@@ -30,11 +30,14 @@ type NodeApi interface {
 
 	GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error)
 	GetShardIdList(ctx context.Context) ([]types.ShardId, error)
+}
 
+type NodeApi interface {
+	NodeApiRo
 	SendMessage(ctx context.Context, shardId types.ShardId, message []byte) (msgpool.DiscardReason, error)
 }
 
-type ShardApi interface {
+type ShardApiRo interface {
 	GetBlockHeader(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error)
 	GetFullBlockData(ctx context.Context, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error)
 	GetBlockTransactionCount(ctx context.Context, blockReference rawapitypes.BlockReference) (uint64, error)
@@ -54,7 +57,10 @@ type ShardApi interface {
 	GasPrice(ctx context.Context) (types.Value, error)
 	GetShardIdList(ctx context.Context) ([]types.ShardId, error)
 
-	SendMessage(ctx context.Context, message []byte) (msgpool.DiscardReason, error)
-
 	setNodeApi(nodeApi NodeApi)
+}
+
+type ShardApi interface {
+	ShardApiRo
+	SendMessage(ctx context.Context, message []byte) (msgpool.DiscardReason, error)
 }

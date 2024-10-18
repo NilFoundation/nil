@@ -16,7 +16,10 @@ type NodeApiOverShardApis struct {
 	Apis map[types.ShardId]ShardApi
 }
 
-var _ NodeApi = (*NodeApiOverShardApis)(nil)
+var (
+	_ NodeApiRo = (*NodeApiOverShardApis)(nil)
+	_ NodeApi   = (*NodeApiOverShardApis)(nil)
+)
 
 func NewNodeApiOverShardApis(apis map[types.ShardId]ShardApi) *NodeApiOverShardApis {
 	nodeApi := &NodeApiOverShardApis{
