@@ -109,8 +109,8 @@ func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](ctx context
 	return sendRequestAndGetResponse[ResponseType](api.codec, api.networkManager, api.shardId, "rawapi", methodName, ctx, args...)
 }
 
-func discoverAppropriatePeer(networkManager *network.Manager, shardId types.ShardId, apiName string) (network.PeerID, error) {
-	peersWithSpecifiedShard := networkManager.GetPeersForProtocolPrefix(fmt.Sprintf("/shard/%d/%s/", shardId, apiName))
+func discoverAppropriatePeer(networkManager *network.Manager, shardId types.ShardId, protocol network.ProtocolID) (network.PeerID, error) {
+	peersWithSpecifiedShard := networkManager.GetPeersForProtocol(protocol)
 	if len(peersWithSpecifiedShard) == 0 {
 		return "", fmt.Errorf("No peers with shard %d found", shardId)
 	}
@@ -123,7 +123,8 @@ func sendRequestAndGetResponse[ResponseType any](apiCodec apiCodec, networkManag
 
 	var response ResponseType
 
-	serverPeerId, err := discoverAppropriatePeer(networkManager, shardId, apiName)
+	protocol := network.ProtocolID(fmt.Sprintf("/shard/%d/%s/%s", shardId, apiName, methodName))
+	serverPeerId, err := discoverAppropriatePeer(networkManager, shardId, protocol)
 	if err != nil {
 		return response, err
 	}
@@ -133,7 +134,6 @@ func sendRequestAndGetResponse[ResponseType any](apiCodec apiCodec, networkManag
 		return response, err
 	}
 
-	protocol := network.ProtocolID(fmt.Sprintf("/shard/%d/%s/%s", shardId, apiName, methodName))
 	responseBody, err := networkManager.SendRequestAndGetResponse(ctx, serverPeerId, protocol, requestBody)
 	if err != nil {
 		return response, err
