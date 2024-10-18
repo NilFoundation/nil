@@ -72,9 +72,9 @@ func (api *LocalShardApiAccessor) GetCurrencies(ctx context.Context, address typ
 }
 
 func (api *LocalShardApiAccessor) Call(
-	ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+	ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
 ) (*rpctypes.CallResWithGasPrice, error) {
-	return callLocalWithCallerMethodName[*rpctypes.CallResWithGasPrice](ctx, api, "Call", args, mainBlockNrOrHash, overrides, emptyMessageIsRoot)
+	return callLocalWithCallerMethodName[*rpctypes.CallResWithGasPrice](ctx, api, "Call", args, mainBlockReferenceOrHashWithChildren, overrides, emptyMessageIsRoot)
 }
 
 func (api *LocalShardApiAccessor) GetInMessage(ctx context.Context, request rawapitypes.MessageRequest) (*rawapitypes.MessageInfo, error) {

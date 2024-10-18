@@ -25,7 +25,7 @@ type NodeApiRo interface {
 	GetMessageCount(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (uint64, error)
 
 	Call(
-		ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+		ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
 	) (*rpctypes.CallResWithGasPrice, error)
 
 	GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error)
@@ -51,7 +51,7 @@ type ShardApiRo interface {
 	GetMessageCount(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (uint64, error)
 
 	Call(
-		ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+		ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
 	) (*rpctypes.CallResWithGasPrice, error)
 
 	GasPrice(ctx context.Context) (types.Value, error)

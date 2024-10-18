@@ -31,9 +31,21 @@ message StateOverrides {
   map<string, Contract> overrides = 1;
 }
 
+message BlockHashWithChildren {
+  Hash hash = 1;
+  repeated Hash children = 2;
+}
+
+message BlockReferenceOrHashWithChildren {
+  oneof blockReferenceOrHashWithChildren {
+    BlockReference blockReference = 1;
+    BlockHashWithChildren blockHashWithChildren = 2;
+  }
+}
+
 message CallRequest {
   CallArgs args = 1;
-  BlockReference mainBlockNrOrHash = 2;
+  BlockReferenceOrHashWithChildren mainBlockReferenceOrHashWithChildren = 2;
   StateOverrides stateOverrides = 3;
   bool emptyMessageIsRoot = 4;
 }

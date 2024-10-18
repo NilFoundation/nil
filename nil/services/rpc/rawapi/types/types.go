@@ -38,11 +38,6 @@ type BlockReference struct {
 	flags uint32
 }
 
-type BlockRequest struct {
-	BlockReference
-	ShardId types.ShardId
-}
-
 func (br BlockReference) Hash() common.Hash {
 	if assert.Enable {
 		check.PanicIfNot(br.Type() == HashBlockReference)
@@ -79,6 +74,36 @@ func BlockNumberAsBlockReference(number types.BlockNumber) BlockReference {
 func NamedBlockIdentifierAsBlockReference(identifier NamedBlockIdentifier) BlockReference {
 	check.PanicIfNot(identifier <= 0)
 	return BlockReference{blockIdentifier: blockIdentifier(identifier), flags: uint32(NamedBlockIdentifierReference)}
+}
+
+type BlockReferenceOrHashWithChildren struct {
+	reference   BlockReference
+	hash        common.Hash
+	childBlocks []common.Hash
+
+	isReference bool
+}
+
+func (brd BlockReferenceOrHashWithChildren) Reference() BlockReference {
+	check.PanicIfNot(brd.isReference)
+	return brd.reference
+}
+
+func (brd BlockReferenceOrHashWithChildren) HashAndChildren() (common.Hash, []common.Hash) {
+	check.PanicIfNot(!brd.isReference)
+	return brd.hash, brd.childBlocks
+}
+
+func (brd BlockReferenceOrHashWithChildren) IsReference() bool {
+	return brd.isReference
+}
+
+func BlockReferenceAsBlockReferenceOrHashWithChildren(reference BlockReference) BlockReferenceOrHashWithChildren {
+	return BlockReferenceOrHashWithChildren{reference: reference, isReference: true}
+}
+
+func BlockHashWithChildrenAsBlockReferenceOrHashWithChildren(hash common.Hash, childBlocks []common.Hash) BlockReferenceOrHashWithChildren {
+	return BlockReferenceOrHashWithChildren{hash: hash, childBlocks: childBlocks, isReference: false}
 }
 
 type MessageInfo struct {

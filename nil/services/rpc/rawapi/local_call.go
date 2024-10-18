@@ -77,7 +77,8 @@ func calculateStateChange(newEs, oldEs *execution.ExecutionState) (rpctypes.Stat
 func (api *LocalShardApi) handleOutMessages(
 	ctx context.Context,
 	outMsgs []*types.OutboundMessage,
-	mainBlockNrOrHash rawapitypes.BlockReference,
+	mainBlockHash common.Hash,
+	childBlocks []common.Hash,
 	overrides *rpctypes.StateOverrides,
 ) ([]*rpctypes.OutMessage, error) {
 	outMessages := make([]*rpctypes.OutMessage, len(outMsgs))
@@ -92,7 +93,12 @@ func (api *LocalShardApi) handleOutMessages(
 			Message: (*hexutil.Bytes)(&raw),
 		}
 
-		res, err := api.nodeApi.Call(ctx, args, mainBlockNrOrHash, overrides, true)
+		res, err := api.nodeApi.Call(
+			ctx,
+			args,
+			rawapitypes.BlockHashWithChildrenAsBlockReferenceOrHashWithChildren(mainBlockHash, childBlocks),
+			overrides,
+			true)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +123,7 @@ func (api *LocalShardApi) handleOutMessages(
 }
 
 func (api *LocalShardApi) Call(
-	ctx context.Context, args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+	ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
 ) (*rpctypes.CallResWithGasPrice, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
@@ -133,24 +139,31 @@ func (api *LocalShardApi) Call(
 	timer := common.NewTimer()
 	shardId := msg.To.ShardId()
 
-	mainBlockData, err := api.nodeApi.GetFullBlockData(ctx, types.MainShardId, mainBlockNrOrHash)
-	if err != nil {
-		return nil, err
-	}
-
-	mainBlock, err := mainBlockData.DecodeSSZ()
-	if err != nil {
-		return nil, err
+	var mainBlockHash common.Hash
+	var childBlocks []common.Hash
+	if mainBlockReferenceOrHashWithChildren.IsReference() {
+		mainBlockData, err := api.nodeApi.GetFullBlockData(ctx, types.MainShardId, mainBlockReferenceOrHashWithChildren.Reference())
+		if err != nil {
+			return nil, err
+		}
+		mainBlock, err := mainBlockData.DecodeSSZ()
+		if err != nil {
+			return nil, err
+		}
+		mainBlockHash = mainBlock.Hash()
+		childBlocks = mainBlockData.ChildBlocks
+	} else {
+		mainBlockHash, childBlocks = mainBlockReferenceOrHashWithChildren.HashAndChildren()
 	}
 
 	var hash common.Hash
 	if !shardId.IsMainShard() {
-		if len(mainBlockData.ChildBlocks) < int(shardId) {
+		if len(childBlocks) < int(shardId) {
 			return nil, ErrShardNotFound
 		}
-		hash = mainBlockData.ChildBlocks[shardId-1]
+		hash = childBlocks[shardId-1]
 	} else {
-		hash = mainBlock.Hash()
+		hash = mainBlockHash
 	}
 
 	es, err := execution.NewROExecutionState(tx, shardId, hash, timer, 1)
@@ -212,7 +225,8 @@ func (api *LocalShardApi) Call(
 	outMessages, err := api.handleOutMessages(
 		ctx,
 		execOutMessages,
-		rawapitypes.BlockNumberAsBlockReference(mainBlock.Id),
+		mainBlockHash,
+		childBlocks,
 		&stateOverrides,
 	)
 	if err != nil {

@@ -8,13 +8,14 @@ import (
 
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
+	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
 
 // Call implements eth_call. Executes a new message call immediately without creating a transaction on the block chain.
 func (api *APIImplRo) Call(ctx context.Context, args CallArgs, mainBlockNrOrHash transport.BlockNumberOrHash, overrides *StateOverrides) (*CallRes, error) {
-	blockRef := toBlockReference(mainBlockNrOrHash)
+	blockRef := rawapitypes.BlockReferenceAsBlockReferenceOrHashWithChildren(toBlockReference(mainBlockNrOrHash))
 	res, err := api.rawapi.Call(ctx, args, blockRef, overrides, true)
 	if err != nil {
 		return nil, err
@@ -43,7 +44,7 @@ func (api *APIImplRo) EstimateFee(ctx context.Context, args CallArgs, mainBlockN
 	gasCap := types.NewValueFromUint64(100_000_000)
 	feeCreditCap := types.NewValueFromUint64(50_000_000)
 
-	blockRef := toBlockReference(mainBlockNrOrHash)
+	blockRef := rawapitypes.BlockReferenceAsBlockReferenceOrHashWithChildren(toBlockReference(mainBlockNrOrHash))
 	execute := func(balance, feeCredit types.Value) (*rpctypes.CallResWithGasPrice, error) {
 		args.FeeCredit = feeCredit
 

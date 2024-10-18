@@ -530,13 +530,65 @@ func (o *StateOverrides) PackProtoMessage(overrides *rpctypes.StateOverrides) *S
 	return o
 }
 
+func (brd *BlockReferenceOrHashWithChildren) PackProtoMessage(blockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren) error {
+	if blockReferenceOrHashWithChildren.IsReference() {
+		blockReference := new(BlockReference)
+		if err := blockReference.PackProtoMessage(blockReferenceOrHashWithChildren.Reference()); err != nil {
+			return err
+		}
+		brd.BlockReferenceOrHashWithChildren = &BlockReferenceOrHashWithChildren_BlockReference{BlockReference: blockReference}
+	} else {
+		hash, childBlocks := blockReferenceOrHashWithChildren.HashAndChildren()
+		blockHashWithChildren := new(BlockHashWithChildren)
+
+		blockHashWithChildren.Hash = new(Hash)
+		if err := blockHashWithChildren.Hash.PackProtoMessage(hash); err != nil {
+			return err
+		}
+
+		for _, childBlock := range childBlocks {
+			childBlockHash := new(Hash)
+			if err := childBlockHash.PackProtoMessage(childBlock); err != nil {
+				return err
+			}
+			blockHashWithChildren.Children = append(blockHashWithChildren.Children, childBlockHash)
+		}
+		brd.BlockReferenceOrHashWithChildren = &BlockReferenceOrHashWithChildren_BlockHashWithChildren{BlockHashWithChildren: blockHashWithChildren}
+	}
+	return nil
+}
+
+func (brd *BlockReferenceOrHashWithChildren) UnpackProtoMessage() (rawapitypes.BlockReferenceOrHashWithChildren, error) {
+	switch brd.BlockReferenceOrHashWithChildren.(type) {
+	case *BlockReferenceOrHashWithChildren_BlockReference:
+		blockReference, err := brd.GetBlockReference().UnpackProtoMessage()
+		return rawapitypes.BlockReferenceAsBlockReferenceOrHashWithChildren(blockReference), err
+
+	case *BlockReferenceOrHashWithChildren_BlockHashWithChildren:
+		blockWithChildren := brd.GetBlockHashWithChildren()
+		hash, err := blockWithChildren.Hash.UnpackProtoMessage()
+		if err != nil {
+			return rawapitypes.BlockReferenceOrHashWithChildren{}, err
+		}
+		children := make([]common.Hash, len(blockWithChildren.Children))
+		for i, child := range blockWithChildren.Children {
+			children[i], err = child.UnpackProtoMessage()
+			if err != nil {
+				return rawapitypes.BlockReferenceOrHashWithChildren{}, err
+			}
+		}
+		return rawapitypes.BlockHashWithChildrenAsBlockReferenceOrHashWithChildren(hash, children), err
+	}
+	return rawapitypes.BlockReferenceOrHashWithChildren{}, errors.New("unexpected block reference or data type")
+}
+
 func (cr *CallRequest) PackProtoMessage(
-	args rpctypes.CallArgs, mainBlockNrOrHash rawapitypes.BlockReference, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+	args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
 ) error {
 	cr.Args = new(CallArgs).PackProtoMessage(args)
 
-	cr.MainBlockNrOrHash = &BlockReference{}
-	if err := cr.MainBlockNrOrHash.PackProtoMessage(mainBlockNrOrHash); err != nil {
+	cr.MainBlockReferenceOrHashWithChildren = &BlockReferenceOrHashWithChildren{}
+	if err := cr.MainBlockReferenceOrHashWithChildren.PackProtoMessage(mainBlockReferenceOrHashWithChildren); err != nil {
 		return err
 	}
 
@@ -631,10 +683,10 @@ func (cr *StateOverrides) UnpackProtoMessage() *rpctypes.StateOverrides {
 	return &args
 }
 
-func (cr *CallRequest) UnpackProtoMessage() (rpctypes.CallArgs, rawapitypes.BlockReference, *rpctypes.StateOverrides, bool, error) {
-	br, err := cr.MainBlockNrOrHash.UnpackProtoMessage()
+func (cr *CallRequest) UnpackProtoMessage() (rpctypes.CallArgs, rawapitypes.BlockReferenceOrHashWithChildren, *rpctypes.StateOverrides, bool, error) {
+	br, err := cr.MainBlockReferenceOrHashWithChildren.UnpackProtoMessage()
 	if err != nil {
-		return rpctypes.CallArgs{}, rawapitypes.BlockReference{}, nil, false, err
+		return rpctypes.CallArgs{}, rawapitypes.BlockReferenceOrHashWithChildren{}, nil, false, err
 	}
 	return cr.Args.UnpackProtoMessage(), br, cr.StateOverrides.UnpackProtoMessage(), cr.EmptyMessageIsRoot, nil
 }

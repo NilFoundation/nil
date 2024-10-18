@@ -1,6 +1,7 @@
 package pb
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -111,33 +112,48 @@ func TestStateOverrides_PackUnpack(t *testing.T) {
 	assert.Equal(t, args, unpackedArgs)
 }
 
-func getBlockRef() rawapitypes.BlockReference {
-	return rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock)
+func getBlockRef() rawapitypes.BlockReferenceOrHashWithChildren {
+	return rawapitypes.BlockReferenceAsBlockReferenceOrHashWithChildren(rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock))
+}
+
+func getBlockHashWithChildren() rawapitypes.BlockReferenceOrHashWithChildren {
+	return rawapitypes.BlockHashWithChildrenAsBlockReferenceOrHashWithChildren(
+		common.HexToHash("0xabcd"),
+		[]common.Hash{
+			common.HexToHash("0x1234"),
+			common.HexToHash("0x5678"),
+		})
 }
 
 func TestCallRequest_PackUnpack(t *testing.T) {
 	t.Parallel()
 
-	callArgs := getCallArgs()
-	blockRef := getBlockRef()
-	overrides := getStateOverrides()
-	flag := true
+	for i, ref := range []rawapitypes.BlockReferenceOrHashWithChildren{getBlockRef(), getBlockHashWithChildren()} {
+		blockRef := ref
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
 
-	callReq := &CallRequest{}
-	require.NoError(t, callReq.PackProtoMessage(callArgs, blockRef, overrides, flag))
+			callArgs := getCallArgs()
+			overrides := getStateOverrides()
+			flag := true
 
-	data, err := proto.Marshal(callReq)
-	require.NoError(t, err)
+			callReq := &CallRequest{}
+			require.NoError(t, callReq.PackProtoMessage(callArgs, blockRef, overrides, flag))
 
-	var unpacked CallRequest
-	require.NoError(t, proto.Unmarshal(data, &unpacked))
+			data, err := proto.Marshal(callReq)
+			require.NoError(t, err)
 
-	unpackedCallArgs, unpackedBlockRef, unpackedOverrides, unpackedFlag, err := unpacked.UnpackProtoMessage()
-	require.NoError(t, err)
-	assert.Equal(t, callArgs, unpackedCallArgs)
-	assert.Equal(t, blockRef, unpackedBlockRef)
-	assert.Equal(t, overrides, unpackedOverrides)
-	assert.Equal(t, flag, unpackedFlag)
+			var unpacked CallRequest
+			require.NoError(t, proto.Unmarshal(data, &unpacked))
+
+			unpackedCallArgs, unpackedBlockRef, unpackedOverrides, unpackedFlag, err := unpacked.UnpackProtoMessage()
+			require.NoError(t, err)
+			assert.Equal(t, callArgs, unpackedCallArgs)
+			assert.Equal(t, blockRef, unpackedBlockRef)
+			assert.Equal(t, overrides, unpackedOverrides)
+			assert.Equal(t, flag, unpackedFlag)
+		})
+	}
 }
 
 func TestOutMessage_PackUnpack(t *testing.T) {
