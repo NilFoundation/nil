@@ -50,16 +50,18 @@ func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db 
 
 	ctx, cancel := context.WithCancel(ctx)
 	pollBlocksForLogs := cfg.RunMode == NormalRunMode
-	ethImpl := jsonrpc.NewEthAPI(ctx, rawApi, db, pollBlocksForLogs)
-	defer ethImpl.Shutdown()
-	defer cancel()
 
 	var ethApiService any
-	if cfg.RunMode == NormalRunMode {
-		ethApiService = jsonrpc.EthAPI(ethImpl)
+	if cfg.RunMode == NormalRunMode || cfg.RunMode == RpcRunMode {
+		ethImpl := jsonrpc.NewEthAPI(ctx, rawApi, db, pollBlocksForLogs)
+		defer ethImpl.Shutdown()
+		ethApiService = ethImpl
 	} else {
-		ethApiService = jsonrpc.EthAPIRo(ethImpl)
+		ethImpl := jsonrpc.NewEthAPIRo(ctx, rawApi, db, pollBlocksForLogs)
+		defer ethImpl.Shutdown()
+		ethApiService = ethImpl
 	}
+	defer cancel()
 
 	debugImpl := jsonrpc.NewDebugAPI(rawApi, db, logger)
 	dbImpl := jsonrpc.NewDbAPI(db, logger)
@@ -141,7 +143,7 @@ func getRawApi(cfg *Config, networkManager *network.Manager, database db.DB, msg
 	return rawApi, nil
 }
 
-func setP2pRequestHandlers(ctx context.Context, rawApi *rawapi.NodeApiOverShardApis, networkManager *network.Manager, logger zerolog.Logger) error {
+func setP2pRequestHandlers(ctx context.Context, rawApi *rawapi.NodeApiOverShardApis, networkManager *network.Manager, readonly bool, logger zerolog.Logger) error {
 	if networkManager == nil {
 		return nil
 	}
@@ -154,7 +156,7 @@ func setP2pRequestHandlers(ctx context.Context, rawApi *rawapi.NodeApiOverShardA
 			shardApi = api
 		}
 		if shardApi != nil {
-			if err := rawapi.SetRawApiRequestHandlers(ctx, shardId, shardApi, networkManager, logger); err != nil {
+			if err := rawapi.SetRawApiRequestHandlers(ctx, shardId, shardApi, networkManager, readonly, logger); err != nil {
 				logger.Error().Err(err).Stringer(logging.FieldShardId, shardId).Msg("Failed to set raw API request handler")
 				return err
 			}
@@ -316,7 +318,8 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	}
 
 	if cfg.RunMode != CollatorsOnlyRunMode && cfg.RunMode != RpcRunMode {
-		if err := setP2pRequestHandlers(ctx, rawApi, networkManager, logger); err != nil {
+		readonly := cfg.RunMode != NormalRunMode
+		if err := setP2pRequestHandlers(ctx, rawApi, networkManager, readonly, logger); err != nil {
 			return 1
 		}
 

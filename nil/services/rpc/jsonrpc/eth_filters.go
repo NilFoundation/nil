@@ -82,18 +82,18 @@ func (l *LogsAggregator) GetLogs(id filters.SubscriptionID) ([]*filters.MetaLog,
 }
 
 // NewPendingTransactionFilter implements eth_newPendingTransactionFilter. It creates new transaction filter.
-func (api *APIImpl) NewPendingTransactionFilter(_ context.Context) (string, error) {
+func (api *APIImplRo) NewPendingTransactionFilter(_ context.Context) (string, error) {
 	return "", errNotImplemented
 }
 
 // NewBlockFilter implements eth_newBlockFilter. Creates a filter in the node, to notify when a new block arrives.
-func (api *APIImpl) NewBlockFilter(_ context.Context) (string, error) {
+func (api *APIImplRo) NewBlockFilter(_ context.Context) (string, error) {
 	id, err := api.logs.CreateBlocksListener()
 	return string(id), err
 }
 
 // NewFilter implements eth_newFilter. Creates an arbitrary filter object, based on filter options, to notify when the state changes (logs).
-func (api *APIImpl) NewFilter(_ context.Context, query filters.FilterQuery) (string, error) {
+func (api *APIImplRo) NewFilter(_ context.Context, query filters.FilterQuery) (string, error) {
 	id, err := api.logs.CreateFilter(&query)
 	if err != nil {
 		return "", err
@@ -103,7 +103,7 @@ func (api *APIImpl) NewFilter(_ context.Context, query filters.FilterQuery) (str
 }
 
 // UninstallFilter implements eth_uninstallFilter.
-func (api *APIImpl) UninstallFilter(_ context.Context, id string) (isDeleted bool, err error) {
+func (api *APIImplRo) UninstallFilter(_ context.Context, id string) (isDeleted bool, err error) {
 	id = strings.TrimPrefix(id, "0x")
 	deleted := false
 	if ok := api.logs.filters.RemoveFilter(filters.SubscriptionID(id)); ok {
@@ -119,7 +119,7 @@ func (api *APIImpl) UninstallFilter(_ context.Context, id string) (isDeleted boo
 // GetFilterChanges implements eth_getFilterChanges.
 // Polling method for a previously-created filter
 // returns an array of logs, block headers, or pending transactions which occurred since last poll.
-func (api *APIImpl) GetFilterChanges(_ context.Context, id string) ([]any, error) {
+func (api *APIImplRo) GetFilterChanges(_ context.Context, id string) ([]any, error) {
 	id = strings.TrimPrefix(id, "0x")
 	if logs, ok := api.logs.GetLogs(filters.SubscriptionID(id)); ok {
 		res := make([]any, 0, len(logs))
@@ -146,7 +146,7 @@ func (api *APIImpl) GetFilterChanges(_ context.Context, id string) ([]any, error
 // GetFilterLogs implements eth_getFilterLogs.
 // Polling method for a previously-created filter
 // returns an array of logs which occurred since last poll.
-func (api *APIImpl) GetFilterLogs(_ context.Context, id string) ([]*RPCLog, error) {
+func (api *APIImplRo) GetFilterLogs(_ context.Context, id string) ([]*RPCLog, error) {
 	// TODO: It is legacy from Erigon, probably we need to fix it. The problem: seems that we need to return all logs
 	// matching the criteria, but we return only changes since last Poll.
 	id = strings.TrimPrefix(id, "0x")

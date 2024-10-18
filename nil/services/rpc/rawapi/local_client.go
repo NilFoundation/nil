@@ -20,13 +20,17 @@ type LocalShardApiAccessor struct {
 	shardId types.ShardId
 }
 
-var _ ShardApi = (*LocalShardApiAccessor)(nil)
+var (
+	_ ShardApiRo = (*LocalShardApiAccessor)(nil)
+	_ ShardApi   = (*LocalShardApiAccessor)(nil)
+)
 
 func NewLocalRawApiAccessor(shardId types.ShardId, rawapi *LocalShardApi) (*LocalShardApiAccessor, error) {
-	return newLocalRawApiAccessor(shardId, rawapi, reflect.TypeFor[*LocalShardApiAccessor](), reflect.TypeFor[NetworkTransportProtocol]())
+	return newLocalRawApiAccessor(shardId, rawapi, reflect.TypeFor[ShardApi](), reflect.TypeFor[NetworkTransportProtocol]())
 }
 
 func newLocalRawApiAccessor(shardId types.ShardId, rawapi *LocalShardApi, apiType, transportType reflect.Type) (*LocalShardApiAccessor, error) {
+	check.PanicIfNotf(reflect.ValueOf(rawapi).Type().Implements(apiType), "api does not implement %s", apiType)
 	codec, err := newApiCodec(apiType, transportType)
 	if err != nil {
 		return nil, err

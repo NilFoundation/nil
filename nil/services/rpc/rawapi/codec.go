@@ -192,7 +192,7 @@ func checkTransportMethodSignatureAndExtractPbTypes(transportApiType reflect.Typ
 
 func checkApiMethodSignature(apiMethod reflect.Method) error {
 	apiMethodType := apiMethod.Type
-	if !apiMethodType.In(1).Implements(reflect.TypeOf((*context.Context)(nil)).Elem()) {
+	if !apiMethodType.In(0).Implements(reflect.TypeOf((*context.Context)(nil)).Elem()) {
 		return fmt.Errorf("first argument of API method %s must be context.Context", apiMethod.Name)
 	}
 
@@ -234,7 +234,7 @@ func obtainAndValidateRequestConversionMethods(apiMethod reflect.Method, pbReque
 		return reflect.Method{}, reflect.Method{}, fmt.Errorf("last output argument of %s.%s must be error", pbRequestType, unpackMethodName)
 	}
 
-	apiMethodSkipArgumentCount := 2 // receiver & context
+	apiMethodSkipArgumentCount := 1 // context
 	apiMethodArgumentsCount := apiMethodType.NumIn() - apiMethodSkipArgumentCount
 	packProtoMessageSkipArgumentCount := 1 // receiver
 	packProtoMessageArgumentCount := packProtoMessageType.NumIn() - packProtoMessageSkipArgumentCount

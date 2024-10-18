@@ -15,9 +15,7 @@ import (
 
 var errRequestHandlerCreation = errors.New("failed to create request handler")
 
-// NetworkTransportProtocol is a helper interface for associating the argument and result types of Api methods
-// with their Protobuf representations.
-type NetworkTransportProtocol interface {
+type NetworkTransportProtocolRo interface {
 	GetBlockHeader(request pb.BlockRequest) pb.RawBlockResponse
 	GetFullBlockData(request pb.BlockRequest) pb.RawFullBlockResponse
 	GetBlockTransactionCount(request pb.BlockRequest) pb.Uint64Response
@@ -30,23 +28,37 @@ type NetworkTransportProtocol interface {
 	GasPrice(pb.EmptyRequest) pb.GasPriceResponse
 	GetShardIdList(pb.EmptyRequest) pb.ShardIdListResponse
 	GetMessageCount(pb.AccountRequest) pb.Uint64Response
+}
+
+// NetworkTransportProtocol is a helper interface for associating the argument and result types of Api methods
+// with their Protobuf representations.
+type NetworkTransportProtocol interface {
+	NetworkTransportProtocolRo
 	SendMessage(pb.SendMessageRequest) pb.SendMessageResponse
 }
 
-func SetRawApiRequestHandlers(ctx context.Context, shardId types.ShardId, api ShardApi, manager *network.Manager, logger zerolog.Logger) error {
-	protocolInterfaceType := reflect.TypeOf((*NetworkTransportProtocol)(nil)).Elem()
-	return setRawApiRequestHandlers(ctx, protocolInterfaceType, api, shardId, "rawapi", manager, logger)
+func SetRawApiRequestHandlers(ctx context.Context, shardId types.ShardId, api *LocalShardApi, manager *network.Manager, readonly bool, logger zerolog.Logger) error {
+	var protocolInterfaceType, apiType reflect.Type
+	if readonly {
+		protocolInterfaceType = reflect.TypeFor[NetworkTransportProtocolRo]()
+		apiType = reflect.TypeFor[ShardApiRo]()
+	} else {
+		protocolInterfaceType = reflect.TypeFor[NetworkTransportProtocol]()
+		apiType = reflect.TypeFor[ShardApi]()
+	}
+	return setRawApiRequestHandlers(ctx, protocolInterfaceType, apiType, api, shardId, "rawapi", manager, logger)
 }
 
-func getRawApiRequestHandlers(protocolInterfaceType reflect.Type, api any, shardId types.ShardId, apiName string) (map[network.ProtocolID]network.RequestHandler, error) {
+func getRawApiRequestHandlers(protocolInterfaceType, apiType reflect.Type, api any, shardId types.ShardId, apiName string) (map[network.ProtocolID]network.RequestHandler, error) {
+	check.PanicIfNotf(reflect.ValueOf(api).Type().Implements(apiType), "api does not implement %s", apiType)
 	requestHandlers := make(map[network.ProtocolID]network.RequestHandler)
-	codec, err := newApiCodec(reflect.ValueOf(api).Type(), protocolInterfaceType)
+	codec, err := newApiCodec(apiType, protocolInterfaceType)
 	if err != nil {
-		return nil, errRequestHandlerCreation
+		return nil, fmt.Errorf("%w: %w", errRequestHandlerCreation, err)
 	}
 
 	apiValue := reflect.ValueOf(api)
-	for method := range filtered(iterMethods(apiValue.Type()), isExportedMethod) {
+	for method := range filtered(iterMethods(apiType), isExportedMethod) {
 		methodName := method.Name
 		methodCodec, ok := codec[methodName]
 		check.PanicIfNotf(ok, "Appropriate codec is not found for method %s", methodName)
@@ -57,8 +69,8 @@ func getRawApiRequestHandlers(protocolInterfaceType reflect.Type, api any, shard
 	return requestHandlers, nil
 }
 
-func setRawApiRequestHandlers(ctx context.Context, protocolInterfaceType reflect.Type, api any, shardId types.ShardId, apiName string, manager *network.Manager, logger zerolog.Logger) error {
-	requestHandlers, err := getRawApiRequestHandlers(protocolInterfaceType, api, shardId, apiName)
+func setRawApiRequestHandlers(ctx context.Context, protocolInterfaceType, apiType reflect.Type, api any, shardId types.ShardId, apiName string, manager *network.Manager, logger zerolog.Logger) error {
+	requestHandlers, err := getRawApiRequestHandlers(protocolInterfaceType, apiType, api, shardId, apiName)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to create request handlers")
 		return err

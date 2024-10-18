@@ -27,7 +27,7 @@ type NetworkShardApiAccessor struct {
 var _ ShardApi = (*NetworkShardApiAccessor)(nil)
 
 func NewNetworkRawApiAccessor(shardId types.ShardId, networkManager *network.Manager) (*NetworkShardApiAccessor, error) {
-	return newNetworkRawApiAccessor(shardId, networkManager, reflect.TypeFor[*NetworkShardApiAccessor](), reflect.TypeFor[NetworkTransportProtocol]())
+	return newNetworkRawApiAccessor(shardId, networkManager, reflect.TypeFor[ShardApi](), reflect.TypeFor[NetworkTransportProtocol]())
 }
 
 func newNetworkRawApiAccessor(shardId types.ShardId, networkManager *network.Manager, apiType, transportType reflect.Type) (*NetworkShardApiAccessor, error) {

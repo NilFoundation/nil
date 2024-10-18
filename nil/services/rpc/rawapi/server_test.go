@@ -42,6 +42,10 @@ func (s *RawApiTestSuite) SetupTest() {
 	_, s.serverPeerId = network.ConnectManagers(s.T(), s.clientNetworkManager, s.serverNetworkManager)
 }
 
+type testApiIface interface {
+	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error)
+}
+
 type testApi struct {
 	handler func() (ssz.SSZEncodedData, error)
 }
@@ -67,9 +71,10 @@ func (s *ApiServerTestSuite) SetupSuite() {
 func (s *ApiServerTestSuite) SetupTest() {
 	s.RawApiTestSuite.SetupTest()
 
-	protocolInterfaceType := reflect.TypeOf((*testNetworkTransportProtocol)(nil)).Elem()
+	protocolInterfaceType := reflect.TypeFor[testNetworkTransportProtocol]()
+	apiInterfaceType := reflect.TypeFor[testApiIface]()
 	s.api = &testApi{}
-	err := setRawApiRequestHandlers(s.ctx, protocolInterfaceType, s.api, types.BaseShardId, "testapi", s.serverNetworkManager, s.logger)
+	err := setRawApiRequestHandlers(s.ctx, protocolInterfaceType, apiInterfaceType, s.api, types.BaseShardId, "testapi", s.serverNetworkManager, s.logger)
 	s.Require().NoError(err)
 }
 

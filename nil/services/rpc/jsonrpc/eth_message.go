@@ -40,7 +40,7 @@ func makeRequestByBlockRefAndIndex(ref rawapitypes.BlockReference, index types.M
 }
 
 // GetInMessageByHash implements eth_getTransactionByHash. Returns the message structure
-func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*RPCInMessage, error) {
+func (api *APIImplRo) GetInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*RPCInMessage, error) {
 	res, err := api.rawapi.GetInMessage(ctx, shardId, makeRequestByHash(hash))
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func (api *APIImpl) GetInMessageByHash(ctx context.Context, shardId types.ShardI
 	return NewRPCInMessage(msg, receipt, res.Index, res.BlockHash, res.BlockId)
 }
 
-func (api *APIImpl) GetInMessageByBlockHashAndIndex(
+func (api *APIImplRo) GetInMessageByBlockHashAndIndex(
 	ctx context.Context, shardId types.ShardId, hash common.Hash, index hexutil.Uint64,
 ) (*RPCInMessage, error) {
 	res, err := api.rawapi.GetInMessage(
@@ -68,7 +68,7 @@ func (api *APIImpl) GetInMessageByBlockHashAndIndex(
 	return NewRPCInMessage(msg, receipt, res.Index, res.BlockHash, res.BlockId)
 }
 
-func (api *APIImpl) GetInMessageByBlockNumberAndIndex(
+func (api *APIImplRo) GetInMessageByBlockNumberAndIndex(
 	ctx context.Context, shardId types.ShardId, number transport.BlockNumber, index hexutil.Uint64,
 ) (*RPCInMessage, error) {
 	res, err := api.rawapi.GetInMessage(
@@ -84,7 +84,7 @@ func (api *APIImpl) GetInMessageByBlockNumberAndIndex(
 	return NewRPCInMessage(msg, receipt, res.Index, res.BlockHash, res.BlockId)
 }
 
-func (api *APIImpl) GetRawInMessageByBlockNumberAndIndex(
+func (api *APIImplRo) GetRawInMessageByBlockNumberAndIndex(
 	ctx context.Context, shardId types.ShardId, number transport.BlockNumber, index hexutil.Uint64,
 ) (hexutil.Bytes, error) {
 	res, err := api.rawapi.GetInMessage(
@@ -96,7 +96,7 @@ func (api *APIImpl) GetRawInMessageByBlockNumberAndIndex(
 	return res.MessageSSZ, nil
 }
 
-func (api *APIImpl) GetRawInMessageByBlockHashAndIndex(
+func (api *APIImplRo) GetRawInMessageByBlockHashAndIndex(
 	ctx context.Context, shardId types.ShardId, hash common.Hash, index hexutil.Uint64,
 ) (hexutil.Bytes, error) {
 	res, err := api.rawapi.GetInMessage(
@@ -108,7 +108,7 @@ func (api *APIImpl) GetRawInMessageByBlockHashAndIndex(
 	return res.MessageSSZ, nil
 }
 
-func (api *APIImpl) GetRawInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (hexutil.Bytes, error) {
+func (api *APIImplRo) GetRawInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (hexutil.Bytes, error) {
 	res, err := api.rawapi.GetInMessage(ctx, shardId, makeRequestByHash(hash))
 	if err != nil {
 		return nil, err

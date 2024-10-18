@@ -93,7 +93,7 @@ func suitableCallbacks(receiver reflect.Value, logger zerolog.Logger) map[string
 	callbacks := make(map[string]*callback)
 	for m := range typ.NumMethod() {
 		method := typ.Method(m)
-		if method.PkgPath != "" {
+		if !method.IsExported() {
 			continue // method isn't exported
 		}
 		name := formatName(method.Name)

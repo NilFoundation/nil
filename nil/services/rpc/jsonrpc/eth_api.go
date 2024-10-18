@@ -187,18 +187,6 @@ type EthAPIRo interface {
 	GetCode(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error)
 
 	/*
-		@name TopUpViaFaucet
-		@summary Tops up the balance of the contractAddressTo using the faucet contract.
-		@description
-		@tags [Transactions]
-		@param contractAddressFrom Address
-		@param contractAddressTo Address
-		@param amount Value
-		@returns hash MessageHash
-	*/
-	TopUpViaFaucet(ctx context.Context, faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error)
-
-	/*
 		@name NewFilter
 		@summary Creates a new filter.
 		@description
@@ -314,6 +302,18 @@ type EthAPI interface {
 	EthAPIRo
 
 	/*
+		@name TopUpViaFaucet
+		@summary Tops up the balance of the contractAddressTo using the faucet contract.
+		@description
+		@tags [Transactions]
+		@param contractAddressFrom Address
+		@param contractAddressTo Address
+		@param amount Value
+		@returns hash MessageHash
+	*/
+	TopUpViaFaucet(ctx context.Context, faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error)
+
+	/*
 		@name SendRawTransaction
 		@summary Creates a new message or creates a contract for a previously signed message.
 		@description Implements eth_sendRawTransaction.
@@ -325,7 +325,7 @@ type EthAPI interface {
 }
 
 // APIImpl is implementation of the EthAPI interface based on remote Db access
-type APIImpl struct {
+type APIImplRo struct {
 	accessor *execution.StateAccessor
 
 	db     db.ReadOnlyDB
@@ -334,15 +334,19 @@ type APIImpl struct {
 	rawapi rawapi.NodeApi
 }
 
+// APIImpl is implementation of the EthAPI interface based on remote Db access
+type APIImpl struct {
+	*APIImplRo
+}
+
 var (
 	_ EthAPI   = (*APIImpl)(nil)
-	_ EthAPIRo = (*APIImpl)(nil)
+	_ EthAPIRo = (*APIImplRo)(nil)
 )
 
-// NewEthAPI returns APIImpl instance
-func NewEthAPI(ctx context.Context, rawapi rawapi.NodeApi, db db.ReadOnlyDB, pollBlocksForLogs bool) *APIImpl {
+func NewEthAPIRo(ctx context.Context, rawapi rawapi.NodeApi, db db.ReadOnlyDB, pollBlocksForLogs bool) *APIImplRo {
 	accessor := execution.NewStateAccessor()
-	api := &APIImpl{
+	api := &APIImplRo{
 		db:       db,
 		logger:   logging.NewLogger("eth-api"),
 		accessor: accessor,
@@ -352,6 +356,12 @@ func NewEthAPI(ctx context.Context, rawapi rawapi.NodeApi, db db.ReadOnlyDB, pol
 	return api
 }
 
-func (api *APIImpl) Shutdown() {
+// NewEthAPI returns APIImpl instance
+func NewEthAPI(ctx context.Context, rawapi rawapi.NodeApi, db db.ReadOnlyDB, pollBlocksForLogs bool) *APIImpl {
+	roApi := NewEthAPIRo(ctx, rawapi, db, pollBlocksForLogs)
+	return &APIImpl{roApi}
+}
+
+func (api *APIImplRo) Shutdown() {
 	api.logs.WaitForShutdown()
 }
