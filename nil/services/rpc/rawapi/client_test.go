@@ -15,6 +15,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type generatedApiClientIface interface {
+	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error)
+}
+
 type generatedApiClient struct {
 	apiCodec       apiCodec
 	networkManager *network.Manager
@@ -28,7 +32,7 @@ type ApiClientTestSuite struct {
 }
 
 func newGeneratedApiClient(networkManager *network.Manager, serverPeerId network.PeerID) (*generatedApiClient, error) {
-	apiCodec, err := newApiCodec(reflect.TypeOf(&generatedApiClient{}), reflect.TypeFor[compatibleNetworkTransportProtocol]())
+	apiCodec, err := newApiCodec(reflect.TypeFor[generatedApiClientIface](), reflect.TypeFor[compatibleNetworkTransportProtocol]())
 	if err != nil {
 		return nil, err
 	}

@@ -15,82 +15,62 @@ type compatibleNetworkTransportProtocol interface {
 	TestMethod(pb.BlockRequest) pb.RawBlockResponse
 }
 
-type compatibleApi struct{}
-
-func (t *compatibleApi) TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	return nil, nil
+type compatibleApi interface {
+	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error)
 }
 
-type apiWithOtherMethod struct{}
-
-func (api *apiWithOtherMethod) OtherMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	return nil, nil
+type apiWithOtherMethod interface {
+	OtherMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error)
 }
 
-type apiWithWrongMethodArguments struct{}
-
-func (api *apiWithWrongMethodArguments) TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference, extraArg int) (ssz.SSZEncodedData, error) {
-	return nil, nil
+type apiWithWrongMethodArguments interface {
+	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference, extraArg int) (ssz.SSZEncodedData, error)
 }
 
-type apiWithWrongContextMethodArgument struct{}
-
-func (api *apiWithWrongContextMethodArgument) TestMethod(notContextArgument int, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	return nil, nil
+type apiWithWrongContextMethodArgument interface {
+	TestMethod(notContextArgument int, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error)
 }
 
-type apiWithWrongMethodReturn struct{}
-
-func (api *apiWithWrongMethodReturn) TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (int, error) {
-	return 0, nil
+type apiWithWrongMethodReturn interface {
+	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (int, error)
 }
 
-type apiWithPointerInsteadOfValueMethodReturn struct{}
-
-func (api *apiWithPointerInsteadOfValueMethodReturn) TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (*ssz.SSZEncodedData, error) {
-	return &ssz.SSZEncodedData{}, nil
+type apiWithPointerInsteadOfValueMethodReturn interface {
+	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (*ssz.SSZEncodedData, error)
 }
 
-type apiWithWrongErrorTypeReturn struct{}
-
-func (api *apiWithWrongErrorTypeReturn) TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, int) {
-	return nil, 0
+type apiWithWrongErrorTypeReturn interface {
+	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, int)
 }
 
 func TestApisCompatibility(t *testing.T) {
 	t.Parallel()
 
-	protocolInterfaceType := reflect.TypeOf((*compatibleNetworkTransportProtocol)(nil)).Elem()
+	protocolInterfaceType := reflect.TypeFor[compatibleNetworkTransportProtocol]()
 
-	incompatibleApis := map[interface{}]string{
-		&apiWithWrongMethodArguments{}:              "API method TestMethod requires 2 arguments, but pb.BlockRequest.PackProtoMessage accepts 1 arguments",
-		&apiWithWrongContextMethodArgument{}:        "first argument of API method TestMethod must be context.Context",
-		&apiWithWrongMethodReturn{}:                 "API method outputs int type, but PackProtoMessage expects []uint8",
-		&apiWithPointerInsteadOfValueMethodReturn{}: "API method outputs *[]uint8 type, but PackProtoMessage expects []uint8",
-		&apiWithWrongErrorTypeReturn{}:              "second output argument of API method TestMethod must be error",
+	incompatibleApis := map[reflect.Type]string{
+		reflect.TypeFor[apiWithOtherMethod]():                       "method OtherMethod not found in rawapi.compatibleNetworkTransportProtocol",
+		reflect.TypeFor[apiWithWrongMethodArguments]():              "API method TestMethod requires 2 arguments, but pb.BlockRequest.PackProtoMessage accepts 1 arguments",
+		reflect.TypeFor[apiWithWrongContextMethodArgument]():        "first argument of API method TestMethod must be context.Context",
+		reflect.TypeFor[apiWithWrongMethodReturn]():                 "API method outputs int type, but PackProtoMessage expects []uint8",
+		reflect.TypeFor[apiWithPointerInsteadOfValueMethodReturn](): "API method outputs *[]uint8 type, but PackProtoMessage expects []uint8",
+		reflect.TypeFor[apiWithWrongErrorTypeReturn]():              "second output argument of API method TestMethod must be error",
 	}
 
-	goodApiType := reflect.TypeOf(&compatibleApi{})
+	goodApiType := reflect.TypeFor[compatibleApi]()
 	t.Run(goodApiType.String(), func(t *testing.T) {
 		t.Parallel()
 		_, err := newApiCodec(goodApiType, protocolInterfaceType)
 		require.NoError(t, err)
 	})
 
-	goodApiTypeWithOtherMethod := reflect.TypeOf(&apiWithOtherMethod{})
-	t.Run(goodApiType.String(), func(t *testing.T) {
-		t.Parallel()
-		_, err := newApiCodec(goodApiTypeWithOtherMethod, protocolInterfaceType)
-		require.NoError(t, err)
-	})
-
 	for a, e := range incompatibleApis {
 		api := a
 		errStr := e
-		t.Run(reflect.TypeOf(api).String(), func(t *testing.T) {
+		t.Run(api.String(), func(t *testing.T) {
 			t.Parallel()
 
-			_, err := newApiCodec(reflect.TypeOf(api), protocolInterfaceType)
+			_, err := newApiCodec(api, protocolInterfaceType)
 			require.ErrorContains(t, err, errStr)
 		})
 	}
