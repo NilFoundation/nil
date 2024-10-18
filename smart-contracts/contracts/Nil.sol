@@ -6,16 +6,12 @@ type CurrencyId is address;
 
 using {
     currencyIdEqual as ==,
-    currencyIdNotEqual as !=
+    currencyIdNotEqual as !=,
+    currencyIdLess as <,
+    currencyIdGreater as >,
+    currencyIdLessOrEqual as <=,
+    currencyIdGreaterOrEqual as >=
 } for CurrencyId global;
-
-function currencyIdEqual(CurrencyId a, CurrencyId b) pure returns (bool) {
-    return CurrencyId.unwrap(a) == CurrencyId.unwrap(b);
-}
-
-function currencyIdNotEqual(CurrencyId a, CurrencyId b) pure returns (bool) {
-    return CurrencyId.unwrap(a) != CurrencyId.unwrap(b);
-}
 
 library Nil {
     uint private constant SEND_MESSAGE = 0xfc;
@@ -329,4 +325,28 @@ contract __Precompile__ {
 contract NilConfigAbi {
     function curr_validators(Nil.ParamValidators memory) public {}
     function gas_price(Nil.ParamGasPrice memory) public {}
+}
+
+function currencyIdEqual(CurrencyId a, CurrencyId b) pure returns (bool) {
+    return CurrencyId.unwrap(a) == CurrencyId.unwrap(b);
+}
+
+function currencyIdNotEqual(CurrencyId a, CurrencyId b) pure returns (bool) {
+    return CurrencyId.unwrap(a) != CurrencyId.unwrap(b);
+}
+
+function currencyIdLess(CurrencyId a, CurrencyId b) pure returns (bool) {
+    return CurrencyId.unwrap(a) < CurrencyId.unwrap(b);
+}
+
+function currencyIdGreater(CurrencyId a, CurrencyId b) pure returns (bool) {
+    return CurrencyId.unwrap(a) > CurrencyId.unwrap(b);
+}
+
+function currencyIdLessOrEqual(CurrencyId a, CurrencyId b) pure returns (bool) {
+    return CurrencyId.unwrap(a) <= CurrencyId.unwrap(b);
+}
+
+function currencyIdGreaterOrEqual(CurrencyId a, CurrencyId b) pure returns (bool) {
+    return CurrencyId.unwrap(a) >= CurrencyId.unwrap(b);
 }
