@@ -5,9 +5,6 @@ option go_package = "/pb";
 
 import "nil/services/rpc/rawapi/proto/block.proto";
 
-message EmptyRequest {
-}
-
 message GasPriceResponse {
   oneof result {
     Error error = 1;

@@ -119,8 +119,7 @@ func (s *ApiClientTestSuite) TestErrorResponse() {
 				},
 			},
 		}
-		resp, err := proto.Marshal(response)
-		return resp, err
+		return proto.Marshal(response)
 	})
 	s.waitForRequestHandler()
 

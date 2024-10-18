@@ -22,6 +22,10 @@ type methodCodec struct {
 }
 
 func (c *methodCodec) packRequest(apiArgs ...any) ([]byte, error) {
+	if c.pbRequestType == nil {
+		return nil, nil
+	}
+
 	pbRequestValuePtr := reflect.New(c.pbRequestType)
 	args := []reflect.Value{pbRequestValuePtr}
 	for _, arg := range apiArgs {
@@ -38,6 +42,10 @@ func (c *methodCodec) packRequest(apiArgs ...any) ([]byte, error) {
 }
 
 func (c *methodCodec) unpackRequest(request []byte) ([]reflect.Value, error) {
+	if c.pbRequestType == nil {
+		return nil, nil
+	}
+
 	pbRequestValuePtr := reflect.New(c.pbRequestType)
 	message, ok := pbRequestValuePtr.Interface().(proto.Message)
 	// Should never happen, so we don't pack error to response.
@@ -181,17 +189,24 @@ func filtered[T any](seq iter.Seq[T], filter func(T) bool) iter.Seq[T] {
 }
 
 func checkTransportMethodSignatureAndExtractPbTypes(transportApiType reflect.Type, method reflect.Method) (reflect.Type, reflect.Type, error) {
-	if method.Type.NumIn() != 1 {
-		return nil, nil, fmt.Errorf("method %s.%s must have exactly 1 argument, got: %d", transportApiType.Name(), method.Name, method.Type.NumIn())
+	if method.Type.NumIn() > 1 {
+		return nil, nil, fmt.Errorf("method %s.%s must have 1 or 0 arguments, got: %d", transportApiType.Name(), method.Name, method.Type.NumIn())
 	}
 	if method.Type.NumOut() != 1 {
 		return nil, nil, fmt.Errorf("method %s.%s must have exactly 1 return value", transportApiType.Name(), method.Name)
 	}
-	return method.Type.In(0), method.Type.Out(0), nil
+	var reqType reflect.Type
+	if method.Type.NumIn() == 1 {
+		reqType = method.Type.In(0)
+	}
+	return reqType, method.Type.Out(0), nil
 }
 
 func checkApiMethodSignature(apiMethod reflect.Method) error {
 	apiMethodType := apiMethod.Type
+	if apiMethodType.NumIn() < 1 {
+		return fmt.Errorf("API method %s must have at least one argument", apiMethod.Name)
+	}
 	if !apiMethodType.In(0).Implements(reflect.TypeOf((*context.Context)(nil)).Elem()) {
 		return fmt.Errorf("first argument of API method %s must be context.Context", apiMethod.Name)
 	}
@@ -206,6 +221,10 @@ func checkApiMethodSignature(apiMethod reflect.Method) error {
 }
 
 func obtainAndValidateRequestConversionMethods(apiMethod reflect.Method, pbRequestType reflect.Type) (reflect.Method, reflect.Method, error) {
+	if pbRequestType == nil {
+		return reflect.Method{}, reflect.Method{}, nil
+	}
+
 	const packMethodName = "PackProtoMessage"
 	const unpackMethodName = "UnpackProtoMessage"
 
