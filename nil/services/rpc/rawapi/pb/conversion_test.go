@@ -166,6 +166,7 @@ func TestOutMessage_PackUnpack(t *testing.T) {
 		Data:        hexutil.Bytes{0x22},
 		CoinsUsed:   value,
 		OutMessages: nil,
+		GasPrice:    types.NewValueFromUint64(1),
 		Error:       "test message",
 	}
 
@@ -175,6 +176,7 @@ func TestOutMessage_PackUnpack(t *testing.T) {
 		Data:        hexutil.Bytes{0x2},
 		CoinsUsed:   value,
 		OutMessages: []*rpctypes.OutMessage{nestedMessage},
+		GasPrice:    types.NewValueFromUint64(2),
 	}
 
 	callArgs := new(OutMessage).PackProtoMessage(args)
@@ -200,6 +202,7 @@ func TestCallResponse_PackUnpack(t *testing.T) {
 		Data:        hexutil.Bytes{0x2},
 		CoinsUsed:   value,
 		OutMessages: nil,
+		GasPrice:    gp,
 	}
 
 	args := &rpctypes.CallResWithGasPrice{

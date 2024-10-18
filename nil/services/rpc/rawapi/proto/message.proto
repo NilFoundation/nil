@@ -12,6 +12,7 @@ message OutMessage {
   Uint256 coinsUsed = 4;
   repeated OutMessage outMessages = 5;
   string error = 6;
+  Uint256 gasPrice = 7;
 }
 
 message MessageInfo {

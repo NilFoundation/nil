@@ -4,10 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
+	"github.com/NilFoundation/nil/nil/internal/params"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/internal/vm"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
@@ -23,20 +22,29 @@ func (api *APIImplRo) Call(ctx context.Context, args CallArgs, mainBlockNrOrHash
 	return toCallRes(res)
 }
 
-func feeIsNotEnough(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	msg := err.Error()
-	return strings.HasPrefix(msg, vm.ErrOutOfGas.Error()) ||
-		strings.HasPrefix(err.Error(), vm.ErrInsufficientBalance.Error())
-}
-
 // Add some gap (20%) to be sure that it's enough for message processing.
 // For now it's just heuristic function without any mathematical rationality.
 func refineResult(input types.Value) types.Value {
 	return input.Mul64(12).Div64(10)
+}
+
+// SstoreSentryGasEIP2200 is a requirement to execute SSTORE opcode.
+// But actually we can spend less amount of gas.
+// Let's try to specify reasonable upper bound for fee estimation.
+const SstoreSentryGas = types.Gas(params.SstoreSentryGasEIP2200)
+
+func refineOutMsgResult(msgs []*rpctypes.OutMessage) types.Value {
+	result := types.NewZeroValue()
+	if len(msgs) == 0 {
+		return result
+	}
+
+	for _, msg := range msgs {
+		result = result.
+			Add(SstoreSentryGas.ToValue(msg.GasPrice)).
+			Add(refineOutMsgResult(msg.OutMessages))
+	}
+	return result
 }
 
 // Call implements eth_estimateGas.
@@ -72,30 +80,11 @@ func (api *APIImplRo) EstimateFee(ctx context.Context, args CallArgs, mainBlockN
 		return types.Value{}, err
 	}
 
-	var lo, hi types.Value = res.CoinsUsed.Add(args.Value), feeCreditCap
+	result := res.CoinsUsed.
+		Add(args.Value).
+		Add(SstoreSentryGas.ToValue(res.GasPrice)).
+		Add(refineOutMsgResult(res.OutMessages))
 
-	// Binary search implementation.
-	// Some opcodes can require some gas reserve (so we can't use coinsUsed).
-	// As result we try to find minimal value then call works successful.
-	// E.g. see how "SstoreSentryGasEIP2200" is used.
-	for lo.Add64(1).Int().Lt(hi.Int()) {
-		mid := hi.Add(lo).Div64(2)
-
-		_, err = execute(gasCap, mid)
-		switch {
-		case err == nil:
-			hi = mid
-		case feeIsNotEnough(err):
-			lo = mid
-		default:
-			return types.Value{}, err
-		}
-	}
-	if err != nil && !feeIsNotEnough(err) {
-		return types.Value{}, err
-	}
-
-	result := hi
 	if !args.Flags.GetBit(types.MessageFlagInternal) {
 		// Heuristic price for external message verification for the wallet.
 		const externalVerificationGas = types.Gas(10_000)
