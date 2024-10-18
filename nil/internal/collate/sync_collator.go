@@ -249,7 +249,7 @@ func (s *syncCollator) saveBlocks(ctx context.Context, blocks []*Block) error {
 			return errors.New("out messages root mismatch")
 		}
 
-		_, err = execution.PostprocessBlock(tx, s.shard, block.Block.GasPrice, 1, blockHash)
+		_, err = execution.PostprocessBlock(tx, s.shard, block.Block.GasPrice, blockHash)
 		if err != nil {
 			return err
 		}

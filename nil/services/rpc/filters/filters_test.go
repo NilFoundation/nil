@@ -288,7 +288,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	}
 	blockHash := block.Hash()
 	s.Require().NoError(db.WriteBlock(tx, 0, blockHash, &block))
-	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, blockHash)
+	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, blockHash)
 	s.Require().NoError(err)
 
 	block = types.Block{
@@ -297,7 +297,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	}
 	blockHash = block.Hash()
 	s.Require().NoError(db.WriteBlock(tx, 0, blockHash, &block))
-	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, blockHash)
+	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, blockHash)
 	s.Require().NoError(err)
 
 	block = types.Block{
@@ -306,7 +306,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	}
 	blockHash = block.Hash()
 	s.Require().NoError(db.WriteBlock(tx, 0, blockHash, &block))
-	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, blockHash)
+	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, blockHash)
 	s.Require().NoError(err)
 
 	block = types.Block{
@@ -315,7 +315,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	}
 	blockHash = block.Hash()
 	s.Require().NoError(db.WriteBlock(tx, 0, blockHash, &block))
-	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, blockHash)
+	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, blockHash)
 	s.Require().NoError(err)
 	s.Require().NoError(tx.Commit())
 
@@ -376,7 +376,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	}
 	blockHash = block.Hash()
 	s.Require().NoError(db.WriteBlock(tx, 0, blockHash, &block))
-	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, 0, blockHash)
+	_, err = execution.PostprocessBlock(tx, 0, defaultGasPrice, blockHash)
 	s.Require().NoError(err)
 	s.Require().NoError(tx.Commit())
 

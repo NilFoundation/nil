@@ -87,7 +87,7 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 	blockHash, err := es.Commit(blockId)
 	require.NoError(t, err)
 
-	block, err := PostprocessBlock(tx, shardId, types.NewValueFromUint64(10), 0, blockHash)
+	block, err := PostprocessBlock(tx, shardId, types.NewValueFromUint64(10), blockHash)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 
