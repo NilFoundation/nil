@@ -133,28 +133,28 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 	res, err := suite.api.GetTransactionCount(ctx, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
-	suite.Equal(hexutil.Uint64(567), *res)
+	suite.Equal(hexutil.Uint64(567), res)
 
 	blockHash := transport.BlockNumberOrHash{BlockHash: &suite.blockHash}
 	res, err = suite.api.GetTransactionCount(ctx, suite.smcAddr, blockHash)
 	suite.Require().NoError(err)
-	suite.Equal(hexutil.Uint64(567), *res)
+	suite.Equal(hexutil.Uint64(567), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 	res, err = suite.api.GetTransactionCount(ctx, types.GenerateRandomAddress(types.BaseShardId), blockNum)
 	suite.Require().NoError(err)
-	suite.Equal(hexutil.Uint64(0), *res)
+	suite.Equal(hexutil.Uint64(0), res)
 
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
 	_, err = suite.api.GetTransactionCount(ctx, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
-	suite.Equal(hexutil.Uint64(0), *res)
+	suite.Equal(hexutil.Uint64(0), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.PendingBlock.BlockNumber}
 	res, err = suite.api.GetTransactionCount(ctx, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
-	suite.Equal(hexutil.Uint64(567), *res)
+	suite.Equal(hexutil.Uint64(567), res)
 
 	msg := types.ExternalMessage{
 		To:    suite.smcAddr,
@@ -180,7 +180,7 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.PendingBlock.BlockNumber}
 	res, err = suite.api.GetTransactionCount(ctx, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
-	suite.Equal(hexutil.Uint64(1), *res)
+	suite.Equal(hexutil.Uint64(1), res)
 }
 
 func TestSuiteEthAccounts(t *testing.T) {

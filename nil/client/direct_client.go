@@ -31,13 +31,11 @@ type DirectClient struct {
 
 var _ Client = (*DirectClient)(nil)
 
-func NewEthClient(ctx context.Context, wg *sync.WaitGroup, db db.ReadOnlyDB, msgPools []msgpool.Pool, logger zerolog.Logger) (*DirectClient, error) {
+func NewEthClient(ctx context.Context, wg *sync.WaitGroup, db db.ReadOnlyDB, nShards types.ShardId, msgPools map[types.ShardId]msgpool.Pool, logger zerolog.Logger) (*DirectClient, error) {
 	var err error
 	localShardApis := make(map[types.ShardId]rawapi.ShardApi)
-	for i, pool := range msgPools {
-		shardId := types.ShardId(i)
-		shardApi := rawapi.NewLocalShardApi(shardId, db, pool)
-		localShardApis[shardId], err = rawapi.NewLocalRawApiAccessor(shardId, shardApi)
+	for shardId := range nShards {
+		localShardApis[shardId], err = rawapi.NewLocalRawApiAccessor(shardId, rawapi.NewLocalShardApi(shardId, db, msgPools[shardId]))
 		if err != nil {
 			return nil, err
 		}
@@ -153,7 +151,7 @@ func (c *DirectClient) GetTransactionCount(address types.Address, blockId any) (
 		return 0, err
 	}
 
-	return *(*types.Seqno)(res), nil
+	return types.Seqno(res), nil
 }
 
 func (c *DirectClient) GetBlockTransactionCount(shardId types.ShardId, blockId any) (uint64, error) {

@@ -15,7 +15,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/multiformats/go-multistream"
 	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/proto"
@@ -280,8 +279,4 @@ func (s *syncCollator) saveMessages(tx db.RwTx, messages []*types.Message) (comm
 		return common.EmptyHash, err
 	}
 	return messageTree.RootHash(), nil
-}
-
-func (s *syncCollator) GetMsgPool() msgpool.Pool {
-	return nil
 }

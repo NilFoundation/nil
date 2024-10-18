@@ -166,7 +166,3 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 
 	return PublishBlock(ctx, s.networkManager, s.params.ShardId, &Block{Block: block, OutMessages: outs})
 }
-
-func (s *Scheduler) GetMsgPool() msgpool.Pool {
-	return s.pool
-}
