@@ -1,7 +1,7 @@
 import type { RequestArguments } from "@open-rpc/client-js/build/ClientInterface.js";
 import type { ITransport } from "../transport/index.js";
 import { assertIsValidShardId } from "../utils/assert.js";
-import type { IClientBaseConfig } from "./types/ClientConfigs.js";
+import type { IClientBaseConfig } from "./types/Configs.js";
 
 /**
  * BaseClient is the base class for any client tasked with interacting with =nil;

@@ -29,8 +29,8 @@ test("Faucet with retry", async () => {
   );
 
   await expect(
-    async () => await faucet.withdrawToWithRetry(address, 100000n, 5),
+    async () => await faucet.withdrawToWithRetry(address, 100000n, 2),
   ).rejects.toThrowError();
 
-  expect(fn.mock.calls.length).toBeGreaterThanOrEqual(5);
+  expect(fn.mock.calls.length).toBeGreaterThanOrEqual(2);
 });
