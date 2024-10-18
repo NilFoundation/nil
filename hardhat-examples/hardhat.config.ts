@@ -8,6 +8,7 @@ dotenv.config();
 
 const config: NilHardhatUserConfig = {
   solidity: "0.8.26",
+  defaultNetwork: "nil",
   ignition: {
     requiredConfirmations: 1,
   },
