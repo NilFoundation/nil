@@ -159,7 +159,7 @@ func (api *LocalShardApi) Call(
 	var hash common.Hash
 	if !shardId.IsMainShard() {
 		if len(childBlocks) < int(shardId) {
-			return nil, ErrShardNotFound
+			return nil, makeShardNotFoundError("Call", shardId)
 		}
 		hash = childBlocks[shardId-1]
 	} else {

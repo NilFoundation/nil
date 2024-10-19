@@ -89,7 +89,7 @@ func (suite *SuiteSendTransaction) TestInvalidShard() {
 	suite.Require().NoError(err)
 
 	_, err = suite.api.SendRawTransaction(context.Background(), data)
-	suite.Require().ErrorIs(err, rawapi.ErrShardNotFound)
+	suite.Require().ErrorContains(err, rawapi.ErrShardNotFound.Error())
 }
 
 func TestSuiteSendTransaction(t *testing.T) {
