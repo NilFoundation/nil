@@ -28,8 +28,9 @@ persist({
 
 compileCodeFx.use(async ({ version, code }) => {
   const compiler = await fetchSolidityCompiler(`https://binaries.soliditylang.org/bin/${version}`);
+  // TODO: handle this gracefully(?)
   const res = await compiler.compile({
-    code,
+    '// SPDX-License-Identifier: MIT\n' + code,
   });
   const contracts: App[] = [];
   if ("contracts" in res && res.contracts !== undefined && "Compiled_Contracts" in res.contracts) {
