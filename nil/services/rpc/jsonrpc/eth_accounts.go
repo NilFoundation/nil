@@ -3,7 +3,6 @@ package jsonrpc
 import (
 	"context"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -21,14 +20,8 @@ func (api *APIImplRo) GetBalance(ctx context.Context, address types.Address, blo
 }
 
 // GetCurrencies implements eth_getCurrencies. Returns the balance of all currencies of account for a given address.
-func (api *APIImplRo) GetCurrencies(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (map[string]*hexutil.Big, error) {
-	currencies, err := api.rawapi.GetCurrencies(ctx, address, toBlockReference(blockNrOrHash))
-	if err != nil {
-		return nil, err
-	}
-	return common.TransformMap(currencies, func(k types.CurrencyId, v types.Value) (string, *hexutil.Big) {
-		return hexutil.ToHexNoLeadingZeroes(k[:]), hexutil.NewBig(v.ToBig())
-	}), nil
+func (api *APIImplRo) GetCurrencies(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (map[types.CurrencyId]types.Value, error) {
+	return api.rawapi.GetCurrencies(ctx, address, toBlockReference(blockNrOrHash))
 }
 
 // GetTransactionCount implements eth_getTransactionCount. Returns the number of transactions sent from an address (the nonce / seqno).

@@ -11,7 +11,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	nilcrypto "github.com/NilFoundation/nil/nil/internal/crypto"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -262,7 +261,7 @@ func (s *SuiteCli) TestCurrency() {
 	s.Require().NoError(err)
 	s.Require().Len(cur, 1)
 
-	currencyId := hexutil.ToHexNoLeadingZeroes(types.CurrencyIdForAddress(wallet)[:])
+	currencyId := *types.CurrencyIdForAddress(wallet)
 	val, ok := cur[currencyId]
 	s.Require().True(ok)
 	s.Require().Equal(value, val)

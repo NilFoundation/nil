@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
@@ -190,7 +189,7 @@ func (s *SuiteFaucet) TestTopUpCurrencyViaFaucet() {
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 3)
 	for _, faucet := range faucetsAddr {
-		curValue, ok := currencies[hexutil.ToHexNoLeadingZeroes(faucet.Bytes())]
+		curValue, ok := currencies[types.CurrencyId(faucet)]
 		s.Require().True(ok)
 		s.Require().Equal(value.Uint64(), curValue.Uint64())
 	}

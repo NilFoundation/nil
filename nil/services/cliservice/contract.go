@@ -58,7 +58,7 @@ func (s *Service) GetCurrencies(contractAddress types.Address) (types.Currencies
 
 	s.logger.Info().Msg("Contract currencies:")
 	for k, v := range currencies {
-		s.logger.Info().Str(logging.FieldCurrencyId, k).Msgf("Balance: %v", v)
+		s.logger.Info().Stringer(logging.FieldCurrencyId, k).Msgf("Balance: %v", v)
 	}
 	return currencies, nil
 }
