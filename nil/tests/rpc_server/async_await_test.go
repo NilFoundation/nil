@@ -399,7 +399,7 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 		initialBalance = s.checkBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)
 		s.checkAsyncContextEmpty(s.testAddress0)
 
-		currencyId := hexutil.ToHexNoLeadingZeroes(s.testAddress0.Bytes())
+		currencyId := types.CurrencyId(s.testAddress0)
 
 		currencies, err := s.client.GetCurrencies(s.testAddress0, "latest")
 		s.Require().NoError(err)

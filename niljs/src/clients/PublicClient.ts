@@ -415,7 +415,7 @@ class PublicClient extends BaseClient {
 
     if (res) {
       for (const [key, value] of Object.entries(res)) {
-        tokenMap[key] = hexToBigInt(value);
+        tokenMap[key] = BigInt(value);
       }
     }
 

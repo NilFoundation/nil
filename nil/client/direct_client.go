@@ -196,12 +196,7 @@ func (c *DirectClient) GetCurrencies(address types.Address, blockId any) (types.
 		return nil, err
 	}
 
-	currencies, err := c.ethApi.GetCurrencies(c.ctx, address, transport.BlockNumberOrHash(blockNrOrHash))
-	if err != nil {
-		return nil, err
-	}
-
-	return types.ToCurrenciesMap(currencies), err
+	return c.ethApi.GetCurrencies(c.ctx, address, transport.BlockNumberOrHash(blockNrOrHash))
 }
 
 func (c *DirectClient) GasPrice(shardId types.ShardId) (types.Value, error) {

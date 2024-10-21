@@ -56,14 +56,12 @@ test("mint and transfer tokens", async () => {
     await waitTillCompleted(client, 1, hashMessage);
   }
 
-  const n = hexToBigInt(walletAddress);
-
   const tokens = await client.getCurrencies(walletAddress, "latest");
 
   expect(tokens).toBeDefined();
   expect(Object.keys(tokens).length).toBeGreaterThan(0);
-  expect(tokens[toHex(n)]).toBeDefined();
-  expect(tokens[toHex(n)]).toBe(mintCount);
+  expect(tokens[walletAddress]).toBeDefined();
+  expect(tokens[walletAddress]).toBe(mintCount);
 
   const anotherAddress = WalletV1.calculateWalletAddress({
     pubKey: pubkey,
@@ -94,6 +92,6 @@ test("mint and transfer tokens", async () => {
 
   expect(anotherTokens).toBeDefined();
   expect(Object.keys(anotherTokens).length).toBeGreaterThan(0);
-  expect(anotherTokens[toHex(n)]).toBeDefined();
-  expect(anotherTokens[toHex(n)]).toBe(transferCount);
+  expect(anotherTokens[walletAddress]).toBeDefined();
+  expect(anotherTokens[walletAddress]).toBe(transferCount);
 });

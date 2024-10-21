@@ -482,11 +482,7 @@ func (c *Client) GetCurrencies(address types.Address, blockId any) (types.Curren
 
 	currencies := make(types.RPCCurrenciesMap)
 	err = json.Unmarshal(res, &currencies)
-	if err != nil {
-		return nil, err
-	}
-
-	return types.ToCurrenciesMap(currencies), err
+	return currencies, err
 }
 
 func (c *Client) GasPrice(shardId types.ShardId) (types.Value, error) {

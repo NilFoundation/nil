@@ -294,7 +294,7 @@ type EthAPIRo interface {
 		@param blockNumberOrHash BlockNumberOrHash
 		@returns balance Balance of all currencies
 	*/
-	GetCurrencies(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (map[string]*hexutil.Big, error)
+	GetCurrencies(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (map[types.CurrencyId]types.Value, error)
 }
 
 // EthAPI is a collection of functions that are exposed in the JSON-RPC API.

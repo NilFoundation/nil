@@ -6,7 +6,6 @@ import (
 	"time"
 
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/faucet"
@@ -76,9 +75,9 @@ func (s *FaucetRpc) TestSendRawTransaction() {
 
 func (s *FaucetRpc) TestSendToken() {
 	expectedCurrencies := types.CurrenciesMap{
-		hexutil.ToHexNoLeadingZeroes(types.EthFaucetAddress.Bytes()):  types.NewValueFromUint64(111),
-		hexutil.ToHexNoLeadingZeroes(types.BtcFaucetAddress.Bytes()):  types.NewValueFromUint64(222),
-		hexutil.ToHexNoLeadingZeroes(types.UsdtFaucetAddress.Bytes()): types.NewValueFromUint64(333),
+		types.CurrencyId(types.EthFaucetAddress.Bytes()):  types.NewValueFromUint64(111),
+		types.CurrencyId(types.BtcFaucetAddress.Bytes()):  types.NewValueFromUint64(222),
+		types.CurrencyId(types.UsdtFaucetAddress.Bytes()): types.NewValueFromUint64(333),
 	}
 
 	for i, addr := range []types.Address{types.EthFaucetAddress, types.BtcFaucetAddress, types.UsdtFaucetAddress} {

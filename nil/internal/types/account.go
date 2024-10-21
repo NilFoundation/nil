@@ -27,6 +27,14 @@ func (c CurrencyId) String() string {
 	return Address(c).String()
 }
 
+func (c CurrencyId) MarshalText() ([]byte, error) {
+	return Address(c).MarshalText()
+}
+
+func (c *CurrencyId) UnmarshalText(input []byte) error {
+	return hexutil.UnmarshalFixedText("CurrencyId", input, c[:])
+}
+
 type CurrencyBalance struct {
 	Currency CurrencyId `json:"id" ssz-size:"20" abi:"id"`
 	Balance  Value      `json:"value" ssz-size:"32" abi:"amount"`
@@ -53,12 +61,6 @@ func (s *SmartContract) Hash() common.Hash {
 	return common.MustPoseidonSSZ(s)
 }
 
-type CurrenciesMap = map[string]Value
+type CurrenciesMap = map[CurrencyId]Value
 
-type RPCCurrenciesMap = map[string]*hexutil.Big
-
-func ToCurrenciesMap(m RPCCurrenciesMap) CurrenciesMap {
-	return common.TransformMap(m, func(k string, v *hexutil.Big) (string, Value) {
-		return k, NewValueFromBigMust(v.ToInt())
-	})
-}
+type RPCCurrenciesMap = CurrenciesMap
