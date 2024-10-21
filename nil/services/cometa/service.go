@@ -1,6 +1,7 @@
 package cometa
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -49,14 +50,11 @@ func (s *Service) RegisterContract(ctx context.Context, contractData *ContractDa
 		return fmt.Errorf("failed to get code: %w", err)
 	}
 	if len(code) == 0 {
-		return errors.New("contract has no code")
+		return errors.New("contract doesn't exist")
 	}
-	codeHash := code.Hash()
-	compiledCode := types.Code(contractData.Code)
 
-	compiledHash := compiledCode.Hash()
-	if codeHash != compiledHash {
-		return errors.New("contracts hash mismatch")
+	if !bytes.Equal(code, contractData.Code) {
+		return errors.New("compiled bytecode is not equal to the deployed one")
 	}
 
 	if err = s.storage.StoreContract(ctx, contractData, address); err != nil {
@@ -69,7 +67,7 @@ func (s *Service) RegisterContract(ctx context.Context, contractData *ContractDa
 }
 
 func (s *Service) CompileContract(inputJson string) (*ContractData, error) {
-	return Compile(inputJson)
+	return CompileJson(inputJson)
 }
 
 func (s *Service) GetContract(ctx context.Context, address types.Address) (*Contract, error) {
