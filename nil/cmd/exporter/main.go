@@ -73,8 +73,6 @@ You could config it via config file or flags or environment variables.`,
 				var buffer bytes.Buffer
 				cmd.SetOut(&buffer)
 
-				check.PanicIfErr(cmd.Help())
-
 				fmt.Printf("Required parameters are absent: %v\n%s", absentParams, buffer.String())
 				os.Exit(1)
 			}
