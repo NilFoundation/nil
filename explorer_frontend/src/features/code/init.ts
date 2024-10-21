@@ -65,7 +65,6 @@ interface SolidityError {
   message: string; // error message
 }
 $error.on(compileCodeFx.failData, (_, error) => {
-  console.log('error', error);
   function parseSolidityError(errorString: string): SolidityError[] {
     const errors: SolidityError[] = [];
     const errorLines = errorString.split("\n");

@@ -61,7 +61,6 @@ export class CompileWorker {
         const task = this.currentTask;
         if (task) {
           const { reject } = this.promiseMap.get(task)!;
-          console.log("errors", event.data.errors);
           const errorMsg = event.data.errors.filter((error) => !error.formattedMessage.startsWith('Warning')).map((error) => error.formattedMessage).join("\n");
           reject(new Error(errorMsg));
           this.promiseMap.delete(task);
