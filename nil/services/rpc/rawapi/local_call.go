@@ -3,6 +3,7 @@ package rawapi
 import (
 	"bytes"
 	"context"
+	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
@@ -160,7 +161,8 @@ func (api *LocalShardApi) Call(
 	var hash common.Hash
 	if !shardId.IsMainShard() {
 		if len(childBlocks) < int(shardId) {
-			return nil, makeShardNotFoundError("Call", shardId)
+			return nil, fmt.Errorf("%w: main shard includes only %d blocks",
+				makeShardNotFoundError(methodNameChecked("Call"), shardId), len(childBlocks))
 		}
 		hash = childBlocks[shardId-1]
 	} else {
