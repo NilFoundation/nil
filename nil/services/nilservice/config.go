@@ -96,15 +96,19 @@ func NewDefaultReplayConfig() *ReplayConfig {
 }
 
 func (c *Config) GetMyShards() []uint {
-	if !c.SplitShards {
-		shards := make([]uint, c.NShards)
-		for i := range shards {
-			shards[i] = uint(i)
-		}
+	shards := c.MyShards
+	if len(shards) > 0 {
 		return shards
 	}
 
-	return c.MyShards
+	if !c.SplitShards {
+		shards = make([]uint, c.NShards)
+		for i := range shards {
+			shards[i] = uint(i)
+		}
+	}
+
+	return shards
 }
 
 func (c *Config) IsShardActive(shardId types.ShardId) bool {
