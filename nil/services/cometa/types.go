@@ -39,8 +39,8 @@ type Optimizer struct {
 }
 
 type SettingsMetadata struct {
-	AppendCBOR        bool   `json:"appendCBOR,omitempty"` //nolint:tagliatelle
-	UseLiteralContent bool   `json:"useLiteralContent,omitempty"`
+	AppendCBOR        bool   `json:"appendCBOR"` //nolint:tagliatelle
+	UseLiteralContent bool   `json:"useLiteralContent"`
 	BytecodeHash      string `json:"bytecodeHash,omitempty"`
 }
 
@@ -124,8 +124,8 @@ type MetadataSettings struct {
 	OutputSelection   map[string]any    `json:"outputSelection,omitempty"`
 }
 
-// JsonInput is the input for the service. It contains all information for compilation and deployment.
-type JsonInput struct {
+// CompilerTask is the input for the service. It contains all information for compilation and deployment.
+type CompilerTask struct {
 	ContractName    string             `json:"contractName,omitempty"`
 	CompilerVersion string             `json:"compilerVersion,omitempty"`
 	BasePath        string             `json:"basePath,omitempty"`
@@ -141,7 +141,7 @@ type Settings struct {
 }
 
 // Normalize fills in the content of the sources that have no content but have urls.
-func (t *JsonInput) Normalize() error {
+func (t *CompilerTask) Normalize() error {
 	if t.isNormalized {
 		return nil
 	}
@@ -163,8 +163,8 @@ func (t *JsonInput) Normalize() error {
 	return nil
 }
 
-// ToCompilerJsonInput converts JsonInput to CompilerJsonInput, which can be consumed by the compiler.
-func (t *JsonInput) ToCompilerJsonInput() (*CompilerJsonInput, error) {
+// ToCompilerJsonInput converts CompilerTask to CompilerJsonInput, which can be consumed by the compiler.
+func (t *CompilerTask) ToCompilerJsonInput() (*CompilerJsonInput, error) {
 	if err := t.Normalize(); err != nil {
 		return nil, err
 	}

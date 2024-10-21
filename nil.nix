@@ -3,7 +3,9 @@
 , buildGo123Module
 , enableRaceDetector ? false
 , enableTesting ? false
+, jq
 , solc
+, solc-select
 , clickhouse
 , go-tools
 , gotools
@@ -43,7 +45,9 @@ buildGo123Module rec {
   CGO_ENABLED = if enableRaceDetector then 1 else 0;
 
   nativeBuildInputs = [
+    jq
     solc
+    solc-select
     clickhouse
     protobuf
     (overrideBuildGoModule gotools)

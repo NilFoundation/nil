@@ -31,7 +31,7 @@ func (s *SuiteServiceTest) SetupSuite() {
 func (s *SuiteServiceTest) TestCase1() {
 	input := getInputJson(s.T(), "input_1")
 
-	compData, err := Compile(input)
+	compData, err := CompileJson(input)
 	s.Require().NoError(err)
 
 	code := compData.Code
@@ -70,7 +70,7 @@ func (s *SuiteServiceTest) TestCase1() {
 func (s *SuiteServiceTest) TestCase2() {
 	input := getInputJson(s.T(), "input_2")
 
-	compData, err := Compile(input)
+	compData, err := CompileJson(input)
 	s.Require().NoError(err)
 
 	code := compData.Code

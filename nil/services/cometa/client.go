@@ -129,10 +129,12 @@ func (c *Client) CompileContract(inputJson string) (*ContractData, error) {
 	return &contractData, nil
 }
 
+func (c *Client) DeployContract(inputJson string, address types.Address) error {
+	_, err := c.sendRequest("cometa_deployContract", []any{inputJson, address})
+	return err
+}
+
 func (c *Client) RegisterContract(contractData *ContractData, address types.Address) error {
 	_, err := c.sendRequest("cometa_registerContract", []any{contractData, address})
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }

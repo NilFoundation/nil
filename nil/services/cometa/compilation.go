@@ -20,30 +20,51 @@ const (
 )
 
 type ContractData struct {
-	Name            string                  `json:"name,omitempty"`
-	Description     string                  `json:"description,omitempty"`
-	Abi             []any                   `json:"abi,omitempty"`
-	SourceCode      map[string]string       `json:"sourceCode,omitempty"`
-	SourceMap       string                  `json:"sourceMap,omitempty"`
-	Metadata        string                  `json:"metadata,omitempty"`
-	DeployCode      []byte                  `json:"deployCode,omitempty"`
-	Code            []byte                  `json:"code,omitempty"`
-	SourceFilesList []string                `json:"sourceFilesList,omitempty"`
-	CompilerOutput  *CompilerOutputContract `json:"compilerOutput,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	Abi         []any  `json:"abi,omitempty"`
+
+	// SourceCode contains source code content for each file: {name -> content}
+	SourceCode map[string]string `json:"sourceCode,omitempty"`
+	SourceMap  string            `json:"sourceMap,omitempty"`
+	Metadata   string            `json:"metadata,omitempty"`
+
+	// DeployCode contains bytecode for contract deployment.
+	DeployCode []byte `json:"deployCode,omitempty"`
+
+	// Code contains runtime bytecode which is stored in blockchain.
+	Code []byte `json:"code,omitempty"`
+
+	// SourceFilesList contains list of source files in a such order that it's referred in debug entities like sourceMap.
+	// I.e. id of the file in sourceMap is an index in this array.
+	SourceFilesList []string `json:"sourceFilesList,omitempty"`
+
+	CompilerOutput *CompilerOutputContract `json:"compilerOutput,omitempty"`
 }
 
-func Compile(inputJson string) (*ContractData, error) {
-	logger.Info().Msg("Start contract compiling...")
+func NewCompilerTask(inputJson string) (*CompilerTask, error) {
+	var task CompilerTask
+	if err := json.Unmarshal([]byte(inputJson), &task); err != nil {
+		return nil, err
+	}
+	return &task, nil
+}
+
+func CompileJson(inputJson string) (*ContractData, error) {
+	input, err := NewCompilerTask(inputJson)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read input json: %w", err)
+	}
+	return Compile(input)
+}
+
+func Compile(input *CompilerTask) (*ContractData, error) {
+	logger.Info().Msg("Start contract compilation...")
 	dir, err := os.MkdirTemp("/tmp", "compilation_")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer os.RemoveAll(dir)
-
-	var input JsonInput
-	if err = json.Unmarshal([]byte(inputJson), &input); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal input json: %w", err)
-	}
 
 	solc, err := findCompiler(input.CompilerVersion)
 	if err != nil {

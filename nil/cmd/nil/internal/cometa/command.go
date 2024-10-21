@@ -75,12 +75,8 @@ func runRegisterCommand(_ *cobra.Command) error {
 		return fmt.Errorf("failed to normalize input JSON: %w", err)
 	}
 
-	contractData, err := cometaClient.CompileContract(inputJson)
+	err = cometaClient.DeployContract(inputJson, params.address)
 	if err != nil {
-		return fmt.Errorf("failed to compile contract: %w", err)
-	}
-
-	if err := cometaClient.RegisterContract(contractData, params.address); err != nil {
 		return fmt.Errorf("failed to register contract: %w", err)
 	}
 
@@ -90,7 +86,7 @@ func runRegisterCommand(_ *cobra.Command) error {
 }
 
 func normalizeCompileInput(inputJson, inputJsonFile string) (string, error) {
-	var input cometa.JsonInput
+	var input cometa.CompilerTask
 	if err := json.Unmarshal([]byte(inputJson), &input); err != nil {
 		return "", fmt.Errorf("failed to unmarshal input json: %w", err)
 	}

@@ -46,7 +46,7 @@ ssz: ssz_db ssz_mpt ssz_types ssz_config
 pb: pb_rawapi pb_collator pb_ibft
 
 contracts/compiled/%.bin: $(wildcard nil/contracts/solidity/tests/*.sol) $(wildcard nil/contracts/solidity/*.sol)
-	go generate nil/contracts/generate.go
+	cd nil/contracts && go generate generate.go
 
 compile-contracts: contracts/compiled/Faucet.bin contracts/compiled/Wallet.bin
 

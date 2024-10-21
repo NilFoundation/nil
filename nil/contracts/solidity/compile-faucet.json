@@ -1,0 +1,25 @@
+{
+  "contractName": "Faucet.sol:Faucet",
+  "compilerVersion": "0.8.27",
+  "settings": {
+    "evmVersion": "cancun",
+    "optimizer": {
+      "enabled": false,
+      "runs": 200
+    }
+  },
+  "sources": {
+    "Faucet.sol": {
+      "urls": ["lib/Faucet.sol"]
+    },
+    "Wallet.sol": {
+      "urls": ["lib/Wallet.sol"]
+    },
+    "NilCurrencyBase.sol": {
+      "urls": ["lib/NilCurrencyBase.sol"]
+    },
+    "Nil.sol": {
+      "urls": ["lib/Nil.sol"]
+    }
+  }
+}
