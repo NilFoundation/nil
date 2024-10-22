@@ -1,4 +1,4 @@
-import type { ITransport } from "../../index.js";
+import type { ITransport } from "../../transport/types/ITransport.js";
 import type { ISigner } from "../../signers/types/ISigner.js";
 
 /**
@@ -52,9 +52,15 @@ type IWalletClientConfig = IClientBaseConfig & {
  */
 type FaucetClientConfig = IClientBaseConfig;
 
+/**
+ * The type representing the config for the Cometa service client.
+ */
+type CometaServiceConfig = IClientBaseConfig
+
 export type {
 	IClientBaseConfig,
 	IPublicClientConfig,
 	IWalletClientConfig,
 	FaucetClientConfig,
+	CometaServiceConfig,
 };
