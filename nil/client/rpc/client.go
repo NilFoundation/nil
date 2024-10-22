@@ -676,6 +676,9 @@ func (c *Client) BatchCall(req client.BatchRequest) ([]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(responses) != len(r.requests) {
+		return nil, fmt.Errorf("unexpected number of responses: expected %d, got %d", len(r.requests), len(responses))
+	}
 
 	result := make([]any, len(responses))
 	for i, resp := range responses {
@@ -686,13 +689,17 @@ func (c *Client) BatchCall(req client.BatchRequest) ([]any, error) {
 			if err != nil {
 				return nil, err
 			}
-			result[i] = block
+			if block != nil {
+				result[i] = block
+			}
 		case Debug_getBlockByHash, Debug_getBlockByNumber:
 			block, err := toRawBlock(resp)
 			if err != nil {
 				return nil, err
 			}
-			result[i] = block
+			if block != nil {
+				result[i] = block
+			}
 		default:
 			result[i] = resp
 		}
@@ -735,7 +742,11 @@ func (c *Client) getBlocksRange(shardId types.ShardId, from, to types.BlockNumbe
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, blocks...)
+		for _, block := range blocks {
+			if block != nil {
+				result = append(result, block)
+			}
+		}
 	}
 	return result, nil
 }
@@ -748,6 +759,7 @@ func (c *Client) GetDebugBlocksRange(shardId types.ShardId, from, to types.Block
 
 	result := make([]*types.BlockWithExtractedData, len(rawBlocks))
 	for i, raw := range rawBlocks {
+		check.PanicIfNot(raw != nil)
 		block, ok := raw.(*jsonrpc.DebugRPCBlock)
 		check.PanicIfNot(ok)
 		result[i], err = block.DecodeSSZ()

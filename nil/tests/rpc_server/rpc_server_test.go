@@ -851,6 +851,7 @@ func (s *SuiteRpc) TestBatch() {
 		`[{"jsonrpc":"2.0","id": 1, "method":"rpc_modules","params":[]}]`:                                                                `[{"jsonrpc":"2.0","id":1,"result":{"db":"1.0","debug":"1.0","eth":"1.0","rpc":"1.0"}}]`,
 		`[{"jsonrpc":"2.0","id": 1, "method":"rpc_modules","params":[]}, {"jsonrpc":"2.0","id": 2, "method":"rpc_modules","params":[]}]`: `[{"jsonrpc":"2.0","id":1,"result":{"db":"1.0","debug":"1.0","eth":"1.0","rpc":"1.0"}}, {"jsonrpc":"2.0","id":2,"result":{"db":"1.0","debug":"1.0","eth":"1.0","rpc":"1.0"}}]`,
 		`[{"jsonrpc":"2.0", "method":"rpc_modules","params":[]}]`:                                                                        `[{"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"invalid request"}}]`,
+		`[{"jsonrpc":"2.0", "method":"eth_getBlockByNumber", "params": [0, "100500", false], "id": 1}]`:                                  `[{"jsonrpc":"2.0","id":1,"result":null}]`,
 	}
 
 	for req, expectedResp := range testcases {
@@ -866,10 +867,15 @@ func (s *SuiteRpc) TestBatch() {
 	s.Require().NoError(err)
 	_, err = batch.GetDebugBlock(types.BaseShardId, "latest", false)
 	s.Require().NoError(err)
+	const tooBigNonexistentBlockNumber = "100500"
+	_, err = batch.GetBlock(types.MainShardId, tooBigNonexistentBlockNumber, false)
+	s.Require().NoError(err)
+	_, err = batch.GetDebugBlock(types.BaseShardId, tooBigNonexistentBlockNumber, false)
+	s.Require().NoError(err)
 
 	result, err := s.client.BatchCall(batch)
 	s.Require().NoError(err)
-	s.Require().Len(result, 2)
+	s.Require().Len(result, 4)
 
 	b1, ok := result[0].(*jsonrpc.RPCBlock)
 	s.Require().True(ok)
@@ -878,6 +884,9 @@ func (s *SuiteRpc) TestBatch() {
 	b2, ok := result[1].(*jsonrpc.DebugRPCBlock)
 	s.Require().True(ok)
 	s.NotEmpty(b2.Content)
+
+	s.Require().Nil(result[2])
+	s.Require().Nil(result[3])
 }
 
 func (s *SuiteRpc) TestAddressCalculation() {
