@@ -84,6 +84,9 @@ func (agg *Aggregator) fetchLatestBlocks(shardIdList []coreTypes.ShardId) (map[c
 
 	latestBlocks := make(map[coreTypes.ShardId]*jsonrpc.RPCBlock)
 	for i, result := range results {
+		if result == nil {
+			return nil, fmt.Errorf("no latest block found for shard %d", shardIdList[i])
+		}
 		shardId := shardIdList[i]
 		block, ok := result.(*jsonrpc.RPCBlock)
 		if !ok {
