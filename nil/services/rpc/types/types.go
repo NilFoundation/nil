@@ -85,6 +85,7 @@ type OutMessage struct {
 	Data        []byte
 	CoinsUsed   types.Value
 	OutMessages []*OutMessage
+	GasPrice    types.Value
 	Error       string
 }
 

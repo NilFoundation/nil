@@ -398,8 +398,7 @@ func (br *BalanceResponse) UnpackProtoMessage() (types.Value, error) {
 		return types.Value{}, br.GetError().UnpackProtoMessage()
 
 	case *BalanceResponse_Data:
-		u256 := br.GetData().UnpackProtoMessage()
-		return types.Value{Uint256: &u256}, nil
+		return newValueFromUint256(br.GetData()), nil
 
 	default:
 		return types.Value{}, errors.New("unexpected response type")
@@ -453,8 +452,7 @@ func (cr *CurrenciesResponse) UnpackProtoMessage() (map[types.CurrencyId]types.V
 		result := make(map[types.CurrencyId]types.Value, len(data))
 		for k, v := range data {
 			currencyId := types.CurrencyId(types.HexToAddress(k))
-			u256 := v.UnpackProtoMessage()
-			result[currencyId] = types.Value{Uint256: &u256}
+			result[currencyId] = newValueFromUint256(v)
 		}
 		return result, nil
 	}
@@ -609,16 +607,8 @@ func (cr *CallArgs) UnpackProtoMessage() rpctypes.CallArgs {
 	}
 	args.To = cr.To.UnpackProtoMessage()
 
-	if cr.FeeCredit != nil {
-		fc := cr.FeeCredit.UnpackProtoMessage()
-		args.FeeCredit = types.Value{Uint256: &fc}
-	}
-
-	if cr.Value != nil {
-		v := cr.Value.UnpackProtoMessage()
-		args.Value = types.Value{Uint256: &v}
-	}
-
+	args.FeeCredit = newValueFromUint256(cr.FeeCredit)
+	args.Value = newValueFromUint256(cr.Value)
 	args.Seqno = types.Seqno(cr.Seqno)
 
 	if cr.Data != nil {
@@ -644,8 +634,8 @@ func (cr *Contract) UnpackProtoMessage() rpctypes.Contract {
 	}
 
 	if cr.Balance != nil {
-		v := cr.Balance.UnpackProtoMessage()
-		c.Balance = &types.Value{Uint256: &v}
+		v := newValueFromUint256(cr.Balance)
+		c.Balance = &v
 	}
 
 	if len(cr.State) > 0 {
@@ -697,11 +687,17 @@ func (m *OutMessage) PackProtoMessage(msg *rpctypes.OutMessage) *OutMessage {
 		coinsUsed.PackProtoMessage(*msg.CoinsUsed.Uint256)
 	}
 
+	gasPrice := new(Uint256)
+	if msg.GasPrice.Uint256 != nil {
+		gasPrice.PackProtoMessage(*msg.GasPrice.Uint256)
+	}
+
 	out := &OutMessage{
 		MessageSSZ:  msg.MessageSSZ,
 		ForwardKind: uint64(msg.ForwardKind),
 		Data:        msg.Data,
 		CoinsUsed:   coinsUsed,
+		GasPrice:    gasPrice,
 		Error:       msg.Error,
 	}
 
@@ -715,6 +711,14 @@ func (m *OutMessage) PackProtoMessage(msg *rpctypes.OutMessage) *OutMessage {
 	return out
 }
 
+func newValueFromUint256(v *Uint256) types.Value {
+	if v == nil {
+		return types.NewZeroValue()
+	}
+	value := v.UnpackProtoMessage()
+	return types.Value{Uint256: &value}
+}
+
 func (m *OutMessage) UnpackProtoMessage() *rpctypes.OutMessage {
 	msg := &rpctypes.OutMessage{
 		MessageSSZ:  m.MessageSSZ,
@@ -723,10 +727,8 @@ func (m *OutMessage) UnpackProtoMessage() *rpctypes.OutMessage {
 		Error:       m.Error,
 	}
 
-	if m.CoinsUsed != nil {
-		coinsUsed := m.CoinsUsed.UnpackProtoMessage()
-		msg.CoinsUsed = types.Value{Uint256: &coinsUsed}
-	}
+	msg.CoinsUsed = newValueFromUint256(m.CoinsUsed)
+	msg.GasPrice = newValueFromUint256(m.GasPrice)
 
 	if len(m.OutMessages) > 0 {
 		msg.OutMessages = make([]*rpctypes.OutMessage, len(m.OutMessages))
@@ -780,11 +782,8 @@ func (cr *CallResponse) UnpackProtoMessage() (*rpctypes.CallResWithGasPrice, err
 
 	res := &rpctypes.CallResWithGasPrice{}
 	res.Data = data.Data
-
-	if data.CoinsUsed != nil {
-		value := data.CoinsUsed.UnpackProtoMessage()
-		res.CoinsUsed = types.Value{Uint256: &value}
-	}
+	res.CoinsUsed = newValueFromUint256(data.CoinsUsed)
+	res.GasPrice = newValueFromUint256(data.GasPrice)
 
 	res.OutMessages = make([]*rpctypes.OutMessage, len(data.OutMessages))
 	for i, outMsg := range data.OutMessages {
@@ -797,11 +796,6 @@ func (cr *CallResponse) UnpackProtoMessage() (*rpctypes.CallResWithGasPrice, err
 
 	if data.Error != nil {
 		res.Error = data.Error.Message
-	}
-
-	if data.GasPrice != nil {
-		gp := data.GasPrice.UnpackProtoMessage()
-		res.GasPrice = types.Value{Uint256: &gp}
 	}
 
 	return res, nil
@@ -986,12 +980,6 @@ func (r *ReceiptInfo) UnpackProtoMessage() *rawapitypes.ReceiptInfo {
 		return nil
 	}
 
-	var gp types.Value
-	if r.GasPrice != nil {
-		v := r.GasPrice.UnpackProtoMessage()
-		gp = types.Value{Uint256: &v}
-	}
-
 	var outReceipts []*rawapitypes.ReceiptInfo
 	if len(r.OutReceipts) > 0 {
 		outReceipts = make([]*rawapitypes.ReceiptInfo, len(r.OutReceipts))
@@ -1017,7 +1005,7 @@ func (r *ReceiptInfo) UnpackProtoMessage() *rawapitypes.ReceiptInfo {
 		OutReceipts:    outReceipts,
 		IncludedInMain: r.IncludedInMain,
 		ErrorMessage:   errorMessage,
-		GasPrice:       gp,
+		GasPrice:       newValueFromUint256(r.GasPrice),
 		Temporary:      r.Temporary,
 	}
 }
@@ -1054,8 +1042,7 @@ func (r *GasPriceResponse) UnpackProtoMessage() (types.Value, error) {
 	if v == nil {
 		return types.NewZeroValue(), nil
 	}
-	uint256 := v.UnpackProtoMessage()
-	return types.Value{Uint256: &uint256}, nil
+	return newValueFromUint256(v), nil
 }
 
 func (sr *ShardIdListResponse) PackProtoMessage(shardIdList []types.ShardId, err error) error {

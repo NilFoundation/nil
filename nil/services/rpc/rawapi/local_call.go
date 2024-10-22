@@ -109,6 +109,7 @@ func (api *LocalShardApi) handleOutMessages(
 			Data:        res.Data,
 			CoinsUsed:   res.CoinsUsed,
 			OutMessages: res.OutMessages,
+			GasPrice:    res.GasPrice,
 			Error:       res.Error,
 		}
 
