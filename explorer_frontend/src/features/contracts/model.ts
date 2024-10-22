@@ -98,6 +98,7 @@ export const deploySmartContractFx = createEffect<
 	{
 		address: `0x${string}`;
 		app: `0x${string}`;
+    name: string;
 	}
 >(async ({ app, args, wallet, shardId }) => {
 	const salt = BigInt(Math.floor(Math.random() * 10000000000000000));
@@ -116,6 +117,7 @@ export const deploySmartContractFx = createEffect<
 	return {
 		address,
 		app: app.bytecode,
+    name: app.name,
 	};
 });
 
