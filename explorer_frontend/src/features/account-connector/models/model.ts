@@ -47,6 +47,7 @@ export const createWalletFx = accountConnectorDomain.createEffect<
 	{
 		privateKey: Hex;
 		endpoint: string;
+		faucetEndpoint: string;
 	},
 	WalletV1
 >();
@@ -96,3 +97,12 @@ export const topupWalletCurrencyFx = accountConnectorDomain.createEffect<
 >();
 
 export const topupCurrencyEvent = accountConnectorDomain.createEvent();
+
+export const $initializingWalletState =
+	accountConnectorDomain.createStore<string>("");
+
+export const setInitializingWalletState =
+	accountConnectorDomain.createEvent<string>();
+
+export const $initializingWalletError =
+	accountConnectorDomain.createStore<string>("");

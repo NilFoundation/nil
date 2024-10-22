@@ -7,9 +7,14 @@ import {
 	INPUT_KIND,
 	INPUT_SIZE,
 } from "@nilfoundation/ui-kit";
-import { $endpoint, setEndpoint } from "../models/model";
+import { $endpoint, setEndpoint, topUpWalletBalanceFx } from "../models/model";
 import { useUnit } from "effector-react";
 import type { InputOverrides } from "baseui/input";
+import type { FC } from "react";
+
+type EndpointInputProps = {
+	disabled?: boolean;
+};
 
 const styles: StylesObject = Object.freeze({
 	container: {
@@ -34,8 +39,8 @@ const inputOverrides: InputOverrides = {
 	},
 };
 
-const EndpointInput = () => {
-	const [endpoint] = useUnit([$endpoint]);
+const EndpointInput: FC<EndpointInputProps> = ({disabled}) => {
+	const [endpoint] = useUnit([$endpoint, topUpWalletBalanceFx.pending]);
 	const [css] = useStyletron();
 
 	return (
@@ -47,6 +52,7 @@ const EndpointInput = () => {
 					overrides={inputOverrides}
 					onChange={(e) => setEndpoint(e.target.value)}
 					value={endpoint || ""}
+          disabled={disabled}
 				/>
 			</FormControl>
 		</div>

@@ -7,12 +7,15 @@ import {
 	CopyButton,
 	LabelLarge,
 	LabelMedium,
+	LabelSmall,
 	PlusIcon,
 } from "@nilfoundation/ui-kit";
 import { EndpointInput } from "./EndpointInput";
 import {
 	$balance,
 	$balanceCurrency,
+	$initializingWalletError,
+	$initializingWalletState,
 	$wallet,
 	createWalletFx,
 	regenrateAccountEvent,
@@ -38,10 +41,18 @@ const btnOverrides: ButtonOverrides = {
 const MainScreen = () => {
 	const [css] = useStyletron();
 	const [isPendingWalletCreation] = useUnit([createWalletFx.pending]);
-	const [wallet, balance, balanceCurrency] = useUnit([
+	const [
+		wallet,
+		balance,
+		balanceCurrency,
+		initializingWalletState,
+		initializingWalletError,
+	] = useUnit([
 		$wallet,
 		$balance,
 		$balanceCurrency,
+		$initializingWalletState,
+		$initializingWalletError,
 	]);
 	const [isPendingTopUp] = useUnit([topUpWalletBalanceFx.pending]);
 	const displayBalance = balance === null ? "-" : formatEther(balance);
@@ -93,17 +104,29 @@ const MainScreen = () => {
 							/>
 						</div>
 					)}
-					{isPendingWalletCreation && (
-						<LabelMedium
-							className={css({
-								textAlign: "center",
-							})}
-						>
-							Creating new wallet...
-						</LabelMedium>
+					{(isPendingWalletCreation || initializingWalletError) && (
+						<div>
+							<LabelMedium
+								className={css({
+									textAlign: "center",
+								})}
+							>
+								Creating new wallet
+							</LabelMedium>
+							<LabelSmall
+								color={initializingWalletError ? COLORS.red200 : COLORS.gray400}
+								className={css({
+									textAlign: "center",
+								})}
+							>
+								{initializingWalletError
+									? initializingWalletError
+									: initializingWalletState}
+							</LabelSmall>
+						</div>
 					)}
 				</div>
-				<EndpointInput />
+				<EndpointInput disabled={isPendingWalletCreation} />
 			</div>
 			<ul
 				className={css({

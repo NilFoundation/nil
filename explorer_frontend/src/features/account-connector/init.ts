@@ -6,7 +6,6 @@ import {
 	setEndpoint,
 	createWalletFx,
 	$wallet,
-	$accountConnectorWithEndpoint,
 	initilizeWallet,
 	initializePrivateKey,
 	defaultPrivateKey,
@@ -23,6 +22,10 @@ import {
 	setTopupInput,
 	topupWalletCurrencyFx,
 	topupCurrencyEvent,
+	setInitializingWalletState,
+	$initializingWalletState,
+	$initializingWalletError,
+	$accountConnectorWithEndpoint,
 } from "./models/model";
 import { persist as persistLocalStorage } from "effector-storage/local";
 import { persist as persistSessionStorage } from "effector-storage/session";
@@ -36,11 +39,14 @@ import {
 	WalletV1,
 	convertEthToWei,
 	generateRandomPrivateKey,
+	removeHexPrefix,
+	addHexPrefix,
 } from "@nilfoundation/niljs";
 import { sendMethodFx } from "../contracts/model";
 import { $faucets, $faucetsEndpoint } from "../currencies/model";
 import { sandboxRoute, sandboxWithHashRoute } from "../routing";
 import { loadedPage } from "../code/model";
+import { mzkAddress } from "../currencies";
 
 persistLocalStorage({
 	store: $endpoint,
@@ -55,10 +61,13 @@ persistLocalStorage({
 $privateKey.on(setPrivateKey, (_, privateKey) => privateKey);
 $endpoint.on(setEndpoint, (_, endpoint) => endpoint);
 
-createWalletFx.use(async ({ privateKey, endpoint }) => {
+createWalletFx.use(async ({ privateKey, endpoint, faucetEndpoint }) => {
 	const signer = new LocalECDSAKeySigner({ privateKey });
 	const client = new PublicClient({
 		transport: new HttpTransport({ endpoint }),
+	});
+	const faucetClient = new FaucetClient({
+		transport: new HttpTransport({ endpoint: faucetEndpoint }),
 	});
 	const pubkey = await signer.getPublicKey();
 	const wallet = new WalletV1({
@@ -69,7 +78,23 @@ createWalletFx.use(async ({ privateKey, endpoint }) => {
 		signer,
 	});
 
+	setInitializingWalletState("Checking balance...");
+
+	const faucets = await faucetClient.getAllFaucets();
+
+	if (!faucets) {
+		return wallet;
+	}
+
 	const balance = await wallet.getBalance();
+
+	const currenciesMap = await wallet.client.getCurrencies(
+		wallet.getAddressHex(),
+		"latest",
+	);
+
+	setInitializingWalletState("Adding some tokens...");
+
 	if (balance === 0n) {
 		const faucet = new Faucet(client);
 		await faucet.withdrawToWithRetry(
@@ -77,6 +102,41 @@ createWalletFx.use(async ({ privateKey, endpoint }) => {
 			convertEthToWei(0.1),
 		);
 	}
+
+	const currencies = Object.entries(currenciesMap).map(([currency]) =>
+		addHexPrefix(removeHexPrefix(currency).padStart(40, "0")),
+	);
+	const currenciesWithZeroBalance = Object.values(faucets).filter(
+		(addr) =>
+			!currencies.some(
+				(currency) => currency === addr || currency !== mzkAddress,
+			),
+	);
+
+	if (currenciesWithZeroBalance.length > 0) {
+		const promises = currenciesWithZeroBalance.map((currency) => {
+			const currencyFaucetAddress = Object.values(faucets).find(
+				(addr) => addr === currency,
+			);
+
+			if (!currencyFaucetAddress) {
+				return Promise.resolve();
+			}
+
+			return faucetClient.topUpAndWaitUntilCompletion(
+				{
+					walletAddress: wallet.getAddressHex(),
+					faucetAddress: currencyFaucetAddress,
+					amount: 10,
+				},
+				client,
+			);
+		});
+
+		await Promise.all(promises);
+	}
+
+	setInitializingWalletState("Checking if wallet is deployed...");
 
 	const code = await client.getCode(wallet.getAddressHex());
 	if (code.length === 0) {
@@ -108,7 +168,18 @@ createWalletFx.failData.watch((error) => {
 });
 
 forward({
-	from: $accountConnectorWithEndpoint,
+	from: combine(
+		$privateKey,
+		$endpoint,
+		$faucets,
+		$faucetsEndpoint,
+		(privateKey, endpoint, faucets, faucetEndpoint) => ({
+			privateKey,
+			endpoint,
+			faucets,
+			faucetEndpoint,
+		}),
+	),
 	to: createWalletFx,
 });
 
@@ -116,7 +187,18 @@ $wallet.reset($privateKey);
 $wallet.on(createWalletFx.doneData, (_, wallet) => wallet);
 
 sample({
-	source: $accountConnectorWithEndpoint,
+	source: combine(
+		$privateKey,
+		$endpoint,
+		$faucets,
+		$faucetsEndpoint,
+		(privateKey, endpoint, faucets, faucetEndpoint) => ({
+			privateKey,
+			endpoint,
+			faucets,
+			faucetEndpoint,
+		}),
+	),
 	clock: initilizeWallet,
 	target: createWalletFx,
 });
@@ -273,8 +355,22 @@ sample({
 
 sample({
 	clock: sendMethodFx.doneData,
-  source: $wallet,
-  fn: (wallet) => wallet as WalletV1,
-  filter: (wallet) => wallet !== null,
-  target: [fetchBalanceFx, fetchBalanceCurrenciesFx],
+	source: $wallet,
+	fn: (wallet) => wallet as WalletV1,
+	filter: (wallet) => wallet !== null,
+	target: [fetchBalanceFx, fetchBalanceCurrenciesFx],
 });
+
+$initializingWalletState.on(
+	setInitializingWalletState,
+	(_, payload) => payload,
+);
+$initializingWalletState.reset(createWalletFx.done);
+
+$initializingWalletError.reset(createWalletFx.done);
+$initializingWalletError.reset($accountConnectorWithEndpoint);
+
+$initializingWalletError.on(
+	createWalletFx.fail,
+	() => "Failed to initialize wallet",
+);
