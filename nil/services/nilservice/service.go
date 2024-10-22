@@ -173,13 +173,18 @@ func setP2pRequestHandlers(ctx context.Context, rawApi *rawapi.NodeApiOverShardA
 //
 // It returns a value suitable for os.Exit().
 func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- ServiceInterop, workers ...concurrent.Func) int {
+	logger := logging.NewLogger("nil")
+
+	if err := cfg.Validate(); err != nil {
+		logger.Error().Err(err).Msg("Configuration is invalid")
+		return 1
+	}
+
 	if cfg.GracefulShutdown {
 		signalCtx, cancel := signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
 		defer cancel()
 		ctx = signalCtx
 	}
-
-	logger := logging.NewLogger("nil")
 
 	if err := telemetry.Init(ctx, cfg.Telemetry); err != nil {
 		logger.Error().Err(err).Msg("Failed to initialize telemetry")
