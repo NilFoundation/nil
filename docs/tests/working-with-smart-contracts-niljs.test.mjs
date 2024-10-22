@@ -7,40 +7,31 @@ import {
   generateRandomPrivateKey,
   convertEthToWei,
   waitTillCompleted,
-  hexToBigInt,
   bytesToHex,
-  toHex,
   externalDeploymentMessage,
   ExternalMessageEnvelope,
   hexToBytes,
 } from "@nilfoundation/niljs";
 
+const util = require('node:util');
+const exec = util.promisify(require('node:child_process').exec);
+
+import { RPC_GLOBAL } from "./globals";
+
+import TestHelper from './TestHelper';
+
+import { RETAILER_COMPILATION_COMMAND, MANUFACTURER_COMPILATION_COMMAND } from "./compilationCommands";
+import { RETAILER_COMPILATION_PATTERN, MANUFACTURER_COMPILATION_PATTERN } from "./patterns";
+
+const RPC_ENDPOINT = RPC_GLOBAL;
+
 import { encodeFunctionData, decodeFunctionResult } from "viem";
-
-import { RPC_GLOBAL, NIL_GLOBAL, NODE_MODULES } from "./globals";
-
-const util = require("node:util");
-const exec = util.promisify(require("node:child_process").exec);
 
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const CONFIG_FILE_NAME = "tempWorkingWithSmartContractsNilJS.ini";
-
-const CONFIG_FLAG = `--config ./tests/${CONFIG_FILE_NAME}`;
-const CONFIG_COMMAND = `${NIL_GLOBAL} config init ${CONFIG_FLAG}`;
-
-const KEYGEN_COMMAND = `${NIL_GLOBAL} keygen new ${CONFIG_FLAG}`;
-const RPC_ENDPOINT = RPC_GLOBAL;
-
-const RPC_COMMAND = `${NIL_GLOBAL} config set rpc_endpoint ${RPC_ENDPOINT} ${CONFIG_FLAG}`;
-
-const RETAILER_COMPILATION_COMMAND =
-  `solc -o ./tests/Retailer --bin --abi ./tests/Retailer.sol --overwrite ${NODE_MODULES}`;
-
-const MANUFACTURER_COMPILATION_COMMAND =
-  `solc -o ./tests/Manufacturer --bin --abi ./tests/Manufacturer.sol --overwrite ${NODE_MODULES}`;
+const CONFIG_FILE_NAME = "./tests/tempWorkingWithSmartContractsNilJS.ini";
 
 let RETAILER_BYTECODE;
 let RETAILER_ABI;
@@ -48,13 +39,12 @@ let MANUFACTURER_BYTECODE;
 let MANUFACTURER_ABI;
 
 beforeAll(async () => {
-  await exec(CONFIG_COMMAND);
-  await exec(KEYGEN_COMMAND);
-  await exec(RPC_COMMAND);
+  let testHelper = new TestHelper({ configFileName: CONFIG_FILE_NAME });
+  await testHelper.prepareTestCLI();
 });
 
 afterAll(async () => {
-  await exec(`rm -rf ./tests/${CONFIG_FILE_NAME}`);
+  await exec(`rm -rf ${CONFIG_FILE_NAME}`);
 });
 
 describe.sequential("Nil.js deployment tests", async () => {
@@ -63,9 +53,7 @@ describe.sequential("Nil.js deployment tests", async () => {
     async () => {
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = path.dirname(__filename);
-      const RETAILER_COMPILATION_PATTERN =
-        /Function state mutability can be restricted to pure/;
-      const MANUFACTURER_COMPILATION_PATTERN = /Compiler run successful/;
+
       let { stdout, stderr } = await exec(RETAILER_COMPILATION_COMMAND);
       expect(stderr).toMatch(RETAILER_COMPILATION_PATTERN);
       ({ stdout, stderr } = await exec(MANUFACTURER_COMPILATION_COMMAND));

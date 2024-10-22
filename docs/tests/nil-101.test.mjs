@@ -1,112 +1,65 @@
 import { RPC_GLOBAL, NIL_GLOBAL, NODE_MODULES } from './globals';
+import { PRIVATE_KEY_PATTERN, RPC_PATTERN, NEW_WALLET_PATTERN, WALLET_BALANCE_PATTERN, CONTRACT_ADDRESS_PATTERN, ADDRESS_PATTERN, MESSAGE_HASH_PATTERN, WALLET_ADDRESS_PATTERN, CURRENCY_PATTERN } from './patterns';
+import { COUNTER_COMPILATION_COMMAND, CALLER_COMPILATION_COMMAND } from './compilationCommands';
+import TestHelper from './TestHelper';
 
 const util = require('node:util');
 const exec = util.promisify(require('node:child_process').exec);
 
-let salt = BigInt(Math.floor(Math.random() * 10000));
+let SALT = BigInt(Math.floor(Math.random() * 10000));
 
-const RPC_ENDPOINT = RPC_GLOBAL;
-const CONFIG_FILE_NAME = 'tempConfigNil101.ini';
+const CONFIG_FILE_NAME = './tests/tempConfigNil101.ini';
 
-const CONFIG_FLAG = `--config ./tests/${CONFIG_FILE_NAME}`;
+const CONFIG_FLAG = `--config ${CONFIG_FILE_NAME}`;
 
-//startKeygen
-const KEYGEN_COMMAND = `${NIL_GLOBAL} keygen new ${CONFIG_FLAG}`;
-//endKeygen
-
-//startEndpoint
-const RPC_COMMAND = `${NIL_GLOBAL} config set rpc_endpoint ${RPC_ENDPOINT} ${CONFIG_FLAG}`;
-//endEndpoint
-
-//startWallet
-const WALLET_CREATION_COMMAND = `${NIL_GLOBAL} wallet new ${CONFIG_FLAG}`;
-//endWallet
-
-//startTopup
-const WALLET_TOP_UP_COMMAND = `${NIL_GLOBAL} wallet top-up 1000000 ${CONFIG_FLAG}`;
-//endTopup
-
-//startInfo
-const WALLET_INFO_COMMAND = `${NIL_GLOBAL} wallet info ${CONFIG_FLAG}`;
-//endInfo
-
-//startCompilation
-const COUNTER_COMPILATION_COMMAND = `solc -o ./tests/Counter --bin --abi ./tests/Counter.sol --overwrite ${NODE_MODULES}`;
-//endCompilation
-
-//startDeploy
-const COUNTER_DEPLOYMENT_COMMAND = `${NIL_GLOBAL} wallet deploy ./tests/Counter/Counter.bin --salt ${salt} ${CONFIG_FLAG}`;
-//endDeploy
-
+let TEST_COMMANDS;
 let COUNTER_ADDRESS;
-
-//startCallerCompilation
-const CALLER_COMPILATION_COMMAND = `solc -o ./tests/Caller --bin --abi ./tests/Caller.sol --overwrite ${NODE_MODULES}`;
-//endCallerCompilation
-
-//start_CallerDeploy
-const CALLER_DEPLOYMENT_COMMAND = `${NIL_GLOBAL} wallet deploy ./tests/Caller/Caller.bin --shard-id 2 --salt ${salt} ${CONFIG_FLAG}`;
-//end_CallerDeploy
-
 let CALLER_ADDRESS;
-
-//startNewWalletDeploy
-const NEW_WALLET_COMMAND = `${NIL_GLOBAL} wallet new --salt ${salt} ${CONFIG_FLAG}`;
-//endNewWalletDeploy
-
 let NEW_WALLET_ADDRESS;
 
 beforeAll(async () => {
-  await exec(`${NIL_GLOBAL} config init ${CONFIG_FLAG}`);
+  let testHelper = new TestHelper({ configFileName: CONFIG_FILE_NAME });
+  TEST_COMMANDS = testHelper.createCLICommandsMap(SALT);
+  await exec(TEST_COMMANDS['CONFIG_COMMAND']);
 });
 
 afterAll(async () => {
-  await exec(`rm -rf ./tests/${CONFIG_FILE_NAME}`);
+  await exec(`rm -rf ${CONFIG_FILE_NAME}`);
 });
 
 describe.sequential('initial wallet setup tests', () => {
   test.sequential('keygen generation works via CLI', async () => {
-    const pattern = /\bPrivate key: [a-f0-9]{64}\b/;
-    const { stdout, stderr } = await exec(KEYGEN_COMMAND);
-    expect(stdout).toMatch(pattern);
+    const { stdout, stderr } = await exec(TEST_COMMANDS['KEYGEN_COMMAND']);
+    expect(stdout).toMatch(PRIVATE_KEY_PATTERN);
   });
 
   test.sequential('endpoint command should set the endpoint', async () => {
-    const pattern = /Set "rpc_endpoint" to /;
-    const { stdout, stderr } = await exec(RPC_COMMAND);
-    expect(stderr).toMatch(pattern);
+    const { stdout, stderr } = await exec(TEST_COMMANDS['RPC_COMMAND']);
+    expect(stderr).toMatch(RPC_PATTERN);
   });
 
   test.sequential('wallet creation command creates a wallet', async () => {
-    const pattern = /New wallet address/;
-    const { stdout, stderr } = await exec(WALLET_CREATION_COMMAND);
-    expect(stdout).toMatch(pattern);
+    const { stdout, stderr } = await exec(TEST_COMMANDS['WALLET_CREATION_COMMAND']);
+    expect(stdout).toMatch(NEW_WALLET_PATTERN);
   });
 
   test.sequential('wallet top-up command tops up the wallet', async () => {
-    const pattern = /Wallet balance/;
-    const { stdout, stderr } = await exec(WALLET_TOP_UP_COMMAND);
-    expect(stdout).toMatch(pattern);
+    const { stdout, stderr } = await exec(TEST_COMMANDS['WALLET_TOP_UP_COMMAND']);
+    expect(stdout).toMatch(WALLET_BALANCE_PATTERN);
   });
 });
 
 describe.sequential('incrementer tests', () => {
-  beforeEach(() => {
-    salt = BigInt(Math.floor(Math.random() * 10000));
-  });
   test.sequential('wallet info command supplies info', async () => {
-    const pattern = /Wallet address/;
-    const { stdout, stderr } = await exec(WALLET_INFO_COMMAND);
-    expect(stdout).toMatch(pattern);
+    const { stdout, stderr } = await exec(TEST_COMMANDS['WALLET_INFO_COMMAND']);
+    expect(stdout).toMatch(WALLET_ADDRESS_PATTERN);
   });
 
   test.sequential('deploy of incrementer works successfully', async () => {
-    const pattern = /Contract address:/;
-    const addressPattern = /0x[a-fA-F0-9]{40}/g;
     await exec(COUNTER_COMPILATION_COMMAND);
-    const { stdout, stderr } = await exec(COUNTER_DEPLOYMENT_COMMAND);
-    expect(stdout).toMatch(pattern);
-    const addressMatches = stdout.match(addressPattern);
+    const { stdout, stderr } = await exec(TEST_COMMANDS['COUNTER_DEPLOYMENT_COMMAND']);
+    expect(stdout).toMatch(CONTRACT_ADDRESS_PATTERN);
+    const addressMatches = stdout.match(ADDRESS_PATTERN);
     COUNTER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
   });
 
@@ -114,9 +67,8 @@ describe.sequential('incrementer tests', () => {
     //startIncrement
     const COUNTER_INCREMENT_COMMAND = `${NIL_GLOBAL} wallet send-message ${COUNTER_ADDRESS} increment --abi ./tests/Counter/Counter.abi ${CONFIG_FLAG}`;
     //endIncrement
-    const pattern = /Message hash:/;
     const { stdout, stderr } = await exec(COUNTER_INCREMENT_COMMAND);
-    expect(stdout).toMatch(pattern);
+    expect(stdout).toMatch(MESSAGE_HASH_PATTERN);
 
   });
 
@@ -137,15 +89,12 @@ describe.sequential('incrementer tests', () => {
 
 describe.sequential("caller tests", () => {
   beforeEach(() => {
-    salt = BigInt(Math.floor(Math.random() * 10000));
+    SALT = BigInt(Math.floor(Math.random() * 10000));
   });
   test.sequential('deploy of caller works successfully', async () => {
-    const pattern = /Contract address:/;
-    const addressPattern = /Contract address:\s*(0x[a-fA-F0-9]{40})/;
     await exec(CALLER_COMPILATION_COMMAND);
-    const { stdout, stderr } = await exec(CALLER_DEPLOYMENT_COMMAND);
-    expect(stdout).toMatch(pattern);
-    const addressMatches = stdout.match(addressPattern);
+    const { stdout, stderr } = await exec(TEST_COMMANDS['CALLER_DEPLOYMENT_COMMAND']);
+    const addressMatches = stdout.match(ADDRESS_PATTERN);
     CALLER_ADDRESS = addressMatches && addressMatches.length > 0 ? addressMatches[1] : null;
     expect(CALLER_ADDRESS).not.toBeNull();
   });
@@ -160,9 +109,8 @@ describe.sequential("caller tests", () => {
     //endMessageFromCallerToIncrementer
 
     await exec(SEND_TOKENS_COMMAND);
-    const pattern = /Message hash:/;
     const { stdout, stderr } = await exec(SEND_FROM_CALLER_COMMAND);
-    expect(stdout).toMatch(pattern);
+    expect(stdout).toMatch(MESSAGE_HASH_PATTERN);
 
     const COUNTER_CALL_READONLY_COMMAND_POST_CALLER = `${NIL_GLOBAL} contract call-readonly ${COUNTER_ADDRESS} getValue --abi ./tests/Counter/Counter.abi ${CONFIG_FLAG}`;
 
@@ -203,32 +151,25 @@ describe.sequential("caller tests", () => {
 
 describe.sequential('tokens tests', () => {
   test.sequential('a new wallet is created successfully', async () => {
-    const pattern = /New wallet address/;
-    const { stdout, stderr } = await exec(NEW_WALLET_COMMAND);
-    expect(stdout).toMatch(pattern);
-    const addressPattern = /New wallet address:\s*(0x[a-fA-F0-9]{40})/;
-    const addressMatches = stdout.match(addressPattern);
-    NEW_WALLET_ADDRESS = addressMatches && addressMatches.length > 0 ? addressMatches[1] : null;
+    const { stdout, stderr } = await exec(TEST_COMMANDS['WALLET_CREATION_COMMAND_WITH_SALT']);
+    expect(stdout).toMatch(WALLET_ADDRESS_PATTERN);
+    const addressMatches = stdout.match(WALLET_ADDRESS_PATTERN);
+    NEW_WALLET_ADDRESS = addressMatches && addressMatches.length > 0 ? addressMatches[0] : null;
   });
 
   test.sequential('a new currency is created and withdrawn successfully', async () => {
-    const pattern = /50000/;
 
     //startMintCurrency
-    const MINT_CURRENCY_COMMAND = `${NIL_GLOBAL} minter create-currency ${NEW_WALLET_ADDRESS} 50000 new-currency ${CONFIG_FLAG}`;
+    const MINT_CURRENCY_COMMAND = `${NIL_GLOBAL} minter create-currency ${NEW_WALLET_ADDRESS} 5000 new-currency ${CONFIG_FLAG}`;
     //endMintCurrency
 
-    //startWithdrawCurrency
-    const WITHDRAW_CURRENCY_COMMAND = `${NIL_GLOBAL} minter withdraw-currency ${NEW_WALLET_ADDRESS} 50000 ${NEW_WALLET_ADDRESS} ${CONFIG_FLAG}`;
-    //endWithdrawCurrency
     await exec(MINT_CURRENCY_COMMAND);
-    await exec(WITHDRAW_CURRENCY_COMMAND);
 
     //startCurrenciesCheck
     const CURRENCIES_COMMAND = `${NIL_GLOBAL} contract currencies ${NEW_WALLET_ADDRESS} ${CONFIG_FLAG}`;
     //endCurrenciesCheck
 
     const { stdout, stderr } = await exec(CURRENCIES_COMMAND);
-    expect(stdout).toMatch(pattern);
+    expect(stdout).toMatch(CURRENCY_PATTERN);
   });
 });

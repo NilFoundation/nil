@@ -59,46 +59,6 @@ To burn an existing currency:
 
 This example creates a wallet that stores three currencies: the default token, and two custom currencies.
 
-### Via the CLI
-
-Create a new wallet:
-
-```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startWalletCreation end=endWalletCreation
-```
-
-Create a new currency with the new wallet as its owner and withdraw it:
-
-```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startCurrencyOneCreationCommand end=endCurrencyOneCreationCommand
-```
-
-```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startCurrencyOneWithdrawalCommand end=endCurrencyOneWithdrawalCommand
-```
-
-Create another currency with another smart contract as its owner:
-
-```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startCurrencyTwoCreationCommand end=endCurrencyTwoCreationCommand
-```
-
-Withdraw the new currency back to the wallet:
-
-```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startCurrencyTwoWithdrawalCommand end=endCurrencyTwoWithdrawalCommand
-```
-
-Check the wallet currencies:
-
-```bash file=../../../tests/tokens-multi-currency-support.test.mjs start=startWalletCurrenciesCommand end=endWalletCurrenciesCommand
-```
-
-The following response should appear:
-
-```bash
-Contract currencies:
-Balance: 50000 CurrencyId=[CURRENCY_ID_ONE]
-Balance: 30000 CurrencyId=[CURRENCY_ID_TWO]
-```
-
-### Via the client library
-
 Create two new wallets:
 
 ```ts showLineNumbers file=../../../tests/tokens-multi-currency-support.test.mjs start=startAdvancedNilJSExample end=endAdvancedNilJSExample

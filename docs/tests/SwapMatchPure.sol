@@ -96,8 +96,8 @@ contract SwapMatch is NilBase {
      */
     function matchSwapRequests(SwapRequest memory swapRequest) private {
         //Iterate over all registered swap requests
-        for (uint256 i = 0; i <= swapRequestCounter; i++) {
-            SwapRequest memory possibleCandidate = swapRequests[i];
+        for (uint256 i = 0; i < swapRequestCounter; i++) {
+            SwapRequest storage possibleCandidate = swapRequests[i];
             /**
              * @notice Conducts four checks:
              * If a possible match stores the desired token
