@@ -1,9 +1,10 @@
 package nilservice
 
 import (
+	"errors"
+	"fmt"
 	"slices"
 
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
@@ -65,7 +66,6 @@ func NewDefaultConfig() *Config {
 	return &Config{
 		RunMode: NormalRunMode,
 
-		MyShards:        []uint{},
 		NShards:         5,
 		MainKeysOutPath: "keys.yaml",
 		NetworkKeysPath: "network-keys.yaml",
@@ -113,8 +113,25 @@ func (c *Config) GetMyShards() []uint {
 
 func (c *Config) IsShardActive(shardId types.ShardId) bool {
 	if !c.SplitShards {
-		check.PanicIfNotf(shardId < types.ShardId(c.NShards), "shardId %d is out of range", shardId)
 		return true
 	}
 	return slices.Contains(c.MyShards, uint(shardId))
+}
+
+func (c *Config) Validate() error {
+	if c.NShards < 2 {
+		return errors.New("NShards must be greater than 2 (main shard + 1)")
+	}
+
+	for _, shard := range c.MyShards {
+		if shard >= uint(c.NShards) {
+			return fmt.Errorf("Shard %d is out of range (nShards = %d)", shard, c.NShards)
+		}
+	}
+
+	if c.GasPriceScale < 0 {
+		return errors.New("GasPriceScale must be >= 0")
+	}
+
+	return nil
 }
