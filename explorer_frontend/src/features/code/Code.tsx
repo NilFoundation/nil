@@ -4,6 +4,7 @@ import {
 	$error,
 	changeCode,
 	compile,
+	compileCodeFx,
 	fetchCodeSnippetFx,
 } from "./model";
 import {
@@ -29,17 +30,25 @@ import { useMobile } from "../shared";
 import { LayoutComponent, setActiveComponent } from "../../pages/sandbox/model";
 import type { EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
+import { useHotkeys } from "react-hotkeys-hook";
 
 const MemoizedShareCodePanel = memo(ShareCodePanel);
 
 export const Code = () => {
+	useHotkeys("Meta+enter", () => compile(), {
+		preventDefault: true,
+		enableOnContentEditable: true,
+	});
 	const [isMobile] = useMobile();
-	const [code, isDownloading, errors, fetchingCodeSnippet] = useUnit([
-		$code,
-		fetchSolidityCompiler.pending,
-		$error,
-		fetchCodeSnippetFx.pending,
-	]);
+	const [code, isDownloading, errors, fetchingCodeSnippet, compiling] = useUnit(
+		[
+			$code,
+			fetchSolidityCompiler.pending,
+			$error,
+			fetchCodeSnippetFx.pending,
+			compileCodeFx.pending,
+		],
+	);
 	const [css] = useStyletron();
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
@@ -145,8 +154,8 @@ export const Code = () => {
 					gap: "16px",
 					position: "sticky",
 					bottom: "-1px",
-					paddingBottom: "24px",
-					paddingTop: "24px",
+					paddingBottom: "16px",
+					paddingTop: "16px",
 					background: COLORS.gray900,
 					...getMobileStyles({
 						flexDirection: "column",
@@ -156,14 +165,16 @@ export const Code = () => {
 			>
 				<Button
 					kind={BUTTON_KIND.primary}
-					isLoading={isDownloading}
-					size={isMobile ? BUTTON_SIZE.large : BUTTON_SIZE.compact}
+					isLoading={isDownloading || compiling}
+					size={isMobile ? BUTTON_SIZE.large : BUTTON_SIZE.default}
 					onClick={() => compile()}
 					disabled={noCode}
 					overrides={{
 						Root: {
 							style: {
 								marginLeft: "24px",
+								whiteSpace: "nowrap",
+								lineHeight: 1,
 								...getMobileStyles({
 									marginRight: "24px",
 								}),
@@ -171,7 +182,15 @@ export const Code = () => {
 						},
 					}}
 				>
-					Compile
+					Compile ⌘ +{" "}
+					<span
+						className={css({
+							marginLeft: "0.5ch",
+							paddingTop: "2px",
+						})}
+					>
+						↵
+					</span>
 				</Button>
 				{!isMobile && (
 					<MemoizedShareCodePanel disabled={isDownloading || noCode} />
