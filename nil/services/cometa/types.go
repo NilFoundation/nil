@@ -152,7 +152,11 @@ func (t *CompilerTask) Normalize() error {
 		if len(source.Urls) != 1 {
 			return errors.New("source has no content and has invalid number of urls")
 		}
-		data, err := os.ReadFile(filepath.Join(t.BasePath, source.Urls[0]))
+		fname := source.Urls[0]
+		if !filepath.IsAbs(fname) {
+			fname = filepath.Join(t.BasePath, fname)
+		}
+		data, err := os.ReadFile(fname)
 		if err != nil {
 			return fmt.Errorf("failed to read source file: %w", err)
 		}
@@ -176,6 +180,9 @@ func (t *CompilerTask) ToCompilerJsonInput() (*CompilerJsonInput, error) {
 	res.Settings.EvmVersion = t.Settings.EvmVersion
 	res.Settings.Metadata.BytecodeHash = "none"
 	parts := strings.Split(t.ContractName, ":")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid contract name: %s, required format: <file>:<contract>", t.ContractName)
+	}
 	res.Settings.OutputSelection = map[string]any{
 		parts[0]: map[string]any{
 			parts[1]: []string{

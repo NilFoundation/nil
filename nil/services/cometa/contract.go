@@ -49,11 +49,7 @@ func NewContractFromData(data *ContractData) (*Contract, error) {
 	if err != nil {
 		return nil, err
 	}
-	d, err := json.Marshal(data.Abi)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal abi: %w", err)
-	}
-	abi, err := abi.JSON(strings.NewReader(string(d)))
+	abi, err := abi.JSON(strings.NewReader(data.Abi))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse abi: %w", err)
 	}
@@ -136,7 +132,7 @@ func (c *Contract) DecodeCallData(calldata []byte) (string, error) {
 
 	hexFuncId := hexutil.EncodeNo0x(calldata[:4])
 	methodSignature := ""
-	for signature, funcId := range c.Data.CompilerOutput.Evm.MethodIdentifiers {
+	for signature, funcId := range c.Data.MethodIdentifiers {
 		if hexFuncId == funcId {
 			methodSignature = signature
 			break

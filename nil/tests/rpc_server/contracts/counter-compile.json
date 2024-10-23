@@ -6,7 +6,7 @@
   },
   "sources": {
     "Counter.sol": {
-      "urls": ["../../contracts/solidity/tests/Counter.sol"]
+      "urls": ["../../../contracts/solidity/tests/Counter.sol"]
     }
   }
 }

@@ -186,6 +186,10 @@ func (d *DebugHandler) ShowFailures() {
 		if receipt.Receipt.FailedPc == 0 {
 			continue
 		}
+		if receipt.Contract == nil {
+			color.Red("Failed to fetch contract for message #%d\n", receipt.Index)
+			continue
+		}
 		loc, err := receipt.Contract.GetLineLocation(receipt.Receipt.FailedPc)
 		if err != nil {
 			color.Red("Failed to fetch location: %v\n", err)
