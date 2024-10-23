@@ -491,10 +491,15 @@ func (s *SuiteCli) TestCliConfig() {
 }
 
 func (s *SuiteCli) TestCliCometa() {
-	com, err := cometa.NewService(s.tmpDir+"/cometa.db", s.client)
+	cfg := &cometa.Config{
+		UseBadger:   true,
+		DbPath:      s.T().TempDir() + "/cometa.db",
+		OwnEndpoint: s.cometaEndpoint,
+	}
+	com, err := cometa.NewService(s.context, cfg, s.client)
 	s.Require().NoError(err)
 	go func() {
-		check.PanicIfErr(com.Run(s.context, s.cometaEndpoint))
+		check.PanicIfErr(com.Run(s.context, cfg))
 	}()
 	s.createConfigFile()
 	abiFile := "../../contracts/compiled/tests/Counter.abi"

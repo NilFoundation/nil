@@ -20,26 +20,36 @@ const (
 )
 
 type ContractData struct {
-	Name        string `json:"name,omitempty"`
+	// Name holds contract name.
+	Name string `json:"name,omitempty"`
+
+	// Description holds optional description of the contract.
 	Description string `json:"description,omitempty"`
-	Abi         []any  `json:"abi,omitempty"`
 
-	// SourceCode contains source code content for each file: {name -> content}
+	// Abi holds contract ABI in json format.
+	Abi string `json:"abi,omitempty"`
+
+	// SourceCode holds source code content for each file: {name -> content}
 	SourceCode map[string]string `json:"sourceCode,omitempty"`
-	SourceMap  string            `json:"sourceMap,omitempty"`
-	Metadata   string            `json:"metadata,omitempty"`
 
-	// DeployCode contains bytecode for contract deployment.
-	DeployCode []byte `json:"deployCode,omitempty"`
+	// SourceMap holds mappings between bytecode and source code. See https://docs.soliditylang.org/en/latest/internals/source_mappings.html
+	SourceMap string `json:"sourceMap,omitempty"`
 
-	// Code contains runtime bytecode which is stored in blockchain.
+	// Metadata holds metadata in JSON format, directly copied from the compiler output.
+	Metadata string `json:"metadata,omitempty"`
+
+	// InitCode holds bytecode for contract deployment.
+	InitCode []byte `json:"initCode,omitempty"`
+
+	// Code holds runtime bytecode which is stored in blockchain.
 	Code []byte `json:"code,omitempty"`
 
-	// SourceFilesList contains list of source files in a such order that it's referred in debug entities like sourceMap.
-	// I.e. id of the file in sourceMap is an index in this array.
+	// SourceFilesList holds a list of source files, ordered as referred to in debug entities like sourceMap.
+	// The file ID in sourceMap corresponds to the index in this array.
 	SourceFilesList []string `json:"sourceFilesList,omitempty"`
 
-	CompilerOutput *CompilerOutputContract `json:"compilerOutput,omitempty"`
+	// MethodIdentifiers holds a map of method identifiers: {signature -> methodId}. E.g. "test(uint256)": "29e99f07"
+	MethodIdentifiers map[string]string `json:"methodIdentifiers,omitempty"`
 }
 
 func NewCompilerTask(inputJson string) (*CompilerTask, error) {
@@ -103,7 +113,7 @@ func Compile(input *CompilerTask) (*ContractData, error) {
 		return nil, fmt.Errorf("compilation failed: %s", outputJson.Errors[0].FormattedMessage)
 	}
 
-	contractData, err := LoadContractInfo(compilerInput, &outputJson)
+	contractData, err := CreateContractData(compilerInput, &outputJson)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load contract info: %w", err)
 	}
@@ -112,7 +122,7 @@ func Compile(input *CompilerTask) (*ContractData, error) {
 	return contractData, nil
 }
 
-func LoadContractInfo(input *CompilerJsonInput, outputJson *CompilerJsonOutput) (*ContractData, error) {
+func CreateContractData(input *CompilerJsonInput, outputJson *CompilerJsonOutput) (*ContractData, error) {
 	contractData := &ContractData{}
 
 	contractData.SourceFilesList = make([]string, len(input.Sources)+1)
@@ -156,7 +166,6 @@ func LoadContractInfo(input *CompilerJsonInput, outputJson *CompilerJsonOutput) 
 	if contractDescr == nil {
 		return nil, errors.New("contract not found in compilation output")
 	}
-	contractData.CompilerOutput = contractDescr
 
 	contractData.SourceMap = contractDescr.Evm.DeployedBytecode.SourceMap
 	if len(contractData.SourceMap) == 0 {
@@ -165,8 +174,13 @@ func LoadContractInfo(input *CompilerJsonInput, outputJson *CompilerJsonOutput) 
 
 	contractData.Metadata = contractDescr.Metadata
 	contractData.Code = hexutil.MustDecode(contractDescr.Evm.DeployedBytecode.Object)
-	contractData.DeployCode = hexutil.MustDecode(contractDescr.Evm.Bytecode.Object)
-	contractData.Abi = contractDescr.Abi
+	contractData.InitCode = hexutil.MustDecode(contractDescr.Evm.Bytecode.Object)
+	abiJson, err := json.Marshal(contractDescr.Abi)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal abi: %w", err)
+	}
+	contractData.Abi = string(abiJson)
+	contractData.MethodIdentifiers = contractDescr.Evm.MethodIdentifiers
 
 	return contractData, nil
 }

@@ -3,7 +3,6 @@ package wallet
 import (
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
@@ -109,15 +108,11 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 	var contractData *cometa.ContractData
 
 	if len(params.compileInput) != 0 {
-		data, err := os.ReadFile(params.compileInput)
-		if err != nil {
-			return fmt.Errorf("failed to read input json: %w", err)
-		}
-		contractData, err = cm.CompileContract(string(data))
+		contractData, err = cm.CompileContract(params.compileInput)
 		if err != nil {
 			return fmt.Errorf("failed to compile contract: %w", err)
 		}
-		bytecode = contractData.DeployCode
+		bytecode = contractData.InitCode
 	} else {
 		bytecode, err = common.ReadBytecode(filename, params.abiPath, args)
 		if err != nil {

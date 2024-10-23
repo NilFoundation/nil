@@ -8,6 +8,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 
@@ -117,8 +119,24 @@ func (c *Client) GetLocation(address types.Address, pc uint64) (*Location, error
 	return &loc, nil
 }
 
-func (c *Client) CompileContract(inputJson string) (*ContractData, error) {
-	response, err := c.sendRequest("cometa_compileContract", []any{inputJson})
+func (c *Client) CompileContract(inputJsonFile string) (*ContractData, error) {
+	inputJson, err := os.ReadFile(inputJsonFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read input json: %w", err)
+	}
+	var task CompilerTask
+	if err := json.Unmarshal(inputJson, &task); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal input json: %w", err)
+	}
+	task.BasePath = filepath.Dir(inputJsonFile)
+	if err := task.Normalize(); err != nil {
+		return nil, fmt.Errorf("failed to normalize compiler task: %w", err)
+	}
+	normInputJson, err := json.Marshal(task)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal input json: %w", err)
+	}
+	response, err := c.sendRequest("cometa_compileContract", []any{string(normInputJson)})
 	if err != nil {
 		return nil, err
 	}

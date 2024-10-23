@@ -24,7 +24,11 @@ type SuiteServiceTest struct {
 func (s *SuiteServiceTest) SetupSuite() {
 	s.ctx = context.Background()
 	var err error
-	s.service, err = NewService(s.T().TempDir(), &s.client)
+	cfg := &Config{
+		UseBadger: true,
+		DbPath:    s.T().TempDir() + "/cometa.db",
+	}
+	s.service, err = NewService(s.ctx, cfg, &s.client)
 	s.Require().NoError(err)
 }
 
@@ -42,13 +46,13 @@ func (s *SuiteServiceTest) TestCase1() {
 		return code, nil
 	}
 
-	contractData, err := s.service.CompileContract(input)
+	contractData, err := s.service.CompileContract(s.ctx, input)
 	s.Require().NoError(err)
 
 	err = s.service.RegisterContract(s.ctx, contractData, address)
 	s.Require().NoError(err)
 
-	contract, err := s.service.GetContract(s.ctx, address)
+	contract, err := s.service.GetContractControl(s.ctx, address)
 	s.Require().NoError(err)
 
 	s.Require().Equal(compData, contract.Data)
@@ -62,7 +66,7 @@ func (s *SuiteServiceTest) TestCase1() {
 	s.Require().NoError(err)
 	s.Require().NotEmpty(jsonContract)
 
-	source, err := s.service.GetSourceCode(s.ctx, address, loc.FileName)
+	source, err := s.service.GetSourceCodeForFile(s.ctx, address, loc.FileName)
 	s.Require().NoError(err)
 	s.Require().Equal("contract", source[loc.Position:loc.Position+8])
 }
@@ -81,13 +85,13 @@ func (s *SuiteServiceTest) TestCase2() {
 		return code, nil
 	}
 
-	contractData, err := s.service.CompileContract(input)
+	contractData, err := s.service.CompileContract(s.ctx, input)
 	s.Require().NoError(err)
 
 	err = s.service.RegisterContract(s.ctx, contractData, address)
 	s.Require().NoError(err)
 
-	contract, err := s.service.GetContract(s.ctx, address)
+	contract, err := s.service.GetContractControl(s.ctx, address)
 	s.Require().NoError(err)
 
 	s.Require().Equal(compData, contract.Data)
