@@ -32,6 +32,31 @@ var (
 	BtcFaucetAddress  = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111114")
 )
 
+func GetCurrencyName(addr CurrencyId) string {
+	switch Address(addr) {
+	case FaucetAddress:
+		return "NIL"
+	case EthFaucetAddress:
+		return "ETH"
+	case UsdtFaucetAddress:
+		return "USDT"
+	case BtcFaucetAddress:
+		return "BTC"
+	}
+	return ""
+}
+
+var currencies = map[string]Address{
+	"ETH":  EthFaucetAddress,
+	"USDT": UsdtFaucetAddress,
+	"BTC":  BtcFaucetAddress,
+	"NIL":  FaucetAddress,
+}
+
+func GetCurrencies() map[string]Address {
+	return currencies
+}
+
 // BytesToAddress returns Address with value b.
 // If b is larger than len(h), b will be cropped from the left.
 func BytesToAddress(b []byte) Address {

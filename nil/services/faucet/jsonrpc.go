@@ -60,11 +60,5 @@ func (c *FaucetAPIImpl) TopUpViaFaucet(faucetAddress, contractAddressTo types.Ad
 }
 
 func (c *FaucetAPIImpl) GetFaucets() map[string]types.Address {
-	mapCurrencyToAddress := map[string]types.Address{
-		"ETH":  types.EthFaucetAddress,
-		"USDT": types.UsdtFaucetAddress,
-		"BTC":  types.BtcFaucetAddress,
-		"MZK":  types.FaucetAddress,
-	}
-	return mapCurrencyToAddress
+	return types.GetCurrencies()
 }
