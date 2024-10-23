@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/NilFoundation/badger/v4"
@@ -17,6 +18,7 @@ import (
 type badgerDB struct {
 	db       *badger.DB
 	txLedger assert.TxLedger
+	lock     sync.Mutex
 }
 
 type BadgerDBOptions struct {
@@ -148,6 +150,8 @@ func (db *badgerDB) Stream(
 }
 
 func (db *badgerDB) Fetch(_ context.Context, reader io.Reader) error {
+	db.lock.Lock()
+	defer db.lock.Unlock()
 	const maxPendingWrites = 256
 	return db.db.Load(reader, maxPendingWrites)
 }

@@ -3,6 +3,7 @@ package db
 import (
 	"bytes"
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -536,6 +537,53 @@ func (s *SuiteBadgerDb) TestStreamLoad() {
 		v, err = tx.Get("t", []byte("key1"))
 		s.Require().NoError(err)
 		s.EqualValues("value1.1", v)
+	})
+
+	s.Run("dump and load all data in parallel", func() {
+		var buf1, buf2 bytes.Buffer
+		var err error
+
+		err = s.db.Stream(s.ctx, func(key []byte) bool {
+			return bytes.HasPrefix(key, []byte("tgarbage:"))
+		}, &buf1)
+		s.Require().NoError(err)
+
+		err = s.db.Stream(s.ctx, func(key []byte) bool {
+			return bytes.HasPrefix(key, []byte("t:"))
+		}, &buf2)
+		s.Require().NoError(err)
+
+		newDb, err := NewBadgerDbInMemory()
+		s.Require().NoError(err)
+		defer newDb.Close()
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		go func() {
+			err := newDb.Fetch(s.ctx, &buf1)
+			s.NoError(err)
+			wg.Done()
+		}()
+
+		go func() {
+			err := newDb.Fetch(s.ctx, &buf2)
+			s.NoError(err)
+			wg.Done()
+		}()
+
+		wg.Wait()
+		tx, err := newDb.CreateRoTx(s.ctx)
+		s.Require().NoError(err)
+		defer tx.Rollback()
+
+		v, err := tx.Get("t", []byte("key0"))
+		s.Require().NoError(err)
+		s.EqualValues("value0.1", v)
+
+		v, err = tx.Get("tgarbage", []byte("key0"))
+		s.Require().NoError(err)
+		s.EqualValues("value0.3", v)
 	})
 }
 
