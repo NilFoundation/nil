@@ -58,8 +58,7 @@ const hexToBytes = (hex: Hex): Uint8Array => {
     const nibbleRight = charCodeToBase16(hexString.charCodeAt(j++));
     if (nibbleLeft === undefined || nibbleRight === undefined) {
       throw new BaseError(
-        `Invalid byte sequence ("${hexString[j - 2]}${hexString[j - 1]
-        }" in "${hexString}").`,
+        `Invalid byte sequence ("${hexString[j - 2]}${hexString[j - 1]}" in "${hexString}").`,
       );
     }
     bytes[index] = nibbleLeft * 16 + nibbleRight;

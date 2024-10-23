@@ -1,8 +1,8 @@
 {
-	"name": "nil-monorepo",
-	"private": true,
-	"version": "1.0.0",
-	"workspaces": [
+  "name": "nil-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
     "smart-contracts",
     "niljs",
     "hardhat-plugin",
@@ -10,15 +10,21 @@
     "docs",
     "explorer_frontend",
     "explorer_backend"
-	],
-	"scripts": {
-		"lint": "npm run lint --workspaces --if-present",
-		"lint:fix": "npm run lint:fix --workspaces --if-present",
-		"install:clean": "rm -rf package-lock.json && rm -rf node_modules && rm -rf */node_modules && rm -rf */package-lock.json && npm i",
-		"publish": "npm run publish --workspaces --if-present"
-	},
-	"author": "",
-	"license": "ISC",
-	"description": "",
-	"dependencies": {}
+  ],
+  "scripts": {
+    "lint": "npm run lint --workspaces --if-present",
+    "lint:fix": "npm run lint:fix --workspaces --if-present",
+    "install:clean": "rm -rf package-lock.json && rm -rf node_modules && rm -rf */node_modules && rm -rf */package-lock.json && npm i",
+    "publish": "npm run publish --workspaces --if-present"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4"
+  },
+  "optionalDependencies": {
+    "@biomejs/cli-linux-x64": "1.9.4",
+    "@biomejs/cli-win32-x64": "1.9.4"
+  }
 }

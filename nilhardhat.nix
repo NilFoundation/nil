@@ -1,5 +1,6 @@
 { lib
 , stdenv
+, biome
 , fetchFromGitHub
 , fetchNpmDeps
 , callPackage
@@ -18,6 +19,7 @@ stdenv.mkDerivation rec {
     "^niljs(/.*)?$"
     "^hardhat-examples(/.*)?$"
     "^smart-contracts(/.*)?$"
+    "biome.json"
   ];
 
   soljson = builtins.fetchurl {
@@ -33,6 +35,7 @@ stdenv.mkDerivation rec {
     nodejs
     npmHooks.npmConfigHook
     nil
+    biome
   ];
 
   dontConfigure = true;
@@ -48,6 +51,11 @@ stdenv.mkDerivation rec {
   doCheck = enableTesting;
 
   checkPhase = ''
+    export BIOME_BINARY=${biome}/bin/biome
+
+    echo "Linting hardhat-plugin"
+    npm run lint
+
     cd ../hardhat-examples
 
     echo "Installing soljson"

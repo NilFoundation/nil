@@ -15,10 +15,7 @@ import { isHexString } from "./hex.js";
  * @param message - The message to throw if the value is not a hex string.
  */
 const assertIsHexString = (value: Hex, message?: string): void => {
-  invariant(
-    isHexString(value),
-    message ?? `Expected a hex string but got ${value}`,
-  );
+  invariant(isHexString(value), message ?? `Expected a hex string but got ${value}`);
 };
 
 /**
@@ -28,10 +25,7 @@ const assertIsHexString = (value: Hex, message?: string): void => {
  * @param message - The message to throw if the value is not a buffer.
  */
 const assertIsBuffer = (value: Uint8Array, message?: string): void => {
-  invariant(
-    value instanceof Uint8Array,
-    message ?? `Expected a buffer but got ${value}`,
-  );
+  invariant(value instanceof Uint8Array, message ?? `Expected a buffer but got ${value}`);
 };
 
 /**
@@ -40,10 +34,7 @@ const assertIsBuffer = (value: Uint8Array, message?: string): void => {
  * @param privateKey - The private key to check.
  * @param message - The message to throw if the private key is invalid.
  */
-const assertIsValidPrivateKey = (
-  privateKey: IPrivateKey,
-  message?: string,
-): void => {
+const assertIsValidPrivateKey = (privateKey: IPrivateKey, message?: string): void => {
   invariant(
     isHexString(privateKey) && privateKey.length === 32 * 2 + 2,
     message ?? `Expected a valid private key, but got ${privateKey}`,
@@ -56,24 +47,15 @@ const assertIsValidPrivateKey = (
  * @param deployData - The data to validate.
  * @param message - The message to throw if the data is invalid.
  */
-const assertIsValidDeployData = (
-  deployContractData: IDeployData,
-  message?: string,
-) => {
+const assertIsValidDeployData = (deployContractData: IDeployData, message?: string) => {
   const { seqno, pubkey, shardId } = deployContractData;
 
   if (seqno !== undefined) {
-    invariant(
-      seqno >= 0,
-      message ?? `Expected a valid 'seqno' but got ${seqno}`,
-    );
+    invariant(seqno >= 0, message ?? `Expected a valid 'seqno' but got ${seqno}`);
   }
 
   if (pubkey !== undefined) {
-    invariant(
-      typeof pubkey === "string",
-      message ?? `Expected a valid 'pubkey' but got ${pubkey}`,
-    );
+    invariant(typeof pubkey === "string", message ?? `Expected a valid 'pubkey' but got ${pubkey}`);
   }
 
   assertIsValidShardId(shardId);
@@ -85,10 +67,7 @@ const assertIsValidDeployData = (
  * @param message - The message to throw if the address is invalid.
  */
 const assertIsAddress = (address: string, message?: string): void => {
-  invariant(
-    isAddress(address),
-    message ?? `Expected a valid address but got ${address}`,
-  );
+  invariant(isAddress(address), message ?? `Expected a valid address but got ${address}`);
 };
 
 /**
@@ -97,10 +76,7 @@ const assertIsAddress = (address: string, message?: string): void => {
  * @param message - The message to throw if the block is invalid.
  */
 const assertIsValidBlock = (block: Block, message?: string): void => {
-  invariant(
-    isValidBlock(block),
-    message ?? `Expected a valid block but got ${block}`,
-  );
+  invariant(isValidBlock(block), message ?? `Expected a valid block but got ${block}`);
 };
 
 /**

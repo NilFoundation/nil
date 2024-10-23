@@ -40,9 +40,7 @@ const addHexPrefix = (str: Hex | string): Hex => {
  * @returns The concatenated hex string.
  */
 const concatHex = (values: readonly Hex[]): Hex => {
-  return addHexPrefix(
-    (values as Hex[]).reduce((acc, x) => acc + x.replace("0x", ""), ""),
-  );
+  return addHexPrefix((values as Hex[]).reduce((acc, x) => acc + x.replace("0x", ""), ""));
 };
 
 export { isHexString, removeHexPrefix, addHexPrefix, concatHex };

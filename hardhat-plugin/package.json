@@ -14,8 +14,8 @@
 	"types": "dist/index.d.ts",
 	"scripts": {
 		"build": "rimraf dist && tsc -p tsconfig.json",
-		"lint": "biome check src test",
-		"lint:fix": "biome check --write src",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
 		"test": "npx hardhat test --network nil",
     "publish": "npm run build && npm publish"
 	},
@@ -29,7 +29,6 @@
 		"viem": "^2.16.3"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "1.8.2",
 		"@nomicfoundation/hardhat-ethers": "^3.0.6",
 		"@nomicfoundation/hardhat-toolbox": "^5.0.0",
 		"dotenv": "^16.4.5",

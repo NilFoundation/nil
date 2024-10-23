@@ -10,18 +10,12 @@ test("getBlockByHash", async ({ expect }) => {
     transport: new MockTransport(fn),
     shardId: 1,
   });
-  await client.getBlockByHash(
-    "0x158c4be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa",
-  );
+  await client.getBlockByHash("0x158c4be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa");
   expect(fn).toHaveBeenCalledOnce();
 
   expect(fn).toHaveBeenLastCalledWith({
     method: "eth_getBlockByHash",
-    params: [
-      1,
-      "0x158c4be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa",
-      false,
-    ],
+    params: [1, "0x158c4be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa", false],
   });
 });
 
@@ -72,10 +66,7 @@ test("getBlockMessageCountByHash", async ({ expect }) => {
   expect(fn).toHaveBeenCalledOnce();
   expect(fn).toHaveBeenLastCalledWith({
     method: "eth_getBlockTransactionCountByHash",
-    params: [
-      1,
-      "0x158c4be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa",
-    ],
+    params: [1, "0x158c4be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa"],
   });
 });
 
@@ -103,10 +94,7 @@ test("getMessageCount", async ({ expect }) => {
     transport: new MockTransport(fn),
     shardId: 1,
   });
-  const count = await client.getMessageCount(
-    addHexPrefix(defaultAddress),
-    "latest",
-  );
+  const count = await client.getMessageCount(addHexPrefix(defaultAddress), "latest");
   expect(count).toBe(1);
   expect(fn).toHaveBeenCalledOnce();
   expect(fn).toHaveBeenLastCalledWith({
@@ -161,10 +149,7 @@ test("getMessageByHash", async ({ expect }) => {
   expect(fn).toHaveBeenCalledOnce();
   expect(fn).toHaveBeenLastCalledWith({
     method: "eth_getInMessageByHash",
-    params: [
-      1,
-      "0x158c4be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa",
-    ],
+    params: [1, "0x158c4be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa"],
   });
 });
 
@@ -186,10 +171,7 @@ test("getMessageReceiptByHash", async ({ expect }) => {
   expect(fn).toHaveBeenCalledOnce();
   expect(fn).toHaveBeenLastCalledWith({
     method: "eth_getInMessageReceipt",
-    params: [
-      1,
-      "0x158c4be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa",
-    ],
+    params: [1, "0x158c4be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa"],
   });
 });
 
@@ -247,10 +229,7 @@ test("getCurrencies", async ({ expect }) => {
     transport: new MockTransport(fn),
     shardId: 1,
   });
-  const currencies = await client.getCurrencies(
-    addHexPrefix(defaultAddress),
-    "latest",
-  );
+  const currencies = await client.getCurrencies(addHexPrefix(defaultAddress), "latest");
 
   expect(currencies).toBeDefined();
   expect(currencies).toBeInstanceOf(Object);

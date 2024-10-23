@@ -43,9 +43,15 @@ export const Blocks = () => {
             >
               <StyledTableSemanticHead>
                 <StyledTableSemanticHeadRow>
-                  <StyledTableSemanticHeadCell style={{ width: "10%" }}>Shard</StyledTableSemanticHeadCell>
-                  <StyledTableSemanticHeadCell style={{ width: "10%" }}>Height</StyledTableSemanticHeadCell>
-                  <StyledTableSemanticHeadCell style={{ width: "10%" }}>Msg Count</StyledTableSemanticHeadCell>
+                  <StyledTableSemanticHeadCell style={{ width: "10%" }}>
+                    Shard
+                  </StyledTableSemanticHeadCell>
+                  <StyledTableSemanticHeadCell style={{ width: "10%" }}>
+                    Height
+                  </StyledTableSemanticHeadCell>
+                  <StyledTableSemanticHeadCell style={{ width: "10%" }}>
+                    Msg Count
+                  </StyledTableSemanticHeadCell>
                 </StyledTableSemanticHeadRow>
               </StyledTableSemanticHead>
               <StyledTableSemanticBody>

@@ -32,10 +32,14 @@ export const config = {
   JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || defaults.JWT_SECRET_KEY,
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || defaults.JWT_EXPIRES_IN,
   JWT_ALGORITHM: process.env.JWT_ALGORITHM || defaults.JWT_ALGORITHM,
-  TRACE_SAMPLE_RATIO: process.env.TRACE_SAMPLE_RATIO ? +process.env.TRACE_SAMPLE_RATIO : defaults.TRACE_SAMPLE_RATIO,
+  TRACE_SAMPLE_RATIO: process.env.TRACE_SAMPLE_RATIO
+    ? +process.env.TRACE_SAMPLE_RATIO
+    : defaults.TRACE_SAMPLE_RATIO,
   OTLP_PROTOCOL: process.env.OTLP_PROTOCOL || defaults.OTLP_PROTOCOL,
   INTERVAL_CACHE_CHECKER: process.env.INTERVAL_CACHE_CHECKER
     ? +process.env.INTERVAL_CACHE_CHECKER
     : defaults.INTERVAL_CACHE_CHECKER,
-  CACHE_DEADLINE: process.env.CACHE_DEADLINE ? +process.env.CACHE_DEADLINE : defaults.CACHE_DEADLINE,
+  CACHE_DEADLINE: process.env.CACHE_DEADLINE
+    ? +process.env.CACHE_DEADLINE
+    : defaults.CACHE_DEADLINE,
 } as const;

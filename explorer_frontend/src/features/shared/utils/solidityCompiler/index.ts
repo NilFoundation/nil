@@ -61,8 +61,11 @@ export class CompileWorker {
         const task = this.currentTask;
         if (task) {
           const { reject } = this.promiseMap.get(task)!;
-          
-          const errorMsg = event.data.errors.map((error) => error.formattedMessage).filter((message) => !message.startsWith('Warning')).join("\n");
+
+          const errorMsg = event.data.errors
+            .map((error) => error.formattedMessage)
+            .filter((message) => !message.startsWith("Warning"))
+            .join("\n");
           reject(new Error(errorMsg));
           this.promiseMap.delete(task);
           this.currentTask = null;
@@ -105,7 +108,9 @@ export class CompileWorker {
 }
 
 export const solidityWorker = async ({ version }: { version: string }): Promise<CompileWorker> => {
-  const worker = new Worker(URL.createObjectURL(new Blob([`(${browserSolidityCompiler})()`], { type: "module" })));
+  const worker = new Worker(
+    URL.createObjectURL(new Blob([`(${browserSolidityCompiler})()`], { type: "module" })),
+  );
 
   return new Promise((resolve, reject) => {
     worker.postMessage({ version });
@@ -123,5 +128,7 @@ export const solidityWorker = async ({ version }: { version: string }): Promise<
 };
 
 export const getCompilerVersions = async () => {
-  return fetch("https://binaries.soliditylang.org/bin/list.json").then((response) => response.json());
+  return fetch("https://binaries.soliditylang.org/bin/list.json").then((response) =>
+    response.json(),
+  );
 };

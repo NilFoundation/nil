@@ -22,6 +22,9 @@ export const setCode = (code: string): string => {
   if (res) {
     return hash;
   }
-  db.prepare("INSERT INTO code (hash, code, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)").run(hash, code);
+  db.prepare("INSERT INTO code (hash, code, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)").run(
+    hash,
+    code,
+  );
   return hash;
 };

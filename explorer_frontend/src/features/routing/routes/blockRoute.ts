@@ -6,7 +6,11 @@ export const blockRoute = createRoute<{ shard: string; id: string }>() satisfies
   id: string;
 }>;
 
-export const blockDetailsRoute = createRoute<{ shard: string; id: string; details: string }>() satisfies RouteInstance<{
+export const blockDetailsRoute = createRoute<{
+  shard: string;
+  id: string;
+  details: string;
+}>() satisfies RouteInstance<{
   shard: string;
   id: string;
   details: string;

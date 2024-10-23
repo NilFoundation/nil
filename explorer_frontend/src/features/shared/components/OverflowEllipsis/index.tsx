@@ -23,7 +23,10 @@ const styles: StylesObject = {
   },
 };
 
-const OverflowEllipsisInternalComponent = ({ children, charsFromTheEnd = 8 }: OverflowEllipsisProps) => {
+const OverflowEllipsisInternalComponent = ({
+  children,
+  charsFromTheEnd = 8,
+}: OverflowEllipsisProps) => {
   const [css] = useStyletron();
   const firstPart = children.slice(0, -charsFromTheEnd);
   const lastPart = children.slice(-charsFromTheEnd);

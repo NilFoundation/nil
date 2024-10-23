@@ -64,7 +64,10 @@ export const Logs: FC<LogsProps> = ({ logs }) => {
                 <ParagraphSmall color={COLORS.gray400}>Address:</ParagraphSmall>
                 <div className={css(styles.infoContainer)}>
                   <ParagraphSmall>
-                    <Link to={addressRoute} params={{ address: addHexPrefix(log.address.toLowerCase()) }}>
+                    <Link
+                      to={addressRoute}
+                      params={{ address: addHexPrefix(log.address.toLowerCase()) }}
+                    >
                       {addHexPrefix(log.address.toLowerCase())}
                     </Link>
                   </ParagraphSmall>

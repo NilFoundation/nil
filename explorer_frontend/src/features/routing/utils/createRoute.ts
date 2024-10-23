@@ -1,11 +1,16 @@
-import { type RouteInstance, type RouteQuery, createRoute as originCreateRoute } from "atomic-router";
+import {
+  type RouteInstance,
+  type RouteQuery,
+  createRoute as originCreateRoute,
+} from "atomic-router";
 import { type Event, merge, sample } from "effector";
 
-export type ExtendedRoute<T extends Record<string, string | undefined> = Record<string, string | undefined>> =
-  RouteInstance<T> & {
-    navigated: Event<{ params: T; query: RouteQuery }>;
-    paramsApplied: Event<T>;
-  };
+export type ExtendedRoute<
+  T extends Record<string, string | undefined> = Record<string, string | undefined>,
+> = RouteInstance<T> & {
+  navigated: Event<{ params: T; query: RouteQuery }>;
+  paramsApplied: Event<T>;
+};
 
 export function createRoute<
   Params extends Record<string, string | undefined> = Record<string, string | undefined>,

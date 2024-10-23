@@ -8,7 +8,6 @@ import type { IPrivateKey } from "./types/IPrivateKey.js";
  * @example
  * const privateKey = generatePrivateKey();
  */
-const generateRandomPrivateKey = (): IPrivateKey =>
-  toHex(secp256k1.utils.randomPrivateKey());
+const generateRandomPrivateKey = (): IPrivateKey => toHex(secp256k1.utils.randomPrivateKey());
 
 export { generateRandomPrivateKey };

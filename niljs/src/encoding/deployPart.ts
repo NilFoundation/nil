@@ -11,27 +11,19 @@ import { hexToBytes } from "./fromHex.js";
  * @param {IDeployData} data The deployment data.
  * @returns {{ data: Uint8Array; address: Uint8Array }} The object containing the final bytecode and the deployment address.
  */
-export const prepareDeployPart = (
-  data: IDeployData,
-): { data: Uint8Array; address: Uint8Array } => {
+export const prepareDeployPart = (data: IDeployData): { data: Uint8Array; address: Uint8Array } => {
   const byteSalt = refineSalt(data.salt);
   let constructorData: Uint8Array;
   if (data.abi) {
     constructorData = hexToBytes(
       encodeDeployData({
         abi: data.abi,
-        bytecode:
-          typeof data.bytecode === "string"
-            ? data.bytecode
-            : bytesToHex(data.bytecode),
+        bytecode: typeof data.bytecode === "string" ? data.bytecode : bytesToHex(data.bytecode),
         args: data.args || [],
       }),
     );
   } else {
-    constructorData =
-      typeof data.bytecode === "string"
-        ? hexToBytes(data.bytecode)
-        : data.bytecode;
+    constructorData = typeof data.bytecode === "string" ? hexToBytes(data.bytecode) : data.bytecode;
   }
   const bytecode = new Uint8Array([...constructorData, ...byteSalt]);
   const address = calculateAddress(data.shard, constructorData, byteSalt);

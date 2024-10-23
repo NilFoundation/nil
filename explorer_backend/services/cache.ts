@@ -35,7 +35,10 @@ export type CacheSettings =
       type: CacheType.LRU;
     };
 
-type CacheResult<T extends {}> = [null, CacheStatus.MISS] | [T, CacheStatus.HIT] | [T, CacheStatus.EXPIRED];
+type CacheResult<T extends {}> =
+  | [null, CacheStatus.MISS]
+  | [T, CacheStatus.HIT]
+  | [T, CacheStatus.EXPIRED];
 export const getCache = <T extends {}>(key: string, type: CacheType): CacheResult<T> => {
   switch (type) {
     case CacheType.LRU: {

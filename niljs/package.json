@@ -36,12 +36,10 @@
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",
 		"lint:types": "tsc --noEmit -p tsconfig.json",
-		"scripts": "npx --no-install allow-scripts",
-    "publish": "npm run build && npm publish"
+		"publish": "npm run build && npm publish"
 	},
 	"license": "MIT",
 	"devDependencies": {
-		"@biomejs/biome": "^1.8.1",
 		"@rollup/plugin-node-resolve": "^15.2.3",
 		"@vitest/coverage-v8": "^1.6.0",
 		"rimraf": "^5.0.7",

@@ -3,9 +3,7 @@
   "version": "1.0.1",
   "main": "index.js",
   "scripts": {
-    "tests": "npx hardhat test --network nil",
-    "lint": "biome check ignition/modules test",
-    "lint:fix": "biome check --write ignition/modules test"
+    "tests": "npx hardhat test --network nil"
   },
   "keywords": [],
   "author": "",

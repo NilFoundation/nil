@@ -33,7 +33,10 @@ export const BlockListElementScheme = z.object({
   id: z.string(),
 });
 
-export const fetchLatestBlocks = async (offset: number, limit: number): Promise<BlockListElement[]> => {
+export const fetchLatestBlocks = async (
+  offset: number,
+  limit: number,
+): Promise<BlockListElement[]> => {
   const query = await client.query({
     query: `SELECT
     ${fields}
@@ -70,7 +73,10 @@ export const fetchBlockByHash = async (hash: string): Promise<BlockListElement |
   }
 };
 
-export const fetchBlocksByShardAndNumber = async (shardId: number, seqNo: number): Promise<BlockListElement | null> => {
+export const fetchBlocksByShardAndNumber = async (
+  shardId: number,
+  seqNo: number,
+): Promise<BlockListElement | null> => {
   const query = await client.query({
     query: `SELECT ${fields} FROM blocks WHERE shard_id = {shardId: Int32} AND id = {seqNo: Int32}`,
     query_params: {

@@ -23,10 +23,7 @@ class MetaMaskSigner implements ISigner {
    * @constructor
    */
   constructor() {
-    invariant(
-      typeof window !== "undefined",
-      "MetaMaskSigner can be used in the browser only",
-    );
+    invariant(typeof window !== "undefined", "MetaMaskSigner can be used in the browser only");
 
     invariant(
       typeof window.ethereum !== "undefined",

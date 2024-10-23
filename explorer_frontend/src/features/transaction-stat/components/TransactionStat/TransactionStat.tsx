@@ -10,7 +10,9 @@ const ErrorView = () => {
 
   return (
     <div className={css(styles.errorViewContainer)}>
-      <ParagraphLarge>An error occurred while displaying the chart. Please try again later.</ParagraphLarge>
+      <ParagraphLarge>
+        An error occurred while displaying the chart. Please try again later.
+      </ParagraphLarge>
     </div>
   );
 };

@@ -18,7 +18,13 @@ type SpaceProps = {
   delimiter?: (key: string) => React.ReactNode;
 };
 
-export const Space = ({ children, size = "medium", direction = "horizontal", style, delimiter }: SpaceProps) => {
+export const Space = ({
+  children,
+  size = "medium",
+  direction = "horizontal",
+  style,
+  delimiter,
+}: SpaceProps) => {
   const [css] = useStyletron();
   return (
     <div
@@ -34,7 +40,10 @@ export const Space = ({ children, size = "medium", direction = "horizontal", sty
           return (
             <>
               {child}
-              {index !== React.Children.count(children) - 1 && child && delimiter && delimiter(`${index}`)}
+              {index !== React.Children.count(children) - 1 &&
+                child &&
+                delimiter &&
+                delimiter(`${index}`)}
             </>
           );
         })}

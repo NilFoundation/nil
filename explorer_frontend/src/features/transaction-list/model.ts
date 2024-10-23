@@ -26,7 +26,9 @@ export const $curPage = createStore(0);
 
 export const showList = createEvent<TransactionFetchProps>();
 
-export const $transactionList = createStore<Awaited<ReturnType<typeof fetchTransactionsByBlock>>>([]);
+export const $transactionList = createStore<Awaited<ReturnType<typeof fetchTransactionsByBlock>>>(
+  [],
+);
 
 export const fetchTransactionListFx = createEffect<
   TransactionFetchProps,

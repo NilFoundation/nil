@@ -17,16 +17,12 @@ import type { HandlerContext } from "./context";
 import { shardNumber } from "./utils/conversion";
 import { ensure0xPrefix } from "./utils/hex";
 
-function isStringArray(
-  accounts: HttpNetworkAccountsConfig,
-): accounts is string[] {
+function isStringArray(accounts: HttpNetworkAccountsConfig): accounts is string[] {
   return Array.isArray(accounts);
 }
 
 // Type guard to check if a network configuration is HTTP based
-function isHttpNetworkConfig(
-  config: NetworkConfig,
-): config is HttpNetworkConfig {
+function isHttpNetworkConfig(config: NetworkConfig): config is HttpNetworkConfig {
   return "url" in config;
 }
 
@@ -41,9 +37,7 @@ export async function setupWalletAndClient(
 
   // Error handling if the network configuration is not HTTP or is missing
   if (!isHttpNetworkConfig(networkConfig)) {
-    throw new Error(
-      `${networkName} is not an HTTP network config or is misconfigured.`,
-    );
+    throw new Error(`${networkName} is not an HTTP network config or is misconfigured.`);
   }
 
   // URL is guaranteed to exist and be a string here
@@ -115,9 +109,7 @@ export async function setupWalletAndClient(
     originalRequest,
     isRequest: false,
     feeCredit: BigInt(hre.config.feeCredit ?? 5_000_000),
-    directTxValue: hre.config.directTxValue
-      ? BigInt(hre.config.directTxValue)
-      : undefined,
+    directTxValue: hre.config.directTxValue ? BigInt(hre.config.directTxValue) : undefined,
     directTxFeeCredit: hre.config.directTxGasLimit
       ? BigInt(hre.config.directTxGasLimit)
       : undefined,

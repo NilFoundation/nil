@@ -13,7 +13,9 @@ export const Shard = ({ workload, txCount }: ShardProps) => {
   const [css] = useStyletron();
 
   return (
-    <div className={css({ ...styles.shard, backgroundColor: getBackgroundBasedOnWorkload(workload) })}>
+    <div
+      className={css({ ...styles.shard, backgroundColor: getBackgroundBasedOnWorkload(workload) })}
+    >
       <LabelMedium>{formatNumber(txCount)}</LabelMedium>
     </div>
   );

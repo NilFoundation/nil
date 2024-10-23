@@ -23,7 +23,11 @@ const AccountLoading = () => {
 };
 
 export const AccountInfo = () => {
-  const [account, isLoading, params] = useUnit([$account, loadAccountStateFx.pending, addressRoute.$params]);
+  const [account, isLoading, params] = useUnit([
+    $account,
+    loadAccountStateFx.pending,
+    addressRoute.$params,
+  ]);
   const [css] = useStyletron();
 
   useEffect(() => {
@@ -43,16 +47,18 @@ export const AccountInfo = () => {
           <Divider />
           <Info
             label="Code"
-            value={account.code && account.code.length > 0 ? (
-                  <CodeField
-                    extensions={[EditorView.lineWrapping]}
-                    code={account.code}
-                    className={css({ marginTop: "1ch" })}
-                    codeMirrorClassName={css({ maxHeight: "300px", overflow: "scroll" })}
-                  />
-                ) : (
-                  <ParagraphSmall>Not deployed</ParagraphSmall>
-                )}
+            value={
+              account.code && account.code.length > 0 ? (
+                <CodeField
+                  extensions={[EditorView.lineWrapping]}
+                  code={account.code}
+                  className={css({ marginTop: "1ch" })}
+                  codeMirrorClassName={css({ maxHeight: "300px", overflow: "scroll" })}
+                />
+              ) : (
+                <ParagraphSmall>Not deployed</ParagraphSmall>
+              )
+            }
           />
         </InfoBlock>
       </div>

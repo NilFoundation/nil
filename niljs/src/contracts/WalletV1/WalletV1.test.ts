@@ -1,5 +1,5 @@
 import { PublicClient } from "../../clients/index.js";
-import { generateRandomPrivateKey, type WalletV1Config } from "../../index.js";
+import { type WalletV1Config, generateRandomPrivateKey } from "../../index.js";
 import { LocalECDSAKeySigner } from "../../signers/LocalECDSAKeySigner.js";
 import { MockTransport } from "../../transport/MockTransport.js";
 import { WalletV1 } from "./WalletV1.js";
@@ -115,8 +115,7 @@ test("Deploy through wallet", async ({ expect }) => {
   });
   await wallet.deployContract({
     abi: [],
-    bytecode:
-      "0x222222222222222222222222222222222222222222222222222222222222222222",
+    bytecode: "0x222222222222222222222222222222222222222222222222222222222222222222",
     args: [],
     chainId: 1,
     seqno: 1,
@@ -131,4 +130,3 @@ test("Deploy through wallet", async ({ expect }) => {
     "222222222222222222222222222222222222222222222222222222222222222222",
   ]);
 });
-

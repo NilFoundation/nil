@@ -1,4 +1,9 @@
-import { HeadingXLarge, HeadingLarge, ParagraphMedium, PRIMITIVE_COLORS } from "@nilfoundation/ui-kit";
+import {
+  HeadingXLarge,
+  HeadingLarge,
+  ParagraphMedium,
+  PRIMITIVE_COLORS,
+} from "@nilfoundation/ui-kit";
 import { useStyletron } from "styletron-react";
 import { useMobile } from "../../hooks/useMobile";
 import type { BlockOverrides } from "baseui/block";
@@ -37,8 +42,8 @@ export const Heading = ({ className = "" }: HeadingProps) => {
     >
       <TitleComponent className={css(s.heading)}>Secure Ethereum scaling</TitleComponent>
       <ParagraphMedium overrides={subTextOverrides}>
-        =nil; is a zkRollup that scales Ethereum through zkSharding, enabling secure parallel execution of transactions
-        across shards operating independently.
+        =nil; is a zkRollup that scales Ethereum through zkSharding, enabling secure parallel
+        execution of transactions across shards operating independently.
       </ParagraphMedium>
     </div>
   );

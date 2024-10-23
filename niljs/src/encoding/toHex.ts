@@ -1,9 +1,6 @@
 import { type Hex, IntegerOutOfRangeError, addHexPrefix } from "../index.js";
 
-// biome-ignore lint/style/useNamingConvention: <explanation>
-const hexes = Array.from({ length: 256 }, (_, i) =>
-  i.toString(16).padStart(2, "0"),
-);
+const hexes = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
 
 /**
  * Converts a string to a hex string.
@@ -45,10 +42,7 @@ const numberToHex = (num: number | bigint): Hex => {
   const maxValue = BigInt(Number.MAX_SAFE_INTEGER);
   const minValue = 0;
 
-  if (
-    typeof num !== "bigint" &&
-    ((maxValue && value > maxValue) || value < minValue)
-  ) {
+  if (typeof num !== "bigint" && ((maxValue && value > maxValue) || value < minValue)) {
     throw new IntegerOutOfRangeError({
       max: maxValue,
       min: minValue,
@@ -64,9 +58,7 @@ const numberToHex = (num: number | bigint): Hex => {
  * @param value The input to convert.
  * @returns The hex string representation of the input.
  */
-const toHex = <T extends string | Uint8Array | boolean | bigint | number>(
-  value: T,
-): Hex => {
+const toHex = <T extends string | Uint8Array | boolean | bigint | number>(value: T): Hex => {
   if (typeof value === "string") {
     return stringToHex(value);
   }

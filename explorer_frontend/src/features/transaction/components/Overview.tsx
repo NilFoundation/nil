@@ -157,16 +157,18 @@ export const Overview: FC<OverviewProps> = ({ transaction: tx }) => {
       <Divider />
       <Info
         label="Message payload (bytecode):"
-        value={tx.method && tx.method.length > 0 ? (
-              <CodeField
-                extensions={[EditorView.lineWrapping]}
-                code={tx.method}
-                className={css({ marginTop: "1ch" })}
-                codeMirrorClassName={css({ maxHeight: "300px", overflow: "scroll" })}
-              />
-            ) : (
-              <ParagraphSmall>No bytecode</ParagraphSmall>
-            )}
+        value={
+          tx.method && tx.method.length > 0 ? (
+            <CodeField
+              extensions={[EditorView.lineWrapping]}
+              code={tx.method}
+              className={css({ marginTop: "1ch" })}
+              codeMirrorClassName={css({ maxHeight: "300px", overflow: "scroll" })}
+            />
+          ) : (
+            <ParagraphSmall>No bytecode</ParagraphSmall>
+          )
+        }
       />
     </InfoBlock>
   );

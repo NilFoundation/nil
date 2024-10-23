@@ -11,15 +11,17 @@ export const getMobileStyles = (styles: StyleObject) => ({
 });
 
 export const getTabletStyles = (styles: StyleObject) => ({
-  [`@media screen and (min-width: ${mobileMaxScreenSize + 1}px) and (max-width: ${tabletMaxScreenSize}px)`]: {
-    ...styles,
-  },
+  [`@media screen and (min-width: ${mobileMaxScreenSize + 1}px) and (max-width: ${tabletMaxScreenSize}px)`]:
+    {
+      ...styles,
+    },
 });
 
 export const getMediumScreenStyles = (styles: StyleObject) => ({
-  [`@media screen and (min-width: ${tabletMaxScreenSize + 1}px) and (max-width: ${mediumMaxScreenSize}px)`]: {
-    ...styles,
-  },
+  [`@media screen and (min-width: ${tabletMaxScreenSize + 1}px) and (max-width: ${mediumMaxScreenSize}px)`]:
+    {
+      ...styles,
+    },
 });
 
 export const getLargeScreenStyles = (styles: StyleObject) => ({

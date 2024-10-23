@@ -1,6 +1,6 @@
 import type { Abi, Address } from "abitype";
-import type { Hex } from "./Hex.js";
 import type { XOR } from "ts-essentials";
+import type { Hex } from "./Hex.js";
 
 /**
  * The args for performing a call to a smart contract.

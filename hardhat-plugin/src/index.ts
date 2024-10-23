@@ -4,15 +4,9 @@ import { unifiedInterceptor } from "./interceptors";
 import { setupWalletAndClient } from "./setup";
 
 extendEnvironment((hre) => {
-  const originalRequest = hre.network.provider.request.bind(
-    hre.network.provider,
-  );
+  const originalRequest = hre.network.provider.request.bind(hre.network.provider);
   const originalSend = hre.network.provider.send.bind(hre.network.provider);
-  const contextPromise = setupWalletAndClient(
-    hre,
-    originalRequest,
-    originalSend,
-  );
+  const contextPromise = setupWalletAndClient(hre, originalRequest, originalSend);
 
   hre.network.provider.send = async (method, params) => {
     const context = await contextPromise;
@@ -23,11 +17,7 @@ extendEnvironment((hre) => {
   hre.network.provider.request = async (args) => {
     const context = await contextPromise;
     context.isRequest = true;
-    const safeParams = Array.isArray(args.params)
-      ? args.params
-      : args.params
-        ? [args.params]
-        : [];
+    const safeParams = Array.isArray(args.params) ? args.params : args.params ? [args.params] : [];
     return unifiedInterceptor(args.method, safeParams, context);
   };
 });

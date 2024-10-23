@@ -10,11 +10,7 @@ import { getTransactionCount } from "./handlers/getTransactionCount";
 import { getTransactionReceipt } from "./handlers/getTransactionReceipt";
 import { sendTransaction } from "./handlers/sendTransaction";
 
-export async function unifiedInterceptor(
-  method: string,
-  params: any[],
-  context: HandlerContext,
-) {
+export async function unifiedInterceptor(method: string, params: any[], context: HandlerContext) {
   switch (method) {
     case "eth_getTransactionReceipt":
       return getTransactionReceipt(method, params, context);

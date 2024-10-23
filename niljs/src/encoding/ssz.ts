@@ -25,9 +25,7 @@ setHasher({
     return arr;
   },
   digest64HashObjects(a, b) {
-    const hash = poseidonHash(
-      concatBytes(hashObjectToUint8Array(a), hashObjectToUint8Array(b)),
-    );
+    const hash = poseidonHash(concatBytes(hashObjectToUint8Array(a), hashObjectToUint8Array(b)));
     const arr = new Uint8Array(32);
     for (let i = 0; i < 32; i++) {
       // Shift the BigInt to the right by 8 * i bits, then take the 8 least significant bits

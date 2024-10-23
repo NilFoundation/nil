@@ -1,5 +1,13 @@
 import { Input, SearchIcon } from "@nilfoundation/ui-kit";
-import { $focused, $query, $results, blurSearch, clearSearch, focusSearch, updateSearch } from "../models/model";
+import {
+  $focused,
+  $query,
+  $results,
+  blurSearch,
+  clearSearch,
+  focusSearch,
+  updateSearch,
+} from "../models/model";
 import { useUnit } from "effector-react";
 import { useStyletron } from "baseui";
 import { SearchResult } from "./SearchResult";
