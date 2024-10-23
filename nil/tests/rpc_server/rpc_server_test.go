@@ -243,7 +243,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 		})
 		s.Run("MakeCallBounce", makeCall)
 		s.Run("CheckBounce", func() {
-			receipt = s.waitForReceipt(callerAddr.ShardId(), hash)
+			receipt = s.waitIncludedInMain(callerAddr.ShardId(), hash)
 			s.Require().True(receipt.Success)
 
 			getBounceErrName := "get_bounce_err"
