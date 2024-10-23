@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -87,7 +88,7 @@ func (s *Syncer) snapIsRequired(ctx context.Context) (bool, error) {
 	return err != nil, nil
 }
 
-func (s *Syncer) Run(ctx context.Context) error {
+func (s *Syncer) Run(ctx context.Context, wgFetch *sync.WaitGroup) error {
 	if required, err := s.snapIsRequired(ctx); err != nil {
 		return err
 	} else if required {
@@ -95,6 +96,11 @@ func (s *Syncer) Run(ctx context.Context) error {
 			return fmt.Errorf("failed to fetch snapshot: %w", err)
 		}
 	}
+
+	// Wait until snapshots for shards are fetched.
+	// It's impossible to load data and commit transactions at the same time.
+	wgFetch.Done()
+	wgFetch.Wait()
 
 	err := s.readLastBlockNumber(ctx)
 	if err != nil {

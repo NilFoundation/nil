@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/signal"
 	"slices"
+	"sync"
 	"syscall"
 	"time"
 
@@ -234,6 +235,9 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
 		syncerTimeout := syncTimeoutFactor * collatorTickPeriod
 
+		var wgFetch sync.WaitGroup
+		wgFetch.Add(len(nodeShards))
+
 		for _, shardId := range nodeShards {
 			syncer := collate.NewSyncer(collate.SyncerConfig{
 				ShardId:              shardId,
@@ -243,7 +247,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 				BlockGeneratorParams: cfg.BlockGeneratorParams(shardId),
 			}, database, networkManager)
 			funcs = append(funcs, func(ctx context.Context) error {
-				if err := syncer.Run(ctx); err != nil {
+				if err := syncer.Run(ctx, &wgFetch); err != nil {
 					logger.Error().
 						Err(err).
 						Stringer(logging.FieldShardId, shardId).
@@ -358,6 +362,9 @@ func createShards(
 	funcs := make([]concurrent.Func, cfg.NShards)
 	pools := make(map[types.ShardId]msgpool.Pool)
 
+	var wgFetch sync.WaitGroup
+	wgFetch.Add(int(cfg.NShards) - len(cfg.GetMyShards()))
+
 	for i := range cfg.NShards {
 		shard := types.ShardId(i)
 		if cfg.IsShardActive(shard) {
@@ -389,7 +396,7 @@ func createShards(
 			}, database, networkManager)
 
 			funcs[i] = func(ctx context.Context) error {
-				if err := syncer.Run(ctx); err != nil {
+				if err := syncer.Run(ctx, &wgFetch); err != nil {
 					logger.Error().
 						Err(err).
 						Stringer(logging.FieldShardId, shard).
