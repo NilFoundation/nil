@@ -45,7 +45,11 @@ export const Transaction = () => {
           <Tab title="Overview" kind={TAB_KIND.secondary}>
             <Overview transaction={transaction} />
           </Tab>
-          <Tab title="Logs" endEnhancer={<Tag size={TAG_SIZE.m}>{logs?.length ?? 0}</Tag>} kind={TAB_KIND.secondary}>
+          <Tab
+            title="Logs"
+            endEnhancer={<Tag size={TAG_SIZE.m}>{logs?.length ?? 0}</Tag>}
+            kind={TAB_KIND.secondary}
+          >
             {logsPending ? <Skeleton animation /> : <Logs logs={logs} />}
           </Tab>
           <Tab title={isMobile ? "Outgoing msg" : "Outgoing messages"} kind={TAB_KIND.secondary}>

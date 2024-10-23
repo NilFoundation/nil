@@ -95,7 +95,11 @@ export const BlockPage = () => {
                 to={key === "overview" ? blockRoute : blockDetailsRoute}
                 params={{ shard: params.shard, id: (+params.id - 1).toString(), details: key }}
               >
-                <Button kind={BUTTON_KIND.tertiary} size={BUTTON_SIZE.default} startEnhancer={<ArrowLeft />}>
+                <Button
+                  kind={BUTTON_KIND.tertiary}
+                  size={BUTTON_SIZE.default}
+                  startEnhancer={<ArrowLeft />}
+                >
                   Previous block
                 </Button>
               </Link>
@@ -104,7 +108,11 @@ export const BlockPage = () => {
               to={key === "overview" ? blockRoute : blockDetailsRoute}
               params={{ shard: params.shard, id: (+params.id + 1).toString(), details: key }}
             >
-              <Button kind={BUTTON_KIND.tertiary} size={BUTTON_SIZE.default} endEnhancer={<ArrowRight />}>
+              <Button
+                kind={BUTTON_KIND.tertiary}
+                size={BUTTON_SIZE.default}
+                endEnhancer={<ArrowRight />}
+              >
                 Next block
               </Button>
             </Link>
@@ -115,7 +123,9 @@ export const BlockPage = () => {
             key={"overview"}
             kind={secondary}
             title="Overview"
-            onClick={() => blockRoute.navigate({ params: { shard: params.shard, id: params.id }, query: {} })}
+            onClick={() =>
+              blockRoute.navigate({ params: { shard: params.shard, id: params.id }, query: {} })
+            }
           >
             <BlockInfo />
           </Tab>
@@ -126,7 +136,9 @@ export const BlockPage = () => {
               <span className={tabContentCn}>
                 {isMobile ? "Incoming" : "Incoming messages"}
                 <Tag>
-                  <ParagraphXSmall>{block ? block.in_msg_num.padStart(3, "0") : "000"}</ParagraphXSmall>
+                  <ParagraphXSmall>
+                    {block ? block.in_msg_num.padStart(3, "0") : "000"}
+                  </ParagraphXSmall>
                 </Tag>
               </span>
             }
@@ -137,7 +149,11 @@ export const BlockPage = () => {
               });
             }}
           >
-            <TransactionList type="block" identifier={`${params.shard}:${params.id}`} view="incoming" />
+            <TransactionList
+              type="block"
+              identifier={`${params.shard}:${params.id}`}
+              view="incoming"
+            />
           </Tab>
           <Tab
             key={"outgoing"}
@@ -146,7 +162,9 @@ export const BlockPage = () => {
               <span className={tabContentCn}>
                 {isMobile ? "Outgoing" : "Outgoing messages"}
                 <Tag>
-                  <ParagraphXSmall>{block ? block.out_msg_num.padStart(3, "0") : "000"}</ParagraphXSmall>
+                  <ParagraphXSmall>
+                    {block ? block.out_msg_num.padStart(3, "0") : "000"}
+                  </ParagraphXSmall>
                 </Tag>
               </span>
             }
@@ -157,7 +175,11 @@ export const BlockPage = () => {
               });
             }}
           >
-            <TransactionList type="block" identifier={`${params.shard}:${params.id}`} view="outgoing" />
+            <TransactionList
+              type="block"
+              identifier={`${params.shard}:${params.id}`}
+              view="outgoing"
+            />
           </Tab>
         </Tabs>
       </div>

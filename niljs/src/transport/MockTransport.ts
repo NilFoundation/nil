@@ -47,7 +47,7 @@ class MockTransport implements ITransport {
    *
    * @public
    */
-  public closeConnection(): void { }
+  public closeConnection(): void {}
 }
 
 export { MockTransport };

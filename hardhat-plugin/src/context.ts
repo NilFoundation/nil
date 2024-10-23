@@ -1,9 +1,4 @@
-import type {
-  Faucet,
-  LocalECDSAKeySigner,
-  PublicClient,
-  WalletV1,
-} from "@nilfoundation/niljs";
+import type { Faucet, LocalECDSAKeySigner, PublicClient, WalletV1 } from "@nilfoundation/niljs";
 import type { HardhatRuntimeEnvironment } from "hardhat/types";
 
 export interface HandlerContext {

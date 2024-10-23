@@ -19,6 +19,8 @@ type ShardsInfo = {
 export const fetchShards = async () => {
   const [_, axiosClient] = await fetchClients();
   const currentState = await fetchMasterChainInfo(axiosClient);
-  const shards = await axiosClient.get<ShardsInfo>(`/_api/ftfr/shards?seqno=${currentState.last.seqno}`);
+  const shards = await axiosClient.get<ShardsInfo>(
+    `/_api/ftfr/shards?seqno=${currentState.last.seqno}`,
+  );
   return shards.data.shards;
 };

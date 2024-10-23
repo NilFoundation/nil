@@ -54,14 +54,9 @@ class LocalECDSAKeySigner implements ISigner {
   constructor(config: ILocalKeySignerConfig) {
     const { privateKey, mnemonic } = config;
 
-    invariant(
-      privateKey || mnemonic,
-      "Either privateKey or mnemonic must be provided.",
-    );
+    invariant(privateKey || mnemonic, "Either privateKey or mnemonic must be provided.");
 
-    const privKey = mnemonic
-      ? privateKeyFromPhrase(mnemonic)
-      : addHexPrefix(privateKey as string);
+    const privKey = mnemonic ? privateKeyFromPhrase(mnemonic) : addHexPrefix(privateKey as string);
 
     assertIsValidPrivateKey(privKey);
 

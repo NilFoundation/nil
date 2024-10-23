@@ -38,11 +38,7 @@ const getShardIdFromAddress = (address: string): number => {
  * @param {Uint8Array} salt Arbitrary data for address generation.
  * @returns {Uint8Array} The address.
  */
-const calculateAddress = (
-  shardId: number,
-  code: Uint8Array,
-  salt: Uint8Array,
-): Uint8Array => {
+const calculateAddress = (shardId: number, code: Uint8Array, salt: Uint8Array): Uint8Array => {
   if (!Number.isInteger(shardId)) {
     throw new Error("Shard ID must be an integer");
   }

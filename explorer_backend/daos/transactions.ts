@@ -133,7 +133,10 @@ export const getTransactionsByBlockHash = async (hash: string): Promise<Transact
   }
 };
 
-export const getTransactionsByBlock = async (shard: number, id: number): Promise<TransactionElem[]> => {
+export const getTransactionsByBlock = async (
+  shard: number,
+  id: number,
+): Promise<TransactionElem[]> => {
   const query = await client.query({
     query: `SELECT
         ${fieldsElem}

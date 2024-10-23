@@ -12,7 +12,7 @@
         "editor.defaultFormatter": "biomejs.biome"
     },
     "[javascript]": {
-        "editor.defaultFormatter": "vscode.typescript-language-features"
+        "editor.defaultFormatter": "biomejs.biome"
     },
     "[json]": {
         "editor.defaultFormatter": "biomejs.biome"

@@ -28,7 +28,11 @@ const styles: StylesObject = {
 export const Link = ({ to, params, children, className }: LinkProps) => {
   const [css] = useStyletron();
   return (
-    <AtomicLink to={to} params={params} className={`${css(styles.link)} ${className ? className : ""}`}>
+    <AtomicLink
+      to={to}
+      params={params}
+      className={`${css(styles.link)} ${className ? className : ""}`}
+    >
       {children}
     </AtomicLink>
   );

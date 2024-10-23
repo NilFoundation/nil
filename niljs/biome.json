@@ -1,20 +1,12 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.8.1/schema.json",
-  "organizeImports": {
-    "enabled": true
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "extends": ["../biome.json"],
+  "files": {
+    "include": ["src/**", "test/**", "rollup/**"]
   },
   "linter": {
-    "enabled": true,
     "rules": {
-      "recommended": true,
-      "correctness": {
-        "noUnusedImports": "error"
-      },
-      "nursery": {
-        "noConsole": "error"
-      },
       "style": {
-        "noDefaultExport": "warn",
         "useNamingConvention": {
           "level": "warn",
           "options": {
@@ -30,21 +22,5 @@
         }
       }
     }
-  },
-  "formatter": {
-    "enabled": true,
-    "formatWithErrors": false,
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineWidth": 80
-  },
-  "files": {
-    "ignore": [
-      "node_modules",
-      "dist",
-      "package.json",
-      "test/coverage",
-      "vendor"
-    ]
   }
 }

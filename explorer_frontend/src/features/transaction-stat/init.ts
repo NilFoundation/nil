@@ -1,5 +1,10 @@
 import { sample, merge } from "effector";
-import { fetchTransactionsStatFx, $transactionsStat, $timeInterval, changeTimeInterval } from "./models/model";
+import {
+  fetchTransactionsStatFx,
+  $transactionsStat,
+  $timeInterval,
+  changeTimeInterval,
+} from "./models/model";
 import { explorerRoute } from "../routing/routes/explorerRoute";
 import { interval } from "patronum";
 import { persist } from "effector-storage/local";

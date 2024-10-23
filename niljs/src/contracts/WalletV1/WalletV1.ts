@@ -1,3 +1,4 @@
+import Wallet from "@nilfoundation/smart-contracts/artifacts/Wallet.json";
 import type { Abi } from "abitype";
 import invariant from "tiny-invariant";
 import { bytesToHex, encodeFunctionData } from "viem";
@@ -6,6 +7,7 @@ import { prepareDeployPart } from "../../encoding/deployPart.js";
 import { externalMessageEncode } from "../../encoding/externalMessage.js";
 import { hexToBytes } from "../../encoding/fromHex.js";
 import { toHex } from "../../encoding/toHex.js";
+import { addHexPrefix } from "../../index.js";
 import type { ISigner } from "../../signers/index.js";
 import type { IDeployData } from "../../types/IDeployData.js";
 import { getShardIdFromAddress, refineAddress } from "../../utils/address.js";
@@ -14,7 +16,6 @@ import {
   refineFunctionHexData,
   refineSalt,
 } from "../../utils/refiners.js";
-import Wallet from "@nilfoundation/smart-contracts/artifacts/Wallet.json";
 import type {
   DeployParams,
   RequestParams,
@@ -22,7 +23,6 @@ import type {
   SendSyncMessageParams,
   WalletV1Config,
 } from "./types/index.js";
-import { addHexPrefix } from "../../index.js";
 
 /**
  * WalletV1 is a class used for performing operations on the cluster that require authentication.
@@ -146,14 +146,7 @@ export class WalletV1 {
    * @param {WalletV1Config} param0.salt The arbitrary data for changing the wallet address.
    * @param {WalletV1Config} param0.signer The wallet signer.
    */
-  constructor({
-    pubkey,
-    shardId,
-    address,
-    client,
-    salt,
-    signer,
-  }: WalletV1Config) {
+  constructor({ pubkey, shardId, address, client, salt, signer }: WalletV1Config) {
     this.pubkey = refineCompressedPublicKey(pubkey);
     this.client = client;
     this.signer = signer;
@@ -164,10 +157,10 @@ export class WalletV1 {
     this.address = address
       ? refineAddress(address)
       : WalletV1.calculateWalletAddress({
-        pubKey: this.pubkey,
-        shardId,
-        salt,
-      });
+          pubKey: this.pubkey,
+          shardId,
+          salt,
+        });
     if (salt) {
       this.salt = refineSalt(salt);
     }
@@ -232,9 +225,7 @@ export class WalletV1 {
 
     const [balance, code] = await Promise.all([
       await this.client.getBalance(this.getAddressHex(), "latest"),
-      await this.client
-        .getCode(this.getAddressHex(), "latest")
-        .catch(() => Uint8Array.from([])),
+      await this.client.getCode(this.getAddressHex(), "latest").catch(() => Uint8Array.from([])),
     ]);
 
     invariant(code.length === 0, "Contract already deployed");
@@ -290,8 +281,7 @@ export class WalletV1 {
     send = true,
   ): Promise<{ raw: Uint8Array; hash: Uint8Array }> {
     const [seqno, chainId] = await Promise.all([
-      requestParams.seqno ??
-      this.client.getMessageCount(this.getAddressHex(), "latest"),
+      requestParams.seqno ?? this.client.getMessageCount(this.getAddressHex(), "latest"),
       requestParams.chainId ?? this.client.chainId(),
     ]);
     const encodedMessage = await externalMessageEncode(
@@ -511,10 +501,7 @@ export class WalletV1 {
         salt,
       };
     } else {
-      invariant(
-        !(abi || args),
-        "ABI and args should be provided together or not provided at all.",
-      );
+      invariant(!(abi || args), "ABI and args should be provided together or not provided at all.");
       deployData = {
         shard: shardId,
         bytecode,

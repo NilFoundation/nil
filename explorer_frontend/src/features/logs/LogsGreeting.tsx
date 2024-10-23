@@ -23,7 +23,9 @@ const LogsGreeting: FC<LogsGreetingProps> = ({ className }) => {
   return (
     <div className={className}>
       <MonoParagraphMedium color={COLORS.gray400}>Welcome to =nil; sandbox!</MonoParagraphMedium>
-      <MonoParagraphMedium color={COLORS.gray400}>You can use this terminal to:</MonoParagraphMedium>
+      <MonoParagraphMedium color={COLORS.gray400}>
+        You can use this terminal to:
+      </MonoParagraphMedium>
       <ul
         className={css({
           marginBottom: "32px",
@@ -36,7 +38,9 @@ const LogsGreeting: FC<LogsGreetingProps> = ({ className }) => {
           </MonoParagraphMedium>
         </li>
         <li className={liCn}>
-          <MonoParagraphMedium color={COLORS.gray400}>Compile and deploy smart contracts.</MonoParagraphMedium>
+          <MonoParagraphMedium color={COLORS.gray400}>
+            Compile and deploy smart contracts.
+          </MonoParagraphMedium>
         </li>
       </ul>
       <MonoParagraphMedium color={COLORS.gray400}>Check essential:</MonoParagraphMedium>

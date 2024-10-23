@@ -39,10 +39,7 @@ test("Deploy through wallet", async ({ expect }) => {
 
   expect(walletAddress).toBeDefined();
 
-  const faucetHash = await faucet.withdrawTo(
-    walletAddress,
-    convertEthToWei(0.1),
-  );
+  const faucetHash = await faucet.withdrawTo(walletAddress, convertEthToWei(0.1));
 
   await waitTillCompleted(client, 1, bytesToHex(faucetHash));
   await wallet.selfDeploy(true);

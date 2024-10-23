@@ -1,8 +1,4 @@
-import {
-  bytesToHex,
-  hexToBytes,
-  numberToBytesBE,
-} from "@noble/curves/abstract/utils";
+import { bytesToHex, hexToBytes, numberToBytesBE } from "@noble/curves/abstract/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { poseidonHash } from "../encoding/poseidon.js";
 import { toHex } from "../encoding/toHex.js";
@@ -16,10 +12,7 @@ import type { IPrivateKey } from "./types/IPrivateKey.js";
  * Returns the public key from the private key using the secp256k1 curve.
  */
 const getPublicKey = (privateKey: IPrivateKey, isCompressed = false): Hex => {
-  const publicKey = secp256k1.getPublicKey(
-    removeHexPrefix(privateKey),
-    isCompressed,
-  );
+  const publicKey = secp256k1.getPublicKey(removeHexPrefix(privateKey), isCompressed);
 
   return addHexPrefix(bytesToHex(publicKey));
 };

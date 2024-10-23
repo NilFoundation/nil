@@ -1,16 +1,13 @@
+import type { Abi } from "abitype";
 import invariant from "tiny-invariant";
+import { encodeFunctionData } from "viem";
+import { bytesToHex, hexToBytes } from "../encoding/index.js";
+import type { Hex } from "../types/index.js";
 import { addHexPrefix } from "./hex.js";
-import type {Abi} from "abitype";
-import {encodeFunctionData} from "viem";
-import {hexToBytes, bytesToHex} from "../encoding/index.js";
-import type {Hex} from "../types/index.js";
 
 const refineSalt = (salt: Uint8Array | bigint): Uint8Array => {
   if (typeof salt === "bigint") {
-    return hexToBytes(addHexPrefix(salt.toString(16).padStart(64, "0"))).slice(
-      0,
-      32,
-    );
+    return hexToBytes(addHexPrefix(salt.toString(16).padStart(64, "0"))).slice(0, 32);
   }
 
   invariant(salt.length === 32, "Salt must be 32 bytes");
@@ -18,9 +15,7 @@ const refineSalt = (salt: Uint8Array | bigint): Uint8Array => {
   return salt;
 };
 
-const refineCompressedPublicKey = (
-  pubkey: Uint8Array | `0x${string}`,
-): Uint8Array => {
+const refineCompressedPublicKey = (pubkey: Uint8Array | `0x${string}`): Uint8Array => {
   const res = typeof pubkey === "string" ? hexToBytes(pubkey) : pubkey;
   invariant(pubkey.length === 33, "Invalid pubkey length");
 
@@ -41,7 +36,7 @@ const refineFunctionHexData = ({
   if (!data && !abi) {
     return "0x";
   }
-  invariant(!(data && (abi)), "ABI and data cannot be provided together");
+  invariant(!(data && abi), "ABI and data cannot be provided together");
   if (data) {
     return typeof data === "string" ? data : bytesToHex(data);
   }
@@ -51,6 +46,6 @@ const refineFunctionHexData = ({
     functionName,
     args: args || [],
   });
-}
+};
 
 export { refineSalt, refineCompressedPublicKey, refineFunctionHexData };

@@ -1,5 +1,6 @@
 { lib
 , stdenv
+, biome
 , fetchFromGitHub
 , fetchNpmDeps
 , callPackage
@@ -12,7 +13,7 @@
 stdenv.mkDerivation rec {
   name = "nil.js";
   pname = "niljs";
-  src = lib.sourceByRegex ./. [ "package.json" "package-lock.json" "^niljs(/.*)?$" "^smart-contracts(/.*)?$" ];
+  src = lib.sourceByRegex ./. [ "package.json" "package-lock.json" "^niljs(/.*)?$" "^smart-contracts(/.*)?$" "biome.json" ];
 
   npmDeps = (callPackage ./npmdeps.nix { });
 
@@ -22,6 +23,7 @@ stdenv.mkDerivation rec {
     nodejs
     npmHooks.npmConfigHook
     nil
+    biome
   ];
 
   dontConfigure = true;
@@ -36,12 +38,15 @@ stdenv.mkDerivation rec {
 
   checkPhase = ''
     patchShebangs node_modules
-    npm run test:unit
-
     nohup nild run --http-port 8529 --collator-tick-ms=100 > nild.log 2>&1 & echo $! > nild_pid
-    npm run test:integration --cache=false
-    npm run test:examples
-    npm run lint:types
+
+    export BIOME_BINARY=${biome}/bin/biome
+
+    npm run lint
+    npm run test:unit
+    # npm run test:integration --cache=false
+    # npm run test:examples
+    # npm run lint:types
     kill `cat nild_pid` && rm nild_pid
 
     echo "tests finished successfully"

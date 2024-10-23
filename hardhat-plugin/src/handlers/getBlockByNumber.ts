@@ -2,20 +2,12 @@ import type { HandlerContext } from "../context";
 import { executeOriginalFunction } from "../interceptors";
 import { shardNumber } from "../utils/conversion";
 
-export async function getBlockByNumber(
-  method: string,
-  params: any[],
-  context: HandlerContext,
-) {
+export async function getBlockByNumber(method: string, params: any[], context: HandlerContext) {
   const preparedParams = prepareInput(params, context);
   if (context.debug) {
     console.log(`Method ${method} params ${JSON.stringify(preparedParams)}`);
   }
-  const response = await executeOriginalFunction(
-    method,
-    preparedParams,
-    context,
-  );
+  const response = await executeOriginalFunction(method, preparedParams, context);
   const result = adaptResponse(response);
   if (context.debug) {
     console.log(`Response ${JSON.stringify(result)}`);

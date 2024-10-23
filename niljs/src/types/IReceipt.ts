@@ -21,10 +21,7 @@ type IReceipt = {
   includedInMain: boolean;
 };
 
-type ProcessedReceipt = Omit<
-  IReceipt,
-  "gasUsed" | "gasPrice" | "outputReceipts"
-> & {
+type ProcessedReceipt = Omit<IReceipt, "gasUsed" | "gasPrice" | "outputReceipts"> & {
   gasUsed: bigint;
   gasPrice?: bigint;
   outputReceipts: (ProcessedReceipt | null)[] | null;

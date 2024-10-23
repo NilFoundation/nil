@@ -2,20 +2,20 @@ import { CometaService, type ContractData } from "../index.js";
 import { MockTransport } from "../transport/MockTransport.js";
 
 test("getContract", async ({ expect }) => {
-	const fn = vi.fn();
-	fn.mockReturnValue({});
-	const cometa = new CometaService({
-		transport: new MockTransport(fn),
-		shardId: 1,
-	});
+  const fn = vi.fn();
+  fn.mockReturnValue({});
+  const cometa = new CometaService({
+    transport: new MockTransport(fn),
+    shardId: 1,
+  });
 
-	await cometa.getContract("0x12345");
+  await cometa.getContract("0x12345");
 
-	expect(fn).toHaveBeenCalledOnce();
-	expect(fn).toHaveBeenLastCalledWith({
-		method: "cometa_getContract",
-		params: ["0x12345"],
-	});
+  expect(fn).toHaveBeenCalledOnce();
+  expect(fn).toHaveBeenLastCalledWith({
+    method: "cometa_getContract",
+    params: ["0x12345"],
+  });
 });
 
 test("getLocation", async ({ expect }) => {

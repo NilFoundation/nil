@@ -18,7 +18,9 @@ export const accountRouter = router({
       }),
     )
     .query(async (opts) => {
-      const { balance, isInitialized, code, currencies } = await fetchAccountState(opts.input as `0x${string}`);
+      const { balance, isInitialized, code, currencies } = await fetchAccountState(
+        opts.input as `0x${string}`,
+      );
       return {
         balance,
         code,

@@ -25,7 +25,11 @@ export const transactionsRouter = router({
       }),
     )
     .query(async (opts) => {
-      return getTransactionsByAddress(addHexPrefix(opts.input.address), opts.input.offset, opts.input.limit);
+      return getTransactionsByAddress(
+        addHexPrefix(opts.input.address),
+        opts.input.offset,
+        opts.input.limit,
+      );
     }),
   transactionsByBlockHash: publicProcedure
     .input(z.string())

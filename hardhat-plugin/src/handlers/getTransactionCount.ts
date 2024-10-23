@@ -2,11 +2,7 @@ import type { HandlerContext } from "../context";
 import { executeOriginalFunction } from "../interceptors";
 import { shardNumber } from "../utils/conversion";
 
-export async function getTransactionCount(
-  method: string,
-  params: any[],
-  context: HandlerContext,
-) {
+export async function getTransactionCount(method: string, params: any[], context: HandlerContext) {
   const preparedParams = await prepareInput(params, context);
   if (context.debug) {
     console.log(`Method ${method} params ${JSON.stringify(preparedParams)}`);
@@ -18,10 +14,7 @@ export async function getTransactionCount(
   return result;
 }
 
-async function prepareInput(
-  params: any[],
-  context: HandlerContext,
-): Promise<any[]> {
+async function prepareInput(params: any[], context: HandlerContext): Promise<any[]> {
   const address = await context.signer.getAddress(
     context.hre.config.shardId ?? shardNumber(context.wallet.getAddressHex()),
   ); // Simulate async call if necessary

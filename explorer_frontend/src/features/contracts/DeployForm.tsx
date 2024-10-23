@@ -78,7 +78,11 @@ export const DeployForm = () => {
           })}
         >
           <FormControl label="Shard id">
-            <Input value={shardId} onChange={(e) => setShardId(Number.parseInt(e.target.value))} type="number" />
+            <Input
+              value={shardId}
+              onChange={(e) => setShardId(Number.parseInt(e.target.value))}
+              type="number"
+            />
           </FormControl>
           {constuctorAbi?.inputs.length ? (
             <>

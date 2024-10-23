@@ -35,10 +35,7 @@ class MetaMaskTransport implements ITransport {
   constructor(config: IHttpTransportConfig) {
     this.timeout = config.timeout !== undefined ? config.timeout : 20000;
 
-    invariant(
-      typeof window !== "undefined",
-      "MetaMaskTransport can be used in the browser only",
-    );
+    invariant(typeof window !== "undefined", "MetaMaskTransport can be used in the browser only");
 
     invariant(
       typeof window.ethereum !== "undefined",

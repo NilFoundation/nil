@@ -59,7 +59,10 @@ export const Chart = () => {
   const series = useRef<SeriesApiRef<"Area">>(null);
 
   const getLastBarValue = useCallback((api: ISeriesApi<"Area">) => {
-    const last = api.dataByIndex(Number.POSITIVE_INFINITY, MismatchDirection.NearestLeft) as LineData;
+    const last = api.dataByIndex(
+      Number.POSITIVE_INFINITY,
+      MismatchDirection.NearestLeft,
+    ) as LineData;
     return last?.value.toFixed() ?? "-";
   }, []);
 
@@ -98,7 +101,13 @@ export const Chart = () => {
 
   const tooltipWidth = 140;
   const tooltipMargin = 10;
-  const { isOpen, position } = useTooltip(param, containerRef.current, isMobile, tooltipMargin, tooltipWidth);
+  const { isOpen, position } = useTooltip(
+    param,
+    containerRef.current,
+    isMobile,
+    tooltipMargin,
+    tooltipWidth,
+  );
 
   return (
     <>

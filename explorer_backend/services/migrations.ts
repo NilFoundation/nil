@@ -10,7 +10,11 @@ type Migration = {
 
 const allMigrations: Migration[] = [];
 
-export function createMigration(name: string, sequence: number, handler: (client: ClickHouseClient) => Promise<void>) {
+export function createMigration(
+  name: string,
+  sequence: number,
+  handler: (client: ClickHouseClient) => Promise<void>,
+) {
   allMigrations.push({ name, sequence, handler });
 }
 
@@ -33,7 +37,8 @@ export async function runMigrations() {
 
 const isProcessedMigrationPointer = async (sequence: number, name: string): Promise<boolean> => {
   const res = await client.query({
-    query: "SELECT sequence FROM migrations WHERE sequence = {sequence: UInt32} AND name = {name: String}",
+    query:
+      "SELECT sequence FROM migrations WHERE sequence = {sequence: UInt32} AND name = {name: String}",
     query_params: {
       sequence,
       name,

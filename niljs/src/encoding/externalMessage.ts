@@ -63,14 +63,7 @@ export class ExternalMessageEnvelope {
    * @param {ExternalMessage} param0.data The message number.
    * @param {ExternalMessage} param0.authData The auth data attached to the message.
    */
-  constructor({
-    isDeploy,
-    to,
-    chainId,
-    seqno,
-    data,
-    authData,
-  }: ExternalMessage) {
+  constructor({ isDeploy, to, chainId, seqno, data, authData }: ExternalMessage) {
     this.isDeploy = isDeploy;
     this.to = to;
     this.chainId = chainId;

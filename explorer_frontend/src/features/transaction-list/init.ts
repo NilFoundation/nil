@@ -1,5 +1,11 @@
 import { sample } from "effector";
-import { $curPage, $currentArguments, $transactionList, fetchTransactionListFx, showList } from "./model";
+import {
+  $curPage,
+  $currentArguments,
+  $transactionList,
+  fetchTransactionListFx,
+  showList,
+} from "./model";
 
 sample({
   clock: sample({

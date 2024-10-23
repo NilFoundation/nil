@@ -1,4 +1,10 @@
-import { COLORS, HeadingXSmall, ParagraphSmall, TABLE_SIZE, TableSemantic } from "@nilfoundation/ui-kit";
+import {
+  COLORS,
+  HeadingXSmall,
+  ParagraphSmall,
+  TABLE_SIZE,
+  TableSemantic,
+} from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
 import type { ReactNode } from "react";
 import { StyledList } from "..";

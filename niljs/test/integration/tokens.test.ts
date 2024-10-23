@@ -1,4 +1,3 @@
-import { encodeFunctionData } from "viem";
 import {
   Faucet,
   HttpTransport,
@@ -8,8 +7,6 @@ import {
   bytesToHex,
   convertEthToWei,
   generateRandomPrivateKey,
-  hexToBigInt,
-  toHex,
   waitTillCompleted,
 } from "../../src/index.js";
 import { testEnv } from "../testEnv.js";
@@ -85,10 +82,7 @@ test("mint and transfer tokens", async () => {
 
   await waitTillCompleted(client, 1, sendHash);
 
-  const anotherTokens = await client.getCurrencies(
-    bytesToHex(anotherAddress),
-    "latest",
-  );
+  const anotherTokens = await client.getCurrencies(bytesToHex(anotherAddress), "latest");
 
   expect(anotherTokens).toBeDefined();
   expect(Object.keys(anotherTokens).length).toBeGreaterThan(0);

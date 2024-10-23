@@ -8,14 +8,14 @@ import { version } from "../version.js";
  * @example const client = createRPCClient(RPC_ENDPOINT);
  */
 const createRPCClient = (endpoint: string) => {
-	const transport = new HTTPTransport(endpoint, {
-		headers: {
-			"Client-Version": version,
-		},
-	});
+  const transport = new HTTPTransport(endpoint, {
+    headers: {
+      "Client-Version": version,
+    },
+  });
 
-	const requestManager = new RequestManager([transport]);
-	return new Client(requestManager);
+  const requestManager = new RequestManager([transport]);
+  return new Client(requestManager);
 };
 
 export { createRPCClient };

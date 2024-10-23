@@ -40,7 +40,10 @@ export const prepareFunctionValue = (simpleType: SimpleType, value: string) => {
   }
 };
 
-export const prepareValuesByFunction = (inputs: InputParameter[], values: Record<string, string>) => {
+export const prepareValuesByFunction = (
+  inputs: InputParameter[],
+  values: Record<string, string>,
+) => {
   const mappedTypes: [string, ReturnType<typeof prepareFunctionValue>][] = inputs.map((input) => {
     const simpleType = mappingType(input.type);
     return [input.name, prepareFunctionValue(simpleType, values[input.name])];
