@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"sync"
-	"testing"
 
 	"github.com/NilFoundation/nil/nil/client"
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
@@ -19,14 +18,15 @@ import (
 )
 
 type shard struct {
-	id  types.ShardId
-	db  db.DB
-	url string
+	id         types.ShardId
+	db         db.DB
+	rpcUrl     string
+	p2pAddress string
 
 	client client.Client
 }
 
-type SuiteSplitShard struct {
+type ShardedSuite struct {
 	suite.Suite
 
 	context   context.Context
@@ -38,7 +38,7 @@ type SuiteSplitShard struct {
 	shards []shard
 }
 
-func (s *SuiteSplitShard) cancel() {
+func (s *ShardedSuite) cancel() {
 	s.T().Helper()
 
 	s.ctxCancel()
@@ -48,7 +48,7 @@ func (s *SuiteSplitShard) cancel() {
 	}
 }
 
-func (s *SuiteSplitShard) start(cfg *nilservice.Config) {
+func (s *ShardedSuite) start(cfg *nilservice.Config, port int) {
 	s.T().Helper()
 	s.context, s.ctxCancel = context.WithCancel(context.Background())
 
@@ -60,17 +60,18 @@ func (s *SuiteSplitShard) start(cfg *nilservice.Config) {
 		}
 	}
 
-	networkConfigs := network.GenerateConfigs(s.T(), cfg.NShards)
+	networkConfigs, p2pAddresses := network.GenerateConfigs(s.T(), cfg.NShards, port)
 
 	for i := range cfg.NShards {
 		shardId := types.ShardId(i)
 		url := rpc.GetSockPathIdx(s.T(), int(i))
 		shard := shard{
-			id:  shardId,
-			db:  s.dbInit(),
-			url: url,
+			id:         shardId,
+			db:         s.dbInit(),
+			rpcUrl:     url,
+			p2pAddress: p2pAddresses[i],
 		}
-		shard.client = rpc_client.NewClient(shard.url, zerolog.New(os.Stderr))
+		shard.client = rpc_client.NewClient(shard.rpcUrl, zerolog.New(os.Stderr))
 		s.shards = append(s.shards, shard)
 	}
 
@@ -82,7 +83,7 @@ func (s *SuiteSplitShard) start(cfg *nilservice.Config) {
 				NShards:              cfg.NShards,
 				MyShards:             []uint{uint(s.shards[i].id)},
 				SplitShards:          true,
-				HttpUrl:              s.shards[i].url,
+				HttpUrl:              s.shards[i].rpcUrl,
 				Topology:             cfg.Topology,
 				CollatorTickPeriodMs: cfg.CollatorTickPeriodMs,
 				GasBasePrice:         cfg.GasBasePrice,
@@ -95,7 +96,42 @@ func (s *SuiteSplitShard) start(cfg *nilservice.Config) {
 	s.waitZerostate()
 }
 
-func (s *SuiteSplitShard) waitZerostate() {
+func (s *ShardedSuite) startArchiveNode(port int) client.Client {
+	s.T().Helper()
+
+	netCfg, _ := network.GenerateConfig(s.T(), port)
+
+	cfg := &nilservice.Config{
+		NShards: uint32(len(s.shards)),
+		Network: netCfg,
+		HttpUrl: rpc.GetSockPath(s.T()),
+		RunMode: nilservice.ArchiveRunMode,
+	}
+
+	for shardId := range cfg.NShards {
+		cfg.MyShards = append(cfg.MyShards, uint(shardId))
+		cfg.BootstrapPeers = append(cfg.BootstrapPeers, s.shards[shardId].p2pAddress)
+	}
+
+	s.wg.Add(1)
+	go func() {
+		nilservice.Run(s.context, cfg, s.dbInit(), nil)
+		s.wg.Done()
+	}()
+
+	c := rpc_client.NewClient(cfg.HttpUrl, zerolog.New(os.Stderr))
+
+	for i := range cfg.NShards {
+		s.Require().Eventually(func() bool {
+			block, err := c.GetBlock(types.ShardId(i), transport.BlockNumber(0), false)
+			return err == nil && block != nil
+		}, ZeroStateWaitTimeout, ZeroStatePollInterval)
+	}
+
+	return c
+}
+
+func (s *ShardedSuite) waitZerostate() {
 	s.T().Helper()
 	for i := range s.shards {
 		shard := &s.shards[i]
@@ -104,46 +140,4 @@ func (s *SuiteSplitShard) waitZerostate() {
 			return err == nil && block != nil
 		}, ZeroStateWaitTimeout, ZeroStatePollInterval)
 	}
-}
-
-func (s *SuiteSplitShard) SetupSuite() {
-	s.start(&nilservice.Config{
-		NShards:              3,
-		CollatorTickPeriodMs: 1000,
-	})
-}
-
-func (s *SuiteSplitShard) TearDownSuite() {
-	s.cancel()
-}
-
-func (s *SuiteSplitShard) TestBasic() {
-	// get latest blocks from all shards
-	for i := range s.shards {
-		shard := &s.shards[i]
-		rpcBlock, err := shard.client.GetBlock(shard.id, "latest", false)
-		s.Require().NoError(err)
-		s.Require().NotNil(rpcBlock)
-
-		// check that the block makes it to other shards
-		for j := range s.shards {
-			if i == j {
-				continue
-			}
-			otherShard := &s.shards[j]
-			s.Require().Eventually(func() bool {
-				otherBlock, err := otherShard.client.GetBlock(shard.id, transport.BlockNumber(rpcBlock.Number), false)
-				if err != nil || otherBlock == nil {
-					return false
-				}
-				return otherBlock.Hash == rpcBlock.Hash
-			}, ZeroStateWaitTimeout, ZeroStatePollInterval)
-		}
-	}
-}
-
-func TestExampleTestSuite(t *testing.T) {
-	t.Parallel()
-
-	suite.Run(t, new(SuiteSplitShard))
 }

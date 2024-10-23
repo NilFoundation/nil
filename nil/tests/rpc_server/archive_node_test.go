@@ -4,19 +4,27 @@ import (
 	"testing"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/stretchr/testify/suite"
 )
 
 type SuiteArchiveNode struct {
-	RpcSuite
+	ShardedSuite
+
+	client client.Client
 }
 
 func (s *SuiteArchiveNode) SetupTest() {
-	s.startWithRPC(&nilservice.Config{
-		NShards: 5,
-	}, 11007, true)
+	s.start(&nilservice.Config{
+		NShards:              5,
+		CollatorTickPeriodMs: 200,
+	}, 10005)
+
+	time.Sleep(1 * time.Second)
+
+	s.client = s.startArchiveNode(10010)
 }
 
 func (s *SuiteArchiveNode) TearDownTest() {
@@ -24,7 +32,7 @@ func (s *SuiteArchiveNode) TearDownTest() {
 }
 
 func (s *SuiteArchiveNode) TestGetDebugBlock() {
-	for shardId := range s.shardsNum {
+	for shardId := range len(s.shards) {
 		debugBlock, err := s.client.GetDebugBlock(types.ShardId(shardId), "latest", true)
 		s.Require().NoError(err)
 		s.NotNil(debugBlock)
@@ -36,7 +44,7 @@ func (s *SuiteArchiveNode) TestGetDebugBlock() {
 			nextBlock, err := s.client.GetDebugBlock(types.ShardId(shardId), b.Block.Id.Uint64()+1, true)
 			s.Require().NoError(err)
 			return nextBlock != nil
-		}, 5*time.Second, 50*time.Millisecond)
+		}, 5*time.Second, 100*time.Millisecond)
 	}
 }
 

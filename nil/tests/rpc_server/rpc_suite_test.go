@@ -140,14 +140,14 @@ func (s *RpcSuite) startWithRPC(cfg *nilservice.Config, port int, archive bool) 
 	PatchConfigWithTestDefaults(cfg)
 
 	rpcCfg := &nilservice.Config{
-		NShards:       s.shardsNum,
-		Network:       rpcNetCfg,
-		BootstrapPeer: validatorAddr,
-		HttpUrl:       rpc.GetSockPath(s.T()),
+		NShards: s.shardsNum,
+		Network: rpcNetCfg,
+		HttpUrl: rpc.GetSockPath(s.T()),
 	}
 
 	for shardId := range s.shardsNum {
 		rpcCfg.MyShards = append(rpcCfg.MyShards, uint(shardId))
+		rpcCfg.BootstrapPeers = append(rpcCfg.BootstrapPeers, validatorAddr)
 	}
 
 	if archive {

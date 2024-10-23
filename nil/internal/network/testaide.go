@@ -101,15 +101,15 @@ func GenerateConfig(t *testing.T, port int) (*Config, string) {
 	}, address
 }
 
-func GenerateConfigs(t *testing.T, n uint32) []*Config {
+func GenerateConfigs(t *testing.T, n uint32, port int) ([]*Config, []string) {
 	t.Helper()
 
 	configs := make([]*Config, n)
 	addresses := make([]string, n)
-	for i := range n {
-		configs[i], addresses[i] = GenerateConfig(t, int(10000+i))
+	for i := range int(n) {
+		configs[i], addresses[i] = GenerateConfig(t, port+i)
 		configs[i].DHTBootstrapPeers = addresses
 	}
 
-	return configs
+	return configs, addresses
 }

@@ -239,13 +239,16 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		wgFetch.Add(len(nodeShards))
 
 		for _, shardId := range nodeShards {
-			syncer := collate.NewSyncer(collate.SyncerConfig{
+			config := collate.SyncerConfig{
 				ShardId:              shardId,
 				Timeout:              syncerTimeout,
-				BootstrapPeer:        cfg.BootstrapPeer,
 				ReplayBlocks:         true,
 				BlockGeneratorParams: cfg.BlockGeneratorParams(shardId),
-			}, database, networkManager)
+			}
+			if int(shardId) < len(cfg.BootstrapPeers) {
+				config.BootstrapPeer = cfg.BootstrapPeers[shardId]
+			}
+			syncer := collate.NewSyncer(config, database, networkManager)
 			funcs = append(funcs, func(ctx context.Context) error {
 				if err := syncer.Run(ctx, &wgFetch); err != nil {
 					logger.Error().
@@ -389,11 +392,14 @@ func createShards(
 				return nil
 			}
 		} else {
-			syncer := collate.NewSyncer(collate.SyncerConfig{
-				ShardId:       shard,
-				Timeout:       syncerTimeout,
-				BootstrapPeer: cfg.BootstrapPeer,
-			}, database, networkManager)
+			config := collate.SyncerConfig{
+				ShardId: shard,
+				Timeout: syncerTimeout,
+			}
+			if int(shard) < len(cfg.BootstrapPeers) {
+				config.BootstrapPeer = cfg.BootstrapPeers[shard]
+			}
+			syncer := collate.NewSyncer(config, database, networkManager)
 
 			funcs[i] = func(ctx context.Context) error {
 				if err := syncer.Run(ctx, &wgFetch); err != nil {
