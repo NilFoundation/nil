@@ -1,6 +1,6 @@
 export enum Currency {
   ETH = "ETH",
-  MZK = "MZK",
+  NIL = "NIL",
   USDT = "USDT",
   BTC = "BTC",
 }

@@ -46,7 +46,7 @@ import { sendMethodFx } from "../contracts/model";
 import { $faucets, $faucetsEndpoint } from "../currencies/model";
 import { sandboxRoute, sandboxWithHashRoute } from "../routing";
 import { loadedPage } from "../code/model";
-import { mzkAddress } from "../currencies";
+import { nilAddress } from "../currencies";
 
 persistLocalStorage({
   store: $endpoint,
@@ -101,7 +101,7 @@ createWalletFx.use(async ({ privateKey, endpoint, faucetEndpoint }) => {
     addHexPrefix(removeHexPrefix(currency).padStart(40, "0")),
   );
   const currenciesWithZeroBalance = Object.values(faucets).filter(
-    (addr) => !currencies.some((currency) => currency === addr || currency !== mzkAddress),
+    (addr) => !currencies.some((currency) => currency === addr || currency !== nilAddress),
   );
 
   if (currenciesWithZeroBalance.length > 0) {

@@ -53,7 +53,7 @@ export const Method = ({
   const isPayable = func.stateMutability === "payable";
   const [currecyBalance, valueInput] = useUnit([$balanceCurrency, $valueInput]);
   const availiableCurencies = [
-    { currency: "MZK" },
+    { currency: "NIL" },
     ...Object.keys(currecyBalance ?? {}).map((currency) => ({
       currency: getCurrencySymbolByAddress(currency),
     })),

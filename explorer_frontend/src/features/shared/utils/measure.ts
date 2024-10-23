@@ -7,9 +7,9 @@ const BASE = Decimal.pow(10, 18);
 
 export const measure = (fee: string | bigint) => {
   if (typeof fee === "bigint") {
-    return `${formatEther(fee)} ETH`;
+    return `${formatEther(fee)} NIL`;
   }
-  return `${formatEther(BigInt(fee))} ETH`;
+  return `${formatEther(BigInt(fee))} NIL`;
 };
 
 export const measureDecimal = (fee: string) => {

@@ -336,7 +336,7 @@ sample({
       }
     }
 
-    const isMainCurrency = valueInput.currency === "MZK";
+    const isMainCurrency = valueInput.currency === "NIL";
     const value = isMainCurrency ? valueInput.amount : undefined;
     const tokens: Token[] = isMainCurrency
       ? []
