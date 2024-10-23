@@ -38,6 +38,11 @@ const InitConfigTemplate = `; Configuration for interacting with the =nil; clust
 ; For example, if your cluster's RPC endpoint is at "http://127.0.0.1:8529", set it as below
 ; rpc_endpoint = "http://127.0.0.1:8529"
 
+; Specify the RPC endpoint of your Cometa service
+; Cometa service is not mandatory, you can leave it empty if you don't use it
+; For example, if your Cometa's RPC endpoint is at "http://127.0.0.1:8528", set it as below
+; cometa_endpoint = "http://127.0.0.1:8528"
+
 ; Specify the private key used for signing external messages to your wallet.
 ; You can generate a new key with "nil keygen new".
 ; private_key = "WRITE_YOUR_PRIVATE_KEY_HERE"

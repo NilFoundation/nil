@@ -20,9 +20,10 @@ var noConfigCmd map[string]struct{} = map[string]struct{}{
 }
 
 var supportedOptions map[string]struct{} = map[string]struct{}{
-	"rpc_endpoint": {},
-	"private_key":  {},
-	"address":      {},
+	"rpc_endpoint":    {},
+	"cometa_endpoint": {},
+	"private_key":     {},
+	"address":         {},
 }
 
 func GetCommand(configPath *string, cfg *common.Config) *cobra.Command {
