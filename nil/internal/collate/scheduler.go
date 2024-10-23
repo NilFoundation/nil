@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -133,7 +134,7 @@ func (s *Scheduler) generateZeroState(ctx context.Context) error {
 		return err
 	}
 
-	return PublishBlock(ctx, s.networkManager, s.params.ShardId, &Block{Block: block})
+	return PublishBlock(ctx, s.networkManager, s.params.ShardId, &types.BlockWithExtractedData{Block: block})
 }
 
 func (s *Scheduler) doCollate(ctx context.Context) error {
@@ -164,10 +165,15 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 		s.logger.Warn().Err(err).Msgf("Failed to remove %d committed messages from pool", len(proposal.RemoveFromPool))
 	}
 
-	return PublishBlock(ctx, s.networkManager, s.params.ShardId, &Block{
+	hashes := make([]common.Hash, len(proposal.ShardHashes))
+	for k, v := range proposal.ShardHashes {
+		hashes[k-1] = v
+	}
+
+	return PublishBlock(ctx, s.networkManager, s.params.ShardId, &types.BlockWithExtractedData{
 		Block:       block,
 		OutMessages: outs,
 		InMessages:  proposal.InMsgs,
-		ShardHashes: proposal.ShardHashes,
+		ChildBlocks: hashes,
 	})
 }

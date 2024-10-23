@@ -270,27 +270,19 @@ func (rb *RawFullBlock) PackProtoMessage(block *types.RawBlockWithExtractedData)
 		return errors.New("block should not be nil")
 	}
 
-	childBlocks := make([]*Hash, len(block.ChildBlocks))
-	for i, hash := range block.ChildBlocks {
-		childBlocks[i] = new(Hash)
-		if err := childBlocks[i].PackProtoMessage(hash); err != nil {
-			return err
-		}
-	}
-
 	*rb = RawFullBlock{
 		BlockSSZ:       block.Block,
 		InMessagesSSZ:  block.InMessages,
 		OutMessagesSSZ: block.OutMessages,
 		ReceiptsSSZ:    block.Receipts,
 		Errors:         packErrorMap(block.Errors),
-		ChildBlocks:    childBlocks,
+		ChildBlocks:    PackHashes(block.ChildBlocks),
 		DbTimestamp:    block.DbTimestamp,
 	}
 	return nil
 }
 
-func unpackHashes(input []*Hash) []common.Hash {
+func UnpackHashes(input []*Hash) []common.Hash {
 	hashes := make([]common.Hash, len(input))
 	for i, hash := range input {
 		var err error
@@ -300,7 +292,7 @@ func unpackHashes(input []*Hash) []common.Hash {
 	return hashes
 }
 
-func packHashes(input []common.Hash) []*Hash {
+func PackHashes(input []common.Hash) []*Hash {
 	hashes := make([]*Hash, len(input))
 	for i, hash := range input {
 		hashes[i] = &Hash{}
@@ -317,7 +309,7 @@ func (rb *RawFullBlock) UnpackProtoMessage() (*types.RawBlockWithExtractedData, 
 		OutMessages: rb.OutMessagesSSZ,
 		Receipts:    rb.ReceiptsSSZ,
 		Errors:      unpackErrorMap(rb.Errors),
-		ChildBlocks: unpackHashes(rb.ChildBlocks),
+		ChildBlocks: UnpackHashes(rb.ChildBlocks),
 		DbTimestamp: rb.DbTimestamp,
 	}, nil
 }
@@ -954,7 +946,7 @@ func (r *ReceiptInfo) PackProtoMessage(info *rawapitypes.ReceiptInfo) *ReceiptIn
 		Index:          uint64(info.Index),
 		BlockHash:      blockHash,
 		BlockId:        uint64(info.BlockId),
-		OutMessages:    packHashes(info.OutMessages),
+		OutMessages:    PackHashes(info.OutMessages),
 		OutReceipts:    outReceipts,
 		IncludedInMain: info.IncludedInMain,
 		ErrorMessage:   &Error{Message: info.ErrorMessage},
@@ -1001,7 +993,7 @@ func (r *ReceiptInfo) UnpackProtoMessage() *rawapitypes.ReceiptInfo {
 		Index:          types.MessageIndex(r.Index),
 		BlockHash:      blockHash,
 		BlockId:        types.BlockNumber(r.BlockId),
-		OutMessages:    unpackHashes(r.OutMessages),
+		OutMessages:    UnpackHashes(r.OutMessages),
 		OutReceipts:    outReceipts,
 		IncludedInMain: r.IncludedInMain,
 		ErrorMessage:   errorMessage,

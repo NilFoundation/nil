@@ -10,11 +10,11 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/collate/pb"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rpc/rawapi/pb"
 	"github.com/multiformats/go-multistream"
 	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/proto"
@@ -137,7 +137,7 @@ func (s *Syncer) Run(ctx context.Context) error {
 }
 
 func (s *Syncer) processTopicMessage(ctx context.Context, data []byte) (bool, error) {
-	var pbBlock pb.Block
+	var pbBlock pb.RawFullBlock
 	if err := proto.Unmarshal(data, &pbBlock); err != nil {
 		return false, err
 	}
@@ -170,7 +170,7 @@ func (s *Syncer) processTopicMessage(ctx context.Context, data []byte) (bool, er
 		panic(msg)
 	}
 
-	if err := s.saveBlocks(ctx, []*Block{b}); err != nil {
+	if err := s.saveBlocks(ctx, []*types.BlockWithExtractedData{b}); err != nil {
 		return false, err
 	}
 
@@ -194,7 +194,7 @@ func (s *Syncer) fetchBlocks(ctx context.Context) {
 	}
 }
 
-func (s *Syncer) fetchBlocksRange(ctx context.Context) []*Block {
+func (s *Syncer) fetchBlocksRange(ctx context.Context) []*types.BlockWithExtractedData {
 	peers := ListPeers(s.networkManager, s.config.ShardId)
 
 	if len(peers) == 0 {
@@ -223,7 +223,7 @@ func (s *Syncer) fetchBlocksRange(ctx context.Context) []*Block {
 	return nil
 }
 
-func (s *Syncer) saveBlocks(ctx context.Context, blocks []*Block) error {
+func (s *Syncer) saveBlocks(ctx context.Context, blocks []*types.BlockWithExtractedData) error {
 	if len(blocks) == 0 {
 		return nil
 	}
@@ -248,7 +248,7 @@ func (s *Syncer) saveBlocks(ctx context.Context, blocks []*Block) error {
 	return nil
 }
 
-func (s *Syncer) saveDirectly(ctx context.Context, blocks []*Block) error {
+func (s *Syncer) saveDirectly(ctx context.Context, blocks []*types.BlockWithExtractedData) error {
 	tx, err := s.db.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -279,7 +279,7 @@ func (s *Syncer) saveDirectly(ctx context.Context, blocks []*Block) error {
 	return tx.Commit()
 }
 
-func (s *Syncer) replayBlocks(ctx context.Context, blocks []*Block) error {
+func (s *Syncer) replayBlocks(ctx context.Context, blocks []*types.BlockWithExtractedData) error {
 	for _, block := range blocks {
 		gen, err := execution.NewBlockGenerator(ctx, s.config.BlockGeneratorParams, s.db)
 		if err != nil {
@@ -292,11 +292,16 @@ func (s *Syncer) replayBlocks(ctx context.Context, blocks []*Block) error {
 			Stringer(logging.FieldBlockHash, blockHash).
 			Msg("Replaying block")
 
+		shardHashes := make(map[types.ShardId]common.Hash)
+		for i, h := range block.ChildBlocks {
+			shardHashes[types.ShardId(i+1)] = h
+		}
+
 		b, msgs, err := gen.GenerateBlock(&execution.Proposal{
 			PrevBlockId:   block.Block.Id - 1,
 			PrevBlockHash: block.Block.PrevBlock,
 			MainChainHash: block.Block.MainChainHash,
-			ShardHashes:   block.ShardHashes,
+			ShardHashes:   shardHashes,
 			InMsgs:        block.InMessages,
 			ForwardMsgs: slices.DeleteFunc(slices.Clone(block.OutMessages),
 				func(m *types.Message) bool { return m.From.ShardId() == s.config.ShardId }),
