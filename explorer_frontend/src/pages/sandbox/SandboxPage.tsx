@@ -15,6 +15,7 @@ import { expandProperty } from "inline-style-expand-shorthand";
 import { SandboxMobileLayout } from "./SandboxMobileLayout";
 import { useEffect } from "react";
 import { loadedPage } from "../../features/code/model";
+import { closeApp } from "../../features/contracts/model";
 
 export const SandboxPage = () => {
   const [isDownloading] = useUnit([fetchSolidityCompiler.pending]);
@@ -23,6 +24,10 @@ export const SandboxPage = () => {
 
   useEffect(() => {
     loadedPage();
+
+    return () => {
+      closeApp();
+    };
   }, []);
 
   return (

@@ -123,7 +123,7 @@ const MainScreen = () => {
         })}
       >
         <li className={css(styles.menuItem)}>
-          <Token balance={displayBalance} name="ETH" isMain />
+          <Token balance={displayBalance} name="NIL" isMain />
         </li>
         {balanceCurrency !== null &&
           Object.keys(balanceCurrency).length !== 0 &&

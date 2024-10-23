@@ -59,7 +59,7 @@ export const $topupInput = createStore<{
   currency: string;
   amount: string;
 }>({
-  currency: Currency.ETH,
+  currency: Currency.NIL,
   amount: "",
 });
 

@@ -238,7 +238,7 @@ export const $valueInput = createStore<{
   currency: string;
   amount: string;
 }>({
-  currency: "MZK",
+  currency: "NIL",
   amount: "0",
 });
 

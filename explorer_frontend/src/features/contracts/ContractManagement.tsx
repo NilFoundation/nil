@@ -104,7 +104,7 @@ export const ContractManagement = () => {
               Remove app
             </Button>
           </ParagraphMedium>
-          <ParagraphMedium>Balance: {balance.toString(10)}</ParagraphMedium>
+          <ParagraphMedium>Balance: {`${balance.toString(10)} NIL`}</ParagraphMedium>
           <ParagraphMedium>
             Tokens: {Object.keys(tokens).length === 0 && "No tokens"}
           </ParagraphMedium>

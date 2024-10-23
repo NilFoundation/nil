@@ -28,10 +28,15 @@ import { useHotkeys } from "react-hotkeys-hook";
 const MemoizedShareCodePanel = memo(ShareCodePanel);
 
 export const Code = () => {
-  useHotkeys("Meta+enter", () => compile(), {
-    preventDefault: true,
-    enableOnContentEditable: true,
-  });
+  useHotkeys(
+    "Meta+enter",
+    () => compile(),
+    {
+      preventDefault: true,
+      enableOnContentEditable: true,
+    },
+    [],
+  );
   const [isMobile] = useMobile();
   const [code, isDownloading, errors, fetchingCodeSnippet, compiling] = useUnit([
     $code,
