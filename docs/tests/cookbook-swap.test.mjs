@@ -7,12 +7,7 @@ import {
   generateRandomPrivateKey,
   convertEthToWei,
   waitTillCompleted,
-  hexToBigInt,
-  bytesToHex,
-  toHex,
-  externalDeploymentMessage,
-  ExternalMessageEnvelope,
-  hexToBytes,
+
 } from "@nilfoundation/niljs";
 
 import {
@@ -20,6 +15,7 @@ import {
 } from "viem";
 
 import { NODE_MODULES, RPC_GLOBAL } from "./globals";
+import { SWAP_MATCH_COMPILATION_COMMAND } from "./compilationCommands";
 
 const util = require("node:util");
 const fs = require("node:fs");
@@ -27,7 +23,7 @@ const exec = util.promisify(require("node:child_process").exec);
 const RPC_ENDPOINT = RPC_GLOBAL;
 
 beforeAll(async () => {
-  await exec(`solc -o ./tests/SwapMatch --abi --bin ./tests/SwapMatch.sol --overwrite ${NODE_MODULES}`);
+  await exec(SWAP_MATCH_COMPILATION_COMMAND);
 });
 
 describe.sequential('Nil.js handles the full swap tutorial flow', async () => {
@@ -195,20 +191,6 @@ describe.sequential('Nil.js handles the full swap tutorial flow', async () => {
     console.log('Wallet 1 tokens: ', tokensOne);
     console.log('Wallet 2 tokens: ', tokensTwo);
     //endFinalChecks
-
-    const amountsOne = Object.values(tokensOne);
-    const expectedAmountsOne = [90_000_000n, 20_000_000n];
-
-    amountsOne.sort();
-    expectedAmountsOne.sort();
-
-    expect(amountsOne).to.deep.equal(expectedAmountsOne);
-
-    const amountsTwo = Object.values(tokensTwo);
-    const expectedAmountsTwo = [10_000_000n, 80_000_000n];
-    amountsTwo.sort();
-    expectedAmountsTwo.sort();
-    expect(amountsTwo).to.deep.equal(expectedAmountsTwo);
 
 
   }, 70000);

@@ -32,7 +32,7 @@ To deploy Contract 1 via the =nil; CLI:
 
 Take note of the address for Contract 1. To retrieve the wallet public key:
 
-```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startWalletInfoCommand end=endWalletInfoCommand
+```bash file=../../../tests/commands.mjs start=startInfo end=endInfo
 ```
 
 To deploy Contract 2 with the given public key and the address of the retailer contract:
@@ -91,7 +91,7 @@ Then, deploy the retailer contract while providing the same `SALT`:
 
 Retrieve the public key assigned to the wallet:
 
-```bash file=../../../tests/working-with-smart-contracts-cli.test.mjs start=startWalletInfoCommand end=endWalletInfoCommand
+```bash file=../../../tests/commands.mjs start=startInfo end=endInfo
 ```
 
 Calculate the address of the manufacturer contract and send funds to it:

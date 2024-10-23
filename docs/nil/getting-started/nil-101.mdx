@@ -17,12 +17,12 @@ curl -fsSL https://github.com/NilFoundation/nil_cli/raw/master/install.sh | bash
 
 To generate a new private key and set inside the CLI config:
 
-```bash file=../../tests/nil-101.test.mjs start=startKeygen end=endKeygen
+```bash file=../../tests/commands.mjs start=startKeygen end=endKeygen
 ```
 
 To point the CLI toward the RPC endpoint:
 
-```bash file=../../tests/nil-101.test.mjs start=startEndpoint end=endEndpoint
+```bash file=../../tests/commands.mjs start=startEndpoint end=endEndpoint
 ```
 
 ## Create a new wallet
@@ -33,7 +33,7 @@ In =nil; a wallet is just a smart contract that can handle payments. There are n
 
 To create a new wallet:
 
-```bash file=../../tests/nil-101.test.mjs start=startWallet end=endWallet
+```bash file=../../tests/commands.mjs start=startWallet end=endWallet
 ```
 
 Expected response:
@@ -51,12 +51,12 @@ nil contract code WALLET_ADDRESS
 
 To request a 'top up':
 
-```bash file=../../tests/nil-101.test.mjs start=startTopup end=endTopup
+```bash file=../../tests/commands.mjs start=startTopup end=endTopup
 ```
 
 To see the wallet address and its public key:
 
-```bash file=../../tests/nil-101.test.mjs start=startInfo end=endInfo
+```bash file=../../tests/commands.mjs start=startInfo end=endInfo
 ```
 
 ### Advanced tutorials
@@ -80,12 +80,12 @@ Create a new contract containing this code:
 
 Compile the contract:
 
-```bash file=../../tests/nil-101.test.mjs start=startCompilation end=endCompilation
+```bash file=../../tests/compilationCommands.js start=startCompilation end=endCompilation
 ```
 
 Deploy a contract with the =nil; CLI:
 
-```bash file=../../tests/nil-101.test.mjs start=startDeploy end=endDeploy
+```bash file=../../tests/commands.mjs start=startCounterDeploymentCommand end=endCounterDeploymentCommand
 
 ```
 
@@ -128,10 +128,10 @@ Create a new contract with the following code:
 
 Compile it and deploy it to Shard 2:
 
-```bash file=../../tests/nil-101.test.mjs start=startCallerCompilation end=endCallerCompilation
+```bash file=../../tests/compilationCommands.js start=startCallerCompilation end=endCallerCompilation
 ```
 
-```bash file=../../tests/nil-101.test.mjs start=start_CallerDeploy end=end_CallerDeploy
+```bash file=../../tests/commands.mjs start=startCallerDeploy end=endCallerDeploy
 ```
 
 Expected output:
@@ -177,15 +177,12 @@ Non-owners cannot perform any operations with a custom currency.
 
 Create a new wallet:
 
-```bash file=../../tests/nil-101.test.mjs start=startNewWalletDeploy end=endNewWalletDeploy
+```bash file=../../tests/commands.mjs start=startSaltWalletCreation end=endSaltWalletCreation
 ```
 
 Create a new currency and withdraw it:
 
 ```bash file=../../tests/nil-101.test.mjs start=startMintCurrency end=endMintCurrency
-```
-
-```bash file=../../tests/nil-101.test.mjs start=startWithdrawCurrency end=endWithdrawCurrency
 ```
 
 Check the currencies of the wallet:

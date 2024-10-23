@@ -24,6 +24,41 @@ The following flags can be used without a command.
 | `--log-level \| -l` | Set the =nil; CLI logging level. Possible values: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, `panic`. |
 | `--help \| -h` | Receive help for the command. |
 
+## `abi`
+
+### Description
+
+This command enables ABI encoding and decoding.
+
+### Subcommands
+
+| Subcommand | Definition |
+|:--:|:--|
+| `decode` | Decodes the result of a contract call. |
+| `encode` | Encode the inputs for a contract call. |
+
+### Flags
+
+The following flags can be used with any subcommand or without a subcommand:
+
+| Flag | Definition |
+|:--:|:--|
+| `--path` | Specify the path to the contract ABI file. |
+
+### Output
+
+#### Encoding a contract call
+
+```bash
+ENCODED_CALL
+```
+
+#### Decoding a contract call
+
+```bash
+DECODED_CALL
+```
+
 ## `block`
 
 ### Description
@@ -437,17 +472,12 @@ This command is for interacting with the =nil; currency minter.
 
 | Subcommand | Definition |
 |:--:|:--|
-| `create-currency` | Create a new currency and, optionally, withdraw it. |
-| `mint-currency` | Mint an existing currency and, optionally, withdraw it.  |
-| `withdraw-currency` | Withdraw an existing currency that has been minted.  |
+| `create-currency` | Create a new currency and withdraw it. |
+| `mint-currency` | Mint an existing currency and withdraw it.  |
 
 ### Flags
 
-For `create-currency`, `mint-currency`:
-
-| Flag | Definition |
-|:--:|:--|
-| `--withdraw` | Immediately withdraw the created/minted currency to its owner. |
+No flags.
 
 ### Examples
 
@@ -463,12 +493,6 @@ nil minter create-currency OWNER_ADDRESS AMOUNT NAME [--withdraw]
 nil minter mint-currency OWNER_ADDRESS AMOUNT [--withdraw]
 ```
 
-#### Withdraw tokens
-
-```bash
-nil minter withdraw-currency OWNER_ADDRESS AMOUNT TO_ADDRESS
-```
-
 ### Outputs
 
 #### Creating a new token
@@ -481,12 +505,6 @@ Created NAME:AMOUNT CurrencyId=[CURRENCY_ID]
 
 ```bash
 Minted AMOUNT CurrencyId=[CURRENCY_ID]
-```
-
-#### Withdrawing tokens
-
-```bash
-Transferred AMOUNT to TO_ADDRESS CurrencyId=[CURRENCY_ID]
 ```
 
 ## `receipt`
@@ -580,6 +598,20 @@ List of shard id:
 * SHARD_ID
 * SHARD_ID
 ...
+```
+
+## `version`
+
+The command returns the current version of the =nil; CLI.
+
+### Output
+
+```bash
+=;Nil CLI
+ Version:       VERSION
+ OS/Arch:       OS
+ Git commit:    COMMIT_ID
+ Revision:      REVISION
 ```
 
 ## `wallet`

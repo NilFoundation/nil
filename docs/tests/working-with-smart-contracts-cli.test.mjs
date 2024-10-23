@@ -1,66 +1,41 @@
 import { RPC_GLOBAL, NIL_GLOBAL, NODE_MODULES } from './globals';
-
+import TestHelper from './TestHelper';
+import { RETAILER_COMPILATION_PATTERN, MANUFACTURER_COMPILATION_PATTERN, ADDRESS_PATTERN, PUBKEY_PATTERN, CONTRACT_ADDRESS_PATTERN } from './patterns';
+import { RETAILER_COMPILATION_COMMAND, MANUFACTURER_COMPILATION_COMMAND } from './compilationCommands';
 const util = require('node:util');
 const exec = util.promisify(require('node:child_process').exec);
 
 // biome-ignore lint/style/useConst: <explanation>
-let salt = BigInt(Math.floor(Math.random() * 10000));
-
-const RPC_ENDPOINT = RPC_GLOBAL;
-const CONFIG_FILE_NAME = 'tempWorkingWithSmartContracts.ini';
-
-const CONFIG_FLAG = `--config ./tests/${CONFIG_FILE_NAME}`;
-const CONFIG_COMMAND = `${NIL_GLOBAL} config init ${CONFIG_FLAG}`;
-const WALLET_ADDRESS_PATTERN = /0x[a-fA-F0-9]{40}/;
-
-//startKeygen
-const KEYGEN_COMMAND = `${NIL_GLOBAL} keygen new ${CONFIG_FLAG}`;
-//endKeygen
-
-//startEndpoint
-const RPC_COMMAND = `${NIL_GLOBAL} config set rpc_endpoint ${RPC_ENDPOINT} ${CONFIG_FLAG}`;
-//endEndpoint
-
-//startWalletCreationCommand
-const WALLET_CREATION_COMMAND = `${NIL_GLOBAL} wallet new ${CONFIG_FLAG}`;
-//endWalletCreationCommand
-
-//startWalletInfoCommand
-const WALLET_INFO_COMMAND = `${NIL_GLOBAL} wallet info ${CONFIG_FLAG}`;
-//endWalletInfoCommand
-
-//startRetailerCompilation
-const RETAILER_COMPILATION_COMMAND = `solc -o ./tests/Retailer --bin --abi ./tests/Retailer.sol --overwrite ${NODE_MODULES}`;
-//endRetailerCompilation
-
-//startManufacturerCompilation
-const MANUFACTURER_COMPILATION_COMMAND = `solc -o ./tests/Manufacturer --bin --abi ./tests/Manufacturer.sol --overwrite ${NODE_MODULES}`;
-//endManufacturerCompilation
-
 const SALT = BigInt(Math.floor(Math.random() * 10000));
 
+const CONFIG_FILE_NAME = './tests/tempWorkingWithSmartContracts.ini';
+
+const CONFIG_FLAG = `--config ${CONFIG_FILE_NAME}`;
 
 
+//startRetailerDeploymentCommand
+const RETAILER_DEPLOYMENT_COMMAND = `${NIL_GLOBAL} wallet deploy ./tests/Retailer/Retailer.bin --abi ./tests/Retailer/Retailer.abi --salt ${SALT} ${CONFIG_FLAG}`;
+//endRetailerDeploymentCommand
+
+
+let TEST_COMMANDS;
 let MANUFACTURER_ADDRESS;
 let RETAILER_ADDRESS;
 let PUBKEY;
 
 beforeAll(async () => {
-  await exec(CONFIG_COMMAND);
-  await exec(KEYGEN_COMMAND);
-  await exec(RPC_COMMAND);
+  let testHelper = new TestHelper({ configFileName: CONFIG_FILE_NAME });
+  TEST_COMMANDS = testHelper.createCLICommandsMap(SALT);
+  await testHelper.prepareTestCLI();
 
 });
 
 afterAll(async () => {
-  await exec(`rm -rf ./tests/${CONFIG_FILE_NAME}`);
+  await exec(`rm -rf ${CONFIG_FILE_NAME}`);
 });
 
 describe.sequential('CLI deployment tests', async () => {
   test.sequential('compiling of Retailer and Manufacturer is successful', async () => {
-    await exec(WALLET_CREATION_COMMAND);
-    const RETAILER_COMPILATION_PATTERN = /Function state mutability can be restricted to pure/;
-    const MANUFACTURER_COMPILATION_PATTERN = /Compiler run successful/;
     let { stdout, stderr } = await exec(RETAILER_COMPILATION_COMMAND);
     expect(stderr).toMatch(RETAILER_COMPILATION_PATTERN);
     ({ stdout, stderr } = await exec(MANUFACTURER_COMPILATION_COMMAND));
@@ -68,25 +43,22 @@ describe.sequential('CLI deployment tests', async () => {
   });
 
   test.sequential('internal deployment of Retailer and Manufacturer is successful', async () => {
-    const pattern = /Contract address:/;
-    const addressPattern = /0x[a-fA-F0-9]{40}/g;
-    //startRetailerDeploymentCommand
-    const RETAILER_DEPLOYMENT_COMMAND = `${NIL_GLOBAL} wallet deploy ./tests/Retailer/Retailer.bin --abi ./tests/Retailer/Retailer.abi --salt ${SALT} ${CONFIG_FLAG}`;
-    //endRetailerDeploymentCommand
     let { stdout, stderr } = await exec(RETAILER_DEPLOYMENT_COMMAND);
-    expect(stdout).toMatch(pattern);
-    const addressMatches = stdout.match(addressPattern);
+    expect(stdout).toMatch(CONTRACT_ADDRESS_PATTERN);
+    const addressMatches = stdout.match(ADDRESS_PATTERN);
     RETAILER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
 
-    const pubkeyPattern = /Public key:\s(0x[a-fA-F0-9]+)/;
-    ({ stdout, stderr } = await exec(WALLET_INFO_COMMAND));
-    PUBKEY = stdout.match(pubkeyPattern)[1];
+    ({ stdout, stderr } = await exec(TEST_COMMANDS['WALLET_INFO_COMMAND']));
+    PUBKEY = stdout.match(PUBKEY_PATTERN)[1];
+
 
     //startManufacturerDeploymentCommand
     const MANUFACTURER_DEPLOYMENT_COMMAND = `${NIL_GLOBAL} wallet deploy ./tests/Manufacturer/Manufacturer.bin ${PUBKEY} ${RETAILER_ADDRESS} --abi ./tests/Manufacturer/Manufacturer.abi --shard-id 2 --salt ${SALT} ${CONFIG_FLAG}`;
     //endManufacturerDeploymentCommand
+
+
     ({ stdout, stderr } = await exec(MANUFACTURER_DEPLOYMENT_COMMAND));
-    const addressMatchesManufacturer = stdout.match(addressPattern);
+    const addressMatchesManufacturer = stdout.match(ADDRESS_PATTERN);
     MANUFACTURER_ADDRESS = addressMatchesManufacturer.length > 1 ? addressMatchesManufacturer[1] : null;
 
   });
@@ -116,17 +88,14 @@ describe.sequential('CLI deployment tests', async () => {
   });
 
   test.sequential('external deployment of Retailer and Manufacturer is successful', async () => {
-    const pattern = /Contract address:/;
-    const addressPattern = /0x[a-fA-F0-9]{40}/g;
-    salt = BigInt(Math.floor(Math.random() * 10000));
 
     //startExternalRetailerAddressCommand
-    const RETAILER_ADDRESS_COMMAND = `${NIL_GLOBAL} contract address ./tests/Retailer.sol --shard-id 1 --salt ${salt} ${CONFIG_FLAG}`;
+    const RETAILER_ADDRESS_COMMAND = `${NIL_GLOBAL} contract address ./tests/Retailer.sol --shard-id 1 --salt ${SALT} ${CONFIG_FLAG}`;
     //endExternalRetailerAddressCommand
 
     let { stdout, stderr } = await exec(RETAILER_ADDRESS_COMMAND);
-    expect(stdout).toMatch(addressPattern);
-    let addressMatches = stdout.match(addressPattern);
+    expect(stdout).toMatch(ADDRESS_PATTERN);
+    let addressMatches = stdout.match(ADDRESS_PATTERN);
     RETAILER_ADDRESS = addressMatches[0];
 
     const AMOUNT = 10000000;
@@ -138,19 +107,19 @@ describe.sequential('CLI deployment tests', async () => {
     await exec(RETAILER_SEND_TOKENS_COMMAND_EXTERNAL);
 
     //startRetailerExternalDeploymentCommand
-    const RETAILER_EXTERNAL_DEPLOYMENT_COMMAND = `${NIL_GLOBAL} contract deploy ./tests/Retailer/Retailer.bin --shard-id 1 ${salt} ${CONFIG_FLAG}`;
+    const RETAILER_EXTERNAL_DEPLOYMENT_COMMAND = `${NIL_GLOBAL} contract deploy ./tests/Retailer/Retailer.bin --shard-id 1 ${SALT} ${CONFIG_FLAG}`;
     //endRetailerExternalDeploymentCommand
 
     ({ stdout, stderr } = await exec(RETAILER_EXTERNAL_DEPLOYMENT_COMMAND));
     expect(stdout).toBeDefined;
-    expect(stdout).toMatch(pattern);
+    expect(stdout).toMatch(CONTRACT_ADDRESS_PATTERN);
 
     //startExternalManufacturerAddressCommand
-    const MANUFACTURER_ADDRESS_COMMAND = `${NIL_GLOBAL} contract address ./tests/Manufacturer.sol ${PUBKEY} ${RETAILER_ADDRESS} --shard-id 2 --salt ${salt} ${CONFIG_FLAG} --abi ./tests/Manufacturer/Manufacturer.abi`;
+    const MANUFACTURER_ADDRESS_COMMAND = `${NIL_GLOBAL} contract address ./tests/Manufacturer.sol ${PUBKEY} ${RETAILER_ADDRESS} --shard-id 2 --salt ${SALT} ${CONFIG_FLAG} --abi ./tests/Manufacturer/Manufacturer.abi`;
     //endExternalManufacturerAddressCommand
 
     ({ stdout, stderr } = await exec(MANUFACTURER_ADDRESS_COMMAND));
-    addressMatches = stdout.match(addressPattern);
+    addressMatches = stdout.match(ADDRESS_PATTERN);
     MANUFACTURER_ADDRESS = addressMatches[0];
 
     //startSendTokensToManufacturerForExternalDeploymentCommand
@@ -165,6 +134,6 @@ describe.sequential('CLI deployment tests', async () => {
 
     ({ stdout, stderr } = await exec(MANUFACTURER_EXTERNAL_DEPLOYMENT_COMMAND));
     expect(stdout).toBeDefined;
-    expect(stdout).toMatch(pattern);
+    expect(stdout).toMatch(CONTRACT_ADDRESS_PATTERN);
   });
 });
