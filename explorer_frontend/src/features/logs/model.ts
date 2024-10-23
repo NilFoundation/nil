@@ -1,4 +1,7 @@
-import { createEvent, createStore } from "effector";
+import { createDomain } from "effector";
+import type { ReactNode } from "react";
+
+export const logsDomain = createDomain("logs");
 
 export enum LogType {
   Warn = "warn",
@@ -18,13 +21,9 @@ export type Log = {
   id: string;
   topic: LogTopic;
   type: LogType;
-  shortDescription: string;
+  shortDescription: ReactNode;
   timestamp: number;
-  // biome-ignore lint/suspicious/noExplicitAny: i dunno
-  payload: Record<string, any>;
+  payload?: ReactNode;
 };
 
-export const $logs = createStore<Log[]>([]);
-export const expandLog = createEvent<string>();
-export const collapseLog = createEvent<string>();
-export const $expandedLogs = createStore<Record<string, boolean>>({});
+export const $logs = logsDomain.createStore<Log[]>([]);
