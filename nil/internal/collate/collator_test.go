@@ -134,7 +134,7 @@ func (s *CollatorTestSuite) TestCollator() {
 
 		proposal := generateBlock()
 		s.Empty(proposal.InMsgs)
-		s.Empty(proposal.OutMsgs)
+		s.Empty(proposal.ForwardMsgs)
 		s.Equal(pool.Msgs, proposal.RemoveFromPool)
 
 		pool.Msgs = nil

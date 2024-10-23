@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/collate/pb"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -20,16 +20,22 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type syncCollator struct {
-	shard types.ShardId
-	topic string
+type SyncerConfig struct {
+	ShardId       types.ShardId
+	Timeout       time.Duration // pull blocks if no new blocks appear in the topic for this duration
+	BootstrapPeer string
+	ReplayBlocks  bool // replay blocks (archive node) or store headers and messages only
 
-	// Syncer will actively pull blocks if no new blocks appear in the topic for this duration.
-	timeout time.Duration
+	BlockGeneratorParams execution.BlockGeneratorParams
+}
+
+type Syncer struct {
+	config SyncerConfig
+
+	topic string
 
 	db             db.DB
 	networkManager *network.Manager
-	bootstrapPeer  string
 
 	logger zerolog.Logger
 
@@ -37,30 +43,26 @@ type syncCollator struct {
 	lastBlockHash   common.Hash
 }
 
-func NewSyncCollator(ctx context.Context, shard types.ShardId, timeout time.Duration,
-	db db.DB, networkManager *network.Manager, bootstrapPeer string,
-) (*syncCollator, error) {
-	s := &syncCollator{
-		shard:           shard,
-		topic:           topicShardBlocks(shard),
-		timeout:         timeout,
-		db:              db,
-		networkManager:  networkManager,
-		bootstrapPeer:   bootstrapPeer,
-		logger:          logging.NewLogger("sync").With().Stringer(logging.FieldShardId, shard).Logger(),
+func NewSyncer(cfg SyncerConfig, db db.DB, networkManager *network.Manager) *Syncer {
+	return &Syncer{
+		config:         cfg,
+		topic:          topicShardBlocks(cfg.ShardId),
+		db:             db,
+		networkManager: networkManager,
+		logger: logging.NewLogger("sync").With().
+			Stringer(logging.FieldShardId, cfg.ShardId).
+			Logger(),
 		lastBlockNumber: types.BlockNumber(math.MaxUint64),
 	}
-
-	return s, nil
 }
 
-func (s *syncCollator) readLastBlockNumber(ctx context.Context) error {
+func (s *Syncer) readLastBlockNumber(ctx context.Context) error {
 	rotx, err := s.db.CreateRoTx(ctx)
 	if err != nil {
 		return err
 	}
 	defer rotx.Rollback()
-	lastBlock, lastBlockHash, err := db.ReadLastBlock(rotx, s.shard)
+	lastBlock, lastBlockHash, err := db.ReadLastBlock(rotx, s.config.ShardId)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return err
 	}
@@ -71,21 +73,25 @@ func (s *syncCollator) readLastBlockNumber(ctx context.Context) error {
 	return nil
 }
 
-func (s *syncCollator) snapIsRequired(ctx context.Context) bool {
+func (s *Syncer) snapIsRequired(ctx context.Context) (bool, error) {
 	rotx, err := s.db.CreateRoTx(ctx)
-	check.PanicIfErr(err)
+	if err != nil {
+		return false, err
+	}
 	defer rotx.Rollback()
 
-	_, _, err = db.ReadLastBlock(rotx, s.shard)
+	_, _, err = db.ReadLastBlock(rotx, s.config.ShardId)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		check.PanicIfErr(err)
+		return false, err
 	}
-	return err != nil
+	return err != nil, nil
 }
 
-func (s *syncCollator) Run(ctx context.Context) error {
-	if s.snapIsRequired(ctx) {
-		if err := FetchSnapshot(ctx, s.networkManager, s.bootstrapPeer, s.shard, s.db); err != nil {
+func (s *Syncer) Run(ctx context.Context) error {
+	if required, err := s.snapIsRequired(ctx); err != nil {
+		return err
+	} else if required {
+		if err := FetchSnapshot(ctx, s.networkManager, s.config.BootstrapPeer, s.config.ShardId, s.db); err != nil {
 			return fmt.Errorf("failed to fetch snapshot: %w", err)
 		}
 	}
@@ -122,15 +128,15 @@ func (s *syncCollator) Run(ctx context.Context) error {
 			if !saved {
 				s.fetchBlocks(ctx)
 			}
-		case <-time.After(s.timeout):
-			s.logger.Debug().Msgf("No new block in the topic for %s, pulling blocks actively", s.timeout)
+		case <-time.After(s.config.Timeout):
+			s.logger.Debug().Msgf("No new block in the topic for %s, pulling blocks actively", s.config.Timeout)
 
 			s.fetchBlocks(ctx)
 		}
 	}
 }
 
-func (s *syncCollator) processTopicMessage(ctx context.Context, data []byte) (bool, error) {
+func (s *Syncer) processTopicMessage(ctx context.Context, data []byte) (bool, error) {
 	var pbBlock pb.Block
 	if err := proto.Unmarshal(data, &pbBlock); err != nil {
 		return false, err
@@ -171,16 +177,12 @@ func (s *syncCollator) processTopicMessage(ctx context.Context, data []byte) (bo
 	return true, nil
 }
 
-func (s *syncCollator) fetchBlocks(ctx context.Context) {
+func (s *Syncer) fetchBlocks(ctx context.Context) {
 	// todo: fetch blocks until the queue (see todo above) is empty
 	for {
 		s.logger.Debug().Msg("Fetching next block")
 
-		blocks, err := s.fetchBlocksRange(ctx)
-		if err != nil {
-			s.logger.Error().Err(err).Msg("Failed to fetch block")
-			return
-		}
+		blocks := s.fetchBlocksRange(ctx)
 		if len(blocks) == 0 {
 			s.logger.Debug().Msg("No new blocks to fetch")
 			return
@@ -192,12 +194,12 @@ func (s *syncCollator) fetchBlocks(ctx context.Context) {
 	}
 }
 
-func (s *syncCollator) fetchBlocksRange(ctx context.Context) ([]*Block, error) {
-	peers := ListPeers(s.networkManager, s.shard)
+func (s *Syncer) fetchBlocksRange(ctx context.Context) []*Block {
+	peers := ListPeers(s.networkManager, s.config.ShardId)
 
 	if len(peers) == 0 {
 		s.logger.Warn().Msg("No peers to fetch block from")
-		return nil, nil
+		return nil
 	}
 
 	s.logger.Debug().Msgf("Found %d peers to fetch block from:\n%v", len(peers), peers)
@@ -206,9 +208,9 @@ func (s *syncCollator) fetchBlocksRange(ctx context.Context) ([]*Block, error) {
 		s.logger.Debug().Msgf("Requesting block %d from peer %s", s.lastBlockNumber+1, p)
 
 		const count = 100
-		blocks, err := RequestBlocks(ctx, s.networkManager, p, s.shard, s.lastBlockNumber+1, count)
+		blocks, err := RequestBlocks(ctx, s.networkManager, p, s.config.ShardId, s.lastBlockNumber+1, count)
 		if err == nil {
-			return blocks, nil
+			return blocks
 		}
 
 		if errors.As(err, &multistream.ErrNotSupported[network.ProtocolID]{}) {
@@ -218,25 +220,44 @@ func (s *syncCollator) fetchBlocksRange(ctx context.Context) ([]*Block, error) {
 		}
 	}
 
-	return nil, nil
+	return nil
 }
 
-func (s *syncCollator) saveBlocks(ctx context.Context, blocks []*Block) error {
+func (s *Syncer) saveBlocks(ctx context.Context, blocks []*Block) error {
 	if len(blocks) == 0 {
 		return nil
 	}
 
+	if s.config.ReplayBlocks {
+		if err := s.replayBlocks(ctx, blocks); err != nil {
+			return err
+		}
+	} else {
+		if err := s.saveDirectly(ctx, blocks); err != nil {
+			return err
+		}
+	}
+
+	s.lastBlockNumber = blocks[len(blocks)-1].Block.Id
+	s.lastBlockHash = blocks[len(blocks)-1].Block.Hash()
+
+	s.logger.Debug().
+		Stringer(logging.FieldBlockNumber, s.lastBlockNumber).
+		Msg("Blocks written")
+
+	return nil
+}
+
+func (s *Syncer) saveDirectly(ctx context.Context, blocks []*Block) error {
 	tx, err := s.db.CreateRwTx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	var blockHash common.Hash
-	var block *Block
-	for _, block = range blocks {
-		blockHash = block.Block.Hash()
-		if err := db.WriteBlock(tx, s.shard, blockHash, block.Block); err != nil {
+	for _, block := range blocks {
+		blockHash := block.Block.Hash()
+		if err := db.WriteBlock(tx, s.config.ShardId, blockHash, block.Block); err != nil {
 			return err
 		}
 
@@ -249,28 +270,54 @@ func (s *syncCollator) saveBlocks(ctx context.Context, blocks []*Block) error {
 			return errors.New("out messages root mismatch")
 		}
 
-		_, err = execution.PostprocessBlock(tx, s.shard, block.Block.GasPrice, blockHash)
+		_, err = execution.PostprocessBlock(tx, s.config.ShardId, block.Block.GasPrice, blockHash)
 		if err != nil {
 			return err
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		return err
+	return tx.Commit()
+}
+
+func (s *Syncer) replayBlocks(ctx context.Context, blocks []*Block) error {
+	for _, block := range blocks {
+		gen, err := execution.NewBlockGenerator(ctx, s.config.BlockGeneratorParams, s.db)
+		if err != nil {
+			return err
+		}
+
+		blockHash := block.Block.Hash()
+		s.logger.Debug().
+			Stringer(logging.FieldBlockNumber, block.Block.Id).
+			Stringer(logging.FieldBlockHash, blockHash).
+			Msg("Replaying block")
+
+		b, msgs, err := gen.GenerateBlock(&execution.Proposal{
+			PrevBlockId:   block.Block.Id - 1,
+			PrevBlockHash: block.Block.PrevBlock,
+			MainChainHash: block.Block.MainChainHash,
+			ShardHashes:   block.ShardHashes,
+			InMsgs:        block.InMessages,
+			ForwardMsgs: slices.DeleteFunc(slices.Clone(block.OutMessages),
+				func(m *types.Message) bool { return m.From.ShardId() == s.config.ShardId }),
+		})
+		if err != nil {
+			return err
+		}
+
+		if b.Hash() != blockHash {
+			return errors.New("block hash mismatch")
+		}
+		if len(msgs) != len(block.OutMessages) {
+			return errors.New("out messages count mismatch")
+		}
 	}
-
-	s.lastBlockNumber = block.Block.Id
-	s.lastBlockHash = blockHash
-
-	s.logger.Debug().
-		Stringer(logging.FieldBlockNumber, s.lastBlockNumber).
-		Msg("Blocks written")
 
 	return nil
 }
 
-func (s *syncCollator) saveMessages(tx db.RwTx, messages []*types.Message) (common.Hash, error) {
-	messageTree := execution.NewDbMessageTrie(tx, s.shard)
+func (s *Syncer) saveMessages(tx db.RwTx, messages []*types.Message) (common.Hash, error) {
+	messageTree := execution.NewDbMessageTrie(tx, s.config.ShardId)
 	indexes := make([]types.MessageIndex, len(messages))
 	for i := range messages {
 		indexes[i] = types.MessageIndex(i)

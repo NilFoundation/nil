@@ -46,9 +46,8 @@ contracts:
 func (s *SuiteCliTestCall) SetupTest() {
 	s.startWithRPC(&nilservice.Config{
 		NShards:       s.shardsNum,
-		RunMode:       nilservice.NormalRunMode,
 		ZeroStateYaml: s.zerostateCfg,
-	}, 11005, 11006)
+	}, 11005, false)
 
 	iniDataTmpl := `[nil]
 rpc_endpoint = {{ .HttpUrl }}

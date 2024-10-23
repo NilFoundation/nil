@@ -17,7 +17,7 @@ func (s *SuiteRpcNode) SetupTest() {
 	s.startWithRPC(&nilservice.Config{
 		NShards: 5,
 		RunMode: nilservice.NormalRunMode,
-	}, 11001, 11002)
+	}, 11001, false)
 }
 
 func (s *SuiteRpcNode) TearDownTest() {

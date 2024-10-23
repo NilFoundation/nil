@@ -49,6 +49,10 @@ func (v Value) Sign() int {
 	return v.Uint256.safeInt().Sign()
 }
 
+func (v Value) Uint64() uint64 {
+	return v.Uint256.safeInt().Uint64()
+}
+
 func (v Value) Add(other Value) Value {
 	res, overflow := v.AddOverflow(other)
 	check.PanicIfNot(!overflow)

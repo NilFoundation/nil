@@ -107,17 +107,17 @@ func (s *RpcSuite) start(cfg *nilservice.Config) {
 		s.client = rpc_client.NewClient(s.endpoint, zerolog.New(os.Stderr))
 	}
 
-	if cfg.RunMode == nilservice.NormalRunMode || cfg.RunMode == nilservice.CollatorsOnlyRunMode {
-		s.waitZerostate()
-	} else {
+	if cfg.RunMode == nilservice.BlockReplayRunMode {
 		s.Require().Eventually(func() bool {
 			block, err := s.client.GetBlock(cfg.Replay.ShardId, "latest", false)
 			return err == nil && block != nil
 		}, ZeroStateWaitTimeout, ZeroStatePollInterval)
+	} else {
+		s.waitZerostate()
 	}
 }
 
-func (s *RpcSuite) startWithRPC(cfg *nilservice.Config, validatorPort, rpcPort int) {
+func (s *RpcSuite) startWithRPC(cfg *nilservice.Config, port int, archive bool) {
 	s.T().Helper()
 
 	var err error
@@ -126,8 +126,14 @@ func (s *RpcSuite) startWithRPC(cfg *nilservice.Config, validatorPort, rpcPort i
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 
-	validatorNetCfg, validatorAddr := network.GenerateConfig(s.T(), validatorPort)
-	rpcNetCfg, _ := network.GenerateConfig(s.T(), rpcPort)
+	var rpcDb db.DB
+	if archive {
+		rpcDb, err = db.NewBadgerDbInMemory()
+		s.Require().NoError(err)
+	}
+
+	validatorNetCfg, validatorAddr := network.GenerateConfig(s.T(), port)
+	rpcNetCfg, _ := network.GenerateConfig(s.T(), port+1)
 	rpcNetCfg.DHTBootstrapPeers = []string{validatorAddr}
 
 	cfg.Network = validatorNetCfg
@@ -136,9 +142,18 @@ func (s *RpcSuite) startWithRPC(cfg *nilservice.Config, validatorPort, rpcPort i
 	rpcCfg := &nilservice.Config{
 		NShards:       s.shardsNum,
 		Network:       rpcNetCfg,
-		RunMode:       nilservice.RpcRunMode,
 		BootstrapPeer: validatorAddr,
 		HttpUrl:       rpc.GetSockPath(s.T()),
+	}
+
+	for shardId := range s.shardsNum {
+		rpcCfg.MyShards = append(rpcCfg.MyShards, uint(shardId))
+	}
+
+	if archive {
+		rpcCfg.RunMode = nilservice.ArchiveRunMode
+	} else {
+		rpcCfg.RunMode = nilservice.RpcRunMode
 	}
 
 	s.wg.Add(2)
@@ -151,7 +166,7 @@ func (s *RpcSuite) startWithRPC(cfg *nilservice.Config, validatorPort, rpcPort i
 	time.Sleep(time.Second)
 
 	go func() {
-		nilservice.Run(s.context, rpcCfg, nil, nil)
+		nilservice.Run(s.context, rpcCfg, rpcDb, nil)
 		s.wg.Done()
 	}()
 

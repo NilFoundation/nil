@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	defaultMaxInMessagesInBlock  = 200
-	defaultMaxOutMessagesInBlock = 200
+	defaultMaxInMessagesInBlock      = 200
+	defaultMaxForwardMessagesInBlock = 200
 )
 
 var sharedLogger = logging.NewLogger("collator")
@@ -37,8 +37,8 @@ func newCollator(params Params, topology ShardTopology, pool MsgPool, logger zer
 	if params.MaxInMessagesInBlock == 0 {
 		params.MaxInMessagesInBlock = defaultMaxInMessagesInBlock
 	}
-	if params.MaxOutMessagesInBlock == 0 {
-		params.MaxOutMessagesInBlock = defaultMaxOutMessagesInBlock
+	if params.MaxForwardMessagesInBlock == 0 {
+		params.MaxForwardMessagesInBlock = defaultMaxForwardMessagesInBlock
 	}
 	return &collator{
 		params:   params,
@@ -50,7 +50,7 @@ func newCollator(params Params, topology ShardTopology, pool MsgPool, logger zer
 
 func (c *collator) shouldContinue() bool {
 	// todo: we should break collation on some gas condition, not on the number of messages
-	return len(c.proposal.InMsgs) < c.params.MaxInMessagesInBlock && len(c.proposal.OutMsgs) < c.params.MaxOutMessagesInBlock
+	return len(c.proposal.InMsgs) < c.params.MaxInMessagesInBlock && len(c.proposal.ForwardMsgs) < c.params.MaxForwardMessagesInBlock
 }
 
 func (c *collator) GenerateProposal(ctx context.Context, txFabric db.DB) (*execution.Proposal, error) {
@@ -81,7 +81,7 @@ func (c *collator) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 		return nil, err
 	}
 
-	c.logger.Trace().Msgf("Collected %d in messages and %d out messages", len(c.proposal.InMsgs), len(c.proposal.OutMsgs))
+	c.logger.Trace().Msgf("Collected %d in messages and %d forward messages", len(c.proposal.InMsgs), len(c.proposal.ForwardMsgs))
 
 	return c.proposal, nil
 }
@@ -233,7 +233,7 @@ func (c *collator) handleMessagesFromNeighbors() error {
 					c.proposal.InMsgs = append(c.proposal.InMsgs, msg)
 				} else if c.params.ShardId != neighborId {
 					if c.topology.ShouldPropagateMsg(neighborId, c.params.ShardId, msg.To.ShardId()) {
-						c.proposal.OutMsgs = append(c.proposal.OutMsgs, msg)
+						c.proposal.ForwardMsgs = append(c.proposal.ForwardMsgs, msg)
 					}
 				}
 			}

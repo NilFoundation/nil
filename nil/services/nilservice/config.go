@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
@@ -134,4 +135,15 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+func (c *Config) BlockGeneratorParams(shardId types.ShardId) execution.BlockGeneratorParams {
+	return execution.BlockGeneratorParams{
+		ShardId:       shardId,
+		NShards:       c.NShards,
+		TraceEVM:      c.TraceEVM,
+		Timer:         common.NewTimer(),
+		GasBasePrice:  types.NewValueFromUint64(c.GasBasePrice),
+		GasPriceScale: c.GasPriceScale,
+	}
 }

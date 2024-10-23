@@ -162,10 +162,10 @@ func (s *ReplayScheduler) buildProposalFromPrevBlock(ctx context.Context, blockI
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Key < entries[j].Key })
 
-	proposal.OutMsgs = make([]*types.Message, 0)
+	proposal.ForwardMsgs = make([]*types.Message, 0)
 	for _, outMsg := range entries {
 		if outMsg.Val.From.ShardId() != s.params.ShardId {
-			proposal.OutMsgs = append(proposal.OutMsgs, outMsg.Val)
+			proposal.ForwardMsgs = append(proposal.ForwardMsgs, outMsg.Val)
 		}
 	}
 
