@@ -9,6 +9,7 @@
 
 ## RPC settings
 #rpcPort: 8529
+#bootstrapPeers: []
 
 ## Admin settings
 ## Example: /var/lib/nil/admin_socket
