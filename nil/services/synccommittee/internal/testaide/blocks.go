@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/holiman/uint256"
 )
 
@@ -28,6 +29,10 @@ func RandomBlockNum() types.BlockNumber {
 		panic(err)
 	}
 	return types.BlockNumber(binary.LittleEndian.Uint64(randomBytes))
+}
+
+func RandomBlockId() scTypes.BlockId {
+	return scTypes.NewBlockId(RandomShardId(), RandomHash())
 }
 
 func RandomShardId() types.ShardId {

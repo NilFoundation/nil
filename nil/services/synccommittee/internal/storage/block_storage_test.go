@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
+	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -57,12 +58,12 @@ func (s *BlockStorageTestSuite) TestGetSetBlock() {
 	s.Require().NoError(err)
 
 	// Test GetBlock
-	retrievedBlock, err := s.bs.GetBlock(s.ctx, block.Hash)
+	retrievedBlock, err := s.bs.GetBlock(s.ctx, scTypes.IdFromBlock(block))
 	s.Require().NoError(err)
 	s.Require().Equal(block.Number, retrievedBlock.Number)
 
 	// Test GetBlock for non-existent block
-	nonExistentBlock, err := s.bs.GetBlock(s.ctx, testaide.RandomHash())
+	nonExistentBlock, err := s.bs.GetBlock(s.ctx, testaide.RandomBlockId())
 	s.Require().NoError(err)
 	s.Require().Nil(nonExistentBlock)
 }
@@ -121,9 +122,9 @@ func (s *BlockStorageTestSuite) TestGetLastFetchedBlock() {
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProved_DoesNotExist() {
-	hash := testaide.RandomHash()
-	err := s.bs.SetBlockAsProved(s.ctx, types.MainShardId, hash)
-	s.Require().Errorf(err, "block with hash=%s is not found", hash.String())
+	randomId := testaide.RandomBlockId()
+	err := s.bs.SetBlockAsProved(s.ctx, randomId)
+	s.Require().Errorf(err, "block with id=%s is not found", randomId.String())
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProved() {
@@ -138,14 +139,15 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProved() {
 		s.Require().NoError(err)
 	}
 
-	err := s.bs.SetBlockAsProved(s.ctx, types.MainShardId, hash)
+	blockId := scTypes.NewBlockId(types.MainShardId, hash)
+	err := s.bs.SetBlockAsProved(s.ctx, blockId)
 	s.Require().NoError(err)
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProposed_DoesNotExist() {
-	hash := testaide.RandomHash()
-	err := s.bs.SetBlockAsProposed(s.ctx, types.MainShardId, hash)
-	s.Require().Errorf(err, "block with hash=%s is not found", hash.String())
+	randomId := testaide.RandomBlockId()
+	err := s.bs.SetBlockAsProposed(s.ctx, randomId)
+	s.Require().Errorf(err, "block with id=%s is not found", randomId.String())
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProposed_IsNotProved() {
@@ -153,36 +155,39 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_IsNotProved() {
 	err := s.bs.SetBlock(s.ctx, block)
 	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProposed(s.ctx, block.ShardId, block.Hash)
+	err = s.bs.SetBlockAsProposed(s.ctx, scTypes.IdFromBlock(block))
 	s.Require().Errorf(err, "block with hash=%s is not proved", block.Hash.String())
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProposed_ParentHashMismatch() {
 	previousMainBlock := testaide.GenerateMainShardBlock()
+	previousId := scTypes.IdFromBlock(previousMainBlock)
 
 	err := s.bs.SetBlock(s.ctx, previousMainBlock)
 	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProved(s.ctx, previousMainBlock.ShardId, previousMainBlock.Hash)
+	err = s.bs.SetBlockAsProved(s.ctx, previousId)
 	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProposed(s.ctx, previousMainBlock.ShardId, previousMainBlock.Hash)
+	err = s.bs.SetBlockAsProposed(s.ctx, previousId)
 	s.Require().NoError(err)
 
 	newMainBlock := testaide.GenerateMainShardBlock()
+	newId := scTypes.IdFromBlock(newMainBlock)
 
 	err = s.bs.SetBlock(s.ctx, newMainBlock)
 	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProved(s.ctx, newMainBlock.ShardId, newMainBlock.Hash)
+	err = s.bs.SetBlockAsProved(s.ctx, newId)
 	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProposed(s.ctx, newMainBlock.ShardId, newMainBlock.Hash)
+	err = s.bs.SetBlockAsProposed(s.ctx, newId)
 	s.Require().ErrorContains(err, "is not equal to the stored value")
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProposed_WithExecutionShardBlocks() {
 	mainBlock := testaide.GenerateMainShardBlock()
+	mainBlockId := scTypes.IdFromBlock(mainBlock)
 
 	const blocksCount = 3
 	executionShardBlocks := make([]*jsonrpc.RPCBlock, 0, blocksCount)
@@ -200,19 +205,19 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_WithExecutionShardBlocks(
 		s.Require().NoError(err)
 	}
 
-	err := s.bs.SetBlockAsProved(s.ctx, mainBlock.ShardId, mainBlock.Hash)
+	err := s.bs.SetBlockAsProved(s.ctx, mainBlockId)
 	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProposed(s.ctx, mainBlock.ShardId, mainBlock.Hash)
+	err = s.bs.SetBlockAsProposed(s.ctx, mainBlockId)
 	s.Require().NoError(err)
 
 	for _, block := range append(executionShardBlocks, mainBlock) {
-		blockFromDb, err := s.bs.GetBlock(s.ctx, block.Hash)
+		blockFromDb, err := s.bs.GetBlock(s.ctx, scTypes.IdFromBlock(block))
 		s.Require().NoError(err)
 		s.Require().Nil(blockFromDb)
 	}
 
-	otherBlockFromDb, err := s.bs.GetBlock(s.ctx, someOtherBlock.Hash)
+	otherBlockFromDb, err := s.bs.GetBlock(s.ctx, scTypes.IdFromBlock(someOtherBlock))
 	s.Require().NoError(err)
 	s.Require().NotNil(otherBlockFromDb)
 }
@@ -268,7 +273,7 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Collect_Transactions(
 		s.Require().NoError(err)
 	}
 
-	err = s.bs.SetBlockAsProved(s.ctx, mainBlock.ShardId, mainBlock.Hash)
+	err = s.bs.SetBlockAsProved(s.ctx, scTypes.IdFromBlock(mainBlock))
 	s.Require().NoError(err)
 
 	data, err := s.bs.TryGetNextProposalData(s.ctx)
@@ -296,7 +301,7 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Concurrently() {
 	// concurrently set blocks as proved
 	for _, block := range mainShardBlocks {
 		go func() {
-			err := s.bs.SetBlockAsProved(s.ctx, block.ShardId, block.Hash)
+			err := s.bs.SetBlockAsProved(s.ctx, scTypes.IdFromBlock(&block))
 			s.NoError(err, "failed to set block as proved")
 			waitGroup.Done()
 		}()
@@ -322,7 +327,8 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Concurrently() {
 				}
 
 				receivedData = append(receivedData, data)
-				err = s.bs.SetBlockAsProposed(s.ctx, types.MainShardId, data.MainShardBlockHash)
+				blockId := scTypes.NewBlockId(types.MainShardId, data.MainShardBlockHash)
+				err = s.bs.SetBlockAsProposed(s.ctx, blockId)
 				s.NoError(err, "failed to set block as proposed")
 			}
 		}

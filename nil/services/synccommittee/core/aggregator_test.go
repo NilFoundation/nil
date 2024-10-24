@@ -15,6 +15,7 @@ import (
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
+	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
@@ -126,7 +127,7 @@ func (s *AggregatorTestSuite) TestFetchAndProcessBlocks() {
 	s.Require().NoError(err)
 
 	// Check if blocks were stored
-	block, err := s.aggregator.blockStorage.GetBlock(s.ctx, latestBlock.Hash)
+	block, err := s.aggregator.blockStorage.GetBlock(s.ctx, scTypes.NewBlockId(latestBlock.ShardId, latestBlock.Hash))
 	s.Require().NoError(err)
 	s.Require().NotNil(block)
 }
@@ -146,7 +147,7 @@ func (s *AggregatorTestSuite) TestValidateAndProcessBlock() {
 	s.Require().NoError(err)
 
 	// Check if the block was stored
-	storedBlock, err := s.storage.GetBlock(s.ctx, block.Hash)
+	storedBlock, err := s.storage.GetBlock(s.ctx, scTypes.IdFromBlock(block))
 	s.Require().NoError(err)
 	s.Require().NotNil(storedBlock)
 	s.Require().Equal(block.Number, storedBlock.Number)

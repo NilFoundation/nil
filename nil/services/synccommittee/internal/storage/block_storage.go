@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -70,13 +71,13 @@ type BlockStorage interface {
 
 	GetLatestFetched(ctx context.Context, shardId types.ShardId) (*scTypes.BlockRef, error)
 
-	GetBlock(ctx context.Context, hash common.Hash) (*jsonrpc.RPCBlock, error)
+	GetBlock(ctx context.Context, id scTypes.BlockId) (*jsonrpc.RPCBlock, error)
 
 	SetBlock(ctx context.Context, block *jsonrpc.RPCBlock) error
 
-	SetBlockAsProved(ctx context.Context, shardId types.ShardId, blockHash common.Hash) error
+	SetBlockAsProved(ctx context.Context, id scTypes.BlockId) error
 
-	SetBlockAsProposed(ctx context.Context, shardId types.ShardId, blockHash common.Hash) error
+	SetBlockAsProposed(ctx context.Context, id scTypes.BlockId) error
 
 	TryGetNextProposalData(ctx context.Context) (*ProposalData, error)
 
@@ -152,32 +153,18 @@ func (bs *blockStorage) GetLatestFetched(ctx context.Context, shardId types.Shar
 	return lastFetched, nil
 }
 
-func (bs *blockStorage) getBlockTx(tx db.RoTx, hash common.Hash) (*jsonrpc.RPCBlock, error) {
-	key := makeHashKey(hash)
-	value, err := tx.Get(blocksTable, key)
-	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	entry, err := unmarshallEntry(&key, &value)
-	if err != nil {
-		return nil, err
-	}
-
-	return &entry.Block, nil
-}
-
-func (bs *blockStorage) GetBlock(ctx context.Context, hash common.Hash) (*jsonrpc.RPCBlock, error) {
+func (bs *blockStorage) GetBlock(ctx context.Context, id scTypes.BlockId) (*jsonrpc.RPCBlock, error) {
 	tx, err := bs.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	return bs.getBlockTx(tx, hash)
+	entry, err := bs.getBlockEntry(tx, id)
+	if err != nil || entry == nil {
+		return nil, err
+	}
+	return &entry.Block, nil
 }
 
 func (bs *blockStorage) SetBlock(ctx context.Context, block *jsonrpc.RPCBlock) error {
@@ -191,14 +178,14 @@ func (bs *blockStorage) SetBlock(ctx context.Context, block *jsonrpc.RPCBlock) e
 	}
 	defer tx.Rollback()
 
-	key := makeBlockKey(block)
+	blockId := scTypes.IdFromBlock(block)
 	entry := blockEntry{Block: *block}
 	value, err := marshallEntry(&entry)
 	if err != nil {
 		return err
 	}
 
-	err = tx.Put(blocksTable, key, value)
+	err = tx.Put(blocksTable, blockId.Bytes(), value)
 	if err != nil {
 		return err
 	}
@@ -272,34 +259,29 @@ func (bs *blockStorage) setProposeParentHash(tx db.RwTx, block *jsonrpc.RPCBlock
 	return bs.setParentOfNextToPropose(tx, block.ParentHash)
 }
 
-func (bs *blockStorage) SetBlockAsProved(ctx context.Context, shardId types.ShardId, blockHash common.Hash) error {
-	if blockHash.Empty() {
-		return errors.New("block hash is empty")
-	}
-
+func (bs *blockStorage) SetBlockAsProved(ctx context.Context, id scTypes.BlockId) error {
 	tx, err := bs.db.CreateRwTx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	entry, err := bs.getBlockEntryByHash(tx, blockHash)
+	entry, err := bs.getBlockEntry(tx, id)
 	if err != nil {
 		return err
 	}
 
 	if entry == nil {
-		return fmt.Errorf("block with hash=%s is not found", blockHash.String())
+		return fmt.Errorf("block with id=%s is not found", id.String())
 	}
 
 	entry.IsProved = true
-	key := makeBlockKey(&entry.Block)
 	value, err := marshallEntry(entry)
 	if err != nil {
 		return err
 	}
 
-	err = tx.Put(blocksTable, key, value)
+	err = tx.Put(blocksTable, id.Bytes(), value)
 	if err != nil {
 		return err
 	}
@@ -348,10 +330,10 @@ func (bs *blockStorage) GetBatchId(ctx context.Context, block *jsonrpc.RPCBlock)
 }
 
 func (bs *blockStorage) isBatchCompletedTx(tx db.RoTx, blockHashes []common.Hash) (bool, error) {
-	// todo
-	for _, blockHash := range blockHashes {
-		// shardId := types.ShardId(i + 1)
-		entry, err := bs.getBlockTx(tx, blockHash)
+	for i, blockHash := range blockHashes {
+		shardId := types.ShardId(i + 1)
+		blockId := scTypes.NewBlockId(shardId, blockHash)
+		entry, err := bs.getBlockEntry(tx, blockId)
 		if err != nil || entry == nil {
 			return false, err
 		}
@@ -438,45 +420,41 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 	}, nil
 }
 
-func (bs *blockStorage) SetBlockAsProposed(ctx context.Context, shardId types.ShardId, blockHash common.Hash) error {
+func (bs *blockStorage) SetBlockAsProposed(ctx context.Context, id scTypes.BlockId) error {
 	return bs.retryRunner.Do(ctx, func(ctx context.Context) error {
-		return bs.setBlockAsProposedImpl(ctx, shardId, blockHash)
+		return bs.setBlockAsProposedImpl(ctx, id)
 	})
 }
 
-func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, shardId types.ShardId, blockHash common.Hash) error {
-	if blockHash.Empty() {
-		return errors.New("block hash is empty")
-	}
-
+func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, id scTypes.BlockId) error {
 	tx, err := bs.db.CreateRwTx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	mainShardEntry, err := bs.getBlockEntryByHash(tx, blockHash)
+	mainShardEntry, err := bs.getBlockEntry(tx, id)
 	if err != nil {
 		return err
 	}
 
-	if err := bs.validateMainShardEntry(tx, mainShardEntry, blockHash); err != nil {
+	if err := bs.validateMainShardEntry(tx, id, mainShardEntry); err != nil {
 		return err
 	}
 
 	err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
-		if !isExecutionShardBlock(entry, blockHash) {
+		if !isExecutionShardBlock(entry, mainShardEntry.Block.Hash) {
 			return true, nil
 		}
 
-		err := tx.Delete(blocksTable, makeBlockKey(&entry.Block))
+		err := tx.Delete(blocksTable, scTypes.IdFromBlock(&entry.Block).Bytes())
 		return true, err
 	})
 	if err != nil {
 		return err
 	}
 
-	err = tx.Delete(blocksTable, makeBlockKey(&mainShardEntry.Block))
+	err = tx.Delete(blocksTable, scTypes.IdFromBlock(&mainShardEntry.Block).Bytes())
 	if err != nil {
 		return err
 	}
@@ -486,7 +464,7 @@ func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, shardId type
 		return fmt.Errorf("failed to put state root: %w", err)
 	}
 
-	err = bs.setParentOfNextToPropose(tx, blockHash)
+	err = bs.setParentOfNextToPropose(tx, mainShardEntry.Block.Hash)
 	if err != nil {
 		return err
 	}
@@ -537,17 +515,17 @@ func isExecutionShardBlock(entry *blockEntry, mainShardBlockHash common.Hash) bo
 	return entry.Block.ShardId != types.MainShardId && entry.Block.MainChainHash == mainShardBlockHash
 }
 
-func (bs *blockStorage) validateMainShardEntry(tx db.RoTx, entry *blockEntry, blockHash common.Hash) error {
+func (bs *blockStorage) validateMainShardEntry(tx db.RoTx, id scTypes.BlockId, entry *blockEntry) error {
 	if entry == nil {
-		return fmt.Errorf("block with hash=%s is not found", blockHash.String())
+		return fmt.Errorf("block with id=%s is not found", id.String())
 	}
 
 	if entry.Block.ShardId != types.MainShardId {
-		return fmt.Errorf("block with hash=%s is not from main shard", blockHash.String())
+		return fmt.Errorf("block with id=%s is not from main shard", id.String())
 	}
 
 	if !entry.IsProved {
-		return fmt.Errorf("block with hash=%s is not proved", blockHash.String())
+		return fmt.Errorf("block with id=%s is not proved", id.String())
 	}
 
 	parentHash, err := bs.getParentOfNextToPropose(tx)
@@ -597,13 +575,9 @@ func (bs *blockStorage) putLatestFetchedBlockTx(tx db.RwTx, shardId types.ShardI
 	return nil
 }
 
-func makeBlockKey(block *jsonrpc.RPCBlock) []byte {
-	return block.Hash.Bytes()
-}
-
 func makeShardKey(shardId types.ShardId) []byte {
-	key := make([]byte, 8)
-	binary.LittleEndian.PutUint64(key, uint64(shardId))
+	key := make([]byte, 4)
+	binary.LittleEndian.PutUint32(key, uint32(shardId))
 	return key
 }
 
@@ -611,17 +585,17 @@ func makeHashKey(hash common.Hash) []byte {
 	return hash.Bytes()
 }
 
-func (bs *blockStorage) getBlockEntryByHash(tx db.RoTx, hash common.Hash) (*blockEntry, error) {
-	key := hash.Bytes()
-	value, err := tx.Get(blocksTable, key)
+func (bs *blockStorage) getBlockEntry(tx db.RoTx, id scTypes.BlockId) (*blockEntry, error) {
+	idBytes := id.Bytes()
+	value, err := tx.Get(blocksTable, idBytes)
 	if err != nil {
 		if errors.Is(err, db.ErrKeyNotFound) {
-			return nil, fmt.Errorf("block with hash=%s is not found: %w", hash.String(), err)
+			return nil, nil
 		}
 		return nil, err
 	}
 
-	entry, err := unmarshallEntry(&key, &value)
+	entry, err := unmarshallEntry(&idBytes, &value)
 	if err != nil {
 		return nil, err
 	}
@@ -668,7 +642,7 @@ func marshallEntry(entry *blockEntry) ([]byte, error) {
 func unmarshallEntry(key *[]byte, val *[]byte) (*blockEntry, error) {
 	entry := &blockEntry{}
 	if err := json.Unmarshal(*val, entry); err != nil {
-		return nil, fmt.Errorf("failed to unmarshall block entry with id %v: %w", string(*key), err)
+		return nil, fmt.Errorf("failed to unmarshall block entry with id=%s: %w", hex.EncodeToString(*key), err)
 	}
 
 	return entry, nil

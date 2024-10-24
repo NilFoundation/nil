@@ -1,6 +1,8 @@
 package types
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -9,9 +11,9 @@ import (
 )
 
 type BlockRef struct {
-	ShardId types.ShardId
-	Hash    common.Hash
-	Number  types.BlockNumber
+	ShardId types.ShardId     `json:"shardId"`
+	Hash    common.Hash       `json:"hash"`
+	Number  types.BlockNumber `json:"number"`
 }
 
 func NewBlockRef(block *jsonrpc.RPCBlock) BlockRef {
@@ -44,4 +46,28 @@ func (parent *BlockRef) ValidateChild(child BlockRef) error {
 	default:
 		return nil
 	}
+}
+
+type BlockId struct {
+	ShardId types.ShardId
+	Hash    common.Hash
+}
+
+func NewBlockId(shardId types.ShardId, hash common.Hash) BlockId {
+	return BlockId{shardId, hash}
+}
+
+func IdFromBlock(block *jsonrpc.RPCBlock) BlockId {
+	return BlockId{block.ShardId, block.Hash}
+}
+
+func (bk BlockId) Bytes() []byte {
+	key := make([]byte, 4+common.HashSize)
+	binary.LittleEndian.PutUint32(key[:4], uint32(bk.ShardId))
+	copy(key[4:], bk.Hash.Bytes())
+	return key
+}
+
+func (bk BlockId) String() string {
+	return hex.EncodeToString(bk.Bytes())
 }
