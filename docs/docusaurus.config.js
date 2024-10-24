@@ -12,6 +12,7 @@ import remarkCodeSnippets from 'nil-remark-code-snippets';
 
 import path from 'node:path';
 
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
 

@@ -243,6 +243,10 @@ nav ul li {
   font-weight: 600;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .card-content .description {
   font-size: 14px;
   color: var(--docs-color-text-100);

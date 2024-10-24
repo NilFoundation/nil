@@ -4,8 +4,7 @@
 	"private": true,
 	"scripts": {
 		"docusaurus": "docusaurus",
-		"start": "docusaurus start",
-		"build": "docusaurus build",
+		"start": "npm run generate-cli-docs && docusaurus start",
 		"swizzle": "docusaurus swizzle",
 		"deploy": "docusaurus deploy",
 		"clear": "docusaurus clear",
@@ -13,7 +12,9 @@
 		"write-translations": "docusaurus write-translations",
 		"write-heading-ids": "docusaurus write-heading-ids",
 		"test": "vitest",
-		"test:useNilD": "USE_NILD=true vitest"
+		"test:useNilD": "USE_NILD=true vitest",
+		"generate-cli-docs": "npx tsx nil/scripts/cliRefGenerator.ts",
+		"build": "npm run generate-cli-docs && docusaurus build"
 	},
 	"dependencies": {
 		"@babel/core": "^7.25.2",
@@ -61,6 +62,7 @@
 		"@docusaurus/types": "^3.3.2",
 		"jest": "^29.7.0",
 		"nil-docusaurus-plugin-typedoc": "1.1.4",
+		"tsx": "^4.19.2",
 		"typescript": "^5.4.5",
 		"vitest": "^2.0.5"
 	},
