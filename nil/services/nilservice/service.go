@@ -223,13 +223,18 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 			logger.Error().Msg("Failed to start archive node without network configuration")
 			return 1
 		}
+		if len(cfg.BootstrapPeers) != len(cfg.MyShards) {
+			logger.Error().Msg("On archive node, number of bootstrap peers must be equal to the number of shards")
+			return 1
+		}
+		if !slices.Contains(cfg.MyShards, uint(types.MainShardId)) {
+			logger.Error().Msg("On archive node, main shard must be included in MyShards")
+			return 1
+		}
 
-		nodeShards := make([]types.ShardId, 0, len(cfg.MyShards)+1)
+		nodeShards := make([]types.ShardId, 0, len(cfg.MyShards))
 		for _, shardId := range cfg.MyShards {
 			nodeShards = append(nodeShards, types.ShardId(shardId))
-		}
-		if !slices.Contains(nodeShards, types.MainShardId) {
-			nodeShards = append(nodeShards, types.MainShardId)
 		}
 
 		collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
@@ -238,17 +243,14 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		var wgFetch sync.WaitGroup
 		wgFetch.Add(len(nodeShards))
 
-		for _, shardId := range nodeShards {
-			config := collate.SyncerConfig{
+		for i, shardId := range nodeShards {
+			syncer := collate.NewSyncer(collate.SyncerConfig{
 				ShardId:              shardId,
 				Timeout:              syncerTimeout,
+				BootstrapPeer:        cfg.BootstrapPeers[i],
 				ReplayBlocks:         true,
 				BlockGeneratorParams: cfg.BlockGeneratorParams(shardId),
-			}
-			if int(shardId) < len(cfg.BootstrapPeers) {
-				config.BootstrapPeer = cfg.BootstrapPeers[shardId]
-			}
-			syncer := collate.NewSyncer(config, database, networkManager)
+			}, database, networkManager)
 			funcs = append(funcs, func(ctx context.Context) error {
 				if err := syncer.Run(ctx, &wgFetch); err != nil {
 					logger.Error().
