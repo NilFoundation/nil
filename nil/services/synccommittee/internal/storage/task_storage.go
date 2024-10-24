@@ -26,7 +26,7 @@ var (
 
 // TaskStorage Interface for storing and accessing tasks from DB
 type TaskStorage interface {
-	// AddSingleTaskEntry Store new task entry into DB
+	// AddSingleTaskEntry Store new task entry into DB, if already exist - just update it
 	AddSingleTaskEntry(ctx context.Context, entry types.TaskEntry) error
 
 	// AddTaskEntries Store set of task entries as a single transaction
@@ -46,6 +46,9 @@ type TaskStorage interface {
 
 	// RescheduleHangingTasks Identify tasks that exceed execution timeout and reschedule them to be re-executed
 	RescheduleHangingTasks(ctx context.Context, currentTime time.Time, taskExecutionTimeout time.Duration) error
+
+	// TryGetTaskEntryByHash Retrieve a task entry by blockHash. In case if task does not exist, method returns nil, if few entries have same blockHash - returns first
+	TryGetTaskEntryByHash(ctx context.Context, blockHash common.Hash) (*types.TaskEntry, error)
 }
 
 type taskStorage struct {
@@ -102,10 +105,12 @@ func (st *taskStorage) addSingleTaskEntryImpl(ctx context.Context, entry types.T
 		return err
 	}
 	defer tx.Rollback()
+
 	err = putTaskEntry(tx, &entry)
 	if err != nil {
 		return err
 	}
+
 	if err = tx.Commit(); err != nil {
 		return err
 	}
@@ -148,6 +153,25 @@ func (st *taskStorage) TryGetTaskEntry(ctx context.Context, id types.TaskId) (*t
 	return entry, err
 }
 
+func (st *taskStorage) TryGetTaskEntryByHash(ctx context.Context, blockHash common.Hash) (*types.TaskEntry, error) {
+	tx, err := st.database.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	var res *types.TaskEntry = nil
+
+	err = iterateOverTaskEntries(tx, func(entry *types.TaskEntry) error {
+		if entry.Task.BlockHash == blockHash {
+			res = entry
+			return nil
+		}
+		return nil
+	})
+
+	return res, err
+}
+
 func (st *taskStorage) RemoveTaskEntry(ctx context.Context, id types.TaskId) error {
 	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return st.removeTaskEntryImpl(ctx, id)
@@ -182,18 +206,21 @@ func updateTaskStatus(tx db.RwTx, id types.TaskId, newStatus types.TaskStatus, n
 
 // Helper to find available task with higher priority
 func findHigherPriorityTask(tx db.RoTx) (*types.Task, error) {
-	var res *types.Task = nil
+	var res *types.TaskEntry = nil
 
 	err := iterateOverTaskEntries(tx, func(entry *types.TaskEntry) error {
 		if entry.Status == types.WaitingForExecutor {
-			if res == nil || types.HigherPriority(entry.Task, *res) {
-				res = &entry.Task
+			if res == nil || types.HigherPriority(entry, res) {
+				res = entry
 			}
 		}
 		return nil
 	})
 
-	return res, err
+	if res == nil {
+		return nil, err
+	}
+	return &res.Task, err
 }
 
 func (st *taskStorage) RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.Task, error) {

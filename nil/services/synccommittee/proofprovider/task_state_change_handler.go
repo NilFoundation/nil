@@ -38,7 +38,7 @@ func (h taskStateChangeHandler) OnTaskTerminated(ctx context.Context, task *type
 		return nil
 	}
 
-	if task.TaskType != types.MergeProof {
+	if task.TaskType != types.MergeProof && task.TaskType != types.AggregateProofs {
 		h.logger.Debug().
 			Interface("taskId", task.Id).
 			Interface("parentTaskId", task.ParentTaskId).
@@ -51,12 +51,12 @@ func (h taskStateChangeHandler) OnTaskTerminated(ctx context.Context, task *type
 			Str("errorText", result.ErrorText).
 			Interface("taskId", task.Id).
 			Interface("parentTaskId", task.ParentTaskId).
-			Msgf("merge proof task has failed")
+			Msgf("prover task has failed")
 	}
 
 	var parentTaskResult types.TaskResult
 	if result.IsSuccess {
-		parentTaskResult = types.SuccessProviderTaskResult(*task.ParentTaskId, h.currentExecutorId)
+		parentTaskResult = types.SuccessProviderTaskResult(*task.ParentTaskId, h.currentExecutorId, result.Type, result.DataAddresses, result.Data)
 	} else {
 		parentTaskResult = types.FailureProviderTaskResult(
 			*task.ParentTaskId,

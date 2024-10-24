@@ -15,6 +15,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
+	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -216,7 +217,7 @@ func (p *Proposer) proposeNextBlock(ctx context.Context) error {
 		return fmt.Errorf("failed to send proof to L1 for block with hash=%s: %w", data.MainShardBlockHash, err)
 	}
 
-	err = p.blockStorage.SetBlockAsProposed(ctx, data.MainShardBlockHash)
+	err = p.blockStorage.SetBlockAsProposed(ctx, types.MainShardId, data.MainShardBlockHash)
 	if err != nil {
 		return fmt.Errorf("failed set block with hash=%s as proposed: %w", data.MainShardBlockHash, err)
 	}
@@ -356,7 +357,7 @@ func (p *Proposer) encodeTransaction(transaction *ethTypes.Transaction) (string,
 }
 
 func (p *Proposer) sendProof(ctx context.Context, data *storage.ProposalData) error {
-	p.logger.Debug().
+	p.logger.Info().
 		Stringer("blockHash", data.MainShardBlockHash).
 		Int64("seqno", int64(p.seqno.Load())).
 		Int("txCount", len(data.Transactions)).

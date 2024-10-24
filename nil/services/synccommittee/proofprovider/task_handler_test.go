@@ -7,7 +7,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
-	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
@@ -79,10 +78,9 @@ func (s *TaskHandlerTestSuite) TestReturnErrorOnUnexpectedTaskType() {
 
 func (s *TaskHandlerTestSuite) TestHandleBlockProofTask() {
 	executorId := testaide.GenerateRandomExecutorId()
-	shardId := coreTypes.MainShardId
-	blockNumber := coreTypes.BlockNumber(uint64(100))
+	taskId := types.NewTaskId()
 	blockHash := common.IntToHash(1)
-	taskEntry := types.NewBlockProofTaskEntry(shardId, blockNumber, blockHash)
+	taskEntry := types.NewBlockProofTaskEntry(types.NewBatchId(), &taskId, blockHash)
 
 	err := s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
 	s.Require().NoError(err, "taskHandler.Handle returned an error")

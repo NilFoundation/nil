@@ -119,87 +119,38 @@ func (s *AggregatorTestSuite) TestProcessNewBlocks() {
 }
 
 func (s *AggregatorTestSuite) TestFetchAndProcessBlocks() {
-	shardIdList, err := s.aggregator.getShardIdList()
+	latestBlock, err := s.aggregator.fetchLatestBlock()
 	s.Require().NoError(err)
 
-	latestBlocks, err := s.aggregator.fetchLatestBlocks(shardIdList)
+	err = s.aggregator.fetchAndProcessBlocks(s.ctx, 0, latestBlock.Number)
 	s.Require().NoError(err)
 
-	for _, shardId := range shardIdList {
-		latestBlockForShard := latestBlocks[shardId].Number
-		err := s.aggregator.fetchAndProcessBlocks(s.ctx, shardId, 0, latestBlockForShard)
-		s.Require().NoError(err)
-
-		// Check if blocks were stored
-		for blkNum := range latestBlockForShard {
-			block, err := s.aggregator.blockStorage.GetBlock(s.ctx, shardId, blkNum)
-			s.Require().NoError(err)
-			s.Require().Equal(blkNum, block.Number)
-		}
-	}
+	// Check if blocks were stored
+	block, err := s.aggregator.blockStorage.GetBlock(s.ctx, coreTypes.MainShardId, latestBlock.Number)
+	s.Require().NoError(err)
+	s.Require().NotNil(block)
 }
 
 func (s *AggregatorTestSuite) TestValidateAndProcessBlock() {
-	shardIdList, err := s.aggregator.getShardIdList()
+	latestBlock, err := s.aggregator.fetchLatestBlock()
 	s.Require().NoError(err)
 
-	latestBlocks, err := s.aggregator.fetchLatestBlocks(shardIdList)
+	// Fetch the latest block
+	block, err := s.client.GetBlock(coreTypes.MainShardId, transport.BlockNumber(latestBlock.Number), false)
+	s.Require().NoError(err)
+	s.Require().NotNil(block)
+	block.ChildBlocks = make([]common.Hash, 0)
+
+	// Validate and store the block
+	err = s.aggregator.validateAndProcessBlock(context.Background(), block)
 	s.Require().NoError(err)
 
-	for _, shardId := range shardIdList {
-		latestBlock := latestBlocks[shardId]
-		s.Require().NotNil(latestBlock)
-
-		// Fetch the latest block
-		block, err := s.client.GetBlock(shardId, transport.BlockNumber(latestBlock.Number), false)
-		s.Require().NoError(err)
-		s.Require().NotNil(block)
-
-		// Validate and store the block
-		err = s.aggregator.validateAndProcessBlock(context.Background(), block)
-		s.Require().NoError(err)
-
-		// Check if the block was stored
-		storedBlock, err := s.storage.GetBlock(s.ctx, shardId, block.Number)
-		s.Require().NoError(err)
-		s.Require().NotNil(storedBlock)
-		s.Require().Equal(block.Number, storedBlock.Number)
-		s.Require().Equal(block.Hash, storedBlock.Hash)
-	}
-}
-
-func (s *AggregatorTestSuite) TestValidateAndStoreBlockMismatch() {
-	shardIdList, err := s.aggregator.getShardIdList()
+	// Check if the block was stored
+	storedBlock, err := s.storage.GetBlock(s.ctx, coreTypes.MainShardId, block.Number)
 	s.Require().NoError(err)
-
-	latestBlocks, err := s.aggregator.fetchLatestBlocks(shardIdList)
-	s.Require().NoError(err)
-
-	for _, shardId := range shardIdList {
-		latestBlock := latestBlocks[shardId]
-		s.Require().NotNil(latestBlock)
-
-		// Fetch two consecutive blocks
-		block1, err := s.client.GetBlock(shardId, transport.BlockNumber(latestBlock.Number-1), false)
-		s.Require().NoError(err)
-		s.Require().NotNil(block1)
-
-		block2, err := s.client.GetBlock(shardId, transport.BlockNumber(latestBlock.Number), false)
-		s.Require().NoError(err)
-		s.Require().NotNil(block2)
-
-		// Store the first block
-		err = s.storage.SetBlock(s.ctx, shardId, block1.Number, block1)
-		s.Require().NoError(err)
-
-		// Modify the parent hash of the second block to create a mismatch
-		block2.ParentHash = common.EmptyHash
-
-		// Try to validate and store the second block
-		err = s.aggregator.validateAndProcessBlock(s.ctx, block2)
-		s.Require().Error(err)
-		s.ErrorIs(err, ErrBlockHashMismatch)
-	}
+	s.Require().NotNil(storedBlock)
+	s.Require().Equal(block.Number, storedBlock.Number)
+	s.Require().Equal(block.Hash, storedBlock.Hash)
 }
 
 func TestAggregatorTestSuite(t *testing.T) {

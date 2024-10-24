@@ -11,7 +11,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
-	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/rs/zerolog"
@@ -112,7 +111,7 @@ func (s *SyncCommitteeTestSuite) TestCreateProofTasks() {
 	err = s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, sndMainBlock.ShardId, sndMainBlock.Number, sndMainBlock)
 	s.Require().NoError(err)
 
-	err = s.syncCommittee.aggregator.createProofTask(s.ctx, &jsonrpc.RPCBlock{Number: 102})
+	err = s.syncCommittee.aggregator.createProofTask(s.ctx, sndMainBlock)
 	s.Require().NoError(err)
 }
 

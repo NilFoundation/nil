@@ -30,7 +30,7 @@ func GenerateTask() types.Task {
 func GenerateTaskOfType(taskType types.TaskType) types.Task {
 	return types.Task{
 		Id:            types.NewTaskId(),
-		BatchNum:      1,
+		BatchId:       types.NewBatchId(),
 		ShardId:       coreTypes.MainShardId,
 		BlockNum:      1,
 		BlockHash:     common.EmptyHash,
