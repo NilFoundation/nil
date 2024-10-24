@@ -29,7 +29,8 @@ func (s *SuiteCliTestCall) SetupSuite() {
 	var err error
 
 	s.ShardsNum = 2
-	s.tmpPath = s.T().TempDir()
+	s.TmpDir = s.T().TempDir()
+	s.tmpPath = s.TmpDir
 	s.cfgPath = s.tmpPath + "/config.ini"
 
 	s.testAddress, err = contracts.CalculateAddress(contracts.NameTest, 1, []byte{1})

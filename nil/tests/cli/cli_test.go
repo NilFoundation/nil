@@ -27,10 +27,20 @@ import (
 type SuiteCli struct {
 	tests.RpcSuite
 	cli *cliservice.Service
+
+	incBinPath string
+	incAbiPath string
+}
+
+func (s *SuiteCli) SetupSuite() {
+	s.TmpDir = s.T().TempDir()
+
+	s.incBinPath = s.TmpDir + "/Incrementer.bin"
+	s.incAbiPath = s.TmpDir + "/Incrementer.abi"
+	s.compileIncrementerAndSaveToFile(s.incBinPath, s.incAbiPath)
 }
 
 func (s *SuiteCli) SetupTest() {
-	s.TmpDir = s.T().TempDir()
 	s.StartWithRPC(&nilservice.Config{
 		NShards: 5,
 	}, 11003, false)
@@ -349,18 +359,14 @@ func (s *SuiteCli) TestCliWallet() {
 		s.Contains(res, "New wallet address:")
 	})
 
-	binFileName := dir + "/Incrementer.bin"
-	abiFileName := dir + "/Incrementer.abi"
-	s.compileIncrementerAndSaveToFile(binFileName, abiFileName)
-
 	var addr string
 	s.Run("Get contract address", func() {
-		addr = s.RunCli("-c", cfgPath, "contract", "address", dir+"/Incrementer.bin", "123321", "--abi", abiFileName, "-q")
+		addr = s.RunCli("-c", cfgPath, "contract", "address", s.incBinPath, "123321", "--abi", s.incAbiPath, "-q")
 	})
 
 	s.createConfigFile()
 
-	res = s.RunCliCfg("wallet", "deploy", dir+"/Incrementer.bin", "123321", "--abi", abiFileName)
+	res = s.RunCliCfg("wallet", "deploy", s.incBinPath, "123321", "--abi", s.incAbiPath)
 	s.Run("Deploy contract", func() {
 		s.Contains(res, "Contract address")
 		s.Contains(res, addr)
@@ -384,7 +390,7 @@ func (s *SuiteCli) TestCliWallet() {
 	})
 
 	s.Run("Call read-only 'get' function of contract", func() {
-		res := s.RunCli("-c", cfgPath, "contract", "call-readonly", addr, "get", "--abi", abiFileName)
+		res := s.RunCli("-c", cfgPath, "contract", "call-readonly", addr, "get", "--abi", s.incAbiPath)
 		s.Contains(res, "uint256: 123321")
 	})
 
@@ -395,62 +401,52 @@ func (s *SuiteCli) TestCliWallet() {
 			s.Require().NoError(err)
 		}
 
-		resExt := s.RunCli("-c", cfgPath, "contract", "estimate-fee", addr, "increment", "--abi", abiFileName, "-q")
+		resExt := s.RunCli("-c", cfgPath, "contract", "estimate-fee", addr, "increment", "--abi", s.incAbiPath, "-q")
 		isNum(resExt)
 
-		resInt := s.RunCli("-c", cfgPath, "contract", "estimate-fee", addr, "increment", "--abi", abiFileName, "-q", "--internal")
+		resInt := s.RunCli("-c", cfgPath, "contract", "estimate-fee", addr, "increment", "--abi", s.incAbiPath, "-q", "--internal")
 		isNum(resInt)
 
-		resWallet := s.RunCli("-c", cfgPath, "wallet", "estimate-fee", addr, "increment", "--abi", abiFileName, "-q")
+		resWallet := s.RunCli("-c", cfgPath, "wallet", "estimate-fee", addr, "increment", "--abi", s.incAbiPath, "-q")
 		isNum(resWallet)
 	})
 
 	s.Run("Call 'increment' function of contract", func() {
-		res := s.RunCli("-c", cfgPath, "wallet", "send-message", addr, "increment", "--abi", abiFileName)
+		res := s.RunCli("-c", cfgPath, "wallet", "send-message", addr, "increment", "--abi", s.incAbiPath)
 		s.Contains(res, "Message hash")
 	})
 
 	s.Run("Call read-only 'get' function of contract once again", func() {
-		res := s.RunCli("-c", cfgPath, "contract", "call-readonly", addr, "get", "--abi", abiFileName)
+		res := s.RunCli("-c", cfgPath, "contract", "call-readonly", addr, "get", "--abi", s.incAbiPath)
 		s.Contains(res, "uint256: 123322")
 	})
 
 	overridesFile := dir + "/overrides.json"
 	s.Run("Call read-only via the wallet", func() {
-		res := s.RunCli("-c", cfgPath, "wallet", "call-readonly", addr, "increment", "--abi", abiFileName, "--out-overrides", overridesFile)
+		res := s.RunCli("-c", cfgPath, "wallet", "call-readonly", addr, "increment", "--abi", s.incAbiPath, "--out-overrides", overridesFile)
 		s.Contains(res, "Success, no result")
 	})
 
 	s.Run("Call read-only via the wallet", func() {
-		res := s.RunCli("-c", cfgPath, "wallet", "call-readonly", addr, "get", "--abi", abiFileName, "--in-overrides", overridesFile)
+		res := s.RunCli("-c", cfgPath, "wallet", "call-readonly", addr, "get", "--abi", s.incAbiPath, "--in-overrides", overridesFile)
 		s.Contains(res, "uint256: 123323")
 	})
 }
 
 func (s *SuiteCli) TestCliAbi() {
-	dir := s.T().TempDir()
-
-	abiFileName := dir + "/Incrementer.abi"
-	s.compileIncrementerAndSaveToFile("", abiFileName)
-
 	s.Run("Encode", func() {
-		res := s.RunCli("abi", "encode", "get", "--path", abiFileName)
+		res := s.RunCli("abi", "encode", "get", "--path", s.incAbiPath)
 		s.Equal("0x6d4ce63c", res)
 	})
 
 	s.Run("Decode", func() {
-		res := s.RunCli("abi", "decode", "get", "0x000000000000000000000000000000000000000000000000000000000001e1ba", "--path", abiFileName)
+		res := s.RunCli("abi", "decode", "get", "0x000000000000000000000000000000000000000000000000000000000001e1ba", "--path", s.incAbiPath)
 		s.Equal("uint256: 123322", res)
 	})
 }
 
 func (s *SuiteCli) TestCliEncodeInternalMessage() {
-	dir := s.T().TempDir()
-
-	abiFileName := dir + "/Incrementer.abi"
-	s.compileIncrementerAndSaveToFile("", abiFileName)
-
-	calldata := s.RunCli("abi", "encode", "get", "--path", abiFileName)
+	calldata := s.RunCli("abi", "encode", "get", "--path", s.incAbiPath)
 	s.Equal("0x6d4ce63c", calldata)
 
 	addr := "0x00041945255839dcbd3001fd5e6abe9ee970a797"

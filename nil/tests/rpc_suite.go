@@ -365,7 +365,7 @@ func (s *RpcSuite) RunCliNoCheck(args ...string) (string, error) {
 	s.T().Helper()
 
 	if s.TmpDir == "" {
-		s.TmpDir = s.T().TempDir()
+		s.FailNow("TmpDir is not set", "You need to set TmpDir in SetupSuite before use RunCli")
 	}
 
 	binPath := s.TmpDir + "/nil.bin"
