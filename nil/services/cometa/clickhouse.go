@@ -79,7 +79,7 @@ func (s *StorageClick) StoreContract(ctx context.Context, contractData *Contract
 }
 
 func (s *StorageClick) LoadContractData(ctx context.Context, address types.Address) (*ContractData, error) {
-	row := s.conn.QueryRow(ctx, `SELECT full_json FROM contracts_metadata WHERE address = $1`, string(address.Bytes()))
+	row := s.conn.QueryRow(ctx, `SELECT data_json FROM contracts_metadata WHERE address = $1`, string(address.Bytes()))
 
 	var str string
 	if err := row.Scan(&str); err != nil {

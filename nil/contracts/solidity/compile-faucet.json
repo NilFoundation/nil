@@ -1,8 +1,8 @@
 {
   "contractName": "Faucet.sol:Faucet",
-  "compilerVersion": "0.8.27",
+  "compilerVersion": "0.8.21",
   "settings": {
-    "evmVersion": "cancun",
+    "evmVersion": "shanghai",
     "optimizer": {
       "enabled": false,
       "runs": 200
