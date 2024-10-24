@@ -223,7 +223,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 			logger.Error().Msg("Failed to start archive node without network configuration")
 			return 1
 		}
-		if len(cfg.BootstrapPeers) != len(cfg.MyShards) {
+		if len(cfg.BootstrapPeers) > 0 && len(cfg.BootstrapPeers) != len(cfg.MyShards) {
 			logger.Error().Msg("On archive node, number of bootstrap peers must be equal to the number of shards")
 			return 1
 		}
@@ -244,10 +244,15 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		wgFetch.Add(len(nodeShards))
 
 		for i, shardId := range nodeShards {
+			var bootstrapPeer string
+			if len(cfg.BootstrapPeers) > 0 {
+				bootstrapPeer = cfg.BootstrapPeers[i]
+			}
+
 			syncer := collate.NewSyncer(collate.SyncerConfig{
 				ShardId:              shardId,
 				Timeout:              syncerTimeout,
-				BootstrapPeer:        cfg.BootstrapPeers[i],
+				BootstrapPeer:        bootstrapPeer,
 				ReplayBlocks:         true,
 				BlockGeneratorParams: cfg.BlockGeneratorParams(shardId),
 			}, database, networkManager)
