@@ -112,27 +112,27 @@ func (s *AggregatorTestSuite) TestProcessNewBlocks() {
 
 	// Check if blocks were fetched and stored for each shard
 	for shardId := coreTypes.ShardId(0); shardId < coreTypes.ShardId(s.nShards); shardId++ {
-		lastFetchedBlockNum, err := s.storage.GetLastFetchedBlockNum(s.ctx, shardId)
+		lastFetchedBlockNum, err := s.storage.GetLatestFetched(s.ctx, shardId)
 		s.Require().NoError(err)
 		s.Require().Greater(lastFetchedBlockNum, coreTypes.BlockNumber(0))
 	}
 }
 
 func (s *AggregatorTestSuite) TestFetchAndProcessBlocks() {
-	latestBlock, err := s.aggregator.fetchLatestBlock()
+	latestBlock, err := s.aggregator.fetchLatestBlockRef()
 	s.Require().NoError(err)
 
 	err = s.aggregator.fetchAndProcessBlocks(s.ctx, 0, latestBlock.Number)
 	s.Require().NoError(err)
 
 	// Check if blocks were stored
-	block, err := s.aggregator.blockStorage.GetBlock(s.ctx, coreTypes.MainShardId, latestBlock.Number)
+	block, err := s.aggregator.blockStorage.GetBlock(s.ctx, latestBlock.Hash)
 	s.Require().NoError(err)
 	s.Require().NotNil(block)
 }
 
 func (s *AggregatorTestSuite) TestValidateAndProcessBlock() {
-	latestBlock, err := s.aggregator.fetchLatestBlock()
+	latestBlock, err := s.aggregator.fetchLatestBlockRef()
 	s.Require().NoError(err)
 
 	// Fetch the latest block
@@ -142,11 +142,11 @@ func (s *AggregatorTestSuite) TestValidateAndProcessBlock() {
 	block.ChildBlocks = make([]common.Hash, 0)
 
 	// Validate and store the block
-	err = s.aggregator.validateAndProcessBlock(context.Background(), block)
+	err = s.aggregator.validateAndProcessBlock(s.ctx, block)
 	s.Require().NoError(err)
 
 	// Check if the block was stored
-	storedBlock, err := s.storage.GetBlock(s.ctx, coreTypes.MainShardId, block.Number)
+	storedBlock, err := s.storage.GetBlock(s.ctx, block.Hash)
 	s.Require().NoError(err)
 	s.Require().NotNil(storedBlock)
 	s.Require().Equal(block.Number, storedBlock.Number)

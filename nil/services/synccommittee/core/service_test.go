@@ -103,12 +103,12 @@ func (s *SyncCommitteeTestSuite) SetupTest() {
 
 func (s *SyncCommitteeTestSuite) TestCreateProofTasks() {
 	fstMainBlock := testaide.GenerateMainShardBlock()
-	err := s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, fstMainBlock.ShardId, fstMainBlock.Number, fstMainBlock)
+	err := s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, fstMainBlock)
 	s.Require().NoError(err)
 
 	sndMainBlock := testaide.GenerateMainShardBlock()
 	sndMainBlock.Number = fstMainBlock.Number + 1
-	err = s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, sndMainBlock.ShardId, sndMainBlock.Number, sndMainBlock)
+	err = s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, sndMainBlock)
 	s.Require().NoError(err)
 
 	err = s.syncCommittee.aggregator.createProofTask(s.ctx, sndMainBlock)
@@ -121,8 +121,8 @@ func (s *SyncCommitteeTestSuite) waitForAllShardsToProcess() {
 		shardId := types.ShardId(i)
 		s.Require().Eventually(
 			func() bool {
-				lastFetchedBlockNum, err := s.syncCommittee.aggregator.blockStorage.GetLastFetchedBlockNum(context.Background(), shardId)
-				return err == nil && lastFetchedBlockNum > 0
+				lastFetchedBlockNum, err := s.syncCommittee.aggregator.blockStorage.GetLatestFetched(s.ctx, shardId)
+				return err == nil && lastFetchedBlockNum.Number > 0
 			},
 			5*time.Second,
 			100*time.Millisecond,
