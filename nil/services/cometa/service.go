@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime/debug"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -32,6 +33,7 @@ type CometaJsonRpc interface {
 	CompileContract(ctx context.Context, inputJson string) (*ContractData, error)
 	DeployContract(ctx context.Context, inputJson string, address types.Address) error
 	RegisterContract(ctx context.Context, contractData *ContractData, address types.Address) error
+	GetVersion(ctx context.Context) (string, error)
 }
 
 type Service struct {
@@ -200,6 +202,25 @@ func (s *Service) GetSourceCodeForFile(ctx context.Context, address types.Addres
 		return "", errors.New("file not found")
 	}
 	return source, nil
+}
+
+func (s *Service) GetVersion(ctx context.Context) (string, error) {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "", errors.New("failed to read build info")
+	}
+	var gitHash string
+	var time string
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			gitHash = s.Value
+		case "vcs.time":
+			time = s.Value[:10]
+		}
+	}
+
+	return fmt.Sprintf("%s(%s)", time, gitHash), nil
 }
 
 func (s *Service) startRpcServer(ctx context.Context, endpoint string) error {
