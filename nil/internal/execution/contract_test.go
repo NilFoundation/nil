@@ -232,7 +232,7 @@ func TestAsyncCall(t *testing.T) {
 	state := newState(t)
 	defer state.tx.Rollback()
 
-	contracts, err := solc.CompileSource(common.GetAbsolutePath("../../tests/rpc_server/contracts/async_call.sol"))
+	contracts, err := solc.CompileSource(common.GetAbsolutePath("../../tests/contracts/async_call.sol"))
 	require.NoError(t, err)
 
 	smcCallee := contracts["Callee"]
@@ -306,7 +306,7 @@ func TestSendMessage(t *testing.T) {
 
 	state.TraceVm = false
 
-	contracts, err := solc.CompileSource(common.GetAbsolutePath("../../tests/rpc_server/contracts/async_call.sol"))
+	contracts, err := solc.CompileSource(common.GetAbsolutePath("../../tests/contracts/async_call.sol"))
 	require.NoError(t, err)
 
 	smcCallee := contracts["Callee"]
