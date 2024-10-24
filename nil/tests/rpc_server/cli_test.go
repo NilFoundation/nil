@@ -541,6 +541,32 @@ func (s *SuiteCli) TestCliCometa() {
 		s.Require().Equal("unknown", result[2]["Contract"])
 		s.Contains(out, "Contract   : Counter")
 	})
+
+	s.Run("Deploy wallet to test ctor arguments", func() {
+		out := s.runCliCfg("wallet", "deploy",
+			"--compile-input", "../../contracts/solidity/compile-wallet.json",
+			"--abi", "../../contracts/compiled/Wallet.abi",
+			"--shard-id", "1",
+			"0x12345678")
+		parts := strings.Split(out, "\n")
+		s.Require().Len(parts, 2)
+		parts = strings.Split(parts[1], ": ")
+		s.Require().Len(parts, 2)
+		address = types.HexToAddress(parts[1])
+	})
+
+	s.Run("Get wallet metadata", func() {
+		out := s.runCliCfg("cometa", "info", "--address", address.Hex())
+		s.Contains(out, "Name: Wallet.sol:Wallet")
+	})
+
+	s.Run("Register metadata for main wallet", func() {
+		out := s.runCliCfg("cometa", "register",
+			"--address", types.MainWalletAddress.Hex(),
+			"--compile-input", "../../contracts/solidity/compile-wallet.json")
+		s.Require().Equal(
+			"Contract metadata for address 0x0001111111111111111111111111111111111111 has been registered", out)
+	})
 }
 
 func parseCometaOutput(out string) []map[string]string {

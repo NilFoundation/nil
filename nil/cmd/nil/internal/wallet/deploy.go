@@ -96,13 +96,6 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 		return errors.New("at least one arg required(path to bytecode file)")
 	}
 
-	var filename string
-	var args []string
-	if argsCount := len(cmdArgs); argsCount > 0 {
-		filename = cmdArgs[0]
-		args = cmdArgs[1:]
-	}
-
 	var bytecode types.Code
 	var err error
 	var contractData *cometa.ContractData
@@ -112,8 +105,25 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 		if err != nil {
 			return fmt.Errorf("failed to compile contract: %w", err)
 		}
-		bytecode = contractData.InitCode
+		var calldata []byte
+		if len(cmdArgs) > 0 {
+			if params.abiPath == "" {
+				return errors.New("ABI file required for constructor arguments")
+			}
+			calldata, err = common.ArgsToCalldata(params.abiPath, "", cmdArgs)
+			if err != nil {
+				return fmt.Errorf("failed to pack constructor arguments: %w", err)
+			}
+		}
+		bytecode = append(contractData.InitCode, calldata...) //nolint:gocritic
 	} else {
+		var filename string
+		var args []string
+		if argsCount := len(cmdArgs); argsCount > 0 {
+			filename = cmdArgs[0]
+			args = cmdArgs[1:]
+		}
+
 		bytecode, err = common.ReadBytecode(filename, params.abiPath, args)
 		if err != nil {
 			return err
