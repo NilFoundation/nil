@@ -103,7 +103,17 @@ func initConfig(cfg *config) error {
 		viper.AddConfigPath("./")
 		viper.SetConfigName("cometa")
 	}
-	return viper.ReadInConfig()
+	if err := viper.ReadInConfig(); err != nil {
+		return err
+	}
+	cfg.cometaCfg.OwnEndpoint = viper.GetString("own-endpoint")
+	cfg.cometaCfg.NodeEndpoint = viper.GetString("node-endpoint")
+	cfg.cometaCfg.DbEndpoint = viper.GetString("db-endpoint")
+	cfg.cometaCfg.DbPath = viper.GetString("db-path")
+	cfg.cometaCfg.DbName = viper.GetString("db-name")
+	cfg.cometaCfg.DbUser = viper.GetString("db-user")
+	cfg.cometaCfg.DbPassword = viper.GetString("db-password")
+	return nil
 }
 
 func parseArgs() *config {
@@ -153,14 +163,6 @@ func parseArgs() *config {
 	logging.SetupGlobalLogger(*logLevel)
 
 	check.PanicIfErr(rootCmd.Execute())
-
-	cfg.cometaCfg.OwnEndpoint = viper.GetString("own-endpoint")
-	cfg.cometaCfg.NodeEndpoint = viper.GetString("node-endpoint")
-	cfg.cometaCfg.DbEndpoint = viper.GetString("db-endpoint")
-	cfg.cometaCfg.DbPath = viper.GetString("db-path")
-	cfg.cometaCfg.DbName = viper.GetString("db-name")
-	cfg.cometaCfg.DbUser = viper.GetString("db-user")
-	cfg.cometaCfg.DbPassword = viper.GetString("db-password")
 
 	return cfg
 }
