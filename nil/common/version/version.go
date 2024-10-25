@@ -1,17 +1,17 @@
 package version
 
 import (
-	"bytes"
 	"regexp"
 	"runtime"
 	"strings"
-	"text/template"
+
+	"github.com/NilFoundation/nil/nil/common"
 )
 
 type versionInfo struct {
-	gitTag      string
-	gitRevision string
-	gitCommit   string
+	GitTag      string
+	GitRevision string
+	GitCommit   string
 }
 
 var (
@@ -29,23 +29,27 @@ const (
 )
 
 func GetVersionInfo() versionInfo {
-	if versionInfoCache.gitRevision == "" {
+	if versionInfoCache.GitRevision == "" {
 		// If the versionMagic string has been patched with something that looks like a version
 		// then use it. Otherwise initialize the version with some sane default.
 		re := regexp.MustCompile(`(\d+\.\d+\.\d+)-(\d+)-([a-f0-9]+)`)
 		matches := re.FindStringSubmatch(versionMagic)
 
 		if len(matches) == 0 {
-			versionInfoCache = versionInfo{gitTag: "0.1.0", gitRevision: "1", gitCommit: "<unknown>"}
+			versionInfoCache = versionInfo{GitTag: "0.1.0", GitRevision: "1", GitCommit: unknownVersion}
 		} else {
-			versionInfoCache = versionInfo{gitTag: matches[1], gitRevision: matches[2], gitCommit: matches[3]}
+			versionInfoCache = versionInfo{GitTag: matches[1], GitRevision: matches[2], GitCommit: matches[3]}
 		}
 	}
 	return versionInfoCache
 }
 
+func HasGitInfo() bool {
+	return GetVersionInfo().GitCommit != unknownVersion
+}
+
 func BuildVersionString(appTitle string) string {
-	ver := GetVersionInfo().gitTag
+	ver := GetVersionInfo().GitTag
 	if ver == "" {
 		ver = unknownVersion
 	}
@@ -60,39 +64,25 @@ func BuildVersionString(appTitle string) string {
 		ver = parts[1]
 	}
 
-	return formatVersion(versionTmpl, map[string]string{
+	return FormatVersion(versionTmpl, map[string]any{
 		"Title":    appTitle,
 		"Version":  ver,
 		"OS":       runtime.GOOS,
 		"Arch":     runtime.GOARCH,
-		"Commit":   GetVersionInfo().gitCommit,
+		"Commit":   GetVersionInfo().GitCommit,
 		"Revision": GetGitRevision(),
 	})
 }
 
 func GetGitRevision() string {
-	if GetVersionInfo().gitRevision == "" {
+	if GetVersionInfo().GitRevision == "" {
 		return unknownRevision
 	}
-	return GetVersionInfo().gitRevision
+	return GetVersionInfo().GitRevision
 }
 
-func getTemplatedStr(text *string, obj interface{}) (string, error) {
-	tmpl, err := template.New("s").Parse(*text)
-	if err != nil {
-		return "", err
-	}
-
-	buf := new(bytes.Buffer)
-	if err = tmpl.Execute(buf, obj); err != nil {
-		return "", err
-	}
-
-	return buf.String(), nil
-}
-
-func formatVersion(template string, templateArgs map[string]string) string {
-	versionMsg, err := getTemplatedStr(&template, templateArgs)
+func FormatVersion(template string, templateArgs map[string]any) string {
+	versionMsg, err := common.ParseTemplate(template, templateArgs)
 	if err != nil {
 		panic(err)
 	}

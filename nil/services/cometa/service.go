@@ -10,6 +10,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/common/version"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
@@ -216,6 +217,10 @@ func (s *Service) GetSourceCodeForFile(ctx context.Context, address types.Addres
 }
 
 func (s *Service) GetVersion(ctx context.Context) (string, error) {
+	if version.HasGitInfo() {
+		return fmt.Sprintf("no-date(%s)", version.GetVersionInfo().GitCommit), nil
+	}
+
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return "", errors.New("failed to read build info")
