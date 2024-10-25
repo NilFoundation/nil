@@ -20,7 +20,7 @@ import (
 const (
 	// blocksTable stores blocks received from the RPC. Key: common.Hash, Value: jsonrpc.RPCBlock.
 	blocksTable db.TableName = "blocks"
-	// latestFetchedTable stores latest fetched blocks refs. Key: types.ShardId, Value: sctypes.BlockRef.
+	// latestFetchedTable stores reference to the latest main shard block. Key: mainShardKey, Value: sctypes.MainBlockRef.
 	latestFetchedTable db.TableName = "latest_fetched"
 	// stateRootTable stores the latest ProvedStateRoot (single value). Key: mainShardKey, Value: common.Hash.
 	stateRootTable db.TableName = "state_root"
@@ -69,9 +69,9 @@ type BlockStorage interface {
 
 	SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error
 
-	GetLatestFetched(ctx context.Context, shardId types.ShardId) (*scTypes.BlockRef, error)
+	TryGetLatestFetched(ctx context.Context) (*scTypes.MainBlockRef, error)
 
-	GetBlock(ctx context.Context, id scTypes.BlockId) (*jsonrpc.RPCBlock, error)
+	TryGetBlock(ctx context.Context, id scTypes.BlockId) (*jsonrpc.RPCBlock, error)
 
 	SetBlock(ctx context.Context, block *jsonrpc.RPCBlock) error
 
@@ -138,14 +138,14 @@ func (bs *blockStorage) SetProvedStateRoot(ctx context.Context, stateRoot common
 	return tx.Commit()
 }
 
-func (bs *blockStorage) GetLatestFetched(ctx context.Context, shardId types.ShardId) (*scTypes.BlockRef, error) {
+func (bs *blockStorage) TryGetLatestFetched(ctx context.Context) (*scTypes.MainBlockRef, error) {
 	tx, err := bs.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	lastFetched, err := bs.getLatestFetchedBlockTx(tx, shardId)
+	lastFetched, err := bs.getLatestFetchedMainTx(tx)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func (bs *blockStorage) GetLatestFetched(ctx context.Context, shardId types.Shar
 	return lastFetched, nil
 }
 
-func (bs *blockStorage) GetBlock(ctx context.Context, id scTypes.BlockId) (*jsonrpc.RPCBlock, error) {
+func (bs *blockStorage) TryGetBlock(ctx context.Context, id scTypes.BlockId) (*jsonrpc.RPCBlock, error) {
 	tx, err := bs.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
@@ -168,6 +168,12 @@ func (bs *blockStorage) GetBlock(ctx context.Context, id scTypes.BlockId) (*json
 }
 
 func (bs *blockStorage) SetBlock(ctx context.Context, block *jsonrpc.RPCBlock) error {
+	return bs.retryRunner.Do(ctx, func(ctx context.Context) error {
+		return bs.setBlockImpl(ctx, block)
+	})
+}
+
+func (bs *blockStorage) setBlockImpl(ctx context.Context, block *jsonrpc.RPCBlock) error {
 	if block == nil {
 		return errors.New("block is nil")
 	}
@@ -178,13 +184,13 @@ func (bs *blockStorage) SetBlock(ctx context.Context, block *jsonrpc.RPCBlock) e
 	}
 	defer tx.Rollback()
 
-	blockId := scTypes.IdFromBlock(block)
 	entry := blockEntry{Block: *block}
 	value, err := marshallEntry(&entry)
 	if err != nil {
 		return err
 	}
 
+	blockId := scTypes.IdFromBlock(block)
 	if err := tx.Put(blocksTable, blockId.Bytes(), value); err != nil {
 		return err
 	}
@@ -193,11 +199,11 @@ func (bs *blockStorage) SetBlock(ctx context.Context, block *jsonrpc.RPCBlock) e
 		return err
 	}
 
-	if _, err := bs.getOrCreateBatchIdTx(tx, block); err != nil {
+	if err := bs.updateLatestFetched(tx, block); err != nil {
 		return err
 	}
 
-	if err := bs.updateLatestFetched(tx, block); err != nil {
+	if _, err := bs.getOrCreateBatchIdTx(tx, block); err != nil {
 		return err
 	}
 
@@ -205,7 +211,11 @@ func (bs *blockStorage) SetBlock(ctx context.Context, block *jsonrpc.RPCBlock) e
 }
 
 func (bs *blockStorage) updateLatestFetched(tx db.RwTx, block *jsonrpc.RPCBlock) error {
-	latestFetched, err := bs.getLatestFetchedBlockTx(tx, block.ShardId)
+	if block.ShardId != types.MainShardId {
+		return nil
+	}
+
+	latestFetched, err := bs.getLatestFetchedMainTx(tx)
 	if err != nil {
 		return err
 	}
@@ -218,8 +228,12 @@ func (bs *blockStorage) updateLatestFetched(tx db.RwTx, block *jsonrpc.RPCBlock)
 		return fmt.Errorf("unable to update latest fetched block: %w", err)
 	}
 
-	newLatestFetched := scTypes.NewBlockRef(block)
-	return bs.putLatestFetchedBlockTx(tx, block.ShardId, newLatestFetched)
+	newLatestFetched, err := scTypes.NewBlockRef(block)
+	if err != nil {
+		return err
+	}
+
+	return bs.putLatestFetchedBlockTx(tx, block.ShardId, *newLatestFetched)
 }
 
 func (bs *blockStorage) setProposeParentHash(tx db.RwTx, block *jsonrpc.RPCBlock) error {
@@ -243,7 +257,6 @@ func (bs *blockStorage) setProposeParentHash(tx db.RwTx, block *jsonrpc.RPCBlock
 		Stringer("parentHash", block.ParentHash).
 		Msg("block parent hash is not set, updating it")
 
-	// Aggregate task for the first block from main shard may neve be executed, bue to missed blocks from execution shards
 	return bs.setParentOfNextToPropose(tx, block.ParentHash)
 }
 
@@ -446,18 +459,16 @@ func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, id scTypes.B
 		return err
 	}
 
-	err = tx.Delete(blocksTable, scTypes.IdFromBlock(&mainShardEntry.Block).Bytes())
-	if err != nil {
-		return err
+	mainBlockId := scTypes.IdFromBlock(&mainShardEntry.Block)
+	if err := tx.Delete(blocksTable, mainBlockId.Bytes()); err != nil {
+		return fmt.Errorf("failed to delete main shard block with id=%s: %w", mainBlockId, err)
 	}
 
-	err = tx.Put(stateRootTable, mainShardKey, mainShardEntry.Block.ChildBlocksRootHash.Bytes())
-	if err != nil {
+	if err := tx.Put(stateRootTable, mainShardKey, mainShardEntry.Block.ChildBlocksRootHash.Bytes()); err != nil {
 		return fmt.Errorf("failed to put state root: %w", err)
 	}
 
-	err = bs.setParentOfNextToPropose(tx, mainShardEntry.Block.Hash)
-	if err != nil {
+	if err := bs.setParentOfNextToPropose(tx, mainShardEntry.Block.Hash); err != nil {
 		return err
 	}
 
@@ -538,8 +549,8 @@ func (bs *blockStorage) validateMainShardEntry(tx db.RoTx, id scTypes.BlockId, e
 	return nil
 }
 
-func (bs *blockStorage) getLatestFetchedBlockTx(tx db.RoTx, shardId types.ShardId) (*scTypes.BlockRef, error) {
-	value, err := tx.Get(latestFetchedTable, makeShardKey(shardId))
+func (bs *blockStorage) getLatestFetchedMainTx(tx db.RoTx) (*scTypes.MainBlockRef, error) {
+	value, err := tx.Get(latestFetchedTable, mainShardKey)
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return nil, nil
 	}
@@ -547,7 +558,7 @@ func (bs *blockStorage) getLatestFetchedBlockTx(tx db.RoTx, shardId types.ShardI
 		return nil, err
 	}
 
-	var blockRef *scTypes.BlockRef
+	var blockRef *scTypes.MainBlockRef
 	err = json.Unmarshal(value, &blockRef)
 	if err != nil {
 		return nil, err
@@ -555,7 +566,7 @@ func (bs *blockStorage) getLatestFetchedBlockTx(tx db.RoTx, shardId types.ShardI
 	return blockRef, nil
 }
 
-func (bs *blockStorage) putLatestFetchedBlockTx(tx db.RwTx, shardId types.ShardId, block scTypes.BlockRef) error {
+func (bs *blockStorage) putLatestFetchedBlockTx(tx db.RwTx, shardId types.ShardId, block scTypes.MainBlockRef) error {
 	bytes, err := json.Marshal(block)
 	if err != nil {
 		return fmt.Errorf("failed to encode block ref with hash=%s: %w", block.Hash.String(), err)

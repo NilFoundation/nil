@@ -61,6 +61,20 @@ func GenerateRpcInMessage() *jsonrpc.RPCInMessage {
 	}
 }
 
+func GenerateMainShardBlocks(blocksCount int) []*jsonrpc.RPCBlock {
+	mainShardBlocks := make([]*jsonrpc.RPCBlock, 0, blocksCount)
+	for range blocksCount {
+		nextBlock := GenerateMainShardBlock()
+		if len(mainShardBlocks) > 0 {
+			prevBlock := mainShardBlocks[len(mainShardBlocks)-1]
+			nextBlock.ParentHash = prevBlock.Hash
+			nextBlock.Number = prevBlock.Number + 1
+		}
+		mainShardBlocks = append(mainShardBlocks, nextBlock)
+	}
+	return mainShardBlocks
+}
+
 func GenerateMainShardBlock() *jsonrpc.RPCBlock {
 	return &jsonrpc.RPCBlock{
 		Number:              RandomBlockNum(),
@@ -70,6 +84,16 @@ func GenerateMainShardBlock() *jsonrpc.RPCBlock {
 		ParentHash:          RandomHash(),
 		Messages:            generateRpcInMessages(5),
 	}
+}
+
+func GenerateExecutionShardBlocks(mainShardHash common.Hash, blocksCount int) []*jsonrpc.RPCBlock {
+	executionShardBlocks := make([]*jsonrpc.RPCBlock, 0, blocksCount)
+	for range blocksCount {
+		block := GenerateExecutionShardBlock(mainShardHash)
+		block.MainChainHash = mainShardHash
+		executionShardBlocks = append(executionShardBlocks, block)
+	}
+	return executionShardBlocks
 }
 
 func GenerateExecutionShardBlock(mainShardBlockHash common.Hash) *jsonrpc.RPCBlock {

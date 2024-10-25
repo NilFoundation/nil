@@ -11,19 +11,25 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 )
 
-// BlockRef represents a reference to a specific shard block
-type BlockRef struct {
-	ShardId types.ShardId     `json:"shardId"`
-	Hash    common.Hash       `json:"hash"`
-	Number  types.BlockNumber `json:"number"`
+// MainBlockRef represents a reference to a specific main shard block
+type MainBlockRef struct {
+	Hash   common.Hash       `json:"hash"`
+	Number types.BlockNumber `json:"number"`
 }
 
-func NewBlockRef(block *jsonrpc.RPCBlock) BlockRef {
-	return BlockRef{
-		ShardId: block.ShardId,
-		Hash:    block.Hash,
-		Number:  block.Number,
+func NewBlockRef(block *jsonrpc.RPCBlock) (*MainBlockRef, error) {
+	if block == nil {
+		return nil, errors.New("block cannot be nil")
 	}
+
+	if block.ShardId != types.MainShardId {
+		return nil, fmt.Errorf("block is not from main shard: %d", block.ShardId)
+	}
+
+	return &MainBlockRef{
+		Hash:   block.Hash,
+		Number: block.Number,
+	}, nil
 }
 
 type BlocksRange struct {
@@ -31,15 +37,10 @@ type BlocksRange struct {
 	End   types.BlockNumber
 }
 
-func GetBlocksFetchingRange(latestFetched *BlockRef, actualLatest BlockRef) (*BlocksRange, error) {
+func GetBlocksFetchingRange(latestFetched *MainBlockRef, actualLatest MainBlockRef) (*BlocksRange, error) {
 	switch {
 	case latestFetched == nil:
 		return &BlocksRange{actualLatest.Number, actualLatest.Number}, nil
-
-	case latestFetched.ShardId != actualLatest.ShardId:
-		return nil, fmt.Errorf(
-			"%w: shard id mismatch: %d != %d", ErrBlockMismatch, latestFetched.ShardId, actualLatest.ShardId,
-		)
 
 	case latestFetched.Number < actualLatest.Number:
 		return &BlocksRange{latestFetched.Number + 1, actualLatest.Number}, nil
@@ -52,8 +53,8 @@ func GetBlocksFetchingRange(latestFetched *BlockRef, actualLatest BlockRef) (*Bl
 
 	case latestFetched.Number > actualLatest.Number:
 		return nil, fmt.Errorf(
-			"%w: latest fetched block for shard %d is higher than actual latest block: %d > %d",
-			ErrBlockMismatch, latestFetched.ShardId, latestFetched.Number, actualLatest.Number,
+			"%w: latest fetched block is higher than actual latest block: %d > %d",
+			ErrBlockMismatch, latestFetched.Number, actualLatest.Number,
 		)
 
 	default:
@@ -61,15 +62,15 @@ func GetBlocksFetchingRange(latestFetched *BlockRef, actualLatest BlockRef) (*Bl
 	}
 }
 
-func (br *BlockRef) Equals(child *jsonrpc.RPCBlock) bool {
-	return br != nil &&
-		child != nil &&
-		br.ShardId == child.ShardId &&
-		br.Hash == child.Hash &&
-		br.Number == child.Number
+func (br *MainBlockRef) Equals(child *jsonrpc.RPCBlock) bool {
+	if br == nil || child == nil {
+		return br == nil && child == nil
+	}
+
+	return br.Hash == child.Hash && br.Number == child.Number
 }
 
-func (br *BlockRef) ValidateChild(child *jsonrpc.RPCBlock) error {
+func (br *MainBlockRef) ValidateChild(child *jsonrpc.RPCBlock) error {
 	switch {
 	case br == nil:
 		return nil
@@ -77,19 +78,16 @@ func (br *BlockRef) ValidateChild(child *jsonrpc.RPCBlock) error {
 	case child == nil:
 		return errors.New("child block cannot be nil")
 
-	case child.ShardId != br.ShardId:
-		return fmt.Errorf("%w: shard id mismatch: %d != %d", ErrBlockMismatch, br.ShardId, child.ShardId)
-
 	case child.Number != br.Number+1:
 		return fmt.Errorf(
-			"%w: [shard=%d, hash=%s] block number mismatch: expected=%d, got=%d",
-			ErrBlockMismatch, child.ShardId, child.Hash, br.Number+1, child.Number,
+			"%w: [hash=%s] block number mismatch: expected=%d, got=%d",
+			ErrBlockMismatch, child.Hash, br.Number+1, child.Number,
 		)
 
 	case child.ParentHash != br.Hash:
 		return fmt.Errorf(
-			"%w: [shard=%d, hash=%s] parent hash mismatch: expected=%s, got=%s",
-			ErrBlockMismatch, child.ShardId, child.Hash, br.Hash, child.ParentHash,
+			"%w: [hash=%s] parent hash mismatch: expected=%s, got=%s",
+			ErrBlockMismatch, child.Hash, br.Hash, child.ParentHash,
 		)
 
 	default:

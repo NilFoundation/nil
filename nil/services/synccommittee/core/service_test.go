@@ -108,6 +108,7 @@ func (s *SyncCommitteeTestSuite) TestCreateProofTasks() {
 
 	sndMainBlock := testaide.GenerateMainShardBlock()
 	sndMainBlock.Number = fstMainBlock.Number + 1
+	sndMainBlock.ParentHash = fstMainBlock.Hash
 	err = s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, sndMainBlock)
 	s.Require().NoError(err)
 
@@ -115,19 +116,16 @@ func (s *SyncCommitteeTestSuite) TestCreateProofTasks() {
 	s.Require().NoError(err)
 }
 
-func (s *SyncCommitteeTestSuite) waitForAllShardsToProcess() {
+func (s *SyncCommitteeTestSuite) waitMainShardToProcess() {
 	s.T().Helper()
-	for i := range s.nShards {
-		shardId := types.ShardId(i)
-		s.Require().Eventually(
-			func() bool {
-				lastFetched, err := s.syncCommittee.aggregator.blockStorage.GetLatestFetched(s.ctx, shardId)
-				return err == nil && lastFetched != nil && lastFetched.Number > 0
-			},
-			5*time.Second,
-			100*time.Millisecond,
-		)
-	}
+	s.Require().Eventually(
+		func() bool {
+			lastFetched, err := s.syncCommittee.aggregator.blockStorage.TryGetLatestFetched(s.ctx)
+			return err == nil && lastFetched != nil && lastFetched.Number > 0
+		},
+		5*time.Second,
+		100*time.Millisecond,
+	)
 }
 
 func (s *SyncCommitteeTestSuite) TestProcessingLoop() {
@@ -140,7 +138,7 @@ func (s *SyncCommitteeTestSuite) TestProcessingLoop() {
 		errCh <- s.syncCommittee.aggregator.Run(ctx)
 	}()
 
-	s.waitForAllShardsToProcess()
+	s.waitMainShardToProcess()
 
 	cancel() // to avoid waiting without reason
 	s.Require().NoError(<-errCh)
@@ -155,7 +153,7 @@ func (s *SyncCommitteeTestSuite) TestRun() {
 		errCh <- s.syncCommittee.Run(ctx)
 	}()
 
-	s.waitForAllShardsToProcess()
+	s.waitMainShardToProcess()
 
 	cancel() // to avoid waiting without reason
 	s.Require().NoError(<-errCh)
