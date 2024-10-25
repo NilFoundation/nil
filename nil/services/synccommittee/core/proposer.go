@@ -301,6 +301,10 @@ func getCurrentNonce(selfAddress string, client client.RawClient) (uint64, error
 	if err != nil {
 		return 0, fmt.Errorf("failed send eth_getTransactionCount: %w", err)
 	}
+	if res == nil {
+		return 0, nil
+	}
+
 	var nonceValue hexutil.Uint64
 	if err = nonceValue.UnmarshalJSON(res); err != nil {
 		return 0, fmt.Errorf("failed unmarshal result: %w", err)

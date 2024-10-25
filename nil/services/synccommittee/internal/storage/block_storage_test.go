@@ -68,6 +68,40 @@ func (s *BlockStorageTestSuite) TestGetSetBlock() {
 	s.Require().Nil(nonExistentBlock)
 }
 
+func (s *BlockStorageTestSuite) TestSetBlockSequentially_GetConcurrently() {
+	const blocksCount = 5
+	blocks := make([]*jsonrpc.RPCBlock, blocksCount)
+	for i := range blocksCount {
+		blocks[i] = testaide.GenerateMainShardBlock()
+		if i > 0 {
+			blocks[i].Number = blocks[i-1].Number + 1
+			blocks[i].ParentHash = blocks[i-1].Hash
+		}
+	}
+
+	for _, block := range blocks {
+		err := s.bs.SetBlock(s.ctx, block)
+		s.Require().NoError(err)
+	}
+
+	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(blocksCount)
+
+	for _, block := range blocks {
+		go func() {
+			blockId := scTypes.IdFromBlock(block)
+			fromDb, err := s.bs.GetBlock(s.ctx, blockId)
+			s.NoError(err)
+			s.NotNil(fromDb)
+			s.Equal(block.Number, fromDb.Number)
+			s.Equal(block.Hash, fromDb.Hash)
+			waitGroup.Done()
+		}()
+	}
+
+	waitGroup.Wait()
+}
+
 func (s *BlockStorageTestSuite) TestIsBatchCompleted() {
 	mainBlock := testaide.GenerateExecutionShardBlock(testaide.RandomHash())
 	mainBlock.ShardId = types.MainShardId
@@ -110,15 +144,18 @@ func (s *BlockStorageTestSuite) TestGetLastFetchedBlock() {
 	block2 := testaide.GenerateExecutionShardBlock(testaide.RandomHash())
 	block2.ShardId = shardId
 	block2.Number = block1.Number + 1
+	block2.ParentHash = block1.Hash
 
 	err := s.bs.SetBlock(s.ctx, block1)
 	s.Require().NoError(err)
 	err = s.bs.SetBlock(s.ctx, block2)
 	s.Require().NoError(err)
 
-	lastFetchedNum, err := s.bs.GetLatestFetched(s.ctx, shardId)
+	latestFetched, err := s.bs.GetLatestFetched(s.ctx, shardId)
 	s.Require().NoError(err)
-	s.Require().Equal(block2.Number, lastFetchedNum)
+	s.Require().Equal(block2.Number, latestFetched.Number)
+	s.Require().Equal(block2.Hash, latestFetched.Hash)
+	s.Require().Equal(block2.ShardId, latestFetched.ShardId)
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProved_DoesNotExist() {
@@ -128,19 +165,12 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProved_DoesNotExist() {
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProved() {
-	hash := testaide.RandomHash()
+	block := testaide.GenerateMainShardBlock()
 
-	for _, block := range []*jsonrpc.RPCBlock{
-		{Number: 10, ShardId: types.MainShardId, ParentHash: testaide.RandomHash(), Hash: hash},
-		{Number: 11, ShardId: types.MainShardId, ParentHash: testaide.RandomHash(), Hash: testaide.RandomHash()},
-		{Number: 12, ShardId: types.MainShardId, ParentHash: testaide.RandomHash(), Hash: testaide.RandomHash()},
-	} {
-		err := s.bs.SetBlock(s.ctx, block)
-		s.Require().NoError(err)
-	}
+	err := s.bs.SetBlock(s.ctx, block)
+	s.Require().NoError(err)
 
-	blockId := scTypes.NewBlockId(types.MainShardId, hash)
-	err := s.bs.SetBlockAsProved(s.ctx, blockId)
+	err = s.bs.SetBlockAsProved(s.ctx, scTypes.IdFromBlock(block))
 	s.Require().NoError(err)
 }
 
@@ -159,7 +189,7 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_IsNotProved() {
 	s.Require().Errorf(err, "block with hash=%s is not proved", block.Hash.String())
 }
 
-func (s *BlockStorageTestSuite) TestSetBlockAsProposed_ParentHashMismatch() {
+func (s *BlockStorageTestSuite) TestSetBlock_ParentHashMismatch() {
 	previousMainBlock := testaide.GenerateMainShardBlock()
 	previousId := scTypes.IdFromBlock(previousMainBlock)
 
@@ -173,16 +203,10 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_ParentHashMismatch() {
 	s.Require().NoError(err)
 
 	newMainBlock := testaide.GenerateMainShardBlock()
-	newId := scTypes.IdFromBlock(newMainBlock)
+	newMainBlock.Number = previousMainBlock.Number + 1
 
 	err = s.bs.SetBlock(s.ctx, newMainBlock)
-	s.Require().NoError(err)
-
-	err = s.bs.SetBlockAsProved(s.ctx, newId)
-	s.Require().NoError(err)
-
-	err = s.bs.SetBlockAsProposed(s.ctx, newId)
-	s.Require().ErrorContains(err, "is not equal to the stored value")
+	s.Require().ErrorContains(err, "unable to update latest fetched block: block mismatch")
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProposed_WithExecutionShardBlocks() {
@@ -223,8 +247,7 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_WithExecutionShardBlocks(
 }
 
 func (s *BlockStorageTestSuite) TestTryGetNextProposalData_NotInitializedStateRoot() {
-	ctx := context.Background()
-	data, err := s.bs.TryGetNextProposalData(ctx)
+	data, err := s.bs.TryGetNextProposalData(s.ctx)
 	s.Require().Nil(data)
 	s.Require().Error(err, "proved state root was not initialized")
 }
@@ -363,9 +386,9 @@ func generateMainShardBlocks(blocksCount int) []jsonrpc.RPCBlock {
 	for range blocksCount {
 		nextBlock := testaide.GenerateMainShardBlock()
 		if len(mainShardBlocks) > 0 {
-			nextBlock.ParentHash = mainShardBlocks[len(mainShardBlocks)-1].Hash
-		} else {
-			nextBlock.ParentHash = testaide.RandomHash()
+			prevBlock := mainShardBlocks[len(mainShardBlocks)-1]
+			nextBlock.ParentHash = prevBlock.Hash
+			nextBlock.Number = prevBlock.Number + 1
 		}
 		mainShardBlocks = append(mainShardBlocks, *nextBlock)
 	}

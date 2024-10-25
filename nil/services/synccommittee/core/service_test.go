@@ -121,8 +121,8 @@ func (s *SyncCommitteeTestSuite) waitForAllShardsToProcess() {
 		shardId := types.ShardId(i)
 		s.Require().Eventually(
 			func() bool {
-				lastFetchedBlockNum, err := s.syncCommittee.aggregator.blockStorage.GetLatestFetched(s.ctx, shardId)
-				return err == nil && lastFetchedBlockNum.Number > 0
+				lastFetched, err := s.syncCommittee.aggregator.blockStorage.GetLatestFetched(s.ctx, shardId)
+				return err == nil && lastFetched != nil && lastFetched.Number > 0
 			},
 			5*time.Second,
 			100*time.Millisecond,

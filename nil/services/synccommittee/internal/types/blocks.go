@@ -82,14 +82,14 @@ func (br *BlockRef) ValidateChild(child *jsonrpc.RPCBlock) error {
 
 	case child.Number != br.Number+1:
 		return fmt.Errorf(
-			"%w: [hash=%s] block number mismatch: expected=%d, got=%d",
-			ErrBlockMismatch, child.Hash, br.Number+1, child.Number,
+			"%w: [shard=%d, hash=%s] block number mismatch: expected=%d, got=%d",
+			ErrBlockMismatch, child.ShardId, child.Hash, br.Number+1, child.Number,
 		)
 
 	case child.ParentHash != br.Hash:
 		return fmt.Errorf(
-			"%w: [hash=%s] parent hash mismatch: expected=%s, got=%s",
-			ErrBlockMismatch, child.Hash, br.Hash, child.ParentHash,
+			"%w: [shard=%d, hash=%s] parent hash mismatch: expected=%s, got=%s",
+			ErrBlockMismatch, child.ShardId, child.Hash, br.Hash, child.ParentHash,
 		)
 
 	default:

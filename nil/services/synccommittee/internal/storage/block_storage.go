@@ -185,35 +185,19 @@ func (bs *blockStorage) SetBlock(ctx context.Context, block *jsonrpc.RPCBlock) e
 		return err
 	}
 
-	err = tx.Put(blocksTable, blockId.Bytes(), value)
-	if err != nil {
+	if err := tx.Put(blocksTable, blockId.Bytes(), value); err != nil {
 		return err
 	}
 
-	err = bs.setProposeParentHash(tx, block)
-	if err != nil {
+	if err := bs.setProposeParentHash(tx, block); err != nil {
 		return err
 	}
 
-	// Update batch number if necessary
-	mainHash := block.MainChainHash
-	if mainHash == common.EmptyHash {
-		mainHash = block.Hash
-	}
-	_, err = bs.getBatchIdTx(tx, mainHash)
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+	if _, err := bs.getOrCreateBatchIdTx(tx, block); err != nil {
 		return err
 	}
-	if errors.Is(err, db.ErrKeyNotFound) {
-		batchId := scTypes.NewBatchId()
-		err = bs.setBatchIdTx(tx, mainHash, batchId)
-		if err != nil {
-			return err
-		}
-	}
 
-	err = bs.updateLatestFetched(tx, block)
-	if err != nil {
+	if err := bs.updateLatestFetched(tx, block); err != nil {
 		return err
 	}
 
@@ -231,7 +215,7 @@ func (bs *blockStorage) updateLatestFetched(tx db.RwTx, block *jsonrpc.RPCBlock)
 	}
 
 	if err := latestFetched.ValidateChild(block); err != nil {
-		return err
+		return fmt.Errorf("unable to update latest fetched block: %w", err)
 	}
 
 	newLatestFetched := scTypes.NewBlockRef(block)
@@ -292,22 +276,35 @@ func (bs *blockStorage) SetBlockAsProved(ctx context.Context, id scTypes.BlockId
 	return tx.Commit()
 }
 
-func (bs *blockStorage) setBatchIdTx(tx db.RwTx, blockHash common.Hash, batchId scTypes.BatchId) error {
-	value := batchId.Bytes()
-	return tx.Put(batchIdTable, makeHashKey(blockHash), value)
-}
+func (bs *blockStorage) getOrCreateBatchIdTx(tx db.RwTx, block *jsonrpc.RPCBlock) (scTypes.BatchId, error) {
+	mainHash := block.MainChainHash
+	if mainHash == common.EmptyHash {
+		mainHash = block.Hash
+	}
+	batchKey := makeHashKey(mainHash)
+	bytes, err := tx.Get(batchIdTable, batchKey)
 
-func (bs *blockStorage) getBatchIdTx(tx db.RoTx, blockHash common.Hash) (scTypes.BatchId, error) {
-	value, err := tx.Get(batchIdTable, makeHashKey(blockHash))
-	if err != nil {
+	switch {
+	case err == nil:
+		var batchId scTypes.BatchId
+		err = batchId.UnmarshalText(bytes)
+		if err != nil {
+			return scTypes.EmptyBatchId, err
+		}
+		return batchId, nil
+
+	case errors.Is(err, db.ErrKeyNotFound):
+		batchId := scTypes.NewBatchId()
+		value := batchId.Bytes()
+
+		if err := tx.Put(batchIdTable, batchKey, value); err != nil {
+			return scTypes.EmptyBatchId, err
+		}
+		return batchId, nil
+
+	default:
 		return scTypes.EmptyBatchId, err
 	}
-	var batchId scTypes.BatchId
-	err = batchId.UnmarshalText(value)
-	if err != nil {
-		return scTypes.EmptyBatchId, err
-	}
-	return batchId, nil
 }
 
 func (bs *blockStorage) GetBatchId(ctx context.Context, block *jsonrpc.RPCBlock) (scTypes.BatchId, error) {
@@ -315,22 +312,13 @@ func (bs *blockStorage) GetBatchId(ctx context.Context, block *jsonrpc.RPCBlock)
 		return scTypes.EmptyBatchId, errors.New("block is empty")
 	}
 
-	tx, err := bs.db.CreateRoTx(ctx)
+	tx, err := bs.db.CreateRwTx(ctx)
 	if err != nil {
 		return scTypes.EmptyBatchId, err
 	}
 	defer tx.Rollback()
 
-	mainHash := block.MainChainHash
-	if mainHash == common.EmptyHash {
-		mainHash = block.Hash
-	}
-
-	batchId, err := bs.getBatchIdTx(tx, mainHash)
-	if err != nil {
-		return batchId, err
-	}
-	return batchId, nil
+	return bs.getOrCreateBatchIdTx(tx, block)
 }
 
 func (bs *blockStorage) isBatchCompletedTx(tx db.RoTx, blockHashes []common.Hash) (bool, error) {

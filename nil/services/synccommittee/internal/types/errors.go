@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	ErrBlockMismatch   = errors.New("block fetching mismatch")
+	ErrBlockMismatch   = errors.New("block mismatch")
 	ErrBlockProcessing = errors.New("block processing error")
 )
 

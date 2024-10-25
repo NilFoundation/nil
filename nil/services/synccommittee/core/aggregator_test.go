@@ -113,9 +113,10 @@ func (s *AggregatorTestSuite) TestProcessNewBlocks() {
 
 	// Check if blocks were fetched and stored for each shard
 	for shardId := coreTypes.ShardId(0); shardId < coreTypes.ShardId(s.nShards); shardId++ {
-		lastFetchedBlockNum, err := s.storage.GetLatestFetched(s.ctx, shardId)
+		latestFetched, err := s.storage.GetLatestFetched(s.ctx, shardId)
 		s.Require().NoError(err)
-		s.Require().Greater(lastFetchedBlockNum, coreTypes.BlockNumber(0))
+		s.Require().NotNil(latestFetched)
+		s.Require().Greater(latestFetched.Number, coreTypes.BlockNumber(0))
 	}
 }
 
