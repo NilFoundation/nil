@@ -53,6 +53,7 @@ export const meter = myServiceMeterProvider.getMeter("fiddle-backend");
 
 export const sdk = new NodeSDK({
   resource,
+  // @ts-ignore
   metricReader,
 });
 

@@ -14,7 +14,7 @@ export async function recoverPublicKey({
   hash,
   signature,
 }: RecoverPublicKeyParameters): Promise<RecoverPublicKeyReturnType> {
-  const signatureHex = isHex(signature) ? signature : toHex(signature);
+  const signatureHex = isHex(signature) ? signature : toHex(signature as Uint8Array);
   const hashHex = isHex(hash) ? hash : toHex(hash);
 
   // Derive v = recoveryId + 27 from end of the signature (27 is added when signing the message)

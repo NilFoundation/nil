@@ -33,6 +33,7 @@
           update_public_repo = (pkgs.callPackage ./update_public_repo.nix { });
           nilcli = (pkgs.callPackage ./nilcli.nix { nil = nil; versionFull = versionFull; });
           nilsmartcontracts = (pkgs.callPackage ./nilsmartcontracts.nix { });
+          nilexplorer = (pkgs.callPackage ./nilexplorer.nix { });
         };
         checks = rec {
           nil = (pkgs.callPackage ./nil.nix {
@@ -49,6 +50,9 @@
           });
           nilhardhat = (pkgs.callPackage ./nilhardhat.nix {
             nil = packages.nil;
+            enableTesting = true;
+          });
+          nilexplorer = (pkgs.callPackage ./nilexplorer.nix {
             enableTesting = true;
           });
         };

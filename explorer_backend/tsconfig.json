@@ -24,11 +24,12 @@
     "alwaysStrict": true,
     "allowImportingTsExtensions": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "noEmit": true
   },
   "ts-node": {
     "esm": true
   },
   "exclude": ["node_modules"],
-  "include": ["src/**/*"],
+  "include": ["./**/*.ts", "package.json"],
 }
