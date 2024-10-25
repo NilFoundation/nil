@@ -226,7 +226,11 @@ func (bs *blockStorage) updateLatestFetched(tx db.RwTx, block *jsonrpc.RPCBlock)
 		return err
 	}
 
-	if err := latestFetched.ValidateChild(scTypes.NewBlockRef(block)); err != nil {
+	if latestFetched.Equals(block) {
+		return nil
+	}
+
+	if err := latestFetched.ValidateChild(block); err != nil {
 		return err
 	}
 

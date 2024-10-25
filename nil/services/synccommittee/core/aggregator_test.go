@@ -123,7 +123,8 @@ func (s *AggregatorTestSuite) TestFetchAndProcessBlocks() {
 	latestBlock, err := s.aggregator.fetchLatestBlockRef()
 	s.Require().NoError(err)
 
-	err = s.aggregator.fetchAndProcessBlocks(s.ctx, 0, latestBlock.Number)
+	blocksRange := scTypes.BlocksRange{End: latestBlock.Number}
+	err = s.aggregator.fetchAndProcessBlocks(s.ctx, blocksRange)
 	s.Require().NoError(err)
 
 	// Check if blocks were stored
