@@ -65,6 +65,17 @@ const (
 	DbPathDefault       = "cometa.db"
 )
 
+func (c *Config) ResetDefualt() {
+	c.UseBadger = false
+	c.OwnEndpoint = OwnEndpointDefault
+	c.NodeEndpoint = NodeEndpointDefault
+	c.DbEndpoint = DbEndpointDefault
+	c.DbName = DbNameDefault
+	c.DbUser = DbUserDefault
+	c.DbPassword = DbPasswordDefault
+	c.DbPath = DbPathDefault
+}
+
 func NewService(ctx context.Context, cfg *Config, client client.Client) (*Service, error) {
 	c := &Service{}
 	var err error
