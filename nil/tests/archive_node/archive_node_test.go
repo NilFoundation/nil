@@ -14,18 +14,23 @@ import (
 type SuiteArchiveNode struct {
 	tests.ShardedSuite
 
-	client client.Client
+	nshards            uint32
+	withBootstrapPeers bool
+	port               int
+	client             client.Client
 }
 
 func (s *SuiteArchiveNode) SetupTest() {
+	s.nshards = 5
+
 	s.Start(&nilservice.Config{
-		NShards:              5,
+		NShards:              s.nshards,
 		CollatorTickPeriodMs: 200,
-	}, 10005)
+	}, s.port)
 
 	time.Sleep(1 * time.Second)
 
-	s.client = s.StartArchiveNode(10010)
+	s.client = s.StartArchiveNode(s.port+int(s.nshards), s.withBootstrapPeers)
 }
 
 func (s *SuiteArchiveNode) TearDownTest() {
@@ -49,8 +54,26 @@ func (s *SuiteArchiveNode) TestGetDebugBlock() {
 	}
 }
 
-func TestArchiveNode(t *testing.T) {
+func (s *SuiteArchiveNode) TestGetFaucetBalance() {
+	value, err := s.client.GetBalance(types.FaucetAddress, "latest")
+	s.Require().NoError(err)
+	s.Positive(value.Uint64())
+}
+
+func TestArchiveNodeWithBootstrapPeers(t *testing.T) {
 	t.Parallel()
 
-	suite.Run(t, new(SuiteArchiveNode))
+	suite.Run(t, &SuiteArchiveNode{
+		withBootstrapPeers: true,
+		port:               10005,
+	})
+}
+
+func TestArchiveNodeWithoutBootstrapPeers(t *testing.T) {
+	t.Parallel()
+
+	suite.Run(t, &SuiteArchiveNode{
+		withBootstrapPeers: false,
+		port:               10015,
+	})
 }

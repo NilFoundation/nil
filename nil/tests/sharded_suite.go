@@ -63,6 +63,7 @@ func (s *ShardedSuite) Start(cfg *nilservice.Config, port int) {
 
 	networkConfigs, p2pAddresses := network.GenerateConfigs(s.T(), cfg.NShards, port)
 
+	s.Shards = make([]Shard, 0, cfg.NShards)
 	for i := range cfg.NShards {
 		shardId := types.ShardId(i)
 		url := rpc.GetSockPathIdx(s.T(), int(i))
@@ -97,7 +98,7 @@ func (s *ShardedSuite) Start(cfg *nilservice.Config, port int) {
 	s.waitZerostate()
 }
 
-func (s *ShardedSuite) StartArchiveNode(port int) client.Client {
+func (s *ShardedSuite) StartArchiveNode(port int, withBootstrapPeers bool) client.Client {
 	s.T().Helper()
 
 	netCfg, _ := network.GenerateConfig(s.T(), port)
@@ -111,7 +112,10 @@ func (s *ShardedSuite) StartArchiveNode(port int) client.Client {
 
 	for shardId := range cfg.NShards {
 		cfg.MyShards = append(cfg.MyShards, uint(shardId))
-		cfg.BootstrapPeers = append(cfg.BootstrapPeers, s.Shards[shardId].P2pAddress)
+		netCfg.DHTBootstrapPeers = append(netCfg.DHTBootstrapPeers, s.Shards[shardId].P2pAddress)
+		if withBootstrapPeers {
+			cfg.BootstrapPeers = append(cfg.BootstrapPeers, s.Shards[shardId].P2pAddress)
+		}
 	}
 
 	s.wg.Add(1)

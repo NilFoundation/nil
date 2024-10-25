@@ -249,12 +249,20 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 				bootstrapPeer = cfg.BootstrapPeers[i]
 			}
 
+			zeroState := execution.DefaultZeroStateConfig
+			zeroStateConfig := cfg.ZeroState
+			if len(cfg.ZeroStateYaml) != 0 {
+				zeroState = cfg.ZeroStateYaml
+			}
+
 			syncer := collate.NewSyncer(collate.SyncerConfig{
 				ShardId:              shardId,
 				Timeout:              syncerTimeout,
 				BootstrapPeer:        bootstrapPeer,
 				ReplayBlocks:         true,
 				BlockGeneratorParams: cfg.BlockGeneratorParams(shardId),
+				ZeroState:            zeroState,
+				ZeroStateConfig:      zeroStateConfig,
 			}, database, networkManager)
 			funcs = append(funcs, func(ctx context.Context) error {
 				if err := syncer.Run(ctx, &wgFetch); err != nil {
