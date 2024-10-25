@@ -34,7 +34,6 @@ include nil/internal/db/Makefile.inc
 include nil/internal/mpt/Makefile.inc
 include nil/internal/types/Makefile.inc
 include nil/internal/config/Makefile.inc
-include nil/internal/collate/proto/Makefile.inc
 include nil/services/rpc/rawapi/proto/Makefile.inc
 include nil/go-ibft/messages/proto/Makefile.inc
 include nil/Makefile.inc
@@ -43,7 +42,7 @@ include nil/Makefile.inc
 ssz: ssz_db ssz_mpt ssz_types ssz_config
 
 .PHONY: pb
-pb: pb_rawapi pb_collator pb_ibft
+pb: pb_rawapi pb_ibft
 
 contracts/compiled/%.bin: $(wildcard nil/contracts/solidity/tests/*.sol) $(wildcard nil/contracts/solidity/*.sol)
 	cd nil/contracts && go generate generate.go

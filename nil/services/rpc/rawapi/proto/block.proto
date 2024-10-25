@@ -42,6 +42,11 @@ message BlockRequest {
   BlockReference reference = 2;
 }
 
+message BlocksRangeRequest {
+  int64 id = 1;
+  uint32 count = 2;
+}
+
 message AccountRequest {
   Address address = 1;
   BlockReference blockReference = 2;
@@ -71,6 +76,10 @@ message RawFullBlock {
   map<string, Error> errors = 5;
   repeated Hash childBlocks = 6;
   uint64 dbTimestamp = 7;
+}
+
+message RawFullBlocks {
+  repeated RawFullBlock blocks = 1;
 }
 
 message RawFullBlockResponse {

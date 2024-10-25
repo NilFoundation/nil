@@ -5,22 +5,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/ssz"
-	"github.com/NilFoundation/nil/nil/internal/collate/pb"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rpc/rawapi/pb"
 	"google.golang.org/protobuf/proto"
 )
-
-type Block struct {
-	Block       *types.Block
-	OutMessages []*types.Message
-	InMessages  []*types.Message
-	ShardHashes map[types.ShardId]common.Hash
-}
 
 func topicShardBlocks(shardId types.ShardId) string {
 	return fmt.Sprintf("nil/shard/%s/blocks", shardId)
@@ -41,7 +32,9 @@ func ListPeers(networkManager *network.Manager, shardId types.ShardId) []network
 }
 
 // PublishBlock publishes a block to the network.
-func PublishBlock(ctx context.Context, networkManager *network.Manager, shardId types.ShardId, block *Block) error {
+func PublishBlock(
+	ctx context.Context, networkManager *network.Manager, shardId types.ShardId, block *types.BlockWithExtractedData,
+) error {
 	if networkManager == nil {
 		// we don't always want to run the network
 		return nil
@@ -60,8 +53,8 @@ func PublishBlock(ctx context.Context, networkManager *network.Manager, shardId 
 
 func RequestBlocks(ctx context.Context, networkManager *network.Manager, peerID network.PeerID,
 	shardId types.ShardId, blockNumber types.BlockNumber, count uint8,
-) ([]*Block, error) {
-	req, err := proto.Marshal(&pb.BlockRequest{Id: int64(blockNumber), Count: uint32(count)})
+) ([]*types.BlockWithExtractedData, error) {
+	req, err := proto.Marshal(&pb.BlocksRangeRequest{Id: int64(blockNumber), Count: uint32(count)})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal blocks request: %w", err)
 	}
@@ -71,7 +64,7 @@ func RequestBlocks(ctx context.Context, networkManager *network.Manager, peerID 
 		return nil, fmt.Errorf("failed to request blocks: %w", err)
 	}
 
-	var pbBlocks pb.Blocks
+	var pbBlocks pb.RawFullBlocks
 	if err := proto.Unmarshal(resp, &pbBlocks); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal blocks: %w", err)
 	}
@@ -80,15 +73,15 @@ func RequestBlocks(ctx context.Context, networkManager *network.Manager, peerID 
 
 func getBlocksRange(
 	ctx context.Context, shardId types.ShardId, accessor *execution.StateAccessor, database db.DB, startId types.BlockNumber, count uint8,
-) (*pb.Blocks, error) {
+) (*pb.RawFullBlocks, error) {
 	tx, err := database.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	res := &pb.Blocks{
-		Blocks: make([]*pb.Block, 0, count),
+	res := &pb.RawFullBlocks{
+		Blocks: make([]*pb.RawFullBlock, 0, count),
 	}
 	for i := range count {
 		resp, err := accessor.RawAccess(tx, shardId).
@@ -104,14 +97,11 @@ func getBlocksRange(
 			break
 		}
 
-		b := &pb.Block{
+		b := &pb.RawFullBlock{
 			BlockSSZ:       resp.Block(),
 			OutMessagesSSZ: resp.OutMessages(),
 			InMessagesSSZ:  resp.InMessages(),
-			ShardHashes:    make(map[uint32][]byte, len(resp.ChildBlocks())),
-		}
-		for i, child := range resp.ChildBlocks() {
-			b.ShardHashes[uint32(i)+1] = child.Bytes()
+			ChildBlocks:    pb.PackHashes(resp.ChildBlocks()),
 		}
 		res.Blocks = append(res.Blocks, b)
 	}
@@ -119,58 +109,28 @@ func getBlocksRange(
 	return res, nil
 }
 
-func marshalBlockSSZ(block *Block) (*pb.Block, error) {
-	blockSSZ, err := block.Block.MarshalSSZ()
+func marshalBlockSSZ(block *types.BlockWithExtractedData) (*pb.RawFullBlock, error) {
+	raw, err := block.EncodeSSZ()
 	if err != nil {
 		return nil, err
 	}
-
-	outMsgs, err := ssz.EncodeContainer[*types.Message](block.OutMessages)
-	if err != nil {
+	pbBlock := &pb.RawFullBlock{}
+	if err := pbBlock.PackProtoMessage(raw); err != nil {
 		return nil, err
 	}
-	inMsgs, err := ssz.EncodeContainer[*types.Message](block.InMessages)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pb.Block{
-		BlockSSZ:       blockSSZ,
-		OutMessagesSSZ: outMsgs,
-		InMessagesSSZ:  inMsgs,
-		ShardHashes: common.TransformMap(block.ShardHashes, func(key types.ShardId, value common.Hash) (uint32, []byte) {
-			return uint32(key), value.Bytes()
-		}),
-	}, nil
+	return pbBlock, nil
 }
 
-func unmarshalBlockSSZ(pbBlock *pb.Block) (*Block, error) {
-	block := &types.Block{}
-	if err := block.UnmarshalSSZ(pbBlock.BlockSSZ); err != nil {
-		return nil, err
-	}
-
-	outMsgs, err := ssz.DecodeContainer[*types.Message](pbBlock.OutMessagesSSZ)
+func unmarshalBlockSSZ(pbBlock *pb.RawFullBlock) (*types.BlockWithExtractedData, error) {
+	raw, err := pbBlock.UnpackProtoMessage()
 	if err != nil {
 		return nil, err
 	}
-	inMsgs, err := ssz.DecodeContainer[*types.Message](pbBlock.InMessagesSSZ)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Block{
-		Block:       block,
-		OutMessages: outMsgs,
-		InMessages:  inMsgs,
-		ShardHashes: common.TransformMap(pbBlock.ShardHashes, func(key uint32, value []byte) (types.ShardId, common.Hash) {
-			return types.ShardId(key), common.BytesToHash(value)
-		}),
-	}, nil
+	return raw.DecodeSSZ()
 }
 
-func unmarshalBlocksSSZ(pbBlocks *pb.Blocks) ([]*Block, error) {
-	blocks := make([]*Block, len(pbBlocks.Blocks))
+func unmarshalBlocksSSZ(pbBlocks *pb.RawFullBlocks) ([]*types.BlockWithExtractedData, error) {
+	blocks := make([]*types.BlockWithExtractedData, len(pbBlocks.Blocks))
 	var err error
 	for i, pbBlock := range pbBlocks.Blocks {
 		blocks[i], err = unmarshalBlockSSZ(pbBlock)
@@ -190,9 +150,9 @@ func SetRequestHandler(ctx context.Context, networkManager *network.Manager, sha
 	// Sharing accessor between all handlers enables caching.
 	accessor := execution.NewStateAccessor()
 	handler := func(ctx context.Context, req []byte) ([]byte, error) {
-		var blockReq pb.BlockRequest
+		var blockReq pb.BlocksRangeRequest
 		if err := proto.Unmarshal(req, &blockReq); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal block request: %w", err)
+			return nil, fmt.Errorf("failed to unmarshal block range request: %w", err)
 		}
 
 		const maxBlockRequestCount = 100
