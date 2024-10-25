@@ -31,11 +31,9 @@ type config struct {
 func main() {
 	cfg := parseArgs()
 
+	initConfig(cfg)
+
 	var err error
-	if err = initConfig(cfg); err != nil {
-		fmt.Printf("failed to initialize config file: %s\n", err.Error())
-		os.Exit(1)
-	}
 
 	switch cfg.command {
 	case CommandCreateConfig:
@@ -91,9 +89,9 @@ db-password: %s
 	return nil
 }
 
-func initConfig(cfg *config) error {
+func initConfig(cfg *config) {
 	if cfg.command == CommandCreateConfig {
-		return nil
+		return
 	}
 	if cfg.cfgFile != "" {
 		// Use config file from the flag.
@@ -104,7 +102,9 @@ func initConfig(cfg *config) error {
 		viper.SetConfigName("cometa")
 	}
 	if err := viper.ReadInConfig(); err != nil {
-		return err
+		fmt.Printf("Run without config file: %s\n", err.Error())
+		cfg.cometaCfg.ResetDefualt()
+		return
 	}
 	cfg.cometaCfg.OwnEndpoint = viper.GetString("own-endpoint")
 	cfg.cometaCfg.NodeEndpoint = viper.GetString("node-endpoint")
@@ -113,7 +113,6 @@ func initConfig(cfg *config) error {
 	cfg.cometaCfg.DbName = viper.GetString("db-name")
 	cfg.cometaCfg.DbUser = viper.GetString("db-user")
 	cfg.cometaCfg.DbPassword = viper.GetString("db-password")
-	return nil
 }
 
 func parseArgs() *config {
