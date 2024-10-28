@@ -44,9 +44,9 @@ stdenv.mkDerivation rec {
 
     npm run lint
     npm run test:unit
-    # npm run test:integration --cache=false
-    # npm run test:examples
-    # npm run lint:types
+    npm run test:integration --cache=false
+    npm run test:examples
+    npm run lint:types
     kill `cat nild_pid` && rm nild_pid
 
     echo "tests finished successfully"

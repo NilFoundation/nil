@@ -11,5 +11,6 @@ key.json
 *.sqlite
 .env
 .env.*
+dist
 
 database.db
