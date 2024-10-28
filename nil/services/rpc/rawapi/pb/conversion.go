@@ -197,7 +197,7 @@ func (e *Error) PackProtoMessage(err error) *Error {
 func packErrorMap(errors map[common.Hash]string) map[string]*Error {
 	result := make(map[string]*Error, len(errors))
 	for key, value := range errors {
-		result[string(key.Bytes())] = &Error{Message: value}
+		result[key.String()] = &Error{Message: value}
 	}
 	return result
 }
@@ -205,7 +205,7 @@ func packErrorMap(errors map[common.Hash]string) map[string]*Error {
 func unpackErrorMap(pbErrors map[string]*Error) map[common.Hash]string {
 	result := make(map[common.Hash]string, len(pbErrors))
 	for key, value := range pbErrors {
-		result[common.BytesToHash([]byte(key))] = value.Message
+		result[common.HexToHash(key)] = value.Message
 	}
 	return result
 }
