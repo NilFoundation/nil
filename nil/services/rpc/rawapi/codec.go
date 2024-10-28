@@ -38,7 +38,11 @@ func (c *methodCodec) packRequest(apiArgs ...any) ([]byte, error) {
 	message, ok := pbRequestValuePtr.Interface().(proto.Message)
 	// Should never happen, so we don't pack error to response.
 	check.PanicIfNotf(ok, "failed to create proto message %s", c.pbRequestType)
-	return proto.Marshal(message)
+	request, err := proto.Marshal(message)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack Protobuf request: %w", err)
+	}
+	return request, nil
 }
 
 func (c *methodCodec) unpackRequest(request []byte) ([]reflect.Value, error) {
@@ -52,7 +56,7 @@ func (c *methodCodec) unpackRequest(request []byte) ([]reflect.Value, error) {
 	check.PanicIfNotf(ok, "failed to create proto message %s", c.pbRequestType)
 	err := proto.Unmarshal(request, message)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unpack Protobuf request: %w", err)
 	}
 	return callMethodWithLastOutputError(c.requestUnpackMethod.Func, []reflect.Value{pbRequestValuePtr})
 }
@@ -65,7 +69,11 @@ func (c *methodCodec) packResponse(apiCallResults ...reflect.Value) ([]byte, err
 	message, ok := pbResponseValuePtr.Interface().(proto.Message)
 	// Should never happen, so we don't pack error to response.
 	check.PanicIfNotf(ok, "failed to create proto message %s", c.pbResponseType)
-	return proto.Marshal(message)
+	response, err := proto.Marshal(message)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack Protobuf response: %w", err)
+	}
+	return response, nil
 }
 
 func (c *methodCodec) packError(err error) []byte {
@@ -86,7 +94,7 @@ func (c *methodCodec) unpackResponse(response []byte) (any, error) {
 	check.PanicIfNotf(ok, "failed to create proto message %s", c.pbResponseType)
 	err := proto.Unmarshal(response, message)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unpack Protobuf response: %w", err)
 	}
 	resp, err := callMethodWithLastOutputError(c.responseUnpackMethod.Func, []reflect.Value{pbResponseValuePtr})
 	if err != nil {

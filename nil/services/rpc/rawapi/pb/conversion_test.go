@@ -225,3 +225,23 @@ func TestCallResponse_PackUnpack(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, args, unpackedArgs)
 }
+
+func TestErrorMap_PackUnpack(t *testing.T) {
+	t.Parallel()
+
+	invalidUTF8 := []byte{0xC3, 0x28}
+	key := common.BytesToHash(invalidUTF8)
+	errors := map[common.Hash]string{
+		key: "Error",
+	}
+
+	block := &RawFullBlock{Errors: packErrorMap(errors)}
+	data, err := proto.Marshal(block)
+	require.NoError(t, err)
+
+	var unpacked RawFullBlock
+	require.NoError(t, proto.Unmarshal(data, &unpacked))
+
+	errorsUnpacked := unpackErrorMap(unpacked.Errors)
+	assert.Equal(t, errors, errorsUnpacked)
+}
