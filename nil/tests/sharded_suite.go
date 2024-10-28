@@ -9,11 +9,14 @@ import (
 
 	"github.com/NilFoundation/nil/nil/client"
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
@@ -98,6 +101,15 @@ func (s *ShardedSuite) Start(cfg *nilservice.Config, port int) {
 	s.waitZerostate()
 }
 
+func (s *ShardedSuite) checkNodeStart(nShards uint32, client client.Client) {
+	for i := range nShards {
+		s.Require().Eventually(func() bool {
+			block, err := client.GetBlock(types.ShardId(i), transport.BlockNumber(0), false)
+			return err == nil && block != nil
+		}, ZeroStateWaitTimeout, ZeroStatePollInterval)
+	}
+}
+
 func (s *ShardedSuite) StartArchiveNode(port int, withBootstrapPeers bool) client.Client {
 	s.T().Helper()
 
@@ -125,15 +137,47 @@ func (s *ShardedSuite) StartArchiveNode(port int, withBootstrapPeers bool) clien
 	}()
 
 	c := rpc_client.NewClient(cfg.HttpUrl, zerolog.New(os.Stderr))
+	s.checkNodeStart(cfg.NShards, c)
+	return c
+}
 
-	for i := range cfg.NShards {
-		s.Require().Eventually(func() bool {
-			block, err := c.GetBlock(types.ShardId(i), transport.BlockNumber(0), false)
-			return err == nil && block != nil
-		}, ZeroStateWaitTimeout, ZeroStatePollInterval)
+func (s *ShardedSuite) StartRPCNode(port int) client.Client {
+	s.T().Helper()
+
+	netCfg, _ := network.GenerateConfig(s.T(), port)
+
+	cfg := &nilservice.Config{
+		NShards: uint32(len(s.Shards)),
+		Network: netCfg,
+		HttpUrl: rpc.GetSockPath(s.T()),
+		RunMode: nilservice.RpcRunMode,
 	}
 
+	for shardId := range cfg.NShards {
+		netCfg.DHTBootstrapPeers = append(netCfg.DHTBootstrapPeers, s.Shards[shardId].P2pAddress)
+	}
+
+	s.wg.Add(1)
+	go func() {
+		nilservice.Run(s.context, cfg, s.dbInit(), nil)
+		s.wg.Done()
+	}()
+
+	c := rpc_client.NewClient(cfg.HttpUrl, zerolog.New(os.Stderr))
+	s.checkNodeStart(cfg.NShards, c)
 	return c
+}
+
+func (s *ShardedSuite) WaitForReceipt(client client.Client, shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
+	s.T().Helper()
+
+	return WaitForReceipt(s.T(), client, shardId, hash)
+}
+
+func (s *ShardedSuite) DeployContractViaMainWallet(client client.Client, shardId types.ShardId, payload types.DeployPayload, initialAmount types.Value) (types.Address, *jsonrpc.RPCReceipt) {
+	s.T().Helper()
+
+	return DeployContractViaWallet(s.T(), client, types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
 }
 
 func (s *ShardedSuite) waitZerostate() {
