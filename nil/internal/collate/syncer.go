@@ -28,6 +28,8 @@ type SyncerConfig struct {
 	ReplayBlocks  bool // replay blocks (archive node) or store headers and messages only
 
 	BlockGeneratorParams execution.BlockGeneratorParams
+	ZeroState            string
+	ZeroStateConfig      *execution.ZeroStateConfig
 }
 
 type Syncer struct {
@@ -74,14 +76,14 @@ func (s *Syncer) readLastBlockNumber(ctx context.Context) error {
 	return nil
 }
 
-func (s *Syncer) snapIsRequired(ctx context.Context) (bool, error) {
+func (s *Syncer) shardIsEmpty(ctx context.Context) (bool, error) {
 	rotx, err := s.db.CreateRoTx(ctx)
 	if err != nil {
 		return false, err
 	}
 	defer rotx.Rollback()
 
-	_, _, err = db.ReadLastBlock(rotx, s.config.ShardId)
+	_, err = db.ReadLastBlockHash(rotx, s.config.ShardId)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return false, err
 	}
@@ -89,9 +91,9 @@ func (s *Syncer) snapIsRequired(ctx context.Context) (bool, error) {
 }
 
 func (s *Syncer) Run(ctx context.Context, wgFetch *sync.WaitGroup) error {
-	if required, err := s.snapIsRequired(ctx); err != nil {
+	if snapIsRequred, err := s.shardIsEmpty(ctx); err != nil {
 		return err
-	} else if required {
+	} else if snapIsRequred {
 		if err := FetchSnapshot(ctx, s.networkManager, s.config.BootstrapPeer, s.config.ShardId, s.db); err != nil {
 			return fmt.Errorf("failed to fetch snapshot: %w", err)
 		}
@@ -101,6 +103,12 @@ func (s *Syncer) Run(ctx context.Context, wgFetch *sync.WaitGroup) error {
 	// It's impossible to load data and commit transactions at the same time.
 	wgFetch.Done()
 	wgFetch.Wait()
+
+	if s.config.ReplayBlocks {
+		if err := s.generateZerostate(ctx); err != nil {
+			return fmt.Errorf("Failed to generate zerostate for shard %s: %w", s.config.ShardId, err)
+		}
+	}
 
 	err := s.readLastBlockNumber(ctx)
 	if err != nil {
@@ -283,6 +291,23 @@ func (s *Syncer) saveDirectly(ctx context.Context, blocks []*types.BlockWithExtr
 	}
 
 	return tx.Commit()
+}
+
+func (s *Syncer) generateZerostate(ctx context.Context) error {
+	if empty, err := s.shardIsEmpty(ctx); err != nil {
+		return err
+	} else if !empty {
+		return nil
+	}
+
+	gen, err := execution.NewBlockGenerator(ctx, s.config.BlockGeneratorParams, s.db)
+	if err != nil {
+		return err
+	}
+	defer gen.Rollback()
+
+	_, err = gen.GenerateZeroState(s.config.ZeroState, s.config.ZeroStateConfig)
+	return err
 }
 
 func (s *Syncer) replayBlocks(ctx context.Context, blocks []*types.BlockWithExtractedData) error {
