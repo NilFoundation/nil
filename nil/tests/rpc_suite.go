@@ -191,36 +191,16 @@ func (s *RpcSuite) Cancel() {
 	s.Db.Close()
 }
 
-func (s *RpcSuite) WaitForReceiptCommon(shardId types.ShardId, hash common.Hash, check func(*jsonrpc.RPCReceipt) bool) *jsonrpc.RPCReceipt {
-	s.T().Helper()
-
-	var receipt *jsonrpc.RPCReceipt
-	var err error
-	s.Require().Eventually(func() bool {
-		receipt, err = s.Client.GetInMessageReceipt(shardId, hash)
-		s.Require().NoError(err)
-		return check(receipt)
-	}, ReceiptWaitTimeout, ReceiptPollInterval)
-
-	s.Equal(hash, receipt.MsgHash)
-
-	return receipt
-}
-
 func (s *RpcSuite) WaitForReceipt(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	return s.WaitForReceiptCommon(shardId, hash, func(receipt *jsonrpc.RPCReceipt) bool {
-		return receipt.IsComplete()
-	})
+	return WaitForReceipt(s.T(), s.Client, shardId, hash)
 }
 
 func (s *RpcSuite) WaitIncludedInMain(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	return s.WaitForReceiptCommon(shardId, hash, func(receipt *jsonrpc.RPCReceipt) bool {
-		return receipt.IsCommitted()
-	})
+	return WaitIncludedInMain(s.T(), s.Client, shardId, hash)
 }
 
 func (s *RpcSuite) waitZerostate() {
@@ -240,36 +220,10 @@ func (s *RpcSuite) waitZerostateFunc(fun func(i uint32) bool) {
 	}
 }
 
-// Deploy contract to specific shard
-func (s *RpcSuite) deployContractViaWallet(
-	addrFrom types.Address, key *ecdsa.PrivateKey, shardId types.ShardId, payload types.DeployPayload, initialAmount types.Value,
-) (types.Address, *jsonrpc.RPCReceipt) {
-	s.T().Helper()
-
-	contractAddr := types.CreateAddress(shardId, payload)
-	txHash, err := s.Client.SendMessageViaWallet(addrFrom, types.Code{}, s.GasToValue(100_000), initialAmount,
-		[]types.CurrencyBalance{}, contractAddr, key)
-	s.Require().NoError(err)
-	receipt := s.WaitForReceipt(addrFrom.ShardId(), txHash)
-	s.Require().True(receipt.Success)
-	s.Require().Equal("Success", receipt.Status)
-	s.Require().Len(receipt.OutReceipts, 1)
-
-	txHash, addr, err := s.Client.DeployContract(shardId, addrFrom, payload, types.Value{}, key)
-	s.Require().NoError(err)
-	s.Require().Equal(contractAddr, addr)
-
-	receipt = s.WaitIncludedInMain(addrFrom.ShardId(), txHash)
-	s.Require().True(receipt.Success)
-	s.Require().Equal("Success", receipt.Status)
-	s.Require().Len(receipt.OutReceipts, 1)
-	return addr, receipt
-}
-
 func (s *RpcSuite) DeployContractViaMainWallet(shardId types.ShardId, payload types.DeployPayload, initialAmount types.Value) (types.Address, *jsonrpc.RPCReceipt) {
 	s.T().Helper()
 
-	return s.deployContractViaWallet(types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
+	return DeployContractViaWallet(s.T(), s.Client, types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
 }
 
 func (s *RpcSuite) SendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey,
@@ -277,7 +231,7 @@ func (s *RpcSuite) SendMessageViaWallet(addrFrom types.Address, addrTo types.Add
 ) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	txHash, err := s.Client.SendMessageViaWallet(addrFrom, calldata, s.GasToValue(1_000_000), types.NewZeroValue(),
+	txHash, err := s.Client.SendMessageViaWallet(addrFrom, calldata, GasToValue(1_000_000), types.NewZeroValue(),
 		[]types.CurrencyBalance{}, addrTo, key)
 	s.Require().NoError(err)
 
@@ -303,7 +257,7 @@ func (s *RpcSuite) SendExternalMessage(bytecode types.Code, contractAddress type
 func (s *RpcSuite) SendExternalMessageNoCheck(bytecode types.Code, contractAddress types.Address) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	txHash, err := s.Client.SendExternalMessage(bytecode, contractAddress, execution.MainPrivateKey, s.GasToValue(500_000))
+	txHash, err := s.Client.SendExternalMessage(bytecode, contractAddress, execution.MainPrivateKey, GasToValue(500_000))
 	s.Require().NoError(err)
 
 	receipt := s.WaitIncludedInMain(contractAddress.ShardId(), txHash)
@@ -344,7 +298,7 @@ func (s *RpcSuite) CallGetter(addr types.Address, calldata []byte, blockId any, 
 	callArgs := &jsonrpc.CallArgs{
 		Data:      (*hexutil.Bytes)(&calldata),
 		To:        addr,
-		FeeCredit: s.GasToValue(100_000_000),
+		FeeCredit: GasToValue(100_000_000),
 		Seqno:     seqno,
 	}
 	res, err := s.Client.Call(callArgs, blockId, overrides)
@@ -451,7 +405,7 @@ func CheckContractValueEqual[T any](s *RpcSuite, inAbi *abi.ABI, address types.A
 }
 
 func (s *RpcSuite) GasToValue(gas uint64) types.Value {
-	return types.Gas(gas).ToValue(types.DefaultGasPrice)
+	return GasToValue(gas)
 }
 
 type ReceiptInfo map[types.Address]*ContractInfo

@@ -53,6 +53,10 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 			return nil, err
 		}
 
+		if err := h.Connect(ctx, *peerInfo); err != nil {
+			logger.Warn().Err(err).Msgf("Failed to connect to %s", p)
+		}
+
 		h.Peerstore().AddAddrs(peerInfo.ID, peerInfo.Addrs, peerstore.AddressTTL)
 	}
 
