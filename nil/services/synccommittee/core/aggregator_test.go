@@ -142,7 +142,7 @@ func (s *AggregatorTestSuite) TestValidateAndProcessBlock() {
 	block.ChildBlocks = make([]common.Hash, 0)
 
 	// Validate and store the block
-	err = s.aggregator.validateAndProcessBlock(s.ctx, block)
+	err = s.aggregator.validateAndProcessBlock(s.ctx, block, block.Hash)
 	s.Require().NoError(err)
 
 	// Check if the block was stored

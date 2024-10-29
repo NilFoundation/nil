@@ -35,6 +35,7 @@ var mainShardKey = makeShardKey(types.MainShardId)
 type blockEntry struct {
 	Block    jsonrpc.RPCBlock `json:"block"`
 	IsProved bool             `json:"isProved"`
+	BatchId  scTypes.BatchId  `json:"batchId"`
 }
 
 type PrunedTransaction struct {
@@ -73,7 +74,7 @@ type BlockStorage interface {
 
 	TryGetBlock(ctx context.Context, id scTypes.BlockId) (*jsonrpc.RPCBlock, error)
 
-	SetBlock(ctx context.Context, block *jsonrpc.RPCBlock) error
+	SetBlock(ctx context.Context, block *jsonrpc.RPCBlock, mainBlockHash common.Hash) error
 
 	SetBlockAsProved(ctx context.Context, id scTypes.BlockId) error
 
@@ -81,7 +82,7 @@ type BlockStorage interface {
 
 	TryGetNextProposalData(ctx context.Context) (*ProposalData, error)
 
-	GetBatchId(ctx context.Context, block *jsonrpc.RPCBlock) (scTypes.BatchId, error)
+	GetOrCreateBatchId(ctx context.Context, mainBlockHash common.Hash) (scTypes.BatchId, error)
 
 	IsBatchCompleted(ctx context.Context, block *jsonrpc.RPCBlock) (bool, error)
 }
@@ -167,13 +168,13 @@ func (bs *blockStorage) TryGetBlock(ctx context.Context, id scTypes.BlockId) (*j
 	return &entry.Block, nil
 }
 
-func (bs *blockStorage) SetBlock(ctx context.Context, block *jsonrpc.RPCBlock) error {
+func (bs *blockStorage) SetBlock(ctx context.Context, block *jsonrpc.RPCBlock, mainBlockHash common.Hash) error {
 	return bs.retryRunner.Do(ctx, func(ctx context.Context) error {
-		return bs.setBlockImpl(ctx, block)
+		return bs.setBlockImpl(ctx, block, mainBlockHash)
 	})
 }
 
-func (bs *blockStorage) setBlockImpl(ctx context.Context, block *jsonrpc.RPCBlock) error {
+func (bs *blockStorage) setBlockImpl(ctx context.Context, block *jsonrpc.RPCBlock, mainBlockHash common.Hash) error {
 	if block == nil {
 		return errors.New("block is nil")
 	}
@@ -184,7 +185,12 @@ func (bs *blockStorage) setBlockImpl(ctx context.Context, block *jsonrpc.RPCBloc
 	}
 	defer tx.Rollback()
 
-	entry := blockEntry{Block: *block}
+	batchId, err := bs.getOrCreateBatchIdTx(tx, mainBlockHash)
+	if err != nil {
+		return err
+	}
+
+	entry := blockEntry{Block: *block, BatchId: batchId}
 	value, err := marshallEntry(&entry)
 	if err != nil {
 		return err
@@ -200,10 +206,6 @@ func (bs *blockStorage) setBlockImpl(ctx context.Context, block *jsonrpc.RPCBloc
 	}
 
 	if err := bs.updateLatestFetched(tx, block); err != nil {
-		return err
-	}
-
-	if _, err := bs.getOrCreateBatchIdTx(tx, block); err != nil {
 		return err
 	}
 
@@ -289,12 +291,8 @@ func (bs *blockStorage) SetBlockAsProved(ctx context.Context, id scTypes.BlockId
 	return tx.Commit()
 }
 
-func (bs *blockStorage) getOrCreateBatchIdTx(tx db.RwTx, block *jsonrpc.RPCBlock) (scTypes.BatchId, error) {
-	mainHash := block.MainChainHash
-	if mainHash == common.EmptyHash {
-		mainHash = block.Hash
-	}
-	batchKey := makeHashKey(mainHash)
+func (bs *blockStorage) getOrCreateBatchIdTx(tx db.RwTx, mainBlockHash common.Hash) (scTypes.BatchId, error) {
+	batchKey := makeHashKey(mainBlockHash)
 	bytes, err := tx.Get(batchIdTable, batchKey)
 
 	switch {
@@ -313,6 +311,7 @@ func (bs *blockStorage) getOrCreateBatchIdTx(tx db.RwTx, block *jsonrpc.RPCBlock
 		if err := tx.Put(batchIdTable, batchKey, value); err != nil {
 			return scTypes.EmptyBatchId, err
 		}
+
 		return batchId, nil
 
 	default:
@@ -320,18 +319,18 @@ func (bs *blockStorage) getOrCreateBatchIdTx(tx db.RwTx, block *jsonrpc.RPCBlock
 	}
 }
 
-func (bs *blockStorage) GetBatchId(ctx context.Context, block *jsonrpc.RPCBlock) (scTypes.BatchId, error) {
-	if block == nil {
-		return scTypes.EmptyBatchId, errors.New("block is empty")
-	}
-
+func (bs *blockStorage) GetOrCreateBatchId(ctx context.Context, mainBlockHash common.Hash) (scTypes.BatchId, error) {
 	tx, err := bs.db.CreateRwTx(ctx)
 	if err != nil {
 		return scTypes.EmptyBatchId, err
 	}
 	defer tx.Rollback()
 
-	return bs.getOrCreateBatchIdTx(tx, block)
+	batchId, err := bs.getOrCreateBatchIdTx(tx, mainBlockHash)
+	if err != nil {
+		return scTypes.EmptyBatchId, err
+	}
+	return batchId, tx.Commit()
 }
 
 func (bs *blockStorage) isBatchCompletedTx(tx db.RoTx, blockHashes []common.Hash) (bool, error) {
@@ -407,7 +406,7 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 
 	transactions := extractTransactions(mainShardEntry.Block)
 	err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
-		if isExecutionShardBlock(entry, mainShardEntry.Block.Hash) {
+		if isExecutionShardBlock(entry, mainShardEntry.BatchId) {
 			blockTransactions := extractTransactions(entry.Block)
 			transactions = append(transactions, blockTransactions...)
 		}
@@ -448,7 +447,7 @@ func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, id scTypes.B
 	}
 
 	err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
-		if !isExecutionShardBlock(entry, mainShardEntry.Block.Hash) {
+		if !isExecutionShardBlock(entry, mainShardEntry.BatchId) {
 			return true, nil
 		}
 
@@ -514,8 +513,8 @@ func (bs *blockStorage) setParentOfNextToPropose(tx db.RwTx, hash common.Hash) e
 	return nil
 }
 
-func isExecutionShardBlock(entry *blockEntry, mainShardBlockHash common.Hash) bool {
-	return entry.Block.ShardId != types.MainShardId && entry.Block.MainChainHash == mainShardBlockHash
+func isExecutionShardBlock(entry *blockEntry, batchId scTypes.BatchId) bool {
+	return entry.Block.ShardId != types.MainShardId && entry.BatchId == batchId
 }
 
 func (bs *blockStorage) validateMainShardEntry(tx db.RoTx, id scTypes.BlockId, entry *blockEntry) error {

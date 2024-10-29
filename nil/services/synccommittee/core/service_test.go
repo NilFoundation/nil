@@ -103,16 +103,16 @@ func (s *SyncCommitteeTestSuite) SetupTest() {
 
 func (s *SyncCommitteeTestSuite) TestCreateProofTasks() {
 	fstMainBlock := testaide.GenerateMainShardBlock()
-	err := s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, fstMainBlock)
+	err := s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, fstMainBlock, fstMainBlock.Hash)
 	s.Require().NoError(err)
 
 	sndMainBlock := testaide.GenerateMainShardBlock()
 	sndMainBlock.Number = fstMainBlock.Number + 1
 	sndMainBlock.ParentHash = fstMainBlock.Hash
-	err = s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, sndMainBlock)
+	err = s.syncCommittee.aggregator.blockStorage.SetBlock(s.ctx, sndMainBlock, sndMainBlock.Hash)
 	s.Require().NoError(err)
 
-	err = s.syncCommittee.aggregator.createProofTask(s.ctx, sndMainBlock)
+	err = s.syncCommittee.aggregator.createProofTask(s.ctx, sndMainBlock, sndMainBlock.Hash)
 	s.Require().NoError(err)
 }
 
