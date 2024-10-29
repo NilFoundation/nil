@@ -36,7 +36,7 @@ func setFlags(cmd *cobra.Command) {
 	cmd.Flags().Var(
 		types.NewShardId(&params.shardId, types.BaseShardId),
 		shardIdFlag,
-		"Specify the shard id to interact with",
+		"Specify the shard ID to interact with",
 	)
 }
 
@@ -57,7 +57,7 @@ func runCommand(cfgPath *string, args []string) error {
 	if hash != libcommon.EmptyHash {
 		msgDataJson, err := service.FetchMessageByHashJson(params.shardId, hash)
 		if err != nil {
-			logger.Error().Err(err).Msg("Failed to fetch message")
+			logger.Error().Err(err).Msg("Failed to fetch the message")
 			return err
 		}
 		if !config.Quiet {

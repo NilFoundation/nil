@@ -14,7 +14,7 @@ import (
 func GetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cometa [options]",
-		Short: "Interact with Cometa service",
+		Short: "Interact with the Cometa service",
 	}
 	cmd.AddCommand(GetInfoCommand())
 	cmd.AddCommand(GetDeployCommand())
@@ -32,8 +32,8 @@ func GetDeployCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Var(&params.address, "address", "Contract address")
-	cmd.Flags().StringVar(&params.inputJsonFile, "compile-input", "", "Compilation input JSON file")
+	cmd.Flags().Var(&params.address, "address", "The contract address")
+	cmd.Flags().StringVar(&params.inputJsonFile, "compile-input", "", "The JSON file with the compilation input")
 	if err := cmd.MarkFlagRequired("compile-input"); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -45,15 +45,15 @@ func GetDeployCommand() *cobra.Command {
 func GetInfoCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "info",
-		Short: "Get contract's metadata",
+		Short: "Acquire the metadata for a contract",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runInfoCommand(cmd)
 		},
 	}
 
-	cmd.Flags().StringVar(&params.saveToFile, "save-to", "", "Save metadata to file")
-	cmd.Flags().Var(&params.address, "address", "Contract address")
+	cmd.Flags().StringVar(&params.saveToFile, "save-to", "", "Save the metadata to a file")
+	cmd.Flags().Var(&params.address, "address", "The contract address")
 	if err := cmd.MarkFlagRequired("address"); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -67,17 +67,17 @@ func runRegisterCommand(_ *cobra.Command) error {
 
 	inputJsonData, err := os.ReadFile(params.inputJsonFile)
 	if err != nil {
-		return fmt.Errorf("failed to read input JSON file: %w", err)
+		return fmt.Errorf("failed to read the input JSON file: %w", err)
 	}
 
 	inputJson, err := normalizeCompileInput(string(inputJsonData), params.inputJsonFile)
 	if err != nil {
-		return fmt.Errorf("failed to normalize input JSON: %w", err)
+		return fmt.Errorf("failed to normalize the input JSON file: %w", err)
 	}
 
 	err = cometaClient.DeployContract(inputJson, params.address)
 	if err != nil {
-		return fmt.Errorf("failed to register contract: %w", err)
+		return fmt.Errorf("failed to register the contract: %w", err)
 	}
 
 	fmt.Printf("Contract metadata for address %s has been registered\n", params.address)
@@ -88,13 +88,13 @@ func runRegisterCommand(_ *cobra.Command) error {
 func normalizeCompileInput(inputJson, inputJsonFile string) (string, error) {
 	var input cometa.CompilerTask
 	if err := json.Unmarshal([]byte(inputJson), &input); err != nil {
-		return "", fmt.Errorf("failed to unmarshal input json: %w", err)
+		return "", fmt.Errorf("failed to unmarshal the input JSON file: %w", err)
 	}
 	if input.BasePath == "" {
 		input.BasePath = filepath.Dir(inputJsonFile)
 	}
 	if err := input.Normalize(); err != nil {
-		return "", fmt.Errorf("failed to normalize input json: %w", err)
+		return "", fmt.Errorf("failed to normalize the input JSON file: %w", err)
 	}
 	data, err := json.MarshalIndent(input, "", "  ")
 	return string(data), err
@@ -105,7 +105,7 @@ func runInfoCommand(_ *cobra.Command) error {
 
 	contract, err := cometa.GetContract(params.address)
 	if err != nil {
-		return fmt.Errorf("failed to get contract: %w", err)
+		return fmt.Errorf("failed to get the contract: %w", err)
 	}
 
 	if len(params.saveToFile) > 0 {
@@ -114,7 +114,7 @@ func runInfoCommand(_ *cobra.Command) error {
 			return fmt.Errorf("failed to marshal contract metadata to JSON: %w", err)
 		}
 		if err = os.WriteFile(params.saveToFile, data, 0o600); err != nil {
-			return fmt.Errorf("failed to save metadata to file: %w", err)
+			return fmt.Errorf("failed to save metadata to a file: %w", err)
 		}
 		fmt.Printf("Contract metadata for address %s has been saved to file '%s'\n", params.address, params.saveToFile)
 	} else {

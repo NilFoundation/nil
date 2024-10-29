@@ -13,7 +13,7 @@ import (
 func CreateCurrencyCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create-currency [address] [amount] [name]",
-		Short: "Create wallet/contract currency",
+		Short: "Create a custom currency",
 		Args:  cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreateCurrency(cmd, args, cfg)

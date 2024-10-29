@@ -13,8 +13,8 @@ import (
 func GetSendExternalMessageCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "send-external-message [address] [bytecode or method] [args...]",
-		Short: "Send external amessage to the smart contract",
-		Long:  "Send an external message to the smart contract with specified bytecode or command",
+		Short: "Send an external message to a smart contract",
+		Long:  "Send an external message to the smart contract with the specified bytecode or command",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSendExternalMessage(cmd, args, cfg)
@@ -29,21 +29,21 @@ func GetSendExternalMessageCommand(cfg *common.Config) *cobra.Command {
 		&params.abiPath,
 		abiFlag,
 		"",
-		"Path to ABI file",
+		"The path to the ABI file",
 	)
 
 	cmd.Flags().BoolVar(
 		&params.noSign,
 		noSignFlag,
 		false,
-		"Don't sign external message",
+		"Define whether the external message should be signed",
 	)
 
 	cmd.Flags().BoolVar(
 		&params.noWait,
 		noWaitFlag,
 		false,
-		"Wait for receipt",
+		"Define whether the command should wait for the receipt",
 	)
 
 	return cmd

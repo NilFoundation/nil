@@ -30,7 +30,7 @@ func setFlags(cmd *cobra.Command) {
 	cmd.Flags().Var(
 		types.NewShardId(&params.shardId, types.BaseShardId),
 		shardIdFlag,
-		"Specify the shard id to interact with",
+		"Specify the shard ID to interact with",
 	)
 
 	cmd.Flags().BoolVar(&params.jsonOutput, jsonFlag, false, "Enable JSON output")
@@ -43,7 +43,7 @@ func runCommand(_ *cobra.Command, args []string) error {
 
 	blockData, err := service.FetchDebugBlock(params.shardId, args[0], params.jsonOutput, params.fullOutput, params.noColor)
 	if err != nil {
-		logger.Error().Err(err).Msg("Failed to fetch block by number")
+		logger.Error().Err(err).Msg("Failed to fetch the block by number")
 		return err
 	}
 	fmt.Println(string(blockData))

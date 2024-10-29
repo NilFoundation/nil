@@ -13,7 +13,7 @@ import (
 func GetEstimateFeeCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "estimate-fee [address] [calldata or method] [args...]",
-		Short: "Returns recommended fee for the message",
+		Short: "Get the recommended fee credit for a message",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runEstimateFee(args, cfg)
@@ -21,10 +21,10 @@ func GetEstimateFeeCommand(cfg *common.Config) *cobra.Command {
 		SilenceUsage: true,
 	}
 
-	cmd.Flags().StringVar(&params.abiPath, abiFlag, "", "Path to ABI file")
-	cmd.Flags().Var(&params.value, valueFlag, "Value for transfer")
-	cmd.Flags().BoolVar(&params.internal, internalFlag, false, "Set \"internal\" flag")
-	cmd.Flags().BoolVar(&params.deploy, deployFlag, false, "Set \"deploy\" flag")
+	cmd.Flags().StringVar(&params.abiPath, abiFlag, "", "The path to the ABI file")
+	cmd.Flags().Var(&params.value, valueFlag, "The value for transfer")
+	cmd.Flags().BoolVar(&params.internal, internalFlag, false, "Set the \"internal\" flag")
+	cmd.Flags().BoolVar(&params.deploy, deployFlag, false, "Set the \"deploy\" flag")
 
 	return cmd
 }

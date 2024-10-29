@@ -15,7 +15,7 @@ func GetCommand() *cobra.Command {
 
 	keygenCmd := &cobra.Command{
 		Use:   "keygen",
-		Short: "Generate a new key or generate a key from a provided hex private key",
+		Short: "Generate a new key or generate a key from the provided hex private key",
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
 			privateKey := keygen.GetPrivateKey()
 			logger.Info().Msgf("Private key: %v", privateKey)
@@ -23,7 +23,7 @@ func GetCommand() *cobra.Command {
 			if err := common.PatchConfig(map[string]interface{}{
 				common.PrivateKeyField: privateKey,
 			}, false); err != nil {
-				logger.Error().Err(err).Msg("failed to update private key in config file")
+				logger.Error().Err(err).Msg("failed to update the private key in the config file")
 			}
 			return nil
 		},

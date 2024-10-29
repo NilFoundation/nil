@@ -12,7 +12,7 @@ import (
 func InfoCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "info",
-		Short: "Returns wallet's address and public key",
+		Short: "Get the address and the public key of the wallet set in the config file",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return infoBalance(cmd, args, cfg)

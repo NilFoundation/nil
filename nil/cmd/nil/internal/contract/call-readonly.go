@@ -14,8 +14,8 @@ import (
 func GetCallReadonlyCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "call-readonly [address] [calldata or method] [args...]",
-		Short: "Readonly call of a smart contract",
-		Long:  "Readonly call a smart contract with the given address and calldata",
+		Short: "Perform a read-only call to a smart contract",
+		Long:  "Perform a read-only call to the smart contract with the given address and calldata",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runCallReadonly(args, cfg)
@@ -27,35 +27,35 @@ func GetCallReadonlyCommand(cfg *common.Config) *cobra.Command {
 		&params.abiPath,
 		abiFlag,
 		"",
-		"Path to ABI file",
+		"The path to the ABI file",
 	)
 
 	params.feeCredit = types.GasToValue(100_000)
 	cmd.Flags().Var(
 		&params.feeCredit,
 		feeCreditFlag,
-		"Fee credit for read-only call",
+		"The fee credit for the read-only call",
 	)
 
 	cmd.Flags().StringVar(
 		&params.inOverridesPath,
 		inOverridesFlag,
 		"",
-		"Input state overrides",
+		"The input state overrides",
 	)
 
 	cmd.Flags().StringVar(
 		&params.outOverridesPath,
 		outOverridesFlag,
 		"",
-		"Output state overrides",
+		"The output state overrides",
 	)
 
 	cmd.Flags().BoolVar(
 		&params.withDetails,
 		withDetailsFlag,
 		false,
-		"Show coins used and outbound messages",
+		"Define whether to show the tokens used and outbound messages",
 	)
 
 	return cmd

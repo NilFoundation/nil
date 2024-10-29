@@ -13,8 +13,8 @@ import (
 func GetAddressCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "address [path to file] [args...]",
-		Short: "Calculate smart contract address",
-		Long:  "Calculate smart contract address by specified hex-bytecode from stdin or from file",
+		Short: "Calculate the address of a smart contract",
+		Long:  "Calculate the address of a smart contract by the specified hex-bytecode from stdin or from a file",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runAddress(cmd, args, cfg)
@@ -25,21 +25,21 @@ func GetAddressCommand(cfg *common.Config) *cobra.Command {
 	cmd.Flags().Var(
 		types.NewShardId(&params.shardId, types.BaseShardId),
 		shardIdFlag,
-		"Specify the shard id to interact with",
+		"Specify the shard ID to interact with",
 	)
 
 	params.salt = *types.NewUint256(0)
 	cmd.Flags().Var(
 		&params.salt,
 		saltFlag,
-		"Salt for deploy message",
+		"The salt for the deployment message",
 	)
 
 	cmd.Flags().StringVar(
 		&params.abiPath,
 		abiFlag,
 		"",
-		"Path to ABI file",
+		"The path to the ABI file",
 	)
 
 	return cmd

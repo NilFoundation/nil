@@ -16,7 +16,7 @@ var defaultNewWalletAmount = types.NewValueFromUint64(100_000_000)
 func NewCommand(cfg *common.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
 		Use:   "new",
-		Short: "Create new wallet with initial value on the cluster",
+		Short: "Create a new wallet with some initial balance on the cluster",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runNew(cmd, args, cfg)
 		},
@@ -33,25 +33,25 @@ func setFlags(cmd *cobra.Command) {
 	cmd.Flags().Var(
 		&params.salt,
 		saltFlag,
-		"Salt for wallet address calculation")
+		"The salt for the wallet address calculation")
 
 	cmd.Flags().Var(
 		types.NewShardId(&params.shardId, types.BaseShardId),
 		shardIdFlag,
-		"Specify the shard id to interact with",
+		"Specify the shard ID to interact with",
 	)
 
 	cmd.Flags().Var(
 		&params.feeCredit,
 		feeCreditFlag,
-		"Fee credit for wallet creation. If 0 will be estimated automatically",
+		"The fee credit for wallet creation. If set to 0, it will be estimated automatically",
 	)
 
 	params.newWalletAmount = defaultNewWalletAmount
 	cmd.Flags().Var(
 		&params.newWalletAmount,
 		amountFlag,
-		"Start balance (capped at 10'000'000). Deployment fee will be subtracted",
+		"The initial balance (capped at 10'000'000). The deployment fee will be subtracted from this balance",
 	)
 }
 
@@ -59,12 +59,12 @@ func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
 	amount := params.newWalletAmount
 	if amount.Cmp(defaultNewWalletAmount) > 0 {
 		logger.Warn().
-			Msgf("Specified balance (%s) is greater than a limit (%s). Decrease it.", &params.newWalletAmount, defaultNewWalletAmount)
+			Msgf("The specified balance (%s) is greater than the limit (%s). Decrease it.", &params.newWalletAmount, defaultNewWalletAmount)
 		amount = defaultNewWalletAmount
 	}
 
 	srv := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey)
-	check.PanicIfNotf(cfg.PrivateKey != nil, "Private key doesn't set in config")
+	check.PanicIfNotf(cfg.PrivateKey != nil, "A private key is not set in the config file")
 	walletAddress, err := srv.CreateWallet(params.shardId, &params.salt, amount, params.feeCredit, &cfg.PrivateKey.PublicKey)
 	if err != nil {
 		return err
@@ -73,7 +73,7 @@ func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
 	if err := common.PatchConfig(map[string]interface{}{
 		common.AddressField: walletAddress.Hex(),
 	}, false); err != nil {
-		logger.Error().Err(err).Msg("failed to update wallet address in config file")
+		logger.Error().Err(err).Msg("failed to update the wallet address in the config file")
 	}
 
 	if !config.Quiet {

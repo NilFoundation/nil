@@ -29,7 +29,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 
 	shardsCmd := &cobra.Command{
 		Use:          "shards",
-		Short:        "Print list of shards",
+		Short:        "Print a list of shards",
 		Args:         cobra.ExactArgs(0),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -48,7 +48,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 
 	gasPriceCmd := &cobra.Command{
 		Use:          "gas-price [shard-id]",
-		Short:        "Returns gas price for specific shard",
+		Short:        "Get the gas price for a specific shard",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -73,7 +73,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 
 	chainIdCmd := &cobra.Command{
 		Use:          "chain-id",
-		Short:        "Returns chainId of current network",
+		Short:        "Returns the chain ID of the current network",
 		Args:         cobra.ExactArgs(0),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

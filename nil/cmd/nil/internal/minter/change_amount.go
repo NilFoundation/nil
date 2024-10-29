@@ -19,7 +19,7 @@ func ChangeCurrencyAmountCommand(cfg *common.Config, mint bool) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   strings.ToLower(method) + "-currency [address] [amount]",
-		Short: method + " wallet/contract currency",
+		Short: method + " a custom currency",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runChangeCurrencyAmount(cmd, args, cfg, mint)

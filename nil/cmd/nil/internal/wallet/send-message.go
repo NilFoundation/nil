@@ -13,8 +13,8 @@ import (
 func SendMessageCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "send-message [address] [bytecode or method] [args...]",
-		Short: "Send a message to the smart contract via the wallet",
-		Long:  "Send a message to the smart contract with specified bytecode or command via the wallet",
+		Short: "Send a message to a smart contract via the wallet",
+		Long:  "Send a message to the smart contract with the specified bytecode or command via the wallet",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSend(cmd, args, cfg)
@@ -26,32 +26,32 @@ func SendMessageCommand(cfg *common.Config) *cobra.Command {
 		&params.abiPath,
 		abiFlag,
 		"",
-		"Path to ABI file",
+		"The path to the ABI file",
 	)
 
 	cmd.Flags().Var(
 		&params.amount,
 		amountFlag,
-		"Amount of tokens to send",
+		"The amount of default tokens to send",
 	)
 
 	cmd.Flags().BoolVar(
 		&params.noWait,
 		noWaitFlag,
 		false,
-		"Wait for receipt",
+		"Define whether the command should wait for the receipt",
 	)
 
 	cmd.Flags().Var(
 		&params.feeCredit,
 		feeCreditFlag,
-		"Fee credit",
+		"The fee credit for message processing",
 	)
 
 	cmd.Flags().StringArrayVar(&params.currencies,
 		tokenFlag,
 		nil,
-		"Token to transfer in format '<currencyId>=<amount>', can be used multiple times",
+		"The custom currencies to transfer in as a map 'currencyId=amount', can be set multiple times",
 	)
 
 	return cmd

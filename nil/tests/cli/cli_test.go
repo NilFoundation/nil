@@ -511,7 +511,7 @@ func (s *SuiteCli) TestCliConfig() {
 
 	s.Run("Create config", func() {
 		res := s.RunCli("-c", cfgPath, "config", "init")
-		s.Contains(res, "Config initialized successfully: "+cfgPath)
+		s.Contains(res, "The config file has been initialized successfully: "+cfgPath)
 	})
 
 	s.Run("Set config value", func() {

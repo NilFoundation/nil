@@ -8,7 +8,7 @@ import (
 func GetCommand(cfg *common.Config) *cobra.Command {
 	serverCmd := &cobra.Command{
 		Use:   "contract",
-		Short: "Interact with contract on the cluster",
+		Short: "Interact with a contract on the cluster",
 	}
 
 	serverCmd.AddCommand(GetAddressCommand(cfg))

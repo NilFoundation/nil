@@ -41,12 +41,12 @@ type ReceiptInfo struct {
 func GetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "debug [options] message hash",
-		Short: "Debug message",
+		Short: "Debug a message",
 		Args:  cobra.ExactArgs(1),
 		RunE:  runCommand,
 	}
 
-	cmd.Flags().Uint64("pc", invalidPc, "Specify Program Counter to debug")
+	cmd.Flags().Uint64("pc", invalidPc, "Specify the Program Counter to debug")
 
 	return cmd
 }
@@ -68,11 +68,11 @@ func (d *DebugHandler) GetContract(address types.Address) (*cometa.Contract, err
 	}
 	contractData, err := d.CometaClient.GetContract(address)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch contract data: %w", err)
+		return nil, fmt.Errorf("failed to fetch the contract data: %w", err)
 	}
 	contract, err = cometa.NewContractFromData(contractData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create contract from data: %w", err)
+		return nil, fmt.Errorf("failed to create a contract from the data: %w", err)
 	}
 	d.contractsCache[address] = contract
 	return contract, nil
@@ -85,7 +85,7 @@ func (d *DebugHandler) GetMessage(receipt *jsonrpc.RPCReceipt) (*jsonrpc.RPCInMe
 	}
 	msg, err := d.Service.FetchMessageByHash(receipt.ContractAddress.ShardId(), receipt.MsgHash)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch contract data: %w", err)
+		return nil, fmt.Errorf("failed to fetch the contract data: %w", err)
 	}
 	d.messageCache[receipt.MsgHash] = msg
 	return msg, nil
@@ -110,7 +110,7 @@ func (d *DebugHandler) CollectReceiptsRec(parentReceipt *ReceiptInfo, receipt *j
 	}
 	msg, err := d.GetMessage(receipt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch message: %w", err)
+		return nil, fmt.Errorf("failed to fetch a message: %w", err)
 	}
 	receiptInfo := &ReceiptInfo{
 		Index:    msgIndex,
@@ -149,7 +149,7 @@ func (d *DebugHandler) SelectFailedReceipts() []*ReceiptInfo {
 func (d *DebugHandler) PrintSourceLocation(receipt *ReceiptInfo, loc *cometa.LineLocation) error {
 	lines, err := receipt.Contract.GetSourceLines(loc.FileName)
 	if err != nil {
-		return fmt.Errorf("Failed to fetch source lines: %w\n", err)
+		return fmt.Errorf("Failed to fetch the source lines: %w\n", err)
 	}
 	startLine := int(loc.Line) - 3
 	if startLine < 1 {
@@ -163,7 +163,7 @@ func (d *DebugHandler) PrintSourceLocation(receipt *ReceiptInfo, loc *cometa.Lin
 	if (uint(len(lines[loc.Line-1])) - loc.Column) < length {
 		length = uint(len(lines[loc.Line-1])) - loc.Column + 1
 	}
-	fmt.Printf("Failed location for message #%d: %s\n", receipt.Index, color.RedString(loc.String()))
+	fmt.Printf("Failed location for the message #%d: %s\n", receipt.Index, color.RedString(loc.String()))
 	for i := startLine; i <= endLine; i++ {
 		fmt.Printf("%5d: %s\n", i, lines[i-1])
 		if i == int(loc.Line) {
@@ -187,14 +187,14 @@ func (d *DebugHandler) ShowFailures() {
 			continue
 		}
 		if receipt.Contract == nil {
-			color.Red("Failed to fetch contract for message #%d\n", receipt.Index)
+			color.Red("Failed to fetch the contract for the message #%d\n", receipt.Index)
 			continue
 		}
 		loc, err := receipt.Contract.GetLineLocation(receipt.Receipt.FailedPc)
 		if err != nil {
-			color.Red("Failed to fetch location: %v\n", err)
+			color.Red("Failed to fetch the location: %v\n", err)
 		} else if err = d.PrintSourceLocation(receipt, loc); err != nil {
-			color.Red("Failed to print source location: %v", err)
+			color.Red("Failed to print the source location: %v", err)
 		}
 	}
 }
@@ -285,7 +285,7 @@ func runCommand(_ *cobra.Command, args []string) error {
 
 	receipt, err := service.FetchReceiptByHash(shardId, msgHash)
 	if err != nil {
-		logger.Error().Err(err).Msg("Failed to fetch receipt")
+		logger.Error().Err(err).Msg("Failed to fetch the receipt")
 		return err
 	}
 	if receipt == nil {
@@ -293,7 +293,7 @@ func runCommand(_ *cobra.Command, args []string) error {
 	}
 
 	if err = debugHandler.CollectReceipts(receipt); err != nil {
-		logger.Error().Err(err).Msg("Failed to collect receipts")
+		logger.Error().Err(err).Msg("Failed to collect the receipts")
 		return err
 	}
 

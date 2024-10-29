@@ -15,8 +15,8 @@ import (
 func CallReadonlyCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "call-readonly [address] [calldata or method] [args...]",
-		Short: "Readonly call of a smart contract via a wallet",
-		Long:  "Readonly call a smart contract with the given address and calldata via wallet",
+		Short: "Perform a read-only call to a smart contract",
+		Long:  "Perform a read-only call to the smart contract with the given address and calldata",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runCallReadonly(args, cfg)
@@ -28,35 +28,35 @@ func CallReadonlyCommand(cfg *common.Config) *cobra.Command {
 		&params.abiPath,
 		abiFlag,
 		"",
-		"Path to ABI file",
+		"The path to the ABI file",
 	)
 
 	params.feeCredit = types.GasToValue(100_000)
 	cmd.Flags().Var(
 		&params.feeCredit,
 		feeCreditFlag,
-		"Fee credit for read-only call",
+		"The fee credit for the read-only call",
 	)
 
 	cmd.Flags().StringVar(
 		&params.inOverridesPath,
 		inOverridesFlag,
 		"",
-		"Input state overrides",
+		"The input state overrides",
 	)
 
 	cmd.Flags().StringVar(
 		&params.outOverridesPath,
 		outOverridesFlag,
 		"",
-		"Output state overrides",
+		"The output state overrides",
 	)
 
 	cmd.Flags().BoolVar(
 		&params.withDetails,
 		withDetailsFlag,
 		false,
-		"Show coins used and outbound messages",
+		"Define whether to show the tokens used and outbound messages",
 	)
 
 	return cmd
@@ -95,7 +95,7 @@ func runCallReadonly(args []string, cfg *common.Config) error {
 
 	handler := func(res *jsonrpc.CallRes) ([]*common.ArgValue, error) {
 		if res.Error != "" {
-			return nil, fmt.Errorf("error during sending message to the wallet: %s", res.Error)
+			return nil, fmt.Errorf("error during sending the message to the wallet: %s", res.Error)
 		}
 
 		if outMsgLen := len(res.OutMessages); outMsgLen != 1 {
@@ -103,7 +103,7 @@ func runCallReadonly(args []string, cfg *common.Config) error {
 		}
 
 		if outMsgErr := res.OutMessages[0].Error; outMsgErr != "" {
-			return nil, fmt.Errorf("error during processing wallet message: %s", outMsgErr)
+			return nil, fmt.Errorf("error during processing the wallet message: %s", outMsgErr)
 		}
 
 		return common.CalldataToArgs(params.abiPath, args[1], res.OutMessages[0].Data)

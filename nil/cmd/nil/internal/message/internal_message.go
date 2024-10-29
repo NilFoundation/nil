@@ -24,7 +24,7 @@ func GetInternalMessageCommand() *cobra.Command {
 
 	encodeCmd := &cobra.Command{
 		Use:   "encode-internal",
-		Short: "Encode internal message",
+		Short: "Encode an internal message",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(_ *cobra.Command, args []string) error {
 			message := &types.InternalMessagePayload{
@@ -70,56 +70,56 @@ func GetInternalMessageCommand() *cobra.Command {
 	encodeCmd.Flags().Var(
 		&kind,
 		kindFlag,
-		"Message kind [execution|deploy|refund]",
+		"The message type [execution|deploy|refund]",
 	)
 
 	encodeCmd.Flags().BoolVarP(
 		&bounce,
 		bounceFlag, bounceFlagShort,
 		false,
-		"Bounce flag",
+		"Define whether the \"bounce\" flag is set",
 	)
 
 	encodeCmd.Flags().Var(
 		&feeCredit,
 		feeCreditFlag,
-		"Fee credit",
+		"The fee credit",
 	)
 
 	encodeCmd.Flags().Var(
 		&forwardKind,
 		forwardKindFlag,
-		"Forward kind [remaining|percentage|value|none]",
+		"The gas forward kind [remaining|percentage|value|none]",
 	)
 
 	encodeCmd.Flags().Var(
 		&to,
 		toFlag,
-		"Message destination address",
+		"The destination address for the message",
 	)
 
 	encodeCmd.Flags().Var(
 		&refundTo,
 		refundToFlag,
-		"Redund address",
+		"The redund address",
 	)
 
 	encodeCmd.Flags().Var(
 		&bounceTo,
 		bounceToFlag,
-		"Bounce address",
+		"The bounce address",
 	)
 
 	encodeCmd.Flags().Var(
 		&value,
 		valueFlag,
-		"Value",
+		"The message value",
 	)
 
 	encodeCmd.Flags().Var(
 		&data,
 		dataFlag,
-		"Data",
+		"The message data",
 	)
 	check.PanicIfErr(encodeCmd.MarkFlagRequired(dataFlag))
 
