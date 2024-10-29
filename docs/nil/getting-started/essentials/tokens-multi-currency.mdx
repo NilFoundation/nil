@@ -4,7 +4,7 @@ This tutorial explains how =nil; handles tokens and multi-currency operations.
 
 ## Definition
 
-=nil; supplies a basic 'default' currency (MZK). 
+=nil; supplies a basic 'default' currency (NIL).
 
 The network also has a multi-currency mechanism. All accounts (smart contracts) can be paid in any number of arbitrary currencies created either by the account owner or other accounts. 
 
@@ -76,7 +76,7 @@ Create a new currency for Wallet 2 and send it to Wallet 1:
 
 ## Currency faucet service
 
-The currency faucet is a special service whose main purpose is to distribute default cluster tokens (MZK) that are used to pay for contract deployment and message execution. In addition, the faucet also distributes various pre-set 'mock' currencies such as USDC and BTC.
+The currency faucet is a special service whose main purpose is to distribute default cluster tokens (NIL) that are used to pay for contract deployment and message execution. In addition, the faucet also distributes various pre-set 'mock' currencies such as USDC and BTC.
 
 Each currency faucet resides at a different address. To withdraw a specific currency, simply call the corresponding address using the `faucet_TopUpViaFaucet` method.
 
@@ -103,7 +103,7 @@ Expected response:
   "result":{
   "BTC":"0x0001111111111111111111111111111111111114",
   "ETH":"0x0001111111111111111111111111111111111112",
-  "MZK":"0x000100000000000000000000000000000fa00ce7",
+  "NIL":"0x000100000000000000000000000000000fa00ce7",
   "USDT":"0x0001111111111111111111111111111111111113"}
 }
 ```
