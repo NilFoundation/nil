@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -1646,4 +1647,42 @@ func (es *ExecutionState) UpdateGasPrice() {
 	if es.GasPrice.Cmp(types.DefaultGasPrice) < 0 {
 		es.GasPrice = types.DefaultGasPrice
 	}
+}
+
+func (es ExecutionState) MarshalJSON() ([]byte, error) {
+	data := struct {
+		ContractTreeRoot   common.Hash                              `json:"contractTreeRoot"`
+		InMessageTreeRoot  common.Hash                              `json:"inMessageTreeRoot"`
+		OutMessageTreeRoot common.Hash                              `json:"outMessageTreeRoot"`
+		ReceiptTreeRoot    common.Hash                              `json:"receiptTreeRoot"`
+		PrevBlock          common.Hash                              `json:"prevBlock"`
+		MainChainHash      common.Hash                              `json:"mainChainHash"`
+		ShardId            types.ShardId                            `json:"shardId"`
+		ChildChainBlocks   map[types.ShardId]common.Hash            `json:"childChainBlocks"`
+		GasPrice           types.Value                              `json:"gasPrice"`
+		InMessages         []*types.Message                         `json:"inMessages"`
+		InMessageHashes    []common.Hash                            `json:"inMessageHashes"`
+		OutMessages        map[common.Hash][]*types.OutboundMessage `json:"outMessages"`
+		Receipts           []*types.Receipt                         `json:"receipts"`
+		Errors             map[common.Hash]error                    `json:"errors"`
+		GasPriceScale      float64                                  `json:"gasPriceScale"`
+	}{
+		ContractTreeRoot:   es.ContractTree.RootHash(),
+		InMessageTreeRoot:  es.InMessageTree.RootHash(),
+		OutMessageTreeRoot: es.OutMessageTree.RootHash(),
+		ReceiptTreeRoot:    es.ReceiptTree.RootHash(),
+		PrevBlock:          es.PrevBlock,
+		MainChainHash:      es.MainChainHash,
+		ShardId:            es.ShardId,
+		ChildChainBlocks:   es.ChildChainBlocks,
+		GasPrice:           es.GasPrice,
+		InMessages:         es.InMessages,
+		InMessageHashes:    es.InMessageHashes,
+		OutMessages:        es.OutMessages,
+		Receipts:           es.Receipts,
+		Errors:             es.Errors,
+		GasPriceScale:      es.gasPriceScale,
+	}
+
+	return json.Marshal(data)
 }

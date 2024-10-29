@@ -2,6 +2,8 @@ package execution
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -21,18 +23,18 @@ type BlockGeneratorParams struct {
 }
 
 type Proposal struct {
-	PrevBlockId   types.BlockNumber
-	PrevBlockHash common.Hash
-	CollatorState types.CollatorState
-	MainChainHash common.Hash
-	ShardHashes   map[types.ShardId]common.Hash
+	PrevBlockId   types.BlockNumber             `json:"prevBlockId"`
+	PrevBlockHash common.Hash                   `json:"prevBlockHash"`
+	CollatorState types.CollatorState           `json:"-"`
+	MainChainHash common.Hash                   `json:"mainChainHash"`
+	ShardHashes   map[types.ShardId]common.Hash `json:"shardHashes"`
 
-	InMsgs      []*types.Message
-	ForwardMsgs []*types.Message
+	InMsgs      []*types.Message `json:"inMsgs"`
+	ForwardMsgs []*types.Message `json:"forwardMsgs"`
 
 	// In the future, collator should remove messages from the pool itself after the consensus on the proposal.
 	// Currently, we need to remove them after the block was committed, or they may be lost.
-	RemoveFromPool []*types.Message
+	RemoveFromPool []*types.Message `json:"-"`
 }
 
 func NewEmptyProposal() *Proposal {
@@ -107,10 +109,26 @@ func (g *BlockGenerator) GenerateZeroState(zeroStateYaml string, config *ZeroSta
 	return b, err
 }
 
-func (g *BlockGenerator) GenerateBlock(proposal *Proposal) (*types.Block, []*types.Message, error) {
+func (g *BlockGenerator) GenerateBlock(proposal *Proposal, logger zerolog.Logger) (*types.Block, []*types.Message, error) {
 	if g.executionState.PrevBlock != proposal.PrevBlockHash {
 		// This shouldn't happen currently, because a new block cannot appear between collator and block generator calls.
-		panic("Proposed previous block hash doesn't match the current state.")
+		esJson, err := g.executionState.MarshalJSON()
+		if err != nil {
+			logger.Err(err).Msg("Failed to marshal execution state")
+		}
+		proposalJson, err := json.Marshal(proposal)
+		if err != nil {
+			logger.Err(err).Msg("Failed to marshal block proposal")
+		}
+
+		logger.Debug().Msgf(
+			"Proposed previous block hash doesn't match the current state. Expected: %s, got: %s. Execution state: %s, Proposal: %s",
+			g.executionState.PrevBlock, proposal.PrevBlockHash, esJson, proposalJson)
+
+		panic(
+			fmt.Sprintf("Proposed previous block hash doesn't match the current state. Expected: %s, got: %s",
+				g.executionState.PrevBlock, proposal.PrevBlockHash),
+		)
 	}
 
 	g.executionState.UpdateGasPrice()
