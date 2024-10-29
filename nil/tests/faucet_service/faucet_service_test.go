@@ -63,12 +63,7 @@ func (s *FaucetRpc) TearDownTest() {
 }
 
 func (s *FaucetRpc) TestSendRawTransaction() {
-	faucets := map[string]types.Address{
-		"BTC":  types.BtcFaucetAddress,
-		"ETH":  types.EthFaucetAddress,
-		"MZK":  types.FaucetAddress,
-		"USDT": types.UsdtFaucetAddress,
-	}
+	faucets := types.GetCurrencies()
 	res, err := s.client.GetFaucets()
 	s.Require().NoError(err)
 	s.Require().Equal(faucets, res)

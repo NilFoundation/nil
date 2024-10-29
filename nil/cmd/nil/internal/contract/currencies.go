@@ -30,12 +30,19 @@ func runCurrencies(_ *cobra.Command, args []string, cfg *common.Config) error {
 	}
 
 	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey)
-	currencies, _ := service.GetCurrencies(address)
+	currencies, err := service.GetCurrencies(address)
+	if err != nil {
+		return err
+	}
 	if !config.Quiet {
-		fmt.Print("Contract currencies: ")
+		fmt.Println("Contract currencies:")
 	}
 	for k, v := range currencies {
-		fmt.Printf("%v\t%v\n", k, v)
+		fmt.Printf("%s\t%s", k, v)
+		if name := types.GetCurrencyName(k); len(name) > 0 && !config.Quiet {
+			fmt.Printf("\t[%s]", name)
+		}
+		fmt.Println()
 	}
 	return nil
 }
