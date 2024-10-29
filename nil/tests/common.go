@@ -8,8 +8,11 @@ import (
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/NilFoundation/nil/nil/tools/solc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -76,4 +79,23 @@ func DeployContractViaWallet(
 	require.Equal(t, "Success", receipt.Status)
 	require.Len(t, receipt.OutReceipts, 1)
 	return addr, receipt
+}
+
+func LoadContract(t *testing.T, path string, name string) (types.Code, abi.ABI) {
+	t.Helper()
+
+	contracts, err := solc.CompileSource(path)
+	require.NoError(t, err)
+	code := hexutil.FromHex(contracts[name].Code)
+	abi := solc.ExtractABI(contracts[name])
+	return code, abi
+}
+
+func PrepareDefaultDeployPayload(t *testing.T, abi abi.ABI, code []byte, args ...any) types.DeployPayload {
+	t.Helper()
+
+	constructor, err := abi.Pack("", args...)
+	require.NoError(t, err)
+	code = append(code, constructor...)
+	return types.BuildDeployPayload(code, common.EmptyHash)
 }

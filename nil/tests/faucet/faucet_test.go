@@ -33,7 +33,7 @@ func (s *SuiteFaucet) SetupTest() {
 
 	time.Sleep(1 * time.Second)
 
-	s.client = s.StartRPCNode(10130)
+	s.client, _ = s.StartRPCNode(10130)
 }
 
 func (s *SuiteFaucet) TearDownTest() {
