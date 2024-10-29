@@ -100,6 +100,11 @@ export default {
       items: [
         {
           type: "doc",
+          label: "Debugging smart contracts",
+          id: "guides/cometa-and-debugging",
+        },
+        {
+          type: "doc",
           label: "Migrating existing dApps to =nil;",
           id: "guides/app-migration",
         },

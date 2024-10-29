@@ -1,4 +1,3 @@
-
 import { NODE_MODULES } from "./globals";
 
 //startRetailerCompilation
@@ -29,3 +28,7 @@ export const VALIDATOR_COMPILATION_COMMAND = `solc -o ./tests/Validator --bin --
 export const AWAITER_COMPILATION_COMMAND = `solc -o ./tests/Awaiter --bin --abi ./tests/Awaiter.sol --overwrite ${NODE_MODULES}`;
 
 export const SWAP_MATCH_COMPILATION_COMMAND = `solc -o ./tests/SwapMatch --abi --bin ./tests/SwapMatch.sol --overwrite ${NODE_MODULES}`;
+
+//startCounterBugCompilationCommand
+export const COUNTER_BUG_COMPILATION_COMMAND = `solc -o ./tests/CounterBug --bin --abi ./tests/CounterBug.sol --overwrite --no-cbor-metadata --metadata-hash none`;
+//endCounterBugCompilationCommand

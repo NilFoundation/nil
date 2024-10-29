@@ -1,4 +1,7 @@
-import {
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+
+const {
   Faucet,
   HttpTransport,
   LocalECDSAKeySigner,
@@ -11,16 +14,19 @@ import {
   externalDeploymentMessage,
   ExternalMessageEnvelope,
   hexToBytes,
-} from "@nilfoundation/niljs";
+} = require("@nilfoundation/niljs");
 
-const util = require('node:util');
-const exec = util.promisify(require('node:child_process').exec);
+const util = require("node:util");
+const exec = util.promisify(require("node:child_process").exec);
 
 import { RPC_GLOBAL } from "./globals";
 
-import TestHelper from './TestHelper';
+import TestHelper from "./TestHelper";
 
-import { RETAILER_COMPILATION_COMMAND, MANUFACTURER_COMPILATION_COMMAND } from "./compilationCommands";
+import {
+  RETAILER_COMPILATION_COMMAND,
+  MANUFACTURER_COMPILATION_COMMAND,
+} from "./compilationCommands";
 import { RETAILER_COMPILATION_PATTERN, MANUFACTURER_COMPILATION_PATTERN } from "./patterns";
 
 const RPC_ENDPOINT = RPC_GLOBAL;
@@ -39,7 +45,7 @@ let MANUFACTURER_BYTECODE;
 let MANUFACTURER_ABI;
 
 beforeAll(async () => {
-  let testHelper = new TestHelper({ configFileName: CONFIG_FILE_NAME });
+  const testHelper = new TestHelper({ configFileName: CONFIG_FILE_NAME });
   await testHelper.prepareTestCLI();
 });
 
@@ -48,33 +54,24 @@ afterAll(async () => {
 });
 
 describe.sequential("Nil.js deployment tests", async () => {
-  test.sequential(
-    "compiling of Retailer and Manufacturer is successful",
-    async () => {
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = path.dirname(__filename);
+  test.sequential("compiling of Retailer and Manufacturer is successful", async () => {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
 
-      let { stdout, stderr } = await exec(RETAILER_COMPILATION_COMMAND);
-      expect(stderr).toMatch(RETAILER_COMPILATION_PATTERN);
-      ({ stdout, stderr } = await exec(MANUFACTURER_COMPILATION_COMMAND));
-      expect(stdout).toMatch(MANUFACTURER_COMPILATION_PATTERN);
+    let { stdout, stderr } = await exec(RETAILER_COMPILATION_COMMAND);
+    expect(stderr).toMatch(RETAILER_COMPILATION_PATTERN);
+    ({ stdout, stderr } = await exec(MANUFACTURER_COMPILATION_COMMAND));
+    expect(stdout).toMatch(MANUFACTURER_COMPILATION_PATTERN);
 
-      RETAILER_BYTECODE = `0x${fs.readFileSync(path.join(__dirname, "./Retailer/Retailer.bin"), "utf-8")}`;
-      RETAILER_ABI = JSON.parse(
-        fs.readFileSync(
-          path.join(__dirname, "./Retailer/Retailer.abi"),
-          "utf-8",
-        ),
-      );
-      MANUFACTURER_BYTECODE = `0x${fs.readFileSync(path.join(__dirname, "./Manufacturer/Manufacturer.bin"), "utf-8")}`;
-      MANUFACTURER_ABI = JSON.parse(
-        fs.readFileSync(
-          path.join(__dirname, "./Manufacturer/Manufacturer.abi"),
-          "utf-8",
-        ),
-      );
-    },
-  );
+    RETAILER_BYTECODE = `0x${fs.readFileSync(path.join(__dirname, "./Retailer/Retailer.bin"), "utf-8")}`;
+    RETAILER_ABI = JSON.parse(
+      fs.readFileSync(path.join(__dirname, "./Retailer/Retailer.abi"), "utf-8"),
+    );
+    MANUFACTURER_BYTECODE = `0x${fs.readFileSync(path.join(__dirname, "./Manufacturer/Manufacturer.bin"), "utf-8")}`;
+    MANUFACTURER_ABI = JSON.parse(
+      fs.readFileSync(path.join(__dirname, "./Manufacturer/Manufacturer.abi"), "utf-8"),
+    );
+  });
 
   test.skip.sequential(
     "internal deployment: Retailer and Manufacturer can exchange messages",
@@ -117,11 +114,7 @@ describe.sequential("Nil.js deployment tests", async () => {
           shardId: 1,
         });
 
-      const receiptsRetailer = await waitTillCompleted(
-        client,
-        1,
-        retailerDeploymentHash,
-      );
+      const receiptsRetailer = await waitTillCompleted(client, 1, retailerDeploymentHash);
       //endInternalDeployOfRetailer
       expect(receiptsRetailer.some((receipt) => !receipt.success)).toBe(false);
       const retailerCode = await client.getCode(retailerAddress, "latest");
@@ -148,29 +141,17 @@ describe.sequential("Nil.js deployment tests", async () => {
           shardId: 2,
         });
 
-      const manufacturerReceipts = await waitTillCompleted(
-        client,
-        1,
-        manufacturerDeploymentHash,
-      );
+      const manufacturerReceipts = await waitTillCompleted(client, 1, manufacturerDeploymentHash);
       //endInternalDeployOfManufacturer
 
-      expect(manufacturerReceipts.some((receipt) => !receipt.success)).toBe(
-        false,
-      );
-      const manufacturerCode = await client.getCode(
-        manufacturerAddress,
-        "latest",
-      );
+      expect(manufacturerReceipts.some((receipt) => !receipt.success)).toBe(false);
+      const manufacturerCode = await client.getCode(manufacturerAddress, "latest");
 
       expect(manufacturerCode).toBeDefined();
       expect(manufacturerCode.length).toBeGreaterThan(10);
 
       //startRetailerSendsMessageToManufacturer
-      const hashFunds = await faucet.withdrawToWithRetry(
-        retailerAddress,
-        5_000_000n,
-      );
+      const hashFunds = await faucet.withdrawToWithRetry(retailerAddress, 5_000_000n);
 
       await waitTillCompleted(client, 1, hashFunds);
 
@@ -226,7 +207,6 @@ describe.sequential("Nil.js deployment tests", async () => {
         }),
         shardId: 1,
       });
-
 
       const faucet = new Faucet(client);
       const signer = new LocalECDSAKeySigner({
@@ -293,10 +273,7 @@ describe.sequential("Nil.js deployment tests", async () => {
       await waitTillCompleted(clientTwo, 2, receiptsManufacturer);
       //endExternalDeployOfManufacturer
 
-      const codeManufacturer = await client.getCode(
-        addressManufacturer,
-        "latest",
-      );
+      const codeManufacturer = await client.getCode(addressManufacturer, "latest");
 
       expect(codeManufacturer).toBeDefined();
       expect(codeManufacturer.length).toBeGreaterThan(10);
@@ -324,20 +301,14 @@ describe.sequential("Nil.js deployment tests", async () => {
 
       while (!success) {
         try {
-          orderMessageHash = await client.sendRawMessage(
-            bytesToHex(encodedOrderMessage),
-          );
+          orderMessageHash = await client.sendRawMessage(bytesToHex(encodedOrderMessage));
           success = true;
         } catch (error) {
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
 
-      const orderReceipts = await waitTillCompleted(
-        client,
-        1,
-        orderMessageHash,
-      );
+      const orderReceipts = await waitTillCompleted(client, 1, orderMessageHash);
       //endExternalSendMessageToRetailer
       expect(orderReceipts.some((receipt) => !receipt.success)).toBe(false);
     },

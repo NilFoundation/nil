@@ -22,7 +22,7 @@ rm -f config.ini
 rm -rf test.db
 
 nild run --http-port 8529 --collator-tick-ms=100 >nild.log 2>&1 &
-NILD_PID=$!
+cometa run -c $COMETA_CONFIG --use-badger &
 sleep 2
 
 if CI=true npm run test:useNilD; then

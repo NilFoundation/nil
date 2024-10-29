@@ -1,0 +1,17 @@
+{
+  "contractName": "CounterBug.sol:CounterBug",
+  "compilerVersion": "0.8.21",
+  "settings": {
+    "evmVersion": "shanghai",
+    "optimizer": {
+      "enabled": false,
+      "runs": 200
+    }
+  },
+  "sources": {
+    "CounterBug.sol": {
+      "urls": ["./CounterBug.sol"]
+    }
+
+  }
+}

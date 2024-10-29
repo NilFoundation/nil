@@ -1,4 +1,4 @@
-{ lib, stdenv, npmHooks, nodejs, nil, openssl, fetchNpmDeps, callPackage, autoconf, automake, libtool, solc, enableTesting ? false }:
+{ lib, stdenv, npmHooks, nodejs, nil, openssl, fetchNpmDeps, callPackage, autoconf, automake, libtool, solc, solc-select, enableTesting ? false }:
 
 
 stdenv.mkDerivation rec {
@@ -28,9 +28,16 @@ stdenv.mkDerivation rec {
     automake
     libtool
     solc
+    solc-select
   ];
 
   dontConfigure = true;
+
+  preBuild = ''
+    export HOME="$TMPDIR"
+    mkdir -p ~/.gsolc-select/artifacts/solc-0.8.21
+    ln -f -s ${solc}/bin/solc ~/.gsolc-select/artifacts/solc-0.8.21/solc-0.8.21
+  '';
 
   buildPhase = ''
     patchShebangs docs/node_modules
@@ -40,9 +47,10 @@ stdenv.mkDerivation rec {
     export NILJS_SRC=${./niljs}
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
     export CMD_NIL=${./nil/cmd/nil/internal}
+    export COMETA_CONFIG=${./docs/tests/cometa.yaml}
     cd docs
     npm run build
-    
+    solc --version
   '';
 
 
@@ -58,6 +66,9 @@ stdenv.mkDerivation rec {
     export NILJS_SRC=${./niljs}
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
     export CMD_NIL=${./nil/cmd/nil/internal}
+    export COMETA_CONFIG=${./docs/tests/cometa.yaml}
+    mkdir -p ~/.solc-select/artifacts/solc-0.8.21
+    ln -f -s ${solc}/bin/solc ~/.solc-select/artifacts/solc-0.8.21/solc-0.8.21
   '';
 
   installPhase = ''

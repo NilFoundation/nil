@@ -25,7 +25,7 @@ Although each shard has its own mempool, there are no restrictions for the parti
 
 ### Message passing checks
 
-To support [**cross-shard communications**](../principles#cross-shard-communication), execution shards must record all necessary outgoing messages posted in other execution shards.
+To support [**cross-shard communications**](../getting-started/essentials/handling-async-execution.mdx), execution shards must record all necessary outgoing messages posted in other execution shards.
 
 Each message contains information about its destination account. If a shard sees that a message targets one of the accounts in the shard, the shard must include this message in its next block. Such outgoing messages are called necessary messages and new blocks are considered invalid unless they include all necessary messages.
 
@@ -77,7 +77,7 @@ The key stages of this flow are:
 2. Shard 2 must copy this message and execute it
 3. When Shard 2 processes the message, Contract 2 executes the function that Contract 1 called
 
-For an in-depth explanation of how to perform and manage async calls, [**read this tutorial**](../getting-started/essentials/handling-async-execution).
+For an in-depth explanation of how to perform and manage async calls, [**read this tutorial**](../getting-started/essentials/handling-async-execution.mdx).
 
 :::info
 
@@ -121,7 +121,7 @@ Regardless of the message type, the 'payer' is tasked with purchasing gas equal 
 
 ## Consensus shard
 
-In contrast to execution shards, [**the consensus shard**](../principles#consensus-shard) is responsible for the following functions:
+In contrast to execution shards, [**the consensus shard**](../specification/principles.mdx) is responsible for the following functions:
 
 * Managing global consensus
 * Producing 'master' ZKPs for verifying global state changes
