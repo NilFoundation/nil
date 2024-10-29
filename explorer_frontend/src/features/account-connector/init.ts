@@ -43,7 +43,7 @@ import {
   addHexPrefix,
 } from "@nilfoundation/niljs";
 import { sendMethodFx } from "../contracts/model";
-import { $faucets, $faucetsEndpoint } from "../currencies/model";
+import { $faucets } from "../currencies/model";
 import { sandboxRoute, sandboxWithHashRoute } from "../routing";
 import { loadedPage } from "../code/model";
 import { nilAddress } from "../currencies";
@@ -61,13 +61,13 @@ persistLocalStorage({
 $privateKey.on(setPrivateKey, (_, privateKey) => privateKey);
 $endpoint.on(setEndpoint, (_, endpoint) => endpoint);
 
-createWalletFx.use(async ({ privateKey, endpoint, faucetEndpoint }) => {
+createWalletFx.use(async ({ privateKey, endpoint }) => {
   const signer = new LocalECDSAKeySigner({ privateKey });
   const client = new PublicClient({
     transport: new HttpTransport({ endpoint }),
   });
   const faucetClient = new FaucetClient({
-    transport: new HttpTransport({ endpoint: faucetEndpoint }),
+    transport: new HttpTransport({ endpoint }),
   });
   const pubkey = await signer.getPublicKey();
   const wallet = new WalletV1({
@@ -154,18 +154,11 @@ createWalletFx.failData.watch((error) => {
 });
 
 forward({
-  from: combine(
-    $privateKey,
-    $endpoint,
-    $faucets,
-    $faucetsEndpoint,
-    (privateKey, endpoint, faucets, faucetEndpoint) => ({
-      privateKey,
-      endpoint,
-      faucets,
-      faucetEndpoint,
-    }),
-  ),
+  from: combine($privateKey, $endpoint, $faucets, (privateKey, endpoint, faucets) => ({
+    privateKey,
+    endpoint,
+    faucets,
+  })),
   to: createWalletFx,
 });
 
@@ -173,18 +166,11 @@ $wallet.reset($privateKey);
 $wallet.on(createWalletFx.doneData, (_, wallet) => wallet);
 
 sample({
-  source: combine(
-    $privateKey,
-    $endpoint,
-    $faucets,
-    $faucetsEndpoint,
-    (privateKey, endpoint, faucets, faucetEndpoint) => ({
-      privateKey,
-      endpoint,
-      faucets,
-      faucetEndpoint,
-    }),
-  ),
+  source: combine($privateKey, $endpoint, $faucets, (privateKey, endpoint, faucets) => ({
+    privateKey,
+    endpoint,
+    faucets,
+  })),
   clock: initilizeWallet,
   target: createWalletFx,
 });
@@ -248,10 +234,10 @@ persistSessionStorage({
 
 $topupInput.on(setTopupInput, (_, payload) => payload);
 
-topupWalletCurrencyFx.use(async ({ wallet, topupInput, faucets, endpoint, faucetEndpoint }) => {
+topupWalletCurrencyFx.use(async ({ wallet, topupInput, faucets, endpoint }) => {
   const { currency, amount } = topupInput;
   const faucetClient = new FaucetClient({
-    transport: new HttpTransport({ endpoint: faucetEndpoint }),
+    transport: new HttpTransport({ endpoint }),
   });
 
   const publicClient = new PublicClient({
@@ -279,20 +265,17 @@ sample({
     $topupInput,
     $faucets,
     $endpoint,
-    $faucetsEndpoint,
-    (wallet, topupInput, faucets, endpoint, faucetEndpoint) =>
+    (wallet, topupInput, faucets, endpoint) =>
       ({
         wallet,
         topupInput,
         faucets,
         endpoint,
-        faucetEndpoint,
       }) as {
         wallet: WalletV1;
         topupInput: { currency: string; amount: string };
         faucets: Record<string, Hex>;
         endpoint: string;
-        faucetEndpoint: string;
       },
   ),
   target: topupWalletCurrencyFx,
