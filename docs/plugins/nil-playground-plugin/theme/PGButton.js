@@ -16,8 +16,6 @@ const PGButton = ({ name }) => {
       },
     });
 
-    console.log(data);
-
     const jsonResponse = await data.json();
 
     const hash = jsonResponse[0]?.result?.data?.hash;

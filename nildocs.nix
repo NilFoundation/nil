@@ -39,6 +39,7 @@ stdenv.mkDerivation rec {
     (cd niljs; npm run build)
     export NILJS_SRC=${./niljs}
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
+    export CMD_NIL=${./nil/cmd/nil/internal}
     cd docs
     npm run build
     
@@ -56,6 +57,7 @@ stdenv.mkDerivation rec {
   shellHook = ''
     export NILJS_SRC=${./niljs}
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
+    export CMD_NIL=${./nil/cmd/nil/internal}
   '';
 
   installPhase = ''

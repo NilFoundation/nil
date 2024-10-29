@@ -20,7 +20,6 @@ export default async function nilPlaygroundPlugin(context, options) {
 
         for (const file of files) {
           const filePath = path.resolve(tests, file);
-          console.log(filePath);
           if (filePath.endsWith('.sol')) {
             const data = await fs.readFile(filePath, 'utf8');
             contractCodes[file] = data;

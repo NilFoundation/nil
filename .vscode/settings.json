@@ -6,7 +6,7 @@
     "go.lintTool": "golangci-lint",
     "go.lintFlags": ["--fast"],
     "[typescript]": {
-        "editor.defaultFormatter": "biomejs.biome"
+        "editor.defaultFormatter": "vscode.typescript-language-features"
     },
     "[typescriptreact]": {
         "editor.defaultFormatter": "biomejs.biome"
