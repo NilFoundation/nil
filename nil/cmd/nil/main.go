@@ -52,7 +52,7 @@ func main() {
 	rootCmd = &RootCommand{
 		baseCmd: &cobra.Command{
 			Use:   "nil",
-			Short: "CLI tool for interacting with the =nil; cluster",
+			Short: "The CLI tool for interacting with the =nil; cluster",
 			PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 				if !rootCmd.verbose {
 					zerolog.SetGlobalLevel(zerolog.Disabled)
@@ -89,7 +89,7 @@ func main() {
 		},
 	}
 
-	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.cfgFile, "config", "c", common.DefaultConfigPath, "Path to config file")
+	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.cfgFile, "config", "c", common.DefaultConfigPath, "The path to the config file")
 	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.logLevel, "log-level", "l", "info", "Log level: trace|debug|info|warn|error|fatal|panic")
 	rootCmd.baseCmd.PersistentFlags().BoolVarP(
 		&config.Quiet,

@@ -13,8 +13,8 @@ import (
 func SendTokensCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "send-tokens [address] [amount]",
-		Short: "Transfer tokens to specific address",
-		Long:  "Transfer some amount of tokens to specific address",
+		Short: "Transfer tokens to a specific address",
+		Long:  "Transfer some amount of tokens to a specific address",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTransfer(cmd, args, cfg)
@@ -26,19 +26,19 @@ func SendTokensCommand(cfg *common.Config) *cobra.Command {
 		&params.noWait,
 		noWaitFlag,
 		false,
-		"Wait for receipt",
+		"Define whether the command should wait for the receipt",
 	)
 
 	cmd.Flags().Var(
 		&params.feeCredit,
 		feeCreditFlag,
-		"Fee credit",
+		"The fee credit for processing the transfer",
 	)
 
 	cmd.Flags().StringArrayVar(&params.currencies,
 		tokenFlag,
 		nil,
-		"Token to transfer in format '<currencyId>=<amount>', can be used multiple times",
+		"The custom currencies to transfer in as a map 'currencyId=amount', can be set multiple times",
 	)
 
 	return cmd

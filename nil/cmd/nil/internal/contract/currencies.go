@@ -13,7 +13,7 @@ import (
 func GetCurrenciesCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "currencies [address]",
-		Short: "Returns a smart contract currencies balance as a map currencyId -> balance",
+		Short: "Get the currencies held by a smart contract as a map currencyId -> balance",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCurrencies(cmd, args, cfg)

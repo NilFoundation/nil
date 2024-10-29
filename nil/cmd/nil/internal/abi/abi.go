@@ -14,7 +14,7 @@ const pathFlag = "path"
 func GetCommand() *cobra.Command {
 	abiCmd := &cobra.Command{
 		Use:          "abi",
-		Short:        "Abi encoding/decoding",
+		Short:        "Perform contract ABI encoding/decoding",
 		SilenceUsage: true,
 	}
 
@@ -22,7 +22,7 @@ func GetCommand() *cobra.Command {
 
 	encodeCmd := &cobra.Command{
 		Use:          "encode [method] [args...]",
-		Short:        "Enconde contract call",
+		Short:        "Enconde a contract call",
 		Args:         cobra.MinimumNArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -38,7 +38,7 @@ func GetCommand() *cobra.Command {
 
 	decodeCmd := &cobra.Command{
 		Use:          "decode [method] [data]",
-		Short:        "Decode contract call result",
+		Short:        "Decode the result of a contract call",
 		Args:         cobra.MinimumNArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -64,7 +64,7 @@ func GetCommand() *cobra.Command {
 		&path,
 		pathFlag,
 		"",
-		"Path to ABI file",
+		"The path to the ABI file",
 	)
 	check.PanicIfErr(abiCmd.MarkPersistentFlagRequired(pathFlag))
 

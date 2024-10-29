@@ -14,7 +14,7 @@ const (
 func GetCommand() *cobra.Command {
 	versionCmd := &cobra.Command{
 		Use:          "version",
-		Short:        "Get current version",
+		Short:        "Get the current version",
 		SilenceUsage: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			PrintVersionString()

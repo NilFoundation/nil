@@ -13,7 +13,7 @@ import (
 func GetBalanceCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "balance [address]",
-		Short: "Returns a smart contract balance",
+		Short: "Get the balance of a smart contract",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runBalance(cmd, args, cfg)

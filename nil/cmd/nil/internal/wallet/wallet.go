@@ -14,7 +14,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 
 	serverCmd = &cobra.Command{
 		Use:   "wallet",
-		Short: "Interact with wallet on the cluster",
+		Short: "Interact with the wallet set in the config file",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if parent := serverCmd.Parent(); parent != nil {
 				if parent.PersistentPreRunE != nil {

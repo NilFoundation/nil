@@ -13,7 +13,7 @@ import (
 func GetCodeCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "code [address]",
-		Short: "Returns a smart contract code",
+		Short: "Get the code of a smart contract",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCode(cmd, args, cfg)

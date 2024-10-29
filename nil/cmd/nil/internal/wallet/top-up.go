@@ -13,7 +13,7 @@ import (
 func TopUpCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "top-up [amount] [currency-id]",
-		Short: "Top up wallet",
+		Short: "Top up the wallet specified in the config file",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTopUp(cmd, args, cfg)

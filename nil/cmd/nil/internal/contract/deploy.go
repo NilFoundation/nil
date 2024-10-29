@@ -14,8 +14,8 @@ import (
 func GetDeployCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "deploy [path to file] [args...]",
-		Short: "Deploy smart contract",
-		Long:  "Deploy smart contract with specified hex-bytecode from stdin or from file",
+		Short: "Deploy a smart contract",
+		Long:  "Deploy a smart contract with the specified hex-bytecode from stdin or from a file",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDeploy(cmd, args, cfg)
@@ -32,34 +32,34 @@ func setDeployFlags(cmd *cobra.Command) {
 	cmd.Flags().Var(
 		types.NewShardId(&params.shardId, types.BaseShardId),
 		shardIdFlag,
-		"Specify the shard id to interact with",
+		"Specify the shard ID to interact with",
 	)
 
 	params.salt = *types.NewUint256(0)
 	cmd.Flags().Var(
 		&params.salt,
 		saltFlag,
-		"Salt for deploy message",
+		"The salt for deployment message",
 	)
 
 	cmd.Flags().StringVar(
 		&params.abiPath,
 		abiFlag,
 		"",
-		"Path to ABI file",
+		"The path to the ABI file",
 	)
 
 	cmd.Flags().BoolVar(
 		&params.noWait,
 		noWaitFlag,
 		false,
-		"Wait for receipt",
+		"Define whether the command should wait for the receipt",
 	)
 
 	cmd.Flags().Var(
 		&params.feeCredit,
 		feeCreditFlag,
-		"Deployment fee credit. If 0 will be estimated automatically",
+		"The deployment fee credit. If  set to 0, it will be estimated automatically",
 	)
 }
 

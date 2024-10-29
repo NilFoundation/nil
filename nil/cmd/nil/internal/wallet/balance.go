@@ -12,7 +12,7 @@ import (
 func BalanceCommand(cfg *common.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "balance",
-		Short: "Returns balance of wallet whose address specified in config.address field",
+		Short: "Get the balance of the wallet whose address specified in config.address field",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runBalance(cmd, args, cfg)
