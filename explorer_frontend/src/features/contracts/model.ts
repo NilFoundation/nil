@@ -215,7 +215,7 @@ export const sendMethodFx = createEffect<
     tokens: tokens,
   });
 
-  await waitTillCompleted(wallet.client, getShardIdFromAddress(wallet.getAddressHex()), hash);
+  await waitTillCompleted(wallet.client, getShardIdFromAddress(wallet.address), hash);
 
   return {
     functionName,
