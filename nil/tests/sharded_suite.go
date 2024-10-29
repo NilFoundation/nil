@@ -4,6 +4,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -85,7 +86,7 @@ func (s *ShardedSuite) Start(cfg *nilservice.Config, port int) {
 	for i := range cfg.NShards {
 		s.wg.Add(1)
 		go func() {
-			shardConfig := nilservice.Config{
+			shardConfig := &nilservice.Config{
 				NShards:              cfg.NShards,
 				MyShards:             []uint{uint(s.Shards[i].Id)},
 				SplitShards:          true,
@@ -95,10 +96,11 @@ func (s *ShardedSuite) Start(cfg *nilservice.Config, port int) {
 				GasBasePrice:         cfg.GasBasePrice,
 				Network:              networkConfigs[i],
 			}
-			nilservice.Run(s.Context, &shardConfig, s.Shards[i].Db, nil)
+			nilservice.Run(s.Context, shardConfig, s.Shards[i].Db, nil)
 			s.wg.Done()
 		}()
 	}
+
 	s.waitZerostate()
 }
 
@@ -119,7 +121,7 @@ func (s *ShardedSuite) StartArchiveNode(port int, withBootstrapPeers bool) clien
 	cfg := &nilservice.Config{
 		NShards: uint32(len(s.Shards)),
 		Network: netCfg,
-		HttpUrl: rpc.GetSockPath(s.T()),
+		HttpUrl: rpc.GetSockPathService(s.T(), fmt.Sprintf("archive-%d", port)),
 		RunMode: nilservice.ArchiveRunMode,
 	}
 
@@ -150,7 +152,7 @@ func (s *ShardedSuite) StartRPCNode(port int) (client.Client, string) {
 	cfg := &nilservice.Config{
 		NShards: uint32(len(s.Shards)),
 		Network: netCfg,
-		HttpUrl: rpc.GetSockPath(s.T()),
+		HttpUrl: rpc.GetSockPathService(s.T(), fmt.Sprintf("rpc-%d", port)),
 		RunMode: nilservice.RpcRunMode,
 	}
 

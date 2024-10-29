@@ -376,9 +376,7 @@ func (s *SuiteCli) TestCliWallet() {
 		addr = s.RunCli("-c", cfgPath, "contract", "address", s.incBinPath, "123321", "--abi", s.incAbiPath, "-q")
 	})
 
-	s.createConfigFile()
-
-	res = s.RunCliCfg("wallet", "deploy", s.incBinPath, "123321", "--abi", s.incAbiPath)
+	res = s.RunCliCfg("-c", cfgPath, "wallet", "deploy", s.incBinPath, "123321", "--abi", s.incAbiPath)
 	s.Run("Deploy contract", func() {
 		s.Contains(res, "Contract address")
 		s.Contains(res, addr)
@@ -434,12 +432,21 @@ func (s *SuiteCli) TestCliWallet() {
 	})
 
 	overridesFile := dir + "/overrides.json"
-	s.Run("Call read-only via the wallet", func() {
+	s.Run("Call read-only 'increment' via the wallet", func() {
 		res := s.RunCli("-c", cfgPath, "wallet", "call-readonly", addr, "increment", "--abi", s.incAbiPath, "--out-overrides", overridesFile)
 		s.Contains(res, "Success, no result")
 	})
 
-	s.Run("Call read-only via the wallet", func() {
+	s.Run("Check overrides file content", func() {
+		res := make(map[string]interface{})
+		data, err := os.ReadFile(overridesFile)
+		s.Require().NoError(err)
+		s.Require().NoError(json.Unmarshal(data, &res))
+		s.Require().Len(res, 2)
+		s.Contains(res, addr)
+	})
+
+	s.Run("Call read-only 'get' via the wallet", func() {
 		res := s.RunCli("-c", cfgPath, "wallet", "call-readonly", addr, "get", "--abi", s.incAbiPath, "--in-overrides", overridesFile)
 		s.Contains(res, "uint256: 123323")
 	})
