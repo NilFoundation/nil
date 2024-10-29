@@ -79,6 +79,7 @@ type Proposer struct {
 	seqno        atomic.Uint64
 	params       ProposerParams
 	retryRunner  common.RetryRunner
+	metrics      ProposerMetrics
 	logger       zerolog.Logger
 }
 
@@ -90,6 +91,11 @@ type ProposerParams struct {
 	contractAddress   string
 	selfAddress       string
 	proposingInterval time.Duration
+}
+
+type ProposerMetrics interface {
+	RecordProposerTxSent(ctx context.Context, mainBlockHash common.Hash)
+	RecordProposerError(ctx context.Context)
 }
 
 func DefaultProposerParams() ProposerParams {
@@ -106,6 +112,7 @@ func NewProposer(
 	params ProposerParams,
 	rpcClient client.RawClient,
 	blockStorage storage.BlockStorage,
+	metrics ProposerMetrics,
 	logger zerolog.Logger,
 ) (*Proposer, error) {
 	nonceValue, err := getCurrentNonce(params.selfAddress, rpcClient)
@@ -127,6 +134,7 @@ func NewProposer(
 		blockStorage: blockStorage,
 		params:       params,
 		retryRunner:  retryRunner,
+		metrics:      metrics,
 		logger:       logger,
 	}
 	p.seqno.Add(nonceValue)
@@ -153,6 +161,7 @@ func (p *Proposer) Run(ctx context.Context) error {
 		func(ctx context.Context) {
 			if err := p.proposeNextBlock(ctx); err != nil {
 				p.logger.Error().Err(err).Msg("error during proved blocks proposing")
+				p.metrics.RecordProposerError(ctx)
 				return
 			}
 		},
@@ -397,5 +406,7 @@ func (p *Proposer) sendProof(ctx context.Context, data *storage.ProposalData) er
 	}
 	p.seqno.Add(1)
 	// TODO send bloob with transactions and KZG proof
+
+	p.metrics.RecordProposerTxSent(ctx, data.MainShardBlockHash)
 	return nil
 }

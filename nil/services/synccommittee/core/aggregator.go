@@ -17,12 +17,18 @@ import (
 	"github.com/rs/zerolog"
 )
 
+type AggregatorMetrics interface {
+	RecordMainBlockFetched(ctx context.Context, mainBlockHash common.Hash)
+	RecordBlockBatchSize(ctx context.Context, batchSize int)
+	RecordAggregatorError(ctx context.Context)
+}
+
 type Aggregator struct {
 	logger       zerolog.Logger
 	client       *rpc.Client
 	blockStorage storage.BlockStorage
 	taskStorage  storage.TaskStorage
-	metrics      *MetricsHandler
+	metrics      AggregatorMetrics
 	pollingDelay time.Duration
 }
 
@@ -31,7 +37,7 @@ func NewAggregator(
 	blockStorage storage.BlockStorage,
 	taskStorage storage.TaskStorage,
 	logger zerolog.Logger,
-	metrics *MetricsHandler,
+	metrics AggregatorMetrics,
 	pollingDelay time.Duration,
 ) (*Aggregator, error) {
 	return &Aggregator{
@@ -51,7 +57,7 @@ func (agg *Aggregator) Run(ctx context.Context) error {
 		func(ctx context.Context) {
 			if err := agg.processNewBlocks(ctx); err != nil {
 				agg.logger.Error().Err(err).Msg("error during processing new blocks")
-				return
+				agg.metrics.RecordAggregatorError(ctx)
 			}
 		},
 	)
@@ -122,10 +128,8 @@ func (agg *Aggregator) createProofTask(ctx context.Context, blockForProof *jsonr
 	}
 
 	if err := agg.taskStorage.AddTaskEntries(ctx, taskEntries); err != nil {
-		return err
+		return fmt.Errorf("error adding task entries for block with hash=%s: %w", blockForProof.Hash, err)
 	}
-
-	agg.metrics.RecordBlocksInTasks(ctx, 1)
 
 	return nil
 }
@@ -156,6 +160,7 @@ func (agg *Aggregator) validateAndProcessBlock(ctx context.Context, block *jsonr
 		if !isBatchCompleted {
 			return fmt.Errorf("batch for the main shard block %s is not completed", block.Hash)
 		}
+		agg.metrics.RecordBlockBatchSize(ctx, len(block.ChildBlocks))
 	}
 
 	if err := agg.createProofTask(ctx, block, mainBlockHash); err != nil {
@@ -164,6 +169,10 @@ func (agg *Aggregator) validateAndProcessBlock(ctx context.Context, block *jsonr
 
 	if err := agg.blockStorage.SetBlock(ctx, block, mainBlockHash); err != nil {
 		return fmt.Errorf("error storing block %s: %w", block.Hash, err)
+	}
+
+	if block.ShardId == coreTypes.MainShardId {
+		agg.metrics.RecordMainBlockFetched(ctx, block.Hash)
 	}
 
 	return nil
@@ -180,7 +189,6 @@ func (agg *Aggregator) fetchAndProcessBlocks(ctx context.Context, blocksRange ty
 
 	fetchedBlocksLen := len(results)
 	agg.logger.Debug().Int64("blkCount", int64(fetchedBlocksLen)).Stringer(logging.FieldShardId, shardId).Msg("fetched blocks range")
-	agg.metrics.RecordBlocksFetched(ctx, int64(fetchedBlocksLen))
 
 	for _, block := range results {
 		err := agg.fetchChildBlocks(ctx, block)
@@ -220,18 +228,13 @@ func (agg *Aggregator) fetchChildBlocks(ctx context.Context, block *jsonrpc.RPCB
 // processNewBlocks fetches and processes new blocks for all shards.
 // It handles the overall flow of block synchronization and proof creation.
 func (agg *Aggregator) processNewBlocks(ctx context.Context) error {
-	agg.metrics.StartProcessingMeasurement()
-	defer agg.metrics.EndProcessingMeasurement(ctx)
-
 	latestBlock, err := agg.fetchLatestBlockRef()
 	if err != nil {
-		agg.metrics.RecordError(ctx)
 		return err
 	}
 
 	if err := agg.processShardBlocks(ctx, *latestBlock); err != nil {
 		// todo: launch block re-fetching in case of ErrBlockMismatch
-		agg.metrics.RecordError(ctx)
 		return fmt.Errorf("error processing blocks from shard %d: %w", coreTypes.MainShardId, err)
 	}
 
@@ -262,6 +265,5 @@ func (agg *Aggregator) processShardBlocks(ctx context.Context, actualLatest type
 		}
 	}
 
-	agg.metrics.SetCurrentBlockHeight(ctx, int64(actualLatest.Number), coreTypes.MainShardId)
 	return nil
 }
