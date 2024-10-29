@@ -38,7 +38,6 @@ export const createWalletFx = accountConnectorDomain.createEffect<
   {
     privateKey: Hex;
     endpoint: string;
-    faucetEndpoint: string;
   },
   WalletV1
 >();
@@ -77,7 +76,6 @@ export const topupWalletCurrencyFx = accountConnectorDomain.createEffect<
     };
     faucets: Record<string, Hex>;
     endpoint: string;
-    faucetEndpoint: string;
   },
   void
 >();

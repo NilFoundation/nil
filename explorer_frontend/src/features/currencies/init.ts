@@ -1,6 +1,7 @@
 import { sample } from "effector";
-import { $faucets, $faucetsEndpoint, fetchFaucetsEvent, fetchFaucetsFx } from "./model";
+import { $faucets, fetchFaucetsEvent, fetchFaucetsFx } from "./model";
 import { FaucetClient, HttpTransport } from "@nilfoundation/niljs";
+import { $endpoint } from "../account-connector/models/model";
 
 fetchFaucetsFx.use(async (endpoint) => {
   const faucetClient = new FaucetClient({
@@ -14,11 +15,11 @@ fetchFaucetsFx.use(async (endpoint) => {
 
 sample({
   clock: fetchFaucetsEvent,
-  source: $faucetsEndpoint,
+  source: $endpoint,
   target: fetchFaucetsFx,
 });
 
-$faucetsEndpoint.watch((endpoint) => {
+$endpoint.watch((endpoint) => {
   if (endpoint) {
     fetchFaucetsEvent();
   }
