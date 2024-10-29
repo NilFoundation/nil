@@ -336,7 +336,7 @@ func (s *Syncer) replayBlocks(ctx context.Context, blocks []*types.BlockWithExtr
 			InMsgs:        block.InMessages,
 			ForwardMsgs: slices.DeleteFunc(slices.Clone(block.OutMessages),
 				func(m *types.Message) bool { return m.From.ShardId() == s.config.ShardId }),
-		})
+		}, s.logger)
 		if err != nil {
 			return err
 		}

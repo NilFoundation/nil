@@ -156,7 +156,7 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 	}
 	defer gen.Rollback()
 
-	block, outs, err := gen.GenerateBlock(proposal)
+	block, outs, err := gen.GenerateBlock(proposal, s.logger)
 	if err != nil {
 		return err
 	}
