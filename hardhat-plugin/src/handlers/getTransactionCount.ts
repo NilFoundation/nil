@@ -16,7 +16,7 @@ export async function getTransactionCount(method: string, params: any[], context
 
 async function prepareInput(params: any[], context: HandlerContext): Promise<any[]> {
   const address = await context.signer.getAddress(
-    context.hre.config.shardId ?? shardNumber(context.wallet.getAddressHex()),
+    context.hre.config.shardId ?? shardNumber(context.wallet.address),
   ); // Simulate async call if necessary
   return [`0x${Buffer.from(address).toString("hex")}`, "latest"];
 }

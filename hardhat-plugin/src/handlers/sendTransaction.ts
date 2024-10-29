@@ -15,7 +15,7 @@ export async function sendTransaction(params: any[], context: HandlerContext) {
 
 async function prepareDeployment(params: any[], context: HandlerContext): Promise<string> {
   const deployed = await context.wallet.deployContract({
-    shardId: context.hre.config.shardId ?? shardNumber(context.wallet.getAddressHex()),
+    shardId: context.hre.config.shardId ?? shardNumber(context.wallet.address),
     bytecode: hexStringToUint8Array(params[0].data),
     salt: BigInt(Math.floor(Math.random() * 100000)),
     feeCredit: context.feeCredit,
@@ -27,7 +27,7 @@ async function prepareDeployment(params: any[], context: HandlerContext): Promis
 
   const receipt = await waitTillCompleted(
     context.client,
-    shardNumber(context.wallet.getAddressHex()),
+    shardNumber(context.wallet.address),
     deployed.hash,
   );
   if (context.debug) {
@@ -49,7 +49,7 @@ async function handleDirectTransaction(params: any[], context: HandlerContext): 
   }
   const receipt = await waitTillCompleted(
     context.client,
-    shardNumber(context.wallet.getAddressHex()),
+    shardNumber(context.wallet.address),
     hash,
   );
   if (context.debug) {

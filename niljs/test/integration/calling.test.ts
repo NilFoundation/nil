@@ -4,7 +4,6 @@ import {
   LocalECDSAKeySigner,
   PublicClient,
   WalletV1,
-  bytesToHex,
   convertEthToWei,
   generateRandomPrivateKey,
   waitTillCompleted,
@@ -33,7 +32,7 @@ test("Async call to another shard send value", async () => {
     client,
     signer,
   });
-  const walletAddress = await wallet.getAddressHex();
+  const walletAddress = wallet.address;
 
   await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
 
@@ -60,7 +59,7 @@ test("Async call to another shard send value", async () => {
   expect(receipts).toBeDefined();
   expect(receipts.some((r) => !r.success)).toBe(false);
 
-  const balance = await client.getBalance(bytesToHex(anotherAddress), "latest");
+  const balance = await client.getBalance(anotherAddress, "latest");
   expect(balance).toBeGreaterThan(0n);
 });
 
@@ -80,7 +79,7 @@ test("sync call same shard send value", async () => {
     client,
     signer,
   });
-  const walletAddress = await wallet.getAddressHex();
+  const walletAddress = wallet.address;
 
   await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(0.1));
   await wallet.selfDeploy(true);
@@ -101,7 +100,7 @@ test("sync call same shard send value", async () => {
 
   expect(receipts).toBeDefined();
   expect(receipts.some((r) => !r.success)).toBe(false);
-  const balance = await client.getBalance(bytesToHex(anotherAddress), "latest");
+  const balance = await client.getBalance(anotherAddress, "latest");
 
   expect(balance).toBe(10n);
 });

@@ -35,7 +35,7 @@ test("Deploy through wallet", async ({ expect }) => {
     client,
     signer,
   });
-  const walletAddress = await wallet.getAddressHex();
+  const walletAddress = wallet.address;
 
   expect(walletAddress).toBeDefined();
 

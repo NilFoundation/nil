@@ -16,7 +16,7 @@ export async function getBlockByNumber(method: string, params: any[], context: H
 }
 
 function prepareInput(params: any[], context: HandlerContext): any[] {
-  return [shardNumber(context.wallet.getAddressHex()), ...params];
+  return [shardNumber(context.wallet.address), ...params];
 }
 
 function adaptResponse(response: any): any {

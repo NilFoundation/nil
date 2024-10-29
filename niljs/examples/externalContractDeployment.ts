@@ -38,7 +38,7 @@ const deploymentMessage = externalDeploymentMessage(
   chainId,
 );
 const addr = bytesToHex(deploymentMessage.to);
-// biome-ignore lint/nursery/noConsole: <explanation>
+
 console.log("walletAddress", addr);
 
 const faucetHash = await faucet.withdrawTo(
@@ -53,12 +53,10 @@ await deploymentMessage.send(client);
 while (true) {
   const code = await client.getCode(addr, "latest");
   if (code.length > 0) {
-    // biome-ignore lint/nursery/noConsole: <explanation>
     console.log("code", bytesToHex(code));
     break;
   }
   await new Promise((resolve) => setTimeout(resolve, 1000));
 }
 
-// biome-ignore lint/nursery/noConsole: <explanation>
 console.log("Wallet deployed successfully");

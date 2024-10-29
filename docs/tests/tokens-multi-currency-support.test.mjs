@@ -119,7 +119,7 @@ describe.sequential('basic Nil.js usage tests', async () => {
       signer,
     });
 
-    const walletAddress = wallet.getAddressHex();
+    const walletAddress = wallet.address;
 
     const faucetHash = await faucet.withdrawToWithRetry(
       walletAddress,
@@ -183,7 +183,7 @@ describe.sequential('tutorial flows Nil.js tests', async () => {
       signer,
     });
 
-    const walletAddress = wallet.getAddressHex();
+    const walletAddress = wallet.address;
 
     const faucetHash = await faucet.withdrawToWithRetry(
       walletAddress,
@@ -202,7 +202,7 @@ describe.sequential('tutorial flows Nil.js tests', async () => {
       signer,
     });
 
-    const walletTwoAddress = walletTwo.getAddressHex();
+    const walletTwoAddress = walletTwo.address;
 
     const faucetTwoHash = await faucet.withdrawToWithRetry(
       walletTwoAddress,

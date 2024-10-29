@@ -33,7 +33,7 @@ test("Receipt test", async ({ expect }) => {
     client,
     signer,
   });
-  const walletAddress = await wallet.getAddressHex();
+  const walletAddress = wallet.address;
 
   expect(walletAddress).toBeDefined();
 

@@ -79,7 +79,7 @@ const wallet = new WalletV1({
   client,
   signer,
 });
-const walletAddress = await wallet.getAddressHex();
+const walletAddress = wallet.address;
 ```
 
 The `Faucet` contract is for 'topping up' an address on the =nil; devnet. The faucet contract is always deployed at a pre-defined static address. To initialize a faucet instance:

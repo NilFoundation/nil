@@ -62,8 +62,8 @@ describe.sequential('Nil.js handles the full swap tutorial flow', async () => {
       salt: SALT
     });
 
-    const walletOneAddress = walletOne.getAddressHex();
-    const walletTwoAddress = walletTwo.getAddressHex();
+    const walletOneAddress = walletOne.address;
+    const walletTwoAddress = walletTwo.address;
 
     const fundingWalletOne = await faucet.withdrawToWithRetry(
       walletOneAddress,
@@ -100,7 +100,7 @@ describe.sequential('Nil.js handles the full swap tutorial flow', async () => {
       salt: SALT,
     });
 
-    await faucet.withdrawToWithRetry(wallet.getAddressHex(), 300_000_000n);
+    await faucet.withdrawToWithRetry(wallet.address, 300_000_000n);
 
     await wallet.selfDeploy(true);
 
