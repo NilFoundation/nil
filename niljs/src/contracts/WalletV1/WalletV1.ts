@@ -9,6 +9,7 @@ import { hexToBytes } from "../../encoding/fromHex.js";
 import { toHex } from "../../encoding/toHex.js";
 import { addHexPrefix } from "../../index.js";
 import type { ISigner } from "../../signers/index.js";
+import type { Hex } from "../../types/Hex.js";
 import type { IDeployData } from "../../types/IDeployData.js";
 import { getShardIdFromAddress, refineAddress } from "../../utils/address.js";
 import {
@@ -94,7 +95,8 @@ export class WalletV1 {
       salt: salt,
       shard: shardId,
     });
-    return address;
+
+    return refineAddress(address);
   }
 
   /**
@@ -130,9 +132,9 @@ export class WalletV1 {
   /**
    * The wallet address.
    *
-   * @type {Uint8Array}
+   * @type {Hex}
    */
-  address: Uint8Array;
+  address: Hex;
 
   /**
    * Creates an instance of WalletV1.
@@ -156,24 +158,11 @@ export class WalletV1 {
     );
     this.address = address
       ? refineAddress(address)
-      : WalletV1.calculateWalletAddress({
-          pubKey: this.pubkey,
-          shardId,
-          salt,
-        });
+      : WalletV1.calculateWalletAddress({ pubKey: this.pubkey, shardId, salt });
     if (salt) {
       this.salt = refineSalt(salt);
     }
     this.shardId = getShardIdFromAddress(toHex(this.address));
-  }
-
-  /**
-   * Converts the wallet address into a hexadecimal.
-   *
-   * @returns {String}
-   */
-  getAddressHex() {
-    return bytesToHex(this.address);
   }
 
   /**
@@ -224,8 +213,8 @@ export class WalletV1 {
     );
 
     const [balance, code] = await Promise.all([
-      await this.client.getBalance(this.getAddressHex(), "latest"),
-      await this.client.getCode(this.getAddressHex(), "latest").catch(() => Uint8Array.from([])),
+      await this.client.getBalance(this.address, "latest"),
+      await this.client.getCode(this.address, "latest").catch(() => Uint8Array.from([])),
     ]);
 
     invariant(code.length === 0, "Contract already deployed");
@@ -247,7 +236,7 @@ export class WalletV1 {
 
     if (waitTillConfirmation) {
       while (true) {
-        const code = await this.client.getCode(this.getAddressHex(), "latest");
+        const code = await this.client.getCode(this.address, "latest");
         if (code.length > 0) {
           break;
         }
@@ -264,7 +253,7 @@ export class WalletV1 {
    * @returns {Promise<boolean>} The current deployment status.
    */
   async checkDeploymentStatus(): Promise<boolean> {
-    const code = await this.client.getCode(this.getAddressHex(), "latest");
+    const code = await this.client.getCode(this.address, "latest");
     return code.length > 0;
   }
 
@@ -281,13 +270,13 @@ export class WalletV1 {
     send = true,
   ): Promise<{ raw: Uint8Array; hash: Uint8Array }> {
     const [seqno, chainId] = await Promise.all([
-      requestParams.seqno ?? this.client.getMessageCount(this.getAddressHex(), "latest"),
+      requestParams.seqno ?? this.client.getMessageCount(this.address, "latest"),
       requestParams.chainId ?? this.client.chainId(),
     ]);
     const encodedMessage = await externalMessageEncode(
       {
         isDeploy: requestParams.deploy,
-        to: this.address,
+        to: hexToBytes(this.address),
         chainId: chainId,
         seqno,
         data: requestParams.data,
@@ -344,9 +333,9 @@ export class WalletV1 {
     tokens,
     chainId,
   }: SendMessageParams) {
-    const hexTo = bytesToHex(refineAddress(to));
-    const hexRefundTo = bytesToHex(refineAddress(refundTo ?? this.address));
-    const hexBounceTo = bytesToHex(refineAddress(bounceTo ?? this.address));
+    const hexTo = refineAddress(to);
+    const hexRefundTo = refineAddress(refundTo ?? this.address);
+    const hexBounceTo = refineAddress(bounceTo ?? this.address);
     const hexData = refineFunctionHexData({ data, abi, functionName, args });
 
     const callData = encodeFunctionData({
@@ -513,7 +502,7 @@ export class WalletV1 {
 
     const hash = await this.sendMessage({
       to: address,
-      refundTo: this.getAddressHex(),
+      refundTo: this.address,
       data,
       value: value ?? 0n,
       deploy: true,
@@ -564,7 +553,7 @@ export class WalletV1 {
     gas,
     value,
   }: SendSyncMessageParams) {
-    const hexTo = bytesToHex(refineAddress(to));
+    const hexTo = refineAddress(to);
     const hexData = refineFunctionHexData({ data, abi, functionName, args });
 
     const callData = encodeFunctionData({
@@ -589,6 +578,6 @@ export class WalletV1 {
    * @returns {unknown} The wallet balance.
    */
   async getBalance() {
-    return this.client.getBalance(this.getAddressHex(), "latest");
+    return this.client.getBalance(this.address, "latest");
   }
 }

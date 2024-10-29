@@ -61,7 +61,7 @@ test("Call counter status", async () => {
     client,
     signer,
   });
-  const walletAddress = await wallet.getAddressHex();
+  const walletAddress = wallet.address;
 
   await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
 

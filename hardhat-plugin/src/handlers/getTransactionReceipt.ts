@@ -22,7 +22,7 @@ export async function getTransactionReceipt(
 function prepareInput(method: string, params: any[], context: HandlerContext): [string, any[]] {
   return [
     "eth_getInMessageReceipt",
-    [context.hre.config.shardId ?? shardNumber(context.wallet.getAddressHex()), ...params],
+    [context.hre.config.shardId ?? shardNumber(context.wallet.address), ...params],
   ];
 }
 

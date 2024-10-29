@@ -18,7 +18,7 @@ export async function getTransactionByHash(method: string, params: any[], contex
 function prepareInput(method: string, params: any[], context: HandlerContext): [string, any[]] {
   const preparedMethod = "eth_getInMessageByHash";
   const preparedParams = [
-    context.hre.config.shardId ?? shardNumber(context.wallet.getAddressHex()),
+    context.hre.config.shardId ?? shardNumber(context.wallet.address),
     ...params,
   ];
   return [preparedMethod, preparedParams];

@@ -1,4 +1,4 @@
-import { bytesToHex, encodeFunctionData } from "viem";
+import { encodeFunctionData } from "viem";
 import {
   Faucet,
   HttpTransport,
@@ -35,7 +35,7 @@ test("bounce", async () => {
     client,
     signer,
   });
-  const walletAddress = await wallet.getAddressHex();
+  const walletAddress = wallet.address;
 
   const anotherWallet = new WalletV1({
     pubkey: pubkey,
@@ -47,7 +47,7 @@ test("bounce", async () => {
 
   await Promise.all([
     faucet.withdrawToWithRetry(walletAddress, convertEthToWei(0.1)),
-    faucet.withdrawToWithRetry(anotherWallet.getAddressHex(), convertEthToWei(0.1)),
+    faucet.withdrawToWithRetry(anotherWallet.address, convertEthToWei(0.1)),
   ]);
 
   await wallet.selfDeploy(true);
@@ -60,7 +60,7 @@ test("bounce", async () => {
   });
 
   const hash = await wallet.sendMessage({
-    to: anotherWallet.getAddressHex(),
+    to: anotherWallet.address,
     value: 10_000_000n,
     bounceTo: bounceAddress,
     feeCredit: 100_000n * gasPrice,
@@ -78,7 +78,7 @@ test("bounce", async () => {
 
   expect(receipts.length).toBeGreaterThan(2);
 
-  const balance = await client.getBalance(bytesToHex(bounceAddress), "latest");
+  const balance = await client.getBalance(bounceAddress, "latest");
 
   expect(balance).toBeGreaterThan(0n);
 });

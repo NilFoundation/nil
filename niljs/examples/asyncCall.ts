@@ -4,7 +4,6 @@ import {
   LocalECDSAKeySigner,
   PublicClient,
   WalletV1,
-  bytesToHex,
   generateRandomPrivateKey,
   waitTillCompleted,
 } from "../src";
@@ -31,16 +30,14 @@ const wallet = new WalletV1({
   client,
   signer,
 });
-const walletAddress = await wallet.getAddressHex();
+const walletAddress = wallet.address;
 
-// biome-ignore lint/nursery/noConsole: <explanation>
 console.log("walletAddress", walletAddress);
 
 await faucet.withdrawToWithRetry(walletAddress, 100_000_000n);
 
 await wallet.selfDeploy(true);
 
-// biome-ignore lint/nursery/noConsole: <explanation>
 console.log("Wallet deployed successfully");
 
 const anotherAddress = WalletV1.calculateWalletAddress({
@@ -57,9 +54,8 @@ const hash = await wallet.sendMessage({
 
 await waitTillCompleted(client, 1, hash);
 
-const balance = await client.getBalance(bytesToHex(anotherAddress), "latest");
-// biome-ignore lint/nursery/noConsole: <explanation>
+const balance = await client.getBalance(anotherAddress, "latest");
+
 console.log("balance", balance);
 
-// biome-ignore lint/nursery/noConsole: <explanation>
 console.log("Message sent successfully");

@@ -16,11 +16,7 @@ export async function blockNumber(method: string, params: any[], context: Handle
 }
 
 function prepareInput(context: HandlerContext): any[] {
-  return [
-    context.hre.config.shardId ?? shardNumber(context.wallet.getAddressHex()),
-    "latest",
-    false,
-  ];
+  return [context.hre.config.shardId ?? shardNumber(context.wallet.address), "latest", false];
 }
 
 function adaptResult(result: any): any {

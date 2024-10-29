@@ -102,7 +102,7 @@ describe.sequential("Nil.js deployment tests", async () => {
         signer,
       });
 
-      const walletAddress = wallet.getAddressHex();
+      const walletAddress = wallet.address;
       await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
       await wallet.selfDeploy(true);
 

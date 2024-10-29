@@ -84,7 +84,7 @@ describe.sequential('niljs test', () => {
             salt: SALT,
         });
 
-        const walletAddress = wallet.getAddressHex();
+        const walletAddress = wallet.address;
 
         const fundingWallet = await faucet.withdrawToWithRetry(
             walletAddress,

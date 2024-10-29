@@ -4,7 +4,6 @@ import {
   LocalECDSAKeySigner,
   PublicClient,
   WalletV1,
-  bytesToHex,
   convertEthToWei,
   generateRandomPrivateKey,
   waitTillCompleted,
@@ -36,7 +35,7 @@ test("mint and transfer tokens", async () => {
     client,
     signer,
   });
-  const walletAddress = await wallet.getAddressHex();
+  const walletAddress = wallet.address;
   await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(0.1));
 
   await wallet.selfDeploy(true);
@@ -82,7 +81,7 @@ test("mint and transfer tokens", async () => {
 
   await waitTillCompleted(client, 1, sendHash);
 
-  const anotherTokens = await client.getCurrencies(bytesToHex(anotherAddress), "latest");
+  const anotherTokens = await client.getCurrencies(anotherAddress, "latest");
 
   expect(anotherTokens).toBeDefined();
   expect(Object.keys(anotherTokens).length).toBeGreaterThan(0);

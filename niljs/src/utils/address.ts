@@ -1,7 +1,10 @@
 import { numberToBytesBE } from "@noble/curves/abstract/utils";
+import { bytesToHex } from "../encoding/fromBytes.js";
 import { poseidonHash } from "../encoding/poseidon.js";
-import { hexToBytes } from "../index.js";
 import type { IAddress } from "../signers/types/IAddress.js";
+import type { Hex } from "../types/Hex.js";
+import { assertIsValidShardId } from "./assert.js";
+import { removeHexPrefix } from "./hex.js";
 
 /**
  * The regular expression for matching addresses.
@@ -39,18 +42,14 @@ const getShardIdFromAddress = (address: string): number => {
  * @returns {Uint8Array} The address.
  */
 const calculateAddress = (shardId: number, code: Uint8Array, salt: Uint8Array): Uint8Array => {
-  if (!Number.isInteger(shardId)) {
-    throw new Error("Shard ID must be an integer");
-  }
+  assertIsValidShardId(shardId);
   if (salt.length !== 32) {
     throw new Error("Salt must be 32 bytes");
   }
   if (code.length === 0) {
     throw new Error("Code must not be empty");
   }
-  if (shardId < 0 || shardId > 0xffff) {
-    throw new Error("Invalid shard ID");
-  }
+
   const bytes = new Uint8Array(code.length + 32);
   bytes.set(code);
   bytes.set(salt, code.length);
@@ -64,21 +63,24 @@ const calculateAddress = (shardId: number, code: Uint8Array, salt: Uint8Array): 
 /**
  * Refines the address.
  *
- * @param {(Uint8Array | `0x`)} address The address to refine.
- * @returns {Uint8Array} The refined address.
+ * @param {(Uint8Array | Hex)} address The address to refine.
+ * @returns {Hex} The refined address.
  */
-const refineAddress = (address: Uint8Array | `0x${string}`): Uint8Array => {
+const refineAddress = (address: Uint8Array | Hex): Hex => {
   if (typeof address === "string") {
-    const bytes = hexToBytes(address);
-    if (bytes.length !== 20) {
+    if (removeHexPrefix(address).length !== 40) {
       throw new Error("Invalid address length");
     }
-    return bytes;
+
+    return address;
   }
-  if (address.length !== 20) {
+
+  const addressStr = bytesToHex(address);
+  if (removeHexPrefix(addressStr).length !== 40) {
     throw new Error("Invalid address length");
   }
-  return address;
+
+  return addressStr;
 };
 
 export { isAddress, getShardIdFromAddress, calculateAddress, refineAddress };

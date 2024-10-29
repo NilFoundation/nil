@@ -12,7 +12,6 @@ import type {
   HttpNetworkConfig,
   NetworkConfig,
 } from "hardhat/types";
-import { bytesToHex } from "viem";
 import type { HandlerContext } from "./context";
 import { shardNumber } from "./utils/conversion";
 import { ensure0xPrefix } from "./utils/hex";
@@ -59,13 +58,11 @@ export async function setupWalletAndClient(
     ? ensure0xPrefix(hre.config.walletAddress)
     : undefined;
   if (!walletAddress) {
-    walletAddress = bytesToHex(
-      WalletV1.calculateWalletAddress({
-        pubKey,
-        shardId: 1,
-        salt: newWalletSalt,
-      }),
-    );
+    walletAddress = WalletV1.calculateWalletAddress({
+      pubKey,
+      shardId: 1,
+      salt: newWalletSalt,
+    });
 
     console.log(
       `Wallet address not found in configuration.\nGenerated wallet address for current private key: ${walletAddress}`,
