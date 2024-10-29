@@ -88,13 +88,13 @@ createWalletFx.use(async ({ privateKey, endpoint }) => {
 
   const balance = await wallet.getBalance();
 
-  const currenciesMap = await wallet.client.getCurrencies(wallet.getAddressHex(), "latest");
+  const currenciesMap = await wallet.client.getCurrencies(wallet.address, "latest");
 
   setInitializingWalletState("Adding some tokens...");
 
   if (balance === 0n) {
     const faucet = new Faucet(client);
-    await faucet.withdrawToWithRetry(wallet.getAddressHex(), convertEthToWei(0.1));
+    await faucet.withdrawToWithRetry(wallet.address, convertEthToWei(0.1));
   }
 
   const currencies = Object.entries(currenciesMap).map(([currency]) =>
@@ -114,7 +114,7 @@ createWalletFx.use(async ({ privateKey, endpoint }) => {
 
       return faucetClient.topUpAndWaitUntilCompletion(
         {
-          walletAddress: wallet.getAddressHex(),
+          walletAddress: wallet.address,
           faucetAddress: currencyFaucetAddress,
           amount: 10,
         },
@@ -127,7 +127,7 @@ createWalletFx.use(async ({ privateKey, endpoint }) => {
 
   setInitializingWalletState("Checking if wallet is deployed...");
 
-  const code = await client.getCode(wallet.getAddressHex());
+  const code = await client.getCode(wallet.address);
   if (code.length === 0) {
     await wallet.selfDeploy(true);
   }
@@ -137,7 +137,7 @@ createWalletFx.use(async ({ privateKey, endpoint }) => {
 
 topUpWalletBalanceFx.use(async (wallet) => {
   const faucet = new Faucet(wallet.client);
-  await faucet.withdrawToWithRetry(wallet.getAddressHex(), convertEthToWei(0.1)); // 0.0001
+  await faucet.withdrawToWithRetry(wallet.address, convertEthToWei(0.1)); // 0.0001
   return await wallet.getBalance();
 });
 
@@ -146,7 +146,7 @@ fetchBalanceFx.use(async (wallet) => {
 });
 
 fetchBalanceCurrenciesFx.use(async (wallet) => {
-  return await wallet.client.getCurrencies(wallet.getAddressHex(), "latest");
+  return await wallet.client.getCurrencies(wallet.address, "latest");
 });
 
 createWalletFx.failData.watch((error) => {
@@ -250,7 +250,7 @@ topupWalletCurrencyFx.use(async ({ wallet, topupInput, faucets, endpoint }) => {
 
   await faucetClient.topUpAndWaitUntilCompletion(
     {
-      walletAddress: wallet.getAddressHex(),
+      walletAddress: wallet.address,
       faucetAddress: currencyFaucetAddress,
       amount: Number(amount),
     },

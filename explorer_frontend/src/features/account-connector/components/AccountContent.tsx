@@ -15,7 +15,7 @@ const AccountContent = () => {
   const [isMobile] = useMobile();
   const [css] = useStyletron();
   const wallet = useUnit($wallet);
-  const address = wallet ? wallet.getAddressHex() : null;
+  const address = wallet ? wallet.address : null;
   const text = address ? address : "Not connected";
   const isAccountConnected = !!wallet;
   const [isOpen, setIsOpen] = useState(false);

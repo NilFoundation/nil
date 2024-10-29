@@ -61,7 +61,7 @@ const TopUpPanel = () => {
         })}
       >
         <FormControl label={<LabelMedium>To</LabelMedium>}>
-          <Input readOnly placeholder={wallet?.getAddressHex() ?? ""} overrides={inputOverrides} />
+          <Input readOnly placeholder={wallet?.address ?? ""} overrides={inputOverrides} />
         </FormControl>
       </div>
       <div

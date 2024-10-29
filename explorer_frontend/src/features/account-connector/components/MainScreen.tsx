@@ -51,7 +51,7 @@ const MainScreen = () => {
     ]);
   const [isPendingTopUp] = useUnit([topUpWalletBalanceFx.pending]);
   const displayBalance = balance === null ? "-" : formatEther(balance);
-  const address = wallet ? wallet.getAddressHex() : null;
+  const address = wallet ? wallet.address : null;
 
   return (
     <div
