@@ -2,19 +2,19 @@ import { accounts } from "../../test/mocks/accounts.js";
 import { bytesToHex } from "../index.js";
 import { LocalECDSAKeySigner } from "./LocalECDSAKeySigner.js";
 
-test("getPublicKey", async () => {
+test("getPublicKey", () => {
   const privateKey = accounts[0].privateKey;
   const signer = new LocalECDSAKeySigner({ privateKey });
 
-  const publicKey = await signer.getPublicKey();
+  const publicKey = signer.getPublicKey();
   expect(bytesToHex(publicKey)).toBe(accounts[0].publicKey);
 });
 
-test("getAddress", async () => {
+test("getAddress", () => {
   const privateKey = accounts[0].privateKey;
   const signer = new LocalECDSAKeySigner({ privateKey });
 
-  const address = await signer.getAddress(accounts[0].shardId);
+  const address = signer.getAddress(accounts[0].shardId);
 
   expect(address).toBeDefined();
 });

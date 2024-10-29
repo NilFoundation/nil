@@ -13,9 +13,9 @@ type IClientBaseConfig = {
   /**
    * The transport is used to send requests to the network.
    * @example
-   * import { MetaMaskTransport } from '@nilfoundation/niljs';
+   * import { HttpTransport } from '@nilfoundation/niljs';
    *
-   * const transport = new MetaMaskTransport();
+   * const transport = new HttpTransport();
    *
    * const client = new PublicClient({ transport, shardId: 1 });
    */
