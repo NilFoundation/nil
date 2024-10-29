@@ -71,7 +71,7 @@ class LocalECDSAKeySigner implements ISigner {
    * @param {Uint8Array} data The input data.
    * @returns {Promise<Uint8Array>} The signed data.
    */
-  public async sign(data: Uint8Array): Promise<Uint8Array> {
+  public async sign(data: Uint8Array) {
     const signature = secp256k1.sign(data, removeHexPrefix(this.privateKey));
     const { r, s, recovery } = signature;
 
@@ -86,10 +86,9 @@ class LocalECDSAKeySigner implements ISigner {
    * Retrieves the public key.
    *
    * @public
-   * @async
-   * @returns {unknown} The publc key of the signer.
+   * @returns {Uint8Array} The publc key of the signer.
    */
-  public async getPublicKey() {
+  public getPublicKey() {
     if (this.publicKey) {
       return hexToBytes(this.publicKey);
     }
@@ -104,17 +103,15 @@ class LocalECDSAKeySigner implements ISigner {
    * Retrieves the wallet address.
    *
    * @public
-   * @async
    * @param {number} shardId The ID of the shard where the wallet is deployed.
-   * @returns {unknown} The wallet address.
+   * @returns {Uint8Array} The wallet address.
    */
-  public async getAddress(shardId: number) {
+  public getAddress(shardId: number) {
     if (this.address) {
       return hexToBytes(this.address);
     }
 
-    const pubKey = await this.getPublicKey();
-
+    const pubKey = this.getPublicKey();
     this.address = getAddressFromPublicKey(bytesToHex(pubKey), shardId);
 
     return hexToBytes(this.address);
