@@ -80,7 +80,7 @@ export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isO
                 },
               }}
               name="Wallet"
-              value={wallet?.getAddressHex() ?? ""}
+              value={wallet?.address ?? ""}
               disabled
               readOnly
             />
