@@ -110,7 +110,7 @@ describe.sequential('basic Nil.js usage tests', async () => {
       privateKey: generateRandomPrivateKey(),
     });
 
-    const pubkey = await signer.getPublicKey();
+    const pubkey = signer.getPublicKey();
     const wallet = new WalletV1({
       pubkey: pubkey,
       salt: BigInt(Math.floor(Math.random() * 10000)),
@@ -174,7 +174,7 @@ describe.sequential('tutorial flows Nil.js tests', async () => {
       privateKey: generateRandomPrivateKey(),
     });
 
-    const pubkey = await signer.getPublicKey();
+    const pubkey = signer.getPublicKey();
     const wallet = new WalletV1({
       pubkey: pubkey,
       salt: BigInt(Math.floor(Math.random() * 10000)),

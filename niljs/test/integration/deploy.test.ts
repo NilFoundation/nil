@@ -26,7 +26,7 @@ test("Deploy through wallet", async ({ expect }) => {
     privateKey: generateRandomPrivateKey(),
   });
 
-  const pubkey = await signer.getPublicKey();
+  const pubkey = signer.getPublicKey();
 
   const wallet = new WalletV1({
     pubkey: pubkey,
@@ -87,7 +87,7 @@ test("External deployment", async ({ expect }) => {
     privateKey: generateRandomPrivateKey(),
   });
 
-  const pubkey = await signer.getPublicKey();
+  const pubkey = signer.getPublicKey();
   const chainId = await client.chainId();
 
   const deploymentMessage = externalDeploymentMessage(

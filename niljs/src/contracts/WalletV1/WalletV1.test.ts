@@ -7,7 +7,7 @@ import { WalletV1 } from "./WalletV1.js";
 const signer = new LocalECDSAKeySigner({
   privateKey: generateRandomPrivateKey(),
 });
-const pubkey = await signer.getPublicKey();
+const pubkey = signer.getPublicKey();
 
 const fn = vi.fn();
 fn.mockReturnValue({});

@@ -1,6 +1,6 @@
 import { type Hex, IntegerOutOfRangeError, addHexPrefix } from "../index.js";
 
-const hexes = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
+const hexes = Array.from({ length: 256 }, (Char, i) => i.toString(16).padStart(2, "0"));
 
 /**
  * Converts a string to a hex string.

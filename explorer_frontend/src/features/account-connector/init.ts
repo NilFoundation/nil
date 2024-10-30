@@ -69,7 +69,7 @@ createWalletFx.use(async ({ privateKey, endpoint }) => {
   const faucetClient = new FaucetClient({
     transport: new HttpTransport({ endpoint }),
   });
-  const pubkey = await signer.getPublicKey();
+  const pubkey = signer.getPublicKey();
   const wallet = new WalletV1({
     pubkey,
     salt: 100n,

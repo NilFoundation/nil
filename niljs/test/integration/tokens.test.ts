@@ -9,6 +9,7 @@ import {
   waitTillCompleted,
 } from "../../src/index.js";
 import { testEnv } from "../testEnv.js";
+
 const client = new PublicClient({
   transport: new HttpTransport({
     endpoint: testEnv.endpoint,
@@ -26,7 +27,7 @@ test("mint and transfer tokens", async () => {
     privateKey: generateRandomPrivateKey(),
   });
 
-  const pubkey = await signer.getPublicKey();
+  const pubkey = signer.getPublicKey();
 
   const wallet = new WalletV1({
     pubkey: pubkey,

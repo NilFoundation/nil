@@ -44,7 +44,7 @@ describe.sequential('Nil.js handles the full swap tutorial flow', async () => {
       privateKey: generateRandomPrivateKey(),
     });
 
-    const pubkey = await signer.getPublicKey();
+    const pubkey = signer.getPublicKey();
 
     const walletOne = new WalletV1({
       pubkey: pubkey,

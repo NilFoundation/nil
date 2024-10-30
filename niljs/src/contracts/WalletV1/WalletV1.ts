@@ -71,7 +71,7 @@ export class WalletV1 {
        privateKey: generateRandomPrivateKey(),
      });
 
-     const pubkey = await signer.getPublicKey();
+     const pubkey = signer.getPublicKey();
 
    * const anotherAddress = WalletV1.calculateWalletAddress({
        pubKey: pubkey,
@@ -191,7 +191,7 @@ export class WalletV1 {
      });
    * const faucet = new Faucet(client);
    * await faucet.withdrawTo(walletAddress, 100000n);
-   * const pubkey = await signer.getPublicKey();
+   * const pubkey = signer.getPublicKey();
    * const wallet = new WalletV1({
        pubkey: pubkey,
        salt: 100n,

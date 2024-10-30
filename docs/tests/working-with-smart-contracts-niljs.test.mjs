@@ -93,7 +93,7 @@ describe.sequential("Nil.js deployment tests", async () => {
       });
       const gasPrice = await client.getGasPrice(1);
 
-      const pubkey = await signer.getPublicKey();
+      const pubkey = signer.getPublicKey();
       const wallet = new WalletV1({
         pubkey: pubkey,
         salt: BigInt(Math.floor(Math.random() * 10000)),
@@ -233,7 +233,7 @@ describe.sequential("Nil.js deployment tests", async () => {
         privateKey: generateRandomPrivateKey(),
       });
 
-      const pubkey = await signer.getPublicKey();
+      const pubkey = signer.getPublicKey();
 
       const chainId = await client.chainId();
 

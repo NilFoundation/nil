@@ -15,7 +15,7 @@ test("Faucet with retry", async () => {
     shardId: 1,
   });
   const faucet = new Faucet(client);
-  const pubkey = await signer.getPublicKey();
+  const pubkey = signer.getPublicKey();
   const address = WalletV1.calculateWalletAddress({
     pubKey: pubkey,
     shardId: 1,
