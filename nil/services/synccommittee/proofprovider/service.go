@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
@@ -37,8 +38,13 @@ func New(config Config) (*ProofProvider, error) {
 
 	logger := logging.NewLogger("proof_provider")
 
+	metricsHandler, err := metrics.NewHandler("sync_committee")
+	if err != nil {
+		return nil, fmt.Errorf("error initializing metrics: %s", err)
+	}
+
 	taskRpcClient := rpc.NewTaskRequestRpcClient(config.SyncCommitteeRpcEndpoint, logger)
-	taskStorage := storage.NewTaskStorage(database, logger)
+	taskStorage := storage.NewTaskStorage(database, metricsHandler, logger)
 
 	taskExecutor, err := executor.New(
 		executor.DefaultConfig(),

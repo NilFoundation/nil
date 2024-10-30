@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -47,8 +48,11 @@ func (s *ProposerTestSuite) SetupSuite() {
 	logger := logging.NewLogger("proposer_test")
 	s.storage = storage.NewBlockStorage(s.db, logger)
 
+	metricsHandler, err := metrics.NewHandler("proposer_test")
+	s.Require().NoError(err)
+
 	s.params = DefaultProposerParams()
-	s.proposer, err = NewProposer(s.params, &s.rpcClientMock, s.storage, logger)
+	s.proposer, err = NewProposer(s.params, &s.rpcClientMock, s.storage, metricsHandler, logger)
 	s.Require().NoError(err)
 }
 

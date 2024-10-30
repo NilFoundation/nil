@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/stretchr/testify/suite"
@@ -40,8 +41,12 @@ func (s *TaskStorageSuite) SetupSuite() {
 	database, err := db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 	s.database = database
-	logger := logging.NewLogger("task-storage-test")
-	s.ts = NewTaskStorage(database, logger)
+	logger := logging.NewLogger("task_storage_test")
+
+	metricsHandler, err := metrics.NewHandler("task_storage_test")
+	s.Require().NoError(err)
+
+	s.ts = NewTaskStorage(database, metricsHandler, logger)
 	s.ctx = context.Background()
 
 	s.baseTask = types.Task{

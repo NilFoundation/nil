@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -30,9 +31,12 @@ func (s *TaskHandlerTestSuite) SetupSuite() {
 	s.database, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 
-	logger := logging.NewLogger("task-handler-test-suite")
-	s.taskStorage = storage.NewTaskStorage(s.database, logger)
+	logger := logging.NewLogger("task_handler_test")
 
+	metricsHandler, err := metrics.NewHandler("task_handler_test")
+	s.Require().NoError(err)
+
+	s.taskStorage = storage.NewTaskStorage(s.database, metricsHandler, logger)
 	s.taskHandler = newTaskHandler(s.taskStorage, logger)
 }
 

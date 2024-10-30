@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
@@ -32,18 +33,18 @@ type SyncCommittee struct {
 
 func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	logger := logging.NewLogger("sync_committee")
-	metrics, err := NewMetricsHandler("github.com/NilFoundation/nil/nil/services/sync_committee")
+	metricsHandler, err := metrics.NewHandler("sync_committee")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error initializing metrics: %s", err)
 	}
 
 	logger.Info().Msgf("Use RPC endpoint %v", cfg.RpcEndpoint)
 	client := nilrpc.NewClient(cfg.RpcEndpoint, logger)
 
 	blockStorage := storage.NewBlockStorage(database, logger)
-	taskStorage := storage.NewTaskStorage(database, logger)
+	taskStorage := storage.NewTaskStorage(database, metricsHandler, logger)
 
-	aggregator, err := NewAggregator(client, blockStorage, taskStorage, logger, metrics, cfg.PollingDelay)
+	aggregator, err := NewAggregator(client, blockStorage, taskStorage, logger, metricsHandler, cfg.PollingDelay)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}
@@ -56,7 +57,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		chainId, cfg.PrivateKey, cfg.L1ContractAddress, cfg.SelfAddress, DefaultProposingInterval,
 	}
 	proposerRpcClient := nilrpc.NewRawClient(cfg.L1Endpoint, logger)
-	proposer, err := NewProposer(proposerParams, proposerRpcClient, blockStorage, logger)
+	proposer, err := NewProposer(proposerParams, proposerRpcClient, blockStorage, metricsHandler, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create proposer: %w", err)
 	}
