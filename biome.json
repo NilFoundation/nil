@@ -13,9 +13,6 @@
       "style": {
         "noDefaultExport": "warn",
         "noNonNullAssertion": "warn"
-      },
-      "suspicious": {
-        "noConsoleLog": "warn"
       }
     }
   },
@@ -31,7 +28,7 @@
     "include": [
       "niljs",
       "hardhat-plugin",
-      "hardhat-examples",
+      "create-nil-hardhat-project",
       "docs",
       "explorer_frontend",
       "explorer_backend",

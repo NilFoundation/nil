@@ -11,10 +11,10 @@ in
       ./docs/package.json
       ./hardhat-plugin/package.json
       ./niljs/package.json
-      ./hardhat-examples/package.json
+      ./create-nil-hardhat-project/package.json
       ./smart-contracts/package.json
       ./explorer_backend/package.json
     ];
   };
-  hash = "sha256-xmnfxu4YOIXM5//ajy1YpzmL1SIwo6/33ZjqKgwGIiQ=";
+  hash = "sha256-LM5Ao+jVaUyTU+EDrfRuNvUOrUMPwScQFdMEn1dyom4=";
 })

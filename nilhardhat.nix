@@ -17,7 +17,7 @@ stdenv.mkDerivation rec {
     "package-lock.json"
     "^hardhat-plugin(/.*)?$"
     "^niljs(/.*)?$"
-    "^hardhat-examples(/.*)?$"
+    "^create-nil-hardhat-project(/.*)?$"
     "^smart-contracts(/.*)?$"
     "biome.json"
   ];
@@ -56,7 +56,7 @@ stdenv.mkDerivation rec {
     echo "Linting hardhat-plugin"
     npm run lint
 
-    cd ../hardhat-examples
+    cd ../create-nil-hardhat-project
 
     echo "Installing soljson"
     bash install_soljson.sh ${soljson}
