@@ -90,20 +90,27 @@ const MainScreen = () => {
               })}
             >
               <LabelMedium width="250px" color={COLORS.gray200}>
-                <OverflowEllipsis>{address}</OverflowEllipsis>
+                {isPendingWalletCreation ? (
+                  <LabelMedium
+                    className={css({
+                      textAlign: "center",
+                    })}
+                  >
+                    Creating new wallet
+                  </LabelMedium>
+                ) : (
+                  <OverflowEllipsis>{address}</OverflowEllipsis>
+                )}
               </LabelMedium>
               <CopyButton textToCopy={address} disabled={address === null} color={COLORS.gray200} />
             </div>
           )}
-          {(isPendingWalletCreation || initializingWalletError) && (
-            <div>
-              <LabelMedium
-                className={css({
-                  textAlign: "center",
-                })}
-              >
-                Creating new wallet
-              </LabelMedium>
+          <div
+            className={css({
+              height: "16px",
+            })}
+          >
+            {(isPendingWalletCreation || initializingWalletError) && (
               <LabelSmall
                 color={initializingWalletError ? COLORS.red200 : COLORS.gray400}
                 className={css({
@@ -112,10 +119,10 @@ const MainScreen = () => {
               >
                 {initializingWalletError ? initializingWalletError : initializingWalletState}
               </LabelSmall>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-        <EndpointInput disabled={isPendingWalletCreation} />
+        <EndpointInput />
       </div>
       <ul
         className={css({
