@@ -72,9 +72,11 @@ export const setDeploymentArg = createEvent<{
 export const $assignedAddress = createStore<string>("");
 export const setAssignAddress = createEvent<string>();
 
-export const $shardId = createStore<number>(1);
+export const $shardId = createStore<number | null>(1);
 
-export const setShardId = createEvent<number>();
+export const setShardId = createEvent<number | null>();
+export const incrementShardId = createEvent("increment");
+export const decrementShardId = createEvent("decrement");
 
 export const deploySmartContract = createEvent();
 export const deploySmartContractFx = createEffect<

@@ -23,9 +23,11 @@ import {
   callMethod,
   choseApp,
   closeApp,
+  decrementShardId,
   deploySmartContract,
   deploySmartContractFx,
   fetchBalanceFx,
+  incrementShardId,
   sendMethod,
   sendMethodFx,
   setAssignAddress,
@@ -126,6 +128,9 @@ sample({
       if (!wallet) {
         return null;
       }
+      if (!shardId) {
+        return null;
+      }
       let abiConstructor = null;
       for (const abi of app.abi) {
         if (abi.type === "constructor") {
@@ -182,7 +187,12 @@ sample({
       };
     },
   ),
-  filter: combine($wallet, $activeApp, (wallet, app) => !!wallet && !!app),
+  filter: combine(
+    $wallet,
+    $activeApp,
+    $shardId,
+    (wallet, app, shardId) => !!wallet && !!app && shardId !== null,
+  ),
   fn: (data) => {
     const { app, args, wallet, shardId } = data!;
     return {
@@ -433,3 +443,11 @@ $activeApp.on(deploySmartContractFx.doneData, (_, { address, app }) => {
 $valueInput.on(setValueInput, (_, value) => value);
 
 $valueInput.reset($activeAppWithState);
+
+$shardId.on(incrementShardId, (shardId, _) => {
+  return shardId === null ? 1 : shardId + 1;
+});
+
+$shardId.on(decrementShardId, (shardId, _) => {
+  return shardId !== null ? Math.max(shardId - 1, 1) : 1;
+});
