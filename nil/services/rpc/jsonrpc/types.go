@@ -85,6 +85,7 @@ type RPCBlock struct {
 
 type DebugRPCBlock struct {
 	Content     hexutil.Bytes          `json:"content"`
+	ChildBlocks []common.Hash          `json:"childBlocks"`
 	InMessages  []hexutil.Bytes        `json:"inMessages"`
 	OutMessages []hexutil.Bytes        `json:"outMessages"`
 	Receipts    []hexutil.Bytes        `json:"receipts"`
@@ -93,6 +94,7 @@ type DebugRPCBlock struct {
 
 func (b *DebugRPCBlock) Encode(block *types.RawBlockWithExtractedData) error {
 	b.Content = block.Block
+	b.ChildBlocks = block.ChildBlocks
 	b.InMessages = hexutil.FromBytesSlice(block.InMessages)
 	b.OutMessages = hexutil.FromBytesSlice(block.OutMessages)
 	b.Receipts = hexutil.FromBytesSlice(block.Receipts)
@@ -103,6 +105,7 @@ func (b *DebugRPCBlock) Encode(block *types.RawBlockWithExtractedData) error {
 func (b *DebugRPCBlock) Decode() (*types.RawBlockWithExtractedData, error) {
 	return &types.RawBlockWithExtractedData{
 		Block:       b.Content,
+		ChildBlocks: b.ChildBlocks,
 		InMessages:  hexutil.ToBytesSlice(b.InMessages),
 		OutMessages: hexutil.ToBytesSlice(b.OutMessages),
 		Receipts:    hexutil.ToBytesSlice(b.Receipts),

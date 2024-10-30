@@ -76,6 +76,7 @@ func (s *Service) debugBlockToJson(shardId types.ShardId, block *types.BlockWith
 	// On the other hand, perhaps we want to control the output format more carefully, in which case it's not so bad.
 	blockDataJSON, err := json.MarshalIndent(struct {
 		*types.Block
+		ChildBlocks []common.Hash          `json:"childBlocks"`
 		InMessages  []messageWithHash      `json:"inMessages"`
 		OutMessages []messageWithHash      `json:"outMessages"`
 		Receipts    []*types.Receipt       `json:"receipts"`
@@ -84,6 +85,7 @@ func (s *Service) debugBlockToJson(shardId types.ShardId, block *types.BlockWith
 		ShardId     types.ShardId          `json:"shardId"`
 	}{
 		block.Block,
+		block.ChildBlocks,
 		toWithHashMessages(block.InMessages),
 		toWithHashMessages(block.OutMessages),
 		block.Receipts,
@@ -120,6 +122,12 @@ func (s *Service) debugBlockToText(shardId types.ShardId, block *types.BlockWith
 Block #{{ .block.Id }} [{{ .color.bold }}{{ .block.Hash }}{{ .color.reset }}] @ {{ .shardId }} shard
   PrevBlock: {{ .block.PrevBlock }}
   ChildBlocksRootHash: {{ .block.ChildBlocksRootHash }}
+{{- if len .block.ChildBlocks}}
+  ChildBlocks:
+  {{- range $index, $element := .block.ChildBlocks }}
+    - {{ inc $index }}: {{ $element }}
+  {{- end }}
+{{- end}}
   MainChainHash: {{ .block.MainChainHash }}
 {{ if len .block.InMessages -}}
 ▼ InMessages [{{ .block.InMessagesRoot }}]:
@@ -226,6 +234,9 @@ Block #{{ .block.Id }} [{{ .color.bold }}{{ .block.Hash }}{{ .color.reset }}] @ 
 					return hexed
 				}
 				return hexed[:limit] + "... (run with --full to expand)"
+			},
+			"inc": func(i int) int {
+				return i + 1
 			},
 		},
 		map[string]string{
