@@ -12,15 +12,16 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
 )
 
 type AggregatorMetrics interface {
+	metrics.BasicMetrics
 	RecordMainBlockFetched(ctx context.Context, mainBlockHash common.Hash)
-	RecordBlockBatchSize(ctx context.Context, batchSize int)
-	RecordAggregatorError(ctx context.Context)
+	RecordBlockBatchSize(ctx context.Context, batchSize uint32)
 }
 
 type Aggregator struct {
@@ -57,7 +58,7 @@ func (agg *Aggregator) Run(ctx context.Context) error {
 		func(ctx context.Context) {
 			if err := agg.processNewBlocks(ctx); err != nil {
 				agg.logger.Error().Err(err).Msg("error during processing new blocks")
-				agg.metrics.RecordAggregatorError(ctx)
+				agg.metrics.RecordError(ctx, "aggregator")
 			}
 		},
 	)
@@ -160,7 +161,7 @@ func (agg *Aggregator) validateAndProcessBlock(ctx context.Context, block *jsonr
 		if !isBatchCompleted {
 			return fmt.Errorf("batch for the main shard block %s is not completed", block.Hash)
 		}
-		agg.metrics.RecordBlockBatchSize(ctx, len(block.ChildBlocks))
+		agg.metrics.RecordBlockBatchSize(ctx, uint32(len(block.ChildBlocks)))
 	}
 
 	if err := agg.createProofTask(ctx, block, mainBlockHash); err != nil {

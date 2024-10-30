@@ -52,9 +52,9 @@ type TaskStorage interface {
 }
 
 type TaskStorageMetrics interface {
-	RecordTaskAdded(ctx context.Context, taskId types.TaskId)
-	RecordTaskStarted(ctx context.Context, taskId types.TaskId)
-	RecordTaskTerminated(ctx context.Context, taskResult types.TaskResult)
+	RecordTaskAdded(ctx context.Context, task *types.TaskEntry)
+	RecordTaskStarted(ctx context.Context, taskEntry *types.TaskEntry)
+	RecordTaskTerminated(ctx context.Context, taskEntry *types.TaskEntry, taskResult *types.TaskResult)
 	RecordTaskRescheduled(ctx context.Context, taskId types.TaskId)
 }
 
@@ -114,7 +114,7 @@ func (st *taskStorage) AddSingleTaskEntry(ctx context.Context, entry types.TaskE
 		return err
 	}
 
-	st.metrics.RecordTaskAdded(ctx, entry.Task.Id)
+	st.metrics.RecordTaskAdded(ctx, &entry)
 	return nil
 }
 
@@ -142,7 +142,7 @@ func (st *taskStorage) AddTaskEntries(ctx context.Context, tasks []*types.TaskEn
 	}
 
 	for _, entry := range tasks {
-		st.metrics.RecordTaskAdded(ctx, entry.Task.Id)
+		st.metrics.RecordTaskAdded(ctx, entry)
 	}
 	return nil
 }
@@ -222,14 +222,19 @@ func updateTaskStatus(tx db.RwTx, id types.TaskId, newStatus types.TaskStatus, n
 	if err != nil {
 		return err
 	}
+
+	if newStatus == types.Running {
+		now := time.Now()
+		entry.Started = &now
+	}
+
 	entry.Status = newStatus
-	entry.Modified = time.Now()
 	entry.Owner = newOwner
 	return putTaskEntry(tx, entry)
 }
 
 // Helper to find available task with higher priority
-func findHigherPriorityTask(tx db.RoTx) (*types.Task, error) {
+func findHigherPriorityTask(tx db.RoTx) (*types.TaskEntry, error) {
 	var res *types.TaskEntry = nil
 
 	err := iterateOverTaskEntries(tx, func(entry *types.TaskEntry) error {
@@ -241,65 +246,56 @@ func findHigherPriorityTask(tx db.RoTx) (*types.Task, error) {
 		return nil
 	})
 
-	if res == nil {
-		return nil, err
-	}
-	return &res.Task, err
+	return res, err
 }
 
 func (st *taskStorage) RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.Task, error) {
-	var task *types.Task
+	var taskEntry *types.TaskEntry
 	err := st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		var err error
-		task, err = st.requestTaskToExecuteImpl(ctx, executor)
+		taskEntry, err = st.requestTaskToExecuteImpl(ctx, executor)
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	if task != nil {
-		st.metrics.RecordTaskStarted(ctx, task.Id)
+	if taskEntry != nil {
+		st.metrics.RecordTaskStarted(ctx, taskEntry)
 	}
 
-	return task, nil
+	return &taskEntry.Task, nil
 }
 
-func (st *taskStorage) requestTaskToExecuteImpl(ctx context.Context, executor types.TaskExecutorId) (*types.Task, error) {
+func (st *taskStorage) requestTaskToExecuteImpl(ctx context.Context, executor types.TaskExecutorId) (*types.TaskEntry, error) {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	resultTask, err := findHigherPriorityTask(tx)
+	taskEntry, err := findHigherPriorityTask(tx)
 	if err != nil {
 		return nil, err
 	}
-	if resultTask == nil {
+	if taskEntry == nil {
 		// No task available
-		return resultTask, nil
+		return taskEntry, nil
 	}
-	err = updateTaskStatus(tx, resultTask.Id, types.Running, executor)
+	err = updateTaskStatus(tx, taskEntry.Task.Id, types.Running, executor)
 	if err != nil {
 		return nil, err
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
-	return resultTask, nil
+	return taskEntry, nil
 }
 
 func (st *taskStorage) ProcessTaskResult(ctx context.Context, res types.TaskResult) error {
-	err := st.retryRunner.Do(ctx, func(ctx context.Context) error {
+	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return st.processTaskResultImpl(ctx, res)
 	})
-	if err != nil {
-		return err
-	}
-
-	st.metrics.RecordTaskTerminated(ctx, res)
-	return nil
 }
 
 func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.TaskResult) error {
@@ -326,7 +322,6 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 	}
 
 	if !res.IsSuccess {
-		entry.Modified = time.Now()
 		entry.Status = types.Failed
 		if err := putTaskEntry(tx, entry); err != nil {
 			return fmt.Errorf("failed to set task entry with id=%s as failed: %w", entry.Task.Id, err)
@@ -355,7 +350,6 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 			return err
 		}
 		depEntry.Task.AddDependencyResult(res)
-		depEntry.Modified = time.Now()
 		if len(depEntry.Task.Dependencies) == int(depEntry.Task.DependencyNum) {
 			depEntry.Status = types.WaitingForExecutor
 		}
@@ -367,6 +361,8 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+
+	st.metrics.RecordTaskTerminated(ctx, entry, &res)
 	return nil
 }
 
@@ -406,7 +402,7 @@ func (st *taskStorage) rescheduleHangingTasksImpl(
 			return nil
 		}
 
-		executionTime := currentTime.Sub(entry.Modified)
+		executionTime := currentTime.Sub(*entry.Started)
 		if executionTime <= taskExecutionTimeout {
 			return nil
 		}
@@ -432,7 +428,7 @@ func (st *taskStorage) rescheduleTaskTx(tx db.RwTx, entry *types.TaskEntry, exec
 		Dur("executionTime", executionTime).
 		Msg("Task execution timeout, rescheduling")
 
-	entry.Modified = time.Now()
+	entry.Started = nil
 	entry.Status = types.WaitingForExecutor
 	entry.Owner = types.UnknownExecutorId
 

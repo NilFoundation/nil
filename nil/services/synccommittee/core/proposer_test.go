@@ -46,11 +46,10 @@ func (s *ProposerTestSuite) SetupSuite() {
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 	logger := logging.NewLogger("proposer_test")
-	s.storage = storage.NewBlockStorage(s.db, logger)
-
 	metricsHandler, err := metrics.NewHandler("proposer_test")
 	s.Require().NoError(err)
 
+	s.storage = storage.NewBlockStorage(s.db, metricsHandler, logger)
 	s.params = DefaultProposerParams()
 	s.proposer, err = NewProposer(s.params, &s.rpcClientMock, s.storage, metricsHandler, logger)
 	s.Require().NoError(err)

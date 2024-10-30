@@ -224,7 +224,7 @@ type TaskEntry struct {
 	Task        Task
 	PendingDeps []TaskId
 	Created     time.Time
-	Modified    time.Time
+	Started     *time.Time
 	Owner       TaskExecutorId
 	Status      TaskStatus
 }
@@ -253,10 +253,9 @@ func NewAggregateBlockProofsTaskEntry(batchId BatchId, shardId coreTypes.ShardId
 		DependencyNum: numChaildBlocks,
 	}
 	return &TaskEntry{
-		Task:     task,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   Draft,
+		Task:    task,
+		Created: time.Now(),
+		Status:  Draft,
 	}
 }
 
@@ -271,10 +270,9 @@ func NewBlockProofTaskEntry(batchId BatchId, parentTaskId *TaskId, blockHash com
 		DependencyNum: 0,
 	}
 	return &TaskEntry{
-		Task:     task,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   WaitingForExecutor,
+		Task:    task,
+		Created: time.Now(),
+		Status:  WaitingForExecutor,
 	}
 }
 
@@ -297,10 +295,9 @@ func NewPartialProveTaskEntry(
 		DependencyNum: 0,
 	}
 	return &TaskEntry{
-		Task:     task,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   WaitingForExecutor,
+		Task:    task,
+		Created: time.Now(),
+		Status:  WaitingForExecutor,
 	}
 }
 
@@ -322,10 +319,10 @@ func NewAggregateChallengeTaskEntry(
 	}
 
 	return &TaskEntry{
-		Task:     aggChallengeTask,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   WaitingForInput,
+		Task:    aggChallengeTask,
+		Created: time.Now(),
+
+		Status: WaitingForInput,
 	}
 }
 
@@ -348,10 +345,9 @@ func NewCombinedQTaskEntry(
 	}
 
 	return &TaskEntry{
-		Task:     combinedQTask,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   WaitingForInput,
+		Task:    combinedQTask,
+		Created: time.Now(),
+		Status:  WaitingForInput,
 	}
 }
 
@@ -373,10 +369,9 @@ func NewAggregateFRITaskEntry(
 	}
 
 	return &TaskEntry{
-		Task:     aggFRITask,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   WaitingForInput,
+		Task:    aggFRITask,
+		Created: time.Now(),
+		Status:  WaitingForInput,
 	}
 }
 
@@ -399,10 +394,9 @@ func NewFRIConsistencyCheckTaskEntry(
 		DependencyNum: 3, // aggregate FRI and corresponding partial proof and combinedQ
 	}
 	return &TaskEntry{
-		Task:     task,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   WaitingForInput,
+		Task:    task,
+		Created: time.Now(),
+		Status:  WaitingForInput,
 	}
 }
 
@@ -424,9 +418,8 @@ func NewMergeProofTaskEntry(
 	}
 
 	return &TaskEntry{
-		Task:     mergeProofTask,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   WaitingForInput,
+		Task:    mergeProofTask,
+		Created: time.Now(),
+		Status:  WaitingForInput,
 	}
 }

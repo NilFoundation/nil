@@ -15,11 +15,10 @@ import (
 
 func GenerateTaskEntry(modifiedAt time.Time, status types.TaskStatus, owner types.TaskExecutorId) *types.TaskEntry {
 	return &types.TaskEntry{
-		Task:     GenerateTask(),
-		Created:  modifiedAt.Add(-1 * time.Hour),
-		Modified: modifiedAt,
-		Status:   status,
-		Owner:    owner,
+		Task:    GenerateTask(),
+		Created: modifiedAt.Add(-1 * time.Hour),
+		Status:  status,
+		Owner:   owner,
 	}
 }
 

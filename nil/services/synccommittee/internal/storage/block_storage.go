@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
@@ -33,9 +34,10 @@ const (
 var mainShardKey = makeShardKey(types.MainShardId)
 
 type blockEntry struct {
-	Block    jsonrpc.RPCBlock `json:"block"`
-	IsProved bool             `json:"isProved"`
-	BatchId  scTypes.BatchId  `json:"batchId"`
+	Block     jsonrpc.RPCBlock `json:"block"`
+	IsProved  bool             `json:"isProved"`
+	BatchId   scTypes.BatchId  `json:"batchId"`
+	FetchedAt time.Time        `json:"fetchedAt"`
 }
 
 type PrunedTransaction struct {
@@ -63,6 +65,7 @@ type ProposalData struct {
 	Transactions       []PrunedTransaction
 	OldProvedStateRoot common.Hash
 	NewProvedStateRoot common.Hash
+	MainBlockFetchedAt time.Time
 }
 
 type BlockStorage interface {
@@ -87,16 +90,26 @@ type BlockStorage interface {
 	IsBatchCompleted(ctx context.Context, block *jsonrpc.RPCBlock) (bool, error)
 }
 
+type BlockStorageMetrics interface {
+	RecordMainBlockProved(ctx context.Context, mainBlockHash common.Hash)
+}
+
 type blockStorage struct {
 	db          db.DB
 	retryRunner common.RetryRunner
+	metrics     BlockStorageMetrics
 	logger      zerolog.Logger
 }
 
-func NewBlockStorage(database db.DB, logger zerolog.Logger) BlockStorage {
+func NewBlockStorage(
+	database db.DB,
+	metrics BlockStorageMetrics,
+	logger zerolog.Logger,
+) BlockStorage {
 	return &blockStorage{
 		db:          database,
 		retryRunner: badgerRetryRunner(logger),
+		metrics:     metrics,
 		logger:      logger,
 	}
 }
@@ -190,7 +203,7 @@ func (bs *blockStorage) setBlockImpl(ctx context.Context, block *jsonrpc.RPCBloc
 		return err
 	}
 
-	entry := blockEntry{Block: *block, BatchId: batchId}
+	entry := blockEntry{Block: *block, BatchId: batchId, FetchedAt: time.Now()}
 	value, err := marshallEntry(&entry)
 	if err != nil {
 		return err
@@ -263,6 +276,14 @@ func (bs *blockStorage) setProposeParentHash(tx db.RwTx, block *jsonrpc.RPCBlock
 }
 
 func (bs *blockStorage) SetBlockAsProved(ctx context.Context, id scTypes.BlockId) error {
+	if err := bs.setBlockAsProvedImpl(ctx, id); err != nil {
+		return err
+	}
+	bs.metrics.RecordMainBlockProved(ctx, id.Hash)
+	return nil
+}
+
+func (bs *blockStorage) setBlockAsProvedImpl(ctx context.Context, id scTypes.BlockId) error {
 	tx, err := bs.db.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -284,10 +305,10 @@ func (bs *blockStorage) SetBlockAsProved(ctx context.Context, id scTypes.BlockId
 		return err
 	}
 
-	err = tx.Put(blocksTable, id.Bytes(), value)
-	if err != nil {
+	if err := tx.Put(blocksTable, id.Bytes(), value); err != nil {
 		return err
 	}
+
 	return tx.Commit()
 }
 
@@ -298,8 +319,7 @@ func (bs *blockStorage) getOrCreateBatchIdTx(tx db.RwTx, mainBlockHash common.Ha
 	switch {
 	case err == nil:
 		var batchId scTypes.BatchId
-		err = batchId.UnmarshalText(bytes)
-		if err != nil {
+		if err := batchId.UnmarshalText(bytes); err != nil {
 			return scTypes.EmptyBatchId, err
 		}
 		return batchId, nil
@@ -307,11 +327,9 @@ func (bs *blockStorage) getOrCreateBatchIdTx(tx db.RwTx, mainBlockHash common.Ha
 	case errors.Is(err, db.ErrKeyNotFound):
 		batchId := scTypes.NewBatchId()
 		value := batchId.Bytes()
-
 		if err := tx.Put(batchIdTable, batchKey, value); err != nil {
 			return scTypes.EmptyBatchId, err
 		}
-
 		return batchId, nil
 
 	default:
@@ -428,6 +446,7 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 		Transactions:       transactions,
 		OldProvedStateRoot: *currentProvedStateRoot,
 		NewProvedStateRoot: mainShardEntry.Block.ChildBlocksRootHash,
+		MainBlockFetchedAt: mainShardEntry.FetchedAt,
 	}, nil
 }
 

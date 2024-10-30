@@ -61,10 +61,9 @@ func (s *TaskStorageSuite) SetupSuite() {
 		DependencyNum: 0,
 	}
 	s.baseTaskEntry = types.TaskEntry{
-		Task:     s.baseTask,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   types.WaitingForExecutor,
+		Task:    s.baseTask,
+		Created: time.Now(),
+		Status:  types.WaitingForExecutor,
 	}
 }
 

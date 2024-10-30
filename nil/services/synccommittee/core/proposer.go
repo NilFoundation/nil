@@ -16,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -94,8 +95,8 @@ type ProposerParams struct {
 }
 
 type ProposerMetrics interface {
-	RecordProposerTxSent(ctx context.Context, mainBlockHash common.Hash)
-	RecordProposerError(ctx context.Context)
+	metrics.BasicMetrics
+	RecordProposerTxSent(ctx context.Context, proposalData *storage.ProposalData)
 }
 
 func DefaultProposerParams() ProposerParams {
@@ -161,7 +162,7 @@ func (p *Proposer) Run(ctx context.Context) error {
 		func(ctx context.Context) {
 			if err := p.proposeNextBlock(ctx); err != nil {
 				p.logger.Error().Err(err).Msg("error during proved blocks proposing")
-				p.metrics.RecordProposerError(ctx)
+				p.metrics.RecordError(ctx, "proposer")
 				return
 			}
 		},
@@ -407,6 +408,6 @@ func (p *Proposer) sendProof(ctx context.Context, data *storage.ProposalData) er
 	p.seqno.Add(1)
 	// TODO send bloob with transactions and KZG proof
 
-	p.metrics.RecordProposerTxSent(ctx, data.MainShardBlockHash)
+	p.metrics.RecordProposerTxSent(ctx, data)
 	return nil
 }

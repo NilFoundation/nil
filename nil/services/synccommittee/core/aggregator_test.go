@@ -78,12 +78,13 @@ func (s *AggregatorTestSuite) SetupSuite() {
 	s.waitTwoBlocks(url)
 
 	logger := logging.NewLogger("aggregator_test")
+	metricsHandler, err := metrics.NewHandler("aggregator_test")
+	s.Require().NoError(err)
+
 	s.client = rpc.NewClient(url, logger)
 	s.scDb, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
-	s.storage = storage.NewBlockStorage(s.scDb, logger)
-	s.Require().NoError(err)
-	metricsHandler, err := metrics.NewHandler("aggregator_test")
+	s.storage = storage.NewBlockStorage(s.scDb, metricsHandler, logger)
 	s.Require().NoError(err)
 
 	s.aggregator, err = NewAggregator(
