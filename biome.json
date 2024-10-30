@@ -11,7 +11,8 @@
         "noUnusedImports": "warn"
       },
       "style": {
-        "noDefaultExport": "warn"
+        "noDefaultExport": "warn",
+        "noNonNullAssertion": "warn"
       },
       "suspicious": {
         "noConsoleLog": "warn"

@@ -1,20 +1,18 @@
 import type { FC } from "react";
-import type { App } from "../../types";
+import type { App } from "../../../../types";
 import { useStyletron } from "styletron-react";
 import {
   BUTTON_KIND,
   Button,
-  ButtonIcon,
   COLORS,
   CopyButton,
   HeadingMedium,
   SPACE,
-  StatefulTooltip,
 } from "@nilfoundation/ui-kit";
-import { choseApp, unlinkApp } from "./model";
+import { choseApp } from "../../model";
 import { expandProperty } from "inline-style-expand-shorthand";
 import type { Hex } from "@nilfoundation/niljs";
-import { DeleteIcon } from "./DeleteIcon";
+import { RemoveAppButton } from "../RemoveAppButton";
 
 type ContractProps = {
   contract: App;
@@ -43,8 +41,6 @@ export const Contract: FC<ContractProps> = ({ contract, deployedApps }) => {
           flexDirection: "row",
           justifyContent: "space-between",
           alignItems: "center",
-          paddingLeft: "8px",
-          paddingRight: "8px",
         })}
       >
         <HeadingMedium
@@ -71,8 +67,6 @@ export const Contract: FC<ContractProps> = ({ contract, deployedApps }) => {
           display: "flex",
           flexDirection: "column",
           gap: "12px",
-          paddingLeft: "8px",
-          paddingRight: "8px",
         })}
       >
         {deployedApps.map(({ address, bytecode }) => {
@@ -135,37 +129,7 @@ export const Contract: FC<ContractProps> = ({ contract, deployedApps }) => {
                   onClick={(e) => e.stopPropagation()}
                   onKeyDown={(e) => e.stopPropagation()}
                 />
-                <StatefulTooltip
-                  content="Remove app"
-                  showArrow={false}
-                  placement="bottom"
-                  popoverMargin={0}
-                >
-                  <ButtonIcon
-                    icon={<DeleteIcon />}
-                    kind={BUTTON_KIND.text}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (address)
-                        unlinkApp({
-                          app: bytecode,
-                          address: address,
-                        });
-                    }}
-                    onKeyDown={(e) => {
-                      e.stopPropagation();
-                      if (!(e.key === "Enter" || e.key === " ")) {
-                        return;
-                      }
-
-                      if (address)
-                        unlinkApp({
-                          app: bytecode,
-                          address: address,
-                        });
-                    }}
-                  />
-                </StatefulTooltip>
+                <RemoveAppButton address={address!} bytecode={bytecode} disabled={!address} />
               </div>
             </div>
           );

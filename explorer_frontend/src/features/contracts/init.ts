@@ -13,7 +13,6 @@ import {
   $error,
   $errors,
   $loading,
-  $managementKey,
   $shardId,
   $state,
   $tokens,
@@ -31,7 +30,6 @@ import {
   sendMethodFx,
   setAssignAddress,
   setDeploymentArg,
-  setManagementPage,
   setParams,
   setShardId,
   setValueInput,
@@ -226,9 +224,6 @@ $state.on(unlinkApp, (state, { app, address }) => {
 $activeApp.on(unlinkApp, () => null);
 
 debug(unlinkApp);
-
-$managementKey.on(setManagementPage, (_, key) => key);
-$managementKey.reset($activeApp);
 
 $activeKeys.on(toggleActiveKey, (keys, key) => {
   return {

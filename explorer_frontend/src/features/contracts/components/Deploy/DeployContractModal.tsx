@@ -1,51 +1,76 @@
 import {
-  BUTTON_KIND,
   Button,
   COLORS,
   Checkbox,
   FormControl,
   Input,
+  Modal,
   ModalBody,
   ModalHeader,
   SPACE,
+  HeadingMedium,
+  LabelLarge,
+  ParagraphSmall,
 } from "@nilfoundation/ui-kit";
-import { HeadingMedium, ParagraphMedium } from "baseui/typography";
 import { useUnit } from "effector-react";
 import {
-  $assignedAddress,
   $deploymentArgs,
   $shardId,
-  assignAdress,
   deploySmartContract,
   deploySmartContractFx,
-  setAssignAddress,
   setDeploymentArg,
   setShardId,
-} from "./model";
+} from "../../model";
 import { useStyletron } from "styletron-react";
-import { $constructor } from "./init";
+import { $constructor } from "../../init";
+import type { FC } from "react";
+import { $wallet } from "../../../account-connector/models/model";
+import { ShardIdInput } from "./ShardIdInput";
 
-export const DeployForm = () => {
-  const [address, args, constuctorAbi, pending, shardId] = useUnit([
-    $assignedAddress,
+type DeployContractModalProps = {
+  onClose?: () => void;
+  isOpen?: boolean;
+  name: string;
+};
+
+export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isOpen, name }) => {
+  const [wallet, args, constuctorAbi, pending, shardId] = useUnit([
+    $wallet,
     $deploymentArgs,
     $constructor,
     deploySmartContractFx.pending,
     $shardId,
   ]);
   const [css] = useStyletron();
+
   return (
-    <>
-      <ModalHeader>Deploy settings</ModalHeader>
+    <Modal
+      autoFocus={false}
+      isOpen={isOpen}
+      onClose={onClose}
+      size="min(770px, 80vw)"
+      overrides={{
+        Dialog: {
+          style: {
+            paddingBottom: 0,
+          },
+        },
+      }}
+    >
+      <ModalHeader>
+        <LabelLarge>{name}</LabelLarge>
+      </ModalHeader>
       <ModalBody>
         <div
           className={css({
             flexGrow: 0,
             paddingBottom: SPACE[16],
-            borderBottom: `1px solid ${COLORS.gray800}`,
           })}
         >
-          <FormControl label="Address" caption="Assign by address">
+          <FormControl
+            label="Wallet"
+            caption="From this wallet contract will be recorded to network"
+          >
             <Input
               overrides={{
                 Root: {
@@ -54,36 +79,15 @@ export const DeployForm = () => {
                   },
                 },
               }}
-              name="Addres"
-              placeholder="0x..."
-              value={address}
-              onChange={(e) => {
-                setAssignAddress(e.target.value);
-              }}
+              name="Wallet"
+              value={wallet?.getAddressHex() ?? ""}
+              disabled
+              readOnly
             />
           </FormControl>
-          <Button
-            kind={BUTTON_KIND.secondary}
-            className={css({})}
-            onClick={() => {
-              assignAdress();
-            }}
-          >
-            Assign
-          </Button>
         </div>
-        <div
-          className={css({
-            marginTop: SPACE[16],
-          })}
-        >
-          <FormControl label="Shard id">
-            <Input
-              value={shardId}
-              onChange={(e) => setShardId(Number.parseInt(e.target.value))}
-              type="number"
-            />
-          </FormControl>
+        <div>
+          <ShardIdInput shardId={shardId} setShardId={setShardId} />
           {constuctorAbi?.inputs.length ? (
             <>
               <HeadingMedium
@@ -137,7 +141,9 @@ export const DeployForm = () => {
               })}
             </>
           ) : (
-            <ParagraphMedium>No constructor arguments</ParagraphMedium>
+            <ParagraphSmall marginBottom="16px" color={COLORS.gray400}>
+              No constructor arguments
+            </ParagraphSmall>
           )}
           <Button
             onClick={() => {
@@ -149,6 +155,6 @@ export const DeployForm = () => {
           </Button>
         </div>
       </ModalBody>
-    </>
+    </Modal>
   );
 };

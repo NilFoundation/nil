@@ -2,13 +2,13 @@ import { useUnit } from "effector-react";
 import { $activeComponent, LayoutComponent, setActiveComponent } from "./model";
 import { Code } from "../../features/code/Code";
 import { Logs } from "../../features/logs/Logs";
-import { Contracts } from "../../features/contracts/Contracts";
+import { ContractsContainer } from "../../features/contracts";
 import { useSwipeable } from "react-swipeable";
 
 const featureMap = new Map();
 featureMap.set(LayoutComponent.Code, Code);
 featureMap.set(LayoutComponent.Logs, Logs);
-featureMap.set(LayoutComponent.Contracts, Contracts);
+featureMap.set(LayoutComponent.Contracts, ContractsContainer);
 
 const SandboxMobileLayout = () => {
   const activeComponent = useUnit($activeComponent);

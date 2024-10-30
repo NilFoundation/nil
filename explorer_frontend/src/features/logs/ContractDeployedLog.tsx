@@ -9,8 +9,7 @@ import {
   StatefulTooltip,
 } from "@nilfoundation/ui-kit";
 import { useStyletron } from "styletron-react";
-import { ShareIcon } from "./ShareIcon";
-import { Link } from "../shared";
+import { Link, ShareIcon } from "../shared";
 import { addressRoute } from "../routing";
 
 type ContractDeployedLogProps = {
@@ -31,11 +30,11 @@ export const ContractDeployedLog: FC<ContractDeployedLogProps> = ({ address }) =
       <LabelMedium color={COLORS.gray400}>Contract address:</LabelMedium>
       <LabelMedium color={COLORS.gray50}>{address}</LabelMedium>
       <CopyButton kind={BUTTON_KIND.secondary} textToCopy={address} size={BUTTON_SIZE.default} />
-      <StatefulTooltip content="Open in Explorer" showArrow placement="bottom">
-        <Link to={addressRoute} params={{ address }}>
+      <Link to={addressRoute} params={{ address }}>
+        <StatefulTooltip content="Open in Explorer" showArrow={false} placement="top">
           <ButtonIcon icon={<ShareIcon />} kind={BUTTON_KIND.secondary} />
-        </Link>
-      </StatefulTooltip>
+        </StatefulTooltip>
+      </Link>
     </div>
   );
 };
