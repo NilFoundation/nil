@@ -6,6 +6,11 @@ import (
 )
 
 var (
+	ErrBlockMismatch   = errors.New("block mismatch")
+	ErrBlockProcessing = errors.New("block processing error")
+)
+
+var (
 	ErrUnexpectedTaskType   = errors.New("unexpected task type")
 	ErrBlockProofTaskFailed = errors.New("block proof task failed")
 )

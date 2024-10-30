@@ -17,6 +17,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
+	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -217,7 +218,8 @@ func (p *Proposer) proposeNextBlock(ctx context.Context) error {
 		return fmt.Errorf("failed to send proof to L1 for block with hash=%s: %w", data.MainShardBlockHash, err)
 	}
 
-	err = p.blockStorage.SetBlockAsProposed(ctx, types.MainShardId, data.MainShardBlockHash)
+	blockId := scTypes.NewBlockId(types.MainShardId, data.MainShardBlockHash)
+	err = p.blockStorage.SetBlockAsProposed(ctx, blockId)
 	if err != nil {
 		return fmt.Errorf("failed set block with hash=%s as proposed: %w", data.MainShardBlockHash, err)
 	}
@@ -299,6 +301,10 @@ func getCurrentNonce(selfAddress string, client client.RawClient) (uint64, error
 	if err != nil {
 		return 0, fmt.Errorf("failed send eth_getTransactionCount: %w", err)
 	}
+	if res == nil {
+		return 0, nil
+	}
+
 	var nonceValue hexutil.Uint64
 	if err = nonceValue.UnmarshalJSON(res); err != nil {
 		return 0, fmt.Errorf("failed unmarshal result: %w", err)

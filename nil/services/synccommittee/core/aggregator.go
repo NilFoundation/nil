@@ -10,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/db"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
@@ -71,15 +70,15 @@ func (agg *Aggregator) getBlock(shardId coreTypes.ShardId, blockHash common.Hash
 }
 
 // fetchLatestBlocks retrieves the latest block for main shard
-func (agg *Aggregator) fetchLatestBlock() (*jsonrpc.RPCBlock, error) {
+func (agg *Aggregator) fetchLatestBlockRef() (*types.MainBlockRef, error) {
 	block, err := agg.client.GetBlock(coreTypes.MainShardId, "latest", false)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching latest block from shard %d: %w", coreTypes.MainShardId, err)
 	}
-	return block, nil
+	return types.NewBlockRef(block)
 }
 
-// createProofTask generates proof tasks for the main shard blocks.
+// createProofTask generates proof tasks for a block
 func (agg *Aggregator) createProofTask(ctx context.Context, blockForProof *jsonrpc.RPCBlock) error {
 	mainHash := blockForProof.MainChainHash
 	if mainHash == common.EmptyHash {
@@ -138,27 +137,44 @@ func (agg *Aggregator) createProofTask(ctx context.Context, blockForProof *jsonr
 
 // validateAndProcessBlock checks the validity of a block and stores it if valid.
 func (agg *Aggregator) validateAndProcessBlock(ctx context.Context, block *jsonrpc.RPCBlock) error {
-	isBatchCompleted, err := agg.blockStorage.IsBatchCompleted(ctx, block)
-	if err != nil {
-		return err
-	}
-	if block.ShardId == coreTypes.MainShardId && !isBatchCompleted {
-		return fmt.Errorf("batch for the main shard block %s is not completed", block.Hash)
+	if block == nil {
+		return errors.New("block cannot be nil")
 	}
 
-	if err := agg.blockStorage.SetBlock(ctx, block.ShardId, block.Number, block); err != nil {
-		return err
+	if block.ShardId == coreTypes.MainShardId {
+		latestFetched, err := agg.blockStorage.TryGetLatestFetched(ctx)
+		if err != nil {
+			return fmt.Errorf("error reading latest fetched block for shard %d: %w", block.ShardId, err)
+		}
+		if err := latestFetched.ValidateChild(block); err != nil {
+			return err
+		}
+
+		isBatchCompleted, err := agg.blockStorage.IsBatchCompleted(ctx, block)
+		if err != nil {
+			return err
+		}
+		if !isBatchCompleted {
+			return fmt.Errorf("batch for the main shard block %s is not completed", block.Hash)
+		}
 	}
 
-	// Start generating proof during blocks fetching
-	return agg.createProofTask(ctx, block)
+	if err := agg.createProofTask(ctx, block); err != nil {
+		return fmt.Errorf("error creating proof tasks for block %s: %w", block.Hash, err)
+	}
+
+	if err := agg.blockStorage.SetBlock(ctx, block); err != nil {
+		return fmt.Errorf("error storing block %s: %w", block.Hash, err)
+	}
+
+	return nil
 }
 
 // fetchAndProcessBlocks retrieves a range of blocks for a main shard, stores them, creates proof tasks
-func (agg *Aggregator) fetchAndProcessBlocks(ctx context.Context, from, to coreTypes.BlockNumber) error {
+func (agg *Aggregator) fetchAndProcessBlocks(ctx context.Context, blocksRange types.BlocksRange) error {
 	shardId := coreTypes.MainShardId
 	const batchSize = 20
-	results, err := agg.client.GetBlocksRange(shardId, from, to+1, true, batchSize)
+	results, err := agg.client.GetBlocksRange(shardId, blocksRange.Start, blocksRange.End+1, true, batchSize)
 	if err != nil {
 		return fmt.Errorf("error fetching blocks from shard %d: %w", shardId, err)
 	}
@@ -201,13 +217,14 @@ func (agg *Aggregator) processNewBlocks(ctx context.Context) error {
 	agg.metrics.StartProcessingMeasurment()
 	defer agg.metrics.EndProcessingMeasurment(ctx)
 
-	latestBlock, err := agg.fetchLatestBlock()
+	latestBlock, err := agg.fetchLatestBlockRef()
 	if err != nil {
 		agg.metrics.RecordError(ctx)
 		return err
 	}
 
-	if err := agg.processShardBlocks(ctx, latestBlock.Number); err != nil {
+	if err := agg.processShardBlocks(ctx, *latestBlock); err != nil {
+		// todo: launch block re-fetching in case of ErrBlockMismatch
 		agg.metrics.RecordError(ctx)
 		return fmt.Errorf("error processing blocks from shard %d: %w", coreTypes.MainShardId, err)
 	}
@@ -215,32 +232,30 @@ func (agg *Aggregator) processNewBlocks(ctx context.Context) error {
 	return nil
 }
 
-// processShardBlocks handles the processing of new blocks for a main shard.
+// processShardBlocks handles the processing of new blocks for the main shard.
 // It fetches new blocks, updates the storage, and records relevant metrics.
-func (agg *Aggregator) processShardBlocks(ctx context.Context, latestBlockNum coreTypes.BlockNumber) error {
-	shardId := coreTypes.MainShardId
-	lastFetchedBlockNum, err := agg.blockStorage.GetLastFetchedBlockNum(ctx, shardId)
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+func (agg *Aggregator) processShardBlocks(ctx context.Context, actualLatest types.MainBlockRef) error {
+	latestFetched, err := agg.blockStorage.TryGetLatestFetched(ctx)
+	if err != nil {
+		return fmt.Errorf("error reading latest fetched block for the main shard: %w", err)
+	}
+
+	fetchingRange, err := types.GetBlocksFetchingRange(latestFetched, actualLatest)
+	if err != nil {
 		return err
 	}
 
-	switch {
-	case errors.Is(err, db.ErrKeyNotFound):
-		// If there is no such shard info in db, we need to init it
-		if err = agg.fetchAndProcessBlocks(ctx, latestBlockNum, latestBlockNum); err != nil {
-			return err
+	if fetchingRange == nil {
+		agg.logger.Debug().
+			Stringer(logging.FieldShardId, coreTypes.MainShardId).
+			Stringer(logging.FieldBlockNumber, actualLatest.Number).
+			Msg("no new blocks to fetch")
+	} else {
+		if err := agg.fetchAndProcessBlocks(ctx, *fetchingRange); err != nil {
+			return fmt.Errorf("%w: %w", types.ErrBlockProcessing, err)
 		}
-
-	case latestBlockNum > lastFetchedBlockNum:
-		if err := agg.fetchAndProcessBlocks(ctx, lastFetchedBlockNum+1, latestBlockNum); err != nil {
-			return err
-		}
-
-	default:
-		agg.logger.Debug().Stringer(logging.FieldShardId, shardId).Stringer(logging.FieldBlockNumber, latestBlockNum).Msg("no new blocks to fetch")
 	}
 
-	agg.metrics.SetCurrentBlockHeight(ctx, int64(latestBlockNum), uint32(shardId))
-
+	agg.metrics.SetCurrentBlockHeight(ctx, int64(actualLatest.Number), uint32(coreTypes.MainShardId))
 	return nil
 }

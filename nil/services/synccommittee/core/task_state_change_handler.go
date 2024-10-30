@@ -51,5 +51,6 @@ func (h taskStateChangeHandler) OnTaskTerminated(ctx context.Context, task *type
 		Interface("parentTaskId", task.ParentTaskId).
 		Msg("Proof bacth completed")
 
-	return h.blockStorage.SetBlockAsProved(ctx, coreTypes.MainShardId, task.BlockHash)
+	blockId := types.NewBlockId(task.ShardId, task.BlockHash)
+	return h.blockStorage.SetBlockAsProved(ctx, blockId)
 }

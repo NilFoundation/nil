@@ -15,6 +15,7 @@ import (
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
+	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
@@ -110,29 +111,28 @@ func (s *AggregatorTestSuite) TestProcessNewBlocks() {
 	err := s.aggregator.processNewBlocks(context.Background())
 	s.Require().NoError(err)
 
-	// Check if blocks were fetched and stored for each shard
-	for shardId := coreTypes.ShardId(0); shardId < coreTypes.ShardId(s.nShards); shardId++ {
-		lastFetchedBlockNum, err := s.storage.GetLastFetchedBlockNum(s.ctx, shardId)
-		s.Require().NoError(err)
-		s.Require().Greater(lastFetchedBlockNum, coreTypes.BlockNumber(0))
-	}
+	latestFetched, err := s.storage.TryGetLatestFetched(s.ctx)
+	s.Require().NoError(err)
+	s.Require().NotNil(latestFetched)
+	s.Require().Greater(latestFetched.Number, coreTypes.BlockNumber(0))
 }
 
 func (s *AggregatorTestSuite) TestFetchAndProcessBlocks() {
-	latestBlock, err := s.aggregator.fetchLatestBlock()
+	latestBlock, err := s.aggregator.fetchLatestBlockRef()
 	s.Require().NoError(err)
 
-	err = s.aggregator.fetchAndProcessBlocks(s.ctx, 0, latestBlock.Number)
+	blocksRange := scTypes.BlocksRange{End: latestBlock.Number}
+	err = s.aggregator.fetchAndProcessBlocks(s.ctx, blocksRange)
 	s.Require().NoError(err)
 
 	// Check if blocks were stored
-	block, err := s.aggregator.blockStorage.GetBlock(s.ctx, coreTypes.MainShardId, latestBlock.Number)
+	block, err := s.aggregator.blockStorage.TryGetBlock(s.ctx, scTypes.NewBlockId(coreTypes.MainShardId, latestBlock.Hash))
 	s.Require().NoError(err)
 	s.Require().NotNil(block)
 }
 
 func (s *AggregatorTestSuite) TestValidateAndProcessBlock() {
-	latestBlock, err := s.aggregator.fetchLatestBlock()
+	latestBlock, err := s.aggregator.fetchLatestBlockRef()
 	s.Require().NoError(err)
 
 	// Fetch the latest block
@@ -142,11 +142,11 @@ func (s *AggregatorTestSuite) TestValidateAndProcessBlock() {
 	block.ChildBlocks = make([]common.Hash, 0)
 
 	// Validate and store the block
-	err = s.aggregator.validateAndProcessBlock(context.Background(), block)
+	err = s.aggregator.validateAndProcessBlock(s.ctx, block)
 	s.Require().NoError(err)
 
 	// Check if the block was stored
-	storedBlock, err := s.storage.GetBlock(s.ctx, coreTypes.MainShardId, block.Number)
+	storedBlock, err := s.storage.TryGetBlock(s.ctx, scTypes.IdFromBlock(block))
 	s.Require().NoError(err)
 	s.Require().NotNil(storedBlock)
 	s.Require().Equal(block.Number, storedBlock.Number)
