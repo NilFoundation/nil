@@ -10,10 +10,12 @@ import {
 } from "@nilfoundation/ui-kit";
 import type { FC } from "react";
 import { useStyletron } from "styletron-react";
+import { decrementShardId, incrementShardId } from "../../model";
 
 type ShardIdInputProps = {
-  shardId: number;
-  setShardId: (shardId: number) => void;
+  shardId: number | null;
+  setShardId: (shardId: number | null) => void;
+  disabled?: boolean;
 };
 
 const btnOverrides = {
@@ -26,17 +28,15 @@ const btnOverrides = {
   },
 };
 
-export const ShardIdInput: FC<ShardIdInputProps> = ({ shardId, setShardId }) => {
+export const ShardIdInput: FC<ShardIdInputProps> = ({ shardId, setShardId, disabled }) => {
   const [css] = useStyletron();
-  const increment = () => setShardId(shardId + 1);
-  const decrement = () => setShardId(shardId - 1);
 
   return (
     <div
       className={css({
         display: "flex",
         flexDirection: "column",
-        marginBottom: "16px",
+        marginBottom: "24px",
         gap: "4px",
       })}
     >
@@ -50,9 +50,23 @@ export const ShardIdInput: FC<ShardIdInputProps> = ({ shardId, setShardId }) => 
         <div>
           <FormControl label="Shard ID">
             <Input
-              value={shardId}
-              onChange={(e) => setShardId(Number.parseInt(e.target.value))}
+              value={shardId?.toString() ?? ""}
+              onChange={(e) => {
+                const { value } = e.target;
+                if (value === "") {
+                  setShardId(null);
+                  return;
+                }
+
+                const sId = Number.parseInt(value, 10);
+                if (Number.isNaN(sId)) {
+                  setShardId(null);
+                  return;
+                }
+                setShardId(sId);
+              }}
               type="number"
+              disabled={disabled}
               overrides={{
                 Input: {
                   style: {
@@ -78,14 +92,15 @@ export const ShardIdInput: FC<ShardIdInputProps> = ({ shardId, setShardId }) => 
         </div>
         <ButtonIcon
           kind={BUTTON_KIND.secondary}
-          icon={<PlusIcon size={16} />}
-          onClick={increment}
+          icon={<MinusIcon size={16} />}
+          onClick={() => decrementShardId()}
           overrides={btnOverrides}
+          disabled={shardId === null || shardId <= 1}
         />
         <ButtonIcon
           kind={BUTTON_KIND.secondary}
-          icon={<MinusIcon size={16} />}
-          onClick={decrement}
+          icon={<PlusIcon size={16} />}
+          onClick={() => incrementShardId()}
           overrides={btnOverrides}
         />
       </div>

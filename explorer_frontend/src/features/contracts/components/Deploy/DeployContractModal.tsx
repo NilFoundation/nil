@@ -87,9 +87,17 @@ export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isO
           </FormControl>
         </div>
         <div>
-          <ShardIdInput shardId={shardId} setShardId={setShardId} />
+          <ShardIdInput shardId={shardId} setShardId={setShardId} disabled={pending} />
           {constuctorAbi?.inputs.length ? (
-            <>
+            <div
+              className={css({
+                paddingTop: "16px",
+                borderTop: `1px solid ${COLORS.gray800}`,
+                borderBottom: `1px solid ${COLORS.gray800}`,
+                maxHeight: "30vh",
+                marginBottom: "24px",
+              })}
+            >
               <HeadingMedium
                 className={css({
                   marginBottom: SPACE[8],
@@ -139,10 +147,10 @@ export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isO
                   </FormControl>
                 );
               })}
-            </>
+            </div>
           ) : (
-            <ParagraphSmall marginBottom="16px" color={COLORS.gray400}>
-              No constructor arguments
+            <ParagraphSmall marginBottom="24px" color={COLORS.gray400}>
+              No deployment arguments
             </ParagraphSmall>
           )}
           <Button
@@ -150,6 +158,7 @@ export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isO
               deploySmartContract();
             }}
             isLoading={pending}
+            disabled={pending || !wallet || shardId === null}
           >
             Deploy
           </Button>
