@@ -26,7 +26,7 @@ test("bounce", async () => {
 
   const gasPrice = await client.getGasPrice(1);
 
-  const pubkey = await signer.getPublicKey();
+  const pubkey = signer.getPublicKey();
 
   const wallet = new WalletV1({
     pubkey: pubkey,

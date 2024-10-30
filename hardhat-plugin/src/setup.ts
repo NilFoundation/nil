@@ -51,7 +51,7 @@ export async function setupWalletAndClient(
   }
 
   const signer = new LocalECDSAKeySigner({ privateKey });
-  const pubKey = await signer.getPublicKey();
+  const pubKey = signer.getPublicKey();
 
   const newWalletSalt = new Uint8Array(32);
   let walletAddress = hre.config.walletAddress

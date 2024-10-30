@@ -7,31 +7,32 @@
 </p>
 
 <row style="display: flex; gap: 10px;"><p align="center">
-  <a href="https://github.com/NilFoundation/nil.js/actions/workflows/build.yaml">
-    <picture>
-      <img src="https://img.shields.io/github/actions/workflow/status/NilFoundation/nil.js/.github%2Fworkflows%2Fbuild.yaml"/>
-    </picture>
-  </a>
-  <a href="https://www.npmjs.com/package/@nilfoundation/niljs">
-    <picture>
-      <img src="https://img.shields.io/npm/dy/%40nilfoundation%2Fniljs"/>
-    </picture>
-  </a>
-  <a href="https://github.com/NilFoundation/nil.js">
-    <picture>
-      <img src="https://img.shields.io/github/stars/NilFoundation/nil.js"/>
-    </picture>
-  </a>
-  <a href="https://github.com/NilFoundation/nil.js/actions/workflows/build.yaml">
-    <picture>
-      <img src="https://img.shields.io/npm/v/%40nilfoundation%2Fniljs"/>
-    </picture>
-  </a>
-  <a href="https://github.com/NilFoundation/nil.js">
-    <picture>
-      <img src="https://img.shields.io/github/forks/NilFoundation/nil.js"/>
-    </picture>
-  </a>
+<a href="https://github.com/NilFoundation/nil.js/actions/workflows/build.yaml">
+<picture>
+<img src="https://img.shields.io/github/actions/workflow/status/NilFoundation/nil.js/.github%2Fworkflows%2Fbuild.yaml"/>
+</picture>
+</a>
+<a href="https://www.npmjs.com/package/@nilfoundation/niljs">
+<picture>
+<img src="https://img.shields.io/npm/dy/%40nilfoundation%2Fniljs"/>
+</picture>
+</a>
+<a href="https://github.com/NilFoundation/nil.js">
+<picture>
+<img src="https://img.shields.io/github/stars/NilFoundation/nil.js"/>
+</picture>
+</a>
+<a href="https://github.com/NilFoundation/nil.js/actions/workflows/build.yaml">
+<picture>
+<img src="https://img.shields.io/npm/v/%40nilfoundation%2Fniljs"/>
+</picture>
+</a>
+<a href="https://github.com/NilFoundation/nil.js">
+<picture>
+<img src="https://img.shields.io/github/forks/NilFoundation/nil.js"/>
+</picture>
+</a>
+
 </p>
 </row>
 
@@ -70,7 +71,7 @@ const client = new PublicClient({
 To deploy a wallet:
 
 ```typescript
-const pubkey = await signer.getPublicKey();
+const pubkey = signer.getPublicKey();
 
 const wallet = new WalletV1({
   pubkey: pubkey,
@@ -100,7 +101,7 @@ const deploymentMessage = externalDeploymentMessage(
     abi: WalletV1.abi,
     args: [bytesToHex(pubkey)],
   },
-  chainId,
+  chainId
 );
 const addr = bytesToHex(deploymentMessage.to);
 console.log("walletAddress", addr);
@@ -108,7 +109,7 @@ console.log("walletAddress", addr);
 
 ## Usage
 
-In =nil;, it is possible to call functions asynchronously. When a contract makes an async call, a new transaction is spawned. When this transaction is processed, the function call itself is executed. 
+In =nil;, it is possible to call functions asynchronously. When a contract makes an async call, a new transaction is spawned. When this transaction is processed, the function call itself is executed.
 
 It is possible to make async calls within the confines of the same shard or between contracts deployed on different shards.
 
@@ -204,7 +205,6 @@ await waitTillCompleted(client, 1, sendHash);
 ```
 
 =nil; also supports token bouncing. If a message carries custom tokens, and it is unsuccesful, the funds will be returned to the address specified in the `bounceTo` parameter when sending the message.
-
 
 ## Licence
 

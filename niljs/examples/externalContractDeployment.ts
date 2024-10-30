@@ -24,7 +24,7 @@ const signer = new LocalECDSAKeySigner({
   privateKey: generateRandomPrivateKey(),
 });
 
-const pubkey = await signer.getPublicKey();
+const pubkey = signer.getPublicKey();
 const chainId = await client.chainId();
 
 const deploymentMessage = externalDeploymentMessage(

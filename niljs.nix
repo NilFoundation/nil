@@ -38,7 +38,8 @@ stdenv.mkDerivation rec {
 
   checkPhase = ''
     patchShebangs node_modules
-    nohup nild run --http-port 8529 --collator-tick-ms=100 > nild.log 2>&1 & echo $! > nild_pid
+    nohup nild run --http-port 8529 --collator-tick-ms=100 > nild.log 2>&1 & echo $! > nild_pid &
+    nohup faucet run > faucet.log 2>&1 & echo $! > faucet_pid
 
     export BIOME_BINARY=${biome}/bin/biome
 
@@ -47,7 +48,10 @@ stdenv.mkDerivation rec {
     npm run test:integration --cache=false
     npm run test:examples
     npm run lint:types
+    npm run lint:jsdoc
+    
     kill `cat nild_pid` && rm nild_pid
+    kill `cat faucet_pid` && rm faucet_pid
 
     echo "tests finished successfully"
   '';

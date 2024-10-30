@@ -23,7 +23,7 @@ test("Async call to another shard send value", async () => {
     privateKey: generateRandomPrivateKey(),
   });
 
-  const pubkey = await signer.getPublicKey();
+  const pubkey = signer.getPublicKey();
 
   const wallet = new WalletV1({
     pubkey: pubkey,
@@ -70,7 +70,7 @@ test("sync call same shard send value", async () => {
     privateKey: generateRandomPrivateKey(),
   });
 
-  const pubkey = await signer.getPublicKey();
+  const pubkey = signer.getPublicKey();
 
   const wallet = new WalletV1({
     pubkey: pubkey,

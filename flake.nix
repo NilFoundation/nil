@@ -25,7 +25,7 @@
       rec {
         packages = rec {
           nil = (pkgs.callPackage ./nil.nix { });
-          niljs = (pkgs.callPackage ./niljs.nix { });
+          niljs = (pkgs.callPackage ./niljs.nix { enableTesting = true; nil = nil; });
           nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; });
           nilhardhat = (pkgs.callPackage ./nilhardhat.nix { });
           default = nil;

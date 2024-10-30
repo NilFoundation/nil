@@ -24,7 +24,7 @@ test("Receipt test", async ({ expect }) => {
     privateKey: generateRandomPrivateKey(),
   });
 
-  const pubkey = await signer.getPublicKey();
+  const pubkey = signer.getPublicKey();
 
   const wallet = new WalletV1({
     pubkey: pubkey,
