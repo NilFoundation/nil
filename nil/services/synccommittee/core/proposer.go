@@ -293,7 +293,13 @@ func (p *Proposer) getLatestProvedStateRoot(ctx context.Context) (common.Hash, e
 		return common.EmptyHash, fmt.Errorf("failed send eth_call for getting the latest proved state root: %w", err)
 	}
 
-	return common.BytesToHash(latestProvedStateRoot), nil
+	var latestProvedStateRootStr string
+	err = json.Unmarshal(latestProvedStateRoot, &latestProvedStateRootStr)
+	if err != nil {
+		return common.EmptyHash, fmt.Errorf("failed decode the latest proved state root: %w", err)
+	}
+
+	return common.HexToHash(latestProvedStateRootStr), nil
 }
 
 func getCurrentNonce(selfAddress string, client client.RawClient) (uint64, error) {
