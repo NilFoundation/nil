@@ -140,7 +140,13 @@ func (api *NodeApiOverShardApis) Call(
 	ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
 ) (*rpctypes.CallResWithGasPrice, error) {
 	methodName := methodNameChecked("Call")
-	shardId := args.To.ShardId()
+
+	msg, err := args.ToMessage()
+	if err != nil {
+		return nil, err
+	}
+
+	shardId := msg.To.ShardId()
 	shardApi, ok := api.Apis[shardId]
 	if !ok {
 		return nil, makeShardNotFoundError(methodName, shardId)

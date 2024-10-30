@@ -140,6 +140,9 @@ func (api *LocalShardApi) Call(
 
 	timer := common.NewTimer()
 	shardId := msg.To.ShardId()
+	if shardId != api.ShardId {
+		return nil, fmt.Errorf("destination shard %d is not equal to the instance shard %d", shardId, api.ShardId)
+	}
 
 	var mainBlockHash common.Hash
 	var childBlocks []common.Hash

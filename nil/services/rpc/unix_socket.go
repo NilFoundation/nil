@@ -30,3 +30,8 @@ func GetSockPathIdx(t *testing.T, idx int) string {
 	t.Helper()
 	return fmt.Sprintf("unix://%s/httpd%d.sock", getSockDir(t), idx)
 }
+
+func GetSockPathService(t *testing.T, service string) string {
+	t.Helper()
+	return fmt.Sprintf("unix://%s/httpd_%s.sock", getSockDir(t), service)
+}

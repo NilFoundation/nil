@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -30,16 +29,14 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/NilFoundation/nil/nil/tools/solc"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/stretchr/testify/suite"
 )
 
 var DefaultContractValue = types.NewValueFromUint64(50_000_000)
 
 type RpcSuite struct {
-	suite.Suite
+	CliRunner
 
 	Context   context.Context
 	CtxCancel context.CancelFunc
@@ -48,11 +45,9 @@ type RpcSuite struct {
 	DbInit func() db.DB
 	Db     db.DB
 
-	Client         client.Client
-	ShardsNum      uint32
-	Endpoint       string
-	CometaEndpoint string
-	TmpDir         string
+	Client    client.Client
+	ShardsNum uint32
+	Endpoint  string
 }
 
 func init() {
@@ -106,7 +101,6 @@ func (s *RpcSuite) Start(cfg *nilservice.Config) {
 		s.Client = c
 	} else {
 		s.Endpoint = strings.Replace(cfg.HttpUrl, "tcp://", "http://", 1)
-		s.CometaEndpoint = strings.Replace(rpc.GetSockPathIdx(s.T(), 1), "tcp://", "http://", 1)
 		s.Client = rpc_client.NewClient(s.Endpoint, zerolog.New(os.Stderr))
 	}
 
@@ -175,7 +169,6 @@ func (s *RpcSuite) StartWithRPC(cfg *nilservice.Config, port int, archive bool) 
 
 	s.Client = rpc_client.NewClient(rpcCfg.HttpUrl, zerolog.New(os.Stderr))
 	s.Endpoint = rpcCfg.HttpUrl
-	s.CometaEndpoint = strings.Replace(rpc.GetSockPathIdx(s.T(), 1), "tcp://", "http://", 1)
 
 	s.waitZerostateFunc(func(i uint32) bool {
 		block, err := s.Client.GetDebugBlock(types.ShardId(i), transport.BlockNumber(0), false)
@@ -307,41 +300,9 @@ func (s *RpcSuite) CallGetter(addr types.Address, calldata []byte, blockId any, 
 	return res.Data
 }
 
-func (s *RpcSuite) RunCli(args ...string) string {
-	s.T().Helper()
-
-	data, err := s.RunCliNoCheck(args...)
-	s.Require().NoErrorf(err, data)
-	return data
-}
-
-func (s *RpcSuite) RunCliNoCheck(args ...string) (string, error) {
-	s.T().Helper()
-
-	if s.TmpDir == "" {
-		s.FailNow("TmpDir is not set", "You need to set TmpDir in SetupSuite before use RunCli")
-	}
-
-	binPath := s.TmpDir + "/nil.bin"
-	if _, err := os.Stat(binPath); err != nil {
-		mainPath := common.GetAbsolutePath("../../cmd/nil/main.go")
-		cmd := exec.Command("go", "build", "-o", binPath, mainPath)
-		s.NoError(cmd.Run())
-	}
-
-	cmd := exec.Command(binPath, args...)
-	data, err := cmd.CombinedOutput()
-	return strings.TrimSpace(string(data)), err
-}
-
 func (s *RpcSuite) LoadContract(path string, name string) (types.Code, abi.ABI) {
 	s.T().Helper()
-
-	contracts, err := solc.CompileSource(path)
-	s.Require().NoError(err)
-	code := hexutil.FromHex(contracts[name].Code)
-	abi := solc.ExtractABI(contracts[name])
-	return code, abi
+	return LoadContract(s.T(), path, name)
 }
 
 func (s *RpcSuite) GetBalance(address types.Address) types.Value {
@@ -385,11 +346,7 @@ func (s *RpcSuite) AbiUnpack(abi *abi.ABI, name string, data []byte) []interface
 
 func (s *RpcSuite) PrepareDefaultDeployPayload(abi abi.ABI, code []byte, args ...any) types.DeployPayload {
 	s.T().Helper()
-
-	constructor, err := abi.Pack("", args...)
-	s.Require().NoError(err)
-	code = append(code, constructor...)
-	return types.BuildDeployPayload(code, common.EmptyHash)
+	return PrepareDefaultDeployPayload(s.T(), abi, code, args...)
 }
 
 func CheckContractValueEqual[T any](s *RpcSuite, inAbi *abi.ABI, address types.Address, name string, value T) {

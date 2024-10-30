@@ -2,6 +2,7 @@ package nilservice
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/signal"
 	"slices"
@@ -165,30 +166,105 @@ func setP2pRequestHandlers(ctx context.Context, rawApi *rawapi.NodeApiOverShardA
 	return nil
 }
 
-// Run starts message pools and collators for given shards, creates a single RPC server for all shards.
-// It waits until one of the events:
-//   - all goroutines finish successfully,
-//   - a goroutine returns an error,
-//   - SIGTERM or SIGINT is caught.
-//
-// It returns a value suitable for os.Exit().
-func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- ServiceInterop, workers ...concurrent.Func) int {
-	logger := logging.NewLogger("nil")
+func validateArchiveNodeConfig(cfg *Config, nm *network.Manager) error {
+	if nm == nil {
+		return errors.New("Failed to start archive node without network configuration")
+	}
+	if len(cfg.BootstrapPeers) > 0 && len(cfg.BootstrapPeers) != len(cfg.MyShards) {
+		return errors.New("On archive node, number of bootstrap peers must be equal to the number of shards")
+	}
+	if !slices.Contains(cfg.MyShards, uint(types.MainShardId)) {
+		return errors.New("On archive node, main shard must be included in MyShards")
+	}
+	return nil
+}
+
+func createArchiveSyncers(cfg *Config, nm *network.Manager, database db.DB, logger zerolog.Logger) ([]concurrent.Func, error) {
+	if err := validateArchiveNodeConfig(cfg, nm); err != nil {
+		logger.Error().Err(err).Msg("Invalid configuration")
+		return nil, err
+	}
+
+	nodeShards := make([]types.ShardId, 0, len(cfg.MyShards))
+	for _, shardId := range cfg.MyShards {
+		nodeShards = append(nodeShards, types.ShardId(shardId))
+	}
+
+	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
+	syncerTimeout := syncTimeoutFactor * collatorTickPeriod
+
+	var wgFetch sync.WaitGroup
+	wgFetch.Add(len(nodeShards))
+
+	funcs := make([]concurrent.Func, 0, len(nodeShards))
+	for i, shardId := range nodeShards {
+		var bootstrapPeer string
+		if len(cfg.BootstrapPeers) > 0 {
+			bootstrapPeer = cfg.BootstrapPeers[i]
+		}
+
+		zeroState := execution.DefaultZeroStateConfig
+		zeroStateConfig := cfg.ZeroState
+		if len(cfg.ZeroStateYaml) != 0 {
+			zeroState = cfg.ZeroStateYaml
+		}
+
+		syncer := collate.NewSyncer(collate.SyncerConfig{
+			ShardId:              shardId,
+			Timeout:              syncerTimeout,
+			BootstrapPeer:        bootstrapPeer,
+			ReplayBlocks:         true,
+			BlockGeneratorParams: cfg.BlockGeneratorParams(shardId),
+			ZeroState:            zeroState,
+			ZeroStateConfig:      zeroStateConfig,
+		}, database, nm)
+		funcs = append(funcs, func(ctx context.Context) error {
+			if err := syncer.Run(ctx, &wgFetch); err != nil {
+				logger.Error().
+					Err(err).
+					Stringer(logging.FieldShardId, shardId).
+					Msg("Collator goroutine failed")
+				return err
+			}
+			return nil
+		})
+	}
+	return funcs, nil
+}
+
+type Node struct {
+	NetworkManager *network.Manager
+	funcs          []concurrent.Func
+	logger         zerolog.Logger
+	ctx            context.Context
+}
+
+func (i *Node) Run() error {
+	if err := concurrent.Run(i.ctx, i.funcs...); err != nil {
+		i.logger.Error().Err(err).Msg("App encountered an error and will be terminated.")
+		return err
+	}
+	i.logger.Info().Msg("App is terminated.")
+	return nil
+}
+
+func (i *Node) Close() {
+	if i.NetworkManager != nil {
+		defer i.NetworkManager.Close()
+	}
+}
+
+func CreateNode(ctx context.Context, name string, cfg *Config, database db.DB, interop chan<- ServiceInterop, workers ...concurrent.Func) (*Node, error) {
+	logger := logging.NewLogger(name)
 
 	if err := cfg.Validate(); err != nil {
 		logger.Error().Err(err).Msg("Configuration is invalid")
-		return 1
-	}
-
-	if cfg.GracefulShutdown {
-		signalCtx, cancel := signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
-		defer cancel()
-		ctx = signalCtx
+		return nil, err
 	}
 
 	if err := telemetry.Init(ctx, cfg.Telemetry); err != nil {
 		logger.Error().Err(err).Msg("Failed to initialize telemetry")
-		return 1
+		return nil, err
 	}
 	defer telemetry.Shutdown(ctx)
 
@@ -202,10 +278,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	networkManager, err := createNetworkManager(ctx, cfg)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to create network manager")
-		return 1
-	}
-	if networkManager != nil {
-		defer networkManager.Close()
+		return nil, err
 	}
 
 	switch cfg.RunMode {
@@ -214,67 +287,16 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		shardFuncs, msgPools, err = createShards(ctx, cfg, database, networkManager, logger)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to create collators")
-			return 1
+			return nil, err
 		}
 
 		funcs = append(funcs, shardFuncs...)
 	case ArchiveRunMode:
-		if networkManager == nil {
-			logger.Error().Msg("Failed to start archive node without network configuration")
-			return 1
+		archiveNodeFunc, err := createArchiveSyncers(cfg, networkManager, database, logger)
+		if err != nil {
+			return nil, err
 		}
-		if len(cfg.BootstrapPeers) > 0 && len(cfg.BootstrapPeers) != len(cfg.MyShards) {
-			logger.Error().Msg("On archive node, number of bootstrap peers must be equal to the number of shards")
-			return 1
-		}
-		if !slices.Contains(cfg.MyShards, uint(types.MainShardId)) {
-			logger.Error().Msg("On archive node, main shard must be included in MyShards")
-			return 1
-		}
-
-		nodeShards := make([]types.ShardId, 0, len(cfg.MyShards))
-		for _, shardId := range cfg.MyShards {
-			nodeShards = append(nodeShards, types.ShardId(shardId))
-		}
-
-		collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
-		syncerTimeout := syncTimeoutFactor * collatorTickPeriod
-
-		var wgFetch sync.WaitGroup
-		wgFetch.Add(len(nodeShards))
-
-		for i, shardId := range nodeShards {
-			var bootstrapPeer string
-			if len(cfg.BootstrapPeers) > 0 {
-				bootstrapPeer = cfg.BootstrapPeers[i]
-			}
-
-			zeroState := execution.DefaultZeroStateConfig
-			zeroStateConfig := cfg.ZeroState
-			if len(cfg.ZeroStateYaml) != 0 {
-				zeroState = cfg.ZeroStateYaml
-			}
-
-			syncer := collate.NewSyncer(collate.SyncerConfig{
-				ShardId:              shardId,
-				Timeout:              syncerTimeout,
-				BootstrapPeer:        bootstrapPeer,
-				ReplayBlocks:         true,
-				BlockGeneratorParams: cfg.BlockGeneratorParams(shardId),
-				ZeroState:            zeroState,
-				ZeroStateConfig:      zeroStateConfig,
-			}, database, networkManager)
-			funcs = append(funcs, func(ctx context.Context) error {
-				if err := syncer.Run(ctx, &wgFetch); err != nil {
-					logger.Error().
-						Err(err).
-						Stringer(logging.FieldShardId, shardId).
-						Msg("Collator goroutine failed")
-					return err
-				}
-				return nil
-			})
-		}
+		funcs = append(funcs, archiveNodeFunc...)
 	case BlockReplayRunMode:
 		replayer := collate.NewReplayScheduler(database, collate.ReplayParams{
 			BlockGeneratorParams: cfg.BlockGeneratorParams(cfg.Replay.ShardId),
@@ -296,7 +318,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	case RpcRunMode:
 		if networkManager == nil {
 			logger.Error().Msg("Failed to start rpc node without network configuration")
-			return 1
+			return nil, err
 		}
 	default:
 		panic("unsupported run mode")
@@ -317,7 +339,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	rawApi, err := getRawApi(cfg, networkManager, database, msgPools)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to create raw API")
-		return 1
+		return nil, err
 	}
 
 	if (cfg.RPCPort != 0 || cfg.HttpUrl != "") && rawApi != nil {
@@ -333,7 +355,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	if cfg.RunMode != CollatorsOnlyRunMode && cfg.RunMode != RpcRunMode {
 		readonly := cfg.RunMode != NormalRunMode
 		if err := setP2pRequestHandlers(ctx, rawApi, networkManager, readonly, logger); err != nil {
-			return 1
+			return nil, err
 		}
 
 		funcs = append(funcs, workers...)
@@ -343,12 +365,37 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 		logger.Info().Msg("Starting collators...")
 	}
 
-	if err := concurrent.Run(ctx, funcs...); err != nil {
-		logger.Error().Err(err).Msg("App encountered an error and will be terminated.")
-		return 1
+	return &Node{
+		NetworkManager: networkManager,
+		funcs:          funcs,
+		logger:         logger,
+		ctx:            ctx,
+	}, nil
+}
+
+// Run starts message pools and collators for given shards, creates a single RPC server for all shards.
+// It waits until one of the events:
+//   - all goroutines finish successfully,
+//   - a goroutine returns an error,
+//   - SIGTERM or SIGINT is caught.
+//
+// It returns a value suitable for os.Exit().
+func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- ServiceInterop, workers ...concurrent.Func) int {
+	if cfg.GracefulShutdown {
+		signalCtx, cancel := signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
+		defer cancel()
+		ctx = signalCtx
 	}
 
-	logger.Info().Msg("App is terminated.")
+	node, err := CreateNode(ctx, "nil", cfg, database, interop, workers...)
+	if err != nil {
+		return 1
+	}
+	defer node.Close()
+
+	if err := node.Run(); err != nil {
+		return 1
+	}
 	return 0
 }
 

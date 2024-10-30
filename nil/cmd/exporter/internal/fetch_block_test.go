@@ -3,7 +3,6 @@ package internal
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -11,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
+	"github.com/NilFoundation/nil/nil/tests"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -65,8 +65,7 @@ func (s *SuiteFetchBlock) SetupSuite() {
 	cfg.HttpUrl = url
 	cfg.CollatorTickPeriodMs = 100
 	go nilservice.Run(s.context, cfg, database, nil)
-
-	time.Sleep(time.Second) // To be sure that server is started
+	tests.WaitZerostate(s.T(), s.cfg.Client, types.BaseShardId)
 }
 
 func (s *SuiteFetchBlock) TearDownSuite() {

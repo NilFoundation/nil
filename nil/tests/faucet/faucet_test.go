@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
@@ -31,9 +30,7 @@ func (s *SuiteFaucet) SetupTest() {
 		CollatorTickPeriodMs: 200,
 	}, 10225)
 
-	time.Sleep(1 * time.Second)
-
-	s.client = s.StartRPCNode(10130)
+	s.client, _ = s.StartRPCNode(10130)
 }
 
 func (s *SuiteFaucet) TearDownTest() {

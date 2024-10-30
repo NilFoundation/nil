@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
@@ -18,6 +19,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/NilFoundation/nil/nil/services/cometa"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
+	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/tests"
 	"github.com/NilFoundation/nil/nil/tools/solc"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -25,11 +27,14 @@ import (
 )
 
 type SuiteCli struct {
-	tests.RpcSuite
-	cli *cliservice.Service
+	tests.ShardedSuite
+	client client.Client
+	cli    *cliservice.Service
 
-	incBinPath string
-	incAbiPath string
+	endpoint       string
+	cometaEndpoint string
+	incBinPath     string
+	incAbiPath     string
 }
 
 func (s *SuiteCli) SetupSuite() {
@@ -41,11 +46,15 @@ func (s *SuiteCli) SetupSuite() {
 }
 
 func (s *SuiteCli) SetupTest() {
-	s.StartWithRPC(&nilservice.Config{
-		NShards: 5,
-	}, 11003, false)
+	s.Start(&nilservice.Config{
+		NShards:              5,
+		CollatorTickPeriodMs: 200,
+	}, 10325)
 
-	s.cli = cliservice.NewService(s.Client, execution.MainPrivateKey)
+	s.client, s.endpoint = s.StartRPCNode(10330)
+	s.cometaEndpoint = strings.Replace(rpc.GetSockPathService(s.T(), "cometa"), "tcp://", "http://", 1)
+
+	s.cli = cliservice.NewService(s.client, execution.MainPrivateKey)
 	s.Require().NotNil(s.cli)
 }
 
@@ -63,7 +72,7 @@ func (s *SuiteCli) toJSON(v interface{}) string {
 }
 
 func (s *SuiteCli) TestCliBlock() {
-	block, err := s.Client.GetBlock(types.BaseShardId, 0, false)
+	block, err := s.client.GetBlock(types.BaseShardId, 0, false)
 	s.Require().NoError(err)
 
 	res, err := s.cli.FetchBlock(types.BaseShardId, block.Hash.Hex())
@@ -79,10 +88,10 @@ func (s *SuiteCli) TestCliMessage() {
 	contractCode, abi := s.LoadContract(common.GetAbsolutePath("../contracts/increment.sol"), "Incrementer")
 	deployPayload := s.PrepareDefaultDeployPayload(abi, contractCode, big.NewInt(0))
 
-	_, receipt := s.DeployContractViaMainWallet(types.BaseShardId, deployPayload, types.NewValueFromUint64(5_000_000))
+	_, receipt := s.DeployContractViaMainWallet(s.client, types.BaseShardId, deployPayload, types.NewValueFromUint64(5_000_000))
 	s.Require().True(receipt.Success)
 
-	msg, err := s.Client.GetInMessageByHash(types.MainWalletAddress.ShardId(), receipt.MsgHash)
+	msg, err := s.client.GetInMessageByHash(types.MainWalletAddress.ShardId(), receipt.MsgHash)
 	s.Require().NoError(err)
 	s.Require().NotNil(msg)
 	s.Require().True(msg.Success)
@@ -100,7 +109,7 @@ func (s *SuiteCli) TestReadContract() {
 	contractCode, abi := s.LoadContract(common.GetAbsolutePath("../contracts/increment.sol"), "Incrementer")
 	deployPayload := s.PrepareDefaultDeployPayload(abi, contractCode, big.NewInt(1))
 
-	addr, receipt := s.DeployContractViaMainWallet(types.BaseShardId, deployPayload, types.NewValueFromUint64(5_000_000))
+	addr, receipt := s.DeployContractViaMainWallet(s.client, types.BaseShardId, deployPayload, types.NewValueFromUint64(5_000_000))
 	s.Require().True(receipt.Success)
 
 	res, err := s.cli.GetCode(addr)
@@ -141,7 +150,7 @@ func (s *SuiteCli) TestContract() {
 	txHash, addr, err := s.cli.DeployContractViaWallet(wallet.ShardId()+1, wallet, deployCode, types.Value{})
 	s.Require().NoError(err)
 
-	receipt := s.WaitIncludedInMain(wallet.ShardId(), txHash)
+	receipt := s.WaitIncludedInMain(s.client, wallet.ShardId(), txHash)
 	s.Require().True(receipt.AllSuccess())
 
 	getCalldata, err := abi.Pack("get")
@@ -159,7 +168,7 @@ func (s *SuiteCli) TestContract() {
 	txHash, err = s.cli.RunContract(wallet, calldata, types.Value{}, types.Value{}, nil, addr)
 	s.Require().NoError(err)
 
-	receipt = s.WaitIncludedInMain(wallet.ShardId(), txHash)
+	receipt = s.WaitIncludedInMain(s.client, wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -189,7 +198,7 @@ func (s *SuiteCli) TestContract() {
 	txHash, err = s.cli.RunContract(wallet, nil, types.Value{}, types.NewValueFromUint64(100), nil, addr)
 	s.Require().NoError(err)
 
-	receipt = s.WaitIncludedInMain(wallet.ShardId(), txHash)
+	receipt = s.WaitIncludedInMain(s.client, wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -229,7 +238,7 @@ func (s *SuiteCli) TestSendExternalMessage() {
 	txHash, addr, err := s.cli.DeployContractViaWallet(types.BaseShardId, wallet, deployCode, types.NewValueFromUint64(10_000_000))
 	s.Require().NoError(err)
 
-	receipt := s.WaitIncludedInMain(wallet.ShardId(), txHash)
+	receipt := s.WaitIncludedInMain(s.client, wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -252,7 +261,7 @@ func (s *SuiteCli) TestSendExternalMessage() {
 	txHash, err = s.cli.SendExternalMessage(calldata, addr, true)
 	s.Require().NoError(err)
 
-	receipt = s.WaitIncludedInMain(addr.ShardId(), txHash)
+	receipt = s.WaitIncludedInMain(s.client, addr.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 
 	// Get updated value
@@ -311,11 +320,11 @@ func (s *SuiteCli) TestCallCliHelp() {
 func (s *SuiteCli) TestCallCliBasic() {
 	cfgPath := s.T().TempDir() + "/config.ini"
 
-	iniData := "[nil]\nrpc_endpoint = " + s.Endpoint + "\n"
+	iniData := "[nil]\nrpc_endpoint = " + s.endpoint + "\n"
 	err := os.WriteFile(cfgPath, []byte(iniData), 0o600)
 	s.Require().NoError(err)
 
-	block, err := s.Client.GetBlock(types.BaseShardId, "latest", false)
+	block, err := s.client.GetBlock(types.BaseShardId, "latest", false)
 	s.Require().NoError(err)
 
 	res := s.RunCli("-c", cfgPath, "block", "--json", block.Number.String())
@@ -333,7 +342,7 @@ func (s *SuiteCli) TestCliWallet() {
 	dir := s.T().TempDir()
 
 	cfgPath := dir + "/config.ini"
-	iniData := "[nil]\nrpc_endpoint = " + s.Endpoint + "\n"
+	iniData := "[nil]\nrpc_endpoint = " + s.endpoint + "\n"
 	err := os.WriteFile(cfgPath, []byte(iniData), 0o600)
 	s.Require().NoError(err)
 
@@ -364,9 +373,7 @@ func (s *SuiteCli) TestCliWallet() {
 		addr = s.RunCli("-c", cfgPath, "contract", "address", s.incBinPath, "123321", "--abi", s.incAbiPath, "-q")
 	})
 
-	s.createConfigFile()
-
-	res = s.RunCliCfg("wallet", "deploy", s.incBinPath, "123321", "--abi", s.incAbiPath)
+	res = s.RunCliCfg("-c", cfgPath, "wallet", "deploy", s.incBinPath, "123321", "--abi", s.incAbiPath)
 	s.Run("Deploy contract", func() {
 		s.Contains(res, "Contract address")
 		s.Contains(res, addr)
@@ -422,12 +429,21 @@ func (s *SuiteCli) TestCliWallet() {
 	})
 
 	overridesFile := dir + "/overrides.json"
-	s.Run("Call read-only via the wallet", func() {
+	s.Run("Call read-only 'increment' via the wallet", func() {
 		res := s.RunCli("-c", cfgPath, "wallet", "call-readonly", addr, "increment", "--abi", s.incAbiPath, "--out-overrides", overridesFile)
 		s.Contains(res, "Success, no result")
 	})
 
-	s.Run("Call read-only via the wallet", func() {
+	s.Run("Check overrides file content", func() {
+		res := make(map[string]interface{})
+		data, err := os.ReadFile(overridesFile)
+		s.Require().NoError(err)
+		s.Require().NoError(json.Unmarshal(data, &res))
+		s.Require().Len(res, 2)
+		s.Contains(res, addr)
+	})
+
+	s.Run("Call read-only 'get' via the wallet", func() {
 		res := s.RunCli("-c", cfgPath, "wallet", "call-readonly", addr, "get", "--abi", s.incAbiPath, "--in-overrides", overridesFile)
 		s.Contains(res, "uint256: 123323")
 	})
@@ -437,7 +453,7 @@ func (s *SuiteCli) TestCliWalletCurrency() {
 	dir := s.T().TempDir()
 
 	cfgPath := dir + "/config.ini"
-	iniData := "[nil]\nrpc_endpoint = " + s.Endpoint + "\n"
+	iniData := "[nil]\nrpc_endpoint = " + s.endpoint + "\n"
 	err := os.WriteFile(cfgPath, []byte(iniData), 0o600)
 	s.Require().NoError(err)
 
@@ -515,18 +531,18 @@ func (s *SuiteCli) TestCliConfig() {
 	})
 
 	s.Run("Set config value", func() {
-		res := s.RunCli("-c", cfgPath, "config", "set", "rpc_endpoint", s.Endpoint)
-		s.Contains(res, fmt.Sprintf("Set \"rpc_endpoint\" to %q", s.Endpoint))
+		res := s.RunCli("-c", cfgPath, "config", "set", "rpc_endpoint", s.endpoint)
+		s.Contains(res, fmt.Sprintf("Set \"rpc_endpoint\" to %q", s.endpoint))
 	})
 
 	s.Run("Read config value", func() {
 		res := s.RunCli("-c", cfgPath, "config", "get", "rpc_endpoint")
-		s.Contains(res, "rpc_endpoint: "+s.Endpoint)
+		s.Contains(res, "rpc_endpoint: "+s.endpoint)
 	})
 
 	s.Run("Show config", func() {
 		res := s.RunCli("-c", cfgPath, "config", "show")
-		s.Contains(res, "rpc_endpoint: "+s.Endpoint)
+		s.Contains(res, "rpc_endpoint: "+s.endpoint)
 	})
 }
 
@@ -534,9 +550,9 @@ func (s *SuiteCli) TestCliCometa() {
 	cfg := &cometa.Config{
 		UseBadger:   true,
 		DbPath:      s.T().TempDir() + "/cometa.db",
-		OwnEndpoint: s.CometaEndpoint,
+		OwnEndpoint: s.cometaEndpoint,
 	}
-	com, err := cometa.NewService(s.Context, cfg, s.Client)
+	com, err := cometa.NewService(s.Context, cfg, s.client)
 	s.Require().NoError(err)
 	go func() {
 		check.PanicIfErr(com.Run(s.Context, cfg))
@@ -634,8 +650,8 @@ func (s *SuiteCli) createConfigFile() {
 
 	cfgPath := s.TmpDir + "/config.ini"
 
-	iniData := "[nil]\nrpc_endpoint = " + s.Endpoint + "\n"
-	iniData += "cometa_endpoint = " + s.CometaEndpoint + "\n"
+	iniData := "[nil]\nrpc_endpoint = " + s.endpoint + "\n"
+	iniData += "cometa_endpoint = " + s.cometaEndpoint + "\n"
 	iniData += "private_key = " + nilcrypto.PrivateKeyToEthereumFormat(execution.MainPrivateKey) + "\n"
 	iniData += "address = 0x0001111111111111111111111111111111111111\n"
 	err := os.WriteFile(cfgPath, []byte(iniData), 0o600)

@@ -4,12 +4,15 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/NilFoundation/nil/nil/client"
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
@@ -19,7 +22,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
-	"github.com/stretchr/testify/suite"
 )
 
 type Shard struct {
@@ -28,12 +30,13 @@ type Shard struct {
 	RpcUrl     string
 	P2pAddress string
 	Client     client.Client
+	nm         *network.Manager
 }
 
 type ShardedSuite struct {
-	suite.Suite
+	CliRunner
 
-	context   context.Context
+	Context   context.Context
 	ctxCancel context.CancelFunc
 	wg        sync.WaitGroup
 
@@ -54,7 +57,7 @@ func (s *ShardedSuite) Cancel() {
 
 func (s *ShardedSuite) Start(cfg *nilservice.Config, port int) {
 	s.T().Helper()
-	s.context, s.ctxCancel = context.WithCancel(context.Background())
+	s.Context, s.ctxCancel = context.WithCancel(context.Background())
 
 	if s.dbInit == nil {
 		s.dbInit = func() db.DB {
@@ -82,23 +85,43 @@ func (s *ShardedSuite) Start(cfg *nilservice.Config, port int) {
 
 	PatchConfigWithTestDefaults(cfg)
 	for i := range cfg.NShards {
+		shardConfig := &nilservice.Config{
+			NShards:              cfg.NShards,
+			MyShards:             []uint{uint(s.Shards[i].Id)},
+			SplitShards:          true,
+			HttpUrl:              s.Shards[i].RpcUrl,
+			Topology:             cfg.Topology,
+			CollatorTickPeriodMs: cfg.CollatorTickPeriodMs,
+			GasBasePrice:         cfg.GasBasePrice,
+			Network:              networkConfigs[i],
+		}
+		node, err := nilservice.CreateNode(s.Context, fmt.Sprintf("shard-%d", i), shardConfig, s.Shards[i].Db, nil)
+		s.Require().NoError(err)
+		s.Shards[i].nm = node.NetworkManager
+
 		s.wg.Add(1)
 		go func() {
-			shardConfig := nilservice.Config{
-				NShards:              cfg.NShards,
-				MyShards:             []uint{uint(s.Shards[i].Id)},
-				SplitShards:          true,
-				HttpUrl:              s.Shards[i].RpcUrl,
-				Topology:             cfg.Topology,
-				CollatorTickPeriodMs: cfg.CollatorTickPeriodMs,
-				GasBasePrice:         cfg.GasBasePrice,
-				Network:              networkConfigs[i],
-			}
-			nilservice.Run(s.context, &shardConfig, s.Shards[i].Db, nil)
-			s.wg.Done()
+			defer s.wg.Done()
+			defer node.Close()
+			s.NoError(node.Run())
 		}()
 	}
+
+	for _, shard := range s.Shards {
+		s.connectToShards(shard.nm)
+	}
+
 	s.waitZerostate()
+}
+
+func (s *ShardedSuite) connectToShards(nm *network.Manager) {
+	s.T().Helper()
+
+	for _, shard := range s.Shards {
+		if shard.nm != nm {
+			network.ConnectManagers(s.T(), nm, shard.nm)
+		}
+	}
 }
 
 func (s *ShardedSuite) checkNodeStart(nShards uint32, client client.Client) {
@@ -114,11 +137,12 @@ func (s *ShardedSuite) StartArchiveNode(port int, withBootstrapPeers bool) clien
 	s.T().Helper()
 
 	netCfg, _ := network.GenerateConfig(s.T(), port)
+	serviceName := fmt.Sprintf("archive-%d", port)
 
 	cfg := &nilservice.Config{
 		NShards: uint32(len(s.Shards)),
 		Network: netCfg,
-		HttpUrl: rpc.GetSockPath(s.T()),
+		HttpUrl: rpc.GetSockPathService(s.T(), serviceName),
 		RunMode: nilservice.ArchiveRunMode,
 	}
 
@@ -130,10 +154,15 @@ func (s *ShardedSuite) StartArchiveNode(port int, withBootstrapPeers bool) clien
 		}
 	}
 
+	node, err := nilservice.CreateNode(s.Context, serviceName, cfg, s.dbInit(), nil)
+	s.Require().NoError(err)
+	s.connectToShards(node.NetworkManager)
+
 	s.wg.Add(1)
 	go func() {
-		nilservice.Run(s.context, cfg, s.dbInit(), nil)
-		s.wg.Done()
+		defer s.wg.Done()
+		defer node.Close()
+		s.NoError(node.Run())
 	}()
 
 	c := rpc_client.NewClient(cfg.HttpUrl, zerolog.New(os.Stderr))
@@ -141,15 +170,16 @@ func (s *ShardedSuite) StartArchiveNode(port int, withBootstrapPeers bool) clien
 	return c
 }
 
-func (s *ShardedSuite) StartRPCNode(port int) client.Client {
+func (s *ShardedSuite) StartRPCNode(port int) (client.Client, string) {
 	s.T().Helper()
 
 	netCfg, _ := network.GenerateConfig(s.T(), port)
+	serviceName := fmt.Sprintf("rpc-%d", port)
 
 	cfg := &nilservice.Config{
 		NShards: uint32(len(s.Shards)),
 		Network: netCfg,
-		HttpUrl: rpc.GetSockPath(s.T()),
+		HttpUrl: rpc.GetSockPathService(s.T(), serviceName),
 		RunMode: nilservice.RpcRunMode,
 	}
 
@@ -157,21 +187,37 @@ func (s *ShardedSuite) StartRPCNode(port int) client.Client {
 		netCfg.DHTBootstrapPeers = append(netCfg.DHTBootstrapPeers, s.Shards[shardId].P2pAddress)
 	}
 
+	node, err := nilservice.CreateNode(s.Context, serviceName, cfg, s.dbInit(), nil)
+	s.Require().NoError(err)
+	s.connectToShards(node.NetworkManager)
+
 	s.wg.Add(1)
 	go func() {
-		nilservice.Run(s.context, cfg, s.dbInit(), nil)
-		s.wg.Done()
+		defer s.wg.Done()
+		defer node.Close()
+		s.NoError(node.Run())
 	}()
 
-	c := rpc_client.NewClient(cfg.HttpUrl, zerolog.New(os.Stderr))
+	endpoint := strings.Replace(cfg.HttpUrl, "tcp://", "http://", 1)
+	c := rpc_client.NewClient(endpoint, zerolog.New(os.Stderr))
 	s.checkNodeStart(cfg.NShards, c)
-	return c
+	return c, endpoint
 }
 
 func (s *ShardedSuite) WaitForReceipt(client client.Client, shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
 	return WaitForReceipt(s.T(), client, shardId, hash)
+}
+
+func (s *ShardedSuite) WaitIncludedInMain(client client.Client, shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
+	s.T().Helper()
+
+	return WaitIncludedInMain(s.T(), client, shardId, hash)
+}
+
+func (s *ShardedSuite) GasToValue(gas uint64) types.Value {
+	return GasToValue(gas)
 }
 
 func (s *ShardedSuite) DeployContractViaMainWallet(client client.Client, shardId types.ShardId, payload types.DeployPayload, initialAmount types.Value) (types.Address, *jsonrpc.RPCReceipt) {
@@ -182,11 +228,17 @@ func (s *ShardedSuite) DeployContractViaMainWallet(client client.Client, shardId
 
 func (s *ShardedSuite) waitZerostate() {
 	s.T().Helper()
-	for i := range s.Shards {
-		shard := &s.Shards[i]
-		s.Require().Eventually(func() bool {
-			block, err := shard.Client.GetBlock(shard.Id, transport.BlockNumber(0), false)
-			return err == nil && block != nil
-		}, ZeroStateWaitTimeout, ZeroStatePollInterval)
+	for _, shard := range s.Shards {
+		WaitZerostate(s.T(), shard.Client, shard.Id)
 	}
+}
+
+func (s *ShardedSuite) LoadContract(path string, name string) (types.Code, abi.ABI) {
+	s.T().Helper()
+	return LoadContract(s.T(), path, name)
+}
+
+func (s *ShardedSuite) PrepareDefaultDeployPayload(abi abi.ABI, code []byte, args ...any) types.DeployPayload {
+	s.T().Helper()
+	return PrepareDefaultDeployPayload(s.T(), abi, code, args...)
 }
