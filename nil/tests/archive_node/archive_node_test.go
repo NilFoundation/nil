@@ -28,8 +28,6 @@ func (s *SuiteArchiveNode) SetupTest() {
 		CollatorTickPeriodMs: 200,
 	}, s.port)
 
-	time.Sleep(1 * time.Second)
-
 	s.client = s.StartArchiveNode(s.port+int(s.nshards), s.withBootstrapPeers)
 }
 

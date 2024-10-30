@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
@@ -50,11 +49,9 @@ func (s *SuiteCli) SetupTest() {
 	s.Start(&nilservice.Config{
 		NShards:              5,
 		CollatorTickPeriodMs: 200,
-	}, 10225)
+	}, 10325)
 
-	time.Sleep(1 * time.Second)
-
-	s.client, s.endpoint = s.StartRPCNode(10130)
+	s.client, s.endpoint = s.StartRPCNode(10330)
 	s.cometaEndpoint = strings.Replace(rpc.GetSockPathService(s.T(), "cometa"), "tcp://", "http://", 1)
 
 	s.cli = cliservice.NewService(s.client, execution.MainPrivateKey)

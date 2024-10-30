@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/tools/solc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -98,4 +99,13 @@ func PrepareDefaultDeployPayload(t *testing.T, abi abi.ABI, code []byte, args ..
 	require.NoError(t, err)
 	code = append(code, constructor...)
 	return types.BuildDeployPayload(code, common.EmptyHash)
+}
+
+func WaitZerostate(t *testing.T, client client.Client, shardId types.ShardId) {
+	t.Helper()
+
+	require.Eventually(t, func() bool {
+		block, err := client.GetBlock(shardId, transport.BlockNumber(0), false)
+		return err == nil && block != nil
+	}, ZeroStateWaitTimeout, ZeroStatePollInterval)
 }
