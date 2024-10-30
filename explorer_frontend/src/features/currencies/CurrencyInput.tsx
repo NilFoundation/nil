@@ -10,6 +10,7 @@ type CurrencyInputProps = {
   className?: string;
   label?: string;
   disabled?: boolean;
+  caption?: string;
 };
 
 const CurrencyInput: FC<CurrencyInputProps> = ({
@@ -19,12 +20,13 @@ const CurrencyInput: FC<CurrencyInputProps> = ({
   className,
   label,
   disabled = false,
+  caption,
 }) => {
   const [css] = useStyletron();
 
   return (
     <div className={`${css({})} ${className}`}>
-      <FormControl label={label}>
+      <FormControl label={label} caption={caption}>
         <Input
           disabled={disabled}
           overrides={{

@@ -1,10 +1,9 @@
 import { COLORS, LabelSmall, Tooltip as UIKitTooltip } from "@nilfoundation/ui-kit";
 import { type ForwardRefRenderFunction, forwardRef } from "react";
-import { formatUTCTimestamp } from "../../../shared";
+import { formatUTCTimestamp, Marker } from "../../../shared";
 import { useStyletron } from "styletron-react";
 import type { PopoverOverrides } from "baseui/popover";
 import type { Time } from "lightweight-charts";
-import { Marker } from "./Marker";
 
 type TooltipData = {
   tps?: string;

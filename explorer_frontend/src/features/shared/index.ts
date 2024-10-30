@@ -15,6 +15,8 @@ export { InfoContainer } from "./components/InfoContainer";
 export { Divider } from "./components/Divider";
 export { InfoBlock } from "./components/InfoBlock";
 export { CurrencyDisplay } from "./components/Currency";
+export { ShareIcon } from "./components/ShareIcon";
+export { Marker } from "./components/Marker";
 export * from "./utils/publicKey";
 export * from "./utils/age";
 export * from "./utils/convert";

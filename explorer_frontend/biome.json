@@ -11,9 +11,6 @@
       },
       "complexity": {
         "noForEach": "warn"
-      },
-      "style": {
-        "noNonNullAssertion": "warn"
       }
     }
   },

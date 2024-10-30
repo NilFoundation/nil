@@ -138,9 +138,6 @@ export const fetchBalanceFx = createEffect<
   };
 });
 
-export const $managementKey = createStore<string>("read");
-export const setManagementPage = createEvent<string>();
-
 export const $activeKeys = createStore<Record<string, boolean>>({});
 
 export const toggleActiveKey = createEvent<string>();
