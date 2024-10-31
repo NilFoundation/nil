@@ -5,6 +5,7 @@ import { useStyletron } from "baseui";
 import type { StylesObject } from "..";
 import { expandProperty } from "inline-style-expand-shorthand";
 import type { ExtendedRoute } from "../../routing";
+import type { AnchorHTMLAttributes } from "react";
 
 export type LinkProps = {
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
@@ -12,7 +13,7 @@ export type LinkProps = {
   params: RouteParams;
   children: React.ReactNode;
   className?: string;
-};
+} & Pick<AnchorHTMLAttributes<HTMLAnchorElement>, "target">;
 
 const styles: StylesObject = {
   link: {
@@ -25,13 +26,14 @@ const styles: StylesObject = {
   },
 };
 
-export const Link = ({ to, params, children, className }: LinkProps) => {
+export const Link = ({ to, params, children, className, target }: LinkProps) => {
   const [css] = useStyletron();
   return (
     <AtomicLink
       to={to}
       params={params}
       className={`${css(styles.link)} ${className ? className : ""}`}
+      target={target}
     >
       {children}
     </AtomicLink>

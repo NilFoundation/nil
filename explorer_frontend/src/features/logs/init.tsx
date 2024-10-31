@@ -110,7 +110,7 @@ $logs.on(sendMethodFx.doneData, (logs, { hash }) => {
       payload: (
         <MonoParagraphMedium color={COLORS.gray400}>
           Transaction hash:{" "}
-          <Link to={transactionRoute} params={{ hash }}>
+          <Link to={transactionRoute} params={{ hash }} target="_blank">
             {hash}
           </Link>
         </MonoParagraphMedium>

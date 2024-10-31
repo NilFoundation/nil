@@ -1,4 +1,6 @@
-import { type Hex, IntegerOutOfRangeError, addHexPrefix } from "../index.js";
+import { IntegerOutOfRangeError } from "../errors/encoding.js";
+import type { Hex } from "../types/Hex.js";
+import { addHexPrefix, isHexString } from "../utils/hex.js";
 
 const hexes = Array.from({ length: 256 }, (Char, i) => i.toString(16).padStart(2, "0"));
 
@@ -60,7 +62,9 @@ const numberToHex = (num: number | bigint): Hex => {
  */
 const toHex = <T extends string | Uint8Array | boolean | bigint | number>(value: T): Hex => {
   if (typeof value === "string") {
-    return stringToHex(value);
+    const isHex = isHexString(value);
+
+    return isHex ? value : stringToHex(value);
   }
 
   if (value instanceof Uint8Array) {

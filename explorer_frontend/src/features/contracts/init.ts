@@ -44,7 +44,13 @@ import { $endpoint, $wallet } from "../account-connector/models/model";
 import type { AbiFunction } from "abitype";
 import { debug } from "patronum";
 import { getTokenAddressBySymbol } from "../currencies";
-import { type Token, addHexPrefix, removeHexPrefix } from "@nilfoundation/niljs";
+import {
+  type Token,
+  addHexPrefix,
+  removeHexPrefix,
+  type CometaService,
+} from "@nilfoundation/niljs";
+import { $cometaService } from "../cometa/model";
 
 compileCodeFx.doneData.watch(console.log);
 
@@ -121,7 +127,8 @@ sample({
     $deploymentArgs,
     $wallet,
     $shardId,
-    (app, args, wallet, shardId) => {
+    $cometaService,
+    (app, args, wallet, shardId, cometaService) => {
       if (!app) {
         return null;
       }
@@ -179,11 +186,13 @@ sample({
         }
         result.push(value);
       }
+
       return {
         app,
         args: result,
         wallet,
         shardId,
+        cometaService,
       };
     },
   ),
@@ -191,15 +200,17 @@ sample({
     $wallet,
     $activeApp,
     $shardId,
-    (wallet, app, shardId) => !!wallet && !!app && shardId !== null,
+    $cometaService,
+    (wallet, app, shardId, cometa) => !!wallet && !!app && shardId !== null && !!cometa,
   ),
   fn: (data) => {
-    const { app, args, wallet, shardId } = data!;
+    const { app, args, wallet, shardId, cometaService } = data!;
     return {
       app,
       args,
       wallet,
-      shardId,
+      shardId: shardId as number, // we have filter
+      cometaService: cometaService as CometaService, // we have filter
     };
   },
   clock: deploySmartContract,

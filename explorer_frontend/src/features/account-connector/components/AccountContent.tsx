@@ -1,10 +1,16 @@
 import { useStyletron } from "styletron-react";
-import { LabelMedium, COLORS, ButtonIcon, MenuIcon, BUTTON_KIND } from "@nilfoundation/ui-kit";
+import {
+  LabelMedium,
+  COLORS,
+  ButtonIcon,
+  MenuIcon,
+  BUTTON_KIND,
+  Button,
+} from "@nilfoundation/ui-kit";
 import { memo, useState } from "react";
-import { Popover } from "./Popover";
 import { styles } from "./styles";
 import { AccountContainer } from "./AccountContainer";
-import { OverflowEllipsis, useMobile } from "../../shared";
+import { OverflowEllipsis, useMobile, StatefulPopover } from "../../shared";
 import { useUnit } from "effector-react";
 import { $wallet } from "../models/model";
 import { ChevronDown, ChevronUp } from "baseui/icon";
@@ -22,16 +28,19 @@ const AccountContent = () => {
   const Icon = isOpen ? ChevronUp : ChevronDown;
 
   return (
-    <Popover
+    <StatefulPopover
       onOpen={() => setIsOpen(true)}
       onClose={() => setIsOpen(false)}
-      popoverMargin={20}
+      popoverMargin={16}
       content={<MemoizedAccountContainer />}
+      placement="bottomRight"
+      autoFocus
+      triggerType="click"
     >
       {isMobile ? (
         <ButtonIcon kind={BUTTON_KIND.secondary} icon={<MenuIcon />} />
       ) : (
-        <button className={css(styles.account)} type="button">
+        <Button kind={BUTTON_KIND.secondary} className={css(styles.account)} type="button">
           <div
             className={css({
               ...styles.indicator,
@@ -42,9 +51,9 @@ const AccountContent = () => {
             <OverflowEllipsis>{text}</OverflowEllipsis>
           </LabelMedium>
           <Icon size={24} className={css(styles.icon)} color={COLORS.gray200} />
-        </button>
+        </Button>
       )}
-    </Popover>
+    </StatefulPopover>
   );
 };
 

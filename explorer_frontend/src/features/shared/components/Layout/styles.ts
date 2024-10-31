@@ -13,6 +13,7 @@ const linkOutlineStyles = {
 };
 
 const container: StyleObject = {
+  width: "100%",
   color: COLORS.gray50,
   display: "flex",
   flexDirection: "column",
@@ -33,9 +34,10 @@ const content = {
 
 const navbar = {
   width: "100%",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
+  display: "grid",
+  gap: "8px",
+  gridTemplateColumns: "calc(66% + 8px) 33%", // 8px - width of resize handle
+  gridTemplateRows: "1fr",
   height: "auto",
   ...expandProperty("padding", "16px 0"),
 };
@@ -51,7 +53,7 @@ const logo = {
 const navigation = {
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
+  justifyContent: "flex-end",
 };
 
 const navItem = {

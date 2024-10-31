@@ -25,7 +25,7 @@ const isAddress = (value: string): value is IAddress => {
  * Returns the ID of the shard containing the provided address.
  * @param address The address.
  */
-const getShardIdFromAddress = (address: string): number => {
+const getShardIdFromAddress = (address: Hex): number => {
   if (typeof address === "string") {
     return Number.parseInt(address.slice(2, 6), 16);
   }
