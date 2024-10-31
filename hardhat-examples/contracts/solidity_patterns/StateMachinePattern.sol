@@ -16,7 +16,10 @@ contract StateMachineParent is NilBase {
     bool public lock = false;
 
     function makeRequest(address dst, string memory funcName, bool executed) public  {
-        require(!lock, "state_locked");
+        if (lock) {
+            Nil.asyncCall(dst, msg.sender, 0, abi.encodeWithSignature(funcName, executed));
+            return;
+        }
         lock = true;
 
         bytes memory context = abi.encodeWithSelector(this.callback.selector);
