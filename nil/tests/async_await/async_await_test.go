@@ -17,7 +17,8 @@ import (
 )
 
 type SuiteAsyncAwait struct {
-	tests.RpcSuite
+	tests.ShardedSuite
+
 	testAddress0    types.Address
 	testAddress1    types.Address
 	counterAddress0 types.Address
@@ -29,8 +30,6 @@ type SuiteAsyncAwait struct {
 }
 
 func (s *SuiteAsyncAwait) SetupSuite() {
-	s.ShardsNum = 4
-
 	var err error
 	s.testAddress0, err = contracts.CalculateAddress(contracts.NameRequestResponseTest, 1, []byte{1})
 	s.Require().NoError(err)
@@ -90,10 +89,12 @@ contracts:
 
 func (s *SuiteAsyncAwait) SetupTest() {
 	s.Start(&nilservice.Config{
-		NShards:       s.ShardsNum,
-		ZeroStateYaml: s.zerostateCfg,
-		RunMode:       nilservice.CollatorsOnlyRunMode,
-	})
+		NShards:              4,
+		CollatorTickPeriodMs: 200,
+		ZeroStateYaml:        s.zerostateCfg,
+	}, 10425)
+
+	s.DefaultClient, _ = s.StartRPCNode(10430)
 }
 
 func (s *SuiteAsyncAwait) TearDownTest() {
@@ -333,9 +334,9 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 		receipt := s.SendExternalMessageNoCheck(data, s.testAddress0)
 		s.Require().True(receipt.AllSuccess())
 
-		tests.CheckContractValueEqual(&s.RpcSuite, s.abiTest, s.testAddress0, "counterValue", int32(123))
-		tests.CheckContractValueEqual(&s.RpcSuite, s.abiTest, s.testAddress0, "intValue", intContext)
-		tests.CheckContractValueEqual(&s.RpcSuite, s.abiTest, s.testAddress0, "strValue", "Hello World")
+		tests.CheckContractValueEqual(s.T(), s.DefaultClient, s.abiTest, s.testAddress0, "counterValue", int32(123))
+		tests.CheckContractValueEqual(s.T(), s.DefaultClient, s.abiTest, s.testAddress0, "intValue", intContext)
+		tests.CheckContractValueEqual(s.T(), s.DefaultClient, s.abiTest, s.testAddress0, "strValue", "Hello World")
 
 		info = s.AnalyzeReceipt(receipt, map[types.Address]string{})
 
@@ -348,7 +349,7 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 		receipt := s.SendExternalMessageNoCheck(data, s.testAddress0)
 		s.Require().True(receipt.AllSuccess())
 
-		tests.CheckContractValueEqual(&s.RpcSuite, s.abiCounter, s.counterAddress0, "get", int32(223))
+		tests.CheckContractValueEqual(s.T(), s.DefaultClient, s.abiCounter, s.counterAddress0, "get", int32(223))
 
 		info = s.AnalyzeReceipt(receipt, map[types.Address]string{})
 		initialBalance = s.CheckBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)
@@ -402,12 +403,12 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 
 		currencyId := types.CurrencyId(s.testAddress0)
 
-		currencies, err := s.Client.GetCurrencies(s.testAddress0, "latest")
+		currencies, err := s.DefaultClient.GetCurrencies(s.testAddress0, "latest")
 		s.Require().NoError(err)
 		s.Require().Len(currencies, 1)
 		s.Equal(types.NewValueFromUint64(600_000), currencies[currencyId])
 
-		currencies, err = s.Client.GetCurrencies(s.counterAddress0, "latest")
+		currencies, err = s.DefaultClient.GetCurrencies(s.counterAddress0, "latest")
 		s.Require().NoError(err)
 		s.Require().Len(currencies, 1)
 		s.Equal(types.NewValueFromUint64(400_000), currencies[currencyId])
@@ -442,7 +443,7 @@ func (s *SuiteAsyncAwait) TestOnlyResponse() {
 func (s *SuiteAsyncAwait) checkAsyncContextEmpty(address types.Address) {
 	s.T().Helper()
 
-	contract := s.GetContract(address)
+	contract := tests.GetContract(s.T(), s.Context, s.Shards[address.ShardId()].Db, address)
 	s.Require().Equal(common.EmptyHash, contract.AsyncContextRoot)
 }
 

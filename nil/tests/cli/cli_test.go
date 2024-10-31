@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
@@ -28,8 +27,7 @@ import (
 
 type SuiteCli struct {
 	tests.ShardedSuite
-	client client.Client
-	cli    *cliservice.Service
+	cli *cliservice.Service
 
 	endpoint       string
 	cometaEndpoint string
@@ -51,10 +49,10 @@ func (s *SuiteCli) SetupTest() {
 		CollatorTickPeriodMs: 200,
 	}, 10325)
 
-	s.client, s.endpoint = s.StartRPCNode(10330)
+	s.DefaultClient, s.endpoint = s.StartRPCNode(10330)
 	s.cometaEndpoint = strings.Replace(rpc.GetSockPathService(s.T(), "cometa"), "tcp://", "http://", 1)
 
-	s.cli = cliservice.NewService(s.client, execution.MainPrivateKey)
+	s.cli = cliservice.NewService(s.DefaultClient, execution.MainPrivateKey)
 	s.Require().NotNil(s.cli)
 }
 
@@ -72,7 +70,7 @@ func (s *SuiteCli) toJSON(v interface{}) string {
 }
 
 func (s *SuiteCli) TestCliBlock() {
-	block, err := s.client.GetBlock(types.BaseShardId, 0, false)
+	block, err := s.DefaultClient.GetBlock(types.BaseShardId, 0, false)
 	s.Require().NoError(err)
 
 	res, err := s.cli.FetchBlock(types.BaseShardId, block.Hash.Hex())
@@ -88,10 +86,10 @@ func (s *SuiteCli) TestCliMessage() {
 	contractCode, abi := s.LoadContract(common.GetAbsolutePath("../contracts/increment.sol"), "Incrementer")
 	deployPayload := s.PrepareDefaultDeployPayload(abi, contractCode, big.NewInt(0))
 
-	_, receipt := s.DeployContractViaMainWallet(s.client, types.BaseShardId, deployPayload, types.NewValueFromUint64(5_000_000))
+	_, receipt := s.DeployContractViaMainWallet(types.BaseShardId, deployPayload, types.NewValueFromUint64(5_000_000))
 	s.Require().True(receipt.Success)
 
-	msg, err := s.client.GetInMessageByHash(types.MainWalletAddress.ShardId(), receipt.MsgHash)
+	msg, err := s.DefaultClient.GetInMessageByHash(types.MainWalletAddress.ShardId(), receipt.MsgHash)
 	s.Require().NoError(err)
 	s.Require().NotNil(msg)
 	s.Require().True(msg.Success)
@@ -109,7 +107,7 @@ func (s *SuiteCli) TestReadContract() {
 	contractCode, abi := s.LoadContract(common.GetAbsolutePath("../contracts/increment.sol"), "Incrementer")
 	deployPayload := s.PrepareDefaultDeployPayload(abi, contractCode, big.NewInt(1))
 
-	addr, receipt := s.DeployContractViaMainWallet(s.client, types.BaseShardId, deployPayload, types.NewValueFromUint64(5_000_000))
+	addr, receipt := s.DeployContractViaMainWallet(types.BaseShardId, deployPayload, types.NewValueFromUint64(5_000_000))
 	s.Require().True(receipt.Success)
 
 	res, err := s.cli.GetCode(addr)
@@ -150,7 +148,7 @@ func (s *SuiteCli) TestContract() {
 	txHash, addr, err := s.cli.DeployContractViaWallet(wallet.ShardId()+1, wallet, deployCode, types.Value{})
 	s.Require().NoError(err)
 
-	receipt := s.WaitIncludedInMain(s.client, wallet.ShardId(), txHash)
+	receipt := s.WaitIncludedInMain(wallet.ShardId(), txHash)
 	s.Require().True(receipt.AllSuccess())
 
 	getCalldata, err := abi.Pack("get")
@@ -168,7 +166,7 @@ func (s *SuiteCli) TestContract() {
 	txHash, err = s.cli.RunContract(wallet, calldata, types.Value{}, types.Value{}, nil, addr)
 	s.Require().NoError(err)
 
-	receipt = s.WaitIncludedInMain(s.client, wallet.ShardId(), txHash)
+	receipt = s.WaitIncludedInMain(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -198,7 +196,7 @@ func (s *SuiteCli) TestContract() {
 	txHash, err = s.cli.RunContract(wallet, nil, types.Value{}, types.NewValueFromUint64(100), nil, addr)
 	s.Require().NoError(err)
 
-	receipt = s.WaitIncludedInMain(s.client, wallet.ShardId(), txHash)
+	receipt = s.WaitIncludedInMain(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -238,7 +236,7 @@ func (s *SuiteCli) TestSendExternalMessage() {
 	txHash, addr, err := s.cli.DeployContractViaWallet(types.BaseShardId, wallet, deployCode, types.NewValueFromUint64(10_000_000))
 	s.Require().NoError(err)
 
-	receipt := s.WaitIncludedInMain(s.client, wallet.ShardId(), txHash)
+	receipt := s.WaitIncludedInMain(wallet.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -261,7 +259,7 @@ func (s *SuiteCli) TestSendExternalMessage() {
 	txHash, err = s.cli.SendExternalMessage(calldata, addr, true)
 	s.Require().NoError(err)
 
-	receipt = s.WaitIncludedInMain(s.client, addr.ShardId(), txHash)
+	receipt = s.WaitIncludedInMain(addr.ShardId(), txHash)
 	s.Require().True(receipt.Success)
 
 	// Get updated value
@@ -324,7 +322,7 @@ func (s *SuiteCli) TestCallCliBasic() {
 	err := os.WriteFile(cfgPath, []byte(iniData), 0o600)
 	s.Require().NoError(err)
 
-	block, err := s.client.GetBlock(types.BaseShardId, "latest", false)
+	block, err := s.DefaultClient.GetBlock(types.BaseShardId, "latest", false)
 	s.Require().NoError(err)
 
 	res := s.RunCli("-c", cfgPath, "block", "--json", block.Number.String())
@@ -552,7 +550,7 @@ func (s *SuiteCli) TestCliCometa() {
 		DbPath:      s.T().TempDir() + "/cometa.db",
 		OwnEndpoint: s.cometaEndpoint,
 	}
-	com, err := cometa.NewService(s.Context, cfg, s.client)
+	com, err := cometa.NewService(s.Context, cfg, s.DefaultClient)
 	s.Require().NoError(err)
 	go func() {
 		check.PanicIfErr(com.Run(s.Context, cfg))

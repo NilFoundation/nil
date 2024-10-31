@@ -17,7 +17,6 @@ import (
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/collate"
@@ -30,7 +29,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 var DefaultContractValue = types.NewValueFromUint64(50_000_000)
@@ -249,13 +247,7 @@ func (s *RpcSuite) SendExternalMessage(bytecode types.Code, contractAddress type
 
 func (s *RpcSuite) SendExternalMessageNoCheck(bytecode types.Code, contractAddress types.Address) *jsonrpc.RPCReceipt {
 	s.T().Helper()
-
-	txHash, err := s.Client.SendExternalMessage(bytecode, contractAddress, execution.MainPrivateKey, GasToValue(500_000))
-	s.Require().NoError(err)
-
-	receipt := s.WaitIncludedInMain(contractAddress.ShardId(), txHash)
-
-	return receipt
+	return SendExternalMessageNoCheck(s.T(), s.Client, bytecode, contractAddress)
 }
 
 // SendMessageViaWalletNoCheck sends a message via a wallet contract. Doesn't require the receipt be successful.
@@ -282,22 +274,7 @@ func (s *RpcSuite) SendMessageViaWalletNoCheck(addrWallet types.Address, addrTo 
 
 func (s *RpcSuite) CallGetter(addr types.Address, calldata []byte, blockId any, overrides *jsonrpc.StateOverrides) []byte {
 	s.T().Helper()
-
-	seqno, err := s.Client.GetTransactionCount(addr, blockId)
-	s.Require().NoError(err)
-
-	log.Debug().Str("contract", addr.String()).Uint64("seqno", uint64(seqno)).Msg("sending external message getter")
-
-	callArgs := &jsonrpc.CallArgs{
-		Data:      (*hexutil.Bytes)(&calldata),
-		To:        addr,
-		FeeCredit: GasToValue(100_000_000),
-		Seqno:     seqno,
-	}
-	res, err := s.Client.Call(callArgs, blockId, overrides)
-	s.Require().NoError(err)
-	s.Require().Empty(res.Error)
-	return res.Data
+	return CallGetter(s.T(), s.Client, addr, calldata, blockId, overrides)
 }
 
 func (s *RpcSuite) LoadContract(path string, name string) (types.Code, abi.ABI) {
@@ -307,34 +284,12 @@ func (s *RpcSuite) LoadContract(path string, name string) (types.Code, abi.ABI) 
 
 func (s *RpcSuite) GetBalance(address types.Address) types.Value {
 	s.T().Helper()
-	balance, err := s.Client.GetBalance(address, "latest")
-	s.Require().NoError(err)
-	return balance
-}
-
-func (s *RpcSuite) GetContract(address types.Address) *types.SmartContract {
-	s.T().Helper()
-
-	tx, err := s.Db.CreateRwTx(s.Context)
-	s.Require().NoError(err)
-	defer tx.Rollback()
-
-	block, _, err := db.ReadLastBlock(tx, address.ShardId())
-	s.Require().NoError(err)
-
-	contractTree := execution.NewDbContractTrie(tx, address.ShardId())
-	contractTree.SetRootHash(block.SmartContractsRoot)
-
-	contract, err := contractTree.Fetch(address.Hash())
-	s.Require().NoError(err)
-	return contract
+	return GetBalance(s.T(), s.Client, address)
 }
 
 func (s *RpcSuite) AbiPack(abi *abi.ABI, name string, args ...any) []byte {
 	s.T().Helper()
-	data, err := abi.Pack(name, args...)
-	s.Require().NoError(err)
-	return data
+	return AbiPack(s.T(), abi, name, args...)
 }
 
 func (s *RpcSuite) AbiUnpack(abi *abi.ABI, name string, data []byte) []interface{} {
@@ -347,18 +302,6 @@ func (s *RpcSuite) AbiUnpack(abi *abi.ABI, name string, data []byte) []interface
 func (s *RpcSuite) PrepareDefaultDeployPayload(abi abi.ABI, code []byte, args ...any) types.DeployPayload {
 	s.T().Helper()
 	return PrepareDefaultDeployPayload(s.T(), abi, code, args...)
-}
-
-func CheckContractValueEqual[T any](s *RpcSuite, inAbi *abi.ABI, address types.Address, name string, value T) {
-	s.T().Helper()
-
-	data := s.AbiPack(inAbi, name)
-	data = s.CallGetter(address, data, "latest", nil)
-	nameRes, err := inAbi.Unpack(name, data)
-	s.Require().NoError(err)
-	gotValue, ok := nameRes[0].(T)
-	s.Require().True(ok)
-	s.Require().Equal(value, gotValue)
 }
 
 func (s *RpcSuite) GasToValue(gas uint64) types.Value {
@@ -424,14 +367,6 @@ func (c *ContractInfo) GetValueSpent() types.Value {
 	return c.ValueSent.Sub(c.RefundReceived).Sub(c.BounceReceived)
 }
 
-// AnalyzeReceipt analyzes the receipt and returns the receipt info.
-func (s *RpcSuite) AnalyzeReceipt(receipt *jsonrpc.RPCReceipt, namesMap map[types.Address]string) ReceiptInfo {
-	s.T().Helper()
-	res := make(ReceiptInfo)
-	s.AnalyzeReceiptRec(receipt, res, namesMap)
-	return res
-}
-
 func (s *RpcSuite) GetRandomBytes(size int) []byte {
 	s.T().Helper()
 	data := make([]byte, size)
@@ -440,80 +375,9 @@ func (s *RpcSuite) GetRandomBytes(size int) []byte {
 	return data
 }
 
-// AnalyzeReceiptRec is a recursive function that analyzes the receipt and fills the receipt info.
-func (s *RpcSuite) AnalyzeReceiptRec(receipt *jsonrpc.RPCReceipt, valuesMap ReceiptInfo, namesMap map[types.Address]string) {
+func (s *RpcSuite) AnalyzeReceipt(receipt *jsonrpc.RPCReceipt, namesMap map[types.Address]string) ReceiptInfo {
 	s.T().Helper()
-
-	value := getContractInfo(receipt.ContractAddress, valuesMap)
-	if namesMap != nil {
-		value.Name = namesMap[receipt.ContractAddress]
-	}
-
-	if receipt.Success {
-		value.NumSuccess += 1
-	} else {
-		value.NumFail += 1
-	}
-	msg, err := s.Client.GetInMessageByHash(receipt.ShardId, receipt.MsgHash)
-	s.Require().NoError(err)
-
-	value.ValueUsed = value.ValueUsed.Add(receipt.GasUsed.ToValue(receipt.GasPrice))
-	value.ValueForwarded = value.ValueForwarded.Add(receipt.Forwarded)
-	caller := getContractInfo(msg.From, valuesMap)
-
-	if msg.Flags.GetBit(types.MessageFlagInternal) {
-		caller.OutMessages[receipt.ContractAddress] = msg
-	}
-
-	switch {
-	case msg.Flags.GetBit(types.MessageFlagBounce):
-		value.BounceReceived = value.BounceReceived.Add(msg.Value)
-		// Bounce message also bears refunded gas. If `To` address is equal to `RefundTo`, fee should be credited to
-		// this account.
-		if msg.To == msg.RefundTo {
-			value.RefundReceived = value.RefundReceived.Add(msg.FeeCredit).Sub(receipt.GasUsed.ToValue(receipt.GasPrice))
-		}
-		// Remove the gas used by bounce message from the sent value
-		value.ValueSent = value.ValueSent.Sub(receipt.GasUsed.ToValue(receipt.GasPrice))
-
-		caller.BounceSent = caller.BounceSent.Add(msg.Value)
-	case msg.Flags.GetBit(types.MessageFlagRefund):
-		value.RefundReceived = value.RefundReceived.Add(msg.Value)
-		caller.RefundSent = caller.RefundSent.Add(msg.Value)
-	default:
-		// Receive value only if message was successful.
-		if receipt.Success {
-			value.ValueReceived = value.ValueReceived.Add(msg.Value)
-		}
-		caller.ValueSent = caller.ValueSent.Add(msg.Value)
-		// For internal message we need to add gas limit to sent value
-		if msg.Flags.GetBit(types.MessageFlagInternal) {
-			caller.ValueSent = caller.ValueSent.Add(msg.FeeCredit)
-		}
-	}
-
-	for _, outReceipt := range receipt.OutReceipts {
-		s.AnalyzeReceiptRec(outReceipt, valuesMap, namesMap)
-	}
-}
-
-func (s *RpcSuite) CheckBalance(infoMap ReceiptInfo, balance types.Value, accounts []types.Address) types.Value {
-	s.T().Helper()
-
-	newBalance := types.NewZeroValue()
-
-	for _, addr := range accounts {
-		newBalance = newBalance.Add(s.GetBalance(addr))
-	}
-
-	newRealBalance := newBalance
-
-	for _, info := range infoMap {
-		newBalance = newBalance.Add(info.ValueUsed)
-	}
-	s.Require().Equal(balance, newBalance)
-
-	return newRealBalance
+	return AnalyzeReceipt(s.T(), s.Client, receipt, namesMap)
 }
 
 func getContractInfo(addr types.Address, valuesMap ReceiptInfo) *ContractInfo {
