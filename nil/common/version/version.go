@@ -1,8 +1,10 @@
 package version
 
 import (
+	"errors"
 	"regexp"
 	"runtime"
+	"runtime/debug"
 	"strings"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -36,12 +38,35 @@ func GetVersionInfo() versionInfo {
 		matches := re.FindStringSubmatch(versionMagic)
 
 		if len(matches) == 0 {
-			versionInfoCache = versionInfo{GitTag: "0.1.0", GitRevision: "1", GitCommit: unknownVersion}
+			if _, gitCommit, err := ParseBuildInfo(); err == nil {
+				versionInfoCache = versionInfo{GitTag: "0.1.0", GitRevision: "1", GitCommit: gitCommit}
+			} else {
+				versionInfoCache = versionInfo{GitTag: "0.1.0", GitRevision: "1", GitCommit: unknownVersion}
+			}
 		} else {
 			versionInfoCache = versionInfo{GitTag: matches[1], GitRevision: matches[2], GitCommit: matches[3]}
 		}
 	}
 	return versionInfoCache
+}
+
+func ParseBuildInfo() (string, string, error) {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "", "", errors.New("failed to read build info")
+	}
+	var gitHash string
+	var time string
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			gitHash = s.Value
+		case "vcs.time":
+			time = s.Value[:10]
+		}
+	}
+
+	return time, gitHash, nil
 }
 
 func HasGitInfo() bool {

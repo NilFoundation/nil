@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"runtime/debug"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -220,23 +219,10 @@ func (s *Service) GetVersion(ctx context.Context) (string, error) {
 	if version.HasGitInfo() {
 		return fmt.Sprintf("no-date(%s)", version.GetVersionInfo().GitCommit), nil
 	}
-
-	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		return "", errors.New("failed to read build info")
+	if time, gitCommit, err := version.ParseBuildInfo(); err == nil {
+		return fmt.Sprintf("%s(%s)", time, gitCommit), nil
 	}
-	var gitHash string
-	var time string
-	for _, s := range info.Settings {
-		switch s.Key {
-		case "vcs.revision":
-			gitHash = s.Value
-		case "vcs.time":
-			time = s.Value[:10]
-		}
-	}
-
-	return fmt.Sprintf("%s(%s)", time, gitHash), nil
+	return "", errors.New("failed to get version")
 }
 
 func (s *Service) startRpcServer(ctx context.Context, endpoint string) error {
