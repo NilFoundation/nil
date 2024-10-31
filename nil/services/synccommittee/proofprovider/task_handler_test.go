@@ -33,7 +33,7 @@ func (s *TaskHandlerTestSuite) SetupSuite() {
 
 	logger := logging.NewLogger("task_handler_test")
 
-	metricsHandler, err := metrics.NewHandler("task_handler_test")
+	metricsHandler, err := metrics.NewProofProviderMetrics()
 	s.Require().NoError(err)
 
 	s.taskStorage = storage.NewTaskStorage(s.database, metricsHandler, logger)

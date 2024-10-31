@@ -32,7 +32,7 @@ func (s *BlockStorageTestSuite) SetupSuite() {
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 	logger := logging.NewLogger("block_storage_test")
-	metricsHandler, err := metrics.NewHandler("block_storage_test")
+	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
 	s.Require().NoError(err)
 
 	s.bs = NewBlockStorage(s.db, metricsHandler, logger)

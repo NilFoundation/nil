@@ -78,7 +78,7 @@ func (s *AggregatorTestSuite) SetupSuite() {
 	s.waitTwoBlocks(url)
 
 	logger := logging.NewLogger("aggregator_test")
-	metricsHandler, err := metrics.NewHandler("aggregator_test")
+	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
 	s.Require().NoError(err)
 
 	s.client = rpc.NewClient(url, logger)

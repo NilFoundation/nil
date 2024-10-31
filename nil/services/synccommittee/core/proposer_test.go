@@ -46,7 +46,7 @@ func (s *ProposerTestSuite) SetupSuite() {
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 	logger := logging.NewLogger("proposer_test")
-	metricsHandler, err := metrics.NewHandler("proposer_test")
+	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
 	s.Require().NoError(err)
 
 	s.storage = storage.NewBlockStorage(s.db, metricsHandler, logger)

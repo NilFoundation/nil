@@ -43,7 +43,7 @@ func (s *TaskStorageSuite) SetupSuite() {
 	s.database = database
 	logger := logging.NewLogger("task_storage_test")
 
-	metricsHandler, err := metrics.NewHandler("task_storage_test")
+	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
 	s.Require().NoError(err)
 
 	s.ts = NewTaskStorage(database, metricsHandler, logger)

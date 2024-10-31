@@ -33,7 +33,12 @@ type SyncCommittee struct {
 
 func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	logger := logging.NewLogger("sync_committee")
-	metricsHandler, err := metrics.NewHandler("sync_committee")
+
+	if err := telemetry.Init(context.Background(), cfg.Telemetry); err != nil {
+		logger.Error().Err(err).Msg("failed to initialize telemetry")
+		return nil, err
+	}
+	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
 	if err != nil {
 		return nil, fmt.Errorf("error initializing metrics: %s", err)
 	}
@@ -93,10 +98,6 @@ func (s *SyncCommittee) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if err := telemetry.Init(ctx, s.cfg.Telemetry); err != nil {
-		s.logger.Error().Err(err).Msg("failed to initialize telemetry")
-		return err
-	}
 	defer telemetry.Shutdown(ctx)
 
 	if s.cfg.GracefulShutdown {

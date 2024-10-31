@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
@@ -19,6 +20,8 @@ type Config struct {
 	SyncCommitteeRpcEndpoint string
 	OwnRpcEndpoint           string
 	DbPath                   string
+
+	Telemetry *telemetry.Config
 }
 
 type ProofProvider struct {
@@ -38,7 +41,11 @@ func New(config Config) (*ProofProvider, error) {
 
 	logger := logging.NewLogger("proof_provider")
 
-	metricsHandler, err := metrics.NewHandler("sync_committee")
+	if err := telemetry.Init(context.Background(), config.Telemetry); err != nil {
+		logger.Error().Err(err).Msg("failed to initialize telemetry")
+		return nil, err
+	}
+	metricsHandler, err := metrics.NewProofProviderMetrics()
 	if err != nil {
 		return nil, fmt.Errorf("error initializing metrics: %s", err)
 	}
