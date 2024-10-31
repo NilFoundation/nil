@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/cmd/nild/nildconfig"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/common/version"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/profiling"
 	"github.com/NilFoundation/nil/nil/internal/readthroughdb"
@@ -19,6 +20,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
+)
+
+const (
+	appTitle = "=;Nil"
 )
 
 func main() {
@@ -187,7 +192,16 @@ func parseArgs() *nildconfig.Config {
 	addNetworkFlags(rpcCmd.Flags(), cfg)
 	addTelemetryFlags(rpcCmd.Flags(), cfg)
 
-	rootCmd.AddCommand(runCmd, replayCmd, archiveCmd, rpcCmd)
+	versionCmd := &cobra.Command{
+		Use:   "version",
+		Short: "Print version",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println(version.BuildVersionString(appTitle))
+			os.Exit(0)
+		},
+	}
+
+	rootCmd.AddCommand(runCmd, replayCmd, archiveCmd, rpcCmd, versionCmd)
 
 	f := rootCmd.HelpFunc()
 	rootCmd.SetHelpFunc(func(c *cobra.Command, s []string) {
