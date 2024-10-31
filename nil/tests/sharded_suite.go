@@ -36,9 +36,10 @@ type Shard struct {
 type ShardedSuite struct {
 	CliRunner
 
-	Context   context.Context
-	ctxCancel context.CancelFunc
-	wg        sync.WaitGroup
+	DefaultClient client.Client
+	Context       context.Context
+	ctxCancel     context.CancelFunc
+	wg            sync.WaitGroup
 
 	dbInit func() db.DB
 
@@ -205,26 +206,26 @@ func (s *ShardedSuite) StartRPCNode(port int) (client.Client, string) {
 	return c, endpoint
 }
 
-func (s *ShardedSuite) WaitForReceipt(client client.Client, shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
+func (s *ShardedSuite) WaitForReceipt(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	return WaitForReceipt(s.T(), client, shardId, hash)
+	return WaitForReceipt(s.T(), s.DefaultClient, shardId, hash)
 }
 
-func (s *ShardedSuite) WaitIncludedInMain(client client.Client, shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
+func (s *ShardedSuite) WaitIncludedInMain(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	return WaitIncludedInMain(s.T(), client, shardId, hash)
+	return WaitIncludedInMain(s.T(), s.DefaultClient, shardId, hash)
 }
 
 func (s *ShardedSuite) GasToValue(gas uint64) types.Value {
 	return GasToValue(gas)
 }
 
-func (s *ShardedSuite) DeployContractViaMainWallet(client client.Client, shardId types.ShardId, payload types.DeployPayload, initialAmount types.Value) (types.Address, *jsonrpc.RPCReceipt) {
+func (s *ShardedSuite) DeployContractViaMainWallet(shardId types.ShardId, payload types.DeployPayload, initialAmount types.Value) (types.Address, *jsonrpc.RPCReceipt) {
 	s.T().Helper()
 
-	return DeployContractViaWallet(s.T(), client, types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
+	return DeployContractViaWallet(s.T(), s.DefaultClient, types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
 }
 
 func (s *ShardedSuite) waitZerostate() {
@@ -242,4 +243,34 @@ func (s *ShardedSuite) LoadContract(path string, name string) (types.Code, abi.A
 func (s *ShardedSuite) PrepareDefaultDeployPayload(abi abi.ABI, code []byte, args ...any) types.DeployPayload {
 	s.T().Helper()
 	return PrepareDefaultDeployPayload(s.T(), abi, code, args...)
+}
+
+func (s *ShardedSuite) GetBalance(address types.Address) types.Value {
+	s.T().Helper()
+	return GetBalance(s.T(), s.DefaultClient, address)
+}
+
+func (s *ShardedSuite) AbiPack(abi *abi.ABI, name string, args ...any) []byte {
+	s.T().Helper()
+	return AbiPack(s.T(), abi, name, args...)
+}
+
+func (s *ShardedSuite) SendExternalMessageNoCheck(bytecode types.Code, contractAddress types.Address) *jsonrpc.RPCReceipt {
+	s.T().Helper()
+	return SendExternalMessageNoCheck(s.T(), s.DefaultClient, bytecode, contractAddress)
+}
+
+func (s *ShardedSuite) AnalyzeReceipt(receipt *jsonrpc.RPCReceipt, namesMap map[types.Address]string) ReceiptInfo {
+	s.T().Helper()
+	return AnalyzeReceipt(s.T(), s.DefaultClient, receipt, namesMap)
+}
+
+func (s *ShardedSuite) CheckBalance(infoMap ReceiptInfo, balance types.Value, accounts []types.Address) types.Value {
+	s.T().Helper()
+	return CheckBalance(s.T(), s.DefaultClient, infoMap, balance, accounts)
+}
+
+func (s *ShardedSuite) CallGetter(addr types.Address, calldata []byte, blockId any, overrides *jsonrpc.StateOverrides) []byte {
+	s.T().Helper()
+	return CallGetter(s.T(), s.DefaultClient, addr, calldata, blockId, overrides)
 }
