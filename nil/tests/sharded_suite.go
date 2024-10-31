@@ -94,6 +94,7 @@ func (s *ShardedSuite) Start(cfg *nilservice.Config, port int) {
 			CollatorTickPeriodMs: cfg.CollatorTickPeriodMs,
 			GasBasePrice:         cfg.GasBasePrice,
 			Network:              networkConfigs[i],
+			ZeroStateYaml:        cfg.ZeroStateYaml,
 		}
 		node, err := nilservice.CreateNode(s.Context, fmt.Sprintf("shard-%d", i), shardConfig, s.Shards[i].Db, nil)
 		s.Require().NoError(err)

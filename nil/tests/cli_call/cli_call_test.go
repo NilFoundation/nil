@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	nilcrypto "github.com/NilFoundation/nil/nil/internal/crypto"
@@ -17,21 +18,20 @@ import (
 )
 
 type SuiteCliTestCall struct {
-	// Inherit RPC suite because if we inherit SuiteRpc something goes wrong and a lot of tests fail.
-	tests.RpcSuite
+	tests.ShardedSuite
+
+	client       client.Client
+	endpoint     string
 	zerostateCfg string
 	testAddress  types.Address
 	cfgPath      string
-	tmpPath      string
 }
 
 func (s *SuiteCliTestCall) SetupSuite() {
 	var err error
 
-	s.ShardsNum = 2
 	s.TmpDir = s.T().TempDir()
-	s.tmpPath = s.TmpDir
-	s.cfgPath = s.tmpPath + "/config.ini"
+	s.cfgPath = s.TmpDir + "/config.ini"
 
 	s.testAddress, err = contracts.CalculateAddress(contracts.NameTest, 1, []byte{1})
 	s.Require().NoError(err)
@@ -46,19 +46,21 @@ contracts:
 }
 
 func (s *SuiteCliTestCall) SetupTest() {
-	s.StartWithRPC(&nilservice.Config{
-		NShards:       s.ShardsNum,
-		ZeroStateYaml: s.zerostateCfg,
-	}, 11005, false)
+	s.Start(&nilservice.Config{
+		NShards:              2,
+		CollatorTickPeriodMs: 200,
+		ZeroStateYaml:        s.zerostateCfg,
+	}, 10425)
+
+	s.client, s.endpoint = s.StartRPCNode(10430)
 
 	iniDataTmpl := `[nil]
 rpc_endpoint = {{ .HttpUrl }}
 private_key = {{ .PrivateKey }}
 address = {{ .Address }}
 `
-
 	iniData, err := common.ParseTemplate(iniDataTmpl, map[string]interface{}{
-		"HttpUrl":    s.Endpoint,
+		"HttpUrl":    s.endpoint,
 		"PrivateKey": nilcrypto.PrivateKeyToEthereumFormat(execution.MainPrivateKey),
 		"Address":    types.MainWalletAddress.Hex(),
 	})
@@ -86,7 +88,7 @@ func (s *SuiteCliTestCall) testResult(res string, expectedLines ...string) {
 func (s *SuiteCliTestCall) TestCliCall() {
 	abiData, err := contracts.GetAbiData(contracts.NameTest)
 	s.Require().NoError(err)
-	abiFile := s.tmpPath + "/Test.abi"
+	abiFile := s.TmpDir + "/Test.abi"
 	err = os.WriteFile(abiFile, []byte(abiData), 0o600)
 	s.Require().NoError(err)
 
@@ -108,7 +110,7 @@ func (s *SuiteCliTestCall) TestCliCall() {
 	s.Require().Error(err)
 	s.testResult(res, "Error: failed to pack method call: method 'nonExistingMethod' not found")
 
-	overridesFile := s.tmpPath + "/overrides.json"
+	overridesFile := s.TmpDir + "/overrides.json"
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getValue", "--abi", abiFile)
 	s.testResult(res, "Success, result:", "uint32: 0")
 
