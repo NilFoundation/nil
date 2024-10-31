@@ -14,9 +14,22 @@ export const Navbar = ({ children }: NavbarProps) => {
   const [css] = useStyletron();
   return (
     <nav className={css(styles.navbar)}>
-      <Logo />
-      {!isMobile && <Search />}
-      {children}
+      <div
+        className={css({
+          gridColumn: "1 / 2",
+          display: "flex",
+        })}
+      >
+        <Logo />
+        {!isMobile && <Search />}
+      </div>
+      <div
+        className={css({
+          gridColumn: "2 / 3",
+        })}
+      >
+        {children}
+      </div>
     </nav>
   );
 };

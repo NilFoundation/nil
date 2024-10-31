@@ -1,15 +1,6 @@
 import { COLORS } from "@nilfoundation/ui-kit";
 import { expandProperty } from "inline-style-expand-shorthand";
-import type { StyleObject } from "styletron-react";
 import { getMobileStyles } from "../../../styleHelpers";
-
-const buttonReset: StyleObject = {
-  border: "none",
-  padding: 0,
-  margin: 0,
-  background: "none",
-  cursor: "pointer",
-};
 
 export const styles = {
   container: {
@@ -17,7 +8,7 @@ export const styles = {
     justifyContent: "center",
     flexDirection: "column",
     alignItems: "center",
-    width: "416px",
+    width: "100%",
     height: "46px",
     backgroundColor: COLORS.gray900,
     ...expandProperty("borderRadius", "8px"),
@@ -51,9 +42,6 @@ export const styles = {
     gap: "8px",
     alignItems: "center",
     width: "100%",
-    flexGrow: 0,
-    ...buttonReset,
-    ...expandProperty("padding", "0 16px"),
   },
   menu: {
     listStyle: "none",

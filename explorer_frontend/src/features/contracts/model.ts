@@ -9,6 +9,7 @@ import {
   type WalletV1,
   getShardIdFromAddress,
   type Token,
+  type CometaService,
 } from "@nilfoundation/niljs";
 
 export type DeployedApp = App & {
@@ -85,13 +86,14 @@ export const deploySmartContractFx = createEffect<
     args: unknown[];
     shardId: number;
     wallet: WalletV1;
+    cometaService: CometaService | null;
   },
   {
     address: `0x${string}`;
     app: `0x${string}`;
     name: string;
   }
->(async ({ app, args, wallet, shardId }) => {
+>(async ({ app, args, wallet, shardId, cometaService }) => {
   const salt = BigInt(Math.floor(Math.random() * 10000000000000000));
 
   const { hash, address } = await wallet.deployContract({
@@ -181,8 +183,6 @@ export const callFx = createEffect<
     },
     "latest",
   );
-
-  console.log("Call result", data);
 
   return {
     functionName,

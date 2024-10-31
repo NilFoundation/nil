@@ -112,7 +112,7 @@ export const ContractManagement = () => {
             }}
             textToCopy={app?.address ?? ""}
           />
-          <Link to={addressRoute} params={{ address: app?.address }}>
+          <Link to={addressRoute} params={{ address: app?.address }} target="_blank">
             <StatefulTooltip content="Open in Explorer" showArrow={false} placement="bottom">
               <ButtonIcon
                 overrides={{

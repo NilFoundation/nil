@@ -9,3 +9,4 @@ import "./features/latest-blocks/init";
 import "./features/account-connector/init";
 import "./pages/sandbox/init";
 import "./features/currencies/init";
+import "./features/cometa/init";

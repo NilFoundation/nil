@@ -6,7 +6,6 @@ import type { PublicClient } from "../../clients/PublicClient.js";
 import { prepareDeployPart } from "../../encoding/deployPart.js";
 import { externalMessageEncode } from "../../encoding/externalMessage.js";
 import { hexToBytes } from "../../encoding/fromHex.js";
-import { toHex } from "../../encoding/toHex.js";
 import { addHexPrefix } from "../../index.js";
 import type { ISigner } from "../../signers/index.js";
 import type { Hex } from "../../types/Hex.js";
@@ -162,7 +161,7 @@ export class WalletV1 {
     if (salt) {
       this.salt = refineSalt(salt);
     }
-    this.shardId = getShardIdFromAddress(toHex(this.address));
+    this.shardId = getShardIdFromAddress(this.address);
   }
 
   /**

@@ -22,9 +22,10 @@ const Search = () => {
   return (
     <div
       className={css({
-        margin: "0 32px",
+        marginLeft: "32px",
         width: "100%",
         position: "relative",
+        zIndex: 2,
       })}
     >
       <Input
@@ -60,4 +61,5 @@ const Search = () => {
   );
 };
 
+// biome-ignore lint/style/noDefaultExport: <explanation>
 export default Search;

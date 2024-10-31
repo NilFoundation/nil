@@ -2,7 +2,7 @@ import { useStyletron } from "styletron-react";
 import { RouterProvider } from "atomic-router-react";
 import { router } from "./features/routing";
 import { RoutesView } from "./features/routing";
-import { ErrorPage, PRIMITIVE_COLORS } from "@nilfoundation/ui-kit";
+import { ErrorPage, COLORS } from "@nilfoundation/ui-kit";
 import { ErrorBoundary } from "react-error-boundary";
 import { useInitHotjar } from "./features/hotjar";
 import type { StylesObject } from "./features/shared";
@@ -11,9 +11,12 @@ const styles: StylesObject = {
   main: {
     position: "relative",
     minHeight: "100vh",
+    width: "100%",
     display: "flex",
     flexDirection: "column",
-    background: PRIMITIVE_COLORS.black,
+    background: COLORS.black,
+    alignItems: "center",
+    justifyContent: "center",
   },
 };
 

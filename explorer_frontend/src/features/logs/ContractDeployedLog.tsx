@@ -30,7 +30,7 @@ export const ContractDeployedLog: FC<ContractDeployedLogProps> = ({ address }) =
       <LabelMedium color={COLORS.gray400}>Contract address:</LabelMedium>
       <LabelMedium color={COLORS.gray50}>{address}</LabelMedium>
       <CopyButton kind={BUTTON_KIND.secondary} textToCopy={address} size={BUTTON_SIZE.default} />
-      <Link to={addressRoute} params={{ address }}>
+      <Link to={addressRoute} params={{ address }} target="_blank">
         <StatefulTooltip content="Open in Explorer" showArrow={false} placement="top">
           <ButtonIcon icon={<ShareIcon />} kind={BUTTON_KIND.secondary} />
         </StatefulTooltip>
