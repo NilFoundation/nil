@@ -1,4 +1,4 @@
-package prover
+package tracer
 
 import (
 	"encoding/hex"

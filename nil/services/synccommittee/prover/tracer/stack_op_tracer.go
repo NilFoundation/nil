@@ -1,4 +1,4 @@
-package prover
+package tracer
 
 import (
 	"github.com/NilFoundation/nil/nil/internal/tracing"
@@ -13,11 +13,15 @@ type StackOp struct {
 	IsRead bool // Is write otherwise
 	Idx    int  // Index of element in stack
 	Value  types.Uint256
-	OpCode vm.OpCode
+	PC     uint64
+	MsgId  uint
+	RwIdx  uint
 }
 
 type StackOpTracer struct {
-	res []StackOp
+	res   []StackOp
+	rwCtr *RwCounter
+	msgId uint
 
 	opCode         vm.OpCode
 	pc             uint64
@@ -159,6 +163,9 @@ func (sot *StackOpTracer) traceBasicOp() bool {
 			IsRead: true,
 			Idx:    idx,
 			Value:  types.Uint256(*el),
+			PC:     sot.pc,
+			RwIdx:  sot.rwCtr.NextIdx(),
+			MsgId:  sot.msgId,
 		})
 	}
 
@@ -171,6 +178,9 @@ func (sot *StackOpTracer) traceBasicOp() bool {
 				IsRead: false,
 				Idx:    idx,
 				Value:  types.Uint256(*el),
+				PC:     sot.pc,
+				RwIdx:  sot.rwCtr.NextIdx(),
+				MsgId:  sot.msgId,
 			})
 		}
 	}
@@ -211,6 +221,9 @@ func (sot *StackOpTracer) traceDupOp() bool {
 		IsRead: true,
 		Idx:    idx,
 		Value:  types.Uint256(*el),
+		PC:     sot.pc,
+		RwIdx:  sot.rwCtr.NextIdx(),
+		MsgId:  sot.msgId,
 	})
 
 	sot.prevOpFinisher = func() {
@@ -220,6 +233,9 @@ func (sot *StackOpTracer) traceDupOp() bool {
 			IsRead: false,
 			Idx:    idx,
 			Value:  types.Uint256(*el),
+			PC:     sot.pc,
+			RwIdx:  sot.rwCtr.NextIdx(),
+			MsgId:  sot.msgId,
 		})
 	}
 	return true
@@ -256,14 +272,18 @@ func (sot *StackOpTracer) traceSwapOp() bool {
 		IsRead: true,
 		Idx:    idx,
 		Value:  types.Uint256(*el),
-		OpCode: sot.opCode,
+		PC:     sot.pc,
+		RwIdx:  sot.rwCtr.NextIdx(),
+		MsgId:  sot.msgId,
 	})
 	el, idx = stack.PopWIndex()
 	sot.res = append(sot.res, StackOp{
 		IsRead: true,
 		Idx:    idx,
 		Value:  types.Uint256(*el),
-		OpCode: sot.opCode,
+		PC:     sot.pc,
+		RwIdx:  sot.rwCtr.NextIdx(),
+		MsgId:  sot.msgId,
 	})
 	sot.prevOpFinisher = func() {
 		stack := NewStackAccessor(sot.scope.StackData())
@@ -272,14 +292,18 @@ func (sot *StackOpTracer) traceSwapOp() bool {
 			IsRead: false,
 			Idx:    idx,
 			Value:  types.Uint256(*el),
-			OpCode: sot.opCode,
+			PC:     sot.pc,
+			RwIdx:  sot.rwCtr.NextIdx(),
+			MsgId:  sot.msgId,
 		})
 		el, idx = stack.BackWIndex(0)
 		sot.res = append(sot.res, StackOp{
 			IsRead: false,
 			Idx:    idx,
 			Value:  types.Uint256(*el),
-			OpCode: sot.opCode,
+			PC:     sot.pc,
+			RwIdx:  sot.rwCtr.NextIdx(),
+			MsgId:  sot.msgId,
 		})
 	}
 
@@ -287,8 +311,6 @@ func (sot *StackOpTracer) traceSwapOp() bool {
 }
 
 func (sot *StackOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpContext) bool {
-	sot.finishPrevOpcodeTracing()
-
 	sot.opCode = opCode
 	sot.pc = pc
 	sot.scope = scope
@@ -299,7 +321,7 @@ func (sot *StackOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpC
 	return true
 }
 
-func (sot *StackOpTracer) finishPrevOpcodeTracing() {
+func (sot *StackOpTracer) FinishPrevOpcodeTracing() {
 	if sot.prevOpFinisher == nil {
 		// first opcode for the tracer
 		return
@@ -312,6 +334,6 @@ func (sot *StackOpTracer) finishPrevOpcodeTracing() {
 func (sot *StackOpTracer) Finalize() []StackOp {
 	// The last opcode could be one of STOP, RETURN, REVERT, SELFDESTRUCT. Each of
 	// them doesn't put anything on stack.
-	sot.finishPrevOpcodeTracing()
+	sot.FinishPrevOpcodeTracing()
 	return sot.res
 }

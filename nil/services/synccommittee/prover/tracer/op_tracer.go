@@ -1,4 +1,4 @@
-package prover
+package tracer
 
 import (
 	"github.com/NilFoundation/nil/nil/internal/tracing"
@@ -8,6 +8,7 @@ import (
 
 type OpTracer[T any] interface {
 	TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpContext) bool
+	FinishPrevOpcodeTracing()
 	Finalize() []T
 }
 
@@ -50,4 +51,16 @@ func (sa *StackAccessor) backIdx(n int) int {
 
 func (sa *StackAccessor) Skip(n int) {
 	sa.curTopN -= n
+}
+
+// Helper to track next rw operation counter (all operations should be sequentially
+// ordered: (stack, memory, state).
+type RwCounter struct {
+	ctr uint
+}
+
+func (c *RwCounter) NextIdx() uint {
+	ret := c.ctr
+	c.ctr++
+	return ret
 }

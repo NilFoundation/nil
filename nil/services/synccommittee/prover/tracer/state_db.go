@@ -1,8 +1,7 @@
-package prover
+package tracer
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
@@ -11,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
-	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
@@ -19,18 +17,22 @@ import (
 )
 
 type ExecutionTraces struct {
-	StackOps        []StackOp
-	MemoryOps       []MemoryOp
-	StorageProofs   map[types.Address][]mpt.Proof
-	ExecutedOpCodes []vm.OpCode
+	// Stack/Memory/State Ops are handled for entire block, they share the same counter (rw_circuit)
+	StackOps   []StackOp
+	MemoryOps  []MemoryOp
+	StorageOps []StorageOp
+
+	ContractsBytecode map[types.Address][]byte
+	// For each message, for each touched contract
+	SlotsChanges []map[types.Address][]SlotChangeTrace
 }
 
 type Stats struct {
 	ProcessedInMsgsN uint
-	OpsN             uint // should be the same as StackOpsN, since every op is stack op
+	OpsN             uint // should be the same as StackOpsN, since every op is a stack op
 	StackOpsN        uint
 	MemoryOpsN       uint
-	StoreOpsN        uint
+	StateOpsN        uint
 }
 
 type TracerStateDB struct {
@@ -42,15 +44,21 @@ type TracerStateDB struct {
 	InMessages       []*types.Message
 	blkContext       *vm.BlockContext
 	Traces           ExecutionTraces
+	RwCounter        RwCounter
 	Stats            Stats
 
 	// gas price for current block
 	GasPrice types.Value
 
+	// Reinited for each message
 	// Pointer to currently executed VM
-	evm          *vm.EVM
-	stackTracer  StackOpTracer
-	memoryTracer MemoryOpTracer
+	evm               *vm.EVM
+	stackTracer       *StackOpTracer
+	memoryTracer      *MemoryOpTracer
+	storageInteractor *MessageStorageInteractor
+
+	// Current program counter, used only for storage operations trace. Incremetned inside OnOpcode
+	curPC uint64
 }
 
 var _ vm.StateDB = new(TracerStateDB)
@@ -79,13 +87,9 @@ func NewTracerStateDB(ctx context.Context, client *rpc.Client, shardId types.Sha
 		accountsCache:    make(map[types.Address]*Account),
 		blkContext:       blkContext,
 		Traces: ExecutionTraces{
-			StorageProofs: make(map[types.Address][]mpt.Proof),
+			ContractsBytecode: make(map[types.Address][]byte),
 		},
 	}, nil
-}
-
-func (tsdb *TracerStateDB) SetEvm(evm *vm.EVM) {
-	tsdb.evm = evm
 }
 
 func (tsdb *TracerStateDB) getAccount(addr types.Address) (*Account, error) {
@@ -151,6 +155,7 @@ func (tsdb *TracerStateDB) getOrNewAccount(addr types.Address) (*Account, error)
 }
 
 func (tsdb *TracerStateDB) createAccount(addr types.Address) (*Account, error) {
+	// FIXME: it will probably fail now, since trie is not initialized
 	acc := &Account{
 		Address: addr,
 	}
@@ -177,8 +182,10 @@ func (tsdb *TracerStateDB) HandleInMessage(message *types.Message) error {
 }
 
 func (tsdb *TracerStateDB) initTracers() {
-	tsdb.stackTracer = StackOpTracer{}
-	tsdb.memoryTracer = MemoryOpTracer{}
+	msgId := uint(len(tsdb.InMessages) - 1)
+	tsdb.stackTracer = &StackOpTracer{rwCtr: &tsdb.RwCounter, msgId: msgId}
+	tsdb.memoryTracer = &MemoryOpTracer{rwCtr: &tsdb.RwCounter, msgId: msgId}
+	tsdb.storageInteractor = NewMessageStorageInteractor(&tsdb.RwCounter, tsdb.GetCurPC, msgId)
 }
 
 func (tsdb *TracerStateDB) processOpcodeWithTracers(pc uint64, op byte, _ uint64, _ uint64, scope tracing.OpContext, _ []byte, _ int, err error) {
@@ -187,8 +194,14 @@ func (tsdb *TracerStateDB) processOpcodeWithTracers(pc uint64, op byte, _ uint64
 	}
 
 	opCode := vm.OpCode(op)
-	tsdb.Traces.ExecutedOpCodes = append(tsdb.Traces.ExecutedOpCodes, vm.OpCode(op))
 	tsdb.Stats.OpsN++
+
+	// Finish in reverse order to keep rw_counter sequential.
+	// Each operation consists of read stack -> read memory -> write memory -> write stack (we
+	// ignore specific memory parts like returndata, etc for now). Stages could be ommited, but
+	// not reordered.
+	tsdb.memoryTracer.FinishPrevOpcodeTracing()
+	tsdb.stackTracer.FinishPrevOpcodeTracing()
 
 	// Stack tracing is splitted between current opcode (before change read operations)
 	// and the next opcode (after change write operations)
@@ -203,7 +216,7 @@ func (tsdb *TracerStateDB) processOpcodeWithTracers(pc uint64, op byte, _ uint64
 
 	// Storage tracing is done inside Get/SetState methods
 	if opCode == vm.SLOAD || opCode == vm.SSTORE {
-		tsdb.Stats.StoreOpsN++
+		tsdb.Stats.StateOpsN++
 	}
 }
 
@@ -213,15 +226,39 @@ func (tsdb *TracerStateDB) initVm(internal bool, origin types.Address, state *vm
 	tsdb.initTracers()
 	tsdb.evm.Config.Tracer = &tracing.Hooks{
 		OnOpcode: func(pc uint64, op byte, gas uint64, cost uint64, scope tracing.OpContext, rData []byte, depth int, err error) {
+			tsdb.curPC = pc
 			tsdb.processOpcodeWithTracers(pc, op, gas, cost, scope, rData, depth, err)
 		},
 	}
 }
 
-func (tsdb *TracerStateDB) resetVm() {
-	newStackTraces := tsdb.stackTracer.Finalize()
-	tsdb.Traces.StackOps = append(tsdb.Traces.StackOps, newStackTraces...)
+// Tracers finalizations happen here
+func (tsdb *TracerStateDB) saveTraces() error {
 	tsdb.Traces.MemoryOps = append(tsdb.Traces.MemoryOps, tsdb.memoryTracer.Finalize()...)
+	tsdb.Traces.StackOps = append(tsdb.Traces.StackOps, tsdb.stackTracer.Finalize()...)
+	tsdb.Traces.StorageOps = append(tsdb.Traces.StorageOps, tsdb.storageInteractor.GetStorageOps()...)
+
+	curMessageSlotChanges := make(map[types.Address][]SlotChangeTrace)
+	for _, addr := range tsdb.storageInteractor.GetAffectedAccountsAddresses() {
+		acc, err := tsdb.getAccount(addr)
+		if err != nil {
+			return err
+		}
+
+		addrSlotChanges, err := tsdb.storageInteractor.GetAccountSlotChangeTraces(acc)
+		if err != nil {
+			return err
+		}
+		curMessageSlotChanges[addr] = addrSlotChanges
+	}
+	tsdb.Traces.SlotsChanges = append(tsdb.Traces.SlotsChanges, curMessageSlotChanges)
+
+	return nil
+}
+
+func (tsdb *TracerStateDB) resetVm() {
+	tsdb.stackTracer = nil
+	tsdb.memoryTracer = nil
 	tsdb.evm = nil
 }
 
@@ -244,7 +281,7 @@ func (tsdb *TracerStateDB) HandleExecutionMessage(message *types.Message) error 
 	if err != nil {
 		panic("call must not throw")
 	}
-	return err
+	return tsdb.saveTraces()
 }
 
 func (tsdb *TracerStateDB) HandleDeployMessage(message *types.Message) error {
@@ -259,11 +296,9 @@ func (tsdb *TracerStateDB) HandleDeployMessage(message *types.Message) error {
 	if err != nil {
 		panic("deploy must not throw")
 	}
-	_ = ret
-	_ = addr
-	_ = leftOver
+	_, _, _ = ret, addr, leftOver
 
-	return err
+	return tsdb.saveTraces()
 }
 
 // The only way to add InMessage to state
@@ -298,6 +333,7 @@ func (tsdb *TracerStateDB) CreateAccount(addr types.Address) error {
 
 func (tsdb *TracerStateDB) CreateContract(addr types.Address) error {
 	_, err := tsdb.getAccount(addr)
+	// obj.newContract = true
 	return err
 }
 
@@ -397,15 +433,14 @@ func (tsdb *TracerStateDB) GetState(addr types.Address, key common.Hash) (common
 	if err != nil || acc == nil {
 		return common.EmptyHash, err
 	}
-	ret, err := acc.StorageTrie.Fetch(key)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return common.EmptyHash, nil
-	}
-	if err != nil {
-		return common.EmptyHash, err
-	}
-	return ret.Bytes32(), err
+	return tsdb.storageInteractor.GetSlot(acc, key)
 }
+
+// proof, err := mpt.BuildProof(acc.StorageTrie.Reader, key.Bytes(), mpt.ReadMPTOperation)
+// if err != nil {
+// 	return err
+// }
+// tsdb.addStorageProof(addr, proof)
 
 func (tsdb *TracerStateDB) SetState(addr types.Address, key common.Hash, val common.Hash) error {
 	acc, err := tsdb.getOrNewAccount(addr)
@@ -413,28 +448,7 @@ func (tsdb *TracerStateDB) SetState(addr types.Address, key common.Hash, val com
 		return err
 	}
 
-	// If the new value is the same as old, don't set.
-	prev, err := tsdb.GetState(addr, key)
-	if err != nil {
-		return err
-	}
-	if prev == val {
-		return nil
-	}
-
-	proof, err := mpt.BuildProof(acc.StorageTrie.Reader, key.Bytes(), mpt.SetMPTOperation)
-	if err != nil {
-		return err
-	}
-	tsdb.addStorageProof(addr, proof)
-
-	return acc.StorageTrie.Update(key, (*types.Uint256)(val.Uint256()))
-}
-
-func (tsdb *TracerStateDB) addStorageProof(addr types.Address, proof mpt.Proof) {
-	proofsForAddr := tsdb.Traces.StorageProofs[addr]
-	proofsForAddr = append(proofsForAddr, proof)
-	tsdb.Traces.StorageProofs[addr] = proofsForAddr
+	return tsdb.storageInteractor.SetSlot(acc, key, val)
 }
 
 func (tsdb *TracerStateDB) GetStorageRoot(addr types.Address) (common.Hash, error) {
@@ -571,4 +585,9 @@ func (tsdb *TracerStateDB) SaveVmState(state *types.EvmState, continuationGasCre
 
 func (tsdb *TracerStateDB) GetConfigAccessor() *config.ConfigAccessor {
 	panic("not implemented")
+}
+
+func (tsdb *TracerStateDB) GetCurPC() uint64 {
+	// Used by storage tracer
+	return tsdb.curPC
 }

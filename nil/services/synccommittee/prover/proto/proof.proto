@@ -18,7 +18,7 @@ message StackOp {
     bool is_read = 1;
     int32 index = 2;  // Index in the stack
     Uint256 value = 3;
-    OpCode op_code = 4;
+    uint64 pc = 4;
 }
 
 // MemoryOp represents a single memory operation
@@ -26,7 +26,7 @@ message MemoryOp {
     bool is_read = 1;
     int32 index = 2;
     bytes value = 3;  // Single byte value
-    OpCode op_code = 4;
+    uint64 pc = 4;
 }
 
 // Node represents a storage tree node
@@ -49,7 +49,7 @@ message ExecutionTraces {
     repeated StackOp stack_ops = 1;
     repeated MemoryOp memory_ops = 2;
     map<string, StorageProofs> storage_proofs_by_address = 3;  // Address hex string to proofs mapping
-    repeated OpCode executed_op_codes = 4;
+    repeated bytes contract_bytecodes = 4;
 }
 
 enum OpCode {

@@ -1,4 +1,4 @@
-package prover
+package tracer
 
 import (
 	"github.com/NilFoundation/nil/nil/internal/tracing"
@@ -7,13 +7,17 @@ import (
 
 type MemoryOp struct {
 	IsRead bool // Is write otherwise
-	Idx    int  // Index of element in stack
+	Idx    int  // Index of element in memory
 	Value  byte
-	OpCode vm.OpCode
+	PC     uint64
+	MsgId  uint
+	RwIdx  uint
 }
 
 type MemoryOpTracer struct {
-	res []MemoryOp
+	rwCtr *RwCounter
+	msgId uint
+	res   []MemoryOp
 
 	prevOpFinisher func()
 }
@@ -223,7 +227,7 @@ var opsToMemoryRanges = map[vm.OpCode]func(stack *StackAccessor, memoryLen int) 
 	},
 }
 
-func (mot *MemoryOpTracer) finishPrevOpcodeTracing() {
+func (mot *MemoryOpTracer) FinishPrevOpcodeTracing() {
 	if mot.prevOpFinisher == nil {
 		return
 	}
@@ -233,8 +237,6 @@ func (mot *MemoryOpTracer) finishPrevOpcodeTracing() {
 }
 
 func (mot *MemoryOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpContext) bool {
-	mot.finishPrevOpcodeTracing()
-
 	memRangesFunc, ok := opsToMemoryRanges[opCode]
 	if !ok {
 		return false
@@ -247,7 +249,9 @@ func (mot *MemoryOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.Op
 			IsRead: true,
 			Idx:    int(i),
 			Value:  scope.MemoryData()[i],
-			OpCode: opCode,
+			PC:     pc,
+			MsgId: mot.msgId,
+			RwIdx:  mot.rwCtr.NextIdx(),
 		})
 	}
 	mot.prevOpFinisher = func() {
@@ -256,7 +260,9 @@ func (mot *MemoryOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.Op
 				IsRead: false,
 				Idx:    int(i),
 				Value:  scope.MemoryData()[i],
-				OpCode: opCode,
+				PC:     pc,
+				MsgId: mot.msgId,
+				RwIdx:  mot.rwCtr.NextIdx(),
 			})
 		}
 	}
@@ -264,6 +270,6 @@ func (mot *MemoryOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.Op
 }
 
 func (mot *MemoryOpTracer) Finalize() []MemoryOp {
-	mot.finishPrevOpcodeTracing()
+	mot.FinishPrevOpcodeTracing()
 	return mot.res
 }
