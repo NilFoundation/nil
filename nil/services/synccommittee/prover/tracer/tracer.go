@@ -117,7 +117,7 @@ func (rt *RemoteTracerImpl) GetBlockTraces(ctx context.Context, shardId types.Sh
 		stats.OpsN,
 		stats.StackOpsN,
 		stats.MemoryOpsN,
-		stats.StoreOpsN,
+		stats.StateOpsN,
 	)
 
 	return stateDB.Traces, nil

@@ -14,6 +14,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/prover"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/prover/tracer"
 	"github.com/spf13/cobra"
 )
 
@@ -87,7 +88,7 @@ func execute() error {
 			return readTrace(&PrintConfig{FileName: args[0]})
 		},
 	}
-	addCommonFlags(generateTraceCmd, commonCfg)
+	addCommonFlags(printTraceCmd, commonCfg)
 	rootCmd.AddCommand(printTraceCmd)
 
 	return rootCmd.Execute()
@@ -127,21 +128,21 @@ func run(cfg *RunConfig) error {
 
 func generateTrace(cfg *GenerateTraceConfig) error {
 	client := rpc.NewClient(cfg.NilRpcEndpoint, logging.NewLogger("client"))
-	tracer, err := prover.NewRemoteTracer(client, logging.NewLogger("tracer"))
+	remoteTracer, err := tracer.NewRemoteTracer(client, logging.NewLogger("tracer"))
 	if err != nil {
 		return err
 	}
 
-	blockTraces, err := tracer.GetBlockTraces(context.Background(), cfg.ShardID, cfg.BlockID)
+	blockTraces, err := remoteTracer.GetBlockTraces(context.Background(), cfg.ShardID, cfg.BlockID)
 	if err != nil {
 		return err
 	}
 
-	return prover.SerializeToFile(&blockTraces, cfg.FileName)
+	return tracer.SerializeToFile(&blockTraces, cfg.FileName)
 }
 
 func readTrace(cfg *PrintConfig) error {
-	blockTraces, err := prover.DeserializeFromFile(cfg.FileName)
+	blockTraces, err := tracer.DeserializeFromFile(cfg.FileName)
 	if err != nil {
 		return err
 	}

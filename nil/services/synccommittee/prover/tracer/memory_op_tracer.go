@@ -250,7 +250,7 @@ func (mot *MemoryOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.Op
 			Idx:    int(i),
 			Value:  scope.MemoryData()[i],
 			PC:     pc,
-			MsgId: mot.msgId,
+			MsgId:  mot.msgId,
 			RwIdx:  mot.rwCtr.NextIdx(),
 		})
 	}
@@ -261,7 +261,7 @@ func (mot *MemoryOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.Op
 				Idx:    int(i),
 				Value:  scope.MemoryData()[i],
 				PC:     pc,
-				MsgId: mot.msgId,
+				MsgId:  mot.msgId,
 				RwIdx:  mot.rwCtr.NextIdx(),
 			})
 		}

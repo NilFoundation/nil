@@ -93,8 +93,8 @@ func NewTracerStateDB(ctx context.Context, client *rpc.Client, shardId types.Sha
 }
 
 func (tsdb *TracerStateDB) getAccount(addr types.Address) (*Account, error) {
-	smartContract, ok := tsdb.accountsCache[addr]
-	if ok {
+	smartContract, exists := tsdb.accountsCache[addr]
+	if exists {
 		return smartContract, nil
 	}
 
@@ -198,7 +198,7 @@ func (tsdb *TracerStateDB) processOpcodeWithTracers(pc uint64, op byte, _ uint64
 
 	// Finish in reverse order to keep rw_counter sequential.
 	// Each operation consists of read stack -> read memory -> write memory -> write stack (we
-	// ignore specific memory parts like returndata, etc for now). Stages could be ommited, but
+	// ignore specific memory parts like returndata, etc for now). Stages could be omitted, but
 	// not reordered.
 	tsdb.memoryTracer.FinishPrevOpcodeTracing()
 	tsdb.stackTracer.FinishPrevOpcodeTracing()
@@ -233,7 +233,7 @@ func (tsdb *TracerStateDB) initVm(internal bool, origin types.Address, state *vm
 }
 
 // Tracers finalizations happen here
-func (tsdb *TracerStateDB) saveTraces() error {
+func (tsdb *TracerStateDB) saveMessageTraces() error {
 	tsdb.Traces.MemoryOps = append(tsdb.Traces.MemoryOps, tsdb.memoryTracer.Finalize()...)
 	tsdb.Traces.StackOps = append(tsdb.Traces.StackOps, tsdb.stackTracer.Finalize()...)
 	tsdb.Traces.StorageOps = append(tsdb.Traces.StorageOps, tsdb.storageInteractor.GetStorageOps()...)
@@ -281,7 +281,7 @@ func (tsdb *TracerStateDB) HandleExecutionMessage(message *types.Message) error 
 	if err != nil {
 		panic("call must not throw")
 	}
-	return tsdb.saveTraces()
+	return tsdb.saveMessageTraces()
 }
 
 func (tsdb *TracerStateDB) HandleDeployMessage(message *types.Message) error {
@@ -296,9 +296,12 @@ func (tsdb *TracerStateDB) HandleDeployMessage(message *types.Message) error {
 	if err != nil {
 		panic("deploy must not throw")
 	}
-	_, _, _ = ret, addr, leftOver
+	// `_, _, _, err` doesn't satisfy linter
+	_ = ret
+	_ = addr
+	_ = leftOver
 
-	return tsdb.saveTraces()
+	return tsdb.saveMessageTraces()
 }
 
 // The only way to add InMessage to state
@@ -399,6 +402,13 @@ func (tsdb *TracerStateDB) GetCode(addr types.Address) ([]byte, common.Hash, err
 	if err != nil || acc == nil {
 		return []byte{}, common.EmptyHash, err
 	}
+
+	// if contract code was requested, we dump it into traces
+	_, exists := tsdb.Traces.ContractsBytecode[addr]
+	if !exists {
+		tsdb.Traces.ContractsBytecode[addr] = acc.Code
+	}
+
 	return acc.Code, acc.Code.Hash(), nil
 }
 

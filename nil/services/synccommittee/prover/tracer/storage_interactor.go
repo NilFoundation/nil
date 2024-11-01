@@ -10,21 +10,22 @@ import (
 )
 
 type StorageOp struct {
-	IsRead  bool        // Is write otherwise
-	Address common.Hash // Key of element in storage
-	Value   *types.Uint256
-	PC      uint64
-	MsgId   uint
-	RwIdx   uint
+	IsRead bool        // Is write otherwise
+	Key    common.Hash // Key of element in storage
+	Value  types.Uint256
+	PC     uint64
+	MsgId  uint
+	RwIdx  uint
+	Addr   types.Address
 }
 
 type StateSlotDiff struct {
-	before *types.Uint256
-	after  *types.Uint256
+	before types.Uint256
+	after  types.Uint256
 }
 
 type MessageStorageInteractor struct {
-	// Within a single message processing mutliple accounts states modification could occur
+	// Within a single message processing multiple accounts states modification could occur
 	msgChangedStateSlots map[types.Address]map[common.Hash]StateSlotDiff
 
 	storageOps []StorageOp
@@ -47,16 +48,21 @@ func (d *MessageStorageInteractor) GetStorageOps() []StorageOp {
 }
 
 func (d *MessageStorageInteractor) GetSlot(acc *Account, key common.Hash) (common.Hash, error) {
-	accountSlots, _ := d.msgChangedStateSlots[acc.Address]
+	accountSlots, exists := d.msgChangedStateSlots[acc.Address]
+	if !exists {
+		// Doesn't modify msgChangedStateSlots
+		accountSlots = make(map[common.Hash]StateSlotDiff)
+	}
 	slotDiff, exists := accountSlots[key]
 	if exists {
 		d.storageOps = append(d.storageOps, StorageOp{
-			IsRead:  true,
-			Address: key,
-			Value:   slotDiff.after,
-			PC:      d.pcGetter(),
-			RwIdx:   d.rwCtr.NextIdx(),
-			MsgId:   d.msgId,
+			IsRead: true,
+			Key:    key,
+			Value:  slotDiff.after,
+			PC:     d.pcGetter(),
+			RwIdx:  d.rwCtr.NextIdx(),
+			MsgId:  d.msgId,
+			Addr:   acc.Address,
 		})
 		return slotDiff.after.Bytes32(), nil
 	}
@@ -65,12 +71,13 @@ func (d *MessageStorageInteractor) GetSlot(acc *Account, key common.Hash) (commo
 	val, err := d.readFromDb(acc, key)
 	if err != nil {
 		d.storageOps = append(d.storageOps, StorageOp{
-			IsRead:  true,
-			Address: key,
-			Value:   (*types.Uint256)(val.Uint256()),
-			PC:      d.pcGetter(),
-			RwIdx:   d.rwCtr.NextIdx(),
-			MsgId:   d.msgId,
+			IsRead: true,
+			Key:    key,
+			Value:  (types.Uint256)(*val.Uint256()),
+			PC:     d.pcGetter(),
+			RwIdx:  d.rwCtr.NextIdx(),
+			MsgId:  d.msgId,
+			Addr:   acc.Address,
 		})
 	}
 	return val, err
@@ -91,7 +98,12 @@ func (d *MessageStorageInteractor) readFromDb(acc *Account, key common.Hash) (co
 // Do not modify trie before processing is done, just keep the changes in a map. After message is processed,
 // apply each slot modification, for each modification provide an MPT proof.
 func (d *MessageStorageInteractor) SetSlot(acc *Account, key common.Hash, val common.Hash) error {
-	accountSlots, _ := d.msgChangedStateSlots[acc.Address]
+	accountSlots, exists := d.msgChangedStateSlots[acc.Address]
+	if !exists {
+		accountSlots = make(map[common.Hash]StateSlotDiff)
+		d.msgChangedStateSlots[acc.Address] = accountSlots
+	}
+
 	slotDiff, exists := accountSlots[key]
 	if !exists {
 		initialVal, err := d.readFromDb(acc, key)
@@ -99,27 +111,28 @@ func (d *MessageStorageInteractor) SetSlot(acc *Account, key common.Hash, val co
 			return err
 		}
 
-		slotDiff.before = (*types.Uint256)(initialVal.Uint256())
+		slotDiff.before = (types.Uint256)(*initialVal.Uint256())
 	}
 
-	uintVal := (*types.Uint256)(val.Uint256())
-	slotDiff.after = uintVal
+	uintVal := (types.Uint256)(*val.Uint256())
 
-	err := acc.StorageTrie.Update(key, uintVal)
+	err := acc.StorageTrie.Update(key, &uintVal)
 	if err != nil {
 		return err
 	}
 
-	slotDiff.after = uintVal
-
 	d.storageOps = append(d.storageOps, StorageOp{
-		IsRead:  false,
-		Address: key,
-		Value:   uintVal,
-		PC:      d.pcGetter(),
-		RwIdx:   d.rwCtr.NextIdx(),
-		MsgId:   d.msgId,
+		IsRead: false,
+		Key:    key,
+		Value:  uintVal,
+		PC:     d.pcGetter(),
+		RwIdx:  d.rwCtr.NextIdx(),
+		MsgId:  d.msgId,
+		Addr:   acc.Address,
 	})
+
+	slotDiff.after = uintVal
+	accountSlots[key] = slotDiff
 
 	return nil
 }
@@ -128,19 +141,20 @@ type SlotChangeTrace struct {
 	Key         common.Hash
 	RootBefore  common.Hash
 	RootAfter   common.Hash
-	ValueBefore *types.Uint256
-	ValueAfter  *types.Uint256
+	ValueBefore types.Uint256
+	ValueAfter  types.Uint256
 	Proof       mpt.Proof
 }
 
 func (d *MessageStorageInteractor) GetAccountSlotChangeTraces(acc *Account) ([]SlotChangeTrace, error) {
+	_ = acc.Address
 	accStateChanges, exists := d.msgChangedStateSlots[acc.Address]
 	if !exists {
 		// No state changes were caught for this address
 		return nil, nil
 	}
 
-	traces := make([]SlotChangeTrace, len(accStateChanges))
+	traces := make([]SlotChangeTrace, 0, len(accStateChanges))
 	for storageKey, diff := range accStateChanges {
 		var err error
 		slotChangeTrace := SlotChangeTrace{
@@ -148,7 +162,7 @@ func (d *MessageStorageInteractor) GetAccountSlotChangeTraces(acc *Account) ([]S
 			ValueBefore: diff.before,
 		}
 
-		if err = acc.StorageTrie.Update(storageKey, diff.after); err != nil {
+		if err = acc.StorageTrie.Update(storageKey, &diff.after); err != nil {
 			return nil, err
 		}
 
@@ -167,7 +181,7 @@ func (d *MessageStorageInteractor) GetAccountSlotChangeTraces(acc *Account) ([]S
 }
 
 func (d *MessageStorageInteractor) GetAffectedAccountsAddresses() []types.Address {
-	addresses := make([]types.Address, len(d.msgChangedStateSlots))
+	addresses := make([]types.Address, 0, len(d.msgChangedStateSlots))
 	for add := range d.msgChangedStateSlots {
 		addresses = append(addresses, add)
 	}

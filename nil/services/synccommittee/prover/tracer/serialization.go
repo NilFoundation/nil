@@ -1,13 +1,11 @@
 package tracer
 
 import (
-	"encoding/hex"
-	"fmt"
 	"os"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/internal/vm"
 	pb "github.com/NilFoundation/nil/nil/services/synccommittee/prover/proto"
 	"google.golang.org/protobuf/proto"
 )
@@ -49,10 +47,11 @@ func DeserializeFromFile(filename string) (*ExecutionTraces, error) {
 
 func FromProto(traces *pb.ExecutionTraces) (*ExecutionTraces, error) {
 	ep := &ExecutionTraces{
-		StackOps:        make([]StackOp, len(traces.StackOps)),
-		MemoryOps:       make([]MemoryOp, len(traces.MemoryOps)),
-		StorageProofs:   make(map[types.Address][]mpt.Proof),
-		ExecutedOpCodes: make([]vm.OpCode, len(traces.ExecutedOpCodes)),
+		StackOps:          make([]StackOp, len(traces.StackOps)),
+		MemoryOps:         make([]MemoryOp, len(traces.MemoryOps)),
+		StorageOps:        make([]StorageOp, len(traces.StorageOps)),
+		ContractsBytecode: make(map[types.Address][]byte, len(traces.ContractBytecodes)),
+		SlotsChanges:      make([]map[types.Address][]SlotChangeTrace, len(traces.MessageTraces)),
 	}
 
 	for i, pbStackOp := range traces.StackOps {
@@ -60,7 +59,9 @@ func FromProto(traces *pb.ExecutionTraces) (*ExecutionTraces, error) {
 			IsRead: pbStackOp.IsRead,
 			Idx:    int(pbStackOp.Index),
 			Value:  protoUint256ToUint256(pbStackOp.Value),
-			OpCode: vm.OpCode(pbStackOp.OpCode),
+			PC:     pbStackOp.Pc,
+			MsgId:  uint(pbStackOp.MsgId),
+			RwIdx:  uint(pbStackOp.RwIdx),
 		}
 	}
 
@@ -69,80 +70,135 @@ func FromProto(traces *pb.ExecutionTraces) (*ExecutionTraces, error) {
 			IsRead: pbMemOp.IsRead,
 			Idx:    int(pbMemOp.Index),
 			Value:  pbMemOp.Value[0],
-			OpCode: vm.OpCode(pbMemOp.OpCode),
+			PC:     pbMemOp.Pc,
+			MsgId:  uint(pbMemOp.MsgId),
+			RwIdx:  uint(pbMemOp.RwIdx),
 		}
 	}
 
-	for addrHex, pbTraces := range traces.StorageProofsByAddress {
-		var addr types.Address
-		addrBytes, err := hex.DecodeString(addrHex)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode address: %w", err)
+	for i, pbStorageOp := range traces.StorageOps {
+		ep.StorageOps[i] = StorageOp{
+			IsRead: pbStorageOp.IsRead,
+			Key:    common.HexToHash(pbStorageOp.Key),
+			Value:  protoUint256ToUint256(pbStorageOp.Value),
+			PC:     pbStorageOp.Pc,
+			MsgId:  uint(pbStorageOp.MsgId),
+			RwIdx:  uint(pbStorageOp.RwIdx),
 		}
-		copy(addr[:], addrBytes)
+	}
 
-		proofs := make([]mpt.Proof, len(pbTraces.ProofList))
-		for i, pbProof := range pbTraces.ProofList {
-			proofs[i], err = protoToGoProof(pbProof)
-			if err != nil {
-				return nil, err
+	for messageIdx, pbMessageTrace := range traces.MessageTraces {
+		addrToChanges := make(map[types.Address][]SlotChangeTrace, len(pbMessageTrace.StorageTracesByAddress))
+		for pbContractAddr, pbStorageTraces := range pbMessageTrace.StorageTracesByAddress {
+			storageTraces := make([]SlotChangeTrace, len(pbStorageTraces.SlotsChanges))
+			for i, pbSlotChange := range pbStorageTraces.SlotsChanges {
+				proof, err := protoToGoProof(pbSlotChange.SszProof)
+				if err != nil {
+					return nil, err
+				}
+				storageTraces[i] = SlotChangeTrace{
+					Key:         common.HexToHash(pbSlotChange.Key),
+					RootBefore:  common.HexToHash(pbSlotChange.RootBefore),
+					RootAfter:   common.HexToHash(pbSlotChange.RootAfter),
+					ValueBefore: protoUint256ToUint256(pbSlotChange.ValueBefore),
+					ValueAfter:  protoUint256ToUint256(pbSlotChange.ValueAfter),
+					Proof:       proof,
+				}
 			}
+			addrToChanges[types.HexToAddress(pbContractAddr)] = storageTraces
 		}
-		ep.StorageProofs[addr] = proofs
+		ep.SlotsChanges[messageIdx] = addrToChanges
 	}
 
-	for i, pbExecutedOpCode := range traces.ExecutedOpCodes {
-		ep.ExecutedOpCodes[i] = vm.OpCode(pbExecutedOpCode)
+	for pbContractAddr, pbContractBytecode := range traces.ContractBytecodes {
+		ep.ContractsBytecode[types.HexToAddress(pbContractAddr)] = pbContractBytecode
 	}
 
 	return ep, nil
 }
 
-func ToProto(proofs *ExecutionTraces) (*pb.ExecutionTraces, error) {
-	pbEP := &pb.ExecutionTraces{
-		StackOps:               make([]*pb.StackOp, len(proofs.StackOps)),
-		MemoryOps:              make([]*pb.MemoryOp, len(proofs.MemoryOps)),
-		StorageProofsByAddress: make(map[string]*pb.StorageProofs),
-		ExecutedOpCodes:        make([]pb.OpCode, len(proofs.ExecutedOpCodes)),
+func ToProto(traces *ExecutionTraces) (*pb.ExecutionTraces, error) {
+	pbTraces := &pb.ExecutionTraces{
+		StackOps:          make([]*pb.StackOp, len(traces.StackOps)),
+		MemoryOps:         make([]*pb.MemoryOp, len(traces.MemoryOps)),
+		StorageOps:        make([]*pb.StorageOp, len(traces.StorageOps)),
+		ContractBytecodes: make(map[string][]byte),
+		MessageTraces:     make([]*pb.MessageTraces, len(traces.SlotsChanges)),
 	}
 
-	for i, sp := range proofs.StackOps {
-		pbEP.StackOps[i] = &pb.StackOp{
-			IsRead: sp.IsRead,
-			Index:  int32(sp.Idx),
-			Value:  uint256ToProtoUint256(sp.Value),
-			OpCode: pb.OpCode(sp.OpCode),
+	// Convert StackOps
+	for i, stackOp := range traces.StackOps {
+		pbTraces.StackOps[i] = &pb.StackOp{
+			IsRead: stackOp.IsRead,
+			Index:  int32(stackOp.Idx),
+			Value:  uint256ToProtoUint256(stackOp.Value),
+			Pc:     stackOp.PC,
+			MsgId:  uint64(stackOp.MsgId),
+			RwIdx:  uint64(stackOp.RwIdx),
 		}
 	}
 
-	for i, mp := range proofs.MemoryOps {
-		pbEP.MemoryOps[i] = &pb.MemoryOp{
-			IsRead: mp.IsRead,
-			Index:  int32(mp.Idx),
-			Value:  []byte{mp.Value},
-			OpCode: pb.OpCode(mp.OpCode),
+	// Convert MemoryOps
+	for i, memOp := range traces.MemoryOps {
+		pbTraces.MemoryOps[i] = &pb.MemoryOp{
+			IsRead: memOp.IsRead,
+			Index:  int32(memOp.Idx),
+			Value:  []byte{memOp.Value},
+			Pc:     memOp.PC,
+			MsgId:  uint64(memOp.MsgId),
+			RwIdx:  uint64(memOp.RwIdx),
 		}
 	}
 
-	var err error
-	for addr, proofs := range proofs.StorageProofs {
-		pbProofs := make([]*pb.Proof, len(proofs))
-		for i, proof := range proofs {
-			pbProofs[i], err = goToProtoProof(proof)
-			if err != nil {
-				return nil, err
+	// Convert StorageOps
+	for i, storageOp := range traces.StorageOps {
+		pbTraces.StorageOps[i] = &pb.StorageOp{
+			IsRead: storageOp.IsRead,
+			Key:    storageOp.Key.Hex(),
+			Value:  uint256ToProtoUint256(storageOp.Value),
+			Pc:     storageOp.PC,
+			MsgId:  uint64(storageOp.MsgId),
+			RwIdx:  uint64(storageOp.RwIdx),
+		}
+	}
+
+	// Convert SlotsChanges
+	for messageIdx, addrToChanges := range traces.SlotsChanges {
+		messageTrace := &pb.MessageTraces{
+			StorageTracesByAddress: make(map[string]*pb.AdderssSlotsChanges),
+		}
+
+		for addr, storageTraces := range addrToChanges {
+			pbStorageTraces := &pb.AdderssSlotsChanges{
+				SlotsChanges: make([]*pb.SlotChangeTrace, len(storageTraces)),
 			}
+
+			for i, slotChange := range storageTraces {
+				encodedProof, err := goToProtoProof(slotChange.Proof)
+				if err != nil {
+					return nil, err
+				}
+
+				pbStorageTraces.SlotsChanges[i] = &pb.SlotChangeTrace{
+					Key:         slotChange.Key.Hex(),
+					RootBefore:  slotChange.RootBefore.Hex(),
+					RootAfter:   slotChange.RootAfter.Hex(),
+					ValueBefore: uint256ToProtoUint256(slotChange.ValueBefore),
+					ValueAfter:  uint256ToProtoUint256(slotChange.ValueAfter),
+					SszProof:    encodedProof,
+				}
+			}
+			messageTrace.StorageTracesByAddress[addr.Hex()] = pbStorageTraces
 		}
-		// Use hex encoding for the address
-		addrHex := hex.EncodeToString(addr[:])
-		pbEP.StorageProofsByAddress[addrHex] = &pb.StorageProofs{ProofList: pbProofs}
+		pbTraces.MessageTraces[messageIdx] = messageTrace
 	}
 
-	for i, opCode := range proofs.ExecutedOpCodes {
-		pbEP.ExecutedOpCodes[i] = pb.OpCode(opCode)
+	// Convert ContractsBytecode
+	for addr, bytecode := range traces.ContractsBytecode {
+		pbTraces.ContractBytecodes[addr.Hex()] = bytecode
 	}
 
-	return pbEP, nil
+	return pbTraces, nil
 }
 
 func uint256ToProtoUint256(u types.Uint256) *pb.Uint256 {
@@ -157,16 +213,14 @@ func protoUint256ToUint256(pb *pb.Uint256) types.Uint256 {
 	return u
 }
 
-func goToProtoProof(p mpt.Proof) (*pb.Proof, error) {
+func goToProtoProof(p mpt.Proof) ([]byte, error) {
 	encodedProof, err := p.Encode()
 	if err != nil {
 		return nil, err
 	}
-	return &pb.Proof{
-		ProofData: encodedProof,
-	}, nil
+	return encodedProof, nil
 }
 
-func protoToGoProof(pbProof *pb.Proof) (mpt.Proof, error) {
-	return mpt.DecodeProof(pbProof.ProofData)
+func protoToGoProof(pbProof []byte) (mpt.Proof, error) {
+	return mpt.DecodeProof(pbProof)
 }
