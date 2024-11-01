@@ -17,6 +17,7 @@ export { InfoBlock } from "./components/InfoBlock";
 export { CurrencyDisplay } from "./components/Currency";
 export { ShareIcon } from "./components/ShareIcon";
 export { Marker } from "./components/Marker";
+export { ClearIcon } from "./components/ClearIcon";
 export * from "./components/Popover";
 export * from "./utils/publicKey";
 export * from "./utils/age";

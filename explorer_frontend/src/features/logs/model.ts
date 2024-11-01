@@ -27,3 +27,5 @@ export type Log = {
 };
 
 export const $logs = logsDomain.createStore<Log[]>([]);
+
+export const clearLogs = logsDomain.createEvent();

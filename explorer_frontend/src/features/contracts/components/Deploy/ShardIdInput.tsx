@@ -95,13 +95,14 @@ export const ShardIdInput: FC<ShardIdInputProps> = ({ shardId, setShardId, disab
           icon={<MinusIcon size={16} />}
           onClick={() => decrementShardId()}
           overrides={btnOverrides}
-          disabled={shardId === null || shardId <= 1}
+          disabled={shardId === null || shardId <= 1 || disabled}
         />
         <ButtonIcon
           kind={BUTTON_KIND.secondary}
           icon={<PlusIcon size={16} />}
           onClick={() => incrementShardId()}
           overrides={btnOverrides}
+          disabled={disabled}
         />
       </div>
       <ParagraphXSmall color={COLORS.gray400} marginTop="-16px">
@@ -113,6 +114,8 @@ export const ShardIdInput: FC<ShardIdInputProps> = ({ shardId, setShardId, disab
               textDecoration: "underline",
             })}
             href={import.meta.env.VITE_EXPLORER_USAGE_DOCS_URL}
+            target="_blank"
+            rel="noreferrer"
           >
             how to select
           </a>{" "}
@@ -122,6 +125,8 @@ export const ShardIdInput: FC<ShardIdInputProps> = ({ shardId, setShardId, disab
             className={css({
               textDecoration: "underline",
             })}
+            target="_blank"
+            rel="noreferrer"
           >
             Explorer
           </a>

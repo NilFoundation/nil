@@ -1,5 +1,5 @@
 import { compileCodeFx } from "../code/model";
-import { $logs, LogTopic, LogType } from "./model";
+import { $logs, LogTopic, LogType, clearLogs } from "./model";
 import { nanoid } from "nanoid";
 import { callFx, deploySmartContractFx, sendMethodFx } from "../contracts/model";
 import { MonoParagraphMedium } from "baseui/typography";
@@ -166,3 +166,5 @@ $logs.on(compileCodeFx.doneData, (logs) => {
     },
   ];
 });
+
+$logs.on(clearLogs, () => []);
