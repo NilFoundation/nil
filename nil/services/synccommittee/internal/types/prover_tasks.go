@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -227,6 +228,32 @@ type TaskEntry struct {
 	Started     *time.Time
 	Owner       TaskExecutorId
 	Status      TaskStatus
+}
+
+func (t *TaskEntry) Start(executorId TaskExecutorId) error {
+	if executorId == UnknownExecutorId {
+		return errors.New("unknown executor id")
+	}
+	if t.Status != WaitingForExecutor {
+		return fmt.Errorf("task with id=%s has invalid status: %s", t.Task.Id, t.Status)
+	}
+
+	t.Status = Running
+	t.Owner = executorId
+	now := time.Now()
+	t.Started = &now
+	return nil
+}
+
+func (t *TaskEntry) ResetRunning() error {
+	if t.Status != Running {
+		return fmt.Errorf("task with id=%s has invalid status: %s", t.Task.Id, t.Status)
+	}
+
+	t.Started = nil
+	t.Status = WaitingForExecutor
+	t.Owner = UnknownExecutorId
+	return nil
 }
 
 // HigherPriority Priority comparator for tasks

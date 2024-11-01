@@ -96,7 +96,7 @@ type ProposerParams struct {
 
 type ProposerMetrics interface {
 	metrics.BasicMetrics
-	RecordProposerTxSent(ctx context.Context, proposalData *storage.ProposalData)
+	RecordProposerTxSent(ctx context.Context, proposalData *scTypes.ProposalData)
 }
 
 func DefaultProposerParams() ProposerParams {
@@ -378,7 +378,7 @@ func (p *Proposer) encodeTransaction(transaction *ethTypes.Transaction) (string,
 	return hexutil.Encode(encodedTransaction), nil
 }
 
-func (p *Proposer) sendProof(ctx context.Context, data *storage.ProposalData) error {
+func (p *Proposer) sendProof(ctx context.Context, data *scTypes.ProposalData) error {
 	p.logger.Info().
 		Stringer("blockHash", data.MainShardBlockHash).
 		Int64("seqno", int64(p.seqno.Load())).

@@ -13,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/suite"
 )
@@ -86,7 +87,7 @@ func (s *ProposerTestSuite) TestCreateUpdateStateTransaction() {
 }
 
 func (s *ProposerTestSuite) TestSendProof() {
-	data := &storage.ProposalData{
+	data := &types.ProposalData{
 		MainShardBlockHash: testaide.RandomHash(),
 		Transactions:       generateTransactions(3),
 		OldProvedStateRoot: testaide.RandomHash(),
@@ -105,10 +106,10 @@ func (s *ProposerTestSuite) TestSendProof() {
 	s.Require().IsType("", call.Params[0], "wrong type of params[0]")
 }
 
-func generateTransactions(count int) []storage.PrunedTransaction {
-	transactions := make([]storage.PrunedTransaction, count)
+func generateTransactions(count int) []types.PrunedTransaction {
+	transactions := make([]types.PrunedTransaction, count)
 	for range count {
-		tx := storage.NewTransaction(testaide.GenerateRpcInMessage())
+		tx := types.NewTransaction(testaide.GenerateRpcInMessage())
 		transactions = append(transactions, tx)
 	}
 	return transactions

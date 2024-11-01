@@ -326,7 +326,7 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Concurrently() {
 	}
 
 	receiveTimeout := time.After(time.Second * 3)
-	var receivedData []*ProposalData
+	var receivedData []*scTypes.ProposalData
 	go func() {
 		// poll all blocks data from the storage
 		for {

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -38,17 +38,15 @@ func NewSyncCommitteeMetrics() (*SyncCommitteeMetricsHandler, error) {
 }
 
 func (h *SyncCommitteeMetricsHandler) init(name string, attributes metric.MeasurementOption, meter metric.Meter) error {
-	var err error
-
-	if err = h.basicMetricsHandler.init(name, attributes, meter); err != nil {
-		return err
-	}
-
-	if err = h.taskStorageMetricsHandler.init(name, attributes, meter); err != nil {
-		return err
-	}
-
 	h.attributes = attributes
+
+	if err := h.basicMetricsHandler.init(name, attributes, meter); err != nil {
+		return err
+	}
+
+	if err := h.taskStorageMetricsHandler.init(name, attributes, meter); err != nil {
+		return err
+	}
 
 	if err := h.initAggregatorMetrics(name, meter); err != nil {
 		return err
@@ -82,7 +80,7 @@ func (h *SyncCommitteeMetricsHandler) initProposerMetrics(name string, meter met
 		return err
 	}
 
-	if h.blockTotalTimeSeconds, err = meter.Float64Histogram("_block_total_time_seconds"); err != nil {
+	if h.blockTotalTimeSeconds, err = meter.Float64Histogram(name + "_block_total_time_seconds"); err != nil {
 		return err
 	}
 
@@ -120,7 +118,7 @@ func (h *SyncCommitteeMetricsHandler) RecordMainBlockProved(ctx context.Context,
 	h.totalMainBlocksProved.Add(ctx, 1, h.attributes, hashAttributes)
 }
 
-func (h *SyncCommitteeMetricsHandler) RecordProposerTxSent(ctx context.Context, proposalData *storage.ProposalData) {
+func (h *SyncCommitteeMetricsHandler) RecordProposerTxSent(ctx context.Context, proposalData *types.ProposalData) {
 	proposalAttributes := []attribute.KeyValue{
 		hashAttribute(proposalData.MainShardBlockHash),
 		attribute.Stringer("old_proved_state_root", proposalData.OldProvedStateRoot),

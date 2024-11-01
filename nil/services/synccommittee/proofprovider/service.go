@@ -20,8 +20,16 @@ type Config struct {
 	SyncCommitteeRpcEndpoint string
 	OwnRpcEndpoint           string
 	DbPath                   string
+	Telemetry                *telemetry.Config
+}
 
-	Telemetry *telemetry.Config
+func NewDefaultConfig() *Config {
+	return &Config{
+		SyncCommitteeRpcEndpoint: "tcp://127.0.0.1:8530",
+		OwnRpcEndpoint:           "tcp://127.0.0.1:8531",
+		DbPath:                   "proof_provider.db",
+		Telemetry:                telemetry.NewDefaultConfig(),
+	}
 }
 
 type ProofProvider struct {
@@ -47,7 +55,7 @@ func New(config Config) (*ProofProvider, error) {
 	}
 	metricsHandler, err := metrics.NewProofProviderMetrics()
 	if err != nil {
-		return nil, fmt.Errorf("error initializing metrics: %s", err)
+		return nil, fmt.Errorf("error initializing metrics: %w", err)
 	}
 
 	taskRpcClient := rpc.NewTaskRequestRpcClient(config.SyncCommitteeRpcEndpoint, logger)
@@ -84,6 +92,8 @@ func New(config Config) (*ProofProvider, error) {
 }
 
 func (p *ProofProvider) Run(ctx context.Context) error {
+	defer p.stop(ctx)
+
 	return concurrent.Run(
 		ctx,
 		p.taskExecutor.Run,
@@ -92,6 +102,7 @@ func (p *ProofProvider) Run(ctx context.Context) error {
 	)
 }
 
-func (p *ProofProvider) Close() {
+func (p *ProofProvider) stop(ctx context.Context) {
+	telemetry.Shutdown(ctx)
 	p.database.Close()
 }

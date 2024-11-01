@@ -14,12 +14,18 @@ import (
 )
 
 func GenerateTaskEntry(modifiedAt time.Time, status types.TaskStatus, owner types.TaskExecutorId) *types.TaskEntry {
-	return &types.TaskEntry{
+	entry := &types.TaskEntry{
 		Task:    GenerateTask(),
 		Created: modifiedAt.Add(-1 * time.Hour),
 		Status:  status,
 		Owner:   owner,
 	}
+
+	if status == types.Running {
+		entry.Started = &modifiedAt
+	}
+
+	return entry
 }
 
 func GenerateTask() types.Task {

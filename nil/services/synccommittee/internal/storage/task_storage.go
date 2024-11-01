@@ -97,11 +97,10 @@ func putTaskEntry(tx db.RwTx, entry *types.TaskEntry) error {
 	var inputBuffer bytes.Buffer
 	err := gob.NewEncoder(&inputBuffer).Encode(entry)
 	if err != nil {
-		return fmt.Errorf("failed to encode task with id %v: %w", entry.Task.Id, err)
+		return fmt.Errorf("failed to encode task with id %s: %w", entry.Task.Id, err)
 	}
-	err = tx.Put(TaskEntriesTable, entry.Task.Id.Bytes(), inputBuffer.Bytes())
-	if err != nil {
-		return err
+	if err := tx.Put(TaskEntriesTable, entry.Task.Id.Bytes(), inputBuffer.Bytes()); err != nil {
+		return fmt.Errorf("failed to put task with id %s: %w", entry.Task.Id, err)
 	}
 	return nil
 }
@@ -216,23 +215,6 @@ func (st *taskStorage) removeTaskEntryImpl(ctx context.Context, id types.TaskId)
 	return tx.Commit()
 }
 
-// Helper to update task status when it's ready to be executed or needs to be rescheduled
-func updateTaskStatus(tx db.RwTx, id types.TaskId, newStatus types.TaskStatus, newOwner types.TaskExecutorId) error {
-	entry, err := extractTaskEntry(tx, id)
-	if err != nil {
-		return err
-	}
-
-	if newStatus == types.Running {
-		now := time.Now()
-		entry.Started = &now
-	}
-
-	entry.Status = newStatus
-	entry.Owner = newOwner
-	return putTaskEntry(tx, entry)
-}
-
 // Helper to find available task with higher priority
 func findHigherPriorityTask(tx db.RoTx) (*types.TaskEntry, error) {
 	var res *types.TaskEntry = nil
@@ -260,10 +242,11 @@ func (st *taskStorage) RequestTaskToExecute(ctx context.Context, executor types.
 		return nil, err
 	}
 
-	if taskEntry != nil {
-		st.metrics.RecordTaskStarted(ctx, taskEntry)
+	if taskEntry == nil {
+		return nil, nil
 	}
 
+	st.metrics.RecordTaskStarted(ctx, taskEntry)
 	return &taskEntry.Task, nil
 }
 
@@ -280,14 +263,17 @@ func (st *taskStorage) requestTaskToExecuteImpl(ctx context.Context, executor ty
 	}
 	if taskEntry == nil {
 		// No task available
-		return taskEntry, nil
+		return nil, nil
 	}
-	err = updateTaskStatus(tx, taskEntry.Task.Id, types.Running, executor)
-	if err != nil {
-		return nil, err
+
+	if err := taskEntry.Start(executor); err != nil {
+		return nil, fmt.Errorf("failed to start task: %w", err)
+	}
+	if err := putTaskEntry(tx, taskEntry); err != nil {
+		return nil, fmt.Errorf("failed to update task entry: %w", err)
 	}
 	if err = tx.Commit(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	return taskEntry, nil
 }
@@ -428,9 +414,9 @@ func (st *taskStorage) rescheduleTaskTx(tx db.RwTx, entry *types.TaskEntry, exec
 		Dur("executionTime", executionTime).
 		Msg("Task execution timeout, rescheduling")
 
-	entry.Started = nil
-	entry.Status = types.WaitingForExecutor
-	entry.Owner = types.UnknownExecutorId
+	if err := entry.ResetRunning(); err != nil {
+		return fmt.Errorf("failed to reset task: %w", err)
+	}
 
 	return putTaskEntry(tx, entry)
 }

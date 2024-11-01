@@ -22,7 +22,7 @@ func execute() error {
 		Short: "Run nil proof provider node",
 	}
 
-	cfg := &proofprovider.Config{}
+	cfg := proofprovider.NewDefaultConfig()
 
 	runCmd := &cobra.Command{
 		Use:   "run",
@@ -40,9 +40,9 @@ func execute() error {
 }
 
 func addFlags(cmd *cobra.Command, cfg *proofprovider.Config) {
-	cmd.Flags().StringVar(&cfg.SyncCommitteeRpcEndpoint, "sync-committee-endpoint", "tcp://127.0.0.1:8530", "sync committee rpc endpoint")
-	cmd.Flags().StringVar(&cfg.OwnRpcEndpoint, "own-endpoint", "tcp://127.0.0.1:8531", "own rpc server endpoint")
-	cmd.Flags().StringVar(&cfg.DbPath, "db-path", "proof_provider.db", "path to database")
+	cmd.Flags().StringVar(&cfg.SyncCommitteeRpcEndpoint, "sync-committee-endpoint", cfg.SyncCommitteeRpcEndpoint, "sync committee rpc endpoint")
+	cmd.Flags().StringVar(&cfg.OwnRpcEndpoint, "own-endpoint", cfg.OwnRpcEndpoint, "own rpc server endpoint")
+	cmd.Flags().StringVar(&cfg.DbPath, "db-path", cfg.DbPath, "path to database")
 	cmd.Flags().BoolVar(&cfg.Telemetry.ExportMetrics, "metrics", cfg.Telemetry.ExportMetrics, "export metrics via grpc")
 	logLevel := cmd.Flags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
 

@@ -40,7 +40,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	}
 	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
 	if err != nil {
-		return nil, fmt.Errorf("error initializing metrics: %s", err)
+		return nil, fmt.Errorf("error initializing metrics: %w", err)
 	}
 
 	logger.Info().Msgf("Use RPC endpoint %v", cfg.RpcEndpoint)

@@ -8,10 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
-	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -27,9 +25,6 @@ type TaskStorageSuite struct {
 	database db.DB
 	ts       TaskStorage
 	ctx      context.Context
-
-	baseTask      types.Task
-	baseTaskEntry types.TaskEntry
 }
 
 func TestTaskStorageSuite(t *testing.T) {
@@ -48,23 +43,6 @@ func (s *TaskStorageSuite) SetupSuite() {
 
 	s.ts = NewTaskStorage(database, metricsHandler, logger)
 	s.ctx = context.Background()
-
-	s.baseTask = types.Task{
-		Id:            types.NewTaskId(),
-		BatchId:       types.NewBatchId(),
-		ShardId:       coreTypes.MainShardId,
-		BlockNum:      1,
-		BlockHash:     common.EmptyHash,
-		TaskType:      types.PartialProve,
-		CircuitType:   types.Bytecode,
-		Dependencies:  make(map[types.TaskId]types.TaskResult),
-		DependencyNum: 0,
-	}
-	s.baseTaskEntry = types.TaskEntry{
-		Task:    s.baseTask,
-		Created: time.Now(),
-		Status:  types.WaitingForExecutor,
-	}
 }
 
 func (s *TaskStorageSuite) TearDownTest() {
@@ -73,49 +51,46 @@ func (s *TaskStorageSuite) TearDownTest() {
 }
 
 func (s *TaskStorageSuite) TestAddRemove() {
-	modifiedEntry := s.baseTaskEntry
-	modifiedEntry.Task.Id = types.NewTaskId()
-	modifiedEntry.Task.BatchId = types.NewBatchId()
-
-	err := s.ts.AddSingleTaskEntry(s.ctx, s.baseTaskEntry)
-	s.Require().NoError(err)
-	err = s.ts.AddSingleTaskEntry(s.ctx, modifiedEntry)
+	taskEntry := testaide.GenerateTaskEntry(time.Now(), types.WaitingForExecutor, testaide.GenerateRandomExecutorId())
+	err := s.ts.AddSingleTaskEntry(s.ctx, *taskEntry)
 	s.Require().NoError(err)
 
-	err = s.ts.RemoveTaskEntry(s.ctx, s.baseTask.Id)
+	entryFromStorage, err := s.ts.TryGetTaskEntry(s.ctx, taskEntry.Task.Id)
 	s.Require().NoError(err)
+	s.Require().Equal(taskEntry.Task, entryFromStorage.Task)
+
+	err = s.ts.RemoveTaskEntry(s.ctx, taskEntry.Task.Id)
+	s.Require().NoError(err)
+
+	removedEntry, err := s.ts.TryGetTaskEntry(s.ctx, taskEntry.Task.Id)
+	s.Require().NoError(err)
+	s.Require().Nil(removedEntry)
 }
 
 func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	// Initialize two tasks waiting for input
-	lowerPriorityEntry := s.baseTaskEntry
-	lowerPriorityEntry.Task.Id = types.NewTaskId()
+	lowerPriorityEntry := testaide.GenerateTaskEntry(time.Now(), types.WaitingForInput, types.UnknownExecutorId)
 	lowerPriorityEntry.Task.BlockNum = 222
-	lowerPriorityEntry.Status = types.WaitingForInput
 	lowerPriorityEntry.Task.DependencyNum = 1
 
-	higherPriorityEntry := s.baseTaskEntry
-	higherPriorityEntry.Task.Id = types.NewTaskId()
+	higherPriorityEntry := testaide.GenerateTaskEntry(time.Now(), types.WaitingForInput, types.UnknownExecutorId)
 	higherPriorityEntry.Task.BlockNum = 14
-	higherPriorityEntry.Status = types.WaitingForInput
 	higherPriorityEntry.Task.DependencyNum = 1
 
 	// Initialize two corresponding dependencies for them which are running
-	dependency1 := s.baseTaskEntry
-	dependency1.Task.Id = types.NewTaskId()
+	dependency1 := testaide.GenerateTaskEntry(time.Now(), types.Running, testaide.GenerateRandomExecutorId())
 	dependency1.PendingDeps = []types.TaskId{lowerPriorityEntry.Task.Id}
-	dependency1.Status = types.Running
-	dependency2 := s.baseTaskEntry
+
+	dependency2 := testaide.GenerateTaskEntry(time.Now(), types.Running, testaide.GenerateRandomExecutorId())
 	dependency2.PendingDeps = []types.TaskId{higherPriorityEntry.Task.Id}
-	dependency2.Task.Id = types.NewTaskId()
-	dependency2.Status = types.Running
-	err := s.ts.AddSingleTaskEntry(s.ctx, lowerPriorityEntry)
+
+	err := s.ts.AddSingleTaskEntry(s.ctx, *lowerPriorityEntry)
 	s.Require().NoError(err)
-	err = s.ts.AddSingleTaskEntry(s.ctx, higherPriorityEntry)
+	err = s.ts.AddSingleTaskEntry(s.ctx, *higherPriorityEntry)
 	s.Require().NoError(err)
-	err = s.ts.AddSingleTaskEntry(s.ctx, dependency1)
+	err = s.ts.AddSingleTaskEntry(s.ctx, *dependency1)
 	s.Require().NoError(err)
-	err = s.ts.AddSingleTaskEntry(s.ctx, dependency2)
+	err = s.ts.AddSingleTaskEntry(s.ctx, *dependency2)
 	s.Require().NoError(err)
 
 	// No available tasks for executor at this point

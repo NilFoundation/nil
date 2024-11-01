@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
@@ -40,34 +39,6 @@ type blockEntry struct {
 	FetchedAt time.Time        `json:"fetchedAt"`
 }
 
-type PrunedTransaction struct {
-	Flags types.MessageFlags
-	Seqno hexutil.Uint64
-	From  types.Address
-	To    types.Address
-	Value types.Value
-	Data  hexutil.Bytes
-}
-
-func NewTransaction(message *jsonrpc.RPCInMessage) PrunedTransaction {
-	return PrunedTransaction{
-		Flags: message.Flags,
-		Seqno: message.Seqno,
-		From:  message.From,
-		To:    message.To,
-		Value: message.Value,
-		Data:  message.Data,
-	}
-}
-
-type ProposalData struct {
-	MainShardBlockHash common.Hash
-	Transactions       []PrunedTransaction
-	OldProvedStateRoot common.Hash
-	NewProvedStateRoot common.Hash
-	MainBlockFetchedAt time.Time
-}
-
 type BlockStorage interface {
 	TryGetProvedStateRoot(ctx context.Context) (*common.Hash, error)
 
@@ -83,7 +54,7 @@ type BlockStorage interface {
 
 	SetBlockAsProposed(ctx context.Context, id scTypes.BlockId) error
 
-	TryGetNextProposalData(ctx context.Context) (*ProposalData, error)
+	TryGetNextProposalData(ctx context.Context) (*scTypes.ProposalData, error)
 
 	GetOrCreateBatchId(ctx context.Context, mainBlockHash common.Hash) (scTypes.BatchId, error)
 
@@ -380,7 +351,7 @@ func (bs *blockStorage) IsBatchCompleted(ctx context.Context, block *jsonrpc.RPC
 	return true, nil
 }
 
-func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalData, error) {
+func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*scTypes.ProposalData, error) {
 	tx, err := bs.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
@@ -441,7 +412,7 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 		transactions = append(transactions, blockTransactions...)
 	}
 
-	return &ProposalData{
+	return &scTypes.ProposalData{
 		MainShardBlockHash: mainShardEntry.Block.Hash,
 		Transactions:       transactions,
 		OldProvedStateRoot: *currentProvedStateRoot,
@@ -499,10 +470,10 @@ func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, id scTypes.B
 	return tx.Commit()
 }
 
-func extractTransactions(block jsonrpc.RPCBlock) []PrunedTransaction {
-	transactions := make([]PrunedTransaction, len(block.Messages))
+func extractTransactions(block jsonrpc.RPCBlock) []scTypes.PrunedTransaction {
+	transactions := make([]scTypes.PrunedTransaction, len(block.Messages))
 	for idx, message := range block.Messages {
-		transactions[idx] = NewTransaction(message)
+		transactions[idx] = scTypes.NewTransaction(message)
 	}
 	return transactions
 }

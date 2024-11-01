@@ -20,3 +20,5 @@ $(root_sce)/internal/types/tasktype_string.go: $(root_sce)/internal/types/prover
 	cd $(root_sce)/internal/types && go generate
 $(root_sce)/internal/types/proverresulttype_string.go: $(root_sce)/internal/types/prover_tasks.go
 	cd $(root_sce)/internal/types && go generate
+$(root_sce)/internal/types/taskstatus_string.go: $(root_sce)/internal/types/prover_tasks.go
+	cd $(root_sce)/internal/types && go generate
