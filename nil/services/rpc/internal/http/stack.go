@@ -243,6 +243,7 @@ func newCorsHandler(srv http.Handler, allowedOrigins []string) http.Handler {
 
 	return handlers.CORS(
 		handlers.AllowedOrigins(allowedOrigins),
+		handlers.AllowedHeaders([]string{nilJsVersionHeader, "Content-Type"}), // this headers uses nil.js
 		handlers.AllowedMethods([]string{http.MethodPost, http.MethodGet}),
 		handlers.MaxAge(600),
 	)(srv)

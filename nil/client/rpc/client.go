@@ -128,31 +128,32 @@ func NewRawClient(endpoint string, logger zerolog.Logger) client.RawClient {
 	return NewClient(endpoint, logger)
 }
 
-func NewClientWithDefaultHeaders(endpoint string, logger zerolog.Logger, headers map[string]string) *Client {
+func NewHttpClient(url string) (http.Client, string) {
+	client := http.Client{}
+	endpoint := url
+	if strings.HasPrefix(url, "unix://") {
+		socketPath := strings.TrimPrefix(url, "unix://")
+		endpoint = "http://unix"
+		check.PanicIfNot(socketPath != "")
+		client.Transport = &http.Transport{
+			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+				return net.Dial("unix", socketPath)
+			},
+		}
+	} else if strings.HasPrefix(url, "tcp://") {
+		endpoint = "http://" + strings.TrimPrefix(url, "tcp://")
+	}
+	return client, endpoint
+}
+
+func NewClientWithDefaultHeaders(url string, logger zerolog.Logger, headers map[string]string) *Client {
+	client, endpoint := NewHttpClient(url)
 	c := &Client{
 		endpoint: endpoint,
 		logger:   logger,
 		headers:  headers,
+		client:   client,
 	}
-
-	if strings.HasPrefix(endpoint, "unix://") {
-		socketPath := strings.TrimPrefix(endpoint, "unix://")
-		if socketPath == "" {
-			return nil
-		}
-		c.endpoint = "http://unix"
-		c.client = http.Client{
-			Transport: &http.Transport{
-				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-					return net.Dial("unix", socketPath)
-				},
-			},
-		}
-	} else if strings.HasPrefix(endpoint, "tcp://") {
-		endpoint := "http://" + strings.TrimPrefix(endpoint, "tcp://")
-		c.endpoint = endpoint
-	}
-
 	return c
 }
 
