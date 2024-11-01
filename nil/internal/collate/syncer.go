@@ -2,6 +2,7 @@ package collate
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -281,7 +282,24 @@ func (s *Syncer) saveDirectly(ctx context.Context, blocks []*types.BlockWithExtr
 		}
 
 		if msgRoot != block.Block.OutMessagesRoot {
-			return errors.New("out messages root mismatch")
+			messagesJSON, err := json.Marshal(block.OutMessages)
+			if err != nil {
+				s.logger.Warn().Err(err).Msg("Failed to marshal messages")
+				messagesJSON = nil
+			}
+			blockJSON, err := json.Marshal(block.Block)
+			if err != nil {
+				s.logger.Warn().Err(err).Msg("Failed to marshal block")
+				blockJSON = nil
+			}
+			s.logger.Debug().
+				Stringer("expected", block.Block.OutMessagesRoot).
+				Stringer("got", msgRoot).
+				RawJSON("messages", messagesJSON).
+				RawJSON("block", blockJSON).
+				Msg("Out messages root mismatch")
+			return fmt.Errorf("out messages root mismatch. Expected %x, got %x",
+				block.Block.OutMessagesRoot, msgRoot)
 		}
 
 		_, err = execution.PostprocessBlock(tx, s.config.ShardId, block.Block.GasPrice, blockHash)
@@ -308,6 +326,24 @@ func (s *Syncer) generateZerostate(ctx context.Context) error {
 
 	_, err = gen.GenerateZeroState(s.config.ZeroState, s.config.ZeroStateConfig)
 	return err
+}
+
+func validateRepliedBlock(
+	in, replied *types.Block, inHash, repliedHash common.Hash, inMsgs, repliedMsgs []*types.Message,
+) error {
+	if replied.OutMessagesRoot != in.OutMessagesRoot {
+		return fmt.Errorf("out messages root mismatch. Expected %x, got %x",
+			in.OutMessagesRoot, replied.OutMessagesRoot)
+	}
+	if len(repliedMsgs) != len(inMsgs) {
+		return fmt.Errorf("out messages count mismatch. Expected %d, got %d",
+			len(inMsgs), len(repliedMsgs))
+	}
+	if repliedHash != inHash {
+		return fmt.Errorf("block hash mismatch. Expected %x, got %x",
+			inHash, repliedHash)
+	}
+	return nil
 }
 
 func (s *Syncer) replayBlocks(ctx context.Context, blocks []*types.BlockWithExtractedData) error {
@@ -341,11 +377,8 @@ func (s *Syncer) replayBlocks(ctx context.Context, blocks []*types.BlockWithExtr
 			return err
 		}
 
-		if b.Hash() != blockHash {
-			return errors.New("block hash mismatch")
-		}
-		if len(msgs) != len(block.OutMessages) {
-			return errors.New("out messages count mismatch")
+		if err := validateRepliedBlock(block.Block, b, blockHash, b.Hash(), block.OutMessages, msgs); err != nil {
+			return err
 		}
 	}
 

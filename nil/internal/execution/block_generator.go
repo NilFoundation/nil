@@ -115,15 +115,20 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, logger zerolog.Logger
 		esJson, err := g.executionState.MarshalJSON()
 		if err != nil {
 			logger.Err(err).Msg("Failed to marshal execution state")
+			esJson = nil
 		}
 		proposalJson, err := json.Marshal(proposal)
 		if err != nil {
 			logger.Err(err).Msg("Failed to marshal block proposal")
+			proposalJson = nil
 		}
 
-		logger.Debug().Msgf(
-			"Proposed previous block hash doesn't match the current state. Expected: %s, got: %s. Execution state: %s, Proposal: %s",
-			g.executionState.PrevBlock, proposal.PrevBlockHash, esJson, proposalJson)
+		logger.Debug().
+			Stringer("expected", g.executionState.PrevBlock).
+			Stringer("got", proposal.PrevBlockHash).
+			RawJSON("executionState", esJson).
+			RawJSON("proposal", proposalJson).
+			Msg("Proposed previous block hash doesn't match the current state")
 
 		panic(
 			fmt.Sprintf("Proposed previous block hash doesn't match the current state. Expected: %s, got: %s",
