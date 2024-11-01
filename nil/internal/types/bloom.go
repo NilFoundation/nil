@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 )
 
 type bytesBacked interface {
@@ -125,4 +126,13 @@ func bloomValues(data []byte, hashbuf []byte) (uint, byte, uint, byte, uint, byt
 // BloomLookup is a convenience-method to check presence in the bloom filter
 func BloomLookup(bin Bloom, topic bytesBacked) bool {
 	return bin.Test(topic.Bytes())
+}
+
+// MarshalText returns the hex representation of b.
+func (b Bloom) MarshalText() ([]byte, error) {
+	return hexutil.Bytes(b.Bytes()).MarshalText()
+}
+
+func (b *Bloom) UnmarshalText(input []byte) error {
+	return hexutil.UnmarshalFixedText("Bloom", input, b[:])
 }
