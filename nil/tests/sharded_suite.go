@@ -20,7 +20,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
 )
 
@@ -119,20 +118,17 @@ func (s *ShardedSuite) Start(cfg *nilservice.Config, port int) {
 func (s *ShardedSuite) connectToShards(nm *network.Manager) {
 	s.T().Helper()
 
+	var wg sync.WaitGroup
 	for _, shard := range s.Shards {
 		if shard.nm != nm {
-			network.ConnectManagers(s.T(), nm, shard.nm)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				network.ConnectManagers(s.T(), nm, shard.nm)
+			}()
 		}
 	}
-}
-
-func (s *ShardedSuite) checkNodeStart(nShards uint32, client client.Client) {
-	for i := range nShards {
-		s.Require().Eventually(func() bool {
-			block, err := client.GetBlock(types.ShardId(i), transport.BlockNumber(0), false)
-			return err == nil && block != nil
-		}, ZeroStateWaitTimeout, ZeroStatePollInterval)
-	}
+	wg.Wait()
 }
 
 func (s *ShardedSuite) StartArchiveNode(port int, withBootstrapPeers bool) client.Client {
@@ -228,11 +224,30 @@ func (s *ShardedSuite) DeployContractViaMainWallet(shardId types.ShardId, payloa
 	return DeployContractViaWallet(s.T(), s.DefaultClient, types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
 }
 
+func (s *ShardedSuite) checkNodeStart(nShards uint32, client client.Client) {
+	var wg sync.WaitGroup
+	wg.Add(int(nShards))
+	for shardId := range types.ShardId(nShards) {
+		go func() {
+			defer wg.Done()
+			WaitZerostate(s.T(), client, shardId)
+		}()
+	}
+	wg.Wait()
+}
+
 func (s *ShardedSuite) waitZerostate() {
 	s.T().Helper()
+
+	var wg sync.WaitGroup
+	wg.Add(len(s.Shards))
 	for _, shard := range s.Shards {
-		WaitZerostate(s.T(), shard.Client, shard.Id)
+		go func() {
+			defer wg.Done()
+			WaitZerostate(s.T(), shard.Client, shard.Id)
+		}()
 	}
+	wg.Wait()
 }
 
 func (s *ShardedSuite) LoadContract(path string, name string) (types.Code, abi.ABI) {
