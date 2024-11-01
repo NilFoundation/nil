@@ -11,7 +11,6 @@ import {
   $loading,
   $tokens,
   $txHashes,
-  callMethod,
   setParams,
 } from "../../model";
 import { useUnit } from "effector-react";
@@ -184,7 +183,6 @@ export const ContractManagement = () => {
             <Method
               key={func.name}
               func={func}
-              handler={callMethod}
               isOpen={activeKeys[func.name]}
               error={errors[func.name] || undefined}
               result={callResult[func.name]}

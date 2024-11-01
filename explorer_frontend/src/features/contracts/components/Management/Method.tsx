@@ -12,7 +12,7 @@ import {
 } from "@nilfoundation/ui-kit";
 import type { AbiFunction } from "abitype";
 import { useStyletron } from "baseui";
-import { toggleActiveKey, $valueInput, setValueInput } from "../../model";
+import { toggleActiveKey, $valueInput, setValueInput, callMethod, sendMethod } from "../../model";
 import { Link, Marker } from "../../../shared";
 import { transactionRoute } from "../../../routing";
 import { MethodInput } from "./MethodInput";
@@ -25,7 +25,6 @@ import { Result } from "./Result";
 export type MethodProps = {
   func: AbiFunction;
   isOpen: boolean;
-  handler: (funcName: string) => void;
   error?: string;
   result?: unknown;
   loading?: boolean;
@@ -69,7 +68,6 @@ const getMarkerColor = (type: MethodType) => {
 export const Method = ({
   func,
   isOpen,
-  handler,
   error,
   result,
   loading,
@@ -78,7 +76,6 @@ export const Method = ({
   params,
 }: MethodProps) => {
   const [css] = useStyletron();
-  const isPayable = func.stateMutability === "payable";
   const [currecyBalance, valueInput] = useUnit([$balanceCurrency, $valueInput]);
   const availiableCurencies = [
     { currency: "NIL" },
@@ -89,6 +86,7 @@ export const Method = ({
 
   const methodType = getMethodType(func);
   const markerColor = getMarkerColor(methodType);
+  const handler = methodType === "Read" ? callMethod : sendMethod;
 
   return (
     <div
@@ -148,7 +146,7 @@ export const Method = ({
             paddingBottom: "8px",
           })}
         >
-          {isPayable && (
+          {methodType === "Payable" && (
             <div
               className={css({
                 display: "flex",

@@ -4,16 +4,18 @@ import {
   BUTTON_KIND,
   BUTTON_SIZE,
   Button,
+  ButtonIcon,
   COLORS,
   Card,
   LabelMedium,
   SPACE,
+  StatefulTooltip,
 } from "@nilfoundation/ui-kit";
 import "./init";
-import { $logs } from "./model";
+import { $logs, clearLogs } from "./model";
 import { useStyletron } from "baseui";
 import { LogsGreeting } from "./LogsGreeting";
-import { useMobile } from "../shared";
+import { ClearIcon, useMobile } from "../shared";
 import { getMobileStyles } from "../../styleHelpers";
 import { LayoutComponent, setActiveComponent } from "../../pages/sandbox/model";
 import { useCallback, useEffect, useRef } from "react";
@@ -98,6 +100,7 @@ export const Logs = () => {
               flexDirection: "column",
               gap: SPACE[8],
               height: "100%",
+              position: "relative",
             },
           },
           Body: {
@@ -156,6 +159,22 @@ export const Logs = () => {
           })}
           ref={lastItemRef}
         />
+        <StatefulTooltip content="Clear all" showArrow={false} placement="bottom" popoverMargin={4}>
+          <ButtonIcon
+            kind={BUTTON_KIND.secondary}
+            icon={<ClearIcon />}
+            onClick={() => clearLogs()}
+            overrides={{
+              Root: {
+                style: {
+                  position: "absolute",
+                  top: "16px",
+                  right: "16px",
+                },
+              },
+            }}
+          />
+        </StatefulTooltip>
       </Card>
     </div>
   );
