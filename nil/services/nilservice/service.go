@@ -47,6 +47,7 @@ func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db 
 		HttpCompression: true,
 		TraceRequests:   true,
 		HTTPTimeouts:    httpcfg.DefaultHTTPTimeouts,
+		HttpCORSDomain:  []string{"*"},
 	}
 
 	ctx, cancel := context.WithCancel(ctx)

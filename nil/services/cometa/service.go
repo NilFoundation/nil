@@ -234,6 +234,7 @@ func (s *Service) startRpcServer(ctx context.Context, endpoint string) error {
 		HttpCompression: true,
 		TraceRequests:   true,
 		HTTPTimeouts:    httpcfg.DefaultHTTPTimeouts,
+		HttpCORSDomain:  []string{"*"},
 	}
 
 	apiList := []transport.API{

@@ -22,6 +22,8 @@ type Server struct {
 	acceptedContentTypes []string
 }
 
+const nilJsVersionHeader = "Client-Version"
+
 var _ http.Handler = (*Server)(nil)
 
 var parsedMinSupportedNiljsVersion, _ = semver.NewVersion(minSupportedNiljsVersion)
@@ -95,7 +97,7 @@ func (s *Server) validateRequest(r *http.Request) (int, error) {
 	}
 
 	// Niljs is supported by server
-	header := r.Header.Get("Client-Version")
+	header := r.Header.Get(nilJsVersionHeader)
 	if header != "" {
 		version, err := semver.NewVersion(header)
 		if err == nil {
