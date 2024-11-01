@@ -6,12 +6,10 @@ import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 contract SendRequest {
     using Nil for address;
 
-    mapping (string => uint256) public values;
-    uint256 receivedValue;
-    string public constant RANDOM_STORAGE= "RANDOM_STORAGE";
+    mapping(string => uint256) public values;
 
-    function call(address to) public payable {
-        bytes memory context = abi.encodeWithSelector(this.resolve.selector, RANDOM_STORAGE);
+    function call(address to, string memory key) public payable {
+        bytes memory context = abi.encodeWithSelector(this.resolve.selector, key);
         bytes memory callData = abi.encodeWithSignature("getValue()");
         Nil.sendRequest(to, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
     }
@@ -25,6 +23,5 @@ contract SendRequest {
         (string memory from) = abi.decode(context, (string));
         uint256 value = abi.decode(returnData, (uint256));
         values[from] = value;
-        receivedValue = value;
     }
 }

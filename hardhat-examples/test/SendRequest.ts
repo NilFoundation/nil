@@ -21,15 +21,18 @@ describe("Requester and Increment contract interaction", () => {
         const { deployedContract: incrementer, contractAddress: incrementerAddr } =
             await deployNilContract("Incrementer");
         console.log("Incrementer deployed at:", incrementerAddr);
+
+        //Generate a random string
+        const randomString = Math.random().toString(36).substring(7);
         // Increment the value
         await incrementer.increment();
         // Check the value of Incrementer
         expect(await incrementer.getValue()).to.equal(1);
 
         // Call the Caller contract's call method with the Incrementer address
-        await sendRequester.call(incrementerAddr);
+        await sendRequester.call(incrementerAddr, randomString);
 
-        let value = await sendRequester.values("RANDOM_STORAGE");
+        let value = await sendRequester.values(randomString);
         console.log("returned value: ", value);
         // New value should be 1
         expect(value).to.equal(1);
