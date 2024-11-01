@@ -234,7 +234,7 @@ func (g *BlockGenerator) addReceipt(execResult *ExecutionResult) {
 }
 
 func (g *BlockGenerator) finalize(blockId types.BlockNumber) (*types.Block, []*types.Message, error) {
-	blockHash, err := g.executionState.Commit(blockId)
+	blockHash, outMsgs, err := g.executionState.Commit(blockId)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -263,12 +263,5 @@ func (g *BlockGenerator) finalize(blockId types.BlockNumber) (*types.Block, []*t
 		return nil, nil, err
 	}
 
-	var outs []*types.Message
-	for _, msgs := range g.executionState.OutMessages {
-		for _, msg := range msgs {
-			outs = append(outs, msg.Message)
-		}
-	}
-
-	return block, outs, nil
+	return block, outMsgs, nil
 }

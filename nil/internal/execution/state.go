@@ -1203,58 +1203,64 @@ func (es *ExecutionState) AddReceipt(execResult *ExecutionResult) {
 	es.Receipts = append(es.Receipts, r)
 }
 
-func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error) {
+func GetOutMessages(es *ExecutionState) []*types.Message {
+	outMsgValues := make([]*types.Message, 0, len(es.InMessages))
+	for i := range es.InMessages {
+		// Put all outbound messages into the trie
+		for _, m := range es.OutMessages[es.InMessageHashes[i]] {
+			outMsgValues = append(outMsgValues, m.Message)
+		}
+	}
+	// Put all outbound messages transmitted over the topology into the trie
+	for _, m := range es.OutMessages[common.EmptyHash] {
+		outMsgValues = append(outMsgValues, m.Message)
+	}
+	return outMsgValues
+}
+
+func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, []*types.Message, error) {
 	keys := make([]common.Hash, 0, len(es.Accounts))
 	values := make([]*types.SmartContract, 0, len(es.Accounts))
 	for k, acc := range es.Accounts {
 		v, err := acc.Commit()
 		if err != nil {
-			return common.EmptyHash, err
+			return common.EmptyHash, nil, err
 		}
 
 		keys = append(keys, k.Hash())
 		values = append(values, v)
 	}
 	if err := es.ContractTree.UpdateBatch(keys, values); err != nil {
-		return common.EmptyHash, err
+		return common.EmptyHash, nil, err
 	}
 
 	treeShardsRootHash := common.EmptyHash
 	if len(es.ChildChainBlocks) > 0 {
 		treeShards := NewDbShardBlocksTrie(es.tx, es.ShardId, blockId)
 		if err := UpdateFromMap(treeShards, es.ChildChainBlocks, func(v common.Hash) *common.Hash { return &v }); err != nil {
-			return common.EmptyHash, err
+			return common.EmptyHash, nil, err
 		}
 		treeShardsRootHash = treeShards.RootHash()
 	}
 
-	outMsgKeys := make([]types.MessageIndex, 0)
-	outMsgValues := make([]*types.Message, 0)
-
-	inMsgKeys := make([]types.MessageIndex, 0)
-	inMsgValues := make([]*types.Message, 0)
-
+	inMsgKeys := make([]types.MessageIndex, 0, len(es.InMessages))
+	inMsgValues := make([]*types.Message, 0, len(es.InMessages))
 	for i, msg := range es.InMessages {
 		inMsgKeys = append(inMsgKeys, types.MessageIndex(i))
 		inMsgValues = append(inMsgValues, msg)
-
-		// Put all outbound messages into the trie
-		for _, m := range es.OutMessages[es.InMessageHashes[i]] {
-			outMsgKeys = append(outMsgKeys, types.MessageIndex(len(outMsgKeys)))
-			outMsgValues = append(outMsgValues, m.Message)
-		}
 	}
-	// Put all outbound messages transmitted over the topology into the trie
-	for _, m := range es.OutMessages[common.EmptyHash] {
-		outMsgKeys = append(outMsgKeys, types.MessageIndex(len(outMsgKeys)))
-		outMsgValues = append(outMsgValues, m.Message)
+
+	outMsgValues := GetOutMessages(es)
+	outMsgKeys := make([]types.MessageIndex, 0, len(es.InMessages))
+	for i := range outMsgValues {
+		outMsgKeys = append(outMsgKeys, types.MessageIndex(i))
 	}
 
 	if err := es.InMessageTree.UpdateBatch(inMsgKeys, inMsgValues); err != nil {
-		return common.EmptyHash, err
+		return common.EmptyHash, nil, err
 	}
 	if err := es.OutMessageTree.UpdateBatch(outMsgKeys, outMsgValues); err != nil {
-		return common.EmptyHash, err
+		return common.EmptyHash, nil, err
 	}
 
 	if assert.Enable {
@@ -1272,16 +1278,16 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 				}
 			}
 			if !found {
-				return common.EmptyHash, fmt.Errorf("outbound message %v does not belong to any inbound message", outMsgHash)
+				return common.EmptyHash, nil, fmt.Errorf("outbound message %v does not belong to any inbound message", outMsgHash)
 			}
 		}
 	}
 	if len(es.InMessages) != len(es.Receipts) {
-		return common.EmptyHash, fmt.Errorf("number of messages does not match number of receipts: %d != %d", len(es.InMessages), len(es.Receipts))
+		return common.EmptyHash, nil, fmt.Errorf("number of messages does not match number of receipts: %d != %d", len(es.InMessages), len(es.Receipts))
 	}
 	for i, msgHash := range es.InMessageHashes {
 		if msgHash != es.Receipts[i].MsgHash {
-			return common.EmptyHash, fmt.Errorf("receipt hash doesn't match its message #%d", i)
+			return common.EmptyHash, nil, fmt.Errorf("receipt hash doesn't match its message #%d", i)
 		}
 	}
 
@@ -1299,7 +1305,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		msgStart += len(es.OutMessages[msgHash])
 	}
 	if err := es.ReceiptTree.UpdateBatch(receiptKeys, receiptValues); err != nil {
-		return common.EmptyHash, err
+		return common.EmptyHash, nil, err
 	}
 
 	block := types.Block{
@@ -1336,14 +1342,14 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 
 	for k, v := range es.Errors {
 		if err := db.WriteError(es.tx, k, v.Error()); err != nil {
-			return common.EmptyHash, err
+			return common.EmptyHash, nil, err
 		}
 	}
 
 	blockHash := block.Hash()
 	err := db.WriteBlock(es.tx, es.ShardId, blockHash, &block)
 	if err != nil {
-		return common.EmptyHash, err
+		return common.EmptyHash, nil, err
 	}
 
 	logger.Trace().
@@ -1352,7 +1358,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, error)
 		Stringer(logging.FieldBlockHash, blockHash).
 		Msgf("Committed new block with %d in-msgs and %d out-msgs", len(es.InMessages), block.OutMessagesNum)
 
-	return blockHash, nil
+	return blockHash, outMsgValues, nil
 }
 
 func (es *ExecutionState) CalculateGasForwarding(initialAvailValue types.Value) (types.Value, error) {

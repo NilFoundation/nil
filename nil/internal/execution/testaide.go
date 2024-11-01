@@ -84,7 +84,7 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 
 	es.ChildChainBlocks = childChainBlocks
 
-	blockHash, err := es.Commit(blockId)
+	blockHash, _, err := es.Commit(blockId)
 	require.NoError(t, err)
 
 	block, err := PostprocessBlock(tx, shardId, types.NewValueFromUint64(10), blockHash)
