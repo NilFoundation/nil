@@ -22,5 +22,5 @@ type Receipt struct {
 }
 
 func (r *Receipt) Hash() common.Hash {
-	return common.MustPoseidonSSZ(r)
+	return ToShardedHash(common.MustPoseidonSSZ(r), ShardIdFromHash(r.MsgHash))
 }

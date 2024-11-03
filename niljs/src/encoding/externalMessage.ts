@@ -3,6 +3,7 @@ import type { PublicClient } from "../clients/PublicClient.js";
 import type { ISigner } from "../signers/index.js";
 import type { ExternalMessage } from "../types/ExternalMessage.js";
 import type { IDeployData } from "../types/IDeployData.js";
+import { getShardIdFromAddress } from "../utils/address.js";
 import { prepareDeployPart } from "./deployPart.js";
 import { bytesToHex } from "./fromBytes.js";
 import { poseidonHash } from "./poseidon.js";
@@ -96,7 +97,9 @@ export class ExternalMessageEnvelope {
    */
   public hash(): Uint8Array {
     const raw = this.encode();
-    return numberToBytesBE(poseidonHash(raw), 32);
+    const shardIdPart = numberToBytesBE(getShardIdFromAddress(bytesToHex(this.to)), 2);
+    const hashPart = numberToBytesBE(poseidonHash(raw), 32);
+    return new Uint8Array([...shardIdPart, ...hashPart.slice(2)]);
   }
   /**
    * Provides the signing hash of the external message.
@@ -141,7 +144,9 @@ export class ExternalMessageEnvelope {
       deploy: this.isDeploy,
       authData: signature,
     });
-    const hash = numberToBytesBE(poseidonHash(raw), 32);
+    const shardIdPart = numberToBytesBE(getShardIdFromAddress(bytesToHex(this.to)), 2);
+    const hashPart = numberToBytesBE(poseidonHash(raw), 32);
+    const hash = new Uint8Array([...shardIdPart, ...hashPart.slice(2)]);
     return { raw, hash };
   }
   /**
