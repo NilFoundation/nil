@@ -67,7 +67,7 @@ func TestOpcodes(t *testing.T) {
 			require.NoError(t, state.newVm(true, address, nil))
 			_, _, _ = state.evm.Call(vm.AccountRef(address), address, nil, 100000, new(uint256.Int))
 		}
-		_, err := state.Commit(types.BlockNumber(i))
+		_, _, err := state.Commit(types.BlockNumber(i))
 		require.NoError(t, err)
 	}
 	for i := range 50 {

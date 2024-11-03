@@ -73,7 +73,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	var blockHash common.Hash
 
 	suite.Run("CommitBlock", func() {
-		blockHash, err = es.Commit(0)
+		blockHash, _, err = es.Commit(0)
 		suite.Require().NoError(err)
 	})
 
@@ -345,7 +345,7 @@ func TestAccountState(t *testing.T) {
 	code := types.Code([]byte{'c', 'a', 'f', 'e'})
 	acc.SetCode(code.Hash(), code)
 
-	_, err = state.Commit(0)
+	_, _, err = state.Commit(0)
 	require.NoError(t, err)
 
 	// Drop local state account cache
