@@ -79,31 +79,26 @@ func (agg *Aggregator) fetchLatestBlockRef() (*types.MainBlockRef, error) {
 }
 
 // createProofTask generates proof tasks for a block
-func (agg *Aggregator) createProofTask(ctx context.Context, blockForProof *jsonrpc.RPCBlock) error {
-	mainHash := blockForProof.MainChainHash
-	if mainHash == common.EmptyHash {
-		mainHash = blockForProof.Hash
-	}
-
-	batchId, err := agg.blockStorage.GetBatchId(ctx, blockForProof)
+func (agg *Aggregator) createProofTask(ctx context.Context, blockForProof *jsonrpc.RPCBlock, mainBlockHash common.Hash) error {
+	batchId, err := agg.blockStorage.GetOrCreateBatchId(ctx, mainBlockHash)
 	if err != nil {
 		return err
 	}
 
 	taskEntries := make([]*types.TaskEntry, 1)
 
-	aggregateProofsTask, err := agg.taskStorage.TryGetTaskEntryByHash(ctx, mainHash)
+	aggregateProofsTask, err := agg.taskStorage.TryGetTaskEntryByHash(ctx, mainBlockHash)
 	if err != nil {
 		return err
 	}
 	if aggregateProofsTask == nil {
-		aggregateProofsTask = types.NewAggregateBlockProofsTaskEntry(batchId, coreTypes.MainShardId, 0, mainHash, 0)
+		aggregateProofsTask = types.NewAggregateBlockProofsTaskEntry(batchId, coreTypes.MainShardId, 0, mainBlockHash, 0)
 		aggregateProofsTask.Status = types.Draft
 		agg.logger.Debug().
 			Stringer(logging.FieldBatchId, batchId).
 			Int64("blkNum", int64(blockForProof.Number)).
 			Stringer(logging.FieldShardId, blockForProof.ShardId).
-			Msgf("create aggregate proof task %s, blkHash = %s", aggregateProofsTask.Task.Id, mainHash)
+			Msgf("create aggregate proof task %s, blkHash = %s", aggregateProofsTask.Task.Id, mainBlockHash)
 	}
 	taskEntries[0] = aggregateProofsTask
 	if blockForProof.ShardId == coreTypes.MainShardId {
@@ -114,7 +109,7 @@ func (agg *Aggregator) createProofTask(ctx context.Context, blockForProof *jsonr
 			Stringer(logging.FieldBatchId, batchId).
 			Int64("blkNum", int64(blockForProof.Number)).
 			Stringer(logging.FieldShardId, blockForProof.ShardId).
-			Msgf("complete aggregate proof task %s, blkHash = %s, dependencies number = %d", aggregateProofsTask.Task.Id, mainHash, aggregateProofsTask.Task.DependencyNum)
+			Msgf("complete aggregate proof task %s, blkHash = %s, dependencies number = %d", aggregateProofsTask.Task.Id, mainBlockHash, aggregateProofsTask.Task.DependencyNum)
 	} else {
 		proofProviderTask := types.NewBlockProofTaskEntry(batchId, &aggregateProofsTask.Task.Id, blockForProof.Hash)
 		proofProviderTask.PendingDeps = append(proofProviderTask.PendingDeps, aggregateProofsTask.Task.Id)
@@ -123,7 +118,7 @@ func (agg *Aggregator) createProofTask(ctx context.Context, blockForProof *jsonr
 			Stringer(logging.FieldBatchId, batchId).
 			Int64("blkNum", int64(blockForProof.Number)).
 			Stringer(logging.FieldShardId, blockForProof.ShardId).
-			Msgf("create block proof task %s, blkHash = %s, mainHash = %s", proofProviderTask.Task.Id, blockForProof.Hash, mainHash)
+			Msgf("create block proof task %s, blkHash = %s, mainBlockHash = %s", proofProviderTask.Task.Id, blockForProof.Hash, mainBlockHash)
 	}
 
 	if err := agg.taskStorage.AddTaskEntries(ctx, taskEntries); err != nil {
@@ -136,12 +131,16 @@ func (agg *Aggregator) createProofTask(ctx context.Context, blockForProof *jsonr
 }
 
 // validateAndProcessBlock checks the validity of a block and stores it if valid.
-func (agg *Aggregator) validateAndProcessBlock(ctx context.Context, block *jsonrpc.RPCBlock) error {
+func (agg *Aggregator) validateAndProcessBlock(ctx context.Context, block *jsonrpc.RPCBlock, mainBlockHash common.Hash) error {
 	if block == nil {
 		return errors.New("block cannot be nil")
 	}
 
 	if block.ShardId == coreTypes.MainShardId {
+		if mainBlockHash != block.Hash {
+			return fmt.Errorf("wrong mainBlockHash %s, expected %s", mainBlockHash, block.Hash)
+		}
+
 		latestFetched, err := agg.blockStorage.TryGetLatestFetched(ctx)
 		if err != nil {
 			return fmt.Errorf("error reading latest fetched block for shard %d: %w", block.ShardId, err)
@@ -159,11 +158,11 @@ func (agg *Aggregator) validateAndProcessBlock(ctx context.Context, block *jsonr
 		}
 	}
 
-	if err := agg.createProofTask(ctx, block); err != nil {
+	if err := agg.createProofTask(ctx, block, mainBlockHash); err != nil {
 		return fmt.Errorf("error creating proof tasks for block %s: %w", block.Hash, err)
 	}
 
-	if err := agg.blockStorage.SetBlock(ctx, block); err != nil {
+	if err := agg.blockStorage.SetBlock(ctx, block, mainBlockHash); err != nil {
 		return fmt.Errorf("error storing block %s: %w", block.Hash, err)
 	}
 
@@ -188,7 +187,7 @@ func (agg *Aggregator) fetchAndProcessBlocks(ctx context.Context, blocksRange ty
 		if err != nil {
 			return err
 		}
-		if err := agg.validateAndProcessBlock(ctx, block); err != nil {
+		if err := agg.validateAndProcessBlock(ctx, block, block.Hash); err != nil {
 			return fmt.Errorf("error validating and storing main shard block %s: %w", block.Hash, err)
 		}
 	}
@@ -204,7 +203,7 @@ func (agg *Aggregator) fetchChildBlocks(ctx context.Context, block *jsonrpc.RPCB
 		if err != nil {
 			return err
 		}
-		if err = agg.validateAndProcessBlock(ctx, childBlock); err != nil {
+		if err = agg.validateAndProcessBlock(ctx, childBlock, block.Hash); err != nil {
 			return fmt.Errorf("error validating and storing block %s for main shard block %s: %w", childBlockHash, block.Hash, err)
 		}
 	}
