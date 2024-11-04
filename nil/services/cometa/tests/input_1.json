@@ -1,7 +1,6 @@
 {
   "contractName": "Test.sol:Foo",
   "compilerVersion": "0.8.21",
-  "basePath": "tests",
   "settings": {
     "evmVersion": "london"
   },

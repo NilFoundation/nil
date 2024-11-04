@@ -141,7 +141,7 @@ type Settings struct {
 }
 
 // Normalize fills in the content of the sources that have no content but have urls.
-func (t *CompilerTask) Normalize() error {
+func (t *CompilerTask) Normalize(basePath string) error {
 	if t.isNormalized {
 		return nil
 	}
@@ -154,7 +154,7 @@ func (t *CompilerTask) Normalize() error {
 		}
 		fname := source.Urls[0]
 		if !filepath.IsAbs(fname) {
-			fname = filepath.Join(t.BasePath, fname)
+			fname = filepath.Join(basePath, fname)
 		}
 		data, err := os.ReadFile(fname)
 		if err != nil {
@@ -167,9 +167,18 @@ func (t *CompilerTask) Normalize() error {
 	return nil
 }
 
+func (t *CompilerTask) CheckResolved() error {
+	for _, source := range t.Sources {
+		if source.Content == "" {
+			return fmt.Errorf("source %s has no content", source)
+		}
+	}
+	return nil
+}
+
 // ToCompilerJsonInput converts CompilerTask to CompilerJsonInput, which can be consumed by the compiler.
 func (t *CompilerTask) ToCompilerJsonInput() (*CompilerJsonInput, error) {
-	if err := t.Normalize(); err != nil {
+	if err := t.CheckResolved(); err != nil {
 		return nil, err
 	}
 	res := &CompilerJsonInput{

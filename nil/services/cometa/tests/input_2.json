@@ -1,7 +1,6 @@
 {
   "contractName": "Test.sol:Foo",
   "compilerVersion": "0.8.21",
-  "basePath": "internal/tests",
   "settings": {
     "evmVersion": "london",
     "optimizer": {

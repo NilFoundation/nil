@@ -7,13 +7,13 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
 type StorageClick struct {
 	conn       driver.Conn
 	insertConn driver.Conn
-	options    clickhouse.Options
 }
 
 const SchemaVersion = 1
@@ -43,8 +43,8 @@ func NewStorageClick(ctx context.Context, cfg *Config) (*StorageClick, error) {
 		`CREATE TABLE IF NOT EXISTS contracts_metadata
 			(address FixedString(20), version UInt32, data_json String, code_hash FixedString(32), abi String, source_code Map(String, String))
 			ENGINE = MergeTree
-			PRIMARY KEY (address)
-			ORDER BY (address)`)
+			PRIMARY KEY (address, code_hash)
+			ORDER BY (address, code_hash)`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create contracts_metadata table: %w", err)
 	}
@@ -52,7 +52,6 @@ func NewStorageClick(ctx context.Context, cfg *Config) (*StorageClick, error) {
 	return &StorageClick{
 		conn:       conn,
 		insertConn: insertConn,
-		options:    connectionOptions,
 	}, nil
 }
 
@@ -102,4 +101,21 @@ func (s *StorageClick) GetAbi(ctx context.Context, address types.Address) (strin
 		return "", fmt.Errorf("failed to scan row: %w", err)
 	}
 	return str, nil
+}
+
+func (s *StorageClick) LoadContractDataByCodeHash(ctx context.Context, codeHash common.Hash) (*ContractData, error) {
+	row := s.conn.QueryRow(ctx, `SELECT data_json FROM contracts_metadata WHERE code_hash = $1`,
+		string(codeHash.Bytes()))
+
+	var str string
+	if err := row.Scan(&str); err != nil {
+		return nil, fmt.Errorf("failed to scan row: %w", err)
+	}
+
+	res := new(ContractData)
+	if err := json.Unmarshal([]byte(str), res); err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
