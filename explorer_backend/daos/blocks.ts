@@ -2,14 +2,14 @@ import { removeHexPrefix } from "@nilfoundation/niljs";
 import { client } from "../services/clickhouse";
 import { z } from "zod";
 
-const fields = (prefix = '') =>  `${prefix?`${prefix}.`: ''}shard_id as shard_id,
-hex(${prefix?`${prefix}.`: ''}hash) AS hash,
-hex(${prefix?`${prefix}.`: ''}prev_block) as prev_block,
-hex(${prefix?`${prefix}.`: ''}main_chain_hash) as master_chain_hash,
-${prefix?`${prefix}.`: ''}out_msg_num as out_msg_num,
-${prefix?`${prefix}.`: ''}in_msg_num as in_msg_num,
-${prefix?`${prefix}.`: ''}timestamp as timestamp,
-${prefix?`${prefix}.`: ''}id as id`;
+const formatFields = (prefix = "") => `${prefix ? `${prefix}.` : ""}shard_id as shard_id,
+hex(${prefix ? `${prefix}.` : ""}hash) AS hash,
+hex(${prefix ? `${prefix}.` : ""}prev_block) as prev_block,
+hex(${prefix ? `${prefix}.` : ""}main_chain_hash) as master_chain_hash,
+${prefix ? `${prefix}.` : ""}out_msg_num as out_msg_num,
+${prefix ? `${prefix}.` : ""}in_msg_num as in_msg_num,
+${prefix ? `${prefix}.` : ""}timestamp as timestamp,
+${prefix ? `${prefix}.` : ""}id as id`;
 
 export type BlockListElement = {
   shard_id: number;
@@ -39,7 +39,7 @@ export const fetchLatestBlocks = async (
 ): Promise<BlockListElement[]> => {
   const query = await client.query({
     query: `SELECT
-    ${fields('all_blocks')}
+    ${formatFields("all_blocks")}
     FROM blocks as main_blocks
     LEFT OUTER JOIN blocks as all_blocks
     ON (main_blocks.hash = all_blocks.main_chain_hash or main_blocks.hash = all_blocks.hash)
@@ -63,7 +63,7 @@ export const fetchLatestBlocks = async (
 
 export const fetchBlockByHash = async (hash: string): Promise<BlockListElement | null> => {
   const query = await client.query({
-    query: `SELECT ${fields()} FROM blocks WHERE hash = {hash: String} limit 1`,
+    query: `SELECT ${formatFields()} FROM blocks WHERE hash = {hash: String} limit 1`,
     query_params: {
       hash: removeHexPrefix(hash).toUpperCase(),
     },
@@ -84,7 +84,7 @@ export const fetchBlocksByShardAndNumber = async (
   seqNo: number,
 ): Promise<BlockListElement | null> => {
   const query = await client.query({
-    query: `SELECT ${fields()} FROM blocks WHERE shard_id = {shardId: Int32} AND id = {seqNo: Int32}`,
+    query: `SELECT ${formatFields()} FROM blocks WHERE shard_id = {shardId: Int32} AND id = {seqNo: Int32}`,
     query_params: {
       shardId,
       seqNo,
