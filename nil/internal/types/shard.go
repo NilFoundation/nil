@@ -1,11 +1,10 @@
 package types
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"math"
 	"strconv"
-
-	"github.com/NilFoundation/nil/nil/common/check"
 )
 
 // 32 bits are more than enough while avoiding problems with marshaling 64-bit values as numbers in JSON.
@@ -54,10 +53,7 @@ func (s ShardId) Static() bool {
 }
 
 func BytesToShardId(b []byte) ShardId {
-	// todo: id marshaling should not happen via string formatting
-	res, err := ParseShardIdFromString(string(b))
-	check.PanicIfErr(err)
-	return res
+	return ShardId(binary.BigEndian.Uint16(b))
 }
 
 func ParseShardIdFromString(s string) (ShardId, error) {
@@ -69,4 +65,8 @@ func ParseShardIdFromString(s string) (ShardId, error) {
 }
 
 func (s ShardId) String() string { return strconv.FormatUint(uint64(s), 10) }
-func (s ShardId) Bytes() []byte  { return []byte(s.String()) }
+func (s ShardId) Bytes() []byte {
+	bytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(bytes, uint16(s))
+	return bytes
+}
