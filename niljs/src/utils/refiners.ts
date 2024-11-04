@@ -17,7 +17,7 @@ const refineSalt = (salt: Uint8Array | bigint): Uint8Array => {
 
 const refineCompressedPublicKey = (pubkey: Uint8Array | `0x${string}`): Uint8Array => {
   const res = typeof pubkey === "string" ? hexToBytes(pubkey) : pubkey;
-  invariant(pubkey.length === 33, "Invalid pubkey length");
+  invariant(res.length === 33, "Invalid pubkey length");
 
   return res;
 };
