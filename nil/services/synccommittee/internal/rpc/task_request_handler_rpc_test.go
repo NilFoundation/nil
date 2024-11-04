@@ -23,7 +23,7 @@ func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_GetTask() {
 	}{
 		{"returns task without deps", firstExecutorId},
 		{"returns task with deps", secondExecutorId},
-		{"returns nil", testaide.GenerateRandomExecutorId()},
+		{"returns nil", testaide.RandomExecutorId()},
 	}
 
 	for _, testCase := range testCases {
@@ -54,15 +54,15 @@ func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_UpdateTaskStatus()
 	}{
 		{
 			"success result FinalProof",
-			types.SuccessProverTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), types.MergeProof, types.TaskResultAddresses{}, types.TaskResultData{}),
+			types.SuccessProverTaskResult(types.NewTaskId(), testaide.RandomExecutorId(), types.MergeProof, types.TaskResultAddresses{}, types.TaskResultData{}),
 		},
 		{
 			"success result Commitment",
-			types.SuccessProverTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), types.MergeProof, types.TaskResultAddresses{}, types.TaskResultData{}),
+			types.SuccessProverTaskResult(types.NewTaskId(), testaide.RandomExecutorId(), types.MergeProof, types.TaskResultAddresses{}, types.TaskResultData{}),
 		},
 		{
 			"failure result",
-			types.FailureProverTaskResult(types.NewTaskId(), testaide.GenerateRandomExecutorId(), errors.New("something went wrong")),
+			types.FailureProverTaskResult(types.NewTaskId(), testaide.RandomExecutorId(), errors.New("something went wrong")),
 		},
 	}
 

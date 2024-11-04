@@ -290,6 +290,9 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 	if !res.IsSuccess {
 		entry.Modified = time.Now()
 		entry.Status = types.Failed
+		if err := putTaskEntry(tx, entry); err != nil {
+			return fmt.Errorf("failed to set task entry with id=%s as failed: %w", entry.Task.Id, err)
+		}
 		if err = tx.Commit(); err != nil {
 			return err
 		}

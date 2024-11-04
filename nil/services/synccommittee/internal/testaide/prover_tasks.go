@@ -41,7 +41,7 @@ func GenerateTaskOfType(taskType types.TaskType) types.Task {
 	}
 }
 
-func GenerateRandomExecutorId() types.TaskExecutorId {
+func RandomExecutorId() types.TaskExecutorId {
 	bigInt, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt32))
 	if err != nil {
 		panic(err)
