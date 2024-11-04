@@ -22,6 +22,14 @@ rm -f config.ini
 rm -rf test.db
 
 nild run --http-port 8529 --collator-tick-ms=100 >nild.log 2>&1 &
+NILD_PID=$!
 sleep 2
 
-CI=true npm run test:useNilD
+if CI=true npm run test:useNilD; then
+    exit 0
+else
+    STATUS=$?
+    kill $NILD_PID
+    cat nild.log
+    exit $STATUS
+fi

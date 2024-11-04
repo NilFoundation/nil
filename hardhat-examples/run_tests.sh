@@ -24,6 +24,7 @@ rm -rf test.db
 
 # Start nild in background (will be auto-killed on exit)
 nild run --http-port 8529 --collator-tick-ms=100 >nild.log 2>&1 &
+NILD_PID=$!
 sleep 2
 
 export NIL_RPC_ENDPOINT=http://127.0.0.1:8529
@@ -38,4 +39,13 @@ echo "Wallet addr: $WALLET_ADDR"
 # Update to reflect the new directory structure
 # Move to the directory where the script is located
 cd $(dirname "$0")
-CI=true npx hardhat test --network nil test/*.ts
+
+set +e
+if CI=true npx hardhat test --network nil test/*.ts; then
+    exit 0
+else
+    STATUS=$?
+    kill $NILD_PID
+    cat nild.log
+    exit $STATUS
+fi
