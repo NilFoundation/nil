@@ -90,7 +90,7 @@ func ShardAndHexToAddress(shardId ShardId, s string) Address {
 	if addr[0] != 0 || addr[1] != 0 {
 		panic("incorrect address length")
 	}
-	appendShardId(addr[:], shardId)
+	setShardId(addr[:], shardId)
 	return addr
 }
 
@@ -181,7 +181,7 @@ func (a *Address) UnmarshalText(input []byte) error {
 	return hexutil.UnmarshalFixedText("Address", input, a[:])
 }
 
-func appendShardId(bytes []byte, shardId ShardId) []byte {
+func setShardId(bytes []byte, shardId ShardId) []byte {
 	check.PanicIfNotf(ShardIdSize == 2, "please adjust shard id size")
 	check.PanicIfNotf(shardId <= math.MaxUint16, "too big shard id")
 
@@ -190,7 +190,7 @@ func appendShardId(bytes []byte, shardId ShardId) []byte {
 }
 
 func (a Address) ShardId() ShardId {
-	num := binary.BigEndian.Uint16(a[:2])
+	num := binary.BigEndian.Uint16(a[:ShardIdSize])
 	return ShardId(num)
 }
 
@@ -203,16 +203,18 @@ func (a *Address) Type() string {
 }
 
 func PubkeyBytesToAddress(shardId ShardId, pubBytes []byte) Address {
-	raw := make([]byte, 2, AddrSize)
-	raw = appendShardId(raw, shardId)
-	raw = append(raw, common.PoseidonHash(pubBytes).Bytes()[14:]...)
+	raw := make([]byte, ShardIdSize, AddrSize)
+	raw = setShardId(raw, shardId)
+	offset := common.HashSize - AddrSize + ShardIdSize
+	raw = append(raw, common.PoseidonHash(pubBytes).Bytes()[offset:]...)
 	return BytesToAddress(raw)
 }
 
 func createAddress(shardId ShardId, deployPayload []byte) Address {
-	raw := make([]byte, 2, AddrSize)
-	raw = appendShardId(raw, shardId)
-	raw = append(raw, common.PoseidonHash(deployPayload).Bytes()[14:]...)
+	raw := make([]byte, ShardIdSize, AddrSize)
+	raw = setShardId(raw, shardId)
+	offset := common.HashSize - AddrSize + ShardIdSize
+	raw = append(raw, common.PoseidonHash(deployPayload).Bytes()[offset:]...)
 	return BytesToAddress(raw)
 }
 
@@ -232,14 +234,25 @@ func CreateAddressForCreate2(sender Address, code []byte, salt common.Hash) Addr
 }
 
 func GenerateRandomAddress(shardId ShardId) Address {
-	b := make([]byte, 18)
+	b := make([]byte, AddrSize-ShardIdSize)
 	_, err := rand.Read(b)
 	if err != nil {
 		panic(err)
 	}
 
-	raw := make([]byte, 2, AddrSize)
-	raw = appendShardId(raw, shardId)
+	raw := make([]byte, ShardIdSize, AddrSize)
+	raw = setShardId(raw, shardId)
 	raw = append(raw, b...)
 	return BytesToAddress(raw)
+}
+
+func ToShardedHash(h common.Hash, shardId ShardId) common.Hash {
+	raw := h
+	setShardId(raw[:], shardId)
+	return raw
+}
+
+func ShardIdFromHash(h common.Hash) ShardId {
+	num := binary.BigEndian.Uint16(h[:ShardIdSize])
+	return ShardId(num)
 }
