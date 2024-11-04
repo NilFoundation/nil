@@ -108,6 +108,26 @@ func IdFromBlock(block *jsonrpc.RPCBlock) BlockId {
 	return BlockId{block.ShardId, block.Hash}
 }
 
+func ChildBlockIds(mainShardBlock *jsonrpc.RPCBlock) ([]BlockId, error) {
+	if mainShardBlock == nil {
+		return nil, errors.New("mainShardBlock cannot be nil")
+	}
+
+	if mainShardBlock.ShardId != types.MainShardId {
+		return nil, fmt.Errorf("mainShardBlock is not from the main shard: %d", mainShardBlock.ShardId)
+	}
+
+	blockIds := make([]BlockId, 0, len(mainShardBlock.ChildBlocks))
+
+	for i, childHash := range mainShardBlock.ChildBlocks {
+		shardId := types.ShardId(i + 1)
+		blockId := NewBlockId(shardId, childHash)
+		blockIds = append(blockIds, blockId)
+	}
+
+	return blockIds, nil
+}
+
 func (bk BlockId) Bytes() []byte {
 	key := make([]byte, 4+common.HashSize)
 	binary.LittleEndian.PutUint32(key[:4], uint32(bk.ShardId))

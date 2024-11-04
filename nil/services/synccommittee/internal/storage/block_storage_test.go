@@ -6,11 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/stretchr/testify/suite"
@@ -51,7 +49,7 @@ func TestBlockStorageTestSuite(t *testing.T) {
 }
 
 func (s *BlockStorageTestSuite) TestGetSetBlock() {
-	block := testaide.GenerateExecutionShardBlock(testaide.RandomHash())
+	block := testaide.GenerateExecutionShardBlock()
 
 	// Test SetBlock
 	err := s.bs.SetBlock(s.ctx, block, block.Hash)
@@ -96,20 +94,13 @@ func (s *BlockStorageTestSuite) TestSetBlockSequentially_GetConcurrently() {
 }
 
 func (s *BlockStorageTestSuite) TestIsBatchCompleted() {
-	mainBlock := testaide.GenerateExecutionShardBlock(testaide.RandomHash())
-	mainBlock.ShardId = types.MainShardId
-	mainBlock.ChildBlocks = make([]common.Hash, 1)
+	mainBlock, childBlocks := testaide.GenerateBlockBatch(1)
+	childBlock := childBlocks[0]
 
 	err := s.bs.SetBlock(s.ctx, mainBlock, mainBlock.Hash)
 	s.Require().NoError(err)
 
-	block := testaide.GenerateExecutionShardBlock(testaide.RandomHash())
-	block.ShardId = types.ShardId(1)
-	block.MainChainHash = mainBlock.Hash
-
-	mainBlock.ChildBlocks[0] = block.Hash
-
-	err = s.bs.SetBlock(s.ctx, block, mainBlock.Hash)
+	err = s.bs.SetBlock(s.ctx, childBlock, mainBlock.Hash)
 	s.Require().NoError(err)
 
 	res, err := s.bs.IsBatchCompleted(s.ctx, mainBlock)
@@ -136,7 +127,7 @@ func (s *BlockStorageTestSuite) TestGetLastFetchedBlock() {
 	s.Require().Nil(latestFetched)
 
 	mainBlock := testaide.GenerateMainShardBlock()
-	execBlocks := testaide.GenerateExecutionShardBlocks(mainBlock.Hash, 10)
+	execBlocks := testaide.GenerateExecutionShardBlocks(10)
 
 	// blocks from different execution shards can be saved in any order
 	waitGroup := sync.WaitGroup{}
@@ -218,19 +209,11 @@ func (s *BlockStorageTestSuite) TestSetBlock_ParentHashMismatch() {
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProposed_WithExecutionShardBlocks() {
-	mainBlock := testaide.GenerateMainShardBlock()
+	const childBlocksCount = 3
+	mainBlock, executionShardBlocks := testaide.GenerateBlockBatch(childBlocksCount)
 	mainBlockId := scTypes.IdFromBlock(mainBlock)
 
-	const blocksCount = 3
-	executionShardBlocks := make([]*jsonrpc.RPCBlock, 0, blocksCount)
-	for range blocksCount {
-		nextBlock := testaide.GenerateExecutionShardBlock(mainBlock.Hash)
-		executionShardBlocks = append(executionShardBlocks, nextBlock)
-	}
-
-	someOtherBlock := &jsonrpc.RPCBlock{
-		Number: 15, ShardId: 3, Hash: testaide.RandomHash(), MainChainHash: testaide.RandomHash(),
-	}
+	someOtherBlock := testaide.GenerateExecutionShardBlock()
 
 	for _, block := range append(executionShardBlocks, mainBlock) {
 		err := s.bs.SetBlock(s.ctx, block, mainBlock.Hash)
@@ -289,19 +272,16 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Collect_Transactions(
 	s.Require().NoError(err, "failed to set initial state root")
 
 	var expectedTxCount int
-	mainBlock := testaide.GenerateMainShardBlock()
-	expectedTxCount += len(mainBlock.Messages)
 
 	const blocksCount = 3
-	executionShardBlocks := make([]*jsonrpc.RPCBlock, 0, blocksCount)
+	mainBlock, childBlocks := testaide.GenerateBlockBatch(blocksCount)
+	expectedTxCount += len(mainBlock.Messages)
 
-	for range blocksCount {
-		block := testaide.GenerateExecutionShardBlock(mainBlock.Hash)
-		executionShardBlocks = append(executionShardBlocks, block)
-		expectedTxCount += len(block.Messages)
+	for _, child := range childBlocks {
+		expectedTxCount += len(child.Messages)
 	}
 
-	for _, block := range append(executionShardBlocks, mainBlock) {
+	for _, block := range append(childBlocks, mainBlock) {
 		err := s.bs.SetBlock(s.ctx, block, mainBlock.Hash)
 		s.Require().NoError(err)
 	}

@@ -61,8 +61,8 @@ func (agg *Aggregator) Run(ctx context.Context) error {
 }
 
 // get block by hash
-func (agg *Aggregator) getBlock(shardId coreTypes.ShardId, blockHash common.Hash) (*jsonrpc.RPCBlock, error) {
-	block, err := agg.client.GetBlock(shardId, blockHash, true)
+func (agg *Aggregator) getBlock(blockId types.BlockId) (*jsonrpc.RPCBlock, error) {
+	block, err := agg.client.GetBlock(blockId.ShardId, blockId.Hash, true)
 	if err != nil && block != nil {
 		return nil, err
 	}
@@ -196,17 +196,24 @@ func (agg *Aggregator) fetchAndProcessBlocks(ctx context.Context, blocksRange ty
 }
 
 func (agg *Aggregator) fetchChildBlocks(ctx context.Context, block *jsonrpc.RPCBlock) error {
-	childBlocks := block.ChildBlocks
-	for i, childBlockHash := range childBlocks {
-		shardId := coreTypes.ShardId(i + 1)
-		childBlock, err := agg.getBlock(shardId, childBlockHash)
+	childIds, err := types.ChildBlockIds(block)
+	if err != nil {
+		return err
+	}
+
+	for _, childId := range childIds {
+		childBlock, err := agg.getBlock(childId)
 		if err != nil {
-			return err
+			return fmt.Errorf("error fetching child block with id=%s: %w", childId, err)
 		}
 		if err = agg.validateAndProcessBlock(ctx, childBlock, block.Hash); err != nil {
-			return fmt.Errorf("error validating and storing block %s for main shard block %s: %w", childBlockHash, block.Hash, err)
+			return fmt.Errorf(
+				"error validating and storing child block with id=%s for main shard block with hash=%s: %w",
+				childId, block.Hash, err,
+			)
 		}
 	}
+
 	return nil
 }
 

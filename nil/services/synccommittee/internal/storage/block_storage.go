@@ -333,18 +333,6 @@ func (bs *blockStorage) GetOrCreateBatchId(ctx context.Context, mainBlockHash co
 	return batchId, tx.Commit()
 }
 
-func (bs *blockStorage) isBatchCompletedTx(tx db.RoTx, blockHashes []common.Hash) (bool, error) {
-	for i, blockHash := range blockHashes {
-		shardId := types.ShardId(i + 1)
-		blockId := scTypes.NewBlockId(shardId, blockHash)
-		entry, err := bs.getBlockEntry(tx, blockId)
-		if err != nil || entry == nil {
-			return false, err
-		}
-	}
-	return true, nil
-}
-
 func (bs *blockStorage) IsBatchCompleted(ctx context.Context, block *jsonrpc.RPCBlock) (bool, error) {
 	if block == nil {
 		return false, nil
@@ -354,13 +342,24 @@ func (bs *blockStorage) IsBatchCompleted(ctx context.Context, block *jsonrpc.RPC
 		return false, nil
 	}
 
+	childIds, err := scTypes.ChildBlockIds(block)
+	if err != nil {
+		return false, err
+	}
+
 	tx, err := bs.db.CreateRoTx(ctx)
 	if err != nil {
 		return false, err
 	}
 	defer tx.Rollback()
 
-	return bs.isBatchCompletedTx(tx, block.ChildBlocks)
+	for _, childId := range childIds {
+		entry, err := bs.getBlockEntry(tx, childId)
+		if err != nil || entry == nil {
+			return false, err
+		}
+	}
+	return true, nil
 }
 
 func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalData, error) {
@@ -405,15 +404,23 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*ProposalDa
 	}
 
 	transactions := extractTransactions(mainShardEntry.Block)
-	err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
-		if isExecutionShardBlock(entry, mainShardEntry.BatchId) {
-			blockTransactions := extractTransactions(entry.Block)
-			transactions = append(transactions, blockTransactions...)
-		}
-		return true, nil
-	})
+
+	childIds, err := scTypes.ChildBlockIds(&mainShardEntry.Block)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, childId := range childIds {
+		childEntry, err := bs.getBlockEntry(tx, childId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get child block with id=%s: %w", childId, err)
+		}
+		if childEntry == nil {
+			return nil, fmt.Errorf("child block with id=%s is not found", childId)
+		}
+
+		blockTransactions := extractTransactions(childEntry.Block)
+		transactions = append(transactions, blockTransactions...)
 	}
 
 	return &ProposalData{
@@ -446,16 +453,15 @@ func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, id scTypes.B
 		return err
 	}
 
-	err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
-		if !isExecutionShardBlock(entry, mainShardEntry.BatchId) {
-			return true, nil
-		}
-
-		err := tx.Delete(blocksTable, scTypes.IdFromBlock(&entry.Block).Bytes())
-		return true, err
-	})
+	childIds, err := scTypes.ChildBlockIds(&mainShardEntry.Block)
 	if err != nil {
 		return err
+	}
+
+	for _, childId := range childIds {
+		if err := tx.Delete(blocksTable, childId.Bytes()); err != nil {
+			return fmt.Errorf("failed to delete child block with id=%s: %w", childId, err)
+		}
 	}
 
 	mainBlockId := scTypes.IdFromBlock(&mainShardEntry.Block)
@@ -511,10 +517,6 @@ func (bs *blockStorage) setParentOfNextToPropose(tx db.RwTx, hash common.Hash) e
 		return fmt.Errorf("failed to put next to propose parent hash: %w", err)
 	}
 	return nil
-}
-
-func isExecutionShardBlock(entry *blockEntry, batchId scTypes.BatchId) bool {
-	return entry.Block.ShardId != types.MainShardId && entry.BatchId == batchId
 }
 
 func (bs *blockStorage) validateMainShardEntry(tx db.RoTx, id scTypes.BlockId, entry *blockEntry) error {
