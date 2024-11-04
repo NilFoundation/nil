@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"time"
 
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -31,7 +32,7 @@ func NewDHT(ctx context.Context, h host.Host, conf *Config, logger zerolog.Logge
 		}
 		bootstrapPeers[i] = *peerInfo
 	}
-	res, err := dht.New(ctx, h, dht.BootstrapPeers(bootstrapPeers...))
+	res, err := dht.New(ctx, h, dht.BootstrapPeers(bootstrapPeers...), dht.RoutingTableRefreshPeriod(1*time.Minute))
 	if err != nil {
 		return nil, err
 	}
