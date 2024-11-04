@@ -2,14 +2,14 @@ import { removeHexPrefix } from "@nilfoundation/niljs";
 import { client } from "../services/clickhouse";
 import { z } from "zod";
 
-const fields = `shard_id, 
-hex(hash) AS hash,
-hex(prev_block) as prev_block,
-hex(main_chain_hash) as master_chain_hash,
-out_msg_num,
-in_msg_num,
-timestamp,
-id`;
+const fields = (prefix = '') =>  `${prefix?`${prefix}.`: ''}shard_id as shard_id,
+hex(${prefix?`${prefix}.`: ''}hash) AS hash,
+hex(${prefix?`${prefix}.`: ''}prev_block) as prev_block,
+hex(${prefix?`${prefix}.`: ''}main_chain_hash) as master_chain_hash,
+${prefix?`${prefix}.`: ''}out_msg_num as out_msg_num,
+${prefix?`${prefix}.`: ''}in_msg_num as in_msg_num,
+${prefix?`${prefix}.`: ''}timestamp as timestamp,
+${prefix?`${prefix}.`: ''}id as id`;
 
 export type BlockListElement = {
   shard_id: number;
@@ -39,8 +39,14 @@ export const fetchLatestBlocks = async (
 ): Promise<BlockListElement[]> => {
   const query = await client.query({
     query: `SELECT
-    ${fields}
-     FROM blocks ORDER BY id DESC LIMIT {limit: Int32} OFFSET {offset: Int32}`,
+    ${fields('all_blocks')}
+    FROM blocks as main_blocks
+    LEFT OUTER JOIN blocks as all_blocks
+    ON (main_blocks.hash = all_blocks.main_chain_hash or main_blocks.hash = all_blocks.hash)
+    WHERE main_blocks.shard_id = 0
+    and main_blocks.id > 0 and all_blocks.id > 0
+    order by main_blocks.id desc, all_blocks.id desc
+    LIMIT {limit: Int32} OFFSET {offset: Int32}`,
     query_params: {
       offset,
       limit,
@@ -57,7 +63,7 @@ export const fetchLatestBlocks = async (
 
 export const fetchBlockByHash = async (hash: string): Promise<BlockListElement | null> => {
   const query = await client.query({
-    query: `SELECT ${fields} FROM blocks WHERE hash = {hash: String} limit 1`,
+    query: `SELECT ${fields()} FROM blocks WHERE hash = {hash: String} limit 1`,
     query_params: {
       hash: removeHexPrefix(hash).toUpperCase(),
     },
@@ -78,7 +84,7 @@ export const fetchBlocksByShardAndNumber = async (
   seqNo: number,
 ): Promise<BlockListElement | null> => {
   const query = await client.query({
-    query: `SELECT ${fields} FROM blocks WHERE shard_id = {shardId: Int32} AND id = {seqNo: Int32}`,
+    query: `SELECT ${fields()} FROM blocks WHERE shard_id = {shardId: Int32} AND id = {seqNo: Int32}`,
     query_params: {
       shardId,
       seqNo,
