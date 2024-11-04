@@ -129,7 +129,7 @@ func (c *Client) CompileContract(inputJsonFile string) (*ContractData, error) {
 		return nil, fmt.Errorf("failed to unmarshal input json: %w", err)
 	}
 	task.BasePath = filepath.Dir(inputJsonFile)
-	if err := task.Normalize(); err != nil {
+	if err := task.Normalize(filepath.Dir(inputJsonFile)); err != nil {
 		return nil, fmt.Errorf("failed to normalize compiler task: %w", err)
 	}
 	normInputJson, err := json.Marshal(task)
@@ -145,6 +145,27 @@ func (c *Client) CompileContract(inputJsonFile string) (*ContractData, error) {
 		return nil, fmt.Errorf("failed to unmarshal contract: %w", err)
 	}
 	return &contractData, nil
+}
+
+func (c *Client) DeployContractFromFile(inputJsonFile string, address types.Address) error {
+	inputJson, err := os.ReadFile(inputJsonFile)
+	if err != nil {
+		return fmt.Errorf("failed to read input json: %w", err)
+	}
+	task, err := NewCompilerTask(string(inputJson))
+	if err != nil {
+		return fmt.Errorf("failed to read input json: %w", err)
+	}
+	if err = task.Normalize(filepath.Dir(inputJsonFile)); err != nil {
+		return fmt.Errorf("failed to normalize compiler task: %w", err)
+	}
+	inputJson, err = json.Marshal(task)
+	if err != nil {
+		return fmt.Errorf("failed to marshal input json: %w", err)
+	}
+
+	_, err = c.sendRequest("cometa_deployContract", []any{string(inputJson), address})
+	return err
 }
 
 func (c *Client) DeployContract(inputJson string, address types.Address) error {

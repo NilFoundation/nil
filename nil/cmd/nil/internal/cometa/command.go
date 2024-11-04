@@ -93,7 +93,7 @@ func normalizeCompileInput(inputJson, inputJsonFile string) (string, error) {
 	if input.BasePath == "" {
 		input.BasePath = filepath.Dir(inputJsonFile)
 	}
-	if err := input.Normalize(); err != nil {
+	if err := input.Normalize(filepath.Dir(inputJsonFile)); err != nil {
 		return "", fmt.Errorf("failed to normalize the input JSON file: %w", err)
 	}
 	data, err := json.MarshalIndent(input, "", "  ")

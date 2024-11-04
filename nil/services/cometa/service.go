@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/client"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/common/version"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -22,6 +23,7 @@ var logger = logging.NewLogger("cometa")
 type Storage interface {
 	StoreContract(ctx context.Context, contractData *ContractData, address types.Address) error
 	LoadContractData(ctx context.Context, address types.Address) (*ContractData, error)
+	LoadContractDataByCodeHash(ctx context.Context, codeHash common.Hash) (*ContractData, error)
 	GetAbi(ctx context.Context, address types.Address) (string, error)
 }
 
@@ -107,7 +109,7 @@ func (s *Service) RegisterContract(ctx context.Context, contractData *ContractDa
 		return fmt.Errorf("failed to get code: %w", err)
 	}
 	if len(code) == 0 {
-		return errors.New("contract doesn't exist")
+		return fmt.Errorf("contract does not exist at address %s", address)
 	}
 
 	if !bytes.Equal(code, contractData.Code) {
@@ -152,7 +154,13 @@ func (s *Service) GetContractControl(ctx context.Context, address types.Address)
 	if !ok {
 		data, err := s.storage.LoadContractData(ctx, address)
 		if err != nil {
-			return nil, fmt.Errorf("failed to load contract data: %w", err)
+			if data, err = s.FindContractWithSameCode(ctx, address); err != nil {
+				return nil, fmt.Errorf("failed to load contract data: %w", err)
+			}
+			if err = s.storage.StoreContract(ctx, data, address); err != nil {
+				logger.Error().Err(err).Msg("failed to store contract")
+			}
+			logger.Info().Str("contract", data.Name).Msg("Found twin contract")
 		}
 		contract, err = NewContractFromData(data)
 		if err != nil {
@@ -173,6 +181,21 @@ func (s *Service) GetContractAsJson(ctx context.Context, address types.Address) 
 		return "", err
 	}
 	return string(res), nil
+}
+
+func (s *Service) FindContractWithSameCode(ctx context.Context, address types.Address) (*ContractData, error) {
+	code, err := s.client.GetCode(address, "latest")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get code: %w", err)
+	}
+	contractData, err := s.storage.LoadContractDataByCodeHash(ctx, code.Hash())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get contract by code hash: %w", err)
+	}
+	if !bytes.Equal(contractData.Code, code) {
+		return nil, errors.New("contract not found")
+	}
+	return contractData, nil
 }
 
 func (s *Service) GetLocation(ctx context.Context, address types.Address, pc uint) (*Location, error) {

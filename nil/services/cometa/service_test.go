@@ -9,7 +9,6 @@ import (
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -33,12 +32,12 @@ func (s *SuiteServiceTest) SetupSuite() {
 }
 
 func (s *SuiteServiceTest) TestCase1() {
-	input := getInputJson(s.T(), "input_1")
+	task := s.getCompilerTask("input_1")
 
-	compData, err := CompileJson(input)
+	contractData, err := Compile(task)
 	s.Require().NoError(err)
 
-	code := compData.Code
+	code := contractData.Code
 	address := types.CreateAddress(types.ShardId(1), types.BuildDeployPayload(code, common.EmptyHash))
 
 	s.client.GetCodeFunc = func(addr types.Address, blockId any) (types.Code, error) {
@@ -46,16 +45,13 @@ func (s *SuiteServiceTest) TestCase1() {
 		return code, nil
 	}
 
-	contractData, err := s.service.CompileContract(s.ctx, input)
-	s.Require().NoError(err)
-
 	err = s.service.RegisterContract(s.ctx, contractData, address)
 	s.Require().NoError(err)
 
 	contract, err := s.service.GetContractControl(s.ctx, address)
 	s.Require().NoError(err)
 
-	s.Require().Equal(compData, contract.Data)
+	s.Require().Equal(contractData, contract.Data)
 
 	loc, err := s.service.GetLocation(s.ctx, address, 0)
 	s.Require().NoError(err)
@@ -72,12 +68,12 @@ func (s *SuiteServiceTest) TestCase1() {
 }
 
 func (s *SuiteServiceTest) TestCase2() {
-	input := getInputJson(s.T(), "input_2")
+	task := s.getCompilerTask("input_2")
 
-	compData, err := CompileJson(input)
+	contractData, err := Compile(task)
 	s.Require().NoError(err)
 
-	code := compData.Code
+	code := contractData.Code
 	address := types.CreateAddress(types.ShardId(1), types.BuildDeployPayload(code, common.EmptyHash))
 
 	s.client.GetCodeFunc = func(addr types.Address, blockId any) (types.Code, error) {
@@ -85,16 +81,13 @@ func (s *SuiteServiceTest) TestCase2() {
 		return code, nil
 	}
 
-	contractData, err := s.service.CompileContract(s.ctx, input)
-	s.Require().NoError(err)
-
 	err = s.service.RegisterContract(s.ctx, contractData, address)
 	s.Require().NoError(err)
 
 	contract, err := s.service.GetContractControl(s.ctx, address)
 	s.Require().NoError(err)
 
-	s.Require().Equal(compData, contract.Data)
+	s.Require().Equal(contractData, contract.Data)
 
 	loc, err := s.service.GetLocation(s.ctx, address, 0)
 	s.Require().NoError(err)
@@ -106,13 +99,47 @@ func (s *SuiteServiceTest) TestCase2() {
 	s.Require().NotEmpty(jsonContract)
 }
 
-func getInputJson(t *testing.T, name string) string {
-	t.Helper()
+// TestTwinContracts checks that the same contract is returned for the same code
+func (s *SuiteServiceTest) TestTwinContracts() {
+	task := s.getCompilerTask("input_1")
+
+	contractData, err := Compile(task)
+	s.Require().NoError(err)
+
+	code := contractData.Code
+	address := types.CreateAddress(types.ShardId(1), types.BuildDeployPayload(code, common.HexToHash("0x5678")))
+
+	s.client.GetCodeFunc = func(addr types.Address, blockId any) (types.Code, error) {
+		return code, nil
+	}
+
+	err = s.service.RegisterContract(s.ctx, contractData, address)
+	s.Require().NoError(err)
+
+	contract, err := s.service.GetContractControl(s.ctx, address)
+	s.Require().NoError(err)
+
+	s.Require().Equal(contractData, contract.Data)
+
+	address2 := types.CreateAddress(types.ShardId(1), types.BuildDeployPayload(code, common.HexToHash("0x1234")))
+	contract2, err := s.service.GetContractControl(s.ctx, address2)
+	s.Require().NoError(err)
+
+	s.Require().Equal(contract, contract2)
+}
+
+func (s *SuiteServiceTest) getCompilerTask(name string) *CompilerTask {
+	s.T().Helper()
 
 	input, err := os.ReadFile(fmt.Sprintf("./tests/%s.json", name))
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
-	return string(input)
+	task, err := NewCompilerTask(string(input))
+	s.Require().NoError(err)
+	err = task.Normalize("./tests")
+	s.Require().NoError(err)
+
+	return task
 }
 
 func TestCometa(t *testing.T) {
