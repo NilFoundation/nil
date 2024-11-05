@@ -447,7 +447,7 @@ func (s *SuiteCli) TestCliWallet() {
 	})
 }
 
-func (s *SuiteCli) TestCliWalletCurrency() {
+func (s *SuiteCli) TestCliCurrency() {
 	dir := s.T().TempDir()
 
 	cfgPath := dir + "/config.ini"
@@ -467,7 +467,7 @@ func (s *SuiteCli) TestCliWalletCurrency() {
 		s.Require().NoError(addr.Set(strings.Split(res, "\n")[0]))
 	})
 
-	s.Run("Top-up BTC", func() {
+	s.Run("Top-up wallet BTC", func() {
 		res := s.RunCli("-c", cfgPath, "wallet", "top-up", "10000")
 		s.Contains(res, "Wallet balance:")
 		s.Contains(res, "[NIL]")
@@ -483,8 +483,30 @@ func (s *SuiteCli) TestCliWalletCurrency() {
 		s.Contains(res, types.BtcFaucetAddress.Hex()+"\t30000\t[BTC]")
 	})
 
-	s.Run("Top-up unknown currency", func() {
+	s.Run("Top-up contract BTC", func() {
+		res := s.RunCli("-c", cfgPath, "contract", "top-up", addr.Hex(), "10000")
+		s.Contains(res, "Contract balance:")
+		s.Contains(res, "[NIL]")
+
+		res = s.RunCli("-c", cfgPath, "contract", "top-up", addr.Hex(), "10000", "BTC")
+		s.Contains(res, "Contract balance: 40000 [BTC]")
+
+		res = s.RunCli("-c", cfgPath, "contract", "currencies", addr.Hex())
+		s.Contains(res, types.BtcFaucetAddress.Hex()+"\t40000\t[BTC]")
+
+		s.RunCli("-c", cfgPath, "contract", "top-up", addr.Hex(), "20000", types.BtcFaucetAddress.Hex())
+		res = s.RunCli("-c", cfgPath, "contract", "currencies", addr.Hex())
+		s.Contains(res, types.BtcFaucetAddress.Hex()+"\t60000\t[BTC]")
+	})
+
+	s.Run("Top-up wallet unknown currency", func() {
 		res, err := s.RunCliNoCheck("-c", cfgPath, "wallet", "top-up", "123", "Unknown")
+		s.Require().Error(err)
+		s.Contains(res, "Error: undefined currency id: Unknown")
+	})
+
+	s.Run("Top-up contract currency", func() {
+		res, err := s.RunCliNoCheck("-c", cfgPath, "contract", "top-up", addr.Hex(), "123", "Unknown")
 		s.Require().Error(err)
 		s.Contains(res, "Error: undefined currency id: Unknown")
 	})
