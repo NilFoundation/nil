@@ -1,6 +1,9 @@
 {
     "extends": "@docusaurus/tsconfig",
     "compilerOptions": {
+      "types": [
+        "vitest/globals"
+      ],
       "baseUrl": ".",
       "paths": {
         "modules": ["../node_modules/"]

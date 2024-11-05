@@ -1,0 +1,146 @@
+# Debugging smart contracts
+
+=nil; comes equipped with the Cometa service which is a tool for storing contract metadata and analyzing messages. If a message fails due to a bug in contract logic, Cometa can pinpoint the exact line of Solidity code where the issue that caused the failure has occured.
+
+Working with the Cometa service involves these steps:
+
+* Creating a JSON file with the description of the compilation task
+* Compiling the contract and deploying it
+* Registering the contract with the Cometa service
+* Using the =nil; developer tools to investigate any failed messages to the contract
+
+## Draft an example contract
+
+To illustrate how debugging works, this tutorial uses the following contract:
+
+```solidity showLineNumbers file=../../tests/CounterBug.sol start=startContract end=endContract
+```
+
+Inside the `increment()` function, the contract has a `require()` statement with a condition that will never evaluate to `true` unless the contract is called from the zero address. This is done to deliberately trigger an `ExecutionReverted` error.
+
+## Create a file with the compilation task
+
+As input, Cometa takes a JSON file storing a compilation task. This task includes the compiler version, settings, and the contract files to be compiled.
+
+See the below example on how this file should be structured:
+
+```json showLineNumbers
+{
+  "contractName": "CounterBug.sol:CounterBug",
+  "compilerVersion": "0.8.21",
+  "settings": {
+    "evmVersion": "shanghai",
+    "optimizer": {
+      "enabled": false,
+      "runs": 200
+    }
+  },
+  "sources": {
+    "CounterBug.sol": {
+      "urls": ["./CounterBug.sol"]
+    }
+
+  }
+}
+```
+
+:::tip
+
+Make sure that the compiler version in the input file is compatible with the specified EVM target.
+
+:::
+
+Note that the `"sources"` key must contain all `.sol` files used during contract compilation including any imported contracts. 
+
+For locally imported contracts:
+
+```json showLineNumbers
+"sources": {
+    "CounterBug.sol": {
+      "urls": ["./CounterBug.sol"]
+    },
+    "Nil.sol": {
+      "urls": ["path/to/Nil.sol"]
+    }
+  }
+```
+
+For contracts imported from packages:
+
+```json showLineNumbers
+"sources": {
+    "CounterBug.sol": {
+      "urls": ["./CounterBug.sol"]
+    },
+    "@nilfoundation/smart-contracts/Nil.sol": {
+      "urls": ["path/to/Nil.sol"]
+    }
+  }
+```
+
+## Compile the contract, deploy it, and register it
+
+### Via the =nil; CLI
+
+:::tip[Setting up Cometa]
+
+To use the Cometa service with the =nil; CLI, execute the below command:
+
+```bash file=../../tests/commands.mjs start=startCometaEndpointCommand end=endCometaEndpointCommand
+```
+
+:::
+
+To compile the contract, deploy it and register it inside Cometa:
+
+```bash file=../../tests/commands.mjs start=startCometaCommand end=endCometaCommand
+```
+
+Alternatively, compile the contract:
+
+```bash file=../../tests/compilationCommands.js start=startCounterBugCompilationCommand end=endCounterBugCompilationCommand
+```
+
+Deploy the contract separately:
+
+```bash file=../../tests/commands.mjs start=startCounterBugDeploymentCommand end=endCounterBugDeploymentCommand
+```
+
+Register the contract with the Cometa service:
+
+```bash file=../../tests/cometa-and-debugging.test.mts start=startCounterBugRegistrationCommand end=endCounterBugRegistrationCommand
+```
+
+### Via Nil.js
+
+To compile the contract, deploy it and register it inside Cometa:
+
+```typescript showLineNumbers file=../../tests/cometa-and-debugging.test.mts start=startNilJSImport end=endNilJSImport
+```
+
+```typescript showLineNumbers file=../../tests/cometa-and-debugging.test.mts start=startNilJSCometaTutorialSnippet end=endNilJSCometaTutorialSnippet
+```
+
+## Investigate failed messages to the contract
+
+### Via the =nil; CLI
+
+To send a message to the `increment()` function of the contract:
+
+```bash file=../../tests/cometa-and-debugging.test.mts start=startCounterBugIncrementCommand end=endCounterBugIncrementCommand
+```
+
+The command will produce the hash of the failed message to the contract. To investigate this message:
+
+```bash file=../../tests/cometa-and-debugging.test.mts start=startDebugCommand end=endDebugCommand
+```
+
+The output of the command should contain the entire message chain as well as the exact line where execution was reverted:
+
+```solidity showLineNumbers
+require(msg.sender == address(0));
+```
+
+### Via Nil.js
+
+`Nil.js` currently does not support the debug API for Cometa.

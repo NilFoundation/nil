@@ -36,6 +36,7 @@ export default class TestHelper {
     await exec(testCommands['CONFIG_COMMAND']);
     await exec(testCommands['KEYGEN_COMMAND']);
     await exec(testCommands['RPC_COMMAND']);
+    await exec(testCommands['COMETA_COMMAND']);
     await exec(testCommands['WALLET_CREATION_COMMAND']);
   }
 };

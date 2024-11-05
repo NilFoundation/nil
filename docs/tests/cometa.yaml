@@ -1,0 +1,7 @@
+own-endpoint: tcp://127.0.0.1:8528
+node-endpoint: http://127.0.0.1:8529
+db-endpoint: 127.0.0.1:9000
+db-path: cometa.db
+db-name: nil_database
+db-user: default
+db-password: 
