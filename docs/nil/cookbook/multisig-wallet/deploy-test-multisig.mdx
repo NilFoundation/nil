@@ -1,0 +1,45 @@
+# Deploy and test the multi-signature wallet
+
+This test of the multi-signature wallet does the following:
+
+* Implements a special multi-signature signer and a 'helper' class representing the multi-signature wallet
+* Creates two new 'regular' wallets and uses one of them to deploy the multi-signature wallet
+* Creates a message signed by both wallets and sends it to the multi-signature wallet
+
+## Import statements
+
+```ts showLineNumbers file=../../../tests/cookbook-multisig.test.mts start=startImportStatements end=endImportStatements
+```
+
+## Auxiliary functions
+
+The `refineFunctionHexData()` function is a special 'helper' function that encodes calldata after passing several checks:
+
+```ts showLineNumbers file=../../../tests/cookbook-multisig.test.mts start=startRefineFunctionHexData end=endRefineFunctionHexData
+```
+
+## The multi-signature signer and wallet
+
+The `MultisigSigner` class creates multi-signatures given an array of keys while the `MultiSigWallet` class provides an abstraction over sending external messages to the multi-signature wallet contracts:
+
+```ts showLineNumbers file=../../../tests/cookbook-multisig.test.mts start=startHelpers end=endHelpers
+```
+
+## Usage flows
+
+The example creates three new private keys and two new wallets. Note that the second wallet does not have to be deployed:
+
+```ts showLineNumbers file=../../../tests/cookbook-multisig.test.mts start=startInitialUsageFlow end=endInitialUsageFlow
+```
+
+The `hexKeys` array is an array of hex strings representing the generated private keys. It is passed to the constructor of the multi-signature wallet contract to deploy it:
+
+```ts showLineNumbers file=../../../tests/cookbook-multisig.test.mts start=startMultiSigDeployment end=endMultiSigDeployment
+```
+
+After the multi-signature wallet is deployed, a transfer request is placed using the `sendTransaction()` abstraction:
+
+```ts showLineNumbers file=../../../tests/cookbook-multisig.test.mts start=startTransfer end=endTransfer
+```
+
+The expected balance of `walletTwo` should be equal to `convertEthToWei(0.000001)`.

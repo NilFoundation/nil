@@ -77,7 +77,10 @@ The `wallet new` and the `wallet top-up` commands only work in the =nil; devnet.
 
 The `Nil.js` client library exposes the `WalletV1` class that allows for quickly creating and deploying a new wallet:
 
-```typescript file=../../../tests/creating-a-wallet.test.mjs start=startNilJSWalletCreation end=endNilJSWalletCreation
+```typescript showLineNumbers file=../../../tests/creating-a-wallet.test.mjs start=startNilJSWalletImports end=endNilJSWalletImports
+```
+
+```typescript showLineNumbers file=../../../tests/creating-a-wallet.test.mjs start=startNilJSWalletCreation end=endNilJSWalletCreation
 ```
 
 This example initializes a new wallet, provides it with a `Signer` and requests a 'top up' to the wallet address. The wallet is then deployed.

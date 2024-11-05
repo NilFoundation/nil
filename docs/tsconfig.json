@@ -9,5 +9,5 @@
         "modules": ["../node_modules/"]
       }
     },
-    "include": ["scripts/**/*"],
+    "include": ["scripts/**/*", "tests/*"],
   }

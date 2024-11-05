@@ -1,4 +1,6 @@
 import { RPC_GLOBAL, NIL_GLOBAL } from "./globals";
+
+//startNilJSWalletImports
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const {
@@ -12,6 +14,7 @@ const {
   bytesToHex,
   convertEthToWei,
 } = require("@nilfoundation/niljs");
+//endNilJSWalletImports
 
 const RPC_ENDPOINT = RPC_GLOBAL;
 const CONFIG_FILE_NAME = "tempConfigCreatingAWallet.ini";
@@ -61,44 +64,47 @@ describe.sequential("initial CLI tests", () => {
 });
 
 describe.sequential("niljs test", () => {
-  test.sequential("niljs snippet can create and deploy a wallet", async () => {
-    //startNilJSWalletCreation
+  test.sequential(
+    "niljs snippet can create and deploy a wallet",
+    async () => {
+      //startNilJSWalletCreation
 
-    const client = new PublicClient({
-      transport: new HttpTransport({
-        endpoint: RPC_ENDPOINT,
-      }),
-      shardId: 1,
-    });
-    const faucet = new Faucet(client);
+      const client = new PublicClient({
+        transport: new HttpTransport({
+          endpoint: RPC_ENDPOINT,
+        }),
+        shardId: 1,
+      });
+      const faucet = new Faucet(client);
 
-    const signer = new LocalECDSAKeySigner({
-      privateKey: generateRandomPrivateKey(),
-    });
+      const signer = new LocalECDSAKeySigner({
+        privateKey: generateRandomPrivateKey(),
+      });
 
-    const pubkey = await signer.getPublicKey();
+      const pubkey = await signer.getPublicKey();
 
-    const wallet = new WalletV1({
-      pubkey: pubkey,
-      salt: 100n,
-      shardId: 1,
-      client,
-      signer,
-    });
-    const walletAddress = wallet.address;
+      const wallet = new WalletV1({
+        pubkey: pubkey,
+        salt: 100n,
+        shardId: 1,
+        client,
+        signer,
+      });
+      const walletAddress = wallet.address;
 
-    const faucetHash = await faucet.withdrawToWithRetry(
-      bytesToHex(walletAddress),
-      convertEthToWei(0.1),
-    );
+      const faucetHash = await faucet.withdrawToWithRetry(
+        bytesToHex(walletAddress),
+        convertEthToWei(0.1),
+      );
 
-    await waitTillCompleted(client, 1, bytesToHex(faucetHash));
-    await wallet.selfDeploy(true);
+      await wallet.selfDeploy(true);
 
-    //endNilJSWalletCreation
-    expect(walletAddress).toBeDefined();
-    const walletCode = await client.getCode(walletAddress, "latest");
-    expect(walletCode).toBeDefined();
-    expect(walletCode.length).toBeGreaterThan(10);
-  });
+      //endNilJSWalletCreation
+      expect(walletAddress).toBeDefined();
+      const walletCode = await client.getCode(walletAddress, "latest");
+      expect(walletCode).toBeDefined();
+      expect(walletCode.length).toBeGreaterThan(10);
+    },
+    50000,
+  );
 });
