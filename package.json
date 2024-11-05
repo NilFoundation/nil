@@ -6,7 +6,7 @@
     "smart-contracts",
     "niljs",
     "hardhat-plugin",
-    "hardhat-examples",
+    "create-nil-hardhat-project",
     "docs",
     "explorer_frontend",
     "explorer_backend"

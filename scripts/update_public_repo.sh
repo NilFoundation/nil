@@ -42,7 +42,7 @@ process_repo() {
 
 repos=(
     "niljs git@github.com:NilFoundation/nil.js.git"
-    "hardhat-examples git@github.com:NilFoundation/nil-hardhat-example.git"
+    "create-nil-hardhat-project git@github.com:NilFoundation/nil-hardhat-example.git"
     "hardhat-plugin git@github.com:NilFoundation/nil-hardhat-plugin.git"
 )
 
