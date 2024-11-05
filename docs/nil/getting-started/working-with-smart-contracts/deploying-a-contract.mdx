@@ -180,7 +180,7 @@ shardId: 1
 Deploy the retailer:
 
 ```bash
-npx hardhat ignition deploy ./ignition/modules/Retailer.ts --network nil
+npx hardhat ignition deploy ./ignition/modules/Retailer.ts
 ```
 
 To deploy the manufacturer on a different shard, go back to `hardhat.config.ts` and change `NilHardhatUserConfig`:
@@ -192,7 +192,7 @@ shardId: 2
 Deploy the manufacturer:
 
 ```bash
-npx hardhat ignition deploy ./ignition/modules/Manufacturer.ts --network nil
+npx hardhat ignition deploy ./ignition/modules/Manufacturer.ts
 ```
 
 After the manufacturer is deployed, set `shardId` to `1` in `hardhat.config.ts`.

@@ -1,0 +1,16 @@
+{
+  "contractName": "Counter.sol:Counter",
+  "compilerVersion": "0.8.27",
+  "settings": {
+    "evmVersion": "cancun",
+    "optimizer": {
+      "enabled": false,
+      "runs": 200
+    }
+  },
+  "sources": {
+    "Counter.sol": {
+      "urls": ["./Counter.sol"]
+    }
+  }
+}

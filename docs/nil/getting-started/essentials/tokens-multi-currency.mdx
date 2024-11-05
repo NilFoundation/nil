@@ -111,7 +111,7 @@ Expected response:
 To withdraw from a faucet:
 
 ```bash
-curl -X POST http://api.devnet.nil.foundation/api/faucet/${USERNAME}/${TOKEN} \
+curl -X POST http://api.devnet.nil.foundation/api/${USERNAME}/${TOKEN} \
 -H "Content-Type: application/json" \
 -d '{"jsonrpc": "2.0", "id": 0, "method": "faucet_topUpViaFaucet", "params": ["$FAUCET_ADDRESS", "$WALLET_ADDRESS", $AMOUNT]}'
 ```
