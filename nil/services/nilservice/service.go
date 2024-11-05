@@ -462,6 +462,9 @@ func createShards(
 			if int(shard) < len(cfg.BootstrapPeers) {
 				config.BootstrapPeer = cfg.BootstrapPeers[shard]
 			}
+			if networkManager == nil {
+				return nil, nil, errors.New("trying to start syncer without network configuration")
+			}
 			syncer := collate.NewSyncer(config, database, networkManager)
 
 			funcs[i] = func(ctx context.Context) error {
