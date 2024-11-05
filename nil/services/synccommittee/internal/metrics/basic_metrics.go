@@ -17,11 +17,11 @@ type basicMetricsHandler struct {
 	totalErrorsEncountered metric.Int64Counter
 }
 
-func (h *basicMetricsHandler) init(name string, attributes metric.MeasurementOption, meter metric.Meter) error {
+func (h *basicMetricsHandler) init(attributes metric.MeasurementOption, meter metric.Meter) error {
 	h.attributes = attributes
 	var err error
 
-	if h.totalErrorsEncountered, err = meter.Int64Counter(name + "_total_errors_encountered"); err != nil {
+	if h.totalErrorsEncountered, err = meter.Int64Counter(namespace + "total_errors_encountered"); err != nil {
 		return err
 	}
 
@@ -29,5 +29,9 @@ func (h *basicMetricsHandler) init(name string, attributes metric.MeasurementOpt
 }
 
 func (h *basicMetricsHandler) RecordError(ctx context.Context, origin string) {
-	h.totalErrorsEncountered.Add(ctx, 1, h.attributes, metric.WithAttributes(attribute.String("origin", origin)))
+	errorAttributes := metric.WithAttributes(
+		attribute.String("error.origin", origin),
+	)
+
+	h.totalErrorsEncountered.Add(ctx, 1, h.attributes, errorAttributes)
 }

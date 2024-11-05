@@ -26,9 +26,7 @@ func execute() error {
 	}
 
 	cfg := &core.Config{
-		Telemetry: &telemetry.Config{
-			ServiceName: "sync_committee",
-		},
+		Telemetry: telemetry.NewDefaultConfig(),
 	}
 	var dbPath string
 

@@ -20,7 +20,7 @@ import (
 
 type AggregatorMetrics interface {
 	metrics.BasicMetrics
-	RecordMainBlockFetched(ctx context.Context, mainBlockHash common.Hash)
+	RecordMainBlockFetched(ctx context.Context)
 	RecordBlockBatchSize(ctx context.Context, batchSize uint32)
 }
 
@@ -173,7 +173,7 @@ func (agg *Aggregator) validateAndProcessBlock(ctx context.Context, block *jsonr
 	}
 
 	if block.ShardId == coreTypes.MainShardId {
-		agg.metrics.RecordMainBlockFetched(ctx, block.Hash)
+		agg.metrics.RecordMainBlockFetched(ctx)
 	}
 
 	return nil

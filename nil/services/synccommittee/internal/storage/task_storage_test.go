@@ -51,7 +51,7 @@ func (s *TaskStorageSuite) TearDownTest() {
 }
 
 func (s *TaskStorageSuite) TestAddRemove() {
-	taskEntry := testaide.GenerateTaskEntry(time.Now(), types.WaitingForExecutor, testaide.GenerateRandomExecutorId())
+	taskEntry := testaide.GenerateTaskEntry(time.Now(), types.WaitingForExecutor, testaide.RandomExecutorId())
 	err := s.ts.AddSingleTaskEntry(s.ctx, *taskEntry)
 	s.Require().NoError(err)
 
@@ -78,10 +78,10 @@ func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	higherPriorityEntry.Task.DependencyNum = 1
 
 	// Initialize two corresponding dependencies for them which are running
-	dependency1 := testaide.GenerateTaskEntry(time.Now(), types.Running, testaide.GenerateRandomExecutorId())
+	dependency1 := testaide.GenerateTaskEntry(time.Now(), types.Running, testaide.RandomExecutorId())
 	dependency1.PendingDeps = []types.TaskId{lowerPriorityEntry.Task.Id}
 
-	dependency2 := testaide.GenerateTaskEntry(time.Now(), types.Running, testaide.GenerateRandomExecutorId())
+	dependency2 := testaide.GenerateTaskEntry(time.Now(), types.Running, testaide.RandomExecutorId())
 	dependency2.PendingDeps = []types.TaskId{higherPriorityEntry.Task.Id}
 
 	err := s.ts.AddSingleTaskEntry(s.ctx, *lowerPriorityEntry)

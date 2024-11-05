@@ -55,7 +55,7 @@ type TaskStorageMetrics interface {
 	RecordTaskAdded(ctx context.Context, task *types.TaskEntry)
 	RecordTaskStarted(ctx context.Context, taskEntry *types.TaskEntry)
 	RecordTaskTerminated(ctx context.Context, taskEntry *types.TaskEntry, taskResult *types.TaskResult)
-	RecordTaskRescheduled(ctx context.Context, taskId types.TaskId)
+	RecordTaskRescheduled(ctx context.Context, taskEntry *types.TaskEntry)
 }
 
 type taskStorage struct {
@@ -393,11 +393,12 @@ func (st *taskStorage) rescheduleHangingTasksImpl(
 			return nil
 		}
 
+		st.metrics.RecordTaskRescheduled(ctx, entry)
+
 		if err := st.rescheduleTaskTx(tx, entry, executionTime); err != nil {
 			return err
 		}
 
-		st.metrics.RecordTaskRescheduled(ctx, entry.Task.Id)
 		return nil
 	})
 	if err != nil {

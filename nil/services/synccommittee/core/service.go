@@ -70,6 +70,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	taskScheduler := scheduler.New(
 		taskStorage,
 		newTaskStateChangeHandler(blockStorage, logger),
+		metricsHandler,
 		logger,
 	)
 

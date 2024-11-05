@@ -62,7 +62,7 @@ type BlockStorage interface {
 }
 
 type BlockStorageMetrics interface {
-	RecordMainBlockProved(ctx context.Context, mainBlockHash common.Hash)
+	RecordMainBlockProved(ctx context.Context)
 }
 
 type blockStorage struct {
@@ -250,7 +250,7 @@ func (bs *blockStorage) SetBlockAsProved(ctx context.Context, id scTypes.BlockId
 	if err := bs.setBlockAsProvedImpl(ctx, id); err != nil {
 		return err
 	}
-	bs.metrics.RecordMainBlockProved(ctx, id.Hash)
+	bs.metrics.RecordMainBlockProved(ctx)
 	return nil
 }
 

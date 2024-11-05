@@ -8,18 +8,23 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
+const namespace = "sync_committee."
+
 type Handler interface {
-	init(name string, attributes metric.MeasurementOption, meter metric.Meter) error
+	init(attributes metric.MeasurementOption, meter metric.Meter) error
 }
 
 func initHandler(name string, handler Handler) error {
 	meter := telemetry.NewMeter(name)
 
-	hostname, err := os.Hostname()
+	hostName, err := os.Hostname()
 	if err != nil {
 		return err
 	}
 
-	attributes := metric.WithAttributes(attribute.String("hostname", hostname))
-	return handler.init(name, attributes, meter)
+	attributes := metric.WithAttributes(
+		attribute.String("host.name", hostName),
+	)
+
+	return handler.init(attributes, meter)
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/suite"
 )
@@ -87,12 +86,7 @@ func (s *ProposerTestSuite) TestCreateUpdateStateTransaction() {
 }
 
 func (s *ProposerTestSuite) TestSendProof() {
-	data := &types.ProposalData{
-		MainShardBlockHash: testaide.RandomHash(),
-		Transactions:       generateTransactions(3),
-		OldProvedStateRoot: testaide.RandomHash(),
-		NewProvedStateRoot: testaide.RandomHash(),
-	}
+	data := testaide.GenerateProposalData(3)
 
 	err := s.proposer.sendProof(s.ctx, data)
 	s.Require().NoError(err, "failed to send proof")
@@ -104,13 +98,4 @@ func (s *ProposerTestSuite) TestSendProof() {
 	s.Require().Equal("eth_sendRawTransaction", call.Method, "wrong method")
 	s.Require().Len(call.Params, 1, "wrong number of passed params")
 	s.Require().IsType("", call.Params[0], "wrong type of params[0]")
-}
-
-func generateTransactions(count int) []types.PrunedTransaction {
-	transactions := make([]types.PrunedTransaction, count)
-	for range count {
-		tx := types.NewTransaction(testaide.GenerateRpcInMessage())
-		transactions = append(transactions, tx)
-	}
-	return transactions
 }

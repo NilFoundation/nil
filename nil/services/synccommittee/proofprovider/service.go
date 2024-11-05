@@ -74,6 +74,7 @@ func New(config Config) (*ProofProvider, error) {
 	taskScheduler := scheduler.New(
 		taskStorage,
 		newTaskStateChangeHandler(taskRpcClient, taskExecutor.Id(), logger),
+		metricsHandler,
 		logger,
 	)
 
