@@ -61,7 +61,7 @@ func (s *TaskHandlerTestSuite) TestReturnErrorOnUnexpectedTaskType() {
 		{name: "AggregatedFRI", taskType: types.AggregatedFRI},
 	}
 
-	executorId := testaide.GenerateRandomExecutorId()
+	executorId := testaide.RandomExecutorId()
 
 	for _, testCase := range testCases {
 		s.Run(testCase.name, func() {
@@ -77,7 +77,7 @@ func (s *TaskHandlerTestSuite) TestReturnErrorOnUnexpectedTaskType() {
 }
 
 func (s *TaskHandlerTestSuite) TestHandleBlockProofTask() {
-	executorId := testaide.GenerateRandomExecutorId()
+	executorId := testaide.RandomExecutorId()
 	taskId := types.NewTaskId()
 	blockHash := common.IntToHash(1)
 	taskEntry := types.NewBlockProofTaskEntry(types.NewBatchId(), &taskId, blockHash)

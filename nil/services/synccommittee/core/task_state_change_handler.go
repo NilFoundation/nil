@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
@@ -36,21 +37,26 @@ func (h taskStateChangeHandler) OnTaskTerminated(ctx context.Context, task *type
 	}
 
 	if !result.IsSuccess {
-		h.logger.Error().
+		h.logger.Warn().
 			Str("errorText", result.ErrorText).
 			Interface("taskId", task.Id).
 			Interface(logging.FieldShardId, coreTypes.MainShardId).
 			Interface(logging.FieldBlockNumber, task.BlockNum).
 			Msg("block proof task has failed, data won't be sent to the L1")
-		return types.ErrBlockProofTaskFailed
+		return nil
 	}
 
 	h.logger.Info().
 		Interface("taskId", task.Id).
 		Interface("batchId", task.BatchId).
 		Interface("parentTaskId", task.ParentTaskId).
-		Msg("Proof bacth completed")
+		Msg("Proof batch completed")
 
 	blockId := types.NewBlockId(task.ShardId, task.BlockHash)
-	return h.blockStorage.SetBlockAsProved(ctx, blockId)
+
+	if err := h.blockStorage.SetBlockAsProved(ctx, blockId); err != nil {
+		return fmt.Errorf("failed to set block with id=%s as proved: %w", blockId, err)
+	}
+
+	return nil
 }

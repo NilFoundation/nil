@@ -94,14 +94,14 @@ var tasksForExecutors = map[types.TaskExecutorId]*types.Task{
 		Dependencies: map[types.TaskId]types.TaskResult{
 			firstDependencyTaskId: types.SuccessProverTaskResult(
 				firstDependencyTaskId,
-				testaide.GenerateRandomExecutorId(),
+				testaide.RandomExecutorId(),
 				types.MergeProof,
 				types.TaskResultAddresses{},
 				types.TaskResultData{},
 			),
 			secondDependencyTaskId: types.SuccessProverTaskResult(
 				secondDependencyTaskId,
-				testaide.GenerateRandomExecutorId(),
+				testaide.RandomExecutorId(),
 				types.PartialProve,
 				types.TaskResultAddresses{},
 				types.TaskResultData{},
