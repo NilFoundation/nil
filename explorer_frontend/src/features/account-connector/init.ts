@@ -88,14 +88,21 @@ createWalletFx.use(async ({ privateKey, endpoint }) => {
 
   const balance = await wallet.getBalance();
 
-  const currenciesMap = await wallet.client.getCurrencies(wallet.address, "latest");
-
-  setInitializingWalletState("Adding some tokens...");
-
   if (balance === 0n) {
     const faucet = new Faucet(client);
     await faucet.withdrawToWithRetry(wallet.address, convertEthToWei(0.1));
   }
+
+  setInitializingWalletState("Checking if wallet is deployed...");
+
+  const code = await client.getCode(wallet.address);
+  if (code.length === 0) {
+    await wallet.selfDeploy(true);
+  }
+
+  setInitializingWalletState("Adding some tokens...");
+
+  const currenciesMap = await wallet.client.getCurrencies(wallet.address, "latest");
 
   const currencies = Object.entries(currenciesMap).map(([currency]) =>
     addHexPrefix(removeHexPrefix(currency).padStart(40, "0")),
@@ -123,13 +130,6 @@ createWalletFx.use(async ({ privateKey, endpoint }) => {
     });
 
     await Promise.all(promises);
-  }
-
-  setInitializingWalletState("Checking if wallet is deployed...");
-
-  const code = await client.getCode(wallet.address);
-  if (code.length === 0) {
-    await wallet.selfDeploy(true);
   }
 
   return wallet;
