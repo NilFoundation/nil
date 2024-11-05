@@ -22,8 +22,6 @@ type MemoryOpTracer struct {
 	prevOpFinisher func()
 }
 
-var _ OpTracer[MemoryOp] = new(MemoryOpTracer)
-
 type memoryRange struct {
 	offset uint64
 	length uint64
@@ -236,14 +234,17 @@ func (mot *MemoryOpTracer) FinishPrevOpcodeTracing() {
 	mot.prevOpFinisher = nil
 }
 
-func (mot *MemoryOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpContext) bool {
+func (mot *MemoryOpTracer) GetUsedMemoryRanges(opCode vm.OpCode, scope tracing.OpContext) (opRanges, bool) {
 	memRangesFunc, ok := opsToMemoryRanges[opCode]
 	if !ok {
-		return false
+		return opRanges{}, false
 	}
 	stackAccessor := NewStackAccessor(scope.StackData())
 	memRanges := memRangesFunc(stackAccessor, len(scope.MemoryData()))
+	return memRanges, true
+}
 
+func (mot *MemoryOpTracer) TraceOp(opCode vm.OpCode, pc uint64, memRanges opRanges, scope tracing.OpContext) {
 	for i := memRanges.before.offset; i < memRanges.before.offset+memRanges.before.length; i++ {
 		mot.res = append(mot.res, MemoryOp{
 			IsRead: true,
@@ -266,7 +267,6 @@ func (mot *MemoryOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.Op
 			})
 		}
 	}
-	return true
 }
 
 func (mot *MemoryOpTracer) Finalize() []MemoryOp {

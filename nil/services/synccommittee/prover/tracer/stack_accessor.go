@@ -1,16 +1,8 @@
 package tracer
 
 import (
-	"github.com/NilFoundation/nil/nil/internal/tracing"
-	"github.com/NilFoundation/nil/nil/internal/vm"
 	"github.com/holiman/uint256"
 )
-
-type OpTracer[T any] interface {
-	TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpContext) bool
-	FinishPrevOpcodeTracing()
-	Finalize() []T
-}
 
 type StackAccessor struct {
 	stackData []uint256.Int

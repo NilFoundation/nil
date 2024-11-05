@@ -10,13 +10,14 @@ import (
 )
 
 type StorageOp struct {
-	IsRead bool        // Is write otherwise
-	Key    common.Hash // Key of element in storage
-	Value  types.Uint256
-	PC     uint64
-	MsgId  uint
-	RwIdx  uint
-	Addr   types.Address
+	IsRead       bool        // Is write otherwise
+	Key          common.Hash // Key of element in storage
+	Value        types.Uint256
+	InitialValue types.Uint256
+	PC           uint64
+	MsgId        uint
+	RwIdx        uint
+	Addr         types.Address
 }
 
 type StateSlotDiff struct {
@@ -56,13 +57,14 @@ func (d *MessageStorageInteractor) GetSlot(acc *Account, key common.Hash) (commo
 	slotDiff, exists := accountSlots[key]
 	if exists {
 		d.storageOps = append(d.storageOps, StorageOp{
-			IsRead: true,
-			Key:    key,
-			Value:  slotDiff.after,
-			PC:     d.pcGetter(),
-			RwIdx:  d.rwCtr.NextIdx(),
-			MsgId:  d.msgId,
-			Addr:   acc.Address,
+			IsRead:       true,
+			Key:          key,
+			Value:        slotDiff.after,
+			InitialValue: slotDiff.after,
+			PC:           d.pcGetter(),
+			RwIdx:        d.rwCtr.NextIdx(),
+			MsgId:        d.msgId,
+			Addr:         acc.Address,
 		})
 		return slotDiff.after.Bytes32(), nil
 	}
@@ -70,14 +72,16 @@ func (d *MessageStorageInteractor) GetSlot(acc *Account, key common.Hash) (commo
 	// If wasn't modified, read from db
 	val, err := d.readFromDb(acc, key)
 	if err != nil {
+		slotVal := (types.Uint256)(*val.Uint256())
 		d.storageOps = append(d.storageOps, StorageOp{
-			IsRead: true,
-			Key:    key,
-			Value:  (types.Uint256)(*val.Uint256()),
-			PC:     d.pcGetter(),
-			RwIdx:  d.rwCtr.NextIdx(),
-			MsgId:  d.msgId,
-			Addr:   acc.Address,
+			IsRead:       true,
+			Key:          key,
+			Value:        slotVal,
+			InitialValue: slotVal,
+			PC:           d.pcGetter(),
+			RwIdx:        d.rwCtr.NextIdx(),
+			MsgId:        d.msgId,
+			Addr:         acc.Address,
 		})
 	}
 	return val, err
@@ -97,7 +101,8 @@ func (d *MessageStorageInteractor) readFromDb(acc *Account, key common.Hash) (co
 // During processing a single message we need to track only initial and final value for each changed slot.
 // Do not modify trie before processing is done, just keep the changes in a map. After message is processed,
 // apply each slot modification, for each modification provide an MPT proof.
-func (d *MessageStorageInteractor) SetSlot(acc *Account, key common.Hash, val common.Hash) error {
+// Returns initial value before setting the slot
+func (d *MessageStorageInteractor) SetSlot(acc *Account, key common.Hash, val common.Hash) (types.Uint256, error) {
 	accountSlots, exists := d.msgChangedStateSlots[acc.Address]
 	if !exists {
 		accountSlots = make(map[common.Hash]StateSlotDiff)
@@ -108,7 +113,7 @@ func (d *MessageStorageInteractor) SetSlot(acc *Account, key common.Hash, val co
 	if !exists {
 		initialVal, err := d.readFromDb(acc, key)
 		if err != nil {
-			return err
+			return types.Uint256{}, err
 		}
 
 		slotDiff.before = (types.Uint256)(*initialVal.Uint256())
@@ -118,23 +123,24 @@ func (d *MessageStorageInteractor) SetSlot(acc *Account, key common.Hash, val co
 
 	err := acc.StorageTrie.Update(key, &uintVal)
 	if err != nil {
-		return err
+		return types.Uint256{}, err
 	}
 
 	d.storageOps = append(d.storageOps, StorageOp{
-		IsRead: false,
-		Key:    key,
-		Value:  uintVal,
-		PC:     d.pcGetter(),
-		RwIdx:  d.rwCtr.NextIdx(),
-		MsgId:  d.msgId,
-		Addr:   acc.Address,
+		IsRead:       false,
+		Key:          key,
+		Value:        uintVal,
+		InitialValue: slotDiff.before,
+		PC:           d.pcGetter(),
+		RwIdx:        d.rwCtr.NextIdx(),
+		MsgId:        d.msgId,
+		Addr:         acc.Address,
 	})
 
 	slotDiff.after = uintVal
 	accountSlots[key] = slotDiff
 
-	return nil
+	return slotDiff.before, nil
 }
 
 type SlotChangeTrace struct {

@@ -273,6 +273,11 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	return res, err
 }
 
+// Get minimal required stack size for an opcode
+func (in *EVMInterpreter) GetNumRequiredStackItems(op OpCode) int {
+	return in.table[op].minStack
+}
+
 func calcDynamicCosts(contract *Contract, operation *operation, stack *Stack, in *EVMInterpreter, mem *Memory) (uint64, uint64, error) {
 	// Calculate the new memory size and expand the memory to fit the operation.
 	// Memory check needs to be done prior to evaluating the dynamic gas portion

@@ -39,9 +39,11 @@ message StorageOp {
     // HEX of hash, bytes would be more space-efficient, but less readable
     string key = 2;
     Uint256 value = 3;  // Single byte value
-    uint64 pc = 4;
-    uint64 msg_id = 5;  // Number of message within a block
-    uint64 rw_idx = 6;  // shared between all ops counter
+    Uint256 initial_value = 4;  // Value before storage operation
+    uint64 pc = 5;
+    uint64 msg_id = 6;  // Number of message within a block
+    uint64 rw_idx = 7;  // shared between all ops counter
+    Address address = 8;  // Contract address
 }
 
 // SlotChangeTrace represents a trace of storage slot change. Only initial and final value for each message
@@ -65,6 +67,30 @@ message MessageTraces {
     map<string, AdderssSlotsChanges> storage_traces_by_address = 1;
 }
 
+// StorageEntry is a key-value pair representing a single piece of storage data
+message StorageEntry {
+    Uint256 key = 1;
+    Uint256 value = 2;
+}
+
+message ZKEVMState {
+    string tx_hash = 1;
+    uint64 call_id = 2;
+    uint64 pc = 3;
+    uint64 gas = 4;
+    uint64 rw_idx = 5;
+    string bytecode_hash = 6;
+    uint64 opcode = 7;
+    Uint256 additional_input = 8;
+    uint64 stack_size = 9;
+    uint64 memory_size = 10;
+    bool tx_finish = 11;
+    uint64 error_opcode = 12;
+    repeated Uint256 stack_slice = 13;
+    map<uint64, uint32> memory_slice = 14;
+    repeated StorageEntry storage_slice = 15;
+}
+
 // ExecutionTraces represents all proofs related to contract execution
 message ExecutionTraces {
     repeated StackOp stack_ops = 1;
@@ -72,4 +98,5 @@ message ExecutionTraces {
     repeated StorageOp storage_ops = 3;
     repeated MessageTraces message_traces = 4;
     map<string, bytes> contract_bytecodes = 5;
+    repeated ZKEVMState zkevm_states = 6;
 }

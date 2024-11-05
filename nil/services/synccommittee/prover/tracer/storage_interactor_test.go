@@ -50,7 +50,7 @@ func TestMessageStorageInteractor_SetAndGetSlot(t *testing.T) {
 	value := common.BytesToHash([]byte("test_value"))
 
 	// Set the slot
-	err := interactor.SetSlot(account, key, value)
+	_, err := interactor.SetSlot(account, key, value)
 	require.NoError(t, err)
 
 	// Get the slot
@@ -107,9 +107,9 @@ func TestMessageStorageInteractor_GetAccountSlotChangeTraces(t *testing.T) {
 	key2 := common.BytesToHash([]byte("key2"))
 	value2 := common.BytesToHash([]byte("value2"))
 
-	err := interactor.SetSlot(account, key1, value1)
+	_, err := interactor.SetSlot(account, key1, value1)
 	require.NoError(t, err)
-	err = interactor.SetSlot(account, key2, value2)
+	_, err = interactor.SetSlot(account, key2, value2)
 	require.NoError(t, err)
 
 	// Get traces
@@ -138,9 +138,9 @@ func TestMessageStorageInteractor_MultipleUpdatesToSameSlot(t *testing.T) {
 	value2 := common.BytesToHash([]byte("value2"))
 
 	// Set slot multiple times
-	err := interactor.SetSlot(account, key, value1)
+	_, err := interactor.SetSlot(account, key, value1)
 	require.NoError(t, err)
-	err = interactor.SetSlot(account, key, value2)
+	_, err = interactor.SetSlot(account, key, value2)
 	require.NoError(t, err)
 
 	// Verify final value

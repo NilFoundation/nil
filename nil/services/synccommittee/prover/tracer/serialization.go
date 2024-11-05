@@ -6,6 +6,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/internal/vm"
 	pb "github.com/NilFoundation/nil/nil/services/synccommittee/prover/proto"
 	"google.golang.org/protobuf/proto"
 )
@@ -50,6 +51,7 @@ func FromProto(traces *pb.ExecutionTraces) (*ExecutionTraces, error) {
 		StackOps:          make([]StackOp, len(traces.StackOps)),
 		MemoryOps:         make([]MemoryOp, len(traces.MemoryOps)),
 		StorageOps:        make([]StorageOp, len(traces.StorageOps)),
+		ZKEVMStates:       make([]ZKEVMState, len(traces.ZkevmStates)),
 		ContractsBytecode: make(map[types.Address][]byte, len(traces.ContractBytecodes)),
 		SlotsChanges:      make([]map[types.Address][]SlotChangeTrace, len(traces.MessageTraces)),
 	}
@@ -78,12 +80,44 @@ func FromProto(traces *pb.ExecutionTraces) (*ExecutionTraces, error) {
 
 	for i, pbStorageOp := range traces.StorageOps {
 		ep.StorageOps[i] = StorageOp{
-			IsRead: pbStorageOp.IsRead,
-			Key:    common.HexToHash(pbStorageOp.Key),
-			Value:  protoUint256ToUint256(pbStorageOp.Value),
-			PC:     pbStorageOp.Pc,
-			MsgId:  uint(pbStorageOp.MsgId),
-			RwIdx:  uint(pbStorageOp.RwIdx),
+			IsRead:       pbStorageOp.IsRead,
+			Key:          common.HexToHash(pbStorageOp.Key),
+			Value:        protoUint256ToUint256(pbStorageOp.Value),
+			InitialValue: protoUint256ToUint256(pbStorageOp.InitialValue),
+			PC:           pbStorageOp.Pc,
+			MsgId:        uint(pbStorageOp.MsgId),
+			RwIdx:        uint(pbStorageOp.RwIdx),
+			Addr:         types.HexToAddress(pbStorageOp.Address.String()),
+		}
+	}
+
+	for i, pbZKEVMState := range traces.ZkevmStates {
+		ep.ZKEVMStates[i] = ZKEVMState{
+			TxHash:          common.HexToHash(pbZKEVMState.TxHash),
+			TxId:            int(pbZKEVMState.CallId),
+			PC:              pbZKEVMState.Pc,
+			Gas:             pbZKEVMState.Gas,
+			RwIdx:           uint(pbZKEVMState.RwIdx),
+			BytecodeHash:    common.HexToHash(pbZKEVMState.BytecodeHash),
+			OpCode:          vm.OpCode(pbZKEVMState.Opcode),
+			AdditionalInput: protoUint256ToUint256(pbZKEVMState.AdditionalInput),
+			StackSize:       pbZKEVMState.StackSize,
+			MemorySize:      pbZKEVMState.MemorySize,
+			TxFinish:        pbZKEVMState.TxFinish,
+			StackSlice:      make([]types.Uint256, len(pbZKEVMState.StackSlice)),
+			MemorySlice:     make(map[uint64]uint8),
+			StorageSlice:    make(map[types.Uint256]types.Uint256),
+		}
+
+		for j, stackVal := range pbZKEVMState.StackSlice {
+			ep.ZKEVMStates[i].StackSlice[j] = protoUint256ToUint256(stackVal)
+		}
+		for addr, memVal := range pbZKEVMState.MemorySlice {
+			ep.ZKEVMStates[i].MemorySlice[addr] = uint8(memVal)
+		}
+		for _, entry := range pbZKEVMState.StorageSlice {
+			key := protoUint256ToUint256(entry.Key)
+			ep.ZKEVMStates[i].StorageSlice[key] = protoUint256ToUint256(entry.Value)
 		}
 	}
 
@@ -122,6 +156,7 @@ func ToProto(traces *ExecutionTraces) (*pb.ExecutionTraces, error) {
 		StackOps:          make([]*pb.StackOp, len(traces.StackOps)),
 		MemoryOps:         make([]*pb.MemoryOp, len(traces.MemoryOps)),
 		StorageOps:        make([]*pb.StorageOp, len(traces.StorageOps)),
+		ZkevmStates:       make([]*pb.ZKEVMState, len(traces.ZKEVMStates)),
 		ContractBytecodes: make(map[string][]byte),
 		MessageTraces:     make([]*pb.MessageTraces, len(traces.SlotsChanges)),
 	}
@@ -153,12 +188,48 @@ func ToProto(traces *ExecutionTraces) (*pb.ExecutionTraces, error) {
 	// Convert StorageOps
 	for i, storageOp := range traces.StorageOps {
 		pbTraces.StorageOps[i] = &pb.StorageOp{
-			IsRead: storageOp.IsRead,
-			Key:    storageOp.Key.Hex(),
-			Value:  uint256ToProtoUint256(storageOp.Value),
-			Pc:     storageOp.PC,
-			MsgId:  uint64(storageOp.MsgId),
-			RwIdx:  uint64(storageOp.RwIdx),
+			IsRead:       storageOp.IsRead,
+			Key:          storageOp.Key.Hex(),
+			Value:        uint256ToProtoUint256(storageOp.Value),
+			InitialValue: uint256ToProtoUint256(storageOp.InitialValue),
+			Pc:           storageOp.PC,
+			MsgId:        uint64(storageOp.MsgId),
+			RwIdx:        uint64(storageOp.RwIdx),
+			Address:      &pb.Address{AddressBytes: storageOp.Addr.Bytes()},
+		}
+	}
+
+	for i, zkevmState := range traces.ZKEVMStates {
+		pbTraces.ZkevmStates[i] = &pb.ZKEVMState{
+			TxHash:          zkevmState.TxHash.Hex(),
+			CallId:          uint64(zkevmState.TxId),
+			Pc:              zkevmState.PC,
+			Gas:             zkevmState.Gas,
+			RwIdx:           uint64(zkevmState.RwIdx),
+			BytecodeHash:    zkevmState.BytecodeHash.String(),
+			Opcode:          uint64(zkevmState.OpCode),
+			AdditionalInput: uint256ToProtoUint256(zkevmState.AdditionalInput),
+			StackSize:       zkevmState.StackSize,
+			MemorySize:      zkevmState.MemorySize,
+			TxFinish:        zkevmState.TxFinish,
+			StackSlice:      make([]*pb.Uint256, len(zkevmState.StackSlice)),
+			MemorySlice:     make(map[uint64]uint32),
+			StorageSlice:    make([]*pb.StorageEntry, len(zkevmState.StorageSlice)),
+		}
+		for j, stackVal := range zkevmState.StackSlice {
+			pbTraces.ZkevmStates[i].StackSlice[j] = uint256ToProtoUint256(stackVal)
+		}
+		for addr, memVal := range zkevmState.MemorySlice {
+			pbTraces.ZkevmStates[i].MemorySlice[addr] = uint32(memVal)
+		}
+		storageSliceCounter := 0
+		for storageKey, storageVal := range zkevmState.StorageSlice {
+			pbEntry := &pb.StorageEntry{
+				Key:   uint256ToProtoUint256(storageKey),
+				Value: uint256ToProtoUint256(storageVal),
+			}
+			pbTraces.ZkevmStates[i].StorageSlice[storageSliceCounter] = pbEntry
+			storageSliceCounter++
 		}
 	}
 

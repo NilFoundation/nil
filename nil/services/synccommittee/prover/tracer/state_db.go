@@ -18,9 +18,10 @@ import (
 
 type ExecutionTraces struct {
 	// Stack/Memory/State Ops are handled for entire block, they share the same counter (rw_circuit)
-	StackOps   []StackOp
-	MemoryOps  []MemoryOp
-	StorageOps []StorageOp
+	StackOps    []StackOp
+	MemoryOps   []MemoryOp
+	StorageOps  []StorageOp
+	ZKEVMStates []ZKEVMState
 
 	ContractsBytecode map[types.Address][]byte
 	// For each message, for each touched contract
@@ -53,9 +54,11 @@ type TracerStateDB struct {
 	// Reinited for each message
 	// Pointer to currently executed VM
 	evm               *vm.EVM
+	code              []byte // currently executed code
 	stackTracer       *StackOpTracer
 	memoryTracer      *MemoryOpTracer
 	storageInteractor *MessageStorageInteractor
+	zkevmTracer       *ZKEVMStateTracer
 
 	// Current program counter, used only for storage operations trace. Incremetned inside OnOpcode
 	curPC uint64
@@ -186,9 +189,20 @@ func (tsdb *TracerStateDB) initTracers() {
 	tsdb.stackTracer = &StackOpTracer{rwCtr: &tsdb.RwCounter, msgId: msgId}
 	tsdb.memoryTracer = &MemoryOpTracer{rwCtr: &tsdb.RwCounter, msgId: msgId}
 	tsdb.storageInteractor = NewMessageStorageInteractor(&tsdb.RwCounter, tsdb.GetCurPC, msgId)
+	code, codeHash, err := tsdb.GetCode(tsdb.GetInMessage().To)
+	if err != nil {
+		fmt.Printf("Unable to retrieve code: %v\n", err)
+	}
+	tsdb.code = code
+	tsdb.zkevmTracer = &ZKEVMStateTracer{
+		rwCtr:        &tsdb.RwCounter,
+		msgId:        msgId,
+		txHash:       tsdb.GetInMessage().Hash(),
+		bytecodeHash: codeHash,
+	}
 }
 
-func (tsdb *TracerStateDB) processOpcodeWithTracers(pc uint64, op byte, _ uint64, _ uint64, scope tracing.OpContext, _ []byte, _ int, err error) {
+func (tsdb *TracerStateDB) processOpcodeWithTracers(pc uint64, op byte, gas uint64, _ uint64, scope tracing.OpContext, _ []byte, _ int, err error) {
 	if err != nil {
 		panic("prover execution should not raise errors")
 	}
@@ -203,14 +217,27 @@ func (tsdb *TracerStateDB) processOpcodeWithTracers(pc uint64, op byte, _ uint64
 	tsdb.memoryTracer.FinishPrevOpcodeTracing()
 	tsdb.stackTracer.FinishPrevOpcodeTracing()
 
+	ranges, hasMemOps := tsdb.memoryTracer.GetUsedMemoryRanges(opCode, scope)
+
+	// Store zkevmState before counting rw operations
+	numRequiredStackItems := tsdb.evm.Interpreter().GetNumRequiredStackItems(opCode)
+	additionalInput := types.NewUint256(0) // data for pushX opcodes
+	if len(tsdb.code) != 0 && opCode.IsPush() {
+		bytesToPush := uint64(opCode) - uint64(vm.PUSH0)
+		if bytesToPush > 0 {
+			additionalInput = types.NewUint256FromBytes(tsdb.code[pc+1 : pc+bytesToPush+1])
+		}
+	}
+	tsdb.zkevmTracer.TraceOp(opCode, pc, gas, numRequiredStackItems, additionalInput, ranges, scope)
+
 	// Stack tracing is splitted between current opcode (before change read operations)
 	// and the next opcode (after change write operations)
-	if tsdb.stackTracer.TraceOp(opCode, pc, scope) {
-		tsdb.Stats.StackOpsN++
-	}
+	tsdb.stackTracer.TraceOp(opCode, pc, scope)
+	tsdb.Stats.StackOpsN++
 
 	// Memory tracing is hanled in one go. Mb split into two as for stack
-	if tsdb.memoryTracer.TraceOp(opCode, pc, scope) {
+	if hasMemOps {
+		tsdb.memoryTracer.TraceOp(opCode, pc, ranges, scope)
 		tsdb.Stats.MemoryOpsN++
 	}
 
@@ -236,6 +263,7 @@ func (tsdb *TracerStateDB) initVm(internal bool, origin types.Address, state *vm
 func (tsdb *TracerStateDB) saveMessageTraces() error {
 	tsdb.Traces.MemoryOps = append(tsdb.Traces.MemoryOps, tsdb.memoryTracer.Finalize()...)
 	tsdb.Traces.StackOps = append(tsdb.Traces.StackOps, tsdb.stackTracer.Finalize()...)
+	tsdb.Traces.ZKEVMStates = append(tsdb.Traces.ZKEVMStates, tsdb.zkevmTracer.Finalize()...)
 	tsdb.Traces.StorageOps = append(tsdb.Traces.StorageOps, tsdb.storageInteractor.GetStorageOps()...)
 
 	curMessageSlotChanges := make(map[types.Address][]SlotChangeTrace)
@@ -259,7 +287,9 @@ func (tsdb *TracerStateDB) saveMessageTraces() error {
 func (tsdb *TracerStateDB) resetVm() {
 	tsdb.stackTracer = nil
 	tsdb.memoryTracer = nil
+	tsdb.zkevmTracer = nil
 	tsdb.evm = nil
+	tsdb.code = nil
 }
 
 func (tsdb *TracerStateDB) HandleRefundMessage(message *types.Message) error {
@@ -279,7 +309,7 @@ func (tsdb *TracerStateDB) HandleExecutionMessage(message *types.Message) error 
 	ret, gasLeft, err := tsdb.evm.Call(caller, message.To, callData, gas.Uint64(), message.Value.Int())
 	_, _ = ret, gasLeft
 	if err != nil {
-		panic("call must not throw")
+		panic(fmt.Sprintf("EVM call returned error: %v", err))
 	}
 	return tsdb.saveMessageTraces()
 }
@@ -443,7 +473,10 @@ func (tsdb *TracerStateDB) GetState(addr types.Address, key common.Hash) (common
 	if err != nil || acc == nil {
 		return common.EmptyHash, err
 	}
-	return tsdb.storageInteractor.GetSlot(acc, key)
+	val, err := tsdb.storageInteractor.GetSlot(acc, key)
+	// Pass slot data to zkevm_state
+	tsdb.zkevmTracer.SetLastStateStorage((types.Uint256)(*key.Uint256()), (types.Uint256)(*val.Uint256()))
+	return val, err
 }
 
 // proof, err := mpt.BuildProof(acc.StorageTrie.Reader, key.Bytes(), mpt.ReadMPTOperation)
@@ -458,7 +491,10 @@ func (tsdb *TracerStateDB) SetState(addr types.Address, key common.Hash, val com
 		return err
 	}
 
-	return tsdb.storageInteractor.SetSlot(acc, key, val)
+	prev, err := tsdb.storageInteractor.SetSlot(acc, key, val)
+	// Pass slote data before setting to zkevm_state
+	tsdb.zkevmTracer.SetLastStateStorage((types.Uint256)(*key.Uint256()), prev)
+	return err
 }
 
 func (tsdb *TracerStateDB) GetStorageRoot(addr types.Address) (common.Hash, error) {

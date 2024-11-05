@@ -1,6 +1,8 @@
 package tracer
 
 import (
+	"fmt"
+
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
@@ -28,8 +30,6 @@ type StackOpTracer struct {
 	scope          tracing.OpContext
 	prevOpFinisher func()
 }
-
-var _ OpTracer[StackOp] = new(StackOpTracer)
 
 type SaveStackElements struct {
 	// top-N elements before opcode
@@ -96,6 +96,7 @@ var opcodeStackToSave = map[vm.OpCode]SaveStackElements{
 	vm.MLOAD:          {1, 1},
 	vm.MSTORE:         {2, 0},
 	vm.MSTORE8:        {2, 0},
+	vm.MCOPY:          {3, 0},
 	vm.SLOAD:          {1, 1},
 	vm.SSTORE:         {2, 0},
 	vm.JUMP:           {1, 0},
@@ -310,15 +311,14 @@ func (sot *StackOpTracer) traceSwapOp() bool {
 	return true
 }
 
-func (sot *StackOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpContext) bool {
+func (sot *StackOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpContext) {
 	sot.opCode = opCode
 	sot.pc = pc
 	sot.scope = scope
 
 	if !sot.traceBasicOp() && !sot.traceDupOp() && !sot.traceSwapOp() {
-		panic("no stack save info for opcode")
+		panic(fmt.Sprintf("No stack save info for opcode: %v", opCode))
 	}
-	return true
 }
 
 func (sot *StackOpTracer) FinishPrevOpcodeTracing() {

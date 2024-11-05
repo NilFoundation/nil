@@ -188,7 +188,7 @@ func (s *RpcSuite) WaitForReceipt(hash common.Hash) *jsonrpc.RPCReceipt {
 	return WaitForReceipt(s.T(), s.Client, hash)
 }
 
-func (s *RpcSuite) WaitIncludedInMain(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
+func (s *RpcSuite) WaitIncludedInMain(hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
 	return WaitIncludedInMain(s.T(), s.Client, hash)
@@ -226,7 +226,7 @@ func (s *RpcSuite) SendMessageViaWallet(addrFrom types.Address, addrTo types.Add
 		[]types.CurrencyBalance{}, addrTo, key)
 	s.Require().NoError(err)
 
-	receipt := s.WaitIncludedInMain(addrFrom.ShardId(), txHash)
+	receipt := s.WaitIncludedInMain(txHash)
 	s.Require().True(receipt.Success)
 	s.Require().Equal("Success", receipt.Status)
 	s.Require().Len(receipt.OutReceipts, 1)
@@ -260,7 +260,7 @@ func (s *RpcSuite) SendMessageViaWalletNoCheck(addrWallet types.Address, addrTo 
 	txHash, err := s.Client.SendMessageViaWallet(addrWallet, calldata, feeCredit, value, currencies, addrTo, key)
 	s.Require().NoError(err)
 
-	receipt := s.WaitIncludedInMain(addrWallet.ShardId(), txHash)
+	receipt := s.WaitIncludedInMain(txHash)
 	// We don't check the receipt for success here, as it can be failed on purpose
 	if receipt.Success {
 		// But if it is successful, we expect exactly one out receipt
