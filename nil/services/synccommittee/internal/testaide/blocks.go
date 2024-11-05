@@ -75,6 +75,20 @@ func GenerateMainShardBlocks(blocksCount int) []*jsonrpc.RPCBlock {
 	return mainShardBlocks
 }
 
+func GenerateBlockBatch(childBlocksCount int) (mainBlock *jsonrpc.RPCBlock, childBlocks []*jsonrpc.RPCBlock) {
+	mainBlock = GenerateMainShardBlock()
+	childBlocks = make([]*jsonrpc.RPCBlock, 0, childBlocksCount)
+
+	for i := range childBlocksCount {
+		block := GenerateExecutionShardBlock()
+		block.ShardId = types.ShardId(i + 1)
+		childBlocks = append(childBlocks, block)
+		mainBlock.ChildBlocks = append(mainBlock.ChildBlocks, block.Hash)
+	}
+
+	return mainBlock, childBlocks
+}
+
 func GenerateMainShardBlock() *jsonrpc.RPCBlock {
 	return &jsonrpc.RPCBlock{
 		Number:              RandomBlockNum(),
@@ -86,22 +100,22 @@ func GenerateMainShardBlock() *jsonrpc.RPCBlock {
 	}
 }
 
-func GenerateExecutionShardBlocks(mainShardHash common.Hash, blocksCount int) []*jsonrpc.RPCBlock {
+func GenerateExecutionShardBlocks(blocksCount int) []*jsonrpc.RPCBlock {
 	executionShardBlocks := make([]*jsonrpc.RPCBlock, 0, blocksCount)
-	for range blocksCount {
-		block := GenerateExecutionShardBlock(mainShardHash)
-		block.MainChainHash = mainShardHash
+	for i := range blocksCount {
+		block := GenerateExecutionShardBlock()
+		block.ShardId = types.ShardId(i + 1)
 		executionShardBlocks = append(executionShardBlocks, block)
 	}
 	return executionShardBlocks
 }
 
-func GenerateExecutionShardBlock(mainShardBlockHash common.Hash) *jsonrpc.RPCBlock {
+func GenerateExecutionShardBlock() *jsonrpc.RPCBlock {
 	return &jsonrpc.RPCBlock{
 		Number:        RandomBlockNum(),
 		ShardId:       RandomShardId(),
 		Hash:          RandomHash(),
-		MainChainHash: mainShardBlockHash,
+		MainChainHash: RandomHash(),
 		ParentHash:    RandomHash(),
 		Messages:      generateRpcInMessages(5),
 	}
