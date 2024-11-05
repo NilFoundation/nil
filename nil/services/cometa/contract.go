@@ -155,11 +155,19 @@ func (c *Contract) DecodeCallData(calldata []byte) (string, error) {
 		return "", fmt.Errorf("failed to unpack arguments: %w", err)
 	}
 	res := methodName + "("
+	adjustArg := func(arg any) string {
+		switch v := arg.(type) {
+		case []byte:
+			return hexutil.Encode(v)
+		default:
+			return fmt.Sprintf("%v", v)
+		}
+	}
 	for i, arg := range args {
 		if i > 0 {
-			res += fmt.Sprintf(", %v", arg)
+			res += fmt.Sprintf(", %v", adjustArg(arg))
 		} else {
-			res += fmt.Sprintf("%v", arg)
+			res += adjustArg(arg)
 		}
 	}
 	res += ")"

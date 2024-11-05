@@ -593,7 +593,7 @@ func (s *SuiteCli) TestCliCometa() {
 		s.Require().Equal("Counter", result[1]["Contract"])
 		s.Require().Equal("get()", result[1]["CallData"])
 		s.Require().Equal("unknown", result[2]["Contract"])
-		s.Contains(out, "Contract   : Counter")
+		s.Contains(out, "Contract            : Counter")
 	})
 
 	s.Run("Deploy wallet to test ctor arguments", func() {

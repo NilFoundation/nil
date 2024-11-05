@@ -187,7 +187,7 @@ func (d *DebugHandler) ShowFailures() {
 			continue
 		}
 		if receipt.Contract == nil {
-			color.Red("Failed to fetch the contract for the message #%d\n", receipt.Index)
+			color.Red("Failed to get a contract for the message #%d\n", receipt.Index)
 			continue
 		}
 		loc, err := receipt.Contract.GetLineLocation(receipt.Receipt.FailedPc)
@@ -199,38 +199,60 @@ func (d *DebugHandler) ShowFailures() {
 	}
 }
 
+var (
+	keyColor      = color.New(color.FgCyan)
+	unknownColor  = color.New(color.FgRed)
+	calldataColor = color.New(color.FgMagenta)
+)
+
 func (d *DebugHandler) PrintReceipt(receipt *ReceiptInfo, indentEntry, indent string) {
-	name := "unknown"
+	name := unknownColor.Sprint("unknown")
 	hasContract := receipt.Contract != nil
 	if hasContract {
 		name = receipt.Contract.ShortName()
 	}
 
-	fmt.Printf("%sMessage    : #%d 0x%x\n", indentEntry, receipt.Index, receipt.Message.Hash)
-	fmt.Printf("%sContract   : %s\n", indent, color.CyanString(name))
-	fmt.Printf("%sFlags      : %s\n", indent, receipt.Message.Flags)
-	fmt.Printf("%sAddress    : %s\n", indent, receipt.Receipt.ContractAddress.Hex())
+	makeKey := func(key string) string {
+		key = keyColor.Sprint(key)
+		return fmt.Sprintf("%s%-20s: ", indent, key)
+	}
+
+	makeKeyEntry := func(key string) string {
+		key = keyColor.Sprint(key)
+		return fmt.Sprintf("%s%-20s: ", indentEntry, key)
+	}
+
+	flags := receipt.Message.Flags.String()
+	if receipt.Message.RequestId != 0 && !receipt.Message.Flags.IsResponse() {
+		flags += ", Request"
+	}
+
+	fmt.Printf("%s0x%x\n", makeKeyEntry("Message"), receipt.Message.Hash)
+	fmt.Printf("%s%s\n", makeKey("Contract"), color.MagentaString(name))
+	fmt.Printf("%s%s\n", makeKey("Flags"), flags)
+	fmt.Printf("%s%s\n", makeKey("Address"), receipt.Receipt.ContractAddress.Hex())
 	if hasContract && !receipt.Message.Flags.GetBit(types.MessageFlagResponse) {
 		calldata, err := receipt.Contract.DecodeCallData(receipt.Message.Data)
 		if err != nil {
 			errStr := color.RedString("Failed to decode: %s", err.Error())
-			fmt.Printf("%sCallData   : [%s]%s\n", indent, errStr, types.Code(receipt.Message.Data).Hex())
+			fmt.Printf("%s[%s]%s\n", makeKey("CallData"), errStr, types.Code(receipt.Message.Data).Hex())
 		} else {
-			fmt.Printf("%sCallData   : %s\n", indent, calldata)
+			fmt.Printf("%s%s\n", makeKey("CallData"), calldataColor.Sprint(calldata))
 		}
 	} else if len(receipt.Message.Data) != 0 {
-		fmt.Printf("%sCallData   : %s\n", indent, types.Code(receipt.Message.Data).Hex())
+		fmt.Printf("%s%s\n", makeKey("CallData"), types.Code(receipt.Message.Data).Hex())
 	}
 	if !receipt.Receipt.Success {
-		fmt.Printf("%sStatus     : %s\n", indent, color.RedString(receipt.Receipt.Status))
-		fmt.Printf("%sFailedPc   : %d\n", indent, receipt.Receipt.FailedPc)
+		fmt.Printf("%s%s\n", makeKey("Status"), color.RedString(receipt.Receipt.Status))
+		fmt.Printf("%s%d\n", makeKey("FailedPc"), receipt.Receipt.FailedPc)
 	} else {
-		fmt.Printf("%sStatus     : %s\n", indent, color.GreenString(receipt.Receipt.Status))
+		fmt.Printf("%s%s\n", makeKey("Status"), color.GreenString(receipt.Receipt.Status))
 	}
 	if !receipt.Message.Flags.GetBit(types.MessageFlagRefund) {
-		fmt.Printf("%sGasUsed    : %d\n", indent, receipt.Receipt.GasUsed)
+		fmt.Printf("%s%d\n", makeKey("GasUsed"), receipt.Receipt.GasUsed)
 	}
-	fmt.Printf("%sBlock      : %d:%d\n", indent, receipt.Receipt.ContractAddress.ShardId(), receipt.Message.BlockNumber)
+	fmt.Printf("%s%d\n", makeKey("RequestId"), receipt.Message.RequestId)
+	fmt.Printf("%s%d:%d\n", makeKey("Block"), receipt.Receipt.ContractAddress.ShardId(), receipt.Message.BlockNumber)
 
 	if len(receipt.OutReceipts) > 0 {
 		for i, outReceipt := range receipt.OutReceipts {
