@@ -44,12 +44,7 @@ import { $endpoint, $wallet } from "../account-connector/models/model";
 import type { AbiFunction } from "abitype";
 import { debug } from "patronum";
 import { getTokenAddressBySymbol } from "../currencies";
-import {
-  type Token,
-  addHexPrefix,
-  removeHexPrefix,
-  type CometaService,
-} from "@nilfoundation/niljs";
+import type { Token, CometaService, Hex } from "@nilfoundation/niljs";
 import { $cometaService } from "../cometa/model";
 
 compileCodeFx.doneData.watch(console.log);
@@ -358,7 +353,7 @@ sample({
       ? []
       : [
           {
-            id: addHexPrefix(`000${removeHexPrefix(getTokenAddressBySymbol(valueInput.currency))}`),
+            id: getTokenAddressBySymbol(valueInput.currency) as Hex,
             amount: BigInt(valueInput.amount),
           },
         ];

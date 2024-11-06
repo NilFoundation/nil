@@ -38,7 +38,7 @@ const TopUpPanel = () => {
   ]);
 
   // currently faucet returns mzk so we need to pretend like it is nil token
-  const availiableTokens = Object.keys(faucets ?? {}).map((t) => (t === "MZK" ? "NIL" : t));
+  const availiableTokens = Object.keys(faucets ?? {});
 
   return (
     <div
@@ -75,19 +75,13 @@ const TopUpPanel = () => {
             currency: t,
           }))}
           onChange={({ amount, currency }) => {
-            // temporary we need to adjust it like that because of the faucet
-            if (currency === "NIL") {
-              currency = "MZK";
-            }
-
             setTopupInput({
               currency,
               amount,
             });
           }}
           value={{
-            // temporary we need to adjust it like that because of the faucet
-            currency: topupInput.currency === "MZK" ? "NIL" : topupInput.currency,
+            currency: topupInput.currency,
             amount: topupInput.amount,
           }}
         />

@@ -16,9 +16,9 @@ export const getCurrencyIcon = (name: string) => {
   }
 };
 
-export const ethAddress = "0x1111111111111111111111111111111111112";
-export const usdtAddress = "0x1111111111111111111111111111111111113";
-export const btcAddress = "0x1111111111111111111111111111111111114";
+export const ethAddress = "0x0001111111111111111111111111111111111112";
+export const usdtAddress = "0x0001111111111111111111111111111111111113";
+export const btcAddress = "0x0001111111111111111111111111111111111114";
 export const nilAddress = "0x000100000000000000000000000000000fa00ce7";
 
 export const getCurrencySymbolByAddress = (address: string) => {
