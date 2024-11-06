@@ -4,7 +4,8 @@ const path = require('path');
 
 // Get the project directory
 const projectDir = process.argv[2] || 'new-nil-project';
-const projectPath = path.join(process.cwd(), projectDir);
+const projectPath = path.resolve(projectDir);
+const templatePath = path.join(__dirname, '..');
 
 console.log(`Creating a new project in ${projectDir}...`);
 
@@ -36,7 +37,7 @@ function createPackageJson(templateDir, projectDir) {
 }
 
 function copyFile(srcFilePath, destFilePath) {
-    const fullSrcPath = path.join(process.cwd(), srcFilePath);
+    const fullSrcPath = path.join(templatePath, srcFilePath);
     const fullDestPath = path.join(projectPath, destFilePath);
 
     // Ensure the destination directory exists
@@ -49,8 +50,6 @@ function copyFile(srcFilePath, destFilePath) {
         console.warn(`File not found: ${srcFilePath}`);
     }
 }
-
-const templatePath = path.join(__dirname, '..'); // One level up from scripts/
 
 createPackageJson(templatePath, projectPath);
 copyFile('.env.example', '.env');
