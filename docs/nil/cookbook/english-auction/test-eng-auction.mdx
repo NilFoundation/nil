@@ -1,0 +1,39 @@
+# Deploy and test the 'English Auction'
+
+This test of the `EnglishAuction` contract does the following:
+
+* Deploys the auction contract and the NFT contract
+* Creates a wallet and starts the auction
+* Creates another wallet and makes a bid
+* Ends the auction and tracks whether the NFT has been transferred to the winner
+
+## Import statements
+
+Import the following components to follow the test:
+
+```ts showLineNumbers file=../../../tests/cookbook-english-auction.test.mts start=startImportStatements end=endImportStatements
+```
+
+## Deploy all contracts
+
+To create a new wallet and deploy both contracts:
+
+```ts showLineNumbers file=../../../tests/cookbook-english-auction.test.mts start=startInitialDeployments end=endInitialDeployments
+```
+
+## Participating in the auction
+
+To start the auction using the 'owner' wallet:
+
+```ts showLineNumbers file=../../../tests/cookbook-english-auction.test.mts start=startStartAuction end=endStartAuction
+```
+
+To place a bid using another wallet:
+
+```ts showLineNumbers file=../../../tests/cookbook-english-auction.test.mts start=startBid end=endBid
+```
+
+To end the auction and check for its results:
+
+```ts showLineNumbers file=../../../tests/cookbook-english-auction.test.mts start=startEndAuction end=endEndAuction
+```
