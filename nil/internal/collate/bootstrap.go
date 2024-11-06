@@ -46,6 +46,7 @@ func SetBootstrapHandler(ctx context.Context, nm *network.Manager, shardId types
 	logger := logging.NewLogger("bootstrap").With().Stringer(logging.FieldShardId, shardId).Logger()
 
 	nm.SetStreamHandler(
+		ctx,
 		topicBootstrapShard(shardId),
 		createShardBootstrapHandler(ctx, shardId, db, logger),
 	)
@@ -59,6 +60,7 @@ func fetchShardSnap(ctx context.Context, nm *network.Manager, peerId network.Pee
 		logger.Error().Err(err).Msgf("Failed to open stream to %s", peerId)
 		return err
 	}
+	defer stream.Close()
 
 	if err := db.Fetch(ctx, stream); err != nil {
 		logger.Error().Err(err).Msgf("Failed to fetch snapshot from %s", peerId)

@@ -14,6 +14,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type MsgPool interface {
@@ -50,7 +51,8 @@ type Scheduler struct {
 
 func NewScheduler(txFabric db.DB, pool msgpool.Pool, params Params, networkManager *network.Manager) (*Scheduler, error) {
 	const name = "github.com/NilFoundation/nil/nil/internal/collate"
-	measurer, err := telemetry.NewMeasurer(telemetry.NewMeter(name), "collate")
+	measurer, err := telemetry.NewMeasurer(telemetry.NewMeter(name), "collations",
+		attribute.Stringer(logging.FieldShardId, params.ShardId))
 	if err != nil {
 		return nil, err
 	}

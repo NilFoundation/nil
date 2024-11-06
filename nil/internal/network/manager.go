@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/network/internal"
+	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -23,6 +24,8 @@ type Manager struct {
 	dht    *DHT
 
 	mdnsService mdns.Service
+
+	meter telemetry.Meter
 
 	logger zerolog.Logger
 }
@@ -84,6 +87,7 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 		pubSub:      ps,
 		dht:         dht,
 		mdnsService: ms,
+		meter:       telemetry.NewMeter("github.com/NilFoundation/nil/nil/internal/network"),
 		logger:      logger,
 	}, nil
 }

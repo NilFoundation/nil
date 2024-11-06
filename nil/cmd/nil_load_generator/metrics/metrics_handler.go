@@ -11,7 +11,6 @@ import (
 )
 
 type MetricsHandler struct {
-	measurer   *telemetry.Measurer
 	attributes metric.MeasurementOption
 
 	// Counters
@@ -25,10 +24,6 @@ type MetricsHandler struct {
 
 func NewMetricsHandler(name string) (*MetricsHandler, error) {
 	meter := telemetry.NewMeter(name)
-	measurer, err := telemetry.NewMeasurer(meter, name)
-	if err != nil {
-		return nil, err
-	}
 
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -36,7 +31,6 @@ func NewMetricsHandler(name string) (*MetricsHandler, error) {
 	}
 
 	handler := &MetricsHandler{
-		measurer:   measurer,
 		attributes: metric.WithAttributes(attribute.String("hostname", hostname)),
 	}
 

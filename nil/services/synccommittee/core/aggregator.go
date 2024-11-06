@@ -220,8 +220,8 @@ func (agg *Aggregator) fetchChildBlocks(ctx context.Context, block *jsonrpc.RPCB
 // processNewBlocks fetches and processes new blocks for all shards.
 // It handles the overall flow of block synchronization and proof creation.
 func (agg *Aggregator) processNewBlocks(ctx context.Context) error {
-	agg.metrics.StartProcessingMeasurment()
-	defer agg.metrics.EndProcessingMeasurment(ctx)
+	agg.metrics.StartProcessingMeasurement()
+	defer agg.metrics.EndProcessingMeasurement(ctx)
 
 	latestBlock, err := agg.fetchLatestBlockRef()
 	if err != nil {
