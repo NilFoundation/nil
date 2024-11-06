@@ -45,20 +45,20 @@ func (bt *BlocksTracer) Close() error {
 }
 
 func (bt *BlocksTracer) PrintMessage(msg *types.Message) {
-	bt.printf("hash: %s\n", msg.Hash().Hex())
-	bt.printf("flags: %v\n", msg.Flags)
-	bt.printf("seqno: %d\n", msg.Seqno)
-	bt.printf("from: %s\n", msg.From.Hex())
-	bt.printf("to: %s\n", msg.To.Hex())
-	bt.printf("refundTo: %s\n", msg.RefundTo.Hex())
-	bt.printf("bounceTo: %s\n", msg.BounceTo.Hex())
-	bt.printf("value: %s\n", msg.Value)
-	bt.printf("fee: %s\n", msg.FeeCredit)
+	bt.Printf("hash: %s\n", msg.Hash().Hex())
+	bt.Printf("flags: %v\n", msg.Flags)
+	bt.Printf("seqno: %d\n", msg.Seqno)
+	bt.Printf("from: %s\n", msg.From.Hex())
+	bt.Printf("to: %s\n", msg.To.Hex())
+	bt.Printf("refundTo: %s\n", msg.RefundTo.Hex())
+	bt.Printf("bounceTo: %s\n", msg.BounceTo.Hex())
+	bt.Printf("value: %s\n", msg.Value)
+	bt.Printf("fee: %s\n", msg.FeeCredit)
 	if msg.IsRequestOrResponse() {
-		bt.printf("requestId: %d\n", msg.RequestId)
+		bt.Printf("requestId: %d\n", msg.RequestId)
 	}
 	if len(msg.RequestChain) > 0 {
-		bt.printf("requestChain: [")
+		bt.Printf("requestChain: [")
 		for i, req := range msg.RequestChain {
 			if i > 0 {
 				fmt.Fprintf(bt.file, ", %d", req.Id)
@@ -69,15 +69,15 @@ func (bt *BlocksTracer) PrintMessage(msg *types.Message) {
 		fmt.Fprintln(bt.file, "]")
 	}
 	if len(msg.Data) < 1024 {
-		bt.printf("data: %s\n", hexutil.Encode(msg.Data))
+		bt.Printf("data: %s\n", hexutil.Encode(msg.Data))
 	} else {
-		bt.printf("data_size: %d\n", len(msg.Data))
+		bt.Printf("data_size: %d\n", len(msg.Data))
 	}
 	if len(msg.Currency) > 0 {
-		bt.printf("currency:\n")
+		bt.Printf("currency:\n")
 		for _, curr := range msg.Currency {
-			bt.withIndent(func(t *BlocksTracer) {
-				bt.printf("%s:%s\n", hexutil.Encode(curr.Currency[:]), curr.Balance.String())
+			bt.WithIndent(func(t *BlocksTracer) {
+				bt.Printf("%s:%s\n", hexutil.Encode(curr.Currency[:]), curr.Balance.String())
 			})
 		}
 	}
@@ -98,43 +98,43 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 		return
 	}
 
-	bt.printf("-\n")
-	bt.withIndent(func(t *BlocksTracer) {
-		bt.printf("shard: %d\n", es.ShardId)
-		bt.printf("id: %d\n", block.Id)
-		bt.printf("hash: %s\n", block.Hash().Hex())
-		bt.printf("gas_price: %v\n", es.GasPrice)
-		bt.printf("contracts_num: %d\n", contractsNum)
+	bt.Printf("-\n")
+	bt.WithIndent(func(t *BlocksTracer) {
+		bt.Printf("shard: %d\n", es.ShardId)
+		bt.Printf("id: %d\n", block.Id)
+		bt.Printf("hash: %s\n", block.Hash().Hex())
+		bt.Printf("gas_price: %v\n", es.GasPrice)
+		bt.Printf("contracts_num: %d\n", contractsNum)
 		if len(es.InMessages) != 0 {
-			bt.printf("in_messages:\n")
+			bt.Printf("in_messages:\n")
 			for i, msg := range es.InMessages {
-				bt.withIndent(func(t *BlocksTracer) {
-					bt.printf("%d:\n", i)
+				bt.WithIndent(func(t *BlocksTracer) {
+					bt.Printf("%d:\n", i)
 
-					bt.withIndent(func(t *BlocksTracer) {
+					bt.WithIndent(func(t *BlocksTracer) {
 						bt.PrintMessage(msg)
-						bt.printf("receipt:\n")
+						bt.Printf("receipt:\n")
 						receipt := es.Receipts[i]
 
-						bt.withIndent(func(t *BlocksTracer) {
-							bt.printf("success: %t\n", receipt.Success)
+						bt.WithIndent(func(t *BlocksTracer) {
+							bt.Printf("success: %t\n", receipt.Success)
 							if !receipt.Success {
-								bt.printf("status: %s\n", receipt.Status.String())
-								bt.printf("pc: %d\n", receipt.FailedPc)
+								bt.Printf("status: %s\n", receipt.Status.String())
+								bt.Printf("pc: %d\n", receipt.FailedPc)
 							}
-							bt.printf("gas_used: %d\n", receipt.GasUsed)
-							bt.printf("msg_hash: %s\n", receipt.MsgHash.Hex())
-							bt.printf("address: %s\n", receipt.ContractAddress.Hex())
+							bt.Printf("gas_used: %d\n", receipt.GasUsed)
+							bt.Printf("msg_hash: %s\n", receipt.MsgHash.Hex())
+							bt.Printf("address: %s\n", receipt.ContractAddress.Hex())
 						})
 
 						outMessages, ok := es.OutMessages[msg.Hash()]
 						if ok {
-							bt.printf("out_messages:\n")
+							bt.Printf("out_messages:\n")
 
-							bt.withIndent(func(t *BlocksTracer) {
+							bt.WithIndent(func(t *BlocksTracer) {
 								for j, outMsg := range outMessages {
-									bt.printf("%d:\n", j)
-									bt.withIndent(func(t *BlocksTracer) {
+									bt.Printf("%d:\n", j)
+									bt.WithIndent(func(t *BlocksTracer) {
 										bt.PrintMessage(outMsg.Message)
 									})
 								}
@@ -151,13 +151,13 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 	}
 }
 
-func (bt *BlocksTracer) withIndent(f func(*BlocksTracer)) {
+func (bt *BlocksTracer) WithIndent(f func(*BlocksTracer)) {
 	bt.indent += "  "
 	f(bt)
 	bt.indent = bt.indent[2:]
 }
 
-func (bt *BlocksTracer) printf(format string, args ...interface{}) {
+func (bt *BlocksTracer) Printf(format string, args ...interface{}) {
 	if _, err := bt.file.WriteString(bt.indent); err != nil {
 		panic(err)
 	}
