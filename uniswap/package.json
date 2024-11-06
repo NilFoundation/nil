@@ -1,0 +1,35 @@
+{
+  "name": "Uniswap V2 on =nil;",
+  "version": "1.0.0",
+  "description": "This repository is an example repo to showcase how to migrate Uniswap V2 contracts to =nil; L2",
+  "author": "Nil Foundation",
+  "license": "GPL-3.0",
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "test": "npx hardhat test",
+    "clean": "rm -rf iginition/deployments",
+    "format": "biome format ./",
+    "lint": "biome check ./",
+    "fix:format": "biome format --write ./",
+    "fix:lint": "biome check --apply ./"
+  },
+  "dependencies": {
+    "@nilfoundation/hardhat-plugin": "^0.15.0",
+    "@nilfoundation/niljs": "^0.16.0",
+    "@nilfoundation/smart-contracts": "^0.1.4",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.8.2",
+    "@nomicfoundation/hardhat-ethers": "^3.0.6",
+    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.5",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@typechain/ethers-v6": "^0.5.1",
+    "@typechain/hardhat": "^9.1.0",
+    "ethers": "^6.13.1",
+    "hardhat": "^2.22.4",
+    "ts-node": "^10.9.2",
+    "typechain": "^8.3.2",
+    "typescript": "^5.4.5"
+  }
+}

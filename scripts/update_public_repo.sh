@@ -44,6 +44,7 @@ repos=(
     "niljs git@github.com:NilFoundation/nil.js.git"
     "create-nil-hardhat-project git@github.com:NilFoundation/nil-hardhat-example.git"
     "hardhat-plugin git@github.com:NilFoundation/nil-hardhat-plugin.git"
+    "uniswap git@github.com:NilFoundation/uniswap-v2-nil.git"
 )
 
 # Loop through each repository
