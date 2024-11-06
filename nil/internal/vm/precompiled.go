@@ -358,6 +358,9 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 
 	var kind types.MessageKind
 	if deploy {
+		if len(currencies) != 0 {
+			return nil, types.NewVmVerboseError(types.ErrorAsyncDeployMustNotHaveCurrency, err.Error())
+		}
 		kind = types.DeployMessageKind
 	} else {
 		kind = types.ExecutionMessageKind

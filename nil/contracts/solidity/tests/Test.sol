@@ -43,7 +43,7 @@ contract Test is NilBase {
     }
 
     function proxyCall(address dst, uint gas, uint value, address refundTo, address bounceTo, bytes calldata callData) public payable {
-        Nil.asyncCall(dst, refundTo, bounceTo, gas, Nil.FORWARD_REMAINING, false, value, callData);
+        Nil.asyncCall(dst, refundTo, bounceTo, gas, Nil.FORWARD_REMAINING, value, callData);
     }
 
     struct AsyncCallArgs {
@@ -57,7 +57,7 @@ contract Test is NilBase {
     function testForwarding(AsyncCallArgs[] memory messages) public payable {
         for (uint i = 0; i < messages.length; i++) {
             AsyncCallArgs memory message = messages[i];
-            Nil.asyncCall(message.addr, message.refundTo, address(this), message.feeCredit, message.forwardKind, false,
+            Nil.asyncCall(message.addr, message.refundTo, address(this), message.feeCredit, message.forwardKind,
                 0, message.callData);
         }
     }

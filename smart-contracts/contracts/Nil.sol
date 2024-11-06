@@ -50,48 +50,130 @@ library Nil {
         uint256 amount;
     }
 
-    // Concise version of asyncCall. It implicitly uses FORWARD_REMAINING kind and sets refundTo to inbound message's
-    // refundTo.
+    /**
+     * @dev Deploys a contract asynchronously. It implicitly uses FORWARD_REMAINING kind and sets refundTo to
+     *  inbound message's refundTo.
+     * @param shardId The shard ID where to deploy contract.
+     * @param bounceTo Address to bounce to if the deployment fails.
+     * @param value Value to be sent with the deployment.
+     * @param code Bytecode of the contract to be deployed.
+     * @param salt Salt for the contract address creation.
+     * @return Address of the deployed contract.
+     */
+    function asyncDeploy(
+        uint shardId,
+        address bounceTo,
+        uint value,
+        bytes memory code,
+        uint256 salt
+    ) internal returns (address) {
+        return Nil.asyncDeploy(shardId, address(0), bounceTo, 0, FORWARD_REMAINING, value, code, salt);
+    }
+
+    /**
+     * @dev Deploys a contract asynchronously.
+     * @param shardId The shard ID where to deploy contract.
+     * @param refundTo Address to refund if the deployment fails.
+     * @param bounceTo Address to bounce to if the deployment fails.
+     * @param feeCredit Fee credit for the deployment.
+     * @param forwardKind Kind of forwarding for the gas.
+     * @param value Value to be sent with the deployment.
+     * @param code Bytecode of the contract to be deployed.
+     * @param salt Salt for the contract address creation.
+     * @return Address of the deployed contract.
+     */
+    function asyncDeploy(
+        uint shardId,
+        address refundTo,
+        address bounceTo,
+        uint feeCredit,
+        uint8 forwardKind,
+        uint value,
+        bytes memory code,
+        uint256 salt
+    ) internal returns (address) {
+        Token[] memory tokens;
+        address contractAddress = Nil.createAddress(shardId, code, salt);
+        __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(true, forwardKind, contractAddress, refundTo,
+            bounceTo, feeCredit, tokens, bytes.concat(code, bytes32(salt)));
+        return contractAddress;
+    }
+
+    /**
+     * @dev Makes an asynchronous call to a contract. It implicitly uses FORWARD_REMAINING kind and sets refundTo to
+     *  inbound message's refundTo.
+     * @param dst Destination address of the call.
+     * @param bounceTo Address to bounce to if the call fails.
+     * @param value Value to be sent with the call.
+     * @param callData Calldata for the call.
+     */
     function asyncCall(
         address dst,
         address bounceTo,
         uint value,
         bytes memory callData
     ) internal {
-        asyncCall(dst, address(0), bounceTo, 0, FORWARD_REMAINING, false, value, callData);
+        asyncCall(dst, address(0), bounceTo, 0, FORWARD_REMAINING, value, callData);
     }
 
-    // asyncCall makes an asynchronous call to `dst` contract.
+    /**
+     * @dev Makes an asynchronous call to a contract.
+     * @param dst Destination address of the call.
+     * @param refundTo Address to refund if the call fails.
+     * @param bounceTo Address to bounce to if the call fails.
+     * @param feeCredit Fee credit for the call.
+     * @param forwardKind Kind of forwarding for the gas.
+     * @param value Value to be sent with the call.
+     * @param callData Calldata for the call.
+     */
     function asyncCall(
         address dst,
         address refundTo,
         address bounceTo,
         uint feeCredit,
         uint8 forwardKind,
-        bool deploy,
         uint value,
         bytes memory callData
     ) internal {
         Token[] memory tokens;
-        asyncCallWithTokens(dst, refundTo, bounceTo, feeCredit, forwardKind, deploy, value, tokens, callData);
+        asyncCallWithTokens(dst, refundTo, bounceTo, feeCredit, forwardKind, value, tokens, callData);
     }
 
-    // asyncCallWithTokens makes an asynchronous call to `dst` contract with native currency tokens attached
+    /**
+     * @dev Makes an asynchronous call to a contract with tokens.
+     * @param dst Destination address of the call.
+     * @param refundTo Address to refund if the call fails.
+     * @param bounceTo Address to bounce to if the call fails.
+     * @param feeCredit Fee credit for the call.
+     * @param forwardKind Kind of forwarding for the gas.
+     * @param value Value to be sent with the call.
+     * @param tokens Array of tokens to be sent with the call.
+     * @param callData Calldata for the call.
+     */
     function asyncCallWithTokens(
         address dst,
         address refundTo,
         address bounceTo,
         uint feeCredit,
         uint8 forwardKind,
-        bool deploy,
         uint value,
         Token[] memory tokens,
         bytes memory callData
     ) internal {
-        __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(deploy, forwardKind, dst, refundTo,
+        __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(false, forwardKind, dst, refundTo,
             bounceTo, feeCredit, tokens, callData);
     }
 
+    /**
+     * @dev Makes a synchronous call to a contract.
+     * @param dst Destination address of the call.
+     * @param gas Gas limit for the call.
+     * @param value Value to be sent with the call.
+     * @param tokens Array of tokens to be sent with the call.
+     * @param callData Calldata for the call.
+     * @return success Boolean indicating if the call was successful.
+     * @return returnData Data returned from the call.
+     */
     function syncCall(
         address dst,
         uint gas,
@@ -106,10 +188,15 @@ library Nil {
         return (success, returnData);
     }
 
-    // awaitCall makes an asynchronous call to `dst` contract and waits for the result.
-    //
-    // `responseProcessingGas` amount of gas is being bought and reserved to process the response
-    //  should be >= `ASYNC_REQUEST_MIN_GAS` to make a call, otherwise `sendRequest` will fail
+    /**
+     * @dev Makes an asynchronous call to a contract and waits for the result.
+     * @param dst Destination address of the call.
+     * @param responseProcessingGas Amount of gas is being bought and reserved to process the response.
+     *        should be >= `ASYNC_REQUEST_MIN_GAS` to make a call, otherwise `awaitCall` will fail.
+     * @param callData Calldata for the call.
+     * @return returnData Data returned from the call.
+     * @return success Boolean indicating if the call was successful.
+     */
     function awaitCall(
         address dst,
         uint responseProcessingGas,
@@ -118,8 +205,15 @@ library Nil {
         return __Precompile__(AWAIT_CALL).precompileAwaitCall(dst, responseProcessingGas, callData);
     }
 
-    // `responseProcessingGas` amount of gas is being bought and reserved to process the response
-    //  should be >= `ASYNC_REQUEST_MIN_GAS` to make a call, otherwise `sendRequest` will fail
+    /**
+     * @dev Sends a request to a contract.
+     * @param dst Destination address of the request.
+     * @param value Value to be sent with the request.
+     * @param responseProcessingGas Amount of gas is being bought and reserved to process the response.
+     *        Should be >= `ASYNC_REQUEST_MIN_GAS` to make a call, otherwise `sendRequest` will fail.
+     * @param context Context data that is preserved in order to be available in the response method.
+     * @param callData Calldata for the request.
+     */
     function sendRequest(
         address dst,
         uint256 value,
@@ -131,6 +225,16 @@ library Nil {
         __Precompile__(SEND_REQUEST).precompileSendRequest{value: value}(dst, tokens, responseProcessingGas, context, callData);
     }
 
+    /**
+     * @dev Sends a request to a contract with tokens.
+     * @param dst Destination address of the request.
+     * @param value Value to be sent with the request.
+     * @param tokens Array of tokens to be sent with the request.
+     * @param responseProcessingGas Amount of gas is being bought and reserved to process the response.
+     *        should be >= `ASYNC_REQUEST_MIN_GAS` to make a call, otherwise `awaitCall` will fail.
+     * @param context Context data that is preserved in order to be available in the response method.
+     * @param callData Calldata for the request.
+     */
     function sendRequestWithTokens(
         address dst,
         uint256 value,
@@ -142,7 +246,10 @@ library Nil {
         __Precompile__(SEND_REQUEST).precompileSendRequest{value: value}(dst, tokens, responseProcessingGas, context, callData);
     }
 
-    // Send raw internal message using a special precompiled contract
+    /**
+     * @dev Sends a raw internal message using a special precompiled contract.
+     * @param message The message to be sent.
+     */
     function sendMessage(bytes memory message) internal {
         uint message_size = message.length;
         assembly {
@@ -154,7 +261,13 @@ library Nil {
         }
     }
 
-    // Function to call the validateSignature precompiled contract
+    /**
+     * @dev Validates a signature using a precompiled contract.
+     * @param pubkey Public key used for validation.
+     * @param hash Hash of the message.
+     * @param signature Signature to be validated.
+     * @return Boolean indicating if the signature is valid.
+     */
     function validateSignature(
         bytes memory pubkey,
         uint256 hash,
@@ -179,31 +292,53 @@ library Nil {
         return result;
     }
 
-    // getCurrencyBalance returns the balance of a token with a given id for a given address.
+    /**
+     * @dev Returns the balance of a token with a given id for a given address.
+     * @param addr Address to check the balance for.
+     * @param id CurrencyId of the token.
+     * @return Balance of the token.
+     */
     function currencyBalance(address addr, CurrencyId id) internal view returns(uint256) {
         return __Precompile__(GET_CURRENCY_BALANCE).precompileGetCurrencyBalance(id, addr);
     }
 
-    // msgTokens returns tokens from the current message.
+    /**
+     * @dev Returns tokens from the current message.
+     * @return Array of tokens from the current message.
+     */
     function msgTokens() internal returns(Token[] memory) {
         return __Precompile__(GET_MESSAGE_TOKENS).precompileGetMessageTokens();
     }
 
-    // getShardId returns shard id for a given address.
+    /**
+     * @dev Returns the shard id for a given address.
+     * @param addr Address to get the shard id for.
+     * @return Shard id of the address.
+     */
     function getShardId(address addr) internal pure returns(uint256) {
         return uint256(uint160(addr)) >> (18 * 8);
     }
 
-    // getGasPrice returns gas price for the shard, in which the given address is resided.
-    // It may return the price with some delay, i.e it can be not equal to the actual price. So, one should calculate
-    // real gas price pessimistically, i.e. `gas_price = getGasPrice() + blocks_delay * price_growth_factor`.
-    // Where, `blocks_delay` is the blocks number between the block for which gas price is actual and the block in which
-    // the message will be processed; and `price_growth_factor` is the maximum value by which gas can grow per block.
-    // TODO: add `getEstimatedGasPrice` method, which implements the above formula.
+    /**
+     * @notice Returns the gas price for the shard in which the given address resides.
+     * @dev It may return the price with some delay, i.e it can be not equal to the actual price. So, one should
+     * calculate real gas price pessimistically, i.e. `gas_price = getGasPrice() + blocks_delay * price_growth_factor`.
+     * Where, `blocks_delay` is the blocks number between the block for which gas price is actual and the block in which
+     * the message will be processed; and `price_growth_factor` is the maximum value by which gas can grow per block.
+     * @param addr Address to get the gas price for.
+     * @return Gas price for the shard.
+     */
     function getGasPrice(address addr) internal returns(uint256) {
         return __Precompile__(GET_GAS_PRICE).precompileGetGasPrice(getShardId(addr));
     }
 
+    /**
+     * @dev Creates a contract address.
+     * @param shardId Shard id for the address.
+     * @param code Bytecode of the contract.
+     * @param salt Salt for the address creation.
+     * @return Address of the created contract.
+     */
     function createAddress(uint shardId, bytes memory code, uint256 salt) internal returns(address) {
         require(shardId < 0xffff, "Shard id is too big");
         uint160 addr = uint160(uint256(getPoseidonHash(abi.encodePacked(code, salt))));
@@ -212,6 +347,14 @@ library Nil {
         return address(addr);
     }
 
+    /**
+     * @dev Creates a contract address using create2.
+     * @param shardId Shard id for the address.
+     * @param sender Address of the sender.
+     * @param salt Salt for the address creation.
+     * @param codeHash Hash of the contract bytecode.
+     * @return Address of the created contract.
+     */
     function createAddress2(uint shardId, address sender, uint256 salt, uint256 codeHash) internal returns(address) {
         require(shardId < 0xffff, "Shard id is too big");
         uint160 addr = uint160(uint256(getPoseidonHash(abi.encodePacked(bytes1(0xff), sender, salt, codeHash))));
@@ -220,14 +363,29 @@ library Nil {
         return address(addr);
     }
 
+    /**
+     * @dev Returns the Poseidon hash of the given data.
+     * @param data Data to hash.
+     * @return Poseidon hash of the data.
+     */
     function getPoseidonHash(bytes memory data) internal returns(uint256) {
         return __Precompile__(GET_POSEIDON_HASH).precompileGetPoseidonHash(data);
     }
 
+    /**
+     * @dev Sets a configuration parameter.
+     * @param name Name of the parameter.
+     * @param data Data of the parameter.
+     */
     function setConfigParam(string memory name, bytes memory data) internal {
         __Precompile__(CONFIG_PARAM).precompileConfigParam(true, name, data);
     }
 
+    /**
+     * @dev Returns a configuration parameter.
+     * @param name Name of the parameter.
+     * @return Data of the parameter.
+     */
     function getConfigParam(string memory name) internal returns(bytes memory) {
         return __Precompile__(CONFIG_PARAM).precompileConfigParam(false, name, bytes(""));
     }
@@ -245,21 +403,37 @@ library Nil {
         uint256 gasPriceScale;
     }
 
+    /**
+     * @dev Sets the current validators.
+     * @param validators Struct containing the list of validators.
+     */
     function setValidators(ParamValidators memory validators) internal {
         bytes memory data = abi.encode(validators);
         setConfigParam("curr_validators", data);
     }
 
+    /**
+     * @dev Returns the current validators.
+     * @return Struct containing the list of validators.
+     */
     function getValidators() internal returns(ParamValidators memory) {
         bytes memory data = getConfigParam("curr_validators");
         return abi.decode(data, (ParamValidators));
     }
 
+    /**
+     * @dev Sets the gas price parameter.
+     * @param param Struct containing the gas price scale.
+     */
     function setParamGasPrice(ParamGasPrice memory param) internal {
         bytes memory data = abi.encode(param);
         setConfigParam("gas_price", data);
     }
 
+    /**
+     * @dev Returns the gas price parameter.
+     * @return Struct containing the gas price scale.
+     */
     function getParamGasPrice() internal returns(ParamGasPrice memory) {
         bytes memory data = getConfigParam("gas_price");
         return abi.decode(data, (ParamGasPrice));

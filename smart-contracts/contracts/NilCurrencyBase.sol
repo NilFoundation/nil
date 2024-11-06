@@ -114,7 +114,7 @@ abstract contract NilCurrencyBase is NilBase {
     function sendCurrencyInternal(address to, CurrencyId currencyId, uint256 amount) internal {
         Nil.Token[] memory tokens_ = new Nil.Token[](1);
         tokens_[0] = Nil.Token(currencyId, amount);
-        Nil.asyncCallWithTokens(to, address(0), address(0), 0, Nil.FORWARD_REMAINING, false, 0, tokens_, "");
+        Nil.asyncCallWithTokens(to, address(0), address(0), 0, Nil.FORWARD_REMAINING, 0, tokens_, "");
     }
 
     /**

@@ -467,7 +467,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 
 	suite.Run("testAsyncCall: success", func() {
 		msg.Data, err = abi.Pack("testAsyncCall", testAddr, types.EmptyAddress, types.EmptyAddress, big.NewInt(0),
-			uint8(types.ForwardKindNone), false, big.NewInt(0), []byte{})
+			uint8(types.ForwardKindNone), big.NewInt(0), []byte{})
 		suite.Require().NoError(err)
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.False(res.Failed())
@@ -475,7 +475,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 
 	suite.Run("testAsyncCall: Send to main shard", func() {
 		msg.Data, err = abi.Pack("testAsyncCall", types.EmptyAddress, types.EmptyAddress, types.EmptyAddress, big.NewInt(0),
-			uint8(types.ForwardKindNone), false, big.NewInt(0), []byte{1, 2, 3, 4})
+			uint8(types.ForwardKindNone), big.NewInt(0), []byte{1, 2, 3, 4})
 		suite.Require().NoError(err)
 
 		res := es.HandleExecutionMessage(suite.ctx, msg)
@@ -485,7 +485,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 
 	suite.Run("testAsyncCall: withdrawFunds failed", func() {
 		msg.Data, err = abi.Pack("testAsyncCall", testAddr, types.EmptyAddress, types.EmptyAddress, big.NewInt(0),
-			uint8(types.ForwardKindNone), false, big.NewInt(1_000_000_000_000_000), []byte{1, 2, 3, 4})
+			uint8(types.ForwardKindNone), big.NewInt(1_000_000_000_000_000), []byte{1, 2, 3, 4})
 		suite.Require().NoError(err)
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())

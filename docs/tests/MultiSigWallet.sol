@@ -85,7 +85,6 @@ contract MultiSigWallet is NilBase {
      * @param refundTo The address where to send refund message.
      * @param bounceTo The address where to send bounce message.
      * @param feeCredit The amount of tokens available to pay all fees during message processing.
-     * @param deploy Whether to deploy the contract.
      * @param tokens The multi-currency tokens to send.
      * @param value The value to send.
      * @param callData The call data of the called method.
@@ -95,7 +94,6 @@ contract MultiSigWallet is NilBase {
         address refundTo,
         address bounceTo,
         uint feeCredit,
-        bool deploy,
         Nil.Token[] memory tokens,
         uint value,
         bytes calldata callData
@@ -106,7 +104,6 @@ contract MultiSigWallet is NilBase {
             bounceTo,
             feeCredit,
             Nil.FORWARD_NONE,
-            deploy,
             value,
             tokens,
             callData

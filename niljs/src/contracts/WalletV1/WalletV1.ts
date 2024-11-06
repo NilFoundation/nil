@@ -1,7 +1,7 @@
 import Wallet from "@nilfoundation/smart-contracts/artifacts/Wallet.json";
 import type { Abi } from "abitype";
 import invariant from "tiny-invariant";
-import { bytesToHex, encodeFunctionData } from "viem";
+import { bytesToHex, encodeDeployData, encodeFunctionData } from "viem";
 import type { PublicClient } from "../../clients/PublicClient.js";
 import { prepareDeployPart } from "../../encoding/deployPart.js";
 import { externalMessageEncode } from "../../encoding/externalMessage.js";
@@ -10,7 +10,7 @@ import { addHexPrefix } from "../../index.js";
 import type { ISigner } from "../../signers/index.js";
 import type { Hex } from "../../types/Hex.js";
 import type { IDeployData } from "../../types/IDeployData.js";
-import { getShardIdFromAddress, refineAddress } from "../../utils/address.js";
+import { calculateAddress, getShardIdFromAddress, refineAddress } from "../../utils/address.js";
 import {
   refineCompressedPublicKey,
   refineFunctionHexData,
@@ -325,7 +325,6 @@ export class WalletV1 {
     abi,
     functionName,
     args,
-    deploy,
     seqno,
     feeCredit,
     value,
@@ -340,16 +339,7 @@ export class WalletV1 {
     const callData = encodeFunctionData({
       abi: Wallet.abi,
       functionName: "asyncCall",
-      args: [
-        hexTo,
-        hexRefundTo,
-        hexBounceTo,
-        feeCredit,
-        !!deploy,
-        tokens ?? [],
-        value ?? 0n,
-        hexData,
-      ],
+      args: [hexTo, hexRefundTo, hexBounceTo, feeCredit, tokens ?? [], value ?? 0n, hexData],
     });
 
     const { hash } = await this.requestToWallet({
@@ -497,21 +487,47 @@ export class WalletV1 {
       };
     }
 
-    const { data, address } = prepareDeployPart(deployData);
+    let constructorData: Uint8Array;
+    if (abi) {
+      constructorData = hexToBytes(
+        encodeDeployData({
+          abi: abi,
+          bytecode:
+            typeof deployData.bytecode === "string"
+              ? deployData.bytecode
+              : bytesToHex(deployData.bytecode),
+          args: deployData.args || [],
+        }),
+      );
+    } else {
+      constructorData =
+        typeof deployData.bytecode === "string"
+          ? hexToBytes(deployData.bytecode)
+          : deployData.bytecode;
+    }
+    const address = calculateAddress(
+      deployData.shard,
+      constructorData,
+      refineSalt(deployData.salt),
+    );
 
-    const hash = await this.sendMessage({
-      to: address,
-      refundTo: this.address,
-      data,
-      value: value ?? 0n,
-      deploy: true,
-      feeCredit,
+    const hexData = bytesToHex(constructorData);
+
+    const callData = encodeFunctionData({
+      abi: Wallet.abi,
+      functionName: "asyncDeploy",
+      args: [shardId, value ?? 0n, hexData, salt],
+    });
+
+    const { hash } = await this.requestToWallet({
+      data: hexToBytes(callData),
+      deploy: false,
       seqno,
       chainId,
     });
 
     return {
-      hash,
+      hash: bytesToHex(hash),
       address: bytesToHex(address),
     };
   }

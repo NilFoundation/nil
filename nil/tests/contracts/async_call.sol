@@ -30,7 +30,6 @@ contract Caller is NilBounceable {
             address(0), // bounceTo
             gasleft() * tx.gasprice, // gas
             Nil.FORWARD_NONE, // forwardKind
-            false,
             msg.value,
             abi.encodeWithSignature("add(int32)", val)
         );

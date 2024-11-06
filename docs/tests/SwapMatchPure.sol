@@ -196,7 +196,6 @@ contract SwapMatch is NilBase {
             address(this),
             0,
             Nil.FORWARD_REMAINING,
-            false,
             0,
             firstTokens,
             ""
@@ -207,7 +206,6 @@ contract SwapMatch is NilBase {
             address(this),
             0,
             Nil.FORWARD_REMAINING,
-            false,
             0,
             secondTokens,
             ""

@@ -105,6 +105,7 @@ const (
 	ErrorAwaitCallCalledFromNotTopLevel
 	ErrorAwaitCallTooLowResponseProcessingGas
 	ErrorAwaitCallTooShortContextData
+	ErrorAsyncDeployMustNotHaveCurrency
 )
 
 type ExecError interface {
