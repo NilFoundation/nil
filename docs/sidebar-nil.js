@@ -303,8 +303,8 @@ export default {
       items: [
         {
           type: "doc",
-          label: "05 November 2024 guide",
-          id: "migration-guides/november-0511-2024-release",
+          label: "06 November 2024 guide",
+          id: "migration-guides/november-0611-2024-release",
         },
       ],
     },

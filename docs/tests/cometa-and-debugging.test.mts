@@ -51,7 +51,7 @@ afterAll(async () => {
   await exec(`rm -rf ${CONFIG_FILE_NAME}`);
 });
 
-describe.skip.sequential("CLI tutorial flows pass correctly for CounterBug", () => {
+describe.sequential("CLI tutorial flows pass correctly for CounterBug", () => {
   test.sequential("CLI can compile, deploy, and register CounterBug in one command", async () => {
     const { stdout, stderr } = await exec(TEST_COMMANDS["COUNTER_BUG_COMETA_COMMAND"]);
     expect(stdout).toBeDefined;
@@ -80,7 +80,7 @@ describe.skip.sequential("CLI tutorial flows pass correctly for CounterBug", () 
 
   test.sequential("CLI calls CounterBug and produces a message", async () => {
     //startCounterBugIncrementCommand
-    const COUNTER_BUG_INCREMENT_COMMAND = `${NIL_GLOBAL} wallet send-message ${COUNTER_BUG_ADDRESS} increment --abi ./tests/CounterBug/CounterBug.abi`;
+    const COUNTER_BUG_INCREMENT_COMMAND = `${NIL_GLOBAL} wallet send-message ${COUNTER_BUG_ADDRESS} increment --abi ./tests/CounterBug/CounterBug.abi ${CONFIG_FLAG}`;
     //endCounterBugIncrementCommand
     const { stdout, stderr } = await exec(COUNTER_BUG_INCREMENT_COMMAND);
     expect(stdout.toBeDefined);
@@ -100,7 +100,7 @@ describe.skip.sequential("CLI tutorial flows pass correctly for CounterBug", () 
 });
 
 describe.skip.sequential("Nil.js correctly interacts with Cometa", () => {
-  test.skip.sequential("Nil.js passes the Cometa tutorial flow", async () => {
+  test.sequential("Nil.js passes the Cometa tutorial flow", async () => {
     //startNilJSCometaTutorialSnippet
     const cometa = new CometaService({
       transport: new HttpTransport({
@@ -129,7 +129,7 @@ describe.skip.sequential("Nil.js correctly interacts with Cometa", () => {
       signer,
     });
 
-    const walletAddress = wallet.getAddressHex();
+    const walletAddress = wallet.address;
     await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
     await wallet.selfDeploy(true);
 
