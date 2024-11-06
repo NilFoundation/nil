@@ -27,38 +27,63 @@ fi
 
 # Function to filter and push each repository
 process_repo() {
-    TARGET_PATH=$1
-    TARGET_URL=$2
+    # list of paths inside main nil repo to filter commits
+    COMMIT_DIRS=$1
+    # that's a url of repo to which we wanna mirror to
+    TARGET_URL="git@github.com:NilFoundation/$2.git"
 
     WORK_DIR=$(mktemp -d)
     CUR_DIR=$(pwd)
-    bash -c "$CMD git clone $CUR_REPO $WORK_DIR/$TARGET_PATH && cd $WORK_DIR/$TARGET_PATH && git filter-repo --path $TARGET_PATH --path-rename $TARGET_PATH/:"
-    cd $WORK_DIR/$TARGET_PATH
+    args=""
+    cur_dir=""
+    for dir in $COMMIT_DIRS; do
+        args+=" --path $dir"
+        #cur dir is last in the list
+        cur_dir=$dir
+    done
+    args+=" --path-rename $cur_dir/:"
+    bash -c "$CMD git clone $CUR_REPO $WORK_DIR/nil && cd $WORK_DIR/nil && git filter-repo $args"
+    cd $WORK_DIR/nil
     git remote add target "$TARGET_URL"
     git push target main
     cd $CUR_DIR
     rm -rf "$WORK_DIR"
 }
 
-repos=(
-    "niljs git@github.com:NilFoundation/nil.js.git"
-    "create-nil-hardhat-project git@github.com:NilFoundation/nil-hardhat-example.git"
-    "hardhat-plugin git@github.com:NilFoundation/nil-hardhat-plugin.git"
-    "uniswap git@github.com:NilFoundation/uniswap-v2-nil.git"
+projects=(
+    # just arbitrary project names for logging
+    "niljs"
+    "hh-example"
+    "hh-plugin"
+    "uniswap"
+)
+project_folders=(
+    # list of space separated project folders [old and current] to filter commits
+    # CUR DIR IS LAST IN THE LIST
+    "niljs"
+    "hardhat-examples create-nil-hardhat-project"
+    "hardhat-plugin"
+    "uniswap"
+)
+pub_repos=(
+    # public repos to update, github.com/NilFoundation/*.git
+    "nil.js"
+    "nil-hardhat-example"
+    "nil-hardhat-plugin"
+    "uniswap-v2-nil"
 )
 
 # Loop through each repository
-for repo in "${repos[@]}"; do
-    # Split the repo string into name and URL
-    repo_name=$(echo "$repo" | awk '{print $1}')
-    repo_url=$(echo "$repo" | awk '{print $2}')
+for i in "${!projects[@]}"; do
+    project=${projects[$i]}
+    folders=${project_folders[$i]}
+    repo=${pub_repos[$i]}
 
-    # Echo the repository being processed
-    echo "Processing repository: $repo_name ($repo_url)"
+    echo "Processing project \`$project\` : mirroring folders [$folders] -> $repo"
 
     # Call the function to process the repository
-    process_repo "$repo_name" "$repo_url"
+    process_repo "$folders" "$repo"
 
     # Echo completion message
-    echo "Finished processing repository: $repo_name"
+    echo "Finished processing project \`$project\`"
 done
