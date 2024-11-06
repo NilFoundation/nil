@@ -1,0 +1,37 @@
+# Use the faucet service via Nil.js
+
+[**Faucets**](../../getting-started/essentials/tokens-multi-currency.mdx#currency-faucet-service) form a special service for 'topping up' addresses and existing smart contracts. Existing faucets can distribute the 'default' token used to pay for message execution as well as several pre-defined 'mock' currencies such as BTC or ETH. 
+
+:::info
+
+'Mock' currencies from faucets are identical to custom currencies and cannot be used to pay for execution.
+
+:::
+
+
+## Import statements
+
+The example imports the following components from `@nilfoundation/niljs`:
+
+```ts showLineNumbers file=../../../tests/cookbook-faucet-service.test.mts start=startImportStatements end=endImportStatements
+```
+
+## Make a top-up with default tokens
+
+To create a wallet and top it up with 'default' tokens:
+
+```ts showLineNumbers file=../../../tests/cookbook-faucet-service.test.mts start=startDefaultExample end=endDefaultExample
+```
+
+```ts showLineNumbers file=../../../tests/cookbook-faucet-service.test.mts start=startContDefaultExample end=endContDefaultExample
+```
+
+## Make a top-up with custom 'mock' currencies
+
+To create a wallet and top it up with a custom 'mock' currency (BTC):
+
+```ts showLineNumbers file=../../../tests/cookbook-faucet-service.test.mts start=startBTCExample end=endBTCExample
+```
+
+```ts showLineNumbers file=../../../tests/cookbook-faucet-service.test.mts start=startContBTCExample end=endContBTCExample
+```

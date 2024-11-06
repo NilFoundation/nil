@@ -1,19 +1,17 @@
 import { RPC_GLOBAL, NIL_GLOBAL } from "./globals";
 
 //startNilJSWalletImports
-import { createRequire } from "node:module";
-const require = createRequire(import.meta.url);
-const {
+
+import {
   Faucet,
   HttpTransport,
   LocalECDSAKeySigner,
   PublicClient,
   WalletV1,
   generateRandomPrivateKey,
-  waitTillCompleted,
   bytesToHex,
   convertEthToWei,
-} = require("@nilfoundation/niljs");
+} from "@nilfoundation/niljs";
 //endNilJSWalletImports
 
 const RPC_ENDPOINT = RPC_GLOBAL;

@@ -1,0 +1,49 @@
+# Deploy and call a smart contract using Nil.js
+
+These recipes showcase how to use Nil.js to deploy and call a smart contract.
+
+## Create a smart contract
+
+This example uses the standard counter contract:
+
+```solidity showLineNumbers file=../../../tests/Counter.sol start=startContract end=endContract
+```
+
+## Import statements
+
+Import the following components from `@nilfoundation/niljs`:
+
+```ts showLineNumbers file=../../../tests/cookbook-deploy-smart-contract.test.mts start=startImportStatements end=endImportStatements
+```
+
+## Deploy the contract
+
+### Internal deployment
+
+To create a new wallet and deploy the contract internally:
+
+```ts showLineNumbers file=../../../tests/cookbook-deploy-smart-contract.test.mts start=startInternalDeployment end=endInternalDeployment
+```
+
+### External deployment
+
+To deploy the contract externally:
+
+```ts showLineNumbers file=../../../tests/cookbook-deploy-smart-contract.test.mts start=startExternalDeployment end=endExternalDeployment
+```
+
+## Sending a message to the contract
+
+### Internal message
+
+To send a new internal message to the `increment()` function:
+
+```ts showLineNumbers file=../../../tests/cookbook-deploy-smart-contract.test.mts start=startInternalMessage end=endInternalMessage
+```
+
+### External message
+
+To send a new external message to the `increment()` function:
+
+```ts showLineNumbers file=../../../tests/cookbook-deploy-smart-contract.test.mts  start=startExternalMessage end=endExternalMessage
+```

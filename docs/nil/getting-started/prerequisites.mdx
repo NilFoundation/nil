@@ -64,6 +64,20 @@ To read more about what is included in the Solidity library, [**read this guide*
 
 [**Follow this explanation**](../core-concepts/shards-parallel-execution.mdx#async-execution) to learn more about the theory behind async execution, or [**complete this tutorial**](essentials/handling-async-execution.mdx) on handling async calls.
 
+## JSON-RPC API
+
+=nil; exposes a JSON-RPC API that supports several methods from regular Ethereum as well as some methods that are unique to the cluster. 
+
+Apart from the usual means of interacting with a JSON-RPC API (e.g., by sending CURL requests), the documentation portal provides an [**interactive API reference**](../reference/client/index.mdx).
+
+To use it, follow the link above, select a method, input the API endpoint in the form and fill the method parameters. Click on '**Send Request**' to send the request. 
+
+:::info
+
+The documentation portal will also generate a valid CURL script depending on the request params. This script can be used in CI pipelines or bash scripts.
+
+:::
+
 ## =nil; CLI
 
 The =nil; CLI is an easy-to-use tool for interacting with the cluster from any shell: it supports all major operations and can be integrated into a CI/CD pipeline.
