@@ -3,7 +3,6 @@ package types
 import (
 	"bytes"
 	"crypto/rand"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -184,14 +183,12 @@ func (a *Address) UnmarshalText(input []byte) error {
 func setShardId(bytes []byte, shardId ShardId) []byte {
 	check.PanicIfNotf(ShardIdSize == 2, "please adjust shard id size")
 	check.PanicIfNotf(shardId <= math.MaxUint16, "too big shard id")
-
-	binary.BigEndian.PutUint16(bytes, uint16(shardId))
+	copy(bytes, shardId.Bytes())
 	return bytes
 }
 
 func (a Address) ShardId() ShardId {
-	num := binary.BigEndian.Uint16(a[:ShardIdSize])
-	return ShardId(num)
+	return BytesToShardId(a[:ShardIdSize])
 }
 
 func (a *Address) Set(val string) error {
@@ -253,6 +250,5 @@ func ToShardedHash(h common.Hash, shardId ShardId) common.Hash {
 }
 
 func ShardIdFromHash(h common.Hash) ShardId {
-	num := binary.BigEndian.Uint16(h[:ShardIdSize])
-	return ShardId(num)
+	return BytesToShardId(h[:ShardIdSize])
 }

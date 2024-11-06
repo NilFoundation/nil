@@ -344,13 +344,9 @@ func (b rawBlockAccessor) ByHash(hash common.Hash) (rawBlockAccessorResult, erro
 
 		shards := make(map[types.ShardId]common.Hash)
 		for key, value := range treeShards.Iterate() {
-			var shardId types.ShardId
 			var hash common.Hash
 
-			shardId, err = types.ParseShardIdFromString(string(key))
-			if err != nil {
-				return rawBlockAccessorResult{}, err
-			}
+			shardId := types.BytesToShardId(key)
 			hash.SetBytes(value)
 			shards[shardId] = hash
 		}
