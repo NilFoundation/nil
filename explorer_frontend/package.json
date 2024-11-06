@@ -19,7 +19,7 @@
 		"@codemirror/view": "^6.34.1",
 		"@hotjar/browser": "^1.0.9",
 		"@loadable/component": "^5.15.3",
-		"@nilfoundation/niljs": "0.16.0",
+		"@nilfoundation/niljs": "0.17.0",
 		"@nilfoundation/smart-contracts": "^0.1.4",
 		"@nilfoundation/ui-kit": "^2.5.22",
 		"@noble/curves": "^1.4.0",
