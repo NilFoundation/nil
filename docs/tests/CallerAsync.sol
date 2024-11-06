@@ -16,7 +16,6 @@ contract CallerAsync {
             address(0),
             500000,
             Nil.FORWARD_NONE,
-            false,
             msg.value,
             abi.encodeWithSignature("funcName")
         );

@@ -12,10 +12,9 @@ contract PrecompilesTest is NilBase {
         address bounceTo,
         uint feeCredit,
         uint8 forwardKind,
-        bool deploy,
         uint value,
         bytes memory callData) public {
-        Nil.asyncCall(dst, refundTo, bounceTo, feeCredit, forwardKind, deploy, value, callData);
+        Nil.asyncCall(dst, refundTo, bounceTo, feeCredit, forwardKind, value, callData);
     }
 
     function testSendRawMsg(

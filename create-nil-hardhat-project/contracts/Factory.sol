@@ -18,11 +18,8 @@ contract Factory {
         bytes memory code,
         uint256 salt
     ) public {
-        // Create the contract address
-        address contractAddress = Nil.createAddress(shardId, code, salt);
-
-        // Call asyncCall to deploy the contract
-        Nil.asyncCall(contractAddress, address(0), msg.sender, 0, 0, true, 0, abi.encodePacked(code, salt));
+        // Deploy the contract
+        address contractAddress = Nil.asyncDeploy(shardId, msg.sender, 0, code, salt);
 
         // Store the deployed contract address by name
         contractsByName[name] = contractAddress;

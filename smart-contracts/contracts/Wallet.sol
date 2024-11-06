@@ -42,12 +42,26 @@ contract Wallet is NilCurrencyBase {
     }
 
     /**
+     * @dev Deploys a contract asynchronously.
+     * @param shardId The shard ID where to deploy contract.
+     * @param value The value to send.
+     * @param code The init code to be deployed. Constructor arguments must be appended to it.
+     * @param salt Salt for the contract address creation.
+     */
+    function asyncDeploy(
+        uint shardId,
+        uint value,
+        bytes calldata code,
+        uint salt) onlyExternal public {
+        Nil.asyncDeploy(shardId, address(this), value, code, salt);
+    }
+
+    /**
      * @dev Makes an asynchronous call.
      * @param dst The destination address.
      * @param refundTo The address where to send refund message.
      * @param bounceTo The address where to send bounce message.
      * @param feeCredit The amount of tokens available to pay all fees during message processing.
-     * @param deploy Whether to deploy the contract.
      * @param tokens The multi-currency tokens to send.
      * @param value The value to send.
      * @param callData The call data of the called method.
@@ -57,11 +71,10 @@ contract Wallet is NilCurrencyBase {
         address refundTo,
         address bounceTo,
         uint feeCredit,
-        bool deploy,
         Nil.Token[] memory tokens,
         uint value,
         bytes calldata callData) onlyExternal public {
-        Nil.asyncCallWithTokens(dst, refundTo, bounceTo, feeCredit, Nil.FORWARD_NONE, deploy, value, tokens, callData);
+        Nil.asyncCallWithTokens(dst, refundTo, bounceTo, feeCredit, Nil.FORWARD_NONE, value, tokens, callData);
     }
 
     /**

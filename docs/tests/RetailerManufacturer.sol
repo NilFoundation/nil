@@ -15,7 +15,6 @@ contract Retailer {
             msg.sender,
             1_000_000,
             Nil.FORWARD_VALUE,
-            false,
             0,
             abi.encodeWithSignature("createProduct(string)", name)
         );

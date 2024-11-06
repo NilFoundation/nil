@@ -24,7 +24,7 @@ contract TokensTest is NilCurrencyBase {
     function testCallWithTokensAsync(address dst, Nil.Token[] memory tokens) onlyExternal public {
         bytes memory callData = abi.encodeCall(this.testMessageTokens, tokens);
         uint256 gas = gasleft() * tx.gasprice;
-        Nil.asyncCallWithTokens(dst, address(0), address(0), gas, Nil.FORWARD_NONE, false, 0, tokens, callData);
+        Nil.asyncCallWithTokens(dst, address(0), address(0), gas, Nil.FORWARD_NONE, 0, tokens, callData);
     }
 
     function testMessageTokens(Nil.Token[] memory tokens) payable public {

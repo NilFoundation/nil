@@ -253,6 +253,18 @@ func CheckContractValueEqual[T any](t *testing.T, client client.Client, inAbi *a
 	require.Equal(t, value, gotValue)
 }
 
+func CallGetterT[T any](t *testing.T, client client.Client, inAbi *abi.ABI, address types.Address, name string) T {
+	t.Helper()
+
+	data := AbiPack(t, inAbi, name)
+	data = CallGetter(t, client, address, data, "latest", nil)
+	nameRes, err := inAbi.Unpack(name, data)
+	require.NoError(t, err)
+	gotValue, ok := nameRes[0].(T)
+	require.True(t, ok)
+	return gotValue
+}
+
 func GetContract(t *testing.T, ctx context.Context, database db.DB, address types.Address) *types.SmartContract {
 	t.Helper()
 

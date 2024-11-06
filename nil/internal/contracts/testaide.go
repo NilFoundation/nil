@@ -12,6 +12,8 @@ import (
 
 const (
 	NameCounter                    = "tests/Counter"
+	NameDeployer                   = "tests/Deployer"
+	NameDeployee                   = "tests/Deployee"
 	NameMessageCheck               = "tests/MessageCheck"
 	NameSender                     = "tests/Sender"
 	NameTest                       = "tests/Test"

@@ -71,7 +71,6 @@ contract Faucet {
             address(this) /* bounceTo */,
             feeCredit,
             Nil.FORWARD_NONE,
-            false /* deploy */,
             value,
             callData);
         emit Send(addr, value);

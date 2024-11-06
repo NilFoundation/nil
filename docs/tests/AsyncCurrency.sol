@@ -14,7 +14,6 @@ contract AsyncCurrencySender {
       address(this),
       0,
       Nil.FORWARD_REMAINING,
-      false,
       0,
       tokens,
       ""
