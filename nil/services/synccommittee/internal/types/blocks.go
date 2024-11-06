@@ -150,8 +150,8 @@ type PrunedTransaction struct {
 	Data  hexutil.Bytes
 }
 
-func NewTransaction(message *jsonrpc.RPCInMessage) PrunedTransaction {
-	return PrunedTransaction{
+func NewTransaction(message *jsonrpc.RPCInMessage) *PrunedTransaction {
+	return &PrunedTransaction{
 		Flags: message.Flags,
 		Seqno: message.Seqno,
 		From:  message.From,
@@ -163,7 +163,7 @@ func NewTransaction(message *jsonrpc.RPCInMessage) PrunedTransaction {
 
 type ProposalData struct {
 	MainShardBlockHash common.Hash
-	Transactions       []PrunedTransaction
+	Transactions       []*PrunedTransaction
 	OldProvedStateRoot common.Hash
 	NewProvedStateRoot common.Hash
 	MainBlockFetchedAt time.Time

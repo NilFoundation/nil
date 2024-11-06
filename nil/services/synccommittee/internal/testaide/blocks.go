@@ -123,7 +123,7 @@ func GenerateExecutionShardBlock() *jsonrpc.RPCBlock {
 }
 
 func GenerateProposalData(txCount int) *scTypes.ProposalData {
-	transactions := make([]scTypes.PrunedTransaction, 0, txCount)
+	transactions := make([]*scTypes.PrunedTransaction, 0, txCount)
 	for range txCount {
 		tx := scTypes.NewTransaction(GenerateRpcInMessage())
 		transactions = append(transactions, tx)

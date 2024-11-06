@@ -470,8 +470,8 @@ func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, id scTypes.B
 	return tx.Commit()
 }
 
-func extractTransactions(block jsonrpc.RPCBlock) []scTypes.PrunedTransaction {
-	transactions := make([]scTypes.PrunedTransaction, len(block.Messages))
+func extractTransactions(block jsonrpc.RPCBlock) []*scTypes.PrunedTransaction {
+	transactions := make([]*scTypes.PrunedTransaction, len(block.Messages))
 	for idx, message := range block.Messages {
 		transactions[idx] = scTypes.NewTransaction(message)
 	}
