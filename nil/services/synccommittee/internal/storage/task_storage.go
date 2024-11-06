@@ -46,9 +46,6 @@ type TaskStorage interface {
 
 	// RescheduleHangingTasks Identify tasks that exceed execution timeout and reschedule them to be re-executed
 	RescheduleHangingTasks(ctx context.Context, currentTime time.Time, taskExecutionTimeout time.Duration) error
-
-	// TryGetTaskEntryByHash Retrieve a task entry by blockHash. In case if task does not exist, method returns nil, if few entries have same blockHash - returns first
-	TryGetTaskEntryByHash(ctx context.Context, blockHash common.Hash) (*types.TaskEntry, error)
 }
 
 type TaskStorageMetrics interface {
@@ -174,25 +171,6 @@ func (st *taskStorage) TryGetTaskEntry(ctx context.Context, id types.TaskId) (*t
 	}
 
 	return entry, err
-}
-
-func (st *taskStorage) TryGetTaskEntryByHash(ctx context.Context, blockHash common.Hash) (*types.TaskEntry, error) {
-	tx, err := st.database.CreateRoTx(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	var res *types.TaskEntry = nil
-
-	err = iterateOverTaskEntries(tx, func(entry *types.TaskEntry) error {
-		if entry.Task.BlockHash == blockHash {
-			res = entry
-			return nil
-		}
-		return nil
-	})
-
-	return res, err
 }
 
 func (st *taskStorage) RemoveTaskEntry(ctx context.Context, id types.TaskId) error {

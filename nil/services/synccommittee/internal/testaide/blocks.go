@@ -76,9 +76,9 @@ func GenerateMainShardBlocks(blocksCount int) []*jsonrpc.RPCBlock {
 	return mainShardBlocks
 }
 
-func GenerateBlockBatch(childBlocksCount int) (mainBlock *jsonrpc.RPCBlock, childBlocks []*jsonrpc.RPCBlock) {
-	mainBlock = GenerateMainShardBlock()
-	childBlocks = make([]*jsonrpc.RPCBlock, 0, childBlocksCount)
+func GenerateBlockBatch(childBlocksCount int) *scTypes.BlockBatch {
+	mainBlock := GenerateMainShardBlock()
+	childBlocks := make([]*jsonrpc.RPCBlock, 0, childBlocksCount)
 
 	for i := range childBlocksCount {
 		block := GenerateExecutionShardBlock()
@@ -87,7 +87,11 @@ func GenerateBlockBatch(childBlocksCount int) (mainBlock *jsonrpc.RPCBlock, chil
 		mainBlock.ChildBlocks = append(mainBlock.ChildBlocks, block.Hash)
 	}
 
-	return mainBlock, childBlocks
+	batch, err := scTypes.NewBlockBatch(mainBlock, childBlocks)
+	if err != nil {
+		panic(err)
+	}
+	return batch
 }
 
 func GenerateMainShardBlock() *jsonrpc.RPCBlock {

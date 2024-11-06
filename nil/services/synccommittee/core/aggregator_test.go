@@ -13,6 +13,7 @@ import (
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
@@ -134,7 +135,7 @@ func (s *AggregatorTestSuite) TestFetchAndProcessBlocks() {
 	s.Require().NotNil(block)
 }
 
-func (s *AggregatorTestSuite) TestValidateAndProcessBlock() {
+func (s *AggregatorTestSuite) TestHandleBlockBatch() {
 	latestBlock, err := s.aggregator.fetchLatestBlockRef()
 	s.Require().NoError(err)
 
@@ -144,8 +145,11 @@ func (s *AggregatorTestSuite) TestValidateAndProcessBlock() {
 	s.Require().NotNil(block)
 	block.ChildBlocks = make([]common.Hash, 0)
 
+	batch, err := scTypes.NewBlockBatch(block, []*jsonrpc.RPCBlock{})
+	s.Require().NoError(err)
+
 	// Validate and store the block
-	err = s.aggregator.validateAndProcessBlock(s.ctx, block, block.Hash)
+	err = s.aggregator.handleBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
 	// Check if the block was stored

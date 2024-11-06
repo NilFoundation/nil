@@ -39,10 +39,7 @@ func (h *taskHandler) Handle(ctx context.Context, _ types.TaskExecutorId, task *
 
 		return h.taskStorage.AddTaskEntries(ctx, blockTasks)
 	} else {
-		aggregateTaskEntry := types.NewAggregateBlockProofsTaskEntry(task.BatchId, task.ShardId, task.BlockNum, task.BlockHash, task.DependencyNum)
-		aggregateTaskEntry.Task.Dependencies = task.Dependencies
-		aggregateTaskEntry.Task.ParentTaskId = &task.Id
-		aggregateTaskEntry.Status = types.WaitingForExecutor
+		aggregateTaskEntry := task.AsNewChildEntry()
 		return h.taskStorage.AddSingleTaskEntry(ctx, *aggregateTaskEntry)
 	}
 }

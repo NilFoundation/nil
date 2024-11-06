@@ -84,7 +84,7 @@ func (s *TaskHandlerTestSuite) TestHandleBlockProofTask() {
 	executorId := testaide.RandomExecutorId()
 	taskId := types.NewTaskId()
 	blockHash := common.IntToHash(1)
-	taskEntry := types.NewBlockProofTaskEntry(types.NewBatchId(), &taskId, blockHash)
+	taskEntry := types.NewBlockProofTaskEntry(types.NewBatchId(), taskId, blockHash)
 
 	err := s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
 	s.Require().NoError(err, "taskHandler.Handle returned an error")
