@@ -53,6 +53,15 @@ func parseCallArgument(arg string, tp abi.Type) (any, error) {
 		}
 	case abi.StringTy:
 		val.SetString(arg)
+	case abi.FixedBytesTy:
+		data, err := hexutil.DecodeHex(arg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse bytes argument: %w", err)
+		}
+		if len(data) != tp.Size {
+			return nil, fmt.Errorf("invalid data size: expected %d but got %d", tp.Size, len(data))
+		}
+		reflect.Copy(val, reflect.ValueOf(data[0:tp.Size]))
 	case abi.BytesTy:
 		data, err := hexutil.DecodeHex(arg)
 		if err != nil {
