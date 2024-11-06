@@ -41,6 +41,14 @@ The `Nil.js` package now contains several 'helper' functions and classes for int
 
 More information about the `Nil.js` Cometa bindings is given in [**the references section**](../reference/client/index.mdx).
 
+* Remove `await` statements when using the the `signer.getPublicKey()` and `signer.getAddress()` functions
+
+These functions have become synchronous and the `await` statement no longer influences their results.
+
+* Remove all usages of the `wallet.getAddressHex()` function
+
+Instead, use the `wallet.address` property. It contains the wallet address as a `Hex` value.
+
 ## Migration of Hardhat scripts
 
 * Remove the `--network nil` flag from Ignition deployments and tasks
