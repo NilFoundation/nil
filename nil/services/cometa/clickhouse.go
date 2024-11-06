@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/NilFoundation/nil/nil/internal/abi"
 	"strings"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
@@ -76,14 +76,18 @@ func (s *StorageClick) StoreContract(ctx context.Context, contractData *Contract
 	err = s.insertConn.Exec(ctx, `INSERT INTO contracts_metadata
     	(address, data_json, code_hash, abi, source_code, version)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
-		string(address.Bytes()), string(data), string(types.Code(contractData.Code).Hash().Bytes()), string(contractData.Abi),
+		string(address.Bytes()), string(data), string(types.Code(contractData.Code).Hash().Bytes()), contractData.Abi,
 		contractData.SourceCode, SchemaVersion)
 	if err != nil {
 		return fmt.Errorf("failed to insert contract data: %w", err)
 	}
 
-	abispec, err := abi.JSON(strings.NewReader(contractData.Abi))
-	for _, method := range abispec.Methods {
+	var abiSpec abi.ABI
+	abiSpec, err = abi.JSON(strings.NewReader(contractData.Abi))
+	if err != nil {
+		return fmt.Errorf("failed to parse abi: %w", err)
+	}
+	for _, method := range abiSpec.Methods {
 		err = s.insertConn.Exec(ctx, `INSERT INTO abi_metadata
 			(address, selector, name, type)
 			VALUES ($1, $2, $3, $4)`,
