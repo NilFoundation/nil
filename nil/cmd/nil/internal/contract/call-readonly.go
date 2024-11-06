@@ -62,7 +62,7 @@ func GetCallReadonlyCommand(cfg *common.Config) *cobra.Command {
 }
 
 func runCallReadonly(args []string, cfg *common.Config) error {
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey)
+	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
 
 	var address types.Address
 	if err := address.Set(args[0]); err != nil {

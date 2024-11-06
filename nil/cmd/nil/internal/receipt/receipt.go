@@ -27,7 +27,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 }
 
 func runCommand(_ *cobra.Command, args []string) error {
-	service := cliservice.NewService(common.GetRpcClient(), nil)
+	service := cliservice.NewService(common.GetRpcClient(), nil, nil)
 
 	var hash libcommon.Hash
 	if err := hash.Set(args[0]); err != nil {

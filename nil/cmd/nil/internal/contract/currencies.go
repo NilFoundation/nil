@@ -29,7 +29,7 @@ func runCurrencies(_ *cobra.Command, args []string, cfg *common.Config) error {
 		return err
 	}
 
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey)
+	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
 	currencies, err := service.GetCurrencies(address)
 	if err != nil {
 		return err

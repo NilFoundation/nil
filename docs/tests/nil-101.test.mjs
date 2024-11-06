@@ -9,6 +9,7 @@ import {
   MESSAGE_HASH_PATTERN,
   WALLET_ADDRESS_PATTERN,
   CURRENCY_PATTERN,
+  FAUCET_PATTERN,
 } from "./patterns";
 import { COUNTER_COMPILATION_COMMAND, CALLER_COMPILATION_COMMAND } from "./compilationCommands";
 import TestHelper from "./TestHelper";
@@ -46,6 +47,11 @@ describe.sequential("initial wallet setup tests", () => {
   test.sequential("endpoint command should set the endpoint", async () => {
     const { stdout, stderr } = await exec(TEST_COMMANDS["RPC_COMMAND"]);
     expect(stderr).toMatch(RPC_PATTERN);
+  });
+
+  test.sequential("faucet_endpoint command should set the faucet endpoint", async () => {
+    const { stdout, stderr } = await exec(TEST_COMMANDS["FAUCET_COMMAND"]);
+    expect(stderr).toMatch(FAUCET_PATTERN);
   });
 
   test.sequential("wallet creation command creates a wallet", async () => {

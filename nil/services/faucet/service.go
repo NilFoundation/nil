@@ -3,7 +3,7 @@ package faucet
 import (
 	"context"
 
-	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
@@ -11,10 +11,10 @@ import (
 )
 
 type Service struct {
-	client *rpc_client.Client
+	client client.Client
 }
 
-func NewService(client *rpc_client.Client) (*Service, error) {
+func NewService(client client.Client) (*Service, error) {
 	return &Service{client: client}, nil
 }
 

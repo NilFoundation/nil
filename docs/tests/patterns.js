@@ -14,6 +14,7 @@ export const PREV_BLOCK_PATTERN = /PrevBlock/;
 export const HASH_PATTERN = /0x[a-fA-F0-9]{64}/g;
 export const PRIVATE_KEY_PATTERN = /\bPrivate key: [a-f0-9]{64}\b/;
 export const RPC_PATTERN = /Set "rpc_endpoint" to /;
+export const FAUCET_PATTERN = /Set "faucet_endpoint" to /;
 export const NEW_WALLET_PATTERN = /New wallet address/;
 
 export const WALLET_BALANCE_PATTERN = /Wallet balance/;
@@ -22,4 +23,3 @@ export const MESSAGE_HASH_PATTERN = /Message hash:/;
 export const ESCROW_SUCCESSFUL_PATTERN = /Function state mutability can be restricted to pure/;
 
 export const COUNTER_BUG_DEBUG_PATTERN = /require\(msg\.sender == address\(0\)\)/m;
-

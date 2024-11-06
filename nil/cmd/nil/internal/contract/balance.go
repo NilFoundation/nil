@@ -30,7 +30,7 @@ func runBalance(_ *cobra.Command, args []string, cfg *common.Config) error {
 		return err
 	}
 
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey)
+	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
 	balance, err := service.GetBalance(address)
 	if err != nil {
 		return err

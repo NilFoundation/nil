@@ -14,7 +14,7 @@ var titleCaser = cases.Title(language.English)
 func RunTopUp(
 	name string, cfg *Config, address types.Address, amount types.Value, currId string, quiet bool,
 ) error {
-	service := cliservice.NewService(GetRpcClient(), cfg.PrivateKey)
+	service := cliservice.NewService(GetRpcClient(), cfg.PrivateKey, GetFaucetRpcClient())
 
 	faucetAddress := types.FaucetAddress
 	if len(currId) == 0 {

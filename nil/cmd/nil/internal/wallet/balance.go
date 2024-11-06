@@ -24,7 +24,7 @@ func BalanceCommand(cfg *common.Config) *cobra.Command {
 }
 
 func runBalance(_ *cobra.Command, _ []string, cfg *common.Config) error {
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey)
+	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
 	balance, err := service.GetBalance(cfg.Address)
 	if err != nil {
 		return err

@@ -39,7 +39,7 @@ func setFlags(cmd *cobra.Command) {
 }
 
 func runCommand(_ *cobra.Command, args []string) error {
-	service := cliservice.NewService(common.GetRpcClient(), nil)
+	service := cliservice.NewService(common.GetRpcClient(), nil, nil)
 
 	blockData, err := service.FetchDebugBlock(params.shardId, args[0], params.jsonOutput, params.fullOutput, params.noColor)
 	if err != nil {

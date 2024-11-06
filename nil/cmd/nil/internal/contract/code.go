@@ -30,7 +30,7 @@ func runCode(_ *cobra.Command, args []string, cfg *common.Config) error {
 		return err
 	}
 
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey)
+	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
 	_, _ = service.GetCode(address)
 	code, _ := service.GetCode(address)
 	if !config.Quiet {

@@ -1,4 +1,4 @@
-import { RPC_GLOBAL, NIL_GLOBAL } from "./globals";
+import { RPC_GLOBAL, NIL_GLOBAL, FAUCET_GLOBAL } from "./globals";
 
 //startNilJSWalletImports
 import { createRequire } from "node:module";
@@ -17,6 +17,7 @@ const {
 //endNilJSWalletImports
 
 const RPC_ENDPOINT = RPC_GLOBAL;
+const FAUCET_ENDPOINT = FAUCET_GLOBAL;
 const CONFIG_FILE_NAME = "tempConfigCreatingAWallet.ini";
 
 const util = require("node:util");
@@ -28,6 +29,7 @@ const CONFIG_FLAG = `--config ./tests/${CONFIG_FILE_NAME}`;
 
 const CONFIG_COMMAND = `${NIL_GLOBAL} config init ${CONFIG_FLAG}`;
 const RPC_COMMAND = `${NIL_GLOBAL} config set rpc_endpoint ${RPC_ENDPOINT} ${CONFIG_FLAG}`;
+const FAUCET_COMMAND = `${NIL_GLOBAL} config set faucet_endpoint ${FAUCET_ENDPOINT} ${CONFIG_FLAG}`;
 const KEYGEN_COMMAND = `${NIL_GLOBAL} keygen new ${CONFIG_FLAG}`;
 
 //startWallet
@@ -42,6 +44,7 @@ beforeAll(async () => {
   await exec(CONFIG_COMMAND);
   await exec(KEYGEN_COMMAND);
   await exec(RPC_COMMAND);
+  await exec(FAUCET_COMMAND);
 });
 
 afterAll(async () => {

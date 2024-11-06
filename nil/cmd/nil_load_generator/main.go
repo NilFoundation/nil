@@ -105,7 +105,7 @@ func createWallets(service *cliservice.Service, shardIds []types.ShardId, mh *me
 func deployContracts(client *rpc_client.Client, wallets []types.Address, privateKeys []*ecdsa.PrivateKey, incrementContractCode []byte, mh *metrics.MetricsHandler) (map[types.ShardId]types.Address, error) {
 	contractsCall := make(map[types.ShardId]types.Address)
 	for i, wallet := range wallets {
-		service := cliservice.NewService(client, privateKeys[i])
+		service := cliservice.NewService(client, privateKeys[i], nil)
 
 		txHashCaller, addr, err := service.DeployContractViaWallet(wallet.ShardId(), wallet, types.BuildDeployPayload(incrementContractCode, wallet.Hash()), types.Value{})
 		if err != nil {
@@ -172,7 +172,7 @@ func main() {
 	}
 
 	client := rpc_client.NewClient(*rpcEndpoint, logger)
-	service := cliservice.NewService(client, execution.MainPrivateKey)
+	service := cliservice.NewService(client, execution.MainPrivateKey, nil)
 
 	shardIdList, err := client.GetShardIdList()
 	if err != nil {

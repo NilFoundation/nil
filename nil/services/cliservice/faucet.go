@@ -100,7 +100,11 @@ func (e MessageHashMismatchError) Error() string {
 }
 
 func (s *Service) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address, amount types.Value) error {
-	msgHash, err := s.client.TopUpViaFaucet(faucetAddress, contractAddressTo, amount)
+	if s.faucetClient == nil {
+		return errors.New("faucet client is not set")
+	}
+
+	msgHash, err := s.faucetClient.TopUpViaFaucet(faucetAddress, contractAddressTo, amount)
 	if err != nil {
 		return err
 	}
