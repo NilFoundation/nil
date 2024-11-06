@@ -1,12 +1,13 @@
-# Release 05.11.2024: migration guide
+# Release 06.11.2024: migration guide
 
-This release of =nil; simplifies operations with the `CurrencyId` type by adding new comparison operators. The =nil; CLI can set the RPC endpoint of the Cometa service, removing the need to modify the config file manually. Usage of the =nil; Hardhat plugin no longer requires passing the `--network nil` flag to Ignition deployments and tasks.
+This release of =nil; simplifies operations with the `CurrencyId` type by adding new comparison operators. The =nil; CLI can set the RPC endpoint of the Cometa service, removing the need to modify the Cometa config file manually. Usage of the =nil; Hardhat plugin no longer requires passing the `--network nil` flag to Ignition deployments and tasks.
 
 ## Summary of key changes
 
 * `Nil.sol` now allows for easy comparisons of `CurrencyId` via new comparison operators and 'wrapper' functions
 * `Nil.js` includes bindings for using the Cometa service
 * The =nil; CLI can set the Cometa RPC endpoint for use with the `nil cometa` command
+* The =nil; CLI can top-up the balances of smart contracts without needing a wallet
 * The previously mandatory `--network nil` flag has been removed for Ignition deployments and tasks in the =nil; Hardhat plugin
 * The endpoints for the Cometa service and [**the Faucet service**](../getting-started/essentials/tokens-multi-currency.mdx#currency-faucet-service) have been merged with the standard `http://api.devnet.nil.foundation/api/$USERNAME/$TOKEN` endpoint
 
@@ -24,6 +25,14 @@ Prior to using the Cometa service via the =nil; CLI, set its RPC endpoint via th
 
 [**Read this tutorial**](../guides/cometa-and-debugging.mdx) to learn more about the Cometa service.
 
+* Top-up smart contracts without needing a wallet
+
+The =nil; CLI can now be used to top-up smart contracts without requiring a wallet:
+
+```bash
+nil contract top-up CONTRACT_ADDRESS AMOUNT CURRENCY_ID
+```
+
 ## Migration of `Nil.js` scripts
 
 * Use the new Cometa service bindings in `Nil.js` scripts
@@ -37,3 +46,4 @@ More information about the `Nil.js` Cometa bindings is given in [**the reference
 * Remove the `--network nil` flag from Ignition deployments and tasks
 
 The =nil; Hardhat plugin no longer requires passing the `--network nil` flag when deploying a contract or running a task using Ignition.
+

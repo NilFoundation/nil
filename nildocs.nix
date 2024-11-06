@@ -40,6 +40,7 @@ stdenv.mkDerivation rec {
   '';
 
   buildPhase = ''
+    runHook preBuild
     patchShebangs docs/node_modules
     patchShebangs niljs/node_modules
     (cd smart-contracts; npm run compile)
