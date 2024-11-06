@@ -29,6 +29,7 @@ exporter.yaml
 .run
 # CLI config file
 config.yaml
+*.config.yaml
 # CLI keys file
 *keys.yaml
 

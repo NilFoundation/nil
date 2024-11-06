@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
@@ -49,6 +51,16 @@ func NewStorageClick(ctx context.Context, cfg *Config) (*StorageClick, error) {
 		return nil, fmt.Errorf("failed to create contracts_metadata table: %w", err)
 	}
 
+	err = conn.Exec(ctx,
+		`CREATE TABLE IF NOT EXISTS abi_metadata
+			(address FixedString(20), selector FixedString(4), name String, type String)
+			ENGINE = ReplacingMergeTree
+			PRIMARY KEY (address, selector)
+			ORDER BY (address, selector)`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create abi_metadata table: %w", err)
+	}
+
 	return &StorageClick{
 		conn:       conn,
 		insertConn: insertConn,
@@ -61,19 +73,30 @@ func (s *StorageClick) StoreContract(ctx context.Context, contractData *Contract
 		return fmt.Errorf("failed to marshal contract data: %w", err)
 	}
 
-	jsonAbi, err := json.Marshal(contractData.Abi)
-	if err != nil {
-		return fmt.Errorf("failed to marshal abi: %w", err)
-	}
-
 	err = s.insertConn.Exec(ctx, `INSERT INTO contracts_metadata
     	(address, data_json, code_hash, abi, source_code, version)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
-		string(address.Bytes()), string(data), string(types.Code(contractData.Code).Hash().Bytes()), jsonAbi,
+		string(address.Bytes()), string(data), string(types.Code(contractData.Code).Hash().Bytes()), contractData.Abi,
 		contractData.SourceCode, SchemaVersion)
 	if err != nil {
 		return fmt.Errorf("failed to insert contract data: %w", err)
 	}
+
+	var abiSpec abi.ABI
+	abiSpec, err = abi.JSON(strings.NewReader(contractData.Abi))
+	if err != nil {
+		return fmt.Errorf("failed to parse abi: %w", err)
+	}
+	for _, method := range abiSpec.Methods {
+		err = s.insertConn.Exec(ctx, `INSERT INTO abi_metadata
+			(address, selector, name, type)
+			VALUES ($1, $2, $3, $4)`,
+			string(address.Bytes()), string(method.ID), method.Name, "method")
+		if err != nil {
+			return fmt.Errorf("failed to insert abi metadata: %w", err)
+		}
+	}
+
 	return nil
 }
 
