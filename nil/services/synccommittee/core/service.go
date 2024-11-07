@@ -98,7 +98,6 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 func (s *SyncCommittee) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-
 	defer telemetry.Shutdown(ctx)
 
 	if s.cfg.GracefulShutdown {

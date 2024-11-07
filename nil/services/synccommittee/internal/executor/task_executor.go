@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/math"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
 )
@@ -32,10 +33,15 @@ type TaskExecutor interface {
 	Run(ctx context.Context) error
 }
 
+type TaskExecutorMetrics interface {
+	metrics.BasicMetrics
+}
+
 func New(
 	config *Config,
 	requestHandler api.TaskRequestHandler,
 	taskHandler api.TaskHandler,
+	metrics TaskExecutorMetrics,
 	logger zerolog.Logger,
 ) (TaskExecutor, error) {
 	nonceId, err := generateNonceId()
@@ -47,6 +53,7 @@ func New(
 		config:         *config,
 		requestHandler: requestHandler,
 		taskHandler:    taskHandler,
+		metrics:        metrics,
 		logger:         logger,
 	}, nil
 }
@@ -56,6 +63,7 @@ type taskExecutorImpl struct {
 	config         Config
 	requestHandler api.TaskRequestHandler
 	taskHandler    api.TaskHandler
+	metrics        TaskExecutorMetrics
 	logger         zerolog.Logger
 }
 
@@ -70,6 +78,7 @@ func (p *taskExecutorImpl) Run(ctx context.Context) error {
 		func(ctx context.Context) {
 			if err := p.fetchAndHandleTask(ctx); err != nil {
 				p.logger.Error().Err(err).Msg("failed to fetch and handle next task")
+				p.metrics.RecordError(ctx, "task_executor")
 			}
 		},
 	)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/stretchr/testify/suite"
@@ -30,7 +31,10 @@ func (s *TestSuite) SetupTest() {
 		TaskPollingInterval: 10 * time.Millisecond,
 	}
 	logger := logging.NewLogger("task-executor-test")
-	taskExecutor, err := New(&config, s.requestHandler, s.taskHandler, logger)
+	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
+	s.Require().NoError(err)
+
+	taskExecutor, err := New(&config, s.requestHandler, s.taskHandler, metricsHandler, logger)
 	s.Require().NoError(err)
 	s.taskExecutor = taskExecutor
 }

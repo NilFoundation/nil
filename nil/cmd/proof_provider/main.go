@@ -4,13 +4,21 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/profiling"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/proofprovider"
 	"github.com/spf13/cobra"
 )
+
+type cmdConfig struct {
+	*proofprovider.Config
+	DbPath string
+}
 
 func main() {
 	check.PanicIfErr(execute())
@@ -22,7 +30,9 @@ func execute() error {
 		Short: "Run nil proof provider node",
 	}
 
-	cfg := proofprovider.NewDefaultConfig()
+	cfg := &cmdConfig{
+		Config: proofprovider.NewDefaultConfig(),
+	}
 
 	runCmd := &cobra.Command{
 		Use:   "run",
@@ -39,10 +49,10 @@ func execute() error {
 	return rootCmd.Execute()
 }
 
-func addFlags(cmd *cobra.Command, cfg *proofprovider.Config) {
+func addFlags(cmd *cobra.Command, cfg *cmdConfig) {
 	cmd.Flags().StringVar(&cfg.SyncCommitteeRpcEndpoint, "sync-committee-endpoint", cfg.SyncCommitteeRpcEndpoint, "sync committee rpc endpoint")
 	cmd.Flags().StringVar(&cfg.OwnRpcEndpoint, "own-endpoint", cfg.OwnRpcEndpoint, "own rpc server endpoint")
-	cmd.Flags().StringVar(&cfg.DbPath, "db-path", cfg.DbPath, "path to database")
+	cmd.Flags().StringVar(&cfg.DbPath, "db-path", "proof_provider.db", "path to database")
 	cmd.Flags().BoolVar(&cfg.Telemetry.ExportMetrics, "metrics", cfg.Telemetry.ExportMetrics, "export metrics via grpc")
 	logLevel := cmd.Flags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
 
@@ -51,15 +61,24 @@ func addFlags(cmd *cobra.Command, cfg *proofprovider.Config) {
 	}
 }
 
-func run(cfg *proofprovider.Config) error {
+func run(cfg *cmdConfig) error {
 	profiling.Start(profiling.DefaultPort)
 
-	service, err := proofprovider.New(*cfg)
+	database, err := db.NewBadgerDb(cfg.DbPath)
+	if err != nil {
+		return fmt.Errorf("failed to create new BadgerDB: %w", err)
+	}
+	defer database.Close()
+
+	service, err := proofprovider.New(cfg.Config, database)
 	if err != nil {
 		return fmt.Errorf("failed to create proof provider service: %w", err)
 	}
 
-	err = service.Run(context.Background())
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
+
+	err = service.Run(ctx)
 	if err != nil {
 		return fmt.Errorf("service exited with error: %w", err)
 	}

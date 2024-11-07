@@ -19,7 +19,6 @@ import (
 type Config struct {
 	SyncCommitteeRpcEndpoint string
 	OwnRpcEndpoint           string
-	DbPath                   string
 	Telemetry                *telemetry.Config
 }
 
@@ -27,13 +26,12 @@ func NewDefaultConfig() *Config {
 	return &Config{
 		SyncCommitteeRpcEndpoint: "tcp://127.0.0.1:8530",
 		OwnRpcEndpoint:           "tcp://127.0.0.1:8531",
-		DbPath:                   "proof_provider.db",
 		Telemetry:                telemetry.NewDefaultConfig(),
 	}
 }
 
 type ProofProvider struct {
-	config        Config
+	config        *Config
 	database      db.DB
 	taskExecutor  executor.TaskExecutor
 	taskScheduler scheduler.TaskScheduler
@@ -41,12 +39,7 @@ type ProofProvider struct {
 	logger        zerolog.Logger
 }
 
-func New(config Config) (*ProofProvider, error) {
-	database, err := db.NewBadgerDb(config.DbPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
-	}
-
+func New(config *Config, database db.DB) (*ProofProvider, error) {
 	logger := logging.NewLogger("proof_provider")
 
 	if err := telemetry.Init(context.Background(), config.Telemetry); err != nil {
@@ -65,6 +58,7 @@ func New(config Config) (*ProofProvider, error) {
 		executor.DefaultConfig(),
 		taskRpcClient,
 		newTaskHandler(taskStorage, logger),
+		metricsHandler,
 		logger,
 	)
 	if err != nil {
@@ -93,7 +87,9 @@ func New(config Config) (*ProofProvider, error) {
 }
 
 func (p *ProofProvider) Run(ctx context.Context) error {
-	defer p.stop(ctx)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	defer telemetry.Shutdown(ctx)
 
 	return concurrent.Run(
 		ctx,
@@ -101,9 +97,4 @@ func (p *ProofProvider) Run(ctx context.Context) error {
 		p.taskListener.Run,
 		p.taskScheduler.Run,
 	)
-}
-
-func (p *ProofProvider) stop(ctx context.Context) {
-	telemetry.Shutdown(ctx)
-	p.database.Close()
 }
