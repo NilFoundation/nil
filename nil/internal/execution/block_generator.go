@@ -66,6 +66,7 @@ type BlockGenerator struct {
 	executionState *ExecutionState
 
 	logger zerolog.Logger
+	mh     *MetricsHandler
 }
 
 func NewBlockGenerator(ctx context.Context, params BlockGeneratorParams, txFabric db.DB) (*BlockGenerator, error) {
@@ -78,6 +79,13 @@ func NewBlockGenerator(ctx context.Context, params BlockGeneratorParams, txFabri
 		return nil, err
 	}
 	executionState.TraceVm = params.TraceEVM
+
+	const mhName = "github.com/NilFoundation/nil/nil/internal/execution"
+	mh, err := NewMetricsHandler(mhName, params.ShardId)
+	if err != nil {
+		return nil, err
+	}
+
 	return &BlockGenerator{
 		ctx:            ctx,
 		params:         params,
@@ -87,6 +95,7 @@ func NewBlockGenerator(ctx context.Context, params BlockGeneratorParams, txFabri
 		logger: logging.NewLogger("block-gen").With().
 			Stringer(logging.FieldShardId, params.ShardId).
 			Logger(),
+		mh: mh,
 	}, nil
 }
 
@@ -142,17 +151,25 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, logger zerolog.Logger
 
 	var res *ExecutionResult
 
+	var internalCnt, externalCnt int64
+	coinsUsed := types.NewZeroValue()
+	g.mh.StartProcessingMeasurement(g.ctx, g.executionState.GasPrice, proposal.PrevBlockId+1)
+	defer func() { g.mh.EndProcessingMeasurement(g.ctx, internalCnt, externalCnt, coinsUsed) }()
+
 	for _, msg := range proposal.InMsgs {
 		g.executionState.AddInMessage(msg)
 		if msg.IsInternal() {
 			res = g.handleInternalInMessage(msg)
+			internalCnt++
 		} else {
 			res = g.handleExternalMessage(msg)
+			externalCnt++
 		}
 		if res.FatalError != nil {
 			return nil, nil, res.FatalError
 		}
 		g.addReceipt(res)
+		coinsUsed = coinsUsed.Add(res.CoinsUsed)
 	}
 
 	for _, msg := range proposal.ForwardMsgs {
