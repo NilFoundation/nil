@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -26,17 +28,53 @@ type (
 	ProtocolID    = protocol.ID
 )
 
+type stream struct {
+	network.Stream
+
+	measurer *telemetry.Measurer
+}
+
+func (s *stream) Close() error {
+	s.measurer.Measure(context.Background())
+	return s.Stream.Close()
+}
+
 func (m *Manager) NewStream(ctx context.Context, peerId PeerID, protocolId ProtocolID) (Stream, error) {
 	ctx, cancel := context.WithTimeout(ctx, streamOpenTimeout)
 	defer cancel()
 
-	return m.host.NewStream(ctx, peerId, protocolId)
+	s, err := m.host.NewStream(ctx, peerId, protocolId)
+	if err != nil {
+		return nil, err
+	}
+
+	measurer, err := telemetry.NewMeasurer(m.meter, "out_streams",
+		attribute.Stringer(logging.FieldP2PIdentity, m.host.ID()),
+		attribute.String(logging.FieldProtocolID, string(protocolId)),
+		attribute.Stringer(logging.FieldPeerId, peerId))
+	if err != nil {
+		return nil, err
+	}
+
+	return &stream{s, measurer}, nil
 }
 
-func (m *Manager) SetStreamHandler(protocolId ProtocolID, handler StreamHandler) {
+func (m *Manager) SetStreamHandler(ctx context.Context, protocolId ProtocolID, handler StreamHandler) {
 	m.logger.Debug().Msgf("Setting stream handler for protocol %s", protocolId)
 
-	m.host.SetStreamHandler(protocolId, handler)
+	m.host.SetStreamHandler(protocolId, func(stream Stream) {
+		measurer, err := telemetry.NewMeasurer(m.meter, "in_streams",
+			attribute.Stringer(logging.FieldP2PIdentity, m.host.ID()),
+			attribute.String(logging.FieldProtocolID, string(protocolId)),
+			attribute.Stringer(logging.FieldPeerId, stream.Conn().RemotePeer()))
+		if err != nil {
+			m.logError(err, "Failed to create measurer for incoming stream")
+		} else {
+			defer measurer.Measure(ctx)
+		}
+
+		handler(stream)
+	})
 }
 
 func (m *Manager) SendRequestAndGetResponse(ctx context.Context, peerId PeerID, protocolId ProtocolID, request []byte) ([]byte, error) {

@@ -85,11 +85,11 @@ func (mh *MetricsHandler) RecordBlocksFetched(ctx context.Context, count int64) 
 	mh.blocksFetchedCounter.Add(ctx, count)
 }
 
-func (mh *MetricsHandler) StartProcessingMeasurment() {
+func (mh *MetricsHandler) StartProcessingMeasurement() {
 	mh.measurer.Restart()
 }
 
-func (mh *MetricsHandler) EndProcessingMeasurment(ctx context.Context) {
+func (mh *MetricsHandler) EndProcessingMeasurement(ctx context.Context) {
 	mh.measurer.Measure(ctx)
 }
 

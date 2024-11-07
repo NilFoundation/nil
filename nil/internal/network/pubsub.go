@@ -7,8 +7,11 @@ import (
 	"sync/atomic"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 const subscriptionChannelSize = 100
@@ -19,6 +22,9 @@ type PubSub struct {
 	mu     sync.Mutex
 	topics map[string]*pubsub.Topic
 	self   PeerID
+
+	meter     telemetry.Meter
+	published telemetry.Counter
 
 	logger zerolog.Logger
 }
@@ -31,6 +37,7 @@ type Subscription struct {
 	impl *pubsub.Subscription
 	self PeerID
 
+	received telemetry.Counter
 	logger   zerolog.Logger
 	counters SubscriptionCounters
 }
@@ -42,10 +49,18 @@ func newPubSub(ctx context.Context, h Host, logger zerolog.Logger) (*PubSub, err
 		return nil, err
 	}
 
+	meter := telemetry.NewMeter("github.com/NilFoundation/nil/nil/internal/network/pubsub")
+	published, err := meter.Int64Counter("published_messages")
+	if err != nil {
+		return nil, err
+	}
+
 	return &PubSub{
-		impl:   impl,
-		topics: make(map[string]*pubsub.Topic),
-		self:   h.ID(),
+		impl:      impl,
+		topics:    make(map[string]*pubsub.Topic),
+		self:      h.ID(),
+		meter:     meter,
+		published: published,
 		logger: logger.With().
 			Str(logging.FieldComponent, "pub-sub").
 			Logger(),
@@ -87,7 +102,12 @@ func (ps *PubSub) Publish(ctx context.Context, topic string, data []byte) error 
 		return err
 	}
 
-	return t.Publish(ctx, data)
+	if err := t.Publish(ctx, data); err != nil {
+		return err
+	}
+
+	ps.published.Add(ctx, 1, metric.WithAttributes(attribute.String(logging.FieldTopic, topic)))
+	return nil
 }
 
 // Subscribe subscribes to the given topic. The subscription must be closed after use.
@@ -107,11 +127,17 @@ func (ps *PubSub) Subscribe(topic string) (*Subscription, error) {
 		return nil, err
 	}
 
+	received, err := ps.meter.Int64Counter("received_messages")
+	if err != nil {
+		return nil, err
+	}
+
 	logger.Debug().Msg("Subscribed to topic")
 	return &Subscription{
-		impl:   impl,
-		self:   ps.self,
-		logger: logger,
+		impl:     impl,
+		self:     ps.self,
+		received: received,
+		logger:   logger,
 	}, nil
 }
 
@@ -170,6 +196,7 @@ func (s *Subscription) Start(ctx context.Context) <-chan []byte {
 				continue
 			}
 
+			s.received.Add(ctx, 1, metric.WithAttributes(attribute.String(logging.FieldTopic, s.impl.Topic())))
 			s.logger.Trace().Msg("Received message")
 
 			msgCh <- msg.Data

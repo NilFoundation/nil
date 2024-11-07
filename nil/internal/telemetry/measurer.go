@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
 
@@ -15,12 +16,13 @@ type (
 // Measurer is a helper struct to measure the duration of an operation and count the number of operations.
 // It is not thread-safe.
 type Measurer struct {
-	counter   Counter
-	histogram Histogram
-	startTime time.Time
+	counter    Counter
+	histogram  Histogram
+	attributes attribute.Set
+	startTime  time.Time
 }
 
-func NewMeasurer(meter Meter, name string) (*Measurer, error) {
+func NewMeasurer(meter Meter, name string, attrs ...attribute.KeyValue) (*Measurer, error) {
 	counter, err := meter.Int64Counter(name)
 	if err != nil {
 		return nil, err
@@ -30,9 +32,10 @@ func NewMeasurer(meter Meter, name string) (*Measurer, error) {
 		return nil, err
 	}
 	return &Measurer{
-		counter:   counter,
-		histogram: histogram,
-		startTime: time.Now(),
+		counter:    counter,
+		histogram:  histogram,
+		attributes: attribute.NewSet(attrs...),
+		startTime:  time.Now(),
 	}, nil
 }
 
@@ -41,6 +44,6 @@ func (m *Measurer) Restart() {
 }
 
 func (m *Measurer) Measure(ctx context.Context) {
-	m.counter.Add(ctx, 1)
-	m.histogram.Record(ctx, time.Since(m.startTime).Milliseconds())
+	m.counter.Add(ctx, 1, metric.WithAttributeSet(m.attributes))
+	m.histogram.Record(ctx, time.Since(m.startTime).Milliseconds(), metric.WithAttributeSet(m.attributes))
 }
