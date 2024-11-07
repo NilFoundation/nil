@@ -380,7 +380,7 @@ func exportMessagesAndLogs(ctx context.Context, conn driver.Conn, blocks []block
 			if !ok {
 				return errors.New("receipt not found")
 			}
-			for i := receipt.decoded.OutMsgIndex; i < receipt.decoded.OutMsgNum; i++ {
+			for i := receipt.decoded.OutMsgIndex; i < receipt.decoded.OutMsgIndex+receipt.decoded.OutMsgNum; i++ {
 				parentIndex[i] = hash
 			}
 			mb := NewMessageWithBinary(
