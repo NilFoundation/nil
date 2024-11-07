@@ -31,7 +31,6 @@ contract AccessRestriction {
         admins[admin] = false;
     }
 
-    // Пример функции, доступной только для администраторов
     function accessRestrictionAction() external onlyAdmin {
         controlValue += 1;
     }

@@ -1,6 +1,5 @@
 import {deployNilContract} from "../../src/deployUtil";
 import {expect} from "chai";
-import hre from "hardhat";
 
 describe("Access Restriction test", () => {
   it("positive_scenario", async () => {
