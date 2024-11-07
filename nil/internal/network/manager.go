@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/network/internal"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -27,30 +28,11 @@ type Manager struct {
 	logger zerolog.Logger
 }
 
-func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
-	if !conf.Enabled() {
-		return nil, ErrNetworkDisabled
-	}
-
-	if conf.PrivateKey == nil {
-		return nil, ErrPrivateKeyMissing
-	}
-
-	h, err := newHost(conf)
-	if err != nil {
-		return nil, err
-	}
-
-	logger := internal.Logger.With().
-		Stringer(logging.FieldP2PIdentity, h.ID()).
-		Logger()
-
-	logger.Info().Msgf("Listening on addresses:\n%s\n", common.Join("\n", h.Addrs()...))
-
+func connectToBootstrapPeers(ctx context.Context, conf *Config, h Host, logger zerolog.Logger) error {
 	for _, p := range conf.DHTBootstrapPeers {
 		peerInfo, err := peer.AddrInfoFromString(p)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if err := h.Connect(ctx, *peerInfo); err != nil {
@@ -58,6 +40,19 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 		}
 
 		h.Peerstore().AddAddrs(peerInfo.ID, peerInfo.Addrs, peerstore.AddressTTL)
+	}
+	return nil
+}
+
+func newManagerFromHost(ctx context.Context, conf *Config, h host.Host) (*Manager, error) {
+	logger := internal.Logger.With().
+		Stringer(logging.FieldP2PIdentity, h.ID()).
+		Logger()
+
+	logger.Info().Msgf("Listening on addresses:\n%s\n", common.Join("\n", h.Addrs()...))
+
+	if err := connectToBootstrapPeers(ctx, conf, h, logger); err != nil {
+		return nil, err
 	}
 
 	dht, err := NewDHT(ctx, h, conf, logger)
@@ -78,6 +73,30 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 		meter:  telemetry.NewMeter("github.com/NilFoundation/nil/nil/internal/network"),
 		logger: logger,
 	}, nil
+}
+
+func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
+	if !conf.Enabled() {
+		return nil, ErrNetworkDisabled
+	}
+
+	if conf.PrivateKey == nil {
+		return nil, ErrPrivateKeyMissing
+	}
+
+	h, err := newHost(conf)
+	if err != nil {
+		return nil, err
+	}
+	return newManagerFromHost(ctx, conf, h)
+}
+
+func NewClientManager(ctx context.Context, conf *Config) (*Manager, error) {
+	h, err := newClient(conf)
+	if err != nil {
+		return nil, err
+	}
+	return newManagerFromHost(ctx, conf, h)
 }
 
 func (m *Manager) PubSub() *PubSub {
@@ -147,8 +166,10 @@ func (m *Manager) Close() {
 		}
 	}
 
-	if err := m.pubSub.Close(); err != nil {
-		m.logError(err, "Error closing pubsub")
+	if m.pubSub != nil {
+		if err := m.pubSub.Close(); err != nil {
+			m.logError(err, "Error closing pubsub")
+		}
 	}
 
 	if err := m.host.Close(); err != nil {

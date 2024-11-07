@@ -94,7 +94,7 @@ func (s *SuiteAsyncAwait) SetupTest() {
 		ZeroStateYaml:        s.zerostateCfg,
 	}, 10425)
 
-	s.DefaultClient, _ = s.StartRPCNode(10430)
+	s.DefaultClient, _ = s.StartRPCNode()
 }
 
 func (s *SuiteAsyncAwait) TearDownTest() {

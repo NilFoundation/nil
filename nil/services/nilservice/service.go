@@ -318,7 +318,8 @@ func CreateNode(ctx context.Context, name string, cfg *Config, database db.DB, i
 		})
 	case RpcRunMode:
 		if networkManager == nil {
-			logger.Error().Msg("Failed to start rpc node without network configuration")
+			err := errors.New("Failed to start rpc node without network configuration")
+			logger.Error().Err(err).Send()
 			return nil, err
 		}
 	default:
@@ -401,6 +402,10 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 }
 
 func createNetworkManager(ctx context.Context, cfg *Config) (*network.Manager, error) {
+	if cfg.RunMode == RpcRunMode {
+		return network.NewClientManager(ctx, cfg.Network)
+	}
+
 	if cfg.Network == nil || !cfg.Network.Enabled() {
 		return nil, nil
 	}

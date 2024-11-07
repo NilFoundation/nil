@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p"
+	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	"github.com/libp2p/go-libp2p/p2p/security/noise"
@@ -14,22 +15,31 @@ import (
 
 type Host = host.Host
 
-// newHost creates a new libp2p host. It must be closed after use.
-func newHost(conf *Config) (Host, error) {
-	connMgr, err := connmgr.NewConnManager(100, 400, connmgr.WithGracePeriod(time.Minute))
+var defaultGracePeriod = connmgr.WithGracePeriod(time.Minute)
+
+func getCommonOptions(privateKey libp2pcrypto.PrivKey) ([]libp2p.Option, error) {
+	cm, err := connmgr.NewConnManager(100, 400, defaultGracePeriod)
 	if err != nil {
 		return nil, err
 	}
 
+	return []libp2p.Option{
+		libp2p.Security(noise.ID, noise.New),
+		libp2p.ConnectionManager(cm),
+		libp2p.Identity(privateKey),
+	}, nil
+}
+
+// newHost creates a new libp2p host. It must be closed after use.
+func newHost(conf *Config) (Host, error) {
 	addr := conf.IPV4Address
 	if addr == "" {
 		addr = "0.0.0.0"
 	}
 
-	options := []libp2p.Option{
-		libp2p.Security(noise.ID, noise.New),
-		libp2p.ConnectionManager(connMgr),
-		libp2p.Identity(conf.PrivateKey),
+	options, err := getCommonOptions(conf.PrivateKey)
+	if err != nil {
+		return nil, err
 	}
 
 	if conf.TcpPort != 0 {
@@ -46,5 +56,27 @@ func newHost(conf *Config) (Host, error) {
 		)
 	}
 
+	return libp2p.New(options...)
+}
+
+// newClient creates a new libp2p host that doesn't listen any port. It must be closed after use.
+func newClient(conf *Config) (Host, error) {
+	var privateKey libp2pcrypto.PrivKey
+	if conf != nil && conf.PrivateKey != nil {
+		privateKey = conf.PrivateKey
+	}
+	if privateKey == nil {
+		var err error
+		privateKey, err = GeneratePrivateKey()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	options, err := getCommonOptions(privateKey)
+	if err != nil {
+		return nil, err
+	}
+	options = append(options, libp2p.NoListenAddrs)
 	return libp2p.New(options...)
 }
