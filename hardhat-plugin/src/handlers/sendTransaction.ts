@@ -25,11 +25,7 @@ async function prepareDeployment(params: any[], context: HandlerContext): Promis
     console.log(`Response deployment ${JSON.stringify(deployed)}`);
   }
 
-  const receipt = await waitTillCompleted(
-    context.client,
-    shardNumber(context.wallet.address),
-    deployed.hash,
-  );
+  const receipt = await waitTillCompleted(context.client, deployed.hash);
   if (context.debug) {
     console.log(`Response deployment receipt ${JSON.stringify(receipt, bigintReplacer)}`);
   }
@@ -47,11 +43,7 @@ async function handleDirectTransaction(params: any[], context: HandlerContext): 
   if (context.debug) {
     console.log(`Response tx hash ${hash}`);
   }
-  const receipt = await waitTillCompleted(
-    context.client,
-    shardNumber(context.wallet.address),
-    hash,
-  );
+  const receipt = await waitTillCompleted(context.client, hash);
   if (context.debug) {
     console.log(`Response tx receipt ${JSON.stringify(receipt, bigintReplacer)}`);
   }

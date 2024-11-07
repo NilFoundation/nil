@@ -92,7 +92,7 @@ func (s *SuitOpcodes) TestSend() {
 
 		msgHash, err := s.Client.SendExternalMessage(callData, s.senderAddress1, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
-		receipt := s.WaitForReceipt(s.senderAddress1.ShardId(), msgHash)
+		receipt := s.WaitForReceipt(msgHash)
 		s.Require().NotNil(receipt)
 		s.Require().True(receipt.Success)
 
@@ -106,7 +106,7 @@ func (s *SuitOpcodes) TestSend() {
 
 		msgHash, err := s.Client.SendExternalMessage(callData, s.senderAddress1, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
-		receipt := s.WaitForReceipt(s.senderAddress1.ShardId(), msgHash)
+		receipt := s.WaitForReceipt(msgHash)
 		s.Require().NotNil(receipt)
 		s.Require().False(receipt.Success)
 

@@ -45,12 +45,12 @@ test("mint and transfer tokens", async () => {
 
   {
     const hashMessage = await wallet.setCurrencyName("MY_TOKEN");
-    await waitTillCompleted(client, 1, hashMessage);
+    await waitTillCompleted(client, hashMessage);
   }
 
   {
     const hashMessage = await wallet.mintCurrency(mintCount);
-    await waitTillCompleted(client, 1, hashMessage);
+    await waitTillCompleted(client, hashMessage);
   }
 
   const tokens = await client.getCurrencies(walletAddress, "latest");
@@ -80,7 +80,7 @@ test("mint and transfer tokens", async () => {
     ],
   });
 
-  await waitTillCompleted(client, 1, sendHash);
+  await waitTillCompleted(client, sendHash);
 
   const anotherTokens = await client.getCurrencies(anotherAddress, "latest");
 

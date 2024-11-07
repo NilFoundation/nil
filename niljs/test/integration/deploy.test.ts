@@ -41,7 +41,7 @@ test("Deploy through wallet", async ({ expect }) => {
 
   const faucetHash = await faucet.withdrawTo(walletAddress, convertEthToWei(0.1));
 
-  await waitTillCompleted(client, 1, bytesToHex(faucetHash));
+  await waitTillCompleted(client, bytesToHex(faucetHash));
   await wallet.selfDeploy(true);
 
   const walletCode = await client.getCode(walletAddress, "latest");
@@ -70,7 +70,7 @@ test("Deploy through wallet", async ({ expect }) => {
     shardId: 1,
   });
 
-  const receipts = await waitTillCompleted(client, 1, hash);
+  const receipts = await waitTillCompleted(client, hash);
 
   expect(receipts.some((receipt) => !receipt.success)).toBe(false);
 
@@ -107,7 +107,7 @@ test("External deployment", async ({ expect }) => {
 
   const hash = await deploymentMessage.send(client);
 
-  const receipts = await waitTillCompleted(client, 1, hash);
+  const receipts = await waitTillCompleted(client, hash);
 
   expect(receipts.some((receipt) => !receipt.success)).toBe(false);
 

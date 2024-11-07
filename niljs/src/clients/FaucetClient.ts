@@ -1,5 +1,4 @@
 import type { Hex } from "../types/Hex.js";
-import { getShardIdFromAddress } from "../utils/address.js";
 import { waitTillCompleted } from "../utils/receipt.js";
 import { BaseClient } from "./BaseClient.js";
 import type { PublicClient } from "./PublicClient.js";
@@ -87,7 +86,7 @@ class FaucetClient extends BaseClient {
 
         const receipts = await Promise.race([
           new Promise<[]>((resolve) => setTimeout(() => resolve([]), 10000)),
-          waitTillCompleted(client, getShardIdFromAddress(faucetAddress), txHash),
+          waitTillCompleted(client, txHash),
         ]);
 
         if (receipts.length === 0) {

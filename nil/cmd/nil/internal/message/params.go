@@ -1,11 +1,6 @@
 package message
 
-import (
-	"github.com/NilFoundation/nil/nil/internal/types"
-)
-
 const (
-	shardIdFlag     = "shard-id"
 	bounceFlag      = "bounce"
 	bounceFlagShort = "b"
 	kindFlag        = "kind"
@@ -17,9 +12,3 @@ const (
 	valueFlag       = "value"
 	dataFlag        = "data"
 )
-
-var params = &messageParams{}
-
-type messageParams struct {
-	shardId types.ShardId
-}

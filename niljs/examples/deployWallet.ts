@@ -41,7 +41,7 @@ const faucetHash = await faucet.withdrawTo(
   convertEthToWei(0.1),
 );
 
-await waitTillCompleted(client, 1, bytesToHex(faucetHash));
+await waitTillCompleted(client, bytesToHex(faucetHash));
 await wallet.selfDeploy(true);
 
 const code = await client.getCode(walletAddress, "latest");

@@ -71,7 +71,7 @@ test("bounce", async () => {
     }),
   });
 
-  const receipts = await waitTillCompleted(client, 1, hash);
+  const receipts = await waitTillCompleted(client, hash);
 
   expect(receipts.length).toBeDefined();
   expect(receipts.some((r) => !r.success)).toBe(true);

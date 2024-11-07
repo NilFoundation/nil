@@ -81,7 +81,7 @@ func (s *FaucetRpc) TestSendToken() {
 		viaFaucet, err := s.client.TopUpViaFaucet(addr, types.MainWalletAddress, amount)
 		s.Require().NoError(err)
 
-		receipt := s.WaitForReceipt(types.BaseShardId, viaFaucet)
+		receipt := s.WaitForReceipt(viaFaucet)
 		s.Require().True(receipt.Success)
 	}
 	currencies, err := s.RpcSuite.Client.GetCurrencies(types.MainWalletAddress, "latest")

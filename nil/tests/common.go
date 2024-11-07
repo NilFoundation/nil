@@ -23,14 +23,14 @@ import (
 )
 
 func WaitForReceiptCommon(
-	t *testing.T, client client.Client, shardId types.ShardId, hash common.Hash, check func(*jsonrpc.RPCReceipt) bool,
+	t *testing.T, client client.Client, hash common.Hash, check func(*jsonrpc.RPCReceipt) bool,
 ) *jsonrpc.RPCReceipt {
 	t.Helper()
 
 	var receipt *jsonrpc.RPCReceipt
 	var err error
 	require.Eventually(t, func() bool {
-		receipt, err = client.GetInMessageReceipt(shardId, hash)
+		receipt, err = client.GetInMessageReceipt(hash)
 		require.NoError(t, err)
 		return check(receipt)
 	}, ReceiptWaitTimeout, ReceiptPollInterval)
@@ -39,18 +39,18 @@ func WaitForReceiptCommon(
 	return receipt
 }
 
-func WaitForReceipt(t *testing.T, client client.Client, shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
+func WaitForReceipt(t *testing.T, client client.Client, hash common.Hash) *jsonrpc.RPCReceipt {
 	t.Helper()
 
-	return WaitForReceiptCommon(t, client, shardId, hash, func(receipt *jsonrpc.RPCReceipt) bool {
+	return WaitForReceiptCommon(t, client, hash, func(receipt *jsonrpc.RPCReceipt) bool {
 		return receipt.IsComplete()
 	})
 }
 
-func WaitIncludedInMain(t *testing.T, client client.Client, shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
+func WaitIncludedInMain(t *testing.T, client client.Client, hash common.Hash) *jsonrpc.RPCReceipt {
 	t.Helper()
 
-	return WaitForReceiptCommon(t, client, shardId, hash, func(receipt *jsonrpc.RPCReceipt) bool {
+	return WaitForReceiptCommon(t, client, hash, func(receipt *jsonrpc.RPCReceipt) bool {
 		return receipt.IsCommitted()
 	})
 }
@@ -70,7 +70,7 @@ func DeployContractViaWallet(
 	txHash, err := client.SendMessageViaWallet(addrFrom, types.Code{}, GasToValue(100_000), initialAmount,
 		[]types.CurrencyBalance{}, contractAddr, key)
 	require.NoError(t, err)
-	receipt := WaitForReceipt(t, client, addrFrom.ShardId(), txHash)
+	receipt := WaitForReceipt(t, client, txHash)
 	require.True(t, receipt.Success)
 	require.Equal(t, "Success", receipt.Status)
 	require.Len(t, receipt.OutReceipts, 1)
@@ -79,7 +79,7 @@ func DeployContractViaWallet(
 	require.NoError(t, err)
 	require.Equal(t, contractAddr, addr)
 
-	receipt = WaitIncludedInMain(t, client, addrFrom.ShardId(), txHash)
+	receipt = WaitIncludedInMain(t, client, txHash)
 	require.True(t, receipt.Success)
 	require.Equal(t, "Success", receipt.Status)
 	require.Len(t, receipt.OutReceipts, 1)
@@ -134,7 +134,7 @@ func SendExternalMessageNoCheck(t *testing.T, client client.Client, bytecode typ
 	txHash, err := client.SendExternalMessage(bytecode, contractAddress, execution.MainPrivateKey, GasToValue(500_000))
 	require.NoError(t, err)
 
-	return WaitIncludedInMain(t, client, contractAddress.ShardId(), txHash)
+	return WaitIncludedInMain(t, client, txHash)
 }
 
 // AnalyzeReceipt analyzes the receipt and returns the receipt info.
@@ -159,7 +159,7 @@ func analyzeReceiptRec(t *testing.T, client client.Client, receipt *jsonrpc.RPCR
 	} else {
 		value.NumFail += 1
 	}
-	msg, err := client.GetInMessageByHash(receipt.ShardId, receipt.MsgHash)
+	msg, err := client.GetInMessageByHash(receipt.MsgHash)
 	require.NoError(t, err)
 
 	value.ValueUsed = value.ValueUsed.Add(receipt.GasUsed.ToValue(receipt.GasPrice))

@@ -162,7 +162,7 @@ describe.skip.sequential("Nil.js correctly interacts with Cometa", () => {
       shardId: 1,
     });
 
-    const receipts = await waitTillCompleted(client, 1, hash);
+    const receipts = await waitTillCompleted(client, hash);
 
     if (receipts.some((receipt) => !receipt.success)) {
       throw new Error("Contract deployment failed");
@@ -177,7 +177,7 @@ describe.skip.sequential("Nil.js correctly interacts with Cometa", () => {
       feeCredit: 300_000n,
     });
 
-    await waitTillCompleted(client, 1, incrementHash);
+    await waitTillCompleted(client, incrementHash);
 
     //endNilJSCometaTutorialSnippet
   });

@@ -89,16 +89,16 @@ func (s *SuiteCli) TestCliMessage() {
 	_, receipt := s.DeployContractViaMainWallet(types.BaseShardId, deployPayload, types.NewValueFromUint64(5_000_000))
 	s.Require().True(receipt.Success)
 
-	msg, err := s.DefaultClient.GetInMessageByHash(types.MainWalletAddress.ShardId(), receipt.MsgHash)
+	msg, err := s.DefaultClient.GetInMessageByHash(receipt.MsgHash)
 	s.Require().NoError(err)
 	s.Require().NotNil(msg)
 	s.Require().True(msg.Success)
 
-	res, err := s.cli.FetchMessageByHashJson(types.MainWalletAddress.ShardId(), receipt.MsgHash)
+	res, err := s.cli.FetchMessageByHashJson(receipt.MsgHash)
 	s.Require().NoError(err)
 	s.JSONEq(s.toJSON(msg), string(res))
 
-	res, err = s.cli.FetchReceiptByHashJson(types.MainWalletAddress.ShardId(), receipt.MsgHash)
+	res, err = s.cli.FetchReceiptByHashJson(receipt.MsgHash)
 	s.Require().NoError(err)
 	s.JSONEq(s.toJSON(receipt), string(res))
 }

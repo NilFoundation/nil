@@ -3,7 +3,6 @@ import { type Hex, bytesToHex, encodeFunctionData } from "viem";
 import type { PublicClient } from "../../clients/PublicClient.js";
 import { ExternalMessageEnvelope } from "../../encoding/externalMessage.js";
 import { hexToBytes } from "../../index.js";
-import { getShardIdFromAddress } from "../../utils/address.js";
 import { waitTillCompleted } from "../../utils/receipt.js";
 
 /**
@@ -106,7 +105,7 @@ export class Faucet {
         const hash = bytesToHex(message.hash());
         const receipts = await Promise.race([
           new Promise<[]>((resolve) => setTimeout(() => resolve([]), 10000)),
-          waitTillCompleted(this.client, getShardIdFromAddress(Faucet.address), hash),
+          waitTillCompleted(this.client, hash),
         ]);
         if (receipts.length === 0) {
           continue;

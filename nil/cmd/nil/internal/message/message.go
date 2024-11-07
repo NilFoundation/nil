@@ -7,7 +7,6 @@ import (
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	libcommon "github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/spf13/cobra"
 )
@@ -25,19 +24,9 @@ func GetCommand(cfgPath *string) *cobra.Command {
 		SilenceUsage: true,
 	}
 
-	setFlags(serverCmd)
-
 	serverCmd.AddCommand(GetInternalMessageCommand())
 
 	return serverCmd
-}
-
-func setFlags(cmd *cobra.Command) {
-	cmd.Flags().Var(
-		types.NewShardId(&params.shardId, types.BaseShardId),
-		shardIdFlag,
-		"Specify the shard ID to interact with",
-	)
 }
 
 func runCommand(cfgPath *string, args []string) error {
@@ -55,7 +44,7 @@ func runCommand(cfgPath *string, args []string) error {
 	}
 
 	if hash != libcommon.EmptyHash {
-		msgDataJson, err := service.FetchMessageByHashJson(params.shardId, hash)
+		msgDataJson, err := service.FetchMessageByHashJson(hash)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to fetch the message")
 			return err

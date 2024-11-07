@@ -132,11 +132,13 @@ func (c *DirectClient) SendRawTransaction(data []byte) (common.Hash, error) {
 	return c.ethApi.SendRawTransaction(c.ctx, data)
 }
 
-func (c *DirectClient) GetInMessageByHash(shardId types.ShardId, hash common.Hash) (*jsonrpc.RPCInMessage, error) {
+func (c *DirectClient) GetInMessageByHash(hash common.Hash) (*jsonrpc.RPCInMessage, error) {
+	shardId := types.ShardIdFromHash(hash)
 	return c.ethApi.GetInMessageByHash(c.ctx, shardId, hash)
 }
 
-func (c *DirectClient) GetInMessageReceipt(shardId types.ShardId, hash common.Hash) (*jsonrpc.RPCReceipt, error) {
+func (c *DirectClient) GetInMessageReceipt(hash common.Hash) (*jsonrpc.RPCReceipt, error) {
+	shardId := types.ShardIdFromHash(hash)
 	return c.ethApi.GetInMessageReceipt(c.ctx, shardId, hash)
 }
 

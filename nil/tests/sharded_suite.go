@@ -202,16 +202,16 @@ func (s *ShardedSuite) StartRPCNode(port int) (client.Client, string) {
 	return c, endpoint
 }
 
-func (s *ShardedSuite) WaitForReceipt(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
+func (s *ShardedSuite) WaitForReceipt(hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	return WaitForReceipt(s.T(), s.DefaultClient, shardId, hash)
+	return WaitForReceipt(s.T(), s.DefaultClient, hash)
 }
 
 func (s *ShardedSuite) WaitIncludedInMain(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	return WaitIncludedInMain(s.T(), s.DefaultClient, shardId, hash)
+	return WaitIncludedInMain(s.T(), s.DefaultClient, hash)
 }
 
 func (s *ShardedSuite) GasToValue(gas uint64) types.Value {

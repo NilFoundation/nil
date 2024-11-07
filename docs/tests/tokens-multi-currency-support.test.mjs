@@ -130,19 +130,19 @@ describe.sequential("basic Nil.js usage tests", async () => {
 
       {
         const hashMessage = await wallet.setCurrencyName("MY_TOKEN");
-        await waitTillCompleted(client, 1, hashMessage);
+        await waitTillCompleted(client, hashMessage);
       }
 
       {
         const hashMessage = await wallet.mintCurrency(100_000_000n);
-        await waitTillCompleted(client, 1, hashMessage);
+        await waitTillCompleted(client, hashMessage);
       }
       //endBasicNilJSExample
 
       //startNilJSBurningExample
       {
         const hashMessage = await wallet.burnCurrency(50_000_000n);
-        await waitTillCompleted(client, 1, hashMessage);
+        await waitTillCompleted(client, hashMessage);
       }
       //endNilJSBurningExample
 
@@ -185,7 +185,7 @@ describe.sequential("tutorial flows Nil.js tests", async () => {
 
     const faucetHash = await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
 
-    await waitTillCompleted(client, 1, faucetHash);
+    await waitTillCompleted(client, faucetHash);
 
     await wallet.selfDeploy(true);
 
@@ -205,24 +205,24 @@ describe.sequential("tutorial flows Nil.js tests", async () => {
 
     {
       const hashMessage = await wallet.setCurrencyName("MY_TOKEN");
-      await waitTillCompleted(client, 1, hashMessage);
+      await waitTillCompleted(client, hashMessage);
     }
 
     {
       const hashMessage = await walletTwo.setCurrencyName("ANOTHER_TOKEN");
-      await waitTillCompleted(client, 1, hashMessage);
+      await waitTillCompleted(client, hashMessage);
     }
     //endAdvancedNilJSExample
 
     //startAdvancedNilJSMintingExample
     {
       const hashMessage = await wallet.mintCurrency(100_000_000n);
-      await waitTillCompleted(client, 1, hashMessage);
+      await waitTillCompleted(client, hashMessage);
     }
 
     {
       const hashMessage = await wallet.mintCurrency(50_000_000n);
-      await waitTillCompleted(client, 1, hashMessage);
+      await waitTillCompleted(client, hashMessage);
     }
     //endAdvancedNilJSMintingExample
 

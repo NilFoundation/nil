@@ -46,7 +46,7 @@ const faucetHash = await faucet.withdrawTo(
   convertEthToWei(0.1),
 );
 
-await waitTillCompleted(client, 1, bytesToHex(faucetHash));
+await waitTillCompleted(client, bytesToHex(faucetHash));
 
 await deploymentMessage.send(client);
 

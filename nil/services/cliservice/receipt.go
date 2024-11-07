@@ -4,13 +4,12 @@ import (
 	"encoding/json"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 )
 
 // FetchReceiptByHash fetches the message receipt by hash
-func (s *Service) FetchReceiptByHash(shardId types.ShardId, hash common.Hash) (*jsonrpc.RPCReceipt, error) {
-	receiptData, err := s.client.GetInMessageReceipt(shardId, hash)
+func (s *Service) FetchReceiptByHash(hash common.Hash) (*jsonrpc.RPCReceipt, error) {
+	receiptData, err := s.client.GetInMessageReceipt(hash)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to fetch receipt")
 		return nil, err
@@ -19,8 +18,8 @@ func (s *Service) FetchReceiptByHash(shardId types.ShardId, hash common.Hash) (*
 }
 
 // FetchReceiptByHashJson fetches the message receipt as a JSON string
-func (s *Service) FetchReceiptByHashJson(shardId types.ShardId, hash common.Hash) ([]byte, error) {
-	receipt, err := s.FetchReceiptByHash(shardId, hash)
+func (s *Service) FetchReceiptByHashJson(hash common.Hash) ([]byte, error) {
+	receipt, err := s.FetchReceiptByHash(hash)
 	if err != nil {
 		return nil, err
 	}

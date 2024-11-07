@@ -182,16 +182,16 @@ func (s *RpcSuite) Cancel() {
 	s.Db.Close()
 }
 
-func (s *RpcSuite) WaitForReceipt(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
+func (s *RpcSuite) WaitForReceipt(hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	return WaitForReceipt(s.T(), s.Client, shardId, hash)
+	return WaitForReceipt(s.T(), s.Client, hash)
 }
 
 func (s *RpcSuite) WaitIncludedInMain(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	return WaitIncludedInMain(s.T(), s.Client, shardId, hash)
+	return WaitIncludedInMain(s.T(), s.Client, hash)
 }
 
 func (s *RpcSuite) waitZerostate() {

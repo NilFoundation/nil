@@ -314,7 +314,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 		hash, err := s.Client.SendExternalMessage(data, s.testAddress1_0, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
-		receipt := s.WaitForReceipt(s.testAddress1_0.ShardId(), hash)
+		receipt := s.WaitForReceipt(hash)
 		s.Require().True(receipt.Success)
 
 		s.Run("Check currency is debited from testAddress1_0", func() {
@@ -348,7 +348,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 		hash, err := s.Client.SendExternalMessage(data, s.testAddress1_0, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
-		receipt := s.WaitForReceipt(s.testAddress1_0.ShardId(), hash)
+		receipt := s.WaitForReceipt(hash)
 		s.Require().False(receipt.Success)
 
 		s.Run("Check currency of testAddress1_0", func() {
@@ -371,7 +371,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 		hash, err := s.Client.SendExternalMessage(data, s.testAddress1_0, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
-		receipt := s.WaitForReceipt(s.testAddress1_0.ShardId(), hash)
+		receipt := s.WaitForReceipt(hash)
 		s.Require().True(receipt.Success)
 		s.Require().Len(receipt.OutReceipts, 1)
 		s.Require().True(receipt.OutReceipts[0].Success)
@@ -399,7 +399,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 		hash, err := s.Client.SendExternalMessage(data, s.testAddress1_0, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
-		receipt := s.WaitForReceipt(s.testAddress1_0.ShardId(), hash)
+		receipt := s.WaitForReceipt(hash)
 		s.Require().False(receipt.Success)
 		s.Require().Empty(receipt.OutReceipts)
 
@@ -425,7 +425,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 		hash, err := s.Client.SendExternalMessage(data, s.testAddress1_0, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
-		receipt := s.WaitForReceipt(s.testAddress1_0.ShardId(), hash)
+		receipt := s.WaitForReceipt(hash)
 		s.Require().True(receipt.Success)
 		s.Require().Empty(receipt.OutReceipts)
 		s.Require().Empty(receipt.OutMessages)
@@ -449,7 +449,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 		hash, err := s.Client.SendExternalMessage(data, s.testAddress1_0, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
-		receipt := s.WaitForReceipt(s.testAddress1_0.ShardId(), hash)
+		receipt := s.WaitForReceipt(hash)
 		s.Require().False(receipt.Success)
 
 		s.Run("Check currency of testAddress1_0", func() {
@@ -473,7 +473,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 		hash, err := s.Client.SendExternalMessage(data, s.testAddress1_0, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
-		receipt := s.WaitForReceipt(s.testAddress1_0.ShardId(), hash)
+		receipt := s.WaitForReceipt(hash)
 		s.Require().False(receipt.Success)
 
 		s.Run("Check currency of testAddress1_0", func() {

@@ -39,7 +39,7 @@ test("Receipt test", async ({ expect }) => {
 
   const faucetHash = await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(0.1));
 
-  const receipts = await waitTillCompleted(client, 1, faucetHash);
+  const receipts = await waitTillCompleted(client, faucetHash);
 
   expect(receipts).toBeDefined();
   for (const receipt of receipts) {

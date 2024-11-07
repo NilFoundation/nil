@@ -114,7 +114,7 @@ describe.sequential("Nil.js deployment tests", async () => {
           shardId: 1,
         });
 
-      const receiptsRetailer = await waitTillCompleted(client, 1, retailerDeploymentHash);
+      const receiptsRetailer = await waitTillCompleted(client, retailerDeploymentHash);
       //endInternalDeployOfRetailer
       expect(receiptsRetailer.some((receipt) => !receipt.success)).toBe(false);
       const retailerCode = await client.getCode(retailerAddress, "latest");
@@ -141,7 +141,7 @@ describe.sequential("Nil.js deployment tests", async () => {
           shardId: 2,
         });
 
-      const manufacturerReceipts = await waitTillCompleted(client, 1, manufacturerDeploymentHash);
+      const manufacturerReceipts = await waitTillCompleted(client, manufacturerDeploymentHash);
       //endInternalDeployOfManufacturer
 
       expect(manufacturerReceipts.some((receipt) => !receipt.success)).toBe(false);
@@ -153,7 +153,7 @@ describe.sequential("Nil.js deployment tests", async () => {
       //startRetailerSendsMessageToManufacturer
       const hashFunds = await faucet.withdrawToWithRetry(retailerAddress, 5_000_000n);
 
-      await waitTillCompleted(client, 1, hashFunds);
+      await waitTillCompleted(client, hashFunds);
 
       const hashProduct = await wallet.sendMessage({
         to: retailerAddress,
@@ -165,7 +165,7 @@ describe.sequential("Nil.js deployment tests", async () => {
         feeCredit: 3_000_000n,
       });
 
-      const productReceipts = await waitTillCompleted(client, 1, hashProduct);
+      const productReceipts = await waitTillCompleted(client, hashProduct);
       //endRetailerSendsMessageToManufacturer
 
       expect(productReceipts.some((receipt) => !receipt.success)).toBe(false);
@@ -231,11 +231,11 @@ describe.sequential("Nil.js deployment tests", async () => {
         addressRetailer,
         convertEthToWei(1),
       );
-      await waitTillCompleted(client, 1, faucetHashRetailer);
+      await waitTillCompleted(client, faucetHashRetailer);
 
       const receipts = await deploymentMessageRetailer.send(client);
 
-      await waitTillCompleted(client, 1, receipts);
+      await waitTillCompleted(client, receipts);
       //endExternalDeployOfRetailer
 
       const code = await client.getCode(addressRetailer, "latest");
@@ -266,11 +266,11 @@ describe.sequential("Nil.js deployment tests", async () => {
         addressManufacturer,
         convertEthToWei(1),
       );
-      await waitTillCompleted(client, 1, faucetHashManufacturer);
+      await waitTillCompleted(client, faucetHashManufacturer);
 
       const receiptsManufacturer = await deploymentMessageManufacturer.send(client);
 
-      await waitTillCompleted(clientTwo, 2, receiptsManufacturer);
+      await waitTillCompleted(clientTwo, receiptsManufacturer);
       //endExternalDeployOfManufacturer
 
       const codeManufacturer = await client.getCode(addressManufacturer, "latest");
@@ -308,7 +308,7 @@ describe.sequential("Nil.js deployment tests", async () => {
         }
       }
 
-      const orderReceipts = await waitTillCompleted(client, 1, orderMessageHash);
+      const orderReceipts = await waitTillCompleted(client, orderMessageHash);
       //endExternalSendMessageToRetailer
       expect(orderReceipts.some((receipt) => !receipt.success)).toBe(false);
     },

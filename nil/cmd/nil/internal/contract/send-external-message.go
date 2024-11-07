@@ -68,7 +68,7 @@ func runSendExternalMessage(_ *cobra.Command, args []string, cfg *common.Config)
 	}
 
 	if !params.noWait {
-		if _, err := service.WaitForReceipt(address.ShardId(), msgHash); err != nil {
+		if _, err := service.WaitForReceipt(msgHash); err != nil {
 			return err
 		}
 	}

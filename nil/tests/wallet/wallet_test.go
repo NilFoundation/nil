@@ -61,7 +61,7 @@ func (s *SuiteWalletRpc) TestWallet() {
 		)
 		s.Require().NoError(err)
 
-		receipt := s.WaitForReceipt(addrCallee.ShardId(), resHash)
+		receipt := s.WaitForReceipt(resHash)
 		s.Require().True(receipt.Success)
 
 		newSeqno, err := s.Client.GetTransactionCount(addrCallee, "pending")
@@ -78,7 +78,7 @@ func (s *SuiteWalletRpc) TestDeployWithValueNonPayableConstructor() {
 		types.NewValueFromUint64(500_000), execution.MainPrivateKey)
 	s.Require().NoError(err)
 
-	receipt := s.WaitForReceipt(wallet.ShardId(), hash)
+	receipt := s.WaitForReceipt(hash)
 	s.Require().True(receipt.Success)
 	s.Require().False(receipt.OutReceipts[0].Success)
 
@@ -104,7 +104,7 @@ func (s *SuiteWalletRpc) TestDeployWalletWithValue() {
 	)
 	s.Require().NoError(err)
 
-	receipt := s.WaitForReceipt(types.MainWalletAddress.ShardId(), hash)
+	receipt := s.WaitForReceipt(hash)
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 

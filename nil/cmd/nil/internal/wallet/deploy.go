@@ -139,7 +139,7 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 
 	var receipt *jsonrpc.RPCReceipt
 	if !params.noWait {
-		if receipt, err = service.WaitForReceipt(cfg.Address.ShardId(), msgHash); err != nil {
+		if receipt, err = service.WaitForReceipt(msgHash); err != nil {
 			return err
 		}
 	} else {
