@@ -3,7 +3,6 @@ package cometa
 import (
 	"fmt"
 	"os/exec"
-	"strings"
 	"testing"
 	"time"
 
@@ -44,7 +43,7 @@ func (s *SuiteCometa) SetupSuite() {
 		RunMode:              nilservice.CollatorsOnlyRunMode,
 	})
 
-	s.cometaEndpoint = strings.Replace(rpc.GetSockPathService(s.T(), "cometa"), "tcp://", "http://", 1)
+	s.cometaEndpoint = rpc.GetSockPathService(s.T(), "cometa")
 
 	s.cometaCfg.DbPath = s.T().TempDir() + "/cometa.db"
 	s.cometaCfg.OwnEndpoint = s.cometaEndpoint
@@ -55,7 +54,7 @@ func (s *SuiteCometa) SetupSuite() {
 		check.PanicIfErr(com.Run(s.Context, &s.cometaCfg))
 	}()
 
-	s.cometaClient = *cometa.NewClient(strings.Replace(s.cometaEndpoint, "tcp://", "http://", 1))
+	s.cometaClient = *cometa.NewClient(s.cometaEndpoint)
 }
 
 func (s *SuiteCometaClickhouse) SetupSuite() {

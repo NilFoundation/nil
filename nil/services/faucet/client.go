@@ -2,15 +2,13 @@ package faucet
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"strings"
 	"sync/atomic"
 
+	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/version"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -22,28 +20,12 @@ type Client struct {
 	httpClient http.Client
 }
 
-func NewClient(endpoint string) *Client {
-	c := &Client{}
-	switch {
-	case strings.HasPrefix(endpoint, "unix://"):
-		socketPath := strings.TrimPrefix(endpoint, "unix://")
-		if socketPath == "" {
-			return nil
-		}
-		c.endpoint = "http://unix"
-		c.httpClient = http.Client{
-			Transport: &http.Transport{
-				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-					return net.Dial("unix", socketPath)
-				},
-			},
-		}
-	case strings.HasPrefix(endpoint, "tcp://"):
-		c.endpoint = "http://" + strings.TrimPrefix(endpoint, "tcp://")
-	default:
-		c.endpoint = endpoint
+func NewClient(url string) *Client {
+	httpc, endpoint := rpc_client.NewHttpClient(url)
+	return &Client{
+		httpClient: httpc,
+		endpoint:   endpoint,
 	}
-	return c
 }
 
 func (c *Client) IsValid() bool {
