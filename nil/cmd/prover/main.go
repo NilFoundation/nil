@@ -10,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/profiling"
-	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/prover"
 	"github.com/spf13/cobra"
 )
@@ -25,9 +24,7 @@ func execute() error {
 		Short: "Run nil prover node",
 	}
 
-	cfg := &prover.Config{
-		Telemetry: telemetry.NewDefaultConfig(),
-	}
+	cfg := prover.NewDefaultConfig()
 
 	runCmd := &cobra.Command{
 		Use:   "run",
@@ -45,7 +42,7 @@ func execute() error {
 }
 
 func addFlags(cmd *cobra.Command, cfg *prover.Config) {
-	cmd.Flags().StringVar(&cfg.ProofProviderRpcEndpoint, "proof-provider-endpoint", "tcp://127.0.0.1:8531", "proof provider rpc endpoint")
+	cmd.Flags().StringVar(&cfg.ProofProviderRpcEndpoint, "proof-provider-endpoint", cfg.ProofProviderRpcEndpoint, "proof provider rpc endpoint")
 	cmd.Flags().BoolVar(&cfg.Telemetry.ExportMetrics, "metrics", cfg.Telemetry.ExportMetrics, "export metrics via grpc")
 	logLevel := cmd.Flags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
 

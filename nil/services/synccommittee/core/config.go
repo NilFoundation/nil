@@ -7,15 +7,23 @@ import (
 )
 
 type Config struct {
-	RpcEndpoint       string
-	OwnRpcEndpoint    string
-	PollingDelay      time.Duration
-	GracefulShutdown  bool
-	L1Endpoint        string
-	L1ChainId         string
-	PrivateKey        string
-	L1ContractAddress string
-	SelfAddress       string
+	RpcEndpoint      string
+	OwnRpcEndpoint   string
+	PollingDelay     time.Duration
+	GracefulShutdown bool
+	ProposerParams   *ProposerParams
+	Telemetry        *telemetry.Config
+}
 
-	Telemetry *telemetry.Config
+func NewDefaultConfig() *Config {
+	return &Config{
+		RpcEndpoint:      "tcp://127.0.0.1:8529",
+		OwnRpcEndpoint:   "tcp://127.0.0.1:8530",
+		PollingDelay:     time.Second,
+		GracefulShutdown: true,
+		ProposerParams:   NewDefaultProposerParams(),
+		Telemetry: &telemetry.Config{
+			ServiceName: "sync_committee",
+		},
+	}
 }

@@ -27,7 +27,7 @@ type ProposerTestSuite struct {
 	ctx          context.Context
 	cancellation context.CancelFunc
 
-	params        ProposerParams
+	params        *ProposerParams
 	db            db.DB
 	storage       storage.BlockStorage
 	rpcClientMock client.ClientMock
@@ -50,7 +50,7 @@ func (s *ProposerTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	s.storage = storage.NewBlockStorage(s.db, metricsHandler, logger)
-	s.params = DefaultProposerParams()
+	s.params = NewDefaultProposerParams()
 	s.proposer, err = NewProposer(s.params, &s.rpcClientMock, s.storage, metricsHandler, logger)
 	s.Require().NoError(err)
 }
@@ -73,8 +73,8 @@ func (s *ProposerTestSuite) TestCreateUpdateStateTransaction() {
 	s.Require().NoError(err, "failed to create transaction")
 	s.Require().Equal(s.proposer.seqno.Load(), transaction.Nonce(), "tx nonce is incorrect")
 
-	s.Require().Equal(s.params.chainId, transaction.ChainId(), "tx chainId is incorrect")
-	expectedAddress := ethcommon.HexToAddress(s.params.contractAddress)
+	s.Require().Equal(s.params.ChainId, transaction.ChainId().String(), "tx chainId is incorrect")
+	expectedAddress := ethcommon.HexToAddress(s.params.ContractAddress)
 	s.Require().Equal(&expectedAddress, transaction.To(), "tx recipient is incorrect")
 
 	functionSelector, err := hexutil.Decode(functionSelector)

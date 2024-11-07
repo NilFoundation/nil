@@ -17,6 +17,15 @@ type Config struct {
 	Telemetry                *telemetry.Config
 }
 
+func NewDefaultConfig() *Config {
+	return &Config{
+		ProofProviderRpcEndpoint: "tcp://127.0.0.1:8531",
+		Telemetry: &telemetry.Config{
+			ServiceName: "prover",
+		},
+	}
+}
+
 type Prover struct {
 	taskExecutor executor.TaskExecutor
 	logger       zerolog.Logger

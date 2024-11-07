@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"os/signal"
 	"syscall"
 
@@ -54,15 +53,8 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}
 
-	chainId, ok := new(big.Int).SetString(cfg.L1ChainId, 10)
-	if !ok {
-		return nil, fmt.Errorf("invalid L1ChainId: %s", cfg.L1ChainId)
-	}
-	proposerParams := ProposerParams{
-		chainId, cfg.PrivateKey, cfg.L1ContractAddress, cfg.SelfAddress, DefaultProposingInterval,
-	}
-	proposerRpcClient := nilrpc.NewRawClient(cfg.L1Endpoint, logger)
-	proposer, err := NewProposer(proposerParams, proposerRpcClient, blockStorage, metricsHandler, logger)
+	proposerRpcClient := nilrpc.NewRawClient(cfg.ProposerParams.Endpoint, logger)
+	proposer, err := NewProposer(cfg.ProposerParams, proposerRpcClient, blockStorage, metricsHandler, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create proposer: %w", err)
 	}

@@ -26,7 +26,9 @@ func NewDefaultConfig() *Config {
 	return &Config{
 		SyncCommitteeRpcEndpoint: "tcp://127.0.0.1:8530",
 		OwnRpcEndpoint:           "tcp://127.0.0.1:8531",
-		Telemetry:                telemetry.NewDefaultConfig(),
+		Telemetry: &telemetry.Config{
+			ServiceName: "proof_provider",
+		},
 	}
 }
 
