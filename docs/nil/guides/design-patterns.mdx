@@ -6,7 +6,6 @@ The design patterns in the guide include:
 
 * [**Checks Effects Interaction**](https://fravoll.github.io/solidity-patterns/checks_effects_interactions.html), a pattern for protecting a contract against re-entrancy attacks
 * [**Guard Check**](https://fravoll.github.io/solidity-patterns/guard_check.html), an essential pattern for ensuring inputs and outputs match expectations and execution ensures atomicity
-* [**State Machine**](https://fravoll.github.io/solidity-patterns/state_machine.html), a pattern for managing the contract control flow and changing its functionality based on its internal state
 
 ## Checks Effects Interaction
 
@@ -71,104 +70,6 @@ Delegating post-`assert` statements to a callback function resolves the issue:
 
 In the snippet, `successfulCallsCounter` is only increased after the contract receives a response to the transfer and only if the transfer was successful. The callback function can be provided with its own `require()` statement which propagates the pattern. 
 
-
-## State Machine
-
-The State Machine pattern allows for creating contracts that modify their behaviour based on some internal condition:
-
-```solidity showLineNumbers
-contract StateMachine {
-    
-    enum State {
-        InitialState,
-        RequestPending,
-        ResultReceived,
-        ResultDisplayed
-    }
-
-    State public state = State.InitialState;
-
-    function makeRequest() public {
-      ...
-    }
-
-    function nextStage() internal {
-        state = State(uint(state) + 1);
-    }
-
-}
-```
-
-In this example, states are described using an `enum` while the `nextStage` function is a 'helper' function to transition from one state to another. Depending on the logic, state transitions can either be handled on a timer or by receiving the results of a previously made call.
-
-Async communications add one more consideration to the State Machine, namely the fact that it is impossible to clearly predict when then next state transition is going to happen. Consider this example:
-
-```solidity showLineNumbers file=../../tests/StateMachine.sol start=startBadStateMachine end=endBadStateMachine
-```
-
-Calling `nextStage()` immediately after sending an async call would produce an unnecessary state change since there is no way to ensure that data is fetched correctly. 
-
-Similarly to the solution for the Guard Check pattern, the contract logic can be split between the core contract and delegates where each delegate contains the functionality of a specific contract state:
-
-```solidity showLineNumbers file=../../tests/StateMachine.sol start=startGoodStateMachine end=endGoodStateMachine
-```
-
-The core contract (`StateMachine`) still contains the states and the mechanism for switching states. However, state switching no longer occurs immediately after sending an `asyncCall()`. Instead, the contract takes addresses of its delegates on deployment with each delegate containing the logic of an individual contract state (e.g., `RequestPending` or `ResultReceived`).
-
-Requests for state changes occur inside the `makeRequestToStateContract()` function. Upon calling this function, the contract retrieves the address of the delegate containing the logic for the next state. `StateMachine` then uses `Nil.sendRequest()` to make sure that state changes are only executed after the request is processed. The `callback()` function is [**marked as `onlyResponse`**](../tools/sol-library/func-modifiers.mdx#onlyresponse) to prevent its abuse.
-
-:::info[Additional considerations]
-
-State machine delegates may call other contracts asynchronously, and there are no guarantees that the state change in the callback will accurately reflect the result of these async calls, especially if these calls fail. It is the responsibility of the contract owner to avoid unnecessary async call chains when implementing the pattern.
-
-:::
-
-:::info
-
-It is possible to add an additional security mechanism in the form of a boolean `lock` property inside the `StateMachine` contract:
-
-```solidity showLineNumbers
-bool private lock = false;
-
-function makeRequest(address dst) public  {
-    if (!lock){
-      Nil.asyncCall(tx, your shard)
-      return
-      }
-    require(!lock, "state_locked");
-    lock = true;
-
-    bytes memory context = abi.encodeWithSelector(this.callback.selector);
-    bytes memory callData = abi.encodeWithSignature("makeRequest()");
-
-    Nil.sendRequest(dst, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
-}
-```
-
-
-Whenever the state machine sends a request to a delegate, it can check whether state transitions are locked, and then set `lock` to `true` until the callback function is executed:
-
-```solidity showLineNumbers
-function callback(bool success, bytes memory returnData, bytes memory context) public payable onlyResponse {
-        if (!success) {
-            lock = false;
-            require(success, "Request failed!");
-        }
-
-        if (abi.decode(returnData, (bool))) {
-            nextStage();
-        }
-
-        lock = false;
-    }
-```
-
-There are still several issues that may 'break' the pattern when this solution is implemented:
-
-* Under a high shard load, two consecutive requests might see the same correct state with `lock` set to `false`. However, only one of these requests will be executed while another will be discarded
-* The use of `lock` prevents unnecessary state changes but there is still a need for a mechanism for handling unsuccessful messages whose execution is blocked when `lock` is set to `true`
-
-:::
 
 
 
