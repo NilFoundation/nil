@@ -21,6 +21,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 		GetSendExternalMessageCommand(cfg),
 		GetEstimateFeeCommand(cfg),
 		GetTopUpCommand(cfg),
+		GetSeqnoCommand(),
 	)
 
 	return serverCmd
