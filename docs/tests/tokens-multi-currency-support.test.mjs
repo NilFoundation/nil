@@ -43,6 +43,7 @@ beforeAll(async () => {
 
   await exec(TEST_COMMANDS["KEYGEN_COMMAND"]);
   await exec(TEST_COMMANDS["RPC_COMMAND"]);
+  await exec(TEST_COMMANDS["FAUCET_COMMAND"]);
   const { stdout, stderr } = await exec(TEST_COMMANDS["WALLET_CREATION_COMMAND"]);
   OWNER_ADDRESS = stdout.match(WALLET_ADDRESS_PATTERN)[0];
 }, 20000);

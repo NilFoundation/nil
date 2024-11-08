@@ -36,7 +36,7 @@ func runCommand(cfgPath *string, args []string) error {
 	}
 	common.InitRpcClient(cfg, logger)
 
-	service := cliservice.NewService(common.GetRpcClient(), nil)
+	service := cliservice.NewService(common.GetRpcClient(), nil, nil)
 
 	var hash libcommon.Hash
 	if err := hash.Set(args[0]); err != nil {

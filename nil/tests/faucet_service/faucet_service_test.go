@@ -1,12 +1,9 @@
 package main
 
 import (
-	"context"
 	"testing"
 	"time"
 
-	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
-	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/faucet"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
@@ -17,48 +14,22 @@ import (
 
 type FaucetRpc struct {
 	tests.RpcSuite
-	client       *faucet.Client
-	cancelFaucet context.CancelFunc
+	client *faucet.Client
 }
 
 func (s *FaucetRpc) SetupTest() {
 	sockPath := rpc.GetSockPath(s.T())
-	faucetSockPath := rpc.GetSockPath(s.T())
 
 	s.Start(&nilservice.Config{
 		NShards: 5,
 		HttpUrl: sockPath,
 	})
 
-	s.client = faucet.NewClient(faucetSockPath)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	s.cancelFaucet = cancel
-
-	serviceFaucet, err := faucet.NewService(rpc_client.NewClient(sockPath, logging.NewLogger("faucet")))
-	s.Require().NoError(err)
-
-	runErrCh := make(chan error, 1)
-	s.Wg.Add(1)
-	go func() {
-		if err := serviceFaucet.Run(ctx, faucetSockPath); err != nil {
-			runErrCh <- err
-		} else {
-			runErrCh <- nil
-		}
-		s.Wg.Done()
-	}()
+	s.client, _ = tests.StartFaucetService(s.T(), s.Context, &s.Wg, s.Client)
 	time.Sleep(time.Second)
-
-	select {
-	case err := <-runErrCh:
-		s.Require().NoError(err, "serviceFaucet failed to start")
-	default:
-	}
 }
 
 func (s *FaucetRpc) TearDownTest() {
-	s.cancelFaucet()
 	s.Cancel()
 }
 

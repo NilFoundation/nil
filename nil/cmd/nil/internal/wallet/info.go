@@ -24,7 +24,7 @@ func InfoCommand(cfg *common.Config) *cobra.Command {
 }
 
 func infoBalance(_ *cobra.Command, _ []string, cfg *common.Config) error {
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey)
+	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
 	addr, pub, err := service.GetInfo(cfg.Address)
 	if err != nil {
 		return err

@@ -11,7 +11,7 @@ import (
 var logger = logging.NewLogger("keygenCommand")
 
 func GetCommand() *cobra.Command {
-	keygen := cliservice.NewService(&rpc.Client{}, nil)
+	keygen := cliservice.NewService(&rpc.Client{}, nil, nil)
 
 	keygenCmd := &cobra.Command{
 		Use:   "keygen",

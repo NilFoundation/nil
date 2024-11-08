@@ -17,6 +17,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/NilFoundation/nil/nil/services/cometa"
+	"github.com/NilFoundation/nil/nil/services/faucet"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/tests"
@@ -31,6 +32,7 @@ type SuiteCli struct {
 
 	endpoint       string
 	cometaEndpoint string
+	faucetEndpoint string
 	incBinPath     string
 	incAbiPath     string
 }
@@ -50,9 +52,11 @@ func (s *SuiteCli) SetupTest() {
 	}, 10325)
 
 	s.DefaultClient, s.endpoint = s.StartRPCNode(10330)
-	s.cometaEndpoint = strings.Replace(rpc.GetSockPathService(s.T(), "cometa"), "tcp://", "http://", 1)
+	s.cometaEndpoint = rpc.GetSockPathService(s.T(), "cometa")
 
-	s.cli = cliservice.NewService(s.DefaultClient, execution.MainPrivateKey)
+	var fc *faucet.Client
+	fc, s.faucetEndpoint = tests.StartFaucetService(s.T(), s.Context, &s.Wg, s.DefaultClient)
+	s.cli = cliservice.NewService(s.DefaultClient, execution.MainPrivateKey, fc)
 	s.Require().NotNil(s.cli)
 }
 
@@ -339,10 +343,18 @@ func (s *SuiteCli) TestCliP2pKeygen() {
 func (s *SuiteCli) TestCliWallet() {
 	dir := s.T().TempDir()
 
-	cfgPath := dir + "/config.ini"
-	iniData := "[nil]\nrpc_endpoint = " + s.endpoint + "\n"
-	err := os.WriteFile(cfgPath, []byte(iniData), 0o600)
+	iniDataTmpl := `[nil]
+rpc_endpoint = {{ .HttpUrl }}
+faucet_endpoint = {{ .FaucetUrl }}
+`
+	iniData, err := common.ParseTemplate(iniDataTmpl, map[string]interface{}{
+		"HttpUrl":   s.endpoint,
+		"FaucetUrl": s.faucetEndpoint,
+	})
 	s.Require().NoError(err)
+
+	cfgPath := dir + "/config.ini"
+	s.Require().NoError(os.WriteFile(cfgPath, []byte(iniData), 0o600))
 
 	s.Run("Deploy new wallet", func() {
 		res, err := s.RunCliNoCheck("-c", cfgPath, "wallet", "new")
@@ -450,10 +462,18 @@ func (s *SuiteCli) TestCliWallet() {
 func (s *SuiteCli) TestCliCurrency() {
 	dir := s.T().TempDir()
 
-	cfgPath := dir + "/config.ini"
-	iniData := "[nil]\nrpc_endpoint = " + s.endpoint + "\n"
-	err := os.WriteFile(cfgPath, []byte(iniData), 0o600)
+	iniDataTmpl := `[nil]
+rpc_endpoint = {{ .HttpUrl }}
+faucet_endpoint = {{ .FaucetUrl }}
+`
+	iniData, err := common.ParseTemplate(iniDataTmpl, map[string]interface{}{
+		"HttpUrl":   s.endpoint,
+		"FaucetUrl": s.faucetEndpoint,
+	})
 	s.Require().NoError(err)
+
+	cfgPath := dir + "/config.ini"
+	s.Require().NoError(os.WriteFile(cfgPath, []byte(iniData), 0o600))
 
 	s.Run("Deploy new wallet", func() {
 		s.RunCli("-c", cfgPath, "keygen", "new")

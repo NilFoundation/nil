@@ -135,7 +135,7 @@ func TestDebugBlockToText(t *testing.T) {
 		},
 	}
 
-	s := NewService(nil, nil)
+	s := NewService(nil, nil, nil)
 	t.Run("FilledBlock", func(t *testing.T) {
 		t.Parallel()
 

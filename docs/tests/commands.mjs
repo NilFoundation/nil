@@ -1,4 +1,4 @@
-import { RPC_GLOBAL, NIL_GLOBAL, NODE_MODULES, COMETA_GLOBAL } from './globals';
+import { RPC_GLOBAL, NIL_GLOBAL, FAUCET_GLOBAL, COMETA_GLOBAL } from './globals';
 
 const SALT = BigInt(Math.floor(Math.random() * 10000));
 
@@ -55,12 +55,17 @@ const COMETA_ENDPOINT_COMMAND = `${NIL_GLOBAL} config set cometa_endpoint ${COME
 
 //startCometaCommand
 export const COUNTER_BUG_COMETA_COMMAND = `${NIL_GLOBAL} wallet deploy --compile-input ./tests/counter.json --salt ${SALT}`;
-//endCometaCommand 
+//endCometaCommand
+
+//startFaucetEndpointCommand
+const FAUCET_ENDPOINT_COMMAND = `${NIL_GLOBAL} config set faucet_endpoint ${FAUCET_GLOBAL}`;
+//endFaucetEndpointCommand
 
 const COMMANDS = {
   'CONFIG_COMMAND': CONFIG_COMMAND,
   'KEYGEN_COMMAND': KEYGEN_COMMAND,
   'RPC_COMMAND': RPC_COMMAND,
+  'FAUCET_COMMAND': FAUCET_ENDPOINT_COMMAND,
   'COMETA_COMMAND': COMETA_ENDPOINT_COMMAND,
   'WALLET_CREATION_COMMAND': WALLET_CREATION_COMMAND,
   'WALLET_TOP_UP_COMMAND': WALLET_TOP_UP_COMMAND,

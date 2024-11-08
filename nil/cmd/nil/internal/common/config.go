@@ -21,6 +21,7 @@ import (
 type Config struct {
 	RPCEndpoint    string            `mapstructure:"rpc_endpoint"`
 	CometaEndpoint string            `mapstructure:"cometa_endpoint"`
+	FaucetEndpoint string            `mapstructure:"faucet_endpoint"`
 	PrivateKey     *ecdsa.PrivateKey `mapstructure:"private_key"`
 	Address        types.Address     `mapstructure:"address"`
 }
@@ -42,6 +43,11 @@ const InitConfigTemplate = `; Configuration for interacting with the =nil; clust
 ; Cometa service is not mandatory, you can leave it empty if you don't use it
 ; For example, if your Cometa's RPC endpoint is at "http://127.0.0.1:8528", set it as below
 ; cometa_endpoint = "http://127.0.0.1:8528"
+
+; Specify the RPC endpoint of a Faucet service
+; Faucet service is not mandatory, you can leave it empty if you don't use it
+; For example, if your Faucet's RPC endpoint is at "http://127.0.0.1:8527", set it as below
+; faucet_endpoint = "http://127.0.0.1:8527"
 
 ; Specify the private key used for signing external messages to your wallet.
 ; You can generate a new key with "nil keygen new".

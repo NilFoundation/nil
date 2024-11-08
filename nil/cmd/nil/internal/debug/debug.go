@@ -276,7 +276,7 @@ func (d *DebugHandler) PrintMessageChain() {
 }
 
 func runCommand(_ *cobra.Command, args []string) error {
-	service := cliservice.NewService(common.GetRpcClient(), nil)
+	service := cliservice.NewService(common.GetRpcClient(), nil, nil)
 
 	hashStr := args[0]
 

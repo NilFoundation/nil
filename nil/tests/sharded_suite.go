@@ -38,7 +38,7 @@ type ShardedSuite struct {
 	DefaultClient client.Client
 	Context       context.Context
 	ctxCancel     context.CancelFunc
-	wg            sync.WaitGroup
+	Wg            sync.WaitGroup
 
 	dbInit func() db.DB
 
@@ -49,7 +49,7 @@ func (s *ShardedSuite) Cancel() {
 	s.T().Helper()
 
 	s.ctxCancel()
-	s.wg.Wait()
+	s.Wg.Wait()
 	for _, shard := range s.Shards {
 		shard.Db.Close()
 	}
@@ -100,9 +100,9 @@ func (s *ShardedSuite) Start(cfg *nilservice.Config, port int) {
 		s.Require().NoError(err)
 		s.Shards[i].nm = node.NetworkManager
 
-		s.wg.Add(1)
+		s.Wg.Add(1)
 		go func() {
-			defer s.wg.Done()
+			defer s.Wg.Done()
 			defer node.Close()
 			s.NoError(node.Run())
 		}()
@@ -156,9 +156,9 @@ func (s *ShardedSuite) StartArchiveNode(port int, withBootstrapPeers bool) clien
 	s.Require().NoError(err)
 	s.connectToShards(node.NetworkManager)
 
-	s.wg.Add(1)
+	s.Wg.Add(1)
 	go func() {
-		defer s.wg.Done()
+		defer s.Wg.Done()
 		defer node.Close()
 		s.NoError(node.Run())
 	}()
@@ -189,9 +189,9 @@ func (s *ShardedSuite) StartRPCNode(port int) (client.Client, string) {
 	s.Require().NoError(err)
 	s.connectToShards(node.NetworkManager)
 
-	s.wg.Add(1)
+	s.Wg.Add(1)
 	go func() {
-		defer s.wg.Done()
+		defer s.Wg.Done()
 		defer node.Close()
 		s.NoError(node.Run())
 	}()

@@ -46,7 +46,7 @@ func GetAddressCommand(cfg *common.Config) *cobra.Command {
 }
 
 func runAddress(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey)
+	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
 
 	var filename string
 	var args []string
