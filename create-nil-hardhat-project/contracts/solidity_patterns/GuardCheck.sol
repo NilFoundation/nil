@@ -23,7 +23,7 @@ contract GuardCheckParent is NilBase {
         uint exampleBalanceBeforeAsyncCall = exampleBalance;
         exampleBalance -= amount;
 
-        Nil.asyncCall(dst, msg.sender, msg.sender, 100000, 0, false, 0, abi.encodeWithSignature("childFunc()"));
+        Nil.asyncCall(dst, msg.sender, msg.sender, 100000, 0, 0, abi.encodeWithSignature("childFunc()"));
 
         // GuardCheck assert:
         assert(restBalance == exampleBalanceBeforeAsyncCall - amount);
