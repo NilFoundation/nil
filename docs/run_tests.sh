@@ -24,6 +24,7 @@ rm -rf test.db
 nild run --http-port 8529 --collator-tick-ms=100 >nild.log 2>&1 &
 faucet run &
 cometa run -c $COMETA_CONFIG --use-badger &
+faucet run &
 sleep 2
 
 if CI=true npm run test:useNilD; then

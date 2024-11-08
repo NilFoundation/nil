@@ -1,7 +1,4 @@
-import { createRequire } from "node:module";
-const require = createRequire(import.meta.url);
-
-const {
+import {
   Faucet,
   HttpTransport,
   LocalECDSAKeySigner,
@@ -14,7 +11,7 @@ const {
   externalDeploymentMessage,
   ExternalMessageEnvelope,
   hexToBytes,
-} = require("@nilfoundation/niljs");
+} from "@nilfoundation/niljs";
 
 const util = require("node:util");
 const exec = util.promisify(require("node:child_process").exec);

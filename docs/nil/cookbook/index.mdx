@@ -2,6 +2,28 @@ import {CookbookCard, CookbookCardSection, CookbookBadges} from '@site/src/compo
 
 # Cookbook
 
+## Deploy and call a smart contract via Nil.js 
+
+These short recipes demonstrate how to use Nil.js to deploy and call a smart contract.
+
+<CookbookCardSection>
+  <CookbookCard tag={{
+    label: "7 min read",
+  }} id='simple-deploy1' title='Deploy a smart contract' description='' to='https://docs.nil.foundation/nil/cookbook/niljs-deploy/deploy-call-smart-contract'
+  />
+</CookbookCardSection>
+
+## Deploy and call a smart contract via Nil.js 
+
+These short recipes demonstrate how to call [**the faucet service**](../getting-started/essentials/tokens-multi-currency.mdx#currency-faucet-service) from `Nil.js`.
+
+<CookbookCardSection>
+  <CookbookCard tag={{
+    label: "5 min read",
+  }} id='faucet-service1' title='Use the faucet service' description='' to='https://docs.nil.foundation/nil/cookbook/faucet-service/use-faucet-service'
+  />
+</CookbookCardSection>
+
 ## Create a swap contract and custom currencies
 
 This series of recipes show how to create a swap contract that can reliably exchange one custom currency with another even if the contracts representing these currencies are located on different shards. 
@@ -9,11 +31,11 @@ This series of recipes show how to create a swap contract that can reliably exch
 The swap contract adopts order book-like mechanics by matching swap requests from different wallets. When requests are matched, the contract processes them and takes care of any excess tokens by sending them back to the request originators.
 
 <CookbookCardSection>
-  <CookbookCard badges={[CookbookBadges[0]]} tag={{
+  <CookbookCard tag={{
     label: "8 min read",
   }} id='swap1' title='Design the swap contract' description='' to='https://docs.nil.foundation/nil/cookbook/swap/create-swap-contract'
   />
-  <CookbookCard badges={[CookbookBadges[2]]} tag={{
+  <CookbookCard tag={{
     label: "7 min read",
   }} id='swap2' title='Deploy and test the swap contract' description='' to='https://docs.nil.foundation/nil/cookbook/swap/deploy-test-swap'/>
 </CookbookCardSection>
@@ -23,11 +45,11 @@ The swap contract adopts order book-like mechanics by matching swap requests fro
 These recipes demonstrate how a multi-signature wallet can work on top of =nil;. The contract has all the usual characteristics of a multi-signature wallet while beign able to send the default token and custom currencies across different shards.
 
 <CookbookCardSection>
-  <CookbookCard badges={[CookbookBadges[0]]} tag={{
+  <CookbookCard tag={{
     label: "12 min read",
   }} id='multi-sig1' title='Create the wallet contract' description='' to='https://docs.nil.foundation/nil/cookbook/multisig-wallet/create-multisig-contract'
   />
-  <CookbookCard badges={[CookbookBadges[2]]} tag={{
+  <CookbookCard tag={{
     label: "5 min read",
   }} id='multi-sig2' title='Deploy and test the wallet' description='' to='https://docs.nil.foundation/nil/cookbook/multisig-wallet/deploy-test-multisig'/>
 </CookbookCardSection>

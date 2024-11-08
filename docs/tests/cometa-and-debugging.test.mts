@@ -8,9 +8,8 @@ import {
 import { COMETA_GLOBAL, NIL_GLOBAL, RPC_GLOBAL } from "./globals";
 import TestHelper from "./TestHelper";
 //startNilJSImport
-import { createRequire } from "node:module";
-const require = createRequire(import.meta.url);
-const {
+
+import {
   CometaService,
   convertEthToWei,
   Faucet,
@@ -20,7 +19,7 @@ const {
   PublicClient,
   waitTillCompleted,
   WalletV1,
-} = require("@nilfoundation/niljs");
+} from "@nilfoundation/niljs";
 //endNilJSImport
 import type { Abi } from "viem";
 
@@ -51,7 +50,7 @@ afterAll(async () => {
   await exec(`rm -rf ${CONFIG_FILE_NAME}`);
 });
 
-describe.skip.sequential("CLI tutorial flows pass correctly for CounterBug", () => {
+describe.sequential("CLI tutorial flows pass correctly for CounterBug", () => {
   test.sequential("CLI can compile, deploy, and register CounterBug in one command", async () => {
     const { stdout, stderr } = await exec(TEST_COMMANDS["COUNTER_BUG_COMETA_COMMAND"]);
     expect(stdout).toBeDefined;
@@ -88,9 +87,9 @@ describe.skip.sequential("CLI tutorial flows pass correctly for CounterBug", () 
     MESSAGE_HASH = stdout.match(HASH_PATTERN)[0];
   });
 
-  test.skip.sequential("debugging the message shows where the contract failed", async () => {
+  test.sequential("debugging the message shows where the contract failed", async () => {
     //startDebugCommand
-    const DEBUG_COMMAND = `${NIL_GLOBAL} debug ${MESSAGE_HASH}`;
+    const DEBUG_COMMAND = `${NIL_GLOBAL} debug ${MESSAGE_HASH} ${CONFIG_FLAG}`;
     //endDebugCommand
 
     const { stdout, stderr } = await exec(DEBUG_COMMAND);

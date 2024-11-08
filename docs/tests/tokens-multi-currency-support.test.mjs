@@ -1,8 +1,6 @@
 import { RPC_GLOBAL, NIL_GLOBAL } from "./globals";
 
-import { createRequire } from "node:module";
-const require = createRequire(import.meta.url);
-const {
+import {
   Faucet,
   HttpTransport,
   LocalECDSAKeySigner,
@@ -11,9 +9,7 @@ const {
   generateRandomPrivateKey,
   convertEthToWei,
   waitTillCompleted,
-  bytesToHex,
-  FaucetClient,
-} = require("@nilfoundation/niljs");
+} from "@nilfoundation/niljs";
 
 import TestHelper from "./TestHelper";
 
