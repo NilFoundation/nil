@@ -82,7 +82,7 @@ func (s *SuiteModifiersRpc) TestInternalIncorrect() {
 	msgHash, err := s.Client.SendMessage(messageToSend)
 	s.Require().NoError(err)
 
-	receipt := s.WaitForReceipt(s.testAddr.ShardId(), msgHash)
+	receipt := s.WaitForReceipt(msgHash)
 	s.Require().False(receipt.Success)
 }
 
@@ -111,7 +111,7 @@ func (s *SuiteModifiersRpc) TestExternalCorrect() {
 	msgHash, err := s.Client.SendMessage(messageToSend)
 	s.Require().NoError(err)
 
-	receipt := s.WaitForReceipt(s.testAddr.ShardId(), msgHash)
+	receipt := s.WaitForReceipt(msgHash)
 	s.Require().True(receipt.Success)
 }
 
@@ -139,7 +139,7 @@ func (s *SuiteModifiersRpc) TestExternalSyncCall() {
 	msgHash, err := s.Client.SendMessage(messageToSend)
 	s.Require().NoError(err)
 
-	receipt := s.WaitForReceipt(s.testAddr.ShardId(), msgHash)
+	receipt := s.WaitForReceipt(msgHash)
 	s.Require().False(receipt.Success)
 }
 
@@ -159,7 +159,7 @@ func (s *SuiteModifiersRpc) TestInternalSyncCall() {
 	msgHash, err := s.Client.SendMessage(messageToSend)
 	s.Require().NoError(err)
 
-	receipt := s.WaitForReceipt(s.testAddr.ShardId(), msgHash)
+	receipt := s.WaitForReceipt(msgHash)
 	s.Require().True(receipt.Success)
 }
 

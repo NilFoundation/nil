@@ -77,7 +77,7 @@ test("Call counter status", async () => {
     feeCredit: 50000000n,
   });
 
-  await waitTillCompleted(client, 1, hash);
+  await waitTillCompleted(client, hash);
 
   const res = await client.call(
     {
@@ -99,7 +99,7 @@ test("Call counter status", async () => {
     value: 0n,
     feeCredit: 500000n,
   });
-  await waitTillCompleted(client, 1, messageHash);
+  await waitTillCompleted(client, messageHash);
 
   const resAfter = await client.call(
     {
@@ -122,7 +122,7 @@ test("Call counter status", async () => {
     gas: 1000000n,
   });
 
-  const receipts = await waitTillCompleted(client, 1, syncMessageHash);
+  const receipts = await waitTillCompleted(client, syncMessageHash);
 
   const resAfterSync = await client.call(
     {

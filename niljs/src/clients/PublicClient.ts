@@ -9,6 +9,7 @@ import type { CallArgs, CallRes, ContractOverride } from "../types/CallArgs.js";
 import type { IReceipt, ProcessedReceipt } from "../types/IReceipt.js";
 import type { ProcessedMessage } from "../types/ProcessedMessage.js";
 import type { RPCMessage } from "../types/RPCMessage.js";
+import { getShardIdFromAddress } from "../utils/address.js";
 import { addHexPrefix } from "../utils/hex.js";
 import { BaseClient } from "./BaseClient.js";
 import type { IPublicClientConfig } from "./types/Configs.js";
@@ -232,7 +233,8 @@ class PublicClient extends BaseClient {
   /**
    * Returns the structure of the internal message with the given hash.
    * @param hash The hash of the message.
-   * @param shardId The ID of the shard where the message was recorded.
+   * @param shardId - **@deprecated** The ID of the shard where the message was recorded.
+   *    Manually specifying `shardId` is deprecated. Automatically derived if not provided.
    * @returns The message whose information is requested.
    * @example
    * import { PublicClient } from '@nilfoundation/niljs';
@@ -243,12 +245,13 @@ class PublicClient extends BaseClient {
    *
    * const message = await client.getMessageByHash(HASH);
    */
-  public async getMessageByHash(hash: Hex, shardId = this.shardId): Promise<ProcessedMessage> {
-    assertIsValidShardId(shardId);
+  public async getMessageByHash(hash: Hex, shardId?: number): Promise<ProcessedMessage> {
+    const effectiveShardId = shardId ?? getShardIdFromAddress(hash);
+    assertIsValidShardId(effectiveShardId);
 
     const res = await this.request<RPCMessage>({
       method: "eth_getInMessageByHash",
-      params: [shardId, hash],
+      params: [effectiveShardId, hash],
     });
 
     return {
@@ -264,7 +267,8 @@ class PublicClient extends BaseClient {
   /**
    * Returns the receipt for the message with the given hash.
    * @param hash The hash of the message.
-   * @param shardId The ID of the shard where the message was recorded.
+   * @param shardId - **@deprecated** The ID of the shard where the message was recorded.
+   *    Manually specifying `shardId` is deprecated. Automatically derived if not provided.
    * @returns The receipt whose structure is requested.
    * @example
    * import { PublicClient } from '@nilfoundation/niljs';
@@ -273,13 +277,14 @@ class PublicClient extends BaseClient {
    * endpoint: RPC_ENDPOINT
    * })
    *
-   * const receipt = await client.getMessageReceiptByHash(1, HASH);
+   * const receipt = await client.getMessageReceiptByHash(HASH, 1);
    */
   public async getMessageReceiptByHash(
     hash: Hex,
-    shardId = this.shardId,
+    shardId?: number,
   ): Promise<ProcessedReceipt | null> {
-    assertIsValidShardId(shardId);
+    const effectiveShardId = shardId ?? getShardIdFromAddress(hash);
+    assertIsValidShardId(effectiveShardId);
 
     const mapReceipt = (receipt: IReceipt): ProcessedReceipt => {
       return {
@@ -299,7 +304,7 @@ class PublicClient extends BaseClient {
     const res = await this.request<IReceipt | null>({
       method: "eth_getInMessageReceipt",
       params: [
-        shardId,
+        effectiveShardId,
         typeof hash === "string" ? addHexPrefix(hash) : addHexPrefix(bytesToHex(hash)),
       ],
     });

@@ -191,7 +191,7 @@ describe.sequential("Nil.js handles the full swap tutorial flow", async () => {
           shardId: 4,
         });
 
-      const receipts = await waitTillCompleted(client, 1, deploymentMessageHash);
+      const receipts = await waitTillCompleted(client, deploymentMessageHash);
       //endDeploymentOfSwapMatch
 
       expect(receipts.some((receipt) => !receipt.success)).toBe(false);
@@ -204,12 +204,12 @@ describe.sequential("Nil.js handles the full swap tutorial flow", async () => {
       //startCurrencyCreation
       {
         const hashMessage = await walletOne.mintCurrency(100_000_000n);
-        await waitTillCompleted(client, 2, hashMessage);
+        await waitTillCompleted(client, hashMessage);
       }
 
       {
         const hashMessage = await walletTwo.mintCurrency(100_000_000n);
-        await waitTillCompleted(client, 3, hashMessage);
+        await waitTillCompleted(client, hashMessage);
       }
       //endCurrencyCreation
 
@@ -230,7 +230,7 @@ describe.sequential("Nil.js handles the full swap tutorial flow", async () => {
           feeCredit: gasPrice * 1_000_000_000n,
         });
 
-        await waitTillCompleted(client, 2, hashMessage);
+        await waitTillCompleted(client, hashMessage);
       }
       //endFirstSendRequest
 
@@ -251,7 +251,7 @@ describe.sequential("Nil.js handles the full swap tutorial flow", async () => {
           feeCredit: gasPrice * 1_000_000_000n,
         });
 
-        await waitTillCompleted(client, 3, hashMessage);
+        await waitTillCompleted(client, hashMessage);
       }
 
       //endSecondSendRequest

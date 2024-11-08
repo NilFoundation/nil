@@ -352,7 +352,7 @@ describe.sequential("the multisig wallet performs all operations internally", as
 
       const signer = new MultisigSigner([pkOne, pkTwo, pkThree].map((x) => hexToBytes(x)));
 
-      const receipts = await waitTillCompleted(client, 1, deploymentMessageHash);
+      const receipts = await waitTillCompleted(client, deploymentMessageHash);
 
       //endMultiSigDeployment
 
@@ -374,7 +374,7 @@ describe.sequential("the multisig wallet performs all operations internally", as
         feeCredit: 10_000_000n,
       });
 
-      await waitTillCompleted(client, 1, withdrawalHash);
+      await waitTillCompleted(client, withdrawalHash);
 
       const balance = await client.getBalance(bytesToHex(walletTwo.address), "latest");
 

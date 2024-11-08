@@ -12,7 +12,7 @@ func (s *Service) handleCurrencyTx(txHash common.Hash, contractAddr types.Addres
 		Stringer(logging.FieldMessageHash, txHash).
 		Send()
 
-	_, err := s.WaitForReceipt(contractAddr.ShardId(), txHash)
+	_, err := s.WaitForReceipt(txHash)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to wait for currency transaction receipt")
 		return err

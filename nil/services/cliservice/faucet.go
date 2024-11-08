@@ -35,9 +35,9 @@ func collectFailedReceipts(dst []*jsonrpc.RPCReceipt, receipt *jsonrpc.RPCReceip
 	return dst
 }
 
-func (s *Service) WaitForReceipt(shardId types.ShardId, msgHash common.Hash) (*jsonrpc.RPCReceipt, error) {
+func (s *Service) WaitForReceipt(msgHash common.Hash) (*jsonrpc.RPCReceipt, error) {
 	receipt, err := concurrent.WaitFor(context.Background(), ReceiptWaitFor, ReceiptWaitTick, func(ctx context.Context) (*jsonrpc.RPCReceipt, error) {
-		receipt, err := s.client.GetInMessageReceipt(shardId, msgHash)
+		receipt, err := s.client.GetInMessageReceipt(msgHash)
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +105,7 @@ func (s *Service) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address,
 		return err
 	}
 
-	_, err = s.WaitForReceipt(types.FaucetAddress.ShardId(), msgHash)
+	_, err = s.WaitForReceipt(msgHash)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func (s *Service) CreateWallet(
 		return types.EmptyAddress, err
 	}
 	check.PanicIfNotf(addr == walletAddress, "contract was deployed to unexpected address")
-	res, err := s.WaitForReceipt(addr.ShardId(), msgHash)
+	res, err := s.WaitForReceipt(msgHash)
 	if err != nil {
 		return types.EmptyAddress, errors.New("error during waiting for receipt")
 	}

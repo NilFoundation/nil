@@ -3,8 +3,6 @@ package debug
 import (
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
 	libcommon "github.com/NilFoundation/nil/nil/common"
@@ -83,7 +81,7 @@ func (d *DebugHandler) GetMessage(receipt *jsonrpc.RPCReceipt) (*jsonrpc.RPCInMe
 	if ok {
 		return msg, nil
 	}
-	msg, err := d.Service.FetchMessageByHash(receipt.ContractAddress.ShardId(), receipt.MsgHash)
+	msg, err := d.Service.FetchMessageByHash(receipt.MsgHash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch the contract data: %w", err)
 	}
@@ -281,17 +279,6 @@ func runCommand(_ *cobra.Command, args []string) error {
 	service := cliservice.NewService(common.GetRpcClient(), nil)
 
 	hashStr := args[0]
-	shardId := types.BaseShardId
-
-	parts := strings.Split(hashStr, ":")
-	if len(parts) > 1 {
-		shardIdUint, err := strconv.ParseUint(parts[0], 10, 64)
-		if err != nil {
-			return err
-		}
-		shardId = types.ShardId(shardIdUint)
-		hashStr = parts[1]
-	}
 
 	var msgHash libcommon.Hash
 	if err := msgHash.Set(hashStr); err != nil {
@@ -305,7 +292,7 @@ func runCommand(_ *cobra.Command, args []string) error {
 
 	debugHandler := NewDebugHandler(service, cometa, msgHash)
 
-	receipt, err := service.FetchReceiptByHash(shardId, msgHash)
+	receipt, err := service.FetchReceiptByHash(msgHash)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to fetch the receipt")
 		return err

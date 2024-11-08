@@ -365,7 +365,8 @@ func (c *Client) SendRawTransaction(data []byte) (common.Hash, error) {
 	return hash, nil
 }
 
-func (c *Client) GetInMessageByHash(shardId types.ShardId, hash common.Hash) (*jsonrpc.RPCInMessage, error) {
+func (c *Client) GetInMessageByHash(hash common.Hash) (*jsonrpc.RPCInMessage, error) {
+	shardId := types.ShardIdFromHash(hash)
 	res, err := c.call(Eth_getInMessageByHash, shardId, hash)
 	if err != nil {
 		return nil, err
@@ -378,7 +379,8 @@ func (c *Client) GetInMessageByHash(shardId types.ShardId, hash common.Hash) (*j
 	return msg, nil
 }
 
-func (c *Client) GetInMessageReceipt(shardId types.ShardId, hash common.Hash) (*jsonrpc.RPCReceipt, error) {
+func (c *Client) GetInMessageReceipt(hash common.Hash) (*jsonrpc.RPCReceipt, error) {
+	shardId := types.ShardIdFromHash(hash)
 	res, err := c.call(Eth_getInMessageReceipt, shardId, hash)
 	if err != nil {
 		return nil, err

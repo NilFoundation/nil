@@ -141,7 +141,7 @@ func (s *SuiteReadThroughDb) TestIsolation() {
 	})
 
 	s.Run("ReceiptCache", func() {
-		r, err := s.cache.Client.GetInMessageReceipt(shardId, receipt.MsgHash)
+		r, err := s.cache.Client.GetInMessageReceipt(receipt.MsgHash)
 		s.Require().NoError(err)
 		s.Require().Nil(r, "The receipt should not be found in the cache")
 	})

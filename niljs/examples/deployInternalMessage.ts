@@ -64,7 +64,7 @@ const { address, hash } = await wallet.deployContract({
   shardId: 1,
 });
 
-const receipts = await waitTillCompleted(client, 1, hash);
+const receipts = await waitTillCompleted(client, hash);
 
 if (receipts.some((receipt) => !receipt.success)) {
   throw new Error("Contract deployment failed");

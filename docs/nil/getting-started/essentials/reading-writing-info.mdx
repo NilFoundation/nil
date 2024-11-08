@@ -9,7 +9,7 @@ This tutorial details the different ways that allow for reading and writing info
 
 ## Via the =nil; CLI
 
-The =nil; CLI provides several commands that produce data about key cluster entities including blocks, messages, and logs. 
+The =nil; CLI provides several commands that produce data about key cluster entities including blocks, messages, and logs.
 
 To view the latest block recorded by shard with `shardId = 1`:
 
@@ -72,7 +72,7 @@ const messageHash = await wallet.sendMessage({
     feeCredit: 1_000_000n
 });
 
-await waitTillCompleted(client, 1, messageHash);
+await waitTillCompleted(client, messageHash);
 ```
 
 :::tip

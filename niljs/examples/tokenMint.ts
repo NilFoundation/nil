@@ -39,7 +39,7 @@ const faucetHash = await faucet.withdrawTo(
   convertEthToWei(0.1),
 );
 
-await waitTillCompleted(client, 1, bytesToHex(faucetHash));
+await waitTillCompleted(client, bytesToHex(faucetHash));
 
 await wallet.selfDeploy(true);
 
@@ -57,7 +57,7 @@ const hashMessage = await wallet.sendMessage({
   }),
 });
 
-await waitTillCompleted(client, 1, hashMessage);
+await waitTillCompleted(client, hashMessage);
 
 const hashMessage2 = await wallet.sendMessage({
   to: walletAddress,
@@ -70,7 +70,7 @@ const hashMessage2 = await wallet.sendMessage({
   }),
 });
 
-await waitTillCompleted(client, 1, hashMessage2);
+await waitTillCompleted(client, hashMessage2);
 
 const tokens = await client.getCurrencies(walletAddress, "latest");
 
@@ -94,7 +94,7 @@ const sendHash = await wallet.sendMessage({
   ],
 });
 
-await waitTillCompleted(client, 1, sendHash);
+await waitTillCompleted(client, sendHash);
 
 const anotherTokens = await client.getCurrencies(
   anotherAddress,

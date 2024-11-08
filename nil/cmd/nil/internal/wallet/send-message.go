@@ -81,7 +81,7 @@ func runSend(_ *cobra.Command, args []string, cfg *common.Config) error {
 	}
 
 	if !params.noWait {
-		if _, err := service.WaitForReceipt(cfg.Address.ShardId(), msgHash); err != nil {
+		if _, err := service.WaitForReceipt(msgHash); err != nil {
 			return err
 		}
 	}

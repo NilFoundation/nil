@@ -72,7 +72,7 @@ const hash = await wallet.sendMessage({
   }),
 });
 
-await waitTillCompleted(client, 1, hash);
+await waitTillCompleted(client, hash);
 
 console.log("bounce address", bounceAddress);
 

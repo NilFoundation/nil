@@ -52,7 +52,7 @@ const hash = await wallet.sendMessage({
   feeCredit: 100_000n,
 });
 
-await waitTillCompleted(client, 1, hash);
+await waitTillCompleted(client, hash);
 
 const balance = await client.getBalance(anotherAddress, "latest");
 

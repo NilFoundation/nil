@@ -111,7 +111,7 @@ func deployContracts(client *rpc_client.Client, wallets []types.Address, private
 		if err != nil {
 			return nil, err
 		}
-		receipt, err := service.WaitForReceipt(wallet.ShardId(), txHashCaller)
+		receipt, err := service.WaitForReceipt(txHashCaller)
 		if err != nil {
 			return nil, err
 		}
@@ -226,7 +226,7 @@ func main() {
 						mh.RecordError()
 						logger.Error().Err(err).Msg("Error during contract call")
 					}
-					receipt, err := service.WaitForReceipt(wallet.ShardId(), hash)
+					receipt, err := service.WaitForReceipt(hash)
 					if err != nil {
 						mh.RecordError()
 						logger.Error().Err(err).Msg("Can't get receipt for contract")

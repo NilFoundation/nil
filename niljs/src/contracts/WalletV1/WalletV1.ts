@@ -360,7 +360,7 @@ export class WalletV1 {
    * @returns {unknown} The message hash.
    * @example
    * const hashMessage = await wallet.setCurrencyName("MY_TOKEN");
-   * await waitTillCompleted(client, 1, hashMessage);
+   * await waitTillCompleted(client, hashMessage);
    */
   async setCurrencyName(name: string) {
     const callData = encodeFunctionData({
@@ -386,7 +386,7 @@ export class WalletV1 {
    * @returns {unknown} The message hash.
    * @example
    * const hashMessage = await wallet.mintCurrency(mintCount);
-   * await waitTillCompleted(client, 1, hashMessage);
+   * await waitTillCompleted(client, hashMessage);
    */
   async mintCurrency(amount: bigint) {
     return await this.changeCurrencyAmount(amount, true);
@@ -400,7 +400,7 @@ export class WalletV1 {
    * @returns {unknown} The message hash.
    * @example
    * const hashMessage = await wallet.burnCurrency(burnCurrency);
-   * await waitTillCompleted(client, 1, hashMessage);
+   * await waitTillCompleted(client, hashMessage);
    */
   async burnCurrency(amount: bigint) {
     return await this.changeCurrencyAmount(amount, false);

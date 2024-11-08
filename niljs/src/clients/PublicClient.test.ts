@@ -142,14 +142,14 @@ test("getMessageByHash", async ({ expect }) => {
     shardId: 1,
   });
   const message = await client.getMessageByHash(
-    "0x158c4be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa",
+    "0x00014be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa",
   );
 
   expect(message).toBeDefined();
   expect(fn).toHaveBeenCalledOnce();
   expect(fn).toHaveBeenLastCalledWith({
     method: "eth_getInMessageByHash",
-    params: [1, "0x158c4be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa"],
+    params: [1, "0x00014be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa"],
   });
 });
 
@@ -164,14 +164,14 @@ test("getMessageReceiptByHash", async ({ expect }) => {
     shardId: 1,
   });
   const receipt = await client.getMessageReceiptByHash(
-    "0x158c4be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa",
+    "0x00014be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa",
   );
 
   expect(receipt).toBeDefined();
   expect(fn).toHaveBeenCalledOnce();
   expect(fn).toHaveBeenLastCalledWith({
     method: "eth_getInMessageReceipt",
-    params: [1, "0x158c4be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa"],
+    params: [1, "0x00014be17b52b92dc03cef7e8cd9cec64c6413175df3cce9f6ae1fb0d12106fa"],
   });
 });
 

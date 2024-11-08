@@ -54,7 +54,7 @@ test("Async call to another shard send value", async () => {
     feeCredit: 100_000n * gasPriceOnShard2,
   });
 
-  const receipts = await waitTillCompleted(client, 1, hash);
+  const receipts = await waitTillCompleted(client, hash);
 
   expect(receipts).toBeDefined();
   expect(receipts.some((r) => !r.success)).toBe(false);
@@ -96,7 +96,7 @@ test("sync call same shard send value", async () => {
     gas: 100000n,
   });
 
-  const receipts = await waitTillCompleted(client, 1, hash);
+  const receipts = await waitTillCompleted(client, hash);
 
   expect(receipts).toBeDefined();
   expect(receipts.some((r) => !r.success)).toBe(false);

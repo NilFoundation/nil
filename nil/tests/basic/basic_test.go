@@ -53,7 +53,7 @@ func (s *SuiteRpc) sendRawTransaction(m *types.ExternalMessage) common.Hash {
 
 func (s *SuiteRpc) TestRpcBasic() {
 	var someRandomMissingBlock common.Hash
-	s.Require().NoError(someRandomMissingBlock.UnmarshalText([]byte("0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")))
+	s.Require().NoError(someRandomMissingBlock.UnmarshalText([]byte("0x0001117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")))
 
 	shardIdListRes, err := s.Client.GetShardIdList()
 	s.Require().NoError(err)
@@ -104,7 +104,7 @@ func (s *SuiteRpc) TestRpcBasic() {
 	s.Require().NoError(err)
 	s.Require().Equal(latest, res)
 
-	msg, err := s.Client.GetInMessageByHash(types.BaseShardId, someRandomMissingBlock)
+	msg, err := s.Client.GetInMessageByHash(someRandomMissingBlock)
 	s.Require().NoError(err)
 	s.Require().Nil(msg)
 }
@@ -158,7 +158,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			hash, _, err := s.Client.DeployExternal(shardId, types.BuildDeployPayload(calleeCode, common.EmptyHash), s.GasToValue(100_000))
 			s.Require().NoError(err)
 
-			receipt := s.WaitForReceipt(shardId, hash)
+			receipt := s.WaitForReceipt(hash)
 			s.False(receipt.Success)
 			s.True(receipt.Temporary)
 			s.Equal("NoAccountToPayFees", receipt.Status)
@@ -220,7 +220,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 		s.Run("MakeCall", makeCall)
 		extMessageVerificationFee := uint64(8350)
 		s.Run("Check", func() {
-			receipt = s.WaitForReceipt(callerAddr.ShardId(), hash)
+			receipt = s.WaitForReceipt(hash)
 			s.Require().True(receipt.Success)
 
 			balance, err := s.Client.GetBalance(callerAddr, transport.BlockNumberOrHash{BlockHash: &receipt.BlockHash})
@@ -270,7 +270,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.Require().Equal(vm.ErrExecutionReverted.Error()+": Value must be non-zero", bounceErr)
 
 			s.Require().Len(receipt.OutMessages, 1)
-			receipt = s.WaitForReceipt(calleeAddr.ShardId(), receipt.OutMessages[0])
+			receipt = s.WaitForReceipt(receipt.OutMessages[0])
 			s.Require().False(receipt.Success)
 			s.Require().Len(receipt.Logs, 1)
 			msg, err := receipt.Logs[0].Data.MarshalText()
@@ -316,7 +316,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 			callerShardId, types.MainWalletAddress, deployCode, types.NewValueFromUint64(10_000_000), execution.MainPrivateKey,
 		)
 		s.Require().NoError(err)
-		receipt := s.WaitForReceipt(types.MainWalletAddress.ShardId(), hash)
+		receipt := s.WaitForReceipt(hash)
 		s.Require().True(receipt.Success)
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})
@@ -676,7 +676,7 @@ func (s *SuiteRpc) TestEmptyDeployPayload() {
 	hash, _, err := s.Client.DeployContract(types.BaseShardId, wallet, types.DeployPayload{}, types.Value{}, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
-	receipt := s.WaitForReceipt(wallet.ShardId(), hash)
+	receipt := s.WaitForReceipt(hash)
 	s.Require().True(receipt.Success)
 	s.Require().False(receipt.OutReceipts[0].Success)
 }
@@ -690,7 +690,7 @@ func (s *SuiteRpc) TestInvalidMessageExternalDeployment() {
 	s.Require().NoError(err)
 	s.Require().NotEmpty(hash)
 
-	receipt := s.WaitForReceipt(wallet.ShardId(), hash)
+	receipt := s.WaitForReceipt(hash)
 	s.Require().False(receipt.Success)
 	s.Require().Equal(types.ErrorInvalidMessageInputUnmarshalFailed.String(), receipt.Status)
 	s.Require().Equal("InvalidMessageInputUnmarshalFailed: "+ssz.ErrSize.Error(), receipt.ErrorMessage)
@@ -758,7 +758,7 @@ func (s *SuiteRpc) TestNoOutMessagesIfFailure() {
 
 	txhash, err := s.Client.SendExternalMessage(calldata, addr, nil, s.GasToValue(100_000))
 	s.Require().NoError(err)
-	receipt = s.WaitForReceipt(addr.ShardId(), txhash)
+	receipt = s.WaitForReceipt(txhash)
 	s.Require().False(receipt.Success)
 	s.Require().NotEqual("Success", receipt.Status)
 	s.Require().Empty(receipt.OutReceipts)
@@ -770,7 +770,7 @@ func (s *SuiteRpc) TestNoOutMessagesIfFailure() {
 
 	txhash, err = s.Client.SendExternalMessage(calldata, addr, nil, s.GasToValue(100_000))
 	s.Require().NoError(err)
-	receipt = s.WaitForReceipt(addr.ShardId(), txhash)
+	receipt = s.WaitForReceipt(txhash)
 	s.Require().True(receipt.Success)
 	s.Require().Len(receipt.OutReceipts, 1)
 	s.Require().Len(receipt.OutMessages, 1)
@@ -821,13 +821,13 @@ func (s *SuiteRpc) TestRpcMessageContent() {
 		execution.MainPrivateKey)
 	s.Require().NoError(err)
 
-	receipt := s.WaitForReceipt(types.MainWalletAddress.ShardId(), hash)
+	receipt := s.WaitForReceipt(hash)
 
-	msg1, err := s.Client.GetInMessageByHash(types.MainWalletAddress.ShardId(), hash)
+	msg1, err := s.Client.GetInMessageByHash(hash)
 	s.Require().NoError(err)
 	s.EqualValues(0, msg1.Flags.Bits)
 
-	msg2, err := s.Client.GetInMessageByHash(shardId, receipt.OutMessages[0])
+	msg2, err := s.Client.GetInMessageByHash(receipt.OutMessages[0])
 	s.Require().NoError(err)
 	s.EqualValues(3, msg2.Flags.Bits)
 }
