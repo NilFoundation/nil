@@ -19,6 +19,6 @@
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "dotenv": "^16.4.5",
     "ts-node": "^10.9.2",
-    "@nilfoundation/smart-contracts": "^0.1.4"
+    "@nilfoundation/smart-contracts": "^0.1.5"
   }
 }

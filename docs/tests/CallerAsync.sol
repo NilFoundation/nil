@@ -13,9 +13,6 @@ contract CallerAsync {
     function call(address dst) public payable {
         dst.asyncCall(
             address(0),
-            address(0),
-            500000,
-            Nil.FORWARD_NONE,
             msg.value,
             abi.encodeWithSignature("funcName")
         );

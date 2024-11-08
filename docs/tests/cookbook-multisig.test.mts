@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 
-const {
+import {
   Faucet,
   HttpTransport,
   LocalECDSAKeySigner,
@@ -18,7 +18,9 @@ const {
   hexToBytes,
   isHexString,
   refineAddress,
-} = require("@nilfoundation/niljs");
+  type ISigner,
+  type Hex,
+} from "@nilfoundation/niljs";
 import { secp256k1 } from "@noble/curves/secp256k1";
 
 import {} from "ethers";
@@ -260,7 +262,7 @@ describe.sequential("the multisig wallet performs all operations internally", as
         salt: SALT,
       });
 
-      const walletOneAddress = bytesToHex(walletOne.address);
+      const walletOneAddress = walletOne.address;
 
       const walletTwo = new WalletV1({
         pubkey: pubkeyTwo,

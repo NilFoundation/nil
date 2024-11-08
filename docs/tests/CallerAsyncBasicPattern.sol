@@ -11,14 +11,7 @@ contract Caller {
     event CallCompleted(address indexed dst);
 
     function call(address dst) public payable {
-        dst.asyncCall(
-            address(0),
-            address(0),
-            500000,
-            Nil.FORWARD_NONE,
-            0,
-            abi.encodeWithSignature("funcName")
-        );
+        dst.asyncCall(address(0), 0, abi.encodeWithSignature("funcName"));
         emit CallCompleted(dst);
     }
 }
