@@ -13,9 +13,6 @@ contract Retailer {
     function orderProduct(address dst, string calldata name) public {
         dst.asyncCall(
             msg.sender,
-            msg.sender,
-            1_000_000,
-            Nil.FORWARD_VALUE,
             0,
             abi.encodeWithSignature("createProduct(string)", name)
         );

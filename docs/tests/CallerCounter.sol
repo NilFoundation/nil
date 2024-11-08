@@ -13,9 +13,6 @@ contract Caller {
         Nil.asyncCall(
             dst,
             msg.sender,
-            msg.sender,
-            100000,
-            2,
             0,
             abi.encodeWithSignature("increment()")
         );

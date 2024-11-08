@@ -94,7 +94,7 @@ describe.sequential("niljs test", () => {
 
       const faucetHash = await faucet.withdrawToWithRetry(
         bytesToHex(walletAddress),
-        convertEthToWei(0.1),
+        convertEthToWei(10),
       );
 
       await wallet.selfDeploy(true);

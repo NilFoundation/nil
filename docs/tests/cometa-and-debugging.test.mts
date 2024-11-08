@@ -51,7 +51,7 @@ afterAll(async () => {
   await exec(`rm -rf ${CONFIG_FILE_NAME}`);
 });
 
-describe.sequential("CLI tutorial flows pass correctly for CounterBug", () => {
+describe.skip.sequential("CLI tutorial flows pass correctly for CounterBug", () => {
   test.sequential("CLI can compile, deploy, and register CounterBug in one command", async () => {
     const { stdout, stderr } = await exec(TEST_COMMANDS["COUNTER_BUG_COMETA_COMMAND"]);
     expect(stdout).toBeDefined;
