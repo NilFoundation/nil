@@ -456,8 +456,9 @@ func createShards(
 			}
 		} else {
 			config := collate.SyncerConfig{
-				ShardId: shard,
-				Timeout: syncerTimeout,
+				ShardId:      shard,
+				ReplayBlocks: shard.IsMainShard(),
+				Timeout:      syncerTimeout,
 			}
 			if int(shard) < len(cfg.BootstrapPeers) {
 				config.BootstrapPeer = cfg.BootstrapPeers[shard]
