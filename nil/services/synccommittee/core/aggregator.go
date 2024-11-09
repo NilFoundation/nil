@@ -262,6 +262,6 @@ func (agg *Aggregator) processShardBlocks(ctx context.Context, actualLatest type
 		}
 	}
 
-	agg.metrics.SetCurrentBlockHeight(ctx, int64(actualLatest.Number), uint32(coreTypes.MainShardId))
+	agg.metrics.SetCurrentBlockHeight(ctx, int64(actualLatest.Number), coreTypes.MainShardId)
 	return nil
 }

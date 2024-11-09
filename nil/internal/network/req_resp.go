@@ -9,9 +9,9 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/internal/telemetry/telattr"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -49,9 +49,9 @@ func (m *Manager) NewStream(ctx context.Context, peerId PeerID, protocolId Proto
 	}
 
 	measurer, err := telemetry.NewMeasurer(m.meter, "out_streams",
-		attribute.Stringer(logging.FieldP2PIdentity, m.host.ID()),
-		attribute.String(logging.FieldProtocolID, string(protocolId)),
-		attribute.Stringer(logging.FieldPeerId, peerId))
+		telattr.P2PIdentity(m.host.ID()),
+		telattr.ProtocolId(protocolId),
+		telattr.PeerId(peerId))
 	if err != nil {
 		return nil, err
 	}
@@ -64,9 +64,9 @@ func (m *Manager) SetStreamHandler(ctx context.Context, protocolId ProtocolID, h
 
 	m.host.SetStreamHandler(protocolId, func(stream Stream) {
 		measurer, err := telemetry.NewMeasurer(m.meter, "in_streams",
-			attribute.Stringer(logging.FieldP2PIdentity, m.host.ID()),
-			attribute.String(logging.FieldProtocolID, string(protocolId)),
-			attribute.Stringer(logging.FieldPeerId, stream.Conn().RemotePeer()))
+			telattr.P2PIdentity(m.host.ID()),
+			telattr.ProtocolId(protocolId),
+			telattr.PeerId(stream.Conn().RemotePeer()))
 		if err != nil {
 			m.logError(err, "Failed to create measurer for incoming stream")
 		} else {

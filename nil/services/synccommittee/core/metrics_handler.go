@@ -4,24 +4,23 @@ import (
 	"context"
 
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
+	"github.com/NilFoundation/nil/nil/internal/telemetry/telattr"
+	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
 type MetricsHandler struct {
 	measurer *telemetry.Measurer
 
 	// Histograms
-	provedBlocksHistogram        metric.Int64Histogram
-	blockProcessingTimeHistogram metric.Float64Histogram
+	provedBlocksHistogram telemetry.Histogram
 
 	// Counters
-	totalBlocksProcessed   metric.Int64Counter
-	totalErrorsEncountered metric.Int64Counter
-	blocksFetchedCounter   metric.Int64Counter
+	totalBlocksProcessed   telemetry.Counter
+	totalErrorsEncountered telemetry.Counter
+	blocksFetchedCounter   telemetry.Counter
 
 	// Gauges
-	currentBlockHeight metric.Int64Gauge
+	currentBlockHeight telemetry.Gauge
 }
 
 func NewMetricsHandler(name string) (*MetricsHandler, error) {
@@ -42,16 +41,11 @@ func NewMetricsHandler(name string) (*MetricsHandler, error) {
 	return handler, nil
 }
 
-func (mh *MetricsHandler) initMetrics(meter metric.Meter) error {
+func (mh *MetricsHandler) initMetrics(meter telemetry.Meter) error {
 	var err error
 
 	// Initialize histograms
 	mh.provedBlocksHistogram, err = meter.Int64Histogram("blocks_in_tasks")
-	if err != nil {
-		return err
-	}
-
-	mh.blockProcessingTimeHistogram, err = meter.Float64Histogram("block_processing_time")
 	if err != nil {
 		return err
 	}
@@ -102,6 +96,6 @@ func (mh *MetricsHandler) RecordError(ctx context.Context) {
 	mh.totalErrorsEncountered.Add(ctx, 1)
 }
 
-func (mh *MetricsHandler) SetCurrentBlockHeight(ctx context.Context, height int64, shardID uint32) {
-	mh.currentBlockHeight.Record(ctx, height, metric.WithAttributes(attribute.Int64("shard_id", int64(shardID))))
+func (mh *MetricsHandler) SetCurrentBlockHeight(ctx context.Context, height int64, shardID types.ShardId) {
+	mh.currentBlockHeight.Record(ctx, height, telattr.With(telattr.ShardId(shardID)))
 }

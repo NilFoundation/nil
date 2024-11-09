@@ -8,10 +8,9 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/internal/telemetry/telattr"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/rs/zerolog"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 )
 
 const subscriptionChannelSize = 100
@@ -106,7 +105,7 @@ func (ps *PubSub) Publish(ctx context.Context, topic string, data []byte) error 
 		return err
 	}
 
-	ps.published.Add(ctx, 1, metric.WithAttributes(attribute.String(logging.FieldTopic, topic)))
+	ps.published.Add(ctx, 1, telattr.With(telattr.Topic(topic)))
 	return nil
 }
 
@@ -196,7 +195,7 @@ func (s *Subscription) Start(ctx context.Context) <-chan []byte {
 				continue
 			}
 
-			s.received.Add(ctx, 1, metric.WithAttributes(attribute.String(logging.FieldTopic, s.impl.Topic())))
+			s.received.Add(ctx, 1, telattr.With(telattr.Topic(s.impl.Topic())))
 			s.logger.Trace().Msg("Received message")
 
 			msgCh <- msg.Data

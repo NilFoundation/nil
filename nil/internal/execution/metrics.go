@@ -3,10 +3,9 @@ package execution
 import (
 	"context"
 
-	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/internal/telemetry/telattr"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
 
@@ -16,21 +15,21 @@ type MetricsHandler struct {
 	measurer *telemetry.Measurer
 
 	// Histograms
-	coinsUsedHistogram metric.Int64Histogram
+	coinsUsedHistogram telemetry.Histogram
 
 	// Counters
-	internalMsgCounter metric.Int64Counter
-	externalMsgCounter metric.Int64Counter
+	internalMsgCounter telemetry.Counter
+	externalMsgCounter telemetry.Counter
 
 	// Gauges
-	gasPrice metric.Int64Gauge
-	blockId  metric.Int64Gauge
+	gasPrice telemetry.Gauge
+	blockId  telemetry.Gauge
 }
 
 func NewMetricsHandler(name string, shardId types.ShardId) (*MetricsHandler, error) {
 	meter := telemetry.NewMeter(name)
 	measurer, err := telemetry.NewMeasurer(
-		meter, "block_generation", attribute.Int64(logging.FieldShardId, int64(shardId)),
+		meter, "block_generation", telattr.ShardId(shardId),
 	)
 	if err != nil {
 		return nil, err
@@ -38,7 +37,7 @@ func NewMetricsHandler(name string, shardId types.ShardId) (*MetricsHandler, err
 
 	handler := &MetricsHandler{
 		measurer: measurer,
-		option:   metric.WithAttributes(attribute.Int64(logging.FieldShardId, int64(shardId))),
+		option:   telattr.With(telattr.ShardId(shardId)),
 	}
 
 	if err := handler.initMetrics(meter); err != nil {
