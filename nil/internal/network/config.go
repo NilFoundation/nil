@@ -13,8 +13,6 @@ type Config struct {
 	TcpPort     int    `yaml:"tcpPort,omitempty"`
 	QuicPort    int    `yaml:"quicPort,omitempty"`
 
-	UseMdns bool `yaml:"useMdns,omitempty"`
-
 	DHTEnabled        bool     `yaml:"dhtEnabled,omitempty"`
 	DHTBootstrapPeers []string `yaml:"dhtBootstrapPeers,omitempty"`
 }
