@@ -39,7 +39,7 @@ func ShutdownMetrics(ctx context.Context) {
 		return
 	}
 	// nothing to do with the error
-	_ = mp.Shutdown(ctx)
+	_ = mp.Shutdown(context.WithoutCancel(ctx))
 }
 
 func newMetricGrpcExporter(ctx context.Context) (sdkmetric.Exporter, error) {

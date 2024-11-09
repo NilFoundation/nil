@@ -249,10 +249,11 @@ func (i *Node) Run() error {
 	return nil
 }
 
-func (i *Node) Close() {
+func (i *Node) Close(ctx context.Context) {
 	if i.NetworkManager != nil {
-		defer i.NetworkManager.Close()
+		i.NetworkManager.Close()
 	}
+	telemetry.Shutdown(ctx)
 }
 
 func CreateNode(ctx context.Context, name string, cfg *Config, database db.DB, interop chan<- ServiceInterop, workers ...concurrent.Func) (*Node, error) {
@@ -267,7 +268,6 @@ func CreateNode(ctx context.Context, name string, cfg *Config, database db.DB, i
 		logger.Error().Err(err).Msg("Failed to initialize telemetry")
 		return nil, err
 	}
-	defer telemetry.Shutdown(ctx)
 
 	funcs := make([]concurrent.Func, 0, int(cfg.NShards)+2+len(workers))
 
@@ -392,7 +392,7 @@ func Run(ctx context.Context, cfg *Config, database db.DB, interop chan<- Servic
 	if err != nil {
 		return 1
 	}
-	defer node.Close()
+	defer node.Close(ctx)
 
 	if err := node.Run(); err != nil {
 		return 1

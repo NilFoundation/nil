@@ -103,7 +103,7 @@ func (s *ShardedSuite) Start(cfg *nilservice.Config, port int) {
 		s.Wg.Add(1)
 		go func() {
 			defer s.Wg.Done()
-			defer node.Close()
+			defer node.Close(s.Context)
 			s.NoError(node.Run())
 		}()
 	}
@@ -159,7 +159,7 @@ func (s *ShardedSuite) StartArchiveNode(port int, withBootstrapPeers bool) clien
 	s.Wg.Add(1)
 	go func() {
 		defer s.Wg.Done()
-		defer node.Close()
+		defer node.Close(s.Context)
 		s.NoError(node.Run())
 	}()
 
@@ -192,7 +192,7 @@ func (s *ShardedSuite) StartRPCNode(port int) (client.Client, string) {
 	s.Wg.Add(1)
 	go func() {
 		defer s.Wg.Done()
-		defer node.Close()
+		defer node.Close(s.Context)
 		s.NoError(node.Run())
 	}()
 
