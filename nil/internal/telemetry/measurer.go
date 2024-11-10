@@ -11,6 +11,7 @@ import (
 type (
 	Counter   = metric.Int64Counter
 	Histogram = metric.Int64Histogram
+	Gauge     = metric.Int64Gauge
 )
 
 // Measurer is a helper struct to measure the duration of an operation and count the number of operations.
