@@ -12,7 +12,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/libp2p/go-libp2p/p2p/discovery/mdns"
 	"github.com/rs/zerolog"
 )
 
@@ -22,8 +21,6 @@ type Manager struct {
 	host   Host
 	pubSub *PubSub
 	dht    *DHT
-
-	mdnsService mdns.Service
 
 	meter telemetry.Meter
 
@@ -73,22 +70,13 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 		return nil, err
 	}
 
-	var ms mdns.Service
-	if conf.UseMdns {
-		ms, err = setupMdnsDiscovery(ctx, h)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	return &Manager{
-		ctx:         ctx,
-		host:        h,
-		pubSub:      ps,
-		dht:         dht,
-		mdnsService: ms,
-		meter:       telemetry.NewMeter("github.com/NilFoundation/nil/nil/internal/network"),
-		logger:      logger,
+		ctx:    ctx,
+		host:   h,
+		pubSub: ps,
+		dht:    dht,
+		meter:  telemetry.NewMeter("github.com/NilFoundation/nil/nil/internal/network"),
+		logger: logger,
 	}, nil
 }
 
@@ -153,12 +141,6 @@ func (m *Manager) Connect(ctx context.Context, addr string) (PeerID, error) {
 }
 
 func (m *Manager) Close() {
-	if m.mdnsService != nil {
-		if err := m.mdnsService.Close(); err != nil {
-			m.logError(err, "Error closing mDNS service")
-		}
-	}
-
 	if m.dht != nil {
 		if err := m.dht.Close(); err != nil {
 			m.logError(err, "Error closing DHT")

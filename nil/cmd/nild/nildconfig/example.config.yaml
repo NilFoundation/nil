@@ -33,9 +33,6 @@
   #tcpPort: 0
   #quicPort: 0
 
-  ## MDNS can only be used for discovery in local networks, e.g., in tests
-  #useMdns: false
-
   ## DHT is the main discovery mechanism
   #dhtEnabled: false
   ## Peer addresses should be strings formatted as `/ip4/IP/tcp/PORT/p2p/IDENTITY`

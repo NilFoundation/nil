@@ -93,7 +93,6 @@ func loadConfig() (*nildconfig.Config, error) {
 func addNetworkFlags(fset *pflag.FlagSet, cfg *nildconfig.Config) {
 	fset.IntVar(&cfg.Network.TcpPort, "tcp-port", cfg.Network.TcpPort, "tcp port for network")
 	fset.IntVar(&cfg.Network.QuicPort, "quic-port", cfg.Network.QuicPort, "udp port for network")
-	fset.BoolVar(&cfg.Network.UseMdns, "use-mdns", cfg.Network.UseMdns, "use mDNS for discovery (works only in the local network)")
 	fset.BoolVar(&cfg.Network.DHTEnabled, "with-discovery", cfg.Network.DHTEnabled, "enable discovery (with Kademlia DHT)")
 	fset.StringSliceVar(&cfg.Network.DHTBootstrapPeers, "discovery-bootstrap-peers", cfg.Network.DHTBootstrapPeers, "bootstrap peers for discovery")
 	fset.StringVar(&cfg.NetworkKeysPath, "keys-path", cfg.NetworkKeysPath, "path to write keys")
