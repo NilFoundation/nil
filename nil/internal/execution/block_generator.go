@@ -151,25 +151,30 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, logger zerolog.Logger
 
 	var res *ExecutionResult
 
-	var internalCnt, externalCnt int64
-	coinsUsed := types.NewZeroValue()
+	counters := NewBlockGeneratorCounters()
 	g.mh.StartProcessingMeasurement(g.ctx, g.executionState.GasPrice, proposal.PrevBlockId+1)
-	defer func() { g.mh.EndProcessingMeasurement(g.ctx, internalCnt, externalCnt, coinsUsed) }()
+	defer func() { g.mh.EndProcessingMeasurement(g.ctx, counters) }()
 
 	for _, msg := range proposal.InMsgs {
+		if msg.IsDeploy() {
+			counters.DeployMessages++
+		}
+		if msg.IsExecution() {
+			counters.ExecMessages++
+		}
 		g.executionState.AddInMessage(msg)
 		if msg.IsInternal() {
 			res = g.handleInternalInMessage(msg)
-			internalCnt++
+			counters.InternalMessages++
 		} else {
 			res = g.handleExternalMessage(msg)
-			externalCnt++
+			counters.ExternalMessages++
 		}
 		if res.FatalError != nil {
 			return nil, nil, res.FatalError
 		}
 		g.addReceipt(res)
-		coinsUsed = coinsUsed.Add(res.CoinsUsed)
+		counters.CoinsUsed = counters.CoinsUsed.Add(res.CoinsUsed)
 	}
 
 	for _, msg := range proposal.ForwardMsgs {

@@ -20,10 +20,26 @@ type MetricsHandler struct {
 	// Counters
 	internalMsgCounter telemetry.Counter
 	externalMsgCounter telemetry.Counter
+	deployMsgCounter   telemetry.Counter
+	execMsgCounter     telemetry.Counter
 
 	// Gauges
 	gasPrice telemetry.Gauge
 	blockId  telemetry.Gauge
+}
+
+type BlockGeneratorCounters struct {
+	InternalMessages int64
+	ExternalMessages int64
+	DeployMessages   int64
+	ExecMessages     int64
+	CoinsUsed        types.Value
+}
+
+func NewBlockGeneratorCounters() *BlockGeneratorCounters {
+	return &BlockGeneratorCounters{
+		CoinsUsed: types.NewZeroValue(),
+	}
 }
 
 func NewMetricsHandler(name string, shardId types.ShardId) (*MetricsHandler, error) {
@@ -57,12 +73,22 @@ func (mh *MetricsHandler) initMetrics(meter metric.Meter) error {
 	}
 
 	// Initialize counters
-	mh.internalMsgCounter, err = meter.Int64Counter("total_blocks_processed")
+	mh.internalMsgCounter, err = meter.Int64Counter("internal_messages_processed")
 	if err != nil {
 		return err
 	}
 
-	mh.externalMsgCounter, err = meter.Int64Counter("total_errors_encountered")
+	mh.externalMsgCounter, err = meter.Int64Counter("external_messages_processed")
+	if err != nil {
+		return err
+	}
+
+	mh.deployMsgCounter, err = meter.Int64Counter("deploy_messages_processed")
+	if err != nil {
+		return err
+	}
+
+	mh.execMsgCounter, err = meter.Int64Counter("execution_messages_processed")
 	if err != nil {
 		return err
 	}
@@ -87,9 +113,11 @@ func (mh *MetricsHandler) StartProcessingMeasurement(ctx context.Context, gasPri
 	mh.gasPrice.Record(ctx, int64(blockId), mh.option)
 }
 
-func (mh *MetricsHandler) EndProcessingMeasurement(ctx context.Context, internalCnt, externalCnt int64, coinsUsed types.Value) {
+func (mh *MetricsHandler) EndProcessingMeasurement(ctx context.Context, counters *BlockGeneratorCounters) {
 	mh.measurer.Measure(ctx)
-	mh.internalMsgCounter.Add(ctx, internalCnt, mh.option)
-	mh.externalMsgCounter.Add(ctx, externalCnt, mh.option)
-	mh.coinsUsedHistogram.Record(ctx, int64(coinsUsed.Uint64()), mh.option)
+	mh.internalMsgCounter.Add(ctx, counters.InternalMessages, mh.option)
+	mh.externalMsgCounter.Add(ctx, counters.ExternalMessages, mh.option)
+	mh.deployMsgCounter.Add(ctx, counters.DeployMessages, mh.option)
+	mh.execMsgCounter.Add(ctx, counters.ExecMessages, mh.option)
+	mh.coinsUsedHistogram.Record(ctx, int64(counters.CoinsUsed.Uint64()), mh.option)
 }
