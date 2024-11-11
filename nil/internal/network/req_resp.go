@@ -63,6 +63,8 @@ func (m *Manager) SetStreamHandler(ctx context.Context, protocolId ProtocolID, h
 	m.logger.Debug().Msgf("Setting stream handler for protocol %s", protocolId)
 
 	m.host.SetStreamHandler(protocolId, func(stream Stream) {
+		defer stream.Close()
+
 		measurer, err := telemetry.NewMeasurer(m.meter, "in_streams",
 			telattr.P2PIdentity(m.host.ID()),
 			telattr.ProtocolId(protocolId),
@@ -103,9 +105,7 @@ func (m *Manager) SetRequestHandler(ctx context.Context, protocolId ProtocolID, 
 
 	logger.Debug().Msg("Setting request handler...")
 
-	m.host.SetStreamHandler(protocolId, func(stream network.Stream) {
-		defer stream.Close()
-
+	m.SetStreamHandler(ctx, protocolId, func(stream Stream) {
 		ctx, cancel := context.WithTimeout(ctx, responseTimeout)
 		defer cancel()
 
