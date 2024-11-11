@@ -34,6 +34,18 @@ func (s *Service) GetBalance(contractAddress types.Address) (types.Value, error)
 	return balance, nil
 }
 
+// GetSeqno retrieves the contract balance at the given address
+func (s *Service) GetSeqno(contractAddress types.Address) (types.Seqno, error) {
+	seqno, err := s.client.GetTransactionCount(contractAddress, "latest")
+	if err != nil {
+		s.logger.Error().Err(err).Str(logging.FieldRpcMethod, rpc.Eth_getTransactionCount).Msg("Failed to get contract seqno")
+		return types.Seqno(0), err
+	}
+
+	s.logger.Info().Msgf("Contract seqno: %d", seqno)
+	return seqno, nil
+}
+
 // GetInfo returns wallet's address and public key
 func (s *Service) GetInfo(address types.Address) (string, string, error) {
 	s.logger.Info().Msgf("Address: %s", address)

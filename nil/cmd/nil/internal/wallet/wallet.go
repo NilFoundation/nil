@@ -33,15 +33,18 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 		},
 	}
 
-	serverCmd.AddCommand(BalanceCommand(cfg))
-	serverCmd.AddCommand(DeployCommand(cfg))
-	serverCmd.AddCommand(InfoCommand(cfg))
-	serverCmd.AddCommand(SendMessageCommand(cfg))
-	serverCmd.AddCommand(SendTokensCommand(cfg))
-	serverCmd.AddCommand(TopUpCommand(cfg))
-	serverCmd.AddCommand(NewCommand(cfg))
-	serverCmd.AddCommand(CallReadonlyCommand(cfg))
-	serverCmd.AddCommand(GetEstimateFeeCommand(cfg))
+	serverCmd.AddCommand(
+		BalanceCommand(cfg),
+		DeployCommand(cfg),
+		InfoCommand(cfg),
+		SendMessageCommand(cfg),
+		SendTokensCommand(cfg),
+		SeqnoCommand(cfg),
+		TopUpCommand(cfg),
+		NewCommand(cfg),
+		CallReadonlyCommand(cfg),
+		GetEstimateFeeCommand(cfg),
+	)
 
 	return serverCmd
 }

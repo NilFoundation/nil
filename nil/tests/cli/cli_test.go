@@ -401,6 +401,14 @@ faucet_endpoint = {{ .FaucetUrl }}
 		s.Contains(res, "\"success\": true")
 	})
 
+	s.Run("Check seqno", func() {
+		res := s.RunCli("-c", cfgPath, "wallet", "seqno")
+		s.Contains(res, "Wallet seqno: 1")
+
+		res = s.RunCli("-c", cfgPath, "contract", "seqno", addr)
+		s.Contains(res, "Contract seqno: 0")
+	})
+
 	s.Run("Check contract code", func() {
 		res := s.RunCli("-c", cfgPath, "contract", "code", addr)
 		s.Contains(res, "Contract code: 0x6080")
