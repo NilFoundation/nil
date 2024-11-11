@@ -3,6 +3,8 @@ package metrics
 import (
 	"context"
 
+	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/internal/telemetry/telattr"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -14,10 +16,10 @@ type BasicMetrics interface {
 type basicMetricsHandler struct {
 	attributes metric.MeasurementOption
 
-	totalErrorsEncountered metric.Int64Counter
+	totalErrorsEncountered telemetry.Counter
 }
 
-func (h *basicMetricsHandler) init(attributes metric.MeasurementOption, meter metric.Meter) error {
+func (h *basicMetricsHandler) init(attributes metric.MeasurementOption, meter telemetry.Meter) error {
 	h.attributes = attributes
 	var err error
 
@@ -29,7 +31,7 @@ func (h *basicMetricsHandler) init(attributes metric.MeasurementOption, meter me
 }
 
 func (h *basicMetricsHandler) RecordError(ctx context.Context, origin string) {
-	errorAttributes := metric.WithAttributes(
+	errorAttributes := telattr.With(
 		attribute.String("error.origin", origin),
 	)
 

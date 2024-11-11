@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -16,16 +17,16 @@ type SyncCommitteeMetricsHandler struct {
 	attributes metric.MeasurementOption
 
 	// AggregatorMetrics
-	totalMainBlocksFetched metric.Int64Counter
-	blockBatchSize         metric.Int64Histogram
+	totalMainBlocksFetched telemetry.Counter
+	blockBatchSize         telemetry.Histogram
 
 	// BlockStorageMetrics
-	totalMainBlocksProved metric.Int64Counter
+	totalMainBlocksProved telemetry.Counter
 
 	// ProposerMetrics
-	totalL1TxSent         metric.Int64Counter
-	blockTotalTimeSeconds metric.Float64Histogram
-	txPerSingleProposal   metric.Int64Histogram
+	totalL1TxSent       telemetry.Counter
+	blockTotalTimeMs    telemetry.Histogram
+	txPerSingleProposal telemetry.Histogram
 }
 
 func NewSyncCommitteeMetrics() (*SyncCommitteeMetricsHandler, error) {
@@ -36,7 +37,7 @@ func NewSyncCommitteeMetrics() (*SyncCommitteeMetricsHandler, error) {
 	return handler, nil
 }
 
-func (h *SyncCommitteeMetricsHandler) init(attributes metric.MeasurementOption, meter metric.Meter) error {
+func (h *SyncCommitteeMetricsHandler) init(attributes metric.MeasurementOption, meter telemetry.Meter) error {
 	h.attributes = attributes
 
 	if err := h.basicMetricsHandler.init(attributes, meter); err != nil {
@@ -62,7 +63,7 @@ func (h *SyncCommitteeMetricsHandler) init(attributes metric.MeasurementOption, 
 	return nil
 }
 
-func (h *SyncCommitteeMetricsHandler) initBlockStorageMetrics(meter metric.Meter) error {
+func (h *SyncCommitteeMetricsHandler) initBlockStorageMetrics(meter telemetry.Meter) error {
 	var err error
 
 	if h.totalMainBlocksProved, err = meter.Int64Counter(namespace + "total_main_blocks_proved"); err != nil {
@@ -72,14 +73,14 @@ func (h *SyncCommitteeMetricsHandler) initBlockStorageMetrics(meter metric.Meter
 	return nil
 }
 
-func (h *SyncCommitteeMetricsHandler) initProposerMetrics(meter metric.Meter) error {
+func (h *SyncCommitteeMetricsHandler) initProposerMetrics(meter telemetry.Meter) error {
 	var err error
 
 	if h.totalL1TxSent, err = meter.Int64Counter(namespace + "total_l1_tx_sent"); err != nil {
 		return err
 	}
 
-	if h.blockTotalTimeSeconds, err = meter.Float64Histogram(namespace + "block_total_time_seconds"); err != nil {
+	if h.blockTotalTimeMs, err = meter.Int64Histogram(namespace + "block_total_time_ms"); err != nil {
 		return err
 	}
 
@@ -89,7 +90,7 @@ func (h *SyncCommitteeMetricsHandler) initProposerMetrics(meter metric.Meter) er
 	return nil
 }
 
-func (h *SyncCommitteeMetricsHandler) initAggregatorMetrics(meter metric.Meter) error {
+func (h *SyncCommitteeMetricsHandler) initAggregatorMetrics(meter telemetry.Meter) error {
 	var err error
 
 	if h.totalMainBlocksFetched, err = meter.Int64Counter(namespace + "total_main_blocks_fetched"); err != nil {
@@ -118,8 +119,8 @@ func (h *SyncCommitteeMetricsHandler) RecordMainBlockProved(ctx context.Context)
 func (h *SyncCommitteeMetricsHandler) RecordProposerTxSent(ctx context.Context, proposalData *types.ProposalData) {
 	h.totalL1TxSent.Add(ctx, 1, h.attributes)
 
-	totalTimeSeconds := time.Since(proposalData.MainBlockFetchedAt).Seconds()
-	h.blockTotalTimeSeconds.Record(ctx, totalTimeSeconds, h.attributes)
+	totalTimeMs := time.Since(proposalData.MainBlockFetchedAt).Milliseconds()
+	h.blockTotalTimeMs.Record(ctx, totalTimeMs, h.attributes)
 
 	txCount := int64(len(proposalData.Transactions))
 	h.txPerSingleProposal.Record(ctx, txCount, h.attributes)

@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/internal/telemetry/telattr"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -12,18 +14,18 @@ import (
 type taskStorageMetricsHandler struct {
 	attributes metric.MeasurementOption
 
-	currentActiveTasks  metric.Int64UpDownCounter
-	currentPendingTasks metric.Int64UpDownCounter
+	currentActiveTasks  telemetry.UpDownCounter
+	currentPendingTasks telemetry.UpDownCounter
 
-	totalTasksCreated     metric.Int64Counter
-	totalTasksSucceeded   metric.Int64Counter
-	totalTasksRescheduled metric.Int64Counter
-	totalTasksFailed      metric.Int64Counter
+	totalTasksCreated     telemetry.Counter
+	totalTasksSucceeded   telemetry.Counter
+	totalTasksRescheduled telemetry.Counter
+	totalTasksFailed      telemetry.Counter
 
-	taskExecutionTimeSeconds metric.Float64Histogram
+	taskExecutionTimeMs telemetry.Histogram
 }
 
-func (h *taskStorageMetricsHandler) init(attributes metric.MeasurementOption, meter metric.Meter) error {
+func (h *taskStorageMetricsHandler) init(attributes metric.MeasurementOption, meter telemetry.Meter) error {
 	h.attributes = attributes
 	var err error
 	const tasksNamespace = namespace + "tasks."
@@ -52,7 +54,7 @@ func (h *taskStorageMetricsHandler) init(attributes metric.MeasurementOption, me
 		return err
 	}
 
-	if h.taskExecutionTimeSeconds, err = meter.Float64Histogram(tasksNamespace + "execution_time_seconds"); err != nil {
+	if h.taskExecutionTimeMs, err = meter.Int64Histogram(tasksNamespace + "execution_time_ms"); err != nil {
 		return err
 	}
 
@@ -76,8 +78,8 @@ func (h *taskStorageMetricsHandler) RecordTaskTerminated(ctx context.Context, ta
 	h.currentActiveTasks.Add(ctx, -1, h.attributes, taskAttributes)
 
 	if taskResult.IsSuccess {
-		executionSeconds := time.Since(*taskEntry.Started).Seconds()
-		h.taskExecutionTimeSeconds.Record(ctx, executionSeconds, h.attributes, taskAttributes)
+		executionTimeMs := time.Since(*taskEntry.Started).Milliseconds()
+		h.taskExecutionTimeMs.Record(ctx, executionTimeMs, h.attributes, taskAttributes)
 		h.totalTasksSucceeded.Add(ctx, 1, h.attributes, taskAttributes)
 	} else {
 		h.totalTasksFailed.Add(ctx, 1, h.attributes, taskAttributes)
@@ -100,5 +102,5 @@ func getTaskAttributes(task *types.TaskEntry) metric.MeasurementOption {
 		attributes = append(attributes, attribute.Int64("task.executor.id", int64(task.Owner)))
 	}
 
-	return metric.WithAttributes(attributes...)
+	return telattr.With(attributes...)
 }

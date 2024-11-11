@@ -3,6 +3,7 @@ package metrics
 import (
 	"fmt"
 
+	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"go.opentelemetry.io/otel/metric"
 )
 
@@ -19,7 +20,7 @@ func NewProofProviderMetrics() (*ProofProviderMetricsHandler, error) {
 	return handler, nil
 }
 
-func (h *ProofProviderMetricsHandler) init(attributes metric.MeasurementOption, meter metric.Meter) error {
+func (h *ProofProviderMetricsHandler) init(attributes metric.MeasurementOption, meter telemetry.Meter) error {
 	var err error
 
 	if err = h.basicMetricsHandler.init(attributes, meter); err != nil {
