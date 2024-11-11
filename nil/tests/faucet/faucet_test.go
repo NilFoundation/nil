@@ -27,7 +27,7 @@ func (s *SuiteFaucet) SetupTest() {
 		CollatorTickPeriodMs: 200,
 	}, 10225)
 
-	s.DefaultClient, _ = s.StartRPCNode(10130)
+	s.DefaultClient, _ = s.StartRPCNode()
 }
 
 func (s *SuiteFaucet) TearDownTest() {

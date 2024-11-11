@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/NilFoundation/nil/nil/client"
@@ -168,11 +167,11 @@ func (s *ShardedSuite) StartArchiveNode(port int, withBootstrapPeers bool) clien
 	return c
 }
 
-func (s *ShardedSuite) StartRPCNode(port int) (client.Client, string) {
+func (s *ShardedSuite) StartRPCNode() (client.Client, string) {
 	s.T().Helper()
 
-	netCfg, _ := network.GenerateConfig(s.T(), port)
-	serviceName := fmt.Sprintf("rpc-%d", port)
+	netCfg, _ := network.GenerateConfig(s.T(), 0)
+	const serviceName = "rpc"
 
 	cfg := &nilservice.Config{
 		NShards: uint32(len(s.Shards)),
@@ -196,10 +195,9 @@ func (s *ShardedSuite) StartRPCNode(port int) (client.Client, string) {
 		s.NoError(node.Run())
 	}()
 
-	endpoint := strings.Replace(cfg.HttpUrl, "tcp://", "http://", 1)
-	c := rpc_client.NewClient(endpoint, zerolog.New(os.Stderr))
+	c := rpc_client.NewClient(cfg.HttpUrl, zerolog.New(os.Stderr))
 	s.checkNodeStart(cfg.NShards, c)
-	return c, endpoint
+	return c, cfg.HttpUrl
 }
 
 func (s *ShardedSuite) WaitForReceipt(hash common.Hash) *jsonrpc.RPCReceipt {

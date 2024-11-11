@@ -52,7 +52,7 @@ func (s *SuiteCliTestCall) SetupTest() {
 		ZeroStateYaml:        s.zerostateCfg,
 	}, 10425)
 
-	s.client, s.endpoint = s.StartRPCNode(10430)
+	s.client, s.endpoint = s.StartRPCNode()
 
 	iniDataTmpl := `[nil]
 rpc_endpoint = {{ .HttpUrl }}
