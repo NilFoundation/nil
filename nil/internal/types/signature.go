@@ -27,3 +27,7 @@ func (s Signature) Hex() string {
 	hex.Encode(enc[2:], s[:])
 	return string(enc)
 }
+
+func (s Signature) String() string {
+	return s.Hex()
+}
