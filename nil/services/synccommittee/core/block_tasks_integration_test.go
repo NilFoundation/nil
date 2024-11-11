@@ -10,6 +10,7 @@ import (
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
@@ -42,14 +43,17 @@ func (s *BlockTasksIntegrationTestSuite) SetupSuite() {
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 
+	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
+	s.Require().NoError(err)
 	logger := logging.NewLogger("block_tasks_test_suite")
 
-	s.taskStorage = storage.NewTaskStorage(s.db, logger)
-	s.blockStorage = storage.NewBlockStorage(s.db, logger)
+	s.taskStorage = storage.NewTaskStorage(s.db, metricsHandler, logger)
+	s.blockStorage = storage.NewBlockStorage(s.db, metricsHandler, logger)
 
 	s.scheduler = scheduler.New(
 		s.taskStorage,
 		newTaskStateChangeHandler(s.blockStorage, logger),
+		metricsHandler,
 		logger,
 	)
 }

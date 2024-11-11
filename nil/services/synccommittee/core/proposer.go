@@ -16,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -76,39 +77,51 @@ const abiLatestProvedStateRootJson = `
 type Proposer struct {
 	client       client.RawClient
 	blockStorage storage.BlockStorage
-	seqno        atomic.Uint64
-	params       ProposerParams
 	retryRunner  common.RetryRunner
-	logger       zerolog.Logger
+
+	seqno   atomic.Uint64
+	chainId *big.Int
+	params  *ProposerParams
+
+	metrics ProposerMetrics
+	logger  zerolog.Logger
 }
 
 const DefaultProposingInterval = 10 * time.Second
 
 type ProposerParams struct {
-	chainId           *big.Int
-	privKey           string
-	contractAddress   string
-	selfAddress       string
-	proposingInterval time.Duration
+	Endpoint          string
+	ChainId           string
+	PrivateKey        string
+	ContractAddress   string
+	SelfAddress       string
+	ProposingInterval time.Duration
 }
 
-func DefaultProposerParams() ProposerParams {
-	return ProposerParams{
-		chainId:           big.NewInt(11155111),
-		privKey:           "0000000000000000000000000000000000000000000000000000000000000001",
-		contractAddress:   "0xB8E280a085c87Ed91dd6605480DD2DE9EC3699b4",
-		selfAddress:       "0x7A2f4530b5901AD1547AE892Bafe54c5201D1206",
-		proposingInterval: DefaultProposingInterval,
+type ProposerMetrics interface {
+	metrics.BasicMetrics
+	RecordProposerTxSent(ctx context.Context, proposalData *scTypes.ProposalData)
+}
+
+func NewDefaultProposerParams() *ProposerParams {
+	return &ProposerParams{
+		Endpoint:          "http://rpc2.sepolia.org",
+		ChainId:           "11155111",
+		PrivateKey:        "0000000000000000000000000000000000000000000000000000000000000001",
+		ContractAddress:   "0xB8E280a085c87Ed91dd6605480DD2DE9EC3699b4",
+		SelfAddress:       "0x7A2f4530b5901AD1547AE892Bafe54c5201D1206",
+		ProposingInterval: DefaultProposingInterval,
 	}
 }
 
 func NewProposer(
-	params ProposerParams,
+	params *ProposerParams,
 	rpcClient client.RawClient,
 	blockStorage storage.BlockStorage,
+	metrics ProposerMetrics,
 	logger zerolog.Logger,
 ) (*Proposer, error) {
-	nonceValue, err := getCurrentNonce(params.selfAddress, rpcClient)
+	nonceValue, err := getCurrentNonce(params.SelfAddress, rpcClient)
 	if err != nil {
 		// TODO return error after enable local L1 endpoint
 		logger.Error().Err(err).Msg("failed get current contract nonce, set 0")
@@ -127,13 +140,19 @@ func NewProposer(
 		blockStorage: blockStorage,
 		params:       params,
 		retryRunner:  retryRunner,
+		metrics:      metrics,
 		logger:       logger,
+	}
+	var ok bool
+	p.chainId, ok = new(big.Int).SetString(params.ChainId, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid L1ChainId: %s", params.ChainId)
 	}
 	p.seqno.Add(nonceValue)
 
 	p.logger.Info().Msgf(
 		"ChainId %v\nL1Contract address %v\nNonce %d",
-		params.chainId, p.params.contractAddress, p.seqno.Load(),
+		p.chainId, p.params.ContractAddress, p.seqno.Load(),
 	)
 	return &p, nil
 }
@@ -149,10 +168,11 @@ func (p *Proposer) Run(ctx context.Context) error {
 		// todo: reset TaskStorage and BlockStorage before starting Aggregator, TaskScheduler and TaskListener
 	}
 
-	concurrent.RunTickerLoop(ctx, p.params.proposingInterval,
+	concurrent.RunTickerLoop(ctx, p.params.ProposingInterval,
 		func(ctx context.Context) {
 			if err := p.proposeNextBlock(ctx); err != nil {
 				p.logger.Error().Err(err).Msg("error during proved blocks proposing")
+				p.metrics.RecordError(ctx, "proposer")
 				return
 			}
 		},
@@ -240,8 +260,8 @@ func (p *Proposer) getLatestProvedStateRoot(ctx context.Context) (common.Hash, e
 
 	valueStr := hexutil.EncodeBig(big.NewInt(0))
 	msg := make(map[string]string)
-	msg["from"] = p.params.selfAddress
-	msg["to"] = p.params.contractAddress
+	msg["from"] = p.params.SelfAddress
+	msg["to"] = p.params.ContractAddress
 	msg["gas"] = "0xc350"
 	msg["gasPrice"] = "0x9184e72a000"
 	msg["value"] = valueStr
@@ -334,9 +354,9 @@ func (p *Proposer) createUpdateStateTransaction(provedStateRoot, newStateRoot co
 		return nil, err
 	}
 
-	L1ContractAddress := ethcommon.HexToAddress(p.params.contractAddress)
+	L1ContractAddress := ethcommon.HexToAddress(p.params.ContractAddress)
 	transaction := ethTypes.NewTx(&ethTypes.DynamicFeeTx{
-		ChainID:   p.params.chainId,
+		ChainID:   p.chainId,
 		Nonce:     p.seqno.Load(),
 		GasTipCap: big.NewInt(MaxPriorityFeePerGas),
 		GasFeeCap: big.NewInt(MaxFeePerGas),
@@ -346,12 +366,12 @@ func (p *Proposer) createUpdateStateTransaction(provedStateRoot, newStateRoot co
 		Data:      data,
 	})
 
-	privateKey, err := crypto.HexToECDSA(p.params.privKey)
+	privateKey, err := crypto.HexToECDSA(p.params.PrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode private key %w", err)
 	}
 
-	signedTx, err := ethTypes.SignTx(transaction, ethTypes.NewCancunSigner(p.params.chainId), privateKey)
+	signedTx, err := ethTypes.SignTx(transaction, ethTypes.NewCancunSigner(p.chainId), privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign transaction %w", err)
 	}
@@ -368,7 +388,7 @@ func (p *Proposer) encodeTransaction(transaction *ethTypes.Transaction) (string,
 	return hexutil.Encode(encodedTransaction), nil
 }
 
-func (p *Proposer) sendProof(ctx context.Context, data *storage.ProposalData) error {
+func (p *Proposer) sendProof(ctx context.Context, data *scTypes.ProposalData) error {
 	p.logger.Info().
 		Stringer("blockHash", data.MainShardBlockHash).
 		Int64("seqno", int64(p.seqno.Load())).
@@ -397,5 +417,7 @@ func (p *Proposer) sendProof(ctx context.Context, data *storage.ProposalData) er
 	}
 	p.seqno.Add(1)
 	// TODO send bloob with transactions and KZG proof
+
+	p.metrics.RecordProposerTxSent(ctx, data)
 	return nil
 }

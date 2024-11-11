@@ -5,8 +5,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 )
@@ -137,4 +139,32 @@ func (bk BlockId) Bytes() []byte {
 
 func (bk BlockId) String() string {
 	return hex.EncodeToString(bk.Bytes())
+}
+
+type PrunedTransaction struct {
+	Flags types.MessageFlags
+	Seqno hexutil.Uint64
+	From  types.Address
+	To    types.Address
+	Value types.Value
+	Data  hexutil.Bytes
+}
+
+func NewTransaction(message *jsonrpc.RPCInMessage) *PrunedTransaction {
+	return &PrunedTransaction{
+		Flags: message.Flags,
+		Seqno: message.Seqno,
+		From:  message.From,
+		To:    message.To,
+		Value: message.Value,
+		Data:  message.Data,
+	}
+}
+
+type ProposalData struct {
+	MainShardBlockHash common.Hash
+	Transactions       []*PrunedTransaction
+	OldProvedStateRoot common.Hash
+	NewProvedStateRoot common.Hash
+	MainBlockFetchedAt time.Time
 }

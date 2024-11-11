@@ -51,16 +51,29 @@ type TaskStorage interface {
 	TryGetTaskEntryByHash(ctx context.Context, blockHash common.Hash) (*types.TaskEntry, error)
 }
 
+type TaskStorageMetrics interface {
+	RecordTaskAdded(ctx context.Context, task *types.TaskEntry)
+	RecordTaskStarted(ctx context.Context, taskEntry *types.TaskEntry)
+	RecordTaskTerminated(ctx context.Context, taskEntry *types.TaskEntry, taskResult *types.TaskResult)
+	RecordTaskRescheduled(ctx context.Context, taskEntry *types.TaskEntry)
+}
+
 type taskStorage struct {
 	database    db.DB
 	retryRunner common.RetryRunner
+	metrics     TaskStorageMetrics
 	logger      zerolog.Logger
 }
 
-func NewTaskStorage(db db.DB, logger zerolog.Logger) TaskStorage {
+func NewTaskStorage(
+	db db.DB,
+	metrics TaskStorageMetrics,
+	logger zerolog.Logger,
+) TaskStorage {
 	return &taskStorage{
 		database:    db,
 		retryRunner: badgerRetryRunner(logger),
+		metrics:     metrics,
 		logger:      logger,
 	}
 }
@@ -84,19 +97,24 @@ func putTaskEntry(tx db.RwTx, entry *types.TaskEntry) error {
 	var inputBuffer bytes.Buffer
 	err := gob.NewEncoder(&inputBuffer).Encode(entry)
 	if err != nil {
-		return fmt.Errorf("failed to encode task with id %v: %w", entry.Task.Id, err)
+		return fmt.Errorf("failed to encode task with id %s: %w", entry.Task.Id, err)
 	}
-	err = tx.Put(TaskEntriesTable, entry.Task.Id.Bytes(), inputBuffer.Bytes())
-	if err != nil {
-		return err
+	if err := tx.Put(TaskEntriesTable, entry.Task.Id.Bytes(), inputBuffer.Bytes()); err != nil {
+		return fmt.Errorf("failed to put task with id %s: %w", entry.Task.Id, err)
 	}
 	return nil
 }
 
 func (st *taskStorage) AddSingleTaskEntry(ctx context.Context, entry types.TaskEntry) error {
-	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
+	err := st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return st.addSingleTaskEntryImpl(ctx, entry)
 	})
+	if err != nil {
+		return err
+	}
+
+	st.metrics.RecordTaskAdded(ctx, &entry)
+	return nil
 }
 
 func (st *taskStorage) addSingleTaskEntryImpl(ctx context.Context, entry types.TaskEntry) error {
@@ -111,16 +129,21 @@ func (st *taskStorage) addSingleTaskEntryImpl(ctx context.Context, entry types.T
 		return err
 	}
 
-	if err = tx.Commit(); err != nil {
-		return err
-	}
-	return nil
+	return tx.Commit()
 }
 
 func (st *taskStorage) AddTaskEntries(ctx context.Context, tasks []*types.TaskEntry) error {
-	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
+	err := st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return st.addTaskEntriesImpl(ctx, tasks)
 	})
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range tasks {
+		st.metrics.RecordTaskAdded(ctx, entry)
+	}
+	return nil
 }
 
 func (st *taskStorage) addTaskEntriesImpl(ctx context.Context, tasks []*types.TaskEntry) error {
@@ -192,20 +215,8 @@ func (st *taskStorage) removeTaskEntryImpl(ctx context.Context, id types.TaskId)
 	return tx.Commit()
 }
 
-// Helper to update task status when it's ready to be executed or needs to be rescheduled
-func updateTaskStatus(tx db.RwTx, id types.TaskId, newStatus types.TaskStatus, newOwner types.TaskExecutorId) error {
-	entry, err := extractTaskEntry(tx, id)
-	if err != nil {
-		return err
-	}
-	entry.Status = newStatus
-	entry.Modified = time.Now()
-	entry.Owner = newOwner
-	return putTaskEntry(tx, entry)
-}
-
 // Helper to find available task with higher priority
-func findHigherPriorityTask(tx db.RoTx) (*types.Task, error) {
+func findHigherPriorityTask(tx db.RoTx) (*types.TaskEntry, error) {
 	var res *types.TaskEntry = nil
 
 	err := iterateOverTaskEntries(tx, func(entry *types.TaskEntry) error {
@@ -217,45 +228,54 @@ func findHigherPriorityTask(tx db.RoTx) (*types.Task, error) {
 		return nil
 	})
 
-	if res == nil {
-		return nil, err
-	}
-	return &res.Task, err
+	return res, err
 }
 
 func (st *taskStorage) RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.Task, error) {
-	var task *types.Task
+	var taskEntry *types.TaskEntry
 	err := st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		var err error
-		task, err = st.requestTaskToExecuteImpl(ctx, executor)
+		taskEntry, err = st.requestTaskToExecuteImpl(ctx, executor)
 		return err
 	})
-	return task, err
+	if err != nil {
+		return nil, err
+	}
+
+	if taskEntry == nil {
+		return nil, nil
+	}
+
+	st.metrics.RecordTaskStarted(ctx, taskEntry)
+	return &taskEntry.Task, nil
 }
 
-func (st *taskStorage) requestTaskToExecuteImpl(ctx context.Context, executor types.TaskExecutorId) (*types.Task, error) {
+func (st *taskStorage) requestTaskToExecuteImpl(ctx context.Context, executor types.TaskExecutorId) (*types.TaskEntry, error) {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	resultTask, err := findHigherPriorityTask(tx)
+	taskEntry, err := findHigherPriorityTask(tx)
 	if err != nil {
 		return nil, err
 	}
-	if resultTask == nil {
+	if taskEntry == nil {
 		// No task available
-		return resultTask, nil
+		return nil, nil
 	}
-	err = updateTaskStatus(tx, resultTask.Id, types.Running, executor)
-	if err != nil {
-		return nil, err
+
+	if err := taskEntry.Start(executor); err != nil {
+		return nil, fmt.Errorf("failed to start task: %w", err)
+	}
+	if err := putTaskEntry(tx, taskEntry); err != nil {
+		return nil, fmt.Errorf("failed to update task entry: %w", err)
 	}
 	if err = tx.Commit(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
-	return resultTask, nil
+	return taskEntry, nil
 }
 
 func (st *taskStorage) ProcessTaskResult(ctx context.Context, res types.TaskResult) error {
@@ -288,7 +308,6 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 	}
 
 	if !res.IsSuccess {
-		entry.Modified = time.Now()
 		entry.Status = types.Failed
 		if err := putTaskEntry(tx, entry); err != nil {
 			return fmt.Errorf("failed to set task entry with id=%s as failed: %w", entry.Task.Id, err)
@@ -317,7 +336,6 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 			return err
 		}
 		depEntry.Task.AddDependencyResult(res)
-		depEntry.Modified = time.Now()
 		if len(depEntry.Task.Dependencies) == int(depEntry.Task.DependencyNum) {
 			depEntry.Status = types.WaitingForExecutor
 		}
@@ -329,6 +347,8 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+
+	st.metrics.RecordTaskTerminated(ctx, entry, &res)
 	return nil
 }
 
@@ -368,27 +388,38 @@ func (st *taskStorage) rescheduleHangingTasksImpl(
 			return nil
 		}
 
-		executionTime := currentTime.Sub(entry.Modified)
+		executionTime := currentTime.Sub(*entry.Started)
 		if executionTime <= taskExecutionTimeout {
 			return nil
 		}
 
-		st.logger.Warn().
-			Interface("taskId", entry.Task.Id).
-			Interface("executorId", entry.Owner).
-			Dur("executionTime", executionTime).
-			Msg("Task execution timeout, rescheduling")
+		st.metrics.RecordTaskRescheduled(ctx, entry)
 
-		entry.Modified = time.Now()
-		entry.Status = types.WaitingForExecutor
-		entry.Owner = types.UnknownExecutorId
-		return putTaskEntry(tx, entry)
+		if err := st.rescheduleTaskTx(tx, entry, executionTime); err != nil {
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
 		return err
 	}
 
 	return tx.Commit()
+}
+
+func (st *taskStorage) rescheduleTaskTx(tx db.RwTx, entry *types.TaskEntry, executionTime time.Duration) error {
+	st.logger.Warn().
+		Interface("taskId", entry.Task.Id).
+		Interface("executorId", entry.Owner).
+		Dur("executionTime", executionTime).
+		Msg("Task execution timeout, rescheduling")
+
+	if err := entry.ResetRunning(); err != nil {
+		return fmt.Errorf("failed to reset task: %w", err)
+	}
+
+	return putTaskEntry(tx, entry)
 }
 
 func iterateOverTaskEntries(tx db.RoTx, action func(entry *types.TaskEntry) error) error {

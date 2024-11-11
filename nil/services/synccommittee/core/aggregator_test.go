@@ -14,6 +14,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
@@ -76,20 +77,22 @@ func (s *AggregatorTestSuite) SetupSuite() {
 
 	s.waitTwoBlocks(url)
 
-	logger := logging.NewLogger("test_block_aggregator")
+	logger := logging.NewLogger("aggregator_test")
+	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
+	s.Require().NoError(err)
+
 	s.client = rpc.NewClient(url, logger)
 	s.scDb, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
-	metrics, err := NewMetricsHandler("github.com/NilFoundation/nil/nil/services/sync_committee")
+	s.storage = storage.NewBlockStorage(s.scDb, metricsHandler, logger)
 	s.Require().NoError(err)
-	s.storage = storage.NewBlockStorage(s.scDb, logger)
-	s.Require().NoError(err)
+
 	s.aggregator, err = NewAggregator(
 		s.client,
 		s.storage,
-		storage.NewTaskStorage(s.scDb, logger),
+		storage.NewTaskStorage(s.scDb, metricsHandler, logger),
 		logger,
-		metrics,
+		metricsHandler,
 		time.Second,
 	)
 	s.Require().NoError(err)

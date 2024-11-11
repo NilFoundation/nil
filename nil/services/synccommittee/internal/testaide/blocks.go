@@ -5,6 +5,7 @@ package testaide
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -118,6 +119,22 @@ func GenerateExecutionShardBlock() *jsonrpc.RPCBlock {
 		MainChainHash: RandomHash(),
 		ParentHash:    RandomHash(),
 		Messages:      generateRpcInMessages(5),
+	}
+}
+
+func GenerateProposalData(txCount int) *scTypes.ProposalData {
+	transactions := make([]*scTypes.PrunedTransaction, 0, txCount)
+	for range txCount {
+		tx := scTypes.NewTransaction(GenerateRpcInMessage())
+		transactions = append(transactions, tx)
+	}
+
+	return &scTypes.ProposalData{
+		MainShardBlockHash: RandomHash(),
+		Transactions:       transactions,
+		OldProvedStateRoot: RandomHash(),
+		NewProvedStateRoot: RandomHash(),
+		MainBlockFetchedAt: time.Now().Add(-time.Hour),
 	}
 }
 

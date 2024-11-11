@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -26,7 +27,7 @@ type ProposerTestSuite struct {
 	ctx          context.Context
 	cancellation context.CancelFunc
 
-	params        ProposerParams
+	params        *ProposerParams
 	db            db.DB
 	storage       storage.BlockStorage
 	rpcClientMock client.ClientMock
@@ -45,10 +46,12 @@ func (s *ProposerTestSuite) SetupSuite() {
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 	logger := logging.NewLogger("proposer_test")
-	s.storage = storage.NewBlockStorage(s.db, logger)
+	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
+	s.Require().NoError(err)
 
-	s.params = DefaultProposerParams()
-	s.proposer, err = NewProposer(s.params, &s.rpcClientMock, s.storage, logger)
+	s.storage = storage.NewBlockStorage(s.db, metricsHandler, logger)
+	s.params = NewDefaultProposerParams()
+	s.proposer, err = NewProposer(s.params, &s.rpcClientMock, s.storage, metricsHandler, logger)
 	s.Require().NoError(err)
 }
 
@@ -70,8 +73,8 @@ func (s *ProposerTestSuite) TestCreateUpdateStateTransaction() {
 	s.Require().NoError(err, "failed to create transaction")
 	s.Require().Equal(s.proposer.seqno.Load(), transaction.Nonce(), "tx nonce is incorrect")
 
-	s.Require().Equal(s.params.chainId, transaction.ChainId(), "tx chainId is incorrect")
-	expectedAddress := ethcommon.HexToAddress(s.params.contractAddress)
+	s.Require().Equal(s.params.ChainId, transaction.ChainId().String(), "tx chainId is incorrect")
+	expectedAddress := ethcommon.HexToAddress(s.params.ContractAddress)
 	s.Require().Equal(&expectedAddress, transaction.To(), "tx recipient is incorrect")
 
 	functionSelector, err := hexutil.Decode(functionSelector)
@@ -83,12 +86,7 @@ func (s *ProposerTestSuite) TestCreateUpdateStateTransaction() {
 }
 
 func (s *ProposerTestSuite) TestSendProof() {
-	data := &storage.ProposalData{
-		MainShardBlockHash: testaide.RandomHash(),
-		Transactions:       generateTransactions(3),
-		OldProvedStateRoot: testaide.RandomHash(),
-		NewProvedStateRoot: testaide.RandomHash(),
-	}
+	data := testaide.GenerateProposalData(3)
 
 	err := s.proposer.sendProof(s.ctx, data)
 	s.Require().NoError(err, "failed to send proof")
@@ -100,13 +98,4 @@ func (s *ProposerTestSuite) TestSendProof() {
 	s.Require().Equal("eth_sendRawTransaction", call.Method, "wrong method")
 	s.Require().Len(call.Params, 1, "wrong number of passed params")
 	s.Require().IsType("", call.Params[0], "wrong type of params[0]")
-}
-
-func generateTransactions(count int) []storage.PrunedTransaction {
-	transactions := make([]storage.PrunedTransaction, count)
-	for range count {
-		tx := storage.NewTransaction(testaide.GenerateRpcInMessage())
-		transactions = append(transactions, tx)
-	}
-	return transactions
 }

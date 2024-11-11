@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -224,9 +225,35 @@ type TaskEntry struct {
 	Task        Task
 	PendingDeps []TaskId
 	Created     time.Time
-	Modified    time.Time
+	Started     *time.Time
 	Owner       TaskExecutorId
 	Status      TaskStatus
+}
+
+func (t *TaskEntry) Start(executorId TaskExecutorId) error {
+	if executorId == UnknownExecutorId {
+		return errors.New("unknown executor id")
+	}
+	if t.Status != WaitingForExecutor {
+		return fmt.Errorf("task with id=%s has invalid status: %s", t.Task.Id, t.Status)
+	}
+
+	t.Status = Running
+	t.Owner = executorId
+	now := time.Now()
+	t.Started = &now
+	return nil
+}
+
+func (t *TaskEntry) ResetRunning() error {
+	if t.Status != Running {
+		return fmt.Errorf("task with id=%s has invalid status: %s", t.Task.Id, t.Status)
+	}
+
+	t.Started = nil
+	t.Status = WaitingForExecutor
+	t.Owner = UnknownExecutorId
+	return nil
 }
 
 // HigherPriority Priority comparator for tasks
@@ -253,10 +280,9 @@ func NewAggregateBlockProofsTaskEntry(batchId BatchId, shardId coreTypes.ShardId
 		DependencyNum: numChaildBlocks,
 	}
 	return &TaskEntry{
-		Task:     task,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   Draft,
+		Task:    task,
+		Created: time.Now(),
+		Status:  Draft,
 	}
 }
 
@@ -271,10 +297,9 @@ func NewBlockProofTaskEntry(batchId BatchId, parentTaskId *TaskId, blockHash com
 		DependencyNum: 0,
 	}
 	return &TaskEntry{
-		Task:     task,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   WaitingForExecutor,
+		Task:    task,
+		Created: time.Now(),
+		Status:  WaitingForExecutor,
 	}
 }
 
@@ -297,10 +322,9 @@ func NewPartialProveTaskEntry(
 		DependencyNum: 0,
 	}
 	return &TaskEntry{
-		Task:     task,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   WaitingForExecutor,
+		Task:    task,
+		Created: time.Now(),
+		Status:  WaitingForExecutor,
 	}
 }
 
@@ -322,10 +346,10 @@ func NewAggregateChallengeTaskEntry(
 	}
 
 	return &TaskEntry{
-		Task:     aggChallengeTask,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   WaitingForInput,
+		Task:    aggChallengeTask,
+		Created: time.Now(),
+
+		Status: WaitingForInput,
 	}
 }
 
@@ -348,10 +372,9 @@ func NewCombinedQTaskEntry(
 	}
 
 	return &TaskEntry{
-		Task:     combinedQTask,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   WaitingForInput,
+		Task:    combinedQTask,
+		Created: time.Now(),
+		Status:  WaitingForInput,
 	}
 }
 
@@ -373,10 +396,9 @@ func NewAggregateFRITaskEntry(
 	}
 
 	return &TaskEntry{
-		Task:     aggFRITask,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   WaitingForInput,
+		Task:    aggFRITask,
+		Created: time.Now(),
+		Status:  WaitingForInput,
 	}
 }
 
@@ -399,10 +421,9 @@ func NewFRIConsistencyCheckTaskEntry(
 		DependencyNum: 3, // aggregate FRI and corresponding partial proof and combinedQ
 	}
 	return &TaskEntry{
-		Task:     task,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   WaitingForInput,
+		Task:    task,
+		Created: time.Now(),
+		Status:  WaitingForInput,
 	}
 }
 
@@ -424,9 +445,8 @@ func NewMergeProofTaskEntry(
 	}
 
 	return &TaskEntry{
-		Task:     mergeProofTask,
-		Created:  time.Now(),
-		Modified: time.Now(),
-		Status:   WaitingForInput,
+		Task:    mergeProofTask,
+		Created: time.Now(),
+		Status:  WaitingForInput,
 	}
 }

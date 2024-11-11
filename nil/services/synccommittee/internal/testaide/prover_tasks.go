@@ -8,19 +8,23 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
 
 func GenerateTaskEntry(modifiedAt time.Time, status types.TaskStatus, owner types.TaskExecutorId) *types.TaskEntry {
-	return &types.TaskEntry{
-		Task:     GenerateTask(),
-		Created:  modifiedAt.Add(-1 * time.Hour),
-		Modified: modifiedAt,
-		Status:   status,
-		Owner:    owner,
+	entry := &types.TaskEntry{
+		Task:    GenerateTask(),
+		Created: modifiedAt.Add(-1 * time.Hour),
+		Status:  status,
+		Owner:   owner,
 	}
+
+	if status == types.Running {
+		entry.Started = &modifiedAt
+	}
+
+	return entry
 }
 
 func GenerateTask() types.Task {
@@ -33,7 +37,7 @@ func GenerateTaskOfType(taskType types.TaskType) types.Task {
 		BatchId:       types.NewBatchId(),
 		ShardId:       coreTypes.MainShardId,
 		BlockNum:      1,
-		BlockHash:     common.EmptyHash,
+		BlockHash:     RandomHash(),
 		TaskType:      taskType,
 		CircuitType:   types.Bytecode,
 		Dependencies:  types.EmptyDependencies(),

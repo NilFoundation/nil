@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/stretchr/testify/suite"
@@ -30,7 +31,10 @@ func (s *BlockStorageTestSuite) SetupSuite() {
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 	logger := logging.NewLogger("block_storage_test")
-	s.bs = NewBlockStorage(s.db, logger)
+	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
+	s.Require().NoError(err)
+
+	s.bs = NewBlockStorage(s.db, metricsHandler, logger)
 }
 
 func (s *BlockStorageTestSuite) SetupTest() {
@@ -321,7 +325,7 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Concurrently() {
 	}
 
 	receiveTimeout := time.After(time.Second * 3)
-	var receivedData []*ProposalData
+	var receivedData []*scTypes.ProposalData
 	go func() {
 		// poll all blocks data from the storage
 		for {

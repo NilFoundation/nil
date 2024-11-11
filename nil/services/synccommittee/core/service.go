@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"os/signal"
 	"syscall"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
@@ -32,31 +32,29 @@ type SyncCommittee struct {
 
 func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	logger := logging.NewLogger("sync_committee")
-	metrics, err := NewMetricsHandler("github.com/NilFoundation/nil/nil/services/sync_committee")
-	if err != nil {
+
+	if err := telemetry.Init(context.Background(), cfg.Telemetry); err != nil {
+		logger.Error().Err(err).Msg("failed to initialize telemetry")
 		return nil, err
+	}
+	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
+	if err != nil {
+		return nil, fmt.Errorf("error initializing metrics: %w", err)
 	}
 
 	logger.Info().Msgf("Use RPC endpoint %v", cfg.RpcEndpoint)
 	client := nilrpc.NewClient(cfg.RpcEndpoint, logger)
 
-	blockStorage := storage.NewBlockStorage(database, logger)
-	taskStorage := storage.NewTaskStorage(database, logger)
+	blockStorage := storage.NewBlockStorage(database, metricsHandler, logger)
+	taskStorage := storage.NewTaskStorage(database, metricsHandler, logger)
 
-	aggregator, err := NewAggregator(client, blockStorage, taskStorage, logger, metrics, cfg.PollingDelay)
+	aggregator, err := NewAggregator(client, blockStorage, taskStorage, logger, metricsHandler, cfg.PollingDelay)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}
 
-	chainId, ok := new(big.Int).SetString(cfg.L1ChainId, 10)
-	if !ok {
-		return nil, fmt.Errorf("invalid L1ChainId: %s", cfg.L1ChainId)
-	}
-	proposerParams := ProposerParams{
-		chainId, cfg.PrivateKey, cfg.L1ContractAddress, cfg.SelfAddress, DefaultProposingInterval,
-	}
-	proposerRpcClient := nilrpc.NewRawClient(cfg.L1Endpoint, logger)
-	proposer, err := NewProposer(proposerParams, proposerRpcClient, blockStorage, logger)
+	proposerRpcClient := nilrpc.NewRawClient(cfg.ProposerParams.Endpoint, logger)
+	proposer, err := NewProposer(cfg.ProposerParams, proposerRpcClient, blockStorage, metricsHandler, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create proposer: %w", err)
 	}
@@ -64,6 +62,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	taskScheduler := scheduler.New(
 		taskStorage,
 		newTaskStateChangeHandler(blockStorage, logger),
+		metricsHandler,
 		logger,
 	)
 
@@ -91,11 +90,6 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 func (s *SyncCommittee) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-
-	if err := telemetry.Init(ctx, s.cfg.Telemetry); err != nil {
-		s.logger.Error().Err(err).Msg("failed to initialize telemetry")
-		return err
-	}
 	defer telemetry.Shutdown(ctx)
 
 	if s.cfg.GracefulShutdown {
