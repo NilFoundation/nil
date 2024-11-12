@@ -22,8 +22,9 @@ type PubSub struct {
 	topics map[string]*pubsub.Topic
 	self   PeerID
 
-	meter     telemetry.Meter
-	published telemetry.Counter
+	meter         telemetry.Meter
+	published     telemetry.Counter
+	publishedSize telemetry.Counter
 
 	logger zerolog.Logger
 }
@@ -36,9 +37,10 @@ type Subscription struct {
 	impl *pubsub.Subscription
 	self PeerID
 
-	received telemetry.Counter
-	logger   zerolog.Logger
-	counters SubscriptionCounters
+	received     telemetry.Counter
+	receivedSize telemetry.Counter
+	logger       zerolog.Logger
+	counters     SubscriptionCounters
 }
 
 // newPubSub creates a new PubSub instance. It must be closed after use.
@@ -53,13 +55,18 @@ func newPubSub(ctx context.Context, h Host, logger zerolog.Logger) (*PubSub, err
 	if err != nil {
 		return nil, err
 	}
+	publishedSize, err := meter.Int64Counter("published_messages_size")
+	if err != nil {
+		return nil, err
+	}
 
 	return &PubSub{
-		impl:      impl,
-		topics:    make(map[string]*pubsub.Topic),
-		self:      h.ID(),
-		meter:     meter,
-		published: published,
+		impl:          impl,
+		topics:        make(map[string]*pubsub.Topic),
+		self:          h.ID(),
+		meter:         meter,
+		published:     published,
+		publishedSize: publishedSize,
 		logger: logger.With().
 			Str(logging.FieldComponent, "pub-sub").
 			Logger(),
@@ -105,7 +112,10 @@ func (ps *PubSub) Publish(ctx context.Context, topic string, data []byte) error 
 		return err
 	}
 
-	ps.published.Add(ctx, 1, telattr.With(telattr.Topic(topic)))
+	attrs := telattr.With(telattr.Topic(topic), telattr.P2PIdentity(ps.self))
+	ps.published.Add(ctx, 1, attrs)
+	ps.publishedSize.Add(ctx, int64(len(data)), attrs)
+
 	return nil
 }
 
@@ -130,13 +140,18 @@ func (ps *PubSub) Subscribe(topic string) (*Subscription, error) {
 	if err != nil {
 		return nil, err
 	}
+	receivedSize, err := ps.meter.Int64Counter("received_messages_size")
+	if err != nil {
+		return nil, err
+	}
 
 	logger.Debug().Msg("Subscribed to topic")
 	return &Subscription{
-		impl:     impl,
-		self:     ps.self,
-		received: received,
-		logger:   logger,
+		impl:         impl,
+		self:         ps.self,
+		received:     received,
+		receivedSize: receivedSize,
+		logger:       logger,
 	}, nil
 }
 
@@ -195,7 +210,9 @@ func (s *Subscription) Start(ctx context.Context) <-chan []byte {
 				continue
 			}
 
-			s.received.Add(ctx, 1, telattr.With(telattr.Topic(s.impl.Topic())))
+			attrs := telattr.With(telattr.Topic(s.impl.Topic()), telattr.P2PIdentity(s.self))
+			s.received.Add(ctx, 1, attrs)
+			s.receivedSize.Add(ctx, int64(len(msg.Data)), attrs)
 			s.logger.Trace().Msg("Received message")
 
 			msgCh <- msg.Data
