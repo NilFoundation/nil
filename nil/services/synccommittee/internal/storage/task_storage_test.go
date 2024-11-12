@@ -50,23 +50,6 @@ func (s *TaskStorageSuite) TearDownTest() {
 	s.Require().NoError(err, "failed to clear database in TearDownTest")
 }
 
-func (s *TaskStorageSuite) TestAddRemove() {
-	taskEntry := testaide.GenerateTaskEntry(time.Now(), types.WaitingForExecutor, testaide.RandomExecutorId())
-	err := s.ts.AddSingleTaskEntry(s.ctx, *taskEntry)
-	s.Require().NoError(err)
-
-	entryFromStorage, err := s.ts.TryGetTaskEntry(s.ctx, taskEntry.Task.Id)
-	s.Require().NoError(err)
-	s.Require().Equal(taskEntry.Task, entryFromStorage.Task)
-
-	err = s.ts.RemoveTaskEntry(s.ctx, taskEntry.Task.Id)
-	s.Require().NoError(err)
-
-	removedEntry, err := s.ts.TryGetTaskEntry(s.ctx, taskEntry.Task.Id)
-	s.Require().NoError(err)
-	s.Require().Nil(removedEntry)
-}
-
 func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	// Initialize two tasks waiting for input
 	lowerPriorityEntry := testaide.GenerateTaskEntry(time.Now(), types.WaitingForInput, types.UnknownExecutorId)
@@ -252,28 +235,6 @@ func (s *TaskStorageSuite) requireExactTasksCount(tasksCount int) {
 	}
 
 	// There no more tasks left
-	task, err := s.ts.RequestTaskToExecute(s.ctx, testaide.RandomExecutorId())
-	s.Require().NoError(err)
-	s.Require().Nil(task)
-}
-
-func (s *TaskStorageSuite) Test_RemoveTaskEntry_Concurrently() {
-	entry := testaide.GenerateTaskEntry(time.Now(), types.WaitingForExecutor, types.UnknownExecutorId)
-	err := s.ts.AddSingleTaskEntry(s.ctx, *entry)
-	s.Require().NoError(err)
-
-	waitGroup := sync.WaitGroup{}
-	waitGroup.Add(degreeOfParallelism)
-
-	for range degreeOfParallelism {
-		go func() {
-			defer waitGroup.Done()
-			err := s.ts.RemoveTaskEntry(s.ctx, entry.Task.Id)
-			s.NoError(err)
-		}()
-	}
-
-	waitGroup.Wait()
 	task, err := s.ts.RequestTaskToExecute(s.ctx, testaide.RandomExecutorId())
 	s.Require().NoError(err)
 	s.Require().Nil(task)

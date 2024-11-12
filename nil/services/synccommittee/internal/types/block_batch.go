@@ -6,7 +6,31 @@ import (
 
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/google/uuid"
 )
+
+// BatchId Unique ID of a batch of blocks.
+type BatchId uuid.UUID
+
+func NewBatchId() BatchId         { return BatchId(uuid.New()) }
+func (id BatchId) String() string { return uuid.UUID(id).String() }
+func (id BatchId) Bytes() []byte  { return []byte(id.String()) }
+
+// MarshalText implements the encoding.TextMarshller interface for BatchId.
+func (id BatchId) MarshalText() ([]byte, error) {
+	uuidValue := uuid.UUID(id)
+	return []byte(uuidValue.String()), nil
+}
+
+// UnmarshalText implements the encoding.TextUnmarshaler interface for BatchId.
+func (id *BatchId) UnmarshalText(data []byte) error {
+	uuidValue, err := uuid.Parse(string(data))
+	if err != nil {
+		return err
+	}
+	*id = BatchId(uuidValue)
+	return nil
+}
 
 type BlockBatch struct {
 	Id             BatchId             `json:"id"`
@@ -47,7 +71,10 @@ func validateBatch(mainShardBlock *jsonrpc.RPCBlock, childBlocks []*jsonrpc.RPCB
 	for i, childHash := range mainShardBlock.ChildBlocks {
 		child := childBlocks[i]
 		if child == nil {
-			return fmt.Errorf("childBlocks[%d] cannot be nil", i)
+			return fmt.Errorf(
+				"childBlocks[%d] cannot be nil, mainShardBlock.ChildBlocks[%d] = %s",
+				i, i, childHash,
+			)
 		}
 
 		if childHash != child.Hash {
@@ -74,7 +101,7 @@ func (b *BlockBatch) CreateProofTasks() []*TaskEntry {
 	taskEntries = append(taskEntries, aggregateProofsTask)
 
 	for _, childBlock := range b.ChildBlocks {
-		blockProofTask := NewBlockProofTaskEntry(b.Id, aggregateProofsTask.Task.Id, childBlock.Hash)
+		blockProofTask := NewBlockProofTaskEntry(b.Id, aggregateProofsTask.Task.Id, childBlock)
 		taskEntries = append(taskEntries, blockProofTask)
 	}
 

@@ -40,7 +40,12 @@ func (s *BlockStorageTestSuite) SetupSuite() {
 
 func (s *BlockStorageTestSuite) SetupTest() {
 	err := s.db.DropAll()
-	s.Require().NoError(err)
+	s.Require().NoError(err, "failed to clear storage in SetupTest")
+}
+
+func (s *BlockStorageTestSuite) SetupSubTest() {
+	err := s.db.DropAll()
+	s.Require().NoError(err, "failed to clear storage in SetupSubTest")
 }
 
 func (s *BlockStorageTestSuite) TearDownSuite() {
@@ -132,15 +137,8 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_IsNotProved() {
 
 func (s *BlockStorageTestSuite) TestSetBlockBatch_ParentHashMismatch() {
 	prevBatch := testaide.GenerateBlockBatch(4)
-	previousId := scTypes.IdFromBlock(prevBatch.MainShardBlock)
 
 	err := s.bs.SetBlockBatch(s.ctx, prevBatch)
-	s.Require().NoError(err)
-
-	err = s.bs.SetBlockAsProved(s.ctx, previousId)
-	s.Require().NoError(err)
-
-	err = s.bs.SetBlockAsProposed(s.ctx, previousId)
 	s.Require().NoError(err)
 
 	newBatch := testaide.GenerateBlockBatch(4)
@@ -148,6 +146,46 @@ func (s *BlockStorageTestSuite) TestSetBlockBatch_ParentHashMismatch() {
 
 	err = s.bs.SetBlockBatch(s.ctx, newBatch)
 	s.Require().ErrorContains(err, "unable to update latest fetched block: block mismatch")
+}
+
+func (s *BlockStorageTestSuite) TestSetBlockBatch_ParentMismatch() {
+	const childBlocksCount = 4
+
+	testCases := []struct {
+		name      string
+		nextBatch func(prev *scTypes.BlockBatch) *scTypes.BlockBatch
+	}{
+		{
+			name: "main block hash mismatch",
+			nextBatch: func(prev *scTypes.BlockBatch) *scTypes.BlockBatch {
+				next := testaide.GenerateBlockBatch(childBlocksCount)
+				next.MainShardBlock.ParentHash = testaide.RandomHash()
+				next.MainShardBlock.Number = prev.MainShardBlock.Number + 1
+				return next
+			},
+		},
+		{
+			name: "main block number mismatch",
+			nextBatch: func(prev *scTypes.BlockBatch) *scTypes.BlockBatch {
+				next := testaide.GenerateBlockBatch(childBlocksCount)
+				next.MainShardBlock.ParentHash = prev.MainShardBlock.Hash
+				next.MainShardBlock.Number = testaide.RandomBlockNum()
+				return next
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		s.Run(testCase.name, func() {
+			prevBatch := testaide.GenerateBlockBatch(childBlocksCount)
+			err := s.bs.SetBlockBatch(s.ctx, prevBatch)
+			s.Require().NoError(err)
+
+			nextBatch := testCase.nextBatch(prevBatch)
+			err = s.bs.SetBlockBatch(s.ctx, nextBatch)
+			s.Require().ErrorContains(err, "unable to update latest fetched block: block mismatch")
+		})
+	}
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProposed_WithExecutionShardBlocks() {

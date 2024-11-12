@@ -61,31 +61,6 @@ func (t *TaskId) UnmarshalText(data []byte) error {
 	return nil
 }
 
-// BatchId Unique ID of a batch of blocks.
-type BatchId uuid.UUID
-
-var EmptyBatchId = BatchId{}
-
-func NewBatchId() BatchId         { return BatchId(uuid.New()) }
-func (id BatchId) String() string { return uuid.UUID(id).String() }
-func (id BatchId) Bytes() []byte  { return []byte(id.String()) }
-
-// MarshalText implements the encoding.TextMarshller interface for BatchId.
-func (b BatchId) MarshalText() ([]byte, error) {
-	uuidValue := uuid.UUID(b)
-	return []byte(uuidValue.String()), nil
-}
-
-// UnmarshalText implements the encoding.TextUnmarshaler interface for BatchId.
-func (b *BatchId) UnmarshalText(data []byte) error {
-	uuidValue, err := uuid.Parse(string(data))
-	if err != nil {
-		return err
-	}
-	*b = BatchId(uuidValue)
-	return nil
-}
-
 // Task results can have different types
 type ProverResultType uint8
 
@@ -297,11 +272,13 @@ func NewAggregateProofsTaskEntry(batchId BatchId, mainShardBlock *jsonrpc.RPCBlo
 	}
 }
 
-func NewBlockProofTaskEntry(batchId BatchId, parentTaskId TaskId, blockHash common.Hash) *TaskEntry {
+func NewBlockProofTaskEntry(batchId BatchId, parentTaskId TaskId, execShardBlock *jsonrpc.RPCBlock) *TaskEntry {
 	task := Task{
 		Id:            NewTaskId(),
 		BatchId:       batchId,
-		BlockHash:     blockHash,
+		ShardId:       execShardBlock.ShardId,
+		BlockNum:      execShardBlock.Number,
+		BlockHash:     execShardBlock.Hash,
 		TaskType:      ProofBlock,
 		ParentTaskId:  &parentTaskId,
 		Dependencies:  EmptyDependencies(),
