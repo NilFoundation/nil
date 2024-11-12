@@ -1,7 +1,5 @@
 { lib
 , stdenv
-, fetchFromGitHub
-, fetchNpmDeps
 , callPackage
 , npmHooks
 , nodejs

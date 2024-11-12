@@ -1,8 +1,6 @@
 { lib
 , stdenv
 , biome
-, fetchFromGitHub
-, fetchNpmDeps
 , callPackage
 , npmHooks
 , nodejs
@@ -41,9 +39,8 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [
     nodejs
     npmHooks.npmConfigHook
-    nil
     biome
-  ];
+  ] ++ (if enableTesting then [ nil ] else [ ]);
 
   dontConfigure = true;
 

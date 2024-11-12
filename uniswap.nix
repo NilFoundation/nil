@@ -35,8 +35,7 @@ stdenv.mkDerivation rec {
     nodejs
     npmHooks.npmConfigHook
     biome
-    nil
-  ];
+  ] ++ (if enableTesting then [ nil ] else [ ]);
 
   dontConfigure = true;
 

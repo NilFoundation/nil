@@ -3,7 +3,6 @@
 import json
 import subprocess
 import argparse
-import os
 import solc_select.solc_select as ss
 
 # Compile a Solidity contract with json compiler task used in the Cometa service.

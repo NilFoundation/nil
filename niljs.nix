@@ -1,8 +1,6 @@
 { lib
 , stdenv
 , biome
-, fetchFromGitHub
-, fetchNpmDeps
 , callPackage
 , npmHooks
 , nodejs
@@ -22,9 +20,8 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [
     nodejs
     npmHooks.npmConfigHook
-    nil
     biome
-  ];
+  ] ++ (if enableTesting then [ nil ] else [ ]);
 
   dontConfigure = true;
 
@@ -49,7 +46,7 @@ stdenv.mkDerivation rec {
     npm run test:examples
     npm run lint:types
     npm run lint:jsdoc
-    
+
     kill `cat nild_pid` && rm nild_pid
     kill `cat faucet_pid` && rm faucet_pid
 

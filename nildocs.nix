@@ -1,4 +1,4 @@
-{ lib, stdenv, npmHooks, nodejs, nil, openssl, fetchNpmDeps, callPackage, autoconf, automake, libtool, solc, solc-select, enableTesting ? false }:
+{ lib, stdenv, npmHooks, nodejs, nil, openssl, callPackage, autoconf, automake, libtool, solc, solc-select, enableTesting ? false }:
 
 
 stdenv.mkDerivation rec {
@@ -22,14 +22,13 @@ stdenv.mkDerivation rec {
 
   nativeBuildInputs = [
     nodejs
-    nil
     npmHooks.npmConfigHook
     autoconf
     automake
     libtool
     solc
     solc-select
-  ];
+  ] ++ (if enableTesting then [ nil ] else [ ]);
 
   dontConfigure = true;
 
