@@ -145,9 +145,8 @@ func SetParam[T any](c *ConfigAccessor, obj *T) error {
 				return fmt.Errorf("failed to marshal config param %s: %w", name, err)
 			}
 			return c.trie.Set([]byte(name), data)
-		} else {
-			return errors.New("type does not implement ssz.Marshaler")
 		}
+		return errors.New("type does not implement ssz.Marshaler")
 	}
 	return errors.New("type does not implement types.IConfigParam")
 }
