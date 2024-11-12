@@ -69,7 +69,7 @@ func (c *DirectClient) GetBlock(shardId types.ShardId, blockId any, fullTx bool)
 	}
 
 	if blockNrOrHash.BlockHash != nil {
-		return c.ethApi.GetBlockByHash(c.ctx, shardId, *blockNrOrHash.BlockHash, fullTx)
+		return c.ethApi.GetBlockByHash(c.ctx, *blockNrOrHash.BlockHash, fullTx)
 	}
 	if blockNrOrHash.BlockNumber != nil {
 		return c.ethApi.GetBlockByNumber(c.ctx, shardId, *blockNrOrHash.BlockNumber, fullTx)
@@ -88,7 +88,7 @@ func (c *DirectClient) GetDebugBlock(shardId types.ShardId, blockId any, fullTx 
 	}
 
 	if blockNrOrHash.BlockHash != nil {
-		return c.debugApi.GetBlockByHash(c.ctx, shardId, *blockNrOrHash.BlockHash, fullTx)
+		return c.debugApi.GetBlockByHash(c.ctx, *blockNrOrHash.BlockHash, fullTx)
 	}
 	if blockNrOrHash.BlockNumber != nil {
 		return c.debugApi.GetBlockByNumber(c.ctx, shardId, *blockNrOrHash.BlockNumber, fullTx)
@@ -121,13 +121,11 @@ func (c *DirectClient) SendRawTransaction(data []byte) (common.Hash, error) {
 }
 
 func (c *DirectClient) GetInMessageByHash(hash common.Hash) (*jsonrpc.RPCInMessage, error) {
-	shardId := types.ShardIdFromHash(hash)
-	return c.ethApi.GetInMessageByHash(c.ctx, shardId, hash)
+	return c.ethApi.GetInMessageByHash(c.ctx, hash)
 }
 
 func (c *DirectClient) GetInMessageReceipt(hash common.Hash) (*jsonrpc.RPCReceipt, error) {
-	shardId := types.ShardIdFromHash(hash)
-	return c.ethApi.GetInMessageReceipt(c.ctx, shardId, hash)
+	return c.ethApi.GetInMessageReceipt(c.ctx, hash)
 }
 
 func (c *DirectClient) GetTransactionCount(address types.Address, blockId any) (types.Seqno, error) {
@@ -154,7 +152,7 @@ func (c *DirectClient) GetBlockTransactionCount(shardId types.ShardId, blockId a
 
 	switch {
 	case blockNrOrHash.BlockHash != nil:
-		res, err = c.ethApi.GetBlockTransactionCountByHash(c.ctx, shardId, *blockNrOrHash.BlockHash)
+		res, err = c.ethApi.GetBlockTransactionCountByHash(c.ctx, *blockNrOrHash.BlockHash)
 	case blockNrOrHash.BlockNumber != nil:
 		res, err = c.ethApi.GetBlockTransactionCountByNumber(c.ctx, shardId, *blockNrOrHash.BlockNumber)
 	default:

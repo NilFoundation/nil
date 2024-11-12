@@ -47,7 +47,7 @@ message MessageResponse {
 }
 
 message ReceiptInfo {
-  uint64 shardId = 1;
+  uint32 shardId = 1;
   bytes receiptSSZ = 2;
   uint64 index = 3;
   Hash blockHash = 4;

@@ -83,29 +83,29 @@ func (suite *SuiteEthBlock) TestGetBlockByNumber() {
 }
 
 func (suite *SuiteEthBlock) TestGetBlockByHash() {
-	data, err := suite.api.GetBlockByHash(suite.ctx, types.MainShardId, suite.lastBlockHash, false)
+	data, err := suite.api.GetBlockByHash(suite.ctx, suite.lastBlockHash, false)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
 	suite.Equal(suite.lastBlockHash, data.Hash)
 }
 
 func (suite *SuiteEthBlock) TestGetBlockTransactionCountByHash() {
-	blockHash := common.HexToHash("0x6804117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")
-	_, err := suite.api.GetBlockTransactionCountByHash(suite.ctx, shardId, blockHash)
+	blockHash := common.HexToHash("0x0000117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")
+	_, err := suite.api.GetBlockTransactionCountByHash(suite.ctx, blockHash)
 	suite.Require().ErrorIs(err, db.ErrKeyNotFound)
 
-	res, err := suite.api.GetBlockTransactionCountByHash(suite.ctx, shardId, suite.lastBlockHash)
+	res, err := suite.api.GetBlockTransactionCountByHash(suite.ctx, suite.lastBlockHash)
 	suite.Require().NoError(err)
 	suite.Require().Equal(hexutil.Uint(1), res)
 }
 
 func (suite *SuiteEthBlock) TestGetBlockContent() {
-	resNoFullTx, err := suite.api.GetBlockByHash(suite.ctx, shardId, suite.lastBlockHash, false)
+	resNoFullTx, err := suite.api.GetBlockByHash(suite.ctx, suite.lastBlockHash, false)
 	suite.Require().NoError(err)
 	suite.Len(resNoFullTx.MessageHashes, 1)
 	suite.Empty(resNoFullTx.Messages)
 
-	resFullTx, err := suite.api.GetBlockByHash(suite.ctx, shardId, suite.lastBlockHash, true)
+	resFullTx, err := suite.api.GetBlockByHash(suite.ctx, suite.lastBlockHash, true)
 	suite.Require().NoError(err)
 	suite.Len(resFullTx.Messages, 1)
 	suite.Empty(resFullTx.MessageHashes)

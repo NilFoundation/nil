@@ -9,7 +9,6 @@ import type { CallArgs, CallRes, ContractOverride } from "../types/CallArgs.js";
 import type { IReceipt, ProcessedReceipt } from "../types/IReceipt.js";
 import type { ProcessedMessage } from "../types/ProcessedMessage.js";
 import type { RPCMessage } from "../types/RPCMessage.js";
-import { getShardIdFromAddress } from "../utils/address.js";
 import { addHexPrefix } from "../utils/hex.js";
 import { BaseClient } from "./BaseClient.js";
 import type { IPublicClientConfig } from "./types/Configs.js";
@@ -44,7 +43,6 @@ class PublicClient extends BaseClient {
    * Returns the block with the given hash.
    * @param hash The hash of the block whose information is requested.
    * @param fullTx The flag that determines whether full transaction information is returned in the output.
-   * @param shardId The ID of the shard where the block was generated.
    * @returns Information about the block with the given hash.
    * @example
    * import { PublicClient } from '@nilfoundation/niljs';
@@ -58,13 +56,11 @@ class PublicClient extends BaseClient {
    *
    * const block = await client.getBlockByHash(HASH);
    */
-  public async getBlockByHash(hash: Hex, fullTx = false, shardId = this.shardId) {
-    assertIsValidShardId(shardId);
-
+  public async getBlockByHash(hash: Hex, fullTx = false) {
     try {
       return await this.request<Block<typeof fullTx>>({
         method: "eth_getBlockByHash",
-        params: [shardId, hash, fullTx],
+        params: [hash, fullTx],
       });
     } catch (error) {
       throw new BlockNotFoundError({
@@ -137,7 +133,6 @@ class PublicClient extends BaseClient {
   /**
    * Returns the total number of messages recorded in the block with the given hash.
    * @param hash The hash of the block whose information is requested.
-   * @param shardId The ID of the shard where the block was generated.
    * @returns The number of messages contained within the block.
    * @example
    * import { PublicClient } from '@nilfoundation/niljs';
@@ -148,12 +143,10 @@ class PublicClient extends BaseClient {
    *
    * const count = await client.getBlockMessageCountByHash(HASH);
    */
-  public async getBlockMessageCountByHash(hash: Hex, shardId = this.shardId) {
-    assertIsValidShardId(shardId);
-
+  public async getBlockMessageCountByHash(hash: Hex) {
     const res = await this.request<number>({
       method: "eth_getBlockTransactionCountByHash",
-      params: [shardId, hash],
+      params: [hash],
     });
 
     return res;
@@ -163,7 +156,6 @@ class PublicClient extends BaseClient {
    * Returns the bytecode of the contract with the given address and at the given block.
    * @param address The address of the account or contract.
    * @param blockNumberOrHash The number/hash of the block.
-   * @param shardId The ID of the shard where the block was generated.
    * @returns The bytecode of the contract.
    * @example
    * import { PublicClient } from '@nilfoundation/niljs';
@@ -233,8 +225,6 @@ class PublicClient extends BaseClient {
   /**
    * Returns the structure of the internal message with the given hash.
    * @param hash The hash of the message.
-   * @param shardId - **@deprecated** The ID of the shard where the message was recorded.
-   *    Manually specifying `shardId` is deprecated. Automatically derived if not provided.
    * @returns The message whose information is requested.
    * @example
    * import { PublicClient } from '@nilfoundation/niljs';
@@ -245,13 +235,10 @@ class PublicClient extends BaseClient {
    *
    * const message = await client.getMessageByHash(HASH);
    */
-  public async getMessageByHash(hash: Hex, shardId?: number): Promise<ProcessedMessage> {
-    const effectiveShardId = shardId ?? getShardIdFromAddress(hash);
-    assertIsValidShardId(effectiveShardId);
-
+  public async getMessageByHash(hash: Hex): Promise<ProcessedMessage> {
     const res = await this.request<RPCMessage>({
       method: "eth_getInMessageByHash",
-      params: [effectiveShardId, hash],
+      params: [hash],
     });
 
     return {
@@ -267,8 +254,6 @@ class PublicClient extends BaseClient {
   /**
    * Returns the receipt for the message with the given hash.
    * @param hash The hash of the message.
-   * @param shardId - **@deprecated** The ID of the shard where the message was recorded.
-   *    Manually specifying `shardId` is deprecated. Automatically derived if not provided.
    * @returns The receipt whose structure is requested.
    * @example
    * import { PublicClient } from '@nilfoundation/niljs';
@@ -279,13 +264,7 @@ class PublicClient extends BaseClient {
    *
    * const receipt = await client.getMessageReceiptByHash(HASH, 1);
    */
-  public async getMessageReceiptByHash(
-    hash: Hex,
-    shardId?: number,
-  ): Promise<ProcessedReceipt | null> {
-    const effectiveShardId = shardId ?? getShardIdFromAddress(hash);
-    assertIsValidShardId(effectiveShardId);
-
+  public async getMessageReceiptByHash(hash: Hex): Promise<ProcessedReceipt | null> {
     const mapReceipt = (receipt: IReceipt): ProcessedReceipt => {
       return {
         ...receipt,
@@ -303,10 +282,7 @@ class PublicClient extends BaseClient {
 
     const res = await this.request<IReceipt | null>({
       method: "eth_getInMessageReceipt",
-      params: [
-        effectiveShardId,
-        typeof hash === "string" ? addHexPrefix(hash) : addHexPrefix(bytesToHex(hash)),
-      ],
+      params: [typeof hash === "string" ? addHexPrefix(hash) : addHexPrefix(bytesToHex(hash))],
     });
 
     if (res === null) {

@@ -25,9 +25,10 @@ message Address {
 }
 
 enum NamedBlockReference {
-  EarliestBlock = 0;
-  LatestBlock = -1;
-  PendingBlock = -2;
+  UnknownNamedRefType = 0;
+  EarliestBlock = -1;
+  LatestBlock = -2;
+  PendingBlock = -3;
 }
 
 message BlockReference {

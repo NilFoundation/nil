@@ -18,7 +18,7 @@ import (
 
 type DebugAPI interface {
 	GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withMessages bool) (*DebugRPCBlock, error)
-	GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (*DebugRPCBlock, error)
+	GetBlockByHash(ctx context.Context, hash common.Hash, withMessages bool) (*DebugRPCBlock, error)
 	GetContract(ctx context.Context, contractAddr types.Address, blockNrOrHash transport.BlockNumberOrHash) (*DebugRPCContract, error)
 }
 
@@ -64,7 +64,8 @@ func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.Sha
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
-func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, withMessages bool) (*DebugRPCBlock, error) {
+func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, hash common.Hash, withMessages bool) (*DebugRPCBlock, error) {
+	shardId := types.ShardIdFromHash(hash)
 	return api.getBlockByReference(ctx, shardId, rawapitypes.BlockHashAsBlockReference(hash), withMessages)
 }
 

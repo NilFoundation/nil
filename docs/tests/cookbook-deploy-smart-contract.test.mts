@@ -96,7 +96,7 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
         shardId: 1,
       });
 
-      const manufacturerReceipts = await waitTillCompleted(client, 1, hash);
+      const manufacturerReceipts = await waitTillCompleted(client, hash);
       //endInternalDeployment
 
       COUNTER_ADDRESS = address;
@@ -141,11 +141,11 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
 
     const faucetHash = await faucet.withdrawToWithRetry(addr, convertEthToWei(0.1));
 
-    await waitTillCompleted(client, 1, faucetHash);
+    await waitTillCompleted(client, faucetHash);
 
     const hash = await deploymentMessage.send(client);
 
-    const receipts = await waitTillCompleted(client, 1, hash);
+    const receipts = await waitTillCompleted(client, hash);
     //endExternalDeployment
 
     expect(receipts.some((receipt) => !receipt.success)).toBe(false);
@@ -198,7 +198,7 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
       functionName: "increment",
     });
 
-    const receipts = await waitTillCompleted(client, 1, hash);
+    const receipts = await waitTillCompleted(client, hash);
     //endInternalMessage
 
     expect(receipts.some((receipt) => !receipt.success)).toBe(false);
@@ -249,7 +249,7 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
         }
       }
 
-      const receipts = await waitTillCompleted(client, 1, messageHash);
+      const receipts = await waitTillCompleted(client, messageHash);
       //endExternalMessage
 
       expect(receipts.some((receipt) => !receipt.success)).toBe(false);

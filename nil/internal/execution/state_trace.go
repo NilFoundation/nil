@@ -102,7 +102,7 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block) {
 	bt.WithIndent(func(t *BlocksTracer) {
 		bt.Printf("shard: %d\n", es.ShardId)
 		bt.Printf("id: %d\n", block.Id)
-		bt.Printf("hash: %s\n", block.Hash().Hex())
+		bt.Printf("hash: %s\n", block.Hash(es.ShardId).Hex())
 		bt.Printf("gas_price: %v\n", es.GasPrice)
 		bt.Printf("contracts_num: %d\n", contractsNum)
 		if len(es.InMessages) != 0 {

@@ -164,7 +164,7 @@ func (s *Syncer) processTopicMessage(ctx context.Context, data []byte) (bool, er
 	block := b.Block
 	s.logger.Debug().
 		Stringer(logging.FieldBlockNumber, block.Id).
-		Stringer(logging.FieldBlockHash, block.Hash()).
+		Stringer(logging.FieldBlockHash, block.Hash(s.config.ShardId)).
 		Msg("Received block")
 
 	if block.Id != s.lastBlockNumber+1 {
@@ -180,7 +180,7 @@ func (s *Syncer) processTopicMessage(ctx context.Context, data []byte) (bool, er
 		msg := fmt.Sprintf("Prev block hash mismatch: expected %x, got %x", s.lastBlockHash, block.PrevBlock)
 		s.logger.Error().
 			Stringer(logging.FieldBlockNumber, block.Id).
-			Stringer(logging.FieldBlockHash, block.Hash()).
+			Stringer(logging.FieldBlockHash, block.Hash(s.config.ShardId)).
 			Msg(msg)
 		panic(msg)
 	}
@@ -254,7 +254,7 @@ func (s *Syncer) saveBlocks(ctx context.Context, blocks []*types.BlockWithExtrac
 	}
 
 	s.lastBlockNumber = blocks[len(blocks)-1].Block.Id
-	s.lastBlockHash = blocks[len(blocks)-1].Block.Hash()
+	s.lastBlockHash = blocks[len(blocks)-1].Block.Hash(s.config.ShardId)
 
 	s.logger.Debug().
 		Stringer(logging.FieldBlockNumber, s.lastBlockNumber).
@@ -271,7 +271,7 @@ func (s *Syncer) saveDirectly(ctx context.Context, blocks []*types.BlockWithExtr
 	defer tx.Rollback()
 
 	for _, block := range blocks {
-		blockHash := block.Block.Hash()
+		blockHash := block.Block.Hash(s.config.ShardId)
 		if err := db.WriteBlock(tx, s.config.ShardId, blockHash, block.Block); err != nil {
 			return err
 		}
@@ -353,7 +353,7 @@ func (s *Syncer) replayBlocks(ctx context.Context, blocks []*types.BlockWithExtr
 			return err
 		}
 
-		blockHash := block.Block.Hash()
+		blockHash := block.Block.Hash(s.config.ShardId)
 		s.logger.Debug().
 			Stringer(logging.FieldBlockNumber, block.Block.Id).
 			Stringer(logging.FieldBlockHash, blockHash).
@@ -377,7 +377,7 @@ func (s *Syncer) replayBlocks(ctx context.Context, blocks []*types.BlockWithExtr
 			return err
 		}
 
-		if err := validateRepliedBlock(block.Block, b, blockHash, b.Hash(), block.OutMessages, msgs); err != nil {
+		if err := validateRepliedBlock(block.Block, b, blockHash, b.Hash(s.config.ShardId), block.OutMessages, msgs); err != nil {
 			return err
 		}
 	}

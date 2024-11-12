@@ -155,7 +155,7 @@ func (api *LocalShardApi) Call(
 		if err != nil {
 			return nil, err
 		}
-		mainBlockHash = mainBlock.Hash()
+		mainBlockHash = mainBlock.Hash(types.MainShardId)
 		childBlocks = mainBlockData.ChildBlocks
 	} else {
 		mainBlockHash, childBlocks = mainBlockReferenceOrHashWithChildren.HashAndChildren()

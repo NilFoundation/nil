@@ -54,7 +54,7 @@ func TestDebugGetBlock(t *testing.T) {
 		hexBytes, err = b.MarshalSSZ()
 		require.NoError(t, err)
 
-		hash := b.Hash()
+		hash := b.Hash(types.MainShardId)
 		err = db.WriteBlock(tx, types.MainShardId, hash, b)
 		require.NoError(t, err)
 

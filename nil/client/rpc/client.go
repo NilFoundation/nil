@@ -288,7 +288,7 @@ func (c *Client) getBlockRequest(shardId types.ShardId, blockId any, fullTx bool
 		if isDebug {
 			m = Debug_getBlockByHash
 		}
-		request = c.newRequest(m, shardId, *blockNrOrHash.BlockHash, fullTx)
+		request = c.newRequest(m, *blockNrOrHash.BlockHash, fullTx)
 	}
 	if blockNrOrHash.BlockNumber != nil {
 		m := Eth_getBlockByNumber
@@ -366,8 +366,7 @@ func (c *Client) SendRawTransaction(data []byte) (common.Hash, error) {
 }
 
 func (c *Client) GetInMessageByHash(hash common.Hash) (*jsonrpc.RPCInMessage, error) {
-	shardId := types.ShardIdFromHash(hash)
-	res, err := c.call(Eth_getInMessageByHash, shardId, hash)
+	res, err := c.call(Eth_getInMessageByHash, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -380,8 +379,7 @@ func (c *Client) GetInMessageByHash(hash common.Hash) (*jsonrpc.RPCInMessage, er
 }
 
 func (c *Client) GetInMessageReceipt(hash common.Hash) (*jsonrpc.RPCReceipt, error) {
-	shardId := types.ShardIdFromHash(hash)
-	res, err := c.call(Eth_getInMessageReceipt, shardId, hash)
+	res, err := c.call(Eth_getInMessageReceipt, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -426,7 +424,7 @@ func (c *Client) GetBlockTransactionCount(shardId types.ShardId, blockId any) (u
 	}
 
 	if blockNrOrHash.BlockHash != nil {
-		return c.getBlockTransactionCountByHash(shardId, *blockNrOrHash.BlockHash)
+		return c.getBlockTransactionCountByHash(*blockNrOrHash.BlockHash)
 	}
 	if blockNrOrHash.BlockNumber != nil {
 		return c.getBlockTransactionCountByNumber(shardId, *blockNrOrHash.BlockNumber)
@@ -445,8 +443,8 @@ func (c *Client) getBlockTransactionCountByNumber(shardId types.ShardId, number 
 	return toUint64(res)
 }
 
-func (c *Client) getBlockTransactionCountByHash(shardId types.ShardId, hash common.Hash) (uint64, error) {
-	res, err := c.call(Eth_getBlockTransactionCountByHash, shardId, hash)
+func (c *Client) getBlockTransactionCountByHash(hash common.Hash) (uint64, error) {
+	res, err := c.call(Eth_getBlockTransactionCountByHash, hash)
 	if err != nil {
 		return 0, err
 	}

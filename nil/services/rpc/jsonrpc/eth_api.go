@@ -33,12 +33,11 @@ type EthAPIRo interface {
 		@summary Returns information about a block with the given hash.
 		@description Implements eth_getBlockByHash.
 		@tags [Blocks]
-		@param shardId BlockShardId
 		@param hash BlockHash
 		@param fullTx FullTx
 		@returns rpcBlock RPCBlock
 	*/
-	GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, fullTx bool) (*RPCBlock, error)
+	GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (*RPCBlock, error)
 
 	/*
 		@name GetBlockTransactionCountByNumber
@@ -56,34 +55,31 @@ type EthAPIRo interface {
 		@summary Returns the total number of transactions recorded in the block with the given hash.
 		@description Implements eth_getBlockTransactionCountByHash.
 		@tags [Blocks]
-		@param shardId BlockShardId
 		@param hash BlockHash
 		@returns transactionNumber TransactionNumber
 	*/
-	GetBlockTransactionCountByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (hexutil.Uint, error)
+	GetBlockTransactionCountByHash(ctx context.Context, hash common.Hash) (hexutil.Uint, error)
 
 	/*
 		@name GetInMessageByHash
 		@summary Returns the structure of the internal message with the given hash.
 		@description
 		@tags [Messages]
-		@param shardId MessageShardId
 		@param hash MessageHash
 		@returns rpcInMessage RPCInMessage
 	*/
-	GetInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*RPCInMessage, error)
+	GetInMessageByHash(ctx context.Context, hash common.Hash) (*RPCInMessage, error)
 
 	/*
 		@name GetInMessageByBlockHashAndIndex
 		@summary Returns the structure of the internal message with the given index and contained within the block with the given hash.
 		@description
 		@tags [Messages]
-		@param shardId MessageShardId
 		@param hash BlockHash
 		@param index MessageIndex
 		@returns rpcInMessage RPCInMessage
 	*/
-	GetInMessageByBlockHashAndIndex(ctx context.Context, shardId types.ShardId, hash common.Hash, index hexutil.Uint64) (*RPCInMessage, error)
+	GetInMessageByBlockHashAndIndex(ctx context.Context, hash common.Hash, index hexutil.Uint64) (*RPCInMessage, error)
 
 	/*
 		@name GetInMessageByBlockNumberAndIndex
@@ -114,34 +110,31 @@ type EthAPIRo interface {
 		@summary Returns the bytecode of the internal message with the given index and contained within the block with the given hash.
 		@description
 		@tags [Messages]
-		@param shardId MessageShardId
 		@param hash BlockHash
 		@param index MessageIndex
 		@returns messageBytecode MessageBytecode
 	*/
-	GetRawInMessageByBlockHashAndIndex(ctx context.Context, shardId types.ShardId, hash common.Hash, index hexutil.Uint64) (hexutil.Bytes, error)
+	GetRawInMessageByBlockHashAndIndex(ctx context.Context, hash common.Hash, index hexutil.Uint64) (hexutil.Bytes, error)
 
 	/*
 		@name GetRawInMessageByHash
 		@summary Returns the bytecode of the internal message with the given hash.
 		@description
 		@tags [Messages]
-		@param shardId MessageShardId
 		@param hash MessageHash
 		@returns messageBytecode MessageBytecode
 	*/
-	GetRawInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (hexutil.Bytes, error)
+	GetRawInMessageByHash(ctx context.Context, hash common.Hash) (hexutil.Bytes, error)
 
 	/*
 		@name GetInMessageReceipt
 		@summary Returns the receipt for the message with the given hash.
 		@description
 		@tags [Receipts]
-		@param shardId MessageShardId
 		@param hash MessageHash
 		@returns rpcReceipt RPCReceipt
 	*/
-	GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*RPCReceipt, error)
+	GetInMessageReceipt(ctx context.Context, hash common.Hash) (*RPCReceipt, error)
 
 	/*
 		@name GetBalance

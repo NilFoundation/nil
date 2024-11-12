@@ -154,7 +154,7 @@ func ValidateBlock(s *suite.Suite, d DB) {
 		PrevBlock:          common.Hash{0x01},
 		SmartContractsRoot: common.Hash{0x02},
 	}
-	blockHash := block.Hash()
+	blockHash := block.Hash(types.BaseShardId)
 	err = WriteBlock(tx, types.BaseShardId, blockHash, &block)
 	s.Require().NoError(err)
 

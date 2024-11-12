@@ -112,7 +112,7 @@ func (api *LocalShardApi) GetInMessageReceipt(ctx context.Context, hash common.H
 	var blockHash common.Hash
 	if block != nil {
 		blockId = block.Id
-		blockHash = block.Hash()
+		blockHash = block.Hash(api.ShardId)
 	}
 
 	return &rawapitypes.ReceiptInfo{

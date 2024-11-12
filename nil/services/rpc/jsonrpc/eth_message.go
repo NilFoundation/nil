@@ -40,7 +40,8 @@ func makeRequestByBlockRefAndIndex(ref rawapitypes.BlockReference, index types.M
 }
 
 // GetInMessageByHash implements eth_getTransactionByHash. Returns the message structure
-func (api *APIImplRo) GetInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (*RPCInMessage, error) {
+func (api *APIImplRo) GetInMessageByHash(ctx context.Context, hash common.Hash) (*RPCInMessage, error) {
+	shardId := types.ShardIdFromHash(hash)
 	res, err := api.rawapi.GetInMessage(ctx, shardId, makeRequestByHash(hash))
 	if err != nil {
 		return nil, err
@@ -53,8 +54,9 @@ func (api *APIImplRo) GetInMessageByHash(ctx context.Context, shardId types.Shar
 }
 
 func (api *APIImplRo) GetInMessageByBlockHashAndIndex(
-	ctx context.Context, shardId types.ShardId, hash common.Hash, index hexutil.Uint64,
+	ctx context.Context, hash common.Hash, index hexutil.Uint64,
 ) (*RPCInMessage, error) {
+	shardId := types.ShardIdFromHash(hash)
 	res, err := api.rawapi.GetInMessage(
 		ctx, shardId, makeRequestByBlockRefAndIndex(rawapitypes.BlockHashAsBlockReference(hash), types.MessageIndex(index)),
 	)
@@ -97,8 +99,9 @@ func (api *APIImplRo) GetRawInMessageByBlockNumberAndIndex(
 }
 
 func (api *APIImplRo) GetRawInMessageByBlockHashAndIndex(
-	ctx context.Context, shardId types.ShardId, hash common.Hash, index hexutil.Uint64,
+	ctx context.Context, hash common.Hash, index hexutil.Uint64,
 ) (hexutil.Bytes, error) {
+	shardId := types.ShardIdFromHash(hash)
 	res, err := api.rawapi.GetInMessage(
 		ctx, shardId, makeRequestByBlockRefAndIndex(rawapitypes.BlockHashAsBlockReference(hash), types.MessageIndex(index)),
 	)
@@ -108,7 +111,8 @@ func (api *APIImplRo) GetRawInMessageByBlockHashAndIndex(
 	return res.MessageSSZ, nil
 }
 
-func (api *APIImplRo) GetRawInMessageByHash(ctx context.Context, shardId types.ShardId, hash common.Hash) (hexutil.Bytes, error) {
+func (api *APIImplRo) GetRawInMessageByHash(ctx context.Context, hash common.Hash) (hexutil.Bytes, error) {
+	shardId := types.ShardIdFromHash(hash)
 	res, err := api.rawapi.GetInMessage(ctx, shardId, makeRequestByHash(hash))
 	if err != nil {
 		return nil, err
