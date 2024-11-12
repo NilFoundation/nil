@@ -16,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	lru "github.com/hashicorp/golang-lru/v2"
+	"github.com/spf13/viper"
 )
 
 var logger = logging.NewLogger("cometa")
@@ -47,14 +48,14 @@ type Service struct {
 var _ CometaJsonRpc = (*Service)(nil)
 
 type Config struct {
-	UseBadger    bool
-	OwnEndpoint  string
-	NodeEndpoint string
-	DbEndpoint   string
-	DbName       string
-	DbUser       string
-	DbPassword   string
-	DbPath       string
+	UseBadger    bool   `yaml:"use-badger,omitempty"`    //nolint:tagliatelle
+	OwnEndpoint  string `yaml:"own-endpoint,omitempty"`  //nolint:tagliatelle
+	NodeEndpoint string `yaml:"node-endpoint,omitempty"` //nolint:tagliatelle
+	DbEndpoint   string `yaml:"db-endpoint,omitempty"`   //nolint:tagliatelle
+	DbName       string `yaml:"db-name,omitempty"`       //nolint:tagliatelle
+	DbUser       string `yaml:"db-user,omitempty"`       //nolint:tagliatelle
+	DbPassword   string `yaml:"db-password,omitempty"`   //nolint:tagliatelle
+	DbPath       string `yaml:"db-path,omitempty"`       //nolint:tagliatelle
 }
 
 const (
@@ -76,6 +77,27 @@ func (c *Config) ResetDefualt() {
 	c.DbUser = DbUserDefault
 	c.DbPassword = DbPasswordDefault
 	c.DbPath = DbPathDefault
+}
+
+func (c *Config) InitFromFile(cfgFile string) {
+	if cfgFile == "" {
+		return
+	}
+	v := viper.New()
+	v.SetConfigFile(cfgFile)
+	if err := v.ReadInConfig(); err != nil {
+		logger.Error().Err(err).Msg("failed to read config file")
+		c.ResetDefualt()
+	} else {
+		c.UseBadger = v.GetBool("use-badger")
+		c.OwnEndpoint = v.GetString("own-endpoint")
+		c.NodeEndpoint = v.GetString("node-endpoint")
+		c.DbEndpoint = v.GetString("db-endpoint")
+		c.DbPath = v.GetString("db-path")
+		c.DbName = v.GetString("db-name")
+		c.DbUser = v.GetString("db-user")
+		c.DbPassword = v.GetString("db-password")
+	}
 }
 
 func NewService(ctx context.Context, cfg *Config, client client.Client) (*Service, error) {
@@ -248,6 +270,15 @@ func (s *Service) GetVersion(ctx context.Context) (string, error) {
 	return "", errors.New("failed to get version")
 }
 
+func (s *Service) GetRpcApi() transport.API {
+	return transport.API{
+		Namespace: "cometa",
+		Public:    true,
+		Service:   CometaJsonRpc(s),
+		Version:   "1.0",
+	}
+}
+
 func (s *Service) startRpcServer(ctx context.Context, endpoint string) error {
 	logger := logging.NewLogger("RPC")
 
@@ -260,14 +291,7 @@ func (s *Service) startRpcServer(ctx context.Context, endpoint string) error {
 		HttpCORSDomain:  []string{"*"},
 	}
 
-	apiList := []transport.API{
-		{
-			Namespace: "cometa",
-			Public:    true,
-			Service:   CometaJsonRpc(s),
-			Version:   "1.0",
-		},
-	}
+	apiList := []transport.API{s.GetRpcApi()}
 
 	return rpc.StartRpcServer(ctx, httpConfig, apiList, logger)
 }

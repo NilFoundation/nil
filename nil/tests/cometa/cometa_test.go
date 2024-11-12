@@ -8,7 +8,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cometa"
@@ -23,7 +22,6 @@ type SuiteCometa struct {
 	tests.RpcSuite
 	cometaClient   cometa.Client
 	cometaCfg      cometa.Config
-	suiteSetupDone bool
 	cometaEndpoint string
 }
 
@@ -37,24 +35,19 @@ type SuiteCometaClickhouse struct {
 }
 
 func (s *SuiteCometa) SetupSuite() {
+	s.cometaCfg.DbPath = s.T().TempDir() + "/cometa.db"
+	s.cometaCfg.OwnEndpoint = ""
+
 	s.Start(&nilservice.Config{
 		NShards:              2,
 		CollatorTickPeriodMs: 200,
-		RunMode:              nilservice.CollatorsOnlyRunMode,
+		HttpUrl:              rpc.GetSockPath(s.T()),
+		Cometa:               &s.cometaCfg,
 	})
 
 	s.cometaEndpoint = rpc.GetSockPathService(s.T(), "cometa")
 
-	s.cometaCfg.DbPath = s.T().TempDir() + "/cometa.db"
-	s.cometaCfg.OwnEndpoint = s.cometaEndpoint
-
-	com, err := cometa.NewService(s.Context, &s.cometaCfg, s.Client)
-	s.Require().NoError(err)
-	go func() {
-		check.PanicIfErr(com.Run(s.Context, &s.cometaCfg))
-	}()
-
-	s.cometaClient = *cometa.NewClient(s.cometaEndpoint)
+	s.cometaClient = *cometa.NewClient(s.Endpoint)
 }
 
 func (s *SuiteCometaClickhouse) SetupSuite() {
@@ -62,8 +55,10 @@ func (s *SuiteCometaClickhouse) SetupSuite() {
 
 	s.cometaCfg.ResetDefualt()
 
+	suiteSetupDone := false
+
 	defer func() {
-		if !s.suiteSetupDone {
+		if !suiteSetupDone {
 			s.TearDownSuite()
 		}
 	}()
@@ -80,7 +75,7 @@ func (s *SuiteCometaClickhouse) SetupSuite() {
 
 	s.SuiteCometa.SetupSuite()
 
-	s.suiteSetupDone = true
+	suiteSetupDone = true
 }
 
 func (s *SuiteCometaClickhouse) TearDownSuite() {
