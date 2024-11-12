@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/cometa"
 )
 
 type RunMode int
@@ -61,6 +62,7 @@ type Config struct {
 	Telemetry *telemetry.Config          `yaml:"telemetry,omitempty"`
 	ZeroState *execution.ZeroStateConfig `yaml:"zeroState,omitempty"`
 	Replay    *ReplayConfig              `yaml:"replay,omitempty"`
+	Cometa    *cometa.Config             `yaml:"cometa,omitempty"`
 }
 
 func NewDefaultConfig() *Config {

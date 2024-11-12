@@ -48,14 +48,14 @@ type Service struct {
 var _ CometaJsonRpc = (*Service)(nil)
 
 type Config struct {
-	UseBadger    bool
-	OwnEndpoint  string
-	NodeEndpoint string
-	DbEndpoint   string
-	DbName       string
-	DbUser       string
-	DbPassword   string
-	DbPath       string
+	UseBadger    bool   `yaml:"use-badger,omitempty"`    //nolint:tagliatelle
+	OwnEndpoint  string `yaml:"own-endpoint,omitempty"`  //nolint:tagliatelle
+	NodeEndpoint string `yaml:"node-endpoint,omitempty"` //nolint:tagliatelle
+	DbEndpoint   string `yaml:"db-endpoint,omitempty"`   //nolint:tagliatelle
+	DbName       string `yaml:"db-name,omitempty"`       //nolint:tagliatelle
+	DbUser       string `yaml:"db-user,omitempty"`       //nolint:tagliatelle
+	DbPassword   string `yaml:"db-password,omitempty"`   //nolint:tagliatelle
+	DbPath       string `yaml:"db-path,omitempty"`       //nolint:tagliatelle
 }
 
 const (
@@ -270,6 +270,15 @@ func (s *Service) GetVersion(ctx context.Context) (string, error) {
 	return "", errors.New("failed to get version")
 }
 
+func (s *Service) GetRpcApi() transport.API {
+	return transport.API{
+		Namespace: "cometa",
+		Public:    true,
+		Service:   CometaJsonRpc(s),
+		Version:   "1.0",
+	}
+}
+
 func (s *Service) startRpcServer(ctx context.Context, endpoint string) error {
 	logger := logging.NewLogger("RPC")
 
@@ -282,14 +291,7 @@ func (s *Service) startRpcServer(ctx context.Context, endpoint string) error {
 		HttpCORSDomain:  []string{"*"},
 	}
 
-	apiList := []transport.API{
-		{
-			Namespace: "cometa",
-			Public:    true,
-			Service:   CometaJsonRpc(s),
-			Version:   "1.0",
-		},
-	}
+	apiList := []transport.API{s.GetRpcApi()}
 
 	return rpc.StartRpcServer(ctx, httpConfig, apiList, logger)
 }
