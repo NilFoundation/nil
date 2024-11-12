@@ -30,5 +30,12 @@ export const AWAITER_COMPILATION_COMMAND = `solc -o ./tests/Awaiter --bin --abi 
 export const SWAP_MATCH_COMPILATION_COMMAND = `solc -o ./tests/SwapMatch --abi --bin ./tests/SwapMatch.sol --overwrite ${NODE_MODULES}`;
 
 //startCounterBugCompilationCommand
-export const COUNTER_BUG_COMPILATION_COMMAND = `solc -o ./tests/CounterBug --bin --abi ./tests/CounterBug.sol --overwrite --no-cbor-metadata --metadata-hash none`;
+export const COUNTER_BUG_COMPILATION_COMMAND =
+  "solc -o ./tests/CounterBug --bin --abi ./tests/CounterBug.sol --overwrite --no-cbor-metadata --metadata-hash none";
 //endCounterBugCompilationCommand
+
+export const MULTISIG_COMPILATION_COMMAND = `solc -o ./tests/MultiSigWallet --abi --bin ./tests/MultiSigWallet.sol --overwrite ${NODE_MODULES}`;
+
+export const NFT_COMPILATION_COMMAND = `solc -o ./tests/NFT --abi --bin ./tests/NFT.sol --overwrite ${NODE_MODULES}`;
+
+export const AUCTION_COMPILATION_COMMAND = `solc -o ./tests/EnglishAuction --abi --bin ./tests/EnglishAuction.sol --overwrite ${NODE_MODULES}`;
