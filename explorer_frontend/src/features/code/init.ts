@@ -79,7 +79,8 @@ $error.on(compileCodeFx.failData, (_, error) => {
       if (
         line.startsWith("ParserError") ||
         line.startsWith("TypeError") ||
-        line.startsWith("DeclarationError")
+        line.startsWith("DeclarationError") ||
+        line.startsWith("CompilerError")
       ) {
         const [type, ...messageParts] = line.split(":");
         const message = messageParts.join(":").trim();

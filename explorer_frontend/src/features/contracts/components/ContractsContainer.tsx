@@ -7,7 +7,6 @@ import { COLORS, Card } from "@nilfoundation/ui-kit";
 import { DeployContractModal } from "./Deploy/DeployContractModal";
 import { getMobileStyles } from "../../../styleHelpers";
 import { useMobile } from "../../shared";
-import { color } from "@uiw/react-codemirror";
 
 export const ContractsContainer = () => {
   const app = useUnit($activeAppWithState);
