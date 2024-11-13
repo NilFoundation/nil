@@ -34,8 +34,8 @@ type CometaJsonRpc interface {
 	GetAbi(ctx context.Context, address types.Address) (string, error)
 	GetSourceCode(ctx context.Context, address types.Address) (map[string]string, error)
 	CompileContract(ctx context.Context, inputJson string) (*ContractData, error)
-	DeployContract(ctx context.Context, inputJson string, address types.Address) error
-	RegisterContract(ctx context.Context, contractData *ContractData, address types.Address) error
+	RegisterContract(ctx context.Context, inputJson string, address types.Address) error
+	RegisterContractData(ctx context.Context, contractData *ContractData, address types.Address) error
 	GetVersion(ctx context.Context) (string, error)
 }
 
@@ -68,7 +68,7 @@ const (
 	DbPathDefault       = "cometa.db"
 )
 
-func (c *Config) ResetDefualt() {
+func (c *Config) ResetToDefault() {
 	c.UseBadger = false
 	c.OwnEndpoint = OwnEndpointDefault
 	c.NodeEndpoint = NodeEndpointDefault
@@ -79,25 +79,25 @@ func (c *Config) ResetDefualt() {
 	c.DbPath = DbPathDefault
 }
 
-func (c *Config) InitFromFile(cfgFile string) {
+func (c *Config) InitFromFile(cfgFile string) bool {
 	if cfgFile == "" {
-		return
+		return false
 	}
 	v := viper.New()
 	v.SetConfigFile(cfgFile)
 	if err := v.ReadInConfig(); err != nil {
-		logger.Error().Err(err).Msg("failed to read config file")
-		c.ResetDefualt()
-	} else {
-		c.UseBadger = v.GetBool("use-badger")
-		c.OwnEndpoint = v.GetString("own-endpoint")
-		c.NodeEndpoint = v.GetString("node-endpoint")
-		c.DbEndpoint = v.GetString("db-endpoint")
-		c.DbPath = v.GetString("db-path")
-		c.DbName = v.GetString("db-name")
-		c.DbUser = v.GetString("db-user")
-		c.DbPassword = v.GetString("db-password")
+		c.ResetToDefault()
+		return false
 	}
+	c.UseBadger = v.GetBool("use-badger")
+	c.OwnEndpoint = v.GetString("own-endpoint")
+	c.NodeEndpoint = v.GetString("node-endpoint")
+	c.DbEndpoint = v.GetString("db-endpoint")
+	c.DbPath = v.GetString("db-path")
+	c.DbName = v.GetString("db-name")
+	c.DbUser = v.GetString("db-user")
+	c.DbPassword = v.GetString("db-password")
+	return true
 }
 
 func NewService(ctx context.Context, cfg *Config, client client.Client) (*Service, error) {
@@ -124,8 +124,8 @@ func (s *Service) Run(ctx context.Context, cfg *Config) error {
 	return s.startRpcServer(ctx, cfg.OwnEndpoint)
 }
 
-func (s *Service) RegisterContract(ctx context.Context, contractData *ContractData, address types.Address) error {
-	logger.Info().Msg("Deploy contract...")
+func (s *Service) RegisterContractData(ctx context.Context, contractData *ContractData, address types.Address) error {
+	logger.Info().Msg("Register contract...")
 	code, err := s.client.GetCode(address, "latest")
 	if err != nil {
 		return fmt.Errorf("failed to get code: %w", err)
@@ -147,13 +147,13 @@ func (s *Service) RegisterContract(ctx context.Context, contractData *ContractDa
 	return nil
 }
 
-func (s *Service) DeployContract(ctx context.Context, inputJson string, address types.Address) error {
+func (s *Service) RegisterContract(ctx context.Context, inputJson string, address types.Address) error {
 	contractData, err := s.CompileContract(ctx, inputJson)
 	if err != nil {
 		return fmt.Errorf("failed to compile contract: %w", err)
 	}
 
-	if err := s.RegisterContract(ctx, contractData, address); err != nil {
+	if err := s.RegisterContractData(ctx, contractData, address); err != nil {
 		return fmt.Errorf("failed to register contract: %w", err)
 	}
 	return err

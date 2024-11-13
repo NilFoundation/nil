@@ -129,7 +129,7 @@ func (c *Client) CompileContract(inputJsonFile string) (*ContractData, error) {
 	return &contractData, nil
 }
 
-func (c *Client) DeployContractFromFile(inputJsonFile string, address types.Address) error {
+func (c *Client) RegisterContractFromFile(inputJsonFile string, address types.Address) error {
 	inputJson, err := os.ReadFile(inputJsonFile)
 	if err != nil {
 		return fmt.Errorf("failed to read input json: %w", err)
@@ -146,16 +146,16 @@ func (c *Client) DeployContractFromFile(inputJsonFile string, address types.Addr
 		return fmt.Errorf("failed to marshal input json: %w", err)
 	}
 
-	_, err = c.sendRequest("cometa_deployContract", []any{string(inputJson), address})
+	_, err = c.sendRequest("cometa_registerContract", []any{string(inputJson), address})
 	return err
 }
 
-func (c *Client) DeployContract(inputJson string, address types.Address) error {
-	_, err := c.sendRequest("cometa_deployContract", []any{inputJson, address})
+func (c *Client) RegisterContract(inputJson string, address types.Address) error {
+	_, err := c.sendRequest("cometa_registerContract", []any{inputJson, address})
 	return err
 }
 
-func (c *Client) RegisterContract(contractData *ContractData, address types.Address) error {
-	_, err := c.sendRequest("cometa_registerContract", []any{contractData, address})
+func (c *Client) RegisterContractData(contractData *ContractData, address types.Address) error {
+	_, err := c.sendRequest("cometa_registerContractData", []any{contractData, address})
 	return err
 }

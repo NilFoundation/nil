@@ -22,15 +22,22 @@ trap_with_arg 'stop' EXIT SIGINT SIGTERM SIGHUP
 rm -f config.ini
 rm -rf test.db
 
+faucet run >faucet.log 2>&1 &
+
 # Start nild in background (will be auto-killed on exit)
 nild run --http-port 8529 --collator-tick-ms=100 >nild.log 2>&1 &
 NILD_PID=$!
 sleep 2
 
 export NIL_RPC_ENDPOINT=http://127.0.0.1:8529
+export FAUCET_ENDPOINT=http://127.0.0.1:8527
 nil -c config.ini config set rpc_endpoint "$NIL_RPC_ENDPOINT"
+nil -c config.ini config set faucet_endpoint "$FAUCET_ENDPOINT"
 export PRIVATE_KEY=$(nil -c config.ini keygen new -q)
 export WALLET_ADDR=$(nil -c config.ini wallet new -q)
+
+# NIL_CONFIG_INI will be used by hardhat-plugin's wallet task
+export NIL_CONFIG_INI=$(realpath config.ini)
 
 echo "Rpc endpoint: $NIL_RPC_ENDPOINT"
 echo "Private key: $PRIVATE_KEY"

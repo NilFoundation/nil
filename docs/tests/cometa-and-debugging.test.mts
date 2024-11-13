@@ -167,7 +167,7 @@ describe.skip.sequential("Nil.js correctly interacts with Cometa", () => {
       throw new Error("Contract deployment failed");
     }
 
-    await cometa.registerContract(compilationResult, address);
+    await cometa.registerContractData(compilationResult, address);
 
     const incrementHash = await wallet.sendMessage({
       to: address,

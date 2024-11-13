@@ -16,12 +16,12 @@ import type { HandlerContext } from "./context";
 import { shardNumber } from "./utils/conversion";
 import { ensure0xPrefix } from "./utils/hex";
 
-function isStringArray(accounts: HttpNetworkAccountsConfig): accounts is string[] {
+export function isStringArray(accounts: HttpNetworkAccountsConfig): accounts is string[] {
   return Array.isArray(accounts);
 }
 
 // Type guard to check if a network configuration is HTTP based
-function isHttpNetworkConfig(config: NetworkConfig): config is HttpNetworkConfig {
+export function isHttpNetworkConfig(config: NetworkConfig): config is HttpNetworkConfig {
   return "url" in config;
 }
 
@@ -54,19 +54,11 @@ export async function setupWalletAndClient(
   const pubKey = signer.getPublicKey();
 
   const newWalletSalt = new Uint8Array(32);
-  let walletAddress = hre.config.walletAddress
+  const walletAddress = hre.config.walletAddress
     ? ensure0xPrefix(hre.config.walletAddress)
     : undefined;
   if (!walletAddress) {
-    walletAddress = WalletV1.calculateWalletAddress({
-      pubKey,
-      shardId: 1,
-      salt: newWalletSalt,
-    });
-
-    console.log(
-      `Wallet address not found in configuration.\nGenerated wallet address for current private key: ${walletAddress}`,
-    );
+    throw new Error(`Wallet address is not valid. Run 'npx hardhat wallet update' to fix it`);
   }
 
   // Set up network components
@@ -74,6 +66,13 @@ export async function setupWalletAndClient(
     transport: new HttpTransport({ endpoint: url }),
     shardId: shardNumber(walletAddress),
   });
+  const walletCode = await client.getCode(walletAddress, "latest");
+  if (walletCode.length === 0) {
+    throw new Error(
+      `Wallet at address ${walletAddress} does not exist. Run 'npx hardhat wallet update' to fix it`,
+    );
+  }
+
   const faucet = new Faucet(client);
 
   const config: WalletV1Config = {
@@ -83,18 +82,6 @@ export async function setupWalletAndClient(
     address: walletAddress,
   };
   const wallet = new WalletV1(config);
-
-  const existingWallet = await client.getCode(walletAddress, "latest");
-  if (existingWallet.length === 0) {
-    console.log("Deploying new wallet...");
-
-    wallet.salt = newWalletSalt;
-
-    await faucet.withdrawToWithRetry(walletAddress, 1_000_000_000n);
-    await wallet.selfDeploy();
-
-    console.log("Deployed new wallet.");
-  }
 
   return {
     hre,

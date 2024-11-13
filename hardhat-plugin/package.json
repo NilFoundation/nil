@@ -16,8 +16,8 @@
 		"build": "rimraf dist && tsc -p tsconfig.json",
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",
-		"test": "npx hardhat test --network nil",
-    "publish": "npm run build && npm publish"
+		"test": "mocha \"test/integration.test.ts\"",
+		"publish": "npm run build && npm publish"
 	},
 	"keywords": [],
 	"author": "",
@@ -26,11 +26,15 @@
 		"@nilfoundation/niljs": "^0.18.0",
 		"ethers": "^6.12.1",
 		"hardhat": "^2.22.4",
+		"ini": "^5.0.0",
+    "@types/ini": "^4.1.1",
 		"viem": "^2.16.3"
 	},
 	"devDependencies": {
 		"@nomicfoundation/hardhat-ethers": "^3.0.6",
 		"@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "mocha": "^10.8.1",
+    "ts-node-transpile-only": "^10.9.2",
 		"dotenv": "^16.4.5",
 		"rimraf": "^5.0.7",
 		"ts-node": "^10.9.2",

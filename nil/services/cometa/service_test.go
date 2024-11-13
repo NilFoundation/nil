@@ -45,7 +45,7 @@ func (s *SuiteServiceTest) TestCase1() {
 		return code, nil
 	}
 
-	err = s.service.RegisterContract(s.ctx, contractData, address)
+	err = s.service.RegisterContractData(s.ctx, contractData, address)
 	s.Require().NoError(err)
 
 	contract, err := s.service.GetContractControl(s.ctx, address)
@@ -81,7 +81,7 @@ func (s *SuiteServiceTest) TestCase2() {
 		return code, nil
 	}
 
-	err = s.service.RegisterContract(s.ctx, contractData, address)
+	err = s.service.RegisterContractData(s.ctx, contractData, address)
 	s.Require().NoError(err)
 
 	contract, err := s.service.GetContractControl(s.ctx, address)
@@ -113,7 +113,7 @@ func (s *SuiteServiceTest) TestTwinContracts() {
 		return code, nil
 	}
 
-	err = s.service.RegisterContract(s.ctx, contractData, address)
+	err = s.service.RegisterContractData(s.ctx, contractData, address)
 	s.Require().NoError(err)
 
 	contract, err := s.service.GetContractControl(s.ctx, address)

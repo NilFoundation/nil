@@ -17,12 +17,12 @@ func GetCommand() *cobra.Command {
 		Short: "Interact with the Cometa service",
 	}
 	cmd.AddCommand(GetInfoCommand())
-	cmd.AddCommand(GetDeployCommand())
+	cmd.AddCommand(GetRegisterCommand())
 
 	return cmd
 }
 
-func GetDeployCommand() *cobra.Command {
+func GetRegisterCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "register [options] address",
 		Short: "Register contract metadata",
@@ -75,7 +75,7 @@ func runRegisterCommand(_ *cobra.Command) error {
 		return fmt.Errorf("failed to normalize the input JSON file: %w", err)
 	}
 
-	err = cometaClient.DeployContract(inputJson, params.address)
+	err = cometaClient.RegisterContract(inputJson, params.address)
 	if err != nil {
 		return fmt.Errorf("failed to register the contract: %w", err)
 	}

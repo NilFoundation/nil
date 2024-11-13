@@ -136,8 +136,10 @@ type CompilerTask struct {
 }
 
 type Settings struct {
-	Optimizer  Optimizer `json:"optimizer"`
-	EvmVersion string    `json:"evmVersion"`
+	Optimizer    Optimizer `json:"optimizer"`
+	EvmVersion   string    `json:"evmVersion"`
+	AppendCBOR   bool      `json:"appendCBOR"` //nolint:tagliatelle
+	BytecodeHash string    `json:"bytecodeHash"`
 }
 
 // Normalize fills in the content of the sources that have no content but have urls.
@@ -187,7 +189,8 @@ func (t *CompilerTask) ToCompilerJsonInput() (*CompilerJsonInput, error) {
 	res.Sources = t.Sources
 	res.Settings.Optimizer = t.Settings.Optimizer
 	res.Settings.EvmVersion = t.Settings.EvmVersion
-	res.Settings.Metadata.BytecodeHash = "none"
+	res.Settings.Metadata.BytecodeHash = t.Settings.BytecodeHash
+	res.Settings.Metadata.AppendCBOR = t.Settings.AppendCBOR
 	parts := strings.Split(t.ContractName, ":")
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid contract name: %s, required format: <file>:<contract>", t.ContractName)

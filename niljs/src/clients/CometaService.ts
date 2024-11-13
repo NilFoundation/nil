@@ -61,14 +61,26 @@ class CometaService extends BaseClient {
   }
 
   /**
-   * Registers the contract.
+   * Register the contract by compilation result.
    * @param contractData - The contract data.
    * @param address - Address of the contract.
    */
-  public async registerContract(contractData: ContractData, address: Hex) {
+  public async registerContractData(contractData: ContractData, address: Hex) {
+    return await this.request({
+      method: "cometa_registerContractData",
+      params: [contractData, address],
+    });
+  }
+
+  /**
+   * Register the contract.
+   * @param inputJson - The JSON input for compiler.
+   * @param address - Address of the contract.
+   */
+  public async registerContract(inputJson: string, address: Hex) {
     return await this.request({
       method: "cometa_registerContract",
-      params: [contractData, address],
+      params: [inputJson, address],
     });
   }
 }
