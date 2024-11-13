@@ -61,7 +61,7 @@ jobs:
             result/bin/nil
 
       - name: upload packages to s3
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
         env:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
