@@ -1,7 +1,9 @@
-import { type ReactNode, type PropsWithChildren } from "react";
+import type { ReactNode, PropsWithChildren } from "react";
 import Link from "@docusaurus/Link";
 import styles from "./styles.module.css";
-import Timer from "@site/static/img/timerWhite.png";
+import Timer from "@site/static/img/timer.png";
+import WhiteTimer from "@site/static/img/timerWhite.png";
+import { useColorMode } from "@docusaurus/theme-common";
 
 type CardBadge = {
   label: string;
@@ -55,7 +57,7 @@ export function CookbookCard({
   className?: string;
   badges: BadgesProps;
 }>) {
-  const badgesArray = Array.isArray(badges) ? badges : [badges];
+  const { colorMode } = useColorMode();
   return (
     <Link to={to} className={styles.cookbookCard}>
       <div className={styles.cookbookCardContent}>
@@ -70,7 +72,11 @@ export function CookbookCard({
             className={`${styles.cookbookCardTag} absolute right-[-28px] top-[-2px] w-[80px] rotate-45 transform py-1 text-center font-semibold`}
             title={tag.description}
           >
-            <img src={Timer} alt="Timer" className={styles.timerImage} />
+            <img
+              src={colorMode === "dark" ? WhiteTimer : Timer}
+              alt="Timer"
+              className={styles.timerImage}
+            />
             {tag.label}
           </span>
         </div>

@@ -1,18 +1,14 @@
-import React, { type ReactNode } from 'react';
-import { useThemeConfig, ErrorCauseBoundary } from '@docusaurus/theme-common';
-import {
-  splitNavbarItems,
-  useNavbarMobileSidebar,
-} from '@docusaurus/theme-common/internal';
-import NavbarItem, { type Props as NavbarItemConfig } from '@theme/NavbarItem';
-import NavbarColorModeToggle from '@theme/Navbar/ColorModeToggle';
-import SearchBar from '@theme/SearchBar';
-import NavbarMobileSidebarToggle from '@theme/Navbar/MobileSidebar/Toggle';
-import NavbarLogo from '@theme/Navbar/Logo';
-import NavbarSearch from '@theme/Navbar/Search';
-import GitHubContributeButton from '../../GitHubContributeButton';
+import type { ReactNode } from "react";
+import { useThemeConfig, ErrorCauseBoundary } from "@docusaurus/theme-common";
+import { splitNavbarItems, useNavbarMobileSidebar } from "@docusaurus/theme-common/internal";
+import NavbarItem, { type Props as NavbarItemConfig } from "@theme/NavbarItem";
+import NavbarColorModeToggle from "@theme/Navbar/ColorModeToggle";
+import SearchBar from "@theme/SearchBar";
+import NavbarMobileSidebarToggle from "@theme/Navbar/MobileSidebar/Toggle";
+import NavbarLogo from "@theme/Navbar/Logo";
+import NavbarSearch from "@theme/Navbar/Search";
 
-import styles from './styles.module.css';
+import styles from "./styles.module.css";
 
 function useNavbarItems() {
   // TODO temporary casting until ThemeConfig type is improved
@@ -32,7 +28,8 @@ Please double-check the following navbar item (themeConfig.navbar.items) of your
 ${JSON.stringify(item, null, 2)}`,
               { cause: error },
             )
-          }>
+          }
+        >
           <NavbarItem {...item} />
         </ErrorCauseBoundary>
       ))}
@@ -42,14 +39,17 @@ ${JSON.stringify(item, null, 2)}`,
 
 function NavbarContentLayout({
   left,
+  center,
   right,
 }: {
   left: ReactNode;
+  center: ReactNode;
   right: ReactNode;
 }) {
   return (
     <div className="navbar__inner">
-      <div className="navbar__items">{left}</div>
+      <div className="navbar__items navbar__items--left">{left}</div>
+      <div className="navbar__items navbar__items--center">{center}</div>
       <div className="navbar__items navbar__items--right">{right}</div>
     </div>
   );
@@ -61,7 +61,7 @@ export default function NavbarContent(): JSX.Element {
   const items = useNavbarItems();
   const [leftItems, rightItems] = splitNavbarItems(items);
 
-  const searchBarItem = items.find((item) => item.type === 'search');
+  const searchBarItem = items.find((item) => item.type === "search");
 
   return (
     <NavbarContentLayout
@@ -70,6 +70,10 @@ export default function NavbarContent(): JSX.Element {
         <>
           {!mobileSidebar.disabled && <NavbarMobileSidebarToggle />}
           <NavbarLogo />
+        </>
+      }
+      center={
+        <>
           <NavbarItems items={leftItems} />
         </>
       }
