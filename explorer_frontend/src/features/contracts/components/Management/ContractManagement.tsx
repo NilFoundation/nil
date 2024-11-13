@@ -68,8 +68,8 @@ export const ContractManagement = () => {
           display: "grid",
           columnGap: "24px",
           rowGap: "16px",
-          minWidth: isMobile ? 'none' : "300px",
-          maxWidth: isMobile ? '100%' : "none",
+          minWidth: isMobile ? "none" : "300px",
+          maxWidth: isMobile ? "100%" : "none",
           gridTemplateColumns: "auto 1fr auto",
           gridTemplateRows: "auto",
         })}

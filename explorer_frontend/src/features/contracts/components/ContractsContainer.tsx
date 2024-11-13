@@ -24,8 +24,8 @@ export const ContractsContainer = () => {
       overrides={{
         Root: {
           style: {
-            maxWidth: isMobile ? 'calc(100vw - 20px)' : "none",
-            width: isMobile ? "100%" : 'none',
+            maxWidth: isMobile ? "calc(100vw - 20px)" : "none",
+            width: isMobile ? "100%" : "none",
             height: "100%",
             backgroundColor: COLORS.gray900,
             paddingRight: "0",
