@@ -22,6 +22,11 @@ func (sa *StackAccessor) Pop() *uint256.Int {
 	return &el
 }
 
+func (sa *StackAccessor) PopUint64() uint64 {
+	v := sa.Pop()
+	return v.Uint64()
+}
+
 func (sa *StackAccessor) Back(n int) *uint256.Int {
 	return &sa.stackData[sa.backIdx(n)]
 }

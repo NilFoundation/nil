@@ -105,6 +105,7 @@ func (s *TracerTestSuite) TestCounterContract() {
 		s.Require().True(receipt.Success)
 		s.Require().Equal("Success", receipt.Status)
 		s.Require().Len(receipt.OutReceipts, 1)
+		s.Require().True(receipt.OutReceipts[0].Success)
 	})
 
 	s.Run("Add", func() {
@@ -116,7 +117,7 @@ func (s *TracerTestSuite) TestCounterContract() {
 			types.Gas(100_000).ToValue(types.DefaultGasPrice),
 			types.NewZeroValue(),
 			[]types.CurrencyBalance{},
-			s.addrFrom,
+			contractAddr,
 			execution.MainPrivateKey,
 		)
 		s.Require().NoError(err)
@@ -124,14 +125,15 @@ func (s *TracerTestSuite) TestCounterContract() {
 		s.Require().True(receipt.Success)
 		s.Require().Equal("Success", receipt.Status)
 		s.Require().Len(receipt.OutReceipts, 1)
+		s.Require().True(receipt.OutReceipts[0].Success)
 
-		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
+		blkRef := transport.BlockNumber(receipt.OutReceipts[0].BlockNumber).AsBlockReference()
 		_, err = s.tracer.GetBlockTraces(ctx, contractAddr.ShardId(), blkRef)
 		s.Require().NoError(err)
 	})
 
 	s.Run("AllBlocksSerialization", func() {
-		testAllBlocksTracesSerialization(s)
+		s.checkAllBlocksTracesSerialization()
 	})
 }
 
@@ -194,7 +196,7 @@ func (s *TracerTestSuite) TestTestContract() {
 			types.Gas(100_000).ToValue(types.DefaultGasPrice),
 			types.NewZeroValue(),
 			[]types.CurrencyBalance{},
-			s.addrFrom,
+			contractAddr,
 			execution.MainPrivateKey,
 		)
 		s.Require().NoError(err)
@@ -202,6 +204,7 @@ func (s *TracerTestSuite) TestTestContract() {
 		s.Require().True(receipt.Success)
 		s.Require().Equal("Success", receipt.Status)
 		s.Require().Len(receipt.OutReceipts, 1)
+		s.Require().True(receipt.OutReceipts[0].Success)
 
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
 		_, err = s.tracer.GetBlockTraces(ctx, contractAddr.ShardId(), blkRef)
@@ -209,13 +212,13 @@ func (s *TracerTestSuite) TestTestContract() {
 	})
 
 	s.Run("AllBlocksSerialization", func() {
-		testAllBlocksTracesSerialization(s)
+		s.checkAllBlocksTracesSerialization()
 	})
 }
 
 // It looks like even wallet deploy is handled in multiple blocks, I don't know how to catch specific one for
 // checks. Just prove every one.
-func testAllBlocksTracesSerialization(s *TracerTestSuite) {
+func (s *TracerTestSuite) checkAllBlocksTracesSerialization() {
 	ctx := context.Background()
 	for shardN := range s.ShardsNum {
 		shardId := types.ShardId(shardN)

@@ -2,6 +2,7 @@ package tracer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
@@ -34,6 +35,7 @@ type Stats struct {
 	StackOpsN        uint
 	MemoryOpsN       uint
 	StateOpsN        uint
+	CopyOpsN         uint
 }
 
 type TracerStateDB struct {
@@ -55,10 +57,12 @@ type TracerStateDB struct {
 	// Pointer to currently executed VM
 	evm               *vm.EVM
 	code              []byte // currently executed code
+	codeHash          common.Hash
 	stackTracer       *StackOpTracer
 	memoryTracer      *MemoryOpTracer
 	storageInteractor *MessageStorageInteractor
 	zkevmTracer       *ZKEVMStateTracer
+	copyTracer        *CopyTracer
 
 	// Current program counter, used only for storage operations trace. Incremetned inside OnOpcode
 	curPC uint64
@@ -115,10 +119,6 @@ func (tsdb *TracerStateDB) getAccount(addr types.Address) (*Account, error) {
 	}
 
 	storageTrie := execution.NewDbStorageTrie(tsdb.rwTx, tsdb.shardId)
-	if err != nil {
-		return nil, err
-	}
-
 	storageKeys := make([]common.Hash, len(debugContract.StorageEntries))
 	storageValues := make([]*types.Uint256, len(debugContract.StorageEntries))
 	for key, val := range debugContract.StorageEntries {
@@ -189,20 +189,25 @@ func (tsdb *TracerStateDB) initTracers() {
 	tsdb.stackTracer = &StackOpTracer{rwCtr: &tsdb.RwCounter, msgId: msgId}
 	tsdb.memoryTracer = &MemoryOpTracer{rwCtr: &tsdb.RwCounter, msgId: msgId}
 	tsdb.storageInteractor = NewMessageStorageInteractor(&tsdb.RwCounter, tsdb.GetCurPC, msgId)
-	code, codeHash, err := tsdb.GetCode(tsdb.GetInMessage().To)
-	if err != nil {
-		fmt.Printf("Unable to retrieve code: %v\n", err)
-	}
-	tsdb.code = code
 	tsdb.zkevmTracer = &ZKEVMStateTracer{
 		rwCtr:        &tsdb.RwCounter,
 		msgId:        msgId,
 		txHash:       tsdb.GetInMessage().Hash(),
-		bytecodeHash: codeHash,
+		bytecodeHash: tsdb.codeHash,
 	}
+	tsdb.copyTracer = &CopyTracer{codeProvider: tsdb, msgId: msgId}
 }
 
-func (tsdb *TracerStateDB) processOpcodeWithTracers(pc uint64, op byte, gas uint64, _ uint64, scope tracing.OpContext, _ []byte, _ int, err error) {
+func (tsdb *TracerStateDB) processOpcodeWithTracers(
+	pc uint64,
+	op byte,
+	gas uint64,
+	_ uint64,
+	scope tracing.OpContext,
+	returnData []byte,
+	_ int,
+	err error,
+) {
 	if err != nil {
 		panic("prover execution should not raise errors")
 	}
@@ -239,6 +244,11 @@ func (tsdb *TracerStateDB) processOpcodeWithTracers(pc uint64, op byte, gas uint
 	if hasMemOps {
 		tsdb.memoryTracer.TraceOp(opCode, pc, ranges, scope)
 		tsdb.Stats.MemoryOpsN++
+
+		copyOccured := tsdb.copyTracer.TraceOp(opCode, tsdb.RwCounter.ctr, scope, returnData)
+		if copyOccured {
+			tsdb.Stats.CopyOpsN++
+		}
 	}
 
 	// Storage tracing is done inside Get/SetState methods
@@ -247,9 +257,16 @@ func (tsdb *TracerStateDB) processOpcodeWithTracers(pc uint64, op byte, gas uint
 	}
 }
 
-func (tsdb *TracerStateDB) initVm(internal bool, origin types.Address, state *vm.EvmRestoreData) {
+func (tsdb *TracerStateDB) initVm(
+	internal bool,
+	origin types.Address,
+	executingCode types.Code,
+	state *vm.EvmRestoreData,
+) {
 	tsdb.evm = vm.NewEVM(tsdb.blkContext, tsdb, origin, state)
 	tsdb.evm.IsAsyncCall = internal
+	tsdb.code = executingCode
+	tsdb.codeHash = executingCode.Hash()
 	tsdb.initTracers()
 	tsdb.evm.Config.Tracer = &tracing.Hooks{
 		OnOpcode: func(pc uint64, op byte, gas uint64, cost uint64, scope tracing.OpContext, rData []byte, depth int, err error) {
@@ -301,7 +318,10 @@ func (tsdb *TracerStateDB) HandleExecutionMessage(message *types.Message) error 
 	caller := (vm.AccountRef)(message.From)
 	callData := message.Data
 
-	tsdb.initVm(message.IsInternal(), message.From, nil)
+	code, _, err := tsdb.GetCode(message.To)
+	check.PanicIfErr(err)
+
+	tsdb.initVm(message.IsInternal(), message.From, code, nil)
 	defer tsdb.resetVm()
 
 	tsdb.evm.SetCurrencyTransfer(message.Currency)
@@ -318,7 +338,7 @@ func (tsdb *TracerStateDB) HandleDeployMessage(message *types.Message) error {
 	addr := message.To
 	deployMsg := types.ParseDeployPayload(message.Data)
 
-	tsdb.initVm(message.IsInternal(), message.From, nil)
+	tsdb.initVm(message.IsInternal(), message.From, deployMsg.Code(), nil)
 	defer tsdb.resetVm()
 
 	gas := message.FeeCredit.ToGas(tsdb.GasPrice)
@@ -427,6 +447,13 @@ func (tsdb *TracerStateDB) SetSeqno(addr types.Address, seqno types.Seqno) error
 	return nil
 }
 
+func (tsdb *TracerStateDB) GetCurrentCode() ([]byte, common.Hash, error) {
+	if len(tsdb.code) == 0 {
+		return []byte{}, common.EmptyHash, errors.New("no code is currently executed")
+	}
+	return tsdb.code, tsdb.codeHash, nil
+}
+
 func (tsdb *TracerStateDB) GetCode(addr types.Address) ([]byte, common.Hash, error) {
 	acc, err := tsdb.getAccount(addr)
 	if err != nil || acc == nil {
@@ -448,6 +475,8 @@ func (tsdb *TracerStateDB) SetCode(addr types.Address, code []byte) error {
 		return err
 	}
 	acc.Code = code
+	tsdb.code = acc.Code
+	tsdb.codeHash = acc.Code.Hash()
 	return nil
 }
 
