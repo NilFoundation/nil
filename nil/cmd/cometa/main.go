@@ -19,7 +19,7 @@ import (
 type Command uint
 
 const (
-	CommandRun Command = iota
+	CommandRun Command = iota + 1
 	CommandCreateConfig
 )
 
