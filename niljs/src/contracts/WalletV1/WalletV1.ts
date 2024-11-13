@@ -16,10 +16,10 @@ import {
   refineFunctionHexData,
   refineSalt,
 } from "../../utils/refiners.js";
+import type { SendMessageParams, WalletInterface } from "../../wallets/WalletInterface.js";
 import type {
   DeployParams,
   RequestParams,
-  SendMessageParams,
   SendSyncMessageParams,
   WalletV1Config,
 } from "./types/index.js";
@@ -30,7 +30,7 @@ import type {
  * @class WalletV1
  * @typedef {WalletV1}
  */
-export class WalletV1 {
+export class WalletV1 implements WalletInterface {
   /**
    * The wallet bytecode.
    *
@@ -262,12 +262,12 @@ export class WalletV1 {
    * @async
    * @param {RequestParams} requestParams The object representing the request parameters.
    * @param {boolean} [send=true] The flag that determines whether the request is sent when the function is called.
-   * @returns {Promise<{ raw: Uint8Array; hash: Uint8Array }>} The message bytecode and hash.
+   * @returns {Promise<{ raw: Uint8Array; hash: Uint8Array, seqno: number, chainId: number }>} The message bytecode and hash.
    */
   async requestToWallet(
     requestParams: RequestParams,
     send = true,
-  ): Promise<{ raw: Uint8Array; hash: Uint8Array }> {
+  ): Promise<{ raw: Uint8Array; hash: Uint8Array; seqno: number; chainId: number }> {
     const [seqno, chainId] = await Promise.all([
       requestParams.seqno ?? this.client.getMessageCount(this.address, "latest"),
       requestParams.chainId ?? this.client.chainId(),
@@ -283,7 +283,7 @@ export class WalletV1 {
       this.signer,
     );
     if (send) await this.client.sendRawMessage(encodedMessage.raw);
-    return encodedMessage;
+    return { ...encodedMessage, seqno, chainId };
   }
 
   /**
@@ -339,14 +339,14 @@ export class WalletV1 {
     const callData = encodeFunctionData({
       abi: Wallet.abi,
       functionName: "asyncCall",
-      args: [hexTo, hexRefundTo, hexBounceTo, feeCredit, tokens ?? [], value ?? 0n, hexData],
+      args: [hexTo, hexRefundTo, hexBounceTo, feeCredit ?? 0n, tokens ?? [], value ?? 0n, hexData],
     });
 
     const { hash } = await this.requestToWallet({
       data: hexToBytes(callData),
       deploy: false,
-      seqno,
-      chainId,
+      seqno: seqno,
+      chainId: chainId,
     });
 
     return bytesToHex(hash);
