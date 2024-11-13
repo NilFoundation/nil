@@ -6,10 +6,13 @@ import { useSwipeable } from "react-swipeable";
 import { COLORS, Card } from "@nilfoundation/ui-kit";
 import { DeployContractModal } from "./Deploy/DeployContractModal";
 import { getMobileStyles } from "../../../styleHelpers";
+import { useMobile } from "../../shared";
+import { color } from "@uiw/react-codemirror";
 
 export const ContractsContainer = () => {
   const app = useUnit($activeAppWithState);
   const Component = app?.address ? ContractManagement : Contracts;
+  const [isMobile] = useMobile();
   const handlers = useSwipeable({
     onSwipedLeft: () => closeApp(),
     onSwipedRight: () => closeApp(),
@@ -21,12 +24,14 @@ export const ContractsContainer = () => {
       overrides={{
         Root: {
           style: {
-            maxWidth: "none",
+            maxWidth: isMobile ? "calc(100vw - 20px)" : "none",
+            width: isMobile ? "100%" : "none",
             height: "100%",
             backgroundColor: COLORS.gray900,
             paddingRight: "0",
             paddingLeft: "0",
             paddingBottom: "24px",
+            overflow: "hidden",
           },
         },
         Contents: {
