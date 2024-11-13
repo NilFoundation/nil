@@ -455,6 +455,46 @@ class PublicClient extends BaseClient {
 
     return res;
   }
+
+  /**
+   * Performs a call to the specified address.
+   * @param callArgs The arguments for the call.
+   * @param callArgs.from The address of the sender.
+   * @param callArgs.to The address of the receiver.
+   * @param callArgs.data The data to be sent.
+   * @param callArgs.value The value to be sent.
+   * @param callArgs.feeCredit The fee credit.
+   * @param blockNumberOrHash The number/hash of the block.
+   */
+  public async estimateGas(callArgs: CallArgs, blockNumberOrHash: Hex | BlockTag) {
+    let data: Hex;
+    if (callArgs.abi) {
+      data = encodeFunctionData({
+        abi: callArgs.abi,
+        functionName: callArgs.functionName,
+        args: callArgs.args || [],
+      });
+    } else {
+      data =
+        typeof callArgs.data === "string" ? callArgs.data : addHexPrefix(bytesToHex(callArgs.data));
+    }
+    const sendData = {
+      from: callArgs.from || undefined,
+      to: callArgs.to,
+      data: data,
+      value: toHex(callArgs.value || 0n),
+      feeCredit: (callArgs.feeCredit || 5_000_000n).toString(10),
+    };
+
+    const params: unknown[] = [sendData, blockNumberOrHash];
+
+    const res = await this.request<`0x${string}`>({
+      method: "eth_estimateGas",
+      params,
+    });
+
+    return hexToBigInt(res);
+  }
 }
 
 export { PublicClient };
