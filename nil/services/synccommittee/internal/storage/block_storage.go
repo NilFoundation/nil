@@ -327,7 +327,7 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*scTypes.Pr
 		return nil, nil
 	}
 
-	transactions := extractTransactions(mainShardEntry.Block)
+	transactions := scTypes.BlockTransactions(&mainShardEntry.Block)
 
 	childIds, err := scTypes.ChildBlockIds(&mainShardEntry.Block)
 	if err != nil {
@@ -343,7 +343,7 @@ func (bs *blockStorage) TryGetNextProposalData(ctx context.Context) (*scTypes.Pr
 			return nil, fmt.Errorf("child block with id=%s is not found", childId)
 		}
 
-		blockTransactions := extractTransactions(childEntry.Block)
+		blockTransactions := scTypes.BlockTransactions(&childEntry.Block)
 		transactions = append(transactions, blockTransactions...)
 	}
 
@@ -403,14 +403,6 @@ func (bs *blockStorage) setBlockAsProposedImpl(ctx context.Context, id scTypes.B
 	}
 
 	return tx.Commit()
-}
-
-func extractTransactions(block jsonrpc.RPCBlock) []*scTypes.PrunedTransaction {
-	transactions := make([]*scTypes.PrunedTransaction, len(block.Messages))
-	for idx, message := range block.Messages {
-		transactions[idx] = scTypes.NewTransaction(message)
-	}
-	return transactions
 }
 
 func isValidProposalCandidate(entry *blockEntry, parentHash *common.Hash) bool {

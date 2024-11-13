@@ -60,26 +60,24 @@ func TestBlockStorageTestSuite(t *testing.T) {
 
 func (s *BlockStorageTestSuite) TestSetBlockBatchSequentially_GetConcurrently() {
 	const blocksCount = 5
-	blocks := testaide.GenerateMainShardBlocks(blocksCount)
+	batches := testaide.GenerateBatchesSequence(blocksCount)
 
-	for _, block := range blocks {
-		batch, err := scTypes.NewBlockBatch(block, []*jsonrpc.RPCBlock{})
-		s.Require().NoError(err)
-		err = s.bs.SetBlockBatch(s.ctx, batch)
+	for _, batch := range batches {
+		err := s.bs.SetBlockBatch(s.ctx, batch)
 		s.Require().NoError(err)
 	}
 
 	waitGroup := sync.WaitGroup{}
 	waitGroup.Add(blocksCount)
 
-	for _, block := range blocks {
+	for _, batch := range batches {
 		go func() {
-			blockId := scTypes.IdFromBlock(block)
-			fromDb, err := s.bs.TryGetBlock(s.ctx, blockId)
+			mainBlockId := scTypes.IdFromBlock(batch.MainShardBlock)
+			fromDb, err := s.bs.TryGetBlock(s.ctx, mainBlockId)
 			s.NoError(err)
 			s.NotNil(fromDb)
-			s.Equal(block.Number, fromDb.Number)
-			s.Equal(block.Hash, fromDb.Hash)
+			s.Equal(batch.MainShardBlock.Number, fromDb.Number)
+			s.Equal(batch.MainShardBlock.Hash, fromDb.Hash)
 			waitGroup.Done()
 		}()
 	}
@@ -279,10 +277,9 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Concurrently() {
 	s.Require().NoError(err, "failed to set initial state root")
 
 	const blocksCount = 10
-	mainShardBlocks := testaide.GenerateMainShardBlocks(blocksCount)
+	batches := testaide.GenerateBatchesSequence(blocksCount)
 
-	for _, block := range mainShardBlocks {
-		batch, err := scTypes.NewBlockBatch(block, []*jsonrpc.RPCBlock{})
+	for _, batch := range batches {
 		s.Require().NoError(err)
 		err = s.bs.SetBlockBatch(s.ctx, batch)
 		s.Require().NoError(err, "failed to set block batch")
@@ -292,9 +289,9 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Concurrently() {
 	waitGroup.Add(blocksCount + 1)
 
 	// concurrently set blocks as proved
-	for _, block := range mainShardBlocks {
+	for _, block := range batches {
 		go func() {
-			err := s.bs.SetBlockAsProved(s.ctx, scTypes.IdFromBlock(block))
+			err := s.bs.SetBlockAsProved(s.ctx, scTypes.IdFromBlock(block.MainShardBlock))
 			s.NoError(err, "failed to set block as proved")
 			waitGroup.Done()
 		}()
@@ -336,17 +333,22 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Concurrently() {
 
 	// check that data was received in correct order
 	for idx := range blocksCount {
-		block := mainShardBlocks[idx]
+		batch := batches[idx]
 		data := receivedData[idx]
 
-		s.Equal(block.Hash, data.MainShardBlockHash, msg("MainShardBlockHash"))
-		s.Len(data.Transactions, len(block.Messages), msg("Transactions count"))
-		s.Equal(block.ChildBlocksRootHash, data.NewProvedStateRoot, msg("NewProvedStateRoot"))
+		expectedTxCount := len(batch.MainShardBlock.Messages)
+		for _, child := range batch.ChildBlocks {
+			expectedTxCount += len(child.Messages)
+		}
+
+		s.Equal(batch.MainShardBlock.Hash, data.MainShardBlockHash, msg("MainShardBlockHash"))
+		s.Len(data.Transactions, expectedTxCount, msg("Transactions count"))
+		s.Equal(batch.MainShardBlock.ChildBlocksRootHash, data.NewProvedStateRoot, msg("NewProvedStateRoot"))
 
 		if idx == 0 {
 			s.Equal(initialStateRoot, data.OldProvedStateRoot, msg("OldProvedStateRoot"))
 		} else {
-			s.Equal(mainShardBlocks[idx-1].ChildBlocksRootHash, data.OldProvedStateRoot, msg("OldProvedStateRoot"))
+			s.Equal(batches[idx-1].MainShardBlock.ChildBlocksRootHash, data.OldProvedStateRoot, msg("OldProvedStateRoot"))
 		}
 	}
 }

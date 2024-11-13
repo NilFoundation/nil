@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 )
 
+var ErrBatchNotReady = errors.New("batch is not ready for handling")
+
 // BatchId Unique ID of a batch of blocks.
 type BatchId uuid.UUID
 
@@ -71,6 +73,10 @@ func validateBatch(mainShardBlock *jsonrpc.RPCBlock, childBlocks []*jsonrpc.RPCB
 	for i, childHash := range mainShardBlock.ChildBlocks {
 		child := childBlocks[i]
 		if child == nil {
+			if childHash.Empty() {
+				return fmt.Errorf("%w: mainShardBlock.ChildBlocks[%d] is nil", ErrBatchNotReady, i)
+			}
+
 			return fmt.Errorf(
 				"childBlocks[%d] cannot be nil, mainShardBlock.ChildBlocks[%d] = %s",
 				i, i, childHash,

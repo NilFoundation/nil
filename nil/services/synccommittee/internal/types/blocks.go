@@ -150,6 +150,14 @@ type PrunedTransaction struct {
 	Data  hexutil.Bytes
 }
 
+func BlockTransactions(block *jsonrpc.RPCBlock) []*PrunedTransaction {
+	transactions := make([]*PrunedTransaction, len(block.Messages))
+	for idx, message := range block.Messages {
+		transactions[idx] = NewTransaction(message)
+	}
+	return transactions
+}
+
 func NewTransaction(message *jsonrpc.RPCInMessage) *PrunedTransaction {
 	return &PrunedTransaction{
 		Flags: message.Flags,

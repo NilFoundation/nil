@@ -2,10 +2,11 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/client/rpc"
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
@@ -24,7 +25,7 @@ type AggregatorMetrics interface {
 
 type Aggregator struct {
 	logger       zerolog.Logger
-	client       *rpc.Client
+	rpcClient    client.Client
 	blockStorage storage.BlockStorage
 	taskStorage  storage.TaskStorage
 	metrics      AggregatorMetrics
@@ -32,7 +33,7 @@ type Aggregator struct {
 }
 
 func NewAggregator(
-	client *rpc.Client,
+	rpcClient client.Client,
 	blockStorage storage.BlockStorage,
 	taskStorage storage.TaskStorage,
 	logger zerolog.Logger,
@@ -41,7 +42,7 @@ func NewAggregator(
 ) (*Aggregator, error) {
 	return &Aggregator{
 		logger:       logger,
-		client:       client,
+		rpcClient:    rpcClient,
 		blockStorage: blockStorage,
 		taskStorage:  taskStorage,
 		metrics:      metrics,
@@ -54,7 +55,14 @@ func (agg *Aggregator) Run(ctx context.Context) error {
 
 	concurrent.RunTickerLoop(ctx, agg.pollingDelay,
 		func(ctx context.Context) {
-			if err := agg.processNewBlocks(ctx); err != nil {
+			err := agg.processNewBlocks(ctx)
+
+			if errors.Is(err, types.ErrBatchNotReady) {
+				agg.logger.Warn().Err(err).Msg("received unready block batch, skipping")
+				return
+			}
+
+			if err != nil {
 				agg.logger.Error().Err(err).Msg("error during processing new blocks")
 				agg.metrics.RecordError(ctx, "aggregator")
 			}
@@ -75,7 +83,7 @@ func (agg *Aggregator) processNewBlocks(ctx context.Context) error {
 
 	if err := agg.processShardBlocks(ctx, *latestBlock); err != nil {
 		// todo: launch block re-fetching in case of ErrBlockMismatch
-		return fmt.Errorf("error processing blocks from shard %d: %w", coreTypes.MainShardId, err)
+		return fmt.Errorf("error processing blocks: %w", err)
 	}
 
 	return nil
@@ -83,7 +91,7 @@ func (agg *Aggregator) processNewBlocks(ctx context.Context) error {
 
 // fetchLatestBlocks retrieves the latest block for main shard
 func (agg *Aggregator) fetchLatestBlockRef() (*types.MainBlockRef, error) {
-	block, err := agg.client.GetBlock(coreTypes.MainShardId, "latest", false)
+	block, err := agg.rpcClient.GetBlock(coreTypes.MainShardId, "latest", false)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching latest block from shard %d: %w", coreTypes.MainShardId, err)
 	}
@@ -121,7 +129,7 @@ func (agg *Aggregator) processShardBlocks(ctx context.Context, actualLatest type
 func (agg *Aggregator) fetchAndProcessBlocks(ctx context.Context, blocksRange types.BlocksRange) error {
 	shardId := coreTypes.MainShardId
 	const requestBatchSize = 20
-	results, err := agg.client.GetBlocksRange(shardId, blocksRange.Start, blocksRange.End+1, true, requestBatchSize)
+	results, err := agg.rpcClient.GetBlocksRange(shardId, blocksRange.Start, blocksRange.End+1, true, requestBatchSize)
 	if err != nil {
 		return fmt.Errorf("error fetching blocks from shard %d: %w", shardId, err)
 	}
@@ -152,7 +160,7 @@ func (agg *Aggregator) createBlockBatch(mainShardBlock *jsonrpc.RPCBlock) (*type
 	childBlocks := make([]*jsonrpc.RPCBlock, 0, len(childIds))
 
 	for _, childId := range childIds {
-		childBlock, err := agg.client.GetBlock(childId.ShardId, childId.Hash, true)
+		childBlock, err := agg.rpcClient.GetBlock(childId.ShardId, childId.Hash, true)
 		if err != nil {
 			return nil, fmt.Errorf(
 				"error fetching child block with id=%s, mainHash=%s: %w", childId, mainShardBlock.Hash, err,

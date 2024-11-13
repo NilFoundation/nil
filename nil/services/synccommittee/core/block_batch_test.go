@@ -3,6 +3,7 @@ package core
 import (
 	"testing"
 
+	"github.com/NilFoundation/nil/nil/common"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
@@ -21,15 +22,19 @@ func TestBlockBatchTestSuite(t *testing.T) {
 }
 
 func (s *BlockBatchTestSuite) TestNewBlockBatch() {
-	validBatch := testaide.GenerateBlockBatch(4)
+	validBatch := testaide.GenerateBlockBatch(testaide.ShardsCount)
 
-	nilChildBatch := testaide.GenerateBlockBatch(4)
+	notReadyBatch := testaide.GenerateBlockBatch(testaide.ShardsCount)
+	notReadyBatch.MainShardBlock.ChildBlocks[0] = common.EmptyHash
+	notReadyBatch.ChildBlocks[0] = nil
+
+	nilChildBatch := testaide.GenerateBlockBatch(testaide.ShardsCount)
 	nilChildBatch.ChildBlocks[1] = nil
 
-	redundantChildBatch := testaide.GenerateBlockBatch(4)
+	redundantChildBatch := testaide.GenerateBlockBatch(testaide.ShardsCount)
 	redundantChildBatch.ChildBlocks = append(redundantChildBatch.ChildBlocks, testaide.GenerateExecutionShardBlock())
 
-	hashMismatchBatch := testaide.GenerateBlockBatch(4)
+	hashMismatchBatch := testaide.GenerateBlockBatch(testaide.ShardsCount)
 	hashMismatchBatch.ChildBlocks[2].Hash = testaide.RandomHash()
 
 	testCases := []struct {
@@ -57,10 +62,19 @@ func (s *BlockBatchTestSuite) TestNewBlockBatch() {
 			errPredicate:   func(err error) { s.Require().ErrorContains(err, "childBlocks") },
 		},
 		{
-			name:           "valid mainShardBlock, nil childBlocks",
+			name:           "not ready batch (child hash is empty, nil child)",
+			mainShardBlock: notReadyBatch.MainShardBlock,
+			childBlocks:    notReadyBatch.ChildBlocks,
+			errPredicate:   func(err error) { s.Require().ErrorIs(err, types.ErrBatchNotReady) },
+		},
+		{
+			name:           "valid mainShardBlock, nil child block",
 			mainShardBlock: nilChildBatch.MainShardBlock,
 			childBlocks:    nilChildBatch.ChildBlocks,
-			errPredicate:   func(err error) { s.Require().ErrorContains(err, "childBlocks[1] cannot be nil") },
+			errPredicate: func(err error) {
+				s.Require().NotErrorIs(err, types.ErrBatchNotReady)
+				s.Require().ErrorContains(err, "childBlocks[1] cannot be nil")
+			},
 		},
 		{
 			name:           "mainShardBlock is not from the main shard",
