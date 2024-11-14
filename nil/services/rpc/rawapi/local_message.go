@@ -34,7 +34,7 @@ func (api *LocalShardApi) getMessageByHash(tx db.RoTx, hash common.Hash) (*rawap
 		MessageSSZ: messageSSZ,
 		ReceiptSSZ: receiptSSZ,
 		Index:      data.Index(),
-		BlockHash:  block.Hash(),
+		BlockHash:  block.Hash(api.ShardId),
 		BlockId:    block.Id,
 	}, nil
 }
@@ -68,7 +68,7 @@ func (api *LocalShardApi) getInMessageByBlockHashAndIndex(
 		MessageSSZ: rawMsg,
 		ReceiptSSZ: rawReceipt,
 		Index:      msgIndex,
-		BlockHash:  block.Hash(),
+		BlockHash:  block.Hash(api.ShardId),
 		BlockId:    block.Id,
 	}, nil
 }

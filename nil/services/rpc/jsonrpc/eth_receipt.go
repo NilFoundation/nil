@@ -7,8 +7,8 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
-func (api *APIImplRo) GetInMessageReceipt(ctx context.Context, shardId types.ShardId, hash common.Hash) (*RPCReceipt, error) {
-	info, err := api.rawapi.GetInMessageReceipt(ctx, shardId, hash)
+func (api *APIImplRo) GetInMessageReceipt(ctx context.Context, hash common.Hash) (*RPCReceipt, error) {
+	info, err := api.rawapi.GetInMessageReceipt(ctx, types.ShardIdFromHash(hash), hash)
 	if err != nil {
 		return nil, err
 	}

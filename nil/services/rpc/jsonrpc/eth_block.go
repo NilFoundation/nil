@@ -76,7 +76,8 @@ func (api *APIImplRo) GetBlockByNumber(ctx context.Context, shardId types.ShardI
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
-func (api *APIImplRo) GetBlockByHash(ctx context.Context, shardId types.ShardId, hash common.Hash, fullTx bool) (*RPCBlock, error) {
+func (api *APIImplRo) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (*RPCBlock, error) {
+	shardId := types.ShardIdFromHash(hash)
 	res, err := api.rawapi.GetFullBlockData(ctx, shardId, rawapitypes.BlockHashAsBlockReference(hash))
 	if err != nil {
 		return nil, err
@@ -97,8 +98,9 @@ func (api *APIImplRo) GetBlockTransactionCountByNumber(
 
 // GetBlockTransactionCountByHash implements eth_getBlockTransactionCountByHash. Returns the number of transactions in a block given the block's block hash.
 func (api *APIImplRo) GetBlockTransactionCountByHash(
-	ctx context.Context, shardId types.ShardId, hash common.Hash,
+	ctx context.Context, hash common.Hash,
 ) (hexutil.Uint, error) {
+	shardId := types.ShardIdFromHash(hash)
 	res, err := api.rawapi.GetBlockTransactionCount(ctx, shardId, rawapitypes.BlockHashAsBlockReference(hash))
 	return hexutil.Uint(res), err
 }

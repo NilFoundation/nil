@@ -716,11 +716,11 @@ func (s *SuiteRpc) TestRpcError() {
 	check(-32602, "missing value for required argument 1",
 		rpc_client.Eth_getBlockByNumber, types.BaseShardId)
 
-	check(-32602, "invalid argument 1: hex string of odd length",
-		rpc_client.Eth_getBlockByHash, types.BaseShardId, "0x1b4", false)
+	check(-32602, "invalid argument 0: hex string of odd length",
+		rpc_client.Eth_getBlockByHash, "0x1b4", false)
 
-	check(-32602, "invalid argument 1: hex string without 0x prefix",
-		rpc_client.Eth_getBlockByHash, types.BaseShardId, "latest")
+	check(-32602, "invalid argument 0: hex string without 0x prefix",
+		rpc_client.Eth_getBlockByHash, "latest")
 }
 
 func (s *SuiteRpc) TestRpcDebugModules() {
@@ -731,7 +731,7 @@ func (s *SuiteRpc) TestRpcDebugModules() {
 	s.Require().NoError(err)
 
 	s.Require().NotEmpty(block.Id)
-	s.Require().NotEqual(common.EmptyHash, block.Block.Hash())
+	s.Require().NotEqual(common.EmptyHash, block.Block.Hash(types.BaseShardId))
 	s.Require().NotEmpty(res.Content)
 
 	fullRes, err := s.Client.GetDebugBlock(types.BaseShardId, "latest", true)

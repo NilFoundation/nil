@@ -70,13 +70,12 @@ type BlockWithExtractedData struct {
 
 // interfaces
 var (
-	_ common.Hashable     = new(Block)
 	_ fastssz.Marshaler   = new(Block)
 	_ fastssz.Unmarshaler = new(Block)
 )
 
-func (b *Block) Hash() common.Hash {
-	return common.MustPoseidonSSZ(b)
+func (b *Block) Hash(shardId ShardId) common.Hash {
+	return ToShardedHash(common.MustPoseidonSSZ(b), shardId)
 }
 
 func (b *RawBlockWithExtractedData) DecodeSSZ() (*BlockWithExtractedData, error) {

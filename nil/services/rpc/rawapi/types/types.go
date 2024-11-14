@@ -77,7 +77,8 @@ func NamedBlockIdentifierAsBlockReference(identifier NamedBlockIdentifier) Block
 }
 
 type BlockReferenceOrHashWithChildren struct {
-	reference   BlockReference
+	reference BlockReference
+
 	hash        common.Hash
 	childBlocks []common.Hash
 
@@ -115,6 +116,7 @@ type MessageInfo struct {
 }
 
 type ReceiptInfo struct {
+	// TODO: we don't need shard-id as a separate field
 	ShardId        types.ShardId
 	ReceiptSSZ     []byte
 	Index          types.MessageIndex

@@ -94,7 +94,7 @@ func (api *LocalShardApi) getBlockByHash(tx db.RoTx, hash common.Hash, withMessa
 	}
 
 	if assert.Enable {
-		blockHash := common.PoseidonHash(data.Block())
+		blockHash := types.ToShardedHash(common.PoseidonHash(data.Block()), api.ShardId)
 		check.PanicIfNotf(blockHash == hash, "block hash mismatch: %s != %s", blockHash, hash)
 	}
 

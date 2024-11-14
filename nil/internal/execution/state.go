@@ -1346,7 +1346,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, []*typ
 		}
 	}
 
-	blockHash := block.Hash()
+	blockHash := block.Hash(es.ShardId)
 	err := db.WriteBlock(es.tx, es.ShardId, blockHash, &block)
 	if err != nil {
 		return common.EmptyHash, nil, err

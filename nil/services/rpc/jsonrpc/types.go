@@ -261,7 +261,7 @@ func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*
 
 	messagesRes := make([]*RPCInMessage, 0, len(messages))
 	messageHashesRes := make([]common.Hash, 0, len(messages))
-	blockHash := block.Hash()
+	blockHash := block.Hash(shardId)
 	blockId := block.Id
 	if fullTx {
 		for i, m := range messages {

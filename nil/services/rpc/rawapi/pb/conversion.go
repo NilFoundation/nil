@@ -57,6 +57,8 @@ func (nbr *NamedBlockReference) UnpackProtoMessage() (rawapitypes.NamedBlockIden
 	case NamedBlockReference_PendingBlock:
 		return rawapitypes.PendingBlock, nil
 
+	case NamedBlockReference_UnknownNamedRefType:
+		fallthrough
 	default:
 		return 0, errors.New("unexpected named block reference type")
 	}
@@ -941,7 +943,7 @@ func (r *ReceiptInfo) PackProtoMessage(info *rawapitypes.ReceiptInfo) *ReceiptIn
 	check.PanicIfErr(blockHash.PackProtoMessage(info.BlockHash))
 
 	return &ReceiptInfo{
-		ShardId:        uint64(info.ShardId),
+		ShardId:        uint32(info.ShardId),
 		ReceiptSSZ:     info.ReceiptSSZ,
 		Index:          uint64(info.Index),
 		BlockHash:      blockHash,

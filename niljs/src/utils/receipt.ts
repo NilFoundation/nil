@@ -12,44 +12,11 @@ import type { ProcessedReceipt } from "../types/IReceipt.js";
  * @example
  * await waitTillCompleted(client, hash);
  */
-export function waitTillCompleted(
-  client: PublicClient,
-  hash: Hex,
-  options?: { waitTillMainShard?: boolean; interval?: number },
-): Promise<ProcessedReceipt[]>;
-
-/**
- * Makes it so that the client waits until the processing of the message whose hash is passed.
- *
- * @async
- * @deprecated
- * @param {PublicClient} client The client that must wait for action completion.
- * @param {number} - shardId The ID of the shard where the message is processed.
- * @param {Hex} hash The message hash.
- * @returns {unknown}
- * @example
- * await waitTillCompleted(client, 1, hash);
- */
-export function waitTillCompleted(
-  client: PublicClient,
-  shardId: number,
-  hash: Hex,
-  options?: { waitTillMainShard?: boolean; interval?: number },
-): Promise<ProcessedReceipt[]>;
-
 export async function waitTillCompleted(
   client: PublicClient,
-  shardOrHash: number | Hex,
-  hashOrOptions: Hex | { waitTillMainShard?: boolean; interval?: number } | undefined,
-  maybeOptions?: { waitTillMainShard?: boolean; interval?: number },
+  hash: Hex,
+  options?: { waitTillMainShard?: boolean; interval?: number },
 ): Promise<ProcessedReceipt[]> {
-  const isShardIdProvided = typeof shardOrHash === "number";
-  const hash = isShardIdProvided ? (hashOrOptions as Hex) : shardOrHash;
-  const options = (isShardIdProvided ? maybeOptions : hashOrOptions) as {
-    waitTillMainShard?: boolean;
-    interval?: number;
-  };
-
   const interval = options?.interval || 1000;
   const waitTillMainShard = options?.waitTillMainShard || true;
   const receipts: ProcessedReceipt[] = [];

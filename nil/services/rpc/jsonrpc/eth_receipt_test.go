@@ -31,9 +31,8 @@ func (suite *SuiteEthReceipt) SetupSuite() {
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	message := types.Message{Data: []byte{}}
-	msgHash := message.Hash()
-	suite.receipt = types.Receipt{MsgHash: msgHash, Logs: []*types.Log{}, OutMsgIndex: 0, OutMsgNum: 2}
+	message := types.Message{Data: []byte{}, To: types.GenerateRandomAddress(types.BaseShardId)}
+	suite.receipt = types.Receipt{MsgHash: message.Hash(), Logs: []*types.Log{}, OutMsgIndex: 0, OutMsgNum: 2}
 
 	suite.outMessages = append(suite.outMessages, &types.Message{Data: []byte{12}})
 	suite.outMessages = append(suite.outMessages, &types.Message{Data: []byte{34}})
@@ -52,7 +51,7 @@ func (suite *SuiteEthReceipt) TearDownSuite() {
 }
 
 func (suite *SuiteEthReceipt) TestGetMessageReceipt() {
-	data, err := suite.api.GetInMessageReceipt(context.Background(), types.BaseShardId, suite.receipt.MsgHash)
+	data, err := suite.api.GetInMessageReceipt(context.Background(), suite.receipt.MsgHash)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
 

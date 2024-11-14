@@ -234,7 +234,7 @@ func (s *SuiteMsgPool) TestOnNewBlock() {
 }
 
 func (s *SuiteMsgPool) TestNetwork() {
-	nms := network.NewTestManagers(s.T(), s.ctx, 9000, 2)
+	nms := network.NewTestManagers(s.T(), s.ctx, 9100, 2)
 
 	pool1, err := New(s.ctx, NewConfig(0), nms[0])
 	s.Require().NoError(err)

@@ -90,7 +90,7 @@ func (s *Service) debugBlockToJson(shardId types.ShardId, block *types.BlockWith
 		toWithHashMessages(block.OutMessages),
 		block.Receipts,
 		block.Errors,
-		block.Block.Hash(),
+		block.Block.Hash(shardId),
 		shardId,
 	}, "", "  ")
 	if err != nil {
@@ -119,7 +119,7 @@ func (s *Service) debugBlockToText(shardId types.ShardId, block *types.BlockWith
 	blockTemplate := `
 {{- $block := .block -}}
 {{- $color := .color -}}
-Block #{{ .block.Id }} [{{ .color.bold }}{{ .block.Hash }}{{ .color.reset }}] @ {{ .shardId }} shard
+Block #{{ .block.Id }} [{{ .color.bold }}{{ .block.Hash .shardId }}{{ .color.reset }}] @ {{ .shardId }} shard
   PrevBlock: {{ .block.PrevBlock }}
   ChildBlocksRootHash: {{ .block.ChildBlocksRootHash }}
 {{- if len .block.ChildBlocks}}

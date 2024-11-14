@@ -25,7 +25,7 @@ func GenerateZeroState(t *testing.T, ctx context.Context,
 	block, err := g.GenerateZeroState(DefaultZeroStateConfig, nil)
 	require.NoError(t, err)
 	require.NotNil(t, block)
-	return block.Hash()
+	return block.Hash(shardId)
 }
 
 func GenerateBlockFromMessages(t *testing.T, ctx context.Context,

@@ -67,7 +67,7 @@ func NewMessageWithBinary(
 		Message:      *message,
 		Binary:       messageBinary,
 		BlockId:      block.Id,
-		BlockHash:    block.Block.Hash(),
+		BlockHash:    block.Block.Hash(shardId),
 		Hash:         hash,
 		ShardId:      shardId,
 		MessageIndex: idx,
@@ -348,7 +348,7 @@ func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocksToExport []*i
 			Block:     *block.decoded.Block,
 			Binary:    binary,
 			ShardId:   block.decoded.ShardId,
-			Hash:      block.decoded.Block.Hash(),
+			Hash:      block.decoded.Block.Hash(block.decoded.ShardId),
 			OutMsgNum: uint64(len(block.decoded.OutMessages)),
 			InMsgNum:  uint64(len(block.decoded.InMessages)),
 		}
