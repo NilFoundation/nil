@@ -94,7 +94,7 @@ func (s *RpcSuite) Start(cfg *nilservice.Config) {
 
 	if cfg.RunMode == nilservice.CollatorsOnlyRunMode {
 		service := <-serviceInterop
-		c, err := client.NewEthClient(s.Context, &s.Wg, s.Db, types.ShardId(s.ShardsNum), service.MsgPools, zerolog.New(os.Stderr))
+		c, err := client.NewEthClient(s.Context, s.Db, types.ShardId(s.ShardsNum), service.MsgPools, zerolog.New(os.Stderr))
 		s.Require().NoError(err)
 		s.Client = c
 	} else {

@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
@@ -21,6 +22,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/admin"
+	"github.com/NilFoundation/nil/nil/services/cometa"
 	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
@@ -33,7 +35,7 @@ import (
 // syncer will pull blocks actively if no blocks appear for 5 rounds
 const syncTimeoutFactor = 5
 
-func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db db.ReadOnlyDB) error {
+func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db db.ReadOnlyDB, client client.Client) error {
 	logger := logging.NewLogger("RPC")
 
 	addr := cfg.HttpUrl
@@ -81,6 +83,14 @@ func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db 
 			Service:   jsonrpc.DebugAPI(debugImpl),
 			Version:   "1.0",
 		},
+	}
+
+	if cfg.Cometa != nil {
+		cmt, err := cometa.NewService(ctx, cfg.Cometa, client)
+		if err != nil {
+			return fmt.Errorf("failed to create cometa service: %w", err)
+		}
+		apiList = append(apiList, cmt.GetRpcApi())
 	}
 
 	if cfg.RunMode == NormalRunMode {
@@ -346,7 +356,14 @@ func CreateNode(ctx context.Context, name string, cfg *Config, database db.DB, i
 
 	if (cfg.RPCPort != 0 || cfg.HttpUrl != "") && rawApi != nil {
 		funcs = append(funcs, func(ctx context.Context) error {
-			if err := startRpcServer(ctx, cfg, rawApi, database); err != nil {
+			var cl client.Client
+			if cfg.Cometa != nil {
+				cl, err = client.NewEthClient(ctx, database, types.ShardId(cfg.NShards), msgPools, logger)
+				if err != nil {
+					return fmt.Errorf("failed to create node client: %w", err)
+				}
+			}
+			if err := startRpcServer(ctx, cfg, rawApi, database, cl); err != nil {
 				logger.Error().Err(err).Msg("RPC server goroutine failed")
 				return err
 			}

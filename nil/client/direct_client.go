@@ -1,12 +1,9 @@
-//go:build test
-
 package client
 
 import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/json"
-	"sync"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
@@ -31,7 +28,7 @@ type DirectClient struct {
 
 var _ Client = (*DirectClient)(nil)
 
-func NewEthClient(ctx context.Context, wg *sync.WaitGroup, db db.ReadOnlyDB, nShards types.ShardId, msgPools map[types.ShardId]msgpool.Pool, logger zerolog.Logger) (*DirectClient, error) {
+func NewEthClient(ctx context.Context, db db.ReadOnlyDB, nShards types.ShardId, msgPools map[types.ShardId]msgpool.Pool, logger zerolog.Logger) (*DirectClient, error) {
 	var err error
 	localShardApis := make(map[types.ShardId]rawapi.ShardApi)
 	for shardId := range nShards {
@@ -46,21 +43,12 @@ func NewEthClient(ctx context.Context, wg *sync.WaitGroup, db db.ReadOnlyDB, nSh
 	debugApi := jsonrpc.NewDebugAPI(localApi, db, logger)
 	dbApi := jsonrpc.NewDbAPI(db, logger)
 
-	wg.Add(1)
-	go func(wg *sync.WaitGroup) {
-		<-ctx.Done()
-		ethApi.Shutdown()
-		wg.Done()
-	}(wg)
-
-	c := &DirectClient{
+	return &DirectClient{
 		ethApi:   ethApi,
 		debugApi: debugApi,
 		dbApi:    dbApi,
 		ctx:      ctx,
-	}
-
-	return c, nil
+	}, nil
 }
 
 func (c *DirectClient) GetCode(addr types.Address, blockId any) (types.Code, error) {

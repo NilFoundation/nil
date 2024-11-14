@@ -24,7 +24,7 @@ import {
   ParagraphMedium,
   StatefulTooltip,
 } from "@nilfoundation/ui-kit";
-import { Link, ShareIcon } from "../../../shared";
+import { Link, ShareIcon, useMobile } from "../../../shared";
 import { addressRoute } from "../../../routing";
 import { getCurrencySymbolByAddress } from "../../../currencies";
 import { Method } from "./Method";
@@ -42,6 +42,7 @@ export const ContractManagement = () => {
       $errors,
       $txHashes,
     ]);
+  const [isMobile] = useMobile();
   const [css] = useStyletron();
   const functions = useMemo(() => {
     if (!app) {
@@ -67,7 +68,8 @@ export const ContractManagement = () => {
           display: "grid",
           columnGap: "24px",
           rowGap: "16px",
-          minWidth: "300px",
+          minWidth: isMobile ? "none" : "300px",
+          maxWidth: isMobile ? "100%" : "none",
           gridTemplateColumns: "auto 1fr auto",
           gridTemplateRows: "auto",
         })}

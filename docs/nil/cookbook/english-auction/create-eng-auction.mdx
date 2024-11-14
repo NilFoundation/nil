@@ -1,0 +1,63 @@
+# Create an NFT auction
+
+The 'English Auction' consists of two parts:
+
+* A contract representing an NFT
+* A contract containing the auction logic
+
+## Draft the NFT contract
+
+The full code of the NFT contract:
+
+```solidity showLineNumbers file=../../../tests/NFT.sol start=startContract end=endContract
+```
+
+The contract overrides the inherited `onlyExternal` methods for minting and burning, ensuring fine control over the total supply of the NFT. It also provides a 'wrapper' method for transferring a minted NFT to another contract.
+
+## Implement the auction contract
+
+### Contract definition
+
+The initial contract definition and import statements:
+
+```solidity showLineNumbers
+pragma solidity ^0.8.0;
+
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+/**
+ * @title EnglishAuction
+ * @author =nil; Foundation
+ * @notice This contract implements an auction where contracts can place bids
+ * @notice and the contract owner decides when to start and end the auction.
+ */
+contract EnglishAuction is Ownable {}
+```
+
+In addition to `Nil.sol`, the contract imports `Ownable.sol`. This is done so that only the contract owner can manage when the auction starts and end.
+
+### Contract properties and constructor
+
+The auction contract has the following constructor and properties:
+
+```solidity showLineNumbers file=../../../tests/EnglishAuction.sol start=startContractProperties end=endContractProperties
+```
+
+The auction is deployed by taking the address of the NFT contract and setting the initial `highestBid`. Bid information is kept in the `bids` mapping while the `highestBidder` is a separate property for convenience.
+
+### Auction logic
+
+The contract contains three functions responsible for handling the auction logic:
+
+```solidity showLineNumbers file=../../../tests/EnglishAuction.sol start=startAuctionLogic end=endAuctionLogic
+```
+
+The `start()` and `end()` functions are marked as `Ownable` so that only the contract owner can start and end the auction. When the auction beings, the contract sends a message for minting the NFT and starts accepting bets. After the auction concludes, a new async call is sent so that the NFT is transferred to the winner.
+
+### Full code
+
+Here is the full code of the auction contract:
+
+```solidity showLineNumbers file=../../../tests/EnglishAuctionPure.sol start=startContract end=endContract
+```

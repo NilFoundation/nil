@@ -14,6 +14,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/profiling"
 	"github.com/NilFoundation/nil/nil/internal/readthroughdb"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/cometa"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
@@ -151,6 +152,7 @@ func parseArgs() *nildconfig.Config {
 	}
 	runCmd.Flags().Uint32Var(&cfg.NShards, "nshards", cfg.NShards, "number of shardchains")
 	runCmd.Flags().BoolVar(&cfg.SplitShards, "split-shards", cfg.SplitShards, "run each shard in separate process")
+	runCmd.Flags().StringVar(&cfg.CometaConfig, "cometa-config", "", "path to Cometa config")
 
 	addBasicFlags(runCmd.Flags(), cfg)
 	addNetworkFlags(runCmd.Flags(), cfg)
@@ -214,6 +216,12 @@ func parseArgs() *nildconfig.Config {
 
 	if cfg.Replay.BlockIdLast == 0 {
 		cfg.Replay.BlockIdLast = cfg.Replay.BlockIdFirst
+	}
+
+	if cfg.CometaConfig != "" {
+		cfg.Cometa = &cometa.Config{}
+		cfg.Cometa.ResetDefualt()
+		cfg.Cometa.InitFromFile(cfg.CometaConfig)
 	}
 
 	return cfg

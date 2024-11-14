@@ -13,12 +13,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 type Command uint
 
 const (
-	CommandRun Command = iota
+	CommandRun Command = iota + 1
 	CommandCreateConfig
 )
 
@@ -30,8 +31,6 @@ type config struct {
 
 func main() {
 	cfg := parseArgs()
-
-	initConfig(cfg)
 
 	var err error
 
@@ -71,52 +70,32 @@ func processCreateConfig(cfg *config) error {
 		cfg.cfgFile = "./cometa.yaml"
 	}
 
-	cfgTemplate := fmt.Sprintf(`
-own-endpoint: %s
-node-endpoint: %s
-db-endpoint: %s
-db-path: %s
-db-name: %s
-db-user: %s
-db-password: %s
-`, cometa.OwnEndpointDefault, cometa.NodeEndpointDefault, cometa.DbEndpointDefault, cometa.DbPathDefault,
-		cometa.DbNameDefault, cometa.DbUserDefault, cometa.DbPasswordDefault)
+	data, err := yaml.Marshal(cfg.cometaCfg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
 
-	if err := os.WriteFile(cfg.cfgFile, []byte(cfgTemplate), 0o600); err != nil {
+	if err := os.WriteFile(cfg.cfgFile, data, 0o600); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 	fmt.Printf("Config file %s has been created\n", cfg.cfgFile)
 	return nil
 }
 
-func initConfig(cfg *config) {
-	if cfg.command == CommandCreateConfig {
-		return
-	}
-	if cfg.cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfg.cfgFile)
-	} else {
-		// Search config in the current directory
-		viper.AddConfigPath("./")
-		viper.SetConfigName("cometa")
-	}
-	if err := viper.ReadInConfig(); err != nil {
-		fmt.Printf("Run without config file: %s\n", err.Error())
-		cfg.cometaCfg.ResetDefualt()
-		return
-	}
-	cfg.cometaCfg.OwnEndpoint = viper.GetString("own-endpoint")
-	cfg.cometaCfg.NodeEndpoint = viper.GetString("node-endpoint")
-	cfg.cometaCfg.DbEndpoint = viper.GetString("db-endpoint")
-	cfg.cometaCfg.DbPath = viper.GetString("db-path")
-	cfg.cometaCfg.DbName = viper.GetString("db-name")
-	cfg.cometaCfg.DbUser = viper.GetString("db-user")
-	cfg.cometaCfg.DbPassword = viper.GetString("db-password")
-}
-
 func parseArgs() *config {
 	cfg := &config{}
+	var name string
+	// We need to load config before parsing arguments, because loaded config contains default values for parameters.
+	for i, f := range os.Args[:len(os.Args)-1] {
+		if f == "--config" || f == "-c" {
+			check.PanicIfNotf(i+1 < len(os.Args), "config file name is not specified")
+			name = os.Args[i+1]
+			break
+		}
+	}
+	cfg.cometaCfg.ResetDefualt()
+	cfg.cometaCfg.InitFromFile(name)
+
 	rootCmd := &cobra.Command{
 		Use:           "cometa [global flags] [command]",
 		Short:         "cometa contracts metadata app",
@@ -125,14 +104,14 @@ func parseArgs() *config {
 	}
 
 	rootCmd.PersistentFlags().StringVarP(&cfg.cfgFile, "config", "c", "", "config file")
-	rootCmd.PersistentFlags().BoolVar(&cfg.cometaCfg.UseBadger, "use-badger", false, "use badger db")
-	rootCmd.Flags().String("own-endpoint", cometa.OwnEndpointDefault, "cometa's rpc server endpoint")
-	rootCmd.Flags().String("node-endpoint", cometa.NodeEndpointDefault, "nil node endpoint")
-	rootCmd.Flags().String("db-endpoint", cometa.DbEndpointDefault, "database endpoint")
-	rootCmd.Flags().String("db-path", cometa.DbPathDefault, "path where to store database")
-	rootCmd.Flags().String("db-name", cometa.DbNameDefault, "database name")
-	rootCmd.Flags().String("db-user", cometa.DbUserDefault, "database user")
-	rootCmd.Flags().String("db-password", cometa.DbPasswordDefault, "database password")
+	rootCmd.PersistentFlags().BoolVar(&cfg.cometaCfg.UseBadger, "use-badger", cfg.cometaCfg.UseBadger, "use badger db")
+	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.OwnEndpoint, "own-endpoint", cfg.cometaCfg.OwnEndpoint, "cometa's rpc server endpoint")
+	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.NodeEndpoint, "node-endpoint", cfg.cometaCfg.NodeEndpoint, "nil node endpoint")
+	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.DbEndpoint, "db-endpoint", cfg.cometaCfg.DbEndpoint, "database endpoint")
+	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.DbPath, "db-path", cfg.cometaCfg.DbPath, "path where to store database")
+	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.DbName, "db-name", cfg.cometaCfg.DbName, "database name")
+	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.DbUser, "db-user", cfg.cometaCfg.DbUser, "database user")
+	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.DbPassword, "db-password", cfg.cometaCfg.DbPassword, "database password")
 
 	if err := viper.BindPFlags(rootCmd.Flags()); err != nil {
 		fmt.Printf("failed to bind flags: %s\n", err.Error())

@@ -84,7 +84,7 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 		return nil, ErrPrivateKeyMissing
 	}
 
-	h, err := newHost(conf)
+	h, err := newHost(ctx, conf)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 }
 
 func NewClientManager(ctx context.Context, conf *Config) (*Manager, error) {
-	h, err := newClient(conf)
+	h, err := newClient(ctx, conf)
 	if err != nil {
 		return nil, err
 	}
