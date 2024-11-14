@@ -1,27 +1,32 @@
 import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-toolbox";
+import type { NilHardhatUserConfig } from "../../../src";
+import { getValue } from "../../../src/config";
+import "../../../src";
 import * as dotenv from "dotenv";
-import "@nilfoundation/hardhat-plugin";
-import {getValue, NilHardhatUserConfig} from "@nilfoundation/hardhat-plugin";
 
 dotenv.config();
 
 const walletAddress = getValue("address");
 const privateKey = getValue("private_key");
+const rpcEndpoint = getValue("rpc_endpoint");
 
 const config: NilHardhatUserConfig = {
-  solidity: "0.8.26",
-  defaultNetwork: "nil",
-  ignition: {
-    requiredConfirmations: 1,
+  solidity: {
+    version: "0.8.21",
+    settings: {
+      metadata: {
+        appendCBOR: false,
+      },
+    },
   },
   networks: {
     nil: {
-      url: process.env.NIL_RPC_ENDPOINT,
+      url: rpcEndpoint,
       accounts: privateKey ? [privateKey] : [],
     },
   },
+  defaultNetwork: "nil",
   walletAddress: walletAddress,
-  debug: true,
 };
 export default config;

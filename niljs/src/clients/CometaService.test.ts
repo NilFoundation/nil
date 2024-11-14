@@ -52,6 +52,23 @@ test("compileContract", async ({ expect }) => {
   });
 });
 
+test("registerContractData", async ({ expect }) => {
+  const fn = vi.fn();
+  fn.mockReturnValue({});
+  const cometa = new CometaService({
+    transport: new MockTransport(fn),
+    shardId: 1,
+  });
+
+  await cometa.registerContractData({} as ContractData, "0x12345");
+
+  expect(fn).toHaveBeenCalledOnce();
+  expect(fn).toHaveBeenLastCalledWith({
+    method: "cometa_registerContractData",
+    params: [{}, "0x12345"],
+  });
+});
+
 test("registerContract", async ({ expect }) => {
   const fn = vi.fn();
   fn.mockReturnValue({});
@@ -60,11 +77,11 @@ test("registerContract", async ({ expect }) => {
     shardId: 1,
   });
 
-  await cometa.registerContract({} as ContractData, "0x12345");
+  await cometa.registerContract("input", "0x12345");
 
   expect(fn).toHaveBeenCalledOnce();
   expect(fn).toHaveBeenLastCalledWith({
     method: "cometa_registerContract",
-    params: [{}, "0x12345"],
+    params: ["input", "0x12345"],
   });
 });

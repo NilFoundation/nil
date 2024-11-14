@@ -93,8 +93,10 @@ func parseArgs() *config {
 			break
 		}
 	}
-	cfg.cometaCfg.ResetDefualt()
-	cfg.cometaCfg.InitFromFile(name)
+	cfg.cometaCfg.ResetToDefault()
+	if cfg.command != CommandCreateConfig {
+		cfg.cometaCfg.InitFromFile(name)
+	}
 
 	rootCmd := &cobra.Command{
 		Use:           "cometa [global flags] [command]",

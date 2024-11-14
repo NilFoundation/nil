@@ -152,7 +152,7 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 	}
 
 	if len(params.compileInput) != 0 {
-		if err = cm.RegisterContract(contractData, contractAddr); err != nil {
+		if err = cm.RegisterContractData(contractData, contractAddr); err != nil {
 			return fmt.Errorf("failed to register the contract: %w", err)
 		}
 	}

@@ -53,7 +53,7 @@ func (s *SuiteCometa) SetupSuite() {
 func (s *SuiteCometaClickhouse) SetupSuite() {
 	s.cometaCfg.UseBadger = false
 
-	s.cometaCfg.ResetDefualt()
+	s.cometaCfg.ResetToDefault()
 
 	suiteSetupDone := false
 
@@ -86,7 +86,7 @@ func (s *SuiteCometaClickhouse) TearDownSuite() {
 }
 
 func (s *SuiteCometaBadger) SetupSuite() {
-	s.cometaCfg.ResetDefualt()
+	s.cometaCfg.ResetToDefault()
 	s.cometaCfg.UseBadger = true
 	s.SuiteCometa.SetupSuite()
 }
@@ -102,7 +102,7 @@ func (s *SuiteCometa) TestTwinContracts() {
 	walletAddr1, _ := s.DeployContractViaMainWallet(types.BaseShardId, deployCode1, types.NewValueFromUint64(10_000_000))
 	walletAddr2, _ := s.DeployContractViaMainWallet(types.BaseShardId, deployCode2, types.NewValueFromUint64(10_000_000))
 
-	err = s.cometaClient.DeployContractFromFile("../../contracts/solidity/compile-wallet.json", walletAddr1)
+	err = s.cometaClient.RegisterContractFromFile("../../contracts/solidity/compile-wallet.json", walletAddr1)
 	s.Require().NoError(err)
 
 	contract1, err := s.cometaClient.GetContract(walletAddr1)

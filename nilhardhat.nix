@@ -8,6 +8,8 @@
 , nodejs
 , nil
 , enableTesting ? false
+, solc
+, solc-select
 }:
 
 stdenv.mkDerivation rec {
@@ -22,9 +24,14 @@ stdenv.mkDerivation rec {
     "biome.json"
   ];
 
-  soljson = builtins.fetchurl {
+  soljson26 = builtins.fetchurl {
     url = "https://binaries.soliditylang.org/wasm/soljson-v0.8.26+commit.8a97fa7a.js";
     sha256 = "1mhww44ni55yfcyn4hjql2hwnvag40p78kac7jjw2g2jdwwyb1fv";
+  };
+
+  soljson21 = builtins.fetchurl {
+    url = "https://binaries.soliditylang.org/wasm/soljson-v0.8.21+commit.d9974bed.js";
+    sha256 = "05ss7jgcfb4zlgmnyln95g7i0ghxxzfn56a336g0610xni9a7gj5";
   };
 
   npmDeps = (callPackage ./npmdeps.nix { });
@@ -59,10 +66,19 @@ stdenv.mkDerivation rec {
     cd ../create-nil-hardhat-project
 
     echo "Installing soljson"
-    bash install_soljson.sh ${soljson}
+    bash install_soljson.sh ${soljson26} ${soljson21}
 
-    echo "Running tests"
+    echo "Running hardhat-examples tests"
     bash run_tests.sh
+
+    # Do this hack so that solc-select thinks we have solc-0.8.21 installed
+    export HOME="$TMPDIR"
+    mkdir -p ~/.gsolc-select/artifacts/solc-0.8.21
+    ln -f -s ${solc}/bin/solc ~/.gsolc-select/artifacts/solc-0.8.21/solc-0.8.21
+
+    cd ../hardhat-plugin
+    echo "Running hardhat-plugin tests"
+    bash test/run_tests.sh nild cometa
   '';
 
   installPhase = ''

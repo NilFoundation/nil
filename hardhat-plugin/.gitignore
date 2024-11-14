@@ -9,3 +9,7 @@ dist/
 /cache/
 /artifacts/
 /typechain-types/
+/test/projects/*/cache/
+/test/projects/*/artifacts/
+/test/projects/*/typechain-types/
+**/ignition/deployments
