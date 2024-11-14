@@ -56,12 +56,18 @@ export class CompileWorker {
     this.promiseMap = new Map();
     this.worker.addEventListener("message", (event) => {
       const result = event.data as CompilationResult;
-      // biome-ignore lint/suspicious/noPrototypeBuiltins: <explanation>
-      if (!result.hasOwnProperty("contracts")) {
+
+      if (
+        // biome-ignore lint/suspicious/noPrototypeBuiltins: <explanation>
+        !result.hasOwnProperty("contracts") ||
+        // biome-ignore lint/suspicious/noPrototypeBuiltins: <explanation>
+        (result.hasOwnProperty("errors") &&
+          result.errors.filter((x) => x.severity !== "warning").length > 0)
+      ) {
         const task = this.currentTask;
         if (task) {
+          // biome-ignore lint/style/noNonNullAssertion: i check that task is not null
           const { reject } = this.promiseMap.get(task)!;
-
           const errorMsg = event.data.errors
             .map((error) => error.formattedMessage)
             .filter((message) => !message.startsWith("Warning"))
@@ -74,6 +80,7 @@ export class CompileWorker {
       } else {
         const task = this.currentTask;
         if (task) {
+          // biome-ignore lint/style/noNonNullAssertion: i check that task is not null
           const { resolve } = this.promiseMap.get(task)!;
           resolve(result);
           this.promiseMap.delete(task);
