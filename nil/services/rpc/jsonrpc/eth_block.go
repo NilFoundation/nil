@@ -5,46 +5,10 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 )
-
-func getBlockHashByNumber(
-	tx db.RoTx, shardId types.ShardId, number transport.BlockNumber,
-) (common.Hash, error) {
-	var requestedBlockNumber types.BlockNumber
-	switch number {
-	case transport.LatestExecutedBlockNumber:
-		return common.EmptyHash, errNotImplemented
-	case transport.FinalizedBlockNumber:
-		return common.EmptyHash, errNotImplemented
-	case transport.SafeBlockNumber:
-		return common.EmptyHash, errNotImplemented
-	case transport.PendingBlockNumber:
-		return common.EmptyHash, errNotImplemented
-	case transport.LatestBlockNumber:
-		lastBlockHash, err := db.ReadLastBlockHash(tx, shardId)
-		if err != nil {
-			return common.EmptyHash, err
-		}
-		return lastBlockHash, nil
-	case transport.EarliestBlockNumber:
-		requestedBlockNumber = types.BlockNumber(0)
-	default:
-		requestedBlockNumber = number.BlockNumber()
-	}
-
-	return db.ReadBlockHashByNumber(tx, shardId, requestedBlockNumber)
-}
-
-func extractBlockHash(tx db.RoTx, shardId types.ShardId, numOrHash transport.BlockNumberOrHash) (common.Hash, error) {
-	if numOrHash.BlockNumber != nil {
-		return getBlockHashByNumber(tx, shardId, *numOrHash.BlockNumber)
-	}
-	return *numOrHash.BlockHash, nil
-}
 
 func sszToRPCBlock(shardId types.ShardId, raw *types.RawBlockWithExtractedData, fullTx bool) (*RPCBlock, error) {
 	data, err := raw.DecodeSSZ()

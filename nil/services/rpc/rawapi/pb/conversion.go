@@ -453,6 +453,69 @@ func (cr *CurrenciesResponse) UnpackProtoMessage() (map[types.CurrencyId]types.V
 	return nil, errors.New("unexpected response type")
 }
 
+// RawContract converters
+
+func (rc *RawContract) PackProtoMessage(contract *rawapitypes.SmartContract) error {
+	rc.ContractSSZ = contract.ContractSSZ
+	rc.Code = contract.Code
+	rc.ProofEncoded = contract.ProofEncoded
+
+	if contract.Storage != nil {
+		rc.Storage = make(map[string]*Uint256)
+		for k, v := range contract.Storage {
+			rc.Storage[k.Hex()] = new(Uint256).PackProtoMessage(v)
+		}
+	}
+
+	return nil
+}
+
+func (rc *RawContract) UnpackProtoMessage() (*rawapitypes.SmartContract, error) {
+	contract := &rawapitypes.SmartContract{
+		ContractSSZ:  rc.ContractSSZ,
+		Code:         rc.Code,
+		ProofEncoded: rc.ProofEncoded,
+	}
+
+	if len(rc.Storage) > 0 {
+		storage := make(map[common.Hash]types.Uint256)
+		for k, v := range rc.Storage {
+			storage[common.HexToHash(k)] = v.UnpackProtoMessage()
+		}
+		contract.Storage = storage
+	}
+
+	return contract, nil
+}
+
+// RawContractResponse converters
+
+func (rcr *RawContractResponse) PackProtoMessage(contract *rawapitypes.SmartContract, err error) error {
+	if err != nil {
+		rcr.Result = &RawContractResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+
+	rawContract := new(RawContract)
+	if err := rawContract.PackProtoMessage(contract); err != nil {
+		return err
+	}
+
+	rcr.Result = &RawContractResponse_Data{Data: rawContract}
+	return nil
+}
+
+func (rcr *RawContractResponse) UnpackProtoMessage() (*rawapitypes.SmartContract, error) {
+	switch rcr.Result.(type) {
+	case *RawContractResponse_Error:
+		return nil, rcr.GetError().UnpackProtoMessage()
+
+	case *RawContractResponse_Data:
+		return rcr.GetData().UnpackProtoMessage()
+	}
+	return nil, errors.New("unexpected response type")
+}
+
 func (c *Contract) PackProtoMessage(contract rpctypes.Contract) *Contract {
 	if contract.Seqno != nil {
 		c.Seqno = (*uint64)(contract.Seqno)

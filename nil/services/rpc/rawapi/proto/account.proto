@@ -34,3 +34,17 @@ message CurrenciesResponse {
     Currencies data = 2;
   }
 }
+
+message RawContract {
+  bytes contractSSZ = 1;
+  bytes code = 2;
+  bytes proofEncoded = 3;
+  map<string, Uint256> storage = 4;
+}
+
+message RawContractResponse {
+  oneof result {
+    Error error = 1;
+    RawContract data = 2;
+  }
+}
