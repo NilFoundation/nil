@@ -27,8 +27,8 @@ buildGo123Module rec {
   preBuild = ''
     make generated rpcspec
     export HOME="$TMPDIR"
-    mkdir -p ~/.gsolc-select/artifacts/solc-0.8.21
-    ln -f -s ${solc}/bin/solc ~/.gsolc-select/artifacts/solc-0.8.21/solc-0.8.21
+    mkdir -p ~/.gsolc-select/artifacts/solc-0.8.28
+    ln -f -s ${solc}/bin/solc ~/.gsolc-select/artifacts/solc-0.8.28/solc-0.8.28
   '';
 
   src = lib.sourceByRegex ./. [ "Makefile" "go.mod" "go.sum" "^nil(/.*)?$" "^smart-contracts(/.*)?$" ];
@@ -72,7 +72,7 @@ buildGo123Module rec {
     export GOCACHE=/tmp/${vendorHash}/go-cache
     export GOMODCACHE=/tmp/${vendorHash}/go/mod/cache
     chmod -R u+w vendor
-    mkdir -p ~/.solc-select/artifacts/solc-0.8.21
-    ln -f -s ${solc}/bin/solc ~/.solc-select/artifacts/solc-0.8.21/solc-0.8.21
+    mkdir -p ~/.solc-select/artifacts/solc-0.8.28
+    ln -f -s ${solc}/bin/solc ~/.solc-select/artifacts/solc-0.8.28/solc-0.8.28
   '';
 }

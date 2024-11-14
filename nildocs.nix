@@ -28,14 +28,15 @@ stdenv.mkDerivation rec {
     libtool
     solc
     solc-select
-  ] ++ (if enableTesting then [ nil ] else [ ]);
+    nil
+  ];
 
   dontConfigure = true;
 
   preBuild = ''
     export HOME="$TMPDIR"
-    mkdir -p ~/.gsolc-select/artifacts/solc-0.8.21
-    ln -f -s ${solc}/bin/solc ~/.gsolc-select/artifacts/solc-0.8.21/solc-0.8.21
+    mkdir -p ~/.gsolc-select/artifacts/solc-0.8.28
+    ln -f -s ${solc}/bin/solc ~/.gsolc-select/artifacts/solc-0.8.28/solc-0.8.28
   '';
 
   buildPhase = ''
@@ -67,8 +68,8 @@ stdenv.mkDerivation rec {
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
     export CMD_NIL=${./nil/cmd/nil/internal}
     export COMETA_CONFIG=${./docs/tests/cometa.yaml}
-    mkdir -p ~/.solc-select/artifacts/solc-0.8.21
-    ln -f -s ${solc}/bin/solc ~/.solc-select/artifacts/solc-0.8.21/solc-0.8.21
+    mkdir -p ~/.solc-select/artifacts/solc-0.8.28
+    ln -f -s ${solc}/bin/solc ~/.solc-select/artifacts/solc-0.8.28/solc-0.8.28
   '';
 
   installPhase = ''
