@@ -8,7 +8,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
@@ -381,10 +380,10 @@ func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
 // @componentprop Storage storage slice of key-value pairs of the data in storage
 type DebugRPCContract struct {
 	// path, node type, next ref, branches, data
-	Code     hexutil.Bytes                                  `json:"code"`
-	Contract hexutil.Bytes                                  `json:"contract"`
-	Proof    hexutil.Bytes                                  `json:"proof"`
-	Storage  []execution.Entry[common.Hash, *types.Uint256] `json:"storage"`
+	Code     hexutil.Bytes                 `json:"code"`
+	Contract hexutil.Bytes                 `json:"contract"`
+	Proof    hexutil.Bytes                 `json:"proof"`
+	Storage  map[common.Hash]types.Uint256 `json:"storage"`
 }
 
 // @component OutMessage outMessage object "Outbound message produced by eth_call and result of its execution."

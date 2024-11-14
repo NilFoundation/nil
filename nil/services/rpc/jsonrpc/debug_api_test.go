@@ -162,15 +162,9 @@ func (suite *SuiteDbgContracts) TestGetContract() {
 	suite.Require().NoError(err)
 
 	suite.Run("storage", func() {
-		expected := []execution.Entry[common.Hash, *types.Uint256]{
-			{
-				Key: common.Hash{0x1},
-				Val: types.NewUint256(2),
-			},
-			{
-				Key: common.Hash{0x3},
-				Val: types.NewUint256(4),
-			},
+		expected := map[common.Hash]types.Uint256{
+			{0x1}: *types.NewUint256(2),
+			{0x3}: *types.NewUint256(4),
 		}
 		suite.Require().Equal(expected, res.Storage)
 	})

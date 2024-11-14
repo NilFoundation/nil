@@ -144,5 +144,14 @@ func (api *DebugAPIImpl) GetContract(ctx context.Context, contractAddr types.Add
 		return nil, err
 	}
 
-	return &DebugRPCContract{Code: hexutil.Bytes(code), Contract: contractRaw, Proof: hexutil.Bytes(encodedProof), Storage: entries}, nil
+	return &DebugRPCContract{
+		Code:     hexutil.Bytes(code),
+		Contract: contractRaw,
+		Proof:    encodedProof,
+		Storage: common.SliceToMap(
+			entries,
+			func(_ int, kv execution.Entry[common.Hash, *types.Uint256]) (common.Hash, types.Uint256) {
+				return kv.Key, *kv.Val
+			}),
+	}, nil
 }
