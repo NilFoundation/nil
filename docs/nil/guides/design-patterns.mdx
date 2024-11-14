@@ -6,6 +6,7 @@ The design patterns in the guide include:
 
 * [**Checks Effects Interaction**](https://fravoll.github.io/solidity-patterns/checks_effects_interactions.html), a pattern for protecting a contract against re-entrancy attacks
 * [**Guard Check**](https://fravoll.github.io/solidity-patterns/guard_check.html), an essential pattern for ensuring inputs and outputs match expectations and execution ensures atomicity
+* [**Clone Factory**](https://eips.ethereum.org/EIPS/eip-1167), a cost-efficient way to deploy and manage new smart contracts
 
 ## Checks Effects Interaction
 
@@ -32,7 +33,7 @@ Async calls add one more consideration to the pattern:
 
 The example implements the pattern by simply replacing the transfer with `asyncCall()`. This raises an issue: if the async call fails, the contract will not know that the `balances` mapping also has to be reverted to its original state.
 
-Similarly to the Guard Check pattern, the `sendRequest()` function provides a convenient way for implementing Check Effects Interaction correctly:
+The `sendRequest()` function provides a convenient way for implementing Check Effects Interaction correctly:
 
 ```solidity showLineNumbers file=../../tests/CheckEffectsInteraction.sol start=startGoodCheckEffectsInteraction end=endGoodCheckEffectsInteraction
 ```
@@ -68,8 +69,66 @@ Delegating post-`assert` statements to a callback function resolves the issue:
 ```solidity showLineNumbers file=../../tests/GuardCheck.sol start=startGoodGuardCheck end=endGoodGuardCheck
 ```
 
-In the snippet, `successfulCallsCounter` is only increased after the contract receives a response to the transfer and only if the transfer was successful. The callback function can be provided with its own `require()` statement which propagates the pattern. 
+In the snippet, `successfulCallsCounter` is only increased after the contract receives a response to the transfer and only if the transfer was successful. The callback function can be provided with its own `require()` statement which propagates the pattern.
 
+## Clone Factory
 
+The basic Factory pattern involves deploying a 'master' smart contract and then deploying and managing several 'child' contracts via this 'master'. The Clone Factory is a cost-efficient variation of this pattern:
 
+* A 'special' child contract is deployed first
+* The factory contract is deployed and starts deploying child contracts
+* All child must delegate calls to them to the initial 'special' child
 
+A basic implementation of Clone Factory could look as follows when using the `@optionality.io/clone-factory` package:
+
+```solidity showLineNumbers
+import '@optionality.io/clone-factory/contracts/CloneFactory.sol';
+
+contract Factory is CloneFactory {
+     Child[] public children;
+     address masterContract;
+
+     constructor(address _masterContract){
+         masterContract = _masterContract;
+     }
+
+     function createChild(uint data) external{
+        Child child = Child(createClone(masterContract));
+        child.init(data);
+        children.push(child);
+     }
+
+     function getChildren() external view returns(Child[] memory){
+         return children;
+     }
+}
+
+contract Child{
+    uint public data;
+    
+    function init(uint _data) external {
+        data = _data;
+    }
+}
+```
+
+On =nil;, such an approach would only work within the confines of one execution shard. The `createClone` function uses `delegateCall` which cannot handle cross-shard messages. The pattern can be re-implemented as follows:
+
+```solidity showLineNumbers file=../../tests/CloneFactory.sol start=startContract end=endContract
+```
+
+The `MasterChild` is a simple 'counter' contract. The `CloneFactory` contract re-implements the `createClone` function as `createCloneBytecode`. It is functionally identical to the `createClone` function from `@optionality.io/clone-factory` except for the fact that it does not deploy a contract. Instead, it returns the deployment bytecode which is later passed to `Nil.asyncDeploy()` in the `createCounterClone` function.
+
+The biggest change to the original pattern is the addition of the `FactoryManager` contract. Because `delegateClone` (whose bytecode is wrapped around the contract address in `createCloneBytecode`) does not support sharding, `CloneFactory`, `MasterChild`, and any 'proxy' clones created by the factory have to be deployed on the same shard. `FactoryManager` gets around that by allowing for deploying new factories and children on different shards:
+
+* `FactoryManager` is deployed first on any shard
+* A `MasterChild` is deployed on any shard via `deployNewMasterChild()`
+* A `CloneFactory` is deployed on the same shard as the `MasterChild`
+* Proxy clones are created by calling `createCounterClone` inside the `CloneFactory`
+* There is only one `CloneFactory` / `MasterChild` pair per shard
+
+:::tip[Additional improvements]
+
+This implementation can be made more secure by restricting functions insde `FactoryManager` to the contract owner.
+
+:::
