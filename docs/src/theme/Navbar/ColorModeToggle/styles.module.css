@@ -1,3 +1,9 @@
+.darkNavbarColorModeToggle {
+  background: #e5e5e5;
+  border-radius: 5px;
+  padding: 2px;
+}
+
 .darkNavbarColorModeToggle:hover {
-  background: #b9b9b9;
+  background: #eff0f2;
 }

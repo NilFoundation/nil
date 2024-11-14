@@ -1,16 +1,15 @@
 [data-theme="dark"] .cookbookCard {
   display: flex;
   flex-direction: column;
-  background-color: #0c0c0c;
+  background-color: #393939;
   padding: 1.25rem;
   gap: 10px;
   text-decoration: none;
-  color: #bdbdbd;
+  color: #ffffff;
   cursor: pointer;
   border-radius: 8px;
   position: relative;
   overflow: hidden;
-  border: 1px solid #8a8a8a;
   transition-property: background-color, color;
   height: 100%;
   --ifm-link-hover-decoration: none;
@@ -21,16 +20,16 @@
   display: flex;
   position: relative;
   flex-direction: column;
-  background-color: #666666;
+  background-color: #eff0f2;
   padding: 1.25rem;
   gap: 10px;
+  font-weight: bold;
   text-decoration: none;
-  color: #f1f1f1;
+  color: #000000;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 5px;
   position: relative;
   overflow: hidden;
-  border: 1px solid #4b4949;
   transition-property: background-color, color;
   --ifm-link-hover-decoration: none;
   --ifm-link-hover-color: inherit;
@@ -38,14 +37,10 @@
 
 [data-theme="dark"] .cookbookCard:hover {
   background-color: #2f2f2f;
-  color: #f1f1f1;
-  border: 1px solid #bdbdbd;
 }
 
 [data-theme="light"] .cookbookCard:hover {
-  background-color: #353535;
-  color: #f1f1f1;
-  border: 1px solid #000000;
+  background-color: #e5e5e5;
 }
 
 .cookbookCardContent {
@@ -68,7 +63,6 @@
   border-radius: 4px;
   font-weight: 500;
   border-radius: 5px;
-  border: 1px solid #8a8a8a;
   color: #f1f1f1;
   gap: 4px;
   display: inline-flex;
@@ -84,9 +78,7 @@
   border-radius: 4px;
   font-weight: 500;
   border-radius: 5px;
-  background-color: #4c4c4c;
-  border: 1px solid #333333;
-  color: #f1f1f1;
+  color: #000000;
   gap: 4px;
   display: inline-flex;
   align-items: center;

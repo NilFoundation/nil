@@ -1,6 +1,6 @@
-import React, { ReactNode, PropsWithChildren } from 'react';
-import Link from '@docusaurus/Link';
-import clsx from 'clsx';
+import type { ReactNode, PropsWithChildren } from "react";
+import Link from "@docusaurus/Link";
+import clsx from "clsx";
 
 export function CardSection({
   id,
@@ -9,7 +9,7 @@ export function CardSection({
   description,
   className,
   hasSubSections = false,
-  HeadingTag = 'h3',
+  HeadingTag = "h3",
 }: {
   id?: string;
   title: string;
@@ -20,13 +20,7 @@ export function CardSection({
   className?: string;
 }) {
   return (
-    <div
-      className={clsx(
-        'homepage-section',
-        hasSubSections && 'has-sub-sections',
-        className
-      )}
-    >
+    <div className={clsx("homepage-section", hasSubSections && "has-sub-sections", className)}>
       {title && <HeadingTag id={id ?? title}>{title}</HeadingTag>}
       {description && <p className="section-description">{description}</p>}
       <div className="section-content">{children}</div>
@@ -36,7 +30,6 @@ export function CardSection({
 
 export function Card({
   id,
-  icon,
   title,
   description,
   to,
@@ -44,7 +37,6 @@ export function Card({
   className,
 }: PropsWithChildren<{
   id?: string;
-  icon?: JSX.Element;
   title: string;
   description?: string;
   to: string;
@@ -56,8 +48,7 @@ export function Card({
   className?: string;
 }>) {
   return (
-    <Link to={to} className={clsx("homepage-card",className)}>
-      {icon && <div className="icon">{icon}</div>}
+    <Link to={to} className={clsx("homepage-card", className)}>
       <div className="card-content">
         <div className="title" id={id && title}>
           {title}

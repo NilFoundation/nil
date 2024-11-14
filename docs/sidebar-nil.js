@@ -11,14 +11,6 @@ export default {
           label: "Overview",
           id: "intro",
         },
-      ],
-    },
-    {
-      type: "category",
-      label: "Getting started",
-      collapsed: false,
-      collapsible: true,
-      items: [
         {
           type: "doc",
           label: "Prerequisites",
@@ -29,44 +21,45 @@ export default {
           label: "=nil; 101",
           id: "getting-started/nil-101",
         },
+      ],
+    },
+    {
+      type: "category",
+      label: "Getting started",
+      collapsed: false,
+      collapsible: true,
+      items: [
         {
-          type: "category",
-          label: "Essentials",
-          collapsed: true,
-          collapsible: true,
-          items: [
-            {
-              type: "doc",
-              label: "Creating a wallet",
-              id: "getting-started/essentials/creating-a-wallet",
-            },
-            {
-              type: "doc",
-              label: "Tokens and multi-currency support",
-              id: "getting-started/essentials/tokens-multi-currency",
-            },
-            {
-              type: "doc",
-              label: "Reading and writing to =nil;",
-              id: "getting-started/essentials/reading-writing-info",
-            },
-            {
-              type: "doc",
-              label: "Receiving external messages",
-              id: "getting-started/essentials/receiving-ext-messages",
-            },
-            {
-              type: "doc",
-              label: "Handling async execution",
-              id: "getting-started/essentials/handling-async-execution",
-            },
-            {
-              type: "doc",
-              label: "Gas and value",
-              id: "getting-started/essentials/gas-and-value",
-            },
-          ],
+          type: "doc",
+          label: "Creating a wallet",
+          id: "getting-started/essentials/creating-a-wallet",
         },
+        {
+          type: "doc",
+          label: "Tokens and multi-currency support",
+          id: "getting-started/essentials/tokens-multi-currency",
+        },
+        {
+          type: "doc",
+          label: "Reading and writing to =nil;",
+          id: "getting-started/essentials/reading-writing-info",
+        },
+        {
+          type: "doc",
+          label: "Receiving external messages",
+          id: "getting-started/essentials/receiving-ext-messages",
+        },
+        {
+          type: "doc",
+          label: "Handling async execution",
+          id: "getting-started/essentials/handling-async-execution",
+        },
+        {
+          type: "doc",
+          label: "Gas and value",
+          id: "getting-started/essentials/gas-and-value",
+        },
+
         {
           type: "category",
           label: "Working with smart contracts",
@@ -285,6 +278,11 @@ export default {
           id: "specification/contract-co-location",
         },
       ],
+    },
+    {
+      type: "link",
+      href: "https://t.me/NilDevnetTokenBot",
+      label: "Join Telegram",
     },
   ],
   vids: [

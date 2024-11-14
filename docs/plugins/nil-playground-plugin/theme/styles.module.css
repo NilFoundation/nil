@@ -1,4 +1,4 @@
-[data-theme='light'] .playgroundButton {
+[data-theme="light"] .playgroundButton {
   background-color: #8fc97e;
   color: #0f0f0f;
   border-color: #404040;
@@ -12,9 +12,10 @@
   justify-content: center;
   vertical-align: middle;
   align-items: center;
+  transition-property: background-color;
 }
 
-[data-theme='dark'] .playgroundButton {
+[data-theme="dark"] .playgroundButton {
   background-color: #8fc97e;
   color: #0f0f0f;
   border-color: #666666;
@@ -30,8 +31,6 @@
   align-items: center;
 }
 
-
-
 .playgroundButton:hover {
-  background-color: #969696;
+  background-color: #eff0f2;
 }
