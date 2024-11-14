@@ -1,0 +1,51 @@
+syntax = "proto3";
+package rawapi;
+
+option go_package = "/pb";
+
+// 256 bits
+message Uint256 {
+  fixed64 p0 = 1;
+  fixed64 p1 = 2;
+  fixed64 p2 = 3;
+  fixed64 p3 = 4;
+}
+
+message Hash {
+  Uint256 data = 1;
+}
+
+// 20 bytes
+message Address {
+  fixed32 p0 = 1;
+  fixed32 p1 = 2;
+  fixed32 p2 = 3;
+  fixed32 p3 = 4;
+  fixed32 p4 = 5;
+}
+
+message Error {
+  string message = 1;
+}
+
+enum NamedBlockReference {
+  UnknownNamedRefType = 0;
+  EarliestBlock = -1;
+  LatestBlock = -2;
+  PendingBlock = -3;
+}
+
+message BlockReference {
+  oneof reference {
+    Hash hash = 1;
+    uint64 blockIdentifier = 2;
+    NamedBlockReference namedBlockReference = 3;
+  }
+}
+
+message Uint64Response {
+  oneof result {
+    Error error = 1;
+    uint64 count = 2;
+  }
+}

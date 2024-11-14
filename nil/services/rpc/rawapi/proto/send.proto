@@ -1,0 +1,17 @@
+syntax = "proto3";
+package rawapi;
+
+option go_package = "/pb";
+
+import "nil/services/rpc/rawapi/proto/common.proto";
+
+message SendMessageRequest {
+  bytes messageSSZ = 1;
+}
+
+message SendMessageResponse {
+  oneof result {
+    Error error = 1;
+    uint32 status = 2;
+  }
+}

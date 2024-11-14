@@ -1,0 +1,36 @@
+syntax = "proto3";
+package rawapi;
+
+option go_package = "/pb";
+
+import "nil/services/rpc/rawapi/proto/common.proto";
+
+message AccountRequest {
+  Address address = 1;
+  BlockReference blockReference = 2;
+}
+
+message BalanceResponse {
+  oneof result {
+    Error error = 1;
+    Uint256 data = 2;
+  }
+}
+
+message CodeResponse {
+  oneof result {
+    Error error = 1;
+    bytes data = 2;
+  }
+}
+
+message Currencies {
+  map<string, Uint256> data = 1;
+}
+
+message CurrenciesResponse {
+  oneof result {
+    Error error = 1;
+    Currencies data = 2;
+  }
+}
