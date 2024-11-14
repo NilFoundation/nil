@@ -321,7 +321,6 @@ type EthAPI interface {
 type APIImplRo struct {
 	accessor *execution.StateAccessor
 
-	db     db.ReadOnlyDB
 	logs   *LogsAggregator
 	logger zerolog.Logger
 	rawapi rawapi.NodeApi
@@ -340,7 +339,6 @@ var (
 func NewEthAPIRo(ctx context.Context, rawapi rawapi.NodeApi, db db.ReadOnlyDB, pollBlocksForLogs bool) *APIImplRo {
 	accessor := execution.NewStateAccessor()
 	api := &APIImplRo{
-		db:       db,
 		logger:   logging.NewLogger("eth-api"),
 		accessor: accessor,
 		rawapi:   rawapi,

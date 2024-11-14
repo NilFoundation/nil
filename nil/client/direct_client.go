@@ -40,7 +40,7 @@ func NewEthClient(ctx context.Context, db db.ReadOnlyDB, nShards types.ShardId, 
 	localApi := rawapi.NewNodeApiOverShardApis(localShardApis)
 
 	ethApi := jsonrpc.NewEthAPI(ctx, localApi, db, true)
-	debugApi := jsonrpc.NewDebugAPI(localApi, db, logger)
+	debugApi := jsonrpc.NewDebugAPI(localApi, logger)
 	dbApi := jsonrpc.NewDbAPI(db, logger)
 
 	return &DirectClient{

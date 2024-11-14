@@ -6,8 +6,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
@@ -22,21 +20,16 @@ type DebugAPI interface {
 }
 
 type DebugAPIImpl struct {
-	db       db.ReadOnlyDB
-	logger   zerolog.Logger
-	accessor *execution.StateAccessor
-	rawApi   rawapi.NodeApi
+	logger zerolog.Logger
+	rawApi rawapi.NodeApi
 }
 
 var _ DebugAPI = &DebugAPIImpl{}
 
-func NewDebugAPI(rawApi rawapi.NodeApi, db db.ReadOnlyDB, logger zerolog.Logger) *DebugAPIImpl {
-	accessor := execution.NewStateAccessor()
+func NewDebugAPI(rawApi rawapi.NodeApi, logger zerolog.Logger) *DebugAPIImpl {
 	return &DebugAPIImpl{
-		db:       db,
-		logger:   logger,
-		accessor: accessor,
-		rawApi:   rawApi,
+		logger: logger,
+		rawApi: rawApi,
 	}
 }
 

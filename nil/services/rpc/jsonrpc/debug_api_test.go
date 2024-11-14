@@ -70,7 +70,7 @@ func TestDebugGetBlock(t *testing.T) {
 		types.MainShardId: mainShardApi,
 	}
 	localApi := rawapi.NewNodeApiOverShardApis(localShardApis)
-	api := NewDebugAPI(localApi, database, log.Logger)
+	api := NewDebugAPI(localApi, log.Logger)
 
 	// When: Get the latest block
 	res1, err := api.GetBlockByNumber(ctx, types.MainShardId, transport.LatestBlockNumber, false)
@@ -148,7 +148,7 @@ func (suite *SuiteDbgContracts) SetupSuite() {
 		shardId: shardApi,
 	}
 	localApi := rawapi.NewNodeApiOverShardApis(localShardApis)
-	suite.debugApi = NewDebugAPI(localApi, suite.db, logging.NewLogger("Test"))
+	suite.debugApi = NewDebugAPI(localApi, logging.NewLogger("Test"))
 	suite.Require().NoError(err)
 }
 
@@ -170,12 +170,12 @@ func (suite *SuiteDbgContracts) TestGetContract() {
 	})
 
 	suite.Run("proof", func() {
-		tx, err := suite.debugApi.db.CreateRoTx(ctx)
+		tx, err := suite.db.CreateRoTx(ctx)
 		suite.Require().NoError(err)
 		defer tx.Rollback()
 
 		shardId := suite.smcAddr.ShardId()
-		accessor := suite.debugApi.accessor.Access(tx, shardId).GetBlock()
+		accessor := execution.NewStateAccessor().Access(tx, shardId).GetBlock()
 		data, err := accessor.ByHash(suite.blockHash)
 		suite.Require().NoError(err)
 		suite.Require().NotNil(data.Block())

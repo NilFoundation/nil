@@ -67,8 +67,7 @@ func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db 
 	}
 	defer cancel()
 
-	debugImpl := jsonrpc.NewDebugAPI(rawApi, db, logger)
-	dbImpl := jsonrpc.NewDbAPI(db, logger)
+	debugImpl := jsonrpc.NewDebugAPI(rawApi, logger)
 
 	apiList := []transport.API{
 		{
@@ -94,6 +93,7 @@ func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db 
 	}
 
 	if cfg.RunMode == NormalRunMode {
+		dbImpl := jsonrpc.NewDbAPI(db, logger)
 		apiList = append(apiList, transport.API{
 			Namespace: "db",
 			Public:    true,
