@@ -168,7 +168,7 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilCurrencyBase {
             (bool success, bytes memory result) = Nil.syncCall(dst, gasleft(), 0, tokens, callData);
             return (success, result);
         } else {
-            Nil.asyncCallWithTokens(dst, address(0), address(0), 0, Nil.FORWARD_REMAINING, false, 0, tokens, callData);
+            Nil.asyncCallWithTokens(dst, address(0), address(0), 0, Nil.FORWARD_REMAINING, 0, tokens, callData);
             return (true, "");
         }
     }

@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IUniswapV2Factory.sol";
 import "./UniswapV2Pair.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract UniswapV2Factory is IUniswapV2Factory {
     address public feeTo;
@@ -75,8 +76,7 @@ contract UniswapV2Factory is IUniswapV2Factory {
 
     function deployPair(uint256 shard, uint256 salt) private returns (address deployedAddress) {
         bytes memory code = abi.encodePacked(type(UniswapV2Pair).creationCode, abi.encode(msg.sender));
-        address contractAddress = Nil.createAddress(shard, code, salt);
-        Nil.asyncCall(contractAddress, address(0), msg.sender, 0, 0, true, 0, abi.encodePacked(code, salt));
+        address contractAddress = Nil.asyncDeploy(shard, msg.sender, 0, code, salt);
         return contractAddress;
     }
 }

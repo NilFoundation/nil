@@ -34,6 +34,7 @@
           nilcli = (pkgs.callPackage ./nilcli.nix { nil = nil; versionFull = versionFull; });
           nilsmartcontracts = (pkgs.callPackage ./nilsmartcontracts.nix { });
           nilexplorer = (pkgs.callPackage ./nilexplorer.nix { });
+          uniswap = (pkgs.callPackage ./uniswap.nix { });
         };
         checks = rec {
           nil = (pkgs.callPackage ./nil.nix {
@@ -53,6 +54,10 @@
             enableTesting = true;
           });
           nilexplorer = (pkgs.callPackage ./nilexplorer.nix {
+            enableTesting = true;
+          });
+          uniswap = (pkgs.callPackage ./uniswap.nix {
+            nil = packages.nil;
             enableTesting = true;
           });
         };

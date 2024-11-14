@@ -18,7 +18,7 @@ jobs:
     runs-on: ["self-hosted", "aws_autoscaling"]
     strategy:
       matrix:
-        check: ["nil", "nildocs", "nilhardhat", "niljs", "nilexplorer"]
+        check: ["nil", "nildocs", "nilhardhat", "niljs", "nilexplorer", "uniswap"]
     steps:
       - name: checkout local actions
         uses: actions/checkout@v3

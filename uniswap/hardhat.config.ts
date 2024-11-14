@@ -32,7 +32,7 @@ const config: NilHardhatUserConfig = {
   },
   defaultNetwork: "nil",
   solidity: {
-    version: "0.8.24", // or your desired version
+    version: "0.8.26", // or your desired version
     settings: {
       viaIR: true, // needed to compile router
       optimizer: {
