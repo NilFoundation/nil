@@ -63,7 +63,7 @@ func (s *SuiteCometaClickhouse) SetupSuite() {
 		}
 	}()
 
-	s.clickhouse = exec.Command("clickhouse", "server")
+	s.clickhouse = exec.Command("clickhouse", "server", "--", "--listen_host=0.0.0.0")
 	s.clickhouse.Dir = s.T().TempDir()
 	err := s.clickhouse.Start()
 	s.Require().NoError(err)
