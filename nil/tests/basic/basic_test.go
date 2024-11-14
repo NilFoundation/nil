@@ -21,6 +21,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 	"github.com/NilFoundation/nil/nil/tests"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rs/zerolog"
@@ -530,7 +531,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 		}
 
 		_, err := s.Client.Call(callArgs, "latest", nil)
-		s.Require().ErrorContains(err, jsonrpc.ErrInvalidMessage.Error())
+		s.Require().ErrorContains(err, rpctypes.ErrInvalidMessage.Error())
 	})
 }
 
