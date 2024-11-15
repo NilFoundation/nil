@@ -39,3 +39,5 @@ export const MULTISIG_COMPILATION_COMMAND = `solc -o ./tests/MultiSigWallet --ab
 export const NFT_COMPILATION_COMMAND = `solc -o ./tests/NFT --abi --bin ./tests/NFT.sol --overwrite ${NODE_MODULES}`;
 
 export const AUCTION_COMPILATION_COMMAND = `solc -o ./tests/EnglishAuction --abi --bin ./tests/EnglishAuction.sol --overwrite ${NODE_MODULES}`;
+
+export const CLONE_FACTORY_COMPILATION_COMMAND = `solc -o ./tests/CloneFactory --abi --bin ./tests/CloneFactory.sol --overwrite ${NODE_MODULES}`;
