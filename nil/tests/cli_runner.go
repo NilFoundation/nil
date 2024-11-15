@@ -39,6 +39,7 @@ func (s *CliRunner) RunCliNoCheck(args ...string) (string, error) {
 	}
 
 	cmd := exec.Command(binPath, args...)
+	cmd.Env = append(os.Environ(), "INVOCATION_ID=")
 	data, err := cmd.CombinedOutput()
 	return strings.TrimSpace(string(data)), err
 }
