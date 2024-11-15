@@ -24,43 +24,43 @@
       in
       rec {
         packages = rec {
-          solc = (pkgs.callPackage ./solc.nix { });
-          nil = (pkgs.callPackage ./nil.nix { solc = packages.solc; });
-          niljs = (pkgs.callPackage ./niljs.nix { });
-          nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; });
-          nilhardhat = (pkgs.callPackage ./nilhardhat.nix { });
+          solc = (pkgs.callPackage ./nix/solc.nix { });
+          nil = (pkgs.callPackage ./nix/nil.nix { solc = solc; });
+          niljs = (pkgs.callPackage ./nix/niljs.nix { });
+          nildocs = (pkgs.callPackage ./nix/nildocs.nix { nil = nil; });
+          nilhardhat = (pkgs.callPackage ./nix/nilhardhat.nix { });
           default = nil;
-          formatters = (pkgs.callPackage ./formatters.nix { });
-          update_public_repo = (pkgs.callPackage ./update_public_repo.nix { });
-          nilcli = (pkgs.callPackage ./nilcli.nix { nil = nil; versionFull = versionFull; });
-          nilsmartcontracts = (pkgs.callPackage ./nilsmartcontracts.nix { });
-          nilexplorer = (pkgs.callPackage ./nilexplorer.nix { });
-          uniswap = (pkgs.callPackage ./uniswap.nix { });
+          formatters = (pkgs.callPackage ./nix/formatters.nix { });
+          update_public_repo = (pkgs.callPackage ./nix/update_public_repo.nix { });
+          nilcli = (pkgs.callPackage ./nix/nilcli.nix { nil = nil; versionFull = versionFull; });
+          nilsmartcontracts = (pkgs.callPackage ./nix/nilsmartcontracts.nix { });
+          nilexplorer = (pkgs.callPackage ./nix/nilexplorer.nix { });
+          uniswap = (pkgs.callPackage ./nix/uniswap.nix { });
         };
         checks = rec {
-          nil = (pkgs.callPackage ./nil.nix {
+          nil = (pkgs.callPackage ./nix/nil.nix {
             enableRaceDetector = true;
             enableTesting = true;
             solc = packages.solc;
           });
-          niljs = (pkgs.callPackage ./niljs.nix {
+          niljs = (pkgs.callPackage ./nix/niljs.nix {
             nil = packages.nil;
             enableTesting = true;
           });
-          nildocs = (pkgs.callPackage ./nildocs.nix {
-            nil = packages.nil;
-            enableTesting = true;
-            solc = packages.solc;
-          });
-          nilhardhat = (pkgs.callPackage ./nilhardhat.nix {
+          nildocs = (pkgs.callPackage ./nix/nildocs.nix {
             nil = packages.nil;
             enableTesting = true;
             solc = packages.solc;
           });
-          nilexplorer = (pkgs.callPackage ./nilexplorer.nix {
+          nilhardhat = (pkgs.callPackage ./nix/nilhardhat.nix {
+            nil = packages.nil;
+            enableTesting = true;
+            solc = packages.solc;
+          });
+          nilexplorer = (pkgs.callPackage ./nix/nilexplorer.nix {
             enableTesting = true;
           });
-          uniswap = (pkgs.callPackage ./uniswap.nix {
+          uniswap = (pkgs.callPackage ./nix/uniswap.nix {
             nil = packages.nil;
             enableTesting = true;
           });

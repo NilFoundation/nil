@@ -8,7 +8,7 @@
 stdenv.mkDerivation rec {
   name = "smart-contracts";
   pname = "smart-contracts";
-  src = lib.sourceByRegex ./. [
+  src = lib.sourceByRegex ./.. [
     "package.json"
     "package-lock.json"
     "^smart-contracts(/.*)?$"
