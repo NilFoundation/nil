@@ -19,3 +19,10 @@ var SlowLogBlackList = []string{
 	"eth_getBlock", "eth_getBlockByNumber", "eth_getBlockByHash", "eth_blockNumber",
 	"eth_call", "eth_getInMessageByHash",
 }
+
+var HeavyLogMethods = map[string]struct{}{
+	"cometa_registerContract": {},
+	"eth_call":                {},
+	"eth_estimateGas":         {},
+	"eth_sendRawTransaction":  {},
+}

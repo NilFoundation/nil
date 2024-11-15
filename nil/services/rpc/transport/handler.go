@@ -36,6 +36,9 @@ type handler struct {
 	// slow requests
 	slowLogThreshold time.Duration
 	slowLogBlacklist []string
+
+	// requests with heavy params, logged only on trace level
+	heavyLogBlacklist map[string]struct{}
 }
 
 func HandleError(err error, stream *jsoniter.Stream) {
@@ -83,18 +86,36 @@ func newHandler(connCtx context.Context, conn JsonWriter, reg *serviceRegistry, 
 		maxBatchConcurrency: maxBatchConcurrency,
 		traceRequests:       traceRequests,
 
-		slowLogThreshold: rpcSlowLogThreshold,
-		slowLogBlacklist: rpccfg.SlowLogBlackList,
+		slowLogThreshold:  rpcSlowLogThreshold,
+		slowLogBlacklist:  rpccfg.SlowLogBlackList,
+		heavyLogBlacklist: rpccfg.HeavyLogMethods,
 	}
 
 	return h
 }
 
+// some requests have heavy params which make logs harder to read
+func (h *handler) shouldLogRequestParams(method string, lvl zerolog.Level) bool {
+	if lvl == zerolog.TraceLevel {
+		return true
+	}
+
+	if _, ok := h.heavyLogBlacklist[method]; ok {
+		return false
+	}
+
+	return true
+}
+
 func (h *handler) log(lvl zerolog.Level, msg *Message, logMsg string, duration time.Duration) {
 	l := h.logger.WithLevel(lvl).
 		Stringer(logging.FieldReqId, idForLog(msg.ID)).
-		Str(logging.FieldRpcMethod, msg.Method).
-		Str(logging.FieldRpcParams, string(msg.Params))
+		Str(logging.FieldRpcMethod, msg.Method)
+
+	if h.shouldLogRequestParams(msg.Method, lvl) {
+		l = l.RawJSON(logging.FieldRpcParams, msg.Params)
+	}
+
 	if duration > 0 {
 		l = l.Dur(logging.FieldDuration, duration)
 	}
