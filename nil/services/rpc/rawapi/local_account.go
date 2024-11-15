@@ -99,22 +99,95 @@ func (api *LocalShardApi) GetCurrencies(ctx context.Context, address types.Addre
 	}), nil
 }
 
-func (api *LocalShardApi) getSmartContract(tx db.RoTx, address types.Address, blockReference rawapitypes.BlockReference) (*types.SmartContract, error) {
-	rawBlock, err := api.getBlockByReference(tx, blockReference, false)
+func (api *LocalShardApi) GetContract(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (*rawapitypes.SmartContract, error) {
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	contractRaw, proofBuilder, err := api.getRawSmartContract(tx, address, blockReference)
 	if err != nil {
 		return nil, err
 	}
+
+	contract := new(types.SmartContract)
+	if err := contract.UnmarshalSSZ(contractRaw); err != nil {
+		return nil, err
+	}
+
+	code, err := db.ReadCode(tx, address.ShardId(), contract.CodeHash)
+	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			code = nil
+		} else {
+			return nil, err
+		}
+	}
+
+	proof, err := proofBuilder(mpt.ReadMPTOperation)
+	if err != nil {
+		return nil, err
+	}
+
+	encodedProof, err := proof.Encode()
+	if err != nil {
+		return nil, err
+	}
+
+	storageReader := execution.NewDbStorageTrieReader(tx, address.ShardId())
+	storageReader.SetRootHash(contract.StorageRoot)
+	entries, err := storageReader.Entries()
+	if err != nil {
+		return nil, err
+	}
+
+	return &rawapitypes.SmartContract{
+		ContractSSZ:  contractRaw,
+		Code:         code,
+		ProofEncoded: encodedProof,
+		Storage: common.SliceToMap(
+			entries,
+			func(_ int, kv execution.Entry[common.Hash, *types.Uint256]) (common.Hash, types.Uint256) {
+				return kv.Key, *kv.Val
+			}),
+	}, nil
+}
+
+type proofBuilder = func(operation mpt.MPTOperation) (mpt.Proof, error)
+
+func makeProofBuilder(root *mpt.Reader, key []byte) proofBuilder {
+	return func(operation mpt.MPTOperation) (mpt.Proof, error) {
+		return mpt.BuildProof(root, key, operation)
+	}
+}
+
+func (api *LocalShardApi) getRawSmartContract(tx db.RoTx, address types.Address, blockReference rawapitypes.BlockReference) ([]byte, proofBuilder, error) {
+	rawBlock, err := api.getBlockByReference(tx, blockReference, false)
+	if err != nil {
+		return nil, nil, err
+	}
 	if rawBlock == nil {
-		return nil, errBlockNotFound
+		return nil, nil, errBlockNotFound
 	}
 	var block types.Block
 	if err := block.UnmarshalSSZ(rawBlock.Block); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	root := mpt.NewDbReader(tx, api.ShardId, db.ContractTrieTable)
 	root.SetRootHash(block.SmartContractsRoot)
-	contractRaw, err := root.Get(address.Hash().Bytes())
+	addressBytes := address.Hash().Bytes()
+	contractRaw, err := root.Get(addressBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return contractRaw, makeProofBuilder(root, addressBytes), nil
+}
+
+func (api *LocalShardApi) getSmartContract(tx db.RoTx, address types.Address, blockReference rawapitypes.BlockReference) (*types.SmartContract, error) {
+	contractRaw, _, err := api.getRawSmartContract(tx, address, blockReference)
 	if err != nil {
 		return nil, err
 	}

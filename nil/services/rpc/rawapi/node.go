@@ -136,6 +136,20 @@ func (api *NodeApiOverShardApis) GetCurrencies(ctx context.Context, address type
 	return result, nil
 }
 
+func (api *NodeApiOverShardApis) GetContract(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (*rawapitypes.SmartContract, error) {
+	methodName := methodNameChecked("GetContract")
+	shardId := address.ShardId()
+	shardApi, ok := api.Apis[shardId]
+	if !ok {
+		return nil, makeShardNotFoundError(methodName, shardId)
+	}
+	result, err := shardApi.GetContract(ctx, address, blockReference)
+	if err != nil {
+		return nil, makeCallError(methodName, shardId, err)
+	}
+	return result, nil
+}
+
 func (api *NodeApiOverShardApis) Call(
 	ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
 ) (*rpctypes.CallResWithGasPrice, error) {

@@ -19,15 +19,20 @@ type NetworkTransportProtocolRo interface {
 	GetBlockHeader(request pb.BlockRequest) pb.RawBlockResponse
 	GetFullBlockData(request pb.BlockRequest) pb.RawFullBlockResponse
 	GetBlockTransactionCount(request pb.BlockRequest) pb.Uint64Response
+
+	GetInMessage(pb.MessageRequest) pb.MessageResponse
+	GetInMessageReceipt(pb.Hash) pb.ReceiptResponse
+
 	GetBalance(request pb.AccountRequest) pb.BalanceResponse
 	GetCode(request pb.AccountRequest) pb.CodeResponse
 	GetCurrencies(request pb.AccountRequest) pb.CurrenciesResponse
+	GetMessageCount(pb.AccountRequest) pb.Uint64Response
+	GetContract(request pb.AccountRequest) pb.RawContractResponse
+
 	Call(pb.CallRequest) pb.CallResponse
-	GetInMessage(pb.MessageRequest) pb.MessageResponse
-	GetInMessageReceipt(pb.Hash) pb.ReceiptResponse
+
 	GasPrice() pb.GasPriceResponse
 	GetShardIdList() pb.ShardIdListResponse
-	GetMessageCount(pb.AccountRequest) pb.Uint64Response
 }
 
 // NetworkTransportProtocol is a helper interface for associating the argument and result types of Api methods

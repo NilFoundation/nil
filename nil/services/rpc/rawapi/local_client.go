@@ -71,6 +71,10 @@ func (api *LocalShardApiAccessor) GetCurrencies(ctx context.Context, address typ
 	return callLocalWithCallerMethodName[map[types.CurrencyId]types.Value](ctx, api, "GetCurrencies", address, blockReference)
 }
 
+func (api *LocalShardApiAccessor) GetContract(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (*rawapitypes.SmartContract, error) {
+	return callLocalWithCallerMethodName[*rawapitypes.SmartContract](ctx, api, "GetContract", address, blockReference)
+}
+
 func (api *LocalShardApiAccessor) Call(
 	ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
 ) (*rpctypes.CallResWithGasPrice, error) {

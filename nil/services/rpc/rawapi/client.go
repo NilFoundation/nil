@@ -67,6 +67,10 @@ func (api *NetworkShardApiAccessor) GetCurrencies(ctx context.Context, address t
 	return sendRequestAndGetResponseWithCallerMethodName[map[types.CurrencyId]types.Value](ctx, api, "GetCurrencies", address, blockReference)
 }
 
+func (api *NetworkShardApiAccessor) GetContract(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (*rawapitypes.SmartContract, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[*rawapitypes.SmartContract](ctx, api, "GetContract", address, blockReference)
+}
+
 func (api *NetworkShardApiAccessor) Call(
 	ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
 ) (*rpctypes.CallResWithGasPrice, error) {

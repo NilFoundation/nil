@@ -143,3 +143,10 @@ type MessageRequest struct {
 	ByBlockRefAndIndex *MessageRequestByBlockRefAndIndex
 	ByHash             *MessageRequestByHash
 }
+
+type SmartContract struct {
+	ContractSSZ  []byte
+	Code         types.Code
+	ProofEncoded []byte
+	Storage      map[common.Hash]types.Uint256
+}

@@ -3,7 +3,7 @@ package rawapi;
 
 option go_package = "/pb";
 
-import "nil/services/rpc/rawapi/proto/block.proto";
+import "nil/services/rpc/rawapi/proto/common.proto";
 import "nil/services/rpc/rawapi/proto/message.proto";
 
 message CallArgs {

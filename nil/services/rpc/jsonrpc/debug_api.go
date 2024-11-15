@@ -6,9 +6,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/internal/execution"
-	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
@@ -23,21 +20,16 @@ type DebugAPI interface {
 }
 
 type DebugAPIImpl struct {
-	db       db.ReadOnlyDB
-	logger   zerolog.Logger
-	accessor *execution.StateAccessor
-	rawApi   rawapi.NodeApi
+	logger zerolog.Logger
+	rawApi rawapi.NodeApi
 }
 
 var _ DebugAPI = &DebugAPIImpl{}
 
-func NewDebugAPI(rawApi rawapi.NodeApi, db db.ReadOnlyDB, logger zerolog.Logger) *DebugAPIImpl {
-	accessor := execution.NewStateAccessor()
+func NewDebugAPI(rawApi rawapi.NodeApi, logger zerolog.Logger) *DebugAPIImpl {
 	return &DebugAPIImpl{
-		db:       db,
-		logger:   logger,
-		accessor: accessor,
-		rawApi:   rawApi,
+		logger: logger,
+		rawApi: rawApi,
 	}
 }
 
@@ -88,61 +80,15 @@ func (api *DebugAPIImpl) getBlockByReference(ctx context.Context, shardId types.
 }
 
 func (api *DebugAPIImpl) GetContract(ctx context.Context, contractAddr types.Address, blockNrOrHash transport.BlockNumberOrHash) (*DebugRPCContract, error) {
-	tx, err := api.db.CreateRoTx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	shardId := contractAddr.ShardId()
-
-	blockHash, err := extractBlockHash(tx, shardId, blockNrOrHash)
+	contract, err := api.rawApi.GetContract(ctx, contractAddr, toBlockReference(blockNrOrHash))
 	if err != nil {
 		return nil, err
 	}
 
-	accessor := api.accessor.Access(tx, shardId).GetBlock()
-	data, err := accessor.ByHash(blockHash)
-	if err != nil {
-		return nil, err
-	}
-
-	if data.Block() == nil {
-		return nil, nil
-	}
-
-	contractRawReader := mpt.NewDbReader(tx, shardId, db.ContractTrieTable)
-	contractRawReader.SetRootHash(data.Block().SmartContractsRoot)
-	contractRaw, err := contractRawReader.Get(contractAddr.Hash().Bytes())
-	if err != nil {
-		return nil, err
-	}
-	contract := new(types.SmartContract)
-	if err := contract.UnmarshalSSZ(contractRaw); err != nil {
-		return nil, err
-	}
-
-	storageReader := execution.NewDbStorageTrieReader(tx, shardId)
-	storageReader.SetRootHash(contract.StorageRoot)
-	entries, err := storageReader.Entries()
-	if err != nil {
-		return nil, err
-	}
-
-	code, err := db.ReadCode(tx, shardId, contract.CodeHash)
-	if err != nil {
-		return nil, err
-	}
-
-	proof, err := mpt.BuildProof(contractRawReader, contractAddr.Hash().Bytes(), mpt.ReadMPTOperation)
-	if err != nil {
-		return nil, err
-	}
-
-	encodedProof, err := proof.Encode()
-	if err != nil {
-		return nil, err
-	}
-
-	return &DebugRPCContract{Code: hexutil.Bytes(code), Contract: contractRaw, Proof: hexutil.Bytes(encodedProof), Storage: entries}, nil
+	return &DebugRPCContract{
+		Contract: contract.ContractSSZ,
+		Code:     hexutil.Bytes(contract.Code),
+		Proof:    contract.ProofEncoded,
+		Storage:  contract.Storage,
+	}, nil
 }
