@@ -3,8 +3,16 @@
     "gopls": {
         "formatting.gofumpt": true
     },
+    "go.toolsEnvVars": {
+        "INVOCATION_ID": ""
+    },
+    "go.testEnvVars": {
+        "INVOCATION_ID": ""
+    },
     "go.lintTool": "golangci-lint",
-    "go.lintFlags": ["--fast"],
+    "go.lintFlags": [
+        "--fast"
+    ],
     "[typescript]": {
         "editor.defaultFormatter": "biomejs.biome"
     },
