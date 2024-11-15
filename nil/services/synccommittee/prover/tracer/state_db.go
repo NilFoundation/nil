@@ -243,13 +243,13 @@ func (tsdb *TracerStateDB) processOpcodeWithTracers(
 
 	// Memory tracing is hanled in one go. Mb split into two as for stack
 	if hasMemOps {
-		tsdb.memoryTracer.TraceOp(opCode, pc, ranges, scope)
-		tsdb.Stats.MemoryOpsN++
-
 		copyOccured := tsdb.copyTracer.TraceOp(opCode, tsdb.RwCounter.ctr, scope, returnData)
 		if copyOccured {
 			tsdb.Stats.CopyOpsN++
 		}
+
+		tsdb.memoryTracer.TraceOp(opCode, pc, ranges, scope)
+		tsdb.Stats.MemoryOpsN++
 	}
 
 	// Storage tracing is done inside Get/SetState methods
