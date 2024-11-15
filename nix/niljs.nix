@@ -11,7 +11,7 @@
 stdenv.mkDerivation rec {
   name = "nil.js";
   pname = "niljs";
-  src = lib.sourceByRegex ./. [ "package.json" "package-lock.json" "^niljs(/.*)?$" "^smart-contracts(/.*)?$" "biome.json" ];
+  src = lib.sourceByRegex ./.. [ "package.json" "package-lock.json" "^niljs(/.*)?$" "^smart-contracts(/.*)?$" "biome.json" ];
 
   npmDeps = (callPackage ./npmdeps.nix { });
 

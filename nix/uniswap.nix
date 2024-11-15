@@ -11,7 +11,7 @@
 stdenv.mkDerivation rec {
   name = "uniswap";
   pname = "uniswap";
-  src = lib.sourceByRegex ./. [
+  src = lib.sourceByRegex ./.. [
     "package.json"
     "package-lock.json"
     "^niljs(/.*)?$"

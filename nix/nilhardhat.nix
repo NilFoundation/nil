@@ -12,7 +12,7 @@
 
 stdenv.mkDerivation rec {
   name = "nil-hardhat-plugin";
-  src = lib.sourceByRegex ./. [
+  src = lib.sourceByRegex ./.. [
     "package.json"
     "package-lock.json"
     "^hardhat-plugin(/.*)?$"

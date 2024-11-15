@@ -8,7 +8,7 @@ stdenv.mkDerivation rec {
   name = "nilcli";
   pname = "nilcli";
 
-  src = ./scripts;
+  src = ../scripts;
 
   nativeBuildInputs = [
     nil
