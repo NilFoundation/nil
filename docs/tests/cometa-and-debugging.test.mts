@@ -134,7 +134,7 @@ describe.skip.sequential("Nil.js correctly interacts with Cometa", () => {
 
     const counterBugJson = `{
         "contractName": "CounterBug.sol:CounterBug",
-        "compilerVersion": "0.8.21",
+        "compilerVersion": "0.8.28",
         "settings": {
           "evmVersion": "shanghai",
           "optimizer": {

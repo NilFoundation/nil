@@ -24,9 +24,10 @@
       in
       rec {
         packages = rec {
-          nil = (pkgs.callPackage ./nil.nix { });
+          solc = (pkgs.callPackage ./solc.nix { });
+          nil = (pkgs.callPackage ./nil.nix { solc = packages.solc; });
           niljs = (pkgs.callPackage ./niljs.nix { });
-          nildocs = (pkgs.callPackage ./nildocs.nix { });
+          nildocs = (pkgs.callPackage ./nildocs.nix { nil = nil; });
           nilhardhat = (pkgs.callPackage ./nilhardhat.nix { });
           default = nil;
           formatters = (pkgs.callPackage ./formatters.nix { });
@@ -40,6 +41,7 @@
           nil = (pkgs.callPackage ./nil.nix {
             enableRaceDetector = true;
             enableTesting = true;
+            solc = packages.solc;
           });
           niljs = (pkgs.callPackage ./niljs.nix {
             nil = packages.nil;
@@ -48,10 +50,12 @@
           nildocs = (pkgs.callPackage ./nildocs.nix {
             nil = packages.nil;
             enableTesting = true;
+            solc = packages.solc;
           });
           nilhardhat = (pkgs.callPackage ./nilhardhat.nix {
             nil = packages.nil;
             enableTesting = true;
+            solc = packages.solc;
           });
           nilexplorer = (pkgs.callPackage ./nilexplorer.nix {
             enableTesting = true;

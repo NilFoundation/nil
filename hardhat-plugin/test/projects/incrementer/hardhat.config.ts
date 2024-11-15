@@ -13,7 +13,7 @@ const rpcEndpoint = getValue("rpc_endpoint");
 
 const config: NilHardhatUserConfig = {
   solidity: {
-    version: "0.8.21",
+    version: "0.8.28",
     settings: {
       metadata: {
         appendCBOR: false,
