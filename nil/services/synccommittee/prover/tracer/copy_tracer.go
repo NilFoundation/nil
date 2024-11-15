@@ -79,11 +79,14 @@ func (ct *CopyTracer) TraceOp(
 	}
 
 	eventData := extractEvent(tCtx)
+	if eventData.event == nil {
+		return false // opcode was found but copy event is not traced
+	}
 
 	eventData.event.RwIdx = rwCounter
 	eventData.event.Data = slices.Clone(eventData.event.Data) // avoid keeping whole EVM memory bunch in RAM
 
-	ct.events = append(ct.events, eventData.event)
+	ct.events = append(ct.events, *eventData.event)
 
 	if eventData.finalizer != nil {
 		ct.finalizer = func() {
@@ -112,12 +115,12 @@ func (ct *CopyTracer) Finalize() []CopyEvent {
 type copyEventFinalizer func(*CopyEvent)
 
 type copyEvent struct {
-	event     CopyEvent
+	event     *CopyEvent
 	finalizer copyEventFinalizer
 }
 
 func newFinalizedCopyEvent(base CopyEvent) copyEvent {
-	return copyEvent{event: base}
+	return copyEvent{event: &base}
 }
 
 func newCopyEventWithFinalizer(
@@ -125,9 +128,13 @@ func newCopyEventWithFinalizer(
 	finalizer copyEventFinalizer,
 ) copyEvent {
 	return copyEvent{
-		event:     base,
+		event:     &base,
 		finalizer: finalizer,
 	}
+}
+
+func newEmptyCopyEvent() copyEvent {
+	return copyEvent{}
 }
 
 // some extended context fields required by most of the opcodes to build an event
@@ -394,8 +401,12 @@ func newLogCopyEvent(tCtx copyEventTraceContext) copyEvent {
 	var (
 		src  = tCtx.stack.PopUint64()
 		size = tCtx.stack.PopUint64()
-		data = tCtx.vmCtx.MemoryData()[src : src+size]
 	)
+	if size == 0 {
+		return newEmptyCopyEvent()
+	}
+
+	data := tCtx.vmCtx.MemoryData()[src : src+size]
 
 	return newFinalizedCopyEvent(CopyEvent{
 		From: CopyParticipant{
