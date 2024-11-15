@@ -35,9 +35,6 @@ type TaskStorage interface {
 	// TryGetTaskEntry Retrieve a task entry by its id. In case if task does not exist, method returns nil
 	TryGetTaskEntry(ctx context.Context, id types.TaskId) (*types.TaskEntry, error)
 
-	// RemoveTaskEntry Delete existing task entry from DB
-	RemoveTaskEntry(ctx context.Context, id types.TaskId) error
-
 	// RequestTaskToExecute Find task with no dependencies and higher priority and assign it to the executor
 	RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.Task, error)
 
@@ -46,9 +43,6 @@ type TaskStorage interface {
 
 	// RescheduleHangingTasks Identify tasks that exceed execution timeout and reschedule them to be re-executed
 	RescheduleHangingTasks(ctx context.Context, currentTime time.Time, taskExecutionTimeout time.Duration) error
-
-	// TryGetTaskEntryByHash Retrieve a task entry by blockHash. In case if task does not exist, method returns nil, if few entries have same blockHash - returns first
-	TryGetTaskEntryByHash(ctx context.Context, blockHash common.Hash) (*types.TaskEntry, error)
 }
 
 type TaskStorageMetrics interface {
@@ -174,45 +168,6 @@ func (st *taskStorage) TryGetTaskEntry(ctx context.Context, id types.TaskId) (*t
 	}
 
 	return entry, err
-}
-
-func (st *taskStorage) TryGetTaskEntryByHash(ctx context.Context, blockHash common.Hash) (*types.TaskEntry, error) {
-	tx, err := st.database.CreateRoTx(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	var res *types.TaskEntry = nil
-
-	err = iterateOverTaskEntries(tx, func(entry *types.TaskEntry) error {
-		if entry.Task.BlockHash == blockHash {
-			res = entry
-			return nil
-		}
-		return nil
-	})
-
-	return res, err
-}
-
-func (st *taskStorage) RemoveTaskEntry(ctx context.Context, id types.TaskId) error {
-	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
-		return st.removeTaskEntryImpl(ctx, id)
-	})
-}
-
-// Delete existing task entry from DB
-func (st *taskStorage) removeTaskEntryImpl(ctx context.Context, id types.TaskId) error {
-	tx, err := st.database.CreateRwTx(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	err = tx.Delete(TaskEntriesTable, id.Bytes())
-	if err != nil {
-		return err
-	}
-	return tx.Commit()
 }
 
 // Helper to find available task with higher priority

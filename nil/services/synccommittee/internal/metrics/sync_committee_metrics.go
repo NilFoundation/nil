@@ -108,8 +108,8 @@ func (h *SyncCommitteeMetricsHandler) RecordMainBlockFetched(ctx context.Context
 	h.totalMainBlocksFetched.Add(ctx, 1, h.attributes)
 }
 
-func (h *SyncCommitteeMetricsHandler) RecordBlockBatchSize(ctx context.Context, batchSize uint32) {
-	h.blockBatchSize.Record(ctx, int64(batchSize), h.attributes)
+func (h *SyncCommitteeMetricsHandler) RecordBlockBatchSize(ctx context.Context, batchSize int64) {
+	h.blockBatchSize.Record(ctx, batchSize, h.attributes)
 }
 
 func (h *SyncCommitteeMetricsHandler) RecordMainBlockProved(ctx context.Context) {

@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -39,7 +40,12 @@ func (s *BlockStorageTestSuite) SetupSuite() {
 
 func (s *BlockStorageTestSuite) SetupTest() {
 	err := s.db.DropAll()
-	s.Require().NoError(err)
+	s.Require().NoError(err, "failed to clear storage in SetupTest")
+}
+
+func (s *BlockStorageTestSuite) SetupSubTest() {
+	err := s.db.DropAll()
+	s.Require().NoError(err, "failed to clear storage in SetupSubTest")
 }
 
 func (s *BlockStorageTestSuite) TearDownSuite() {
@@ -52,76 +58,31 @@ func TestBlockStorageTestSuite(t *testing.T) {
 	suite.Run(t, new(BlockStorageTestSuite))
 }
 
-func (s *BlockStorageTestSuite) TestGetSetBlock() {
-	block := testaide.GenerateExecutionShardBlock()
-
-	// Test SetBlock
-	err := s.bs.SetBlock(s.ctx, block, block.Hash)
-	s.Require().NoError(err)
-
-	// Test TryGetBlock
-	retrievedBlock, err := s.bs.TryGetBlock(s.ctx, scTypes.IdFromBlock(block))
-	s.Require().NoError(err)
-	s.Require().Equal(block.Number, retrievedBlock.Number)
-
-	// Test TryGetBlock for non-existent block
-	nonExistentBlock, err := s.bs.TryGetBlock(s.ctx, testaide.RandomBlockId())
-	s.Require().NoError(err)
-	s.Require().Nil(nonExistentBlock)
-}
-
-func (s *BlockStorageTestSuite) TestSetBlockSequentially_GetConcurrently() {
+func (s *BlockStorageTestSuite) TestSetBlockBatchSequentially_GetConcurrently() {
 	const blocksCount = 5
-	blocks := testaide.GenerateMainShardBlocks(blocksCount)
+	batches := testaide.GenerateBatchesSequence(blocksCount)
 
-	for _, block := range blocks {
-		err := s.bs.SetBlock(s.ctx, block, block.Hash)
+	for _, batch := range batches {
+		err := s.bs.SetBlockBatch(s.ctx, batch)
 		s.Require().NoError(err)
 	}
 
 	waitGroup := sync.WaitGroup{}
 	waitGroup.Add(blocksCount)
 
-	for _, block := range blocks {
+	for _, batch := range batches {
 		go func() {
-			blockId := scTypes.IdFromBlock(block)
-			fromDb, err := s.bs.TryGetBlock(s.ctx, blockId)
+			mainBlockId := scTypes.IdFromBlock(batch.MainShardBlock)
+			fromDb, err := s.bs.TryGetBlock(s.ctx, mainBlockId)
 			s.NoError(err)
 			s.NotNil(fromDb)
-			s.Equal(block.Number, fromDb.Number)
-			s.Equal(block.Hash, fromDb.Hash)
+			s.Equal(batch.MainShardBlock.Number, fromDb.Number)
+			s.Equal(batch.MainShardBlock.Hash, fromDb.Hash)
 			waitGroup.Done()
 		}()
 	}
 
 	waitGroup.Wait()
-}
-
-func (s *BlockStorageTestSuite) TestIsBatchCompleted() {
-	mainBlock, childBlocks := testaide.GenerateBlockBatch(1)
-	childBlock := childBlocks[0]
-
-	err := s.bs.SetBlock(s.ctx, mainBlock, mainBlock.Hash)
-	s.Require().NoError(err)
-
-	err = s.bs.SetBlock(s.ctx, childBlock, mainBlock.Hash)
-	s.Require().NoError(err)
-
-	res, err := s.bs.IsBatchCompleted(s.ctx, mainBlock)
-	s.Require().NoError(err)
-	s.Require().True(res)
-}
-
-func (s *BlockStorageTestSuite) TestGetOrCreateBatchId() {
-	// test create new batch Id
-	mainBlockHash := testaide.RandomHash()
-	expectedBatchId, err := s.bs.GetOrCreateBatchId(s.ctx, mainBlockHash)
-	s.Require().NoError(err)
-
-	// test get batch Id
-	batchId, err := s.bs.GetOrCreateBatchId(s.ctx, mainBlockHash)
-	s.Require().NoError(err)
-	s.Require().Equal(expectedBatchId, batchId)
 }
 
 func (s *BlockStorageTestSuite) TestGetLastFetchedBlock() {
@@ -130,35 +91,16 @@ func (s *BlockStorageTestSuite) TestGetLastFetchedBlock() {
 	s.Require().NoError(err)
 	s.Require().Nil(latestFetched)
 
-	mainBlock := testaide.GenerateMainShardBlock()
-	execBlocks := testaide.GenerateExecutionShardBlocks(10)
-
-	// blocks from different execution shards can be saved in any order
-	waitGroup := sync.WaitGroup{}
-	waitGroup.Add(len(execBlocks))
-	for _, block := range execBlocks {
-		go func() {
-			err := s.bs.SetBlock(s.ctx, block, mainBlock.Hash)
-			s.NoError(err)
-			waitGroup.Done()
-		}()
-	}
-	waitGroup.Wait()
-
-	// latest fetched should not be affected by execution blocks
-	latestFetched, err = s.bs.TryGetLatestFetched(s.ctx)
-	s.Require().NoError(err)
-	s.Require().Nil(latestFetched)
-
-	err = s.bs.SetBlock(s.ctx, mainBlock, mainBlock.Hash)
+	batch := testaide.GenerateBlockBatch(3)
+	err = s.bs.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
 	// latestFetched is updated after the main shard block is saved
 	latestFetched, err = s.bs.TryGetLatestFetched(s.ctx)
 	s.Require().NoError(err)
 	s.Require().NotNil(latestFetched)
-	s.Require().Equal(mainBlock.Number, latestFetched.Number)
-	s.Require().Equal(mainBlock.Hash, latestFetched.Hash)
+	s.Require().Equal(batch.MainShardBlock.Number, latestFetched.Number)
+	s.Require().Equal(batch.MainShardBlock.Hash, latestFetched.Hash)
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProved_DoesNotExist() {
@@ -168,12 +110,11 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProved_DoesNotExist() {
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProved() {
-	block := testaide.GenerateMainShardBlock()
-
-	err := s.bs.SetBlock(s.ctx, block, block.Hash)
+	batch := testaide.GenerateBlockBatch(3)
+	err := s.bs.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProved(s.ctx, scTypes.IdFromBlock(block))
+	err = s.bs.SetBlockAsProved(s.ctx, scTypes.IdFromBlock(batch.MainShardBlock))
 	s.Require().NoError(err)
 }
 
@@ -184,46 +125,79 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_DoesNotExist() {
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProposed_IsNotProved() {
-	block := testaide.GenerateMainShardBlock()
-	err := s.bs.SetBlock(s.ctx, block, block.Hash)
+	batch := testaide.GenerateBlockBatch(3)
+	err := s.bs.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProposed(s.ctx, scTypes.IdFromBlock(block))
-	s.Require().Errorf(err, "block with hash=%s is not proved", block.Hash.String())
+	err = s.bs.SetBlockAsProposed(s.ctx, scTypes.IdFromBlock(batch.MainShardBlock))
+	s.Require().Errorf(err, "block with hash=%s is not proved", batch.MainShardBlock.Hash.String())
 }
 
-func (s *BlockStorageTestSuite) TestSetBlock_ParentHashMismatch() {
-	previousMainBlock := testaide.GenerateMainShardBlock()
-	previousId := scTypes.IdFromBlock(previousMainBlock)
+func (s *BlockStorageTestSuite) TestSetBlockBatch_ParentHashMismatch() {
+	prevBatch := testaide.GenerateBlockBatch(4)
 
-	err := s.bs.SetBlock(s.ctx, previousMainBlock, previousMainBlock.Hash)
+	err := s.bs.SetBlockBatch(s.ctx, prevBatch)
 	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProved(s.ctx, previousId)
-	s.Require().NoError(err)
+	newBatch := testaide.GenerateBlockBatch(4)
+	newBatch.MainShardBlock.Number = prevBatch.MainShardBlock.Number + 1
 
-	err = s.bs.SetBlockAsProposed(s.ctx, previousId)
-	s.Require().NoError(err)
-
-	newMainBlock := testaide.GenerateMainShardBlock()
-	newMainBlock.Number = previousMainBlock.Number + 1
-
-	err = s.bs.SetBlock(s.ctx, newMainBlock, newMainBlock.Hash)
+	err = s.bs.SetBlockBatch(s.ctx, newBatch)
 	s.Require().ErrorContains(err, "unable to update latest fetched block: block mismatch")
+}
+
+func (s *BlockStorageTestSuite) TestSetBlockBatch_ParentMismatch() {
+	const childBlocksCount = 4
+
+	testCases := []struct {
+		name      string
+		nextBatch func(prev *scTypes.BlockBatch) *scTypes.BlockBatch
+	}{
+		{
+			name: "main block hash mismatch",
+			nextBatch: func(prev *scTypes.BlockBatch) *scTypes.BlockBatch {
+				next := testaide.GenerateBlockBatch(childBlocksCount)
+				next.MainShardBlock.ParentHash = testaide.RandomHash()
+				next.MainShardBlock.Number = prev.MainShardBlock.Number + 1
+				return next
+			},
+		},
+		{
+			name: "main block number mismatch",
+			nextBatch: func(prev *scTypes.BlockBatch) *scTypes.BlockBatch {
+				next := testaide.GenerateBlockBatch(childBlocksCount)
+				next.MainShardBlock.ParentHash = prev.MainShardBlock.Hash
+				next.MainShardBlock.Number = testaide.RandomBlockNum()
+				return next
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		s.Run(testCase.name, func() {
+			prevBatch := testaide.GenerateBlockBatch(childBlocksCount)
+			err := s.bs.SetBlockBatch(s.ctx, prevBatch)
+			s.Require().NoError(err)
+
+			nextBatch := testCase.nextBatch(prevBatch)
+			err = s.bs.SetBlockBatch(s.ctx, nextBatch)
+			s.Require().ErrorContains(err, "unable to update latest fetched block: block mismatch")
+		})
+	}
 }
 
 func (s *BlockStorageTestSuite) TestSetBlockAsProposed_WithExecutionShardBlocks() {
 	const childBlocksCount = 3
-	mainBlock, executionShardBlocks := testaide.GenerateBlockBatch(childBlocksCount)
-	mainBlockId := scTypes.IdFromBlock(mainBlock)
+	batch := testaide.GenerateBlockBatch(childBlocksCount)
+	mainBlockId := scTypes.IdFromBlock(batch.MainShardBlock)
 
-	someOtherBlock := testaide.GenerateExecutionShardBlock()
+	err := s.bs.SetBlockBatch(s.ctx, batch)
+	s.Require().NoError(err)
 
-	for _, block := range append(executionShardBlocks, mainBlock) {
-		err := s.bs.SetBlock(s.ctx, block, mainBlock.Hash)
-		s.Require().NoError(err)
-	}
-	err := s.bs.SetBlock(s.ctx, someOtherBlock, someOtherBlock.MainChainHash)
+	nextBatch := testaide.GenerateBlockBatch(childBlocksCount)
+	nextBatch.MainShardBlock.Number = batch.MainShardBlock.Number + 1
+	nextBatch.MainShardBlock.ParentHash = batch.MainShardBlock.Hash
+	err = s.bs.SetBlockBatch(s.ctx, nextBatch)
 	s.Require().NoError(err)
 
 	err = s.bs.SetBlockAsProved(s.ctx, mainBlockId)
@@ -232,15 +206,15 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_WithExecutionShardBlocks(
 	err = s.bs.SetBlockAsProposed(s.ctx, mainBlockId)
 	s.Require().NoError(err)
 
-	for _, block := range append(executionShardBlocks, mainBlock) {
+	allBlocks := make([]*jsonrpc.RPCBlock, 0)
+	allBlocks = append(allBlocks, batch.AllBlocks()...)
+	allBlocks = append(allBlocks, batch.AllBlocks()...)
+
+	for _, block := range allBlocks {
 		blockFromDb, err := s.bs.TryGetBlock(s.ctx, scTypes.IdFromBlock(block))
 		s.Require().NoError(err)
 		s.Require().Nil(blockFromDb)
 	}
-
-	otherBlockFromDb, err := s.bs.TryGetBlock(s.ctx, scTypes.IdFromBlock(someOtherBlock))
-	s.Require().NoError(err)
-	s.Require().NotNil(otherBlockFromDb)
 }
 
 func (s *BlockStorageTestSuite) TestTryGetNextProposalData_NotInitializedStateRoot() {
@@ -262,8 +236,8 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_NoProvedMainShardBloc
 	err := s.bs.SetProvedStateRoot(s.ctx, testaide.RandomHash())
 	s.Require().NoError(err)
 
-	mainBlock := testaide.GenerateMainShardBlock()
-	err = s.bs.SetBlock(s.ctx, mainBlock, mainBlock.Hash)
+	batch := testaide.GenerateBlockBatch(3)
+	err = s.bs.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
 	data, err := s.bs.TryGetNextProposalData(s.ctx)
@@ -278,19 +252,17 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Collect_Transactions(
 	var expectedTxCount int
 
 	const blocksCount = 3
-	mainBlock, childBlocks := testaide.GenerateBlockBatch(blocksCount)
-	expectedTxCount += len(mainBlock.Messages)
+	batch := testaide.GenerateBlockBatch(blocksCount)
+	expectedTxCount += len(batch.MainShardBlock.Messages)
 
-	for _, child := range childBlocks {
+	for _, child := range batch.ChildBlocks {
 		expectedTxCount += len(child.Messages)
 	}
 
-	for _, block := range append(childBlocks, mainBlock) {
-		err := s.bs.SetBlock(s.ctx, block, mainBlock.Hash)
-		s.Require().NoError(err)
-	}
+	err = s.bs.SetBlockBatch(s.ctx, batch)
+	s.Require().NoError(err)
 
-	err = s.bs.SetBlockAsProved(s.ctx, scTypes.IdFromBlock(mainBlock))
+	err = s.bs.SetBlockAsProved(s.ctx, scTypes.IdFromBlock(batch.MainShardBlock))
 	s.Require().NoError(err)
 
 	data, err := s.bs.TryGetNextProposalData(s.ctx)
@@ -305,20 +277,21 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Concurrently() {
 	s.Require().NoError(err, "failed to set initial state root")
 
 	const blocksCount = 10
-	mainShardBlocks := testaide.GenerateMainShardBlocks(blocksCount)
+	batches := testaide.GenerateBatchesSequence(blocksCount)
 
-	for _, block := range mainShardBlocks {
-		err := s.bs.SetBlock(s.ctx, block, block.Hash)
-		s.Require().NoError(err, "failed to set block")
+	for _, batch := range batches {
+		s.Require().NoError(err)
+		err = s.bs.SetBlockBatch(s.ctx, batch)
+		s.Require().NoError(err, "failed to set block batch")
 	}
 
 	waitGroup := sync.WaitGroup{}
 	waitGroup.Add(blocksCount + 1)
 
 	// concurrently set blocks as proved
-	for _, block := range mainShardBlocks {
+	for _, block := range batches {
 		go func() {
-			err := s.bs.SetBlockAsProved(s.ctx, scTypes.IdFromBlock(block))
+			err := s.bs.SetBlockAsProved(s.ctx, scTypes.IdFromBlock(block.MainShardBlock))
 			s.NoError(err, "failed to set block as proved")
 			waitGroup.Done()
 		}()
@@ -360,17 +333,22 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Concurrently() {
 
 	// check that data was received in correct order
 	for idx := range blocksCount {
-		block := mainShardBlocks[idx]
+		batch := batches[idx]
 		data := receivedData[idx]
 
-		s.Equal(block.Hash, data.MainShardBlockHash, msg("MainShardBlockHash"))
-		s.Len(data.Transactions, len(block.Messages), msg("Transactions count"))
-		s.Equal(block.ChildBlocksRootHash, data.NewProvedStateRoot, msg("NewProvedStateRoot"))
+		expectedTxCount := len(batch.MainShardBlock.Messages)
+		for _, child := range batch.ChildBlocks {
+			expectedTxCount += len(child.Messages)
+		}
+
+		s.Equal(batch.MainShardBlock.Hash, data.MainShardBlockHash, msg("MainShardBlockHash"))
+		s.Len(data.Transactions, expectedTxCount, msg("Transactions count"))
+		s.Equal(batch.MainShardBlock.ChildBlocksRootHash, data.NewProvedStateRoot, msg("NewProvedStateRoot"))
 
 		if idx == 0 {
 			s.Equal(initialStateRoot, data.OldProvedStateRoot, msg("OldProvedStateRoot"))
 		} else {
-			s.Equal(mainShardBlocks[idx-1].ChildBlocksRootHash, data.OldProvedStateRoot, msg("OldProvedStateRoot"))
+			s.Equal(batches[idx-1].MainShardBlock.ChildBlocksRootHash, data.OldProvedStateRoot, msg("OldProvedStateRoot"))
 		}
 	}
 }

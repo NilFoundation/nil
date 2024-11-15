@@ -7,8 +7,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
-	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
@@ -71,22 +69,21 @@ func (s *BlockTasksIntegrationTestSuite) SetupTest() {
 }
 
 func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Success_Result() {
-	mainBlock, childBlocks := testaide.GenerateBlockBatch(1)
-	for _, block := range []*jsonrpc.RPCBlock{childBlocks[0], mainBlock} {
-		err := s.blockStorage.SetBlock(s.ctx, block, mainBlock.Hash)
-		s.Require().NoError(err)
-	}
-
-	batchId, err := s.blockStorage.GetOrCreateBatchId(s.ctx, mainBlock.Hash)
+	batch := testaide.GenerateBlockBatch(1)
+	err := s.blockStorage.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
-	aggregateProofsTask, blockProofTask := s.generateAndSaveTasks(mainBlock, childBlocks, batchId)
+
+	proofTasks := batch.CreateProofTasks()
+	err = s.taskStorage.AddTaskEntries(s.ctx, proofTasks)
+	s.Require().NoError(err)
+
 	executorId := testaide.RandomExecutorId()
 
 	// requesting next task for execution
 	taskToExecute, err := s.scheduler.GetTask(s.ctx, api.NewTaskRequest(executorId))
 	s.Require().NoError(err)
 	s.Require().NotNil(taskToExecute)
-	s.Require().Equal(blockProofTask.Task, *taskToExecute)
+	s.Require().Equal(types.ProofBlock, taskToExecute.TaskType)
 
 	// no new tasks available yet
 	nonAvailableTask, err := s.scheduler.GetTask(s.ctx, api.NewTaskRequest(executorId))
@@ -107,8 +104,7 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Success_R
 	taskToExecute, err = s.scheduler.GetTask(s.ctx, api.NewTaskRequest(executorId))
 	s.Require().NoError(err)
 	s.Require().NotNil(taskToExecute)
-	s.Require().Equal(aggregateProofsTask.Task.TaskType, taskToExecute.TaskType)
-	s.Require().Equal(aggregateProofsTask.Task.Id, taskToExecute.Id)
+	s.Require().Equal(types.AggregateProofs, taskToExecute.TaskType)
 
 	// completing top-level aggregate proofs task
 	aggregateProofsResult := successProviderResult(taskToExecute, executorId)
@@ -119,26 +115,25 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Success_R
 	proposalData, err = s.blockStorage.TryGetNextProposalData(s.ctx)
 	s.Require().NoError(err)
 	s.Require().NotNil(proposalData)
-	s.Require().Equal(mainBlock.Hash, proposalData.MainShardBlockHash)
+	s.Require().Equal(batch.MainShardBlock.Hash, proposalData.MainShardBlockHash)
 }
 
 func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Failure_Result() {
-	mainBlock, childBlocks := testaide.GenerateBlockBatch(1)
-	for _, block := range []*jsonrpc.RPCBlock{childBlocks[0], mainBlock} {
-		err := s.blockStorage.SetBlock(s.ctx, block, mainBlock.Hash)
-		s.Require().NoError(err)
-	}
-
-	batchId, err := s.blockStorage.GetOrCreateBatchId(s.ctx, mainBlock.Hash)
+	batch := testaide.GenerateBlockBatch(1)
+	err := s.blockStorage.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
-	aggregateProofsTask, blockProofTask := s.generateAndSaveTasks(mainBlock, childBlocks, batchId)
+
+	proofTasks := batch.CreateProofTasks()
+	err = s.taskStorage.AddTaskEntries(s.ctx, proofTasks)
+	s.Require().NoError(err)
+
 	executorId := testaide.RandomExecutorId()
 
 	// requesting next task for execution
 	taskToExecute, err := s.scheduler.GetTask(s.ctx, api.NewTaskRequest(executorId))
 	s.Require().NoError(err)
 	s.Require().NotNil(taskToExecute)
-	s.Require().Equal(blockProofTask.Task, *taskToExecute)
+	s.Require().Equal(types.ProofBlock, taskToExecute.TaskType)
 
 	// successfully completing child block proof
 	blockProofResult := successProviderResult(taskToExecute, executorId)
@@ -149,8 +144,7 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Failure_R
 	taskToExecute, err = s.scheduler.GetTask(s.ctx, api.NewTaskRequest(executorId))
 	s.Require().NoError(err)
 	s.Require().NotNil(taskToExecute)
-	s.Require().Equal(aggregateProofsTask.Task.TaskType, taskToExecute.TaskType)
-	s.Require().Equal(aggregateProofsTask.Task.Id, taskToExecute.Id)
+	s.Require().Equal(types.AggregateProofs, taskToExecute.TaskType)
 
 	// setting top-level task as failed
 	aggregateProofsFailed := types.FailureProviderTaskResult(
@@ -168,7 +162,7 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Failure_R
 	s.Require().Nil(proposalData)
 
 	// status for AggregateProofs task should be updated
-	aggregateEntry, err := s.taskStorage.TryGetTaskEntry(s.ctx, aggregateProofsTask.Task.Id)
+	aggregateEntry, err := s.taskStorage.TryGetTaskEntry(s.ctx, taskToExecute.Id)
 	s.Require().NoError(err)
 	s.Require().NotNil(aggregateEntry)
 	s.Require().Equal(types.Failed, aggregateEntry.Status)
@@ -182,27 +176,4 @@ func successProviderResult(taskToExecute *types.Task, executorId types.TaskExecu
 		types.TaskResultAddresses{},
 		types.TaskResultData{},
 	)
-}
-
-func (s *BlockTasksIntegrationTestSuite) generateAndSaveTasks(
-	mainBlock *jsonrpc.RPCBlock,
-	childBlocks []*jsonrpc.RPCBlock,
-	batchId types.BatchId,
-) (aggregateProofsTask *types.TaskEntry, blockProofTask *types.TaskEntry) {
-	s.T().Helper()
-
-	aggregateProofsTask = types.NewAggregateBlockProofsTaskEntry(
-		batchId, coreTypes.MainShardId, mainBlock.Number, mainBlock.Hash, 1,
-	)
-	aggregateProofsTask.Task.DependencyNum = 1
-	aggregateProofsTask.Status = types.WaitingForInput
-
-	blockProofTask = types.NewBlockProofTaskEntry(
-		batchId, &aggregateProofsTask.Task.Id, childBlocks[0].Hash,
-	)
-	blockProofTask.PendingDeps = []types.TaskId{aggregateProofsTask.Task.Id}
-
-	err := s.taskStorage.AddTaskEntries(s.ctx, []*types.TaskEntry{aggregateProofsTask, blockProofTask})
-	s.Require().NoError(err)
-	return aggregateProofsTask, blockProofTask
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
@@ -80,11 +79,35 @@ func (s *TaskHandlerTestSuite) TestReturnErrorOnUnexpectedTaskType() {
 	}
 }
 
+func (s *TaskHandlerTestSuite) TestHandleAggregateProofsTask() {
+	executorId := testaide.RandomExecutorId()
+	mainBlock := testaide.GenerateMainShardBlock()
+	taskEntry := types.NewAggregateProofsTaskEntry(types.NewBatchId(), mainBlock)
+	aggProofsTask := taskEntry.Task
+
+	err := s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
+	s.Require().NoError(err)
+
+	otherExecutorId := testaide.RandomExecutorId()
+	requestedTask, err := s.taskStorage.RequestTaskToExecute(s.context, otherExecutorId)
+	s.Require().NoError(err)
+	s.Require().NotNil(requestedTask)
+
+	s.Require().NotEqual(aggProofsTask.Id, requestedTask.Id)
+	s.Require().Equal(&aggProofsTask.Id, requestedTask.ParentTaskId)
+
+	s.Require().Equal(aggProofsTask.BatchId, requestedTask.BatchId)
+	s.Require().Equal(aggProofsTask.ShardId, requestedTask.ShardId)
+	s.Require().Equal(aggProofsTask.BlockNum, requestedTask.BlockNum)
+	s.Require().Equal(aggProofsTask.BlockHash, requestedTask.BlockHash)
+	s.Require().Equal(aggProofsTask.Dependencies, requestedTask.Dependencies)
+}
+
 func (s *TaskHandlerTestSuite) TestHandleBlockProofTask() {
 	executorId := testaide.RandomExecutorId()
 	taskId := types.NewTaskId()
-	blockHash := common.IntToHash(1)
-	taskEntry := types.NewBlockProofTaskEntry(types.NewBatchId(), &taskId, blockHash)
+	execBlock := testaide.GenerateExecutionShardBlock()
+	taskEntry := types.NewBlockProofTaskEntry(types.NewBatchId(), taskId, execBlock)
 
 	err := s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
 	s.Require().NoError(err, "taskHandler.Handle returned an error")

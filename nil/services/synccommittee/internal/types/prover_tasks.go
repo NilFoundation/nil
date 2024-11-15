@@ -7,7 +7,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/google/uuid"
 )
 
@@ -58,31 +58,6 @@ func (t *TaskId) UnmarshalText(data []byte) error {
 		return err
 	}
 	*t = TaskId(uuidValue)
-	return nil
-}
-
-// BatchId Unique ID of a batch of blocks.
-type BatchId uuid.UUID
-
-var EmptyBatchId = BatchId{}
-
-func NewBatchId() BatchId         { return BatchId(uuid.New()) }
-func (id BatchId) String() string { return uuid.UUID(id).String() }
-func (id BatchId) Bytes() []byte  { return []byte(id.String()) }
-
-// MarshalText implements the encoding.TextMarshller interface for BatchId.
-func (b BatchId) MarshalText() ([]byte, error) {
-	uuidValue := uuid.UUID(b)
-	return []byte(uuidValue.String()), nil
-}
-
-// UnmarshalText implements the encoding.TextUnmarshaler interface for BatchId.
-func (b *BatchId) UnmarshalText(data []byte) error {
-	uuidValue, err := uuid.Parse(string(data))
-	if err != nil {
-		return err
-	}
-	*b = BatchId(uuidValue)
 	return nil
 }
 
@@ -217,7 +192,6 @@ const (
 	WaitingForExecutor
 	Running
 	Failed
-	Draft
 )
 
 // TaskEntry Wrapper for task to hold metadata like task status and dependencies
@@ -256,6 +230,18 @@ func (t *TaskEntry) ResetRunning() error {
 	return nil
 }
 
+func (t *Task) AsNewChildEntry() *TaskEntry {
+	newTask := common.CopyPtr(t)
+	newTask.Id = NewTaskId()
+	newTask.ParentTaskId = &t.Id
+
+	return &TaskEntry{
+		Task:    *newTask,
+		Status:  WaitingForExecutor,
+		Created: time.Now(),
+	}
+}
+
 // HigherPriority Priority comparator for tasks
 func HigherPriority(t1, t2 *TaskEntry) bool {
 	// AggregateProofs task can be created later thant DFRI step tasks for the next batch
@@ -268,38 +254,41 @@ func HigherPriority(t1, t2 *TaskEntry) bool {
 	return t1.Task.TaskType < t2.Task.TaskType
 }
 
-func NewAggregateBlockProofsTaskEntry(batchId BatchId, shardId coreTypes.ShardId, blockNum types.BlockNumber, blockHash common.Hash, numChaildBlocks uint8) *TaskEntry {
+func NewAggregateProofsTaskEntry(batchId BatchId, mainShardBlock *jsonrpc.RPCBlock) *TaskEntry {
 	task := Task{
 		Id:            NewTaskId(),
 		BatchId:       batchId,
-		ShardId:       shardId,
-		BlockNum:      blockNum,
-		BlockHash:     blockHash,
+		ShardId:       mainShardBlock.ShardId,
+		BlockNum:      mainShardBlock.Number,
+		BlockHash:     mainShardBlock.Hash,
 		TaskType:      AggregateProofs,
 		Dependencies:  EmptyDependencies(),
-		DependencyNum: numChaildBlocks,
+		DependencyNum: uint8(len(mainShardBlock.ChildBlocks)),
 	}
 	return &TaskEntry{
 		Task:    task,
 		Created: time.Now(),
-		Status:  Draft,
+		Status:  WaitingForInput,
 	}
 }
 
-func NewBlockProofTaskEntry(batchId BatchId, parentTaskId *TaskId, blockHash common.Hash) *TaskEntry {
+func NewBlockProofTaskEntry(batchId BatchId, parentTaskId TaskId, execShardBlock *jsonrpc.RPCBlock) *TaskEntry {
 	task := Task{
 		Id:            NewTaskId(),
 		BatchId:       batchId,
-		BlockHash:     blockHash,
+		ShardId:       execShardBlock.ShardId,
+		BlockNum:      execShardBlock.Number,
+		BlockHash:     execShardBlock.Hash,
 		TaskType:      ProofBlock,
-		ParentTaskId:  parentTaskId,
+		ParentTaskId:  &parentTaskId,
 		Dependencies:  EmptyDependencies(),
 		DependencyNum: 0,
 	}
 	return &TaskEntry{
-		Task:    task,
-		Created: time.Now(),
-		Status:  WaitingForExecutor,
+		Task:        task,
+		Created:     time.Now(),
+		Status:      WaitingForExecutor,
+		PendingDeps: []TaskId{parentTaskId},
 	}
 }
 
@@ -366,6 +355,7 @@ func NewCombinedQTaskEntry(
 		ShardId:       shardId,
 		BlockNum:      blockNum,
 		BlockHash:     blockHash,
+		CircuitType:   circuitType,
 		TaskType:      CombinedQ,
 		DependencyNum: 2, // partial prove of corresponding circuit plus agg challenges
 		Dependencies:  EmptyDependencies(),

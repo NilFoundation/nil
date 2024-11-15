@@ -2,95 +2,60 @@ package core
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/client/rpc"
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/db"
-	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/nilservice"
-	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
 
 type AggregatorTestSuite struct {
 	suite.Suite
 
-	nShards    uint32
-	client     *rpc.Client
-	storage    storage.BlockStorage
-	aggregator *Aggregator
-	nilDb      db.DB
-	scDb       db.DB
-	nilCancel  context.CancelFunc
-	ctx        context.Context
-	doneChan   chan interface{} // to track when nilservice has finished
+	ctx          context.Context
+	cancellation context.CancelFunc
+
+	db           db.DB
+	blockStorage storage.BlockStorage
+	taskStorage  storage.TaskStorage
+
+	rpcClientMock *client.ClientMock
+	aggregator    *Aggregator
 }
 
-func (s *AggregatorTestSuite) waitTwoBlocks(endpoint string) {
-	s.T().Helper()
-	client := rpc.NewClient(endpoint, zerolog.Nop())
-	const (
-		waitTimeout  = 5 * time.Second
-		pollInterval = time.Second
-	)
-	for i := range s.nShards {
-		s.Require().Eventually(func() bool {
-			block, err := client.GetBlock(coreTypes.ShardId(i), transport.BlockNumber(1), false)
-			return err == nil && block != nil
-		}, waitTimeout, pollInterval)
-	}
+func TestAggregatorTestSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(AggregatorTestSuite))
 }
 
 func (s *AggregatorTestSuite) SetupSuite() {
-	s.nShards = 4
-	s.ctx = context.Background()
-
-	url := rpctest.GetSockPath(s.T())
-
-	var err error
-	s.nilDb, err = db.NewBadgerDbInMemory()
-	s.Require().NoError(err)
-
-	nilserviceCfg := &nilservice.Config{
-		NShards:              s.nShards,
-		HttpUrl:              url,
-		Topology:             collate.TrivialShardTopologyId,
-		CollatorTickPeriodMs: 100,
-		GasBasePrice:         10,
-	}
-	var nilContext context.Context
-	nilContext, s.nilCancel = context.WithCancel(context.Background())
-	s.doneChan = make(chan interface{})
-	go func() {
-		nilservice.Run(nilContext, nilserviceCfg, s.nilDb, nil)
-		s.doneChan <- nil
-	}()
-
-	s.waitTwoBlocks(url)
+	s.ctx, s.cancellation = context.WithCancel(context.Background())
 
 	logger := logging.NewLogger("aggregator_test")
 	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
 	s.Require().NoError(err)
 
-	s.client = rpc.NewClient(url, logger)
-	s.scDb, err = db.NewBadgerDbInMemory()
+	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
-	s.storage = storage.NewBlockStorage(s.scDb, metricsHandler, logger)
-	s.Require().NoError(err)
+	s.blockStorage = storage.NewBlockStorage(s.db, metricsHandler, logger)
+	s.taskStorage = storage.NewTaskStorage(s.db, metricsHandler, logger)
+
+	s.rpcClientMock = &client.ClientMock{}
 
 	s.aggregator, err = NewAggregator(
-		s.client,
-		s.storage,
-		storage.NewTaskStorage(s.scDb, metricsHandler, logger),
+		s.rpcClientMock,
+		s.blockStorage,
+		s.taskStorage,
 		logger,
 		metricsHandler,
 		time.Second,
@@ -98,66 +63,202 @@ func (s *AggregatorTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 }
 
-func (s *AggregatorTestSuite) TearDownSuite() {
-	s.nilCancel()
-	<-s.doneChan // Wait for nilservice to shutdown
-	s.nilDb.Close()
-	s.scDb.Close()
-}
-
 func (s *AggregatorTestSuite) SetupTest() {
-	err := s.scDb.DropAll()
-	s.Require().NoError(err)
+	err := s.db.DropAll()
+	s.Require().NoError(err, "failed to clear database in SetUpTest")
+	s.rpcClientMock.ResetCalls()
 }
 
-func (s *AggregatorTestSuite) TestProcessNewBlocks() {
-	err := s.aggregator.processNewBlocks(context.Background())
-	s.Require().NoError(err)
-
-	latestFetched, err := s.storage.TryGetLatestFetched(s.ctx)
-	s.Require().NoError(err)
-	s.Require().NotNil(latestFetched)
-	s.Require().Greater(latestFetched.Number, coreTypes.BlockNumber(0))
+func (s *AggregatorTestSuite) TearDownSuite() {
+	s.cancellation()
 }
 
-func (s *AggregatorTestSuite) TestFetchAndProcessBlocks() {
-	latestBlock, err := s.aggregator.fetchLatestBlockRef()
+func (s *AggregatorTestSuite) Test_No_New_Block_To_Fetch() {
+	batch := testaide.GenerateBlockBatch(testaide.ShardsCount)
+	err := s.blockStorage.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
-	blocksRange := scTypes.BlocksRange{End: latestBlock.Number}
-	err = s.aggregator.fetchAndProcessBlocks(s.ctx, blocksRange)
+	s.rpcClientMock.GetBlockFunc = func(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error) {
+		if shardId == types.MainShardId {
+			return batch.MainShardBlock, nil
+		}
+
+		return nil, errors.New("unexpected call of GetBlock")
+	}
+
+	err = s.aggregator.processNewBlocks(s.ctx)
 	s.Require().NoError(err)
 
-	// Check if blocks were stored
-	block, err := s.aggregator.blockStorage.TryGetBlock(s.ctx, scTypes.NewBlockId(coreTypes.MainShardId, latestBlock.Hash))
+	// latest fetched block ref was not changed
+	mainRef, err := s.blockStorage.TryGetLatestFetched(s.ctx)
 	s.Require().NoError(err)
-	s.Require().NotNil(block)
+	s.Require().True(mainRef.Equals(batch.MainShardBlock))
+
+	s.requireNoNewTasks()
 }
 
-func (s *AggregatorTestSuite) TestValidateAndProcessBlock() {
-	latestBlock, err := s.aggregator.fetchLatestBlockRef()
+func (s *AggregatorTestSuite) Test_Fetched_Not_Ready_Batch() {
+	mainBlock := testaide.GenerateMainShardBlock()
+	mainBlock.ChildBlocks[1] = common.EmptyHash
+
+	s.rpcClientMock.GetBlockFunc = blockGenerator(mainBlock)
+
+	s.rpcClientMock.GetBlocksRangeFunc = func(_ types.ShardId, from types.BlockNumber, to types.BlockNumber, _ bool, _ int) ([]*jsonrpc.RPCBlock, error) {
+		if from == mainBlock.Number && to == mainBlock.Number+1 {
+			return []*jsonrpc.RPCBlock{mainBlock}, nil
+		}
+
+		return nil, errors.New("unexpected call of GetBlocksRange")
+	}
+
+	err := s.aggregator.processNewBlocks(s.ctx)
+	s.Require().ErrorIs(err, scTypes.ErrBatchNotReady)
+
+	// latest fetched block was not updated
+	mainRef, err := s.blockStorage.TryGetLatestFetched(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Nil(mainRef)
+
+	s.requireNoNewTasks()
+}
+
+func (s *AggregatorTestSuite) Test_Main_Parent_Hash_Mismatch() {
+	batches := testaide.GenerateBatchesSequence(2)
+	err := s.blockStorage.SetBlockBatch(s.ctx, batches[0])
 	s.Require().NoError(err)
 
-	// Fetch the latest block
-	block, err := s.client.GetBlock(coreTypes.MainShardId, transport.BlockNumber(latestBlock.Number), false)
-	s.Require().NoError(err)
-	s.Require().NotNil(block)
-	block.ChildBlocks = make([]common.Hash, 0)
+	nextMainBlock := batches[1].MainShardBlock
+	nextMainBlock.ParentHash = testaide.RandomHash()
 
-	// Validate and store the block
-	err = s.aggregator.validateAndProcessBlock(s.ctx, block, block.Hash)
-	s.Require().NoError(err)
+	s.rpcClientMock.GetBlockFunc = blockGenerator(nextMainBlock)
 
-	// Check if the block was stored
-	storedBlock, err := s.storage.TryGetBlock(s.ctx, scTypes.IdFromBlock(block))
+	s.rpcClientMock.GetBlocksRangeFunc = func(_ types.ShardId, from types.BlockNumber, to types.BlockNumber, _ bool, _ int) ([]*jsonrpc.RPCBlock, error) {
+		return []*jsonrpc.RPCBlock{nextMainBlock}, nil
+	}
+
+	err = s.aggregator.processNewBlocks(s.ctx)
+	s.Require().ErrorIs(err, scTypes.ErrBlockMismatch)
+
+	// latest fetched block was not updated
+	mainRef, err := s.blockStorage.TryGetLatestFetched(s.ctx)
+	s.Require().NoError(err)
+	s.Require().True(mainRef.Equals(batches[0].MainShardBlock))
+
+	s.requireNoNewTasks()
+}
+
+func (s *AggregatorTestSuite) Test_Fetch_At_Zero_State() {
+	mainRef, err := s.blockStorage.TryGetLatestFetched(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Nil(mainRef)
+
+	mainBlock := testaide.GenerateMainShardBlock()
+
+	s.rpcClientMock.GetBlockFunc = blockGenerator(mainBlock)
+
+	s.rpcClientMock.GetBlocksRangeFunc = func(_ types.ShardId, from types.BlockNumber, to types.BlockNumber, _ bool, _ int) ([]*jsonrpc.RPCBlock, error) {
+		if from == mainBlock.Number && to == mainBlock.Number+1 {
+			return []*jsonrpc.RPCBlock{mainBlock}, nil
+		}
+
+		return nil, errors.New("unexpected call of GetBlocksRange")
+	}
+
+	err = s.aggregator.processNewBlocks(s.ctx)
+	s.Require().NoError(err)
+	s.requireMainBlockHandled(mainBlock)
+}
+
+func (s *AggregatorTestSuite) Test_Fetch_Next_Valid() {
+	batches := testaide.GenerateBatchesSequence(2)
+	err := s.blockStorage.SetBlockBatch(s.ctx, batches[0])
+	s.Require().NoError(err)
+	nextMainBlock := batches[1].MainShardBlock
+
+	s.rpcClientMock.GetBlockFunc = blockGenerator(nextMainBlock)
+
+	s.rpcClientMock.GetBlocksRangeFunc = func(_ types.ShardId, from types.BlockNumber, to types.BlockNumber, _ bool, _ int) ([]*jsonrpc.RPCBlock, error) {
+		if from == nextMainBlock.Number && to == nextMainBlock.Number+1 {
+			return []*jsonrpc.RPCBlock{nextMainBlock}, nil
+		}
+
+		return nil, errors.New("unexpected call of GetBlocksRange")
+	}
+
+	err = s.aggregator.processNewBlocks(s.ctx)
+	s.Require().NoError(err)
+	s.requireMainBlockHandled(nextMainBlock)
+}
+
+func blockGenerator(mainBlock *jsonrpc.RPCBlock) func(types.ShardId, any, bool) (*jsonrpc.RPCBlock, error) {
+	return func(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error) {
+		if shardId == types.MainShardId {
+			return mainBlock, nil
+		}
+
+		blockHash, ok := blockId.(common.Hash)
+		if !ok {
+			return nil, errors.New("unexpected blockId type")
+		}
+
+		if blockHash.Empty() {
+			return nil, nil
+		}
+
+		execShardBlock := testaide.GenerateExecutionShardBlock()
+		execShardBlock.ShardId = shardId
+		execShardBlock.Hash = blockHash
+		return execShardBlock, nil
+	}
+}
+
+// requireNoNewTasks asserts that there are no new tasks available for execution
+func (s *AggregatorTestSuite) requireNoNewTasks() {
+	s.T().Helper()
+	task, err := s.taskStorage.RequestTaskToExecute(s.ctx, testaide.RandomExecutorId())
+	s.Require().NoError(err)
+	s.Require().Nil(task)
+}
+
+func (s *AggregatorTestSuite) requireMainBlockHandled(mainBlock *jsonrpc.RPCBlock) {
+	s.T().Helper()
+
+	// latest fetched block was updated
+	mainRef, err := s.blockStorage.TryGetLatestFetched(s.ctx)
+	s.Require().NoError(err)
+	s.Require().NotNil(mainRef)
+	s.Require().True(mainRef.Equals(mainBlock))
+
+	// main + exec block were saved to the storage
+	s.requireBlockStored(scTypes.IdFromBlock(mainBlock))
+	childIds, err := scTypes.ChildBlockIds(mainBlock)
+	s.Require().NoError(err)
+	for _, childId := range childIds {
+		s.requireBlockStored(childId)
+	}
+
+	var parentTaskId scTypes.TaskId
+
+	// one ProofBlock task per exec block was created
+	for range len(childIds) {
+		taskToExecute, err := s.taskStorage.RequestTaskToExecute(s.ctx, testaide.RandomExecutorId())
+		s.Require().NoError(err)
+		s.Require().NotNil(taskToExecute)
+		s.Require().Equal(scTypes.ProofBlock, taskToExecute.TaskType)
+		s.Require().NotNil(taskToExecute.ParentTaskId)
+		parentTaskId = *taskToExecute.ParentTaskId
+	}
+
+	// root AggregateProofs was created
+	parentTask, err := s.taskStorage.TryGetTaskEntry(s.ctx, parentTaskId)
+	s.Require().NoError(err)
+	s.Require().NotNil(parentTask)
+	s.Require().Equal(scTypes.AggregateProofs, parentTask.Task.TaskType)
+}
+
+func (s *AggregatorTestSuite) requireBlockStored(blockId scTypes.BlockId) {
+	s.T().Helper()
+	storedBlock, err := s.blockStorage.TryGetBlock(s.ctx, blockId)
 	s.Require().NoError(err)
 	s.Require().NotNil(storedBlock)
-	s.Require().Equal(block.Number, storedBlock.Number)
-	s.Require().Equal(block.Hash, storedBlock.Hash)
-}
-
-func TestAggregatorTestSuite(t *testing.T) {
-	t.Parallel()
-
-	suite.Run(t, new(AggregatorTestSuite))
 }
