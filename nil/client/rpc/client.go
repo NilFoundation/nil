@@ -752,21 +752,17 @@ func (c *Client) getBlocksRange(shardId types.ShardId, from, to types.BlockNumbe
 	return result, nil
 }
 
-func (c *Client) GetDebugBlocksRange(shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*types.BlockWithExtractedData, error) {
+func (c *Client) GetDebugBlocksRange(shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*jsonrpc.DebugRPCBlock, error) {
 	rawBlocks, err := c.getBlocksRange(shardId, from, to, fullTx, batchSize, true)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]*types.BlockWithExtractedData, len(rawBlocks))
+	result := make([]*jsonrpc.DebugRPCBlock, len(rawBlocks))
 	for i, raw := range rawBlocks {
-		check.PanicIfNot(raw != nil)
-		block, ok := raw.(*jsonrpc.DebugRPCBlock)
+		var ok bool
+		result[i], ok = raw.(*jsonrpc.DebugRPCBlock)
 		check.PanicIfNot(ok)
-		result[i], err = block.DecodeSSZ()
-		if err != nil {
-			return nil, err
-		}
 	}
 	return result, nil
 }

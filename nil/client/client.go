@@ -37,7 +37,7 @@ type Client interface {
 	GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error)
 	GetBlocksRange(shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*jsonrpc.RPCBlock, error)
 	GetDebugBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.DebugRPCBlock, error)
-	GetDebugBlocksRange(shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*types.BlockWithExtractedData, error)
+	GetDebugBlocksRange(shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*jsonrpc.DebugRPCBlock, error)
 	SendMessage(msg *types.ExternalMessage) (common.Hash, error)
 	SendRawTransaction(data []byte) (common.Hash, error)
 	GetInMessageByHash(hash common.Hash) (*jsonrpc.RPCInMessage, error)

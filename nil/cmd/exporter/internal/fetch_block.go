@@ -3,6 +3,7 @@ package internal
 import (
 	"errors"
 
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
@@ -12,7 +13,21 @@ var logger = logging.NewLogger("fetch-block")
 var ErrBlockNotFound = errors.New("block not found")
 
 func (cfg *Cfg) FetchBlocks(shardId types.ShardId, fromId types.BlockNumber, toId types.BlockNumber) ([]*types.BlockWithExtractedData, error) {
-	return cfg.Client.GetDebugBlocksRange(shardId, fromId, toId, true, int(toId-fromId))
+	rawBlocks, err := cfg.Client.GetDebugBlocksRange(shardId, fromId, toId, true, int(toId-fromId))
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*types.BlockWithExtractedData, len(rawBlocks))
+	for i, raw := range rawBlocks {
+		check.PanicIfNot(raw != nil)
+		result[i], err = raw.DecodeSSZ()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
 }
 
 func (cfg *Cfg) FetchBlock(shardId types.ShardId, blockId any) (*types.BlockWithExtractedData, error) {

@@ -100,7 +100,7 @@ func (c *DirectClient) GetDebugBlock(shardId types.ShardId, blockId any, fullTx 
 	return nil, nil
 }
 
-func (c *DirectClient) GetDebugBlocksRange(shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*types.BlockWithExtractedData, error) {
+func (c *DirectClient) GetDebugBlocksRange(shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*jsonrpc.DebugRPCBlock, error) {
 	panic("Not supported")
 }
 
