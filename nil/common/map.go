@@ -17,3 +17,11 @@ func TransformMap[K1, K2 comparable, V1 any, V2 any](m map[K1]V1, transformer fu
 	}
 	return tm
 }
+
+func ReverseMap[K, V comparable](input map[K]V) map[V]K {
+	ret := make(map[V]K, len(input))
+	for k, v := range input {
+		ret[v] = k
+	}
+	return ret
+}

@@ -91,6 +91,33 @@ message ZKEVMState {
     repeated StorageEntry storage_slice = 15;
 }
 
+enum CopyLocation {
+    MEMORY = 0;
+    BYTECODE = 1;
+    CALLDATA = 2;
+    LOG = 3;
+    KECCAK = 4;
+    RETURNDATA = 5;
+}
+
+message CopyParticipant {
+    CopyLocation location = 1;
+    oneof id {
+        uint64 call_id = 2;
+        string bytecode_hash = 3;
+        string keccak_hash = 4;
+    }
+    uint64 mem_address = 5;
+}
+
+message CopyEvent {
+    CopyParticipant from = 1;
+    CopyParticipant to = 2;
+    uint64 rw_idx = 3;
+    bytes data = 4;
+}
+
+
 // ExecutionTraces represents all proofs related to contract execution
 message ExecutionTraces {
     repeated StackOp stack_ops = 1;
@@ -99,4 +126,5 @@ message ExecutionTraces {
     repeated MessageTraces message_traces = 4;
     map<string, bytes> contract_bytecodes = 5;
     repeated ZKEVMState zkevm_states = 6;
+    repeated CopyEvent copy_events = 7;
 }

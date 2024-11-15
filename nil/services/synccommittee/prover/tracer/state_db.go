@@ -23,6 +23,7 @@ type ExecutionTraces struct {
 	MemoryOps   []MemoryOp
 	StorageOps  []StorageOp
 	ZKEVMStates []ZKEVMState
+	CopyEvents  []CopyEvent
 
 	ContractsBytecode map[types.Address][]byte
 	// For each message, for each touched contract
@@ -282,6 +283,7 @@ func (tsdb *TracerStateDB) saveMessageTraces() error {
 	tsdb.Traces.StackOps = append(tsdb.Traces.StackOps, tsdb.stackTracer.Finalize()...)
 	tsdb.Traces.ZKEVMStates = append(tsdb.Traces.ZKEVMStates, tsdb.zkevmTracer.Finalize()...)
 	tsdb.Traces.StorageOps = append(tsdb.Traces.StorageOps, tsdb.storageInteractor.GetStorageOps()...)
+	tsdb.Traces.CopyEvents = append(tsdb.Traces.CopyEvents, tsdb.copyTracer.Finalize()...)
 
 	curMessageSlotChanges := make(map[types.Address][]SlotChangeTrace)
 	for _, addr := range tsdb.storageInteractor.GetAffectedAccountsAddresses() {

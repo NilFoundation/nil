@@ -17,7 +17,7 @@ const (
 	CopyLocationBytecode                       // current (or some another) contract bytecode
 	CopyLocationCalldata                       // context or subcontext calldata
 	CopyLocationLog                            // write-only: log storage
-	CopyLocationKeccak                         // write-only: keccack calculator
+	CopyLocationKeccak                         // write-only: keccak calculator
 	CopyLocationReturnData                     // returndata section of current context or subcontext
 )
 
@@ -27,7 +27,7 @@ type CopyParticipant struct {
 	// one of
 	TxId         *uint // Index of transaction in block
 	BytecodeHash *common.Hash
-	KeccackHash  *common.Hash
+	KeccakHash   *common.Hash
 
 	// optional if the location is not a memory
 	MemAddress uint64
@@ -348,7 +348,7 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 		finalizer := func(event *CopyEvent) {
 			var result common.Hash
 			result.SetBytes(stackAfter.Pop().Bytes())
-			event.To.KeccackHash = &result
+			event.To.KeccakHash = &result
 		}
 
 		var (
