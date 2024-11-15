@@ -2,9 +2,6 @@
 , stdenv
 , biome
 , python3
-, libtool
-, fetchFromGitHub
-, fetchNpmDeps
 , callPackage
 , npmHooks
 , nodejs
@@ -33,7 +30,6 @@ stdenv.mkDerivation rec {
     npmHooks.npmConfigHook
     biome
     python3
-    libtool
   ];
 
   dontConfigure = true;
