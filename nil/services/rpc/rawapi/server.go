@@ -42,7 +42,7 @@ type NetworkTransportProtocol interface {
 	SendMessage(pb.SendMessageRequest) pb.SendMessageResponse
 }
 
-func SetRawApiRequestHandlers(ctx context.Context, shardId types.ShardId, api *LocalShardApi, manager *network.Manager, readonly bool, logger zerolog.Logger) error {
+func SetRawApiRequestHandlers(ctx context.Context, shardId types.ShardId, api ShardApi, manager *network.Manager, readonly bool, logger zerolog.Logger) error {
 	var protocolInterfaceType, apiType reflect.Type
 	if readonly {
 		protocolInterfaceType = reflect.TypeFor[NetworkTransportProtocolRo]()
