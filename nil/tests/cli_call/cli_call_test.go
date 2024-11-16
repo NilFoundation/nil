@@ -50,7 +50,7 @@ func (s *SuiteCliTestCall) SetupTest() {
 		NShards:              2,
 		CollatorTickPeriodMs: 200,
 		ZeroStateYaml:        s.zerostateCfg,
-	}, 10425)
+	}, 10525)
 
 	s.client, s.endpoint = s.StartRPCNode()
 
