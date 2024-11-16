@@ -5,10 +5,12 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/ssz"
+	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/msgpool"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
+	"github.com/rs/zerolog"
 )
 
 type NodeApiRo interface {
@@ -59,10 +61,15 @@ type ShardApiRo interface {
 	GasPrice(ctx context.Context) (types.Value, error)
 	GetShardIdList(ctx context.Context) ([]types.ShardId, error)
 
+	setAsP2pRequestHandlersIfAllowed(ctx context.Context, networkManager *network.Manager, readonly bool, logger zerolog.Logger) error
 	setNodeApi(nodeApi NodeApi)
 }
 
 type ShardApi interface {
 	ShardApiRo
 	SendMessage(ctx context.Context, message []byte) (msgpool.DiscardReason, error)
+}
+
+func SetShardApiAsP2pRequestHandlersIfAllowed(shardApi ShardApi, ctx context.Context, networkManager *network.Manager, readonly bool, logger zerolog.Logger) error {
+	return shardApi.setAsP2pRequestHandlersIfAllowed(ctx, networkManager, readonly, logger)
 }

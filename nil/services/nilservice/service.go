@@ -160,18 +160,9 @@ func setP2pRequestHandlers(ctx context.Context, rawApi *rawapi.NodeApiOverShardA
 		return nil
 	}
 	for shardId, api := range rawApi.Apis {
-		var shardApi *rawapi.LocalShardApi
-		switch api := api.(type) {
-		case *rawapi.LocalShardApiAccessor:
-			shardApi = api.RawApi
-		case *rawapi.LocalShardApi:
-			shardApi = api
-		}
-		if shardApi != nil {
-			if err := rawapi.SetRawApiRequestHandlers(ctx, shardId, shardApi, networkManager, readonly, logger); err != nil {
-				logger.Error().Err(err).Stringer(logging.FieldShardId, shardId).Msg("Failed to set raw API request handler")
-				return err
-			}
+		if err := rawapi.SetShardApiAsP2pRequestHandlersIfAllowed(api, ctx, networkManager, readonly, logger); err != nil {
+			logger.Error().Err(err).Stringer(logging.FieldShardId, shardId).Msg("Failed to set raw API request handler")
+			return err
 		}
 	}
 	return nil

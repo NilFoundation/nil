@@ -23,6 +23,7 @@ type generatedApiClient struct {
 	apiCodec       apiCodec
 	networkManager *network.Manager
 	serverPeerId   network.PeerID
+	doApiRequest   doApiRequestFunction
 }
 
 type ApiClientTestSuite struct {
@@ -40,11 +41,12 @@ func newGeneratedApiClient(networkManager *network.Manager, serverPeerId network
 		apiCodec:       apiCodec,
 		networkManager: networkManager,
 		serverPeerId:   serverPeerId,
+		doApiRequest:   makeDoNetworkRawApiRequestFunction(networkManager, types.BaseShardId, "testapi"),
 	}, nil
 }
 
 func (api *generatedApiClient) TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (ssz.SSZEncodedData, error) {
-	return sendRequestAndGetResponse[ssz.SSZEncodedData](api.apiCodec, api.networkManager, types.BaseShardId, "testapi", "TestMethod", ctx, blockReference)
+	return sendRequestAndGetResponse[ssz.SSZEncodedData](api.doApiRequest, api.apiCodec, "TestMethod", ctx, blockReference)
 }
 
 func (s *ApiClientTestSuite) SetupSuite() {
