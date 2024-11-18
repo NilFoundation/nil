@@ -101,10 +101,8 @@ func (ct *CopyTracer) FinishPrevOpcodeTracing() {
 		return
 	}
 
-	defer func() {
-		ct.finalizer = nil
-	}()
 	ct.finalizer()
+	ct.finalizer = nil
 }
 
 func (ct *CopyTracer) Finalize() []CopyEvent {

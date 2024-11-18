@@ -185,20 +185,6 @@ func (tsdb *TracerStateDB) HandleInMessage(message *types.Message) error {
 	return err
 }
 
-func (tsdb *TracerStateDB) initTracers() {
-	msgId := uint(len(tsdb.InMessages) - 1)
-	tsdb.stackTracer = &StackOpTracer{rwCtr: &tsdb.RwCounter, msgId: msgId}
-	tsdb.memoryTracer = &MemoryOpTracer{rwCtr: &tsdb.RwCounter, msgId: msgId}
-	tsdb.storageInteractor = NewMessageStorageInteractor(&tsdb.RwCounter, tsdb.GetCurPC, msgId)
-	tsdb.zkevmTracer = &ZKEVMStateTracer{
-		rwCtr:        &tsdb.RwCounter,
-		msgId:        msgId,
-		txHash:       tsdb.GetInMessage().Hash(),
-		bytecodeHash: tsdb.codeHash,
-	}
-	tsdb.copyTracer = &CopyTracer{codeProvider: tsdb, msgId: msgId}
-}
-
 func (tsdb *TracerStateDB) processOpcodeWithTracers(
 	pc uint64,
 	op byte,
@@ -266,9 +252,22 @@ func (tsdb *TracerStateDB) initVm(
 ) {
 	tsdb.evm = vm.NewEVM(tsdb.blkContext, tsdb, origin, state)
 	tsdb.evm.IsAsyncCall = internal
+
 	tsdb.code = executingCode
 	tsdb.codeHash = executingCode.Hash()
-	tsdb.initTracers()
+
+	msgId := uint(len(tsdb.InMessages) - 1)
+	tsdb.stackTracer = &StackOpTracer{rwCtr: &tsdb.RwCounter, msgId: msgId}
+	tsdb.memoryTracer = &MemoryOpTracer{rwCtr: &tsdb.RwCounter, msgId: msgId}
+	tsdb.storageInteractor = NewMessageStorageInteractor(&tsdb.RwCounter, tsdb.GetCurPC, msgId)
+	tsdb.zkevmTracer = &ZKEVMStateTracer{
+		rwCtr:        &tsdb.RwCounter,
+		msgId:        msgId,
+		txHash:       tsdb.GetInMessage().Hash(),
+		bytecodeHash: tsdb.codeHash,
+	}
+	tsdb.copyTracer = &CopyTracer{codeProvider: tsdb, msgId: msgId}
+
 	tsdb.evm.Config.Tracer = &tracing.Hooks{
 		OnOpcode: func(pc uint64, op byte, gas uint64, cost uint64, scope tracing.OpContext, rData []byte, depth int, err error) {
 			tsdb.curPC = pc
