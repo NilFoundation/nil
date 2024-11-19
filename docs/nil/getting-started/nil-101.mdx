@@ -30,6 +30,11 @@ To point the CLI toward the RPC endpoint:
 ```bash file=../../tests/commands.mjs start=startEndpoint end=endEndpoint
 ```
 
+To set the faucet endpoint necessary for creating a new wallet:
+
+```bash file=../../tests/commands.mjs start=startFaucetEndpointCommand end=endFaucetEndpointCommand
+```
+
 ## Create a new wallet
 
 In =nil; a wallet is just a smart contract that can handle payments. There are no other structural differences between a wallet and a smart contract, which means that wallets can support any logic that can be expressed inside a smart contract.

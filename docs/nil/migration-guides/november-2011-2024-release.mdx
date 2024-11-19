@@ -1,0 +1,130 @@
+# Release 20.11.2024: migration guide
+
+This release of =nil; adds several major improvements to the ease of use of developer tools, most notably the =nil; CLI and `Nil.js`. Message hashes and receipt hashes now follow the same format as addresses: they always begin with a byte sequence that contains the shard ID of the shard where they originated.
+
+Creating new Hardhat projects with the =nil; Hardhat plugin is easier than ever with the addition of a special 'plugin generator'. In addition, the Hardhat plugin can source environmental variables from an existing =nil; CLI config file, removing the need for managing two separate config/`.env` files.
+
+## Summary of key changes
+
+### General changes and Nil.sol changes
+
+* The first four bytes in a message hash or a receipt hash always point to the shard where the message/receipt was spawned
+* In `Nil.sol`, deployment of smart contracts has been moved to the new `asyncDeploy()` function
+* The `--shard-id` flag and the `shardId` param have been removed from several =nil; CLI commands and `Nil.js` functions. These developer tools are now able to correctly determine the shard from which block/message/receipt data should be retrieved.
+
+### =nil; CLI changes
+
+* The =nil; CLI supports `bytes32` as a possible CMD argument
+* The =nil; CLI allows for setting the endpoint of the faucet service in its config file 
+* The =nil; CLI can retrieve the `seqno` of the wallet set in the config file or any other smart contract
+
+### `Nil.js` and Hardhat changes 
+
+* The =nil; Hardhat plugin comes with a project generator that can initialize a new project in a matter of seconds
+* The Hardhat plugin can now source key information (e.g., the user's wallet address) from the =nil; CLI config file
+* The Hardhat plugin is now integrated with [**the Cometa service**](../guides/cometa-and-debugging.mdx)
+
+## Migration of smart contracts
+
+* Use `asyncDeploy()` to deploy smart contracts
+
+`Nil.sol` now includes `asyncDeploy()` which acts as a dedicated function for deploying smart contracts. Previously, async deployments had to be handled via the `asyncCall()` function which created several issues, most notably an excessive number of overloads for `asyncCall()`. The addition of `asyncDeploy()` separates concerns and makes Solidity code cleaner and more reusable.
+
+This also means that the `deploy` argument has been removed from all remaining overloads of `asyncCall()`.
+
+## Migration of =nil; CLI commands
+
+* Provide `bytes32` arguments to the =nil; CLI
+
+When deploying or calling smart contracts, the =nil; CLI can now correctly process arguments of type `bytes32`.
+
+* Set the endpoint of the faucet service in the =nil; CLI config
+
+[**The faucet service**](../getting-started/essentials/tokens-multi-currency.mdx#currency-faucet-service) is a tool for quickly 'topping up' contracts using either the default token or pre-set 'mock' currencies. To configure it via the =nil; CLI:
+
+```bash
+nil config set faucet_endpoint FAUCET_ENDPOINT
+```
+
+* Remove the `--shard-id` flag from several commands
+
+Commands such as `nil message HASH` or `nil receipt HASH` no longer require providing the `--shard-id` flag. Instead, the =nil; CLI is able to determine the shard where a message/receipt originated and acquire its data automatically.
+
+* Retrieve contract seqnos
+
+To retrieve the `seqno` of the wallet specified in the =nil; CLI config file:
+
+```bash
+nil wallet seqno
+```
+
+To retrieve the `seqno` of another smart contract:
+
+```bash
+nil contract seqno ADDRESS
+```
+
+## Migration of `Nil.js` scripts
+
+* Remove the `shardId` argument from several functions
+
+Similarly to the =nil; CLI, `Nil.js` has removed the `shardId` argument from several functions that retrieve block/message/receipt data. In addition, this argument has been removed from the `waitTillCompleted()` function whose new signature is as follows:
+
+```ts showLineNumbers
+waitTillCompleted(client, hash);
+```
+
+## Migration of Hardhat scripts
+
+* Use the project generator to create new projects
+
+It is now possible to create ready-made =nil; Hardhat projects without having to use the `nil-hardhat-example` repository. To install the project generator:
+
+```bash
+npm i @nilfoundation/create-nil-hardhat-project -g
+```
+
+To initialize a new project:
+
+```bash
+create-nil-hardhat-template
+```
+
+* Source environmental variables from the =nil; CLI config
+
+Instead of managing several separate config files, any project using the =nil; Hardhat plugin can now be 'linked' to the =nil; CLI config file. To do so, add the following line inside the project `.env` file:
+
+```
+NIL_CONFIG_INI: path/to/config.ini
+```
+
+Afterward, the project should begin using the same private key and wallet as the ones used by the =nil; CLI. Whenever the =nil; CLI changes the wallet address or the private key, the project will be updated automatically. Alternatively, run `hardhat wallet update` to update the wallet manually.
+
+Two new tasks were added to manage wallets using the Hardhat plugin. To create a new wallet:
+
+```bash
+wallet update
+```
+
+To see the wallet details:
+
+```bash
+wallet info
+```
+
+* Integrate the Cometa service with the Hardhat plugin
+
+Two new tasks were added to integrate the Hardhat plugin with the Cometa service.
+
+To register a contract inside Cometa:
+
+```bash
+cometa register --contract CONTRACT_NAME --address ADDRESS
+```
+
+To see the Cometa meta-data for the contract at the given address:
+
+```bash
+cometa info --address ADDRESS
+```
+

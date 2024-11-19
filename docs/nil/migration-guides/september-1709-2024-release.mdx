@@ -58,7 +58,7 @@ Inside `Nil.js`, `WalletV1` now exposes a new method for burning custom currenci
 ```ts showLineNumbers
 const amount = 50_000n;
 const hashMessage = await wallet.burnCurrency(amount);
-await waitTillCompleted(client, 1, hashMessage);
+await waitTillCompleted(client, hashMessage);
 ```
 
 Modify existing `Nil.js` scripts to reduce the total supply of custom currencies owned by various wallets.

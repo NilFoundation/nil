@@ -2,17 +2,16 @@
 
 =nil; provides an example repository containing a Hardhat project that is already configured to support all essential cluster features.
 
-To install the project:
+To install the project generator:
 
 ```bash
-git clone git@github.com:NilFoundation/nil-hardhat-example.git
-cd nil-hardhat-example
+npm i @nilfoundation/create-nil-hardhat-project -g
 ```
 
-Install the project dependencies:
+Create a new project:
 
 ```bash
-npm install
+create-nil-hardhat-template
 ```
 
 When inside the project, create an `.env` file and add the following information inside it:
@@ -21,6 +20,7 @@ When inside the project, create an `.env` file and add the following information
 NIL_RPC_ENDPOINT=NIL_ENDPOINT
 WALLET_ADDR=WALLET_ADDR
 PRIVATE_KEY=PRIVATE_KEY
+COMETA_ENDPOINT=COMETA_ENDPOINT
 ```
 
 :::tip
@@ -29,16 +29,24 @@ PRIVATE_KEY=PRIVATE_KEY
 
 :::
 
-The plugin contains an example smart contract that can be deployed immediately:
+If possible, link the `.env` file to the config file for the =nil; CLI:
 
-```bash
-npx hardhat ignition deploy ./ignition/modules/Incrementer.ts
+```
+NIL_CONFIG_INI: path/to/config.ini
 ```
 
-After deployment, interact with the contract:
+In this case, the Hardhat plugin will automatically use the wallet and private key specified in the CLI config file. Whenever the CLI creates a new wallet, the Hardhat plugin will start using said wallet. 
+
+It is also possible to create a new wallet directly via the Hardhat plugin by running this task:
 
 ```bash
-npx hardhat increment --contract CONTRACT_ADDRESS
+wallet update
+```
+
+To see the wallet details:
+
+```bash
+wallet info
 ```
 
 :::info[Fee credit]
@@ -50,3 +58,4 @@ feeCredit: 500000
 ```
 
 :::
+

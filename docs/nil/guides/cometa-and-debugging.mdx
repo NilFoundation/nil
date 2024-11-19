@@ -121,6 +121,58 @@ To compile the contract, deploy it and register it inside Cometa:
 ```typescript showLineNumbers file=../../tests/cometa-and-debugging.test.mts start=startNilJSCometaTutorialSnippet end=endNilJSCometaTutorialSnippet
 ```
 
+### Via the Hardhat plugin
+
+Set the Cometa endpoint inside the project `.env` file:
+
+```
+COMETA_ENDPOINT=COMETA_ENDPOINT
+```
+
+Create a new Ignition module:
+
+```ts showLineNumbers
+import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
+
+module.exports = buildModule("CounterBugModule", (m: any) => {
+  const counterBug = m.contract("CounterBug");
+
+  return { counterBug };
+});
+```
+
+Deploy the contract and register it inside Cometa:
+
+```bash
+npx hardhat ignition  deploy ./ignition/modules/CounterBug.ts
+```
+
+```bash
+npx hardhat cometa register --contract CounterBug --address ADDRESS
+```
+
+Create a new task for calling the contract:
+
+```ts showLineNumbers
+import { task } from "hardhat/config";
+
+task("increment", "Increment the CounterBug")
+  .addParam("address", "The address of the CounterBug contract")
+  .setAction(async (taskArgs, hre) => {
+    const ContractBug = await hre.ethers.getContractFactory("ContractBug");
+    const contractBug= ContractBug.attach(taskArgs.address);
+
+    const setterTx = await contractBug.increment();
+    await setterTx.wait(0);
+  });
+```
+
+Execute the task:
+
+```bash
+npx hardhat increment --address ADDRESS
+```
+
 ## Investigate failed messages to the contract
 
 ### Via the =nil; CLI
@@ -144,3 +196,7 @@ require(msg.sender == address(0));
 ### Via Nil.js
 
 `Nil.js` currently does not support the debug API for Cometa.
+
+### Via the Hardhat plugin
+
+The Hardhat plugin currently does not support the debug API for Cometa.

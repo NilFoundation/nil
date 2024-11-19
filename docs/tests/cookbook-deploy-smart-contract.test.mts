@@ -14,6 +14,7 @@ import {
   generateRandomPrivateKey,
   hexToBytes,
   waitTillCompleted,
+  getContract,
 } from "@nilfoundation/niljs";
 
 import { encodeFunctionData, type Abi } from "viem";
@@ -91,7 +92,7 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
         bytecode: COUNTER_BYTECODE,
         abi: COUNTER_ABI as unknown as Abi,
         args: [],
-        feeCredit: 10_000_000n,
+        feeCredit: 50_000_000n,
         salt: SALT,
         shardId: 1,
       });
@@ -155,6 +156,64 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
     expect(code).toBeDefined();
     expect(code.length).toBeGreaterThan(10);
   });
+
+  test.skip.sequential(
+    "contract factory can call Counter successfully",
+    async () => {
+      console.log(COUNTER_ADDRESS);
+      const SALT = BigInt(Math.floor(Math.random() * 10000));
+
+      const client = new PublicClient({
+        transport: new HttpTransport({
+          endpoint: RPC_ENDPOINT,
+        }),
+        shardId: 1,
+      });
+
+      const faucet = new Faucet(client);
+
+      const pkey = generateRandomPrivateKey();
+
+      const signer = new LocalECDSAKeySigner({
+        privateKey: pkey,
+      });
+
+      const pubkey = signer.getPublicKey();
+
+      const wallet = new WalletV1({
+        pubkey: pubkey,
+        client: client,
+        signer: signer,
+        shardId: 1,
+        salt: SALT,
+      });
+
+      const walletAddress = wallet.address;
+
+      console.log(walletAddress);
+
+      await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(10));
+
+      await faucet.withdrawToWithRetry(COUNTER_ADDRESS, convertEthToWei(10));
+
+      await wallet.selfDeploy(true);
+      const contract = getContract({
+        client: client,
+        abi: COUNTER_ABI,
+        address: COUNTER_ADDRESS,
+        wallet: wallet,
+      });
+
+      const res = await contract.write.increment();
+
+      console.log(res);
+
+      const res2 = await contract.read.getValue();
+
+      console.log(res2);
+    },
+    80000,
+  );
 
   test.sequential("Nil.js can call Counter successfully with an internal message", async () => {
     const SALT = BigInt(Math.floor(Math.random() * 10000));
