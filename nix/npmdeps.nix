@@ -16,5 +16,5 @@ in
       ../explorer_backend/package.json
     ];
   };
-  hash = "sha256-NIZk6Gr7rN7BHeVVWWruB1MS6+i0HZQFS8iAnoRdEQc=";
+  hash = "sha256-Ukf3JoGEUBylkizYvF5rDd+3YE3bMaU2U0kTBKc1/po=";
 })
