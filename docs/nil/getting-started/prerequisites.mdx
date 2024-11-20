@@ -46,21 +46,22 @@ To install Hardhat:
 </Tabs>
 
 
-## Solidity library
+## Smart contracts package
 
-=nil; provides the `Nil.sol` Solidity library that contains several 'helper' functions and function modifiers for working with the cluster.
+The [**`@nilfoundation/smart-contracts` NPM package**](https://www.npmjs.com/package/@nilfoundation/smart-contracts) contains the source code of all extension libraries and various Solidity contracts used inside =nil; (such as the basic wallet contract).
 
-[**Access the Solidity library**](https://github.com/NilFoundation/nil_cli/blob/master/Nil.sol).
-
-To use the library, simply import it at the top of any smart contract:
-
-```solidity
-import "path/to/Nil.sol";
-```
-
-With the library imported, use the `asyncCall()` function in the smart contract code to send a message to another contract deployed either on the same shard or on a different shard. The message will be processed asynchronously: it will spawn a message, and whatever function was called via the message will be executed when the message itself is processed.
-
-To read more about what is included in the Solidity library, [**read this guide**](tools/sol-library/func-modifiers.mdx).
+<Tabs groupId='packageSystem'>
+  <TabItem value='npm' label='npm'>
+    ```bash
+    npm -g install @nilfoundation/smart-contracts
+    ```
+  </TabItem>
+  <TabItem value='yarn' label='yarn'>
+    ```bash
+    yarn global add @nilfoundation/smart-contracts
+    ```
+  </TabItem>
+</Tabs>
 
 [**Follow this explanation**](../core-concepts/shards-parallel-execution.mdx#async-execution) to learn more about the theory behind async execution, or [**complete this tutorial**](essentials/handling-async-execution.mdx) on handling async calls.
 
@@ -181,21 +182,6 @@ Information in the block explorer may update with a slight delay compared to the
 
 [**Access the =nil; block explorer**](https://explore.nil.foundation/) and [**learn about its usage**](tools/block-explorer/usage.mdx).
 
-## Smart contracts package
 
-The [**`@nilfoundation/smart-contracts` NPM package**](https://www.npmjs.com/package/@nilfoundation/smart-contracts) contains the source code of all extension libraries and various Solidity contracts used inside =nil; (such as the basic wallet contract).
-
-<Tabs groupId='packageSystem'>
-  <TabItem value='npm' label='npm'>
-    ```bash
-    npm -g install @nilfoundation/smart-contracts
-    ```
-  </TabItem>
-  <TabItem value='yarn' label='yarn'>
-    ```bash
-    yarn global add @nilfoundation/smart-contracts
-    ```
-  </TabItem>
-</Tabs>
 
 

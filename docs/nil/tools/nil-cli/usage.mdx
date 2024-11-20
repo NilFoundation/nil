@@ -6,8 +6,7 @@ There are several steps that need to be completed before using the =nil; CLI.
 
 To create a config file for the =nil; CLI:
 
-```bash
-nil config init
+```bash file=../../../tests/commands.mjs start=startConfigCommand end=endConfigCommand
 ```
 
 ## Set the RPC endpoint
@@ -16,24 +15,46 @@ Initially, the =nil; CLI is unaware of the RPC endpoint for interacting with the
 
 To set the RPC endpoint:
 
-```bash
-nil config set rpc_endpoint NIL_ENDPOINT
+```bash file=../../../tests/commands.mjs start=startEndpoint end=endEndpoint
+```
+
+## Set the faucet endpoint
+
+The =nil; CLI can use [**the faucet service**](../../getting-started/essentials/tokens-multi-currency.mdx#currency-faucet-service) to top-up smart contracts with a range of currencies. 
+
+To set the faucet endpoint:
+
+```bash file=../../../tests/commands.mjs start=startFaucetEndpointCommand end=endFaucetEndpointCommand
+```
+
+:::info
+
+Setting the faucet endpoint is mandatory for creating a new wallet.
+
+:::
+
+## Set the Cometa endpoint
+
+The CLI can also use the Cometa service to assist with [**smart contract debugging**](../../guides/cometa-and-debugging.mdx). 
+
+To set the Cometa endpoint:
+
+
+```bash file=../../../tests/commands.mjs start=startCometaCommand end=endCometaCommand
 ```
 
 ## Create a new private key
 
 Creating a new private key is the next logical step before creating a new wallet.
 
-```bash
-nil keygen new
+```bash file=../../../tests/commands.mjs start=startKeygen end=endKeygen
 ```
 
 ## Create a new wallet
 
 At this point, the only remaining action is to create a new wallet:
 
-```bash
-nil wallet new
+```bash file=../../../tests/commands.mjs start=startWallet end=endWallet
 ```
 
 After running this command, the =nil; CLI should be fully ready to interact with the cluster.

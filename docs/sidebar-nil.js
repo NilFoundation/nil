@@ -301,6 +301,11 @@ export default {
       items: [
         {
           type: "doc",
+          label: "20 November 2024 guide",
+          id: "migration-guides/november-2011-2024-release",
+        },
+        {
+          type: "doc",
           label: "06 November 2024 guide",
           id: "migration-guides/november-0611-2024-release",
         },

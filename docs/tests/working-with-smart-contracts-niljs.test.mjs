@@ -71,6 +71,107 @@ describe.sequential("Nil.js deployment tests", async () => {
   });
 
   test.skip.sequential(
+    "the contract factory works correctly with Retailer and Manufacturer",
+    async () => {
+      const client = new PublicClient({
+        transport: new HttpTransport({
+          endpoint: RPC_ENDPOINT,
+        }),
+        shardId: 1,
+      });
+
+      const faucet = new Faucet(client);
+      const signer = new LocalECDSAKeySigner({
+        privateKey: generateRandomPrivateKey(),
+      });
+      const gasPrice = await client.getGasPrice(1);
+
+      const pubkey = signer.getPublicKey();
+      const wallet = new WalletV1({
+        pubkey: pubkey,
+        salt: BigInt(Math.floor(Math.random() * 10000)),
+        shardId: 1,
+        client,
+        signer,
+      });
+
+      const walletAddress = wallet.address;
+      await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
+      await wallet.selfDeploy(true);
+
+      const { address: retailerAddress, hash: retailerDeploymentHash } =
+        await wallet.deployContract({
+          bytecode: RETAILER_BYTECODE,
+          abi: RETAILER_ABI,
+          args: [],
+          value: 0n,
+          feeCredit: 10_000_000n * gasPrice,
+          salt: BigInt(Math.floor(Math.random() * 10000)),
+          shardId: 1,
+        });
+
+      const receiptsRetailer = await waitTillCompleted(client, retailerDeploymentHash);
+      expect(receiptsRetailer.some((receipt) => !receipt.success)).toBe(false);
+      const retailerCode = await client.getCode(retailerAddress, "latest");
+
+      expect(retailerCode).toBeDefined();
+      expect(retailerCode.length).toBeGreaterThan(10);
+
+      const { address: manufacturerAddress, hash: manufacturerDeploymentHash } =
+        await wallet.deployContract({
+          bytecode: MANUFACTURER_BYTECODE,
+          abi: MANUFACTURER_ABI,
+          args: [bytesToHex(pubkey), retailerAddress],
+          value: 0n,
+          feeCredit: 1000000n * gasPrice,
+          salt: BigInt(Math.floor(Math.random() * 10000)),
+          shardId: 2,
+        });
+
+      const manufacturerReceipts = await waitTillCompleted(client, manufacturerDeploymentHash);
+
+      expect(manufacturerReceipts.some((receipt) => !receipt.success)).toBe(false);
+      const manufacturerCode = await client.getCode(manufacturerAddress, "latest");
+
+      expect(manufacturerCode).toBeDefined();
+      expect(manufacturerCode.length).toBeGreaterThan(10);
+
+      //startFactoryOrder
+
+      const hashFunds = await faucet.withdrawToWithRetry(retailerAddress, 5_000_000n);
+
+      await waitTillCompleted(client, hashFunds);
+
+      const retailerContract = getContract({
+        client,
+        RETAILER_ABI,
+        address: retailerAddress,
+        wallet: wallet,
+      });
+
+      const manufacturerContract = getContract({
+        client,
+        MANUFACTURER_ABI,
+        address: manufacturerAddress,
+        wallet: wallet,
+      });
+
+      const res = await retailerContract.read.orderProduct([manufacturerAddress, "new-product"]);
+
+      //endFactoryOrder
+
+      //startFactoryProducts
+
+      const res2 = await manufacturerContract.read.getProducts();
+
+      console.log(res2);
+
+      //endFactoryProducts
+    },
+    80000,
+  );
+
+  test.skip.sequential(
     "internal deployment: Retailer and Manufacturer can exchange messages",
     async () => {
       //startInternalDeployOfRetailer
@@ -120,12 +221,6 @@ describe.sequential("Nil.js deployment tests", async () => {
       expect(retailerCode.length).toBeGreaterThan(10);
 
       //startInternalDeployOfManufacturer
-      const shardTwoClient = new PublicClient({
-        transport: new HttpTransport({
-          endpoint: RPC_ENDPOINT,
-        }),
-        shardId: 2,
-      });
 
       const { address: manufacturerAddress, hash: manufacturerDeploymentHash } =
         await wallet.deployContract({
