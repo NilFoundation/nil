@@ -240,7 +240,7 @@ func (s *AggregatorTestSuite) requireMainBlockHandled(mainBlock *jsonrpc.RPCBloc
 	var parentTaskId scTypes.TaskId
 
 	// one ProofBlock task per exec block was created
-	for range len(childIds) {
+	for range childIds {
 		taskToExecute, err := s.taskStorage.RequestTaskToExecute(s.ctx, testaide.RandomExecutorId())
 		s.Require().NoError(err)
 		s.Require().NotNil(taskToExecute)

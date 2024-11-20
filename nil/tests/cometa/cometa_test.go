@@ -1,7 +1,6 @@
 package cometa
 
 import (
-	"fmt"
 	"os/exec"
 	"testing"
 	"time"
@@ -71,7 +70,7 @@ func (s *SuiteCometaClickhouse) SetupSuite() {
 	time.Sleep(1 * time.Second)
 	createDb := exec.Command("clickhouse-client", "--query", "CREATE DATABASE IF NOT EXISTS "+s.cometaCfg.DbName) //nolint:gosec
 	out, err := createDb.CombinedOutput()
-	s.Require().NoError(err, fmt.Sprintf("output: %s", out))
+	s.Require().NoErrorf(err, "output: %s", out)
 
 	s.SuiteCometa.SetupSuite()
 

@@ -18,18 +18,18 @@ type SuiteBadgerDb struct {
 	db  DB
 }
 
-func (suite *SuiteBadgerDb) SetupSuite() {
-	suite.ctx = context.Background()
+func (s *SuiteBadgerDb) SetupSuite() {
+	s.ctx = context.Background()
 }
 
-func (suite *SuiteBadgerDb) SetupTest() {
+func (s *SuiteBadgerDb) SetupTest() {
 	var err error
-	suite.db, err = NewBadgerDb(suite.Suite.T().TempDir())
-	suite.Require().NoError(err)
+	s.db, err = NewBadgerDb(s.Suite.T().TempDir())
+	s.Require().NoError(err)
 }
 
-func (suite *SuiteBadgerDb) TearDownTest() {
-	suite.db.Close()
+func (s *SuiteBadgerDb) TearDownTest() {
+	s.db.Close()
 }
 
 func ValidateTables(s *suite.Suite, db DB) {
@@ -214,79 +214,79 @@ func ValidateDbOperations(s *suite.Suite, d DB) {
 	})
 }
 
-func (suite *SuiteBadgerDb) TestTwoParallelTransaction() {
+func (s *SuiteBadgerDb) TestTwoParallelTransaction() {
 	ctx := context.Background()
 
-	tx, err := suite.db.CreateRwTx(ctx)
-	suite.Suite.Require().NoError(err)
+	tx, err := s.db.CreateRwTx(ctx)
+	s.Suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	suite.Suite.Require().NoError(tx.Put("tbl", []byte("foo1"), []byte("bar1")))
-	suite.Suite.Require().NoError(tx.Put("tbl", []byte("foo2"), []byte("bar2")))
-	suite.Suite.Require().NoError(tx.Commit())
+	s.Suite.Require().NoError(tx.Put("tbl", []byte("foo1"), []byte("bar1")))
+	s.Suite.Require().NoError(tx.Put("tbl", []byte("foo2"), []byte("bar2")))
+	s.Suite.Require().NoError(tx.Commit())
 
-	tx1, err := suite.db.CreateRoTx(ctx)
-	suite.Suite.Require().NoError(err)
+	tx1, err := s.db.CreateRoTx(ctx)
+	s.Suite.Require().NoError(err)
 	defer tx1.Rollback()
 
-	tx2, err := suite.db.CreateRwTx(ctx)
-	suite.Suite.Require().NoError(err)
+	tx2, err := s.db.CreateRwTx(ctx)
+	s.Suite.Require().NoError(err)
 	defer tx2.Rollback()
 
 	_, err = tx1.Get("tbl", []byte("foo2"))
-	suite.Suite.Require().NoError(err)
+	s.Suite.Require().NoError(err)
 
-	suite.Suite.Require().NoError(tx2.Put("tbl", []byte("foo2"), []byte("bar22")))
-	suite.Suite.Require().NoError(tx2.Commit())
+	s.Suite.Require().NoError(tx2.Put("tbl", []byte("foo2"), []byte("bar22")))
+	s.Suite.Require().NoError(tx2.Commit())
 }
 
-func (suite *SuiteBadgerDb) TestValidateTables() {
-	ValidateTables(&suite.Suite, suite.db)
+func (s *SuiteBadgerDb) TestValidateTables() {
+	ValidateTables(&s.Suite, s.db)
 }
 
-func (suite *SuiteBadgerDb) TestValidateTablesName() {
-	ValidateTablesName(&suite.Suite, suite.db)
+func (s *SuiteBadgerDb) TestValidateTablesName() {
+	ValidateTablesName(&s.Suite, s.db)
 }
 
-func (suite *SuiteBadgerDb) TestValidateTransaction() {
-	ValidateTransaction(&suite.Suite, suite.db)
+func (s *SuiteBadgerDb) TestValidateTransaction() {
+	ValidateTransaction(&s.Suite, s.db)
 }
 
-func (suite *SuiteBadgerDb) TestValidateBlock() {
-	ValidateBlock(&suite.Suite, suite.db)
+func (s *SuiteBadgerDb) TestValidateBlock() {
+	ValidateBlock(&s.Suite, s.db)
 }
 
-func (suite *SuiteBadgerDb) TestValidateDbOperations() {
-	ValidateDbOperations(&suite.Suite, suite.db)
+func (s *SuiteBadgerDb) TestValidateDbOperations() {
+	ValidateDbOperations(&s.Suite, s.db)
 }
 
-func (suite *SuiteBadgerDb) fillData(tbl string) {
-	suite.T().Helper()
+func (s *SuiteBadgerDb) fillData(tbl string) {
+	s.T().Helper()
 
-	tx, err := suite.db.CreateRwTx(suite.ctx)
-	suite.Require().NoError(err)
+	tx, err := s.db.CreateRwTx(s.ctx)
+	s.Require().NoError(err)
 	defer tx.Rollback()
 
 	t := TableName(tbl)
 	tg := TableName(tbl + "garbage")
 	// Insert some dupsorted records
-	suite.Require().NoError(tx.Put(t, []byte("key0"), []byte("value0.1")))
-	suite.Require().NoError(tx.Put(t, []byte("key1"), []byte("value1.1")))
-	suite.Require().NoError(tx.Put(t, []byte("key3"), []byte("value3.1")))
-	suite.Require().NoError(tx.Put(t, []byte("key4"), []byte("value4.1")))
-	suite.Require().NoError(tx.Put(tg, []byte("key0"), []byte("value0.3")))
-	suite.Require().NoError(tx.Put(tg, []byte("key2"), []byte("value1.3")))
-	suite.Require().NoError(tx.Put(tg, []byte("key3"), []byte("value2.3")))
-	suite.Require().NoError(tx.Put(tg, []byte("key4"), []byte("value4.3")))
+	s.Require().NoError(tx.Put(t, []byte("key0"), []byte("value0.1")))
+	s.Require().NoError(tx.Put(t, []byte("key1"), []byte("value1.1")))
+	s.Require().NoError(tx.Put(t, []byte("key3"), []byte("value3.1")))
+	s.Require().NoError(tx.Put(t, []byte("key4"), []byte("value4.1")))
+	s.Require().NoError(tx.Put(tg, []byte("key0"), []byte("value0.3")))
+	s.Require().NoError(tx.Put(tg, []byte("key2"), []byte("value1.3")))
+	s.Require().NoError(tx.Put(tg, []byte("key3"), []byte("value2.3")))
+	s.Require().NoError(tx.Put(tg, []byte("key4"), []byte("value4.3")))
 
-	suite.Require().NoError(tx.Commit())
+	s.Require().NoError(tx.Commit())
 }
 
-func (suite *SuiteBadgerDb) TestRange() {
-	db := suite.db
+func (s *SuiteBadgerDb) TestRange() {
+	db := s.db
 	ctx := context.Background()
 
-	suite.Run("simple", func() {
+	s.Run("simple", func() {
 		tx, _ := db.CreateRwTx(ctx)
 		defer tx.Rollback()
 		_ = tx.Put("first", []byte{1}, []byte{1})
@@ -303,7 +303,7 @@ func (suite *SuiteBadgerDb) TestRange() {
 		it, _ := tx.Range("first", nil, nil)
 		for it.HasNext() {
 			k, v, err := it.Next()
-			suite.Require().NoError(err)
+			s.Require().NoError(err)
 			keys1 = append(keys1, k)
 			value1 = append(value1, v)
 		}
@@ -312,20 +312,20 @@ func (suite *SuiteBadgerDb) TestRange() {
 		it2, _ := tx.Range("second", nil, nil)
 		for it2.HasNext() {
 			k, v, err := it2.Next()
-			suite.Require().NoError(err)
+			s.Require().NoError(err)
 			keys2 = append(keys2, k)
 			value2 = append(value2, v)
 		}
 		it2.Close()
 
-		suite.Equal([][]byte{{1}, {3}, {4}}, keys1)
-		suite.Equal([][]byte{{1}, {1}, {1}}, value1)
-		suite.Equal([][]byte{{2}, {3}}, keys2)
-		suite.Equal([][]byte{{8}, {9}}, value2)
+		s.Equal([][]byte{{1}, {3}, {4}}, keys1)
+		s.Equal([][]byte{{1}, {1}, {1}}, value1)
+		s.Equal([][]byte{{2}, {3}}, keys2)
+		s.Equal([][]byte{{8}, {9}}, value2)
 
-		suite.Require().NoError(tx.Commit())
+		s.Require().NoError(tx.Commit())
 	})
-	suite.Run("empty", func() {
+	s.Run("empty", func() {
 		tx, _ := db.CreateRwTx(ctx)
 		defer tx.Rollback()
 
@@ -333,104 +333,104 @@ func (suite *SuiteBadgerDb) TestRange() {
 		value := make([][]byte, 0, 3)
 
 		it, err := tx.Range("empty", nil, nil)
-		suite.Require().NoError(err)
+		s.Require().NoError(err)
 		for it.HasNext() {
 			k, v, err := it.Next()
-			suite.Require().NoError(err)
+			s.Require().NoError(err)
 			keys = append(keys, k)
 			value = append(value, v)
 		}
 		it.Close()
 
-		suite.Equal([][]byte{}, keys)
-		suite.Equal([][]byte{}, value)
+		s.Equal([][]byte{}, keys)
+		s.Equal([][]byte{}, value)
 
-		suite.Require().NoError(tx.Commit())
+		s.Require().NoError(tx.Commit())
 	})
-	suite.Run("from-to", func() {
-		suite.fillData("from-to")
+	s.Run("from-to", func() {
+		s.fillData("from-to")
 
 		tx, err := db.CreateRoTx(ctx)
-		suite.Require().NoError(err)
+		s.Require().NoError(err)
 		defer tx.Rollback()
 
 		it, err := tx.Range("from-to", []byte("key1"), []byte("key3"))
-		suite.Require().NoError(err)
+		s.Require().NoError(err)
 
-		suite.True(it.HasNext())
+		s.True(it.HasNext())
 		k, v, err := it.Next()
-		suite.Require().NoError(err)
-		suite.Equal("key1", string(k))
-		suite.Equal("value1.1", string(v))
+		s.Require().NoError(err)
+		s.Equal("key1", string(k))
+		s.Equal("value1.1", string(v))
 
-		suite.True(it.HasNext())
+		s.True(it.HasNext())
 		k, v, err = it.Next()
-		suite.Require().NoError(err)
-		suite.Equal("key3", string(k))
-		suite.Equal("value3.1", string(v))
+		s.Require().NoError(err)
+		s.Equal("key3", string(k))
+		s.Equal("value3.1", string(v))
 
-		suite.False(it.HasNext())
-		suite.False(it.HasNext())
+		s.False(it.HasNext())
+		s.False(it.HasNext())
 
 		it.Close()
 	})
-	suite.Run("from-inf", func() {
-		suite.fillData("from-inf")
+	s.Run("from-inf", func() {
+		s.fillData("from-inf")
 
 		tx, err := db.CreateRoTx(ctx)
-		suite.Require().NoError(err)
+		s.Require().NoError(err)
 		defer tx.Rollback()
 
 		it, err := tx.Range("from-inf", []byte("key1"), nil)
-		suite.Require().NoError(err)
+		s.Require().NoError(err)
 
-		suite.True(it.HasNext())
+		s.True(it.HasNext())
 		k, v, err := it.Next()
-		suite.Require().NoError(err)
-		suite.Equal("key1", string(k))
-		suite.Equal("value1.1", string(v))
+		s.Require().NoError(err)
+		s.Equal("key1", string(k))
+		s.Equal("value1.1", string(v))
 
-		suite.True(it.HasNext())
+		s.True(it.HasNext())
 		k, v, err = it.Next()
-		suite.Require().NoError(err)
-		suite.Equal("key3", string(k))
-		suite.Equal("value3.1", string(v))
+		s.Require().NoError(err)
+		s.Equal("key3", string(k))
+		s.Equal("value3.1", string(v))
 
-		suite.True(it.HasNext())
+		s.True(it.HasNext())
 		k, v, err = it.Next()
-		suite.Require().NoError(err)
-		suite.Equal("key4", string(k))
-		suite.Equal("value4.1", string(v))
+		s.Require().NoError(err)
+		s.Equal("key4", string(k))
+		s.Equal("value4.1", string(v))
 
-		suite.False(it.HasNext())
-		suite.False(it.HasNext())
+		s.False(it.HasNext())
+		s.False(it.HasNext())
 
 		it.Close()
 	})
-	suite.Run("inf-to", func() {
-		suite.fillData("inf-to")
+	s.Run("inf-to", func() {
+		s.fillData("inf-to")
 
 		tx, err := db.CreateRoTx(ctx)
-		suite.Require().NoError(err)
+		s.Require().NoError(err)
 		defer tx.Rollback()
 
 		it, err := tx.Range("inf-to", nil, []byte("key1"))
-		suite.Require().NoError(err)
+		s.Require().NoError(err)
 
-		suite.True(it.HasNext())
+		s.True(it.HasNext())
 		k, v, err := it.Next()
-		suite.Require().NoError(err)
-		suite.Equal("key0", string(k))
-		suite.Equal("value0.1", string(v))
+		s.Require().NoError(err)
+		s.Equal("key0", string(k))
+		s.Equal("value0.1", string(v))
 
-		suite.True(it.HasNext())
+		s.True(it.HasNext())
 		k, v, err = it.Next()
-		suite.Require().NoError(err)
-		suite.Equal("key1", string(k))
-		suite.Equal("value1.1", string(v))
+		s.Require().NoError(err)
+		s.Equal("key1", string(k))
+		s.Equal("value1.1", string(v))
 
-		suite.False(it.HasNext())
-		suite.False(it.HasNext())
+		s.False(it.HasNext())
+		s.False(it.HasNext())
 
 		it.Close()
 	})
@@ -587,8 +587,8 @@ func (s *SuiteBadgerDb) TestStreamLoad() {
 	})
 }
 
-func TestSuiteBadgerDb(s *testing.T) {
-	s.Parallel()
+func TestSuiteBadgerDb(t *testing.T) {
+	t.Parallel()
 
-	suite.Run(s, new(SuiteBadgerDb))
+	suite.Run(t, new(SuiteBadgerDb))
 }
