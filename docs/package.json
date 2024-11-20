@@ -27,7 +27,7 @@
 		"@docusaurus/theme-mermaid": "3.4.0",
 		"@khannanov-nil/openrpc-docusaurus": "0.7.1",
 		"@mdx-js/react": "^3.0.0",
-		"@nilfoundation/niljs": "0.18.0",
+		"@nilfoundation/niljs": "0.18.1",
 		"@nilfoundation/smart-contracts": "0.1.5",
 		"@openzeppelin/contracts": "^5.0.2",
 		"@uiw/codemirror-themes": "4.21.0",
