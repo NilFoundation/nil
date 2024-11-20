@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@nilfoundation/hardhat-plugin": "0.17.1",
-    "@nilfoundation/niljs": "0.18.1",
+    "@nilfoundation/niljs": "0.19.1",
     "@nilfoundation/smart-contracts": "0.1.5",
     "dotenv": "^16.4.5"
   },

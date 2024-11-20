@@ -23,7 +23,7 @@
 	"author": "",
 	"license": "ISC",
 	"dependencies": {
-		"@nilfoundation/niljs": "0.18.1",
+		"@nilfoundation/niljs": "0.19.1",
 		"ethers": "^6.12.1",
 		"hardhat": "^2.22.4",
 		"ini": "^5.0.0",
