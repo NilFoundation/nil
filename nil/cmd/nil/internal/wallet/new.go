@@ -63,7 +63,11 @@ func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
 		amount = defaultNewWalletAmount
 	}
 
-	srv := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, common.GetFaucetRpcClient())
+	faucet, err := common.GetFaucetRpcClient()
+	if err != nil {
+		return err
+	}
+	srv := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, faucet)
 	check.PanicIfNotf(cfg.PrivateKey != nil, "A private key is not set in the config file")
 	walletAddress, err := srv.CreateWallet(params.shardId, &params.salt, amount, params.feeCredit, &cfg.PrivateKey.PublicKey)
 	if err != nil {
