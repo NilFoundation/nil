@@ -14,7 +14,11 @@ var titleCaser = cases.Title(language.English)
 func RunTopUp(
 	name string, cfg *Config, address types.Address, amount types.Value, currId string, quiet bool,
 ) error {
-	service := cliservice.NewService(GetRpcClient(), cfg.PrivateKey, GetFaucetRpcClient())
+	faucet, err := GetFaucetRpcClient()
+	if err != nil {
+		return err
+	}
+	service := cliservice.NewService(GetRpcClient(), cfg.PrivateKey, faucet)
 
 	faucetAddress := types.FaucetAddress
 	if len(currId) == 0 {
@@ -24,22 +28,21 @@ func RunTopUp(
 		currencies := types.GetCurrencies()
 		faucetAddress, ok = currencies[currId]
 		if !ok {
-			if err := faucetAddress.Set(currId); err != nil {
+			if err = faucetAddress.Set(currId); err != nil {
 				return fmt.Errorf("undefined currency id: %s", currId)
 			}
 		}
 	}
 
-	if _, err := service.GetBalance(address); err != nil {
+	if _, err = service.GetBalance(address); err != nil {
 		return err
 	}
 
-	if err := service.TopUpViaFaucet(faucetAddress, address, amount); err != nil {
+	if err = service.TopUpViaFaucet(faucetAddress, address, amount); err != nil {
 		return err
 	}
 
 	var balance types.Value
-	var err error
 	if faucetAddress == types.FaucetAddress {
 		balance, err = service.GetBalance(address)
 		if err != nil {

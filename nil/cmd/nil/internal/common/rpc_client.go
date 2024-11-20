@@ -1,6 +1,8 @@
 package common
 
 import (
+	"errors"
+
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/version"
@@ -43,7 +45,9 @@ func GetCometaRpcClient() *cometa.Client {
 	return cometaClient
 }
 
-func GetFaucetRpcClient() *faucet.Client {
-	check.PanicIfNotf(faucetClient != nil && faucetClient.IsValid(), "faucet client is not valid")
-	return faucetClient
+func GetFaucetRpcClient() (*faucet.Client, error) {
+	if faucetClient == nil || !faucetClient.IsValid() {
+		return nil, errors.New("valid faucet client is not set (check config)")
+	}
+	return faucetClient, nil
 }
