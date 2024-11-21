@@ -64,7 +64,11 @@ func CallReadonly(
 			fmt.Println("Success, result:")
 		}
 		for _, output := range outputs {
-			fmt.Printf("%s: %v\n", output.Type, output.Value)
+			outputStr, err := json.Marshal(output.Value)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("%s: %s\n", output.Type, outputStr)
 		}
 	}
 

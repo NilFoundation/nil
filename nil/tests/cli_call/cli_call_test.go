@@ -101,10 +101,10 @@ func (s *SuiteCliTestCall) TestCliCall() {
 	s.testResult(res, "Success, result:", "uint256: 3")
 
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getString", "--abi", abiFile)
-	s.testResult(res, "Success, result:", "string: Very long string with many characters and words and spaces and numbers and symbols and everything else that can be in a string")
+	s.testResult(res, "Success, result:", "string: \"Very long string with many characters and words and spaces and numbers and symbols and everything else that can be in a string\"")
 
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getNumAndString", "--abi", abiFile)
-	s.testResult(res, "Success, result:", "uint256: 123456789012345678901234567890", "string: Simple string")
+	s.testResult(res, "Success, result:", "uint256: 123456789012345678901234567890", "string: \"Simple string\"")
 
 	res, err = s.RunCliNoCheck("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "nonExistingMethod", "--abi", abiFile)
 	s.Require().Error(err)
