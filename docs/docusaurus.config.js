@@ -41,6 +41,14 @@ const config = {
     locales: ["en"],
   },
 
+  scripts: [
+    {
+      src: require.resolve("./goatcounter.js"),
+    },
+  ],
+
+  // clientModules: [require.resolve("./goatcounter.js")],
+
   presets: [
     [
       "@khannanov-nil/openrpc-docusaurus/dist/preset",
@@ -69,7 +77,6 @@ const config = {
   },
   themes: ["@docusaurus/theme-mermaid"],
   plugins: [
-    "docusaurus-plugin-goatcounter",
     [path.resolve(__dirname, "./plugins/nil-playground-plugin"), {}],
     [
       "nil-docusaurus-plugin-typedoc",
@@ -113,9 +120,6 @@ const config = {
         searchParameters: {},
         searchPagePath: "search",
         insights: false,
-      },
-      goatcounter: {
-        code: "docs-nil-foundation",
       },
       colorMode: {
         defaultMode: "dark",
