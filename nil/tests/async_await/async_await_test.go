@@ -260,6 +260,13 @@ func (s *SuiteAsyncAwait) TestTwoRequests() {
 	s.Require().EqualValues(11+456, value)
 }
 
+func (s *SuiteAsyncAwait) TestEmptyError() {
+	data := s.AbiPack(s.abiTest, "makeRequestWithEmptyError", s.counterAddress0)
+	receipt := s.SendExternalMessageNoCheck(data, s.testAddress0)
+	s.Require().True(receipt.Success)
+	s.Require().False(receipt.OutReceipts[0].Success)
+}
+
 func (s *SuiteAsyncAwait) TestInvalidContext() {
 	data := s.AbiPack(s.abiTest, "makeInvalidContext", s.counterAddress0)
 	receipt := s.SendExternalMessageNoCheck(data, s.testAddress0)

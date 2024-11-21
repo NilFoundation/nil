@@ -233,6 +233,19 @@ contract RequestResponseTest is NilCurrencyBase {
         value += abi.decode(returnData, (int32));
     }
 
+    /**
+     * Test that performs a request that always throws empty error message.
+     */
+    function makeRequestWithEmptyError(address addr) public {
+        bytes memory context = abi.encodeWithSelector(this.returnEmptyError.selector);
+        bytes memory callData = new bytes(1);
+        Nil.sendRequest(addr, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
+    }
+
+    function returnEmptyError(bool /*success*/, bytes memory /*returnData*/, bytes memory /*context*/) public pure {
+        require(false, "");
+    }
+
     function makeInvalidContext(address addr1) public {
         bytes memory context = new bytes(1);
         bytes memory callData = new bytes(1);
