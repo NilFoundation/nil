@@ -7,7 +7,6 @@ import {
   convertEthToWei,
   waitTillCompleted,
   type WalletV1,
-  getShardIdFromAddress,
   type Token,
   type CometaService,
 } from "@nilfoundation/niljs";
@@ -105,7 +104,7 @@ export const deploySmartContractFx = createEffect<
     feeCredit: convertEthToWei(0.00001),
   });
 
-  await waitTillCompleted(wallet.client, wallet.shardId, hash);
+  await waitTillCompleted(wallet.client, hash);
 
   return {
     address,
@@ -214,7 +213,7 @@ export const sendMethodFx = createEffect<
     tokens: tokens,
   });
 
-  await waitTillCompleted(wallet.client, getShardIdFromAddress(wallet.address), hash);
+  await waitTillCompleted(wallet.client, hash);
 
   return {
     functionName,
