@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -15,17 +16,44 @@ import (
 
 type SuiteRegression struct {
 	tests.RpcSuite
+
+	zerostateCfg string
+	testAddress  types.Address
 }
 
 func (s *SuiteRegression) SetupSuite() {
 	s.ShardsNum = 4
+
+	var err error
+	s.testAddress, err = contracts.CalculateAddress(contracts.NameTest, 1, []byte{1})
+	s.Require().NoError(err)
+
+	zerostateTmpl := `
+contracts:
+- name: MainWallet
+  address: {{ .MainWalletAddress }}
+  value: 100000000000000
+  contract: Wallet
+  ctorArgs: [{{ .MainPublicKey }}]
+- name: Test
+  address: {{ .TestAddress }}
+  value: 100000000000000
+  contract: tests/Test
+`
+	s.zerostateCfg, err = common.ParseTemplate(zerostateTmpl, map[string]interface{}{
+		"MainPublicKey":     hexutil.Encode(execution.MainPublicKey),
+		"MainWalletAddress": types.MainWalletAddress.Hex(),
+		"TestAddress":       s.testAddress.Hex(),
+	})
+	s.Require().NoError(err)
 }
 
 func (s *SuiteRegression) SetupTest() {
 	s.Start(&nilservice.Config{
-		NShards: s.ShardsNum,
-		HttpUrl: rpc.GetSockPath(s.T()),
-		RunMode: nilservice.CollatorsOnlyRunMode,
+		NShards:       s.ShardsNum,
+		HttpUrl:       rpc.GetSockPath(s.T()),
+		RunMode:       nilservice.CollatorsOnlyRunMode,
+		ZeroStateYaml: s.zerostateCfg,
 	})
 }
 
@@ -65,6 +93,15 @@ func (s *SuiteRegression) TestStaticCall() {
 	receipt = s.SendMessageViaWalletNoCheck(types.MainWalletAddress, addrQuery, execution.MainPrivateKey, data,
 		s.GasToValue(500_000), types.NewZeroValue(), nil)
 	s.Require().True(receipt.AllSuccess())
+}
+
+func (s *SuiteRegression) TestEmptyError() {
+	abi, err := contracts.GetAbi(contracts.NameTest)
+	s.Require().NoError(err)
+
+	data := s.AbiPack(abi, "returnEmptyError")
+	receipt := s.SendExternalMessageNoCheck(data, s.testAddress)
+	s.Require().False(receipt.Success)
 }
 
 func TestRegression(t *testing.T) {
