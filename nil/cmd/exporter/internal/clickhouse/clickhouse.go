@@ -51,6 +51,7 @@ type MessageWithBinary struct {
 	Timestamp         uint64             `ch:"timestamp"`
 	ParentTransaction common.Hash        `ch:"parent_transaction"`
 	ErrorMessage      string             `ch:"error_message"`
+	FailedPc          uint32             `ch:"failed_pc"`
 }
 
 func NewMessageWithBinary(
@@ -78,6 +79,7 @@ func NewMessageWithBinary(
 		res.Success = receipt.Success
 		res.GasUsed = receipt.GasUsed
 		res.ReceiptBinary = receiptBinary
+		res.FailedPc = receipt.FailedPc
 	}
 	return res
 }
