@@ -155,6 +155,13 @@ contract Test is NilBase {
         return a + b;
     }
 
+    /**
+     * Test that performs a request that always throws empty error message.
+     */
+    function returnEmptyError() public pure {
+        require(false, "");
+    }
+
     function verifyExternal(uint256, bytes calldata) external pure returns (bool) {
         return true;
     }

@@ -1159,14 +1159,15 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 
 // decodeRevertMessage decodes the revert message from the EVM revert data
 func decodeRevertMessage(data []byte) string {
-	if len(data) < 68 {
+	if len(data) <= 68 {
 		return ""
 	}
 
 	data = data[68:]
-
-	revString := string(data[:bytes.IndexByte(data, 0)])
-
+	var revString string
+	if index := bytes.IndexByte(data, 0); index > 0 {
+		revString = string(data[:index])
+	}
 	return revString
 }
 
