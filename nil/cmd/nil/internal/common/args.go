@@ -141,17 +141,62 @@ type ArgValue struct {
 	Value any
 }
 
-func CalldataToArgs(abiPath string, method string, data []byte) ([]*ArgValue, error) {
+type NamedArgValues struct {
+	Name      string
+	ArgValues []*ArgValue
+}
+
+func ReadAbiFromFile(abiPath string) (abi.ABI, error) {
 	abiFile, err := os.ReadFile(abiPath)
 	if err != nil {
-		return nil, err
+		return abi.ABI{}, err
 	}
 
-	abi, err := abi.JSON(bytes.NewReader(abiFile))
-	if err != nil {
-		return nil, err
+	return abi.JSON(bytes.NewReader(abiFile))
+}
+
+func DecodeLogs(abi abi.ABI, logs []*types.Log) ([]*NamedArgValues, error) {
+	decodedLogs := make([]*NamedArgValues, 0, len(logs))
+
+	for _, log := range logs {
+		if len(log.Topics) == 0 {
+			continue
+		}
+
+		event, err := abi.EventByID(log.Topics[0])
+		if err != nil {
+			return nil, fmt.Errorf("failed to find event by topic: %w", err)
+		}
+		if event == nil {
+			continue
+		}
+
+		if len(log.Data) == 0 {
+			continue
+		}
+
+		obj, err := abi.Unpack(event.Name, log.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unpack log data: %w", err)
+		}
+
+		log := make([]*ArgValue, len(event.Inputs))
+		for i, arg := range event.Inputs {
+			log[i] = &ArgValue{
+				Type:  arg.Type,
+				Value: obj[i],
+			}
+		}
+		decodedLogs = append(decodedLogs, &NamedArgValues{
+			Name:      event.Name,
+			ArgValues: log,
+		})
 	}
 
+	return decodedLogs, nil
+}
+
+func CalldataToArgs(abi abi.ABI, method string, data []byte) ([]*ArgValue, error) {
 	obj, err := abi.Unpack(method, data)
 	if err != nil {
 		return nil, err

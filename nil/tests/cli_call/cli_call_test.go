@@ -114,6 +114,9 @@ func (s *SuiteCliTestCall) TestCliCall() {
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getValue", "--abi", abiFile)
 	s.testResult(res, "Success, result:", "uint32: 0")
 
+	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "setValue", "321", "--abi", abiFile, "--out-overrides", overridesFile, "--with-details")
+	s.testResult(res, "Success, no result", "Logs:", "Event: stubCalled", "uint32: 321")
+
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "setValue", "123", "--abi", abiFile, "--out-overrides", overridesFile)
 	s.testResult(res, "Success, no result")
 

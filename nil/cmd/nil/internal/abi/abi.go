@@ -47,7 +47,12 @@ func GetCommand() *cobra.Command {
 				return err
 			}
 
-			outputs, err := common.CalldataToArgs(path, args[0], data)
+			abi, err := common.ReadAbiFromFile(path)
+			if err != nil {
+				return err
+			}
+
+			outputs, err := common.CalldataToArgs(abi, args[0], data)
 			if err != nil {
 				return err
 			}

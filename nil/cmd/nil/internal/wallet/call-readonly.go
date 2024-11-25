@@ -93,20 +93,34 @@ func runCallReadonly(args []string, cfg *common.Config) error {
 		return err
 	}
 
-	handler := func(res *jsonrpc.CallRes) ([]*common.ArgValue, error) {
+	handler := func(res *jsonrpc.CallRes) ([]*common.ArgValue, []*common.NamedArgValues, error) {
 		if res.Error != "" {
-			return nil, fmt.Errorf("error during sending the message to the wallet: %s", res.Error)
+			return nil, nil, fmt.Errorf("error during sending the message to the wallet: %s", res.Error)
 		}
 
 		if outMsgLen := len(res.OutMessages); outMsgLen != 1 {
-			return nil, fmt.Errorf("expected one outbound message but got %d", outMsgLen)
+			return nil, nil, fmt.Errorf("expected one outbound message but got %d", outMsgLen)
 		}
 
 		if outMsgErr := res.OutMessages[0].Error; outMsgErr != "" {
-			return nil, fmt.Errorf("error during processing the wallet message: %s", outMsgErr)
+			return nil, nil, fmt.Errorf("error during processing the wallet message: %s", outMsgErr)
 		}
 
-		return common.CalldataToArgs(params.abiPath, args[1], res.OutMessages[0].Data)
+		abi, err := common.ReadAbiFromFile(params.abiPath)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		logs, err := common.DecodeLogs(abi, res.OutMessages[0].Logs)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		result, err := common.CalldataToArgs(abi, args[1], res.OutMessages[0].Data)
+		if err != nil {
+			return nil, nil, err
+		}
+		return result, logs, nil
 	}
 
 	return common.CallReadonly(

@@ -34,6 +34,7 @@ contract Test is NilBase {
 
     function setValue(uint32 newValue) public {
         internalValue = newValue;
+        emit stubCalled(newValue);
     }
 
     function noReturn() public payable {}
