@@ -121,8 +121,8 @@ func (s *SuiteEthFilters) TestLogs() {
 	log1, ok := logs[1].(*RPCLog)
 	s.Require().True(ok)
 
-	s.Require().Equal(logsInput[0].Data, []uint8(log0.Data))
-	s.Require().Equal(logsInput[3].Data, []uint8(log1.Data))
+	s.Require().EqualValues(logsInput[0].Data, log0.Data)
+	s.Require().EqualValues(logsInput[3].Data, log1.Data)
 
 	logs, err = s.api.GetFilterChanges(s.ctx, id2)
 
@@ -133,8 +133,8 @@ func (s *SuiteEthFilters) TestLogs() {
 
 	s.Require().NoError(err)
 	s.Require().Len(logs, 2)
-	s.Require().Equal(logsInput[0].Data, []uint8(log0.Data))
-	s.Require().Equal(logsInput2[0].Data, []uint8(log1.Data))
+	s.Require().EqualValues(logsInput[0].Data, log0.Data)
+	s.Require().EqualValues(logsInput2[0].Data, log1.Data)
 }
 
 func (s *SuiteEthFilters) TestBlocks() {

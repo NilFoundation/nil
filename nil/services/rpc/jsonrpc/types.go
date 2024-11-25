@@ -169,9 +169,7 @@ type RPCReceipt struct {
 }
 
 type RPCLog struct {
-	Address     types.Address     `json:"address"`
-	Topics      []common.Hash     `json:"topics"`
-	Data        hexutil.Bytes     `json:"data"`
+	*types.Log
 	BlockNumber types.BlockNumber `json:"blockNumber"`
 }
 
@@ -316,12 +314,7 @@ func NewRPCLog(
 		return nil
 	}
 
-	return &RPCLog{
-		Address:     log.Address,
-		Topics:      log.Topics,
-		Data:        log.Data,
-		BlockNumber: blockId,
-	}
+	return &RPCLog{log, blockId}
 }
 
 func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
