@@ -23,3 +23,5 @@ export const MESSAGE_HASH_PATTERN = /Message hash:/;
 export const ESCROW_SUCCESSFUL_PATTERN = /Function state mutability can be restricted to pure/;
 
 export const COUNTER_BUG_DEBUG_PATTERN = /require\(msg\.sender == address\(0\)\)/m;
+
+export const SERVER_RUNNING_PATTERN = /Server running at/;

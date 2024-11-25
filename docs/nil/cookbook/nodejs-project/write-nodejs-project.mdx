@@ -1,0 +1,37 @@
+# Write a Node.js project utilizing `Nil.js`
+
+This short recipe shows how `Nil.js` can be used in a small-scale Node.js project. 
+
+## Project set-up
+
+First, create a new file titled `server.js` in an environment where Node.js is installed.
+
+Then, import the following components and initialize the following variables:
+
+```ts showLineNumbers file=../../../tests/nodeJsProject/server.js start=startImport end=endImport
+```
+
+## Server code
+
+Our server will initialize a new wallet and, once wallet creation ends, show its address in the browser window:
+
+```ts showLineNumbers file=../../../tests/nodeJsProject/server.js start=startServer end=endServer
+```
+
+## Interacting with the server
+
+To launch the server:
+
+```
+node path/to/server.js
+```
+
+After the server is launched, open `http://127.0.0.1:3000/` in the browser and wait a couple of seconds while the project creates a new wallet.
+
+Alternatively, run the following snippet to fetch the wallet address once the server calculates it:
+
+```ts showLineNumbers
+const response = await fetch("http://127.0.0.1:3000/");
+const text = await response.text();
+console.log(test);
+```

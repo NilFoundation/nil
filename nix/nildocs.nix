@@ -49,6 +49,7 @@ stdenv.mkDerivation rec {
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
     export CMD_NIL=${../nil/cmd/nil/internal}
     export COMETA_CONFIG=${../docs/tests/cometa.yaml}
+    export NODE_JS=${nodejs}/bin/node
     cd docs
     npm run build
     solc --version
@@ -68,6 +69,7 @@ stdenv.mkDerivation rec {
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
     export CMD_NIL=${../nil/cmd/nil/internal}
     export COMETA_CONFIG=${../docs/tests/cometa.yaml}
+    export NODE_JS=${nodejs}/bin/node
     mkdir -p ~/.solc-select/artifacts/solc-0.8.28
     ln -f -s ${solc}/bin/solc ~/.solc-select/artifacts/solc-0.8.28/solc-0.8.28
   '';
