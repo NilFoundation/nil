@@ -515,7 +515,7 @@ func (s *SuiteMultiCurrencyRpc) TestBounce() {
 	s.Require().NoError(err)
 
 	receipt = s.SendMessageViaWalletNoCheck(s.walletAddress1, s.testAddress1_0, execution.MainPrivateKey, data,
-		s.GasToValue(100_000), types.NewValueFromUint64(2_000_000),
+		types.NewZeroValue(), types.NewValueFromUint64(2_000_000),
 		[]types.CurrencyBalance{{Currency: *currencyWallet1.id, Balance: types.NewValueFromUint64(100)}})
 	s.Require().True(receipt.Success)
 	s.Require().Len(receipt.OutReceipts, 1)
@@ -561,14 +561,14 @@ func (s *SuiteMultiCurrencyRpc) TestIncomingBalance() {
 	s.Require().NoError(err)
 
 	receipt = s.SendMessageViaWalletNoCheck(s.walletAddress1, s.testAddress1_0, execution.MainPrivateKey, data,
-		s.GasToValue(100_000), types.NewValueFromUint64(2_000_000),
+		types.NewZeroValue(), types.NewValueFromUint64(2_000_000),
 		[]types.CurrencyBalance{{Currency: *currencyWallet1.id, Balance: types.NewValueFromUint64(100)}})
 	s.Require().True(receipt.AllSuccess())
 
 	checkBalance(big.NewInt(100), big.NewInt(100), receipt.OutReceipts[0])
 
 	receipt = s.SendMessageViaWalletNoCheck(s.walletAddress1, s.testAddress1_0, execution.MainPrivateKey, data,
-		s.GasToValue(100_000), types.NewValueFromUint64(2_000_000),
+		types.NewZeroValue(), types.NewValueFromUint64(2_000_000),
 		[]types.CurrencyBalance{{Currency: *currencyWallet1.id, Balance: types.NewValueFromUint64(20_000)}})
 	s.Require().True(receipt.AllSuccess())
 

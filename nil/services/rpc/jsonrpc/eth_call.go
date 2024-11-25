@@ -41,6 +41,7 @@ func refineOutMsgResult(msgs []*rpctypes.OutMessage) types.Value {
 
 	for _, msg := range msgs {
 		result = result.
+			Add(msg.CoinsUsed).
 			Add(SstoreSentryGas.ToValue(msg.GasPrice)).
 			Add(refineOutMsgResult(msg.OutMessages))
 	}
