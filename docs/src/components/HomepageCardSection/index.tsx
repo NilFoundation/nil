@@ -45,8 +45,14 @@ export function Card({
     description: string;
   };
 }>) {
+  const label = `Homepage: ${title}`;
   return (
-    <Link to={to} className={styles.indexHomepageCard}>
+    <Link
+      to={to}
+      className={styles.indexHomepageCard}
+      data-goatcounter-click={to}
+      data-goatcounter-title={label}
+    >
       <div className={styles.indexCardContent}>
         <div className={styles.indexCardContentTitle} id={id && title}>
           {title}

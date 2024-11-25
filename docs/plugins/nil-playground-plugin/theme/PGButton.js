@@ -1,18 +1,17 @@
-import React from 'react';
-import { usePluginData } from '@docusaurus/core/lib/client/exports/useGlobalData';
-import styles from './styles.module.css';
+import { usePluginData } from "@docusaurus/core/lib/client/exports/useGlobalData";
+import styles from "./styles.module.css";
 
 const PGButton = ({ name }) => {
-  const contractCodes = usePluginData('nil-playground-plugin').contractCodes;
+  const contractCodes = usePluginData("nil-playground-plugin").contractCodes;
   console.log(contractCodes);
   const code = contractCodes[name];
 
   const handleClick = async () => {
-    const data = await fetch('https://explore.nil.foundation/api/code.set?batch=1', {
-      method: 'POST',
+    const data = await fetch("https://explore.nil.foundation/api/code.set?batch=1", {
+      method: "POST",
       body: JSON.stringify({ 0: `${code}` }),
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
@@ -21,11 +20,16 @@ const PGButton = ({ name }) => {
     const hash = jsonResponse[0]?.result?.data?.hash;
     const url = `https://explore.nil.foundation/sandbox/${hash}`;
 
-    window.open(url, '_blank');
+    window.open(url, "_blank");
   };
 
   return (
-    <div className={styles.playgroundButton} onClick={handleClick}>
+    <div
+      className={styles.playgroundButton}
+      onClick={handleClick}
+      data-goatcounter-click="Playground click"
+      data-goatcounter-title={name}
+    >
       Access contract in the Playground
     </div>
   );

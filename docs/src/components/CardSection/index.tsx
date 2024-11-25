@@ -47,8 +47,14 @@ export function Card({
   };
   className?: string;
 }>) {
+  const label = `Index page: ${title}`;
   return (
-    <Link to={to} className={clsx("homepage-card", className)}>
+    <Link
+      to={to}
+      className={clsx("homepage-card", className)}
+      data-goatcounter-click={to}
+      data-goatcounter-title={label}
+    >
       <div className="card-content">
         <div className="title" id={id && title}>
           {title}

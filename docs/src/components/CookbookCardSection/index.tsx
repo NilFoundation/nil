@@ -58,8 +58,14 @@ export function CookbookCard({
   badges: BadgesProps;
 }>) {
   const { colorMode } = useColorMode();
+  const label = `Cookbook: ${title}`;
   return (
-    <Link to={to} className={styles.cookbookCard}>
+    <Link
+      to={to}
+      className={styles.cookbookCard}
+      data-goatcounter-click={to}
+      data-goatcounter-title={label}
+    >
       <div className={styles.cookbookCardContent}>
         <div className={styles.cookbookCardContentTitle} id={id && title}>
           {title}
