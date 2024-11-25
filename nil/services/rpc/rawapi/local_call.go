@@ -112,6 +112,7 @@ func (api *LocalShardApi) handleOutMessages(
 			OutMessages: res.OutMessages,
 			GasPrice:    res.GasPrice,
 			Error:       res.Error,
+			Logs:        res.Logs,
 		}
 
 		if overrides != nil {
@@ -211,6 +212,7 @@ func (api *LocalShardApi) Call(
 	result := &rpctypes.CallResWithGasPrice{
 		Data:      res.ReturnData,
 		CoinsUsed: res.CoinsUsed,
+		Logs:      es.Logs[msgHash],
 	}
 
 	if res.Failed() {

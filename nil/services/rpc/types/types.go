@@ -87,6 +87,7 @@ type OutMessage struct {
 	OutMessages []*OutMessage
 	GasPrice    types.Value
 	Error       string
+	Logs        []*types.Log
 }
 
 type CallResWithGasPrice struct {
@@ -96,4 +97,5 @@ type CallResWithGasPrice struct {
 	Error          string
 	StateOverrides StateOverrides
 	GasPrice       types.Value
+	Logs           []*types.Log
 }

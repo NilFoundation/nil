@@ -412,6 +412,7 @@ type OutMessage struct {
 	CoinsUsed   types.Value            `json:"coinsUsed"`
 	OutMessages []*OutMessage          `json:"outMessages,omitempty"`
 	Error       string                 `json:"error,omitempty"`
+	Logs        []*types.Log           `json:"logs,omitempty"`
 }
 
 func toOutMessages(input []*rpctypes.OutMessage) ([]*OutMessage, error) {
@@ -440,6 +441,7 @@ func toOutMessages(input []*rpctypes.OutMessage) ([]*OutMessage, error) {
 			CoinsUsed:   msg.CoinsUsed,
 			OutMessages: outMsgs,
 			Error:       msg.Error,
+			Logs:        msg.Logs,
 		}
 	}
 	return output, nil
@@ -456,6 +458,7 @@ type CallRes struct {
 	CoinsUsed      types.Value    `json:"coinsUsed"`
 	OutMessages    []*OutMessage  `json:"outMessages,omitempty"`
 	Error          string         `json:"error,omitempty"`
+	Logs           []*types.Log   `json:"logs,omitempty"`
 	StateOverrides StateOverrides `json:"stateOverrides,omitempty"`
 }
 
@@ -467,5 +470,7 @@ func toCallRes(input *rpctypes.CallResWithGasPrice) (*CallRes, error) {
 	output.Error = input.Error
 	output.StateOverrides = input.StateOverrides
 	output.OutMessages, err = toOutMessages(input.OutMessages)
+	output.Logs = input.Logs
+
 	return output, err
 }

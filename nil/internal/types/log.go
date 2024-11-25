@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 )
 
 type Logs []*Log
@@ -12,7 +13,7 @@ type Log struct {
 	// List of topics provided by the contract
 	Topics []common.Hash `json:"topics" ssz-max:"4"`
 	// Supplied by the contract, usually ABI-encoded
-	Data []byte `json:"data" ssz-max:"6000"`
+	Data hexutil.Bytes `json:"data" ssz-max:"6000"`
 }
 
 type DebugLog struct {
