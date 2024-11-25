@@ -15,6 +15,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
+	"github.com/NilFoundation/nil/nil/internal/params"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
@@ -374,7 +375,6 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 
 	var estimation types.Value
 	s.Run("Estimate external message fee", func() {
-		callArgs.FeeCredit = intMsgEstimation
 		estimation, err = s.Client.EstimateFee(callArgs, "latest")
 		s.Require().NoError(err)
 		s.Positive(estimation.Uint64())
@@ -387,6 +387,13 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 		s.Require().NoError(err)
 		s.Require().Empty(res.Error)
 		s.Require().Len(res.OutMessages, 1)
+
+		value := res.CoinsUsed.
+			Add(res.OutMessages[0].CoinsUsed).
+			Add(s.GasToValue(3 * params.SstoreSentryGasEIP2200)).
+			Add(s.GasToValue(10_000)). // external message verification
+			Mul64(12).Div64(10)        // stock 20%
+		s.Equal(estimation.Uint64(), value.Uint64())
 
 		msg := res.OutMessages[0]
 		s.Equal(walletAddr, msg.Message.From)
@@ -447,7 +454,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 		Data:        contracts.NewCounterAddCallData(s.T(), 5),
 		To:          counterAddr,
 		FeeCredit:   types.NewValueFromUint64(5_000_000),
-		ForwardKind: types.ForwardKindNone,
+		ForwardKind: types.ForwardKindRemaining,
 		Kind:        types.ExecutionMessageKind,
 	}
 
