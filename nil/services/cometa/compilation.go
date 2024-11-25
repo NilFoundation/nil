@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/fabelx/go-solc-select/pkg/config"
@@ -16,7 +17,7 @@ import (
 )
 
 const (
-	GeneratedSourceFileName = "generated"
+	GeneratedSourceFileName = "#utility.yul"
 )
 
 type ContractData struct {
@@ -47,6 +48,10 @@ type ContractData struct {
 	// SourceFilesList holds a list of source files, ordered as referred to in debug entities like sourceMap.
 	// The file ID in sourceMap corresponds to the index in this array.
 	SourceFilesList []string `json:"sourceFilesList,omitempty"`
+
+	// FunctionDebugData holds a list of functions locations, where location is an entry bytecode offset.
+	// The list is sorted by entry bytecode offset.
+	FunctionDebugData []FunctionDebugItem `json:"functionDebugData,omitempty"`
 
 	// MethodIdentifiers holds a map of method identifiers: {signature -> methodId}. E.g. "test(uint256)": "29e99f07"
 	MethodIdentifiers map[string]string `json:"methodIdentifiers,omitempty"`
@@ -109,7 +114,11 @@ func Compile(input *CompilerTask) (*ContractData, error) {
 		return nil, err
 	}
 	if len(outputJson.Errors) != 0 {
-		fmt.Printf("Compilation failed:\n%s\n", output)
+		errMsg, err := json.Marshal(outputJson.Errors)
+		if err != nil {
+			errMsg = []byte("failed to marshal errors: " + err.Error())
+		}
+		fmt.Printf("Compilation failed:\n%s\n", errMsg)
 		return nil, fmt.Errorf("compilation failed: %s", outputJson.Errors[0].FormattedMessage)
 	}
 
@@ -167,11 +176,32 @@ func CreateContractData(input *CompilerJsonInput, outputJson *CompilerJsonOutput
 		return nil, errors.New("contract not found in compilation output")
 	}
 
+	if len(contractDescr.Evm.DeployedBytecode.GeneratedSources) == 0 {
+		return nil, errors.New("generated sources not found")
+	}
+	contractData.SourceCode[GeneratedSourceFileName] = contractDescr.Evm.DeployedBytecode.GeneratedSources[0].Contents
+
 	contractData.SourceMap = contractDescr.Evm.DeployedBytecode.SourceMap
 	if len(contractData.SourceMap) == 0 {
 		return nil, errors.New("source map not found")
 	}
 
+	for k, v := range contractDescr.Evm.DeployedBytecode.FunctionDebugData {
+		v.Name = k
+		contractData.FunctionDebugData = append(contractData.FunctionDebugData, v)
+	}
+	sort.Slice(contractData.FunctionDebugData, func(i, j int) bool {
+		return contractData.FunctionDebugData[i].EntryPoint < contractData.FunctionDebugData[j].EntryPoint
+	})
+	if len(contractData.FunctionDebugData) > 0 {
+		for _, dbgData := range contractData.FunctionDebugData {
+			if dbgData.EntryPoint == 0 {
+				dbgData.Name = "#function_selector"
+			} else {
+				break
+			}
+		}
+	}
 	contractData.Metadata = contractDescr.Metadata
 	contractData.Code = hexutil.MustDecode(contractDescr.Evm.DeployedBytecode.Object)
 	contractData.InitCode = hexutil.MustDecode(contractDescr.Evm.Bytecode.Object)

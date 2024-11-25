@@ -95,11 +95,20 @@ type EvmOutput struct {
 }
 
 type CompilerOutputEvm struct {
-	Object              string `json:"object,omitempty"`
-	Opcodes             string `json:"opcodes,omitempty"`
-	SourceMap           string `json:"sourceMap,omitempty"`
-	LinkReferences      any    `json:"linkReferences,omitempty"`
-	ImmutableReferences any    `json:"immutableReferences,omitempty"`
+	Object              string            `json:"object,omitempty"`
+	Opcodes             string            `json:"opcodes,omitempty"`
+	SourceMap           string            `json:"sourceMap,omitempty"`
+	LinkReferences      any               `json:"linkReferences,omitempty"`
+	ImmutableReferences any               `json:"immutableReferences,omitempty"`
+	FunctionDebugData   FunctionDebugData `json:"functionDebugData"`
+	GeneratedSources    []GeneratedSource `json:"generatedSources,omitempty"`
+}
+
+type GeneratedSource struct {
+	Contents string `json:"contents"`
+	Id       int    `json:"id"`
+	Language string `json:"language"`
+	Name     string `json:"name"`
 }
 
 type Metadata struct {
@@ -141,6 +150,16 @@ type Settings struct {
 	AppendCBOR   bool      `json:"appendCBOR"` //nolint:tagliatelle
 	BytecodeHash string    `json:"bytecodeHash"`
 }
+
+type FunctionDebugItem struct {
+	Name           string `json:"name,omitempty"`
+	EntryPoint     int    `json:"entryPoint"` // EntryPoint is the offset in the bytecode where the function starts.
+	Id             int    `json:"id"`
+	ParameterSlots int    `json:"parameterSlots"`
+	ReturnSlots    int    `json:"returnSlots"`
+}
+
+type FunctionDebugData map[string]FunctionDebugItem
 
 // Normalize fills in the content of the sources that have no content but have urls.
 func (t *CompilerTask) Normalize(basePath string) error {
@@ -204,6 +223,7 @@ func (t *CompilerTask) ToCompilerJsonInput() (*CompilerJsonInput, error) {
 				"evm.deployedBytecode.object",
 				"evm.deployedBytecode.sourceMap",
 				"evm.deployedBytecode.generatedSources",
+				"evm.deployedBytecode.functionDebugData",
 				"evm.methodIdentifiers",
 			},
 		},

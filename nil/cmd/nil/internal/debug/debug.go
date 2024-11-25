@@ -144,7 +144,7 @@ func (d *DebugHandler) SelectFailedReceipts() []*ReceiptInfo {
 	return resList
 }
 
-func (d *DebugHandler) PrintSourceLocation(receipt *ReceiptInfo, loc *cometa.LineLocation) error {
+func (d *DebugHandler) PrintSourceLocation(receipt *ReceiptInfo, loc *cometa.Location) error {
 	lines, err := receipt.Contract.GetSourceLines(loc.FileName)
 	if err != nil {
 		return fmt.Errorf("Failed to fetch the source lines: %w\n", err)
@@ -188,7 +188,7 @@ func (d *DebugHandler) ShowFailures() {
 			color.Red("Failed to get a contract for the message #%d\n", receipt.Index)
 			continue
 		}
-		loc, err := receipt.Contract.GetLineLocation(receipt.Receipt.FailedPc)
+		loc, err := receipt.Contract.GetLocation(receipt.Receipt.FailedPc)
 		if err != nil {
 			color.Red("Failed to fetch the location: %v\n", err)
 		} else if err = d.PrintSourceLocation(receipt, loc); err != nil {

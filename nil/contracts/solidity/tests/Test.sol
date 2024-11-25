@@ -10,6 +10,8 @@ contract Test is NilBase {
 
     uint32 private internalValue = 0;
 
+    constructor() payable {}
+
     function emitEvent(uint a, uint b) public payable {
         emit testEvent(a, b);
     }
@@ -160,6 +162,14 @@ contract Test is NilBase {
      */
     function returnEmptyError() public pure {
         require(false, "");
+    }
+
+    function makeFail(int32 n) public pure returns(int32) {
+        if (n == 1) {
+            int32 v = abi.decode(bytes(""), (int32));
+            require(v != 0);
+        }
+        return 0;
     }
 
     function verifyExternal(uint256, bytes calldata) external pure returns (bool) {

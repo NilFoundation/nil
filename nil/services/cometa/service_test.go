@@ -53,7 +53,7 @@ func (s *SuiteServiceTest) TestCase1() {
 
 	s.Require().Equal(contractData, contract.Data)
 
-	loc, err := s.service.GetLocation(s.ctx, address, 0)
+	loc, err := s.service.GetLocationRaw(s.ctx, address, 0)
 	s.Require().NoError(err)
 	s.Require().NotNil(loc)
 	s.Require().Equal("Test.sol:88", loc.String())
@@ -92,7 +92,7 @@ func (s *SuiteServiceTest) TestCase2() {
 	loc, err := s.service.GetLocation(s.ctx, address, 0)
 	s.Require().NoError(err)
 	s.Require().NotNil(loc)
-	s.Require().Equal("Test.sol:59", loc.String())
+	s.Require().Equal("Test.sol:3, function: #function_selector", loc.String())
 
 	jsonContract, err := s.service.GetContractAsJson(s.ctx, address)
 	s.Require().NoError(err)

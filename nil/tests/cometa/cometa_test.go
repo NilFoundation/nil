@@ -7,11 +7,14 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
+	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cometa"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/tests"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/suite"
@@ -19,9 +22,10 @@ import (
 
 type SuiteCometa struct {
 	tests.RpcSuite
-	cometaClient   cometa.Client
-	cometaCfg      cometa.Config
-	cometaEndpoint string
+	cometaClient cometa.Client
+	cometaCfg    cometa.Config
+	zerostateCfg string
+	testAddress  types.Address
 }
 
 type SuiteCometaBadger struct {
@@ -36,17 +40,29 @@ type SuiteCometaClickhouse struct {
 func (s *SuiteCometa) SetupSuite() {
 	s.cometaCfg.DbPath = s.T().TempDir() + "/cometa.db"
 	s.cometaCfg.OwnEndpoint = ""
+	var err error
 
-	s.Start(&nilservice.Config{
-		NShards:              2,
-		CollatorTickPeriodMs: 200,
-		HttpUrl:              rpc.GetSockPath(s.T()),
-		Cometa:               &s.cometaCfg,
+	s.testAddress, err = contracts.CalculateAddress(contracts.NameTest, 1, []byte{1})
+	s.Require().NoError(err)
+
+	zerostateTmpl := `
+contracts:
+- name: MainWallet
+  address: {{ .WalletAddress }}
+  value: 100000000000000
+  contract: Wallet
+  ctorArgs: [{{ .MainPublicKey }}]
+- name: Test
+  address: {{ .TestAddress }}
+  value: 100000000
+  contract: tests/Test
+`
+	s.zerostateCfg, err = common.ParseTemplate(zerostateTmpl, map[string]any{
+		"WalletAddress": types.MainWalletAddress.Hex(),
+		"MainPublicKey": hexutil.Encode(execution.MainPublicKey),
+		"TestAddress":   s.testAddress.Hex(),
 	})
-
-	s.cometaEndpoint = rpc.GetSockPathService(s.T(), "cometa")
-
-	s.cometaClient = *cometa.NewClient(s.Endpoint)
+	s.Require().NoError(err)
 }
 
 func (s *SuiteCometaClickhouse) SetupSuite() {
@@ -90,6 +106,18 @@ func (s *SuiteCometaBadger) SetupSuite() {
 	s.SuiteCometa.SetupSuite()
 }
 
+func (s *SuiteCometa) SetupTest() {
+	s.cometaCfg.DbPath = s.T().TempDir() + "/cometa.db"
+	s.Start(&nilservice.Config{
+		NShards:              2,
+		CollatorTickPeriodMs: 200,
+		HttpUrl:              rpc.GetSockPath(s.T()),
+		Cometa:               &s.cometaCfg,
+		ZeroStateYaml:        s.zerostateCfg,
+	})
+	s.cometaClient = *cometa.NewClient(s.Endpoint)
+}
+
 func (s *SuiteCometa) TestTwinContracts() {
 	pk, err := crypto.GenerateKey()
 	s.Require().NoError(err)
@@ -111,6 +139,43 @@ func (s *SuiteCometa) TestTwinContracts() {
 	s.Require().NoError(err)
 
 	s.Require().Equal(contract1, contract2)
+}
+
+func (s *SuiteCometa) TestGeneratedCode() {
+	if !s.cometaCfg.UseBadger {
+		s.T().Skip()
+	}
+	var (
+		receipt *jsonrpc.RPCReceipt
+		data    []byte
+		loc     *cometa.Location
+	)
+	testAbi, err := contracts.GetAbi(contracts.NameTest)
+	s.Require().NoError(err)
+
+	contractData, err := s.cometaClient.CompileContract("../../contracts/solidity/tests/compile-test.json")
+	s.Require().NoError(err)
+	deployCode := types.BuildDeployPayload(contractData.InitCode, common.EmptyHash)
+	testAddress, _ := s.DeployContractViaMainWallet(types.BaseShardId, deployCode, types.NewValueFromUint64(10_000_000))
+
+	err = s.cometaClient.RegisterContractData(contractData, testAddress)
+	s.Require().NoError(err)
+
+	data = []byte("invalid calldata")
+	receipt = s.SendExternalMessageNoCheck(data, testAddress)
+	s.Require().False(receipt.AllSuccess())
+
+	loc, err = s.cometaClient.GetLocation(testAddress, uint64(receipt.FailedPc))
+	s.Require().NoError(err)
+	s.Require().Equal("Test.sol:7, function: #function_selector", loc.String())
+
+	data = s.AbiPack(testAbi, "makeFail", int32(1))
+	receipt = s.SendExternalMessageNoCheck(data, testAddress)
+	s.Require().False(receipt.AllSuccess())
+
+	loc, err = s.cometaClient.GetLocation(testAddress, uint64(receipt.FailedPc))
+	s.Require().NoError(err)
+	s.Require().Equal("#utility.yul:8, function: revert_error_dbdddcbe895c83990c08b3492a0e83918d802a52331272ac6fdb6a7c4aea3b1b", loc.String())
 }
 
 func checkClickhouseInstalled() bool {

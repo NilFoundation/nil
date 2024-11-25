@@ -1,0 +1,19 @@
+{
+  "contractName": "Test.sol:Test",
+  "compilerVersion": "0.8.28",
+  "settings": {
+    "evmVersion": "shanghai",
+    "optimizer": {
+      "enabled": false,
+      "runs": 200
+    }
+  },
+  "sources": {
+    "Test.sol": {
+      "urls": ["Test.sol"]
+    },
+    "lib/Nil.sol": {
+      "urls": ["../lib/Nil.sol"]
+    }
+  }
+}
