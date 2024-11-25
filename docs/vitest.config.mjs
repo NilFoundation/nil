@@ -1,6 +1,4 @@
-import { defineConfig } from 'vitest/config'
-import path from 'node:path';
-import tsconfigPaths from 'vite-tsconfig-paths'
+import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     globals: true,
@@ -11,5 +9,4 @@ export default defineConfig({
     hookTimeout: 30_000,
     testTimeout: 20_000,
   },
-
 });

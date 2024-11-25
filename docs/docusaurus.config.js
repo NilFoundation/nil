@@ -47,8 +47,6 @@ const config = {
     },
   ],
 
-  // clientModules: [require.resolve("./goatcounter.js")],
-
   presets: [
     [
       "@khannanov-nil/openrpc-docusaurus/dist/preset",

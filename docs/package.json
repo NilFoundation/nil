@@ -54,8 +54,7 @@
 		"styletron-engine-atomic": "^1.6.2",
 		"styletron-react": "^6.1.1",
 		"ts-jest": "^29.2.4",
-		"viem": "^2.21.9",
-		"vite-tsconfig-paths": "^5.0.1"
+		"viem": "^2.21.9"
 	},
 	"devDependencies": {
 		"@docusaurus/module-type-aliases": "^3.3.2",

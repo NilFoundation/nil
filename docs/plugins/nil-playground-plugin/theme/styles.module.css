@@ -2,7 +2,7 @@
   background-color: #8fc97e;
   color: #0f0f0f;
   border-color: #404040;
-  border: 2px solid;
+  border: 1px solid;
   border-radius: 5px;
   padding: 2px 10px 2px 10px;
   display: flex;
@@ -18,8 +18,8 @@
 [data-theme="dark"] .playgroundButton {
   background-color: #8fc97e;
   color: #0f0f0f;
-  border-color: #666666;
-  border: 2px solid;
+  border-color: #404040;
+  border: 1px solid;
   border-radius: 5px;
   padding: 2px 10px 2px 10px;
   display: flex;
@@ -32,5 +32,5 @@
 }
 
 .playgroundButton:hover {
-  background-color: #eff0f2;
+  background-color: #e5e5e5;
 }
