@@ -16,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	lru "github.com/hashicorp/golang-lru/v2"
+	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 )
 
@@ -290,6 +291,7 @@ func (s *Service) GetRpcApi() transport.API {
 
 func (s *Service) startRpcServer(ctx context.Context, endpoint string) error {
 	logger := logging.NewLogger("RPC")
+	logger.Level(zerolog.InfoLevel)
 
 	httpConfig := &httpcfg.HttpCfg{
 		Enabled:         true,
