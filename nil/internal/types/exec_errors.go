@@ -65,8 +65,9 @@ const (
 	// ErrorInternalMessageValidationFailed is returned when no corresponding outgoing message is found.
 	ErrorInternalMessageValidationFailed
 
-	// ErrorNoAccountToPayFees is returned when no account at address specified to pay fees.
-	ErrorNoAccountToPayFees
+	// ErrorDestinationContractDoesNotExist is returned when no account exists and the destination address.
+	// If you encounter this error, you probably forgot to top-up the address before deploying.
+	ErrorDestinationContractDoesNotExist
 
 	// ErrorContractAlreadyExists is returned when attempt to deploy code to address of already deployed contract.
 	ErrorContractAlreadyExists
