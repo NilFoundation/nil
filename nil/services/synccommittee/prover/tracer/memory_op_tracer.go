@@ -109,6 +109,17 @@ var opsToMemoryRanges = map[vm.OpCode]func(stack *StackAccessor, memoryLen int) 
 			after: memoryRange{memOffset.Uint64(), 1},
 		}
 	},
+	vm.MCOPY: func(stack *StackAccessor, _ int) opRanges {
+		var (
+			dstOffset = stack.Pop()
+			srcOffset = stack.Pop()
+			size      = stack.Pop()
+		)
+		return opRanges{
+			before: memoryRange{srcOffset.Uint64(), size.Uint64()},
+			after:  memoryRange{dstOffset.Uint64(), size.Uint64()},
+		}
+	},
 	vm.CREATE: func(stack *StackAccessor, _ int) opRanges {
 		var (
 			_            = stack.Pop()

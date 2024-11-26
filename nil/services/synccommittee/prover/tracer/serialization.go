@@ -54,6 +54,7 @@ func FromProto(traces *pb.ExecutionTraces) (*ExecutionTraces, error) {
 		ZKEVMStates:       make([]ZKEVMState, len(traces.ZkevmStates)),
 		ContractsBytecode: make(map[types.Address][]byte, len(traces.ContractBytecodes)),
 		SlotsChanges:      make([]map[types.Address][]SlotChangeTrace, len(traces.MessageTraces)),
+		CopyEvents:        make([]CopyEvent, len(traces.CopyEvents)),
 	}
 
 	for i, pbStackOp := range traces.StackOps {
@@ -121,6 +122,13 @@ func FromProto(traces *pb.ExecutionTraces) (*ExecutionTraces, error) {
 		}
 	}
 
+	for i, pbCopyEventTrace := range traces.GetCopyEvents() {
+		ep.CopyEvents[i].From = copyParticipantFromProto(pbCopyEventTrace.From)
+		ep.CopyEvents[i].To = copyParticipantFromProto(pbCopyEventTrace.To)
+		ep.CopyEvents[i].RwIdx = uint(pbCopyEventTrace.RwIdx)
+		ep.CopyEvents[i].Data = pbCopyEventTrace.GetData()
+	}
+
 	for messageIdx, pbMessageTrace := range traces.MessageTraces {
 		addrToChanges := make(map[types.Address][]SlotChangeTrace, len(pbMessageTrace.StorageTracesByAddress))
 		for pbContractAddr, pbStorageTraces := range pbMessageTrace.StorageTracesByAddress {
@@ -157,6 +165,7 @@ func ToProto(traces *ExecutionTraces) (*pb.ExecutionTraces, error) {
 		MemoryOps:         make([]*pb.MemoryOp, len(traces.MemoryOps)),
 		StorageOps:        make([]*pb.StorageOp, len(traces.StorageOps)),
 		ZkevmStates:       make([]*pb.ZKEVMState, len(traces.ZKEVMStates)),
+		CopyEvents:        make([]*pb.CopyEvent, len(traces.CopyEvents)),
 		ContractBytecodes: make(map[string][]byte),
 		MessageTraces:     make([]*pb.MessageTraces, len(traces.SlotsChanges)),
 	}
@@ -233,6 +242,15 @@ func ToProto(traces *ExecutionTraces) (*pb.ExecutionTraces, error) {
 		}
 	}
 
+	for i, copyEvent := range traces.CopyEvents {
+		pbTraces.CopyEvents[i] = &pb.CopyEvent{
+			From:  copyParticipantToProto(&copyEvent.From),
+			To:    copyParticipantToProto(&copyEvent.To),
+			RwIdx: uint64(copyEvent.RwIdx),
+			Data:  copyEvent.Data,
+		}
+	}
+
 	// Convert SlotsChanges
 	for messageIdx, addrToChanges := range traces.SlotsChanges {
 		messageTrace := &pb.MessageTraces{
@@ -294,4 +312,50 @@ func goToProtoProof(p mpt.Proof) ([]byte, error) {
 
 func protoToGoProof(pbProof []byte) (mpt.Proof, error) {
 	return mpt.DecodeProof(pbProof)
+}
+
+var copyLocationToProtoMap = map[CopyLocation]pb.CopyLocation{
+	CopyLocationMemory:     pb.CopyLocation_MEMORY,
+	CopyLocationBytecode:   pb.CopyLocation_BYTECODE,
+	CopyLocationCalldata:   pb.CopyLocation_CALLDATA,
+	CopyLocationLog:        pb.CopyLocation_LOG,
+	CopyLocationKeccak:     pb.CopyLocation_KECCAK,
+	CopyLocationReturnData: pb.CopyLocation_RETURNDATA,
+}
+
+var protoCopyLocationMap = common.ReverseMap(copyLocationToProtoMap)
+
+func copyParticipantFromProto(participant *pb.CopyParticipant) CopyParticipant {
+	ret := CopyParticipant{
+		Location:   protoCopyLocationMap[participant.Location],
+		MemAddress: participant.MemAddress,
+	}
+	switch id := participant.GetId().(type) {
+	case *pb.CopyParticipant_CallId:
+		txId := uint(id.CallId)
+		ret.TxId = &txId
+	case *pb.CopyParticipant_BytecodeHash:
+		hash := common.HexToHash(id.BytecodeHash)
+		ret.BytecodeHash = &hash
+	case *pb.CopyParticipant_KeccakHash:
+		hash := common.HexToHash(id.KeccakHash)
+		ret.KeccakHash = &hash
+	}
+	return ret
+}
+
+func copyParticipantToProto(participant *CopyParticipant) *pb.CopyParticipant {
+	ret := &pb.CopyParticipant{
+		Location:   copyLocationToProtoMap[participant.Location],
+		MemAddress: participant.MemAddress,
+	}
+	switch {
+	case participant.TxId != nil:
+		ret.Id = &pb.CopyParticipant_CallId{CallId: uint64(*participant.TxId)}
+	case participant.BytecodeHash != nil:
+		ret.Id = &pb.CopyParticipant_BytecodeHash{BytecodeHash: participant.BytecodeHash.Hex()}
+	case participant.KeccakHash != nil:
+		ret.Id = &pb.CopyParticipant_KeccakHash{KeccakHash: participant.KeccakHash.Hex()}
+	}
+	return ret
 }

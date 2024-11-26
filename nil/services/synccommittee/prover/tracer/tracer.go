@@ -111,13 +111,14 @@ func (rt *RemoteTracerImpl) GetBlockTraces(ctx context.Context, shardId types.Sh
 	// Print stats
 	stats := stateDB.Stats
 	rt.logger.Info().Msgf(
-		"Tracer stats: processed %d inMessages out of %d with %d operations (stack %d, mem %d, store %d)",
+		"Tracer stats: processed %d inMessages out of %d with %d operations (stack %d, mem %d, store %d, copy %d)",
 		stats.ProcessedInMsgsN,
 		len(decodedDbgBlock.InMessages),
 		stats.OpsN,
 		stats.StackOpsN,
 		stats.MemoryOpsN,
 		stats.StateOpsN,
+		stats.CopyOpsN,
 	)
 
 	return stateDB.Traces, nil

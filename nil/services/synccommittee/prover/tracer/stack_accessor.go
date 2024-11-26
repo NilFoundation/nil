@@ -1,6 +1,7 @@
 package tracer
 
 import (
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/holiman/uint256"
 )
 
@@ -17,9 +18,15 @@ func NewStackAccessor(stackData []uint256.Int) *StackAccessor {
 }
 
 func (sa *StackAccessor) Pop() *uint256.Int {
+	check.PanicIfNot(sa.curTopN >= 0)
 	el := sa.stackData[sa.curTopN]
 	sa.curTopN--
 	return &el
+}
+
+func (sa *StackAccessor) PopUint64() uint64 {
+	v := sa.Pop()
+	return v.Uint64()
 }
 
 func (sa *StackAccessor) Back(n int) *uint256.Int {
@@ -38,11 +45,12 @@ func (sa *StackAccessor) BackWIndex(n int) (*uint256.Int, int) {
 }
 
 func (sa *StackAccessor) backIdx(n int) int {
+	check.PanicIfNot(sa.curTopN >= n)
 	return sa.curTopN - n
 }
 
 func (sa *StackAccessor) Skip(n int) {
-	sa.curTopN -= n
+	sa.curTopN -= min(n, sa.curTopN)
 }
 
 // Helper to track next rw operation counter (all operations should be sequentially
