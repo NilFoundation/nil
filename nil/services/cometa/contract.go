@@ -3,6 +3,7 @@ package cometa
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -28,17 +29,18 @@ type DecodedLocation struct {
 	Jump     int // Jump indicates the jump type.
 }
 
-type Location struct {
+type LocationRaw struct {
 	FileName string `json:"fileName"` // FileName is the name of the source file.
 	Position uint   `json:"position"` // Position is the position in chars.
 	Length   uint   `json:"length"`   // Length is the length of the code segment.
 }
 
-type LineLocation struct {
-	FileName string // FileName is the name of the source file.
-	Line     uint   // Position is the position in chars.
-	Column   uint   // Column is the position in chars.
-	Length   uint   // Length is the length of the code segment.
+type Location struct {
+	FileName string `json:"fileName"` // FileName is the name of the source file.
+	Function string `json:"function"` // Function is the name of the function.
+	Line     uint   `json:"line"`     // Position is the position in chars.
+	Column   uint   `json:"column"`   // Column is the position in chars.
+	Length   uint   `json:"length"`   // Length is the length of the code segment.
 }
 
 func NewContractFromData(data *ContractData) (*Contract, error) {
@@ -58,16 +60,16 @@ func NewContractFromData(data *ContractData) (*Contract, error) {
 	return c, nil
 }
 
-func (l *Location) String() string {
+func (l *LocationRaw) String() string {
 	return fmt.Sprintf("%s:%d", l.FileName, l.Position)
 }
 
-func (l *LineLocation) String() string {
-	return fmt.Sprintf("%s:%d:[%d-%d]", l.FileName, l.Line, l.Column, l.Column+l.Length)
+func (l *Location) String() string {
+	return fmt.Sprintf("%s:%d, function: %s", l.FileName, l.Line, l.Function)
 }
 
-// GetLocation returns the location of the given program counter in the source code.
-func (c *Contract) GetLocation(pc uint) (*Location, error) {
+// GetLocationRaw returns the location of the given program counter in the source code.
+func (c *Contract) GetLocationRaw(pc uint) (*LocationRaw, error) {
 	if err := c.decodeSourceMap(); err != nil {
 		return nil, err
 	}
@@ -77,7 +79,7 @@ func (c *Contract) GetLocation(pc uint) (*Location, error) {
 
 	sourceFile := c.Data.SourceFilesList[loc.FileNum]
 
-	return &Location{
+	return &LocationRaw{
 		FileName: sourceFile,
 		Position: uint(loc.StartPos),
 		Length:   uint(loc.Length),
@@ -92,34 +94,45 @@ func (c *Contract) ShortName() string {
 	return c.Data.Name
 }
 
-func (c *Contract) GetLineLocation(pc uint) (*LineLocation, error) {
-	loc, err := c.GetLocation(pc)
+func (c *Contract) GetLocation(pc uint) (*Location, error) {
+	loc, err := c.GetLocationRaw(pc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get location: %w", err)
 	}
-	return c.getLineLocation(loc)
+	return c.getLocation(pc, loc)
 }
 
-func (c *Contract) getLineLocation(loc *Location) (*LineLocation, error) {
-	source, ok := c.Data.SourceCode[loc.FileName]
+func (c *Contract) getLocation(pc uint, locRaw *LocationRaw) (*Location, error) {
+	source, ok := c.Data.SourceCode[locRaw.FileName]
 	if !ok {
-		return nil, fmt.Errorf("source file not found: '%s'", loc.FileName)
+		return nil, fmt.Errorf("source file not found: '%s'", locRaw.FileName)
 	}
-	lineLoc := &LineLocation{FileName: loc.FileName, Column: 1, Line: 1, Length: loc.Length}
+	loc := &Location{FileName: locRaw.FileName, Column: 1, Line: 1, Length: locRaw.Length}
 	pos := uint(0)
 	for _, ch := range source {
-		if pos >= loc.Position {
+		if pos >= locRaw.Position {
 			break
 		}
 		if ch == '\n' {
-			lineLoc.Line += 1
-			lineLoc.Column = 1
+			loc.Line += 1
+			loc.Column = 1
 		} else {
-			lineLoc.Column += 1
+			loc.Column += 1
 		}
 		pos += 1
 	}
-	return lineLoc, nil
+
+	funcIndex := sort.Search(len(c.Data.FunctionDebugData), func(i int) bool {
+		return c.Data.FunctionDebugData[i].EntryPoint >= int(pc)
+	})
+	if funcIndex >= 1 && funcIndex < len(c.Data.FunctionDebugData) {
+		loc.Function = c.Data.FunctionDebugData[funcIndex-1].Name
+	} else if funcIndex == 0 {
+		// In some cases, functionDebugData doesn't contain the entry point for the function selector.
+		loc.Function = "#function_selector"
+	}
+
+	return loc, nil
 }
 
 func (c *Contract) DecodeCallData(calldata []byte) (string, error) {

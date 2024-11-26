@@ -30,6 +30,7 @@ type Storage interface {
 
 type CometaJsonRpc interface {
 	GetContract(ctx context.Context, address types.Address) (*ContractData, error)
+	GetLocationRaw(ctx context.Context, address types.Address, pc uint) (*LocationRaw, error)
 	GetLocation(ctx context.Context, address types.Address, pc uint) (*Location, error)
 	GetAbi(ctx context.Context, address types.Address) (string, error)
 	GetSourceCode(ctx context.Context, address types.Address) (map[string]string, error)
@@ -226,6 +227,14 @@ func (s *Service) GetLocation(ctx context.Context, address types.Address, pc uin
 		return nil, err
 	}
 	return contract.GetLocation(pc)
+}
+
+func (s *Service) GetLocationRaw(ctx context.Context, address types.Address, pc uint) (*LocationRaw, error) {
+	contract, err := s.GetContractControl(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+	return contract.GetLocationRaw(pc)
 }
 
 func (s *Service) GetAbi(ctx context.Context, address types.Address) (string, error) {

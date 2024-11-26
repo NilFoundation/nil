@@ -1052,7 +1052,7 @@ func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.
 	return NewExecutionResult().
 		SetMsgErrorOrFatal(err).
 		SetUsed((gas - types.Gas(leftOver)).ToValue(es.GasPrice)).
-		SetReturnData(ret)
+		SetReturnData(ret).SetDebugInfo(es.evm.DebugInfo)
 }
 
 func (es *ExecutionState) TryProcessResponse(message *types.Message) ([]byte, *vm.EvmRestoreData, *ExecutionResult) {
