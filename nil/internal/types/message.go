@@ -22,6 +22,8 @@ const (
 	ResponseMessageKind
 )
 
+const MessageMaxDataSize = 24576
+
 func (k MessageKind) String() string {
 	switch k {
 	case ExecutionMessageKind:
