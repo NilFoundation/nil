@@ -90,7 +90,7 @@ describe.sequential('CLI deployment tests', async () => {
   test.sequential('external deployment of Retailer and Manufacturer is successful', async () => {
 
     //startExternalRetailerAddressCommand
-    const RETAILER_ADDRESS_COMMAND = `${NIL_GLOBAL} contract address ./tests/Retailer.sol --shard-id 1 --salt ${SALT} ${CONFIG_FLAG}`;
+    const RETAILER_ADDRESS_COMMAND = `${NIL_GLOBAL} contract address ./tests/Retailer/Retailer.bin --shard-id 1 --salt ${SALT} ${CONFIG_FLAG}`;
     //endExternalRetailerAddressCommand
 
     let { stdout, stderr } = await exec(RETAILER_ADDRESS_COMMAND);
@@ -107,7 +107,7 @@ describe.sequential('CLI deployment tests', async () => {
     await exec(RETAILER_SEND_TOKENS_COMMAND_EXTERNAL);
 
     //startRetailerExternalDeploymentCommand
-    const RETAILER_EXTERNAL_DEPLOYMENT_COMMAND = `${NIL_GLOBAL} contract deploy ./tests/Retailer/Retailer.bin --shard-id 1 ${SALT} ${CONFIG_FLAG}`;
+    const RETAILER_EXTERNAL_DEPLOYMENT_COMMAND = `${NIL_GLOBAL} contract deploy ./tests/Retailer/Retailer.bin --shard-id 1 --salt ${SALT} ${CONFIG_FLAG}`;
     //endRetailerExternalDeploymentCommand
 
     ({ stdout, stderr } = await exec(RETAILER_EXTERNAL_DEPLOYMENT_COMMAND));
@@ -115,7 +115,7 @@ describe.sequential('CLI deployment tests', async () => {
     expect(stdout).toMatch(CONTRACT_ADDRESS_PATTERN);
 
     //startExternalManufacturerAddressCommand
-    const MANUFACTURER_ADDRESS_COMMAND = `${NIL_GLOBAL} contract address ./tests/Manufacturer.sol ${PUBKEY} ${RETAILER_ADDRESS} --shard-id 2 --salt ${SALT} ${CONFIG_FLAG} --abi ./tests/Manufacturer/Manufacturer.abi`;
+    const MANUFACTURER_ADDRESS_COMMAND = `${NIL_GLOBAL} contract address ./tests/Manufacturer/Manufacturer.bin ${PUBKEY} ${RETAILER_ADDRESS} --shard-id 2 --salt ${SALT} ${CONFIG_FLAG} --abi ./tests/Manufacturer/Manufacturer.abi`;
     //endExternalManufacturerAddressCommand
 
     ({ stdout, stderr } = await exec(MANUFACTURER_ADDRESS_COMMAND));
