@@ -170,6 +170,7 @@ func CalldataToArgs(abiPath string, method string, data []byte) ([]*ArgValue, er
 func ReadBytecode(filename string, abiPath string, args []string) (types.Code, error) {
 	var bytecode []byte
 	var err error
+	location := filename
 	if filename != "" {
 		codeHex, err := os.ReadFile(filename)
 		if err != nil {
@@ -185,6 +186,7 @@ func ReadBytecode(filename string, abiPath string, args []string) (types.Code, e
 			bytecode = append(bytecode, calldata...)
 		}
 	} else {
+		location = "standard input"
 		scanner := bufio.NewScanner(os.Stdin)
 		input := ""
 		for scanner.Scan() {
@@ -197,6 +199,9 @@ func ReadBytecode(filename string, abiPath string, args []string) (types.Code, e
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode hex: %w", err)
 		}
+	}
+	if len(bytecode) == 0 {
+		return nil, fmt.Errorf("read empty bytecode from %s", location)
 	}
 	return bytecode, nil
 }
