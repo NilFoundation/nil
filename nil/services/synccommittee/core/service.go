@@ -67,7 +67,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	)
 
 	taskListener := rpc.NewTaskListener(
-		&rpc.TaskListenerConfig{HttpEndpoint: cfg.OwnRpcEndpoint},
+		&rpc.TaskListenerConfig{HttpEndpoint: cfg.TaskListenerRpcEndpoint},
 		taskScheduler,
 		logger,
 	)

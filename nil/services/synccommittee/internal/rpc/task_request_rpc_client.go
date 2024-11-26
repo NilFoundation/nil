@@ -18,6 +18,8 @@ type TaskRequestRpcClient struct {
 	retryRunner common.RetryRunner
 }
 
+var _ api.TaskRequestHandler = new(TaskRequestRpcClient)
+
 func NewTaskRequestRpcClient(apiEndpoint string, logger zerolog.Logger) *TaskRequestRpcClient {
 	retryRunner := common.NewRetryRunner(
 		common.RetryConfig{

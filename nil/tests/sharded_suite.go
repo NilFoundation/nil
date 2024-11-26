@@ -206,7 +206,7 @@ func (s *ShardedSuite) WaitForReceipt(hash common.Hash) *jsonrpc.RPCReceipt {
 	return WaitForReceipt(s.T(), s.DefaultClient, hash)
 }
 
-func (s *ShardedSuite) WaitIncludedInMain(shardId types.ShardId, hash common.Hash) *jsonrpc.RPCReceipt {
+func (s *ShardedSuite) WaitIncludedInMain(hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
 	return WaitIncludedInMain(s.T(), s.DefaultClient, hash)

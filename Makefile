@@ -42,7 +42,7 @@ include nil/Makefile.inc
 ssz: ssz_db ssz_mpt ssz_types ssz_config
 
 .PHONY: pb
-pb: pb_rawapi pb_ibft
+pb: pb_rawapi pb_ibft pb_synccommittee
 
 contracts/compiled/%.bin: $(wildcard nil/contracts/solidity/tests/*.sol) $(wildcard nil/contracts/solidity/*.sol)
 	cd nil/contracts && go generate generate.go

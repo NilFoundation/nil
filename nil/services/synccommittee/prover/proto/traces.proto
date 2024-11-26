@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package executionproofs;
+option go_package = "/proto";
+
+// Uint256 represents a 256-bit unsigned integer as a sequence of uint64 parts
+message Uint256 {
+    repeated uint64 word_parts = 1;  // 4 uint64 parts composing the 256-bit number
+}
+
+// Address represents an Ethereum address
+message Address {
+    bytes address_bytes = 1;  // 20-byte address
+}
+
+// StackOp represents a single stack operation ()
+message StackOp {
+    bool is_read = 1;
+    int32 index = 2;  // Index in the stack
+    Uint256 value = 3;
+    uint64 pc = 4;
+    uint64 msg_id = 5;  // Number of message within a block
+    uint64 rw_idx = 6;  // shared between all ops counter
+}
+
+// MemoryOp represents a single memory operation (byte)
+message MemoryOp {
+    bool is_read = 1;
+    int32 index = 2;  // Index in memory
+    bytes value = 3;  // Single byte value
+    uint64 pc = 4;
+    uint64 msg_id = 5;  // Number of message within a block
+    uint64 rw_idx = 6;  // shared between all ops counter
+}
+
+// StorageOp represents a single storage operation
+message StorageOp {
+    bool is_read = 1;
+    // HEX of hash, bytes would be more space-efficient, but less readable
+    string key = 2;
+    Uint256 value = 3;  // Single byte value
+    Uint256 initial_value = 4;  // Value before storage operation
+    uint64 pc = 5;
+    uint64 msg_id = 6;  // Number of message within a block
+    uint64 rw_idx = 7;  // shared between all ops counter
+    Address address = 8;  // Contract address
+}
+
+// SlotChangeTrace represents a trace of storage slot change. Only initial and final value for each message
+message SlotChangeTrace {
+    // HEX of hashes, bytes would be more space-efficient, but less readable
+    string key = 1;
+    string root_before = 2;
+    string root_after = 3;
+    Uint256 value_before = 4;
+    Uint256 value_after = 5;
+    bytes ssz_proof = 6;
+}
+
+message AdderssSlotsChanges {
+    repeated SlotChangeTrace slots_changes = 1;
+}
+
+// MessageTraces contains traces related to a single executed message
+message MessageTraces {
+    // HEX address to slots changes in address's storage
+    map<string, AdderssSlotsChanges> storage_traces_by_address = 1;
+}
+
+// StorageEntry is a key-value pair representing a single piece of storage data
+message StorageEntry {
+    Uint256 key = 1;
+    Uint256 value = 2;
+}
+
+message ZKEVMState {
+    string tx_hash = 1;
+    uint64 call_id = 2;
+    uint64 pc = 3;
+    uint64 gas = 4;
+    uint64 rw_idx = 5;
+    string bytecode_hash = 6;
+    uint64 opcode = 7;
+    Uint256 additional_input = 8;
+    uint64 stack_size = 9;
+    uint64 memory_size = 10;
+    bool tx_finish = 11;
+    uint64 error_opcode = 12;
+    repeated Uint256 stack_slice = 13;
+    map<uint64, uint32> memory_slice = 14;
+    repeated StorageEntry storage_slice = 15;
+}
+
+// ExecutionTraces represents all proofs related to contract execution
+message ExecutionTraces {
+    repeated StackOp stack_ops = 1;
+    repeated MemoryOp memory_ops = 2;
+    repeated StorageOp storage_ops = 3;
+    repeated MessageTraces message_traces = 4;
+    map<string, bytes> contract_bytecodes = 5;
+    repeated ZKEVMState zkevm_states = 6;
+}

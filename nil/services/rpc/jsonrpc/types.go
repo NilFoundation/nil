@@ -376,6 +376,8 @@ func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
 }
 
 // @component DebugRPCContract debugRpcContract object "The debug contract whose structure is requested."
+// @componentprop Code HEX-encoded contract code
+// @componentprop Contract serialized types.SmartContract structure
 // @componentprop Proof serialized data for MPT access operation proving
 // @componentprop Storage storage slice of key-value pairs of the data in storage
 type DebugRPCContract struct {

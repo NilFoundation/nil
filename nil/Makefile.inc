@@ -22,3 +22,9 @@ $(root_sce)/internal/types/proverresulttype_string.go: $(root_sce)/internal/type
 	cd $(root_sce)/internal/types && go generate
 $(root_sce)/internal/types/taskstatus_string.go: $(root_sce)/internal/types/prover_tasks.go
 	cd $(root_sce)/internal/types && go generate
+
+.PHONY: pb_synccommittee
+pb_synccommittee: $(root_sce)/prover/proto/traces.pb.go
+
+$(root_sce)/prover/proto/traces.pb.go: $(root_sce)/prover/proto/traces.proto
+	protoc --go_out=$(root_sce)/prover/ $(root_sce)/prover/proto/traces.proto
