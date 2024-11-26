@@ -21,6 +21,8 @@ var (
 	_ ssz.HashRoot             = (*Uint256)(nil)
 	_ encoding.BinaryMarshaler = (*Uint256)(nil)
 	_ driver.Valuer            = (*Uint256)(nil)
+	_ encoding.TextMarshaler   = (*Uint256)(nil)
+	_ encoding.TextUnmarshaler = (*Uint256)(nil)
 )
 
 type Uint256 uint256.Int
@@ -106,7 +108,7 @@ func (u *Uint256) GetTree() (*ssz.Node, error) {
 	return ssz.ProofTree(u)
 }
 
-func (u *Uint256) MarshalJSON() ([]byte, error) {
+func (u Uint256) MarshalJSON() ([]byte, error) {
 	return u.safeInt().MarshalJSON()
 }
 
@@ -114,7 +116,7 @@ func (u *Uint256) UnmarshalJSON(input []byte) error {
 	return (*uint256.Int)(u).UnmarshalJSON(input)
 }
 
-func (u *Uint256) MarshalText() ([]byte, error) {
+func (u Uint256) MarshalText() ([]byte, error) {
 	return u.safeInt().MarshalText()
 }
 

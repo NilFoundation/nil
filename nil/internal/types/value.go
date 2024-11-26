@@ -165,6 +165,14 @@ func (v *Value) UnmarshalText(input []byte) error {
 	return v.Uint256.UnmarshalText(input)
 }
 
+func (v Value) MarshalJSON() ([]byte, error) {
+	return v.safeInt().MarshalJSON()
+}
+
+func (v Value) MarshalText() ([]byte, error) {
+	return v.safeInt().MarshalText()
+}
+
 func (v *Value) Set(value string) error {
 	v.Uint256 = new(Uint256)
 	return v.Uint256.Set(value)
