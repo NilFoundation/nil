@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -134,6 +135,15 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 
 	msgHash, contractAddr, err := service.DeployContractViaWallet(params.shardId, cfg.Address, payload, params.amount)
 	if err != nil {
+		if errors.Is(err, rpc.ErrMsgDataTooLong) {
+			return fmt.Errorf(
+				`Failed to marshal message: %w.
+It appears that your code exceeds the maximum supported size. 
+Try compiling your contract with the usage of solc --optimize flag, 
+providing small values to --optimize-runs. 
+For more information go to 
+https://ethereum.org/en/developers/tutorials/downsizing-contracts-to-fight-the-contract-size-limit/`, err)
+		}
 		return err
 	}
 

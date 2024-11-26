@@ -34,6 +34,14 @@ var (
 	ErrFailedToReadResponse      = errors.New("failed to read response")
 	ErrFailedToUnmarshalResponse = errors.New("failed to unmarshal response")
 	ErrRPCError                  = errors.New("rpc error")
+	/*
+		This error means that your code exceeds the maximum supported size.
+		Try compiling your contract with the usage of solc --optimize flag,
+		providing small values to --optimize-runs.
+		For more information go to
+		https://ethereum.org/en/developers/tutorials/downsizing-contracts-to-fight-the-contract-size-limit/`
+	*/
+	ErrMsgDataTooLong = errors.New("data is too long")
 )
 
 const (
@@ -345,6 +353,9 @@ func toRawBlock(raw json.RawMessage) (*jsonrpc.DebugRPCBlock, error) {
 }
 
 func (c *Client) SendMessage(msg *types.ExternalMessage) (common.Hash, error) {
+	if len(msg.Data) > types.MessageMaxDataSize {
+		return common.EmptyHash, ErrMsgDataTooLong
+	}
 	data, err := msg.MarshalSSZ()
 	if err != nil {
 		return common.EmptyHash, err
