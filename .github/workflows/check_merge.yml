@@ -1,0 +1,15 @@
+name: Prevent Merge Commits
+
+on:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  forbid-merge-commits:
+    runs-on: ["self-hosted", "aws_autoscaling"]
+    steps:
+      - name: Run Forbid Merge Commits Action
+        uses: NilFoundation/forbid-merge-commits-action@main
