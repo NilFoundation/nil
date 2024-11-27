@@ -60,7 +60,7 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 		}
 
 		s.Run("NoAccount", func() {
-			s.Require().Equal(types.ErrorNoAccountToPayFees, validate(msg).Code())
+			s.Require().Equal(types.ErrorDestinationContractDoesNotExist, validate(msg).Code())
 
 			s.Require().NoError(es.CreateAccount(msg.To))
 		})
@@ -90,7 +90,7 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 		}
 
 		s.Run("NoAccount", func() {
-			s.Require().Equal(types.ErrorNoAccountToPayFees, validate(msg).Code())
+			s.Require().Equal(types.ErrorDestinationContractDoesNotExist, validate(msg).Code())
 
 			s.Require().NoError(es.CreateAccount(msg.To))
 		})

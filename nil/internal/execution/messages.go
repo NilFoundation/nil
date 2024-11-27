@@ -170,7 +170,7 @@ func ValidateExternalMessage(es *ExecutionState, message *types.Message) *Execut
 	if account, err := es.GetAccount(message.To); err != nil {
 		return NewExecutionResult().SetError(types.KeepOrWrapError(types.ErrorNoAccount, err))
 	} else if account == nil {
-		return NewExecutionResult().SetError(types.NewError(types.ErrorNoAccountToPayFees))
+		return NewExecutionResult().SetError(types.NewError(types.ErrorDestinationContractDoesNotExist))
 	}
 
 	switch {

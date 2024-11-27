@@ -163,7 +163,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			receipt := s.WaitForReceipt(hash)
 			s.False(receipt.Success)
 			s.True(receipt.Temporary)
-			s.Equal("NoAccountToPayFees", receipt.Status)
+			s.Equal("DestinationContractDoesNotExist", receipt.Status)
 		})
 
 		var calleeAddr types.Address
