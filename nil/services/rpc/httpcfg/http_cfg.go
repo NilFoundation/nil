@@ -37,8 +37,6 @@ var DefaultHTTPTimeouts = HTTPTimeouts{
 }
 
 type HttpCfg struct {
-	Enabled bool
-
 	HttpURL         string
 	HttpCORSDomain  []string
 	HttpCompression bool

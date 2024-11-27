@@ -58,7 +58,6 @@ func TestContextCancellation(t *testing.T) {
 	socketPath := GetSockPath(t)
 	go func() {
 		httpConfig := &httpcfg.HttpCfg{
-			Enabled:         true,
 			HttpURL:         socketPath,
 			HttpCompression: true,
 			TraceRequests:   true,

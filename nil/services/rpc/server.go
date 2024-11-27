@@ -16,13 +16,6 @@ import (
 )
 
 func StartRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []transport.API, logger zerolog.Logger) error {
-	if !cfg.Enabled {
-		panic("rpc server is disabled")
-	}
-	return startRegularRpcServer(ctx, cfg, rpcAPI, logger)
-}
-
-func startRegularRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []transport.API, logger zerolog.Logger) error {
 	// register apis and create handler stack
 	srv := transport.NewServer(cfg.TraceRequests, cfg.DebugSingleRequest, logger, cfg.RPCSlowLogThreshold)
 
