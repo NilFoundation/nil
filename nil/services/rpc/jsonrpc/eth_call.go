@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/params"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
@@ -50,8 +51,10 @@ func refineOutMsgResult(msgs []*rpctypes.OutMessage) types.Value {
 
 // Call implements eth_estimateGas.
 func (api *APIImplRo) EstimateFee(ctx context.Context, args CallArgs, mainBlockNrOrHash transport.BlockNumberOrHash) (types.Value, error) {
-	gasCap := types.NewValueFromUint64(100_000_000)
-	feeCreditCap := types.NewValueFromUint64(50_000_000)
+	balanceCap, err := types.NewValueFromDecimal("1000000000000000000000000") // 1 MEther
+	check.PanicIfErr(err)
+	feeCreditCap, err := types.NewValueFromDecimal("500000000000000000000000") // 0.5 MEther
+	check.PanicIfErr(err)
 
 	blockRef := rawapitypes.BlockReferenceAsBlockReferenceOrHashWithChildren(toBlockReference(mainBlockNrOrHash))
 	execute := func(balance, feeCredit types.Value) (*rpctypes.CallResWithGasPrice, error) {
@@ -76,7 +79,7 @@ func (api *APIImplRo) EstimateFee(ctx context.Context, args CallArgs, mainBlockN
 	}
 
 	// Check that it's possible to run transaction with Max balance and feeCredit
-	res, err := execute(gasCap, feeCreditCap)
+	res, err := execute(balanceCap, feeCreditCap)
 	if err != nil {
 		return types.Value{}, err
 	}
