@@ -590,7 +590,7 @@ func (s *SuiteCli) TestCliConfig() {
 
 	s.Run("Show config", func() {
 		res := s.RunCli("-c", cfgPath, "config", "show")
-		s.Contains(res, "rpc_endpoint: "+s.endpoint)
+		s.Contains(res, "rpc_endpoint      : "+s.endpoint)
 	})
 }
 
