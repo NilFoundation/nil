@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"strconv"
 	"sync"
@@ -113,7 +114,13 @@ func (h *handler) log(lvl zerolog.Level, msg *Message, logMsg string, duration t
 		Str(logging.FieldRpcMethod, msg.Method)
 
 	if h.shouldLogRequestParams(msg.Method, lvl) {
-		l = l.RawJSON(logging.FieldRpcParams, msg.Params)
+		s := string(msg.Params)
+		const MaxMessageLength = 1000
+		if len(s) > MaxMessageLength && lvl != zerolog.TraceLevel {
+			// Trim excessively long parameters to prevent log spamming
+			s = fmt.Sprintf("%s ...<skipped %d chars>", s[:MaxMessageLength], len(s)-MaxMessageLength)
+		}
+		l = l.Str(logging.FieldRpcParams, s)
 	}
 
 	if duration > 0 {
