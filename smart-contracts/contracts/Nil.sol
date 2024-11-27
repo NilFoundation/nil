@@ -28,6 +28,7 @@ library Nil {
     address private constant CONFIG_PARAM = address(0xd7);
     address private constant SEND_REQUEST = address(0xd8);
     address public constant IS_RESPONSE_MESSAGE = address(0xd9);
+    address public constant LOG = address(0xda);
 
     // The following constants specify from where and how the gas should be taken during async call.
     // Forwarding values are calculated in the following order: FORWARD_VALUE, FORWARD_PERCENTAGE, FORWARD_REMAINING.
@@ -438,6 +439,24 @@ library Nil {
         bytes memory data = getConfigParam("gas_price");
         return abi.decode(data, (ParamGasPrice));
     }
+
+    /**
+     * @dev Logs a message with data.
+     * @param message Message to log.
+     * @param data Data to log.
+     */
+    function log(string memory message, int[] memory data) internal {
+        __Precompile__(LOG).precompileLog(message, data);
+    }
+
+    /**
+     * @dev Logs a message with empty data.
+     * @param message Message to log.
+     */
+    function log(string memory message) internal {
+        int[] memory data;
+        __Precompile__(LOG).precompileLog(message, data);
+    }
 }
 
 // NilBase is a base contract that provides modifiers for checking the type of message (internal or external).
@@ -494,6 +513,7 @@ contract __Precompile__ {
     function precompileGetGasPrice(uint id) public returns(uint256) {}
     function precompileGetPoseidonHash(bytes memory data) public returns(uint256) {}
     function precompileConfigParam(bool isSet, string calldata name, bytes calldata data) public returns(bytes memory) {}
+    function precompileLog(string memory message, int[] memory data) public returns(bool) {}
 }
 
 contract NilConfigAbi {

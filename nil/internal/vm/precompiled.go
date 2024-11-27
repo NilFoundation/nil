@@ -93,6 +93,7 @@ var (
 	ConfigParamAddress     = types.BytesToAddress([]byte{0xd7})
 	SendRequestAddress     = types.BytesToAddress([]byte{0xd8})
 	CheckIsResponseAddress = types.BytesToAddress([]byte{0xd9})
+	LogAddress             = types.BytesToAddress([]byte{0xda})
 )
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -133,6 +134,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	ConfigParamAddress:     &configParam{},
 	SendRequestAddress:     &sendRequest{},
 	CheckIsResponseAddress: &checkIsResponse{},
+	LogAddress:             &emitLog{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -935,4 +937,53 @@ func (c *configParam) Run(state StateDB, input []byte, value *uint256.Int, calle
 	}
 
 	return method.Outputs.Pack(data)
+}
+
+type emitLog struct{}
+
+func (e *emitLog) RequiredGas([]byte) uint64 {
+	return 1000
+}
+
+func (e *emitLog) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
+	method := getPrecompiledMethod("precompileLog")
+
+	args, err := method.Inputs.Unpack(input[4:])
+	if err != nil {
+		return nil, err
+	}
+	if len(args) != 2 {
+		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
+	}
+
+	// Get `message` argument
+	message, ok := args[0].(string)
+	if !ok {
+		return nil, types.NewVmError(types.ErrorAbiUnpackFailed)
+	}
+
+	// Get `data` argument
+	slice := reflect.ValueOf(args[1])
+	data := make([]types.Uint256, slice.Len())
+	for i := range slice.Len() {
+		if v, ok := slice.Index(i).Interface().(*big.Int); ok {
+			data[i].SetFromBig(v)
+		} else {
+			return nil, types.NewVmError(types.ErrorAbiUnpackFailed)
+		}
+	}
+
+	state.AddDebugLog(&types.DebugLog{
+		Message: []byte(message),
+		Data:    data,
+	})
+
+	res := make([]byte, 32)
+	res[31] = 1
+
+	return res, nil
 }
