@@ -7,8 +7,13 @@
   },
   "scripts": {
     "start": "node scripts/cli.js",
-    "tests": "npx hardhat test --network nil"
+    "tests": "npx hardhat test --network nil",
+    "pub": "npm publish"
   },
+  "publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org/"
+	},
   "keywords": [],
   "author": "",
   "license": "ISC",
