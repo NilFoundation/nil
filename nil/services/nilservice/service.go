@@ -23,6 +23,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/admin"
 	"github.com/NilFoundation/nil/nil/services/cometa"
+	"github.com/NilFoundation/nil/nil/services/faucet"
 	"github.com/NilFoundation/nil/nil/services/msgpool"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
@@ -89,6 +90,14 @@ func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db 
 			return fmt.Errorf("failed to create cometa service: %w", err)
 		}
 		apiList = append(apiList, cmt.GetRpcApi())
+	}
+
+	if cfg.IsFaucetApiEnabled() {
+		faucet, err := faucet.NewService(client)
+		if err != nil {
+			return fmt.Errorf("failed to create faucet service: %w", err)
+		}
+		apiList = append(apiList, faucet.GetRpcApi())
 	}
 
 	if cfg.RunMode == NormalRunMode {
@@ -347,7 +356,7 @@ func CreateNode(ctx context.Context, name string, cfg *Config, database db.DB, i
 	if (cfg.RPCPort != 0 || cfg.HttpUrl != "") && rawApi != nil {
 		funcs = append(funcs, func(ctx context.Context) error {
 			var cl client.Client
-			if cfg.Cometa != nil {
+			if cfg.Cometa != nil || cfg.IsFaucetApiEnabled() {
 				cl, err = client.NewEthClient(ctx, database, types.ShardId(cfg.NShards), msgPools, logger)
 				if err != nil {
 					return fmt.Errorf("failed to create node client: %w", err)

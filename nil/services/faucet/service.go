@@ -23,6 +23,15 @@ func (s *Service) Run(ctx context.Context, endpoint string) error {
 	return err
 }
 
+func (s *Service) GetRpcApi() transport.API {
+	return transport.API{
+		Namespace: "faucet",
+		Public:    true,
+		Service:   FaucetAPI(NewFaucetAPI(s.client)),
+		Version:   "1.0",
+	}
+}
+
 func (s *Service) startRpcServer(ctx context.Context, endpoint string) error {
 	logger := logging.NewLogger("RPC")
 
@@ -34,15 +43,8 @@ func (s *Service) startRpcServer(ctx context.Context, endpoint string) error {
 		HttpCORSDomain:  []string{"*"},
 	}
 
-	faucetApi := NewFaucetAPI(ctx, s.client, &logger)
-
 	apiList := []transport.API{
-		{
-			Namespace: "faucet",
-			Public:    true,
-			Service:   FaucetAPI(faucetApi),
-			Version:   "1.0",
-		},
+		s.GetRpcApi(),
 	}
 
 	return rpc.StartRpcServer(ctx, httpConfig, apiList, logger)

@@ -121,6 +121,10 @@ func (c *Config) IsShardActive(shardId types.ShardId) bool {
 	return slices.Contains(c.MyShards, uint(shardId))
 }
 
+func (c *Config) IsFaucetApiEnabled() bool {
+	return c.RunMode == NormalRunMode && !c.SplitShards
+}
+
 func (c *Config) Validate() error {
 	if c.NShards < 2 {
 		return errors.New("NShards must be greater than 2 (main shard + 1)")
