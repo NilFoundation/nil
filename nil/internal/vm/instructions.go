@@ -873,7 +873,9 @@ func makeLog(size int) executionFunc {
 
 		d := scope.Memory.GetCopy(int64(mStart.Uint64()), int64(mSize.Uint64()))
 		log := types.NewLog(scope.Contract.Address(), d, topics)
-		interpreter.evm.StateDB.AddLog(log)
+		if err := interpreter.evm.StateDB.AddLog(log); err != nil {
+			return nil, types.NewVmVerboseError(types.ErrorEmitLogFailed, err.Error())
+		}
 
 		return nil, nil
 	}

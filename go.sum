@@ -20,8 +20,8 @@ github.com/Masterminds/semver/v3 v3.3.0 h1:B8LGeaivUe71a5qox1ICM/JLl0NqZSW5CHyL+
 github.com/Masterminds/semver/v3 v3.3.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/NilFoundation/badger/v4 v4.2.0-3 h1:wVYIgLSDu2WHbuu3vU9HAW+Vx6iph+8+hJLwe51dqXc=
 github.com/NilFoundation/badger/v4 v4.2.0-3/go.mod h1:Lqq7lE48J11/tL4fTHJK5KTK7MuYaVZ8Bh27m9reUw8=
-github.com/NilFoundation/fastssz v0.1.5-0.20240704114733-181ec7eaa983 h1:NekD6dyP5d/UqrWSdexRBCq2vlImPjtexdvCQgwdc60=
-github.com/NilFoundation/fastssz v0.1.5-0.20240704114733-181ec7eaa983/go.mod h1:ICVhD5I5Y8/nM5alj6F0YCgp5W6h/E0eNz5djSsq114=
+github.com/NilFoundation/fastssz v0.1.5-0.20241127134502-50c6ef93352f h1:VMmSwezF1VSL0TSe7MBkBhL5cx8gjpwe3iD4Ymsn1Ig=
+github.com/NilFoundation/fastssz v0.1.5-0.20241127134502-50c6ef93352f/go.mod h1:ICVhD5I5Y8/nM5alj6F0YCgp5W6h/E0eNz5djSsq114=
 github.com/VictoriaMetrics/fastcache v1.12.2 h1:N0y9ASrJ0F6h0QaC3o6uJb3NIZ9VKLjCM7NQbSmF7WI=
 github.com/VictoriaMetrics/fastcache v1.12.2/go.mod h1:AmC+Nzz1+3G2eCPapF6UcsnkThDcMsQicp4xDukwJYI=
 github.com/alecthomas/repr v0.0.0-20181024024818-d37bc2a10ba1 h1:GDQdwm/gAcJcLAKQQZGOJ4knlw+7rfEQQcmwTbt4p5E=
