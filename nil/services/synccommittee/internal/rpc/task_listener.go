@@ -34,7 +34,6 @@ func NewTaskListener(
 
 func (l *TaskListener) Run(context context.Context) error {
 	httpConfig := &httpcfg.HttpCfg{
-		Enabled:         true,
 		HttpURL:         l.config.HttpEndpoint,
 		HttpCompression: true,
 		TraceRequests:   true,

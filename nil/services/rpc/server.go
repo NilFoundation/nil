@@ -3,9 +3,7 @@ package rpc
 import (
 	"context"
 	"fmt"
-	"net"
 	net_http "net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -18,14 +16,6 @@ import (
 )
 
 func StartRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []transport.API, logger zerolog.Logger) error {
-	if cfg.Enabled {
-		return startRegularRpcServer(ctx, cfg, rpcAPI, logger)
-	}
-
-	return nil
-}
-
-func startRegularRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []transport.API, logger zerolog.Logger) error {
 	// register apis and create handler stack
 	srv := transport.NewServer(cfg.TraceRequests, cfg.DebugSingleRequest, logger, cfg.RPCSlowLogThreshold)
 
@@ -39,21 +29,11 @@ func startRegularRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []t
 		}
 	}
 
-	var apiFlags []string
-	for _, flag := range cfg.API {
-		if flag != "engine" {
-			apiFlags = append(apiFlags, flag)
-		}
-	}
-
-	if err := transport.RegisterApisFromWhitelist(defaultAPIList, apiFlags, srv, logger); err != nil {
+	if err := transport.RegisterApisFromWhitelist(defaultAPIList, nil, srv, logger); err != nil {
 		return fmt.Errorf("could not start register RPC apis: %w", err)
 	}
 
-	httpEndpoint := "tcp://" + net.JoinHostPort(cfg.HttpListenAddress, strconv.Itoa(cfg.HttpPort))
-	if cfg.HttpURL != "" {
-		httpEndpoint = cfg.HttpURL
-	}
+	httpEndpoint := cfg.HttpURL
 
 	basicHttpSrv := http.NewServer(srv, rpccfg.ContentType, rpccfg.AcceptedContentTypes)
 	var httpHandler net_http.Handler = basicHttpSrv
@@ -61,7 +41,7 @@ func startRegularRpcServer(ctx context.Context, cfg *httpcfg.HttpCfg, rpcAPI []t
 		httpHandler = http.NewHTTPHandlerStack(
 			basicHttpSrv,
 			cfg.HttpCORSDomain,
-			cfg.HttpVirtualHost,
+			nil,
 			cfg.HttpCompression)
 	}
 

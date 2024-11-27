@@ -44,7 +44,6 @@ func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db 
 	}
 
 	httpConfig := &httpcfg.HttpCfg{
-		Enabled:         true,
 		HttpURL:         addr,
 		HttpCompression: true,
 		TraceRequests:   true,

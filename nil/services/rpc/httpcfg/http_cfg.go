@@ -37,24 +37,13 @@ var DefaultHTTPTimeouts = HTTPTimeouts{
 }
 
 type HttpCfg struct {
-	Enabled bool
-
-	AuthRpcHTTPListenAddress string
-
-	HttpURL            string
-	HttpListenAddress  string
-	HttpPort           int
-	HttpCORSDomain     []string
-	HttpVirtualHost    []string
-	AuthRpcVirtualHost []string
-	HttpCompression    bool
-
-	API []string
+	HttpURL         string
+	HttpCORSDomain  []string
+	HttpCompression bool
 
 	TraceRequests      bool // Print requests to logs at INFO level
 	DebugSingleRequest bool // Print single-request-related debugging info to logs at INFO level
 	HTTPTimeouts       HTTPTimeouts
-	EvmCallTimeout     time.Duration
 
 	RPCSlowLogThreshold time.Duration
 }
