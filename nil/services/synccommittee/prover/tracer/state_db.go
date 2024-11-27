@@ -270,6 +270,9 @@ func (tsdb *TracerStateDB) initVm(
 
 	tsdb.evm.Config.Tracer = &tracing.Hooks{
 		OnOpcode: func(pc uint64, op byte, gas uint64, cost uint64, scope tracing.OpContext, rData []byte, depth int, err error) {
+			verifyIntegrity := assertEVMStateConsistent(pc, scope, rData)
+			defer verifyIntegrity()
+
 			tsdb.curPC = pc
 			tsdb.processOpcodeWithTracers(pc, op, gas, cost, scope, rData, depth, err)
 		},
