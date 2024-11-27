@@ -625,10 +625,12 @@ func (tsdb *TracerStateDB) Snapshot() int {
 	return 0
 }
 
-func (tsdb *TracerStateDB) AddLog(*types.Log) {
+func (tsdb *TracerStateDB) AddLog(*types.Log) error {
+	return nil
 }
 
-func (tsdb *TracerStateDB) AddDebugLog(*types.DebugLog) {
+func (tsdb *TracerStateDB) AddDebugLog(*types.DebugLog) error {
+	return nil
 }
 
 // AddOutMessage adds internal out message for current transaction

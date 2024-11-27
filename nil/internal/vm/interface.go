@@ -79,8 +79,8 @@ type StateDB interface {
 	RevertToSnapshot(int)
 	Snapshot() int
 
-	AddLog(*types.Log)
-	AddDebugLog(*types.DebugLog)
+	AddLog(*types.Log) error
+	AddDebugLog(*types.DebugLog) error
 
 	// AddOutMessage adds internal out message for current transaction
 	AddOutMessage(caller types.Address, payload *types.InternalMessagePayload) (*types.Message, error)

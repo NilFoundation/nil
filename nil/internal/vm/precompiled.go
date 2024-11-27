@@ -294,6 +294,9 @@ func (c *asyncCall) RequiredGas([]byte) uint64 {
 func extractCurrencies(arg any) ([]types.CurrencyBalance, error) {
 	slice := reflect.ValueOf(arg)
 	currencies := make([]types.CurrencyBalance, slice.Len())
+	if slice.Len() >= types.MessageMaxCurrencySize {
+		return nil, types.NewVmError(types.ErrorPrecompileCurrencyArrayIsTooBig)
+	}
 	for i := range slice.Len() {
 		elem := slice.Index(i)
 		currencyId, ok := elem.FieldByIndex([]int{0}).Interface().(types.Address)
@@ -351,7 +354,10 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	// Get `currencies` argument, which is a slice of `CurrencyBalance`
 	currencies, err := extractCurrencies(args[6])
 	if err != nil {
-		log.Logger.Error().Err(err).Msgf("currencies is not a slice of CurrencyBalance: %T", args[6])
+		log.Logger.Error().Err(err).Msgf("failed to extract currencies from %T", args[6])
+		if types.IsVmError(err) {
+			return nil, err
+		}
 		return nil, types.NewVmVerboseError(types.ErrorPrecompileInvalidCurrencyArray, err.Error())
 	}
 
@@ -977,10 +983,12 @@ func (e *emitLog) Run(state StateDB, input []byte, value *uint256.Int, caller Co
 		}
 	}
 
-	state.AddDebugLog(&types.DebugLog{
+	if err = state.AddDebugLog(&types.DebugLog{
 		Message: []byte(message),
 		Data:    data,
-	})
+	}); err != nil {
+		return nil, types.KeepOrWrapError(types.ErrorEmitDebugLogFailed, err)
+	}
 
 	res := make([]byte, 32)
 	res[31] = 1

@@ -389,13 +389,21 @@ func (es *ExecutionState) SubBalance(addr types.Address, amount types.Value, rea
 	return stateObject.SubBalance(amount, reason)
 }
 
-func (es *ExecutionState) AddLog(log *types.Log) {
+func (es *ExecutionState) AddLog(log *types.Log) error {
 	es.journal.append(addLogChange{txhash: es.InMessageHash})
+	if len(es.Logs[es.InMessageHash]) >= types.ReceiptMaxLogsSize {
+		return errors.New("too many logs")
+	}
 	es.Logs[es.InMessageHash] = append(es.Logs[es.InMessageHash], log)
+	return nil
 }
 
-func (es *ExecutionState) AddDebugLog(log *types.DebugLog) {
+func (es *ExecutionState) AddDebugLog(log *types.DebugLog) error {
+	if len(es.DebugLogs[es.InMessageHash]) >= types.ReceiptMaxDebugLogsSize {
+		return errors.New("too many debug logs")
+	}
 	es.DebugLogs[es.InMessageHash] = append(es.DebugLogs[es.InMessageHash], log)
+	return nil
 }
 
 // AddRefund adds gas to the refund counter

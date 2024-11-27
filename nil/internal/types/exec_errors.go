@@ -99,6 +99,7 @@ const (
 	ErrorPrecompileTooShortCallData
 	ErrorPrecompileWrongNumberOfArguments
 	ErrorPrecompileInvalidCurrencyArray
+	ErrorPrecompileCurrencyArrayIsTooBig
 	ErrorPrecompileStateDbReturnedError
 	ErrorOnlyMainShardContractsCanChangeConfig
 	ErrorPrecompileConfigSetParamFailed
@@ -107,6 +108,13 @@ const (
 	ErrorAwaitCallTooLowResponseProcessingGas
 	ErrorAwaitCallTooShortContextData
 	ErrorAsyncDeployMustNotHaveCurrency
+
+	// ErrorEmitLogFailed is returned when the execution state fails to add a log. Probably the limit of logs is
+	// reached.
+	ErrorEmitLogFailed
+	// ErrorEmitDebugLogFailed is returned when the execution state fails to add a debug log. Probably the limit of logs
+	// is reached.
+	ErrorEmitDebugLogFailed
 )
 
 type ExecError interface {
