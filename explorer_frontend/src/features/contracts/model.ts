@@ -9,6 +9,7 @@ import {
   type WalletV1,
   type Token,
   type CometaService,
+  type Hex,
 } from "@nilfoundation/niljs";
 
 export type DeployedApp = App & {
@@ -88,9 +89,10 @@ export const deploySmartContractFx = createEffect<
     cometaService: CometaService | null;
   },
   {
-    address: `0x${string}`;
-    app: `0x${string}`;
+    address: Hex;
+    app: Hex;
     name: string;
+    deployedFrom?: Hex;
   }
 >(async ({ app, args, wallet, shardId, cometaService }) => {
   const salt = BigInt(Math.floor(Math.random() * 10000000000000000));
@@ -110,6 +112,7 @@ export const deploySmartContractFx = createEffect<
     address,
     app: app.bytecode,
     name: app.name,
+    deployedFrom: wallet.address,
   };
 });
 
@@ -157,6 +160,7 @@ export const $callResult = createStore<Record<string, unknown>>({});
 
 export const callFx = createEffect<
   {
+    appName?: string;
     functionName: string;
     abi: Abi;
     args: unknown[];
@@ -166,8 +170,9 @@ export const callFx = createEffect<
   {
     functionName: string;
     result: unknown;
+    appName?: string;
   }
->(async ({ functionName, args, endpoint, abi, address }) => {
+>(async ({ functionName, args, endpoint, abi, address, appName }) => {
   const client = new PublicClient({
     transport: new HttpTransport({ endpoint }),
   });
@@ -186,6 +191,7 @@ export const callFx = createEffect<
   return {
     functionName,
     result: data.decodedData,
+    appName,
   };
 });
 
@@ -193,6 +199,7 @@ export const callMethod = createEvent<string>();
 
 export const sendMethodFx = createEffect<
   {
+    appName?: string;
     abi: Abi;
     functionName: string;
     args: unknown[];
@@ -201,8 +208,8 @@ export const sendMethodFx = createEffect<
     value?: string;
     tokens?: Token[];
   },
-  { functionName: string; hash: string }
->(async ({ abi, functionName, args, wallet, address, value, tokens }) => {
+  { functionName: string; hash: Hex; sendFrom: Hex; appName?: string }
+>(async ({ abi, functionName, args, wallet, address, value, tokens, appName }) => {
   const hash = await wallet.sendMessage({
     abi,
     functionName,
@@ -218,6 +225,8 @@ export const sendMethodFx = createEffect<
   return {
     functionName,
     hash,
+    sendFrom: wallet.address,
+    appName,
   };
 });
 

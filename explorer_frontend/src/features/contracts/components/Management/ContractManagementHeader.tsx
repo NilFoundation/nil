@@ -39,6 +39,7 @@ export const ContractManagementHeader: FC<ContractManagementHeaderProps> = ({
         backgroundColor: COLORS.gray900,
         paddingTop: "16px",
         paddingBottom: "16px",
+        zIndex: 2,
       })}
     >
       <Button

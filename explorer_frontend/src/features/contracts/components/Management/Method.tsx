@@ -221,7 +221,18 @@ export const Method = ({
             </Result>
           )}
           {txHash && (
-            <Notification kind={NOTIFICATION_KIND.positive}>
+            <Notification
+              kind={NOTIFICATION_KIND.positive}
+              overrides={{
+                Body: {
+                  style: {
+                    marginLeft: 0,
+                    marginRight: 0,
+                    width: "100%",
+                  },
+                },
+              }}
+            >
               Transaction sent with hash{" "}
               <Link
                 to={transactionRoute}
@@ -229,12 +240,28 @@ export const Method = ({
                 className={css({
                   wordBreak: "break-all",
                 })}
+                target="_blank"
               >
                 {txHash}
               </Link>
             </Notification>
           )}
-          {error && <Notification kind={NOTIFICATION_KIND.negative}>{error}</Notification>}
+          {error && (
+            <Notification
+              overrides={{
+                Body: {
+                  style: {
+                    marginLeft: 0,
+                    marginRight: 0,
+                    width: "100%",
+                  },
+                },
+              }}
+              kind={NOTIFICATION_KIND.negative}
+            >
+              {error}
+            </Notification>
+          )}
         </div>
       )}
     </div>

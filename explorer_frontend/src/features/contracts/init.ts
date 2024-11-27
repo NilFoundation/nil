@@ -294,6 +294,7 @@ sample({
       abi: activeApp?.abi!,
       endpoint: $endpoint.getState(),
       address: activeApp?.address!,
+      appName: activeApp?.name,
     };
   },
   target: callFx,
@@ -359,6 +360,7 @@ sample({
         ];
 
     return {
+      appName: activeApp?.name,
       functionName,
       args,
       abi: activeApp?.abi!,
