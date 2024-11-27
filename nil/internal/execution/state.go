@@ -64,6 +64,7 @@ type ExecutionState struct {
 
 	InMessageHash common.Hash
 	Logs          map[common.Hash][]*types.Log
+	DebugLogs     map[common.Hash][]*types.DebugLog
 
 	Accounts        map[types.Address]*AccountState
 	InMessages      []*types.Message
@@ -248,6 +249,7 @@ func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash,
 		Accounts:         map[types.Address]*AccountState{},
 		OutMessages:      map[common.Hash][]*types.OutboundMessage{},
 		Logs:             map[common.Hash][]*types.Log{},
+		DebugLogs:        map[common.Hash][]*types.DebugLog{},
 		Errors:           map[common.Hash]error{},
 		GasPrice:         gasPrice,
 
@@ -390,6 +392,10 @@ func (es *ExecutionState) SubBalance(addr types.Address, amount types.Value, rea
 func (es *ExecutionState) AddLog(log *types.Log) {
 	es.journal.append(addLogChange{txhash: es.InMessageHash})
 	es.Logs[es.InMessageHash] = append(es.Logs[es.InMessageHash], log)
+}
+
+func (es *ExecutionState) AddDebugLog(log *types.DebugLog) {
+	es.DebugLogs[es.InMessageHash] = append(es.DebugLogs[es.InMessageHash], log)
 }
 
 // AddRefund adds gas to the refund counter
@@ -1190,6 +1196,7 @@ func (es *ExecutionState) AddReceipt(execResult *ExecutionResult) {
 		Forwarded:       execResult.CoinsForwarded,
 		MsgHash:         es.InMessageHash,
 		Logs:            es.Logs[es.InMessageHash],
+		DebugLogs:       es.DebugLogs[es.InMessageHash],
 		ContractAddress: es.GetInMessage().To,
 	}
 	r.Bloom = types.CreateBloom(types.Receipts{r})

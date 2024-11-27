@@ -274,12 +274,8 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.Require().Len(receipt.OutMessages, 1)
 			receipt = s.WaitForReceipt(receipt.OutMessages[0])
 			s.Require().False(receipt.Success)
-			s.Require().Len(receipt.Logs, 1)
-			msg, err := receipt.Logs[0].Data.MarshalText()
-			s.Require().NoError(err)
-			msgText, err := hexutil.Decode(string(msg))
-			s.Require().NoError(err)
-			s.Require().Contains(string(msgText), "execution started")
+			s.Require().Len(receipt.DebugLogs, 1)
+			s.Require().Equal("execution started", receipt.DebugLogs[0].Message)
 
 			// here we spent:
 			// - `callValue`, cause we attach that amount of value to internal cross-shard message
@@ -965,6 +961,52 @@ func (s *SuiteRpc) TestBloom() {
 
 	checkTopics(types.BytesToBloom(receipt.Bloom))
 	checkTopics(types.BytesToBloom(block.LogsBloom))
+}
+
+func (s *SuiteRpc) TestDebugLogs() {
+	code, err := contracts.GetCode(contracts.NameTest)
+	s.Require().NoError(err)
+	abi, err := contracts.GetAbi(contracts.NameTest)
+	s.Require().NoError(err)
+
+	addr, receipt := s.DeployContractViaMainWallet(2, types.BuildDeployPayload(code, common.EmptyHash), tests.DefaultContractValue)
+	s.Require().True(receipt.AllSuccess())
+
+	s.Run("DebugLog in successful transaction", func() {
+		calldata, err := abi.Pack("emitLog", "Test string 1", false)
+		s.Require().NoError(err)
+
+		receipt = s.SendExternalMessage(calldata, addr)
+		s.Require().True(receipt.AllSuccess())
+
+		s.Require().Len(receipt.Logs, 1)
+		s.Require().Len(receipt.DebugLogs, 2)
+		s.Require().Equal("Test string 1", receipt.DebugLogs[0].Message)
+		s.Require().Empty(receipt.DebugLogs[0].Data)
+
+		s.Require().Equal("Test string 1", receipt.DebugLogs[1].Message)
+		s.Require().Len(receipt.DebugLogs[1].Data, 2)
+		s.Require().Equal(*types.NewUint256(8888), receipt.DebugLogs[1].Data[0])
+		s.Require().Equal(*types.NewUint256(0), receipt.DebugLogs[1].Data[1])
+	})
+
+	s.Run("DebugLog in failed transaction", func() {
+		calldata, err := abi.Pack("emitLog", "Test string 2", true)
+		s.Require().NoError(err)
+
+		receipt = s.SendExternalMessageNoCheck(calldata, addr)
+		s.Require().False(receipt.AllSuccess())
+
+		s.Require().Empty(receipt.Logs)
+		s.Require().Len(receipt.DebugLogs, 2)
+		s.Require().Equal("Test string 2", receipt.DebugLogs[0].Message)
+		s.Require().Empty(receipt.DebugLogs[0].Data)
+
+		s.Require().Equal("Test string 2", receipt.DebugLogs[1].Message)
+		s.Require().Len(receipt.DebugLogs[1].Data, 2)
+		s.Require().Equal(*types.NewUint256(8888), receipt.DebugLogs[1].Data[0])
+		s.Require().Equal(*types.NewUint256(1), receipt.DebugLogs[1].Data[1])
+	})
 }
 
 func TestSuiteRpc(t *testing.T) {

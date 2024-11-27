@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	doNotRevertLogsFeatureEnabled = true
+	doNotRevertLogsFeatureEnabled = false
 )
 
 // journalEntry is a modification entry in the state change journal that can be

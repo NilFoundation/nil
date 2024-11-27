@@ -155,6 +155,7 @@ type RPCReceipt struct {
 	GasPrice        types.Value        `json:"gasPrice"`
 	Bloom           hexutil.Bytes      `json:"bloom,omitempty"`
 	Logs            []*RPCLog          `json:"logs"`
+	DebugLogs       []*RPCDebugLog     `json:"debugLogs"`
 	OutMessages     []common.Hash      `json:"outMessages"`
 	OutReceipts     []*RPCReceipt      `json:"outputReceipts"`
 	MsgHash         common.Hash        `json:"messageHash"`
@@ -172,6 +173,11 @@ type RPCLog struct {
 	Topics      []common.Hash     `json:"topics"`
 	Data        hexutil.Bytes     `json:"data"`
 	BlockNumber types.BlockNumber `json:"blockNumber"`
+}
+
+type RPCDebugLog struct {
+	Message string          `json:"message"`
+	Data    []types.Uint256 `json:"data"`
 }
 
 func (re *RPCReceipt) IsComplete() bool {
@@ -333,6 +339,11 @@ func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
 		logs[i] = NewRPCLog(log, info.BlockId)
 	}
 
+	debugLogs := make([]*RPCDebugLog, len(receipt.DebugLogs))
+	for i, log := range receipt.DebugLogs {
+		debugLogs[i] = &RPCDebugLog{Message: string(log.Message), Data: log.Data}
+	}
+
 	outReceipts := make([]*RPCReceipt, len(info.OutReceipts))
 	for i, outReceipt := range info.OutReceipts {
 		var err error
@@ -350,6 +361,7 @@ func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
 		Forwarded:       receipt.Forwarded,
 		GasPrice:        info.GasPrice,
 		Logs:            logs,
+		DebugLogs:       debugLogs,
 		OutMessages:     info.OutMessages,
 		OutReceipts:     outReceipts,
 		MsgHash:         receipt.MsgHash,

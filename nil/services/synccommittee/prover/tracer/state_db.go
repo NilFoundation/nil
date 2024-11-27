@@ -625,6 +625,9 @@ func (tsdb *TracerStateDB) Snapshot() int {
 func (tsdb *TracerStateDB) AddLog(*types.Log) {
 }
 
+func (tsdb *TracerStateDB) AddDebugLog(*types.DebugLog) {
+}
+
 // AddOutMessage adds internal out message for current transaction
 func (tsdb *TracerStateDB) AddOutMessage(caller types.Address, payload *types.InternalMessagePayload) (*types.Message, error) {
 	// TODO: seems useless now, implement when final hash calculation is needed

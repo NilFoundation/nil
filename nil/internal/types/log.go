@@ -15,6 +15,13 @@ type Log struct {
 	Data []byte `json:"data" ssz-max:"6000"`
 }
 
+type DebugLog struct {
+	// Message contains the log message
+	Message []byte `json:"message" ssz-max:"6000"`
+	// Data contains array of integers
+	Data []Uint256 `json:"data" ssz-max:"6000"`
+}
+
 func NewLog(address Address, data []byte, topics []common.Hash) *Log {
 	return &Log{
 		Address: address,

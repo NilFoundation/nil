@@ -172,6 +172,16 @@ contract Test is NilBase {
         return 0;
     }
 
+    function emitLog(string memory message, bool fail) public {
+        Nil.log(message);
+        int[] memory arr = new int[](2);
+        arr[0] = 8888;
+        arr[1] = fail ? int(1) : int(0);
+        Nil.log(message, arr);
+        emit testEvent(1, 2);
+        require(!fail, "Fail is true");
+    }
+
     function verifyExternal(uint256, bytes calldata) external pure returns (bool) {
         return true;
     }
