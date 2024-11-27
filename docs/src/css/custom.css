@@ -343,6 +343,14 @@ nav ul li {
   background-color: #e5e5e5;
 }
 
+[data-theme="light"] .DocSearch-Input {
+  color: #000 !important;
+}
+
+[data-theme="dark"] .DocSearch-Input {
+  color: #fff !important;
+}
+
 .navbar {
   width: 100%;
   background-color: #ffffff;
