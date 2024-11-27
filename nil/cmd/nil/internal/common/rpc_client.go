@@ -28,10 +28,16 @@ func InitRpcClient(cfg *Config, logger zerolog.Logger) {
 
 	if cfg.CometaEndpoint != "" {
 		cometaClient = cometa.NewClient(cfg.CometaEndpoint)
+	} else {
+		// Assuming that Cometa is running on the same endpoint as RPC
+		cometaClient = cometa.NewClient(cfg.RPCEndpoint)
 	}
 
 	if cfg.FaucetEndpoint != "" {
 		faucetClient = faucet.NewClient(cfg.FaucetEndpoint)
+	} else {
+		// Assuming that Faucet is running on the same endpoint as RPC
+		faucetClient = faucet.NewClient(cfg.RPCEndpoint)
 	}
 }
 
