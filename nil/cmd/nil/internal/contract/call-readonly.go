@@ -74,12 +74,26 @@ func runCallReadonly(args []string, cfg *common.Config) error {
 		return err
 	}
 
-	handler := func(res *jsonrpc.CallRes) ([]*common.ArgValue, error) {
+	handler := func(res *jsonrpc.CallRes) ([]*common.ArgValue, []*common.NamedArgValues, error) {
 		if res.Error != "" {
-			return nil, fmt.Errorf("error during the call: %s", res.Error)
+			return nil, nil, fmt.Errorf("error during the call: %s", res.Error)
 		}
 
-		return common.CalldataToArgs(params.abiPath, args[1], res.Data)
+		abi, err := common.ReadAbiFromFile(params.abiPath)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		logs, err := common.DecodeLogs(abi, res.Logs)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		result, err := common.CalldataToArgs(abi, args[1], res.Data)
+		if err != nil {
+			return nil, nil, err
+		}
+		return result, logs, nil
 	}
 
 	return common.CallReadonly(

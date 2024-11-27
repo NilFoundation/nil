@@ -756,6 +756,7 @@ func (m *OutMessage) PackProtoMessage(msg *rpctypes.OutMessage) *OutMessage {
 		CoinsUsed:   coinsUsed,
 		GasPrice:    gasPrice,
 		Error:       msg.Error,
+		Logs:        packLogs(msg.Logs),
 	}
 
 	if len(msg.OutMessages) > 0 {
@@ -782,6 +783,7 @@ func (m *OutMessage) UnpackProtoMessage() *rpctypes.OutMessage {
 		ForwardKind: types.ForwardKind(m.ForwardKind),
 		Data:        m.Data,
 		Error:       m.Error,
+		Logs:        unpackLogs(m.Logs),
 	}
 
 	msg.CoinsUsed = newValueFromUint256(m.CoinsUsed)
@@ -796,6 +798,40 @@ func (m *OutMessage) UnpackProtoMessage() *rpctypes.OutMessage {
 	return msg
 }
 
+func (l *Log) PackProtoMessage(log *types.Log) {
+	l.Address = new(Address).PackProtoMessage(log.Address)
+	l.Topics = PackHashes(log.Topics)
+	l.Data = log.Data
+}
+
+func (l *Log) UnpackProtoMessage() *types.Log {
+	return &types.Log{
+		Address: l.Address.UnpackProtoMessage(),
+		Topics:  UnpackHashes(l.Topics),
+		Data:    l.Data,
+	}
+}
+
+func packLogs(logs []*types.Log) []*Log {
+	res := make([]*Log, len(logs))
+	for i, log := range logs {
+		res[i] = new(Log)
+		res[i].PackProtoMessage(log)
+	}
+	return res
+}
+
+func unpackLogs(logs []*Log) []*types.Log {
+	if logs == nil {
+		return nil
+	}
+	res := make([]*types.Log, len(logs))
+	for i, log := range logs {
+		res[i] = log.UnpackProtoMessage()
+	}
+	return res
+}
+
 func (cr *CallResponse) PackProtoMessage(args *rpctypes.CallResWithGasPrice, err error) error {
 	if err != nil {
 		cr.Result = &CallResponse_Error{Error: new(Error).PackProtoMessage(err)}
@@ -804,6 +840,7 @@ func (cr *CallResponse) PackProtoMessage(args *rpctypes.CallResWithGasPrice, err
 
 	res := &CallResult{}
 	res.Data = args.Data
+	res.Logs = packLogs(args.Logs)
 
 	if args.CoinsUsed.Uint256 != nil {
 		res.CoinsUsed = new(Uint256).PackProtoMessage(*args.CoinsUsed.Uint256)
@@ -841,6 +878,7 @@ func (cr *CallResponse) UnpackProtoMessage() (*rpctypes.CallResWithGasPrice, err
 	res.Data = data.Data
 	res.CoinsUsed = newValueFromUint256(data.CoinsUsed)
 	res.GasPrice = newValueFromUint256(data.GasPrice)
+	res.Logs = unpackLogs(data.Logs)
 
 	res.OutMessages = make([]*rpctypes.OutMessage, len(data.OutMessages))
 	for i, outMsg := range data.OutMessages {

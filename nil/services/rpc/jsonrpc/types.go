@@ -169,9 +169,7 @@ type RPCReceipt struct {
 }
 
 type RPCLog struct {
-	Address     types.Address     `json:"address"`
-	Topics      []common.Hash     `json:"topics"`
-	Data        hexutil.Bytes     `json:"data"`
+	*types.Log
 	BlockNumber types.BlockNumber `json:"blockNumber"`
 }
 
@@ -316,12 +314,7 @@ func NewRPCLog(
 		return nil
 	}
 
-	return &RPCLog{
-		Address:     log.Address,
-		Topics:      log.Topics,
-		Data:        log.Data,
-		BlockNumber: blockId,
-	}
+	return &RPCLog{log, blockId}
 }
 
 func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
@@ -412,6 +405,7 @@ type OutMessage struct {
 	CoinsUsed   types.Value            `json:"coinsUsed"`
 	OutMessages []*OutMessage          `json:"outMessages,omitempty"`
 	Error       string                 `json:"error,omitempty"`
+	Logs        []*types.Log           `json:"logs,omitempty"`
 }
 
 func toOutMessages(input []*rpctypes.OutMessage) ([]*OutMessage, error) {
@@ -440,6 +434,7 @@ func toOutMessages(input []*rpctypes.OutMessage) ([]*OutMessage, error) {
 			CoinsUsed:   msg.CoinsUsed,
 			OutMessages: outMsgs,
 			Error:       msg.Error,
+			Logs:        msg.Logs,
 		}
 	}
 	return output, nil
@@ -456,6 +451,7 @@ type CallRes struct {
 	CoinsUsed      types.Value    `json:"coinsUsed"`
 	OutMessages    []*OutMessage  `json:"outMessages,omitempty"`
 	Error          string         `json:"error,omitempty"`
+	Logs           []*types.Log   `json:"logs,omitempty"`
 	StateOverrides StateOverrides `json:"stateOverrides,omitempty"`
 }
 
@@ -467,5 +463,7 @@ func toCallRes(input *rpctypes.CallResWithGasPrice) (*CallRes, error) {
 	output.Error = input.Error
 	output.StateOverrides = input.StateOverrides
 	output.OutMessages, err = toOutMessages(input.OutMessages)
+	output.Logs = input.Logs
+
 	return output, err
 }

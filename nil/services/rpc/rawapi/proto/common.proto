@@ -49,3 +49,9 @@ message Uint64Response {
     uint64 count = 2;
   }
 }
+
+message Log {
+  Address address = 1;
+  repeated Hash topics = 2;
+  bytes data = 3;
+}
