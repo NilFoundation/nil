@@ -1,42 +1,56 @@
 #!/bin/bash
 
+# This script is used to bump the versions of the NIL packages.
+# Usage: ./bump_npm_versions.sh <niljs-version> <smart-contracts-version> <hardhat-plugin-version>
+# If no arguments are passed, it will grab the latest patch version for each package
+# and update all references in all package.json files.
+
 COLOR_END="\033[0m"
-COLOR_RED="\033[0;31m"
 COLOR_GREEN="\033[0;32m"
+COLOR_YELLOW="\033[0;33m"
 
-pkgs=("niljs" "smart-contracts" "hardhat-plugin")
+pkgs=(
+    "niljs"
+    "smart-contracts"
+    "hardhat-plugin"
+)
 
-if [ "$#" -eq 0 ]; then
-    echo "Looking for pkg versions..."
-    for pkg in ${pkgs[@]}; do
-        echo "For package \`$pkg\` found following versions:"
-        grep -rohE '@nilfoundation/'${pkg}'":\s*"[\^0-9.]+"' --include='.*/package.json' . |
-            grep -oE '[0-9.]+' |
-            sort | uniq
+versions=()
+
+update-versions() {
+    echo -e "${COLOR_YELLOW}Updating to versions: ${pkgs[0]}@${versions[0]}, ${pkgs[1]}@${versions[1]}, ${pkgs[2]}@${versions[2]}${COLOR_END}"
+
+    files=$(grep -rlE --include=".*/package.json" '@nilfoundation/(niljs|smart-contracts|hardhat-plugin).*":\s*"[\^0-9.]+"' . | grep -v node_modules)
+
+    for f in $files; do
+        for ((i = 0; i < 3; i++)); do
+            ver="${versions[$i]}"
+            pkg="${pkgs[$i]}"
+
+            sed -i '' "s|\(@nilfoundation/$pkg.*\"\)[\^0-9.]\{1,\}\"|\1^$ver\"|g" "$f"
+        done
     done
 
-    echo -e "${COLOR_GREEN}Now use: $0 <${pkgs[0]}-version> <${pkgs[1]}-version> <${pkgs[2]}-version> to update to these versions${COLOR_END}"
-    exit 0
-fi
+    echo -e "${COLOR_GREEN}Versions bumped${COLOR_END}"
+}
 
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <${pkgs[0]}-version> <${pkgs[1]}-version> <${pkgs[2]}-version> to update to these versions"
+if [[ "$#" -eq 0 ]]; then
+    echo -e "${COLOR_YELLOW}Getting latest versions of packages...${COLOR_END}"
+    for pkg in ${pkgs[@]}; do
+        version=$(grep '"version"' $pkg/package.json | sed -E 's/.*"version": "(.*)".*/\1/')
+        echo "Latest version for $pkg is $version"
+        versions+=($version)
+    done
+
+    update-versions
+elif [[ "$#" -eq 3 ]]; then
+    versions=($1 $2 $3)
+    update-versions
+else
+    echo "Usage: $0 <${pkgs[0]}-version> <${pkgs[1]}-version> <${pkgs[2]}-version> \
+to update to these versions or no arguments to grab the latest patch version for each package"
     exit 1
 fi
-
-versions=($1 $2 $3)
-files=$(grep -rlE --include=".*/package.json" '@nilfoundation/(niljs|smart-contracts|hardhat-plugin).*":\s*"[\^0-9.]+"' . | grep -v node_modules)
-
-for f in $files; do
-    for ((i = 0; i < 3; i++)); do
-        ver="${versions[$i]}"
-        pkg="${pkgs[$i]}"
-
-        sed -i '' "s|\(@nilfoundation/$pkg.*\"\)[\^0-9.]\{1,\}\"|\1^$ver\"|g" "$f"
-    done
-done
-
-echo -e "${COLOR_GREEN}Versions bumped${COLOR_END}"
 
 REPO_DIR=$(readlink -f $(dirname $0)/../)
 
