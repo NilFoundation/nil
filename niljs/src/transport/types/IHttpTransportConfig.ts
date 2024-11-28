@@ -14,6 +14,13 @@ type IHttpTransportConfig = {
    * @default 20000
    */
   timeout?: number;
+  /**
+   * The signal to abort the request.
+   * If the signal is aborted, the request will be aborted.
+   * @example new AbortSignal()
+   * @default undefined
+   */
+  signal?: AbortSignal;
 };
 
 export type { IHttpTransportConfig };
