@@ -33,9 +33,9 @@ class HttpTransport implements ITransport {
    * @constructor
    * @param {IHttpTransportConfig} config The transport config. See {@link IHttpTransportConfig}.
    */
-  constructor(config: IHttpTransportConfig) {
-    this.rpcClient = createRPCClient(config.endpoint);
-    this.timeout = config.timeout !== undefined ? config.timeout : 20000;
+  constructor({ endpoint, signal, timeout = 20000 }: IHttpTransportConfig) {
+    this.rpcClient = createRPCClient(endpoint, { signal });
+    this.timeout = timeout;
   }
 
   /**
