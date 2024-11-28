@@ -853,8 +853,8 @@ func (s *SuiteRpc) TestDbApi() {
 func (s *SuiteRpc) TestBatch() {
 	testcases := map[string]string{
 		"[]": `{"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"empty batch"}}`,
-		`[{"jsonrpc":"2.0","id": 1, "method":"rpc_modules","params":[]}]`:                                                                `[{"jsonrpc":"2.0","id":1,"result":{"db":"1.0","debug":"1.0","eth":"1.0","rpc":"1.0"}}]`,
-		`[{"jsonrpc":"2.0","id": 1, "method":"rpc_modules","params":[]}, {"jsonrpc":"2.0","id": 2, "method":"rpc_modules","params":[]}]`: `[{"jsonrpc":"2.0","id":1,"result":{"db":"1.0","debug":"1.0","eth":"1.0","rpc":"1.0"}}, {"jsonrpc":"2.0","id":2,"result":{"db":"1.0","debug":"1.0","eth":"1.0","rpc":"1.0"}}]`,
+		`[{"jsonrpc":"2.0","id": 1, "method":"rpc_modules","params":[]}]`:                                                                `[{"jsonrpc":"2.0","id":1,"result":{"db":"1.0","debug":"1.0","eth":"1.0","faucet":"1.0","rpc":"1.0"}}]`,
+		`[{"jsonrpc":"2.0","id": 1, "method":"rpc_modules","params":[]}, {"jsonrpc":"2.0","id": 2, "method":"rpc_modules","params":[]}]`: `[{"jsonrpc":"2.0","id":1,"result":{"db":"1.0","debug":"1.0","eth":"1.0","faucet":"1.0","rpc":"1.0"}}, {"jsonrpc":"2.0","id":2,"result":{"db":"1.0","debug":"1.0","faucet":"1.0","eth":"1.0","rpc":"1.0"}}]`,
 		`[{"jsonrpc":"2.0", "method":"rpc_modules","params":[]}]`:                                                                        `[{"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"invalid request"}}]`,
 		`[{"jsonrpc":"2.0", "method":"eth_getBlockByNumber", "params": [0, "100500", false], "id": 1}]`:                                  `[{"jsonrpc":"2.0","id":1,"result":null}]`,
 	}
