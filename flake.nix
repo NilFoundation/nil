@@ -18,12 +18,8 @@
       let
         revCount = self.revCount or self.dirtyRevCount or 1;
         rev = self.shortRev or self.dirtyShortRev or "unknown";
-        version =
-          if self.ref == "refs/heads/main" then
-            "0.1.${toString revCount}-${rev}"
-          else
-            "0.0.${toString revCount}-${rev}";
-        versionFull = "${version}";
+        version = "0.1.0-${toString revCount}";
+        versionFull = "${version}-${rev}";
         pkgs = import nixpkgs { inherit system; };
       in
       rec {
