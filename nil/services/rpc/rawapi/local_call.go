@@ -213,6 +213,7 @@ func (api *LocalShardApi) Call(
 		Data:      res.ReturnData,
 		CoinsUsed: res.CoinsUsed,
 		Logs:      es.Logs[msgHash],
+		DebugLogs: es.DebugLogs[msgHash],
 	}
 
 	if res.Failed() {

@@ -55,3 +55,8 @@ message Log {
   repeated Hash topics = 2;
   bytes data = 3;
 }
+
+message DebugLog {
+  bytes message = 1;
+  repeated Uint256 data = 2;
+}
