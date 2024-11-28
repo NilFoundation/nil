@@ -28,5 +28,6 @@ export default defineConfig({
   ],
   build: {
     sourcemap: true,
+    assetsInlineLimit: 14000, // less than 14 KiB
   },
 });

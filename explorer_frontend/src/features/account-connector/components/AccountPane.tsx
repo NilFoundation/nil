@@ -10,7 +10,7 @@ const AccountPane = () => {
   return (
     <div className={css(styles.container)}>
       <ErrorBoundary
-        fallback={<LabelSmall color={COLORS.red200}>There is a problem with account</LabelSmall>}
+        fallback={<LabelSmall color={COLORS.red200}>There is a problem with the wallet</LabelSmall>}
       >
         <AccountContent />
       </ErrorBoundary>
