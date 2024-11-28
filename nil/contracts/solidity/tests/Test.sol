@@ -35,6 +35,10 @@ contract Test is NilBase {
     function setValue(uint32 newValue) public {
         internalValue = newValue;
         emit stubCalled(newValue);
+
+        int[] memory arr = new int[](1);
+        arr[0] = int(uint256(newValue));
+        Nil.log("Value set to", arr);
     }
 
     function noReturn() public payable {}

@@ -90,6 +90,17 @@ func CallReadonly(
 			}
 		}
 
+		if len(res.DebugLogs) > 0 {
+			fmt.Println("Debug logs:")
+			for _, log := range res.DebugLogs {
+				fmt.Print(log.Message)
+				if len(log.Data) > 0 {
+					fmt.Print(" ", log.Data)
+				}
+				fmt.Println()
+			}
+		}
+
 		fmt.Printf("Coins used: %s\n", res.CoinsUsed)
 		if len(res.OutMessages) > 0 {
 			fmt.Println("Outbound messages:")
