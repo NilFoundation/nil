@@ -2,6 +2,7 @@ import { Currency } from "./Currency";
 import eth from "./assets/eth.svg";
 import nil from "./assets/nil.svg";
 import usdt from "./assets/usdt.svg";
+import btc from "./assets/btc.svg";
 
 export const getCurrencyIcon = (name: string) => {
   switch (name) {
@@ -11,6 +12,8 @@ export const getCurrencyIcon = (name: string) => {
       return nil;
     case Currency.USDT:
       return usdt;
+    case Currency.BTC:
+      return btc;
     default:
       return null;
   }

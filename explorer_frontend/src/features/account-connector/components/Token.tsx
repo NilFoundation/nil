@@ -45,6 +45,7 @@ const Token: FC<TokenProps> = ({ name, balance, isMain = false }) => {
             })}
             src={src}
             alt={`${name} icon`}
+            loading="lazy"
           />
         ) : (
           <LabelXSmall
