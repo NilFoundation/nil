@@ -12,7 +12,7 @@ import { styles } from "./styles";
 import { AccountContainer } from "./AccountContainer";
 import { OverflowEllipsis, useMobile, StatefulPopover } from "../../shared";
 import { useUnit } from "effector-react";
-import { $wallet } from "../models/model";
+import { $wallet } from "../model";
 import { ChevronDown, ChevronUp } from "baseui/icon";
 
 const MemoizedAccountContainer = memo(AccountContainer);

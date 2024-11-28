@@ -9,7 +9,7 @@ import {
   setTopupInput,
   topupCurrencyEvent,
   topupWalletCurrencyFx,
-} from "../models/model";
+} from "../model";
 import { ActiveComponent } from "../ActiveComponent";
 import { FormControl } from "baseui/form-control";
 import { useUnit } from "effector-react";

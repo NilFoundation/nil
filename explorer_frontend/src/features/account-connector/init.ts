@@ -26,7 +26,7 @@ import {
   $initializingWalletState,
   $initializingWalletError,
   $accountConnectorWithEndpoint,
-} from "./models/model";
+} from "./model";
 import { persist as persistLocalStorage } from "effector-storage/local";
 import { persist as persistSessionStorage } from "effector-storage/session";
 import {
@@ -80,12 +80,6 @@ createWalletFx.use(async ({ privateKey, endpoint }) => {
 
   setInitializingWalletState("Checking balance...");
 
-  const faucets = await faucetClient.getAllFaucets();
-
-  if (!faucets) {
-    return wallet;
-  }
-
   const balance = await wallet.getBalance();
 
   if (balance === 0n) {
@@ -101,6 +95,12 @@ createWalletFx.use(async ({ privateKey, endpoint }) => {
   }
 
   setInitializingWalletState("Adding some tokens...");
+
+  const faucets = await faucetClient.getAllFaucets();
+
+  if (!faucets) {
+    return wallet;
+  }
 
   const currenciesMap = await wallet.client.getCurrencies(wallet.address, "latest");
 

@@ -1,7 +1,7 @@
 import { sample } from "effector";
 import { $faucets, fetchFaucetsEvent, fetchFaucetsFx } from "./model";
 import { FaucetClient, HttpTransport } from "@nilfoundation/niljs";
-import { $endpoint } from "../account-connector/models/model";
+import { $endpoint } from "../account-connector/model";
 
 fetchFaucetsFx.use(async (endpoint) => {
   const faucetClient = new FaucetClient({

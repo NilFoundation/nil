@@ -1,7 +1,7 @@
 import { combine, createDomain } from "effector";
 import type { WalletV1, Hex } from "@nilfoundation/niljs";
-import { ActiveComponent } from "../ActiveComponent";
-import { Currency } from "../../currencies";
+import { ActiveComponent } from "./ActiveComponent";
+import { Currency } from "../currencies";
 
 export const accountConnectorDomain = createDomain("account-connector");
 const createStore = accountConnectorDomain.createStore.bind(accountConnectorDomain);
