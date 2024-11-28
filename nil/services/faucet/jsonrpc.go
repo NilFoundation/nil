@@ -1,14 +1,11 @@
 package faucet
 
 import (
-	"context"
-
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/rs/zerolog"
 )
 
 type FaucetAPI interface {
@@ -17,18 +14,14 @@ type FaucetAPI interface {
 }
 
 type FaucetAPIImpl struct {
-	ctx    context.Context
 	client client.Client
-	logger *zerolog.Logger
 }
 
 var _ FaucetAPI = (*FaucetAPIImpl)(nil)
 
-func NewFaucetAPI(ctx context.Context, client client.Client, logger *zerolog.Logger) *FaucetAPIImpl {
+func NewFaucetAPI(client client.Client) *FaucetAPIImpl {
 	return &FaucetAPIImpl{
-		ctx:    ctx,
 		client: client,
-		logger: logger,
 	}
 }
 

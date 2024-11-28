@@ -14,7 +14,8 @@ import (
 
 type FaucetRpc struct {
 	tests.RpcSuite
-	client *faucet.Client
+	client        *faucet.Client
+	builtinFaucet bool
 }
 
 func (s *FaucetRpc) SetupTest() {
@@ -25,7 +26,11 @@ func (s *FaucetRpc) SetupTest() {
 		HttpUrl: sockPath,
 	})
 
-	s.client, _ = tests.StartFaucetService(s.T(), s.Context, &s.Wg, s.Client)
+	if s.builtinFaucet {
+		s.client = faucet.NewClient(sockPath)
+	} else {
+		s.client, _ = tests.StartFaucetService(s.T(), s.Context, &s.Wg, s.Client)
+	}
 	time.Sleep(time.Second)
 }
 
@@ -63,5 +68,11 @@ func (s *FaucetRpc) TestSendToken() {
 func TestFaucetRpc(t *testing.T) {
 	t.Parallel()
 
-	suite.Run(t, new(FaucetRpc))
+	suite.Run(t, &FaucetRpc{builtinFaucet: false})
+}
+
+func TestBuiltInFaucetRpc(t *testing.T) {
+	t.Parallel()
+
+	suite.Run(t, &FaucetRpc{builtinFaucet: true})
 }
