@@ -3,7 +3,7 @@ import { useMobile } from "../../features/shared";
 import { ProgressBar, PROGRESS_BAR_SIZE } from "@nilfoundation/ui-kit";
 import { Code } from "../../features/code/Code";
 import { ContractsContainer, closeApp } from "../../features/contracts";
-import { Logs } from "../../features/logs/Logs";
+import { Logs } from "../../features/logs/components/Logs";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import { useStyletron } from "baseui";
 import { Navbar } from "../../features/shared/components/Layout/Navbar";

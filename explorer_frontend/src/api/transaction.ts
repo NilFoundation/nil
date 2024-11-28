@@ -1,8 +1,9 @@
+import type { ProcedureOptions } from "@trpc/server";
 import type { TimeInterval } from "../features/transaction-stat";
 import { client } from "./client";
 
-export const fetchTransactionByHash = async (hash: string) => {
-  const res = await client.transactions.transactionByHash.query(hash);
+export const fetchTransactionByHash = async (hash: string, opts: ProcedureOptions) => {
+  const res = await client.transactions.transactionByHash.query(hash, opts);
   return res;
 };
 

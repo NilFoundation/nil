@@ -1,7 +1,7 @@
 import { useUnit } from "effector-react";
 import { $activeComponent, LayoutComponent, setActiveComponent } from "./model";
 import { Code } from "../../features/code/Code";
-import { Logs } from "../../features/logs/Logs";
+import { Logs } from "../../features/logs/components/Logs";
 import { ContractsContainer } from "../../features/contracts";
 import { useSwipeable } from "react-swipeable";
 

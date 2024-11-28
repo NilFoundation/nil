@@ -9,8 +9,8 @@ import {
   StatefulTooltip,
 } from "@nilfoundation/ui-kit";
 import { useStyletron } from "styletron-react";
-import { Link, ShareIcon } from "../shared";
-import { addressRoute } from "../routing";
+import { Link, ShareIcon } from "../../shared";
+import { addressRoute } from "../../routing";
 
 type ContractDeployedLogProps = {
   address: string;

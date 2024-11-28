@@ -5,27 +5,13 @@ import { callFx, deploySmartContractFx, sendMethodFx } from "../contracts/model"
 import { MonoParagraphMedium } from "baseui/typography";
 import { formatSolidityError } from "./utils";
 import { COLORS } from "@nilfoundation/ui-kit";
-import { ContractDeployedLog } from "./ContractDeployedLog";
+import { ContractDeployedLog } from "./components/ContractDeployedLog";
 import { Link } from "../shared";
 import { transactionRoute } from "../routing";
+import { LogTitleWithDetails } from "./components/LogTitleWithDetails";
+import { TxDetials } from "./components/TxDetails";
 
-$logs.on(callFx.failData, (logs, error) => {
-  return [
-    ...logs,
-    {
-      id: nanoid(),
-      topic: LogTopic.Call,
-      type: LogType.Error,
-      shortDescription: (
-        <MonoParagraphMedium color={COLORS.red200}>Call failed</MonoParagraphMedium>
-      ),
-      payload: <MonoParagraphMedium color={COLORS.red200}>{String(error)}</MonoParagraphMedium>,
-      timestamp: Date.now(),
-    },
-  ];
-});
-
-$logs.on(deploySmartContractFx.doneData, (logs, { address, name }) => {
+$logs.on(deploySmartContractFx.doneData, (logs, { address, name, deployedFrom }) => {
   return [
     ...logs,
     {
@@ -34,103 +20,10 @@ $logs.on(deploySmartContractFx.doneData, (logs, { address, name }) => {
       type: LogType.Success,
       shortDescription: (
         <MonoParagraphMedium color={COLORS.green200}>
-          {`Contract ${name} deployed`}
+          {`Contract ${name} deployed from ${deployedFrom}`}
         </MonoParagraphMedium>
       ),
       payload: <ContractDeployedLog address={address} />,
-      timestamp: Date.now(),
-    },
-  ];
-});
-
-$logs.on(compileCodeFx.failData, (logs, error) => {
-  return [
-    ...logs,
-    {
-      id: nanoid(),
-      topic: LogTopic.Compilation,
-      type: LogType.Error,
-      shortDescription: (
-        <MonoParagraphMedium color={COLORS.red200}>Compilation failed</MonoParagraphMedium>
-      ),
-      payload: (
-        <MonoParagraphMedium color={COLORS.red200}>
-          {formatSolidityError(String(error))}
-        </MonoParagraphMedium>
-      ),
-      timestamp: Date.now(),
-    },
-  ];
-});
-
-$logs.on(callFx.doneData, (logs, { result }) => {
-  return [
-    ...logs,
-    {
-      id: nanoid(),
-      topic: LogTopic.Call,
-      type: LogType.Success,
-      shortDescription: (
-        <MonoParagraphMedium color={COLORS.green200}>Call successful</MonoParagraphMedium>
-      ),
-      payload: (
-        <MonoParagraphMedium color={COLORS.gray400}>{`Result: ${result}`}</MonoParagraphMedium>
-      ),
-      timestamp: Date.now(),
-    },
-  ];
-});
-
-$logs.on(callFx.failData, (logs, error) => {
-  return [
-    ...logs,
-    {
-      id: nanoid(),
-      topic: LogTopic.Call,
-      type: LogType.Error,
-      shortDescription: (
-        <MonoParagraphMedium color={COLORS.red200}>Call failed</MonoParagraphMedium>
-      ),
-      payload: <MonoParagraphMedium color={COLORS.red200}>{String(error)}</MonoParagraphMedium>,
-      timestamp: Date.now(),
-    },
-  ];
-});
-
-$logs.on(sendMethodFx.doneData, (logs, { hash }) => {
-  return [
-    ...logs,
-    {
-      id: nanoid(),
-      topic: LogTopic.SendTx,
-      type: LogType.Success,
-      shortDescription: (
-        <MonoParagraphMedium color={COLORS.green200}>Transaction sent</MonoParagraphMedium>
-      ),
-      payload: (
-        <MonoParagraphMedium color={COLORS.gray400}>
-          Transaction hash:{" "}
-          <Link to={transactionRoute} params={{ hash }} target="_blank">
-            {hash}
-          </Link>
-        </MonoParagraphMedium>
-      ),
-      timestamp: Date.now(),
-    },
-  ];
-});
-
-$logs.on(sendMethodFx.failData, (logs, error) => {
-  return [
-    ...logs,
-    {
-      id: nanoid(),
-      topic: LogTopic.SendTx,
-      type: LogType.Error,
-      shortDescription: (
-        <MonoParagraphMedium color={COLORS.red200}>Transaction failed</MonoParagraphMedium>
-      ),
-      payload: <MonoParagraphMedium color={COLORS.red200}>{String(error)}</MonoParagraphMedium>,
       timestamp: Date.now(),
     },
   ];
@@ -162,6 +55,108 @@ $logs.on(compileCodeFx.doneData, (logs) => {
       shortDescription: (
         <MonoParagraphMedium color={COLORS.gray400}>Compilation successful</MonoParagraphMedium>
       ),
+      timestamp: Date.now(),
+    },
+  ];
+});
+
+$logs.on(compileCodeFx.failData, (logs, error) => {
+  return [
+    ...logs,
+    {
+      id: nanoid(),
+      topic: LogTopic.Compilation,
+      type: LogType.Error,
+      shortDescription: (
+        <MonoParagraphMedium color={COLORS.red200}>Compilation failed</MonoParagraphMedium>
+      ),
+      payload: (
+        <MonoParagraphMedium color={COLORS.red200}>
+          {formatSolidityError(String(error))}
+        </MonoParagraphMedium>
+      ),
+      timestamp: Date.now(),
+    },
+  ];
+});
+
+$logs.on(callFx.doneData, (logs, { result, appName, functionName }) => {
+  return [
+    ...logs,
+    {
+      id: nanoid(),
+      topic: LogTopic.Call,
+      type: LogType.Success,
+      shortDescription: (
+        <MonoParagraphMedium
+          color={COLORS.green200}
+        >{`${appName}.${functionName}()`}</MonoParagraphMedium>
+      ),
+      payload: (
+        <MonoParagraphMedium color={COLORS.gray400}>{`Result: ${result}`}</MonoParagraphMedium>
+      ),
+      timestamp: Date.now(),
+    },
+  ];
+});
+
+$logs.on(callFx.failData, (logs, error) => {
+  return [
+    ...logs,
+    {
+      id: nanoid(),
+      topic: LogTopic.Call,
+      type: LogType.Error,
+      shortDescription: (
+        <MonoParagraphMedium color={COLORS.red200}>Call failed</MonoParagraphMedium>
+      ),
+      payload: <MonoParagraphMedium color={COLORS.red200}>{String(error)}</MonoParagraphMedium>,
+      timestamp: Date.now(),
+    },
+  ];
+});
+
+$logs.on(sendMethodFx.doneData, (logs, { hash, functionName, sendFrom, appName }) => {
+  return [
+    ...logs,
+    {
+      id: nanoid(),
+      topic: LogTopic.SendTx,
+      type: LogType.Success,
+      shortDescription: (
+        <LogTitleWithDetails
+          title={
+            <MonoParagraphMedium
+              color={COLORS.green200}
+            >{`${appName}.${functionName}() from ${sendFrom}`}</MonoParagraphMedium>
+          }
+          details={<TxDetials txHash={hash} />}
+        />
+      ),
+      payload: (
+        <MonoParagraphMedium color={COLORS.gray400}>
+          Transaction hash:{" "}
+          <Link to={transactionRoute} params={{ hash }} target="_blank">
+            {hash}
+          </Link>
+        </MonoParagraphMedium>
+      ),
+      timestamp: Date.now(),
+    },
+  ];
+});
+
+$logs.on(sendMethodFx.failData, (logs, error) => {
+  return [
+    ...logs,
+    {
+      id: nanoid(),
+      topic: LogTopic.SendTx,
+      type: LogType.Error,
+      shortDescription: (
+        <MonoParagraphMedium color={COLORS.red200}>Transaction failed</MonoParagraphMedium>
+      ),
+      payload: <MonoParagraphMedium color={COLORS.red200}>{String(error)}</MonoParagraphMedium>,
       timestamp: Date.now(),
     },
   ];

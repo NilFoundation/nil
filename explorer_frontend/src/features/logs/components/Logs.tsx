@@ -11,13 +11,13 @@ import {
   SPACE,
   StatefulTooltip,
 } from "@nilfoundation/ui-kit";
-import "./init";
-import { $logs, clearLogs } from "./model";
+import "../init";
+import { $logs, clearLogs } from "../model";
 import { useStyletron } from "baseui";
 import { LogsGreeting } from "./LogsGreeting";
-import { ClearIcon, useMobile } from "../shared";
-import { getMobileStyles } from "../../styleHelpers";
-import { LayoutComponent, setActiveComponent } from "../../pages/sandbox/model";
+import { ClearIcon, useMobile } from "../../shared";
+import { getMobileStyles } from "../../../styleHelpers";
+import { LayoutComponent, setActiveComponent } from "../../../pages/sandbox/model";
 import { useCallback, useEffect, useRef } from "react";
 
 export const Logs = () => {
