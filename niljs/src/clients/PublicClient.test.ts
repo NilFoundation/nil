@@ -132,7 +132,7 @@ test("getMessageByHash", async ({ expect }) => {
   const fn = vi.fn();
   fn.mockReturnValue({
     value: "0x100",
-    gasLimit: 100,
+    feeCredit: "0x100",
     gasUsed: "0x100",
     seqno: "0x100",
     index: "0x0",

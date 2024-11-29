@@ -44,7 +44,7 @@ export class WalletV1 implements WalletInterface {
    * @static
    * @type {Abi}
    */
-  static abi = Wallet.abi as Abi;
+  static abi = Wallet.abi;
 
   /**
    * Calculates the address of the new wallet.
@@ -279,6 +279,7 @@ export class WalletV1 implements WalletInterface {
         chainId: chainId,
         seqno,
         data: requestParams.data,
+        feeCredit: requestParams.feeCredit ?? 5_000_000n,
       },
       this.signer,
     );
@@ -335,11 +336,35 @@ export class WalletV1 implements WalletInterface {
     const hexRefundTo = refineAddress(refundTo ?? this.address);
     const hexBounceTo = refineAddress(bounceTo ?? this.address);
     const hexData = refineFunctionHexData({ data, abi, functionName, args });
+    let refinedCredit = feeCredit;
+
+    if (!refinedCredit) {
+      const balance = await this.getBalance();
+
+      const callData = encodeFunctionData({
+        abi: Wallet.abi,
+        functionName: "simpleAsyncCall",
+        args: [hexTo, hexRefundTo, hexBounceTo, tokens ?? [], value ?? 0n, hexData],
+      });
+
+      refinedCredit = await this.client.estimateGas(
+        {
+          to: this.address,
+          from: this.address,
+          data: hexToBytes(callData),
+        },
+        "latest",
+      );
+
+      if (refinedCredit > balance) {
+        throw new Error("Insufficient balance");
+      }
+    }
 
     const callData = encodeFunctionData({
       abi: Wallet.abi,
-      functionName: "asyncCall",
-      args: [hexTo, hexRefundTo, hexBounceTo, feeCredit ?? 0n, tokens ?? [], value ?? 0n, hexData],
+      functionName: "simpleAsyncCall",
+      args: [hexTo, hexRefundTo, hexBounceTo, tokens ?? [], value ?? 0n, hexData],
     });
 
     const { hash } = await this.requestToWallet({
@@ -347,6 +372,7 @@ export class WalletV1 implements WalletInterface {
       deploy: false,
       seqno: seqno,
       chainId: chainId,
+      feeCredit: refinedCredit,
     });
 
     return bytesToHex(hash);
@@ -519,11 +545,30 @@ export class WalletV1 implements WalletInterface {
       args: [shardId, value ?? 0n, hexData, salt],
     });
 
+    let refinedCredit = feeCredit;
+
+    if (!refinedCredit) {
+      const balance = await this.getBalance();
+
+      refinedCredit = await this.client.estimateGas(
+        {
+          to: this.address,
+          from: this.address,
+          data: hexToBytes(callData),
+        },
+        "latest",
+      );
+      if (refinedCredit > balance) {
+        throw new Error("Insufficient balance");
+      }
+    }
+
     const { hash } = await this.requestToWallet({
       data: hexToBytes(callData),
       deploy: false,
       seqno,
       chainId,
+      feeCredit: refinedCredit,
     });
 
     return {

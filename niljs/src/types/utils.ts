@@ -16,6 +16,7 @@ import type {
   ContractFunctionReturnType,
 } from "../contract-factory/ContractFactory.js";
 import type { WriteOptions } from "../contract-factory/contractInteraction.js";
+import type { Hex } from "./Hex.js";
 
 export type IsUnion<
   union,
@@ -97,20 +98,34 @@ export type ReadContractReturnType<
 > = ContractFunctionReturnType<abi, "pure" | "view", functionName, args>;
 
 export type ArrayToObject<
-  T extends ReadonlyArray<
-    AbiConstructor | AbiError | AbiEvent | AbiFallback | AbiFunction | AbiReceive
-  >,
+  T extends Abi,
   S extends AbiStateMutability = AbiStateMutability,
+  B extends Extract<
+    T[number],
+    {
+      type: "function";
+      stateMutability: S;
+    }
+  > = Extract<
+    T[number],
+    {
+      type: "function";
+      stateMutability: S;
+    }
+  >,
 > = {
-  // @ts-ignore
-  [K in T[number]["name"]]: Extract<T[number], { type: "function"; stateMutability: S }>;
+  [K in B["name"]]: B;
 };
+
+type SingleOrTuple<T extends readonly unknown[]> = T["length"] extends 1 ? T[0] : T;
+
+type ArgsOrNone<T extends readonly unknown[]> = T["length"] extends 0 ? T | undefined : T;
 
 export type ReadContractsMethod<
   T extends ReadonlyArray<
     AbiConstructor | AbiError | AbiEvent | AbiFallback | AbiFunction | AbiReceive
   >,
-  S extends AbiStateMutability = AbiStateMutability,
+  S extends AbiStateMutability = "pure" | "view",
   B extends AbiFunction = Extract<
     T[number],
     {
@@ -118,11 +133,11 @@ export type ReadContractsMethod<
       type: "function";
     }
   >,
+  F extends ContractFunctionName<T, S> = ContractFunctionName<T, S>,
 > = {
-  [K in B["name"]]: (
-    // @ts-ignore
-    args: ContractFunctionArgs<T, S, B["name"]>,
-  ) => AbiParametersToPrimitiveTypes<B["outputs"], "outputs">;
+  [K in F]: (
+    args: ContractFunctionArgs<T, S, F>,
+  ) => SingleOrTuple<AbiParametersToPrimitiveTypes<B["outputs"], "outputs">>;
 };
 
 export type WriteContractsMethod<
@@ -139,9 +154,9 @@ export type WriteContractsMethod<
   >,
 > = {
   [K in B["name"]]: (
-    args: AbiParametersToPrimitiveTypes<B["inputs"]>,
+    args: AbiParametersToPrimitiveTypes<B["inputs"], "inputs">,
     options?: WriteOptions,
-  ) => AbiParametersToPrimitiveTypes<B["outputs"]>;
+  ) => Promise<Hex>;
 };
 
 const el = {

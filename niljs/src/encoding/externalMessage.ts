@@ -53,6 +53,12 @@ export class ExternalMessageEnvelope {
    */
   authData: Uint8Array;
   /**
+   * The auth data attached to the message.
+   *
+   * @type {BigInt}
+   */
+  feeCredit: bigint;
+  /**
    * Creates an instance of ExternalMessageEnvelope.
    *
    * @constructor
@@ -63,14 +69,24 @@ export class ExternalMessageEnvelope {
    * @param {ExternalMessage} param0.seqno The message sequence number.
    * @param {ExternalMessage} param0.data The message number.
    * @param {ExternalMessage} param0.authData The auth data attached to the message.
+   * @param {ExternalMessage} param0.feeCredit The fee credit attached to the message.
    */
-  constructor({ isDeploy, to, chainId, seqno, data, authData }: ExternalMessage) {
+  constructor({
+    isDeploy,
+    to,
+    chainId,
+    seqno,
+    data,
+    authData,
+    feeCredit = 5_000_000n,
+  }: ExternalMessage) {
     this.isDeploy = isDeploy;
     this.to = to;
     this.chainId = chainId;
     this.seqno = seqno;
     this.data = data;
     this.authData = authData;
+    this.feeCredit = feeCredit;
   }
   /**
    * Encodes the external message into a Uint8Array.
@@ -80,7 +96,7 @@ export class ExternalMessageEnvelope {
    */
   public encode(): Uint8Array {
     return SszSignedMessageSchema.serialize({
-      feeCredit: 50000000n,
+      feeCredit: this.feeCredit,
       seqno: this.seqno,
       chainId: this.chainId,
       to: this.to,
@@ -110,7 +126,7 @@ export class ExternalMessageEnvelope {
   public signingHash(): Uint8Array {
     // print all the fields
     const raw = SszMessageSchema.serialize({
-      feeCredit: 50000000n,
+      feeCredit: this.feeCredit,
       seqno: this.seqno,
       chainId: this.chainId,
       to: this.to,
@@ -136,7 +152,7 @@ export class ExternalMessageEnvelope {
   }> {
     const signature = await this.sign(signer);
     const raw = SszSignedMessageSchema.serialize({
-      feeCredit: 50000000n,
+      feeCredit: this.feeCredit,
       seqno: this.seqno,
       chainId: this.chainId,
       to: this.to,
@@ -236,9 +252,14 @@ export class InternalMessageEnvelope {}
  */
 export const externalDeploymentMessage = (
   data: IDeployData,
-  chainId: number,
+  maybeChainId?: number,
 ): ExternalMessageEnvelope => {
   const { data: deployData, address } = prepareDeployPart(data);
+  const chainId = data.chainId ?? maybeChainId;
+  if (chainId === undefined) {
+    throw new Error("Chain ID is required");
+  }
+
   return new ExternalMessageEnvelope({
     isDeploy: true,
     to: address,
@@ -246,6 +267,7 @@ export const externalDeploymentMessage = (
     seqno: 0,
     data: deployData,
     authData: new Uint8Array(0),
+    feeCredit: data.feeCredit ?? 5_000_000n,
   });
 };
 

@@ -16,7 +16,7 @@ import type {
   ResolvedRegister,
 } from "abitype";
 import type { AbiConstructor, AbiError, AbiFallback, AbiReceive } from "abitype";
-import { AbiFunction as AbiFunctionZod } from "abitype/zod";
+import { AbiFunction as AbiFunctionZod, Abi as AbiZod } from "abitype/zod";
 import type { Prettify } from "ts-essentials";
 import type { PublicClient } from "../clients/index.js";
 import type { CallArgs } from "../types/CallArgs.js";
@@ -484,45 +484,57 @@ export type GetContractParams<
   client: client;
   address: Address;
 };
+export type CommonReadContractMethods = Record<string, (args: unknown[]) => unknown[] | unknown>;
+export type CommonWriteContractMethods = Record<
+  string,
+  (args: unknown[], writeOptions?: WriteOptions) => Promise<Hex>
+>;
 
 export function getContract<
-  A extends
-    | ReadonlyArray<AbiConstructor | AbiError | AbiEvent | AbiFallback | AbiFunction | AbiReceive>
-    | unknown[],
+  A extends Abi | unknown[],
   C extends PublicClient,
   W extends WalletInterface,
 >(params: { abi: A; client: C; wallet: W; address: Address }): {
-  // @ts-ignore
-  read: ReadContractsMethod<A, "view" | "pure">;
-  // @ts-ignore
-  write: WriteContractsMethod<A, "payable" | "nonpayable">;
+  read: A extends Abi ? ReadContractsMethod<A, "view" | "pure"> : CommonReadContractMethods;
+  write: A extends Abi
+    ? WriteContractsMethod<A, "payable" | "nonpayable">
+    : CommonWriteContractMethods;
+};
+
+export function getContract<A extends Abi | unknown[], C extends PublicClient>(params: {
+  abi: A;
+  client: C;
+  address: Address;
+}): {
+  read: A extends Abi ? ReadContractsMethod<A, "view" | "pure"> : CommonReadContractMethods;
 };
 
 export function getContract<
-  A extends
-    | ReadonlyArray<AbiConstructor | AbiError | AbiEvent | AbiFallback | AbiFunction | AbiReceive>
-    | unknown[],
-  C extends PublicClient,
->(params: { abi: A; client: C; address: Address }): {
-  // @ts-ignore
-  read: ReadContractsMethod<A, "view" | "pure">;
-};
-
-export function getContract<
-  A extends
-    | ReadonlyArray<AbiConstructor | AbiError | AbiEvent | AbiFallback | AbiFunction | AbiReceive>
-    | unknown[],
+  A extends Abi | unknown[],
   C extends PublicClient,
   W extends WalletInterface,
 >({ abi, client, wallet, address }: { abi: A; client: C; wallet?: W; address: Address }) {
-  // @ts-ignore
-  const readMethods: Partial<ArrayToObject<A, "view" | "pure">> = {};
+  const parseResult = AbiZod.safeParse(abi);
+  if (parseResult.error) {
+    throw parseResult.error;
+  }
 
-  for (let i = 0; i < abi.length; i++) {
-    const t: A[typeof i] = abi[i];
+  const resolvedAbi = parseResult.data as A extends Abi ? A : Abi;
+  const filteredAbiOnlyFunction = resolvedAbi.filter(
+    (item) => item.type === "function",
+  ) as A extends Abi ? Filter<A, AbiFunction> : AbiFunction[];
+
+  const readMethods = {} as A extends Abi
+    ? Partial<ArrayToObject<typeof filteredAbiOnlyFunction, "view" | "pure">>
+    : Record<string, AbiFunction>;
+
+  for (let i = 0; i < filteredAbiOnlyFunction.length; i++) {
+    const t: (typeof filteredAbiOnlyFunction)[typeof i] = filteredAbiOnlyFunction[i];
     const parsedAbi = AbiFunctionZod.safeParse(t);
     if (parsedAbi.success) {
-      const b = parsedAbi.data;
+      const b = parsedAbi.data as A extends Abi
+        ? (typeof filteredAbiOnlyFunction)[typeof i]
+        : AbiFunction;
       if (b.type === "function" && (b.stateMutability === "view" || b.stateMutability === "pure")) {
         // @ts-ignore
         readMethods[b.name] = b;
@@ -530,25 +542,23 @@ export function getContract<
     }
   }
 
-  // @ts-ignore
-  const completedReadMethods = readMethods as ArrayToObject<A, "view" | "pure">;
+  const completedReadMethods = readMethods as A extends Abi
+    ? ArrayToObject<typeof filteredAbiOnlyFunction, "view" | "pure">
+    : Record<string, AbiFunction>;
 
   const readProxy = new Proxy(completedReadMethods, {
     // biome-ignore lint/suspicious/noExplicitAny: it could be any options here
     get(target, p): any {
       if (p in target) {
         const item = target[p as keyof typeof target];
-        const key = p;
-        // @ts-ignore
-        return async (...args) => {
-          // @ts-ignore
-          const item = target[p];
+        return async (args: unknown[]) => {
           // @ts-ignore
           const result = await contractInteraction(client, {
             to: address,
-            abi: abi,
+            abi,
+            // @ts-ignore
             functionName: item.name,
-            args,
+            args: args,
           });
           return result;
         };
@@ -559,14 +569,15 @@ export function getContract<
 
   if (!wallet) {
     return {
-      read: readProxy,
+      read: readProxy as unknown,
     } as {
-      // @ts-ignore
-      read: ReadContractsMethod<A, "view" | "pure">;
+      read: A extends Abi ? ReadContractsMethod<A, "view" | "pure"> : CommonReadContractMethods;
     };
   }
 
-  const writeMethods = {};
+  const writeMethods = {} as A extends Abi
+    ? Partial<ArrayToObject<A, "nonpayable" | "payable">>
+    : Record<string, AbiFunction>;
   for (let i = 0; i < abi.length; i++) {
     const t: A[typeof i] = abi[i];
     const parsedAbi = AbiFunctionZod.safeParse(t);
@@ -589,6 +600,9 @@ export function getContract<
 
   const writeProxy = new Proxy(completeWriteMethods, {
     get: (target, property) => {
+      if (typeof property === "symbol") {
+        throw new Error("No write method");
+      }
       if (property in target) {
         return async (args: unknown[], options: WriteOptions) => {
           return writeContract({
@@ -605,18 +619,23 @@ export function getContract<
           });
         };
       }
-      // @ts-ignore
       throw new Error(`No write method with name ${property}`);
     },
   });
 
   return {
-    read: readProxy,
-    write: writeProxy,
+    read: readProxy as unknown,
+    write: writeProxy as unknown,
   } as {
-    // @ts-ignore
-    read: ReadContractsMethod<A, "view" | "pure">;
-    // @ts-ignore
-    write: WriteContractsMethod<A, "payable" | "nonpayable">;
+    read: A extends ReadonlyArray<
+      AbiConstructor | AbiError | AbiEvent | AbiFallback | AbiFunction | AbiReceive
+    >
+      ? ReadContractsMethod<A, "view" | "pure">
+      : CommonReadContractMethods;
+    write: A extends ReadonlyArray<
+      AbiConstructor | AbiError | AbiEvent | AbiFallback | AbiFunction | AbiReceive
+    >
+      ? WriteContractsMethod<A, "payable" | "nonpayable">
+      : CommonWriteContractMethods;
   };
 }

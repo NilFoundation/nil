@@ -104,6 +104,7 @@ export type RequestParams = {
   deploy: boolean;
   seqno?: number;
   chainId?: number;
+  feeCredit?: bigint;
 };
 
 /**
@@ -117,7 +118,7 @@ export type DeployParams = {
   args?: unknown[];
   salt: Uint8Array | bigint;
   shardId: number;
-  feeCredit: bigint;
+  feeCredit?: bigint;
   value?: bigint;
   seqno?: number;
   chainId?: number;

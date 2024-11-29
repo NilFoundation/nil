@@ -10,6 +10,7 @@ type ExternalMessage = {
   seqno: number;
   data: Uint8Array;
   authData: Uint8Array;
+  feeCredit?: bigint;
 };
 
 export type { ExternalMessage };
