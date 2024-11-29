@@ -3,7 +3,7 @@ import { styled, useStyletron } from "styletron-react";
 import type { Hex } from "@nilfoundation/niljs";
 import { useRepeatedGetTxByHash } from "../hooks/useRepeatedGetTxByHash";
 import { COLORS, MonoLabelMedium, Spinner } from "@nilfoundation/ui-kit";
-import { measure } from "../../shared";
+import { formatShard, measure } from "../../shared";
 
 type TxDetialsProps = {
   txHash: Hex;
@@ -23,7 +23,8 @@ export const TxDetials: FC<TxDetialsProps> = ({ txHash }) => {
       className={css({
         display: "grid",
         gridTemplateColumns: "min-content 1fr",
-        gap: "8px",
+        rowGap: "8px",
+        columnGap: "16px",
       })}
     >
       {loading && !tx && !error && (
@@ -43,6 +44,8 @@ export const TxDetials: FC<TxDetialsProps> = ({ txHash }) => {
       {error && <div>Error</div>}
       {tx && (
         <>
+          <StyledLabel>shard + block height:</StyledLabel>
+          <StyledLabel>{formatShard(tx.shard_id.toString(), tx.block_id.toString())}</StyledLabel>
           <StyledLabel>nonce:</StyledLabel>
           <StyledLabel>{tx.seqno}</StyledLabel>
           <StyledLabel>status:</StyledLabel>
