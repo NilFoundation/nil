@@ -58,6 +58,7 @@ message CallResult {
   StateOverrides stateOverrides = 5;
   Uint256 gasPrice = 6;
   repeated Log logs = 7;
+  repeated DebugLog debugLogs = 8;
 }
 
 message CallResponse {

@@ -452,6 +452,7 @@ type CallRes struct {
 	OutMessages    []*OutMessage  `json:"outMessages,omitempty"`
 	Error          string         `json:"error,omitempty"`
 	Logs           []*types.Log   `json:"logs,omitempty"`
+	DebugLogs      []*RPCDebugLog `json:"debugLogs,omitempty"`
 	StateOverrides StateOverrides `json:"stateOverrides,omitempty"`
 }
 
@@ -464,6 +465,11 @@ func toCallRes(input *rpctypes.CallResWithGasPrice) (*CallRes, error) {
 	output.StateOverrides = input.StateOverrides
 	output.OutMessages, err = toOutMessages(input.OutMessages)
 	output.Logs = input.Logs
+
+	output.DebugLogs = make([]*RPCDebugLog, len(input.DebugLogs))
+	for i, log := range input.DebugLogs {
+		output.DebugLogs[i] = &RPCDebugLog{Message: string(log.Message), Data: log.Data}
+	}
 
 	return output, err
 }

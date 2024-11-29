@@ -757,6 +757,7 @@ func (m *OutMessage) PackProtoMessage(msg *rpctypes.OutMessage) *OutMessage {
 		GasPrice:    gasPrice,
 		Error:       msg.Error,
 		Logs:        packLogs(msg.Logs),
+		DebugLogs:   packDebugLogs(msg.DebugLogs),
 	}
 
 	if len(msg.OutMessages) > 0 {
@@ -784,6 +785,7 @@ func (m *OutMessage) UnpackProtoMessage() *rpctypes.OutMessage {
 		Data:        m.Data,
 		Error:       m.Error,
 		Logs:        unpackLogs(m.Logs),
+		DebugLogs:   unpackDebugLogs(m.DebugLogs),
 	}
 
 	msg.CoinsUsed = newValueFromUint256(m.CoinsUsed)
@@ -812,6 +814,25 @@ func (l *Log) UnpackProtoMessage() *types.Log {
 	}
 }
 
+func (l *DebugLog) PackProtoMessage(log *types.DebugLog) {
+	l.Message = log.Message
+	l.Data = make([]*Uint256, len(log.Data))
+	for i, data := range log.Data {
+		l.Data[i] = new(Uint256).PackProtoMessage(data)
+	}
+}
+
+func (l *DebugLog) UnpackProtoMessage() *types.DebugLog {
+	data := make([]types.Uint256, len(l.Data))
+	for i, value := range l.Data {
+		data[i] = value.UnpackProtoMessage()
+	}
+	return &types.DebugLog{
+		Message: l.Message,
+		Data:    data,
+	}
+}
+
 func packLogs(logs []*types.Log) []*Log {
 	res := make([]*Log, len(logs))
 	for i, log := range logs {
@@ -832,6 +853,26 @@ func unpackLogs(logs []*Log) []*types.Log {
 	return res
 }
 
+func packDebugLogs(logs []*types.DebugLog) []*DebugLog {
+	res := make([]*DebugLog, len(logs))
+	for i, log := range logs {
+		res[i] = new(DebugLog)
+		res[i].PackProtoMessage(log)
+	}
+	return res
+}
+
+func unpackDebugLogs(logs []*DebugLog) []*types.DebugLog {
+	if logs == nil {
+		return nil
+	}
+	res := make([]*types.DebugLog, len(logs))
+	for i, log := range logs {
+		res[i] = log.UnpackProtoMessage()
+	}
+	return res
+}
+
 func (cr *CallResponse) PackProtoMessage(args *rpctypes.CallResWithGasPrice, err error) error {
 	if err != nil {
 		cr.Result = &CallResponse_Error{Error: new(Error).PackProtoMessage(err)}
@@ -841,6 +882,7 @@ func (cr *CallResponse) PackProtoMessage(args *rpctypes.CallResWithGasPrice, err
 	res := &CallResult{}
 	res.Data = args.Data
 	res.Logs = packLogs(args.Logs)
+	res.DebugLogs = packDebugLogs(args.DebugLogs)
 
 	if args.CoinsUsed.Uint256 != nil {
 		res.CoinsUsed = new(Uint256).PackProtoMessage(*args.CoinsUsed.Uint256)
@@ -879,6 +921,7 @@ func (cr *CallResponse) UnpackProtoMessage() (*rpctypes.CallResWithGasPrice, err
 	res.CoinsUsed = newValueFromUint256(data.CoinsUsed)
 	res.GasPrice = newValueFromUint256(data.GasPrice)
 	res.Logs = unpackLogs(data.Logs)
+	res.DebugLogs = unpackDebugLogs(data.DebugLogs)
 
 	res.OutMessages = make([]*rpctypes.OutMessage, len(data.OutMessages))
 	for i, outMsg := range data.OutMessages {
