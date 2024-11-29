@@ -82,6 +82,9 @@ func (ct *CopyTracer) TraceOp(
 	if eventData.event == nil {
 		return false // opcode was found but copy event is not traced
 	}
+	if len(eventData.event.Data) == 0 {
+		return false // zero-sized copy ops are not expected to be processed by copy circuit
+	}
 
 	eventData.event.RwIdx = rwCounter
 	eventData.event.Data = slices.Clone(eventData.event.Data) // avoid keeping whole EVM memory bunch in RAM

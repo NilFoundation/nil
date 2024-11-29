@@ -230,6 +230,10 @@ func (s *TracerTestSuite) checkAllBlocksTracesSerialization() {
 			traces, err := s.tracer.GetBlockTraces(ctx, shardId, blkRef)
 			s.Require().NoError(err)
 
+			for _, cpEvt := range traces.CopyEvents {
+				s.NotEmpty(cpEvt.Data)
+			}
+
 			// Test serialization
 			tmpfile, err := os.CreateTemp("", "serialized_trace-")
 			if err != nil {
