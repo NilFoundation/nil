@@ -28,7 +28,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
 
       - name: Publish
-        run: npm run publish
+        run: npm run pub
         shell: bash
 
       - name: Remove .npmrc

@@ -1,5 +1,5 @@
 {
-  "name": "Uniswap V2 on =nil;",
+  "name": "uniswap-v2-on-nil",
   "version": "1.0.0",
   "description": "This repository is an example repo to showcase how to migrate Uniswap V2 contracts to =nil; L2",
   "author": "Nil Foundation",
@@ -10,8 +10,7 @@
     "clean": "rm -rf iginition/deployments",
     "format": "biome format ./",
     "lint": "biome check ./",
-    "fix:format": "biome format --write ./",
-    "fix:lint": "biome check --apply ./"
+    "lint:fix": "biome check --write ."
   },
   "dependencies": {
     "@nilfoundation/hardhat-plugin": "0.17.1",
@@ -20,7 +19,6 @@
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.8.2",
     "@nomicfoundation/hardhat-ethers": "^3.0.6",
     "@nomicfoundation/hardhat-ignition-ethers": "^0.15.5",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
