@@ -11,7 +11,7 @@ import { transactionRoute } from "../routing";
 import { LogTitleWithDetails } from "./components/LogTitleWithDetails";
 import { TxDetials } from "./components/TxDetails";
 
-$logs.on(deploySmartContractFx.doneData, (logs, { address, name, deployedFrom }) => {
+$logs.on(deploySmartContractFx.doneData, (logs, { address, name, deployedFrom, txHash }) => {
   return [
     ...logs,
     {
@@ -19,9 +19,14 @@ $logs.on(deploySmartContractFx.doneData, (logs, { address, name, deployedFrom })
       topic: LogTopic.Deployment,
       type: LogType.Success,
       shortDescription: (
-        <MonoParagraphMedium color={COLORS.green200}>
-          {`Contract ${name} deployed from ${deployedFrom}`}
-        </MonoParagraphMedium>
+        <LogTitleWithDetails
+          title={
+            <MonoParagraphMedium color={COLORS.green200}>
+              {`Contract ${name} deployed from ${deployedFrom}`}
+            </MonoParagraphMedium>
+          }
+          details={<TxDetials txHash={txHash} />}
+        />
       ),
       payload: <ContractDeployedLog address={address} />,
       timestamp: Date.now(),

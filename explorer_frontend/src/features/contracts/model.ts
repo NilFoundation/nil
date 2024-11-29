@@ -93,6 +93,7 @@ export const deploySmartContractFx = createEffect<
     app: Hex;
     name: string;
     deployedFrom?: Hex;
+    txHash: Hex;
   }
 >(async ({ app, args, wallet, shardId, cometaService }) => {
   const salt = BigInt(Math.floor(Math.random() * 10000000000000000));
@@ -113,6 +114,7 @@ export const deploySmartContractFx = createEffect<
     app: app.bytecode,
     name: app.name,
     deployedFrom: wallet.address,
+    txHash: hash,
   };
 });
 
