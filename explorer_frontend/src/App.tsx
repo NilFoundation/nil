@@ -16,7 +16,7 @@ const styles: StylesObject = {
     flexDirection: "column",
     background: COLORS.black,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
 };
 

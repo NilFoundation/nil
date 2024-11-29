@@ -17,7 +17,7 @@
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",
 		"test": "mocha \"test/integration.test.ts\"",
-		"publish": "npm run build && npm publish"
+		"pub": "npm run build && npm publish"
 	},
 	"keywords": [],
 	"author": "",

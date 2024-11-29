@@ -9,13 +9,14 @@
     "create-nil-hardhat-project",
     "docs",
     "explorer_frontend",
-    "explorer_backend"
+    "explorer_backend",
+    "uniswap"
   ],
   "scripts": {
     "lint": "npm run lint --workspaces --if-present",
     "lint:fix": "npm run lint:fix --workspaces --if-present",
     "install:clean": "rm -rf package-lock.json && rm -rf node_modules && rm -rf */node_modules && rm -rf */package-lock.json && npm i",
-    "publish": "npm run publish --workspaces --if-present"
+    "pub": "npm run pub --workspaces --if-present"
   },
   "author": "",
   "license": "ISC",

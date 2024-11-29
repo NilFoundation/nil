@@ -14,7 +14,9 @@ in
       ../create-nil-hardhat-project/package.json
       ../smart-contracts/package.json
       ../explorer_backend/package.json
+      ../explorer_frontend/package.json
+      ../uniswap/package.json
     ];
   };
-  hash = "sha256-0ZOScbgWS+qRUR8HvQSPryenNK9Mk67/Gqqfku25g+s=";
+  hash = "sha256-uLHkdN18BNr4oPgOUpFml9VP7jQKoKytQKxQAMPsq0Y=";
 })

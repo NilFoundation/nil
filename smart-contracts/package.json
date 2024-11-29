@@ -9,7 +9,7 @@
 	},
 	"scripts": {
 		"compile": "node ./scripts/compile.js",
-		"publish": "npm run compile && npm publish"
+		"pub": "npm run compile && npm publish"
 	},
 	"author": "=nil; Foundation",
 	"license": "Apache-2.0",
