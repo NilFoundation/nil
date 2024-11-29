@@ -177,7 +177,7 @@ func DecodeLogs(abi abi.ABI, logs []*types.Log) ([]*NamedArgValues, error) {
 
 		obj, err := abi.Unpack(event.Name, log.Data)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unpack log data: %w", err)
+			return nil, fmt.Errorf("failed to unpack log %q data: %w", event.Name, err)
 		}
 
 		log := make([]*ArgValue, len(event.Inputs))

@@ -9,6 +9,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 )
 
 type Contract struct {
@@ -186,6 +187,39 @@ func (c *Contract) DecodeCallData(calldata []byte) (string, error) {
 	res += ")"
 
 	return res, nil
+}
+
+func (c *Contract) DecodeLog(log *jsonrpc.RPCLog) (string, error) {
+	var res strings.Builder
+	if len(log.Topics) == 0 {
+		return "", nil
+	}
+
+	event, err := c.abi.EventByID(log.Topics[0])
+	if err != nil {
+		return "", fmt.Errorf("failed to find event by topic: %w", err)
+	}
+	if event == nil {
+		return "", nil
+	}
+	if len(log.Data) == 0 {
+		return "", nil
+	}
+
+	obj, err := c.abi.Unpack(event.Name, log.Data)
+	if err != nil {
+		return "", fmt.Errorf("failed to unpack log %q data: %w", event.Name, err)
+	}
+
+	res.WriteString(event.Name)
+	res.WriteString(": ")
+
+	values, err := json.Marshal(obj)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal log %q data: %w", event.Name, err)
+	}
+	res.Write(values)
+	return res.String(), nil
 }
 
 func (c *Contract) GetSourceLines(sourceFile string) ([]string, error) {

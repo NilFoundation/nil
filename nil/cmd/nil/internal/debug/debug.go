@@ -1,6 +1,7 @@
 package debug
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -201,6 +202,7 @@ var (
 	keyColor      = color.New(color.FgCyan)
 	unknownColor  = color.New(color.FgRed)
 	calldataColor = color.New(color.FgMagenta)
+	logsColor     = color.New(color.FgMagenta)
 )
 
 func (d *DebugHandler) PrintReceipt(receipt *ReceiptInfo, indentEntry, indent string) {
@@ -239,6 +241,56 @@ func (d *DebugHandler) PrintReceipt(receipt *ReceiptInfo, indentEntry, indent st
 		}
 	} else if len(receipt.Message.Data) != 0 {
 		fmt.Printf("%s%s\n", makeKey("CallData"), types.Code(receipt.Message.Data).Hex())
+	}
+	if len(receipt.Receipt.Logs) != 0 {
+		fmt.Println(makeKey("Logs"))
+
+		for i, log := range receipt.Receipt.Logs {
+			if hasContract {
+				if i == len(receipt.Receipt.Logs)-1 {
+					indentEntry = indent + "\u2514 " // `└` symbol
+				} else {
+					indentEntry = indent + "\u251c " // `├` symbol
+				}
+				fmt.Print(indentEntry)
+
+				decoded, err := receipt.Contract.DecodeLog(log)
+				if err != nil || decoded == "" {
+					fmt.Print("[", color.RedString("Failed to decode: %s", err.Error()), "]")
+					logsJson, err := json.Marshal(log)
+					if err == nil {
+						fmt.Print(string(logsJson))
+					}
+				} else {
+					fmt.Print(logsColor.Sprint(decoded))
+				}
+				fmt.Println()
+			} else {
+				logsJson, err := json.Marshal(log)
+				if err == nil {
+					fmt.Println(string(logsJson))
+				}
+			}
+		}
+	}
+	if len(receipt.Receipt.DebugLogs) != 0 {
+		fmt.Println(makeKey("Debug logs"))
+
+		for i, log := range receipt.Receipt.DebugLogs {
+			if i == len(receipt.Receipt.DebugLogs)-1 {
+				indentEntry = indent + "\u2514 " // `└` symbol
+			} else {
+				indentEntry = indent + "\u251c " // `├` symbol
+			}
+			fmt.Print(indentEntry)
+
+			fmt.Print(log.Message)
+			if len(log.Message) > 0 {
+				fmt.Print(": ")
+				fmt.Print(log.Data)
+			}
+			fmt.Println()
+		}
 	}
 	if !receipt.Receipt.Success {
 		fmt.Printf("%s%s\n", makeKey("Status"), color.RedString(receipt.Receipt.Status))
