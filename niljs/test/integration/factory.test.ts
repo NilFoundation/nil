@@ -1,7 +1,7 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Abi } from "abitype";
-import solc from "solc-typed-ast";
 import {
   Faucet,
   HttpTransport,
@@ -25,26 +25,32 @@ const client = new PublicClient({
 beforeAll(async () => {
   const fileName = "./contracts/Incrementer.sol";
   const absolutePath = join(__dirname, fileName);
-  const res = await solc.compileSol(absolutePath, "auto");
-  for (const fileName in res.data.contracts) {
-    const item = res.data.contracts[fileName];
-    for (const contractName in item) {
-      const contract = item[contractName];
-      writeFileSync(
-        join(__dirname, `./contracts/${contractName}.bin`),
-        contract.evm.bytecode.object,
-      );
-      writeFileSync(
-        join(__dirname, `./contracts/${contractName}.abi.json`),
-        JSON.stringify(contract.abi),
-      );
-    }
-  }
+  const dirName = join(__dirname, "./contracts");
+  await new Promise((resolve, reject) => {
+    const p = spawn("solc", ["--overwrite", "--abi", "--bin", absolutePath, "-o", dirName], {});
+    let stdout = "";
+    let stderr = "";
+    p.stdout.on("data", (data) => {
+      stdout += data;
+    });
+    p.stderr.on("data", (data) => {
+      stderr += data;
+    });
+    p.on("close", (code) => {
+      if (code === 0) {
+        resolve(stdout);
+      } else {
+        console.log("stdout", stdout);
+        console.error("stderr", stderr);
+        reject(stderr);
+      }
+    });
+  });
 });
 
 test("Contract Factory", async ({ expect }) => {
   const bin = readFileSync(join(__dirname, "./contracts/Incrementer.bin"), "utf8");
-  const abiJSON = readFileSync(join(__dirname, "./contracts/Incrementer.abi.json"), "utf8");
+  const abiJSON = readFileSync(join(__dirname, "./contracts/Incrementer.abi"), "utf8");
   const abi = JSON.parse(abiJSON) as Abi;
 
   const faucet = new Faucet(client);
