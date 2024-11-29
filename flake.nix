@@ -75,14 +75,21 @@
                 unpackPhase = "true";
                 buildPhase = ''
                   export HOME=$PWD
+                  
                   mkdir -p ./usr
                   mkdir -p ./usr/share/${packages.nildocs.pname}
+                  mkdir -p ./usr/share/${packages.nilexplorer.name}
+
                   cp -r ${pkg}/bin ./usr/
                   cp -r ${pkg}/share ./usr/
                   cp -r ${packages.nildocs.outPath}/* ./usr/share/${packages.nildocs.pname}
+                  cp -r ${packages.nilexplorer.outPath}/* ./usr/share/${packages.nilexplorer.name}
+
                   chmod -R u+rw,g+r,o+r ./usr
                   chmod -R u+rwx,g+rx,o+rx ./usr/bin
                   chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.nildocs.pname}
+                  chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.nilexplorer.name}
+
                   bash ${./scripts/binary_patch_version.sh} ./usr/bin/nild ${versionFull}
                   bash ${./scripts/binary_patch_version.sh} ./usr/bin/nil ${versionFull}
                   bash ${./scripts/binary_patch_version.sh} ./usr/bin/cometa ${versionFull}

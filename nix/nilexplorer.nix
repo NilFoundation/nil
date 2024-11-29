@@ -60,6 +60,7 @@ stdenv.mkDerivation rec {
 
   installPhase = ''
     mkdir -p $out
-    touch $out/dummy
+    mv explorer_frontend/ $out/frontend
+    mv explorer_backend/ $out/backend
   '';
 }
