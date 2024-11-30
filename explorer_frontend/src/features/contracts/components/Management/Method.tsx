@@ -254,6 +254,8 @@ export const Method = ({
                     marginLeft: 0,
                     marginRight: 0,
                     width: "100%",
+                    wordBreak: "break-all",
+                    overflowWrap: "break-word",
                   },
                 },
               }}

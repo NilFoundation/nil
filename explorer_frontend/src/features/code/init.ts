@@ -123,12 +123,15 @@ sample({
   fn: () => false,
 });
 
+$codeSnippetHash.on(setCodeSnippetEvent, () => null);
+
 sample({
   target: $codeSnippetHash,
   source: setCodeSnippetFx.doneData,
 });
 
 $shareCodeSnippetError.on(setCodeSnippetFx.fail, () => true);
+$shareCodeSnippetError.reset(setCodeSnippetFx.doneData);
 
 sample({
   clock: sandboxWithHashRoute.navigated,
