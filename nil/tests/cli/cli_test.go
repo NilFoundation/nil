@@ -647,6 +647,11 @@ func (s *SuiteCli) TestCliCometa() {
 		s.Contains(out, "└ eventValue: [0]")
 	})
 
+	s.Run("Fetch abi from cometa for call-readonly", func() {
+		out := s.RunCliCfg("contract", "call-readonly", address.Hex(), "get")
+		s.CheckResult(out, "Success, result:", "int32: 0")
+	})
+
 	s.Run("Deploy wallet to test ctor arguments", func() {
 		out := s.RunCliCfg("wallet", "deploy",
 			"--compile-input", "../../contracts/solidity/compile-wallet.json",

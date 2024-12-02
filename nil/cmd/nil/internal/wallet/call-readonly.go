@@ -5,6 +5,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
@@ -70,7 +71,18 @@ func runCallReadonly(args []string, cfg *common.Config) error {
 		return fmt.Errorf("invalid address: %w", err)
 	}
 
-	contractCalldata, err := common.PrepareArgs(params.abiPath, args[1], args[2:])
+	var contractAbi abi.ABI
+	var abiErr error
+	if len(params.abiPath) > 0 {
+		contractAbi, abiErr = common.ReadAbiFromFile(params.abiPath)
+	} else {
+		contractAbi, abiErr = common.FetchAbiFromCometa(address)
+	}
+	if abiErr != nil {
+		return fmt.Errorf("failed to fetch ABI: %w", abiErr)
+	}
+
+	contractCalldata, err := common.PrepareArgs(contractAbi, args[1], args[2:])
 	if err != nil {
 		return err
 	}
@@ -106,17 +118,12 @@ func runCallReadonly(args []string, cfg *common.Config) error {
 			return nil, nil, fmt.Errorf("error during processing the wallet message: %s", outMsgErr)
 		}
 
-		abi, err := common.ReadAbiFromFile(params.abiPath)
+		logs, err := common.DecodeLogs(contractAbi, res.OutMessages[0].Logs)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		logs, err := common.DecodeLogs(abi, res.OutMessages[0].Logs)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		result, err := common.CalldataToArgs(abi, args[1], res.OutMessages[0].Data)
+		result, err := common.CalldataToArgs(contractAbi, args[1], res.OutMessages[0].Data)
 		if err != nil {
 			return nil, nil, err
 		}

@@ -108,10 +108,11 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 		}
 		var calldata []byte
 		if len(cmdArgs) > 0 {
-			if params.abiPath == "" {
-				return errors.New("The ABI file required for the constructor arguments")
+			abi, err := common.ReadAbiFromFile(params.abiPath)
+			if err != nil {
+				return err
 			}
-			calldata, err = common.ArgsToCalldata(params.abiPath, "", cmdArgs)
+			calldata, err = common.ArgsToCalldata(abi, "", cmdArgs)
 			if err != nil {
 				return fmt.Errorf("failed to pack the constructor arguments: %w", err)
 			}
@@ -138,10 +139,10 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 		if errors.Is(err, rpc.ErrMsgDataTooLong) {
 			return fmt.Errorf(
 				`Failed to marshal message: %w.
-It appears that your code exceeds the maximum supported size. 
-Try compiling your contract with the usage of solc --optimize flag, 
-providing small values to --optimize-runs. 
-For more information go to 
+It appears that your code exceeds the maximum supported size.
+Try compiling your contract with the usage of solc --optimize flag,
+providing small values to --optimize-runs.
+For more information go to
 https://ethereum.org/en/developers/tutorials/downsizing-contracts-to-fight-the-contract-size-limit/`, err)
 		}
 		return err
