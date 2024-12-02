@@ -1,5 +1,5 @@
 import { CometaService, HttpTransport } from "@nilfoundation/niljs";
-import { $endpoint } from "../account-connector/models/model";
+import { $endpoint } from "../account-connector/model";
 import { $cometaService, createCometaService, createCometaServiceFx } from "./model";
 import { sample } from "effector";
 

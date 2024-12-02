@@ -17,7 +17,7 @@ import { Link, Marker } from "../../../shared";
 import { transactionRoute } from "../../../routing";
 import { MethodInput } from "./MethodInput";
 import { CurrencyInput, getCurrencySymbolByAddress } from "../../../currencies";
-import { $balanceCurrency } from "../../../account-connector/models/model";
+import { $balanceCurrency } from "../../../account-connector/model";
 import { useUnit } from "effector-react";
 import { expandProperty } from "inline-style-expand-shorthand";
 import { Result } from "./Result";

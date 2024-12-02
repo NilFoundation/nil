@@ -2,7 +2,7 @@ import { useUnit } from "effector-react";
 import { ActiveComponent } from "../ActiveComponent";
 import { MainScreen } from "./MainScreen";
 import { TopUpPanel } from "./TopUpPanel";
-import { $activeComponent, setActiveComponent } from "../models/model";
+import { $activeComponent, setActiveComponent } from "../model";
 import { useSwipeable } from "react-swipeable";
 import { useStyletron } from "styletron-react";
 import { expandProperty } from "inline-style-expand-shorthand";

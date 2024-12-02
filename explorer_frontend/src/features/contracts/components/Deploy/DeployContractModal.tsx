@@ -24,7 +24,7 @@ import {
 import { useStyletron } from "styletron-react";
 import { $constructor } from "../../init";
 import type { FC } from "react";
-import { $wallet } from "../../../account-connector/models/model";
+import { $wallet } from "../../../account-connector/model";
 import { ShardIdInput } from "./ShardIdInput";
 
 type DeployContractModalProps = {

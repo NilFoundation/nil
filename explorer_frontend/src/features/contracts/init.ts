@@ -40,7 +40,7 @@ import {
 } from "./model";
 import { combine, sample } from "effector";
 import { isAddress } from "viem";
-import { $endpoint, $wallet } from "../account-connector/models/model";
+import { $endpoint, $wallet } from "../account-connector/model";
 import type { AbiFunction } from "abitype";
 import { debug } from "patronum";
 import { getTokenAddressBySymbol } from "../currencies";

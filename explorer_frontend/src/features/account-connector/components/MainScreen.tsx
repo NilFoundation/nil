@@ -21,7 +21,7 @@ import {
   regenrateAccountEvent,
   setActiveComponent,
   topUpWalletBalanceFx,
-} from "../models/model";
+} from "../model";
 import { useUnit } from "effector-react";
 import { OverflowEllipsis } from "../../shared";
 import type { ButtonOverrides } from "baseui/button";

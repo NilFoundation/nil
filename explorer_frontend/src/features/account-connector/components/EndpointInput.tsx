@@ -1,7 +1,7 @@
 import { useStyletron } from "styletron-react";
 import type { StylesObject } from "../../shared";
 import { COLORS, FormControl, Input, INPUT_KIND, INPUT_SIZE } from "@nilfoundation/ui-kit";
-import { $endpoint, setEndpoint, topUpWalletBalanceFx } from "../models/model";
+import { $endpoint, setEndpoint, topUpWalletBalanceFx } from "../model";
 import { useUnit } from "effector-react";
 import type { InputOverrides } from "baseui/input";
 import type { FC } from "react";
