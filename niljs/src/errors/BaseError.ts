@@ -74,7 +74,7 @@ class BaseError extends Error {
     this.docsPath = docsPath;
     this.version = version;
 
-    this.message = `${message ?? "An error occured"}
+    this.message = `${message ?? "An error occurred"}
       Name: ${this.name}`;
 
     if (docsPath) {

@@ -82,7 +82,7 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
           )}
           {shareCodeError && (
             <LabelMedium color={COLORS.red200}>
-              An error occured while generating the link
+              An error occurred while generating the link
             </LabelMedium>
           )}
           {shareCodeSnippetPending && (

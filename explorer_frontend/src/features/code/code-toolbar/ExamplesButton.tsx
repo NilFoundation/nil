@@ -54,10 +54,7 @@ export const ExamplesButton: FC<ExamplesButtonProps> = ({ disabled }) => {
 
 const ExamplesButtonPopoverContent = () => {
   const items = {
-    "Tutorial examples:": [
-      { label: "Async", disabled: true },
-      { label: "Custom currencies", disabled: true },
-    ],
+    "Tutorial examples:": [{ label: "Async", disabled: true }],
   };
 
   const menuOverrides: MenuOverrides = {
