@@ -115,7 +115,6 @@ func startRpcServer(ctx context.Context, endpoint string) error {
 	logger := logging.NewLogger("RPC")
 
 	httpConfig := &httpcfg.HttpCfg{
-		Enabled:         true,
 		HttpURL:         endpoint,
 		HttpCompression: true,
 		TraceRequests:   true,
