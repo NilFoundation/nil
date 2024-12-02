@@ -40,6 +40,8 @@ stdenv.mkDerivation rec {
   dontConfigure = true;
 
   buildPhase = ''
+    export UV_USE_IO_URING=0
+
     patchShebangs node_modules
 
     (cd smart-contracts; npm run compile)
@@ -50,6 +52,8 @@ stdenv.mkDerivation rec {
   doCheck = enableTesting;
 
   checkPhase = ''
+    export UV_USE_IO_URING=0
+
     echo "Installing soljson"
     (cd create-nil-hardhat-project; bash install_soljson.sh ${soljson26})
 
