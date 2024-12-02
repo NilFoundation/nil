@@ -5,6 +5,7 @@
 , npmHooks
 , nodejs
 , nil
+, solc
 , enableTesting ? false
 }:
 
@@ -21,6 +22,7 @@ stdenv.mkDerivation rec {
     nodejs
     npmHooks.npmConfigHook
     biome
+    solc
   ] ++ (if enableTesting then [ nil ] else [ ]);
 
   dontConfigure = true;

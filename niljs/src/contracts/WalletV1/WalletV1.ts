@@ -44,7 +44,7 @@ export class WalletV1 implements WalletInterface {
    * @static
    * @type {Abi}
    */
-  static abi = Wallet.abi;
+  static abi = Wallet.abi as unknown as Abi;
 
   /**
    * Calculates the address of the new wallet.
