@@ -1,6 +1,4 @@
 const keys = [
-  "APP_TITLE",
-  "APP_DESCRIPTION",
   "DOCUMENTATION_URL",
   "GITHUB_URL",
   "API_URL",
@@ -16,7 +14,7 @@ type RuntimConfigKeys = (typeof keys)[number];
 
 declare global {
   interface Window {
-    RUNTIME_CONFIG: Record<RuntimConfigKeys, string | undefined>;
+    RUNTIME_CONFIG: Record<RuntimConfigKeys, string>;
   }
 }
 

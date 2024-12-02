@@ -1,16 +1,14 @@
+// This script is used to load the runtime configuration from runtime-config.toml
+// and runtime-config.local.toml files.
+// The runtime configuration is stored in the window.RUNTIME_CONFIG variable.
+
 function fetchTomlFileSync(url) {
-  var expectedContentType = "application/toml";
   var xhr = new XMLHttpRequest();
   xhr.open("GET", url, false);
 
   try {
     xhr.send(null);
     if (xhr.status === 200) {
-      var contentType = xhr.getResponseHeader("Content-Type");
-      if (contentType !== expectedContentType) {
-        return null;
-      }
-
       return xhr.responseText;
     }
 
@@ -21,9 +19,9 @@ function fetchTomlFileSync(url) {
   }
 }
 
-function safeParseToml(toml) {
+function safeParseToml(t) {
   try {
-    return tomlParser.parse(toml);
+    return tomlParser.parse(t);
   } catch (error) {
     return {};
   }
@@ -45,7 +43,6 @@ function loadConfig() {
   }
 
   var mergedConfig = { ...config, ...localConfig }; // override default values with local values
-
   window["RUNTIME_CONFIG"] = mergedConfig;
 }
 

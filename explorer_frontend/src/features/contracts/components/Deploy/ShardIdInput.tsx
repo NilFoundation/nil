@@ -11,6 +11,7 @@ import {
 import type { FC } from "react";
 import { useStyletron } from "styletron-react";
 import { decrementShardId, incrementShardId } from "../../model";
+import { getRuntimeConfigOrThrow } from "../../../runtime-config";
 
 type ShardIdInputProps = {
   shardId: number | null;
@@ -113,7 +114,7 @@ export const ShardIdInput: FC<ShardIdInputProps> = ({ shardId, setShardId, disab
             className={css({
               textDecoration: "underline",
             })}
-            href={import.meta.env.VITE_EXPLORER_USAGE_DOCS_URL}
+            href={getRuntimeConfigOrThrow().EXPLORER_USAGE_DOCS_URL}
             target="_blank"
             rel="noreferrer"
           >

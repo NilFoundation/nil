@@ -2,6 +2,9 @@ import { useStyletron } from "styletron-react";
 import { Link } from "atomic-router-react";
 import { styles } from "./styles";
 import { LabelSmall } from "@nilfoundation/ui-kit";
+import { getRuntimeConfigOrThrow } from "../../../runtime-config";
+
+const rtc = getRuntimeConfigOrThrow();
 
 export const Navigation = () => {
   const [css] = useStyletron();
@@ -22,10 +25,10 @@ export const Navigation = () => {
 const config = [
   {
     title: "Documentation",
-    to: import.meta.env.VITE_DOCUMENTATION_URL,
+    to: rtc.DOCUMENTATION_URL,
   },
   {
     title: "GitHub",
-    to: import.meta.env.VITE_GITHUB_URL,
+    to: rtc.GITHUB_URL,
   },
 ] as const;
