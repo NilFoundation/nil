@@ -18,7 +18,7 @@
       let
         revCount = self.revCount or self.dirtyRevCount or 1;
         rev = self.shortRev or self.dirtyShortRev or "unknown";
-        version = "0.1.0-${toString revCount}";
+        version = "0.1.1-${toString revCount}";
         versionFull = "${version}-${rev}";
         pkgs = import nixpkgs { inherit system; };
       in
@@ -75,7 +75,7 @@
                 unpackPhase = "true";
                 buildPhase = ''
                   export HOME=$PWD
-                  
+
                   mkdir -p ./usr
                   mkdir -p ./usr/share/${packages.nildocs.pname}
                   mkdir -p ./usr/share/${packages.nilexplorer.name}
