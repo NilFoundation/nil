@@ -31,11 +31,15 @@ func (asr *AccountStateReader) GetCurrencyBalance(id types.CurrencyId) types.Val
 	return *res
 }
 
+type IExecutionState interface {
+	AppendToJournal(entry JournalEntry)
+	GetRwTx() db.RwTx
+}
+
 type AccountState struct {
-	db      *ExecutionState
+	db      IExecutionState
 	address types.Address // address of the ethereum account
 
-	Tx           db.RwTx
 	Balance      types.Value
 	Code         types.Code
 	CodeHash     common.Hash
@@ -63,7 +67,7 @@ type AccountState struct {
 	// the contract is just created within the current transaction, or when the
 	// object was previously existent and is being deployed as a contract within
 	// the current transaction.
-	newContract bool
+	NewContract bool
 }
 
 // FetchRequestId returns unique request id.
@@ -79,17 +83,16 @@ func NewAccountStateReader(account *AccountState) *AccountStateReader {
 	}
 }
 
-func NewAccountState(es *ExecutionState, addr types.Address, account *types.SmartContract) (*AccountState, error) {
+func NewAccountState(es IExecutionState, addr types.Address, account *types.SmartContract) (*AccountState, error) {
 	shardId := addr.ShardId()
 
 	accountState := &AccountState{
 		db:               es,
 		address:          addr,
-		CurrencyTree:     NewDbCurrencyTrie(es.tx, shardId),
-		StorageTree:      NewDbStorageTrie(es.tx, shardId),
-		AsyncContextTree: NewDbAsyncContextTrie(es.tx, shardId),
+		CurrencyTree:     NewDbCurrencyTrie(es.GetRwTx(), shardId),
+		StorageTree:      NewDbStorageTrie(es.GetRwTx(), shardId),
+		AsyncContextTree: NewDbAsyncContextTrie(es.GetRwTx(), shardId),
 
-		Tx:           es.tx,
 		State:        make(Storage),
 		AsyncContext: make(map[types.MessageIndex]*types.AsyncContext),
 		Currencies:   make(map[types.CurrencyId]types.Value),
@@ -102,7 +105,7 @@ func NewAccountState(es *ExecutionState, addr types.Address, account *types.Smar
 		accountState.CodeHash = account.CodeHash
 		accountState.AsyncContextTree.SetRootHash(account.AsyncContextRoot)
 		var err error
-		accountState.Code, err = db.ReadCode(es.tx, shardId, account.CodeHash)
+		accountState.Code, err = db.ReadCode(es.GetRwTx(), shardId, account.CodeHash)
 		if err != nil {
 			return nil, err
 		}
@@ -167,7 +170,7 @@ func (as *AccountState) GetState(key common.Hash) (common.Hash, error) {
 }
 
 func (as *AccountState) SetBalance(amount types.Value) {
-	as.db.journal.append(balanceChange{
+	as.db.AppendToJournal(balanceChange{
 		account: &as.address,
 		prev:    as.Balance,
 	})
@@ -187,7 +190,7 @@ func (as *AccountState) SetCurrencyBalance(id types.CurrencyId, amount types.Val
 	if prev != nil {
 		change.prev = *prev
 	}
-	as.db.journal.append(change)
+	as.db.AppendToJournal(change)
 	as.setCurrencyBalance(id, amount)
 }
 
@@ -218,7 +221,7 @@ func (as *AccountState) GetCurrencyBalance(id types.CurrencyId) *types.Value {
 }
 
 func (as *AccountState) SetSeqno(seqno types.Seqno) {
-	as.db.journal.append(seqnoChange{
+	as.db.AppendToJournal(seqnoChange{
 		account: &as.address,
 		prev:    as.Seqno,
 	})
@@ -226,7 +229,7 @@ func (as *AccountState) SetSeqno(seqno types.Seqno) {
 }
 
 func (as *AccountState) SetExtSeqno(seqno types.Seqno) {
-	as.db.journal.append(extSeqnoChange{
+	as.db.AppendToJournal(extSeqnoChange{
 		account: &as.address,
 		prev:    as.ExtSeqno,
 	})
@@ -235,7 +238,7 @@ func (as *AccountState) SetExtSeqno(seqno types.Seqno) {
 
 func (as *AccountState) SetCode(codeHash common.Hash, code []byte) {
 	prevcode := as.Code
-	as.db.journal.append(codeChange{
+	as.db.AppendToJournal(codeChange{
 		account:  &as.address,
 		prevhash: as.CodeHash[:],
 		prevcode: prevcode,
@@ -244,7 +247,7 @@ func (as *AccountState) SetCode(codeHash common.Hash, code []byte) {
 }
 
 func (as *AccountState) SetAsyncContext(index types.MessageIndex, ctx *types.AsyncContext) {
-	as.db.journal.append(asyncContextChange{
+	as.db.AppendToJournal(asyncContextChange{
 		account:   &as.address,
 		requestId: index,
 	})
@@ -276,7 +279,7 @@ func (as *AccountState) SetState(key common.Hash, value common.Hash) error {
 		return nil
 	}
 	// New value is different, update and journal the change
-	as.db.journal.append(storageChange{
+	as.db.AppendToJournal(storageChange{
 		account:   &as.address,
 		key:       key,
 		prevvalue: prev,
@@ -347,7 +350,7 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 		RequestId:        as.requestId,
 	}
 
-	if err := db.WriteCode(as.Tx, as.address.ShardId(), as.CodeHash, as.Code); err != nil {
+	if err := db.WriteCode(as.db.GetRwTx(), as.address.ShardId(), as.CodeHash, as.Code); err != nil {
 		return nil, err
 	}
 

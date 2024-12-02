@@ -4,9 +4,11 @@ import (
 	"os"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/mpttracer"
 	pb "github.com/NilFoundation/nil/nil/services/synccommittee/prover/proto"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
@@ -18,7 +20,7 @@ type PbTracesSet struct {
 	rw       *pb.RWTraces
 	zkevm    *pb.ZKEVMTraces
 	copy     *pb.CopyTraces
-	msg      *pb.MessageTraces
+	mpt      *pb.MPTTraces
 }
 
 // Each message is serialized into file with corresponding extension added to base file path
@@ -27,7 +29,7 @@ const (
 	rwExtension       = ".rw"
 	zkevmExtension    = ".zkevm"
 	copyExtension     = ".copy"
-	msgExtension      = ".msg"
+	mptExtension      = ".mpt"
 )
 
 func marshalToFile[Msg proto.Message](msg Msg, filename string) error {
@@ -78,7 +80,7 @@ func SerializeToFile(proofs ExecutionTraces, baseFileName string) error {
 
 	// Marshal msg traces message
 	eg.Go(func() error {
-		return marshalToFile(pbTraces.msg, baseFileName+msgExtension)
+		return marshalToFile(pbTraces.mpt, baseFileName+mptExtension)
 	})
 
 	return eg.Wait()
@@ -90,7 +92,7 @@ func DeserializeFromFile(baseFileName string) (ExecutionTraces, error) {
 		rw:       &pb.RWTraces{},
 		zkevm:    &pb.ZKEVMTraces{},
 		copy:     &pb.CopyTraces{},
-		msg:      &pb.MessageTraces{},
+		mpt:      &pb.MPTTraces{},
 	}
 
 	// Unmarshal trace files in parallel
@@ -116,9 +118,9 @@ func DeserializeFromFile(baseFileName string) (ExecutionTraces, error) {
 		return unmarshalFromFile(baseFileName+copyExtension, pbTraces.copy)
 	})
 
-	// Unmarshal msg traces message
+	// Unmarshal mpt traces message
 	eg.Go(func() error {
-		return unmarshalFromFile(baseFileName+msgExtension, pbTraces.msg)
+		return unmarshalFromFile(baseFileName+mptExtension, pbTraces.mpt)
 	})
 
 	if err := eg.Wait(); err != nil {
@@ -136,7 +138,6 @@ func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
 		StorageOps:        make([]StorageOp, len(traces.rw.StorageOps)),
 		ZKEVMStates:       make([]ZKEVMState, len(traces.zkevm.ZkevmStates)),
 		ContractsBytecode: make(map[types.Address][]byte, len(traces.bytecode.ContractBytecodes)),
-		SlotsChanges:      make([]map[types.Address][]SlotChangeTrace, len(traces.msg.MessageSlotChanges)),
 		CopyEvents:        make([]CopyEvent, len(traces.copy.CopyEvents)),
 	}
 
@@ -164,14 +165,14 @@ func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
 
 	for i, pbStorageOp := range traces.rw.StorageOps {
 		ep.StorageOps[i] = StorageOp{
-			IsRead:       pbStorageOp.IsRead,
-			Key:          common.HexToHash(pbStorageOp.Key),
-			Value:        protoUint256ToUint256(pbStorageOp.Value),
-			InitialValue: protoUint256ToUint256(pbStorageOp.InitialValue),
-			PC:           pbStorageOp.Pc,
-			MsgId:        uint(pbStorageOp.MsgId),
-			RwIdx:        uint(pbStorageOp.RwIdx),
-			Addr:         types.HexToAddress(pbStorageOp.Address.String()),
+			IsRead:    pbStorageOp.IsRead,
+			Key:       common.HexToHash(pbStorageOp.Key),
+			Value:     protoUint256ToUint256(pbStorageOp.Value),
+			PrevValue: protoUint256ToUint256(pbStorageOp.PrevValue),
+			PC:        pbStorageOp.Pc,
+			MsgId:     uint(pbStorageOp.MsgId),
+			RwIdx:     uint(pbStorageOp.RwIdx),
+			Addr:      types.HexToAddress(pbStorageOp.Address.String()),
 		}
 	}
 
@@ -212,32 +213,15 @@ func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
 		ep.CopyEvents[i].Data = pbCopyEventTrace.GetData()
 	}
 
-	for messageIdx, pbMessageTrace := range traces.msg.MessageSlotChanges {
-		addrToChanges := make(map[types.Address][]SlotChangeTrace, len(pbMessageTrace.StorageTracesByAddress))
-		for pbContractAddr, pbStorageTraces := range pbMessageTrace.StorageTracesByAddress {
-			storageTraces := make([]SlotChangeTrace, len(pbStorageTraces.SlotsChanges))
-			for i, pbSlotChange := range pbStorageTraces.SlotsChanges {
-				proof, err := protoToGoProof(pbSlotChange.SszProof)
-				if err != nil {
-					return nil, err
-				}
-				storageTraces[i] = SlotChangeTrace{
-					Key:         common.HexToHash(pbSlotChange.Key),
-					RootBefore:  common.HexToHash(pbSlotChange.RootBefore),
-					RootAfter:   common.HexToHash(pbSlotChange.RootAfter),
-					ValueBefore: protoUint256ToUint256(pbSlotChange.ValueBefore),
-					ValueAfter:  protoUint256ToUint256(pbSlotChange.ValueAfter),
-					Proof:       proof,
-				}
-			}
-			addrToChanges[types.HexToAddress(pbContractAddr)] = storageTraces
-		}
-		ep.SlotsChanges[messageIdx] = addrToChanges
-	}
-
 	for pbContractAddr, pbContractBytecode := range traces.bytecode.ContractBytecodes {
 		ep.ContractsBytecode[types.HexToAddress(pbContractAddr)] = pbContractBytecode
 	}
+
+	mptTraces, err := mptTracesFromProto(traces.mpt)
+	if err != nil {
+		return nil, err
+	}
+	ep.MPTTraces = mptTraces
 
 	return ep, nil
 }
@@ -256,7 +240,6 @@ func ToProto(tr ExecutionTraces) (*PbTracesSet, error) {
 		},
 		zkevm: &pb.ZKEVMTraces{ZkevmStates: make([]*pb.ZKEVMState, len(traces.ZKEVMStates))},
 		copy:  &pb.CopyTraces{CopyEvents: make([]*pb.CopyEvent, len(traces.CopyEvents))},
-		msg:   &pb.MessageTraces{MessageSlotChanges: make([]*pb.MessageSlotChanges, len(traces.SlotsChanges))},
 	}
 
 	// Convert StackOps
@@ -286,14 +269,14 @@ func ToProto(tr ExecutionTraces) (*PbTracesSet, error) {
 	// Convert StorageOps
 	for i, storageOp := range traces.StorageOps {
 		pbTraces.rw.StorageOps[i] = &pb.StorageOp{
-			IsRead:       storageOp.IsRead,
-			Key:          storageOp.Key.Hex(),
-			Value:        uint256ToProtoUint256(storageOp.Value),
-			InitialValue: uint256ToProtoUint256(storageOp.InitialValue),
-			Pc:           storageOp.PC,
-			MsgId:        uint64(storageOp.MsgId),
-			RwIdx:        uint64(storageOp.RwIdx),
-			Address:      &pb.Address{AddressBytes: storageOp.Addr.Bytes()},
+			IsRead:    storageOp.IsRead,
+			Key:       storageOp.Key.Hex(),
+			Value:     uint256ToProtoUint256(storageOp.Value),
+			PrevValue: uint256ToProtoUint256(storageOp.PrevValue),
+			Pc:        storageOp.PC,
+			MsgId:     uint64(storageOp.MsgId),
+			RwIdx:     uint64(storageOp.RwIdx),
+			Address:   &pb.Address{AddressBytes: storageOp.Addr.Bytes()},
 		}
 	}
 
@@ -340,41 +323,16 @@ func ToProto(tr ExecutionTraces) (*PbTracesSet, error) {
 		}
 	}
 
-	// Convert SlotsChanges
-	for messageIdx, addrToChanges := range traces.SlotsChanges {
-		messageTrace := &pb.MessageSlotChanges{
-			StorageTracesByAddress: make(map[string]*pb.AddressSlotsChanges),
-		}
-
-		for addr, storageTraces := range addrToChanges {
-			pbStorageTraces := &pb.AddressSlotsChanges{
-				SlotsChanges: make([]*pb.SlotChangeTrace, len(storageTraces)),
-			}
-
-			for i, slotChange := range storageTraces {
-				encodedProof, err := goToProtoProof(slotChange.Proof)
-				if err != nil {
-					return nil, err
-				}
-
-				pbStorageTraces.SlotsChanges[i] = &pb.SlotChangeTrace{
-					Key:         slotChange.Key.Hex(),
-					RootBefore:  slotChange.RootBefore.Hex(),
-					RootAfter:   slotChange.RootAfter.Hex(),
-					ValueBefore: uint256ToProtoUint256(slotChange.ValueBefore),
-					ValueAfter:  uint256ToProtoUint256(slotChange.ValueAfter),
-					SszProof:    encodedProof,
-				}
-			}
-			messageTrace.StorageTracesByAddress[addr.Hex()] = pbStorageTraces
-		}
-		pbTraces.msg.MessageSlotChanges[messageIdx] = messageTrace
-	}
-
 	// Convert ContractsBytecode
 	for addr, bytecode := range traces.ContractsBytecode {
 		pbTraces.bytecode.ContractBytecodes[addr.Hex()] = bytecode
 	}
+
+	mptTraces, err := mptTracesToProto(traces.MPTTraces)
+	if err != nil {
+		return nil, err
+	}
+	pbTraces.mpt = mptTraces
 
 	return pbTraces, nil
 }
@@ -447,4 +405,148 @@ func copyParticipantToProto(participant *CopyParticipant) *pb.CopyParticipant {
 		ret.Id = &pb.CopyParticipant_KeccakHash{KeccakHash: participant.KeccakHash.Hex()}
 	}
 	return ret
+}
+
+func mptTracesFromProto(pbMptTraces *pb.MPTTraces) (*mpttracer.MPTTraces, error) {
+	check.PanicIfNot(pbMptTraces != nil)
+
+	addrToStorageTraces := make(map[types.Address][]mpttracer.StorageTrieUpdateTrace, len(pbMptTraces.StorageTracesByAccount))
+	for addr, pbStorageTrace := range pbMptTraces.StorageTracesByAccount {
+		storageTraces := make([]mpttracer.StorageTrieUpdateTrace, len(pbStorageTrace.UpdatesTraces))
+		for i, pbStorageUpdateTrace := range pbStorageTrace.UpdatesTraces {
+			proof, err := protoToGoProof(pbStorageUpdateTrace.SszProof)
+			if err != nil {
+				return nil, err
+			}
+			storageTraces[i] = mpttracer.StorageTrieUpdateTrace{
+				Key:         common.HexToHash(pbStorageUpdateTrace.Key),
+				RootBefore:  common.HexToHash(pbStorageUpdateTrace.RootBefore),
+				RootAfter:   common.HexToHash(pbStorageUpdateTrace.RootAfter),
+				ValueBefore: protoUint256ToUint256(pbStorageUpdateTrace.ValueBefore),
+				ValueAfter:  protoUint256ToUint256(pbStorageUpdateTrace.ValueAfter),
+				Proof:       proof,
+			}
+		}
+		addrToStorageTraces[types.HexToAddress(addr)] = storageTraces
+	}
+
+	contractTrieTraces := make([]mpttracer.ContractTrieUpdateTrace, len(pbMptTraces.ContractTrieTraces))
+	for i, pbContractTrieUpdate := range pbMptTraces.ContractTrieTraces {
+		proof, err := protoToGoProof(pbContractTrieUpdate.SszProof)
+		if err != nil {
+			return nil, err
+		}
+		contractTrieTraces[i] = mpttracer.ContractTrieUpdateTrace{
+			Key:         common.HexToHash(pbContractTrieUpdate.Key),
+			RootBefore:  common.HexToHash(pbContractTrieUpdate.RootBefore),
+			RootAfter:   common.HexToHash(pbContractTrieUpdate.RootAfter),
+			ValueBefore: smartContractFromProto(pbContractTrieUpdate.ValueBefore),
+			ValueAfter:  smartContractFromProto(pbContractTrieUpdate.ValueAfter),
+			Proof:       proof,
+		}
+	}
+
+	ret := &mpttracer.MPTTraces{
+		StorageTracesByAccount: addrToStorageTraces,
+		ContractTrieTraces:     contractTrieTraces,
+	}
+
+	return ret, nil
+}
+
+func mptTracesToProto(mptTraces *mpttracer.MPTTraces) (*pb.MPTTraces, error) {
+	check.PanicIfNot(mptTraces != nil)
+
+	pbAddrToStorageTraces := make(map[string]*pb.StorageTrieUpdatesTraces, len(mptTraces.StorageTracesByAccount))
+	for addr, storageTraces := range mptTraces.StorageTracesByAccount {
+		pbStorageTraces := make([]*pb.StorageTrieUpdateTrace, len(storageTraces))
+		for i, storageUpdateTrace := range storageTraces {
+			proof, err := goToProtoProof(storageUpdateTrace.Proof)
+			if err != nil {
+				return nil, err
+			}
+			pbStorageTraces[i] = &pb.StorageTrieUpdateTrace{
+				Key:         storageUpdateTrace.Key.Hex(),
+				RootBefore:  storageUpdateTrace.RootBefore.Hex(),
+				RootAfter:   storageUpdateTrace.RootAfter.Hex(),
+				ValueBefore: uint256ToProtoUint256(storageUpdateTrace.ValueBefore),
+				ValueAfter:  uint256ToProtoUint256(storageUpdateTrace.ValueAfter),
+				SszProof:    proof,
+			}
+		}
+
+		pbAddrToStorageTraces[addr.Hex()] = &pb.StorageTrieUpdatesTraces{UpdatesTraces: pbStorageTraces}
+	}
+
+	pbContractTrieTraces := make([]*pb.ContractTrieUpdateTrace, len(mptTraces.ContractTrieTraces))
+	for i, contractTrieUpdate := range mptTraces.ContractTrieTraces {
+		proof, err := goToProtoProof(contractTrieUpdate.Proof)
+		if err != nil {
+			return nil, err
+		}
+		pbContractTrieTraces[i] = &pb.ContractTrieUpdateTrace{
+			Key:         contractTrieUpdate.Key.Hex(),
+			RootBefore:  contractTrieUpdate.RootBefore.Hex(),
+			RootAfter:   contractTrieUpdate.RootAfter.Hex(),
+			ValueBefore: smartContractToProto(contractTrieUpdate.ValueBefore),
+			ValueAfter:  smartContractToProto(contractTrieUpdate.ValueAfter),
+			SszProof:    proof,
+		}
+	}
+
+	ret := &pb.MPTTraces{
+		StorageTracesByAccount: pbAddrToStorageTraces,
+		ContractTrieTraces:     pbContractTrieTraces,
+	}
+
+	return ret, nil
+}
+
+// smartContractFromProto converts a Protocol Buffers SmartContract to Go SmartContract
+func smartContractFromProto(pbSmartContract *pb.SmartContract) *types.SmartContract {
+	if pbSmartContract == nil {
+		return nil
+	}
+
+	var balance types.Value
+	if pbSmartContract.Balance != nil {
+		b := protoUint256ToUint256(pbSmartContract.Balance)
+		balance = types.NewValue(b.Int())
+	}
+	return &types.SmartContract{
+		Address:          types.HexToAddress(pbSmartContract.Address),
+		Initialised:      pbSmartContract.Initialized,
+		Balance:          types.NewValue(balance.Int()),
+		CurrencyRoot:     common.HexToHash(pbSmartContract.CurrencyRoot),
+		StorageRoot:      common.HexToHash(pbSmartContract.StorageRoot),
+		CodeHash:         common.HexToHash(pbSmartContract.CodeHash),
+		AsyncContextRoot: common.HexToHash(pbSmartContract.AsyncContextRoot),
+		Seqno:            types.Seqno(pbSmartContract.Seqno),
+		ExtSeqno:         types.Seqno(pbSmartContract.ExtSeqno),
+		RequestId:        pbSmartContract.RequestId,
+	}
+}
+
+// smartContractToProto converts a Go SmartContract to Protocol Buffers SmartContract
+func smartContractToProto(smartContract *types.SmartContract) *pb.SmartContract {
+	if smartContract == nil {
+		return nil
+	}
+
+	var pbBalance *pb.Uint256
+	if smartContract.Balance.Uint256 != nil {
+		pbBalance = uint256ToProtoUint256(*smartContract.Balance.Uint256)
+	}
+	return &pb.SmartContract{
+		Address:          smartContract.Address.Hex(),
+		Initialized:      smartContract.Initialised,
+		Balance:          pbBalance,
+		CurrencyRoot:     smartContract.CurrencyRoot.Hex(),
+		StorageRoot:      smartContract.StorageRoot.Hex(),
+		CodeHash:         smartContract.CodeHash.Hex(),
+		AsyncContextRoot: smartContract.AsyncContextRoot.Hex(),
+		Seqno:            uint64(smartContract.Seqno),
+		ExtSeqno:         uint64(smartContract.ExtSeqno),
+		RequestId:        smartContract.RequestId,
+	}
 }

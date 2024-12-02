@@ -176,6 +176,10 @@ func NewDbStorageTrieReader(tx db.RoTx, shardId types.ShardId) *StorageTrieReade
 	return NewStorageTrieReader(mpt.NewDbReader(tx, shardId, db.StorageTrieTable))
 }
 
+func NewDbAsyncContextTrieReader(tx db.RoTx, shardId types.ShardId) *AsyncContextTrieReader {
+	return NewAsyncContextTrieReader(mpt.NewDbReader(tx, shardId, db.AsyncCallContextTable))
+}
+
 func NewDbCurrencyTrieReader(tx db.RoTx, shardId types.ShardId) *CurrencyTrieReader {
 	return NewCurrencyTrieReader(mpt.NewDbReader(tx, shardId, db.CurrencyTrieTable))
 }
@@ -330,4 +334,12 @@ func UpdateFromMap[K comparable, MV any, V any, VPtr MPTValue[V]](m *BaseMPT[K, 
 func (m *BaseMPT[K, V, VPtr]) Delete(key K) error {
 	k := m.keyToBytes(key)
 	return m.rwTrie.Delete(k)
+}
+
+func ConvertTrieEntriesToMap[K comparable, V any](entries []Entry[K, *V]) map[K]V {
+	return common.SliceToMap(
+		entries,
+		func(_ int, kv Entry[K, *V]) (K, V) {
+			return kv.Key, *kv.Val
+		})
 }

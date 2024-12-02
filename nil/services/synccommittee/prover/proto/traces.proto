@@ -39,15 +39,15 @@ message StorageOp {
     // HEX of hash, bytes would be more space-efficient, but less readable
     string key = 2;
     Uint256 value = 3;  // Single byte value
-    Uint256 initial_value = 4;  // Value before storage operation
+    Uint256 prev_value = 4;  // Value before storage operation
     uint64 pc = 5;
     uint64 msg_id = 6;  // Number of message within a block
     uint64 rw_idx = 7;  // shared between all ops counter
     Address address = 8;  // Contract address
 }
 
-// SlotChangeTrace represents a trace of storage slot change. Only initial and final value for each message
-message SlotChangeTrace {
+// StorageTrieUpdateTrace represents a trace of storage slot change.
+message StorageTrieUpdateTrace {
     // HEX of hashes, bytes would be more space-efficient, but less readable
     string key = 1;
     string root_before = 2;
@@ -57,14 +57,41 @@ message SlotChangeTrace {
     bytes ssz_proof = 6;
 }
 
-message AddressSlotsChanges {
-    repeated SlotChangeTrace slots_changes = 1;
+// ContractTrieUpdateTrace represents a trace of contract trie change.
+message ContractTrieUpdateTrace {
+    // HEX of hashes, bytes would be more space-efficient, but less readable
+    string key = 1;
+    string root_before = 2;
+    string root_after = 3;
+    SmartContract value_before = 4;
+    SmartContract value_after = 5;
+    bytes ssz_proof = 6;
 }
 
-// MessageSlotChanges contains traces related to a single executed message
-message MessageSlotChanges {
+message StorageTrieUpdatesTraces {
+    repeated StorageTrieUpdateTrace updates_traces = 1;
+}
+
+// MPTTraces contains traces related to an MPT circuit.
+message MPTTraces {
     // HEX address to slots changes in address's storage
-    map<string, AddressSlotsChanges> storage_traces_by_address = 1;
+    map<string, StorageTrieUpdatesTraces> storage_traces_by_account = 1;
+    repeated ContractTrieUpdateTrace contract_trie_traces = 2;
+
+}
+
+// types.SmartContract serialization
+message SmartContract {
+    string address = 1;
+    bool initialized = 2;
+    Uint256 balance = 3;
+    string currency_root = 4;
+    string storage_root = 5;
+    string code_hash = 6;
+    string async_context_root = 7;
+    uint64 seqno = 8;
+    uint64 ext_seqno = 9;
+    uint64 request_id = 10;
 }
 
 // StorageEntry is a key-value pair representing a single piece of storage data
@@ -138,8 +165,4 @@ message ZKEVMTraces {
 // Traces collected for bytecode circuit
 message CopyTraces {
     repeated CopyEvent copy_events = 1;
-}
-
-message MessageTraces {
-    repeated MessageSlotChanges message_slot_changes = 1;
 }

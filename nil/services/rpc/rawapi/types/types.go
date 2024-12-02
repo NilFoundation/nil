@@ -148,4 +148,6 @@ type SmartContract struct {
 	Code         types.Code
 	ProofEncoded []byte
 	Storage      map[common.Hash]types.Uint256
+	Currencies   map[types.CurrencyId]types.Value
+	AsyncContext map[types.MessageIndex]types.AsyncContext
 }
