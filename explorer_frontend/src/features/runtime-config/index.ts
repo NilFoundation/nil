@@ -1,0 +1,1 @@
+export { getRuntimeConfigOrThrow } from "./getRuntimeConfigOrThrow";

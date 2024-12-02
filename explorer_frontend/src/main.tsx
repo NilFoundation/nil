@@ -1,3 +1,5 @@
+console.log("Hello, World!", window.RUNTIME_CONFIG);
+
 import "./init";
 import { createRoot } from "react-dom/client";
 import { Client as Styletron } from "styletron-engine-atomic";
