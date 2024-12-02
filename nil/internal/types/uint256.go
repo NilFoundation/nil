@@ -35,6 +35,14 @@ func NewUint256FromBytes(buf []byte) *Uint256 {
 	return (*Uint256)(new(uint256.Int).SetBytes(buf))
 }
 
+func NewUint256FromDecimal(str string) (*Uint256, error) {
+	v := new(uint256.Int)
+	if err := v.SetFromDecimal(str); err != nil {
+		return nil, err
+	}
+	return (*Uint256)(v), nil
+}
+
 func NewUint256Random() *Uint256 {
 	buf := make([]byte, 32)
 	_, err := rand.Read(buf)

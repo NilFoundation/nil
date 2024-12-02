@@ -19,6 +19,14 @@ func NewValueFromUint64(val uint64) Value {
 	return Value{NewUint256(val)}
 }
 
+func NewValueFromDecimal(str string) (Value, error) {
+	v, err := NewUint256FromDecimal(str)
+	if err != nil {
+		return Value{}, err
+	}
+	return Value{v}, nil
+}
+
 func NewZeroValue() Value {
 	return NewValueFromUint64(0)
 }
