@@ -426,6 +426,13 @@ $errors.on(sendMethodFx.fail, (state, { params: { functionName }, error }) => {
   };
 });
 
+$errors.on(sendMethodFx.done, (state, { params: { functionName } }) => {
+  return {
+    ...state,
+    [functionName]: null,
+  };
+});
+
 $callParams.reset($activeAppWithState);
 
 $callParams.on(setParams, (state, { functionName, paramName, value }) => {

@@ -16,27 +16,18 @@ import { basicSetup } from "@uiw/react-codemirror";
 import { memo, useMemo } from "react";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import { linter, type Diagnostic } from "@codemirror/lint";
-import { ShareCodePanel } from "./ShareCodePanel";
+import { CodeToolbar } from "./code-toolbar/CodeToolbar";
 import { expandProperty } from "inline-style-expand-shorthand";
 import { getMobileStyles } from "../../styleHelpers";
 import { useMobile } from "../shared";
 import { LayoutComponent, setActiveComponent } from "../../pages/sandbox/model";
 import type { EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
-import { useHotkeys } from "react-hotkeys-hook";
+import { useCompileButton } from "./hooks/useCompileButton";
 
-const MemoizedShareCodePanel = memo(ShareCodePanel);
+const MemoizedCodeToolbar = memo(CodeToolbar);
 
 export const Code = () => {
-  useHotkeys(
-    "Meta+enter",
-    () => compile(),
-    {
-      preventDefault: true,
-      enableOnContentEditable: true,
-    },
-    [],
-  );
   const [isMobile] = useMobile();
   const [code, isDownloading, errors, fetchingCodeSnippet, compiling] = useUnit([
     $code,
@@ -70,20 +61,21 @@ export const Code = () => {
   }, [errors]);
 
   const noCode = code.trim().length === 0;
+  const btnContent = useCompileButton();
 
   return (
     <Card
       overrides={{
         Root: {
           style: {
-            backgroundColor: COLORS.gray900,
+            backgroundColor: "transparent",
             width: "100%",
             maxWidth: "none",
             ...expandProperty("padding", "0"),
             height: "100%",
             ...getMobileStyles({
               width: "calc(100vw - 32px)",
-              height: "calc(100vh - 109px)",
+              height: "calc(100vh - 96px)",
             }),
           },
         },
@@ -95,8 +87,6 @@ export const Code = () => {
             height: "100%",
             marginBottom: 0,
             paddinBottom: "16px",
-            overflow: "auto",
-            overscrollBehavior: "contain",
             ...getMobileStyles({
               gap: "8px",
             }),
@@ -112,8 +102,45 @@ export const Code = () => {
       <div
         className={css({
           flexBasis: "100%",
+          height: "100%",
         })}
       >
+        <div
+          className={css({
+            display: "flex",
+            justifyContent: "flex-start",
+            gap: "8px",
+            paddingBottom: "8px",
+            ...getMobileStyles({
+              flexDirection: "column",
+              gap: "8px",
+            }),
+            zIndex: 2,
+            height: "auto",
+          })}
+        >
+          <MemoizedCodeToolbar disabled={isDownloading || noCode} />
+          {!isMobile && (
+            <Button
+              kind={BUTTON_KIND.primary}
+              isLoading={isDownloading || compiling}
+              size={BUTTON_SIZE.default}
+              onClick={() => compile()}
+              disabled={noCode}
+              overrides={{
+                Root: {
+                  style: {
+                    whiteSpace: "nowrap",
+                    lineHeight: 1,
+                    marginLeft: "auto",
+                  },
+                },
+              }}
+            >
+              {btnContent}
+            </Button>
+          )}
+        </div>
         {fetchingCodeSnippet ? (
           <div
             className={css({
@@ -127,82 +154,67 @@ export const Code = () => {
             <Spinner />
           </div>
         ) : (
-          <CodeField
-            extensions={codemirrorExtensions}
-            editable
-            readOnly={false}
-            code={code}
-            onChange={(text) => {
-              changeCode(`${text}`);
-            }}
-            displayCopy={false}
-            highlightOnHover={false}
+          <div
             className={css({
-              paddingBottom: "0!important",
-            })}
-            showLineNumbers={false}
-          />
-        )}
-      </div>
-      <div
-        className={css({
-          display: "flex",
-          gap: "16px",
-          position: "sticky",
-          bottom: "-1px",
-          paddingBottom: "16px",
-          paddingTop: "16px",
-          background: COLORS.gray900,
-          ...getMobileStyles({
-            flexDirection: "column",
-            gap: "8px",
-          }),
-        })}
-      >
-        <Button
-          kind={BUTTON_KIND.primary}
-          isLoading={isDownloading || compiling}
-          size={isMobile ? BUTTON_SIZE.large : BUTTON_SIZE.default}
-          onClick={() => compile()}
-          disabled={noCode}
-          overrides={{
-            Root: {
-              style: {
-                marginLeft: "24px",
-                whiteSpace: "nowrap",
-                lineHeight: 1,
-                ...getMobileStyles({
-                  marginRight: "24px",
-                }),
-              },
-            },
-          }}
-        >
-          Compile ⌘ +{" "}
-          <span
-            className={css({
-              marginLeft: "0.5ch",
-              paddingTop: "2px",
+              width: "100%",
+              height: `calc(100% - ${isMobile ? "32px - 8px - 8px - 48px - 8px - 48px - 8px" : "48px - 8px"})`,
+              overflow: "auto",
+              overscrollBehavior: "contain",
+              backgroundColor: COLORS.gray900,
+              borderTopLeftRadius: "12px",
+              borderTopRightRadius: "12px",
+              borderBottomLeftRadius: "12px",
+              borderBottomRightRadius: "12px",
             })}
           >
-            ↵
-          </span>
-        </Button>
-        {!isMobile && <MemoizedShareCodePanel disabled={isDownloading || noCode} />}
+            <CodeField
+              extensions={codemirrorExtensions}
+              editable
+              readOnly={false}
+              code={code}
+              onChange={(text) => {
+                changeCode(`${text}`);
+              }}
+              displayCopy={false}
+              highlightOnHover={false}
+              className={css({
+                paddingBottom: "0!important",
+              })}
+              showLineNumbers={false}
+            />
+          </div>
+        )}
         {isMobile && (
           <div
             className={css({
-              display: "flex",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gridTemplateRows: "48px 48px",
               gap: "8px",
-              paddingLeft: "24px",
-              paddingRight: "24px",
+              paddingTop: "8px",
             })}
           >
+            <Button
+              kind={BUTTON_KIND.primary}
+              isLoading={isDownloading || compiling}
+              onClick={() => compile()}
+              disabled={noCode}
+              overrides={{
+                Root: {
+                  style: {
+                    lineHeight: 1,
+                    gridColumn: "1 / 3",
+                  },
+                },
+              }}
+            >
+              {btnContent}
+            </Button>
             <Button
               overrides={{
                 Root: {
                   style: {
-                    width: "50%",
+                    gridColumn: "1 / 2",
                   },
                 },
               }}
@@ -216,7 +228,7 @@ export const Code = () => {
               overrides={{
                 Root: {
                   style: {
-                    width: "50%",
+                    gridColumn: "2 / 3",
                   },
                 },
               }}
