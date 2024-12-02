@@ -31,7 +31,14 @@ buildGo123Module rec {
     ln -f -s ${solc}/bin/solc ~/.gsolc-select/artifacts/solc-0.8.28/solc-0.8.28
   '';
 
-  src = lib.sourceByRegex ./.. [ "Makefile" "go.mod" "go.sum" "^nil(/.*)?$" "^smart-contracts(/.*)?$" ];
+  src = lib.sourceByRegex ./.. [
+    "Makefile"
+    "go.mod"
+    "go.sum"
+    "^nil(/.*)?$"
+    "^smart-contracts(/.*)?$"
+    "^uniswap(/.*)?$"
+  ];
 
   # to obtain run `nix build` with vendorHash = "";
   vendorHash = "sha256-oh/00lcMdaVPxCXNfleN2Sra3RTcv35806Y/xZyu1Dk=";
