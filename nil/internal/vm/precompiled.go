@@ -983,10 +983,11 @@ func (e *emitLog) Run(state StateDB, input []byte, value *uint256.Int, caller Co
 		}
 	}
 
-	if err = state.AddDebugLog(&types.DebugLog{
-		Message: []byte(message),
-		Data:    data,
-	}); err != nil {
+	debugLog, err := types.NewDebugLog([]byte(message), data)
+	if err != nil {
+		return nil, types.KeepOrWrapError(types.ErrorEmitDebugLogFailed, err)
+	}
+	if err = state.AddDebugLog(debugLog); err != nil {
 		return nil, types.KeepOrWrapError(types.ErrorEmitDebugLogFailed, err)
 	}
 

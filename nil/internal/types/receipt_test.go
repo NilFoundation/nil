@@ -19,7 +19,8 @@ func TestReceiptEncoding(t *testing.T) {
 	h1 := common.HexToHash("55555555555555555555")
 	h2 := common.HexToHash("77777777777777777777")
 	topics := []common.Hash{h1, h2}
-	log := NewLog(HexToAddress("0xbbbbbbbbb"), data, topics)
+	log, err := NewLog(HexToAddress("0xbbbbbbbbb"), data, topics)
+	require.NoError(t, err)
 
 	receipt := &Receipt{Success: true, GasUsed: 123}
 	receipt.Logs = append(receipt.Logs, log)
@@ -30,7 +31,8 @@ func TestReceiptEncoding(t *testing.T) {
 	require.NoError(t, err)
 	topics = []common.Hash{h1, h2, h3, h4}
 
-	log = NewLog(HexToAddress("0xaaaaaaaa"), data, topics)
+	log, err = NewLog(HexToAddress("0xaaaaaaaa"), data, topics)
+	require.NoError(t, err)
 	receipt.Logs = append(receipt.Logs, log)
 
 	buf, err = receipt.MarshalSSZ()
