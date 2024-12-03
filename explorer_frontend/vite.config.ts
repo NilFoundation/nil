@@ -24,6 +24,7 @@ export default defineConfig({
     }),
     vitePluginString({
       include: ["**/*.sol"],
+      compress: false,
     }),
   ],
   build: {

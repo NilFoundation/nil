@@ -7,18 +7,18 @@ export const codeDomain = createDomain("code");
 const createStore = codeDomain.createStore.bind(codeDomain);
 const createEffect = codeDomain.createEffect.bind(codeDomain);
 
-export const $code = createStore<string>("");
-export const changeCode = createEvent<string>();
-export const compile = createEvent();
-export const $solidityVersion = createStore("soljson-v0.8.26+commit.8a97fa7a.js");
-export const changeSolidityVersion = createEvent<string>();
-export const $error = createStore<
+export const $code = codeDomain.createStore<string>("");
+export const changeCode = codeDomain.createEvent<string>();
+export const compile = codeDomain.createEvent();
+export const $solidityVersion = codeDomain.createStore("soljson-v0.8.26+commit.8a97fa7a.js");
+export const changeSolidityVersion = codeDomain.createEvent<string>();
+export const $error = codeDomain.createStore<
   {
     message: string;
     line: number;
   }[]
 >([]);
-export const compileCodeFx = createEffect<
+export const compileCodeFx = codeDomain.createEffect<
   {
     code: string;
     version: string;
@@ -26,14 +26,14 @@ export const compileCodeFx = createEffect<
   App[]
 >();
 
-export const $codeSnippetHash = createStore<string | null>(null);
-export const $shareCodeSnippetError = createStore<boolean>(false);
+export const $codeSnippetHash = codeDomain.createStore<string | null>(null);
+export const $shareCodeSnippetError = codeDomain.createStore<boolean>(false);
 
-export const setCodeSnippetEvent = createEvent();
-export const fetchCodeSnippetEvent = createEvent();
+export const setCodeSnippetEvent = codeDomain.createEvent();
+export const fetchCodeSnippetEvent = codeDomain.createEvent<string>();
 
-export const setCodeSnippetFx = createEffect<string, string>();
-export const fetchCodeSnippetFx = createEffect<string, string>();
+export const setCodeSnippetFx = codeDomain.createEffect<string, string>();
+export const fetchCodeSnippetFx = codeDomain.createEffect<string, string>();
 
 setCodeSnippetFx.use((code) => {
   return setCodeSnippet(code);

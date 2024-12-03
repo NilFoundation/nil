@@ -13,6 +13,7 @@ import {
   $shareCodeSnippetError,
   fetchCodeSnippetFx,
   loadedPage,
+  fetchCodeSnippetEvent,
 } from "./model";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import type { App } from "../../types";
@@ -158,4 +159,10 @@ redirect({
   clock: fetchCodeSnippetFx.doneData,
   route: sandboxRoute,
   params: {},
+});
+
+sample({
+  clock: fetchCodeSnippetEvent,
+  source: fetchCodeSnippetEvent,
+  target: fetchCodeSnippetFx,
 });
