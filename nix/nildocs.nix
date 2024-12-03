@@ -40,6 +40,7 @@ stdenv.mkDerivation rec {
   '';
 
   buildPhase = ''
+    export UV_USE_IO_URING=0
     runHook preBuild
     patchShebangs docs/node_modules
     patchShebangs niljs/node_modules
@@ -59,6 +60,7 @@ stdenv.mkDerivation rec {
   doCheck = enableTesting;
 
   checkPhase = ''
+    export UV_USE_IO_URING=0
     echo "Runnig tests..."
     bash run_tests.sh
     echo "Tests passed"

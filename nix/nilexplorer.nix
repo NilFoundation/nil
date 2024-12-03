@@ -35,6 +35,7 @@ stdenv.mkDerivation rec {
   dontConfigure = true;
 
   buildPhase = ''
+    export UV_USE_IO_URING=0
     patchShebangs explorer_frontend/node_modules
 
     (cd smart-contracts; npm run compile)
@@ -47,6 +48,7 @@ stdenv.mkDerivation rec {
   doCheck = enableTesting;
 
   checkPhase = ''
+    export UV_USE_IO_URING=0
     export BIOME_BINARY=${biome}/bin/biome
 
     echo "Checking explorer frontend"

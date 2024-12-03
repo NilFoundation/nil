@@ -26,6 +26,7 @@ stdenv.mkDerivation rec {
   dontConfigure = true;
 
   buildPhase = ''
+    export UV_USE_IO_URING=0
     (cd smart-contracts; npm run compile)
     cd niljs
     npm run build
@@ -34,6 +35,8 @@ stdenv.mkDerivation rec {
   doCheck = enableTesting;
 
   checkPhase = ''
+    export UV_USE_IO_URING=0
+
     patchShebangs node_modules
     nohup nild run --http-port 8529 --collator-tick-ms=100 > nild.log 2>&1 & echo $! > nild_pid &
     nohup faucet run > faucet.log 2>&1 & echo $! > faucet_pid

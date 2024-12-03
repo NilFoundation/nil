@@ -26,6 +26,7 @@ stdenv.mkDerivation rec {
   dontConfigure = true;
 
   buildPhase = ''
+    export UV_USE_IO_URING=0
     cd smart-contracts
     npm run compile
   '';
