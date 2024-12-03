@@ -35,17 +35,7 @@ func collectFailedReceipts(dst []*jsonrpc.RPCReceipt, receipt *jsonrpc.RPCReceip
 	return dst
 }
 
-func (s *Service) WaitForReceipt(msgHash common.Hash) (*jsonrpc.RPCReceipt, error) {
-	receipt, err := concurrent.WaitFor(context.Background(), ReceiptWaitFor, ReceiptWaitTick, func(ctx context.Context) (*jsonrpc.RPCReceipt, error) {
-		receipt, err := s.client.GetInMessageReceipt(msgHash)
-		if err != nil {
-			return nil, err
-		}
-		if !receipt.IsComplete() {
-			return nil, nil
-		}
-		return receipt, nil
-	})
+func (s *Service) handleReceipt(receipt *jsonrpc.RPCReceipt, err error) (*jsonrpc.RPCReceipt, error) {
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Error during waiting for receipt")
 		return nil, err
@@ -88,6 +78,32 @@ func (s *Service) WaitForReceipt(msgHash common.Hash) (*jsonrpc.RPCReceipt, erro
 		}
 	}
 	return receipt, nil
+}
+
+func (s *Service) waitForReceiptCommon(msgHash common.Hash, check func(receipt *jsonrpc.RPCReceipt) bool) (*jsonrpc.RPCReceipt, error) {
+	receipt, err := concurrent.WaitFor(context.Background(), ReceiptWaitFor, ReceiptWaitTick, func(ctx context.Context) (*jsonrpc.RPCReceipt, error) {
+		receipt, err := s.client.GetInMessageReceipt(msgHash)
+		if err != nil {
+			return nil, err
+		}
+		if !check(receipt) {
+			return nil, nil
+		}
+		return receipt, nil
+	})
+	return s.handleReceipt(receipt, err)
+}
+
+func (s *Service) WaitForReceipt(msgHash common.Hash) (*jsonrpc.RPCReceipt, error) {
+	return s.waitForReceiptCommon(msgHash, func(receipt *jsonrpc.RPCReceipt) bool {
+		return receipt.IsComplete()
+	})
+}
+
+func (s *Service) WaitForReceiptCommitted(msgHash common.Hash) (*jsonrpc.RPCReceipt, error) {
+	return s.waitForReceiptCommon(msgHash, func(receipt *jsonrpc.RPCReceipt) bool {
+		return receipt.IsCommitted()
+	})
 }
 
 type MessageHashMismatchError struct {
