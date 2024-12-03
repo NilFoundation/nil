@@ -64,5 +64,5 @@ const QuestionButtonPopoverContent = () => {
     },
   };
 
-  return <Menu items={items} size={MENU_SIZE.small} overrides={menuOverrides} />;
+  return <Menu isDropdown items={items} size={MENU_SIZE.small} overrides={menuOverrides} />;
 };

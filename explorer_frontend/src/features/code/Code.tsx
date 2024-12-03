@@ -119,7 +119,7 @@ export const Code = () => {
             height: "auto",
           })}
         >
-          <MemoizedCodeToolbar disabled={isDownloading || noCode} />
+          <MemoizedCodeToolbar disabled={isDownloading} />
           {!isMobile && (
             <Button
               kind={BUTTON_KIND.primary}
@@ -149,6 +149,11 @@ export const Code = () => {
               alignItems: "center",
               width: "100%",
               height: "100%",
+              backgroundColor: COLORS.gray900,
+              borderTopLeftRadius: "12px",
+              borderTopRightRadius: "12px",
+              borderBottomLeftRadius: "12px",
+              borderBottomRightRadius: "12px",
             })}
           >
             <Spinner />
