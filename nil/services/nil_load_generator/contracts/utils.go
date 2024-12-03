@@ -59,7 +59,7 @@ func SendMessageAndCheck(client client.Client, service *cliservice.Service, wall
 	if err != nil {
 		return err
 	}
-	_, err = service.WaitForReceipt(hash)
+	_, err = service.WaitForReceiptCommitted(hash)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func DeployContract(service *cliservice.Service, wallet types.Address, code type
 	if err != nil {
 		return types.EmptyAddress, err
 	}
-	_, err = service.WaitForReceipt(txHashCaller)
+	_, err = service.WaitForReceiptCommitted(txHashCaller)
 	if err != nil {
 		return types.EmptyAddress, err
 	}

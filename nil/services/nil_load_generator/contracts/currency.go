@@ -64,7 +64,7 @@ func sendExternalMessage(client client.Client, service *cliservice.Service, call
 	if err != nil {
 		return err
 	}
-	_, err = service.WaitForReceipt(hash)
+	_, err = service.WaitForReceiptCommitted(hash)
 	if err != nil {
 		return err
 	}

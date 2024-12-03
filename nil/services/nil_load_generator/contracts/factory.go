@@ -39,7 +39,7 @@ func (f *Factory) CreatePair(service *cliservice.Service, client client.Client, 
 	if err != nil {
 		return err
 	}
-	_, err = service.WaitForReceipt(hash)
+	_, err = service.WaitForReceiptCommitted(hash)
 	if err != nil {
 		return err
 	}
