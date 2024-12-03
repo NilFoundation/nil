@@ -15,7 +15,6 @@ import {
   hexToBytes,
   waitTillCompleted,
   getContract,
-  calculateAddress,
 } from "@nilfoundation/niljs";
 
 import { encodeFunctionData, type Abi } from "viem";
@@ -190,23 +189,16 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
       });
 
       const walletAddress = wallet.address;
+
       await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(10));
 
       await wallet.selfDeploy(true);
 
-      const { hash: counterDeployHash, address: counterAddress } = await wallet.deployContract({
-        abi: COUNTER_ABI as unknown as Abi,
-        bytecode: COUNTER_BYTECODE,
-        args: [],
-        salt: SALT,
-        shardId: 1,
-      });
-      await waitTillCompleted(client, counterDeployHash);
-
+      //startFactoryIncrement
       const contract = getContract({
         client: client,
         abi: COUNTER_ABI as unknown[],
-        address: counterAddress,
+        address: COUNTER_ADDRESS,
         wallet: wallet,
       });
 
@@ -218,6 +210,11 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
 
       const res2 = await contract.read.getValue([]);
 
+      console.log(res2);
+      //endFactoryIncrement
+
+      expect(res).toBeDefined;
+      expect(res2).toBeDefined;
       expect(res2).toBe(1n);
     },
     80000,

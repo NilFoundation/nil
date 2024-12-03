@@ -12,6 +12,21 @@ Complete the following tutorials before proceeding.
 * [**Writing a contract**](writing-a-contract.mdx)
 * [**Deploying a contract**](deploying-a-contract.mdx)
 
+## Via the contract factory
+
+`Nil.js` exposes the contract factory, a Hardhat-like tool for interacting with smart contracts. 
+
+To order a new product via the contract factory:
+
+```ts showLineNumbers file=../../../tests/working-with-smart-contracts-niljs.test.mjs start=startFactoryOrder end=endFactoryOrder
+```
+
+To attain the result:
+
+
+```ts showLineNumbers file=../../../tests/working-with-smart-contracts-niljs.test.mjs start=startFactoryProducts end=endFactoryProducts
+```
+
 
 ## Using internal messages
 

@@ -167,6 +167,10 @@ describe.sequential("Nil.js deployment tests", async () => {
       console.log(res2);
 
       //endFactoryProducts
+
+      expect(res).toBeDefined;
+      expect(res2).toBeDefined;
+      expect(res2).toContain(/new-product/);
     },
     80000,
   );

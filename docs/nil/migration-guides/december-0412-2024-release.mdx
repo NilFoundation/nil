@@ -1,0 +1,115 @@
+# Release 04.12.2024: migration guide
+
+This release of =nil; fixes several issues with the =nil; CLI and adds quality-of-life improvements to `Nil.js`.
+
+## Summary of key changes
+
+### General changes
+
+* The [**Cometa service**](../guides/cometa-and-debugging.mdx) supports displaying Solidity generated code
+* Cometa can now also pinpoint the exact function (in addition to the exact line of code) where an issue occurs 
+* The names and descriptions of several errors have been made clearer, simplifying debugging
+
+### =nil; CLI changes
+
+* The =nil; CLI can use the `rpc_endpoint` from its config for working with [**the faucet service**](../getting-started/essentials/tokens-multi-currency.mdx#currency-faucet-service) and the Cometa service if no separate endpoints are set for either of them
+* The `nil contract call-readonly` command now returns JSON-formatted output when objects are returned by a call
+* The =nil; CLI can display debug logs and events emitted by smart contracts when using the `nil contract call-readonly` command
+* The output of the `nil config show` command has been made more concise
+
+### `Nil.js` changes and `smart-contracts` changes
+
+* `Nil.js` now provides the contract factory, a Hardhat-like interface for interacting with smart contracts
+* It is possible to estimate gas with `Nil.js` via the `estimateGas()` function
+* `Nil.js` supports sending some `feeCredit` with external messages, making external deployment of smart contracts more convenient
+* The `Wallet.sol` contract includes the `simpleAsyncCall()` function that can forward any `feeCredit` sent with an external message
+
+## Migration of smart contracts
+
+* Use `simpleAsyncCall()` inside `Wallet.sol`
+
+Previously, the wallet contract in `Wallet.sol` did not forward `feeCredit` from any external messages that were sent to it. As a result, the wallet used its balance to pay for the execution of smart contracts across async call chains. This made managing `feeCredit` complicated when interacting with other smart contracts.
+
+`simpleAsyncCall()` resolves this issue: the wallet will use Nil.`FORWARD_REMAINING` to send its own remaining `feeCredit` across the async call chain. Note that the wallet has one additional overload of `simpleAsyncCall()` that accepts the `feeCredit` argument and uses `Nil.FORWARD_NONE`. This overload is functionally equivalent to the previous `asyncCall()` function used by the wallet.
+
+Using the new default wallet requires redeploying it in any existing projects built on =nil;. 
+
+:::info
+
+Inside `Wallet.sol`, the `asyncCall()` function and its overloads has been removed.
+
+:::
+
+## Migration of =nil; CLI commands
+
+* Use `rpc_endpoint` across all services including faucet and Cometa
+
+It is now not necessary to set separate values for `rpc_endpoint`, `cometa_endpoint`, and `faucet_endpoint` in the config file for the =nil; CLI. If `cometa_endpoint` and `faucet_endpoint` are empty, =nil; CLI will simply send requests to the RPC endpoint, and these services should still work correctly.
+
+* Parse improved output of the `nil contract call-readonly` command
+
+When an object is returned as part of a call, the =nil; CLI can now show JSON-formatted output that demonstrates each object field and value:
+
+```json
+Success, result:
+(address,string,string,string,string,string,string,string): {"owner": ADDRESS,"profile_name":"Jack Smith","affiliation":"bigco","bio":"bio","role":"engineer","twitter_link":"twitter","linkedin_link":"linkedin","github_link":"github"}
+```
+
+In addition, the CLI now shows logs and events emitted by smart contracts when performing calls.
+
+* View concise contents of the =nil; CLI config file
+
+The `nil config show` command now outputs the contents of the CLI config file without any excessive logs:
+
+```bash
+The config file   : path/to/config.ini
+private_key       : PRIVATE_KEY
+address           : ADDRESS
+rpc_endpoint      : RPC_ENDPOINT
+```
+
+As a result, the output of the command should be easier to parse in scripts.
+
+## Migration of `Nil.js` scripts
+
+* Use the new contract factory
+
+Nil.js now exposes a Hardhat-like interface for interacting with smart contracts. After being deployed, a contract can be acquired by calling the `getContract()` function:
+
+```ts showLineNumbers
+const contract = getContract({
+        client: client,
+        abi: ABI,
+        address: ADDRESS,
+        wallet: wallet,
+      });
+```
+
+Afterward, simply call methods on the contract object directly instead of sending external messages or internal messages via a wallet:
+
+```ts showLineNumbers
+const res = await contract.read.funcName([]);
+const hash = await contract.write.otherFuncName([]);
+await waitTillCompleted(client, hash);
+```
+
+The contract factory provides an abstraction over common methods for interacting with already deployed contracts. Using it should make Nil.js code more concise and easy-to-read.
+
+* Estimate gas in `Nil.js`
+
+The `PublicClient` inside `Nil.js` now contains the `estimateGas()` function that can be used to estimate the `feeCredit` for performing a call or sending a message to a specific address. There is no longer a need to evaluate `feeCredit` manually or by using the =nil; CLI.
+
+* Send `feeCredit` with an external message
+
+It is now also possible to specify the exact amount of `feeCredit` send with an external message. Previously, this value was hard-coded. This change provides greater control over how much tokens contracts pay for their execution when called externally. 
+
+## Migration of Hardhat projects 
+
+No specific changes have to be made to existing Hardhat projects.
+
+
+
+
+
+
+
