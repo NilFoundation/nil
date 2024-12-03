@@ -33,6 +33,11 @@ stdenv.mkDerivation rec {
 
   dontConfigure = true;
 
+  preUnpack = ''
+    echo "Setting UV_USE_IO_URING=0 to work around the io_uring kernel bug"
+    export UV_USE_IO_URING=0
+  '';
+
   preBuild = ''
     export HOME="$TMPDIR"
     mkdir -p ~/.gsolc-select/artifacts/solc-0.8.28
@@ -40,7 +45,6 @@ stdenv.mkDerivation rec {
   '';
 
   buildPhase = ''
-    export UV_USE_IO_URING=0
     runHook preBuild
     patchShebangs docs/node_modules
     patchShebangs niljs/node_modules
@@ -60,7 +64,6 @@ stdenv.mkDerivation rec {
   doCheck = enableTesting;
 
   checkPhase = ''
-    export UV_USE_IO_URING=0
     echo "Runnig tests..."
     bash run_tests.sh
     echo "Tests passed"

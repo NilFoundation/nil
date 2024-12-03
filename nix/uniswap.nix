@@ -39,9 +39,12 @@ stdenv.mkDerivation rec {
 
   dontConfigure = true;
 
-  buildPhase = ''
+  preUnpack = ''
+    echo "Setting UV_USE_IO_URING=0 to work around the io_uring kernel bug"
     export UV_USE_IO_URING=0
+  '';
 
+  buildPhase = ''
     patchShebangs node_modules
 
     (cd smart-contracts; npm run compile)
@@ -52,8 +55,6 @@ stdenv.mkDerivation rec {
   doCheck = enableTesting;
 
   checkPhase = ''
-    export UV_USE_IO_URING=0
-
     echo "Installing soljson"
     (cd create-nil-hardhat-project; bash install_soljson.sh ${soljson26})
 

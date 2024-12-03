@@ -25,8 +25,12 @@ stdenv.mkDerivation rec {
 
   dontConfigure = true;
 
-  buildPhase = ''
+  preUnpack = ''
+    echo "Setting UV_USE_IO_URING=0 to work around the io_uring kernel bug"
     export UV_USE_IO_URING=0
+  '';
+
+  buildPhase = ''
     cd smart-contracts
     npm run compile
   '';

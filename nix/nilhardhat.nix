@@ -45,8 +45,12 @@ stdenv.mkDerivation rec {
 
   dontConfigure = true;
 
-  buildPhase = ''
+  preUnpack = ''
+    echo "Setting UV_USE_IO_URING=0 to work around the io_uring kernel bug"
     export UV_USE_IO_URING=0
+  '';
+
+  buildPhase = ''
     patchShebangs hardhat-plugin/node_modules
     (cd smart-contracts; npm run compile)
     (cd niljs; npm run build)
@@ -57,7 +61,6 @@ stdenv.mkDerivation rec {
   doCheck = enableTesting;
 
   checkPhase = ''
-    export UV_USE_IO_URING=0
     export BIOME_BINARY=${biome}/bin/biome
 
     echo "Linting hardhat-plugin"
