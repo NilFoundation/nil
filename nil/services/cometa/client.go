@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/version"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
@@ -99,6 +101,21 @@ func (c *Client) GetLocation(address types.Address, pc uint64) (*Location, error
 		return nil, fmt.Errorf("failed to unmarshal contract: %w", err)
 	}
 	return &loc, nil
+}
+
+func (c *Client) GetAbi(address types.Address) (abi.ABI, error) {
+	response, err := c.sendRequest("cometa_getAbi", []any{address})
+	if err != nil {
+		return abi.ABI{}, err
+	}
+	var str *string
+	if err := json.Unmarshal(response, &str); err != nil {
+		return abi.ABI{}, fmt.Errorf("failed to unmarshal abi: %w", err)
+	}
+	if str == nil {
+		return abi.ABI{}, ErrAbiNotFound
+	}
+	return abi.JSON(strings.NewReader(*str))
 }
 
 func (c *Client) CompileContract(inputJsonFile string) (*ContractData, error) {

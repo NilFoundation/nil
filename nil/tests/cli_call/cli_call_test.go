@@ -3,7 +3,6 @@ package tests
 import (
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/client"
@@ -74,17 +73,6 @@ func (s *SuiteCliTestCall) TearDownTest() {
 	s.Cancel()
 }
 
-func (s *SuiteCliTestCall) testResult(res string, expectedLines ...string) {
-	s.T().Helper()
-
-	lines := strings.Split(strings.Trim(res, "\n"), "\n")
-	s.Require().GreaterOrEqual(len(lines), len(expectedLines))
-
-	for i, line := range expectedLines {
-		s.Require().Equal(line, lines[i])
-	}
-}
-
 func (s *SuiteCliTestCall) TestCliCall() {
 	abiData, err := contracts.GetAbiData(contracts.NameTest)
 	s.Require().NoError(err)
@@ -95,33 +83,33 @@ func (s *SuiteCliTestCall) TestCliCall() {
 	var res string
 
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "noReturn", "--abi", abiFile)
-	s.testResult(res, "Success, no result")
+	s.CheckResult(res, "Success, no result")
 
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getSum", "1", "2", "--abi", abiFile)
-	s.testResult(res, "Success, result:", "uint256: 3")
+	s.CheckResult(res, "Success, result:", "uint256: 3")
 
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getString", "--abi", abiFile)
-	s.testResult(res, "Success, result:", "string: \"Very long string with many characters and words and spaces and numbers and symbols and everything else that can be in a string\"")
+	s.CheckResult(res, "Success, result:", "string: \"Very long string with many characters and words and spaces and numbers and symbols and everything else that can be in a string\"")
 
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getNumAndString", "--abi", abiFile)
-	s.testResult(res, "Success, result:", "uint256: 123456789012345678901234567890", "string: \"Simple string\"")
+	s.CheckResult(res, "Success, result:", "uint256: 123456789012345678901234567890", "string: \"Simple string\"")
 
 	res, err = s.RunCliNoCheck("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "nonExistingMethod", "--abi", abiFile)
 	s.Require().Error(err)
-	s.testResult(res, "Error: failed to pack method call: method 'nonExistingMethod' not found")
+	s.CheckResult(res, "Error: failed to pack method call: method 'nonExistingMethod' not found")
 
 	overridesFile := s.TmpDir + "/overrides.json"
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getValue", "--abi", abiFile)
-	s.testResult(res, "Success, result:", "uint32: 0")
+	s.CheckResult(res, "Success, result:", "uint32: 0")
 
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "setValue", "321", "--abi", abiFile, "--out-overrides", overridesFile, "--with-details")
-	s.testResult(res, "Success, no result", "Logs:", "Event: stubCalled", "uint32: 321", "Debug logs:", "Value set to [321]")
+	s.CheckResult(res, "Success, no result", "Logs:", "Event: stubCalled", "uint32: 321", "Debug logs:", "Value set to [321]")
 
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "setValue", "123", "--abi", abiFile, "--out-overrides", overridesFile)
-	s.testResult(res, "Success, no result")
+	s.CheckResult(res, "Success, no result")
 
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getValue", "--abi", abiFile, "--in-overrides", overridesFile)
-	s.testResult(res, "Success, result:", "uint32: 123")
+	s.CheckResult(res, "Success, result:", "uint32: 123")
 }
 
 func TestCliCall(t *testing.T) {

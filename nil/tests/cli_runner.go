@@ -43,3 +43,14 @@ func (s *CliRunner) RunCliNoCheck(args ...string) (string, error) {
 	data, err := cmd.CombinedOutput()
 	return strings.TrimSpace(string(data)), err
 }
+
+func (s *CliRunner) CheckResult(res string, expectedLines ...string) {
+	s.T().Helper()
+
+	lines := strings.Split(strings.Trim(res, "\n"), "\n")
+	s.Require().GreaterOrEqual(len(lines), len(expectedLines))
+
+	for i, line := range expectedLines {
+		s.Require().Equal(line, lines[i])
+	}
+}

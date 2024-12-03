@@ -26,7 +26,12 @@ func GetCommand() *cobra.Command {
 		Args:         cobra.MinimumNArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, err := common.ArgsToCalldata(path, args[0], args[1:])
+			abi, err := common.ReadAbiFromFile(path)
+			if err != nil {
+				return err
+			}
+
+			data, err := common.ArgsToCalldata(abi, args[0], args[1:])
 			if err != nil {
 				return err
 			}

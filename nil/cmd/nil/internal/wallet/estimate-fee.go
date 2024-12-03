@@ -37,7 +37,12 @@ func runEstimateFee(args []string, cfg *common.Config) error {
 		return fmt.Errorf("invalid address: %w", err)
 	}
 
-	calldata, err := common.PrepareArgs(params.abiPath, args[1], args[2:])
+	abi, err := common.ReadAbiFromFile(params.abiPath)
+	if err != nil {
+		return err
+	}
+
+	calldata, err := common.PrepareArgs(abi, args[1], args[2:])
 	if err != nil {
 		return err
 	}

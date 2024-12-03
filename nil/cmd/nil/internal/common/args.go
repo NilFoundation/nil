@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/hex"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -17,13 +17,13 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
-func PrepareArgs(abiPath string, calldataOrMethod string, args []string) ([]byte, error) {
+func PrepareArgs(contractAbi abi.ABI, calldataOrMethod string, args []string) ([]byte, error) {
 	var calldata []byte
-	if strings.HasPrefix(calldataOrMethod, "0x") && abiPath == "" {
+	if strings.HasPrefix(calldataOrMethod, "0x") {
 		calldata = hexutil.FromHex(calldataOrMethod)
 	} else {
 		var err error
-		calldata, err = ArgsToCalldata(abiPath, calldataOrMethod, args)
+		calldata, err = ArgsToCalldata(contractAbi, calldataOrMethod, args)
 		if err != nil {
 			return nil, err
 		}
@@ -110,16 +110,7 @@ func parseCallArguments(args []string, inputs abi.Arguments) ([]any, error) {
 	return parsedArgs, nil
 }
 
-func ArgsToCalldata(abiPath string, method string, args []string) ([]byte, error) {
-	abiFile, err := os.ReadFile(abiPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read ABI file: %w", err)
-	}
-	var contractAbi abi.ABI
-	if err := json.Unmarshal(abiFile, &contractAbi); err != nil {
-		return nil, fmt.Errorf("failed to parse ABI: %w", err)
-	}
-
+func ArgsToCalldata(contractAbi abi.ABI, method string, args []string) ([]byte, error) {
 	inputs := contractAbi.Constructor.Inputs
 	if method != "" {
 		inputs = contractAbi.Methods[method].Inputs
@@ -153,6 +144,18 @@ func ReadAbiFromFile(abiPath string) (abi.ABI, error) {
 	}
 
 	return abi.JSON(bytes.NewReader(abiFile))
+}
+
+func FetchAbiFromCometa(addr types.Address) (abi.ABI, error) {
+	client := GetCometaRpcClient()
+	if client == nil {
+		return abi.ABI{}, errors.New("cometa client is not initialized")
+	}
+	res, err := client.GetAbi(addr)
+	if err != nil {
+		return abi.ABI{}, fmt.Errorf("failed to fetch contract from cometa: %w", err)
+	}
+	return res, nil
 }
 
 func DecodeLogs(abi abi.ABI, logs []*types.Log) ([]*NamedArgValues, error) {
@@ -224,7 +227,12 @@ func ReadBytecode(filename string, abiPath string, args []string) (types.Code, e
 
 		bytecode = hexutil.FromHex(string(codeHex))
 		if abiPath != "" {
-			calldata, err := ArgsToCalldata(abiPath, "", args)
+			abi, err := ReadAbiFromFile(abiPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read abi: %w", err)
+			}
+
+			calldata, err := ArgsToCalldata(abi, "", args)
 			if err != nil {
 				return nil, fmt.Errorf("failed to handle constructor arguments: %w", err)
 			}
