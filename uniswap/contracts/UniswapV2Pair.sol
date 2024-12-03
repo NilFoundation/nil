@@ -13,7 +13,7 @@ contract UniswapV2Pair is NilCurrencyBase, IUniswapV2Pair {
     using SafeMath for uint;
     uint public constant MINIMUM_LIQUIDITY = 10 ** 3;
     bytes4 private constant SELECTOR =
-    bytes4(keccak256(bytes("transfer(address,uint256)")));
+        bytes4(keccak256(bytes("transfer(address,uint256)")));
 
     address public factory;
     address public token0;
@@ -37,13 +37,20 @@ contract UniswapV2Pair is NilCurrencyBase, IUniswapV2Pair {
         unlocked = 1;
     }
 
-    function getReserves() public view returns (uint256 _reserve0, uint256 _reserve1)
+    function getReserves()
+        public
+        view
+        returns (uint256 _reserve0, uint256 _reserve1)
     {
         _reserve0 = reserve0;
         _reserve1 = reserve1;
     }
 
-    function _safeTransfer(CurrencyId _tokenId, address _to, uint _value) private {
+    function _safeTransfer(
+        CurrencyId _tokenId,
+        address _to,
+        uint _value
+    ) private {
         sendCurrencyInternal(_to, _tokenId, _value);
     }
 
@@ -52,7 +59,12 @@ contract UniswapV2Pair is NilCurrencyBase, IUniswapV2Pair {
     }
 
     // called once by the factory at time of deployment
-    function initialize(address _token0, address _token1, CurrencyId _tokenId0, CurrencyId _tokenId1) public {
+    function initialize(
+        address _token0,
+        address _token1,
+        CurrencyId _tokenId0,
+        CurrencyId _tokenId1
+    ) public {
         token0 = _token0;
         token1 = _token1;
         tokenId0 = _tokenId0;
@@ -63,8 +75,8 @@ contract UniswapV2Pair is NilCurrencyBase, IUniswapV2Pair {
     function _update(
         uint balance0,
         uint balance1,
-        uint256 _reserve0,
-        uint256 _reserve1
+        uint256 /*_reserve0*/,
+        uint256 /*_reserve1*/
     ) internal {
         uint32 blockTimestamp = uint32(block.timestamp % 2 ** 32);
 
@@ -89,8 +101,7 @@ contract UniswapV2Pair is NilCurrencyBase, IUniswapV2Pair {
                     uint numerator = totalSupply.mul(rootK.sub(rootKLast));
                     uint denominator = rootK.mul(5).add(rootKLast);
                     uint liquidity = numerator / denominator;
-                    if (liquidity > 0)
-                        mintCurrencyInternal(liquidity);
+                    if (liquidity > 0) mintCurrencyInternal(liquidity);
                     sendCurrencyInternal(feeTo, getCurrencyId(), liquidity);
                 }
             }
@@ -128,15 +139,13 @@ contract UniswapV2Pair is NilCurrencyBase, IUniswapV2Pair {
     }
 
     // this low-level function should be called from a contract which performs important safety checks
-    function burn(
-        address to
-    ) public lock returns (uint amount0, uint amount1) {
+    function burn(address to) public lock returns (uint amount0, uint amount1) {
         (uint256 _reserve0, uint256 _reserve1) = getReserves(); // gas savings
-        address _token0 = token0; // gas savings
-        address _token1 = token1; // gas savings
+        CurrencyId _tokenId0 = tokenId0; // gas savings
+        CurrencyId _tokenId1 = tokenId1; // gas savings
 
-        uint balance0 = Nil.currencyBalance(address(this), tokenId0);
-        uint balance1 = Nil.currencyBalance(address(this), tokenId1);
+        uint balance0 = Nil.currencyBalance(address(this), _tokenId0);
+        uint balance1 = Nil.currencyBalance(address(this), _tokenId1);
         uint liquidity = Nil.currencyBalance(address(this), getCurrencyId());
 
         bool feeOn = _mintFee(_reserve0, _reserve1);
@@ -147,22 +156,18 @@ contract UniswapV2Pair is NilCurrencyBase, IUniswapV2Pair {
             "UniswapV2: INSUFFICIENT_LIQUIDITY_BURNED"
         );
         burnCurrencyInternal(liquidity);
-        _safeTransfer(tokenId0, to, amount0);
-        _safeTransfer(tokenId1, to, amount1);
+        _safeTransfer(_tokenId0, to, amount0);
+        _safeTransfer(_tokenId1, to, amount1);
 
-        balance0 = Nil.currencyBalance(address(this), tokenId0);
-        balance1 = Nil.currencyBalance(address(this), tokenId1);
+        balance0 = Nil.currencyBalance(address(this), _tokenId0);
+        balance1 = Nil.currencyBalance(address(this), _tokenId1);
         _update(balance0, balance1, _reserve0, _reserve1);
         if (feeOn) kLast = uint(reserve0).mul(reserve1); // reserve0 and reserve1 are up-to-date
         emit Burn(msg.sender, amount0, amount1, to);
     }
 
     // this low-level function should be called from a contract which performs important safety checks
-    function swap(
-        uint amount0Out,
-        uint amount1Out,
-        address to
-    ) public lock {
+    function swap(uint amount0Out, uint amount1Out, address to) public lock {
         require(
             amount0Out > 0 || amount1Out > 0,
             "UniswapV2: INSUFFICIENT_OUTPUT_AMOUNT"
@@ -202,7 +207,7 @@ contract UniswapV2Pair is NilCurrencyBase, IUniswapV2Pair {
             uint balance1Adjusted = balance1.mul(1000).sub(amount1In.mul(3));
             require(
                 balance0Adjusted.mul(balance1Adjusted) >=
-                uint(_reserve0).mul(_reserve1).mul(1000 ** 2),
+                    uint(_reserve0).mul(_reserve1).mul(1000 ** 2),
                 "UniswapV2: K"
             );
         }
@@ -212,17 +217,17 @@ contract UniswapV2Pair is NilCurrencyBase, IUniswapV2Pair {
 
     // force balances to match reserves
     function skim(address to) public lock {
-        address _token0 = token0; // gas savings
-        address _token1 = token1; // gas savings
+        CurrencyId _tokenId0 = tokenId0; // gas savings
+        CurrencyId _tokenId1 = tokenId1; // gas savings
         _safeTransfer(
-            tokenId0,
+            _tokenId0,
             to,
-            Nil.currencyBalance(address(this), tokenId0).sub(reserve0)
+            Nil.currencyBalance(address(this), _tokenId0).sub(reserve0)
         );
         _safeTransfer(
-            tokenId1,
+            _tokenId1,
             to,
-            Nil.currencyBalance(address(this), tokenId1).sub(reserve1)
+            Nil.currencyBalance(address(this), _tokenId1).sub(reserve1)
         );
     }
 
@@ -239,6 +244,7 @@ contract UniswapV2Pair is NilCurrencyBase, IUniswapV2Pair {
     function token0Id() external view returns (CurrencyId) {
         return tokenId0;
     }
+
     function token1Id() external view returns (CurrencyId) {
         return tokenId1;
     }
