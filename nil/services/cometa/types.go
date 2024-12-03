@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+var ErrAbiNotFound = errors.New("abi not found")
+
 // CompilerJsonInput represents the input structure for the solidity compiler.
 type CompilerJsonInput struct {
 	Language string             `json:"language"`
