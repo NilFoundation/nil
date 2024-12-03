@@ -1,5 +1,7 @@
 import type { Hex } from "./Hex.js";
 
+export type Flags = "Internal" | "External" | "Deploy" | "Refund" | "Bounce" | "Response";
+
 /**
  * The structure representing a JSON-RPC message.
  *
@@ -7,13 +9,14 @@ import type { Hex } from "./Hex.js";
  * @typedef {RPCMessage}
  */
 export type RPCMessage = {
+  flags: Flags[];
   success: boolean;
   data: Hex;
   blockHash: Hex;
   blockNumber: number;
   from: Hex;
   gasUsed: Hex;
-  gasLimit: string;
+  feeCredit: string;
   hash: Hex;
   seqno: Hex;
   to: Hex;

@@ -244,7 +244,7 @@ class PublicClient extends BaseClient {
     return {
       ...res,
       value: BigInt(res.value),
-      gasLimit: BigInt(res.gasLimit),
+      feeCredit: BigInt(res.feeCredit || 0),
       gasUsed: hexToBigInt(res.gasUsed),
       seqno: hexToBigInt(res.seqno),
       index: res.index ? hexToNumber(res.index) : 0,
@@ -337,17 +337,28 @@ class PublicClient extends BaseClient {
     return stubGasLimit;
   }
 
+  private chainIdCache: number | null = null;
+
   /**
    * Returns the chain ID.
    * @returns The chain ID.
    */
   public async chainId(): Promise<number> {
+    if (this.chainIdCache) {
+      return this.chainIdCache;
+    }
+
     const res = await this.request<Hex>({
       method: "eth_chainId",
       params: [],
     });
 
+    this.chainIdCache = hexToNumber(res);
     return hexToNumber(res);
+  }
+
+  public clearChainIdCache() {
+    this.chainIdCache = null;
   }
 
   /**
@@ -459,13 +470,13 @@ class PublicClient extends BaseClient {
       to: callArgs.to,
       data: data,
       value: toHex(callArgs.value || 0n),
-      feeCredit: (callArgs.feeCredit || 5_000_000n).toString(10),
+      feeCredit: (callArgs.feeCredit || 0).toString(10),
     };
 
     const params: unknown[] = [sendData, blockNumberOrHash];
 
     const res = await this.request<`0x${string}`>({
-      method: "eth_estimateGas",
+      method: "eth_estimateFee",
       params,
     });
 

@@ -8,6 +8,8 @@ type DeployDataBase = {
   bytecode: Uint8Array | Hex;
   salt: Uint8Array | bigint;
   shard: number;
+  chainId?: number;
+  feeCredit?: bigint;
 };
 
 type DeployDataWithArgs = DeployDataBase & {

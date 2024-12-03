@@ -15,6 +15,7 @@ import {
   hexToBytes,
   waitTillCompleted,
   getContract,
+  calculateAddress,
 } from "@nilfoundation/niljs";
 
 import { encodeFunctionData, type Abi } from "viem";
@@ -25,6 +26,7 @@ const RPC_ENDPOINT = RPC_GLOBAL;
 import fs from "node:fs/promises";
 import path from "node:path";
 import { COUNTER_COMPILATION_COMMAND } from "./compilationCommands";
+import { expect } from "vitest";
 const __dirname = path.dirname(__filename);
 
 const util = require("node:util");
@@ -157,10 +159,9 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
     expect(code.length).toBeGreaterThan(10);
   });
 
-  test.skip.sequential(
+  test.sequential(
     "contract factory can call Counter successfully",
     async () => {
-      console.log(COUNTER_ADDRESS);
       const SALT = BigInt(Math.floor(Math.random() * 10000));
 
       const client = new PublicClient({
@@ -189,28 +190,35 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
       });
 
       const walletAddress = wallet.address;
-
-      console.log(walletAddress);
-
       await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(10));
 
-      await faucet.withdrawToWithRetry(COUNTER_ADDRESS, convertEthToWei(10));
-
       await wallet.selfDeploy(true);
+
+      const { hash: counterDeployHash, address: counterAddress } = await wallet.deployContract({
+        abi: COUNTER_ABI as unknown as Abi,
+        bytecode: COUNTER_BYTECODE,
+        args: [],
+        salt: SALT,
+        shardId: 1,
+      });
+      await waitTillCompleted(client, counterDeployHash);
+
       const contract = getContract({
         client: client,
-        abi: COUNTER_ABI,
-        address: COUNTER_ADDRESS,
+        abi: COUNTER_ABI as unknown[],
+        address: counterAddress,
         wallet: wallet,
       });
 
-      const res = await contract.write.increment();
+      const res = await contract.read.getValue([]);
+      expect(res).toBe(0n);
 
-      console.log(res);
+      const hash = await contract.write.increment([]);
+      await waitTillCompleted(client, hash);
 
-      const res2 = await contract.read.getValue();
+      const res2 = await contract.read.getValue([]);
 
-      console.log(res2);
+      expect(res2).toBe(1n);
     },
     80000,
   );

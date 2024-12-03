@@ -13,9 +13,9 @@
     "lint:fix": "biome check --write ."
   },
   "dependencies": {
-    "@nilfoundation/hardhat-plugin": "0.17.1",
-    "@nilfoundation/niljs": "0.19.1",
-    "@nilfoundation/smart-contracts": "0.1.5",
+    "@nilfoundation/hardhat-plugin": "0.18.0",
+    "@nilfoundation/niljs": "0.20.0",
+    "@nilfoundation/smart-contracts": "0.2.0",
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
