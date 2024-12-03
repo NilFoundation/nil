@@ -25,7 +25,7 @@ import (
 type SyncerConfig struct {
 	ShardId       types.ShardId
 	Timeout       time.Duration // pull blocks if no new blocks appear in the topic for this duration
-	BootstrapPeer string
+	BootstrapPeer *network.AddrInfo
 	ReplayBlocks  bool // replay blocks (archive node) or store headers and messages only
 
 	BlockGeneratorParams execution.BlockGeneratorParams
@@ -92,9 +92,9 @@ func (s *Syncer) shardIsEmpty(ctx context.Context) (bool, error) {
 }
 
 func (s *Syncer) Run(ctx context.Context, wgFetch *sync.WaitGroup) error {
-	if snapIsRequred, err := s.shardIsEmpty(ctx); err != nil {
+	if snapIsRequired, err := s.shardIsEmpty(ctx); err != nil {
 		return err
-	} else if snapIsRequred {
+	} else if snapIsRequired {
 		if err := FetchSnapshot(ctx, s.networkManager, s.config.BootstrapPeer, s.config.ShardId, s.db); err != nil {
 			return fmt.Errorf("failed to fetch snapshot: %w", err)
 		}

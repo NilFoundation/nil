@@ -27,7 +27,7 @@ func (s *DHTSuite) TestTwoHosts() {
 	m1 := s.newManagerWithBaseConfig(conf)
 	defer m1.Close()
 
-	conf.DHTBootstrapPeers = []string{CalcAddress(m1)}
+	conf.DHTBootstrapPeers = AddrInfoSlice{CalcAddress(m1)}
 	m2 := s.newManagerWithBaseConfig(conf)
 	defer m2.Close()
 

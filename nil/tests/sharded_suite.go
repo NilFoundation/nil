@@ -26,7 +26,7 @@ type Shard struct {
 	Id         types.ShardId
 	Db         db.DB
 	RpcUrl     string
-	P2pAddress string
+	P2pAddress network.AddrInfo
 	Client     client.Client
 	nm         *network.Manager
 }

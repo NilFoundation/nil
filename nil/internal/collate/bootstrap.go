@@ -71,20 +71,19 @@ func fetchShardSnap(ctx context.Context, nm *network.Manager, peerId network.Pee
 }
 
 // Fetch DB snapshot via libp2p.
-func FetchSnapshot(ctx context.Context, nm *network.Manager, peerAddr string, shardId types.ShardId, db db.DB) error {
+func FetchSnapshot(ctx context.Context, nm *network.Manager, peerAddr *network.AddrInfo, shardId types.ShardId, db db.DB) error {
 	if nm == nil {
 		return nil
 	}
 
 	logger := logging.NewLogger("bootstrap").With().Stringer(logging.FieldShardId, shardId).Logger()
-	if peerAddr == "" {
+	if peerAddr == nil {
 		logger.Info().Msg("Peer address is empty. Snapshot won't be fetched")
 		return nil
 	}
-
 	logger.Info().Msgf("Start to fetch data snapshot from %s", peerAddr)
 
-	peerId, err := nm.Connect(ctx, peerAddr)
+	peerId, err := nm.Connect(ctx, *peerAddr)
 	if err != nil {
 		logger.Error().Err(err).Msgf("Failed to connect to %s", peerAddr)
 		return err

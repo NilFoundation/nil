@@ -208,9 +208,9 @@ func createArchiveSyncers(cfg *Config, nm *network.Manager, database db.DB, logg
 
 	funcs := make([]concurrent.Func, 0, len(nodeShards))
 	for i, shardId := range nodeShards {
-		var bootstrapPeer string
+		var bootstrapPeer *network.AddrInfo
 		if len(cfg.BootstrapPeers) > 0 {
-			bootstrapPeer = cfg.BootstrapPeers[i]
+			bootstrapPeer = &cfg.BootstrapPeers[i]
 		}
 
 		zeroState := execution.DefaultZeroStateConfig
@@ -482,7 +482,7 @@ func createShards(
 				Timeout:      syncerTimeout,
 			}
 			if int(shard) < len(cfg.BootstrapPeers) {
-				config.BootstrapPeer = cfg.BootstrapPeers[shard]
+				config.BootstrapPeer = &cfg.BootstrapPeers[shard]
 			}
 			if networkManager == nil {
 				return nil, nil, errors.New("trying to start syncer without network configuration")

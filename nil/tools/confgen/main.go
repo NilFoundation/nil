@@ -35,7 +35,7 @@ func do(nShards uint, dir string) error {
 	logger.Info().Msgf("Generating %d configs in %s", nShards, dir)
 
 	configs := make([]*nildconfig.Config, nShards)
-	peerAddresses := make([]string, nShards)
+	peerAddresses := make(network.AddrInfoSlice, nShards)
 
 	for i := range nShards {
 		suffix := shardSuffix(nShards, i)
@@ -71,7 +71,11 @@ func do(nShards uint, dir string) error {
 			return err
 		}
 
-		peerAddresses[i] = fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/p2p/%s", cfg.Network.TcpPort, peerId)
+		peerAddress, err := peer.AddrInfoFromString(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/p2p/%s", cfg.Network.TcpPort, peerId))
+		if err != nil {
+			return err
+		}
+		peerAddresses[i] = network.AddrInfo(*peerAddress)
 
 		configs[i] = cfg
 	}

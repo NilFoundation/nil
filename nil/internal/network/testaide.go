@@ -10,12 +10,15 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 )
 
-func CalcAddress(m *Manager) string {
-	return m.host.Addrs()[0].String() + "/p2p/" + m.host.ID().String()
+func CalcAddress(m *Manager) AddrInfo {
+	addr, err := peer.AddrInfoFromString(m.host.Addrs()[0].String() + "/p2p/" + m.host.ID().String())
+	check.PanicIfErr(err)
+	return AddrInfo(*addr)
 }
 
 func NewTestManagerWithBaseConfig(t *testing.T, ctx context.Context, conf *Config) *Manager {
@@ -83,7 +86,7 @@ func WaitForPeer(t *testing.T, m *Manager, id PeerID) {
 	}, 10*time.Second, 100*time.Millisecond)
 }
 
-func GenerateConfig(t *testing.T, port int) (*Config, string) {
+func GenerateConfig(t *testing.T, port int) (*Config, AddrInfo) {
 	t.Helper()
 
 	key, err := GeneratePrivateKey()
@@ -92,20 +95,21 @@ func GenerateConfig(t *testing.T, port int) (*Config, string) {
 	id, err := peer.IDFromPublicKey(key.GetPublic())
 	require.NoError(t, err)
 
-	address := fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/p2p/%s", port, id)
+	address, err := peer.AddrInfoFromString(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/p2p/%s", port, id))
+	require.NoError(t, err)
 
 	return &Config{
 		PrivateKey: key,
 		TcpPort:    port,
 		DHTEnabled: true,
-	}, address
+	}, AddrInfo(*address)
 }
 
-func GenerateConfigs(t *testing.T, n uint32, port int) ([]*Config, []string) {
+func GenerateConfigs(t *testing.T, n uint32, port int) ([]*Config, AddrInfoSlice) {
 	t.Helper()
 
 	configs := make([]*Config, n)
-	addresses := make([]string, n)
+	addresses := make(AddrInfoSlice, n)
 	for i := range int(n) {
 		configs[i], addresses[i] = GenerateConfig(t, port+i)
 		configs[i].DHTBootstrapPeers = addresses

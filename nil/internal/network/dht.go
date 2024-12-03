@@ -6,7 +6,6 @@ import (
 
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/rs/zerolog"
 )
 
@@ -24,15 +23,7 @@ func NewDHT(ctx context.Context, h host.Host, conf *Config, logger zerolog.Logge
 		return dht.New(ctx, h, dht.Mode(dht.ModeServer))
 	}
 
-	bootstrapPeers := make([]peer.AddrInfo, len(conf.DHTBootstrapPeers))
-	for i, p := range conf.DHTBootstrapPeers {
-		peerInfo, err := peer.AddrInfoFromString(p)
-		if err != nil {
-			return nil, err
-		}
-		bootstrapPeers[i] = *peerInfo
-	}
-	res, err := dht.New(ctx, h, dht.BootstrapPeers(bootstrapPeers...), dht.RoutingTableRefreshPeriod(1*time.Minute))
+	res, err := dht.New(ctx, h, dht.BootstrapPeers(ToLibP2pAddrInfoSlice(conf.DHTBootstrapPeers)...), dht.RoutingTableRefreshPeriod(1*time.Minute))
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +31,7 @@ func NewDHT(ctx context.Context, h host.Host, conf *Config, logger zerolog.Logge
 		return nil, err
 	}
 
-	logger.Info().Msgf("DHT bootstrapped with %d peers", len(bootstrapPeers))
+	logger.Info().Msgf("DHT bootstrapped with %d peers", len(conf.DHTBootstrapPeers))
 
 	return res, nil
 }
