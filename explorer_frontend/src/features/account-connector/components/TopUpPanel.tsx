@@ -16,6 +16,7 @@ import { useUnit } from "effector-react";
 import { CurrencyInput } from "../../currencies";
 import type { InputOverrides } from "baseui/input";
 import { $faucets } from "../../currencies/model";
+import { getRuntimeConfigOrThrow } from "../../runtime-config";
 
 const inputOverrides: InputOverrides = {
   Root: {
@@ -115,7 +116,7 @@ const TopUpPanel = () => {
         })}
       >
         <a
-          href={import.meta.env.VITE_SANDBOX_MULTICURRENCY_URL}
+          href={getRuntimeConfigOrThrow().SANDBOX_MULTICURRENCY_URL}
           target="_blank"
           rel="noreferrer"
           className={css({

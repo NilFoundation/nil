@@ -1,6 +1,7 @@
 import { COLORS, MonoParagraphMedium } from "@nilfoundation/ui-kit";
 import type { FC } from "react";
 import { useStyletron } from "styletron-react";
+import { getRuntimeConfigOrThrow } from "../../runtime-config";
 
 type LogsGreetingProps = {
   className?: string;
@@ -55,7 +56,7 @@ const LogsGreeting: FC<LogsGreetingProps> = ({ className }) => {
               className={css({
                 textDecoration: "underline",
               })}
-              href={import.meta.env.VITE_SANDBOX_DOCS_URL}
+              href={getRuntimeConfigOrThrow().DOCUMENTATION_URL}
               target="_blank"
               rel="noreferrer"
             >
@@ -69,7 +70,7 @@ const LogsGreeting: FC<LogsGreetingProps> = ({ className }) => {
               className={css({
                 textDecoration: "underline",
               })}
-              href={import.meta.env.VITE_SANDBOX_NILJS_URL}
+              href={getRuntimeConfigOrThrow().SANDBOX_NILJS_URL}
               target="_blank"
               rel="noreferrer"
             >
