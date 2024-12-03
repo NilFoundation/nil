@@ -197,7 +197,7 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilCurrencyBase {
         );
         uint amount0Out = tokens[0].id == token0Id ? 0 : amount;
         uint amount1Out = tokens[0].id != token0Id ? 0 : amount;
-        (bool success, bytes memory result) = smartCall(
+        (bool success,) = smartCall(
             pair,
             tokens,
             abi.encodeWithSignature(
