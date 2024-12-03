@@ -8,6 +8,8 @@ const keys = [
   "SANDBOX_NILJS_URL",
   "SANDBOX_MULTICURRENCY_URL",
   "EXPLORER_USAGE_DOCS_URL",
+  "SANDBOX_SUPPORT_URL",
+  "SANDBOX_FEEDBACK_URL",
 ] as const;
 
 type RuntimConfigKeys = (typeof keys)[number];

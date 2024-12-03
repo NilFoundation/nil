@@ -10,15 +10,50 @@ import {
 import { useStyletron } from "styletron-react";
 import { ArrowUpRightIcon, QuestionIcon, StatefulPopover, useMobile } from "../../shared";
 import type { MenuOverrides } from "baseui/menu";
+import { getRuntimeConfigOrThrow } from "../../runtime-config";
+
+const menuOverrides: MenuOverrides = {
+  List: {
+    style: {
+      backgroundColor: COLORS.gray800,
+    },
+  },
+};
 
 export const QuestionButton = () => {
   const [css] = useStyletron();
   const [isMobile] = useMobile();
+  const { SANDBOX_FEEDBACK_URL, SANDBOX_SUPPORT_URL, SANDBOX_DOCS_URL } = getRuntimeConfigOrThrow();
+
+  const items: Items = [
+    {
+      label: "Documentation",
+      endEnhancer: <ArrowUpRightIcon />,
+      href: SANDBOX_DOCS_URL,
+    },
+    {
+      label: "Support",
+      endEnhancer: <ArrowUpRightIcon />,
+      href: SANDBOX_SUPPORT_URL,
+    },
+    {
+      label: (
+        <span
+          className={css({
+            whiteSpace: "nowrap",
+          })}
+        >
+          {"Share feedback"}
+        </span>
+      ),
+      href: SANDBOX_FEEDBACK_URL,
+    },
+  ];
 
   return (
     <StatefulPopover
       popoverMargin={8}
-      content={<QuestionButtonPopoverContent />}
+      content={<Menu isDropdown items={items} size={MENU_SIZE.small} overrides={menuOverrides} />}
       placement="bottomRight"
       autoFocus
       triggerType="click"
@@ -35,34 +70,4 @@ export const QuestionButton = () => {
       />
     </StatefulPopover>
   );
-};
-
-const QuestionButtonPopoverContent = () => {
-  const items: Items = [
-    {
-      label: "Documentation",
-      endEnhancer: <ArrowUpRightIcon />,
-      href: import.meta.env.VITE_SANDBOX_DOCS_URL,
-    },
-    {
-      label: "Support",
-      endEnhancer: <ArrowUpRightIcon />,
-      disabled: true,
-    },
-    {
-      label: "Share feedback",
-      href: "",
-      disabled: true,
-    },
-  ];
-
-  const menuOverrides: MenuOverrides = {
-    List: {
-      style: {
-        backgroundColor: COLORS.gray800,
-      },
-    },
-  };
-
-  return <Menu isDropdown items={items} size={MENU_SIZE.small} overrides={menuOverrides} />;
 };
