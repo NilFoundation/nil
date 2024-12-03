@@ -1,4 +1,5 @@
-// pragma solidity =0.5.16;
+// SPDX-License-Identifier: UNLICENSED
+
 pragma solidity ^0.8.0;
 
 import "./interfaces/IUniswapV2Factory.sol";
@@ -44,7 +45,6 @@ contract UniswapV2Factory is IUniswapV2Factory {
         );
         pair = address(deployPair(shard, salt));
 
-
         getPair[token0][token1] = pair;
         getPair[token1][token0] = pair;
         allPairs.push(pair);
@@ -74,9 +74,21 @@ contract UniswapV2Factory is IUniswapV2Factory {
         feeToSetter = _feeToSetter;
     }
 
-    function deployPair(uint256 shard, uint256 salt) private returns (address deployedAddress) {
-        bytes memory code = abi.encodePacked(type(UniswapV2Pair).creationCode, abi.encode(msg.sender));
-        address contractAddress = Nil.asyncDeploy(shard, msg.sender, 0, code, salt);
+    function deployPair(
+        uint256 shard,
+        uint256 salt
+    ) private returns (address deployedAddress) {
+        bytes memory code = abi.encodePacked(
+            type(UniswapV2Pair).creationCode,
+            abi.encode(msg.sender)
+        );
+        address contractAddress = Nil.asyncDeploy(
+            shard,
+            msg.sender,
+            0,
+            code,
+            salt
+        );
         return contractAddress;
     }
 }
