@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/concurrent"
@@ -30,6 +31,7 @@ func DefaultConfig() Config {
 
 type TaskScheduler interface {
 	api.TaskRequestHandler
+	api.TaskDebugApi
 	// Run Start task scheduler worker which monitors active tasks and reschedules them if necessary
 	Run(ctx context.Context) error
 }
@@ -125,6 +127,80 @@ func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.Tas
 	}
 
 	return nil
+}
+
+func (s *taskSchedulerImpl) GetTasks(ctx context.Context, request *api.TaskDebugRequest) ([]*types.TaskEntry, error) {
+	tasks, err := s.storage.GetTasks(ctx, func(entry *types.TaskEntry) bool {
+		if request.Status != nil && *request.Status != entry.Status {
+			return false
+		}
+		if request.Type != nil && *request.Type != entry.Task.TaskType {
+			return false
+		}
+		if request.Executor != nil && *request.Executor != entry.Owner {
+			return false
+		}
+		return true
+	})
+	if err != nil {
+		s.logger.Error().Err(err).Msg("failed to get tasks from the storage (GetTasks)")
+		return nil, err
+	}
+
+	sortFunc, err := getSortFunc(request)
+	if err != nil {
+		return nil, err
+	}
+
+	slices.SortFunc(tasks, sortFunc)
+
+	if request.Limit < len(tasks) {
+		tasks = tasks[:request.Limit]
+	}
+
+	return tasks, nil
+}
+
+func getSortFunc(request *api.TaskDebugRequest) (func(i, j *types.TaskEntry) int, error) {
+	var multiplier int
+	if request.Ascending {
+		multiplier = 1
+	} else {
+		multiplier = -1
+	}
+
+	switch request.Order {
+	case api.ExecutionTime:
+		return func(i, j *types.TaskEntry) int {
+			switch {
+			case i.Started == nil || j.Started == nil:
+				return 0
+			case i.Started.Before(*j.Started):
+				return -1 * multiplier
+			case i.Started.After(*j.Started):
+				return multiplier
+			default:
+				return 0
+			}
+		}, nil
+	case api.CreatedAt:
+		return func(i, j *types.TaskEntry) int {
+			switch {
+			case i.Created.Before(j.Created):
+				return -1 * multiplier
+			case i.Created.After(j.Created):
+				return multiplier
+			default:
+				return 0
+			}
+		}, nil
+	default:
+		return nil, fmt.Errorf("unsupported order: %s", request.Order)
+	}
+}
+
+func (s *taskSchedulerImpl) GetTaskTree(ctx context.Context, taskId types.TaskId) (*api.TaskTree, error) {
+	panic("implement me")
 }
 
 func (s *taskSchedulerImpl) logError(ctx context.Context, err error, result *types.TaskResult) {

@@ -35,6 +35,9 @@ type TaskStorage interface {
 	// TryGetTaskEntry Retrieve a task entry by its id. In case if task does not exist, method returns nil
 	TryGetTaskEntry(ctx context.Context, id types.TaskId) (*types.TaskEntry, error)
 
+	// GetTasks Retrieve a list of tasks from the storage that match the given predicate function.
+	GetTasks(ctx context.Context, predicate func(*types.TaskEntry) bool) ([]*types.TaskEntry, error)
+
 	// RequestTaskToExecute Find task with no dependencies and higher priority and assign it to the executor
 	RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.Task, error)
 
@@ -168,6 +171,27 @@ func (st *taskStorage) TryGetTaskEntry(ctx context.Context, id types.TaskId) (*t
 	}
 
 	return entry, err
+}
+
+func (st *taskStorage) GetTasks(ctx context.Context, predicate func(*types.TaskEntry) bool) ([]*types.TaskEntry, error) {
+	tx, err := st.database.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	var tasks []*types.TaskEntry
+	err = iterateOverTaskEntries(tx, func(entry *types.TaskEntry) error {
+		if predicate(entry) {
+			tasks = append(tasks, entry)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve tasks based on predicate: %w", err)
+	}
+
+	return tasks, nil
 }
 
 // Helper to find available task with higher priority
