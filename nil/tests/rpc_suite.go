@@ -138,6 +138,7 @@ func (s *RpcSuite) StartWithRPC(cfg *nilservice.Config, port int, archive bool) 
 		NShards: s.ShardsNum,
 		Network: rpcNetCfg,
 		HttpUrl: rpc.GetSockPath(s.T()),
+		RpcNode: nilservice.NewDefaultRpcNodeConfig(),
 	}
 
 	for shardId := range s.ShardsNum {

@@ -178,6 +178,7 @@ func (s *ShardedSuite) StartRPCNode() (client.Client, string) {
 		Network: netCfg,
 		HttpUrl: rpc.GetSockPathService(s.T(), serviceName),
 		RunMode: nilservice.RpcRunMode,
+		RpcNode: nilservice.NewDefaultRpcNodeConfig(),
 	}
 
 	for shardId := range cfg.NShards {

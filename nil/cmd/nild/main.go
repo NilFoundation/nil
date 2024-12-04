@@ -108,6 +108,10 @@ func addAllowDbClearFlag(fset *pflag.FlagSet, cfg *nildconfig.Config) {
 	fset.BoolVar(&cfg.DB.AllowDrop, "allow-db-clear", cfg.DB.AllowDrop, "allow to clear database in case of outdated version")
 }
 
+func addRpcNodeFlags(fset *pflag.FlagSet, cfg *nildconfig.Config) {
+	fset.Var(&cfg.RpcNode.ArchiveNodeList, "archive-nodes", "list of archive nodes")
+}
+
 func addBasicFlags(fset *pflag.FlagSet, cfg *nildconfig.Config) {
 	fset.UintSliceVar(&cfg.MyShards, "my-shards", cfg.MyShards, "run only specified shard(s)")
 	addAllowDbClearFlag(fset, cfg)
@@ -189,6 +193,7 @@ func parseArgs() *nildconfig.Config {
 		},
 	}
 
+	addRpcNodeFlags(rpcCmd.Flags(), cfg)
 	addAllowDbClearFlag(rpcCmd.Flags(), cfg)
 	addNetworkFlags(rpcCmd.Flags(), cfg)
 	addTelemetryFlags(rpcCmd.Flags(), cfg)

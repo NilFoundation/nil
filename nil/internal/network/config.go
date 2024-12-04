@@ -1,6 +1,7 @@
 package network
 
 import (
+	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
@@ -15,6 +16,7 @@ type Config struct {
 
 	DHTEnabled        bool          `yaml:"dhtEnabled,omitempty"`
 	DHTBootstrapPeers AddrInfoSlice `yaml:"dhtBootstrapPeers,omitempty"`
+	DHTMode           dht.ModeOpt   `yaml:"-,omitempty"`
 }
 
 func NewDefaultConfig() *Config {

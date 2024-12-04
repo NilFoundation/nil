@@ -30,6 +30,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/rs/zerolog"
 )
 
@@ -285,6 +286,9 @@ func CreateNode(ctx context.Context, name string, cfg *Config, database db.DB, i
 	}
 
 	var msgPools map[types.ShardId]msgpool.Pool
+	if cfg.RunMode == ArchiveRunMode {
+		cfg.Network.DHTMode = dht.ModeClient
+	}
 	networkManager, err := createNetworkManager(ctx, cfg)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to create network manager")
@@ -331,6 +335,10 @@ func CreateNode(ctx context.Context, name string, cfg *Config, database db.DB, i
 			logger.Error().Err(err).Send()
 			return nil, err
 		}
+		funcs = append(funcs, func(ctx context.Context) error {
+			network.ConnectToPeers(ctx, cfg.RpcNode.ArchiveNodeList, *networkManager, logger)
+			return nil
+		})
 	default:
 		panic("unsupported run mode")
 	}
