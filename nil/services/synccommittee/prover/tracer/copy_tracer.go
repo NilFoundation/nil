@@ -184,7 +184,7 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 		if err != nil {
 			panic(err) // should not obtain error on fetching executing code
 		}
-		data := code[src : src+size]
+		data := getDataOverflowSafe(code, src, size)
 
 		return newFinalizedCopyEvent(CopyEvent{
 			From: CopyParticipant{
@@ -215,7 +215,7 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 		if err != nil {
 			panic(err) // should not obtain error on fetching loaded code
 		}
-		data := code[src : src+size]
+		data := getDataOverflowSafe(code, src, size)
 
 		return newFinalizedCopyEvent(CopyEvent{
 			From: CopyParticipant{
@@ -237,7 +237,7 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 			dst  = tCtx.stack.PopUint64()
 			src  = tCtx.stack.PopUint64()
 			size = tCtx.stack.PopUint64()
-			data = tCtx.vmCtx.CallInput()[src : src+size]
+			data = getDataOverflowSafe(tCtx.vmCtx.CallInput(), src, size)
 		)
 
 		return newFinalizedCopyEvent(CopyEvent{
