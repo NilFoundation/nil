@@ -27,7 +27,7 @@ update-versions() {
             ver="${versions[$i]}"
             pkg="${pkgs[$i]}"
 
-            sed -i '' "s|\(@nilfoundation/$pkg.*\"\)[\^0-9.]\{1,\}\"|\1^$ver\"|g" "$f"
+            sed -i '' "s|\(@nilfoundation/$pkg.*\"\)[\^0-9.]\{1,\}\"|\1$ver\"|g" "$f"
         done
     done
 
