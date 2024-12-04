@@ -295,8 +295,21 @@ export default {
   migrationGuides: [
     {
       type: "category",
-      label: "November 2024 releases",
+      label: "December 2024 releases",
       collapsed: false,
+      collapsible: true,
+      items: [
+        {
+          type: "doc",
+          label: "03 December 2024 guide",
+          id: "migration-guides/december-0412-2024-release",
+        },
+      ],
+    },
+    {
+      type: "category",
+      label: "November 2024 releases",
+      collapsed: true,
       collapsible: true,
       items: [
         {
@@ -314,7 +327,7 @@ export default {
     {
       type: "category",
       label: "October 2024 releases",
-      collapsed: false,
+      collapsed: true,
       collapsible: true,
       items: [
         {

@@ -18,30 +18,11 @@ To set the RPC endpoint:
 ```bash file=../../../tests/commands.mjs start=startEndpoint end=endEndpoint
 ```
 
-## Set the faucet endpoint
-
-The =nil; CLI can use [**the faucet service**](../../getting-started/essentials/tokens-multi-currency.mdx#currency-faucet-service) to top-up smart contracts with a range of currencies. 
-
-To set the faucet endpoint:
-
-```bash file=../../../tests/commands.mjs start=startFaucetEndpointCommand end=endFaucetEndpointCommand
-```
-
 :::info
 
-Setting the faucet endpoint is mandatory for creating a new wallet.
+The RPC endpoint is also a valid endpoint for [**the Cometa service**](../../guides/cometa-and-debugging.mdx) and [**the faucet service**](../../getting-started/essentials/tokens-multi-currency.mdx#currency-faucet-service). There is no need to set these endpoints separately inside the =nil; CLI config file.
 
 :::
-
-## Set the Cometa endpoint
-
-The CLI can also use the Cometa service to assist with [**smart contract debugging**](../../guides/cometa-and-debugging.mdx). 
-
-To set the Cometa endpoint:
-
-
-```bash file=../../../tests/commands.mjs start=startCometaCommand end=endCometaCommand
-```
 
 ## Create a new private key
 

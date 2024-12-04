@@ -34,6 +34,14 @@ To deploy the contract externally:
 
 ## Sending a message to the contract
 
+### Via the contract factory
+
+`Nil.js` can utilize a special 'contract factory' to interact with smart contracts in a manner similar to a Hardhat task:
+
+```ts showLineNumbers file=../../../tests/cookbook-deploy-smart-contract.test.mts start=startFactoryIncrement end=endFactoryIncrement
+```
+
+
 ### Internal message
 
 To send a new internal message to the `increment()` function:

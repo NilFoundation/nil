@@ -1,3 +1,15 @@
+.playgroundButton {
+  line-height: 1.5;
+  min-width: 17rem;
+  max-width: 17rem;
+  min-height: 2rem;
+  max-height: 8rem;
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
 [data-theme="light"] .playgroundButton {
   background-color: #8fc97e;
   color: #0f0f0f;
@@ -32,5 +44,26 @@
 }
 
 .playgroundButton:hover {
-  background-color: #e5e5e5;
+  background-color: #e5e5e5 !important;
+}
+
+.spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.spinner > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner svg {
+  height: 1.5em !important;
+  width: 1.5em !important;
 }

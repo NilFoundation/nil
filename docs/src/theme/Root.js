@@ -32,6 +32,11 @@ export default function Root({ children }) {
         This website tracks page views and other usage statistics. No personal information is
         collected.
       </CookieConsent>
+      <script
+        data-goatcounter="https://data-analytics.devcloud.nil.foundation/count"
+        async
+        src="//data-analytics.devcloud.nil.foundation/count.js"
+      />
       {children}
     </>
   );

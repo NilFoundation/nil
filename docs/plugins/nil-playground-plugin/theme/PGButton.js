@@ -1,12 +1,15 @@
 import { usePluginData } from "@docusaurus/core/lib/client/exports/useGlobalData";
+import { useState } from "react";
+import { ThreeDots } from "react-loader-spinner";
 import styles from "./styles.module.css";
 
 const PGButton = ({ name }) => {
   const contractCodes = usePluginData("nil-playground-plugin").contractCodes;
-  console.log(contractCodes);
   const code = contractCodes[name];
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleClick = async () => {
+    setIsLoading(true);
     const data = await fetch("https://explore.nil.foundation/api/code.set?batch=1", {
       method: "POST",
       body: JSON.stringify({ 0: `${code}` }),
@@ -21,16 +24,28 @@ const PGButton = ({ name }) => {
     const url = `https://explore.nil.foundation/sandbox/${hash}`;
 
     window.open(url, "_blank");
+    setIsLoading(false);
   };
 
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: <explanation>
     <div
       className={styles.playgroundButton}
       onClick={handleClick}
       data-goatcounter-click="Playground click"
       data-goatcounter-title={name}
     >
-      Access contract in the Playground
+      {isLoading ? (
+        <ThreeDots
+          visible={true}
+          color="#000"
+          ariaLabel="three-dots-loading"
+          wrapperStyle={{}}
+          wrapperClass={styles.spinner}
+        />
+      ) : (
+        "Access contract in the Playground"
+      )}
     </div>
   );
 };
