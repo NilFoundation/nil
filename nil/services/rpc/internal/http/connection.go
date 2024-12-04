@@ -8,8 +8,8 @@ import (
 
 const (
 	MaxRequestContentLength  = 1024 * 1024 * 32 // 32MB
-	minSupportedRevision     = 2186
-	minSupportedNiljsVersion = "0.19.1"
+	minSupportedRevision     = 2200
+	minSupportedNiljsVersion = "0.20.0"
 )
 
 type (
