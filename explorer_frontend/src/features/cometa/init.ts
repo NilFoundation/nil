@@ -1,9 +1,20 @@
 import { CometaService, HttpTransport } from "@nilfoundation/niljs";
 import { $endpoint } from "../account-connector/model";
-import { $cometaService, createCometaService, createCometaServiceFx } from "./model";
-import { sample } from "effector";
+import {
+  $cometaService,
+  $customCommetaEndpoint,
+  createCometaService,
+  createCometaServiceFx,
+} from "./model";
+import { combine, sample } from "effector";
 
-$endpoint.watch((endpoint) => {
+const $refinedEndpoint = combine(
+  $endpoint,
+  $customCommetaEndpoint,
+  (endpoint, customEndpoint) => customEndpoint || endpoint,
+);
+
+$refinedEndpoint.watch((endpoint) => {
   if (endpoint) {
     createCometaService();
   }
@@ -21,7 +32,7 @@ $cometaService.on(createCometaServiceFx.doneData, (_, cometaService) => cometaSe
 
 sample({
   clock: createCometaService,
-  source: $endpoint,
+  source: $refinedEndpoint,
   target: createCometaServiceFx,
 });
 

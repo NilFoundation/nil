@@ -140,13 +140,14 @@ sample({
           break;
         }
       }
-      console.log("abiConstructor", abiConstructor);
+
       if (!abiConstructor) {
         return {
           app,
           args: [],
           wallet,
           shardId,
+          cometaService,
         };
       }
 

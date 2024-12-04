@@ -109,6 +109,29 @@ export const deploySmartContractFx = createEffect<
 
   await waitTillCompleted(wallet.client, hash);
 
+  const cm = await cometaService?.compileContract(
+    JSON.stringify({
+      contractName: app.name,
+      compilerVersion: "0.8.28",
+      settings: {
+        evmVersion: "shanghai",
+        optimizer: {
+          enabled: false,
+          runs: 200,
+        },
+      },
+      sources: {
+        [app.name]: {
+          urls: [app.name],
+        },
+      },
+    }),
+  );
+
+  console.log(cm);
+
+  await cometaService?.registerContractData(cm!, address);
+
   return {
     address,
     app: app.bytecode,
