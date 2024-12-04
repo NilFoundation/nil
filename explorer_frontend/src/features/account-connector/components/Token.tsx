@@ -83,7 +83,7 @@ const Token: FC<TokenProps> = ({ name, balance, isMain = false }) => {
         })}
         color={isMain ? COLORS.green200 : COLORS.gray400}
       >
-        {isMain ? "Main" : "Token"}
+        {isMain ? "Main" : "Mock token"}
       </LabelSmall>
       <LabelSmall
         className={css({
