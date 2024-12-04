@@ -13,8 +13,8 @@ type Config struct {
 	TcpPort     int    `yaml:"tcpPort,omitempty"`
 	QuicPort    int    `yaml:"quicPort,omitempty"`
 
-	DHTEnabled        bool     `yaml:"dhtEnabled,omitempty"`
-	DHTBootstrapPeers []string `yaml:"dhtBootstrapPeers,omitempty"`
+	DHTEnabled        bool          `yaml:"dhtEnabled,omitempty"`
+	DHTBootstrapPeers AddrInfoSlice `yaml:"dhtBootstrapPeers,omitempty"`
 }
 
 func NewDefaultConfig() *Config {

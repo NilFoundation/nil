@@ -25,6 +25,7 @@ require (
 	github.com/libp2p/go-libp2p-pubsub v0.12.0
 	github.com/matryer/moq v0.5.0
 	github.com/mitchellh/mapstructure v1.5.0
+	github.com/multiformats/go-multiaddr v0.13.0
 	github.com/multiformats/go-multistream v0.5.0
 	github.com/rs/xid v1.5.0
 	github.com/spf13/cobra v1.8.1
@@ -35,6 +36,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.32.0
 	go.opentelemetry.io/otel/sdk/metric v1.32.0
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
+	golang.org/x/sync v0.9.0
 	google.golang.org/protobuf v1.35.1
 	pgregory.net/rapid v1.1.0
 )
@@ -128,7 +130,6 @@ require (
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/multiformats/go-base32 v0.1.0 // indirect
 	github.com/multiformats/go-base36 v0.2.0 // indirect
-	github.com/multiformats/go-multiaddr v0.13.0 // indirect
 	github.com/multiformats/go-multiaddr-dns v0.4.0 // indirect
 	github.com/multiformats/go-multiaddr-fmt v0.1.0 // indirect
 	github.com/multiformats/go-multibase v0.2.0 // indirect
@@ -188,7 +189,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/sync v0.9.0 // indirect
 	golang.org/x/tools v0.27.0 // indirect
 	gonum.org/v1/gonum v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241104194629-dd2ea8efbc28 // indirect

@@ -129,7 +129,7 @@ func (s *RpcSuite) StartWithRPC(cfg *nilservice.Config, port int, archive bool) 
 
 	validatorNetCfg, validatorAddr := network.GenerateConfig(s.T(), port)
 	rpcNetCfg, _ := network.GenerateConfig(s.T(), port+1)
-	rpcNetCfg.DHTBootstrapPeers = []string{validatorAddr}
+	rpcNetCfg.DHTBootstrapPeers = network.AddrInfoSlice{validatorAddr}
 
 	cfg.Network = validatorNetCfg
 	PatchConfigWithTestDefaults(cfg)

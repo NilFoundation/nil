@@ -28,20 +28,14 @@ type Manager struct {
 	logger zerolog.Logger
 }
 
-func connectToBootstrapPeers(ctx context.Context, conf *Config, h Host, logger zerolog.Logger) error {
-	for _, p := range conf.DHTBootstrapPeers {
-		peerInfo, err := peer.AddrInfoFromString(p)
-		if err != nil {
-			return err
-		}
-
-		if err := h.Connect(ctx, *peerInfo); err != nil {
-			logger.Warn().Err(err).Msgf("Failed to connect to %s", p)
+func connectToBootstrapPeers(ctx context.Context, conf *Config, h Host, logger zerolog.Logger) {
+	for _, peerInfo := range conf.DHTBootstrapPeers {
+		if err := h.Connect(ctx, peer.AddrInfo(peerInfo)); err != nil {
+			logger.Warn().Err(err).Msgf("Failed to connect to %s", peerInfo)
 		}
 
 		h.Peerstore().AddAddrs(peerInfo.ID, peerInfo.Addrs, peerstore.AddressTTL)
 	}
-	return nil
 }
 
 func newManagerFromHost(ctx context.Context, conf *Config, h host.Host) (*Manager, error) {
@@ -51,9 +45,7 @@ func newManagerFromHost(ctx context.Context, conf *Config, h host.Host) (*Manage
 
 	logger.Info().Msgf("Listening on addresses:\n%s\n", common.Join("\n", h.Addrs()...))
 
-	if err := connectToBootstrapPeers(ctx, conf, h, logger); err != nil {
-		return nil, err
-	}
+	connectToBootstrapPeers(ctx, conf, h, logger)
 
 	dht, err := NewDHT(ctx, h, conf, logger)
 	if err != nil {
@@ -146,17 +138,13 @@ func (m *Manager) GetPeersForProtocolPrefix(prefix string) []peer.ID {
 	return peersForProtocolPrefix
 }
 
-func (m *Manager) Connect(ctx context.Context, addr string) (PeerID, error) {
+func (m *Manager) Connect(ctx context.Context, addr AddrInfo) (PeerID, error) {
 	m.logger.Debug().Msgf("Connecting to %s", addr)
 
-	addrInfo, err := peer.AddrInfoFromString(addr)
-	if err != nil {
+	if err := m.host.Connect(ctx, peer.AddrInfo(addr)); err != nil {
 		return "", err
 	}
-	if err := m.host.Connect(ctx, *addrInfo); err != nil {
-		return "", err
-	}
-	return addrInfo.ID, nil
+	return addr.ID, nil
 }
 
 func (m *Manager) Close() {

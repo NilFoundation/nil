@@ -34,8 +34,8 @@ type Config struct {
 	SplitShards bool   `yaml:"splitShards,omitempty"`
 
 	// RPC
-	RPCPort        int      `yaml:"rpcPort,omitempty"`
-	BootstrapPeers []string `yaml:"bootstrapPeers,omitempty"`
+	RPCPort        int                   `yaml:"rpcPort,omitempty"`
+	BootstrapPeers network.AddrInfoSlice `yaml:"bootstrapPeers,omitempty"`
 
 	// Admin
 	AdminSocketPath string `yaml:"adminSocket,omitempty"`
