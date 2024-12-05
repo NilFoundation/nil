@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"sync"
 
 	"github.com/NilFoundation/nil/nil/client"
@@ -31,6 +32,10 @@ type Shard struct {
 	nm         *network.Manager
 }
 
+func getShardAddress(s Shard) network.AddrInfo {
+	return s.P2pAddress
+}
+
 type ShardedSuite struct {
 	CliRunner
 
@@ -43,6 +48,13 @@ type ShardedSuite struct {
 
 	Shards []Shard
 }
+
+type DhtBootstrapByValidators int
+
+const (
+	WithoutDhtBootstrapByValidators DhtBootstrapByValidators = iota
+	WithDhtBootstrapByValidators
+)
 
 func (s *ShardedSuite) Cancel() {
 	s.T().Helper()
@@ -130,10 +142,10 @@ func (s *ShardedSuite) connectToShards(nm *network.Manager) {
 	wg.Wait()
 }
 
-func (s *ShardedSuite) StartArchiveNode(port int, withBootstrapPeers bool) client.Client {
+func (s *ShardedSuite) StartArchiveNode(port int, withBootstrapPeers bool) (client.Client, network.AddrInfo) {
 	s.T().Helper()
 
-	netCfg, _ := network.GenerateConfig(s.T(), port)
+	netCfg, addr := network.GenerateConfig(s.T(), port)
 	serviceName := fmt.Sprintf("archive-%d", port)
 
 	cfg := &nilservice.Config{
@@ -143,12 +155,10 @@ func (s *ShardedSuite) StartArchiveNode(port int, withBootstrapPeers bool) clien
 		RunMode: nilservice.ArchiveRunMode,
 	}
 
-	for shardId := range cfg.NShards {
-		cfg.MyShards = append(cfg.MyShards, uint(shardId))
-		netCfg.DHTBootstrapPeers = append(netCfg.DHTBootstrapPeers, s.Shards[shardId].P2pAddress)
-		if withBootstrapPeers {
-			cfg.BootstrapPeers = append(cfg.BootstrapPeers, s.Shards[shardId].P2pAddress)
-		}
+	cfg.MyShards = slices.Collect(common.Range(0, uint(cfg.NShards)))
+	netCfg.DHTBootstrapPeers = slices.Collect(common.Transform(slices.Values(s.Shards), getShardAddress))
+	if withBootstrapPeers {
+		cfg.BootstrapPeers = netCfg.DHTBootstrapPeers
 	}
 
 	node, err := nilservice.CreateNode(s.Context, serviceName, cfg, s.dbInit(), nil)
@@ -164,10 +174,10 @@ func (s *ShardedSuite) StartArchiveNode(port int, withBootstrapPeers bool) clien
 
 	c := rpc_client.NewClient(cfg.HttpUrl, zerolog.New(os.Stderr))
 	s.checkNodeStart(cfg.NShards, c)
-	return c
+	return c, addr
 }
 
-func (s *ShardedSuite) StartRPCNode() (client.Client, string) {
+func (s *ShardedSuite) StartRPCNode(dhtBootstrapByValidators DhtBootstrapByValidators, archiveNodes network.AddrInfoSlice) (client.Client, string) {
 	s.T().Helper()
 
 	netCfg, _ := network.GenerateConfig(s.T(), 0)
@@ -181,13 +191,16 @@ func (s *ShardedSuite) StartRPCNode() (client.Client, string) {
 		RpcNode: nilservice.NewDefaultRpcNodeConfig(),
 	}
 
-	for shardId := range cfg.NShards {
-		netCfg.DHTBootstrapPeers = append(netCfg.DHTBootstrapPeers, s.Shards[shardId].P2pAddress)
+	if dhtBootstrapByValidators == WithDhtBootstrapByValidators {
+		netCfg.DHTBootstrapPeers = slices.Collect(common.Transform(slices.Values(s.Shards), getShardAddress))
 	}
+	cfg.RpcNode.ArchiveNodeList = archiveNodes
 
 	node, err := nilservice.CreateNode(s.Context, serviceName, cfg, s.dbInit(), nil)
 	s.Require().NoError(err)
-	s.connectToShards(node.NetworkManager)
+	if dhtBootstrapByValidators == WithDhtBootstrapByValidators {
+		s.connectToShards(node.NetworkManager)
+	}
 
 	s.Wg.Add(1)
 	go func() {
@@ -224,6 +237,8 @@ func (s *ShardedSuite) DeployContractViaMainWallet(shardId types.ShardId, payloa
 }
 
 func (s *ShardedSuite) checkNodeStart(nShards uint32, client client.Client) {
+	s.T().Helper()
+
 	var wg sync.WaitGroup
 	wg.Add(int(nShards))
 	for shardId := range types.ShardId(nShards) {

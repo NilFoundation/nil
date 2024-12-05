@@ -6,6 +6,7 @@ import (
 	"iter"
 	"reflect"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"google.golang.org/protobuf/proto"
 )
@@ -132,7 +133,7 @@ type apiCodec map[string]*methodCodec
 // If any of the conditions are not met, an error is returned.
 func newApiCodec(api, transport reflect.Type) (apiCodec, error) {
 	apiCodec := make(apiCodec)
-	for apiMethod := range filtered(iterMethods(api), isExportedMethod) {
+	for apiMethod := range common.Filter(iterMethods(api), isExportedMethod) {
 		if err := checkApiMethodSignature(apiMethod); err != nil {
 			return nil, err
 		}
@@ -181,19 +182,6 @@ func iterMethods(t reflect.Type) iter.Seq[reflect.Method] {
 
 func isExportedMethod(m reflect.Method) bool {
 	return m.IsExported()
-}
-
-func filtered[T any](seq iter.Seq[T], filter func(T) bool) iter.Seq[T] {
-	type Yield = func(T) bool
-	return func(yield Yield) {
-		for v := range seq {
-			if filter(v) {
-				if !yield(v) {
-					return
-				}
-			}
-		}
-	}
 }
 
 func checkTransportMethodSignatureAndExtractPbTypes(transportApiType reflect.Type, method reflect.Method) (reflect.Type, reflect.Type, error) {

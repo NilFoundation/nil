@@ -11,7 +11,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/NilFoundation/nil/nil/client"
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
@@ -22,10 +21,8 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
-	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
-	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
@@ -110,69 +107,6 @@ func (s *RpcSuite) Start(cfg *nilservice.Config) {
 	} else {
 		s.waitZerostate()
 	}
-}
-
-func (s *RpcSuite) StartWithRPC(cfg *nilservice.Config, port int, archive bool) {
-	s.T().Helper()
-
-	var err error
-	s.ShardsNum = cfg.NShards
-	s.Context, s.CtxCancel = context.WithCancel(context.Background())
-	s.Db, err = db.NewBadgerDbInMemory()
-	s.Require().NoError(err)
-
-	var rpcDb db.DB
-	if archive {
-		rpcDb, err = db.NewBadgerDbInMemory()
-		s.Require().NoError(err)
-	}
-
-	validatorNetCfg, validatorAddr := network.GenerateConfig(s.T(), port)
-	rpcNetCfg, _ := network.GenerateConfig(s.T(), port+1)
-	rpcNetCfg.DHTBootstrapPeers = network.AddrInfoSlice{validatorAddr}
-
-	cfg.Network = validatorNetCfg
-	PatchConfigWithTestDefaults(cfg)
-
-	rpcCfg := &nilservice.Config{
-		NShards: s.ShardsNum,
-		Network: rpcNetCfg,
-		HttpUrl: rpc.GetSockPath(s.T()),
-		RpcNode: nilservice.NewDefaultRpcNodeConfig(),
-	}
-
-	for shardId := range s.ShardsNum {
-		rpcCfg.MyShards = append(rpcCfg.MyShards, uint(shardId))
-		rpcCfg.BootstrapPeers = append(rpcCfg.BootstrapPeers, validatorAddr)
-	}
-
-	if archive {
-		rpcCfg.RunMode = nilservice.ArchiveRunMode
-	} else {
-		rpcCfg.RunMode = nilservice.RpcRunMode
-	}
-
-	s.Wg.Add(2)
-	go func() {
-		nilservice.Run(s.Context, cfg, s.Db, nil)
-		s.Wg.Done()
-	}()
-
-	// TODO: wait be sure that validator is ready
-	time.Sleep(time.Second)
-
-	go func() {
-		nilservice.Run(s.Context, rpcCfg, rpcDb, nil)
-		s.Wg.Done()
-	}()
-
-	s.Client = rpc_client.NewClient(rpcCfg.HttpUrl, zerolog.New(os.Stderr))
-	s.Endpoint = rpcCfg.HttpUrl
-
-	s.waitZerostateFunc(func(i uint32) bool {
-		block, err := s.Client.GetDebugBlock(types.ShardId(i), transport.BlockNumber(0), false)
-		return err == nil && block != nil
-	})
 }
 
 func (s *RpcSuite) Cancel() {
