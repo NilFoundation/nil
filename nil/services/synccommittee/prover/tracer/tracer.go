@@ -15,7 +15,7 @@ import (
 )
 
 type RemoteTracer interface {
-	GetBlockTraces(ctx context.Context, shardId types.ShardId, blockRef transport.BlockReference) (ExecutionTraces, error)
+	GetBlockTraces(ctx context.Context, aggTraces ExecutionTraces, shardId types.ShardId, blockRef transport.BlockReference) error
 }
 
 type RemoteTracerImpl struct {
@@ -32,33 +32,38 @@ func NewRemoteTracer(client *rpc.Client, logger zerolog.Logger) (*RemoteTracerIm
 	}, nil
 }
 
-func (rt *RemoteTracerImpl) GetBlockTraces(ctx context.Context, shardId types.ShardId, blockRef transport.BlockReference) (ExecutionTraces, error) {
+func (rt *RemoteTracerImpl) GetBlockTraces(
+	ctx context.Context,
+	aggTraces ExecutionTraces,
+	shardId types.ShardId,
+	blockRef transport.BlockReference,
+) error {
 	dbgBlock, err := rt.client.GetDebugBlock(shardId, blockRef, true)
 	if err != nil {
-		return ExecutionTraces{}, err
+		return err
 	}
 	if dbgBlock == nil {
-		return ExecutionTraces{}, errors.New("client returned nil block")
+		return errors.New("client returned nil block")
 	}
 
 	decodedDbgBlock, err := dbgBlock.DecodeSSZ()
 	if err != nil {
-		return ExecutionTraces{}, err
+		return err
 	}
 
 	if decodedDbgBlock.Id == 0 {
 		// TODO: prove genesis block generation?
-		return ExecutionTraces{}, nil
+		return nil
 	}
 
 	prevBlock, err := rt.client.GetBlock(shardId, transport.BlockNumber(decodedDbgBlock.Id-1), false)
 	if err != nil {
-		return ExecutionTraces{}, err
+		return err
 	}
 
 	if prevBlock.MainChainHash == common.EmptyHash {
 		// TODO: shard has just started, no reference to MainChain
-		return ExecutionTraces{}, err
+		return err
 	}
 
 	getHashFunc := func(blkNum uint64) (common.Hash, error) {
@@ -82,12 +87,12 @@ func (rt *RemoteTracerImpl) GetBlockTraces(ctx context.Context, shardId types.Sh
 
 	localDb, err := db.NewBadgerDbInMemory() // TODO: move this creation to caller
 	if err != nil {
-		return ExecutionTraces{}, err
+		return err
 	}
 
-	stateDB, err := NewTracerStateDB(ctx, rt.client, shardId, prevBlock.Number, blkContext, localDb)
+	stateDB, err := NewTracerStateDB(ctx, aggTraces, rt.client, shardId, prevBlock.Number, blkContext, localDb)
 	if err != nil {
-		return ExecutionTraces{}, err
+		return err
 	}
 
 	stateDB.GasPrice = decodedDbgBlock.GasPrice
@@ -104,7 +109,7 @@ func (rt *RemoteTracerImpl) GetBlockTraces(ctx context.Context, shardId types.Sh
 		stateDB.AddInMessage(inMsg)
 		err := stateDB.HandleInMessage(inMsg)
 		if err != nil {
-			return ExecutionTraces{}, err
+			return err
 		}
 	}
 
@@ -121,5 +126,5 @@ func (rt *RemoteTracerImpl) GetBlockTraces(ctx context.Context, shardId types.Sh
 		stats.CopyOpsN,
 	)
 
-	return stateDB.Traces, nil
+	return nil
 }
