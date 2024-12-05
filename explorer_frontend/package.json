@@ -1,5 +1,5 @@
 {
-	"name": "@nilfoundation/dbms-app-fiddle-frontend",
+	"name": "@nilfoundation/explorer-frontend",
 	"version": "1.0.0",
 	"description": "",
 	"main": "index.js",

@@ -1,4 +1,4 @@
-import type { Currency } from "@nilfoundation/dbms-app-fiddle-backend/daos/transactions";
+import type { Currency } from "@nilfoundation/explorer-backend/daos/transactions";
 import { ParagraphSmall } from "@nilfoundation/ui-kit";
 import { addressRoute } from "../../../routing";
 import { Link } from "../Link";
