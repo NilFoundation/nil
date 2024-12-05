@@ -1,5 +1,5 @@
 import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
-import type { AppRouter } from "@nilfoundation/dbms-app-fiddle-backend";
+import type { AppRouter } from "@nilfoundation/explorer-backend";
 import { $token } from "../features/auth";
 import { getRuntimeConfigOrThrow } from "../features/runtime-config";
 

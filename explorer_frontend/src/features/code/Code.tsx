@@ -186,6 +186,11 @@ export const Code = () => {
                 paddingBottom: "0!important",
               })}
               showLineNumbers={false}
+              themeOverrides={{
+                settings: {
+                  lineHighlight: "rgba(255, 255, 255, 0.05)",
+                },
+              }}
             />
           </div>
         )}
