@@ -145,7 +145,9 @@ func EncodeRawBlockWithExtractedData(block *types.RawBlockWithExtractedData) (*D
 // @componentprop Status status string false "Status shows concrete error of the executed message."
 // @componentprop Temporary temporary boolean false "The flag that shows whether the message is temporary."
 // @componentprop ErrorMessage errorMessage string false "The error in case the message processing was unsuccessful."
+// @componentprop Flags flags string true "The array of message flags."
 type RPCReceipt struct {
+	Flags           types.MessageFlags `json:"flags"`
 	Success         bool               `json:"success"`
 	Status          string             `json:"status"`
 	FailedPc        uint               `json:"failedPc"`
@@ -347,6 +349,7 @@ func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
 	}
 
 	res := &RPCReceipt{
+		Flags:           info.Flags,
 		Success:         receipt.Success,
 		Status:          receipt.Status.String(),
 		FailedPc:        uint(receipt.FailedPc),
@@ -362,7 +365,7 @@ func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
 		BlockHash:       info.BlockHash,
 		BlockNumber:     info.BlockId,
 		MsgIndex:        info.Index,
-		ShardId:         info.ShardId,
+		ShardId:         types.ShardIdFromHash(receipt.MsgHash),
 		Temporary:       info.Temporary,
 		ErrorMessage:    info.ErrorMessage,
 		IncludedInMain:  info.IncludedInMain,

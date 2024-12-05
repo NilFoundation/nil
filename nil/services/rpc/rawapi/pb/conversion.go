@@ -1087,7 +1087,7 @@ func (r *ReceiptInfo) PackProtoMessage(info *rawapitypes.ReceiptInfo) *ReceiptIn
 	check.PanicIfErr(blockHash.PackProtoMessage(info.BlockHash))
 
 	return &ReceiptInfo{
-		ShardId:        uint32(info.ShardId),
+		Flags:          uint32(info.Flags.Bits),
 		ReceiptSSZ:     info.ReceiptSSZ,
 		Index:          uint64(info.Index),
 		BlockHash:      blockHash,
@@ -1134,7 +1134,7 @@ func (r *ReceiptInfo) UnpackProtoMessage() *rawapitypes.ReceiptInfo {
 	blockHash, err := r.BlockHash.UnpackProtoMessage()
 	check.PanicIfErr(err)
 	return &rawapitypes.ReceiptInfo{
-		ShardId:        types.ShardId(r.ShardId),
+		Flags:          types.NewMessageFlagsFromBits(uint8(r.Flags)),
 		ReceiptSSZ:     r.ReceiptSSZ,
 		Index:          types.MessageIndex(r.Index),
 		BlockHash:      blockHash,

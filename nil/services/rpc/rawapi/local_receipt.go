@@ -27,11 +27,16 @@ func (api *LocalShardApi) GetInMessageReceipt(ctx context.Context, hash common.H
 	}
 
 	var receipt *types.Receipt
+	var message *types.Message
 	var gasPrice types.Value
 
 	includedInMain := false
 	if block != nil {
 		receipt, err = getBlockEntity[*types.Receipt](tx, api.ShardId, db.ReceiptTrieTable, block.ReceiptsRoot, indexes.MessageIndex.Bytes())
+		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+			return nil, err
+		}
+		message, err = getBlockEntity[*types.Message](tx, api.ShardId, db.MessageTrieTable, block.InMessagesRoot, indexes.MessageIndex.Bytes())
 		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 			return nil, err
 		}
@@ -108,6 +113,11 @@ func (api *LocalShardApi) GetInMessageReceipt(ctx context.Context, hash common.H
 		}
 	}
 
+	var flags types.MessageFlags
+	if message != nil {
+		flags = message.Flags
+	}
+
 	var blockId types.BlockNumber
 	var blockHash common.Hash
 	if block != nil {
@@ -116,8 +126,8 @@ func (api *LocalShardApi) GetInMessageReceipt(ctx context.Context, hash common.H
 	}
 
 	return &rawapitypes.ReceiptInfo{
-		ShardId:        api.ShardId,
 		ReceiptSSZ:     receiptSSZ,
+		Flags:          flags,
 		Index:          indexes.MessageIndex,
 		BlockHash:      blockHash,
 		BlockId:        blockId,
