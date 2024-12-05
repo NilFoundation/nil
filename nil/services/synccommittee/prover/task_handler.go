@@ -79,7 +79,7 @@ func circuitIdx(ct types.CircuitType) uint8 {
 
 func collectDependencyFiles(task *types.Task, dependencyType types.TaskType, resultType types.ProverResultType) ([]string, error) {
 	depFiles := []string{}
-	for _, res := range task.Dependencies {
+	for _, res := range task.DependencyResults {
 		if res.Type == dependencyType {
 			path, ok := res.DataAddresses[resultType]
 			if !ok {
@@ -333,7 +333,7 @@ func (h *taskHandler) makeAggregateProofCommand(task *types.Task) commandDescrip
 
 	allArgs := slices.Concat(stage, blockProofs, outArg)
 	var aggregatedProof []byte
-	for _, dependency := range task.Dependencies {
+	for _, dependency := range task.DependencyResults {
 		aggregatedProof = append(aggregatedProof, dependency.Data...)
 	}
 	return commandDescription{

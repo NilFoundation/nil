@@ -309,14 +309,13 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 	}
 
 	// Update all the tasks that are waiting for this result
-	for _, id := range entry.PendingDeps {
+	for _, id := range entry.Dependents {
 		depEntry, err := extractTaskEntry(tx, id)
 		if err != nil {
 			return err
 		}
-		depEntry.Task.AddDependencyResult(res)
-		if len(depEntry.Task.Dependencies) == int(depEntry.Task.DependencyNum) {
-			depEntry.Status = types.WaitingForExecutor
+		if err = depEntry.AddDependencyResult(res); err != nil {
+			return fmt.Errorf("failed to add dependency result to task with id=%s: %w", depEntry.Task.Id, err)
 		}
 		err = putTaskEntry(tx, depEntry)
 		if err != nil {

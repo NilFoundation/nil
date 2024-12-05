@@ -73,7 +73,9 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Success_R
 	err := s.blockStorage.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
-	proofTasks := batch.CreateProofTasks()
+	proofTasks, err := batch.CreateProofTasks()
+	s.Require().NoError(err)
+
 	err = s.taskStorage.AddTaskEntries(s.ctx, proofTasks)
 	s.Require().NoError(err)
 
@@ -123,7 +125,9 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Failure_R
 	err := s.blockStorage.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
-	proofTasks := batch.CreateProofTasks()
+	proofTasks, err := batch.CreateProofTasks()
+	s.Require().NoError(err)
+
 	err = s.taskStorage.AddTaskEntries(s.ctx, proofTasks)
 	s.Require().NoError(err)
 

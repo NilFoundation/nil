@@ -33,15 +33,12 @@ func GenerateTask() types.Task {
 
 func GenerateTaskOfType(taskType types.TaskType) types.Task {
 	return types.Task{
-		Id:            types.NewTaskId(),
-		BatchId:       types.NewBatchId(),
-		ShardId:       coreTypes.MainShardId,
-		BlockNum:      1,
-		BlockHash:     RandomHash(),
-		TaskType:      taskType,
-		CircuitType:   types.Bytecode,
-		Dependencies:  types.EmptyDependencies(),
-		DependencyNum: 0,
+		Id:        types.NewTaskId(),
+		BatchId:   types.NewBatchId(),
+		ShardId:   coreTypes.MainShardId,
+		BlockNum:  1,
+		BlockHash: RandomHash(),
+		TaskType:  taskType,
 	}
 }
 

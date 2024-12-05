@@ -165,24 +165,19 @@ func FailureProverTaskResult(
 
 // Task contains all the necessary data for either Prover or ProofProvider to perform computation
 type Task struct {
-	Id            TaskId                `json:"id"`
-	BatchId       BatchId               `json:"batchId"`
-	ShardId       types.ShardId         `json:"shardId"`
-	BlockNum      types.BlockNumber     `json:"blockNum"`
-	BlockHash     common.Hash           `json:"blockHash"`
-	TaskType      TaskType              `json:"taskType"`
-	CircuitType   CircuitType           `json:"circuitType"`
-	ParentTaskId  *TaskId               `json:"parentTaskId"`
-	Dependencies  map[TaskId]TaskResult `json:"dependencies"`
-	DependencyNum uint8                 `json:"dependencyNum"`
-}
+	Id           TaskId            `json:"id"`
+	BatchId      BatchId           `json:"batchId"`
+	ShardId      types.ShardId     `json:"shardId"`
+	BlockNum     types.BlockNumber `json:"blockNum"`
+	BlockHash    common.Hash       `json:"blockHash"`
+	TaskType     TaskType          `json:"taskType"`
+	CircuitType  CircuitType       `json:"circuitType"`
+	ParentTaskId *TaskId           `json:"parentTaskId"`
 
-func (t *Task) AddDependencyResult(res TaskResult) {
-	t.Dependencies[res.TaskId] = res
-}
-
-func EmptyDependencies() map[TaskId]TaskResult {
-	return make(map[TaskId]TaskResult)
+	// DependencyResults tracks the set of task results on which current task depends
+	DependencyResults map[TaskId]TaskResult `json:"dependencyResults"`
+	// PendingDependencies tracks the set of not completed dependencies
+	PendingDependencies map[TaskId]struct{} `json:"pendingDependencies"`
 }
 
 type TaskStatus uint8
@@ -196,14 +191,68 @@ const (
 
 // TaskEntry Wrapper for task to hold metadata like task status and dependencies
 type TaskEntry struct {
-	Task        Task
-	PendingDeps []TaskId
-	Created     time.Time
-	Started     *time.Time
-	Owner       TaskExecutorId
-	Status      TaskStatus
+	// Task: task to be executed
+	Task Task
+
+	// Dependents: list of tasks which depend on the current one
+	Dependents []TaskId
+
+	// Created: task object creation time
+	Created time.Time
+
+	// Started: time when the executor acquired the task for execution
+	Started *time.Time
+
+	// Owner: identifier of the current task executor
+	Owner TaskExecutorId
+
+	// Status: current status of the task
+	Status TaskStatus
 }
 
+// AddDependency adds a dependency to the current task entry and updates the dependents and pending dependencies.
+func (t *TaskEntry) AddDependency(dependency *TaskEntry) error {
+	if dependency == nil {
+		return errors.New("dependency cannot be nil")
+	}
+
+	dependency.Dependents = append(dependency.Dependents, t.Task.Id)
+
+	if t.Task.PendingDependencies == nil {
+		t.Task.PendingDependencies = make(map[TaskId]struct{})
+	}
+	t.Task.PendingDependencies[dependency.Task.Id] = struct{}{}
+	return nil
+}
+
+// AddDependencyResult updates the task's dependency result and adjusts pending dependencies and task status accordingly.
+func (t *TaskEntry) AddDependencyResult(res TaskResult) error {
+	if t.Task.PendingDependencies == nil {
+		return fmt.Errorf("task with id=%s has no pending dependencies", t.Task.Id)
+	}
+
+	if _, ok := t.Task.PendingDependencies[res.TaskId]; !ok {
+		return fmt.Errorf("task with id=%s has no pending dependency with id=%s", t.Task.Id, res.TaskId)
+	}
+
+	if t.Task.DependencyResults == nil {
+		t.Task.DependencyResults = make(map[TaskId]TaskResult)
+	}
+	t.Task.DependencyResults[res.TaskId] = res
+
+	if res.IsSuccess {
+		delete(t.Task.PendingDependencies, res.TaskId)
+	}
+	if len(t.Task.PendingDependencies) == 0 {
+		t.Status = WaitingForExecutor
+	}
+
+	return nil
+}
+
+// Start assigns an executor to a task and changes its status from WaitingForExecutor to Running.
+// It requires a non-zero executorId and only transitions tasks that are in WaitingForExecutor status.
+// Returns an error if the executorId is unknown or if the task has an invalid status.
 func (t *TaskEntry) Start(executorId TaskExecutorId) error {
 	if executorId == UnknownExecutorId {
 		return errors.New("unknown executor id")
@@ -219,6 +268,7 @@ func (t *TaskEntry) Start(executorId TaskExecutorId) error {
 	return nil
 }
 
+// ResetRunning resets a task's status from Running to WaitingForExecutor, clearing its start time and executor ownership.
 func (t *TaskEntry) ResetRunning() error {
 	if t.Status != Running {
 		return fmt.Errorf("task with id=%s has invalid status: %s", t.Task.Id, t.Status)
@@ -230,6 +280,7 @@ func (t *TaskEntry) ResetRunning() error {
 	return nil
 }
 
+// AsNewChildEntry creates a new TaskEntry with a new TaskId and sets the ParentTaskId to the current task's Id.
 func (t *Task) AsNewChildEntry() *TaskEntry {
 	newTask := common.CopyPtr(t)
 	newTask.Id = NewTaskId()
@@ -256,14 +307,12 @@ func HigherPriority(t1, t2 *TaskEntry) bool {
 
 func NewAggregateProofsTaskEntry(batchId BatchId, mainShardBlock *jsonrpc.RPCBlock) *TaskEntry {
 	task := Task{
-		Id:            NewTaskId(),
-		BatchId:       batchId,
-		ShardId:       mainShardBlock.ShardId,
-		BlockNum:      mainShardBlock.Number,
-		BlockHash:     mainShardBlock.Hash,
-		TaskType:      AggregateProofs,
-		Dependencies:  EmptyDependencies(),
-		DependencyNum: uint8(len(mainShardBlock.ChildBlocks)),
+		Id:        NewTaskId(),
+		BatchId:   batchId,
+		ShardId:   mainShardBlock.ShardId,
+		BlockNum:  mainShardBlock.Number,
+		BlockHash: mainShardBlock.Hash,
+		TaskType:  AggregateProofs,
 	}
 	return &TaskEntry{
 		Task:    task,
@@ -272,24 +321,37 @@ func NewAggregateProofsTaskEntry(batchId BatchId, mainShardBlock *jsonrpc.RPCBlo
 	}
 }
 
-func NewBlockProofTaskEntry(batchId BatchId, parentTaskId TaskId, execShardBlock *jsonrpc.RPCBlock) *TaskEntry {
+func NewBlockProofTaskEntry(batchId BatchId, aggregateProofsTask *TaskEntry, execShardBlock *jsonrpc.RPCBlock) (*TaskEntry, error) {
+	if aggregateProofsTask == nil {
+		return nil, errors.New("aggregateProofsTask cannot be nil")
+	}
+	if aggregateProofsTask.Task.TaskType != AggregateProofs {
+		return nil, fmt.Errorf("aggregateProofsTask has invalid type: %s", aggregateProofsTask.Task.TaskType)
+	}
+	if execShardBlock == nil {
+		return nil, errors.New("execShardBlock cannot be nil")
+	}
+
 	task := Task{
-		Id:            NewTaskId(),
-		BatchId:       batchId,
-		ShardId:       execShardBlock.ShardId,
-		BlockNum:      execShardBlock.Number,
-		BlockHash:     execShardBlock.Hash,
-		TaskType:      ProofBlock,
-		ParentTaskId:  &parentTaskId,
-		Dependencies:  EmptyDependencies(),
-		DependencyNum: 0,
+		Id:           NewTaskId(),
+		BatchId:      batchId,
+		ShardId:      execShardBlock.ShardId,
+		BlockNum:     execShardBlock.Number,
+		BlockHash:    execShardBlock.Hash,
+		TaskType:     ProofBlock,
+		ParentTaskId: &aggregateProofsTask.Task.Id,
 	}
-	return &TaskEntry{
-		Task:        task,
-		Created:     time.Now(),
-		Status:      WaitingForExecutor,
-		PendingDeps: []TaskId{parentTaskId},
+	blockProofEntry := &TaskEntry{
+		Task:    task,
+		Created: time.Now(),
+		Status:  WaitingForExecutor,
 	}
+
+	if err := aggregateProofsTask.AddDependency(blockProofEntry); err != nil {
+		return nil, err
+	}
+
+	return blockProofEntry, nil
 }
 
 func NewPartialProveTaskEntry(
@@ -300,15 +362,13 @@ func NewPartialProveTaskEntry(
 	circuitType CircuitType,
 ) *TaskEntry {
 	task := Task{
-		Id:            NewTaskId(),
-		BatchId:       batchId,
-		ShardId:       shardId,
-		BlockNum:      blockNum,
-		BlockHash:     blockHash,
-		TaskType:      PartialProve,
-		CircuitType:   circuitType,
-		Dependencies:  EmptyDependencies(),
-		DependencyNum: 0,
+		Id:          NewTaskId(),
+		BatchId:     batchId,
+		ShardId:     shardId,
+		BlockNum:    blockNum,
+		BlockHash:   blockHash,
+		TaskType:    PartialProve,
+		CircuitType: circuitType,
 	}
 	return &TaskEntry{
 		Task:    task,
@@ -324,21 +384,18 @@ func NewAggregateChallengeTaskEntry(
 	blockHash common.Hash,
 ) *TaskEntry {
 	aggChallengeTask := Task{
-		Id:            NewTaskId(),
-		BatchId:       batchId,
-		ShardId:       shardId,
-		BlockNum:      blockNum,
-		BlockHash:     blockHash,
-		TaskType:      AggregatedChallenge,
-		DependencyNum: CircuitAmount,
-		Dependencies:  EmptyDependencies(),
+		Id:        NewTaskId(),
+		BatchId:   batchId,
+		ShardId:   shardId,
+		BlockNum:  blockNum,
+		BlockHash: blockHash,
+		TaskType:  AggregatedChallenge,
 	}
 
 	return &TaskEntry{
 		Task:    aggChallengeTask,
 		Created: time.Now(),
-
-		Status: WaitingForInput,
+		Status:  WaitingForInput,
 	}
 }
 
@@ -350,15 +407,13 @@ func NewCombinedQTaskEntry(
 	circuitType CircuitType,
 ) *TaskEntry {
 	combinedQTask := Task{
-		Id:            NewTaskId(),
-		BatchId:       batchId,
-		ShardId:       shardId,
-		BlockNum:      blockNum,
-		BlockHash:     blockHash,
-		CircuitType:   circuitType,
-		TaskType:      CombinedQ,
-		DependencyNum: 2, // partial prove of corresponding circuit plus agg challenges
-		Dependencies:  EmptyDependencies(),
+		Id:          NewTaskId(),
+		BatchId:     batchId,
+		ShardId:     shardId,
+		BlockNum:    blockNum,
+		BlockHash:   blockHash,
+		CircuitType: circuitType,
+		TaskType:    CombinedQ,
 	}
 
 	return &TaskEntry{
@@ -375,14 +430,12 @@ func NewAggregateFRITaskEntry(
 	blockHash common.Hash,
 ) *TaskEntry {
 	aggFRITask := Task{
-		Id:            NewTaskId(),
-		BatchId:       batchId,
-		ShardId:       shardId,
-		BlockNum:      blockNum,
-		BlockHash:     blockHash,
-		TaskType:      AggregatedFRI,
-		DependencyNum: CircuitAmount*2 + 1, // all the partial proofs, combinedQ and agg challenges
-		Dependencies:  EmptyDependencies(),
+		Id:        NewTaskId(),
+		BatchId:   batchId,
+		ShardId:   shardId,
+		BlockNum:  blockNum,
+		BlockHash: blockHash,
+		TaskType:  AggregatedFRI,
 	}
 
 	return &TaskEntry{
@@ -400,15 +453,13 @@ func NewFRIConsistencyCheckTaskEntry(
 	circuitType CircuitType,
 ) *TaskEntry {
 	task := Task{
-		Id:            NewTaskId(),
-		BatchId:       batchId,
-		ShardId:       shardId,
-		BlockNum:      blockNum,
-		BlockHash:     blockHash,
-		TaskType:      FRIConsistencyChecks,
-		CircuitType:   circuitType,
-		Dependencies:  EmptyDependencies(),
-		DependencyNum: 3, // aggregate FRI and corresponding partial proof and combinedQ
+		Id:          NewTaskId(),
+		BatchId:     batchId,
+		ShardId:     shardId,
+		BlockNum:    blockNum,
+		BlockHash:   blockHash,
+		TaskType:    FRIConsistencyChecks,
+		CircuitType: circuitType,
 	}
 	return &TaskEntry{
 		Task:    task,
@@ -424,14 +475,12 @@ func NewMergeProofTaskEntry(
 	blockHash common.Hash,
 ) *TaskEntry {
 	mergeProofTask := Task{
-		Id:            NewTaskId(),
-		BatchId:       batchId,
-		ShardId:       shardId,
-		BlockNum:      blockNum,
-		BlockHash:     blockHash,
-		TaskType:      MergeProof,
-		DependencyNum: 1 + CircuitAmount*2, // agg FRI + 4 partial proofs + 4 FRI consistency checks
-		Dependencies:  EmptyDependencies(),
+		Id:        NewTaskId(),
+		BatchId:   batchId,
+		ShardId:   shardId,
+		BlockNum:  blockNum,
+		BlockHash: blockHash,
+		TaskType:  MergeProof,
 	}
 
 	return &TaskEntry{

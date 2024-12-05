@@ -100,16 +100,16 @@ func (s *TaskHandlerTestSuite) TestHandleAggregateProofsTask() {
 	s.Require().Equal(aggProofsTask.ShardId, requestedTask.ShardId)
 	s.Require().Equal(aggProofsTask.BlockNum, requestedTask.BlockNum)
 	s.Require().Equal(aggProofsTask.BlockHash, requestedTask.BlockHash)
-	s.Require().Equal(aggProofsTask.Dependencies, requestedTask.Dependencies)
 }
 
 func (s *TaskHandlerTestSuite) TestHandleBlockProofTask() {
 	executorId := testaide.RandomExecutorId()
-	taskId := types.NewTaskId()
 	execBlock := testaide.GenerateExecutionShardBlock()
-	taskEntry := types.NewBlockProofTaskEntry(types.NewBatchId(), taskId, execBlock)
+	aggregateProofsEntry := types.NewAggregateProofsTaskEntry(types.NewBatchId(), execBlock)
+	taskEntry, err := types.NewBlockProofTaskEntry(types.NewBatchId(), aggregateProofsEntry, execBlock)
+	s.Require().NoError(err)
 
-	err := s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
+	err = s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
 	s.Require().NoError(err, "taskHandler.Handle returned an error")
 
 	// Extract 4 top-level tasks
