@@ -32,14 +32,11 @@
 		"@uiw/react-codemirror": "^4.19.16",
 		"@ukorvl/react-on-screen": "^1.0.6",
 		"@vitejs/plugin-react": "^4.2.1",
-		"@web3-react/core": "^8.2.3",
-		"@web3-react/metamask": "^8.2.4",
 		"abitype": "^1.0.6",
 		"atomic-router": "^0.8.0",
 		"atomic-router-react": "^0.8.5",
 		"baseui": "^13.0.0",
 		"dayjs": "^1.11.9",
-		"decimal.js": "^10.4.3",
 		"effector": "^22.8.6",
 		"effector-react": "^22.5.3",
 		"effector-storage": "^6.1.1",
@@ -60,12 +57,11 @@
 		"styletron-react": "^6.1.0",
 		"typescript": "^5.5.4",
 		"viem": "2.17.3",
-		"vite": "^5.2.6"
+		"vite": "^6.0.3"
 	},
 	"devDependencies": {
 		"@types/loadable__component": "^5.13.6",
 		"vite-bundle-visualizer": "^1.1.0",
-		"vite-plugin-node-polyfills": "^0.21.0",
 		"vite-plugin-string": "^1.2.3"
 	}
 }

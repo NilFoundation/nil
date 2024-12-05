@@ -22,7 +22,6 @@ export { HyperlinkIcon } from "./components/HyperlinkIcon";
 export { QuestionIcon } from "./components/QuestionIcon";
 export { ArrowUpRightIcon } from "./components/ArrowUpRightIcon";
 export * from "./components/Popover";
-export * from "./utils/publicKey";
 export * from "./utils/age";
 export * from "./utils/convert";
 export * from "./utils/formatShard";

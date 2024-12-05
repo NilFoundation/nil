@@ -3,7 +3,10 @@
 	"version": "0.2.0",
 	"description": "Nil smart-contracts implementations",
 	"sideEffects": false,
-	"files": ["contracts", "artifacts"],
+	"files": [
+		"contracts",
+		"artifacts"
+	],
 	"engines": {
 		"node": ">=14"
 	},
@@ -11,16 +14,24 @@
 		"compile": "node ./scripts/compile.js",
 		"pub": "npm run compile && npm publish"
 	},
-	"author": "=nil; Foundation",
+  "main": "artifacts/index.cjs.js",
+  "module": "artifacts/index.esm.js",
+  "types": "artifacts/index.d.ts",
+  "author": "=nil; Foundation",
 	"license": "Apache-2.0",
 	"publishConfig": {
 		"access": "public",
 		"registry": "https://registry.npmjs.org/"
 	},
-	"keywords": ["nil", "blockchain", "contracts"],
+	"keywords": [
+		"nil",
+		"blockchain",
+		"contracts"
+	],
 	"devDependencies": {
+		"@rollup/plugin-typescript": "^12.1.1",
 		"rimraf": "^6.0.1",
-		"solc": "^0.8.26"
-	},
-	"dependencies": {}
+		"solc": "^0.8.26",
+    "rollup": "^4.28.0"
+	}
 }
