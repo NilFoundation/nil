@@ -128,8 +128,8 @@ func ArgsToCalldata(contractAbi abi.ABI, method string, args []string) ([]byte, 
 }
 
 type ArgValue struct {
-	Type  abi.Type
-	Value any
+	Type  abi.Type `json:"type"`
+	Value any      `json:"value"`
 }
 
 type NamedArgValues struct {

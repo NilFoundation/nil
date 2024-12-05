@@ -1,127 +1,219 @@
 package config
 
 import (
+	"crypto/ecdsa"
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/spf13/cobra"
+	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/mitchellh/mapstructure"
+	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 )
 
-var Quiet = false
+const (
+	AddressField     = "address"
+	PrivateKeyField  = "private_key"
+	RPCEndpointField = "rpc_endpoint"
+)
 
-var logger = logging.NewLogger("configCommand")
+const InitConfigTemplate = `; Configuration for interacting with the =nil; cluster
+[nil]
 
-var noConfigCmd map[string]struct{} = map[string]struct{}{
-	"help": {},
-	"init": {},
-	"set":  {},
+; Specify the RPC endpoint of your cluster
+; For example, if your cluster's RPC endpoint is at "http://127.0.0.1:8529", set it as below
+; rpc_endpoint = "http://127.0.0.1:8529"
+
+; Specify the RPC endpoint of your Cometa service
+; Cometa service is not mandatory, you can leave it empty if you don't use it
+; For example, if your Cometa's RPC endpoint is at "http://127.0.0.1:8528", set it as below
+; cometa_endpoint = "http://127.0.0.1:8528"
+
+; Specify the RPC endpoint of a Faucet service
+; Faucet service is not mandatory, you can leave it empty if you don't use it
+; For example, if your Faucet's RPC endpoint is at "http://127.0.0.1:8527", set it as below
+; faucet_endpoint = "http://127.0.0.1:8527"
+
+; Specify the private key used for signing external messages to your wallet.
+; You can generate a new key with "nil keygen new".
+; private_key = "WRITE_YOUR_PRIVATE_KEY_HERE"
+
+; Specify the address of your wallet to be the receiver of your external messages.
+; You can deploy a new wallet and save its address with "nil wallet new".
+; address = "0xWRITE_YOUR_ADDRESS_HERE"
+`
+
+var DefaultConfigPath string
+
+func init() {
+	homeDir, err := os.UserHomeDir()
+	check.PanicIfErr(err)
+
+	DefaultConfigPath = filepath.Join(homeDir, ".config/nil/config.ini")
 }
 
-var supportedOptions map[string]struct{} = map[string]struct{}{
-	"rpc_endpoint":    {},
-	"cometa_endpoint": {},
-	"faucet_endpoint": {},
-	"private_key":     {},
-	"address":         {},
+func InitDefaultConfig(configPath string) (string, error) {
+	if configPath == "" {
+		configPath = DefaultConfigPath
+	}
+
+	dirPath := filepath.Dir(configPath)
+	if err := os.MkdirAll(dirPath, 0o755); err != nil {
+		return "", fmt.Errorf("failed to create directrory: %w", err)
+	}
+
+	file, err := os.OpenFile(configPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	if err != nil {
+		return "", fmt.Errorf("failed to create config file: %w", err)
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(InitConfigTemplate)
+	if err != nil {
+		return "", fmt.Errorf("failed to write template to config file: %w", err)
+	}
+	return configPath, nil
 }
 
-func GetCommand(configPath *string, cfg *common.Config) *cobra.Command {
-	configCmd := &cobra.Command{
-		Use:          "config",
-		Short:        "Manage the =nil; CLI config",
-		SilenceUsage: true,
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			common.SetConfigFile(*configPath)
-
-			if _, withoutConfig := noConfigCmd[cmd.Name()]; withoutConfig {
-				return nil
-			}
-
-			if err := viper.ReadInConfig(); err != nil {
-				return fmt.Errorf("failed to read the config file: %w", err)
-			}
-			return nil
-		},
+func PatchConfig(delta map[string]any, force bool) error {
+	configPath := viper.ConfigFileUsed()
+	if configPath == "" {
+		// impossible, since we set the default in SetConfigFile
+		panic("config file is not set")
+	}
+	if _, err := os.Stat(configPath); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			configPath, err = InitDefaultConfig(configPath)
+		}
+		if err != nil {
+			return err
+		}
 	}
 
-	initCmd := &cobra.Command{
-		Use:          "init",
-		Short:        "Initialize the config file",
-		Args:         cobra.ExactArgs(0),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			path, err := common.InitDefaultConfig(*configPath)
-			if err != nil {
-				logger.Error().Err(err).Msg("Failed to create the config file")
-				return err
-			}
-
-			logger.Info().Msgf("The config file has been initialized successfully: %s", path)
-			return nil
-		},
+	cfg, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
 	}
 
-	showCmd := &cobra.Command{
-		Use:          "show",
-		Short:        "Show the contents of the config file",
-		Args:         cobra.ExactArgs(0),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			const printFormat = "%-18s: %v\n"
-			fmt.Printf(printFormat, "The config file", viper.ConfigFileUsed())
-			nilSection, ok := viper.AllSettings()["nil"].(map[string]interface{})
-			if !ok {
-				return nil
-			}
-			for key, value := range nilSection {
-				fmt.Printf(printFormat, key, value)
-			}
-			return nil
-		},
+	result := strings.Builder{}
+	first := true
+	for _, line := range strings.Split(string(cfg), "\n") {
+		if !first {
+			result.WriteByte('\n')
+		} else {
+			first = false
+		}
+		key := strings.TrimSpace(strings.Split(line, "=")[0])
+		if value, ok := delta[key]; ok {
+			result.WriteString(fmt.Sprintf("%s = %v", key, value))
+			delete(delta, key)
+		} else {
+			result.WriteString(line)
+		}
+	}
+	for key, value := range delta {
+		result.WriteString(fmt.Sprintf("%s = %v\n", key, value))
+	}
+	return os.WriteFile(configPath, []byte(result.String()), 0o600)
+}
+
+// SetConfigFile sets the config file for the viper
+func SetConfigFile(cfgFile string) {
+	viper.SetConfigType("ini")
+	viper.SetConfigFile(cfgFile)
+}
+
+func decodePrivateKey(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+	if f.Kind() == reflect.String && t == reflect.TypeOf(&ecdsa.PrivateKey{}) {
+		s, _ := data.(string)
+		return crypto.HexToECDSA(s)
+	}
+	return data, nil
+}
+
+func decodeAddress(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+	if f.Kind() == reflect.String && t == reflect.TypeOf(types.Address{}) {
+		s, _ := data.(string)
+		var res types.Address
+		if err := res.UnmarshalText([]byte(s)); err != nil {
+			return nil, err
+		}
+		return res, nil
+	}
+	return data, nil
+}
+
+func updateDecoderConfig(config *mapstructure.DecoderConfig) {
+	config.DecodeHook = mapstructure.ComposeDecodeHookFunc(
+		config.DecodeHook,
+		decodePrivateKey,
+		decodeAddress,
+	)
+}
+
+// LoadConfig loads the configuration from the config file
+func LoadConfig(cfgFilePath string, logger zerolog.Logger) (*common.Config, error) {
+	err := viper.ReadInConfig()
+
+	// Create file if it doesn't exist
+	if errors.As(err, new(viper.ConfigFileNotFoundError)) {
+		logger.Info().Msg("Config file not found. Creating a new one...")
+
+		path, errCfg := InitDefaultConfig(cfgFilePath)
+		if errCfg != nil {
+			logger.Error().Err(err).Msg("Failed to create config")
+			return nil, err
+		}
+
+		logger.Info().Msgf("Config file created successfully at %s", path)
+		logger.Info().Msgf("set via `%s config set <option> <value>` or via config file", os.Args[0])
+		return &common.Config{}, nil
 	}
 
-	getCmd := &cobra.Command{
-		Use:          "get [key]",
-		Short:        "Get the value of a key from the config file",
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			key := args[0]
-			value := viper.Get("nil." + key)
-			if value == nil {
-				logger.Warn().Msgf("Key %q is not found in the config file", key)
-				return nil
-			}
-			fmt.Printf("%s: %v\n", key, value)
-			return nil
-		},
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	setCmd := &cobra.Command{
-		Use:          "set [key] [value]",
-		Short:        "Set the value of a key in the config file",
-		Args:         cobra.ExactArgs(2),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if _, supported := supportedOptions[args[0]]; !supported {
-				logger.Error().Msgf("Key %q is not known", args[0])
-				return nil
-			}
-
-			if err := common.PatchConfig(map[string]interface{}{
-				args[0]: args[1],
-			}, true); err != nil {
-				logger.Error().Err(err).Msg("Failed to set the config value")
-				return err
-			}
-			logger.Info().Msgf("Set %q to %q", args[0], args[1])
-			return nil
-		},
+	config := common.Config{}
+	if err := viper.UnmarshalKey("nil", &config, updateDecoderConfig); err != nil {
+		return nil, fmt.Errorf("unable to decode config: %w", err)
 	}
 
-	configCmd.AddCommand(initCmd, showCmd, getCmd, setCmd)
+	if err := validateConfig(&config, logger); err != nil {
+		return nil, err
+	}
 
-	return configCmd
+	logger.Debug().Msg("Configuration loaded successfully")
+	return &config, nil
+}
+
+// validateConfig perform some simple configuration validation
+func validateConfig(config *common.Config, logger zerolog.Logger) error {
+	if config.RPCEndpoint == "" {
+		return MissingKeyError(RPCEndpointField, logger)
+	}
+	return nil
+}
+
+var generateCommands = map[string]string{
+	PrivateKeyField: "keygen",
+	AddressField:    "wallet new",
+}
+
+func MissingKeyError(key string, logger zerolog.Logger) error {
+	logger.Info().Msgf("%s not specified in config.\nRun `%s config set %s <value>` or set via config file.", key, os.Args[0], key)
+
+	if cmd, ok := generateCommands[key]; ok {
+		logger.Info().Msgf("You can also run `%s %s` to generate a new one.", os.Args[0], cmd)
+	}
+
+	return fmt.Errorf("%s not specified in config", key)
 }

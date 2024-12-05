@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
@@ -22,7 +21,7 @@ func GetEstimateFeeCommand(cfg *common.Config) *cobra.Command {
 		SilenceUsage: true,
 	}
 
-	cmd.Flags().StringVar(&params.abiPath, abiFlag, "", "The path to the ABI file")
+	cmd.Flags().StringVar(&params.AbiPath, abiFlag, "", "The path to the ABI file")
 	cmd.Flags().Var(&params.value, valueFlag, "The value for the transfer")
 	cmd.Flags().BoolVar(&params.deploy, deployFlag, false, "Set the \"deploy\" flag")
 
@@ -37,7 +36,7 @@ func runEstimateFee(args []string, cfg *common.Config) error {
 		return fmt.Errorf("invalid address: %w", err)
 	}
 
-	abi, err := common.ReadAbiFromFile(params.abiPath)
+	abi, err := common.ReadAbiFromFile(params.AbiPath)
 	if err != nil {
 		return err
 	}
@@ -75,7 +74,7 @@ func runEstimateFee(args []string, cfg *common.Config) error {
 		return err
 	}
 
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Print("Estimated fee: ")
 	}
 	fmt.Println(value)

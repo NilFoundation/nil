@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/spf13/cobra"
@@ -47,7 +46,7 @@ func runChangeCurrencyAmount(_ *cobra.Command, args []string, cfg *common.Config
 	if err != nil {
 		return err
 	}
-	if !config.Quiet {
+	if !common.Quiet {
 		if mint {
 			fmt.Printf("Minted %v amount of currency to %v, TX Hash: ", amount, address)
 		} else {

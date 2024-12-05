@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/spf13/cobra"
@@ -30,7 +29,7 @@ func SendTokensCommand(cfg *common.Config) *cobra.Command {
 	)
 
 	cmd.Flags().Var(
-		&params.feeCredit,
+		&params.FeeCredit,
 		feeCreditFlag,
 		"The fee credit for processing the transfer",
 	)
@@ -62,7 +61,7 @@ func runTransfer(_ *cobra.Command, args []string, cfg *common.Config) error {
 		return err
 	}
 
-	msgHash, err := service.RunContract(cfg.Address, nil, params.feeCredit, amount, currencies, address)
+	msgHash, err := service.RunContract(cfg.Address, nil, params.FeeCredit, amount, currencies, address)
 	if err != nil {
 		return err
 	}
@@ -73,7 +72,7 @@ func runTransfer(_ *cobra.Command, args []string, cfg *common.Config) error {
 		}
 	}
 
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Print("Message hash: ")
 	}
 

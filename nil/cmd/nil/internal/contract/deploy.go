@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	libcommon "github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
@@ -43,7 +42,7 @@ func setDeployFlags(cmd *cobra.Command) {
 	)
 
 	cmd.Flags().StringVar(
-		&params.abiPath,
+		&params.AbiPath,
 		abiFlag,
 		"",
 		"The path to the ABI file",
@@ -57,7 +56,7 @@ func setDeployFlags(cmd *cobra.Command) {
 	)
 
 	cmd.Flags().Var(
-		&params.feeCredit,
+		&params.FeeCredit,
 		feeCreditFlag,
 		"The deployment fee credit. If  set to 0, it will be estimated automatically",
 	)
@@ -73,14 +72,14 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 		args = cmdArgs[1:]
 	}
 
-	bytecode, err := common.ReadBytecode(filename, params.abiPath, args)
+	bytecode, err := common.ReadBytecode(filename, params.AbiPath, args)
 	if err != nil {
 		return err
 	}
 
 	payload := types.BuildDeployPayload(bytecode, libcommon.Hash(params.salt.Bytes32()))
 
-	msgHash, addr, err := service.DeployContractExternal(params.shardId, payload, params.feeCredit)
+	msgHash, addr, err := service.DeployContractExternal(params.shardId, payload, params.FeeCredit)
 	if err != nil {
 		return err
 	}
@@ -91,12 +90,12 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 		}
 	}
 
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Print("Message hash: ")
 	}
 	fmt.Println(msgHash)
 
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Print("Contract address: ")
 	}
 	fmt.Println(addr)

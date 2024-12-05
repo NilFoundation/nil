@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
@@ -38,7 +37,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if !config.Quiet {
+			if !common.Quiet {
 				fmt.Println("Shards: ")
 			}
 			fmt.Print(cliservice.ShardsToString(list))
@@ -63,7 +62,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if !config.Quiet {
+			if !common.Quiet {
 				fmt.Printf("Gas price for shard %v: ", shardId)
 			}
 			fmt.Println(val)
@@ -82,7 +81,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if !config.Quiet {
+			if !common.Quiet {
 				fmt.Print("ChainId: ")
 			}
 			fmt.Println(chainId)

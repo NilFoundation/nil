@@ -30,7 +30,7 @@ func GetCommand(cfgPath *string) *cobra.Command {
 }
 
 func runCommand(cfgPath *string, args []string) error {
-	cfg, err := common.LoadConfig(*cfgPath, logger)
+	cfg, err := config.LoadConfig(*cfgPath, logger)
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func runCommand(cfgPath *string, args []string) error {
 			logger.Error().Err(err).Msg("Failed to fetch the message")
 			return err
 		}
-		if !config.Quiet {
+		if !common.Quiet {
 			fmt.Print("Message data: ")
 		}
 		fmt.Println(string(msgDataJson))

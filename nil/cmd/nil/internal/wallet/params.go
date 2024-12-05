@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
@@ -20,22 +21,21 @@ const (
 	compileInput     = "compile-input"
 )
 
-var params = &walletParams{}
+var params = &walletParams{
+	Params: &common.Params{},
+}
 
 type walletParams struct {
-	abiPath          string
-	amount           types.Value
-	deploy           bool
-	newWalletAmount  types.Value
-	noWait           bool
-	salt             types.Uint256
-	shardId          types.ShardId
-	feeCredit        types.Value
-	value            types.Value
-	currency         types.Value
-	currencies       []string
-	inOverridesPath  string
-	outOverridesPath string
-	withDetails      bool
-	compileInput     string
+	*common.Params
+
+	deploy          bool
+	noWait          bool
+	amount          types.Value
+	newWalletAmount types.Value
+	salt            types.Uint256
+	shardId         types.ShardId
+	value           types.Value
+	currency        types.Value
+	currencies      []string
+	compileInput    string
 }

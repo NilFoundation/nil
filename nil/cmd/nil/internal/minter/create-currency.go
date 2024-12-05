@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/spf13/cobra"
@@ -43,7 +42,7 @@ func runCreateCurrency(_ *cobra.Command, args []string, cfg *common.Config) erro
 	if err != nil {
 		return err
 	}
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Print("Created Currency ID: ")
 	}
 	fmt.Println(currencyId)

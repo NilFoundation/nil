@@ -64,7 +64,7 @@ func main() {
 
 				// Set the config file for all commands because some commands can write something to it.
 				// E.g. "keygen" command writes a private key to the config file (and creates if it doesn't exist)
-				common.SetConfigFile(rootCmd.cfgFile)
+				config.SetConfigFile(rootCmd.cfgFile)
 
 				// Traverse up to find the top-level command
 				for cmd.HasParent() && cmd.Parent() != rootCmd.baseCmd {
@@ -76,7 +76,7 @@ func main() {
 				}
 
 				var err error
-				cfg, err := common.LoadConfig(rootCmd.cfgFile, logger)
+				cfg, err := config.LoadConfig(rootCmd.cfgFile, logger)
 				if err != nil {
 					return err
 				}
@@ -89,10 +89,10 @@ func main() {
 		},
 	}
 
-	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.cfgFile, "config", "c", common.DefaultConfigPath, "The path to the config file")
+	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.cfgFile, "config", "c", config.DefaultConfigPath, "The path to the config file")
 	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.logLevel, "log-level", "l", "info", "Log level: trace|debug|info|warn|error|fatal|panic")
 	rootCmd.baseCmd.PersistentFlags().BoolVarP(
-		&config.Quiet,
+		&common.Quiet,
 		"quiet",
 		"q",
 		false,
@@ -115,7 +115,7 @@ func (rc *RootCommand) registerSubCommands() {
 	rc.baseCmd.AddCommand(
 		abi.GetCommand(),
 		block.GetCommand(&rc.config),
-		config.GetCommand(&rc.cfgFile, &rc.config),
+		config.GetCommand(&rc.cfgFile),
 		contract.GetCommand(&rc.config),
 		keygen.GetCommand(),
 		message.GetCommand(&rc.cfgFile),

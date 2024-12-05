@@ -2,7 +2,7 @@ package keygen
 
 import (
 	"github.com/NilFoundation/nil/nil/client/rpc"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/spf13/cobra"
@@ -20,8 +20,8 @@ func GetCommand() *cobra.Command {
 			privateKey := keygen.GetPrivateKey()
 			logger.Info().Msgf("Private key: %v", privateKey)
 
-			if err := common.PatchConfig(map[string]interface{}{
-				common.PrivateKeyField: privateKey,
+			if err := config.PatchConfig(map[string]interface{}{
+				config.PrivateKeyField: privateKey,
 			}, false); err != nil {
 				logger.Error().Err(err).Msg("failed to update the private key in the config file")
 			}

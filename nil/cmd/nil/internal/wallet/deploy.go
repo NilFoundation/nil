@@ -6,7 +6,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/NilFoundation/nil/nil/services/cometa"
@@ -46,7 +45,7 @@ func setDeployFlags(cmd *cobra.Command) {
 	)
 
 	cmd.Flags().StringVar(
-		&params.abiPath,
+		&params.AbiPath,
 		abiFlag,
 		"",
 		"The path to the ABI file",
@@ -108,7 +107,7 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 		}
 		var calldata []byte
 		if len(cmdArgs) > 0 {
-			abi, err := common.ReadAbiFromFile(params.abiPath)
+			abi, err := common.ReadAbiFromFile(params.AbiPath)
 			if err != nil {
 				return err
 			}
@@ -126,7 +125,7 @@ func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 			args = cmdArgs[1:]
 		}
 
-		bytecode, err = common.ReadBytecode(filename, params.abiPath, args)
+		bytecode, err = common.ReadBytecode(filename, params.AbiPath, args)
 		if err != nil {
 			return err
 		}
@@ -168,12 +167,12 @@ https://ethereum.org/en/developers/tutorials/downsizing-contracts-to-fight-the-c
 		}
 	}
 
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Print("Message hash: ")
 	}
 	fmt.Printf("0x%x\n", msgHash)
 
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Print("Contract address: ")
 	}
 	fmt.Printf("0x%x\n", contractAddr)

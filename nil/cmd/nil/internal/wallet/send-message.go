@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/spf13/cobra"
@@ -23,7 +22,7 @@ func SendMessageCommand(cfg *common.Config) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(
-		&params.abiPath,
+		&params.AbiPath,
 		abiFlag,
 		"",
 		"The path to the ABI file",
@@ -43,7 +42,7 @@ func SendMessageCommand(cfg *common.Config) *cobra.Command {
 	)
 
 	cmd.Flags().Var(
-		&params.feeCredit,
+		&params.FeeCredit,
 		feeCreditFlag,
 		"The fee credit for message processing",
 	)
@@ -65,7 +64,7 @@ func runSend(_ *cobra.Command, args []string, cfg *common.Config) error {
 		return fmt.Errorf("invalid address: %w", err)
 	}
 
-	abi, err := common.ReadAbiFromFile(params.abiPath)
+	abi, err := common.ReadAbiFromFile(params.AbiPath)
 	if err != nil {
 		return err
 	}
@@ -80,7 +79,7 @@ func runSend(_ *cobra.Command, args []string, cfg *common.Config) error {
 		return err
 	}
 
-	msgHash, err := service.RunContract(cfg.Address, calldata, params.feeCredit, params.amount, currencies, address)
+	msgHash, err := service.RunContract(cfg.Address, calldata, params.FeeCredit, params.amount, currencies, address)
 	if err != nil {
 		return err
 	}
@@ -91,7 +90,7 @@ func runSend(_ *cobra.Command, args []string, cfg *common.Config) error {
 		}
 	}
 
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Print("Message hash: ")
 	}
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/spf13/cobra"
@@ -34,12 +33,12 @@ func runCurrencies(_ *cobra.Command, args []string, cfg *common.Config) error {
 	if err != nil {
 		return err
 	}
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Println("Contract currencies:")
 	}
 	for k, v := range currencies {
 		fmt.Printf("%s\t%s", k, v)
-		if name := types.GetCurrencyName(k); len(name) > 0 && !config.Quiet {
+		if name := types.GetCurrencyName(k); len(name) > 0 && !common.Quiet {
 			fmt.Printf("\t[%s]", name)
 		}
 		fmt.Println()

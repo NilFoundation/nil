@@ -3,7 +3,7 @@ package keygen
 import (
 	"fmt"
 
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/spf13/cobra"
@@ -28,17 +28,17 @@ func runNewP2p(_ *cobra.Command, _ []string, keygen *cliservice.Service) error {
 		return err
 	}
 
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Printf("Private key: ")
 	}
 	fmt.Println(hexutil.Encode(privateKey))
 
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Printf("Public key: ")
 	}
 	fmt.Println(hexutil.Encode(pubKey))
 
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Printf("Identity: ")
 	}
 	fmt.Println(identity)

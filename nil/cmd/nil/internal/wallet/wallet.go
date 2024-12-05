@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/spf13/cobra"
@@ -24,10 +25,10 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 				}
 			}
 			if cfg.PrivateKey == nil {
-				return common.MissingKeyError(common.PrivateKeyField, logger)
+				return config.MissingKeyError(config.PrivateKeyField, logger)
 			}
 			if cfg.Address == types.EmptyAddress && cmd.Name() != "new" {
-				return common.MissingKeyError(common.AddressField, logger)
+				return config.MissingKeyError(config.AddressField, logger)
 			}
 			return nil
 		},
