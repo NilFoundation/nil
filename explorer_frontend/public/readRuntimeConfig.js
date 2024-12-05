@@ -31,8 +31,8 @@ function loadConfig() {
   var config = {};
   var localConfig = {};
 
-  var configToml = fetchTomlFileSync("./runtime-config.toml");
-  var localConfigToml = fetchTomlFileSync("./runtime-config.local.toml");
+  var configToml = fetchTomlFileSync("/runtime-config.toml");
+  var localConfigToml = fetchTomlFileSync("/runtime-config.local.toml");
 
   if (configToml) {
     config = safeParseToml(configToml);
