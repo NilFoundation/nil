@@ -295,18 +295,6 @@ type EthAPI interface {
 	EthAPIRo
 
 	/*
-		@name TopUpViaFaucet
-		@summary Tops up the balance of the contractAddressTo using the faucet contract.
-		@description
-		@tags [Transactions]
-		@param contractAddressFrom Address
-		@param contractAddressTo Address
-		@param amount Value
-		@returns hash MessageHash
-	*/
-	TopUpViaFaucet(ctx context.Context, faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error)
-
-	/*
 		@name SendRawTransaction
 		@summary Creates a new message or creates a contract for a previously signed message.
 		@description Implements eth_sendRawTransaction.

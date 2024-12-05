@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/faucet"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/tests"
@@ -19,6 +20,7 @@ import (
 
 type SuiteFaucet struct {
 	tests.ShardedSuite
+	faucetClient *faucet.Client
 }
 
 func (s *SuiteFaucet) SetupTest() {
@@ -28,6 +30,7 @@ func (s *SuiteFaucet) SetupTest() {
 	}, 10225)
 
 	s.DefaultClient, _ = s.StartRPCNode()
+	s.faucetClient, _ = tests.StartFaucetService(s.T(), s.Context, &s.Wg, s.DefaultClient)
 }
 
 func (s *SuiteFaucet) TearDownTest() {
@@ -81,7 +84,7 @@ func (s *SuiteFaucet) TestDeployContractViaFaucet() {
 
 	code := types.BuildDeployPayload(walletCode, common.EmptyHash)
 	walletAddr := types.CreateAddress(types.FaucetAddress.ShardId(), code)
-	msgHash, err := s.DefaultClient.TopUpViaFaucet(types.FaucetAddress, walletAddr, value)
+	msgHash, err := s.faucetClient.TopUpViaFaucet(types.FaucetAddress, walletAddr, value)
 	s.Require().NoError(err)
 	receipt := s.WaitForReceipt(msgHash)
 	s.Require().True(receipt.Success)
@@ -128,7 +131,7 @@ func (s *SuiteFaucet) TestTopUpViaFaucet() {
 		s.Require().NoError(err)
 		s.Require().NotEmpty(code)
 
-		mshHash, err := s.DefaultClient.TopUpViaFaucet(types.FaucetAddress, address, types.NewValueFromUint64(value))
+		mshHash, err := s.faucetClient.TopUpViaFaucet(types.FaucetAddress, address, types.NewValueFromUint64(value))
 		s.Require().NoError(err)
 		receipt = s.WaitForReceipt(mshHash)
 		s.Require().NotNil(receipt)
@@ -177,7 +180,7 @@ func (s *SuiteFaucet) TestTopUpCurrencyViaFaucet() {
 	value := types.NewValueFromUint64(1000)
 	faucetsAddr := []types.Address{types.EthFaucetAddress, types.UsdtFaucetAddress, types.BtcFaucetAddress}
 	for _, faucet := range faucetsAddr {
-		mshHash, err := s.DefaultClient.TopUpViaFaucet(faucet, address, value)
+		mshHash, err := s.faucetClient.TopUpViaFaucet(faucet, address, value)
 		s.Require().NoError(err)
 		receipt = s.WaitForReceipt(mshHash)
 		s.Require().NotNil(receipt)

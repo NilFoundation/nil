@@ -235,10 +235,6 @@ func (c *DirectClient) SendExternalMessage(
 	return SendExternalMessage(c, bytecode, contractAddress, pk, feeCredit, false, false)
 }
 
-func (c *DirectClient) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error) {
-	return c.ethApi.TopUpViaFaucet(c.ctx, faucetAddress, contractAddressTo, amount)
-}
-
 func (c *DirectClient) Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error) {
 	blockNrOrHash, err := transport.AsBlockReference(blockId)
 	if err != nil {
