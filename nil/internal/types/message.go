@@ -82,6 +82,10 @@ type MessageFlags struct {
 	BitFlags[uint8]
 }
 
+func NewMessageFlagsFromBits(bits uint8) MessageFlags {
+	return MessageFlags{BitFlags: BitFlags[uint8]{Bits: bits}}
+}
+
 func (flags MessageFlags) Value() (driver.Value, error) {
 	return flags.Bits, nil
 }

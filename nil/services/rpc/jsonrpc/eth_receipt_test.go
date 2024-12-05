@@ -15,52 +15,58 @@ type SuiteEthReceipt struct {
 	db          db.DB
 	api         *APIImpl
 	receipt     types.Receipt
+	message     types.Message
 	outMessages []*types.Message
 }
 
-func (suite *SuiteEthReceipt) SetupSuite() {
+func (s *SuiteEthReceipt) SetupSuite() {
 	ctx := context.Background()
 
 	var err error
-	suite.db, err = db.NewBadgerDbInMemory()
-	suite.Require().NoError(err)
+	s.db, err = db.NewBadgerDbInMemory()
+	s.Require().NoError(err)
 
-	suite.api = NewTestEthAPI(suite.T(), ctx, suite.db, 2)
+	s.api = NewTestEthAPI(s.T(), ctx, s.db, 2)
 
-	tx, err := suite.db.CreateRwTx(ctx)
-	suite.Require().NoError(err)
+	tx, err := s.db.CreateRwTx(ctx)
+	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	message := types.Message{Data: []byte{}, To: types.GenerateRandomAddress(types.BaseShardId)}
-	suite.receipt = types.Receipt{MsgHash: message.Hash(), Logs: []*types.Log{}, OutMsgIndex: 0, OutMsgNum: 2}
+	s.message = types.Message{
+		Data:  []byte{},
+		To:    types.GenerateRandomAddress(types.BaseShardId),
+		Flags: types.NewMessageFlags(1, 5, 7),
+	}
+	s.receipt = types.Receipt{MsgHash: s.message.Hash(), Logs: []*types.Log{}, OutMsgIndex: 0, OutMsgNum: 2}
 
-	suite.outMessages = append(suite.outMessages, &types.Message{Data: []byte{12}})
-	suite.outMessages = append(suite.outMessages, &types.Message{Data: []byte{34}})
+	s.outMessages = append(s.outMessages, &types.Message{Data: []byte{12}})
+	s.outMessages = append(s.outMessages, &types.Message{Data: []byte{34}})
 
-	blockHash := writeTestBlock(suite.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Message{&message},
-		[]*types.Receipt{&suite.receipt}, suite.outMessages)
+	blockHash := writeTestBlock(s.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Message{&s.message},
+		[]*types.Receipt{&s.receipt}, s.outMessages)
 	_, err = execution.PostprocessBlock(tx, types.BaseShardId, types.NewValueFromUint64(10), blockHash)
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
 	err = tx.Commit()
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 }
 
-func (suite *SuiteEthReceipt) TearDownSuite() {
-	suite.db.Close()
+func (s *SuiteEthReceipt) TearDownSuite() {
+	s.db.Close()
 }
 
-func (suite *SuiteEthReceipt) TestGetMessageReceipt() {
-	data, err := suite.api.GetInMessageReceipt(context.Background(), suite.receipt.MsgHash)
-	suite.Require().NoError(err)
-	suite.Require().NotNil(data)
+func (s *SuiteEthReceipt) TestGetMessageReceipt() {
+	data, err := s.api.GetInMessageReceipt(context.Background(), s.receipt.MsgHash)
+	s.Require().NoError(err)
+	s.Require().NotNil(data)
 
-	for i, outMsg := range suite.outMessages {
-		suite.Equal(outMsg.Hash(), data.OutMessages[i])
+	for i, outMsg := range s.outMessages {
+		s.Equal(outMsg.Hash(), data.OutMessages[i])
 	}
 
-	suite.Equal(suite.receipt.MsgHash, data.MsgHash)
-	suite.Equal(suite.receipt.Success, data.Success)
+	s.Equal(s.receipt.MsgHash, data.MsgHash)
+	s.Equal(s.receipt.Success, data.Success)
+	s.Equal(s.message.Flags, data.Flags)
 }
 
 func TestSuiteEthReceipt(t *testing.T) {

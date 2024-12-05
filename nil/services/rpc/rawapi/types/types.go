@@ -116,9 +116,8 @@ type MessageInfo struct {
 }
 
 type ReceiptInfo struct {
-	// TODO: we don't need shard-id as a separate field
-	ShardId        types.ShardId
 	ReceiptSSZ     []byte
+	Flags          types.MessageFlags
 	Index          types.MessageIndex
 	BlockHash      common.Hash
 	BlockId        types.BlockNumber
