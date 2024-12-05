@@ -15,6 +15,7 @@ import { useState, type FC } from "react";
 import { changeCode } from "../model";
 import { useStyletron } from "styletron-react";
 import AsyncCallExample from "../assets/AsyncCallExample.sol";
+import { compile } from "../model";
 
 type ExamplesButtonProps = {
   disabled?: boolean;
@@ -53,6 +54,7 @@ export const ExamplesButton: FC<ExamplesButtonProps> = ({ disabled }) => {
         <Menu
           onItemSelect={({ item }) => {
             changeCode(item.exampleCode);
+            compile();
             close();
           }}
           items={menuItems as unknown as Items}
