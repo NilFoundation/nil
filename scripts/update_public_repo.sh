@@ -42,7 +42,7 @@ process_repo() {
         cur_dir=$dir
     done
     args+=" --path-rename $cur_dir/:"
-    bash -c "$CMD git clone $CUR_REPO $WORK_DIR/nil && cd $WORK_DIR/nil && git filter-repo $args"
+    $CMD bash -c "git clone $CUR_REPO $WORK_DIR/nil && cd $WORK_DIR/nil && git filter-repo $args"
     cd $WORK_DIR/nil
     git remote add target "$TARGET_URL"
     git push target main
