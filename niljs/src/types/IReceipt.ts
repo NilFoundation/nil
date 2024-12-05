@@ -1,10 +1,12 @@
 import type { Hex } from "./Hex.js";
 import type { ILog } from "./ILog.js";
+import type { Flags } from "./RPCMessage.js";
 
 /**
  * The receipt interface.
  */
 type IReceipt = {
+  flags: Flags[];
   success: boolean;
   gasUsed: string;
   gasPrice?: string;
