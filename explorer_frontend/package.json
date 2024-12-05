@@ -21,7 +21,7 @@
 		"@loadable/component": "^5.15.3",
 		"@nilfoundation/niljs": "0.20.0",
 		"@nilfoundation/smart-contracts": "0.2.0",
-		"@nilfoundation/ui-kit": "^2.5.24",
+		"@nilfoundation/ui-kit": "^2.5.25",
 		"@noble/curves": "^1.4.0",
 		"@replit/codemirror-lang-solidity": "^6.0.2",
 		"@trpc/client": "10.38.5",
