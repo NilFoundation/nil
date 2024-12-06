@@ -58,7 +58,6 @@ const (
 	Eth_getBlockTransactionCountByNumber = "eth_getBlockTransactionCountByNumber"
 	Eth_getBlockTransactionCountByHash   = "eth_getBlockTransactionCountByHash"
 	Eth_getBalance                       = "eth_getBalance"
-	Eth_topUpViaFaucet                   = "eth_topUpViaFaucet"
 	Eth_getCurrencies                    = "eth_getCurrencies"
 	Eth_getShardIdList                   = "eth_getShardIdList"
 	Eth_gasPrice                         = "eth_gasPrice"
@@ -568,19 +567,6 @@ func (c *Client) SendExternalMessage(
 	bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, feeCredit types.Value,
 ) (common.Hash, error) {
 	return client.SendExternalMessage(c, bytecode, contractAddress, pk, feeCredit, false, false)
-}
-
-func (c *Client) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error) {
-	res, err := c.call(Eth_topUpViaFaucet, faucetAddress, contractAddressTo, amount)
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	var hash common.Hash
-	if err := json.Unmarshal(res, &hash); err != nil {
-		return common.EmptyHash, err
-	}
-	return hash, nil
 }
 
 func (c *Client) Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error) {
