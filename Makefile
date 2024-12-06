@@ -44,10 +44,16 @@ ssz: ssz_db ssz_mpt ssz_types ssz_config
 .PHONY: pb
 pb: pb_rawapi pb_ibft pb_synccommittee
 
-contracts/compiled/%.bin: $(wildcard nil/contracts/solidity/tests/*.sol) $(wildcard nil/contracts/solidity/*.sol)
+SOL_FILES := $(wildcard nil/contracts/solidity/tests/*.sol nil/contracts/solidity/*.sol)
+BIN_FILES := $(patsubst nil/contracts/solidity/%.sol, contracts/compiled/%.bin, $(SOL_FILES))
+
+.PHONY: compile-bins
+compile-bins:
 	cd nil/contracts && go generate generate.go
 
-compile-contracts: contracts/compiled/Faucet.bin contracts/compiled/Wallet.bin
+$(BIN_FILES): | compile-bins
+
+compile-contracts: $(BIN_FILES)
 
 lint: generated
 	GOPROXY= go mod tidy
