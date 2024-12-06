@@ -1,6 +1,7 @@
 package db
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -44,12 +45,15 @@ func ShardBlocksTrieTableName(blockId types.BlockNumber) ShardedTableName {
 	return ShardedTableName(fmt.Sprintf("%s%d", shardBlocksTrieTable, blockId))
 }
 
+func IsKeyFromShardBlocksTrieTable(key []byte, shardId types.ShardId) bool {
+	return shardId.IsMainShard() && bytes.HasPrefix(key, []byte(shardBlocksTrieTable))
+}
+
 func CreateKeyFromShardTableChecker(shardId types.ShardId) func([]byte) bool {
 	shardTableNames := []ShardedTableName{
 		blockTable,
 		blockTimestampTable,
 		codeTable,
-		shardBlocksTrieTable,
 
 		ContractTrieTable,
 		StorageTrieTable,
@@ -82,11 +86,14 @@ func CreateKeyFromShardTableChecker(shardId types.ShardId) func([]byte) bool {
 	}
 
 	return func(key []byte) bool {
+		if _, exists := systemKeys[string(key)]; exists {
+			return true
+		}
+		if IsKeyFromShardBlocksTrieTable(key, shardId) {
+			return true
+		}
 		for _, shardedTable := range shardTables {
 			if IsKeyFromTable(shardedTable, key) {
-				return true
-			}
-			if _, exists := systemKeys[string(key)]; exists {
 				return true
 			}
 		}
