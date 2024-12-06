@@ -79,7 +79,11 @@ func (zst *ZKEVMStateTracer) TraceOp(
 
 	// Copy memory from ranges
 	for i := memRanges.before.offset; i < memRanges.before.offset+memRanges.before.length; i++ {
-		state.MemorySlice[i] = scope.MemoryData()[i]
+		var databyte byte
+		if i < uint64(len(scope.MemoryData())) { // see memory tracer for details
+			databyte = scope.MemoryData()[i]
+		}
+		state.MemorySlice[i] = databyte
 	}
 	for i := memRanges.after.offset; i < memRanges.after.offset+memRanges.after.length; i++ {
 		if i >= state.MemorySize {
