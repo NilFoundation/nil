@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/spf13/cobra"
@@ -33,7 +32,7 @@ func runCode(_ *cobra.Command, args []string, cfg *common.Config) error {
 	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
 	_, _ = service.GetCode(address)
 	code, _ := service.GetCode(address)
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Print("Contract code: ")
 	}
 	fmt.Println(code)

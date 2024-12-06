@@ -42,7 +42,7 @@ func setFlags(cmd *cobra.Command) {
 	)
 
 	cmd.Flags().Var(
-		&params.feeCredit,
+		&params.FeeCredit,
 		feeCreditFlag,
 		"The fee credit for wallet creation. If set to 0, it will be estimated automatically",
 	)
@@ -69,18 +69,18 @@ func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
 	}
 	srv := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, faucet)
 	check.PanicIfNotf(cfg.PrivateKey != nil, "A private key is not set in the config file")
-	walletAddress, err := srv.CreateWallet(params.shardId, &params.salt, amount, params.feeCredit, &cfg.PrivateKey.PublicKey)
+	walletAddress, err := srv.CreateWallet(params.shardId, &params.salt, amount, params.FeeCredit, &cfg.PrivateKey.PublicKey)
 	if err != nil {
 		return err
 	}
 
-	if err := common.PatchConfig(map[string]interface{}{
-		common.AddressField: walletAddress.Hex(),
+	if err := config.PatchConfig(map[string]interface{}{
+		config.AddressField: walletAddress.Hex(),
 	}, false); err != nil {
 		logger.Error().Err(err).Msg("failed to update the wallet address in the config file")
 	}
 
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Print("New wallet address: ")
 	}
 	fmt.Println(walletAddress.Hex())

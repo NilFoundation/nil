@@ -2,7 +2,6 @@ package contract
 
 import (
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/spf13/cobra"
 )
@@ -37,5 +36,5 @@ func runTopUp(_ *cobra.Command, args []string, cfg *common.Config) error {
 		currId = args[2]
 	}
 
-	return common.RunTopUp("contract", cfg, address, amount, currId, config.Quiet)
+	return common.RunTopUp("contract", cfg, address, amount, currId, common.Quiet)
 }

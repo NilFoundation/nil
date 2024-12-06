@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -26,35 +25,35 @@ func CallReadonlyCommand(cfg *common.Config) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(
-		&params.abiPath,
+		&params.AbiPath,
 		abiFlag,
 		"",
 		"The path to the ABI file",
 	)
 
-	params.feeCredit = types.GasToValue(100_000)
+	params.FeeCredit = types.GasToValue(100_000)
 	cmd.Flags().Var(
-		&params.feeCredit,
+		&params.FeeCredit,
 		feeCreditFlag,
 		"The fee credit for the read-only call",
 	)
 
 	cmd.Flags().StringVar(
-		&params.inOverridesPath,
+		&params.InOverridesPath,
 		inOverridesFlag,
 		"",
 		"The input state overrides",
 	)
 
 	cmd.Flags().StringVar(
-		&params.outOverridesPath,
+		&params.OutOverridesPath,
 		outOverridesFlag,
 		"",
 		"The output state overrides",
 	)
 
 	cmd.Flags().BoolVar(
-		&params.withDetails,
+		&params.WithDetails,
 		withDetailsFlag,
 		false,
 		"Define whether to show the tokens used and outbound messages",
@@ -73,8 +72,8 @@ func runCallReadonly(args []string, cfg *common.Config) error {
 
 	var contractAbi abi.ABI
 	var abiErr error
-	if len(params.abiPath) > 0 {
-		contractAbi, abiErr = common.ReadAbiFromFile(params.abiPath)
+	if len(params.AbiPath) > 0 {
+		contractAbi, abiErr = common.ReadAbiFromFile(params.AbiPath)
 	} else {
 		contractAbi, abiErr = common.FetchAbiFromCometa(address)
 	}
@@ -90,7 +89,7 @@ func runCallReadonly(args []string, cfg *common.Config) error {
 	intMsg := &types.InternalMessagePayload{
 		Data:        contractCalldata,
 		To:          address,
-		FeeCredit:   params.feeCredit,
+		FeeCredit:   params.FeeCredit,
 		ForwardKind: types.ForwardKindNone,
 		Kind:        types.ExecutionMessageKind,
 	}
@@ -130,9 +129,5 @@ func runCallReadonly(args []string, cfg *common.Config) error {
 		return result, logs, nil
 	}
 
-	return common.CallReadonly(
-		service, cfg.Address, walletCalldata, params.feeCredit, handler,
-		params.inOverridesPath, params.outOverridesPath,
-		params.withDetails, config.Quiet,
-	)
+	return common.CallReadonly(service, cfg.Address, walletCalldata, handler, params.Params)
 }

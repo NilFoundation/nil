@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/spf13/cobra"
@@ -26,7 +25,7 @@ func GetSendExternalMessageCommand(cfg *common.Config) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(
-		&params.abiPath,
+		&params.AbiPath,
 		abiFlag,
 		"",
 		"The path to the ABI file",
@@ -57,7 +56,7 @@ func runSendExternalMessage(_ *cobra.Command, args []string, cfg *common.Config)
 		return fmt.Errorf("invalid address: %w", err)
 	}
 
-	abi, err := common.ReadAbiFromFile(params.abiPath)
+	abi, err := common.ReadAbiFromFile(params.AbiPath)
 	if err != nil {
 		return err
 	}
@@ -78,7 +77,7 @@ func runSendExternalMessage(_ *cobra.Command, args []string, cfg *common.Config)
 		}
 	}
 
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Print("Message hash: ")
 	}
 	fmt.Println(msgHash)

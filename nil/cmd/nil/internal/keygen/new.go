@@ -3,7 +3,7 @@ package keygen
 import (
 	"fmt"
 
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/spf13/cobra"
 )
@@ -25,7 +25,7 @@ func runNew(_ *cobra.Command, _ []string, keygen *cliservice.Service) error {
 	if err := keygen.GenerateNewKey(); err != nil {
 		return err
 	}
-	if !config.Quiet {
+	if !common.Quiet {
 		fmt.Printf("Private key: ")
 	}
 	fmt.Println(keygen.GetPrivateKey())

@@ -27,17 +27,12 @@ func CallReadonly(
 	service *cliservice.Service,
 	address types.Address,
 	calldata []byte,
-	feeCredit types.Value,
-
 	handleResult ResultHandler,
-	inOverridesPath string,
-	outOverridesPath string,
-	withDetails bool,
-	quiet bool,
+	params *Params,
 ) error {
 	var inOverrides *jsonrpc.StateOverrides
-	if inOverridesPath != "" {
-		inOverridesData, err := os.ReadFile(inOverridesPath)
+	if params.InOverridesPath != "" {
+		inOverridesData, err := os.ReadFile(params.InOverridesPath)
 		if err != nil {
 			return err
 		}
@@ -47,7 +42,7 @@ func CallReadonly(
 		}
 	}
 
-	res, err := service.CallContract(address, feeCredit, calldata, inOverrides)
+	res, err := service.CallContract(address, params.FeeCredit, calldata, inOverrides)
 	if err != nil {
 		return err
 	}
@@ -57,13 +52,13 @@ func CallReadonly(
 		return err
 	}
 
-	if outOverridesPath != "" {
+	if params.OutOverridesPath != "" {
 		outOverridesData, err := json.Marshal(res.StateOverrides)
 		if err != nil {
 			return err
 		}
 
-		if err := os.WriteFile(outOverridesPath, outOverridesData, 0o600); err != nil {
+		if err := os.WriteFile(params.OutOverridesPath, outOverridesData, 0o600); err != nil {
 			return err
 		}
 	}
@@ -71,7 +66,7 @@ func CallReadonly(
 	if len(outputs) == 0 {
 		fmt.Println("Success, no result")
 	} else {
-		if !quiet {
+		if !Quiet {
 			fmt.Println("Success, result:")
 		}
 		if err := formatArgValues(outputs); err != nil {
@@ -79,7 +74,7 @@ func CallReadonly(
 		}
 	}
 
-	if withDetails {
+	if params.WithDetails {
 		if len(logs) > 0 {
 			fmt.Println("Logs:")
 			for _, logValues := range logs {

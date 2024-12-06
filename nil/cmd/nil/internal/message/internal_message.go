@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
+	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -52,14 +52,14 @@ func GetInternalMessageCommand() *cobra.Command {
 
 			messageSszHex := hexutil.Encode(messageSsz)
 
-			if !config.Quiet {
+			if !common.Quiet {
 				fmt.Println("Message:")
 				fmt.Println(string(messageStr))
 				fmt.Print("Result: ")
 			}
 			fmt.Println(messageSszHex)
 
-			if !config.Quiet {
+			if !common.Quiet {
 				fmt.Printf("Hash: %x\n", message.ToMessage(types.EmptyAddress, types.Seqno(0)).Hash())
 			}
 			return nil

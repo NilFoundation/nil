@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	libcommon "github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
@@ -40,7 +39,7 @@ func runCommand(_ *cobra.Command, args []string) error {
 			logger.Error().Err(err).Msg("Failed to fetch the receipt")
 			return err
 		}
-		if !config.Quiet {
+		if !common.Quiet {
 			fmt.Print("Receipt data: ")
 		}
 		fmt.Println(string(receipt))

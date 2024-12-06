@@ -2,7 +2,6 @@ package wallet
 
 import (
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/common"
-	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/spf13/cobra"
 )
@@ -32,5 +31,5 @@ func runTopUp(_ *cobra.Command, args []string, cfg *common.Config) error {
 		currId = args[1]
 	}
 
-	return common.RunTopUp("wallet", cfg, cfg.Address, amount, currId, config.Quiet)
+	return common.RunTopUp("wallet", cfg, cfg.Address, amount, currId, common.Quiet)
 }
