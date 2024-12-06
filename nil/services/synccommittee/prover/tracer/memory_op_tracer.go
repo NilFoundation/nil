@@ -86,15 +86,10 @@ var opsToMemoryRanges = map[vm.OpCode]func(stack *StackAccessor, memoryLen int) 
 			after: memoryRange{memOffset.Uint64(), lengthToCopy.Uint64()},
 		}
 	},
-	vm.MLOAD: func(stack *StackAccessor, memoryLen int) opRanges {
+	vm.MLOAD: func(stack *StackAccessor, _ int) opRanges {
 		memOffset := stack.Pop()
-		var before memoryRange
-		if memOffset.Uint64() < uint64(memoryLen) {
-			// handled in GetPtr func originally
-			before = memoryRange{memOffset.Uint64(), 32}
-		}
 		return opRanges{
-			before: before,
+			before: memoryRange{memOffset.Uint64(), 32},
 		}
 	},
 	vm.MSTORE: func(stack *StackAccessor, _ int) opRanges {
@@ -257,10 +252,16 @@ func (mot *MemoryOpTracer) GetUsedMemoryRanges(opCode vm.OpCode, scope tracing.O
 
 func (mot *MemoryOpTracer) TraceOp(opCode vm.OpCode, pc uint64, memRanges opRanges, scope tracing.OpContext) {
 	for i := memRanges.before.offset; i < memRanges.before.offset+memRanges.before.length; i++ {
+		var databyte byte
+		// EVM does not break on attempt to "read" from memory region which are out of currently allocated range
+		// so we should not fail too. Instead of it every read from missing memory cell is replaced with 0 byte
+		if i < uint64(len(scope.MemoryData())) {
+			databyte = scope.MemoryData()[i]
+		}
 		mot.res = append(mot.res, MemoryOp{
 			IsRead: true,
 			Idx:    int(i),
-			Value:  scope.MemoryData()[i],
+			Value:  databyte,
 			PC:     pc,
 			MsgId:  mot.msgId,
 			RwIdx:  mot.rwCtr.NextIdx(),
