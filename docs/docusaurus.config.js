@@ -43,7 +43,8 @@ const config = {
 
   scripts: [
     {
-      src: require.resolve("./goatcounter.js"),
+      src: "docs.nil.foundation/goatcounter/count.js",
+      async: true,
     },
   ],
 
