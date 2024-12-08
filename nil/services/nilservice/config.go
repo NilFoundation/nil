@@ -63,6 +63,7 @@ type Config struct {
 	ZeroState *execution.ZeroStateConfig `yaml:"zeroState,omitempty"`
 	Replay    *ReplayConfig              `yaml:"replay,omitempty"`
 	Cometa    *cometa.Config             `yaml:"cometa,omitempty"`
+	RpcNode   *RpcNodeConfig             `yaml:"rpcNode,omitempty"`
 }
 
 func NewDefaultConfig() *Config {
@@ -82,6 +83,7 @@ func NewDefaultConfig() *Config {
 		Network:   network.NewDefaultConfig(),
 		Telemetry: telemetry.NewDefaultConfig(),
 		Replay:    NewDefaultReplayConfig(),
+		RpcNode:   NewDefaultRpcNodeConfig(),
 	}
 }
 
@@ -96,6 +98,14 @@ func NewDefaultReplayConfig() *ReplayConfig {
 		BlockIdFirst: 1,
 		ShardId:      1,
 	}
+}
+
+type RpcNodeConfig struct {
+	ArchiveNodeList network.AddrInfoSlice `yaml:"archiveNodeList,omitempty"`
+}
+
+func NewDefaultRpcNodeConfig() *RpcNodeConfig {
+	return &RpcNodeConfig{}
 }
 
 func (c *Config) GetMyShards() []uint {

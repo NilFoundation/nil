@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -63,7 +64,7 @@ func getRawApiRequestHandlers(protocolInterfaceType, apiType reflect.Type, api a
 	}
 
 	apiValue := reflect.ValueOf(api)
-	for method := range filtered(iterMethods(apiType), isExportedMethod) {
+	for method := range common.Filter(iterMethods(apiType), isExportedMethod) {
 		methodName := method.Name
 		methodCodec, ok := codec[methodName]
 		check.PanicIfNotf(ok, "Appropriate codec is not found for method %s", methodName)
