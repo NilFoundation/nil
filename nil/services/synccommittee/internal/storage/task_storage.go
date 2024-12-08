@@ -213,6 +213,11 @@ func (st *taskStorage) GetTaskTree(ctx context.Context, rootTaskId types.TaskId)
 		visited[taskId] = struct{}{}
 
 		entry, err := extractTaskEntry(tx, taskId)
+
+		if errors.Is(err, db.ErrKeyNotFound) && taskId == rootTaskId {
+			return nil, nil
+		}
+
 		if err != nil {
 			return nil, fmt.Errorf("failed to get task with id=%s", taskId)
 		}
@@ -335,6 +340,8 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 
 	if !res.IsSuccess {
 		entry.Status = types.Failed
+		now := time.Now().UTC()
+		entry.Finished = &now
 		if err := putTaskEntry(tx, entry); err != nil {
 			return fmt.Errorf("failed to set task entry with id=%s as failed: %w", entry.Task.Id, err)
 		}
@@ -356,8 +363,8 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 	}
 
 	// Update all the tasks that are waiting for this result
-	for _, id := range entry.Dependents {
-		depEntry, err := extractTaskEntry(tx, id)
+	for taskId := range entry.Dependents {
+		depEntry, err := extractTaskEntry(tx, taskId)
 		if err != nil {
 			return err
 		}

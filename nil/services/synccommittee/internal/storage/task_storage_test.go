@@ -60,14 +60,12 @@ func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 
 	// Initialize two corresponding dependencies for them which are running
 	dependency1 := testaide.GenerateTaskEntry(time.Now(), types.Running, testaide.RandomExecutorId())
-	err := lowerPriorityEntry.AddDependency(dependency1)
-	s.Require().NoError(err)
+	lowerPriorityEntry.AddDependency(dependency1)
 
 	dependency2 := testaide.GenerateTaskEntry(time.Now(), types.Running, testaide.RandomExecutorId())
-	err = higherPriorityEntry.AddDependency(dependency2)
-	s.Require().NoError(err)
+	higherPriorityEntry.AddDependency(dependency2)
 
-	err = s.ts.AddTaskEntries(s.ctx, []*types.TaskEntry{
+	err := s.ts.AddTaskEntries(s.ctx, []*types.TaskEntry{
 		lowerPriorityEntry,
 		higherPriorityEntry,
 		dependency1,

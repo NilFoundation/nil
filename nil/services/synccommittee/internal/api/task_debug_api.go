@@ -18,24 +18,24 @@ const (
 
 const (
 	_ TaskDebugOrder = iota
-	ExecutionTime
-	CreatedAt
+	OrderByExecutionTime
+	OrderByCreatedAt
+)
+
+const (
+	DefaultDebugTaskOrder = OrderByCreatedAt
+	DefaultDebugTaskLimit = 20
 )
 
 func StringToTaskOrder(s string) (TaskDebugOrder, error) {
 	switch strings.ToLower(s) {
 	case "executiontime":
-		return ExecutionTime, nil
+		return OrderByExecutionTime, nil
 	case "createdat":
-		return CreatedAt, nil
+		return OrderByCreatedAt, nil
 	default:
 		return 0, fmt.Errorf("unknown task order: %s", s)
 	}
-}
-
-type TaskDebugSort struct {
-	Field     string `json:"field"`
-	Ascending bool   `json:"ascending"`
 }
 
 type TaskDebugRequest struct {
@@ -56,11 +56,11 @@ func NewTaskDebugRequest(
 	ascending bool,
 	limit *int,
 ) *TaskDebugRequest {
-	targetOrder := CreatedAt
+	targetOrder := DefaultDebugTaskOrder
 	if order != nil {
 		targetOrder = *order
 	}
-	targetLimit := 20
+	targetLimit := DefaultDebugTaskLimit
 	if limit != nil {
 		targetLimit = *limit
 	}
@@ -75,7 +75,11 @@ func NewTaskDebugRequest(
 	}
 }
 
+// TaskDebugApi provides methods to retrieve debug information on tasks.
 type TaskDebugApi interface {
+	// GetTasks retrieves a list of tasks based on the specified TaskDebugRequest criteria.
 	GetTasks(ctx context.Context, request *TaskDebugRequest) ([]*types.TaskEntry, error)
+
+	// GetTaskTree retrieves the task tree structure for a specific task identified by taskId
 	GetTaskTree(ctx context.Context, taskId types.TaskId) (*types.TaskTree, error)
 }

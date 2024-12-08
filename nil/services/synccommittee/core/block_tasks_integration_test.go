@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
@@ -52,6 +53,7 @@ func (s *BlockTasksIntegrationTestSuite) SetupSuite() {
 		s.taskStorage,
 		newTaskStateChangeHandler(s.blockStorage, logger),
 		metricsHandler,
+		common.NewTimer(),
 		logger,
 	)
 }

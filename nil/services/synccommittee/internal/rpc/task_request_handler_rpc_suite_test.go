@@ -31,6 +31,9 @@ func (s *TaskRequestHandlerTestSuite) SetupSuite() {
 		s.NoError(err)
 	}()
 
+	err := testaide.WaitForEndpoint(s.context, listenerHttpEndpoint)
+	s.Require().NoError(err)
+
 	s.clientHandler = NewTaskRequestRpcClient(
 		listenerHttpEndpoint,
 		logging.NewLogger("task-request-rpc-client"),

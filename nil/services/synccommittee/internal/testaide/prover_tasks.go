@@ -13,8 +13,14 @@ import (
 )
 
 func GenerateTaskEntry(modifiedAt time.Time, status types.TaskStatus, owner types.TaskExecutorId) *types.TaskEntry {
+	return GenerateTaskEntryOfType(types.PartialProve, modifiedAt, status, owner)
+}
+
+func GenerateTaskEntryOfType(
+	taskType types.TaskType, modifiedAt time.Time, status types.TaskStatus, owner types.TaskExecutorId,
+) *types.TaskEntry {
 	entry := &types.TaskEntry{
-		Task:    GenerateTask(),
+		Task:    GenerateTaskOfType(taskType),
 		Created: modifiedAt.Add(-1 * time.Hour),
 		Status:  status,
 		Owner:   owner,
@@ -22,6 +28,11 @@ func GenerateTaskEntry(modifiedAt time.Time, status types.TaskStatus, owner type
 
 	if status == types.Running {
 		entry.Started = &modifiedAt
+	}
+	if status == types.Failed {
+		started := modifiedAt.Add(-10 * time.Minute)
+		entry.Started = &started
+		entry.Finished = &modifiedAt
 	}
 
 	return entry

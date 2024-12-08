@@ -2,7 +2,6 @@ package proofprovider
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
@@ -30,10 +29,7 @@ func (h *taskHandler) Handle(ctx context.Context, _ types.TaskExecutorId, task *
 	h.logger.Info().Msgf("Create tasks %v, blockHash %v from shard %d in batch %d, task id %v", task.TaskType.String(), task.BlockHash, task.ShardId, task.BatchId, task.Id.String())
 
 	if task.TaskType == types.ProofBlock {
-		blockTasks, err := prepareTasksForBlock(task)
-		if err != nil {
-			return fmt.Errorf("failed to prepare tasks for block, taskId=%s: %w", task.Id, err)
-		}
+		blockTasks := prepareTasksForBlock(task)
 
 		for _, taskEntry := range blockTasks {
 			taskEntry.Task.ParentTaskId = &task.Id
@@ -48,7 +44,7 @@ func (h *taskHandler) Handle(ctx context.Context, _ types.TaskExecutorId, task *
 
 var circuitTypes = [...]types.CircuitType{types.Bytecode, types.MPT, types.ReadWrite, types.ZKEVM}
 
-func prepareTasksForBlock(providerTask *types.Task) ([]*types.TaskEntry, error) {
+func prepareTasksForBlock(providerTask *types.Task) []*types.TaskEntry {
 	taskEntries := make([]*types.TaskEntry, 0)
 
 	// Final task, depends on partial proofs, aggregate FRI and consistency checks
@@ -67,9 +63,7 @@ func prepareTasksForBlock(providerTask *types.Task) ([]*types.TaskEntry, error) 
 		consistencyCheckTasks[ct] = checkTaskEntry
 
 		// FRI consistency check task result goes to merge proof task
-		if err := mergeProofTaskEntry.AddDependency(checkTaskEntry); err != nil {
-			return nil, err
-		}
+		mergeProofTaskEntry.AddDependency(checkTaskEntry)
 	}
 
 	// aggregate FRI task depends on all the following tasks
@@ -78,15 +72,11 @@ func prepareTasksForBlock(providerTask *types.Task) ([]*types.TaskEntry, error) 
 	)
 	taskEntries = append(taskEntries, aggFRITaskEntry)
 	// Aggregate FRI task result must be forwarded to merge proof task
-	if err := mergeProofTaskEntry.AddDependency(aggFRITaskEntry); err != nil {
-		return nil, err
-	}
+	mergeProofTaskEntry.AddDependency(aggFRITaskEntry)
 
 	for _, checkTaskEntry := range consistencyCheckTasks {
 		// Also aggregate FRI task result goes to all consistency check tasks
-		if err := checkTaskEntry.AddDependency(aggFRITaskEntry); err != nil {
-			return nil, err
-		}
+		checkTaskEntry.AddDependency(aggFRITaskEntry)
 	}
 
 	// Second level of circuit-dependent tasks
@@ -101,12 +91,8 @@ func prepareTasksForBlock(providerTask *types.Task) ([]*types.TaskEntry, error) 
 
 	for ct, combQEntry := range combinedQTasks {
 		// Combined Q task result goes to aggregate FRI task and consistency check task
-		if err := aggFRITaskEntry.AddDependency(combQEntry); err != nil {
-			return nil, err
-		}
-		if err := consistencyCheckTasks[ct].AddDependency(combQEntry); err != nil {
-			return nil, err
-		}
+		aggFRITaskEntry.AddDependency(combQEntry)
+		consistencyCheckTasks[ct].AddDependency(combQEntry)
 	}
 
 	// aggregate challenge task depends on all the following tasks
@@ -117,15 +103,11 @@ func prepareTasksForBlock(providerTask *types.Task) ([]*types.TaskEntry, error) 
 
 	// aggregate challenges task result goes to all combined Q tasks
 	for _, combQEntry := range combinedQTasks {
-		if err := combQEntry.AddDependency(aggChallengeTaskEntry); err != nil {
-			return nil, err
-		}
+		combQEntry.AddDependency(aggChallengeTaskEntry)
 	}
 
 	// One more destination of aggregate challenge task result is aggregate FRI task
-	if err := aggFRITaskEntry.AddDependency(aggChallengeTaskEntry); err != nil {
-		return nil, err
-	}
+	aggFRITaskEntry.AddDependency(aggChallengeTaskEntry)
 
 	// Create partial proof tasks (bottom level, no dependencies)
 	for _, ct := range circuitTypes {
@@ -135,22 +117,12 @@ func prepareTasksForBlock(providerTask *types.Task) ([]*types.TaskEntry, error) 
 		taskEntries = append(taskEntries, partialProveTaskEntry)
 
 		// Partial proof results go to all other levels of tasks
-		if err := aggChallengeTaskEntry.AddDependency(partialProveTaskEntry); err != nil {
-			return nil, err
-		}
-		if err := combinedQTasks[ct].AddDependency(partialProveTaskEntry); err != nil {
-			return nil, err
-		}
-		if err := aggFRITaskEntry.AddDependency(partialProveTaskEntry); err != nil {
-			return nil, err
-		}
-		if err := consistencyCheckTasks[ct].AddDependency(partialProveTaskEntry); err != nil {
-			return nil, err
-		}
-		if err := mergeProofTaskEntry.AddDependency(partialProveTaskEntry); err != nil {
-			return nil, err
-		}
+		aggChallengeTaskEntry.AddDependency(partialProveTaskEntry)
+		combinedQTasks[ct].AddDependency(partialProveTaskEntry)
+		aggFRITaskEntry.AddDependency(partialProveTaskEntry)
+		consistencyCheckTasks[ct].AddDependency(partialProveTaskEntry)
+		mergeProofTaskEntry.AddDependency(partialProveTaskEntry)
 	}
 
-	return taskEntries, nil
+	return taskEntries
 }

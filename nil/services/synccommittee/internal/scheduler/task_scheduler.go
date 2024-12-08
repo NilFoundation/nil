@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
@@ -44,6 +45,7 @@ func New(
 	taskStorage storage.TaskStorage,
 	stateHandler api.TaskStateChangeHandler,
 	metrics TaskSchedulerMetrics,
+	timer common.Timer,
 	logger zerolog.Logger,
 ) TaskScheduler {
 	return &taskSchedulerImpl{
@@ -51,6 +53,7 @@ func New(
 		stateHandler: stateHandler,
 		config:       DefaultConfig(),
 		metrics:      metrics,
+		clock:        timer,
 		logger:       logger,
 	}
 }
@@ -60,6 +63,7 @@ type taskSchedulerImpl struct {
 	stateHandler api.TaskStateChangeHandler
 	config       Config
 	metrics      TaskSchedulerMetrics
+	clock        common.Timer
 	logger       zerolog.Logger
 }
 
@@ -147,7 +151,7 @@ func (s *taskSchedulerImpl) GetTasks(ctx context.Context, request *api.TaskDebug
 		return nil, err
 	}
 
-	sortFunc, err := getSortFunc(request)
+	sortFunc, err := s.getSortFunc(request)
 	if err != nil {
 		return nil, err
 	}
@@ -161,35 +165,42 @@ func (s *taskSchedulerImpl) GetTasks(ctx context.Context, request *api.TaskDebug
 	return tasks, nil
 }
 
-func getSortFunc(request *api.TaskDebugRequest) (func(i, j *types.TaskEntry) int, error) {
-	var multiplier int
+func (s *taskSchedulerImpl) getSortFunc(request *api.TaskDebugRequest) (func(i, j *types.TaskEntry) int, error) {
+	var orderSign int
 	if request.Ascending {
-		multiplier = 1
+		orderSign = 1
 	} else {
-		multiplier = -1
+		orderSign = -1
 	}
 
 	switch request.Order {
-	case api.ExecutionTime:
+	case api.OrderByExecutionTime:
 		return func(i, j *types.TaskEntry) int {
+			currentTime := s.clock.NowTime()
+			leftExecTime := i.ExecutionTime(currentTime)
+			rightExecTime := j.ExecutionTime(currentTime)
 			switch {
-			case i.Started == nil || j.Started == nil:
+			case leftExecTime == nil && rightExecTime == nil:
 				return 0
-			case i.Started.Before(*j.Started):
-				return -1 * multiplier
-			case i.Started.After(*j.Started):
-				return multiplier
+			case leftExecTime == nil:
+				return 1
+			case rightExecTime == nil:
+				return -1
+			case *leftExecTime < *rightExecTime:
+				return -1 * orderSign
+			case *leftExecTime > *rightExecTime:
+				return orderSign
 			default:
 				return 0
 			}
 		}, nil
-	case api.CreatedAt:
+	case api.OrderByCreatedAt:
 		return func(i, j *types.TaskEntry) int {
 			switch {
 			case i.Created.Before(j.Created):
-				return -1 * multiplier
+				return -1 * orderSign
 			case i.Created.After(j.Created):
-				return multiplier
+				return orderSign
 			default:
 				return 0
 			}
@@ -216,7 +227,7 @@ func (s *taskSchedulerImpl) Run(ctx context.Context) error {
 	s.logger.Info().Msg("starting task scheduler worker")
 
 	concurrent.RunTickerLoop(ctx, s.config.taskCheckInterval, func(ctx context.Context) {
-		currentTime := time.Now()
+		currentTime := s.clock.NowTime()
 		err := s.storage.RescheduleHangingTasks(ctx, currentTime, s.config.taskExecutionTimeout)
 		if err != nil {
 			s.logger.Error().Err(err).Msg("failed to reschedule hanging tasks")

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/google/uuid"
@@ -86,6 +87,16 @@ type TaskExecutorId uint32
 const UnknownExecutorId TaskExecutorId = 0
 
 type TaskResultAddresses map[ProverResultType]string
+
+type TaskIdSet map[TaskId]bool
+
+func NewTaskIdSet() TaskIdSet {
+	return make(TaskIdSet)
+}
+
+func (s TaskIdSet) Put(id TaskId) {
+	s[id] = true
+}
 
 // todo: declare separate task types for ProofProvider and Prover
 // https://www.notion.so/nilfoundation/Generic-Tasks-in-SyncCommittee-10ac614852608028b7ffcfd910deeef7?pvs=4
@@ -177,7 +188,7 @@ type Task struct {
 	// DependencyResults tracks the set of task results on which current task depends
 	DependencyResults map[TaskId]TaskResult `json:"dependencyResults"`
 	// PendingDependencies tracks the set of not completed dependencies
-	PendingDependencies map[TaskId]struct{} `json:"pendingDependencies"`
+	PendingDependencies TaskIdSet `json:"pendingDependencies"`
 }
 
 type TaskStatus uint8
@@ -192,22 +203,25 @@ const (
 // TaskEntry Wrapper for task to hold metadata like task status and dependencies
 type TaskEntry struct {
 	// Task: task to be executed
-	Task Task
+	Task Task `json:"task"`
 
 	// Dependents: list of tasks which depend on the current one
-	Dependents []TaskId
+	Dependents TaskIdSet `json:"dependents"`
 
 	// Created: task object creation time
-	Created time.Time
+	Created time.Time `json:"created"`
 
 	// Started: time when the executor acquired the task for execution
-	Started *time.Time
+	Started *time.Time `json:"started"`
+
+	// Finished time when the task execution was completed (successfully or not)
+	Finished *time.Time `json:"finished"`
 
 	// Owner: identifier of the current task executor
-	Owner TaskExecutorId
+	Owner TaskExecutorId `json:"owner"`
 
 	// Status: current status of the task
-	Status TaskStatus
+	Status TaskStatus `json:"status"`
 }
 
 // TaskTree represents a full hierarchical structure of tasks with dependencies among them.
@@ -230,27 +244,23 @@ func (t *TaskTree) AddDependency(dependency *TaskTree) {
 }
 
 // AddDependency adds a dependency to the current task entry and updates the dependents and pending dependencies.
-func (t *TaskEntry) AddDependency(dependency *TaskEntry) error {
-	if dependency == nil {
-		return errors.New("dependency cannot be nil")
-	}
+func (t *TaskEntry) AddDependency(dependency *TaskEntry) {
+	check.PanicIfNotf(dependency != nil, "dependency cannot be nil")
 
-	dependency.Dependents = append(dependency.Dependents, t.Task.Id)
+	if dependency.Dependents == nil {
+		dependency.Dependents = NewTaskIdSet()
+	}
+	dependency.Dependents.Put(t.Task.Id)
 
 	if t.Task.PendingDependencies == nil {
-		t.Task.PendingDependencies = make(map[TaskId]struct{})
+		t.Task.PendingDependencies = NewTaskIdSet()
 	}
-	t.Task.PendingDependencies[dependency.Task.Id] = struct{}{}
-	return nil
+	t.Task.PendingDependencies.Put(dependency.Task.Id)
 }
 
 // AddDependencyResult updates the task's dependency result and adjusts pending dependencies and task status accordingly.
 func (t *TaskEntry) AddDependencyResult(res TaskResult) error {
-	if t.Task.PendingDependencies == nil {
-		return fmt.Errorf("task with id=%s has no pending dependencies", t.Task.Id)
-	}
-
-	if _, ok := t.Task.PendingDependencies[res.TaskId]; !ok {
+	if t.Task.PendingDependencies == nil || !t.Task.PendingDependencies[res.TaskId] {
 		return fmt.Errorf("task with id=%s has no pending dependency with id=%s", t.Task.Id, res.TaskId)
 	}
 
@@ -297,6 +307,20 @@ func (t *TaskEntry) ResetRunning() error {
 	t.Status = WaitingForExecutor
 	t.Owner = UnknownExecutorId
 	return nil
+}
+
+func (t *TaskEntry) ExecutionTime(currentTime time.Time) *time.Duration {
+	if t.Started == nil {
+		return nil
+	}
+	var rightBound time.Time
+	if t.Finished == nil {
+		rightBound = currentTime
+	} else {
+		rightBound = *t.Finished
+	}
+	execTime := rightBound.Sub(*t.Started)
+	return &execTime
 }
 
 // AsNewChildEntry creates a new TaskEntry with a new TaskId and sets the ParentTaskId to the current task's Id.
@@ -366,10 +390,7 @@ func NewBlockProofTaskEntry(batchId BatchId, aggregateProofsTask *TaskEntry, exe
 		Status:  WaitingForExecutor,
 	}
 
-	if err := aggregateProofsTask.AddDependency(blockProofEntry); err != nil {
-		return nil, err
-	}
-
+	aggregateProofsTask.AddDependency(blockProofEntry)
 	return blockProofEntry, nil
 }
 
