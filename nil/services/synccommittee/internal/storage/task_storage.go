@@ -38,6 +38,9 @@ type TaskStorage interface {
 	// GetTasks Retrieve a list of tasks from the storage that match the given predicate function.
 	GetTasks(ctx context.Context, predicate func(*types.TaskEntry) bool) ([]*types.TaskEntry, error)
 
+	// GetTaskTree retrieves the full hierarchical structure of a task and its dependencies by the given task id.
+	GetTaskTree(ctx context.Context, taskId types.TaskId) (*types.TaskTree, error)
+
 	// RequestTaskToExecute Find task with no dependencies and higher priority and assign it to the executor
 	RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.Task, error)
 
@@ -192,6 +195,50 @@ func (st *taskStorage) GetTasks(ctx context.Context, predicate func(*types.TaskE
 	}
 
 	return tasks, nil
+}
+
+func (st *taskStorage) GetTaskTree(ctx context.Context, rootTaskId types.TaskId) (*types.TaskTree, error) {
+	tx, err := st.database.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	visited := make(map[types.TaskId]struct{})
+	var getTaskTreeRec func(taskId types.TaskId) (*types.TaskTree, error)
+	getTaskTreeRec = func(taskId types.TaskId) (*types.TaskTree, error) {
+		if _, exists := visited[taskId]; exists {
+			return nil, fmt.Errorf("detected cycle in task dependencies, id=%s", taskId)
+		}
+		visited[taskId] = struct{}{}
+
+		entry, err := extractTaskEntry(tx, taskId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get task with id=%s", taskId)
+		}
+
+		tree := types.NewTaskTree(entry)
+		for dependencyId := range entry.Task.PendingDependencies {
+			subtree, err := getTaskTreeRec(dependencyId)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get task subtree with id=%s: %w", dependencyId, err)
+			}
+			tree.AddDependency(subtree)
+		}
+
+		for dependencyId, result := range entry.Task.DependencyResults {
+			subtree, err := getTaskTreeRec(dependencyId)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get task subtree with id=%s: %w", dependencyId, err)
+			}
+			subtree.Result = &result
+			tree.AddDependency(subtree)
+		}
+
+		return tree, nil
+	}
+
+	return getTaskTreeRec(rootTaskId)
 }
 
 // Helper to find available task with higher priority

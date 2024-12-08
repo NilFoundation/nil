@@ -75,12 +75,7 @@ func NewTaskDebugRequest(
 	}
 }
 
-type TaskTree struct {
-	Task      types.TaskEntry `json:"task"`
-	DependsOn []*TaskTree     `json:"dependsOn"`
-}
-
 type TaskDebugApi interface {
 	GetTasks(ctx context.Context, request *TaskDebugRequest) ([]*types.TaskEntry, error)
-	GetTaskTree(ctx context.Context, taskId types.TaskId) (*TaskTree, error)
+	GetTaskTree(ctx context.Context, taskId types.TaskId) (*types.TaskTree, error)
 }

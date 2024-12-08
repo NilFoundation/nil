@@ -210,6 +210,25 @@ type TaskEntry struct {
 	Status TaskStatus
 }
 
+// TaskTree represents a full hierarchical structure of tasks with dependencies among them.
+type TaskTree struct {
+	TaskEntry    TaskEntry   `json:"task"`
+	Result       *TaskResult `json:"taskResult"`
+	Dependencies []*TaskTree `json:"dependencies"`
+}
+
+func NewTaskTree(entry *TaskEntry) *TaskTree {
+	return &TaskTree{
+		TaskEntry:    *entry,
+		Result:       nil,
+		Dependencies: make([]*TaskTree, 0),
+	}
+}
+
+func (t *TaskTree) AddDependency(dependency *TaskTree) {
+	t.Dependencies = append(t.Dependencies, dependency)
+}
+
 // AddDependency adds a dependency to the current task entry and updates the dependents and pending dependencies.
 func (t *TaskEntry) AddDependency(dependency *TaskEntry) error {
 	if dependency == nil {

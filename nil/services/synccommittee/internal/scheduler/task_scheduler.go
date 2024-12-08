@@ -199,8 +199,8 @@ func getSortFunc(request *api.TaskDebugRequest) (func(i, j *types.TaskEntry) int
 	}
 }
 
-func (s *taskSchedulerImpl) GetTaskTree(ctx context.Context, taskId types.TaskId) (*api.TaskTree, error) {
-	panic("implement me")
+func (s *taskSchedulerImpl) GetTaskTree(ctx context.Context, taskId types.TaskId) (*types.TaskTree, error) {
+	return s.storage.GetTaskTree(ctx, taskId)
 }
 
 func (s *taskSchedulerImpl) logError(ctx context.Context, err error, result *types.TaskResult) {
