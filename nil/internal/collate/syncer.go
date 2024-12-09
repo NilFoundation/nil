@@ -348,40 +348,48 @@ func validateRepliedBlock(
 
 func (s *Syncer) replayBlocks(ctx context.Context, blocks []*types.BlockWithExtractedData) error {
 	for _, block := range blocks {
-		gen, err := execution.NewBlockGenerator(ctx, s.config.BlockGeneratorParams, s.db)
-		if err != nil {
-			return err
-		}
-
-		blockHash := block.Block.Hash(s.config.ShardId)
-		s.logger.Debug().
-			Stringer(logging.FieldBlockNumber, block.Block.Id).
-			Stringer(logging.FieldBlockHash, blockHash).
-			Msg("Replaying block")
-
-		shardHashes := make(map[types.ShardId]common.Hash)
-		for i, h := range block.ChildBlocks {
-			shardHashes[types.ShardId(i+1)] = h
-		}
-
-		b, msgs, err := gen.GenerateBlock(&execution.Proposal{
-			PrevBlockId:   block.Block.Id - 1,
-			PrevBlockHash: block.Block.PrevBlock,
-			MainChainHash: block.Block.MainChainHash,
-			ShardHashes:   shardHashes,
-			InMsgs:        block.InMessages,
-			ForwardMsgs: slices.DeleteFunc(slices.Clone(block.OutMessages),
-				func(m *types.Message) bool { return m.From.ShardId() == s.config.ShardId }),
-		}, s.logger)
-		if err != nil {
-			return err
-		}
-
-		if err := validateRepliedBlock(block.Block, b, blockHash, b.Hash(s.config.ShardId), block.OutMessages, msgs); err != nil {
+		if err := s.replayBlock(ctx, block); err != nil {
 			return err
 		}
 	}
 
+	return nil
+}
+
+func (s *Syncer) replayBlock(ctx context.Context, block *types.BlockWithExtractedData) error {
+	gen, err := execution.NewBlockGenerator(ctx, s.config.BlockGeneratorParams, s.db)
+	if err != nil {
+		return err
+	}
+	defer gen.Rollback()
+
+	blockHash := block.Block.Hash(s.config.ShardId)
+	s.logger.Debug().
+		Stringer(logging.FieldBlockNumber, block.Block.Id).
+		Stringer(logging.FieldBlockHash, blockHash).
+		Msg("Replaying block")
+
+	shardHashes := make(map[types.ShardId]common.Hash)
+	for i, h := range block.ChildBlocks {
+		shardHashes[types.ShardId(i+1)] = h
+	}
+
+	b, msgs, err := gen.GenerateBlock(&execution.Proposal{
+		PrevBlockId:   block.Block.Id - 1,
+		PrevBlockHash: block.Block.PrevBlock,
+		MainChainHash: block.Block.MainChainHash,
+		ShardHashes:   shardHashes,
+		InMsgs:        block.InMessages,
+		ForwardMsgs: slices.DeleteFunc(slices.Clone(block.OutMessages),
+			func(m *types.Message) bool { return m.From.ShardId() == s.config.ShardId }),
+	}, s.logger)
+	if err != nil {
+		return err
+	}
+
+	if err := validateRepliedBlock(block.Block, b, blockHash, b.Hash(s.config.ShardId), block.OutMessages, msgs); err != nil {
+		return err
+	}
 	return nil
 }
 
