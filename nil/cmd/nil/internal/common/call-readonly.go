@@ -12,6 +12,14 @@ import (
 
 type ResultHandler = func(res *jsonrpc.CallRes) ([]*ArgValue, []*NamedArgValues, error)
 
+type callReadOnlyOutput struct {
+	Result      []*ArgValue            `json:"result"`
+	Logs        []*NamedArgValues      `json:"logs,omitempty"`
+	DebugLogs   []*jsonrpc.RPCDebugLog `json:"debugLogs,omitempty"`
+	CoinsUsed   *types.Value           `json:"coinsUsed,omitempty"`
+	OutMessages []*jsonrpc.OutMessage  `json:"outMessages,omitempty"`
+}
+
 func formatArgValues(argValues []*ArgValue) error {
 	for _, output := range argValues {
 		outputStr, err := json.Marshal(output.Value)
@@ -61,6 +69,25 @@ func CallReadonly(
 		if err := os.WriteFile(params.OutOverridesPath, outOverridesData, 0o600); err != nil {
 			return err
 		}
+	}
+
+	if params.AsJson {
+		output := &callReadOnlyOutput{
+			Result: outputs,
+		}
+		if params.WithDetails {
+			output.Logs = logs
+			output.DebugLogs = res.DebugLogs
+			output.CoinsUsed = &res.CoinsUsed
+			output.OutMessages = res.OutMessages
+		}
+
+		s, err := json.MarshalIndent(output, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(s))
+		return nil
 	}
 
 	if len(outputs) == 0 {

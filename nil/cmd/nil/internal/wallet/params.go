@@ -18,6 +18,7 @@ const (
 	inOverridesFlag  = "in-overrides"
 	outOverridesFlag = "out-overrides"
 	withDetailsFlag  = "with-details"
+	asJsonFlag       = "json"
 	compileInput     = "compile-input"
 )
 
