@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -120,7 +121,15 @@ func sliceTypeCheck(t Type, val reflect.Value) error {
 		}
 	}
 
-	if val.Type().Elem().Kind() != t.Elem.GetType().Kind() {
+	valType := val.Type().Elem()
+	valKind := valType.Kind()
+
+	// Special case for types.Uint256 and types.Value: we should treat them as *big.Int, i.e. pointers.
+	if valType == reflect.TypeOf(types.Uint256{}) || valType == reflect.TypeOf(types.Value{}) {
+		valKind = reflect.Pointer
+	}
+
+	if valKind != t.Elem.GetType().Kind() {
 		return typeErr(formatSliceString(t.Elem.GetType().Kind(), t.Size), val.Type())
 	}
 	return nil

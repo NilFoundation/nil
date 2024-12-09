@@ -1,3 +1,3 @@
 package config
 
-//go:generate go run github.com/NilFoundation/fastssz/sszgen --path params.go -include ../../common/length.go,../../common/hash.go,../types/block.go,../types/address.go,../types/uint256.go --objs ParamValidators,ValidatorInfo,ParamGasPrice
+//go:generate go run github.com/NilFoundation/fastssz/sszgen --path params.go -include ../types/address.go,../types/uint256.go,../types/message.go --objs ParamValidators,ValidatorInfo,ParamGasPrice,WorkaroundToImportTypes

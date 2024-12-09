@@ -147,18 +147,6 @@ func ReadBlockTimestamp(tx RoTx, shardId types.ShardId, blockHash common.Hash) (
 	return binary.LittleEndian.Uint64(value), nil
 }
 
-func ReadGasPerShard(tx RoTx, shardId types.ShardId) (types.Value, error) {
-	b, err := tx.Get(gasPerShardTable, shardId.Bytes())
-	if err != nil {
-		return types.Value{}, err
-	}
-	return types.NewValueFromBytes(b), nil
-}
-
-func WriteGasPerShard(tx RwTx, shardId types.ShardId, value types.Value) error {
-	return tx.Put(gasPerShardTable, shardId.Bytes(), value.Bytes())
-}
-
 func WriteBlock(tx RwTx, shardId types.ShardId, hash common.Hash, block *types.Block) error {
 	return writeEncodable(tx, blockTable, shardId, hash, block)
 }

@@ -178,6 +178,14 @@ func (s *SuiteConfigParams) TestConfigReadWriteGasPrice() {
 			},
 		},
 	}
+
+	// Manually set gas price for all shards. It is necessary because the initial prices are set only during the first
+	// block generation. But we will likely read config before that.
+	cfg.ConfigParams.GasPrice.Shards = make([]types.Uint256, s.ShardsNum-1)
+	for i := range s.ShardsNum - 1 {
+		cfg.ConfigParams.GasPrice.Shards[i] = *types.DefaultGasPrice.Uint256
+	}
+
 	s.Start(&nilservice.Config{
 		NShards:              s.ShardsNum,
 		Topology:             collate.TrivialShardTopologyId,
@@ -187,16 +195,16 @@ func (s *SuiteConfigParams) TestConfigReadWriteGasPrice() {
 	})
 
 	var (
-		receipt  *jsonrpc.RPCReceipt
-		data     []byte
-		gasPrice config.ParamGasPrice
+		receipt *jsonrpc.RPCReceipt
+		data    []byte
 	)
 
+	gasPrice := s.readGasPrices()
 	gasPrice.GasPriceScale = *types.NewUint256(10)
 
 	s.Run("Check initial gas price param", func() {
 		data = s.AbiPack(s.abiTest, "testParamGasPriceEqual", gasPrice)
-		receipt = s.SendExternalMessageNoCheck(data, s.testAddressMain)
+		receipt = s.SendExternalMessageNoCheck(data, s.testAddress)
 		s.Require().True(receipt.AllSuccess())
 	})
 
@@ -210,15 +218,29 @@ func (s *SuiteConfigParams) TestConfigReadWriteGasPrice() {
 		receipt = s.SendExternalMessageNoCheck(data, s.testAddressMain)
 		s.Require().True(receipt.AllSuccess())
 
-		tx, _ := s.Db.CreateRwTx(s.Context)
-		defer tx.Rollback()
+		realGasPrice := s.readGasPrices()
 
-		cfgReader, err := config.NewConfigAccessor(tx, types.MainShardId, nil)
-		s.Require().NoError(err)
-		readGasPrice, err := cfgReader.GetParamGasPrice()
-		s.Require().NoError(err)
-		s.Require().Equal(gasPrice, *readGasPrice)
+		s.Require().Equal(gasPrice.GasPriceScale, realGasPrice.GasPriceScale)
 	})
+
+	s.Run("Read param after write", func() {
+		data = s.AbiPack(s.abiTest, "readParamAfterWrite")
+		receipt = s.SendExternalMessageNoCheck(data, s.testAddressMain)
+		s.Require().True(receipt.AllSuccess())
+	})
+}
+
+func (s *SuiteConfigParams) readGasPrices() *config.ParamGasPrice {
+	s.T().Helper()
+
+	tx, err := s.Db.CreateRoTx(s.Context)
+	s.Require().NoError(err)
+	defer tx.Rollback()
+	cfgReader, err := config.NewConfigAccessorRo(tx, nil)
+	s.Require().NoError(err)
+	gasPrice, err := cfgReader.GetParamGasPrice()
+	s.Require().NoError(err)
+	return gasPrice
 }
 
 func TestConfig(t *testing.T) {

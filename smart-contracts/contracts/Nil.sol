@@ -402,15 +402,7 @@ library Nil {
 
     struct ParamGasPrice {
         uint256 gasPriceScale;
-    }
-
-    /**
-     * @dev Sets the current validators.
-     * @param validators Struct containing the list of validators.
-     */
-    function setValidators(ParamValidators memory validators) internal {
-        bytes memory data = abi.encode(validators);
-        setConfigParam("curr_validators", data);
+        uint256[] shards;
     }
 
     /**
@@ -420,15 +412,6 @@ library Nil {
     function getValidators() internal returns(ParamValidators memory) {
         bytes memory data = getConfigParam("curr_validators");
         return abi.decode(data, (ParamValidators));
-    }
-
-    /**
-     * @dev Sets the gas price parameter.
-     * @param param Struct containing the gas price scale.
-     */
-    function setParamGasPrice(ParamGasPrice memory param) internal {
-        bytes memory data = abi.encode(param);
-        setConfigParam("gas_price", data);
     }
 
     /**
