@@ -5,9 +5,17 @@ import { callFx, deploySmartContractFx, sendMethodFx } from "../contracts/model"
 import { MonoParagraphMedium } from "baseui/typography";
 import { formatSolidityError } from "./utils";
 import { COLORS } from "@nilfoundation/ui-kit";
-import { ContractDeployedLog } from "./components/ContractDeployedLog";
-import { Link } from "../shared";
+import {
+  LabelMedium,
+  StatefulTooltip,
+  BUTTON_KIND,
+  CopyButton,
+  BUTTON_SIZE,
+  ButtonIcon,
+} from "@nilfoundation/ui-kit";
 import { transactionRoute } from "../routing";
+import { ContractDeployedLog } from "./components/ContractDeployedLog";
+import { Link, ShareIcon } from "../shared";
 import { LogTitleWithDetails } from "./components/LogTitleWithDetails";
 import { TxDetials } from "./components/TxDetails";
 
@@ -139,12 +147,16 @@ $logs.on(sendMethodFx.doneData, (logs, { hash, functionName, sendFrom, appName }
         />
       ),
       payload: (
-        <MonoParagraphMedium color={COLORS.gray400}>
-          Transaction hash:{" "}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <LabelMedium color={COLORS.gray400}>Transaction hash:</LabelMedium>
+          <LabelMedium color={COLORS.gray50}>{hash}</LabelMedium>
+          <CopyButton kind={BUTTON_KIND.secondary} textToCopy={hash} size={BUTTON_SIZE.default} />
           <Link to={transactionRoute} params={{ hash }} target="_blank">
-            {hash}
+            <StatefulTooltip content="Open in Explorer" showArrow={false} placement="top">
+              <ButtonIcon icon={<ShareIcon />} kind={BUTTON_KIND.secondary} />
+            </StatefulTooltip>
           </Link>
-        </MonoParagraphMedium>
+        </div>
       ),
       timestamp: Date.now(),
     },
