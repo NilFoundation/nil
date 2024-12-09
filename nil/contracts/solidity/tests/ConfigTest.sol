@@ -20,16 +20,31 @@ contract ConfigTest is NilBase {
         }
     }
 
-    function setValidators(Nil.ParamValidators memory inputValidators) public {
-        Nil.setValidators(inputValidators);
+    function setValidators(Nil.ParamValidators memory validators) public {
+        bytes memory data = abi.encode(validators);
+        Nil.setConfigParam("curr_validators", data);
     }
 
     function testParamGasPriceEqual(Nil.ParamGasPrice memory param) public {
         Nil.ParamGasPrice memory realParam = Nil.getParamGasPrice();
         require(param.gasPriceScale == realParam.gasPriceScale, "Gas price scales are not equal");
+        require(param.shards.length == realParam.shards.length, "Gas price shards length mismatch");
+        for (uint i = 0; i < param.shards.length; i++) {
+            require(param.shards[i] == realParam.shards[i], "Gas prices are not equal");
+        }
     }
 
     function setParamGasPrice(Nil.ParamGasPrice memory param) public {
-        Nil.setParamGasPrice(param);
+        bytes memory data = abi.encode(param);
+        Nil.setConfigParam("gas_price", data);
+    }
+
+    function readParamAfterWrite() public {
+        Nil.ParamGasPrice memory param = Nil.getParamGasPrice();
+        param.gasPriceScale = 0x1234567890abcdef;
+        bytes memory data = abi.encode(param);
+        Nil.setConfigParam("gas_price", data);
+        Nil.ParamGasPrice memory readParam = Nil.getParamGasPrice();
+        require(readParam.gasPriceScale == 0x1234567890abcdef, "Gas price scale is not equal");
     }
 }

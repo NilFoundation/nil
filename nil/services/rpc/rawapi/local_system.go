@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -17,15 +18,15 @@ func (api *LocalShardApi) GasPrice(ctx context.Context) (types.Value, error) {
 	}
 	defer tx.Rollback()
 
-	gasPrice, err := db.ReadGasPerShard(tx, api.ShardId)
+	cfg, err := config.NewConfigAccessorRo(tx, nil)
 	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			return types.NewValueFromUint64(0), nil
-		}
-		return types.Value{}, err
+		return types.Value{}, fmt.Errorf("cannot open config accessor: %w", err)
 	}
-
-	return gasPrice, nil
+	param, err := cfg.GetParamGasPrice()
+	if err != nil {
+		return types.Value{}, fmt.Errorf("cannot get gas price: %w", err)
+	}
+	return types.Value{Uint256: &param.Shards[api.ShardId]}, nil
 }
 
 func (api *LocalShardApi) GetShardIdList(ctx context.Context) ([]types.ShardId, error) {

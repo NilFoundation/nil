@@ -20,7 +20,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
@@ -292,39 +291,11 @@ func NewExecutionStateForShard(tx db.RwTx, shardId types.ShardId, timer common.T
 
 func (es *ExecutionState) GetConfigAccessor() *config.ConfigAccessor {
 	if es.configAccessor == nil {
-		err := es.initConfigAccessor()
+		var err error
+		es.configAccessor, err = config.NewConfigAccessor(es.tx, es.ShardId, &es.MainChainHash)
 		check.PanicIfErr(err)
 	}
 	return es.configAccessor
-}
-
-// initConfigAccessor inits config accessor for the current state.
-func (es *ExecutionState) initConfigAccessor() error {
-	configTree := mpt.NewDbMPT(es.tx, types.MainShardId, db.ConfigTrieTable)
-
-	var mainChainBlock *types.Block
-	var err error
-
-	if es.ShardId == types.MainShardId {
-		mainChainBlock, _, err = db.ReadLastBlock(es.tx, es.ShardId)
-		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-			return err
-		}
-		if mainChainBlock != nil {
-			configTree.SetRootHash(mainChainBlock.ConfigRoot)
-		}
-	} else {
-		sa, err := es.mainAccessor.GetBlock().ByHash(es.MainChainHash)
-		if err != nil {
-			return err
-		}
-		mainChainBlock = sa.Block()
-		configTree.SetRootHash(mainChainBlock.ConfigRoot)
-	}
-
-	es.configAccessor = config.NewConfigAccessorFromMpt(configTree, es.ShardId)
-
-	return nil
 }
 
 func (es *ExecutionState) GetReceipt(msgIndex types.MessageIndex) (*types.Receipt, error) {
@@ -1324,12 +1295,28 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, []*typ
 		return common.EmptyHash, nil, err
 	}
 
+	configRoot := common.EmptyHash
+	if es.ShardId.IsMainShard() {
+		var err error
+		prevBlock, err := db.ReadBlock(es.tx, es.ShardId, es.PrevBlock)
+		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+			return common.EmptyHash, nil, fmt.Errorf("failed to read previous block: %w", err)
+		}
+		if prevBlock != nil {
+			configRoot = prevBlock.ConfigRoot
+		}
+		if configRoot, err = es.GetConfigAccessor().UpdateConfigTrie(es.tx, configRoot); err != nil {
+			return common.EmptyHash, nil, fmt.Errorf("failed to update config trie: %w", err)
+		}
+	}
+
 	block := types.Block{
 		Id:                  blockId,
 		PrevBlock:           es.PrevBlock,
 		SmartContractsRoot:  es.ContractTree.RootHash(),
 		InMessagesRoot:      es.InMessageTree.RootHash(),
 		OutMessagesRoot:     es.OutMessageTree.RootHash(),
+		ConfigRoot:          configRoot,
 		OutMessagesNum:      types.MessageIndex(len(outMsgKeys)),
 		ReceiptsRoot:        es.ReceiptTree.RootHash(),
 		ChildBlocksRootHash: treeShardsRootHash,
@@ -1338,18 +1325,6 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, []*typ
 		LogsBloom:           types.CreateBloom(es.Receipts),
 		// TODO(@klonD90): remove this field after changing explorer
 		Timestamp: 0,
-	}
-
-	if es.ShardId == types.MainShardId {
-		if es.configAccessor != nil {
-			block.ConfigRoot = es.configAccessor.GetRootHash()
-		} else {
-			// If we didn't touch `ConfigTree` it means that we don't have any changes in config.
-			// So, just copy it from the previous block.
-			prev, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
-			check.PanicIfErr(err)
-			block.ConfigRoot = prev.Block().ConfigRoot
-		}
 	}
 
 	if TraceBlocksEnabled {
@@ -1595,7 +1570,11 @@ func (es *ExecutionState) GetCurrencies(addr types.Address) map[types.CurrencyId
 }
 
 func (es *ExecutionState) GetGasPrice(shardId types.ShardId) (types.Value, error) {
-	return db.ReadGasPerShard(es.tx, shardId)
+	prices, err := es.GetConfigAccessor().GetParamGasPrice()
+	if err != nil {
+		return types.Value{}, err
+	}
+	return types.Value{Uint256: &prices.Shards[shardId]}, nil
 }
 
 func (es *ExecutionState) SetCurrencyTransfer(currencies []types.CurrencyBalance) {

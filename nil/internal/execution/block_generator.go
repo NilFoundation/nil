@@ -103,6 +103,45 @@ func (g *BlockGenerator) Rollback() {
 	g.rwTx.Rollback()
 }
 
+func (g *BlockGenerator) updateGasPrices(numShards int) error {
+	if g.params.ShardId.IsMainShard() {
+		// In main shard we collect gas prices from all shards. Gas price for the main shard is not required.
+		gasPrice, err := g.executionState.GetConfigAccessor().GetParamGasPrice()
+		if err != nil {
+			return err
+		}
+		gasPrice.Shards = make([]types.Uint256, numShards)
+		err = func() error {
+			roTx, err := g.txFabric.CreateRoTx(g.ctx)
+			if err != nil {
+				return err
+			}
+			defer roTx.Rollback()
+
+			for i := range numShards {
+				shardId := types.ShardId(i)
+				_ = shardId
+				block, _, err := db.ReadLastBlock(roTx, shardId)
+				if err != nil {
+					return err
+				}
+				gasPrice.Shards[i] = *block.GasPrice.Uint256
+			}
+			if err = g.executionState.GetConfigAccessor().SetParamGasPrice(gasPrice); err != nil {
+				return err
+			}
+			return nil
+		}()
+		if err != nil {
+			return fmt.Errorf("failed to read gas prices from shards: %w", err)
+		}
+	} else {
+		// In regular shards, we calculate new gas price for the current block.
+		g.executionState.UpdateGasPrice()
+	}
+	return nil
+}
+
 func (g *BlockGenerator) GenerateZeroState(zeroStateYaml string, config *ZeroStateConfig) (*types.Block, error) {
 	g.logger.Info().Msg("Generating zero-state...")
 
@@ -145,7 +184,9 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, logger zerolog.Logger
 		)
 	}
 
-	g.executionState.UpdateGasPrice()
+	if err := g.updateGasPrices(len(proposal.ShardHashes) + 1); err != nil {
+		return nil, nil, fmt.Errorf("failed to update gas prices: %w", err)
+	}
 
 	g.executionState.MainChainHash = proposal.MainChainHash
 

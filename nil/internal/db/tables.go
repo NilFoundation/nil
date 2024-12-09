@@ -30,7 +30,6 @@ const (
 	BlockHashAndOutMessageIndexByMessageHash = ShardedTableName("BlockHashAndOutMessageIndexByMessageHash")
 	AsyncCallContextTable                    = ShardedTableName("AsyncCallContext")
 
-	gasPerShardTable        = TableName("GasPerShard")
 	collatorStateTable      = TableName("CollatorState")
 	errorByMessageHashTable = TableName("ErrorByMessageHash")
 	schemeVersionTable      = TableName("SchemeVersion")
@@ -75,7 +74,6 @@ func CreateKeyFromShardTableChecker(shardId types.ShardId) func([]byte) bool {
 
 	systemTables := []TableName{
 		LastBlockTable,
-		gasPerShardTable,
 		collatorStateTable,
 	}
 

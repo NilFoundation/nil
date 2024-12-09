@@ -35,17 +35,12 @@ func (pp *blockPostprocessor) Postprocess() error {
 		pp.fillLastBlockTable,
 		pp.fillBlockHashByNumberIndex,
 		pp.fillBlockHashAndMessageIndexByMessageHash,
-		pp.updateGasPrice,
 	} {
 		if err := postpocessor(); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-func (pp *blockPostprocessor) updateGasPrice() error {
-	return db.WriteGasPerShard(pp.tx, pp.shardId, pp.block.GasPrice)
 }
 
 func (pp *blockPostprocessor) fillLastBlockTable() error {
