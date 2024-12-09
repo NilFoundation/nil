@@ -228,6 +228,10 @@ func parseArgs() *nildconfig.Config {
 		cfg.Cometa.ResetToDefault()
 		ok := cfg.Cometa.InitFromFile(cfg.CometaConfig)
 		check.PanicIfNotf(ok, "failed to load cometa config from %s", cfg.CometaConfig)
+	} else if cfg.ShouldStartCometa() {
+		cfg.Cometa = &cometa.Config{}
+		cfg.Cometa.ResetToDefault()
+		cfg.Cometa.UseBadger = true
 	}
 
 	return cfg
