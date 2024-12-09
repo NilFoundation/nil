@@ -43,8 +43,9 @@ const config = {
 
   scripts: [
     {
-      src: "docs.nil.foundation/goatcounter/count.js",
+      src: "https://docs.nil.foundation/goatcounter/count.js",
       async: true,
+      "data-goatcounter": "https://docs.nil.foundation/goatcounter/count"
     },
   ],
 
