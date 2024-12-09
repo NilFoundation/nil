@@ -6,10 +6,9 @@ import { MonoParagraphMedium } from "baseui/typography";
 import { formatSolidityError } from "./utils";
 import { COLORS } from "@nilfoundation/ui-kit";
 import { ContractDeployedLog } from "./components/ContractDeployedLog";
-import { Link } from "../shared";
-import { transactionRoute } from "../routing";
 import { LogTitleWithDetails } from "./components/LogTitleWithDetails";
 import { TxDetials } from "./components/TxDetails";
+import { TransactionSentLog } from "./components/TransactionSentLog";
 
 $logs.on(deploySmartContractFx.doneData, (logs, { address, name, deployedFrom, txHash }) => {
   return [
@@ -138,14 +137,7 @@ $logs.on(sendMethodFx.doneData, (logs, { hash, functionName, sendFrom, appName }
           details={<TxDetials txHash={hash} />}
         />
       ),
-      payload: (
-        <MonoParagraphMedium color={COLORS.gray400}>
-          Transaction hash:{" "}
-          <Link to={transactionRoute} params={{ hash }} target="_blank">
-            {hash}
-          </Link>
-        </MonoParagraphMedium>
-      ),
+      payload: <TransactionSentLog hash={hash} />,
       timestamp: Date.now(),
     },
   ];
