@@ -8,11 +8,11 @@ const getOsName = () => {
 
   let os = "";
 
-  if (userAgent.indexOf("Win") !== -1) {
+  if (/Windows NT/.test(userAgent)) {
     os = "windows";
-  } else if (userAgent.indexOf("Mac") !== -1) {
+  } else if (/Macintosh/.test(userAgent)) {
     os = "mac";
-  } else if (userAgent.indexOf("X11") !== -1) {
+  } else if (/Linux/.test(userAgent) && !/Android/.test(userAgent)) {
     os = "linux";
   } else if (/Android/.test(userAgent)) {
     os = "android";
@@ -43,7 +43,6 @@ const getBtnContent = (css: (style: StyleObject) => string) => {
           </span>
         </>
       );
-    case "linux":
     case "windows":
       return (
         <>
