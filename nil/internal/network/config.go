@@ -20,7 +20,9 @@ type Config struct {
 }
 
 func NewDefaultConfig() *Config {
-	return &Config{}
+	return &Config{
+		DHTMode: dht.ModeAutoServer,
+	}
 }
 
 func (c *Config) Enabled() bool {
