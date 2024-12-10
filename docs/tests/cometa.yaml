@@ -4,4 +4,5 @@ db-endpoint: 127.0.0.1:9000
 db-path: cometa.db
 db-name: nil_database
 db-user: default
-db-password: 
+db-password:
+use-badger: true

@@ -135,6 +135,10 @@ func (c *Config) IsFaucetApiEnabled() bool {
 	return c.RunMode == NormalRunMode && !c.SplitShards
 }
 
+func (c *Config) ShouldStartCometa() bool {
+	return c.RunMode == NormalRunMode && !c.SplitShards
+}
+
 func (c *Config) Validate() error {
 	if c.NShards < 2 {
 		return errors.New("NShards must be greater than 2 (main shard + 1)")
