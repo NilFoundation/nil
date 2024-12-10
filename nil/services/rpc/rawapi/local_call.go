@@ -212,7 +212,7 @@ func (api *LocalShardApi) Call(
 
 	result := &rpctypes.CallResWithGasPrice{
 		Data:      res.ReturnData,
-		CoinsUsed: res.CoinsUsed,
+		CoinsUsed: res.CoinsUsed(),
 		Logs:      es.Logs[msgHash],
 		DebugLogs: es.DebugLogs[msgHash],
 	}

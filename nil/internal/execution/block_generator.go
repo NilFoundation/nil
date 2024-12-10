@@ -215,7 +215,7 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, logger zerolog.Logger
 			return nil, nil, res.FatalError
 		}
 		g.addReceipt(res)
-		counters.CoinsUsed = counters.CoinsUsed.Add(res.CoinsUsed)
+		counters.CoinsUsed = counters.CoinsUsed.Add(res.CoinsUsed())
 	}
 
 	for _, msg := range proposal.ForwardMsgs {
@@ -262,7 +262,7 @@ func (g *BlockGenerator) handleExternalMessage(msg *types.Message) *ExecutionRes
 	check.PanicIfErr(err)
 
 	res := g.executionState.HandleMessage(g.ctx, msg, NewAccountPayer(acc, msg))
-	res.CoinsUsed = res.CoinsUsed.Add(verifyResult.CoinsUsed)
+	res.AddUsed(verifyResult.GasUsed)
 	return res
 }
 
@@ -272,7 +272,7 @@ func (g *BlockGenerator) addReceipt(execResult *ExecutionResult) {
 	msgHash := g.executionState.InMessageHash
 	msg := g.executionState.GetInMessage()
 
-	if execResult.CoinsUsed.IsZero() && msg.IsExternal() {
+	if execResult.GasUsed == 0 && msg.IsExternal() {
 		// External messages that don't use gas must not appear here.
 		// todo: fail generation here when collator performs full validation.
 		check.PanicIfNot(execResult.Failed())
