@@ -91,7 +91,8 @@ func (s *TracerTestSuite) TestCounterContract() {
 		s.Require().Equal("Success", receipt.Status)
 		s.Require().Len(receipt.OutReceipts, 1)
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
-		_, err = s.tracer.GetBlockTraces(ctx, types.BaseShardId, blkRef)
+		traces := NewExecutionTraces()
+		err = s.tracer.GetBlockTraces(ctx, traces, types.BaseShardId, blkRef)
 		s.Require().NoError(err)
 	})
 
@@ -128,7 +129,8 @@ func (s *TracerTestSuite) TestCounterContract() {
 		s.Require().True(receipt.OutReceipts[0].Success)
 
 		blkRef := transport.BlockNumber(receipt.OutReceipts[0].BlockNumber).AsBlockReference()
-		_, err = s.tracer.GetBlockTraces(ctx, contractAddr.ShardId(), blkRef)
+		traces := NewExecutionTraces()
+		err = s.tracer.GetBlockTraces(ctx, traces, contractAddr.ShardId(), blkRef)
 		s.Require().NoError(err)
 	})
 
@@ -166,7 +168,8 @@ func (s *TracerTestSuite) TestTestContract() {
 		s.Require().Equal("Success", receipt.Status)
 		s.Require().Len(receipt.OutReceipts, 1)
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
-		_, err = s.tracer.GetBlockTraces(ctx, types.BaseShardId, blkRef)
+		traces := NewExecutionTraces()
+		err = s.tracer.GetBlockTraces(ctx, traces, types.BaseShardId, blkRef)
 		s.Require().NoError(err)
 	})
 
@@ -207,7 +210,8 @@ func (s *TracerTestSuite) TestTestContract() {
 		s.Require().True(receipt.OutReceipts[0].Success)
 
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
-		_, err = s.tracer.GetBlockTraces(ctx, contractAddr.ShardId(), blkRef)
+		traces := NewExecutionTraces()
+		err = s.tracer.GetBlockTraces(ctx, traces, contractAddr.ShardId(), blkRef)
 		s.Require().NoError(err)
 	})
 
@@ -227,10 +231,13 @@ func (s *TracerTestSuite) checkAllBlocksTracesSerialization() {
 		for blockNum := range latestBlock.Number {
 			blkRef := transport.BlockNumber(blockNum).AsBlockReference()
 			s.Require().NoError(err)
-			traces, err := s.tracer.GetBlockTraces(ctx, shardId, blkRef)
+			blockTraces := NewExecutionTraces()
+			err := s.tracer.GetBlockTraces(ctx, blockTraces, shardId, blkRef)
 			s.Require().NoError(err)
 
-			for _, cpEvt := range traces.CopyEvents {
+			tracesData, ok := blockTraces.(*executionTracesImpl)
+			s.Require().True(ok)
+			for _, cpEvt := range tracesData.CopyEvents {
 				s.NotEmpty(cpEvt.Data)
 			}
 
@@ -241,10 +248,21 @@ func (s *TracerTestSuite) checkAllBlocksTracesSerialization() {
 			}
 			defer os.Remove(tmpfile.Name())
 
-			err = SerializeToFile(&traces, tmpfile.Name())
+			err = SerializeToFile(blockTraces, tmpfile.Name())
 			s.Require().NoError(err)
-			_, err = DeserializeFromFile(tmpfile.Name())
+			deserializedTraces, err := DeserializeFromFile(tmpfile.Name())
 			s.Require().NoError(err)
+
+			// Check if no data was lost after deserialization
+			deserializedData, ok := deserializedTraces.(*executionTracesImpl)
+			s.Require().True(ok)
+			s.Require().Equal(len(deserializedData.StackOps), len(tracesData.StackOps))
+			s.Require().Equal(len(deserializedData.MemoryOps), len(tracesData.MemoryOps))
+			s.Require().Equal(len(deserializedData.StorageOps), len(tracesData.StorageOps))
+			s.Require().Equal(len(deserializedData.ContractsBytecode), len(tracesData.ContractsBytecode))
+			s.Require().Equal(len(deserializedData.CopyEvents), len(tracesData.CopyEvents))
+			s.Require().Equal(len(deserializedData.ZKEVMStates), len(tracesData.ZKEVMStates))
+			s.Require().Equal(len(deserializedData.SlotsChanges), len(tracesData.SlotsChanges))
 		}
 	}
 }

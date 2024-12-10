@@ -31,13 +31,13 @@ type RunConfig struct {
 
 type GenerateTraceConfig struct {
 	CommonConfig
-	ShardID  types.ShardId
-	BlockID  transport.BlockReference
-	FileName string
+	ShardID      types.ShardId
+	BlockIDs     []transport.BlockReference
+	BaseFileName string
 }
 
 type PrintConfig struct {
-	FileName string
+	BaseFileName string
 }
 
 func execute() error {
@@ -59,21 +59,24 @@ func execute() error {
 	rootCmd.AddCommand(runCmd)
 
 	generateTraceCmd := &cobra.Command{
-		Use:   "trace [shard_id] [block_id] [file_name]",
+		Use:   "trace [base_file_name] [shard_id] [block_ids...]",
 		Short: "Collect traces for a block, dump into file",
-		Args:  cobra.ExactArgs(3),
+		Args:  cobra.MinimumNArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			traceConfig := GenerateTraceConfig{CommonConfig: *commonCfg}
+			traceConfig.BaseFileName = args[0]
 			var err error
-			traceConfig.ShardID, err = types.ParseShardIdFromString(args[0])
+			traceConfig.ShardID, err = types.ParseShardIdFromString(args[1])
 			if err != nil {
 				return err
 			}
-			traceConfig.BlockID, err = transport.AsBlockReference(args[1])
-			if err != nil {
-				return err
+			traceConfig.BlockIDs = make([]transport.BlockReference, len(args)-2)
+			for i, blockArg := range args[2:] {
+				traceConfig.BlockIDs[i], err = transport.AsBlockReference(blockArg)
+				if err != nil {
+					return err
+				}
 			}
-			traceConfig.FileName = args[2]
 			return generateTrace(&traceConfig)
 		},
 	}
@@ -82,10 +85,10 @@ func execute() error {
 
 	printTraceCmd := &cobra.Command{
 		Use:   "print [file_name]",
-		Short: "Read serialized traces from file, print them into console",
+		Short: "Read serialized traces from files, print them into console",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return readTrace(&PrintConfig{FileName: args[0]})
+			return readTrace(&PrintConfig{BaseFileName: args[0]})
 		},
 	}
 	addCommonFlags(printTraceCmd, commonCfg)
@@ -132,17 +135,19 @@ func generateTrace(cfg *GenerateTraceConfig) error {
 	if err != nil {
 		return err
 	}
-
-	blockTraces, err := remoteTracer.GetBlockTraces(context.Background(), cfg.ShardID, cfg.BlockID)
-	if err != nil {
-		return err
+	aggTraces := tracer.NewExecutionTraces()
+	for _, blockID := range cfg.BlockIDs {
+		err := remoteTracer.GetBlockTraces(context.Background(), aggTraces, cfg.ShardID, blockID)
+		if err != nil {
+			return err
+		}
 	}
 
-	return tracer.SerializeToFile(&blockTraces, cfg.FileName)
+	return tracer.SerializeToFile(aggTraces, cfg.BaseFileName)
 }
 
 func readTrace(cfg *PrintConfig) error {
-	blockTraces, err := tracer.DeserializeFromFile(cfg.FileName)
+	blockTraces, err := tracer.DeserializeFromFile(cfg.BaseFileName)
 	if err != nil {
 		return err
 	}

@@ -8,56 +8,139 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
 	pb "github.com/NilFoundation/nil/nil/services/synccommittee/prover/proto"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
 
-func SerializeToFile(proofs *ExecutionTraces, filename string) error {
-	// Convert ExecutionTraces to protobuf message
+// Set of pb messages splitted by circuits
+type PbTracesSet struct {
+	bytecode *pb.BytecodeTraces
+	rw       *pb.RWTraces
+	zkevm    *pb.ZKEVMTraces
+	copy     *pb.CopyTraces
+	msg      *pb.MessageTraces
+}
+
+// Each message is serialized into file with corresponding extension added to base file path
+const (
+	bytecodeExtension = ".bc"
+	rwExtension       = ".rw"
+	zkevmExtension    = ".zkevm"
+	copyExtension     = ".copy"
+	msgExtension      = ".msg"
+)
+
+func marshalToFile[Msg proto.Message](msg Msg, filename string) error {
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filename, data, 0o600)
+}
+
+func unmarshalFromFile[Msg proto.Message](filename string, out Msg) error {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	return proto.Unmarshal(data, out)
+}
+
+func SerializeToFile(proofs ExecutionTraces, baseFileName string) error {
+	// Convert ExecutionTraces to protobuf messages set
 	pbTraces, err := ToProto(proofs)
 	if err != nil {
 		return err
 	}
 
-	// Marshal the protobuf message
-	data, err := proto.Marshal(pbTraces)
-	if err != nil {
-		return err
-	}
+	// Write trace files in parallel
+	eg := errgroup.Group{} // TODO: use WithContext to cancel remaining jobs in case of error
 
-	// Write the marshaled data to file
-	return os.WriteFile(filename, data, 0o600)
+	// Marshal zkevm message
+	eg.Go(func() error {
+		return marshalToFile(pbTraces.zkevm, baseFileName+zkevmExtension)
+	})
+
+	// Marshal bytecode message
+	eg.Go(func() error {
+		return marshalToFile(pbTraces.bytecode, baseFileName+bytecodeExtension)
+	})
+
+	// Marshal rw message
+	eg.Go(func() error {
+		return marshalToFile(pbTraces.rw, baseFileName+rwExtension)
+	})
+
+	// Marshal copy message
+	eg.Go(func() error {
+		return marshalToFile(pbTraces.copy, baseFileName+copyExtension)
+	})
+
+	// Marshal msg traces message
+	eg.Go(func() error {
+		return marshalToFile(pbTraces.msg, baseFileName+msgExtension)
+	})
+
+	return eg.Wait()
 }
 
-func DeserializeFromFile(filename string) (*ExecutionTraces, error) {
-	// Read the file
-	data, err := os.ReadFile(filename)
-	if err != nil {
+func DeserializeFromFile(baseFileName string) (ExecutionTraces, error) {
+	pbTraces := PbTracesSet{
+		bytecode: &pb.BytecodeTraces{},
+		rw:       &pb.RWTraces{},
+		zkevm:    &pb.ZKEVMTraces{},
+		copy:     &pb.CopyTraces{},
+		msg:      &pb.MessageTraces{},
+	}
+
+	// Unmarshal trace files in parallel
+	eg := errgroup.Group{}
+
+	// Unmarshal zkevm message
+	eg.Go(func() error {
+		return unmarshalFromFile(baseFileName+zkevmExtension, pbTraces.zkevm)
+	})
+
+	// Unmarshal bc message
+	eg.Go(func() error {
+		return unmarshalFromFile(baseFileName+bytecodeExtension, pbTraces.bytecode)
+	})
+
+	// Unmarshal rw message
+	eg.Go(func() error {
+		return unmarshalFromFile(baseFileName+rwExtension, pbTraces.rw)
+	})
+
+	// Unmarshal copy message
+	eg.Go(func() error {
+		return unmarshalFromFile(baseFileName+copyExtension, pbTraces.copy)
+	})
+
+	// Unmarshal msg traces message
+	eg.Go(func() error {
+		return unmarshalFromFile(baseFileName+msgExtension, pbTraces.msg)
+	})
+
+	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
 
-	// Unmarshal the protobuf message
-	var pbTraces pb.ExecutionTraces
-	err = proto.Unmarshal(data, &pbTraces)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert protobuf message back to ExecutionTraces
+	// Convert protobuf messages back to ExecutionTraces
 	return FromProto(&pbTraces)
 }
 
-func FromProto(traces *pb.ExecutionTraces) (*ExecutionTraces, error) {
-	ep := &ExecutionTraces{
-		StackOps:          make([]StackOp, len(traces.StackOps)),
-		MemoryOps:         make([]MemoryOp, len(traces.MemoryOps)),
-		StorageOps:        make([]StorageOp, len(traces.StorageOps)),
-		ZKEVMStates:       make([]ZKEVMState, len(traces.ZkevmStates)),
-		ContractsBytecode: make(map[types.Address][]byte, len(traces.ContractBytecodes)),
-		SlotsChanges:      make([]map[types.Address][]SlotChangeTrace, len(traces.MessageTraces)),
-		CopyEvents:        make([]CopyEvent, len(traces.CopyEvents)),
+func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
+	ep := &executionTracesImpl{
+		StackOps:          make([]StackOp, len(traces.rw.StackOps)),
+		MemoryOps:         make([]MemoryOp, len(traces.rw.MemoryOps)),
+		StorageOps:        make([]StorageOp, len(traces.rw.StorageOps)),
+		ZKEVMStates:       make([]ZKEVMState, len(traces.zkevm.ZkevmStates)),
+		ContractsBytecode: make(map[types.Address][]byte, len(traces.bytecode.ContractBytecodes)),
+		SlotsChanges:      make([]map[types.Address][]SlotChangeTrace, len(traces.msg.MessageSlotChanges)),
+		CopyEvents:        make([]CopyEvent, len(traces.copy.CopyEvents)),
 	}
 
-	for i, pbStackOp := range traces.StackOps {
+	for i, pbStackOp := range traces.rw.StackOps {
 		ep.StackOps[i] = StackOp{
 			IsRead: pbStackOp.IsRead,
 			Idx:    int(pbStackOp.Index),
@@ -68,7 +151,7 @@ func FromProto(traces *pb.ExecutionTraces) (*ExecutionTraces, error) {
 		}
 	}
 
-	for i, pbMemOp := range traces.MemoryOps {
+	for i, pbMemOp := range traces.rw.MemoryOps {
 		ep.MemoryOps[i] = MemoryOp{
 			IsRead: pbMemOp.IsRead,
 			Idx:    int(pbMemOp.Index),
@@ -79,7 +162,7 @@ func FromProto(traces *pb.ExecutionTraces) (*ExecutionTraces, error) {
 		}
 	}
 
-	for i, pbStorageOp := range traces.StorageOps {
+	for i, pbStorageOp := range traces.rw.StorageOps {
 		ep.StorageOps[i] = StorageOp{
 			IsRead:       pbStorageOp.IsRead,
 			Key:          common.HexToHash(pbStorageOp.Key),
@@ -92,7 +175,7 @@ func FromProto(traces *pb.ExecutionTraces) (*ExecutionTraces, error) {
 		}
 	}
 
-	for i, pbZKEVMState := range traces.ZkevmStates {
+	for i, pbZKEVMState := range traces.zkevm.ZkevmStates {
 		ep.ZKEVMStates[i] = ZKEVMState{
 			TxHash:          common.HexToHash(pbZKEVMState.TxHash),
 			TxId:            int(pbZKEVMState.CallId),
@@ -122,14 +205,14 @@ func FromProto(traces *pb.ExecutionTraces) (*ExecutionTraces, error) {
 		}
 	}
 
-	for i, pbCopyEventTrace := range traces.GetCopyEvents() {
+	for i, pbCopyEventTrace := range traces.copy.GetCopyEvents() {
 		ep.CopyEvents[i].From = copyParticipantFromProto(pbCopyEventTrace.From)
 		ep.CopyEvents[i].To = copyParticipantFromProto(pbCopyEventTrace.To)
 		ep.CopyEvents[i].RwIdx = uint(pbCopyEventTrace.RwIdx)
 		ep.CopyEvents[i].Data = pbCopyEventTrace.GetData()
 	}
 
-	for messageIdx, pbMessageTrace := range traces.MessageTraces {
+	for messageIdx, pbMessageTrace := range traces.msg.MessageSlotChanges {
 		addrToChanges := make(map[types.Address][]SlotChangeTrace, len(pbMessageTrace.StorageTracesByAddress))
 		for pbContractAddr, pbStorageTraces := range pbMessageTrace.StorageTracesByAddress {
 			storageTraces := make([]SlotChangeTrace, len(pbStorageTraces.SlotsChanges))
@@ -152,27 +235,33 @@ func FromProto(traces *pb.ExecutionTraces) (*ExecutionTraces, error) {
 		ep.SlotsChanges[messageIdx] = addrToChanges
 	}
 
-	for pbContractAddr, pbContractBytecode := range traces.ContractBytecodes {
+	for pbContractAddr, pbContractBytecode := range traces.bytecode.ContractBytecodes {
 		ep.ContractsBytecode[types.HexToAddress(pbContractAddr)] = pbContractBytecode
 	}
 
 	return ep, nil
 }
 
-func ToProto(traces *ExecutionTraces) (*pb.ExecutionTraces, error) {
-	pbTraces := &pb.ExecutionTraces{
-		StackOps:          make([]*pb.StackOp, len(traces.StackOps)),
-		MemoryOps:         make([]*pb.MemoryOp, len(traces.MemoryOps)),
-		StorageOps:        make([]*pb.StorageOp, len(traces.StorageOps)),
-		ZkevmStates:       make([]*pb.ZKEVMState, len(traces.ZKEVMStates)),
-		CopyEvents:        make([]*pb.CopyEvent, len(traces.CopyEvents)),
-		ContractBytecodes: make(map[string][]byte),
-		MessageTraces:     make([]*pb.MessageTraces, len(traces.SlotsChanges)),
+func ToProto(tr ExecutionTraces) (*PbTracesSet, error) {
+	traces, ok := tr.(*executionTracesImpl)
+	if !ok {
+		panic("Unexpected traces type")
+	}
+	pbTraces := &PbTracesSet{
+		bytecode: &pb.BytecodeTraces{ContractBytecodes: make(map[string][]byte)},
+		rw: &pb.RWTraces{
+			StackOps:   make([]*pb.StackOp, len(traces.StackOps)),
+			MemoryOps:  make([]*pb.MemoryOp, len(traces.MemoryOps)),
+			StorageOps: make([]*pb.StorageOp, len(traces.StorageOps)),
+		},
+		zkevm: &pb.ZKEVMTraces{ZkevmStates: make([]*pb.ZKEVMState, len(traces.ZKEVMStates))},
+		copy:  &pb.CopyTraces{CopyEvents: make([]*pb.CopyEvent, len(traces.CopyEvents))},
+		msg:   &pb.MessageTraces{MessageSlotChanges: make([]*pb.MessageSlotChanges, len(traces.SlotsChanges))},
 	}
 
 	// Convert StackOps
 	for i, stackOp := range traces.StackOps {
-		pbTraces.StackOps[i] = &pb.StackOp{
+		pbTraces.rw.StackOps[i] = &pb.StackOp{
 			IsRead: stackOp.IsRead,
 			Index:  int32(stackOp.Idx),
 			Value:  uint256ToProtoUint256(stackOp.Value),
@@ -184,7 +273,7 @@ func ToProto(traces *ExecutionTraces) (*pb.ExecutionTraces, error) {
 
 	// Convert MemoryOps
 	for i, memOp := range traces.MemoryOps {
-		pbTraces.MemoryOps[i] = &pb.MemoryOp{
+		pbTraces.rw.MemoryOps[i] = &pb.MemoryOp{
 			IsRead: memOp.IsRead,
 			Index:  int32(memOp.Idx),
 			Value:  []byte{memOp.Value},
@@ -196,7 +285,7 @@ func ToProto(traces *ExecutionTraces) (*pb.ExecutionTraces, error) {
 
 	// Convert StorageOps
 	for i, storageOp := range traces.StorageOps {
-		pbTraces.StorageOps[i] = &pb.StorageOp{
+		pbTraces.rw.StorageOps[i] = &pb.StorageOp{
 			IsRead:       storageOp.IsRead,
 			Key:          storageOp.Key.Hex(),
 			Value:        uint256ToProtoUint256(storageOp.Value),
@@ -209,7 +298,7 @@ func ToProto(traces *ExecutionTraces) (*pb.ExecutionTraces, error) {
 	}
 
 	for i, zkevmState := range traces.ZKEVMStates {
-		pbTraces.ZkevmStates[i] = &pb.ZKEVMState{
+		pbTraces.zkevm.ZkevmStates[i] = &pb.ZKEVMState{
 			TxHash:          zkevmState.TxHash.Hex(),
 			CallId:          uint64(zkevmState.TxId),
 			Pc:              zkevmState.PC,
@@ -226,10 +315,10 @@ func ToProto(traces *ExecutionTraces) (*pb.ExecutionTraces, error) {
 			StorageSlice:    make([]*pb.StorageEntry, len(zkevmState.StorageSlice)),
 		}
 		for j, stackVal := range zkevmState.StackSlice {
-			pbTraces.ZkevmStates[i].StackSlice[j] = uint256ToProtoUint256(stackVal)
+			pbTraces.zkevm.ZkevmStates[i].StackSlice[j] = uint256ToProtoUint256(stackVal)
 		}
 		for addr, memVal := range zkevmState.MemorySlice {
-			pbTraces.ZkevmStates[i].MemorySlice[addr] = uint32(memVal)
+			pbTraces.zkevm.ZkevmStates[i].MemorySlice[addr] = uint32(memVal)
 		}
 		storageSliceCounter := 0
 		for storageKey, storageVal := range zkevmState.StorageSlice {
@@ -237,13 +326,13 @@ func ToProto(traces *ExecutionTraces) (*pb.ExecutionTraces, error) {
 				Key:   uint256ToProtoUint256(storageKey),
 				Value: uint256ToProtoUint256(storageVal),
 			}
-			pbTraces.ZkevmStates[i].StorageSlice[storageSliceCounter] = pbEntry
+			pbTraces.zkevm.ZkevmStates[i].StorageSlice[storageSliceCounter] = pbEntry
 			storageSliceCounter++
 		}
 	}
 
 	for i, copyEvent := range traces.CopyEvents {
-		pbTraces.CopyEvents[i] = &pb.CopyEvent{
+		pbTraces.copy.CopyEvents[i] = &pb.CopyEvent{
 			From:  copyParticipantToProto(&copyEvent.From),
 			To:    copyParticipantToProto(&copyEvent.To),
 			RwIdx: uint64(copyEvent.RwIdx),
@@ -253,12 +342,12 @@ func ToProto(traces *ExecutionTraces) (*pb.ExecutionTraces, error) {
 
 	// Convert SlotsChanges
 	for messageIdx, addrToChanges := range traces.SlotsChanges {
-		messageTrace := &pb.MessageTraces{
-			StorageTracesByAddress: make(map[string]*pb.AdderssSlotsChanges),
+		messageTrace := &pb.MessageSlotChanges{
+			StorageTracesByAddress: make(map[string]*pb.AddressSlotsChanges),
 		}
 
 		for addr, storageTraces := range addrToChanges {
-			pbStorageTraces := &pb.AdderssSlotsChanges{
+			pbStorageTraces := &pb.AddressSlotsChanges{
 				SlotsChanges: make([]*pb.SlotChangeTrace, len(storageTraces)),
 			}
 
@@ -279,12 +368,12 @@ func ToProto(traces *ExecutionTraces) (*pb.ExecutionTraces, error) {
 			}
 			messageTrace.StorageTracesByAddress[addr.Hex()] = pbStorageTraces
 		}
-		pbTraces.MessageTraces[messageIdx] = messageTrace
+		pbTraces.msg.MessageSlotChanges[messageIdx] = messageTrace
 	}
 
 	// Convert ContractsBytecode
 	for addr, bytecode := range traces.ContractsBytecode {
-		pbTraces.ContractBytecodes[addr.Hex()] = bytecode
+		pbTraces.bytecode.ContractBytecodes[addr.Hex()] = bytecode
 	}
 
 	return pbTraces, nil

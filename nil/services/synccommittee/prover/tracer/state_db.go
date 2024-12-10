@@ -17,7 +17,17 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 )
 
-type ExecutionTraces struct {
+type ExecutionTraces interface {
+	AddMemoryOps(ops []MemoryOp)
+	AddStackOps(ops []StackOp)
+	AddStorageOps(ops []StorageOp)
+	AddZKEVMStates(states []ZKEVMState)
+	AddCopyEvents(events []CopyEvent)
+	AddContractBytecode(addr types.Address, code []byte)
+	AddSlotChanges(slotChanges map[types.Address][]SlotChangeTrace)
+}
+
+type executionTracesImpl struct {
 	// Stack/Memory/State Ops are handled for entire block, they share the same counter (rw_circuit)
 	StackOps    []StackOp
 	MemoryOps   []MemoryOp
@@ -28,6 +38,42 @@ type ExecutionTraces struct {
 	ContractsBytecode map[types.Address][]byte
 	// For each message, for each touched contract
 	SlotsChanges []map[types.Address][]SlotChangeTrace
+}
+
+var _ ExecutionTraces = new(executionTracesImpl)
+
+func NewExecutionTraces() ExecutionTraces {
+	return &executionTracesImpl{
+		ContractsBytecode: make(map[types.Address][]byte),
+	}
+}
+
+func (tr *executionTracesImpl) AddMemoryOps(ops []MemoryOp) {
+	tr.MemoryOps = append(tr.MemoryOps, ops...)
+}
+
+func (tr *executionTracesImpl) AddStackOps(ops []StackOp) {
+	tr.StackOps = append(tr.StackOps, ops...)
+}
+
+func (tr *executionTracesImpl) AddStorageOps(ops []StorageOp) {
+	tr.StorageOps = append(tr.StorageOps, ops...)
+}
+
+func (tr *executionTracesImpl) AddZKEVMStates(states []ZKEVMState) {
+	tr.ZKEVMStates = append(tr.ZKEVMStates, states...)
+}
+
+func (tr *executionTracesImpl) AddCopyEvents(events []CopyEvent) {
+	tr.CopyEvents = append(tr.CopyEvents, events...)
+}
+
+func (tr *executionTracesImpl) AddContractBytecode(addr types.Address, code []byte) {
+	tr.ContractsBytecode[addr] = code
+}
+
+func (tr *executionTracesImpl) AddSlotChanges(slotChanges map[types.Address][]SlotChangeTrace) {
+	tr.SlotsChanges = append(tr.SlotsChanges, slotChanges)
 }
 
 type Stats struct {
@@ -81,7 +127,15 @@ type Account struct {
 	ExtSeqno    types.Seqno
 }
 
-func NewTracerStateDB(ctx context.Context, client *rpc.Client, shardId types.ShardId, shardBlockNumber types.BlockNumber, blkContext *vm.BlockContext, db db.DB) (TracerStateDB, error) {
+func NewTracerStateDB(
+	ctx context.Context,
+	aggTraces ExecutionTraces,
+	client *rpc.Client,
+	shardId types.ShardId,
+	shardBlockNumber types.BlockNumber,
+	blkContext *vm.BlockContext,
+	db db.DB,
+) (TracerStateDB, error) {
 	rwTx, err := db.CreateRwTx(ctx)
 	if err != nil {
 		return TracerStateDB{}, err
@@ -94,9 +148,7 @@ func NewTracerStateDB(ctx context.Context, client *rpc.Client, shardId types.Sha
 		shardBlockNumber: shardBlockNumber,
 		accountsCache:    make(map[types.Address]*Account),
 		blkContext:       blkContext,
-		Traces: ExecutionTraces{
-			ContractsBytecode: make(map[types.Address][]byte),
-		},
+		Traces:           aggTraces,
 	}, nil
 }
 
@@ -281,11 +333,11 @@ func (tsdb *TracerStateDB) initVm(
 
 // Tracers finalizations happen here
 func (tsdb *TracerStateDB) saveMessageTraces() error {
-	tsdb.Traces.MemoryOps = append(tsdb.Traces.MemoryOps, tsdb.memoryTracer.Finalize()...)
-	tsdb.Traces.StackOps = append(tsdb.Traces.StackOps, tsdb.stackTracer.Finalize()...)
-	tsdb.Traces.ZKEVMStates = append(tsdb.Traces.ZKEVMStates, tsdb.zkevmTracer.Finalize()...)
-	tsdb.Traces.StorageOps = append(tsdb.Traces.StorageOps, tsdb.storageInteractor.GetStorageOps()...)
-	tsdb.Traces.CopyEvents = append(tsdb.Traces.CopyEvents, tsdb.copyTracer.Finalize()...)
+	tsdb.Traces.AddMemoryOps(tsdb.memoryTracer.Finalize())
+	tsdb.Traces.AddStackOps(tsdb.stackTracer.Finalize())
+	tsdb.Traces.AddZKEVMStates(tsdb.zkevmTracer.Finalize())
+	tsdb.Traces.AddStorageOps(tsdb.storageInteractor.GetStorageOps())
+	tsdb.Traces.AddCopyEvents(tsdb.copyTracer.Finalize())
 
 	curMessageSlotChanges := make(map[types.Address][]SlotChangeTrace)
 	for _, addr := range tsdb.storageInteractor.GetAffectedAccountsAddresses() {
@@ -300,7 +352,7 @@ func (tsdb *TracerStateDB) saveMessageTraces() error {
 		}
 		curMessageSlotChanges[addr] = addrSlotChanges
 	}
-	tsdb.Traces.SlotsChanges = append(tsdb.Traces.SlotsChanges, curMessageSlotChanges)
+	tsdb.Traces.AddSlotChanges(curMessageSlotChanges)
 
 	return nil
 }
@@ -465,10 +517,7 @@ func (tsdb *TracerStateDB) GetCode(addr types.Address) ([]byte, common.Hash, err
 	}
 
 	// if contract code was requested, we dump it into traces
-	_, exists := tsdb.Traces.ContractsBytecode[addr]
-	if !exists {
-		tsdb.Traces.ContractsBytecode[addr] = acc.Code
-	}
+	tsdb.Traces.AddContractBytecode(addr, acc.Code)
 
 	return acc.Code, acc.Code.Hash(), nil
 }
