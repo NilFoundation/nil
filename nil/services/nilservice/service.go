@@ -286,7 +286,7 @@ func CreateNode(ctx context.Context, name string, cfg *Config, database db.DB, i
 	}
 
 	var msgPools map[types.ShardId]msgpool.Pool
-	if cfg.RunMode == ArchiveRunMode {
+	if cfg.Network != nil && cfg.RunMode != NormalRunMode {
 		cfg.Network.DHTMode = dht.ModeClient
 	}
 	networkManager, err := createNetworkManager(ctx, cfg)
