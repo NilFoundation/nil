@@ -27,62 +27,67 @@ func TestDebugBlockToText(t *testing.T) {
 	t.Parallel()
 
 	message1 := &types.Message{
-		Flags:     types.MessageFlagsFromKind(true, types.ExecutionMessageKind),
-		ChainId:   1,
-		Seqno:     0,
+		MessageDigest: types.MessageDigest{
+			Flags:   types.MessageFlagsFromKind(true, types.ExecutionMessageKind),
+			ChainId: 1,
+			Seqno:   0,
+			To:      types.BytesToAddress(hexutil.FromHex("0x02")),
+			Data:    hexutil.FromHex("0xDEADC0DE"),
+		},
 		From:      types.BytesToAddress(hexutil.FromHex("0x01")),
-		To:        types.BytesToAddress(hexutil.FromHex("0x02")),
 		RefundTo:  types.BytesToAddress(hexutil.FromHex("0x03")),
 		BounceTo:  types.BytesToAddress(hexutil.FromHex("0x04")),
 		Value:     types.NewValueFromUint64(300),
 		Currency:  makeCurrencies(0x666, 0x777),
-		Data:      hexutil.FromHex("0xDEADC0DE"),
 		Signature: nil,
 	}
 	// set dst shard-id to 1
 	binary.BigEndian.PutUint16(message1.To[:], 1)
 
 	message2 := &types.Message{
-		Flags:     types.MessageFlagsFromKind(false, types.DeployMessageKind),
-		ChainId:   1,
-		Seqno:     0,
+		MessageDigest: types.MessageDigest{
+			Flags:   types.MessageFlagsFromKind(false, types.DeployMessageKind),
+			ChainId: 1,
+			Seqno:   0,
+			To:      types.BytesToAddress(hexutil.FromHex("0x0200")),
+		},
 		From:      types.BytesToAddress(hexutil.FromHex("0x0100")),
-		To:        types.BytesToAddress(hexutil.FromHex("0x0200")),
 		RefundTo:  types.BytesToAddress(hexutil.FromHex("0x0300")),
 		BounceTo:  types.BytesToAddress(hexutil.FromHex("0x0400")),
 		Value:     types.NewValueFromUint64(0),
 		Currency:  nil,
-		Data:      types.Code{},
 		Signature: []byte("Signature"),
 	}
 
 	message3 := &types.Message{
-		Flags:    types.MessageFlagsFromKind(true, types.ExecutionMessageKind),
-		ChainId:  1,
-		Seqno:    0,
+		MessageDigest: types.MessageDigest{
+			Flags:   types.MessageFlagsFromKind(true, types.ExecutionMessageKind),
+			ChainId: 1,
+			Seqno:   0,
+			To:      types.BytesToAddress(hexutil.FromHex("0x999")),
+			Data: hexutil.FromHex("0x" +
+				"0000000000" +
+				"1111111111" +
+				"2222222222" +
+				"3333333333" +
+				"4444444444" +
+				"5555555555" +
+				"6666666666" +
+				"7777777777" +
+				"8888888888" +
+				"9999999999" +
+				"AAAAAAAAAA" +
+				"BBBBBBBBBB" +
+				"CCCCCCCCCC" +
+				"DDDDDDDDDD" +
+				"EEEEEEEEEE" +
+				"FFFFFFFFFF"),
+		},
 		From:     types.BytesToAddress(hexutil.FromHex("0x0200")),
-		To:       types.BytesToAddress(hexutil.FromHex("0x999")),
 		RefundTo: types.BytesToAddress(hexutil.FromHex("0x0")),
 		BounceTo: types.BytesToAddress(hexutil.FromHex("0x0")),
 		Value:    types.NewValueFromUint64(1234),
 		Currency: makeCurrencies(0x888),
-		Data: hexutil.FromHex("0x" +
-			"0000000000" +
-			"1111111111" +
-			"2222222222" +
-			"3333333333" +
-			"4444444444" +
-			"5555555555" +
-			"6666666666" +
-			"7777777777" +
-			"8888888888" +
-			"9999999999" +
-			"AAAAAAAAAA" +
-			"BBBBBBBBBB" +
-			"CCCCCCCCCC" +
-			"DDDDDDDDDD" +
-			"EEEEEEEEEE" +
-			"FFFFFFFFFF"),
 	}
 
 	receipt1 := &types.Receipt{
@@ -150,7 +155,7 @@ func TestDebugBlockToText(t *testing.T) {
     - 2: 0x0000000000000000000000000000000000000000000000000000000000000222
   MainChainHash: 0x000000000000000000000000000000000000000000000000000000000b16b055
 ▼ InMessages [0x00000000000000000000000000000000000000000000000000000000deadcafe]:
-  # 0 [0x0001f895553b56c9c5ae82bb74c65953c077e5235cf0debc47d2fed7dc9c5973] | 0x0000000000000000000000000000000000000001 => 0x0001000000000000000000000000000000000002
+  # 0 [0x000176f11b705152b9cdab33c58ca9a7daa72a0a812b0d2e88b624bb3752f890] | 0x0000000000000000000000000000000000000001 => 0x0001000000000000000000000000000000000002
     Status: Success
     GasUsed: 1000
     Flags: Internal
@@ -176,7 +181,7 @@ func TestDebugBlockToText(t *testing.T) {
     Data: <empty>
     Signature: 0x5369676e6174757265
 ▼ OutMessages [0x00000000000000000000000000000000000000000000000000000000deadf00d]:
-  # 0 [0x0000b815136409859b995af32f0721cc10fccad73d91e2679d56054a604bd0cc] | 0x0000000000000000000000000000000000000200 => 0x0000000000000000000000000000000000000999
+  # 0 [0x000030dcdcc48a9c7e41769c95c1a00ec50b389f1d94f7cd525d689990717d8d] | 0x0000000000000000000000000000000000000200 => 0x0000000000000000000000000000000000000999
     Flags: Internal
     RefundTo: 0x0000000000000000000000000000000000000000
     BounceTo: 0x0000000000000000000000000000000000000000
@@ -187,7 +192,7 @@ func TestDebugBlockToText(t *testing.T) {
       0x0000000000000000000000000000000000000888: 218400
     Data: 0x00000000001111111111222222222233333333334444444444555555555566666666667777777777888888888899999999... (run with --full to expand)
 ▼ Receipts [0x000000000000000000000000000000000000000000000000000000000d15ea5e]:
-  [0x0001f895553b56c9c5ae82bb74c65953c077e5235cf0debc47d2fed7dc9c5973]
+  [0x000176f11b705152b9cdab33c58ca9a7daa72a0a812b0d2e88b624bb3752f890]
      Status: Success
      GasUsed: 1000
   [0x0000637c97125c12445ea855ece055573dab3ab0e7f1f2a3287cca7ca267d7e0]

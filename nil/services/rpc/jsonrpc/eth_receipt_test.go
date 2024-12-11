@@ -15,7 +15,7 @@ type SuiteEthReceipt struct {
 	db          db.DB
 	api         *APIImpl
 	receipt     types.Receipt
-	message     types.Message
+	message     *types.Message
 	outMessages []*types.Message
 }
 
@@ -32,17 +32,16 @@ func (s *SuiteEthReceipt) SetupSuite() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	s.message = types.Message{
-		Data:  []byte{},
-		To:    types.GenerateRandomAddress(types.BaseShardId),
-		Flags: types.NewMessageFlags(1, 5, 7),
-	}
+	s.message = types.NewEmptyMessage()
+	s.message.To = types.GenerateRandomAddress(types.BaseShardId)
+	s.message.Flags = types.NewMessageFlags(1, 5, 7)
+
 	s.receipt = types.Receipt{MsgHash: s.message.Hash(), Logs: []*types.Log{}, OutMsgIndex: 0, OutMsgNum: 2}
 
-	s.outMessages = append(s.outMessages, &types.Message{Data: []byte{12}})
-	s.outMessages = append(s.outMessages, &types.Message{Data: []byte{34}})
+	s.outMessages = append(s.outMessages, &types.Message{MessageDigest: types.MessageDigest{Data: []byte{12}}})
+	s.outMessages = append(s.outMessages, &types.Message{MessageDigest: types.MessageDigest{Data: []byte{34}}})
 
-	blockHash := writeTestBlock(s.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Message{&s.message},
+	blockHash := writeTestBlock(s.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Message{s.message},
 		[]*types.Receipt{&s.receipt}, s.outMessages)
 	_, err = execution.PostprocessBlock(tx, types.BaseShardId, types.NewValueFromUint64(10), blockHash)
 	s.Require().NoError(err)

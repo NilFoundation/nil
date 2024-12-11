@@ -503,13 +503,12 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	})
 
 	s.Run("Send raw message", func() {
-		msg := &types.Message{
-			To:        walletAddr,
-			From:      walletAddr,
-			Data:      extPayload,
-			Seqno:     callerSeqno,
-			FeeCredit: types.NewValueFromUint64(5_000_000),
-		}
+		msg := types.NewEmptyMessage()
+		msg.To = walletAddr
+		msg.From = walletAddr
+		msg.Data = extPayload
+		msg.Seqno = callerSeqno
+		msg.FeeCredit = types.NewValueFromUint64(5_000_000)
 
 		msgBytecode, err := msg.MarshalSSZ()
 		s.Require().NoError(err)

@@ -44,11 +44,13 @@ func TestSszMessage(t *testing.T) {
 	t.Parallel()
 
 	message := Message{
+		MessageDigest: MessageDigest{
+			To:    Address{},
+			Data:  Code{0x00000001},
+			Seqno: 567,
+		},
 		From:  Address{},
-		To:    Address{},
 		Value: NewValueFromUint64(1234),
-		Data:  Code{0x00000001},
-		Seqno: 567,
 	}
 
 	encoded, err := message.MarshalSSZ()
@@ -68,10 +70,8 @@ func TestSszMessage(t *testing.T) {
 	h, err := common.PoseidonSSZ(&message2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("230e8b1a278f9947ad5cbc2ed4a52aa27297c4d93d6401c50c623d4ea9ec39f5")
-	require.NoError(t, err)
-
-	require.Equal(t, common.BytesToHash(h2), h)
+	h2 := common.HexToHash("0x10060c887f638e1c8d7f23abc7360367d8ab1870958db43ab5a802d7bec5cf24")
+	require.Equal(t, h2, h)
 }
 
 func TestSszSmc(t *testing.T) {
@@ -103,10 +103,8 @@ func TestSszSmc(t *testing.T) {
 	h, err := common.PoseidonSSZ(&smc2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("1101c3ea5b9afdc740f1f37823a9bb5209276e1581237909ddba9836ad010237")
-	require.NoError(t, err)
-
-	require.Equal(t, common.BytesToHash(h2), common.BytesToHash(h[:]))
+	h2 := common.HexToHash("0x1101c3ea5b9afdc740f1f37823a9bb5209276e1581237909ddba9836ad010237")
+	require.Equal(t, h2, common.BytesToHash(h[:]))
 }
 
 type testcase struct {

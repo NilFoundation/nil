@@ -224,9 +224,11 @@ func (es *ExecutionState) GenerateZeroState(stateConfig *ZeroStateConfig) error 
 		code = append(code, argsPacked...)
 
 		mainDeployMsg := &types.Message{
-			Flags: types.NewMessageFlags(types.MessageFlagInternal),
-			Seqno: 0,
-			Data:  code,
+			MessageDigest: types.MessageDigest{
+				Flags: types.NewMessageFlags(types.MessageFlagInternal),
+				Seqno: 0,
+				Data:  code,
+			},
 		}
 
 		if err := es.CreateAccount(addr); err != nil {

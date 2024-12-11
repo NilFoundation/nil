@@ -37,7 +37,9 @@ func (suite *SuiteEthBlock) SetupSuite() {
 	for i := 1; i < int(types.BlockNumber(2)); i++ {
 		msgs := make([]*types.Message, 0, i)
 		for j := range i {
-			msgs = append(msgs, &types.Message{Data: types.Code(strconv.FormatUint(uint64(j), 10))})
+			msg := types.NewEmptyMessage()
+			msg.Data = types.Code(strconv.FormatUint(uint64(j), 10))
+			msgs = append(msgs, msg)
 		}
 		suite.lastBlockHash = execution.GenerateBlockFromMessagesWithoutExecution(suite.T(), suite.ctx,
 			shardId, types.BlockNumber(i), suite.lastBlockHash, suite.db, msgs...)

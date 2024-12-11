@@ -147,18 +147,22 @@ func (k ForwardKind) Type() string {
 	return "ForwardKind"
 }
 
+type MessageDigest struct {
+	Flags     MessageFlags `json:"flags" ch:"flags"`
+	FeeCredit Value        `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
+	To        Address      `json:"to,omitempty" ch:"to"`
+	ChainId   ChainId      `json:"chainId" ch:"chainId"`
+	Seqno     Seqno        `json:"seqno,omitempty" ch:"seqno"`
+	Data      Code         `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+}
+
 type Message struct {
-	Flags     MessageFlags      `json:"flags" ch:"flags"`
-	ChainId   ChainId           `json:"chainId" ch:"chainId"`
-	Seqno     Seqno             `json:"seqno,omitempty" ch:"seqno"`
-	FeeCredit Value             `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
-	From      Address           `json:"from,omitempty" ch:"from"`
-	To        Address           `json:"to,omitempty" ch:"to"`
-	RefundTo  Address           `json:"refundTo,omitempty" ch:"refundTo"`
-	BounceTo  Address           `json:"bounceTo,omitempty" ch:"bounceTo"`
-	Value     Value             `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Currency  []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
-	Data      Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	MessageDigest
+	From     Address           `json:"from,omitempty" ch:"from"`
+	RefundTo Address           `json:"refundTo,omitempty" ch:"refundTo"`
+	BounceTo Address           `json:"bounceTo,omitempty" ch:"bounceTo"`
+	Value    Value             `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Currency []CurrencyBalance `json:"currency,omitempty" ch:"currency" ssz-max:"256"`
 
 	// These fields are needed for async requests
 	RequestId    uint64              `json:"requestId,omitempty" ch:"request_id"`
@@ -196,15 +200,6 @@ type InternalMessagePayload struct {
 	Data           Code              `json:"data,omitempty" ch:"data" ssz-max:"24576"`
 	RequestId      uint64            `json:"requestId,omitempty" ch:"request_id"`
 	RequestContext Code              `json:"context,omitempty" ch:"context" ssz-max:"24576"`
-}
-
-type messageDigest struct {
-	Flags     MessageFlags
-	FeeCredit Value `ssz-size:"32"`
-	To        Address
-	ChainId   ChainId
-	Seqno     Seqno
-	Data      Code `ssz-max:"24576"`
 }
 
 // EvmState contains EVM data to be saved/restored during await request.
@@ -245,8 +240,10 @@ var (
 
 func NewEmptyMessage() *Message {
 	return &Message{
-		Value:        NewValueFromUint64(0),
-		FeeCredit:    NewValueFromUint64(0),
+		MessageDigest: MessageDigest{
+			FeeCredit: NewZeroValue(),
+		},
+		Value:        NewZeroValue(),
 		Currency:     make([]CurrencyBalance, 0),
 		Signature:    make(Signature, 0),
 		RequestChain: make([]*AsyncRequestInfo, 0),
@@ -355,17 +352,19 @@ func (m *Message) IsRequestOrResponse() bool {
 
 func (m *InternalMessagePayload) ToMessage(from Address, seqno Seqno) *Message {
 	msg := &Message{
-		Flags:     MessageFlagsFromKind(true, m.Kind),
-		To:        m.To,
+		MessageDigest: MessageDigest{
+			Flags:     MessageFlagsFromKind(true, m.Kind),
+			To:        m.To,
+			Data:      m.Data,
+			FeeCredit: m.FeeCredit,
+			Seqno:     seqno,
+		},
 		RefundTo:  m.RefundTo,
 		BounceTo:  m.BounceTo,
 		From:      from,
 		Value:     m.Value,
 		Currency:  m.Currency,
-		Data:      m.Data,
-		FeeCredit: m.FeeCredit,
 		RequestId: m.RequestId,
-		Seqno:     seqno,
 	}
 	if m.Bounce {
 		msg.Flags.SetBit(MessageFlagBounce)
@@ -379,7 +378,7 @@ func (m *ExternalMessage) Hash() common.Hash {
 }
 
 func (m *ExternalMessage) SigningHash() (common.Hash, error) {
-	messageDigest := messageDigest{
+	messageDigest := MessageDigest{
 		Flags:     MessageFlagsFromKind(false, m.Kind),
 		FeeCredit: m.FeeCredit,
 		Seqno:     m.Seqno,
@@ -393,28 +392,21 @@ func (m *ExternalMessage) SigningHash() (common.Hash, error) {
 
 func (m ExternalMessage) ToMessage() *Message {
 	return &Message{
-		Flags:     MessageFlagsFromKind(false, m.Kind),
-		To:        m.To,
+		MessageDigest: MessageDigest{
+			Flags:     MessageFlagsFromKind(false, m.Kind),
+			To:        m.To,
+			ChainId:   m.ChainId,
+			Seqno:     m.Seqno,
+			Data:      m.Data,
+			FeeCredit: m.FeeCredit,
+		},
 		From:      m.To,
-		ChainId:   m.ChainId,
-		Seqno:     m.Seqno,
-		Data:      m.Data,
 		Signature: m.AuthData,
-		FeeCredit: m.FeeCredit,
 	}
 }
 
 func (m *Message) SigningHash() (common.Hash, error) {
-	messageDigest := messageDigest{
-		Flags:     m.Flags,
-		FeeCredit: m.FeeCredit,
-		Seqno:     m.Seqno,
-		To:        m.To,
-		Data:      m.Data,
-		ChainId:   m.ChainId,
-	}
-
-	return common.PoseidonSSZ(&messageDigest)
+	return common.PoseidonSSZ(&m.MessageDigest)
 }
 
 func (m *ExternalMessage) Sign(key *ecdsa.PrivateKey) error {

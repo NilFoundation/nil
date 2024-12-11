@@ -68,14 +68,16 @@ func (args CallArgs) ToMessage() (*types.Message, error) {
 		msgFrom = *args.From
 	}
 	return &types.Message{
-		Flags:     args.Flags,
-		ChainId:   types.DefaultChainId,
-		Seqno:     args.Seqno,
-		FeeCredit: args.FeeCredit,
-		From:      msgFrom,
-		To:        args.To,
-		Value:     args.Value,
-		Data:      data,
+		MessageDigest: types.MessageDigest{
+			Flags:     args.Flags,
+			ChainId:   types.DefaultChainId,
+			Seqno:     args.Seqno,
+			FeeCredit: args.FeeCredit,
+			To:        args.To,
+			Data:      data,
+		},
+		From:  msgFrom,
+		Value: args.Value,
 	}, nil
 }
 
