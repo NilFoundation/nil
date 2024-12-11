@@ -10,7 +10,8 @@
     "docs",
     "explorer_frontend",
     "explorer_backend",
-    "uniswap"
+    "uniswap",
+    "clijs"
   ],
   "scripts": {
     "lint": "npm run lint --workspaces --if-present",

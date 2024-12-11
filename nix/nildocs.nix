@@ -48,7 +48,7 @@ stdenv.mkDerivation rec {
     runHook preBuild
     patchShebangs docs/node_modules
     patchShebangs niljs/node_modules
-    (cd smart-contracts; npm run compile)
+    (cd smart-contracts; npm run build)
     (cd niljs; npm run build)
     export NILJS_SRC=${../niljs}
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json

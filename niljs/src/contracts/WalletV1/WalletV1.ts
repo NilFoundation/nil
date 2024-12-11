@@ -159,7 +159,7 @@ export class WalletV1 implements WalletInterface {
     this.address = address
       ? refineAddress(address)
       : WalletV1.calculateWalletAddress({ pubKey: this.pubkey, shardId, salt });
-    if (salt) {
+    if (salt !== undefined) {
       this.salt = refineSalt(salt);
     }
     this.shardId = getShardIdFromAddress(this.address);

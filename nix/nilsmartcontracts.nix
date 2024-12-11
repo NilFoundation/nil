@@ -32,7 +32,7 @@ stdenv.mkDerivation rec {
 
   buildPhase = ''
     cd smart-contracts
-    npm run compile
+    npm run build
   '';
 
   installPhase = ''
