@@ -1,4 +1,4 @@
-import { Faucet as FaucetSol} from "@nilfoundation/smart-contracts";
+import { Faucet as FaucetSol } from "@nilfoundation/smart-contracts";
 import { type Hex, bytesToHex, encodeFunctionData } from "viem";
 import type { PublicClient } from "../../clients/PublicClient.js";
 import { ExternalMessageEnvelope } from "../../encoding/externalMessage.js";

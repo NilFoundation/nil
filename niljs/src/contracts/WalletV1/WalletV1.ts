@@ -6,7 +6,7 @@ import type { PublicClient } from "../../clients/PublicClient.js";
 import { prepareDeployPart } from "../../encoding/deployPart.js";
 import { externalMessageEncode } from "../../encoding/externalMessage.js";
 import { hexToBytes } from "../../encoding/fromHex.js";
-import {addHexPrefix, type ContractFunctionName} from "../../index.js";
+import { type ContractFunctionName, addHexPrefix } from "../../index.js";
 import type { ISigner } from "../../signers/index.js";
 import type { Hex } from "../../types/Hex.js";
 import type { IDeployData } from "../../types/IDeployData.js";
@@ -38,7 +38,7 @@ export class WalletV1 implements WalletInterface {
    * @static
    * @type {*}
    */
-  static code = hexToBytes(addHexPrefix(Wallet.bytecode))
+  static code = hexToBytes(addHexPrefix(Wallet.bytecode));
   /**
    * The wallet ABI.
    *
