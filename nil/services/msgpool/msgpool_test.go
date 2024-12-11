@@ -25,9 +25,8 @@ type SuiteMsgPool struct {
 func newMessage(seqno types.Seqno, fee uint64) *types.Message {
 	address := types.ShardAndHexToAddress(0, "deadbeef")
 	return &types.Message{
-		To:    address,
-		Value: types.NewValueFromUint64(fee),
-		Seqno: seqno,
+		MessageDigest: types.MessageDigest{To: address, Seqno: seqno},
+		Value:         types.NewValueFromUint64(fee),
 	}
 }
 
@@ -283,8 +282,7 @@ func BenchmarkMsgPoolAdd(b *testing.B) {
 			addr = types.GenerateRandomAddress(shardId)
 		}
 		msgs[i] = &types.Message{
-			Seqno: types.Seqno(i),
-			To:    addr,
+			MessageDigest: types.MessageDigest{Seqno: types.Seqno(i), To: addr},
 		}
 	}
 

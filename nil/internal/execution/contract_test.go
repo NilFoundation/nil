@@ -85,10 +85,9 @@ func TestPrecompiles(t *testing.T) {
 		defer state.tx.Rollback()
 		require.NoError(t, state.newVm(true, types.EmptyAddress, nil))
 
-		callMessage := &types.Message{
-			Flags:     types.NewMessageFlags(types.MessageFlagInternal),
-			FeeCredit: toGasCredit(100_000),
-		}
+		callMessage := types.NewEmptyMessage()
+		callMessage.Flags = types.NewMessageFlags(types.MessageFlagInternal)
+		callMessage.FeeCredit = toGasCredit(100_000)
 		state.AddInMessage(callMessage)
 
 		addr := fmt.Sprintf("%x", i)
@@ -121,12 +120,12 @@ func TestCall(t *testing.T) {
 	calldata, err := abi.Pack("getValue")
 	require.NoError(t, err)
 
-	callMessage := &types.Message{
-		Flags:     types.NewMessageFlags(types.MessageFlagInternal),
-		Data:      calldata,
-		To:        addr,
-		FeeCredit: toGasCredit(10000),
-	}
+	callMessage := types.NewEmptyMessage()
+	callMessage.Flags = types.NewMessageFlags(types.MessageFlagInternal)
+	callMessage.FeeCredit = toGasCredit(100_000)
+	callMessage.Data = calldata
+	callMessage.To = addr
+
 	res := state.HandleExecutionMessage(ctx, callMessage)
 	require.False(t, res.Failed())
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2A"), 32), res.ReturnData)
@@ -137,12 +136,12 @@ func TestCall(t *testing.T) {
 	calldata2, err := solc.ExtractABI(caller).Pack("callSet", addr, big.NewInt(43))
 	require.NoError(t, err)
 
-	callMessage2 := &types.Message{
-		Flags:     types.NewMessageFlags(types.MessageFlagInternal),
-		Data:      calldata2,
-		To:        callerAddr,
-		FeeCredit: toGasCredit(10000),
-	}
+	callMessage2 := types.NewEmptyMessage()
+	callMessage2.Flags = types.NewMessageFlags(types.MessageFlagInternal)
+	callMessage2.FeeCredit = toGasCredit(10000)
+	callMessage2.Data = calldata2
+	callMessage2.To = callerAddr
+
 	res = state.HandleExecutionMessage(ctx, callMessage2)
 	require.False(t, res.Failed())
 
@@ -155,12 +154,10 @@ func TestCall(t *testing.T) {
 	calldata2, err = solc.ExtractABI(caller).Pack("callSetAndRevert", addr, big.NewInt(45))
 	require.NoError(t, err)
 
-	callMessage2 = &types.Message{
-		Flags:     types.NewMessageFlags(types.MessageFlagInternal),
-		Data:      calldata2,
-		To:        callerAddr,
-		FeeCredit: toGasCredit(10000),
-	}
+	callMessage2.Flags = types.NewMessageFlags(types.MessageFlagInternal)
+	callMessage2.FeeCredit = toGasCredit(10000)
+	callMessage2.Data = calldata2
+	callMessage2.To = callerAddr
 	res = state.HandleExecutionMessage(ctx, callMessage2)
 	require.ErrorIs(t, res.Error, vm.ErrExecutionReverted)
 
@@ -189,24 +186,22 @@ func TestDelegate(t *testing.T) {
 	// call ProxyContract.setValue(delegateAddr, 42)
 	calldata, err := solc.ExtractABI(proxyContract).Pack("setValue", delegateAddr, big.NewInt(42))
 	require.NoError(t, err)
-	callMessage := &types.Message{
-		Flags:     types.NewMessageFlags(types.MessageFlagInternal),
-		Data:      calldata,
-		To:        proxyAddr,
-		FeeCredit: toGasCredit(30000),
-	}
+	callMessage := types.NewEmptyMessage()
+	callMessage.Flags = types.NewMessageFlags(types.MessageFlagInternal)
+	callMessage.FeeCredit = toGasCredit(30_000)
+	callMessage.Data = calldata
+	callMessage.To = proxyAddr
 	res := state.HandleExecutionMessage(ctx, callMessage)
 	require.False(t, res.Failed())
 
 	// call ProxyContract.getValue()
 	calldata, err = solc.ExtractABI(proxyContract).Pack("getValue", delegateAddr)
 	require.NoError(t, err)
-	callMessage = &types.Message{
-		Flags:     types.NewMessageFlags(types.MessageFlagInternal),
-		Data:      calldata,
-		To:        proxyAddr,
-		FeeCredit: toGasCredit(10000),
-	}
+	callMessage = types.NewEmptyMessage()
+	callMessage.Flags = types.NewMessageFlags(types.MessageFlagInternal)
+	callMessage.FeeCredit = toGasCredit(10_000)
+	callMessage.Data = calldata
+	callMessage.To = proxyAddr
 	res = state.HandleExecutionMessage(ctx, callMessage)
 	require.False(t, res.Failed())
 	// check that it returned 42
@@ -215,12 +210,11 @@ func TestDelegate(t *testing.T) {
 	// call ProxyContract.setValueStatic(delegateAddr, 42)
 	calldata, err = solc.ExtractABI(proxyContract).Pack("setValueStatic", delegateAddr, big.NewInt(42))
 	require.NoError(t, err)
-	callMessage = &types.Message{
-		Flags:     types.NewMessageFlags(types.MessageFlagInternal),
-		Data:      calldata,
-		To:        proxyAddr,
-		FeeCredit: toGasCredit(10000),
-	}
+	callMessage = types.NewEmptyMessage()
+	callMessage.Flags = types.NewMessageFlags(types.MessageFlagInternal)
+	callMessage.FeeCredit = toGasCredit(10_000)
+	callMessage.Data = calldata
+	callMessage.To = proxyAddr
 	res = state.HandleExecutionMessage(ctx, callMessage)
 	require.False(t, res.Failed())
 }
@@ -248,12 +242,11 @@ func TestAsyncCall(t *testing.T) {
 
 	require.NoError(t, state.SetBalance(addrCaller, types.NewValueFromUint64(2_000_000)))
 
-	callMessage := &types.Message{
-		Flags:     types.NewMessageFlags(types.MessageFlagInternal),
-		Data:      calldata,
-		To:        addrCaller,
-		FeeCredit: toGasCredit(100_000),
-	}
+	callMessage := types.NewEmptyMessage()
+	callMessage.Flags = types.NewMessageFlags(types.MessageFlagInternal)
+	callMessage.FeeCredit = toGasCredit(100_000)
+	callMessage.Data = calldata
+	callMessage.To = addrCaller
 	msgHash := callMessage.Hash()
 	state.AddInMessage(callMessage)
 	res := state.HandleExecutionMessage(ctx, callMessage)
@@ -332,12 +325,11 @@ func TestSendMessage(t *testing.T) {
 	calldata, err = abi.Pack("sendMessage", calldata)
 	require.NoError(t, err)
 
-	callMessage := &types.Message{
-		Flags:     types.NewMessageFlags(types.MessageFlagInternal),
-		Data:      calldata,
-		To:        addrCaller,
-		FeeCredit: toGasCredit(100000),
-	}
+	callMessage := types.NewEmptyMessage()
+	callMessage.Flags = types.NewMessageFlags(types.MessageFlagInternal)
+	callMessage.FeeCredit = toGasCredit(100_000)
+	callMessage.Data = calldata
+	callMessage.To = addrCaller
 	res := state.HandleExecutionMessage(ctx, callMessage)
 	require.False(t, res.Failed())
 	require.NotEmpty(t, state.Receipts)

@@ -103,24 +103,28 @@ func NewDeployMessage(payload types.DeployPayload,
 ) *types.Message {
 	gasCredit := types.Gas(100_000).ToValue(types.DefaultGasPrice)
 	return &types.Message{
-		Flags:     types.NewMessageFlags(types.MessageFlagInternal, types.MessageFlagDeploy),
-		Data:      payload.Bytes(),
-		From:      from,
-		Seqno:     seqno,
-		FeeCredit: gasCredit,
-		To:        types.CreateAddress(shardId, payload),
-		Value:     value,
+		MessageDigest: types.MessageDigest{
+			Flags:     types.NewMessageFlags(types.MessageFlagInternal, types.MessageFlagDeploy),
+			Data:      payload.Bytes(),
+			Seqno:     seqno,
+			FeeCredit: gasCredit,
+			To:        types.CreateAddress(shardId, payload),
+		},
+		From:  from,
+		Value: value,
 	}
 }
 
 func NewExecutionMessage(from, to types.Address, seqno types.Seqno, callData []byte) *types.Message {
 	gasCredit := types.Gas(100_000).ToValue(types.DefaultGasPrice)
 	return &types.Message{
-		From:      from,
-		To:        to,
-		Data:      callData,
-		Seqno:     seqno,
-		FeeCredit: gasCredit,
+		MessageDigest: types.MessageDigest{
+			To:        to,
+			Data:      callData,
+			Seqno:     seqno,
+			FeeCredit: gasCredit,
+		},
+		From: from,
 	}
 }
 

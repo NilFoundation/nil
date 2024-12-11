@@ -17,7 +17,7 @@ type SuiteEthMessage struct {
 	db            db.DB
 	api           *APIImpl
 	lastBlockHash common.Hash
-	message       types.Message
+	message       *types.Message
 	messageRaw    []byte
 }
 
@@ -39,11 +39,13 @@ func (s *SuiteEthMessage) SetupSuite() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	s.message = types.Message{Data: []byte("data"), To: types.GenerateRandomAddress(types.BaseShardId)}
+	s.message = types.NewEmptyMessage()
+	s.message.Data = []byte("data")
+	s.message.To = types.GenerateRandomAddress(types.BaseShardId)
 	receipt := types.Receipt{MsgHash: s.message.Hash()}
 
 	s.lastBlockHash = writeTestBlock(
-		s.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Message{&s.message}, []*types.Receipt{&receipt}, []*types.Message{})
+		s.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Message{s.message}, []*types.Receipt{&receipt}, []*types.Message{})
 	_, err = execution.PostprocessBlock(tx, types.BaseShardId, types.NewValueFromUint64(10), s.lastBlockHash)
 	s.Require().NoError(err)
 

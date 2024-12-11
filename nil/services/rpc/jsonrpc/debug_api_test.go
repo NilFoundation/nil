@@ -30,7 +30,7 @@ func TestDebugGetBlock(t *testing.T) {
 	require.NoError(t, err)
 	defer tx.Rollback()
 
-	msg := &types.Message{Seqno: 0}
+	msg := types.NewEmptyMessage()
 	errStr := "test error"
 	inMessageTree := execution.NewDbMessageTrie(tx, types.MainShardId)
 	require.NoError(t, inMessageTree.Update(types.MessageIndex(0), msg))

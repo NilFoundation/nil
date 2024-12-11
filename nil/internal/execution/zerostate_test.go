@@ -73,10 +73,12 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 
 	gasLimit := types.Gas(100_000).ToValue(types.DefaultGasPrice)
 	callMessage := &types.Message{
-		Data:      calldata,
-		From:      suite.faucetAddr,
-		To:        suite.faucetAddr,
-		FeeCredit: gasLimit,
+		MessageDigest: types.MessageDigest{
+			Data:      calldata,
+			To:        suite.faucetAddr,
+			FeeCredit: gasLimit,
+		},
+		From: suite.faucetAddr,
 	}
 	res := suite.state.HandleExecutionMessage(suite.ctx, callMessage)
 	suite.Require().False(res.Failed())

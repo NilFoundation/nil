@@ -53,11 +53,10 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 
 	s.Run("Deploy", func() {
 		code := types.Code("some-code")
-		msg := &types.Message{
-			Flags: types.NewMessageFlags(types.MessageFlagDeploy),
-			To:    types.GenerateRandomAddress(types.BaseShardId),
-			Data:  types.BuildDeployPayload(code, common.EmptyHash).Bytes(),
-		}
+		msg := types.NewEmptyMessage()
+		msg.Flags = types.NewMessageFlags(types.MessageFlagDeploy)
+		msg.To = types.GenerateRandomAddress(types.BaseShardId)
+		msg.Data = types.BuildDeployPayload(code, common.EmptyHash).Bytes()
 
 		s.Run("NoAccount", func() {
 			s.Require().Equal(types.ErrorDestinationContractDoesNotExist, validate(msg).Code())
@@ -84,10 +83,9 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 	})
 
 	s.Run("Execution", func() {
-		msg := &types.Message{
-			To:   types.GenerateRandomAddress(types.BaseShardId),
-			Data: []byte("hello"),
-		}
+		msg := types.NewEmptyMessage()
+		msg.To = types.GenerateRandomAddress(types.BaseShardId)
+		msg.Data = []byte("hello")
 
 		s.Run("NoAccount", func() {
 			s.Require().Equal(types.ErrorDestinationContractDoesNotExist, validate(msg).Code())
@@ -129,9 +127,8 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 }
 
 func (s *MessagesSuite) TestValidateDeployMessage() {
-	msg := &types.Message{
-		Data: types.Code("no-salt"),
-	}
+	msg := types.NewEmptyMessage()
+	msg.Data = types.Code("no-salt")
 
 	// data too short
 	s.Require().Equal(types.ErrorInvalidPayload, types.GetErrorCode(ValidateDeployMessage(msg)))

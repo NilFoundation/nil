@@ -380,40 +380,37 @@ func (suite *SuiteExecutionState) TestMessageStatus() {
 	})
 
 	suite.Run("ExecuteOutOfGas", func() {
-		msg := &types.Message{
-			From:      counterAddr,
-			To:        counterAddr,
-			Data:      contracts.NewCounterAddCallData(suite.T(), 47),
-			Seqno:     1,
-			FeeCredit: toGasCredit(0),
-		}
+		msg := types.NewEmptyMessage()
+		msg.To = counterAddr
+		msg.Data = contracts.NewCounterAddCallData(suite.T(), 47)
+		msg.Seqno = 1
+		msg.FeeCredit = toGasCredit(0)
+		msg.From = counterAddr
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.Equal(types.ErrorOutOfGas, res.Error.Code())
 		suite.Require().ErrorAs(res.Error, &vmErrStub)
 	})
 
 	suite.Run("ExecuteReverted", func() {
-		msg := &types.Message{
-			From:      counterAddr,
-			To:        counterAddr,
-			Data:      []byte("wrong calldata"),
-			Seqno:     1,
-			FeeCredit: toGasCredit(1_000_000),
-		}
+		msg := types.NewEmptyMessage()
+		msg.To = counterAddr
+		msg.Data = []byte("wrong calldata")
+		msg.Seqno = 1
+		msg.FeeCredit = toGasCredit(1_000_000)
+		msg.From = counterAddr
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.Equal(types.ErrorExecutionReverted, res.Error.Code())
 		suite.Require().ErrorAs(res.Error, &vmErrStub)
 	})
 
 	suite.Run("CallToMainShard", func() {
-		msg := &types.Message{
-			From: faucetAddr,
-			To:   faucetAddr,
-			Data: contracts.NewFaucetWithdrawToCallData(suite.T(),
-				types.GenerateRandomAddress(types.MainShardId), types.NewValueFromUint64(1_000)),
-			Seqno:     1,
-			FeeCredit: toGasCredit(100_000),
-		}
+		msg := types.NewEmptyMessage()
+		msg.To = faucetAddr
+		msg.Data = contracts.NewFaucetWithdrawToCallData(suite.T(),
+			types.GenerateRandomAddress(types.MainShardId), types.NewValueFromUint64(1_000))
+		msg.Seqno = 1
+		msg.FeeCredit = toGasCredit(100_000)
+		msg.From = faucetAddr
 		res := es.HandleExecutionMessage(suite.ctx, msg)
 		suite.Equal(types.ErrorMessageToMainShard, res.Error.Code())
 		suite.Require().ErrorAs(res.Error, &vmErrStub)
@@ -457,13 +454,13 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 	abi, err := contracts.GetAbi(contracts.NamePrecompilesTest)
 	suite.Require().NoError(err)
 
-	msg := &types.Message{
-		Flags:     types.NewMessageFlags(types.MessageFlagInternal),
-		From:      testAddr,
-		To:        testAddr,
-		Seqno:     1,
-		FeeCredit: toGasCredit(1_000_000),
-	}
+	msg := types.NewEmptyMessage()
+	msg.Flags = types.NewMessageFlags(types.MessageFlagInternal)
+	msg.To = testAddr
+	msg.Data = []byte("wrong calldata")
+	msg.Seqno = 1
+	msg.FeeCredit = toGasCredit(1_000_000)
+	msg.From = testAddr
 
 	suite.Run("testAsyncCall: success", func() {
 		msg.Data, err = abi.Pack("testAsyncCall", testAddr, types.EmptyAddress, types.EmptyAddress, big.NewInt(0),
