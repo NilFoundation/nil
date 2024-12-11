@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler/heap"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
@@ -134,7 +134,25 @@ func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.Tas
 }
 
 func (s *taskSchedulerImpl) GetTasks(ctx context.Context, request *api.TaskDebugRequest) ([]*types.TaskEntry, error) {
-	tasks, err := s.storage.GetTasks(ctx, func(entry *types.TaskEntry) bool {
+	predicate := s.getPredicate(request)
+	comparator, err := s.getComparator(request)
+	if err != nil {
+		return nil, err
+	}
+
+	maxHeap := heap.NewBoundedMaxHeap[*types.TaskEntry](request.Limit, comparator)
+
+	err = s.storage.GetTasks(ctx, maxHeap, predicate)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("failed to get tasks from the storage (GetTasks)")
+		return nil, err
+	}
+
+	return maxHeap.PopAllSorted(), nil
+}
+
+func (s *taskSchedulerImpl) getPredicate(request *api.TaskDebugRequest) func(entry *types.TaskEntry) bool {
+	return func(entry *types.TaskEntry) bool {
 		if request.Status != nil && *request.Status != entry.Status {
 			return false
 		}
@@ -145,27 +163,10 @@ func (s *taskSchedulerImpl) GetTasks(ctx context.Context, request *api.TaskDebug
 			return false
 		}
 		return true
-	})
-	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to get tasks from the storage (GetTasks)")
-		return nil, err
 	}
-
-	sortFunc, err := s.getSortFunc(request)
-	if err != nil {
-		return nil, err
-	}
-
-	slices.SortFunc(tasks, sortFunc)
-
-	if request.Limit < len(tasks) {
-		tasks = tasks[:request.Limit]
-	}
-
-	return tasks, nil
 }
 
-func (s *taskSchedulerImpl) getSortFunc(request *api.TaskDebugRequest) (func(i, j *types.TaskEntry) int, error) {
+func (s *taskSchedulerImpl) getComparator(request *api.TaskDebugRequest) (func(i, j *types.TaskEntry) int, error) {
 	var orderSign int
 	if request.Ascending {
 		orderSign = 1
@@ -173,10 +174,11 @@ func (s *taskSchedulerImpl) getSortFunc(request *api.TaskDebugRequest) (func(i, 
 		orderSign = -1
 	}
 
+	currentTime := s.clock.NowTime()
+
 	switch request.Order {
 	case api.OrderByExecutionTime:
 		return func(i, j *types.TaskEntry) int {
-			currentTime := s.clock.NowTime()
 			leftExecTime := i.ExecutionTime(currentTime)
 			rightExecTime := j.ExecutionTime(currentTime)
 			switch {

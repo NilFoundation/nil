@@ -24,6 +24,12 @@ var (
 	ErrTaskWrongExecutor = errors.New("task belongs to another executor")
 )
 
+// TaskContainer is an interface for storing task entries
+type TaskContainer interface {
+	// Add inserts a new TaskEntry into the container
+	Add(taskEntry *types.TaskEntry)
+}
+
 // TaskStorage Interface for storing and accessing tasks from DB
 type TaskStorage interface {
 	// AddSingleTaskEntry Store new task entry into DB, if already exist - just update it
@@ -35,8 +41,8 @@ type TaskStorage interface {
 	// TryGetTaskEntry Retrieve a task entry by its id. In case if task does not exist, method returns nil
 	TryGetTaskEntry(ctx context.Context, id types.TaskId) (*types.TaskEntry, error)
 
-	// GetTasks Retrieve a list of tasks from the storage that match the given predicate function.
-	GetTasks(ctx context.Context, predicate func(*types.TaskEntry) bool) ([]*types.TaskEntry, error)
+	// GetTasks Retrieve tasks that match the given predicate function and pushes them to the destination container.
+	GetTasks(ctx context.Context, destination TaskContainer, predicate func(*types.TaskEntry) bool) error
 
 	// GetTaskTree retrieves the full hierarchical structure of a task and its dependencies by the given task id.
 	GetTaskTree(ctx context.Context, taskId types.TaskId) (*types.TaskTree, error)
@@ -176,25 +182,24 @@ func (st *taskStorage) TryGetTaskEntry(ctx context.Context, id types.TaskId) (*t
 	return entry, err
 }
 
-func (st *taskStorage) GetTasks(ctx context.Context, predicate func(*types.TaskEntry) bool) ([]*types.TaskEntry, error) {
+func (st *taskStorage) GetTasks(ctx context.Context, destination TaskContainer, predicate func(*types.TaskEntry) bool) error {
 	tx, err := st.database.CreateRoTx(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer tx.Rollback()
 
-	var tasks []*types.TaskEntry
 	err = iterateOverTaskEntries(tx, func(entry *types.TaskEntry) error {
 		if predicate(entry) {
-			tasks = append(tasks, entry)
+			destination.Add(entry)
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve tasks based on predicate: %w", err)
+		return fmt.Errorf("failed to retrieve tasks based on predicate: %w", err)
 	}
 
-	return tasks, nil
+	return nil
 }
 
 func (st *taskStorage) GetTaskTree(ctx context.Context, rootTaskId types.TaskId) (*types.TaskTree, error) {
@@ -204,13 +209,19 @@ func (st *taskStorage) GetTaskTree(ctx context.Context, rootTaskId types.TaskId)
 	}
 	defer tx.Rollback()
 
-	visited := make(map[types.TaskId]struct{})
-	var getTaskTreeRec func(taskId types.TaskId) (*types.TaskTree, error)
-	getTaskTreeRec = func(taskId types.TaskId) (*types.TaskTree, error) {
-		if _, exists := visited[taskId]; exists {
-			return nil, fmt.Errorf("detected cycle in task dependencies, id=%s", taskId)
+	// track seen tasks to not extract them with dependencies more than once from the storage
+	seen := make(map[types.TaskId]*types.TaskTree)
+	const depthLimit = 50
+
+	var getTaskTreeRec func(taskId types.TaskId, currentDepth int) (*types.TaskTree, error)
+	getTaskTreeRec = func(taskId types.TaskId, currentDepth int) (*types.TaskTree, error) {
+		if currentDepth > depthLimit {
+			return nil, fmt.Errorf("tree depth limit exceeded (%d) for task with id=%s", depthLimit, taskId)
 		}
-		visited[taskId] = struct{}{}
+
+		if seenTree, ok := seen[taskId]; ok {
+			return seenTree, nil
+		}
 
 		entry, err := extractTaskEntry(tx, taskId)
 
@@ -223,8 +234,10 @@ func (st *taskStorage) GetTaskTree(ctx context.Context, rootTaskId types.TaskId)
 		}
 
 		tree := types.NewTaskTree(entry)
+		seen[taskId] = tree
+
 		for dependencyId := range entry.Task.PendingDependencies {
-			subtree, err := getTaskTreeRec(dependencyId)
+			subtree, err := getTaskTreeRec(dependencyId, currentDepth+1)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get task subtree with id=%s: %w", dependencyId, err)
 			}
@@ -232,7 +245,7 @@ func (st *taskStorage) GetTaskTree(ctx context.Context, rootTaskId types.TaskId)
 		}
 
 		for dependencyId, result := range entry.Task.DependencyResults {
-			subtree, err := getTaskTreeRec(dependencyId)
+			subtree, err := getTaskTreeRec(dependencyId, currentDepth+1)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get task subtree with id=%s: %w", dependencyId, err)
 			}
@@ -243,7 +256,7 @@ func (st *taskStorage) GetTaskTree(ctx context.Context, rootTaskId types.TaskId)
 		return tree, nil
 	}
 
-	return getTaskTreeRec(rootTaskId)
+	return getTaskTreeRec(rootTaskId, 0)
 }
 
 // Helper to find available task with higher priority

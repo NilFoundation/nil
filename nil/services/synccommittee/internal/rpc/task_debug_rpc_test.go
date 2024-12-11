@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -169,6 +170,14 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Tasks() {
 			},
 			ignoreOrder: false,
 		},
+		{
+			name:    "SortByExecutionTimeDescendingAndLimit",
+			request: api.NewTaskDebugRequest(nil, nil, nil, &sortExecTime, true, &outputLimit),
+			expectedResults: []*types.TaskEntry{
+				entries[1], entries[0], entries[2], entries[3],
+			},
+			ignoreOrder: false,
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -217,33 +226,64 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_No_Dependencies() {
 }
 
 func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_With_Dependencies() {
-	entry := testaide.GenerateTaskEntry(baseTime, types.WaitingForInput, testaide.RandomExecutorId())
+	//   A
+	//  / \
+	// B   C
+	//  \ / \
+	//   D   E
 
-	fstDep := testaide.GenerateTaskEntry(baseTime, types.Failed, testaide.RandomExecutorId())
-	entry.AddDependency(fstDep)
+	taskA := testaide.GenerateTaskEntry(baseTime, types.WaitingForInput, testaide.RandomExecutorId())
 
-	sndDep := testaide.GenerateTaskEntry(baseTime, types.Running, testaide.RandomExecutorId())
-	entry.AddDependency(sndDep)
+	taskB := testaide.GenerateTaskEntry(baseTime, types.WaitingForInput, testaide.RandomExecutorId())
+	taskA.AddDependency(taskB)
 
-	err := s.storage.AddTaskEntries(s.context, []*types.TaskEntry{entry, fstDep, sndDep})
+	taskC := testaide.GenerateTaskEntry(baseTime, types.WaitingForInput, testaide.RandomExecutorId())
+	taskA.AddDependency(taskC)
+
+	taskD := testaide.GenerateTaskEntry(baseTime, types.Running, testaide.RandomExecutorId())
+	taskB.AddDependency(taskD)
+	taskC.AddDependency(taskD)
+
+	taskE := testaide.GenerateTaskEntry(baseTime, types.Running, testaide.RandomExecutorId())
+	taskC.AddDependency(taskE)
+
+	err := s.storage.AddTaskEntries(s.context, []*types.TaskEntry{taskA, taskB, taskC, taskD, taskE})
 	s.Require().NoError(err)
 
-	taskTree, err := s.rpcClient.GetTaskTree(s.context, entry.Task.Id)
+	taskTree, err := s.rpcClient.GetTaskTree(s.context, taskA.Task.Id)
 	s.Require().NoError(err)
 	s.Require().NotNil(taskTree)
 
-	s.Require().Equal(entry, &taskTree.TaskEntry)
+	s.Require().Equal(taskA, &taskTree.TaskEntry)
 	s.Require().Nil(taskTree.Result)
 	s.Require().Len(taskTree.Dependencies, 2)
 
+	taskBSubtree := s.getDependencyById(taskTree, taskB.Task.Id)
+	s.Require().Equal(taskB, &taskBSubtree.TaskEntry)
+
+	s.Require().Len(taskBSubtree.Dependencies, 1)
+	s.Require().Equal(taskD, &taskBSubtree.Dependencies[0].TaskEntry)
+	s.Require().Empty(taskBSubtree.Dependencies[0].Dependencies)
+
+	taskCSubtree := s.getDependencyById(taskTree, taskC.Task.Id)
+	s.Require().Equal(taskC, &taskCSubtree.TaskEntry)
+
 	s.Require().ElementsMatch(
-		[]*types.TaskEntry{fstDep, sndDep},
-		[]*types.TaskEntry{&taskTree.Dependencies[0].TaskEntry, &taskTree.Dependencies[1].TaskEntry},
+		[]*types.TaskEntry{taskD, taskE},
+		[]*types.TaskEntry{&taskCSubtree.Dependencies[0].TaskEntry, &taskCSubtree.Dependencies[1].TaskEntry},
 	)
 
-	s.Require().Empty(taskTree.Dependencies[0].Dependencies)
-	s.Require().Nil(taskTree.Dependencies[0].Result)
+	s.Require().Empty(taskCSubtree.Dependencies[0].Dependencies)
+	s.Require().Empty(taskCSubtree.Dependencies[1].Dependencies)
+}
 
-	s.Require().Empty(taskTree.Dependencies[1].Dependencies)
-	s.Require().Nil(taskTree.Dependencies[1].Result)
+func (s *TaskSchedulerDebugRpcTestSuite) getDependencyById(taskTree *types.TaskTree, taskId types.TaskId) *types.TaskTree {
+	s.T().Helper()
+
+	actualTaskIdx := slices.IndexFunc(taskTree.Dependencies, func(child *types.TaskTree) bool {
+		return child.TaskEntry.Task.Id == taskId
+	})
+	s.Require().NotEqual(-1, actualTaskIdx)
+
+	return taskTree.Dependencies[actualTaskIdx]
 }
