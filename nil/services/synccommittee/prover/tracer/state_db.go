@@ -22,6 +22,7 @@ type ExecutionTraces interface {
 	AddMemoryOps(ops []MemoryOp)
 	AddStackOps(ops []StackOp)
 	AddStorageOps(ops []StorageOp)
+	AddExpOps(ops []ExpOp)
 	AddZKEVMStates(states []ZKEVMState)
 	AddCopyEvents(events []CopyEvent)
 	AddContractBytecode(addr types.Address, code []byte)
@@ -33,6 +34,7 @@ type executionTracesImpl struct {
 	StackOps    []StackOp
 	MemoryOps   []MemoryOp
 	StorageOps  []StorageOp
+	ExpOps      []ExpOp
 	ZKEVMStates []ZKEVMState
 	CopyEvents  []CopyEvent
 	MPTTraces   *mpttracer.MPTTraces
@@ -60,6 +62,10 @@ func (tr *executionTracesImpl) AddStorageOps(ops []StorageOp) {
 	tr.StorageOps = append(tr.StorageOps, ops...)
 }
 
+func (tr *executionTracesImpl) AddExpOps(ops []ExpOp) {
+	tr.ExpOps = append(tr.ExpOps, ops...)
+}
+
 func (tr *executionTracesImpl) AddZKEVMStates(states []ZKEVMState) {
 	tr.ZKEVMStates = append(tr.ZKEVMStates, states...)
 }
@@ -77,12 +83,14 @@ func (tr *executionTracesImpl) SetMptTraces(mptTraces *mpttracer.MPTTraces) {
 }
 
 type Stats struct {
-	ProcessedInMsgsN uint
-	OpsN             uint // should be the same as StackOpsN, since every op is a stack op
-	StackOpsN        uint
-	MemoryOpsN       uint
-	StateOpsN        uint
-	CopyOpsN         uint
+	ProcessedInMsgsN   uint
+	OpsN               uint // should be the same as StackOpsN, since every op is a stack op
+	StackOpsN          uint
+	MemoryOpsN         uint
+	StateOpsN          uint
+	CopyOpsN           uint
+	ExpOpsN            uint
+	AffectedContractsN uint
 }
 
 type TracerStateDB struct {
@@ -107,6 +115,7 @@ type TracerStateDB struct {
 	stackTracer   *StackOpTracer
 	memoryTracer  *MemoryOpTracer
 	storageTracer *StorageOpTracer
+	expTracer     *ExpOpTracer
 	mptTracer     *mpttracer.MPTTracer
 	zkevmTracer   *ZKEVMStateTracer
 	copyTracer    *CopyTracer
@@ -192,13 +201,15 @@ func (tsdb *TracerStateDB) processOpcodeWithTracers(
 	opCode := vm.OpCode(op)
 	tsdb.Stats.OpsN++
 
-	// Finish in reverse order to keep rw_counter sequential.
+	// Finish memory and stack tracers in reverse order to keep rw_counter sequential.
 	// Each operation consists of read stack -> read memory -> write memory -> write stack (we
 	// ignore specific memory parts like returndata, etc for now). Stages could be omitted, but
 	// not reordered.
 	tsdb.memoryTracer.FinishPrevOpcodeTracing()
 	tsdb.stackTracer.FinishPrevOpcodeTracing()
 	tsdb.copyTracer.FinishPrevOpcodeTracing()
+
+	tsdb.expTracer.FinishPrevOpcodeTracing()
 
 	ranges, hasMemOps := tsdb.memoryTracer.GetUsedMemoryRanges(opCode, scope)
 
@@ -229,6 +240,10 @@ func (tsdb *TracerStateDB) processOpcodeWithTracers(
 		tsdb.Stats.MemoryOpsN++
 	}
 
+	if tsdb.expTracer.TraceOp(opCode, pc, scope) {
+		tsdb.Stats.ExpOpsN++
+	}
+
 	// Storage tracing is done inside Get/SetState methods
 	if opCode == vm.SLOAD || opCode == vm.SSTORE {
 		tsdb.Stats.StateOpsN++
@@ -251,6 +266,7 @@ func (tsdb *TracerStateDB) initVm(
 	tsdb.stackTracer = &StackOpTracer{rwCtr: &tsdb.RwCounter, msgId: msgId}
 	tsdb.memoryTracer = &MemoryOpTracer{rwCtr: &tsdb.RwCounter, msgId: msgId}
 	tsdb.storageTracer = NewStorageOpTracer(tsdb.mptTracer, &tsdb.RwCounter, tsdb.GetCurPC, msgId)
+	tsdb.expTracer = &ExpOpTracer{msgId: msgId}
 	tsdb.zkevmTracer = &ZKEVMStateTracer{
 		rwCtr:        &tsdb.RwCounter,
 		msgId:        msgId,
@@ -276,12 +292,14 @@ func (tsdb *TracerStateDB) saveMessageTraces() {
 	tsdb.Traces.AddStackOps(tsdb.stackTracer.Finalize())
 	tsdb.Traces.AddZKEVMStates(tsdb.zkevmTracer.Finalize())
 	tsdb.Traces.AddStorageOps(tsdb.storageTracer.GetStorageOps())
+	tsdb.Traces.AddExpOps(tsdb.expTracer.Finalize())
 	tsdb.Traces.AddCopyEvents(tsdb.copyTracer.Finalize())
 }
 
 func (tsdb *TracerStateDB) resetVm() {
 	tsdb.stackTracer = nil
 	tsdb.memoryTracer = nil
+	tsdb.expTracer = nil
 	tsdb.zkevmTracer = nil
 	tsdb.evm = nil
 	tsdb.code = nil
@@ -655,5 +673,6 @@ func (tsdb *TracerStateDB) FinalizeTraces() error {
 		return err
 	}
 	tsdb.Traces.SetMptTraces(&mptTraces)
+	tsdb.Stats.AffectedContractsN = uint(len(mptTraces.ContractTrieTraces))
 	return nil
 }

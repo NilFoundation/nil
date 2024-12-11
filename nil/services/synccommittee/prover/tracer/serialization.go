@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/vm"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/mpttracer"
 	pb "github.com/NilFoundation/nil/nil/services/synccommittee/prover/proto"
+	"github.com/holiman/uint256"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -20,6 +21,7 @@ type PbTracesSet struct {
 	zkevm    *pb.ZKEVMTraces
 	copy     *pb.CopyTraces
 	mpt      *pb.MPTTraces
+	exp      *pb.ExpTraces
 }
 
 // Each message is serialized into file with corresponding extension added to base file path
@@ -29,6 +31,7 @@ const (
 	zkevmExtension    = "zkevm"
 	copyExtension     = "copy"
 	mptExtension      = "mpt"
+	expExtension      = "exp"
 )
 
 func SerializeToFile(proofs ExecutionTraces, mode MarshalMode, baseFileName string) error {
@@ -46,31 +49,37 @@ func SerializeToFile(proofs ExecutionTraces, mode MarshalMode, baseFileName stri
 		// Marshal zkevm message
 		eg.Go(func() error {
 			return marshalToFile(pbTraces.zkevm,
-				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, ext, zkevmExtension))
+				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, zkevmExtension, ext))
 		})
 
 		// Marshal bytecode message
 		eg.Go(func() error {
 			return marshalToFile(pbTraces.bytecode,
-				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, ext, bytecodeExtension))
+				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, bytecodeExtension, ext))
 		})
 
 		// Marshal rw message
 		eg.Go(func() error {
 			return marshalToFile(pbTraces.rw,
-				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, ext, rwExtension))
+				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, rwExtension, ext))
 		})
 
 		// Marshal copy message
 		eg.Go(func() error {
 			return marshalToFile(pbTraces.copy,
-				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, ext, copyExtension))
+				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, copyExtension, ext))
 		})
 
 		// Marshal mpt traces message
 		eg.Go(func() error {
 			return marshalToFile(pbTraces.mpt,
-				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, ext, mptExtension))
+				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, mptExtension, ext))
+		})
+
+		// Marshal exp traces message
+		eg.Go(func() error {
+			return marshalToFile(pbTraces.exp,
+				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, expExtension, ext))
 		})
 	}
 
@@ -84,6 +93,7 @@ func DeserializeFromFile(baseFileName string, mode MarshalMode) (ExecutionTraces
 		zkevm:    &pb.ZKEVMTraces{},
 		copy:     &pb.CopyTraces{},
 		mpt:      &pb.MPTTraces{},
+		exp:      &pb.ExpTraces{},
 	}
 
 	unmarshal, ok := marshalModeToUnmarshaller[mode]
@@ -98,32 +108,38 @@ func DeserializeFromFile(baseFileName string, mode MarshalMode) (ExecutionTraces
 
 	// Unmarshal zkevm message
 	eg.Go(func() error {
-		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, ext, zkevmExtension),
+		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, zkevmExtension, ext),
 			unmarshal, pbTraces.zkevm)
 	})
 
 	// Unmarshal bc message
 	eg.Go(func() error {
-		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, ext, bytecodeExtension),
+		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, bytecodeExtension, ext),
 			unmarshal, pbTraces.bytecode)
 	})
 
 	// Unmarshal rw message
 	eg.Go(func() error {
-		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, ext, rwExtension),
+		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, rwExtension, ext),
 			unmarshal, pbTraces.rw)
 	})
 
 	// Unmarshal copy message
 	eg.Go(func() error {
-		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, ext, copyExtension),
+		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, copyExtension, ext),
 			unmarshal, pbTraces.copy)
 	})
 
 	// Unmarshal mpt traces message
 	eg.Go(func() error {
-		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, ext, mptExtension),
+		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, mptExtension, ext),
 			unmarshal, pbTraces.mpt)
+	})
+
+	// Unmarshal exp traces message
+	eg.Go(func() error {
+		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, expExtension, ext),
+			unmarshal, pbTraces.exp)
 	})
 
 	if err := eg.Wait(); err != nil {
@@ -139,6 +155,7 @@ func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
 		StackOps:          make([]StackOp, len(traces.rw.StackOps)),
 		MemoryOps:         make([]MemoryOp, len(traces.rw.MemoryOps)),
 		StorageOps:        make([]StorageOp, len(traces.rw.StorageOps)),
+		ExpOps:            make([]ExpOp, len(traces.exp.ExpOps)),
 		ZKEVMStates:       make([]ZKEVMState, len(traces.zkevm.ZkevmStates)),
 		ContractsBytecode: make(map[types.Address][]byte, len(traces.bytecode.ContractBytecodes)),
 		CopyEvents:        make([]CopyEvent, len(traces.copy.CopyEvents)),
@@ -176,6 +193,19 @@ func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
 			MsgId:     uint(pbStorageOp.MsgId),
 			RwIdx:     uint(pbStorageOp.RwIdx),
 			Addr:      types.HexToAddress(pbStorageOp.Address.String()),
+		}
+	}
+
+	for i, pbExpOp := range traces.exp.ExpOps {
+		base := protoUint256ToUint256(pbExpOp.Base)
+		exponent := protoUint256ToUint256(pbExpOp.Exponent)
+		result := protoUint256ToUint256(pbExpOp.Result)
+		ep.ExpOps[i] = ExpOp{
+			Base:     (*uint256.Int)(&base),
+			Exponent: (*uint256.Int)(&exponent),
+			Result:   (*uint256.Int)(&result),
+			PC:       pbExpOp.Pc,
+			MsgId:    uint(pbExpOp.MsgId),
 		}
 	}
 
@@ -241,6 +271,7 @@ func ToProto(tr ExecutionTraces) (*PbTracesSet, error) {
 			MemoryOps:  make([]*pb.MemoryOp, len(traces.MemoryOps)),
 			StorageOps: make([]*pb.StorageOp, len(traces.StorageOps)),
 		},
+		exp:   &pb.ExpTraces{ExpOps: make([]*pb.ExpOp, len(traces.ExpOps))},
 		zkevm: &pb.ZKEVMTraces{ZkevmStates: make([]*pb.ZKEVMState, len(traces.ZKEVMStates))},
 		copy:  &pb.CopyTraces{CopyEvents: make([]*pb.CopyEvent, len(traces.CopyEvents))},
 	}
@@ -280,6 +311,16 @@ func ToProto(tr ExecutionTraces) (*PbTracesSet, error) {
 			MsgId:     uint64(storageOp.MsgId),
 			RwIdx:     uint64(storageOp.RwIdx),
 			Address:   &pb.Address{AddressBytes: storageOp.Addr.Bytes()},
+		}
+	}
+
+	for i, expOp := range traces.ExpOps {
+		pbTraces.exp.ExpOps[i] = &pb.ExpOp{
+			Base:     uint256ToProtoUint256(types.Uint256(*expOp.Base)),
+			Exponent: uint256ToProtoUint256(types.Uint256(*expOp.Exponent)),
+			Result:   uint256ToProtoUint256(types.Uint256(*expOp.Result)),
+			Pc:       expOp.PC,
+			MsgId:    uint64(expOp.MsgId),
 		}
 	}
 

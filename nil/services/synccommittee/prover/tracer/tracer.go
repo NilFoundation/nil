@@ -115,16 +115,17 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 
 	// Print stats
 	stats := stateDB.Stats
-	rt.logger.Info().Msgf(
-		"Tracer stats: processed %d inMessages out of %d with %d operations (stack %d, mem %d, store %d, copy %d)",
-		stats.ProcessedInMsgsN,
-		len(decodedDbgBlock.InMessages),
-		stats.OpsN,
-		stats.StackOpsN,
-		stats.MemoryOpsN,
-		stats.StateOpsN,
-		stats.CopyOpsN,
-	)
+	rt.logger.Info().
+		Uint("processedInMessages", stats.ProcessedInMsgsN).
+		Uint("totalInMessages", uint(len(decodedDbgBlock.InMessages))).
+		Uint("operations", stats.OpsN).
+		Uint("stackOperations", stats.StackOpsN).
+		Uint("memoryOperations", stats.MemoryOpsN).
+		Uint("stateOperations", stats.StateOpsN).
+		Uint("copyOperations", stats.CopyOpsN).
+		Uint("expOperations", stats.ExpOpsN).
+		Uint("affectedContracts", stats.AffectedContractsN).
+		Msg("Tracer stats")
 
 	return nil
 }
