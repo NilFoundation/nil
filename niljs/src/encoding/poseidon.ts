@@ -1,6 +1,6 @@
 import { poseidon16 } from "poseidon-lite";
 
-const SPONGE_CHUNK_SIZE = 32;
+const SPONGE_CHUNK_SIZE = 31;
 
 function beBuff2int(buff: Uint8Array) {
   let res = BigInt(0);
