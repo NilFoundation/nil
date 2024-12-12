@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	nilrpc "github.com/NilFoundation/nil/nil/client/rpc"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -63,6 +64,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		taskStorage,
 		newTaskStateChangeHandler(blockStorage, logger),
 		metricsHandler,
+		common.NewTimer(),
 		logger,
 	)
 

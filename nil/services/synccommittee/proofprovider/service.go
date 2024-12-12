@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -71,6 +72,7 @@ func New(config *Config, database db.DB) (*ProofProvider, error) {
 		taskStorage,
 		newTaskStateChangeHandler(taskRpcClient, taskExecutor.Id(), logger),
 		metricsHandler,
+		common.NewTimer(),
 		logger,
 	)
 

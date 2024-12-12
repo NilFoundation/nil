@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/stretchr/testify/suite"
@@ -17,18 +18,21 @@ type TaskRequestHandlerTestSuite struct {
 	context       context.Context
 	cancellation  context.CancelFunc
 	clientHandler api.TaskRequestHandler
-	targetHandler *api.TaskRequestHandlerMock
+	scheduler     *scheduler.TaskSchedulerMock
 }
 
 func (s *TaskRequestHandlerTestSuite) SetupSuite() {
 	s.context, s.cancellation = context.WithCancel(context.Background())
 	listenerHttpEndpoint := "tcp://127.0.0.1:8530"
-	s.targetHandler = newTaskRequestHandlerMock()
+	s.scheduler = newTaskSchedulerMock()
 
 	go func() {
-		err := runTaskListener(s.context, listenerHttpEndpoint, s.targetHandler)
+		err := runTaskListener(s.context, listenerHttpEndpoint, s.scheduler)
 		s.NoError(err)
 	}()
+
+	err := testaide.WaitForEndpoint(s.context, listenerHttpEndpoint)
+	s.Require().NoError(err)
 
 	s.clientHandler = NewTaskRequestRpcClient(
 		listenerHttpEndpoint,
@@ -37,31 +41,28 @@ func (s *TaskRequestHandlerTestSuite) SetupSuite() {
 }
 
 func (s *TaskRequestHandlerTestSuite) TearDownSubTest() {
-	s.targetHandler.ResetCalls()
+	s.scheduler.ResetCalls()
 }
 
 func (s *TaskRequestHandlerTestSuite) TearDownSuite() {
 	s.cancellation()
 }
 
-func runTaskListener(ctx context.Context, httpEndpoint string, handler api.TaskRequestHandler) error {
+func runTaskListener(ctx context.Context, httpEndpoint string, scheduler scheduler.TaskScheduler) error {
 	taskListener := NewTaskListener(
 		&TaskListenerConfig{HttpEndpoint: httpEndpoint},
-		handler,
+		scheduler,
 		logging.NewLogger("sync-committee-task-rpc"),
 	)
 
 	return taskListener.Run(ctx)
 }
 
-func newTaskRequestHandlerMock() *api.TaskRequestHandlerMock {
-	return &api.TaskRequestHandlerMock{
+func newTaskSchedulerMock() *scheduler.TaskSchedulerMock {
+	return &scheduler.TaskSchedulerMock{
 		GetTaskFunc: func(_ context.Context, request *api.TaskRequest) (*types.Task, error) {
 			predefinedTask := tasksForExecutors[request.ExecutorId]
 			return predefinedTask, nil
-		},
-		SetTaskResultFunc: func(ctx context.Context, result *types.TaskResult) error {
-			return nil
 		},
 	}
 }
@@ -75,15 +76,13 @@ var (
 
 var tasksForExecutors = map[types.TaskExecutorId]*types.Task{
 	firstExecutorId: {
-		Id:            types.NewTaskId(),
-		BatchId:       types.NewBatchId(),
-		ShardId:       coreTypes.MainShardId,
-		BlockNum:      1,
-		BlockHash:     common.EmptyHash,
-		TaskType:      types.PartialProve,
-		CircuitType:   types.Bytecode,
-		Dependencies:  make(map[types.TaskId]types.TaskResult),
-		DependencyNum: 0,
+		Id:          types.NewTaskId(),
+		BatchId:     types.NewBatchId(),
+		ShardId:     coreTypes.MainShardId,
+		BlockNum:    1,
+		BlockHash:   common.EmptyHash,
+		TaskType:    types.PartialProve,
+		CircuitType: types.Bytecode,
 	},
 	secondExecutorId: {
 		Id:          types.NewTaskId(),
@@ -91,7 +90,7 @@ var tasksForExecutors = map[types.TaskExecutorId]*types.Task{
 		BlockNum:    10,
 		TaskType:    types.AggregatedFRI,
 		CircuitType: types.ReadWrite,
-		Dependencies: map[types.TaskId]types.TaskResult{
+		DependencyResults: map[types.TaskId]types.TaskResult{
 			firstDependencyTaskId: types.SuccessProverTaskResult(
 				firstDependencyTaskId,
 				testaide.RandomExecutorId(),
@@ -107,6 +106,5 @@ var tasksForExecutors = map[types.TaskExecutorId]*types.Task{
 				types.TaskResultData{},
 			),
 		},
-		DependencyNum: 2,
 	},
 }

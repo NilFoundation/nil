@@ -39,7 +39,7 @@ func (s *TaskRequestHandlerTestSuite) testGetTask(executorId types.TaskExecutorI
 	request := api.NewTaskRequest(executorId)
 	receivedTask, err := s.clientHandler.GetTask(s.context, request)
 	s.Require().NoError(err)
-	getTaskCalls := s.targetHandler.GetTaskCalls()
+	getTaskCalls := s.scheduler.GetTaskCalls()
 	s.Require().Len(getTaskCalls, 1, "expected one call to GetTask")
 	s.Require().Equal(request, getTaskCalls[0].Request)
 
@@ -79,7 +79,7 @@ func (s *TaskRequestHandlerTestSuite) testSetTaskStatus(resultToSend types.TaskR
 	err := s.clientHandler.SetTaskResult(s.context, &resultToSend)
 	s.Require().NoError(err)
 
-	setResultCalls := s.targetHandler.SetTaskResultCalls()
+	setResultCalls := s.scheduler.SetTaskResultCalls()
 	s.Require().Len(setResultCalls, 1, "expected one call to SetTaskResult")
 	s.Require().Equal(&resultToSend, setResultCalls[0].Result)
 }

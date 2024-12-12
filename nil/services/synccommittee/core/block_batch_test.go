@@ -119,7 +119,8 @@ func (s *BlockBatchTestSuite) TestCreateProofTasks() {
 	const childBLockCount = 4
 	batch := testaide.GenerateBlockBatch(childBLockCount)
 
-	taskEntries := batch.CreateProofTasks()
+	taskEntries, err := batch.CreateProofTasks()
+	s.Require().NoError(err)
 
 	s.Require().Len(taskEntries, childBLockCount+1)
 

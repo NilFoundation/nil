@@ -54,26 +54,24 @@ func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	// Initialize two tasks waiting for input
 	lowerPriorityEntry := testaide.GenerateTaskEntry(time.Now(), types.WaitingForInput, types.UnknownExecutorId)
 	lowerPriorityEntry.Task.BlockNum = 222
-	lowerPriorityEntry.Task.DependencyNum = 1
 
 	higherPriorityEntry := testaide.GenerateTaskEntry(time.Now(), types.WaitingForInput, types.UnknownExecutorId)
 	higherPriorityEntry.Task.BlockNum = 14
-	higherPriorityEntry.Task.DependencyNum = 1
 
 	// Initialize two corresponding dependencies for them which are running
 	dependency1 := testaide.GenerateTaskEntry(time.Now(), types.Running, testaide.RandomExecutorId())
-	dependency1.PendingDeps = []types.TaskId{lowerPriorityEntry.Task.Id}
+	lowerPriorityEntry.AddDependency(dependency1)
 
 	dependency2 := testaide.GenerateTaskEntry(time.Now(), types.Running, testaide.RandomExecutorId())
-	dependency2.PendingDeps = []types.TaskId{higherPriorityEntry.Task.Id}
+	higherPriorityEntry.AddDependency(dependency2)
 
-	err := s.ts.AddSingleTaskEntry(s.ctx, *lowerPriorityEntry)
-	s.Require().NoError(err)
-	err = s.ts.AddSingleTaskEntry(s.ctx, *higherPriorityEntry)
-	s.Require().NoError(err)
-	err = s.ts.AddSingleTaskEntry(s.ctx, *dependency1)
-	s.Require().NoError(err)
-	err = s.ts.AddSingleTaskEntry(s.ctx, *dependency2)
+	err := s.ts.AddTaskEntries(s.ctx, []*types.TaskEntry{
+		lowerPriorityEntry,
+		higherPriorityEntry,
+		dependency1,
+		dependency2,
+	})
+
 	s.Require().NoError(err)
 
 	// No available tasks for executor at this point

@@ -6,6 +6,7 @@ import (
 
 type Timer interface {
 	Now() uint64
+	NowTime() time.Time
 }
 
 type RealTimerImpl struct{}
@@ -16,12 +17,20 @@ func (t *RealTimerImpl) Now() uint64 {
 	return uint64(time.Now().Unix())
 }
 
+func (t *RealTimerImpl) NowTime() time.Time {
+	return time.Now().UTC()
+}
+
 type TestTimerImpl struct {
-	NowTime uint64
+	nowTime uint64
 }
 
 func (t *TestTimerImpl) Now() uint64 {
-	return t.NowTime
+	return t.nowTime
+}
+
+func (t *TestTimerImpl) NowTime() time.Time {
+	return time.Unix(int64(t.nowTime), 0)
 }
 
 var realTimer = RealTimerImpl{}
@@ -31,5 +40,5 @@ func NewTimer() *RealTimerImpl {
 }
 
 func NewTestTimer(nowTime uint64) *TestTimerImpl {
-	return &TestTimerImpl{NowTime: nowTime}
+	return &TestTimerImpl{nowTime: nowTime}
 }

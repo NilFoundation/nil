@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/rs/zerolog"
 )
 
@@ -15,20 +16,20 @@ type TaskListenerConfig struct {
 }
 
 type TaskListener struct {
-	config         *TaskListenerConfig
-	requestHandler api.TaskRequestHandler
-	logger         zerolog.Logger
+	config    *TaskListenerConfig
+	scheduler scheduler.TaskScheduler
+	logger    zerolog.Logger
 }
 
 func NewTaskListener(
 	config *TaskListenerConfig,
-	requestHandler api.TaskRequestHandler,
+	scheduler scheduler.TaskScheduler,
 	logger zerolog.Logger,
 ) *TaskListener {
 	return &TaskListener{
-		config:         config,
-		requestHandler: requestHandler,
-		logger:         logger,
+		config:    config,
+		scheduler: scheduler,
+		logger:    logger,
 	}
 }
 
@@ -44,7 +45,13 @@ func (l *TaskListener) Run(context context.Context) error {
 		{
 			Namespace: api.TaskRequestHandlerNamespace,
 			Public:    true,
-			Service:   l.requestHandler,
+			Service:   api.TaskRequestHandler(l.scheduler),
+			Version:   "1.0",
+		},
+		{
+			Namespace: api.DebugNamespace,
+			Public:    true,
+			Service:   api.TaskDebugApi(l.scheduler),
 			Version:   "1.0",
 		},
 	}

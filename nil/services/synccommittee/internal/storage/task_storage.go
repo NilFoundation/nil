@@ -24,6 +24,12 @@ var (
 	ErrTaskWrongExecutor = errors.New("task belongs to another executor")
 )
 
+// TaskContainer is an interface for storing task entries
+type TaskContainer interface {
+	// Add inserts a new TaskEntry into the container
+	Add(taskEntry *types.TaskEntry)
+}
+
 // TaskStorage Interface for storing and accessing tasks from DB
 type TaskStorage interface {
 	// AddSingleTaskEntry Store new task entry into DB, if already exist - just update it
@@ -34,6 +40,12 @@ type TaskStorage interface {
 
 	// TryGetTaskEntry Retrieve a task entry by its id. In case if task does not exist, method returns nil
 	TryGetTaskEntry(ctx context.Context, id types.TaskId) (*types.TaskEntry, error)
+
+	// GetTasks Retrieve tasks that match the given predicate function and pushes them to the destination container.
+	GetTasks(ctx context.Context, destination TaskContainer, predicate func(*types.TaskEntry) bool) error
+
+	// GetTaskTree retrieves the full hierarchical structure of a task and its dependencies by the given task id.
+	GetTaskTree(ctx context.Context, taskId types.TaskId) (*types.TaskTree, error)
 
 	// RequestTaskToExecute Find task with no dependencies and higher priority and assign it to the executor
 	RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.Task, error)
@@ -170,6 +182,83 @@ func (st *taskStorage) TryGetTaskEntry(ctx context.Context, id types.TaskId) (*t
 	return entry, err
 }
 
+func (st *taskStorage) GetTasks(ctx context.Context, destination TaskContainer, predicate func(*types.TaskEntry) bool) error {
+	tx, err := st.database.CreateRoTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	err = iterateOverTaskEntries(tx, func(entry *types.TaskEntry) error {
+		if predicate(entry) {
+			destination.Add(entry)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to retrieve tasks based on predicate: %w", err)
+	}
+
+	return nil
+}
+
+func (st *taskStorage) GetTaskTree(ctx context.Context, rootTaskId types.TaskId) (*types.TaskTree, error) {
+	tx, err := st.database.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	// track seen tasks to not extract them with dependencies more than once from the storage
+	seen := make(map[types.TaskId]*types.TaskTree)
+	const depthLimit = 50
+
+	var getTaskTreeRec func(taskId types.TaskId, currentDepth int) (*types.TaskTree, error)
+	getTaskTreeRec = func(taskId types.TaskId, currentDepth int) (*types.TaskTree, error) {
+		if currentDepth > depthLimit {
+			return nil, fmt.Errorf("tree depth limit exceeded (%d) for task with id=%s", depthLimit, taskId)
+		}
+
+		if seenTree, ok := seen[taskId]; ok {
+			return seenTree, nil
+		}
+
+		entry, err := extractTaskEntry(tx, taskId)
+
+		if errors.Is(err, db.ErrKeyNotFound) && taskId == rootTaskId {
+			return nil, nil
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to get task with id=%s", taskId)
+		}
+
+		tree := types.NewTaskTree(entry)
+		seen[taskId] = tree
+
+		for dependencyId := range entry.Task.PendingDependencies {
+			subtree, err := getTaskTreeRec(dependencyId, currentDepth+1)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get task subtree with id=%s: %w", dependencyId, err)
+			}
+			tree.AddDependency(subtree)
+		}
+
+		for dependencyId, result := range entry.Task.DependencyResults {
+			subtree, err := getTaskTreeRec(dependencyId, currentDepth+1)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get task subtree with id=%s: %w", dependencyId, err)
+			}
+			subtree.Result = &result
+			tree.AddDependency(subtree)
+		}
+
+		return tree, nil
+	}
+
+	return getTaskTreeRec(rootTaskId, 0)
+}
+
 // Helper to find available task with higher priority
 func findHigherPriorityTask(tx db.RoTx) (*types.TaskEntry, error) {
 	var res *types.TaskEntry = nil
@@ -264,6 +353,8 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 
 	if !res.IsSuccess {
 		entry.Status = types.Failed
+		now := time.Now().UTC()
+		entry.Finished = &now
 		if err := putTaskEntry(tx, entry); err != nil {
 			return fmt.Errorf("failed to set task entry with id=%s as failed: %w", entry.Task.Id, err)
 		}
@@ -285,14 +376,13 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 	}
 
 	// Update all the tasks that are waiting for this result
-	for _, id := range entry.PendingDeps {
-		depEntry, err := extractTaskEntry(tx, id)
+	for taskId := range entry.Dependents {
+		depEntry, err := extractTaskEntry(tx, taskId)
 		if err != nil {
 			return err
 		}
-		depEntry.Task.AddDependencyResult(res)
-		if len(depEntry.Task.Dependencies) == int(depEntry.Task.DependencyNum) {
-			depEntry.Status = types.WaitingForExecutor
+		if err = depEntry.AddDependencyResult(res); err != nil {
+			return fmt.Errorf("failed to add dependency result to task with id=%s: %w", depEntry.Task.Id, err)
 		}
 		err = putTaskEntry(tx, depEntry)
 		if err != nil {

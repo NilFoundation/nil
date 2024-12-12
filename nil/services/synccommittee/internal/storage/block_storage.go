@@ -185,7 +185,7 @@ func (bs *blockStorage) setBlockBatchImpl(ctx context.Context, batch *scTypes.Bl
 }
 
 func (bs *blockStorage) putBlockTx(tx db.RwTx, batchId scTypes.BatchId, block *jsonrpc.RPCBlock) error {
-	entry := blockEntry{Block: *block, BatchId: batchId, FetchedAt: time.Now()}
+	entry := blockEntry{Block: *block, BatchId: batchId, FetchedAt: time.Now().UTC()}
 	value, err := marshallEntry(&entry)
 	if err != nil {
 		return err

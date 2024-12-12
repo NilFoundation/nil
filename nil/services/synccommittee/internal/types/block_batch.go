@@ -100,16 +100,20 @@ func (b *BlockBatch) AllBlocks() []*jsonrpc.RPCBlock {
 	return blocks
 }
 
-func (b *BlockBatch) CreateProofTasks() []*TaskEntry {
+func (b *BlockBatch) CreateProofTasks() ([]*TaskEntry, error) {
 	taskEntries := make([]*TaskEntry, 0, len(b.ChildBlocks)+1)
 
 	aggregateProofsTask := NewAggregateProofsTaskEntry(b.Id, b.MainShardBlock)
 	taskEntries = append(taskEntries, aggregateProofsTask)
 
 	for _, childBlock := range b.ChildBlocks {
-		blockProofTask := NewBlockProofTaskEntry(b.Id, aggregateProofsTask.Task.Id, childBlock)
+		blockProofTask, err := NewBlockProofTaskEntry(b.Id, aggregateProofsTask, childBlock)
+		if err != nil {
+			return nil, err
+		}
+
 		taskEntries = append(taskEntries, blockProofTask)
 	}
 
-	return taskEntries
+	return taskEntries, nil
 }

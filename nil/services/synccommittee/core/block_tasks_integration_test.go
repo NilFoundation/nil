@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
@@ -52,6 +53,7 @@ func (s *BlockTasksIntegrationTestSuite) SetupSuite() {
 		s.taskStorage,
 		newTaskStateChangeHandler(s.blockStorage, logger),
 		metricsHandler,
+		common.NewTimer(),
 		logger,
 	)
 }
@@ -73,7 +75,9 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Success_R
 	err := s.blockStorage.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
-	proofTasks := batch.CreateProofTasks()
+	proofTasks, err := batch.CreateProofTasks()
+	s.Require().NoError(err)
+
 	err = s.taskStorage.AddTaskEntries(s.ctx, proofTasks)
 	s.Require().NoError(err)
 
@@ -123,7 +127,9 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Failure_R
 	err := s.blockStorage.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
-	proofTasks := batch.CreateProofTasks()
+	proofTasks, err := batch.CreateProofTasks()
+	s.Require().NoError(err)
+
 	err = s.taskStorage.AddTaskEntries(s.ctx, proofTasks)
 	s.Require().NoError(err)
 
