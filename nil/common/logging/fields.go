@@ -14,6 +14,7 @@ const (
 
 	FieldRpcMethod = "rpcMethod"
 	FieldRpcParams = "rpcParams"
+	FieldRpcResult = "rpcResult"
 
 	FieldP2PIdentity = "p2pIdentity"
 	FieldPeerId      = "peerId"

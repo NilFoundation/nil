@@ -114,13 +114,17 @@ func (h *handler) log(lvl zerolog.Level, msg *Message, logMsg string, duration t
 		Str(logging.FieldRpcMethod, msg.Method)
 
 	if h.shouldLogRequestParams(msg.Method, lvl) {
-		s := string(msg.Params)
-		const MaxMessageLength = 1000
-		if len(s) > MaxMessageLength && lvl != zerolog.TraceLevel {
-			// Trim excessively long parameters to prevent log spamming
-			s = fmt.Sprintf("%s ...<skipped %d chars>", s[:MaxMessageLength], len(s)-MaxMessageLength)
+		trim := func(s string) string {
+			const MaxMessageLength = 1000
+			if len(s) > MaxMessageLength && lvl != zerolog.TraceLevel {
+				// Trim excessively long parameters to prevent log spamming
+				s = fmt.Sprintf("%s ...<skipped %d chars>", s[:MaxMessageLength], len(s)-MaxMessageLength)
+			}
+			return s
 		}
-		l = l.Str(logging.FieldRpcParams, s)
+
+		l = l.Str(logging.FieldRpcParams, trim(string(msg.Params))).
+			Str(logging.FieldRpcResult, trim(string(msg.Result)))
 	}
 
 	if duration > 0 {
@@ -224,6 +228,10 @@ func (h *handler) handleCallMsg(ctx context.Context, msg *Message, stream *jsoni
 
 		if resp != nil && resp.Error != nil {
 			h.log(zerolog.InfoLevel, msg, "Served with error: "+resp.Error.Message, requestDuration)
+		}
+
+		if resp != nil && resp.Result != nil {
+			msg.Result = resp.Result
 		}
 
 		h.log(h.requestLoggingLevel(), msg, "Served.", requestDuration)
