@@ -3,6 +3,9 @@ package types
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
+	"strconv"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -16,7 +19,7 @@ import (
 type TaskType uint8
 
 const (
-	_ TaskType = iota
+	TaskTypeNone TaskType = iota
 	AggregateProofs
 	ProofBlock
 	PartialProve
@@ -26,6 +29,33 @@ const (
 	FRIConsistencyChecks
 	MergeProof
 )
+
+var TaskTypes = map[string]TaskType{
+	"AggregateProofs":      AggregateProofs,
+	"ProofBlock":           ProofBlock,
+	"PartialProve":         PartialProve,
+	"AggregatedChallenge":  AggregatedChallenge,
+	"CombinedQ":            CombinedQ,
+	"AggregatedFRI":        AggregatedFRI,
+	"FRIConsistencyChecks": FRIConsistencyChecks,
+	"MergeProof":           MergeProof,
+}
+
+func (t *TaskType) Set(str string) error {
+	if v, ok := TaskTypes[str]; ok {
+		*t = v
+		return nil
+	}
+	return fmt.Errorf("unknown task type: %s", str)
+}
+
+func (*TaskType) Type() string {
+	return "TaskType"
+}
+
+func (*TaskType) PossibleValues() []string {
+	return slices.Collect(maps.Keys(TaskTypes))
+}
 
 type CircuitType uint8
 
@@ -47,19 +77,33 @@ func (id TaskId) String() string { return uuid.UUID(id).String() }
 func (id TaskId) Bytes() []byte  { return []byte(id.String()) }
 
 // MarshalText implements the encoding.TextMarshller interface for TaskId.
-func (t TaskId) MarshalText() ([]byte, error) {
-	uuidValue := uuid.UUID(t)
+func (id TaskId) MarshalText() ([]byte, error) {
+	uuidValue := uuid.UUID(id)
 	return []byte(uuidValue.String()), nil
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface for TaskId.
-func (t *TaskId) UnmarshalText(data []byte) error {
+func (id *TaskId) UnmarshalText(data []byte) error {
 	uuidValue, err := uuid.Parse(string(data))
 	if err != nil {
 		return err
 	}
-	*t = TaskId(uuidValue)
+	*id = TaskId(uuidValue)
 	return nil
+}
+
+func (id *TaskId) Set(str string) error {
+	parsed, err := uuid.Parse(str)
+	if err != nil {
+		return fmt.Errorf("invalid UUID '%s': %w", str, err)
+	}
+
+	*id = TaskId(parsed)
+	return nil
+}
+
+func (*TaskId) Type() string {
+	return "TaskId"
 }
 
 // Task results can have different types
@@ -85,6 +129,23 @@ const (
 type TaskExecutorId uint32
 
 const UnknownExecutorId TaskExecutorId = 0
+
+func (e TaskExecutorId) String() string {
+	return strconv.FormatUint(uint64(e), 10)
+}
+
+func (e *TaskExecutorId) Set(str string) error {
+	parsedValue, err := strconv.ParseUint(str, 10, 32)
+	if err != nil {
+		return fmt.Errorf("%w: invalid value for TaskExecutorId, got %s", err, str)
+	}
+	*e = TaskExecutorId(parsedValue)
+	return nil
+}
+
+func (*TaskExecutorId) Type() string {
+	return "TaskExecutorId"
+}
 
 type TaskResultAddresses map[ProverResultType]string
 
@@ -194,11 +255,35 @@ type Task struct {
 type TaskStatus uint8
 
 const (
-	WaitingForInput TaskStatus = iota
+	TaskStatusNone TaskStatus = iota
+	WaitingForInput
 	WaitingForExecutor
 	Running
 	Failed
 )
+
+var TaskStatuses = map[string]TaskStatus{
+	"WaitingForInput":    WaitingForInput,
+	"WaitingForExecutor": WaitingForExecutor,
+	"Running":            Running,
+	"Failed":             Failed,
+}
+
+func (t *TaskStatus) Set(str string) error {
+	if v, ok := TaskStatuses[str]; ok {
+		*t = v
+		return nil
+	}
+	return fmt.Errorf("unknown task status: %s", str)
+}
+
+func (*TaskStatus) Type() string {
+	return "TaskStatus"
+}
+
+func (*TaskStatus) PossibleValues() []string {
+	return slices.Collect(maps.Keys(TaskStatuses))
+}
 
 // TaskEntry Wrapper for task to hold metadata like task status and dependencies
 type TaskEntry struct {
@@ -222,25 +307,6 @@ type TaskEntry struct {
 
 	// Status: current status of the task
 	Status TaskStatus `json:"status"`
-}
-
-// TaskTree represents a full hierarchical structure of tasks with dependencies among them.
-type TaskTree struct {
-	TaskEntry    TaskEntry   `json:"task"`
-	Result       *TaskResult `json:"taskResult"`
-	Dependencies []*TaskTree `json:"dependencies"`
-}
-
-func NewTaskTree(entry *TaskEntry) *TaskTree {
-	return &TaskTree{
-		TaskEntry:    *entry,
-		Result:       nil,
-		Dependencies: make([]*TaskTree, 0),
-	}
-}
-
-func (t *TaskTree) AddDependency(dependency *TaskTree) {
-	t.Dependencies = append(t.Dependencies, dependency)
 }
 
 // AddDependency adds a dependency to the current task entry and updates the dependents and pending dependencies.

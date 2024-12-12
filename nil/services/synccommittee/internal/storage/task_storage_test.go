@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
@@ -41,7 +42,7 @@ func (s *TaskStorageSuite) SetupSuite() {
 	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
 	s.Require().NoError(err)
 
-	s.ts = NewTaskStorage(database, metricsHandler, logger)
+	s.ts = NewTaskStorage(database, common.NewTimer(), metricsHandler, logger)
 	s.ctx = context.Background()
 }
 

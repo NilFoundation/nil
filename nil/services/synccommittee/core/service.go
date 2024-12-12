@@ -47,7 +47,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	client := nilrpc.NewClient(cfg.RpcEndpoint, logger)
 
 	blockStorage := storage.NewBlockStorage(database, metricsHandler, logger)
-	taskStorage := storage.NewTaskStorage(database, metricsHandler, logger)
+	taskStorage := storage.NewTaskStorage(database, common.NewTimer(), metricsHandler, logger)
 
 	aggregator, err := NewAggregator(client, blockStorage, taskStorage, logger, metricsHandler, cfg.PollingDelay)
 	if err != nil {
@@ -64,7 +64,6 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		taskStorage,
 		newTaskStateChangeHandler(blockStorage, logger),
 		metricsHandler,
-		common.NewTimer(),
 		logger,
 	)
 

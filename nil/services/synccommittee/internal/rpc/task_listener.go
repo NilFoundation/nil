@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
 	"github.com/rs/zerolog"
 )
 
@@ -49,9 +50,9 @@ func (l *TaskListener) Run(context context.Context) error {
 			Version:   "1.0",
 		},
 		{
-			Namespace: api.DebugNamespace,
+			Namespace: public.DebugNamespace,
 			Public:    true,
-			Service:   api.TaskDebugApi(l.scheduler),
+			Service:   public.TaskDebugApi(l.scheduler),
 			Version:   "1.0",
 		},
 	}

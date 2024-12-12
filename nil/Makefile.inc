@@ -20,9 +20,10 @@ $(root_sce)/internal/api/task_state_change_handler_generated_mock.go: $(root_sce
 
 $(root_sce)/internal/scheduler/task_scheduler_generated_mock.go: \
 	$(root_sce)/internal/scheduler/task_scheduler.go \
-	$(root_sce)/internal/api/task_debug_api.go \
 	$(root_sce)/internal/api/task_request_handler.go \
-	$(root_sce)/internal/types/prover_tasks.go
+	$(root_sce)/internal/types/prover_tasks.go \
+	$(root_sce)/public/task_debug_api.go \
+	$(root_sce)/public/task_view.go
 	cd $(root_sce)/internal/scheduler && go generate
 
 $(root_client)/client_generated_mock.go: $(root_client)/client.go
@@ -31,7 +32,10 @@ $(root_client)/client_generated_mock.go: $(root_client)/client.go
 .PHONY: synccommittee_types
 synccommittee_types: \
 	$(root_sce)/internal/types/tasktype_string.go \
-	$(root_sce)/internal/types/proverresulttype_string.go
+	$(root_sce)/internal/types/proverresulttype_string.go \
+	$(root_sce)/internal/types/taskstatus_string.go \
+	$(root_sce)/internal/types/circuittype_string.go \
+	$(root_sce)/public/taskdebugorder_string.go
 
 $(root_sce)/internal/types/tasktype_string.go: $(root_sce)/internal/types/prover_tasks.go
 	cd $(root_sce)/internal/types && go generate
@@ -39,6 +43,10 @@ $(root_sce)/internal/types/proverresulttype_string.go: $(root_sce)/internal/type
 	cd $(root_sce)/internal/types && go generate
 $(root_sce)/internal/types/taskstatus_string.go: $(root_sce)/internal/types/prover_tasks.go
 	cd $(root_sce)/internal/types && go generate
+$(root_sce)/internal/types/circuittype_string.go: $(root_sce)/internal/types/prover_tasks.go
+	cd $(root_sce)/internal/types && go generate
+$(root_sce)/public/taskdebugorder_string.go: $(root_sce)/public/task_debug_api.go
+	cd $(root_sce)/public && go generate
 
 .PHONY: pb_synccommittee
 pb_synccommittee: $(root_sce)/prover/proto/traces.pb.go

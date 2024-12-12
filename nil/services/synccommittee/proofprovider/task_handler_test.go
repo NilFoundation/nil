@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
@@ -35,7 +36,7 @@ func (s *TaskHandlerTestSuite) SetupSuite() {
 	metricsHandler, err := metrics.NewProofProviderMetrics()
 	s.Require().NoError(err)
 
-	s.taskStorage = storage.NewTaskStorage(s.database, metricsHandler, logger)
+	s.taskStorage = storage.NewTaskStorage(s.database, common.NewTimer(), metricsHandler, logger)
 	s.taskHandler = newTaskHandler(s.taskStorage, logger)
 }
 

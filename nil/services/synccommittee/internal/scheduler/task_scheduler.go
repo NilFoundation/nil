@@ -13,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler/heap"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
 	"github.com/rs/zerolog"
 )
 
@@ -32,7 +33,7 @@ func DefaultConfig() Config {
 
 type TaskScheduler interface {
 	api.TaskRequestHandler
-	api.TaskDebugApi
+	public.TaskDebugApi
 	// Run Start task scheduler worker which monitors active tasks and reschedules them if necessary
 	Run(ctx context.Context) error
 }
@@ -45,7 +46,6 @@ func New(
 	taskStorage storage.TaskStorage,
 	stateHandler api.TaskStateChangeHandler,
 	metrics TaskSchedulerMetrics,
-	timer common.Timer,
 	logger zerolog.Logger,
 ) TaskScheduler {
 	return &taskSchedulerImpl{
@@ -53,7 +53,6 @@ func New(
 		stateHandler: stateHandler,
 		config:       DefaultConfig(),
 		metrics:      metrics,
-		clock:        timer,
 		logger:       logger,
 	}
 }
@@ -133,40 +132,44 @@ func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.Tas
 	return nil
 }
 
-func (s *taskSchedulerImpl) GetTasks(ctx context.Context, request *api.TaskDebugRequest) ([]*types.TaskEntry, error) {
+func (s *taskSchedulerImpl) GetTasks(ctx context.Context, request *public.TaskDebugRequest) ([]*public.TaskView, error) {
+	if err := request.Validate(); err != nil {
+		return nil, err
+	}
+
 	predicate := s.getPredicate(request)
 	comparator, err := s.getComparator(request)
 	if err != nil {
 		return nil, err
 	}
 
-	maxHeap := heap.NewBoundedMaxHeap[*types.TaskEntry](request.Limit, comparator)
+	maxHeap := heap.NewBoundedMaxHeap[*public.TaskView](request.Limit, comparator)
 
-	err = s.storage.GetTasks(ctx, maxHeap, predicate)
+	err = s.storage.GetTaskViews(ctx, maxHeap, predicate)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to get tasks from the storage (GetTasks)")
+		s.logger.Error().Err(err).Msg("failed to get tasks from the storage (GetTaskViews)")
 		return nil, err
 	}
 
 	return maxHeap.PopAllSorted(), nil
 }
 
-func (s *taskSchedulerImpl) getPredicate(request *api.TaskDebugRequest) func(entry *types.TaskEntry) bool {
-	return func(entry *types.TaskEntry) bool {
-		if request.Status != nil && *request.Status != entry.Status {
+func (s *taskSchedulerImpl) getPredicate(request *public.TaskDebugRequest) func(*public.TaskView) bool {
+	return func(task *public.TaskView) bool {
+		if request.Status != types.TaskStatusNone && request.Status != task.Status {
 			return false
 		}
-		if request.Type != nil && *request.Type != entry.Task.TaskType {
+		if request.Type != types.TaskTypeNone && request.Type != task.Type {
 			return false
 		}
-		if request.Executor != nil && *request.Executor != entry.Owner {
+		if request.Owner != types.UnknownExecutorId && request.Owner != task.Owner {
 			return false
 		}
 		return true
 	}
 }
 
-func (s *taskSchedulerImpl) getComparator(request *api.TaskDebugRequest) (func(i, j *types.TaskEntry) int, error) {
+func (s *taskSchedulerImpl) getComparator(request *public.TaskDebugRequest) (func(i, j *public.TaskView) int, error) {
 	var orderSign int
 	if request.Ascending {
 		orderSign = 1
@@ -174,13 +177,11 @@ func (s *taskSchedulerImpl) getComparator(request *api.TaskDebugRequest) (func(i
 		orderSign = -1
 	}
 
-	currentTime := s.clock.NowTime()
-
 	switch request.Order {
-	case api.OrderByExecutionTime:
-		return func(i, j *types.TaskEntry) int {
-			leftExecTime := i.ExecutionTime(currentTime)
-			rightExecTime := j.ExecutionTime(currentTime)
+	case public.OrderByExecutionTime:
+		return func(i, j *public.TaskView) int {
+			leftExecTime := i.ExecutionTime
+			rightExecTime := j.ExecutionTime
 			switch {
 			case leftExecTime == nil && rightExecTime == nil:
 				return 0
@@ -196,12 +197,12 @@ func (s *taskSchedulerImpl) getComparator(request *api.TaskDebugRequest) (func(i
 				return 0
 			}
 		}, nil
-	case api.OrderByCreatedAt:
-		return func(i, j *types.TaskEntry) int {
+	case public.OrderByCreatedAt:
+		return func(i, j *public.TaskView) int {
 			switch {
-			case i.Created.Before(j.Created):
+			case i.CreatedAt.Before(j.CreatedAt):
 				return -1 * orderSign
-			case i.Created.After(j.Created):
+			case i.CreatedAt.After(j.CreatedAt):
 				return orderSign
 			default:
 				return 0
@@ -212,8 +213,8 @@ func (s *taskSchedulerImpl) getComparator(request *api.TaskDebugRequest) (func(i
 	}
 }
 
-func (s *taskSchedulerImpl) GetTaskTree(ctx context.Context, taskId types.TaskId) (*types.TaskTree, error) {
-	return s.storage.GetTaskTree(ctx, taskId)
+func (s *taskSchedulerImpl) GetTaskTree(ctx context.Context, taskId types.TaskId) (*public.TaskTreeView, error) {
+	return s.storage.GetTaskTreeView(ctx, taskId)
 }
 
 func (s *taskSchedulerImpl) logError(ctx context.Context, err error, result *types.TaskResult) {
