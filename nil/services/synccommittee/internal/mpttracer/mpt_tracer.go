@@ -3,7 +3,7 @@ package mpttracer
 import (
 	"errors"
 
-	"github.com/NilFoundation/nil/nil/client/rpc"
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -24,7 +24,7 @@ var _ = (*MPTTracer)(nil)
 
 // New creates a new MPTTracer using a debug API client
 func New(
-	client *rpc.Client,
+	client client.Client,
 	shardBlockNumber types.BlockNumber,
 	rwTx db.RwTx,
 	shardId types.ShardId,

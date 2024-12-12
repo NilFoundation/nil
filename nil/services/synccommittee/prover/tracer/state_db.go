@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/NilFoundation/nil/nil/client/rpc"
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/config"
@@ -86,7 +86,7 @@ type Stats struct {
 }
 
 type TracerStateDB struct {
-	client           *rpc.Client
+	client           client.Client
 	shardId          types.ShardId
 	shardBlockNumber types.BlockNumber
 	InMessages       []*types.Message
@@ -120,7 +120,7 @@ var _ vm.StateDB = new(TracerStateDB)
 func NewTracerStateDB(
 	ctx context.Context,
 	aggTraces ExecutionTraces,
-	client *rpc.Client,
+	client client.Client,
 	shardId types.ShardId,
 	shardBlockNumber types.BlockNumber,
 	blkContext *vm.BlockContext,
@@ -186,7 +186,7 @@ func (tsdb *TracerStateDB) processOpcodeWithTracers(
 	err error,
 ) {
 	if err != nil {
-		panic("prover execution should not raise errors")
+		panic(fmt.Errorf("prover execution should not raise errors %w", err))
 	}
 
 	opCode := vm.OpCode(op)
@@ -218,7 +218,6 @@ func (tsdb *TracerStateDB) processOpcodeWithTracers(
 	tsdb.stackTracer.TraceOp(opCode, pc, scope)
 	tsdb.Stats.StackOpsN++
 
-	// Memory tracing is hanled in one go. Mb split into two as for stack
 	if hasMemOps {
 		copyOccured := tsdb.copyTracer.TraceOp(opCode, tsdb.RwCounter.ctr, scope, returnData)
 		if copyOccured {
