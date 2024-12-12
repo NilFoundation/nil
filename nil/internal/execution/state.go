@@ -75,6 +75,8 @@ type ExecutionState struct {
 	Receipts []*types.Receipt
 	Errors   map[common.Hash]error
 
+	GasUsed types.Gas
+
 	// Transient storage
 	transientStorage transientStorage
 
@@ -109,7 +111,8 @@ type ExecutionResult struct {
 	ReturnData     []byte
 	Error          types.ExecError
 	FatalError     error
-	CoinsUsed      types.Value
+	GasUsed        types.Gas
+	GasPrice       types.Value
 	CoinsForwarded types.Value
 	DebugInfo      *vm.DebugInfo
 }
@@ -139,9 +142,19 @@ func (e *ExecutionResult) SetMsgErrorOrFatal(err error) *ExecutionResult {
 	return e
 }
 
-func (e *ExecutionResult) SetUsed(value types.Value) *ExecutionResult {
-	e.CoinsUsed = value
+func (e *ExecutionResult) SetUsed(gas types.Gas, gasPrice types.Value) *ExecutionResult {
+	e.GasUsed = gas
+	e.GasPrice = gasPrice
 	return e
+}
+
+func (e *ExecutionResult) AddUsed(gas types.Gas) *ExecutionResult {
+	e.GasUsed += gas
+	return e
+}
+
+func (e *ExecutionResult) CoinsUsed() types.Value {
+	return e.GasUsed.ToValue(e.GasPrice)
 }
 
 func (e *ExecutionResult) SetForwarded(value types.Value) *ExecutionResult {
@@ -160,7 +173,7 @@ func (e *ExecutionResult) SetDebugInfo(debugInfo *vm.DebugInfo) *ExecutionResult
 }
 
 func (e *ExecutionResult) GetLeftOverValue(value types.Value) types.Value {
-	return value.Sub(e.CoinsUsed).Sub(e.CoinsForwarded)
+	return value.Sub(e.CoinsUsed()).Sub(e.CoinsForwarded)
 }
 
 func (e *ExecutionResult) Failed() bool {
@@ -869,7 +882,7 @@ func (es *ExecutionState) sendBounceMessage(msg *types.Message, execResult *Exec
 	}
 
 	check.PanicIfNotf(execResult.CoinsForwarded.IsZero(), "CoinsForwarded should be zero when sending bounce message")
-	toReturn := msg.FeeCredit.Sub(execResult.CoinsUsed)
+	toReturn := msg.FeeCredit.Sub(execResult.CoinsUsed())
 
 	bounceMsg := &types.InternalMessagePayload{
 		Bounce:    true,
@@ -988,7 +1001,7 @@ func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message,
 			}
 		}
 	} else {
-		availableGas := msg.FeeCredit.Sub(res.CoinsUsed)
+		availableGas := msg.FeeCredit.Sub(res.CoinsUsed())
 		var err error
 		if res.CoinsForwarded, err = es.CalculateGasForwarding(availableGas); err != nil {
 			es.RevertToSnapshot(es.revertId)
@@ -1006,6 +1019,8 @@ func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message,
 			refundGas(payer, leftOverCredit)
 		}
 	}
+
+	es.GasUsed += res.GasUsed
 
 	return res
 }
@@ -1036,7 +1051,7 @@ func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.
 
 	return NewExecutionResult().
 		SetMsgErrorOrFatal(err).
-		SetUsed((gas - types.Gas(leftOver)).ToValue(es.GasPrice)).
+		SetUsed(gas-types.Gas(leftOver), es.GasPrice).
 		SetReturnData(ret).SetDebugInfo(es.evm.DebugInfo)
 }
 
@@ -1138,7 +1153,7 @@ func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *typ
 
 	return NewExecutionResult().
 		SetMsgErrorOrFatal(err).
-		SetUsed((gas - types.Gas(leftOver)).ToValue(es.GasPrice)).
+		SetUsed(gas-types.Gas(leftOver), es.GasPrice).
 		SetReturnData(ret).SetDebugInfo(es.evm.DebugInfo)
 }
 
@@ -1171,7 +1186,7 @@ func (es *ExecutionState) AddReceipt(execResult *ExecutionResult) {
 	r := &types.Receipt{
 		Success:         !execResult.Failed(),
 		Status:          status,
-		GasUsed:         execResult.CoinsUsed.ToGas(es.GasPrice),
+		GasUsed:         execResult.GasUsed,
 		Forwarded:       execResult.CoinsForwarded,
 		MsgHash:         es.InMessageHash,
 		Logs:            es.Logs[es.InMessageHash],
@@ -1478,8 +1493,8 @@ func (es *ExecutionState) CallVerifyExternal(message *types.Message, account *Ac
 	}
 	res := NewExecutionResult()
 	spentGas := gasCreditLimit.Sub(types.Gas(leftOverGas))
-	res.CoinsUsed = spentGas.ToValue(es.GasPrice)
-	check.PanicIfErr(account.SubBalance(res.CoinsUsed, tracing.BalanceDecreaseVerifyExternal))
+	res.SetUsed(spentGas, es.GasPrice)
+	check.PanicIfErr(account.SubBalance(res.CoinsUsed(), tracing.BalanceDecreaseVerifyExternal))
 	return res
 }
 
@@ -1650,7 +1665,7 @@ func (es *ExecutionState) UpdateGasPrice() {
 	}
 }
 
-func (es ExecutionState) MarshalJSON() ([]byte, error) {
+func (es *ExecutionState) MarshalJSON() ([]byte, error) {
 	data := struct {
 		ContractTreeRoot   common.Hash                              `json:"contractTreeRoot"`
 		InMessageTreeRoot  common.Hash                              `json:"inMessageTreeRoot"`
