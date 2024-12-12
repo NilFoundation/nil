@@ -7,12 +7,6 @@ import vitePluginString from "vite-plugin-string";
 export default defineConfig({
   plugins: [
     react(),
-    nodePolyfills({
-      include: ["buffer"],
-      globals: {
-        Buffer: true,
-      },
-    }),
     vitePluginString({
       include: ["**/*.sol"],
       compress: false,

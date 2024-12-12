@@ -1,4 +1,4 @@
-import Wallet from "@nilfoundation/smart-contracts/artifacts/Wallet.json";
+import { Wallet } from "@nilfoundation/smart-contracts";
 import type { Abi } from "abitype";
 import invariant from "tiny-invariant";
 import { bytesToHex, encodeDeployData, encodeFunctionData } from "viem";
@@ -6,12 +6,13 @@ import type { PublicClient } from "../../clients/PublicClient.js";
 import { prepareDeployPart } from "../../encoding/deployPart.js";
 import { externalMessageEncode } from "../../encoding/externalMessage.js";
 import { hexToBytes } from "../../encoding/fromHex.js";
-import { addHexPrefix } from "../../index.js";
+import { type ContractFunctionName, addHexPrefix } from "../../index.js";
 import type { ISigner } from "../../signers/index.js";
 import type { Hex } from "../../types/Hex.js";
 import type { IDeployData } from "../../types/IDeployData.js";
 import { calculateAddress, getShardIdFromAddress, refineAddress } from "../../utils/address.js";
 import {
+  refineBigintSalt,
   refineCompressedPublicKey,
   refineFunctionHexData,
   refineSalt,
@@ -37,14 +38,14 @@ export class WalletV1 implements WalletInterface {
    * @static
    * @type {*}
    */
-  static code = hexToBytes(addHexPrefix(Wallet.evm.bytecode.object));
+  static code = hexToBytes(addHexPrefix(Wallet.bytecode));
   /**
    * The wallet ABI.
    *
    * @static
    * @type {Abi}
    */
-  static abi = Wallet.abi as unknown as Abi;
+  static abi = Wallet.abi;
 
   /**
    * Calculates the address of the new wallet.
@@ -433,9 +434,9 @@ export class WalletV1 implements WalletInterface {
   }
 
   private async changeCurrencyAmount(amount: bigint, mint: boolean) {
-    let method = "burnCurrency";
+    let method: ContractFunctionName<typeof Wallet.abi> = "burnCurrency" as const;
     if (mint) {
-      method = "mintCurrency";
+      method = "mintCurrency" as const;
     }
 
     const callData = encodeFunctionData({
@@ -542,7 +543,7 @@ export class WalletV1 implements WalletInterface {
     const callData = encodeFunctionData({
       abi: Wallet.abi,
       functionName: "asyncDeploy",
-      args: [shardId, value ?? 0n, hexData, salt],
+      args: [BigInt(deployData.shard), value ?? 0n, hexData, refineBigintSalt(deployData.salt)],
     });
 
     let refinedCredit = feeCredit;

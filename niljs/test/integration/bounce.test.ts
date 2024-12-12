@@ -67,7 +67,7 @@ test("bounce", async () => {
     data: encodeFunctionData({
       abi: WalletV1.abi,
       functionName: "syncCall",
-      args: [walletAddress, 100_000, 10_000_000, "0x"],
+      args: [walletAddress, 100_000n, 10_000_000n, "0x"],
     }),
   });
 

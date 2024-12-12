@@ -1,4 +1,4 @@
-import FaucetCompiled from "@nilfoundation/smart-contracts/artifacts/Faucet.json";
+import { Faucet as FaucetSol } from "@nilfoundation/smart-contracts";
 import { type Hex, bytesToHex, encodeFunctionData } from "viem";
 import type { PublicClient } from "../../clients/PublicClient.js";
 import { ExternalMessageEnvelope } from "../../encoding/externalMessage.js";
@@ -53,9 +53,9 @@ export class Faucet {
       this.client.chainId(),
     ]);
     const calldata = encodeFunctionData({
-      abi: FaucetCompiled.abi,
+      abi: FaucetSol.abi,
       functionName: "withdrawTo",
-      args: [address.toLowerCase(), value],
+      args: [address.toLowerCase() as Hex, value],
     });
     const message = new ExternalMessageEnvelope({
       isDeploy: false,
@@ -88,9 +88,9 @@ export class Faucet {
           this.client.chainId(),
         ]);
         const calldata = encodeFunctionData({
-          abi: FaucetCompiled.abi,
+          abi: FaucetSol.abi,
           functionName: "withdrawTo",
-          args: [address.toLowerCase(), value],
+          args: [address.toLowerCase() as Hex, value],
         });
         const message = new ExternalMessageEnvelope({
           isDeploy: false,
