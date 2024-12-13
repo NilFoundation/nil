@@ -24,6 +24,7 @@ import { LayoutComponent, setActiveComponent } from "../../pages/sandbox/model";
 import type { EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
 import { useCompileButton } from "./hooks/useCompileButton";
+import { SolidityCodeField } from "../shared/components/SolidityCodeField";
 
 const MemoizedCodeToolbar = memo(CodeToolbar);
 
@@ -38,7 +39,6 @@ export const Code = () => {
   ]);
   const [css] = useStyletron();
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   const codemirrorExtensions = useMemo<Extension[]>(() => {
     const solidityLinter = (view: EditorView) => {
       const diagnostics: Diagnostic[] = errors.map((error) => {
@@ -52,10 +52,6 @@ export const Code = () => {
       return diagnostics;
     };
     return [
-      solidity,
-      ...basicSetup({
-        lineNumbers: !isMobile,
-      }),
       linter(solidityLinter),
     ];
   }, [errors]);
@@ -172,7 +168,7 @@ export const Code = () => {
               borderBottomRightRadius: "12px",
             })}
           >
-            <CodeField
+            <SolidityCodeField
               extensions={codemirrorExtensions}
               editable
               readOnly={false}
@@ -180,17 +176,9 @@ export const Code = () => {
               onChange={(text) => {
                 changeCode(`${text}`);
               }}
-              displayCopy={false}
-              highlightOnHover={false}
               className={css({
                 paddingBottom: "0!important",
               })}
-              showLineNumbers={false}
-              themeOverrides={{
-                settings: {
-                  lineHighlight: "rgba(255, 255, 255, 0.05)",
-                },
-              }}
             />
           </div>
         )}

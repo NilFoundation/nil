@@ -10,6 +10,7 @@ import { useEffect } from "react";
 import { Divider } from "../../shared";
 import { CurrencyDisplay } from "../../shared/components/Currency";
 import { EditorView } from "@codemirror/view";
+import { SolidityCodeField } from "../../shared/components/SolidityCodeField";
 
 const AccountLoading = () => {
   const [css] = useStyletron();
@@ -46,7 +47,21 @@ export const AccountInfo = () => {
           <Info label="Tokens" value={<CurrencyDisplay currency={account.currencies} />} />
           <Divider />
           <Info
-            label="Code"
+            label="Source code"
+            value={
+              account?.source_code?.Compiled_Contracts?.length > 0 ? (
+                <SolidityCodeField
+                  code={account.source_code.Compiled_Contracts}
+                  className={css({ marginTop: "1ch" })}
+                  codeMirrorClassName={css({ maxHeight: "300px", overflow: "scroll" })}
+                />
+              ) : (
+                <ParagraphSmall>Not available</ParagraphSmall>
+              )
+            }
+          />
+          <Info
+            label="Bytecode"
             value={
               account.code && account.code.length > 0 ? (
                 <CodeField

@@ -11,6 +11,7 @@ import {
   type CometaService,
   type Hex,
 } from "@nilfoundation/niljs";
+import { createCompileInput } from "../shared/utils/solidityCompiler/helper";
 
 export type DeployedApp = App & {
   address: Address;
@@ -87,6 +88,7 @@ export const deploySmartContractFx = createEffect<
     shardId: number;
     wallet: WalletV1;
     cometaService: CometaService | null;
+    solidityVersion: string;
   },
   {
     address: Hex;
@@ -95,7 +97,7 @@ export const deploySmartContractFx = createEffect<
     deployedFrom?: Hex;
     txHash: Hex;
   }
->(async ({ app, args, wallet, shardId, cometaService }) => {
+>(async ({ app, args, wallet, shardId, cometaService, solidityVersion }) => {
   const salt = BigInt(Math.floor(Math.random() * 10000000000000000));
 
   const { hash, address } = await wallet.deployContract({
@@ -109,28 +111,15 @@ export const deploySmartContractFx = createEffect<
 
   await waitTillCompleted(wallet.client, hash);
 
-  const cm = await cometaService?.compileContract(
-    JSON.stringify({
-      contractName: app.name,
-      compilerVersion: "0.8.28",
-      settings: {
-        evmVersion: "shanghai",
-        optimizer: {
-          enabled: false,
-          runs: 200,
-        },
-      },
-      sources: {
-        [app.name]: {
-          urls: [app.name],
-        },
-      },
-    }),
-  );
+  const result = createCompileInput(app.sourcecode);
 
-  console.log(cm);
+  const refinedResult = {
+    ...result,
+    contractName: `Compiled_Contracts:${app.name}`,
+    compilerVersion: solidityVersion,
+  };
 
-  await cometaService?.registerContractData(cm!, address);
+  await cometaService?.registerContract(JSON.stringify(refinedResult), address);
 
   return {
     address,

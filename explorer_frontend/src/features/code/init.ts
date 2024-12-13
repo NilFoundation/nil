@@ -39,10 +39,10 @@ compileCodeFx.use(async ({ version, code }) => {
     for (const name in res.contracts?.Compiled_Contracts) {
       const contract = res.contracts.Compiled_Contracts[name];
 
-      console.log(contract);
       contracts.push({
         name: name,
         bytecode: `0x${contract.evm.bytecode.object}`,
+        sourcecode: code,
         abi: contract.abi,
       });
     }
