@@ -267,50 +267,70 @@ var swapToSeekStack = map[vm.OpCode]ElementToSeek{
 	vm.SWAP16: 16,
 }
 
+type swapElem struct {
+	val types.Uint256
+	pos int
+}
+
+func (sot *StackOpTracer) getSwappingElements(offset ElementToSeek) (top, swap swapElem) {
+	stack := NewStackAccessor(sot.scope.StackData())
+
+	var ptr *uint256.Int
+
+	ptr, top.pos = stack.BackWIndex(0)
+	top.val = types.Uint256(*ptr)
+
+	ptr, swap.pos = stack.BackWIndex(int(offset))
+	swap.val = types.Uint256(*ptr)
+	return
+}
+
 func (sot *StackOpTracer) traceSwapOp() bool {
 	seekStack, ok := swapToSeekStack[sot.opCode]
 	if !ok {
 		return false
 	}
-	stack := NewStackAccessor(sot.scope.StackData())
-	el, idx := stack.BackWIndex(int(seekStack))
-	sot.res = append(sot.res, StackOp{
-		IsRead: true,
-		Idx:    idx,
-		Value:  types.Uint256(*el),
-		PC:     sot.pc,
-		RwIdx:  sot.rwCtr.NextIdx(),
-		MsgId:  sot.msgId,
-	})
-	el, idx = stack.PopWIndex()
-	sot.res = append(sot.res, StackOp{
-		IsRead: true,
-		Idx:    idx,
-		Value:  types.Uint256(*el),
-		PC:     sot.pc,
-		RwIdx:  sot.rwCtr.NextIdx(),
-		MsgId:  sot.msgId,
-	})
+
+	top, swap := sot.getSwappingElements(seekStack)
+	sot.res = append(sot.res,
+		StackOp{
+			IsRead: true,
+			Idx:    top.pos,
+			Value:  top.val,
+			PC:     sot.pc,
+			RwIdx:  sot.rwCtr.NextIdx(),
+			MsgId:  sot.msgId,
+		},
+		StackOp{
+			IsRead: true,
+			Idx:    swap.pos,
+			Value:  swap.val,
+			PC:     sot.pc,
+			RwIdx:  sot.rwCtr.NextIdx(),
+			MsgId:  sot.msgId,
+		},
+	)
+
 	sot.prevOpFinisher = func() {
-		stack := NewStackAccessor(sot.scope.StackData())
-		el, idx := stack.BackWIndex(int(seekStack))
-		sot.res = append(sot.res, StackOp{
-			IsRead: false,
-			Idx:    idx,
-			Value:  types.Uint256(*el),
-			PC:     sot.pc,
-			RwIdx:  sot.rwCtr.NextIdx(),
-			MsgId:  sot.msgId,
-		})
-		el, idx = stack.BackWIndex(0)
-		sot.res = append(sot.res, StackOp{
-			IsRead: false,
-			Idx:    idx,
-			Value:  types.Uint256(*el),
-			PC:     sot.pc,
-			RwIdx:  sot.rwCtr.NextIdx(),
-			MsgId:  sot.msgId,
-		})
+		top, swap := sot.getSwappingElements(seekStack)
+		sot.res = append(sot.res,
+			StackOp{
+				IsRead: false,
+				Idx:    swap.pos,
+				Value:  swap.val,
+				PC:     sot.pc,
+				RwIdx:  sot.rwCtr.NextIdx(),
+				MsgId:  sot.msgId,
+			},
+			StackOp{
+				IsRead: false,
+				Idx:    top.pos,
+				Value:  top.val,
+				PC:     sot.pc,
+				RwIdx:  sot.rwCtr.NextIdx(),
+				MsgId:  sot.msgId,
+			},
+		)
 	}
 
 	return true
