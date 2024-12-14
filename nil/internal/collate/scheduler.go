@@ -158,7 +158,8 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 	}
 	defer gen.Rollback()
 
-	block, outs, err := gen.GenerateBlock(proposal, s.logger)
+	// NB: the proposal may be modified
+	res, err := gen.GenerateBlock(proposal, s.logger)
 	if err != nil {
 		return err
 	}
@@ -173,9 +174,9 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 	}
 
 	return PublishBlock(ctx, s.networkManager, s.params.ShardId, &types.BlockWithExtractedData{
-		Block:       block,
-		OutMessages: outs,
-		InMessages:  proposal.InMsgs,
+		Block:       res.Block,
+		InMessages:  res.InMsgs,
+		OutMessages: res.OutMsgs,
 		ChildBlocks: hashes,
 	})
 }

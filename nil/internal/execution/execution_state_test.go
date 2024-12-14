@@ -597,7 +597,7 @@ contracts:
 
 		gen, err = NewBlockGenerator(ctx, params, database)
 		require.NoError(b, err)
-		_, _, err = gen.GenerateBlock(proposal, logger)
+		_, err = gen.GenerateBlock(proposal, logger)
 		require.NoError(b, err)
 
 		tx.Rollback()

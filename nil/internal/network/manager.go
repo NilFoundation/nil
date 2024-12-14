@@ -34,6 +34,11 @@ func ConnectToPeers(ctx context.Context, peers AddrInfoSlice, m Manager, logger 
 
 func connectToPeers(ctx context.Context, peers AddrInfoSlice, h Host, logger zerolog.Logger) {
 	for _, peerInfo := range peers {
+		if h.ID() == peerInfo.ID {
+			// Skip connecting to self.
+			continue
+		}
+
 		if err := h.Connect(ctx, peer.AddrInfo(peerInfo)); err != nil {
 			logger.Warn().Err(err).Msgf("Failed to connect to %s", peerInfo)
 		}

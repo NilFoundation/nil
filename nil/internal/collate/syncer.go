@@ -374,7 +374,7 @@ func (s *Syncer) replayBlock(ctx context.Context, block *types.BlockWithExtracte
 		shardHashes[types.ShardId(i+1)] = h
 	}
 
-	b, msgs, err := gen.GenerateBlock(&execution.Proposal{
+	res, err := gen.GenerateBlock(&execution.Proposal{
 		PrevBlockId:   block.Block.Id - 1,
 		PrevBlockHash: block.Block.PrevBlock,
 		MainChainHash: block.Block.MainChainHash,
@@ -387,7 +387,7 @@ func (s *Syncer) replayBlock(ctx context.Context, block *types.BlockWithExtracte
 		return err
 	}
 
-	if err := validateRepliedBlock(block.Block, b, blockHash, b.Hash(s.config.ShardId), block.OutMessages, msgs); err != nil {
+	if err := validateRepliedBlock(block.Block, res.Block, blockHash, res.Block.Hash(s.config.ShardId), block.OutMessages, res.OutMsgs); err != nil {
 		return err
 	}
 	return nil
