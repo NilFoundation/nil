@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
+	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
@@ -88,13 +89,15 @@ contracts:
 }
 
 func (s *SuiteAsyncAwait) SetupTest() {
+	nShards := 4
+	port := 10425
 	s.Start(&nilservice.Config{
-		NShards:              4,
-		CollatorTickPeriodMs: 200,
-		ZeroStateYaml:        s.zerostateCfg,
-	}, 10425)
+		NShards:       uint32(nShards),
+		ZeroStateYaml: s.zerostateCfg,
+	}, port)
 
-	s.DefaultClient, _ = s.StartRPCNode(tests.WithDhtBootstrapByValidators, nil)
+	_, archiveNodeAddr := s.StartArchiveNode(port+nShards, true)
+	s.DefaultClient, _ = s.StartRPCNode(tests.WithDhtBootstrapByValidators, network.AddrInfoSlice{archiveNodeAddr})
 }
 
 func (s *SuiteAsyncAwait) TearDownTest() {
