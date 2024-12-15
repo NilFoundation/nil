@@ -14,6 +14,7 @@
     "clijs"
   ],
   "scripts": {
+    "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "lint:fix": "npm run lint:fix --workspaces --if-present",
     "install:clean": "rm -rf package-lock.json && rm -rf node_modules && rm -rf */node_modules && rm -rf */package-lock.json && npm i",
