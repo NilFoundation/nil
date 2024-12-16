@@ -32,7 +32,8 @@
       "docs",
       "explorer_frontend",
       "explorer_backend",
-      "smart-contracts"
+      "smart-contracts",
+      "clijs"
     ]
   },
   "json": {

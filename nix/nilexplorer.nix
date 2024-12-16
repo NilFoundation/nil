@@ -42,7 +42,7 @@ stdenv.mkDerivation rec {
   buildPhase = ''
     patchShebangs explorer_frontend/node_modules
 
-    (cd smart-contracts; npm run compile)
+    (cd smart-contracts; npm run build)
     (cd niljs; npm run build)
 
     (cd explorer_frontend; npm run build)

@@ -33,7 +33,7 @@ stdenv.mkDerivation rec {
   '';
 
   buildPhase = ''
-    (cd smart-contracts; npm run compile)
+    (cd smart-contracts; npm run build)
     cd niljs
     npm run build
   '';

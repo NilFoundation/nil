@@ -1,0 +1,75 @@
+{
+  "name": "@nilfoundation/clijs",
+  "description": "The CLI tool for interacting with the =nil; cluster",
+  "version": "0.0.0",
+  "author": "The =nil; team",
+  "bin": {
+    "nil": "./bin/run.js"
+  },
+  "bugs": "https://github.com/nil-blockchain/issues",
+  "dependencies": {
+    "@libp2p/peer-id": "^5.0.9",
+    "@nilfoundation/niljs": "^0.20.0",
+    "@oclif/core": "^4",
+    "@oclif/plugin-help": "^6",
+    "@oclif/plugin-plugins": "^5",
+    "fs-extra": "^11.2.0",
+    "ini": "^5.0.0",
+    "pino": "^9.5.0",
+    "pino-pretty": "^13.0.0"
+  },
+  "devDependencies": {
+    "@oclif/test": "^4",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^18",
+    "oclif": "^4",
+    "ts-node": "^10",
+    "typescript": "^5",
+    "vitest": "^2.1.6"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "files": [
+    "/bin",
+    "/dist",
+    "/oclif.manifest.json"
+  ],
+  "homepage": "https://github.com/nil-blockchain/clijs",
+  "keywords": [
+    "oclif"
+  ],
+  "license": "MIT",
+  "main": "dist/index.js",
+  "type": "module",
+  "oclif": {
+    "bin": "nil",
+    "dirname": "nil",
+    "commands": "./dist/src/commands",
+    "plugins": [
+      "@oclif/plugin-help"
+    ],
+    "topicSeparator": " ",
+    "topics": {
+      "hello": {
+        "description": "Say hello to the world and others"
+      }
+    },
+    "macos": {
+      "identifier": "com.nilfoundation.clijs"
+    }
+  },
+  "repository": "nil-blockchain/clijs",
+  "scripts": {
+    "build": "rimraf dist && npx tsc -b",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "postpack": "rimraf oclif.manifest.json",
+    "posttest": "npm run lint",
+    "prepack": "oclif manifest && oclif readme",
+    "test": "vitest -c ./vitest.config.ts",
+    "test:ci": "CI=true vitest -c ./vitest.config.ts",
+    "version": "oclif readme && git add README.md"
+  },
+  "types": "dist/index.d.ts"
+}
