@@ -86,9 +86,11 @@ func (api *DebugAPIImpl) GetContract(ctx context.Context, contractAddr types.Add
 	}
 
 	return &DebugRPCContract{
-		Contract: contract.ContractSSZ,
-		Code:     hexutil.Bytes(contract.Code),
-		Proof:    contract.ProofEncoded,
-		Storage:  contract.Storage,
+		Contract:     contract.ContractSSZ,
+		Code:         hexutil.Bytes(contract.Code),
+		Proof:        contract.ProofEncoded,
+		Storage:      contract.Storage,
+		Currencies:   contract.Currencies,
+		AsyncContext: contract.AsyncContext,
 	}, nil
 }

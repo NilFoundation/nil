@@ -1,5 +1,6 @@
 {
     "go.testTags": "assert,test",
+    "go.buildTags": "assert,test",
     "gopls": {
         "formatting.gofumpt": true
     },

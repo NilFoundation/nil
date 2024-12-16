@@ -137,7 +137,21 @@ func (api *LocalShardApi) GetContract(ctx context.Context, address types.Address
 
 	storageReader := execution.NewDbStorageTrieReader(tx, address.ShardId())
 	storageReader.SetRootHash(contract.StorageRoot)
-	entries, err := storageReader.Entries()
+	storageEntries, err := storageReader.Entries()
+	if err != nil {
+		return nil, err
+	}
+
+	currencyReader := execution.NewDbCurrencyTrieReader(tx, address.ShardId())
+	currencyReader.SetRootHash(contract.CurrencyRoot)
+	currencyEntries, err := currencyReader.Entries()
+	if err != nil {
+		return nil, err
+	}
+
+	asyncContextReader := execution.NewDbAsyncContextTrieReader(tx, address.ShardId())
+	asyncContextReader.SetRootHash(contract.CurrencyRoot)
+	asyncContextEntries, err := asyncContextReader.Entries()
 	if err != nil {
 		return nil, err
 	}
@@ -146,11 +160,9 @@ func (api *LocalShardApi) GetContract(ctx context.Context, address types.Address
 		ContractSSZ:  contractRaw,
 		Code:         code,
 		ProofEncoded: encodedProof,
-		Storage: common.SliceToMap(
-			entries,
-			func(_ int, kv execution.Entry[common.Hash, *types.Uint256]) (common.Hash, types.Uint256) {
-				return kv.Key, *kv.Val
-			}),
+		Storage:      execution.ConvertTrieEntriesToMap(storageEntries),
+		Currencies:   execution.ConvertTrieEntriesToMap(currencyEntries),
+		AsyncContext: execution.ConvertTrieEntriesToMap(asyncContextEntries),
 	}, nil
 }
 

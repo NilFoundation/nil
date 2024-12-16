@@ -2,6 +2,7 @@ package tracer
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -233,6 +234,10 @@ func (s *TracerTestSuite) checkAllBlocksTracesSerialization() {
 			s.Require().NoError(err)
 			blockTraces := NewExecutionTraces()
 			err := s.tracer.GetBlockTraces(ctx, blockTraces, shardId, blkRef)
+			if errors.Is(err, ErrCantProofGenesisBlock) {
+				continue
+			}
+
 			s.Require().NoError(err)
 
 			tracesData, ok := blockTraces.(*executionTracesImpl)
@@ -262,7 +267,10 @@ func (s *TracerTestSuite) checkAllBlocksTracesSerialization() {
 			s.Require().Equal(len(deserializedData.ContractsBytecode), len(tracesData.ContractsBytecode))
 			s.Require().Equal(len(deserializedData.CopyEvents), len(tracesData.CopyEvents))
 			s.Require().Equal(len(deserializedData.ZKEVMStates), len(tracesData.ZKEVMStates))
-			s.Require().Equal(len(deserializedData.SlotsChanges), len(tracesData.SlotsChanges))
+			if tracesData.MPTTraces != nil {
+				s.Require().Equal(len(deserializedData.MPTTraces.StorageTracesByAccount), len(tracesData.MPTTraces.StorageTracesByAccount))
+				s.Require().Equal(len(deserializedData.MPTTraces.ContractTrieTraces), len(tracesData.MPTTraces.ContractTrieTraces))
+			}
 		}
 	}
 }

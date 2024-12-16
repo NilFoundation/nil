@@ -11,10 +11,11 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
+	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
-	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/mpttracer"
 )
 
 type ExecutionTraces interface {
@@ -24,7 +25,7 @@ type ExecutionTraces interface {
 	AddZKEVMStates(states []ZKEVMState)
 	AddCopyEvents(events []CopyEvent)
 	AddContractBytecode(addr types.Address, code []byte)
-	AddSlotChanges(slotChanges map[types.Address][]SlotChangeTrace)
+	SetMptTraces(mptTraces *mpttracer.MPTTraces)
 }
 
 type executionTracesImpl struct {
@@ -34,10 +35,9 @@ type executionTracesImpl struct {
 	StorageOps  []StorageOp
 	ZKEVMStates []ZKEVMState
 	CopyEvents  []CopyEvent
+	MPTTraces   *mpttracer.MPTTraces
 
 	ContractsBytecode map[types.Address][]byte
-	// For each message, for each touched contract
-	SlotsChanges []map[types.Address][]SlotChangeTrace
 }
 
 var _ ExecutionTraces = new(executionTracesImpl)
@@ -72,8 +72,8 @@ func (tr *executionTracesImpl) AddContractBytecode(addr types.Address, code []by
 	tr.ContractsBytecode[addr] = code
 }
 
-func (tr *executionTracesImpl) AddSlotChanges(slotChanges map[types.Address][]SlotChangeTrace) {
-	tr.SlotsChanges = append(tr.SlotsChanges, slotChanges)
+func (tr *executionTracesImpl) SetMptTraces(mptTraces *mpttracer.MPTTraces) {
+	tr.MPTTraces = mptTraces
 }
 
 type Stats struct {
@@ -87,45 +87,35 @@ type Stats struct {
 
 type TracerStateDB struct {
 	client           *rpc.Client
-	rwTx             db.RwTx
 	shardId          types.ShardId
 	shardBlockNumber types.BlockNumber
-	accountsCache    map[types.Address]*Account
 	InMessages       []*types.Message
 	blkContext       *vm.BlockContext
 	Traces           ExecutionTraces
 	RwCounter        RwCounter
 	Stats            Stats
+	AccountSparseMpt mpt.MerklePatriciaTrie
 
 	// gas price for current block
 	GasPrice types.Value
 
 	// Reinited for each message
 	// Pointer to currently executed VM
-	evm               *vm.EVM
-	code              []byte // currently executed code
-	codeHash          common.Hash
-	stackTracer       *StackOpTracer
-	memoryTracer      *MemoryOpTracer
-	storageInteractor *MessageStorageInteractor
-	zkevmTracer       *ZKEVMStateTracer
-	copyTracer        *CopyTracer
+	evm           *vm.EVM
+	code          []byte // currently executed code
+	codeHash      common.Hash
+	stackTracer   *StackOpTracer
+	memoryTracer  *MemoryOpTracer
+	storageTracer *StorageOpTracer
+	mptTracer     *mpttracer.MPTTracer
+	zkevmTracer   *ZKEVMStateTracer
+	copyTracer    *CopyTracer
 
 	// Current program counter, used only for storage operations trace. Incremetned inside OnOpcode
 	curPC uint64
 }
 
 var _ vm.StateDB = new(TracerStateDB)
-
-// TODO: refactor, move Account into other file
-type Account struct {
-	Address     types.Address
-	StorageTrie *execution.StorageTrie
-	Balance     types.Value
-	Code        types.Code
-	Seqno       types.Seqno
-	ExtSeqno    types.Seqno
-}
 
 func NewTracerStateDB(
 	ctx context.Context,
@@ -143,81 +133,29 @@ func NewTracerStateDB(
 
 	return TracerStateDB{
 		client:           client,
-		rwTx:             rwTx,
+		mptTracer:        mpttracer.New(client, shardBlockNumber, rwTx, shardId),
 		shardId:          shardId,
 		shardBlockNumber: shardBlockNumber,
-		accountsCache:    make(map[types.Address]*Account),
 		blkContext:       blkContext,
 		Traces:           aggTraces,
 	}, nil
 }
 
-func (tsdb *TracerStateDB) getAccount(addr types.Address) (*Account, error) {
-	smartContract, exists := tsdb.accountsCache[addr]
-	if exists {
-		return smartContract, nil
-	}
-
-	// Since we don't always need entire contract storage, we could add StorageRoot to RPC response and
-	// fetch nodes on demand. For now whole storage and code is included into debug contract.
-	debugContract, err := tsdb.client.GetDebugContract(addr, transport.BlockNumber(tsdb.shardBlockNumber))
-	if err != nil {
-		return nil, err
-	}
-
-	if debugContract == nil {
-		// No need to fetch the absent account next time
-		tsdb.accountsCache[addr] = nil
-		return nil, nil
-	}
-
-	storageTrie := execution.NewDbStorageTrie(tsdb.rwTx, tsdb.shardId)
-	storageKeys := make([]common.Hash, len(debugContract.StorageEntries))
-	storageValues := make([]*types.Uint256, len(debugContract.StorageEntries))
-	for key, val := range debugContract.StorageEntries {
-		storageKeys = append(storageKeys, key)
-		storageValues = append(storageValues, &val)
-	}
-	err = storageTrie.UpdateBatch(storageKeys, storageValues)
-	if err != nil {
-		return nil, err
-	}
-
-	// Currencies will be fetched on demand
-	smartContract = &Account{
-		Address:     addr,
-		StorageTrie: storageTrie,
-		Balance:     debugContract.Contract.Balance,
-		Code:        debugContract.Code,
-		Seqno:       debugContract.Contract.Seqno,
-		ExtSeqno:    debugContract.Contract.ExtSeqno,
-	}
-
-	tsdb.accountsCache[addr] = smartContract
-
-	return smartContract, nil
-}
-
-func (tsdb *TracerStateDB) getOrNewAccount(addr types.Address) (*Account, error) {
-	acc, err := tsdb.getAccount(addr)
+func (tsdb *TracerStateDB) getOrNewAccount(addr types.Address) (*execution.AccountState, error) {
+	acc, err := tsdb.mptTracer.GetAccount(addr)
 	if err != nil {
 		return nil, err
 	}
 	if acc != nil {
-		return acc, nil
+		return &acc.AccountState, nil
 	}
 
-	return tsdb.createAccount(addr)
-}
-
-func (tsdb *TracerStateDB) createAccount(addr types.Address) (*Account, error) {
-	// FIXME: it will probably fail now, since trie is not initialized
-	acc := &Account{
-		Address: addr,
+	createdAcc, err := tsdb.mptTracer.CreateAccount(addr)
+	if err != nil {
+		return nil, err
 	}
 
-	tsdb.accountsCache[addr] = acc
-	return acc, nil
+	return &createdAcc.AccountState, nil
 }
 
 // OutMessages don't requre handling, they are just included into block
@@ -311,7 +249,7 @@ func (tsdb *TracerStateDB) initVm(
 	msgId := uint(len(tsdb.InMessages) - 1)
 	tsdb.stackTracer = &StackOpTracer{rwCtr: &tsdb.RwCounter, msgId: msgId}
 	tsdb.memoryTracer = &MemoryOpTracer{rwCtr: &tsdb.RwCounter, msgId: msgId}
-	tsdb.storageInteractor = NewMessageStorageInteractor(&tsdb.RwCounter, tsdb.GetCurPC, msgId)
+	tsdb.storageTracer = NewStorageOpTracer(tsdb.mptTracer, &tsdb.RwCounter, tsdb.GetCurPC, msgId)
 	tsdb.zkevmTracer = &ZKEVMStateTracer{
 		rwCtr:        &tsdb.RwCounter,
 		msgId:        msgId,
@@ -332,29 +270,12 @@ func (tsdb *TracerStateDB) initVm(
 }
 
 // Tracers finalizations happen here
-func (tsdb *TracerStateDB) saveMessageTraces() error {
+func (tsdb *TracerStateDB) saveMessageTraces() {
 	tsdb.Traces.AddMemoryOps(tsdb.memoryTracer.Finalize())
 	tsdb.Traces.AddStackOps(tsdb.stackTracer.Finalize())
 	tsdb.Traces.AddZKEVMStates(tsdb.zkevmTracer.Finalize())
-	tsdb.Traces.AddStorageOps(tsdb.storageInteractor.GetStorageOps())
+	tsdb.Traces.AddStorageOps(tsdb.storageTracer.GetStorageOps())
 	tsdb.Traces.AddCopyEvents(tsdb.copyTracer.Finalize())
-
-	curMessageSlotChanges := make(map[types.Address][]SlotChangeTrace)
-	for _, addr := range tsdb.storageInteractor.GetAffectedAccountsAddresses() {
-		acc, err := tsdb.getAccount(addr)
-		if err != nil {
-			return err
-		}
-
-		addrSlotChanges, err := tsdb.storageInteractor.GetAccountSlotChangeTraces(acc)
-		if err != nil {
-			return err
-		}
-		curMessageSlotChanges[addr] = addrSlotChanges
-	}
-	tsdb.Traces.AddSlotChanges(curMessageSlotChanges)
-
-	return nil
 }
 
 func (tsdb *TracerStateDB) resetVm() {
@@ -387,7 +308,8 @@ func (tsdb *TracerStateDB) HandleExecutionMessage(message *types.Message) error 
 	if err != nil {
 		panic(fmt.Sprintf("EVM call returned error: %v", err))
 	}
-	return tsdb.saveMessageTraces()
+	tsdb.saveMessageTraces()
+	return nil
 }
 
 func (tsdb *TracerStateDB) HandleDeployMessage(message *types.Message) error {
@@ -407,7 +329,8 @@ func (tsdb *TracerStateDB) HandleDeployMessage(message *types.Message) error {
 	_ = addr
 	_ = leftOver
 
-	return tsdb.saveMessageTraces()
+	tsdb.saveMessageTraces()
+	return nil
 }
 
 // The only way to add InMessage to state
@@ -436,14 +359,19 @@ func (tsdb *TracerStateDB) GetGasPrice(types.ShardId) (types.Value, error) {
 
 // Write methods
 func (tsdb *TracerStateDB) CreateAccount(addr types.Address) error {
-	_, err := tsdb.createAccount(addr)
+	_, err := tsdb.mptTracer.CreateAccount(addr)
 	return err
 }
 
 func (tsdb *TracerStateDB) CreateContract(addr types.Address) error {
-	_, err := tsdb.getAccount(addr)
-	// obj.newContract = true
-	return err
+	acc, err := tsdb.mptTracer.GetAccount(addr)
+	if err != nil {
+		return err
+	}
+
+	acc.NewContract = true
+
+	return nil
 }
 
 // SubBalance subtracts amount from the account associated with addr.
@@ -467,7 +395,7 @@ func (tsdb *TracerStateDB) AddBalance(addr types.Address, amount types.Value, re
 }
 
 func (tsdb *TracerStateDB) GetBalance(addr types.Address) (types.Value, error) {
-	acc, err := tsdb.getAccount(addr)
+	acc, err := tsdb.mptTracer.GetAccount(addr)
 	if err != nil || acc == nil {
 		return types.Value{}, err
 	}
@@ -487,7 +415,7 @@ func (tsdb *TracerStateDB) SetCurrencyTransfer([]types.CurrencyBalance) {
 }
 
 func (tsdb *TracerStateDB) GetSeqno(addr types.Address) (types.Seqno, error) {
-	acc, err := tsdb.getAccount(addr)
+	acc, err := tsdb.mptTracer.GetAccount(addr)
 	if err != nil || acc == nil {
 		return 0, err
 	}
@@ -505,15 +433,15 @@ func (tsdb *TracerStateDB) SetSeqno(addr types.Address, seqno types.Seqno) error
 
 func (tsdb *TracerStateDB) GetCurrentCode() ([]byte, common.Hash, error) {
 	if len(tsdb.code) == 0 {
-		return []byte{}, common.EmptyHash, errors.New("no code is currently executed")
+		return nil, common.EmptyHash, errors.New("no code is currently executed")
 	}
 	return tsdb.code, tsdb.codeHash, nil
 }
 
 func (tsdb *TracerStateDB) GetCode(addr types.Address) ([]byte, common.Hash, error) {
-	acc, err := tsdb.getAccount(addr)
+	acc, err := tsdb.mptTracer.GetAccount(addr)
 	if err != nil || acc == nil {
-		return []byte{}, common.EmptyHash, err
+		return nil, common.EmptyHash, err
 	}
 
 	// if contract code was requested, we dump it into traces
@@ -523,13 +451,11 @@ func (tsdb *TracerStateDB) GetCode(addr types.Address) ([]byte, common.Hash, err
 }
 
 func (tsdb *TracerStateDB) SetCode(addr types.Address, code []byte) error {
-	acc, err := tsdb.getAccount(addr)
+	acc, err := tsdb.mptTracer.GetAccount(addr)
 	if err != nil {
 		return err
 	}
-	acc.Code = code
-	tsdb.code = acc.Code
-	tsdb.codeHash = acc.Code.Hash()
+	acc.SetCode(types.Code(code).Hash(), code)
 	return nil
 }
 
@@ -546,45 +472,42 @@ func (tsdb *TracerStateDB) GetRefund() uint64 {
 	panic("not implemented")
 }
 
-func (tsdb *TracerStateDB) GetCommittedState(types.Address, common.Hash) common.Hash {
+func (tsdb *TracerStateDB) GetCommittedState(addr types.Address, key common.Hash) common.Hash {
+	// copied from state.go
 	return common.EmptyHash
 }
 
 func (tsdb *TracerStateDB) GetState(addr types.Address, key common.Hash) (common.Hash, error) {
-	acc, err := tsdb.getAccount(addr)
-	if err != nil || acc == nil {
+	val, err := tsdb.storageTracer.GetSlot(addr, key)
+	if err != nil {
 		return common.EmptyHash, err
 	}
-	val, err := tsdb.storageInteractor.GetSlot(acc, key)
+	// `storageTracer.GetSlot` returns `nil, nil` in case of no such addr exists.
+	// Such read operation will be also included into traces.
 	// Pass slot data to zkevm_state
 	tsdb.zkevmTracer.SetLastStateStorage((types.Uint256)(*key.Uint256()), (types.Uint256)(*val.Uint256()))
-	return val, err
+	return val, nil
 }
 
-// proof, err := mpt.BuildProof(acc.StorageTrie.Reader, key.Bytes(), mpt.ReadMPTOperation)
-// if err != nil {
-// 	return err
-// }
-// tsdb.addStorageProof(addr, proof)
-
 func (tsdb *TracerStateDB) SetState(addr types.Address, key common.Hash, val common.Hash) error {
-	acc, err := tsdb.getOrNewAccount(addr)
+	_, err := tsdb.getOrNewAccount(addr)
 	if err != nil {
 		return err
 	}
 
-	prev, err := tsdb.storageInteractor.SetSlot(acc, key, val)
+	prev, err := tsdb.storageTracer.SetSlot(addr, key, val)
 	// Pass slote data before setting to zkevm_state
-	tsdb.zkevmTracer.SetLastStateStorage((types.Uint256)(*key.Uint256()), prev)
+	tsdb.zkevmTracer.SetLastStateStorage((types.Uint256)(*key.Uint256()), types.Uint256(*prev.Uint256()))
 	return err
 }
 
 func (tsdb *TracerStateDB) GetStorageRoot(addr types.Address) (common.Hash, error) {
-	acc, err := tsdb.getAccount(addr)
+	acc, err := tsdb.mptTracer.GetAccount(addr)
 	if err != nil || acc == nil {
 		return common.Hash{}, err
 	}
-	return acc.StorageTrie.RootHash(), nil
+
+	return acc.AccountState.StorageTree.RootHash(), nil
 }
 
 func (tsdb *TracerStateDB) GetTransientState(addr types.Address, key common.Hash) common.Hash {
@@ -606,7 +529,7 @@ func (tsdb *TracerStateDB) Selfdestruct6780(types.Address) error {
 // Exist reports whether the given account exists in state.
 // Notably this should also return true for self-destructed accounts.
 func (tsdb *TracerStateDB) Exists(address types.Address) (bool, error) {
-	account, err := tsdb.getAccount(address)
+	account, err := tsdb.mptTracer.GetAccount(address)
 	if err != nil {
 		return false, err
 	}
@@ -616,7 +539,7 @@ func (tsdb *TracerStateDB) Exists(address types.Address) (bool, error) {
 // Empty returns whether the given account is empty. Empty
 // is defined according to EIP161 (balance = nonce = code = 0).
 func (tsdb *TracerStateDB) Empty(addr types.Address) (bool, error) {
-	acc, err := tsdb.getAccount(addr)
+	acc, err := tsdb.mptTracer.GetAccount(addr)
 	return acc == nil || (acc.Balance.IsZero() && len(acc.Code) == 0 && acc.Seqno == 0), err
 }
 
@@ -723,4 +646,13 @@ func (tsdb *TracerStateDB) GetConfigAccessor() *config.ConfigAccessor {
 func (tsdb *TracerStateDB) GetCurPC() uint64 {
 	// Used by storage tracer
 	return tsdb.curPC
+}
+
+func (tsdb *TracerStateDB) FinalizeTraces() error {
+	mptTraces, err := tsdb.mptTracer.GetMPTTraces()
+	if err != nil {
+		return err
+	}
+	tsdb.Traces.SetMptTraces(&mptTraces)
+	return nil
 }

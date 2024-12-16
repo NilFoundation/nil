@@ -54,7 +54,7 @@ func (p *Proof) VerifyRead(key []byte, value []byte, rootHash common.Hash) (bool
 		return false, nil
 	}
 
-	mpt, err := unwrapMpt(p)
+	mpt, err := unwrapSparseMpt(p)
 	if err != nil {
 		return false, err
 	}
@@ -91,7 +91,7 @@ func (p *Proof) VerifyDelete(key []byte, deleted bool, rootHash, newRootHash com
 		return false, nil
 	}
 
-	mpt, err := unwrapMpt(p)
+	mpt, err := unwrapSparseMpt(p)
 	if err != nil {
 		return false, err
 	}
@@ -126,7 +126,7 @@ func (p *Proof) VerifySet(key []byte, value []byte, rootHash, newRootHash common
 		return false, nil
 	}
 
-	mpt, err := unwrapMpt(p)
+	mpt, err := unwrapSparseMpt(p)
 	if err != nil {
 		return false, err
 	}
@@ -144,19 +144,27 @@ func (p *Proof) VerifySet(key []byte, value []byte, rootHash, newRootHash common
 	return newRootHash.Uint256().Eq(mpt.RootHash().Uint256()), nil
 }
 
-func unwrapMpt(p *Proof) (*MerklePatriciaTrie, error) {
+// unwrapSparseMpt creates sparse MPT trie from proof
+func unwrapSparseMpt(p *Proof) (*MerklePatriciaTrie, error) {
 	holder := make(map[string][]byte)
 	mpt := NewMPT(NewMapSetter(holder), NewReader(NewMapGetter(holder)))
 
+	err := PopulateMptWithProof(mpt, p)
+	if err != nil {
+		return nil, err
+	}
+	return mpt, nil
+}
+
+func PopulateMptWithProof(mpt *MerklePatriciaTrie, p *Proof) error {
 	for i, node := range p.pathToNode {
 		if nodeRef, err := mpt.storeNode(node); err != nil {
-			return nil, err
+			return err
 		} else if i == 0 {
 			mpt.root = nodeRef
 		}
 	}
-
-	return mpt, nil
+	return nil
 }
 
 func getMaxMatchingRoute(tree *Reader, key []byte) ([]Node, error) {

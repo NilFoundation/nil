@@ -390,10 +390,12 @@ func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
 // @componentprop Storage storage slice of key-value pairs of the data in storage
 type DebugRPCContract struct {
 	// path, node type, next ref, branches, data
-	Code     hexutil.Bytes                 `json:"code"`
-	Contract hexutil.Bytes                 `json:"contract"`
-	Proof    hexutil.Bytes                 `json:"proof"`
-	Storage  map[common.Hash]types.Uint256 `json:"storage"`
+	Code         hexutil.Bytes                             `json:"code"`
+	Contract     hexutil.Bytes                             `json:"contract"`
+	Proof        hexutil.Bytes                             `json:"proof"`
+	Storage      map[common.Hash]types.Uint256             `json:"storage,omitempty"`
+	Currencies   map[types.CurrencyId]types.Value          `json:"currencies"`
+	AsyncContext map[types.MessageIndex]types.AsyncContext `json:"asyncContext"`
 }
 
 // @component OutMessage outMessage object "Outbound message produced by eth_call and result of its execution."

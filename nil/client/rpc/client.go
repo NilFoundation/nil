@@ -782,10 +782,12 @@ func (c *Client) GetBlocksRange(shardId types.ShardId, from, to types.BlockNumbe
 }
 
 type DeserializedDebugRPCContract struct {
-	Contract       types.SmartContract
-	ExistenceProof mpt.Proof
-	Code           types.Code
-	StorageEntries map[common.Hash]types.Uint256
+	Contract                types.SmartContract
+	ExistenceProof          mpt.Proof
+	Code                    types.Code
+	StorageTrieEntries      map[common.Hash]types.Uint256
+	CurrencyTrieEntries     map[types.CurrencyId]types.Value
+	AsyncContextTrieEntries map[types.MessageIndex]types.AsyncContext
 }
 
 func deserializeDebugRPCContract(debugRPCContract *jsonrpc.DebugRPCContract) (*DeserializedDebugRPCContract, error) {
@@ -800,10 +802,12 @@ func deserializeDebugRPCContract(debugRPCContract *jsonrpc.DebugRPCContract) (*D
 	}
 
 	return &DeserializedDebugRPCContract{
-		Contract:       *contract,
-		ExistenceProof: existenceProof,
-		Code:           types.Code(debugRPCContract.Code),
-		StorageEntries: debugRPCContract.Storage,
+		Contract:                *contract,
+		ExistenceProof:          existenceProof,
+		Code:                    types.Code(debugRPCContract.Code),
+		StorageTrieEntries:      debugRPCContract.Storage,
+		CurrencyTrieEntries:     debugRPCContract.Currencies,
+		AsyncContextTrieEntries: debugRPCContract.AsyncContext,
 	}, nil
 }
 

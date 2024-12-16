@@ -450,7 +450,7 @@ func (es *ExecutionState) RevertToSnapshot(revid int) {
 	snapshot := es.validRevisions[idx].journalIndex
 
 	// Replay the journal to undo changes and remove invalidated snapshots
-	es.journal.revert(es, snapshot)
+	es.journal.revert(&ExecutionStateRevertableWrapper{es}, snapshot)
 	es.validRevisions = es.validRevisions[:idx]
 }
 
@@ -509,7 +509,7 @@ func (es *ExecutionState) Selfdestruct6780(addr types.Address) error {
 	if err != nil || stateObject == nil {
 		return err
 	}
-	if stateObject.newContract {
+	if stateObject.NewContract {
 		es.selfDestruct(stateObject)
 	}
 	return nil
@@ -702,15 +702,15 @@ func (es *ExecutionState) createAccount(addr types.Address) (*AccountState, erro
 // CreateContract is used whenever a contract is created. This may be preceded
 // by CreateAccount, but that is not required if it already existed in the
 // state due to funds sent beforehand.
-// This operation sets the 'newContract'-flag, which is required in order to
+// This operation sets the 'NewContract'-flag, which is required in order to
 // correctly handle EIP-6780 'delete-in-same-transaction' logic.
 func (es *ExecutionState) CreateContract(addr types.Address) error {
 	obj, err := es.GetAccount(addr)
 	if err != nil {
 		return err
 	}
-	if !obj.newContract {
-		obj.newContract = true
+	if !obj.NewContract {
+		obj.NewContract = true
 		es.journal.append(createContractChange{account: addr})
 	}
 	return nil
@@ -1701,4 +1701,12 @@ func (es *ExecutionState) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(data)
+}
+
+func (es *ExecutionState) AppendToJournal(entry JournalEntry) {
+	es.journal.append(entry)
+}
+
+func (es *ExecutionState) GetRwTx() db.RwTx {
+	return es.tx
 }

@@ -53,16 +53,11 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 
 	if decodedDbgBlock.Id == 0 {
 		// TODO: prove genesis block generation?
-		return nil
+		return ErrCantProofGenesisBlock
 	}
 
 	prevBlock, err := rt.client.GetBlock(shardId, transport.BlockNumber(decodedDbgBlock.Id-1), false)
 	if err != nil {
-		return err
-	}
-
-	if prevBlock.MainChainHash == common.EmptyHash {
-		// TODO: shard has just started, no reference to MainChain
 		return err
 	}
 
@@ -111,6 +106,11 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 		if err != nil {
 			return err
 		}
+	}
+
+	err = stateDB.FinalizeTraces()
+	if err != nil {
+		return err
 	}
 
 	// Print stats
