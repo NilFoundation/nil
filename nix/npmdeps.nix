@@ -18,5 +18,5 @@ in
       ../uniswap/package.json
     ];
   };
-  hash = "sha256-Z9mbK5EgfQZQhe3d0mOR9mtMlP57KZN+hSGSfZ4ctao=";
+  hash = "sha256-PuGn8Af49CcpVI5K0YYPxpfWd/RQdquvFxM9/Ph0luk=";
 })

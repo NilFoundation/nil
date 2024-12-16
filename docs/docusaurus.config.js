@@ -45,7 +45,7 @@ const config = {
     {
       src: "https://docs.nil.foundation/goatcounter/count.js",
       async: true,
-      "data-goatcounter": "https://docs.nil.foundation/goatcounter/count"
+      "data-goatcounter": "https://docs.nil.foundation/goatcounter/count",
     },
   ],
 
@@ -144,7 +144,7 @@ const config = {
           {
             label: "Migration guides",
             position: "left",
-            to: "nil/migration-guides/december-0412-2024-release",
+            to: "nil/migration-guides/december-1712-2024-release",
           },
           {
             label: "Videos",

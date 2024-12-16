@@ -2,15 +2,27 @@
 
 ## Definition
 
-In =nil;, external messages pass the following stages before reaching finality.
+In =nil;, transactions pass the following stages before reaching finality.
 
-1. An external message is submitted by a user
-2. The message goes to the mempool of an execution shard
-3. The message is picked up by a collator that bundles it with other message and sends the resulting batch for execution
-4. The message is executed and is sent into a block
-5. The block passes local consensus while the shard generates a ZKP
-6. The block with the message is sent into storage and the message reaches soft finality
-7. The ZKP and the block are sent to the consensus shard that produces a 'master' ZKP
+1. A user submits a transaction via an external message
+2. The transaction is sequenced and placed into the mempool of an execution shard
+3. The transaction is bundled with other transactions and sent for execution
+4. The transaction is executed and placed into a block. If the transaction spawns a cross-shard transaction, this cross-shard transaction is placed into the 'inbox' of its destination shard
+5. The block passes local consensus
+6. The block is placed into local storage and the transaction reaches soft finality
+7. The block hash is sent to the consensus shard
+8. The sync committee collects the block along with blocks from other shards
+9. The block is aggregated into a batch, is compressed, and is sent to the L1 blob storage and to a zkSharding prover
+10. The prover produces a ZKP and sends it to the sync committee
+11. The sync commitee sends a transaction proposing the new state to L1. This transaction contains the ZKP
+12. L1 verifies that the data stored in the blob and the proven data is the same data
+13. L1 verifies the ZKP. If the ZKP is valid, the transaction reaches hard finality once the block containing it is confirmed
+
+:::note
+
+Deposit transactions and transactions that are force-included via L1 will follow a slightly different flow.
+
+:::
 
 Additional remarks about each of the above stages are given below.
 
@@ -18,38 +30,43 @@ Additional remarks about each of the above stages are given below.
 
 ### Message submission and processing
 
-A user submits an external message autonomously. This message reaches its destination and it is added to the mempool of the target execution shard.
+A user submits an external message autonomously. Once sequenced, this message reaches the mempool of its target execution shard.
 
-In some cases, the external message may also cause the receiving contract to send additional internal messages to other smart contracts some of which may be located on other shards. As part of the =nil; protocol, execution shards poll other execution shards about outgoing messages. After a new internal message is submitted, its destination shard retrieves it and processes it.
+In some cases, transactions may also cause the receiving contract to call other smart contracts some of which may be located on other shards. As part of the =nil; protocol, execution shards poll other execution shards about cross-shard transactions. Once a cross-shard transaction is submitted, the destination shard retrieves it and processes it, potentially triggering new cross-shard transactions.
 
 [**Learn more about cross-shard communication**](./shards-parallel-execution#message-passing-checks).
 
-### Passing the collator
+### Transaction execution
 
-The collator then retrieves the message from the mempool and bundles it together with other message. The resulting bundle is executed, and the message is included in the new block produced by the execution shard.
+The collator retrieves transactions (both external and cross-shard) from the mempool and bundles them together for execution. The resulting bundle is executed, and the transaction is included in the new block produced by the execution shard.
 
-At the end of this stage, the block with the message is sent for verification via local consensus. [**Learn more about local consensus**](./shards-parallel-execution#consensus-shard).
+At the end of this stage, the block is sent for verification via local consensus. 
+
+[**Learn more about local consensus**](./shards-parallel-execution#consensus-shard).
 
 ### Achieving soft finality
 
-After the block containing the message is built, execution shards produce a ZKP and send it to the consensus shard along with block hashes. In the meantime, the block with the message reaches storage, and the message achieves soft finality.
+After the block is built, its hash is sent to the consensus shard. The block with transactions is persisted in local storage, at which point the transaction reaches soft finality.
 
 :::info
 
-When =nil; supports communications with L1, a special application running on top of the consensus shard will submit [**data availability transactions**](../specification/data-availability) to Ethereum. 
+The sync committee collects blocks and the transaction data included in these blocks, aggregates them in a batch, and publishes the batch to L1 blob storage.
 
-In this case, messages will reach soft finality when the corresponding data availability transactions are verified in Ethereum slots.
+At this point, the transactions in the batch achieve a stronger soft finality. This way, the transaction is confirmed to be included in the L2 state.
 
 :::
 
-:::note[ZKPs]
+:::note[State transition proof]
 
-ZKPs allow for trustless verification of state transitions inside execution shards and the consensus shard. ZKP generation is handled by dedicated participants (proof producers). To learn more about this process, [**click here**](../specification/finality).
+Once the batch has been aggregated by the sync committee, a proving request is sent to the network of proof producers.
+A proof producer generates a ZKP attesting to the correct transition to the new state.
+
+[**Learn more about this process.**] (../specification/finality)
 
 :::
 
 ### Achieving hard finality
 
-The consensus shard also verifies the proof from the shard with the transaction and creates a 'master' ZKP. 
+Once the ZKP is generated, the proof producer sends it back to the sync vcommittee which prepares an L1 state update transaction to the main =nil; L2 contract.
 
-When this feature is supported, the 'master' ZKP will be sent to the =nil; smart contract on Ethereum where it will be verified. At this stage, the transaction will achieve absolute finality.
+Afterward, L1 compares the data published to blobs and the data claimed for the new state. Finally, a verifier contract validates the ZKP. If valid, the new state is confirmed. When the corresponding Ethereum block is finalized, the transaction achieves hard finality.
