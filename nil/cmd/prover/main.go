@@ -30,14 +30,16 @@ type RunConfig struct {
 }
 
 type GenerateTraceConfig struct {
-	CommonConfig
+	*CommonConfig
 	ShardID      types.ShardId
 	BlockIDs     []transport.BlockReference
 	BaseFileName string
+	MarshalMode  string
 }
 
 type PrintConfig struct {
 	BaseFileName string
+	MarshalMode  string
 }
 
 func execute() error {
@@ -58,12 +60,12 @@ func execute() error {
 	addCommonFlags(runCmd, commonCfg)
 	rootCmd.AddCommand(runCmd)
 
+	traceConfig := GenerateTraceConfig{CommonConfig: commonCfg}
 	generateTraceCmd := &cobra.Command{
 		Use:   "trace [base_file_name] [shard_id] [block_ids...]",
 		Short: "Collect traces for a block, dump into file",
 		Args:  cobra.MinimumNArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			traceConfig := GenerateTraceConfig{CommonConfig: *commonCfg}
 			traceConfig.BaseFileName = args[0]
 			var err error
 			traceConfig.ShardID, err = types.ParseShardIdFromString(args[1])
@@ -80,18 +82,22 @@ func execute() error {
 			return generateTrace(&traceConfig)
 		},
 	}
-	addCommonFlags(generateTraceCmd, commonCfg)
+	addCommonFlags(generateTraceCmd, traceConfig.CommonConfig)
+	addMarshalModeFlag(generateTraceCmd, &traceConfig.MarshalMode)
 	rootCmd.AddCommand(generateTraceCmd)
 
+	var printConfig PrintConfig
 	printTraceCmd := &cobra.Command{
 		Use:   "print [file_name]",
 		Short: "Read serialized traces from files, print them into console",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return readTrace(&PrintConfig{BaseFileName: args[0]})
+			printConfig.BaseFileName = args[0]
+			return readTrace(&printConfig)
 		},
 	}
 	addCommonFlags(printTraceCmd, commonCfg)
+	addMarshalModeFlag(printTraceCmd, &printConfig.MarshalMode)
 	rootCmd.AddCommand(printTraceCmd)
 
 	return rootCmd.Execute()
@@ -105,6 +111,10 @@ func addCommonFlags(cmd *cobra.Command, cfg *CommonConfig) {
 	cmd.PreRun = func(cmd *cobra.Command, args []string) {
 		logging.SetupGlobalLogger(*logLevel)
 	}
+}
+
+func addMarshalModeFlag(cmd *cobra.Command, placeholder *string) {
+	cmd.Flags().StringVar(placeholder, "marshal-mode", tracer.MarshalModeBinary.String(), "marshal modes (bin,json) for trace files separated by ','")
 }
 
 func run(cfg *RunConfig) error {
@@ -143,11 +153,21 @@ func generateTrace(cfg *GenerateTraceConfig) error {
 		}
 	}
 
-	return tracer.SerializeToFile(aggTraces, cfg.BaseFileName)
+	mode, err := tracer.MarshalModeFromString(cfg.MarshalMode)
+	if err != nil {
+		return err
+	}
+
+	return tracer.SerializeToFile(aggTraces, mode, cfg.BaseFileName)
 }
 
 func readTrace(cfg *PrintConfig) error {
-	blockTraces, err := tracer.DeserializeFromFile(cfg.BaseFileName)
+	mode, err := tracer.MarshalModeFromString(cfg.MarshalMode)
+	if err != nil {
+		return err
+	}
+
+	blockTraces, err := tracer.DeserializeFromFile(cfg.BaseFileName, mode)
 	if err != nil {
 		return err
 	}

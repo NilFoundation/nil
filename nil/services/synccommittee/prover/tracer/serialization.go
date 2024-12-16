@@ -1,7 +1,7 @@
 package tracer
 
 import (
-	"os"
+	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -11,7 +11,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/mpttracer"
 	pb "github.com/NilFoundation/nil/nil/services/synccommittee/prover/proto"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/protobuf/proto"
 )
 
 // Set of pb messages splitted by circuits
@@ -25,30 +24,14 @@ type PbTracesSet struct {
 
 // Each message is serialized into file with corresponding extension added to base file path
 const (
-	bytecodeExtension = ".bc"
-	rwExtension       = ".rw"
-	zkevmExtension    = ".zkevm"
-	copyExtension     = ".copy"
-	mptExtension      = ".mpt"
+	bytecodeExtension = "bc"
+	rwExtension       = "rw"
+	zkevmExtension    = "zkevm"
+	copyExtension     = "copy"
+	mptExtension      = "mpt"
 )
 
-func marshalToFile[Msg proto.Message](msg Msg, filename string) error {
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filename, data, 0o600)
-}
-
-func unmarshalFromFile[Msg proto.Message](filename string, out Msg) error {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return err
-	}
-	return proto.Unmarshal(data, out)
-}
-
-func SerializeToFile(proofs ExecutionTraces, baseFileName string) error {
+func SerializeToFile(proofs ExecutionTraces, mode MarshalMode, baseFileName string) error {
 	// Convert ExecutionTraces to protobuf messages set
 	pbTraces, err := ToProto(proofs)
 	if err != nil {
@@ -58,35 +41,43 @@ func SerializeToFile(proofs ExecutionTraces, baseFileName string) error {
 	// Write trace files in parallel
 	eg := errgroup.Group{} // TODO: use WithContext to cancel remaining jobs in case of error
 
-	// Marshal zkevm message
-	eg.Go(func() error {
-		return marshalToFile(pbTraces.zkevm, baseFileName+zkevmExtension)
-	})
+	marshalModes := mode.getMarshallers()
+	for ext, marshalFunc := range marshalModes {
+		// Marshal zkevm message
+		eg.Go(func() error {
+			return marshalToFile(pbTraces.zkevm,
+				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, ext, zkevmExtension))
+		})
 
-	// Marshal bytecode message
-	eg.Go(func() error {
-		return marshalToFile(pbTraces.bytecode, baseFileName+bytecodeExtension)
-	})
+		// Marshal bytecode message
+		eg.Go(func() error {
+			return marshalToFile(pbTraces.bytecode,
+				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, ext, bytecodeExtension))
+		})
 
-	// Marshal rw message
-	eg.Go(func() error {
-		return marshalToFile(pbTraces.rw, baseFileName+rwExtension)
-	})
+		// Marshal rw message
+		eg.Go(func() error {
+			return marshalToFile(pbTraces.rw,
+				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, ext, rwExtension))
+		})
 
-	// Marshal copy message
-	eg.Go(func() error {
-		return marshalToFile(pbTraces.copy, baseFileName+copyExtension)
-	})
+		// Marshal copy message
+		eg.Go(func() error {
+			return marshalToFile(pbTraces.copy,
+				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, ext, copyExtension))
+		})
 
-	// Marshal msg traces message
-	eg.Go(func() error {
-		return marshalToFile(pbTraces.mpt, baseFileName+mptExtension)
-	})
+		// Marshal mpt traces message
+		eg.Go(func() error {
+			return marshalToFile(pbTraces.mpt,
+				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, ext, mptExtension))
+		})
+	}
 
 	return eg.Wait()
 }
 
-func DeserializeFromFile(baseFileName string) (ExecutionTraces, error) {
+func DeserializeFromFile(baseFileName string, mode MarshalMode) (ExecutionTraces, error) {
 	pbTraces := PbTracesSet{
 		bytecode: &pb.BytecodeTraces{},
 		rw:       &pb.RWTraces{},
@@ -95,32 +86,44 @@ func DeserializeFromFile(baseFileName string) (ExecutionTraces, error) {
 		mpt:      &pb.MPTTraces{},
 	}
 
+	unmarshal, ok := marshalModeToUnmarshaller[mode]
+	if !ok {
+		return nil, fmt.Errorf("no unmarshaler found for mode %d", mode)
+	}
+
+	ext := mode.String()
+
 	// Unmarshal trace files in parallel
 	eg := errgroup.Group{}
 
 	// Unmarshal zkevm message
 	eg.Go(func() error {
-		return unmarshalFromFile(baseFileName+zkevmExtension, pbTraces.zkevm)
+		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, ext, zkevmExtension),
+			unmarshal, pbTraces.zkevm)
 	})
 
 	// Unmarshal bc message
 	eg.Go(func() error {
-		return unmarshalFromFile(baseFileName+bytecodeExtension, pbTraces.bytecode)
+		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, ext, bytecodeExtension),
+			unmarshal, pbTraces.bytecode)
 	})
 
 	// Unmarshal rw message
 	eg.Go(func() error {
-		return unmarshalFromFile(baseFileName+rwExtension, pbTraces.rw)
+		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, ext, rwExtension),
+			unmarshal, pbTraces.rw)
 	})
 
 	// Unmarshal copy message
 	eg.Go(func() error {
-		return unmarshalFromFile(baseFileName+copyExtension, pbTraces.copy)
+		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, ext, copyExtension),
+			unmarshal, pbTraces.copy)
 	})
 
 	// Unmarshal mpt traces message
 	eg.Go(func() error {
-		return unmarshalFromFile(baseFileName+mptExtension, pbTraces.mpt)
+		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, ext, mptExtension),
+			unmarshal, pbTraces.mpt)
 	})
 
 	if err := eg.Wait(); err != nil {

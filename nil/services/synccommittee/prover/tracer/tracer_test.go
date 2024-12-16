@@ -253,9 +253,9 @@ func (s *TracerTestSuite) checkAllBlocksTracesSerialization() {
 			}
 			defer os.Remove(tmpfile.Name())
 
-			err = SerializeToFile(blockTraces, tmpfile.Name())
+			err = SerializeToFile(blockTraces, MarshalModeBinary, tmpfile.Name())
 			s.Require().NoError(err)
-			deserializedTraces, err := DeserializeFromFile(tmpfile.Name())
+			deserializedTraces, err := DeserializeFromFile(tmpfile.Name(), MarshalModeBinary)
 			s.Require().NoError(err)
 
 			// Check if no data was lost after deserialization
