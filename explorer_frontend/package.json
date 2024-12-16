@@ -15,7 +15,7 @@
 	"author": "",
 	"license": "ISC",
 	"dependencies": {
-		"@codemirror/state": "6.4.0",
+		"@codemirror/state": "6.5.0",
 		"@codemirror/view": "^6.34.1",
 		"@hotjar/browser": "^1.0.9",
 		"@loadable/component": "^5.15.3",

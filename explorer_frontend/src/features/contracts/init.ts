@@ -1,5 +1,5 @@
 import { persist } from "effector-storage/local";
-import { compileCodeFx } from "../code/model";
+import { $solidityVersion, compileCodeFx } from "../code/model";
 import {
   $activeApp,
   $activeAppWithState,
@@ -123,7 +123,8 @@ sample({
     $wallet,
     $shardId,
     $cometaService,
-    (app, args, wallet, shardId, cometaService) => {
+    $solidityVersion,
+    (app, args, wallet, shardId, cometaService, solidityVersion) => {
       if (!app) {
         return null;
       }
@@ -140,13 +141,15 @@ sample({
           break;
         }
       }
-      console.log("abiConstructor", abiConstructor);
+
       if (!abiConstructor) {
         return {
           app,
           args: [],
           wallet,
           shardId,
+          cometaService,
+          solidityVersion,
         };
       }
 
@@ -188,6 +191,7 @@ sample({
         wallet,
         shardId,
         cometaService,
+        solidityVersion,
       };
     },
   ),
@@ -199,13 +203,14 @@ sample({
     (wallet, app, shardId, cometa) => !!wallet && !!app && shardId !== null && !!cometa,
   ),
   fn: (data) => {
-    const { app, args, wallet, shardId, cometaService } = data!;
+    const { app, args, wallet, shardId, cometaService, solidityVersion } = data!;
     return {
       app,
       args,
       wallet,
       shardId: shardId as number, // we have filter
       cometaService: cometaService as CometaService, // we have filter
+      solidityVersion,
     };
   },
   clock: deploySmartContract,

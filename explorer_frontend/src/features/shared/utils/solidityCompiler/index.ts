@@ -100,7 +100,9 @@ export class CompileWorker {
       if (task) {
         console.log("task", task);
         this.currentTask = task;
-        this.worker.postMessage({ input: createCompileInput(task.code, task.options) });
+        this.worker.postMessage({
+          input: JSON.stringify(createCompileInput(task.code, task.options)),
+        });
       }
     }
   }

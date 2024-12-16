@@ -4,9 +4,6 @@ import { fetchCodeSnippet, setCodeSnippet } from "../../api/code";
 
 export const codeDomain = createDomain("code");
 
-const createStore = codeDomain.createStore.bind(codeDomain);
-const createEffect = codeDomain.createEffect.bind(codeDomain);
-
 export const $code = codeDomain.createStore<string>("");
 export const changeCode = codeDomain.createEvent<string>();
 export const compile = codeDomain.createEvent();

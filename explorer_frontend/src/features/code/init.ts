@@ -33,13 +33,16 @@ compileCodeFx.use(async ({ version, code }) => {
   const res = await compiler.compile({
     code: code,
   });
+
   const contracts: App[] = [];
   if ("contracts" in res && res.contracts !== undefined && "Compiled_Contracts" in res.contracts) {
     for (const name in res.contracts?.Compiled_Contracts) {
       const contract = res.contracts.Compiled_Contracts[name];
+
       contracts.push({
         name: name,
         bytecode: `0x${contract.evm.bytecode.object}`,
+        sourcecode: code,
         abi: contract.abi,
       });
     }

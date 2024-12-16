@@ -21,7 +21,7 @@
 		"@babel/preset-env": "^7.25.3",
 		"@babel/preset-react": "^7.24.7",
 		"@babel/preset-typescript": "^7.24.7",
-		"@codemirror/state": "6.4.0",
+		"@codemirror/state": "6.5.0",
 		"@docusaurus/core": "3.4.0",
 		"@docusaurus/preset-classic": "3.4.0",
 		"@docusaurus/theme-mermaid": "3.4.0",

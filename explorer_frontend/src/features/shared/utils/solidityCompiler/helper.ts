@@ -4,8 +4,8 @@ import NilCurBaseSol from "@nilfoundation/smart-contracts/contracts/NilCurrencyB
 import NilSol from "@nilfoundation/smart-contracts/contracts/Nil.sol";
 import WalletSol from "@nilfoundation/smart-contracts/contracts/Wallet.sol";
 
-// biome-ignore lint/suspicious/noExplicitAny: it could be any options here
-export const createCompileInput = (contractBody: string, options: any = {}): string => {
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+export const createCompileInput = (contractBody: string, options: any = {}): object => {
   const CompileInput = {
     language: "Solidity",
     sources: {
@@ -39,13 +39,17 @@ export const createCompileInput = (contractBody: string, options: any = {}): str
     },
     settings: {
       metadata: { appendCBOR: false },
+      debug: {
+        debugInfo: ["location"],
+      },
       outputSelection: {
         "*": {
           "*": ["*"],
         },
       },
+      evmVersion: "cancun",
       ...options,
     },
   };
-  return JSON.stringify(CompileInput);
+  return CompileInput;
 };

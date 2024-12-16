@@ -1,18 +1,8 @@
 import { useUnit } from "effector-react";
 import { $code, $error, changeCode, compile, compileCodeFx, fetchCodeSnippetFx } from "./model";
-import {
-  BUTTON_KIND,
-  BUTTON_SIZE,
-  Button,
-  COLORS,
-  Card,
-  CodeField,
-  Spinner,
-} from "@nilfoundation/ui-kit";
+import { BUTTON_KIND, BUTTON_SIZE, Button, COLORS, Card, Spinner } from "@nilfoundation/ui-kit";
 import "./init";
 import { useStyletron } from "baseui";
-import { solidity } from "@replit/codemirror-lang-solidity";
-import { basicSetup } from "@uiw/react-codemirror";
 import { memo, useMemo } from "react";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import { linter, type Diagnostic } from "@codemirror/lint";
@@ -22,8 +12,8 @@ import { getMobileStyles } from "../../styleHelpers";
 import { useMobile } from "../shared";
 import { LayoutComponent, setActiveComponent } from "../../pages/sandbox/model";
 import type { EditorView } from "@codemirror/view";
-import type { Extension } from "@codemirror/state";
 import { useCompileButton } from "./hooks/useCompileButton";
+import { SolidityCodeField } from "../shared/components/SolidityCodeField";
 
 const MemoizedCodeToolbar = memo(CodeToolbar);
 
@@ -38,8 +28,7 @@ export const Code = () => {
   ]);
   const [css] = useStyletron();
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
-  const codemirrorExtensions = useMemo<Extension[]>(() => {
+  const codemirrorExtensions = useMemo(() => {
     const solidityLinter = (view: EditorView) => {
       const diagnostics: Diagnostic[] = errors.map((error) => {
         return {
@@ -51,13 +40,8 @@ export const Code = () => {
       });
       return diagnostics;
     };
-    return [
-      solidity,
-      ...basicSetup({
-        lineNumbers: !isMobile,
-      }),
-      linter(solidityLinter),
-    ];
+
+    return [linter(solidityLinter)];
   }, [errors]);
 
   const noCode = code.trim().length === 0;
@@ -172,7 +156,7 @@ export const Code = () => {
               borderBottomRightRadius: "12px",
             })}
           >
-            <CodeField
+            <SolidityCodeField
               extensions={codemirrorExtensions}
               editable
               readOnly={false}
@@ -180,17 +164,9 @@ export const Code = () => {
               onChange={(text) => {
                 changeCode(`${text}`);
               }}
-              displayCopy={false}
-              highlightOnHover={false}
               className={css({
                 paddingBottom: "0!important",
               })}
-              showLineNumbers={false}
-              themeOverrides={{
-                settings: {
-                  lineHighlight: "rgba(255, 255, 255, 0.05)",
-                },
-              }}
             />
           </div>
         )}
