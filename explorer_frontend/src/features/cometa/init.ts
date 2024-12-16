@@ -2,7 +2,7 @@ import { CometaService, HttpTransport } from "@nilfoundation/niljs";
 import { $endpoint } from "../account-connector/model";
 import {
   $cometaService,
-  $customCommetaEndpoint,
+  $commetaEndpoint,
   createCometaService,
   createCometaServiceFx,
 } from "./model";
@@ -10,8 +10,8 @@ import { combine, sample } from "effector";
 
 const $refinedEndpoint = combine(
   $endpoint,
-  $customCommetaEndpoint,
-  (endpoint, customEndpoint) => customEndpoint || endpoint,
+  $commetaEndpoint,
+  (endpoint, customEndpoint) => endpoint || customEndpoint,
 );
 
 $refinedEndpoint.watch((endpoint) => {

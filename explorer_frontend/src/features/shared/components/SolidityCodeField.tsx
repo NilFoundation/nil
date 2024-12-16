@@ -9,7 +9,7 @@ export const SolidityCodeField = ({
   displayCopy = false,
   highlightOnHover = false,
   showLineNumbers = false,
-  extensions,
+  extensions = [],
   ...rest
 }: CodeFieldProps) => {
   const [isMobile] = useMobile();
@@ -19,8 +19,7 @@ export const SolidityCodeField = ({
       ...basicSetup({
         lineNumbers: !isMobile,
       }),
-      ...extensions ?? [],
-    ];
+    ].concat(extensions);
   }, [isMobile, extensions]);
 
   return (

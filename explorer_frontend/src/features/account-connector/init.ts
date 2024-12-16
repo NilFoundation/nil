@@ -47,6 +47,7 @@ import { $faucets } from "../currencies/model";
 import { sandboxRoute, sandboxWithHashRoute } from "../routing";
 import { loadedPage } from "../code/model";
 import { nilAddress } from "../currencies";
+import { getRuntimeConfigOrThrow } from "../runtime-config";
 
 persistLocalStorage({
   store: $endpoint,
@@ -307,7 +308,7 @@ sample({
   fn: (q) => {
     const user = q.user;
     const token = q.token;
-    return `https://api.devnet.nil.foundation/api/${user}/${token}`;
+    return `${getRuntimeConfigOrThrow().RPC_API_URL}/${user}/${token}`;
   },
   filter: (q) => !!q.user && !!q.token,
   target: setEndpoint,

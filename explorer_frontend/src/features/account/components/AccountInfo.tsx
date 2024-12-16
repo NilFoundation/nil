@@ -1,6 +1,18 @@
 import { useUnit } from "effector-react";
-import { $account, loadAccountStateFx } from "../models/model";
-import { CodeField, HeadingXLarge, ParagraphSmall, SPACE, Skeleton } from "@nilfoundation/ui-kit";
+import {
+  $account,
+  $accountCometaInfo,
+  loadAccountCometaInfoFx,
+  loadAccountStateFx,
+} from "../model";
+import {
+  CodeField,
+  HeadingXLarge,
+  ParagraphSmall,
+  SPACE,
+  Skeleton,
+  Spinner,
+} from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
 import { addressRoute } from "../../routing";
 import { InfoBlock } from "../../shared/components/InfoBlock";
@@ -11,6 +23,7 @@ import { Divider } from "../../shared";
 import { CurrencyDisplay } from "../../shared/components/Currency";
 import { EditorView } from "@codemirror/view";
 import { SolidityCodeField } from "../../shared/components/SolidityCodeField";
+import { $cometaService } from "../../cometa/model";
 
 const AccountLoading = () => {
   const [css] = useStyletron();
@@ -24,16 +37,21 @@ const AccountLoading = () => {
 };
 
 export const AccountInfo = () => {
-  const [account, isLoading, params] = useUnit([
+  const [account, accountCometaInfo, isLoading, isLoadingCometaInfo, params, cometa] = useUnit([
     $account,
+    $accountCometaInfo,
     loadAccountStateFx.pending,
+    loadAccountCometaInfoFx.pending,
     addressRoute.$params,
+    $cometaService,
   ]);
   const [css] = useStyletron();
+  const sourceCode = accountCometaInfo?.sourceCode?.Compiled_Contracts;
 
   useEffect(() => {
     loadAccountStateFx(params.address);
-  }, [params.address]);
+    loadAccountCometaInfoFx({ address: params.address, cometaService: cometa });
+  }, [params.address, cometa]);
 
   if (isLoading) return <AccountLoading />;
 
@@ -49,12 +67,27 @@ export const AccountInfo = () => {
           <Info
             label="Source code"
             value={
-              account?.source_code?.Compiled_Contracts?.length > 0 ? (
+              sourceCode?.length > 0 ? (
                 <SolidityCodeField
-                  code={account.source_code.Compiled_Contracts}
+                  code={sourceCode}
                   className={css({ marginTop: "1ch" })}
-                  codeMirrorClassName={css({ maxHeight: "300px", overflow: "scroll" })}
+                  codeMirrorClassName={css({
+                    maxHeight: "300px",
+                    overflow: "scroll",
+                    overscrollBehavior: "contain",
+                  })}
                 />
+              ) : isLoadingCometaInfo ? (
+                <div
+                  className={css({
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    height: "300px",
+                  })}
+                >
+                  <Spinner />
+                </div>
               ) : (
                 <ParagraphSmall>Not available</ParagraphSmall>
               )
@@ -68,7 +101,11 @@ export const AccountInfo = () => {
                   extensions={[EditorView.lineWrapping]}
                   code={account.code}
                   className={css({ marginTop: "1ch" })}
-                  codeMirrorClassName={css({ maxHeight: "300px", overflow: "scroll" })}
+                  codeMirrorClassName={css({
+                    maxHeight: "300px",
+                    overflow: "scroll",
+                    overscrollBehavior: "contain",
+                  })}
                 />
               ) : (
                 <ParagraphSmall>Not deployed</ParagraphSmall>

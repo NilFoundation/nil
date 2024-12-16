@@ -113,10 +113,12 @@ export const deploySmartContractFx = createEffect<
 
   const result = createCompileInput(app.sourcecode);
 
+  const refinedSolidityVersion = solidityVersion.match(/\d+\.\d+\.\d+/)?.[0] || "";
+
   const refinedResult = {
     ...result,
     contractName: `Compiled_Contracts:${app.name}`,
-    compilerVersion: solidityVersion,
+    compilerVersion: refinedSolidityVersion,
   };
 
   await cometaService?.registerContract(JSON.stringify(refinedResult), address);

@@ -13,6 +13,7 @@ const keys = [
   "SANDBOX_SUPPORT_URL",
   "SANDBOX_FEEDBACK_URL",
   "COMETA_SERVICE_API_URL",
+  "RPC_API_URL",
 ] as const;
 
 type RuntimConfigKeys = (typeof keys)[number];
