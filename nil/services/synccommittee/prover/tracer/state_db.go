@@ -198,6 +198,7 @@ func (tsdb *TracerStateDB) processOpcodeWithTracers(
 	// not reordered.
 	tsdb.memoryTracer.FinishPrevOpcodeTracing()
 	tsdb.stackTracer.FinishPrevOpcodeTracing()
+	tsdb.copyTracer.FinishPrevOpcodeTracing()
 
 	ranges, hasMemOps := tsdb.memoryTracer.GetUsedMemoryRanges(opCode, scope)
 
