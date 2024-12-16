@@ -344,7 +344,7 @@ export class WalletV1 implements WalletInterface {
 
       const callData = encodeFunctionData({
         abi: Wallet.abi,
-        functionName: "simpleAsyncCall",
+        functionName: "asyncCall",
         args: [hexTo, hexRefundTo, hexBounceTo, tokens ?? [], value ?? 0n, hexData],
       });
 
@@ -364,7 +364,7 @@ export class WalletV1 implements WalletInterface {
 
     const callData = encodeFunctionData({
       abi: Wallet.abi,
-      functionName: "simpleAsyncCall",
+      functionName: "asyncCall",
       args: [hexTo, hexRefundTo, hexBounceTo, tokens ?? [], value ?? 0n, hexData],
     });
 

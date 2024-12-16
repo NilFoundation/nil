@@ -57,27 +57,6 @@ contract Wallet is NilCurrencyBase {
     }
 
     /**
-     * @dev Makes an asynchronous call.
-     * @param dst The destination address.
-     * @param refundTo The address where to send refund message.
-     * @param bounceTo The address where to send bounce message.
-     * @param feeCredit The amount of tokens available to pay all fees during message processing.
-     * @param tokens The multi-currency tokens to send.
-     * @param value The value to send.
-     * @param callData The call data of the called method.
-     */
-    function simpleAsyncCall(
-        address dst,
-        address refundTo,
-        address bounceTo,
-        uint feeCredit,
-        Nil.Token[] memory tokens,
-        uint value,
-        bytes calldata callData) onlyExternal public {
-        Nil.asyncCallWithTokens(dst, refundTo, bounceTo, feeCredit, Nil.FORWARD_NONE, value, tokens, callData);
-    }
-
-    /**
 
      * @dev Makes an asynchronous call.
      * @param dst The destination address.
@@ -87,7 +66,7 @@ contract Wallet is NilCurrencyBase {
      * @param value The value to send.
      * @param callData The call data of the called method.
      */
-    function simpleAsyncCall(
+    function asyncCall(
         address dst,
         address refundTo,
         address bounceTo,
