@@ -46,6 +46,15 @@ message StorageOp {
     Address address = 8;  // Contract address
 }
 
+// ExpOp represents an exponent operation
+message ExpOp {
+    Uint256 base = 1;
+    Uint256 exponent = 2;
+    Uint256 result = 3;
+    uint64 pc = 4;         // Program counter
+    uint64 msg_id = 5;     // Number of message within a block
+}
+
 // StorageTrieUpdateTrace represents a trace of storage slot change.
 message StorageTrieUpdateTrace {
     // HEX of hashes, bytes would be more space-efficient, but less readable
@@ -165,4 +174,8 @@ message ZKEVMTraces {
 // Traces collected for bytecode circuit
 message CopyTraces {
     repeated CopyEvent copy_events = 1;
+}
+
+message ExpTraces {
+    repeated ExpOp exp_ops = 1;
 }
