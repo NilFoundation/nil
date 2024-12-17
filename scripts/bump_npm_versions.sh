@@ -60,9 +60,9 @@ npm run install:clean
 
 echo -e "${COLOR_GREEN}Lock-file generated${COLOR_END}"
 
-sed -i '' "s|hash = \".*\";|hash = \"\";|g" npmdeps.nix
+sed -i '' "s|hash = \".*\";|hash = \"\";|g" nix/npmdeps.nix
 hash=$(nix build .#niljs -L 2>&1 | grep -oE 'got:.*sha256-.*' | grep -oE 'sha256-.*')
-sed -i '' "s|hash = \"\";|hash = \"$hash\";|g" npmdeps.nix
+sed -i '' "s|hash = \"\";|hash = \"$hash\";|g" nix/npmdeps.nix
 
 echo -e "${COLOR_GREEN}Nix hash updated${COLOR_END}"
 
