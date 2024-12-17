@@ -1,8 +1,6 @@
 package tracer
 
 import (
-	"errors"
-
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/vm"
 	"github.com/holiman/uint256"
@@ -37,7 +35,7 @@ func (eot *ExpOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpCon
 		return false, nil
 	}
 	if eot.prevOpFinisher != nil {
-		return false, errors.New("exp trace malformed: previous opcode is not finalized")
+		return false, ErrTraceNotFinalized
 	}
 
 	eot.opCode = opCode

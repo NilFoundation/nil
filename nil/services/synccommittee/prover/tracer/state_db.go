@@ -8,7 +8,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -31,7 +30,7 @@ type TracerStateDB struct {
 	Stats            Stats
 	AccountSparseMpt mpt.MerklePatriciaTrie
 	logger           zerolog.Logger
-	mptTracer        *mpttracer.MPTTracer
+	mptTracer        *mpttracer.MPTTracer // unlike others MPT tracer keeps its state between transactions
 
 	// gas price for current block
 	GasPrice types.Value
@@ -82,7 +81,7 @@ func (mtc *messageTraceContext) processOpcode(
 		return err
 	}
 
-	ranges, hasMemOps := mtc.memoryTracer.GetUsedMemoryRanges(opCode, scope) // TODO error handling
+	ranges, hasMemOps := mtc.memoryTracer.GetUsedMemoryRanges(opCode, scope)
 
 	// Store zkevmState before counting rw operations
 	numRequiredStackItems := mtc.evm.Interpreter().GetNumRequiredStackItems(opCode)
@@ -113,7 +112,9 @@ func (mtc *messageTraceContext) processOpcode(
 			stats.CopyOpsN++
 		}
 
-		mtc.memoryTracer.TraceOp(opCode, pc, ranges, scope)
+		if err := mtc.memoryTracer.TraceOp(opCode, pc, ranges, scope); err != nil {
+			return err
+		}
 		stats.MemoryOpsN++
 	}
 
@@ -202,10 +203,19 @@ func (tsdb *TracerStateDB) HandleInMessage(message *types.Message) (err error) {
 	// since tracer is not designed to return an error we just make it panic in case of failure and catch result here
 	// it will help us to analyze logical errors in tracer impl down by the callstack
 	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("tracer err: %v", r)
-			tsdb.logger.Error().Err(err).Str("stacktrace", string(debug.Stack())).Msg("trace collection failed")
+		r := recover()
+		if r == nil {
+			return
 		}
+		if caughtErr, ok := r.(error); ok {
+			var managed managedTracerFailureError
+			if errors.As(caughtErr, &managed) {
+				err = managed.Unwrap()
+				return
+			}
+		}
+		tsdb.logger.Error().Err(err).Str("stacktrace", string(debug.Stack())).Msg("trace collection failed")
+		panic(r) // all unmanaged errors (runtime or explicit panic() calls) are rethrown from tracer with stack logging
 	}()
 
 	switch {
@@ -220,7 +230,7 @@ func (tsdb *TracerStateDB) HandleInMessage(message *types.Message) (err error) {
 	}
 
 	tsdb.Stats.ProcessedInMsgsN++
-	return
+	return //nolint:nakedret
 }
 
 func (tsdb *TracerStateDB) HandleRefundMessage(message *types.Message) error {
@@ -330,13 +340,13 @@ func (tsdb *TracerStateDB) initMessageTraceContext(
 
 			msgTraceCtx.curPC = pc
 			if err := msgTraceCtx.processOpcode(&tsdb.Stats, pc, op, gas, scope, returnData); err != nil {
-				err = fmt.Errorf("pc: %d opcode: %X, gas: %d, cost: %d, mem_size: %d bytes, stack: %d items, ret_data_size: %d bytes, depth: %d, cause: %w",
+				err = fmt.Errorf("pc: %d opcode: %X, gas: %d, cost: %d, mem_size: %d bytes, stack: %d items, ret_data_size: %d bytes, depth: %d cause: %w",
 					pc, op, gas, cost, len(scope.MemoryData()), len(scope.StackData()), len(returnData), depth, err,
 				)
 
 				// tracer by default should not affect the code execution but since we only run code to collect the traces - we should know
 				// about any failure as soon as possible instead of continue running
-				panic(err)
+				panic(managedTracerFailureError{underlying: err})
 			}
 		},
 	}
@@ -670,10 +680,14 @@ func (tsdb *TracerStateDB) GetConfigAccessor() *config.ConfigAccessor {
 	panic("not implemented")
 }
 
-func (tsdb *TracerStateDB) GetCurPC() uint64 {
+func (tsdb *TracerStateDB) GetCurPC() (uint64, error) {
 	// Used by storage tracer
-	check.PanicIfNotf(tsdb.msgTraceCtx != nil, "message tracing is not initialized")
-	return tsdb.msgTraceCtx.curPC
+	mctx := tsdb.msgTraceCtx
+	if mctx == nil {
+		return 0, errors.New("attempt to get pc from unitialized tracer")
+	}
+
+	return mctx.curPC, nil
 }
 
 func (tsdb *TracerStateDB) FinalizeTraces() error {

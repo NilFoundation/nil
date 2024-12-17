@@ -20,7 +20,7 @@ type StorageOpTracer struct {
 	mptTracer  SlotStorage
 	storageOps []StorageOp
 	rwCtr      *RwCounter
-	pcGetter   func() uint64
+	pcGetter   PCGetter
 	msgId      uint
 }
 
@@ -29,7 +29,9 @@ type SlotStorage interface {
 	SetSlot(addr types.Address, key common.Hash, value common.Hash) error
 }
 
-func NewStorageOpTracer(mptTracer SlotStorage, rwCtr *RwCounter, pcGetter func() uint64, msgId uint) *StorageOpTracer {
+type PCGetter func() (uint64, error)
+
+func NewStorageOpTracer(mptTracer SlotStorage, rwCtr *RwCounter, pcGetter PCGetter, msgId uint) *StorageOpTracer {
 	return &StorageOpTracer{
 		mptTracer: mptTracer,
 		rwCtr:     rwCtr,
@@ -49,12 +51,17 @@ func (d *StorageOpTracer) GetSlot(addr types.Address, key common.Hash) (common.H
 	if err != nil {
 		return common.EmptyHash, err
 	}
+	pc, err := d.pcGetter()
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
 	d.storageOps = append(d.storageOps, StorageOp{
 		IsRead:    true,
 		Key:       key,
 		Value:     types.Uint256(*value.Uint256()),
 		PrevValue: types.Uint256(*value.Uint256()),
-		PC:        d.pcGetter(),
+		PC:        pc,
 		RwIdx:     d.rwCtr.NextIdx(),
 		MsgId:     d.msgId,
 		Addr:      addr,
@@ -74,13 +81,17 @@ func (d *StorageOpTracer) SetSlot(addr types.Address, key common.Hash, val commo
 	if err != nil {
 		return common.EmptyHash, err
 	}
+	pc, err := d.pcGetter()
+	if err != nil {
+		return common.EmptyHash, err
+	}
 
 	d.storageOps = append(d.storageOps, StorageOp{
 		IsRead:    false,
 		Key:       key,
 		Value:     types.Uint256(*val.Uint256()),
 		PrevValue: types.Uint256(*prevVal.Uint256()),
-		PC:        d.pcGetter(),
+		PC:        pc,
 		RwIdx:     d.rwCtr.NextIdx(),
 		MsgId:     d.msgId,
 		Addr:      addr,

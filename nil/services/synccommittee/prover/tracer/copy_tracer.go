@@ -74,7 +74,7 @@ func (ct *CopyTracer) TraceOp(
 		return false, nil // no copy events for opcode
 	}
 	if ct.finalizer != nil {
-		return false, errors.New("copy event trace malformed: prev opcode is not finalized")
+		return false, ErrTraceNotFinalized
 	}
 
 	tCtx := copyEventTraceContext{
@@ -100,6 +100,9 @@ func (ct *CopyTracer) TraceOp(
 
 	if eventData.finalizer != nil {
 		ct.finalizer = func() error {
+			if len(ct.events) == 0 {
+				return errors.New("unexpected finlalized call on empty tracer")
+			}
 			return eventData.finalizer(&ct.events[len(ct.events)-1])
 		}
 	}

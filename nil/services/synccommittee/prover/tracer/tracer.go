@@ -37,7 +37,7 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 	aggTraces ExecutionTraces,
 	shardId types.ShardId,
 	blockRef transport.BlockReference,
-) (err error) {
+) error {
 	dbgBlock, err := rt.client.GetDebugBlock(shardId, blockRef, true)
 	if err != nil {
 		return err

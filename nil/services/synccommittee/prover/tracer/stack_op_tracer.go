@@ -1,7 +1,6 @@
 package tracer
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/internal/tracing"
@@ -346,7 +345,7 @@ func (sot *StackOpTracer) traceSwapOp() bool {
 
 func (sot *StackOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpContext) error {
 	if sot.prevOpFinisher != nil {
-		return errors.New("stack trace malformed: previous opcode is not finalized")
+		return ErrTraceNotFinalized
 	}
 	sot.opCode = opCode
 	sot.pc = pc
