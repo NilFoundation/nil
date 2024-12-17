@@ -1,0 +1,45 @@
+# Release 17.12.2024: migration guide
+
+This release of =nil; simplifies working with contract ABIs when using the =nil; CLI. It also adjusts function signatures inside the `Wallet.sol` contract. The receipt type inside `Nil.js` now contains the receipt flags which should help in identifying various types of messages.
+
+## Summary of key changes
+
+* If a contract is registered inside the Cometa service, the =nil; CLI can now automatically retrieve its ABI when using the `contract call-readonly`, `contract estimate-fee`, `contract send-external-message`, `wallet deploy`, `wallet call-readonly`, `wallet estimate-fee`, and `wallet send-message` commands
+* The `simpleAsyncCall()` function inside the `Wallet.sol` contract has been renamed back to `asyncCall()`
+* The overload of the `simpleAsyncCall()` function that allowed for setting `feeCredit` has been removed from the `Wallet.sol` contract
+* An issue preventing `eth_estimateFee` from outputting the correct result has been resolved
+* The `IReceipt` type in `Nil.js` now contains the `flags` array. The `Flag` objects in this array show the type of the message for which a specific receipt was recorded
+
+## Migration of smart contracts
+
+* Use the `asyncCall()` function inside `Wallet.sol` instead of `simpleAsyncCall()`
+
+The `simpleAsyncCall()` function inside `Wallet.sol` has been renamed to `asyncCall()`. 
+
+One additional overload of `simpleAsyncCall()` has also been removed from `Wallet.sol`. This overload allowed for setting the `feeCredit` argument when sending an async call. The overload was deemed unnecessary as the existing implementation of `asyncCall()` already has this functionality and `feeCredit` can be forwarded with external messages.
+
+## Migration of =nil; CLI commands
+
+* Use the compact versions of the `call-readonly`, `send-external-message`, `estimate-fee`, and `send-message` commands
+
+After a contract is registered with [**the Cometa service**](../guides/cometa-and-debugging.mdx), the =nil; CLI will be able to acquire its ABI automatically whenever this contract is called using the commands described above. In this case, there will be no need to specify the `--abi` flag with these commands.
+
+## Migration of `Nil.js` scripts
+
+* Access the new `flags` array inside message receipts
+
+Receipts returned by `Nil.js` now contain the `flags` array which holds objects describing the type of the message whose receipts is being read. The available types of flags include:
+
+```js 
+"Internal" | "External" | "Deploy" | "Refund" | "Bounce" | "Response";
+```
+
+This change should make it easier to differentiate between different messages based on their receipts.
+
+## Migration of Hardhat scripts and tasks
+
+No specific changes have to be made to existing Hardhat scripts and tasks.
+
+
+
+
