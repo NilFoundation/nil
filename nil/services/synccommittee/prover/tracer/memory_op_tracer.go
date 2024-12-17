@@ -22,6 +22,13 @@ type MemoryOpTracer struct {
 	prevOpFinisher func()
 }
 
+func NewMemoryOpTracer(rwCounter *RwCounter, msgId uint) *MemoryOpTracer {
+	return &MemoryOpTracer{
+		rwCtr: rwCounter,
+		msgId: msgId,
+	}
+}
+
 type memoryRange struct {
 	offset uint64
 	length uint64

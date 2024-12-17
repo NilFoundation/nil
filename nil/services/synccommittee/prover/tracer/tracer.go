@@ -37,7 +37,7 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 	aggTraces ExecutionTraces,
 	shardId types.ShardId,
 	blockRef transport.BlockReference,
-) error {
+) (err error) {
 	dbgBlock, err := rt.client.GetDebugBlock(shardId, blockRef, true)
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 		return err
 	}
 
-	stateDB, err := NewTracerStateDB(ctx, aggTraces, rt.client, shardId, prevBlock.Number, blkContext, localDb)
+	stateDB, err := NewTracerStateDB(ctx, aggTraces, rt.client, shardId, prevBlock.Number, blkContext, localDb, rt.logger)
 	if err != nil {
 		return err
 	}
@@ -98,7 +98,7 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 		}
 
 		if inMsg.Flags.GetBit(types.MessageFlagResponse) {
-			panic("can't process responses in prover, refer to TryProcessResponse of ExecutionState")
+			return errors.New("can't process responses in prover, refer to TryProcessResponse of ExecutionState")
 		}
 
 		stateDB.AddInMessage(inMsg)

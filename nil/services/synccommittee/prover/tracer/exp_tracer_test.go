@@ -39,18 +39,23 @@ func (m *MockOpContext) CallInput() []byte {
 }
 
 // traceExpOperation encapsulates the setup and invocation of tracing an EXP operation.
-func traceExpOperation(tracer *ExpOpTracer, opCode vm.OpCode, pc uint64, base, exponent uint64) {
+func traceExpOperation(t *testing.T, tracer *ExpOpTracer, opCode vm.OpCode, pc uint64, base, exponent uint64) {
+	t.Helper()
 	base256 := uint256.NewInt(base)
 	context := &MockOpContext{
 		stack: []uint256.Int{*uint256.NewInt(exponent), *base256},
 	}
 
-	tracer.TraceOp(opCode, pc, context)
+	traced, err := tracer.TraceOp(opCode, pc, context)
+	require.NoError(t, err)
 
 	if opCode == vm.EXP {
 		// mimic `opExp`
+		assert.True(t, traced)
 		context.stack = context.stack[:1]
 		context.stack[0].Exp(base256, &context.stack[0])
+	} else {
+		assert.False(t, traced)
 	}
 
 	tracer.FinishPrevOpcodeTracing()
@@ -60,7 +65,7 @@ func TestExpOpTracer_HandlesExpOperation(t *testing.T) {
 	t.Parallel()
 	tracer := &ExpOpTracer{}
 
-	traceExpOperation(tracer, vm.EXP, 0, 2, 3)
+	traceExpOperation(t, tracer, vm.EXP, 0, 2, 3)
 
 	require.Len(t, tracer.res, 1)
 	op := tracer.res[0]
@@ -73,7 +78,7 @@ func TestExpOpTracer_IgnoresNonExpOperations(t *testing.T) {
 	t.Parallel()
 	tracer := &ExpOpTracer{}
 
-	traceExpOperation(tracer, vm.ADD, 0, 2, 3) // Non-EXP opcode should result in no operation captured
+	traceExpOperation(t, tracer, vm.ADD, 0, 2, 3) // Non-EXP opcode should result in no operation captured
 
 	assert.Empty(t, tracer.res)
 }
@@ -82,8 +87,8 @@ func TestExpOpTracer_MaintainsCorrectStateAcrossCalls(t *testing.T) {
 	t.Parallel()
 	tracer := &ExpOpTracer{}
 
-	traceExpOperation(tracer, vm.EXP, 0, 2, 3)
-	traceExpOperation(tracer, vm.EXP, 1, 3, 4)
+	traceExpOperation(t, tracer, vm.EXP, 0, 2, 3)
+	traceExpOperation(t, tracer, vm.EXP, 1, 3, 4)
 
 	require.Len(t, tracer.res, 2)
 	assert.Equal(t, uint256.NewInt(3), tracer.res[1].Base)
