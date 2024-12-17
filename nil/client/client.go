@@ -69,6 +69,9 @@ type Client interface {
 
 	// ChangeCurrencyAmount mints / burns currency for the contract
 	ChangeCurrencyAmount(contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey, mint bool) (common.Hash, error)
+
+	// GetDebugContract retrieves smart contract with its data, such as code, storage and proof
+	GetDebugContract(contractAddr types.Address, blockId any) (*jsonrpc.DebugRPCContract, error)
 }
 
 func EstimateFeeExternal(c Client, msg *types.ExternalMessage, blockId any) (types.Value, error) {

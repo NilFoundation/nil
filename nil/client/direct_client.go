@@ -308,3 +308,7 @@ func (c *DirectClient) BatchCall(BatchRequest) ([]any, error) {
 func (c *DirectClient) PlainTextCall(requestBody []byte) (json.RawMessage, error) {
 	panic("Not supported")
 }
+
+func (c *DirectClient) GetDebugContract(contractAddr types.Address, blockId any) (*jsonrpc.DebugRPCContract, error) {
+	panic("Not supported")
+}

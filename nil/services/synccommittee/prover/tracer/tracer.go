@@ -5,7 +5,7 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/NilFoundation/nil/nil/client/rpc"
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -19,13 +19,13 @@ type RemoteTracer interface {
 }
 
 type RemoteTracerImpl struct {
-	client *rpc.Client
+	client client.Client
 	logger zerolog.Logger
 }
 
 var _ RemoteTracer = new(RemoteTracerImpl)
 
-func NewRemoteTracer(client *rpc.Client, logger zerolog.Logger) (*RemoteTracerImpl, error) {
+func NewRemoteTracer(client client.Client, logger zerolog.Logger) (*RemoteTracerImpl, error) {
 	return &RemoteTracerImpl{
 		client: client,
 		logger: logger,

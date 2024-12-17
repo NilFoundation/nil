@@ -7,13 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	niltypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
@@ -21,7 +19,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type TracerTestSuite struct {
+type TracerNildTestSuite struct {
 	tests.RpcSuite
 
 	tracer RemoteTracer
@@ -30,7 +28,13 @@ type TracerTestSuite struct {
 	shardId  types.ShardId
 }
 
-func (s *TracerTestSuite) waitTwoBlocks() {
+func TestTracerNildTestSuite(t *testing.T) {
+	t.Parallel()
+
+	suite.Run(t, new(TracerNildTestSuite))
+}
+
+func (s *TracerNildTestSuite) waitTwoBlocks() {
 	s.T().Helper()
 	const (
 		zeroStateWaitTimeout  = 5 * time.Second
@@ -38,13 +42,13 @@ func (s *TracerTestSuite) waitTwoBlocks() {
 	)
 	for i := range s.ShardsNum {
 		s.Require().Eventually(func() bool {
-			block, err := s.Client.GetBlock(niltypes.ShardId(i), transport.BlockNumber(1), false)
+			block, err := s.Client.GetBlock(types.ShardId(i), transport.BlockNumber(1), false)
 			return err == nil && block != nil
 		}, zeroStateWaitTimeout, zeroStatePollInterval)
 	}
 }
 
-func (s *TracerTestSuite) SetupSuite() {
+func (s *TracerNildTestSuite) SetupSuite() {
 	nilserviceCfg := &nilservice.Config{
 		NShards:              5,
 		HttpUrl:              rpctest.GetSockPath(s.T()),
@@ -56,21 +60,19 @@ func (s *TracerTestSuite) SetupSuite() {
 	s.Start(nilserviceCfg)
 	s.waitTwoBlocks()
 
-	cl, ok := s.Client.(*rpc.Client)
-	s.Require().True(ok)
 	var err error
-	s.tracer, err = NewRemoteTracer(cl, logging.NewLogger("tracer-test"))
+	s.tracer, err = NewRemoteTracer(s.Client, logging.NewLogger("tracer-test"))
 	s.Require().NoError(err)
 
 	s.addrFrom = types.MainWalletAddress
 	s.shardId = types.BaseShardId
 }
 
-func (s *TracerTestSuite) TearDownSuite() {
+func (s *TracerNildTestSuite) TearDownSuite() {
 	s.Cancel()
 }
 
-func (s *TracerTestSuite) TestCounterContract() {
+func (s *TracerNildTestSuite) TestCounterContract() {
 	ctx := context.Background()
 
 	deployPayload := contracts.CounterDeployPayload(s.T())
@@ -140,7 +142,7 @@ func (s *TracerTestSuite) TestCounterContract() {
 	})
 }
 
-func (s *TracerTestSuite) TestTestContract() {
+func (s *TracerNildTestSuite) TestTestContract() {
 	ctx := context.Background()
 	deployPayload := contracts.GetDeployPayload(s.T(), contracts.NameTest)
 	contractAddr := types.CreateAddress(s.shardId, deployPayload)
@@ -223,7 +225,7 @@ func (s *TracerTestSuite) TestTestContract() {
 
 // It looks like even wallet deploy is handled in multiple blocks, I don't know how to catch specific one for
 // checks. Just prove every one.
-func (s *TracerTestSuite) checkAllBlocksTracesSerialization() {
+func (s *TracerNildTestSuite) checkAllBlocksTracesSerialization() {
 	ctx := context.Background()
 	for shardN := range s.ShardsNum {
 		shardId := types.ShardId(shardN)
@@ -273,10 +275,4 @@ func (s *TracerTestSuite) checkAllBlocksTracesSerialization() {
 			}
 		}
 	}
-}
-
-func TestSuiteTracer(t *testing.T) {
-	t.Parallel()
-
-	suite.Run(t, new(TracerTestSuite))
 }

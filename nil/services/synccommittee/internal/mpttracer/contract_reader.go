@@ -1,18 +1,49 @@
 package mpttracer
 
 import (
-	"github.com/NilFoundation/nil/nil/client/rpc"
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 )
 
+type DeserializedDebugRPCContract struct {
+	Contract                types.SmartContract
+	ExistenceProof          mpt.Proof
+	Code                    types.Code
+	StorageTrieEntries      map[common.Hash]types.Uint256
+	CurrencyTrieEntries     map[types.CurrencyId]types.Value
+	AsyncContextTrieEntries map[types.MessageIndex]types.AsyncContext
+}
+
+func deserializeDebugRPCContract(debugRPCContract *jsonrpc.DebugRPCContract) (*DeserializedDebugRPCContract, error) {
+	contract := new(types.SmartContract)
+	if err := contract.UnmarshalSSZ(debugRPCContract.Contract); err != nil {
+		return nil, err
+	}
+
+	existenceProof, err := mpt.DecodeProof(debugRPCContract.Proof)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DeserializedDebugRPCContract{
+		Contract:                *contract,
+		ExistenceProof:          existenceProof,
+		Code:                    types.Code(debugRPCContract.Code),
+		StorageTrieEntries:      debugRPCContract.Storage,
+		CurrencyTrieEntries:     debugRPCContract.Currencies,
+		AsyncContextTrieEntries: debugRPCContract.AsyncContext,
+	}, nil
+}
+
 // DebugApiContractReader implements ContractReader for debug API
 type DebugApiContractReader struct {
-	client           *rpc.Client
+	client           client.Client
 	shardBlockNumber types.BlockNumber
 	rwTx             db.RwTx
 	shardId          types.ShardId
@@ -20,7 +51,7 @@ type DebugApiContractReader struct {
 
 // NewDebugApiContractReader creates a new DebugApiContractReader
 func NewDebugApiContractReader(
-	client *rpc.Client,
+	client client.Client,
 	shardBlockNumber types.BlockNumber,
 	rwTx db.RwTx,
 	shardId types.ShardId,
@@ -43,8 +74,13 @@ func (dacr *DebugApiContractReader) AppendToJournal(je execution.JournalEntry) {
 
 // GetAccount retrieves an account with its debug information
 func (dacr *DebugApiContractReader) GetAccount(addr types.Address) (*TracerAccount, mpt.Proof, error) {
-	debugContract, err := dacr.client.GetDebugContract(addr, transport.BlockNumber(dacr.shardBlockNumber))
-	if err != nil || debugContract == nil {
+	debugRPCContract, err := dacr.client.GetDebugContract(addr, transport.BlockNumber(dacr.shardBlockNumber))
+	if err != nil || debugRPCContract == nil {
+		return nil, mpt.Proof{}, err
+	}
+
+	debugContract, err := deserializeDebugRPCContract(debugRPCContract)
+	if err != nil {
 		return nil, mpt.Proof{}, err
 	}
 

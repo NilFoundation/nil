@@ -21,7 +21,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
@@ -781,37 +780,7 @@ func (c *Client) GetBlocksRange(shardId types.ShardId, from, to types.BlockNumbe
 	return result, nil
 }
 
-type DeserializedDebugRPCContract struct {
-	Contract                types.SmartContract
-	ExistenceProof          mpt.Proof
-	Code                    types.Code
-	StorageTrieEntries      map[common.Hash]types.Uint256
-	CurrencyTrieEntries     map[types.CurrencyId]types.Value
-	AsyncContextTrieEntries map[types.MessageIndex]types.AsyncContext
-}
-
-func deserializeDebugRPCContract(debugRPCContract *jsonrpc.DebugRPCContract) (*DeserializedDebugRPCContract, error) {
-	contract := new(types.SmartContract)
-	if err := contract.UnmarshalSSZ(debugRPCContract.Contract); err != nil {
-		return nil, err
-	}
-
-	existenceProof, err := mpt.DecodeProof(debugRPCContract.Proof)
-	if err != nil {
-		return nil, err
-	}
-
-	return &DeserializedDebugRPCContract{
-		Contract:                *contract,
-		ExistenceProof:          existenceProof,
-		Code:                    types.Code(debugRPCContract.Code),
-		StorageTrieEntries:      debugRPCContract.Storage,
-		CurrencyTrieEntries:     debugRPCContract.Currencies,
-		AsyncContextTrieEntries: debugRPCContract.AsyncContext,
-	}, nil
-}
-
-func (c *Client) GetDebugContract(contractAddr types.Address, blockId any) (*DeserializedDebugRPCContract, error) {
+func (c *Client) GetDebugContract(contractAddr types.Address, blockId any) (*jsonrpc.DebugRPCContract, error) {
 	blockRef, err := transport.AsBlockReference(blockId)
 	if err != nil {
 		return nil, err
@@ -828,9 +797,5 @@ func (c *Client) GetDebugContract(contractAddr types.Address, blockId any) (*Des
 		return nil, err
 	}
 
-	if DebugRPCContract == nil {
-		return nil, nil
-	}
-
-	return deserializeDebugRPCContract(DebugRPCContract)
+	return DebugRPCContract, err
 }
