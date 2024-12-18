@@ -120,18 +120,25 @@ func (s *Service) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address,
 		return errors.New("faucet client is not set")
 	}
 
-	msgHash, err := s.faucetClient.TopUpViaFaucet(faucetAddress, contractAddressTo, amount)
-	if err != nil {
-		return err
+	var r *jsonrpc.RPCReceipt
+	for range 5 {
+		msgHash, err := s.faucetClient.TopUpViaFaucet(faucetAddress, contractAddressTo, amount)
+		if err != nil {
+			return err
+		}
+
+		r, err = s.WaitForReceipt(msgHash)
+		if err != nil {
+			return err
+		}
+
+		if r.AllSuccess() {
+			s.logger.Info().Msgf("Contract %s balance is topped up by %s on behalf of %s", contractAddressTo, amount, faucetAddress)
+			return nil
+		}
 	}
 
-	_, err = s.WaitForReceipt(msgHash)
-	if err != nil {
-		return err
-	}
-
-	s.logger.Info().Msgf("Contract %s balance is topped up by %s on behalf of %s", contractAddressTo, amount, faucetAddress)
-	return nil
+	return fmt.Errorf("failed to top up contract %s: %s", contractAddressTo, r.ErrorMessage)
 }
 
 func (s *Service) CreateWallet(
