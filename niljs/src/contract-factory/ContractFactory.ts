@@ -516,25 +516,20 @@ export function getContract<
   A extends Abi | unknown[],
   C extends PublicClient,
   W extends WalletInterface,
+  K extends string,
 >(params: {
   abi: A;
   client: C;
   wallet: W;
   address: Address;
-  externalInterface?: { signer: ISigner; methods: string[] };
+  externalInterface?: { signer: ISigner; methods: K[] };
 }): {
   read: A extends Abi ? ReadContractsMethod<A, "view" | "pure"> : CommonReadContractMethods;
   write: A extends Abi
     ? WriteContractsMethod<A, "payable" | "nonpayable">
     : CommonWriteContractMethods;
   external: A extends Abi
-    ? ExternalContractsMethod<
-        A,
-        "payable" | "nonpayable",
-        typeof params.externalInterface extends { methods: string[] }
-          ? (typeof params)["externalInterface"]["methods"]
-          : []
-      >
+    ? ExternalContractsMethod<A, "payable" | "nonpayable", K[]>
     : CommonWriteContractMethods;
 };
 
@@ -550,6 +545,7 @@ export function getContract<
   A extends Abi | unknown[],
   C extends PublicClient,
   W extends WalletInterface,
+  K extends string,
 >({
   abi,
   client,
@@ -561,7 +557,7 @@ export function getContract<
   client: C;
   wallet?: W;
   address: Address;
-  externalInterface?: { signer: ISigner; methods: string[] };
+  externalInterface?: { signer: ISigner; methods: K[] };
 }) {
   const parseResult = AbiZod.safeParse(abi);
   if (parseResult.error) {
@@ -701,7 +697,7 @@ export function getContract<
       if (
         b.type === "function" &&
         (b.stateMutability === "payable" || b.stateMutability === "nonpayable") &&
-        externalInterface.methods.includes(b.name)
+        externalInterface.methods.includes(b.name as K)
       ) {
         // @ts-ignore
         writeExternalMethods[b.name] = b;
@@ -758,13 +754,7 @@ export function getContract<
     external: A extends ReadonlyArray<
       AbiConstructor | AbiError | AbiEvent | AbiFallback | AbiFunction | AbiReceive
     >
-      ? ExternalContractsMethod<
-          A,
-          "payable" | "nonpayable",
-          typeof externalInterface extends { methods: string[] }
-            ? (typeof externalInterface)["methods"]
-            : []
-        >
+      ? ExternalContractsMethod<A, "payable" | "nonpayable", K[]>
       : CommonWriteContractMethods;
   };
 }

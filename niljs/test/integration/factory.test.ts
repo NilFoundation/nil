@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Abi } from "abitype";
 import {
   Faucet,
   HttpTransport,
@@ -50,8 +49,63 @@ beforeAll(async () => {
 
 test("Contract Factory", async ({ expect }) => {
   const bin = readFileSync(join(__dirname, "./contracts/Incrementer.bin"), "utf8");
-  const abiJSON = readFileSync(join(__dirname, "./contracts/Incrementer.abi"), "utf8");
-  const abi = JSON.parse(abiJSON) as Abi;
+  const abi = [
+    {
+      inputs: [{ internalType: "uint256", name: "start", type: "uint256" }],
+      stateMutability: "nonpayable",
+      type: "constructor",
+    },
+    {
+      inputs: [
+        { internalType: "uint256", name: "a", type: "uint256" },
+        { internalType: "uint256", name: "b", type: "uint256" },
+      ],
+      name: "add",
+      outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+      stateMutability: "pure",
+      type: "function",
+    },
+    {
+      inputs: [],
+      name: "counter",
+      outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+      stateMutability: "view",
+      type: "function",
+    },
+    {
+      inputs: [],
+      name: "getCounter",
+      outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+      stateMutability: "view",
+      type: "function",
+    },
+    { inputs: [], name: "increment", outputs: [], stateMutability: "nonpayable", type: "function" },
+    {
+      inputs: [],
+      name: "incrementExternal",
+      outputs: [],
+      stateMutability: "nonpayable",
+      type: "function",
+    },
+    {
+      inputs: [{ internalType: "uint256", name: "_counter", type: "uint256" }],
+      name: "setCounter",
+      outputs: [],
+      stateMutability: "nonpayable",
+      type: "function",
+    },
+    {
+      inputs: [
+        { internalType: "uint256", name: "hash", type: "uint256" },
+        { internalType: "bytes", name: "signature", type: "bytes" },
+      ],
+      name: "verifyExternal",
+      outputs: [{ internalType: "bool", name: "", type: "bool" }],
+      stateMutability: "view",
+      type: "function",
+    },
+    { stateMutability: "payable", type: "receive" },
+  ] as const;
 
   const faucet = new Faucet(client);
   const key = generateRandomPrivateKey();
@@ -85,7 +139,7 @@ test("Contract Factory", async ({ expect }) => {
   await waitTillCompleted(client, deployHash);
 
   const incrementer = getContract({
-    abi: abi as unknown[],
+    abi: abi,
     address: incrementerAddress,
     client,
     wallet,
@@ -93,7 +147,7 @@ test("Contract Factory", async ({ expect }) => {
       signer: wallet.signer,
       methods: ["incrementExternal"],
     },
-  });
+  } as const);
 
   const value = await incrementer.read.counter([]);
 
