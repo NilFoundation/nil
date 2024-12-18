@@ -3,8 +3,6 @@ import { BaseCommand } from "../../base.js";
 import { ConfigKeys } from "../../common/config.js";
 import { getPublicKey } from "@nilfoundation/niljs";
 
-export const DefualtNewWalletAmount = 100_000_000n;
-
 export default class WalletNew extends BaseCommand {
   static override description =
     "Get the address and the public key of the wallet set in the config file";
