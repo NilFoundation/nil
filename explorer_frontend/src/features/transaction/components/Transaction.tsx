@@ -13,23 +13,33 @@ import {
 import { useStyletron } from "styletron-react";
 import { useUnit } from "effector-react";
 import { $transaction, fetchTransactionFx } from "../models/transaction";
-import { type Key, useState } from "react";
+import { type Key, useEffect, useState } from "react";
 import type { OnChangeHandler, TabsOverrides } from "baseui/tabs";
 import { Overview } from "./Overview";
 import { Logs } from "./Logs";
 import { $transactionLogs, fetchTransactionLogsFx } from "../models/transactionLogs";
 import { TransactionList } from "../../transaction-list";
 import { useMobile } from "../../shared";
+import { $transactionChilds, fetchTransactionChildsFx } from "../models/transactionChilds.ts";
 
 export const Transaction = () => {
   const [css] = useStyletron();
   const [isMobile] = useMobile();
   const [transaction, pending] = useUnit([$transaction, fetchTransactionFx.pending]);
   const [logs, logsPending] = useUnit([$transactionLogs, fetchTransactionLogsFx.pending]);
+  const [transactionChilds, childsLoading] = useUnit([
+    $transactionChilds,
+    fetchTransactionChildsFx.pending,
+  ]);
   const [activeKey, setActiveKey] = useState<Key>("0");
   const onChangeHandler: OnChangeHandler = (currentKey) => {
     setActiveKey(currentKey.activeKey);
   };
+  useEffect(() => {
+    if (transaction) {
+      fetchTransactionChildsFx(transaction.hash);
+    }
+  }, [transaction]);
 
   return (
     <>
@@ -52,7 +62,13 @@ export const Transaction = () => {
           >
             {logsPending ? <Skeleton animation /> : <Logs logs={logs} />}
           </Tab>
-          <Tab title={isMobile ? "Outgoing msg" : "Outgoing messages"} kind={TAB_KIND.secondary}>
+          <Tab
+            title={isMobile ? "Outgoing msg" : "Outgoing messages"}
+            endEnhancer={
+              <Tag size={TAG_SIZE.m}>{!childsLoading ? transactionChilds?.length : "..."}</Tag>
+            }
+            kind={TAB_KIND.secondary}
+          >
             <TransactionList type="transaction" identifier={transaction.hash} view="incoming" />
           </Tab>
         </Tabs>
