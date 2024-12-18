@@ -59,6 +59,13 @@ func CallReadonlyCommand(cfg *common.Config) *cobra.Command {
 		"Define whether to show the tokens used and outbound messages",
 	)
 
+	cmd.Flags().BoolVar(
+		&params.AsJson,
+		asJsonFlag,
+		false,
+		"Output as JSON",
+	)
+
 	return cmd
 }
 

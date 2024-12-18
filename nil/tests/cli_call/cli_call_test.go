@@ -85,8 +85,14 @@ func (s *SuiteCliTestCall) TestCliCall() {
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "noReturn", "--abi", abiFile)
 	s.CheckResult(res, "Success, no result")
 
+	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "noReturn", "--abi", abiFile, "--json")
+	s.JSONEq(`{ "result": [] }`, res)
+
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getSum", "1", "2", "--abi", abiFile)
 	s.CheckResult(res, "Success, result:", "uint256: 3")
+
+	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getSum", "1", "2", "--abi", abiFile, "--json")
+	s.JSONEq(`{ "result": [ { "type": "uint256", "value": 3 } ] }`, res)
 
 	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getString", "--abi", abiFile)
 	s.CheckResult(res, "Success, result:", "string: \"Very long string with many characters and words and spaces and numbers and symbols and everything else that can be in a string\"")

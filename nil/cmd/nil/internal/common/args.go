@@ -128,13 +128,13 @@ func ArgsToCalldata(contractAbi abi.ABI, method string, args []string) ([]byte, 
 }
 
 type ArgValue struct {
-	Type  abi.Type `json:"type"`
-	Value any      `json:"value"`
+	Type  string `json:"type"`
+	Value any    `json:"value"`
 }
 
 type NamedArgValues struct {
-	Name      string
-	ArgValues []*ArgValue
+	Name      string      `json:"name"`
+	ArgValues []*ArgValue `json:"values"`
 }
 
 func ReadAbiFromFile(abiPath string) (abi.ABI, error) {
@@ -186,7 +186,7 @@ func DecodeLogs(abi abi.ABI, logs []*types.Log) ([]*NamedArgValues, error) {
 		log := make([]*ArgValue, len(event.Inputs))
 		for i, arg := range event.Inputs {
 			log[i] = &ArgValue{
-				Type:  arg.Type,
+				Type:  arg.Type.String(),
 				Value: obj[i],
 			}
 		}
@@ -208,7 +208,7 @@ func CalldataToArgs(abi abi.ABI, method string, data []byte) ([]*ArgValue, error
 	results := make([]*ArgValue, len(abi.Methods[method].Outputs))
 	for i, output := range abi.Methods[method].Outputs {
 		results[i] = &ArgValue{
-			Type:  output.Type,
+			Type:  output.Type.String(),
 			Value: obj[i],
 		}
 	}
