@@ -1,5 +1,8 @@
 {
-  "main": "src/hello.js",
+  "main": "dist/cli.cjs",
   "output": "sea-prep.blob",
-  "disableExperimentalSEAWarning": true
+  "disableExperimentalSEAWarning": true,
+  "assets": {
+    "/vfs-35b1b535-4fff-4ff3-882d-073f4ea7cfeb/commands.cjs": "dist/commands.cjs"
+  }
 }

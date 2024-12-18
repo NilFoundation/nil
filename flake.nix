@@ -53,6 +53,9 @@
             nil = packages.nil;
             enableTesting = true;
           });
+          clijs = (pkgs.callPackage ./nix/clijs.nix {
+            enableTesting = true;
+          });
           nildocs = (pkgs.callPackage ./nix/nildocs.nix {
             nil = packages.nil;
             enableTesting = true;

@@ -48,7 +48,6 @@
     "dirname": "nil",
     "commands": "./dist/src/commands",
     "plugins": [
-      "@oclif/plugin-help"
     ],
     "topicSeparator": " ",
     "topics": {
@@ -63,6 +62,7 @@
   "repository": "nil-blockchain/clijs",
   "scripts": {
     "build": "rimraf dist && npx tsc -b",
+    "bundle": "rimraf dist && node bundle.js",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "postpack": "rimraf oclif.manifest.json",

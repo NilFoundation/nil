@@ -1,8 +1,8 @@
 {
-  "target": "ES2023",
   "include": ["./artifacts"],
   "exclude": ["node_modules"],
   "compilerOptions": {
+    "target": "ES2023",
     "declaration": true,
     "declarationDir": "./artifacts"
   }

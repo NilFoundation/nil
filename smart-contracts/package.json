@@ -32,6 +32,6 @@
 		"@rollup/plugin-typescript": "^12.1.1",
 		"rimraf": "^6.0.1",
 		"solc": "^0.8.26",
-    "rollup": "^4.28.0"
+ 	 	"@rollup/wasm-node": "^4.28.0"
 	}
 }

@@ -7,10 +7,11 @@
     "target": "es2022",
     "moduleResolution": "bundler",
     "skipLibCheck": true,
-    "composite": true,
+    "composite": true
   },  
   "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["src/sea.ts", "src/commands.ts"],
   "ts-node": {
     "esm": true
-  },
+  }
 }

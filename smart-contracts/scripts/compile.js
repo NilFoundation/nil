@@ -2,7 +2,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const solc = require('solc');
 const { rimrafSync } = require('rimraf');
-const rollup = require('rollup').rollup;
+const rollup = require('@rollup/wasm-node').rollup;
 const typescript = require("@rollup/plugin-typescript");
 
 const scriptDir = __dirname;
