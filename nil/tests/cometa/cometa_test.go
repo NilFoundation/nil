@@ -178,6 +178,49 @@ func (s *SuiteCometa) TestGeneratedCode() {
 	s.Require().Equal("#utility.yul:8, function: revert_error_dbdddcbe895c83990c08b3492a0e83918d802a52331272ac6fdb6a7c4aea3b1b", loc.String())
 }
 
+func (s *SuiteCometa) TestMethodList() {
+	testAbi, err := contracts.GetAbi(contracts.NameTest)
+	s.Require().NoError(err)
+	walletAbi, err := contracts.GetAbi(contracts.NameWallet)
+	s.Require().NoError(err)
+
+	err = s.cometaClient.RegisterContractFromFile("../../contracts/solidity/compile-wallet.json", types.MainWalletAddress)
+	s.Require().NoError(err)
+
+	err = s.cometaClient.RegisterContractFromFile("../../contracts/solidity/tests/compile-test.json", s.testAddress)
+	s.Require().NoError(err)
+
+	messages := []cometa.MessageInfo{
+		{
+			Address: s.testAddress,
+			FuncId:  hexutil.EncodeNo0x(testAbi.Methods["makeFail"].ID),
+		},
+		{
+			Address: s.testAddress,
+			FuncId:  "11111111",
+		},
+		{
+			Address: types.MainWalletAddress,
+			FuncId:  hexutil.Encode(walletAbi.Methods["send"].ID),
+		},
+	}
+	res, err := s.cometaClient.DecodeMessagesCallData(messages)
+	s.Require().NoError(err)
+	s.Require().Equal("makeFail(int32)", res[0])
+	s.Require().Empty(res[1])
+	s.Require().Equal("send(bytes)", res[2])
+
+	// Obviously wrong funcId, should return error
+	messages = []cometa.MessageInfo{
+		{
+			Address: s.testAddress,
+			FuncId:  "123",
+		},
+	}
+	_, err = s.cometaClient.DecodeMessagesCallData(messages)
+	s.Require().Error(err)
+}
+
 func checkClickhouseInstalled() bool {
 	cmd := exec.Command("clickhouse", "--version")
 	err := cmd.Run()

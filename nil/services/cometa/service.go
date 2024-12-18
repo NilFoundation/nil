@@ -39,6 +39,12 @@ type CometaJsonRpc interface {
 	RegisterContract(ctx context.Context, inputJson string, address types.Address) error
 	RegisterContractData(ctx context.Context, contractData *ContractData, address types.Address) error
 	GetVersion(ctx context.Context) (string, error)
+	DecodeMessagesCallData(ctx context.Context, request []MessageInfo) ([]string, error)
+}
+
+type MessageInfo struct {
+	Address types.Address `json:"address"`
+	FuncId  string        `json:"funcId"`
 }
 
 type Service struct {
@@ -278,6 +284,26 @@ func (s *Service) GetVersion(ctx context.Context) (string, error) {
 		return fmt.Sprintf("%s(%s)", time, gitCommit), nil
 	}
 	return "", errors.New("failed to get version")
+}
+
+func (s *Service) DecodeMessagesCallData(ctx context.Context, request []MessageInfo) ([]string, error) {
+	res := make([]string, 0, len(request))
+	for _, info := range request {
+		funcId := info.FuncId
+		if len(funcId) > 2 && funcId[:2] == "0x" {
+			funcId = funcId[2:]
+		}
+		if len(funcId) != 8 {
+			return nil, fmt.Errorf("invalid funcId: %s", funcId)
+		}
+		contract, err := s.GetContractControl(ctx, info.Address)
+		if err == nil {
+			res = append(res, contract.GetMethodSignatureById(funcId))
+		} else {
+			res = append(res, "")
+		}
+	}
+	return res, nil
 }
 
 func (s *Service) GetRpcApi() transport.API {

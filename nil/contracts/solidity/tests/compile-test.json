@@ -2,7 +2,7 @@
   "contractName": "Test.sol:Test",
   "compilerVersion": "0.8.28",
   "settings": {
-    "evmVersion": "shanghai",
+    "evmVersion": "cancun",
     "optimizer": {
       "enabled": false,
       "runs": 200
