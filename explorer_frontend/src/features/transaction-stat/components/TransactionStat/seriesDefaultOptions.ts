@@ -28,6 +28,7 @@ export const seriesDefaultOptions: AreaSeriesPartialOptions = {
   },
   priceScaleId: "left",
   priceLineVisible: false,
+  lastValueVisible: false,
   topColor: COLORS.blue400,
   autoscaleInfoProvider,
 };
