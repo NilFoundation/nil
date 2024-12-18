@@ -31,6 +31,13 @@ type StackOpTracer struct {
 	prevOpFinisher func()
 }
 
+func NewStackOpTracer(rwCounter *RwCounter, msgId uint) *StackOpTracer {
+	return &StackOpTracer{
+		rwCtr: rwCounter,
+		msgId: msgId,
+	}
+}
+
 type SaveStackElements struct {
 	// top-N elements before opcode
 	before uint
@@ -336,14 +343,18 @@ func (sot *StackOpTracer) traceSwapOp() bool {
 	return true
 }
 
-func (sot *StackOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpContext) {
+func (sot *StackOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpContext) error {
+	if sot.prevOpFinisher != nil {
+		return ErrTraceNotFinalized
+	}
 	sot.opCode = opCode
 	sot.pc = pc
 	sot.scope = scope
 
 	if !sot.traceBasicOp() && !sot.traceDupOp() && !sot.traceSwapOp() {
-		panic(fmt.Sprintf("No stack save info for opcode: %v", opCode))
+		return fmt.Errorf("No stack save info for opcode: %v", opCode)
 	}
+	return nil
 }
 
 func (sot *StackOpTracer) FinishPrevOpcodeTracing() {

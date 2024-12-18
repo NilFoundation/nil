@@ -1,6 +1,8 @@
 package tracer
 
 import (
+	"errors"
+
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -34,11 +36,24 @@ type ZKEVMStateTracer struct {
 	res          []ZKEVMState
 }
 
+func NewZkEVMStateTracer(
+	rwCounter *RwCounter,
+	txHash, bytecodeHash common.Hash,
+	msgId uint,
+) *ZKEVMStateTracer {
+	return &ZKEVMStateTracer{
+		rwCtr:        rwCounter,
+		txHash:       txHash,
+		bytecodeHash: bytecodeHash,
+		msgId:        msgId,
+	}
+}
+
 func (zst *ZKEVMStateTracer) Finalize() []ZKEVMState {
-	state_num := len(zst.res)
+	stateNum := len(zst.res)
 	// Mark last state of transaction
-	if state_num != 0 {
-		zst.res[state_num-1].TxFinish = true
+	if stateNum != 0 {
+		zst.res[stateNum-1].TxFinish = true
 	}
 	return zst.res
 }
@@ -51,7 +66,7 @@ func (zst *ZKEVMStateTracer) TraceOp(
 	additionalInput *types.Uint256,
 	memRanges opRanges,
 	scope tracing.OpContext,
-) bool {
+) error {
 	state := ZKEVMState{
 		TxHash:          zst.txHash,
 		TxId:            int(zst.msgId),
@@ -94,17 +109,16 @@ func (zst *ZKEVMStateTracer) TraceOp(
 	}
 	zst.res = append(zst.res, state)
 
-	return true
+	return nil
 }
 
-func (zst *ZKEVMStateTracer) SetLastStateStorage(key, value types.Uint256) {
+func (zst *ZKEVMStateTracer) SetLastStateStorage(key, value types.Uint256) error {
 	stateNum := len(zst.res)
 	if stateNum == 0 {
-		panic("State must be already added before storage operation")
+		return errors.New("Attempt to add storage operation without initializing zkEVM state")
 	}
+
 	lastRes := &zst.res[stateNum-1]
 	lastRes.StorageSlice[key] = value
-}
-
-func (zst *ZKEVMStateTracer) FinishPrevOpcodeTracing() {
+	return nil
 }

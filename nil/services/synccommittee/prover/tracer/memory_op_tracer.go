@@ -22,6 +22,13 @@ type MemoryOpTracer struct {
 	prevOpFinisher func()
 }
 
+func NewMemoryOpTracer(rwCounter *RwCounter, msgId uint) *MemoryOpTracer {
+	return &MemoryOpTracer{
+		rwCtr: rwCounter,
+		msgId: msgId,
+	}
+}
+
 type memoryRange struct {
 	offset uint64
 	length uint64
@@ -250,7 +257,11 @@ func (mot *MemoryOpTracer) GetUsedMemoryRanges(opCode vm.OpCode, scope tracing.O
 	return memRanges, true
 }
 
-func (mot *MemoryOpTracer) TraceOp(opCode vm.OpCode, pc uint64, memRanges opRanges, scope tracing.OpContext) {
+func (mot *MemoryOpTracer) TraceOp(opCode vm.OpCode, pc uint64, memRanges opRanges, scope tracing.OpContext) error {
+	if mot.prevOpFinisher != nil {
+		return ErrTraceNotFinalized
+	}
+
 	for i := memRanges.before.offset; i < memRanges.before.offset+memRanges.before.length; i++ {
 		var databyte byte
 		// EVM does not break on attempt to "read" from memory region which are out of currently allocated range
@@ -279,6 +290,7 @@ func (mot *MemoryOpTracer) TraceOp(opCode vm.OpCode, pc uint64, memRanges opRang
 			})
 		}
 	}
+	return nil
 }
 
 func (mot *MemoryOpTracer) Finalize() []MemoryOp {

@@ -1,7 +1,6 @@
 package tracer
 
 import (
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/vm"
 	"github.com/holiman/uint256"
@@ -25,42 +24,51 @@ type ExpOpTracer struct {
 	prevOpFinisher func()
 }
 
-func (sot *ExpOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpContext) bool {
-	if opCode != vm.EXP {
-		return false
+func NewExpOpTracer(msgId uint) *ExpOpTracer {
+	return &ExpOpTracer{
+		msgId: msgId,
 	}
-	sot.opCode = opCode
-	sot.pc = pc
-	sot.scope = scope
+}
 
-	stack := NewStackAccessor(sot.scope.StackData())
+func (eot *ExpOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpContext) (bool, error) {
+	if opCode != vm.EXP {
+		return false, nil
+	}
+	if eot.prevOpFinisher != nil {
+		return false, ErrTraceNotFinalized
+	}
+
+	eot.opCode = opCode
+	eot.pc = pc
+	eot.scope = scope
+
+	stack := NewStackAccessor(eot.scope.StackData())
 	base, exponent := stack.Pop(), stack.Pop()
 
-	check.PanicIfNotf(sot.prevOpFinisher == nil, "previous operation finisher was not called")
-	sot.prevOpFinisher = func() {
-		stack := NewStackAccessor(sot.scope.StackData())
+	eot.prevOpFinisher = func() {
+		stack := NewStackAccessor(eot.scope.StackData())
 		computedValue := stack.Pop()
-		sot.res = append(sot.res, ExpOp{
+		eot.res = append(eot.res, ExpOp{
 			Base:     base,
 			Exponent: exponent,
 			Result:   computedValue,
-			PC:       sot.pc,
-			MsgId:    sot.msgId,
+			PC:       eot.pc,
+			MsgId:    eot.msgId,
 		})
 	}
-	return true
+	return true, nil
 }
 
-func (sot *ExpOpTracer) FinishPrevOpcodeTracing() {
-	if sot.prevOpFinisher == nil {
+func (eot *ExpOpTracer) FinishPrevOpcodeTracing() {
+	if eot.prevOpFinisher == nil {
 		return
 	}
 
-	sot.prevOpFinisher()
-	sot.prevOpFinisher = nil
+	eot.prevOpFinisher()
+	eot.prevOpFinisher = nil
 }
 
-func (sot *ExpOpTracer) Finalize() []ExpOp {
-	sot.FinishPrevOpcodeTracing()
-	return sot.res
+func (eot *ExpOpTracer) Finalize() []ExpOp {
+	eot.FinishPrevOpcodeTracing()
+	return eot.res
 }

@@ -53,7 +53,14 @@ type CopyTracer struct {
 	events []CopyEvent
 
 	// initialized during TraceOp if the event requires to be enriched with some data from stack or memory after actual op execution
-	finalizer func()
+	finalizer func() error
+}
+
+func NewCopyTracer(codeProvider CodeProvider, msgId uint) *CopyTracer {
+	return &CopyTracer{
+		codeProvider: codeProvider,
+		msgId:        msgId,
+	}
 }
 
 func (ct *CopyTracer) TraceOp(
@@ -61,13 +68,13 @@ func (ct *CopyTracer) TraceOp(
 	rwCounter uint, // current global RW counter
 	opCtx tracing.OpContext,
 	returnData []byte,
-) bool {
+) (bool, error) {
 	extractEvent, ok := copyEventExtractors[opCode]
 	if !ok {
-		return false
+		return false, nil // no copy events for opcode
 	}
 	if ct.finalizer != nil {
-		panic(errors.New("copy event trace corrupted: previous opcode is not finalized"))
+		return false, ErrTraceNotFinalized
 	}
 
 	tCtx := copyEventTraceContext{
@@ -78,12 +85,12 @@ func (ct *CopyTracer) TraceOp(
 		stack:        NewStackAccessor(opCtx.StackData()),
 	}
 
-	eventData := extractEvent(tCtx)
-	if eventData.event == nil {
-		return false // opcode was found but copy event is not traced
+	eventData, err := extractEvent(tCtx)
+	if err != nil {
+		return false, err
 	}
-	if len(eventData.event.Data) == 0 {
-		return false // zero-sized copy ops are not expected to be processed by copy circuit
+	if eventData.isEmptyCopy() {
+		return false, nil
 	}
 
 	eventData.event.RwIdx = rwCounter
@@ -92,32 +99,44 @@ func (ct *CopyTracer) TraceOp(
 	ct.events = append(ct.events, *eventData.event)
 
 	if eventData.finalizer != nil {
-		ct.finalizer = func() {
-			eventData.finalizer(&ct.events[len(ct.events)-1])
+		ct.finalizer = func() error {
+			if len(ct.events) == 0 {
+				return errors.New("unexpected finlalized call on empty tracer")
+			}
+			return eventData.finalizer(&ct.events[len(ct.events)-1])
 		}
 	}
-	return true
+	return true, nil
 }
 
-func (ct *CopyTracer) FinishPrevOpcodeTracing() {
+func (ct *CopyTracer) FinishPrevOpcodeTracing() error {
 	if ct.finalizer == nil {
-		return
+		return nil
 	}
 
-	ct.finalizer()
+	err := ct.finalizer()
 	ct.finalizer = nil
+	return err
 }
 
-func (ct *CopyTracer) Finalize() []CopyEvent {
-	ct.FinishPrevOpcodeTracing()
-	return ct.events
+func (ct *CopyTracer) Finalize() ([]CopyEvent, error) {
+	err := ct.FinishPrevOpcodeTracing()
+	if err != nil {
+		return nil, err
+	}
+	return ct.events, nil
 }
 
-type copyEventFinalizer func(*CopyEvent)
+type copyEventFinalizer func(*CopyEvent) error
 
 type copyEvent struct {
 	event     *CopyEvent
 	finalizer copyEventFinalizer
+}
+
+func (ev *copyEvent) isEmptyCopy() bool {
+	return ev.event == nil || // event extractor found that no copy is done actually
+		len(ev.event.Data) == 0 // zero-sized copies should not be traced as copy events
 }
 
 func newFinalizedCopyEvent(base CopyEvent) copyEvent {
@@ -147,10 +166,10 @@ type copyEventTraceContext struct {
 	returnData   []byte
 }
 
-type copyEventExtractor func(tCtx copyEventTraceContext) copyEvent
+type copyEventExtractor func(tCtx copyEventTraceContext) (copyEvent, error)
 
 var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
-	vm.MCOPY: func(tCtx copyEventTraceContext) copyEvent {
+	vm.MCOPY: func(tCtx copyEventTraceContext) (copyEvent, error) {
 		var (
 			dst  = tCtx.stack.PopUint64()
 			src  = tCtx.stack.PopUint64()
@@ -170,10 +189,10 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 				MemAddress: dst,
 			},
 			Data: data,
-		})
+		}), nil
 	},
 
-	vm.CODECOPY: func(tCtx copyEventTraceContext) copyEvent {
+	vm.CODECOPY: func(tCtx copyEventTraceContext) (copyEvent, error) {
 		var (
 			dst  = tCtx.stack.PopUint64()
 			src  = tCtx.stack.PopUint64()
@@ -182,7 +201,7 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 
 		code, hash, err := tCtx.codeProvider.GetCurrentCode()
 		if err != nil {
-			panic(err) // should not obtain error on fetching executing code
+			return copyEvent{}, err
 		}
 		data := getDataOverflowSafe(code, src, size)
 
@@ -198,10 +217,10 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 				MemAddress: dst,
 			},
 			Data: data,
-		})
+		}), nil
 	},
 
-	vm.EXTCODECOPY: func(tCtx copyEventTraceContext) copyEvent {
+	vm.EXTCODECOPY: func(tCtx copyEventTraceContext) (copyEvent, error) {
 		var (
 			addr            types.Address
 			extCodeAddrWord = tCtx.stack.Pop()
@@ -213,7 +232,7 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 
 		code, hash, err := tCtx.codeProvider.GetCode(addr)
 		if err != nil {
-			panic(err) // should not obtain error on fetching loaded code
+			return copyEvent{}, err
 		}
 		data := getDataOverflowSafe(code, src, size)
 
@@ -229,10 +248,10 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 				MemAddress: dst,
 			},
 			Data: data,
-		})
+		}), nil
 	},
 
-	vm.CALLDATACOPY: func(tCtx copyEventTraceContext) copyEvent {
+	vm.CALLDATACOPY: func(tCtx copyEventTraceContext) (copyEvent, error) {
 		var (
 			dst  = tCtx.stack.PopUint64()
 			src  = tCtx.stack.PopUint64()
@@ -252,10 +271,10 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 				MemAddress: dst,
 			},
 			Data: data,
-		})
+		}), nil
 	},
 
-	vm.RETURN: func(tCtx copyEventTraceContext) copyEvent {
+	vm.RETURN: func(tCtx copyEventTraceContext) (copyEvent, error) {
 		var (
 			src  = tCtx.stack.PopUint64()
 			size = tCtx.stack.PopUint64()
@@ -273,10 +292,10 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 				TxId:     &tCtx.txId,
 			},
 			Data: data,
-		})
+		}), nil
 	},
 
-	vm.RETURNDATACOPY: func(tCtx copyEventTraceContext) copyEvent {
+	vm.RETURNDATACOPY: func(tCtx copyEventTraceContext) (copyEvent, error) {
 		var (
 			dst  = tCtx.stack.PopUint64()
 			src  = tCtx.stack.PopUint64()
@@ -296,10 +315,10 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 				MemAddress: dst,
 			},
 			Data: data,
-		})
+		}), nil
 	},
 
-	vm.CREATE: func(tCtx copyEventTraceContext) copyEvent {
+	vm.CREATE: func(tCtx copyEventTraceContext) (copyEvent, error) {
 		stackAfter := *tCtx.stack
 		stackAfter.Skip(2) // CREATE peeks 3 args and returns 1
 		finalizer := makeCreateOpCodeFinalizer(&stackAfter, tCtx.codeProvider)
@@ -321,10 +340,10 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 				// bytecode hash will be set by finalizer
 			},
 			Data: data,
-		}, finalizer)
+		}, finalizer), nil
 	},
 
-	vm.CREATE2: func(tCtx copyEventTraceContext) copyEvent {
+	vm.CREATE2: func(tCtx copyEventTraceContext) (copyEvent, error) {
 		stackAfter := *tCtx.stack
 		stackAfter.Skip(3) // CREATE2 peeks 4 args and returns 1
 		finalizer := makeCreateOpCodeFinalizer(&stackAfter, tCtx.codeProvider)
@@ -347,16 +366,17 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 				// bytecode hash will be set by finalizer
 			},
 			Data: data,
-		}, finalizer)
+		}, finalizer), nil
 	},
 
-	vm.KECCAK256: func(tCtx copyEventTraceContext) copyEvent {
+	vm.KECCAK256: func(tCtx copyEventTraceContext) (copyEvent, error) {
 		stackAfter := *tCtx.stack
 		stackAfter.Skip(1) // keccak peeks 2 arguments and returns one
-		finalizer := func(event *CopyEvent) {
+		finalizer := func(event *CopyEvent) error {
 			var result common.Hash
 			result.SetBytes(stackAfter.Pop().Bytes())
 			event.To.KeccakHash = &result
+			return nil
 		}
 
 		var (
@@ -376,7 +396,7 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 				// keccak hash will be set by finalizer
 			},
 			Data: data,
-		}, finalizer)
+		}, finalizer), nil
 	},
 
 	vm.LOG0: newLogCopyEvent,
@@ -398,13 +418,13 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 }
 
 // common way to trace all LOGx opcode copy event
-func newLogCopyEvent(tCtx copyEventTraceContext) copyEvent {
+func newLogCopyEvent(tCtx copyEventTraceContext) (copyEvent, error) {
 	var (
 		src  = tCtx.stack.PopUint64()
 		size = tCtx.stack.PopUint64()
 	)
 	if size == 0 {
-		return newEmptyCopyEvent()
+		return newEmptyCopyEvent(), nil
 	}
 
 	data := tCtx.vmCtx.MemoryData()[src : src+size]
@@ -420,18 +440,20 @@ func newLogCopyEvent(tCtx copyEventTraceContext) copyEvent {
 			TxId:     &tCtx.txId,
 		},
 		Data: data,
-	})
+	}), nil
 }
 
 // provides deployed bytecode hash fetcher from the stack
 func makeCreateOpCodeFinalizer(stack *StackAccessor, codeProvider CodeProvider) copyEventFinalizer {
-	return func(event *CopyEvent) {
+	return func(event *CopyEvent) error {
 		var codeAddr types.Address
 		codeAddr.SetBytes(stack.Pop().Bytes())
 		_, codeHash, err := codeProvider.GetCode(codeAddr)
 		if err != nil {
-			panic(err) // do not expect fail after opcode execution
+			return err
 		}
+
 		event.To.BytecodeHash = &codeHash
+		return nil
 	}
 }

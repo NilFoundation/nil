@@ -18,7 +18,11 @@ func TestStorageOpTracer_SetAndGetSlot(t *testing.T) {
 	pc := uint64(100)
 	msgId := uint(1)
 
-	interactor := NewStorageOpTracer(mptTracer, rwCounter, func() uint64 { return pc }, msgId)
+	interactor := NewStorageOpTracer(
+		mptTracer, rwCounter,
+		func() (uint64, error) { return pc, nil },
+		msgId,
+	)
 
 	// Test setting and getting a slot
 	key := common.BytesToHash([]byte("test_key"))
@@ -60,7 +64,9 @@ func TestStorageOpTracer_GetSlotNonExistent(t *testing.T) {
 
 	account, mptTracer := mpttracer.CreateTestAccount(t)
 	rwCounter := &RwCounter{}
-	interactor := NewStorageOpTracer(mptTracer, rwCounter, func() uint64 { return 100 }, 1)
+	interactor := NewStorageOpTracer(mptTracer, rwCounter,
+		func() (uint64, error) { return 100, nil }, 1,
+	)
 
 	// Try to get a non-existent slot
 	key := common.BytesToHash([]byte("non_existent_key"))
