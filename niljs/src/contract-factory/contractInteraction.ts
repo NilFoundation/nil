@@ -1,6 +1,8 @@
-import type { Abi } from "abitype";
+import type { Abi, Address } from "abitype";
 import { type EncodeFunctionDataParameters, decodeFunctionResult, encodeFunctionData } from "viem";
 import type { PublicClient } from "../clients/index.js";
+import { ExternalMessageEnvelope, bytesToHex, hexToBytes } from "../encoding/index.js";
+import type { ISigner } from "../signers/index.js";
 import type { Hex } from "../types/index.js";
 import type { ReadContractReturnType } from "../types/utils.js";
 import type { SendMessageParams, WalletInterface } from "../wallets/WalletInterface.js";
@@ -75,4 +77,51 @@ export async function writeContract<
     ...options,
   });
   return hex;
+}
+
+export async function writeExternalContract<
+  const abi extends Abi | readonly unknown[],
+  functionName extends ContractFunctionName<abi, "payable" | "nonpayable">,
+  const args extends ContractFunctionArgs<abi, "payable" | "nonpayable", functionName>,
+>({
+  client,
+  signer,
+  args,
+  abi,
+  functionName,
+  options,
+}: {
+  client: PublicClient;
+  signer: ISigner;
+  args: args;
+  abi: abi;
+  functionName: functionName;
+  options: WriteOptions;
+}): Promise<Hex> {
+  const calldata = encodeFunctionData({
+    abi,
+    args,
+    functionName,
+  } as EncodeFunctionDataParameters);
+
+  const toBytes = options.to instanceof Uint8Array ? options.to : hexToBytes(options.to as Address);
+  const toAddress =
+    options.to instanceof Uint8Array ? bytesToHex(options.to) : (options.to as Address);
+
+  const [refinedSeqno, chainId] = await Promise.all([
+    client.getMessageCount(toAddress, "latest"),
+    client.chainId(),
+  ]);
+
+  const message = new ExternalMessageEnvelope({
+    isDeploy: false,
+    to: toBytes,
+    chainId: chainId,
+    seqno: refinedSeqno,
+    data: hexToBytes(calldata),
+    authData: new Uint8Array(0),
+  });
+  message.authData = await message.sign(signer);
+  const encodedMessage = message.encode();
+  return await client.sendRawMessage(bytesToHex(encodedMessage));
 }

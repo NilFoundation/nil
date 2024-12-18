@@ -159,6 +159,27 @@ export type WriteContractsMethod<
   ) => Promise<Hex>;
 };
 
+export type ExternalContractsMethod<
+  T extends ReadonlyArray<
+    AbiConstructor | AbiError | AbiEvent | AbiFallback | AbiFunction | AbiReceive
+  >,
+  S extends AbiStateMutability = "payable" | "nonpayable",
+  F extends readonly string[] = readonly string[],
+  B extends AbiFunction = Extract<
+    T[number],
+    {
+      stateMutability: S;
+      type: "function";
+      name: F[number];
+    }
+  >,
+> = {
+  [K in B["name"]]: (
+    args: AbiParametersToPrimitiveTypes<B["inputs"], "inputs">,
+    options?: WriteOptions,
+  ) => Promise<Hex>;
+};
+
 const el = {
   type: "function",
   name: "foo",

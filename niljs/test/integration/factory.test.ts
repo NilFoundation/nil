@@ -89,6 +89,10 @@ test("Contract Factory", async ({ expect }) => {
     address: incrementerAddress,
     client,
     wallet,
+    externalInterface: {
+      signer: wallet.signer,
+      methods: ["incrementExternal"],
+    },
   });
 
   const value = await incrementer.read.counter([]);
@@ -100,4 +104,17 @@ test("Contract Factory", async ({ expect }) => {
   expect(receipts.some((receipt) => !receipt.success)).toBe(false);
   const newValue = await incrementer.read.counter([]);
   expect(newValue).toBe(101n);
+
+  const hash11 = await wallet.sendMessage({
+    to: incrementerAddress,
+    value: 100000000n,
+    feeCredit: 100000000n,
+  });
+  const receipts11 = await waitTillCompleted(client, hash11);
+  expect(receipts11.some((receipt) => !receipt.success)).toBe(false);
+  const hash2 = await incrementer.external.incrementExternal([]);
+  const receipts2 = await waitTillCompleted(client, hash2);
+  expect(receipts2.some((receipt) => !receipt.success)).toBe(false);
+  const newValue2 = await incrementer.read.counter([]);
+  expect(newValue2).toBe(102n);
 });

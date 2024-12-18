@@ -19,10 +19,12 @@ import type { AbiConstructor, AbiError, AbiFallback, AbiReceive } from "abitype"
 import { AbiFunction as AbiFunctionZod, Abi as AbiZod } from "abitype/zod";
 import type { Prettify } from "ts-essentials";
 import type { PublicClient } from "../clients/index.js";
+import type { ISigner } from "../signers/index.js";
 import type { CallArgs } from "../types/CallArgs.js";
 import type { Hex } from "../types/index.js";
 import type {
   ArrayToObject,
+  ExternalContractsMethod,
   Filter,
   IsNarrowable,
   IsUnion,
@@ -32,7 +34,11 @@ import type {
   WriteContractsMethod,
 } from "../types/utils.js";
 import type { SendMessageParams, WalletInterface } from "../wallets/WalletInterface.js";
-import { contractInteraction, writeContract } from "./contractInteraction.js";
+import {
+  contractInteraction,
+  writeContract,
+  writeExternalContract,
+} from "./contractInteraction.js";
 import type { WriteOptions } from "./contractInteraction.js";
 
 abstract class AbstractContract {}
@@ -494,10 +500,41 @@ export function getContract<
   A extends Abi | unknown[],
   C extends PublicClient,
   W extends WalletInterface,
->(params: { abi: A; client: C; wallet: W; address: Address }): {
+>(params: {
+  abi: A;
+  client: C;
+  wallet: W;
+  address: Address;
+}): {
   read: A extends Abi ? ReadContractsMethod<A, "view" | "pure"> : CommonReadContractMethods;
   write: A extends Abi
     ? WriteContractsMethod<A, "payable" | "nonpayable">
+    : CommonWriteContractMethods;
+};
+
+export function getContract<
+  A extends Abi | unknown[],
+  C extends PublicClient,
+  W extends WalletInterface,
+>(params: {
+  abi: A;
+  client: C;
+  wallet: W;
+  address: Address;
+  externalInterface?: { signer: ISigner; methods: string[] };
+}): {
+  read: A extends Abi ? ReadContractsMethod<A, "view" | "pure"> : CommonReadContractMethods;
+  write: A extends Abi
+    ? WriteContractsMethod<A, "payable" | "nonpayable">
+    : CommonWriteContractMethods;
+  external: A extends Abi
+    ? ExternalContractsMethod<
+        A,
+        "payable" | "nonpayable",
+        typeof params.externalInterface extends { methods: string[] }
+          ? (typeof params)["externalInterface"]["methods"]
+          : []
+      >
     : CommonWriteContractMethods;
 };
 
@@ -513,7 +550,19 @@ export function getContract<
   A extends Abi | unknown[],
   C extends PublicClient,
   W extends WalletInterface,
->({ abi, client, wallet, address }: { abi: A; client: C; wallet?: W; address: Address }) {
+>({
+  abi,
+  client,
+  wallet,
+  address,
+  externalInterface,
+}: {
+  abi: A;
+  client: C;
+  wallet?: W;
+  address: Address;
+  externalInterface?: { signer: ISigner; methods: string[] };
+}) {
   const parseResult = AbiZod.safeParse(abi);
   if (parseResult.error) {
     throw parseResult.error;
@@ -623,9 +672,78 @@ export function getContract<
     },
   });
 
+  if (!externalInterface) {
+    return {
+      read: readProxy as unknown,
+      write: writeProxy as unknown,
+    } as {
+      read: A extends ReadonlyArray<
+        AbiConstructor | AbiError | AbiEvent | AbiFallback | AbiFunction | AbiReceive
+      >
+        ? ReadContractsMethod<A, "view" | "pure">
+        : CommonReadContractMethods;
+      write: A extends ReadonlyArray<
+        AbiConstructor | AbiError | AbiEvent | AbiFallback | AbiFunction | AbiReceive
+      >
+        ? WriteContractsMethod<A, "payable" | "nonpayable">
+        : CommonWriteContractMethods;
+    };
+  }
+
+  const writeExternalMethods = {} as A extends Abi
+    ? Partial<ArrayToObject<A, "nonpayable" | "payable">>
+    : Record<string, AbiFunction>;
+  for (let i = 0; i < abi.length; i++) {
+    const t: A[typeof i] = abi[i];
+    const parsedAbi = AbiFunctionZod.safeParse(t);
+    if (parsedAbi.success) {
+      const b = parsedAbi.data;
+      if (
+        b.type === "function" &&
+        (b.stateMutability === "payable" || b.stateMutability === "nonpayable") &&
+        externalInterface.methods.includes(b.name)
+      ) {
+        // @ts-ignore
+        writeExternalMethods[b.name] = b;
+      }
+    }
+  }
+  const completeExternalMethods = writeExternalMethods as ArrayToObject<
+    // @ts-ignore
+    A,
+    "nonpayable" | "payable"
+  >;
+
+  const writeExternalProxy = new Proxy(completeExternalMethods, {
+    get: (target, property) => {
+      if (typeof property === "symbol") {
+        throw new Error("No write method");
+      }
+      if (property in target) {
+        return async (args: unknown[], options: WriteOptions) => {
+          return writeExternalContract({
+            client,
+            signer: externalInterface.signer,
+            abi,
+            // @ts-ignore
+            functionName: property,
+            // @ts-ignore
+            args,
+            options: {
+              ...options,
+              to: address,
+            },
+          });
+        };
+      }
+      throw new Error(`No write method with name ${property}`);
+    },
+  });
+
   return {
     read: readProxy as unknown,
     write: writeProxy as unknown,
+    external: writeExternalProxy as unknown,
   } as {
     read: A extends ReadonlyArray<
       AbiConstructor | AbiError | AbiEvent | AbiFallback | AbiFunction | AbiReceive
@@ -636,6 +754,17 @@ export function getContract<
       AbiConstructor | AbiError | AbiEvent | AbiFallback | AbiFunction | AbiReceive
     >
       ? WriteContractsMethod<A, "payable" | "nonpayable">
+      : CommonWriteContractMethods;
+    external: A extends ReadonlyArray<
+      AbiConstructor | AbiError | AbiEvent | AbiFallback | AbiFunction | AbiReceive
+    >
+      ? ExternalContractsMethod<
+          A,
+          "payable" | "nonpayable",
+          typeof externalInterface extends { methods: string[] }
+            ? (typeof externalInterface)["methods"]
+            : []
+        >
       : CommonWriteContractMethods;
   };
 }
