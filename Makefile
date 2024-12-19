@@ -8,7 +8,7 @@ GOBUILD = GOPRIVATE="$(GOPRIVATE)" $(GO) build $(GO_FLAGS)
 GO_DBG_BUILD = GOPRIVATE="$(GOPRIVATE)" $(GO) build -tags $(BUILD_TAGS),debug,assert -gcflags=all="-N -l"  # see delve docs
 GOTEST = GOPRIVATE="$(GOPRIVATE)" GODEBUG=cgocheck=0 $(GO) test -tags $(BUILD_TAGS),debug,assert,test $(GO_FLAGS) ./... -p 2
 
-COMMANDS += nild nil nil_load_generator exporter sync_committee proof_provider prover cometa faucet
+COMMANDS += nild nil nil_load_generator exporter sync_committee proof_provider prover cometa faucet journald_forwarder
 
 all: $(COMMANDS)
 
