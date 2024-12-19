@@ -69,6 +69,15 @@ func (l *Location) String() string {
 	return fmt.Sprintf("%s:%d, function: %s", l.FileName, l.Line, l.Function)
 }
 
+func (c *Contract) GetMethodSignatureById(methodId string) string {
+	for signature, id := range c.Data.MethodIdentifiers {
+		if id == methodId {
+			return signature
+		}
+	}
+	return ""
+}
+
 // GetLocationRaw returns the location of the given program counter in the source code.
 func (c *Contract) GetLocationRaw(pc uint) (*LocationRaw, error) {
 	if err := c.decodeSourceMap(); err != nil {

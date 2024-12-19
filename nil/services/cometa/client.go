@@ -176,3 +176,15 @@ func (c *Client) RegisterContractData(contractData *ContractData, address types.
 	_, err := c.sendRequest("cometa_registerContractData", []any{contractData, address})
 	return err
 }
+
+func (c *Client) DecodeMessagesCallData(messages []MessageInfo) ([]string, error) {
+	response, err := c.sendRequest("cometa_decodeMessagesCallData", []any{messages})
+	if err != nil {
+		return nil, err
+	}
+	var res []string
+	if err := json.Unmarshal(response, &res); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal: %w", err)
+	}
+	return res, err
+}
