@@ -2,8 +2,7 @@ import { BaseCommand } from "../../base.js";
 import { Args, Flags } from "@oclif/core";
 import fs from "node:fs";
 import path from "node:path";
-import { ConfigKeys } from "../../common/config.js";
-import { type Hex, LocalECDSAKeySigner, waitTillCompleted, WalletV1 } from "@nilfoundation/niljs";
+import type { Hex } from "@nilfoundation/niljs";
 import type { Abi } from "abitype";
 
 export default class WalletSendMessage extends BaseCommand {
@@ -15,7 +14,7 @@ export default class WalletSendMessage extends BaseCommand {
     abiPath: Flags.string({
       char: "a",
       description: "The path to the ABI file",
-      required: false,
+      required: true,
     }),
     amount: Flags.string({
       char: "m",
@@ -65,43 +64,14 @@ export default class WalletSendMessage extends BaseCommand {
   public async run(): Promise<Hex> {
     const { flags, args } = await this.parse(WalletSendMessage);
 
-    const privateKey = this.cfg?.[ConfigKeys.PrivateKey] as Hex;
-    if (!privateKey) {
-      this.error("Private key not found in config. Perhaps you need to run 'keygen new' first?");
-    }
-
-    const walletAddress = this.cfg?.[ConfigKeys.Address] as Hex;
-    if (!walletAddress) {
-      this.error("Address not found in config. Perhaps you need to run 'wallet new' first?");
-    }
-
-    const signer = new LocalECDSAKeySigner({
-      privateKey: privateKey,
-    });
-
-    const pubkey = signer.getPublicKey();
-    const wallet = new WalletV1({
-      pubkey: pubkey,
-      address: walletAddress,
-      client:
-        this.rpcClient ??
-        (() => {
-          throw new Error("RPC client is not initialized");
-        })(),
-      signer,
-    });
+    const { wallet } = await this.setupWallet();
 
     const address = args.address as Hex;
     const abiPath = flags.abiPath;
 
-    let abi: Abi;
-    if (abiPath) {
-      const abiFullPath = path.resolve(abiPath);
-      const abiFileContent = fs.readFileSync(abiFullPath, "utf8");
-      abi = JSON.parse(abiFileContent);
-    } else {
-      this.error("ABI path is required to send a message to the smart contract");
-    }
+    const abiFullPath = path.resolve(abiPath);
+    const abiFileContent = fs.readFileSync(abiFullPath, "utf8");
+    const abi: Abi = JSON.parse(abiFileContent);
 
     let txHash: Hex;
 
@@ -130,19 +100,21 @@ export default class WalletSendMessage extends BaseCommand {
         tokens: tokens,
       });
     }
+
+    if (flags.quiet) {
+      this.log(txHash);
+    } else {
+      this.log(`Message hash: ${txHash}`);
+    }
+
     if (flags.noWait) {
-      if (flags.quite) {
-        this.log(txHash);
-      } else {
-        this.log(`Message hash: ${txHash}`);
-      }
       return txHash;
     }
-    if (!flags.quite) {
-      this.log("Waiting for the message to be processed...");
-    }
-    const receipt = await waitTillCompleted(this.rpcClient, txHash);
-    this.log("Receipts: ", receipt);
+
+    this.info("Waiting for the message to be processed...");
+    await this.waitOnTx(txHash);
+    this.info("Message successfully processed");
+
     return txHash;
   }
 }

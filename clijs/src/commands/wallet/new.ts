@@ -9,7 +9,7 @@ import {
 import { BaseCommand } from "../../base.js";
 import { ConfigKeys } from "../../common/config.js";
 import { Flags } from "@oclif/core";
-import logger from "../../logger.js";
+import { logger } from "../../logger.js";
 
 export const DefualtNewWalletAmount = 100_000_000n;
 
@@ -90,24 +90,24 @@ export default class WalletNew extends BaseCommand {
         })(),
       signer,
     });
-    const address = wallet.address;
+    const walletAddress = wallet.address;
 
     const faucet = new Faucet(this.rpcClient);
 
-    logger.debug(`Withdrawing ${flags.amount} to ${address}`);
-    const faucetHash = await faucet.withdrawTo(address, BigInt(flags.amount));
+    logger.debug(`Withdrawing ${flags.amount} to ${walletAddress}`);
+    const faucetHash = await faucet.withdrawTo(walletAddress, BigInt(flags.amount));
     await waitTillCompleted(this.rpcClient, bytesToHex(faucetHash));
 
+    this.info("Deploying wallet...");
+    const tx = await wallet.selfDeploy(true);
+    this.info(`Successfully deployed wallet with tx hash: ${bytesToHex(tx)}`);
+
     if (this.quiet) {
-      await wallet.selfDeploy(true);
-      this.log(address);
+      this.log(walletAddress);
     } else {
-      this.log("Deploying wallet...");
-      const tx = await wallet.selfDeploy(true);
-      this.log(`Successfully deployed wallet with tx hash: ${bytesToHex(tx)}`);
-      this.log(`Wallet address: ${address}`);
+      this.log(`Wallet address: ${walletAddress}`);
     }
-    this.configManager?.updateConfig(ConfigKeys.NilSection, ConfigKeys.Address, address);
-    return address;
+    this.configManager?.updateConfig(ConfigKeys.NilSection, ConfigKeys.Address, walletAddress);
+    return walletAddress;
   }
 }
