@@ -55,7 +55,6 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 		// TODO: prove genesis block generation?
 		return ErrCantProofGenesisBlock
 	}
-
 	prevBlock, err := rt.client.GetBlock(shardId, transport.BlockNumber(decodedDbgBlock.Id-1), false)
 	if err != nil {
 		return err
@@ -64,6 +63,7 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 	getHashFunc := func(blkNum uint64) (common.Hash, error) {
 		// TODO: try to replace it with prevBlock.Hash
 		_ = prevBlock.Hash
+
 		block, err := rt.client.GetBlock(shardId, transport.BlockNumber(blkNum), false)
 		if err != nil {
 			return common.EmptyHash, err

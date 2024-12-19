@@ -15,7 +15,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/mpttracer"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/prover/tracer/internal/mpttracer"
 	"github.com/rs/zerolog"
 )
 
@@ -166,7 +166,7 @@ func NewTracerStateDB(
 
 	return &TracerStateDB{
 		client:           client,
-		mptTracer:        mpttracer.New(client, shardBlockNumber, rwTx, shardId),
+		mptTracer:        mpttracer.New(client, shardBlockNumber, rwTx, shardId, logger),
 		shardId:          shardId,
 		shardBlockNumber: shardBlockNumber,
 		blkContext:       blkContext,

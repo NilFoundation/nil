@@ -8,8 +8,8 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/mpttracer"
 	pb "github.com/NilFoundation/nil/nil/services/synccommittee/prover/proto"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/prover/tracer/internal/mpttracer"
 	"github.com/holiman/uint256"
 	"golang.org/x/sync/errgroup"
 )

@@ -80,6 +80,7 @@ type Client struct {
 	client   http.Client
 	headers  map[string]string
 	logger   zerolog.Logger
+	retrier  *common.RetryRunner
 }
 
 type Request struct {
@@ -128,12 +129,12 @@ func (b *BatchRequestImpl) GetDebugBlock(shardId types.ShardId, blockId any, ful
 	return b.getBlock(shardId, blockId, fullTx, true)
 }
 
-func NewClient(endpoint string, logger zerolog.Logger) *Client {
-	return NewClientWithDefaultHeaders(endpoint, logger, nil)
+func NewClient(endpoint string, logger zerolog.Logger, opts ...Option) *Client {
+	return NewClientWithDefaultHeaders(endpoint, logger, nil, opts...)
 }
 
-func NewRawClient(endpoint string, logger zerolog.Logger) client.RawClient {
-	return NewClient(endpoint, logger)
+func NewRawClient(endpoint string, logger zerolog.Logger, opts ...Option) client.RawClient {
+	return NewClient(endpoint, logger, opts...)
 }
 
 func NewHttpClient(url string) (http.Client, string) {
@@ -154,7 +155,14 @@ func NewHttpClient(url string) (http.Client, string) {
 	return client, endpoint
 }
 
-func NewClientWithDefaultHeaders(url string, logger zerolog.Logger, headers map[string]string) *Client {
+func NewClientWithDefaultHeaders(
+	url string, logger zerolog.Logger, headers map[string]string, opts ...Option,
+) *Client {
+	var cfg config
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
 	client, endpoint := NewHttpClient(url)
 	c := &Client{
 		endpoint: endpoint,
@@ -162,6 +170,12 @@ func NewClientWithDefaultHeaders(url string, logger zerolog.Logger, headers map[
 		headers:  headers,
 		client:   client,
 	}
+
+	if cfg.retry != nil {
+		retrier := common.NewRetryRunner(*cfg.retry, c.logger)
+		c.retrier = &retrier
+	}
+
 	return c
 }
 
@@ -209,24 +223,38 @@ func (c *Client) performRequests(requests []*Request) ([]json.RawMessage, error)
 		return nil, fmt.Errorf("%w: %w", ErrFailedToMarshalRequest, err)
 	}
 
-	body, err := c.PlainTextCall(requestsBody)
+	var results []json.RawMessage
+
+	call := func(_ context.Context) error {
+		body, err := c.PlainTextCall(requestsBody)
+		if err != nil {
+			return err
+		}
+
+		var rpcResponse []map[string]json.RawMessage
+		if err := json.Unmarshal(body, &rpcResponse); err != nil {
+			c.logger.Debug().Str("response", string(body)).Msg("failed to unmarshal response")
+			return fmt.Errorf("%w: %w", ErrFailedToUnmarshalResponse, err)
+		}
+		c.logger.Trace().RawJSON("response", body).Send()
+
+		results = make([]json.RawMessage, len(rpcResponse))
+		for i, resp := range rpcResponse {
+			if errorMsg, ok := resp["error"]; ok {
+				return fmt.Errorf("%w: %s (%d)", ErrRPCError, errorMsg, i)
+			}
+			results[i] = resp["result"]
+		}
+		return nil
+	}
+
+	if c.retrier != nil {
+		err = c.retrier.Do(context.Background(), call)
+	} else {
+		err = call(context.Background())
+	}
 	if err != nil {
 		return nil, err
-	}
-
-	var rpcResponse []map[string]json.RawMessage
-	if err := json.Unmarshal(body, &rpcResponse); err != nil {
-		c.logger.Debug().Str("response", string(body)).Msg("failed to unmarshal response")
-		return nil, fmt.Errorf("%w: %w", ErrFailedToUnmarshalResponse, err)
-	}
-	c.logger.Trace().RawJSON("response", body).Send()
-
-	results := make([]json.RawMessage, len(rpcResponse))
-	for i, resp := range rpcResponse {
-		if errorMsg, ok := resp["error"]; ok {
-			return nil, fmt.Errorf("%w: %s (%d)", ErrRPCError, errorMsg, i)
-		}
-		results[i] = resp["result"]
 	}
 	return results, nil
 }

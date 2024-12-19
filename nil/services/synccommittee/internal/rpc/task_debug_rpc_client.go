@@ -3,24 +3,24 @@ package rpc
 import (
 	"context"
 
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
 	"github.com/rs/zerolog"
 )
 
 type taskDebugRpcClient struct {
-	client *retryRawClient
+	client client.RawClient
 }
 
 func NewTaskDebugRpcClient(apiEndpoint string, logger zerolog.Logger) public.TaskDebugApi {
 	return &taskDebugRpcClient{
-		client: newRetryRawClient(apiEndpoint, logger),
+		client: NewRetryClient(apiEndpoint, logger),
 	}
 }
 
 func (c *taskDebugRpcClient) GetTasks(ctx context.Context, request *public.TaskDebugRequest) ([]*public.TaskView, error) {
-	return callWithRetry[*public.TaskDebugRequest, []*public.TaskView](
-		ctx,
+	return doRPCCall[*public.TaskDebugRequest, []*public.TaskView](
 		c.client,
 		public.DebugGetTasks,
 		request,
@@ -28,8 +28,7 @@ func (c *taskDebugRpcClient) GetTasks(ctx context.Context, request *public.TaskD
 }
 
 func (c *taskDebugRpcClient) GetTaskTree(ctx context.Context, taskId types.TaskId) (*public.TaskTreeView, error) {
-	return callWithRetry[types.TaskId, *public.TaskTreeView](
-		ctx,
+	return doRPCCall[types.TaskId, *public.TaskTreeView](
 		c.client,
 		public.DebugGetTaskTree,
 		taskId,

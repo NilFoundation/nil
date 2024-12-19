@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/rs/zerolog"
 )
 
 // MPTTracer handles interaction with Merkle Patricia Tries
@@ -28,6 +29,7 @@ func New(
 	shardBlockNumber types.BlockNumber,
 	rwTx db.RwTx,
 	shardId types.ShardId,
+	logger zerolog.Logger,
 ) *MPTTracer {
 	debugApiReader := NewDebugApiContractReader(client, shardBlockNumber, rwTx, shardId)
 	return NewWithReader(debugApiReader, rwTx, shardId)
