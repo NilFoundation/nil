@@ -40,10 +40,6 @@ export const button = {
   height: "32px",
 };
 
-export const leftArrow = {
-  transform: "rotate(-90deg)",
-};
-
 export const backLinkStyle = {
   width: "32px",
 };

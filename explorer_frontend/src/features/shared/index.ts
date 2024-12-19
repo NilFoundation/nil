@@ -21,6 +21,7 @@ export { ClearIcon } from "./components/ClearIcon";
 export { HyperlinkIcon } from "./components/HyperlinkIcon";
 export { QuestionIcon } from "./components/QuestionIcon";
 export { ArrowUpRightIcon } from "./components/ArrowUpRightIcon";
+export { BackRouterNavigationButton } from "./components/BackRouterNavigationButton";
 export * from "./components/Popover";
 export * from "./utils/age";
 export * from "./utils/convert";
