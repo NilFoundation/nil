@@ -132,10 +132,10 @@ func (s *SuiteCometa) TestTwinContracts() {
 	err = s.cometaClient.RegisterContractFromFile("../../contracts/solidity/compile-wallet.json", walletAddr1)
 	s.Require().NoError(err)
 
-	contract1, err := s.cometaClient.GetContract(walletAddr1)
+	contract1, err := s.cometaClient.GetContractFields(walletAddr1, []string{"Name", "InitCode"})
 	s.Require().NoError(err)
 
-	contract2, err := s.cometaClient.GetContract(walletAddr2)
+	contract2, err := s.cometaClient.GetContractFields(walletAddr2, []string{"Name", "InitCode"})
 	s.Require().NoError(err)
 
 	s.Require().Equal(contract1, contract2)

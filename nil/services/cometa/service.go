@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
@@ -31,6 +32,7 @@ type Storage interface {
 
 type CometaJsonRpc interface {
 	GetContract(ctx context.Context, address types.Address) (*ContractData, error)
+	GetContractFields(ctx context.Context, address types.Address, fieldNames []string) ([]any, error)
 	GetLocationRaw(ctx context.Context, address types.Address, pc uint) (*LocationRaw, error)
 	GetLocation(ctx context.Context, address types.Address, pc uint) (*Location, error)
 	GetAbi(ctx context.Context, address types.Address) (string, error)
@@ -177,6 +179,30 @@ func (s *Service) GetContract(ctx context.Context, address types.Address) (*Cont
 		return nil, fmt.Errorf("failed to get contract: %w", err)
 	}
 	return contract.Data, err
+}
+
+func (s *Service) GetContractFields(ctx context.Context, address types.Address, fieldNames []string) ([]any, error) {
+	contract, err := s.GetContractControl(ctx, address)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get contract: %w", err)
+	}
+
+	v := reflect.ValueOf(contract.Data)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	res := make([]any, 0, len(fieldNames))
+
+	for _, fieldName := range fieldNames {
+		field := v.FieldByName(fieldName)
+		if !field.IsValid() {
+			return nil, fmt.Errorf("no such field: %s in struct", fieldName)
+		}
+		res = append(res, field.Interface())
+	}
+
+	return res, nil
 }
 
 func (s *Service) GetContractControl(ctx context.Context, address types.Address) (*Contract, error) {

@@ -91,6 +91,18 @@ func (c *Client) GetContract(address types.Address) (*ContractData, error) {
 	return &contract, nil
 }
 
+func (c *Client) GetContractFields(address types.Address, fieldNames []string) ([]any, error) {
+	response, err := c.sendRequest("cometa_getContractFields", []any{address, fieldNames})
+	if err != nil {
+		return nil, err
+	}
+	var res []any
+	if err = json.Unmarshal(response, &res); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal contract: %w", err)
+	}
+	return res, nil
+}
+
 func (c *Client) GetLocation(address types.Address, pc uint64) (*Location, error) {
 	response, err := c.sendRequest("cometa_getLocation", []any{address, pc})
 	if err != nil {
