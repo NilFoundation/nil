@@ -194,9 +194,9 @@ func CreateContractData(input *CompilerJsonInput, outputJson *CompilerJsonOutput
 		return contractData.FunctionDebugData[i].EntryPoint < contractData.FunctionDebugData[j].EntryPoint
 	})
 	if len(contractData.FunctionDebugData) > 0 {
-		for _, dbgData := range contractData.FunctionDebugData {
-			if dbgData.EntryPoint == 0 {
-				dbgData.Name = "#function_selector"
+		for i := range contractData.FunctionDebugData {
+			if contractData.FunctionDebugData[i].EntryPoint == 0 {
+				contractData.FunctionDebugData[i].Name = "#function_selector"
 			} else {
 				break
 			}
