@@ -69,6 +69,12 @@ type BlockGenerator struct {
 	mh     *MetricsHandler
 }
 
+type BlockGenerationResult struct {
+	Block   *types.Block
+	InMsgs  []*types.Message
+	OutMsgs []*types.Message
+}
+
 func NewBlockGenerator(ctx context.Context, params BlockGeneratorParams, txFabric db.DB) (*BlockGenerator, error) {
 	rwTx, err := txFabric.CreateRwTx(ctx)
 	if err != nil {
@@ -153,11 +159,14 @@ func (g *BlockGenerator) GenerateZeroState(zeroStateYaml string, config *ZeroSta
 		return nil, err
 	}
 
-	b, _, err := g.finalize(0)
-	return b, err
+	res, err := g.finalize(0)
+	if err != nil {
+		return nil, err
+	}
+	return res.Block, nil
 }
 
-func (g *BlockGenerator) GenerateBlock(proposal *Proposal, logger zerolog.Logger) (*types.Block, []*types.Message, error) {
+func (g *BlockGenerator) GenerateBlock(proposal *Proposal, logger zerolog.Logger) (*BlockGenerationResult, error) {
 	if g.executionState.PrevBlock != proposal.PrevBlockHash {
 		// This shouldn't happen currently, because a new block cannot appear between collator and block generator calls.
 		esJson, err := g.executionState.MarshalJSON()
@@ -185,7 +194,7 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, logger zerolog.Logger
 	}
 
 	if err := g.updateGasPrices(len(proposal.ShardHashes) + 1); err != nil {
-		return nil, nil, fmt.Errorf("failed to update gas prices: %w", err)
+		return nil, fmt.Errorf("failed to update gas prices: %w", err)
 	}
 
 	g.executionState.MainChainHash = proposal.MainChainHash
@@ -212,7 +221,7 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, logger zerolog.Logger
 			counters.ExternalMessages++
 		}
 		if res.FatalError != nil {
-			return nil, nil, res.FatalError
+			return nil, res.FatalError
 		}
 		g.addReceipt(res)
 		counters.CoinsUsed = counters.CoinsUsed.Add(res.CoinsUsed())
@@ -226,7 +235,7 @@ func (g *BlockGenerator) GenerateBlock(proposal *Proposal, logger zerolog.Logger
 	g.executionState.ChildChainBlocks = proposal.ShardHashes
 
 	if err := db.WriteCollatorState(g.rwTx, g.params.ShardId, proposal.CollatorState); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	return g.finalize(proposal.PrevBlockId + 1)
@@ -296,35 +305,39 @@ func (g *BlockGenerator) addReceipt(execResult *ExecutionResult) {
 	}
 }
 
-func (g *BlockGenerator) finalize(blockId types.BlockNumber) (*types.Block, []*types.Message, error) {
+func (g *BlockGenerator) finalize(blockId types.BlockNumber) (*BlockGenerationResult, error) {
 	blockHash, outMsgs, err := g.executionState.Commit(blockId)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	block, err := PostprocessBlock(g.rwTx, g.params.ShardId, g.params.GasBasePrice, blockHash)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	ts, err := g.rwTx.CommitWithTs()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// TODO: We should perform block commit and timestamp write atomically.
 	tx, err := g.txFabric.CreateRwTx(g.ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	if err := db.WriteBlockTimestamp(tx, g.params.ShardId, blockHash, uint64(ts)); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return block, outMsgs, nil
+	return &BlockGenerationResult{
+		Block:   block,
+		InMsgs:  g.executionState.InMessages,
+		OutMsgs: outMsgs,
+	}, nil
 }
