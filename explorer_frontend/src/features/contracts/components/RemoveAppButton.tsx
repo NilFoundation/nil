@@ -1,6 +1,6 @@
 import { BUTTON_KIND, ButtonIcon, StatefulTooltip } from "@nilfoundation/ui-kit";
 import { DeleteIcon } from "./DeleteIcon";
-import { unlinkApp } from "../model";
+import { unlinkApp } from "../models/base";
 import type { FC } from "react";
 import type { Hex } from "@nilfoundation/niljs";
 

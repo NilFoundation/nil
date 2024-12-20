@@ -9,7 +9,7 @@ import {
   HeadingMedium,
   SPACE,
 } from "@nilfoundation/ui-kit";
-import { choseApp } from "../../model";
+import { choseApp } from "../../models/base";
 import { expandProperty } from "inline-style-expand-shorthand";
 import type { Hex } from "@nilfoundation/niljs";
 import { RemoveAppButton } from "../RemoveAppButton";

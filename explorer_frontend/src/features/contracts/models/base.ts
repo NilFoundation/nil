@@ -1,5 +1,5 @@
 import { combine, createEffect, createEvent, createStore } from "effector";
-import type { App } from "../../types";
+import type { App } from "../../../types";
 import type { Abi, Address } from "abitype";
 import {
   HttpTransport,
@@ -11,7 +11,7 @@ import {
   type CometaService,
   type Hex,
 } from "@nilfoundation/niljs";
-import { createCompileInput } from "../shared/utils/solidityCompiler/helper";
+import { createCompileInput } from "../../shared/utils/solidityCompiler/helper";
 
 export type DeployedApp = App & {
   address: Address;

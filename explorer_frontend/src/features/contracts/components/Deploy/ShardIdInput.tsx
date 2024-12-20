@@ -10,7 +10,7 @@ import {
 } from "@nilfoundation/ui-kit";
 import type { FC } from "react";
 import { useStyletron } from "styletron-react";
-import { decrementShardId, incrementShardId } from "../../model";
+import { decrementShardId, incrementShardId } from "../../models/base";
 import { getRuntimeConfigOrThrow } from "../../../runtime-config";
 
 type ShardIdInputProps = {

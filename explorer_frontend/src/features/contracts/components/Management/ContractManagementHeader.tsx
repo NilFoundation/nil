@@ -3,15 +3,20 @@ import {
   BUTTON_KIND,
   BUTTON_SIZE,
   Button,
+  ButtonIcon,
   COLORS,
   LabelMedium,
+  ChevronDownIcon,
 } from "@nilfoundation/ui-kit";
 import { useStyletron } from "styletron-react";
-import { closeApp } from "../../model";
+import { closeApp } from "../../models/base";
 import { RemoveAppButton } from "../RemoveAppButton";
 import type { Hex } from "@nilfoundation/niljs";
 import type { FC } from "react";
 import { OverflowEllipsis } from "../../../shared";
+import { DeleteIcon } from "../DeleteIcon";
+import { exportApp, exportAppFx } from "../../models/exportApp";
+import { useUnit } from "effector-react";
 
 type ContractManagementHeaderProps = {
   address: Hex;
@@ -27,6 +32,7 @@ export const ContractManagementHeader: FC<ContractManagementHeaderProps> = ({
   loading,
 }) => {
   const [css] = useStyletron();
+  const isExportingApp = useUnit(exportAppFx.pending);
 
   return (
     <div
@@ -75,6 +81,12 @@ export const ContractManagementHeader: FC<ContractManagementHeaderProps> = ({
       >
         <OverflowEllipsis charsFromTheEnd={5}>{address}</OverflowEllipsis>
       </LabelMedium>
+      <ButtonIcon
+        disabled={isExportingApp}
+        icon={<ChevronDownIcon />}
+        kind={BUTTON_KIND.secondary}
+        onClick={() => exportApp()}
+      />
       <RemoveAppButton
         disabled={loading}
         address={address}

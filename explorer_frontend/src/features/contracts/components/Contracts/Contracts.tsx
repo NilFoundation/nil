@@ -1,5 +1,5 @@
 import { useUnit } from "effector-react";
-import { $contractWithState, $contracts } from "../../model";
+import { $contractWithState, $contracts } from "../../models/base";
 import "../../init";
 import {
   BUTTON_KIND,

@@ -37,7 +37,7 @@ import {
   setValueInput,
   toggleActiveKey,
   unlinkApp,
-} from "./model";
+} from "./models/base";
 import { combine, sample } from "effector";
 import { isAddress } from "viem";
 import { $endpoint, $wallet } from "../account-connector/model";
@@ -46,6 +46,8 @@ import { debug } from "patronum";
 import { getTokenAddressBySymbol } from "../currencies";
 import type { Token, CometaService, Hex } from "@nilfoundation/niljs";
 import { $cometaService } from "../cometa/model";
+import { exportApp, exportAppFx } from "./models/exportApp";
+import type { App } from "../../types";
 
 compileCodeFx.doneData.watch(console.log);
 
@@ -470,4 +472,36 @@ $shardId.on(incrementShardId, (shardId, _) => {
 
 $shardId.on(decrementShardId, (shardId, _) => {
   return shardId !== null ? Math.max(shardId - 1, 1) : 1;
+});
+
+sample({
+  clock: exportApp,
+  source: $activeAppWithState,
+  fn: (app) =>
+    ({
+      abi: app?.abi,
+      name: app?.name,
+      sourcecode: app?.sourcecode,
+      bytecode: app?.bytecode,
+    }) as App,
+  filter: $activeAppWithState.map((app) => !!app),
+  target: exportAppFx,
+});
+
+exportAppFx.use(async (app) => {
+  const JSZip = await import("jszip");
+  const zip = new JSZip.default();
+
+  zip.file(`${app.name}.bin`, app.bytecode);
+  zip.file(".abi.json", JSON.stringify(app.abi, null, 2));
+  zip.file(`${app.name}.sol`, app.sourcecode);
+
+  await zip.generateAsync({ type: "blob" }).then((content) => {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(content);
+    link.download = `${app.name}.zip`;
+    link.click();
+
+    URL.revokeObjectURL(link.href);
+  });
 });
