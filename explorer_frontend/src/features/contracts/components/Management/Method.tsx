@@ -12,7 +12,13 @@ import {
 } from "@nilfoundation/ui-kit";
 import type { AbiFunction } from "abitype";
 import { useStyletron } from "baseui";
-import { toggleActiveKey, $valueInput, setValueInput, callMethod, sendMethod } from "../../model";
+import {
+  toggleActiveKey,
+  $valueInput,
+  setValueInput,
+  callMethod,
+  sendMethod,
+} from "../../models/base";
 import { Link, Marker } from "../../../shared";
 import { transactionRoute } from "../../../routing";
 import { MethodInput } from "./MethodInput";

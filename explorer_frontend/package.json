@@ -43,6 +43,7 @@
 		"eventemitter3": "^5.0.1",
 		"history": "^5.3.0",
 		"inline-style-expand-shorthand": "^1.6.0",
+		"jszip": "^3.10.1",
 		"lightweight-charts": "^4.1.1",
 		"nanoid": "^5.0.7",
 		"patronum": "^1.18.0",

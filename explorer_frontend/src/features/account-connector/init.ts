@@ -42,7 +42,7 @@ import {
   removeHexPrefix,
   addHexPrefix,
 } from "@nilfoundation/niljs";
-import { sendMethodFx } from "../contracts/model";
+import { sendMethodFx } from "../contracts/models/base";
 import { $faucets } from "../currencies/model";
 import { sandboxRoute, sandboxWithHashRoute } from "../routing";
 import { loadedPage } from "../code/model";

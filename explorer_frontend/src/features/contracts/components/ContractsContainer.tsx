@@ -1,7 +1,7 @@
 import { useUnit } from "effector-react";
 import { Contracts } from "./Contracts/Contracts";
 import { ContractManagement } from "./Management/ContractManagement";
-import { $activeAppWithState, closeApp } from "../model";
+import { $activeAppWithState, closeApp } from "../models/base";
 import { useSwipeable } from "react-swipeable";
 import { COLORS, Card } from "@nilfoundation/ui-kit";
 import { DeployContractModal } from "./Deploy/DeployContractModal";

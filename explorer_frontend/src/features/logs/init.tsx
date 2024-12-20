@@ -1,7 +1,7 @@
 import { compileCodeFx } from "../code/model";
 import { $logs, LogTopic, LogType, clearLogs } from "./model";
 import { nanoid } from "nanoid";
-import { callFx, deploySmartContractFx, sendMethodFx } from "../contracts/model";
+import { callFx, deploySmartContractFx, sendMethodFx } from "../contracts/models/base";
 import { MonoParagraphMedium } from "baseui/typography";
 import { formatSolidityError } from "./utils";
 import { COLORS } from "@nilfoundation/ui-kit";

@@ -20,7 +20,7 @@ import {
   deploySmartContractFx,
   setDeploymentArg,
   setShardId,
-} from "../../model";
+} from "../../models/base";
 import { useStyletron } from "styletron-react";
 import { $constructor } from "../../init";
 import type { FC } from "react";

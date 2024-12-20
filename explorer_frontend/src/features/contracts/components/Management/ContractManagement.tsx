@@ -12,7 +12,7 @@ import {
   $tokens,
   $txHashes,
   setParams,
-} from "../../model";
+} from "../../models/base";
 import { useUnit } from "effector-react";
 import { ContractManagementHeader } from "./ContractManagementHeader";
 import {
