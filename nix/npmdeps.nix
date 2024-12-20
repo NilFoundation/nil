@@ -8,6 +8,7 @@ in
     fileset = fileset.unions [
       ../package-lock.json
       ../package.json
+      ../clijs/package.json
       ../docs/package.json
       ../hardhat-plugin/package.json
       ../niljs/package.json
@@ -18,5 +19,5 @@ in
       ../uniswap/package.json
     ];
   };
-  hash = "sha256-WUgTvYSuRpOEjYrp/h9ATyyrkHuRGxQ30UBtd6s9JaI=";
+  hash = "sha256-mwmF+hkAiAHFgaFkaBOIEMI8VPQ1T76yCis/iIwy0FY=";
 })

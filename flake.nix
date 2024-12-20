@@ -20,13 +20,19 @@
         rev = self.shortRev or self.dirtyShortRev or "unknown";
         version = "0.1.1-${toString revCount}";
         versionFull = "${version}-${rev}";
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [
+            (import ./nix/overlay.nix)
+          ];
+        };
       in
       rec {
         packages = rec {
           solc = (pkgs.callPackage ./nix/solc.nix { });
           nil = (pkgs.callPackage ./nix/nil.nix { solc = solc; });
           niljs = (pkgs.callPackage ./nix/niljs.nix { });
+          clijs = (pkgs.callPackage ./nix/clijs.nix { });
           nildocs = (pkgs.callPackage ./nix/nildocs.nix { nil = nil; });
           nilhardhat = (pkgs.callPackage ./nix/nilhardhat.nix { });
           default = nil;

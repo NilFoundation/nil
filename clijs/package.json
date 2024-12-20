@@ -16,7 +16,8 @@
     "fs-extra": "^11.2.0",
     "ini": "^5.0.0",
     "pino": "^9.5.0",
-    "pino-pretty": "^13.0.0"
+    "pino-pretty": "^13.0.0",
+    "postject": "^1.0.0-alpha.6"
   },
   "devDependencies": {
     "@oclif/test": "^4",
