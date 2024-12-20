@@ -11,11 +11,11 @@ import (
 )
 
 type Service struct {
-	client client.Client
+	impl API
 }
 
 func NewService(client client.Client) (*Service, error) {
-	return &Service{client: client}, nil
+	return &Service{impl: NewAPI(client)}, nil
 }
 
 func (s *Service) Run(ctx context.Context, endpoint string) error {
@@ -27,7 +27,7 @@ func (s *Service) GetRpcApi() transport.API {
 	return transport.API{
 		Namespace: "faucet",
 		Public:    true,
-		Service:   FaucetAPI(NewFaucetAPI(s.client)),
+		Service:   s.impl,
 		Version:   "1.0",
 	}
 }

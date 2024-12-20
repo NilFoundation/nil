@@ -1,31 +1,72 @@
 package faucet
 
 import (
+	"errors"
+	"fmt"
+	"sync"
+
 	"github.com/NilFoundation/nil/nil/client"
+	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 )
 
-type FaucetAPI interface {
+type API interface {
 	TopUpViaFaucet(faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error)
 	GetFaucets() map[string]types.Address
 }
 
-type FaucetAPIImpl struct {
+type APIImpl struct {
 	client client.Client
+
+	// Requests are served by one which is the easiest way to avoid seqno gaps.
+	mu sync.Mutex
+	// As long as we have only one faucet, we can manage seqnos locally
+	// which can be more correct than getting tx count each time.
+	seqnos map[types.Address]types.Seqno
 }
 
-var _ FaucetAPI = (*FaucetAPIImpl)(nil)
+var _ API = (*APIImpl)(nil)
 
-func NewFaucetAPI(client client.Client) *FaucetAPIImpl {
-	return &FaucetAPIImpl{
+func NewAPI(client client.Client) *APIImpl {
+	return &APIImpl{
 		client: client,
+		seqnos: make(map[types.Address]types.Seqno),
 	}
 }
 
-func (c *FaucetAPIImpl) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error) {
+func (c *APIImpl) fetchSeqno(addr types.Address) (types.Seqno, error) {
+	return c.client.GetTransactionCount(addr, transport.BlockNumberOrHash(transport.PendingBlock))
+}
+
+func (c *APIImpl) getOrFetchSeqno(faucetAddress types.Address) (types.Seqno, error) {
+	// todo: uncomment after switching all users (e.g. docs and tests) to the faucet service
+	// seqno, ok := c.seqnos[faucetAddress]
+	// if ok {
+	//	return seqno, nil
+	// }
+
+	seqno, err := c.fetchSeqno(faucetAddress)
+	if err != nil {
+		return 0, err
+	}
+
+	c.seqnos[faucetAddress] = seqno
+
+	return seqno, nil
+}
+
+func (c *APIImpl) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	seqno, err := c.getOrFetchSeqno(faucetAddress)
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
 	contractName := contracts.NameFaucet
 	if faucetAddress != types.FaucetAddress {
 		contractName = contracts.NameFaucetCurrency
@@ -34,24 +75,48 @@ func (c *FaucetAPIImpl) TopUpViaFaucet(faucetAddress, contractAddressTo types.Ad
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	seqno, err := c.client.GetTransactionCount(faucetAddress, transport.BlockNumberOrHash(transport.PendingBlock))
-	if err != nil {
-		return common.EmptyHash, err
-	}
 	extMsg := &types.ExternalMessage{
 		To:        faucetAddress,
 		Data:      callData,
-		Seqno:     types.Seqno(seqno.Uint64()),
+		Seqno:     seqno,
 		Kind:      types.ExecutionMessageKind,
 		FeeCredit: types.GasToValue(100_000),
 	}
+
 	data, err := extMsg.MarshalSSZ()
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	return c.client.SendRawTransaction(data)
+
+	hash, err := c.client.SendRawTransaction(data)
+	if err != nil && !errors.Is(err, rpc.ErrRPCError) {
+		return common.EmptyHash, err
+	}
+	if errors.Is(err, rpc.ErrRPCError) {
+		actualSeqno, err2 := c.fetchSeqno(faucetAddress)
+		if err2 != nil {
+			return common.EmptyHash, fmt.Errorf("failed to send message %d with %w and failed to get seqno: %w", seqno, err, err2)
+		}
+
+		extMsg.Seqno = actualSeqno
+		data, err2 = extMsg.MarshalSSZ()
+		if err2 != nil {
+			return common.EmptyHash, err2
+		}
+
+		hash, err2 = c.client.SendRawTransaction(data)
+		if err2 != nil {
+			return common.EmptyHash, fmt.Errorf("failed to send message %d with %w and then %d with %w", seqno, err, actualSeqno, err2)
+		}
+
+		seqno = actualSeqno
+	}
+
+	c.seqnos[faucetAddress] = seqno + 1
+
+	return hash, nil
 }
 
-func (c *FaucetAPIImpl) GetFaucets() map[string]types.Address {
+func (c *APIImpl) GetFaucets() map[string]types.Address {
 	return types.GetCurrencies()
 }
