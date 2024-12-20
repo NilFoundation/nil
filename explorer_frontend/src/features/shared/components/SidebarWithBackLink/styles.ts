@@ -23,11 +23,3 @@ export const styles = {
   link,
   mobileAside,
 };
-
-export const leftArrow = {
-  transform: "rotate(-90deg)",
-};
-
-export const backLinkStyle = {
-  width: "32px",
-};

@@ -48,4 +48,6 @@ export const router = createHistoryRouter({
   notFoundRoute,
 });
 
-router.setHistory(createBrowserHistory());
+export const history = createBrowserHistory();
+
+router.setHistory(history);
