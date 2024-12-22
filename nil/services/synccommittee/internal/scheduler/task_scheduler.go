@@ -103,7 +103,6 @@ func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.Tas
 	s.logger.Debug().
 		Interface("executorId", result.Sender).
 		Interface("taskId", result.TaskId).
-		Interface("resultType", result.Type).
 		Msgf("received task result update")
 
 	entry, err := s.storage.TryGetTaskEntry(ctx, result.TaskId)

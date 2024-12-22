@@ -4,6 +4,7 @@ package testaide
 
 import (
 	"crypto/rand"
+	"errors"
 	"math"
 	"math/big"
 	"time"
@@ -59,4 +60,21 @@ func RandomExecutorId() types.TaskExecutorId {
 		panic(err)
 	}
 	return types.TaskExecutorId(uint32(bigInt.Uint64()))
+}
+
+func SuccessTaskResult(taskId types.TaskId, executor types.TaskExecutorId) types.TaskResult {
+	return types.SuccessProverTaskResult(
+		taskId,
+		executor,
+		types.TaskResultAddresses{},
+		types.TaskResultData{},
+	)
+}
+
+func FailureTaskResult(taskId types.TaskId, executor types.TaskExecutorId) types.TaskResult {
+	return types.FailureProverTaskResult(
+		taskId,
+		executor,
+		errors.New("something went wrong"),
+	)
 }

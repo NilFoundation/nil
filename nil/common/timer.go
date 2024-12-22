@@ -33,6 +33,14 @@ func (t *TestTimerImpl) NowTime() time.Time {
 	return time.Unix(int64(t.nowTime), 0)
 }
 
+func (t *TestTimerImpl) Adjust(duration time.Duration) {
+	t.nowTime += uint64(duration.Seconds())
+}
+
+func (t *TestTimerImpl) SetTime(time time.Time) {
+	t.nowTime = uint64(time.Unix())
+}
+
 var realTimer = RealTimerImpl{}
 
 func NewTimer() *RealTimerImpl {

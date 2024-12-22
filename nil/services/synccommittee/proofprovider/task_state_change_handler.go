@@ -56,7 +56,7 @@ func (h taskStateChangeHandler) OnTaskTerminated(ctx context.Context, task *type
 
 	var parentTaskResult types.TaskResult
 	if result.IsSuccess {
-		parentTaskResult = types.SuccessProviderTaskResult(*task.ParentTaskId, h.currentExecutorId, result.Type, result.DataAddresses, result.Data)
+		parentTaskResult = types.SuccessProviderTaskResult(*task.ParentTaskId, h.currentExecutorId, result.DataAddresses, result.Data)
 	} else {
 		parentTaskResult = types.FailureProviderTaskResult(
 			*task.ParentTaskId,

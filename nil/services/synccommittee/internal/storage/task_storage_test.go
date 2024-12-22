@@ -83,7 +83,7 @@ func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	// Make lower priority task ready for execution
 	err = s.ts.ProcessTaskResult(
 		s.ctx,
-		types.SuccessProverTaskResult(dependency1.Task.Id, dependency1.Owner, types.PartialProve, types.TaskResultAddresses{}, types.TaskResultData{}),
+		types.SuccessProverTaskResult(dependency1.Task.Id, dependency1.Owner, types.TaskResultAddresses{}, types.TaskResultData{}),
 	)
 	s.Require().NoError(err)
 	task, err = s.ts.RequestTaskToExecute(s.ctx, 88)
@@ -93,7 +93,7 @@ func (s *TaskStorageSuite) TestRequestAndProcessResult() {
 	// Make higher priority task ready
 	err = s.ts.ProcessTaskResult(
 		s.ctx,
-		types.SuccessProverTaskResult(dependency2.Task.Id, dependency2.Owner, types.PartialProve, types.TaskResultAddresses{}, types.TaskResultData{}),
+		types.SuccessProverTaskResult(dependency2.Task.Id, dependency2.Owner, types.TaskResultAddresses{}, types.TaskResultData{}),
 	)
 	s.Require().NoError(err)
 
@@ -280,7 +280,7 @@ func (s *TaskStorageSuite) Test_ProcessTaskResult_Concurrently() {
 			defer waitGroup.Done()
 			err := s.ts.ProcessTaskResult(
 				s.ctx,
-				types.SuccessProverTaskResult(runningEntry.Task.Id, executorId, types.PartialProve, types.TaskResultAddresses{}, types.TaskResultData{}),
+				types.SuccessProverTaskResult(runningEntry.Task.Id, executorId, types.TaskResultAddresses{}, types.TaskResultData{}),
 			)
 			s.NoError(err)
 		}()
@@ -342,7 +342,7 @@ func (s *TaskStorageSuite) tryToChangeStatus(
 
 	var taskResult types.TaskResult
 	if trySetSuccess {
-		taskResult = types.SuccessProverTaskResult(taskEntry.Task.Id, executorId, types.PartialProve, types.TaskResultAddresses{}, types.TaskResultData{})
+		taskResult = types.SuccessProverTaskResult(taskEntry.Task.Id, executorId, types.TaskResultAddresses{}, types.TaskResultData{})
 	} else {
 		taskResult = types.FailureProverTaskResult(taskEntry.Task.Id, executorId, errors.New("some error"))
 	}

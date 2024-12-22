@@ -177,7 +177,6 @@ func successProviderResult(taskToExecute *types.Task, executorId types.TaskExecu
 	return types.SuccessProviderTaskResult(
 		taskToExecute.Id,
 		executorId,
-		taskToExecute.TaskType,
 		types.TaskResultAddresses{},
 		types.TaskResultData{},
 	)

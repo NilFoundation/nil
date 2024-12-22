@@ -80,7 +80,7 @@ func circuitIdx(ct types.CircuitType) uint8 {
 func collectDependencyFiles(task *types.Task, dependencyType types.TaskType, resultType types.ProverResultType) ([]string, error) {
 	depFiles := []string{}
 	for _, res := range task.DependencyResults {
-		if res.Type == dependencyType {
+		if res.TaskType == dependencyType {
 			path, ok := res.DataAddresses[resultType]
 			if !ok {
 				return depFiles, errors.New("Inconsistent task " + task.Id.String() +
@@ -404,6 +404,6 @@ func (h *taskHandler) Handle(ctx context.Context, executorId types.TaskExecutorI
 		return h.requestHandler.SetTaskResult(ctx, &taskResult)
 	}
 	h.logger.Info().Msgf("Task with id %v finished after %s", task.Id.String(), time.Since(startTime))
-	taskResult := types.SuccessProverTaskResult(task.Id, executorId, task.TaskType, desc.expectedResult, desc.binaryExpectedResults)
+	taskResult := types.SuccessProverTaskResult(task.Id, executorId, desc.expectedResult, desc.binaryExpectedResults)
 	return h.requestHandler.SetTaskResult(ctx, &taskResult)
 }

@@ -90,21 +90,23 @@ var tasksForExecutors = map[types.TaskExecutorId]*types.Task{
 		BlockNum:    10,
 		TaskType:    types.AggregatedFRI,
 		CircuitType: types.ReadWrite,
-		DependencyResults: map[types.TaskId]types.TaskResult{
-			firstDependencyTaskId: types.SuccessProverTaskResult(
-				firstDependencyTaskId,
-				testaide.RandomExecutorId(),
-				types.MergeProof,
-				types.TaskResultAddresses{},
-				types.TaskResultData{},
-			),
-			secondDependencyTaskId: types.SuccessProverTaskResult(
-				secondDependencyTaskId,
-				testaide.RandomExecutorId(),
-				types.PartialProve,
-				types.TaskResultAddresses{},
-				types.TaskResultData{},
-			),
+		DependencyResults: map[types.TaskId]types.TaskResultEntry{
+			firstDependencyTaskId: {
+				TaskResult: types.SuccessProverTaskResult(
+					firstDependencyTaskId,
+					testaide.RandomExecutorId(),
+					nil,
+					nil,
+				),
+			},
+			secondDependencyTaskId: {
+				TaskResult: types.SuccessProverTaskResult(
+					secondDependencyTaskId,
+					testaide.RandomExecutorId(),
+					nil,
+					nil,
+				),
+			},
 		},
 	},
 }
