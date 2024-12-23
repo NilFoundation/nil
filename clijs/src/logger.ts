@@ -1,14 +1,11 @@
 import { pino } from 'pino';
+import pinoPretty from 'pino-pretty';
 
-const logger = pino({
-    level: 'silent',
-    transport: {
-        target: 'pino-pretty', // Pretty-prints logs for CLI
-        options: {
-            colorize: true,
-            translateTime: true,
-        },
-    },
+const prettyTransport = pinoPretty({
+  colorize: true,
+  translateTime: true,
 });
+
+const logger = pino(prettyTransport);
 
 export default logger;
