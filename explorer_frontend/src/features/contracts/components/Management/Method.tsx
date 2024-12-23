@@ -20,7 +20,7 @@ import {
   callMethod,
   sendMethod,
   addValueInput,
-} from "../../model";
+} from "../../models/base.ts";
 import { Link, Marker } from "../../../shared";
 import { transactionRoute } from "../../../routing";
 import { MethodInput } from "./MethodInput";
@@ -164,7 +164,7 @@ export const Method = ({
                 justifyContent: "center",
               })}
             >
-              {valueInput.map((valueInput, index) => (
+              {valueInputs.map((valueInput, index) => (
                 // biome-ignore lint/correctness/useJsxKeyInIterable: can be the same for now
                 <div
                   className={css({

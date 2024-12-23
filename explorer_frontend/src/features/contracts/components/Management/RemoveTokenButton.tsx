@@ -1,7 +1,7 @@
 import { BUTTON_KIND, ButtonIcon, StatefulTooltip } from "@nilfoundation/ui-kit";
 import type { FC } from "react";
 import { DeleteIcon } from "../DeleteIcon.tsx";
-import { removeValueInput } from "../../model.ts";
+import { removeValueInput } from "../../models/base.ts";
 
 type RemoveTokenButtonProps = {
   index: number;
