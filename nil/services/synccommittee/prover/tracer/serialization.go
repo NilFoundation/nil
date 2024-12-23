@@ -1,7 +1,10 @@
 package tracer
 
 import (
+	"crypto/rand"
 	"fmt"
+	"math"
+	"math/big"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -35,8 +38,13 @@ const (
 )
 
 func SerializeToFile(proofs ExecutionTraces, mode MarshalMode, baseFileName string) error {
+	randval, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		return err
+	}
+
 	// Convert ExecutionTraces to protobuf messages set
-	pbTraces, err := ToProto(proofs)
+	pbTraces, err := ToProto(proofs, uint64(randval.Int64()))
 	if err != nil {
 		return err
 	}
@@ -259,21 +267,25 @@ func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
 	return ep, nil
 }
 
-func ToProto(tr ExecutionTraces) (*PbTracesSet, error) {
+func ToProto(tr ExecutionTraces, traceIdx uint64) (*PbTracesSet, error) {
 	traces, ok := tr.(*executionTracesImpl)
 	if !ok {
 		panic("Unexpected traces type")
 	}
 	pbTraces := &PbTracesSet{
-		bytecode: &pb.BytecodeTraces{ContractBytecodes: make(map[string][]byte)},
+		bytecode: &pb.BytecodeTraces{
+			ContractBytecodes: make(map[string][]byte),
+			TraceIdx:          traceIdx,
+		},
 		rw: &pb.RWTraces{
 			StackOps:   make([]*pb.StackOp, len(traces.StackOps)),
 			MemoryOps:  make([]*pb.MemoryOp, len(traces.MemoryOps)),
 			StorageOps: make([]*pb.StorageOp, len(traces.StorageOps)),
+			TraceIdx:   traceIdx,
 		},
-		exp:   &pb.ExpTraces{ExpOps: make([]*pb.ExpOp, len(traces.ExpOps))},
-		zkevm: &pb.ZKEVMTraces{ZkevmStates: make([]*pb.ZKEVMState, len(traces.ZKEVMStates))},
-		copy:  &pb.CopyTraces{CopyEvents: make([]*pb.CopyEvent, len(traces.CopyEvents))},
+		exp:   &pb.ExpTraces{ExpOps: make([]*pb.ExpOp, len(traces.ExpOps)), TraceIdx: traceIdx},
+		zkevm: &pb.ZKEVMTraces{ZkevmStates: make([]*pb.ZKEVMState, len(traces.ZKEVMStates)), TraceIdx: traceIdx},
+		copy:  &pb.CopyTraces{CopyEvents: make([]*pb.CopyEvent, len(traces.CopyEvents)), TraceIdx: traceIdx},
 	}
 
 	// Convert StackOps
@@ -372,7 +384,7 @@ func ToProto(tr ExecutionTraces) (*PbTracesSet, error) {
 		pbTraces.bytecode.ContractBytecodes[addr.Hex()] = bytecode
 	}
 
-	mptTraces, err := mptTracesToProto(traces.MPTTraces)
+	mptTraces, err := mptTracesToProto(traces.MPTTraces, traceIdx)
 	if err != nil {
 		return nil, err
 	}
@@ -498,7 +510,7 @@ func mptTracesFromProto(pbMptTraces *pb.MPTTraces) (*mpttracer.MPTTraces, error)
 	return ret, nil
 }
 
-func mptTracesToProto(mptTraces *mpttracer.MPTTraces) (*pb.MPTTraces, error) {
+func mptTracesToProto(mptTraces *mpttracer.MPTTraces, traceIdx uint64) (*pb.MPTTraces, error) {
 	check.PanicIfNot(mptTraces != nil)
 
 	pbAddrToStorageTraces := make(map[string]*pb.StorageTrieUpdatesTraces, len(mptTraces.StorageTracesByAccount))
@@ -541,6 +553,7 @@ func mptTracesToProto(mptTraces *mpttracer.MPTTraces) (*pb.MPTTraces, error) {
 	ret := &pb.MPTTraces{
 		StorageTracesByAccount: pbAddrToStorageTraces,
 		ContractTrieTraces:     pbContractTrieTraces,
+		TraceIdx:               traceIdx,
 	}
 
 	return ret, nil
