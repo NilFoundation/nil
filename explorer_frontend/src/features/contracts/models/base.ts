@@ -10,6 +10,7 @@ import {
   type Token,
   type CometaService,
   type Hex,
+  bytesToHex,
 } from "@nilfoundation/niljs";
 import { createCompileInput } from "../../shared/utils/solidityCompiler/helper";
 
@@ -129,6 +130,35 @@ export const deploySmartContractFx = createEffect<
     name: app.name,
     deployedFrom: wallet.address,
     txHash: hash,
+  };
+});
+
+export const $assignedSmartContractAddress = createStore<string>("");
+export const setAssignedSmartContractAddress = createEvent<string>();
+export const assignSmartContract = createEvent();
+export const assignSmartContractFx = createEffect<
+  {
+    app: App;
+    wallet: WalletV1;
+    assignedSmartContractAddress: string | undefined;
+  },
+  {
+    address: Hex;
+    app: Hex;
+  }
+>(async ({ app, wallet, assignedSmartContractAddress }) => {
+  const address = <Hex>`${assignedSmartContractAddress}`;
+
+  const source = bytesToHex(await wallet.client.getCode(address, "latest"));
+  const trimmedSource = source.startsWith("0x") ? source.slice(2) : source;
+
+  if (!app.bytecode.includes(trimmedSource)) {
+    throw new Error("Assigned contract bytecode not found in app bytecode. Compile contract first.");
+  };
+
+  return {
+    address,
+    app: app.bytecode,
   };
 });
 

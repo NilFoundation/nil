@@ -26,6 +26,8 @@ import {
   decrementShardId,
   deploySmartContract,
   deploySmartContractFx,
+  assignSmartContract,
+  assignSmartContractFx,
   fetchBalanceFx,
   incrementShardId,
   sendMethod,
@@ -37,6 +39,8 @@ import {
   setValueInput,
   toggleActiveKey,
   unlinkApp,
+  $assignedSmartContractAddress,
+  setAssignedSmartContractAddress,
 } from "./models/base";
 import { combine, sample } from "effector";
 import { isAddress } from "viem";
@@ -219,6 +223,36 @@ sample({
   target: deploySmartContractFx,
 });
 
+$assignedSmartContractAddress.on(setAssignedSmartContractAddress, (_, address) => address);
+
+sample({
+  source: combine(
+    $activeAppWithState,
+    $wallet,
+    $assignedSmartContractAddress,
+    (app, wallet, assignedSmartContractAddress) => {
+      if (!app || !wallet || !assignedSmartContractAddress) {
+        return null;
+      }
+
+      return {
+        app,
+        wallet,
+        assignedSmartContractAddress,
+      };
+    },
+  ),
+  filter: combine(
+    $wallet,
+    $activeApp,
+    $assignedSmartContractAddress,
+    (wallet, app, assignedSmartContractAddress) =>
+      !!wallet && !!app && !!assignedSmartContractAddress,
+  ),
+  clock: assignSmartContract,
+  target: assignSmartContractFx,
+});
+
 sample({
   source: combine({
     app: $activeApp,
@@ -229,6 +263,7 @@ sample({
   fn: ({ endpoint, app }) => ({ address: app!.address!, endpoint }),
   target: fetchBalanceFx,
 });
+
 $state.on(deploySmartContractFx.doneData, (state, { app, address }) => {
   const addresses = state[app] ? [...state[app], address] : [address];
   return {
@@ -236,6 +271,15 @@ $state.on(deploySmartContractFx.doneData, (state, { app, address }) => {
     [app]: addresses,
   };
 });
+
+$state.on(assignSmartContractFx.doneData, (state, { app, address }) => {
+  const addresses = state[app] ? [...state[app], address] : [address];
+  return {
+    ...state,
+    [app]: addresses,
+  };
+});
+
 $state.on(unlinkApp, (state, { app, address }) => {
   const addresses = state[app].filter((addr) => addr !== address);
   return {
@@ -456,6 +500,13 @@ $shardId.reset($activeAppWithState);
 $shardId.on(setShardId, (_, shardId) => shardId);
 
 $activeApp.on(deploySmartContractFx.doneData, (_, { address, app }) => {
+  return {
+    bytecode: app,
+    address,
+  };
+});
+
+$activeApp.on(assignSmartContractFx.doneData, (_, { address, app }) => {
   return {
     bytecode: app,
     address,
