@@ -85,7 +85,7 @@ export const Method = ({
   params,
 }: MethodProps) => {
   const [css] = useStyletron();
-  const [currecyBalance, valueInput] = useUnit([$balanceCurrency, $valueInputs]);
+  const [currecyBalance, valueInputs] = useUnit([$balanceCurrency, $valueInputs]);
   const availiableCurencies = [
     { currency: "NIL" },
     ...Object.keys(currecyBalance ?? {}).map((currency) => ({
