@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -23,7 +25,7 @@ type TaskSchedulerDebugRpcTestSuite struct {
 	context      context.Context
 	cancellation context.CancelFunc
 
-	rpcClient api.TaskDebugApi
+	rpcClient public.TaskDebugApi
 	scheduler scheduler.TaskScheduler
 
 	database db.DB
@@ -41,8 +43,8 @@ var (
 	running        = types.Running
 	failed         = types.Failed
 	proofBlockType = types.ProofBlock
-	sortExecTime   = api.OrderByExecutionTime
-	sortCreatedAt  = api.OrderByCreatedAt
+	sortExecTime   = public.OrderByExecutionTime
+	sortCreatedAt  = public.OrderByCreatedAt
 	outputLimit    = 4
 )
 
@@ -66,13 +68,18 @@ func (s *TaskSchedulerDebugRpcTestSuite) SetupSuite() {
 	s.database = database
 	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
 	s.Require().NoError(err)
-	s.storage = storage.NewTaskStorage(s.database, metricsHandler, logger)
+
+	s.storage = storage.NewTaskStorage(
+		s.database,
+		common.NewTestTimer(uint64(baseTime.Unix())),
+		metricsHandler,
+		logger,
+	)
 
 	s.scheduler = scheduler.New(
 		s.storage,
 		&api.TaskStateChangeHandlerMock{},
 		metricsHandler,
-		common.NewTestTimer(uint64(baseTime.Unix())),
 		logger,
 	)
 
@@ -102,8 +109,8 @@ func (s *TaskSchedulerDebugRpcTestSuite) TearDownSuite() {
 	s.cancellation()
 }
 
-func noFilterRequest() *api.TaskDebugRequest {
-	return api.NewTaskDebugRequest(nil, nil, nil, nil, false, nil)
+func noFilterRequest() *public.TaskDebugRequest {
+	return public.NewTaskDebugRequest(nil, nil, nil, nil, false, nil)
 }
 
 func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Tasks_Empty_Storage() {
@@ -114,16 +121,18 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Tasks_Empty_Storage() {
 	s.Require().Empty(taskEntries)
 }
 
+type getTaskTestCase struct {
+	name            string
+	request         *public.TaskDebugRequest
+	expectedResults []*types.TaskEntry
+	ignoreOrder     bool
+}
+
 func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Tasks() {
 	err := s.storage.AddTaskEntries(s.context, entries)
 	s.Require().NoError(err)
 
-	testCases := []struct {
-		name            string
-		request         *api.TaskDebugRequest
-		expectedResults []*types.TaskEntry
-		ignoreOrder     bool
-	}{
+	testCases := []getTaskTestCase{
 		{
 			name:            "AllTasksNoFilter",
 			request:         noFilterRequest(),
@@ -132,31 +141,31 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Tasks() {
 		},
 		{
 			name:            "FilterByExecutor",
-			request:         api.NewTaskDebugRequest(nil, nil, &someExecutor, nil, false, nil),
+			request:         public.NewTaskDebugRequest(nil, nil, &someExecutor, nil, false, nil),
 			expectedResults: []*types.TaskEntry{entries[1], entries[2], entries[3]},
 			ignoreOrder:     true,
 		},
 		{
 			name:            "FilterByTaskType",
-			request:         api.NewTaskDebugRequest(nil, &proofBlockType, nil, nil, false, nil),
+			request:         public.NewTaskDebugRequest(nil, &proofBlockType, nil, nil, false, nil),
 			expectedResults: []*types.TaskEntry{entries[3], entries[4]},
 			ignoreOrder:     true,
 		},
 		{
 			name:            "FilterByStatusRunning",
-			request:         api.NewTaskDebugRequest(&running, nil, nil, nil, false, nil),
+			request:         public.NewTaskDebugRequest(&running, nil, nil, nil, false, nil),
 			expectedResults: []*types.TaskEntry{entries[0], entries[1], entries[2]},
 			ignoreOrder:     true,
 		},
 		{
 			name:            "FilterByExecutorAndStatusFailed",
-			request:         api.NewTaskDebugRequest(&failed, nil, &someExecutor, nil, false, nil),
+			request:         public.NewTaskDebugRequest(&failed, nil, &someExecutor, nil, false, nil),
 			expectedResults: []*types.TaskEntry{entries[3]},
 			ignoreOrder:     true,
 		},
 		{
 			name:    "SortByCreatedAtAscending",
-			request: api.NewTaskDebugRequest(nil, nil, nil, &sortCreatedAt, true, nil),
+			request: public.NewTaskDebugRequest(nil, nil, nil, &sortCreatedAt, true, nil),
 			expectedResults: []*types.TaskEntry{
 				entries[4], entries[2], entries[0], entries[1], entries[3], entries[5],
 			},
@@ -164,7 +173,7 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Tasks() {
 		},
 		{
 			name:    "SortByExecutionTimeDescendingAndLimit",
-			request: api.NewTaskDebugRequest(nil, nil, nil, &sortExecTime, false, &outputLimit),
+			request: public.NewTaskDebugRequest(nil, nil, nil, &sortExecTime, false, &outputLimit),
 			expectedResults: []*types.TaskEntry{
 				entries[3], entries[2], entries[0], entries[1],
 			},
@@ -172,7 +181,7 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Tasks() {
 		},
 		{
 			name:    "SortByExecutionTimeDescendingAndLimit",
-			request: api.NewTaskDebugRequest(nil, nil, nil, &sortExecTime, true, &outputLimit),
+			request: public.NewTaskDebugRequest(nil, nil, nil, &sortExecTime, true, &outputLimit),
 			expectedResults: []*types.TaskEntry{
 				entries[1], entries[0], entries[2], entries[3],
 			},
@@ -182,16 +191,32 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Tasks() {
 
 	for _, testCase := range testCases {
 		s.Run(testCase.name, func() {
-			result, err := s.rpcClient.GetTasks(s.context, testCase.request)
-			s.Require().NoError(err)
-			s.Require().NotNil(result)
-
-			if testCase.ignoreOrder {
-				s.Require().ElementsMatch(testCase.expectedResults, result)
-			} else {
-				s.Require().Equal(testCase.expectedResults, result)
-			}
+			s.runGetTasksCase(testCase)
 		})
+	}
+}
+
+func (s *TaskSchedulerDebugRpcTestSuite) runGetTasksCase(testCase getTaskTestCase) {
+	s.T().Helper()
+
+	result, err := s.rpcClient.GetTasks(s.context, testCase.request)
+	s.Require().NoError(err)
+	s.Require().NotNil(result)
+
+	s.Require().Len(result, len(testCase.expectedResults))
+
+	if testCase.ignoreOrder {
+		slices.SortFunc(testCase.expectedResults, func(a, b *types.TaskEntry) int {
+			return strings.Compare(a.Task.Id.String(), b.Task.Id.String())
+		})
+		slices.SortFunc(result, func(a, b *public.TaskView) int {
+			return strings.Compare(a.Id.String(), b.Id.String())
+		})
+	}
+
+	for i, taskView := range result {
+		taskEntry := testCase.expectedResults[i]
+		s.requireTaskValueEqual(taskEntry, taskView)
 	}
 }
 
@@ -220,7 +245,7 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_No_Dependencies() {
 	s.Require().NoError(err)
 	s.Require().NotNil(taskTree)
 
-	s.Require().Equal(entry, &taskTree.TaskEntry)
+	s.requireTaskValueEqual(entry, &taskTree.Task)
 	s.Require().Nil(taskTree.Result)
 	s.Require().Empty(taskTree.Dependencies)
 }
@@ -250,40 +275,60 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_With_Dependencies() 
 	err := s.storage.AddTaskEntries(s.context, []*types.TaskEntry{taskA, taskB, taskC, taskD, taskE})
 	s.Require().NoError(err)
 
-	taskTree, err := s.rpcClient.GetTaskTree(s.context, taskA.Task.Id)
+	taskATree, err := s.rpcClient.GetTaskTree(s.context, taskA.Task.Id)
 	s.Require().NoError(err)
-	s.Require().NotNil(taskTree)
+	s.Require().NotNil(taskATree)
 
-	s.Require().Equal(taskA, &taskTree.TaskEntry)
-	s.Require().Nil(taskTree.Result)
-	s.Require().Len(taskTree.Dependencies, 2)
+	s.requireTaskValueEqual(taskA, &taskATree.Task)
+	s.Require().Nil(taskATree.Result)
+	s.Require().Len(taskATree.Dependencies, 2, "task A should have 2 dependencies")
+	s.requireHasDependency(taskATree, taskB)
+	s.requireHasDependency(taskATree, taskC)
 
-	taskBSubtree := s.getDependencyById(taskTree, taskB.Task.Id)
-	s.Require().Equal(taskB, &taskBSubtree.TaskEntry)
+	taskBSubtree := taskATree.Dependencies[taskB.Task.Id]
+	s.Require().Len(taskBSubtree.Dependencies, 1, "task B should have 1 dependency")
+	s.requireHasDependency(taskBSubtree, taskD)
 
-	s.Require().Len(taskBSubtree.Dependencies, 1)
-	s.Require().Equal(taskD, &taskBSubtree.Dependencies[0].TaskEntry)
-	s.Require().Empty(taskBSubtree.Dependencies[0].Dependencies)
+	taskCSubtree := taskATree.Dependencies[taskC.Task.Id]
+	s.Require().Len(taskCSubtree.Dependencies, 2, "task C should have 2 dependencies")
+	s.requireHasDependency(taskCSubtree, taskD)
+	s.requireHasDependency(taskCSubtree, taskE)
 
-	taskCSubtree := s.getDependencyById(taskTree, taskC.Task.Id)
-	s.Require().Equal(taskC, &taskCSubtree.TaskEntry)
+	taskDSubtree := taskBSubtree.Dependencies[taskD.Task.Id]
+	s.Require().Empty(taskDSubtree.Dependencies, "task D should have no dependencies")
 
-	s.Require().ElementsMatch(
-		[]*types.TaskEntry{taskD, taskE},
-		[]*types.TaskEntry{&taskCSubtree.Dependencies[0].TaskEntry, &taskCSubtree.Dependencies[1].TaskEntry},
-	)
-
-	s.Require().Empty(taskCSubtree.Dependencies[0].Dependencies)
-	s.Require().Empty(taskCSubtree.Dependencies[1].Dependencies)
+	taskESubtree := taskCSubtree.Dependencies[taskE.Task.Id]
+	s.Require().Empty(taskESubtree.Dependencies, "task E should have no dependencies")
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) getDependencyById(taskTree *types.TaskTree, taskId types.TaskId) *types.TaskTree {
+func (s *TaskSchedulerDebugRpcTestSuite) requireHasDependency(tree *public.TaskTreeView, expected *types.TaskEntry) {
 	s.T().Helper()
+	taskSubtree, exists := tree.Dependencies[expected.Task.Id]
+	s.Require().True(exists)
+	s.requireTaskValueEqual(expected, &taskSubtree.Task)
+}
 
-	actualTaskIdx := slices.IndexFunc(taskTree.Dependencies, func(child *types.TaskTree) bool {
-		return child.TaskEntry.Task.Id == taskId
-	})
-	s.Require().NotEqual(-1, actualTaskIdx)
+func (s *TaskSchedulerDebugRpcTestSuite) requireTaskValueEqual(expected *types.TaskEntry, actual *public.TaskView) {
+	s.T().Helper()
+	s.Require().NotNil(actual)
 
-	return taskTree.Dependencies[actualTaskIdx]
+	assertions := []bool{
+		s.Equal(expected.Task.Id, actual.Id),
+		s.Equal(expected.Task.BatchId, actual.BatchId),
+		s.Equal(expected.Task.ShardId, actual.ShardId),
+		s.Equal(expected.Task.BlockNum, actual.BlockNumber),
+		s.Equal(expected.Task.BlockHash, actual.BlockHash),
+		s.Equal(expected.Task.TaskType, actual.Type),
+		s.Equal(expected.Task.CircuitType, actual.CircuitType),
+
+		s.Equal(expected.Created, actual.CreatedAt),
+		s.Equal(expected.Started, actual.StartedAt),
+		s.Equal(expected.ExecutionTime(baseTime), actual.ExecutionTime),
+		s.Equal(expected.Owner, actual.Owner),
+		s.Equal(expected.Status, actual.Status),
+	}
+
+	if slices.Contains(assertions, false) {
+		s.FailNowf("", "assertion for task with id=%s failed", expected.Task.Id.String())
+	}
 }

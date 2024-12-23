@@ -364,6 +364,10 @@ func (h *taskHandler) makeCommandForTask(task *types.Task) commandDescription {
 		cmd.Err = errors.New("ProofBlock task type is not supposed to be encountered in prover task handler for task " + task.Id.String() +
 			" type " + task.TaskType.String())
 		return commandDescription{runCommand: &cmd}
+	case types.TaskTypeNone:
+		var cmd exec.Cmd
+		cmd.Err = fmt.Errorf("task with id=%s has unspecified type", task.Id.String())
+		return commandDescription{runCommand: &cmd}
 	default:
 		var cmd exec.Cmd
 		cmd.Err = errors.New("Unknown type for task " + task.Id.String() +

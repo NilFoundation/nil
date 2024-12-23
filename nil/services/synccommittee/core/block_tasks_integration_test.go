@@ -46,14 +46,13 @@ func (s *BlockTasksIntegrationTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 	logger := logging.NewLogger("block_tasks_test_suite")
 
-	s.taskStorage = storage.NewTaskStorage(s.db, metricsHandler, logger)
+	s.taskStorage = storage.NewTaskStorage(s.db, common.NewTimer(), metricsHandler, logger)
 	s.blockStorage = storage.NewBlockStorage(s.db, metricsHandler, logger)
 
 	s.scheduler = scheduler.New(
 		s.taskStorage,
 		newTaskStateChangeHandler(s.blockStorage, logger),
 		metricsHandler,
-		common.NewTimer(),
 		logger,
 	)
 }

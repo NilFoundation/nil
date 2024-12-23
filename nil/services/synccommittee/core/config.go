@@ -6,6 +6,10 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 )
 
+const (
+	DefaultTaskRpcEndpoint = "tcp://127.0.0.1:8530"
+)
+
 type Config struct {
 	RpcEndpoint             string
 	TaskListenerRpcEndpoint string
@@ -18,7 +22,7 @@ type Config struct {
 func NewDefaultConfig() *Config {
 	return &Config{
 		RpcEndpoint:             "tcp://127.0.0.1:8529",
-		TaskListenerRpcEndpoint: "tcp://127.0.0.1:8530",
+		TaskListenerRpcEndpoint: DefaultTaskRpcEndpoint,
 		PollingDelay:            time.Second,
 		GracefulShutdown:        true,
 		ProposerParams:          NewDefaultProposerParams(),

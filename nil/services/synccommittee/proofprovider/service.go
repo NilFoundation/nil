@@ -55,7 +55,7 @@ func New(config *Config, database db.DB) (*ProofProvider, error) {
 	}
 
 	taskRpcClient := rpc.NewTaskRequestRpcClient(config.SyncCommitteeRpcEndpoint, logger)
-	taskStorage := storage.NewTaskStorage(database, metricsHandler, logger)
+	taskStorage := storage.NewTaskStorage(database, common.NewTimer(), metricsHandler, logger)
 
 	taskExecutor, err := executor.New(
 		executor.DefaultConfig(),
@@ -72,7 +72,6 @@ func New(config *Config, database db.DB) (*ProofProvider, error) {
 		taskStorage,
 		newTaskStateChangeHandler(taskRpcClient, taskExecutor.Id(), logger),
 		metricsHandler,
-		common.NewTimer(),
 		logger,
 	)
 
