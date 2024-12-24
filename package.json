@@ -29,5 +29,8 @@
   "optionalDependencies": {
     "@biomejs/cli-linux-x64": "1.9.4",
     "@biomejs/cli-win32-x64": "1.9.4"
+  },
+  "overrides": {
+    "whatwg-url": "13.0.0"
   }
 }
