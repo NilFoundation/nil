@@ -124,7 +124,7 @@ test("Contract Factory", async ({ expect }) => {
   });
   const walletAddress = wallet.address;
 
-  await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(0.1));
+  await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
 
   await wallet.selfDeploy(true);
 
@@ -162,7 +162,6 @@ test("Contract Factory", async ({ expect }) => {
   const hash11 = await wallet.sendMessage({
     to: incrementerAddress,
     value: 100000000n,
-    feeCredit: 100000000n,
   });
   const receipts11 = await waitTillCompleted(client, hash11);
   expect(receipts11.some((receipt) => !receipt.success)).toBe(false);

@@ -2,6 +2,7 @@ import { RPC_GLOBAL, FAUCET_GLOBAL } from "./globals";
 
 //startImportStatements
 import {
+  convertEthToWei,
   Faucet,
   FaucetClient,
   generateRandomPrivateKey,
@@ -48,7 +49,7 @@ describe.sequential("Nil.js can use the faucet service", async () => {
 
     const walletAddress = wallet.address;
 
-    await faucet.withdrawToWithRetry(walletAddress, 80_000_000n);
+    await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
 
     await wallet.selfDeploy(true);
 
@@ -123,7 +124,7 @@ describe.sequential("Nil.js can use the faucet service", async () => {
 
       const walletAddress = wallet.address;
 
-      await faucet.withdrawToWithRetry(walletAddress, 80_000_000n);
+      await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
 
       await wallet.selfDeploy(true);
 

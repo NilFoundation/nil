@@ -67,7 +67,7 @@ func (s *SuiteRpc) TestRpcBasic() {
 
 	gasPrice, err := s.Client.GasPrice(types.BaseShardId)
 	s.Require().NoError(err)
-	s.Require().Equal(types.NewValueFromUint64(10), gasPrice)
+	s.Require().Equal(types.DefaultGasPrice, gasPrice)
 
 	res0Num, err := s.Client.GetBlock(types.BaseShardId, 0, false)
 	s.Require().NoError(err)

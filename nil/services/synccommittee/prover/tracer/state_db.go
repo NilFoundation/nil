@@ -306,7 +306,7 @@ func (tsdb *TracerStateDB) initMessageTraceContext(
 	msgId := uint(len(tsdb.InMessages) - 1)
 	codeHash := executingCode.Hash()
 	msgTraceCtx := &messageTraceContext{
-		evm:       vm.NewEVM(tsdb.blkContext, tsdb, origin, state),
+		evm:       vm.NewEVM(tsdb.blkContext, tsdb, origin, types.DefaultGasPrice, state),
 		code:      executingCode,
 		codeHash:  codeHash,
 		rwCounter: &tsdb.RwCounter,

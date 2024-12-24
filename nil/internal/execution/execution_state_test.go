@@ -545,6 +545,31 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		suite.True(res.Failed())
 		suite.Equal(types.ErrorCrossShardMessage, res.Error.Code())
 	})
+
+	suite.Run("Test required gas for outbound messages", func() {
+		gasPrice := types.DefaultGasPrice
+		gasScale := types.DefaultGasPrice.Div(types.Value100)
+
+		state := &vm.StateDBReadOnlyMock{
+			GetGasPriceFunc: func(shardId types.ShardId) (types.Value, error) {
+				return gasPrice, nil
+			},
+		}
+		gas := vm.GetExtraGasForOutboundMessage(state, types.ShardId(2))
+		suite.Zero(gas)
+
+		gasPrice = types.DefaultGasPrice.Sub(gasScale.Mul(types.Value10))
+		gas = vm.GetExtraGasForOutboundMessage(state, types.ShardId(2))
+		suite.Zero(gas)
+
+		gasPrice = types.DefaultGasPrice.Add(gasScale.Mul(types.Value10))
+		gas = vm.GetExtraGasForOutboundMessage(state, types.ShardId(2))
+		suite.EqualValues(vm.ExtraForwardFeeStep*10, gas)
+
+		gasPrice = types.DefaultGasPrice.Add(gasScale.Mul(types.NewValueFromUint64(101)))
+		gas = vm.GetExtraGasForOutboundMessage(state, types.ShardId(2))
+		suite.EqualValues(vm.ExtraForwardFeeStep*101, gas)
+	})
 }
 
 func BenchmarkBlockGeneration(b *testing.B) {

@@ -100,13 +100,13 @@ type DebugInfo struct {
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
 // only ever be used *once*.
-func NewEVM(blockContext *BlockContext, statedb StateDB, origin types.Address, state *EvmRestoreData) *EVM {
+func NewEVM(blockContext *BlockContext, statedb StateDB, origin types.Address, gasPrice types.Value, state *EvmRestoreData) *EVM {
 	evm := &EVM{
 		Context: blockContext,
 		StateDB: statedb,
 		TxContext: TxContext{
 			Origin:   origin,
-			GasPrice: big.NewInt(10),
+			GasPrice: gasPrice.ToBig(),
 		},
 		chainConfig: &params.ChainConfig{ChainID: big.NewInt(1)},
 	}

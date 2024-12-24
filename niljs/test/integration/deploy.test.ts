@@ -39,7 +39,7 @@ test("Deploy through wallet", async ({ expect }) => {
 
   expect(walletAddress).toBeDefined();
 
-  const faucetHash = await faucet.withdrawTo(walletAddress, convertEthToWei(0.1));
+  const faucetHash = await faucet.withdrawTo(walletAddress, convertEthToWei(1));
 
   await waitTillCompleted(client, bytesToHex(faucetHash));
   await wallet.selfDeploy(true);
@@ -89,6 +89,7 @@ test("External deployment", async ({ expect }) => {
 
   const pubkey = signer.getPublicKey();
   const chainId = await client.chainId();
+  const gasPrice = await client.getGasPrice(1);
 
   const deploymentMessage = externalDeploymentMessage(
     {
@@ -97,13 +98,14 @@ test("External deployment", async ({ expect }) => {
       bytecode: WalletV1.code,
       abi: WalletV1.abi,
       args: [bytesToHex(pubkey)],
+      feeCredit: 1000000n * gasPrice,
     },
     chainId,
   );
   const addr = bytesToHex(deploymentMessage.to);
   expect(addr).toBeDefined();
 
-  await faucet.withdrawToWithRetry(addr, convertEthToWei(0.1));
+  await faucet.withdrawToWithRetry(addr, convertEthToWei(1));
 
   const hash = await deploymentMessage.send(client);
 

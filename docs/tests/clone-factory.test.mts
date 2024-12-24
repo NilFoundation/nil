@@ -105,6 +105,7 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
     const walletAddress = wallet.address;
 
     await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(10));
+    const gasPrice = await client.getGasPrice(1);
 
     await wallet.selfDeploy(true);
 
@@ -113,7 +114,7 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
         bytecode: FACTORY_MANAGER_BYTECODE,
         abi: FACTORY_MANAGER_ABI,
         args: [],
-        feeCredit: 50_000_000n,
+        feeCredit: 50_000_000n * gasPrice,
         salt: SALT,
         shardId: 1,
       });
@@ -124,7 +125,7 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
 
     const createMasterChildHash = await wallet.sendMessage({
       to: factoryManagerAddress,
-      feeCredit: 10_000_000n,
+      feeCredit: 10_000_000n * gasPrice,
       abi: FACTORY_MANAGER_ABI,
       functionName: "deployNewMasterChild",
       args: [2, SALT],
@@ -140,7 +141,7 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
 
     const createFactoryHash = await wallet.sendMessage({
       to: factoryManagerAddress,
-      feeCredit: 10_000_000n,
+      feeCredit: 10_000_000n * gasPrice,
       abi: FACTORY_MANAGER_ABI,
       functionName: "deployNewFactory",
       args: [2, SALT],
@@ -156,7 +157,7 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
 
     const createCloneHash = await wallet.sendMessage({
       to: factoryAddress,
-      feeCredit: 5_000_000n,
+      feeCredit: 5_000_000n * gasPrice,
       abi: CLONE_FACTORY_ABI,
       functionName: "createCounterClone",
       args: [SALT],

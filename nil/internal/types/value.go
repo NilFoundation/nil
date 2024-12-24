@@ -8,6 +8,12 @@ import (
 	"github.com/holiman/uint256"
 )
 
+var (
+	Value0   = NewValueFromUint64(0)
+	Value10  = NewValueFromUint64(10)
+	Value100 = NewValueFromUint64(100)
+)
+
 type Value struct{ *Uint256 }
 
 func NewValue(val *uint256.Int) Value {
@@ -28,7 +34,7 @@ func NewValueFromDecimal(str string) (Value, error) {
 }
 
 func NewZeroValue() Value {
-	return NewValueFromUint64(0)
+	return Value0
 }
 
 func NewValueFromBig(val *big.Int) (Value, bool) {

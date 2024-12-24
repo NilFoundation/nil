@@ -28,7 +28,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var DefaultContractValue = types.NewValueFromUint64(50_000_000)
+var DefaultContractValue = types.NewValueFromUint64(500_000_000)
 
 type RpcSuite struct {
 	CliRunner

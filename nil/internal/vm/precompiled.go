@@ -19,6 +19,7 @@ package vm
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"reflect"
 	"slices"
@@ -52,20 +53,23 @@ func extractUintParam(arg any, methodName, paramName string) types.Value {
 // contract.
 type PrecompiledContract interface {
 	// RequiredPrice calculates the contract gas use
-	RequiredGas(input []byte) uint64
+	RequiredGas(input []byte, state StateDBReadOnly) (uint64, error)
 }
 
 type ReadOnlyPrecompiledContract interface {
+	PrecompiledContract
 	// Run runs the precompiled contract
 	Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error)
 }
 
 type ReadWritePrecompiledContract interface {
+	PrecompiledContract
 	// Run runs the precompiled contract without state modifications
 	Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error)
 }
 
 type EvmAccessedPrecompiledContract interface {
+	PrecompiledContract
 	// Run runs the precompiled contract
 	Run(evm *EVM, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error)
 }
@@ -145,7 +149,10 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 func RunPrecompiledContract(p PrecompiledContract, evm *EVM, input []byte, suppliedGas uint64,
 	logger *tracing.Hooks, value *uint256.Int, caller ContractRef, readOnly bool,
 ) (ret []byte, remainingGas uint64, err error) {
-	gasCost := p.RequiredGas(input)
+	gasCost, err := p.RequiredGas(input, StateDBReadOnly(evm.StateDB))
+	if err != nil {
+		return nil, 0, err
+	}
 	if suppliedGas < gasCost {
 		return nil, 0, fmt.Errorf("%w: %d < %d", ErrOutOfGas, suppliedGas, gasCost)
 	}
@@ -174,8 +181,10 @@ type simple struct {
 	contract SimplePrecompiledContract
 }
 
-func (a *simple) RequiredGas(input []byte) uint64 {
-	return a.contract.RequiredGas(input)
+var _ PrecompiledContract = (*simple)(nil)
+
+func (a *simple) RequiredGas(input []byte, state StateDBReadOnly) (uint64, error) {
+	return a.contract.RequiredGas(input), nil
 }
 
 func (a *simple) Run(_ StateDBReadOnly /* state */, input []byte, _ *uint256.Int /* value */, _ ContractRef /* caller */) ([]byte, error) {
@@ -184,14 +193,38 @@ func (a *simple) Run(_ StateDBReadOnly /* state */, input []byte, _ *uint256.Int
 
 type sendRawMessage struct{}
 
+var _ ReadWritePrecompiledContract = (*sendRawMessage)(nil)
+
 const (
 	// TODO: Make this dynamically calculated based on the network conditions and current shard gas price
 	ForwardFee                   uint64    = 1_000
+	ExtraForwardFeeStep          uint64    = 100
 	MinGasReserveForAsyncRequest types.Gas = 50_000
 )
 
-func (c *sendRawMessage) RequiredGas([]byte) uint64 {
-	return ForwardFee
+func (c *sendRawMessage) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
+	return ForwardFee, nil
+}
+
+func extractDstAddress(input []byte, methodName string, argNum int) (types.Address, error) {
+	if len(input) < 4 {
+		return types.EmptyAddress, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
+	// Unpack arguments, skipping the first 4 bytes (function selector)
+	args, err := getPrecompiledMethod(methodName).Inputs.Unpack(input[4:])
+	if err != nil {
+		return types.EmptyAddress, types.NewVmError(types.ErrorAbiUnpackFailed)
+	}
+	if len(args) <= argNum {
+		return types.EmptyAddress, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
+	}
+
+	// Get `dst` argument
+	dst, ok := args[argNum].(types.Address)
+	check.PanicIfNotf(ok, "dst argument is not an address")
+
+	return dst, nil
 }
 
 func setRefundTo(refundTo *types.Address, msg *types.Message) {
@@ -285,10 +318,39 @@ func (c *sendRawMessage) Run(state StateDB, input []byte, value *uint256.Int, ca
 	return nil, err
 }
 
+var gasScale = types.DefaultGasPrice.Div(types.Value100)
+
+// GetExtraGasForOutboundMessage returns the extra gas required for sending a message to a shard according to its gas
+// price. If the gas price is higher than the default gas price, the extra gas will be higher.
+func GetExtraGasForOutboundMessage(state StateDBReadOnly, shardId types.ShardId) uint64 {
+	gasPrice, err := state.GetGasPrice(shardId)
+	if err != nil {
+		log.Logger.Error().Msgf("GetExtraGasForOutboundMessage failed to get gas price: %s", err)
+		return 0
+	}
+
+	if gasPrice.Cmp(types.DefaultGasPrice) > 0 {
+		diff := gasPrice.Sub(types.DefaultGasPrice)
+		extraGas := diff.Div(gasScale)
+		return ExtraForwardFeeStep * extraGas.Uint64()
+	}
+
+	return uint64(0)
+}
+
 type asyncCall struct{}
 
-func (c *asyncCall) RequiredGas([]byte) uint64 {
-	return ForwardFee
+var _ ReadWritePrecompiledContract = (*asyncCall)(nil)
+
+func (c *asyncCall) RequiredGas(input []byte, state StateDBReadOnly) (uint64, error) {
+	dst, err := extractDstAddress(input, "precompileAsyncCall", 3)
+	if err != nil {
+		return 0, err
+	}
+
+	extraGas := GetExtraGasForOutboundMessage(state, dst.ShardId())
+
+	return ForwardFee + extraGas, nil
 }
 
 func extractCurrencies(arg any) ([]types.CurrencyBalance, error) {
@@ -438,8 +500,16 @@ func estimateGasForAsyncRequest(input []byte, precompile string, argnum, argtota
 
 type awaitCall struct{}
 
-func (c *awaitCall) RequiredGas(input []byte) uint64 {
-	return estimateGasForAsyncRequest(input, "precompileAwaitCall", 1, 3)
+var _ EvmAccessedPrecompiledContract = (*awaitCall)(nil)
+
+func (c *awaitCall) RequiredGas(input []byte, state StateDBReadOnly) (uint64, error) {
+	dst, err := extractDstAddress(input, "precompileAwaitCall", 0)
+	if err != nil {
+		return math.MaxUint64, err
+	}
+	extraGas := GetExtraGasForOutboundMessage(state, dst.ShardId())
+
+	return extraGas + estimateGasForAsyncRequest(input, "precompileAwaitCall", 1, 3), nil
 }
 
 func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
@@ -503,8 +573,16 @@ func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller Contr
 
 type sendRequest struct{}
 
-func (c *sendRequest) RequiredGas(input []byte) uint64 {
-	return estimateGasForAsyncRequest(input, "precompileSendRequest", 2, 5)
+var _ ReadWritePrecompiledContract = (*sendRequest)(nil)
+
+func (c *sendRequest) RequiredGas(input []byte, state StateDBReadOnly) (uint64, error) {
+	dst, err := extractDstAddress(input, "precompileSendRequest", 0)
+	if err != nil {
+		return math.MaxUint64, err
+	}
+	extraGas := GetExtraGasForOutboundMessage(state, dst.ShardId())
+
+	return extraGas + estimateGasForAsyncRequest(input, "precompileSendRequest", 2, 5), nil
 }
 
 func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
@@ -579,6 +657,8 @@ func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, calle
 
 type verifySignature struct{}
 
+var _ SimplePrecompiledContract = (*verifySignature)(nil)
+
 func (c *verifySignature) RequiredGas([]byte) uint64 {
 	return 5000
 }
@@ -618,8 +698,10 @@ func VerifySignatureArgs() abi.Arguments {
 
 type checkIsInternal struct{}
 
-func (c *checkIsInternal) RequiredGas([]byte) uint64 {
-	return 10
+var _ ReadOnlyPrecompiledContract = (*checkIsInternal)(nil)
+
+func (c *checkIsInternal) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
+	return 10, nil
 }
 
 func (a *checkIsInternal) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
@@ -634,8 +716,10 @@ func (a *checkIsInternal) Run(state StateDBReadOnly, input []byte, value *uint25
 
 type checkIsResponse struct{}
 
-func (c *checkIsResponse) RequiredGas([]byte) uint64 {
-	return 10
+var _ ReadOnlyPrecompiledContract = (*checkIsResponse)(nil)
+
+func (c *checkIsResponse) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
+	return 10, nil
 }
 
 func (a *checkIsResponse) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
@@ -651,8 +735,10 @@ func (a *checkIsResponse) Run(state StateDBReadOnly, input []byte, value *uint25
 
 type manageCurrency struct{}
 
-func (c *manageCurrency) RequiredGas([]byte) uint64 {
-	return 10
+var _ ReadWritePrecompiledContract = (*manageCurrency)(nil)
+
+func (c *manageCurrency) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
+	return 10, nil
 }
 
 func (c *manageCurrency) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
@@ -700,8 +786,10 @@ func (c *manageCurrency) Run(state StateDB, input []byte, value *uint256.Int, ca
 
 type currencyBalance struct{}
 
-func (c *currencyBalance) RequiredGas([]byte) uint64 {
-	return 10
+var _ ReadOnlyPrecompiledContract = (*currencyBalance)(nil)
+
+func (c *currencyBalance) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
+	return 10, nil
 }
 
 func (a *currencyBalance) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
@@ -746,10 +834,10 @@ func (a *currencyBalance) Run(state StateDBReadOnly, input []byte, value *uint25
 
 type sendCurrencySync struct{}
 
-var _ PrecompiledContract = (*sendCurrencySync)(nil)
+var _ ReadWritePrecompiledContract = (*sendCurrencySync)(nil)
 
-func (c *sendCurrencySync) RequiredGas([]byte) uint64 {
-	return 10
+func (c *sendCurrencySync) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
+	return 10, nil
 }
 
 func (c *sendCurrencySync) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
@@ -791,10 +879,10 @@ func (c *sendCurrencySync) Run(state StateDB, input []byte, value *uint256.Int, 
 
 type getMessageTokens struct{}
 
-var _ PrecompiledContract = (*getMessageTokens)(nil)
+var _ ReadOnlyPrecompiledContract = (*getMessageTokens)(nil)
 
-func (c *getMessageTokens) RequiredGas([]byte) uint64 {
-	return 10
+func (c *getMessageTokens) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
+	return 10, nil
 }
 
 func (c *getMessageTokens) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
@@ -809,10 +897,10 @@ func (c *getMessageTokens) Run(state StateDBReadOnly, input []byte, value *uint2
 
 type getGasPrice struct{}
 
-var _ PrecompiledContract = (*getGasPrice)(nil)
+var _ ReadOnlyPrecompiledContract = (*getGasPrice)(nil)
 
-func (c *getGasPrice) RequiredGas([]byte) uint64 {
-	return 10
+func (c *getGasPrice) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
+	return 10, nil
 }
 
 func (c *getGasPrice) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
@@ -852,10 +940,10 @@ func (c *getGasPrice) Run(state StateDBReadOnly, input []byte, value *uint256.In
 
 type poseidonHash struct{}
 
-var _ PrecompiledContract = (*poseidonHash)(nil)
+var _ ReadOnlyPrecompiledContract = (*poseidonHash)(nil)
 
-func (c *poseidonHash) RequiredGas([]byte) uint64 {
-	return 10
+func (c *poseidonHash) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
+	return 10, nil
 }
 
 func (c *poseidonHash) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
@@ -882,10 +970,10 @@ func (c *poseidonHash) Run(state StateDBReadOnly, input []byte, value *uint256.I
 
 type configParam struct{}
 
-var _ PrecompiledContract = (*configParam)(nil)
+var _ ReadWritePrecompiledContract = (*configParam)(nil)
 
-func (c *configParam) RequiredGas([]byte) uint64 {
-	return 10
+func (c *configParam) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
+	return 10, nil
 }
 
 func (c *configParam) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
@@ -947,8 +1035,10 @@ func (c *configParam) Run(state StateDB, input []byte, value *uint256.Int, calle
 
 type emitLog struct{}
 
-func (e *emitLog) RequiredGas([]byte) uint64 {
-	return 1000
+var _ ReadWritePrecompiledContract = (*emitLog)(nil)
+
+func (e *emitLog) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
+	return 1000, nil
 }
 
 func (e *emitLog) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {

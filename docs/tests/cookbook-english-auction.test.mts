@@ -94,6 +94,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
       await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(10));
 
       await wallet.selfDeploy(true);
+      const gasPrice = await client.getGasPrice(1);
 
       const { address: addressNFT, hash: hashNFT } = await wallet.deployContract({
         salt: SALT,
@@ -101,7 +102,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
         bytecode: NFT_BYTECODE,
         abi: NFT_ABI,
         args: [],
-        feeCredit: 3_000_000n,
+        feeCredit: 3_000_000n * gasPrice,
       });
 
       const receiptsNFT = await waitTillCompleted(client, hashNFT);
@@ -113,7 +114,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
         value: 50_000n,
         abi: AUCTION_ABI,
         args: [addressNFT],
-        feeCredit: 5_000_000n,
+        feeCredit: 5_000_000n * gasPrice,
       });
 
       const receiptsAuction = await waitTillCompleted(client, hashAuction);
@@ -134,7 +135,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
       //startStartAuction
       const startAuctionHash = await wallet.sendMessage({
         to: addressAuction,
-        feeCredit: 1_000_000n,
+        feeCredit: 1_000_000n * gasPrice,
         data: encodeFunctionData({
           abi: AUCTION_ABI,
           functionName: "start",
@@ -170,7 +171,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
 
       const bidHash = await walletTwo.sendMessage({
         to: addressAuction,
-        feeCredit: 1_000_000n,
+        feeCredit: 1_000_000n * gasPrice,
         data: encodeFunctionData({
           abi: AUCTION_ABI,
           functionName: "bid",
@@ -187,7 +188,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
 
       const endHash = await wallet.sendMessage({
         to: addressAuction,
-        feeCredit: 1_000_000n,
+        feeCredit: 1_000_000n * gasPrice,
         data: encodeFunctionData({
           abi: AUCTION_ABI,
           functionName: "end",

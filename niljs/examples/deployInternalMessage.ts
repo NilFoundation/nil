@@ -7,7 +7,7 @@ import {
   WalletV1,
   bytesToHex,
   generateRandomPrivateKey,
-  waitTillCompleted,
+  waitTillCompleted, getShardIdFromAddress, convertEthToWei,
 } from "../src";
 
 const client = new PublicClient({
@@ -36,7 +36,7 @@ const walletAddress = wallet.address;
 
 console.log("walletAddress", walletAddress);
 
-await faucet.withdrawToWithRetry(walletAddress, 1000000000000n);
+await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
 await wallet.selfDeploy(true);
 
 console.log("Wallet deployed successfully");
@@ -59,7 +59,6 @@ const { address, hash } = await wallet.deployContract({
   abi: abi,
   args: [bytesToHex(pubkey), walletAddress],
   value: 10000000n,
-  feeCredit: 1000000n * 10n,
   salt: 400n,
   shardId: 1,
 });

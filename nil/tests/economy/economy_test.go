@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"math/big"
 	"testing"
 
@@ -53,8 +54,6 @@ func (s *SuiteEconomy) SetupSuite() {
 	}
 
 	zerostateTmpl := `
-config:
-  gasPrices: [10, 10, 10, 50]
 contracts:
 - name: MainWallet
   address: {{ .WalletAddress }}
@@ -63,7 +62,7 @@ contracts:
   ctorArgs: [{{ .MainPublicKey }}]
 - name: Test1
   address: {{ .TestAddress1 }}
-  value: 10000000
+  value: 10000000000000000
   contract: tests/Test
 - name: Test2
   address: {{ .TestAddress2 }}
@@ -308,7 +307,7 @@ func (s *SuiteEconomy) TestGasForwarding() { //nolint
 	})
 	args = append(args, AsyncCallArgs{
 		Addr:        s.testAddress3,
-		FeeCredit:   big.NewInt(100_000),
+		FeeCredit:   types.GasToValue(100_000).ToBig(),
 		ForwardKind: types.ForwardKindNone,
 		CallData:    s.AbiPack(s.abiTest, "stub", big.NewInt(2)),
 	})
@@ -325,19 +324,20 @@ func (s *SuiteEconomy) TestGasForwarding() { //nolint
 
 	// w -> t1 -> {t2[val]}: refund rest from t1
 	args = args[:0]
+	forwardValue := types.GasToValue(50_000)
 	args = append(args, AsyncCallArgs{
 		Addr:        s.testAddress2,
-		FeeCredit:   big.NewInt(200_000),
+		FeeCredit:   forwardValue.ToBig(),
 		ForwardKind: types.ForwardKindValue,
 		CallData:    s.AbiPack(s.abiTest, "stub", big.NewInt(1)),
 	})
 	data = s.AbiPack(s.abiTest, "testForwarding", args)
 	receipt = s.SendMessageViaWalletNoCheck(s.walletAddress, s.testAddress1, execution.MainPrivateKey, data,
-		s.GasToValue(100_000), types.NewValueFromUint64(0), nil)
+		s.GasToValue(300_000), types.NewValueFromUint64(0), nil)
 	info = s.AnalyzeReceipt(receipt, s.namesMap)
 	s.Require().True(info.AllSuccess())
 	s.Require().True(info.ContainsOnly(s.walletAddress, s.testAddress1, s.testAddress2))
-	s.Require().Equal(0, info[s.testAddress1].ValueForwarded.Cmp(types.NewValueFromUint64(200_000)))
+	s.Require().Equal(0, info[s.testAddress1].ValueForwarded.Cmp(forwardValue))
 	s.Require().False(info[s.testAddress1].RefundSent.IsZero())
 	s.Require().Equal(info[s.walletAddress].ValueSent, info[s.testAddress1].ValueForwarded.
 		Add(info[s.testAddress1].ValueUsed).Add(info[s.testAddress1].RefundSent))
@@ -347,7 +347,7 @@ func (s *SuiteEconomy) TestGasForwarding() { //nolint
 	args = args[:0]
 	args = append(args, AsyncCallArgs{
 		Addr:        s.testAddress2,
-		FeeCredit:   big.NewInt(200_000),
+		FeeCredit:   types.GasToValue(200_000).ToBig(),
 		ForwardKind: types.ForwardKindValue,
 		CallData:    s.AbiPack(s.abiTest, "stub", big.NewInt(1)),
 	})
@@ -359,7 +359,7 @@ func (s *SuiteEconomy) TestGasForwarding() { //nolint
 	})
 	data = s.AbiPack(s.abiTest, "testForwarding", args)
 	receipt = s.SendMessageViaWalletNoCheck(s.walletAddress, s.testAddress1, execution.MainPrivateKey, data,
-		s.GasToValue(100_000), types.NewValueFromUint64(0), nil)
+		s.GasToValue(400_000), types.NewValueFromUint64(0), nil)
 	info = s.AnalyzeReceipt(receipt, s.namesMap)
 	s.Require().True(info.AllSuccess())
 	s.Require().True(info.ContainsOnly(s.walletAddress, s.testAddress1, s.testAddress2, s.testAddress3))
@@ -373,7 +373,7 @@ func (s *SuiteEconomy) TestGasForwarding() { //nolint
 	args = args[:0]
 	args = append(args, AsyncCallArgs{
 		Addr:        s.testAddress2,
-		FeeCredit:   big.NewInt(200_000),
+		FeeCredit:   types.GasToValue(200_000).ToBig(),
 		ForwardKind: types.ForwardKindValue,
 		CallData:    s.AbiPack(s.abiTest, "stub", big.NewInt(1)),
 	})
@@ -391,7 +391,7 @@ func (s *SuiteEconomy) TestGasForwarding() { //nolint
 	})
 	data = s.AbiPack(s.abiTest, "testForwarding", args)
 	receipt = s.SendMessageViaWalletNoCheck(s.walletAddress, s.testAddress1, execution.MainPrivateKey, data,
-		s.GasToValue(100_000), types.NewValueFromUint64(0), nil)
+		s.GasToValue(400_000), types.NewValueFromUint64(0), nil)
 	info = s.AnalyzeReceipt(receipt, s.namesMap)
 	s.Require().True(info.AllSuccess())
 	s.Require().True(info.ContainsOnly(s.walletAddress, s.testAddress1, s.testAddress2, s.testAddress3, s.testAddress4))
@@ -596,7 +596,7 @@ func (s *SuiteEconomy) TestGasForwarding() { //nolint
 	args = args[:0]
 	args = append(args, AsyncCallArgs{
 		Addr:        s.testAddress2,
-		FeeCredit:   big.NewInt(1_000_000_000_000),
+		FeeCredit:   big.NewInt(math.MaxInt64),
 		ForwardKind: types.ForwardKindValue,
 		CallData:    s.AbiPack(s.abiTest, "stub", big.NewInt(1)),
 	})
@@ -644,11 +644,11 @@ func (s *SuiteEconomy) TestGasForwardingInSendMessage() {
 	})
 
 	s.Run("Test ForwardKindValue", func() {
-		runTest(types.NewValueFromUint64(100000), types.ForwardKindValue)
+		runTest(types.GasToValue(100000), types.ForwardKindValue)
 	})
 
 	s.Run("Test ForwardKindNone", func() {
-		runTest(types.NewValueFromUint64(100000), types.ForwardKindNone)
+		runTest(types.GasToValue(100000), types.ForwardKindNone)
 	})
 }
 

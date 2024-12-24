@@ -38,7 +38,7 @@ console.log("walletAddress", walletAddress);
 
 const faucetHash = await faucet.withdrawTo(
   walletAddress,
-  convertEthToWei(0.1),
+  convertEthToWei(1),
 );
 
 await waitTillCompleted(client, bytesToHex(faucetHash));

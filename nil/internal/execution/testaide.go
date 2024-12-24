@@ -18,7 +18,7 @@ func GenerateZeroState(t *testing.T, ctx context.Context,
 	t.Helper()
 
 	g, err := NewBlockGenerator(ctx,
-		NewBlockGeneratorParams(shardId, 1, types.NewValueFromUint64(10), 0),
+		NewBlockGeneratorParams(shardId, 1, types.DefaultGasPrice, 0),
 		txFabric)
 	require.NoError(t, err)
 	defer g.Rollback()
@@ -87,7 +87,7 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 	blockHash, _, err := es.Commit(blockId)
 	require.NoError(t, err)
 
-	block, err := PostprocessBlock(tx, shardId, types.NewValueFromUint64(10), blockHash)
+	block, err := PostprocessBlock(tx, shardId, types.DefaultGasPrice, blockHash)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 

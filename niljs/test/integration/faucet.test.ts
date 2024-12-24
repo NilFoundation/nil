@@ -48,7 +48,7 @@ test("mint tokens", async () => {
 
   const faucet = Object.values(faucets)[0];
   const walletAddress = wallet.address;
-  await legacyFaucet.withdrawToWithRetry(walletAddress, convertEthToWei(0.1));
+  await legacyFaucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
   await wallet.selfDeploy(true);
 
   const tx = await faucetClient.topUpAndWaitUntilCompletion(

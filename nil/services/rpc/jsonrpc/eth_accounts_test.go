@@ -63,7 +63,7 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	suite.Require().NoError(err)
 	suite.blockHash = blockHash
 
-	block, err := execution.PostprocessBlock(tx, shardId, types.NewValueFromUint64(10), blockHash)
+	block, err := execution.PostprocessBlock(tx, shardId, types.DefaultGasPrice, blockHash)
 	suite.Require().NotNil(block)
 	suite.Require().NoError(err)
 

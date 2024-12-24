@@ -297,7 +297,7 @@ func (g *BlockGenerator) addReceipt(execResult *ExecutionResult) {
 	g.executionState.AddReceipt(execResult)
 
 	if execResult.Failed() {
-		g.logger.Debug().
+		g.logger.Warn().
 			Err(execResult.Error).
 			Stringer(logging.FieldMessageHash, msgHash).
 			Stringer(logging.FieldMessageTo, msg.To).

@@ -9,6 +9,8 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
+//go:generate go run github.com/matryer/moq -out state_generated_mock.go -rm -stub -with-resets . StateDBReadOnly
+
 type StateDBReadOnly interface {
 	// IsInternalMessage returns true if the message that initiated execution is internal.
 	// Synchronous calls inside one contract are also considered internal.

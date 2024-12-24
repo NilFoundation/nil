@@ -29,8 +29,6 @@ func init() {
 	check.PanicIfErr(err)
 
 	zerostate := `
-config:
-  gasPrices: [10, 10, 10, 10, 10]
 contracts:
 - name: Faucet
   address: {{ .FaucetAddress }}

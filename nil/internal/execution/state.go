@@ -1625,7 +1625,7 @@ func (es *ExecutionState) newVm(internal bool, origin types.Address, state *vm.E
 	if err != nil {
 		return err
 	}
-	es.evm = vm.NewEVM(blockContext, es, origin, state)
+	es.evm = vm.NewEVM(blockContext, es, origin, es.GasPrice, state)
 	es.evm.IsAsyncCall = internal
 	return nil
 }
@@ -1650,7 +1650,7 @@ func (es *ExecutionState) UpdateGasPrice() {
 	es.GasPrice = data.Block().GasPrice
 
 	decreasePerBlock := types.NewValueFromUint64(1)
-	maxGasPrice := types.NewValueFromUint64(100)
+	maxGasPrice := types.NewValueFromUint64(1000)
 
 	gasIncrease := uint64(math.Ceil(float64(data.Block().OutMessagesNum) * es.gasPriceScale))
 	var overflow bool

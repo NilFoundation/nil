@@ -26,6 +26,7 @@ const signer = new LocalECDSAKeySigner({
 
 const pubkey = signer.getPublicKey();
 const chainId = await client.chainId();
+const gasPrice = await client.getGasPrice(1);
 
 const deploymentMessage = externalDeploymentMessage(
   {
@@ -34,6 +35,7 @@ const deploymentMessage = externalDeploymentMessage(
     bytecode: WalletV1.code,
     abi: WalletV1.abi,
     args: [bytesToHex(pubkey)],
+    feeCredit: 1_000_000n * gasPrice,
   },
   chainId,
 );
@@ -43,7 +45,7 @@ console.log("walletAddress", addr);
 
 const faucetHash = await faucet.withdrawTo(
   addr,
-  convertEthToWei(0.1),
+  convertEthToWei(1),
 );
 
 await waitTillCompleted(client, bytesToHex(faucetHash));

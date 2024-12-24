@@ -46,8 +46,8 @@ test("bounce", async () => {
   });
 
   await Promise.all([
-    faucet.withdrawToWithRetry(walletAddress, convertEthToWei(0.1)),
-    faucet.withdrawToWithRetry(anotherWallet.address, convertEthToWei(0.1)),
+    faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1)),
+    faucet.withdrawToWithRetry(anotherWallet.address, convertEthToWei(1)),
   ]);
 
   await wallet.selfDeploy(true);
