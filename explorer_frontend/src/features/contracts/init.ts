@@ -409,7 +409,7 @@ sample({
       }
     }
 
-    const value = valueInputs
+    const value = valueInputs.find(v => v.currency === "NIL").amount
       .filter((valueInput) => valueInput.currency === "NIL")
       .map((valueInput) => valueInput.amount)
       .pop();
