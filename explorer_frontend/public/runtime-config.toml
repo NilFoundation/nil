@@ -4,7 +4,7 @@
 
 DOCUMENTATION_URL = "https://docs.nil.foundation/nil/intro"
 GITHUB_URL = "https://github.com/NilFoundation/nil-hardhat-example"
-API_URL = "https://explore.nil.foundation/api"
+API_URL = ""
 COMETA_SERVICE_API_URL = "https://api.devnet.nil.foundation/api"
 RPC_API_URL = "https://api.devnet.nil.foundation/api"
 SANDBOX_DOCS_URL = "https://docs.nil.foundation"

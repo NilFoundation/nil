@@ -306,7 +306,7 @@ export const setValueInput = createEvent<{
   currency: string;
   amount: string;
 }>();
-export const addValueInput = createEvent();
+export const addValueInput = createEvent<string[]>();
 export const removeValueInput = createEvent<number>();
 
 export const $activeComponent = createStore<ActiveComponent | null>(ActiveComponent.Deploy);

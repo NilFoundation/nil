@@ -66,7 +66,7 @@ const CurrencyInput: FC<CurrencyInputProps> = ({
               options={[...currencies.map(({ currency }) => ({
                 label: currency,
                 id: currency,
-              })), { label: value.currency, id: value.currency }]}
+              }))]}
               searchable={false}
               overrides={{
                 ControlContainer: {

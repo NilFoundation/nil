@@ -166,6 +166,9 @@ export const Method = ({
             >
               {valueInputs.map((valueInput, index) => {
                 const usedCurrencies = valueInputs.map((v) => v.currency);
+                const availableInputCurrencies = availiableCurencies.filter(
+                  (c) => !usedCurrencies.includes(c.currency) || c.currency === valueInput.currency
+                );
                 return (
                   // biome-ignore lint/correctness/useJsxKeyInIterable: can be the same for now
                   <div
@@ -182,7 +185,7 @@ export const Method = ({
                         width: "100%",
                       })}
                       disabled={loading}
-                      currencies={availiableCurencies.filter(c => !usedCurrencies.includes(c.currency))}
+                      currencies={availableInputCurrencies}
                       onChange={({amount, currency}) => {
                         setValueInput({index, amount, currency});
                       }}
@@ -194,8 +197,9 @@ export const Method = ({
               })}
               <Button
                 onClick={() => {
-                  addValueInput();
+                  addValueInput(availiableCurencies.map((c) => c.currency));
                 }}
+                disabled={valueInputs.map((v) => v.currency).length >= availiableCurencies.length}
                 kind={BUTTON_KIND.tertiary}
                 overrides={{
                   Root: {

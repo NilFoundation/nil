@@ -528,7 +528,13 @@ $valueInputs
     newState[index] = { amount, currency };
     return newState;
   })
-  .on(addValueInput, (state) => [...state, { amount: "0", currency: "NIL" }])
+  .on(addValueInput, (state, availableCurrencies) => {
+    const usedCurrencies = state.map((v) => v.currency);
+    const availableCurrency = availableCurrencies.find(
+      (c) => !usedCurrencies.includes(c)
+    )!;
+    return [...state, {amount: "0", currency: availableCurrency}];
+  })
   .on(removeValueInput, (state, index) => state.filter((_, i) => i !== index));
 
 $valueInputs.reset($activeAppWithState);
