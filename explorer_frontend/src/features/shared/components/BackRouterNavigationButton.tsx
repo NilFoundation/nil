@@ -18,6 +18,8 @@ export const BackRouterNavigationButton: FC<BackButtonProps> = ({ overrides, dis
       Root: {
         style: {
           transform: "rotate(-90deg)",
+          width: "48px",
+          height: "48px",
         },
       },
     },
@@ -26,7 +28,7 @@ export const BackRouterNavigationButton: FC<BackButtonProps> = ({ overrides, dis
 
   return (
     <ButtonIcon
-      icon={<ArrowUpIcon />}
+      icon={<ArrowUpIcon $size = {"16px"} />}
       kind={BUTTON_KIND.secondary}
       size={BUTTON_SIZE.large}
       onClick={() => history.back()}
