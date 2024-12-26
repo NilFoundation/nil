@@ -409,7 +409,7 @@ sample({
       }
     }
 
-    const value = valueInputs.find(v => v.currency === "NIL")?.amount;
+    const value = valueInputs.find((v) => v.currency === "NIL")?.amount;
     const tokens: Token[] = valueInputs
       .filter((valueInput) => valueInput.currency !== "NIL")
       .map((valueInput) => {
@@ -530,10 +530,8 @@ $valueInputs
   })
   .on(addValueInput, (state, availableCurrencies) => {
     const usedCurrencies = state.map((v) => v.currency);
-    const availableCurrency = availableCurrencies.find(
-      (c) => !usedCurrencies.includes(c)
-    )!;
-    return [...state, {amount: "0", currency: availableCurrency}];
+    const availableCurrency = availableCurrencies.find((c) => !usedCurrencies.includes(c))!;
+    return [...state, { amount: "0", currency: availableCurrency }];
   })
   .on(removeValueInput, (state, index) => state.filter((_, i) => i !== index));
 

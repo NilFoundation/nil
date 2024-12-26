@@ -167,7 +167,7 @@ export const Method = ({
               {valueInputs.map((valueInput, index) => {
                 const usedCurrencies = valueInputs.map((v) => v.currency);
                 const availableInputCurrencies = availiableCurencies.filter(
-                  (c) => !usedCurrencies.includes(c.currency) || c.currency === valueInput.currency
+                  (c) => !usedCurrencies.includes(c.currency) || c.currency === valueInput.currency,
                 );
                 return (
                   // biome-ignore lint/correctness/useJsxKeyInIterable: can be the same for now
@@ -186,12 +186,12 @@ export const Method = ({
                       })}
                       disabled={loading}
                       currencies={availableInputCurrencies}
-                      onChange={({amount, currency}) => {
-                        setValueInput({index, amount, currency});
+                      onChange={({ amount, currency }) => {
+                        setValueInput({ index, amount, currency });
                       }}
                       value={valueInput}
                     />
-                    <RemoveTokenButton index={index} kind={BUTTON_KIND.secondary}/>
+                    <RemoveTokenButton index={index} kind={BUTTON_KIND.secondary} />
                   </div>
                 );
               })}
