@@ -2,6 +2,7 @@ import { Button, COLORS, FormControl, Input, SPACE } from "@nilfoundation/ui-kit
 import { INPUT_KIND, INPUT_SIZE } from "@nilfoundation/ui-kit";
 import { useUnit } from "effector-react";
 import {
+  $assignedSmartContractAddress,
   assignSmartContract,
   assignSmartContractFx,
   setAssignedSmartContractAddress,
@@ -9,12 +10,14 @@ import {
 import { useStyletron } from "styletron-react";
 import { $wallet } from "../../../account-connector/model";
 import type { InputOverrides } from "baseui/input";
-
-import { useState } from "react";
+import type { Hex } from "@nilfoundation/niljs";
 
 export const AssignTab = () => {
-  const [wallet, pending] = useUnit([$wallet, assignSmartContractFx.pending]);
-  const [inputValue, setInputValue] = useState<string>("");
+  const [wallet, pending, assignedAddress] = useUnit([
+    $wallet,
+    assignSmartContractFx.pending,
+    $assignedSmartContractAddress,
+  ]);
   const [css] = useStyletron();
 
   return (
@@ -31,25 +34,19 @@ export const AssignTab = () => {
             size={INPUT_SIZE.small}
             overrides={inputOverrides}
             onChange={(e) => {
-              setInputValue(e.target.value);
+              setAssignedSmartContractAddress(e.target.value as Hex);
             }}
-            value={inputValue}
-            placeholder="0x000..."
+            value={assignedAddress && assignedAddress !== "0x" ? assignedAddress : ""}
           />
         </FormControl>
       </div>
       <div>
         <Button
           onClick={() => {
-            if (inputValue) {
-              setAssignedSmartContractAddress(inputValue);
-              assignSmartContract();
-            } else {
-              console.error("Address is undefined");
-            }
+            assignSmartContract();
           }}
           isLoading={pending}
-          disabled={pending || !wallet}
+          disabled={pending || !wallet || !assignedAddress}
         >
           Assign
         </Button>

@@ -33,6 +33,24 @@ $logs.on(deploySmartContractFx.doneData, (logs, { address, name, deployedFrom, t
   ];
 });
 
+$logs.on(assignSmartContractFx.doneData, (logs, { address }) => {
+  return [
+    ...logs,
+    {
+      id: nanoid(),
+      topic: LogTopic.Assign,
+      type: LogType.Success,
+      shortDescription: (
+        <MonoParagraphMedium color={COLORS.green200}>
+          Contract assigned successfully
+        </MonoParagraphMedium>
+      ),
+      payload: <ContractDeployedLog address={address} />,
+      timestamp: Date.now(),
+    },
+  ];
+});
+
 $logs.on(deploySmartContractFx.failData, (logs, error) => {
   return [
     ...logs,

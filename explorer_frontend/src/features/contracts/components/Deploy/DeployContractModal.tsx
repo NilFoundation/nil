@@ -1,19 +1,21 @@
-import { 
-  Modal, 
-  ModalHeader, 
+import {
+  Modal,
+  ModalHeader,
   ModalBody,
-  LabelLarge, 
-  Tabs, 
-  Tab, 
-  TAB_KIND 
+  LabelLarge,
+  Tabs,
+  Tab,
+  TAB_KIND,
 } from "@nilfoundation/ui-kit";
 import {} from "../../models/base";
 import {} from "@nilfoundation/ui-kit";
 import type { FC } from "react";
 import { DeployTab } from "./DeployTab";
 import { AssignTab } from "./AssignTab";
-import { useState } from "react";
 import type { TabsOverrides } from "baseui/tabs";
+import { useStore } from "effector-react";
+import { setActiveComponent, $activeComponent } from "../../models/base";
+import { ActiveComponent } from "./ActiveComponent";
 
 type DeployContractModalProps = {
   onClose?: () => void;
@@ -22,7 +24,7 @@ type DeployContractModalProps = {
 };
 
 export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isOpen, name }) => {
-  const [activeKey, setActiveKey] = useState("deploy");
+  const activeComponent = useStore($activeComponent) || ActiveComponent.Deploy;
 
   return (
     <Modal
@@ -45,14 +47,24 @@ export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isO
 
       <ModalBody>
         <Tabs
-          activeKey={activeKey}
+          activeKey={activeComponent}
           overrides={tabsOverrides}
-          onChange={({ activeKey }) => setActiveKey(activeKey)}
+          onChange={({ activeKey }) => setActiveComponent(activeKey as ActiveComponent)}
         >
-          <Tab title="Deploy" key="deploy" kind={TAB_KIND.primary}>
+          <Tab
+            title="Deploy"
+            key={ActiveComponent.Deploy}
+            kind={TAB_KIND.primary}
+            onClick={() => setActiveComponent(ActiveComponent.Deploy)}
+          >
             <DeployTab />
           </Tab>
-          <Tab title="Assign address" key="assign" kind={TAB_KIND.primary}>
+          <Tab
+            title="Assign address"
+            kind={TAB_KIND.primary}
+            key={ActiveComponent.Assign}
+            onClick={() => setActiveComponent(ActiveComponent.Assign)}
+          >
             <AssignTab />
           </Tab>
         </Tabs>

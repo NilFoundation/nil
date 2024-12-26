@@ -11,8 +11,10 @@ import {
   type CometaService,
   type Hex,
   bytesToHex,
+  removeHexPrefix,
 } from "@nilfoundation/niljs";
 import { createCompileInput } from "../../shared/utils/solidityCompiler/helper";
+import { ActiveComponent } from "../components/Deploy/ActiveComponent";
 
 export type DeployedApp = App & {
   address: Address;
@@ -133,31 +135,31 @@ export const deploySmartContractFx = createEffect<
   };
 });
 
-export const $assignedSmartContractAddress = createStore<string>("");
-export const setAssignedSmartContractAddress = createEvent<string>();
+export const $assignedSmartContractAddress = createStore<Hex>("0x");
+export const setAssignedSmartContractAddress = createEvent<Hex>();
 export const assignSmartContract = createEvent();
 export const assignSmartContractFx = createEffect<
   {
     app: App;
     wallet: WalletV1;
-    assignedSmartContractAddress: string | undefined;
+    assignedSmartContractAddress: Hex;
   },
   {
-    address: Hex;
+    assignedSmartContractAddress: Hex;
     app: Hex;
   }
 >(async ({ app, wallet, assignedSmartContractAddress }) => {
-  const address = <Hex>`${assignedSmartContractAddress}`;
-
-  const source = bytesToHex(await wallet.client.getCode(address, "latest"));
-  const trimmedSource = source.startsWith("0x") ? source.slice(2) : source;
-
-  if (!app.bytecode.includes(trimmedSource)) {
-    throw new Error("Assigned contract bytecode not found in app bytecode. Compile contract first.");
-  };
+  const source = removeHexPrefix(
+    bytesToHex(await wallet.client.getCode(assignedSmartContractAddress, "latest")),
+  );
+  if (!app.bytecode.includes(source)) {
+    throw new Error(
+      `Interface of the contract with address ${assignedSmartContractAddress} is not compatible with ${app.name}`,
+    );
+  }
 
   return {
-    address,
+    assignedSmartContractAddress,
     app: app.bytecode,
   };
 });
@@ -299,3 +301,6 @@ export const setValueInput = createEvent<{
   currency: string;
   amount: string;
 }>();
+
+export const $activeComponent = createStore<ActiveComponent | null>(ActiveComponent.Deploy);
+export const setActiveComponent = createEvent<ActiveComponent>();

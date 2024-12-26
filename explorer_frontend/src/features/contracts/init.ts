@@ -41,6 +41,8 @@ import {
   unlinkApp,
   $assignedSmartContractAddress,
   setAssignedSmartContractAddress,
+  $activeComponent,
+  setActiveComponent,
 } from "./models/base";
 import { combine, sample } from "effector";
 import { isAddress } from "viem";
@@ -231,10 +233,6 @@ sample({
     $wallet,
     $assignedSmartContractAddress,
     (app, wallet, assignedSmartContractAddress) => {
-      if (!app || !wallet || !assignedSmartContractAddress) {
-        return null;
-      }
-
       return {
         app,
         wallet,
@@ -272,8 +270,10 @@ $state.on(deploySmartContractFx.doneData, (state, { app, address }) => {
   };
 });
 
-$state.on(assignSmartContractFx.doneData, (state, { app, address }) => {
-  const addresses = state[app] ? [...state[app], address] : [address];
+$state.on(assignSmartContractFx.doneData, (state, { app, assignedSmartContractAddress }) => {
+  const addresses = state[app]
+    ? [...state[app], assignedSmartContractAddress]
+    : [assignedSmartContractAddress];
   return {
     ...state,
     [app]: addresses,
@@ -506,10 +506,10 @@ $activeApp.on(deploySmartContractFx.doneData, (_, { address, app }) => {
   };
 });
 
-$activeApp.on(assignSmartContractFx.doneData, (_, { address, app }) => {
+$activeApp.on(assignSmartContractFx.doneData, (_, { assignedSmartContractAddress, app }) => {
   return {
     bytecode: app,
-    address,
+    assignedSmartContractAddress,
   };
 });
 
@@ -556,3 +556,5 @@ exportAppFx.use(async (app) => {
     URL.revokeObjectURL(link.href);
   });
 });
+
+$activeComponent.on(setActiveComponent, (_, payload) => payload);
