@@ -164,31 +164,34 @@ export const Method = ({
                 justifyContent: "center",
               })}
             >
-              {valueInputs.map((valueInput, index) => (
-                // biome-ignore lint/correctness/useJsxKeyInIterable: can be the same for now
-                <div
-                  className={css({
-                    display: "flex",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    width: "100%",
-                    gap: "8px",
-                  })}
-                >
-                  <CurrencyInput
+              {valueInputs.map((valueInput, index) => {
+                const usedCurrencies = valueInputs.map((v) => v.currency);
+                return (
+                  // biome-ignore lint/correctness/useJsxKeyInIterable: can be the same for now
+                  <div
                     className={css({
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "center",
                       width: "100%",
+                      gap: "8px",
                     })}
-                    disabled={loading}
-                    currencies={availiableCurencies}
-                    onChange={({ amount, currency }) => {
-                      setValueInput({ index, amount, currency });
-                    }}
-                    value={valueInput}
-                  />
-                  <RemoveTokenButton index={index} kind={BUTTON_KIND.secondary} />
-                </div>
-              ))}
+                  >
+                    <CurrencyInput
+                      className={css({
+                        width: "100%",
+                      })}
+                      disabled={loading}
+                      currencies={availiableCurencies.filter(c => !usedCurrencies.includes(c.currency))}
+                      onChange={({amount, currency}) => {
+                        setValueInput({index, amount, currency});
+                      }}
+                      value={valueInput}
+                    />
+                    <RemoveTokenButton index={index} kind={BUTTON_KIND.secondary}/>
+                  </div>
+                );
+              })}
               <Button
                 onClick={() => {
                   addValueInput();

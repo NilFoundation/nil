@@ -409,10 +409,7 @@ sample({
       }
     }
 
-    const value = valueInputs.find(v => v.currency === "NIL").amount
-      .filter((valueInput) => valueInput.currency === "NIL")
-      .map((valueInput) => valueInput.amount)
-      .pop();
+    const value = valueInputs.find(v => v.currency === "NIL")?.amount;
     const tokens: Token[] = valueInputs
       .filter((valueInput) => valueInput.currency !== "NIL")
       .map((valueInput) => {

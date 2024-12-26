@@ -25,7 +25,7 @@ export const RemoveTokenButton: FC<RemoveTokenButtonProps> = ({
         overrides={{
           Root: {
             style: {
-              marginBottom: "16px",
+              marginBottom: "8px",
               width: "46px",
               height: "46px",
             },
