@@ -16,8 +16,6 @@ contract UniswapV2Pair is NilCurrencyBase, IUniswapV2Pair {
         bytes4(keccak256(bytes("transfer(address,uint256)")));
 
     address public factory;
-    address public token0;
-    address public token1;
     CurrencyId public tokenId0;
     CurrencyId public tokenId1;
 
@@ -59,14 +57,7 @@ contract UniswapV2Pair is NilCurrencyBase, IUniswapV2Pair {
     }
 
     // called once by the factory at time of deployment
-    function initialize(
-        address _token0,
-        address _token1,
-        CurrencyId _tokenId0,
-        CurrencyId _tokenId1
-    ) public {
-        token0 = _token0;
-        token1 = _token1;
+    function initialize(CurrencyId _tokenId0, CurrencyId _tokenId1) public {
         tokenId0 = _tokenId0;
         tokenId1 = _tokenId1;
     }
@@ -183,8 +174,8 @@ contract UniswapV2Pair is NilCurrencyBase, IUniswapV2Pair {
         balance1 = Nil.currencyBalance(address(this), tokenId1);
         {
             // scope for _token{0,1}, avoids stack too deep errors
-            address _token0 = token0;
-            address _token1 = token1;
+            address _token0 = CurrencyId.unwrap(tokenId0);
+            address _token1 = CurrencyId.unwrap(tokenId1);
             require(to != _token0 && to != _token1, "UniswapV2: INVALID_TO");
             if (amount0Out > 0) _safeTransfer(tokenId0, to, amount0Out);
             if (amount1Out > 0) _safeTransfer(tokenId1, to, amount1Out);

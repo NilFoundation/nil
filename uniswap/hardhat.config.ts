@@ -3,30 +3,33 @@ import "@nomicfoundation/hardhat-ignition-ethers";
 import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-ignition-ethers";
 import "@typechain/hardhat";
-import "@nilfoundation/hardhat-plugin";
-import type { NilHardhatUserConfig } from "@nilfoundation/hardhat-plugin";
 import * as dotenv from "dotenv";
+import type { HardhatUserConfig } from "hardhat/config";
+
+// Basic
+import "./tasks/basic/create-wallet";
 
 // Currency Tasks
 import "./tasks/currency/info";
 import "./tasks/currency/mint-wallet";
+import "./tasks/currency/deploy-currency";
 
 // Core Tasks
-import "./tasks/core/pair/get-reserves";
-import "./tasks/core/pair/mint";
-import "./tasks/core/pair/burn";
-import "./tasks/core/pair/swap";
-import "./tasks/core/factory/get-pair";
-import "./tasks/core/factory/create-pair";
+import "./tasks/uniswap/pair/get-reserves";
+import "./tasks/uniswap/pair/mint";
+import "./tasks/uniswap/pair/burn";
+import "./tasks/uniswap/pair/swap";
+import "./tasks/uniswap/factory/get-pair";
+import "./tasks/uniswap/factory/create-pair";
+import "./tasks/uniswap/factory/deploy-factory";
 
 // Demo Tasks
-import "./tasks/core/demo";
-import "./tasks/core/demo-router";
-import "./tasks/core/demo-router-sync";
+import "./tasks/uniswap/demo-router";
+import "./tasks/uniswap/demo-router-sync";
 
 dotenv.config();
 
-const config: NilHardhatUserConfig = {
+const config: HardhatUserConfig = {
   ignition: {
     requiredConfirmations: 1,
   },
@@ -47,7 +50,6 @@ const config: NilHardhatUserConfig = {
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
   },
-  walletAddress: process.env.WALLET_ADDR,
 };
 
 export default config;

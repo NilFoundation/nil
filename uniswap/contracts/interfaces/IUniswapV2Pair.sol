@@ -27,10 +27,6 @@ interface IUniswapV2Pair {
 
     function factory() external view returns (address);
 
-    function token0() external view returns (address);
-
-    function token1() external view returns (address);
-
     function token0Id() external view returns (CurrencyId);
 
     function token1Id() external view returns (CurrencyId);
@@ -56,5 +52,5 @@ interface IUniswapV2Pair {
 
     function sync() external;
 
-    function initialize(address, address, CurrencyId, CurrencyId) external;
+    function initialize(CurrencyId, CurrencyId) external;
 }

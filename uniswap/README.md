@@ -22,15 +22,71 @@ Before working with this repository, ensure that you have properly set up your e
 
 2. **Getting an RPC Endpoint**:
    To request an RPC endpoint:
-    - Join our Telegram chat: [https://t.me/nilfoundation](https://t.me/nilfoundation)
-    - Request access, and our DevRel team will assist you.
+   - Join our Telegram chat: [https://t.me/nilfoundation](https://t.me/nilfoundation)
+   - Request access, and our DevRel team will assist you.
 
 3. **Obtaining a Private Key and Wallet**:
-    - Download the `nil` CLI: [https://github.com/NilFoundation/nil_cli](https://github.com/NilFoundation/nil_cli)
-    - Follow the setup instructions in our documentation: [nil CLI Docs](https://docs.nil.foundation/nil/getting-started/nil-101)
+   - Download the `nil` CLI: [https://github.com/NilFoundation/nil_cli](https://github.com/NilFoundation/nil_cli)
+   - Follow the setup instructions in our documentation: [nil CLI Docs](https://docs.nil.foundation/nil/getting-started/nil-101)
 
+## 🪓 Usage with nil.js
 
+To interact with the =nil; network, we recommend using the `nil.js` library.
+It provides a simple and intuitive way to interact with the network, including sending transactions, querying data, and more.
 
+To get started with `nil.js`, install the package via npm:
+```bash
+  npm install @nilfoundation/niljs
+```
+
+You can initialize `Wallet` and `PublicClient` instances to interact with the network:
+```typescript
+const wallet = await createWallet({
+   faucetDeposit: true, // default: false
+});
+```
+
+With the `Wallet` instance, you can deploy contracts or attach to existing ones:
+```typescript
+// deployment
+const {contract, address} = await deployNilContract(
+        wallet,
+        FactoryJson.abi,
+        FactoryJsn.bytecode,
+        [], // constructor arguments
+        wallet.shardId,
+        ["callExternalMethod"], // external methods
+);
+
+// attach to an existing contract
+const contract2 = getContract({
+   abi: CurrencyJson.abi,
+   address: currencyAddress,
+   client: wallet.client,
+   wallet: wallet, // optional for write methods
+   externalInterface: { // optional for external methods
+      signer: wallet.signer,
+      methods: ["callExternalMethod"],
+   }
+});
+```
+
+After contract object initialization, you can call its methods:
+```typescript
+// read method
+const balance = await contract.read.getCurrencyBalanceOf([wallet.address]);
+
+// write method with tokens
+const hash = await pair.write.swap([0, expectedOutputAmount, wallet.address], {
+   tokens: [{
+      id: currency0Address,
+      amount: swapAmount,
+   }]
+});
+
+// external methods
+const hash1 = await contract.external.mintCurrency([mintAmount]);
+```
 
 ## 🎯 Usage
 
@@ -41,12 +97,12 @@ as well as performing operations like minting, swapping, and burning
 1. **Using Factory and Pair Contracts Only**
    This demo handles deploying the Factory and Pair contracts and executing a complete flow of operations
    [View the demo task](https://github.com/NilFoundation/uniswap-v2-nil/blob/main/tasks/core/demo.ts)
-    ![alt text](/public/demo.png)
+   ![alt text](/public/demo.png)
 
 
-   **Important:**
-   - Calculations are processed on the user's side.
-   - Both the currency address and its ID are stored in the pair contract.
+**Important:**
+- Calculations are processed on the user's side.
+- Both the currency address and its ID are stored in the pair contract.
 
 
 2. **Using Factory, Pair, and Router Contracts**
@@ -65,7 +121,7 @@ as well as performing operations like minting, swapping, and burning
    This demo task shows how to deploy the `UniswapV2Router01` contract
    and use it as a proxy for adding/removing liquidity and swaps via sync calls.
    It allows checks on amounts before pair calls and maintains currency rates.
-      [View the demo-router task](https://github.com/NilFoundation/uniswap-v2-nil/blob/main/tasks/core/demo-router-sync.ts)
+   [View the demo-router task](https://github.com/NilFoundation/uniswap-v2-nil/blob/main/tasks/core/demo-router-sync.ts)
 
    **Important:**
    - `UniswapV2Router01` should be deployed on the same shard as the pair contract.

@@ -13,14 +13,12 @@
     "lint:fix": "biome check --write ."
   },
   "dependencies": {
-    "@nilfoundation/hardhat-plugin": "0.19.0",
     "@nilfoundation/niljs": "0.21.0",
     "@nilfoundation/smart-contracts": "0.3.0",
+    "abitype": "^1.0.7",
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-ethers": "^3.0.6",
-    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.5",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@typechain/ethers-v6": "^0.5.1",
     "@typechain/hardhat": "^9.1.0",
