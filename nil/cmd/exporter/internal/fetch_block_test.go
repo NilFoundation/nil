@@ -24,19 +24,19 @@ type SuiteFetchBlock struct {
 }
 
 func (s *SuiteFetchBlock) TestFetchBlock() {
-	fetchedBlock, err := s.cfg.FetchBlock(types.MainShardId, "latest")
+	fetchedBlock, err := s.cfg.FetchBlock(s.context, types.MainShardId, "latest")
 	s.Require().NoError(err, "Failed to fetch last block")
 
 	s.Require().NotNil(fetchedBlock, "Fetched block is nil")
 
-	blocks, err := s.cfg.FetchBlocks(types.MainShardId, fetchedBlock.Block.Id, fetchedBlock.Block.Id+1)
+	blocks, err := s.cfg.FetchBlocks(s.context, types.MainShardId, fetchedBlock.Block.Id, fetchedBlock.Block.Id+1)
 	s.Require().NoError(err, "Failed to fetch block by hash")
 	s.Require().Len(blocks, 1, "Fetched one block")
 	s.Require().Equal(fetchedBlock, blocks[0])
 }
 
 func (s *SuiteFetchBlock) TestFetchShardIdList() {
-	shardIds, err := s.cfg.FetchShards()
+	shardIds, err := s.cfg.FetchShards(s.context)
 	s.Require().NoError(err, "Failed to fetch shard ids")
 	s.Require().Len(shardIds, int(s.nShards-1), "Shard ids length is not equal to expected")
 }
@@ -65,7 +65,7 @@ func (s *SuiteFetchBlock) SetupSuite() {
 	cfg.HttpUrl = url
 	cfg.CollatorTickPeriodMs = 100
 	go nilservice.Run(s.context, cfg, database, nil)
-	tests.WaitZerostate(s.T(), s.cfg.Client, types.BaseShardId)
+	tests.WaitZerostate(s.T(), s.context, s.cfg.Client, types.BaseShardId)
 }
 
 func (s *SuiteFetchBlock) TearDownSuite() {

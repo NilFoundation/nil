@@ -14,8 +14,8 @@ func GetEstimateFeeCommand(cfg *common.Config) *cobra.Command {
 		Use:   "estimate-fee [address] [calldata or method] [args...]",
 		Short: "Get the recommended fee credit for a message",
 		Args:  cobra.MinimumNArgs(2),
-		RunE: func(_ *cobra.Command, args []string) error {
-			return runEstimateFee(args, cfg)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runEstimateFee(cmd, args, cfg)
 		},
 		SilenceUsage: true,
 	}
@@ -28,8 +28,8 @@ func GetEstimateFeeCommand(cfg *common.Config) *cobra.Command {
 	return cmd
 }
 
-func runEstimateFee(args []string, cfg *common.Config) error {
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
+func runEstimateFee(cmd *cobra.Command, args []string, cfg *common.Config) error {
+	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 
 	var address types.Address
 	if err := address.Set(args[0]); err != nil {

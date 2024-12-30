@@ -21,6 +21,7 @@ func NewTaskDebugRpcClient(apiEndpoint string, logger zerolog.Logger) public.Tas
 
 func (c *taskDebugRpcClient) GetTasks(ctx context.Context, request *public.TaskDebugRequest) ([]*public.TaskView, error) {
 	return doRPCCall[*public.TaskDebugRequest, []*public.TaskView](
+		ctx,
 		c.client,
 		public.DebugGetTasks,
 		request,
@@ -29,6 +30,7 @@ func (c *taskDebugRpcClient) GetTasks(ctx context.Context, request *public.TaskD
 
 func (c *taskDebugRpcClient) GetTaskTree(ctx context.Context, taskId types.TaskId) (*public.TaskTreeView, error) {
 	return doRPCCall[types.TaskId, *public.TaskTreeView](
+		ctx,
 		c.client,
 		public.DebugGetTaskTree,
 		taskId,

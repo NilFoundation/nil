@@ -62,8 +62,8 @@ func setDeployFlags(cmd *cobra.Command) {
 	)
 }
 
-func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
+func runDeploy(cmd *cobra.Command, cmdArgs []string, cfg *common.Config) error {
+	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 
 	var filename string
 	var args []string

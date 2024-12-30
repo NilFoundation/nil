@@ -80,12 +80,12 @@ func setDeployFlags(cmd *cobra.Command) {
 	)
 }
 
-func runDeploy(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
+func runDeploy(cmd *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 	if !params.currency.IsZero() && params.noWait {
 		return errors.New("the \"no-wait\" flag cannot be used with the \"currency\" flag")
 	}
 
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
+	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 
 	var cm *cometa.Client
 	if len(params.compileInput) != 0 {

@@ -21,13 +21,13 @@ func GetSeqnoCommand() *cobra.Command {
 	return cmd
 }
 
-func runSeqno(_ *cobra.Command, args []string) error {
+func runSeqno(cmd *cobra.Command, args []string) error {
 	var address types.Address
 	if err := address.Set(args[0]); err != nil {
 		return err
 	}
 
-	service := cliservice.NewService(common.GetRpcClient(), nil, nil)
+	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), nil, nil)
 	seqno, err := service.GetSeqno(address)
 	if err != nil {
 		return err

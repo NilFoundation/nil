@@ -32,25 +32,25 @@ func (s *SuiteRpcNode) TearDownTest() {
 }
 
 func (s *SuiteRpcNode) TestGetDebugBlock() {
-	debugBlock, err := s.DefaultClient.GetDebugBlock(types.BaseShardId, "latest", true)
+	debugBlock, err := s.DefaultClient.GetDebugBlock(s.Context, types.BaseShardId, "latest", true)
 	s.Require().NoError(err)
 	s.NotNil(debugBlock)
 
-	debugBlock, err = s.DefaultClient.GetDebugBlock(types.BaseShardId, 0x1, true)
+	debugBlock, err = s.DefaultClient.GetDebugBlock(s.Context, types.BaseShardId, 0x1, true)
 	s.Require().NoError(err)
 	s.NotNil(debugBlock)
 }
 
 func (s *SuiteRpcNode) TestGetBlock() {
-	block, err := s.DefaultClient.GetBlock(types.BaseShardId, "latest", true)
+	block, err := s.DefaultClient.GetBlock(s.Context, types.BaseShardId, "latest", true)
 	s.Require().NoError(err)
 	s.NotNil(block)
 
-	block, err = s.DefaultClient.GetBlock(types.BaseShardId, 0x1, true)
+	block, err = s.DefaultClient.GetBlock(s.Context, types.BaseShardId, 0x1, true)
 	s.Require().NoError(err)
 	s.NotNil(block)
 
-	block, err = s.DefaultClient.GetBlock(types.MainShardId, 0x1, true)
+	block, err = s.DefaultClient.GetBlock(s.Context, types.MainShardId, 0x1, true)
 	s.Require().NoError(err)
 	s.Require().NotNil(block)
 	s.NotEmpty(block.ChildBlocks)
@@ -58,59 +58,59 @@ func (s *SuiteRpcNode) TestGetBlock() {
 }
 
 func (s *SuiteRpcNode) TestGetBlockTransactionCount() {
-	count, err := s.DefaultClient.GetBlockTransactionCount(types.BaseShardId, "latest")
+	count, err := s.DefaultClient.GetBlockTransactionCount(s.Context, types.BaseShardId, "latest")
 	s.Require().NoError(err)
 	s.Zero(count)
 
-	count, err = s.DefaultClient.GetBlockTransactionCount(types.BaseShardId, 0x1)
+	count, err = s.DefaultClient.GetBlockTransactionCount(s.Context, types.BaseShardId, 0x1)
 	s.Require().NoError(err)
 	s.Zero(count)
 
-	count, err = s.DefaultClient.GetBlockTransactionCount(types.MainShardId, 0x1)
+	count, err = s.DefaultClient.GetBlockTransactionCount(s.Context, types.MainShardId, 0x1)
 	s.Require().NoError(err)
 	s.Zero(count)
 
-	count, err = s.DefaultClient.GetBlockTransactionCount(types.MainShardId, math.MaxUint32)
+	count, err = s.DefaultClient.GetBlockTransactionCount(s.Context, types.MainShardId, math.MaxUint32)
 	s.Require().NoError(err)
 	s.Zero(count)
 }
 
 func (s *SuiteRpcNode) TestGetBalance() {
-	balance, err := s.DefaultClient.GetBalance(types.FaucetAddress, "latest")
+	balance, err := s.DefaultClient.GetBalance(s.Context, types.FaucetAddress, "latest")
 	s.Require().NoError(err)
 	s.NotNil(balance)
 
-	balance, err = s.DefaultClient.GetBalance(types.FaucetAddress, 0x1)
+	balance, err = s.DefaultClient.GetBalance(s.Context, types.FaucetAddress, 0x1)
 	s.Require().NoError(err)
 	s.NotNil(balance)
 }
 
 func (s *SuiteRpcNode) TestGetCode() {
-	code, err := s.DefaultClient.GetCode(types.FaucetAddress, "latest")
+	code, err := s.DefaultClient.GetCode(s.Context, types.FaucetAddress, "latest")
 	s.Require().NoError(err)
 	s.NotNil(code)
 
-	code, err = s.DefaultClient.GetCode(types.FaucetAddress, 0x1)
+	code, err = s.DefaultClient.GetCode(s.Context, types.FaucetAddress, 0x1)
 	s.Require().NoError(err)
 	s.NotNil(code)
 }
 
 func (s *SuiteRpcNode) TestGetCurrencies() {
-	currencies, err := s.DefaultClient.GetCurrencies(types.FaucetAddress, "latest")
+	currencies, err := s.DefaultClient.GetCurrencies(s.Context, types.FaucetAddress, "latest")
 	s.Require().NoError(err)
 	s.NotNil(currencies)
 
-	currencies, err = s.DefaultClient.GetCurrencies(types.FaucetAddress, 0x1)
+	currencies, err = s.DefaultClient.GetCurrencies(s.Context, types.FaucetAddress, 0x1)
 	s.Require().NoError(err)
 	s.NotNil(currencies)
 }
 
 func (s *SuiteRpcNode) TestGasPrice() {
-	value, err := s.DefaultClient.GasPrice(types.MainShardId)
+	value, err := s.DefaultClient.GasPrice(s.Context, types.MainShardId)
 	s.Require().NoError(err)
 	s.Positive(value.Uint64())
 
-	value, err = s.DefaultClient.GasPrice(types.BaseShardId)
+	value, err = s.DefaultClient.GasPrice(s.Context, types.BaseShardId)
 	s.Require().NoError(err)
 	s.Positive(value.Uint64())
 }

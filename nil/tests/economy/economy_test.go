@@ -130,14 +130,14 @@ func (s *SuiteEconomy) TestSeparateGasAndValue() {
 	retData := s.CallGetter(s.testAddress2, data, "latest", nil)
 	unpackedRes, err := s.abiTest.Unpack("getGasPrice", retData)
 	s.Require().NoError(err)
-	gasPrice, err = s.Client.GasPrice(s.testAddress2.ShardId())
+	gasPrice, err = s.Client.GasPrice(s.Context, s.testAddress2.ShardId())
 	s.Require().NoError(err)
 	s.Require().Equal(gasPrice.ToBig(), unpackedRes[0])
 
 	retData = s.CallGetter(s.testAddress3, data, "latest", nil)
 	unpackedRes, err = s.abiTest.Unpack("getGasPrice", retData)
 	s.Require().NoError(err)
-	gasPrice, err = s.Client.GasPrice(s.testAddress3.ShardId())
+	gasPrice, err = s.Client.GasPrice(s.Context, s.testAddress3.ShardId())
 	s.Require().NoError(err)
 	s.Require().Equal(gasPrice.ToBig(), unpackedRes[0])
 

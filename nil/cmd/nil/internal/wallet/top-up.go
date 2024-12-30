@@ -20,7 +20,7 @@ func TopUpCommand(cfg *common.Config) *cobra.Command {
 	return cmd
 }
 
-func runTopUp(_ *cobra.Command, args []string, cfg *common.Config) error {
+func runTopUp(cmd *cobra.Command, args []string, cfg *common.Config) error {
 	var amount types.Value
 	if err := amount.Set(args[0]); err != nil {
 		return err
@@ -31,5 +31,5 @@ func runTopUp(_ *cobra.Command, args []string, cfg *common.Config) error {
 		currId = args[1]
 	}
 
-	return common.RunTopUp("wallet", cfg, cfg.Address, amount, currId, common.Quiet)
+	return common.RunTopUp(cmd.Context(), "wallet", cfg, cfg.Address, amount, currId, common.Quiet)
 }

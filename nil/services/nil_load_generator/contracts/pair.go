@@ -1,6 +1,7 @@
 package contracts
 
 import (
+	"context"
 	"errors"
 	"math/big"
 
@@ -23,12 +24,12 @@ func NewPair(contract Contract, addr types.Address) *Pair {
 	}
 }
 
-func (p *Pair) Initialize(service *cliservice.Service, client client.Client, wallet Wallet, currency0, currency1 *Currency) error {
+func (p *Pair) Initialize(ctx context.Context, service *cliservice.Service, client client.Client, wallet Wallet, currency0, currency1 *Currency) error {
 	calldata, err := p.Abi.Pack("initialize", currency0.Addr, currency1.Addr, currency0.Id, currency1.Id)
 	if err != nil {
 		return err
 	}
-	if err := SendMessageAndCheck(client, service, wallet, p.Addr, calldata, []types.CurrencyBalance{}); err != nil {
+	if err := SendMessageAndCheck(ctx, client, service, wallet, p.Addr, calldata, []types.CurrencyBalance{}); err != nil {
 		return err
 	}
 	return nil
@@ -71,23 +72,23 @@ func (p *Pair) GetCurrencyBalanceOf(service *cliservice.Service, addr types.Addr
 	return totalSupply, nil
 }
 
-func (p *Pair) Mint(service *cliservice.Service, client client.Client, wallet Wallet, addressTo types.Address, currencies []types.CurrencyBalance) error {
+func (p *Pair) Mint(ctx context.Context, service *cliservice.Service, client client.Client, wallet Wallet, addressTo types.Address, currencies []types.CurrencyBalance) error {
 	calldata, err := p.Abi.Pack("mint", addressTo)
 	if err != nil {
 		return err
 	}
-	if err := SendMessageAndCheck(client, service, wallet, p.Addr, calldata, currencies); err != nil {
+	if err := SendMessageAndCheck(ctx, client, service, wallet, p.Addr, calldata, currencies); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (p *Pair) Swap(service *cliservice.Service, client client.Client, wallet Wallet, walletTo types.Address, inputAmount, outputAmount *big.Int, swapAmount types.Value, currencyId types.CurrencyId) error {
+func (p *Pair) Swap(ctx context.Context, service *cliservice.Service, client client.Client, wallet Wallet, walletTo types.Address, inputAmount, outputAmount *big.Int, swapAmount types.Value, currencyId types.CurrencyId) error {
 	calldata, err := p.Abi.Pack("swap", inputAmount, outputAmount, walletTo)
 	if err != nil {
 		return err
 	}
-	if err := SendMessageAndCheck(client, service, wallet, p.Addr, calldata, []types.CurrencyBalance{
+	if err := SendMessageAndCheck(ctx, client, service, wallet, p.Addr, calldata, []types.CurrencyBalance{
 		{Currency: currencyId, Balance: swapAmount},
 	}); err != nil {
 		return err
@@ -95,12 +96,12 @@ func (p *Pair) Swap(service *cliservice.Service, client client.Client, wallet Wa
 	return nil
 }
 
-func (p *Pair) Burn(service *cliservice.Service, client client.Client, wallet Wallet, walletTo types.Address, lpAddress types.CurrencyId, burnAmount types.Value) error {
+func (p *Pair) Burn(ctx context.Context, service *cliservice.Service, client client.Client, wallet Wallet, walletTo types.Address, lpAddress types.CurrencyId, burnAmount types.Value) error {
 	calldata, err := p.Abi.Pack("burn", walletTo)
 	if err != nil {
 		return err
 	}
-	if err := SendMessageAndCheck(client, service, wallet, p.Addr, calldata, []types.CurrencyBalance{
+	if err := SendMessageAndCheck(ctx, client, service, wallet, p.Addr, calldata, []types.CurrencyBalance{
 		{Currency: lpAddress, Balance: burnAmount},
 	}); err != nil {
 		return err

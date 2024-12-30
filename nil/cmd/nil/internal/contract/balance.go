@@ -23,13 +23,13 @@ func GetBalanceCommand(cfg *common.Config) *cobra.Command {
 	return cmd
 }
 
-func runBalance(_ *cobra.Command, args []string, cfg *common.Config) error {
+func runBalance(cmd *cobra.Command, args []string, cfg *common.Config) error {
 	var address types.Address
 	if err := address.Set(args[0]); err != nil {
 		return err
 	}
 
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
+	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 	balance, err := service.GetBalance(address)
 	if err != nil {
 		return err

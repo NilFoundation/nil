@@ -1,7 +1,6 @@
 package tracer
 
 import (
-	"context"
 	"errors"
 	"os"
 	"testing"
@@ -42,7 +41,7 @@ func (s *TracerNildTestSuite) waitTwoBlocks() {
 	)
 	for i := range s.ShardsNum {
 		s.Require().Eventually(func() bool {
-			block, err := s.Client.GetBlock(types.ShardId(i), transport.BlockNumber(1), false)
+			block, err := s.Client.GetBlock(s.Context, types.ShardId(i), transport.BlockNumber(1), false)
 			return err == nil && block != nil
 		}, zeroStateWaitTimeout, zeroStatePollInterval)
 	}
@@ -73,13 +72,12 @@ func (s *TracerNildTestSuite) TearDownSuite() {
 }
 
 func (s *TracerNildTestSuite) TestCounterContract() {
-	ctx := context.Background()
-
 	deployPayload := contracts.CounterDeployPayload(s.T())
 	contractAddr := types.CreateAddress(s.shardId, deployPayload)
 
 	s.Run("WalletDeploy", func() {
 		txHash, err := s.Client.SendMessageViaWallet(
+			s.Context,
 			s.addrFrom,
 			types.Code{},
 			types.Gas(100_000).ToValue(types.DefaultGasPrice),
@@ -95,13 +93,13 @@ func (s *TracerNildTestSuite) TestCounterContract() {
 		s.Require().Len(receipt.OutReceipts, 1)
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
 		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(ctx, traces, types.BaseShardId, blkRef)
+		err = s.tracer.GetBlockTraces(s.Context, traces, types.BaseShardId, blkRef)
 		s.Require().NoError(err)
 	})
 
 	s.Run("ContractDeploy", func() {
 		// Deploy counter
-		txHash, addr, err := s.Client.DeployContract(s.shardId, s.addrFrom, deployPayload, types.Value{}, execution.MainPrivateKey)
+		txHash, addr, err := s.Client.DeployContract(s.Context, s.shardId, s.addrFrom, deployPayload, types.Value{}, execution.MainPrivateKey)
 		s.Require().NoError(err)
 		s.Require().Equal(contractAddr, addr)
 
@@ -113,9 +111,9 @@ func (s *TracerNildTestSuite) TestCounterContract() {
 	})
 
 	s.Run("Add", func() {
-		ctx := context.Background()
 		// Add to countuer (state change)
 		txHash, err := s.Client.SendMessageViaWallet(
+			s.Context,
 			types.MainWalletAddress,
 			contracts.NewCounterAddCallData(s.T(), 5),
 			types.Gas(100_000).ToValue(types.DefaultGasPrice),
@@ -133,7 +131,7 @@ func (s *TracerNildTestSuite) TestCounterContract() {
 
 		blkRef := transport.BlockNumber(receipt.OutReceipts[0].BlockNumber).AsBlockReference()
 		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(ctx, traces, contractAddr.ShardId(), blkRef)
+		err = s.tracer.GetBlockTraces(s.Context, traces, contractAddr.ShardId(), blkRef)
 		s.Require().NoError(err)
 	})
 
@@ -143,7 +141,6 @@ func (s *TracerNildTestSuite) TestCounterContract() {
 }
 
 func (s *TracerNildTestSuite) TestTestContract() {
-	ctx := context.Background()
 	deployPayload := contracts.GetDeployPayload(s.T(), contracts.NameTest)
 	contractAddr := types.CreateAddress(s.shardId, deployPayload)
 
@@ -157,6 +154,7 @@ func (s *TracerNildTestSuite) TestTestContract() {
 
 	s.Run("WalletDeploy", func() {
 		txHash, err := s.Client.SendMessageViaWallet(
+			s.Context,
 			s.addrFrom,
 			types.Code{},
 			types.Gas(100_000).ToValue(types.DefaultGasPrice),
@@ -172,12 +170,12 @@ func (s *TracerNildTestSuite) TestTestContract() {
 		s.Require().Len(receipt.OutReceipts, 1)
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
 		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(ctx, traces, types.BaseShardId, blkRef)
+		err = s.tracer.GetBlockTraces(s.Context, traces, types.BaseShardId, blkRef)
 		s.Require().NoError(err)
 	})
 
 	s.Run("ContractDeploy", func() {
-		txHash, addr, err := s.Client.DeployContract(s.shardId, s.addrFrom, deployPayload, types.Value{}, execution.MainPrivateKey)
+		txHash, addr, err := s.Client.DeployContract(s.Context, s.shardId, s.addrFrom, deployPayload, types.Value{}, execution.MainPrivateKey)
 		s.Require().NoError(err)
 		s.Require().Equal(contractAddr, addr)
 
@@ -188,7 +186,6 @@ func (s *TracerNildTestSuite) TestTestContract() {
 	})
 
 	s.Run("EmitEvent", func() {
-		ctx := context.Background()
 		callData := contracts.NewCallDataT(
 			s.T(),
 			contracts.NameTest,
@@ -197,6 +194,7 @@ func (s *TracerNildTestSuite) TestTestContract() {
 			types.NewValueFromUint64(2),
 		)
 		txHash, err := s.Client.SendMessageViaWallet(
+			s.Context,
 			types.MainWalletAddress,
 			callData,
 			types.Gas(100_000).ToValue(types.DefaultGasPrice),
@@ -214,7 +212,7 @@ func (s *TracerNildTestSuite) TestTestContract() {
 
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
 		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(ctx, traces, contractAddr.ShardId(), blkRef)
+		err = s.tracer.GetBlockTraces(s.Context, traces, contractAddr.ShardId(), blkRef)
 		s.Require().NoError(err)
 	})
 
@@ -226,16 +224,15 @@ func (s *TracerNildTestSuite) TestTestContract() {
 // It looks like even wallet deploy is handled in multiple blocks, I don't know how to catch specific one for
 // checks. Just prove every one.
 func (s *TracerNildTestSuite) checkAllBlocksTracesSerialization() {
-	ctx := context.Background()
 	for shardN := range s.ShardsNum {
 		shardId := types.ShardId(shardN)
-		latestBlock, err := s.Client.GetBlock(shardId, "latest", false)
+		latestBlock, err := s.Client.GetBlock(s.Context, shardId, "latest", false)
 		s.Require().NoError(err)
 		for blockNum := range latestBlock.Number {
 			blkRef := transport.BlockNumber(blockNum).AsBlockReference()
 			s.Require().NoError(err)
 			blockTraces := NewExecutionTraces()
-			err := s.tracer.GetBlockTraces(ctx, blockTraces, shardId, blkRef)
+			err := s.tracer.GetBlockTraces(s.Context, blockTraces, shardId, blkRef)
 			if errors.Is(err, ErrCantProofGenesisBlock) {
 				continue
 			}

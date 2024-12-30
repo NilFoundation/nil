@@ -75,7 +75,7 @@ func (s *SuitOpcodes) TearDownSuite() {
 func (s *SuitOpcodes) GetBalance(address types.Address) types.Value {
 	s.T().Helper()
 
-	balance, err := s.Client.GetBalance(address, transport.LatestBlockNumber)
+	balance, err := s.Client.GetBalance(s.Context, address, transport.LatestBlockNumber)
 	s.Require().NoError(err)
 	return balance
 }
@@ -90,7 +90,7 @@ func (s *SuitOpcodes) TestSend() {
 		callData, err := contracts.NewCallData(contracts.NameSender, "send", s.walletAddress1, big.NewInt(100500))
 		s.Require().NoError(err)
 
-		msgHash, err := s.Client.SendExternalMessage(callData, s.senderAddress1, nil, s.GasToValue(100_000))
+		msgHash, err := s.Client.SendExternalMessage(s.Context, callData, s.senderAddress1, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(msgHash)
 		s.Require().NotNil(receipt)
@@ -104,7 +104,7 @@ func (s *SuitOpcodes) TestSend() {
 		callData, err := contracts.NewCallData(contracts.NameSender, "send", s.walletAddress2, big.NewInt(100500))
 		s.Require().NoError(err)
 
-		msgHash, err := s.Client.SendExternalMessage(callData, s.senderAddress1, nil, s.GasToValue(100_000))
+		msgHash, err := s.Client.SendExternalMessage(s.Context, callData, s.senderAddress1, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(msgHash)
 		s.Require().NotNil(receipt)

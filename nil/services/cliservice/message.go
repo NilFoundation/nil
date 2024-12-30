@@ -26,5 +26,5 @@ func (s *Service) FetchMessageByHashJson(hash common.Hash) ([]byte, error) {
 }
 
 func (s *Service) FetchMessageByHash(hash common.Hash) (*jsonrpc.RPCInMessage, error) {
-	return s.client.GetInMessageByHash(hash)
+	return s.client.GetInMessageByHash(s.ctx, hash)
 }

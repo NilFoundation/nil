@@ -327,8 +327,8 @@ func (d *DebugHandler) PrintMessageChain() {
 	d.PrintReceipt(d.RootReceipt, "", "")
 }
 
-func runCommand(_ *cobra.Command, args []string) error {
-	service := cliservice.NewService(common.GetRpcClient(), nil, nil)
+func runCommand(cmd *cobra.Command, args []string) error {
+	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), nil, nil)
 
 	hashStr := args[0]
 

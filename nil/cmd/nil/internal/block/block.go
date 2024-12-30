@@ -38,8 +38,8 @@ func setFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&params.noColor, noColorFlag, false, "Do not colorize the output")
 }
 
-func runCommand(_ *cobra.Command, args []string) error {
-	service := cliservice.NewService(common.GetRpcClient(), nil, nil)
+func runCommand(cmd *cobra.Command, args []string) error {
+	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), nil, nil)
 
 	blockData, err := service.FetchDebugBlock(params.shardId, args[0], params.jsonOutput, params.fullOutput, params.noColor)
 	if err != nil {

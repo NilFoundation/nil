@@ -1,6 +1,7 @@
 package faucet
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -14,7 +15,7 @@ import (
 )
 
 type API interface {
-	TopUpViaFaucet(faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error)
+	TopUpViaFaucet(ctx context.Context, faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error)
 	GetFaucets() map[string]types.Address
 }
 
@@ -37,18 +38,18 @@ func NewAPI(client client.Client) *APIImpl {
 	}
 }
 
-func (c *APIImpl) fetchSeqno(addr types.Address) (types.Seqno, error) {
-	return c.client.GetTransactionCount(addr, transport.BlockNumberOrHash(transport.PendingBlock))
+func (c *APIImpl) fetchSeqno(ctx context.Context, addr types.Address) (types.Seqno, error) {
+	return c.client.GetTransactionCount(ctx, addr, transport.BlockNumberOrHash(transport.PendingBlock))
 }
 
-func (c *APIImpl) getOrFetchSeqno(faucetAddress types.Address) (types.Seqno, error) {
+func (c *APIImpl) getOrFetchSeqno(ctx context.Context, faucetAddress types.Address) (types.Seqno, error) {
 	// todo: uncomment after switching all users (e.g. docs and tests) to the faucet service
 	// seqno, ok := c.seqnos[faucetAddress]
 	// if ok {
 	//	return seqno, nil
 	// }
 
-	seqno, err := c.fetchSeqno(faucetAddress)
+	seqno, err := c.fetchSeqno(ctx, faucetAddress)
 	if err != nil {
 		return 0, err
 	}
@@ -58,11 +59,11 @@ func (c *APIImpl) getOrFetchSeqno(faucetAddress types.Address) (types.Seqno, err
 	return seqno, nil
 }
 
-func (c *APIImpl) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error) {
+func (c *APIImpl) TopUpViaFaucet(ctx context.Context, faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	seqno, err := c.getOrFetchSeqno(faucetAddress)
+	seqno, err := c.getOrFetchSeqno(ctx, faucetAddress)
 	if err != nil {
 		return common.EmptyHash, err
 	}
@@ -88,12 +89,12 @@ func (c *APIImpl) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address,
 		return common.EmptyHash, err
 	}
 
-	hash, err := c.client.SendRawTransaction(data)
+	hash, err := c.client.SendRawTransaction(ctx, data)
 	if err != nil && !errors.Is(err, rpc.ErrRPCError) {
 		return common.EmptyHash, err
 	}
 	if errors.Is(err, rpc.ErrRPCError) {
-		actualSeqno, err2 := c.fetchSeqno(faucetAddress)
+		actualSeqno, err2 := c.fetchSeqno(ctx, faucetAddress)
 		if err2 != nil {
 			return common.EmptyHash, fmt.Errorf("failed to send message %d with %w and failed to get seqno: %w", seqno, err, err2)
 		}
@@ -104,7 +105,7 @@ func (c *APIImpl) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address,
 			return common.EmptyHash, err2
 		}
 
-		hash, err2 = c.client.SendRawTransaction(data)
+		hash, err2 = c.client.SendRawTransaction(ctx, data)
 		if err2 != nil {
 			return common.EmptyHash, fmt.Errorf("failed to send message %d with %w and then %d with %w", seqno, err, actualSeqno, err2)
 		}

@@ -12,7 +12,7 @@ import (
 
 // GetCode retrieves the contract code at the given address
 func (s *Service) GetCode(contractAddress types.Address) (string, error) {
-	code, err := s.client.GetCode(contractAddress, "latest")
+	code, err := s.client.GetCode(s.ctx, contractAddress, "latest")
 	if err != nil {
 		s.logger.Error().Err(err).Str(logging.FieldRpcMethod, rpc.Eth_getCode).Msg("Failed to get contract code")
 		return "", err
@@ -24,7 +24,7 @@ func (s *Service) GetCode(contractAddress types.Address) (string, error) {
 
 // GetBalance retrieves the contract balance at the given address
 func (s *Service) GetBalance(contractAddress types.Address) (types.Value, error) {
-	balance, err := s.client.GetBalance(contractAddress, "latest")
+	balance, err := s.client.GetBalance(s.ctx, contractAddress, "latest")
 	if err != nil {
 		s.logger.Error().Err(err).Str(logging.FieldRpcMethod, rpc.Eth_getBalance).Msg("Failed to get contract balance")
 		return types.Value{}, err
@@ -36,7 +36,7 @@ func (s *Service) GetBalance(contractAddress types.Address) (types.Value, error)
 
 // GetSeqno retrieves the contract balance at the given address
 func (s *Service) GetSeqno(contractAddress types.Address) (types.Seqno, error) {
-	seqno, err := s.client.GetTransactionCount(contractAddress, "latest")
+	seqno, err := s.client.GetTransactionCount(s.ctx, contractAddress, "latest")
 	if err != nil {
 		s.logger.Error().Err(err).Str(logging.FieldRpcMethod, rpc.Eth_getTransactionCount).Msg("Failed to get contract seqno")
 		return types.Seqno(0), err
@@ -62,7 +62,7 @@ func (s *Service) GetInfo(address types.Address) (string, string, error) {
 
 // GetCurrencies retrieves the contract currencies at the given address
 func (s *Service) GetCurrencies(contractAddress types.Address) (types.CurrenciesMap, error) {
-	currencies, err := s.client.GetCurrencies(contractAddress, "latest")
+	currencies, err := s.client.GetCurrencies(s.ctx, contractAddress, "latest")
 	if err != nil {
 		s.logger.Error().Err(err).Str(logging.FieldRpcMethod, rpc.Eth_getCurrencies).Msg("Failed to get contract currencies")
 		return nil, err
@@ -79,7 +79,7 @@ func (s *Service) GetCurrencies(contractAddress types.Address) (types.Currencies
 func (s *Service) RunContract(wallet types.Address, bytecode []byte, feeCredit, value types.Value,
 	currencies []types.CurrencyBalance, contract types.Address,
 ) (common.Hash, error) {
-	txHash, err := s.client.SendMessageViaWallet(wallet, bytecode, feeCredit, value, currencies, contract, s.privateKey)
+	txHash, err := s.client.SendMessageViaWallet(s.ctx, wallet, bytecode, feeCredit, value, currencies, contract, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
 		return common.EmptyHash, err
@@ -97,7 +97,7 @@ func (s *Service) SendExternalMessage(bytecode []byte, contract types.Address, n
 	if noSign {
 		pk = nil
 	}
-	txHash, err := s.client.SendExternalMessage(types.Code(bytecode), contract, pk, types.Value{})
+	txHash, err := s.client.SendExternalMessage(s.ctx, types.Code(bytecode), contract, pk, types.Value{})
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send external message")
 		return common.EmptyHash, err
@@ -111,7 +111,7 @@ func (s *Service) SendExternalMessage(bytecode []byte, contract types.Address, n
 
 // DeployContractViaWallet deploys a new smart contract with the given bytecode via the wallet
 func (s *Service) DeployContractViaWallet(shardId types.ShardId, wallet types.Address, deployPayload types.DeployPayload, value types.Value) (common.Hash, types.Address, error) {
-	txHash, contractAddr, err := s.client.DeployContract(shardId, wallet, deployPayload, value, s.privateKey)
+	txHash, contractAddr, err := s.client.DeployContract(s.ctx, shardId, wallet, deployPayload, value, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
 		return common.EmptyHash, types.EmptyAddress, err
@@ -126,7 +126,7 @@ func (s *Service) DeployContractViaWallet(shardId types.ShardId, wallet types.Ad
 
 // DeployContractExternal deploys a new smart contract with the given bytecode via external message
 func (s *Service) DeployContractExternal(shardId types.ShardId, payload types.DeployPayload, feeCredit types.Value) (common.Hash, types.Address, error) {
-	txHash, contractAddr, err := s.client.DeployExternal(shardId, payload, feeCredit)
+	txHash, contractAddr, err := s.client.DeployExternal(s.ctx, shardId, payload, feeCredit)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
 		return common.EmptyHash, types.EmptyAddress, err
@@ -149,7 +149,7 @@ func (s *Service) CallContract(
 		FeeCredit: feeCredit,
 	}
 
-	res, err := s.client.Call(callArgs, "latest", overrides)
+	res, err := s.client.Call(s.ctx, callArgs, "latest", overrides)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func (s *Service) EstimateFee(
 		Data:  (*hexutil.Bytes)(&calldata),
 	}
 
-	res, err := s.client.EstimateFee(callArgs, "latest")
+	res, err := s.client.EstimateFee(s.ctx, callArgs, "latest")
 	if err != nil {
 		return types.Value{}, err
 	}

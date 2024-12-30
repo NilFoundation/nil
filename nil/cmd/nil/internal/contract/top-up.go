@@ -20,7 +20,7 @@ func GetTopUpCommand(cfg *common.Config) *cobra.Command {
 	return cmd
 }
 
-func runTopUp(_ *cobra.Command, args []string, cfg *common.Config) error {
+func runTopUp(cmd *cobra.Command, args []string, cfg *common.Config) error {
 	var address types.Address
 	if err := address.Set(args[0]); err != nil {
 		return err
@@ -36,5 +36,5 @@ func runTopUp(_ *cobra.Command, args []string, cfg *common.Config) error {
 		currId = args[2]
 	}
 
-	return common.RunTopUp("contract", cfg, address, amount, currId, common.Quiet)
+	return common.RunTopUp(cmd.Context(), "contract", cfg, address, amount, currId, common.Quiet)
 }

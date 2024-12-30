@@ -21,7 +21,7 @@ func (s *Service) handleCurrencyTx(txHash common.Hash, contractAddr types.Addres
 }
 
 func (s *Service) CurrencyCreate(contractAddr types.Address, amount types.Value, name string) (*types.CurrencyId, error) {
-	txHash, err := s.client.SetCurrencyName(contractAddr, name, s.privateKey)
+	txHash, err := s.client.SetCurrencyName(s.ctx, contractAddr, name, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send setCurrencyName transaction")
 		return nil, err
@@ -30,7 +30,7 @@ func (s *Service) CurrencyCreate(contractAddr types.Address, amount types.Value,
 		return nil, err
 	}
 
-	txHash, err = s.client.ChangeCurrencyAmount(contractAddr, amount, s.privateKey, true /* mint */)
+	txHash, err = s.client.ChangeCurrencyAmount(s.ctx, contractAddr, amount, s.privateKey, true /* mint */)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send minCurrency transaction")
 		return nil, err
@@ -45,7 +45,7 @@ func (s *Service) CurrencyCreate(contractAddr types.Address, amount types.Value,
 }
 
 func (s *Service) ChangeCurrencyAmount(contractAddr types.Address, amount types.Value, mint bool) (common.Hash, error) {
-	txHash, err := s.client.ChangeCurrencyAmount(contractAddr, amount, s.privateKey, mint)
+	txHash, err := s.client.ChangeCurrencyAmount(s.ctx, contractAddr, amount, s.privateKey, mint)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send transaction for currency amount change")
 		return common.EmptyHash, err

@@ -115,13 +115,14 @@ func NewDefaultProposerParams() *ProposerParams {
 }
 
 func NewProposer(
+	ctx context.Context,
 	params *ProposerParams,
 	rpcClient client.RawClient,
 	blockStorage storage.BlockStorage,
 	metrics ProposerMetrics,
 	logger zerolog.Logger,
 ) (*Proposer, error) {
-	nonceValue, err := getCurrentNonce(params.SelfAddress, rpcClient)
+	nonceValue, err := getCurrentNonce(ctx, params.SelfAddress, rpcClient)
 	if err != nil {
 		// TODO return error after enable local L1 endpoint
 		logger.Error().Err(err).Msg("failed get current contract nonce, set 0")
@@ -269,7 +270,7 @@ func (p *Proposer) getLatestProvedStateRoot(ctx context.Context) (common.Hash, e
 
 	var response json.RawMessage
 	err = p.retryRunner.Do(ctx, func(ctx context.Context) error {
-		response, err = p.client.RawCall("eth_call", msg, "latest")
+		response, err = p.client.RawCall(ctx, "eth_call", msg, "latest")
 		return err
 	})
 	if err != nil {
@@ -306,7 +307,7 @@ func (p *Proposer) getLatestProvedStateRoot(ctx context.Context) (common.Hash, e
 
 	var latestProvedStateRoot json.RawMessage
 	err = p.retryRunner.Do(ctx, func(ctx context.Context) error {
-		latestProvedStateRoot, err = p.client.RawCall("eth_call", msg, "latest")
+		latestProvedStateRoot, err = p.client.RawCall(ctx, "eth_call", msg, "latest")
 		return err
 	})
 	if err != nil {
@@ -322,8 +323,8 @@ func (p *Proposer) getLatestProvedStateRoot(ctx context.Context) (common.Hash, e
 	return common.HexToHash(latestProvedStateRootStr), nil
 }
 
-func getCurrentNonce(selfAddress string, client client.RawClient) (uint64, error) {
-	res, err := client.RawCall("eth_getTransactionCount", selfAddress, "latest")
+func getCurrentNonce(ctx context.Context, selfAddress string, client client.RawClient) (uint64, error) {
+	res, err := client.RawCall(ctx, "eth_getTransactionCount", selfAddress, "latest")
 	if err != nil {
 		return 0, fmt.Errorf("failed send eth_getTransactionCount: %w", err)
 	}
@@ -409,7 +410,7 @@ func (p *Proposer) sendProof(ctx context.Context, data *scTypes.ProposalData) er
 
 	// call UpdateState L1 contract
 	err = p.retryRunner.Do(ctx, func(context.Context) error {
-		_, err := p.client.RawCall("eth_sendRawTransaction", encodedTransactionStr)
+		_, err := p.client.RawCall(ctx, "eth_sendRawTransaction", encodedTransactionStr)
 		return err
 	})
 	if err != nil {

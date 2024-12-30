@@ -21,7 +21,7 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 			if err := cmd.Parent().Parent().PersistentPreRunE(cmd, args); err != nil {
 				return err
 			}
-			svc = cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
+			svc = cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 			return nil
 		},
 	}

@@ -101,7 +101,7 @@ func (s *RpcSuite) Start(cfg *nilservice.Config) {
 
 	if cfg.RunMode == nilservice.BlockReplayRunMode {
 		s.Require().Eventually(func() bool {
-			block, err := s.Client.GetBlock(cfg.Replay.ShardId, "latest", false)
+			block, err := s.Client.GetBlock(s.Context, cfg.Replay.ShardId, "latest", false)
 			return err == nil && block != nil
 		}, ZeroStateWaitTimeout, ZeroStatePollInterval)
 	} else {
@@ -120,20 +120,20 @@ func (s *RpcSuite) Cancel() {
 func (s *RpcSuite) WaitForReceipt(hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	return WaitForReceipt(s.T(), s.Client, hash)
+	return WaitForReceipt(s.T(), s.Context, s.Client, hash)
 }
 
 func (s *RpcSuite) WaitIncludedInMain(hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	return WaitIncludedInMain(s.T(), s.Client, hash)
+	return WaitIncludedInMain(s.T(), s.Context, s.Client, hash)
 }
 
 func (s *RpcSuite) waitZerostate() {
 	s.T().Helper()
 
 	s.waitZerostateFunc(func(i uint32) bool {
-		block, err := s.Client.GetBlock(types.ShardId(i), transport.BlockNumber(0), false)
+		block, err := s.Client.GetBlock(s.Context, types.ShardId(i), transport.BlockNumber(0), false)
 		return err == nil && block != nil
 	})
 }
@@ -149,7 +149,7 @@ func (s *RpcSuite) waitZerostateFunc(fun func(i uint32) bool) {
 func (s *RpcSuite) DeployContractViaMainWallet(shardId types.ShardId, payload types.DeployPayload, initialAmount types.Value) (types.Address, *jsonrpc.RPCReceipt) {
 	s.T().Helper()
 
-	return DeployContractViaWallet(s.T(), s.Client, types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
+	return DeployContractViaWallet(s.T(), s.Context, s.Client, types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
 }
 
 func (s *RpcSuite) SendMessageViaWallet(addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey,
@@ -157,7 +157,7 @@ func (s *RpcSuite) SendMessageViaWallet(addrFrom types.Address, addrTo types.Add
 ) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	txHash, err := s.Client.SendMessageViaWallet(addrFrom, calldata, GasToValue(1_000_000), types.NewZeroValue(),
+	txHash, err := s.Client.SendMessageViaWallet(s.Context, addrFrom, calldata, GasToValue(1_000_000), types.NewZeroValue(),
 		[]types.CurrencyBalance{}, addrTo, key)
 	s.Require().NoError(err)
 
@@ -182,7 +182,7 @@ func (s *RpcSuite) SendExternalMessage(bytecode types.Code, contractAddress type
 
 func (s *RpcSuite) SendExternalMessageNoCheck(bytecode types.Code, contractAddress types.Address) *jsonrpc.RPCReceipt {
 	s.T().Helper()
-	return SendExternalMessageNoCheck(s.T(), s.Client, bytecode, contractAddress)
+	return SendExternalMessageNoCheck(s.T(), s.Context, s.Client, bytecode, contractAddress)
 }
 
 // SendMessageViaWalletNoCheck sends a message via a wallet contract. Doesn't require the receipt be successful.
@@ -192,7 +192,7 @@ func (s *RpcSuite) SendMessageViaWalletNoCheck(addrWallet types.Address, addrTo 
 	s.T().Helper()
 
 	// Send the raw transaction
-	txHash, err := s.Client.SendMessageViaWallet(addrWallet, calldata, feeCredit, value, currencies, addrTo, key)
+	txHash, err := s.Client.SendMessageViaWallet(s.Context, addrWallet, calldata, feeCredit, value, currencies, addrTo, key)
 	s.Require().NoError(err)
 
 	receipt := s.WaitIncludedInMain(txHash)
@@ -209,7 +209,7 @@ func (s *RpcSuite) SendMessageViaWalletNoCheck(addrWallet types.Address, addrTo 
 
 func (s *RpcSuite) CallGetter(addr types.Address, calldata []byte, blockId any, overrides *jsonrpc.StateOverrides) []byte {
 	s.T().Helper()
-	return CallGetter(s.T(), s.Client, addr, calldata, blockId, overrides)
+	return CallGetter(s.T(), s.Context, s.Client, addr, calldata, blockId, overrides)
 }
 
 func (s *RpcSuite) LoadContract(path string, name string) (types.Code, abi.ABI) {
@@ -219,7 +219,7 @@ func (s *RpcSuite) LoadContract(path string, name string) (types.Code, abi.ABI) 
 
 func (s *RpcSuite) GetBalance(address types.Address) types.Value {
 	s.T().Helper()
-	return GetBalance(s.T(), s.Client, address)
+	return GetBalance(s.T(), s.Context, s.Client, address)
 }
 
 func (s *RpcSuite) AbiPack(abi *abi.ABI, name string, args ...any) []byte {
@@ -312,7 +312,7 @@ func (s *RpcSuite) GetRandomBytes(size int) []byte {
 
 func (s *RpcSuite) AnalyzeReceipt(receipt *jsonrpc.RPCReceipt, namesMap map[types.Address]string) ReceiptInfo {
 	s.T().Helper()
-	return AnalyzeReceipt(s.T(), s.Client, receipt, namesMap)
+	return AnalyzeReceipt(s.T(), s.Context, s.Client, receipt, namesMap)
 }
 
 func getContractInfo(addr types.Address, valuesMap ReceiptInfo) *ContractInfo {

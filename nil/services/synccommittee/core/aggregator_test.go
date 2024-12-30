@@ -78,7 +78,7 @@ func (s *AggregatorTestSuite) Test_No_New_Block_To_Fetch() {
 	err := s.blockStorage.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
-	s.rpcClientMock.GetBlockFunc = func(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error) {
+	s.rpcClientMock.GetBlockFunc = func(_ context.Context, shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error) {
 		if shardId == types.MainShardId {
 			return batch.MainShardBlock, nil
 		}
@@ -103,7 +103,7 @@ func (s *AggregatorTestSuite) Test_Fetched_Not_Ready_Batch() {
 
 	s.rpcClientMock.GetBlockFunc = blockGenerator(mainBlock)
 
-	s.rpcClientMock.GetBlocksRangeFunc = func(_ types.ShardId, from types.BlockNumber, to types.BlockNumber, _ bool, _ int) ([]*jsonrpc.RPCBlock, error) {
+	s.rpcClientMock.GetBlocksRangeFunc = func(_ context.Context, _ types.ShardId, from types.BlockNumber, to types.BlockNumber, _ bool, _ int) ([]*jsonrpc.RPCBlock, error) {
 		if from == mainBlock.Number && to == mainBlock.Number+1 {
 			return []*jsonrpc.RPCBlock{mainBlock}, nil
 		}
@@ -132,7 +132,7 @@ func (s *AggregatorTestSuite) Test_Main_Parent_Hash_Mismatch() {
 
 	s.rpcClientMock.GetBlockFunc = blockGenerator(nextMainBlock)
 
-	s.rpcClientMock.GetBlocksRangeFunc = func(_ types.ShardId, from types.BlockNumber, to types.BlockNumber, _ bool, _ int) ([]*jsonrpc.RPCBlock, error) {
+	s.rpcClientMock.GetBlocksRangeFunc = func(_ context.Context, _ types.ShardId, from types.BlockNumber, to types.BlockNumber, _ bool, _ int) ([]*jsonrpc.RPCBlock, error) {
 		return []*jsonrpc.RPCBlock{nextMainBlock}, nil
 	}
 
@@ -156,7 +156,7 @@ func (s *AggregatorTestSuite) Test_Fetch_At_Zero_State() {
 
 	s.rpcClientMock.GetBlockFunc = blockGenerator(mainBlock)
 
-	s.rpcClientMock.GetBlocksRangeFunc = func(_ types.ShardId, from types.BlockNumber, to types.BlockNumber, _ bool, _ int) ([]*jsonrpc.RPCBlock, error) {
+	s.rpcClientMock.GetBlocksRangeFunc = func(_ context.Context, _ types.ShardId, from types.BlockNumber, to types.BlockNumber, _ bool, _ int) ([]*jsonrpc.RPCBlock, error) {
 		if from == mainBlock.Number && to == mainBlock.Number+1 {
 			return []*jsonrpc.RPCBlock{mainBlock}, nil
 		}
@@ -177,7 +177,7 @@ func (s *AggregatorTestSuite) Test_Fetch_Next_Valid() {
 
 	s.rpcClientMock.GetBlockFunc = blockGenerator(nextMainBlock)
 
-	s.rpcClientMock.GetBlocksRangeFunc = func(_ types.ShardId, from types.BlockNumber, to types.BlockNumber, _ bool, _ int) ([]*jsonrpc.RPCBlock, error) {
+	s.rpcClientMock.GetBlocksRangeFunc = func(_ context.Context, _ types.ShardId, from types.BlockNumber, to types.BlockNumber, _ bool, _ int) ([]*jsonrpc.RPCBlock, error) {
 		if from == nextMainBlock.Number && to == nextMainBlock.Number+1 {
 			return []*jsonrpc.RPCBlock{nextMainBlock}, nil
 		}
@@ -190,8 +190,8 @@ func (s *AggregatorTestSuite) Test_Fetch_Next_Valid() {
 	s.requireMainBlockHandled(nextMainBlock)
 }
 
-func blockGenerator(mainBlock *jsonrpc.RPCBlock) func(types.ShardId, any, bool) (*jsonrpc.RPCBlock, error) {
-	return func(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error) {
+func blockGenerator(mainBlock *jsonrpc.RPCBlock) func(context.Context, types.ShardId, any, bool) (*jsonrpc.RPCBlock, error) {
+	return func(_ context.Context, shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error) {
 		if shardId == types.MainShardId {
 			return mainBlock, nil
 		}

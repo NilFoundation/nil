@@ -35,7 +35,7 @@ func (s *SuiteArchiveNode) TearDownTest() {
 
 func (s *SuiteArchiveNode) TestGetDebugBlock() {
 	for shardId := range len(s.Shards) {
-		debugBlock, err := s.DefaultClient.GetDebugBlock(types.ShardId(shardId), "latest", true)
+		debugBlock, err := s.DefaultClient.GetDebugBlock(s.Context, types.ShardId(shardId), "latest", true)
 		s.Require().NoError(err)
 		s.NotNil(debugBlock)
 
@@ -43,7 +43,7 @@ func (s *SuiteArchiveNode) TestGetDebugBlock() {
 		s.Require().NoError(err)
 
 		s.Eventually(func() bool {
-			nextBlock, err := s.DefaultClient.GetDebugBlock(types.ShardId(shardId), b.Block.Id.Uint64()+1, true)
+			nextBlock, err := s.DefaultClient.GetDebugBlock(s.Context, types.ShardId(shardId), b.Block.Id.Uint64()+1, true)
 			s.Require().NoError(err)
 			return nextBlock != nil
 		}, 5*time.Second, 100*time.Millisecond)
@@ -51,7 +51,7 @@ func (s *SuiteArchiveNode) TestGetDebugBlock() {
 }
 
 func (s *SuiteArchiveNode) TestGetFaucetBalance() {
-	value, err := s.DefaultClient.GetBalance(types.FaucetAddress, "latest")
+	value, err := s.DefaultClient.GetBalance(s.Context, types.FaucetAddress, "latest")
 	s.Require().NoError(err)
 	s.Positive(value.Uint64())
 }

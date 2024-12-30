@@ -22,8 +22,8 @@ func SeqnoCommand(cfg *common.Config) *cobra.Command {
 	return cmd
 }
 
-func runSeqno(_ *cobra.Command, _ []string, cfg *common.Config) error {
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
+func runSeqno(cmd *cobra.Command, _ []string, cfg *common.Config) error {
+	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 	seqno, err := service.GetSeqno(cfg.Address)
 	if err != nil {
 		return err

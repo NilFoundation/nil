@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"fmt"
 	"strings"
@@ -29,52 +30,52 @@ type Client interface {
 	DbClient
 
 	CreateBatchRequest() BatchRequest
-	BatchCall(BatchRequest) ([]any, error)
+	BatchCall(ctx context.Context, req BatchRequest) ([]any, error)
 
-	EstimateFee(args *jsonrpc.CallArgs, blockId any) (types.Value, error)
-	Call(args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error)
-	GetCode(addr types.Address, blockId any) (types.Code, error)
-	GetBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error)
-	GetBlocksRange(shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*jsonrpc.RPCBlock, error)
-	GetDebugBlock(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.DebugRPCBlock, error)
-	GetDebugBlocksRange(shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*jsonrpc.DebugRPCBlock, error)
-	SendMessage(msg *types.ExternalMessage) (common.Hash, error)
-	SendRawTransaction(data []byte) (common.Hash, error)
-	GetInMessageByHash(hash common.Hash) (*jsonrpc.RPCInMessage, error)
-	GetInMessageReceipt(hash common.Hash) (*jsonrpc.RPCReceipt, error)
-	GetTransactionCount(address types.Address, blockId any) (types.Seqno, error)
-	GetBlockTransactionCount(shardId types.ShardId, blockId any) (uint64, error)
-	GetBalance(address types.Address, blockId any) (types.Value, error)
-	GetShardIdList() ([]types.ShardId, error)
-	GasPrice(shardId types.ShardId) (types.Value, error)
-	ChainId() (types.ChainId, error)
+	EstimateFee(ctx context.Context, args *jsonrpc.CallArgs, blockId any) (types.Value, error)
+	Call(ctx context.Context, args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error)
+	GetCode(ctx context.Context, addr types.Address, blockId any) (types.Code, error)
+	GetBlock(ctx context.Context, shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error)
+	GetBlocksRange(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*jsonrpc.RPCBlock, error)
+	GetDebugBlock(ctx context.Context, shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.DebugRPCBlock, error)
+	GetDebugBlocksRange(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*jsonrpc.DebugRPCBlock, error)
+	SendMessage(ctx context.Context, msg *types.ExternalMessage) (common.Hash, error)
+	SendRawTransaction(ctx context.Context, data []byte) (common.Hash, error)
+	GetInMessageByHash(ctx context.Context, hash common.Hash) (*jsonrpc.RPCInMessage, error)
+	GetInMessageReceipt(ctx context.Context, hash common.Hash) (*jsonrpc.RPCReceipt, error)
+	GetTransactionCount(ctx context.Context, address types.Address, blockId any) (types.Seqno, error)
+	GetBlockTransactionCount(ctx context.Context, shardId types.ShardId, blockId any) (uint64, error)
+	GetBalance(ctx context.Context, address types.Address, blockId any) (types.Value, error)
+	GetShardIdList(ctx context.Context) ([]types.ShardId, error)
+	GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error)
+	ChainId(ctx context.Context) (types.ChainId, error)
 
 	DeployContract(
-		shardId types.ShardId, walletAddress types.Address, payload types.DeployPayload, value types.Value, pk *ecdsa.PrivateKey,
+		ctx context.Context, shardId types.ShardId, walletAddress types.Address, payload types.DeployPayload, value types.Value, pk *ecdsa.PrivateKey,
 	) (common.Hash, types.Address, error)
-	DeployExternal(shardId types.ShardId, deployPayload types.DeployPayload, feeCredit types.Value) (common.Hash, types.Address, error)
+	DeployExternal(ctx context.Context, shardId types.ShardId, deployPayload types.DeployPayload, feeCredit types.Value) (common.Hash, types.Address, error)
 	SendMessageViaWallet(
-		walletAddress types.Address, bytecode types.Code, feeCredit, value types.Value,
+		ctx context.Context, walletAddress types.Address, bytecode types.Code, feeCredit, value types.Value,
 		currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
 	) (common.Hash, error)
 	SendExternalMessage(
-		bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, feeCredit types.Value,
+		ctx context.Context, bytecode types.Code, contractAddress types.Address, pk *ecdsa.PrivateKey, feeCredit types.Value,
 	) (common.Hash, error)
 
 	// GetCurrencies retrieves the contract currencies at the given address
-	GetCurrencies(address types.Address, blockId any) (types.CurrenciesMap, error)
+	GetCurrencies(ctx context.Context, address types.Address, blockId any) (types.CurrenciesMap, error)
 
 	// SetCurrencyName sets currency name
-	SetCurrencyName(contractAddr types.Address, name string, pk *ecdsa.PrivateKey) (common.Hash, error)
+	SetCurrencyName(ctx context.Context, contractAddr types.Address, name string, pk *ecdsa.PrivateKey) (common.Hash, error)
 
 	// ChangeCurrencyAmount mints / burns currency for the contract
-	ChangeCurrencyAmount(contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey, mint bool) (common.Hash, error)
+	ChangeCurrencyAmount(ctx context.Context, contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey, mint bool) (common.Hash, error)
 
 	// GetDebugContract retrieves smart contract with its data, such as code, storage and proof
-	GetDebugContract(contractAddr types.Address, blockId any) (*jsonrpc.DebugRPCContract, error)
+	GetDebugContract(ctx context.Context, contractAddr types.Address, blockId any) (*jsonrpc.DebugRPCContract, error)
 }
 
-func EstimateFeeExternal(c Client, msg *types.ExternalMessage, blockId any) (types.Value, error) {
+func EstimateFeeExternal(ctx context.Context, c Client, msg *types.ExternalMessage, blockId any) (types.Value, error) {
 	var flags types.MessageFlags
 	if msg.Kind == types.DeployMessageKind {
 		flags = types.NewMessageFlags(types.MessageFlagDeploy)
@@ -87,11 +88,11 @@ func EstimateFeeExternal(c Client, msg *types.ExternalMessage, blockId any) (typ
 		Seqno: msg.Seqno,
 	}
 
-	return c.EstimateFee(args, blockId)
+	return c.EstimateFee(ctx, args, blockId)
 }
 
 func SendExternalMessage(
-	c Client, bytecode types.Code, contractAddress types.Address,
+	ctx context.Context, c Client, bytecode types.Code, contractAddress types.Address,
 	pk *ecdsa.PrivateKey, feeCredit types.Value, isDeploy bool, withRetry bool,
 ) (common.Hash, error) {
 	var kind types.MessageKind
@@ -102,7 +103,7 @@ func SendExternalMessage(
 	}
 
 	// Get the sequence number for the wallet
-	seqno, err := c.GetTransactionCount(contractAddress, "pending")
+	seqno, err := c.GetTransactionCount(ctx, contractAddress, "pending")
 	if err != nil {
 		return common.EmptyHash, err
 	}
@@ -118,14 +119,14 @@ func SendExternalMessage(
 
 	if feeCredit.IsZero() {
 		var err error
-		if feeCredit, err = EstimateFeeExternal(c, extMsg, "latest"); err != nil {
+		if feeCredit, err = EstimateFeeExternal(ctx, c, extMsg, "latest"); err != nil {
 			return common.EmptyHash, err
 		}
 	}
 	extMsg.FeeCredit = feeCredit
 
 	if withRetry {
-		return sendExternalMessageWithSeqnoRetry(c, extMsg, pk)
+		return sendExternalMessageWithSeqnoRetry(ctx, c, extMsg, pk)
 	}
 
 	if pk != nil {
@@ -135,12 +136,12 @@ func SendExternalMessage(
 		}
 	}
 
-	return c.SendMessage(extMsg)
+	return c.SendMessage(ctx, extMsg)
 }
 
 // sendExternalMessageWithSeqnoRetry tries to send an external message increasing seqno if needed.
 // Can be used to ensure sending messages to common contracts like Faucet.
-func sendExternalMessageWithSeqnoRetry(c Client, msg *types.ExternalMessage, pk *ecdsa.PrivateKey) (common.Hash, error) {
+func sendExternalMessageWithSeqnoRetry(ctx context.Context, c Client, msg *types.ExternalMessage, pk *ecdsa.PrivateKey) (common.Hash, error) {
 	var err error
 	for range 20 {
 		if pk != nil {
@@ -150,7 +151,7 @@ func sendExternalMessageWithSeqnoRetry(c Client, msg *types.ExternalMessage, pk 
 		}
 
 		var txHash common.Hash
-		txHash, err = c.SendMessage(msg)
+		txHash, err = c.SendMessage(ctx, msg)
 		if err == nil {
 			return txHash, nil
 		}
@@ -165,7 +166,7 @@ func sendExternalMessageWithSeqnoRetry(c Client, msg *types.ExternalMessage, pk 
 }
 
 func SendMessageViaWallet(
-	c Client, walletAddress types.Address, bytecode types.Code, feeCredit, value types.Value,
+	ctx context.Context, c Client, walletAddress types.Address, bytecode types.Code, feeCredit, value types.Value,
 	currencies []types.CurrencyBalance, contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool,
 ) (common.Hash, error) {
 	var kind types.MessageKind
@@ -194,5 +195,5 @@ func SendMessageViaWallet(
 		return common.EmptyHash, err
 	}
 
-	return c.SendExternalMessage(calldataExt, walletAddress, pk, feeCredit)
+	return c.SendExternalMessage(ctx, calldataExt, walletAddress, pk, feeCredit)
 }

@@ -17,8 +17,8 @@ func GetCallReadonlyCommand(cfg *common.Config) *cobra.Command {
 		Short: "Perform a read-only call to a smart contract",
 		Long:  "Perform a read-only call to the smart contract with the given address and calldata",
 		Args:  cobra.MinimumNArgs(2),
-		RunE: func(_ *cobra.Command, args []string) error {
-			return runCallReadonly(args, cfg)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runCallReadonly(cmd, args, cfg)
 		},
 		SilenceUsage: true,
 	}
@@ -68,8 +68,8 @@ func GetCallReadonlyCommand(cfg *common.Config) *cobra.Command {
 	return cmd
 }
 
-func runCallReadonly(args []string, cfg *common.Config) error {
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
+func runCallReadonly(cmd *cobra.Command, args []string, cfg *common.Config) error {
+	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 
 	var address types.Address
 	if err := address.Set(args[0]); err != nil {

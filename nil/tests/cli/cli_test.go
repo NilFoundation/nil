@@ -56,7 +56,7 @@ func (s *SuiteCli) SetupTest() {
 
 	var fc *faucet.Client
 	fc, s.faucetEndpoint = tests.StartFaucetService(s.T(), s.Context, &s.Wg, s.DefaultClient)
-	s.cli = cliservice.NewService(s.DefaultClient, execution.MainPrivateKey, fc)
+	s.cli = cliservice.NewService(s.Context, s.DefaultClient, execution.MainPrivateKey, fc)
 	s.Require().NotNil(s.cli)
 }
 
@@ -74,7 +74,7 @@ func (s *SuiteCli) toJSON(v interface{}) string {
 }
 
 func (s *SuiteCli) TestCliBlock() {
-	block, err := s.DefaultClient.GetBlock(types.BaseShardId, 0, false)
+	block, err := s.DefaultClient.GetBlock(s.Context, types.BaseShardId, 0, false)
 	s.Require().NoError(err)
 
 	res, err := s.cli.FetchBlock(types.BaseShardId, block.Hash.Hex())
@@ -93,7 +93,7 @@ func (s *SuiteCli) TestCliMessage() {
 	_, receipt := s.DeployContractViaMainWallet(types.BaseShardId, deployPayload, types.NewValueFromUint64(5_000_000))
 	s.Require().True(receipt.Success)
 
-	msg, err := s.DefaultClient.GetInMessageByHash(receipt.MsgHash)
+	msg, err := s.DefaultClient.GetInMessageByHash(s.Context, receipt.MsgHash)
 	s.Require().NoError(err)
 	s.Require().NotNil(msg)
 	s.Require().True(msg.Success)
@@ -326,7 +326,7 @@ func (s *SuiteCli) TestCallCliBasic() {
 	err := os.WriteFile(cfgPath, []byte(iniData), 0o600)
 	s.Require().NoError(err)
 
-	block, err := s.DefaultClient.GetBlock(types.BaseShardId, "latest", false)
+	block, err := s.DefaultClient.GetBlock(s.Context, types.BaseShardId, "latest", false)
 	s.Require().NoError(err)
 
 	res := s.RunCli("-c", cfgPath, "block", "--json", block.Number.String())

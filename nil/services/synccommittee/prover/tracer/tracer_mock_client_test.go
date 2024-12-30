@@ -64,7 +64,7 @@ func (s *TracerMockClientTestSuite) addCallContractMessage(addr types.Address) {
 func (s *TracerMockClientTestSuite) makeClient() client.Client {
 	s.T().Helper()
 	cl := &client.ClientMock{}
-	cl.GetDebugContractFunc = func(contractAddr types.Address, blockId any) (*jsonrpc.DebugRPCContract, error) {
+	cl.GetDebugContractFunc = func(_ context.Context, contractAddr types.Address, blockId any) (*jsonrpc.DebugRPCContract, error) {
 		s.T().Helper()
 
 		code, exists := s.accounts[contractAddr]
@@ -96,7 +96,7 @@ func (s *TracerMockClientTestSuite) makeClient() client.Client {
 		}, nil
 	}
 
-	cl.GetDebugBlockFunc = func(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.DebugRPCBlock, error) {
+	cl.GetDebugBlockFunc = func(_ context.Context, shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.DebugRPCBlock, error) {
 		s.T().Helper()
 		block := &types.Block{
 			Id:       1,
@@ -111,7 +111,7 @@ func (s *TracerMockClientTestSuite) makeClient() client.Client {
 		return jsonrpc.EncodeRawBlockWithExtractedData(rawBlock)
 	}
 
-	cl.GetBlockFunc = func(shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error) {
+	cl.GetBlockFunc = func(_ context.Context, shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error) {
 		magicBytes := []byte{1, 2, 3, 4, 5}
 		return &jsonrpc.RPCBlock{
 			MainChainHash: common.BytesToHash(magicBytes),

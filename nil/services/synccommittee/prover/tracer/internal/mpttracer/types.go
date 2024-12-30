@@ -1,6 +1,8 @@
 package mpttracer
 
 import (
+	"context"
+
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -14,7 +16,7 @@ type MPTValueDiff struct {
 
 // ContractReader interface for reading contract information
 type ContractReader interface {
-	GetAccount(types.Address) (*TracerAccount, mpt.Proof, error)
+	GetAccount(ctx context.Context, addr types.Address) (*TracerAccount, mpt.Proof, error)
 }
 
 // GenericTrieUpdateTrace is a generic struct for tracking trie updates

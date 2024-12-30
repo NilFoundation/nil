@@ -50,7 +50,7 @@ func (s *SuiteReadThrough) TestBasic() {
 		s.Require().NoError(err)
 	})
 
-	s.Require().NoError(s.Client.DbInitTimestamp(ts.Uint64()))
+	s.Require().NoError(s.Client.DbInitTimestamp(s.Context, ts.Uint64()))
 
 	s.Run("read", func() {
 		tx, err := s.readthroughdb.CreateRoTx(ctx)

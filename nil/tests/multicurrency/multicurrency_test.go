@@ -126,7 +126,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		s.Require().True(receipt.Success)
 
 		s.Run("Check currency is initialized", func() {
-			currencies, err := s.Client.GetCurrencies(s.walletAddress1, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.walletAddress1, "latest")
 			s.Require().NoError(err)
 			s.Require().Len(currencies, 1)
 			s.Equal(types.NewValueFromUint64(100), currencies[*currency1.id])
@@ -162,7 +162,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 			s.Require().True(receipt.Success)
 
 			s.Run(fmt.Sprintf("Check currency is %sed", method), func() {
-				currencies, err := s.Client.GetCurrencies(s.walletAddress1, "latest")
+				currencies, err := s.Client.GetCurrencies(s.Context, s.walletAddress1, "latest")
 				s.Require().NoError(err)
 				s.Require().Len(currencies, 1)
 				s.Equal(types.NewValueFromUint64(uint64(balance)), currencies[*currency1.id])
@@ -191,12 +191,12 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		s.Require().True(receipt.OutReceipts[0].Success)
 
 		s.Run("Check currency is transferred", func() {
-			currencies, err := s.Client.GetCurrencies(s.walletAddress1, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.walletAddress1, "latest")
 			s.Require().NoError(err)
 			s.Require().Len(currencies, 1)
 			s.Equal(types.NewValueFromUint64(250), currencies[*currency1.id])
 
-			currencies, err = s.Client.GetCurrencies(s.walletAddress2, "latest")
+			currencies, err = s.Client.GetCurrencies(s.Context, s.walletAddress2, "latest")
 			s.Require().NoError(err)
 			s.Require().Len(currencies, 1)
 			s.Equal(types.NewValueFromUint64(100), currencies[*currency1.id])
@@ -211,12 +211,12 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		s.Require().True(receipt.OutReceipts[0].Success)
 
 		s.Run("Check currency is transferred", func() {
-			currencies, err := s.Client.GetCurrencies(s.walletAddress1, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.walletAddress1, "latest")
 			s.Require().NoError(err)
 			s.Require().Len(currencies, 1)
 			s.Equal(types.NewValueFromUint64(200), currencies[*currency1.id])
 
-			currencies, err = s.Client.GetCurrencies(s.walletAddress2, "latest")
+			currencies, err = s.Client.GetCurrencies(s.Context, s.walletAddress2, "latest")
 			s.Require().NoError(err)
 			s.Require().Len(currencies, 1)
 			s.Equal(types.NewValueFromUint64(150), currencies[*currency1.id])
@@ -242,7 +242,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		s.Require().True(receipt.Success)
 
 		s.Run("Check currency and balance", func() {
-			currencies, err := s.Client.GetCurrencies(s.walletAddress2, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.walletAddress2, "latest")
 			s.Require().NoError(err)
 			s.Require().Len(currencies, 2)
 			s.Equal(types.NewValueFromUint64(150), currencies[*currency1.id])
@@ -262,13 +262,13 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		s.Require().True(receipt.OutReceipts[0].Success)
 
 		s.Run("Check currencies are transferred", func() {
-			currencies, err := s.Client.GetCurrencies(s.walletAddress3, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.walletAddress3, "latest")
 			s.Require().NoError(err)
 			s.Require().Len(currencies, 2)
 			s.Equal(types.NewValueFromUint64(10), currencies[*currency1.id])
 			s.Equal(types.NewValueFromUint64(500), currencies[*currency2.id])
 
-			currencies, err = s.Client.GetCurrencies(s.walletAddress2, "latest")
+			currencies, err = s.Client.GetCurrencies(s.Context, s.walletAddress2, "latest")
 			s.Require().NoError(err)
 			s.Require().Len(currencies, 2)
 			s.Equal(types.NewValueFromUint64(140), currencies[*currency1.id])
@@ -284,12 +284,12 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		s.Require().Contains(receipt.ErrorMessage, vm.ErrInsufficientBalance.Error())
 
 		s.Run("Check currency is not sent", func() {
-			currencies, err := s.Client.GetCurrencies(s.walletAddress2, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.walletAddress2, "latest")
 			s.Require().NoError(err)
 			s.Require().Len(currencies, 2)
 			s.Equal(types.NewValueFromUint64(140), currencies[*currency1.id])
 
-			currencies, err = s.Client.GetCurrencies(s.walletAddress3, "latest")
+			currencies, err = s.Client.GetCurrencies(s.Context, s.walletAddress3, "latest")
 			s.Require().NoError(err)
 			s.Require().Len(currencies, 2)
 			s.Equal(types.NewValueFromUint64(10), currencies[*currency1.id])
@@ -312,13 +312,13 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 			[]types.CurrencyBalance{{Currency: *currencyTest1.id, Balance: types.NewValueFromUint64(5000)}})
 		s.Require().NoError(err)
 
-		hash, err := s.Client.SendExternalMessage(data, s.testAddress1_0, nil, s.GasToValue(100_000))
+		hash, err := s.Client.SendExternalMessage(s.Context, data, s.testAddress1_0, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(hash)
 		s.Require().True(receipt.Success)
 
 		s.Run("Check currency is debited from testAddress1_0", func() {
-			currencies, err := s.Client.GetCurrencies(s.testAddress1_0, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.testAddress1_0, "latest")
 			s.Require().NoError(err)
 			s.Equal(types.NewValueFromUint64(1_000_000-5000), currencies[*currencyTest1.id])
 
@@ -330,7 +330,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		})
 
 		s.Run("Check currency is credited to testAddress1_1", func() {
-			currencies, err := s.Client.GetCurrencies(s.testAddress1_1, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.testAddress1_1, "latest")
 			s.Require().NoError(err)
 			s.Equal(types.NewValueFromUint64(5000), currencies[*currencyTest1.id])
 		})
@@ -346,19 +346,19 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 			})
 		s.Require().NoError(err)
 
-		hash, err := s.Client.SendExternalMessage(data, s.testAddress1_0, nil, s.GasToValue(100_000))
+		hash, err := s.Client.SendExternalMessage(s.Context, data, s.testAddress1_0, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(hash)
 		s.Require().False(receipt.Success)
 
 		s.Run("Check currency of testAddress1_0", func() {
-			currencies, err := s.Client.GetCurrencies(s.testAddress1_0, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.testAddress1_0, "latest")
 			s.Require().NoError(err)
 			s.Equal(types.NewValueFromUint64(1_000_000-5000), currencies[*currencyTest1.id])
 		})
 
 		s.Run("Check currency of testAddress1_1", func() {
-			currencies, err := s.Client.GetCurrencies(s.testAddress1_1, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.testAddress1_1, "latest")
 			s.Require().NoError(err)
 			s.Equal(types.NewValueFromUint64(5000), currencies[*currencyTest1.id])
 		})
@@ -369,7 +369,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 			[]types.CurrencyBalance{{Currency: *currencyTest1.id, Balance: types.NewValueFromUint64(5000)}})
 		s.Require().NoError(err)
 
-		hash, err := s.Client.SendExternalMessage(data, s.testAddress1_0, nil, s.GasToValue(100_000))
+		hash, err := s.Client.SendExternalMessage(s.Context, data, s.testAddress1_0, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(hash)
 		s.Require().True(receipt.Success)
@@ -377,13 +377,13 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		s.Require().True(receipt.OutReceipts[0].Success)
 
 		s.Run("Check currency is debited from testAddress1_0", func() {
-			currencies, err := s.Client.GetCurrencies(s.testAddress1_0, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.testAddress1_0, "latest")
 			s.Require().NoError(err)
 			s.Equal(types.NewValueFromUint64(1_000_000-5000-5000), currencies[*currencyTest1.id])
 		})
 
 		s.Run("Check currency is credited to testAddress1_1", func() {
-			currencies, err := s.Client.GetCurrencies(s.testAddress1_1, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.testAddress1_1, "latest")
 			s.Require().NoError(err)
 			s.Equal(types.NewValueFromUint64(5000+5000), currencies[*currencyTest1.id])
 		})
@@ -397,20 +397,20 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 			})
 		s.Require().NoError(err)
 
-		hash, err := s.Client.SendExternalMessage(data, s.testAddress1_0, nil, s.GasToValue(100_000))
+		hash, err := s.Client.SendExternalMessage(s.Context, data, s.testAddress1_0, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(hash)
 		s.Require().False(receipt.Success)
 		s.Require().Empty(receipt.OutReceipts)
 
 		s.Run("Check currency of testAddress1_0", func() {
-			currencies, err := s.Client.GetCurrencies(s.testAddress1_0, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.testAddress1_0, "latest")
 			s.Require().NoError(err)
 			s.Equal(types.NewValueFromUint64(1_000_000-5000-5000), currencies[*currencyTest1.id])
 		})
 
 		s.Run("Check currency of testAddress1_1", func() {
-			currencies, err := s.Client.GetCurrencies(s.testAddress1_1, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.testAddress1_1, "latest")
 			s.Require().NoError(err)
 			s.Equal(types.NewValueFromUint64(5000+5000), currencies[*currencyTest1.id])
 		})
@@ -423,7 +423,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		data, err := s.abiTest.Pack("testSendTokensSync", s.testAddress1_1, big.NewInt(5000), false)
 		s.Require().NoError(err)
 
-		hash, err := s.Client.SendExternalMessage(data, s.testAddress1_0, nil, s.GasToValue(100_000))
+		hash, err := s.Client.SendExternalMessage(s.Context, data, s.testAddress1_0, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(hash)
 		s.Require().True(receipt.Success)
@@ -431,13 +431,13 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		s.Require().Empty(receipt.OutMessages)
 
 		s.Run("Check currency was debited from testAddress1_0", func() {
-			currencies, err := s.Client.GetCurrencies(s.testAddress1_0, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.testAddress1_0, "latest")
 			s.Require().NoError(err)
 			s.Equal(amountTest1.Sub64(5000), currencies[*currencyTest1.id])
 		})
 
 		s.Run("Check currency was credited to testAddress1_1", func() {
-			currencies, err := s.Client.GetCurrencies(s.testAddress1_1, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.testAddress1_1, "latest")
 			s.Require().NoError(err)
 			s.Equal(amountTest2.Add64(5000), currencies[*currencyTest1.id])
 		})
@@ -447,19 +447,19 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		data, err := s.abiTest.Pack("testSendTokensSync", s.testAddress1_1, big.NewInt(5000), true)
 		s.Require().NoError(err)
 
-		hash, err := s.Client.SendExternalMessage(data, s.testAddress1_0, nil, s.GasToValue(100_000))
+		hash, err := s.Client.SendExternalMessage(s.Context, data, s.testAddress1_0, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(hash)
 		s.Require().False(receipt.Success)
 
 		s.Run("Check currency of testAddress1_0", func() {
-			currencies, err := s.Client.GetCurrencies(s.testAddress1_0, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.testAddress1_0, "latest")
 			s.Require().NoError(err)
 			s.Equal(amountTest1.Sub64(5000), currencies[*currencyTest1.id])
 		})
 
 		s.Run("Check currency of testAddress1_1", func() {
-			currencies, err := s.Client.GetCurrencies(s.testAddress1_1, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.testAddress1_1, "latest")
 			s.Require().NoError(err)
 			s.Equal(amountTest2.Add64(5000), currencies[*currencyTest1.id])
 		})
@@ -471,13 +471,13 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 		data, err := s.abiTest.Pack("testSendTokensSync", s.walletAddress3, big.NewInt(5000), false)
 		s.Require().NoError(err)
 
-		hash, err := s.Client.SendExternalMessage(data, s.testAddress1_0, nil, s.GasToValue(100_000))
+		hash, err := s.Client.SendExternalMessage(s.Context, data, s.testAddress1_0, nil, s.GasToValue(100_000))
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(hash)
 		s.Require().False(receipt.Success)
 
 		s.Run("Check currency of testAddress1_0", func() {
-			currencies, err := s.Client.GetCurrencies(s.testAddress1_0, "latest")
+			currencies, err := s.Client.GetCurrencies(s.Context, s.testAddress1_0, "latest")
 			s.Require().NoError(err)
 			s.Require().Equal(amountTest1.Sub64(5000), currencies[*currencyTest1.id])
 		})
@@ -489,7 +489,7 @@ func (s *SuiteMultiCurrencyRpc) TestCurrencyViaCall() {
 	// that works with currencies without crashes/errors.
 
 	data := s.AbiPack(s.abiWallet, "mintCurrency", big.NewInt(100))
-	res, err := s.Client.Call(&jsonrpc.CallArgs{
+	res, err := s.Client.Call(s.Context, &jsonrpc.CallArgs{
 		To:        s.walletAddress1,
 		Data:      (*hexutil.Bytes)(&data),
 		FeeCredit: types.GasToValue(100_000),
@@ -522,12 +522,12 @@ func (s *SuiteMultiCurrencyRpc) TestBounce() {
 	s.Require().False(receipt.OutReceipts[0].Success)
 
 	// Check that nothing credited tp destination account
-	currencies, err = s.Client.GetCurrencies(s.testAddress1_0, "latest")
+	currencies, err = s.Client.GetCurrencies(s.Context, s.testAddress1_0, "latest")
 	s.Require().NoError(err)
 	s.Require().Equal(types.NewValueFromUint64(0), currencies[*currencyWallet1.id])
 
 	// Check that currency wasn't changed
-	currencies, err = s.Client.GetCurrencies(s.walletAddress1, "latest")
+	currencies, err = s.Client.GetCurrencies(s.Context, s.walletAddress1, "latest")
 	s.Require().NoError(err)
 	s.Require().Equal(types.NewValueFromUint64(1_000_000), currencies[*currencyWallet1.id])
 }
@@ -601,7 +601,7 @@ func (s *SuiteMultiCurrencyRpc) TestNoExternalAccess() {
 func (s *SuiteMultiCurrencyRpc) getCurrencyBalance(address *types.Address, currency *CurrencyId) types.Value {
 	s.T().Helper()
 
-	currencies, err := s.Client.GetCurrencies(*address, "latest")
+	currencies, err := s.Client.GetCurrencies(s.Context, *address, "latest")
 	s.Require().NoError(err)
 	return currencies[*currency.id]
 }
@@ -618,7 +618,7 @@ func (s *SuiteMultiCurrencyRpc) createCurrencyForTestContract(currency *Currency
 	s.Require().True(receipt.Success)
 
 	// Check currency is created and balance is correct
-	currencies, err := s.Client.GetCurrencies(*currency.address, "latest")
+	currencies, err := s.Client.GetCurrencies(s.Context, *currency.address, "latest")
 	s.Require().NoError(err)
 	s.Require().GreaterOrEqual(len(currencies), 1)
 	s.Equal(amount, currencies[*currency.id])

@@ -44,8 +44,8 @@ func GetAddressCommand(cfg *common.Config) *cobra.Command {
 	return cmd
 }
 
-func runAddress(_ *cobra.Command, cmdArgs []string, cfg *common.Config) error {
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
+func runAddress(cmd *cobra.Command, cmdArgs []string, cfg *common.Config) error {
+	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 
 	var filename string
 	var args []string

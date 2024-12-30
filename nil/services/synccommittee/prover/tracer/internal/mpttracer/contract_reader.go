@@ -1,6 +1,8 @@
 package mpttracer
 
 import (
+	"context"
+
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -73,8 +75,8 @@ func (dacr *DebugApiContractReader) GetRwTx() db.RwTx {
 func (dacr *DebugApiContractReader) AppendToJournal(je execution.JournalEntry) {}
 
 // GetAccount retrieves an account with its debug information
-func (dacr *DebugApiContractReader) GetAccount(addr types.Address) (*TracerAccount, mpt.Proof, error) {
-	debugRPCContract, err := dacr.client.GetDebugContract(addr, transport.BlockNumber(dacr.shardBlockNumber))
+func (dacr *DebugApiContractReader) GetAccount(ctx context.Context, addr types.Address) (*TracerAccount, mpt.Proof, error) {
+	debugRPCContract, err := dacr.client.GetDebugContract(ctx, addr, transport.BlockNumber(dacr.shardBlockNumber))
 	if err != nil || debugRPCContract == nil {
 		return nil, mpt.Proof{}, err
 	}

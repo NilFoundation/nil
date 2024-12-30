@@ -12,7 +12,7 @@ import (
 
 // FetchBlock fetches the block by number or hash
 func (s *Service) FetchBlock(shardId types.ShardId, blockId any) ([]byte, error) {
-	blockData, err := s.client.GetBlock(shardId, blockId, true)
+	blockData, err := s.client.GetBlock(s.ctx, shardId, blockId, true)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to fetch block")
 		return nil, err
@@ -31,7 +31,7 @@ func (s *Service) FetchBlock(shardId types.ShardId, blockId any) ([]byte, error)
 
 // FetchDebugBlock fetches the block by number or hash with messages related data.
 func (s *Service) FetchDebugBlock(shardId types.ShardId, blockId any, jsonOutput bool, fullOutput bool, noColor bool) ([]byte, error) {
-	hexedBlock, err := s.client.GetDebugBlock(shardId, blockId, true)
+	hexedBlock, err := s.client.GetDebugBlock(s.ctx, shardId, blockId, true)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to fetch block")
 		return nil, err

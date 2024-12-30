@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -12,13 +13,13 @@ import (
 var titleCaser = cases.Title(language.English)
 
 func RunTopUp(
-	name string, cfg *Config, address types.Address, amount types.Value, currId string, quiet bool,
+	ctx context.Context, name string, cfg *Config, address types.Address, amount types.Value, currId string, quiet bool,
 ) error {
 	faucet, err := GetFaucetRpcClient()
 	if err != nil {
 		return err
 	}
-	service := cliservice.NewService(GetRpcClient(), cfg.PrivateKey, faucet)
+	service := cliservice.NewService(ctx, GetRpcClient(), cfg.PrivateKey, faucet)
 
 	faucetAddress := types.FaucetAddress
 	if len(currId) == 0 {
