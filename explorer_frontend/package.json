@@ -7,7 +7,7 @@
 	"scripts": {
 		"dev": "vite",
 		"test": "echo \"Error: no test specified\" && exit 1",
-		"lint": "biome check src",
+		"lint": "biome check src --diagnostic-level=error",
 		"lint:fix": "biome check --write src",
 		"build": "vite build",
 		"analyze-bundle": "npx vite-bundle-visualizer --port 5000 --open"
