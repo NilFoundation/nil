@@ -47,7 +47,6 @@ message CallRequest {
   CallArgs args = 1;
   BlockReferenceOrHashWithChildren mainBlockReferenceOrHashWithChildren = 2;
   StateOverrides stateOverrides = 3;
-  bool emptyMessageIsRoot = 4;
 }
 
 message CallResult {

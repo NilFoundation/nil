@@ -1016,7 +1016,9 @@ func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message,
 			check.PanicIfErr(err)
 			check.PanicIfErr(acc.AddBalance(leftOverCredit, tracing.BalanceIncreaseRefund))
 		} else {
-			refundGas(payer, leftOverCredit)
+			if err := refundGas(payer, leftOverCredit); err != nil {
+				res.Error = types.KeepOrWrapError(types.ErrorGasRefundFailed, err)
+			}
 		}
 	}
 

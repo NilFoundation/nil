@@ -146,9 +146,9 @@ func (api *ShardApiAccessor) GetContract(ctx context.Context, address types.Addr
 }
 
 func (api *ShardApiAccessor) Call(
-	ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+	ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides,
 ) (*rpctypes.CallResWithGasPrice, error) {
-	return sendRequestAndGetResponseWithCallerMethodName[*rpctypes.CallResWithGasPrice](ctx, api, "Call", args, mainBlockReferenceOrHashWithChildren, overrides, emptyMessageIsRoot)
+	return sendRequestAndGetResponseWithCallerMethodName[*rpctypes.CallResWithGasPrice](ctx, api, "Call", args, mainBlockReferenceOrHashWithChildren, overrides)
 }
 
 func (api *ShardApiAccessor) GetInMessage(ctx context.Context, request rawapitypes.MessageRequest) (*rawapitypes.MessageInfo, error) {

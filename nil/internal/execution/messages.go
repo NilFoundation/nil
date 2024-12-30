@@ -15,7 +15,22 @@ type Payer interface {
 	fmt.Stringer
 	CanPay(types.Value) bool
 	SubBalance(types.Value)
-	AddBalance(types.Value)
+	AddBalance(types.Value) error
+}
+
+type dummyPayer struct{}
+
+func NewDummyPayer() dummyPayer {
+	return dummyPayer{}
+}
+
+func (m dummyPayer) CanPay(types.Value) bool {
+	return true
+}
+func (m dummyPayer) SubBalance(_ types.Value)     {}
+func (m dummyPayer) AddBalance(types.Value) error { return nil }
+func (m dummyPayer) String() string {
+	return "dummy"
 }
 
 type messagePayer struct {
@@ -38,10 +53,9 @@ func (m messagePayer) SubBalance(_ types.Value) {
 	// Already paid by sender
 }
 
-func (m messagePayer) AddBalance(delta types.Value) {
-	if m.message.RefundTo == types.EmptyAddress {
-		sharedLogger.Error().Stringer(logging.FieldMessageHash, m.message.Hash()).Msg("refund address is empty")
-		return
+func (m messagePayer) AddBalance(delta types.Value) error {
+	if m.message.RefundTo.IsEmpty() {
+		return types.NewError(types.ErrorRefundAddressIsEmpty)
 	}
 
 	if _, err := m.es.AddOutMessage(m.message.To, &types.InternalMessagePayload{
@@ -51,6 +65,7 @@ func (m messagePayer) AddBalance(delta types.Value) {
 	}); err != nil {
 		sharedLogger.Error().Err(err).Stringer(logging.FieldMessageHash, m.message.Hash()).Msg("failed to add refund message")
 	}
+	return nil
 }
 
 func (m messagePayer) String() string {
@@ -79,8 +94,11 @@ func (a accountPayer) SubBalance(amount types.Value) {
 	check.PanicIfErr(a.account.SubBalance(amount, tracing.BalanceDecreaseGasBuy))
 }
 
-func (a accountPayer) AddBalance(amount types.Value) {
-	check.PanicIfErr(a.account.AddBalance(amount, tracing.BalanceIncreaseGasReturn))
+func (a accountPayer) AddBalance(amount types.Value) error {
+	if err := a.account.AddBalance(amount, tracing.BalanceIncreaseGasReturn); err != nil {
+		return types.KeepOrWrapError(types.ErrorInsufficientBalance, err)
+	}
+	return nil
 }
 
 func (a accountPayer) String() string {
@@ -95,12 +113,12 @@ func buyGas(payer Payer, message *types.Message) error {
 	return nil
 }
 
-func refundGas(payer Payer, gasRemaining types.Value) {
+func refundGas(payer Payer, gasRemaining types.Value) error {
 	if gasRemaining.IsZero() {
-		return
+		return nil
 	}
 	// Return currency for remaining gas, exchanged at the original rate.
-	payer.AddBalance(gasRemaining)
+	return payer.AddBalance(gasRemaining)
 }
 
 func ValidateDeployMessage(message *types.Message) types.ExecError {

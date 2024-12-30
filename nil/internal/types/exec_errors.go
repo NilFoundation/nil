@@ -115,6 +115,10 @@ const (
 	// ErrorEmitDebugLogFailed is returned when the execution state fails to add a debug log. Probably the limit of logs
 	// is reached.
 	ErrorEmitDebugLogFailed
+	// ErrorRefundAddressIsEmpty is returned when the message contains an empty refund address during gas refund.
+	ErrorRefundAddressIsEmpty
+	// ErrorGasRefundFailed is a general error for failed gas refund.
+	ErrorGasRefundFailed
 )
 
 type ExecError interface {

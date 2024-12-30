@@ -54,6 +54,9 @@ func (args CallArgs) ToMessage() (*types.Message, error) {
 			if args.From != nil {
 				fromAddr = *args.From
 			}
+			if intMsg.RefundTo.IsEmpty() {
+				return nil, errors.New("refund address is empty")
+			}
 			return intMsg.ToMessage(fromAddr, args.Seqno), nil
 		}
 		return nil, ErrInvalidMessage

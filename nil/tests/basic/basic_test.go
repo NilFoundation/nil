@@ -449,6 +449,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	intMsg = &types.InternalMessagePayload{
 		Data:        contracts.NewCounterAddCallData(s.T(), 5),
 		To:          counterAddr,
+		RefundTo:    walletAddr,
 		FeeCredit:   types.NewValueFromUint64(5_000_000),
 		ForwardKind: types.ForwardKindRemaining,
 		Kind:        types.ExecutionMessageKind,
@@ -496,7 +497,8 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 		res, err := s.Client.Call(callArgs, "latest", nil)
 		s.Require().NoError(err)
 		s.Require().Empty(res.Error)
-		s.Require().Empty(res.OutMessages)
+		s.Require().Len(res.OutMessages, 1)
+		s.Require().True(res.OutMessages[0].Message.IsRefund())
 
 		getRes := s.CallGetter(counterAddr, contracts.NewCounterGetCallData(s.T()), "latest", &res.StateOverrides)
 		s.EqualValues(5, contracts.GetCounterValue(s.T(), getRes))

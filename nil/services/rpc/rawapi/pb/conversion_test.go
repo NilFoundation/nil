@@ -135,10 +135,9 @@ func TestCallRequest_PackUnpack(t *testing.T) {
 
 			callArgs := getCallArgs()
 			overrides := getStateOverrides()
-			flag := true
 
 			callReq := &CallRequest{}
-			require.NoError(t, callReq.PackProtoMessage(callArgs, blockRef, overrides, flag))
+			require.NoError(t, callReq.PackProtoMessage(callArgs, blockRef, overrides))
 
 			data, err := proto.Marshal(callReq)
 			require.NoError(t, err)
@@ -146,12 +145,11 @@ func TestCallRequest_PackUnpack(t *testing.T) {
 			var unpacked CallRequest
 			require.NoError(t, proto.Unmarshal(data, &unpacked))
 
-			unpackedCallArgs, unpackedBlockRef, unpackedOverrides, unpackedFlag, err := unpacked.UnpackProtoMessage()
+			unpackedCallArgs, unpackedBlockRef, unpackedOverrides, err := unpacked.UnpackProtoMessage()
 			require.NoError(t, err)
 			assert.Equal(t, callArgs, unpackedCallArgs)
 			assert.Equal(t, blockRef, unpackedBlockRef)
 			assert.Equal(t, overrides, unpackedOverrides)
-			assert.Equal(t, flag, unpackedFlag)
 		})
 	}
 }

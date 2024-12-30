@@ -98,8 +98,7 @@ func (api *LocalShardApi) handleOutMessages(
 			ctx,
 			args,
 			rawapitypes.BlockHashWithChildrenAsBlockReferenceOrHashWithChildren(mainBlockHash, childBlocks),
-			overrides,
-			true)
+			overrides)
 		if err != nil {
 			return nil, err
 		}
@@ -126,7 +125,9 @@ func (api *LocalShardApi) handleOutMessages(
 }
 
 func (api *LocalShardApi) Call(
-	ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+	ctx context.Context, args rpctypes.CallArgs,
+	mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren,
+	overrides *rpctypes.StateOverrides,
 ) (*rpctypes.CallResWithGasPrice, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
@@ -192,12 +193,15 @@ func (api *LocalShardApi) Call(
 	}
 
 	var payer execution.Payer
-	if msg.IsInternal() || (emptyMessageIsRoot && args.Message == nil) {
+	switch {
+	case args.Message == nil:
 		// "args.Message == nil" mean that it's a root message
 		// and we don't want to withdraw any payment for it.
 		// Because it's quite useful for read-only methods.
+		payer = execution.NewDummyPayer()
+	case msg.IsInternal():
 		payer = execution.NewMessagePayer(msg, es)
-	} else {
+	default:
 		var toAs *execution.AccountState
 		if toAs, err = es.GetAccount(msg.To); err != nil {
 			return nil, err
