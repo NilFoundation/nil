@@ -31,10 +31,10 @@
         packages = rec {
           solc = (pkgs.callPackage ./nix/solc.nix { });
           nil = (pkgs.callPackage ./nix/nil.nix { solc = solc; });
-          niljs = (pkgs.callPackage ./nix/niljs.nix { });
+          niljs = (pkgs.callPackage ./nix/niljs.nix { solc = solc; });
           clijs = (pkgs.callPackage ./nix/clijs.nix { });
-          nildocs = (pkgs.callPackage ./nix/nildocs.nix { nil = nil; });
-          nilhardhat = (pkgs.callPackage ./nix/nilhardhat.nix { });
+          nildocs = (pkgs.callPackage ./nix/nildocs.nix { nil = nil; solc = solc; });
+          nilhardhat = (pkgs.callPackage ./nix/nilhardhat.nix { solc = solc; });
           default = nil;
           formatters = (pkgs.callPackage ./nix/formatters.nix { });
           update_public_repo = (pkgs.callPackage ./nix/update_public_repo.nix { });
@@ -51,6 +51,7 @@
           });
           niljs = (pkgs.callPackage ./nix/niljs.nix {
             nil = packages.nil;
+            solc = packages.solc;
             enableTesting = true;
           });
           clijs = (pkgs.callPackage ./nix/clijs.nix {
