@@ -638,7 +638,7 @@ func (brd *BlockReferenceOrHashWithChildren) UnpackProtoMessage() (rawapitypes.B
 }
 
 func (cr *CallRequest) PackProtoMessage(
-	args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+	args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides,
 ) error {
 	cr.Args = new(CallArgs).PackProtoMessage(args)
 
@@ -651,7 +651,6 @@ func (cr *CallRequest) PackProtoMessage(
 		cr.StateOverrides = new(StateOverrides).PackProtoMessage(overrides)
 	}
 
-	cr.EmptyMessageIsRoot = emptyMessageIsRoot
 	return nil
 }
 
@@ -730,12 +729,12 @@ func (cr *StateOverrides) UnpackProtoMessage() *rpctypes.StateOverrides {
 	return &args
 }
 
-func (cr *CallRequest) UnpackProtoMessage() (rpctypes.CallArgs, rawapitypes.BlockReferenceOrHashWithChildren, *rpctypes.StateOverrides, bool, error) {
+func (cr *CallRequest) UnpackProtoMessage() (rpctypes.CallArgs, rawapitypes.BlockReferenceOrHashWithChildren, *rpctypes.StateOverrides, error) {
 	br, err := cr.MainBlockReferenceOrHashWithChildren.UnpackProtoMessage()
 	if err != nil {
-		return rpctypes.CallArgs{}, rawapitypes.BlockReferenceOrHashWithChildren{}, nil, false, err
+		return rpctypes.CallArgs{}, rawapitypes.BlockReferenceOrHashWithChildren{}, nil, err
 	}
-	return cr.Args.UnpackProtoMessage(), br, cr.StateOverrides.UnpackProtoMessage(), cr.EmptyMessageIsRoot, nil
+	return cr.Args.UnpackProtoMessage(), br, cr.StateOverrides.UnpackProtoMessage(), nil
 }
 
 func (m *OutMessage) PackProtoMessage(msg *rpctypes.OutMessage) *OutMessage {

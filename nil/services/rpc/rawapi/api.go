@@ -28,7 +28,7 @@ type NodeApiRo interface {
 	GetContract(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (*rawapitypes.SmartContract, error)
 
 	Call(
-		ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+		ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides,
 	) (*rpctypes.CallResWithGasPrice, error)
 
 	GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error)
@@ -55,7 +55,7 @@ type ShardApiRo interface {
 	GetContract(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (*rawapitypes.SmartContract, error)
 
 	Call(
-		ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+		ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides,
 	) (*rpctypes.CallResWithGasPrice, error)
 
 	GasPrice(ctx context.Context) (types.Value, error)

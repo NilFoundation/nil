@@ -16,7 +16,7 @@ import (
 // Call implements eth_call. Executes a new message call immediately without creating a transaction on the block chain.
 func (api *APIImplRo) Call(ctx context.Context, args CallArgs, mainBlockNrOrHash transport.BlockNumberOrHash, overrides *StateOverrides) (*CallRes, error) {
 	blockRef := rawapitypes.BlockReferenceAsBlockReferenceOrHashWithChildren(toBlockReference(mainBlockNrOrHash))
-	res, err := api.rawapi.Call(ctx, args, blockRef, overrides, true)
+	res, err := api.rawapi.Call(ctx, args, blockRef, overrides)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (api *APIImplRo) EstimateFee(ctx context.Context, args CallArgs, mainBlockN
 		}
 
 		// Root message considered here as external since we anyway override contract balance.
-		res, err := api.rawapi.Call(ctx, args, blockRef, stateOverrides, false)
+		res, err := api.rawapi.Call(ctx, args, blockRef, stateOverrides)
 		if err != nil {
 			return nil, fmt.Errorf("failed to estimate call fee: %s", err.Error())
 		}

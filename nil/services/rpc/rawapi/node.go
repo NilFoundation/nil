@@ -151,7 +151,7 @@ func (api *NodeApiOverShardApis) GetContract(ctx context.Context, address types.
 }
 
 func (api *NodeApiOverShardApis) Call(
-	ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides, emptyMessageIsRoot bool,
+	ctx context.Context, args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides,
 ) (*rpctypes.CallResWithGasPrice, error) {
 	methodName := methodNameChecked("Call")
 
@@ -165,7 +165,7 @@ func (api *NodeApiOverShardApis) Call(
 	if !ok {
 		return nil, makeShardNotFoundError(methodName, shardId)
 	}
-	result, err := shardApi.Call(ctx, args, mainBlockReferenceOrHashWithChildren, overrides, emptyMessageIsRoot)
+	result, err := shardApi.Call(ctx, args, mainBlockReferenceOrHashWithChildren, overrides)
 	if err != nil {
 		return nil, makeCallError(methodName, shardId, err)
 	}
