@@ -50,7 +50,7 @@ import { $endpoint, $wallet } from "../account-connector/model";
 import type { AbiFunction } from "abitype";
 import { debug } from "patronum";
 import { getTokenAddressBySymbol } from "../currencies";
-import type { Token, CometaService, Hex } from "@nilfoundation/niljs";
+import type { Token, CometaService, Hex, WalletV1 } from "@nilfoundation/niljs";
 import { $cometaService } from "../cometa/model";
 import { exportApp, exportAppFx } from "./models/exportApp";
 import type { App } from "../../types";
@@ -247,6 +247,15 @@ sample({
     (wallet, app, assignedSmartContractAddress) =>
       !!wallet && !!app && !!assignedSmartContractAddress,
   ),
+  fn: (data) => {
+    const { app, wallet, assignedSmartContractAddress } = data!;
+    return {
+      app: app as App,
+      wallet: wallet as WalletV1,
+      assignedSmartContractAddress: assignedSmartContractAddress as Hex,
+    }
+
+  },
   clock: assignSmartContract,
   target: assignSmartContractFx,
 });
@@ -509,7 +518,7 @@ $activeApp.on(deploySmartContractFx.doneData, (_, { address, app }) => {
 $activeApp.on(assignSmartContractFx.doneData, (_, { assignedSmartContractAddress, app }) => {
   return {
     bytecode: app,
-    assignedSmartContractAddress,
+    address: assignedSmartContractAddress,
   };
 });
 

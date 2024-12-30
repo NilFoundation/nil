@@ -1,7 +1,12 @@
 import { compileCodeFx } from "../code/model";
 import { $logs, LogTopic, LogType, clearLogs } from "./model";
 import { nanoid } from "nanoid";
-import { callFx, deploySmartContractFx, sendMethodFx, assignSmartContractFx } from "../contracts/models/base";
+import {
+  callFx,
+  deploySmartContractFx,
+  sendMethodFx,
+  assignSmartContractFx,
+} from "../contracts/models/base";
 import { MonoParagraphMedium } from "baseui/typography";
 import { formatSolidityError } from "./utils";
 import { COLORS } from "@nilfoundation/ui-kit";
@@ -33,7 +38,7 @@ $logs.on(deploySmartContractFx.doneData, (logs, { address, name, deployedFrom, t
   ];
 });
 
-$logs.on(assignSmartContractFx.doneData, (logs, { address }) => {
+$logs.on(assignSmartContractFx.doneData, (logs, { assignedSmartContractAddress }) => {
   return [
     ...logs,
     {
@@ -45,7 +50,7 @@ $logs.on(assignSmartContractFx.doneData, (logs, { address }) => {
           Contract assigned successfully
         </MonoParagraphMedium>
       ),
-      payload: <ContractDeployedLog address={address} />,
+      payload: <ContractDeployedLog address={assignedSmartContractAddress} />,
       timestamp: Date.now(),
     },
   ];
