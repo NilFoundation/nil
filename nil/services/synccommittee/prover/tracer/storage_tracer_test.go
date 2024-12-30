@@ -5,7 +5,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/mpttracer"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/prover/tracer/internal/mpttracer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

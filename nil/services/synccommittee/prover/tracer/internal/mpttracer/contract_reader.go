@@ -84,7 +84,7 @@ func (dacr *DebugApiContractReader) GetAccount(addr types.Address) (*TracerAccou
 		return nil, mpt.Proof{}, err
 	}
 
-	err = insertTrieValues[common.Hash, types.Uint256, *types.Uint256](
+	err = insertTrieValues(
 		dacr.rwTx,
 		dacr.shardId,
 		debugContract.StorageTrieEntries,
@@ -94,7 +94,7 @@ func (dacr *DebugApiContractReader) GetAccount(addr types.Address) (*TracerAccou
 		return nil, mpt.Proof{}, err
 	}
 
-	err = insertTrieValues[types.CurrencyId, types.Value, *types.Value](
+	err = insertTrieValues(
 		dacr.rwTx,
 		dacr.shardId,
 		debugContract.CurrencyTrieEntries,
@@ -104,7 +104,7 @@ func (dacr *DebugApiContractReader) GetAccount(addr types.Address) (*TracerAccou
 		return nil, mpt.Proof{}, err
 	}
 
-	err = insertTrieValues[types.MessageIndex, types.AsyncContext, *types.AsyncContext](
+	err = insertTrieValues(
 		dacr.rwTx,
 		dacr.shardId,
 		debugContract.AsyncContextTrieEntries,

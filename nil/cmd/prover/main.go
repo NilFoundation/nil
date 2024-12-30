@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/profiling"
@@ -140,7 +139,7 @@ func run(cfg *RunConfig) error {
 }
 
 func generateTrace(cfg *GenerateTraceConfig) error {
-	client := rpc.NewClient(cfg.NilRpcEndpoint, logging.NewLogger("client"))
+	client := prover.NewRPCClient(cfg.NilRpcEndpoint, logging.NewLogger("client"))
 	remoteTracer, err := tracer.NewRemoteTracer(client, logging.NewLogger("tracer"))
 	if err != nil {
 		return err

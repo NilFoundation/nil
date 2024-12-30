@@ -11,9 +11,14 @@ import (
 	"github.com/rs/zerolog"
 )
 
+type (
+	RetryPolicyFunc func(attempt uint32, err error) bool
+	NextDelayFunc   func(attempt uint32) time.Duration
+)
+
 type RetryConfig struct {
-	ShouldRetry func(attemptNumber uint32, err error) bool
-	NextDelay   func(attemptNumber uint32) time.Duration
+	ShouldRetry RetryPolicyFunc
+	NextDelay   NextDelayFunc
 }
 
 type RetryRunner struct {
@@ -43,7 +48,7 @@ func (r *RetryRunner) Do(ctx context.Context, action func(ctx context.Context) e
 			}
 
 			delay := r.config.NextDelay(attemptNumber)
-			r.logger.Warn().Err(err).Msgf("operation failed, retrying in %s", delay)
+			r.logger.Warn().Err(err).Msgf("operation failed, retrying in %s (try %d)", delay, attemptNumber)
 
 			select {
 			case <-ctx.Done():
@@ -55,13 +60,24 @@ func (r *RetryRunner) Do(ctx context.Context, action func(ctx context.Context) e
 	}
 }
 
-func LimitRetries(maxRetries uint32) func(attemptNumber uint32, err error) bool {
+func LimitRetries(maxRetries uint32) RetryPolicyFunc {
 	return func(attemptNumber uint32, _ error) bool {
 		return attemptNumber < maxRetries
 	}
 }
 
-func ExponentialDelay(baseDelay, maxDelay time.Duration) func(attemptNumber uint32) time.Duration {
+func ComposeRetryPolicies(policies ...RetryPolicyFunc) RetryPolicyFunc {
+	return func(attempt uint32, err error) bool {
+		for _, policy := range policies {
+			if !policy(attempt, err) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
+func ExponentialDelay(baseDelay, maxDelay time.Duration) NextDelayFunc {
 	if baseDelay > maxDelay {
 		log.Panicf("baseDelay %s > maxDelay %s", baseDelay, maxDelay)
 	}

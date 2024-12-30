@@ -3,24 +3,24 @@ package rpc
 import (
 	"context"
 
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
 )
 
 type taskRequestRpcClient struct {
-	client *retryRawClient
+	client client.RawClient
 }
 
 func NewTaskRequestRpcClient(apiEndpoint string, logger zerolog.Logger) api.TaskRequestHandler {
 	return &taskRequestRpcClient{
-		client: newRetryRawClient(apiEndpoint, logger),
+		client: NewRetryClient(apiEndpoint, logger),
 	}
 }
 
 func (r *taskRequestRpcClient) GetTask(ctx context.Context, request *api.TaskRequest) (*types.Task, error) {
-	return callWithRetry[*api.TaskRequest, *types.Task](
-		ctx,
+	return doRPCCall[*api.TaskRequest, *types.Task](
 		r.client,
 		api.TaskRequestHandlerGetTask,
 		request,
@@ -28,8 +28,7 @@ func (r *taskRequestRpcClient) GetTask(ctx context.Context, request *api.TaskReq
 }
 
 func (r *taskRequestRpcClient) SetTaskResult(ctx context.Context, result *types.TaskResult) error {
-	_, err := callWithRetry[*types.TaskResult, any](
-		ctx,
+	_, err := doRPCCall[*types.TaskResult, any](
 		r.client,
 		api.TaskRequestHandlerSetTaskResult,
 		result,

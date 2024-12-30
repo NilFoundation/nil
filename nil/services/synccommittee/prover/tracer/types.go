@@ -2,7 +2,7 @@ package tracer
 
 import (
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/mpttracer"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/prover/tracer/internal/mpttracer"
 )
 
 type ExecutionTraces interface {

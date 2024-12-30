@@ -35,10 +35,10 @@ func TestTracerMockClientTestSuite(t *testing.T) {
 func (s *TracerMockClientTestSuite) SetupSuite() {
 	s.shardId = types.MainShardId
 	s.wallet = types.BytesToAddress([]byte("wallet address"))
-	s.cl = s.makeClient()
 }
 
 func (s *TracerMockClientTestSuite) SetupTest() {
+	s.cl = s.makeClient()
 	s.accounts = map[types.Address]types.Code{
 		s.wallet: {},
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
@@ -68,6 +69,10 @@ func New(config Config) (*Prover, error) {
 		taskExecutor: taskExecutor,
 		logger:       logger,
 	}, nil
+}
+
+func NewRPCClient(endpoint string, logger zerolog.Logger) client.Client {
+	return rpc.NewRetryClient(endpoint, logger)
 }
 
 func (p *Prover) Run(ctx context.Context) error {
