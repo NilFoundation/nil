@@ -4,7 +4,6 @@ import { router } from "./features/routing";
 import { RoutesView } from "./features/routing";
 import { ErrorPage, COLORS } from "@nilfoundation/ui-kit";
 import { ErrorBoundary } from "react-error-boundary";
-import { useInitHotjar } from "./features/hotjar";
 import type { StylesObject } from "./features/shared";
 
 const styles: StylesObject = {
@@ -22,7 +21,6 @@ const styles: StylesObject = {
 
 export const App = () => {
   const [css] = useStyletron();
-  useInitHotjar();
 
   return (
     <main className={css(styles.main)}>
