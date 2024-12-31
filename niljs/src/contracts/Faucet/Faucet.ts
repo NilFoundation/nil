@@ -2,7 +2,8 @@ import { Faucet as FaucetSol } from "@nilfoundation/smart-contracts";
 import { type Hex, bytesToHex, encodeFunctionData } from "viem";
 import type { PublicClient } from "../../clients/PublicClient.js";
 import { ExternalMessageEnvelope } from "../../encoding/externalMessage.js";
-import { getShardIdFromAddress, hexToBytes } from "../../index.js";
+import { hexToBytes } from "../../encoding/fromHex.js";
+import { getShardIdFromAddress } from "../../utils/address.js";
 import { waitTillCompleted } from "../../utils/receipt.js";
 
 /**
