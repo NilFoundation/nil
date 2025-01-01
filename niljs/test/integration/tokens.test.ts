@@ -37,7 +37,7 @@ test("mint and transfer tokens", async () => {
     signer,
   });
   const walletAddress = wallet.address;
-  await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(0.1));
+  await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
 
   await wallet.selfDeploy(true);
 

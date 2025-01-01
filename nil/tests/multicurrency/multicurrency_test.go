@@ -278,7 +278,7 @@ func (s *SuiteMultiCurrencyRpc) TestMultiCurrency() { //nolint
 
 	s.Run("Fail to send insufficient amount of 1st currency", func() {
 		receipt := s.SendMessageViaWalletNoCheck(s.walletAddress2, s.walletAddress3, execution.MainPrivateKey, nil,
-			types.NewValueFromUint64(100_000), types.Value{},
+			types.GasToValue(100_000), types.Value{},
 			[]types.CurrencyBalance{{Currency: *currency1.id, Balance: types.NewValueFromUint64(700)}})
 		s.Require().False(receipt.Success)
 		s.Require().Contains(receipt.ErrorMessage, vm.ErrInsufficientBalance.Error())
@@ -492,7 +492,7 @@ func (s *SuiteMultiCurrencyRpc) TestCurrencyViaCall() {
 	res, err := s.Client.Call(&jsonrpc.CallArgs{
 		To:        s.walletAddress1,
 		Data:      (*hexutil.Bytes)(&data),
-		FeeCredit: types.NewValueFromUint64(1000000),
+		FeeCredit: types.GasToValue(100_000),
 	}, "latest", nil)
 	s.Require().NoError(err)
 	s.Require().Empty(res.Error)

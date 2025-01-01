@@ -5,7 +5,7 @@ import {
   PublicClient,
   WalletV1,
   generateRandomPrivateKey,
-  waitTillCompleted,
+  waitTillCompleted, getShardIdFromAddress,
 } from "../src";
 
 const client = new PublicClient({
@@ -34,7 +34,9 @@ const walletAddress = wallet.address;
 
 console.log("walletAddress", walletAddress);
 
-await faucet.withdrawToWithRetry(walletAddress, 100_000_000n);
+const gasPrice = await client.getGasPrice(getShardIdFromAddress(walletAddress));
+
+await faucet.withdrawToWithRetry(walletAddress, 100_000_000n * gasPrice);
 
 await wallet.selfDeploy(true);
 
@@ -49,7 +51,7 @@ const anotherAddress = WalletV1.calculateWalletAddress({
 const hash = await wallet.sendMessage({
   to: anotherAddress,
   value: 10_000_000n,
-  feeCredit: 100_000n,
+  feeCredit: 100_000n * gasPrice,
 });
 
 await waitTillCompleted(client, hash);

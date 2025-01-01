@@ -75,8 +75,11 @@ describe.sequential("CLI deployment tests", async () => {
 
       await exec(RETAILER_SEND_TOKENS_COMMAND);
 
+      const gasPrice = 100n;
+      const feeCredit = 200_000n * gasPrice;
+
       //startRetailerCallManufacturer
-      const RETAILER_CALL_MANUFACTURER_COMMAND = `${NIL_GLOBAL} wallet send-message ${RETAILER_ADDRESS} orderProduct ${MANUFACTURER_ADDRESS} new-product --abi ./tests/Retailer/Retailer.abi --fee-credit 2000000 ${CONFIG_FLAG}`;
+      const RETAILER_CALL_MANUFACTURER_COMMAND = `${NIL_GLOBAL} wallet send-message ${RETAILER_ADDRESS} orderProduct ${MANUFACTURER_ADDRESS} new-product --abi ./tests/Retailer/Retailer.abi --fee-credit ${feeCredit} ${CONFIG_FLAG}`;
       //endRetailerCallManufacturer
 
       let { stdout, stderr } = await exec(RETAILER_CALL_MANUFACTURER_COMMAND);

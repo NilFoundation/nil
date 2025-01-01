@@ -258,7 +258,6 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
     const hash = await wallet.sendMessage({
       to: COUNTER_ADDRESS,
       abi: COUNTER_ABI as unknown as Abi,
-      feeCredit: 5_000_000n,
       functionName: "increment",
     });
 

@@ -220,6 +220,8 @@ export class WalletV1 implements WalletInterface {
     invariant(code.length === 0, "Contract already deployed");
     invariant(balance > 0n, "Insufficient balance");
 
+    const gasPrice = await this.client.getGasPrice(getShardIdFromAddress(this.address));
+
     const { data } = prepareDeployPart({
       abi: Wallet.abi as Abi,
       bytecode: WalletV1.code,
@@ -232,6 +234,7 @@ export class WalletV1 implements WalletInterface {
       data: data,
       deploy: true,
       seqno: 0,
+      feeCredit: 500_000n * gasPrice,
     });
 
     if (waitTillConfirmation) {

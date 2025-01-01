@@ -138,7 +138,7 @@ describe.sequential("Nil.js deployment tests", async () => {
 
       //startFactoryOrder
 
-      const hashFunds = await faucet.withdrawToWithRetry(retailerAddress, 5_000_000n);
+      const hashFunds = await faucet.withdrawToWithRetry(retailerAddress, convertEthToWei(1));
 
       await waitTillCompleted(client, hashFunds);
 
@@ -247,7 +247,7 @@ describe.sequential("Nil.js deployment tests", async () => {
       expect(manufacturerCode.length).toBeGreaterThan(10);
 
       //startRetailerSendsMessageToManufacturer
-      const hashFunds = await faucet.withdrawToWithRetry(retailerAddress, 5_000_000n);
+      const hashFunds = await faucet.withdrawToWithRetry(retailerAddress, convertEthToWei(1));
 
       await waitTillCompleted(client, hashFunds);
 
@@ -346,6 +346,9 @@ describe.sequential("Nil.js deployment tests", async () => {
         }),
         shardId: 2,
       });
+
+      const gasPrice = await client.getGasPrice(2);
+
       const deploymentMessageManufacturer = externalDeploymentMessage(
         {
           salt: BigInt(Math.floor(Math.random() * 10000)),
@@ -353,6 +356,7 @@ describe.sequential("Nil.js deployment tests", async () => {
           bytecode: MANUFACTURER_BYTECODE,
           abi: MANUFACTURER_ABI,
           args: [bytesToHex(pubkey), addressRetailer],
+          feeCredit: 1_000_000n * gasPrice,
         },
         chainId,
       );

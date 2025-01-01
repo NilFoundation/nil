@@ -6,7 +6,7 @@ import {
   PublicClient,
   WalletV1,
   generateRandomPrivateKey,
-  waitTillCompleted,
+  waitTillCompleted, getShardIdFromAddress, convertEthToWei,
 } from "../src";
 
 const client = new PublicClient({
@@ -45,8 +45,8 @@ console.log("walletAddress", walletAddress);
 
 console.log("anotherWallet", anotherWallet.address);
 
-await faucet.withdrawToWithRetry(walletAddress, 100_000_000n);
-await faucet.withdrawToWithRetry(anotherWallet.address, 100_000_000n);
+await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
+await faucet.withdrawToWithRetry(anotherWallet.address, convertEthToWei(1));
 
 await wallet.selfDeploy(true);
 await anotherWallet.selfDeploy(true);
@@ -64,7 +64,6 @@ const hash = await wallet.sendMessage({
   to: anotherWallet.address,
   value: 10_000_000n,
   bounceTo: bounceAddress,
-  feeCredit: 100_000n * 10n,
   data: encodeFunctionData({
     abi: WalletV1.abi,
     functionName: "syncCall",

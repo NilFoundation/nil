@@ -37,7 +37,7 @@ func (s *CollatorTestSuite) TearDownTest() {
 func (s *CollatorTestSuite) TestCollator() {
 	shardId := types.BaseShardId
 	nShards := uint32(2)
-	gasPrice := types.NewValueFromUint64(10)
+	gasPrice := types.DefaultGasPrice
 	from := types.MainWalletAddress
 	to := contracts.CounterAddress(s.T(), shardId)
 
@@ -67,7 +67,7 @@ func (s *CollatorTestSuite) TestCollator() {
 
 	// These parameters can be adjusted for test purposes. The rest is calculated.
 	gasLimit := types.Gas(100_000)
-	sentValue := types.NewValueFromUint64(2_000_000)
+	sentValue := types.NewValueFromUint64(20_000_000)
 
 	balance := s.getBalance(shardId, from)
 	reserveForGas := gasLimit.ToValue(gasPrice)

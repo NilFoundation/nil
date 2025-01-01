@@ -8,7 +8,7 @@ import {
   bytesToHex,
   convertEthToWei,
   generateRandomPrivateKey,
-  waitTillCompleted,
+  waitTillCompleted, getShardIdFromAddress,
 } from "../src";
 
 const client = new PublicClient({
@@ -36,7 +36,7 @@ const wallet = new WalletV1({
 const walletAddress = wallet.address;
 const faucetHash = await faucet.withdrawTo(
   walletAddress,
-  convertEthToWei(0.1),
+  convertEthToWei(1),
 );
 
 await waitTillCompleted(client, bytesToHex(faucetHash));
@@ -46,9 +46,11 @@ await wallet.selfDeploy(true);
 console.log("Wallet deployed successfully");
 console.log("walletAddress", walletAddress);
 
+const gasPrice = await client.getGasPrice(getShardIdFromAddress(walletAddress));
+
 const hashMessage = await wallet.sendMessage({
   to: walletAddress,
-  feeCredit: 1_000_000n * 10n,
+  feeCredit: 1_000_000n * gasPrice,
   value: 0n,
   data: encodeFunctionData({
     abi: WalletV1.abi,
@@ -61,7 +63,7 @@ await waitTillCompleted(client, hashMessage);
 
 const hashMessage2 = await wallet.sendMessage({
   to: walletAddress,
-  feeCredit: 1_000_000n * 10n,
+  feeCredit: 1_000_000n * gasPrice,
   value: 0n,
   data: encodeFunctionData({
     abi: WalletV1.abi,
@@ -85,7 +87,7 @@ const anotherAddress = WalletV1.calculateWalletAddress({
 const sendHash = await wallet.sendMessage({
   to: anotherAddress,
   value: 10_000_000n,
-  feeCredit: 100_000n * 10n,
+  feeCredit: 100_000n * gasPrice,
   tokens: [
     {
       id: walletAddress,

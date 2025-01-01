@@ -2,7 +2,8 @@ import { Faucet as FaucetSol } from "@nilfoundation/smart-contracts";
 import { type Hex, bytesToHex, encodeFunctionData } from "viem";
 import type { PublicClient } from "../../clients/PublicClient.js";
 import { ExternalMessageEnvelope } from "../../encoding/externalMessage.js";
-import { hexToBytes } from "../../index.js";
+import { hexToBytes } from "../../encoding/fromHex.js";
+import { getShardIdFromAddress } from "../../utils/address.js";
 import { waitTillCompleted } from "../../utils/receipt.js";
 
 /**
@@ -48,6 +49,7 @@ export class Faucet {
    * @returns {Uint8Array} The hash of the withdrawal message.
    */
   async withdrawTo(address: Hex, value = 1000000000000000000n, seqno?: number) {
+    const gasPrice = await this.client.getGasPrice(getShardIdFromAddress(Faucet.address));
     const [refinedSeqno, chainId] = await Promise.all([
       seqno ?? this.client.getMessageCount(Faucet.address, "latest"),
       this.client.chainId(),
@@ -64,6 +66,7 @@ export class Faucet {
       seqno: refinedSeqno,
       data: hexToBytes(calldata),
       authData: new Uint8Array(0),
+      feeCredit: 500_000n * gasPrice,
     });
     const encodedMessage = message.encode();
     await this.client.sendRawMessage(bytesToHex(encodedMessage));
@@ -83,6 +86,7 @@ export class Faucet {
     let currentRetries = 0;
     while (currentRetries++ < retries) {
       try {
+        const gasPrice = await this.client.getGasPrice(getShardIdFromAddress(Faucet.address));
         const [refinedSeqno, chainId] = await Promise.all([
           this.client.getMessageCount(Faucet.address, "latest"),
           this.client.chainId(),
@@ -99,6 +103,7 @@ export class Faucet {
           seqno: refinedSeqno,
           data: hexToBytes(calldata),
           authData: new Uint8Array(0),
+          feeCredit: 500_000n * gasPrice,
         });
         const encodedMessage = message.encode();
         await this.client.sendRawMessage(bytesToHex(encodedMessage));

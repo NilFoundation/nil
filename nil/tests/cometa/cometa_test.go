@@ -126,8 +126,8 @@ func (s *SuiteCometa) TestTwinContracts() {
 	deployCode1 := types.BuildDeployPayload(walletCode, common.EmptyHash)
 	deployCode2 := types.BuildDeployPayload(walletCode, common.HexToHash("0x1234"))
 
-	walletAddr1, _ := s.DeployContractViaMainWallet(types.BaseShardId, deployCode1, types.NewValueFromUint64(10_000_000))
-	walletAddr2, _ := s.DeployContractViaMainWallet(types.BaseShardId, deployCode2, types.NewValueFromUint64(10_000_000))
+	walletAddr1, _ := s.DeployContractViaMainWallet(types.BaseShardId, deployCode1, s.GasToValue(10_000_000))
+	walletAddr2, _ := s.DeployContractViaMainWallet(types.BaseShardId, deployCode2, s.GasToValue(10_000_000))
 
 	err = s.cometaClient.RegisterContractFromFile("../../contracts/solidity/compile-wallet.json", walletAddr1)
 	s.Require().NoError(err)
@@ -156,7 +156,7 @@ func (s *SuiteCometa) TestGeneratedCode() {
 	contractData, err := s.cometaClient.CompileContract("../../contracts/solidity/tests/compile-test.json")
 	s.Require().NoError(err)
 	deployCode := types.BuildDeployPayload(contractData.InitCode, common.EmptyHash)
-	testAddress, _ := s.DeployContractViaMainWallet(types.BaseShardId, deployCode, types.NewValueFromUint64(10_000_000))
+	testAddress, _ := s.DeployContractViaMainWallet(types.BaseShardId, deployCode, s.GasToValue(10_000_000))
 
 	err = s.cometaClient.RegisterContractData(contractData, testAddress)
 	s.Require().NoError(err)
@@ -172,6 +172,7 @@ func (s *SuiteCometa) TestGeneratedCode() {
 	data = s.AbiPack(testAbi, "makeFail", int32(1))
 	receipt = s.SendExternalMessageNoCheck(data, testAddress)
 	s.Require().False(receipt.AllSuccess())
+	s.Require().NotZero(receipt.FailedPc)
 
 	loc, err = s.cometaClient.GetLocation(testAddress, uint64(receipt.FailedPc))
 	s.Require().NoError(err)

@@ -294,6 +294,7 @@ describe.sequential("the multisig wallet performs all operations internally", as
       const walletOneCode = await client.getCode(walletOneAddress, "latest");
       expect(walletOneCode).toBeDefined();
       expect(walletOneCode.length).toBeGreaterThan(10);
+      const gasPrice = await client.getGasPrice(1);
 
       //startMultiSigDeployment
       const hexKeys = [pubkeyOne, pubkeyTwo, pubkeyThree].map((key) => bytesToHex(key));
@@ -304,7 +305,7 @@ describe.sequential("the multisig wallet performs all operations internally", as
           abi: MULTISIG_WALLET_ABI,
           args: [hexKeys],
           value: convertEthToWei(0.001),
-          feeCredit: 10_000_000n,
+          feeCredit: 10_000_000n * gasPrice,
           salt: SALT,
           shardId: 1,
         });
@@ -330,7 +331,7 @@ describe.sequential("the multisig wallet performs all operations internally", as
       const withdrawalHash = await multiWallet.sendTransaction({
         to: walletTwo.address,
         value: convertEthToWei(0.000001),
-        feeCredit: 10_000_000n,
+        feeCredit: 10_000_000n * gasPrice,
       });
 
       await waitTillCompleted(client, withdrawalHash);

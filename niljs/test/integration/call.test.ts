@@ -53,6 +53,7 @@ test("Call counter status", async () => {
   });
 
   const pubkey = signer.getPublicKey();
+  const gasPrice = await client.getGasPrice(1);
 
   const wallet = new WalletV1({
     pubkey: pubkey,
@@ -63,7 +64,7 @@ test("Call counter status", async () => {
   });
   const walletAddress = wallet.address;
 
-  await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
+  await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(10));
 
   await wallet.selfDeploy(true);
 
@@ -74,7 +75,6 @@ test("Call counter status", async () => {
     salt: BigInt(Math.floor(Math.random() * 1000000000)),
     abi,
     args: [],
-    feeCredit: 50000000n,
   });
 
   await waitTillCompleted(client, hash);
@@ -82,7 +82,6 @@ test("Call counter status", async () => {
   const res = await client.call(
     {
       to: address,
-      feeCredit: 50000000n,
       abi,
       functionName: "get",
     },
@@ -97,14 +96,12 @@ test("Call counter status", async () => {
     functionName: "add",
     args: [100],
     value: 0n,
-    feeCredit: 500000n,
   });
   await waitTillCompleted(client, messageHash);
 
   const resAfter = await client.call(
     {
       to: address,
-      feeCredit: 500000n,
       abi,
       functionName: "get",
     },
@@ -127,7 +124,6 @@ test("Call counter status", async () => {
   const resAfterSync = await client.call(
     {
       to: address,
-      feeCredit: 500000n,
       abi,
       functionName: "get",
     },

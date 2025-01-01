@@ -46,7 +46,7 @@ func (s *SuiteEthMessage) SetupSuite() {
 
 	s.lastBlockHash = writeTestBlock(
 		s.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Message{s.message}, []*types.Receipt{&receipt}, []*types.Message{})
-	_, err = execution.PostprocessBlock(tx, types.BaseShardId, types.NewValueFromUint64(10), s.lastBlockHash)
+	_, err = execution.PostprocessBlock(tx, types.BaseShardId, types.DefaultGasPrice, s.lastBlockHash)
 	s.Require().NoError(err)
 
 	err = tx.Commit()

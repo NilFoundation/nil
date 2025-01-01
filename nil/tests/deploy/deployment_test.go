@@ -32,8 +32,6 @@ func (s *SuiteDeployment) SetupSuite() {
 	s.Require().NoError(err)
 
 	zerostateTmpl := `
-config:
-  gasPrices: [10, 10, 10, 50]
 contracts:
 - name: MainWallet
   address: {{ .WalletAddress }}
@@ -42,7 +40,7 @@ contracts:
   ctorArgs: [{{ .MainPublicKey }}]
 - name: Deployer
   address: {{ .DeployerAddress }}
-  value: 10000000
+  value: 100000000000000
   contract: tests/Deployer
 `
 	s.zerostateCfg, err = common.ParseTemplate(zerostateTmpl, map[string]any{

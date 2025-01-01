@@ -24,7 +24,7 @@ func (s *SuitGasPrice) SetupSuite() {
 		HttpUrl:       rpc.GetSockPath(s.T()),
 		ZeroStateYaml: execution.DefaultZeroStateConfig,
 		GasPriceScale: 15,
-		GasBasePrice:  10,
+		GasBasePrice:  types.DefaultGasPrice.Uint64(),
 		RunMode:       nilservice.CollatorsOnlyRunMode,
 	})
 }

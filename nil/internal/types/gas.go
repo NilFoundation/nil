@@ -8,7 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/check"
 )
 
-var DefaultGasPrice = NewValueFromUint64(10)
+var DefaultGasPrice = NewValueFromUint64(100)
 
 type Gas uint64
 

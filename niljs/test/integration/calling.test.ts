@@ -34,7 +34,7 @@ test("Async call to another shard send value", async () => {
   });
   const walletAddress = wallet.address;
 
-  await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
+  await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(10));
 
   await wallet.selfDeploy(true);
 
@@ -81,7 +81,7 @@ test("sync call same shard send value", async () => {
   });
   const walletAddress = wallet.address;
 
-  await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(0.1));
+  await faucet.withdrawToWithRetry(walletAddress, convertEthToWei(1));
   await wallet.selfDeploy(true);
 
   const anotherAddress = WalletV1.calculateWalletAddress({

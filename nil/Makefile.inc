@@ -1,5 +1,6 @@
 root_sce = nil/services/synccommittee
 root_client = nil/client
+root_vm = nil/internal/vm
 
 .PHONY: generate_mocks
 generate_mocks: \
@@ -7,7 +8,8 @@ generate_mocks: \
 	$(root_sce)/internal/api/task_state_change_handler_generated_mock.go \
 	$(root_sce)/internal/api/task_request_handler_generated_mock.go \
 	$(root_sce)/internal/scheduler/task_scheduler_generated_mock.go \
-	$(root_client)/client_generated_mock.go
+	$(root_client)/client_generated_mock.go \
+	$(root_vm)/state_generated_mock.go
 
 $(root_sce)/internal/api/task_handler_generated_mock.go: $(root_sce)/internal/api/task_handler.go $(root_sce)/internal/types/prover_tasks.go
 	cd $(root_sce)/internal/api && go generate
@@ -28,6 +30,9 @@ $(root_sce)/internal/scheduler/task_scheduler_generated_mock.go: \
 
 $(root_client)/client_generated_mock.go: $(root_client)/client.go
 	cd $(root_client) && go generate
+
+$(root_vm)/state_generated_mock.go: $(root_vm)/interface.go
+	cd $(root_vm) && go generate
 
 .PHONY: synccommittee_types
 synccommittee_types: \
