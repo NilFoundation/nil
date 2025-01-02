@@ -14,7 +14,7 @@ COMMANDS += nild nil nil_load_generator exporter cometa faucet journald_forwarde
 all: $(COMMANDS)
 
 .PHONY: generated
-generated: ssz pb compile-contracts generate_mocks synccommittee_types
+generated: ssz pb compile-contracts generate_mocks synccommittee_types tracer_constants
 
 .PHONY: test
 test: generated

@@ -96,7 +96,7 @@ jobs:
         run: |
           brew update
           brew tap ethereum/ethereum
-          brew install go solidity protobuf
+          brew install go solidity protobuf coreutils
           go install golang.org/x/tools/cmd/stringer@latest
           go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 

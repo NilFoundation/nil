@@ -27,6 +27,9 @@ exporter.yaml
 # Protobuf generated files
 *.pb.go
 
+# Custom generated files
+*_generated.go
+
 .run
 # CLI config file
 config.yaml
