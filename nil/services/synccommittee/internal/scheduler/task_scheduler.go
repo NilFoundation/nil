@@ -53,6 +53,7 @@ func New(
 		stateHandler: stateHandler,
 		config:       DefaultConfig(),
 		metrics:      metrics,
+		clock:        common.NewTimer(),
 		logger:       logger,
 	}
 }
