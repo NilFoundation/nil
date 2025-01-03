@@ -37,7 +37,7 @@ func (s *SyncCommitteeTestSuite) waitZerostrate(endpoint string) {
 	)
 	for i := range s.nShards {
 		s.Require().Eventually(func() bool {
-			block, err := client.GetBlock(types.ShardId(i), transport.BlockNumber(0), false)
+			block, err := client.GetBlock(s.ctx, types.ShardId(i), transport.BlockNumber(0), false)
 			return err == nil && block != nil
 		}, zeroStateWaitTimeout, zeroStatePollInterval)
 	}

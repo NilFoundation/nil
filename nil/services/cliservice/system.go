@@ -17,7 +17,7 @@ func ShardsToString(list []types.ShardId) string {
 }
 
 func (s *Service) GetShards() ([]types.ShardId, error) {
-	list, err := s.client.GetShardIdList()
+	list, err := s.client.GetShardIdList(s.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func (s *Service) GetShards() ([]types.ShardId, error) {
 }
 
 func (s *Service) GetGasPrice(shardId types.ShardId) (types.Value, error) {
-	value, err := s.client.GasPrice(shardId)
+	value, err := s.client.GasPrice(s.ctx, shardId)
 	if err != nil {
 		return types.Value{}, err
 	}
@@ -38,7 +38,7 @@ func (s *Service) GetGasPrice(shardId types.ShardId) (types.Value, error) {
 }
 
 func (s *Service) GetChainId() (types.ChainId, error) {
-	value, err := s.client.ChainId()
+	value, err := s.client.ChainId(s.ctx)
 	if err != nil {
 		return types.ChainId(0), err
 	}

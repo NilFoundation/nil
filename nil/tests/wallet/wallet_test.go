@@ -50,10 +50,11 @@ func (s *SuiteWalletRpc) TestWallet() {
 	})
 
 	s.Run("Check", func() {
-		seqno, err := s.Client.GetTransactionCount(addrCallee, "pending")
+		seqno, err := s.Client.GetTransactionCount(s.Context, addrCallee, "pending")
 		s.Require().NoError(err)
 
 		resHash, err := s.Client.SendExternalMessage(
+			s.Context,
 			contracts.NewCounterGetCallData(s.T()),
 			addrCallee,
 			nil,
@@ -64,7 +65,7 @@ func (s *SuiteWalletRpc) TestWallet() {
 		receipt := s.WaitForReceipt(resHash)
 		s.Require().True(receipt.Success)
 
-		newSeqno, err := s.Client.GetTransactionCount(addrCallee, "pending")
+		newSeqno, err := s.Client.GetTransactionCount(s.Context, addrCallee, "pending")
 		s.Require().NoError(err)
 		s.Equal(seqno+1, newSeqno)
 	})
@@ -73,7 +74,7 @@ func (s *SuiteWalletRpc) TestWallet() {
 func (s *SuiteWalletRpc) TestDeployWithValueNonPayableConstructor() {
 	wallet := types.MainWalletAddress
 
-	hash, addr, err := s.Client.DeployContract(2, wallet,
+	hash, addr, err := s.Client.DeployContract(s.Context, 2, wallet,
 		contracts.CounterDeployPayload(s.T()),
 		types.NewValueFromUint64(500_000), execution.MainPrivateKey)
 	s.Require().NoError(err)
@@ -82,11 +83,11 @@ func (s *SuiteWalletRpc) TestDeployWithValueNonPayableConstructor() {
 	s.Require().True(receipt.Success)
 	s.Require().False(receipt.OutReceipts[0].Success)
 
-	balance, err := s.Client.GetBalance(addr, "latest")
+	balance, err := s.Client.GetBalance(s.Context, addr, "latest")
 	s.Require().NoError(err)
-	s.EqualValues(0, balance.Uint64())
+	s.Zero(balance.Uint64())
 
-	code, err := s.Client.GetCode(addr, "latest")
+	code, err := s.Client.GetCode(s.Context, addr, "latest")
 	s.Require().NoError(err)
 	s.Empty(code)
 }
@@ -100,7 +101,7 @@ func (s *SuiteWalletRpc) TestDeployWalletWithValue() {
 	deployCode := types.BuildDeployPayload(walletCode, common.EmptyHash)
 
 	hash, address, err := s.Client.DeployContract(
-		types.BaseShardId, types.MainWalletAddress, deployCode, types.NewValueFromUint64(500_000), execution.MainPrivateKey,
+		s.Context, types.BaseShardId, types.MainWalletAddress, deployCode, types.NewValueFromUint64(500_000), execution.MainPrivateKey,
 	)
 	s.Require().NoError(err)
 
@@ -108,7 +109,7 @@ func (s *SuiteWalletRpc) TestDeployWalletWithValue() {
 	s.Require().True(receipt.Success)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
-	value, err := s.Client.GetBalance(address, "latest")
+	value, err := s.Client.GetBalance(s.Context, address, "latest")
 	s.Require().NoError(err)
 	s.EqualValues(500_000, value.Uint64())
 }

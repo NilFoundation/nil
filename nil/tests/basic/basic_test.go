@@ -47,7 +47,7 @@ func (s *SuiteRpc) TearDownTest() {
 func (s *SuiteRpc) sendRawTransaction(m *types.ExternalMessage) common.Hash {
 	s.T().Helper()
 
-	hash, err := s.Client.SendMessage(m)
+	hash, err := s.Client.SendMessage(s.Context, m)
 	s.Require().NoError(err)
 	s.Equal(hash, m.Hash())
 	return hash
@@ -57,7 +57,7 @@ func (s *SuiteRpc) TestRpcBasic() {
 	var someRandomMissingBlock common.Hash
 	s.Require().NoError(someRandomMissingBlock.UnmarshalText([]byte("0x0001117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")))
 
-	shardIdListRes, err := s.Client.GetShardIdList()
+	shardIdListRes, err := s.Client.GetShardIdList(s.Context)
 	s.Require().NoError(err)
 	shardIdListExp := make([]types.ShardId, s.ShardsNum-1)
 	for i := range shardIdListExp {
@@ -65,48 +65,48 @@ func (s *SuiteRpc) TestRpcBasic() {
 	}
 	s.Require().Equal(shardIdListExp, shardIdListRes)
 
-	gasPrice, err := s.Client.GasPrice(types.BaseShardId)
+	gasPrice, err := s.Client.GasPrice(s.Context, types.BaseShardId)
 	s.Require().NoError(err)
 	s.Require().Equal(types.DefaultGasPrice, gasPrice)
 
-	res0Num, err := s.Client.GetBlock(types.BaseShardId, 0, false)
+	res0Num, err := s.Client.GetBlock(s.Context, types.BaseShardId, 0, false)
 	s.Require().NoError(err)
 	s.Require().NotNil(res0Num)
 
-	res0Str, err := s.Client.GetBlock(types.BaseShardId, "0", false)
+	res0Str, err := s.Client.GetBlock(s.Context, types.BaseShardId, "0", false)
 	s.Require().NoError(err)
 	s.Require().NotNil(res0Num)
 	s.Equal(res0Num, res0Str)
 
-	res, err := s.Client.GetBlock(types.BaseShardId, transport.BlockNumber(0x1b4), false)
+	res, err := s.Client.GetBlock(s.Context, types.BaseShardId, transport.BlockNumber(0x1b4), false)
 	s.Require().NoError(err)
 	s.Require().Nil(res)
 
-	count, err := s.Client.GetBlockTransactionCount(types.BaseShardId, transport.EarliestBlockNumber)
+	count, err := s.Client.GetBlockTransactionCount(s.Context, types.BaseShardId, transport.EarliestBlockNumber)
 	s.Require().NoError(err)
 	s.EqualValues(0, count)
 
-	count, err = s.Client.GetBlockTransactionCount(types.BaseShardId, someRandomMissingBlock)
+	count, err = s.Client.GetBlockTransactionCount(s.Context, types.BaseShardId, someRandomMissingBlock)
 	s.Require().NoError(err)
 	s.EqualValues(0, count)
 
-	res, err = s.Client.GetBlock(types.BaseShardId, someRandomMissingBlock, false)
+	res, err = s.Client.GetBlock(s.Context, types.BaseShardId, someRandomMissingBlock, false)
 	s.Require().NoError(err)
 	s.Require().Nil(res)
 
-	res, err = s.Client.GetBlock(types.BaseShardId, transport.EarliestBlockNumber, false)
+	res, err = s.Client.GetBlock(s.Context, types.BaseShardId, transport.EarliestBlockNumber, false)
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
-	latest, err := s.Client.GetBlock(types.BaseShardId, transport.LatestBlockNumber, false)
+	latest, err := s.Client.GetBlock(s.Context, types.BaseShardId, transport.LatestBlockNumber, false)
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
-	res, err = s.Client.GetBlock(types.BaseShardId, latest.Hash, false)
+	res, err = s.Client.GetBlock(s.Context, types.BaseShardId, latest.Hash, false)
 	s.Require().NoError(err)
 	s.Require().Equal(latest, res)
 
-	msg, err := s.Client.GetInMessageByHash(someRandomMissingBlock)
+	msg, err := s.Client.GetInMessageByHash(s.Context, someRandomMissingBlock)
 	s.Require().NoError(err)
 	s.Require().Nil(msg)
 }
@@ -119,7 +119,7 @@ func (s *SuiteRpc) TestRpcContract() {
 	s.Require().True(receipt.OutReceipts[0].Success)
 
 	blockNumber := transport.LatestBlockNumber
-	balance, err := s.Client.GetBalance(addr, transport.BlockNumberOrHash{BlockNumber: &blockNumber})
+	balance, err := s.Client.GetBalance(s.Context, addr, transport.BlockNumberOrHash{BlockNumber: &blockNumber})
 	s.Require().NoError(err)
 	s.Require().Equal(tests.DefaultContractValue, balance)
 
@@ -145,7 +145,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 		var curBalance types.Value
 		s.Require().Eventually(func() bool {
 			var err error
-			curBalance, err = s.Client.GetBalance(callerAddr, transport.LatestBlockNumber)
+			curBalance, err = s.Client.GetBalance(s.Context, callerAddr, transport.LatestBlockNumber)
 			s.Require().NoError(err)
 			return curBalance.Uint64() > balance
 		}, tests.ReceiptWaitTimeout, 200*time.Millisecond)
@@ -157,7 +157,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 
 		s.Run("FailedDeploy", func() {
 			// no account at address to pay for the message
-			hash, _, err := s.Client.DeployExternal(shardId, types.BuildDeployPayload(calleeCode, common.EmptyHash), s.GasToValue(100_000))
+			hash, _, err := s.Client.DeployExternal(s.Context, shardId, types.BuildDeployPayload(calleeCode, common.EmptyHash), s.GasToValue(100_000))
 			s.Require().NoError(err)
 
 			receipt := s.WaitForReceipt(hash)
@@ -175,7 +175,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			s.Require().True(receipt.OutReceipts[0].Success)
 		})
 
-		prevBalance, err := s.Client.GetBalance(callerAddr, transport.LatestBlockNumber)
+		prevBalance, err := s.Client.GetBalance(s.Context, callerAddr, transport.LatestBlockNumber)
 		s.Require().NoError(err)
 		var feeCredit uint64 = 100_000
 		var callValue uint64 = 2_000_000
@@ -204,7 +204,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 
 		var hash common.Hash
 		makeCall := func() {
-			callerSeqno, err := s.Client.GetTransactionCount(callerAddr, "pending")
+			callerSeqno, err := s.Client.GetTransactionCount(s.Context, callerAddr, "pending")
 			s.Require().NoError(err)
 			callCallerMethod := &types.ExternalMessage{
 				Seqno:     callerSeqno,
@@ -225,7 +225,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			receipt = s.WaitForReceipt(hash)
 			s.Require().True(receipt.Success)
 
-			balance, err := s.Client.GetBalance(callerAddr, transport.BlockNumberOrHash{BlockHash: &receipt.BlockHash})
+			balance, err := s.Client.GetBalance(s.Context, callerAddr, transport.BlockNumberOrHash{BlockHash: &receipt.BlockHash})
 			s.Require().NoError(err)
 			s.Require().Greater(prevBalance.Uint64(), balance.Uint64())
 			s.T().Logf("Spent %v nil", prevBalance.Uint64()-balance.Uint64())
@@ -254,7 +254,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 			callData, err := callerAbi.Pack(getBounceErrName)
 			s.Require().NoError(err)
 
-			callerSeqno, err := s.Client.GetTransactionCount(callerAddr, "pending")
+			callerSeqno, err := s.Client.GetTransactionCount(s.Context, callerAddr, "pending")
 			s.Require().NoError(err)
 
 			callArgs := &jsonrpc.CallArgs{
@@ -264,7 +264,7 @@ func (s *SuiteRpc) TestRpcContractSendMessage() {
 				Seqno:     callerSeqno,
 			}
 
-			res, err := s.Client.Call(callArgs, "latest", nil)
+			res, err := s.Client.Call(s.Context, callArgs, "latest", nil)
 			s.T().Logf("Call res : %v, err: %v", res, err)
 			s.Require().NoError(err)
 			var bounceErr string
@@ -311,7 +311,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 		deployCode := types.BuildDeployPayload(walletCode, common.EmptyHash)
 
 		hash, walletAddr, err = s.Client.DeployContract(
-			callerShardId, types.MainWalletAddress, deployCode, types.NewValueFromUint64(10_000_000), execution.MainPrivateKey,
+			s.Context, callerShardId, types.MainWalletAddress, deployCode, types.NewValueFromUint64(10_000_000), execution.MainPrivateKey,
 		)
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(hash)
@@ -323,7 +323,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 		deployCode := contracts.CounterDeployPayload(s.T())
 
 		hash, counterAddr, err = s.Client.DeployContract(
-			calleeShardId, types.MainWalletAddress, deployCode, types.Value{}, execution.MainPrivateKey,
+			s.Context, calleeShardId, types.MainWalletAddress, deployCode, types.Value{}, execution.MainPrivateKey,
 		)
 		s.Require().NoError(err)
 		receipt := s.WaitIncludedInMain(hash)
@@ -341,7 +341,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 			Flags: types.NewMessageFlags(types.MessageFlagInternal),
 		}
 
-		intMsgEstimation, err = s.Client.EstimateFee(callArgs, "latest")
+		intMsgEstimation, err = s.Client.EstimateFee(s.Context, callArgs, "latest")
 		s.Require().NoError(err)
 		s.Positive(intMsgEstimation.Uint64())
 	})
@@ -360,7 +360,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	calldata, err := contracts.NewCallData(contracts.NameWallet, "send", intMsgData)
 	s.Require().NoError(err)
 
-	callerSeqno, err := s.Client.GetTransactionCount(walletAddr, "pending")
+	callerSeqno, err := s.Client.GetTransactionCount(s.Context, walletAddr, "pending")
 	s.Require().NoError(err)
 
 	callArgs := &jsonrpc.CallArgs{
@@ -371,7 +371,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 
 	var estimation types.Value
 	s.Run("Estimate external message fee", func() {
-		estimation, err = s.Client.EstimateFee(callArgs, "latest")
+		estimation, err = s.Client.EstimateFee(s.Context, callArgs, "latest")
 		s.Require().NoError(err)
 		s.Positive(estimation.Uint64())
 	})
@@ -379,7 +379,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 	s.Run("Call without override", func() {
 		callArgs.FeeCredit = estimation
 
-		res, err := s.Client.Call(callArgs, "latest", nil)
+		res, err := s.Client.Call(s.Context, callArgs, "latest", nil)
 		s.Require().NoError(err)
 		s.Require().Empty(res.Error)
 		s.Require().Len(res.OutMessages, 1)
@@ -427,7 +427,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 		override := &jsonrpc.StateOverrides{
 			walletAddr: jsonrpc.Contract{Balance: &types.Value{}},
 		}
-		res, err := s.Client.Call(callArgs, "latest", override)
+		res, err := s.Client.Call(s.Context, callArgs, "latest", override)
 		s.Require().NoError(err)
 		s.Require().EqualError(vm.ErrInsufficientBalance, res.Error)
 	})
@@ -440,7 +440,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 			walletAddr:              jsonrpc.Contract{Balance: &val},
 			types.MainWalletAddress: jsonrpc.Contract{Balance: &val},
 		}
-		res, err := s.Client.Call(callArgs, "latest", override)
+		res, err := s.Client.Call(s.Context, callArgs, "latest", override)
 		s.Require().NoError(err)
 		s.Require().Empty(res.Error)
 		s.Require().Len(res.OutMessages, 1)
@@ -478,7 +478,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 			FeeCredit: types.NewValueFromUint64(5_000_000),
 		}
 
-		res, err := s.Client.Call(callArgs, "latest", nil)
+		res, err := s.Client.Call(s.Context, callArgs, "latest", nil)
 		s.Require().NoError(err)
 		s.Require().Empty(res.Error)
 		s.Require().Len(res.OutMessages, 1)
@@ -494,7 +494,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 			Seqno:   callerSeqno,
 		}
 
-		res, err := s.Client.Call(callArgs, "latest", nil)
+		res, err := s.Client.Call(s.Context, callArgs, "latest", nil)
 		s.Require().NoError(err)
 		s.Require().Empty(res.Error)
 		s.Require().Len(res.OutMessages, 1)
@@ -519,7 +519,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 			Message: (*hexutil.Bytes)(&msgBytecode),
 		}
 
-		res, err := s.Client.Call(callArgs, "latest", nil)
+		res, err := s.Client.Call(s.Context, callArgs, "latest", nil)
 		s.Require().NoError(err)
 		s.Require().Empty(res.Error)
 		s.Require().Len(res.OutMessages, 1)
@@ -534,7 +534,7 @@ func (s *SuiteRpc) TestRpcCallWithMessageSend() {
 			Message: &invalidMsg,
 		}
 
-		_, err := s.Client.Call(callArgs, "latest", nil)
+		_, err := s.Client.Call(s.Context, callArgs, "latest", nil)
 		s.Require().ErrorContains(err, rpctypes.ErrInvalidMessage.Error())
 	})
 }
@@ -552,7 +552,7 @@ func (s *SuiteRpc) TestChainCall() {
 
 	callArgs.Data = (*hexutil.Bytes)(&deployPayload)
 	callArgs.Flags = types.NewMessageFlags(types.MessageFlagDeploy)
-	res, err := s.Client.Call(callArgs, "latest", nil)
+	res, err := s.Client.Call(s.Context, callArgs, "latest", nil)
 	s.Require().NoError(err, "Deployment should be successful")
 	s.Contains(res.StateOverrides, addrCallee)
 	s.NotEmpty(res.StateOverrides[addrCallee].Code)
@@ -562,14 +562,14 @@ func (s *SuiteRpc) TestChainCall() {
 
 	callArgs.Data = (*hexutil.Bytes)(&addCallData)
 	callArgs.Flags = types.NewMessageFlags()
-	res, err = s.Client.Call(callArgs, "latest", &res.StateOverrides)
+	res, err = s.Client.Call(s.Context, callArgs, "latest", &res.StateOverrides)
 	s.Require().NoError(err, "No errors during the first addition")
 
 	resData = s.CallGetter(addrCallee, getCallData, "latest", &res.StateOverrides)
 	s.EqualValues(11, contracts.GetCounterValue(s.T(), resData), "Updated value is 11")
 
 	callArgs.Data = (*hexutil.Bytes)(&addCallData)
-	res, err = s.Client.Call(callArgs, "latest", &res.StateOverrides)
+	res, err = s.Client.Call(s.Context, callArgs, "latest", &res.StateOverrides)
 	s.Require().NoError(err, "No errors during the second addition")
 
 	resData = s.CallGetter(addrCallee, getCallData, "latest", &res.StateOverrides)
@@ -592,7 +592,7 @@ func (s *SuiteRpc) TestAsyncAwaitCall() {
 			FeeCredit: s.GasToValue(10_000_000),
 			Data:      (*hexutil.Bytes)(&getCalldata),
 		}
-		res, err := s.Client.Call(getCallArgs, "latest", nil)
+		res, err := s.Client.Call(s.Context, getCallArgs, "latest", nil)
 		s.Require().NoError(err)
 		s.Require().EqualValues(123, contracts.GetCounterValue(s.T(), res.Data))
 	})
@@ -614,14 +614,14 @@ func (s *SuiteRpc) TestAsyncAwaitCall() {
 		FeeCredit: s.GasToValue(10_000_000),
 		Data:      (*hexutil.Bytes)(&data),
 	}
-	res, err := s.Client.Call(callArgs, "latest", nil)
+	res, err := s.Client.Call(s.Context, callArgs, "latest", nil)
 	s.Require().NoError(err)
 	s.Nil(res.Data)
 
 	data = s.AbiPack(abiAwait, "get")
 	callArgs.Data = (*hexutil.Bytes)(&data)
 
-	res, err = s.Client.Call(callArgs, "latest", nil)
+	res, err = s.Client.Call(s.Context, callArgs, "latest", nil)
 	s.Require().NoError(err)
 	value := s.AbiUnpack(abiAwait, "get", res.Data)
 	s.Require().Len(value, 1)
@@ -629,7 +629,7 @@ func (s *SuiteRpc) TestAsyncAwaitCall() {
 }
 
 func (s *SuiteRpc) TestRpcApiModules() {
-	res, err := s.Client.RawCall("rpc_modules")
+	res, err := s.Client.RawCall(s.Context, "rpc_modules")
 	s.Require().NoError(err)
 
 	var data map[string]any
@@ -642,19 +642,19 @@ func (s *SuiteRpc) TestUnsupportedCliVersion() {
 	logger := zerolog.New(os.Stderr)
 	s.Run("Unsupported version", func() {
 		client := rpc_client.NewClientWithDefaultHeaders(s.Endpoint, logger, map[string]string{"User-Agent": "nil-cli/12"})
-		_, err := client.ChainId()
+		_, err := client.ChainId(s.Context)
 		s.Require().ErrorContains(err, "unexpected status code: 426: specified revision 12, minimum supported is")
 	})
 
 	s.Run("0 means unknown - skip check", func() {
 		client := rpc_client.NewClientWithDefaultHeaders(s.Endpoint, logger, map[string]string{"User-Agent": "nil-cli/0"})
-		_, err := client.ChainId()
+		_, err := client.ChainId(s.Context)
 		s.Require().NoError(err)
 	})
 
 	s.Run("Valid revision", func() {
 		client := rpc_client.NewClientWithDefaultHeaders(s.Endpoint, logger, map[string]string{"User-Agent": "nil-cli/10000000"})
-		_, err := client.ChainId()
+		_, err := client.ChainId(s.Context)
 		s.Require().NoError(err)
 	})
 }
@@ -663,13 +663,13 @@ func (s *SuiteRpc) TestUnsupportedNiljsVersion() {
 	logger := zerolog.New(os.Stderr)
 	s.Run("Unsupported version", func() {
 		client := rpc_client.NewClientWithDefaultHeaders(s.Endpoint, logger, map[string]string{"Client-Version": "0.0.1"})
-		_, err := client.ChainId()
+		_, err := client.ChainId(s.Context)
 		s.Require().ErrorContains(err, "unexpected status code: 426: specified niljs version 0.0.1, minimum supported is")
 	})
 
 	s.Run("Valid version", func() {
 		client := rpc_client.NewClientWithDefaultHeaders(s.Endpoint, logger, map[string]string{"Client-Version": "2.0.0"})
-		_, err := client.ChainId()
+		_, err := client.ChainId(s.Context)
 		s.Require().NoError(err)
 	})
 }
@@ -678,7 +678,7 @@ func (s *SuiteRpc) TestEmptyDeployPayload() {
 	wallet := types.MainWalletAddress
 
 	// Deploy contract with invalid payload
-	hash, _, err := s.Client.DeployContract(types.BaseShardId, wallet, types.DeployPayload{}, types.Value{}, execution.MainPrivateKey)
+	hash, _, err := s.Client.DeployContract(s.Context, types.BaseShardId, wallet, types.DeployPayload{}, types.Value{}, execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.WaitForReceipt(hash)
@@ -691,7 +691,7 @@ func (s *SuiteRpc) TestInvalidMessageExternalDeployment() {
 	s.Require().NoError(err)
 
 	wallet := types.MainWalletAddress
-	hash, err := s.Client.SendExternalMessage(calldataExt, wallet, execution.MainPrivateKey, s.GasToValue(100_000))
+	hash, err := s.Client.SendExternalMessage(s.Context, calldataExt, wallet, execution.MainPrivateKey, s.GasToValue(100_000))
 	s.Require().NoError(err)
 	s.Require().NotEmpty(hash)
 
@@ -703,7 +703,7 @@ func (s *SuiteRpc) TestInvalidMessageExternalDeployment() {
 
 func (s *SuiteRpc) TestRpcError() {
 	check := func(code int, msg, method string, params ...any) {
-		resp, err := s.Client.RawCall(method, params...)
+		resp, err := s.Client.RawCall(s.Context, method, params...)
 		s.Require().ErrorContains(err, strconv.Itoa(code))
 		s.Require().ErrorContains(err, msg)
 		s.Require().Nil(resp)
@@ -729,7 +729,7 @@ func (s *SuiteRpc) TestRpcError() {
 }
 
 func (s *SuiteRpc) TestRpcDebugModules() {
-	res, err := s.Client.GetDebugBlock(types.BaseShardId, "latest", false)
+	res, err := s.Client.GetDebugBlock(s.Context, types.BaseShardId, "latest", false)
 	s.Require().NoError(err)
 
 	block, err := res.DecodeSSZ()
@@ -739,7 +739,7 @@ func (s *SuiteRpc) TestRpcDebugModules() {
 	s.Require().NotEqual(common.EmptyHash, block.Block.Hash(types.BaseShardId))
 	s.Require().NotEmpty(res.Content)
 
-	fullRes, err := s.Client.GetDebugBlock(types.BaseShardId, "latest", true)
+	fullRes, err := s.Client.GetDebugBlock(s.Context, types.BaseShardId, "latest", true)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(fullRes.Content)
 	s.Require().Empty(block.InMessages)
@@ -761,7 +761,7 @@ func (s *SuiteRpc) TestNoOutMessagesIfFailure() {
 	calldata, err := abi.Pack("testFailedAsyncCall", addr, int32(0))
 	s.Require().NoError(err)
 
-	txhash, err := s.Client.SendExternalMessage(calldata, addr, nil, s.GasToValue(100_000))
+	txhash, err := s.Client.SendExternalMessage(s.Context, calldata, addr, nil, s.GasToValue(100_000))
 	s.Require().NoError(err)
 	receipt = s.WaitForReceipt(txhash)
 	s.Require().False(receipt.Success)
@@ -773,7 +773,7 @@ func (s *SuiteRpc) TestNoOutMessagesIfFailure() {
 	calldata, err = abi.Pack("testFailedAsyncCall", addr, int32(10))
 	s.Require().NoError(err)
 
-	txhash, err = s.Client.SendExternalMessage(calldata, addr, nil, s.GasToValue(100_000))
+	txhash, err = s.Client.SendExternalMessage(s.Context, calldata, addr, nil, s.GasToValue(100_000))
 	s.Require().NoError(err)
 	receipt = s.WaitForReceipt(txhash)
 	s.Require().True(receipt.Success)
@@ -797,7 +797,7 @@ func (s *SuiteRpc) TestMultipleRefunds() {
 
 func (s *SuiteRpc) TestRpcBlockContent() {
 	// Deploy message
-	hash, _, err := s.Client.DeployContract(types.BaseShardId, types.MainWalletAddress,
+	hash, _, err := s.Client.DeployContract(s.Context, types.BaseShardId, types.MainWalletAddress,
 		contracts.CounterDeployPayload(s.T()), types.Value{},
 		execution.MainPrivateKey)
 	s.Require().NoError(err)
@@ -805,13 +805,13 @@ func (s *SuiteRpc) TestRpcBlockContent() {
 	var block *jsonrpc.RPCBlock
 	s.Eventually(func() bool {
 		var err error
-		block, err = s.Client.GetBlock(types.BaseShardId, "latest", false)
+		block, err = s.Client.GetBlock(s.Context, types.BaseShardId, "latest", false)
 		s.Require().NoError(err)
 
 		return len(block.MessageHashes) > 0
 	}, 6*time.Second, 50*time.Millisecond)
 
-	block, err = s.Client.GetBlock(types.BaseShardId, block.Hash, true)
+	block, err = s.Client.GetBlock(s.Context, types.BaseShardId, block.Hash, true)
 	s.Require().NoError(err)
 
 	s.Require().NotNil(block.Hash)
@@ -821,29 +821,29 @@ func (s *SuiteRpc) TestRpcBlockContent() {
 
 func (s *SuiteRpc) TestRpcMessageContent() {
 	shardId := types.ShardId(3)
-	hash, _, err := s.Client.DeployContract(shardId, types.MainWalletAddress,
+	hash, _, err := s.Client.DeployContract(s.Context, shardId, types.MainWalletAddress,
 		contracts.CounterDeployPayload(s.T()), types.Value{},
 		execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.WaitForReceipt(hash)
 
-	msg1, err := s.Client.GetInMessageByHash(hash)
+	msg1, err := s.Client.GetInMessageByHash(s.Context, hash)
 	s.Require().NoError(err)
 	s.EqualValues(0, msg1.Flags.Bits)
 
-	msg2, err := s.Client.GetInMessageByHash(receipt.OutMessages[0])
+	msg2, err := s.Client.GetInMessageByHash(s.Context, receipt.OutMessages[0])
 	s.Require().NoError(err)
 	s.EqualValues(3, msg2.Flags.Bits)
 }
 
 func (s *SuiteRpc) TestDbApi() {
-	block, err := s.Client.GetBlock(types.BaseShardId, transport.LatestBlockNumber, false)
+	block, err := s.Client.GetBlock(s.Context, types.BaseShardId, transport.LatestBlockNumber, false)
 	s.Require().NoError(err)
 
-	s.Require().NoError(s.Client.DbInitTimestamp(block.DbTimestamp))
+	s.Require().NoError(s.Client.DbInitTimestamp(s.Context, block.DbTimestamp))
 
-	hBytes, err := s.Client.DbGet(db.LastBlockTable, types.BaseShardId.Bytes())
+	hBytes, err := s.Client.DbGet(s.Context, db.LastBlockTable, types.BaseShardId.Bytes())
 	s.Require().NoError(err)
 
 	h := common.BytesToHash(hBytes)
@@ -861,7 +861,7 @@ func (s *SuiteRpc) TestBatch() {
 	}
 
 	for req, expectedResp := range testcases {
-		body, err := s.Client.PlainTextCall([]byte(req))
+		body, err := s.Client.PlainTextCall(s.Context, []byte(req))
 		s.Require().NoError(err)
 		s.JSONEq(expectedResp, string(body))
 	}
@@ -879,7 +879,7 @@ func (s *SuiteRpc) TestBatch() {
 	_, err = batch.GetDebugBlock(types.BaseShardId, tooBigNonexistentBlockNumber, false)
 	s.Require().NoError(err)
 
-	result, err := s.Client.BatchCall(batch)
+	result, err := s.Client.BatchCall(s.Context, batch)
 	s.Require().NoError(err)
 	s.Require().Len(result, 4)
 
@@ -957,7 +957,7 @@ func (s *SuiteRpc) TestBloom() {
 		s.Require().False(bloom.Test(b[:]))
 	}
 
-	block, err := s.Client.GetBlock(addr.ShardId(), receipt.BlockHash, false)
+	block, err := s.Client.GetBlock(s.Context, addr.ShardId(), receipt.BlockHash, false)
 	s.Require().NoError(err)
 
 	checkTopics(types.BytesToBloom(receipt.Bloom))

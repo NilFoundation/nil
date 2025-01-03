@@ -64,7 +64,7 @@ func (tx *RoTx) Get(tableName db.TableName, key []byte) ([]byte, error) {
 		check.PanicIfNot(ok)
 		return value, nil
 	}
-	value, err = tx.client.DbGet(tableName, key)
+	value, err = tx.client.DbGet(context.Background(), tableName, key)
 	if errors.Is(err, db.ErrKeyNotFound) {
 		tx.cacheTomb.Store(string(db.MakeKey(tableName, key)), nil)
 		return nil, db.ErrKeyNotFound
@@ -197,7 +197,7 @@ func NewReadThroughDb(client client.DbClient, baseDb db.DB) (db.DB, error) {
 }
 
 func NewReadThroughDbWithMasterChain(ctx context.Context, client client.Client, cacheDb db.DB, masterBlockNumber transport.BlockNumber) (db.DB, error) {
-	block, err := client.GetBlock(types.MainShardId, masterBlockNumber, false)
+	block, err := client.GetBlock(ctx, types.MainShardId, masterBlockNumber, false)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +216,7 @@ func NewReadThroughDbWithMasterChain(ctx context.Context, client client.Client, 
 	if block.DbTimestamp == types.InvalidDbTimestamp {
 		return nil, errors.New("The chosen block is too old and doesn't support read-through mode")
 	}
-	if err := client.DbInitTimestamp(block.DbTimestamp); err != nil {
+	if err := client.DbInitTimestamp(ctx, block.DbTimestamp); err != nil {
 		return nil, err
 	}
 	rdb := &ReadThroughDb{

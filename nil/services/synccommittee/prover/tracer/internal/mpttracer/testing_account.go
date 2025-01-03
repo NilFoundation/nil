@@ -61,7 +61,7 @@ func (tcr *TestContractReader) GetRwTx() db.RwTx {
 func (tcr *TestContractReader) AppendToJournal(je execution.JournalEntry) {
 }
 
-func (tcr *TestContractReader) GetAccount(addr types.Address) (*TracerAccount, mpt.Proof, error) {
+func (tcr *TestContractReader) GetAccount(_ context.Context, addr types.Address) (*TracerAccount, mpt.Proof, error) {
 	contract, err := tcr.ContractTrie.Fetch(addr.Hash())
 	if err != nil {
 		return nil, mpt.Proof{}, err

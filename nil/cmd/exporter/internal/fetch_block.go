@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"errors"
 
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -12,8 +13,8 @@ var logger = logging.NewLogger("fetch-block")
 
 var ErrBlockNotFound = errors.New("block not found")
 
-func (cfg *Cfg) FetchBlocks(shardId types.ShardId, fromId types.BlockNumber, toId types.BlockNumber) ([]*types.BlockWithExtractedData, error) {
-	rawBlocks, err := cfg.Client.GetDebugBlocksRange(shardId, fromId, toId, true, int(toId-fromId))
+func (cfg *Cfg) FetchBlocks(ctx context.Context, shardId types.ShardId, fromId types.BlockNumber, toId types.BlockNumber) ([]*types.BlockWithExtractedData, error) {
+	rawBlocks, err := cfg.Client.GetDebugBlocksRange(ctx, shardId, fromId, toId, true, int(toId-fromId))
 	if err != nil {
 		return nil, err
 	}
@@ -30,8 +31,8 @@ func (cfg *Cfg) FetchBlocks(shardId types.ShardId, fromId types.BlockNumber, toI
 	return result, nil
 }
 
-func (cfg *Cfg) FetchBlock(shardId types.ShardId, blockId any) (*types.BlockWithExtractedData, error) {
-	latestBlock, err := cfg.Client.GetDebugBlock(shardId, blockId, true)
+func (cfg *Cfg) FetchBlock(ctx context.Context, shardId types.ShardId, blockId any) (*types.BlockWithExtractedData, error) {
+	latestBlock, err := cfg.Client.GetDebugBlock(ctx, shardId, blockId, true)
 	if err != nil {
 		return nil, err
 	}
@@ -41,6 +42,6 @@ func (cfg *Cfg) FetchBlock(shardId types.ShardId, blockId any) (*types.BlockWith
 	return latestBlock.DecodeSSZ()
 }
 
-func (cfg *Cfg) FetchShards() ([]types.ShardId, error) {
-	return cfg.Client.GetShardIdList()
+func (cfg *Cfg) FetchShards(ctx context.Context) ([]types.ShardId, error) {
+	return cfg.Client.GetShardIdList(ctx)
 }

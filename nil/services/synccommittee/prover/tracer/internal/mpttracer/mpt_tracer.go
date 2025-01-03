@@ -1,6 +1,7 @@
 package mpttracer
 
 import (
+	"context"
 	"errors"
 
 	"github.com/NilFoundation/nil/nil/client"
@@ -79,7 +80,7 @@ func (mt *MPTTracer) GetAccount(addr types.Address) (*TracerAccount, error) {
 		return smartContract, nil
 	}
 
-	contract, proof, err := mt.contractReader.GetAccount(addr)
+	contract, proof, err := mt.contractReader.GetAccount(context.Background(), addr)
 	if err != nil {
 		return nil, err
 	}

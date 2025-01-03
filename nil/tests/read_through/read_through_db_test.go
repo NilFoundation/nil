@@ -1,6 +1,7 @@
 package readthroughdb_tests
 
 import (
+	"context"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -28,6 +29,13 @@ type SuiteReadThroughDb struct {
 }
 
 func (s *SuiteReadThroughDb) SetupTest() {
+	ctx, cancelFunc := context.WithCancel(context.Background())
+
+	s.server.Context = ctx
+	s.server.CtxCancel = cancelFunc
+	s.cache.Context = ctx
+	s.cache.CtxCancel = cancelFunc
+
 	s.server.SetT(s.T())
 	s.cache.SetT(s.T())
 	s.num = 0
@@ -65,9 +73,9 @@ func (s *SuiteReadThroughDb) waitBlockOnMasterShard(shardId types.ShardId, block
 	s.T().Helper()
 
 	s.Require().Eventually(func() bool {
-		block, err := s.server.Client.GetBlock(types.MainShardId, transport.LatestBlockNumber, true)
+		block, err := s.server.Client.GetBlock(s.cache.Context, types.MainShardId, transport.LatestBlockNumber, true)
 		s.Require().NoError(err)
-		childBlock, err := s.server.Client.GetBlock(shardId, block.ChildBlocks[shardId-1], false)
+		childBlock, err := s.server.Client.GetBlock(s.cache.Context, shardId, block.ChildBlocks[shardId-1], false)
 		s.Require().NoError(err)
 		return childBlock.Number > blockNumber
 	}, tests.ReceiptWaitTimeout, tests.ReceiptPollInterval)
@@ -141,7 +149,7 @@ func (s *SuiteReadThroughDb) TestIsolation() {
 	})
 
 	s.Run("ReceiptCache", func() {
-		r, err := s.cache.Client.GetInMessageReceipt(receipt.MsgHash)
+		r, err := s.cache.Client.GetInMessageReceipt(s.cache.Context, receipt.MsgHash)
 		s.Require().NoError(err)
 		s.Require().Nil(r, "The receipt should not be found in the cache")
 	})

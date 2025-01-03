@@ -136,7 +136,7 @@ func (s *Service) Run(ctx context.Context, cfg *Config) error {
 
 func (s *Service) RegisterContractData(ctx context.Context, contractData *ContractData, address types.Address) error {
 	logger.Info().Msg("Register contract...")
-	code, err := s.client.GetCode(address, "latest")
+	code, err := s.client.GetCode(ctx, address, "latest")
 	if err != nil {
 		return fmt.Errorf("failed to get code: %w", err)
 	}
@@ -240,7 +240,7 @@ func (s *Service) GetContractAsJson(ctx context.Context, address types.Address) 
 }
 
 func (s *Service) FindContractWithSameCode(ctx context.Context, address types.Address) (*ContractData, error) {
-	code, err := s.client.GetCode(address, "latest")
+	code, err := s.client.GetCode(ctx, address, "latest")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get code: %w", err)
 	}

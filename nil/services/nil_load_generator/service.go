@@ -67,7 +67,7 @@ func randomPermutation(shardIdList []types.ShardId, amount uint64) ([]types.Shar
 	return arr[:amount], nil
 }
 
-func initializeWalletsAndServices(shardIdList []types.ShardId, client *rpc_client.Client, service *cliservice.Service, faucet *faucet.Client) ([]uniswap.Wallet, []*cliservice.Service, error) {
+func initializeWalletsAndServices(ctx context.Context, shardIdList []types.ShardId, client *rpc_client.Client, service *cliservice.Service, faucet *faucet.Client) ([]uniswap.Wallet, []*cliservice.Service, error) {
 	res := make([]uniswap.Wallet, len(shardIdList))
 	services := make([]*cliservice.Service, len(shardIdList))
 
@@ -78,7 +78,7 @@ func initializeWalletsAndServices(shardIdList []types.ShardId, client *rpc_clien
 			return nil, nil, fmt.Errorf("failed to initialize wallet for shard %s: %w", shardId, err)
 		}
 
-		services[i] = cliservice.NewService(client, res[i].PrivateKey, faucet)
+		services[i] = cliservice.NewService(ctx, client, res[i].PrivateKey, faucet)
 	}
 
 	return res, services, nil
@@ -152,15 +152,15 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 	client := rpc_client.NewClient(cfg.Endpoint, logger)
 	logging.SetupGlobalLogger(cfg.LogLevel)
 
-	service := cliservice.NewService(client, execution.MainPrivateKey, faucet)
-	shardIdList, err := client.GetShardIdList()
+	service := cliservice.NewService(ctx, client, execution.MainPrivateKey, faucet)
+	shardIdList, err := client.GetShardIdList(ctx)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to get shard id list")
 		return err
 	}
 	logger.Info().Msg("Creating wallets...")
 	var services []*cliservice.Service
-	wallets, services, err = initializeWalletsAndServices(shardIdList, client, service, faucet)
+	wallets, services, err = initializeWalletsAndServices(ctx, shardIdList, client, service, faucet)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to initialize wallets and services")
 		return err
@@ -196,7 +196,7 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 		}
 
 		logger.Info().Msgf("Creating pair on shard %v", shardIdList[i])
-		if err := factories[i].CreatePair(services[i], client, wallets[i], currencies[i*2].Addr, currencies[i*2+1].Addr); err != nil {
+		if err := factories[i].CreatePair(ctx, services[i], client, wallets[i], currencies[i*2].Addr, currencies[i*2+1].Addr); err != nil {
 			return fmt.Errorf("failed to create pair on shard %v: %w", shardIdList[i], err)
 		}
 
@@ -207,7 +207,7 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 		}
 
 		pairs[i] = uniswap.NewPair(contracts["UniswapV2Pair"], pairAddress)
-		if err := pairs[i].Initialize(services[i], client, wallets[i], currencies[i*2], currencies[i*2+1]); err != nil {
+		if err := pairs[i].Initialize(ctx, services[i], client, wallets[i], currencies[i*2], currencies[i*2+1]); err != nil {
 			return fmt.Errorf("failed to initialize pair on shard %v: %w", shardIdList[i], err)
 		}
 
@@ -227,7 +227,7 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 			if checkBalanceCounterDownInt == 0 {
 				checkBalanceCounterDownInt = int(cfg.CheckBalance)
 				logger.Info().Msg("Checking balance and minting currencies.")
-				err := uniswap.TopUpBalance(client, services, wallets, currencies)
+				err := uniswap.TopUpBalance(ctx, client, services, wallets, currencies)
 				if err != nil {
 					return err
 				}
@@ -236,7 +236,7 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 			if err := parallelizeAcrossN(len(shardIdList), func(i int) error {
 				logger.Info().Msgf("Minting liqudity for wallet %s on shard %v", wallets[i].Addr, shardIdList[i])
 				return pairs[i].Mint(
-					services[i], client, wallets[i], wallets[i].Addr,
+					ctx, services[i], client, wallets[i], wallets[i].Addr,
 					[]types.CurrencyBalance{
 						{Currency: currencies[i*2].Id, Balance: types.NewValueFromUint64(mintCurrency0Amount)},
 						{Currency: currencies[i*2+1].Id, Balance: types.NewValueFromUint64(mintCurrency1Amount)},
@@ -270,7 +270,7 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 					expectedOutputAmount := calculateOutputAmount(big.NewInt(swapAmount), reserve0, reserve1)
 					logger.Info().Msgf("User: %v, Pair: %v, AmountSend: %d,  AmountGet: %d, CurrencyFrom: %s, CurrencyTo %s", whoWantSwap, whatPairHeWant, swapAmount, expectedOutputAmount, currencies[whatPairHeWant*2].Id, currencies[whatPairHeWant*2+1].Id)
 
-					if err = pairs[whatPairHeWant].Swap(services[whoWantSwap], client, wallets[whoWantSwap], wallets[whoWantSwap].Addr, big.NewInt(0), expectedOutputAmount, types.NewValueFromUint64(swapAmount), currencies[whatPairHeWant*2].Id); err != nil {
+					if err = pairs[whatPairHeWant].Swap(ctx, services[whoWantSwap], client, wallets[whoWantSwap], wallets[whoWantSwap].Addr, big.NewInt(0), expectedOutputAmount, types.NewValueFromUint64(swapAmount), currencies[whatPairHeWant*2].Id); err != nil {
 						return err
 					}
 					return nil
@@ -288,7 +288,7 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 				}
 				if userLpBalance.Uint64() > 0 {
 					return pairs[i].Burn(
-						services[i], client, wallets[i], wallets[i].Addr,
+						ctx, services[i], client, wallets[i], wallets[i].Addr,
 						types.CurrencyId(pairs[i].Addr),
 						types.NewValueFromUint64(userLpBalance.Uint64()),
 					)

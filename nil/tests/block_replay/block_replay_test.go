@@ -101,13 +101,13 @@ func (s *SuiteBlockReplay) TestBlockReplay() {
 	_, receipt := s.DeployContractViaMainWallet(types.BaseShardId, deployPayload, tests.DefaultContractValue)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
-	blockToReplay, err := s.Client.GetBlock(types.BaseShardId, receipt.OutReceipts[0].BlockHash, false)
+	blockToReplay, err := s.Client.GetBlock(s.Context, types.BaseShardId, receipt.OutReceipts[0].BlockHash, false)
 	s.Require().NoError(err)
 
 	// wait 5 next blocks
 	var latestBlock *jsonrpc.RPCBlock
 	s.Require().Eventually(func() bool {
-		block, err := s.Client.GetBlock(types.BaseShardId, "latest", false)
+		block, err := s.Client.GetBlock(s.Context, types.BaseShardId, "latest", false)
 		s.Require().NoError(err)
 		latestBlock = block
 		return block != nil && block.Number > blockToReplay.Number+5
@@ -119,7 +119,7 @@ func (s *SuiteBlockReplay) TestBlockReplay() {
 		var newLatestBlock *jsonrpc.RPCBlock
 
 		s.Require().Eventually(func() bool {
-			block, err := s.Client.GetBlock(types.BaseShardId, "latest", false)
+			block, err := s.Client.GetBlock(s.Context, types.BaseShardId, "latest", false)
 			s.Require().NoError(err)
 			newLatestBlock = block
 			return block != nil && block.Number < latestBlock.Number && block.Number > blockToReplay.Number

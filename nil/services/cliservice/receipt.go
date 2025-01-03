@@ -9,7 +9,7 @@ import (
 
 // FetchReceiptByHash fetches the message receipt by hash
 func (s *Service) FetchReceiptByHash(hash common.Hash) (*jsonrpc.RPCReceipt, error) {
-	receiptData, err := s.client.GetInMessageReceipt(hash)
+	receiptData, err := s.client.GetInMessageReceipt(s.ctx, hash)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to fetch receipt")
 		return nil, err

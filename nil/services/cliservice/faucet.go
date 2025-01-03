@@ -81,8 +81,8 @@ func (s *Service) handleReceipt(receipt *jsonrpc.RPCReceipt, err error) (*jsonrp
 }
 
 func (s *Service) waitForReceiptCommon(msgHash common.Hash, check func(receipt *jsonrpc.RPCReceipt) bool) (*jsonrpc.RPCReceipt, error) {
-	receipt, err := concurrent.WaitFor(context.Background(), ReceiptWaitFor, ReceiptWaitTick, func(ctx context.Context) (*jsonrpc.RPCReceipt, error) {
-		receipt, err := s.client.GetInMessageReceipt(msgHash)
+	receipt, err := concurrent.WaitFor(s.ctx, ReceiptWaitFor, ReceiptWaitTick, func(ctx context.Context) (*jsonrpc.RPCReceipt, error) {
+		receipt, err := s.client.GetInMessageReceipt(ctx, msgHash)
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +151,7 @@ func (s *Service) CreateWallet(
 	walletCode := contracts.PrepareDefaultWalletForOwnerCode(crypto.CompressPubkey(pubKey))
 	walletAddress := s.ContractAddress(shardId, *salt, walletCode)
 
-	code, err := s.client.GetCode(walletAddress, "latest")
+	code, err := s.client.GetCode(s.ctx, walletAddress, "latest")
 	if err != nil {
 		return types.EmptyAddress, err
 	}

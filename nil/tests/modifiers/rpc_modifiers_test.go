@@ -69,7 +69,7 @@ func (s *SuiteModifiersRpc) TestInternalIncorrect() {
 	internalFuncCalldata, err := s.abi.Pack("internalFunc")
 	s.Require().NoError(err)
 
-	seqno, err := s.Client.GetTransactionCount(s.testAddr, "pending")
+	seqno, err := s.Client.GetTransactionCount(s.Context, s.testAddr, "pending")
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
@@ -79,7 +79,7 @@ func (s *SuiteModifiersRpc) TestInternalIncorrect() {
 		FeeCredit: s.GasToValue(100_000),
 	}
 	s.Require().NoError(messageToSend.Sign(s.walletPrivateKey))
-	msgHash, err := s.Client.SendMessage(messageToSend)
+	msgHash, err := s.Client.SendMessage(s.Context, messageToSend)
 	s.Require().NoError(err)
 
 	receipt := s.WaitForReceipt(msgHash)
@@ -98,7 +98,7 @@ func (s *SuiteModifiersRpc) TestExternalCorrect() {
 	internalFuncCalldata, err := s.abi.Pack("externalFunc")
 	s.Require().NoError(err)
 
-	seqno, err := s.Client.GetTransactionCount(s.testAddr, "pending")
+	seqno, err := s.Client.GetTransactionCount(s.Context, s.testAddr, "pending")
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
@@ -108,7 +108,7 @@ func (s *SuiteModifiersRpc) TestExternalCorrect() {
 		FeeCredit: s.GasToValue(100_000),
 	}
 	s.Require().NoError(messageToSend.Sign(s.walletPrivateKey))
-	msgHash, err := s.Client.SendMessage(messageToSend)
+	msgHash, err := s.Client.SendMessage(s.Context, messageToSend)
 	s.Require().NoError(err)
 
 	receipt := s.WaitForReceipt(msgHash)
@@ -127,7 +127,7 @@ func (s *SuiteModifiersRpc) TestExternalSyncCall() {
 	internalFuncCalldata, err := s.abi.Pack("callExternal", s.testAddr)
 	s.Require().NoError(err)
 
-	seqno, err := s.Client.GetTransactionCount(s.testAddr, "pending")
+	seqno, err := s.Client.GetTransactionCount(s.Context, s.testAddr, "pending")
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
@@ -136,7 +136,7 @@ func (s *SuiteModifiersRpc) TestExternalSyncCall() {
 		To:        s.testAddr,
 		FeeCredit: s.GasToValue(100_000),
 	}
-	msgHash, err := s.Client.SendMessage(messageToSend)
+	msgHash, err := s.Client.SendMessage(s.Context, messageToSend)
 	s.Require().NoError(err)
 
 	receipt := s.WaitForReceipt(msgHash)
@@ -147,7 +147,7 @@ func (s *SuiteModifiersRpc) TestInternalSyncCall() {
 	internalFuncCalldata, err := s.abi.Pack("callInternal", s.testAddr)
 	s.Require().NoError(err)
 
-	seqno, err := s.Client.GetTransactionCount(s.testAddr, "pending")
+	seqno, err := s.Client.GetTransactionCount(s.Context, s.testAddr, "pending")
 	s.Require().NoError(err)
 
 	messageToSend := &types.ExternalMessage{
@@ -156,7 +156,7 @@ func (s *SuiteModifiersRpc) TestInternalSyncCall() {
 		To:        s.testAddr,
 		FeeCredit: s.GasToValue(100_000),
 	}
-	msgHash, err := s.Client.SendMessage(messageToSend)
+	msgHash, err := s.Client.SendMessage(s.Context, messageToSend)
 	s.Require().NoError(err)
 
 	receipt := s.WaitForReceipt(msgHash)

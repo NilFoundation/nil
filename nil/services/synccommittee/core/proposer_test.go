@@ -51,7 +51,7 @@ func (s *ProposerTestSuite) SetupSuite() {
 
 	s.storage = storage.NewBlockStorage(s.db, metricsHandler, logger)
 	s.params = NewDefaultProposerParams()
-	s.proposer, err = NewProposer(s.params, &s.rpcClientMock, s.storage, metricsHandler, logger)
+	s.proposer, err = NewProposer(s.ctx, s.params, &s.rpcClientMock, s.storage, metricsHandler, logger)
 	s.Require().NoError(err)
 }
 

@@ -43,8 +43,8 @@ func SendTokensCommand(cfg *common.Config) *cobra.Command {
 	return cmd
 }
 
-func runTransfer(_ *cobra.Command, args []string, cfg *common.Config) error {
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
+func runTransfer(cmd *cobra.Command, args []string, cfg *common.Config) error {
+	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 
 	var address types.Address
 	if err := address.Set(args[0]); err != nil {

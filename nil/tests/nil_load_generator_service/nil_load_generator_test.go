@@ -62,7 +62,7 @@ func (s *NilLoadGeneratorRpc) TestWalletBalanceModification() {
 	client := nil_load_generator.NewClient(s.endpoint)
 
 	var err error
-	shardIdList, err := s.Client.GetShardIdList()
+	shardIdList, err := s.Client.GetShardIdList(s.Context)
 	s.Require().NoError(err)
 
 	var resWallets []types.Address
@@ -72,7 +72,7 @@ func (s *NilLoadGeneratorRpc) TestWalletBalanceModification() {
 		resWallets, err = client.GetWalletsAddr()
 		s.Require().NoError(err)
 		for i, addr := range resWallets {
-			walletsBalance[i], err = s.Client.GetBalance(addr, "latest")
+			walletsBalance[i], err = s.Client.GetBalance(s.Context, addr, "latest")
 			s.Require().NoError(err)
 		}
 		return len(resWallets) != 0
@@ -82,7 +82,7 @@ func (s *NilLoadGeneratorRpc) TestWalletBalanceModification() {
 		select {
 		case <-testTimeout:
 			for i, addr := range resWallets {
-				newBalance, err := s.Client.GetBalance(addr, "latest")
+				newBalance, err := s.Client.GetBalance(s.Context, addr, "latest")
 				s.Require().NoError(err)
 				s.Require().Greater(walletsBalance[i].Uint64(), newBalance.Uint64())
 			}

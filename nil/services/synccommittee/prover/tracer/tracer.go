@@ -38,7 +38,7 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 	shardId types.ShardId,
 	blockRef transport.BlockReference,
 ) error {
-	dbgBlock, err := rt.client.GetDebugBlock(shardId, blockRef, true)
+	dbgBlock, err := rt.client.GetDebugBlock(ctx, shardId, blockRef, true)
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 		// TODO: prove genesis block generation?
 		return ErrCantProofGenesisBlock
 	}
-	prevBlock, err := rt.client.GetBlock(shardId, transport.BlockNumber(decodedDbgBlock.Id-1), false)
+	prevBlock, err := rt.client.GetBlock(ctx, shardId, transport.BlockNumber(decodedDbgBlock.Id-1), false)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 		// TODO: try to replace it with prevBlock.Hash
 		_ = prevBlock.Hash
 
-		block, err := rt.client.GetBlock(shardId, transport.BlockNumber(blkNum), false)
+		block, err := rt.client.GetBlock(ctx, shardId, transport.BlockNumber(blkNum), false)
 		if err != nil {
 			return common.EmptyHash, err
 		}
@@ -102,8 +102,7 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 		}
 
 		stateDB.AddInMessage(inMsg)
-		err := stateDB.HandleInMessage(inMsg)
-		if err != nil {
+		if err := stateDB.HandleInMessage(inMsg); err != nil { //nolint:contextcheck
 			return err
 		}
 	}

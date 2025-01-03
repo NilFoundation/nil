@@ -35,7 +35,7 @@ func (s *SuitGasPrice) TearDownSuite() {
 
 func (s *SuitGasPrice) TestGasBehaviour() {
 	shardId := types.ShardId(3)
-	initialGasPrice, err := s.Client.GasPrice(shardId)
+	initialGasPrice, err := s.Client.GasPrice(s.Context, shardId)
 	s.Require().NoError(err)
 	var addrCallee types.Address
 
@@ -53,14 +53,14 @@ func (s *SuitGasPrice) TestGasBehaviour() {
 				contracts.NewCounterAddCallData(s.T(), i))
 			s.Require().True(receipt.OutReceipts[0].Success)
 		}
-		increasedGasPrice, err := s.Client.GasPrice(shardId)
+		increasedGasPrice, err := s.Client.GasPrice(s.Context, shardId)
 		s.Require().NoError(err)
 		s.Require().Positive(increasedGasPrice.Cmp(initialGasPrice))
 	})
 
 	s.Run("DecreaseGasCost", func() {
 		s.Require().Eventually(func() bool {
-			gasPrice, err := s.Client.GasPrice(shardId)
+			gasPrice, err := s.Client.GasPrice(s.Context, shardId)
 			s.Require().NoError(err)
 			return gasPrice.Cmp(initialGasPrice) == 0
 		}, 20*time.Second, time.Second)

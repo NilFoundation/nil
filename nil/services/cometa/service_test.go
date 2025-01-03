@@ -40,7 +40,7 @@ func (s *SuiteServiceTest) TestCase1() {
 	code := contractData.Code
 	address := types.CreateAddress(types.ShardId(1), types.BuildDeployPayload(code, common.EmptyHash))
 
-	s.client.GetCodeFunc = func(addr types.Address, blockId any) (types.Code, error) {
+	s.client.GetCodeFunc = func(ctx context.Context, addr types.Address, blockId any) (types.Code, error) {
 		s.Require().Equal(address, addr)
 		return code, nil
 	}
@@ -76,7 +76,7 @@ func (s *SuiteServiceTest) TestCase2() {
 	code := contractData.Code
 	address := types.CreateAddress(types.ShardId(1), types.BuildDeployPayload(code, common.EmptyHash))
 
-	s.client.GetCodeFunc = func(addr types.Address, blockId any) (types.Code, error) {
+	s.client.GetCodeFunc = func(ctx context.Context, addr types.Address, blockId any) (types.Code, error) {
 		s.Require().Equal(address, addr)
 		return code, nil
 	}
@@ -109,7 +109,7 @@ func (s *SuiteServiceTest) TestTwinContracts() {
 	code := contractData.Code
 	address := types.CreateAddress(types.ShardId(1), types.BuildDeployPayload(code, common.HexToHash("0x5678")))
 
-	s.client.GetCodeFunc = func(addr types.Address, blockId any) (types.Code, error) {
+	s.client.GetCodeFunc = func(ctx context.Context, addr types.Address, blockId any) (types.Code, error) {
 		return code, nil
 	}
 

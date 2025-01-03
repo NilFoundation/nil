@@ -1,6 +1,7 @@
 package contracts
 
 import (
+	"context"
 	"errors"
 	"math/big"
 
@@ -27,12 +28,12 @@ func (f *Factory) Deploy(service *cliservice.Service, deployWallet Wallet, walle
 	return err
 }
 
-func (f *Factory) CreatePair(service *cliservice.Service, client client.Client, wallet Wallet, currency0Address, currency1Address types.Address) error {
+func (f *Factory) CreatePair(ctx context.Context, service *cliservice.Service, client client.Client, wallet Wallet, currency0Address, currency1Address types.Address) error {
 	calldata, err := f.Abi.Pack("createPair", currency0Address, currency1Address, big.NewInt(0), big.NewInt(int64(f.Addr.ShardId())))
 	if err != nil {
 		return err
 	}
-	hash, err := client.SendMessageViaWallet(wallet.Addr, calldata,
+	hash, err := client.SendMessageViaWallet(ctx, wallet.Addr, calldata,
 		types.NewZeroValue(), types.NewZeroValue(), []types.CurrencyBalance{},
 		f.Addr,
 		wallet.PrivateKey)

@@ -217,13 +217,13 @@ func (s *ShardedSuite) StartRPCNode(dhtBootstrapByValidators DhtBootstrapByValid
 func (s *ShardedSuite) WaitForReceipt(hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	return WaitForReceipt(s.T(), s.DefaultClient, hash)
+	return WaitForReceipt(s.T(), s.Context, s.DefaultClient, hash)
 }
 
 func (s *ShardedSuite) WaitIncludedInMain(hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	return WaitIncludedInMain(s.T(), s.DefaultClient, hash)
+	return WaitIncludedInMain(s.T(), s.Context, s.DefaultClient, hash)
 }
 
 func (s *ShardedSuite) GasToValue(gas uint64) types.Value {
@@ -233,7 +233,7 @@ func (s *ShardedSuite) GasToValue(gas uint64) types.Value {
 func (s *ShardedSuite) DeployContractViaMainWallet(shardId types.ShardId, payload types.DeployPayload, initialAmount types.Value) (types.Address, *jsonrpc.RPCReceipt) {
 	s.T().Helper()
 
-	return DeployContractViaWallet(s.T(), s.DefaultClient, types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
+	return DeployContractViaWallet(s.T(), s.Context, s.DefaultClient, types.MainWalletAddress, execution.MainPrivateKey, shardId, payload, initialAmount)
 }
 
 func (s *ShardedSuite) checkNodeStart(nShards uint32, client client.Client) {
@@ -244,7 +244,7 @@ func (s *ShardedSuite) checkNodeStart(nShards uint32, client client.Client) {
 	for shardId := range types.ShardId(nShards) {
 		go func() {
 			defer wg.Done()
-			WaitZerostate(s.T(), client, shardId)
+			WaitZerostate(s.T(), s.Context, client, shardId)
 		}()
 	}
 	wg.Wait()
@@ -258,7 +258,7 @@ func (s *ShardedSuite) waitZerostate() {
 	for _, shard := range s.Shards {
 		go func() {
 			defer wg.Done()
-			WaitZerostate(s.T(), shard.Client, shard.Id)
+			WaitZerostate(s.T(), s.Context, shard.Client, shard.Id)
 		}()
 	}
 	wg.Wait()
@@ -276,7 +276,7 @@ func (s *ShardedSuite) PrepareDefaultDeployPayload(abi abi.ABI, code []byte, arg
 
 func (s *ShardedSuite) GetBalance(address types.Address) types.Value {
 	s.T().Helper()
-	return GetBalance(s.T(), s.DefaultClient, address)
+	return GetBalance(s.T(), s.Context, s.DefaultClient, address)
 }
 
 func (s *ShardedSuite) AbiPack(abi *abi.ABI, name string, args ...any) []byte {
@@ -286,20 +286,20 @@ func (s *ShardedSuite) AbiPack(abi *abi.ABI, name string, args ...any) []byte {
 
 func (s *ShardedSuite) SendExternalMessageNoCheck(bytecode types.Code, contractAddress types.Address) *jsonrpc.RPCReceipt {
 	s.T().Helper()
-	return SendExternalMessageNoCheck(s.T(), s.DefaultClient, bytecode, contractAddress)
+	return SendExternalMessageNoCheck(s.T(), s.Context, s.DefaultClient, bytecode, contractAddress)
 }
 
 func (s *ShardedSuite) AnalyzeReceipt(receipt *jsonrpc.RPCReceipt, namesMap map[types.Address]string) ReceiptInfo {
 	s.T().Helper()
-	return AnalyzeReceipt(s.T(), s.DefaultClient, receipt, namesMap)
+	return AnalyzeReceipt(s.T(), s.Context, s.DefaultClient, receipt, namesMap)
 }
 
 func (s *ShardedSuite) CheckBalance(infoMap ReceiptInfo, balance types.Value, accounts []types.Address) types.Value {
 	s.T().Helper()
-	return CheckBalance(s.T(), s.DefaultClient, infoMap, balance, accounts)
+	return CheckBalance(s.T(), s.Context, s.DefaultClient, infoMap, balance, accounts)
 }
 
 func (s *ShardedSuite) CallGetter(addr types.Address, calldata []byte, blockId any, overrides *jsonrpc.StateOverrides) []byte {
 	s.T().Helper()
-	return CallGetter(s.T(), s.DefaultClient, addr, calldata, blockId, overrides)
+	return CallGetter(s.T(), s.Context, s.DefaultClient, addr, calldata, blockId, overrides)
 }

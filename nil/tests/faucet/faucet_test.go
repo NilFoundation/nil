@@ -46,7 +46,7 @@ func (s *SuiteFaucet) createWalletViaFaucet(ownerPrivateKey *ecdsa.PrivateKey, v
 	callData, err := contracts.NewCallData(contracts.NameFaucet, "createWallet", ownerPublicKey, salt, big.NewInt(value))
 	s.Require().NoError(err)
 
-	resHash, err := s.DefaultClient.SendExternalMessage(callData, types.FaucetAddress, nil, types.Value{})
+	resHash, err := s.DefaultClient.SendExternalMessage(s.Context, callData, types.FaucetAddress, nil, types.Value{})
 	s.Require().NoError(err)
 
 	res := s.WaitForReceipt(resHash)
@@ -67,7 +67,7 @@ func (s *SuiteFaucet) TestCreateWalletViaFaucet() {
 	walletAddress := s.createWalletViaFaucet(userPrivateKey, value)
 
 	blockNumber := transport.LatestBlockNumber
-	balance, err := s.DefaultClient.GetBalance(walletAddress, transport.BlockNumberOrHash{BlockNumber: &blockNumber})
+	balance, err := s.DefaultClient.GetBalance(s.Context, walletAddress, transport.BlockNumberOrHash{BlockNumber: &blockNumber})
 	s.Require().NoError(err)
 
 	s.Require().NoError(err)
@@ -92,7 +92,7 @@ func (s *SuiteFaucet) TestDeployContractViaFaucet() {
 		s.Require().True(r.Success)
 	}
 
-	msgHash, receiptContractAddress, err := s.DefaultClient.DeployExternal(walletAddr.ShardId(), code, types.GasToValue(100_000))
+	msgHash, receiptContractAddress, err := s.DefaultClient.DeployExternal(s.Context, walletAddr.ShardId(), code, types.GasToValue(100_000))
 	s.Require().NoError(err)
 	s.Require().Equal(walletAddr, receiptContractAddress)
 	receipt = s.WaitForReceipt(msgHash)
@@ -101,7 +101,7 @@ func (s *SuiteFaucet) TestDeployContractViaFaucet() {
 		s.Require().True(r.Success)
 	}
 
-	balance, err := s.DefaultClient.GetBalance(walletAddr, "latest")
+	balance, err := s.DefaultClient.GetBalance(s.Context, walletAddr, "latest")
 	s.Require().NoError(err)
 	s.Require().Less(balance.Uint64(), value.Uint64())
 	s.Require().Positive(balance.Uint64())
@@ -123,11 +123,11 @@ func (s *SuiteFaucet) TestTopUpViaFaucet() {
 	}
 
 	testTopUp := func(initialValue, value, expectedValue uint64, delta float64) {
-		balance, err := s.DefaultClient.GetBalance(address, transport.LatestBlockNumber)
+		balance, err := s.DefaultClient.GetBalance(s.Context, address, transport.LatestBlockNumber)
 		s.Require().NoError(err)
 		s.Require().Equal(initialValue, balance.Uint64())
 
-		code, err := s.DefaultClient.GetCode(address, transport.LatestBlockNumber)
+		code, err := s.DefaultClient.GetCode(s.Context, address, transport.LatestBlockNumber)
 		s.Require().NoError(err)
 		s.Require().NotEmpty(code)
 
@@ -140,7 +140,7 @@ func (s *SuiteFaucet) TestTopUpViaFaucet() {
 			s.Require().True(r.Success)
 		}
 
-		balance, err = s.DefaultClient.GetBalance(address, transport.LatestBlockNumber)
+		balance, err = s.DefaultClient.GetBalance(s.Context, address, transport.LatestBlockNumber)
 		s.Require().NoError(err)
 		s.Require().InDelta(expectedValue, balance.Uint64(), delta)
 	}
@@ -189,7 +189,7 @@ func (s *SuiteFaucet) TestTopUpCurrencyViaFaucet() {
 			s.Require().True(r.Success)
 		}
 	}
-	currencies, err := s.DefaultClient.GetCurrencies(address, transport.LatestBlockNumber)
+	currencies, err := s.DefaultClient.GetCurrencies(s.Context, address, transport.LatestBlockNumber)
 	s.Require().NoError(err)
 	s.Require().Len(currencies, 3)
 	for _, faucet := range faucetsAddr {

@@ -337,9 +337,9 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 		receipt := s.SendExternalMessageNoCheck(data, s.testAddress0)
 		s.Require().True(receipt.AllSuccess())
 
-		tests.CheckContractValueEqual(s.T(), s.DefaultClient, s.abiTest, s.testAddress0, "counterValue", int32(123))
-		tests.CheckContractValueEqual(s.T(), s.DefaultClient, s.abiTest, s.testAddress0, "intValue", intContext)
-		tests.CheckContractValueEqual(s.T(), s.DefaultClient, s.abiTest, s.testAddress0, "strValue", "Hello World")
+		tests.CheckContractValueEqual(s.T(), s.Context, s.DefaultClient, s.abiTest, s.testAddress0, "counterValue", int32(123))
+		tests.CheckContractValueEqual(s.T(), s.Context, s.DefaultClient, s.abiTest, s.testAddress0, "intValue", intContext)
+		tests.CheckContractValueEqual(s.T(), s.Context, s.DefaultClient, s.abiTest, s.testAddress0, "strValue", "Hello World")
 
 		info = s.AnalyzeReceipt(receipt, map[types.Address]string{})
 
@@ -352,7 +352,7 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 		receipt := s.SendExternalMessageNoCheck(data, s.testAddress0)
 		s.Require().True(receipt.AllSuccess())
 
-		tests.CheckContractValueEqual(s.T(), s.DefaultClient, s.abiCounter, s.counterAddress0, "get", int32(223))
+		tests.CheckContractValueEqual(s.T(), s.Context, s.DefaultClient, s.abiCounter, s.counterAddress0, "get", int32(223))
 
 		info = s.AnalyzeReceipt(receipt, map[types.Address]string{})
 		initialBalance = s.CheckBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)
@@ -406,12 +406,12 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 
 		currencyId := types.CurrencyId(s.testAddress0)
 
-		currencies, err := s.DefaultClient.GetCurrencies(s.testAddress0, "latest")
+		currencies, err := s.DefaultClient.GetCurrencies(s.Context, s.testAddress0, "latest")
 		s.Require().NoError(err)
 		s.Require().Len(currencies, 1)
 		s.Equal(types.NewValueFromUint64(600_000), currencies[currencyId])
 
-		currencies, err = s.DefaultClient.GetCurrencies(s.counterAddress0, "latest")
+		currencies, err = s.DefaultClient.GetCurrencies(s.Context, s.counterAddress0, "latest")
 		s.Require().NoError(err)
 		s.Require().Len(currencies, 1)
 		s.Equal(types.NewValueFromUint64(400_000), currencies[currencyId])

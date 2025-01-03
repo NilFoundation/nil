@@ -18,8 +18,8 @@ func GetCommand(cfgPath *string) *cobra.Command {
 		Use:   "message [hash]",
 		Short: "Retrieve a message from the cluster",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			return runCommand(cfgPath, args)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runCommand(cmd, cfgPath, args)
 		},
 		SilenceUsage: true,
 	}
@@ -29,14 +29,14 @@ func GetCommand(cfgPath *string) *cobra.Command {
 	return serverCmd
 }
 
-func runCommand(cfgPath *string, args []string) error {
+func runCommand(cmd *cobra.Command, cfgPath *string, args []string) error {
 	cfg, err := config.LoadConfig(*cfgPath, logger)
 	if err != nil {
 		return err
 	}
 	common.InitRpcClient(cfg, logger)
 
-	service := cliservice.NewService(common.GetRpcClient(), nil, nil)
+	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), nil, nil)
 
 	var hash libcommon.Hash
 	if err := hash.Set(args[0]); err != nil {

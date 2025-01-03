@@ -55,7 +55,7 @@ func setFlags(cmd *cobra.Command) {
 	)
 }
 
-func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
+func runNew(cmd *cobra.Command, _ []string, cfg *common.Config) error {
 	amount := params.newWalletAmount
 	if amount.Cmp(defaultNewWalletAmount) > 0 {
 		logger.Warn().
@@ -67,7 +67,7 @@ func runNew(_ *cobra.Command, _ []string, cfg *common.Config) error {
 	if err != nil {
 		return err
 	}
-	srv := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, faucet)
+	srv := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, faucet)
 	check.PanicIfNotf(cfg.PrivateKey != nil, "A private key is not set in the config file")
 	walletAddress, err := srv.CreateWallet(params.shardId, &params.salt, amount, params.FeeCredit, &cfg.PrivateKey.PublicKey)
 	if err != nil {

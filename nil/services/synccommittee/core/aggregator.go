@@ -76,7 +76,7 @@ func (agg *Aggregator) Run(ctx context.Context) error {
 // processNewBlocks fetches and processes new blocks for all shards.
 // It handles the overall flow of block synchronization and proof creation.
 func (agg *Aggregator) processNewBlocks(ctx context.Context) error {
-	latestBlock, err := agg.fetchLatestBlockRef()
+	latestBlock, err := agg.fetchLatestBlockRef(ctx)
 	if err != nil {
 		return err
 	}
@@ -90,8 +90,8 @@ func (agg *Aggregator) processNewBlocks(ctx context.Context) error {
 }
 
 // fetchLatestBlocks retrieves the latest block for main shard
-func (agg *Aggregator) fetchLatestBlockRef() (*types.MainBlockRef, error) {
-	block, err := agg.rpcClient.GetBlock(coreTypes.MainShardId, "latest", false)
+func (agg *Aggregator) fetchLatestBlockRef(ctx context.Context) (*types.MainBlockRef, error) {
+	block, err := agg.rpcClient.GetBlock(ctx, coreTypes.MainShardId, "latest", false)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching latest block from shard %d: %w", coreTypes.MainShardId, err)
 	}
@@ -129,13 +129,13 @@ func (agg *Aggregator) processShardBlocks(ctx context.Context, actualLatest type
 func (agg *Aggregator) fetchAndProcessBlocks(ctx context.Context, blocksRange types.BlocksRange) error {
 	shardId := coreTypes.MainShardId
 	const requestBatchSize = 20
-	results, err := agg.rpcClient.GetBlocksRange(shardId, blocksRange.Start, blocksRange.End+1, true, requestBatchSize)
+	results, err := agg.rpcClient.GetBlocksRange(ctx, shardId, blocksRange.Start, blocksRange.End+1, true, requestBatchSize)
 	if err != nil {
 		return fmt.Errorf("error fetching blocks from shard %d: %w", shardId, err)
 	}
 
 	for _, mainShardBlock := range results {
-		blockBatch, err := agg.createBlockBatch(mainShardBlock)
+		blockBatch, err := agg.createBlockBatch(ctx, mainShardBlock)
 		if err != nil {
 			return fmt.Errorf("error creating batch, mainHash=%s: %w", mainShardBlock.Hash, err)
 		}
@@ -151,7 +151,7 @@ func (agg *Aggregator) fetchAndProcessBlocks(ctx context.Context, blocksRange ty
 	return nil
 }
 
-func (agg *Aggregator) createBlockBatch(mainShardBlock *jsonrpc.RPCBlock) (*types.BlockBatch, error) {
+func (agg *Aggregator) createBlockBatch(ctx context.Context, mainShardBlock *jsonrpc.RPCBlock) (*types.BlockBatch, error) {
 	childIds, err := types.ChildBlockIds(mainShardBlock)
 	if err != nil {
 		return nil, err
@@ -160,7 +160,7 @@ func (agg *Aggregator) createBlockBatch(mainShardBlock *jsonrpc.RPCBlock) (*type
 	childBlocks := make([]*jsonrpc.RPCBlock, 0, len(childIds))
 
 	for _, childId := range childIds {
-		childBlock, err := agg.rpcClient.GetBlock(childId.ShardId, childId.Hash, true)
+		childBlock, err := agg.rpcClient.GetBlock(ctx, childId.ShardId, childId.Hash, true)
 		if err != nil {
 			return nil, fmt.Errorf(
 				"error fetching child block with id=%s, mainHash=%s: %w", childId, mainShardBlock.Hash, err,

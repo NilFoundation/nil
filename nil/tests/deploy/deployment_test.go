@@ -84,7 +84,7 @@ func (s *SuiteDeployment) TestDeploy() {
 		res = s.CallGetter(address, s.AbiPack(s.abiDeployee, "deployer"), "latest", nil)
 		s.Require().Equal(s.addressDeployer, types.BytesToAddress(res))
 
-		num := tests.CallGetterT[uint32](s.T(), s.Client, s.abiDeployee, address, "num")
+		num := tests.CallGetterT[uint32](s.T(), s.Context, s.Client, s.abiDeployee, address, "num")
 		s.Require().Equal(uint32(1234), num)
 
 		s.Require().Equal(types.NewValueFromUint64(1111), s.GetBalance(address))
@@ -109,7 +109,7 @@ func (s *SuiteDeployment) TestDeploy() {
 		res := s.CallGetter(address, s.AbiPack(s.abiDeployee, "deployer"), "latest", nil)
 		s.Require().Equal(s.addressDeployer, types.BytesToAddress(res))
 
-		num := tests.CallGetterT[uint32](s.T(), s.Client, s.abiDeployee, address, "num")
+		num := tests.CallGetterT[uint32](s.T(), s.Context, s.Client, s.abiDeployee, address, "num")
 		s.Require().Equal(uint32(987654321), num)
 
 		s.Require().Equal(types.NewValueFromUint64(1111), s.GetBalance(address))

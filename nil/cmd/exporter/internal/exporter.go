@@ -59,7 +59,7 @@ func setupExporter(ctx context.Context, cfg *Cfg) ([]types.ShardId, error) {
 		return nil, err
 	}
 
-	shards, err := cfg.FetchShards()
+	shards, err := cfg.FetchShards(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 				continue
 			}
 
-			topBlock, err := cfg.FetchBlock(shardId, "latest")
+			topBlock, err := cfg.FetchBlock(ctx, shardId, "latest")
 			if err != nil {
 				logger.Error().Err(err).Msg("Failed to fetch last block.")
 				continue
@@ -112,7 +112,7 @@ func startTopFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 				if len(curBlock.PrevBlock.Bytes()) == 0 {
 					break
 				}
-				curBlock, err = cfg.FetchBlock(shardId, curBlock.PrevBlock)
+				curBlock, err = cfg.FetchBlock(ctx, shardId, curBlock.PrevBlock)
 				if err != nil {
 					logger.Error().Err(err).Msg("Failed to fetch block")
 					break
@@ -178,7 +178,7 @@ func startBottomFetcher(ctx context.Context, cfg *Cfg, shardId types.ShardId) {
 				if batchEndId > nextPresentId {
 					batchEndId = nextPresentId
 				}
-				blocks, err := cfg.FetchBlocks(shardId, curBlockId, batchEndId)
+				blocks, err := cfg.FetchBlocks(ctx, shardId, curBlockId, batchEndId)
 				if err != nil {
 					logger.Error().Err(err).Msg("Failed to fetch blocks")
 					continue

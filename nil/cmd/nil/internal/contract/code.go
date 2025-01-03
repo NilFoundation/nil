@@ -23,13 +23,13 @@ func GetCodeCommand(cfg *common.Config) *cobra.Command {
 	return cmd
 }
 
-func runCode(_ *cobra.Command, args []string, cfg *common.Config) error {
+func runCode(cmd *cobra.Command, args []string, cfg *common.Config) error {
 	var address types.Address
 	if err := address.Set(args[0]); err != nil {
 		return err
 	}
 
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
+	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 	_, _ = service.GetCode(address)
 	code, _ := service.GetCode(address)
 	if !common.Quiet {

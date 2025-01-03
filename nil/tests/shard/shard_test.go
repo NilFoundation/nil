@@ -28,7 +28,7 @@ func (s *BasicShardSuite) TestBasic() {
 	// get latest blocks from all shards
 	for i := range s.Shards {
 		shard := &s.Shards[i]
-		rpcBlock, err := shard.Client.GetBlock(shard.Id, "latest", false)
+		rpcBlock, err := shard.Client.GetBlock(s.Context, shard.Id, "latest", false)
 		s.Require().NoError(err)
 		s.Require().NotNil(rpcBlock)
 
@@ -39,7 +39,7 @@ func (s *BasicShardSuite) TestBasic() {
 			}
 			otherShard := &s.Shards[j]
 			s.Require().Eventually(func() bool {
-				otherBlock, err := otherShard.Client.GetBlock(shard.Id, transport.BlockNumber(rpcBlock.Number), false)
+				otherBlock, err := otherShard.Client.GetBlock(s.Context, shard.Id, transport.BlockNumber(rpcBlock.Number), false)
 				if err != nil || otherBlock == nil {
 					return false
 				}

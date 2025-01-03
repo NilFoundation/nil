@@ -29,8 +29,8 @@ func ChangeCurrencyAmountCommand(cfg *common.Config, mint bool) *cobra.Command {
 	return cmd
 }
 
-func runChangeCurrencyAmount(_ *cobra.Command, args []string, cfg *common.Config, mint bool) error {
-	service := cliservice.NewService(common.GetRpcClient(), cfg.PrivateKey, nil)
+func runChangeCurrencyAmount(cmd *cobra.Command, args []string, cfg *common.Config, mint bool) error {
+	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 
 	var address types.Address
 	if err := address.Set(args[0]); err != nil {

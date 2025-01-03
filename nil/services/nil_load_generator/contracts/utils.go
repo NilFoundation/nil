@@ -1,6 +1,7 @@
 package contracts
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"strings"
 
@@ -53,8 +54,8 @@ func GetFromContract(service *cliservice.Service, abi abi.ABI, addr types.Addres
 	return abi.Unpack(name, data.Data)
 }
 
-func SendMessageAndCheck(client client.Client, service *cliservice.Service, wallet Wallet, contract types.Address, calldata types.Code, currencies []types.CurrencyBalance) error {
-	hash, err := client.SendMessageViaWallet(wallet.Addr, calldata,
+func SendMessageAndCheck(ctx context.Context, client client.Client, service *cliservice.Service, wallet Wallet, contract types.Address, calldata types.Code, currencies []types.CurrencyBalance) error {
+	hash, err := client.SendMessageViaWallet(ctx, wallet.Addr, calldata,
 		types.NewZeroValue(), types.NewZeroValue(), currencies, contract, wallet.PrivateKey)
 	if err != nil {
 		return err
@@ -78,7 +79,7 @@ func DeployContract(service *cliservice.Service, wallet types.Address, code type
 	return addr, nil
 }
 
-func TopUpBalance(client client.Client, services []*cliservice.Service, wallets []Wallet, currencies []*Currency) error {
+func TopUpBalance(ctx context.Context, client client.Client, services []*cliservice.Service, wallets []Wallet, currencies []*Currency) error {
 	const balanceThresholdAmount = uint64(1_000_000_000)
 	for i, currency := range currencies {
 		if err := ensureBalance(services[i/2], currency.Addr, balanceThresholdAmount); err != nil {
@@ -90,7 +91,7 @@ func TopUpBalance(client client.Client, services []*cliservice.Service, wallets 
 		if err := ensureBalance(services[i], wallet.Addr, balanceThresholdAmount); err != nil {
 			return err
 		}
-		if err := ensureWalletCurrencies(client, services[i], wallet, currencies); err != nil {
+		if err := ensureWalletCurrencies(ctx, client, services[i], wallet, currencies); err != nil {
 			return err
 		}
 	}
@@ -110,7 +111,7 @@ func ensureBalance(service *cliservice.Service, addr types.Address, threshold ui
 	return nil
 }
 
-func ensureWalletCurrencies(client client.Client, service *cliservice.Service, wallet Wallet, currencies []*Currency) error {
+func ensureWalletCurrencies(ctx context.Context, client client.Client, service *cliservice.Service, wallet Wallet, currencies []*Currency) error {
 	const mintThresholdAmount = 100000
 	walletCurrency, err := service.GetCurrencies(wallet.Addr)
 	if err != nil {
@@ -120,7 +121,7 @@ func ensureWalletCurrencies(client client.Client, service *cliservice.Service, w
 	for _, currency := range currencies {
 		value, ok := walletCurrency[currency.Id]
 		if !ok || value.Cmp(types.NewValueFromUint64(mintThresholdAmount)) < 0 {
-			if err := currency.MintAndSend(client, service, wallet.Addr, mintThresholdAmount); err != nil {
+			if err := currency.MintAndSend(ctx, client, service, wallet.Addr, mintThresholdAmount); err != nil {
 				return err
 			}
 		}

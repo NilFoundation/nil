@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
@@ -24,12 +25,13 @@ func NewRetryClient(rpcEndpoint string, logger zerolog.Logger) client.Client {
 }
 
 func doRPCCall[Req, Res any](
+	ctx context.Context,
 	rawClient client.RawClient,
 	path string,
 	req Req,
 ) (Res, error) {
 	var response Res
-	rawResponse, err := rawClient.RawCall(path, req)
+	rawResponse, err := rawClient.RawCall(ctx, path, req)
 	if err != nil {
 		return response, err
 	}

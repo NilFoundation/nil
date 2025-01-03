@@ -1,6 +1,7 @@
 package contracts
 
 import (
+	"context"
 	"crypto/ecdsa"
 
 	"github.com/NilFoundation/nil/nil/client"
@@ -41,26 +42,26 @@ func (c *Currency) Deploy(service *cliservice.Service, deployWallet Wallet) erro
 	return nil
 }
 
-func (c *Currency) MintAndSend(client client.Client, service *cliservice.Service, walletTo types.Address, mintAmount uint64) error {
+func (c *Currency) MintAndSend(ctx context.Context, client client.Client, service *cliservice.Service, walletTo types.Address, mintAmount uint64) error {
 	calldata, err := c.Abi.Pack("mintCurrency", types.NewValueFromUint64(mintAmount))
 	if err != nil {
 		return err
 	}
-	if err := sendExternalMessage(client, service, calldata, c.Addr, c.OwnerWallet.PrivateKey); err != nil {
+	if err := sendExternalMessage(ctx, client, service, calldata, c.Addr, c.OwnerWallet.PrivateKey); err != nil {
 		return err
 	}
 	calldata, err = c.Abi.Pack("sendCurrency", walletTo, c.Id, types.NewValueFromUint64(mintAmount))
 	if err != nil {
 		return err
 	}
-	if err := sendExternalMessage(client, service, calldata, c.Addr, c.OwnerWallet.PrivateKey); err != nil {
+	if err := sendExternalMessage(ctx, client, service, calldata, c.Addr, c.OwnerWallet.PrivateKey); err != nil {
 		return err
 	}
 	return nil
 }
 
-func sendExternalMessage(client client.Client, service *cliservice.Service, calldata types.Code, contractAddr types.Address, pk *ecdsa.PrivateKey) error {
-	hash, err := client.SendExternalMessage(calldata, contractAddr, pk, types.NewZeroValue())
+func sendExternalMessage(ctx context.Context, client client.Client, service *cliservice.Service, calldata types.Code, contractAddr types.Address, pk *ecdsa.PrivateKey) error {
+	hash, err := client.SendExternalMessage(ctx, calldata, contractAddr, pk, types.NewZeroValue())
 	if err != nil {
 		return err
 	}
