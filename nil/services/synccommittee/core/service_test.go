@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"math/big"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
@@ -76,7 +78,8 @@ func (s *SyncCommitteeTestSuite) SetupSuite() {
 
 	s.scDb, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
-	s.syncCommittee, err = New(cfg, s.scDb)
+	ethClientMock := &rollupcontract.EthClientMock{ChainIDFunc: func(ctx context.Context) (*big.Int, error) { return big.NewInt(0), nil }}
+	s.syncCommittee, err = New(cfg, s.scDb, ethClientMock)
 	s.Require().NoError(err)
 }
 

@@ -1,0 +1,48 @@
+[{
+    "type": "function",
+    "name": "proofBatch",
+    "inputs": [{
+        "name": "_prevStateRoot",
+        "type": "bytes32"
+      },
+      {
+        "name": "_newStateRoot",
+        "type": "bytes32"
+      },
+      {
+        "name": "_blobProof",
+        "type": "bytes"
+      },
+      {
+        "name": "_batchIndexInBlobStorage",
+        "type": "uint256"
+      }
+    ]
+  },
+  {
+    "inputs": [],
+    "name": "finalizedBatchIndex",
+    "outputs": [{
+      "internalType": "uint256",
+      "name": "",
+      "type": "uint256"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "uint256",
+      "name": "",
+      "type": "uint256"
+    }],
+    "name": "stateRoots",
+    "outputs": [{
+      "internalType": "bytes32",
+      "name": "",
+      "type": "bytes32"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

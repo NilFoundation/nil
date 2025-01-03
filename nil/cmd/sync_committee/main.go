@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/profiling"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
 )
 
@@ -53,10 +55,9 @@ func addFlags(cmd *cobra.Command, cfg *cmdConfig) {
 	cmd.Flags().DurationVar(&cfg.PollingDelay, "polling-delay", cfg.PollingDelay, "delay between new block polling")
 	cmd.Flags().StringVar(&cfg.DbPath, "db-path", "sync_committee.db", "path to database")
 	cmd.Flags().StringVar(&cfg.ProposerParams.Endpoint, "l1-endpoint", cfg.ProposerParams.Endpoint, "L1 endpoint")
-	cmd.Flags().StringVar(&cfg.ProposerParams.ChainId, "l1-chain-id", cfg.ProposerParams.ChainId, "L1 chain id")
 	cmd.Flags().StringVar(&cfg.ProposerParams.PrivateKey, "l1-private-key", cfg.ProposerParams.PrivateKey, "L1 account private key")
 	cmd.Flags().StringVar(&cfg.ProposerParams.ContractAddress, "l1-contract-address", cfg.ProposerParams.ContractAddress, "L1 update state contract address")
-	cmd.Flags().StringVar(&cfg.ProposerParams.SelfAddress, "l1-account-address", cfg.ProposerParams.SelfAddress, "L1 self account address")
+	cmd.Flags().DurationVar(&cfg.ProposerParams.EthClientTimeout, "l1-client-timeout", cfg.ProposerParams.EthClientTimeout, "L1 client timeout")
 	logLevel := cmd.Flags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
 
 	// Telemetry flags
@@ -76,7 +77,12 @@ func run(cfg *cmdConfig) error {
 	}
 	defer database.Close()
 
-	service, err := core.New(cfg.Config, database)
+	ethClient, err := connectToEthClient(cfg.ProposerParams.Endpoint, cfg.ProposerParams.EthClientTimeout)
+	if err != nil {
+		return err
+	}
+
+	service, err := core.New(cfg.Config, database, ethClient)
 	if err != nil {
 		return fmt.Errorf("can't create sync committee service: %w", err)
 	}
@@ -95,4 +101,14 @@ func openDB(dbPath string) (db.DB, error) {
 		return nil, fmt.Errorf("failed to create new BadgerDB: %w", err)
 	}
 	return badger, nil
+}
+
+func connectToEthClient(url string, timeout time.Duration) (*ethclient.Client, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	ethClient, err := ethclient.DialContext(ctx, url)
+	if err != nil {
+		return nil, fmt.Errorf("connecting to ETH RPC node: %w", err)
+	}
+	return ethClient, nil
 }

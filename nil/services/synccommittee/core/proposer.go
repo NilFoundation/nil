@@ -2,100 +2,39 @@ package core
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
-	"sync/atomic"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
-	ethcommon "github.com/ethereum/go-ethereum/common"
-	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/holiman/uint256"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/rs/zerolog"
 )
 
-const (
-	MaxPriorityFeePerGas = int64(51331911220)
-	MaxFeePerGas         = int64(153995733660)
-	DefaultGas           = uint64(500000)
-)
-
-const abiJson = `
-[
-	{
-		"type" : "function",
-		"name" : "proofBatch",
-		"inputs" : [
-			{"name":"_prevStateRoot","type":"bytes32"},
-			{"name":"_newStateRoot","type":"bytes32"},
-			{"name":"_blobProof","type":"bytes"},
-			{"name":"_batchIndexInBlobStorage","type":"uint256"}
-		]
-	}
-]`
-
-const abiFinalizedBatchIndexJson = `
-[
-	{
-		"inputs" : [],
-		"name" : "finalizedBatchIndex",
-		"outputs" : [
-			{"internalType" : "uint256","name" : "","type" : "uint256"}
-		],
-		"stateMutability" : "view",
-		"type":"function"
-	}
-]`
-
-const abiLatestProvedStateRootJson = `
-[
-	{
-		"inputs" : [
-			{"internalType" : "uint256","name" : "","type" : "uint256"}
-		],
-		"name" : "stateRoots",
-		"outputs" : [
-			{"internalType" : "bytes32","name" : "","type" : "bytes32"}
-		],
-		"stateMutability" : "view",
-		"type" : "function"
-	}
-]`
-
 type Proposer struct {
-	client       client.RawClient
 	blockStorage storage.BlockStorage
 	retryRunner  common.RetryRunner
 
-	seqno   atomic.Uint64
-	chainId *big.Int
-	params  *ProposerParams
+	rollupContract *rollupcontract.Wrapper
+	params         *ProposerParams
 
 	metrics ProposerMetrics
 	logger  zerolog.Logger
 }
 
-const DefaultProposingInterval = 10 * time.Second
-
 type ProposerParams struct {
 	Endpoint          string
-	ChainId           string
 	PrivateKey        string
 	ContractAddress   string
-	SelfAddress       string
 	ProposingInterval time.Duration
+	EthClientTimeout  time.Duration
 }
 
 type ProposerMetrics interface {
@@ -106,28 +45,21 @@ type ProposerMetrics interface {
 func NewDefaultProposerParams() *ProposerParams {
 	return &ProposerParams{
 		Endpoint:          "http://rpc2.sepolia.org",
-		ChainId:           "11155111",
 		PrivateKey:        "0000000000000000000000000000000000000000000000000000000000000001",
 		ContractAddress:   "0xB8E280a085c87Ed91dd6605480DD2DE9EC3699b4",
-		SelfAddress:       "0x7A2f4530b5901AD1547AE892Bafe54c5201D1206",
-		ProposingInterval: DefaultProposingInterval,
+		ProposingInterval: 10 * time.Second,
+		EthClientTimeout:  10 * time.Second,
 	}
 }
 
 func NewProposer(
 	ctx context.Context,
 	params *ProposerParams,
-	rpcClient client.RawClient,
 	blockStorage storage.BlockStorage,
+	ethClient rollupcontract.EthClient,
 	metrics ProposerMetrics,
 	logger zerolog.Logger,
 ) (*Proposer, error) {
-	nonceValue, err := getCurrentNonce(ctx, params.SelfAddress, rpcClient)
-	if err != nil {
-		// TODO return error after enable local L1 endpoint
-		logger.Error().Err(err).Msg("failed get current contract nonce, set 0")
-	}
-
 	retryRunner := common.NewRetryRunner(
 		common.RetryConfig{
 			ShouldRetry: common.LimitRetries(5),
@@ -136,25 +68,20 @@ func NewProposer(
 		logger,
 	)
 
-	p := Proposer{
-		client:       rpcClient,
-		blockStorage: blockStorage,
-		params:       params,
-		retryRunner:  retryRunner,
-		metrics:      metrics,
-		logger:       logger,
+	rollupContract, err := rollupcontract.NewWrapper(ctx, params.ContractAddress, params.PrivateKey, ethClient, params.EthClientTimeout)
+	if err != nil {
+		return nil, err
 	}
-	var ok bool
-	p.chainId, ok = new(big.Int).SetString(params.ChainId, 10)
-	if !ok {
-		return nil, fmt.Errorf("invalid L1ChainId: %s", params.ChainId)
-	}
-	p.seqno.Add(nonceValue)
 
-	p.logger.Info().Msgf(
-		"ChainId %v\nL1Contract address %v\nNonce %d",
-		p.chainId, p.params.ContractAddress, p.seqno.Load(),
-	)
+	p := Proposer{
+		blockStorage:   blockStorage,
+		rollupContract: rollupContract,
+		params:         params,
+		retryRunner:    retryRunner,
+		metrics:        metrics,
+		logger:         logger,
+	}
+
 	return &p, nil
 }
 
@@ -201,7 +128,6 @@ func (p *Proposer) initializeProvedStateRoot(ctx context.Context) (shouldResetSt
 			Msg("proved state root is not initialized, value from L1 will be used")
 	case *storedStateRoot != latestStateRoot:
 		p.logger.Warn().
-			Uint64("seqno", p.seqno.Load()).
 			Stringer("storedStateRoot", storedStateRoot).
 			Stringer("latestStateRoot", latestStateRoot).
 			Msg("proved state root value is invalid, local storage will be reset")
@@ -218,7 +144,6 @@ func (p *Proposer) initializeProvedStateRoot(ctx context.Context) (shouldResetSt
 	}
 
 	p.logger.Info().
-		Uint64("seqno", p.seqno.Load()).
 		Stringer("stateRoot", latestStateRoot).
 		Msg("proposer is initialized")
 	return shouldResetStorage, nil
@@ -248,175 +173,61 @@ func (p *Proposer) proposeNextBlock(ctx context.Context) error {
 }
 
 func (p *Proposer) getLatestProvedStateRoot(ctx context.Context) (common.Hash, error) {
-	// get finalizedBatchIndex
-	finalizedBatchIndexAbi, err := abi.JSON(strings.NewReader(abiFinalizedBatchIndexJson))
+	var finalizedBatchIndex *big.Int
+	err := p.retryRunner.Do(ctx, func(context.Context) error {
+		var err error
+		finalizedBatchIndex, err = p.rollupContract.FinalizedBatchIndex(ctx)
+		return err
+	})
 	if err != nil {
 		return common.EmptyHash, err
 	}
 
-	finalizedBatchIndexData, err := finalizedBatchIndexAbi.Pack("finalizedBatchIndex")
-	if err != nil {
-		return common.EmptyHash, err
+	finalizedBatchIndex.Sub(finalizedBatchIndex, big.NewInt(1))
+	if finalizedBatchIndex.Cmp(big.NewInt(0)) == -1 {
+		return common.EmptyHash, errors.New("value returned from FinalizedBatchIndex is less than 1")
 	}
 
-	valueStr := hexutil.EncodeBig(big.NewInt(0))
-	msg := make(map[string]string)
-	msg["from"] = p.params.SelfAddress
-	msg["to"] = p.params.ContractAddress
-	msg["gas"] = "0xc350"
-	msg["gasPrice"] = "0x9184e72a000"
-	msg["value"] = valueStr
-	msg["data"] = hexutil.Encode(finalizedBatchIndexData)
-
-	var response json.RawMessage
-	err = p.retryRunner.Do(ctx, func(ctx context.Context) error {
-		response, err = p.client.RawCall(ctx, "eth_call", msg, "latest")
+	var latestProvedState [32]byte
+	err = p.retryRunner.Do(ctx, func(context.Context) error {
+		var err error
+		latestProvedState, err = p.rollupContract.StateRoots(ctx, finalizedBatchIndex)
 		return err
 	})
-	if err != nil {
-		return common.EmptyHash, fmt.Errorf("failed send eth_call for get finalizedBatchIndex: %w", err)
-	}
-	var finalizedBatchIndexStr string
-	if err = json.Unmarshal(response, &finalizedBatchIndexStr); err != nil {
-		return common.EmptyHash, fmt.Errorf("failed unmarshal finalizedBatchIndex: %w", err)
-	}
 
-	finalizedBatchIndexBytes, err := hexutil.Decode(finalizedBatchIndexStr)
-	if err != nil {
-		return common.EmptyHash, fmt.Errorf("failed decode finalizedBatchIndex: %w", err)
-	}
-
-	finalizedBatchIndexValue := new(uint256.Int).SetBytes(finalizedBatchIndexBytes)
-	finalizedBatchIndexValue, overflow := uint256.NewInt(0).SubOverflow(finalizedBatchIndexValue, uint256.NewInt(1))
-	if overflow {
-		return common.EmptyHash, errors.New("failed SubOverflow, overflow is true")
-	}
-
-	// get latestProvedStateRoot
-	latestProvedStateRootAbi, err := abi.JSON(strings.NewReader(abiLatestProvedStateRootJson))
-	if err != nil {
-		return common.EmptyHash, fmt.Errorf("failed read JSON ABI for get latestProvedStateRoot: %w", err)
-	}
-
-	latestProvedStateRootData, err := latestProvedStateRootAbi.Pack("stateRoots", finalizedBatchIndexValue.ToBig())
-	if err != nil {
-		return common.EmptyHash, fmt.Errorf("failed pack JSON ABI for get latestProvedStateRoot: %w", err)
-	}
-
-	msg["data"] = hexutil.Encode(latestProvedStateRootData)
-
-	var latestProvedStateRoot json.RawMessage
-	err = p.retryRunner.Do(ctx, func(ctx context.Context) error {
-		latestProvedStateRoot, err = p.client.RawCall(ctx, "eth_call", msg, "latest")
-		return err
-	})
-	if err != nil {
-		return common.EmptyHash, fmt.Errorf("failed send eth_call for getting the latest proved state root: %w", err)
-	}
-
-	var latestProvedStateRootStr string
-	err = json.Unmarshal(latestProvedStateRoot, &latestProvedStateRootStr)
-	if err != nil {
-		return common.EmptyHash, fmt.Errorf("failed decode the latest proved state root: %w", err)
-	}
-
-	return common.HexToHash(latestProvedStateRootStr), nil
-}
-
-func getCurrentNonce(ctx context.Context, selfAddress string, client client.RawClient) (uint64, error) {
-	res, err := client.RawCall(ctx, "eth_getTransactionCount", selfAddress, "latest")
-	if err != nil {
-		return 0, fmt.Errorf("failed send eth_getTransactionCount: %w", err)
-	}
-	if res == nil {
-		return 0, nil
-	}
-
-	var nonceValue hexutil.Uint64
-	if err = nonceValue.UnmarshalJSON(res); err != nil {
-		return 0, fmt.Errorf("failed unmarshal result: %w", err)
-	}
-	return (uint64)(nonceValue), nil
-}
-
-func (p *Proposer) createUpdateStateTransaction(provedStateRoot, newStateRoot common.Hash) (*ethTypes.Transaction, error) {
-	if provedStateRoot.Empty() || newStateRoot.Empty() {
-		return nil, fmt.Errorf("empty hash for state update transaction %d", p.seqno.Load())
-	}
-
-	abiInterface, err := abi.JSON(strings.NewReader(abiJson))
-	if err != nil {
-		return nil, err
-	}
-
-	proof := make([]byte, 0)
-	data, err := abiInterface.Pack("proofBatch", provedStateRoot, newStateRoot, proof, big.NewInt(0))
-	if err != nil {
-		return nil, err
-	}
-
-	L1ContractAddress := ethcommon.HexToAddress(p.params.ContractAddress)
-	transaction := ethTypes.NewTx(&ethTypes.DynamicFeeTx{
-		ChainID:   p.chainId,
-		Nonce:     p.seqno.Load(),
-		GasTipCap: big.NewInt(MaxPriorityFeePerGas),
-		GasFeeCap: big.NewInt(MaxFeePerGas),
-		Gas:       DefaultGas,
-		To:        &L1ContractAddress,
-		Value:     big.NewInt(0),
-		Data:      data,
-	})
-
-	privateKey, err := crypto.HexToECDSA(p.params.PrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode private key %w", err)
-	}
-
-	signedTx, err := ethTypes.SignTx(transaction, ethTypes.NewCancunSigner(p.chainId), privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign transaction %w", err)
-	}
-
-	return signedTx, nil
-}
-
-func (p *Proposer) encodeTransaction(transaction *ethTypes.Transaction) (string, error) {
-	encodedTransaction, err := transaction.MarshalBinary()
-	if err != nil {
-		return "", fmt.Errorf("failed to encode StateUpdateTransaction: %w", err)
-	}
-
-	return hexutil.Encode(encodedTransaction), nil
+	return latestProvedState, err
 }
 
 func (p *Proposer) sendProof(ctx context.Context, data *scTypes.ProposalData) error {
+	if data.OldProvedStateRoot.Empty() || data.NewProvedStateRoot.Empty() {
+		return errors.New("empty hash for state update transaction")
+	}
+
 	p.logger.Info().
 		Stringer("blockHash", data.MainShardBlockHash).
-		Int64("seqno", int64(p.seqno.Load())).
 		Int("txCount", len(data.Transactions)).
-		Msgf("sending proof to L1")
+		Msg("sending proof to L1")
 
-	signedTx, err := p.createUpdateStateTransaction(data.OldProvedStateRoot, data.NewProvedStateRoot)
-	if err != nil {
-		return fmt.Errorf("failed create StateUpdateTransaction %w", err)
-	}
+	proof := make([]byte, 0)
+	batchIndexInBlobStorage := big.NewInt(0)
 
-	encodedTransactionStr, err := p.encodeTransaction(signedTx)
-	if err != nil {
-		return fmt.Errorf("failed encode StateUpdateTransaction %w", err)
-	}
-
-	p.logger.Debug().Msg(encodedTransactionStr)
-
-	// call UpdateState L1 contract
-	err = p.retryRunner.Do(ctx, func(context.Context) error {
-		_, err := p.client.RawCall(ctx, "eth_sendRawTransaction", encodedTransactionStr)
+	var tx *ethtypes.Transaction
+	err := p.retryRunner.Do(ctx, func(context.Context) error {
+		var err error
+		tx, err = p.rollupContract.ProofBatch(ctx, data.OldProvedStateRoot, data.NewProvedStateRoot, proof, batchIndexInBlobStorage)
 		return err
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update state (eth_sendRawTransaction): %w", err)
 	}
-	p.seqno.Add(1)
+
+	p.logger.Info().
+		Hex("txHash", tx.Hash().Bytes()).
+		Int("gasLimit", int(tx.Gas())).
+		Int("blobGasLimit", int(tx.BlobGas())).
+		Int("cost", int(tx.Cost().Uint64())).
+		Msg("rollup transaction sent")
+
 	// TODO send bloob with transactions and KZG proof
 
 	p.metrics.RecordProposerTxSent(ctx, data)
