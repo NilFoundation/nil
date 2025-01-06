@@ -1,31 +1,21 @@
 import {
-  Button,
-  COLORS,
-  Checkbox,
-  FormControl,
-  Input,
   Modal,
-  ModalBody,
   ModalHeader,
-  SPACE,
-  HeadingMedium,
+  ModalBody,
   LabelLarge,
-  ParagraphSmall,
+  Tabs,
+  Tab,
+  TAB_KIND,
 } from "@nilfoundation/ui-kit";
-import { useUnit } from "effector-react";
-import {
-  $deploymentArgs,
-  $shardId,
-  deploySmartContract,
-  deploySmartContractFx,
-  setDeploymentArg,
-  setShardId,
-} from "../../models/base";
-import { useStyletron } from "styletron-react";
-import { $constructor } from "../../init";
+import {} from "../../models/base";
+import {} from "@nilfoundation/ui-kit";
 import type { FC } from "react";
-import { $wallet } from "../../../account-connector/model";
-import { ShardIdInput } from "./ShardIdInput";
+import { DeployTab } from "./DeployTab";
+import { AssignTab } from "./AssignTab";
+import type { TabsOverrides } from "baseui/tabs";
+import { useStore } from "effector-react";
+import { setActiveComponent, $activeComponent } from "../../models/base";
+import { ActiveComponent } from "./ActiveComponent";
 
 type DeployContractModalProps = {
   onClose?: () => void;
@@ -34,14 +24,7 @@ type DeployContractModalProps = {
 };
 
 export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isOpen, name }) => {
-  const [wallet, args, constuctorAbi, pending, shardId] = useUnit([
-    $wallet,
-    $deploymentArgs,
-    $constructor,
-    deploySmartContractFx.pending,
-    $shardId,
-  ]);
-  const [css] = useStyletron();
+  const activeComponent = useStore($activeComponent) || ActiveComponent.Deploy;
 
   return (
     <Modal
@@ -53,6 +36,7 @@ export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isO
         Dialog: {
           style: {
             paddingBottom: 0,
+            height: "557px",
           },
         },
       }}
@@ -60,110 +44,60 @@ export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isO
       <ModalHeader>
         <LabelLarge>{name}</LabelLarge>
       </ModalHeader>
-      <ModalBody>
-        <div
-          className={css({
-            flexGrow: 0,
-            paddingBottom: SPACE[16],
-          })}
-        >
-          <FormControl
-            label="Wallet"
-            caption="From this wallet contract will be recorded to network"
+
+      <div
+        style={{
+          overflow: "auto",
+          height: "462px",
+          paddingRight: "24px",
+          paddingLeft: "5px",
+        }}
+      >
+        <ModalBody>
+          <Tabs
+            activeKey={activeComponent}
+            overrides={tabsOverrides}
+            onChange={({ activeKey }) => setActiveComponent(activeKey as ActiveComponent)}
           >
-            <Input
-              overrides={{
-                Root: {
-                  style: {
-                    marginBottom: SPACE[8],
-                  },
-                },
-              }}
-              name="Wallet"
-              value={wallet?.address ?? ""}
-              disabled
-              readOnly
-            />
-          </FormControl>
-        </div>
-        <div>
-          <ShardIdInput shardId={shardId} setShardId={setShardId} disabled={pending} />
-          {constuctorAbi?.inputs.length ? (
-            <div
-              className={css({
-                paddingTop: "16px",
-                borderTop: `1px solid ${COLORS.gray800}`,
-                borderBottom: `1px solid ${COLORS.gray800}`,
-                maxHeight: "30vh",
-                marginBottom: "24px",
-              })}
+            <Tab
+              title="Deploy"
+              key={ActiveComponent.Deploy}
+              kind={TAB_KIND.primary}
+              onClick={() => setActiveComponent(ActiveComponent.Deploy)}
             >
-              <HeadingMedium
-                className={css({
-                  marginBottom: SPACE[8],
-                })}
-              >
-                Deployment arguments
-              </HeadingMedium>
-              {constuctorAbi.inputs.map((input) => {
-                if (typeof input.name !== "string") {
-                  return null;
-                }
-                const name = input.name;
-                return (
-                  <FormControl label={name} caption={input.type} key={name}>
-                    {input.type === "bool" ? (
-                      <Checkbox
-                        overrides={{
-                          Root: {
-                            style: {
-                              marginBottom: SPACE[8],
-                            },
-                          },
-                        }}
-                        key={name}
-                        checked={typeof args[name] === "boolean" ? !!args[name] : false}
-                        onChange={(e) => {
-                          setDeploymentArg({ key: name, value: e.target.checked });
-                        }}
-                      />
-                    ) : (
-                      <Input
-                        key={name}
-                        overrides={{
-                          Root: {
-                            style: {
-                              marginBottom: SPACE[8],
-                            },
-                          },
-                        }}
-                        name={name}
-                        value={typeof args[name] === "string" ? `${args[name]}` : ""}
-                        onChange={(e) => {
-                          setDeploymentArg({ key: name, value: e.target.value });
-                        }}
-                      />
-                    )}
-                  </FormControl>
-                );
-              })}
-            </div>
-          ) : (
-            <ParagraphSmall marginBottom="24px" color={COLORS.gray400}>
-              No deployment arguments
-            </ParagraphSmall>
-          )}
-          <Button
-            onClick={() => {
-              deploySmartContract();
-            }}
-            isLoading={pending}
-            disabled={pending || !wallet || shardId === null}
-          >
-            Deploy
-          </Button>
-        </div>
-      </ModalBody>
+              <DeployTab />
+            </Tab>
+            <Tab
+              title="Assign address"
+              kind={TAB_KIND.primary}
+              key={ActiveComponent.Assign}
+              onClick={() => setActiveComponent(ActiveComponent.Assign)}
+            >
+              <AssignTab />
+            </Tab>
+          </Tabs>
+        </ModalBody>
+      </div>
     </Modal>
   );
+};
+
+const tabsOverrides: TabsOverrides = {
+  TabContent: {
+    style: {
+      paddingLeft: 0,
+      paddingRight: 0,
+    },
+  },
+  TabBar: {
+    style: {
+      paddingLeft: 100,
+      paddingRight: 0,
+    },
+  },
+  Tab: {
+    style: {
+      fontSize: "16px",
+    },
+  },
 };

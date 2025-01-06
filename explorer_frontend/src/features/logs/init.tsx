@@ -1,7 +1,12 @@
 import { compileCodeFx } from "../code/model";
 import { $logs, LogTopic, LogType, clearLogs } from "./model";
 import { nanoid } from "nanoid";
-import { callFx, deploySmartContractFx, sendMethodFx } from "../contracts/models/base";
+import {
+  callFx,
+  deploySmartContractFx,
+  sendMethodFx,
+  assignSmartContractFx,
+} from "../contracts/models/base";
 import { MonoParagraphMedium } from "baseui/typography";
 import { formatSolidityError } from "./utils";
 import { COLORS } from "@nilfoundation/ui-kit";
@@ -33,6 +38,24 @@ $logs.on(deploySmartContractFx.doneData, (logs, { address, name, deployedFrom, t
   ];
 });
 
+$logs.on(assignSmartContractFx.doneData, (logs, { assignedSmartContractAddress }) => {
+  return [
+    ...logs,
+    {
+      id: nanoid(),
+      topic: LogTopic.Assign,
+      type: LogType.Success,
+      shortDescription: (
+        <MonoParagraphMedium color={COLORS.green200}>
+          Contract assigned successfully
+        </MonoParagraphMedium>
+      ),
+      payload: <ContractDeployedLog address={assignedSmartContractAddress} />,
+      timestamp: Date.now(),
+    },
+  ];
+});
+
 $logs.on(deploySmartContractFx.failData, (logs, error) => {
   return [
     ...logs,
@@ -42,6 +65,22 @@ $logs.on(deploySmartContractFx.failData, (logs, error) => {
       type: LogType.Error,
       shortDescription: (
         <MonoParagraphMedium color={COLORS.red200}>Deployment failed</MonoParagraphMedium>
+      ),
+      payload: <MonoParagraphMedium color={COLORS.red200}>{String(error)}</MonoParagraphMedium>,
+      timestamp: Date.now(),
+    },
+  ];
+});
+
+$logs.on(assignSmartContractFx.failData, (logs, error) => {
+  return [
+    ...logs,
+    {
+      id: nanoid(),
+      topic: LogTopic.Deployment,
+      type: LogType.Error,
+      shortDescription: (
+        <MonoParagraphMedium color={COLORS.red200}>Assign failed</MonoParagraphMedium>
       ),
       payload: <MonoParagraphMedium color={COLORS.red200}>{String(error)}</MonoParagraphMedium>,
       timestamp: Date.now(),

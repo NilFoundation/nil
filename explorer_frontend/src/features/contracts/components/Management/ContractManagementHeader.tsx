@@ -14,7 +14,6 @@ import { RemoveAppButton } from "../RemoveAppButton";
 import type { Hex } from "@nilfoundation/niljs";
 import type { FC } from "react";
 import { OverflowEllipsis } from "../../../shared";
-import { DeleteIcon } from "../DeleteIcon";
 import { exportApp, exportAppFx } from "../../models/exportApp";
 import { useUnit } from "effector-react";
 

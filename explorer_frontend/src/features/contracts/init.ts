@@ -26,6 +26,8 @@ import {
   decrementShardId,
   deploySmartContract,
   deploySmartContractFx,
+  assignSmartContract,
+  assignSmartContractFx,
   fetchBalanceFx,
   incrementShardId,
   sendMethod,
@@ -37,6 +39,10 @@ import {
   setValueInput,
   toggleActiveKey,
   unlinkApp,
+  $assignedSmartContractAddress,
+  setAssignedSmartContractAddress,
+  $activeComponent,
+  setActiveComponent,
 } from "./models/base";
 import { combine, sample } from "effector";
 import { isAddress } from "viem";
@@ -44,7 +50,7 @@ import { $endpoint, $wallet } from "../account-connector/model";
 import type { AbiFunction } from "abitype";
 import { debug } from "patronum";
 import { getTokenAddressBySymbol } from "../currencies";
-import type { Token, CometaService, Hex } from "@nilfoundation/niljs";
+import type { Token, CometaService, Hex, WalletV1 } from "@nilfoundation/niljs";
 import { $cometaService } from "../cometa/model";
 import { exportApp, exportAppFx } from "./models/exportApp";
 import type { App } from "../../types";
@@ -219,6 +225,40 @@ sample({
   target: deploySmartContractFx,
 });
 
+$assignedSmartContractAddress.on(setAssignedSmartContractAddress, (_, address) => address);
+
+sample({
+  source: combine(
+    $activeAppWithState,
+    $wallet,
+    $assignedSmartContractAddress,
+    (app, wallet, assignedSmartContractAddress) => {
+      return {
+        app,
+        wallet,
+        assignedSmartContractAddress,
+      };
+    },
+  ),
+  filter: combine(
+    $wallet,
+    $activeApp,
+    $assignedSmartContractAddress,
+    (wallet, app, assignedSmartContractAddress) =>
+      !!wallet && !!app && !!assignedSmartContractAddress,
+  ),
+  fn: (data) => {
+    const { app, wallet, assignedSmartContractAddress } = data!;
+    return {
+      app: app as App,
+      wallet: wallet as WalletV1,
+      assignedSmartContractAddress: assignedSmartContractAddress as Hex,
+    };
+  },
+  clock: assignSmartContract,
+  target: assignSmartContractFx,
+});
+
 sample({
   source: combine({
     app: $activeApp,
@@ -229,6 +269,7 @@ sample({
   fn: ({ endpoint, app }) => ({ address: app!.address!, endpoint }),
   target: fetchBalanceFx,
 });
+
 $state.on(deploySmartContractFx.doneData, (state, { app, address }) => {
   const addresses = state[app] ? [...state[app], address] : [address];
   return {
@@ -236,6 +277,17 @@ $state.on(deploySmartContractFx.doneData, (state, { app, address }) => {
     [app]: addresses,
   };
 });
+
+$state.on(assignSmartContractFx.doneData, (state, { app, assignedSmartContractAddress }) => {
+  const addresses = state[app]
+    ? [...state[app], assignedSmartContractAddress]
+    : [assignedSmartContractAddress];
+  return {
+    ...state,
+    [app]: addresses,
+  };
+});
+
 $state.on(unlinkApp, (state, { app, address }) => {
   const addresses = state[app].filter((addr) => addr !== address);
   return {
@@ -462,6 +514,13 @@ $activeApp.on(deploySmartContractFx.doneData, (_, { address, app }) => {
   };
 });
 
+$activeApp.on(assignSmartContractFx.doneData, (_, { assignedSmartContractAddress, app }) => {
+  return {
+    bytecode: app,
+    address: assignedSmartContractAddress,
+  };
+});
+
 $valueInput.on(setValueInput, (_, value) => value);
 
 $valueInput.reset($activeAppWithState);
@@ -505,3 +564,5 @@ exportAppFx.use(async (app) => {
     URL.revokeObjectURL(link.href);
   });
 });
+
+$activeComponent.on(setActiveComponent, (_, payload) => payload);

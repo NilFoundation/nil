@@ -10,8 +10,11 @@ import {
   type Token,
   type CometaService,
   type Hex,
+  bytesToHex,
+  removeHexPrefix,
 } from "@nilfoundation/niljs";
 import { createCompileInput } from "../../shared/utils/solidityCompiler/helper";
+import { ActiveComponent } from "../components/Deploy/ActiveComponent";
 
 export type DeployedApp = App & {
   address: Address;
@@ -129,6 +132,35 @@ export const deploySmartContractFx = createEffect<
     name: app.name,
     deployedFrom: wallet.address,
     txHash: hash,
+  };
+});
+
+export const $assignedSmartContractAddress = createStore<Hex>("0x");
+export const setAssignedSmartContractAddress = createEvent<Hex>();
+export const assignSmartContract = createEvent();
+export const assignSmartContractFx = createEffect<
+  {
+    app: App;
+    wallet: WalletV1;
+    assignedSmartContractAddress: Hex;
+  },
+  {
+    assignedSmartContractAddress: Hex;
+    app: Hex;
+  }
+>(async ({ app, wallet, assignedSmartContractAddress }) => {
+  const source = removeHexPrefix(
+    bytesToHex(await wallet.client.getCode(assignedSmartContractAddress, "latest")),
+  );
+  if (!app.bytecode.includes(source)) {
+    throw new Error(
+      `Interface of the contract with address ${assignedSmartContractAddress} is not compatible with ${app.name}`,
+    );
+  }
+
+  return {
+    assignedSmartContractAddress,
+    app: app.bytecode,
   };
 });
 
@@ -269,3 +301,6 @@ export const setValueInput = createEvent<{
   currency: string;
   amount: string;
 }>();
+
+export const $activeComponent = createStore<ActiveComponent | null>(ActiveComponent.Deploy);
+export const setActiveComponent = createEvent<ActiveComponent>();
