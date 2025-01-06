@@ -45,30 +45,39 @@ export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isO
         <LabelLarge>{name}</LabelLarge>
       </ModalHeader>
 
-      <ModalBody>
-        <Tabs
-          activeKey={activeComponent}
-          overrides={tabsOverrides}
-          onChange={({ activeKey }) => setActiveComponent(activeKey as ActiveComponent)}
-        >
-          <Tab
-            title="Deploy"
-            key={ActiveComponent.Deploy}
-            kind={TAB_KIND.primary}
-            onClick={() => setActiveComponent(ActiveComponent.Deploy)}
+      <div
+        style={{
+          overflow: "auto",
+          height: "462px",
+          paddingRight: "24px",
+          paddingLeft: "5px",
+        }}
+      >
+        <ModalBody>
+          <Tabs
+            activeKey={activeComponent}
+            overrides={tabsOverrides}
+            onChange={({ activeKey }) => setActiveComponent(activeKey as ActiveComponent)}
           >
-            <DeployTab />
-          </Tab>
-          <Tab
-            title="Assign address"
-            kind={TAB_KIND.primary}
-            key={ActiveComponent.Assign}
-            onClick={() => setActiveComponent(ActiveComponent.Assign)}
-          >
-            <AssignTab />
-          </Tab>
-        </Tabs>
-      </ModalBody>
+            <Tab
+              title="Deploy"
+              key={ActiveComponent.Deploy}
+              kind={TAB_KIND.primary}
+              onClick={() => setActiveComponent(ActiveComponent.Deploy)}
+            >
+              <DeployTab />
+            </Tab>
+            <Tab
+              title="Assign address"
+              kind={TAB_KIND.primary}
+              key={ActiveComponent.Assign}
+              onClick={() => setActiveComponent(ActiveComponent.Assign)}
+            >
+              <AssignTab />
+            </Tab>
+          </Tabs>
+        </ModalBody>
+      </div>
     </Modal>
   );
 };

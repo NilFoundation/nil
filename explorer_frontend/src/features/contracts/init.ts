@@ -253,8 +253,7 @@ sample({
       app: app as App,
       wallet: wallet as WalletV1,
       assignedSmartContractAddress: assignedSmartContractAddress as Hex,
-    }
-
+    };
   },
   clock: assignSmartContract,
   target: assignSmartContractFx,
