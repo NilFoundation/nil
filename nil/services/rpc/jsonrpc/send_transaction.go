@@ -18,13 +18,13 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Byte
 	}
 
 	shardId := extMsg.To.ShardId()
-	reason, err := api.rawapi.SendMessage(ctx, shardId, []byte(encoded))
+	reason, err := api.rawapi.SendMessage(ctx, shardId, encoded)
 	if err != nil {
 		return common.EmptyHash, err
 	}
 
 	if reason != msgpool.NotSet {
-		return common.Hash{}, fmt.Errorf("message status: %s", reason)
+		return common.Hash{}, fmt.Errorf("%w: %s", ErrMessageDiscarded, reason)
 	}
 	return extMsg.Hash(), nil
 }

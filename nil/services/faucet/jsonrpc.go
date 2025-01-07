@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 )
 
@@ -90,7 +91,7 @@ func (c *APIImpl) TopUpViaFaucet(ctx context.Context, faucetAddress, contractAdd
 	}
 
 	hash, err := c.client.SendRawTransaction(ctx, data)
-	if err != nil && !errors.Is(err, rpc.ErrRPCError) {
+	if err != nil && !errors.Is(err, rpc.ErrRPCError) && !errors.Is(err, jsonrpc.ErrMessageDiscarded) {
 		return common.EmptyHash, err
 	}
 	if errors.Is(err, rpc.ErrRPCError) {
