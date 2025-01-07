@@ -13,15 +13,17 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
 
-func GenerateTaskEntry(modifiedAt time.Time, status types.TaskStatus, owner types.TaskExecutorId) *types.TaskEntry {
-	return GenerateTaskEntryOfType(types.PartialProve, modifiedAt, status, owner)
+func NewTaskEntry(modifiedAt time.Time, status types.TaskStatus, owner types.TaskExecutorId) *types.TaskEntry {
+	return NewTaskEntryOfType(types.PartialProve, modifiedAt, status, owner)
 }
 
-func GenerateTaskEntryOfType(
+func NewTaskEntryOfType(
 	taskType types.TaskType, modifiedAt time.Time, status types.TaskStatus, owner types.TaskExecutorId,
 ) *types.TaskEntry {
+	task := NewTaskOfType(taskType)
+
 	entry := &types.TaskEntry{
-		Task:    GenerateTaskOfType(taskType),
+		Task:    *task,
 		Created: modifiedAt.Add(-1 * time.Hour),
 		Status:  status,
 		Owner:   owner,
@@ -39,12 +41,12 @@ func GenerateTaskEntryOfType(
 	return entry
 }
 
-func GenerateTask() types.Task {
-	return GenerateTaskOfType(types.PartialProve)
+func NewTask() *types.Task {
+	return NewTaskOfType(types.PartialProve)
 }
 
-func GenerateTaskOfType(taskType types.TaskType) types.Task {
-	return types.Task{
+func NewTaskOfType(taskType types.TaskType) *types.Task {
+	return &types.Task{
 		Id:        types.NewTaskId(),
 		BatchId:   types.NewBatchId(),
 		ShardId:   coreTypes.MainShardId,
@@ -62,8 +64,8 @@ func RandomExecutorId() types.TaskExecutorId {
 	return types.TaskExecutorId(uint32(bigInt.Uint64()))
 }
 
-func SuccessTaskResult(taskId types.TaskId, executor types.TaskExecutorId) types.TaskResult {
-	return types.SuccessProverTaskResult(
+func NewSuccessTaskResult(taskId types.TaskId, executor types.TaskExecutorId) *types.TaskResult {
+	return types.NewSuccessProverTaskResult(
 		taskId,
 		executor,
 		types.TaskResultAddresses{},
@@ -71,8 +73,8 @@ func SuccessTaskResult(taskId types.TaskId, executor types.TaskExecutorId) types
 	)
 }
 
-func FailureTaskResult(taskId types.TaskId, executor types.TaskExecutorId) types.TaskResult {
-	return types.FailureProverTaskResult(
+func NewFailureTaskResult(taskId types.TaskId, executor types.TaskExecutorId) *types.TaskResult {
+	return types.NewFailureProverTaskResult(
 		taskId,
 		executor,
 		errors.New("something went wrong"),

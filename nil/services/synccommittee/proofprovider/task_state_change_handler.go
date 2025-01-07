@@ -54,18 +54,18 @@ func (h taskStateChangeHandler) OnTaskTerminated(ctx context.Context, task *type
 			Msgf("prover task has failed")
 	}
 
-	var parentTaskResult types.TaskResult
+	var parentTaskResult *types.TaskResult
 	if result.IsSuccess {
-		parentTaskResult = types.SuccessProviderTaskResult(*task.ParentTaskId, h.currentExecutorId, result.DataAddresses, result.Data)
+		parentTaskResult = types.NewSuccessProviderTaskResult(*task.ParentTaskId, h.currentExecutorId, result.DataAddresses, result.Data)
 	} else {
-		parentTaskResult = types.FailureProviderTaskResult(
+		parentTaskResult = types.NewFailureProviderTaskResult(
 			*task.ParentTaskId,
 			h.currentExecutorId,
 			fmt.Errorf("%w: childTaskId=%s, errorText=%s", ErrChildTaskFailed, task.Id, result.ErrorText),
 		)
 	}
 
-	err := h.requestHandler.SetTaskResult(ctx, &parentTaskResult)
+	err := h.requestHandler.SetTaskResult(ctx, parentTaskResult)
 	if err != nil {
 		h.logger.Error().
 			Err(err).

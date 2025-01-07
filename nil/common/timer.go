@@ -30,10 +30,10 @@ func (t *TestTimerImpl) Now() uint64 {
 }
 
 func (t *TestTimerImpl) NowTime() time.Time {
-	return time.Unix(int64(t.nowTime), 0)
+	return time.Unix(int64(t.nowTime), 0).UTC()
 }
 
-func (t *TestTimerImpl) Adjust(duration time.Duration) {
+func (t *TestTimerImpl) Add(duration time.Duration) {
 	t.nowTime += uint64(duration.Seconds())
 }
 
@@ -49,4 +49,8 @@ func NewTimer() *RealTimerImpl {
 
 func NewTestTimer(nowTime uint64) *TestTimerImpl {
 	return &TestTimerImpl{nowTime: nowTime}
+}
+
+func NewTestTimerFromTime(nowTime time.Time) *TestTimerImpl {
+	return NewTestTimer(uint64(nowTime.Unix()))
 }

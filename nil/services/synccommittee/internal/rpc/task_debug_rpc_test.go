@@ -39,7 +39,6 @@ func TestTaskSchedulerDebugRpcTestSuite(t *testing.T) {
 }
 
 var (
-	baseTime       = time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC)
 	someExecutor   = testaide.RandomExecutorId()
 	running        = types.Running
 	failed         = types.Failed
@@ -49,13 +48,15 @@ var (
 	outputLimit    = 4
 )
 
-var entries = []*types.TaskEntry{
-	testaide.GenerateTaskEntry(baseTime.Add(-6*time.Minute), running, testaide.RandomExecutorId()),
-	testaide.GenerateTaskEntry(baseTime.Add(-4*time.Minute), running, someExecutor),
-	testaide.GenerateTaskEntry(baseTime.Add(-8*time.Minute), running, someExecutor),
-	testaide.GenerateTaskEntryOfType(proofBlockType, baseTime.Add(-2*time.Minute), failed, someExecutor),
-	testaide.GenerateTaskEntryOfType(proofBlockType, baseTime.Add(-10*time.Minute), types.WaitingForInput, testaide.RandomExecutorId()),
-	testaide.GenerateTaskEntry(baseTime, types.WaitingForExecutor, testaide.RandomExecutorId()),
+func newTaskEntries(now time.Time) []*types.TaskEntry {
+	return []*types.TaskEntry{
+		testaide.NewTaskEntry(now.Add(-6*time.Minute), running, testaide.RandomExecutorId()),
+		testaide.NewTaskEntry(now.Add(-4*time.Minute), running, someExecutor),
+		testaide.NewTaskEntry(now.Add(-8*time.Minute), running, someExecutor),
+		testaide.NewTaskEntryOfType(proofBlockType, now.Add(-2*time.Minute), failed, someExecutor),
+		testaide.NewTaskEntryOfType(proofBlockType, now.Add(-10*time.Minute), types.WaitingForInput, testaide.RandomExecutorId()),
+		testaide.NewTaskEntry(now, types.WaitingForExecutor, testaide.RandomExecutorId()),
+	}
 }
 
 func (s *TaskSchedulerDebugRpcTestSuite) SetupSuite() {
@@ -70,7 +71,7 @@ func (s *TaskSchedulerDebugRpcTestSuite) SetupSuite() {
 	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
 	s.Require().NoError(err)
 
-	s.timer = common.NewTestTimer(uint64(baseTime.Unix()))
+	s.timer = testaide.NewTestTimer()
 
 	s.storage = storage.NewTaskStorage(
 		s.database,
@@ -104,7 +105,7 @@ func (s *TaskSchedulerDebugRpcTestSuite) SetupSuite() {
 }
 
 func (s *TaskSchedulerDebugRpcTestSuite) TearDownTest() {
-	s.timer.SetTime(baseTime)
+	s.timer.SetTime(testaide.Now)
 	err := s.database.DropAll()
 	s.Require().NoError(err, "failed to clear database in TearDownTest")
 }
@@ -133,6 +134,7 @@ type getTaskTestCase struct {
 }
 
 func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Tasks() {
+	entries := newTaskEntries(s.timer.NowTime())
 	err := s.storage.AddTaskEntries(s.context, entries)
 	s.Require().NoError(err)
 
@@ -231,6 +233,7 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_Empty_Storage() {
 }
 
 func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_Not_Found() {
+	entries := newTaskEntries(s.timer.NowTime())
 	err := s.storage.AddTaskEntries(s.context, entries)
 	s.Require().NoError(err)
 
@@ -241,7 +244,8 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_Not_Found() {
 }
 
 func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_No_Dependencies() {
-	entry := testaide.GenerateTaskEntry(baseTime, running, testaide.RandomExecutorId())
+	now := s.timer.NowTime()
+	entry := testaide.NewTaskEntry(now, running, testaide.RandomExecutorId())
 	err := s.storage.AddSingleTaskEntry(s.context, *entry)
 	s.Require().NoError(err)
 
@@ -261,19 +265,21 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_With_Dependencies() 
 	//  \ / \
 	//   D   E
 
-	taskA := testaide.GenerateTaskEntry(baseTime, types.WaitingForInput, testaide.RandomExecutorId())
+	now := s.timer.NowTime()
 
-	taskB := testaide.GenerateTaskEntry(baseTime, types.WaitingForInput, testaide.RandomExecutorId())
+	taskA := testaide.NewTaskEntry(now, types.WaitingForInput, testaide.RandomExecutorId())
+
+	taskB := testaide.NewTaskEntry(now, types.WaitingForInput, testaide.RandomExecutorId())
 	taskA.AddDependency(taskB)
 
-	taskC := testaide.GenerateTaskEntry(baseTime, types.WaitingForInput, testaide.RandomExecutorId())
+	taskC := testaide.NewTaskEntry(now, types.WaitingForInput, testaide.RandomExecutorId())
 	taskA.AddDependency(taskC)
 
-	taskD := testaide.GenerateTaskEntry(baseTime, types.Running, testaide.RandomExecutorId())
+	taskD := testaide.NewTaskEntry(now, types.Running, testaide.RandomExecutorId())
 	taskB.AddDependency(taskD)
 	taskC.AddDependency(taskD)
 
-	taskE := testaide.GenerateTaskEntry(baseTime, types.Running, testaide.RandomExecutorId())
+	taskE := testaide.NewTaskEntry(now, types.Running, testaide.RandomExecutorId())
 	taskC.AddDependency(taskE)
 
 	err := s.storage.AddTaskEntries(s.context, []*types.TaskEntry{taskA, taskB, taskC, taskD, taskE})
@@ -310,12 +316,14 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_With_Terminated_Depe
 	//  / \
 	// B   C
 
-	taskA := testaide.GenerateTaskEntry(baseTime.Add(-10*time.Minute), types.WaitingForInput, types.UnknownExecutorId)
+	now := s.timer.NowTime()
 
-	taskB := testaide.GenerateTaskEntry(baseTime.Add(-10*time.Minute), types.WaitingForExecutor, types.UnknownExecutorId)
+	taskA := testaide.NewTaskEntry(now.Add(-10*time.Minute), types.WaitingForInput, types.UnknownExecutorId)
+
+	taskB := testaide.NewTaskEntry(now.Add(-10*time.Minute), types.WaitingForExecutor, types.UnknownExecutorId)
 	taskA.AddDependency(taskB)
 
-	taskC := testaide.GenerateTaskEntry(baseTime.Add(-1*time.Minute), types.WaitingForExecutor, types.UnknownExecutorId)
+	taskC := testaide.NewTaskEntry(now.Add(-1*time.Minute), types.WaitingForExecutor, types.UnknownExecutorId)
 	taskA.AddDependency(taskC)
 
 	err := s.storage.AddTaskEntries(s.context, []*types.TaskEntry{taskA, taskB, taskC})
@@ -349,13 +357,13 @@ func (s *TaskSchedulerDebugRpcTestSuite) requestAndSendResult(
 	s.Require().Equal(expected, taskToExec)
 
 	// emulate time progress for non-zero Task.ExecutionTime results
-	s.timer.Adjust(10 * time.Minute)
+	s.timer.Add(10 * time.Minute)
 
-	var taskResult types.TaskResult
+	var taskResult *types.TaskResult
 	if completeSuccessfully {
-		taskResult = testaide.SuccessTaskResult(taskToExec.Id, executor)
+		taskResult = testaide.NewSuccessTaskResult(taskToExec.Id, executor)
 	} else {
-		taskResult = testaide.FailureTaskResult(taskToExec.Id, executor)
+		taskResult = testaide.NewFailureTaskResult(taskToExec.Id, executor)
 	}
 
 	err = s.storage.ProcessTaskResult(s.context, taskResult)
@@ -431,12 +439,14 @@ func (s *TaskSchedulerDebugRpcTestSuite) requireTaskTreeViewEqual(
 func (s *TaskSchedulerDebugRpcTestSuite) commonTaskAssertions(
 	expected *types.TaskEntry, actual *public.TaskViewCommon,
 ) []bool {
+	now := s.timer.NowTime()
+
 	return []bool{
 		s.Equal(expected.Task.Id, actual.Id),
 		s.Equal(expected.Task.TaskType, actual.Type),
 		s.Equal(expected.Task.CircuitType, actual.CircuitType),
 
-		s.Equal(expected.ExecutionTime(baseTime), actual.ExecutionTime),
+		s.Equal(expected.ExecutionTime(now), actual.ExecutionTime),
 		s.Equal(expected.Owner, actual.Owner),
 		s.Equal(expected.Status, actual.Status),
 	}

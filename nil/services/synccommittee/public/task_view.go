@@ -32,11 +32,11 @@ type TaskViewCommon struct {
 	Status        TaskStatus     `json:"status"`
 }
 
-func (t *TaskViewCommon) TaskIsFailed() bool {
+func (t *TaskViewCommon) IsFailed() bool {
 	return t.Status == types.Failed
 }
 
-func newTaskViewCommon(taskEntry *types.TaskEntry, currentTime time.Time) TaskViewCommon {
+func makeTaskViewCommon(taskEntry *types.TaskEntry, currentTime time.Time) TaskViewCommon {
 	return TaskViewCommon{
 		Id:          taskEntry.Task.Id,
 		Type:        taskEntry.Task.TaskType,
@@ -62,7 +62,7 @@ type TaskView struct {
 
 func NewTaskView(taskEntry *types.TaskEntry, currentTime time.Time) *TaskView {
 	return &TaskView{
-		TaskViewCommon: newTaskViewCommon(taskEntry, currentTime),
+		TaskViewCommon: makeTaskViewCommon(taskEntry, currentTime),
 
 		BatchId:     taskEntry.Task.BatchId,
 		ShardId:     taskEntry.Task.ShardId,
@@ -90,12 +90,12 @@ type TaskTreeView struct {
 
 func NewTaskTreeFromEntry(taskEntry *types.TaskEntry, currentTime time.Time) *TaskTreeView {
 	return &TaskTreeView{
-		TaskViewCommon: newTaskViewCommon(taskEntry, currentTime),
+		TaskViewCommon: makeTaskViewCommon(taskEntry, currentTime),
 		Dependencies:   emptyDependencies(),
 	}
 }
 
-func NewTaskTreeFromResult(result *types.TaskResultEntry) *TaskTreeView {
+func NewTaskTreeFromResult(result *types.TaskResultDetails) *TaskTreeView {
 	var taskStatus TaskStatus
 	if result.IsSuccess {
 		taskStatus = types.Completed

@@ -46,10 +46,11 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	logger.Info().Msgf("Use RPC endpoint %v", cfg.RpcEndpoint)
 	client := nilrpc.NewClient(cfg.RpcEndpoint, logger)
 
-	blockStorage := storage.NewBlockStorage(database, metricsHandler, logger)
-	taskStorage := storage.NewTaskStorage(database, common.NewTimer(), metricsHandler, logger)
+	timer := common.NewTimer()
+	blockStorage := storage.NewBlockStorage(database, timer, metricsHandler, logger)
+	taskStorage := storage.NewTaskStorage(database, timer, metricsHandler, logger)
 
-	aggregator, err := NewAggregator(client, blockStorage, taskStorage, logger, metricsHandler, cfg.PollingDelay)
+	aggregator, err := NewAggregator(client, blockStorage, taskStorage, timer, logger, metricsHandler, cfg.PollingDelay)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}

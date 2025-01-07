@@ -52,10 +52,10 @@ type TaskStorage interface {
 	RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.Task, error)
 
 	// ProcessTaskResult Check task result, update dependencies in case of success
-	ProcessTaskResult(ctx context.Context, res types.TaskResult) error
+	ProcessTaskResult(ctx context.Context, res *types.TaskResult) error
 
 	// RescheduleHangingTasks Identify tasks that exceed execution timeout and reschedule them to be re-executed
-	RescheduleHangingTasks(ctx context.Context, currentTime time.Time, taskExecutionTimeout time.Duration) error
+	RescheduleHangingTasks(ctx context.Context, taskExecutionTimeout time.Duration) error
 }
 
 type TaskStorageMetrics interface {
@@ -327,13 +327,13 @@ func (st *taskStorage) requestTaskToExecuteImpl(ctx context.Context, executor ty
 	return taskEntry, nil
 }
 
-func (st *taskStorage) ProcessTaskResult(ctx context.Context, res types.TaskResult) error {
+func (st *taskStorage) ProcessTaskResult(ctx context.Context, res *types.TaskResult) error {
 	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return st.processTaskResultImpl(ctx, res)
 	})
 }
 
-func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.TaskResult) error {
+func (st *taskStorage) processTaskResultImpl(ctx context.Context, res *types.TaskResult) error {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -383,9 +383,9 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 			return err
 		}
 
-		resultEntry := types.NewTaskResultEntry(&res, entry, currentTime)
+		resultEntry := types.NewTaskResultEntry(res, entry, currentTime)
 
-		if err = depEntry.AddDependencyResult(resultEntry); err != nil {
+		if err = depEntry.AddDependencyResult(*resultEntry); err != nil {
 			return fmt.Errorf("failed to add dependency result to task with id=%s: %w", depEntry.Task.Id, err)
 		}
 		err = putTaskEntry(tx, depEntry)
@@ -397,11 +397,11 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 		return err
 	}
 
-	st.metrics.RecordTaskTerminated(ctx, entry, &res)
+	st.metrics.RecordTaskTerminated(ctx, entry, res)
 	return nil
 }
 
-func (st *taskStorage) validateTaskResult(entry types.TaskEntry, res types.TaskResult) error {
+func (st *taskStorage) validateTaskResult(entry types.TaskEntry, res *types.TaskResult) error {
 	const errFormat = "failed to process task result, taskId=%v, taskStatus=%v, taskOwner=%v, requestSenderId=%v: %w"
 
 	if entry.Owner != res.Sender {
@@ -415,15 +415,14 @@ func (st *taskStorage) validateTaskResult(entry types.TaskEntry, res types.TaskR
 	return nil
 }
 
-func (st *taskStorage) RescheduleHangingTasks(ctx context.Context, currentTime time.Time, taskExecutionTimeout time.Duration) error {
+func (st *taskStorage) RescheduleHangingTasks(ctx context.Context, taskExecutionTimeout time.Duration) error {
 	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
-		return st.rescheduleHangingTasksImpl(ctx, currentTime, taskExecutionTimeout)
+		return st.rescheduleHangingTasksImpl(ctx, taskExecutionTimeout)
 	})
 }
 
 func (st *taskStorage) rescheduleHangingTasksImpl(
 	ctx context.Context,
-	currentTime time.Time,
 	taskExecutionTimeout time.Duration,
 ) error {
 	tx, err := st.database.CreateRwTx(ctx)
@@ -437,6 +436,7 @@ func (st *taskStorage) rescheduleHangingTasksImpl(
 			return nil
 		}
 
+		currentTime := st.timer.NowTime()
 		executionTime := currentTime.Sub(*entry.Started)
 		if executionTime <= taskExecutionTimeout {
 			return nil

@@ -3,6 +3,7 @@ package types
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
@@ -100,14 +101,14 @@ func (b *BlockBatch) AllBlocks() []*jsonrpc.RPCBlock {
 	return blocks
 }
 
-func (b *BlockBatch) CreateProofTasks() ([]*TaskEntry, error) {
+func (b *BlockBatch) CreateProofTasks(currentTime time.Time) ([]*TaskEntry, error) {
 	taskEntries := make([]*TaskEntry, 0, len(b.ChildBlocks)+1)
 
-	aggregateProofsTask := NewAggregateProofsTaskEntry(b.Id, b.MainShardBlock)
+	aggregateProofsTask := NewAggregateProofsTaskEntry(b.Id, b.MainShardBlock, currentTime)
 	taskEntries = append(taskEntries, aggregateProofsTask)
 
 	for _, childBlock := range b.ChildBlocks {
-		blockProofTask, err := NewBlockProofTaskEntry(b.Id, aggregateProofsTask, childBlock)
+		blockProofTask, err := NewBlockProofTaskEntry(b.Id, aggregateProofsTask, childBlock, currentTime)
 		if err != nil {
 			return nil, err
 		}

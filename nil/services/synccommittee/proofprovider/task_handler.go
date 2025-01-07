@@ -3,6 +3,7 @@ package proofprovider
 import (
 	"context"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -11,12 +12,16 @@ import (
 
 type taskHandler struct {
 	taskStorage storage.TaskStorage
+	timer       common.Timer
 	logger      zerolog.Logger
 }
 
-func newTaskHandler(taskStorage storage.TaskStorage, logger zerolog.Logger) api.TaskHandler {
+func newTaskHandler(
+	taskStorage storage.TaskStorage, timer common.Timer, logger zerolog.Logger,
+) api.TaskHandler {
 	return &taskHandler{
 		taskStorage: taskStorage,
+		timer:       timer,
 		logger:      logger,
 	}
 }
@@ -29,7 +34,7 @@ func (h *taskHandler) Handle(ctx context.Context, _ types.TaskExecutorId, task *
 	h.logger.Info().Msgf("Create tasks %v, blockHash %v from shard %d in batch %d, task id %v", task.TaskType.String(), task.BlockHash, task.ShardId, task.BatchId, task.Id.String())
 
 	if task.TaskType == types.ProofBlock {
-		blockTasks := prepareTasksForBlock(task)
+		blockTasks := h.prepareTasksForBlock(task)
 
 		for _, taskEntry := range blockTasks {
 			taskEntry.Task.ParentTaskId = &task.Id
@@ -37,19 +42,21 @@ func (h *taskHandler) Handle(ctx context.Context, _ types.TaskExecutorId, task *
 
 		return h.taskStorage.AddTaskEntries(ctx, blockTasks)
 	} else {
-		aggregateTaskEntry := task.AsNewChildEntry()
+		currentTime := h.timer.NowTime()
+		aggregateTaskEntry := task.AsNewChildEntry(currentTime)
 		return h.taskStorage.AddSingleTaskEntry(ctx, *aggregateTaskEntry)
 	}
 }
 
 var circuitTypes = [...]types.CircuitType{types.Bytecode, types.MPT, types.ReadWrite, types.ZKEVM}
 
-func prepareTasksForBlock(providerTask *types.Task) []*types.TaskEntry {
+func (h *taskHandler) prepareTasksForBlock(providerTask *types.Task) []*types.TaskEntry {
+	currentTime := h.timer.NowTime()
 	taskEntries := make([]*types.TaskEntry, 0)
 
 	// Final task, depends on partial proofs, aggregate FRI and consistency checks
 	mergeProofTaskEntry := types.NewMergeProofTaskEntry(
-		providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash,
+		providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, currentTime,
 	)
 	taskEntries = append(taskEntries, mergeProofTaskEntry)
 
@@ -57,7 +64,7 @@ func prepareTasksForBlock(providerTask *types.Task) []*types.TaskEntry {
 	consistencyCheckTasks := make(map[types.CircuitType]*types.TaskEntry)
 	for _, ct := range circuitTypes {
 		checkTaskEntry := types.NewFRIConsistencyCheckTaskEntry(
-			providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct,
+			providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct, currentTime,
 		)
 		taskEntries = append(taskEntries, checkTaskEntry)
 		consistencyCheckTasks[ct] = checkTaskEntry
@@ -68,7 +75,7 @@ func prepareTasksForBlock(providerTask *types.Task) []*types.TaskEntry {
 
 	// aggregate FRI task depends on all the following tasks
 	aggFRITaskEntry := types.NewAggregateFRITaskEntry(
-		providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash,
+		providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, currentTime,
 	)
 	taskEntries = append(taskEntries, aggFRITaskEntry)
 	// Aggregate FRI task result must be forwarded to merge proof task
@@ -83,7 +90,7 @@ func prepareTasksForBlock(providerTask *types.Task) []*types.TaskEntry {
 	combinedQTasks := make(map[types.CircuitType]*types.TaskEntry)
 	for _, ct := range circuitTypes {
 		combinedQTaskEntry := types.NewCombinedQTaskEntry(
-			providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct,
+			providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct, currentTime,
 		)
 		taskEntries = append(taskEntries, combinedQTaskEntry)
 		combinedQTasks[ct] = combinedQTaskEntry
@@ -97,7 +104,7 @@ func prepareTasksForBlock(providerTask *types.Task) []*types.TaskEntry {
 
 	// aggregate challenge task depends on all the following tasks
 	aggChallengeTaskEntry := types.NewAggregateChallengeTaskEntry(
-		providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash,
+		providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, currentTime,
 	)
 	taskEntries = append(taskEntries, aggChallengeTaskEntry)
 
@@ -112,7 +119,7 @@ func prepareTasksForBlock(providerTask *types.Task) []*types.TaskEntry {
 	// Create partial proof tasks (bottom level, no dependencies)
 	for _, ct := range circuitTypes {
 		partialProveTaskEntry := types.NewPartialProveTaskEntry(
-			providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct,
+			providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct, currentTime,
 		)
 		taskEntries = append(taskEntries, partialProveTaskEntry)
 

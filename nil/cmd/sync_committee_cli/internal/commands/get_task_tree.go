@@ -65,7 +65,7 @@ func buildTreeOutput(tree *public.TaskTreeView) (CmdOutput, error) {
 
 		var statusStr string
 		var errorText string
-		if node.TaskIsFailed() {
+		if node.IsFailed() {
 			statusStr = RedStr("%s", node.Status)
 			errorText = " " + node.ResultErrorText
 		} else {

@@ -21,9 +21,9 @@ func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_GetTask() {
 		name       string
 		executorId types.TaskExecutorId
 	}{
-		{"returns task without deps", firstExecutorId},
-		{"returns task with deps", secondExecutorId},
-		{"returns nil", testaide.RandomExecutorId()},
+		{"Returns_Task_Without_Deps", firstExecutorId},
+		{"Returns_Task_With_Deps", secondExecutorId},
+		{"Returns_Nil", testaide.RandomExecutorId()},
 	}
 
 	for _, testCase := range testCases {
@@ -50,11 +50,11 @@ func (s *TaskRequestHandlerTestSuite) testGetTask(executorId types.TaskExecutorI
 func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_UpdateTaskStatus() {
 	testCases := []struct {
 		name   string
-		result types.TaskResult
+		result *types.TaskResult
 	}{
 		{
-			"success result FinalProof",
-			types.SuccessProverTaskResult(
+			"Success_Result_Final_Proof",
+			types.NewSuccessProverTaskResult(
 				types.NewTaskId(),
 				testaide.RandomExecutorId(),
 				types.TaskResultAddresses{types.FinalProof: "final-proof.1.0xAABC"},
@@ -62,12 +62,12 @@ func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_UpdateTaskStatus()
 			),
 		},
 		{
-			"success result Provider",
-			types.SuccessProviderTaskResult(types.NewTaskId(), testaide.RandomExecutorId(), nil, nil),
+			"Success_Result_Provider",
+			types.NewSuccessProviderTaskResult(types.NewTaskId(), testaide.RandomExecutorId(), nil, nil),
 		},
 		{
-			"failure result",
-			types.FailureProverTaskResult(types.NewTaskId(), testaide.RandomExecutorId(), errors.New("something went wrong")),
+			"Failure_Result_Provider",
+			types.NewFailureProverTaskResult(types.NewTaskId(), testaide.RandomExecutorId(), errors.New("something went wrong")),
 		},
 	}
 
@@ -78,13 +78,13 @@ func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_UpdateTaskStatus()
 	}
 }
 
-func (s *TaskRequestHandlerTestSuite) testSetTaskStatus(resultToSend types.TaskResult) {
+func (s *TaskRequestHandlerTestSuite) testSetTaskStatus(resultToSend *types.TaskResult) {
 	s.T().Helper()
 
-	err := s.clientHandler.SetTaskResult(s.context, &resultToSend)
+	err := s.clientHandler.SetTaskResult(s.context, resultToSend)
 	s.Require().NoError(err)
 
 	setResultCalls := s.scheduler.SetTaskResultCalls()
 	s.Require().Len(setResultCalls, 1, "expected one call to SetTaskResult")
-	s.Require().Equal(&resultToSend, setResultCalls[0].Result)
+	s.Require().Equal(resultToSend, setResultCalls[0].Result)
 }
