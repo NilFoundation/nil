@@ -23,12 +23,13 @@ const ShardIdSize = 2
 type Address [AddrSize]byte
 
 var (
-	EmptyAddress      = Address{}
-	MainWalletAddress = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111111")
-	FaucetAddress     = ShardAndHexToAddress(BaseShardId, "00000000000000000000000000000FA00CE7")
-	EthFaucetAddress  = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111112")
-	UsdtFaucetAddress = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111113")
-	BtcFaucetAddress  = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111114")
+	EmptyAddress        = Address{}
+	MainWalletAddress   = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111111")
+	LegacyFaucetAddress = ShardAndHexToAddress(BaseShardId, "00000000000000000000000000000FA00CE7")
+	FaucetAddress       = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111110")
+	EthFaucetAddress    = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111112")
+	UsdtFaucetAddress   = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111113")
+	BtcFaucetAddress    = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111114")
 )
 
 func GetCurrencyName(addr CurrencyId) string {
