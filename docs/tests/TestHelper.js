@@ -1,5 +1,4 @@
 import commands from "./commands.mjs";
-import { NODE_MODULES } from "./globals";
 
 const util = require("node:util");
 const exec = util.promisify(require("node:child_process").exec);
@@ -12,16 +11,17 @@ export default class TestHelper {
   }
 
   createCLICommandsMap(salt) {
-    let result = {};
+    const result = { ...commands };
 
-    Object.keys(commands).forEach((key) => {
+    for (const key of Object.keys(commands)) {
       switch (key) {
         case "WALLET_CREATION_COMMAND":
           result[key] = `${commands[key]} --config ${this.configFileName} --salt ${salt}`;
+          break;
         default:
           result[key] = `${commands[key]} --config ${this.configFileName}`;
       }
-    });
+    }
 
     return result;
   }
@@ -29,11 +29,11 @@ export default class TestHelper {
   async prepareTestCLI() {
     const testCommands = this.createCLICommandsMap(BigInt(Math.floor(Math.random() * 10000)));
 
-    await exec(testCommands["CONFIG_COMMAND"]);
-    await exec(testCommands["KEYGEN_COMMAND"]);
-    await exec(testCommands["RPC_COMMAND"]);
-    await exec(testCommands["FAUCET_COMMAND"]);
-    await exec(testCommands["COMETA_COMMAND"]);
-    await exec(testCommands["WALLET_CREATION_COMMAND"]);
+    await exec(testCommands.CONFIG_COMMAND);
+    await exec(testCommands.KEYGEN_COMMAND);
+    await exec(testCommands.RPC_COMMAND);
+    await exec(testCommands.FAUCET_COMMAND);
+    await exec(testCommands.COMETA_COMMAND);
+    await exec(testCommands.WALLET_CREATION_COMMAND);
   }
 }

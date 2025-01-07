@@ -4,33 +4,33 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 
 import {
+  ExternalMessageEnvelope,
   Faucet,
+  type Hex,
   HttpTransport,
+  type ISigner,
   LocalECDSAKeySigner,
   PublicClient,
   WalletV1,
-  generateRandomPrivateKey,
-  convertEthToWei,
-  waitTillCompleted,
   bytesToHex,
+  convertEthToWei,
   externalDeploymentMessage,
-  ExternalMessageEnvelope,
+  generateRandomPrivateKey,
   hexToBytes,
   isHexString,
   refineAddress,
-  type ISigner,
-  type Hex,
+  waitTillCompleted,
 } from "@nilfoundation/niljs";
 import { secp256k1 } from "@noble/curves/secp256k1";
 
+import { concatBytes, numberToBytesBE } from "@noble/curves/abstract/utils";
 import {} from "ethers";
 import { type Abi, encodeFunctionData } from "viem";
-import { concatBytes, numberToBytesBE } from "@noble/curves/abstract/utils";
 
 //endImportStatements
 
-import { RPC_GLOBAL } from "./globals";
 import { MULTISIG_COMPILATION_COMMAND } from "./compilationCommands";
+import { RPC_GLOBAL } from "./globals";
 
 const util = require("node:util");
 const exec = util.promisify(require("node:child_process").exec);
@@ -39,8 +39,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 const __dirname = path.dirname(__filename);
 
-let MULTISIG_WALLET_ABI;
-let MULTISIG_WALLET_BYTECODE;
+let MULTISIG_WALLET_ABI: Abi;
+let MULTISIG_WALLET_BYTECODE: `0x${string}`;
 
 const RPC_ENDPOINT = RPC_GLOBAL;
 

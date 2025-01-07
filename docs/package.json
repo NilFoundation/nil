@@ -14,8 +14,10 @@
 		"test": "vitest",
 		"test:useNilD": "USE_NILD=true vitest",
 		"generate-cli-docs": "npx tsx nil/scripts/cliRefGenerator.ts",
-		"build": "npm run generate-cli-docs && docusaurus build"
-	},
+		"build": "npm run generate-cli-docs && docusaurus build",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write ."
+  },
 	"dependencies": {
 		"@babel/core": "^7.25.2",
 		"@babel/preset-env": "^7.25.3",

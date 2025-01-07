@@ -1,27 +1,28 @@
-import { COUNTER_BUG_COMPILATION_COMMAND } from "./compilationCommands";
-import {
-  HASH_PATTERN,
-  ADDRESS_PATTERN,
-  SUCCESSFUL_EXECUTION_PATTERN,
-  COUNTER_BUG_DEBUG_PATTERN,
-} from "./patterns";
-import { COMETA_GLOBAL, NIL_GLOBAL, RPC_GLOBAL } from "./globals";
 import TestHelper from "./TestHelper";
+import { COUNTER_BUG_COMPILATION_COMMAND } from "./compilationCommands";
+import { COMETA_GLOBAL, NIL_GLOBAL, RPC_GLOBAL } from "./globals";
+import {
+  ADDRESS_PATTERN,
+  COUNTER_BUG_DEBUG_PATTERN,
+  HASH_PATTERN,
+  SUCCESSFUL_EXECUTION_PATTERN,
+} from "./patterns";
 //startNilJSImport
 
 import {
   CometaService,
-  convertEthToWei,
   Faucet,
-  generateRandomPrivateKey,
   HttpTransport,
   LocalECDSAKeySigner,
   PublicClient,
-  waitTillCompleted,
   WalletV1,
+  convertEthToWei,
+  generateRandomPrivateKey,
+  waitTillCompleted,
 } from "@nilfoundation/niljs";
 //endNilJSImport
 import type { Abi } from "viem";
+import type COMMANDS from "./commands.mjs";
 
 const util = require("node:util");
 const exec = util.promisify(require("node:child_process").exec);
@@ -35,10 +36,10 @@ const CONFIG_FILE_NAME = "./tests/tempConfigCometaDebug.ini";
 
 const CONFIG_FLAG = `--config ${CONFIG_FILE_NAME}`;
 
-let TEST_COMMANDS: {};
+let TEST_COMMANDS: typeof COMMANDS;
 let COUNTER_BUG_ADDRESS: string;
 let COUNTER_BUG_ADDRESS_SEPARATE: string;
-let MESSAGE_HASH;
+let MESSAGE_HASH: string;
 
 beforeAll(async () => {
   const testHelper = new TestHelper({ configFileName: CONFIG_FILE_NAME });
@@ -52,7 +53,7 @@ afterAll(async () => {
 
 describe.sequential("CLI tutorial flows pass correctly for CounterBug", () => {
   test.sequential("CLI can compile, deploy, and register CounterBug in one command", async () => {
-    const { stdout, stderr } = await exec(TEST_COMMANDS["COUNTER_BUG_COMETA_COMMAND"]);
+    const { stdout, stderr } = await exec(TEST_COMMANDS.COUNTER_BUG_COMETA_COMMAND);
     expect(stdout).toBeDefined;
     expect(stdout).toMatch(ADDRESS_PATTERN);
     const addressMatches = stdout.match(ADDRESS_PATTERN);
@@ -65,7 +66,7 @@ describe.sequential("CLI tutorial flows pass correctly for CounterBug", () => {
       let { stdout, stderr } = await exec(COUNTER_BUG_COMPILATION_COMMAND);
       expect(stdout).toBeDefined;
       expect(stdout).toMatch(SUCCESSFUL_EXECUTION_PATTERN);
-      ({ stdout, stderr } = await exec(TEST_COMMANDS["COUNTER_BUG_DEPLOYMENT_COMMAND"]));
+      ({ stdout, stderr } = await exec(TEST_COMMANDS.COUNTER_BUG_DEPLOYMENT_COMMAND));
       expect(stdout).toBeDefined;
       expect(stdout).toMatch(ADDRESS_PATTERN);
       const addressMatches = stdout.match(ADDRESS_PATTERN);

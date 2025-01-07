@@ -1,20 +1,20 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 //startImportStatements
 import {
-  convertEthToWei,
   Faucet,
-  generateRandomPrivateKey,
   HttpTransport,
   LocalECDSAKeySigner,
   PublicClient,
-  waitTillCompleted,
   WalletV1,
+  convertEthToWei,
+  generateRandomPrivateKey,
+  waitTillCompleted,
 } from "@nilfoundation/niljs";
-import { encodeFunctionData, type Abi } from "viem";
+import { type Abi, encodeFunctionData } from "viem";
 //endImportStatements
 import { AUCTION_COMPILATION_COMMAND, NFT_COMPILATION_COMMAND } from "./compilationCommands";
 import { RPC_GLOBAL } from "./globals";
-import fs from "node:fs/promises";
-import path from "node:path";
 
 const util = require("node:util");
 const exec = util.promisify(require("node:child_process").exec);
@@ -22,10 +22,10 @@ const RPC_ENDPOINT = RPC_GLOBAL;
 
 const __dirname = path.dirname(__filename);
 
-let NFT_BYTECODE;
-let NFT_ABI;
-let AUCTION_BYTECODE;
-let AUCTION_ABI;
+let NFT_BYTECODE: `0x${string}`;
+let NFT_ABI: Abi;
+let AUCTION_BYTECODE: `0x${string}`;
+let AUCTION_ABI: Abi;
 
 beforeAll(async () => {
   await exec(NFT_COMPILATION_COMMAND);

@@ -1,16 +1,16 @@
 import {
+  ExternalMessageEnvelope,
   Faucet,
   HttpTransport,
   LocalECDSAKeySigner,
   PublicClient,
   WalletV1,
-  generateRandomPrivateKey,
-  convertEthToWei,
-  waitTillCompleted,
   bytesToHex,
+  convertEthToWei,
   externalDeploymentMessage,
-  ExternalMessageEnvelope,
+  generateRandomPrivateKey,
   hexToBytes,
+  waitTillCompleted,
 } from "@nilfoundation/niljs";
 
 const util = require("node:util");
@@ -21,14 +21,14 @@ import { RPC_GLOBAL } from "./globals";
 import TestHelper from "./TestHelper";
 
 import {
-  RETAILER_COMPILATION_COMMAND,
   MANUFACTURER_COMPILATION_COMMAND,
+  RETAILER_COMPILATION_COMMAND,
 } from "./compilationCommands";
-import { RETAILER_COMPILATION_PATTERN, MANUFACTURER_COMPILATION_PATTERN } from "./patterns";
+import { MANUFACTURER_COMPILATION_PATTERN, RETAILER_COMPILATION_PATTERN } from "./patterns";
 
 const RPC_ENDPOINT = RPC_GLOBAL;
 
-import { encodeFunctionData, decodeFunctionResult } from "viem";
+import { decodeFunctionResult, encodeFunctionData } from "viem";
 
 import fs from "node:fs";
 import path from "node:path";

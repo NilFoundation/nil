@@ -1,5 +1,18 @@
-{ lib, stdenv, npmHooks, nodejs, nil, openssl, callPackage, autoconf, automake, libtool, solc, solc-select, enableTesting ? false }:
-
+{ lib
+, stdenv
+, npmHooks
+, nodejs
+, nil
+, openssl
+, callPackage
+, autoconf
+, automake
+, libtool
+, biome
+, solc
+, solc-select
+, enableTesting ? false
+}:
 
 stdenv.mkDerivation rec {
   name = "nil.docs";
@@ -10,6 +23,7 @@ stdenv.mkDerivation rec {
     "^docs(/.*)?$"
     "^niljs(/.*)?$"
     "^smart-contracts(/.*)?$"
+    "biome.json"
   ];
 
   npmDeps = (callPackage ./npmdeps.nix { });
@@ -28,8 +42,8 @@ stdenv.mkDerivation rec {
     libtool
     solc
     solc-select
-    nil
-  ];
+    biome
+  ] ++ (if enableTesting then [ nil ] else [ ]);
 
   dontConfigure = true;
 
@@ -64,6 +78,10 @@ stdenv.mkDerivation rec {
   doCheck = enableTesting;
 
   checkPhase = ''
+    export BIOME_BINARY=${biome}/bin/biome
+
+    npm run lint
+
     echo "Runnig tests..."
     bash run_tests.sh
     echo "Tests passed"

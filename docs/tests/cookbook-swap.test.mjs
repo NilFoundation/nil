@@ -17,8 +17,8 @@ import { RPC_GLOBAL } from "./globals";
 const util = require("node:util");
 const exec = util.promisify(require("node:child_process").exec);
 const RPC_ENDPOINT = RPC_GLOBAL;
-import path from "node:path";
 import fs from "node:fs/promises";
+import path from "node:path";
 
 const __dirname = path.dirname(__filename);
 

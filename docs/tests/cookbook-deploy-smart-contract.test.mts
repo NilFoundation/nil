@@ -12,28 +12,28 @@ import {
   convertEthToWei,
   externalDeploymentMessage,
   generateRandomPrivateKey,
+  getContract,
   hexToBytes,
   waitTillCompleted,
-  getContract,
 } from "@nilfoundation/niljs";
 
-import { encodeFunctionData, type Abi } from "viem";
+import { type Abi, encodeFunctionData } from "viem";
 //endImportStatements
 
 const RPC_ENDPOINT = RPC_GLOBAL;
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { COUNTER_COMPILATION_COMMAND } from "./compilationCommands";
 import { expect } from "vitest";
+import { COUNTER_COMPILATION_COMMAND } from "./compilationCommands";
 const __dirname = path.dirname(__filename);
 
 const util = require("node:util");
 const exec = util.promisify(require("node:child_process").exec);
 
-let COUNTER_BYTECODE;
+let COUNTER_BYTECODE: `0x${string}`;
 
-let COUNTER_ABI;
+let COUNTER_ABI: Abi;
 
 let COUNTER_ADDRESS: `0x${string}`;
 

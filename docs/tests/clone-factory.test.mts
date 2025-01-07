@@ -1,18 +1,18 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { CLONE_FACTORY_COMPILATION_COMMAND } from "./compilationCommands";
-import type { Abi } from "viem";
-import { RPC_GLOBAL } from "./globals";
 import {
-  convertEthToWei,
   Faucet,
-  generateRandomPrivateKey,
   HttpTransport,
   LocalECDSAKeySigner,
   PublicClient,
-  waitTillCompleted,
   WalletV1,
+  convertEthToWei,
+  generateRandomPrivateKey,
+  waitTillCompleted,
 } from "@nilfoundation/niljs";
+import type { Abi } from "viem";
+import { CLONE_FACTORY_COMPILATION_COMMAND } from "./compilationCommands";
+import { RPC_GLOBAL } from "./globals";
 
 const util = require("node:util");
 const exec = util.promisify(require("node:child_process").exec);
@@ -21,14 +21,14 @@ const __dirname = path.dirname(__filename);
 
 const RPC_ENDPOINT = RPC_GLOBAL;
 
-let FACTORY_MANAGER_BYTECODE;
-let FACTORY_MANAGER_ABI;
+let FACTORY_MANAGER_BYTECODE: `0x${string}`;
+let FACTORY_MANAGER_ABI: Abi;
 
-let MASTER_CHILD_BYTECODE;
-let MASTER_CHILD_ABI;
+let MASTER_CHILD_BYTECODE: `0x${string}`;
+let MASTER_CHILD_ABI: Abi;
 
-let CLONE_FACTORY_BYTECODE;
-let CLONE_FACTORY_ABI;
+let CLONE_FACTORY_BYTECODE: `0x${string}`;
+let CLONE_FACTORY_ABI: Abi;
 
 beforeAll(async () => {
   await exec(CLONE_FACTORY_COMPILATION_COMMAND);
