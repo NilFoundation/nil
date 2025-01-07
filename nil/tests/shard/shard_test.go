@@ -44,7 +44,7 @@ func (s *BasicShardSuite) TestBasic() {
 					return false
 				}
 				return otherBlock.Hash == rpcBlock.Hash
-			}, tests.ZeroStateWaitTimeout, tests.ZeroStatePollInterval)
+			}, tests.BlockWaitTimeout, tests.BlockPollInterval)
 		}
 	}
 }

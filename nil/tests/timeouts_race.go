@@ -5,8 +5,8 @@ package tests
 import "time"
 
 const (
-	ReceiptWaitTimeout    = time.Minute
-	ReceiptPollInterval   = time.Second
-	ZeroStateWaitTimeout  = 30 * time.Second
-	ZeroStatePollInterval = time.Second
+	ReceiptWaitTimeout  = time.Minute
+	ReceiptPollInterval = time.Second
+	BlockWaitTimeout    = 30 * time.Second
+	BlockPollInterval   = time.Second
 )

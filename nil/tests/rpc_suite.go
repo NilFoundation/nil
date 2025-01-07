@@ -103,7 +103,7 @@ func (s *RpcSuite) Start(cfg *nilservice.Config) {
 		s.Require().Eventually(func() bool {
 			block, err := s.Client.GetBlock(s.Context, cfg.Replay.ShardId, "latest", false)
 			return err == nil && block != nil
-		}, ZeroStateWaitTimeout, ZeroStatePollInterval)
+		}, BlockWaitTimeout, BlockPollInterval)
 	} else {
 		s.waitZerostate()
 	}
@@ -142,7 +142,7 @@ func (s *RpcSuite) waitZerostateFunc(fun func(i uint32) bool) {
 	s.T().Helper()
 
 	for i := range s.ShardsNum {
-		s.Require().Eventually(func() bool { return fun(i) }, ZeroStateWaitTimeout, ZeroStatePollInterval)
+		s.Require().Eventually(func() bool { return fun(i) }, BlockWaitTimeout, BlockPollInterval)
 	}
 }
 
