@@ -33,7 +33,7 @@ func WaitForReceiptCommon(
 		receipt, err = client.GetInMessageReceipt(ctx, hash)
 		require.NoError(t, err)
 		return check(receipt)
-	}, ReceiptWaitTimeout, ReceiptPollInterval)
+	}, BlockWaitTimeout, BlockPollInterval)
 
 	assert.Equal(t, hash, receipt.MsgHash)
 	return receipt
@@ -105,13 +105,19 @@ func PrepareDefaultDeployPayload(t *testing.T, abi abi.ABI, code []byte, args ..
 	return types.BuildDeployPayload(code, common.EmptyHash)
 }
 
-func WaitZerostate(t *testing.T, ctx context.Context, client client.Client, shardId types.ShardId) {
+func WaitBlock(t *testing.T, ctx context.Context, client client.Client, shardId types.ShardId, blockNum uint64) {
 	t.Helper()
 
 	require.Eventually(t, func() bool {
-		block, err := client.GetBlock(ctx, shardId, transport.BlockNumber(0), false)
+		block, err := client.GetBlock(ctx, shardId, transport.BlockNumber(blockNum), false)
 		return err == nil && block != nil
-	}, ZeroStateWaitTimeout, ZeroStatePollInterval)
+	}, BlockWaitTimeout, BlockPollInterval)
+}
+
+func WaitZerostate(t *testing.T, ctx context.Context, client client.Client, shardId types.ShardId) {
+	t.Helper()
+
+	WaitBlock(t, ctx, client, shardId, 0)
 }
 
 func GetBalance(t *testing.T, ctx context.Context, client client.Client, address types.Address) types.Value {

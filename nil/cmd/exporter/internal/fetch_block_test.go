@@ -65,7 +65,7 @@ func (s *SuiteFetchBlock) SetupSuite() {
 	cfg.HttpUrl = url
 	cfg.CollatorTickPeriodMs = 100
 	go nilservice.Run(s.context, cfg, database, nil)
-	tests.WaitZerostate(s.T(), s.context, s.cfg.Client, types.BaseShardId)
+	tests.WaitBlock(s.T(), s.context, s.cfg.Client, types.MainShardId, 1)
 }
 
 func (s *SuiteFetchBlock) TearDownSuite() {
