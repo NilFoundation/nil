@@ -161,42 +161,40 @@ func (s TaskIdSet) Put(id TaskId) {
 
 // todo: declare separate task types for ProofProvider and Prover
 // https://www.notion.so/nilfoundation/Generic-Tasks-in-SyncCommittee-10ac614852608028b7ffcfd910deeef7?pvs=4
+
 type TaskResultData []byte
 
-// TaskResult Prover returns this struct as task result
+// TaskResult represents the result of a task provided via RPC by the executor with id = TaskResult.Sender.
 type TaskResult struct {
 	TaskId        TaskId              `json:"taskId"`
-	Type          TaskType            `json:"type"`
 	IsSuccess     bool                `json:"isSuccess"`
-	ErrorText     string              `json:"errorText"`
+	ErrorText     string              `json:"errorText,omitempty"`
 	Sender        TaskExecutorId      `json:"sender"`
-	DataAddresses TaskResultAddresses `json:"dataAddresses"`
-	Data          TaskResultData      `json:"binaryData"`
+	DataAddresses TaskResultAddresses `json:"dataAddresses,omitempty"`
+	Data          TaskResultData      `json:"binaryData,omitempty"`
 }
 
-func SuccessProviderTaskResult(
+func NewSuccessProviderTaskResult(
 	taskId TaskId,
 	proofProviderId TaskExecutorId,
-	taskType TaskType,
 	dataAddresses TaskResultAddresses,
 	binaryData TaskResultData,
-) TaskResult {
-	return TaskResult{
+) *TaskResult {
+	return &TaskResult{
 		TaskId:        taskId,
 		IsSuccess:     true,
 		Sender:        proofProviderId,
-		Type:          taskType,
 		DataAddresses: dataAddresses,
 		Data:          binaryData,
 	}
 }
 
-func FailureProviderTaskResult(
+func NewFailureProviderTaskResult(
 	taskId TaskId,
 	proofProviderId TaskExecutorId,
 	err error,
-) TaskResult {
-	return TaskResult{
+) *TaskResult {
+	return &TaskResult{
 		TaskId:    taskId,
 		IsSuccess: false,
 		Sender:    proofProviderId,
@@ -204,34 +202,48 @@ func FailureProviderTaskResult(
 	}
 }
 
-func SuccessProverTaskResult(
+func NewSuccessProverTaskResult(
 	taskId TaskId,
 	sender TaskExecutorId,
-	taskType TaskType,
 	dataAddresses TaskResultAddresses,
 	binaryData TaskResultData,
-) TaskResult {
-	return TaskResult{
+) *TaskResult {
+	return &TaskResult{
 		TaskId:        taskId,
 		IsSuccess:     true,
 		Sender:        sender,
-		Type:          taskType,
 		DataAddresses: dataAddresses,
 		Data:          binaryData,
 	}
 }
 
-func FailureProverTaskResult(
+func NewFailureProverTaskResult(
 	taskId TaskId,
 	sender TaskExecutorId,
 	err error,
-) TaskResult {
-	return TaskResult{
-		TaskId:        taskId,
-		Sender:        sender,
-		DataAddresses: TaskResultAddresses{},
-		IsSuccess:     false,
-		ErrorText:     fmt.Sprintf("failed to generate proof: %v", err),
+) *TaskResult {
+	return &TaskResult{
+		TaskId:    taskId,
+		Sender:    sender,
+		IsSuccess: false,
+		ErrorText: fmt.Sprintf("failed to generate proof: %v", err),
+	}
+}
+
+// TaskResultDetails represents the result of a task, extending TaskResult with additional task-specific metadata.
+type TaskResultDetails struct {
+	TaskResult
+	TaskType      TaskType      `json:"type"`
+	CircuitType   CircuitType   `json:"circuitType"`
+	ExecutionTime time.Duration `json:"executionTime"`
+}
+
+func NewTaskResultEntry(result *TaskResult, taskEntry *TaskEntry, currentTime time.Time) *TaskResultDetails {
+	return &TaskResultDetails{
+		TaskResult:    *result,
+		TaskType:      taskEntry.Task.TaskType,
+		CircuitType:   taskEntry.Task.CircuitType,
+		ExecutionTime: *taskEntry.ExecutionTime(currentTime),
 	}
 }
 
@@ -247,9 +259,7 @@ type Task struct {
 	ParentTaskId *TaskId           `json:"parentTaskId"`
 
 	// DependencyResults tracks the set of task results on which current task depends
-	DependencyResults map[TaskId]TaskResult `json:"dependencyResults"`
-	// PendingDependencies tracks the set of not completed dependencies
-	PendingDependencies TaskIdSet `json:"pendingDependencies"`
+	DependencyResults map[TaskId]TaskResultDetails `json:"dependencyResults"`
 }
 
 type TaskStatus uint8
@@ -260,6 +270,7 @@ const (
 	WaitingForExecutor
 	Running
 	Failed
+	Completed
 )
 
 var TaskStatuses = map[string]TaskStatus{
@@ -288,25 +299,28 @@ func (*TaskStatus) PossibleValues() []string {
 // TaskEntry Wrapper for task to hold metadata like task status and dependencies
 type TaskEntry struct {
 	// Task: task to be executed
-	Task Task `json:"task"`
+	Task Task
 
 	// Dependents: list of tasks which depend on the current one
-	Dependents TaskIdSet `json:"dependents"`
+	Dependents TaskIdSet
+
+	// PendingDependencies tracks the set of not completed dependencies
+	PendingDependencies TaskIdSet
 
 	// Created: task object creation time
-	Created time.Time `json:"created"`
+	Created time.Time
 
 	// Started: time when the executor acquired the task for execution
-	Started *time.Time `json:"started"`
+	Started *time.Time
 
 	// Finished time when the task execution was completed (successfully or not)
-	Finished *time.Time `json:"finished"`
+	Finished *time.Time
 
 	// Owner: identifier of the current task executor
-	Owner TaskExecutorId `json:"owner"`
+	Owner TaskExecutorId
 
 	// Status: current status of the task
-	Status TaskStatus `json:"status"`
+	Status TaskStatus
 }
 
 // AddDependency adds a dependency to the current task entry and updates the dependents and pending dependencies.
@@ -318,27 +332,27 @@ func (t *TaskEntry) AddDependency(dependency *TaskEntry) {
 	}
 	dependency.Dependents.Put(t.Task.Id)
 
-	if t.Task.PendingDependencies == nil {
-		t.Task.PendingDependencies = NewTaskIdSet()
+	if t.PendingDependencies == nil {
+		t.PendingDependencies = NewTaskIdSet()
 	}
-	t.Task.PendingDependencies.Put(dependency.Task.Id)
+	t.PendingDependencies.Put(dependency.Task.Id)
 }
 
 // AddDependencyResult updates the task's dependency result and adjusts pending dependencies and task status accordingly.
-func (t *TaskEntry) AddDependencyResult(res TaskResult) error {
-	if t.Task.PendingDependencies == nil || !t.Task.PendingDependencies[res.TaskId] {
+func (t *TaskEntry) AddDependencyResult(res TaskResultDetails) error {
+	if t.PendingDependencies == nil || !t.PendingDependencies[res.TaskId] {
 		return fmt.Errorf("task with id=%s has no pending dependency with id=%s", t.Task.Id, res.TaskId)
 	}
 
 	if t.Task.DependencyResults == nil {
-		t.Task.DependencyResults = make(map[TaskId]TaskResult)
+		t.Task.DependencyResults = make(map[TaskId]TaskResultDetails)
 	}
 	t.Task.DependencyResults[res.TaskId] = res
 
 	if res.IsSuccess {
-		delete(t.Task.PendingDependencies, res.TaskId)
+		delete(t.PendingDependencies, res.TaskId)
 	}
-	if len(t.Task.PendingDependencies) == 0 {
+	if len(t.PendingDependencies) == 0 {
 		t.Status = WaitingForExecutor
 	}
 
@@ -348,31 +362,52 @@ func (t *TaskEntry) AddDependencyResult(res TaskResult) error {
 // Start assigns an executor to a task and changes its status from WaitingForExecutor to Running.
 // It requires a non-zero executorId and only transitions tasks that are in WaitingForExecutor status.
 // Returns an error if the executorId is unknown or if the task has an invalid status.
-func (t *TaskEntry) Start(executorId TaskExecutorId) error {
+func (t *TaskEntry) Start(executorId TaskExecutorId, currentTime time.Time) error {
 	if executorId == UnknownExecutorId {
 		return errors.New("unknown executor id")
 	}
 	if t.Status != WaitingForExecutor {
-		return fmt.Errorf("task with id=%s has invalid status: %s", t.Task.Id, t.Status)
+		return errTaskInvalidStatus(t, "Start")
 	}
 
 	t.Status = Running
 	t.Owner = executorId
-	now := time.Now()
-	t.Started = &now
+	t.Started = &currentTime
+	return nil
+}
+
+// Terminate transitions the status of a running task to Completed or Failed based on the input.
+func (t *TaskEntry) Terminate(completedSuccessfully bool, currentTime time.Time) error {
+	if t.Status != Running {
+		return errTaskInvalidStatus(t, "Fail")
+	}
+
+	var newStatus TaskStatus
+	if completedSuccessfully {
+		newStatus = Completed
+	} else {
+		newStatus = Failed
+	}
+
+	t.Status = newStatus
+	t.Finished = &currentTime
 	return nil
 }
 
 // ResetRunning resets a task's status from Running to WaitingForExecutor, clearing its start time and executor ownership.
 func (t *TaskEntry) ResetRunning() error {
 	if t.Status != Running {
-		return fmt.Errorf("task with id=%s has invalid status: %s", t.Task.Id, t.Status)
+		return errTaskInvalidStatus(t, "ResetRunning")
 	}
 
 	t.Started = nil
 	t.Status = WaitingForExecutor
 	t.Owner = UnknownExecutorId
 	return nil
+}
+
+func errTaskInvalidStatus(task *TaskEntry, methodName string) error {
+	return fmt.Errorf("task with id=%s has invalid status %s for %s operation", task.Task.Id, task.Status, methodName)
 }
 
 func (t *TaskEntry) ExecutionTime(currentTime time.Time) *time.Duration {
@@ -390,7 +425,7 @@ func (t *TaskEntry) ExecutionTime(currentTime time.Time) *time.Duration {
 }
 
 // AsNewChildEntry creates a new TaskEntry with a new TaskId and sets the ParentTaskId to the current task's Id.
-func (t *Task) AsNewChildEntry() *TaskEntry {
+func (t *Task) AsNewChildEntry(currentTime time.Time) *TaskEntry {
 	newTask := common.CopyPtr(t)
 	newTask.Id = NewTaskId()
 	newTask.ParentTaskId = &t.Id
@@ -398,7 +433,7 @@ func (t *Task) AsNewChildEntry() *TaskEntry {
 	return &TaskEntry{
 		Task:    *newTask,
 		Status:  WaitingForExecutor,
-		Created: time.Now(),
+		Created: currentTime,
 	}
 }
 
@@ -414,7 +449,9 @@ func HigherPriority(t1, t2 *TaskEntry) bool {
 	return t1.Task.TaskType < t2.Task.TaskType
 }
 
-func NewAggregateProofsTaskEntry(batchId BatchId, mainShardBlock *jsonrpc.RPCBlock) *TaskEntry {
+func NewAggregateProofsTaskEntry(
+	batchId BatchId, mainShardBlock *jsonrpc.RPCBlock, currentTime time.Time,
+) *TaskEntry {
 	task := Task{
 		Id:        NewTaskId(),
 		BatchId:   batchId,
@@ -425,12 +462,14 @@ func NewAggregateProofsTaskEntry(batchId BatchId, mainShardBlock *jsonrpc.RPCBlo
 	}
 	return &TaskEntry{
 		Task:    task,
-		Created: time.Now(),
+		Created: currentTime,
 		Status:  WaitingForInput,
 	}
 }
 
-func NewBlockProofTaskEntry(batchId BatchId, aggregateProofsTask *TaskEntry, execShardBlock *jsonrpc.RPCBlock) (*TaskEntry, error) {
+func NewBlockProofTaskEntry(
+	batchId BatchId, aggregateProofsTask *TaskEntry, execShardBlock *jsonrpc.RPCBlock, currentTime time.Time,
+) (*TaskEntry, error) {
 	if aggregateProofsTask == nil {
 		return nil, errors.New("aggregateProofsTask cannot be nil")
 	}
@@ -452,7 +491,7 @@ func NewBlockProofTaskEntry(batchId BatchId, aggregateProofsTask *TaskEntry, exe
 	}
 	blockProofEntry := &TaskEntry{
 		Task:    task,
-		Created: time.Now(),
+		Created: currentTime,
 		Status:  WaitingForExecutor,
 	}
 
@@ -466,6 +505,7 @@ func NewPartialProveTaskEntry(
 	blockNum types.BlockNumber,
 	blockHash common.Hash,
 	circuitType CircuitType,
+	currentTime time.Time,
 ) *TaskEntry {
 	task := Task{
 		Id:          NewTaskId(),
@@ -478,7 +518,7 @@ func NewPartialProveTaskEntry(
 	}
 	return &TaskEntry{
 		Task:    task,
-		Created: time.Now(),
+		Created: currentTime,
 		Status:  WaitingForExecutor,
 	}
 }
@@ -488,6 +528,7 @@ func NewAggregateChallengeTaskEntry(
 	shardId types.ShardId,
 	blockNum types.BlockNumber,
 	blockHash common.Hash,
+	currentTime time.Time,
 ) *TaskEntry {
 	aggChallengeTask := Task{
 		Id:        NewTaskId(),
@@ -500,7 +541,7 @@ func NewAggregateChallengeTaskEntry(
 
 	return &TaskEntry{
 		Task:    aggChallengeTask,
-		Created: time.Now(),
+		Created: currentTime,
 		Status:  WaitingForInput,
 	}
 }
@@ -511,6 +552,7 @@ func NewCombinedQTaskEntry(
 	blockNum types.BlockNumber,
 	blockHash common.Hash,
 	circuitType CircuitType,
+	currentTime time.Time,
 ) *TaskEntry {
 	combinedQTask := Task{
 		Id:          NewTaskId(),
@@ -524,7 +566,7 @@ func NewCombinedQTaskEntry(
 
 	return &TaskEntry{
 		Task:    combinedQTask,
-		Created: time.Now(),
+		Created: currentTime,
 		Status:  WaitingForInput,
 	}
 }
@@ -534,6 +576,7 @@ func NewAggregateFRITaskEntry(
 	shardId types.ShardId,
 	blockNum types.BlockNumber,
 	blockHash common.Hash,
+	currentTime time.Time,
 ) *TaskEntry {
 	aggFRITask := Task{
 		Id:        NewTaskId(),
@@ -546,7 +589,7 @@ func NewAggregateFRITaskEntry(
 
 	return &TaskEntry{
 		Task:    aggFRITask,
-		Created: time.Now(),
+		Created: currentTime,
 		Status:  WaitingForInput,
 	}
 }
@@ -557,6 +600,7 @@ func NewFRIConsistencyCheckTaskEntry(
 	blockNum types.BlockNumber,
 	blockHash common.Hash,
 	circuitType CircuitType,
+	currentTime time.Time,
 ) *TaskEntry {
 	task := Task{
 		Id:          NewTaskId(),
@@ -569,7 +613,7 @@ func NewFRIConsistencyCheckTaskEntry(
 	}
 	return &TaskEntry{
 		Task:    task,
-		Created: time.Now(),
+		Created: currentTime,
 		Status:  WaitingForInput,
 	}
 }
@@ -579,6 +623,7 @@ func NewMergeProofTaskEntry(
 	shardId types.ShardId,
 	blockNum types.BlockNumber,
 	blockHash common.Hash,
+	currentTime time.Time,
 ) *TaskEntry {
 	mergeProofTask := Task{
 		Id:        NewTaskId(),
@@ -591,7 +636,7 @@ func NewMergeProofTaskEntry(
 
 	return &TaskEntry{
 		Task:    mergeProofTask,
-		Created: time.Now(),
+		Created: currentTime,
 		Status:  WaitingForInput,
 	}
 }

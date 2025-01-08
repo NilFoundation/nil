@@ -61,6 +61,7 @@ type BlockStorageMetrics interface {
 
 type blockStorage struct {
 	db          db.DB
+	timer       common.Timer
 	retryRunner common.RetryRunner
 	metrics     BlockStorageMetrics
 	logger      zerolog.Logger
@@ -68,11 +69,13 @@ type blockStorage struct {
 
 func NewBlockStorage(
 	database db.DB,
+	timer common.Timer,
 	metrics BlockStorageMetrics,
 	logger zerolog.Logger,
 ) BlockStorage {
 	return &blockStorage{
 		db:          database,
+		timer:       timer,
 		retryRunner: badgerRetryRunner(logger),
 		metrics:     metrics,
 		logger:      logger,
@@ -185,7 +188,8 @@ func (bs *blockStorage) setBlockBatchImpl(ctx context.Context, batch *scTypes.Bl
 }
 
 func (bs *blockStorage) putBlockTx(tx db.RwTx, batchId scTypes.BatchId, block *jsonrpc.RPCBlock) error {
-	entry := blockEntry{Block: *block, BatchId: batchId, FetchedAt: time.Now().UTC()}
+	currentTime := bs.timer.NowTime()
+	entry := blockEntry{Block: *block, BatchId: batchId, FetchedAt: currentTime}
 	value, err := marshallEntry(&entry)
 	if err != nil {
 		return err

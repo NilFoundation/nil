@@ -46,8 +46,7 @@ func (s *TestSuite) TearDownTest() {
 func newTaskRequestHandlerMock() *api.TaskRequestHandlerMock {
 	return &api.TaskRequestHandlerMock{
 		GetTaskFunc: func(_ context.Context, request *api.TaskRequest) (*types.Task, error) {
-			task := testaide.GenerateTask()
-			return &task, nil
+			return testaide.NewTask(), nil
 		},
 		SetTaskResultFunc: func(ctx context.Context, result *types.TaskResult) error {
 			return nil

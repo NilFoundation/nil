@@ -29,6 +29,7 @@ type ProposerTestSuite struct {
 
 	params        *ProposerParams
 	db            db.DB
+	timer         common.Timer
 	storage       storage.BlockStorage
 	rpcClientMock client.ClientMock
 	proposer      *Proposer
@@ -49,7 +50,8 @@ func (s *ProposerTestSuite) SetupSuite() {
 	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
 	s.Require().NoError(err)
 
-	s.storage = storage.NewBlockStorage(s.db, metricsHandler, logger)
+	s.timer = testaide.NewTestTimer()
+	s.storage = storage.NewBlockStorage(s.db, s.timer, metricsHandler, logger)
 	s.params = NewDefaultProposerParams()
 	s.proposer, err = NewProposer(s.ctx, s.params, &s.rpcClientMock, s.storage, metricsHandler, logger)
 	s.Require().NoError(err)
@@ -86,7 +88,7 @@ func (s *ProposerTestSuite) TestCreateUpdateStateTransaction() {
 }
 
 func (s *ProposerTestSuite) TestSendProof() {
-	data := testaide.GenerateProposalData(3)
+	data := testaide.NewProposalData(3, s.timer.NowTime())
 
 	err := s.proposer.sendProof(s.ctx, data)
 	s.Require().NoError(err, "failed to send proof")

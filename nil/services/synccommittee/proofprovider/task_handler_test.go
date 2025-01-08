@@ -20,6 +20,7 @@ type TaskHandlerTestSuite struct {
 	context      context.Context
 	cancellation context.CancelFunc
 	database     db.DB
+	timer        common.Timer
 	taskStorage  storage.TaskStorage
 	taskHandler  api.TaskHandler
 }
@@ -37,7 +38,8 @@ func (s *TaskHandlerTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	s.taskStorage = storage.NewTaskStorage(s.database, common.NewTimer(), metricsHandler, logger)
-	s.taskHandler = newTaskHandler(s.taskStorage, logger)
+	s.timer = testaide.NewTestTimer()
+	s.taskHandler = newTaskHandler(s.taskStorage, s.timer, logger)
 }
 
 func TestTaskHandlerSuite(t *testing.T) {
@@ -69,8 +71,8 @@ func (s *TaskHandlerTestSuite) TestReturnErrorOnUnexpectedTaskType() {
 
 	for _, testCase := range testCases {
 		s.Run(testCase.name, func() {
-			task := testaide.GenerateTaskOfType(testCase.taskType)
-			err := s.taskHandler.Handle(s.context, executorId, &task)
+			task := testaide.NewTaskOfType(testCase.taskType)
+			err := s.taskHandler.Handle(s.context, executorId, task)
 			s.Require().ErrorIs(
 				err,
 				types.ErrUnexpectedTaskType,
@@ -81,9 +83,10 @@ func (s *TaskHandlerTestSuite) TestReturnErrorOnUnexpectedTaskType() {
 }
 
 func (s *TaskHandlerTestSuite) TestHandleAggregateProofsTask() {
+	now := s.timer.NowTime()
 	executorId := testaide.RandomExecutorId()
-	mainBlock := testaide.GenerateMainShardBlock()
-	taskEntry := types.NewAggregateProofsTaskEntry(types.NewBatchId(), mainBlock)
+	mainBlock := testaide.NewMainShardBlock()
+	taskEntry := types.NewAggregateProofsTaskEntry(types.NewBatchId(), mainBlock, now)
 	aggProofsTask := taskEntry.Task
 
 	err := s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
@@ -104,10 +107,11 @@ func (s *TaskHandlerTestSuite) TestHandleAggregateProofsTask() {
 }
 
 func (s *TaskHandlerTestSuite) TestHandleBlockProofTask() {
+	now := s.timer.NowTime()
 	executorId := testaide.RandomExecutorId()
-	execBlock := testaide.GenerateExecutionShardBlock()
-	aggregateProofsEntry := types.NewAggregateProofsTaskEntry(types.NewBatchId(), execBlock)
-	taskEntry, err := types.NewBlockProofTaskEntry(types.NewBatchId(), aggregateProofsEntry, execBlock)
+	execBlock := testaide.NewExecutionShardBlock()
+	aggregateProofsEntry := types.NewAggregateProofsTaskEntry(types.NewBatchId(), execBlock, now)
+	taskEntry, err := types.NewBlockProofTaskEntry(types.NewBatchId(), aggregateProofsEntry, execBlock, now)
 	s.Require().NoError(err)
 
 	err = s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
@@ -182,7 +186,7 @@ func (s *TaskHandlerTestSuite) requestTask(executorId types.TaskExecutorId, avai
 // Set result for task
 func (s *TaskHandlerTestSuite) completeTask(sender types.TaskExecutorId, id types.TaskId) {
 	s.T().Helper()
-	result := types.TaskResult{TaskId: id, IsSuccess: true, Sender: sender}
+	result := &types.TaskResult{TaskId: id, IsSuccess: true, Sender: sender}
 	err := s.taskStorage.ProcessTaskResult(s.context, result)
 	s.Require().NoError(err)
 }

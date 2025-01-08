@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/client"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
@@ -54,10 +55,17 @@ func New(config Config) (*Prover, error) {
 		OutDir:              "/root/out",
 	}
 
+	handler := newTaskHandler(
+		taskRpcClient,
+		common.NewTimer(),
+		logger,
+		defaultTaskHandlerConfig,
+	)
+
 	taskExecutor, err := executor.New(
 		executor.DefaultConfig(),
 		taskRpcClient,
-		newTaskHandler(taskRpcClient, logger, defaultTaskHandlerConfig),
+		handler,
 		metricsHandler,
 		logger,
 	)

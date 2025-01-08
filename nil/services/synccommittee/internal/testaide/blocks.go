@@ -53,7 +53,7 @@ func RandomShardId() types.ShardId {
 	}
 }
 
-func GenerateRpcInMessage() *jsonrpc.RPCInMessage {
+func NewRpcInMessage() *jsonrpc.RPCInMessage {
 	return &jsonrpc.RPCInMessage{
 		Flags: types.NewMessageFlags(types.MessageFlagInternal, types.MessageFlagRefund),
 		Seqno: 10,
@@ -64,10 +64,10 @@ func GenerateRpcInMessage() *jsonrpc.RPCInMessage {
 	}
 }
 
-func GenerateBatchesSequence(batchesCount int) []*scTypes.BlockBatch {
+func NewBatchesSequence(batchesCount int) []*scTypes.BlockBatch {
 	batches := make([]*scTypes.BlockBatch, 0, batchesCount)
 	for range batchesCount {
-		nextBatch := GenerateBlockBatch(ShardsCount)
+		nextBatch := NewBlockBatch(ShardsCount)
 		if len(batches) > 0 {
 			prevMainBlock := batches[len(batches)-1].MainShardBlock
 			nextBatch.MainShardBlock.ParentHash = prevMainBlock.Hash
@@ -78,13 +78,13 @@ func GenerateBatchesSequence(batchesCount int) []*scTypes.BlockBatch {
 	return batches
 }
 
-func GenerateBlockBatch(childBlocksCount int) *scTypes.BlockBatch {
-	mainBlock := GenerateMainShardBlock()
+func NewBlockBatch(childBlocksCount int) *scTypes.BlockBatch {
+	mainBlock := NewMainShardBlock()
 	childBlocks := make([]*jsonrpc.RPCBlock, 0, childBlocksCount)
 	mainBlock.ChildBlocks = nil
 
 	for i := range childBlocksCount {
-		block := GenerateExecutionShardBlock()
+		block := NewExecutionShardBlock()
 		block.ShardId = types.ShardId(i + 1)
 		childBlocks = append(childBlocks, block)
 		mainBlock.ChildBlocks = append(mainBlock.ChildBlocks, block.Hash)
@@ -97,7 +97,7 @@ func GenerateBlockBatch(childBlocksCount int) *scTypes.BlockBatch {
 	return batch
 }
 
-func GenerateMainShardBlock() *jsonrpc.RPCBlock {
+func NewMainShardBlock() *jsonrpc.RPCBlock {
 	childHashes := make([]common.Hash, 0, ShardsCount)
 	for range ShardsCount {
 		childHashes = append(childHashes, RandomHash())
@@ -110,25 +110,25 @@ func GenerateMainShardBlock() *jsonrpc.RPCBlock {
 		ChildBlocksRootHash: RandomHash(),
 		Hash:                RandomHash(),
 		ParentHash:          RandomHash(),
-		Messages:            generateRpcInMessages(ShardsCount),
+		Messages:            newRpcInMessages(ShardsCount),
 	}
 }
 
-func GenerateExecutionShardBlock() *jsonrpc.RPCBlock {
+func NewExecutionShardBlock() *jsonrpc.RPCBlock {
 	return &jsonrpc.RPCBlock{
 		Number:        RandomBlockNum(),
 		ShardId:       RandomShardId(),
 		Hash:          RandomHash(),
 		MainChainHash: RandomHash(),
 		ParentHash:    RandomHash(),
-		Messages:      generateRpcInMessages(ShardsCount),
+		Messages:      newRpcInMessages(ShardsCount),
 	}
 }
 
-func GenerateProposalData(txCount int) *scTypes.ProposalData {
+func NewProposalData(txCount int, currentTime time.Time) *scTypes.ProposalData {
 	transactions := make([]*scTypes.PrunedTransaction, 0, txCount)
 	for range txCount {
-		tx := scTypes.NewTransaction(GenerateRpcInMessage())
+		tx := scTypes.NewTransaction(NewRpcInMessage())
 		transactions = append(transactions, tx)
 	}
 
@@ -137,14 +137,14 @@ func GenerateProposalData(txCount int) *scTypes.ProposalData {
 		Transactions:       transactions,
 		OldProvedStateRoot: RandomHash(),
 		NewProvedStateRoot: RandomHash(),
-		MainBlockFetchedAt: time.Now().Add(-time.Hour),
+		MainBlockFetchedAt: currentTime.Add(-time.Hour),
 	}
 }
 
-func generateRpcInMessages(count int) []*jsonrpc.RPCInMessage {
+func newRpcInMessages(count int) []*jsonrpc.RPCInMessage {
 	messages := make([]*jsonrpc.RPCInMessage, count)
 	for i := range count {
-		messages[i] = GenerateRpcInMessage()
+		messages[i] = NewRpcInMessage()
 	}
 	return messages
 }

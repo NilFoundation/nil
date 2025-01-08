@@ -24,6 +24,7 @@ type BlockTasksIntegrationTestSuite struct {
 	cancellation context.CancelFunc
 
 	db           db.DB
+	timer        common.Timer
 	taskStorage  storage.TaskStorage
 	blockStorage storage.BlockStorage
 
@@ -46,8 +47,9 @@ func (s *BlockTasksIntegrationTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 	logger := logging.NewLogger("block_tasks_test_suite")
 
-	s.taskStorage = storage.NewTaskStorage(s.db, common.NewTimer(), metricsHandler, logger)
-	s.blockStorage = storage.NewBlockStorage(s.db, metricsHandler, logger)
+	s.timer = testaide.NewTestTimer()
+	s.taskStorage = storage.NewTaskStorage(s.db, s.timer, metricsHandler, logger)
+	s.blockStorage = storage.NewBlockStorage(s.db, s.timer, metricsHandler, logger)
 
 	s.scheduler = scheduler.New(
 		s.taskStorage,
@@ -70,11 +72,11 @@ func (s *BlockTasksIntegrationTestSuite) SetupTest() {
 }
 
 func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Success_Result() {
-	batch := testaide.GenerateBlockBatch(1)
+	batch := testaide.NewBlockBatch(1)
 	err := s.blockStorage.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
-	proofTasks, err := batch.CreateProofTasks()
+	proofTasks, err := batch.CreateProofTasks(s.timer.NowTime())
 	s.Require().NoError(err)
 
 	err = s.taskStorage.AddTaskEntries(s.ctx, proofTasks)
@@ -94,8 +96,8 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Success_R
 	s.Require().Nil(nonAvailableTask)
 
 	// successfully completing child block proof
-	blockProofResult := successProviderResult(taskToExecute, executorId)
-	err = s.scheduler.SetTaskResult(s.ctx, &blockProofResult)
+	blockProofResult := newTestSuccessProviderResult(taskToExecute, executorId)
+	err = s.scheduler.SetTaskResult(s.ctx, blockProofResult)
 	s.Require().NoError(err)
 
 	// proposal data should not be available yet
@@ -110,8 +112,8 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Success_R
 	s.Require().Equal(types.AggregateProofs, taskToExecute.TaskType)
 
 	// completing top-level aggregate proofs task
-	aggregateProofsResult := successProviderResult(taskToExecute, executorId)
-	err = s.scheduler.SetTaskResult(s.ctx, &aggregateProofsResult)
+	aggregateProofsResult := newTestSuccessProviderResult(taskToExecute, executorId)
+	err = s.scheduler.SetTaskResult(s.ctx, aggregateProofsResult)
 	s.Require().NoError(err)
 
 	// once top-level task is completed, proposal data for the main block should become available
@@ -122,11 +124,11 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Success_R
 }
 
 func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Failure_Result() {
-	batch := testaide.GenerateBlockBatch(1)
+	batch := testaide.NewBlockBatch(1)
 	err := s.blockStorage.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
-	proofTasks, err := batch.CreateProofTasks()
+	proofTasks, err := batch.CreateProofTasks(s.timer.NowTime())
 	s.Require().NoError(err)
 
 	err = s.taskStorage.AddTaskEntries(s.ctx, proofTasks)
@@ -141,8 +143,8 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Failure_R
 	s.Require().Equal(types.ProofBlock, taskToExecute.TaskType)
 
 	// successfully completing child block proof
-	blockProofResult := successProviderResult(taskToExecute, executorId)
-	err = s.scheduler.SetTaskResult(s.ctx, &blockProofResult)
+	blockProofResult := newTestSuccessProviderResult(taskToExecute, executorId)
+	err = s.scheduler.SetTaskResult(s.ctx, blockProofResult)
 	s.Require().NoError(err)
 
 	// requesting next task for execution
@@ -152,13 +154,13 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Failure_R
 	s.Require().Equal(types.AggregateProofs, taskToExecute.TaskType)
 
 	// setting top-level task as failed
-	aggregateProofsFailed := types.FailureProviderTaskResult(
+	aggregateProofsFailed := types.NewFailureProviderTaskResult(
 		taskToExecute.Id,
 		executorId,
 		errors.New("something went wrong"),
 	)
 
-	err = s.scheduler.SetTaskResult(s.ctx, &aggregateProofsFailed)
+	err = s.scheduler.SetTaskResult(s.ctx, aggregateProofsFailed)
 	s.Require().NoError(err)
 
 	// proposal data should not become available
@@ -173,11 +175,10 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Failure_R
 	s.Require().Equal(types.Failed, aggregateEntry.Status)
 }
 
-func successProviderResult(taskToExecute *types.Task, executorId types.TaskExecutorId) types.TaskResult {
-	return types.SuccessProviderTaskResult(
+func newTestSuccessProviderResult(taskToExecute *types.Task, executorId types.TaskExecutorId) *types.TaskResult {
+	return types.NewSuccessProviderTaskResult(
 		taskToExecute.Id,
 		executorId,
-		taskToExecute.TaskType,
 		types.TaskResultAddresses{},
 		types.TaskResultData{},
 	)

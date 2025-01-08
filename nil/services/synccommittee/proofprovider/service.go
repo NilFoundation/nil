@@ -54,13 +54,14 @@ func New(config *Config, database db.DB) (*ProofProvider, error) {
 		return nil, fmt.Errorf("error initializing metrics: %w", err)
 	}
 
+	timer := common.NewTimer()
 	taskRpcClient := rpc.NewTaskRequestRpcClient(config.SyncCommitteeRpcEndpoint, logger)
-	taskStorage := storage.NewTaskStorage(database, common.NewTimer(), metricsHandler, logger)
+	taskStorage := storage.NewTaskStorage(database, timer, metricsHandler, logger)
 
 	taskExecutor, err := executor.New(
 		executor.DefaultConfig(),
 		taskRpcClient,
-		newTaskHandler(taskStorage, logger),
+		newTaskHandler(taskStorage, timer, logger),
 		metricsHandler,
 		logger,
 	)

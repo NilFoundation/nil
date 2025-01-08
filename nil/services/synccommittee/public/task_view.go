@@ -22,53 +22,55 @@ type (
 	TaskExecutorId = types.TaskExecutorId
 )
 
-type TaskView struct {
+type TaskViewCommon struct {
 	Id          TaskId      `json:"id"`
-	BatchId     BatchId     `json:"batchId"`
-	ShardId     ShardId     `json:"shardId"`
-	BlockNumber BlockNumber `json:"blockNumber"`
-	BlockHash   common.Hash `json:"blockHash"`
 	Type        TaskType    `json:"type"`
 	CircuitType CircuitType `json:"circuitType"`
 
-	CreatedAt     time.Time      `json:"createdAt"`
-	StartedAt     *time.Time     `json:"startedAt,omitempty"`
 	ExecutionTime *time.Duration `json:"executionTime,omitempty"`
 	Owner         TaskExecutorId `json:"owner"`
 	Status        TaskStatus     `json:"status"`
 }
 
-func NewTaskView(taskEntry *types.TaskEntry, currentTime time.Time) *TaskView {
-	return &TaskView{
+func (t *TaskViewCommon) IsFailed() bool {
+	return t.Status == types.Failed
+}
+
+func makeTaskViewCommon(taskEntry *types.TaskEntry, currentTime time.Time) TaskViewCommon {
+	return TaskViewCommon{
 		Id:          taskEntry.Task.Id,
-		BatchId:     taskEntry.Task.BatchId,
-		ShardId:     taskEntry.Task.ShardId,
-		BlockNumber: taskEntry.Task.BlockNum,
-		BlockHash:   taskEntry.Task.BlockHash,
 		Type:        taskEntry.Task.TaskType,
 		CircuitType: taskEntry.Task.CircuitType,
 
-		CreatedAt:     taskEntry.Created,
-		StartedAt:     taskEntry.Started,
 		ExecutionTime: taskEntry.ExecutionTime(currentTime),
 		Owner:         taskEntry.Owner,
 		Status:        taskEntry.Status,
 	}
 }
 
-type TaskResultView struct {
-	TaskId    TaskId         `json:"taskId"`
-	IsSuccess bool           `json:"isSuccess"`
-	ErrorText string         `json:"errorText,omitempty"`
-	Sender    TaskExecutorId `json:"sender"`
+type TaskView struct {
+	TaskViewCommon
+
+	BatchId     BatchId     `json:"batchId"`
+	ShardId     ShardId     `json:"shardId"`
+	BlockNumber BlockNumber `json:"blockNumber"`
+	BlockHash   common.Hash `json:"blockHash"`
+
+	CreatedAt time.Time  `json:"createdAt"`
+	StartedAt *time.Time `json:"startedAt,omitempty"`
 }
 
-func NewTaskResultView(taskResult *types.TaskResult) *TaskResultView {
-	return &TaskResultView{
-		TaskId:    taskResult.TaskId,
-		IsSuccess: taskResult.IsSuccess,
-		ErrorText: taskResult.ErrorText,
-		Sender:    taskResult.Sender,
+func NewTaskView(taskEntry *types.TaskEntry, currentTime time.Time) *TaskView {
+	return &TaskView{
+		TaskViewCommon: makeTaskViewCommon(taskEntry, currentTime),
+
+		BatchId:     taskEntry.Task.BatchId,
+		ShardId:     taskEntry.Task.ShardId,
+		BlockNumber: taskEntry.Task.BlockNum,
+		BlockHash:   taskEntry.Task.BlockHash,
+
+		CreatedAt: taskEntry.Created,
+		StartedAt: taskEntry.Started,
 	}
 }
 
@@ -81,19 +83,45 @@ func TreeDepthExceededErr(taskId TaskId) error {
 
 // TaskTreeView represents a full hierarchical structure of tasks with dependencies among them.
 type TaskTreeView struct {
-	Task         TaskView                 `json:"task"`
-	Result       *TaskResultView          `json:"taskResult,omitempty"`
-	Dependencies map[TaskId]*TaskTreeView `json:"dependencies"`
+	TaskViewCommon
+	ResultErrorText string                   `json:"errorText,omitempty"`
+	Dependencies    map[TaskId]*TaskTreeView `json:"dependencies"`
 }
 
-func NewTaskTree(task *TaskView) *TaskTreeView {
+func NewTaskTreeFromEntry(taskEntry *types.TaskEntry, currentTime time.Time) *TaskTreeView {
 	return &TaskTreeView{
-		Task:         *task,
-		Result:       nil,
-		Dependencies: make(map[TaskId]*TaskTreeView),
+		TaskViewCommon: makeTaskViewCommon(taskEntry, currentTime),
+		Dependencies:   emptyDependencies(),
+	}
+}
+
+func NewTaskTreeFromResult(result *types.TaskResultDetails) *TaskTreeView {
+	var taskStatus TaskStatus
+	if result.IsSuccess {
+		taskStatus = types.Completed
+	} else {
+		taskStatus = types.Failed
+	}
+
+	return &TaskTreeView{
+		TaskViewCommon: TaskViewCommon{
+			Id:          result.TaskId,
+			Type:        result.TaskType,
+			CircuitType: result.CircuitType,
+
+			ExecutionTime: &result.ExecutionTime,
+			Owner:         result.Sender,
+			Status:        taskStatus,
+		},
+		ResultErrorText: result.ErrorText,
+		Dependencies:    emptyDependencies(),
 	}
 }
 
 func (t *TaskTreeView) AddDependency(dependency *TaskTreeView) {
-	t.Dependencies[dependency.Task.Id] = dependency
+	t.Dependencies[dependency.Id] = dependency
+}
+
+func emptyDependencies() map[TaskId]*TaskTreeView {
+	return make(map[TaskId]*TaskTreeView)
 }

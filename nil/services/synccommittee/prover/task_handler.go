@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
@@ -19,13 +20,17 @@ import (
 
 type taskHandler struct {
 	requestHandler api.TaskRequestHandler
+	timer          common.Timer
 	logger         zerolog.Logger
 	config         taskHandlerConfig
 }
 
-func newTaskHandler(requestHandler api.TaskRequestHandler, logger zerolog.Logger, config taskHandlerConfig) api.TaskHandler {
+func newTaskHandler(
+	requestHandler api.TaskRequestHandler, timer common.Timer, logger zerolog.Logger, config taskHandlerConfig,
+) api.TaskHandler {
 	return &taskHandler{
 		requestHandler: requestHandler,
+		timer:          timer,
 		logger:         logger,
 		config:         config,
 	}
@@ -80,7 +85,7 @@ func circuitIdx(ct types.CircuitType) uint8 {
 func collectDependencyFiles(task *types.Task, dependencyType types.TaskType, resultType types.ProverResultType) ([]string, error) {
 	depFiles := []string{}
 	for _, res := range task.DependencyResults {
-		if res.Type == dependencyType {
+		if res.TaskType == dependencyType {
 			path, ok := res.DataAddresses[resultType]
 			if !ok {
 				return depFiles, errors.New("Inconsistent task " + task.Id.String() +
@@ -379,31 +384,31 @@ func (h *taskHandler) makeCommandForTask(task *types.Task) commandDescription {
 func (h *taskHandler) Handle(ctx context.Context, executorId types.TaskExecutorId, task *types.Task) error {
 	if task.TaskType == types.ProofBlock {
 		err := types.UnexpectedTaskType(task)
-		taskResult := types.FailureProverTaskResult(task.Id, executorId, fmt.Errorf("failed to create command for task: %w", err))
+		taskResult := types.NewFailureProverTaskResult(task.Id, executorId, fmt.Errorf("failed to create command for task: %w", err))
 		h.logger.Error().Msgf("failed to create command for task with id=%s: %v", task.Id, err)
-		return h.requestHandler.SetTaskResult(ctx, &taskResult)
+		return h.requestHandler.SetTaskResult(ctx, taskResult)
 	}
 	desc := h.makeCommandForTask(task)
 	if desc.runCommand.Err != nil {
-		taskResult := types.FailureProverTaskResult(task.Id, executorId, fmt.Errorf("failed to create command for task: %w", desc.runCommand.Err))
+		taskResult := types.NewFailureProverTaskResult(task.Id, executorId, fmt.Errorf("failed to create command for task: %w", desc.runCommand.Err))
 		h.logger.Error().Msgf("failed to create command for task with id=%s: %v", task.Id, desc.runCommand.Err)
-		return h.requestHandler.SetTaskResult(ctx, &taskResult)
+		return h.requestHandler.SetTaskResult(ctx, taskResult)
 	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	desc.runCommand.Stdout = &stdout
 	desc.runCommand.Stderr = &stderr
 	cmdString := strings.Join(desc.runCommand.Args, " ")
-	startTime := time.Now()
+	startTime := h.timer.NowTime()
 	h.logger.Info().Msgf("Start task %v with id %v for prove block %v from shard %d in batch %d by command %v", task.TaskType.String(), task.Id.String(), task.BlockHash.String(), task.ShardId, task.BatchId, cmdString)
 	err := desc.runCommand.Run()
 	if err != nil {
-		taskResult := types.FailureProverTaskResult(task.Id, executorId, fmt.Errorf("task execution failed: %w", err))
+		taskResult := types.NewFailureProverTaskResult(task.Id, executorId, fmt.Errorf("task execution failed: %w", err))
 		h.logger.Error().Msgf("Task with id %v failed", task.Id.String())
 		h.logger.Error().Msgf("Task execution stderr:\n%v\n", stderr.String())
-		return h.requestHandler.SetTaskResult(ctx, &taskResult)
+		return h.requestHandler.SetTaskResult(ctx, taskResult)
 	}
 	h.logger.Info().Msgf("Task with id %v finished after %s", task.Id.String(), time.Since(startTime))
-	taskResult := types.SuccessProverTaskResult(task.Id, executorId, task.TaskType, desc.expectedResult, desc.binaryExpectedResults)
-	return h.requestHandler.SetTaskResult(ctx, &taskResult)
+	taskResult := types.NewSuccessProverTaskResult(task.Id, executorId, desc.expectedResult, desc.binaryExpectedResults)
+	return h.requestHandler.SetTaskResult(ctx, taskResult)
 }

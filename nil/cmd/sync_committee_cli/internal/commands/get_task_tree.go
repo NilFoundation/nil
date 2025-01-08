@@ -42,7 +42,7 @@ func buildTreeOutput(tree *public.TaskTreeView) (CmdOutput, error) {
 	var toTreeRec func(tree *public.TaskTreeView, prefix string, isLast bool, currentDepth int) error
 	toTreeRec = func(node *public.TaskTreeView, prefix string, isLast bool, currentDepth int) error {
 		if currentDepth > public.TreeViewDepthLimit {
-			return public.TreeDepthExceededErr(node.Task.Id)
+			return public.TreeDepthExceededErr(node.Id)
 		}
 
 		builder.WriteString(prefix)
@@ -55,25 +55,25 @@ func buildTreeOutput(tree *public.TaskTreeView) (CmdOutput, error) {
 		}
 
 		var execTimeStr string
-		if execTime := node.Task.ExecutionTime; execTime != nil {
+		if execTime := node.ExecutionTime; execTime != nil {
 			execTimeStr = YellowStr(" (%s)", execTime.String())
 		}
 
 		builder.WriteLine(
-			node.Task.Id.String(), " ", GreenStr("%s %s", node.Task.Type, node.Task.CircuitType), execTimeStr,
+			node.Id.String(), GreenStr(" %s %s", node.Type, node.CircuitType), execTimeStr,
 		)
 
 		var statusStr string
 		var errorText string
-		if node.Result != nil && !node.Result.IsSuccess {
-			statusStr = RedStr("%s", node.Task.Status)
-			errorText = " " + node.Result.ErrorText
+		if node.IsFailed() {
+			statusStr = RedStr("%s", node.Status)
+			errorText = " " + node.ResultErrorText
 		} else {
-			statusStr = CyanStr("%s", node.Task.Status)
+			statusStr = CyanStr("%s", node.Status)
 		}
 
 		builder.WriteLine(
-			prefix, "  Owner=", CyanStr("%s", node.Task.Owner), " Status=", statusStr, errorText,
+			prefix, "  Owner=", CyanStr("%s", node.Owner), " Status=", statusStr, errorText,
 		)
 
 		if len(node.Dependencies) == 0 {
@@ -81,7 +81,7 @@ func buildTreeOutput(tree *public.TaskTreeView) (CmdOutput, error) {
 		}
 
 		deps := slices.SortedFunc(maps.Values(node.Dependencies), func(l *public.TaskTreeView, r *public.TaskTreeView) int {
-			return strings.Compare(l.Task.Id.String(), r.Task.Id.String())
+			return strings.Compare(l.Id.String(), r.Id.String())
 		})
 
 		for i, dependency := range deps {

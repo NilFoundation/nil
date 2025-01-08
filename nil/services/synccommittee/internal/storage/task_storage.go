@@ -52,10 +52,10 @@ type TaskStorage interface {
 	RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.Task, error)
 
 	// ProcessTaskResult Check task result, update dependencies in case of success
-	ProcessTaskResult(ctx context.Context, res types.TaskResult) error
+	ProcessTaskResult(ctx context.Context, res *types.TaskResult) error
 
 	// RescheduleHangingTasks Identify tasks that exceed execution timeout and reschedule them to be re-executed
-	RescheduleHangingTasks(ctx context.Context, currentTime time.Time, taskExecutionTimeout time.Duration) error
+	RescheduleHangingTasks(ctx context.Context, taskExecutionTimeout time.Duration) error
 }
 
 type TaskStorageMetrics interface {
@@ -238,14 +238,13 @@ func (st *taskStorage) GetTaskTreeView(ctx context.Context, rootTaskId types.Tas
 		}
 
 		if err != nil {
-			return nil, fmt.Errorf("failed to get task with id=%s", taskId)
+			return nil, fmt.Errorf("failed to get task with id=%s: %w", taskId, err)
 		}
 
-		taskView := public.NewTaskView(entry, currentTime)
-		tree := public.NewTaskTree(taskView)
+		tree := public.NewTaskTreeFromEntry(entry, currentTime)
 		seen[taskId] = tree
 
-		for dependencyId := range entry.Task.PendingDependencies {
+		for dependencyId := range entry.PendingDependencies {
 			subtree, err := getTaskTreeRec(dependencyId, currentDepth+1)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get task subtree with id=%s: %w", dependencyId, err)
@@ -253,13 +252,8 @@ func (st *taskStorage) GetTaskTreeView(ctx context.Context, rootTaskId types.Tas
 			tree.AddDependency(subtree)
 		}
 
-		for dependencyId, result := range entry.Task.DependencyResults {
-			subtree, err := getTaskTreeRec(dependencyId, currentDepth+1)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get task subtree with id=%s: %w", dependencyId, err)
-			}
-			resultView := public.NewTaskResultView(&result)
-			subtree.Result = resultView
+		for _, result := range entry.Task.DependencyResults {
+			subtree := public.NewTaskTreeFromResult(&result)
 			tree.AddDependency(subtree)
 		}
 
@@ -320,7 +314,8 @@ func (st *taskStorage) requestTaskToExecuteImpl(ctx context.Context, executor ty
 		return nil, nil
 	}
 
-	if err := taskEntry.Start(executor); err != nil {
+	currentTime := st.timer.NowTime()
+	if err := taskEntry.Start(executor, currentTime); err != nil {
 		return nil, fmt.Errorf("failed to start task: %w", err)
 	}
 	if err := putTaskEntry(tx, taskEntry); err != nil {
@@ -332,13 +327,13 @@ func (st *taskStorage) requestTaskToExecuteImpl(ctx context.Context, executor ty
 	return taskEntry, nil
 }
 
-func (st *taskStorage) ProcessTaskResult(ctx context.Context, res types.TaskResult) error {
+func (st *taskStorage) ProcessTaskResult(ctx context.Context, res *types.TaskResult) error {
 	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return st.processTaskResultImpl(ctx, res)
 	})
 }
 
-func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.TaskResult) error {
+func (st *taskStorage) processTaskResultImpl(ctx context.Context, res *types.TaskResult) error {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -361,27 +356,23 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 		return err
 	}
 
-	if !res.IsSuccess {
-		entry.Status = types.Failed
-		now := time.Now().UTC()
-		entry.Finished = &now
-		if err := putTaskEntry(tx, entry); err != nil {
-			return fmt.Errorf("failed to set task entry with id=%s as failed: %w", entry.Task.Id, err)
-		}
-		if err = tx.Commit(); err != nil {
-			return err
-		}
-		return nil
+	currentTime := st.timer.NowTime()
+
+	if err := entry.Terminate(res.IsSuccess, currentTime); err != nil {
+		return err
 	}
 
-	// We don't keep finished tasks in DB
-	st.logger.Debug().
-		Interface("taskId", res.TaskId).
-		Interface("requestSenderId", res.Sender).
-		Msg("Task execution is completed, removing it from the storage")
+	if res.IsSuccess {
+		// We don't keep finished tasks in DB
+		st.logger.Debug().
+			Interface("taskId", res.TaskId).
+			Interface("requestSenderId", res.Sender).
+			Msg("Task execution is completed successfully, removing it from the storage")
 
-	err = tx.Delete(TaskEntriesTable, res.TaskId.Bytes())
-	if err != nil {
+		if err := tx.Delete(TaskEntriesTable, res.TaskId.Bytes()); err != nil {
+			return err
+		}
+	} else if err := putTaskEntry(tx, entry); err != nil {
 		return err
 	}
 
@@ -391,7 +382,10 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 		if err != nil {
 			return err
 		}
-		if err = depEntry.AddDependencyResult(res); err != nil {
+
+		resultEntry := types.NewTaskResultEntry(res, entry, currentTime)
+
+		if err = depEntry.AddDependencyResult(*resultEntry); err != nil {
 			return fmt.Errorf("failed to add dependency result to task with id=%s: %w", depEntry.Task.Id, err)
 		}
 		err = putTaskEntry(tx, depEntry)
@@ -403,11 +397,11 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res types.Task
 		return err
 	}
 
-	st.metrics.RecordTaskTerminated(ctx, entry, &res)
+	st.metrics.RecordTaskTerminated(ctx, entry, res)
 	return nil
 }
 
-func (st *taskStorage) validateTaskResult(entry types.TaskEntry, res types.TaskResult) error {
+func (st *taskStorage) validateTaskResult(entry types.TaskEntry, res *types.TaskResult) error {
 	const errFormat = "failed to process task result, taskId=%v, taskStatus=%v, taskOwner=%v, requestSenderId=%v: %w"
 
 	if entry.Owner != res.Sender {
@@ -421,15 +415,14 @@ func (st *taskStorage) validateTaskResult(entry types.TaskEntry, res types.TaskR
 	return nil
 }
 
-func (st *taskStorage) RescheduleHangingTasks(ctx context.Context, currentTime time.Time, taskExecutionTimeout time.Duration) error {
+func (st *taskStorage) RescheduleHangingTasks(ctx context.Context, taskExecutionTimeout time.Duration) error {
 	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
-		return st.rescheduleHangingTasksImpl(ctx, currentTime, taskExecutionTimeout)
+		return st.rescheduleHangingTasksImpl(ctx, taskExecutionTimeout)
 	})
 }
 
 func (st *taskStorage) rescheduleHangingTasksImpl(
 	ctx context.Context,
-	currentTime time.Time,
 	taskExecutionTimeout time.Duration,
 ) error {
 	tx, err := st.database.CreateRwTx(ctx)
@@ -443,6 +436,7 @@ func (st *taskStorage) rescheduleHangingTasksImpl(
 			return nil
 		}
 
+		currentTime := st.timer.NowTime()
 		executionTime := currentTime.Sub(*entry.Started)
 		if executionTime <= taskExecutionTimeout {
 			return nil

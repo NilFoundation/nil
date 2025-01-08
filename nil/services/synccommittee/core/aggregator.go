@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/client"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
@@ -28,6 +29,7 @@ type Aggregator struct {
 	rpcClient    client.Client
 	blockStorage storage.BlockStorage
 	taskStorage  storage.TaskStorage
+	timer        common.Timer
 	metrics      AggregatorMetrics
 	pollingDelay time.Duration
 }
@@ -36,6 +38,7 @@ func NewAggregator(
 	rpcClient client.Client,
 	blockStorage storage.BlockStorage,
 	taskStorage storage.TaskStorage,
+	timer common.Timer,
 	logger zerolog.Logger,
 	metrics AggregatorMetrics,
 	pollingDelay time.Duration,
@@ -45,6 +48,7 @@ func NewAggregator(
 		rpcClient:    rpcClient,
 		blockStorage: blockStorage,
 		taskStorage:  taskStorage,
+		timer:        timer,
 		metrics:      metrics,
 		pollingDelay: pollingDelay,
 	}, nil
@@ -196,7 +200,8 @@ func (agg *Aggregator) handleBlockBatch(ctx context.Context, batch *types.BlockB
 
 // createProofTask generates proof tasks for block batch
 func (agg *Aggregator) createProofTasks(ctx context.Context, batch *types.BlockBatch) error {
-	proofTasks, err := batch.CreateProofTasks()
+	currentTime := agg.timer.NowTime()
+	proofTasks, err := batch.CreateProofTasks(currentTime)
 	if err != nil {
 		return fmt.Errorf("error creating proof tasks, mainHash=%s: %w", batch.MainShardBlock.Hash, err)
 	}

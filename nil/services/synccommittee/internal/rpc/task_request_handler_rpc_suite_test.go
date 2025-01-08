@@ -68,10 +68,22 @@ func newTaskSchedulerMock() *scheduler.TaskSchedulerMock {
 }
 
 var (
-	firstExecutorId        = types.TaskExecutorId(1)
-	secondExecutorId       = types.TaskExecutorId(2)
-	firstDependencyTaskId  = types.NewTaskId()
-	secondDependencyTaskId = types.NewTaskId()
+	firstExecutorId  = types.TaskExecutorId(1)
+	secondExecutorId = types.TaskExecutorId(2)
+
+	firstDepResult = types.NewSuccessProverTaskResult(
+		types.NewTaskId(),
+		testaide.RandomExecutorId(),
+		nil,
+		nil,
+	)
+
+	secondDepResult = types.NewSuccessProverTaskResult(
+		types.NewTaskId(),
+		testaide.RandomExecutorId(),
+		nil,
+		nil,
+	)
 )
 
 var tasksForExecutors = map[types.TaskExecutorId]*types.Task{
@@ -90,21 +102,9 @@ var tasksForExecutors = map[types.TaskExecutorId]*types.Task{
 		BlockNum:    10,
 		TaskType:    types.AggregatedFRI,
 		CircuitType: types.ReadWrite,
-		DependencyResults: map[types.TaskId]types.TaskResult{
-			firstDependencyTaskId: types.SuccessProverTaskResult(
-				firstDependencyTaskId,
-				testaide.RandomExecutorId(),
-				types.MergeProof,
-				types.TaskResultAddresses{},
-				types.TaskResultData{},
-			),
-			secondDependencyTaskId: types.SuccessProverTaskResult(
-				secondDependencyTaskId,
-				testaide.RandomExecutorId(),
-				types.PartialProve,
-				types.TaskResultAddresses{},
-				types.TaskResultData{},
-			),
+		DependencyResults: map[types.TaskId]types.TaskResultDetails{
+			firstDepResult.TaskId:  {TaskResult: *firstDepResult},
+			secondDepResult.TaskId: {TaskResult: *secondDepResult},
 		},
 	},
 }

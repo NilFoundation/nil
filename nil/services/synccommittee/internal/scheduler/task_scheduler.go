@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
@@ -53,7 +52,6 @@ func New(
 		stateHandler: stateHandler,
 		config:       DefaultConfig(),
 		metrics:      metrics,
-		clock:        common.NewTimer(),
 		logger:       logger,
 	}
 }
@@ -63,7 +61,6 @@ type taskSchedulerImpl struct {
 	stateHandler api.TaskStateChangeHandler
 	config       Config
 	metrics      TaskSchedulerMetrics
-	clock        common.Timer
 	logger       zerolog.Logger
 }
 
@@ -103,7 +100,6 @@ func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.Tas
 	s.logger.Debug().
 		Interface("executorId", result.Sender).
 		Interface("taskId", result.TaskId).
-		Interface("resultType", result.Type).
 		Msgf("received task result update")
 
 	entry, err := s.storage.TryGetTaskEntry(ctx, result.TaskId)
@@ -125,7 +121,7 @@ func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.Tas
 		return fmt.Errorf("%w: %w", ErrFailedToProcessTaskResult, err)
 	}
 
-	if err = s.storage.ProcessTaskResult(ctx, *result); err != nil {
+	if err = s.storage.ProcessTaskResult(ctx, result); err != nil {
 		s.logError(ctx, err, result)
 		return fmt.Errorf("%w: %w", ErrFailedToProcessTaskResult, err)
 	}
@@ -231,8 +227,7 @@ func (s *taskSchedulerImpl) Run(ctx context.Context) error {
 	s.logger.Info().Msg("starting task scheduler worker")
 
 	concurrent.RunTickerLoop(ctx, s.config.taskCheckInterval, func(ctx context.Context) {
-		currentTime := s.clock.NowTime()
-		err := s.storage.RescheduleHangingTasks(ctx, currentTime, s.config.taskExecutionTimeout)
+		err := s.storage.RescheduleHangingTasks(ctx, s.config.taskExecutionTimeout)
 		if err != nil {
 			s.logger.Error().Err(err).Msg("failed to reschedule hanging tasks")
 			s.recordError(ctx)

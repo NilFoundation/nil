@@ -22,19 +22,19 @@ func TestBlockBatchTestSuite(t *testing.T) {
 }
 
 func (s *BlockBatchTestSuite) TestNewBlockBatch() {
-	validBatch := testaide.GenerateBlockBatch(testaide.ShardsCount)
+	validBatch := testaide.NewBlockBatch(testaide.ShardsCount)
 
-	notReadyBatch := testaide.GenerateBlockBatch(testaide.ShardsCount)
+	notReadyBatch := testaide.NewBlockBatch(testaide.ShardsCount)
 	notReadyBatch.MainShardBlock.ChildBlocks[0] = common.EmptyHash
 	notReadyBatch.ChildBlocks[0] = nil
 
-	nilChildBatch := testaide.GenerateBlockBatch(testaide.ShardsCount)
+	nilChildBatch := testaide.NewBlockBatch(testaide.ShardsCount)
 	nilChildBatch.ChildBlocks[1] = nil
 
-	redundantChildBatch := testaide.GenerateBlockBatch(testaide.ShardsCount)
-	redundantChildBatch.ChildBlocks = append(redundantChildBatch.ChildBlocks, testaide.GenerateExecutionShardBlock())
+	redundantChildBatch := testaide.NewBlockBatch(testaide.ShardsCount)
+	redundantChildBatch.ChildBlocks = append(redundantChildBatch.ChildBlocks, testaide.NewExecutionShardBlock())
 
-	hashMismatchBatch := testaide.GenerateBlockBatch(testaide.ShardsCount)
+	hashMismatchBatch := testaide.NewBlockBatch(testaide.ShardsCount)
 	hashMismatchBatch.ChildBlocks[2].Hash = testaide.RandomHash()
 
 	testCases := []struct {
@@ -44,31 +44,31 @@ func (s *BlockBatchTestSuite) TestNewBlockBatch() {
 		errPredicate   func(error)
 	}{
 		{
-			name:           "valid batch, expect no error",
+			name:           "Valid_Batch_No_Error",
 			mainShardBlock: validBatch.MainShardBlock,
 			childBlocks:    validBatch.ChildBlocks,
 			errPredicate:   func(err error) { s.Require().NoError(err) },
 		},
 		{
-			name:           "nil mainShardBlock",
+			name:           "Nil_Main_Shard_Block",
 			mainShardBlock: nil,
 			childBlocks:    []*jsonrpc.RPCBlock{},
 			errPredicate:   func(err error) { s.Require().ErrorContains(err, "mainShardBlock") },
 		},
 		{
-			name:           "valid mainShardBlock, nil childBlocks",
-			mainShardBlock: testaide.GenerateMainShardBlock(),
+			name:           "Valid_Main_Shard_Block_Nil_Child_Blocks",
+			mainShardBlock: testaide.NewMainShardBlock(),
 			childBlocks:    nil,
 			errPredicate:   func(err error) { s.Require().ErrorContains(err, "childBlocks") },
 		},
 		{
-			name:           "not ready batch (child hash is empty, nil child)",
+			name:           "Not_Ready_Batch_Child_Hash_Is_Empty",
 			mainShardBlock: notReadyBatch.MainShardBlock,
 			childBlocks:    notReadyBatch.ChildBlocks,
 			errPredicate:   func(err error) { s.Require().ErrorIs(err, types.ErrBatchNotReady) },
 		},
 		{
-			name:           "valid mainShardBlock, nil child block",
+			name:           "Valid_Main_Shard_Block_Nil_Child_Block",
 			mainShardBlock: nilChildBatch.MainShardBlock,
 			childBlocks:    nilChildBatch.ChildBlocks,
 			errPredicate: func(err error) {
@@ -77,19 +77,19 @@ func (s *BlockBatchTestSuite) TestNewBlockBatch() {
 			},
 		},
 		{
-			name:           "mainShardBlock is not from the main shard",
-			mainShardBlock: testaide.GenerateExecutionShardBlock(),
+			name:           "Block_Is_Not_From_The_Main_Shard",
+			mainShardBlock: testaide.NewExecutionShardBlock(),
 			childBlocks:    []*jsonrpc.RPCBlock{},
 			errPredicate:   func(err error) { s.Require().ErrorContains(err, "mainShardBlock is not from the main shard") },
 		},
 		{
-			name:           "redundant child block",
+			name:           "Redundant_Child_Block",
 			mainShardBlock: redundantChildBatch.MainShardBlock,
 			childBlocks:    redundantChildBatch.ChildBlocks,
 			errPredicate:   func(err error) { s.Require().ErrorContains(err, "have different length") },
 		},
 		{
-			name:           "child hash mismatch",
+			name:           "Child_Hash_Mismatch",
 			mainShardBlock: hashMismatchBatch.MainShardBlock,
 			childBlocks:    hashMismatchBatch.ChildBlocks,
 			errPredicate: func(err error) {
@@ -117,9 +117,9 @@ func (s *BlockBatchTestSuite) TestNewBlockBatch() {
 
 func (s *BlockBatchTestSuite) TestCreateProofTasks() {
 	const childBLockCount = 4
-	batch := testaide.GenerateBlockBatch(childBLockCount)
+	batch := testaide.NewBlockBatch(childBLockCount)
 
-	taskEntries, err := batch.CreateProofTasks()
+	taskEntries, err := batch.CreateProofTasks(testaide.Now)
 	s.Require().NoError(err)
 
 	s.Require().Len(taskEntries, childBLockCount+1)

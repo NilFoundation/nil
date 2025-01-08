@@ -47,8 +47,9 @@ func (s *AggregatorTestSuite) SetupSuite() {
 
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
-	s.blockStorage = storage.NewBlockStorage(s.db, metricsHandler, logger)
-	s.taskStorage = storage.NewTaskStorage(s.db, common.NewTimer(), metricsHandler, logger)
+	timer := common.NewTimer()
+	s.blockStorage = storage.NewBlockStorage(s.db, timer, metricsHandler, logger)
+	s.taskStorage = storage.NewTaskStorage(s.db, timer, metricsHandler, logger)
 
 	s.rpcClientMock = &client.ClientMock{}
 
@@ -56,6 +57,7 @@ func (s *AggregatorTestSuite) SetupSuite() {
 		s.rpcClientMock,
 		s.blockStorage,
 		s.taskStorage,
+		timer,
 		logger,
 		metricsHandler,
 		time.Second,
@@ -74,7 +76,7 @@ func (s *AggregatorTestSuite) TearDownSuite() {
 }
 
 func (s *AggregatorTestSuite) Test_No_New_Block_To_Fetch() {
-	batch := testaide.GenerateBlockBatch(testaide.ShardsCount)
+	batch := testaide.NewBlockBatch(testaide.ShardsCount)
 	err := s.blockStorage.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
@@ -98,7 +100,7 @@ func (s *AggregatorTestSuite) Test_No_New_Block_To_Fetch() {
 }
 
 func (s *AggregatorTestSuite) Test_Fetched_Not_Ready_Batch() {
-	mainBlock := testaide.GenerateMainShardBlock()
+	mainBlock := testaide.NewMainShardBlock()
 	mainBlock.ChildBlocks[1] = common.EmptyHash
 
 	s.rpcClientMock.GetBlockFunc = blockGenerator(mainBlock)
@@ -123,7 +125,7 @@ func (s *AggregatorTestSuite) Test_Fetched_Not_Ready_Batch() {
 }
 
 func (s *AggregatorTestSuite) Test_Main_Parent_Hash_Mismatch() {
-	batches := testaide.GenerateBatchesSequence(2)
+	batches := testaide.NewBatchesSequence(2)
 	err := s.blockStorage.SetBlockBatch(s.ctx, batches[0])
 	s.Require().NoError(err)
 
@@ -152,7 +154,7 @@ func (s *AggregatorTestSuite) Test_Fetch_At_Zero_State() {
 	s.Require().NoError(err)
 	s.Require().Nil(mainRef)
 
-	mainBlock := testaide.GenerateMainShardBlock()
+	mainBlock := testaide.NewMainShardBlock()
 
 	s.rpcClientMock.GetBlockFunc = blockGenerator(mainBlock)
 
@@ -170,7 +172,7 @@ func (s *AggregatorTestSuite) Test_Fetch_At_Zero_State() {
 }
 
 func (s *AggregatorTestSuite) Test_Fetch_Next_Valid() {
-	batches := testaide.GenerateBatchesSequence(2)
+	batches := testaide.NewBatchesSequence(2)
 	err := s.blockStorage.SetBlockBatch(s.ctx, batches[0])
 	s.Require().NoError(err)
 	nextMainBlock := batches[1].MainShardBlock
@@ -205,7 +207,7 @@ func blockGenerator(mainBlock *jsonrpc.RPCBlock) func(context.Context, types.Sha
 			return nil, nil
 		}
 
-		execShardBlock := testaide.GenerateExecutionShardBlock()
+		execShardBlock := testaide.NewExecutionShardBlock()
 		execShardBlock.ShardId = shardId
 		execShardBlock.Hash = blockHash
 		return execShardBlock, nil
