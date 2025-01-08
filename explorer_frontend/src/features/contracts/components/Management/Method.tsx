@@ -9,16 +9,18 @@ import {
   Notification,
   MonoParagraphMedium,
   StatefulTooltip,
+  PlusIcon,
 } from "@nilfoundation/ui-kit";
 import type { AbiFunction } from "abitype";
 import { useStyletron } from "baseui";
 import {
   toggleActiveKey,
-  $valueInput,
+  $valueInputs,
   setValueInput,
   callMethod,
   sendMethod,
-} from "../../models/base";
+  addValueInput,
+} from "../../models/base.ts";
 import { Link, Marker } from "../../../shared";
 import { transactionRoute } from "../../../routing";
 import { MethodInput } from "./MethodInput";
@@ -27,6 +29,7 @@ import { $balanceCurrency } from "../../../account-connector/model";
 import { useUnit } from "effector-react";
 import { expandProperty } from "inline-style-expand-shorthand";
 import { Result } from "./Result";
+import { RemoveTokenButton } from "./RemoveTokenButton.tsx";
 
 export type MethodProps = {
   func: AbiFunction;
@@ -82,7 +85,7 @@ export const Method = ({
   params,
 }: MethodProps) => {
   const [css] = useStyletron();
-  const [currecyBalance, valueInput] = useUnit([$balanceCurrency, $valueInput]);
+  const [currecyBalance, valueInputs] = useUnit([$balanceCurrency, $valueInputs]);
   const availiableCurencies = [
     { currency: "NIL" },
     ...Object.keys(currecyBalance ?? {}).map((currency) => ({
@@ -161,18 +164,54 @@ export const Method = ({
                 justifyContent: "center",
               })}
             >
-              <CurrencyInput
-                className={css({
-                  width: "100%",
-                })}
-                disabled={loading}
-                caption="Tokens"
-                currencies={availiableCurencies}
-                onChange={({ amount, currency }) => {
-                  setValueInput({ amount, currency });
+              {valueInputs.map((valueInput, index) => {
+                const usedCurrencies = valueInputs.map((v) => v.currency);
+                const availableInputCurrencies = availiableCurencies.filter(
+                  (c) => !usedCurrencies.includes(c.currency) || c.currency === valueInput.currency,
+                );
+                return (
+                  // biome-ignore lint/correctness/useJsxKeyInIterable: can be the same for now
+                  <div
+                    className={css({
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      width: "100%",
+                      gap: "8px",
+                    })}
+                  >
+                    <CurrencyInput
+                      className={css({
+                        width: "100%",
+                      })}
+                      disabled={loading}
+                      currencies={availableInputCurrencies}
+                      onChange={({ amount, currency }) => {
+                        setValueInput({ index, amount, currency });
+                      }}
+                      value={valueInput}
+                    />
+                    <RemoveTokenButton index={index} kind={BUTTON_KIND.secondary} />
+                  </div>
+                );
+              })}
+              <Button
+                onClick={() => {
+                  addValueInput(availiableCurencies.map((c) => c.currency));
                 }}
-                value={valueInput}
-              />
+                disabled={valueInputs.map((v) => v.currency).length >= availiableCurencies.length}
+                kind={BUTTON_KIND.tertiary}
+                overrides={{
+                  Root: {
+                    style: () => ({
+                      width: "100%",
+                      height: "48px",
+                    }),
+                  },
+                }}
+              >
+                <PlusIcon size={26} /> Add token
+              </Button>
             </div>
           )}
           {func.inputs.map((input, index) => {

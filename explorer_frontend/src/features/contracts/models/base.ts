@@ -289,18 +289,25 @@ export const unlinkApp = createEvent<{
   address: `0x${string}`;
 }>();
 
-export const $valueInput = createStore<{
-  currency: string;
-  amount: string;
-}>({
-  currency: "NIL",
-  amount: "0",
-});
+export const $valueInputs = createStore<
+  {
+    currency: string;
+    amount: string;
+  }[]
+>([
+  {
+    currency: "NIL",
+    amount: "0",
+  },
+]);
 
 export const setValueInput = createEvent<{
+  index: number;
   currency: string;
   amount: string;
 }>();
+export const addValueInput = createEvent<string[]>();
+export const removeValueInput = createEvent<number>();
 
 export const $activeComponent = createStore<ActiveComponent | null>(ActiveComponent.Deploy);
 export const setActiveComponent = createEvent<ActiveComponent>();

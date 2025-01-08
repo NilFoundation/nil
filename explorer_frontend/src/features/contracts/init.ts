@@ -17,7 +17,8 @@ import {
   $state,
   $tokens,
   $txHashes,
-  $valueInput,
+  $valueInputs,
+  addValueInput,
   assignAdress,
   callFx,
   callMethod,
@@ -30,6 +31,7 @@ import {
   assignSmartContractFx,
   fetchBalanceFx,
   incrementShardId,
+  removeValueInput,
   sendMethod,
   sendMethodFx,
   setAssignAddress,
@@ -371,7 +373,7 @@ sample({
     activeApp: $activeAppWithState,
     params: $callParams,
     wallet: $wallet,
-    valueInput: $valueInput,
+    valueInputs: $valueInputs,
   }),
   clock: sendMethod,
   filter: combine(
@@ -379,7 +381,7 @@ sample({
     $wallet,
     (app, wallet) => !!app && !!wallet && !!app.address,
   ),
-  fn: ({ activeApp, params, wallet, valueInput }, functionName) => {
+  fn: ({ activeApp, params, wallet, valueInputs }, functionName) => {
     const restParams = params[functionName];
 
     let args: unknown[] = [];
@@ -407,16 +409,15 @@ sample({
       }
     }
 
-    const isMainCurrency = valueInput.currency === "NIL";
-    const value = isMainCurrency ? valueInput.amount : undefined;
-    const tokens: Token[] = isMainCurrency
-      ? []
-      : [
-          {
-            id: getTokenAddressBySymbol(valueInput.currency) as Hex,
-            amount: BigInt(valueInput.amount),
-          },
-        ];
+    const value = valueInputs.find((v) => v.currency === "NIL")?.amount;
+    const tokens: Token[] = valueInputs
+      .filter((valueInput) => valueInput.currency !== "NIL")
+      .map((valueInput) => {
+        return {
+          id: getTokenAddressBySymbol(valueInput.currency) as Hex,
+          amount: BigInt(valueInput.amount),
+        };
+      });
 
     return {
       appName: activeApp?.name,
@@ -521,9 +522,20 @@ $activeApp.on(assignSmartContractFx.doneData, (_, { assignedSmartContractAddress
   };
 });
 
-$valueInput.on(setValueInput, (_, value) => value);
+$valueInputs
+  .on(setValueInput, (state, { index, amount, currency }) => {
+    const newState = [...state];
+    newState[index] = { amount, currency };
+    return newState;
+  })
+  .on(addValueInput, (state, availableCurrencies) => {
+    const usedCurrencies = state.map((v) => v.currency);
+    const availableCurrency = availableCurrencies.find((c) => !usedCurrencies.includes(c))!;
+    return [...state, { amount: "0", currency: availableCurrency }];
+  })
+  .on(removeValueInput, (state, index) => state.filter((_, i) => i !== index));
 
-$valueInput.reset($activeAppWithState);
+$valueInputs.reset($activeAppWithState);
 
 $shardId.on(incrementShardId, (shardId, _) => {
   return shardId === null ? 1 : shardId + 1;
