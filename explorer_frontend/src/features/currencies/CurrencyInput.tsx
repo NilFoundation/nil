@@ -63,12 +63,11 @@ const CurrencyInput: FC<CurrencyInputProps> = ({
           endEnhancer={
             <Select
               disabled={disabled}
-              options={[
-                ...currencies.map(({ currency }) => ({
+              options={currencies.map(({ currency }) => ({
                   label: currency,
                   id: currency,
-                })),
-              ]}
+                }))
+              }
               searchable={false}
               overrides={{
                 ControlContainer: {
