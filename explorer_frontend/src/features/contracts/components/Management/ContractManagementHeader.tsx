@@ -3,10 +3,8 @@ import {
   BUTTON_KIND,
   BUTTON_SIZE,
   Button,
-  ButtonIcon,
   COLORS,
   LabelMedium,
-  ChevronDownIcon,
 } from "@nilfoundation/ui-kit";
 import { useStyletron } from "styletron-react";
 import { closeApp } from "../../models/base";
@@ -16,6 +14,7 @@ import type { FC } from "react";
 import { OverflowEllipsis } from "../../../shared";
 import { exportApp, exportAppFx } from "../../models/exportApp";
 import { useUnit } from "effector-react";
+import { DownloadAppButton } from "../DownloadAppButton.tsx";
 
 type ContractManagementHeaderProps = {
   address: Hex;
@@ -80,12 +79,7 @@ export const ContractManagementHeader: FC<ContractManagementHeaderProps> = ({
       >
         <OverflowEllipsis charsFromTheEnd={5}>{address}</OverflowEllipsis>
       </LabelMedium>
-      <ButtonIcon
-        disabled={isExportingApp}
-        icon={<ChevronDownIcon />}
-        kind={BUTTON_KIND.secondary}
-        onClick={() => exportApp()}
-      />
+      <DownloadAppButton disabled={isExportingApp} kind={BUTTON_KIND.secondary} />
       <RemoveAppButton
         disabled={loading}
         address={address}
