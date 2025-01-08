@@ -30,8 +30,8 @@ func init() {
 
 	zerostate := `
 contracts:
-- name: Faucet
-  address: {{ .FaucetAddress }}
+- name: LegacyFaucet
+  address: {{ .LegacyFaucetAddress }}
   value: 20000000000000000000000
   contract: Faucet
 - name: MainWallet
@@ -39,6 +39,10 @@ contracts:
   value: 100000000000000
   contract: Wallet
   ctorArgs: [{{ .MainPublicKey }}]
+- name: Faucet
+  address: {{ .FaucetAddress }}
+  value: 20000000000000000000000
+  contract: Faucet
 - name: EthFaucet
   address: {{ .EthFaucetAddress }}
   value: 100000000000000
@@ -54,13 +58,14 @@ contracts:
 `
 
 	DefaultZeroStateConfig, err = common.ParseTemplate(zerostate, map[string]interface{}{
-		"FaucetAddress":     types.FaucetAddress.Hex(),
-		"MainWalletAddress": types.MainWalletAddress.Hex(),
-		"MainPublicKey":     hexutil.Encode(MainPublicKey),
-		"MainWalletPubKey":  hexutil.Encode(MainPublicKey),
-		"EthFaucetAddress":  types.EthFaucetAddress.Hex(),
-		"UsdtFaucetAddress": types.UsdtFaucetAddress.Hex(),
-		"BtcFaucetAddress":  types.BtcFaucetAddress.Hex(),
+		"LegacyFaucetAddress": types.LegacyFaucetAddress.Hex(),
+		"MainWalletAddress":   types.MainWalletAddress.Hex(),
+		"MainPublicKey":       hexutil.Encode(MainPublicKey),
+		"MainWalletPubKey":    hexutil.Encode(MainPublicKey),
+		"FaucetAddress":       types.FaucetAddress.Hex(),
+		"EthFaucetAddress":    types.EthFaucetAddress.Hex(),
+		"UsdtFaucetAddress":   types.UsdtFaucetAddress.Hex(),
+		"BtcFaucetAddress":    types.BtcFaucetAddress.Hex(),
 	})
 	check.PanicIfErr(err)
 }
