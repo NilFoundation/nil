@@ -64,10 +64,9 @@ const CurrencyInput: FC<CurrencyInputProps> = ({
             <Select
               disabled={disabled}
               options={currencies.map(({ currency }) => ({
-                  label: currency,
-                  id: currency,
-                }))
-              }
+                label: currency,
+                id: currency,
+              }))}
               searchable={false}
               overrides={{
                 ControlContainer: {
