@@ -1,15 +1,15 @@
-import { RPC_GLOBAL, FAUCET_GLOBAL } from "./globals";
+import { FAUCET_GLOBAL, RPC_GLOBAL } from "./globals";
 
 //startImportStatements
 import {
-  convertEthToWei,
   Faucet,
   FaucetClient,
-  generateRandomPrivateKey,
   HttpTransport,
   LocalECDSAKeySigner,
   PublicClient,
   WalletV1,
+  convertEthToWei,
+  generateRandomPrivateKey,
 } from "@nilfoundation/niljs";
 
 import {} from "viem";

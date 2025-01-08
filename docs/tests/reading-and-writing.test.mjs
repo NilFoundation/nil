@@ -1,7 +1,7 @@
-import { NIL_GLOBAL } from "./globals";
 import TestHelper from "./TestHelper";
-import { PREV_BLOCK_PATTERN, HASH_PATTERN } from "./patterns";
 import { COUNTER_COMPILATION_COMMAND } from "./compilationCommands";
+import { NIL_GLOBAL } from "./globals";
+import { HASH_PATTERN, PREV_BLOCK_PATTERN } from "./patterns";
 
 const CONFIG_FILE_NAME = "./tests/tempReadingAndWriting.ini";
 
@@ -26,15 +26,14 @@ afterAll(async () => {
 
 describe.sequential("CLI tests", async () => {
   test.sequential("the CLI correctly retrieves the latest block", async () => {
-    const { stdout, stderr } = await exec(TEST_COMMANDS["RETRIEVE_LATEST_BLOCK_COMMAND"]);
+    const { stdout, stderr } = await exec(TEST_COMMANDS.RETRIEVE_LATEST_BLOCK_COMMAND);
     expect(stdout).toBeDefined;
     expect(stdout).toMatch(PREV_BLOCK_PATTERN);
   });
 
   test.sequential("the CLI can read messages and receipts", async () => {
     await exec(COUNTER_COMPILATION_COMMAND);
-    // biome-ignore lint/style/useConst: <explanation>
-    let { stdout, stderr } = await exec(TEST_COMMANDS["COUNTER_DEPLOYMENT_COMMAND"]);
+    let { stdout, stderr } = await exec(TEST_COMMANDS.COUNTER_DEPLOYMENT_COMMAND);
     expect(stdout).toBeDefined;
     const HASH = stdout.match(HASH_PATTERN)[0];
     //startMessageRead

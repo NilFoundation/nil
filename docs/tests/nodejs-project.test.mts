@@ -1,11 +1,11 @@
-const { spawn } = require("node:child_process");
+import { type ChildProcess, spawn } from "node:child_process";
 import fetch from "node-fetch";
 import { NEW_WALLET_PATTERN, SERVER_RUNNING_PATTERN } from "./patterns";
 
 const PATH_TO_PROJECT = "./tests/nodeJsProject/server.js";
 
 describe("the simple Node.js project correctly creates a wallet", () => {
-  let serverProcess;
+  let serverProcess: ChildProcess;
 
   beforeAll((done) => {
     serverProcess = spawn(process.env.NODE_JS, [PATH_TO_PROJECT], { stdio: "pipe" });

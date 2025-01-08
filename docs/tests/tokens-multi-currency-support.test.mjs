@@ -1,4 +1,4 @@
-import { RPC_GLOBAL, NIL_GLOBAL } from "./globals";
+import { NIL_GLOBAL, RPC_GLOBAL } from "./globals";
 
 import {
   Faucet,
@@ -6,14 +6,14 @@ import {
   LocalECDSAKeySigner,
   PublicClient,
   WalletV1,
-  generateRandomPrivateKey,
   convertEthToWei,
+  generateRandomPrivateKey,
   waitTillCompleted,
 } from "@nilfoundation/niljs";
 
 import TestHelper from "./TestHelper";
 
-import { WALLET_ADDRESS_PATTERN, CREATED_CURRENCY_PATTERN, CURRENCY_PATTERN } from "./patterns";
+import { CREATED_CURRENCY_PATTERN, CURRENCY_PATTERN, WALLET_ADDRESS_PATTERN } from "./patterns";
 
 const util = require("node:util");
 const exec = util.promisify(require("node:child_process").exec);
@@ -37,10 +37,10 @@ beforeAll(async () => {
   const testHelper = new TestHelper({ configFileName: CONFIG_FILE_NAME });
   TEST_COMMANDS = testHelper.createCLICommandsMap(SALT);
 
-  await exec(TEST_COMMANDS["KEYGEN_COMMAND"]);
-  await exec(TEST_COMMANDS["RPC_COMMAND"]);
-  await exec(TEST_COMMANDS["FAUCET_COMMAND"]);
-  const { stdout, stderr } = await exec(TEST_COMMANDS["WALLET_CREATION_COMMAND"]);
+  await exec(TEST_COMMANDS.KEYGEN_COMMAND);
+  await exec(TEST_COMMANDS.RPC_COMMAND);
+  await exec(TEST_COMMANDS.FAUCET_COMMAND);
+  const { stdout, stderr } = await exec(TEST_COMMANDS.WALLET_CREATION_COMMAND);
   OWNER_ADDRESS = stdout.match(WALLET_ADDRESS_PATTERN)[0];
 }, 20000);
 

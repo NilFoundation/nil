@@ -1,4 +1,4 @@
-import { RPC_GLOBAL, NIL_GLOBAL, FAUCET_GLOBAL } from "./globals";
+import { FAUCET_GLOBAL, NIL_GLOBAL, RPC_GLOBAL } from "./globals";
 
 //startNilJSWalletImports
 
@@ -8,9 +8,9 @@ import {
   LocalECDSAKeySigner,
   PublicClient,
   WalletV1,
-  generateRandomPrivateKey,
   bytesToHex,
   convertEthToWei,
+  generateRandomPrivateKey,
 } from "@nilfoundation/niljs";
 //endNilJSWalletImports
 

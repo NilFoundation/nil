@@ -1,18 +1,18 @@
+import TestHelper from "./TestHelper";
+import { CALLER_COMPILATION_COMMAND, COUNTER_COMPILATION_COMMAND } from "./compilationCommands";
 import { NIL_GLOBAL } from "./globals";
 import {
-  PRIVATE_KEY_PATTERN,
-  RPC_PATTERN,
-  NEW_WALLET_PATTERN,
-  WALLET_BALANCE_PATTERN,
-  CONTRACT_ADDRESS_PATTERN,
   ADDRESS_PATTERN,
-  MESSAGE_HASH_PATTERN,
-  WALLET_ADDRESS_PATTERN,
+  CONTRACT_ADDRESS_PATTERN,
   CURRENCY_PATTERN,
   FAUCET_PATTERN,
+  MESSAGE_HASH_PATTERN,
+  NEW_WALLET_PATTERN,
+  PRIVATE_KEY_PATTERN,
+  RPC_PATTERN,
+  WALLET_ADDRESS_PATTERN,
+  WALLET_BALANCE_PATTERN,
 } from "./patterns";
-import { COUNTER_COMPILATION_COMMAND, CALLER_COMPILATION_COMMAND } from "./compilationCommands";
-import TestHelper from "./TestHelper";
 
 const util = require("node:util");
 const exec = util.promisify(require("node:child_process").exec);
@@ -31,7 +31,7 @@ let NEW_WALLET_ADDRESS;
 beforeAll(async () => {
   const testHelper = new TestHelper({ configFileName: CONFIG_FILE_NAME });
   TEST_COMMANDS = testHelper.createCLICommandsMap(SALT);
-  await exec(TEST_COMMANDS["CONFIG_COMMAND"]);
+  await exec(TEST_COMMANDS.CONFIG_COMMAND);
 });
 
 afterAll(async () => {
@@ -40,40 +40,40 @@ afterAll(async () => {
 
 describe.sequential("initial wallet setup tests", () => {
   test.sequential("keygen generation works via CLI", async () => {
-    const { stdout, stderr } = await exec(TEST_COMMANDS["KEYGEN_COMMAND"]);
+    const { stdout, stderr } = await exec(TEST_COMMANDS.KEYGEN_COMMAND);
     expect(stdout).toMatch(PRIVATE_KEY_PATTERN);
   });
 
   test.sequential("endpoint command should set the endpoint", async () => {
-    const { stdout, stderr } = await exec(TEST_COMMANDS["RPC_COMMAND"]);
+    const { stdout, stderr } = await exec(TEST_COMMANDS.RPC_COMMAND);
     expect(stderr).toMatch(RPC_PATTERN);
   });
 
   test.sequential("faucet_endpoint command should set the faucet endpoint", async () => {
-    const { stdout, stderr } = await exec(TEST_COMMANDS["FAUCET_COMMAND"]);
+    const { stdout, stderr } = await exec(TEST_COMMANDS.FAUCET_COMMAND);
     expect(stderr).toMatch(FAUCET_PATTERN);
   });
 
   test.sequential("wallet creation command creates a wallet", async () => {
-    const { stdout, stderr } = await exec(TEST_COMMANDS["WALLET_CREATION_COMMAND"]);
+    const { stdout, stderr } = await exec(TEST_COMMANDS.WALLET_CREATION_COMMAND);
     expect(stdout).toMatch(NEW_WALLET_PATTERN);
   });
 
   test.sequential("wallet top-up command tops up the wallet", async () => {
-    const { stdout, stderr } = await exec(TEST_COMMANDS["WALLET_TOP_UP_COMMAND"]);
+    const { stdout, stderr } = await exec(TEST_COMMANDS.WALLET_TOP_UP_COMMAND);
     expect(stdout).toMatch(WALLET_BALANCE_PATTERN);
   });
 });
 
 describe.sequential("incrementer tests", () => {
   test.sequential("wallet info command supplies info", async () => {
-    const { stdout, stderr } = await exec(TEST_COMMANDS["WALLET_INFO_COMMAND"]);
+    const { stdout, stderr } = await exec(TEST_COMMANDS.WALLET_INFO_COMMAND);
     expect(stdout).toMatch(WALLET_ADDRESS_PATTERN);
   });
 
   test.sequential("deploy of incrementer works successfully", async () => {
     await exec(COUNTER_COMPILATION_COMMAND);
-    const { stdout, stderr } = await exec(TEST_COMMANDS["COUNTER_DEPLOYMENT_COMMAND"]);
+    const { stdout, stderr } = await exec(TEST_COMMANDS.COUNTER_DEPLOYMENT_COMMAND);
     expect(stdout).toMatch(CONTRACT_ADDRESS_PATTERN);
     const addressMatches = stdout.match(ADDRESS_PATTERN);
     COUNTER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
@@ -108,7 +108,7 @@ describe.sequential("caller tests", () => {
   });
   test.sequential("deploy of caller works successfully", async () => {
     await exec(CALLER_COMPILATION_COMMAND);
-    const { stdout, stderr } = await exec(TEST_COMMANDS["CALLER_DEPLOYMENT_COMMAND"]);
+    const { stdout, stderr } = await exec(TEST_COMMANDS.CALLER_DEPLOYMENT_COMMAND);
     const addressMatches = stdout.match(ADDRESS_PATTERN);
     CALLER_ADDRESS = addressMatches && addressMatches.length > 0 ? addressMatches[1] : null;
     expect(CALLER_ADDRESS).not.toBeNull();
@@ -168,7 +168,7 @@ describe.sequential("caller tests", () => {
 
 describe.sequential("tokens tests", () => {
   test.sequential("a new wallet is created successfully", async () => {
-    const { stdout, stderr } = await exec(TEST_COMMANDS["WALLET_CREATION_COMMAND_WITH_SALT"]);
+    const { stdout, stderr } = await exec(TEST_COMMANDS.WALLET_CREATION_COMMAND_WITH_SALT);
     expect(stdout).toMatch(WALLET_ADDRESS_PATTERN);
     const addressMatches = stdout.match(WALLET_ADDRESS_PATTERN);
     NEW_WALLET_ADDRESS = addressMatches && addressMatches.length > 0 ? addressMatches[0] : null;

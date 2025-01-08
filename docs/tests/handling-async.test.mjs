@@ -1,20 +1,20 @@
+import TestHelper from "./TestHelper";
+import {
+  AWAITER_COMPILATION_COMMAND,
+  CALLER_ASYNC_BP_COMPILATION_COMMAND,
+  CALLER_ASYNC_COMPILATION_COMMAND,
+  COUNTER_COMPILATION_COMMAND,
+  ESCROW_COMPILATION_COMMAND,
+  VALIDATOR_COMPILATION_COMMAND,
+} from "./compilationCommands";
 import { NIL_GLOBAL } from "./globals";
 import {
-  COUNTER_COMPILATION_COMMAND,
-  CALLER_ASYNC_COMPILATION_COMMAND,
-  CALLER_ASYNC_BP_COMPILATION_COMMAND,
-  VALIDATOR_COMPILATION_COMMAND,
-  ESCROW_COMPILATION_COMMAND,
-  AWAITER_COMPILATION_COMMAND,
-} from "./compilationCommands";
-import {
-  SUCCESSFUL_EXECUTION_PATTERN,
+  ADDRESS_PATTERN,
+  CONTRACT_ADDRESS_PATTERN,
   ESCROW_SUCCESSFUL_PATTERN,
   RETAILER_COMPILATION_PATTERN,
-  CONTRACT_ADDRESS_PATTERN,
-  ADDRESS_PATTERN,
+  SUCCESSFUL_EXECUTION_PATTERN,
 } from "./patterns";
-import TestHelper from "./TestHelper";
 
 const SALT = BigInt(Math.floor(Math.random() * 10000));
 
@@ -65,7 +65,7 @@ describe.sequential("Awaiter tests", async () => {
   test.sequential("compilation and deployment of Awaiter is successful", async () => {
     let { stdout, stderr } = await exec(AWAITER_COMPILATION_COMMAND);
     expect(stdout).toMatch(SUCCESSFUL_EXECUTION_PATTERN);
-    ({ stdout, stderr } = await exec(TEST_COMMANDS["AWAITER_DEPLOYMENT_COMMAND"]));
+    ({ stdout, stderr } = await exec(TEST_COMMANDS.AWAITER_DEPLOYMENT_COMMAND));
     expect(stdout).toMatch(CONTRACT_ADDRESS_PATTERN);
     const addressMatches = stdout.match(ADDRESS_PATTERN);
     AWAITER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
@@ -74,7 +74,7 @@ describe.sequential("Awaiter tests", async () => {
 
   test.sequential("Awaiter can call Counter successfully", async () => {
     await exec(COUNTER_COMPILATION_COMMAND);
-    let { stdout, stderr } = await exec(TEST_COMMANDS["COUNTER_DEPLOYMENT_COMMAND"]);
+    let { stdout, stderr } = await exec(TEST_COMMANDS.COUNTER_DEPLOYMENT_COMMAND);
     expect(stdout).toMatch(CONTRACT_ADDRESS_PATTERN);
     const addressMatches = stdout.match(ADDRESS_PATTERN);
     COUNTER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;

@@ -1,20 +1,19 @@
-import { RPC_GLOBAL, NIL_GLOBAL, NODE_MODULES } from "./globals";
 import TestHelper from "./TestHelper";
 import {
-  RETAILER_COMPILATION_PATTERN,
-  MANUFACTURER_COMPILATION_PATTERN,
-  ADDRESS_PATTERN,
-  PUBKEY_PATTERN,
-  CONTRACT_ADDRESS_PATTERN,
-} from "./patterns";
-import {
-  RETAILER_COMPILATION_COMMAND,
   MANUFACTURER_COMPILATION_COMMAND,
+  RETAILER_COMPILATION_COMMAND,
 } from "./compilationCommands";
+import { NIL_GLOBAL } from "./globals";
+import {
+  ADDRESS_PATTERN,
+  CONTRACT_ADDRESS_PATTERN,
+  MANUFACTURER_COMPILATION_PATTERN,
+  PUBKEY_PATTERN,
+  RETAILER_COMPILATION_PATTERN,
+} from "./patterns";
 const util = require("node:util");
 const exec = util.promisify(require("node:child_process").exec);
 
-// biome-ignore lint/style/useConst: <explanation>
 const SALT = BigInt(Math.floor(Math.random() * 10000));
 
 const CONFIG_FILE_NAME = "./tests/tempWorkingWithSmartContracts.ini";
@@ -31,7 +30,7 @@ let RETAILER_ADDRESS;
 let PUBKEY;
 
 beforeAll(async () => {
-  let testHelper = new TestHelper({ configFileName: CONFIG_FILE_NAME });
+  const testHelper = new TestHelper({ configFileName: CONFIG_FILE_NAME });
   TEST_COMMANDS = testHelper.createCLICommandsMap(SALT);
   await testHelper.prepareTestCLI();
 });
@@ -54,7 +53,7 @@ describe.sequential("CLI deployment tests", async () => {
     const addressMatches = stdout.match(ADDRESS_PATTERN);
     RETAILER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
 
-    ({ stdout, stderr } = await exec(TEST_COMMANDS["WALLET_INFO_COMMAND"]));
+    ({ stdout, stderr } = await exec(TEST_COMMANDS.WALLET_INFO_COMMAND));
     PUBKEY = stdout.match(PUBKEY_PATTERN)[1];
 
     //startManufacturerDeploymentCommand

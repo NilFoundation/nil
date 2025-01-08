@@ -1,7 +1,5 @@
-import { NODE_MODULES } from "./globals";
-
-import { SUCCESSFUL_EXECUTION_PATTERN } from "./patterns";
 import { RECEIVER_COMPILATION_COMMAND } from "./compilationCommands";
+import { SUCCESSFUL_EXECUTION_PATTERN } from "./patterns";
 const util = require("node:util");
 const exec = util.promisify(require("node:child_process").exec);
 
