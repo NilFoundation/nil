@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	// blocksTable stores blocks received from the RPC. Key: common.Hash, Value: jsonrpc.RPCBlock.
+	// blocksTable stores blocks received from the RPC. Key: common.Hash, Value: blockEntry.
 	blocksTable db.TableName = "blocks"
 	// latestFetchedTable stores reference to the latest main shard block. Key: mainShardKey, Value: sctypes.MainBlockRef.
 	latestFetchedTable db.TableName = "latest_fetched"
@@ -74,11 +74,14 @@ func NewBlockStorage(
 	logger zerolog.Logger,
 ) BlockStorage {
 	return &blockStorage{
-		db:          database,
-		timer:       timer,
-		retryRunner: badgerRetryRunner(logger),
-		metrics:     metrics,
-		logger:      logger,
+		db:    database,
+		timer: timer,
+		retryRunner: badgerRetryRunner(
+			logger,
+			common.DoNotRetryIf(scTypes.ErrBlockMismatch),
+		),
+		metrics: metrics,
+		logger:  logger,
 	}
 }
 
@@ -483,7 +486,7 @@ func (bs *blockStorage) getLatestFetchedMainTx(tx db.RoTx) (*scTypes.MainBlockRe
 	var blockRef *scTypes.MainBlockRef
 	err = json.Unmarshal(value, &blockRef)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrSerializationFailed, err)
 	}
 	return blockRef, nil
 }
@@ -491,7 +494,9 @@ func (bs *blockStorage) getLatestFetchedMainTx(tx db.RoTx) (*scTypes.MainBlockRe
 func (bs *blockStorage) putLatestFetchedBlockTx(tx db.RwTx, shardId types.ShardId, block scTypes.MainBlockRef) error {
 	bytes, err := json.Marshal(block)
 	if err != nil {
-		return fmt.Errorf("failed to encode block ref with hash=%s: %w", block.Hash.String(), err)
+		return fmt.Errorf(
+			"%w: failed to encode block ref with hash=%s: %w", ErrSerializationFailed, block.Hash.String(), err,
+		)
 	}
 	err = tx.Put(latestFetchedTable, makeShardKey(shardId), bytes)
 	if err != nil {
@@ -516,7 +521,7 @@ func (bs *blockStorage) getBlockEntry(tx db.RoTx, id scTypes.BlockId) (*blockEnt
 		return nil, err
 	}
 
-	entry, err := unmarshallEntry(&idBytes, &value)
+	entry, err := unmarshallEntry(idBytes, value)
 	if err != nil {
 		return nil, err
 	}
@@ -536,7 +541,7 @@ func iterateOverEntries(tx db.RoTx, action func(entry *blockEntry) (shouldContin
 		if err != nil {
 			return err
 		}
-		entry, err := unmarshallEntry(&key, &val)
+		entry, err := unmarshallEntry(key, val)
 		if err != nil {
 			return err
 		}
@@ -555,15 +560,19 @@ func iterateOverEntries(tx db.RoTx, action func(entry *blockEntry) (shouldContin
 func marshallEntry(entry *blockEntry) ([]byte, error) {
 	bytes, err := json.Marshal(entry)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode block with hash %s: %w", entry.Block.Hash.String(), err)
+		return nil, fmt.Errorf(
+			"%w: failed to encode block with hash %s: %w", ErrSerializationFailed, entry.Block.Hash, err,
+		)
 	}
 	return bytes, nil
 }
 
-func unmarshallEntry(key *[]byte, val *[]byte) (*blockEntry, error) {
+func unmarshallEntry(key []byte, val []byte) (*blockEntry, error) {
 	entry := &blockEntry{}
-	if err := json.Unmarshal(*val, entry); err != nil {
-		return nil, fmt.Errorf("failed to unmarshall block entry with id=%s: %w", hex.EncodeToString(*key), err)
+	if err := json.Unmarshal(val, entry); err != nil {
+		return nil, fmt.Errorf(
+			"%w: failed to unmarshall block entry with id=%s: %w", ErrSerializationFailed, hex.EncodeToString(key), err,
+		)
 	}
 
 	return entry, nil

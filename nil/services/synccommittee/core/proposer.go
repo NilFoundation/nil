@@ -131,7 +131,7 @@ func NewProposer(
 	retryRunner := common.NewRetryRunner(
 		common.RetryConfig{
 			ShouldRetry: common.LimitRetries(5),
-			NextDelay:   common.ExponentialDelay(100*time.Millisecond, time.Second),
+			NextDelay:   common.DelayExponential(100*time.Millisecond, time.Second),
 		},
 		logger,
 	)

@@ -11,6 +11,8 @@ var (
 )
 
 var (
+	ErrTaskInvalidStatus    = errors.New("task has invalid status")
+	ErrTaskWrongExecutor    = errors.New("task belongs to another executor")
 	ErrUnexpectedTaskType   = errors.New("unexpected task type")
 	ErrBlockProofTaskFailed = errors.New("block proof task failed")
 )

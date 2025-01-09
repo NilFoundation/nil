@@ -377,13 +377,20 @@ func (t *TaskEntry) Start(executorId TaskExecutorId, currentTime time.Time) erro
 }
 
 // Terminate transitions the status of a running task to Completed or Failed based on the input.
-func (t *TaskEntry) Terminate(completedSuccessfully bool, currentTime time.Time) error {
+func (t *TaskEntry) Terminate(result *TaskResult, currentTime time.Time) error {
+	if t.Owner != result.Sender {
+		return fmt.Errorf(
+			"%w: taskId=%v, taskStatus=%v, taskOwner=%v, requestSenderId=%v",
+			ErrTaskWrongExecutor, t.Task.Id, t.Status, t.Owner, result.Sender,
+		)
+	}
+
 	if t.Status != Running {
-		return errTaskInvalidStatus(t, "Fail")
+		return errTaskInvalidStatus(t, "Terminate")
 	}
 
 	var newStatus TaskStatus
-	if completedSuccessfully {
+	if result.IsSuccess {
 		newStatus = Completed
 	} else {
 		newStatus = Failed
@@ -407,7 +414,7 @@ func (t *TaskEntry) ResetRunning() error {
 }
 
 func errTaskInvalidStatus(task *TaskEntry, methodName string) error {
-	return fmt.Errorf("task with id=%s has invalid status %s for %s operation", task.Task.Id, task.Status, methodName)
+	return fmt.Errorf("%w: id=%s, status=%s, operation=%s", ErrTaskInvalidStatus, task.Task.Id, task.Status, methodName)
 }
 
 func (t *TaskEntry) ExecutionTime(currentTime time.Time) *time.Duration {
