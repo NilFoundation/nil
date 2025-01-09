@@ -189,7 +189,7 @@ func (s *CollatorTestSuite) getBalance(shardId types.ShardId, addr types.Address
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	state, err := execution.NewExecutionStateForShard(tx, shardId, common.NewTimer(), 1)
+	state, err := execution.NewExecutionState(tx, shardId, execution.StateParams{GetBlockFromDb: true})
 	s.Require().NoError(err)
 	acc, err := state.GetAccount(addr)
 	s.Require().NoError(err)

@@ -104,7 +104,7 @@ type StateDB interface {
 	// SaveVmState saves current VM state
 	SaveVmState(state *types.EvmState, continuationGasCredit types.Gas) error
 
-	GetConfigAccessor() *config.ConfigAccessor
+	GetConfigAccessor() config.ConfigAccessor
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

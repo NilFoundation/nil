@@ -9,6 +9,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/abi"
+	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -114,19 +115,21 @@ func TestZerostateFromConfig(t *testing.T) {
 config:
   gasPrices: [1, 2, 3]
 `
-	state, err = NewExecutionState(tx, 0, common.EmptyHash, common.NewTestTimer(0), 1)
+	configAccessor, err := config.NewConfigAccessor(context.Background(), database, nil)
+	require.NoError(t, err)
+	state, err = NewExecutionState(tx, 0, StateParams{ConfigAccessor: configAccessor})
 	require.NoError(t, err)
 	err = state.GenerateZeroStateYaml(configYaml)
 	require.NoError(t, err)
 	require.Equal(t, 0, state.GasPrice.Cmp(types.NewValueFromUint64(1)))
 
-	state, err = NewExecutionState(tx, 1, common.EmptyHash, common.NewTestTimer(0), 1)
+	state, err = NewExecutionState(tx, 1, StateParams{})
 	require.NoError(t, err)
 	err = state.GenerateZeroStateYaml(configYaml)
 	require.NoError(t, err)
 	require.Equal(t, 0, state.GasPrice.Cmp(types.NewValueFromUint64(2)))
 
-	state, err = NewExecutionState(tx, 2, common.EmptyHash, common.NewTestTimer(0), 1)
+	state, err = NewExecutionState(tx, 2, StateParams{})
 	require.NoError(t, err)
 	err = state.GenerateZeroStateYaml(configYaml)
 	require.NoError(t, err)
@@ -145,7 +148,7 @@ contracts:
   contract: Wallet
   ctorArgs: [MainPublicKey]
 `, walletAddr.Hex())
-	state, err = NewExecutionState(tx, types.MainShardId, common.EmptyHash, common.NewTestTimer(0), 1)
+	state, err = NewExecutionState(tx, types.MainShardId, StateParams{ConfigAccessor: configAccessor})
 	require.NoError(t, err)
 	err = state.GenerateZeroStateYaml(configYaml)
 	require.NoError(t, err)
@@ -170,7 +173,7 @@ contracts:
 contracts:
 - name: Faucet
 `
-	state, err = NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0), 1)
+	state, err = NewExecutionState(tx, types.BaseShardId, StateParams{})
 	require.NoError(t, err)
 	err = state.GenerateZeroStateYaml(configYaml2)
 	require.Error(t, err)
@@ -188,7 +191,7 @@ contracts:
   contract: Wallet
   ctorArgs: [MainPublicKey]
 `, walletAddr.Hex())
-	state, err = NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0), 1)
+	state, err = NewExecutionState(tx, types.BaseShardId, StateParams{})
 	require.NoError(t, err)
 	err = state.GenerateZeroStateYaml(configYaml3)
 	require.NoError(t, err)

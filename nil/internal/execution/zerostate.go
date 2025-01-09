@@ -166,11 +166,11 @@ func (es *ExecutionState) GenerateZeroState(stateConfig *ZeroStateConfig) error 
 	var err error
 
 	if es.ShardId == types.MainShardId {
-		err = es.GetConfigAccessor().SetParamValidators(&stateConfig.ConfigParams.Validators)
+		err = config.SetParamValidators(es.GetConfigAccessor(), &stateConfig.ConfigParams.Validators)
 		if err != nil {
 			return err
 		}
-		err = es.GetConfigAccessor().SetParamGasPrice(&stateConfig.ConfigParams.GasPrice)
+		err = config.SetParamGasPrice(es.GetConfigAccessor(), &stateConfig.ConfigParams.GasPrice)
 		if err != nil {
 			return err
 		}

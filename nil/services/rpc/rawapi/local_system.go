@@ -18,11 +18,11 @@ func (api *LocalShardApi) GasPrice(ctx context.Context) (types.Value, error) {
 	}
 	defer tx.Rollback()
 
-	cfg, err := config.NewConfigAccessorRo(tx, nil)
+	cfg, err := config.NewConfigReader(tx, nil)
 	if err != nil {
 		return types.Value{}, fmt.Errorf("cannot open config accessor: %w", err)
 	}
-	param, err := cfg.GetParamGasPrice()
+	param, err := config.GetParamGasPrice(cfg)
 	if err != nil {
 		return types.Value{}, fmt.Errorf("cannot get gas price: %w", err)
 	}

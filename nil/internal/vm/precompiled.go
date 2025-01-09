@@ -27,6 +27,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/abi"
+	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -1006,7 +1007,7 @@ func (c *configParam) Run(state StateDB, input []byte, value *uint256.Int, calle
 		data, ok := args[2].([]byte)
 		check.PanicIfNotf(ok, "configParam failed: data is not a []byte")
 
-		params, err := cfgAccessor.UnpackSolidity(name, data)
+		params, err := config.UnpackSolidity(name, data)
 		if err != nil {
 			return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
 		}
@@ -1015,17 +1016,17 @@ func (c *configParam) Run(state StateDB, input []byte, value *uint256.Int, calle
 			return nil, types.NewVmError(types.ErrorOnlyMainShardContractsCanChangeConfig)
 		}
 
-		if err = cfgAccessor.SetParam(name, params); err != nil {
+		if err = config.SetParam(cfgAccessor, name, params); err != nil {
 			return nil, types.NewVmVerboseError(types.ErrorPrecompileConfigSetParamFailed, err.Error())
 		}
 
 		return method.Outputs.Pack([]byte{})
 	}
-	params, err := cfgAccessor.GetParam(name)
+	params, err := config.GetParam(cfgAccessor, name)
 	if err != nil {
 		return nil, types.NewVmVerboseError(types.ErrorPrecompileConfigGetParamFailed, err.Error())
 	}
-	data, err := cfgAccessor.PackSolidity(name, params)
+	data, err := config.PackSolidity(name, params)
 	if err != nil {
 		return nil, types.NewVmVerboseError(types.ErrorAbiPackFailed, err.Error())
 	}

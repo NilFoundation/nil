@@ -676,7 +676,7 @@ func (tsdb *TracerStateDB) SaveVmState(state *types.EvmState, continuationGasCre
 	return errors.New("not implemented")
 }
 
-func (tsdb *TracerStateDB) GetConfigAccessor() *config.ConfigAccessor {
+func (tsdb *TracerStateDB) GetConfigAccessor() config.ConfigAccessor {
 	panic("not implemented")
 }
 

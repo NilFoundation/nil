@@ -53,7 +53,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	addr := types.GenerateRandomAddress(shardId)
 	storageKey := common.BytesToHash([]byte("storage-key"))
 
-	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0), 1)
+	es, err := NewExecutionState(tx, shardId, StateParams{})
 	suite.Require().NoError(err)
 
 	suite.Run("CreateAccount", func() {
@@ -78,7 +78,7 @@ func (suite *SuiteExecutionState) TestExecState() {
 	})
 
 	suite.Run("CheckAccount", func() {
-		es, err := NewExecutionState(tx, shardId, blockHash, common.NewTestTimer(0), 1)
+		es, err := NewExecutionState(tx, shardId, StateParams{BlockHash: blockHash})
 		suite.Require().NoError(err)
 
 		storageVal, err := es.GetState(addr, storageKey)
@@ -131,7 +131,7 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0), 1)
+	es, err := NewExecutionState(tx, shardId, StateParams{})
 	suite.Require().NoError(err)
 
 	suite.Run("Deploy", func() {
@@ -208,7 +208,7 @@ func newState(t *testing.T) *ExecutionState {
 	require.NoError(t, err)
 	tx, err := database.CreateRwTx(context.Background())
 	require.NoError(t, err)
-	state, err := NewExecutionState(tx, types.BaseShardId, common.EmptyHash, common.NewTestTimer(0), 1)
+	state, err := NewExecutionState(tx, types.BaseShardId, StateParams{})
 	require.NoError(t, err)
 
 	err = state.GenerateZeroStateYaml(DefaultZeroStateConfig)
@@ -365,7 +365,7 @@ func (suite *SuiteExecutionState) TestMessageStatus() {
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0), 1)
+	es, err := NewExecutionState(tx, shardId, StateParams{})
 	suite.Require().NoError(err)
 
 	var counterAddr, faucetAddr types.Address
@@ -442,7 +442,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 	defer tx.Rollback()
 	var testAddr types.Address
 
-	es, err := NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0), 1)
+	es, err := NewExecutionState(tx, shardId, StateParams{})
 	suite.Require().NoError(err)
 
 	suite.Run("Deploy", func() {
