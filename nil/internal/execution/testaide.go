@@ -54,7 +54,7 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 	require.NoError(t, err)
 	defer tx.Rollback()
 
-	es, err := NewExecutionState(tx, shardId, prevBlock, common.NewTestTimer(0), 1)
+	es, err := NewExecutionState(tx, shardId, StateParams{BlockHash: prevBlock, Timer: common.NewTestTimer(0)})
 	require.NoError(t, err)
 
 	for _, msg := range msgs {

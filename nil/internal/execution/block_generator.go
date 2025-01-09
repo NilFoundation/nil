@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/rs/zerolog"
@@ -80,7 +81,17 @@ func NewBlockGenerator(ctx context.Context, params BlockGeneratorParams, txFabri
 	if err != nil {
 		return nil, err
 	}
-	executionState, err := NewExecutionStateForShard(rwTx, params.ShardId, params.Timer, params.GasPriceScale)
+
+	configAccessor, err := config.NewConfigAccessor(ctx, txFabric, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create config accessor: %w", err)
+	}
+	executionState, err := NewExecutionState(rwTx, params.ShardId, StateParams{
+		GetBlockFromDb: true,
+		Timer:          params.Timer,
+		GasPriceScale:  params.GasPriceScale,
+		ConfigAccessor: configAccessor,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +123,7 @@ func (g *BlockGenerator) Rollback() {
 func (g *BlockGenerator) updateGasPrices(numShards int) error {
 	if g.params.ShardId.IsMainShard() {
 		// In main shard we collect gas prices from all shards. Gas price for the main shard is not required.
-		gasPrice, err := g.executionState.GetConfigAccessor().GetParamGasPrice()
+		gasPrice, err := config.GetParamGasPrice(g.executionState.GetConfigAccessor())
 		if err != nil {
 			return err
 		}
@@ -129,11 +140,15 @@ func (g *BlockGenerator) updateGasPrices(numShards int) error {
 				_ = shardId
 				block, _, err := db.ReadLastBlock(roTx, shardId)
 				if err != nil {
-					return err
+					logger.Err(err).
+						Stringer("shard", shardId).
+						Msg("Get gas price from shard: failed to read last block")
+					gasPrice.Shards[i] = *types.DefaultGasPrice.Uint256
+				} else {
+					gasPrice.Shards[i] = *block.GasPrice.Uint256
 				}
-				gasPrice.Shards[i] = *block.GasPrice.Uint256
 			}
-			if err = g.executionState.GetConfigAccessor().SetParamGasPrice(gasPrice); err != nil {
+			if err = config.SetParamGasPrice(g.executionState.GetConfigAccessor(), gasPrice); err != nil {
 				return err
 			}
 			return nil

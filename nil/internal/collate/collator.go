@@ -129,7 +129,10 @@ func (c *collator) handleMessagesFromPool() ([]*types.Message, error) {
 	}
 
 	sa := execution.NewStateAccessor()
-	es, err := execution.NewROExecutionStateForShard(c.roTx, c.params.ShardId, c.params.Timer, c.params.GasPriceScale)
+	es, err := execution.NewExecutionState(c.roTx, c.params.ShardId, execution.StateParams{
+		GetBlockFromDb: true,
+		GasPriceScale:  c.params.GasPriceScale,
+	})
 	if err != nil {
 		return nil, err
 	}

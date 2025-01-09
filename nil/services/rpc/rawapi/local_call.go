@@ -7,6 +7,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
@@ -174,7 +175,15 @@ func (api *LocalShardApi) Call(
 		hash = mainBlockHash
 	}
 
-	es, err := execution.NewROExecutionState(tx, shardId, hash, timer, 1)
+	configAccessor, err := config.NewConfigReader(tx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create config accessor: %w", err)
+	}
+	es, err := execution.NewExecutionState(tx, shardId, execution.StateParams{
+		BlockHash:      hash,
+		Timer:          timer,
+		ConfigAccessor: configAccessor,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +235,7 @@ func (api *LocalShardApi) Call(
 		return result, nil
 	}
 
-	esOld, err := execution.NewROExecutionState(tx, shardId, hash, timer, 1)
+	esOld, err := execution.NewExecutionState(tx, shardId, execution.StateParams{BlockHash: hash})
 	if err != nil {
 		return nil, err
 	}

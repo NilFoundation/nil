@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -24,16 +25,23 @@ func init() {
 	}
 }
 
-// ConfigAccessorRo provides read access to config params stored in a Merkle Patricia Trie.
-type ConfigAccessorRo struct {
-	trie *mpt.Reader
+type ConfigAccessor interface {
+	GetParamData(name string) ([]byte, error)
+	SetParamData(name string, data []byte) error
+	Commit(tx db.RwTx, root common.Hash) (common.Hash, error)
 }
 
-// ConfigAccessor provides read/write access to config params stored in a Merkle Patricia Trie.
-type ConfigAccessor struct {
-	*ConfigAccessorRo
-	data       map[string][]byte
-	allowWrite bool
+// configAccessorImpl provides read/write access to config params that were read from Config's MPT.
+type configAccessorImpl struct {
+	readData  map[string][]byte
+	writeData map[string][]byte
+}
+
+// configReader provides read-only access to config params that were read from Config's MPT.
+// Unlike configAccessorImpl it doesn't read all params during initialization, it reads it only on demand.
+// Also, it doesn't allow writing params.
+type configReader struct {
+	trie *mpt.Reader
 }
 
 // IConfigParam is an interface that all config params must implement.
@@ -54,43 +62,78 @@ type IConfigParamPointer[T any] interface {
 // ParamAccessor provides functions to work with the concrete parameter. Such as read/write parameter from configuration
 // and pack/unpack from Solidity data.
 type ParamAccessor struct {
-	getRo  func(c *ConfigAccessorRo) (any, error)
-	get    func(c *ConfigAccessor) (any, error)
-	set    func(c *ConfigAccessor, v any) error
+	get    func(c ConfigAccessor) (any, error)
+	set    func(c ConfigAccessor, v any) error
 	pack   func(v any) ([]byte, error)
 	unpack func(data []byte) (any, error)
 }
 
-// NewConfigAccessor creates a new ConfigAccessor fetching MPT itself.
-func NewConfigAccessor(tx db.RoTx, shardId types.ShardId, mainShardHash *common.Hash) (*ConfigAccessor, error) {
+func NewConfigReader(tx db.RoTx, mainShardHash *common.Hash) (ConfigAccessor, error) {
 	trie, err := getConfigTrie(tx, mainShardHash)
 	if err != nil {
 		return nil, err
 	}
-	return &ConfigAccessor{
-		&ConfigAccessorRo{trie},
+	return &configReader{trie}, nil
+}
+
+type ConfigAccessorStub struct{}
+
+var _ ConfigAccessor = (*ConfigAccessorStub)(nil)
+
+func (c *ConfigAccessorStub) GetParamData(name string) ([]byte, error) {
+	return nil, errors.New("stub config accessor should not be called")
+}
+
+func (c *ConfigAccessorStub) SetParamData(name string, data []byte) error {
+	return errors.New("stub config accessor should not be called")
+}
+
+func (c *ConfigAccessorStub) GetParam(name string) (any, error) {
+	return nil, errors.New("stub config accessor should not be called")
+}
+
+func (c *ConfigAccessorStub) SetParam(name string, value any) error {
+	return errors.New("stub config accessor should not be called")
+}
+
+func (c *ConfigAccessorStub) Commit(tx db.RwTx, root common.Hash) (common.Hash, error) {
+	return common.EmptyHash, nil
+}
+
+func GetStubAccessor() ConfigAccessor {
+	return &ConfigAccessorStub{}
+}
+
+// NewConfigAccessor creates a new configAccessorImpl reading the whole trie from the MPT.
+func NewConfigAccessor(ctx context.Context, db db.DB, mainShardHash *common.Hash) (ConfigAccessor, error) {
+	tx, err := db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create read-only transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	trie, err := getConfigTrie(tx, mainShardHash)
+	if err != nil {
+		return nil, err
+	}
+	data := make(map[string][]byte)
+	for k, v := range trie.Iterate() {
+		data[string(k)] = v
+	}
+	return &configAccessorImpl{
+		data,
 		make(map[string][]byte),
-		shardId.IsMainShard(),
 	}, nil
 }
 
-// NewConfigAccessor creates a new ConfigAccessor fetching MPT itself.
-func NewConfigAccessorRo(tx db.RoTx, mainShardHash *common.Hash) (*ConfigAccessorRo, error) {
-	trie, err := getConfigTrie(tx, mainShardHash)
-	if err != nil {
-		return nil, err
-	}
-	return &ConfigAccessorRo{trie}, nil
-}
-
-// UpdateConfigTrie updates the config trie with the current state of the ConfigAccessor.
-func (c *ConfigAccessor) UpdateConfigTrie(tx db.RwTx, root common.Hash) (common.Hash, error) {
-	if len(c.data) == 0 {
+// Commit updates the config trie with the current state of the configAccessorImpl.
+func (c *configAccessorImpl) Commit(tx db.RwTx, root common.Hash) (common.Hash, error) {
+	if len(c.writeData) == 0 {
 		return root, nil
 	}
 	trie := mpt.NewDbMPT(tx, types.MainShardId, db.ConfigTrieTable)
 	trie.SetRootHash(root)
-	for k, v := range c.data {
+	for k, v := range c.writeData {
 		if err := trie.Set([]byte(k), v); err != nil {
 			return common.EmptyHash, err
 		}
@@ -98,17 +141,36 @@ func (c *ConfigAccessor) UpdateConfigTrie(tx db.RwTx, root common.Hash) (common.
 	return trie.RootHash(), nil
 }
 
-// GetParam retrieves the value of the specified config param.
-func (c *ConfigAccessorRo) GetParam(name string) (any, error) {
-	param, ok := ParamsMap[name]
+func (c *configReader) GetParamData(name string) ([]byte, error) {
+	return c.trie.Get([]byte(name))
+}
+
+func (c *configReader) SetParamData(name string, data []byte) error {
+	return errors.New("call `SetParamData` for read-only config accessor")
+}
+
+func (c *configReader) Commit(tx db.RwTx, root common.Hash) (common.Hash, error) {
+	return common.EmptyHash, errors.New("call `Commit` for read-only config accessor")
+}
+
+func (c *configAccessorImpl) GetParamData(name string) ([]byte, error) {
+	data, ok := c.writeData[name]
 	if !ok {
-		return nil, fmt.Errorf("%w: %s", ErrParamNotFound, name)
+		data, ok = c.readData[name]
+		if !ok {
+			return nil, fmt.Errorf("%w: %s", ErrParamNotFound, name)
+		}
 	}
-	return param.getRo(c)
+	return data, nil
+}
+
+func (c *configAccessorImpl) SetParamData(name string, data []byte) error {
+	c.writeData[name] = data
+	return nil
 }
 
 // GetParam retrieves the value of the specified config param.
-func (c *ConfigAccessor) GetParam(name string) (any, error) {
+func GetParam(c ConfigAccessor, name string) (any, error) {
 	param, ok := ParamsMap[name]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrParamNotFound, name)
@@ -117,7 +179,7 @@ func (c *ConfigAccessor) GetParam(name string) (any, error) {
 }
 
 // SetParam sets the value of the specified config param.
-func (c *ConfigAccessor) SetParam(name string, v any) error {
+func SetParam(c ConfigAccessor, name string, v any) error {
 	param, ok := ParamsMap[name]
 	if !ok {
 		return fmt.Errorf("%w: %s", ErrParamNotFound, name)
@@ -126,7 +188,7 @@ func (c *ConfigAccessor) SetParam(name string, v any) error {
 }
 
 // UnpackSolidity unpacks the given data into the specified config param.
-func (c *ConfigAccessorRo) UnpackSolidity(name string, data []byte) (any, error) {
+func UnpackSolidity(name string, data []byte) (any, error) {
 	param, ok := ParamsMap[name]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrParamNotFound, name)
@@ -135,7 +197,7 @@ func (c *ConfigAccessorRo) UnpackSolidity(name string, data []byte) (any, error)
 }
 
 // PackSolidity packs the specified config parameter into a byte slice.
-func (c *ConfigAccessorRo) PackSolidity(name string, v any) ([]byte, error) {
+func PackSolidity(name string, v any) ([]byte, error) {
 	param, ok := ParamsMap[name]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrParamNotFound, name)
@@ -143,49 +205,12 @@ func (c *ConfigAccessorRo) PackSolidity(name string, v any) ([]byte, error) {
 	return param.pack(v)
 }
 
-func (c *ConfigAccessorRo) GetParamValidators() (*ParamValidators, error) {
-	return GetParamRo[ParamValidators](c)
-}
-
-func (c *ConfigAccessor) GetParamValidators() (*ParamValidators, error) {
-	return GetParam[ParamValidators](c)
-}
-
-func (c *ConfigAccessor) SetParamValidators(params *ParamValidators) error {
-	return SetParam[ParamValidators](c, params)
-}
-
-func (c *ConfigAccessorRo) GetParamGasPrice() (*ParamGasPrice, error) {
-	return GetParamRo[ParamGasPrice](c)
-}
-
-func (c *ConfigAccessor) GetParamGasPrice() (*ParamGasPrice, error) {
-	return GetParam[ParamGasPrice](c)
-}
-
-func (c *ConfigAccessor) SetParamGasPrice(params *ParamGasPrice) error {
-	return SetParam[ParamGasPrice](c, params)
-}
-
-// GetParamRo retrieves the value of the specified config param from trie.
-func GetParamRo[T any, paramPtr IConfigParamPointer[T]](c *ConfigAccessorRo) (*T, error) {
+// getParamImpl retrieves the value of the specified config param from in-memory data or trie.
+func getParamImpl[T any, paramPtr IConfigParamPointer[T]](c ConfigAccessor) (*T, error) {
 	var res paramPtr = new(T)
-	data, err := c.trie.Get([]byte(res.Name()))
+	data, err := c.GetParamData(res.Name())
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config param: %w", err)
-	}
-	if err = res.UnmarshalSSZ(data); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config param: %w", err)
-	}
-	return res, nil
-}
-
-// GetParam retrieves the value of the specified config param from in-memory data or trie.
-func GetParam[T any, paramPtr IConfigParamPointer[T]](c *ConfigAccessor) (*T, error) {
-	var res paramPtr = new(T)
-	data, ok := c.data[res.Name()]
-	if !ok {
-		return GetParamRo[T, paramPtr](c.ConfigAccessorRo)
+		return nil, err
 	}
 	if err := res.UnmarshalSSZ(data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config param: %w", err)
@@ -193,11 +218,8 @@ func GetParam[T any, paramPtr IConfigParamPointer[T]](c *ConfigAccessor) (*T, er
 	return res, nil
 }
 
-// SetParam sets the value of the specified config param.
-func SetParam[T any](c *ConfigAccessor, obj *T) error {
-	if !c.allowWrite {
-		return errors.New("ConfigAccessor is read-only for non-main shard contracts")
-	}
+// setParamImpl sets the value of the specified config param.
+func setParamImpl[T any](c ConfigAccessor, obj *T) error {
 	if configParam, ok := any(obj).(IConfigParam); ok {
 		name := configParam.Name()
 		if marshaler, ok := any(obj).(ssz.Marshaler); ok {
@@ -205,8 +227,7 @@ func SetParam[T any](c *ConfigAccessor, obj *T) error {
 			if err != nil {
 				return fmt.Errorf("failed to marshal config param %s: %w", name, err)
 			}
-			c.data[name] = data
-			return nil
+			return c.SetParamData(name, data)
 		}
 		return errors.New("type does not implement ssz.Marshaler")
 	}
@@ -236,8 +257,8 @@ func getConfigTrie(tx db.RoTx, mainShardHash *common.Hash) (*mpt.Reader, error) 
 	return configTree, nil
 }
 
-// PackSolidity packs the specified config param into a byte slice.
-func PackSolidity[T any](obj *T) ([]byte, error) {
+// packSolidityImpl packs the specified config param into a byte slice.
+func packSolidityImpl[T any](obj *T) ([]byte, error) {
 	precompileAbi, err := contracts.GetAbi(contracts.NameNilConfigAbi)
 	if err != nil {
 		return nil, err
@@ -261,8 +282,8 @@ func PackSolidity[T any](obj *T) ([]byte, error) {
 	return data, nil
 }
 
-// UnpackSolidity unpacks the given data into the specified config param.
-func UnpackSolidity[T any](data []byte) (*T, error) {
+// unpackSolidityImpl unpacks the given data into the specified config param.
+func unpackSolidityImpl[T any](data []byte) (*T, error) {
 	precompileAbi, err := contracts.GetAbi(contracts.NameNilConfigAbi)
 	if err != nil {
 		return nil, err

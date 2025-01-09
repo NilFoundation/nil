@@ -58,20 +58,37 @@ func (p *ParamGasPrice) Accessor() *ParamAccessor {
 
 func CreateAccessor[T any, paramPtr IConfigParamPointer[T]]() *ParamAccessor {
 	return &ParamAccessor{
-		func(c *ConfigAccessorRo) (any, error) { return GetParamRo[T, paramPtr](c) },
-		func(c *ConfigAccessor) (any, error) { return GetParam[T, paramPtr](c) },
-		func(c *ConfigAccessor, v any) error {
+		func(c ConfigAccessor) (any, error) {
+			return getParamImpl[T, paramPtr](c)
+		},
+		func(c ConfigAccessor, v any) error {
 			if param, ok := v.(*T); ok {
-				return SetParam[T](c, param)
+				return setParamImpl[T](c, param)
 			}
 			return ErrParamCastFailed
 		},
 		func(v any) ([]byte, error) {
 			if param, ok := v.(*T); ok {
-				return PackSolidity[T](param)
+				return packSolidityImpl[T](param)
 			}
 			return nil, ErrParamCastFailed
 		},
-		func(data []byte) (any, error) { return UnpackSolidity[T](data) },
+		func(data []byte) (any, error) { return unpackSolidityImpl[T](data) },
 	}
+}
+
+func GetParamValidators(c ConfigAccessor) (*ParamValidators, error) {
+	return getParamImpl[ParamValidators](c)
+}
+
+func SetParamValidators(c ConfigAccessor, params *ParamValidators) error {
+	return setParamImpl[ParamValidators](c, params)
+}
+
+func GetParamGasPrice(c ConfigAccessor) (*ParamGasPrice, error) {
+	return getParamImpl[ParamGasPrice](c)
+}
+
+func SetParamGasPrice(c ConfigAccessor, params *ParamGasPrice) error {
+	return setParamImpl[ParamGasPrice](c, params)
 }

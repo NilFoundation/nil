@@ -38,7 +38,7 @@ func (s *MessagesSuite) TestValidateExternalMessage() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	es, err := NewExecutionStateForShard(tx, types.BaseShardId, common.NewTestTimer(0), 1)
+	es, err := NewExecutionState(tx, types.BaseShardId, StateParams{GetBlockFromDb: true})
 	s.Require().NoError(err)
 	s.Require().NotNil(es)
 

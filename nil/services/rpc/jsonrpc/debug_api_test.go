@@ -118,7 +118,7 @@ func (suite *SuiteDbgContracts) SetupSuite() {
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	es, err := execution.NewExecutionState(tx, shardId, common.EmptyHash, common.NewTestTimer(0), 1)
+	es, err := execution.NewExecutionState(tx, shardId, execution.StateParams{})
 	suite.Require().NoError(err)
 
 	suite.smcAddr = types.GenerateRandomAddress(shardId)

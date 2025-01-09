@@ -104,7 +104,7 @@ type ExecutionState struct {
 	// wasSentRequest is true if the VM execution ended with sending a request message
 	wasSentRequest bool
 
-	configAccessor *config.ConfigAccessor
+	configAccessor config.ConfigAccessor
 }
 
 type ExecutionResult struct {
@@ -224,38 +224,57 @@ func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
 	}, nil
 }
 
-func NewROExecutionState(tx db.RoTx, shardId types.ShardId, blockHash common.Hash, timer common.Timer, gasPriceScale float64) (*ExecutionState, error) {
-	return NewExecutionState(&db.RwWrapper{RoTx: tx}, shardId, blockHash, timer, gasPriceScale)
+type StateParams struct {
+	BlockHash      common.Hash
+	GetBlockFromDb bool
+	GasPriceScale  float64
+	Timer          common.Timer
+	ConfigAccessor config.ConfigAccessor
 }
 
-func NewROExecutionStateForShard(tx db.RoTx, shardId types.ShardId, timer common.Timer, gasPriceScale float64) (*ExecutionState, error) {
-	return NewExecutionStateForShard(&db.RwWrapper{RoTx: tx}, shardId, timer, gasPriceScale)
-}
+func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*ExecutionState, error) {
+	var resTx db.RwTx
+	var err error
+	if rwTx, ok := tx.(db.RwTx); ok {
+		resTx = rwTx
+	} else if roTx, ok := tx.(db.RoTx); ok {
+		resTx = &db.RwWrapper{RoTx: roTx}
+	} else {
+		return nil, errors.New("invalid tx type")
+	}
 
-func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash, timer common.Timer, gasPriceScale float64) (*ExecutionState, error) {
 	stateAccessor := NewStateAccessor()
-	shardAccessor := stateAccessor.Access(tx, shardId)
-	mainAccessor := stateAccessor.Access(tx, types.MainShardId)
+	shardAccessor := stateAccessor.Access(resTx, shardId)
+	mainAccessor := stateAccessor.Access(resTx, types.MainShardId)
+
+	if params.GetBlockFromDb {
+		params.BlockHash, err = db.ReadLastBlockHash(resTx, shardId)
+		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+			return nil, fmt.Errorf("failed getting last block: %w", err)
+		}
+	}
 
 	var gasPrice types.Value
-	if blockHash != common.EmptyHash {
-		block, err := shardAccessor.GetBlock().ByHash(blockHash)
+	if params.BlockHash != common.EmptyHash {
+		block, err := shardAccessor.GetBlock().ByHash(params.BlockHash)
 		if err != nil {
 			return nil, err
 		}
-		gasPrice = block.Block().GasPrice
+		if gasPrice = block.Block().GasPrice; gasPrice.IsZero() {
+			return nil, errors.New("gas price is zero")
+		}
 	} else {
 		gasPrice = types.DefaultGasPrice
 	}
 
-	if gasPrice.IsZero() {
-		return nil, errors.New("gas price is zero")
+	if params.ConfigAccessor == nil {
+		params.ConfigAccessor = config.GetStubAccessor()
 	}
 
 	res := &ExecutionState{
-		tx:               tx,
-		Timer:            timer,
-		PrevBlock:        blockHash,
+		tx:               resTx,
+		Timer:            params.Timer,
+		PrevBlock:        params.BlockHash,
 		ShardId:          shardId,
 		ChildChainBlocks: map[types.ShardId]common.Hash{},
 		Accounts:         map[types.Address]*AccountState{},
@@ -271,7 +290,8 @@ func NewExecutionState(tx db.RwTx, shardId types.ShardId, blockHash common.Hash,
 		shardAccessor: shardAccessor,
 		mainAccessor:  mainAccessor,
 
-		gasPriceScale: gasPriceScale,
+		gasPriceScale:  params.GasPriceScale,
+		configAccessor: params.ConfigAccessor,
 	}
 
 	return res, res.initTries()
@@ -294,20 +314,7 @@ func (es *ExecutionState) initTries() error {
 	return nil
 }
 
-func NewExecutionStateForShard(tx db.RwTx, shardId types.ShardId, timer common.Timer, gasPriceScale float64) (*ExecutionState, error) {
-	hash, err := db.ReadLastBlockHash(tx, shardId)
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		return nil, fmt.Errorf("failed getting last block: %w", err)
-	}
-	return NewExecutionState(tx, shardId, hash, timer, gasPriceScale)
-}
-
-func (es *ExecutionState) GetConfigAccessor() *config.ConfigAccessor {
-	if es.configAccessor == nil {
-		var err error
-		es.configAccessor, err = config.NewConfigAccessor(es.tx, es.ShardId, &es.MainChainHash)
-		check.PanicIfErr(err)
-	}
+func (es *ExecutionState) GetConfigAccessor() config.ConfigAccessor {
 	return es.configAccessor
 }
 
@@ -1322,7 +1329,7 @@ func (es *ExecutionState) Commit(blockId types.BlockNumber) (common.Hash, []*typ
 		if prevBlock != nil {
 			configRoot = prevBlock.ConfigRoot
 		}
-		if configRoot, err = es.GetConfigAccessor().UpdateConfigTrie(es.tx, configRoot); err != nil {
+		if configRoot, err = es.GetConfigAccessor().Commit(es.tx, configRoot); err != nil {
 			return common.EmptyHash, nil, fmt.Errorf("failed to update config trie: %w", err)
 		}
 	}
@@ -1587,7 +1594,7 @@ func (es *ExecutionState) GetCurrencies(addr types.Address) map[types.CurrencyId
 }
 
 func (es *ExecutionState) GetGasPrice(shardId types.ShardId) (types.Value, error) {
-	prices, err := es.GetConfigAccessor().GetParamGasPrice()
+	prices, err := config.GetParamGasPrice(es.GetConfigAccessor())
 	if err != nil {
 		return types.Value{}, err
 	}

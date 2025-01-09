@@ -125,12 +125,9 @@ func (s *SuiteConfigParams) TestConfigReadWriteValidators() {
 		receipt = s.SendExternalMessageNoCheck(data, s.testAddressMain)
 		s.Require().True(receipt.AllSuccess())
 
-		tx, _ := s.Db.CreateRwTx(s.Context)
-		defer tx.Rollback()
-
-		cfgReader, err := config.NewConfigAccessor(tx, types.MainShardId, nil)
+		cfgReader, err := config.NewConfigAccessor(s.Context, s.Db, nil)
 		s.Require().NoError(err)
-		validators, err := cfgReader.GetParamValidators()
+		validators, err := config.GetParamValidators(cfgReader)
 		s.Require().NoError(err)
 		s.Require().Equal(vals, *validators)
 	})
@@ -147,12 +144,9 @@ func (s *SuiteConfigParams) TestConfigReadWriteValidators() {
 		receipt = s.SendExternalMessageNoCheck(data, s.testAddressMain)
 		s.Require().True(receipt.AllSuccess())
 
-		tx, _ := s.Db.CreateRwTx(s.Context)
-		defer tx.Rollback()
-
-		cfgReader, err := config.NewConfigAccessor(tx, types.MainShardId, nil)
+		cfgReader, err := config.NewConfigAccessor(s.Context, s.Db, nil)
 		s.Require().NoError(err)
-		validators, err := cfgReader.GetParamValidators()
+		validators, err := config.GetParamValidators(cfgReader)
 		s.Require().NoError(err)
 		s.Require().Equal(vals, *validators)
 	})
@@ -236,9 +230,9 @@ func (s *SuiteConfigParams) readGasPrices() *config.ParamGasPrice {
 	tx, err := s.Db.CreateRoTx(s.Context)
 	s.Require().NoError(err)
 	defer tx.Rollback()
-	cfgReader, err := config.NewConfigAccessorRo(tx, nil)
+	cfgReader, err := config.NewConfigReader(tx, nil)
 	s.Require().NoError(err)
-	gasPrice, err := cfgReader.GetParamGasPrice()
+	gasPrice, err := config.GetParamGasPrice(cfgReader)
 	s.Require().NoError(err)
 	return gasPrice
 }
