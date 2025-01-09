@@ -175,7 +175,7 @@ func parseArgs() *nildconfig.Config {
 
 	archiveCmd := &cobra.Command{
 		Use:   "archive",
-		Short: "Run nil application server",
+		Short: "Run nil archive node",
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg.RunMode = nilservice.ArchiveRunMode
 		},
