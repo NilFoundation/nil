@@ -9,6 +9,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var asYaml bool
+
+const asYamlFlag = "yaml"
+
 func NewP2pCommand(keygen *cliservice.Service) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "new-p2p",
@@ -19,6 +23,12 @@ func NewP2pCommand(keygen *cliservice.Service) *cobra.Command {
 		},
 		SilenceUsage: true,
 	}
+	cmd.Flags().BoolVar(
+		&asYaml,
+		asYamlFlag,
+		false,
+		"Output as YAML (network_keys.yaml format)",
+	)
 	return cmd
 }
 
@@ -26,6 +36,11 @@ func runNewP2p(_ *cobra.Command, _ []string, keygen *cliservice.Service) error {
 	privateKey, pubKey, identity, err := keygen.GenerateNewP2pKey()
 	if err != nil {
 		return err
+	}
+
+	if asYaml {
+		fmt.Printf("privateKey: \"0x%x\"\npublicKey: \"0x%x\"\nidentity: \"%s\"\n", privateKey, pubKey, identity)
+		return nil
 	}
 
 	if !common.Quiet {
