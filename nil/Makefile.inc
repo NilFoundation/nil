@@ -58,3 +58,13 @@ pb_synccommittee: $(root_sce)/prover/proto/traces.pb.go
 
 $(root_sce)/prover/proto/traces.pb.go: $(root_sce)/prover/proto/traces.proto
 	protoc --go_out=$(root_sce)/prover/ $(root_sce)/prover/proto/traces.proto
+
+.PHONY: tracer_constants
+tracer_constants: $(root_sce)/prover/tracer/internal/constants/proto_hash_generated.go
+
+$(root_sce)/prover/tracer/internal/constants/proto_hash_generated.go: \
+	$(root_sce)/prover/proto/traces.proto \
+	$(root_sce)/prover/tracer/internal/scripts/generate_constants.sh
+	mkdir -p $(root_sce)/prover/tracer/internal/constants \
+		&& cd $(root_sce)/prover/tracer/internal/constants \
+		&& bash ../scripts/generate_constants.sh ProtoHash `sha256sum ../../../proto/traces.proto |  cut -d ' ' -f 1` proto_hash_generated.go

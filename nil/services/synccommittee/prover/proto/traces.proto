@@ -87,6 +87,7 @@ message MPTTraces {
     map<string, StorageTrieUpdatesTraces> storage_traces_by_account = 1;
     repeated ContractTrieUpdateTrace contract_trie_traces = 2;
     uint64 trace_idx = 3; // some randomly chosen value that should be checked in the proof generator to ensure integrity of the passed traces
+    string proto_hash = 4;  // hash of this proto specification for compatibility check
 }
 
 // types.SmartContract serialization
@@ -158,6 +159,7 @@ message CopyEvent {
 message BytecodeTraces {
     map<string, bytes> contract_bytecodes = 1;
     uint64 trace_idx = 2; // some randomly chosen value that should be checked in the proof generator to ensure integrity of the passed traces
+    string proto_hash = 3;  // hash of this proto specification for compatibility check
 }
 
 // Traces collected for rw circuit
@@ -166,21 +168,25 @@ message RWTraces {
     repeated MemoryOp memory_ops = 2;
     repeated StorageOp storage_ops = 3;
     uint64 trace_idx = 4; // some randomly chosen value that should be checked in the proof generator to ensure integrity of the passed traces
+    string proto_hash = 5;  // hash of this proto specification for compatibility check
 }
 
 // Traces collected for zkevm circuit
 message ZKEVMTraces {
     repeated ZKEVMState zkevm_states = 1;
     uint64 trace_idx = 2; // some randomly chosen value that should be checked in the proof generator to ensure integrity of the passed traces
+    string proto_hash = 3;  // hash of this proto specification for compatibility check
 }
 
 // Traces collected for bytecode circuit
 message CopyTraces {
     repeated CopyEvent copy_events = 1;
     uint64 trace_idx = 2; // some randomly chosen value that should be checked in the proof generator to ensure integrity of the passed traces
+    string proto_hash = 3;  // hash of this proto specification for compatibility check
 }
 
 message ExpTraces {
     repeated ExpOp exp_ops = 1;
     uint64 trace_idx = 2; // some randomly chosen value that should be checked in the proof generator to ensure integrity of the passed traces
+    string proto_hash = 3;  // hash of this proto specification for compatibility check
 }

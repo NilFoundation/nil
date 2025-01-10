@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
 	pb "github.com/NilFoundation/nil/nil/services/synccommittee/prover/proto"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/prover/tracer/internal/constants"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/prover/tracer/internal/mpttracer"
 	"github.com/holiman/uint256"
 	"golang.org/x/sync/errgroup"
@@ -276,16 +277,18 @@ func ToProto(tr ExecutionTraces, traceIdx uint64) (*PbTracesSet, error) {
 		bytecode: &pb.BytecodeTraces{
 			ContractBytecodes: make(map[string][]byte),
 			TraceIdx:          traceIdx,
+			ProtoHash:         constants.ProtoHash,
 		},
 		rw: &pb.RWTraces{
 			StackOps:   make([]*pb.StackOp, len(traces.StackOps)),
 			MemoryOps:  make([]*pb.MemoryOp, len(traces.MemoryOps)),
 			StorageOps: make([]*pb.StorageOp, len(traces.StorageOps)),
 			TraceIdx:   traceIdx,
+			ProtoHash:  constants.ProtoHash,
 		},
-		exp:   &pb.ExpTraces{ExpOps: make([]*pb.ExpOp, len(traces.ExpOps)), TraceIdx: traceIdx},
-		zkevm: &pb.ZKEVMTraces{ZkevmStates: make([]*pb.ZKEVMState, len(traces.ZKEVMStates)), TraceIdx: traceIdx},
-		copy:  &pb.CopyTraces{CopyEvents: make([]*pb.CopyEvent, len(traces.CopyEvents)), TraceIdx: traceIdx},
+		exp:   &pb.ExpTraces{ExpOps: make([]*pb.ExpOp, len(traces.ExpOps)), TraceIdx: traceIdx, ProtoHash: constants.ProtoHash},
+		zkevm: &pb.ZKEVMTraces{ZkevmStates: make([]*pb.ZKEVMState, len(traces.ZKEVMStates)), TraceIdx: traceIdx, ProtoHash: constants.ProtoHash},
+		copy:  &pb.CopyTraces{CopyEvents: make([]*pb.CopyEvent, len(traces.CopyEvents)), TraceIdx: traceIdx, ProtoHash: constants.ProtoHash},
 	}
 
 	// Convert StackOps
@@ -554,6 +557,7 @@ func mptTracesToProto(mptTraces *mpttracer.MPTTraces, traceIdx uint64) (*pb.MPTT
 		StorageTracesByAccount: pbAddrToStorageTraces,
 		ContractTrieTraces:     pbContractTrieTraces,
 		TraceIdx:               traceIdx,
+		ProtoHash:              constants.ProtoHash,
 	}
 
 	return ret, nil
