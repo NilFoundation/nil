@@ -277,7 +277,7 @@ func BenchmarkMsgPoolAdd(b *testing.B) {
 
 	msgs := make([]*types.Message, b.N)
 	var addr types.Address
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		if i%2 == 0 {
 			addr = types.GenerateRandomAddress(shardId)
 		}
@@ -288,7 +288,7 @@ func BenchmarkMsgPoolAdd(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		_, err = pool.Add(ctx, msgs[i])
 		if err != nil {
 			b.Fatalf("Failed to add message to pool: %s", err)

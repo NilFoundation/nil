@@ -49,7 +49,7 @@ buildGo123Module rec {
     cp openrpc.json $out/share/doc/nil
   '';
 
-  CGO_ENABLED = if enableRaceDetector then 1 else 0;
+  env.CGO_ENABLED = if enableRaceDetector then 1 else 0;
 
   nativeBuildInputs = [
     jq
