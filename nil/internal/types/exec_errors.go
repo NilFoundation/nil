@@ -119,6 +119,8 @@ const (
 	ErrorRefundAddressIsEmpty
 	// ErrorGasRefundFailed is a general error for failed gas refund.
 	ErrorGasRefundFailed
+	// ErrorPanicDuringExecution is returned when a panic occurs during the execution of the message.
+	ErrorPanicDuringExecution
 )
 
 type ExecError interface {

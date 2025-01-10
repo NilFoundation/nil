@@ -1,10 +1,14 @@
 package tests
 
 import (
+	"context"
 	"encoding/json"
 	"math/big"
 	"os"
+	"runtime"
 	"strconv"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -31,9 +35,28 @@ import (
 
 type SuiteRpc struct {
 	tests.RpcSuite
+	dbMock         *db.DBMock
+	dbImpl         db.DB
+	CreateRwTxFunc func(ctx context.Context) (db.RwTx, error)
+	lock           sync.Mutex
 }
 
 func (s *SuiteRpc) SetupTest() {
+	s.DbInit = func() db.DB {
+		var err error
+		s.dbImpl, err = db.NewBadgerDbInMemory()
+		s.Require().NoError(err)
+		s.dbMock = db.NewDbMock(s.dbImpl)
+		s.dbMock.CreateRwTxFunc = func(ctx context.Context) (db.RwTx, error) {
+			s.lock.Lock()
+			defer s.lock.Unlock()
+			return s.CreateRwTxFunc(ctx)
+		}
+		s.CreateRwTxFunc = func(ctx context.Context) (db.RwTx, error) {
+			return s.dbImpl.CreateRwTx(ctx)
+		}
+		return s.dbMock
+	}
 	s.Start(&nilservice.Config{
 		NShards: 5,
 		HttpUrl: rpc.GetSockPath(s.T()),
@@ -1008,6 +1031,52 @@ func (s *SuiteRpc) TestDebugLogs() {
 		s.Require().Equal(*types.NewUint256(8888), receipt.DebugLogs[1].Data[0])
 		s.Require().Equal(*types.NewUint256(1), receipt.DebugLogs[1].Data[1])
 	})
+}
+
+func (s *SuiteRpc) TestPanicsInDb() {
+	getCallStack := func() []byte {
+		buf := make([]byte, 10240)
+		runtime.Stack(buf, false)
+		return buf
+	}
+
+	code, err := contracts.GetCode(contracts.NameTest)
+	s.Require().NoError(err)
+	abi, err := contracts.GetAbi(contracts.NameTest)
+	s.Require().NoError(err)
+
+	addr, receipt := s.DeployContractViaMainWallet(types.ShardId(3), types.BuildDeployPayload(code, common.EmptyHash),
+		tests.DefaultContractValue)
+	s.Require().True(receipt.AllSuccess())
+
+	calldata := s.AbiPack(abi, "getValue")
+
+	s.lock.Lock()
+	s.CreateRwTxFunc = func(ctx context.Context) (db.RwTx, error) {
+		tx, err := s.dbImpl.CreateRwTx(ctx)
+		s.Require().NoError(err)
+
+		buf := getCallStack()
+		if strings.Contains(string(buf), "nil/internal/execution.NewBlockGenerator(") {
+			// Create mock tx only for a block generation
+			txMock := db.NewTxMock(tx)
+			txMock.GetFromShardFunc = func(shardId types.ShardId, tableName db.ShardedTableName, key []byte) ([]byte, error) {
+				buf := getCallStack()
+				if strings.Contains(string(buf), "(*ExecutionState).handleExecutionMessage") {
+					// Panic only when we execute a message
+					panic("panic in db")
+				}
+				return tx.GetFromShard(shardId, tableName, key)
+			}
+			return txMock, nil
+		}
+		return tx, err
+	}
+	s.lock.Unlock()
+
+	receipt = s.SendExternalMessageNoCheck(calldata, addr)
+	s.Require().False(receipt.Success)
+	s.Require().Equal("PanicDuringExecution", receipt.Status)
 }
 
 func TestSuiteRpc(t *testing.T) {

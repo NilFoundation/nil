@@ -126,7 +126,7 @@ func TestCall(t *testing.T) {
 	callMessage.Data = calldata
 	callMessage.To = addr
 
-	res := state.HandleExecutionMessage(ctx, callMessage)
+	res := state.handleExecutionMessage(ctx, callMessage)
 	require.False(t, res.Failed())
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2A"), 32), res.ReturnData)
 
@@ -142,11 +142,11 @@ func TestCall(t *testing.T) {
 	callMessage2.Data = calldata2
 	callMessage2.To = callerAddr
 
-	res = state.HandleExecutionMessage(ctx, callMessage2)
+	res = state.handleExecutionMessage(ctx, callMessage2)
 	require.False(t, res.Failed())
 
 	// check that it changed the state of SimpleContract
-	res = state.HandleExecutionMessage(ctx, callMessage)
+	res = state.handleExecutionMessage(ctx, callMessage)
 	require.False(t, res.Failed())
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2b"), 32), res.ReturnData)
 
@@ -158,11 +158,11 @@ func TestCall(t *testing.T) {
 	callMessage2.FeeCredit = toGasCredit(10000)
 	callMessage2.Data = calldata2
 	callMessage2.To = callerAddr
-	res = state.HandleExecutionMessage(ctx, callMessage2)
+	res = state.handleExecutionMessage(ctx, callMessage2)
 	require.ErrorIs(t, res.Error, vm.ErrExecutionReverted)
 
 	// check that did not change the state of SimpleContract
-	res = state.HandleExecutionMessage(ctx, callMessage)
+	res = state.handleExecutionMessage(ctx, callMessage)
 	require.False(t, res.Failed())
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2b"), 32), res.ReturnData)
 }
@@ -191,7 +191,7 @@ func TestDelegate(t *testing.T) {
 	callMessage.FeeCredit = toGasCredit(30_000)
 	callMessage.Data = calldata
 	callMessage.To = proxyAddr
-	res := state.HandleExecutionMessage(ctx, callMessage)
+	res := state.handleExecutionMessage(ctx, callMessage)
 	require.False(t, res.Failed())
 
 	// call ProxyContract.getValue()
@@ -202,7 +202,7 @@ func TestDelegate(t *testing.T) {
 	callMessage.FeeCredit = toGasCredit(10_000)
 	callMessage.Data = calldata
 	callMessage.To = proxyAddr
-	res = state.HandleExecutionMessage(ctx, callMessage)
+	res = state.handleExecutionMessage(ctx, callMessage)
 	require.False(t, res.Failed())
 	// check that it returned 42
 	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2a"), 32), res.ReturnData)
@@ -215,7 +215,7 @@ func TestDelegate(t *testing.T) {
 	callMessage.FeeCredit = toGasCredit(10_000)
 	callMessage.Data = calldata
 	callMessage.To = proxyAddr
-	res = state.HandleExecutionMessage(ctx, callMessage)
+	res = state.handleExecutionMessage(ctx, callMessage)
 	require.False(t, res.Failed())
 }
 
@@ -249,7 +249,7 @@ func TestAsyncCall(t *testing.T) {
 	callMessage.To = addrCaller
 	msgHash := callMessage.Hash()
 	state.AddInMessage(callMessage)
-	res := state.HandleExecutionMessage(ctx, callMessage)
+	res := state.handleExecutionMessage(ctx, callMessage)
 	require.False(t, res.Failed())
 
 	require.Len(t, state.OutMessages, 1)
@@ -261,7 +261,7 @@ func TestAsyncCall(t *testing.T) {
 
 	// Process outbound message, i.e. "Callee::add"
 	state.AddInMessage(outMsg.Message)
-	res = state.HandleExecutionMessage(ctx, outMsg.Message)
+	res = state.handleExecutionMessage(ctx, outMsg.Message)
 	require.False(t, res.Failed())
 	require.Len(t, res.ReturnData, 32)
 	require.Equal(t, types.NewUint256FromBytes(res.ReturnData), types.NewUint256(11))
@@ -273,7 +273,7 @@ func TestAsyncCall(t *testing.T) {
 	callMessage.Data = calldata
 	msgHash = callMessage.Hash()
 	state.AddInMessage(callMessage)
-	res = state.HandleExecutionMessage(ctx, callMessage)
+	res = state.handleExecutionMessage(ctx, callMessage)
 	require.False(t, res.Failed())
 
 	require.Len(t, state.OutMessages, 2)
@@ -284,7 +284,7 @@ func TestAsyncCall(t *testing.T) {
 	require.Equal(t, outMsg.To, addrCallee)
 
 	// Process outbound message, i.e. "Callee::add"
-	res = state.HandleExecutionMessage(ctx, outMsg.Message)
+	res = state.handleExecutionMessage(ctx, outMsg.Message)
 	require.False(t, res.Failed())
 	require.Len(t, res.ReturnData, 32)
 	require.Equal(t, types.NewUint256FromBytes(res.ReturnData), types.NewUint256(4))
@@ -330,7 +330,7 @@ func TestSendMessage(t *testing.T) {
 	callMessage.FeeCredit = toGasCredit(100_000)
 	callMessage.Data = calldata
 	callMessage.To = addrCaller
-	res := state.HandleExecutionMessage(ctx, callMessage)
+	res := state.handleExecutionMessage(ctx, callMessage)
 	require.False(t, res.Failed())
 	require.NotEmpty(t, state.Receipts)
 	require.True(t, state.Receipts[len(state.Receipts)-1].Success)
@@ -345,7 +345,7 @@ func TestSendMessage(t *testing.T) {
 	require.Less(t, uint64(99999), outMsg.FeeCredit.Uint64())
 
 	// Process outbound message, i.e. "Callee::add"
-	res = state.HandleExecutionMessage(ctx, outMsg.Message)
+	res = state.handleExecutionMessage(ctx, outMsg.Message)
 	require.False(t, res.Failed())
 	lastReceipt := state.Receipts[len(state.Receipts)-1]
 	require.True(t, lastReceipt.Success)

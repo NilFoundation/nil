@@ -8,6 +8,9 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
+//go:generate go run github.com/matryer/moq -out rwtx_generated_mock.go -rm . RwTx
+//go:generate go run github.com/matryer/moq -out db_generated_mock.go -rm . DB
+
 type Timestamp uint64
 
 func (ts Timestamp) Uint64() uint64 {

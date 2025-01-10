@@ -81,7 +81,7 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 		},
 		From: suite.faucetAddr,
 	}
-	res := suite.state.HandleExecutionMessage(suite.ctx, callMessage)
+	res := suite.state.handleExecutionMessage(suite.ctx, callMessage)
 	suite.Require().False(res.Failed())
 
 	outMsgHash, ok := reflect.ValueOf(suite.state.OutMessages).MapKeys()[0].Interface().(common.Hash)
@@ -89,7 +89,7 @@ func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
 	outMsg := suite.state.OutMessages[outMsgHash][0]
 	suite.Require().NotNil(outMsg)
 
-	res = suite.state.HandleExecutionMessage(suite.ctx, outMsg.Message)
+	res = suite.state.handleExecutionMessage(suite.ctx, outMsg.Message)
 	suite.Require().False(res.Failed())
 
 	faucetBalance = faucetBalance.Sub64(100)
