@@ -5,7 +5,6 @@ import { task } from "hardhat/config";
 import CurrencyJson from "../../../artifacts/contracts/Currency.sol/Currency.json";
 import PairJson from "../../../artifacts/contracts/UniswapV2Pair.sol/UniswapV2Pair.json";
 import { createWallet } from "../../basic/basic";
-import { sleep } from "../../util/currency-utils";
 
 task("mint", "Mint currencies and add liquidity to the pair")
   .addParam("pair", "The address of the pair contract")
@@ -49,8 +48,8 @@ task("mint", "Mint currencies and add liquidity to the pair")
 
     // Mint liquidity
     const faucet = new Faucet(wallet.client);
-    await faucet.withdrawToWithRetry(pairAddress);
-    await sleep(3000);
+    const tx = await faucet.withdrawToWithRetry(pairAddress);
+    await waitTillCompleted(wallet.client, tx);
     console.log("Minting pair tokens...");
 
     const hash = await pair.write.mint([wallet.address], {

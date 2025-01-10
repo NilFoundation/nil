@@ -28,17 +28,12 @@ export async function mintAndSendCurrency({
 
   const hash1 = await contract.external.mintCurrency([mintAmount]);
   await waitTillCompleted(wallet.client, hash1);
-  await sleep(3000);
   const hash2 = await contract.external.sendCurrency([
     walletAddress,
     contractAddress,
     mintAmount,
   ]);
   await waitTillCompleted(wallet.client, hash2);
-}
-
-export function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export interface MintAndSendCurrencyArgs {

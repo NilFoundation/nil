@@ -11,7 +11,7 @@ import FactoryJson from "../../artifacts/contracts/UniswapV2Factory.sol/UniswapV
 import PairJson from "../../artifacts/contracts/UniswapV2Pair.sol/UniswapV2Pair.json";
 import RouterJson from "../../artifacts/contracts/UniswapV2Router01.sol/UniswapV2Router01.json";
 import { createWallet } from "../basic/basic";
-import { mintAndSendCurrency, sleep } from "../util/currency-utils";
+import { mintAndSendCurrency } from "../util/currency-utils";
 import { deployNilContract } from "../util/deploy";
 import { calculateOutputAmount } from "../util/math";
 
@@ -87,7 +87,6 @@ task("demo-router", "Run demo with Uniswap Router").setAction(
     ]);
 
     await waitTillCompleted(wallet.client, pairTxHash);
-    await sleep(3000);
 
     const pairAddress = await factory.read.getTokenPair([
       currency0Address,

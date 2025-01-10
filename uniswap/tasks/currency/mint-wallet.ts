@@ -3,7 +3,7 @@ import type { Address } from "abitype";
 import { task } from "hardhat/config";
 import CurrencyJson from "../../artifacts/contracts/Currency.sol/Currency.json";
 import { createWallet } from "../basic/basic";
-import { mintAndSendCurrency, sleep } from "../util/currency-utils";
+import { mintAndSendCurrency } from "../util/currency-utils";
 
 task(
   "mint-wallet",
@@ -34,9 +34,6 @@ task(
       walletAddress,
       mintAmount,
     });
-
-    // Sleep for 2 second
-    await sleep(2000);
 
     const contract = getContract({
       abi: CurrencyJson.abi,
