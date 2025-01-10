@@ -950,7 +950,19 @@ func (es *ExecutionState) SendResponseMessage(msg *types.Message, res *Execution
 	return nil
 }
 
-func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message, payer Payer) *ExecutionResult {
+func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message, payer Payer) (retError *ExecutionResult) {
+	// Catch panic during execution and return it as an error
+	defer func() {
+		if recResult := recover(); recResult != nil {
+			if err, ok := recResult.(error); ok {
+				retError = NewExecutionResult().SetError(types.NewWrapError(types.ErrorPanicDuringExecution, err))
+			} else {
+				retError = NewExecutionResult().SetError(
+					types.NewVerboseError(types.ErrorPanicDuringExecution, fmt.Sprintf("panic message: %v", recResult)))
+			}
+		}
+	}()
+
 	if err := buyGas(payer, msg); err != nil {
 		return NewExecutionResult().SetError(types.KeepOrWrapError(types.ErrorBuyGas, err))
 	}
@@ -961,11 +973,11 @@ func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message,
 	var res *ExecutionResult
 	switch {
 	case msg.IsRefund():
-		return NewExecutionResult().SetFatal(es.HandleRefundMessage(ctx, msg))
+		return NewExecutionResult().SetFatal(es.handleRefundMessage(ctx, msg))
 	case msg.IsDeploy():
-		res = es.HandleDeployMessage(ctx, msg)
+		res = es.handleDeployMessage(ctx, msg)
 	default:
-		res = es.HandleExecutionMessage(ctx, msg)
+		res = es.handleExecutionMessage(ctx, msg)
 	}
 	responseWasSent := false
 	bounced := false
@@ -1034,7 +1046,7 @@ func (es *ExecutionState) HandleMessage(ctx context.Context, msg *types.Message,
 	return res
 }
 
-func (es *ExecutionState) HandleDeployMessage(_ context.Context, message *types.Message) *ExecutionResult {
+func (es *ExecutionState) handleDeployMessage(_ context.Context, message *types.Message) *ExecutionResult {
 	addr := message.To
 	deployMsg := types.ParseDeployPayload(message.Data)
 
@@ -1120,7 +1132,7 @@ func (es *ExecutionState) TryProcessResponse(message *types.Message) ([]byte, *v
 	return callData, restoreState, nil
 }
 
-func (es *ExecutionState) HandleExecutionMessage(_ context.Context, message *types.Message) *ExecutionResult {
+func (es *ExecutionState) handleExecutionMessage(_ context.Context, message *types.Message) *ExecutionResult {
 	check.PanicIfNot(message.IsExecution())
 	addr := message.To
 	logger.Debug().
@@ -1180,7 +1192,7 @@ func decodeRevertMessage(data []byte) string {
 	return revString
 }
 
-func (es *ExecutionState) HandleRefundMessage(_ context.Context, message *types.Message) error {
+func (es *ExecutionState) handleRefundMessage(_ context.Context, message *types.Message) error {
 	err := es.AddBalance(message.To, message.Value, tracing.BalanceIncreaseRefund)
 	logger.Debug().Err(err).Msgf("Refunded %s to %v", message.Value, message.To)
 	return err

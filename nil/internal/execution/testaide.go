@@ -68,14 +68,14 @@ func generateBlockFromMessages(t *testing.T, ctx context.Context, execute bool,
 		var execResult *ExecutionResult
 		switch {
 		case msg.IsDeploy():
-			execResult = es.HandleDeployMessage(ctx, msg)
+			execResult = es.handleDeployMessage(ctx, msg)
 			require.False(t, execResult.Failed())
 		case msg.IsRefund():
 			execResult = NewExecutionResult()
-			execResult.SetFatal(es.HandleRefundMessage(ctx, msg))
+			execResult.SetFatal(es.handleRefundMessage(ctx, msg))
 			require.False(t, execResult.Failed())
 		default:
-			execResult = es.HandleExecutionMessage(ctx, msg)
+			execResult = es.handleExecutionMessage(ctx, msg)
 			require.False(t, execResult.Failed())
 		}
 
@@ -135,7 +135,7 @@ func Deploy(t *testing.T, ctx context.Context, es *ExecutionState,
 
 	msg := NewDeployMessage(payload, shardId, from, seqno, types.Value{})
 	es.AddInMessage(msg)
-	execResult := es.HandleDeployMessage(ctx, msg)
+	execResult := es.handleDeployMessage(ctx, msg)
 	require.False(t, execResult.Failed())
 	es.AddReceipt(execResult)
 

@@ -147,7 +147,7 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 	})
 
 	suite.Run("Execute", func() {
-		res := es.HandleExecutionMessage(suite.ctx, NewExecutionMessage(addrWallet, addrWallet, 1,
+		res := es.handleExecutionMessage(suite.ctx, NewExecutionMessage(addrWallet, addrWallet, 1,
 			contracts.NewCounterAddCallData(suite.T(), 47)))
 		suite.Require().False(res.Failed())
 
@@ -386,7 +386,7 @@ func (suite *SuiteExecutionState) TestMessageStatus() {
 		msg.Seqno = 1
 		msg.FeeCredit = toGasCredit(0)
 		msg.From = counterAddr
-		res := es.HandleExecutionMessage(suite.ctx, msg)
+		res := es.handleExecutionMessage(suite.ctx, msg)
 		suite.Equal(types.ErrorOutOfGas, res.Error.Code())
 		suite.Require().ErrorAs(res.Error, &vmErrStub)
 	})
@@ -398,7 +398,7 @@ func (suite *SuiteExecutionState) TestMessageStatus() {
 		msg.Seqno = 1
 		msg.FeeCredit = toGasCredit(1_000_000)
 		msg.From = counterAddr
-		res := es.HandleExecutionMessage(suite.ctx, msg)
+		res := es.handleExecutionMessage(suite.ctx, msg)
 		suite.Equal(types.ErrorExecutionReverted, res.Error.Code())
 		suite.Require().ErrorAs(res.Error, &vmErrStub)
 	})
@@ -411,7 +411,7 @@ func (suite *SuiteExecutionState) TestMessageStatus() {
 		msg.Seqno = 1
 		msg.FeeCredit = toGasCredit(100_000)
 		msg.From = faucetAddr
-		res := es.HandleExecutionMessage(suite.ctx, msg)
+		res := es.handleExecutionMessage(suite.ctx, msg)
 		suite.Equal(types.ErrorMessageToMainShard, res.Error.Code())
 		suite.Require().ErrorAs(res.Error, &vmErrStub)
 	})
@@ -466,7 +466,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		msg.Data, err = abi.Pack("testAsyncCall", testAddr, types.EmptyAddress, types.EmptyAddress, big.NewInt(0),
 			uint8(types.ForwardKindNone), big.NewInt(0), []byte{})
 		suite.Require().NoError(err)
-		res := es.HandleExecutionMessage(suite.ctx, msg)
+		res := es.handleExecutionMessage(suite.ctx, msg)
 		suite.False(res.Failed())
 	})
 
@@ -475,7 +475,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 			uint8(types.ForwardKindNone), big.NewInt(0), []byte{1, 2, 3, 4})
 		suite.Require().NoError(err)
 
-		res := es.HandleExecutionMessage(suite.ctx, msg)
+		res := es.handleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
 		suite.Equal(types.ErrorMessageToMainShard, res.Error.Code())
 	})
@@ -484,7 +484,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		msg.Data, err = abi.Pack("testAsyncCall", testAddr, types.EmptyAddress, types.EmptyAddress, big.NewInt(0),
 			uint8(types.ForwardKindNone), big.NewInt(1_000_000_000_000_000), []byte{1, 2, 3, 4})
 		suite.Require().NoError(err)
-		res := es.HandleExecutionMessage(suite.ctx, msg)
+		res := es.handleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
 		suite.Equal(types.ErrorInsufficientBalance, res.Error.Code())
 	})
@@ -496,7 +496,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 	suite.Run("testSendRawMsg: invalid message", func() {
 		msg.Data, err = abi.Pack("testSendRawMsg", []byte{1, 2})
 		suite.Require().NoError(err)
-		res := es.HandleExecutionMessage(suite.ctx, msg)
+		res := es.handleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
 		suite.Equal(types.ErrorInvalidMessageInputUnmarshalFailed, res.Error.Code())
 	})
@@ -507,7 +507,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		suite.Require().NoError(err)
 		msg.Data, err = abi.Pack("testSendRawMsg", data)
 		suite.Require().NoError(err)
-		res := es.HandleExecutionMessage(suite.ctx, msg)
+		res := es.handleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
 		suite.Equal(types.ErrorMessageToMainShard, res.Error.Code())
 		payload.To = testAddr
@@ -519,7 +519,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		suite.Require().NoError(err)
 		msg.Data, err = abi.Pack("testSendRawMsg", data)
 		suite.Require().NoError(err)
-		res := es.HandleExecutionMessage(suite.ctx, msg)
+		res := es.handleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
 		suite.Equal(types.ErrorInsufficientBalance, res.Error.Code())
 	})
@@ -532,7 +532,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		suite.Require().NoError(err)
 		msg.Data, err = abi.Pack("testSendRawMsg", data)
 		suite.Require().NoError(err)
-		res := es.HandleExecutionMessage(suite.ctx, msg)
+		res := es.handleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
 		suite.Equal(types.ErrorInsufficientBalance, res.Error.Code())
 	})
@@ -541,7 +541,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		msg.Data, err = abi.Pack("testCurrencyBalance", types.GenerateRandomAddress(0),
 			types.CurrencyId(types.HexToAddress("0x0a")))
 		suite.Require().NoError(err)
-		res := es.HandleExecutionMessage(suite.ctx, msg)
+		res := es.handleExecutionMessage(suite.ctx, msg)
 		suite.True(res.Failed())
 		suite.Equal(types.ErrorCrossShardMessage, res.Error.Code())
 	})
@@ -570,6 +570,33 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		gas = vm.GetExtraGasForOutboundMessage(state, types.ShardId(2))
 		suite.EqualValues(vm.ExtraForwardFeeStep*101, gas)
 	})
+}
+
+func (suite *SuiteExecutionState) TestPanic() {
+	tx, err := suite.db.CreateRwTx(suite.ctx)
+	suite.Require().NoError(err)
+	defer tx.Rollback()
+
+	txMock := db.NewTxMock(tx)
+
+	es, err := NewExecutionState(txMock, types.ShardId(1), StateParams{})
+	suite.Require().NoError(err)
+
+	// Check normal execution is ok
+	msg := NewExecutionMessage(types.MainWalletAddress, types.MainWalletAddress, 1,
+		contracts.NewWalletSendCallData(suite.T(), []byte(""), types.Gas(500_000), types.Value0, nil,
+			types.MainWalletAddress, types.ExecutionMessageKind))
+	execResult := es.HandleMessage(suite.ctx, msg, dummyPayer{})
+	suite.False(execResult.Failed())
+
+	// Check panic is handled correctly
+	txMock.GetFromShardFunc = func(shardId types.ShardId, tableName db.ShardedTableName, key []byte) ([]byte, error) {
+		panic("test panic")
+	}
+	execResult = es.HandleMessage(suite.ctx, msg, dummyPayer{})
+	suite.True(execResult.Failed())
+	suite.False(execResult.IsFatal())
+	suite.Equal("PanicDuringExecution: panic message: test panic", execResult.Error.Error())
 }
 
 func BenchmarkBlockGeneration(b *testing.B) {
