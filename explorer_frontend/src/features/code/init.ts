@@ -29,7 +29,7 @@ persist({
 });
 
 compileCodeFx.use(async ({ version, code }) => {
-  const compiler = await fetchSolidityCompiler(`https://binaries.soliditylang.org/bin/${version}`);
+  const compiler = await fetchSolidityCompiler(`https://binaries.soliditylang.org/bin/soljson-${version}.js`);
   const res = await compiler.compile({
     code: code,
   });

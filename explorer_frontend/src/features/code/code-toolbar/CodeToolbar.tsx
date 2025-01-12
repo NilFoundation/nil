@@ -4,6 +4,7 @@ import { QuestionButton } from "./QuestionButton";
 import { HyperlinkButton } from "./HyperlinkButton";
 import { ExamplesButton } from "./ExamplesButton";
 import { BackRouterNavigationButton, useMobile } from "../../shared";
+import { CompilerVersionButton } from "./CompilerVersionButton.tsx";
 
 type CodeToolbarProps = {
   disabled: boolean;
@@ -37,6 +38,7 @@ export const CodeToolbar: FC<CodeToolbarProps> = ({ disabled }) => {
       <QuestionButton />
       <HyperlinkButton disabled={disabled} />
       <ExamplesButton disabled={disabled} />
+      <CompilerVersionButton />
     </div>
   );
 };
