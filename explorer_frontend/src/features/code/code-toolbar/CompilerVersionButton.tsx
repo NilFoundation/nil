@@ -11,11 +11,12 @@ import {
 import { StatefulPopover, useMobile } from "../../shared";
 import type { MenuOverrides } from "baseui/menu";
 import { Button } from "baseui/button";
-import { useState, type FC } from "react";
+import { useState } from "react";
 import { $availableSolidityVersions, $solidityVersion, changeSolidityVersion } from "../model";
 import { useStyletron } from "styletron-react";
+import { useUnit } from "effector-react";
 
-export const CompilerVersionButton: FC<any> = () => {
+export const CompilerVersionButton = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [css] = useStyletron();
   const [isMobile] = useMobile();
@@ -27,6 +28,8 @@ export const CompilerVersionButton: FC<any> = () => {
       },
     },
   };
+
+  const version = useUnit($solidityVersion);
 
   const versions = $availableSolidityVersions.getState().map((v) => {
     return { label: v };
@@ -73,7 +76,7 @@ export const CompilerVersionButton: FC<any> = () => {
         overrides={btnOverrides}
         endEnhancer={isOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
       >
-        Compiler {$solidityVersion.getState().split("+")[0]}
+        Compiler {version.split("+")[0]}
       </Button>
     </StatefulPopover>
   );
