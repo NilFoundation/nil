@@ -30,7 +30,7 @@ export const CompilerVersionButton: FC<any> = () => {
   };
 
   const versions = $availableSolidityVersions.getState().map((v) => {
-    return { label: v }; // Explicitly return an object with the label property
+    return { label: v };
   });
 
   const menuOverrides: MenuOverrides = {
