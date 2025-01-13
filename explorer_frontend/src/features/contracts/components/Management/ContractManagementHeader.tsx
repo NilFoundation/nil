@@ -12,7 +12,7 @@ import { RemoveAppButton } from "../RemoveAppButton";
 import type { Hex } from "@nilfoundation/niljs";
 import type { FC } from "react";
 import { OverflowEllipsis } from "../../../shared";
-import { exportApp, exportAppFx } from "../../models/exportApp";
+import { exportAppFx } from "../../models/exportApp";
 import { useUnit } from "effector-react";
 import { DownloadAppButton } from "../DownloadAppButton.tsx";
 
