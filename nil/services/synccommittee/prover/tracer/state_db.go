@@ -304,7 +304,7 @@ func (tsdb *TracerStateDB) initMessageTraceContext(
 	state *vm.EvmRestoreData,
 ) *messageTraceContext {
 	msgId := uint(len(tsdb.InMessages) - 1)
-	codeHash := executingCode.Hash()
+	codeHash := getCodeHash(executingCode)
 	msgTraceCtx := &messageTraceContext{
 		evm:       vm.NewEVM(tsdb.blkContext, tsdb, origin, types.DefaultGasPrice, state),
 		code:      executingCode,
@@ -473,7 +473,7 @@ func (tsdb *TracerStateDB) GetCode(addr types.Address) ([]byte, common.Hash, err
 	// if contract code was requested, we dump it into traces
 	tsdb.Traces.AddContractBytecode(addr, acc.Code)
 
-	return acc.Code, acc.Code.Hash(), nil
+	return acc.Code, getCodeHash(acc.Code), nil
 }
 
 func (tsdb *TracerStateDB) SetCode(addr types.Address, code []byte) error {
@@ -481,7 +481,7 @@ func (tsdb *TracerStateDB) SetCode(addr types.Address, code []byte) error {
 	if err != nil {
 		return err
 	}
-	acc.SetCode(types.Code(code).Hash(), code)
+	acc.SetCode(getCodeHash(types.Code(code)), code)
 	return nil
 }
 
