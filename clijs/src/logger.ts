@@ -1,5 +1,5 @@
-import { pino } from 'pino';
-import pinoPretty from 'pino-pretty';
+import { pino } from "pino";
+import pinoPretty from "pino-pretty";
 
 const prettyTransport = pinoPretty({
   colorize: true,
@@ -7,5 +7,6 @@ const prettyTransport = pinoPretty({
 });
 
 const logger = pino(prettyTransport);
+logger.level = "silent";
 
-export default logger;
+export { logger };

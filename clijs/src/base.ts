@@ -1,8 +1,17 @@
 import { Command, Flags } from "@oclif/core";
 
 import ConfigManager, { ConfigKeys } from "./common/config.js";
-import { PublicClient, FaucetClient, CometaService, HttpTransport } from "@nilfoundation/niljs";
-import logger from "./logger.js";
+import {
+  PublicClient,
+  FaucetClient,
+  CometaService,
+  HttpTransport,
+  type Hex,
+  WalletV1,
+  LocalECDSAKeySigner,
+  waitTillCompleted,
+} from "@nilfoundation/niljs";
+import { logger } from "./logger.js";
 import * as path from "node:path";
 import * as os from "node:os";
 
@@ -37,7 +46,7 @@ abstract class BaseCommand extends Command {
       required: false,
       default: false,
     }),
-    quite: Flags.boolean({
+    quiet: Flags.boolean({
       char: "q",
       description: "Quiet mode (print only the result and exit)",
       required: false,
@@ -62,7 +71,7 @@ abstract class BaseCommand extends Command {
       strict: this.ctor.strict,
     });
 
-    this.quiet = flags.quite;
+    this.quiet = flags.quiet;
 
     if (flags.verbose) {
       logger.level = flags.logLevel;
@@ -108,6 +117,55 @@ abstract class BaseCommand extends Command {
           endpoint: this.cfg[ConfigKeys.CometaEndpoint],
         }),
       });
+    }
+  }
+
+  protected async setupWallet() {
+    const privateKey = this.cfg?.[ConfigKeys.PrivateKey] as Hex;
+    if (!privateKey) {
+      this.error("Private key not found in config. Perhaps you need to run 'keygen new' first?");
+    }
+
+    const walletAddress = this.cfg?.[ConfigKeys.Address] as Hex;
+    if (!walletAddress) {
+      this.error("Address not found in config. Perhaps you need to run 'wallet new' first?");
+    }
+
+    const signer = new LocalECDSAKeySigner({
+      privateKey: privateKey,
+    });
+
+    const publicKey = signer.getPublicKey();
+    const wallet = new WalletV1({
+      pubkey: publicKey,
+      address: walletAddress,
+      client:
+        this.rpcClient ??
+        (() => {
+          throw new Error("RPC client is not initialized");
+        })(),
+      signer,
+    });
+
+    return { privateKey, publicKey, walletAddress, wallet, signer };
+  }
+
+  protected async waitOnTx(hash: Hex): Promise<void> {
+    const rpcClient = this.rpcClient ?? this.error("RPC client is not initialized");
+    const receipt = await waitTillCompleted(rpcClient, hash);
+    if (receipt.some((r) => !r.success)) {
+      function bigIntReplacer(_key: string, value: unknown): unknown {
+        return typeof value === "bigint" ? value.toString() : value;
+      }
+      this.error(
+        `Transaction ${hash} failed. Receipts: ${JSON.stringify(receipt, bigIntReplacer)}`,
+      );
+    }
+  }
+
+  protected info(message?: string, ...args: unknown[]): void {
+    if (!this.quiet) {
+      this.log(message, ...args);
     }
   }
 
