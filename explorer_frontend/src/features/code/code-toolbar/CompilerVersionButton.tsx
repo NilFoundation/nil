@@ -15,7 +15,6 @@ import { useState, type FC } from "react";
 import { $availableSolidityVersions, $solidityVersion, changeSolidityVersion } from "../model";
 import { useStyletron } from "styletron-react";
 
-
 export const CompilerVersionButton: FC<any> = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [css] = useStyletron();
