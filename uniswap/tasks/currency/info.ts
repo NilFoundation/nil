@@ -1,24 +1,34 @@
+import { getContract } from "@nilfoundation/niljs";
 import { task } from "hardhat/config";
-import type { Currency } from "../../typechain-types";
+import CurrencyJson from "../../artifacts/contracts/Currency.sol/Currency.json";
+import { createWallet } from "../basic/basic";
 
-task("currency_info", "Retrieve currency name and ID")
+task("currency-info", "Retrieve currency name and ID")
   .addParam("address", "The address of the deployed currency contract")
-  .setAction(async (taskArgs, hre) => {
-    const address = taskArgs.address;
+  .setAction(async (taskArgs, _) => {
+    const wallet = await createWallet();
 
-    // Attach the Currency contract at the provided address
-    const Currency = await hre.ethers.getContractFactory("Currency");
-    const currency = Currency.attach(address) as Currency;
+    const contract = getContract({
+      abi: CurrencyJson.abi,
+      address: taskArgs.address,
+      client: wallet.client,
+      wallet: wallet,
+      externalInterface: {
+        signer: wallet.signer,
+        methods: [],
+      },
+    });
 
     // Retrieve the currency's name
-    const currencyName = await currency.getCurrencyName();
+    const currencyName = await contract.read.getCurrencyName([]);
     console.log("Currency Name: " + currencyName);
 
     // Retrieve the currency's unique ID
-    const currencyId = await currency.getCurrencyId();
+    const currencyId = await contract.read.getCurrencyId([]);
     console.log("Currency ID: " + currencyId);
 
     // Retrieve the contract's own currency balance
-    const balance = await currency.getOwnCurrencyBalance();
-    console.log("Currency Balance: " + balance);
+    const balance = await contract.read.getOwnCurrencyBalance([]);
+    const balance2 = await contract.read.getCurrencyBalanceOf([wallet.address]);
+    console.log("Currency Balance: " + balance + " " + balance2);
   });

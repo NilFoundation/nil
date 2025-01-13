@@ -4,13 +4,14 @@ import {
   PublicClient,
   WalletV1,
 } from "@nilfoundation/niljs";
+import type { Address } from "abitype";
 
 export async function createClient(): Promise<{
   wallet: WalletV1;
   publicClient: PublicClient;
   signer: LocalECDSAKeySigner;
 }> {
-  const walletAddress = process.env.WALLET_ADDR;
+  const walletAddress = process.env.WALLET_ADDR as Address | undefined;
 
   if (!walletAddress) {
     throw new Error("WALLET_ADDR is not set in environment variables");

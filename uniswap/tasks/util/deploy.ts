@@ -1,23 +1,52 @@
-import assert from "node:assert";
-import type { HardhatRuntimeEnvironment } from "hardhat/types";
+import {
+  type WalletV1,
+  getContract,
+  waitTillCompleted,
+} from "@nilfoundation/niljs";
+import type { Abi } from "abitype";
 
 export async function deployNilContract(
-  hre: HardhatRuntimeEnvironment,
-  name: string,
+  wallet: WalletV1,
+  abi: Abi,
+  bytecode: string,
   args: unknown[] = [],
+  shardId?: number,
+  externalMethods: string[] = [],
 ) {
-  const factory = await hre.ethers.getContractFactory(name);
-  assert.ok(factory.runner);
-  assert.ok(factory.runner.sendTransaction);
+  const { hash, address } = await wallet.deployContract({
+    abi: abi,
+    args: args,
+    // @ts-ignore
+    bytecode: `${bytecode}`,
+    salt: BigInt(Math.floor(Math.random() * 1000000)),
+    shardId: shardId ?? wallet.shardId,
+  });
 
-  const deployTx = await factory.getDeployTransaction(...args);
-  const sentTx = await factory.runner.sendTransaction(deployTx);
-  const txReceipt = await sentTx.wait();
+  const receipts = await waitTillCompleted(wallet.client, hash);
+  if (!receipts.every((receipt) => receipt.success)) {
+    throw new Error(
+      `One or more receipts indicate failure: ${JSON.stringify(receipts)}`,
+    );
+  }
+  console.log("Contract deployed at address: " + address);
 
-  if (!txReceipt || !txReceipt.contractAddress) {
-    throw new Error("Contract deployment failed");
+  const contract = getContract({
+    abi: abi,
+    address: address,
+    client: wallet.client,
+    wallet: wallet,
+    externalInterface: {
+      signer: wallet.signer,
+      methods: externalMethods,
+    },
+  });
+
+  const code = await wallet.client.getCode(address);
+  if (!code) {
+    throw new Error(
+      "No code for deployed contract " + address + ", hash: " + hash,
+    );
   }
 
-  const deployedContract = factory.attach(txReceipt.contractAddress);
-  return { deployedContract, contractAddress: txReceipt.contractAddress };
+  return { contract, address };
 }

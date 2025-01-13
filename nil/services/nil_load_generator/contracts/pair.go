@@ -25,7 +25,7 @@ func NewPair(contract Contract, addr types.Address) *Pair {
 }
 
 func (p *Pair) Initialize(ctx context.Context, service *cliservice.Service, client client.Client, wallet Wallet, currency0, currency1 *Currency) error {
-	calldata, err := p.Abi.Pack("initialize", currency0.Addr, currency1.Addr, currency0.Id, currency1.Id)
+	calldata, err := p.Abi.Pack("initialize", currency0.Addr, currency1.Addr)
 	if err != nil {
 		return err
 	}
