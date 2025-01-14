@@ -1,6 +1,6 @@
 {
   "name": "uniswap-v2-on-nil",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "This repository is an example repo to showcase how to migrate Uniswap V2 contracts to =nil; L2",
   "author": "Nil Foundation",
   "license": "GPL-3.0",
@@ -13,8 +13,8 @@
     "lint:fix": "biome check --write ."
   },
   "dependencies": {
-    "@nilfoundation/niljs": "0.21.0",
-    "@nilfoundation/smart-contracts": "0.3.0",
+    "@nilfoundation/niljs": "0.22.0",
+    "@nilfoundation/smart-contracts": "0.4.0",
     "abitype": "^1.0.7",
     "dotenv": "^16.4.5"
   },

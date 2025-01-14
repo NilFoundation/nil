@@ -1,6 +1,6 @@
 {
   "name": "create-nil-hardhat-project",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "main": "index.js",
   "bin": {
     "create-nil-hardhat-template": "scripts/cli.js"
@@ -19,11 +19,11 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
-    "@nilfoundation/hardhat-plugin": "0.19.0",
+    "@nilfoundation/hardhat-plugin": "0.20.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.6",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "dotenv": "^16.4.5",
     "ts-node": "^10.9.2",
-    "@nilfoundation/smart-contracts": "0.3.0"
+    "@nilfoundation/smart-contracts": "0.4.0"
   }
 }

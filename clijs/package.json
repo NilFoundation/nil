@@ -1,7 +1,7 @@
 {
   "name": "@nilfoundation/clijs",
   "description": "The CLI tool for interacting with the =nil; cluster",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "The =nil; team",
   "bin": {
     "clijs": "./bin/run.js"
@@ -9,7 +9,7 @@
   "bugs": "https://github.com/nil-blockchain/issues",
   "dependencies": {
     "@libp2p/peer-id": "^5.0.9",
-    "@nilfoundation/niljs": "0.21.0",
+    "@nilfoundation/niljs": "0.22.0",
     "@oclif/core": "^4",
     "@oclif/plugin-help": "^6",
     "@oclif/plugin-plugins": "^5",

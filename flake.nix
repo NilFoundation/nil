@@ -18,7 +18,7 @@
       let
         revCount = self.revCount or self.dirtyRevCount or 1;
         rev = self.shortRev or self.dirtyShortRev or "unknown";
-        version = "0.1.1-${toString revCount}";
+        version = "0.1.2-${toString revCount}";
         versionFull = "${version}-${rev}";
         pkgs = import nixpkgs {
           inherit system;
