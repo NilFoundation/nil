@@ -1,16 +1,14 @@
 #!/usr/bin/env node
 
-import fs from 'node:fs/promises';
-import path from 'path';
-import util from 'node:util';
-import { exec as execCallback } from 'node:child_process';
-import { fileURLToPath } from 'url';
-import { NIL_GLOBAL } from '../../tests/globals';
+import fs from "node:fs/promises";
+import path from "path";
+import util from "node:util";
+import { exec as execCallback } from "node:child_process";
+import { fileURLToPath } from "url";
+import { NIL_GLOBAL } from "../../tests/globals";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-
 
 const exec = util.promisify(execCallback);
 
@@ -30,12 +28,11 @@ interface Flag {
 }
 
 async function prettifyCommandNames(key: string, commandNamesArray: string[]): Promise<string[]> {
-
-  let result: string[] = [];
+  const result: string[] = [];
   for (const name of commandNamesArray) {
-    const formattedName = name.replace('.go', '');
+    const formattedName = name.replace(".go", "");
     switch (formattedName) {
-      case 'command':
+      case "command":
         result.push(`${NIL_GLOBAL} ${key} -h`);
         break;
       case `${key}`:
@@ -50,7 +47,7 @@ async function prettifyCommandNames(key: string, commandNamesArray: string[]): P
 }
 
 async function generateCommandNames(commandsPath: string): Promise<Record<string, string[]>> {
-  let result: Record<string, string[]> = {};
+  const result: Record<string, string[]> = {};
   const coreCommands = await fs.readdir(commandsPath, {});
 
   for (const coreCommand of coreCommands) {
@@ -59,23 +56,23 @@ async function generateCommandNames(commandsPath: string): Promise<Record<string
 
     for (const command of commands) {
       const fullSubCommandPath = path.resolve(fullCommandPath, command);
-      if (!command.endsWith('params.go') && command.endsWith('.go')) {
-        const commandFileContents = await fs.readFile(fullSubCommandPath, 'utf8');
+      if (!command.endsWith("params.go") && command.endsWith(".go")) {
+        const commandFileContents = await fs.readFile(fullSubCommandPath, "utf8");
 
         const useRegex = /Use:\s*["']([\w-]+)(?:\s|\[|["'])/g;
         const matchesUse = Array.from(commandFileContents.matchAll(useRegex));
 
-        const extractedUseCommands = matchesUse.map(match => match[1]);
+        const extractedUseCommands = matchesUse.map((match) => match[1]);
 
         const methodRegex = /method\s*(?:=|:=)\s*["']([^"']+)["']/gi;
         const minterMatches = Array.from(commandFileContents.matchAll(methodRegex));
 
-        const extractedMinterCommands = minterMatches.map(match => {
+        const extractedMinterCommands = minterMatches.map((match) => {
           const method = match[1];
           return `${method.toLowerCase()}-currency`;
         });
 
-        let extractedCommands = extractedUseCommands.concat(extractedMinterCommands);
+        const extractedCommands = extractedUseCommands.concat(extractedMinterCommands);
 
         if (extractedCommands.length > 0) {
           if (!result[coreCommand]) {
@@ -97,6 +94,7 @@ async function generateCommandNames(commandsPath: string): Promise<Record<string
 }
 
 async function generateCommandSpec(commandName: string): Promise<CommandSpec | null> {
+  console.log(commandName);
   try {
     const { stdout, stderr } = await exec(commandName);
     if (stderr) {
@@ -110,30 +108,30 @@ async function generateCommandSpec(commandName: string): Promise<CommandSpec | n
     const usageMatch = stdout.match(/Usage:\s*([^\n]+)/);
     const usage = usageMatch ? usageMatch[1].trim() : null;
 
-    let usageArgsEnhanced: string[] = [];
+    const usageArgsEnhanced: string[] = [];
     if (usageMatch) {
       const usageLine = usageMatch[1];
       const bracketRegex = /\[([^\]]+)\]/g;
       let match: RegExpExecArray | null;
       while ((match = bracketRegex.exec(usageLine)) !== null) {
         const arg = match[1].trim();
-        if (arg.toLowerCase() !== 'flags') {
+        if (arg.toLowerCase() !== "flags") {
           usageArgsEnhanced.push(arg);
         }
       }
     }
 
     const flagsSectionMatch = stdout.match(/Flags:\s*\n([\s\S]*?)(?=\n\S|\n$)/);
-    const flagsSection = flagsSectionMatch ? flagsSectionMatch[1] : '';
+    const flagsSection = flagsSectionMatch ? flagsSectionMatch[1] : "";
 
     const globalFlagsSectionMatch = stdout.match(/Global Flags:\s*\n([\s\S]*?)(?=\n\S|\n$)/);
-    const globalFlagsSection = globalFlagsSectionMatch ? globalFlagsSectionMatch[1] : '';
+    const globalFlagsSection = globalFlagsSectionMatch ? globalFlagsSectionMatch[1] : "";
 
     const regularFlags = parseFlags(flagsSection);
     const globalFlags = parseFlags(globalFlagsSection);
 
     return {
-      name: commandName.replace('-h', '').trim(),
+      name: commandName.replace("-h", "").trim(),
       description: commandDescription,
       usage: usage,
       regularFlags: regularFlags,
@@ -146,24 +144,24 @@ async function generateCommandSpec(commandName: string): Promise<CommandSpec | n
 }
 
 function parseFlags(text: string): Flag[] {
-  const lines = text.split('\n').filter(line => line.trim());
+  const lines = text.split("\n").filter((line) => line.trim());
   const flags: Flag[] = [];
   const KNOWN_TYPES = new Set([
-    'string',
-    'boolean',
-    'int',
-    'float',
-    'duration',
-    'file',
-    'stringarray',
-    'value',
-    'shardid',
+    "string",
+    "boolean",
+    "int",
+    "float",
+    "duration",
+    "file",
+    "stringarray",
+    "value",
+    "shardid",
   ]);
 
   const shortAndLongFlagRegex = /^(-\w),\s+(--[\w-]+)(?:\s+([\w\[\]\/]+))?\s+(.*)$/;
   const longFlagRegex = /^(--[\w-]+)(?:\s+([\w\[\]\/]+))?\s+(.*)$/;
 
-  lines.forEach(line => {
+  lines.forEach((line) => {
     line = line.trim();
     let match = line.match(shortAndLongFlagRegex);
     if (match) {
@@ -171,16 +169,16 @@ function parseFlags(text: string): Flag[] {
 
       if (type && !KNOWN_TYPES.has(type.toLowerCase())) {
         description = `${type} ${description}`;
-        type = 'boolean';
+        type = "boolean";
       } else {
-        type = type || 'boolean';
+        type = type || "boolean";
       }
 
       flags.push({
         short,
         name,
         type: type.toLowerCase(),
-        description: description.trim().replace('khannanov-nil', 'usr'),
+        description: description.trim().replace("khannanov-nil", "usr"),
       });
       return;
     }
@@ -191,9 +189,9 @@ function parseFlags(text: string): Flag[] {
 
       if (type && !KNOWN_TYPES.has(type.toLowerCase())) {
         description = `${type} ${description}`;
-        type = 'boolean';
+        type = "boolean";
       } else {
-        type = type || 'boolean';
+        type = type || "boolean";
       }
 
       flags.push({
@@ -208,23 +206,23 @@ function parseFlags(text: string): Flag[] {
 }
 
 function prettifyFlagContent(flags: Flag[]): string {
-  let result = '| Name | Type | Description |\r\n|:--:|:--:|--|\r\n';
+  let result = "| Name | Type | Description |\r\n|:--:|:--:|--|\r\n";
   for (const flag of flags) {
-    const short = flag.short ? `\`${flag.short}\`, ` : '';
+    const short = flag.short ? `\`${flag.short}\`, ` : "";
     result += `| ${short}\`${flag.name}\` | \`${flag.type}\` | ${flag.description} |\r\n`;
   }
-  result += '\r\n';
-  return result.replace(/[<>]/g, '');
+  result += "\r\n";
+  return result.replace(/[<>]/g, "");
 }
 
 async function fillCommandFileContents(commandSpec: CommandSpec, filePath: string): Promise<void> {
   const fileContents = `# \`${commandSpec.name}\`\r\n\r\n## Description\r\n\r\n${commandSpec.description}\r\n\r\n## Usage\r\n\r\n\`${commandSpec.usage}\`\r\n\r\n## Regular Flags\r\n\r\n${prettifyFlagContent(commandSpec.regularFlags)}\r\n\r\n## Global Flags\r\n\r\n${prettifyFlagContent(commandSpec.globalFlags)}\r\n`;
-  await fs.writeFile(filePath, fileContents, 'utf8');
+  await fs.writeFile(filePath, fileContents, "utf8");
 }
 
 async function createHighLevelDirs(commandSpecs: Record<string, CommandSpec>, outputDir: string) {
   for (const key of Object.keys(commandSpecs)) {
-    const commandName = key.split(' ')[1];
+    const commandName = key.split(" ")[1];
     const newDirPath = path.resolve(outputDir, commandName);
     await fs.mkdir(newDirPath, { recursive: true });
   }
@@ -232,29 +230,30 @@ async function createHighLevelDirs(commandSpecs: Record<string, CommandSpec>, ou
 
 async function createCommandFiles(commandSpecs: Record<string, CommandSpec>, outputDir: string) {
   for (const key of Object.keys(commandSpecs)) {
-
     let filePath;
-    const dirName = path.resolve(outputDir, key.split(' ')[1]);
-    const dirPart = dirName.split('/').at(-1);
-    const fileName = key.split(' ').at(-2);
+    const dirName = path.resolve(outputDir, key.split(" ")[1]);
+    const dirPart = dirName.split("/").at(-1);
+    const fileName = key.split(" ").at(-2);
     if (dirPart == fileName) {
-      filePath = path.resolve(dirName, 'index.mdx');
+      filePath = path.resolve(dirName, "index.mdx");
     } else {
       filePath = path.resolve(dirName, `${fileName}.mdx`);
-
     }
 
     await fillCommandFileContents(commandSpecs[key], filePath);
   }
 }
 
-async function generateCommandSpecs(commandsPath: string, outputDir: string): Promise<Record<string, CommandSpec>> {
-  let result: Record<string, CommandSpec> = {};
+async function generateCommandSpecs(
+  commandsPath: string,
+  outputDir: string,
+): Promise<Record<string, CommandSpec>> {
+  const result: Record<string, CommandSpec> = {};
 
-  console.log('Generating command names...');
+  console.log("Generating command names...");
   const commandNames = await generateCommandNames(commandsPath);
 
-  console.log('Generating command specifications...');
+  console.log("Generating command specifications...");
   const allCommands = Object.values(commandNames).flat();
 
   for (const command of allCommands) {
@@ -264,10 +263,10 @@ async function generateCommandSpecs(commandsPath: string, outputDir: string): Pr
     }
   }
 
-  console.log('Creating directories...');
+  console.log("Creating directories...");
   await createHighLevelDirs(result, outputDir);
 
-  console.log('Creating command files...');
+  console.log("Creating command files...");
   await createCommandFiles(result, outputDir);
 
   return result;
@@ -275,13 +274,13 @@ async function generateCommandSpecs(commandsPath: string, outputDir: string): Pr
 
 async function main() {
   const commandsPath = path.resolve(process.env.CMD_NIL!);
-  const outputDir = path.resolve(__dirname, '../reference/cli-reference');
+  const outputDir = path.resolve(__dirname, "../reference/cli-reference");
 
   try {
     await generateCommandSpecs(commandsPath, outputDir);
-    console.log('CLI Reference generation completed successfully.');
+    console.log("CLI Reference generation completed successfully.");
   } catch (error) {
-    console.error('An error occurred during CLI Reference generation:', error);
+    console.error("An error occurred during CLI Reference generation:", error);
     process.exit(1);
   }
 }

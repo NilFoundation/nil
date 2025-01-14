@@ -25,6 +25,11 @@ Although each shard has its own mempool, there are no restrictions for the parti
 
 ### Message passing checks
 
+Messages in =nil; can either be incoming or outgoing:
+
+* Incoming messages trigger contract execution.
+* Outgoing messages are spawned by contracts as part of execution. These outgoing messages are sent to other contracts located on various shards.
+
 To support [**cross-shard communications**](../getting-started/essentials/handling-async-execution.mdx), execution shards must record all necessary outgoing messages posted in other execution shards.
 
 Each message contains information about its destination account. If a shard sees that a message targets one of the accounts in the shard, the shard must include this message in its next block. Such outgoing messages are called necessary messages and new blocks are considered invalid unless they include all necessary messages.

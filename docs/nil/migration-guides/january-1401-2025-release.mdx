@@ -1,0 +1,50 @@
+# Release 14.01.2025: migration guide
+
+This release changes the way gas is calculated for [**outgoing messages**](../core-concepts/shards-parallel-execution.mdx#message-passing-checks) and modifies the default gas price across the cluster.
+
+## Summary of key changes
+
+* All outgoing messages require paying extra gas
+
+## Migration of smart contracts
+
+* Allocate extra gas to operations that spawn outgoing messages
+
+The gas required to be paid for outgoing messages now depends on a variable titled `extraGasPercent`. How this variable is calculated depends on the gas price at the shard where an outgoing message is sent.
+
+If the gas price at the destination shard (`destShardGasPrice`) is lower than the default gas price (`defaultGasPrice`):
+
+$$
+extraGasPercent = \min(100, (destShardGasPrice - defaultGasPrice) / (defaultGasPrice / 100))
+$$
+
+Otherwise:
+
+$$
+extraGasPercent = 0
+$$
+
+The required amount of gas for outgoing messages is calculated as follows:
+
+$$
+requiredGas = forwardFee + extraForwardFeeStep * extraGasPercent
+$$
+
+, where `forwardFee` is `1000` and `extraForwardFeeStep` is `100`.
+
+* Increase gas paid for all messages
+
+Default gas price has been changed from `10` to `100` across the cluster. This means that more `feeCredit` needs to be paid for the execution of all messages.
+
+## Migration of =nil; CLI commands
+
+No specific changes have been made to =nil; CLI commands. 
+
+## Migration of `Nil.js` scripts
+
+No specific changes have to be made to existing `Nil.js` scripts.
+
+## Migration of Hardhat scripts and tasks
+
+No specific changes have to be made to existing Hardhat scripts and tasks.
+
