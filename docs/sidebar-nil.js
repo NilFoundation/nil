@@ -295,8 +295,21 @@ export default {
   migrationGuides: [
     {
       type: "category",
-      label: "December 2024 releases",
+      label: "January 2025 releases",
       collapsed: false,
+      collapsible: true,
+      items: [
+        {
+          type: "doc",
+          label: "14 January 2025 guide",
+          id: "migration-guides/january-1401-2025-release",
+        },
+      ],
+    },
+    {
+      type: "category",
+      label: "December 2024 releases",
+      collapsed: true,
       collapsible: true,
       items: [
         {

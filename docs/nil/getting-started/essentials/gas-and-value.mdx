@@ -29,14 +29,14 @@ If a message is made to a non-payable function, and `Value` is not zero, executi
 
 ## Basic example
 
-This Nil.js example sends a message from the user's wallet to another contract. It estimates the gas price to be `10n` and is willing to pay for a maximum of `100_000n` units of gas. 
+This Nil.js example sends a message from the user's wallet to another contract. It estimates the gas price to be `100n` and is willing to pay for a maximum of `1_000_000n` units of gas. 
 
 ```typescript showLineNumbers
 const hash = await wallet.sendMessage({
   to: CONTRACT_ADDRESS,
   value: 0n,
   bounceTo: BOUNCE_ADDRESS,
-  feeCredit: 100_000n * 10n,
+  feeCredit: 1_000_000n * 100n,
   data: encodeFunctionData({
     abi: CONTRACT_ABI,
     functionName: "func_name()",

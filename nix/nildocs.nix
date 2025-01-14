@@ -71,7 +71,6 @@ stdenv.mkDerivation rec {
     export NODE_JS=${nodejs}/bin/node
     cd docs
     npm run build
-    solc --version
   '';
 
 
