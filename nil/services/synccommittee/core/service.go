@@ -13,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
@@ -31,7 +32,7 @@ type SyncCommittee struct {
 	taskScheduler scheduler.TaskScheduler
 }
 
-func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
+func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*SyncCommittee, error) {
 	logger := logging.NewLogger("sync_committee")
 
 	if err := telemetry.Init(context.Background(), cfg.Telemetry); err != nil {
@@ -55,8 +56,7 @@ func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 		return nil, fmt.Errorf("failed to create aggregator: %w", err)
 	}
 
-	proposerRpcClient := nilrpc.NewRawClient(cfg.ProposerParams.Endpoint, logger)
-	proposer, err := NewProposer(context.Background(), cfg.ProposerParams, proposerRpcClient, blockStorage, metricsHandler, logger)
+	proposer, err := NewProposer(context.Background(), cfg.ProposerParams, blockStorage, ethClient, metricsHandler, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create proposer: %w", err)
 	}

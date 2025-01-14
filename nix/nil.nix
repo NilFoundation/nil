@@ -41,7 +41,7 @@ buildGo123Module rec {
   ];
 
   # to obtain run `nix build` with vendorHash = "";
-  vendorHash = "sha256-1EZJmurQ1iZREUdWAQmO/vrkHtOphOo64kIbOd7yLJQ=";
+  vendorHash = "sha256-4JdrDHnp3CbR5HInjkTKNejHS+5N7MCGESxww5DuWGA=";
   hardeningDisable = [ "all" ];
 
   postInstall = ''

@@ -1,24 +1,21 @@
 package core
 
 import (
-	"bytes"
 	"context"
+	"math/big"
 	"testing"
 
-	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
+	ethereum "github.com/ethereum/go-ethereum"
 	ethcommon "github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/suite"
-)
-
-const (
-	functionSelector = "0x6af78c5c"
 )
 
 type ProposerTestSuite struct {
@@ -27,12 +24,12 @@ type ProposerTestSuite struct {
 	ctx          context.Context
 	cancellation context.CancelFunc
 
-	params        *ProposerParams
-	db            db.DB
-	timer         common.Timer
-	storage       storage.BlockStorage
-	rpcClientMock client.ClientMock
-	proposer      *Proposer
+	params    *ProposerParams
+	db        db.DB
+	timer     common.Timer
+	storage   storage.BlockStorage
+	ethClient *rollupcontract.EthClientMock
+	proposer  *Proposer
 }
 
 func TestProposerSuite(t *testing.T) {
@@ -53,38 +50,29 @@ func (s *ProposerTestSuite) SetupSuite() {
 	s.timer = testaide.NewTestTimer()
 	s.storage = storage.NewBlockStorage(s.db, s.timer, metricsHandler, logger)
 	s.params = NewDefaultProposerParams()
-	s.proposer, err = NewProposer(s.ctx, s.params, &s.rpcClientMock, s.storage, metricsHandler, logger)
+	s.ethClient = &rollupcontract.EthClientMock{
+		CallContractFunc: func(ctx context.Context, call ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
+			return []byte{123}, nil
+		},
+		EstimateGasFunc:     func(ctx context.Context, call ethereum.CallMsg) (uint64, error) { return 123, nil },
+		SuggestGasPriceFunc: func(ctx context.Context) (*big.Int, error) { return big.NewInt(123), nil },
+		HeaderByNumberFunc:  func(ctx context.Context, number *big.Int) (*ethtypes.Header, error) { return &ethtypes.Header{}, nil },
+		PendingCodeAtFunc:   func(ctx context.Context, account ethcommon.Address) ([]byte, error) { return []byte{123}, nil },
+		PendingNonceAtFunc:  func(ctx context.Context, account ethcommon.Address) (uint64, error) { return 123, nil },
+		ChainIDFunc:         func(ctx context.Context) (*big.Int, error) { return big.NewInt(0), nil },
+	}
+	s.proposer, err = NewProposer(s.ctx, s.params, s.storage, s.ethClient, metricsHandler, logger)
 	s.Require().NoError(err)
 }
 
 func (s *ProposerTestSuite) SetupTest() {
 	err := s.db.DropAll()
 	s.Require().NoError(err, "failed to clear database in SetUpTest")
-	s.rpcClientMock.ResetCalls()
+	s.ethClient.ResetCalls()
 }
 
 func (s *ProposerTestSuite) TearDownSuite() {
 	s.cancellation()
-}
-
-func (s *ProposerTestSuite) TestCreateUpdateStateTransaction() {
-	oldStateRoot := common.IntToHash(10)
-	newStateRoot := common.IntToHash(11)
-
-	transaction, err := s.proposer.createUpdateStateTransaction(oldStateRoot, newStateRoot)
-	s.Require().NoError(err, "failed to create transaction")
-	s.Require().Equal(s.proposer.seqno.Load(), transaction.Nonce(), "tx nonce is incorrect")
-
-	s.Require().Equal(s.params.ChainId, transaction.ChainId().String(), "tx chainId is incorrect")
-	expectedAddress := ethcommon.HexToAddress(s.params.ContractAddress)
-	s.Require().Equal(&expectedAddress, transaction.To(), "tx recipient is incorrect")
-
-	functionSelector, err := hexutil.Decode(functionSelector)
-	s.Require().NoError(err)
-	transactionData := transaction.Data()
-	s.Require().True(bytes.Contains(transactionData, functionSelector), "tx data does not contain functionSelector")
-	s.Require().True(bytes.Contains(transactionData, oldStateRoot.Bytes()), "tx data does not contain oldStateRoot")
-	s.Require().True(bytes.Contains(transactionData, newStateRoot.Bytes()), "tx data does not contain newStateRoot")
 }
 
 func (s *ProposerTestSuite) TestSendProof() {
@@ -93,11 +81,5 @@ func (s *ProposerTestSuite) TestSendProof() {
 	err := s.proposer.sendProof(s.ctx, data)
 	s.Require().NoError(err, "failed to send proof")
 
-	clientCalls := s.rpcClientMock.RawCallCalls()
-	s.Require().Len(clientCalls, 1, "wrong number of calls to rpc client")
-
-	call := clientCalls[0]
-	s.Require().Equal("eth_sendRawTransaction", call.Method, "wrong method")
-	s.Require().Len(call.Params, 1, "wrong number of passed params")
-	s.Require().IsType("", call.Params[0], "wrong type of params[0]")
+	s.Require().Len(s.ethClient.SendTransactionCalls(), 1, "wrong number of calls to rpc client")
 }
