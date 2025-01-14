@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "author": "The =nil; team",
   "bin": {
-    "nil": "./bin/run.js"
+    "clijs": "./bin/run.js"
   },
   "bugs": "https://github.com/nil-blockchain/issues",
   "dependencies": {
@@ -44,7 +44,7 @@
   "main": "dist/index.js",
   "type": "module",
   "oclif": {
-    "bin": "nil",
+    "bin": "clijs",
     "dirname": "nil",
     "commands": "./dist/src/commands",
     "plugins": [
