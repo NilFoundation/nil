@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -77,7 +78,18 @@ func ComposeRetryPolicies(policies ...RetryPolicyFunc) RetryPolicyFunc {
 	}
 }
 
-func ExponentialDelay(baseDelay, maxDelay time.Duration) NextDelayFunc {
+func DoNotRetryIf(nonRetryable ...error) RetryPolicyFunc {
+	return func(attemptNumber uint32, err error) bool {
+		for _, nonRetryableErr := range nonRetryable {
+			if errors.Is(err, nonRetryableErr) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
+func DelayExponential(baseDelay, maxDelay time.Duration) NextDelayFunc {
 	if baseDelay > maxDelay {
 		log.Panicf("baseDelay %s > maxDelay %s", baseDelay, maxDelay)
 	}
@@ -95,15 +107,26 @@ func ExponentialDelay(baseDelay, maxDelay time.Duration) NextDelayFunc {
 	}
 }
 
-func RandomDelay(minDelay, maxDelay time.Duration) (*time.Duration, error) {
+func DelayJitter(minDelay, maxDelay time.Duration, logger zerolog.Logger) NextDelayFunc {
 	if minDelay > maxDelay {
-		return nil, fmt.Errorf("minDelay %s > maxDelay %s", minDelay, maxDelay)
+		log.Panicf("minDelay %s > maxDelay %s", minDelay, maxDelay)
 	}
 
+	return func(_ uint32) time.Duration {
+		delay, err := getRandomDelayValue(minDelay, maxDelay)
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to generate random retry delay")
+			return 100 * time.Millisecond
+		}
+		return *delay
+	}
+}
+
+func getRandomDelayValue(minDelay, maxDelay time.Duration) (*time.Duration, error) {
 	maxDelta := big.NewInt(int64(maxDelay - minDelay + 1))
 	randomDelta, err := rand.Int(rand.Reader, maxDelta)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate random delay: %w", err)
+		return nil, fmt.Errorf("failed to generate random delay delta: %w", err)
 	}
 
 	delay := minDelay + time.Duration(randomDelta.Int64())

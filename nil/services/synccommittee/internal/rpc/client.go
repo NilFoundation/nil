@@ -13,7 +13,7 @@ import (
 
 var retryConfig common.RetryConfig = common.RetryConfig{
 	ShouldRetry: common.LimitRetries(5),
-	NextDelay:   common.ExponentialDelay(100*time.Millisecond, time.Second),
+	NextDelay:   common.DelayExponential(100*time.Millisecond, time.Second),
 }
 
 func NewRetryClient(rpcEndpoint string, logger zerolog.Logger) client.Client {

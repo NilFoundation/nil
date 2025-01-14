@@ -318,20 +318,20 @@ func (s *TaskStorageSuite) Test_ProcessTaskResult_InvalidStateChange() {
 
 	for _, testCase := range testCases {
 		s.Run(testCase.name+"_TrySetSuccess", func() {
-			s.tryToChangeStatus(testCase.oldStatus, true, false, ErrTaskInvalidStatus)
+			s.tryToChangeStatus(testCase.oldStatus, true, false, types.ErrTaskInvalidStatus)
 		})
 		s.Run(testCase.name+"_TrySetFailure", func() {
-			s.tryToChangeStatus(testCase.oldStatus, false, false, ErrTaskInvalidStatus)
+			s.tryToChangeStatus(testCase.oldStatus, false, false, types.ErrTaskInvalidStatus)
 		})
 	}
 }
 
 func (s *TaskStorageSuite) Test_ProcessTaskResult_WrongExecutor() {
 	s.Run("TrySetSuccess", func() {
-		s.tryToChangeStatus(types.Running, true, true, ErrTaskWrongExecutor)
+		s.tryToChangeStatus(types.Running, true, true, types.ErrTaskWrongExecutor)
 	})
 	s.Run("TrySetFailure", func() {
-		s.tryToChangeStatus(types.Running, false, true, ErrTaskWrongExecutor)
+		s.tryToChangeStatus(types.Running, false, true, types.ErrTaskWrongExecutor)
 	})
 }
 

@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common/check"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
@@ -62,6 +63,16 @@ func RandomExecutorId() types.TaskExecutorId {
 		panic(err)
 	}
 	return types.TaskExecutorId(uint32(bigInt.Uint64()))
+}
+
+func RandomTaskResultData() types.TaskResultData {
+	size, err := rand.Int(rand.Reader, big.NewInt(int64(1024)))
+	check.PanicIfErr(err)
+	dataBytes := make([]byte, size.Int64())
+
+	_, err = rand.Read(dataBytes)
+	check.PanicIfErr(err)
+	return dataBytes
 }
 
 func NewSuccessTaskResult(taskId types.TaskId, executor types.TaskExecutorId) *types.TaskResult {

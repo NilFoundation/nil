@@ -17,12 +17,7 @@ import (
 
 // TaskEntriesTable BadgerDB tables, TaskId is used as a key
 const (
-	TaskEntriesTable = "TaskEntries"
-)
-
-var (
-	ErrTaskInvalidStatus = errors.New("task has invalid status")
-	ErrTaskWrongExecutor = errors.New("task belongs to another executor")
+	taskEntriesTable db.TableName = "task_entries"
 )
 
 // TaskViewContainer is an interface for storing task view
@@ -80,24 +75,27 @@ func NewTaskStorage(
 	logger zerolog.Logger,
 ) TaskStorage {
 	return &taskStorage{
-		database:    db,
-		retryRunner: badgerRetryRunner(logger),
-		timer:       timer,
-		metrics:     metrics,
-		logger:      logger,
+		database: db,
+		retryRunner: badgerRetryRunner(
+			logger,
+			common.DoNotRetryIf(types.ErrTaskWrongExecutor, types.ErrTaskInvalidStatus),
+		),
+		timer:   timer,
+		metrics: metrics,
+		logger:  logger,
 	}
 }
 
 // Helper to get and decode task entry from DB
 func extractTaskEntry(tx db.RoTx, id types.TaskId) (*types.TaskEntry, error) {
-	encoded, err := tx.Get(TaskEntriesTable, id.Bytes())
+	encoded, err := tx.Get(taskEntriesTable, id.Bytes())
 	if err != nil {
 		return nil, err
 	}
 
 	entry := &types.TaskEntry{}
 	if err = gob.NewDecoder(bytes.NewBuffer(encoded)).Decode(&entry); err != nil {
-		return nil, fmt.Errorf("failed to decode task with id %v: %w", id, err)
+		return nil, fmt.Errorf("%w: failed to decode task with id %v: %w", ErrSerializationFailed, id, err)
 	}
 	return entry, nil
 }
@@ -107,9 +105,9 @@ func putTaskEntry(tx db.RwTx, entry *types.TaskEntry) error {
 	var inputBuffer bytes.Buffer
 	err := gob.NewEncoder(&inputBuffer).Encode(entry)
 	if err != nil {
-		return fmt.Errorf("failed to encode task with id %s: %w", entry.Task.Id, err)
+		return fmt.Errorf("%w: failed to encode task with id %s: %w", ErrSerializationFailed, entry.Task.Id, err)
 	}
-	if err := tx.Put(TaskEntriesTable, entry.Task.Id.Bytes(), inputBuffer.Bytes()); err != nil {
+	if err := tx.Put(taskEntriesTable, entry.Task.Id.Bytes(), inputBuffer.Bytes()); err != nil {
 		return fmt.Errorf("failed to put task with id %s: %w", entry.Task.Id, err)
 	}
 	return nil
@@ -352,13 +350,9 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res *types.Tas
 		return err
 	}
 
-	if err := st.validateTaskResult(*entry, res); err != nil {
-		return err
-	}
-
 	currentTime := st.timer.NowTime()
 
-	if err := entry.Terminate(res.IsSuccess, currentTime); err != nil {
+	if err := entry.Terminate(res, currentTime); err != nil {
 		return err
 	}
 
@@ -369,7 +363,7 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res *types.Tas
 			Interface("requestSenderId", res.Sender).
 			Msg("Task execution is completed successfully, removing it from the storage")
 
-		if err := tx.Delete(TaskEntriesTable, res.TaskId.Bytes()); err != nil {
+		if err := tx.Delete(taskEntriesTable, res.TaskId.Bytes()); err != nil {
 			return err
 		}
 	} else if err := putTaskEntry(tx, entry); err != nil {
@@ -398,20 +392,6 @@ func (st *taskStorage) processTaskResultImpl(ctx context.Context, res *types.Tas
 	}
 
 	st.metrics.RecordTaskTerminated(ctx, entry, res)
-	return nil
-}
-
-func (st *taskStorage) validateTaskResult(entry types.TaskEntry, res *types.TaskResult) error {
-	const errFormat = "failed to process task result, taskId=%v, taskStatus=%v, taskOwner=%v, requestSenderId=%v: %w"
-
-	if entry.Owner != res.Sender {
-		return fmt.Errorf(errFormat, entry.Task.Id, entry.Status, entry.Owner, res.Sender, ErrTaskWrongExecutor)
-	}
-
-	if entry.Status != types.Running {
-		return fmt.Errorf(errFormat, entry.Task.Id, entry.Status, entry.Owner, res.Sender, ErrTaskInvalidStatus)
-	}
-
 	return nil
 }
 
@@ -472,7 +452,7 @@ func (st *taskStorage) rescheduleTaskTx(tx db.RwTx, entry *types.TaskEntry, exec
 }
 
 func iterateOverTaskEntries(tx db.RoTx, action func(entry *types.TaskEntry) error) error {
-	iter, err := tx.Range(TaskEntriesTable, nil, nil)
+	iter, err := tx.Range(taskEntriesTable, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -485,7 +465,7 @@ func iterateOverTaskEntries(tx db.RoTx, action func(entry *types.TaskEntry) erro
 		}
 		entry := &types.TaskEntry{}
 		if err = gob.NewDecoder(bytes.NewBuffer(val)).Decode(&entry); err != nil {
-			return fmt.Errorf("failed to decode task with id %v: %w", string(key), err)
+			return fmt.Errorf("%w: failed to decode task with id %v: %w", ErrSerializationFailed, string(key), err)
 		}
 		err = action(entry)
 		if err != nil {
