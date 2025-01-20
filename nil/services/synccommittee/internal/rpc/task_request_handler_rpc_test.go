@@ -57,7 +57,7 @@ func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_UpdateTaskStatus()
 			types.NewSuccessProverTaskResult(
 				types.NewTaskId(),
 				testaide.RandomExecutorId(),
-				types.TaskResultAddresses{types.FinalProof: "final-proof.1.0xAABC"},
+				types.TaskOutputArtifacts{types.FinalProof: "final-proof.1.0xAABC"},
 				types.TaskResultData{10, 20, 30, 40},
 			),
 		},

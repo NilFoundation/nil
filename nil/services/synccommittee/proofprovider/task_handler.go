@@ -57,8 +57,6 @@ func (h *taskHandler) Handle(ctx context.Context, _ types.TaskExecutorId, task *
 	return err
 }
 
-var circuitTypes = [...]types.CircuitType{types.CircuitBytecode, types.CircuitMPT, types.CircuitReadWrite, types.CircuitZKEVM, types.CircuitCopy}
-
 func (h *taskHandler) prepareTasksForBlock(providerTask *types.Task) []*types.TaskEntry {
 	currentTime := h.timer.NowTime()
 	taskEntries := make([]*types.TaskEntry, 0)
@@ -71,7 +69,7 @@ func (h *taskHandler) prepareTasksForBlock(providerTask *types.Task) []*types.Ta
 
 	// Third level of circuit-dependent tasks
 	consistencyCheckTasks := make(map[types.CircuitType]*types.TaskEntry)
-	for _, ct := range circuitTypes {
+	for ct := range types.Circuits() {
 		checkTaskEntry := types.NewFRIConsistencyCheckTaskEntry(
 			providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct, currentTime,
 		)
@@ -97,7 +95,7 @@ func (h *taskHandler) prepareTasksForBlock(providerTask *types.Task) []*types.Ta
 
 	// Second level of circuit-dependent tasks
 	combinedQTasks := make(map[types.CircuitType]*types.TaskEntry)
-	for _, ct := range circuitTypes {
+	for ct := range types.Circuits() {
 		combinedQTaskEntry := types.NewCombinedQTaskEntry(
 			providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct, currentTime,
 		)
@@ -126,7 +124,7 @@ func (h *taskHandler) prepareTasksForBlock(providerTask *types.Task) []*types.Ta
 	aggFRITaskEntry.AddDependency(aggChallengeTaskEntry)
 
 	// Create partial proof tasks (bottom level, no dependencies)
-	for _, ct := range circuitTypes {
+	for ct := range types.Circuits() {
 		partialProveTaskEntry := types.NewPartialProveTaskEntry(
 			providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct, currentTime,
 		)

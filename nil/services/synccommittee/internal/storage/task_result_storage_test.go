@@ -51,7 +51,7 @@ func (s *TaskResultStorageSuite) Test_Put_Same_Task_Result_N_Times() {
 	result := types.NewSuccessProviderTaskResult(
 		types.NewTaskId(),
 		testaide.RandomExecutorId(),
-		types.TaskResultAddresses{types.AggregatedProof: "agg-proof.1.1.0xAABC"},
+		types.TaskOutputArtifacts{types.AggregatedProof: "agg-proof.1.1.0xAABC"},
 		testaide.RandomTaskResultData(),
 	)
 
@@ -119,7 +119,7 @@ func newTaskResults() []*types.TaskResult {
 		types.NewSuccessProviderTaskResult(
 			types.NewTaskId(),
 			testaide.RandomExecutorId(),
-			types.TaskResultAddresses{types.AggregatedProof: "agg-proof.1.1.0xAABC"},
+			types.TaskOutputArtifacts{types.AggregatedProof: "agg-proof.1.1.0xAABC"},
 			testaide.RandomTaskResultData(),
 		),
 		types.NewFailureProviderTaskResult(
@@ -130,7 +130,7 @@ func newTaskResults() []*types.TaskResult {
 		types.NewSuccessProverTaskResult(
 			types.NewTaskId(),
 			testaide.RandomExecutorId(),
-			types.TaskResultAddresses{
+			types.TaskOutputArtifacts{
 				types.PartialProofChallenges:     "challenge.1.1.0xAABC",
 				types.AssignmentTableDescription: "assignment_table_description.1.1.0xAABC",
 				types.PartialProof:               "proof.1.1.0xAABC",

@@ -79,7 +79,7 @@ func NewSuccessTaskResult(taskId types.TaskId, executor types.TaskExecutorId) *t
 	return types.NewSuccessProverTaskResult(
 		taskId,
 		executor,
-		types.TaskResultAddresses{},
+		types.TaskOutputArtifacts{},
 		types.TaskResultData{},
 	)
 }

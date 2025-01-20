@@ -3,6 +3,7 @@ package types
 import (
 	"errors"
 	"fmt"
+	"iter"
 	"maps"
 	"slices"
 	"strconv"
@@ -63,12 +64,22 @@ const (
 	None CircuitType = iota
 	CircuitBytecode
 	CircuitReadWrite
-	CircuitMPT
 	CircuitZKEVM
 	CircuitCopy
 
-	CircuitAmount uint8 = iota - 1
+	CircuitAmount     uint8 = iota - 1
+	CircuitStartIndex uint8 = uint8(CircuitBytecode)
 )
+
+func Circuits() iter.Seq[CircuitType] {
+	return func(yield func(CircuitType) bool) {
+		for i := range CircuitAmount {
+			if !yield(CircuitType(i + CircuitStartIndex)) {
+				return
+			}
+		}
+	}
+}
 
 // TaskId Unique ID of a task, serves as a key in DB
 type TaskId uuid.UUID
@@ -117,6 +128,7 @@ const (
 	PartialProofChallenges
 	AssignmentTableDescription
 	ThetaPower
+	AggregatedThetaPowers
 	PreprocessedCommonData
 	AggregatedChallenges
 	CombinedQPolynomial
@@ -150,7 +162,7 @@ func (*TaskExecutorId) Type() string {
 	return "TaskExecutorId"
 }
 
-type TaskResultAddresses map[ProverResultType]string
+type TaskOutputArtifacts map[ProverResultType]string
 
 type TaskIdSet map[TaskId]bool
 
@@ -169,26 +181,26 @@ type TaskResultData []byte
 
 // TaskResult represents the result of a task provided via RPC by the executor with id = TaskResult.Sender.
 type TaskResult struct {
-	TaskId        TaskId              `json:"taskId"`
-	IsSuccess     bool                `json:"isSuccess"`
-	ErrorText     string              `json:"errorText,omitempty"`
-	Sender        TaskExecutorId      `json:"sender"`
-	DataAddresses TaskResultAddresses `json:"dataAddresses,omitempty"`
-	Data          TaskResultData      `json:"binaryData,omitempty"`
+	TaskId          TaskId              `json:"taskId"`
+	IsSuccess       bool                `json:"isSuccess"`
+	ErrorText       string              `json:"errorText,omitempty"`
+	Sender          TaskExecutorId      `json:"sender"`
+	OutputArtifacts TaskOutputArtifacts `json:"dataAddresses,omitempty"`
+	Data            TaskResultData      `json:"binaryData,omitempty"`
 }
 
 func NewSuccessProviderTaskResult(
 	taskId TaskId,
 	proofProviderId TaskExecutorId,
-	dataAddresses TaskResultAddresses,
+	outputArtifacts TaskOutputArtifacts,
 	binaryData TaskResultData,
 ) *TaskResult {
 	return &TaskResult{
-		TaskId:        taskId,
-		IsSuccess:     true,
-		Sender:        proofProviderId,
-		DataAddresses: dataAddresses,
-		Data:          binaryData,
+		TaskId:          taskId,
+		IsSuccess:       true,
+		Sender:          proofProviderId,
+		OutputArtifacts: outputArtifacts,
+		Data:            binaryData,
 	}
 }
 
@@ -208,15 +220,15 @@ func NewFailureProviderTaskResult(
 func NewSuccessProverTaskResult(
 	taskId TaskId,
 	sender TaskExecutorId,
-	dataAddresses TaskResultAddresses,
+	outputArtifacts TaskOutputArtifacts,
 	binaryData TaskResultData,
 ) *TaskResult {
 	return &TaskResult{
-		TaskId:        taskId,
-		IsSuccess:     true,
-		Sender:        sender,
-		DataAddresses: dataAddresses,
-		Data:          binaryData,
+		TaskId:          taskId,
+		IsSuccess:       true,
+		Sender:          sender,
+		OutputArtifacts: outputArtifacts,
+		Data:            binaryData,
 	}
 }
 

@@ -179,7 +179,7 @@ func newTestSuccessProviderResult(taskToExecute *types.Task, executorId types.Ta
 	return types.NewSuccessProviderTaskResult(
 		taskToExecute.Id,
 		executorId,
-		types.TaskResultAddresses{},
+		types.TaskOutputArtifacts{},
 		types.TaskResultData{},
 	)
 }
