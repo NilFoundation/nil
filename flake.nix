@@ -52,9 +52,9 @@
 
           # split tests into groups
           ibft = nil.override { testGroup = "ibft"; };
-          heavy = nil.override { testGroup = "heavy"; };
-          heavy_par = heavy.override { parallelTesting = true; };
+          heavy = nil.override { testGroup = "heavy"; parallelTesting = true; };
           others = nil.override { testGroup = "others"; };
+          others_par = others.override { parallelTesting = true; };
 
           niljs = (pkgs.callPackage ./nix/niljs.nix {
             nil = packages.nil;
