@@ -69,6 +69,7 @@ func (s *SuiteCometaClickhouse) SetupSuite() {
 	s.cometaCfg.UseBadger = false
 
 	s.cometaCfg.ResetToDefault()
+	s.cometaCfg.DbEndpoint = "127.0.0.1:9002"
 
 	suiteSetupDone := false
 
@@ -78,13 +79,19 @@ func (s *SuiteCometaClickhouse) SetupSuite() {
 		}
 	}()
 
-	s.clickhouse = exec.Command("clickhouse", "server", "--", "--listen_host=0.0.0.0")
-	s.clickhouse.Dir = s.T().TempDir()
+	dir := s.T().TempDir()
+	s.clickhouse = exec.Command( //nolint:gosec
+		"clickhouse", "server", "--",
+		"--listen_host=0.0.0.0",
+		"--tcp_port=9002",
+		"--path="+dir,
+	)
+	s.clickhouse.Dir = dir
 	err := s.clickhouse.Start()
 	s.Require().NoError(err)
 
 	time.Sleep(1 * time.Second)
-	createDb := exec.Command("clickhouse-client", "--query", "CREATE DATABASE IF NOT EXISTS "+s.cometaCfg.DbName) //nolint:gosec
+	createDb := exec.Command("clickhouse-client", "--port=9002", "--query", "CREATE DATABASE IF NOT EXISTS "+s.cometaCfg.DbName) //nolint:gosec
 	out, err := createDb.CombinedOutput()
 	s.Require().NoErrorf(err, "output: %s", out)
 

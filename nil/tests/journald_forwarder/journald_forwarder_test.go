@@ -43,13 +43,18 @@ func (s *SuiteJournaldForwarder) SetupSuite() {
 		}
 	}()
 
-	s.clickhouse = exec.Command("clickhouse", "server")
-	s.clickhouse.Dir = s.T().TempDir()
+	dir := s.T().TempDir()
+	s.clickhouse = exec.Command( //nolint:gosec
+		"clickhouse", "server", "--",
+		"--tcp_port=9001",
+		"--path="+dir,
+	)
+	s.clickhouse.Dir = dir
 	err := s.clickhouse.Start()
 	s.Require().NoError(err)
 
 	s.cfg = journald_forwarder.Config{
-		ListenAddr: "127.0.0.1:5678", ClickhouseAddr: "127.0.0.1:9000", DbUser: "default",
+		ListenAddr: "127.0.0.1:5678", ClickhouseAddr: "127.0.0.1:9001", DbUser: "default",
 		DbDatabase: "default", DbPassword: "",
 	}
 	s.runErrCh = make(chan error, 1)
