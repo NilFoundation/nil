@@ -366,14 +366,14 @@ export class SmartAccountV1 implements SmartAccountInterface {
     const hexData = refineFunctionHexData({ data, abi, functionName, args });
     let refinedCredit = feeCredit;
 
+    const callData = encodeFunctionData({
+      abi: SmartAccount.abi,
+      functionName: "asyncCall",
+      args: [hexTo, hexRefundTo, hexBounceTo, tokens ?? [], value ?? 0n, hexData],
+    });
+
     if (!refinedCredit) {
       const balance = await this.getBalance();
-
-      const callData = encodeFunctionData({
-        abi: SmartAccount.abi,
-        functionName: "asyncCall",
-        args: [hexTo, hexRefundTo, hexBounceTo, tokens ?? [], value ?? 0n, hexData],
-      });
 
       refinedCredit = await this.client.estimateGas(
         {
@@ -388,12 +388,6 @@ export class SmartAccountV1 implements SmartAccountInterface {
         throw new Error("Insufficient balance");
       }
     }
-
-    const callData = encodeFunctionData({
-      abi: SmartAccount.abi,
-      functionName: "asyncCall",
-      args: [hexTo, hexRefundTo, hexBounceTo, tokens ?? [], value ?? 0n, hexData],
-    });
 
     const { hash } = await this.requestToSmartAccount({
       data: hexToBytes(callData),
