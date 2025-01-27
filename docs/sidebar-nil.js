@@ -21,6 +21,11 @@ export default {
           label: "=nil; 101",
           id: "getting-started/nil-101",
         },
+        {
+          type: "doc",
+          label: "Running the cluster locally",
+          id: "getting-started/nild"
+        }
       ],
     },
     {
@@ -291,6 +296,11 @@ export default {
       collapsed: false,
       collapsible: true,
       items: [
+        {
+          type: "doc",
+          label: "28 January 2025 guide",
+          id: "migration-guides/january-2801-2025-release"
+        },
         {
           type: "doc",
           label: "14 January 2025 guide",

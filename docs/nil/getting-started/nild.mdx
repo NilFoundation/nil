@@ -1,0 +1,94 @@
+# Running the =nil; daemon
+
+## Overview
+
+`nild` is the =nil; daemon that can be used to run a local copy of the =nil; cluster. It can be configured to perform various services:
+
+* *validator node*, processing transactions and creating new blocks
+  in one or more shards;
+* *archive node*, storing the complete history of the blockchain;
+* *RPC node*, providing API services to users and dApps;
+* *Cometa service*, storing Solidity source code for smart contracts and assisting with debugging
+* the _faucet_, distributing tokens to users of the =nil; testnet.
+
+Cometa and faucet are provided by separate daemons in a production setting.
+
+## Generating `nild`
+
+To create the `nild` binary:
+
+```
+git clone https://github.com/NilFoundation/nil.git
+cd nil
+nix develop
+make
+```
+
+The binary will be placed in the `./build/bin/` folder.
+
+## Devnet in a single process
+
+This setup runs =nil; as a fully standalone blockchain with multiple shards operating within a single process on one machine. Such a configuration is mostly used for testing and familiarizing oneself with zkSharding.
+
+To run `nild` in this setup:
+
+```bash
+nild run --http-port=8529
+```
+
+This will launch the cluster locally with the following default settings:
+* `--db-path ./test.db`: database stored in `./test.db` (this file is created if it does not exist, but it is not deleted if an incompatible old database is present);
+* `--nshards 5`: 4 working shards, plus a main shard, all collated by this instance of `nild`;
+* HTTP RPC API on `127.0.0.1:8529`, with the faucet API enabled;
+* Cometa endpoint on `127.0.0.1:8528`.
+
+If an incompatible old database is found in the specified `db-path`, `nild` will refuse to start by default. When working with test databases that can be safely discarded, use the `--allow-db-clear` option to automatically delete the incompatible database and proceed with running the cluster.
+
+## Complete devnet with 2 validators, an archive node and an RPC node
+
+To start a devnet with multiple validators, said validators need to be assigned with identities. This process involves generating cryptographic keys and bootstrap the network by informing validators
+about each other. This can be achieved using the devnet generator, available through the `nild devnet` subcommand.
+
+Write the devnet spec as a YAML file:
+
+```yaml showLineNumbers
+nild_config_dir: myDevnet/conf
+nild_credentials_dir: myDevnet/creds
+nild_p2p_base_tcp_port: 30303
+nil_wipe_on_update: true
+nShards: 5
+nil_config:
+  - { id: 0, shards: [ 0, 1 ], splitShards: true, dhtBootstrapPeersIdx: [1] }
+  - { id: 1, shards: [ 2, 3, 4 ], splitShards: true, dhtBootstrapPeersIdx: [0] }
+nil_archive_config:
+  - { id: 0, shards: [ 0, 1, 2, 3, 4 ], bootstrapPeersIdx: [ 0, 0, 1, 1 ], dhtBootstrapPeersIdx: [0, 1] }
+nil_rpc_config:
+  - id: 0
+    dhtBootstrapPeersIdx: [ 0, 1 ]
+    archiveNodeIndices: [ 0 ]
+```
+
+If needed, tweak the amount of shards and validators, the distribution
+of shards between validators and other parameters. The `bootstrapPeersIdx` and
+`dhtBootstrapPeersIdx` settings are lists of validators IDs in this
+spec.
+
+Then, save the spec to `myDevnet.yaml`.
+
+Now, generate generate validator identities and config files:
+
+```shell
+$ nild gen-configs myDevnet.yaml --basedir myDevnet/var
+```
+
+The configuration files will be created in `myDevnet/conf`. Start the services by running:
+
+```bash
+$ nild run --config myDevnet/conf/nil-0  # start first validator
+$ nild run --config myDevnet/conf/nil-1  # start second validator
+$ nild archive --config myDevnet/conf/nil-archive-0  # start archive node
+$ nild rpc --config myDevnet/conf/nil-rpc-0  # start RPC node
+```
+
+This setup does not launch the faucet service or the Cometa service. They have to be configured
+and launched separately.
