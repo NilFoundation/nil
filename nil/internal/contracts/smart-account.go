@@ -12,5 +12,5 @@ func PrepareDefaultSmartAccountForOwnerCode(publicKey []byte) types.Code {
 	args, err := NewCallData(NameSmartAccount, "", publicKey)
 	check.PanicIfErr(err)
 
-	return append(smartAccountCode, args...)
+	return append(smartAccountCode.Clone(), args...)
 }
