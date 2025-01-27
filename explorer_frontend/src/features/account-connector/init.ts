@@ -91,7 +91,7 @@ createSmartAccountFx.use(async ({ privateKey, endpoint }) => {
 
     await faucetClient.topUpAndWaitUntilCompletion(
       {
-        smartAccount: smartAccount.address,
+        smartAccountAddress: smartAccount.address,
         faucetAddress: faucets.NIL,
         amount: 1e18,
       },
