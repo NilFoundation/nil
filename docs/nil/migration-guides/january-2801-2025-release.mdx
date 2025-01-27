@@ -1,0 +1,156 @@
+import CompilerButton from "@site/static/img/release-2801/change-version.png";
+import AssignAddress from "@site/static/img/release-2801/assign-address.png";
+import TransactionLog from "@site/static/img/release-2801/transaction-log.png";
+
+# Release 28.01.2025: migration guide
+
+This release of =nil; renames several important terms and simplifies the creation of new smart accounts via `Nil.js`. In addition, the release adds an AI helper to the =nil; documentation.
+
+On the side of the =nil; Playground, it is now possible to select the version of the Solidity compiler used to compile smart contracts. The Playground now also displays detailed transaction logs, making debugging much easier.
+
+## Summary of key changes
+
+### General changes
+
+* The following terms have been renamed across documentation, the =nil; codebase and the =nil; developer tools
+  - `message` (referring to the messages exchanged on top of =nil;) has been changed to `transaction`
+  - `wallet` (referring to a contract that can accept and send tokens) has been changed to `smart account`
+  - `currency` (referring to custom tokens) has been changed to `token`
+
+### `Nil.js`changes
+
+* `Nil.js` now supports several 'helper' functions for creating a new smart account:
+  - `generateRandomAddress()` produces a new random address
+  - `generateSmartAccount()` creates a new smart account and tops it up
+  - `faucet.topUp()` tops up an address from the faucet service
+
+* `Nil.js` no longer supports working with the 'legacy' faucet. Only the faucet service can be used with `Nil.js`.
+
+### Hardhat plugin changes
+
+* The =nil; Hardhat plugin has been deprecated. 
+
+### Documentation changes 
+
+* It is now possible to ask an embedded AI helper about =nil;. The helper can also generate smart contracts using the `smart-contracts` NPM package.
+
+To use the assistant, simply click on the 'Ask AI' button in the top navbar.
+
+### Playground changes
+
+* A specific compiler version can be selected when compiling smart contracts
+
+<img src={CompilerButton}/>
+
+* The Playground now outputs detailed transaction logs in its console
+
+<img src={TransactionLog}/>
+
+* When deploying smart contracts, it is possible to assign a specific pre-defined empty address to a contract
+
+<img src={AssignAddress}/>
+
+## Migration of smart contracts
+
+* Adjust the function names and smart contract names to reflect the new terminology
+
+The following names have been changed across the `smart-contracts` package.
+
+In the `Faucet.sol` contract:
+
+| Old name | New name |
+|:--:|:--:|
+| `createWallet()` | `createSmartAccount()` |
+
+In the `Nil.sol` contract:
+
+| Old name | New name |
+|:--:|:--:|
+| `SEND_MESSAGE` | `SEND_TRANSACTION` |
+| `IS_INTERNAL_MESSAGE` | `IS_INTERNAL_TRANSACTION` |
+| `GET_MESSAGE_TOKENS` | `GET_TRANSACTION_TOKENS` |
+| `IS_RESPONSE_MESSAGE` | `IS_RESPONSE_TRANSACTION` |
+| `sendMessage()` | `sendTransaction()` |
+| `isInternalMessage()` | `isInternalTransaction()` |
+| `precompileGetMessageTokens()` | `precompileGetTransactionTokens()` |
+
+The `Wallet.sol` contract has been renamed to `SmartAccount.sol`.
+
+The `NilCurrencyBase.sol` contract has been renamed to `NilTokenBase.sol`.
+
+## Migration of =nil; CLI commands
+
+* Adjust command names to reflect the new terminology
+
+The names of the following commands have been changed:
+
+| Old name | New name |
+|:--:|:--:|
+| `wallet` | `smart-account` |
+| `wallet send-message` | `smart-account send-transaction` |
+| `contract send-external-message` | `contract send-external-transaction` |
+| `message` | `transaction` |
+
+## Migration of `Nil.js` scripts
+
+* Adjust class/function names and imports to reflect the new terminology
+
+The following classes and files in `Nil.js` have been renamed:
+
+| Old name | New name |
+|:--:|:--:|
+| `WalletV1` | `SmartAccountV1` |
+| `WalletInterface` | `SmartAccountInterface` |
+| `IMessage` | `ITransaction` |
+| `ISignedMessage` | `ISignedTransaction` |
+| `RPCMessage` | `RPCTransaction` |
+| `ProcessedMessage` | `ProcessedTransaction` |
+
+Renamed members in `PublicClient.ts`:
+
+| Old name | New name |
+|:--:|:--:|
+| `getBlockMessageCountByNumber()` | `getBlockTransactionCountByNumber()` |
+| `getBlockMessageCountByHash` | `getBlockTransactionCountByHash()` |
+| `getMessageCount()` | `getTransactionCount()` |
+| `getMessageByHash()` | `getTransactionByHash()` |
+| `getMessageReceiptByHash` | `getTransactionReceiptByHash()` |
+| `sendRawMessage()` | `sendRawTransaction()` |
+
+Renamed members in `SmartAccountInterface.ts`:
+
+| Old name | New name |
+|:--:|:--:|
+| `SendBaseMessageParams` | `SendBaseTransactionParams` |
+| `SendDataMessageParams`  | `SendDataTransactionParams` |
+| `SendMessageParams` | `SendTransactionParams` |
+
+Renamed members in `SmartAccountV1.ts`:
+
+| Old name | New name |
+|:--:|:--:|
+| `calculateWalletAddress()` | `calculateSmartAccountAddress()` |
+| `requestToWallet()` | `requestToSmartAccount()` |
+| `sendMessage()` | `sendTransaction()` |
+| `syncSendMessage()` | `syncSendTransaction()` |
+
+* Use new helper methods to create smart accounts
+
+`Nil.js` now allows for creating and deploying a new smart account via the `generateSmartAccount()` function:
+
+```ts showLineNumbers
+const smartAccount = await generateSmartAccount({
+  shardId: 1,
+  rpcEndpoint: RPC_ENDPOINT,
+  faucetEndpoint: FAUCET_ENDPOINT,
+});
+const smartAccountAddress = smartAccount.address;
+```
+
+The function automatically creates a new smart account, deploys it and tops it up via the faucet service.
+
+## Migration of Hardhat projects
+
+The =nil; Hardhat plugin is deprecated. 
+
+It is advised to migrate existing projects to use `Nil.js` and Hardhat 'core'.

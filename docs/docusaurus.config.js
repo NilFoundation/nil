@@ -148,7 +148,11 @@ const config = {
           {
             label: "Migration guides",
             position: "left",
+<<<<<<< HEAD
             to: "nil/migration-guides/january-2901-2025-release",
+=======
+            to: "nil/migration-guides/january-2801-2025-release",
+>>>>>>> 33f46b7 (prepared docs for the 28/01 release)
           },
           {
             label: "Videos",

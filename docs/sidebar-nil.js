@@ -24,8 +24,13 @@ export default {
         {
           type: "doc",
           label: "Running the cluster locally",
+<<<<<<< HEAD
           id: "getting-started/nild",
         },
+=======
+          id: "getting-started/nild"
+        }
+>>>>>>> 33f46b7 (prepared docs for the 28/01 release)
       ],
     },
     {
@@ -298,8 +303,13 @@ export default {
       items: [
         {
           type: "doc",
+<<<<<<< HEAD
           label: "29 January 2025 guide",
           id: "migration-guides/january-2901-2025-release",
+=======
+          label: "28 January 2025 guide",
+          id: "migration-guides/january-2801-2025-release"
+>>>>>>> 33f46b7 (prepared docs for the 28/01 release)
         },
         {
           type: "doc",

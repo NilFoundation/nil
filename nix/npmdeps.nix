@@ -18,5 +18,9 @@ in
       ../uniswap/package.json
     ];
   };
+<<<<<<< HEAD
   hash = "sha256-P0bwGmK5nhqVA9k4zIOsREyCrhkllxV2jH9zoOBPMtE=";
+=======
+  hash = "sha256-aBND35jj4t3dz0237uCBa/1DIRSIDNDZb/gHS9Y303M=";
+>>>>>>> 33f46b7 (prepared docs for the 28/01 release)
 })
