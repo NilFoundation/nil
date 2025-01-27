@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   CometaService,
+  FaucetClient,
   type Hex,
   HttpTransport,
   LocalECDSAKeySigner,
@@ -37,6 +38,7 @@ interface CliTestFixture {
   }>;
 
   cometaClient: CometaService;
+  faucetClient: FaucetClient;
   rpcClient: PublicClient;
 
   privateKey: Hex;
@@ -53,6 +55,11 @@ export const CliTest = test.extend<CliTestFixture>({
       ConfigKeys.NilSection,
       ConfigKeys.CometaEndpoint,
       testEnv.cometaServiceEndpoint,
+    );
+    configManager.updateConfig(
+      ConfigKeys.NilSection,
+      ConfigKeys.FaucetEndpoint,
+      testEnv.faucetServiceEndpoint,
     );
     configManager.updateConfig(ConfigKeys.NilSection, ConfigKeys.PrivateKey, privateKey);
 
@@ -82,6 +89,12 @@ export const CliTest = test.extend<CliTestFixture>({
   rpcClient: new PublicClient({
     transport: new HttpTransport({
       endpoint: testEnv.endpoint,
+    }),
+  }),
+
+  faucetClient: new FaucetClient({
+    transport: new HttpTransport({
+      endpoint: testEnv.faucetServiceEndpoint,
     }),
   }),
 

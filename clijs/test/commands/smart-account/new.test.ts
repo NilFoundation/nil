@@ -6,8 +6,8 @@ import { CliTest } from "../../setup.js";
 // To run this test you need to run the nild:
 // nild run --http-port 8529
 // TODO: Setup nild automatically before running the tests
-describe("smartAccount:new", () => {
-  CliTest("runs smartAccount:new cmd", async ({ cfgPath, runCommand }) => {
+describe("smart-account:new", () => {
+  CliTest("runs smart-account:new cmd", async ({ cfgPath, runCommand }) => {
     const { result } = await runCommand(["smart-account", "new"]);
     expect(result).toBeTruthy();
     const configManager = new ConfigManager(cfgPath);

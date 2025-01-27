@@ -4,7 +4,7 @@ import { BaseCommand } from "../../base.js";
 import { ConfigKeys } from "../../common/config.js";
 import { logger } from "../../logger.js";
 
-export const DefualtNewSmartAccountAmount = 100_000_000n;
+export const DefualtNewSmartAccountAmount = 1_000_000_000n;
 
 export default class SmartAccountNew extends BaseCommand {
   static override description = "Create a new smart account";

@@ -18,12 +18,12 @@ export const COMMANDS: Record<string, Command.Class> = {
   "keygen:new": KeygenNew,
   "keygen:new-p2p": KeygenNewP2p,
 
-  smartAccount: SmartAccount,
-  "smartAccount:balance": SmartAccountBalance,
-  "smartAccount:deploy": SmartAccountDeploy,
-  "smartAccount:info": SmartAccountInfo,
-  "smartAccount:new": SmartAccountNew,
-  "smartAccount:send-transaction": SmartAccountSendTransaction,
+  "smart-account": SmartAccount,
+  "smart-account:balance": SmartAccountBalance,
+  "smart-account:deploy": SmartAccountDeploy,
+  "smart-account:info": SmartAccountInfo,
+  "smart-account:new": SmartAccountNew,
+  "smart-account:send-transaction": SmartAccountSendTransaction,
 };
 
 export async function run() {

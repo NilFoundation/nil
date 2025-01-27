@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { ContractData, Hex } from "@nilfoundation/niljs";
+import { addHexPrefix } from "@nilfoundation/niljs";
 import { Args, Flags } from "@oclif/core";
 import type { Abi } from "abitype";
 import { BaseCommand } from "../../base.js";
@@ -115,7 +116,7 @@ export default class SmartAccountDeploy extends BaseCommand {
         this.error("at least one arg is required (the path to the bytecode file");
       }
       const fullPath = path.resolve(filename);
-      bytecode = fs.readFileSync(fullPath, "utf8") as Hex;
+      bytecode = addHexPrefix(fs.readFileSync(fullPath, "utf8"));
     }
 
     const { hash, address } = await smartAccount.deployContract({
