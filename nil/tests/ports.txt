@@ -1,0 +1,4 @@
+# List all ports reserved by tests for different purposes
+
+nil/tests/journald_forwarder: 9001 (clickhouse)
+nil/tests/cometa: 9002 (clickhouse)
