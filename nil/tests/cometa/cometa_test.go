@@ -84,6 +84,8 @@ func (s *SuiteCometaClickhouse) SetupSuite() {
 		"clickhouse", "server", "--",
 		"--listen_host=0.0.0.0",
 		"--tcp_port=9002",
+		"--http_port=",
+		"--mysql_port=",
 		"--path="+dir,
 	)
 	s.clickhouse.Dir = dir

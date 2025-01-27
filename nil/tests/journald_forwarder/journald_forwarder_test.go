@@ -47,6 +47,8 @@ func (s *SuiteJournaldForwarder) SetupSuite() {
 	s.clickhouse = exec.Command( //nolint:gosec
 		"clickhouse", "server", "--",
 		"--tcp_port=9001",
+		"--http_port=",
+		"--mysql_port=",
 		"--path="+dir,
 	)
 	s.clickhouse.Dir = dir
