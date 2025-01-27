@@ -16,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/blob"
 	v1 "github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode/v1"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
@@ -46,9 +47,8 @@ func NewAggregator(
 	logger zerolog.Logger,
 	metrics AggregatorMetrics,
 	pollingDelay time.Duration,
-) (*Aggregator, error) {
-	return &Aggregator{
-		logger:       logger,
+) *Aggregator {
+	agg := &Aggregator{
 		rpcClient:    rpcClient,
 		blockStorage: blockStorage,
 		taskStorage:  taskStorage,
@@ -62,7 +62,14 @@ func NewAggregator(
 		timer:        timer,
 		metrics:      metrics,
 		pollingDelay: pollingDelay,
-	}, nil
+	}
+
+	agg.logger = srv.LoggerWithWorkerName(logger, agg.Name())
+	return agg
+}
+
+func (*Aggregator) Name() string {
+	return "aggregator"
 }
 
 func (agg *Aggregator) Run(ctx context.Context) error {
@@ -79,7 +86,7 @@ func (agg *Aggregator) Run(ctx context.Context) error {
 
 			if err != nil {
 				agg.logger.Error().Err(err).Msg("error during processing new blocks")
-				agg.metrics.RecordError(ctx, "aggregator")
+				agg.metrics.RecordError(ctx, agg.Name())
 			}
 		},
 	)

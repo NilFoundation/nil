@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
@@ -13,11 +12,13 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
-	"github.com/rs/zerolog"
 )
 
 type Config struct {
+	srv.Config
+
 	SyncCommitteeRpcEndpoint string
 	TaskListenerRpcEndpoint  string
 	Telemetry                *telemetry.Config
@@ -25,6 +26,7 @@ type Config struct {
 
 func NewDefaultConfig() *Config {
 	return &Config{
+		Config:                   srv.DefaultConfig(),
 		SyncCommitteeRpcEndpoint: "tcp://127.0.0.1:8530",
 		TaskListenerRpcEndpoint:  "tcp://127.0.0.1:8531",
 		Telemetry: &telemetry.Config{
@@ -34,13 +36,7 @@ func NewDefaultConfig() *Config {
 }
 
 type ProofProvider struct {
-	config           *Config
-	database         db.DB
-	taskExecutor     executor.TaskExecutor
-	taskScheduler    scheduler.TaskScheduler
-	taskListener     *rpc.TaskListener
-	taskResultSender *scheduler.TaskResultSender
-	logger           zerolog.Logger
+	srv.Service
 }
 
 func New(config *Config, database db.DB) (*ProofProvider, error) {
@@ -86,26 +82,10 @@ func New(config *Config, database db.DB) (*ProofProvider, error) {
 	)
 
 	return &ProofProvider{
-		config:           config,
-		database:         database,
-		taskExecutor:     taskExecutor,
-		taskScheduler:    taskScheduler,
-		taskListener:     taskListener,
-		taskResultSender: taskResultSender,
-		logger:           logger,
+		Service: srv.NewService(
+			config.Config,
+			logger,
+			taskExecutor, taskScheduler, taskListener, taskResultSender,
+		),
 	}, nil
-}
-
-func (p *ProofProvider) Run(ctx context.Context) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	defer telemetry.Shutdown(ctx)
-
-	return concurrent.Run(
-		ctx,
-		p.taskExecutor.Run,
-		p.taskListener.Run,
-		p.taskScheduler.Run,
-		p.taskResultSender.Run,
-	)
 }

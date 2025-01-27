@@ -3,12 +3,9 @@ package core
 import (
 	"context"
 	"fmt"
-	"os/signal"
-	"syscall"
 
 	nilrpc "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
@@ -16,20 +13,12 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
-	"github.com/rs/zerolog"
 )
 
 type SyncCommittee struct {
-	cfg      *Config
-	database db.DB
-	logger   zerolog.Logger
-	client   *nilrpc.Client
-
-	proposer      *Proposer
-	aggregator    *Aggregator
-	taskListener  *rpc.TaskListener
-	taskScheduler scheduler.TaskScheduler
+	srv.Service
 }
 
 func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*SyncCommittee, error) {
@@ -51,12 +40,24 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 	blockStorage := storage.NewBlockStorage(database, timer, metricsHandler, logger)
 	taskStorage := storage.NewTaskStorage(database, timer, metricsHandler, logger)
 
-	aggregator, err := NewAggregator(client, blockStorage, taskStorage, timer, logger, metricsHandler, cfg.PollingDelay)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create aggregator: %w", err)
-	}
+	aggregator := NewAggregator(
+		client,
+		blockStorage,
+		taskStorage,
+		timer,
+		logger,
+		metricsHandler,
+		cfg.PollingDelay,
+	)
 
-	proposer, err := NewProposer(context.Background(), cfg.ProposerParams, blockStorage, ethClient, metricsHandler, logger)
+	proposer, err := NewProposer(
+		context.Background(),
+		cfg.ProposerParams,
+		blockStorage,
+		ethClient,
+		metricsHandler,
+		logger,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create proposer: %w", err)
 	}
@@ -75,41 +76,12 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 	)
 
 	s := &SyncCommittee{
-		cfg:      cfg,
-		database: database,
-		logger:   logger,
-		client:   client,
-
-		proposer:      proposer,
-		aggregator:    aggregator,
-		taskListener:  taskListener,
-		taskScheduler: taskScheduler,
+		Service: srv.NewService(
+			cfg.Config,
+			logger,
+			aggregator, proposer, taskListener, taskScheduler,
+		),
 	}
 
 	return s, nil
-}
-
-func (s *SyncCommittee) Run(ctx context.Context) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	defer telemetry.Shutdown(ctx)
-
-	if s.cfg.GracefulShutdown {
-		signalCtx, stop := signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
-		defer stop()
-		ctx = signalCtx
-	}
-
-	functions := []concurrent.Func{
-		s.proposer.Run,
-		s.aggregator.Run,
-		s.taskListener.Run,
-		s.taskScheduler.Run,
-	}
-
-	if err := concurrent.Run(ctx, functions...); err != nil {
-		s.logger.Error().Err(err).Msg("app encountered an error and will be terminated")
-	}
-
-	return nil
 }

@@ -53,7 +53,7 @@ func (s *AggregatorTestSuite) SetupSuite() {
 
 	s.rpcClientMock = &client.ClientMock{}
 
-	s.aggregator, err = NewAggregator(
+	s.aggregator = NewAggregator(
 		s.rpcClientMock,
 		s.blockStorage,
 		s.taskStorage,
@@ -62,7 +62,6 @@ func (s *AggregatorTestSuite) SetupSuite() {
 		metricsHandler,
 		time.Second,
 	)
-	s.Require().NoError(err)
 }
 
 func (s *AggregatorTestSuite) SetupTest() {

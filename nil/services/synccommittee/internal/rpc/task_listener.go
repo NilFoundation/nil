@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
 	"github.com/rs/zerolog"
 )
@@ -27,11 +28,17 @@ func NewTaskListener(
 	scheduler scheduler.TaskScheduler,
 	logger zerolog.Logger,
 ) *TaskListener {
-	return &TaskListener{
+	listener := &TaskListener{
 		config:    config,
 		scheduler: scheduler,
-		logger:    logger,
 	}
+
+	listener.logger = srv.LoggerWithWorkerName(logger, listener.Name())
+	return listener
+}
+
+func (*TaskListener) Name() string {
+	return "task_listener"
 }
 
 func (l *TaskListener) Run(context context.Context) error {

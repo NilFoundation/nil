@@ -7,6 +7,7 @@ generate_synccommittee_mocks: \
 	$(root_sce)/internal/api/task_request_handler_generated_mock.go \
 	$(root_sce)/internal/scheduler/task_scheduler_generated_mock.go \
     $(root_sce)/internal/rollupcontract/eth_client_generated_mock.go \
+    $(root_sce)/internal/srv/worker_generated_mock.go \
     $(root_sce)/internal/test_utils/op_context_generated_mock.go \
     $(root_sce)/prover/tracer/storage_getter_setter_generated_mock.go
 
@@ -29,11 +30,16 @@ $(root_sce)/internal/api/task_state_change_handler_generated_mock.go: \
 $(root_sce)/internal/scheduler/task_scheduler_generated_mock.go: \
 	$(root_sce)/internal/scheduler/task_scheduler.go \
 	$(root_sce)/internal/api/task_request_handler.go \
+	$(root_sce)/internal/srv/worker.go \
 	$(root_sce)/internal/types/prover_tasks.go \
 	$(root_sce)/internal/types/task_result.go \
 	$(root_sce)/public/task_debug_api.go \
 	$(root_sce)/public/task_view.go
 	go generate $(root_sce)/internal/scheduler
+
+$(root_sce)/internal/srv/worker_generated_mock.go: \
+	$(root_sce)/internal/srv/worker.go
+	go generate $(root_sce)/internal/srv/worker.go
 
 $(root_sce)/internal/rollupcontract/eth_client_generated_mock.go: \
 	$(root_sce)/internal/rollupcontract/eth_client.go

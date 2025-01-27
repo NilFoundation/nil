@@ -85,6 +85,10 @@ func NewProposer(
 	return &p, nil
 }
 
+func (*Proposer) Name() string {
+	return "proposer"
+}
+
 func (p *Proposer) Run(ctx context.Context) error {
 	shouldResetStorage, err := p.initializeProvedStateRoot(ctx)
 	if err != nil {
@@ -100,7 +104,7 @@ func (p *Proposer) Run(ctx context.Context) error {
 		func(ctx context.Context) {
 			if err := p.proposeNextBlock(ctx); err != nil {
 				p.logger.Error().Err(err).Msg("error during proved blocks proposing")
-				p.metrics.RecordError(ctx, "proposer")
+				p.metrics.RecordError(ctx, p.Name())
 				return
 			}
 		},

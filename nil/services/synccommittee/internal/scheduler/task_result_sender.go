@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
@@ -35,12 +36,18 @@ func NewTaskResultSender(
 	storage storage.TaskResultStorage,
 	logger zerolog.Logger,
 ) *TaskResultSender {
-	return &TaskResultSender{
+	sender := &TaskResultSender{
 		requestHandler: requestHandler,
 		storage:        storage,
-		logger:         logger,
 		config:         MakeDefaultSenderConfig(),
 	}
+
+	sender.logger = srv.LoggerWithWorkerName(logger, sender.Name())
+	return sender
+}
+
+func (*TaskResultSender) Name() string {
+	return "task_result_sender"
 }
 
 func (s *TaskResultSender) Run(ctx context.Context) error {

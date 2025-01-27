@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler/heap"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
@@ -33,10 +34,9 @@ func DefaultConfig() Config {
 }
 
 type TaskScheduler interface {
+	srv.Worker
 	api.TaskRequestHandler
 	public.TaskDebugApi
-	// Run Start task scheduler worker which monitors active tasks and reschedules them if necessary
-	Run(ctx context.Context) error
 }
 
 type TaskSchedulerMetrics interface {
@@ -49,13 +49,15 @@ func New(
 	metrics TaskSchedulerMetrics,
 	logger zerolog.Logger,
 ) TaskScheduler {
-	return &taskSchedulerImpl{
+	scheduler := &taskSchedulerImpl{
 		storage:      taskStorage,
 		stateHandler: stateHandler,
 		config:       DefaultConfig(),
 		metrics:      metrics,
-		logger:       logger,
 	}
+
+	scheduler.logger = srv.LoggerWithWorkerName(logger, scheduler.Name())
+	return scheduler
 }
 
 type taskSchedulerImpl struct {
@@ -64,6 +66,10 @@ type taskSchedulerImpl struct {
 	config       Config
 	metrics      TaskSchedulerMetrics
 	logger       zerolog.Logger
+}
+
+func (*taskSchedulerImpl) Name() string {
+	return "task_scheduler"
 }
 
 func (s *taskSchedulerImpl) GetTask(ctx context.Context, request *api.TaskRequest) (*types.Task, error) {
@@ -227,5 +233,5 @@ func (s *taskSchedulerImpl) Run(ctx context.Context) error {
 }
 
 func (s *taskSchedulerImpl) recordError(ctx context.Context) {
-	s.metrics.RecordError(ctx, "task_scheduler")
+	s.metrics.RecordError(ctx, s.Name())
 }

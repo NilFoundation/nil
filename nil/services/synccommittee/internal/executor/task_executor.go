@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
 )
@@ -30,8 +31,8 @@ func DefaultConfig() *Config {
 }
 
 type TaskExecutor interface {
+	srv.Worker
 	Id() types.TaskExecutorId
-	Run(ctx context.Context) error
 }
 
 type TaskExecutorMetrics interface {
@@ -49,14 +50,17 @@ func New(
 	if err != nil {
 		return nil, err
 	}
-	return &taskExecutorImpl{
+
+	executor := &taskExecutorImpl{
 		nonceId:        *nonceId,
 		config:         *config,
 		requestHandler: requestHandler,
 		taskHandler:    taskHandler,
 		metrics:        metrics,
-		logger:         logger,
-	}, nil
+	}
+
+	executor.logger = srv.LoggerWithWorkerName(logger, executor.Name())
+	return executor, nil
 }
 
 type taskExecutorImpl struct {
@@ -66,6 +70,10 @@ type taskExecutorImpl struct {
 	taskHandler    api.TaskHandler
 	metrics        TaskExecutorMetrics
 	logger         zerolog.Logger
+}
+
+func (*taskExecutorImpl) Name() string {
+	return "task_executor"
 }
 
 func (p *taskExecutorImpl) Id() types.TaskExecutorId {
@@ -79,7 +87,7 @@ func (p *taskExecutorImpl) Run(ctx context.Context) error {
 		func(ctx context.Context) {
 			if err := p.fetchAndHandleTask(ctx); err != nil {
 				p.logger.Error().Err(err).Msg("failed to fetch and handle next task")
-				p.metrics.RecordError(ctx, "task_executor")
+				p.metrics.RecordError(ctx, p.Name())
 			}
 		},
 	)

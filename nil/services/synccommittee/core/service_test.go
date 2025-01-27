@@ -6,11 +6,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/tests"
 	"github.com/stretchr/testify/suite"
 )
@@ -20,6 +24,7 @@ type SyncCommitteeTestSuite struct {
 
 	server        tests.RpcSuite
 	nShards       uint32
+	blockStorage  storage.BlockStorage
 	syncCommittee *SyncCommittee
 	ctx           context.Context
 	scDb          db.DB
@@ -55,6 +60,10 @@ func (s *SyncCommitteeTestSuite) SetupSuite() {
 	ethClientMock := &rollupcontract.EthClientMock{ChainIDFunc: func(ctx context.Context) (*big.Int, error) { return big.NewInt(0), nil }}
 	s.syncCommittee, err = New(cfg, s.scDb, ethClientMock)
 	s.Require().NoError(err)
+	syncCommitteeMetrics, err := metrics.NewSyncCommitteeMetrics()
+	s.Require().NoError(err)
+	s.blockStorage = storage.NewBlockStorage(s.scDb, common.NewTimer(), syncCommitteeMetrics, logging.NewLogger("sync_committee_srv_test"))
+	s.Require().NoError(err)
 }
 
 func (s *SyncCommitteeTestSuite) TearDownSuite() {
@@ -71,7 +80,7 @@ func (s *SyncCommitteeTestSuite) waitMainShardToProcess() {
 	s.T().Helper()
 	s.Require().Eventually(
 		func() bool {
-			lastFetched, err := s.syncCommittee.aggregator.blockStorage.TryGetLatestFetched(s.ctx)
+			lastFetched, err := s.blockStorage.TryGetLatestFetched(s.ctx)
 			return err == nil && lastFetched != nil && lastFetched.Number > 0
 		},
 		5*time.Second,
@@ -86,7 +95,7 @@ func (s *SyncCommitteeTestSuite) TestProcessingLoop() {
 
 	errCh := make(chan error)
 	go func() {
-		errCh <- s.syncCommittee.aggregator.Run(ctx)
+		errCh <- s.syncCommittee.Run(ctx)
 	}()
 
 	s.waitMainShardToProcess()
