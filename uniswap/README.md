@@ -1,61 +1,76 @@
+<h1 align="center">Uniswap v2 =nil;</h1>
 
-<div align="center">
-  <h1>Uniswap V2 =nil;</h1>
-</div>
+<br />
+
+<p align="center">
+  An implementation of the Uniswap v2 protocol running on top of =nil;
+</p>
+
+## Table of contents
+
+* [Overview]
 
 ## 📋 Overview
 
-This repository showcases the migration of Uniswap V2 to the =nil; We have adapted Uniswap’s core contracts — Factory, Pair, and Router — to work seamlessly with the unique capabilities of =nil;
-By using this example, developers can learn how to migrate dApps from Ethereum compatible networks to the =nil; and take advantage of its features, such as:
-1. **Multi-Token Support:** Learn how =nil; supports multiple tokens natively and how they replace the ERC20 standard
-2. **Async/Sync Calls:** Discover how to effectively utilize async and sync messaging between shards, making the protocol both scalable and performant
-3. **Load Distribution:** Understand how to distribute operations across multiple shards, enhancing parallel processing and scalability
+This project showcases the migration of Uniswap V2 to the =nil; cluster. It adapts Uniswap’s core contracts (Factory, Pair and Router) to work seamlessly with the unique architecture of =nil;. The project can be used as an example of migrating a dApp from Ethereum compatible networks to =nil; while benefitting from improved scalability offered by zkSharding:
 
-This repository also aims to spark discussion on the potential of running DeFi protocols on sharded architectures, demonstrating their feasibility and advantages
+1. **Multi-Token Support:** =nil; natively supports multiple custom tokens without having to rely on the ERC20 standard
+2. **Async/Sync Calls:** =nil; supports async execution of transactions within one shard or across multiple shards
+3. **Load Distribution:** =nil; spreads execution of transactions across shards without fragmenting its state
 
-## ⚙️ Prerequirements
 
-Before working with this repository, ensure that you have properly set up your environment:
+## ⚙️ Installation
 
-1. **.env Configuration**:
-   Make sure to create a `.env` file in the root directory. All required environment variables are listed in the `.env.example` file, which you can use as a reference. [Link to `.env.example`](./.env.example)
+Clone the repository:
 
-2. **Getting an RPC Endpoint**:
-   To request an RPC endpoint:
-   - Join our Telegram chat: [https://t.me/nilfoundation](https://t.me/nilfoundation)
-   - Request access, and our DevRel team will assist you.
-
-3. **Obtaining a Private Key and Smart Account**:
-   - Download the `nil` CLI: [https://github.com/NilFoundation/nil_cli](https://github.com/NilFoundation/nil_cli)
-   - Follow the setup instructions in our documentation: [nil CLI Docs](https://docs.nil.foundation/nil/getting-started/nil-101)
-
-## 🪓 Usage with nil.js
-
-To interact with the =nil; network, we recommend using the `nil.js` library.
-It provides a simple and intuitive way to interact with the network, including sending transactions, querying data, and more.
-
-To get started with `nil.js`, install the package via npm:
 ```bash
-  npm install @nilfoundation/niljs
+git clone https://github.com/NilFoundation/nil.git
+cd ./nil/uniswap
+```
+Install dependencies:
+
+```bash
+npm install
 ```
 
-You can initialize `SmartAccount` and `PublicClient` instances to interact with the network:
+Create a new `.env` file structured similarly to [`./.env.example`](./.env.example).
+
+## 🪓 Usage with `Nil.js`
+
+`Nil.js` is the recommended way for interacting with =nil;. To install `Nil.js`:
+
+```bash
+npm install @nilfoundation/niljs
+```
+
+Create a new smart account: 
+
 ```typescript
-const smartAccount = await createSmartAccount({
-   faucetDeposit: true, // default: false
+const client = new PublicClient({
+  transport: new HttpTransport({
+    endpoint: RPC_ENDPOINT,
+  }),
+  shardId: 1,
 });
+
+const smartAccount = await generateSmartAccount({
+  shardId: 1,
+  rpcEndpoint: RPC_ENDPOINT,
+  faucetEndpoint: FAUCET_ENDPOINT,
+});
+
 ```
 
-With the `SmartAccount` instance, you can deploy contracts or attach to existing ones:
+The `SmartAccount` instance can deploy contracts or create contract instances attached to already deployed smart contracts:
 ```typescript
 // deployment
 const {contract, address} = await deployNilContract(
-        smartAccount,
-        FactoryJson.abi,
-        FactoryJsn.bytecode,
-        [], // constructor arguments
-        smartAccount.shardId,
-        ["callExternalMethod"], // external methods
+  smartAccount,
+  FactoryJson.abi,
+  FactoryJsn.bytecode,
+  [], // constructor arguments
+  smartAccount.shardId,
+  ["callExternalMethod"], // external methods
 );
 
 // attach to an existing contract
@@ -71,7 +86,8 @@ const contract2 = getContract({
 });
 ```
 
-After contract object initialization, you can call its methods:
+Call Uniswap contracts after deploying all contracts:
+
 ```typescript
 // read method
 const balance = await contract.read.getTokenBalanceOf([smartAccount.address]);
@@ -88,82 +104,61 @@ const hash = await pair.write.swap([0, expectedOutputAmount, smartAccount.addres
 const hash1 = await contract.external.mintToken([mintAmount]);
 ```
 
-## 🎯 Usage
+## 🎯 Hardhat tasks
 
-To help you get started quickly, we provide two demo tasks that showcase the full lifecycle from deployment to execution. These tasks cover deploying and initializing all necessary contracts,
-as well as performing operations like minting, swapping, and burning
+The project also provides two Hardhat tasks that showcase the full full lifecycle from deployment to execution. These tasks cover deploying and initializing all necessary contracts as well as minting, swapping, and burning
 
 ### Demo Tasks
-1. **Using Factory and Pair Contracts Only**
-   This demo handles deploying the Factory and Pair contracts and executing a complete flow of operations
-   [View the demo task](https://github.com/NilFoundation/uniswap-v2-nil/blob/main/tasks/core/demo.ts)
-   ![alt text](/public/demo.png)
 
-
-**Important:**
-- Calculations are processed on the user's side.
-- Both the token address and its ID are stored in the pair contract.
-
-
-2. **Using Factory, Pair, and Router Contracts**
+1. **Using Factory, Pair, and Router Contracts**
    This demo includes an additional layer by utilizing the Router contract along with Factory and Pair
-   [View the demo-router task](https://github.com/NilFoundation/uniswap-v2-nil/blob/main/tasks/core/demo-router.ts)
+   [View the demo-router task](./tasks/uniswap/demo-router.ts)
    ![alt text](/public/demo-router.png)
 
-   **Important:**
-   - The `UniswapV2Factory` is used for creating new pairs. `UniswapV2Router01` calls already deployed pair contracts.
-   - `UniswapV2Router01` can be deployed on a different shard.
-   - Vulnerability: no checks are performed during adding/removing liquidity and swaps.
-     Rates and output amounts are entirely calculated on the user side.
+Note that:
 
+- The `UniswapV2Factory` is used for creating new pairs. `UniswapV2Router01` calls already deployed pair contracts.
+- `UniswapV2Router01` can be deployed on a different shard.
+- Vulnerability: no checks are performed during adding/removing liquidity and swaps.
+- Rates and output amounts are entirely calculated on the user side.
 
-3. **Using Router with Sync Calls (1 shard)**
-   This demo task shows how to deploy the `UniswapV2Router01` contract
-   and use it as a proxy for adding/removing liquidity and swaps via sync calls.
-   It allows checks on amounts before pair calls and maintains token rates.
-   [View the demo-router task](https://github.com/NilFoundation/uniswap-v2-nil/blob/main/tasks/core/demo-router-sync.ts)
+2. **Using Router with Sync Calls (1 shard)**
+   This demo task shows how to deploy the `UniswapV2Router01` contract and use it as a proxy for adding/removing liquidity and swaps via sync calls. It allows for checking amounts before pair calls and maintains token rates.
+   [View the demo-router task](./tasks/uniswap/demo-router-sync.ts)
 
-   **Important:**
-   - `UniswapV2Router01` should be deployed on the same shard as the pair contract.
-   - It maintains the token exchange rate when adding/removing liquidity.
-   - It supports limit checks for token amounts.
+Note that:
+
+- `UniswapV2Router01` should be deployed on the same shard as the pair contract.
+- It maintains the token exchange rate when adding/removing liquidity.
+- It supports limit checks for token amounts.
 
 
 ### Running the Demo Tasks
-1. **Compile the Project**:
-   ```bash
-   npx hardhat compile
-   ```
-2. **Run the Demo Tasks**:
-   - For the core demo (Factory and Pair):
-     ```bash
-     npx hardhat demo
-     ```
-   - For the demo with Router (Factory, Pair, and Router):
-     ```bash
-     npx hardhat demo-router
-     ```
-   - For the demo with Router (Sync calls):
-     ```bash
-     npx hardhat demo-router-sync
-     ```
 
-### Manual Setup
-If you prefer to run everything manually, we provide Ignition modules for each contract:
-[Ignition Modules](https://github.com/NilFoundation/uniswap-v2-nil/tree/main/ignition)
+1. Compile the project
 
-Additionally, all crucial contract methods have corresponding tasks:
-[Tasks](https://github.com/NilFoundation/uniswap-v2-nil/tree/main/tasks)
+```bash
+npx hardhat compile
+```
 
-Each subdirectory contains a README explaining the details of the tasks
+2. Run the demo tasks:
+
+- For the demo with Router (Factory, Pair, and Router):
+
+```bash
+npx hardhat demo-router
+```
+
+- For the demo with Router (Sync calls):
+
+```bash
+npx hardhat demo-router-sync
+```
 
 ## 🤝 Contributing
 
-We welcome contributions from the community to make this project even better! If you have suggestions, improvements, or find any bugs, please feel free to submit a pull request or open an issue.
-
-Check out our open issues and improvements in the [GitHub Issues](https://github.com/NilFoundation/uniswap-v2-nil/issues) section. If you're new to the project, look for issues labeled as `good first issue` — they're a great place to start.
-
-Your input and contributions are greatly appreciated!
+Contributions are always welcome! Feel free to submit pull requests or open issues to discuss potential changes or improvements.
 
 ## License
+
 This project is licensed under the GPL-3.0 License. See the [LICENSE](./LICENSE) file for more details. Portions of this project are derived from [Uniswap V2](https://github.com/Uniswap/v2-core) and are also subject to the GPL-3.0 License.

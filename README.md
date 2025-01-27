@@ -106,6 +106,14 @@ npm run install:clean
 
 Individual projects should not have separate `package-lock.json` files. If such files exist, it may lead to unintented behaviors.
 
+In addition, Nix validates the hashum of the `package-lock.json` file when building the project. Perform the following actions after running the `install:clean` script:
+
+1. Open the `./nix/npmdeps.nix` file
+2. Remove the current hashsum (located under the list of all `package.json` files)
+3. Attempt to enter the Nix environment by running `nix develop .#DERIVATION_NAME`
+4. Wait for Nix to provide the correct hash
+5. Place the correct hash inside the `./nix/npmdeps.nix` file
+
 ### Running tests
 
 Run tests with:

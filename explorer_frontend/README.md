@@ -1,19 +1,38 @@
-# =nil; explorer frontend
+<h1 align="center">explorer_frontend</h1>
+
+<br />
+
+<p align="center">
+  The frontend for the =nil; block explorer and the Playground.
+</p>
+
+<br />
+
+## Table of contents
+
+## Overview
 
 This project contains the front-end component for [the =nil; block explorer](https://explore.nil.foundation/). It is a React app that uses the [Styletron-react](https://styletron.org/react) library for styling. State management is done using the [Effectorjs](https://effector.dev) library. The app is built using [Vite](https://vitejs.dev).
 
-## Development
+## Installation
 
+Clone the repository:
+
+```bash
+git clone https://github.com/NilFoundation/nil.git
+cd ./nil/explorer_frontend
+```
 Install dependencies:
 
 ```bash
-npm ci
+npm штыефдд
 ```
 
-Then, fill the required config variables in the `runtime-config.toml` file stored in `./public`. Presently, only `API_URL` is required to be set.
+## Development
+
+Fill the required config variables in the `runtime-config.toml` file stored in `./public`. Presently, only `API_URL` is required to be set.
 
 To override the default values, create the `runtime-config.local.toml` file in `./public` and set `API_URL` to the desired value.
-to be set. You can copy the content of `runtime-config.toml` to `runtime-config.local.toml` and set the `API_URL` to the correct value.
 
 To start the development server:
 
@@ -53,8 +72,7 @@ npm run build
 npm run serve # initializes the server in production mode which is suitable for testing the production build
 ```
 
-Also, you need to disable api requests batching in the `runtime-config.toml` file by setting `API_REQUESTS_ENABLE_BATCHING` to `false`.
-Ensure, that the `API_URL` is set to the correct value as well for api interaction tests to work.
+In this mode, it is also necessary to disable API requests batching in the `runtime-config.toml` file by setting `API_REQUESTS_ENABLE_BATCHING` to `false`.
 
 Then, in a separate terminal, run:
 
@@ -62,8 +80,9 @@ Then, in a separate terminal, run:
 npm run test:e2e
 ```
 
-This will open the cypress test runner. Click on the test file you want to run.
-If you want to run the tests in headless mode, run:
+This will open the cypress test runner where it should be possible to select the test file to run.
+
+To run tests in headless mode:
 
 ```bash
 npm run test:e2e:ci

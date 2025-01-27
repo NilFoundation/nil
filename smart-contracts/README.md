@@ -3,7 +3,7 @@
 <br />
 
 <p align="center">
-  Smart-contracts implementations of the =nil; network.
+  An NPM package housing Solidity extension libraries for working with =nil;.
 </p>
 
 <br />
@@ -13,20 +13,31 @@
 - [Installation](#installation)
 - [Usage](#usage)
 - [License](#license)
-- [Acknowledgements](#acknowledgements)
 
 ## Overview
-This package contains the smart-contracts implementations of the =nil; network. The smart-contracts are written in Solidity and are used to deploy and interact with the =nil; network.
+
+This NPM package contains the Solidity libraries for interacting with the =nil; cluster. These extensions provide access to essential functionalities of =nil; such as [making async calls](https://docs.nil.foundation/nil/getting-started/essentials/handling-async-execution), [accepting external messages](https://docs.nil.foundation/nil/getting-started/essentials/receiving-ext-transactions) and [working with custom tokens](https://docs.nil.foundation/nil/getting-started/essentials/tokens).
 
 ## Installation
-To install the package, run the following command:
+
+To install the package:
 
 ```bash
 npm install @nilfoundation/smart-contracts
 ```
 
+## Contracts
+
+The package includes four contracts:
+
+* [`Faucet.sol`](./contracts/Faucet.sol) is a service contract for distributing tokens
+* [`Nil.sol`](./contracts/Nil.sol) is the extension library that allows for making async calls and performing other important operations
+* [`NilTokenBase.sol`](./contracts/NilTokenBase.sol) is the base contract for custom tokens on the cluster
+* [`SmartAccount.sol`](./contracts/SmartAccount.sol) is the default smart account that is deployed by the =nil; CLI and `Nil.js`
+
 ## Usage
-To use the package, import the smart-contracts in your project:
+
+To use the package, simply import it in a JS/TS or Solidity project: 
 
 ```typescript
 import SmartAccount_compiled from '@nilfoundation/smart-contracts/artifacts/SmartAccount.json';
@@ -40,7 +51,7 @@ import "@nilfoundation/smart-contracts/contracts/SmartAccount.sol";
 ```
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgements
-This project is supported by the [NIL Foundation](https://nil.foundation/).
+[MIT](./LICENSE)
+
+

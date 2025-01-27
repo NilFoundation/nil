@@ -39,7 +39,7 @@ Make sure to set the `tokenName` and `public key` in your `./ignition/parameters
 
 ### 2. Fetch Token Data
 
-After deploying the token contract, you can fetch the token information (name, ID, Balance) by using the following command:
+After deploying the token contract, fetch the token information (name, ID, Balance) by using the following command:
 
 ```bash
 npx hardhat token_info --address <Token Address>
@@ -49,12 +49,12 @@ Replace `<Token Address>` with the actual deployed contract address
 
 ### Mint and Send Token to a Smart Account
 
-To mint token from two contracts and send it to a specified smart account, use the mint-smart-account task:
+To mint token from two contracts and send it to a specified smart account, use the `mint-smart-account` task:
 
 ```bash
 npx hardhat mint-smart-account --token0 <Token0 Address> --token1 <Token1 Address> --smart-account <Smart Account Address> --amount <Amount>
 ```
 
-This will mint the specified amount of both tokens and send it to the specified smart account
+This will mint the specified amount of both tokens and send it to the specified smart account.
 
 ---
