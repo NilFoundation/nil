@@ -15,7 +15,11 @@ import {
 import { useState, useEffect } from "react";
 
 export const AssignTab = () => {
+<<<<<<< HEAD
   const [smartAccount, pending, existingContractsList, assignedAddress] = useUnit([
+=======
+  const [smartAccount, pending, state, assignedAddress] = useUnit([
+>>>>>>> 87baef7 (explorer bugs resolved)
     $smartAccount,
     assignSmartContractFx.pending,
     $state,
@@ -23,14 +27,25 @@ export const AssignTab = () => {
   ]);
 
   const [css] = useStyletron();
+<<<<<<< HEAD
   const [error, setError] = useState<string | null>(null); 
+=======
+  const [error, setError] = useState<string | null>(null); // Track error state
+
+  // Validate the address input
+>>>>>>> 87baef7 (explorer bugs resolved)
   const validateAddress = (address: string) => {
     if (!address || address === "0x") {
       setError(null);
       return;
     }
 
+<<<<<<< HEAD
     const existingAddresses = Object.values(existingContractsList).flat();
+=======
+    // Flatten current state addresses and check if the address exists
+    const existingAddresses = Object.values(state).flat();
+>>>>>>> 87baef7 (explorer bugs resolved)
     if (existingAddresses.includes(address)) {
       setError(`Contract with address ${address} already exists.`);
     } else {
@@ -39,13 +54,24 @@ export const AssignTab = () => {
   };
 
   useEffect(() => {
+<<<<<<< HEAD
+=======
+    // Validate whenever the assigned address changes
+>>>>>>> 87baef7 (explorer bugs resolved)
     validateAddress(assignedAddress);
   }, [assignedAddress, state]);
 
   useEffect(() => {
+<<<<<<< HEAD
     setAssignedSmartContractAddress("0x" as Hex); 
     setError(null);
   }, []); 
+=======
+    // Clear the assigned address and reset the error when the tab is reopened
+    setAssignedSmartContractAddress("0x" as Hex); // Reset to "0x" or empty string
+    setError(null);
+  }, []); // Runs only once when the component mounts
+>>>>>>> 87baef7 (explorer bugs resolved)
 
   return (
     <>
