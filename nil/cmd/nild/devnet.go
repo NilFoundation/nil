@@ -200,8 +200,13 @@ func (srv server) NetworkKeysFile() string {
 	return srv.credsDir + "/network-keys.yaml"
 }
 
+const (
+	directoryPermissions = 0o755
+	filePermissions      = 0o644
+)
+
 func (spec *devnetSpec) EnsureIdentity(srv server) (string, error) {
-	if err := os.MkdirAll(srv.credsDir, 0o700); err != nil {
+	if err := os.MkdirAll(srv.credsDir, directoryPermissions); err != nil {
 		return "", err
 	}
 	privKey, err := network.LoadOrGenerateKeys(srv.NetworkKeysFile())
@@ -265,17 +270,17 @@ func (devnet *devnet) writeServerConfig(instanceId int, srv server, only string)
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	err = os.MkdirAll(srv.workDir, 0o700)
+	err = os.MkdirAll(srv.workDir, directoryPermissions)
 	if err != nil {
 		return err
 	}
 
 	configDir := fmt.Sprintf("%s/%s-%d", spec.NildConfigDir, srv.service, instanceId)
-	err = os.MkdirAll(configDir, 0o700)
+	err = os.MkdirAll(configDir, directoryPermissions)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(configDir+"/nild.yaml", serialized, 0o600)
+	return os.WriteFile(configDir+"/nild.yaml", serialized, filePermissions)
 }
 
 func identityToAddress(port int, identity string) string {
