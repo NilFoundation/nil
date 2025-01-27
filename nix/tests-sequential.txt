@@ -1,0 +1,6 @@
+nil/internal/network
+nil/tests/cometa
+nil/tests/nil_load_generator_service
+nil/services/synccommittee/internal/rpc
+nil/services/synccommittee/prover/tracer
+nil/services/txnpool
