@@ -54,3 +54,5 @@ func NewDebugLog(message []byte, data []Uint256) (*DebugLog, error) {
 func (l *Log) TopicsNum() int {
 	return len(l.Topics)
 }
+
+//go:generate go run github.com/NilFoundation/fastssz/sszgen --path log.go -include ../../common/hexutil/bytes.go,../../common/length.go,address.go,../../common/hash.go,block.go,uint256.go --objs Log,DebugLog

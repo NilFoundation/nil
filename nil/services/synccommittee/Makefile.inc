@@ -11,13 +11,13 @@ generate_synccommittee_mocks: \
     $(root_sce)/prover/tracer/storage_getter_setter_generated_mock.go
 
 $(root_sce)/internal/api/task_handler_generated_mock.go: $(root_sce)/internal/api/task_handler.go $(root_sce)/internal/types/prover_tasks.go
-	go generate $(root_sce)/internal/api
+	go generate $(root_sce)/internal/api/task_handler.go
 
 $(root_sce)/internal/api/task_request_handler_generated_mock.go: $(root_sce)/internal/api/task_request_handler.go $(root_sce)/internal/types/prover_tasks.go
-	go generate $(root_sce)/internal/api
+	go generate $(root_sce)/internal/api/task_request_handler.go
 
 $(root_sce)/internal/api/task_state_change_handler_generated_mock.go: $(root_sce)/internal/api/task_state_change_handler.go $(root_sce)/internal/types/prover_tasks.go
-	go generate $(root_sce)/internal/api
+	go generate $(root_sce)/internal/api/task_state_change_handler.go
 
 $(root_sce)/internal/scheduler/task_scheduler_generated_mock.go: \
 	$(root_sce)/internal/scheduler/task_scheduler.go \
@@ -51,13 +51,13 @@ synccommittee_types: \
 	$(root_sce)/public/taskdebugorder_string.go
 
 $(root_sce)/internal/types/tasktype_string.go: $(root_sce)/internal/types/prover_tasks.go
-	go generate $(root_sce)/internal/types
+	go generate -run="TaskType" $(root_sce)/internal/types/generate.go
 $(root_sce)/internal/types/proverresulttype_string.go: $(root_sce)/internal/types/prover_tasks.go
-	go generate $(root_sce)/internal/types
+	go generate -run="ProverResultType" $(root_sce)/internal/types/generate.go
 $(root_sce)/internal/types/taskstatus_string.go: $(root_sce)/internal/types/prover_tasks.go
-	go generate $(root_sce)/internal/types
+	go generate -run="TaskStatus" $(root_sce)/internal/types/generate.go
 $(root_sce)/internal/types/circuittype_string.go: $(root_sce)/internal/types/prover_tasks.go
-	go generate $(root_sce)/internal/types
+	go generate -run="CircuitType" $(root_sce)/internal/types/generate.go
 $(root_sce)/public/taskdebugorder_string.go: $(root_sce)/public/task_debug_api.go
 	go generate $(root_sce)/public
 

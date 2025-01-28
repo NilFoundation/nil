@@ -9,3 +9,5 @@ import (
 type TaskHandler interface {
 	Handle(ctx context.Context, executorId types.TaskExecutorId, task *types.Task) error
 }
+
+//go:generate bash ../scripts/generate_mock.sh TaskHandler

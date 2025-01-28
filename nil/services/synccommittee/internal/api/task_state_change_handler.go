@@ -9,3 +9,5 @@ import (
 type TaskStateChangeHandler interface {
 	OnTaskTerminated(ctx context.Context, task *types.Task, result *types.TaskResult) error
 }
+
+//go:generate bash ../scripts/generate_mock.sh TaskStateChangeHandler

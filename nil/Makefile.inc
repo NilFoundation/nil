@@ -17,8 +17,8 @@ $(root_client)/client_generated_mock.go: $(root_client)/client.go
 $(root_vm)/state_generated_mock.go: $(root_vm)/interface.go
 	cd $(root_vm) && go generate
 
-$(root_db)/rwtx_generated_mock.go: $(root_db)/kv.go
-	cd $(root_db) && go generate kv.go
+$(root_db)/rwtx_generated_mock.go: $(root_db)/kv.go ssz_types
+	cd $(root_db) && go generate -run="rwtx_" kv.go
 
-$(root_db)/db_generated_mock.go: $(root_db)/kv.go
-	cd $(root_db) && go generate kv.go
+$(root_db)/db_generated_mock.go: $(root_db)/kv.go ssz_types
+	cd $(root_db) && go generate -run="db_" kv.go

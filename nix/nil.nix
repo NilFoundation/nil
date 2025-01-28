@@ -27,7 +27,7 @@ buildGo123Module rec {
   pname = "nil";
 
   preBuild = ''
-    make generated rpcspec
+    make -j$NIX_BUILD_CORES generated rpcspec
     export HOME="$TMPDIR"
     mkdir -p ~/.gsolc-select/artifacts/solc-0.8.28
     ln -f -s ${solc}/bin/solc ~/.gsolc-select/artifacts/solc-0.8.28/solc-0.8.28

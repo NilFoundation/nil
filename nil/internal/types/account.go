@@ -64,3 +64,5 @@ func (s *SmartContract) Hash() common.Hash {
 type TokensMap = map[TokenId]Value
 
 type RPCTokensMap = TokensMap
+
+//go:generate go run github.com/NilFoundation/fastssz/sszgen --path account.go -include ../../common/length.go,transaction.go,address.go,value.go,code.go,shard.go,bloom.go,log.go,../../common/hash.go --objs SmartContract,TokenBalance

@@ -248,3 +248,5 @@ func (e VmVerboseError) Error() string {
 func (e VmVerboseError) Unwrap() error {
 	return &e.VmError
 }
+
+//go:generate stringer -type=ErrorCode -trimprefix=Error

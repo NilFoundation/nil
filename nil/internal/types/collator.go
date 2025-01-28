@@ -12,3 +12,5 @@ type Neighbor struct {
 type CollatorState struct {
 	Neighbors []Neighbor `json:"neighbors" ssz-max:"10000"`
 }
+
+//go:generate go run github.com/NilFoundation/fastssz/sszgen --path collator.go -include shard.go,block.go,transaction.go --objs Neighbor,CollatorState

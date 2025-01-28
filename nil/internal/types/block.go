@@ -162,3 +162,5 @@ func (b *Block) Sign(prv *ecdsa.PrivateKey, shardId ShardId) error {
 }
 
 const InvalidDbTimestamp uint64 = math.MaxUint64
+
+//go:generate go run github.com/NilFoundation/fastssz/sszgen --path block.go -include ../../common/length.go,signature.go,address.go,code.go,shard.go,bloom.go,log.go,value.go,transaction.go,../../common/hash.go --objs BlockData,Block

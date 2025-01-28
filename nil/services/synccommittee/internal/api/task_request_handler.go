@@ -24,3 +24,5 @@ type TaskRequestHandler interface {
 	GetTask(context context.Context, request *TaskRequest) (*types.Task, error)
 	SetTaskResult(context context.Context, result *types.TaskResult) error
 }
+
+//go:generate bash ../scripts/generate_mock.sh TaskRequestHandler
