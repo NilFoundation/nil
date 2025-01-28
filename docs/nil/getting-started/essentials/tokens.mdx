@@ -46,14 +46,34 @@ To burn an existing token (the supply is automatically reduced at the address of
 
 To create a new token and withdraw it:
 
-```ts file=../../../tests/multi-tokens-support.test.mjs start=startBasicNilJSExample end=endBasicNilJSExample
+```ts showLineNumbers file=../../../tests/multi-tokens-support.test.mjs start=startBasicNilJSExample end=endBasicNilJSExample
 ```
 
 To burn an existing token:
 
-```ts file=../../../tests/multi-tokens-support.test.mjs start=startNilJSBurningExample end=endNilJSBurningExample
+```ts showLineNumbers file=../../../tests/multi-tokens-support.test.mjs start=startNilJSBurningExample end=endNilJSBurningExample
 ```
 
+### Via the `smart-contracts` package
+
+It is also possible to create custom tokens as separate smart contracts with built-in burning and minting functionality.
+
+The `smart-contracts` NPM package contains the `NilTokenBase.sol` contract. To create a new custom token as a smart contract, simply inherit a new smart contract from `NilTokenBase.sol` and deploy it. 
+
+```solidity showLineNumbers
+import "@nilfoundation/smart-contracts/contracts/NilTokenBase.sol";
+
+contract NewToken is NilTokenBase {}
+```
+
+`NilTokenBase.sol` provides internal methods for burning, minting and sending tokens, as well as [**`onlyExternal` wrappers**](../../tools/sol-library/func-modifiers.mdx) over these methods. 
+
+Here is a basic implementation of an NFT contract inheriting from `NilTokenBase.sol`:
+
+```solidity showLineNumbers file=../../../tests/NFT.sol start=startContract end=endContract
+```
+
+The contract uses the `openzeppelin/Ownable.sol` contract to manage NFT ownership. It also overrides `onlyExternal` methods from `NilTokenBase.sol` to ensure that no one can burn or mint the NFT. 
 
 ## Example
 

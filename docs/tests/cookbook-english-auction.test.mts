@@ -76,7 +76,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
         faucetEndpoint: FAUCET_ENDPOINT,
       });
 
-      const gasPrice = await client.getGasPrice(1);
+      const gasPrice = await client.getGasPrice();
 
       const { address: addressNFT, hash: hashNFT } = await smartAccount.deployContract({
         salt: SALT,
@@ -115,6 +115,18 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
       expect(codeAuction.length).toBeGreaterThan(10);
 
       //startStartAuction
+      const changeOwnershipHash = await smartAccount.sendTransaction({
+        to: addressNFT,
+        feeCredit: 500_000n * gasPrice,
+        data: encodeFunctionData({
+          abi: NFT_ABI,
+          functionName: "changeOwnershipToAuction",
+          args: [addressAuction],
+        }),
+      });
+
+      const receiptsOwnership = await waitTillCompleted(client, changeOwnershipHash);
+
       const startAuctionHash = await smartAccount.sendTransaction({
         to: addressAuction,
         feeCredit: 1_000_000n * gasPrice,
@@ -128,7 +140,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
       const receiptsStart = await waitTillCompleted(client, startAuctionHash);
 
       //endStartAuction
-
+      expect(receiptsOwnership.some((receipt) => !receipt.success)).toBe(false);
       expect(receiptsStart.some((receipt) => !receipt.success)).toBe(false);
 
       //startBid
