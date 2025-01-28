@@ -36,7 +36,7 @@ type Aggregator struct {
 	batchCommitter batches.BatchCommitter
 	timer          common.Timer
 	metrics        AggregatorMetrics
-	pollingDelay   time.Duration
+	workerAction   *concurrent.Suspendable
 }
 
 func NewAggregator(
@@ -48,7 +48,7 @@ func NewAggregator(
 	metrics AggregatorMetrics,
 	pollingDelay time.Duration,
 ) *Aggregator {
-	agg := &Aggregator{
+	aggregator := &Aggregator{
 		rpcClient:    rpcClient,
 		blockStorage: blockStorage,
 		taskStorage:  taskStorage,
@@ -59,40 +59,67 @@ func NewAggregator(
 			logger,
 			batches.DefaultCommitOptions(),
 		),
-		timer:        timer,
-		metrics:      metrics,
-		pollingDelay: pollingDelay,
+		timer:   timer,
+		metrics: metrics,
 	}
 
-	agg.logger = srv.LoggerWithWorkerName(logger, agg.Name())
-	return agg
+	aggregator.workerAction = concurrent.NewSuspendable(aggregator.runOnce, pollingDelay)
+	aggregator.logger = srv.LoggerWithWorkerName(logger, aggregator.Name())
+	return aggregator
 }
 
-func (*Aggregator) Name() string {
+func (agg *Aggregator) Name() string {
 	return "aggregator"
 }
 
 func (agg *Aggregator) Run(ctx context.Context) error {
 	agg.logger.Info().Msg("starting blocks fetching")
 
-	concurrent.RunTickerLoop(ctx, agg.pollingDelay,
-		func(ctx context.Context) {
-			err := agg.processNewBlocks(ctx)
+	err := agg.workerAction.Run(ctx)
 
-			if errors.Is(err, types.ErrBatchNotReady) {
-				agg.logger.Warn().Err(err).Msg("received unready block batch, skipping")
-				return
-			}
+	if err == nil || errors.Is(err, context.Canceled) {
+		agg.logger.Info().Msg("blocks fetching stopped")
+	} else {
+		agg.logger.Error().Err(err).Msg("error running aggregator, stopped")
+	}
 
-			if err != nil {
-				agg.logger.Error().Err(err).Msg("error during processing new blocks")
-				agg.metrics.RecordError(ctx, agg.Name())
-			}
-		},
-	)
+	return err
+}
 
-	agg.logger.Info().Msg("blocks fetching stopped")
+func (agg *Aggregator) Pause(ctx context.Context) error {
+	paused, err := agg.workerAction.Pause(ctx)
+	if err != nil {
+		return err
+	}
+	if paused {
+		agg.logger.Info().Msg("blocks fetching paused")
+	}
 	return nil
+}
+
+func (agg *Aggregator) Resume(ctx context.Context) error {
+	resumed, err := agg.workerAction.Resume(ctx)
+	if err != nil {
+		return err
+	}
+	if resumed {
+		agg.logger.Info().Msg("blocks fetching resumed")
+	}
+	return nil
+}
+
+func (agg *Aggregator) runOnce(ctx context.Context) {
+	err := agg.processNewBlocks(ctx)
+
+	if errors.Is(err, types.ErrBatchNotReady) {
+		agg.logger.Warn().Err(err).Msg("received unready block batch, skipping")
+		return
+	}
+
+	if err != nil {
+		agg.logger.Error().Err(err).Msg("error during processing new blocks")
+		agg.metrics.RecordError(ctx, agg.Name())
+	}
 }
 
 // processNewBlocks fetches and processes new blocks for all shards.
