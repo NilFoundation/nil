@@ -22,6 +22,7 @@
   "devDependencies": {
     "@oclif/test": "^4",
     "@types/fs-extra": "^11.0.4",
+    "@types/ini": "^4.1.1",
     "@types/node": "^18",
     "oclif": "^4",
     "ts-node": "^10",
@@ -62,7 +63,7 @@
   "repository": "nil-blockchain/clijs",
   "scripts": {
     "build": "rimraf dist && npx tsc -b",
-    "bundle": "rimraf dist && node ./bin/bundle.js",
+    "bundle": "rimraf dist && npx tsc -b && node ./bin/bundle.js",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "postpack": "rimraf oclif.manifest.json",

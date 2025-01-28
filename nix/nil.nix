@@ -55,6 +55,9 @@ buildGo123Module rec {
   postInstall = ''
     mkdir -p $out/share/doc/nil
     cp openrpc.json $out/share/doc/nil
+
+    mkdir -p $out/contracts/compiled
+    cp -R nil/contracts/compiled $out/contracts/
   '';
 
   env.CGO_ENABLED = if enableRaceDetector then 1 else 0;
