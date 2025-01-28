@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/config"
@@ -225,6 +226,12 @@ func (g *BlockGenerator) prepareExecutionState(proposal *Proposal, counters *Blo
 		if txn.IsExecution() {
 			counters.ExecTransactions++
 		}
+
+		var txnHash common.Hash
+		if assert.Enable {
+			txnHash = txn.Hash()
+		}
+
 		g.executionState.AddInTransaction(txn)
 		if txn.IsInternal() {
 			res = g.handleInternalInTransaction(txn)
@@ -233,6 +240,11 @@ func (g *BlockGenerator) prepareExecutionState(proposal *Proposal, counters *Blo
 			res = g.handleExternalTransaction(txn)
 			counters.ExternalTransactions++
 		}
+
+		if assert.Enable {
+			check.PanicIfNotf(txnHash == txn.Hash(), "Transaction hash changed during execution")
+		}
+
 		if res.FatalError != nil {
 			return res.FatalError
 		}

@@ -155,8 +155,9 @@ func (suite *SuiteExecutionState) TestDeployAndCall() {
 	})
 
 	suite.Run("Execute", func() {
-		res := es.handleExecutionTransaction(suite.ctx, NewExecutionTransaction(addrSmartAccount, addrSmartAccount, 1,
-			contracts.NewCounterAddCallData(suite.T(), 47)))
+		txn := NewExecutionTransaction(addrSmartAccount, addrSmartAccount, 1,
+			contracts.NewCounterAddCallData(suite.T(), 47))
+		res := es.HandleTransaction(suite.ctx, txn, dummyPayer{})
 		suite.Require().False(res.Failed())
 
 		seqno, err := es.GetSeqno(addrSmartAccount)
@@ -398,7 +399,7 @@ func (suite *SuiteExecutionState) TestTransactionStatus() {
 		txn.Seqno = 1
 		txn.FeeCredit = toGasCredit(0)
 		txn.From = counterAddr
-		res := es.handleExecutionTransaction(suite.ctx, txn)
+		res := es.HandleTransaction(suite.ctx, txn, dummyPayer{})
 		suite.Equal(types.ErrorOutOfGas, res.Error.Code())
 		suite.Require().ErrorAs(res.Error, &vmErrStub)
 	})
@@ -410,7 +411,8 @@ func (suite *SuiteExecutionState) TestTransactionStatus() {
 		txn.Seqno = 1
 		txn.FeeCredit = toGasCredit(1_000_000)
 		txn.From = counterAddr
-		res := es.handleExecutionTransaction(suite.ctx, txn)
+		res := es.HandleTransaction(suite.ctx, txn, dummyPayer{})
+		fmt.Println(res.Error.Error())
 		suite.Equal(types.ErrorExecutionReverted, res.Error.Code())
 		suite.Require().ErrorAs(res.Error, &vmErrStub)
 	})
@@ -423,7 +425,7 @@ func (suite *SuiteExecutionState) TestTransactionStatus() {
 		txn.Seqno = 1
 		txn.FeeCredit = toGasCredit(100_000)
 		txn.From = faucetAddr
-		res := es.handleExecutionTransaction(suite.ctx, txn)
+		res := es.HandleTransaction(suite.ctx, txn, dummyPayer{})
 		suite.Equal(types.ErrorMessageToMainShard, res.Error.Code())
 		suite.Require().ErrorAs(res.Error, &vmErrStub)
 	})
@@ -480,7 +482,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		txn.Data, err = abi.Pack("testAsyncCall", testAddr, types.EmptyAddress, types.EmptyAddress, big.NewInt(0),
 			uint8(types.ForwardKindNone), big.NewInt(0), []byte{})
 		suite.Require().NoError(err)
-		res := es.handleExecutionTransaction(suite.ctx, txn)
+		res := es.HandleTransaction(suite.ctx, txn, dummyPayer{})
 		suite.False(res.Failed())
 	})
 
@@ -489,7 +491,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 			uint8(types.ForwardKindNone), big.NewInt(0), []byte{1, 2, 3, 4})
 		suite.Require().NoError(err)
 
-		res := es.handleExecutionTransaction(suite.ctx, txn)
+		res := es.HandleTransaction(suite.ctx, txn, dummyPayer{})
 		suite.True(res.Failed())
 		suite.Equal(types.ErrorMessageToMainShard, res.Error.Code())
 	})
@@ -498,7 +500,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		txn.Data, err = abi.Pack("testAsyncCall", testAddr, types.EmptyAddress, types.EmptyAddress, big.NewInt(0),
 			uint8(types.ForwardKindNone), big.NewInt(1_000_000_000_000_000), []byte{1, 2, 3, 4})
 		suite.Require().NoError(err)
-		res := es.handleExecutionTransaction(suite.ctx, txn)
+		res := es.HandleTransaction(suite.ctx, txn, dummyPayer{})
 		suite.True(res.Failed())
 		suite.Equal(types.ErrorInsufficientBalance, res.Error.Code())
 	})
@@ -510,7 +512,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 	suite.Run("testSendRawTxn: invalid transaction", func() {
 		txn.Data, err = abi.Pack("testSendRawTxn", []byte{1, 2})
 		suite.Require().NoError(err)
-		res := es.handleExecutionTransaction(suite.ctx, txn)
+		res := es.HandleTransaction(suite.ctx, txn, dummyPayer{})
 		suite.True(res.Failed())
 		suite.Equal(types.ErrorInvalidTransactionInputUnmarshalFailed, res.Error.Code())
 	})
@@ -521,7 +523,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		suite.Require().NoError(err)
 		txn.Data, err = abi.Pack("testSendRawTxn", data)
 		suite.Require().NoError(err)
-		res := es.handleExecutionTransaction(suite.ctx, txn)
+		res := es.HandleTransaction(suite.ctx, txn, dummyPayer{})
 		suite.True(res.Failed())
 		suite.Equal(types.ErrorMessageToMainShard, res.Error.Code())
 		payload.To = testAddr
@@ -533,7 +535,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		suite.Require().NoError(err)
 		txn.Data, err = abi.Pack("testSendRawTxn", data)
 		suite.Require().NoError(err)
-		res := es.handleExecutionTransaction(suite.ctx, txn)
+		res := es.HandleTransaction(suite.ctx, txn, dummyPayer{})
 		suite.True(res.Failed())
 		suite.Equal(types.ErrorInsufficientBalance, res.Error.Code())
 	})
@@ -546,7 +548,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		suite.Require().NoError(err)
 		txn.Data, err = abi.Pack("testSendRawTxn", data)
 		suite.Require().NoError(err)
-		res := es.handleExecutionTransaction(suite.ctx, txn)
+		res := es.HandleTransaction(suite.ctx, txn, dummyPayer{})
 		suite.True(res.Failed())
 		suite.Equal(types.ErrorInsufficientBalance, res.Error.Code())
 	})
@@ -555,7 +557,7 @@ func (suite *SuiteExecutionState) TestPrecompiles() {
 		txn.Data, err = abi.Pack("testTokenBalance", types.GenerateRandomAddress(0),
 			types.TokenId(types.HexToAddress("0x0a")))
 		suite.Require().NoError(err)
-		res := es.handleExecutionTransaction(suite.ctx, txn)
+		res := es.HandleTransaction(suite.ctx, txn, dummyPayer{})
 		suite.True(res.Failed())
 		suite.Equal(types.ErrorCrossShardTransaction, res.Error.Code())
 	})

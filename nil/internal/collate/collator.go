@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/assert"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -150,8 +152,12 @@ func (c *collator) fetchLastBlockHashes() error {
 }
 
 func (c *collator) handleTransaction(txn *types.Transaction, payer execution.Payer) error {
-	// The transaction may be modified during execution, so we need to copy it.
-	txn = common.CopyPtr(txn)
+	if assert.Enable {
+		txnHash := txn.Hash()
+		defer func() {
+			check.PanicIfNotf(txnHash == txn.Hash(), "Transaction hash changed during execution")
+		}()
+	}
 
 	c.executionState.AddInTransaction(txn)
 

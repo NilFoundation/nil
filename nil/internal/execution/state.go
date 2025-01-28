@@ -104,6 +104,10 @@ type ExecutionState struct {
 	wasSentRequest bool
 
 	configAccessor config.ConfigAccessor
+
+	// txnFeeCredit holds the total fee credit for the inbound transaction. It can be changed during execution, thus we
+	// use this separate variable instead of the one in the transaction.
+	txnFeeCredit types.Value
 }
 
 type ExecutionResult struct {
@@ -880,7 +884,7 @@ func (es *ExecutionState) sendBounceTransaction(txn *types.Transaction, execResu
 	}
 
 	check.PanicIfNotf(execResult.CoinsForwarded.IsZero(), "CoinsForwarded should be zero when sending bounce transaction")
-	toReturn := txn.FeeCredit.Sub(execResult.CoinsUsed())
+	toReturn := es.txnFeeCredit.Sub(execResult.CoinsUsed())
 
 	bounceTxn := &types.InternalTransactionPayload{
 		Bounce:    true,
@@ -954,6 +958,8 @@ func (es *ExecutionState) HandleTransaction(ctx context.Context, txn *types.Tran
 		}
 	}()
 
+	es.txnFeeCredit = txn.FeeCredit
+
 	if err := buyGas(payer, txn); err != nil {
 		return NewExecutionResult().SetError(types.KeepOrWrapError(types.ErrorBuyGas, err))
 	}
@@ -1011,7 +1017,7 @@ func (es *ExecutionState) HandleTransaction(ctx context.Context, txn *types.Tran
 			}
 		}
 	} else {
-		availableGas := txn.FeeCredit.Sub(res.CoinsUsed())
+		availableGas := es.txnFeeCredit.Sub(res.CoinsUsed())
 		var err error
 		if res.CoinsForwarded, err = es.CalculateGasForwarding(availableGas); err != nil {
 			es.RevertToSnapshot(es.revertId)
@@ -1020,7 +1026,7 @@ func (es *ExecutionState) HandleTransaction(ctx context.Context, txn *types.Tran
 	}
 	// Gas is already refunded with the bounce transaction
 	if !bounced {
-		leftOverCredit := res.GetLeftOverValue(txn.FeeCredit)
+		leftOverCredit := res.GetLeftOverValue(es.txnFeeCredit)
 		if txn.RefundTo == txn.To {
 			acc, err := es.GetAccount(txn.To)
 			check.PanicIfErr(err)
@@ -1091,7 +1097,7 @@ func (es *ExecutionState) TryProcessResponse(transaction *types.Transaction) ([]
 		return nil, nil, NewExecutionResult().SetFatal(fmt.Errorf("AsyncResponsePayload unmarshal failed: %w", err))
 	}
 
-	transaction.FeeCredit = transaction.FeeCredit.Add(asyncContext.ResponseProcessingGas.ToValue(es.GasPrice))
+	es.txnFeeCredit = es.txnFeeCredit.Add(asyncContext.ResponseProcessingGas.ToValue(es.GasPrice))
 
 	if asyncContext.IsAwait {
 		// Restore VM state from the context
@@ -1160,7 +1166,7 @@ func (es *ExecutionState) handleExecutionTransaction(_ context.Context, transact
 	es.revertId = es.Snapshot()
 
 	es.evm.SetTokenTransfer(transaction.Token)
-	gas := transaction.FeeCredit.ToGas(es.GasPrice)
+	gas := es.txnFeeCredit.ToGas(es.GasPrice)
 	ret, leftOver, err := es.evm.Call(caller, addr, callData, gas.Uint64(), transaction.Value.Int())
 
 	return NewExecutionResult().
@@ -1403,9 +1409,9 @@ func (es *ExecutionState) CalculateGasForwarding(initialAvailValue types.Value) 
 	for _, txn := range es.OutTransactions[es.InTransactionHash] {
 		switch txn.ForwardKind {
 		case types.ForwardKindValue:
-			diff, overflow := availValue.SubOverflow(txn.Transaction.FeeCredit)
+			diff, overflow := availValue.SubOverflow(txn.FeeCredit)
 			if overflow {
-				err := fmt.Errorf("not enough credit for ForwardKindValue: %v < %v", availValue, txn.Transaction.FeeCredit)
+				err := fmt.Errorf("not enough credit for ForwardKindValue: %v < %v", availValue, txn.FeeCredit)
 				return types.NewZeroValue(), err
 			}
 			availValue = diff
@@ -1430,7 +1436,7 @@ func (es *ExecutionState) CalculateGasForwarding(initialAvailValue types.Value) 
 			}
 			txn.FeeCredit = availValue0.Mul(txn.FeeCredit).Div(types.NewValueFromUint64(100))
 
-			availValue, overflow = availValue.SubOverflow(txn.Transaction.FeeCredit)
+			availValue, overflow = availValue.SubOverflow(txn.FeeCredit)
 			if overflow {
 				return types.NewZeroValue(), errors.New("sum of percentage is more than 100")
 			}

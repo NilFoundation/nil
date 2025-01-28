@@ -165,7 +165,6 @@ func (s *Scheduler) VerifyProposal(ctx context.Context, proposal *execution.Prop
 	}
 	defer gen.Rollback()
 
-	// NB: the proposal may be modified
 	res, err := gen.BuildBlock(proposal, s.logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate block: %w", err)
@@ -180,7 +179,6 @@ func (s *Scheduler) InsertProposal(ctx context.Context, proposal *execution.Prop
 	}
 	defer gen.Rollback()
 
-	// NB: the proposal may be modified
 	res, err := gen.GenerateBlock(proposal, s.logger, sig)
 	if err != nil {
 		return fmt.Errorf("failed to generate block: %w", err)
