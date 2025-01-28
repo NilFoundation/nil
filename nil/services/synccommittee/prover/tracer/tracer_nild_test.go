@@ -49,7 +49,7 @@ func (s *TracerNildTestSuite) waitTwoBlocks() {
 
 func (s *TracerNildTestSuite) SetupSuite() {
 	nilserviceCfg := &nilservice.Config{
-		NShards:              5,
+		NShards:              3,
 		HttpUrl:              rpctest.GetSockPath(s.T()),
 		Topology:             collate.TrivialShardTopologyId,
 		CollatorTickPeriodMs: 100,
