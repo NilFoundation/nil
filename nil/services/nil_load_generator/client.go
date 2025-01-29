@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/NilFoundation/nil/nil/common"
 	"io"
 	"net/http"
 	"sync/atomic"
@@ -92,6 +93,18 @@ func (c *Client) GetSmartAccountsAddr() ([]types.Address, error) {
 	var res []types.Address
 	if err := json.Unmarshal(response, &res); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+	return res, nil
+}
+
+func (c *Client) CallSwap(pairShard types.ShardId, amountOut1, amountOut2, swapAmount uint64) (common.Hash, error) {
+	response, err := c.sendRequest("nilloadgen_callSwap", []any{pairShard, amountOut1, amountOut2, swapAmount})
+	if err != nil {
+		return common.EmptyHash, err
+	}
+	var res common.Hash
+	if err := json.Unmarshal(response, &res); err != nil {
+		return common.EmptyHash, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 	return res, nil
 }

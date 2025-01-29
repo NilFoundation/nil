@@ -178,7 +178,7 @@ func (s *SuiteFaucet) TestTopUpTokenViaFaucet() {
 	s.Require().True(receipt.Success)
 
 	value := types.NewValueFromUint64(1000)
-	faucetsAddr := []types.Address{types.EthFaucetAddress, types.UsdtFaucetAddress, types.BtcFaucetAddress}
+	faucetsAddr := []types.Address{types.EthFaucetAddress, types.UsdtFaucetAddress, types.BtcFaucetAddress, types.UsdcFaucetAddress}
 	for _, faucet := range faucetsAddr {
 		mshHash, err := s.faucetClient.TopUpViaFaucet(faucet, address, value)
 		s.Require().NoError(err)

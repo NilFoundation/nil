@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"os/signal"
-	"strconv"
 	"syscall"
 
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
@@ -41,6 +40,9 @@ const (
 )
 
 var smartAccounts []uniswap.SmartAccount
+var services []*cliservice.Service
+var pairs []*uniswap.Pair
+var client *rpc_client.Client
 
 func calculateOutputAmount(amountIn, reserveIn, reserveOut *big.Int) *big.Int {
 	feeMultiplier := big.NewInt(997)
@@ -149,7 +151,7 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 	}()
 
 	faucet := faucet.NewClient(cfg.FaucetEndpoint)
-	client := rpc_client.NewClient(cfg.Endpoint, logger)
+	client = rpc_client.NewClient(cfg.Endpoint, logger)
 	logging.SetupGlobalLogger(cfg.LogLevel)
 
 	service := cliservice.NewService(ctx, client, execution.MainPrivateKey, faucet)
@@ -159,7 +161,6 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 		return err
 	}
 	logger.Info().Msg("Creating smart accounts...")
-	var services []*cliservice.Service
 	smartAccounts, services, err = initializeSmartAccountsAndServices(ctx, shardIdList, client, service, faucet)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to initialize smart accounts and services")
@@ -174,19 +175,14 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 		return err
 	}
 
-	tokens := make([]*uniswap.Token, len(shardIdList)*2)
 	factories := make([]*uniswap.Factory, len(shardIdList))
-	pairs := make([]*uniswap.Pair, len(shardIdList))
+	pairs = make([]*uniswap.Pair, len(shardIdList))
+	token1 := types.UsdtFaucetAddress
+	token2 := types.EthFaucetAddress
 
 	if err := parallelizeAcrossN(len(shardIdList), func(i int) error {
-		logger.Info().Msgf("Deploying tokens on shard %v", shardIdList[i])
-
-		for j := range 2 {
-			token := uniswap.NewToken(contracts["Token"], "token"+strconv.Itoa(i*2+j), smartAccounts[i])
-			tokens[i*2+j] = token
-			if err := token.Deploy(services[i], smartAccounts[i]); err != nil {
-				return fmt.Errorf("failed to deploy token on shard %v: %w", shardIdList[i], err)
-			}
+		if i%2 == 0 {
+			token1 = types.UsdcFaucetAddress
 		}
 
 		logger.Info().Msgf("Deploying factory on shard %v", shardIdList[i])
@@ -196,18 +192,18 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 		}
 
 		logger.Info().Msgf("Creating pair on shard %v", shardIdList[i])
-		if err := factories[i].CreatePair(ctx, services[i], client, smartAccounts[i], tokens[i*2].Addr, tokens[i*2+1].Addr); err != nil {
+		if err := factories[i].CreatePair(ctx, services[i], client, smartAccounts[i], token1, token2); err != nil {
 			return fmt.Errorf("failed to create pair on shard %v: %w", shardIdList[i], err)
 		}
 
 		logger.Info().Msgf("Initializing pair on shard %v", shardIdList[i])
-		pairAddress, err := factories[i].GetPair(services[i], tokens[i*2].Addr, tokens[i*2+1].Addr)
+		pairAddress, err := factories[i].GetPair(services[i], token1, token2)
 		if err != nil {
 			return fmt.Errorf("failed to get pair on shard %v: %w", shardIdList[i], err)
 		}
 
 		pairs[i] = uniswap.NewPair(contracts["UniswapV2Pair"], pairAddress)
-		if err := pairs[i].Initialize(ctx, services[i], client, smartAccounts[i], tokens[i*2], tokens[i*2+1]); err != nil {
+		if err := pairs[i].Initialize(ctx, services[i], client, smartAccounts[i], token1, token2); err != nil {
 			return fmt.Errorf("failed to initialize pair on shard %v: %w", shardIdList[i], err)
 		}
 
@@ -227,7 +223,7 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 			if checkBalanceCounterDownInt == 0 {
 				checkBalanceCounterDownInt = int(cfg.CheckBalance)
 				logger.Info().Msg("Checking balance and minting tokens.")
-				err := uniswap.TopUpBalance(ctx, client, services, smartAccounts, tokens)
+				err := uniswap.TopUpBalance(services, smartAccounts)
 				if err != nil {
 					return err
 				}
@@ -238,8 +234,8 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 				return pairs[i].Mint(
 					ctx, services[i], client, smartAccounts[i], smartAccounts[i].Addr,
 					[]types.TokenBalance{
-						{Token: tokens[i*2].Id, Balance: types.NewValueFromUint64(mintToken0Amount)},
-						{Token: tokens[i*2+1].Id, Balance: types.NewValueFromUint64(mintToken1Amount)},
+						{Token: *types.TokenIdForAddress(token1), Balance: types.NewValueFromUint64(mintToken0Amount)},
+						{Token: *types.TokenIdForAddress(token2), Balance: types.NewValueFromUint64(mintToken1Amount)},
 					},
 				)
 			}); err != nil {
@@ -268,9 +264,9 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 						return err
 					}
 					expectedOutputAmount := calculateOutputAmount(big.NewInt(swapAmount), reserve0, reserve1)
-					logger.Info().Msgf("User: %v, Pair: %v, AmountSend: %d,  AmountGet: %d, TokenFrom: %s, TokenTo %s", whoWantSwap, whatPairHeWant, swapAmount, expectedOutputAmount, tokens[whatPairHeWant*2].Id, tokens[whatPairHeWant*2+1].Id)
+					logger.Info().Msgf("User: %v, Pair: %v, AmountSend: %d,  AmountGet: %d, TokenFrom: %s, TokenTo %s", whoWantSwap, whatPairHeWant, swapAmount, expectedOutputAmount, token1, token2)
 
-					if err = pairs[whatPairHeWant].Swap(ctx, services[whoWantSwap], client, smartAccounts[whoWantSwap], smartAccounts[whoWantSwap].Addr, big.NewInt(0), expectedOutputAmount, types.NewValueFromUint64(swapAmount), tokens[whatPairHeWant*2].Id); err != nil {
+					if _, err = pairs[whatPairHeWant].Swap(ctx, services[whoWantSwap], client, smartAccounts[whoWantSwap], smartAccounts[whoWantSwap].Addr, big.NewInt(0), expectedOutputAmount, types.NewValueFromUint64(swapAmount), *types.TokenIdForAddress(token1)); err != nil {
 						return err
 					}
 					return nil
