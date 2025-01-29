@@ -52,6 +52,8 @@ func (v *ValidatorKeysManager) generateKeys() error {
 	return nil
 }
 
+const filePermissions = 0o644
+
 func (v *ValidatorKeysManager) dumpKeys() error {
 	dumpedKeys := make(map[string]dumpedValidatorKey)
 	for i, key := range v.keys {
@@ -67,7 +69,7 @@ func (v *ValidatorKeysManager) dumpKeys() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(v.validatorKeysPath, data, 0o600)
+	return os.WriteFile(v.validatorKeysPath, data, filePermissions)
 }
 
 func (v *ValidatorKeysManager) loadKeys() error {

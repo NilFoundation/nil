@@ -127,12 +127,14 @@ func LoadKey(fileName string, km KeyManager) (Key, error) {
 	return km.LoadKey(data)
 }
 
+const filePermissions = 0o644
+
 func DumpKey(fileName string, key Key) error {
 	data, err := key.Dump()
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(fileName, data, 0o600)
+	return os.WriteFile(fileName, data, filePermissions)
 }
 
 func LoadOrGenerateKey(fileName string, km KeyManager) (Key, error) {
