@@ -191,7 +191,7 @@ func (s *SuiteFaucet) TestTopUpTokenViaFaucet() {
 	}
 	tokens, err := s.DefaultClient.GetTokens(s.Context, address, transport.LatestBlockNumber)
 	s.Require().NoError(err)
-	s.Require().Len(tokens, 3)
+	s.Require().Len(tokens, 4)
 	for _, faucet := range faucetsAddr {
 		curValue, ok := tokens[types.TokenId(faucet)]
 		s.Require().True(ok)
