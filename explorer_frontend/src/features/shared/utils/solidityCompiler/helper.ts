@@ -38,7 +38,10 @@ export const createCompileInput = (contractBody: string, options: any = {}): obj
       },
     },
     settings: {
-      metadata: { appendCBOR: false },
+      metadata: {
+        appendCBOR: false,
+        bytecodeHash: "none",
+      },
       debug: {
         debugInfo: ["location"],
       },
@@ -48,6 +51,10 @@ export const createCompileInput = (contractBody: string, options: any = {}): obj
         },
       },
       evmVersion: "cancun",
+      optimizer: {
+        enabled: false,
+        runs: 200,
+      },
       ...options,
     },
   };
