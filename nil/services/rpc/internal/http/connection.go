@@ -4,11 +4,14 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/NilFoundation/nil/nil/common/version"
 )
 
 const (
 	MaxRequestContentLength  = 1024 * 1024 * 32 // 32MB
-	minSupportedRevision     = 2437
+	currentHeight            = 36
+	minSupportedRevision     = version.BaseRevision + currentHeight
 	minSupportedNiljsVersion = "0.22.0"
 )
 
