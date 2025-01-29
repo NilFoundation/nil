@@ -19,11 +19,11 @@ func main() {
 		Short: "Run nil load generator",
 	}
 
-	rootCmd.Flags().StringVar(&cfg.Endpoint, "endpoint", "http://127.0.0.1:9123/", "rpc endpoint")
+	rootCmd.Flags().StringVar(&cfg.Endpoint, "endpoint", "http://127.0.0.1:8529/", "rpc endpoint")
 	rootCmd.Flags().StringVar(&cfg.OwnEndpoint, "own-endpoint", "tcp://127.0.0.1:8525", "own rpc endpoint")
 	rootCmd.Flags().StringVar(&cfg.FaucetEndpoint, "faucet-endpoint", "tcp://127.0.0.1:8527", "faucet rpc endpoint")
 	rootCmd.Flags().Uint32Var(&cfg.CheckBalance, "check-balance", 10, "frequency of balance check in iterations")
-	rootCmd.Flags().Uint32Var(&cfg.SwapPerIteration, "swap-per-iteration", 1, "amount of swaps per iteration")
+	rootCmd.Flags().Uint32Var(&cfg.SwapPerIteration, "swap-per-iteration", 10, "amount of swaps per iteration")
 	rootCmd.Flags().BoolVar(&cfg.Metrics, "metrics", false, "export metrics via grpc")
 	rootCmd.Flags().StringVar(&cfg.LogLevel, "log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
 
