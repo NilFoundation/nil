@@ -3,10 +3,10 @@ package contracts
 import (
 	"context"
 	"crypto/ecdsa"
-	"github.com/NilFoundation/nil/nil/common"
 	"strings"
 
 	"github.com/NilFoundation/nil/nil/client"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"

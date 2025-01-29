@@ -3,10 +3,10 @@ package contracts
 import (
 	"context"
 	"errors"
-	"github.com/NilFoundation/nil/nil/common"
 	"math/big"
 
 	"github.com/NilFoundation/nil/nil/client"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 )

@@ -177,10 +177,10 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 
 	factories := make([]*uniswap.Factory, len(shardIdList))
 	pairs = make([]*uniswap.Pair, len(shardIdList))
-	token1 := types.UsdtFaucetAddress
 	token2 := types.EthFaucetAddress
 
 	if err := parallelizeAcrossN(len(shardIdList), func(i int) error {
+		token1 := types.UsdtFaucetAddress
 		if i%2 == 0 {
 			token1 = types.UsdcFaucetAddress
 		}
@@ -231,6 +231,10 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 			checkBalanceCounterDownInt--
 			if err := parallelizeAcrossN(len(shardIdList), func(i int) error {
 				logger.Info().Msgf("Minting liqudity for smart account %s on shard %v", smartAccounts[i].Addr, shardIdList[i])
+				token1 := types.UsdtFaucetAddress
+				if i%2 == 0 {
+					token1 = types.UsdcFaucetAddress
+				}
 				return pairs[i].Mint(
 					ctx, services[i], client, smartAccounts[i], smartAccounts[i].Addr,
 					[]types.TokenBalance{
@@ -257,6 +261,10 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 					return err
 				}
 				if err := parallelizeAcrossN(int(numberCalls.Int64()), func(i int) error {
+					token1 := types.UsdtFaucetAddress
+					if i%2 == 0 {
+						token1 = types.UsdcFaucetAddress
+					}
 					whoWantSwap := smartAccountsToCall[i] - 1
 					whatPairHeWant := pairsToCall[i] - 1
 					reserve0, reserve1, err := pairs[whatPairHeWant].GetReserves(services[whoWantSwap])
