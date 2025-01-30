@@ -3,9 +3,10 @@ package nil_load_generator
 import (
 	"context"
 	"errors"
+	"math/big"
+	
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"math/big"
 )
 
 type NilLoadGeneratorAPI interface {
