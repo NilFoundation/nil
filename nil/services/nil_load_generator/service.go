@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 
 	rpc_client "github.com/NilFoundation/nil/nil/client/rpc"
@@ -44,6 +45,7 @@ var (
 	services      []*cliservice.Service
 	pairs         []*uniswap.Pair
 	client        *rpc_client.Client
+	isInitialized atomic.Bool
 )
 
 func calculateOutputAmount(amountIn, reserveIn, reserveOut *big.Int) *big.Int {
@@ -214,7 +216,7 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 		logger.Error().Err(err).Msg("Deployment and initialization error")
 		return err
 	}
-
+	isInitialized.Store(true)
 	logger.Info().Msg("Starting main loop.")
 	checkBalanceCounterDownInt := 0
 	for {
