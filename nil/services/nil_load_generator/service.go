@@ -39,10 +39,12 @@ const (
 	swapAmount       = 1000
 )
 
-var smartAccounts []uniswap.SmartAccount
-var services []*cliservice.Service
-var pairs []*uniswap.Pair
-var client *rpc_client.Client
+var (
+	smartAccounts []uniswap.SmartAccount
+	services      []*cliservice.Service
+	pairs         []*uniswap.Pair
+	client        *rpc_client.Client
+)
 
 func calculateOutputAmount(amountIn, reserveIn, reserveOut *big.Int) *big.Int {
 	feeMultiplier := big.NewInt(997)
