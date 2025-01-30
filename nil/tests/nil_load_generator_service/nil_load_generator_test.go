@@ -86,6 +86,8 @@ func (s *NilLoadGeneratorRpc) TestSmartAccountBalanceModification() {
 				s.Require().NoError(err)
 				s.Require().Greater(smartAccountsBalance[i].Uint64(), newBalance.Uint64())
 			}
+			_, err := client.CallSwap(1, 0, 20, 100)
+			s.Require().NoError(err)
 			return
 		case <-ticker.C:
 			res, err := client.GetHealthCheck()

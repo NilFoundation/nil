@@ -50,9 +50,10 @@ func (s *FaucetRpc) TestSendToken() {
 		types.TokenId(types.EthFaucetAddress.Bytes()):  types.NewValueFromUint64(111),
 		types.TokenId(types.BtcFaucetAddress.Bytes()):  types.NewValueFromUint64(222),
 		types.TokenId(types.UsdtFaucetAddress.Bytes()): types.NewValueFromUint64(333),
+		types.TokenId(types.UsdcFaucetAddress.Bytes()): types.NewValueFromUint64(444),
 	}
 
-	for i, addr := range []types.Address{types.EthFaucetAddress, types.BtcFaucetAddress, types.UsdtFaucetAddress} {
+	for i, addr := range []types.Address{types.EthFaucetAddress, types.BtcFaucetAddress, types.UsdtFaucetAddress, types.UsdcFaucetAddress} {
 		amount := types.NewValueFromUint64(111 * uint64(i+1))
 		viaFaucet, err := s.client.TopUpViaFaucet(addr, types.MainSmartAccountAddress, amount)
 		s.Require().NoError(err)

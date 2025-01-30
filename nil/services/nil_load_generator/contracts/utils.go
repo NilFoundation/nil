@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/NilFoundation/nil/nil/client"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -54,17 +55,17 @@ func GetFromContract(service *cliservice.Service, abi abi.ABI, addr types.Addres
 	return abi.Unpack(name, data.Data)
 }
 
-func SendTransactionAndCheck(ctx context.Context, client client.Client, service *cliservice.Service, smartAccount SmartAccount, contract types.Address, calldata types.Code, tokens []types.TokenBalance) error {
+func SendTransactionAndCheck(ctx context.Context, client client.Client, service *cliservice.Service, smartAccount SmartAccount, contract types.Address, calldata types.Code, tokens []types.TokenBalance) (common.Hash, error) {
 	hash, err := client.SendTransactionViaSmartAccount(ctx, smartAccount.Addr, calldata,
 		types.NewZeroValue(), types.NewZeroValue(), tokens, contract, smartAccount.PrivateKey)
 	if err != nil {
-		return err
+		return common.EmptyHash, err
 	}
 	_, err = service.WaitForReceiptCommitted(hash)
 	if err != nil {
-		return err
+		return common.EmptyHash, err
 	}
-	return nil
+	return hash, nil
 }
 
 func DeployContract(service *cliservice.Service, smartAccount types.Address, code types.Code) (types.Address, error) {
@@ -79,19 +80,21 @@ func DeployContract(service *cliservice.Service, smartAccount types.Address, cod
 	return addr, nil
 }
 
-func TopUpBalance(ctx context.Context, client client.Client, services []*cliservice.Service, smartAccounts []SmartAccount, tokens []*Token) error {
+func TopUpBalance(services []*cliservice.Service, smartAccounts []SmartAccount) error {
 	const balanceThresholdAmount = uint64(1_000_000_000)
-	for i, token := range tokens {
-		if err := ensureBalance(services[i/2], token.Addr, balanceThresholdAmount); err != nil {
-			return err
-		}
-	}
-
 	for i, smartAccount := range smartAccounts {
-		if err := ensureBalance(services[i], smartAccount.Addr, balanceThresholdAmount); err != nil {
+		tkn, err := services[i].GetTokens(smartAccount.Addr)
+		if err != nil {
 			return err
 		}
-		if err := ensureSmartAccountTokens(ctx, client, services[i], smartAccount, tokens); err != nil {
+		for _, tokenAddr := range []types.Address{types.EthFaucetAddress, types.UsdcFaucetAddress, types.UsdtFaucetAddress} {
+			if v, ok := tkn[*types.TokenIdForAddress(tokenAddr)]; !ok || v.Cmp(types.NewValueFromUint64(balanceThresholdAmount)) < 0 {
+				if err := services[i].TopUpViaFaucet(tokenAddr, smartAccount.Addr, types.NewValueFromUint64(balanceThresholdAmount)); err != nil {
+					return err
+				}
+			}
+		}
+		if err := ensureBalance(services[i], smartAccount.Addr, balanceThresholdAmount); err != nil {
 			return err
 		}
 	}
@@ -106,24 +109,6 @@ func ensureBalance(service *cliservice.Service, addr types.Address, threshold ui
 	if balance.Uint64() < threshold {
 		if err := service.TopUpViaFaucet(types.FaucetAddress, addr, types.NewValueFromUint64(threshold)); err != nil {
 			return err
-		}
-	}
-	return nil
-}
-
-func ensureSmartAccountTokens(ctx context.Context, client client.Client, service *cliservice.Service, smartAccount SmartAccount, tokens []*Token) error {
-	const mintThresholdAmount = 100000
-	smartAccountToken, err := service.GetTokens(smartAccount.Addr)
-	if err != nil {
-		return err
-	}
-
-	for _, token := range tokens {
-		value, ok := smartAccountToken[token.Id]
-		if !ok || value.Cmp(types.NewValueFromUint64(mintThresholdAmount)) < 0 {
-			if err := token.MintAndSend(ctx, client, service, smartAccount.Addr, mintThresholdAmount); err != nil {
-				return err
-			}
 		}
 	}
 	return nil

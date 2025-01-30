@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/NilFoundation/nil/nil/client"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 )
@@ -24,12 +25,12 @@ func NewPair(contract Contract, addr types.Address) *Pair {
 	}
 }
 
-func (p *Pair) Initialize(ctx context.Context, service *cliservice.Service, client client.Client, smartAccount SmartAccount, token0, token1 *Token) error {
-	calldata, err := p.Abi.Pack("initialize", token0.Addr, token1.Addr)
+func (p *Pair) Initialize(ctx context.Context, service *cliservice.Service, client client.Client, smartAccount SmartAccount, token0, token1 types.Address) error {
+	calldata, err := p.Abi.Pack("initialize", token0, token1)
 	if err != nil {
 		return err
 	}
-	if err := SendTransactionAndCheck(ctx, client, service, smartAccount, p.Addr, calldata, []types.TokenBalance{}); err != nil {
+	if _, err := SendTransactionAndCheck(ctx, client, service, smartAccount, p.Addr, calldata, []types.TokenBalance{}); err != nil {
 		return err
 	}
 	return nil
@@ -77,23 +78,24 @@ func (p *Pair) Mint(ctx context.Context, service *cliservice.Service, client cli
 	if err != nil {
 		return err
 	}
-	if err := SendTransactionAndCheck(ctx, client, service, smartAccount, p.Addr, calldata, tokens); err != nil {
+	if _, err := SendTransactionAndCheck(ctx, client, service, smartAccount, p.Addr, calldata, tokens); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (p *Pair) Swap(ctx context.Context, service *cliservice.Service, client client.Client, smartAccount SmartAccount, smartAccountTo types.Address, inputAmount, outputAmount *big.Int, swapAmount types.Value, tokenId types.TokenId) error {
+func (p *Pair) Swap(ctx context.Context, service *cliservice.Service, client client.Client, smartAccount SmartAccount, smartAccountTo types.Address, inputAmount, outputAmount *big.Int, swapAmount types.Value, tokenId types.TokenId) (common.Hash, error) {
 	calldata, err := p.Abi.Pack("swap", inputAmount, outputAmount, smartAccountTo)
 	if err != nil {
-		return err
+		return common.EmptyHash, err
 	}
-	if err := SendTransactionAndCheck(ctx, client, service, smartAccount, p.Addr, calldata, []types.TokenBalance{
+	hash, err := SendTransactionAndCheck(ctx, client, service, smartAccount, p.Addr, calldata, []types.TokenBalance{
 		{Token: tokenId, Balance: swapAmount},
-	}); err != nil {
-		return err
+	})
+	if err != nil {
+		return common.EmptyHash, err
 	}
-	return nil
+	return hash, nil
 }
 
 func (p *Pair) Burn(ctx context.Context, service *cliservice.Service, client client.Client, smartAccount SmartAccount, smartAccountTo types.Address, lpAddress types.TokenId, burnAmount types.Value) error {
@@ -101,7 +103,7 @@ func (p *Pair) Burn(ctx context.Context, service *cliservice.Service, client cli
 	if err != nil {
 		return err
 	}
-	if err := SendTransactionAndCheck(ctx, client, service, smartAccount, p.Addr, calldata, []types.TokenBalance{
+	if _, err := SendTransactionAndCheck(ctx, client, service, smartAccount, p.Addr, calldata, []types.TokenBalance{
 		{Token: lpAddress, Balance: burnAmount},
 	}); err != nil {
 		return err

@@ -51,6 +51,10 @@ contracts:
   address: {{ .BtcFaucetAddress }}
   value: 100000000000000
   contract: FaucetToken
+- name: UsdcFaucet
+  address: {{ .UsdcFaucetAddress }}
+  value: 100000000000000
+  contract: FaucetToken
 `
 
 	DefaultZeroStateConfig, err = common.ParseTemplate(zerostate, map[string]interface{}{
@@ -61,6 +65,7 @@ contracts:
 		"EthFaucetAddress":        types.EthFaucetAddress.Hex(),
 		"UsdtFaucetAddress":       types.UsdtFaucetAddress.Hex(),
 		"BtcFaucetAddress":        types.BtcFaucetAddress.Hex(),
+		"UsdcFaucetAddress":       types.UsdcFaucetAddress.Hex(),
 	})
 	check.PanicIfErr(err)
 }

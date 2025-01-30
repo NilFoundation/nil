@@ -29,6 +29,7 @@ var (
 	EthFaucetAddress        = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111112")
 	UsdtFaucetAddress       = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111113")
 	BtcFaucetAddress        = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111114")
+	UsdcFaucetAddress       = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111115")
 )
 
 func GetTokenName(addr TokenId) string {
@@ -41,6 +42,8 @@ func GetTokenName(addr TokenId) string {
 		return "USDT"
 	case BtcFaucetAddress:
 		return "BTC"
+	case UsdcFaucetAddress:
+		return "USDC"
 	}
 	return ""
 }
@@ -48,6 +51,7 @@ func GetTokenName(addr TokenId) string {
 var tokens = map[string]Address{
 	"ETH":  EthFaucetAddress,
 	"USDT": UsdtFaucetAddress,
+	"USDC": UsdcFaucetAddress,
 	"BTC":  BtcFaucetAddress,
 	"NIL":  FaucetAddress,
 }
