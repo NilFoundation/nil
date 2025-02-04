@@ -19,7 +19,7 @@ const (
 	initialAdvertisementTimeout = time.Millisecond
 	tryAdvertiseTimeout         = time.Second * 30
 	connectToPeersTimeout       = time.Minute
-	findPeersTimeout            = time.Minute
+	findPeersTimeout            = time.Second * 5
 	defaultMaxPeers             = 50
 	discoveryPid                = ProtocolID("/nil/kad")
 )
@@ -124,20 +124,21 @@ func checkPeerCount(ctx context.Context, rd *routing.RoutingDiscovery, h host.Ho
 func findPeers(ctx context.Context, rd *routing.RoutingDiscovery, h host.Host, logger zerolog.Logger) {
 	logger.Debug().Msg("attempting to find DHT peers...")
 
+	ctx, cancel := context.WithTimeout(ctx, findPeersTimeout)
+	defer cancel()
 	peerCh, err := rd.FindPeers(ctx, string(discoveryPid))
 	if err != nil {
 		logger.Warn().Err(err).Msgf("failed to begin finding peers via DHT")
 		return
 	}
 
-	timer := time.NewTimer(findPeersTimeout)
-	defer timer.Stop()
-
 	for {
 		select {
-		case <-timer.C:
+		case <-ctx.Done():
+			logger.Debug().Msgf("findPeers: timer expired")
 			return
 		case peer := <-peerCh:
+			logger.Trace().Msgf("findPeers: received peer %s", peer.ID)
 			if peer.ID == h.ID() || peer.ID == "" {
 				continue
 			}
