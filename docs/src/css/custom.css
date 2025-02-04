@@ -333,7 +333,36 @@ nav ul li {
   font-size: 14px;
 }
 
-.toggleButton_node_modules-\@docusaurus-theme-classic-lib-theme-ColorModeToggle-styles-module:hover {
+.toggle_ki11 {
+  height: 36px !important;
+  border-radius: 5px !important;
+  position: relative;
+  flex-shrink: 0;
+  margin-left: 5px;
+  margin-right: 0.2rem;
+}
+
+.toggleButton_MMFG {
+  background-color: #eff0f2 !important;
+  position: relative;
+}
+
+@media (max-width: 1000px) {
+
+  .toggle_ki11 {
+    margin-right: 1.5rem;
+  }
+}
+
+@media (max-width: 600px) {
+
+  .toggle_ki11 {
+    display: none;
+  }
+}
+
+
+.toggleButton_MMFG:hover {
   background-color: #e5e5e5 !important;
 }
 
@@ -361,6 +390,12 @@ nav ul li {
 
 [data-theme="dark"] .DocSearch-Input {
   color: #fff !important;
+}
+
+.navbarSearchContainer_dCNk {
+  margin-left: 5px;
+  margin-right: 5px;
+  position: relative;
 }
 
 .navbar {

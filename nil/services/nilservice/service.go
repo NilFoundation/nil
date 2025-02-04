@@ -547,6 +547,7 @@ func createShards(
 
 			pools[shardId] = txnPool
 			funcs = append(funcs, func(ctx context.Context) error {
+				wgFetch.Wait() // wait for all syncers to avoid data race in the DB
 				if err := collator.Run(ctx, syncer, consensus); err != nil {
 					logger.Error().
 						Err(err).
