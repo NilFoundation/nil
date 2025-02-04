@@ -100,8 +100,8 @@ func (s *SyncCommitteeTestSuite) TestProcessingLoop() {
 
 	s.waitMainShardToProcess()
 
-	cancel() // to avoid waiting without reason
-	s.Require().NoError(<-errCh)
+	cancel()
+	s.Require().ErrorIs(<-errCh, context.Canceled)
 }
 
 func (s *SyncCommitteeTestSuite) TestRun() {
@@ -116,7 +116,7 @@ func (s *SyncCommitteeTestSuite) TestRun() {
 	s.waitMainShardToProcess()
 
 	cancel() // to avoid waiting without reason
-	s.Require().NoError(<-errCh)
+	s.Require().ErrorIs(<-errCh, context.Canceled)
 }
 
 func TestSyncCommitteeTestSuite(t *testing.T) {
