@@ -203,7 +203,7 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 		if err != nil {
 			return copyEvent{}, err
 		}
-		data := getDataOverflowSafe(code, src, size)
+		data := getFixedSizeDataSafe(code, src, size)
 
 		return newFinalizedCopyEvent(CopyEvent{
 			From: CopyParticipant{
@@ -234,7 +234,7 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 		if err != nil {
 			return copyEvent{}, err
 		}
-		data := getDataOverflowSafe(code, src, size)
+		data := getFixedSizeDataSafe(code, src, size)
 
 		return newFinalizedCopyEvent(CopyEvent{
 			From: CopyParticipant{
@@ -256,7 +256,7 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 			dst  = tCtx.stack.PopUint64()
 			src  = tCtx.stack.PopUint64()
 			size = tCtx.stack.PopUint64()
-			data = getDataOverflowSafe(tCtx.vmCtx.CallInput(), src, size)
+			data = getFixedSizeDataSafe(tCtx.vmCtx.CallInput(), src, size)
 		)
 
 		return newFinalizedCopyEvent(CopyEvent{
@@ -278,7 +278,7 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 		var (
 			src  = tCtx.stack.PopUint64()
 			size = tCtx.stack.PopUint64()
-			data = tCtx.vmCtx.MemoryData()[src : src+size]
+			data = getDataIfStartValid(tCtx.vmCtx.MemoryData(), src, size)
 		)
 
 		return newFinalizedCopyEvent(CopyEvent{
@@ -327,7 +327,7 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 			_    = tCtx.stack.Pop() // value
 			src  = tCtx.stack.PopUint64()
 			size = tCtx.stack.PopUint64()
-			data = tCtx.vmCtx.MemoryData()[src : src+size]
+			data = getDataIfStartValid(tCtx.vmCtx.MemoryData(), src, size)
 		)
 		return newCopyEventWithFinalizer(CopyEvent{
 			From: CopyParticipant{
@@ -352,7 +352,7 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 			_    = tCtx.stack.Pop() // value
 			src  = tCtx.stack.PopUint64()
 			size = tCtx.stack.PopUint64()
-			data = tCtx.vmCtx.MemoryData()[src : src+size]
+			data = getDataIfStartValid(tCtx.vmCtx.MemoryData(), src, size)
 		)
 
 		return newCopyEventWithFinalizer(CopyEvent{
@@ -382,7 +382,7 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 		var (
 			src  = tCtx.stack.PopUint64()
 			size = tCtx.stack.PopUint64()
-			data = tCtx.vmCtx.MemoryData()[src : src+size]
+			data = getDataIfStartValid(tCtx.vmCtx.MemoryData(), src, size)
 		)
 
 		return newCopyEventWithFinalizer(CopyEvent{
@@ -427,7 +427,7 @@ func newLogCopyEvent(tCtx copyEventTraceContext) (copyEvent, error) {
 		return newEmptyCopyEvent(), nil
 	}
 
-	data := tCtx.vmCtx.MemoryData()[src : src+size]
+	data := getDataIfStartValid(tCtx.vmCtx.MemoryData(), src, size)
 
 	return newFinalizedCopyEvent(CopyEvent{
 		From: CopyParticipant{
