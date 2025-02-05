@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/internal/vm"
 )
 
 var sharedLogger = logging.NewLogger("execution")
@@ -35,10 +36,10 @@ func (m dummyPayer) String() string {
 
 type transactionPayer struct {
 	transaction *types.Transaction
-	es          *ExecutionState
+	es          vm.StateDB
 }
 
-func NewTransactionPayer(transaction *types.Transaction, es *ExecutionState) transactionPayer {
+func NewTransactionPayer(transaction *types.Transaction, es vm.StateDB) transactionPayer {
 	return transactionPayer{
 		transaction: transaction,
 		es:          es,

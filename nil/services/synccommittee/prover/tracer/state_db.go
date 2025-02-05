@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -22,7 +23,6 @@ import (
 type TracerStateDB struct {
 	client           api.RpcClient
 	shardId          types.ShardId
-	shardBlockNumber types.BlockNumber
 	InTransactions   []*types.Transaction
 	blkContext       *vm.BlockContext
 	Traces           ExecutionTraces
@@ -31,12 +31,14 @@ type TracerStateDB struct {
 	AccountSparseMpt mpt.MerklePatriciaTrie
 	logger           zerolog.Logger
 	mptTracer        *mpttracer.MPTTracer // unlike others MPT tracer keeps its state between transactions
-
-	// gas price for current block
-	GasPrice types.Value
+	gasPrice         types.Value
+	refund           uint64
 
 	// Reinited for each transaction
 	txnTraceCtx *transactionTraceContext
+	// txnFeeCredit holds the total fee credit for the inbound transaction. It can be changed during execution in case
+	// of Response tx, thus we use this separate variable instead of the one in the transaction.
+	txnFeeCredit types.Value
 }
 
 var _ vm.StateDB = (*TracerStateDB)(nil)
@@ -158,7 +160,7 @@ func NewTracerStateDB(
 	aggTraces ExecutionTraces,
 	client api.RpcClient,
 	shardId types.ShardId,
-	shardBlockNumber types.BlockNumber,
+	prevBlockNumber types.BlockNumber,
 	blkContext *vm.BlockContext,
 	db db.DB,
 	logger zerolog.Logger,
@@ -169,13 +171,14 @@ func NewTracerStateDB(
 	}
 
 	return &TracerStateDB{
-		client:           client,
-		mptTracer:        mpttracer.New(client, shardBlockNumber, rwTx, shardId),
-		shardId:          shardId,
-		shardBlockNumber: shardBlockNumber,
-		blkContext:       blkContext,
-		Traces:           aggTraces,
-		logger:           logger,
+		client:     client,
+		mptTracer:  mpttracer.New(client, prevBlockNumber, rwTx, shardId),
+		shardId:    shardId,
+		blkContext: blkContext,
+		Traces:     aggTraces,
+		logger:     logger,
+
+		gasPrice: types.NewZeroValue(),
 	}, nil
 }
 
@@ -197,7 +200,7 @@ func (tsdb *TracerStateDB) getOrNewAccount(addr types.Address) (*execution.Accou
 }
 
 // OutTransactions don't requre handling, they are just included into block
-func (tsdb *TracerStateDB) HandleInTransaction(transaction *types.Transaction) (err error) {
+func (tsdb *TracerStateDB) HandleInTransaction(transaction *types.Transaction, payer execution.Payer) (err error) {
 	tsdb.logger.Trace().
 		Int64("seqno", int64(transaction.Seqno)).
 		Str("flags", transaction.Flags.String()).
@@ -222,26 +225,31 @@ func (tsdb *TracerStateDB) HandleInTransaction(transaction *types.Transaction) (
 		panic(r) // all unmanaged errors (runtime or explicit panic() calls) are rethrown from tracer with stack logging
 	}()
 
+	tsdb.txnFeeCredit = transaction.FeeCredit
+
+	tsdb.updateGasPrice(transaction)
+	buyGas(payer, transaction)
+
 	switch {
 	case transaction.IsRefund():
-		err = tsdb.HandleRefundTransaction(transaction)
+		err = tsdb.handleRefundTransaction(transaction)
 	case transaction.IsDeploy():
-		err = tsdb.HandleDeployTransaction(transaction)
+		err = tsdb.handleDeployTransaction(transaction)
 	case transaction.IsExecution():
-		err = tsdb.HandleExecutionTransaction(transaction)
+		err = tsdb.handleExecutionTransaction(transaction)
 	default:
 		err = fmt.Errorf("unknown transaction type: %+v", transaction)
 	}
 
 	tsdb.Stats.ProcessedInTxnsN++
-	return //nolint:nakedret
+	return err
 }
 
-func (tsdb *TracerStateDB) HandleRefundTransaction(transaction *types.Transaction) error {
+func (tsdb *TracerStateDB) handleRefundTransaction(transaction *types.Transaction) error {
 	return tsdb.AddBalance(transaction.To, transaction.Value, tracing.BalanceIncreaseRefund)
 }
 
-func (tsdb *TracerStateDB) HandleExecutionTransaction(transaction *types.Transaction) error {
+func (tsdb *TracerStateDB) handleExecutionTransaction(transaction *types.Transaction) error {
 	if transaction.IsResponse() {
 		return errors.New("Can't handle response yet")
 	}
@@ -263,7 +271,7 @@ func (tsdb *TracerStateDB) HandleExecutionTransaction(transaction *types.Transac
 	)
 	defer tsdb.resetTxnTrace()
 
-	gas := transaction.FeeCredit.ToGas(tsdb.GasPrice) // mb previous block, not current one?
+	gas := transaction.FeeCredit.ToGas(tsdb.gasPrice)
 	ret, gasLeft, err := tsdb.txnTraceCtx.evm.Call(caller, transaction.To, callData, gas.Uint64(), transaction.Value.Int())
 	_, _ = ret, gasLeft
 
@@ -274,7 +282,7 @@ func (tsdb *TracerStateDB) HandleExecutionTransaction(transaction *types.Transac
 	return tsdb.txnTraceCtx.saveTransactionTraces(tsdb.Traces)
 }
 
-func (tsdb *TracerStateDB) HandleDeployTransaction(transaction *types.Transaction) error {
+func (tsdb *TracerStateDB) handleDeployTransaction(transaction *types.Transaction) error {
 	addr := transaction.To
 	deployTxn := types.ParseDeployPayload(transaction.Data)
 
@@ -287,7 +295,7 @@ func (tsdb *TracerStateDB) HandleDeployTransaction(transaction *types.Transactio
 	)
 	defer tsdb.resetTxnTrace()
 
-	gas := transaction.FeeCredit.ToGas(tsdb.GasPrice)
+	gas := transaction.FeeCredit.ToGas(tsdb.gasPrice)
 	ret, addr, leftOver, err := tsdb.txnTraceCtx.evm.Deploy(addr, (vm.AccountRef)(transaction.From), deployTxn.Code(), gas.Uint64(), transaction.Value.Int())
 	if err != nil {
 		return err
@@ -310,7 +318,7 @@ func (tsdb *TracerStateDB) initTransactionTraceContext(
 	txnId := uint(len(tsdb.InTransactions) - 1)
 	codeHash := getCodeHash(executingCode)
 	txnTraceCtx := &transactionTraceContext{
-		evm:       vm.NewEVM(tsdb.blkContext, tsdb, origin, types.DefaultGasPrice, state),
+		evm:       vm.NewEVM(tsdb.blkContext, tsdb, origin, tsdb.gasPrice, state),
 		code:      executingCode,
 		codeHash:  codeHash,
 		rwCounter: &tsdb.RwCounter,
@@ -378,12 +386,29 @@ func (tsdb *TracerStateDB) GetTransactionFlags() types.TransactionFlags {
 	panic("not implemented")
 }
 
-func (tsdb *TracerStateDB) GetTokens(types.Address) map[types.TokenId]types.Value {
-	panic("not implemented")
+func (tsdb *TracerStateDB) GetTokens(addr types.Address) map[types.TokenId]types.Value {
+	acc, err := tsdb.mptTracer.GetAccount(addr)
+	check.PanicIfErr(err)
+	if acc == nil {
+		return nil
+	}
+
+	res := make(map[types.TokenId]types.Value)
+	for k, v := range acc.TokenTree.Iterate() {
+		var c types.TokenBalance
+		c.Token = types.TokenId(k)
+		if err := c.Balance.UnmarshalSSZ(v); err != nil {
+			tsdb.logger.Error().Err(err).Msg("failed to unmarshal token balance")
+			continue
+		}
+		res[c.Token] = c.Balance
+	}
+
+	return res
 }
 
 func (tsdb *TracerStateDB) GetGasPrice(types.ShardId) (types.Value, error) {
-	return types.Value{}, errors.New("not implemented")
+	return tsdb.gasPrice, nil
 }
 
 // Write methods
@@ -431,16 +456,65 @@ func (tsdb *TracerStateDB) GetBalance(addr types.Address) (types.Value, error) {
 	return acc.Balance, nil
 }
 
-func (tsdb *TracerStateDB) AddToken(to types.Address, tokenId types.TokenId, amount types.Value) error {
-	panic("not implemented")
+func (tsdb *TracerStateDB) AddToken(addr types.Address, tokenId types.TokenId, amount types.Value) error {
+	tsdb.logger.Debug().
+		Stringer("addr", addr).
+		Stringer("amount", amount).
+		Stringer("id", tokenId).
+		Msg("Add token")
+
+	acc, err := tsdb.mptTracer.GetAccount(addr)
+	if err != nil {
+		return err
+	}
+	if acc == nil {
+		return fmt.Errorf("destination account %v not found", addr)
+	}
+
+	balance := acc.GetTokenBalance(tokenId)
+	if balance == nil {
+		balance = &types.Value{}
+	}
+	newBalance := balance.Add(amount)
+	// Amount can be negative(token burning). So, if the new balance is negative, set it to 0
+	if newBalance.Cmp(types.Value{}) < 0 {
+		newBalance = types.Value{}
+	}
+	acc.SetTokenBalance(tokenId, newBalance)
+
+	return nil
 }
 
-func (tsdb *TracerStateDB) SubToken(to types.Address, tokenId types.TokenId, amount types.Value) error {
-	panic("not implemented")
+func (tsdb *TracerStateDB) SubToken(addr types.Address, tokenId types.TokenId, amount types.Value) error {
+	tsdb.logger.Debug().
+		Stringer("addr", addr).
+		Stringer("amount", amount).
+		Stringer("id", tokenId).
+		Msg("Sub token")
+
+	acc, err := tsdb.mptTracer.GetAccount(addr)
+	if err != nil {
+		return err
+	}
+	if acc == nil {
+		return fmt.Errorf("destination account %v not found", addr)
+	}
+
+	balance := acc.GetTokenBalance(tokenId)
+	if balance == nil {
+		balance = &types.Value{}
+	}
+	if balance.Cmp(amount) < 0 {
+		return fmt.Errorf("%w: %s < %s, token %s",
+			vm.ErrInsufficientBalance, balance, amount, tokenId)
+	}
+	acc.SetTokenBalance(tokenId, balance.Sub(amount))
+
+	return nil
 }
 
-func (tsdb *TracerStateDB) SetTokenTransfer([]types.TokenBalance) {
-	panic("not implemented")
+func (tsdb *TracerStateDB) SetTokenTransfer(tokens []types.TokenBalance) {
+	tsdb.txnTraceCtx.evm.SetTokenTransfer(tokens)
 }
 
 func (tsdb *TracerStateDB) GetSeqno(addr types.Address) (types.Seqno, error) {
@@ -489,17 +563,18 @@ func (tsdb *TracerStateDB) SetCode(addr types.Address, code []byte) error {
 	return nil
 }
 
-func (tsdb *TracerStateDB) AddRefund(uint64) {
-	panic("not implemented")
+func (tsdb *TracerStateDB) AddRefund(gas uint64) {
+	tsdb.refund += gas
 }
 
-func (tsdb *TracerStateDB) SubRefund(uint64) {
-	panic("not implemented")
+func (tsdb *TracerStateDB) SubRefund(gas uint64) {
+	check.PanicIff(gas > tsdb.refund, "Refund counter below zero (gas: %d > refund: %d)", gas, tsdb.refund)
+	tsdb.refund -= gas
 }
 
 // GetRefund returns the current value of the refund counter.
 func (tsdb *TracerStateDB) GetRefund() uint64 {
-	panic("not implemented")
+	panic("unreachable") // Not used in ExecutionState for now
 }
 
 func (tsdb *TracerStateDB) GetCommittedState(addr types.Address, key common.Hash) common.Hash {
@@ -697,4 +772,16 @@ func (tsdb *TracerStateDB) FinalizeTraces() error {
 	tsdb.Traces.SetMptTraces(&mptTraces)
 	tsdb.Stats.AffectedContractsN = uint(len(mptTraces.ContractTrieTraces))
 	return nil
+}
+
+func (tsdb *TracerStateDB) updateGasPrice(txn *types.Transaction) {
+	tsdb.gasPrice = types.NewValueFromBigMust(tsdb.blkContext.BaseFee).Add(txn.MaxPriorityFeePerGas)
+
+	if tsdb.gasPrice.Cmp(txn.MaxFeePerGas) > 0 {
+		tsdb.gasPrice = txn.MaxFeePerGas
+	}
+}
+
+func buyGas(payer execution.Payer, transaction *types.Transaction) {
+	payer.SubBalance(transaction.FeeCredit)
 }

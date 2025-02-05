@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
@@ -81,9 +82,11 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 
 	blkContext := &vm.BlockContext{
 		GetHash:     getHashFunc,
-		BlockNumber: prevBlock.Number.Uint64(),
+		BlockNumber: decodedDbgBlock.Id.Uint64(),
 		Random:      &common.EmptyHash,
-		BaseFee:     big.NewInt(10),
+		BaseFee:     decodedDbgBlock.BaseFee.ToBig(),
+		// TODO: adjust when `NewEVMBlockContext` uses non-hardcoded 10 value.
+		// Seems like we need to include this into API Block response.
 		BlobBaseFee: big.NewInt(10),
 		Time:        decodedDbgBlock.Timestamp,
 	}
@@ -98,7 +101,6 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 		return err
 	}
 
-	stateDB.GasPrice = decodedDbgBlock.BaseFee
 	for _, inTxn := range decodedDbgBlock.InTransactions {
 		_, txnHadErr := decodedDbgBlock.Errors[inTxn.Hash()]
 		if txnHadErr {
@@ -110,7 +112,7 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 		}
 
 		stateDB.AddInTransaction(inTxn)
-		if err := stateDB.HandleInTransaction(inTxn); err != nil { //nolint:contextcheck
+		if err := stateDB.HandleInTransaction(inTxn, execution.NewTransactionPayer(inTxn, stateDB)); err != nil { //nolint:contextcheck
 			return err
 		}
 	}
