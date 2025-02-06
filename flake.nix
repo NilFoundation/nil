@@ -43,6 +43,7 @@
           uniswap = (pkgs.callPackage ./nix/uniswap.nix { });
           docsaibackend = (pkgs.callPackage ./nix/docsaibackend.nix { });
           l1-contracts = (pkgs.callPackage ./nix/l1-contracts.nix { });
+          docstutorialsservice = (pkgs.callPackage ./nix/docstutorialsservice.nix { });
         };
         checks = rec {
           nil = (pkgs.callPackage ./nix/nil.nix {

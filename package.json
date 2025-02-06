@@ -11,7 +11,8 @@
     "explorer_backend",
     "uniswap",
     "clijs",
-    "docs_ai_backend"
+    "docs_ai_backend",
+    "docs_interactive_tutorials_service"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
