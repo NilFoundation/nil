@@ -22,7 +22,7 @@ const createRPCClient = (endpoint: string, { signal }: RPCClientOptions = {}) =>
 
   const transport = new HTTPTransport(endpoint, {
     headers: {
-      "Client-Version": version,
+      "Client-Version": `niljs/${version}`,
     },
     fetcher,
   });
