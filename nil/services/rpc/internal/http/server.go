@@ -98,8 +98,9 @@ func (s *Server) validateRequest(r *http.Request) (int, error) {
 
 	// Niljs is supported by server
 	header := r.Header.Get(nilJsVersionHeader)
-	if header != "" {
-		version, err := semver.NewVersion(header)
+	parsedHeader := header[len(niljsClientVersionPrefix):]
+	if parsedHeader != "" {
+		version, err := semver.NewVersion(parsedHeader)
 		if err == nil {
 			if version.LessThan(parsedMinSupportedNiljsVersion) {
 				err := fmt.Errorf("specified niljs version %s, minimum supported is %s", version, minSupportedNiljsVersion)
