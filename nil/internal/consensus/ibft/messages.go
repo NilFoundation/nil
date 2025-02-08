@@ -9,6 +9,7 @@ import (
 func (i *backendIBFT) signMessage(msg *protoIBFT.IbftMessage) *protoIBFT.IbftMessage {
 	raw, err := proto.Marshal(msg)
 	if err != nil {
+		i.logger.Error().Err(err).Msg("failed to marshal message")
 		return nil
 	}
 
@@ -37,11 +38,13 @@ func (i *backendIBFT) BuildPrePrepareMessage(
 
 	proposal, err := i.unmarshalProposal(rawProposal)
 	if err != nil {
+		i.logger.Error().Err(err).Msg("failed to unmarshal proposal")
 		return nil
 	}
 
 	block, err := i.validator.VerifyProposal(i.ctx, proposal)
 	if err != nil {
+		i.logger.Error().Err(err).Msg("failed to verify proposal")
 		return nil
 	}
 
@@ -80,6 +83,7 @@ func (i *backendIBFT) BuildPrepareMessage(proposalHash []byte, view *protoIBFT.V
 func (i *backendIBFT) BuildCommitMessage(proposalHash []byte, view *protoIBFT.View) *protoIBFT.IbftMessage {
 	seal, err := i.signer.SignHash(proposalHash)
 	if err != nil {
+		i.logger.Error().Err(err).Msg("failed to sign proposal hash")
 		return nil
 	}
 

@@ -1,26 +1,89 @@
 package execution
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/sszx"
+	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
+
+type ParentBlock struct {
+	ShardId types.ShardId
+	Block   *types.Block
+
+	TxnTrie *TransactionTrie
+
+	txnTrieHolder mpt.InMemHolder
+}
+
+type ParentBlockSSZ struct {
+	ShardId       types.ShardId
+	TxnTrieHolder *sszx.MapHolder
+	Block         *types.Block
+}
+
+type InternalTxnReference struct {
+	ParentBlockIndex uint32
+	TxnIndex         types.TransactionIndex
+}
 
 type Proposal struct {
 	PrevBlockId   types.BlockNumber   `json:"prevBlockId"`
 	PrevBlockHash common.Hash         `json:"prevBlockHash"`
 	CollatorState types.CollatorState `json:"collatorState"`
 	MainChainHash common.Hash         `json:"mainChainHash"`
-	ShardHashes   []common.Hash       `json:"shardHashes" ssz-max:"4096"`
+	ShardHashes   []common.Hash       `json:"shardHashes"`
 
-	InternalTxns []*types.Transaction `json:"internalTxns" ssz-max:"4096"`
-	ExternalTxns []*types.Transaction `json:"externalTxns" ssz-max:"4096"`
-	ForwardTxns  []*types.Transaction `json:"forwardTxns" ssz-max:"4096"`
+	InternalTxns []*types.Transaction `json:"internalTxns"`
+	ExternalTxns []*types.Transaction `json:"externalTxns"`
+	ForwardTxns  []*types.Transaction `json:"forwardTxns"`
 }
 
-func NewEmptyProposal() *Proposal {
-	return &Proposal{}
+type ProposalSSZ struct {
+	PrevBlockId   types.BlockNumber
+	PrevBlockHash common.Hash
+	CollatorState types.CollatorState
+	MainChainHash common.Hash
+	ShardHashes   []common.Hash `ssz-max:"4096"`
+
+	ParentBlocks []*ParentBlockSSZ `ssz-max:"1024"`
+
+	InternalTxnRefs []*InternalTxnReference `ssz-max:"4096"`
+	ForwardTxnRefs  []*InternalTxnReference `ssz-max:"4096"`
+
+	ExternalTxns []*types.Transaction `ssz-max:"4096"`
+}
+
+func NewParentBlock(shardId types.ShardId, block *types.Block) *ParentBlock {
+	holder := mpt.NewInMemHolder()
+	return &ParentBlock{
+		ShardId:       shardId,
+		Block:         block,
+		TxnTrie:       NewTransactionTrie(mpt.NewMPTFromMap(holder)),
+		txnTrieHolder: holder,
+	}
+}
+
+func NewParentBlockFromSSZ(b *ParentBlockSSZ) *ParentBlock {
+	holder := mpt.InMemHolder(b.TxnTrieHolder.ToMap())
+	trie := NewTransactionTrie(mpt.NewMPTFromMap(holder))
+	trie.SetRootHash(b.Block.OutTransactionsRoot)
+	return &ParentBlock{
+		ShardId:       b.ShardId,
+		Block:         b.Block,
+		TxnTrie:       trie,
+		txnTrieHolder: holder,
+	}
+}
+
+func (pb *ParentBlock) ToSerializable() *ParentBlockSSZ {
+	return &ParentBlockSSZ{
+		Block:         pb.Block,
+		TxnTrieHolder: sszx.NewMapHolder(pb.txnTrieHolder),
+	}
 }
 
 func (p *Proposal) GetMainShardHash(shardId types.ShardId) *common.Hash {
@@ -52,4 +115,49 @@ func SplitOutTransactions(transactions []*types.Transaction, shardId types.Shard
 	return SplitTransactions(transactions, func(t *types.Transaction) bool {
 		return t.From.ShardId() == shardId
 	})
+}
+
+func ConvertTxnRefs(refs []*InternalTxnReference, parentBlocks []*ParentBlock) ([]*types.Transaction, error) {
+	res := make([]*types.Transaction, len(refs))
+	for i, ref := range refs {
+		if ref.ParentBlockIndex >= uint32(len(parentBlocks)) {
+			return nil, fmt.Errorf("invalid parent block index %d", ref.ParentBlockIndex)
+		}
+
+		pb := parentBlocks[ref.ParentBlockIndex]
+		txn, err := pb.TxnTrie.Fetch(ref.TxnIndex)
+		if err != nil {
+			return nil, fmt.Errorf("faulty transaction %d in block (%s, %s): %w", ref.TxnIndex, pb.ShardId, pb.Block.Id, err)
+		}
+		res[i] = txn
+	}
+	return res, nil
+}
+
+func ConvertProposal(proposal *ProposalSSZ) (*Proposal, error) {
+	parentBlocks := make([]*ParentBlock, len(proposal.ParentBlocks))
+	for i, pb := range proposal.ParentBlocks {
+		parentBlocks[i] = NewParentBlockFromSSZ(pb)
+	}
+
+	internalTxns, err := ConvertTxnRefs(proposal.InternalTxnRefs, parentBlocks)
+	if err != nil {
+		return nil, fmt.Errorf("invalid internal transactions: %w", err)
+	}
+	forwardTxns, err := ConvertTxnRefs(proposal.ForwardTxnRefs, parentBlocks)
+	if err != nil {
+		return nil, fmt.Errorf("invalid forward transactions: %w", err)
+	}
+
+	return &Proposal{
+		PrevBlockId:   proposal.PrevBlockId,
+		PrevBlockHash: proposal.PrevBlockHash,
+		CollatorState: proposal.CollatorState,
+		MainChainHash: proposal.MainChainHash,
+		ShardHashes:   proposal.ShardHashes,
+
+		InternalTxns: internalTxns,
+		ExternalTxns: proposal.ExternalTxns,
+		ForwardTxns:  forwardTxns,
+	}, nil
 }

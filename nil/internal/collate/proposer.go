@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
+	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/txnpool"
 	"github.com/rs/zerolog"
@@ -33,7 +34,7 @@ type proposer struct {
 
 	logger zerolog.Logger
 
-	proposal       *execution.Proposal
+	proposal       *execution.ProposalSSZ
 	executionState *execution.ExecutionState
 
 	ctx  context.Context
@@ -64,8 +65,8 @@ func newProposer(params Params, topology ShardTopology, pool TxnPool, logger zer
 	}
 }
 
-func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execution.Proposal, error) {
-	p.proposal = execution.NewEmptyProposal()
+func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execution.ProposalSSZ, error) {
+	p.proposal = &execution.ProposalSSZ{}
 
 	var err error
 	p.roTx, err = txFabric.CreateRoTx(ctx)
@@ -110,7 +111,7 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 	}
 
 	p.logger.Debug().Msgf("Collected %d internal, %d external (%d gas) and %d forward transactions",
-		len(p.proposal.InternalTxns), len(p.proposal.ExternalTxns), p.executionState.GasUsed, len(p.proposal.ForwardTxns))
+		len(p.proposal.InternalTxnRefs), len(p.proposal.ExternalTxns), p.executionState.GasUsed, len(p.proposal.ForwardTxnRefs))
 
 	return p.proposal, nil
 }
@@ -265,9 +266,11 @@ func (p *proposer) handleTransactionsFromNeighbors() error {
 
 	checkLimits := func() bool {
 		return p.executionState.GasUsed < p.params.MaxInternalGasInBlock &&
-			len(p.proposal.InternalTxns) < p.params.MaxInternalTransactionsInBlock &&
-			len(p.proposal.ForwardTxns) < p.params.MaxForwardTransactionsInBlock
+			len(p.proposal.InternalTxnRefs) < p.params.MaxInternalTransactionsInBlock &&
+			len(p.proposal.ForwardTxnRefs) < p.params.MaxForwardTransactionsInBlock
 	}
+
+	var parents []*execution.ParentBlock
 
 	for _, neighborId := range p.topology.GetNeighbors(p.params.ShardId, p.params.NShards, true) {
 		position, ok := neighborIndexes[neighborId]
@@ -303,6 +306,27 @@ func (p *proposer) handleTransactionsFromNeighbors() error {
 
 			outTxnTrie := execution.NewDbTransactionTrieReader(p.roTx, neighborId)
 			outTxnTrie.SetRootHash(block.OutTransactionsRoot)
+
+			saveProof := func() (*execution.InternalTxnReference, error) {
+				if len(parents) == 0 || parents[len(parents)-1].Block.Id != block.Id {
+					parents = append(parents, execution.NewParentBlock(neighborId, block))
+				}
+
+				blockIndex := uint32(len(parents) - 1)
+				proof, err := mpt.BuildProof(outTxnTrie.Reader, neighbor.TransactionIndex.Bytes(), mpt.ReadMPTOperation)
+				if err != nil {
+					return nil, err
+				}
+				if err := mpt.PopulateMptWithProof(parents[blockIndex].TxnTrie.MPT(), &proof); err != nil {
+					return nil, err
+				}
+
+				return &execution.InternalTxnReference{
+					ParentBlockIndex: blockIndex,
+					TxnIndex:         neighbor.TransactionIndex,
+				}, nil
+			}
+
 			for ; neighbor.TransactionIndex < block.OutTransactionsNum; neighbor.TransactionIndex++ {
 				txn, err := outTxnTrie.Fetch(neighbor.TransactionIndex)
 				if err != nil {
@@ -313,23 +337,34 @@ func (p *proposer) handleTransactionsFromNeighbors() error {
 					if err := execution.ValidateInternalTransaction(txn); err != nil {
 						p.logger.Warn().Err(err).Msg("Invalid internal transaction")
 					} else {
+						snapshot := p.executionState.Snapshot()
 						if err := p.handleTransaction(txn, execution.NewTransactionPayer(txn, p.executionState)); err != nil {
 							return err
 						}
 
 						if !checkLimits() {
+							p.executionState.RevertToSnapshot(snapshot)
+							p.executionState.DropInTransaction()
 							break
 						}
 					}
 
-					p.proposal.InternalTxns = append(p.proposal.InternalTxns, txn)
+					ref, err := saveProof()
+					if err != nil {
+						return err
+					}
+					p.proposal.InternalTxnRefs = append(p.proposal.InternalTxnRefs, ref)
 				} else if p.params.ShardId != neighborId {
 					if p.topology.ShouldPropagateTxn(neighborId, p.params.ShardId, txn.To.ShardId()) {
 						if !checkLimits() {
 							break
 						}
 
-						p.proposal.ForwardTxns = append(p.proposal.ForwardTxns, txn)
+						ref, err := saveProof()
+						if err != nil {
+							return err
+						}
+						p.proposal.ForwardTxnRefs = append(p.proposal.ForwardTxnRefs, ref)
 					}
 				}
 			}
@@ -341,8 +376,13 @@ func (p *proposer) handleTransactionsFromNeighbors() error {
 		}
 	}
 
-	p.logger.Debug().Msgf("Collected %d incoming transactions from neigbors with %d gas",
-		len(p.proposal.InternalTxns), p.executionState.GasUsed)
+	p.logger.Debug().Msgf("Collected %d incoming transactions from neigbors with %d gas and %d forward transactions",
+		len(p.proposal.InternalTxnRefs), p.executionState.GasUsed, len(p.proposal.ForwardTxnRefs))
+
+	p.proposal.ParentBlocks = make([]*execution.ParentBlockSSZ, len(parents))
+	for i, parent := range parents {
+		p.proposal.ParentBlocks[i] = parent.ToSerializable()
+	}
 
 	p.proposal.CollatorState = state
 	return nil

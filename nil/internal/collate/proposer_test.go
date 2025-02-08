@@ -92,10 +92,13 @@ func (s *ProposerTestSuite) TestCollator() {
 	gasPrice := p.params.GasBasePrice
 	shardId := p.params.ShardId
 
-	generateBlock := func() *execution.Proposal {
-		proposal, err := p.GenerateProposal(s.ctx, s.db)
+	generateBlock := func() *execution.ProposalSSZ {
+		proposalSSZ, err := p.GenerateProposal(s.ctx, s.db)
 		s.Require().NoError(err)
-		s.Require().NotNil(proposal)
+		s.Require().NotNil(proposalSSZ)
+
+		proposal, err := execution.ConvertProposal(proposalSSZ)
+		s.Require().NoError(err)
 
 		blockGenerator, err := execution.NewBlockGenerator(s.ctx, params.BlockGeneratorParams, s.db, nil)
 		s.Require().NoError(err)
@@ -104,7 +107,7 @@ func (s *ProposerTestSuite) TestCollator() {
 		_, err = blockGenerator.GenerateBlock(proposal, zerolog.Nop(), nil)
 		s.Require().NoError(err)
 
-		return proposal
+		return proposalSSZ
 	}
 
 	s.Run("GenerateZeroState", func() {
@@ -171,8 +174,8 @@ func (s *ProposerTestSuite) TestCollator() {
 
 		proposal := generateBlock()
 		s.Empty(proposal.ExternalTxns)
-		s.Empty(proposal.InternalTxns)
-		s.Empty(proposal.ForwardTxns)
+		s.Empty(proposal.InternalTxnRefs)
+		s.Empty(proposal.ForwardTxnRefs)
 		s.Equal(pool.Txns, pool.LastDiscarded)
 		s.Equal(txnpool.DuplicateHash, pool.LastReason)
 	})
