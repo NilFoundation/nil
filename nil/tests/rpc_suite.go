@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -113,7 +114,11 @@ func (s *RpcSuite) Start(cfg *nilservice.Config) {
 		s.Require().NoError(err)
 		s.Client = c
 	} else {
-		s.Endpoint = strings.Replace(cfg.HttpUrl, "tcp://", "http://", 1)
+		if cfg.RPCPort != 0 {
+			s.Endpoint = "http://127.0.0.1:" + strconv.Itoa(cfg.RPCPort)
+		} else {
+			s.Endpoint = strings.Replace(cfg.HttpUrl, "tcp://", "http://", 1)
+		}
 		s.Client = rpc_client.NewClient(s.Endpoint, zerolog.New(os.Stderr))
 	}
 

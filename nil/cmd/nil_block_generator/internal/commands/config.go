@@ -18,7 +18,7 @@ type Contract struct {
 	Address string `json:"address"`
 }
 
-func NewContract(path string, adr string) *Contract {
+func NewContract(path, adr string) *Contract {
 	return &Contract{
 		Path:    path,
 		Address: adr,
@@ -34,7 +34,7 @@ type Call struct {
 	Count        int      `json:"count"`
 }
 
-func NewCall(contractName string, method, abiPath, address string, args []string, count int) *Call {
+func NewCall(contractName, method, abiPath, address string, args []string, count int) *Call {
 	return &Call{
 		ContractName: contractName,
 		Method:       method,
@@ -101,7 +101,7 @@ func InitConfig(adr, hexKey string) error {
 	return WriteConfigToFile(cfg)
 }
 
-func AddContract(name string, path string, adr string) error {
+func AddContract(name, path, adr string) error {
 	cfg, err := ReadConfigFromFile()
 	if err != nil {
 		return err
