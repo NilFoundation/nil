@@ -216,6 +216,12 @@ func createArchiveSyncers(cfg *Config, nm *network.Manager, database db.DB, logg
 		}
 
 		zeroState := execution.DefaultZeroStateConfig
+		if err := execution.LoadMainKeys(cfg.MainKeysPath); err == nil {
+			zeroState, err = execution.CreateDefaultZeroState(execution.MainPublicKey)
+			if err != nil {
+				return nil, err
+			}
+		}
 		zeroStateConfig := cfg.ZeroState
 		if len(cfg.ZeroStateYaml) != 0 {
 			zeroState = cfg.ZeroStateYaml
@@ -227,7 +233,7 @@ func createArchiveSyncers(cfg *Config, nm *network.Manager, database db.DB, logg
 			ShardId:              shardId,
 			Timeout:              syncerTimeout,
 			BootstrapPeer:        bootstrapPeer,
-			ReplayBlocks:         cfg.IsShardActive(shardId),
+			ReplayBlocks:         true,
 			BlockGeneratorParams: cfg.BlockGeneratorParams(shardId),
 			ZeroState:            zeroState,
 			ZeroStateConfig:      zeroStateConfig,
@@ -490,6 +496,12 @@ func createShards(
 		blockVerifier := signer.NewBlockVerifier(shardId, cfg.Validators[shardId])
 
 		zeroState := execution.DefaultZeroStateConfig
+		if err := execution.LoadMainKeys(cfg.MainKeysPath); err == nil {
+			zeroState, err = execution.CreateDefaultZeroState(execution.MainPublicKey)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
 		zeroStateConfig := cfg.ZeroState
 		if len(cfg.ZeroStateYaml) != 0 {
 			zeroState = cfg.ZeroStateYaml
@@ -497,7 +509,7 @@ func createShards(
 
 		syncerCfg := collate.SyncerConfig{
 			ShardId:              shardId,
-			ReplayBlocks:         shardId.IsMainShard() || cfg.IsShardActive(shardId),
+			ReplayBlocks:         true,
 			Timeout:              syncerTimeout,
 			BlockGeneratorParams: cfg.BlockGeneratorParams(shardId),
 			BlockVerifier:        blockVerifier,
@@ -531,7 +543,10 @@ func createShards(
 				return nil, nil, err
 			}
 
-			collator := createActiveCollator(shardId, cfg, collatorTickPeriod, database, networkManager, txnPool)
+			collator, err := createActiveCollator(shardId, cfg, collatorTickPeriod, database, networkManager, txnPool)
+			if err != nil {
+				return nil, nil, err
+			}
 
 			consensus := ibft.NewConsensus(&ibft.ConsensusParams{
 				ShardId:    shardId,
@@ -565,26 +580,34 @@ func createShards(
 	return funcs, pools, nil
 }
 
-func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager, txnPool txnpool.Pool) *collate.Scheduler {
+func createActiveCollator(shard types.ShardId, cfg *Config, collatorTickPeriod time.Duration, database db.DB, networkManager *network.Manager, txnPool txnpool.Pool) (*collate.Scheduler, error) {
+	zeroState := execution.DefaultZeroStateConfig
+	if len(cfg.ZeroStateYaml) != 0 {
+		zeroState = cfg.ZeroStateYaml
+	} else {
+		if err := execution.LoadMainKeys(cfg.MainKeysPath); err == nil {
+			zeroState, err = execution.CreateDefaultZeroState(execution.MainPublicKey)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 	collatorCfg := collate.Params{
 		BlockGeneratorParams: execution.BlockGeneratorParams{
-			ShardId:         shard,
-			NShards:         cfg.NShards,
-			TraceEVM:        cfg.TraceEVM,
-			Timer:           common.NewTimer(),
-			GasBasePrice:    types.NewValueFromUint64(cfg.GasBasePrice),
-			GasPriceScale:   cfg.GasPriceScale,
-			MainKeysOutPath: cfg.MainKeysOutPath,
+			ShardId:       shard,
+			NShards:       cfg.NShards,
+			TraceEVM:      cfg.TraceEVM,
+			Timer:         common.NewTimer(),
+			GasBasePrice:  types.NewValueFromUint64(cfg.GasBasePrice),
+			GasPriceScale: cfg.GasPriceScale,
+			MainKeysPath:  cfg.MainKeysPath,
 		},
 		CollatorTickPeriod: collatorTickPeriod,
 		Timeout:            collatorTickPeriod,
-		ZeroState:          execution.DefaultZeroStateConfig,
+		ZeroState:          zeroState,
 		ZeroStateConfig:    cfg.ZeroState,
 		Topology:           collate.GetShardTopologyById(cfg.Topology),
 	}
-	if len(cfg.ZeroStateYaml) != 0 {
-		collatorCfg.ZeroState = cfg.ZeroStateYaml
-	}
 
-	return collate.NewScheduler(database, txnPool, collatorCfg, networkManager)
+	return collate.NewScheduler(database, txnPool, collatorCfg, networkManager), nil
 }

@@ -28,40 +28,7 @@ func init() {
 	MainPrivateKey, MainPublicKey, err = nilcrypto.GenerateKeyPair()
 	check.PanicIfErr(err)
 
-	zerostate := `
-contracts:
-- name: MainSmartAccount
-  address: {{ .MainSmartAccountAddress }}
-  value: 10000000000000000000000
-  contract: SmartAccount
-  ctorArgs: [{{ .MainPublicKey }}]
-- name: Faucet
-  address: {{ .FaucetAddress }}
-  value: 20000000000000000000000
-  contract: Faucet
-- name: EthFaucet
-  address: {{ .EthFaucetAddress }}
-  value: 100000000000000
-  contract: FaucetToken
-- name: UsdtFaucet
-  address: {{ .UsdtFaucetAddress }}
-  value: 100000000000000
-  contract: FaucetToken
-- name: BtcFaucet
-  address: {{ .BtcFaucetAddress }}
-  value: 100000000000000
-  contract: FaucetToken
-`
-
-	DefaultZeroStateConfig, err = common.ParseTemplate(zerostate, map[string]interface{}{
-		"MainSmartAccountAddress": types.MainSmartAccountAddress.Hex(),
-		"MainPublicKey":           hexutil.Encode(MainPublicKey),
-		"MainSmartAccountPubKey":  hexutil.Encode(MainPublicKey),
-		"FaucetAddress":           types.FaucetAddress.Hex(),
-		"EthFaucetAddress":        types.EthFaucetAddress.Hex(),
-		"UsdtFaucetAddress":       types.UsdtFaucetAddress.Hex(),
-		"BtcFaucetAddress":        types.BtcFaucetAddress.Hex(),
-	})
+	DefaultZeroStateConfig, err = CreateDefaultZeroState(MainPublicKey)
 	check.PanicIfErr(err)
 }
 
@@ -88,6 +55,43 @@ type ConfigParams struct {
 type ZeroStateConfig struct {
 	ConfigParams ConfigParams     `yaml:"config,omitempty"`
 	Contracts    []*ContractDescr `yaml:"contracts"`
+}
+
+func CreateDefaultZeroState(mainPublicKey []byte) (string, error) {
+	zerostate := `
+contracts:
+- name: MainSmartAccount
+  address: {{ .MainSmartAccountAddress }}
+  value: 10000000000000000000000
+  contract: SmartAccount
+  ctorArgs: [{{ .MainPublicKey }}]
+- name: Faucet
+  address: {{ .FaucetAddress }}
+  value: 20000000000000000000000
+  contract: Faucet
+- name: EthFaucet
+  address: {{ .EthFaucetAddress }}
+  value: 100000000000000
+  contract: FaucetToken
+- name: UsdtFaucet
+  address: {{ .UsdtFaucetAddress }}
+  value: 100000000000000
+  contract: FaucetToken
+- name: BtcFaucet
+  address: {{ .BtcFaucetAddress }}
+  value: 100000000000000
+  contract: FaucetToken
+`
+
+	return common.ParseTemplate(zerostate, map[string]interface{}{
+		"MainSmartAccountAddress": types.MainSmartAccountAddress.Hex(),
+		"MainPublicKey":           hexutil.Encode(mainPublicKey),
+		"MainSmartAccountPubKey":  hexutil.Encode(mainPublicKey),
+		"FaucetAddress":           types.FaucetAddress.Hex(),
+		"EthFaucetAddress":        types.EthFaucetAddress.Hex(),
+		"UsdtFaucetAddress":       types.UsdtFaucetAddress.Hex(),
+		"BtcFaucetAddress":        types.BtcFaucetAddress.Hex(),
+	})
 }
 
 func DumpMainKeys(fname string) error {

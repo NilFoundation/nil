@@ -16,13 +16,13 @@ import (
 )
 
 type BlockGeneratorParams struct {
-	ShardId         types.ShardId
-	NShards         uint32
-	TraceEVM        bool
-	Timer           common.Timer
-	GasBasePrice    types.Value
-	GasPriceScale   float64
-	MainKeysOutPath string
+	ShardId       types.ShardId
+	NShards       uint32
+	TraceEVM      bool
+	Timer         common.Timer
+	GasBasePrice  types.Value
+	GasPriceScale float64
+	MainKeysPath  string
 }
 
 func NewBlockGeneratorParams(shardId types.ShardId, nShards uint32, gasBasePrice types.Value, gasPriceScale float64) BlockGeneratorParams {
