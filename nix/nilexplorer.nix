@@ -41,6 +41,9 @@ stdenv.mkDerivation rec {
 
     export CYPRESS_INSTALL_BINARY=0
     export CYPRESS_RUN_BINARY=${cypress}/bin/Cypress
+
+    echo "Setting npm_config_ignore_scripts=true to ignore npm lifecycle scripts"
+    export npm_config_ignore_scripts=true
   '';
 
   buildPhase = ''
