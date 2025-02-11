@@ -52,6 +52,6 @@ import "@nilfoundation/smart-contracts/contracts/SmartAccount.sol";
 
 ## License
 
-[MIT](./LICENSE)
+[MIT](./LICENCE)
 
 
