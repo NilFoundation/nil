@@ -398,9 +398,12 @@ func (s *Syncer) generateZerostate(ctx context.Context) error {
 		return nil
 	}
 
-	if len(s.config.BlockGeneratorParams.MainKeysOutPath) != 0 && s.config.ShardId == types.BaseShardId {
-		if err := execution.DumpMainKeys(s.config.BlockGeneratorParams.MainKeysOutPath); err != nil {
-			return err
+	if len(s.config.BlockGeneratorParams.MainKeysPath) != 0 && s.config.ShardId == types.BaseShardId {
+		err := execution.LoadMainKeys(s.config.BlockGeneratorParams.MainKeysPath)
+		if err != nil {
+			if err := execution.DumpMainKeys(s.config.BlockGeneratorParams.MainKeysPath); err != nil {
+				return err
+			}
 		}
 	}
 
