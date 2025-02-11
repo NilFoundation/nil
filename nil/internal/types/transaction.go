@@ -333,6 +333,9 @@ func (m *Transaction) VerifyFlags() error {
 	} else if m.IsRefund() || m.IsBounce() || m.IsRequestOrResponse() {
 		return errors.New("external transaction cannot be bounce, refund or async")
 	}
+	if m.To.ShardId().IsMainShard() && !m.From.ShardId().IsMainShard() {
+		return errors.New("transaction to main shard is not allowed from a regular shard")
+	}
 	return nil
 }
 
@@ -370,6 +373,10 @@ func (m *Transaction) IsRequest() bool {
 
 func (m *Transaction) IsRequestOrResponse() bool {
 	return m.RequestId != 0
+}
+
+func (m *Transaction) IsSystem() bool {
+	return m.To.ShardId().IsMainShard()
 }
 
 func (m *Transaction) TransactionGasPrice(baseFeePerGas Value) (Value, error) {

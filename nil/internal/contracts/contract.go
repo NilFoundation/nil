@@ -19,6 +19,7 @@ const (
 	NameNilTokenBase  = "NilTokenBase"
 	NameNilBounceable = "NilBounceable"
 	NameNilConfigAbi  = "NilConfigAbi"
+	NameL1BlockInfo   = "system/L1BlockInfo"
 )
 
 var (

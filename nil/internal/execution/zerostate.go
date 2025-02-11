@@ -51,10 +51,15 @@ contracts:
   address: {{ .BtcFaucetAddress }}
   value: 100000000000000
   contract: FaucetToken
+- name: L1BlockInfo
+  address: {{ .L1BlockInfoAddress }}
+  value: 0
+  contract: system/L1BlockInfo
 `
 
 	DefaultZeroStateConfig, err = common.ParseTemplate(zerostate, map[string]interface{}{
 		"MainSmartAccountAddress": types.MainSmartAccountAddress.Hex(),
+		"L1BlockInfoAddress":      types.L1BlockInfoAddress.Hex(),
 		"MainPublicKey":           hexutil.Encode(MainPublicKey),
 		"MainSmartAccountPubKey":  hexutil.Encode(MainPublicKey),
 		"FaucetAddress":           types.FaucetAddress.Hex(),
@@ -185,6 +190,7 @@ func (es *ExecutionState) GenerateZeroState(stateConfig *ZeroStateConfig) error 
 	var err error
 
 	if es.ShardId == types.MainShardId {
+		config.InitParams(es.GetConfigAccessor())
 		err = config.SetParamValidators(es.GetConfigAccessor(), &stateConfig.ConfigParams.Validators)
 		if err != nil {
 			return err

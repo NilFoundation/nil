@@ -1362,6 +1362,13 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 		return nil, err
 	}
 
+	l1BlockNumber := uint64(0)
+	if es.ShardId.IsMainShard() {
+		if l1Block, err := config.GetParamL1Block(es.configAccessor); err == nil {
+			l1BlockNumber = l1Block.Number
+		}
+	}
+
 	configRoot := common.EmptyHash
 	if es.ShardId.IsMainShard() {
 		var err error
@@ -1391,6 +1398,7 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 			MainChainHash:       es.MainChainHash,
 			BaseFee:             es.BaseFee,
 			GasUsed:             es.GasUsed,
+			L1BlockNumber:       l1BlockNumber,
 			// TODO(@klonD90): remove this field after changing explorer
 			Timestamp: 0,
 		},

@@ -409,6 +409,13 @@ library Nil {
         uint256[] shards;
     }
 
+    struct ParamL1BlockInfo {
+        uint64 number;
+        uint64 timestamp;
+        uint256 baseFee;
+        bytes32 hash;
+    }
+
     /**
      * @dev Returns the current validators.
      * @return Struct containing the list of validators.
@@ -506,6 +513,7 @@ contract __Precompile__ {
 contract NilConfigAbi {
     function curr_validators(Nil.ParamValidators memory) public {}
     function gas_price(Nil.ParamGasPrice memory) public {}
+    function l1block(Nil.ParamL1BlockInfo memory) public {}
 }
 
 function tokenIdEqual(TokenId a, TokenId b) pure returns (bool) {

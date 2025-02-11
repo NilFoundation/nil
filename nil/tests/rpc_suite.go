@@ -77,6 +77,10 @@ func (s *RpcSuite) Start(cfg *nilservice.Config) {
 	}
 	s.Db = s.DbInit()
 
+	if cfg.L1Fetcher == nil {
+		cfg.L1Fetcher = CreateMockL1Fetcher(s.T(), 0)
+	}
+
 	var serviceInterop chan nilservice.ServiceInterop
 	if cfg.RunMode == nilservice.CollatorsOnlyRunMode {
 		serviceInterop = make(chan nilservice.ServiceInterop, 1)

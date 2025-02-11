@@ -49,6 +49,7 @@ type BlockData struct {
 	Timestamp           uint64           `json:"timestamp" ch:"timestamp"`
 	BaseFee             Value            `json:"gasPrice" ch:"gas_price"`
 	GasUsed             Gas              `json:"gasUsed" ch:"gas_used"`
+	L1BlockNumber       uint64           `json:"l1BlockNumber" ch:"l1_block_number"`
 }
 
 type Block struct {
