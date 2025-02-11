@@ -47,16 +47,16 @@ func SendTransactionCommand(cfg *common.Config) *cobra.Command {
 		"The fee credit for transaction processing",
 	)
 
+	cmd.Flags().Var(
+		&params.Fee.MaxFeePerGas,
+		priorityFee,
+		"The fee per gas for the message",
+	)
+
 	cmd.Flags().StringArrayVar(&params.tokens,
 		tokenFlag,
 		nil,
 		"The custom tokens to transfer in as a map 'tokenId=amount', can be set multiple times",
-	)
-
-	cmd.Flags().StringVar(&params.priorityFee,
-		priorityFee,
-		"0",
-		"The priority fee for the message",
 	)
 
 	return cmd
@@ -85,7 +85,7 @@ func runSend(cmd *cobra.Command, args []string, cfg *common.Config) error {
 		return err
 	}
 
-	txnHash, err := service.RunContract(cfg.Address, calldata, types.NewFeePackFromFeeCredit(params.Fee.FeeCredit), params.amount, tokens, address)
+	txnHash, err := service.RunContract(cfg.Address, calldata, params.Fee, params.amount, tokens, address)
 	if err != nil {
 		return err
 	}
