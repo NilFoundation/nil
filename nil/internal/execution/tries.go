@@ -339,6 +339,10 @@ func (m *BaseMPT[K, V, VPtr]) Delete(key K) error {
 	return m.rwTrie.Delete(k)
 }
 
+func (m *BaseMPT[K, V, VPtr]) MPT() *mpt.MerklePatriciaTrie {
+	return m.rwTrie
+}
+
 func ConvertTrieEntriesToMap[K comparable, V any](entries []Entry[K, *V]) map[K]V {
 	return common.SliceToMap(
 		entries,

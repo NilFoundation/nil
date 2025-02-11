@@ -21,7 +21,7 @@ type Validator struct {
 	logger zerolog.Logger
 }
 
-func (s *Validator) BuildProposal(ctx context.Context) (*execution.Proposal, error) {
+func (s *Validator) BuildProposal(ctx context.Context) (*execution.ProposalSSZ, error) {
 	proposer := newProposer(s.params, s.params.Topology, s.pool, s.logger)
 	proposal, err := proposer.GenerateProposal(ctx, s.txFabric)
 	if err != nil {
@@ -30,28 +30,38 @@ func (s *Validator) BuildProposal(ctx context.Context) (*execution.Proposal, err
 	return proposal, nil
 }
 
-func (s *Validator) VerifyProposal(ctx context.Context, proposal *execution.Proposal) (*types.Block, error) {
-	gen, err := execution.NewBlockGenerator(ctx, s.params.BlockGeneratorParams, s.txFabric, proposal.GetMainShardHash(s.params.ShardId))
+func (s *Validator) VerifyProposal(ctx context.Context, proposal *execution.ProposalSSZ) (*types.Block, error) {
+	p, err := execution.ConvertProposal(proposal)
+	if err != nil {
+		return nil, err
+	}
+
+	gen, err := execution.NewBlockGenerator(ctx, s.params.BlockGeneratorParams, s.txFabric, p.GetMainShardHash(s.params.ShardId))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create block generator: %w", err)
 	}
 	defer gen.Rollback()
 
-	res, err := gen.BuildBlock(proposal, s.logger)
+	res, err := gen.BuildBlock(p, s.logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate block: %w", err)
 	}
 	return res, nil
 }
 
-func (s *Validator) InsertProposal(ctx context.Context, proposal *execution.Proposal, sig types.Signature) error {
-	gen, err := execution.NewBlockGenerator(ctx, s.params.BlockGeneratorParams, s.txFabric, proposal.GetMainShardHash(s.params.ShardId))
+func (s *Validator) InsertProposal(ctx context.Context, proposal *execution.ProposalSSZ, sig types.Signature) error {
+	p, err := execution.ConvertProposal(proposal)
+	if err != nil {
+		return err
+	}
+
+	gen, err := execution.NewBlockGenerator(ctx, s.params.BlockGeneratorParams, s.txFabric, p.GetMainShardHash(s.params.ShardId))
 	if err != nil {
 		return fmt.Errorf("failed to create block generator: %w", err)
 	}
 	defer gen.Rollback()
 
-	res, err := gen.GenerateBlock(proposal, s.logger, sig)
+	res, err := gen.GenerateBlock(p, s.logger, sig)
 	if err != nil {
 		return fmt.Errorf("failed to generate block: %w", err)
 	}

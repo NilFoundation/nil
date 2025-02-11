@@ -672,7 +672,7 @@ contracts:
 	txn.Data, err = abi.Pack("add", int32(1))
 	require.NoError(b, err)
 
-	proposal := NewEmptyProposal()
+	proposal := &Proposal{}
 	for range 1000 {
 		proposal.InternalTxns = append(proposal.InternalTxns, txn)
 	}
