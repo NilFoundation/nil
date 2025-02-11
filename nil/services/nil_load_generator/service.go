@@ -41,11 +41,13 @@ const (
 )
 
 var (
-	smartAccounts []uniswap.SmartAccount
-	services      []*cliservice.Service
-	pairs         []*uniswap.Pair
-	client        *rpc_client.Client
-	isInitialized atomic.Bool
+	smartAccounts       []uniswap.SmartAccount
+	services            []*cliservice.Service
+	uniswapSmartAccount uniswap.SmartAccount
+	uniswapService      *cliservice.Service
+	pairs               []*uniswap.Pair
+	client              *rpc_client.Client
+	isInitialized       atomic.Bool
 )
 
 func calculateOutputAmount(amountIn, reserveIn, reserveOut *big.Int) *big.Int {
@@ -77,8 +79,14 @@ func initializeSmartAccountsAndServices(ctx context.Context, shardIdList []types
 	res := make([]uniswap.SmartAccount, len(shardIdList))
 	services := make([]*cliservice.Service, len(shardIdList))
 
+	var err error
+	uniswapSmartAccount, err = uniswap.NewSmartAccount(service, types.BaseShardId)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to initialize smart account for shard %s: %w", types.BaseShardId, err)
+	}
+	uniswapService = cliservice.NewService(ctx, client, uniswapSmartAccount.PrivateKey, faucet)
+
 	for i, shardId := range shardIdList {
-		var err error
 		res[i], err = uniswap.NewSmartAccount(service, shardId)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to initialize smart account for shard %s: %w", shardId, err)
@@ -227,7 +235,7 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 			if checkBalanceCounterDownInt == 0 {
 				checkBalanceCounterDownInt = int(cfg.CheckBalance)
 				logger.Info().Msg("Checking balance and minting tokens.")
-				err := uniswap.TopUpBalance(services, smartAccounts)
+				err := uniswap.TopUpBalance(append(services, uniswapService), append(smartAccounts, uniswapSmartAccount))
 				if err != nil {
 					return err
 				}

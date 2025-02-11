@@ -87,7 +87,8 @@ func TopUpBalance(services []*cliservice.Service, smartAccounts []SmartAccount) 
 		if err != nil {
 			return err
 		}
-		for _, tokenAddr := range []types.Address{types.EthFaucetAddress, types.UsdcFaucetAddress, types.UsdtFaucetAddress} {
+		topUpTokens := []types.Address{types.EthFaucetAddress, types.UsdcFaucetAddress, types.UsdtFaucetAddress}
+		for _, tokenAddr := range topUpTokens {
 			if v, ok := tkn[*types.TokenIdForAddress(tokenAddr)]; !ok || v.Cmp(types.NewValueFromUint64(balanceThresholdAmount)) < 0 {
 				if err := services[i].TopUpViaFaucet(tokenAddr, smartAccount.Addr, types.NewValueFromUint64(balanceThresholdAmount)); err != nil {
 					return err
