@@ -170,6 +170,10 @@ const config = {
                 href: "https://explore.nil.foundation/",
               },
               {
+                label: "Playground",
+                href: "https://explore.nil.foundation/sandbox"
+              },
+              {
                 label: "Solidity extension",
                 href: "https://www.npmjs.com/package/@nilfoundation/smart-contracts",
               },

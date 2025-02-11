@@ -8,8 +8,7 @@ import NavbarMobileSidebarToggle from "@theme/Navbar/MobileSidebar/Toggle";
 import NavbarLogo from "@theme/Navbar/Logo";
 import NavbarSearch from "@theme/Navbar/Search";
 import { AskAiButton } from "../../../components/AskAIButton";
-
-import styles from "./styles.module.css";
+import GitHubButton from "../../../components/GitHubButton";
 
 function useNavbarItems() {
   // TODO temporary casting until ThemeConfig type is improved
@@ -84,7 +83,8 @@ export default function NavbarContent(): JSX.Element {
         <>
           <NavbarItems items={rightItems} />
           <AskAiButton />
-          <NavbarColorModeToggle className={styles.colorModeToggle} />
+          <GitHubButton/>
+          <NavbarColorModeToggle/>
           {!searchBarItem && (
             <NavbarSearch>
               <SearchBar />

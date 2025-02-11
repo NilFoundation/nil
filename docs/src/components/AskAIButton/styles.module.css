@@ -12,27 +12,31 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: 0.5rem;
-  margin-left: 0.5rem;
   flex-wrap: wrap;
+  height: 36px;
+  min-width: 36px;
+  position: relative;
 }
 
-@media (max-width: 1000px) {
-  .buttonText {
-    display: none;
-  }
-
-  .askAIButton {
-    margin-right: 0.3rem;
-    padding: 6px 0.3rem 6px 0.3rem;
-  }
-}
 
 @media (max-width: 1200px) {
   .buttonText {
     display: none;
   }
 }
+
+@media (max-width: 600px) {
+  .askAIButton {
+    margin-right: 1.2rem;
+  }
+}
+
+@media (max-width: 500px) {
+  .askAIButton {
+    margin-right: 6.5rem;
+  }
+}
+
 
 .askAIButton:hover {
   background-color: #e5e5e5;
