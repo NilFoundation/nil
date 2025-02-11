@@ -50,6 +50,9 @@ stdenv.mkDerivation rec {
   preUnpack = ''
     echo "Setting UV_USE_IO_URING=0 to work around the io_uring kernel bug"
     export UV_USE_IO_URING=0
+
+    echo "Setting npm_config_ignore_scripts=true to ignore npm lifecycle scripts"
+    export npm_config_ignore_scripts=true
   '';
 
   preBuild = ''
