@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rollup"
 	"github.com/NilFoundation/nil/nil/services/txnpool"
 	"github.com/rs/zerolog"
 )
@@ -38,6 +39,8 @@ type Params struct {
 	ZeroStateConfig *execution.ZeroStateConfig
 
 	Topology ShardTopology
+
+	L1Fetcher rollup.L1BlockFetcher
 }
 
 type Scheduler struct {
@@ -50,6 +53,8 @@ type Scheduler struct {
 	params Params
 
 	logger zerolog.Logger
+
+	l1Fetcher rollup.L1BlockFetcher
 }
 
 func NewScheduler(txFabric db.DB, pool txnpool.Pool, params Params, networkManager *network.Manager) *Scheduler {
@@ -61,6 +66,7 @@ func NewScheduler(txFabric db.DB, pool txnpool.Pool, params Params, networkManag
 		logger: logging.NewLogger("collator").With().
 			Stringer(logging.FieldShardId, params.ShardId).
 			Logger(),
+		l1Fetcher: params.L1Fetcher,
 	}
 }
 

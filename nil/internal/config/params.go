@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -12,6 +14,18 @@ import (
 )
 
 const ValidatorPubkeySize = 33
+
+const (
+	NameValidators = "curr_validators"
+	NameGasPrice   = "gas_price"
+	NameL1Block    = "l1block"
+)
+
+var ParamsList = []IConfigParam{
+	new(ParamValidators),
+	new(ParamGasPrice),
+	new(ParamL1BlockInfo),
+}
 
 type Pubkey [ValidatorPubkeySize]byte
 
@@ -23,9 +37,13 @@ func (k *Pubkey) UnmarshalText(input []byte) error {
 	return hexutil.UnmarshalFixedText("Pubkey", input, k[:])
 }
 
-var ParamsList = []IConfigParam{
-	new(ParamValidators),
-	new(ParamGasPrice),
+func InitParams(accessor ConfigAccessor) {
+	for _, p := range ParamsList {
+		data, err := p.MarshalSSZ()
+		check.PanicIfErr(err)
+		err = accessor.SetParamData(p.Name(), data)
+		check.PanicIfErr(err)
+	}
 }
 
 // This is a workaround for fastssz bug where it doesn't add import of `types` package to generated code.
@@ -53,7 +71,7 @@ type ValidatorInfo struct {
 var _ IConfigParam = new(ParamValidators)
 
 func (p *ParamValidators) Name() string {
-	return "curr_validators"
+	return NameValidators
 }
 
 func (p *ParamValidators) Accessor() *ParamAccessor {
@@ -68,11 +86,29 @@ type ParamGasPrice struct {
 var _ IConfigParam = new(ParamGasPrice)
 
 func (p *ParamGasPrice) Name() string {
-	return "gas_price"
+	return NameGasPrice
 }
 
 func (p *ParamGasPrice) Accessor() *ParamAccessor {
 	return CreateAccessor[ParamGasPrice]()
+}
+
+type ParamL1BlockInfo struct {
+	Number      uint64        `json:"number" yaml:"number"`
+	Timestamp   uint64        `json:"timestamp" yaml:"timestamp"`
+	BaseFee     types.Uint256 `json:"baseFee" yaml:"baseFee"`
+	BlobBaseFee types.Uint256 `json:"blobBaseFee" yaml:"blobBaseFee"`
+	Hash        common.Hash   `json:"hash" yaml:"hash"`
+}
+
+var _ IConfigParam = new(ParamL1BlockInfo)
+
+func (p *ParamL1BlockInfo) Name() string {
+	return NameL1Block
+}
+
+func (p *ParamL1BlockInfo) Accessor() *ParamAccessor {
+	return CreateAccessor[ParamL1BlockInfo]()
 }
 
 func CreateAccessor[T any, paramPtr IConfigParamPointer[T]]() *ParamAccessor {
@@ -176,6 +212,14 @@ func GetParamGasPrice(c ConfigAccessor) (*ParamGasPrice, error) {
 }
 
 func SetParamGasPrice(c ConfigAccessor, params *ParamGasPrice) error {
+	return setParamImpl(c, params)
+}
+
+func GetParamL1Block(c ConfigAccessor) (*ParamL1BlockInfo, error) {
+	return getParamImpl[ParamL1BlockInfo](c)
+}
+
+func SetParamL1Block(c ConfigAccessor, params *ParamL1BlockInfo) error {
 	return setParamImpl(c, params)
 }
 

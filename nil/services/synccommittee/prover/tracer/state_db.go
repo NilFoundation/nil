@@ -215,6 +215,11 @@ func (tsdb *TracerStateDB) HandleInTransaction(transaction *types.Transaction) (
 		Str("flags", transaction.Flags.String()).
 		Msg("tracing in_transaction")
 
+	// Skip L1BlockInfo contract because it changes on-chain config.
+	if transaction.To == types.L1BlockInfoAddress {
+		return nil
+	}
+
 	// handlers below initialize EVM instance with tracer
 	// since tracer is not designed to return an error we just make it panic in case of failure and catch result here
 	// it will help us to analyze logical errors in tracer impl down by the callstack

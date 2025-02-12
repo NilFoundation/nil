@@ -16,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cometa"
+	"github.com/NilFoundation/nil/nil/services/rollup"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -76,6 +77,8 @@ type Config struct {
 	Replay    *ReplayConfig              `yaml:"replay,omitempty"`
 	Cometa    *cometa.Config             `yaml:"cometa,omitempty"`
 	RpcNode   *RpcNodeConfig             `yaml:"rpcNode,omitempty"`
+
+	L1Fetcher rollup.L1BlockFetcher `yaml:"-"`
 }
 
 const DefaultNShards types.ShardId = 5

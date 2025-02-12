@@ -10,10 +10,13 @@ import (
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/config"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rollup"
 	"github.com/NilFoundation/nil/nil/services/txnpool"
+	l1types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/rs/zerolog"
 )
 
@@ -37,6 +40,8 @@ type proposer struct {
 	executionState *execution.ExecutionState
 
 	ctx context.Context
+
+	l1BlockFetcher rollup.L1BlockFetcher
 }
 
 func newProposer(params Params, topology ShardTopology, pool TxnPool, logger zerolog.Logger) *proposer {
@@ -56,10 +61,11 @@ func newProposer(params Params, topology ShardTopology, pool TxnPool, logger zer
 		params.MaxForwardTransactionsInBlock = defaultMaxForwardTransactionsInBlock
 	}
 	return &proposer{
-		params:   params,
-		topology: topology,
-		pool:     pool,
-		logger:   logger,
+		params:         params,
+		topology:       topology,
+		pool:           pool,
+		logger:         logger,
+		l1BlockFetcher: params.L1Fetcher,
 	}
 }
 
@@ -98,6 +104,11 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 
 	if err := p.fetchLastBlockHashes(tx); err != nil {
 		return nil, fmt.Errorf("failed to fetch last block hashes: %w", err)
+	}
+
+	if err := p.handleL1Attributes(tx); err != nil {
+		// TODO: change to Error severity once Consensus/Proposer increase time intervals
+		p.logger.Trace().Err(err).Msg("Failed to handle L1 attributes")
 	}
 
 	if err := p.handleTransactionsFromNeighbors(tx); err != nil {
@@ -149,6 +160,84 @@ func (p *proposer) fetchLastBlockHashes(tx db.RoTx) error {
 	}
 
 	return nil
+}
+
+func (p *proposer) handleL1Attributes(tx db.RoTx) error {
+	if !p.params.ShardId.IsMainShard() {
+		return nil
+	}
+	if p.l1BlockFetcher == nil {
+		return errors.New("L1 block fetcher is not initialized")
+	}
+
+	block, err := p.l1BlockFetcher.GetLastBlockInfo(p.ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get latest L1 block: %w", err)
+	}
+	if block == nil {
+		// No block yet
+		return nil
+	}
+
+	// Check if this L1 block was already processed
+	if cfgAccessor, err := config.NewConfigReader(tx, nil); err == nil {
+		if prevL1Block, err := config.GetParamL1Block(cfgAccessor); err == nil {
+			if prevL1Block != nil && prevL1Block.Number >= block.Number.Uint64() {
+				return nil
+			}
+		}
+	}
+
+	txn, err := CreateL1BlockUpdateTransaction(block)
+	if err != nil {
+		return fmt.Errorf("failed to create L1 block update transaction: %w", err)
+	}
+
+	p.logger.Trace().Msgf("Add L1 block update transaction")
+
+	p.proposal.InternalTxns = append(p.proposal.InternalTxns, txn)
+
+	return nil
+}
+
+func CreateL1BlockUpdateTransaction(header *l1types.Header) (*types.Transaction, error) {
+	abi, err := contracts.GetAbi(contracts.NameL1BlockInfo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get L1BlockInfo ABI: %w", err)
+	}
+
+	excessBlobGas := uint64(0)
+	if header.ExcessBlobGas != nil {
+		excessBlobGas = *header.ExcessBlobGas
+	}
+	blobBaseFee, err := rollup.GetBlobGasPrice(excessBlobGas)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate blob base fee: %w", err)
+	}
+
+	calldata, err := abi.Pack("setL1BlockInfo",
+		header.Number.Uint64(),
+		header.Time,
+		header.BaseFee,
+		blobBaseFee.ToBig(),
+		header.Hash())
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack setL1BlockInfo calldata: %w", err)
+	}
+
+	txn := &types.Transaction{
+		TransactionDigest: types.TransactionDigest{
+			Flags:                types.NewTransactionFlags(types.TransactionFlagInternal),
+			To:                   types.L1BlockInfoAddress,
+			FeeCredit:            types.GasToValue(types.DefaultGasLimit.Uint64()),
+			MaxFeePerGas:         types.MaxFeePerGasDefault,
+			MaxPriorityFeePerGas: types.Value0,
+			Data:                 calldata,
+		},
+		From: types.L1BlockInfoAddress,
+	}
+
+	return txn, nil
 }
 
 func (p *proposer) handleTransaction(txn *types.Transaction, payer execution.Payer) error {

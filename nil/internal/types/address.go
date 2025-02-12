@@ -29,6 +29,7 @@ var (
 	EthFaucetAddress        = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111112")
 	UsdtFaucetAddress       = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111113")
 	BtcFaucetAddress        = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111114")
+	L1BlockInfoAddress      = ShardAndHexToAddress(MainShardId, "222222222222222222222222222222222222")
 )
 
 func GetTokenName(addr TokenId) string {

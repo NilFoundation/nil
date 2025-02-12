@@ -14,9 +14,11 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rollup"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/tools/solc"
+	l1types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -307,4 +309,14 @@ func GetContract(t *testing.T, ctx context.Context, database db.DB, address type
 	contract, err := contractTree.Fetch(address.Hash())
 	require.NoError(t, err)
 	return contract
+}
+
+var DummyL1Fetcher = rollup.L1BlockFetcherMock{
+	GetLastBlockInfoFunc: func(ctx context.Context) (*l1types.Header, error) {
+		return nil, nil
+	},
+}
+
+func GetDummyL1Fetcher() rollup.L1BlockFetcher {
+	return &DummyL1Fetcher
 }

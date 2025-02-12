@@ -38,7 +38,11 @@ type transactionPayer struct {
 	es          *ExecutionState
 }
 
-func NewTransactionPayer(transaction *types.Transaction, es *ExecutionState) transactionPayer {
+func NewTransactionPayer(transaction *types.Transaction, es *ExecutionState) Payer {
+	// We don't charge system transactions
+	if transaction.IsSystem() {
+		return dummyPayer{}
+	}
 	return transactionPayer{
 		transaction: transaction,
 		es:          es,

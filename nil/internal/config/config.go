@@ -47,6 +47,7 @@ type configReader struct {
 // IConfigParam is an interface that all config params must implement.
 type IConfigParam interface {
 	ssz.Unmarshaler
+	ssz.Marshaler
 
 	Name() string
 	Accessor() *ParamAccessor

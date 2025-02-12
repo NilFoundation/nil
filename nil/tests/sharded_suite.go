@@ -169,6 +169,10 @@ func (s *ShardedSuite) start(
 	keysManagers := make(map[InstanceId]*keys.ValidatorKeysManager)
 	s.Instances = make([]Instance, instanceCount)
 
+	if cfg.L1Fetcher == nil {
+		cfg.L1Fetcher = GetDummyL1Fetcher()
+	}
+
 	for index := range InstanceId(instanceCount) {
 		keysPath := s.T().TempDir() + fmt.Sprintf("/validator-keys-%d.yaml", index)
 		km := keys.NewValidatorKeyManager(keysPath)
@@ -189,6 +193,7 @@ func (s *ShardedSuite) start(
 
 	for index := range InstanceId(instanceCount) {
 		shardConfig := shardCfgGen(s, index, cfg, networkConfigs[index], keysManagers)
+		shardConfig.L1Fetcher = cfg.L1Fetcher
 
 		node, err := nilservice.CreateNode(s.Context, fmt.Sprintf("shard-%d", index), shardConfig, s.Instances[index].Db, nil)
 		s.Require().NoError(err)
