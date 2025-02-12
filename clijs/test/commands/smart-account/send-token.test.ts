@@ -30,8 +30,6 @@ describe("smart-account:send-token", () => {
         smartAccountAddress,
         "-m",
         "1000",
-        "-t",
-        `${contractAddress}=1000`,
       ])
     ).result as Hex;
     expect(txHash).toBeTruthy();

@@ -52,7 +52,7 @@ export default class SmartAccountSendToken extends BaseCommand {
     const txHash = await smartAccount.sendTransaction({
       to: args.address,
       value: flags.amount ?? 0n,
-      feeCredit: flags.feeCredit ?? 0n,
+      feeCredit: flags.feeCredit,
       tokens: flags.tokens ?? [],
     });
 
