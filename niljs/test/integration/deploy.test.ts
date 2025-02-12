@@ -98,7 +98,7 @@ test("External failed deployment", async ({ expect }) => {
   const addr = bytesToHex(deploymentTransaction.to);
   expect(addr).toBeDefined();
 
-  await topUpTest(addr, "NIL", 50_000_000);
+  await topUpTest(addr, "NIL");
 
   const hash = await deploymentTransaction.send(client);
 
