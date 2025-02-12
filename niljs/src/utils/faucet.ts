@@ -35,6 +35,8 @@ export async function topUp({
   const faucets = await faucetClient.getAllFaucets();
   const faucet = faucets[token];
 
+  console.log("topup amount type: ", typeof amount);
+
   await faucetClient.topUpAndWaitUntilCompletion(
     {
       faucetAddress: faucet,
