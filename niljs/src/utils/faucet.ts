@@ -41,7 +41,7 @@ export async function topUp({
     {
       faucetAddress: faucet,
       smartAccountAddress: address,
-      amount: amount,
+      amount: BigInt(amount),
     },
     client,
   );
