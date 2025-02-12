@@ -75,6 +75,7 @@ func buildInitCmd(logger zerolog.Logger) *cobra.Command {
 func buildAddContractCmd(logger zerolog.Logger) (*cobra.Command, error) {
 	var contractName string
 	var contractPath string
+	var argsCmd string
 	cmd := &cobra.Command{
 		Use:   "add-contract",
 		Short: "Deploy new contract",
@@ -88,7 +89,8 @@ func buildAddContractCmd(logger zerolog.Logger) (*cobra.Command, error) {
 			if err != nil {
 				return err
 			}
-			adr, err := commands.DeployContract(cfg.SmartAccountAdr, contractPath, cfg.PrivateKey, logger)
+			deployArgs := strings.Fields(argsCmd)
+			adr, err := commands.DeployContract(cfg.SmartAccountAdr, contractPath, cfg.PrivateKey, deployArgs, logger)
 			if err != nil {
 				return err
 			}
@@ -105,6 +107,12 @@ func buildAddContractCmd(logger zerolog.Logger) (*cobra.Command, error) {
 	const contractPathFlag = "contract-path"
 	cmd.Flags().StringVar(&contractPath, contractPathFlag, contractPath, "path to contract code")
 	if err := cmd.MarkFlagRequired(contractPathFlag); err != nil {
+		return nil, err
+	}
+
+	const argsFlag = "args"
+	cmd.Flags().StringVar(&argsCmd, argsFlag, argsCmd, "method arguments")
+	if err := cmd.MarkFlagRequired(argsFlag); err != nil {
 		return nil, err
 	}
 

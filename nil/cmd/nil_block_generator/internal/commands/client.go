@@ -130,10 +130,9 @@ func CreateNewSmartAccount(logger zerolog.Logger) (string, string, error) {
 	return smartAccount.Hex(), hexKey, nil
 }
 
-func DeployContract(smartAccountAdr, path, hexKey string, logger zerolog.Logger) (string, error) {
+func DeployContract(smartAccountAdr, path, hexKey string, args []string, logger zerolog.Logger) (string, error) {
 	binPath := path + ".bin"
 	abiPath := path + ".abi"
-	var args []string
 	bytecode, err := cliservice_common.ReadBytecode(binPath, abiPath, args)
 	if err != nil {
 		return "", err
