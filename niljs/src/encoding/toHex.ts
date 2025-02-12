@@ -44,7 +44,7 @@ const numberToHex = (num: number | bigint): Hex => {
   const maxValue = BigInt(Number.MAX_SAFE_INTEGER);
   const minValue = 0;
 
-  console.log("typeof num: ", typeof num)
+  console.log("typeof num: ", typeof num);
 
   if (typeof num !== "bigint" && ((maxValue && value > maxValue) || value < minValue)) {
     throw new IntegerOutOfRangeError({
