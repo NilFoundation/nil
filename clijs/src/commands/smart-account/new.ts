@@ -3,6 +3,7 @@ import { Flags } from "@oclif/core";
 import { BaseCommand } from "../../base.js";
 import { ConfigKeys } from "../../common/config.js";
 import { logger } from "../../logger.js";
+import { bigintFlag } from "../../types";
 
 export const DefualtNewSmartAccountAmount = 1_000_000_000_000_000n;
 
@@ -34,19 +35,18 @@ export default class SmartAccountNew extends BaseCommand {
         return parsed;
       },
     }),
-    feeCredit: Flags.integer({
+    feeCredit: bigintFlag({
       char: "f",
       description:
         "The fee credit for smart account creation. If set to 0, it will be estimated automatically",
       required: false,
-      default: 0,
     }),
-    amount: Flags.integer({
+    amount: bigintFlag({
       char: "a",
       description:
         "The initial balance (capped at 100'000'000). The deployment fee will be subtracted from this balance",
       required: false,
-      default: Number(DefualtNewSmartAccountAmount),
+      default: DefualtNewSmartAccountAmount,
     }),
   };
 
@@ -57,7 +57,7 @@ export default class SmartAccountNew extends BaseCommand {
       logger.warn(
         `The specified balance (${flags.amount}) is greater than the limit (${DefualtNewSmartAccountAmount}). The default value is used.`,
       );
-      flags.amount = Number(DefualtNewSmartAccountAmount);
+      flags.amount = DefualtNewSmartAccountAmount;
     }
 
     const privateKey = this.cfg?.[ConfigKeys.PrivateKey];

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 contract Counter {
-    int32 value;
+    int32 public value;
 
     event eventValue(int32 value);
 

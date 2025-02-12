@@ -5,8 +5,8 @@ import { CliTest } from "../../setup.js";
 // To run this test you need to run the nild:
 // nild run --http-port 8529
 // TODO: Setup nild automatically before running the tests
-describe("smart-account:deploy", () => {
-  CliTest("tests smart account deploy and send-transaction", async ({ runCommand }) => {
+describe("smart-account:estimate", () => {
+  CliTest("tests smart account deploy and estimate tx", async ({ runCommand }) => {
     const smartAccountAddress = (await runCommand(["smart-account", "new"])).result as Hex;
     expect(smartAccountAddress).toBeTruthy();
 
@@ -22,31 +22,6 @@ describe("smart-account:deploy", () => {
       ])
     ).result as Hex;
     expect(contractAddress).toBeTruthy();
-
-    const txHash = (
-      await runCommand([
-        "smart-account",
-        "send-transaction",
-        "-a",
-        "../nil/contracts/compiled/tests/Counter.abi",
-        contractAddress,
-        "add",
-        "10",
-      ])
-    ).result as Hex;
-    expect(txHash).toBeTruthy();
-
-    const resultValue = (
-      await runCommand([
-        "smart-account",
-        "call-readonly",
-        "-a",
-        "../nil/contracts/compiled/tests/Counter.abi",
-        contractAddress,
-        "value",
-      ])
-    ).result as string;
-    expect(resultValue).toEqual(10);
 
     const estimation = (
       await runCommand([

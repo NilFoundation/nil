@@ -9,13 +9,13 @@ export async function topUp({
   faucetEndpoint,
   rpcEndpoint,
   token = "NIL",
-  amount = 1e18,
+  amount = 1_000_000_000_000_000_000n,
 }: {
   address: Hex;
   faucetEndpoint: string;
   rpcEndpoint: string;
   token?: string;
-  amount?: number;
+  amount?: bigint;
 }): Promise<void> {
   const shardId = getShardIdFromAddress(address);
 
@@ -39,7 +39,7 @@ export async function topUp({
     {
       faucetAddress: faucet,
       smartAccountAddress: address,
-      amount: amount,
+      amount: BigInt(amount),
     },
     client,
   );

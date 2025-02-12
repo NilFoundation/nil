@@ -12,7 +12,7 @@ test("Receipt test", async ({ expect }) => {
   const faucetHash = await faucetClient.topUp({
     faucetAddress: faucets.NIL,
     smartAccountAddress: smartAccountAddress,
-    amount: 100,
+    amount: 100n,
   });
 
   const receipts = await waitTillCompleted(client, faucetHash);

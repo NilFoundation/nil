@@ -5,6 +5,8 @@ import { addHexPrefix } from "@nilfoundation/niljs";
 import { Args, Flags } from "@oclif/core";
 import type { Abi } from "abitype";
 import { BaseCommand } from "../../base.js";
+import { readJsonFile } from "../../common/utils";
+import { bigintFlag } from "../../types";
 
 export default class SmartAccountDeploy extends BaseCommand {
   static override summary = "Deploy a smart contract";
@@ -29,12 +31,12 @@ export default class SmartAccountDeploy extends BaseCommand {
       description: "The path to the ABI file",
       required: false,
     }),
-    amount: Flags.integer({
+    amount: bigintFlag({
       char: "m",
       description: "The amount of default tokens to send",
       required: false,
     }),
-    token: Flags.integer({
+    token: bigintFlag({
       char: "c",
       description:
         'The amount of contract token to generate. This operation cannot be performed when the "no-wait" flag is set',
@@ -59,6 +61,11 @@ export default class SmartAccountDeploy extends BaseCommand {
         "The path to the JSON file with the compilation input. Contract will be compiled and deployed on the blockchain and the Cometa service",
       required: false,
     }),
+    fee: bigintFlag({
+      char: "f",
+      description: "Fee credit for deployment",
+      required: false,
+    }),
   };
 
   static args = {
@@ -77,6 +84,8 @@ export default class SmartAccountDeploy extends BaseCommand {
 
   static override examples = ["<%= config.bin %> <%= command.id %>"];
 
+  static defaultFee = 100000000000000n;
+
   public async run(): Promise<Hex> {
     const { flags, args } = await this.parse(SmartAccountDeploy);
 
@@ -94,10 +103,11 @@ export default class SmartAccountDeploy extends BaseCommand {
     let abi: Abi | undefined;
 
     if (flags.abiPath) {
-      const abiPath = flags.abiPath;
-      const abiFullPath = path.resolve(abiPath);
-      const abiFileContent = fs.readFileSync(abiFullPath, "utf8");
-      abi = JSON.parse(abiFileContent);
+      try {
+        abi = readJsonFile<Abi>(flags.abiPath);
+      } catch (e) {
+        this.error(`Invalid ABI file: ${e}`);
+      }
     }
 
     let bytecode: Hex | Uint8Array;
@@ -119,14 +129,16 @@ export default class SmartAccountDeploy extends BaseCommand {
       bytecode = addHexPrefix(fs.readFileSync(fullPath, "utf8"));
     }
 
-    const { hash, address } = await smartAccount.deployContract({
+    const params = {
       shardId: flags.shardId,
       bytecode: bytecode,
       abi: abi,
       args: args.args?.split(" ") ?? [],
       salt: BigInt(flags.salt),
       value: BigInt(flags.amount ?? 0),
-    });
+      feeCredit: flags.fee ?? SmartAccountDeploy.defaultFee,
+    };
+    const { hash, address } = await smartAccount.deployContract(params);
 
     if (flags.quiet) {
       this.log(address);
@@ -156,7 +168,7 @@ export default class SmartAccountDeploy extends BaseCommand {
       await this.waitOnTx(hash);
       this.info("Token name successfully set");
 
-      hash = await smartAccount.mintToken(BigInt(flags.token));
+      hash = await smartAccount.mintToken(flags.token);
       this.info("Waiting for the token to be minted...");
       await this.waitOnTx(hash);
       this.info("Token successfully minted");

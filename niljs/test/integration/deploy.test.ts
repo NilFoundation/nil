@@ -91,14 +91,14 @@ test("External failed deployment", async ({ expect }) => {
       bytecode: SmartAccountV1.code,
       abi: SmartAccountV1.abi,
       args: [pubKey],
-      feeCredit: 1000000n * gasPrice,
+      feeCredit: 100000000n * gasPrice,
     },
     chainId,
   );
   const addr = bytesToHex(deploymentTransaction.to);
   expect(addr).toBeDefined();
 
-  await topUpTest(addr, "NIL", 50_000_000);
+  await topUpTest(addr, "NIL");
 
   const hash = await deploymentTransaction.send(client);
 

@@ -20,6 +20,7 @@ export async function deployNilContract(
     bytecode: `${bytecode}`,
     salt: BigInt(Math.floor(Math.random() * 1000000)),
     shardId: shardId ?? smartAccount.shardId,
+    feeCredit: BigInt("19340180000000"),
   });
 
   const receipts = await waitTillCompleted(smartAccount.client, hash);

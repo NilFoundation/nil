@@ -71,7 +71,7 @@ export const CliTest = test.extend<CliTestFixture>({
   runCommand: async ({ cfgPath }, use) => {
     await use(async (cmdArgs: string[]) => {
       const args = cmdArgs.concat(["-c", cfgPath]);
-      console.log("Running command:", args, "wiith root", path.join(__dirname, ".."));
+      console.log("Running command:", args, "with root", path.join(__dirname, ".."));
       const res = await runCommand(args, {
         root: path.join(__dirname, ".."),
       });
