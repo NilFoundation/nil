@@ -24,13 +24,7 @@ describe("smart-account:send-token", () => {
     expect(contractAddress).toBeTruthy();
 
     const txHash = (
-      await runCommand([
-        "smart-account",
-        "send-tokens",
-        smartAccountAddress,
-        "-m",
-        "1000",
-      ])
+      await runCommand(["smart-account", "send-tokens", smartAccountAddress, "-m", "1000"])
     ).result as Hex;
     expect(txHash).toBeTruthy();
   });
