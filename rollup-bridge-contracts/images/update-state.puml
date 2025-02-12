@@ -1,0 +1,123 @@
+@startuml
+actor Proposer as proposer
+participant NilRollup as nilRollup
+entity BatchInfo as batchInfoRecords
+entity StateRootIndex as stateRootIndex
+participant NilVerifier as nilVerifier
+participant Precompile as precompile
+boundary Event as event
+
+== Start Update State ==
+proposer -> nilRollup: updateState(string batchIndex, bytes32 oldStateRoot, bytes32 newStateRoot, bytes[] dataProofs, bytes validityProof, PublicDataInfo publicDataInfo)
+
+alt Check if oldStateRoot is valid
+    nilRollup -> nilRollup: oldStateRoot == bytes32(0)
+    alt Invalid oldStateRoot
+        nilRollup -> proposer: revert ErrorInvalidOldStateRoot()
+    end
+end
+
+alt Check if newStateRoot is valid
+    nilRollup -> nilRollup: newStateRoot == bytes32(0)
+    alt Invalid newStateRoot
+        nilRollup -> proposer: revert ErrorInvalidNewStateRoot()
+    end
+end
+
+alt Check if dataProofs are valid
+    nilRollup -> nilRollup: dataProofs.length == 0
+    alt Invalid dataProofs
+        nilRollup -> proposer: revert ErrorInvalidDataProof()
+    end
+end
+
+alt Check if validityProof is valid
+    nilRollup -> nilRollup: validityProof.length == 0
+    alt Invalid validityProof
+        nilRollup -> proposer: revert ErrorInvalidValidityProof()
+    end
+end
+
+alt Check if newStateRoot is already finalized
+    nilRollup -> stateRootIndex: stateRootIndex[newStateRoot]
+    alt newStateRoot is already finalized
+        nilRollup -> proposer: revert ErrorNewStateRootAlreadyFinalized(batchIndex, newStateRoot)
+    end
+end
+
+alt Check if dataProofs length matches blobCount
+    nilRollup -> batchInfoRecords: batchInfoRecords[batchIndex].blobCount
+    alt dataProofs length does not match blobCount
+        nilRollup -> proposer: revert ErrorInvalidDataProof()
+    end
+end
+
+alt Check if batch is committed and not finalized
+    nilRollup -> batchInfoRecords: batchInfoRecords[batchIndex].isCommitted
+    nilRollup -> batchInfoRecords: batchInfoRecords[batchIndex].isFinalized
+    alt Batch is not committed or already finalized
+        nilRollup -> proposer: revert ErrorBatchNotCommittedOrAlreadyFinalized(batchIndex)
+    end
+end
+
+alt Check if oldStateRoot matches last finalized batch's newStateRoot
+    nilRollup -> batchInfoRecords: batchInfoRecords[lastFinalizedBatchIndex].newStateRoot
+    alt oldStateRoot does not match
+        nilRollup -> proposer: revert ErrorOldStateRootMismatch()
+    end
+end
+
+== Verify Data Proofs ==
+nilRollup -> nilRollup: bytes32[] memory blobVersionedHashes = getBlobVersionedHashes(batchIndex)
+alt Check if blobVersionedHashes length matches dataProofs length
+    nilRollup -> nilRollup: blobVersionedHashes.length != dataProofs.length
+    alt Lengths do not match
+        nilRollup -> proposer: revert ErrorIncorrectDataProofSize()
+    end
+end
+
+loop for each blobVersionedHash
+    nilRollup -> precompile: staticcall(POINT_EVALUATION_PRECOMPILE_ADDR, abi.encodePacked(blobVersionedHash, dataProof))
+    alt Precompile call failed
+        precompile -> nilRollup: revert ErrorCallPointEvaluationPrecompileFailed()
+    end
+
+    nilRollup -> nilRollup: abi.decode(data, (uint256, uint256))
+    alt Output does not match BLS_MODULUS
+        nilRollup -> proposer: revert ErrorUnexpectedPointEvaluationPrecompileOutput()
+    end
+end
+
+== Generate Public Input ==
+nilRollup -> nilRollup: bytes memory publicInput = generatePublicInputForValidityProofVerification(batchIndex, publicDataInfo)
+alt Check if publicInput is valid
+    nilRollup -> nilRollup: publicInput.length == 0
+    alt Invalid publicInput
+        nilRollup -> proposer: revert ErrorInvalidPublicInputForProof()
+    end
+end
+
+== Verify Validity Proof ==
+nilRollup -> nilVerifier: verify(validityProof, publicInput)
+alt Validity proof is invalid
+    nilVerifier -> nilRollup: revert ErrorInvalidValidityProof()
+end
+
+== Update State Root ==
+note right of nilRollup: Update Contract Storage
+nilRollup -> batchInfoRecords: batchInfoRecords[batchIndex].oldStateRoot = oldStateRoot
+nilRollup -> batchInfoRecords: batchInfoRecords[batchIndex].newStateRoot = newStateRoot
+loop for each dataProof
+    nilRollup -> batchInfoRecords: batchInfoRecords[batchIndex].dataProofs.push(dataProofs[i])
+end
+nilRollup -> batchInfoRecords: batchInfoRecords[batchIndex].validityProof = validityProof
+nilRollup -> batchInfoRecords: batchInfoRecords[batchIndex].publicDataInputs = publicDataInfo
+nilRollup -> batchInfoRecords: batchInfoRecords[batchIndex].isFinalized = true
+nilRollup -> stateRootIndex: stateRootIndex[newStateRoot] = batchIndex
+
+== Emit StateRootUpdated Event ==
+note right of nilRollup: Emit Event
+nilRollup -> event: emit StateRootUpdated(batchIndex, oldStateRoot, newStateRoot)
+
+== End Update State ==
+@enduml

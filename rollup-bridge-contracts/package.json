@@ -1,0 +1,46 @@
+{
+  "name": "rollup-contracts",
+  "scripts": {
+    "setup": "./setup.sh",
+    "build": "forge build",
+    "compile": "npx hardhat compile && forge compile",
+    "clean": "rm -rf artifacts && rm -rf .openzeppelin && rm -rf deployments && rm -rf cache && npx hardhat clean && forge clean",
+    "deploy-nilrollup-proxy": "npx hardhat deploy --network sepolia --tags NilRollup",
+    "format:solidity": "prettier --write 'contracts/**/*.sol'",
+    "prettier:check": "prettier --check \"**/*.{json,md,yml}\"",
+    "prettier:write": "prettier --write \"**/*.{json,md,yml}\"",
+    "lint": "npm run lint:sol && npm run prettier:check",
+    "lint:fix": "npm run lint:sol:fix && forge fmt",
+    "lint:sol": "forge fmt --check && npm solhint \"{benchmark,script,src,tests}/**/*.sol\"",
+    "lint:sol:fix": "npm run solhint \"{benchmark,script,src,contracts,tests}/**/*.sol\" --fix --noPrompt",
+    "test": "forge test",
+    "test:lite": "FOUNDRY_PROFILE=lite forge test",
+    "test:optimized": "npm run build:optimized && FOUNDRY_PROFILE=test-optimized forge test",
+    "solhint": "solhint"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomiclabs/hardhat-etherscan": "^3.1.8",
+    "hardhat": "^2.22.15",
+    "hardhat-foundry": "^0.0.5",
+    "hardhat-gas-reporter": "^1.0.9",
+    "hardhat-preprocessor": "^0.1.4",
+    "lint-staged": "^15.2.8",
+    "prettier": "^3.4.2",
+    "prettier-plugin-solidity": "^1.4.1",
+    "solhint": "^5.0.5",
+    "solidity-coverage": "^0.8.5",
+    "ts-node": "^10.9.1",
+    "typechain": "^8.3.1",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.1.0",
+    "@openzeppelin/contracts-upgradeable": "^5.1.0",
+    "@openzeppelin/hardhat-upgrades": "^3.8.0",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.4",
+    "hardhat-deploy": "^0.14.0",
+    "yargs": "^17.7.2"
+  }
+}

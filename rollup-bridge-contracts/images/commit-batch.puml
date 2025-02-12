@@ -1,0 +1,45 @@
+@startuml
+actor Proposer as proposer
+participant NilRollup as nilRollup
+participant BatchInfo as batchInfoRecords
+participant Event as event
+
+== Start Commit Batch ==
+proposer -> nilRollup: commitBatch(string batchIndex, uint256 blobCount)
+
+alt Check if batch is already committed
+    nilRollup -> nilRollup: batchInfoRecords[batchIndex].isCommitted
+    alt Batch is already committed
+        nilRollup -> proposer: revert ErrorBatchAlreadyCommitted(batchIndex)
+    end
+end
+
+alt Check if batch is already finalized
+    nilRollup -> nilRollup: batchInfoRecords[batchIndex].isFinalized
+    alt Batch is already finalized
+        nilRollup -> proposer: revert ErrorBatchAlreadyFinalized(batchIndex)
+    end
+end
+
+== Generate Versioned Hashes ==
+nilRollup -> nilRollup: bytes32[] memory versionedHashes = new bytes32[](blobCount)
+loop for each blob
+    nilRollup -> nilRollup: versionedHashes[i] = generateVersionedHash(i)
+    alt Invalid Versioned Hash
+        nilRollup -> proposer: revert ErrorInvalidVersionedHash(batchIndex, i)
+    end
+end
+
+== Mark Batch as Committed ==
+note right of nilRollup: Update Contract Storage
+nilRollup -> batchInfoRecords: batchInfoRecords[batchIndex].isCommitted = true
+nilRollup -> batchInfoRecords: batchInfoRecords[batchIndex].versionedHashes = versionedHashes
+nilRollup -> batchInfoRecords: batchInfoRecords[batchIndex].blobCount = blobCount
+nilRollup -> nilRollup: lastCommittedBatchIndex = batchIndex
+
+== Emit BatchCommitted Event ==
+note right of nilRollup: Emit Event
+nilRollup -> event: emit BatchCommitted(batchIndex)
+
+== End Commit Batch ==
+@enduml
