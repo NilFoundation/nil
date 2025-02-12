@@ -63,6 +63,8 @@ type DB interface {
 
 	DropAll() error
 	LogGC(ctx context.Context, discardRation float64, gcFrequency time.Duration) error
+	SetFetcherCount(count int)
+	FetcherDone()
 	Fetch(_ context.Context, reader io.Reader) error
 	Close()
 }

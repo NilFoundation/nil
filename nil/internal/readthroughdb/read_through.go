@@ -152,6 +152,10 @@ func (db *ReadThroughDb) Stream(ctx context.Context, keyFilter func([]byte) bool
 	panic("Not supported")
 }
 
+func (db *ReadThroughDb) SetFetcherCount(count int) {}
+
+func (db *ReadThroughDb) FetcherDone() {}
+
 func (db *ReadThroughDb) Fetch(ctx context.Context, reader io.Reader) error {
 	panic("Not supported")
 }

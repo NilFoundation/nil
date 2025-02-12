@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os/signal"
 	"slices"
-	"sync"
 	"syscall"
 	"time"
 
@@ -220,8 +219,7 @@ func createArchiveSyncers(cfg *Config, nm *network.Manager, database db.DB, logg
 	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
 	syncerTimeout := syncTimeoutFactor * collatorTickPeriod
 
-	var wgInit sync.WaitGroup
-	wgInit.Add(1)
+	database.SetFetcherCount(1)
 
 	funcs := make([]concurrent.Func, 0, cfg.NShards+1)
 	syncers := make([]*collate.Syncer, 0, cfg.NShards)
@@ -254,7 +252,6 @@ func createArchiveSyncers(cfg *Config, nm *network.Manager, database db.DB, logg
 		}
 		syncers = append(syncers, syncer)
 		funcs = append(funcs, func(ctx context.Context) error {
-			wgInit.Wait() // Wait for syncers initialization
 			if err := syncer.Run(ctx); err != nil {
 				logger.Error().
 					Err(err).
@@ -503,8 +500,7 @@ func createShards(
 	syncers := make([]*collate.Syncer, 0, cfg.NShards)
 	pools := make(map[types.ShardId]txnpool.Pool)
 
-	var wgInit sync.WaitGroup
-	wgInit.Add(1)
+	database.SetFetcherCount(1)
 
 	pKey, err := cfg.LoadValidatorPrivateKey()
 	if err != nil {
@@ -556,7 +552,6 @@ func createShards(
 		syncers = append(syncers, syncer)
 
 		funcs = append(funcs, func(ctx context.Context) error {
-			wgInit.Wait() // Wait for syncers initialization
 			if err := syncer.Run(ctx); err != nil {
 				logger.Error().
 					Err(err).
@@ -585,7 +580,6 @@ func createShards(
 
 			pools[shardId] = txnPool
 			funcs = append(funcs, func(ctx context.Context) error {
-				wgInit.Wait() // Wait for syncers initialization
 				if err := consensus.Init(ctx); err != nil {
 					return err
 				}

@@ -15,10 +15,28 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+/*
+   NOTE ABOUT LOCKING
+   Syncers use Badger's Load() functionality to load data from a remote source,
+   as though it were a backup.  However, Load() must not be called concurrently
+   with any transactions on the DB.
+
+   We employ two kinds of synchronization here:
+   1) For read/write transactions, we have the waitgroup which waits for all
+      synchers to finish.
+   2) For RO transactions, we can't use the waitgroup because the synchers read
+      the DB themselves.  If we leave them unsynchronized, there is a race
+      condition between the synchers and the *creation* of RO transactions.
+      Therefore, we use an RWMutex to synchronize the *creation* of RO
+      transactions against synchers. After the synchers finish, the
+      RLock()/RUnlock() operations are no-ops.
+*/
+
 type badgerDB struct {
 	db       *badger.DB
 	txLedger assert.TxLedger
-	lock     sync.Mutex
+	lock     sync.RWMutex
+	fetchers sync.WaitGroup
 }
 
 type BadgerDBOptions struct {
@@ -103,21 +121,25 @@ func captureStacktrace() []byte {
 	return stack
 }
 
-func (db *badgerDB) createRoTx(_ context.Context, txn *badger.Txn, managed bool) (RoTx, error) {
+func (db *badgerDB) createRoTx(_ context.Context, txn *badger.Txn, managed bool) RoTx {
 	tx := &BadgerRoTx{tx: txn, onFinish: func() {}, managed: managed}
 	if assert.Enable {
 		stack := captureStacktrace()
 		tx.onFinish = db.txLedger.TxOnStart(stack)
 	}
-	return tx, nil
+	return tx
 }
 
 func (db *badgerDB) CreateRoTxAt(ctx context.Context, ts Timestamp) (RoTx, error) {
-	return db.createRoTx(ctx, db.db.NewTransactionAt(uint64(ts), false), true)
+	db.lock.RLock()
+	defer db.lock.RUnlock()
+	return db.createRoTx(ctx, db.db.NewTransactionAt(uint64(ts), false), true), nil
 }
 
 func (db *badgerDB) CreateRoTx(ctx context.Context) (RoTx, error) {
-	return db.createRoTx(ctx, db.db.NewTransaction(false), false)
+	db.lock.RLock()
+	defer db.lock.RUnlock()
+	return db.createRoTx(ctx, db.db.NewTransaction(false), false), nil
 }
 
 func (db *badgerDB) createRwTx(_ context.Context, txn *badger.Txn) (RwTx, error) {
@@ -130,6 +152,7 @@ func (db *badgerDB) createRwTx(_ context.Context, txn *badger.Txn) (RwTx, error)
 }
 
 func (db *badgerDB) CreateRwTx(ctx context.Context) (RwTx, error) {
+	db.fetchers.Wait()
 	return db.createRwTx(ctx, db.db.NewTransaction(true))
 }
 
@@ -147,6 +170,14 @@ func (db *badgerDB) Stream(
 		return err
 	}
 	return nil
+}
+
+func (db *badgerDB) SetFetcherCount(count int) {
+	db.fetchers.Add(count)
+}
+
+func (db *badgerDB) FetcherDone() {
+	db.fetchers.Done()
 }
 
 func (db *badgerDB) Fetch(_ context.Context, reader io.Reader) error {

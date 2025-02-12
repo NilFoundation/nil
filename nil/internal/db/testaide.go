@@ -30,6 +30,12 @@ func NewDbMock(dbImpl DB) *DBMock {
 		LogGCFunc: func(ctx context.Context, discardRation float64, gcFrequency time.Duration) error {
 			return dbImpl.LogGC(ctx, discardRation, gcFrequency)
 		},
+		SetFetcherCountFunc: func(count int) {
+			dbImpl.SetFetcherCount(count)
+		},
+		FetcherDoneFunc: func() {
+			dbImpl.FetcherDone()
+		},
 		FetchFunc: func(ctx context.Context, reader io.Reader) error {
 			return dbImpl.Fetch(ctx, reader)
 		},

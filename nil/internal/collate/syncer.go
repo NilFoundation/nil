@@ -125,7 +125,7 @@ func (s *Syncer) notify() {
 	}
 }
 
-func (s *Syncer) FetchSnapshot(ctx context.Context, wgFetch *sync.WaitGroup) error {
+func (s *Syncer) FetchSnapshot(ctx context.Context) error {
 	if s.config.ReplayBlocks {
 		if snapIsRequired, err := s.shardIsEmpty(ctx); err != nil {
 			return err
@@ -136,7 +136,7 @@ func (s *Syncer) FetchSnapshot(ctx context.Context, wgFetch *sync.WaitGroup) err
 		}
 	}
 
-	wgFetch.Done()
+	s.db.FetcherDone()
 	return nil
 }
 
