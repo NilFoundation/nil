@@ -5,11 +5,16 @@ pragma solidity ^0.8.9;
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 // Caller contract is a simple delegate proxy
-// It demonstrates how to interact with another contract (Counter) located on a different shard
+// It demonstrates how to interact with another contract (Counter)
+// Located (possibly) on a different shard
 // To test, deploy Caller and Counter on separate shards
 // The call method uses Nil.asyncCall to send an asynchronous call to the Counter contract
 // Async call arguments: destination address (dst), callback address (msg.sender),
 // value (0 in this example), and encoded function signature (increment())
+
+// read more:
+// https://docs.nil.foundation/nil/key-principles/async-execution
+// https://docs.nil.foundation/nil/smart-contracts/handling-async-execution/
 
 contract Caller {
     using Nil for address;
@@ -28,12 +33,11 @@ contract Caller {
 
 // Counter contract is a simple stateful contract that keeps track of a counter value
 // It provides methods to increment the value and read the current value
-// When increment is called, it emits a ValueChanged event
 
 contract Counter {
     uint256 private value; // Stores the current counter value
 
-    // Increments the counter by 1 and emits a ValueChanged event
+    // Increments the counter by 1
     function increment() public {
         value += 1;
     }
