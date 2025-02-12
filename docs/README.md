@@ -74,4 +74,4 @@ npm run test:useNilD path/to/test
 
 ## License
 
-[MIT](./LICENSE)
+[MIT](./LICENCE)
