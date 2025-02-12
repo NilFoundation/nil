@@ -91,7 +91,7 @@ test("External failed deployment", async ({ expect }) => {
       bytecode: SmartAccountV1.code,
       abi: SmartAccountV1.abi,
       args: [pubKey],
-      feeCredit: 1000000n * gasPrice,
+      feeCredit: 100000000n * gasPrice,
     },
     chainId,
   );
