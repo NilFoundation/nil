@@ -413,6 +413,7 @@ library Nil {
         uint64 number;
         uint64 timestamp;
         uint256 baseFee;
+        uint256 blobBaseFee;
         bytes32 hash;
     }
 

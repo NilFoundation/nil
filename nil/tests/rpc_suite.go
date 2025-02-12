@@ -78,7 +78,7 @@ func (s *RpcSuite) Start(cfg *nilservice.Config) {
 	s.Db = s.DbInit()
 
 	if cfg.L1Fetcher == nil {
-		cfg.L1Fetcher = CreateMockL1Fetcher(s.T(), 0)
+		cfg.L1Fetcher = GetDummyL1Fetcher()
 	}
 
 	var serviceInterop chan nilservice.ServiceInterop

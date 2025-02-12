@@ -94,10 +94,11 @@ func (p *ParamGasPrice) Accessor() *ParamAccessor {
 }
 
 type ParamL1BlockInfo struct {
-	Number    uint64        `json:"number" yaml:"number"`
-	Timestamp uint64        `json:"timestamp" yaml:"timestamp"`
-	BaseFee   types.Uint256 `json:"baseFee" yaml:"baseFee"`
-	Hash      common.Hash   `json:"hash" yaml:"hash"`
+	Number      uint64        `json:"number" yaml:"number"`
+	Timestamp   uint64        `json:"timestamp" yaml:"timestamp"`
+	BaseFee     types.Uint256 `json:"baseFee" yaml:"baseFee"`
+	BlobBaseFee types.Uint256 `json:"blobBaseFee" yaml:"blobBaseFee"`
+	Hash        common.Hash   `json:"hash" yaml:"hash"`
 }
 
 var _ IConfigParam = new(ParamL1BlockInfo)

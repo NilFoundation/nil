@@ -106,7 +106,7 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 		return nil, fmt.Errorf("failed to fetch last block hashes: %w", err)
 	}
 
-	if err := p.handleL1Attributes(); err != nil {
+	if err := p.handleL1Attributes(tx); err != nil {
 		// TODO: change to Error severity once Consensus/Proposer increase time intervals
 		p.logger.Trace().Err(err).Msg("Failed to handle L1 attributes")
 	}
@@ -162,7 +162,7 @@ func (p *proposer) fetchLastBlockHashes(tx db.RoTx) error {
 	return nil
 }
 
-func (p *proposer) handleL1Attributes() error {
+func (p *proposer) handleL1Attributes(tx db.RoTx) error {
 	if !p.params.ShardId.IsMainShard() {
 		return nil
 	}
@@ -180,7 +180,7 @@ func (p *proposer) handleL1Attributes() error {
 	}
 
 	// Check if this L1 block was already processed
-	if cfgAccessor, err := config.NewConfigReader(p.roTx, nil); err == nil {
+	if cfgAccessor, err := config.NewConfigReader(tx, nil); err == nil {
 		if prevL1Block, err := config.GetParamL1Block(cfgAccessor); err == nil {
 			if prevL1Block != nil && prevL1Block.Number >= block.Number.Uint64() {
 				return nil
@@ -205,7 +205,22 @@ func CreateL1BlockUpdateTransaction(header *l1types.Header) (*types.Transaction,
 	if err != nil {
 		return nil, fmt.Errorf("failed to get L1BlockInfo ABI: %w", err)
 	}
-	calldata, err := abi.Pack("setL1BlockInfo", header.Number.Uint64(), header.Time, header.BaseFee, header.Hash())
+
+	excessBlobGas := uint64(0)
+	if header.ExcessBlobGas != nil {
+		excessBlobGas = *header.ExcessBlobGas
+	}
+	blobBaseFee, err := rollup.GetBlobGasPrice(excessBlobGas)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate blob base fee: %w", err)
+	}
+
+	calldata, err := abi.Pack("setL1BlockInfo",
+		header.Number.Uint64(),
+		header.Time,
+		header.BaseFee,
+		blobBaseFee.ToBig(),
+		header.Hash())
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack setL1BlockInfo calldata: %w", err)
 	}

@@ -170,7 +170,7 @@ func (s *ShardedSuite) start(
 	s.Instances = make([]Instance, instanceCount)
 
 	if cfg.L1Fetcher == nil {
-		cfg.L1Fetcher = CreateMockL1Fetcher(s.T(), 0)
+		cfg.L1Fetcher = GetDummyL1Fetcher()
 	}
 
 	for index := range InstanceId(instanceCount) {

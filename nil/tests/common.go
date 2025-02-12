@@ -5,9 +5,7 @@ package tests
 import (
 	"context"
 	"crypto/ecdsa"
-	"math/big"
 	"testing"
-	"time"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
@@ -313,28 +311,12 @@ func GetContract(t *testing.T, ctx context.Context, database db.DB, address type
 	return contract
 }
 
-func CreateMockL1Fetcher(t *testing.T, interval time.Duration) rollup.L1BlockFetcher {
-	t.Helper()
+var DummyL1Fetcher = rollup.L1BlockFetcherMock{
+	GetLastBlockInfoFunc: func(ctx context.Context) (*l1types.Header, error) {
+		return nil, nil
+	},
+}
 
-	l1Fetcher := &rollup.L1BlockFetcherMock{}
-	if interval == 0 {
-		l1Fetcher.GetLastBlockInfoFunc = func(ctx context.Context) (*l1types.Header, error) {
-			return nil, nil
-		}
-		return l1Fetcher
-	}
-	block := &l1types.Header{
-		Number:  big.NewInt(1),
-		BaseFee: big.NewInt(1_000_000),
-	}
-	one := big.NewInt(1)
-	lastBlockTm := time.Now()
-	l1Fetcher.GetLastBlockInfoFunc = func(ctx context.Context) (*l1types.Header, error) {
-		if time.Since(lastBlockTm) >= interval {
-			lastBlockTm = time.Now()
-			block.Number = block.Number.Add(block.Number, one)
-		}
-		return block, nil
-	}
-	return l1Fetcher
+func GetDummyL1Fetcher() rollup.L1BlockFetcher {
+	return &DummyL1Fetcher
 }
