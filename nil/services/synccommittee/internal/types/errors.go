@@ -47,16 +47,20 @@ const (
 	// TaskErrNotSupportedType indicates that an unsupported or unrecognized type was encountered by the executor.
 	TaskErrNotSupportedType
 
+	// TaskErrOutOfMemory indicated that managed memory allocation failure occurred during the proof generation
+	TaskErrOutOfMemory
+
 	// TaskErrUnknown indicates an unspecified task error.
 	TaskErrUnknown
 )
 
 var RetryableErrors = map[TaskErrType]bool{
-	TaskErrTimeout:    true,
-	TaskErrRpc:        true,
-	TaskErrIO:         true,
-	TaskErrTerminated: true,
-	TaskErrUnknown:    true,
+	TaskErrTimeout:     true,
+	TaskErrRpc:         true,
+	TaskErrIO:          true,
+	TaskErrTerminated:  true,
+	TaskErrOutOfMemory: true,
+	TaskErrUnknown:     true,
 }
 
 type TaskExecError struct {
