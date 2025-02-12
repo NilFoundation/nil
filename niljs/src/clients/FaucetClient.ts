@@ -1,3 +1,4 @@
+import { toHex } from "../encoding/toHex.js";
 import type { Hex } from "../types/Hex.js";
 import { waitTillCompleted } from "../utils/receipt.js";
 import { BaseClient } from "./BaseClient.js";
@@ -10,7 +11,7 @@ import type { FaucetClientConfig } from "./types/Configs.js";
 export type TopUpParams = {
   faucetAddress: Hex;
   smartAccountAddress: Hex;
-  amount: number;
+  amount: bigint;
 };
 
 /**
@@ -55,7 +56,7 @@ class FaucetClient extends BaseClient {
   public async topUp({ faucetAddress, smartAccountAddress, amount }: TopUpParams) {
     return await this.request<Hex>({
       method: "faucet_topUpViaFaucet",
-      params: [faucetAddress, smartAccountAddress, amount],
+      params: [faucetAddress, smartAccountAddress, toHex(amount)],
     });
   }
 

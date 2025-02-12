@@ -1,4 +1,5 @@
 import { defaultAddress } from "../../test/mocks/address.js";
+import { toHex } from "../encoding/toHex.js";
 import { MockTransport } from "../transport/MockTransport.js";
 import { addHexPrefix } from "../utils/hex.js";
 import { FaucetClient } from "./FaucetClient.js";
@@ -31,12 +32,12 @@ test("topUp", async ({ expect }) => {
   await client.topUp({
     smartAccountAddress: addHexPrefix(defaultAddress),
     faucetAddress: addHexPrefix(defaultAddress),
-    amount: 100,
+    amount: 100n,
   });
 
   expect(fn).toHaveBeenCalledOnce();
   expect(fn).toHaveBeenLastCalledWith({
     method: "faucet_topUpViaFaucet",
-    params: [addHexPrefix(defaultAddress), addHexPrefix(defaultAddress), 100],
+    params: [addHexPrefix(defaultAddress), addHexPrefix(defaultAddress), toHex(100n)],
   });
 });

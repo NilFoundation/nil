@@ -248,7 +248,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
         "latest",
       );
 
-      refinedCredit = estimatedFee.feeCredit;
+      refinedCredit = refinedCredit || estimatedFee.feeCredit;
       maxPriorityFeePerGas = estimatedFee.averagePriorityFee;
       maxFeePerGas = estimatedFee.maxBaseFee;
     }
@@ -378,8 +378,6 @@ export class SmartAccountV1 implements SmartAccountInterface {
     });
 
     if (!refinedCredit || !maxFeePerGas || maxPriorityFeePerGas === undefined) {
-      const balance = await this.getBalance();
-
       const callData = encodeFunctionData({
         abi: SmartAccount.abi,
         functionName: "asyncCall",
@@ -586,8 +584,6 @@ export class SmartAccountV1 implements SmartAccountInterface {
     let refinedCredit = feeCredit;
 
     if (!refinedCredit || !maxFeePerGas || maxPriorityFeePerGas === undefined) {
-      const balance = await this.getBalance();
-
       const estimatedFee = await this.client.estimateGas(
         {
           to: this.address,

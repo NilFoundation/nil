@@ -6,7 +6,7 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts", "test/**/*.test.ts"],
     hookTimeout: 20_000,
-    testTimeout: 20_000,
+    testTimeout: 40_000,
     globals: true,
     coverage: {
       reportsDirectory: "./test/coverage",

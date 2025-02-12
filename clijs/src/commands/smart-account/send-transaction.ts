@@ -1,9 +1,9 @@
-import fs from "node:fs";
-import path from "node:path";
 import type { Hex } from "@nilfoundation/niljs";
 import { Args, Flags } from "@oclif/core";
 import type { Abi } from "abitype";
 import { BaseCommand } from "../../base.js";
+import { readJsonFile } from "../../common/utils";
+import { bigintFlag, hexArg, tokenFlag } from "../../types";
 
 export default class SmartAccountSendTransaction extends BaseCommand {
   static override summary = "Send a transaction to a smart contract via the smart account";
@@ -16,7 +16,7 @@ export default class SmartAccountSendTransaction extends BaseCommand {
       description: "The path to the ABI file",
       required: true,
     }),
-    amount: Flags.string({
+    amount: bigintFlag({
       char: "m",
       description: "The amount of default tokens to send",
       required: false,
@@ -26,12 +26,12 @@ export default class SmartAccountSendTransaction extends BaseCommand {
       description: "Define whether the command should wait for the receipt",
       default: false,
     }),
-    feeCredit: Flags.string({
+    feeCredit: bigintFlag({
       char: "f",
       description: "The fee credit for transaction processing",
       required: false,
     }),
-    tokens: Flags.string({
+    tokens: tokenFlag({
       char: "c",
       description:
         "The custom tokens to transfer in as a map 'tokenId=amount', can be set multiple times",
@@ -41,7 +41,7 @@ export default class SmartAccountSendTransaction extends BaseCommand {
   };
 
   static args = {
-    address: Args.string({
+    address: hexArg({
       name: "address",
       required: true,
       description: "The address of the smart contract",
@@ -67,37 +67,33 @@ export default class SmartAccountSendTransaction extends BaseCommand {
     const { smartAccount } = await this.setupSmartAccount();
 
     const address = args.address as Hex;
-    const abiPath = flags.abiPath;
-
-    const abiFullPath = path.resolve(abiPath);
-    const abiFileContent = fs.readFileSync(abiFullPath, "utf8");
-    const abi: Abi = JSON.parse(abiFileContent);
+    let abi: Abi;
+    try {
+      abi = readJsonFile<Abi>(flags.abiPath);
+    } catch (e) {
+      this.error(`Invalid ABI file: ${e}`);
+    }
 
     let txHash: Hex;
-
-    const tokens = flags.tokens?.map((token) => {
-      const [tokenId, amount] = token.split("=");
-      return { id: tokenId as Hex, amount: BigInt(amount) };
-    });
 
     if (args.bytecodeOrMethod.startsWith("0x")) {
       const data = args.bytecodeOrMethod as Hex;
       txHash = await smartAccount.sendTransaction({
         to: address,
-        value: BigInt(flags.amount ?? 0),
-        feeCredit: BigInt(flags.feeCredit ?? 0),
-        tokens: tokens,
+        value: flags.amount ?? 0n,
+        feeCredit: flags.feeCredit ?? 0n,
+        tokens: flags.tokens ?? [],
         data: data,
       });
     } else {
       txHash = await smartAccount.sendTransaction({
         to: address,
-        value: BigInt(flags.amount ?? 0),
-        feeCredit: BigInt(flags.feeCredit ?? 0),
+        value: flags.amount ?? 0n,
+        feeCredit: flags.feeCredit ?? 0n,
         args: args.args?.split(" ") ?? [],
         abi: abi,
         functionName: args.bytecodeOrMethod,
-        tokens: tokens,
+        tokens: flags.tokens ?? [],
       });
     }
     if (flags.quiet) {
