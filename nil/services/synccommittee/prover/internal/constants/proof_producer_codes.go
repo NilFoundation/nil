@@ -14,6 +14,7 @@ const (
 	ProofProducerIOError      ProofProducerResultCode = 10
 	ProofProducerInvalidInput ProofProducerResultCode = 20
 	ProofProducerProverError  ProofProducerResultCode = 30
+	ProofProducerOutOfMemory  ProofProducerResultCode = 40
 	ProofProducerUnknownError ProofProducerResultCode = 0xFF
 )
 
@@ -21,5 +22,6 @@ var ProofProducerErrors = map[ProofProducerResultCode]types.TaskErrType{
 	ProofProducerIOError:      types.TaskErrIO,
 	ProofProducerInvalidInput: types.TaskErrInvalidInputData,
 	ProofProducerProverError:  types.TaskErrProofGenerationFailed,
+	ProofProducerOutOfMemory:  types.TaskErrOutOfMemory,
 	ProofProducerUnknownError: types.TaskErrUnknown,
 }
