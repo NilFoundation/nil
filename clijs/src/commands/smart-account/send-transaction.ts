@@ -31,6 +31,16 @@ export default class SmartAccountSendTransaction extends BaseCommand {
       description: "The fee credit for transaction processing",
       required: false,
     }),
+    priorityFee: Flags.string({
+        char: "p",
+        description: "Priority fee for transaction processing",
+        required: false,
+      }),
+    maxFeePerGas: Flags.string({
+        char: "x",
+        description: "Max fee per gas for transaction processing",
+        required: false,
+      }),
     tokens: Flags.string({
       char: "c",
       description:
@@ -86,6 +96,8 @@ export default class SmartAccountSendTransaction extends BaseCommand {
         to: address,
         value: BigInt(flags.amount ?? 0),
         feeCredit: BigInt(flags.feeCredit ?? 0),
+        priorityFee: BigInt(flags.priorityFee ?? 0),
+        maxFeePerGas: BigInt(flags.maxFeePerGas ?? 0),
         tokens: tokens,
         data: data,
       });
@@ -94,6 +106,8 @@ export default class SmartAccountSendTransaction extends BaseCommand {
         to: address,
         value: BigInt(flags.amount ?? 0),
         feeCredit: BigInt(flags.feeCredit ?? 0),
+        priorityFee: BigInt(flags.priorityFee ?? 0),
+        maxFeePerGas: BigInt(flags.maxFeePerGas ?? 0),
         args: args.args?.split(" ") ?? [],
         abi: abi,
         functionName: args.bytecodeOrMethod,
