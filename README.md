@@ -104,7 +104,7 @@ There can only be one top-level `package-lock.json` file that can be regenerated
 npm run install:clean
 ```
 
-Individual projects should not have separate `package-lock.json` files. If such files exist, it may lead to unintented behaviors.
+Individual projects should not have separate `package-lock.json` files. If such files exist, it may lead to unintended behaviors.
 
 In addition, Nix validates the hashum of the `package-lock.json` file when building the project. Perform the following actions after running the `install:clean` script:
 
@@ -226,7 +226,7 @@ The current RPC is loosely modeled after the Ethereum RPC. The RPC exposes the f
 
 ## OpenRPC spec generator
 
-The project also includes a generator of an OpenRPC spec file from the type definitions the RPC API interface.
+The project also includes a generator of an OpenRPC spec file from the type definitions of the RPC API interface.
 
 The primary benefit of this is allowing for automatic RPC API documentation
 generation on the side of [the documentation portal](https://docs.nil.foundation/).
@@ -241,7 +241,7 @@ go run spec_generator.
 rm spec_generator.go
 ```
 
-This will procude the `openrpc.json` file in the root directory.
+This will produce the `openrpc.json` file in the root directory.
 
 ## Linting
 
@@ -281,4 +281,4 @@ NB: by default, the replay mode fully copies the existing production DB. It is p
 nild --read-through-db-addr $RPC_ENDPOINT --read-through-fork-main-at-block FORK_NUM replay-block --first-block STARTING_BLOCK --last-block FINAL_BLOCK --shard-id SHARD_ID --log-level trace
 ```
 
-The `FORK_NUM` placeholder represents the number of the block beyond which records will not be retrieved from the production DB.
+The `FORK_NUM` placeholder represents the number of blocks beyond which records will not be retrieved from the production DB.

@@ -55,7 +55,7 @@ The contract contains three functions responsible for handling the auction logic
 ```solidity showLineNumbers file=../../../tests/EnglishAuction.sol start=startAuctionLogic end=endAuctionLogic
 ```
 
-The `start()` and `end()` functions are marked as `Ownable` so that only the contract owner can start and end the auction. When the auction beings, the contract sends a transaction for minting the NFT and starts accepting bets. After the auction concludes, a new async call is sent so that the NFT is transferred to the winner.
+The `start()` and `end()` functions are marked as `Ownable` so that only the contract owner can start and end the auction. When the auction begins, the contract sends a transaction for minting the NFT and starts accepting bets. After the auction concludes, a new async call is sent so that the NFT is transferred to the winner.
 
 ### Full code
 

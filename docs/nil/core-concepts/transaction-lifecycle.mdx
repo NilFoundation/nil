@@ -14,7 +14,7 @@ In =nil;, transactions pass the following stages before reaching finality.
 8. The sync committee collects the block along with blocks from other shards
 9. The block is aggregated into a batch, is compressed, and is sent to the L1 blob storage and to a zkSharding prover
 10. The prover produces a ZKP and sends it to the sync committee
-11. The sync commitee sends a transaction proposing the new state to L1. This transaction contains the ZKP
+11. The sync committee sends a transaction proposing the new state to L1. This transaction contains the ZKP
 12. L1 verifies that the data stored in the blob and the proven data is the same data
 13. L1 verifies the ZKP. If the ZKP is valid, the transaction reaches hard finality once the block containing it is confirmed
 
