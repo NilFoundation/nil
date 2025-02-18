@@ -157,9 +157,8 @@ func (m *FiltersManager) PollBlocks(delay time.Duration) {
 		select {
 		case <-m.ctx.Done():
 			return
-		default:
+		case <-time.After(delay):
 		}
-		time.Sleep(delay)
 
 		lastHash, err := m.getLastBlockHash()
 		if err != nil {
