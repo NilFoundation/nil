@@ -526,12 +526,13 @@ func (s *SuiteCliExec) TestCliCometa() {
 	var txnHash string
 
 	s.Run("Deploy counter", func() {
-		out := s.RunCliCfg("smart-account", "deploy", "--compile-input", "../contracts/counter-compile.json", "--shard-id", "1")
+		out := s.RunCliCfg("smart-account", "deploy", "--compile-input", "../contracts/counter-compile.json", "--shard-id", "1", "-q")
 		parts := strings.Split(out, "\n")
 		s.Require().Len(parts, 2)
-		parts = strings.Split(parts[1], ": ")
-		s.Require().Len(parts, 2)
 		address = types.HexToAddress(parts[1])
+		txHash := common.HexToHash(parts[0])
+		receipt := s.WaitIncludedInMain(txHash)
+		s.Require().True(receipt.AllSuccess())
 	})
 
 	s.Run("Get metadata", func() {
