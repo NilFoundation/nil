@@ -16,7 +16,8 @@ in
       ../explorer_backend/package.json
       ../explorer_frontend/package.json
       ../uniswap/package.json
+      ../wallet-extension/package.json
     ];
   };
-  hash = "sha256-RRgSGqVsxc00I1jMuE4K/J52gTFXsMlQQ76eYz3ZSKo=";
+  hash = "sha256-VwY85MYrH/UFSIT6usDeLra5crvxrF6xMXe1IxYMlZE=";
 })
