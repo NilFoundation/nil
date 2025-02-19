@@ -51,7 +51,7 @@ type Syncer struct {
 	blockVerifier *signer.BlockVerifier
 }
 
-func NewSyncer(cfg SyncerConfig, db db.DB, networkManager *network.Manager) (*Syncer, error) {
+func NewSyncer(cfg SyncerConfig, db db.DB, networkManager *network.Manager, configCache *config.ConfigCache) (*Syncer, error) {
 	var waitForSync sync.WaitGroup
 	waitForSync.Add(1)
 
@@ -65,7 +65,7 @@ func NewSyncer(cfg SyncerConfig, db db.DB, networkManager *network.Manager) (*Sy
 			Logger(),
 		waitForSync:   &waitForSync,
 		subs:          make(map[uint64]chan struct{}),
-		blockVerifier: signer.NewBlockVerifier(cfg.ShardId, db),
+		blockVerifier: signer.NewBlockVerifier(cfg.ShardId, configCache),
 	}, nil
 }
 

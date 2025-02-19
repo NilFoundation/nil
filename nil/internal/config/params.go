@@ -152,9 +152,7 @@ func mergeValidators(input []ListValidators) []ValidatorInfo {
 	return result
 }
 
-func GetValidatorListForShard(
-	ctx context.Context, database db.DB, height types.BlockNumber, shardId types.ShardId, logger zerolog.Logger,
-) ([]ValidatorInfo, error) {
+func GetConfigAccessorForShard(ctx context.Context, database db.DB, height types.BlockNumber, shardId types.ShardId, logger zerolog.Logger) (ConfigAccessor, error) {
 	tx, err := database.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
@@ -181,16 +179,16 @@ func GetValidatorListForShard(
 		// so we use the latest accessible config.
 		// TODO(@isergeyam): create some subscription mechanism that will handle this correctly.
 		logger.Warn().
-			Stringer(logging.FieldBlockNumber, block.Id).
+			Uint64(logging.FieldBlockNumber, block.Id.Uint64()).
 			Stringer(logging.FieldBlockMainChainHash, mainShardHash).
 			Msg("Main chain block not found, using the latest accessible config")
 		c, err = NewConfigAccessorTx(tx, nil)
 	}
-	if err != nil {
-		return nil, err
-	}
+	return c, err
+}
 
-	validatorsList, err := getParamImpl[ParamValidators](c)
+func GetValidatorsFromConfigAccessor(c ConfigAccessor, shardId types.ShardId) ([]ValidatorInfo, error) {
+	validatorsList, err := GetParamValidators(c)
 	if err != nil {
 		return nil, err
 	}

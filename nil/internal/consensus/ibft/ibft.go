@@ -22,11 +22,12 @@ import (
 const ibftProto = "/ibft/0.2"
 
 type ConsensusParams struct {
-	ShardId    types.ShardId
-	Db         db.DB
-	Validator  validator
-	NetManager *network.Manager
-	PrivateKey bls.PrivateKey
+	ShardId     types.ShardId
+	Db          db.DB
+	Validator   validator
+	NetManager  *network.Manager
+	PrivateKey  bls.PrivateKey
+	ConfigCache *config.ConfigCache
 }
 
 type validator interface {
@@ -40,16 +41,16 @@ type backendIBFT struct {
 	ctx context.Context
 	// `transportCtx`is the context bound to the transport goroutine
 	// It should be used in methods that are called from the transport goroutine with `AddMessage`
-	transportCtx    context.Context
-	db              db.DB
-	consensus       *core.IBFT
-	shardId         types.ShardId
-	validator       validator
-	logger          zerolog.Logger
-	nm              *network.Manager
-	transport       transport
-	signer          *Signer
-	validatorsCache *validatorsMap
+	transportCtx context.Context
+	db           db.DB
+	consensus    *core.IBFT
+	shardId      types.ShardId
+	validator    validator
+	logger       zerolog.Logger
+	nm           *network.Manager
+	transport    transport
+	signer       *Signer
+	configCache  *config.ConfigCache
 }
 
 var _ core.Backend = &backendIBFT{}
@@ -82,18 +83,17 @@ func (i *backendIBFT) BuildProposal(view *protoIBFT.View) []byte {
 	return data
 }
 
-func (i *backendIBFT) buildSignature(committedSeals []*messages.CommittedSeal, height uint64, logger zerolog.Logger) (*types.BlsAggregateSignature, error) {
-	validators, err := i.validatorsCache.getValidators(i.ctx, height)
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to get validators")
-		return nil, err
-	}
+func (i *backendIBFT) getConfigParams(ctx context.Context, height uint64) (*config.ConfigParams, error) {
+	return i.configCache.GetParams(ctx, i.shardId, height, i.logger)
+}
 
-	pubkeys, err := config.CreateValidatorsPublicKeyMap(validators)
+func (i *backendIBFT) buildSignature(committedSeals []*messages.CommittedSeal, height uint64, logger zerolog.Logger) (*types.BlsAggregateSignature, error) {
+	params, err := i.getConfigParams(i.ctx, height)
 	if err != nil {
-		logger.Error().Err(err).Msg("Failed to get validators public keys")
+		logger.Error().Err(err).Msg("Failed to get validators' config params")
 		return nil, err
 	}
+	pubkeys := params.PublicKeys
 
 	mask, err := bls.NewMask(pubkeys.Keys())
 	if err != nil {
@@ -185,13 +185,13 @@ func NewConsensus(cfg *ConsensusParams) *backendIBFT {
 	}
 
 	backend := &backendIBFT{
-		db:              cfg.Db,
-		shardId:         cfg.ShardId,
-		validator:       cfg.Validator,
-		logger:          logger,
-		nm:              cfg.NetManager,
-		signer:          NewSigner(cfg.PrivateKey),
-		validatorsCache: newValidatorsMap(cfg.Db, cfg.ShardId),
+		db:          cfg.Db,
+		shardId:     cfg.ShardId,
+		validator:   cfg.Validator,
+		logger:      logger,
+		nm:          cfg.NetManager,
+		signer:      NewSigner(cfg.PrivateKey),
+		configCache: cfg.ConfigCache,
 	}
 	backend.consensus = core.NewIBFT(l, backend, backend)
 	return backend
@@ -207,14 +207,15 @@ func (i *backendIBFT) Init(ctx context.Context) error {
 }
 
 func (i *backendIBFT) GetVotingPowers(height uint64) (map[string]*big.Int, error) {
-	validators, err := i.validatorsCache.getValidators(i.ctx, height)
+	params, err := i.getConfigParams(i.ctx, height)
 	if err != nil {
 		i.logger.Error().
 			Err(err).
 			Uint64(logging.FieldHeight, height).
-			Msg("Failed to get validators")
+			Msg("Failed to get validators' config params")
 		return nil, err
 	}
+	validators := params.ValidatorInfo
 
 	result := make(map[string]*big.Int, len(validators))
 	for _, v := range validators {

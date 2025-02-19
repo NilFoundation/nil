@@ -25,30 +25,26 @@ func (i *backendIBFT) IsValidValidator(msg *protoIBFT.IbftMessage) bool {
 		return false
 	}
 
-	loggerCtx := i.logger.With().Hex(logging.FieldPublicKey, msg.From)
-	if view := msg.GetView(); view != nil {
-		loggerCtx = loggerCtx.
-			Uint64(logging.FieldHeight, view.Height).
-			Uint64(logging.FieldRound, view.Round)
+	if view := msg.GetView(); view == nil {
+		i.logger.Error().Msg("message view is nil")
+		return false
 	}
-	logger := loggerCtx.Logger()
+
+	logger := i.logger.With().
+		Hex(logging.FieldPublicKey, msg.From).
+		Uint64(logging.FieldHeight, msg.View.Height).
+		Uint64(logging.FieldRound, msg.View.Round).
+		Logger()
 
 	// Here we use transportCtx because this method could be called from the transport goroutine
-	validators, err := i.validatorsCache.getValidators(i.transportCtx, msg.View.Height)
+	params, err := i.getConfigParams(i.transportCtx, msg.View.Height)
 	if err != nil {
 		logger.Error().
 			Err(err).
-			Msg("Failed to get validators")
+			Msg("Failed to get validators' config params")
 		return false
 	}
-
-	pubkeys, err := config.CreateValidatorsPublicKeyMap(validators)
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Msg("Failed to get validators public keys")
-		return false
-	}
+	pubkeys := params.PublicKeys
 
 	_, ok := pubkeys.Find(config.Pubkey(msg.From))
 	if !ok {

@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/internal/config"
-	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/rs/zerolog"
 )
@@ -15,28 +14,23 @@ var errBlockVerify = errors.New("failed to verify block")
 
 type BlockVerifier struct {
 	shardId types.ShardId
-	db      db.DB
+	cache   *config.ConfigCache
 }
 
-func NewBlockVerifier(shardId types.ShardId, db db.DB) *BlockVerifier {
+func NewBlockVerifier(shardId types.ShardId, cache *config.ConfigCache) *BlockVerifier {
 	return &BlockVerifier{
 		shardId: shardId,
-		db:      db,
+		cache:   cache,
 	}
 }
 
 func (b *BlockVerifier) VerifyBlock(ctx context.Context, block *types.Block, logger zerolog.Logger) error {
-	validatorsList, err := config.GetValidatorListForShard(ctx, b.db, block.Id, b.shardId, logger)
+	params, err := b.cache.GetParams(ctx, b.shardId, block.Id.Uint64(), logger)
 	if err != nil {
-		return fmt.Errorf("%w: failed to get validators set: %w", errBlockVerify, err)
+		return fmt.Errorf("%w: failed to get config params: %w", errBlockVerify, err)
 	}
 
-	pubkeys, err := config.CreateValidatorsPublicKeyMap(validatorsList)
-	if err != nil {
-		return fmt.Errorf("%w: failed to get validators public keys: %w", errBlockVerify, err)
-	}
-
-	if err := block.VerifySignature(pubkeys.Keys(), b.shardId); err != nil {
+	if err := block.VerifySignature(params.PublicKeys.Keys(), b.shardId); err != nil {
 		return fmt.Errorf("%w: failed to verify signature: %w", errBlockVerify, err)
 	}
 	return nil
