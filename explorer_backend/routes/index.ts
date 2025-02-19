@@ -6,6 +6,7 @@ import { transactionsRouter } from "./transactions.ts";
 import { accountRouter } from "./account.ts";
 import { shardsRouter } from "./shards.ts";
 import { codeRouter } from "./code.ts";
+import { tutorialRouter } from "./tutorials.ts";
 
 export const appRouter = router({
   block: blockRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   account: accountRouter,
   shards: shardsRouter,
   code: codeRouter,
+  tutorial: tutorialRouter,
 });
 
 export type AppRouter = typeof appRouter;

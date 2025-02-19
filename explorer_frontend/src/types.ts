@@ -6,3 +6,10 @@ export type App = {
   sourcecode: string;
   abi: Abi;
 };
+
+export type Tutorial = {
+  id: string;
+  text: string;
+  contracts: string;
+  stage: number;
+};

@@ -5,11 +5,13 @@ import { BlockPage } from "../../../pages/block";
 import { ExplorerPage } from "../../../pages/explorer";
 import { PlaygroundPage } from "../../../pages/playground";
 import { TransactionPage } from "../../../pages/transaction";
+import { TutorialPage } from "../../../pages/tutorials/TutorialPage";
 import { addressRoute, addressTransactionsRoute } from "../routes/addressRoute";
 import { blockDetailsRoute, blockRoute } from "../routes/blockRoute";
 import { explorerRoute } from "../routes/explorerRoute";
 import { playgroundRoute, playgroundWithHashRoute } from "../routes/playgroundRoute";
 import { transactionRoute } from "../routes/transactionRoute";
+import { tutorialWithStageRoute } from "../routes/tutorialRoute";
 
 export const RoutesView = createRoutesView({
   routes: [
@@ -32,6 +34,10 @@ export const RoutesView = createRoutesView({
     {
       route: playgroundWithHashRoute,
       view: PlaygroundPage,
+    },
+    {
+      route: tutorialWithStageRoute,
+      view: TutorialPage,
     },
   ],
   otherwise() {

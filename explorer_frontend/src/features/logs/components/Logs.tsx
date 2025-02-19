@@ -14,8 +14,8 @@ import { useUnit } from "effector-react";
 import "../init";
 import { useStyletron } from "baseui";
 import { useCallback, useEffect, useRef } from "react";
-import { LayoutComponent, setActiveComponent } from "../../../pages/playground/model";
 import { getMobileStyles } from "../../../styleHelpers";
+import { userClickOnBackButton } from "../../code/model";
 import { ClearIcon, useMobile } from "../../shared";
 import { $logs, clearLogs } from "../model";
 import { LogsGreeting } from "./LogsGreeting";
@@ -70,7 +70,7 @@ export const Logs = () => {
             }}
             kind={BUTTON_KIND.secondary}
             size={BUTTON_SIZE.compact}
-            onClick={() => setActiveComponent(LayoutComponent.Code)}
+            onClick={() => userClickOnBackButton()}
           >
             <ArrowUpIcon
               size={12}

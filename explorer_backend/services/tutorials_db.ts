@@ -1,7 +1,8 @@
 import { db } from "./sqlite";
 import fs from "node:fs/promises";
-
+import path from "node:path";
 export interface Tutorial {
+  id: number;
   text: string;
   contracts: string;
   stage: number;
@@ -19,11 +20,11 @@ db.exec(
 );
 
 const getStmt = db.prepare<[string, string, number], Tutorial>(
-  "SELECT id, text, contracts FROM TUTORIALS WHERE text = ? AND contracts = ? AND stage = ?",
+  "SELECT id, text, contracts, stage FROM TUTORIALS WHERE text = ? AND contracts = ? AND stage = ?",
 );
 
 const getByStageStmt = db.prepare<number, Tutorial>(
-  "SELECT id, text, contracts FROM TUTORIALS WHERE stage = ?",
+  "SELECT id, text, contracts, stage FROM TUTORIALS WHERE stage = ?",
 );
 
 export const getTutorial = (stage: number): Tutorial | null => {
@@ -45,16 +46,20 @@ export const setTutorial = (text: string, contracts: string, stage: number): Tut
   updateStmt.run(stage);
 
   const insertStmt = db.prepare("INSERT INTO TUTORIALS (text, contracts, stage) VALUES (?, ?, ?)");
-  insertStmt.run(text, contracts, stage);
-  return { text, contracts, stage };
+  const result = insertStmt.run(text, contracts, stage);
+
+  return { id: Number(result.lastInsertRowid), text, contracts, stage };
 };
 
 export const generateTutorials = async (): Promise<void> => {
-  const tutorialsSpec = JSON.parse(await fs.readFile("../tutorials/spec.json", "utf-8"));
+  const tutorialsSpec = JSON.parse(
+    await fs.readFile(path.resolve("./tutorials/spec.json"), "utf-8"),
+  );
 
   for (const tutorial of tutorialsSpec) {
-    const text = await fs.readFile(`../tutorials/${tutorial.text}`, "utf-8");
-    const contracts = await fs.readFile(`../tutorials/${tutorial.contracts}`, "utf-8");
+    console.log(tutorial);
+    const text = await fs.readFile(path.resolve(`./tutorials/${tutorial.text}`), "utf-8");
+    const contracts = await fs.readFile(path.resolve(`./tutorials/${tutorial.contracts}`), "utf-8");
     setTutorial(text, contracts, tutorial.stage);
   }
 };

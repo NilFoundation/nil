@@ -13,9 +13,8 @@ import {
 } from "@nilfoundation/ui-kit";
 import { memo } from "react";
 import { useStyletron } from "styletron-react";
-import { LayoutComponent, setActiveComponent } from "../../../../pages/playground/model";
 import { $smartAccount } from "../../../account-connector/model";
-import { compileCodeFx } from "../../../code/model";
+import { compileCodeFx, userClickOnBackButton } from "../../../code/model";
 import { $rpcIsHealthy } from "../../../healthcheck/model";
 import { useMobile } from "../../../shared";
 import { Contract } from "./Contract";
@@ -67,7 +66,7 @@ export const Contracts = () => {
             }}
             kind={BUTTON_KIND.secondary}
             size={BUTTON_SIZE.compact}
-            onClick={() => setActiveComponent(LayoutComponent.Code)}
+            onClick={() => userClickOnBackButton()}
           >
             <ArrowUpIcon
               size={12}

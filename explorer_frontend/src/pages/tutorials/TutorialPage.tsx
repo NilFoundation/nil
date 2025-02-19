@@ -1,29 +1,36 @@
-import { PROGRESS_BAR_SIZE, ProgressBar } from "@nilfoundation/ui-kit";
+import { PROGRESS_BAR_SIZE, ProgressBar, Tab, Tabs } from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
 import { expandProperty } from "inline-style-expand-shorthand";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { AccountPane } from "../../features/account-connector";
 import { Code } from "../../features/code/Code";
-import { loadedPlaygroundPage } from "../../features/code/model";
-import { ContractsContainer, closeApp } from "../../features/contracts";
+import { loadedTutorialPage } from "../../features/code/model";
+import { closeApp } from "../../features/contracts";
+import { ContractsContainer } from "../../features/contracts/components/ContractsContainer";
 import { NetworkErrorNotification } from "../../features/healthcheck";
 import { $rpcIsHealthy } from "../../features/healthcheck/model";
 import { Logs } from "../../features/logs/components/Logs";
 import { useMobile } from "../../features/shared";
 import { Navbar } from "../../features/shared/components/Layout/Navbar";
 import { mobileContainerStyle, styles } from "../../features/shared/components/Layout/styles";
+import { TutorialText } from "../../features/tutorial/TutorialText";
 import { fetchSolidityCompiler } from "../../services/compiler";
-import { PlaygroundMobileLayout } from "./PlaygroundMobileLayout";
+import { TutorialMobileLayout } from "./TutorialMobileLayout";
+import "./init.ts";
+import { $tutorialChecksState } from "./model.tsx";
 
-export const PlaygroundPage = () => {
+export const TutorialPage = () => {
   const [isDownloading, isRPCHealthy] = useUnit([fetchSolidityCompiler.pending, $rpcIsHealthy]);
   const [css] = useStyletron();
   const [isMobile] = useMobile();
+  const [activeKey, setActiveKey] = useState("0");
+
+  const [tutorialChecks] = useUnit([$tutorialChecksState]);
 
   useEffect(() => {
-    loadedPlaygroundPage(false);
+    loadedTutorialPage(true);
 
     return () => {
       closeApp();
@@ -49,7 +56,7 @@ export const PlaygroundPage = () => {
           })}
         >
           {isMobile ? (
-            <PlaygroundMobileLayout />
+            <TutorialMobileLayout />
           ) : (
             <>
               <PanelGroup direction="horizontal" autoSaveId="playground-layout-horizontal">
@@ -89,7 +96,52 @@ export const PlaygroundPage = () => {
                   })}
                 />
                 <Panel minSize={20} defaultSize={33} maxSize={90}>
-                  <ContractsContainer />
+                  <Tabs
+                    onChange={({ activeKey }) => {
+                      setActiveKey(activeKey);
+                    }}
+                    activeKey={activeKey}
+                    overrides={{
+                      Root: {
+                        style: {
+                          height: "100%",
+                          display: "flex",
+                          flexDirection: "column",
+                        },
+                      },
+                      TabContent: {
+                        style: {
+                          height: "100%",
+                          flex: "1 1 auto",
+                        },
+                      },
+                      TabBar: {
+                        style: {
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        },
+                      },
+                      Tab: {
+                        style: {
+                          flex: 1,
+                          display: "flex",
+                          textAlign: "center",
+                          alignContent: "center",
+                          justifyContent: "center",
+                          fontSize: "16px",
+                          fontWeight: "400",
+                        },
+                      },
+                    }}
+                  >
+                    <Tab title="Tutorial">
+                      <TutorialText />
+                    </Tab>
+                    <Tab title="Contracts" disabled={!tutorialChecks}>
+                      <ContractsContainer />
+                    </Tab>
+                  </Tabs>
                 </Panel>
               </PanelGroup>
             </>

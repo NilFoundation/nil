@@ -1,8 +1,12 @@
 import { createDomain } from "effector";
 import { fetchCodeSnippet, setCodeSnippet } from "../../api/code";
+import { fetchAllTutorials, fetchTutorial } from "../../api/tutorial";
 import type { App } from "../../types";
+import type { Tutorial } from "../../types";
+import { tutorialWithStageRoute } from "../routing/routes/tutorialRoute";
 
 export const codeDomain = createDomain("code");
+export const isTutorialPage = tutorialWithStageRoute.$isOpened;
 
 export const $code = codeDomain.createStore<string>("");
 export const changeCode = codeDomain.createEvent<string>();
@@ -51,8 +55,16 @@ export const $shareCodeSnippetError = codeDomain.createStore<boolean>(false);
 export const setCodeSnippetEvent = codeDomain.createEvent();
 export const fetchCodeSnippetEvent = codeDomain.createEvent<string>();
 
+export const fetchTutorialEvent = codeDomain.createEvent<Tutorial>();
+export const fetchAllTutorialsEvent = codeDomain.createEvent<Tutorial[]>();
+
 export const setCodeSnippetFx = codeDomain.createEffect<string, string>();
 export const fetchCodeSnippetFx = codeDomain.createEffect<string, string>();
+
+export const fetchTutorialFx = codeDomain.createEffect<string, Tutorial, string>();
+export const fetchAllTutorialsFx = codeDomain.createEffect<void, Tutorial[], string>();
+
+export const changeIsTutorial = codeDomain.createEvent<boolean>();
 
 setCodeSnippetFx.use((code) => {
   return setCodeSnippet(code);
@@ -62,7 +74,25 @@ fetchCodeSnippetFx.use((hash) => {
   return fetchCodeSnippet(hash);
 });
 
-export const loadedPlaygroundPage = codeDomain.createEvent();
+fetchTutorialFx.use((stage) => {
+  return fetchTutorial(stage);
+});
+
+fetchAllTutorialsFx.use(() => {
+  return fetchAllTutorials();
+});
+
+export const loadedPlaygroundPage = codeDomain.createEvent<boolean>();
+
+export const loadedTutorialPage = codeDomain.createEvent<boolean>();
+
+export const userClickOnLogButton = codeDomain.createEvent();
+
+export const userClickOnContractsButton = codeDomain.createEvent();
+
+export const userClickOnBackButton = codeDomain.createEvent();
+
+export const userClickOnTutorialButton = codeDomain.createEvent();
 
 export const $recentProjects = codeDomain.createStore<Record<string, string>>({});
 

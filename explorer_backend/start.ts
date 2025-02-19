@@ -7,7 +7,6 @@ import { config } from "./config.ts";
 import { nodeHTTPRequestHandler } from "@trpc/server/adapters/node-http";
 import { appRouter } from "./routes/index.ts";
 import { startCacheInterval } from "./services/cache.ts";
-import { generateTutorials } from "./services/tutorials_db.ts";
 
 const app = new App({
   noMatchHandler: (_, res) => void res.send("<h1>404 Not Found</h1>"),
