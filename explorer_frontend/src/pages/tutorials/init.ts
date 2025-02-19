@@ -1,4 +1,3 @@
-import { sample } from "effector";
 import { persist } from "effector-storage/session";
 import {
   compileCodeFx,
@@ -9,6 +8,7 @@ import {
 import {
   $activeComponentTutorial,
   $tutorialChecksState,
+  TutorialChecksStatus,
   TutorialLayoutComponent,
   setTutorialChecksState,
   сlickOnTutorialButton,
@@ -18,13 +18,11 @@ $activeComponentTutorial.on(сlickOnLogButton, () => TutorialLayoutComponent.Log
 $activeComponentTutorial.on(сlickOnContractsButton, () => TutorialLayoutComponent.Contracts);
 $activeComponentTutorial.on(сlickOnBackButton, () => TutorialLayoutComponent.Code);
 $activeComponentTutorial.on(сlickOnTutorialButton, () => TutorialLayoutComponent.TutorialText);
-$tutorialChecksState.on(setTutorialChecksState, () => true);
-
-sample({
-  source: $tutorialChecksState,
-  clock: compileCodeFx.doneData,
-  target: setTutorialChecksState,
+$tutorialChecksState.on(setTutorialChecksState, (_, payload) => {
+  console.log("setTutorialChecksState", payload);
+  return payload;
 });
+$tutorialChecksState.on(compileCodeFx.doneData, () => TutorialChecksStatus.Initialized);
 
 persist({
   store: $activeComponentTutorial,

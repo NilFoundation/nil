@@ -9,6 +9,10 @@ import {
   registerContractInCometaFx,
   sendMethodFx,
 } from "../contracts/models/base";
+import {
+  tutorialContractStepFailedEvent,
+  tutorialContractStepPassedEvent,
+} from "../tutorial-check/model.ts";
 import { ContractDeployedLog } from "./components/ContractDeployedLog";
 import { LogTitleWithDetails } from "./components/LogTitleWithDetails";
 import { TransactionEventLog } from "./components/TransactionEventLog.tsx";
@@ -35,6 +39,52 @@ $logs.on(deploySmartContractFx.doneData, (logs, { address, name, deployedFrom, t
         />
       ),
       payload: <ContractDeployedLog address={address} />,
+      timestamp: Date.now(),
+    },
+  ];
+});
+
+$logs.on(importSmartContractFx.doneData, (logs, { importedSmartContractAddress }) => {
+  return [
+    ...logs,
+    {
+      id: nanoid(),
+      topic: LogTopic.Assign,
+      type: LogType.Success,
+      shortDescription: (
+        <MonoParagraphMedium color={COLORS.green200}>
+          Contract imported successfully
+        </MonoParagraphMedium>
+      ),
+      payload: <ContractDeployedLog address={importedSmartContractAddress} />,
+      timestamp: Date.now(),
+    },
+  ];
+});
+
+$logs.on(tutorialContractStepPassedEvent, (logs, message) => {
+  return [
+    ...logs,
+    {
+      id: nanoid(),
+      topic: LogTopic.Assign,
+      type: LogType.Success,
+      shortDescription: (
+        <MonoParagraphMedium color={COLORS.green200}>{message}</MonoParagraphMedium>
+      ),
+      timestamp: Date.now(),
+    },
+  ];
+});
+
+$logs.on(tutorialContractStepFailedEvent, (logs, message) => {
+  return [
+    ...logs,
+    {
+      id: nanoid(),
+      topic: LogTopic.Assign,
+      type: LogType.Success,
+      shortDescription: <MonoParagraphMedium color={COLORS.red200}>{message}</MonoParagraphMedium>,
       timestamp: Date.now(),
     },
   ];
@@ -141,6 +191,7 @@ $logs.on(compileCodeFx.failData, (logs, error) => {
         </MonoParagraphMedium>
       ),
       timestamp: Date.now(),
+      d,
     },
   ];
 });

@@ -1,5 +1,12 @@
 import { createEvent, createStore } from "effector";
 
+export enum TutorialChecksStatus {
+  NotInitialized = "0",
+  Initialized = "1",
+  Successful = "2",
+  Failed = "3",
+}
+
 export enum TutorialLayoutComponent {
   Code = "0",
   Contracts = "1",
@@ -13,8 +20,10 @@ export const $activeComponentTutorial = createStore<TutorialLayoutComponent>(
 
 export const setActiveComponentTutorial = createEvent<TutorialLayoutComponent>();
 
-export const $tutorialChecksState = createStore<boolean>(false);
+export const $tutorialChecksState = createStore<TutorialChecksStatus>(
+  TutorialChecksStatus.NotInitialized,
+);
 
-export const setTutorialChecksState = createEvent<boolean>();
+export const setTutorialChecksState = createEvent<TutorialChecksStatus>();
 
 export const сlickOnTutorialButton = createEvent();

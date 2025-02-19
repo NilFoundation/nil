@@ -13,12 +13,14 @@ import {
   ParagraphMedium,
   SPACE,
 } from "@nilfoundation/ui-kit";
+import { Link } from "atomic-router-react";
 import { useUnit } from "effector-react";
 import Markdown from "react-markdown";
 import { useStyletron } from "styletron-react";
 import { getMobileStyles } from "../../styleHelpers";
 import { сlickOnBackButton } from "../code/model";
 import { useMobile } from "../shared";
+import { linkStyles } from "../shared/components/Link";
 import { $tutorial } from "./model";
 
 export const TutorialText = () => {
@@ -63,6 +65,24 @@ export const TutorialText = () => {
     />
   );
 
+  const CustomItalics = (props: any) => (
+    <span {...props} className={css({ fontStyle: "italic" })} />
+  );
+
+  const CustomListItem = (props: any) => (
+    <ListItem
+      {...props}
+      overrides={{
+        Content: {
+          style: {
+            display: "inline",
+          },
+        },
+      }}
+    />
+  );
+
+  const CustomLink = (props: any) => <Link {...props} to={props.href} style={linkStyles.link} />;
   const CustomCodeField = ({ node, inline, className, children, ...props }: any) => {
     const codeContent = Array.isArray(children) ? children.join("") : children;
     return <CodeField code={codeContent} {...props} />;
@@ -149,8 +169,10 @@ export const TutorialText = () => {
           h1: HeaderOne,
           h2: HeaderTwo,
           p: CustomParagraph,
-          li: ListItem,
+          li: CustomListItem,
           code: CustomCodeField,
+          em: CustomItalics,
+          a: CustomLink,
         }}
       >
         {tutorial.text}

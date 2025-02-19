@@ -17,6 +17,7 @@ import type { EditorView } from "@codemirror/view";
 import { useStyletron } from "baseui";
 import { expandProperty } from "inline-style-expand-shorthand";
 import { type ReactNode, memo, useMemo } from "react";
+import { $tutorialChecksState } from "../../pages/tutorials/model";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import { getMobileStyles } from "../../styleHelpers";
 import { useMobile } from "../shared";
@@ -25,21 +26,27 @@ import { CodeToolbar } from "./code-toolbar/CodeToolbar";
 import { useCompileButton } from "./hooks/useCompileButton";
 
 interface CodeProps {
-  extraMobileButtons?: ReactNode;
+  extraMobileTutorialButton?: ReactNode;
+  runCheckButton?: ReactNode;
 }
 
 const MemoizedCodeToolbar = memo(CodeToolbar);
 
-export const Code = ({ extraMobileButtons }: CodeProps) => {
+export const Code = ({
+  extraMobileTutorialButton: extraMobileButtons,
+  runCheckButton: runCheckButtons,
+}: CodeProps) => {
   const [isMobile] = useMobile();
-  const [code, isDownloading, errors, fetchingCodeSnippet, compiling, warnings] = useUnit([
-    $code,
-    fetchSolidityCompiler.pending,
-    $error,
-    fetchCodeSnippetFx.pending,
-    compileCodeFx.pending,
-    $warnings,
-  ]);
+  const [code, isDownloading, errors, fetchingCodeSnippet, compiling, warnings, tutorialChecks] =
+    useUnit([
+      $code,
+      fetchSolidityCompiler.pending,
+      $error,
+      fetchCodeSnippetFx.pending,
+      compileCodeFx.pending,
+      $warnings,
+      $tutorialChecksState,
+    ]);
   const [css] = useStyletron();
 
   const codemirrorExtensions = useMemo(() => {
@@ -70,7 +77,6 @@ export const Code = ({ extraMobileButtons }: CodeProps) => {
 
   const noCode = code.trim().length === 0;
   const btnContent = useCompileButton();
-
   return (
     <Card
       overrides={{
@@ -149,6 +155,7 @@ export const Code = ({ extraMobileButtons }: CodeProps) => {
               {btnContent}
             </Button>
           )}
+          {!isMobile && runCheckButtons && runCheckButtons}
         </div>
         {fetchingCodeSnippet ? (
           <div
@@ -257,6 +264,7 @@ export const Code = ({ extraMobileButtons }: CodeProps) => {
               Contracts
             </Button>
             {isMobile && extraMobileButtons && extraMobileButtons}
+            {isMobile && runCheckButtons && runCheckButtons}
           </div>
         )}
       </div>

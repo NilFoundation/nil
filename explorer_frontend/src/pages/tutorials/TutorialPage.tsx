@@ -1,4 +1,13 @@
-import { PROGRESS_BAR_SIZE, ProgressBar, Tab, Tabs } from "@nilfoundation/ui-kit";
+import {
+  BUTTON_KIND,
+  BUTTON_SIZE,
+  Button,
+  COLORS,
+  PROGRESS_BAR_SIZE,
+  ProgressBar,
+  Tab,
+  Tabs,
+} from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
 import { expandProperty } from "inline-style-expand-shorthand";
@@ -19,15 +28,59 @@ import { TutorialText } from "../../features/tutorial/TutorialText";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import { TutorialMobileLayout } from "./TutorialMobileLayout";
 import "./init.ts";
-import { $tutorialChecksState } from "./model.tsx";
+import { runTutorialCheck, runTutorialCheckFx } from "../../features/tutorial-check/model.ts";
+import { $tutorialChecksState, TutorialChecksStatus } from "./model.tsx";
 
 export const TutorialPage = () => {
-  const [isDownloading, isRPCHealthy] = useUnit([fetchSolidityCompiler.pending, $rpcIsHealthy]);
+  const [isDownloading, isRPCHealthy, runningChecks, tutorialChecks] = useUnit([
+    fetchSolidityCompiler.pending,
+    $rpcIsHealthy,
+    runTutorialCheckFx.pending,
+    $tutorialChecksState,
+  ]);
   const [css] = useStyletron();
   const [isMobile] = useMobile();
   const [activeKey, setActiveKey] = useState("0");
 
-  const [tutorialChecks] = useUnit([$tutorialChecksState]);
+  let checkButtonBckgColor: string;
+  switch (tutorialChecks) {
+    case TutorialChecksStatus.Successful:
+      checkButtonBckgColor = COLORS.green200;
+      break;
+    case TutorialChecksStatus.Failed:
+      checkButtonBckgColor = COLORS.red200;
+      break;
+    case TutorialChecksStatus.Initialized:
+      checkButtonBckgColor = COLORS.yellow200;
+      break;
+    default:
+      checkButtonBckgColor = COLORS.black;
+      break;
+  }
+
+  const runCheckButton = (
+    <Button
+      kind={BUTTON_KIND.secondary}
+      isLoading={runningChecks}
+      size={BUTTON_SIZE.default}
+      onClick={() => runTutorialCheck()}
+      disabled={tutorialChecks === TutorialChecksStatus.NotInitialized}
+      overrides={{
+        Root: {
+          style: {
+            whiteSpace: "nowrap",
+            lineHeight: 1,
+            marginLeft: "auto",
+            backgroundColor: checkButtonBckgColor,
+            color: COLORS.black,
+          },
+        },
+      }}
+      data-testid="run-checks-button"
+    >
+      Run Checks
+    </Button>
+  );
 
   useEffect(() => {
     loadedTutorialPage();
@@ -69,7 +122,7 @@ export const TutorialPage = () => {
                       minSize={10}
                       order={1}
                     >
-                      <Code extraMobileButtons={null} />
+                      <Code extraMobileTutorialButton={null} runCheckButton={runCheckButton} />
                     </Panel>
                     <PanelResizeHandle
                       className={css({

@@ -12,3 +12,4 @@ import "./features/tokens/init";
 import "./features/cometa/init";
 import "./features/healthcheck/init";
 import "./features/tutorial/init";
+import "./features/tutorial-check/init";
