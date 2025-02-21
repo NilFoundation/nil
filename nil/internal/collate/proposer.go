@@ -426,7 +426,7 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 		}
 	}
 
-	p.logger.Debug().Msgf("Collected %d incoming transactions from neigbors with %d gas",
+	p.logger.Debug().Msgf("Collected %d incoming transactions from neighbors with %d gas",
 		len(p.proposal.InternalTxns), p.executionState.GasUsed)
 
 	p.proposal.CollatorState = state
