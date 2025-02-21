@@ -67,7 +67,7 @@ func InitDefaultConfig(configPath string) (string, error) {
 
 	dirPath := filepath.Dir(configPath)
 	if err := os.MkdirAll(dirPath, 0o755); err != nil {
-		return "", fmt.Errorf("failed to create directrory: %w", err)
+		return "", fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	file, err := os.OpenFile(configPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
