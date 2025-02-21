@@ -4,6 +4,8 @@
 
 =nil; is a sharded blockchain whose global state is split between several execution shards. Execution shards are managed by a single main shard that references the latest blocks across all execution shards. Each new block produced in an execution shard must also reference the latest block in the main shard.
 
+--- TMP ---
+
 This project is an implementation of =nil; in Go.
 
 <p align="center">
