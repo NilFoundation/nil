@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -19,13 +20,24 @@ import (
 )
 
 const (
-	// blocksTable stores blocks received from the RPC. Key: common.Hash, Value: blockEntry.
+	// blocksTable stores blocks received from the RPC.
+	// Key: scTypes.BlockId (block's own id), Value: blockEntry.
 	blocksTable db.TableName = "blocks"
-	// latestFetchedTable stores reference to the latest main shard block. Key: mainShardKey, Value: sctypes.MainBlockRef.
+
+	// blockParentIdxTable is used for indexing blocks by their parent ids.
+	// Key: scTypes.BlockId (block's parent id), Value: scTypes.BlockId (block's own id);
+	blockParentIdxTable db.TableName = "blocks_parent_hash_idx"
+
+	// latestFetchedTable stores reference to the latest main shard block.
+	// Key: mainShardKey, Value: scTypes.MainBlockRef.
 	latestFetchedTable db.TableName = "latest_fetched"
-	// stateRootTable stores the latest ProvedStateRoot (single value). Key: mainShardKey, Value: common.Hash.
+
+	// stateRootTable stores the latest ProvedStateRoot (single value).
+	// Key: mainShardKey, Value: common.Hash.
 	stateRootTable db.TableName = "state_root"
-	// nextToProposeTable stores parent's hash of the next block to propose (single value). Key: mainShardKey, Value: common.Hash.
+
+	// nextToProposeTable stores parent's hash of the next block to propose (single value).
+	// Key: mainShardKey, Value: common.Hash.
 	nextToProposeTable db.TableName = "next_to_propose_parent_hash"
 )
 
@@ -55,9 +67,13 @@ func NewBlockStorage(
 	logger zerolog.Logger,
 ) *BlockStorage {
 	return &BlockStorage{
-		commonStorage: makeCommonStorage(database, logger, common.DoNotRetryIf(scTypes.ErrBlockMismatch)),
-		timer:         timer,
-		metrics:       metrics,
+		commonStorage: makeCommonStorage(
+			database,
+			logger,
+			common.DoNotRetryIf(scTypes.ErrBlockMismatch, scTypes.ErrBlockNotFound),
+		),
+		timer:   timer,
+		metrics: metrics,
 	}
 }
 
@@ -125,7 +141,7 @@ func (bs *BlockStorage) TryGetBlock(ctx context.Context, id scTypes.BlockId) (*j
 	}
 	defer tx.Rollback()
 
-	entry, err := bs.getBlockEntry(tx, id)
+	entry, err := bs.getBlockEntry(tx, id, false)
 	if err != nil || entry == nil {
 		return nil, err
 	}
@@ -182,6 +198,10 @@ func (bs *BlockStorage) putBlockTx(tx db.RwTx, batchId scTypes.BatchId, block *j
 	if err := tx.Put(blocksTable, blockId.Bytes(), value); err != nil {
 		return fmt.Errorf("failed to put block %s: %w", blockId.String(), err)
 	}
+	parentId := scTypes.ParentBlockId(block)
+	if err := tx.Put(blockParentIdxTable, parentId.Bytes(), blockId.Bytes()); err != nil {
+		return fmt.Errorf("failed to put parent idx entry, parentId=%s: %w", parentId, err)
+	}
 
 	return nil
 }
@@ -209,7 +229,7 @@ func (bs *BlockStorage) updateLatestFetched(tx db.RwTx, block *jsonrpc.RPCBlock)
 		return err
 	}
 
-	return bs.putLatestFetchedBlockTx(tx, block.ShardId, *newLatestFetched)
+	return bs.putLatestFetchedBlockTx(tx, block.ShardId, newLatestFetched)
 }
 
 func (bs *BlockStorage) setProposeParentHash(tx db.RwTx, block *jsonrpc.RPCBlock) error {
@@ -254,14 +274,11 @@ func (bs *BlockStorage) setBlockAsProvedImpl(ctx context.Context, id scTypes.Blo
 	}
 	defer tx.Rollback()
 
-	entry, err := bs.getBlockEntry(tx, id)
+	entry, err := bs.getBlockEntry(tx, id, true)
 	if err != nil {
 		return false, err
 	}
 
-	if entry == nil {
-		return false, fmt.Errorf("block with id=%s is not found", id)
-	}
 	if entry.IsProved {
 		bs.logger.Debug().Stringer("blockId", id).Msg("block is already marked as proved")
 		return false, nil
@@ -310,7 +327,7 @@ func (bs *BlockStorage) TryGetNextProposalData(ctx context.Context) (*scTypes.Pr
 	}
 
 	var mainShardEntry *blockEntry
-	err = iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
+	err = bs.iterateOverEntries(tx, func(entry *blockEntry) (bool, error) {
 		if isValidProposalCandidate(entry, *parentHash) {
 			mainShardEntry = entry
 			return false, nil
@@ -333,12 +350,9 @@ func (bs *BlockStorage) TryGetNextProposalData(ctx context.Context) (*scTypes.Pr
 	}
 
 	for _, childId := range childIds {
-		childEntry, err := bs.getBlockEntry(tx, childId)
+		childEntry, err := bs.getBlockEntry(tx, childId, true)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get child block with id=%s: %w", childId, err)
-		}
-		if childEntry == nil {
-			return nil, fmt.Errorf("child block with id=%s is not found", childId)
 		}
 
 		blockTransactions := scTypes.BlockTransactions(&childEntry.Block)
@@ -367,7 +381,7 @@ func (bs *BlockStorage) setBlockAsProposedImpl(ctx context.Context, id scTypes.B
 	}
 	defer tx.Rollback()
 
-	mainShardEntry, err := bs.getBlockEntry(tx, id)
+	mainShardEntry, err := bs.getBlockEntry(tx, id, true)
 	if err != nil {
 		return err
 	}
@@ -376,20 +390,8 @@ func (bs *BlockStorage) setBlockAsProposedImpl(ctx context.Context, id scTypes.B
 		return err
 	}
 
-	childIds, err := scTypes.ChildBlockIds(&mainShardEntry.Block)
-	if err != nil {
+	if err := bs.deleteMainBlockWithChildren(tx, mainShardEntry); err != nil {
 		return err
-	}
-
-	for _, childId := range childIds {
-		if err := tx.Delete(blocksTable, childId.Bytes()); err != nil {
-			return fmt.Errorf("failed to delete child block with id=%s: %w", childId, err)
-		}
-	}
-
-	mainBlockId := scTypes.IdFromBlock(&mainShardEntry.Block)
-	if err := tx.Delete(blocksTable, mainBlockId.Bytes()); err != nil {
-		return fmt.Errorf("failed to delete main shard block with id=%s: %w", mainBlockId, err)
 	}
 
 	if err := tx.Put(stateRootTable, mainShardKey, mainShardEntry.Block.ChildBlocksRootHash.Bytes()); err != nil {
@@ -482,7 +484,7 @@ func (bs *BlockStorage) getLatestFetchedMainTx(tx db.RoTx) (*scTypes.MainBlockRe
 	return blockRef, nil
 }
 
-func (bs *BlockStorage) putLatestFetchedBlockTx(tx db.RwTx, shardId types.ShardId, block scTypes.MainBlockRef) error {
+func (bs *BlockStorage) putLatestFetchedBlockTx(tx db.RwTx, shardId types.ShardId, block *scTypes.MainBlockRef) error {
 	bytes, err := json.Marshal(block)
 	if err != nil {
 		return fmt.Errorf(
@@ -496,20 +498,118 @@ func (bs *BlockStorage) putLatestFetchedBlockTx(tx db.RwTx, shardId types.ShardI
 	return nil
 }
 
+// ResetProgress resets the block storage state starting from the given main block hash:
+//
+//  1. Sets the latest fetched block reference to the parent of the block with hash == firstMainHashToPurge.
+//     If the specified block is the first block in the chain, the new latest fetched value will be nil.
+//
+//  2. Deletes all main and corresponding exec shard blocks starting from the block with hash == firstMainHashToPurge.
+func (bs *BlockStorage) ResetProgress(ctx context.Context, firstMainHashToPurge common.Hash) error {
+	return bs.retryRunner.Do(ctx, func(ctx context.Context) error {
+		return bs.resetProgressImpl(ctx, firstMainHashToPurge)
+	})
+}
+
+func (bs *BlockStorage) resetProgressImpl(ctx context.Context, firstMainHashToPurge common.Hash) error {
+	tx, err := bs.database.CreateRwTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	startingId := scTypes.NewBlockId(types.MainShardId, firstMainHashToPurge)
+
+	for entry, err := range bs.getChainSequence(tx, startingId) {
+		if err != nil {
+			return err
+		}
+
+		if scTypes.IdFromBlock(&entry.Block) == startingId {
+			err := bs.resetLatestFetchedToParentOf(tx, entry)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err := bs.deleteMainBlockWithChildren(tx, entry); err != nil {
+			return err
+		}
+	}
+
+	return bs.commit(tx)
+}
+
+func (bs *BlockStorage) resetLatestFetchedToParentOf(tx db.RwTx, entry *blockEntry) error {
+	refToParent, err := scTypes.GetMainParentRef(&entry.Block)
+	if err != nil {
+		return fmt.Errorf("failed to get main block parent ref: %w", err)
+	}
+	if err := bs.putLatestFetchedBlockTx(tx, types.MainShardId, refToParent); err != nil {
+		return fmt.Errorf("failed to reset latest fetched block: %w", err)
+	}
+	return nil
+}
+
+// getChainSequence iterates through a chain of blocks, starting from the block with the given id.
+// It uses blockParentIdxTable to retrieve parent-child connections between blocks.
+func (bs *BlockStorage) getChainSequence(tx db.RoTx, startingId scTypes.BlockId) iter.Seq2[*blockEntry, error] {
+	return func(yield func(*blockEntry, error) bool) {
+		startBlock, err := bs.getBlockEntry(tx, startingId, true)
+		if err != nil {
+			yield(nil, err)
+			return
+		}
+
+		if !yield(startBlock, nil) {
+			return
+		}
+
+		nextParentId := scTypes.IdFromBlock(&startBlock.Block)
+		for {
+			nextIdBytes, err := tx.Get(blockParentIdxTable, nextParentId.Bytes())
+			if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+				yield(nil, fmt.Errorf("failed to get parent idx entry, parentId=%s: %w", nextParentId, err))
+				return
+			}
+			if nextIdBytes == nil {
+				break
+			}
+			nextBlockEntry, err := bs.getBlockEntryBytesId(tx, nextIdBytes, true)
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			if !yield(nextBlockEntry, nil) {
+				return
+			}
+			nextParentId = scTypes.IdFromBlock(&nextBlockEntry.Block)
+		}
+	}
+}
+
 func makeShardKey(shardId types.ShardId) []byte {
 	key := make([]byte, 4)
 	binary.LittleEndian.PutUint32(key, uint32(shardId))
 	return key
 }
 
-func (bs *BlockStorage) getBlockEntry(tx db.RoTx, id scTypes.BlockId) (*blockEntry, error) {
-	idBytes := id.Bytes()
+func (bs *BlockStorage) getBlockEntry(tx db.RoTx, id scTypes.BlockId, required bool) (*blockEntry, error) {
+	return bs.getBlockEntryBytesId(tx, id.Bytes(), required)
+}
+
+func (bs *BlockStorage) getBlockEntryBytesId(tx db.RoTx, idBytes []byte, required bool) (*blockEntry, error) {
 	value, err := tx.Get(blocksTable, idBytes)
-	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			return nil, nil
-		}
-		return nil, err
+
+	switch {
+	case err == nil:
+		break
+	case errors.Is(err, db.ErrKeyNotFound) && required:
+		return nil, fmt.Errorf("%w, id=%s", scTypes.ErrBlockNotFound, hex.EncodeToString(idBytes))
+	case errors.Is(err, db.ErrKeyNotFound):
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("failed to get block with id=%s: %w", hex.EncodeToString(idBytes), err)
 	}
 
 	entry, err := unmarshallEntry(idBytes, value)
@@ -520,15 +620,53 @@ func (bs *BlockStorage) getBlockEntry(tx db.RoTx, id scTypes.BlockId) (*blockEnt
 	return entry, nil
 }
 
-func iterateOverEntries(tx db.RoTx, action func(entry *blockEntry) (shouldContinue bool, err error)) error {
-	iter, err := tx.Range(blocksTable, nil, nil)
+func (bs *BlockStorage) deleteMainBlockWithChildren(tx db.RwTx, mainShardEntry *blockEntry) error {
+	childIds, err := scTypes.ChildBlockIds(&mainShardEntry.Block)
 	if err != nil {
 		return err
 	}
-	defer iter.Close()
 
-	for iter.HasNext() {
-		key, val, err := iter.Next()
+	for _, childId := range childIds {
+		childEntry, err := bs.getBlockEntry(tx, childId, true)
+		if err != nil {
+			return fmt.Errorf("failed to get child block with id=%s: %w", childId, err)
+		}
+		if err := bs.deleteBlock(tx, childEntry); err != nil {
+			return err
+		}
+	}
+
+	if err := bs.deleteBlock(tx, mainShardEntry); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (bs *BlockStorage) deleteBlock(tx db.RwTx, entry *blockEntry) error {
+	parentId := scTypes.ParentBlockId(&entry.Block)
+	err := tx.Delete(blockParentIdxTable, parentId.Bytes())
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		return fmt.Errorf("failed to delete parent idx entry, parentId=%s: %w", parentId, err)
+	}
+
+	blockId := scTypes.IdFromBlock(&entry.Block)
+	if err := tx.Delete(blocksTable, blockId.Bytes()); err != nil {
+		return fmt.Errorf("failed to delete child block with id=%s: %w", blockId, err)
+	}
+
+	return nil
+}
+
+func (*BlockStorage) iterateOverEntries(tx db.RoTx, action func(entry *blockEntry) (shouldContinue bool, err error)) error {
+	txIter, err := tx.Range(blocksTable, nil, nil)
+	if err != nil {
+		return err
+	}
+	defer txIter.Close()
+
+	for txIter.HasNext() {
+		key, val, err := txIter.Next()
 		if err != nil {
 			return err
 		}

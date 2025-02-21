@@ -97,6 +97,22 @@ func (br *MainBlockRef) ValidateChild(child *jsonrpc.RPCBlock) error {
 	}
 }
 
+func GetMainParentRef(mainBlock *jsonrpc.RPCBlock) (*MainBlockRef, error) {
+	if mainBlock == nil {
+		return nil, errors.New("mainBlock cannot be nil")
+	}
+	if mainBlock.ShardId != types.MainShardId {
+		return nil, fmt.Errorf("mainBlock is not from main shard: %d", mainBlock.ShardId)
+	}
+	if mainBlock.Number == 0 || mainBlock.ParentHash.Empty() {
+		return nil, nil
+	}
+	return &MainBlockRef{
+		Number: mainBlock.Number - 1,
+		Hash:   mainBlock.ParentHash,
+	}, nil
+}
+
 type BlockId struct {
 	ShardId types.ShardId
 	Hash    common.Hash
@@ -108,6 +124,10 @@ func NewBlockId(shardId types.ShardId, hash common.Hash) BlockId {
 
 func IdFromBlock(block *jsonrpc.RPCBlock) BlockId {
 	return BlockId{block.ShardId, block.Hash}
+}
+
+func ParentBlockId(block *jsonrpc.RPCBlock) BlockId {
+	return BlockId{block.ShardId, block.ParentHash}
 }
 
 func ChildBlockIds(mainShardBlock *jsonrpc.RPCBlock) ([]BlockId, error) {

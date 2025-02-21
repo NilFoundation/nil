@@ -68,7 +68,10 @@ func NewBatchesSequence(batchesCount int) []*scTypes.BlockBatch {
 	batches := make([]*scTypes.BlockBatch, 0, batchesCount)
 	for range batchesCount {
 		nextBatch := NewBlockBatch(ShardsCount)
-		if len(batches) > 0 {
+		if len(batches) == 0 {
+			nextBatch.MainShardBlock.Number = 0
+			nextBatch.MainShardBlock.ParentHash = common.EmptyHash
+		} else {
 			prevMainBlock := batches[len(batches)-1].MainShardBlock
 			nextBatch.MainShardBlock.ParentHash = prevMainBlock.Hash
 			nextBatch.MainShardBlock.Number = prevMainBlock.Number + 1

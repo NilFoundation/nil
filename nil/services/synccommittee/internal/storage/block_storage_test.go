@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -368,4 +369,95 @@ func (s *BlockStorageTestSuite) TestTryGetNextProposalData_Concurrently() {
 			s.Equal(batches[idx-1].MainShardBlock.ChildBlocksRootHash, data.OldProvedStateRoot, txn("OldProvedStateRoot"))
 		}
 	}
+}
+
+const resetTestBatchesCount = 10
+
+func (s *BlockStorageTestSuite) Test_ResetProgress_Block_Does_Not_Exists() {
+	batches := testaide.NewBatchesSequence(resetTestBatchesCount)
+
+	for _, batch := range batches {
+		err := s.bs.SetBlockBatch(s.ctx, batch)
+		s.Require().NoError(err)
+	}
+
+	latestFetchedBeforeReset, err := s.bs.TryGetLatestFetched(s.ctx)
+	s.Require().NoError(err)
+
+	nonExistentBlockHash := testaide.RandomHash()
+	err = s.bs.ResetProgress(s.ctx, nonExistentBlockHash)
+	s.Require().ErrorIs(err, scTypes.ErrBlockNotFound)
+
+	for _, batch := range batches {
+		for _, block := range batch.AllBlocks() {
+			fromStorage, err := s.bs.TryGetBlock(s.ctx, scTypes.IdFromBlock(block))
+			s.Require().NoError(err)
+			s.NotNil(fromStorage)
+		}
+	}
+
+	latestFetchedAfterReset, err := s.bs.TryGetLatestFetched(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Equal(latestFetchedBeforeReset, latestFetchedAfterReset)
+}
+
+func (s *BlockStorageTestSuite) Test_ResetProgress() {
+	testCases := []struct {
+		name          string
+		passedHashIdx int
+	}{
+		{"First_Block_In_Chain", 0},
+		{"Latest_Fetched_Only", resetTestBatchesCount - 1},
+		{"Keep_Previous_Purge_Next", 5},
+	}
+
+	for _, testCase := range testCases {
+		s.Run(testCase.name, func() {
+			check.PanicIfNotf(
+				testCase.passedHashIdx >= 0 && testCase.passedHashIdx < resetTestBatchesCount,
+				"passedHashIdx should be in range [0, %d)", resetTestBatchesCount,
+			)
+			s.testResetProgress(testCase.passedHashIdx)
+		})
+	}
+}
+
+func (s *BlockStorageTestSuite) testResetProgress(passedHashIdx int) {
+	s.T().Helper()
+
+	batches := testaide.NewBatchesSequence(resetTestBatchesCount)
+
+	for _, batch := range batches {
+		err := s.bs.SetBlockBatch(s.ctx, batch)
+		s.Require().NoError(err)
+	}
+
+	firstMainHashToPurge := batches[passedHashIdx].MainShardBlock.Hash
+	err := s.bs.ResetProgress(s.ctx, firstMainHashToPurge)
+	s.Require().NoError(err)
+
+	for i, batch := range batches {
+		shouldBePurged := i >= passedHashIdx
+
+		for _, block := range batch.AllBlocks() {
+			fromStorage, err := s.bs.TryGetBlock(s.ctx, scTypes.IdFromBlock(block))
+			s.Require().NoError(err)
+			if shouldBePurged {
+				s.Nil(fromStorage)
+			} else {
+				s.NotNil(fromStorage)
+			}
+		}
+	}
+
+	var expectedLatestFetched *scTypes.MainBlockRef
+	if passedHashIdx == 0 {
+		expectedLatestFetched = nil
+	} else {
+		expectedLatestFetched, _ = scTypes.NewBlockRef(batches[passedHashIdx-1].MainShardBlock)
+	}
+
+	actualLatestFetched, err := s.bs.TryGetLatestFetched(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Equal(expectedLatestFetched, actualLatestFetched)
 }

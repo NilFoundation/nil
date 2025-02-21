@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	ErrBlockNotFound   = errors.New("block with the specified id is not found")
 	ErrBlockMismatch   = errors.New("block mismatch")
 	ErrBlockProcessing = errors.New("block processing error")
 )
