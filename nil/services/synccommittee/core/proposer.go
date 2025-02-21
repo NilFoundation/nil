@@ -278,7 +278,7 @@ func (p *proposer) commitBatch(ctx context.Context, blobs []kzg4844.Blob, batchI
 			return nil, false, err
 		}
 		if receipt == nil {
-			return nil, false, errors.New("CommitBatch tx mining timout exceeded")
+			return nil, false, errors.New("CommitBatch tx mining timeout exceeded")
 		}
 		if receipt.Status != ethtypes.ReceiptStatusSuccessful {
 			return nil, false, errors.New("CommitBatch tx failed")
