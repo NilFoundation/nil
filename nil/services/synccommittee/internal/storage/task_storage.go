@@ -488,6 +488,23 @@ func (st *TaskStorage) rescheduleTaskTx(
 	return nil
 }
 
+func (st *TaskStorage) CancelBlockTasks(ctx context.Context, startingMainBlock common.Hash) error {
+	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
+		return st.cancelBlockTasksImpl(ctx, startingMainBlock)
+	})
+}
+
+func (st *TaskStorage) cancelBlockTasksImpl(ctx context.Context, startingMainBlock common.Hash) error {
+	tx, err := st.database.CreateRwTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// TODO: State Reset
+	panic("implement me!")
+}
+
 func (*TaskStorage) iterateOverTaskEntries(
 	tx db.RoTx,
 	action func(entry *types.TaskEntry) (shouldContinue bool, err error),

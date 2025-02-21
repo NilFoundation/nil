@@ -102,6 +102,8 @@ func (agg *aggregator) Pause(ctx context.Context) error {
 	}
 	if paused {
 		agg.logger.Info().Msg("blocks fetching paused")
+	} else {
+		agg.logger.Warn().Msg("blocks fetching already paused")
 	}
 	return nil
 }
@@ -113,6 +115,8 @@ func (agg *aggregator) Resume(ctx context.Context) error {
 	}
 	if resumed {
 		agg.logger.Info().Msg("blocks fetching resumed")
+	} else {
+		agg.logger.Warn().Msg("blocks fetching already running")
 	}
 	return nil
 }

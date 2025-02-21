@@ -53,7 +53,7 @@ func (s *BlockTasksIntegrationTestSuite) SetupSuite() {
 
 	s.scheduler = scheduler.New(
 		s.taskStorage,
-		newTaskStateChangeHandler(s.blockStorage, logger),
+		newTaskStateChangeHandler(s.blockStorage, nil, logger), // TODO
 		metricsHandler,
 		logger,
 	)

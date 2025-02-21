@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
@@ -52,7 +53,7 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 
 	ctx := context.Background()
 
-	proposer, err := NewProposer(
+	prop, err := NewProposer(
 		ctx,
 		cfg.ProposerParams,
 		blockStorage,
@@ -64,9 +65,13 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 		return nil, fmt.Errorf("failed to create proposer: %w", err)
 	}
 
+	syncCommittee := &SyncCommittee{}
+
+	resetLauncher := reset.NewResetLauncher(agg, blockStorage, taskStorage, syncCommittee, logger)
+
 	taskScheduler := scheduler.New(
 		taskStorage,
-		newTaskStateChangeHandler(blockStorage, logger),
+		newTaskStateChangeHandler(blockStorage, resetLauncher, logger),
 		metricsHandler,
 		logger,
 	)
@@ -77,12 +82,10 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 		logger,
 	)
 
-	s := &SyncCommittee{
-		Service: srv.NewService(
-			logger,
-			proposer, agg, taskScheduler, taskListener,
-		),
-	}
+	syncCommittee.Service = srv.NewService(
+		logger,
+		prop, agg, taskScheduler, taskListener,
+	)
 
-	return s, nil
+	return syncCommittee, nil
 }
