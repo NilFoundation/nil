@@ -38,7 +38,7 @@ type Event struct {
 	// These are two events that have the same name:
 	// * foo(int,int)
 	// * foo(uint,uint)
-	// The event name of the first one wll be resolved as foo while the second one
+	// The event name of the first one will be resolved as foo while the second one
 	// will be resolved as foo0.
 	Name string
 	// RawName is the raw event name parsed from ABI.
