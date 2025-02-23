@@ -115,10 +115,16 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 		return err
 	}
 
+	ecdsaTracer := NewEcdsaTracer()
+
 	for _, inTxn := range decodedDbgBlock.InTransactions {
 		_, txnHadErr := decodedDbgBlock.Errors[inTxn.Hash()]
 		if txnHadErr {
 			continue
+		}
+
+		if err := ecdsaTracer.TraceTx(inTxn); err != nil {
+			return err
 		}
 
 		if inTxn.Flags.GetBit(types.TransactionFlagResponse) {
@@ -135,6 +141,7 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 	if err != nil {
 		return err
 	}
+	aggTraces.AddEcdsaSigns(ecdsaTracer.Finalize())
 
 	// Print stats
 	stats := stateDB.Stats
