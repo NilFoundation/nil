@@ -146,7 +146,7 @@ func (agg *aggregator) processNewBlocks(ctx context.Context) error {
 	return nil
 }
 
-// fetchLatestBlocks retrieves the latest block for main shard
+// fetchLatestBlockRef retrieves the latest block for main shard
 func (agg *aggregator) fetchLatestBlockRef(ctx context.Context) (*types.MainBlockRef, error) {
 	block, err := agg.rpcClient.GetBlock(ctx, coreTypes.MainShardId, "latest", false)
 	if err != nil {
@@ -256,7 +256,7 @@ func (agg *aggregator) handleBlockBatch(ctx context.Context, batch *types.BlockB
 	return nil
 }
 
-// createProofTask generates proof tasks for block batch
+// createProofTasks generates proof tasks for block batch
 func (agg *aggregator) createProofTasks(ctx context.Context, batch *types.BlockBatch) error {
 	currentTime := agg.timer.NowTime()
 	proofTasks, err := batch.CreateProofTasks(currentTime)
