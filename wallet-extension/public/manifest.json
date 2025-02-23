@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "=nil; Wallet",
-  "version": "1.0",
+  "version": "1.0.1",
   "description": "An easy-to-use wallet extension for the =nil; blockchain, designed for secure asset management and seamless transactions",
   "permissions": ["storage", "tabs"],
   "background": {
@@ -24,5 +24,34 @@
     "16": "./img/logo-square.png",
     "48": "./img/logo-square.png",
     "128": "./img/logo-square.png"
-  }
+  },
+  "content_scripts": [
+    {
+      "id": "injected",
+      "run_at": "document_start",
+      "matches": [
+        "http://127.0.0.1/*",
+        "http://localhost/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content_injected/injected.js"
+      ],
+      "type": "module"
+    },
+    {
+      "id": "nil",
+      "run_at": "document_start",
+      "matches": [
+        "http://127.0.0.1/*",
+        "http://localhost/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content_nil/nil.js"
+      ],
+      "world": "MAIN",
+      "type": "module"
+    }
+  ]
 }

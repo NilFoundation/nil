@@ -6,3 +6,4 @@ export { Send } from "./Send.tsx";
 export { Endpoint } from "./Endpoint.tsx";
 export { Testnet } from "./Testnet.tsx";
 export { ErrorPage } from "./ErrorPage.tsx";
+export { Connection } from "./Connection.tsx";

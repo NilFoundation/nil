@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import communityIcon from "../../../public/icons/community.svg";
 import endpointIcon from "../../../public/icons/endpoint.svg";
 import feedbackIcon from "../../../public/icons/feedback.svg";
+import connectionIcon from "../../../public/icons/linked.svg";
 import supportIcon from "../../../public/icons/support.svg";
 import { Box, Icon, ScreenHeader } from "../../features/components/shared";
 import { WalletRoutes } from "../../router";
@@ -34,7 +35,10 @@ export const Settings = () => {
 
   const handleEndpoint = () => {
     navigate(WalletRoutes.WALLET.ENDPOINT);
-    // or if you want to use another env variable, e.g. import.meta.env.VITE_GET_ENDPOINT_URL
+  };
+
+  const handleConnection = () => {
+    navigate(WalletRoutes.WALLET.CONNECTIONS);
   };
 
   return (
@@ -74,6 +78,32 @@ export const Settings = () => {
         />
         <ParagraphSmall $style={{ color: "inherit" }}>
           {t("wallet.settingsPage.endpointSection")}
+        </ParagraphSmall>
+      </Box>
+
+      {/* Connections Section */}
+      <Box
+        $align="center"
+        $gap="8px"
+        $padding="0"
+        $style={{
+          flexDirection: "row",
+          cursor: "pointer",
+          color: COLORS.gray50,
+          ":hover": { color: COLORS.gray200 },
+          marginBottom: "24px",
+        }}
+        onClick={handleConnection}
+      >
+        <Icon
+          src={connectionIcon}
+          alt={"endpoint icon"}
+          size={24}
+          iconSize="100%"
+          background="transparent"
+        />
+        <ParagraphSmall $style={{ color: "inherit" }}>
+          {t("wallet.settingsPage.manageConnection")}
         </ParagraphSmall>
       </Box>
 

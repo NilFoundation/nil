@@ -14,5 +14,10 @@ export const WalletRoutes = {
     ENDPOINT: "/endpoint",
     TESTNET: "/testnet",
     ERROR: "/error",
+    CONNECTIONS: "/connections",
+  },
+  REQUESTS: {
+    CONNECT: "/connect",
+    SENDSIGN: "/send-sign",
   },
 };

@@ -9,6 +9,9 @@
     "rules": {
       "complexity": {
         "noBannedTypes": "off"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "off"
       }
     }
   }

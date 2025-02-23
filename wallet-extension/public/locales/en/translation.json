@@ -74,6 +74,9 @@
       "copiedButton": "Copied",
       "getEndpointButton": "Open RPC Bot"
     },
+    "connectionPage": {
+      "title": "Manage DApps"
+    },
     "sendPage": {
       "title": "Send",
       "fromSection": {
@@ -95,6 +98,7 @@
       "title": "Settings",
       "endpointSection": "View endpoint",
       "getSupport": "Get support",
+      "manageConnection": "Manage DApps",
       "feedback": "Share Feedback",
       "community": "Join community",
       "footerVersion": "Version"
@@ -109,6 +113,23 @@
       "title": "You’re on Testnet – Mainnet launches this year",
       "text": "Stay tuned and join the =nil; community for updates. In the meantime, you can try out features and transactions without using real assets. Tokens on testnets don’t hold any real value",
       "button": "Join =nil; community"
+    }
+  },
+  "requests": {
+    "connect": {
+      "title": "Connect Request",
+      "requestedLabel": "Requested:",
+      "walletLabel": "Connect to",
+      "walletName": "Main Wallet",
+      "notification": "This DApp will view your wallet and suggest transactions.",
+      "cancelButton": "Cancel",
+      "connectButton": "Connect"
+    },
+    "sendSign": {
+      "title": "Transaction request",
+      "requestedLabel": "Requested:",
+      "confirmButton": "Confirm",
+      "cancelButton": "Cancel"
     }
   }
 }

@@ -4,7 +4,10 @@ import { useNavigate } from "react-router-dom";
 import failedIcon from "../../../public/icons/confused-face.svg";
 import { Box, Icon, Logo } from "../../features/components/shared";
 import { resetGlobalError } from "../../features/store/model/error.ts";
-import { resetSmartAccount } from "../../features/store/model/smartAccount.ts";
+import {
+  resetSmartAccount,
+  retrySmartAccountCreation,
+} from "../../features/store/model/smartAccount.ts";
 import { WalletRoutes } from "../../router";
 
 export const ErrorPage = () => {
@@ -15,6 +18,7 @@ export const ErrorPage = () => {
   const handleTryAgain = () => {
     resetGlobalError();
     resetSmartAccount();
+    retrySmartAccountCreation();
     navigate(WalletRoutes.WALLET.BASE);
   };
 

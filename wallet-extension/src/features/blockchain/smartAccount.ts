@@ -146,6 +146,41 @@ export async function sendCurrency({
   }
 }
 
+// Send Transaction
+export async function sendTransaction({
+  smartAccount,
+  transactionParams,
+}: {
+  smartAccount: SmartAccountV1;
+  transactionParams: {
+    to: string;
+    value?: number;
+    tokens?: { id: string; amount: bigint }[];
+    data?: string | null;
+    feeCredit?: bigint;
+  };
+}): Promise<string> {
+  const feeCredit = 100_000_000_000_000n * 10n;
+
+  // Convert value to bigint if it's defined and a number
+  const valueInWei =
+    transactionParams.value !== undefined ? convertEthToWei(transactionParams.value) : 0n;
+  try {
+    // Ensure feeCredit is always included
+    const txParams = {
+      ...transactionParams,
+      value: valueInWei,
+      feeCredit,
+    };
+
+    const txHash = await smartAccount.sendTransaction(txParams);
+
+    return txHash;
+  } catch (e) {
+    throw new Error("Failed to send transaction");
+  }
+}
+
 // Get transaction parameters for NIL (native currency)
 function getNilTransactionParams(to: Hex, value: number, feeCredit: bigint) {
   return {
