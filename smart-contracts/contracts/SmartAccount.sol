@@ -91,15 +91,15 @@ contract SmartAccount is NilTokenBase {
      * @param dst The destination address.
      * @param feeCredit The amount of tokens available to pay all fees during transaction processing.
      * @param value The value to send.
-     * @param call_data The call data of the called method.
+     * @param callData The call data of the called method.
      */
     function syncCall(
         address dst,
         uint feeCredit,
         uint value,
-        bytes memory call_data
+        bytes memory callData
     ) public onlyExternal {
-        (bool success, ) = dst.call{value: value, gas: feeCredit}(call_data);
+        (bool success, ) = dst.call{value: value, gas: feeCredit}(callData);
         require(success, "Call failed");
     }
 
