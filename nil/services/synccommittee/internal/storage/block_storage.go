@@ -32,6 +32,10 @@ const (
 	// Key: mainShardKey, Value: scTypes.MainBlockRef.
 	latestFetchedTable db.TableName = "latest_fetched"
 
+	// latestBatchIdTable stores identifier of the latest saved batch.
+	// Key: mainShardKey, Value: scTypes.BatchId.
+	latestBatchIdTable db.TableName = "latest_batch_id"
+
 	// stateRootTable stores the latest ProvedStateRoot (single value).
 	// Key: mainShardKey, Value: common.Hash.
 	stateRootTable db.TableName = "state_root"
@@ -119,6 +123,42 @@ func (bs *BlockStorage) SetProvedStateRoot(ctx context.Context, stateRoot common
 	return bs.commit(tx)
 }
 
+func (bs *BlockStorage) GetLatestBatchId(ctx context.Context) (*scTypes.BatchId, error) {
+	tx, err := bs.database.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	return bs.getLatestBatchIdTx(tx)
+}
+
+func (bs *BlockStorage) getLatestBatchIdTx(tx db.RoTx) (*scTypes.BatchId, error) {
+	bytes, err := tx.Get(latestBatchIdTable, mainShardKey)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get latest batch id: %w", err)
+	}
+	var batchId scTypes.BatchId
+	if err := batchId.UnmarshalText(bytes); err != nil {
+		return nil, err
+	}
+	return &batchId, nil
+}
+
+func (bs *BlockStorage) putLatestBatchIdTx(tx db.RwTx) error {
+	batchId := scTypes.NewBatchId()
+	bytes, err := batchId.MarshalText()
+	if err != nil {
+		return err
+	}
+	if err := tx.Put(latestBatchIdTable, mainShardKey, bytes); err != nil {
+		return fmt.Errorf("failed to put latest batch id: %w", err)
+	}
+	return nil
+}
+
 func (bs *BlockStorage) TryGetLatestFetched(ctx context.Context) (*scTypes.MainBlockRef, error) {
 	tx, err := bs.database.CreateRoTx(ctx)
 	if err != nil {
@@ -180,6 +220,10 @@ func (bs *BlockStorage) setBlockBatchImpl(ctx context.Context, batch *scTypes.Bl
 	}
 
 	if err := bs.updateLatestFetched(tx, batch.MainShardBlock); err != nil {
+		return err
+	}
+
+	if err := bs.putLatestBatchIdTx(tx); err != nil {
 		return err
 	}
 

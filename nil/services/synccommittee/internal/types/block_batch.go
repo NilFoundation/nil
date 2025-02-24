@@ -19,7 +19,7 @@ func NewBatchId() BatchId         { return BatchId(uuid.New()) }
 func (id BatchId) String() string { return uuid.UUID(id).String() }
 func (id BatchId) Bytes() []byte  { return []byte(id.String()) }
 
-// MarshalText implements the encoding.TextMarshller interface for BatchId.
+// MarshalText implements the encoding.TextMarshaler interface for BatchId.
 func (id BatchId) MarshalText() ([]byte, error) {
 	uuidValue := uuid.UUID(id)
 	return []byte(uuidValue.String()), nil
@@ -45,17 +45,23 @@ func (id *BatchId) Set(val string) error {
 
 type BlockBatch struct {
 	Id             BatchId             `json:"id"`
+	ParentId       *BatchId            `json:"parentId"`
 	MainShardBlock *jsonrpc.RPCBlock   `json:"mainShardBlock"`
 	ChildBlocks    []*jsonrpc.RPCBlock `json:"childBlocks"`
 }
 
-func NewBlockBatch(mainShardBlock *jsonrpc.RPCBlock, childBlocks []*jsonrpc.RPCBlock) (*BlockBatch, error) {
+func NewBlockBatch(
+	parentId *BatchId,
+	mainShardBlock *jsonrpc.RPCBlock,
+	childBlocks []*jsonrpc.RPCBlock,
+) (*BlockBatch, error) {
 	if err := validateBatch(mainShardBlock, childBlocks); err != nil {
 		return nil, err
 	}
 
 	return &BlockBatch{
 		Id:             NewBatchId(),
+		ParentId:       parentId,
 		MainShardBlock: mainShardBlock,
 		ChildBlocks:    childBlocks,
 	}, nil

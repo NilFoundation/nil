@@ -93,7 +93,8 @@ func NewBlockBatch(childBlocksCount int) *scTypes.BlockBatch {
 		mainBlock.ChildBlocks = append(mainBlock.ChildBlocks, block.Hash)
 	}
 
-	batch, err := scTypes.NewBlockBatch(mainBlock, childBlocks)
+	parentId := scTypes.NewBatchId()
+	batch, err := scTypes.NewBlockBatch(&parentId, mainBlock, childBlocks)
 	if err != nil {
 		panic(err)
 	}
