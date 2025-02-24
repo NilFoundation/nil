@@ -1,35 +1,35 @@
 package execution
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPriceCalculation(t *testing.T) {
 	t.Parallel()
 
-	a, _ := decimal.NewFromString("12.3400")
-	b := decimal.New(5678, -3)
-	c := a.Add(b)
-	fmt.Println(c.String())
+	feeCalc := MainFeeCalculator{}
 
-	baseFeePrevious := types.DefaultGasPrice
-	gasTarget := GasTarget(types.DefaultGasLimit)
-	gasUsedPrevious := gasTarget
-	f := calculateBaseFee(baseFeePrevious, gasUsedPrevious)
-	require.Equal(t, baseFeePrevious.Uint64(), f.Uint64())
+	prevBlock := &types.Block{}
 
-	gasUsedPrevious *= 2
-	baseFeePrevious = f
-	f = calculateBaseFee(baseFeePrevious, gasUsedPrevious)
-	require.Greater(t, f.Uint64(), baseFeePrevious.Uint64())
+	gasTarget := GasTarget(types.DefaultMaxGasInBlock)
+	prevBlock.BaseFee = types.DefaultGasPrice
+	prevBlock.GasUsed = gasTarget
+	f, err := feeCalc.CalculateBaseFee(prevBlock)
+	require.NoError(t, err)
+	require.Equal(t, prevBlock.BaseFee.Uint64(), f.Uint64())
 
-	baseFeePrevious = f
-	gasUsedPrevious = gasTarget - 100_000
-	f = calculateBaseFee(baseFeePrevious, gasUsedPrevious)
-	require.Less(t, f.Uint64(), baseFeePrevious.Uint64())
+	prevBlock.BaseFee = f
+	prevBlock.GasUsed = gasTarget * 2
+	f, err = feeCalc.CalculateBaseFee(prevBlock)
+	require.NoError(t, err)
+	require.Greater(t, f.Uint64(), prevBlock.BaseFee.Uint64())
+
+	prevBlock.BaseFee = f
+	prevBlock.GasUsed = gasTarget - 1_000_000
+	f, err = feeCalc.CalculateBaseFee(prevBlock)
+	require.NoError(t, err)
+	require.Less(t, f.Uint64(), prevBlock.BaseFee.Uint64())
 }

@@ -80,6 +80,8 @@ type Config struct {
 	RpcNode   *RpcNodeConfig             `yaml:"rpcNode,omitempty"`
 
 	L1Fetcher rollup.L1BlockFetcher `yaml:"-"`
+
+	FeeCalculator execution.FeeCalculator `yaml:"-"`
 }
 
 const (
@@ -204,5 +206,6 @@ func (c *Config) BlockGeneratorParams(shardId types.ShardId) execution.BlockGene
 		TraceEVM:         c.TraceEVM,
 		MainKeysPath:     c.MainKeysPath,
 		DisableConsensus: c.DisableConsensus,
+		FeeCalculator:    c.FeeCalculator,
 	}
 }

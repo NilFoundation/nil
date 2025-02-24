@@ -21,6 +21,7 @@ type BlockGeneratorParams struct {
 	TraceEVM         bool
 	MainKeysPath     string
 	DisableConsensus bool
+	FeeCalculator    FeeCalculator
 }
 
 func NewBlockGeneratorParams(shardId types.ShardId, nShards uint32) BlockGeneratorParams {
@@ -65,6 +66,7 @@ func NewBlockGenerator(ctx context.Context, params BlockGeneratorParams, txFabri
 	executionState, err := NewExecutionState(rwTx, params.ShardId, StateParams{
 		Block:          block,
 		ConfigAccessor: configAccessor,
+		FeeCalculator:  params.FeeCalculator,
 	})
 	if err != nil {
 		return nil, err

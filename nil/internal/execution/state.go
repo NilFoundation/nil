@@ -28,7 +28,7 @@ import (
 
 var logger = logging.NewLogger("execution")
 
-const TraceBlocksEnabled = false
+const TraceBlocksEnabled = true
 
 const ExternalTransactionVerificationMaxGas = types.Gas(100_000)
 
@@ -107,6 +107,8 @@ type ExecutionState struct {
 
 	// isReadOnly is true if the state is in read-only mode. This mode is used for eth_call and eth_estimateGas.
 	isReadOnly bool
+
+	FeeCalculator FeeCalculator
 }
 
 type ExecutionResult struct {
@@ -233,6 +235,7 @@ func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
 type StateParams struct {
 	Block          *types.Block
 	ConfigAccessor config.ConfigAccessor
+	FeeCalculator  FeeCalculator
 }
 
 func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*ExecutionState, error) {
@@ -247,10 +250,15 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 		return nil, errors.New("invalid tx type")
 	}
 
+	feeCalculator := params.FeeCalculator
+	if feeCalculator == nil {
+		feeCalculator = &MainFeeCalculator{}
+	}
+
 	var baseFeePerGas types.Value
 	var prevBlockHash common.Hash
 	if params.Block != nil {
-		baseFeePerGas = calculateBaseFee(params.Block.BaseFee, params.Block.GasUsed)
+		baseFeePerGas, _ = feeCalculator.CalculateBaseFee(params.Block)
 		prevBlockHash = params.Block.Hash(shardId)
 	}
 
@@ -275,6 +283,8 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 		GasPrice: types.NewZeroValue(),
 
 		isReadOnly: isReadOnly,
+
+		FeeCalculator: feeCalculator,
 	}
 
 	return res, res.initTries()
@@ -1522,7 +1532,14 @@ func (es *ExecutionState) GetShardID() types.ShardId {
 	return es.ShardId
 }
 
-func (es *ExecutionState) CallVerifyExternal(transaction *types.Transaction, account *AccountState) *ExecutionResult {
+func (es *ExecutionState) CallVerifyExternal(transaction *types.Transaction) *ExecutionResult {
+	account, err := es.GetAccount(transaction.To)
+	check.PanicIfErr(err)
+	if account.ExtSeqno != transaction.Seqno {
+		err = fmt.Errorf("account %v != transaction %v", account.ExtSeqno, transaction.Seqno)
+		return NewExecutionResult().SetError(types.NewWrapError(types.ErrorSeqnoGap, err))
+	}
+
 	methodSignature := "verifyExternal(uint256,bytes)"
 	methodSelector := crypto.Keccak256([]byte(methodSignature))[:4]
 	argSpec := vm.VerifySignatureArgs()[1:] // skip first arg (pubkey)
@@ -1570,6 +1587,7 @@ func (es *ExecutionState) CallVerifyExternal(transaction *types.Transaction, acc
 	res := NewExecutionResult()
 	spentGas := gasCreditLimit.Sub(types.Gas(leftOverGas))
 	res.SetUsed(spentGas, es.GasPrice)
+	es.GasUsed += res.GasUsed
 	check.PanicIfErr(account.SubBalance(res.CoinsUsed(), tracing.BalanceDecreaseVerifyExternal))
 	return res
 }

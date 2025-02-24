@@ -173,14 +173,7 @@ func validateExternalExecutionTransaction(es *ExecutionState, transaction *types
 		return NewExecutionResult() // send value
 	}
 
-	account, err := es.GetAccount(to)
-	check.PanicIfErr(err)
-	if account.ExtSeqno != transaction.Seqno {
-		err = fmt.Errorf("account %v != transaction %v", account.ExtSeqno, transaction.Seqno)
-		return NewExecutionResult().SetError(types.NewWrapError(types.ErrorSeqnoGap, err))
-	}
-
-	return es.CallVerifyExternal(transaction, account)
+	return es.CallVerifyExternal(transaction)
 }
 
 func ValidateExternalTransaction(es *ExecutionState, transaction *types.Transaction) *ExecutionResult {
