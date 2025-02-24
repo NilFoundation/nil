@@ -1,0 +1,24 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "InterestManager",
+  "sourceName": "contracts/InterestManager.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "getInterestRate",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x608080604052346013576079908160198239f35b600080fdfe6080806040526004361015601257600080fd5b60003560e01c635257b56614602657600080fd5b34603e576000366003190112603e5780600560209252f35b600080fdfea26469706673582212209d2684195cee248f3dd0f202e9d4db22cdac66349e6b5931e83d345b114693e764736f6c634300081c0033",
+  "deployedBytecode": "0x6080806040526004361015601257600080fd5b60003560e01c635257b56614602657600080fd5b34603e576000366003190112603e5780600560209252f35b600080fdfea26469706673582212209d2684195cee248f3dd0f202e9d4db22cdac66349e6b5931e83d345b114693e764736f6c634300081c0033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
