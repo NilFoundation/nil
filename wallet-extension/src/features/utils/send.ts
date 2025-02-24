@@ -3,7 +3,6 @@ import { hexToBigInt, toHex } from "@nilfoundation/niljs";
 import { formatEther, parseEther } from "viem";
 import { estimateFee } from "../blockchain/smartAccount.ts";
 import { Currency } from "../components/currency";
-import { getTokenAddress } from "../utils";
 
 export const MIN_SEND_AMOUNT_NIL = 0.00001;
 export const MIN_SEND_AMOUNT_OTHER = 1;
@@ -51,16 +50,13 @@ export async function fetchEstimatedFee(
   smartAccount: SmartAccountV1,
   toAddress: Hex,
   amount: string,
-  selectedCurrency: string,
-  balanceCurrencies: Record<string, bigint>,
+  tokenAddress: string,
 ) {
-  const tokenAddress =
-    selectedCurrency === "NIL" ? null : getTokenAddress(selectedCurrency, balanceCurrencies);
   const transactionTokens: Token[] =
-    selectedCurrency === "NIL"
+    tokenAddress === ""
       ? []
       : [{ id: tokenAddress as Hex, amount: hexToBigInt(toHex(Number(amount))) }];
-  const value = selectedCurrency === "NIL" ? parseEther(amount) : 0n;
+  const value = tokenAddress === "" ? parseEther(amount) : 0n;
 
   try {
     const fee = await estimateFee(smartAccount, toAddress, value, transactionTokens);

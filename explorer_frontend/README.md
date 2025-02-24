@@ -25,7 +25,7 @@ cd ./nil/explorer_frontend
 Install dependencies:
 
 ```bash
-npm штыефдд
+npm install
 ```
 
 ## Development

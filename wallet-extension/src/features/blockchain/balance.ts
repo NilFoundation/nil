@@ -10,14 +10,14 @@ export async function fetchBalance(smartAccount: SmartAccountV1): Promise<bigint
   }
 }
 
-// Fetch smartAccount currencies
-export async function fetchSmartAccountCurrencies(
+// Fetch smartAccount tokens
+export async function fetchSmartAccountTokens(
   smartAccount: SmartAccountV1,
 ): Promise<Record<string, bigint>> {
   try {
     return await smartAccount.client.getTokens(smartAccount.address, "latest");
   } catch (error) {
-    console.error("Error fetching smartAccount currencies:", error);
-    throw new Error("Failed to fetch smartAccount currencies");
+    console.error("Error fetching smartAccount tokens:", error);
+    throw new Error("Failed to fetch smartAccount tokens");
   }
 }

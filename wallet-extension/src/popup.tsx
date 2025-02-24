@@ -11,7 +11,7 @@ import { WalletRouter } from "./router";
 
 import "./features/store/model.ts";
 import "./features/store/init.ts";
-import "./features/utils/currency.ts";
+import "./features/utils/token.ts";
 
 const engine = new Styletron();
 const { theme } = createTheme(engine, {

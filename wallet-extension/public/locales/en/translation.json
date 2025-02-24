@@ -109,6 +109,25 @@
       "title": "You’re on Testnet – Mainnet launches this year",
       "text": "Stay tuned and join the =nil; community for updates. In the meantime, you can try out features and transactions without using real assets. Tokens on testnets don’t hold any real value",
       "button": "Join =nil; community"
+    },
+    "manageTokens": {
+      "currencyTab": {
+        "button": "Manage Tokens"
+      },
+      "manageTokensPage": {
+        "title": "Manage tokens",
+        "search": "Search by token name",
+        "addButton": "Add custom token"
+      },
+      "addTokenPage": {
+        "title": "Add custom token",
+        "nameLabel": "Token name",
+        "namePlaceholder": "Custom token",
+        "addressLabel": "Contract address",
+        "addressPlaceholder": "0x...",
+        "button": "Add token",
+        "addressError": "Invalid address or token already added"
+      }
     }
   }
 }

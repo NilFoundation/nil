@@ -10,7 +10,7 @@ export interface Tutorial {
 db.exec(
   `
     CREATE TABLE IF NOT EXISTS TUTORIALS (
-      id AUTOINCREMENT PRIMARY KEY ,
+      id INTEGER PRIMARY KEY ,
       text TEXT,
       contracts TEXT,
       stage INTEGER UNIQUE

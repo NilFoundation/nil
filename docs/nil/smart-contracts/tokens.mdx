@@ -2,6 +2,8 @@ import PGButton from '@theme/PGButton';
 
 # `smart-contracts`: working with tokens
 
+## Overview
+
 The `NilTokenBase.sol` contract allows for creating new custom tokens to be deployed on =nil;
 
 To do so, simply inherit a new smart contract from `NilTokenBase.sol` and deploy it. 
@@ -12,7 +14,16 @@ import "@nilfoundation/smart-contracts/contracts/NilTokenBase.sol";
 contract NewToken is NilTokenBase {}
 ```
 
-`NilTokenBase.sol` provides internal methods for burning, minting and sending tokens, as well as [**`onlyExternal` wrappers**](./func-modifiers.mdx) over these methods. 
+`NilTokenBase.sol` provides internal methods for burning, minting and sending tokens, as well as [**`onlyExternal` wrappers**](./func-modifiers.mdx) over these methods.
+
+## FT example
+
+It is possible to implement a simple fungible token contract by inheriting from `NilTokenBase.sol`:
+
+```solidity showLineNumbers file=../../tests/FT.sol start=startContract end=endContract
+```
+
+## NFT example
 
 Here is a basic implementation of an NFT contract inheriting from `NilTokenBase.sol`:
 

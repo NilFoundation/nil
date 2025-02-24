@@ -5,7 +5,7 @@ import TabItem from '@theme/TabItem'
 
 This guide details how an existing dApp or a set of smart contracts can be safely migrated to =nil; while improving scalability via sharding.
 
-To illustrate the migration process, the guide uses examples from [**Uniswap V2 =nil;**](https://github.com/NilFoundation/uniswap-v2-nil/tree/main), which is a conversion of Uniswap V2 that leverages sharding and async communications. This example is chosen for several reasons:
+To illustrate the migration process, the guide uses examples from [**Uniswap V2 =nil;**](https://github.com/NilFoundation/nil/tree/main/uniswap), which is a conversion of Uniswap V2 that leverages sharding and async communications. This example is chosen for several reasons:
 
 * Uniswap V2 is a well-known protocol that is easy to implement
 * The core tenets of Uniswap v2 (token pairs and the pair factory) provide many areas that can be made more scalable by distributing pair contracts across different shards
@@ -33,7 +33,7 @@ Deprecate the usage of the ERC-20 standard, replacing it with how multi-token su
 
 Maximize performance and safety by mixing async communications with sync communications where relevant.
 
-The following sections expand on points 2 and 3. 
+The following sections expand on points 2 and 3.
 
 ## Leveraging sharding
 
@@ -73,7 +73,7 @@ The key decision when migrating apps to =nil; is what parts of the app can be se
 
 :::info[How the factory contract works]
 
-The [**`UniswapV2Factory`**](https://github.com/NilFoundation/uniswap-v2-nil/blob/main/contracts/UniswapV2Factory.sol) contract uses two methods from the `Nil.sol` extension library:
+The [**`UniswapV2Factory`**](https://github.com/NilFoundation/nil/tree/main/uniswap/contracts/UniswapV2Factory.sol) contract uses two methods from the `Nil.sol` extension library:
 
 * `calculateAddress()`
 * `asyncCall()`
@@ -81,19 +81,19 @@ The [**`UniswapV2Factory`**](https://github.com/NilFoundation/uniswap-v2-nil/blo
 `calculateAddress()` determines the address of a pair contract given its bytecode, salt, and the shard where it should be deployed. `asyncCall()` simply sends a transaction to this address containing the contract bytecode, salt, the shard id, and the `deploy` flag set to `true`.
 
 ```solidity showLineNumbers
-function deployPair(uint256 salt) private returns (address deployedAddress) {  
-        bytes memory code = abi.encodePacked(type(UniswapV2Pair).creationCode, abi.encode(msg.sender));  
-        address contractAddress = Nil.createAddress(1, code, salt);  
-        Nil.asyncCall(contractAddress, address(0), msg.sender, 0, 0, true, 0, abi.encodePacked(code, salt));  
-        return contractAddress;  
-    }  
+function deployPair(uint256 salt) private returns (address deployedAddress) {
+        bytes memory code = abi.encodePacked(type(UniswapV2Pair).creationCode, abi.encode(msg.sender));
+        address contractAddress = Nil.createAddress(1, code, salt);
+        Nil.asyncCall(contractAddress, address(0), msg.sender, 0, 0, true, 0, abi.encodePacked(code, salt));
+        return contractAddress;
+    }
 ```
 
 This makes it possible to easily deploy token pairs on any shard. Since the contract address is calculated based on the shard where the contract is deployed, there is no need to store a separate mapping of shard IDs and token pair addresses.
 
 :::
 
-Contracts deployed on different shards can freely communicate with each other. However, sending transactions across shards asynchronously can result in issues (e.g., token price slippages) since there it is [**impossible to know when exactly an async call will be executed**](../core-concepts/shards-parallel-execution.mdx#async-execution). In contrast, sync calls can be reliably executed one-by-one. 
+Contracts deployed on different shards can freely communicate with each other. However, sending transactions across shards asynchronously can result in issues (e.g., token price slippages) since there it is [**impossible to know when exactly an async call will be executed**](../core-concepts/shards-parallel-execution.mdx#async-execution). In contrast, sync calls can be reliably executed one-by-one.
 
 During migration, a simple workaround can be used to always use the safest messaging method available:
 
@@ -109,7 +109,7 @@ function smartCall(address dst, Nil.Token[] memory tokens, bytes memory callData
 }
 ```
 
-This ensures that synchronous communications are always used when the transaction recipient is located on the same shard as the transaction sender. `smartCall()` or a similar workaround can be used when there is no need for fine-grain control over which contracts are deployed to which shards.  
+This ensures that synchronous communications are always used when the transaction recipient is located on the same shard as the transaction sender. `smartCall()` or a similar workaround can be used when there is no need for fine-grain control over which contracts are deployed to which shards.
 
 ## Migration of token pairs
 
@@ -143,7 +143,7 @@ Here is a simplified overview of how token pairs function on =nil;:
 
 :::
 
-In Uniswap v2 =nil;, the [**revised `UniswapV2Pair` contract**](https://github.com/NilFoundation/uniswap-v2-nil/blob/main/contracts/UniswapV2Pair.sol) uses methods inherited from `NilTokenBase` when minting new tokens:
+In Uniswap v2 =nil;, the [**revised `UniswapV2Pair` contract**](https://github.com/NilFoundation/nil/tree/main/uniswap/contracts/UniswapV2Pair.sol) uses methods inherited from `NilTokenBase` when minting new tokens:
 
 <Tabs groupId='internalMethods'>
   <TabItem value='nil' label='Uniswap v2 =nil;'>
@@ -204,7 +204,7 @@ In Uniswap v2 =nil;, the [**revised `UniswapV2Pair` contract**](https://github.c
   </TabItem>
 </Tabs>
 
-When migrating an app to =nil; make sure to adapt the code that was using the ERC20 standard to instead use the corresponding methods from `NilTokenBase`. 
+When migrating an app to =nil; make sure to adapt the code that was using the ERC20 standard to instead use the corresponding methods from `NilTokenBase`.
 
 There are also differences in how attaining token balances works in =nil;:
 
@@ -221,7 +221,7 @@ There are also differences in how attaining token balances works in =nil;:
   </TabItem>
 </Tabs>
 
-The =nil; implementation uses the token ID to check its balance rather than its address. 
+The =nil; implementation uses the token ID to check its balance rather than its address.
 
 ## Async vs sync calls
 
@@ -233,7 +233,7 @@ In =nil;, contracts can be deployed on  shards with each shard acting as a separ
 
 :::
 
-Async calls are used in several different areas of Uniswap v2 =nil; including contract deployment in [**`UniswapV2Factory`**](https://github.com/NilFoundation/uniswap-v2-nil/blob/main/contracts/UniswapV2Factory.sol):
+Async calls are used in several different areas of Uniswap v2 =nil; including contract deployment in [**`UniswapV2Factory`**](https://github.com/NilFoundation/nil/tree/main/uniswap/contracts/UniswapV2Factory.sol):
 
 
 <Tabs groupId='pairDeployment'>
@@ -312,7 +312,7 @@ Nil.asyncCall(
 );
 ```
 
-This should avoid locking the execution of the contract that makes the async call until the tokens are swapped by the pair contract. 
+This should avoid locking the execution of the contract that makes the async call until the tokens are swapped by the pair contract.
 
 Note that it is also possible to use async calls to send custom tokens between contracts:
 

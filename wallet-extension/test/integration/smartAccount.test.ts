@@ -1,13 +1,11 @@
-import { convertEthToWei } from "@nilfoundation/niljs";
 import {
   fetchBalance,
-  fetchSmartAccountCurrencies,
+  fetchSmartAccountTokens,
   initializeOrDeploySmartAccount,
   sendCurrency,
   topUpAllCurrencies,
 } from "../../src/features/blockchain";
-import { Currency } from "../../src/features/components/currency";
-import { getTokenAddressBySymbol } from "../../src/features/utils";
+import { btcAddress } from "../../src/features/utils/token.ts";
 import { setup } from "./helper.ts";
 
 test("Initialize and deploy smart account, fetch balance and tokens", async () => {
@@ -30,7 +28,7 @@ test("Initialize and deploy smart account, fetch balance and tokens", async () =
 
   // 3. Fetch balance and tokens
   const balance = await fetchBalance(smartAccount);
-  const tokens = await fetchSmartAccountCurrencies(smartAccount);
+  const tokens = await fetchSmartAccountTokens(smartAccount);
 
   expect(balance).not.toBeNull();
   expect(typeof balance).toBe("bigint");
@@ -51,7 +49,7 @@ test("Initialize and deploy smart account, fetch balance and tokens", async () =
 
   // 5. Fetch balance and tokens again
   const balanceReinit = await fetchBalance(smartAccountReinit);
-  const tokensReinit = await fetchSmartAccountCurrencies(smartAccountReinit);
+  const tokensReinit = await fetchSmartAccountTokens(smartAccountReinit);
 
   expect(balanceReinit).toBe(balance);
   expect(tokensReinit).toEqual(tokens);
@@ -81,16 +79,15 @@ test("Send NIL currency and token between accounts and validate balances", async
 
   // 4. Fetch sender's initial balances
   const senderInitialBalance = await fetchBalance(sender);
-  const senderInitialTokens = await fetchSmartAccountCurrencies(sender);
+  const senderInitialTokens = await fetchSmartAccountTokens(sender);
   const recipientInitialBalance = await fetchBalance(recipient);
 
   // 5. Send NIL currency from sender to recipient
-  const sendAmountNIL = convertEthToWei(0.000001);
   await sendCurrency({
     smartAccount: sender,
     to: recipient.address,
     value: 0.00001,
-    tokenSymbol: Currency.NIL,
+    tokenAddress: "",
   });
 
   // 6. Fetch updated balances after NIL transfer
@@ -103,22 +100,19 @@ test("Send NIL currency and token between accounts and validate balances", async
 
   // 7. Send BTC token from sender to recipient
   const sendAmountBTC = 5n;
-  const btcTokenAddress = getTokenAddressBySymbol(Currency.BTC);
 
   await sendCurrency({
     smartAccount: sender,
     to: recipient.address,
     value: Number(sendAmountBTC),
-    tokenSymbol: Currency.BTC,
+    tokenAddress: btcAddress,
   });
 
   // 8. Fetch updated token balances
-  const senderTokensAfterBTC = await fetchSmartAccountCurrencies(sender);
-  const recipientTokensAfterBTC = await fetchSmartAccountCurrencies(recipient);
+  const senderTokensAfterBTC = await fetchSmartAccountTokens(sender);
+  const recipientTokensAfterBTC = await fetchSmartAccountTokens(recipient);
 
   // Check exact token balances after transaction
-  expect(senderTokensAfterBTC[btcTokenAddress]).toBe(
-    senderInitialTokens[btcTokenAddress] - sendAmountBTC,
-  );
-  expect(recipientTokensAfterBTC[btcTokenAddress]).toBe(sendAmountBTC);
+  expect(senderTokensAfterBTC[btcAddress]).toBe(senderInitialTokens[btcAddress] - sendAmountBTC);
+  expect(recipientTokensAfterBTC[btcAddress]).toBe(sendAmountBTC);
 });

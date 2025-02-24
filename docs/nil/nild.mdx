@@ -15,6 +15,8 @@ Cometa and faucet are provided by separate daemons in a production setting.
 
 ## Generating `nild`
 
+First, [**install Nix**](./prerequisites.mdx#dependencies).
+
 To create the `nild` binary:
 
 ```
@@ -47,7 +49,7 @@ If an incompatible old database is found in the specified `db-path`, `nild` will
 ## Complete devnet with 2 validators, an archive node and an RPC node
 
 To start a devnet with multiple validators, said validators need to be assigned with identities. This process involves generating cryptographic keys and bootstrap the network by informing validators
-about each other. This can be achieved using the devnet generator, available through the `nild devnet` subcommand.
+about each other.
 
 Write the devnet spec as a YAML file:
 
@@ -84,10 +86,10 @@ $ nild gen-configs myDevnet.yaml --basedir myDevnet/var
 The configuration files will be created in `myDevnet/conf`. Start the services by running:
 
 ```bash
-$ nild run --config myDevnet/conf/nil-0  # start first validator
-$ nild run --config myDevnet/conf/nil-1  # start second validator
-$ nild archive --config myDevnet/conf/nil-archive-0  # start archive node
-$ nild rpc --config myDevnet/conf/nil-rpc-0  # start RPC node
+$ nild run --config myDevnet/conf/nil-0/nild.yaml  # start first validator
+$ nild run --config myDevnet/conf/nil-1/nild.yaml  # start second validator
+$ nild archive --config myDevnet/conf/nil-archive-0/nild.yaml  # start archive node
+$ nild rpc --config myDevnet/conf/nil-rpc-0/nild.yaml  # start RPC node
 ```
 
 This setup does not launch the faucet service or the Cometa service. They have to be configured

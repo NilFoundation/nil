@@ -10,6 +10,7 @@ type PeerID = peer.ID
 type Config struct {
 	PrivateKey PrivateKey `yaml:"-"`
 
+	Prefix      string `yaml:"prefix,omitempty"`
 	IPV4Address string `yaml:"ipv4,omitempty"`
 	TcpPort     int    `yaml:"tcpPort,omitempty"`
 	QuicPort    int    `yaml:"quicPort,omitempty"`
@@ -22,6 +23,7 @@ type Config struct {
 func NewDefaultConfig() *Config {
 	return &Config{
 		DHTMode: dht.ModeAutoServer,
+		Prefix:  "/nil",
 	}
 }
 

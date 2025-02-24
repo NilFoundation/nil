@@ -7,6 +7,8 @@ import {
   waitTillCompleted,
 } from "@nilfoundation/niljs";
 
+import { FT_COMPILATION_COMMAND } from "./compilationCommands";
+
 import TestHelper from "./TestHelper";
 
 import { CREATED_TOKEN_PATTERN, SMART_ACCOUNT_ADDRESS_PATTERN, TOKEN_PATTERN } from "./patterns";
@@ -43,6 +45,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await exec(`rm -rf ${CONFIG_FILE_NAME}`);
+});
+
+describe.sequential("FT contract tests", () => {
+  test.sequential("The FT contract is compiled", async () => {
+    const { stdout, stderr } = await exec(FT_COMPILATION_COMMAND);
+    expect(stdout).toBeDefined();
+  });
 });
 
 describe.skip.sequential("initial usage CLI tests", () => {

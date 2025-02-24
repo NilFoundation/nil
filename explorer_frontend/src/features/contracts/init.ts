@@ -615,6 +615,11 @@ sample({
     if (shardId === null) {
       return true;
     }
+
+    if (shardsAmount === -1) {
+      return true;
+    }
+
     return shardId <= shardsAmount && shardId >= 1;
   },
 });
@@ -622,11 +627,13 @@ sample({
 sample({
   clock: setRandomShardId,
   source: $shardsAmount,
-  filter: combine($shardsAmount, $shardId, (shardsAmount, shardId) => {
-    return shardId === null && shardsAmount !== -1;
-  }),
+  filter: $shardId.map((shardId) => shardId === null),
   target: setShardId,
   fn: (shardsAmount) => {
+    if (shardsAmount === -1) {
+      return 1;
+    }
+
     const randomShardId = Math.floor(Math.random() * shardsAmount) + 1;
 
     return randomShardId;

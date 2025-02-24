@@ -2,8 +2,8 @@ import { TABS_ORIENTATION, Tab, Tabs } from "@nilfoundation/ui-kit";
 import { useState } from "react";
 import { Box } from "../../shared";
 import { ActivityTab } from "./ActivityTab.tsx";
-import { CurrencyTab } from "./CurrencyTab.tsx";
 import { NFTTab } from "./NFTTab.tsx";
+import { TokenTab } from "./TokenTab.tsx";
 
 interface TabChangeEvent {
   activeKey: string;
@@ -52,7 +52,7 @@ export const ResourceTabs = () => {
       >
         {/* Tokens Tab */}
         <Tab title="Tokens" key={"tokens"}>
-          <CurrencyTab />
+          <TokenTab />
         </Tab>
 
         {/* NFTs Tab */}

@@ -22,12 +22,16 @@ import {
   MainAddressInput,
   ScreenHeader,
 } from "../../features/components/shared";
-import { $balance, $balanceCurrency } from "../../features/store/model/balance";
 import { $smartAccount } from "../../features/store/model/smartAccount.ts";
+import {
+  $balance,
+  $balanceToken,
+  $tokens,
+  getBalanceForToken,
+} from "../../features/store/model/token.ts";
 import {
   convertWeiToEth,
   fetchEstimatedFee,
-  getBalanceForCurrency,
   getCurrencies,
   validateSendAmount,
 } from "../../features/utils";
@@ -38,10 +42,11 @@ export const Send = () => {
   const { t } = useTranslation("translation");
   const navigate = useNavigate();
   const smartAccount = useStore($smartAccount);
-  const balanceCurrencies = useStore($balanceCurrency);
+  const tokens = useStore($tokens);
+  const balanceCurrencies = useStore($balanceToken);
   const nilBalance = useStore($balance);
 
-  const currencies = getCurrencies(balanceCurrencies);
+  const currencies = getCurrencies(tokens, true);
 
   const [toAddress, setToAddress] = useState("");
   const [amount, setAmount] = useState("");
@@ -51,7 +56,11 @@ export const Send = () => {
   const [estimatedFee, setEstimatedFee] = useState("");
   const [selectedCurrency, setSelectedCurrency] = useState(currencies[0]);
 
-  const balance = getBalanceForCurrency(selectedCurrency.label, nilBalance, balanceCurrencies);
+  const balance = getBalanceForToken(
+    selectedCurrency.address,
+    nilBalance ?? 0n,
+    balanceCurrencies ?? {},
+  );
 
   // Validation Function
   const validateTransaction = useCallback(() => {
@@ -81,8 +90,7 @@ export const Send = () => {
           smartAccount as SmartAccountV1,
           toAddress as Hex,
           amount,
-          selectedCurrency.label,
-          balanceCurrencies,
+          selectedCurrency.address,
         );
         setEstimatedFee(fee);
 
@@ -124,7 +132,7 @@ export const Send = () => {
         smartAccount: smartAccount as SmartAccountV1,
         to: toAddress as Hex,
         value: Number(amount),
-        tokenSymbol: selectedCurrency.label,
+        tokenAddress: selectedCurrency.address,
       });
       console.log(`Successfully sent ${amount} ${selectedCurrency.label} to ${toAddress}`);
       navigate(WalletRoutes.WALLET.BASE);

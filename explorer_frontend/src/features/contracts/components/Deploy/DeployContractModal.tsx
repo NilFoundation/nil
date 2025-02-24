@@ -29,13 +29,13 @@ export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isO
     deploySmartContractFx.pending,
     importSmartContractFx.pending,
   ]);
-  const tabsDisabled = deployPending || importExistingPending;
+  const disabled = deployPending || importExistingPending;
 
   return (
     <Modal
-      autoFocus={false}
       isOpen={isOpen}
       onClose={onClose}
+      closeable={!disabled}
       size="min(770px, 80vw)"
       overrides={{
         Dialog: {
@@ -49,10 +49,10 @@ export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isO
       <ModalHeader>
         <LabelLarge>{name}</LabelLarge>
       </ModalHeader>
-
       <div
         style={{
           overflow: "auto",
+          overscrollBehavior: "contain",
           height: "462px",
           paddingRight: "24px",
           paddingLeft: "5px",
@@ -63,7 +63,8 @@ export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isO
             activeKey={activeComponent}
             overrides={tabsOverrides}
             onChange={({ activeKey }) => setActiveComponent(activeKey as ActiveComponent)}
-            disabled={tabsDisabled}
+            disabled={disabled}
+            renderAll
           >
             <Tab
               title="Deploy"

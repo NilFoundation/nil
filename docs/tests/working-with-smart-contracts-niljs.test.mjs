@@ -260,7 +260,7 @@ describe.sequential("Nil.js deployment tests", async () => {
         decodeFunctionResult({
           abi: MANUFACTURER_ABI,
           functionName: "getProducts",
-          data: resultsCall,
+          data: resultsCall.data,
         }),
       );
       //endRetailerRetrievesTheResult

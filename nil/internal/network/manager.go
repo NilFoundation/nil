@@ -17,7 +17,8 @@ import (
 )
 
 type Manager struct {
-	ctx context.Context
+	ctx    context.Context
+	prefix string
 
 	host   Host
 	pubSub *PubSub
@@ -65,19 +66,24 @@ func newManagerFromHost(ctx context.Context, conf *Config, h host.Host) (*Manage
 		return nil, err
 	}
 
-	ps, err := newPubSub(ctx, h, logger)
+	ps, err := newPubSub(ctx, h, conf, logger)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Manager{
 		ctx:    ctx,
+		prefix: conf.Prefix,
 		host:   h,
 		pubSub: ps,
 		dht:    dht,
 		meter:  telemetry.NewMeter("github.com/NilFoundation/nil/nil/internal/network"),
 		logger: logger,
 	}, nil
+}
+
+func (m *Manager) withNetworkPrefix(prefix string) string {
+	return m.prefix + prefix
 }
 
 func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
@@ -118,6 +124,7 @@ func (m *Manager) GetPeersForProtocol(pid protocol.ID) []peer.ID {
 	var peersForProtocol []peer.ID
 	peers := m.host.Network().Peers()
 
+	pid = ProtocolID(m.withNetworkPrefix(string(pid)))
 	for _, p := range peers {
 		supportedProtocols, err := m.host.Peerstore().SupportsProtocols(p, pid)
 		if err == nil && len(supportedProtocols) > 0 {
@@ -134,6 +141,7 @@ func (m *Manager) GetPeersForProtocolPrefix(prefix string) []peer.ID {
 		return nil
 	}
 
+	prefix = m.withNetworkPrefix(prefix)
 	var peersForProtocolPrefix []peer.ID
 	peers := m.host.Network().Peers()
 

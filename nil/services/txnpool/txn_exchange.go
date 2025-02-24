@@ -9,7 +9,7 @@ import (
 )
 
 func topicPendingTransactions(shardId types.ShardId) string {
-	return fmt.Sprintf("nil/shard/%s/pending-transactions", shardId)
+	return fmt.Sprintf("/shard/%s/pending-transactions", shardId)
 }
 
 func PublishPendingTransaction(ctx context.Context, networkManager *network.Manager, shardId types.ShardId, txn *metaTxn) error {

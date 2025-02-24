@@ -21,7 +21,7 @@ const (
 	connectToPeersTimeout       = time.Minute
 	findPeersTimeout            = time.Second * 5
 	defaultMaxPeers             = 50
-	discoveryPid                = ProtocolID("/nil/kad")
+	discoveryPid                = "/kad"
 )
 
 func NewDHT(ctx context.Context, h host.Host, conf *Config, logger zerolog.Logger) (*DHT, error) {
@@ -35,19 +35,20 @@ func NewDHT(ctx context.Context, h host.Host, conf *Config, logger zerolog.Logge
 		logger.Warn().Msg("No bootstrap peers provided for DHT in client mode")
 	}
 
+	protocol := ProtocolID(conf.Prefix + discoveryPid)
 	res, err := dht.New(
 		ctx,
 		h,
 		dht.Mode(conf.DHTMode),
 		dht.BootstrapPeers(ToLibP2pAddrInfoSlice(conf.DHTBootstrapPeers)...),
 		dht.RoutingTableRefreshPeriod(1*time.Minute),
-		dht.V1ProtocolOverride(discoveryPid),
+		dht.V1ProtocolOverride(protocol),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := discoverAndAdvertise(ctx, res, h, logger); err != nil {
+	if err := discoverAndAdvertise(ctx, res, h, protocol, logger); err != nil {
 		return nil, err
 	}
 
@@ -58,7 +59,7 @@ func NewDHT(ctx context.Context, h host.Host, conf *Config, logger zerolog.Logge
 
 // Almost all discovery/advertisement logic is taken from Polkadot:
 // https://github.com/ChainSafe/gossamer/blob/ff33dc50f902b71bb7940a66269ac2bf194a59c7/dot/network/discovery.go
-func discoverAndAdvertise(ctx context.Context, dht *DHT, h host.Host, logger zerolog.Logger) error {
+func discoverAndAdvertise(ctx context.Context, dht *DHT, h host.Host, protocol ProtocolID, logger zerolog.Logger) error {
 	rd := routing.NewRoutingDiscovery(dht)
 
 	err := dht.Bootstrap(ctx)
@@ -68,14 +69,14 @@ func discoverAndAdvertise(ctx context.Context, dht *DHT, h host.Host, logger zer
 
 	// wait to connect to bootstrap peers
 	time.Sleep(time.Second)
-	go advertise(ctx, rd, dht, logger)
-	go checkPeerCount(ctx, rd, h, logger)
+	go advertise(ctx, rd, dht, protocol, logger)
+	go checkPeerCount(ctx, rd, h, protocol, logger)
 
 	logger.Debug().Msg("DHT discovery started")
 	return nil
 }
 
-func advertise(ctx context.Context, rd *routing.RoutingDiscovery, dht *DHT, logger zerolog.Logger) {
+func advertise(ctx context.Context, rd *routing.RoutingDiscovery, dht *DHT, protocol ProtocolID, logger zerolog.Logger) {
 	ttl := initialAdvertisementTimeout
 
 	for {
@@ -93,7 +94,7 @@ func advertise(ctx context.Context, rd *routing.RoutingDiscovery, dht *DHT, logg
 				continue
 			}
 
-			ttl, err = rd.Advertise(ctx, string(discoveryPid))
+			ttl, err = rd.Advertise(ctx, string(protocol))
 			if err != nil {
 				logger.Warn().Err(err).Msg("failed to advertise in the DHT")
 				ttl = tryAdvertiseTimeout
@@ -102,7 +103,7 @@ func advertise(ctx context.Context, rd *routing.RoutingDiscovery, dht *DHT, logg
 	}
 }
 
-func checkPeerCount(ctx context.Context, rd *routing.RoutingDiscovery, h host.Host, logger zerolog.Logger) {
+func checkPeerCount(ctx context.Context, rd *routing.RoutingDiscovery, h host.Host, protocol ProtocolID, logger zerolog.Logger) {
 	ticker := time.NewTicker(connectToPeersTimeout)
 	maxPeers := defaultMaxPeers
 	defer ticker.Stop()
@@ -116,17 +117,17 @@ func checkPeerCount(ctx context.Context, rd *routing.RoutingDiscovery, h host.Ho
 				continue
 			}
 
-			findPeers(ctx, rd, h, logger)
+			findPeers(ctx, rd, h, protocol, logger)
 		}
 	}
 }
 
-func findPeers(ctx context.Context, rd *routing.RoutingDiscovery, h host.Host, logger zerolog.Logger) {
+func findPeers(ctx context.Context, rd *routing.RoutingDiscovery, h host.Host, protocol ProtocolID, logger zerolog.Logger) {
 	logger.Debug().Msg("attempting to find DHT peers...")
 
 	ctx, cancel := context.WithTimeout(ctx, findPeersTimeout)
 	defer cancel()
-	peerCh, err := rd.FindPeers(ctx, string(discoveryPid))
+	peerCh, err := rd.FindPeers(ctx, string(protocol))
 	if err != nil {
 		logger.Warn().Err(err).Msgf("failed to begin finding peers via DHT")
 		return

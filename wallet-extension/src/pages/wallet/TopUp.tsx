@@ -20,15 +20,11 @@ import {
   MainAddressInput,
   ScreenHeader,
 } from "../../features/components/shared";
-import { $balanceCurrency } from "../../features/store/model/balance";
 import { $faucetClient } from "../../features/store/model/blockchain";
 import { $smartAccount } from "../../features/store/model/smartAccount.ts";
-import {
-  convertTopUpAmount,
-  getCurrencies,
-  getQuickAmounts,
-  validateTopUpAmount,
-} from "../../features/utils";
+import { $tokens } from "../../features/store/model/token.ts";
+import { convertTopUpAmount, getQuickAmounts, validateTopUpAmount } from "../../features/utils";
+import { getTopupCurrencies } from "../../features/utils/token.ts";
 import { WalletRoutes } from "../../router";
 
 export const TopUp = () => {
@@ -39,9 +35,9 @@ export const TopUp = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const smartAccount = useStore($smartAccount);
   const faucetClient = useStore($faucetClient);
-  const balanceCurrencies = useStore($balanceCurrency);
+  const tokens = useStore($tokens);
 
-  const currencies = getCurrencies(balanceCurrencies);
+  const currencies = getTopupCurrencies(tokens);
   const [selectedCurrency, setSelectedCurrency] = useState(currencies[0]);
   const [amount, setAmount] = useState("");
 

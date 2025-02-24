@@ -14,5 +14,7 @@ export const WalletRoutes = {
     ENDPOINT: "/endpoint",
     TESTNET: "/testnet",
     ERROR: "/error",
+    MANAGE_TOKENS: "/manage-tokens",
+    ADD_CUSTOM_TOKEN: "/add-custom-token",
   },
 };

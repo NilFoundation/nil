@@ -4,6 +4,7 @@ import {
   areBlockchainFieldsSet,
   initializeFromStorageAndSetup,
 } from "../background/storage/state.ts";
+import { initializeTokens } from "../features/store/model/token.ts";
 import { ErrorPage, Loading, SetEndpoint, TestnetInfo } from "../pages/get-started";
 import {
   Endpoint,
@@ -15,6 +16,8 @@ import {
   TopUp,
   ErrorPage as WalletError,
 } from "../pages/wallet";
+import { AddCustomToken } from "../pages/wallet/AddCustomToken.tsx";
+import { ManageTokens } from "../pages/wallet/ManageTokens.tsx";
 import { ErrorScreen } from "./Error.tsx";
 import { WalletRoutes } from "./routes.ts";
 
@@ -56,6 +59,12 @@ export const WalletRouter = () => {
     <Route key="wallet-error" path={WalletRoutes.WALLET.ERROR}>
       <Route index element={<WalletError />} />
     </Route>,
+    <Route key="manage-tokens" path={WalletRoutes.WALLET.MANAGE_TOKENS}>
+      <Route index element={<ManageTokens />} />
+    </Route>,
+    <Route key="manage-tokens" path={WalletRoutes.WALLET.ADD_CUSTOM_TOKEN}>
+      <Route index element={<AddCustomToken />} />
+    </Route>,
   ];
 
   useEffect(() => {
@@ -64,6 +73,7 @@ export const WalletRouter = () => {
         const fieldsSet = await areBlockchainFieldsSet();
         if (fieldsSet) {
           await initializeFromStorageAndSetup();
+          initializeTokens("");
         }
         setIsFieldsSet(fieldsSet);
       } catch (error) {

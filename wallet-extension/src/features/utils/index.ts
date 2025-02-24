@@ -3,13 +3,9 @@ export { formatAddress, generateRandomSalt, generateRandomShard } from "./addres
 export { validateRpcEndpoint, ValidationResult } from "./inputValidation.ts";
 export {
   convertWeiToEth,
-  getCurrencyIcon,
-  getCurrencySymbolByAddress,
-  getTokenAddressBySymbol,
-  getTokenAddress,
+  getTokenIcon,
   getCurrencies,
-  getBalanceForCurrency,
-} from "./currency.ts";
+} from "./token.ts";
 
 export {
   validateAmount as validateTopUpAmount,

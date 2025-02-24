@@ -30,10 +30,8 @@ function validateOtherCurrencyAmount(amount: number, currency: string): string |
   return null;
 }
 
-export function convertAmount(amount: string, selectedCurrency: string): number {
-  return selectedCurrency === Currency.NIL
-    ? Number(convertEthToWei(Number(amount)))
-    : Number(amount);
+export function convertAmount(amount: string, selectedCurrency: string): bigint {
+  return selectedCurrency === Currency.NIL ? convertEthToWei(Number(amount)) : BigInt(amount);
 }
 
 export function getQuickAmounts(selectedCurrency: string): number[] {

@@ -1,4 +1,4 @@
-export { fetchBalance, fetchSmartAccountCurrencies } from "./balance.ts";
+export { fetchBalance, fetchSmartAccountTokens } from "./balance.ts";
 export {
   topUpAllCurrencies,
   topUpSpecificCurrency,

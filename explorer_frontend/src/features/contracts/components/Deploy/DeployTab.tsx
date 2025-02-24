@@ -72,7 +72,6 @@ export const DeployTab = () => {
               paddingTop: "16px",
               borderTop: `1px solid ${COLORS.gray800}`,
               borderBottom: `1px solid ${COLORS.gray800}`,
-              maxHeight: "30vh",
               marginBottom: "24px",
             })}
           >
@@ -134,7 +133,7 @@ export const DeployTab = () => {
             deploySmartContract();
           }}
           isLoading={pending}
-          disabled={pending || !smartAccount || shardId === null || !shardIdIsValid}
+          disabled={!smartAccount || shardId === null || !shardIdIsValid}
         >
           Deploy
         </Button>

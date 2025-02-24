@@ -64,6 +64,21 @@ stdenv.mkDerivation rec {
     echo "Checking explorer backend"
     (cd explorer_backend; npm run lint;)
 
+    echo "Checking if explorer backend starts up without errors"
+    cd explorer_backend
+    npm run start & NPM_PID=$!
+    sleep 7
+
+    if kill -0 $NPM_PID 2>/dev/null; then
+      echo "Explorer backend is running successfully"
+    else
+      echo "Explorer backend startup failed"
+      exit 1
+    fi
+
+    kill $NPM_PID
+    cd -
+
     echo "tests finished successfully"
   '';
 

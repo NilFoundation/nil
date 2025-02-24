@@ -33,6 +33,7 @@ const btnOverrides = {
 export const ShardIdInput: FC<ShardIdInputProps> = ({ shardId, setShardId, disabled }) => {
   const [css] = useStyletron();
   const [shardsAmount, shardIdIsValid] = useUnit([$shardsAmount, $shardIdIsValid]);
+  const failedToGetShardsAmount = shardsAmount === -1;
 
   return (
     <div
@@ -111,6 +112,11 @@ export const ShardIdInput: FC<ShardIdInputProps> = ({ shardId, setShardId, disab
       {shardIdIsValid ? null : (
         <ParagraphXSmall color={COLORS.red400} marginTop="-8px">
           {`That Shard ID doesn't exist. Please select from 1 to ${shardsAmount}.`}
+        </ParagraphXSmall>
+      )}
+      {failedToGetShardsAmount && (
+        <ParagraphXSmall color={COLORS.red400}>
+          Failed to get shards amount. No validation is applied.
         </ParagraphXSmall>
       )}
       <ParagraphXSmall color={COLORS.gray400}>

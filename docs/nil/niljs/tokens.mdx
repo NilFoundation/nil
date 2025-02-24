@@ -1,5 +1,13 @@
 # `Nil.js`: working with tokens
 
+:::tip[Specifying values]
+
+When specifying values for minting, sending or burning tokens, use exact numbers with no decimals.
+
+For example, when sending 50 million tokens, specify their amount as `50_000_000n`.
+
+:::
+
 ## Basic example
 
 To create a new token and withdraw it:
@@ -64,5 +72,7 @@ await faucetClient.topUpAndWaitUntilCompletion({
   smartAccountAddress: SMART_ACCOUNT_ADDRESS,
   faucetAddress: FAUCET_ADDRESS,
   amount: AMOUNT,
-});
+  },
+  client
+); 
 ```

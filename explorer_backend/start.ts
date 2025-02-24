@@ -39,7 +39,7 @@ app.use("/api", async (req, res) => {
     path: endpoint,
   });
 
-  await generateTutorials();
+  //await generateTutorials();
 });
 
 const start = async () => {

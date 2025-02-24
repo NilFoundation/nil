@@ -23,7 +23,7 @@ export function createFaucetClient(rpcEndpoint: string): FaucetClient {
 export async function topUpAllCurrencies(
   smartAccount: SmartAccountV1,
   faucetClient: FaucetClient,
-  amount = 10,
+  amount = 10n,
 ): Promise<void> {
   try {
     // Get the map of all faucets: { [tokenNameOrAddr]: faucetAddress }
@@ -62,7 +62,7 @@ export async function topUpSpecificCurrency(
   smartAccount: SmartAccountV1,
   faucetClient: FaucetClient,
   symbol: string,
-  amount: number,
+  amount: bigint,
   showInActivity = true,
 ): Promise<void> {
   console.log(`Topping up ${amount} ${symbol} to smartAccount ${smartAccount.address}...`);
@@ -70,7 +70,7 @@ export async function topUpSpecificCurrency(
   const faucetAddress = await getFaucetAddress(faucetClient, symbol);
   let txHash: string | null = null;
 
-  let initialBalance: bigint;
+  let initialBalance: bigint | null = null;
   if (symbol === Currency.NIL) {
     initialBalance = await fetchBalance(smartAccount);
   }
@@ -116,7 +116,7 @@ export async function topUpSpecificCurrency(
 
     // Log failure
     if (txHash && showInActivity) {
-      logTopUpActivity(smartAccount.address, txHash, false, amount, symbol);
+      logTopUpActivity(smartAccount.address, txHash, false, amount.toString(), symbol);
     }
 
     throw new Error(`Failed to top up ${symbol}`);
@@ -126,10 +126,10 @@ export async function topUpSpecificCurrency(
 // Get faucet address by token symbol
 async function getFaucetAddress(faucetClient: FaucetClient, symbol: string): Promise<Hex> {
   const faucets = await faucetClient.getAllFaucets();
-  if (!faucets || !faucets[symbol]) {
+  if (!faucets || !faucets[symbol.toUpperCase()]) {
     throw new Error(`No faucet available for ${symbol}`);
   }
-  return faucets[symbol];
+  return faucets[symbol.toUpperCase()];
 }
 
 function logTopUpActivity(
@@ -145,7 +145,7 @@ function logTopUpActivity(
       activityType: ActivityType.TOPUP,
       txHash,
       success,
-      amount: amount,
+      amount: amount.toString(),
       token: symbol,
     },
   });

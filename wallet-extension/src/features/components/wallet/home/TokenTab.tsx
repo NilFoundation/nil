@@ -1,21 +1,28 @@
 import type { Hex } from "@nilfoundation/niljs";
-import { COLORS, HeadingMedium, ParagraphSmall } from "@nilfoundation/ui-kit";
+import { Button, COLORS, HeadingMedium, ParagraphSmall } from "@nilfoundation/ui-kit";
 import { useStore } from "effector-react";
 import { useState } from "react";
-import nilIcon from "../../../../../public/icons/currency/nil.svg";
-import { $balance, $balanceCurrency } from "../../../store/model/balance.ts";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import nilIcon from "../../../../../public/icons/token/nil.svg";
+import { WalletRoutes } from "../../../../router";
 import {
-  convertWeiToEth,
-  formatAddress,
-  getCurrencyIcon,
-  getCurrencySymbolByAddress,
-} from "../../../utils";
+  $balance,
+  $balanceToken,
+  $tokens,
+  getBalanceForToken,
+} from "../../../store/model/token.ts";
+import { convertWeiToEth, formatAddress, getCurrencies, getTokenIcon } from "../../../utils";
 import { Box, Icon } from "../../shared";
 
-export const CurrencyTab = () => {
+export const TokenTab = () => {
   const balance = useStore($balance);
-  const balanceCurrency = useStore($balanceCurrency);
+  const balanceCurrency = useStore($balanceToken);
+  const allTokens = useStore($tokens);
   const [clicked, setClicked] = useState(false);
+  const { t } = useTranslation("translation");
+  const navigate = useNavigate();
+  const availableTokens = getCurrencies(allTokens, true);
 
   const handleCopy = (address: string) => {
     navigator.clipboard.writeText(address).then(() => {
@@ -23,31 +30,29 @@ export const CurrencyTab = () => {
     });
   };
 
-  const tokens = [
-    {
-      icon: nilIcon,
-      title: "Nil",
-      subtitle: "Native token",
-      subtitleColor: COLORS.green200,
-      rightText: balance !== null ? `${convertWeiToEth(balance)} NIL` : "0 NIL",
-      rightTextColor: "gray",
-      address: "",
-    },
-    ...(balanceCurrency
-      ? Object.entries(balanceCurrency).map(([address, amount]) => {
-          const title = getCurrencySymbolByAddress(address);
-          return {
-            icon: getCurrencyIcon(title),
-            title: title,
-            subtitle: title !== "" ? "Mock token" : formatAddress(address as Hex),
-            subtitleColor: "gray",
-            rightText: `${amount.toString()} ${title}`,
-            rightTextColor: "gray",
-            address: address,
-          };
-        })
-      : []),
-  ];
+  const tokens = availableTokens.map((token) => {
+    const amount = getBalanceForToken(token.address, balance ?? 0n, balanceCurrency ?? {});
+    if (token.address === "") {
+      return {
+        icon: nilIcon,
+        title: "Nil",
+        subtitle: "Native token",
+        subtitleColor: COLORS.green200,
+        rightText: balance !== null ? `${convertWeiToEth(balance)} NIL` : "0 NIL",
+        rightTextColor: COLORS.gray50,
+        address: "",
+      };
+    }
+    return {
+      icon: getTokenIcon(token.label),
+      title: token.label,
+      subtitle: token.label !== "" ? "Mock token" : formatAddress(token.address as Hex),
+      subtitleColor: "gray",
+      rightText: `${amount.toString()} ${token.label}`,
+      rightTextColor: COLORS.gray50,
+      address: token.address,
+    };
+  });
 
   if (tokens.length === 0) {
     return (
@@ -150,6 +155,28 @@ export const CurrencyTab = () => {
           </Box>
         </Box>
       ))}
+      <Box>
+        <Button
+          onClick={() => {
+            navigate(WalletRoutes.WALLET.MANAGE_TOKENS);
+          }}
+          overrides={{
+            Root: {
+              style: {
+                width: "100%",
+                height: "48px",
+                backgroundColor: COLORS.gray800,
+                color: COLORS.gray200,
+                ":hover": {
+                  backgroundColor: COLORS.gray700,
+                },
+              },
+            },
+          }}
+        >
+          {t("wallet.manageTokens.currencyTab.button")}
+        </Button>
+      </Box>
     </Box>
   );
 };

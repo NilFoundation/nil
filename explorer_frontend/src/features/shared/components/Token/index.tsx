@@ -2,6 +2,7 @@ import type { Token } from "@nilfoundation/explorer-backend/daos/transactions";
 import { ParagraphSmall } from "@nilfoundation/ui-kit";
 import { useStyletron } from "styletron-react";
 import { addressRoute } from "../../../routing";
+import { getTokenSymbolByAddress } from "../../../tokens/utils";
 import { Link } from "../Link";
 
 export const TokenDisplay = ({ token }: { token: Token[] }) => {
@@ -23,7 +24,7 @@ export const TokenDisplay = ({ token }: { token: Token[] }) => {
         <>
           <ParagraphSmall key={token}>
             <Link to={addressRoute} params={{ address: token }}>
-              {token}
+              {getTokenSymbolByAddress(token)}
             </Link>
           </ParagraphSmall>
           <ParagraphSmall key={token + balance}>{balance}</ParagraphSmall>

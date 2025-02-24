@@ -168,11 +168,6 @@ export default {
         },
         {
           type: "doc",
-          label: "Reading and writing info",
-          id: "nilcli/reading-writing-info",
-        },
-        {
-          type: "doc",
           label: "Working with tokens",
           id: "nilcli/tokens",
         },
@@ -193,6 +188,11 @@ export default {
               id: "nilcli/calling-smart-contract",
             },
           ],
+        },
+        {
+          type: "doc",
+          label: "Error handling",
+          id: "nilcli/error-handling",
         },
       ],
     },

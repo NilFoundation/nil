@@ -15,8 +15,8 @@ import { ActivityType } from "../../background/storage";
 import { Box, Icon } from "../../features/components/shared";
 import { Header, QuickActions, ResourceTabs } from "../../features/components/wallet";
 import { $latestActivity, clearLatestActivity } from "../../features/store/model/activities.ts";
-import { refetchBalancesEvent } from "../../features/store/model/balance";
 import { $globalError } from "../../features/store/model/error.ts";
+import { refetchBalancesEvent } from "../../features/store/model/token.ts";
 import { formatAddress } from "../../features/utils";
 import { WalletRoutes } from "../../router";
 

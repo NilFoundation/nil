@@ -16,7 +16,8 @@ import (
 const subscriptionChannelSize = 100
 
 type PubSub struct {
-	impl *pubsub.PubSub
+	impl   *pubsub.PubSub
+	prefix string
 
 	mu     sync.Mutex
 	topics map[string]*pubsub.Topic
@@ -44,7 +45,7 @@ type Subscription struct {
 }
 
 // newPubSub creates a new PubSub instance. It must be closed after use.
-func newPubSub(ctx context.Context, h Host, logger zerolog.Logger) (*PubSub, error) {
+func newPubSub(ctx context.Context, h Host, conf *Config, logger zerolog.Logger) (*PubSub, error) {
 	impl, err := pubsub.NewGossipSub(ctx, h)
 	if err != nil {
 		return nil, err
@@ -61,6 +62,7 @@ func newPubSub(ctx context.Context, h Host, logger zerolog.Logger) (*PubSub, err
 	}
 
 	return &PubSub{
+		prefix:        conf.Prefix,
 		impl:          impl,
 		topics:        make(map[string]*pubsub.Topic),
 		self:          h.ID(),
@@ -85,6 +87,10 @@ func (ps *PubSub) Close() error {
 	}
 
 	return errors.Join(errs...)
+}
+
+func (ps *PubSub) withNetworkPrefix(prefix string) string {
+	return ps.prefix + prefix
 }
 
 func (ps *PubSub) Topics() []string {
@@ -165,6 +171,8 @@ func (ps *PubSub) ListPeers(topic string) []PeerID {
 }
 
 func (ps *PubSub) getTopic(topic string) (*pubsub.Topic, error) {
+	topic = ps.withNetworkPrefix(topic)
+
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 

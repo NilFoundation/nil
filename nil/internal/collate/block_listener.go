@@ -20,11 +20,11 @@ import (
 const requestTimeout = 10 * time.Second
 
 func topicShardBlocks(shardId types.ShardId) string {
-	return fmt.Sprintf("nil/shard/%s/blocks", shardId)
+	return fmt.Sprintf("/shard/%s/blocks", shardId)
 }
 
 func protocolShardBlock(shardId types.ShardId) network.ProtocolID {
-	return network.ProtocolID(fmt.Sprintf("/nil/shard/%s/block", shardId))
+	return network.ProtocolID(fmt.Sprintf("/shard/%s/block", shardId))
 }
 
 // ListPeers returns a list of peers that may support block exchange protocol.

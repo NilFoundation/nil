@@ -102,6 +102,7 @@ func GenerateConfig(t *testing.T, port int) (*Config, AddrInfo) {
 		PrivateKey: key,
 		TcpPort:    port,
 		DHTEnabled: true,
+		Prefix:     t.Name(),
 	}, AddrInfo(*address)
 }
 

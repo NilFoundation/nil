@@ -17,7 +17,7 @@ import { encodeFunctionData } from "viem";
 import { ActivityType } from "../../background/storage";
 import { Currency } from "../components/currency";
 import { addActivity } from "../store/model/activities.ts";
-import { generateRandomSalt, getTokenAddressBySymbol } from "../utils";
+import { generateRandomSalt } from "../utils";
 import { topUpSpecificCurrency } from "./faucet.ts";
 
 // Create Public Client
@@ -108,12 +108,12 @@ export async function sendCurrency({
   smartAccount,
   to,
   value,
-  tokenSymbol,
+  tokenAddress,
 }: {
   smartAccount: SmartAccountV1;
   to: Hex;
   value: number;
-  tokenSymbol: string;
+  tokenAddress: string;
 }): Promise<void> {
   let txHash: Hex | null = null;
   const feeCredit = 100_000_000_000_000n * 10n;
@@ -121,13 +121,14 @@ export async function sendCurrency({
   try {
     // Determine transaction parameters
     const transactionParams =
-      tokenSymbol === Currency.NIL
+      tokenAddress === ""
         ? getNilTransactionParams(to, value, feeCredit)
-        : getTokenTransactionParams(to, value, tokenSymbol, feeCredit);
+        : getTokenTransactionParams(to, value, tokenAddress, feeCredit);
 
     // Send transaction
+    console.log("Sending transaction with params:", transactionParams);
     txHash = await smartAccount.sendTransaction(transactionParams);
-    console.log(`Transaction sent for ${tokenSymbol}, hash: ${txHash}`);
+    console.log(`Transaction sent for ${tokenAddress}, hash: ${txHash}`);
 
     // Wait for transaction to complete
     const receipt = await waitTillCompleted(smartAccount.client, txHash);
@@ -137,12 +138,13 @@ export async function sendCurrency({
     console.log("Transaction completed:", receipt);
 
     // Log successful transaction
-    logActivity(smartAccount.address, txHash, true, value, tokenSymbol);
+    logActivity(smartAccount.address, txHash, true, value, tokenAddress);
   } catch (e) {
     if (txHash) {
-      logActivity(smartAccount.address, txHash, false, value, tokenSymbol);
+      logActivity(smartAccount.address, txHash, false, value, tokenAddress);
     }
-    throw new Error(`Failed to send ${value} ${tokenSymbol} to ${to}`);
+    console.log("Failed to send token:", e);
+    throw new Error(`Failed to send ${value} ${tokenAddress} to ${to}`);
   }
 }
 
@@ -156,12 +158,12 @@ function getNilTransactionParams(to: Hex, value: number, feeCredit: bigint) {
 }
 
 // Get transaction parameters for token transfers
-function getTokenTransactionParams(to: Hex, value: number, tokenSymbol: string, feeCredit: bigint) {
-  const tokenAddress = getTokenAddressBySymbol(tokenSymbol);
-  if (!tokenAddress) {
-    throw new Error(`Token address not found for symbol: ${tokenSymbol}`);
-  }
-
+function getTokenTransactionParams(
+  to: Hex,
+  value: number,
+  tokenAddress: string,
+  feeCredit: bigint,
+) {
   return {
     to,
     value: 0n,

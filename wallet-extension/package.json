@@ -30,7 +30,8 @@
     "styletron-engine-atomic": "^1.6.2",
     "styletron-react": "^6.1.1",
     "vite-plugin-svgr": "^4.3.0",
-    "vitest": "^1.6.0"
+    "vitest": "^1.6.0",
+    "effector-storage": "^6.1.1"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
