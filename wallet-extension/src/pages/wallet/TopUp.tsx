@@ -1,4 +1,4 @@
-import type { FaucetClient, SmartAccountV1 } from "@nilfoundation/niljs";
+import { convertEthToWei, type FaucetClient, type SmartAccountV1 } from "@nilfoundation/niljs";
 import {
   Button,
   COLORS,
@@ -91,7 +91,7 @@ export const TopUp = () => {
         selectedCurrency.label,
         finalAmount,
       );
-
+      
       navigate(WalletRoutes.WALLET.BASE);
     } catch (error) {
       console.error("Top-up failed:", error);
