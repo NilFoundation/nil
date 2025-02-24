@@ -5,7 +5,7 @@
 
 ## Overview
 
-A **Token** is any contract that extends `NilTokenBase`. We have developed a simple example of a token contract, which you can find [here](https://github.com/NilFoundation/uniswap-v2-nil/blob/main/contracts/Token.sol). This contract represents the minimal implementation needed to create a token.
+A **Token** is any contract that extends `NilTokenBase`. We have developed a simple example of a token contract, which you can find [here](https://github.com/NilFoundation/uniswap-v2-nil/blob/main/contracts/Currency.sol). This contract represents the minimal implementation needed to create a token.
 
 ```solidity
 contract Token is NilTokenBase {
