@@ -11,7 +11,7 @@ import (
 const (
 	OperationCosts       = 10_000_000 // 0.01 gwei transformed into wei
 	ProofGenerationCosts = 10_000_000 // 0.01 gwei transformed into wei
-	DefaultGasLimit      = Gas(30_000_000)
+	DefaultMaxGasInBlock = Gas(30_000_000)
 )
 
 var (

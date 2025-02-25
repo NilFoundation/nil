@@ -1,9 +1,11 @@
 package collate
 
 import (
+	"container/heap"
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
@@ -22,8 +24,8 @@ import (
 
 const (
 	defaultMaxInternalTxns               = 1000
-	defaultMaxInternalGasInBlock         = 100_000_000
-	defaultMaxGasInBlock                 = 2 * defaultMaxInternalGasInBlock
+	defaultMaxInternalGasInBlock         = types.DefaultMaxGasInBlock / 2
+	defaultMaxGasInBlock                 = types.DefaultMaxGasInBlock
 	maxTxnsFromPool                      = 1000
 	defaultMaxForwardTransactionsInBlock = 200
 )
@@ -91,13 +93,10 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 	p.executionState, err = execution.NewExecutionState(tx, p.params.ShardId, execution.StateParams{
 		Block:          block,
 		ConfigAccessor: configAccessor,
+		FeeCalculator:  p.params.FeeCalculator,
 	})
 	if err != nil {
 		return nil, err
-	}
-
-	if err = p.executionState.UpdateBaseFee(block); err != nil {
-		return nil, fmt.Errorf("failed to update gas price: %w", err)
 	}
 
 	p.logger.Trace().Msg("Collating...")
@@ -226,7 +225,7 @@ func CreateL1BlockUpdateTransaction(header *l1types.Header) (*types.Transaction,
 		TransactionDigest: types.TransactionDigest{
 			Flags:                types.NewTransactionFlags(types.TransactionFlagInternal),
 			To:                   types.L1BlockInfoAddress,
-			FeeCredit:            types.GasToValue(types.DefaultGasLimit.Uint64()),
+			FeeCredit:            types.GasToValue(types.DefaultMaxGasInBlock.Uint64()),
 			MaxFeePerGas:         types.MaxFeePerGasDefault,
 			MaxPriorityFeePerGas: types.Value0,
 			Data:                 calldata,
@@ -264,6 +263,8 @@ func (p *proposer) handleTransactionsFromPool(tx db.RoTx) error {
 	if err != nil {
 		return err
 	}
+
+	poolTxns = p.sortExternalTransactions(poolTxns)
 
 	sa := execution.NewStateAccessor()
 
@@ -431,4 +432,74 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 
 	p.proposal.CollatorState = state
 	return nil
+}
+
+type TransactionWithFee struct {
+	*types.Transaction
+	EffectivePriorityFee types.Value
+}
+
+func (p *proposer) sortExternalTransactions(poolTxns []*types.Transaction) []*types.Transaction {
+	txns := make([]*TransactionWithFee, 0, len(poolTxns))
+	for _, txn := range poolTxns {
+		if effectivePriorityFee, ok := execution.GetEffectivePriorityFee(p.executionState.BaseFee, txn); ok {
+			txns = append(txns, &TransactionWithFee{txn, effectivePriorityFee})
+		}
+	}
+
+	bySeqno := make(map[types.Address][]*TransactionWithFee)
+	for _, tx := range txns {
+		bySeqno[tx.To] = append(bySeqno[tx.To], tx)
+	}
+	for _, accTxs := range bySeqno {
+		sort.Slice(accTxs, func(i, j int) bool {
+			return accTxs[i].Seqno < accTxs[j].Seqno
+		})
+	}
+
+	byPriorityFee := make(TxByPriorityFee, 0, len(bySeqno))
+	for acc, accTxs := range bySeqno {
+		byPriorityFee = append(byPriorityFee, accTxs[0])
+		bySeqno[acc] = accTxs[1:]
+	}
+	heap.Init(&byPriorityFee)
+
+	resTxns := make([]*types.Transaction, 0, len(txns))
+	for len(byPriorityFee) > 0 {
+		best, ok := heap.Pop(&byPriorityFee).(*TransactionWithFee)
+		check.PanicIfNot(ok)
+
+		if accTxs, ok := bySeqno[best.To]; ok && len(accTxs) > 0 {
+			heap.Push(&byPriorityFee, accTxs[0])
+			bySeqno[best.To] = accTxs[1:]
+		}
+		resTxns = append(resTxns, best.Transaction)
+	}
+
+	return resTxns
+}
+
+type TxByPriorityFee []*TransactionWithFee
+
+func (s TxByPriorityFee) Len() int {
+	return len(s)
+}
+
+func (s TxByPriorityFee) Less(i, j int) bool {
+	return s[i].EffectivePriorityFee.Cmp(s[j].EffectivePriorityFee) > 0
+}
+func (s TxByPriorityFee) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+func (s *TxByPriorityFee) Push(x any) {
+	txn, ok := x.(*TransactionWithFee)
+	check.PanicIfNot(ok)
+	*s = append(*s, txn)
+}
+
+func (s *TxByPriorityFee) Pop() any {
+	old := *s
+	n := len(old)
+	x := old[n-1]
+	*s = old[0 : n-1]
+	return x
 }
