@@ -22,7 +22,7 @@ func InitRpcClient(cfg *Config, logger zerolog.Logger) {
 		cfg.RPCEndpoint,
 		logger,
 		map[string]string{
-			"User-Agent": "nil-cli/" + version.GetGitRevision(),
+			"User-Agent": "nil-cli/" + version.GetGitRevCount(),
 		},
 	)
 

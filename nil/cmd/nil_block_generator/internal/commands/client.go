@@ -79,7 +79,7 @@ func GetRpcClient(rpcEndpoint string, logger zerolog.Logger) *rpc.Client {
 		rpcEndpoint,
 		logger,
 		map[string]string{
-			"User-Agent": "nil-block-generatr-cli/" + version.GetGitRevision(),
+			"User-Agent": "nil-block-generatr-cli/" + version.GetGitRevCount(),
 		},
 	)
 }

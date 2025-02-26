@@ -54,7 +54,7 @@ func processRun(cfg *config) error {
 		cfg.cometaCfg.NodeEndpoint,
 		zerolog.Nop(),
 		map[string]string{
-			"User-Agent": "cometa/" + version.GetGitRevision(),
+			"User-Agent": "cometa/" + version.GetGitRevCount(),
 		},
 	)
 	ctx := context.Background()

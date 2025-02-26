@@ -46,7 +46,7 @@ func (c *Client) sendRequest(method string, params []any) (json.RawMessage, erro
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "nilloadgen/"+version.GetGitRevision())
+	req.Header.Set("User-Agent", "nilloadgen/"+version.GetGitRevCount())
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
