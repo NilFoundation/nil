@@ -56,6 +56,22 @@ const numberToHex = (num: number | bigint): Hex => {
 };
 
 /**
+ * Converts a base64 string to a hex string.
+ * @param base64 - base64 string
+ * @returns hex string
+ */
+const base64ToHex = (base64: string): Hex => {
+  const binaryString =
+    typeof atob === "function" ? atob(base64) : Buffer.from(base64, "base64").toString("binary");
+
+  return addHexPrefix(
+    Array.from(binaryString)
+      .map((char) => char.charCodeAt(0).toString(16).padStart(2, "0"))
+      .join(""),
+  );
+};
+
+/**
  * Converts a string, number, bigint, boolean, or ByteArrayType to a hex string.
  * @param value The input to convert.
  * @returns The hex string representation of the input.
@@ -78,4 +94,4 @@ const toHex = <T extends string | Uint8Array | boolean | bigint | number>(value:
   return addHexPrefix((value ? 1 : 0).toString(16));
 };
 
-export { toHex };
+export { toHex, base64ToHex };
