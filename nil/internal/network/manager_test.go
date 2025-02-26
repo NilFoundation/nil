@@ -3,8 +3,11 @@ package network
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/network/connection_manager"
+	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -105,6 +108,55 @@ func (s *ManagerSuite) TestReqResp() {
 		resp, err := m1.SendRequestAndGetResponse(s.context, m2.host.ID(), protocol, request)
 		s.Require().NoError(err)
 		s.Equal(response, resp)
+	})
+}
+
+func (s *ManagerSuite) TestPeerReport() {
+	clock := clockwork.NewFakeClock()
+	config := NewDefaultConfig()
+	config.ConnectionManagerConfig.ReputationBanThreshold = config.ConnectionManagerConfig.ReputationChangeSettings[connection_manager.ReputationChangeInvalidBlockSignature] / 2
+	config.ConnectionManagerConfig.DecayReputationPerSecondPercent = connection_manager.CalculateDecayPercent(3, 0.5)
+	connection_manager.SetClock(config.ConnectionManagerConfig, clock)
+	m1 := s.newManagerWithBaseConfig(config)
+
+	defer m1.Close()
+	m2 := s.newManager()
+	defer m2.Close()
+
+	peerReporter := TryGetPeerReputationTracker(m1)
+	s.Require().NotNil(peerReporter)
+
+	s.Run("Connect", func() {
+		s.Require().Len(m1.host.Peerstore().Peers(), 1)
+		s.Require().Empty(m1.host.Network().Peers())
+
+		ConnectManagers(s.T(), m1, m2)
+
+		s.Require().Len(m1.host.Peerstore().Peers(), 2)
+		s.Require().Len(m1.host.Network().Peers(), 1)
+	})
+
+	s.Run("Report peer", func() {
+		peerReporter.ReportPeer(m2.host.ID(), connection_manager.ReputationChangeInvalidBlockSignature)
+
+		s.Require().Len(m1.host.Peerstore().Peers(), 2)
+		s.Require().Empty(m1.host.Network().Peers())
+	})
+
+	s.Run("Attempt to connect to banned peer", func() {
+		clock.Advance(2 * time.Second)
+
+		ConnectManagers(s.T(), m1, m2)
+		s.Require().Len(m1.host.Peerstore().Peers(), 2)
+		s.Require().Empty(m1.host.Network().Peers())
+	})
+
+	s.Run("Attempt to connect to peer after reputation is restored", func() {
+		clock.Advance(2 * time.Second)
+
+		ConnectManagers(s.T(), m1, m2)
+		s.Require().Len(m1.host.Peerstore().Peers(), 2)
+		s.Require().Len(m1.host.Network().Peers(), 1)
 	})
 }
 

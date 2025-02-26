@@ -49,7 +49,7 @@ pb: pb_rawapi pb_ibft pb_synccommittee
 
 SOL_FILES := $(wildcard nil/contracts/solidity/tests/*.sol nil/contracts/solidity/*.sol)
 BIN_FILES := $(patsubst nil/contracts/solidity/%.sol, contracts/compiled/%.bin, $(SOL_FILES))
-CHECK_LOCKS_DIRECTORIES := ./nil/internal/network
+CHECK_LOCKS_DIRECTORIES := ./nil/internal/network ./nil/internal/network/connection_manager
 # TODO: Uncomment the line below when all checks have passed to run checklocks across all directories
 # CHECK_LOCKS_DIRECTORIES := $(shell find ./nil -type f -name "*.go" | xargs -I {} dirname {} | sort -u)
 
