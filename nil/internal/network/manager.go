@@ -6,8 +6,6 @@ import (
 	"strings"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/network/internal"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -52,11 +50,7 @@ func connectToDhtBootstrapPeers(ctx context.Context, conf *Config, h Host, logge
 	connectToPeers(ctx, conf.DHTBootstrapPeers, h, logger)
 }
 
-func newManagerFromHost(ctx context.Context, conf *Config, h host.Host) (*Manager, error) {
-	logger := internal.Logger.With().
-		Stringer(logging.FieldP2PIdentity, h.ID()).
-		Logger()
-
+func newManagerFromHost(ctx context.Context, conf *Config, h host.Host, logger zerolog.Logger) (*Manager, error) {
 	logger.Info().Msgf("Listening on addresses:\n%s\n", common.Join("\n", h.Addrs()...))
 
 	connectToDhtBootstrapPeers(ctx, conf, h, logger)
@@ -95,19 +89,19 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 		return nil, ErrPrivateKeyMissing
 	}
 
-	h, err := newHost(ctx, conf)
+	h, logger, err := newHost(ctx, conf)
 	if err != nil {
 		return nil, err
 	}
-	return newManagerFromHost(ctx, conf, h)
+	return newManagerFromHost(ctx, conf, h, logger)
 }
 
 func NewClientManager(ctx context.Context, conf *Config) (*Manager, error) {
-	h, err := newClient(ctx, conf)
+	h, logger, err := newClient(ctx, conf)
 	if err != nil {
 		return nil, err
 	}
-	return newManagerFromHost(ctx, conf, h)
+	return newManagerFromHost(ctx, conf, h, logger)
 }
 
 func (m *Manager) PubSub() *PubSub {

@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/stretchr/testify/suite"
@@ -106,6 +107,38 @@ func (s *ManagerSuite) TestReqResp() {
 		s.Require().NoError(err)
 		s.Equal(response, resp)
 	})
+}
+
+func (s *ManagerSuite) TestPeerReport() {
+	m1 := s.newManagerWithBaseConfig(
+		&Config{
+			ConnectionManagerConfig: ConnectionManagerConfig{
+				PeerBanTimeout: 2 * time.Second,
+			},
+		})
+	defer m1.Close()
+	m2 := s.newManager()
+	defer m2.Close()
+
+	s.Require().Len(m1.host.Peerstore().Peers(), 1)
+	s.Require().Empty(m1.host.Network().Peers())
+
+	peerReporter := TryGetPeerReputationTracker(m1.host)
+	s.Require().NotNil(peerReporter)
+
+	peerReporter.ReportPeer(m2.host.ID())
+
+	ConnectManagers(s.T(), m1, m2)
+
+	s.Require().Len(m1.host.Peerstore().Peers(), 2)
+	s.Require().Empty(m1.host.Network().Peers())
+
+	time.Sleep(5 * time.Second)
+
+	ConnectManagers(s.T(), m1, m2)
+
+	s.Require().Len(m1.host.Peerstore().Peers(), 2)
+	s.Require().Len(m1.host.Network().Peers(), 1)
 }
 
 func TestManager(t *testing.T) {
