@@ -5,6 +5,7 @@ import { blockDetailsRoute, blockRoute } from "./blockRoute";
 import { explorerRoute } from "./explorerRoute";
 import { playgroundRoute, playgroundWithHashRoute } from "./playgroundRoute";
 import { transactionRoute } from "./transactionRoute";
+import { tutorialWithStageRoute } from "./tutorialRoute";
 
 export const notFoundRoute = createRoute();
 
@@ -40,6 +41,10 @@ export const routes = [
   {
     path: "/playground/:snippetHash",
     route: playgroundWithHashRoute,
+  },
+  {
+    path: "/tutorial/:stage",
+    route: tutorialWithStageRoute,
   },
 ];
 

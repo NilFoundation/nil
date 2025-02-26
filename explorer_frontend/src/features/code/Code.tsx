@@ -8,6 +8,10 @@ import {
   compile,
   compileCodeFx,
   fetchCodeSnippetFx,
+  isTutorialPage,
+  userClickOnContractsButton,
+  userClickOnLogButton,
+  userClickOnTutorialButton,
 } from "./model";
 import "./init";
 import { type Diagnostic, linter } from "@codemirror/lint";
@@ -15,7 +19,6 @@ import type { EditorView } from "@codemirror/view";
 import { useStyletron } from "baseui";
 import { expandProperty } from "inline-style-expand-shorthand";
 import { memo, useMemo } from "react";
-import { LayoutComponent, setActiveComponent } from "../../pages/playground/model";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import { getMobileStyles } from "../../styleHelpers";
 import { useMobile } from "../shared";
@@ -27,14 +30,16 @@ const MemoizedCodeToolbar = memo(CodeToolbar);
 
 export const Code = () => {
   const [isMobile] = useMobile();
-  const [code, isDownloading, errors, fetchingCodeSnippet, compiling, warnings] = useUnit([
-    $code,
-    fetchSolidityCompiler.pending,
-    $error,
-    fetchCodeSnippetFx.pending,
-    compileCodeFx.pending,
-    $warnings,
-  ]);
+  const [code, isDownloading, errors, fetchingCodeSnippet, compiling, warnings, isTutorial] =
+    useUnit([
+      $code,
+      fetchSolidityCompiler.pending,
+      $error,
+      fetchCodeSnippetFx.pending,
+      compileCodeFx.pending,
+      $warnings,
+      isTutorialPage,
+    ]);
   const [css] = useStyletron();
 
   const codemirrorExtensions = useMemo(() => {
@@ -65,6 +70,7 @@ export const Code = () => {
 
   const noCode = code.trim().length === 0;
   const btnContent = useCompileButton();
+  console.log(isTutorial);
 
   return (
     <Card
@@ -78,7 +84,7 @@ export const Code = () => {
             height: "100%",
             ...getMobileStyles({
               width: "calc(100vw - 32px)",
-              height: "calc(100vh - 96px)",
+              height: "auto",
             }),
           },
         },
@@ -89,7 +95,7 @@ export const Code = () => {
             position: "relative",
             height: "100%",
             marginBottom: 0,
-            paddinBottom: "16px",
+            paddingBottom: "16px",
             ...getMobileStyles({
               gap: "8px",
             }),
@@ -229,7 +235,9 @@ export const Code = () => {
               }}
               kind={BUTTON_KIND.secondary}
               size={BUTTON_SIZE.large}
-              onClick={() => setActiveComponent(LayoutComponent.Logs)}
+              onClick={() => {
+                userClickOnLogButton();
+              }}
             >
               Logs
             </Button>
@@ -243,10 +251,31 @@ export const Code = () => {
               }}
               kind={BUTTON_KIND.secondary}
               size={BUTTON_SIZE.large}
-              onClick={() => setActiveComponent(LayoutComponent.Contracts)}
+              onClick={() => {
+                userClickOnContractsButton();
+              }}
             >
               Contracts
             </Button>
+            {isTutorial && (
+              <Button
+                overrides={{
+                  Root: {
+                    style: {
+                      gridColumn: "1 / 3",
+                      lineHeight: "12px",
+                    },
+                  },
+                }}
+                kind={BUTTON_KIND.secondary}
+                size={BUTTON_SIZE.large}
+                onClick={() => {
+                  userClickOnTutorialButton();
+                }}
+              >
+                Tutorial
+              </Button>
+            )}
           </div>
         )}
       </div>

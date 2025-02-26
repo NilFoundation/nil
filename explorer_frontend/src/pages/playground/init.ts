@@ -1,7 +1,14 @@
 import { persist } from "effector-storage/session";
-import { $activeComponent, setActiveComponent } from "./model";
+import {
+  userClickOnBackButton,
+  userClickOnContractsButton,
+  userClickOnLogButton,
+} from "../../features/code/model";
+import { $activeComponent, LayoutComponent } from "./model";
 
-$activeComponent.on(setActiveComponent, (_, payload) => payload);
+$activeComponent.on(userClickOnLogButton, (_) => LayoutComponent.Logs);
+$activeComponent.on(userClickOnContractsButton, (_) => LayoutComponent.Contracts);
+$activeComponent.on(userClickOnBackButton, (_) => LayoutComponent.Code);
 
 persist({
   store: $activeComponent,

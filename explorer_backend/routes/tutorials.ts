@@ -10,6 +10,7 @@ export const tutorialRouter = router({
         id: z.string(),
         text: z.string(),
         contracts: z.string(),
+        stage: z.string(),
       }),
     )
     .query(async (opts) => {
@@ -18,8 +19,10 @@ export const tutorialRouter = router({
         throw new Error("Tutorial not found");
       }
       return {
+        id: tutorial.id.toString(),
         text: tutorial.text,
         contracts: tutorial.contracts,
+        stage: tutorial.stage.toString(),
       };
     }),
   getAll: publicProcedure

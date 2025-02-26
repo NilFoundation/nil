@@ -5,6 +5,7 @@ import { persist } from "effector-storage/local";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import type { App } from "../../types";
 import { playgroundRoute, playgroundWithHashRoute } from "../routing/routes/playgroundRoute";
+import { tutorialWithStageRoute } from "../routing/routes/tutorialRoute";
 import { getRuntimeConfigOrThrow } from "../runtime-config";
 import {
   $code,
@@ -20,7 +21,9 @@ import {
   compileCodeFx,
   fetchCodeSnippetEvent,
   fetchCodeSnippetFx,
-  loadedPlaygroundPage,
+  fetchTutorialEvent,
+  fetchTutorialFx,
+  loadedTutorialPage,
   setCodeSnippetEvent,
   setCodeSnippetFx,
   updateRecentProjects,
@@ -178,14 +181,29 @@ sample({
 });
 
 sample({
-  clock: fetchCodeSnippetFx.doneData,
+  clock: loadedTutorialPage,
+  source: tutorialWithStageRoute.$params,
+  fn: (params) => params.stage,
+  filter: (stage) => stage !== undefined,
+  target: fetchTutorialFx,
+});
+
+sample({
+  clock: fetchTutorialEvent,
+  source: fetchTutorialEvent,
+  fn: (tutorial) => tutorial.stage.toString(),
+  target: fetchTutorialFx,
+});
+
+sample({
+  clock: fetchTutorialFx.doneData,
+  fn: (tutorial) => tutorial.contracts,
   target: changeCode,
 });
 
 sample({
-  clock: loadedPlaygroundPage,
-  filter: $code.map((code) => !(code.trim().length === 0)),
-  target: compile,
+  clock: fetchCodeSnippetFx.doneData,
+  target: changeCode,
 });
 
 $codeSnippetHash.on(fetchCodeSnippetFx.doneData, () => null);
