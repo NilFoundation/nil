@@ -34,6 +34,22 @@ jobs:
       - name: golangci-lint
         run: nix develop -c golangci-lint run
 
+      - name: Find directories with .go files
+        id: find-go-dirs
+        # TODO: change DIRS to $(find ./nil -type f -name "*.go" | xargs -I {} dirname {} | sort -u) when all checks have passed
+        run: |
+          DIRS=(./nil/internal/network)
+          echo "Found directories:"
+          echo "$DIRS"
+          echo "dirs=$DIRS" >> $GITHUB_OUTPUT
+
+      - name: Run checklocks
+        run: |
+          for dir in ${{ steps.find-go-dirs.outputs.dirs }}; do
+            echo "  >> Checking locks correctness in $dir"
+            nix develop -c sh -c "GOFLAGS=\"\$GOFLAGS -tags=test\" go run gvisor.dev/gvisor/tools/checklocks/cmd/checklocks $dir"
+          done
+
       - name: build
         run: nix build -L
 
