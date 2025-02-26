@@ -33,6 +33,7 @@ type InternalTxnReference struct {
 type Proposal struct {
 	PrevBlockId   types.BlockNumber   `json:"prevBlockId"`
 	PrevBlockHash common.Hash         `json:"prevBlockHash"`
+	PatchLevel    uint32              `json:"patchLevel"`
 	CollatorState types.CollatorState `json:"collatorState"`
 	MainChainHash common.Hash         `json:"mainChainHash"`
 	ShardHashes   []common.Hash       `json:"shardHashes"`
@@ -45,6 +46,7 @@ type Proposal struct {
 type ProposalSSZ struct {
 	PrevBlockId   types.BlockNumber
 	PrevBlockHash common.Hash
+	PatchLevel    uint32
 	CollatorState types.CollatorState
 	MainChainHash common.Hash
 	ShardHashes   []common.Hash `ssz-max:"4096"`

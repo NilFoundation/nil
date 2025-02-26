@@ -62,6 +62,7 @@ func CreateDefaultZeroStateConfig(mainPublicKey []byte) (*ZeroStateConfig, error
 			{Name: "BtcFaucet", Contract: "FaucetToken", Address: types.BtcFaucetAddress, Value: tokenValue},
 			{Name: "UsdcFaucet", Contract: "FaucetToken", Address: types.UsdcFaucetAddress, Value: tokenValue},
 			{Name: "L1BlockInfo", Contract: "system/L1BlockInfo", Address: types.L1BlockInfoAddress, Value: types.Value0},
+			{Name: "Governance", Contract: "system/Governance", Address: types.GovernanceAddress, Value: smartAccountValue, CtorArgs: []any{hexutil.Encode(mainPublicKey)}},
 		},
 	}
 	return zeroStateConfig, nil

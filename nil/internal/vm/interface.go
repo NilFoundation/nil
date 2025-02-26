@@ -105,6 +105,8 @@ type StateDB interface {
 	SaveVmState(state *types.EvmState, continuationGasCredit types.Gas) error
 
 	GetConfigAccessor() config.ConfigAccessor
+
+	Rollback(counter, patchLevel uint32, mainBlock uint64) error
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

@@ -2,7 +2,6 @@
 package main
 
 import (
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"os"
@@ -131,25 +130,13 @@ func (devnet devnet) generateZeroState(nShards uint32, servers []server) (*execu
 			})
 		}
 	}
+
 	mainKeyPath := devnet.spec.NildCredentialsDir + "/keys.yaml"
-	mainPrivateKey, err := execution.LoadMainKeys(mainKeyPath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	mainPublicKey, err := ensurePublicKey(mainKeyPath)
+	if err != nil {
 		return nil, err
 	}
-	var mainPublicKey []byte
-	if err != nil {
-		var mainPrivateKey *ecdsa.PrivateKey
 
-		mainPrivateKey, mainPublicKey, err = nilcrypto.GenerateKeyPair()
-		if err != nil {
-			return nil, err
-		}
-		if err := execution.DumpMainKeys(mainKeyPath, mainPrivateKey); err != nil {
-			return nil, err
-		}
-	} else {
-		mainPublicKey = crypto.CompressPubkey(&mainPrivateKey.PublicKey)
-	}
 	zeroState, err := execution.CreateDefaultZeroStateConfig(mainPublicKey)
 	if err != nil {
 		return nil, err
@@ -157,6 +144,27 @@ func (devnet devnet) generateZeroState(nShards uint32, servers []server) (*execu
 	zeroState.ConfigParams.Validators = config.ParamValidators{Validators: validators}
 
 	return zeroState, nil
+}
+
+func ensurePublicKey(keyPath string) ([]byte, error) {
+	privateKey, err := execution.LoadMainKeys(keyPath)
+	if err == nil {
+		publicKey := crypto.CompressPubkey(&privateKey.PublicKey)
+		return publicKey, nil
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		// if the file exists but is invalid, return the error
+		return nil, err
+	}
+
+	privateKey, publicKey, err := nilcrypto.GenerateKeyPair()
+	if err != nil {
+		return nil, err
+	}
+	if err := execution.DumpMainKeys(keyPath, privateKey); err != nil {
+		return nil, err
+	}
+	return publicKey, nil
 }
 
 func genDevnet(cmd *cobra.Command, args []string) error {

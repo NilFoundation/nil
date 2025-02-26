@@ -46,6 +46,15 @@ func init() {
 	}
 }
 
+type RollbackParams struct {
+	Version     uint32
+	Counter     uint32
+	PatchLevel  uint32
+	MainBlockId uint64
+	ReplayDepth uint32
+	SearchDepth uint32
+}
+
 type ExecutionState struct {
 	tx                 db.RwTx
 	ContractTree       *ContractTrie
@@ -58,6 +67,7 @@ type ExecutionState struct {
 	ChildChainBlocks   map[types.ShardId]common.Hash
 	GasPrice           types.Value // Current gas price including priority fee
 	BaseFee            types.Value
+	PatchLevel         uint32
 
 	InTransactionHash common.Hash
 	Logs              map[common.Hash][]*types.Log
@@ -109,6 +119,8 @@ type ExecutionState struct {
 	isReadOnly bool
 
 	FeeCalculator FeeCalculator
+
+	rollback *RollbackParams
 }
 
 type ExecutionResult struct {
@@ -1414,6 +1426,7 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 			BaseFee:             es.BaseFee,
 			GasUsed:             es.GasUsed,
 			L1BlockNumber:       l1BlockNumber,
+			PatchLevel:          es.PatchLevel,
 			// TODO(@klonD90): remove this field after changing explorer
 			Timestamp: 0,
 		},
@@ -1699,6 +1712,19 @@ func (es *ExecutionState) GetGasPrice(shardId types.ShardId) (types.Value, error
 		return types.Value{}, err
 	}
 	return types.Value{Uint256: &prices.Shards[shardId]}, nil
+}
+
+func (es *ExecutionState) Rollback(counter, patchLevel uint32, mainBlock uint64) error {
+	es.rollback = &RollbackParams{
+		Counter:     counter,
+		PatchLevel:  patchLevel,
+		MainBlockId: mainBlock,
+	}
+	return nil
+}
+
+func (es *ExecutionState) GetRollback() *RollbackParams {
+	return es.rollback
 }
 
 func (es *ExecutionState) SetTokenTransfer(tokens []types.TokenBalance) {

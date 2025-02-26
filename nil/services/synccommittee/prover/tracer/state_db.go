@@ -667,6 +667,10 @@ func (tsdb *TracerStateDB) Selfdestruct6780(types.Address) error {
 	return errors.New("not implemented")
 }
 
+func (tsdb *TracerStateDB) Rollback(_, _ uint32, _ uint64) error {
+	return errors.New("not implemented")
+}
+
 // Exist reports whether the given account exists in state.
 // Notably this should also return true for self-destructed accounts.
 func (tsdb *TracerStateDB) Exists(address types.Address) (bool, error) {

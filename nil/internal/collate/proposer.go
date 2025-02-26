@@ -26,6 +26,8 @@ const (
 	defaultMaxGasInBlock                 = types.DefaultMaxGasInBlock
 	maxTxnsFromPool                      = 1000
 	defaultMaxForwardTransactionsInBlock = 200
+
+	validatorPatchLevel = 1
 )
 
 type proposer struct {
@@ -77,6 +79,10 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 		return nil, fmt.Errorf("failed to fetch previous block: %w", err)
 	}
 
+	if block.PatchLevel > validatorPatchLevel {
+		return nil, fmt.Errorf("block patch level %d is higher than supported %d", block.PatchLevel, validatorPatchLevel)
+	}
+
 	configAccessor, err := config.NewConfigAccessorFromBlockWithTx(tx, block, p.params.ShardId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create config accessor: %w", err)
@@ -108,6 +114,11 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 
 	if err := p.handleTransactionsFromPool(tx); err != nil {
 		return nil, fmt.Errorf("failed to handle transactions from pool: %w", err)
+	}
+
+	if rollback := p.executionState.GetRollback(); rollback != nil {
+		// TODO: verify mainBlockId, actually perform rollback
+		p.proposal.PatchLevel = rollback.PatchLevel
 	}
 
 	if len(p.proposal.InternalTxnRefs) == 0 && len(p.proposal.ExternalTxns) == 0 && len(p.proposal.ForwardTxnRefs) == 0 {
@@ -193,6 +204,24 @@ func (p *proposer) handleL1Attributes(tx db.RoTx) error {
 	p.proposal.SpecialTxns = append(p.proposal.SpecialTxns, txn)
 
 	return nil
+}
+
+func CreateRollbackCalldata(params *execution.RollbackParams) ([]byte, error) {
+	abi, err := contracts.GetAbi(contracts.NameGovernance)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Governance ABI: %w", err)
+	}
+	calldata, err := abi.Pack("rollback",
+		params.Version,
+		params.Counter,
+		params.PatchLevel,
+		params.MainBlockId,
+		params.ReplayDepth,
+		params.SearchDepth)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack rollback calldata: %w", err)
+	}
+	return calldata, nil
 }
 
 func CreateL1BlockUpdateTransaction(header *l1types.Header) (*types.Transaction, error) {

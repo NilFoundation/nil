@@ -29,6 +29,7 @@ library Nil {
     address private constant SEND_REQUEST = address(0xd8);
     address public constant IS_RESPONSE_TRANSACTION = address(0xd9);
     address public constant LOG = address(0xda);
+    address public constant GOVERNANCE = address(0xdb);
 
     // The following constants specify from where and how the gas should be taken during async call.
     // Forwarding values are calculated in the following order: FORWARD_VALUE, FORWARD_PERCENTAGE, FORWARD_REMAINING.
@@ -374,6 +375,22 @@ library Nil {
     }
 
     /**
+     * @dev Initiates a rollback
+     *
+     * Unused parameters are temporarily commented out.
+     */
+    function rollback(
+        uint32 version,
+        uint32 counter,
+        uint32 patchLevel,
+        uint64 mainBlockId /*,
+        uint32 replayDepth,
+        uint32 searchDepth */
+    ) internal {
+        __Precompile__(GOVERNANCE).precompileRollback(version, counter, patchLevel, mainBlockId /*, replayDepth, searchDepth */);
+    }
+
+    /**
      * @dev Sets a configuration parameter.
      * @param name Name of the parameter.
      * @param data Data of the parameter.
@@ -508,6 +525,7 @@ contract __Precompile__ {
     function precompileGetPoseidonHash(bytes memory data) public returns(uint256) {}
     function precompileConfigParam(bool isSet, string calldata name, bytes calldata data) public returns(bytes memory) {}
     function precompileLog(string memory transaction, int[] memory data) public returns(bool) {}
+    function precompileRollback(uint32, uint32, uint32, uint64 /*, uint32, uint32*/) public returns(bool) {}
 }
 
 contract NilConfigAbi {
