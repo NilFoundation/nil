@@ -1,0 +1,37 @@
+{
+  "networks": {
+    "anvil": {
+      "nilRollupImplementation": "",
+      "nilRollupProxy": "",
+      "nilVerifier": "",
+      "proxyAdminAddress": "",
+      "nilRollupOwnerAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
+      "defaultAdminAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
+      "proposerAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
+      "l2ChainId": 0,
+      "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
+    },
+    "geth": {
+      "nilRollupImplementation": "0x4826533B4897376654Bb4d4AD88B7faFD0C98528",
+      "nilRollupProxy": "0x99bbA657f2BbC93c02D617f8bA121cB8Fc104Acf",
+      "nilVerifier": "0x70e0bA845a1A0F2DA3359C97E0285013525FFC49",
+      "proxyAdminAddress": "0x3E69aeCb6a5abAc2D87d6707649E2fB0173ee2Da",
+      "nilRollupOwnerAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "defaultAdminAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "proposerAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "l2ChainId": 0,
+      "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
+    },
+    "sepolia": {
+      "nilRollupImplementation": "0x6AfE0EddC0Ab62a4b6E0F5c49D4478d4ee337b0F",
+      "nilRollupProxy": "0xd353336c43f19f905a8dc84Ac58C1b014b48f742",
+      "nilVerifier": "0xC7bCc6758481a6b23Fa0321634C9Bfd89fC432fc",
+      "proxyAdminAddress": "0x901db1c178EBe345b8E298cD1fE366c5Ef373442",
+      "nilRollupOwnerAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
+      "defaultAdminAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
+      "proposerAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
+      "l2ChainId": 0,
+      "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
+    }
+  }
+}

@@ -12,7 +12,8 @@
     "uniswap",
     "clijs",
     "wallet-extension",
-    "docs_ai_backend"
+    "docs_ai_backend",
+    "rollup-bridge-contracts"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
