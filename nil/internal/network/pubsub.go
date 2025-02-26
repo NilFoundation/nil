@@ -16,11 +16,11 @@ import (
 const subscriptionChannelSize = 100
 
 type PubSub struct {
-	impl   *pubsub.PubSub
+	impl   *pubsub.PubSub // +checklocksignore: mu is not required, it just happens to be held always.
 	prefix string
 
 	mu     sync.Mutex
-	topics map[string]*pubsub.Topic
+	topics map[string]*pubsub.Topic // +checklocks:mu
 	self   PeerID
 
 	meter         telemetry.Meter
